@@ -22,6 +22,7 @@
 //#import <Bugly/Bugly.h>
 
 #import "KRConvertUtil.h"
+#import "UINavigationController+FDFullscreenPopGesture.h"
 
 
 @interface Delegator  : NSObject<KRControllerDelegatorLifeCycleProtocol>
@@ -128,6 +129,7 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     
+    self.fd_prefersNavigationBarHidden = YES;
     self.view.backgroundColor = [UIColor whiteColor];
     [_delegator viewDidLoadWithView:self.view];
     [self.navigationController setNavigationBarHidden:YES animated:NO];

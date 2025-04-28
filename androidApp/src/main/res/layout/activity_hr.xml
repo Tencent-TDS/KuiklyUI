@@ -10,11 +10,13 @@
 
     <View
         android:id="@+id/hr_loading"
+        android:visibility="gone"
         android:layout_width="match_parent"
         android:layout_height="match_parent"/>
 
     <View
         android:id="@+id/hr_error"
+        android:visibility="gone"
         android:layout_width="match_parent"
         android:layout_height="match_parent"/>
 

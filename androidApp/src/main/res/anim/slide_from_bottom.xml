@@ -1,7 +1,0 @@
-<!-- res/anim/slide_in_from_bottom.xml -->
-<set xmlns:android="http://schemas.android.com/apk/res/android">
-    <translate
-        android:fromYDelta="100%p"
-        android:toYDelta="0"
-        android:duration="200"/>
-</set>

@@ -17,7 +17,6 @@ package com.tencent.kuikly.android.demo.adapter
 
 import android.app.Activity
 import android.content.Context
-import android.os.Bundle
 import com.tencent.kuikly.android.demo.KuiklyRenderActivity
 import com.tencent.kuikly.android.demo.NativeMixKuiklyViewDemoActivity
 import com.tencent.kuikly.core.render.android.adapter.IKRRouterAdapter

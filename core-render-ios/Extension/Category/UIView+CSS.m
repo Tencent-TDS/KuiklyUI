@@ -612,10 +612,13 @@
         @(UIGestureRecognizerStateChanged): @"move",
     };
     CGPoint location = [sender locationInView:self];
+    CGPoint pageLocation = [sender locationInView:self.window];
     NSDictionary *param = @{
         @"state": config[@(sender.state)] ? : @"end",
         @"x": @(location.x),
-        @"y": @(location.y)
+        @"y": @(location.y),
+        @"pageX": @(pageLocation.x),
+        @"pageY": @(pageLocation.y),
     };
     if (self.css_longPress) {
         self.css_longPress(param);

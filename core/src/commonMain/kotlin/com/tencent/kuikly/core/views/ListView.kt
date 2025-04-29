@@ -15,10 +15,18 @@
 
 package com.tencent.kuikly.core.views
 
-import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.base.DeclarativeBaseView
+import com.tencent.kuikly.core.base.Size
+import com.tencent.kuikly.core.base.ViewConst
+import com.tencent.kuikly.core.base.ViewContainer
+import com.tencent.kuikly.core.base.domChildren
 import com.tencent.kuikly.core.base.event.Event
-import com.tencent.kuikly.core.layout.*
-import com.tencent.kuikly.core.pager.IPagerLayoutEventObserver
+import com.tencent.kuikly.core.layout.FlexDirection
+import com.tencent.kuikly.core.layout.FlexNode
+import com.tencent.kuikly.core.layout.FlexPositionType
+import com.tencent.kuikly.core.layout.Frame
+import com.tencent.kuikly.core.layout.StyleSpace
+import com.tencent.kuikly.core.layout.undefined
 import com.tencent.kuikly.core.pager.Pager
 import kotlin.math.max
 
@@ -249,8 +257,6 @@ open class ListContentView : ScrollerContentView() {
             flexNode.onlyAddChild(subFlexNode) // 绝对布局节点需要不参与分批加载
         }
     }
-
-
 
     protected fun needLayoutChildren(): List<DeclarativeBaseView<*, *>> {
         return domChildren().filterNot {

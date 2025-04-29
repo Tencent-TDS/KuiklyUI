@@ -18,8 +18,6 @@ package com.tencent.kuikly.core.base
 import com.tencent.kuikly.core.collection.fastLinkedMapOf
 import com.tencent.kuikly.core.collection.toFastMap
 import com.tencent.kuikly.core.layout.Frame
-import com.tencent.kuikly.core.manager.PagerManager
-import com.tencent.kuikly.core.pager.IPager
 import com.tencent.kuikly.core.pager.PageData
 import com.tencent.kuikly.core.reactive.ReactiveObserver
 
@@ -112,5 +110,3 @@ abstract class Props : BaseObject(), IPagerId {
         return null
     }
 }
-
-

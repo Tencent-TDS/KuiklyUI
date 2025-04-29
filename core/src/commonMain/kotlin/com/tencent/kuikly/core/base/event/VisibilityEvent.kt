@@ -347,5 +347,3 @@ private fun Event.getVisibilityPlugin(): IEvent {
     }
     return plugin
 }
-
-

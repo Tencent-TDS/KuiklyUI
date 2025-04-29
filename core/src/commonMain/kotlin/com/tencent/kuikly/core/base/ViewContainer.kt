@@ -21,21 +21,19 @@ import com.tencent.kuikly.core.base.attr.IEventCaptureAttr
 import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.collection.fastArrayListOf
 import com.tencent.kuikly.core.collection.toFastList
+import com.tencent.kuikly.core.layout.FlexAlign
+import com.tencent.kuikly.core.layout.FlexDirection
+import com.tencent.kuikly.core.layout.FlexJustifyContent
+import com.tencent.kuikly.core.layout.FlexWrap
 import com.tencent.kuikly.core.layout.Frame
+import com.tencent.kuikly.core.layout.LayoutImpl.isMeasureDefined
 import com.tencent.kuikly.core.layout.StyleSpace
 import com.tencent.kuikly.core.layout.undefined
 import com.tencent.kuikly.core.layout.valueEquals
-import com.tencent.kuikly.core.layout.FlexDirection
-import com.tencent.kuikly.core.layout.FlexWrap
-import com.tencent.kuikly.core.layout.FlexJustifyContent
-import com.tencent.kuikly.core.layout.FlexAlign
-import com.tencent.kuikly.core.layout.LayoutImpl.isMeasureDefined
 import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
-import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.views.RichTextView
 import com.tencent.kuikly.core.views.ScrollerContentView
 import com.tencent.kuikly.core.views.TextView
-
 
 abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView<A, E>() {
 
@@ -43,7 +41,6 @@ abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView
     private var lastFrame = Frame(0f, 0f, 0f, 0f)
     private var didCreateFlexNode = false
     private var createRenderViewing = false
-
 
     open fun <T : DeclarativeBaseView<*, *>> addChild(child: T, init: T.() -> Unit) {
         addChild(child, init, children.size)
@@ -114,8 +111,6 @@ abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView
         }
         return null
     }
-
-
 
     private fun renderViews(subView: DeclarativeBaseView<*, *>): List<DeclarativeBaseView<*, *>> {
         val list = fastArrayListOf<DeclarativeBaseView<*, *>>()
@@ -207,7 +202,6 @@ abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView
             index++
         }
     }
-
 
     override fun removeFlexNode() {
         super.removeFlexNode()

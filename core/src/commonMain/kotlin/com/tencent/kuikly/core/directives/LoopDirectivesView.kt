@@ -15,7 +15,10 @@
 
 package com.tencent.kuikly.core.directives
 
-import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.base.DeclarativeBaseView
+import com.tencent.kuikly.core.base.ViewContainer
+import com.tencent.kuikly.core.base.domChildren
+import com.tencent.kuikly.core.base.isVirtualView
 import com.tencent.kuikly.core.collection.fastArrayListOf
 import com.tencent.kuikly.core.collection.toFastList
 import com.tencent.kuikly.core.exception.throwRuntimeError
@@ -23,10 +26,8 @@ import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.reactive.ReactiveObserver
 import com.tencent.kuikly.core.reactive.collection.CollectionOperation
 import com.tencent.kuikly.core.reactive.collection.ObservableList
-import com.tencent.kuikly.core.timer.setTimeout
 import com.tencent.kuikly.core.views.ListContentView
 import com.tencent.kuikly.core.views.ListView
-import com.tencent.kuikly.core.views.RefreshView
 
 /**
  * 循环指令标签节点, 如vfor模板指令
@@ -79,7 +80,6 @@ class LoopDirectivesView<T>(
         lazySyncOperation = null
     }
 
-
     private fun syncListOperationToDom(operation: CollectionOperation) {
         if (realParent === null) {
             return
@@ -115,8 +115,6 @@ class LoopDirectivesView<T>(
         }
     }
 
-
-
     private fun syncRemoveChildOperationToDom(operation: CollectionOperation) {
         var index = operation.index
         val removedChildren = fastArrayListOf<DeclarativeBaseView<*, *>>()
@@ -136,7 +134,6 @@ class LoopDirectivesView<T>(
         }
 
     }
-
 
     private fun createChildView(item: T, index: Int, size: Int): DeclarativeBaseView<*, *> {
         val beforeChildrenSize = children.count()
@@ -160,8 +157,6 @@ class LoopDirectivesView<T>(
     }
 
 }
-
-
 
 fun <T> ViewContainer<*, *>.vforIndex(
     itemList: VItemList<T>,
@@ -207,5 +202,3 @@ fun <T> ViewContainer<*, *>.vfor(
 typealias VItemList<T> = () -> ObservableList<T>
 typealias VItemCreator<T> = LoopDirectivesView<T>.(item: T) -> Unit
 typealias VItemIndexCreator<T> = LoopDirectivesView<T>.(item: T, index: Int, count: Int) -> Unit
-
-

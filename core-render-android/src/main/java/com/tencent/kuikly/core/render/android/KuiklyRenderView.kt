@@ -241,8 +241,6 @@ class KuiklyRenderView(
         sendSizeChangeIfNeed(w, h)
     }
 
-
-
     private fun performInitRenderCoreLazyTaskOnce(w: Int, h: Int
     ) {
         if (initRenderCoreLazyTask == null) {

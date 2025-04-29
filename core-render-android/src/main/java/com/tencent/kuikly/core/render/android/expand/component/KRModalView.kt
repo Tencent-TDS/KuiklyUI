@@ -15,25 +15,11 @@
 
 package com.tencent.kuikly.core.render.android.expand.component
 
-import android.app.Dialog
 import android.content.Context
-import android.graphics.Color
-import android.graphics.Rect
-import android.graphics.drawable.ColorDrawable
-import android.view.Gravity
-import android.view.View
-import android.view.View.OnLayoutChangeListener
 import android.view.ViewGroup
-import android.view.Window
-import android.view.WindowManager
 import android.widget.FrameLayout
-import android.widget.PopupWindow
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.css.ktx.removeFromParent
-import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
-import kotlin.math.max
-
-
 
 class KRModalView(context: Context) : KRView(context) {
     private var didMoveToWindow = false
@@ -43,7 +29,6 @@ class KRModalView(context: Context) : KRView(context) {
     override fun setProp(propKey: String, propValue: Any): Boolean {
         return super.setProp(propKey, propValue)
     }
-
 
     override fun onAddToParent(parent: ViewGroup) {
         super.onAddToParent(parent)
@@ -61,7 +46,6 @@ class KRModalView(context: Context) : KRView(context) {
         }
     }
 
-
     override fun onDestroy() {
         super.onDestroy()
         removeFromParent()
@@ -72,5 +56,3 @@ class KRModalView(context: Context) : KRView(context) {
         const val CONTAINER_SIZE_CHANGED = "containerSizeChanged"
     }
 }
-
-

@@ -64,7 +64,6 @@ enum class RefreshViewState {
 }
 class RefreshView : ViewContainer<RefreshAttr, RefreshEvent>(), IListViewEventObserver {
 
-
     /** 手动调用刷新 */
     fun beginRefresh(animated: Boolean = true) {
         performTaskWhenRenderViewDidLoad {
@@ -87,7 +86,6 @@ class RefreshView : ViewContainer<RefreshAttr, RefreshEvent>(), IListViewEventOb
     private val listView: ListView<*, *>?
         get() = (parent?.parent as? ListView<*, *>)
 
-
     private var contentInsetTop: Float = 0f
         set(value) {
             listView?.setContentInset(top = value, animated = true)
@@ -98,7 +96,6 @@ class RefreshView : ViewContainer<RefreshAttr, RefreshEvent>(), IListViewEventOb
             listView?.setContentInsetWhenEndDrag(top = value)
         }
 
-
     var refreshState: RefreshViewState = RefreshViewState.IDLE
         set(value) {
             if (value != field) {
@@ -107,7 +104,6 @@ class RefreshView : ViewContainer<RefreshAttr, RefreshEvent>(), IListViewEventOb
                 handleStateDidChange(value, oldState)
             }
         }
-
 
     override fun didInit() {
         super.didInit()
@@ -216,7 +212,3 @@ class RefreshView : ViewContainer<RefreshAttr, RefreshEvent>(), IListViewEventOb
         event.refreshStateDidChangeHandlerFn?.invoke(state)
     }
 }
-
-
-
-

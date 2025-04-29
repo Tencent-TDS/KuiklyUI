@@ -170,5 +170,3 @@ class PAGView : DeclarativeBaseView<PAGViewAttr, PAGViewEvent>() {
     }
 
 }
-
-

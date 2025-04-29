@@ -47,5 +47,3 @@ class MaskView : ViewContainer<ContainerAttr, Event>() {
         return ViewConst.TYPE_MASK
     }
 }
-
-

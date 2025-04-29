@@ -132,7 +132,6 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
         return this
     }
 
-
     override fun willInit() {
         super.willInit()
         attr.overflow(true)
@@ -142,7 +141,6 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
         super.didInit()
         listenScrollEvent()
     }
-
 
     override fun createAttr(): A {
         return ScrollerAttr() as A
@@ -155,7 +153,6 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
     override fun viewName(): String {
         return ViewConst.TYPE_SCROLLER
     }
-
 
     override fun didRemoveFromParentView() {
         super.didRemoveFromParentView()
@@ -260,7 +257,6 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
     }
 }
 
-
 enum class KRNestedScrollMode(val value: String){
     SELF_ONLY("SELF_ONLY"),
     SELF_FIRST("SELF_FIRST"),
@@ -272,7 +268,6 @@ open class ScrollerAttr : ContainerAttr() {
     var syncScroll = false
     var visibleAreaIgnoreTopMargin = 0f
     var visibleAreaIgnoreBottomMargin = 0f
-
 
     // 是否允许手势滚动
     fun scrollEnable(value: Boolean) {
@@ -439,8 +434,6 @@ open class ScrollerEvent : Event() {
     }
 }
 
-
-
 fun ViewContainer<*, *>.Scroller(init: ScrollerView<*, *>.() -> Unit) {
     addChild(ScrollerView<ScrollerAttr, ScrollerEvent>(), init)
 }
@@ -515,10 +508,7 @@ open class ScrollerContentView : ViewContainer<ContainerAttr, Event>(), IPagerLa
 
     }
 
-
 }
-
-
 
 data class ScrollParams(
     val offsetX: Float,  // 列表当前纵轴偏移量
@@ -594,8 +584,6 @@ class WillEndDragParams(
     }
 
 }
-
-
 
 data class SpringAnimation(val durationMs: Int, val damping: Float, val velocity: Float) {
 

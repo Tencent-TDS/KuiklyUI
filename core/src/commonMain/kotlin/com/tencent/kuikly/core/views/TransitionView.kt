@@ -112,8 +112,6 @@ class TransitionEvent : Event() {
     }
 }
 
-
-
 /**
  * 转场过渡类
  */
@@ -189,7 +187,6 @@ class TransitionView : ViewContainer<TransitionAttr, TransitionEvent>() , IPager
             didLayout = true
         }
     }
-
 
     override fun onPagerEvent(pagerEvent: String, eventData: JSONObject) {
         when (pagerEvent) {

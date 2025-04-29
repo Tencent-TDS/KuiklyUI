@@ -19,14 +19,11 @@ import com.tencent.kuikly.core.base.Attr
 import com.tencent.kuikly.core.base.ContainerAttr
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.base.ViewContainer
-import com.tencent.kuikly.core.base.domChildren
-import com.tencent.kuikly.core.layout.FlexNode
-import com.tencent.kuikly.core.layout.FlexPositionType
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.layout.undefined
 import com.tencent.kuikly.core.layout.valueEquals
-
 import kotlin.math.max
+
 /**
  * 瀑布流组件。
  * @param init 初始化函数。
@@ -169,7 +166,6 @@ class WaterfallContentView : ListContentView() {
                 }
             }
         }
-
 
     }
 

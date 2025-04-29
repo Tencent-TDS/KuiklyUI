@@ -90,7 +90,6 @@ class SharedPreferencesModule : Module() {
         return null
     }
 
-
     fun getItem(key: String): String {
         return toNative(
             false,
@@ -100,8 +99,6 @@ class SharedPreferencesModule : Module() {
             true
         ).toString()
     }
-
-
 
     fun setItem(key: String, value: String) {
         val params = JSONObject()

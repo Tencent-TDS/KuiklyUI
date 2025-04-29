@@ -51,12 +51,9 @@ fun Boolean.toInt(): Int {
     return 0
 }
 
-
 fun Int.toBoolean(): Boolean {
     if (this != 0) {
         return true
     }
     return false
 }
-
-

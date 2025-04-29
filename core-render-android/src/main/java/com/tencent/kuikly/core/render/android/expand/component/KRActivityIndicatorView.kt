@@ -52,7 +52,6 @@ class KRActivityIndicatorView(context: Context) :
         updateRotateDrawable(WHITE_STYLE)
     }
 
-
     override fun setProp(propKey: String, propValue: Any): Boolean {
         return when (propKey) {
             KRActivityIndicatorView.PROPS_STYLE -> setStyle(propValue as String)
@@ -80,7 +79,6 @@ class KRActivityIndicatorView(context: Context) :
         stopAnimating()
     }
 
-
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         // 同步drawable大小
         super.onLayout(changed, left, top, right, bottom)
@@ -88,7 +86,6 @@ class KRActivityIndicatorView(context: Context) :
             mRotateDrawable?.setBounds(0, 0, right - left, bottom - top)
         }
     }
-
 
     /* 开始转圈圈 */
     private fun startAnimating() {
@@ -137,8 +134,6 @@ class KRActivityIndicatorView(context: Context) :
     }
 
 }
-
-
 
 class HRRotateDrawable(private val imageDrawable: Drawable) : Drawable(),
     Animatable {

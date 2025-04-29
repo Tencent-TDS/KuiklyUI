@@ -48,7 +48,6 @@ class ConditionView(
         return "ConditionView"
     }
 
-
     override fun didMoveToParentView() {
         super.didMoveToParentView()
         setupRootConditionViewRef()
@@ -230,7 +229,3 @@ fun ViewContainer<*, *>.velse(creator: ConditionView.() -> Unit) {
     val view = ConditionView(ConditionType.VELSE, { true }, creator)
     addChild(view) { }
 }
-
-
-
-

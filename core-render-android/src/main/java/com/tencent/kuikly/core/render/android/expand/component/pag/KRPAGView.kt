@@ -16,17 +16,12 @@
 package com.tencent.kuikly.core.render.android.expand.component.pag
 
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
-import android.util.ArrayMap
 import android.view.View
-import android.view.ViewGroup
 import com.tencent.kuikly.core.render.android.adapter.IPAGViewListener
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
 import com.tencent.kuikly.core.render.android.expand.component.KRAPNGView
 import com.tencent.kuikly.core.render.android.expand.component.KRView
 import com.tencent.kuikly.core.render.android.expand.module.KRCodecModule
-import com.tencent.kuikly.core.render.android.expand.module.KRNetworkModule
 import com.tencent.kuikly.core.render.android.expand.vendor.KRFileManager
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 import java.io.File

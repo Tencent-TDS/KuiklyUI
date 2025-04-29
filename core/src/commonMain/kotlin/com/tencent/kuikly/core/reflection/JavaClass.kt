@@ -30,8 +30,4 @@ class JavaClass(val fullPathClassName: String) : JavaObject(fullPathClassName) {
         const val NEW_INSTANCE = "newInstance"
     }
 
-
-
-
-
 }

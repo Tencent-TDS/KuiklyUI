@@ -83,8 +83,6 @@ internal class ReflectionModule : Module() {
         ).toString()
     }
 
-
-
     companion object {
         const val MODULE_NAME = ModuleConst.REFLECTION
         const val METHOD_RETAIN = "retain"

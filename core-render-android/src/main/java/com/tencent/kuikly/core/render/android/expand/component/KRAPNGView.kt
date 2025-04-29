@@ -16,19 +16,13 @@
 package com.tencent.kuikly.core.render.android.expand.component
 
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
-import android.util.ArrayMap
 import android.view.View
-import android.view.ViewGroup
 import com.tencent.kuikly.core.render.android.adapter.IAPNGViewAnimationListener
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
 import com.tencent.kuikly.core.render.android.expand.module.KRCodecModule
-import com.tencent.kuikly.core.render.android.expand.module.KRNetworkModule
 import com.tencent.kuikly.core.render.android.expand.vendor.KRFileManager
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 import java.io.File
-
 
 class KRAPNGView(context: Context) : KRView(context), IAPNGViewAnimationListener {
     private var src = ""
@@ -97,7 +91,6 @@ class KRAPNGView(context: Context) : KRView(context), IAPNGViewAnimationListener
     override fun onAnimationEnd(apngView: View) {
         animationEndCallback?.invoke(mapOf<String, Any>())
     }
-
 
     /**
      * 获取(下载)cdnUrl对应的pag文件接口
@@ -221,7 +214,6 @@ class KRAPNGView(context: Context) : KRView(context), IAPNGViewAnimationListener
             fileLoadLazyTasks.clear()
         }
     }
-
 
     companion object {
         private const val SRC = "src"

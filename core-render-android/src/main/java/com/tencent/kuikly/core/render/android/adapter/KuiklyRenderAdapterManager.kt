@@ -15,9 +15,6 @@
 
 package com.tencent.kuikly.core.render.android.adapter
 
-import java.io.PrintWriter
-import java.io.StringWriter
-
 /**
  * Created by kam on 2023/3/27.
  */

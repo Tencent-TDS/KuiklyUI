@@ -52,9 +52,7 @@ class APNGVView : DeclarativeBaseView<APNGAttr, APNGEvent>() {
         }
     }
 
-
 }
-
 
 class APNGAttr : Attr() {
     // 设置动画资源（support cdn url or local filePath）
@@ -97,5 +95,3 @@ object APNGConst {
     const val REPEAT_COUNT = "repeatCount"
     const val AUTO_PLAY = "autoPlay"
 }
-
-

@@ -49,8 +49,6 @@ class KRReflect private constructor(val clazz: Class<*>, private var instance: A
         return ConstructorReflect(accessible(constructor), this)
     }
 
-
-
     // 成员变量操作区
     /**
      * 为指定name的成员变量赋值为value
@@ -135,8 +133,6 @@ class KRReflect private constructor(val clazz: Class<*>, private var instance: A
             null
         }
     }
-
-
 
     // 检查是否存在有效的可操作实例。若不存在则抛出异常。
     private fun checkInstance() {

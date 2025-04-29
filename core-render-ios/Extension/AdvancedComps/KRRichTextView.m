@@ -82,6 +82,7 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
 
 - (void)css_onClickTapWithSender:(UIGestureRecognizer *)sender {
     CGPoint location = [sender locationInView:self];
+    CGPoint pageLocation = [sender locationInView:self.window];
     KRTextRender * textRender = self.attributedText.hr_textRender;
     NSInteger index = [textRender characterIndexForPoint:location];
     NSNumber *spanIndex = nil;
@@ -91,6 +92,8 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
     self.css_click(@{
         @"x": @(location.x),
         @"y": @(location.y),
+        @"pageX": @(pageLocation.x),
+        @"pageY": @(pageLocation.y),
         @"index": spanIndex?: @(-1),
     });
     

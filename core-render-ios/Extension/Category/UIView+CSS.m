@@ -580,9 +580,12 @@
 
 - (void)css_onClickTapWithSender:(UIGestureRecognizer *)sender {
     CGPoint location = [sender locationInView:self];
+    CGPoint pageLocation = [sender locationInView:self.window];
     NSDictionary *param = @{
         @"x": @(location.x),
-        @"y": @(location.y)
+        @"y": @(location.y),
+        @"pageX": @(pageLocation.x),
+        @"pageY": @(pageLocation.y),
     };
     if (self.css_click) {
         self.css_click(param);
@@ -591,9 +594,12 @@
 
 - (void)css_onDoubleClickWithSender:(UIGestureRecognizer *)sender {
     CGPoint location = [sender locationInView:self];
+    CGPoint pageLocation = [sender locationInView:self.window];
     NSDictionary *param = @{
         @"x": @(location.x),
-        @"y": @(location.y)
+        @"y": @(location.y),
+        @"pageX": @(pageLocation.x),
+        @"pageY": @(pageLocation.y),
     };
     if (self.css_doubleClick) {
         self.css_doubleClick(param);

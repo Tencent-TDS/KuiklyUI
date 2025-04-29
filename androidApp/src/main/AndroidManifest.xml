@@ -9,7 +9,7 @@
         android:name=".KRApplication"
         android:allowBackup="false"
         android:icon="@drawable/kuikly_icon"
-        android:label="Kuikly"
+        android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         android:networkSecurityConfig="@xml/network_security_config">
@@ -21,11 +21,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity
-            android:name="com.tencent.kuikly.android.demo.AppMainActivity"
-            android:theme="@style/LaunchTheme">
-        </activity>
-        <activity android:name="com.tencent.kuikly.android.demo.MainActivity"/>
         <activity android:name=".NativeMixKuiklyViewDemoActivity"/>
     </application>
-</manifest> 
+</manifest>

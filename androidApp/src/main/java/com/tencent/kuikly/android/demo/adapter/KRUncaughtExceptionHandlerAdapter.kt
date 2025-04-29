@@ -17,7 +17,6 @@ package com.tencent.kuikly.android.demo.adapter
 
 import android.util.Log
 import com.tencent.kuikly.core.render.android.adapter.IKRUncaughtExceptionHandlerAdapter
-import com.tencent.kuikly.android.demo.BuildConfig
 
 /**
  * Created by kam on 2022/12/1.
@@ -27,11 +26,8 @@ object KRUncaughtExceptionHandlerAdapter : IKRUncaughtExceptionHandlerAdapter {
     private const val TAG = "KRExceptionHandler"
 
     override fun uncaughtException(throwable: Throwable) {
-        if (BuildConfig.DEBUG) {
-            throw throwable
-        } else {
-            Log.e(TAG, "KR error: ${throwable.stackTraceToString()}")
-        }
+        // 全局的异常捕获，可以在这里做一些上报操作
+        Log.e(TAG, "KR error: ${throwable.stackTraceToString()}")
     }
 
 }

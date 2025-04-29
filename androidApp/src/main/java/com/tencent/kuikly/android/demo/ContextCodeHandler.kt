@@ -16,8 +16,13 @@
 package com.tencent.kuikly.android.demo
 
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.util.Log
 import android.view.ViewGroup
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import com.tencent.kuikly.android.demo.module.KRBridgeModule
 import com.tencent.kuikly.android.demo.module.KRNotifyModule
 import com.tencent.kuikly.android.demo.module.KRShareModule
@@ -32,13 +37,13 @@ import com.tencent.kuikly.core.render.android.performace.KRMonitorType
 import com.tencent.kuikly.core.render.android.performace.KRPerformanceData
 import com.tencent.kuikly.core.render.android.performace.launch.KRLaunchData
 
-open class ContextCodeHandler(val pageName: String) {
+open class ContextCodeHandler(
+    private val context: Context,
+    val pageName: String
+) {
     private var beginTime : Long = 0
     lateinit var kuiklyRenderViewDelegator: KuiklyRenderViewBaseDelegator
 
-    init {
-
-    }
     open fun initContextHandler() : KuiklyRenderViewBaseDelegator{
         // 2.1 实现KuiklyRenderViewBaseDelegatorDelegate接口
         val delegate = object : KuiklyRenderViewBaseDelegatorDelegate {
@@ -106,8 +111,7 @@ open class ContextCodeHandler(val pageName: String) {
         return kuiklyRenderViewDelegator
     }
 
-    open fun openPage(activity: Activity, hrContainerView: ViewGroup,
-                      pageName: String, pageData: Map<String, Any>) {
+    open fun openPage(hrContainerView: ViewGroup, pageName: String, pageData: Map<String, Any>) {
         //  4.1 通过框架Delegator，打开Kuikly页面
         kuiklyRenderViewDelegator.onAttach(
             hrContainerView,
@@ -197,6 +201,29 @@ open class ContextCodeHandler(val pageName: String) {
         errorReason: ErrorReason,
         executeMode: Int
     ) {
+        if (context is Activity) {
+            val exceptionContent = throwable.stackTraceToString()
+            AlertDialog.Builder(context)
+                .setTitle("错误")
+                .setMessage(exceptionContent)
+                .setCancelable(true)
+                .setNegativeButton("关闭") { dialog, _ ->
+                    dialog.dismiss()
+                    context.finish()
+                }
+                .setPositiveButton("复制") { dialog, _ ->
+                    // Copy text to clipboard
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    val clip = ClipData.newPlainText("Dialog Text", exceptionContent)
+                    clipboard.setPrimaryClip(clip)
+                    // Show confirmation toast
+                    Toast.makeText(context, "文本已复制", Toast.LENGTH_SHORT).show()
+                    dialog.dismiss()
+                    context.finish()
+                }
+                .show()
+            return
+        }
         KuiklyRenderLog.e(TAG, "onUnhandledException, errorReason: $errorReason, executeMode: ${executeMode}, ${throwable.stackTraceToString()}")
     }
 

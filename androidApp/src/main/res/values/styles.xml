@@ -7,13 +7,6 @@
         <item name="android:forceDarkAllowed" tools:targetApi="q">true</item>
     </style>
 
-    <style name="myApp" parent="Theme.AppCompat.Light.NoActionBar">
-<!--        <item name="cornerSize">10dp</item>-->
-<!--        <item name="cornerFamily">rounded</item>-->
-        <item name="cornerSizeTopLeft">10dp</item>
-        <item name="cornerFamilyTopLeft">rounded</item>
-    </style>
-
     <!-- Theme applied to the Android Window while the process is starting when the OS's Dark Mode setting is off -->
     <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <!-- Show a splash screen on the activity. Automatically removed when

@@ -42,6 +42,8 @@ NSString *const KRFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(textAlign);
 /** attr is maxTextLength */
 @property (nonatomic, strong)  NSNumber *KUIKLY_PROP(maxTextLength);
+/** attr is tint color */
+@property (nonatomic, strong, readwrite) NSString *KUIKLY_PROP(tintColor);
 /** attr is color */
 @property (nonatomic, strong, readwrite) NSString *KUIKLY_PROP(color);
 /** attr is editable */
@@ -139,6 +141,10 @@ NSString *const KRFontWeightKey = @"fontWeight";
         }
         [self p_updatePlaceholder];
     }
+}
+
+- (void)setCss_tintColor:(NSNumber *)css_tintColor {
+  self.tintColor = [UIView css_color:css_tintColor];
 }
 
 - (void)setCss_color:(NSNumber *)css_color {

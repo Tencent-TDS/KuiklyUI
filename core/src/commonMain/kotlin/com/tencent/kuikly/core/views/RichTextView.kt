@@ -15,20 +15,31 @@
 
 package com.tencent.kuikly.core.views
 
-import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.base.Attr
+import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.DeclarativeBaseView
+import com.tencent.kuikly.core.base.EdgeInsets
+import com.tencent.kuikly.core.base.Size
+import com.tencent.kuikly.core.base.ViewConst
+import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.attr.IImageAttr
 import com.tencent.kuikly.core.base.attr.ImageUri
+import com.tencent.kuikly.core.base.domChildren
 import com.tencent.kuikly.core.base.event.ClickParams
 import com.tencent.kuikly.core.base.event.addLayoutFrameDidChange
-import com.tencent.kuikly.core.directives.vif
-import com.tencent.kuikly.core.layout.*
-import com.tencent.kuikly.core.log.KLog
+import com.tencent.kuikly.core.base.isVirtualView
+import com.tencent.kuikly.core.layout.FlexDirection
+import com.tencent.kuikly.core.layout.FlexNode
+import com.tencent.kuikly.core.layout.FlexPositionType
+import com.tencent.kuikly.core.layout.Frame
+import com.tencent.kuikly.core.layout.MeasureFunction
+import com.tencent.kuikly.core.layout.MeasureOutput
+import com.tencent.kuikly.core.layout.isUndefined
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.nvi.serialization.serialization
 import com.tencent.kuikly.core.reactive.ReactiveObserver
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.shadow.RichTextShadow
-
 
 fun ViewContainer<*, *>.RichText(init: RichTextView.() -> Unit) {
     var richTextView = createViewFromRegister(ViewConst.TYPE_RICH_TEXT_CLASS_NAME) as? RichTextView
@@ -75,7 +86,6 @@ fun RichTextView.ImageSpan(spanInit: ImageSpan.() -> Unit) {
     getViewAttr().addSpan(imageSpan)
 }
 
-
 open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
     MeasureFunction {
     private var shadow: RichTextShadow? = null
@@ -86,7 +96,6 @@ open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
         super.willInit()
         shadow = RichTextShadow(pagerId, nativeRef, viewName())
     }
-
 
     override fun attr(init: RichTextAttr.() -> Unit) {
         if (isWillInit) {

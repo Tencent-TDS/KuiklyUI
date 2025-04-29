@@ -34,8 +34,6 @@ class InputView : DeclarativeBaseView<InputAttr, InputEvent>() {
         return ViewConst.TYPE_TEXT_FIELD
     }
 
-
-
     override fun createRenderView() {
         super.createRenderView()
         if (attr.autofocus) {
@@ -121,7 +119,6 @@ class InputAttr : Attr() {
         TextConst.FONT_SIZE with size
         return this
     }
-
 
     fun fontWeightNormal(): InputAttr {
         TextConst.FONT_WEIGHT with "400"

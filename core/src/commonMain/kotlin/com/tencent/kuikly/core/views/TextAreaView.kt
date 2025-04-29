@@ -15,8 +15,6 @@
 
 package com.tencent.kuikly.core.views
 
-
-
 import com.tencent.kuikly.core.base.*
 import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.base.event.EventHandlerFn
@@ -152,6 +150,11 @@ class TextAreaAttr : Attr() {
 
     fun color(color: Color): TextAreaAttr {
         TextConst.TEXT_COLOR with color.toString()
+        return this
+    }
+
+    fun tintColor(color: Color): TextAreaAttr {
+        TextConst.TINT_COLOR with color.toString()
         return this
     }
 
@@ -367,7 +370,6 @@ class TextAreaEvent : Event() {
     fun textLengthBeyondLimit(handler: EventHandlerFn /* = (parma: kotlin.Any?) -> kotlin.Unit */) {
         this.register(TEXT_LENGTH_BEYOND_LIMIT,handler)
     }
-
 
     companion object {
         const val TEXT_DID_CHANGE = "textDidChange"

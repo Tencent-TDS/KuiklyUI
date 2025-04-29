@@ -15,11 +15,24 @@
 
 package com.tencent.kuikly.core.views
 
-import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.base.Attr
+import com.tencent.kuikly.core.base.BoxShadow
+import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ColorStop
+import com.tencent.kuikly.core.base.DeclarativeBaseView
+import com.tencent.kuikly.core.base.Direction
+import com.tencent.kuikly.core.base.Size
+import com.tencent.kuikly.core.base.ViewConst
+import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.base.event.EventHandlerFn
-import com.tencent.kuikly.core.layout.*
-import com.tencent.kuikly.core.pager.Pager
+import com.tencent.kuikly.core.base.toInt
+import com.tencent.kuikly.core.layout.FlexDirection
+import com.tencent.kuikly.core.layout.FlexNode
+import com.tencent.kuikly.core.layout.FlexPositionType
+import com.tencent.kuikly.core.layout.MeasureFunction
+import com.tencent.kuikly.core.layout.MeasureOutput
+import com.tencent.kuikly.core.layout.isUndefined
 import com.tencent.kuikly.core.views.shadow.TextShadow
 
 open class TextView : DeclarativeBaseView<TextAttr, TextEvent>(), MeasureFunction {

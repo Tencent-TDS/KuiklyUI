@@ -1,0 +1,17 @@
+name: pr-check
+on:
+  # 以主干的push事件作为触发条件
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - .github/**
+      - img/**
+
+jobs:
+  CI:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - run: echo Hello world

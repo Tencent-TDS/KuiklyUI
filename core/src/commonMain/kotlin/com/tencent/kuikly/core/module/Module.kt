@@ -207,8 +207,6 @@ abstract class Module {
         return null
     }
 
-
-
     /**
      * 通用的与Native Module通信方法
      */
@@ -258,7 +256,6 @@ abstract class Module {
         )
         return ReturnValue(callbackRef, returnValue)
     }
-
 
     fun removeCallback(callbackRef: CallbackRef) {
         GlobalFunctions.destroyGlobalFunction(pagerId, callbackRef)

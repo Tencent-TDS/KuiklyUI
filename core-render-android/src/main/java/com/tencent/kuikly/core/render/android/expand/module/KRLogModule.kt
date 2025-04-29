@@ -16,9 +16,6 @@
 package com.tencent.kuikly.core.render.android.expand.module
 
 import android.annotation.SuppressLint
-import android.os.Handler
-import android.os.HandlerThread
-import android.os.Process
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderBaseModule

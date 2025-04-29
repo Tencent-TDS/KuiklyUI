@@ -221,5 +221,3 @@ class KuiklyRenderCoreTaskExecutor(
     }
 
 }
-
-

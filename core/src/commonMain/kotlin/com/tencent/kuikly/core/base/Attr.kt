@@ -21,12 +21,9 @@ import com.tencent.kuikly.core.base.attr.IStyleAttr
 import com.tencent.kuikly.core.collection.toFastMap
 import com.tencent.kuikly.core.exception.throwRuntimeError
 import com.tencent.kuikly.core.layout.FlexAlign
-import com.tencent.kuikly.core.layout.FlexDirection
-import com.tencent.kuikly.core.layout.FlexJustifyContent
 import com.tencent.kuikly.core.layout.FlexLayout
 import com.tencent.kuikly.core.layout.FlexNode
 import com.tencent.kuikly.core.layout.FlexPositionType
-import com.tencent.kuikly.core.layout.FlexWrap
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.layout.StyleSpace
 import com.tencent.kuikly.core.layout.undefined
@@ -287,7 +284,6 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
             return this
         }
 
-
         if (getPager().animationManager == null) {
             getPager().animationManager = AnimationManager()
         }
@@ -392,10 +388,7 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
         StyleConst.TURBO_DISPLAY_AUTO_UPDATE_ENABLE with enable.toInt()
         return this
     }
-
     // endregion
-
-
 
     override fun top(top: Float): Attr {
         flexNode?.setStylePosition(FlexLayout.PositionType.POSITION_TOP, top)
@@ -462,7 +455,6 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
         }
     }
 
-
     fun positionAbsolute(): Attr {
         positionType(FlexPositionType.ABSOLUTE)
         return this
@@ -490,7 +482,6 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
         if (!right.valueEquals(Float.undefined)) right(right = right)
         return this
     }
-
 
     override fun alignSelf(alignSelf: FlexAlign): Attr {
         flexNode?.alignSelf = alignSelf
@@ -611,7 +602,6 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
 
 typealias NumberString = Any?
 
-
 enum class Direction(value: Int) {
     TO_TOP(0),
     TO_BOTTOM(1),
@@ -655,7 +645,6 @@ class Border(
         return "$lineWidth ${lineStyle.value} $color"
     }
 }
-
 
 class BoxShadow(
     private val offsetX: Float,

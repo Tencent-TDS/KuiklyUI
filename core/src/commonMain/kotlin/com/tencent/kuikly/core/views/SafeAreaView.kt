@@ -19,8 +19,6 @@ import com.tencent.kuikly.core.base.ContainerAttr
 import com.tencent.kuikly.core.base.ViewConst
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.event.Event
-import com.tencent.kuikly.core.base.event.EventName
-import com.tencent.kuikly.core.base.event.TouchParams
 import com.tencent.kuikly.core.layout.undefined
 
 /**
@@ -66,7 +64,6 @@ class SafeAreaView : ViewContainer<SafeAreaAttr, SafeAreaEvent>() {
     }
 }
 
-
 class SafeAreaAttr : ContainerAttr() {
 
 }
@@ -74,7 +71,3 @@ class SafeAreaAttr : ContainerAttr() {
 open class SafeAreaEvent : Event() {
 
 }
-
-
-
-

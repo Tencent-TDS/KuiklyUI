@@ -75,7 +75,6 @@ class ReactiveObserver {
         return result
     }
 
-
     fun unbindValueChange(byOwner: Any) {
         removeObserver(byOwner)
     }
@@ -202,7 +201,6 @@ class ReactiveObserver {
         activeReadPropertyNames.add(buildPropertyKey(propertyOwner, propertyName))
     }
 
-
     // set value callback
     internal fun notifyPropertyObserver(propertyOwner: PropertyOwner, propertyName: String) {
         checkThread()
@@ -251,10 +249,7 @@ class ReactiveObserver {
             }
         }
 
-
     }
-
-
 
     private fun buildPropertyKey(propertyOwner: PropertyOwner, propertyName: String): String {
         currentObservablePropertyKey = "${propertyOwner}_$propertyName"

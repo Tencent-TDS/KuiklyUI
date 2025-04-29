@@ -54,5 +54,3 @@ open class Shadow(private val pagerId: String, private val viewRef: Int, viewNam
         return if (result is String) result as String else result.toString()
     }
 }
-
-

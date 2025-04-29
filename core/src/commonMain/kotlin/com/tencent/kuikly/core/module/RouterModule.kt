@@ -15,8 +15,8 @@
 
 package com.tencent.kuikly.core.module
 
-import com.tencent.kuikly.core.base.toInt
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+
 /*
  * Kuikly默认的路由模块，用于打开Kuikly页面和关闭Kuikly页面
  */
@@ -54,8 +54,6 @@ class RouterModule : Module() {
     override fun moduleName(): String {
         return MODULE_NAME
     }
-
-
 
     companion object {
         const val MODULE_NAME = ModuleConst.ROUTER

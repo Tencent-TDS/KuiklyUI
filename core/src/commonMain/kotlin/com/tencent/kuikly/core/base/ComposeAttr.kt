@@ -15,10 +15,6 @@
 
 package com.tencent.kuikly.core.base
 
-import com.tencent.kuikly.core.reactive.ReactiveObserver
-
 open class ComposeAttr : ContainerAttr() {
 
 }
-
-

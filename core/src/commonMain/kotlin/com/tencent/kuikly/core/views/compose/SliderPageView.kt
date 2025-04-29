@@ -80,8 +80,6 @@ class SliderPageView : ComposeView<SliderPageAttr, SliderPageEvent>() {
         }
     }
 
-
-
     override fun createAttr(): SliderPageAttr {
         return SliderPageAttr()
     }
@@ -155,8 +153,6 @@ class SliderPageView : ComposeView<SliderPageAttr, SliderPageEvent>() {
     private fun scrollToNextPageIfNeed() {
         scrollToPage(currentPageIndex + 1, true)
     }
-
-
 
     private fun firePageIndexDidChangedEventIfNeed(data: JSONObject) {
         var index = data.optInt("index")

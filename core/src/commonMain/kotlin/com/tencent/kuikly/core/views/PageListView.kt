@@ -15,19 +15,16 @@
 
 package com.tencent.kuikly.core.views
 
-import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.base.ContainerAttr
+import com.tencent.kuikly.core.base.DeclarativeBaseView
+import com.tencent.kuikly.core.base.ViewContainer
+import com.tencent.kuikly.core.base.domChildren
 import com.tencent.kuikly.core.base.event.EventHandlerFn
-import com.tencent.kuikly.core.base.event.appearPercentage
 import com.tencent.kuikly.core.collection.toFastList
-import com.tencent.kuikly.core.exception.throwRuntimeError
 import com.tencent.kuikly.core.layout.FlexDirection
-import com.tencent.kuikly.core.layout.Frame
-import com.tencent.kuikly.core.layout.undefined
-import com.tencent.kuikly.core.layout.valueEquals
 import com.tencent.kuikly.core.layout.FlexPositionType
-import com.tencent.kuikly.core.log.KLog
+import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
-import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
@@ -325,7 +322,6 @@ open class PageListContentView : ListContentView() {
         fillSubViewLayoutAttr(child)
     }
 
-
     private fun fillSubViewLayoutAttr(subView: DeclarativeBaseView<*, *>) {
         val parentView = parent!!
         subView.attr {
@@ -380,9 +376,6 @@ open class PageListContentView : ListContentView() {
             }
         }
     }
-
-
-
 
     private fun syncDefaultPageIndexIfNeed(frame: Frame) {
         if (!didInitDefaultPageIndex && frame.width > 0 && frame.height > 0) {

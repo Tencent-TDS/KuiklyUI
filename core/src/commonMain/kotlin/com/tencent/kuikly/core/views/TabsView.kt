@@ -15,13 +15,19 @@
 
 package com.tencent.kuikly.core.views
 
-import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.base.Animation
+import com.tencent.kuikly.core.base.Attr
+import com.tencent.kuikly.core.base.ContainerAttr
+import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.base.ViewConst
+import com.tencent.kuikly.core.base.ViewContainer
+import com.tencent.kuikly.core.base.ViewRef
+import com.tencent.kuikly.core.base.domChildren
 import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.exception.throwRuntimeError
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.layout.undefined
 import com.tencent.kuikly.core.layout.valueEquals
-import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.pager.IPagerLayoutEventObserver
 import com.tencent.kuikly.core.reactive.handler.observable
 import kotlin.math.abs
@@ -48,8 +54,6 @@ class TabsView : ListView<TabsAttr, TabsEvent>(), IPagerLayoutEventObserver {
         super.didRemoveFromParentView()
         getPager().removePagerLayoutEventObserver(this)
     }
-
-
 
     private fun contentViewFrameDidChanged() {
         updateIndicatorPositionIfNeed()
@@ -86,8 +90,6 @@ class TabsView : ListView<TabsAttr, TabsEvent>(), IPagerLayoutEventObserver {
             width = letItemFrame.width + (rightItemFrame.width - letItemFrame.width) * betweenProgress
             scrollProgress = it.offsetX / (it.contentWidth - it.viewWidth)
         }
-
-
 
         val selectedItem = tabItems[selectedIndex] as? TabItemView
         var itemSelectedIndexDidChanged = false
@@ -140,7 +142,6 @@ class TabsView : ListView<TabsAttr, TabsEvent>(), IPagerLayoutEventObserver {
         val roundedValue = round(this)
         return abs(this - roundedValue) <= tolerance
     }
-
 
     override fun willInit() {
         super.willInit()
@@ -229,9 +230,7 @@ class TabsAttr : ListAttr() {
     }
 }
 
-class TabsEvent : ListEvent() {
-
-}
+class TabsEvent : ListEvent()
 
 /*
  * Tabs组件（与分页列表组件配套使用）
@@ -239,8 +238,6 @@ class TabsEvent : ListEvent() {
 fun ViewContainer<*, *>.Tabs(init: TabsView.() -> Unit) {
    addChild(TabsView(), init)
 }
-
-
 
 /*
  * 与TabsView配套的TabItemView
@@ -263,11 +260,6 @@ class TabItemView : ViewContainer<TabItemAttr, TabItemEvent>() {
     override fun viewName(): String = ViewConst.TYPE_VIEW
 }
 
+class TabItemAttr : ContainerAttr()
 
-class TabItemAttr : ContainerAttr() {
-
-}
-
-class TabItemEvent : Event() {
-
-}
+class TabItemEvent : Event()

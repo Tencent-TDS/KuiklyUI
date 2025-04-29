@@ -26,6 +26,8 @@ import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 data class ClickParams(
     val x: Float,
     val y: Float,
+    val pageX: Float, // 触摸点在根视图Page下的坐标X
+    val pageY: Float, // 触摸点在根视图Page下的坐标Y
     val params: Any? = null
 ) {
     companion object {
@@ -33,7 +35,9 @@ data class ClickParams(
             val tempParams = params as? JSONObject ?: JSONObject()
             val x = tempParams.optDouble("x").toFloat()
             val y = tempParams.optDouble("y").toFloat()
-            return ClickParams(x, y, params)
+            val pageX = tempParams.optDouble("pageX").toFloat()
+            val pageY = tempParams.optDouble("pageY").toFloat()
+            return ClickParams(x, y, pageX, pageY, params)
         }
     }
 }

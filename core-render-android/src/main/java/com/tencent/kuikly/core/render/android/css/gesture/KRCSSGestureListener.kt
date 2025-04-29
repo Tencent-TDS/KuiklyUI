@@ -110,7 +110,9 @@ class KRCSSGestureListener : GestureDetector.SimpleOnGestureListener() {
             TYPE_LONG_PRESS, mapOf(
                 KRViewConst.X to e.x.toDpF(),
                 KRViewConst.Y to e.y.toDpF(),
-                EVENT_STATE to convertAction(e.action)
+                EVENT_STATE to convertAction(e.action),
+                PAGE_X to e.rawX.toDpF(),
+                PAGE_Y to e.rawY.toDpF()
             )
         )
         return true
@@ -137,7 +139,9 @@ class KRCSSGestureListener : GestureDetector.SimpleOnGestureListener() {
             return dispatchEvent(
                 TYPE_CLICK, mapOf(
                     KRViewConst.X to e.x.toDpF(),
-                    KRViewConst.Y to e.y.toDpF()
+                    KRViewConst.Y to e.y.toDpF(),
+                    PAGE_X to e.rawX.toDpF(),
+                    PAGE_Y to e.rawY.toDpF()
                 )
             )
         } else {
@@ -150,7 +154,9 @@ class KRCSSGestureListener : GestureDetector.SimpleOnGestureListener() {
             dispatchEvent(
                 TYPE_CLICK, mapOf(
                     KRViewConst.X to e.x.toDpF(),
-                    KRViewConst.Y to e.y.toDpF()
+                    KRViewConst.Y to e.y.toDpF(),
+                    PAGE_X to e.rawX.toDpF(),
+                    PAGE_Y to e.rawY.toDpF()
                 )
             )
         } else {
@@ -163,14 +169,18 @@ class KRCSSGestureListener : GestureDetector.SimpleOnGestureListener() {
             dispatchEvent(
                 TYPE_CLICK, mapOf(
                     KRViewConst.X to e.x.toDpF(),
-                    KRViewConst.Y to e.y.toDpF()
+                    KRViewConst.Y to e.y.toDpF(),
+                    PAGE_X to e.rawX.toDpF(),
+                    PAGE_Y to e.rawY.toDpF()
                 )
             )
         } else {
             dispatchEvent(
                 TYPE_DOUBLE_CLICK, mapOf(
                     KRViewConst.X to e.x.toDpF(),
-                    KRViewConst.Y to e.y.toDpF()
+                    KRViewConst.Y to e.y.toDpF(),
+                    PAGE_X to e.rawX.toDpF(),
+                    PAGE_Y to e.rawY.toDpF()
                 )
             )
         }
@@ -182,7 +192,9 @@ class KRCSSGestureListener : GestureDetector.SimpleOnGestureListener() {
             TYPE_LONG_PRESS, mapOf(
                 KRViewConst.X to e.x.toDpF(),
                 KRViewConst.Y to e.y.toDpF(),
-                EVENT_STATE to convertAction(e.action)
+                EVENT_STATE to convertAction(e.action),
+                PAGE_X to e.rawX.toDpF(),
+                PAGE_Y to e.rawY.toDpF()
             )
         )
     }

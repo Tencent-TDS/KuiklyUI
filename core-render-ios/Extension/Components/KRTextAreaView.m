@@ -143,7 +143,6 @@ NSString *const KRFontWeightKey = @"fontWeight";
     }
 }
 
-
 - (void)setCss_tintColor:(NSNumber *)css_tintColor {
   self.tintColor = [UIView css_color:css_tintColor];
 }

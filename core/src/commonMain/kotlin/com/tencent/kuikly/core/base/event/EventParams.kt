@@ -102,6 +102,8 @@ data class Touch(
 data class LongPressParams(
     val x: Float,
     val y: Float,
+    val pageX: Float, // 触摸点在根视图Page下的坐标X
+    val pageY: Float, // 触摸点在根视图Page下的坐标Y
     val state: String // "start" | "move" | "end"
 ) {
     companion object {
@@ -109,8 +111,10 @@ data class LongPressParams(
             val tempParams = params as? JSONObject ?: JSONObject()
             val x = tempParams.optDouble("x").toFloat()
             val y = tempParams.optDouble("y").toFloat()
+            val pageX = tempParams.optDouble("pageX").toFloat()
+            val pageY = tempParams.optDouble("pageY").toFloat()
             val state = tempParams.optString("state")
-            return LongPressParams(x, y, state)
+            return LongPressParams(x, y, pageX, pageY, state)
         }
     }
 }

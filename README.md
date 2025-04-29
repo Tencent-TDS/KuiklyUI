@@ -30,7 +30,7 @@ Since its launch, `Kuikly` has gained wide recognition from the business. It has
 .
 ├── core                    # Cross-platform module implementing core capabilities like responsive UI, layout algorithms, Bridge communication, etc.
   ├── src
-    ├──	commanMain            # Shared cross-platform code, defining cross-platform interfaces
+    ├──	commonMain            # Shared cross-platform code, defining cross-platform interfaces
     ├── androidMain           # Android platform implementation (outputs aar)
     ├── jvmMain               # Generic JVM platform code (no Android APIs, outputs jar)
     ├── iosMain               # iOS platform implementation (outputs framework)

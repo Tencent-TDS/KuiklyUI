@@ -59,9 +59,54 @@ class KuiklyRenderActivity : AppCompatActivity() {
         }
     private lateinit var contextCodeHandler: ContextCodeHandler
 
-    init {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // 1. 创建一个Kuikly页面打开的封装处理器
+        contextCodeHandler = ContextCodeHandler(this, pageName)
+        // 2. 实例化Kuikly委托者类
+        kuiklyRenderViewDelegator = contextCodeHandler.initContextHandler()
+        setContentView(R.layout.activity_hr)
+        setupAdapterManager()
+        setupImmersiveMode()
+        // 3. 获取用于承载Kuikly的容器View
+        hrContainerView = findViewById(R.id.hr_container)
+        loadingView = findViewById(R.id.hr_loading)
+        errorView = findViewById(R.id.hr_error)
+        // 4. 触发Kuikly View实例化
+        // hrContainerView：承载Kuikly的容器View
+        // contextCode: jvm模式下传递""
+        // pageName: 传递想要打开的Kuikly侧的Page名字
+        // pageData: 传递给Kuikly页面的参数
+        contextCodeHandler.openPage(hrContainerView, pageName, createPageData())
+    }
+
+    override fun onResume() {  // 5.通知Kuikly页面触发onResume
+        super.onResume()
+        kuiklyRenderViewDelegator.onResume()
+    }
+    override fun onPause() {  // 6. 通知Kuikly页面触发onStop
+        super.onPause()
+        kuiklyRenderViewDelegator.onPause()
+    }
+    override fun onDestroy() {  // 7. 通知Kuikly页面触发onDestroy
+        super.onDestroy()
+        kuiklyRenderViewDelegator.onDetach()
+    }
+
+    private fun createPageData(): Map<String, Any> {
+        val param = argsToMap()
+        param["appId"] = 1
+        return param
+    }
+
+    private fun argsToMap(): MutableMap<String, Any> {
+        val jsonStr = intent.getStringExtra(KEY_PAGE_DATA) ?: return mutableMapOf()
+        return JSONObject(jsonStr).toMap()
+    }
+
+    private fun setupAdapterManager() {
         if (KuiklyRenderAdapterManager.krImageAdapter == null) {
-            KuiklyRenderAdapterManager.krImageAdapter = KRImageAdapter(this)
+            KuiklyRenderAdapterManager.krImageAdapter = KRImageAdapter(applicationContext)
         }
         if (KuiklyRenderAdapterManager.krLogAdapter == null) {
             KuiklyRenderAdapterManager.krLogAdapter = KRLogAdapter
@@ -95,47 +140,6 @@ class KuiklyRenderActivity : AppCompatActivity() {
         if (KuiklyRenderAdapterManager.krTextPostProcessorAdapter == null) {
             KuiklyRenderAdapterManager.krTextPostProcessorAdapter = KRTextPostProcessorAdapter()
         }
-    }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        contextCodeHandler = ContextCodeHandler(pageName)  //  1. 创建一个Kuikly页面打开的封装处理器
-        kuiklyRenderViewDelegator = contextCodeHandler.initContextHandler()  //  2. 实例化Kuikly委托者类
-        setContentView(R.layout.activity_hr)
-        setupImmersiveMode()
-        hrContainerView = findViewById(R.id.hr_container)  //  3. 获取用于承载Kuikly的容器View
-        loadingView = findViewById(R.id.hr_loading)
-        errorView = findViewById(R.id.hr_error)
-        // 4. 触发Kuikly View实例化
-        // hrContainerView：承载Kuikly的容器View
-        // contextCode: jvm模式下传递""
-        // pageName: 传递想要打开的Kuikly侧的Page名字
-        // pageData: 传递给Kuikly页面的参数
-        contextCodeHandler.openPage(this, hrContainerView, pageName, createPageData())
-    }
-
-    override fun onResume() {  // 5.通知Kuikly页面触发onResume
-        super.onResume()
-        kuiklyRenderViewDelegator.onResume()
-    }
-    override fun onPause() {  // 6. 通知Kuikly页面触发onStop
-        super.onPause()
-        kuiklyRenderViewDelegator.onPause()
-    }
-    override fun onDestroy() {  // 7. 通知Kuikly页面触发onDestroy
-        super.onDestroy()
-        kuiklyRenderViewDelegator.onDetach()
-    }
-
-    private fun createPageData(): Map<String, Any> {
-        val param = argsToMap()
-        param["appId"] = 1
-        return param
-    }
-
-    private fun argsToMap(): MutableMap<String, Any> {
-        val jsonStr = intent.getStringExtra(KEY_PAGE_DATA) ?: return mutableMapOf()
-        return JSONObject(jsonStr).toMap()
     }
 
     private fun setupImmersiveMode() {

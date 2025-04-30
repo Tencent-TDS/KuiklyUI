@@ -62,7 +62,7 @@
   如果你的 Android Studio 版本大于等于 (2024.2.1)，请将 Gradle JDK 版本切换为 JDK17 
   (该版本默认 Gradle JDK 为 21，与项目使用的配置不兼容）
 
-  切换方式: Android Studio -> settings -> Build,Execution,Deployment -> Build Tools -> Gradle -> Gradle JDK
+  切换方式: Android Studio -> Settings -> Build,Execution,Deployment -> Build Tools -> Gradle -> Gradle JDK
 - [XCode](https://developer.apple.com/xcode/)和[cocoapods](https://cocoapods.org/)
 - JDK17
 

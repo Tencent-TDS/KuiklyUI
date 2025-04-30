@@ -63,7 +63,7 @@ Refer to [Environment Configuration](https://kuikly.tds.qq.com/%E5%BF%AB%E9%80%9
     if your Android Studio Version >= (2024.2.1) Please switch your Gradle JDK Version to JDK17
     (this Version default Gradle JDK is 21, it incompatible with the configuration used by the project)
 
-    Android Studio -> settings -> Build,Execution,Deployment -> Build Tools -> Gradle -> Gradle JDK
+    Android Studio -> Settings -> Build,Execution,Deployment -> Build Tools -> Gradle -> Gradle JDK
 - [XCode](https://developer.apple.com/xcode/)和[cocoapods](https://cocoapods.org/)
 - JDK17
 

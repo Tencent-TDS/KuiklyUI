@@ -513,6 +513,10 @@ internal class TextExampleRichText: ComposeView<ComposeAttr, ComposeEvent>() {
                 }
             }
             RichText {
+                attr {
+                    lines(3)
+                    textOverFlowClip()
+                }
                 Span {
                     fontSize(18f).color(Color(0xFFEE3333)).text("富文本")
                 }
@@ -563,7 +567,14 @@ internal class TextExampleRichText: ComposeView<ComposeAttr, ComposeEvent>() {
                     src("https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/59ef6918.gif")
                     borderRadius(5f)
                 }
-
+                Span {
+                    fontSize(18f).text("第三行将截段成...区域不足以显示图片3")
+                }
+                ImageSpan {
+                    size(60f, 60f)
+                    src("https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/59ef6918.gif")
+                    borderRadius(5f)
+                }
             }
             RichText {
                 attr {

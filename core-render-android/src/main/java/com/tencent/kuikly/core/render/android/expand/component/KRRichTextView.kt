@@ -462,7 +462,9 @@ class KRRichTextShadow : IKuiklyRenderShadowExport {
                 // layout可能会因为行高等因素导致文本截断
                 // 检查PlaceholderSpan的索引是否在文本布局范围内
                 val maxIndex = layout.getLineEnd(layout.lineCount - 1)
-                if (phSpanTextRange.start > maxIndex) {
+                // 需要考虑以...结尾等截断的情况，避免PlaceholderSpan和截断字符串重叠显示
+                val ellipsisCount = layout.getEllipsisCount(layout.lineCount - 1)
+                if (phSpanTextRange.start >= (maxIndex - ellipsisCount)) {
                     return rect
                 }
 

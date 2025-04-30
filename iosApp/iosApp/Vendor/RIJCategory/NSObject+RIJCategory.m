@@ -459,18 +459,18 @@
     return [NSString stringWithFormat:@"%ld",(long)self];
 }
 
-- (RIJDeallocObject *)rij_deallocObjcet{
-    RIJDeallocObject * objcet = objc_getAssociatedObject(self, @selector(rij_deallocObjcet));
-    if (!objcet) {
-        objcet = [RIJDeallocObject new];
-        objcet.obj = [self rij_address];
-        objc_setAssociatedObject(self, @selector(rij_deallocObjcet), objcet, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+- (RIJDeallocObject *)rij_deallocObject{
+    RIJDeallocObject * object = objc_getAssociatedObject(self, @selector(rij_deallocObject));
+    if (!object) {
+        object = [RIJDeallocObject new];
+        object.obj = [self rij_address];
+        objc_setAssociatedObject(self, @selector(rij_deallocObject), object, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
-    return objcet;
+    return object;
 }
 
 -(void)rij_performBlockOnDeallocWithBlock:(IDBlock) block{
-    [[self rij_deallocObjcet] addBlockWithBlock:block];
+    [[self rij_deallocObject] addBlockWithBlock:block];
 }
 
 

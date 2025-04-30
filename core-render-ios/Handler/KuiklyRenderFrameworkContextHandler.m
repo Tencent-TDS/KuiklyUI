@@ -22,7 +22,7 @@
 #define MAX_FRAMEWORK_NAME_LENGTH 100
 
 
-#define KRSafeObject(objcet) objcet?:@""
+#define KRSafeObject(object) object?:@""
 #define KRSafeArrayIndex(array, index)  ((index < array.count)?array[index] : nil)
 
 @protocol KRKuiklyKotlinCoreEntryDelegate

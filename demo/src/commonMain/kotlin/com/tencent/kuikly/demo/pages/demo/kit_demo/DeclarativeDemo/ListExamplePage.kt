@@ -22,9 +22,9 @@ import com.tencent.kuikly.core.directives.vbind
 import com.tencent.kuikly.core.directives.vfor
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.reactive.handler.observableList
+import com.tencent.kuikly.core.timer.setTimeout
 import com.tencent.kuikly.core.views.*
 import com.tencent.kuikly.demo.pages.base.BasePager
-import com.tencent.kuikly.demo.pages.base.ktx.setTimeout
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 import kotlin.math.max
 import kotlin.random.Random

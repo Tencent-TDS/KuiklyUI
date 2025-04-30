@@ -16,31 +16,40 @@
 package com.tencent.kuikly.demo.pages.demo
 
 import com.tencent.kuikly.core.annotations.Page
-import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.base.Animation
+import com.tencent.kuikly.core.base.BaseObject
+import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ComposeAttr
+import com.tencent.kuikly.core.base.ComposeEvent
+import com.tencent.kuikly.core.base.ComposeView
+import com.tencent.kuikly.core.base.Translate
+import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.base.ViewContainer
+import com.tencent.kuikly.core.base.ViewRef
 import com.tencent.kuikly.core.base.event.EventHandlerFn
 import com.tencent.kuikly.core.base.event.PanGestureParams
 import com.tencent.kuikly.core.directives.vbind
+import com.tencent.kuikly.core.log.KLog
+import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.List
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.base.BasePager
-import com.tencent.kuikly.demo.pages.base.Utils
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
-import com.tencent.kuikly.core.reactive.handler.*
+
 @Page("EventDemoPage")
-internal class EventDemoPage: BasePager() {
-    var bgHeight : Float by observable(195f)
-    var bgOriginHeight : Float = 0f
-    lateinit var list : MutableList<GoodsData>
+internal class EventDemoPage : BasePager() {
+    var bgHeight: Float by observable(195f)
+    var bgOriginHeight: Float = 0f
+    lateinit var list: MutableList<GoodsData>
     val globalData = GlobalData()
-    var rebuildList : Int by observable(0)
+    var rebuildList: Int by observable(0)
     override fun body(): ViewBuilder {
         val ctx = this
         return {
             attr {
                 backgroundColor(Color(0xFF3c6cbdL))
-
             }
             // 背景图
             Image {
@@ -69,7 +78,7 @@ internal class EventDemoPage: BasePager() {
 
                     }
                 }
-                vbind({ctx.rebuildList}) {
+                vbind({ ctx.rebuildList }) {
                     List {
                         attr {
                             flex(1f)
@@ -77,7 +86,7 @@ internal class EventDemoPage: BasePager() {
 
                         event {
                             scroll {
-                                Utils.logToNative(pagerId, it.toString())
+                                KLog.i("EventDemoPage", it.toString())
 
                                 val offsetY = it.offsetY
 
@@ -108,7 +117,10 @@ internal class EventDemoPage: BasePager() {
                                 }
                                 attr {
                                     transform(Translate(0f, goodsData.animationTranslatePercentY))
-                                    animation(Animation.easeInOut(0.3f), goodsData.animationTranslatePercentY)
+                                    animation(
+                                        Animation.easeInOut(0.3f),
+                                        goodsData.animationTranslatePercentY
+                                    )
                                 }
 
                                 event {
@@ -123,11 +135,10 @@ internal class EventDemoPage: BasePager() {
                                                 newList.add(goodsDataItem)
                                             }
                                             ctx.list = newList
-                                            ctx.rebuildList = ctx.rebuildList + 1
-                                            Utils.logToNative(pagerId, "rebuildList = rebuildList + 1")
+                                            ctx.rebuildList++
+                                            KLog.i("EventDemoPage", "rebuildList = rebuildList + 1")
                                         }
                                     }
-
 
                                     editBtnPan {
                                         val params = it as PanGestureParams
@@ -140,53 +151,63 @@ internal class EventDemoPage: BasePager() {
                                             ctx.globalData.zIndex = ++ctx.globalData.zIndex
                                         }
                                         var offsetY = y - ctx.globalData.locationYOnPageWhenBegin
-                                        goodsData.translatePercentY = offsetY / this@GoodsCard.cardHeight
+                                        goodsData.translatePercentY =
+                                            offsetY / this@GoodsCard.cardHeight
                                         var beginIndex = index
-                                        var layoutFrame = goodsData.viewRef.view!!.flexNode.layoutFrame
+                                        var layoutFrame =
+                                            goodsData.viewRef.view!!.flexNode.layoutFrame
                                         var beginIndexCenterY = layoutFrame.midY() + offsetY  // 中点
                                         ctx.list.forEachIndexed { index2, goodsData2 ->
                                             if (goodsData2 != goodsData) {
                                                 // for each
-                                                var goodsData2Frame = goodsData2.viewRef.view!!.flexNode.layoutFrame
+                                                var goodsData2Frame =
+                                                    goodsData2.viewRef.view!!.flexNode.layoutFrame
                                                 if (index2 < index) { //
                                                     //  Utils.logToNative(pagerId, "beginIndexCenterY" + beginIndexCenterY + "goodsData2Frame" + goodsData2Frame.maxY())
                                                     // 上方
                                                     if (beginIndexCenterY < goodsData2Frame.maxY()) {
                                                         if (goodsData2.animationTranslatePercentY != 1f) {
                                                             ctx.globalData.lastMovedIndex = index2
-                                                            ctx.globalData.preTargetPercentageY = ( goodsData2Frame.midY() - layoutFrame.midY()) / this@GoodsCard.cardHeight
-                                                            goodsData2.animationTranslatePercentY = 1f
+                                                            ctx.globalData.preTargetPercentageY =
+                                                                (goodsData2Frame.midY() - layoutFrame.midY()) / this@GoodsCard.cardHeight
+                                                            goodsData2.animationTranslatePercentY =
+                                                                1f
                                                         }
                                                     } else {
                                                         if (goodsData2.animationTranslatePercentY != 0f) {
                                                             ctx.globalData.lastMovedIndex = -1
-                                                            goodsData2.animationTranslatePercentY = 0f
+                                                            goodsData2.animationTranslatePercentY =
+                                                                0f
                                                         }
                                                     }
                                                 } else { // 下方
                                                     if (beginIndexCenterY > goodsData2Frame.minY()) {
                                                         if (goodsData2.animationTranslatePercentY != -1f) {
                                                             ctx.globalData.lastMovedIndex = index2
-                                                            ctx.globalData.preTargetPercentageY = (goodsData2Frame.midY() - layoutFrame.midY()) / this@GoodsCard.cardHeight
-                                                            goodsData2.animationTranslatePercentY = -1f
+                                                            ctx.globalData.preTargetPercentageY =
+                                                                (goodsData2Frame.midY() - layoutFrame.midY()) / this@GoodsCard.cardHeight
+                                                            goodsData2.animationTranslatePercentY =
+                                                                -1f
                                                         }
                                                     } else {
                                                         if (goodsData2.animationTranslatePercentY != 0f) {
                                                             ctx.globalData.lastMovedIndex = -1
-                                                            goodsData2.animationTranslatePercentY = 0f
+                                                            goodsData2.animationTranslatePercentY =
+                                                                0f
                                                         }
                                                     }
                                                 }
                                             }
                                         }
 
-
                                         // 更新其他goodsData的卡片
 
                                         if (state == "end") {
                                             if (ctx.globalData.lastMovedIndex != -1) {
-                                                goodsData.animationTranslatePercentY = ctx.globalData.preTargetPercentageY
-                                                val movedItem = ctx.list[ctx.globalData.lastMovedIndex];
+                                                goodsData.animationTranslatePercentY =
+                                                    ctx.globalData.preTargetPercentageY
+                                                val movedItem =
+                                                    ctx.list[ctx.globalData.lastMovedIndex];
                                                 ctx.list.remove(goodsData)
                                                 val insertIndex = ctx.list.indexOf(movedItem)
                                                 if (movedItem.animationTranslatePercentY == 1f) {
@@ -195,7 +216,8 @@ internal class EventDemoPage: BasePager() {
                                                     ctx.list.add(insertIndex + 1, goodsData)
                                                 }
                                             } else {
-                                                goodsData.animationTranslatePercentY = 0.01f // 触发diff
+                                                goodsData.animationTranslatePercentY =
+                                                    0.01f // 触发diff
                                                 // goodsData.animationTranslatePercentY = 0f
                                             }
                                             ctx.globalData.targetAnimationCompletionItem = goodsData
@@ -214,16 +236,11 @@ internal class EventDemoPage: BasePager() {
                             }
                         }
 
-
-
                     }
-
-
 
                 }
 
             }
-
 
         }
     }
@@ -272,36 +289,35 @@ internal class EventDemoPage: BasePager() {
 
     }
 
-
-
 }
 
-internal class GoodsData: BaseObject() {
-    lateinit var bgColor : Color
-    var translatePercentY : Float by observable(0f)
-    var animationTranslatePercentY : Float by observable(0f)
+internal class GoodsData : BaseObject() {
+    lateinit var bgColor: Color
+    var translatePercentY: Float by observable(0f)
+    var animationTranslatePercentY: Float by observable(0f)
     lateinit var viewRef: ViewRef<LiveGoodsCard>
 }
 
-internal class GlobalData: BaseObject() {
+internal class GlobalData : BaseObject() {
     var zIndex = 0
     var locationYOnPageWhenBegin = 0f
     var lastMovedIndex = -1
     var preTargetPercentageY = 0f
-    var targetAnimationCompletionItem : Any? = null
+    var targetAnimationCompletionItem: Any? = null
 }
 
-internal class LiveGoodsCardAttr: ComposeAttr() {
-    lateinit var outData : GlobalData
+internal class LiveGoodsCardAttr : ComposeAttr() {
+    lateinit var outData: GlobalData
     lateinit var data: GoodsData
-    var itemIndex : Int = 0
+    var itemIndex: Int = 0
 }
 
-internal class LiveGoodsEvent: ComposeEvent() {
+internal class LiveGoodsEvent : ComposeEvent() {
 
     fun editBtnPan(handlerFn: EventHandlerFn) {
         registerEvent(EDIT_BTN_PAN, handlerFn)
     }
+
     companion object {
         const val EDIT_BTN_PAN = "editBtnPan"
     }
@@ -353,11 +369,10 @@ internal class LiveGoodsCard : ComposeView<LiveGoodsCardAttr, LiveGoodsEvent>() 
 
                     event {
                         pan {
-                            Utils.logToNative(pagerId, "222222")
+                            KLog.i("EventDemoPage", it.toString())
                             this@LiveGoodsCard.event.onFireEvent(LiveGoodsEvent.EDIT_BTN_PAN, it)
                         }
                     }
-
 
                 }
             }

@@ -16,35 +16,38 @@
 package com.tencent.kuikly.demo.pages.demo
 
 import com.tencent.kuikly.core.annotations.Page
-import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.base.BaseObject
+import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.PagerScope
+import com.tencent.kuikly.core.base.Skew
+import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.base.ViewRef
 import com.tencent.kuikly.core.directives.vfor
 import com.tencent.kuikly.core.directives.vif
+import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.reactive.collection.ObservableList
 import com.tencent.kuikly.core.views.compose.Button
 import com.tencent.kuikly.demo.pages.base.BasePager
-import com.tencent.kuikly.demo.pages.base.Utils
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 import com.tencent.kuikly.core.reactive.handler.*
+import com.tencent.kuikly.core.timer.setTimeout
 import com.tencent.kuikly.core.views.*
-import com.tencent.kuikly.demo.pages.base.ktx.setTimeout
 
-internal class ListItem : BaseObject() {
-    var title: String by observable("")
-    var bgColor: Color by observable(Color.WHITE)
-    var lifeCycleTitle: String by observable("")
+internal class ListItem(private val scope: PagerScope) : BaseObject() {
+    var title: String by scope.observable("")
+    var lifeCycleTitle: String by scope.observable("")
 }
+
 @Page("ListViewDemoPage")
 internal class ListViewDemoPage : BasePager() {
 
-    lateinit var refreshRef : ViewRef<RefreshView>
-    lateinit var footerRefreshRef : ViewRef<FooterRefreshView>
-    var dataList: ObservableList<ListItem> by observableList<ListItem>()
-    var refreshText by observable( "下拉刷新")
-    var footerRefreshText by observable( "加载更多")
-    var redBlockStickOriginTop = 300f
-    var redBlockStickTop by observable(redBlockStickOriginTop)
-
-    lateinit var redBlockRef : ViewRef<DivView>
+    private lateinit var refreshRef : ViewRef<RefreshView>
+    private lateinit var footerRefreshRef : ViewRef<FooterRefreshView>
+    private var dataList: ObservableList<ListItem> by observableList()
+    private var refreshText by observable( "下拉刷新")
+    private var footerRefreshText by observable( "加载更多")
+    private var redBlockStickOriginTop = 300f
+    private var redBlockStickTop by observable(redBlockStickOriginTop)
 
     override fun body(): ViewBuilder {
         val ctx = this
@@ -94,7 +97,7 @@ internal class ListViewDemoPage : BasePager() {
                                     setTimeout(2000) {
                                         ctx.dataList.clear()
                                         for (index in 0..10) {
-                                            val item = ListItem()
+                                            val item = ListItem(ctx)
                                             item.title =  "我是第${ctx.dataList.count()}个卡片"
                                             ctx.dataList.add(item)
                                         }
@@ -118,7 +121,7 @@ internal class ListViewDemoPage : BasePager() {
                         }
                         event {
                             titleDidClick {
-                                Utils.logToNative(pagerId, "did fire titleDidClick")
+                                KLog.i("ListViewDemoPage", "did fire titleDidClick")
                             }
                         }
                     }
@@ -168,7 +171,6 @@ internal class ListViewDemoPage : BasePager() {
                     }
                 }
 
-
                 vif({ctx.dataList.isNotEmpty()}) {
                     FooterRefresh {
                         ref {
@@ -181,7 +183,7 @@ internal class ListViewDemoPage : BasePager() {
                         }
                         event {
                             refreshStateDidChange {
-                                Utils.logToNative("refreshStateDidChange : " + it)
+                                KLog.i("ListViewDemoPage", "refreshStateDidChange : $it")
                                 when(it) {
                                     FooterRefreshState.REFRESHING -> {
                                         ctx.footerRefreshText = "加载更多中.."
@@ -190,7 +192,7 @@ internal class ListViewDemoPage : BasePager() {
                                                 ctx.footerRefreshRef.view?.endRefresh(FooterRefreshEndState.NONE_MORE_DATA)
                                             } else {
                                                 for (index in 0..10) {
-                                                    val item = ListItem()
+                                                    val item = ListItem(ctx)
                                                     item.title =  "我是第${ctx.dataList.count()}个卡片"
                                                     ctx.dataList.add(item)
                                                 }
@@ -221,7 +223,6 @@ internal class ListViewDemoPage : BasePager() {
                     }
                 }
 
-
             }
 
             Button {
@@ -238,9 +239,6 @@ internal class ListViewDemoPage : BasePager() {
                 }
                 event {
                     click {
-//                        for (item in ctx.dataList) {
-//                            item.title = item.title + ".click"
-//                        }
                         ctx.refreshRef.view?.beginRefresh()
                     }
                 }
@@ -252,13 +250,10 @@ internal class ListViewDemoPage : BasePager() {
     override fun created() {
         super.created()
         for (index in 0..6) {
-            val item = ListItem()
+            val item = ListItem(this)
             item.title =  "我是第${dataList.count()}个卡片"
             dataList.add(item)
         }
     }
 
 }
-
-
-

@@ -16,19 +16,31 @@
 package com.tencent.kuikly.demo.pages.demo
 
 import com.tencent.kuikly.core.annotations.Page
-import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.base.Animation
+import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ComposeAttr
+import com.tencent.kuikly.core.base.ComposeEvent
+import com.tencent.kuikly.core.base.ComposeView
+import com.tencent.kuikly.core.base.Translate
+import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.event.EventHandlerFn
 import com.tencent.kuikly.core.directives.vif
+import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.module.CallbackRef
 import com.tencent.kuikly.core.module.NotifyModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.timer.setTimeout
-import com.tencent.kuikly.core.views.*
+import com.tencent.kuikly.core.views.Image
+import com.tencent.kuikly.core.views.List
+import com.tencent.kuikly.core.views.Modal
+import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.core.views.compose.Button
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.base.Utils
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
-import com.tencent.kuikly.core.reactive.handler.*
+
 @Page("ModalViewDemoPage")
 internal class ModalViewDemoPage : BasePager() {
 
@@ -105,7 +117,7 @@ internal class ModalViewDemoPage : BasePager() {
                         event {
                             click {
                                 ctx.showModal = true
-                                Utils.logToNative(pagerId,"22224343434434")
+                                KLog.i("ModalViewDemoPage", "Button click")
                             }
                         }
                     }
@@ -115,7 +127,7 @@ internal class ModalViewDemoPage : BasePager() {
                             ActionSheet {
                                 event {
                                     close {
-                                        Utils.logToNative(pagerId,"22224343434434 close")
+                                        KLog.i("ModalViewDemoPage", "ActionSheet close")
                                         ctx.showModal = false
                                     }
                                 }
@@ -140,20 +152,13 @@ internal class ModalViewDemoPage : BasePager() {
         val module =  getPager().acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
         val eventName = "TestKTVEvent"
         callbackRef =module.addNotify(eventName) {
-            Utils.logToNative(pagerId, "收到通知了" + it.toString())
+            KLog.i("ModalViewDemoPage", "收到通知了$it")
         }
 
         setTimeout(pagerId, 2000) {
             val data = JSONObject()
             data.put("key", "22")
             module.postNotify(eventName, data)
-//            module.removeNotify(eventName, callbackRef)
-
-//            module.postNotify(eventName, data)
-
-
-
-
         }
 
         setTimeout(pagerId, 10 * 1000) {
@@ -162,7 +167,6 @@ internal class ModalViewDemoPage : BasePager() {
         }
 
     }
-
 
 }
 
@@ -192,7 +196,7 @@ internal class ActionSheetView : ComposeView<ComposeAttr, ActionSheetEvent>() {
                 }
                 animationCompletion {
                     if (!ctx.animated) {
-                        Utils.logToNative(pagerId, "22224343434434 animationCompletion")
+                        KLog.i("ActionSheetView", "animationCompletion $it")
                         this@ActionSheetView.emit(ActionSheetEvent.CLOSE, it);
                     }
                 }

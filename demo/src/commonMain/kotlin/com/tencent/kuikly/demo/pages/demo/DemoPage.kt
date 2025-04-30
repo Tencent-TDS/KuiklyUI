@@ -13,26 +13,22 @@
  * limitations under the License.
  */
 
-package com.tencent.kuikly.demo.pages
+package com.tencent.kuikly.demo.pages.demo
 
-import com.tencent.kuikly.core.views.List
 import com.tencent.kuikly.core.annotations.Page
-import com.tencent.kuikly.core.base.*
-import com.tencent.kuikly.core.directives.vfor
+import com.tencent.kuikly.core.base.ComposeEvent
+import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.directives.vforIndex
 import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.manager.PagerManager
 import com.tencent.kuikly.core.module.CalendarModule
 import com.tencent.kuikly.core.module.ICalendar
 import com.tencent.kuikly.core.module.SnapshotModule
-import com.tencent.kuikly.core.module.TurboDisplayModule
 import com.tencent.kuikly.core.reactive.collection.ObservableList
-import com.tencent.kuikly.core.timer.setTimeout
+import com.tencent.kuikly.core.reactive.handler.observable
+import com.tencent.kuikly.core.reactive.handler.observableList
+import com.tencent.kuikly.core.views.List
 import com.tencent.kuikly.demo.pages.base.BasePager
-import com.tencent.kuikly.core.reactive.handler.*
-import com.tencent.kuikly.core.views.ActionSheet
-import com.tencent.kuikly.core.views.Text
-import com.tencent.kuikly.core.views.View
 
 /**
  * Created by kam on 2022/6/22.
@@ -40,8 +36,8 @@ import com.tencent.kuikly.core.views.View
 @Page("example")
 internal class DemoPage : BasePager() {
     private var showActionSheet by observable(false)
+    private var dataList: ObservableList<CardView.Item> by observableList()
 
-    var dataList: ObservableList<Item> by observableList<Item>()
     override fun createEvent(): ComposeEvent {
         return ComposeEvent()
     }
@@ -49,7 +45,6 @@ internal class DemoPage : BasePager() {
     override fun body(): ViewBuilder {
         val ctx = this
         return {
-
 
 ////            // 导航栏（顶部显示协商历史）
             Topbar {
@@ -75,22 +70,22 @@ internal class DemoPage : BasePager() {
                 }
             }
 
-
         }
     }
 
     override fun created() {
         super.created()
 
-        val calendar = PagerManager.getCurrentPager().acquireModule<CalendarModule>(CalendarModule.MODULE_NAME).newCalendarInstance()
+        val calendar =
+            PagerManager.getCurrentPager().acquireModule<CalendarModule>(CalendarModule.MODULE_NAME)
+                .newCalendarInstance()
         val d = calendar.get(ICalendar.Field.DAY_OF_WEEK)
 
         KLog.i("CalendarModule", "今天是周:${d}")
 
         do {
 
-
-            var item = Item()
+            var item = CardView.Item()
             item.apply {
                 title = "取消售后申请"
                 detialInfo = "撤销售后申请\n进入开始流程"
@@ -98,13 +93,11 @@ internal class DemoPage : BasePager() {
                 index = dataList.count()
             }
 
-
-
             dataList.add(item)
         } while (false)
 
         do {
-            var item = Item()
+            var item = CardView.Item()
             item.apply {
                 title = "同意售后申请"
                 detialInfo = "商家已同意退货申请。\n" +
@@ -117,11 +110,13 @@ internal class DemoPage : BasePager() {
         } while (false)
 
         do {
-            var item = Item()
+            var item = CardView.Item()
             item.apply {
                 title = "发起售后申请"
-                detialInfo = "发起了退货退款售后申请\n售后类型：退货退款\n货物状态：已收到货\n退货原因：7天无理由退款\n退款金额：¥59\n退货方式：线下寄件"
-                avatarUrl = "https://p3.toutiaoimg.com/large/pgc-image/54b93ce31b2e47c3aa1224b8fbfe4ffa"
+                detialInfo =
+                    "发起了退货退款售后申请\n售后类型：退货退款\n货物状态：已收到货\n退货原因：7天无理由退款\n退款金额：¥59\n退货方式：线下寄件"
+                avatarUrl =
+                    "https://p3.toutiaoimg.com/large/pgc-image/54b93ce31b2e47c3aa1224b8fbfe4ffa"
                 index = dataList.count()
             }
             item.pictures.add("https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/c498f4b4.jpg")
@@ -134,8 +129,7 @@ internal class DemoPage : BasePager() {
 
         do {
 
-
-            var item = Item()
+            var item = CardView.Item()
             item.apply {
                 title = "取消售后申请"
                 detialInfo = "撤销售后申请\n进入开始流程"
@@ -143,13 +137,11 @@ internal class DemoPage : BasePager() {
                 index = dataList.count()
             }
 
-
-
             dataList.add(item)
         } while (false)
 
         do {
-            var item = Item()
+            var item = CardView.Item()
             item.apply {
                 title = "同意售后申请"
                 detialInfo = "商家已同意退货申请。\n" +
@@ -163,8 +155,7 @@ internal class DemoPage : BasePager() {
 
         do {
 
-
-            var item = Item()
+            var item = CardView.Item()
             item.apply {
                 title = "取消售后申请"
                 detialInfo = "撤销售后申请\n进入开始流程"
@@ -172,13 +163,11 @@ internal class DemoPage : BasePager() {
                 index = dataList.count()
             }
 
-
-
             dataList.add(item)
         } while (false)
 
         do {
-            var item = Item()
+            var item = CardView.Item()
             item.apply {
                 title = "同意售后申请"
                 detialInfo = "商家已同意退货申请。\n" +
@@ -194,22 +183,7 @@ internal class DemoPage : BasePager() {
 
     override fun viewDidLoad() {
         super.viewDidLoad()
-        getPager().acquireModule<SnapshotModule>(SnapshotModule.MODULE_NAME).snapshotPager("example")
-
-
+        getPager().acquireModule<SnapshotModule>(SnapshotModule.MODULE_NAME)
+            .snapshotPager("example")
     }
-
-    override fun viewDidLayout() {
-        super.viewDidLayout()
-
-    }
-}
-
-class Item {
-    var title = ""
-    var subTitle = ""
-    var detialInfo = ""
-    var avatarUrl = ""
-    var pictures = arrayListOf<String>()
-    var index: Int = 0
 }

@@ -16,11 +16,9 @@
 package com.tencent.kuikly.demo.pages.demo
 
 import com.tencent.kuikly.core.annotations.Page
-import com.tencent.kuikly.core.base.BoxShadow
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.log.KLog
-import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.List
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.core.views.compose.Button
@@ -126,5 +124,3 @@ internal class TouchEventTestPage : BasePager() {
         }
     }
 }
-
-

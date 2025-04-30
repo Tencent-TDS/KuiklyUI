@@ -15,16 +15,19 @@
 
 package com.tencent.kuikly.demo.pages.demo.catalog
 
-
-import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.base.Border
+import com.tencent.kuikly.core.base.BorderStyle
+import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ComposeAttr
+import com.tencent.kuikly.core.base.ComposeEvent
+import com.tencent.kuikly.core.base.ComposeView
+import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.core.views.compose.Button
-import com.tencent.kuikly.demo.pages.demo.catalog.ExampleItemData
-
-
 import kotlin.math.min
 import kotlin.random.Random
 
@@ -120,27 +123,6 @@ internal class ExampleItemView : ComposeView<ExampleItemAttr, ComposeEvent>() {
                         }
                     }
                 }
-//                vif({ctx.attr.itemData.imperativeExampleUrl.isNotEmpty()}) {
-//                    Button {
-//                        attr {
-//                            marginTop(10f)
-//                            padding(left = 6f, top = 6f, right = 6f, bottom = 6f)
-//                            backgroundColor(ctx.avatarLightColor)
-//                            titleAttr {
-//                                text("查看命令式Demo")
-//                                fontSize(15f)
-//                                color(ctx.mainColor)
-//                            }
-//                        }
-//                        event {
-//                            click {
-//
-//                                getPager().acquireModule<RouterModule>(RouterModule.MODULE_NAME).openPage(ctx.attr.itemData.imperativeExampleUrl)
-//                            }
-//                        }
-//                    }
-//                }
-
             }
 
         }
@@ -185,7 +167,6 @@ internal class ExampleItemView : ComposeView<ExampleItemAttr, ComposeEvent>() {
 internal fun ViewContainer<*, *>.ExampleItem(init: ExampleItemView.() -> Unit) {
     addChild(ExampleItemView(), init)
 }
-
 
 internal class ExampleItemAttr : ComposeAttr() {
     lateinit var itemData: ExampleItemData

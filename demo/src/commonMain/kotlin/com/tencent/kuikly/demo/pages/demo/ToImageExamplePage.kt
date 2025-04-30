@@ -15,22 +15,19 @@
 
 package com.tencent.kuikly.demo.pages.demo
 
-import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Border
 import com.tencent.kuikly.core.base.BorderStyle
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewRef
-import com.tencent.kuikly.core.manager.PagerManager
-import com.tencent.kuikly.core.module.PerformanceModule
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.DivView
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
+import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
-import kotlin.properties.Delegates
 
 @Page("ToImageExamplePage")
 internal class ToImageExamplePage : BasePager() {

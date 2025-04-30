@@ -15,14 +15,19 @@
 
 package com.tencent.kuikly.demo.pages.demo.base
 
-import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ComposeAttr
+import com.tencent.kuikly.core.base.ComposeEvent
+import com.tencent.kuikly.core.base.ComposeView
+import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.module.RouterModule
+import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
-import com.tencent.kuikly.demo.pages.base.Utils
-import com.tencent.kuikly.core.reactive.handler.*
+
 internal class NavigationBar: ComposeView<NavigationBarAttr, ComposeEvent>() {
     override fun createEvent(): ComposeEvent {
         return ComposeEvent()
@@ -46,9 +51,6 @@ internal class NavigationBar: ComposeView<NavigationBarAttr, ComposeEvent>() {
                         height(44f)
                         allCenter()
                     }
-
-
-
 
                     Text {
                         attr {
@@ -80,7 +82,6 @@ internal class NavigationBar: ComposeView<NavigationBarAttr, ComposeEvent>() {
         }
     }
 }
-
 
 internal class NavigationBarAttr : ComposeAttr() {
     var title : String by observable("")

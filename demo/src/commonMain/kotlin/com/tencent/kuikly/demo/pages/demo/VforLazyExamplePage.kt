@@ -30,6 +30,7 @@ import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.undefined
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.reactive.handler.observableList
+import com.tencent.kuikly.core.timer.setTimeout
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.Input
 import com.tencent.kuikly.core.views.InputView
@@ -39,7 +40,6 @@ import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.core.views.compose.Button
 import com.tencent.kuikly.demo.pages.base.BasePager
-import com.tencent.kuikly.demo.pages.base.ktx.setTimeout
 import com.tencent.kuikly.demo.pages.demo.VforLazyExamplePage.ChatItem.Companion.AUTO_REPLY
 import com.tencent.kuikly.demo.pages.demo.VforLazyExamplePage.ChatItem.Companion.MSG
 import com.tencent.kuikly.demo.pages.demo.VforLazyExamplePage.ChatItem.Companion.RECEIVE

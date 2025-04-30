@@ -22,7 +22,6 @@ import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Hover
 import com.tencent.kuikly.core.views.List
 import com.tencent.kuikly.core.views.View
-import com.tencent.kuikly.core.views.compose.Button
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 
@@ -41,8 +40,6 @@ internal class BorderRadiusIssuePage : BasePager() {
                 }
             }
 
-
-
             List {
                 attr {
                     flex(1f)
@@ -57,7 +54,6 @@ internal class BorderRadiusIssuePage : BasePager() {
                     attr {
                         borderRadius(topLeft = 10f, topRight = 10f, bottomRight = 0f, bottomLeft = 0f)
                         //height(100f)
-
 
                     }
                     View {

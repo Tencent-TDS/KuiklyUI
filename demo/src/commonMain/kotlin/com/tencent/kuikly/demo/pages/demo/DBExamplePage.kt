@@ -39,7 +39,6 @@ internal class DBSubTabItemData {
     var index by observable(0)
 }
 
-
 /*
  * 详情页2层楼交互Demo
  */
@@ -289,8 +288,6 @@ internal class DBExamplePage : BasePager() {
                         }
                     }
                 }
-
-
 
             }
         }

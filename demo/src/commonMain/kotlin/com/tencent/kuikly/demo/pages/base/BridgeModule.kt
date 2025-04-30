@@ -25,70 +25,10 @@ import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-
 internal class BridgeModule : Module() {
 
     override fun moduleName(): String {
         return MODULE_NAME
-    }
-
-    fun closePage(
-        data: JSONObject? = null,
-        callbackFn: CallbackFn? = null, // 关闭页面完成回调，只在iOS平台可用
-    ) {
-        callNativeMethod(CLOSE_PAGE, data, callbackFn)
-    }
-
-    fun log(content: String) {
-        val methodArgs = JSONObject()
-        methodArgs.put("content", content)
-        callNativeMethod(LOG, methodArgs, null)
-    }
-    fun logAndTelemetry(spanContext: String, content: String) {
-        val methodArgs = JSONObject()
-        methodArgs.put("content", content)
-        methodArgs.put("spanContext", spanContext)
-        callNativeMethod(LOG_AND_TELEMETRY, methodArgs, null)
-    }
-    fun copyToPasteboard(content: String) {
-        val methodArgs = JSONObject()
-        methodArgs.put("content", content)
-        callNativeMethod("copyToPasteboard", methodArgs, null)
-    }
-
-    fun showAlert(
-        title: String?,
-        message: String?,
-        leftBtnTitle: String?,
-        rightBtnTitle: String?,
-        responseCallbackFn: CallbackFn
-    ) {
-        val methodArgs = JSONObject()
-        val buttonArray = JSONArray()
-        leftBtnTitle?.also {
-            buttonArray.put(it)
-        }
-        rightBtnTitle?.also {
-            buttonArray.put(it)
-        }
-
-        methodArgs.put("buttons", buttonArray)
-        title?.also {
-            methodArgs.put("title", it)
-        }
-        message?.also {
-            methodArgs.put("message", it)
-        }
-        callNativeMethod("showAlert", methodArgs) {
-            responseCallbackFn(it)
-        }
-    }
-
-    // 拨打电话
-    fun callPhone(phoneNumber: String) {
-        val methodArgs = JSONObject()
-        methodArgs.put("phoneNumber", phoneNumber)
-        callNativeMethod("callPhone", methodArgs, null)
     }
 
     fun toast(content: String) {
@@ -99,25 +39,29 @@ internal class BridgeModule : Module() {
 
     fun testArray() {
         //call
-     //   listOf()
         val array = arrayOf<Any>("222", createByteArray())
-        val res = syncToNativeMethod("testArray",array) {
+        val res = syncToNativeMethod("testArray", array) {
             if (it is Array<*>) {
-                KLog.i("testArray", "callback res:${it[1] is ByteArray } ${(it[1] as ByteArray)[1].toString()}" + it.toString())
+                KLog.i(
+                    "testArray",
+                    "callback res:${it[1] is ByteArray} ${(it[1] as ByteArray)[1].toString()}" + it.toString()
+                )
 
             }
-            }
+        }
 
         var i = 0
 
         if (res is Array<*>) {
             i = res.size
 
-            KLog.i("testArray res:", "${res[1] is ByteArray } | ${(res[1] as ByteArray).size }" + res[0].toString())
+            KLog.i(
+                "testArray res:",
+                "${res[1] is ByteArray} | ${(res[1] as ByteArray).size}" + res[0].toString()
+            )
 
         }
     }
-
 
     fun createByteArray(): ByteArray {
         val size = 10 // 指定 ByteArray 的大小
@@ -130,7 +74,13 @@ internal class BridgeModule : Module() {
         return byteArray
     }
 
-    fun openPage(url: String, closeCurPage: Boolean = false, closeSamePage: Boolean = false, userData: JSONObject? = null, callbackFn: CallbackFn? = null) {
+    fun openPage(
+        url: String,
+        closeCurPage: Boolean = false,
+        closeSamePage: Boolean = false,
+        userData: JSONObject? = null,
+        callbackFn: CallbackFn? = null
+    ) {
         val methodArgs = JSONObject()
         methodArgs.put("url", url)
         methodArgs.put("closeCurPage", closeCurPage.toInt())
@@ -139,66 +89,6 @@ internal class BridgeModule : Module() {
             methodArgs.put("userData", it)
         }
         callNativeMethod(OPEN_PAGE, methodArgs, callbackFn)
-    }
-
-    // 设置状态栏为白色
-    fun setWhiteStatusBarStyle() {
-        callNativeMethod(SET_STATUS_BAR_WHITE, null, null)
-    }
-    // 设置状态栏为黑色
-    fun setBlackStatusBarStyle() {
-        callNativeMethod(SET_STATUS_BAR_BLACK, null, null)
-    }
-
-    // 灯塔上报
-    fun reportDT(eventCode: String, data: JSONObject) {
-        val methodArgs = JSONObject()
-        methodArgs.put("eventCode", eventCode)
-        methodArgs.put("data", data)
-        // methodArgs.put("realtime", 1)
-        callNativeMethod(REPORT_DT, methodArgs, null)
-    }
-
-    // 实时上报
-    fun reportRealTime(eventCode: String, data: JSONObject) {
-        val methodArgs = JSONObject()
-        methodArgs.put("eventCode", eventCode)
-        methodArgs.put("data", data)
-        callNativeMethod(REPORT_REALTIME, methodArgs, null)
-    }
-
-    // 页面首屏（有内容，来自缓存）耗时上报
-    fun reportPageCostTimeForCache() {
-        callNativeMethod(REPORT_PAGE_COST_TIME_FOR_CACHE, null, null)
-    }
-
-    // 页面首屏（有内容，来自后台）耗时上报
-    fun reportPageCostTimeForSuccess() {
-        callNativeMethod(REPORT_PAGE_COST_TIME_FOR_SUCCESS, null, null)
-    }
-
-    // 页面首屏耗时上报 - 加载失败
-    fun reportPageCostTimeForError() {
-        callNativeMethod(REPORT_PAGE_COST_TIME_FOR_ERROR, null, null)
-    }
-
-    // 异步获取本地服务器时间戳
-    fun localServeTime(cb: CallbackFn) {
-        callNativeMethod(LOCAL_SERVE_TIME, null, cb)
-    }
-
-    // 同步获取msf系统时间戳
-    fun serverTimeMillis(): Long {
-        return syncCallNativeMethod(SERVER_TIME_MILLIS, null, null).toLong()
-    }
-
-    //同步获取本地服务器时间戳
-    suspend fun localServeTime(): JSONObject? {
-        return suspendCoroutine<JSONObject?> { continuation ->
-            localServeTime() {
-                continuation.resume(it)
-            }
-        }
     }
 
     // 同步获取时间戳（毫秒）
@@ -218,108 +108,6 @@ internal class BridgeModule : Module() {
         params.put("timeStamp", timeStamp)
         params.put("format", format)
         return syncCallNativeMethod(DATE_FORMATTER, params, null)
-    }
-
-    /**
-     * 根据 [key] 获取本地缓存的数据, 异步返回
-     */
-    fun fetchCachedFromNative(key: String, callbackFn: CallbackFn) {
-        val param = JSONObject().apply {
-            put("key", key)
-        }
-        callNativeMethod("fetchCachedFromNative", param) {
-            callbackFn(it)
-        }
-    }
-
-    /**
-     * 根据 [key] 获取本地缓存的数据, 同步返回
-     */
-    fun getCachedFromNative(key: String): String {
-        val param = JSONObject().apply {
-            put("key", key)
-        }
-        return syncCallNativeMethod("getCachedFromNative", param, null)
-    }
-
-    /**
-     * 向 native 写入 [key] 对应的缓存
-     */
-    fun setCachedToNative(key: String, value: String, callbackFn: CallbackFn? = null) {
-        val param = JSONObject().apply {
-            put("key", key)
-            put("value", value)
-        }
-        callNativeMethod("setCachedToNative", param) {
-            callbackFn?.invoke(it)
-        }
-    }
-
-    fun getCurrentAccount(): String {
-        return syncCallNativeMethod(GET_CURRENT_ACCOUNT, JSONObject(), null)
-    }
-
-    fun loadRemoteConfig(params: RemoteConfig): String {
-        return syncCallNativeMethod(REMOTE_CONFIG, params.encode(), null)
-    }
-
-    fun showSignJumpAlert(params: JSONObject): String {
-        return syncCallNativeMethod(SIGN_ALERT, params, null)
-    }
-
-    fun closeKeyboard(data: JSONObject? = null, callbackFn: CallbackFn? = null): String {
-        return syncCallNativeMethod(CLOSE_KEYBOARD, data, callbackFn)
-    }
-
-    fun humanVerification(params: JSONObject, callbackFn: CallbackFn? = null): String {
-        return syncCallNativeMethod(HUMAN_VERIFICATION, params, callbackFn)
-    }
-
-    fun urlEncode(string: String): String {
-        val params = JSONObject()
-        params.put("string", string)
-        return syncCallNativeMethod(URL_ENCODE, params, null)
-    }
-
-    fun urlDecode(string: String): String {
-        val params = JSONObject()
-        params.put("string", string)
-        return syncCallNativeMethod(URL_DECODE, params, null)
-    }
-
-    /**
-     * 端确保缓存和线程同步
-     * */
-    fun preloadPB(pbClassName: String, pbData: String, token: String) {
-        val data = JSONObject()
-        data.put("pbClassName", pbClassName)
-        data.put("pbData", pbData)
-        data.put(KEY_FEED_PB_TOKEN, token)
-        callNativeMethod(PRELOAD_PB, data, null)
-    }
-
-    /**
-     * 页面退出时删除pb缓存
-     * */
-    fun cleanPB(tokenArray: ArrayList<String>) {
-        if (tokenArray.size <= 0) {
-            return
-        }
-        val data = JSONObject()
-        val array = JSONArray()
-        for (token in tokenArray) {
-            array.put(token)
-        }
-        data.put("tokenArray", array)
-        callNativeMethod(CLEAN_PB, data, null)
-    }
-
-    /**
-     * 预加载PAG的so
-     * */
-    fun downloadPagSo() {
-        val data = JSONObject()
-        callNativeMethod(DOWNLOAD_PAG_SO, data, null)
     }
 
     /**
@@ -365,7 +153,6 @@ internal class BridgeModule : Module() {
         ).toString()
     }
 
-
     companion object {
         const val MODULE_NAME = "HRBridgeModule"
         const val OPEN_PAGE = "openPage"
@@ -398,29 +185,4 @@ internal class BridgeModule : Module() {
         const val READ_ASSET_FILE = "readAssetFile"
     }
 
-
-}
-
-data class RemoteConfig(
-    val configID: Int = 0 ,
-    val configKey: String = "",
-    val defaultValue: Any
-) {
-    fun encode(): JSONObject {
-        return JSONObject().apply {
-            put("configID", configID)
-            put("configKey", configKey)
-            put("defaultValue", defaultValue)
-        }
-    }
-}
-
-enum class DCReportActionType(val value: Int) {
-    Content(1),
-    Video(2),
-}
-
-enum class DCReportSubActionType(val value: Int) {
-    Expose(1),
-    Play(4),
 }

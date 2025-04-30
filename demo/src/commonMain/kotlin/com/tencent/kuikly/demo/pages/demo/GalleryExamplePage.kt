@@ -16,10 +16,10 @@
 package com.tencent.kuikly.demo.pages.demo
 
 import com.tencent.kuikly.core.annotations.Page
-import com.tencent.kuikly.core.base.*
-import com.tencent.kuikly.core.base.event.appearPercentage
+import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.Scale
+import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.directives.vfor
-import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.reactive.handler.observableList
 import com.tencent.kuikly.core.views.PageList
@@ -109,11 +109,5 @@ internal class GalleryExamplePage : BasePager() {
 
         }
     }
-
-
-
-
-
-
 
 }

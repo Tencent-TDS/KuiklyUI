@@ -39,7 +39,7 @@ internal class ImageDemoPage: BasePager() {
 
     override fun created() {
         val imageUrl = "https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/c498f4b4.jpg"
-        Utils.bridgeModule(pagerId).getLocalImagePath(imageUrl) {data ->
+        Utils.bridgeModule(this).getLocalImagePath(imageUrl) {data ->
             localImagePath = data?.optString("localPath", "") ?: ""
         }
         KLog.i("34343", "safeAreaInsets:" +pageData.safeAreaInsets.toString())

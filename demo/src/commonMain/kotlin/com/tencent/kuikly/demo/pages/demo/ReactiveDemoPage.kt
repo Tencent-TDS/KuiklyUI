@@ -24,8 +24,9 @@ import com.tencent.kuikly.core.views.List
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.base.BasePager
-import com.tencent.kuikly.demo.pages.base.ktx.setTimeout
 import com.tencent.kuikly.core.reactive.handler.*
+import com.tencent.kuikly.core.timer.setTimeout
+
 @Page("reactive")
 internal class ReactiveDemoPage: BasePager() {
 
@@ -63,13 +64,9 @@ internal class ReactiveDemoPage: BasePager() {
 
                             }
                         }
-
-
                     }
                 }
             }
-
-
         }
     }
     override fun created() {
@@ -93,16 +90,6 @@ internal class ReactiveDemoPage: BasePager() {
                 }
             }
 
-
-//            vif({ctx.isSelected == false}) {
-//                View {
-//                    attr {
-//                        size(100f, 100f)
-//                        backgroundColor(Color.RED)
-//                    }
-//                }
-//            }
-
             vif({ctx.isSelected}) {
                 View {
                     attr {
@@ -111,25 +98,6 @@ internal class ReactiveDemoPage: BasePager() {
                     }
                 }
             }
-
-//            // 背景图
-//            Image {
-//                attr {
-//                    absolutePosition(0f, 0f, 0f, 0f)
-//                    src("https://sqimg.qq.com/qq_product_operations/kan/images/viola/viola_bg.jpg")
-//                }
-//            }
-//            // navBar
-//            NavBar {
-//                attr {
-//                    title = "Modal组件Demo"
-//                }
-//            }
-
-
-
-
-
         }
     }
 
@@ -168,8 +136,6 @@ internal class ExampleCardView : ComposeView<ExampleCardAttr, ComposeEvent>() {
                     }
                 }
             }
-
-
         }
     }
 

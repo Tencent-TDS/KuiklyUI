@@ -51,7 +51,6 @@ internal class AbsLayoutFixPage : BasePager() {
                 }
             }
 
-
             // bugfix2: 绝对布局撑满父亲，父亲的宽度由孩子决定，父亲设置了对齐属性，此时绝对布局对孩子的对齐属性失效
             // bugfix3: 绝对布局嵌套绝对布局失效
             View {
@@ -117,7 +116,6 @@ internal class AbsLayoutFixPage : BasePager() {
     }
 }
 
-
 /**
  * Created by kam on 2022/7/28.
  */
@@ -147,7 +145,6 @@ internal class AbsLayoutWithFlexBugFixPager : BasePager() {
                 backgroundColor(Color.RED)
 //                allCenter()
             }
-
 
             //bg
             View {
@@ -193,17 +190,7 @@ internal class AbsLayoutWithFlexBugFixPager : BasePager() {
 
                         }
 
-//                        View {
-//                            attr {
-//                                size(300f, 300f)
-//                                backgroundColor(Color.YELLOW)
-//                            }
-//                        }
-
                     }
-
-
-
 
                 }
             }
@@ -225,6 +212,5 @@ internal class AbsLayoutWithFlexBugFixPager : BasePager() {
         super.created()
 
     }
-
 
 }

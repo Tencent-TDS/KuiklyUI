@@ -57,6 +57,14 @@
 
 ### 编译环境
 参照[环境搭建](https://kuikly.tds.qq.com/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B/env-setup.html)进行配置
+- [Android Studio](https://developer.android.com/studio)
+  
+  如果你的 Android Studio 版本大于等于 (2024.2.1)，请将 Gradle JDK 版本切换为 JDK17 
+  (该版本默认 Gradle JDK 为 21，与项目使用的配置不兼容）
+
+  切换方式: Android Studio -> Settings -> Build,Execution,Deployment -> Build Tools -> Gradle -> Gradle JDK
+- [XCode](https://developer.apple.com/xcode/)和[cocoapods](https://cocoapods.org/)
+- JDK17
 
 ### 运行安卓 APP
 在构建 Android App 之前，请确保完成了环境准备

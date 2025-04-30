@@ -58,6 +58,15 @@ Since its launch, `Kuikly` has gained wide recognition from the business. It has
 ## Building from Source
 ### Environment Setup
 Refer to [Environment Configuration](https://kuikly.tds.qq.com/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B/env-setup.html)
+- [Android Studio](https://developer.android.com/studio)
+
+    if your Android Studio Version >= (2024.2.1) Please switch your Gradle JDK Version to JDK17
+    (this Version default Gradle JDK is 21, it incompatible with the configuration used by the project)
+
+    Android Studio -> Settings -> Build,Execution,Deployment -> Build Tools -> Gradle -> Gradle JDK
+- [XCode](https://developer.apple.com/xcode/)和[cocoapods](https://cocoapods.org/)
+- JDK17
+
 ### Running Android App
 Ensure environment preparation is complete before building:
 1. Open `KuiklyUI` root directory in `Android Studio` and sync project

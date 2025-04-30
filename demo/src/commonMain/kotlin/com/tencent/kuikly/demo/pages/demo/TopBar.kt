@@ -13,17 +13,15 @@
  * limitations under the License.
  */
 
-package com.tencent.kuikly.demo.pages
+package com.tencent.kuikly.demo.pages.demo
 
 import com.tencent.kuikly.core.base.*
 import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.views.*
-import com.tencent.kuikly.demo.pages.base.Utils
-import com.tencent.kuikly.core.reactive.handler.*
+
 /**
  * Created by kam on 2022/6/22.
  */
-
 internal class TopBar : ComposeView<ComposeAttr, ComposeEvent>() {
 
     lateinit var selfRef : ViewRef<ViewContainer<*, *>>

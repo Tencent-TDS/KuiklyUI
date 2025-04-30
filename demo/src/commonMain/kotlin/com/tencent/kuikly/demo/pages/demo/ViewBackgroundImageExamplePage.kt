@@ -21,7 +21,6 @@ import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.View
-import com.tencent.kuikly.demo.pages.base.ktx.setTimeout
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 
 @Page("ViewBackgroundImageExamplePage")

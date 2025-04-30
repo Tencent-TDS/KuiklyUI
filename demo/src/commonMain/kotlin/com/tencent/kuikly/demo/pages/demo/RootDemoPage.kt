@@ -26,7 +26,6 @@ import com.tencent.kuikly.core.views.List
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.core.views.compose.Button
 import com.tencent.kuikly.demo.pages.base.BasePager
-import com.tencent.kuikly.demo.pages.demo.base.DemoUtils
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 import com.tencent.kuikly.core.reactive.handler.*
 internal class ButtonDataItem {

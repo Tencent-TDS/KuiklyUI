@@ -15,16 +15,18 @@
 
 package com.tencent.kuikly.demo.pages
 
-import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewRef
 import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.reactive.handler.observable
-import com.tencent.kuikly.core.reactive.handler.observableList
-import com.tencent.kuikly.core.views.*
-import com.tencent.kuikly.demo.pages.base.ktx.setTimeout
+import com.tencent.kuikly.core.timer.setTimeout
+import com.tencent.kuikly.core.views.Input
+import com.tencent.kuikly.core.views.InputSpan
+import com.tencent.kuikly.core.views.InputSpans
+import com.tencent.kuikly.core.views.InputView
+import com.tencent.kuikly.demo.pages.base.BasePager
 
 @Page("4444")
 internal class InputSpanPager : BasePager() {

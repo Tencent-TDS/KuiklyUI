@@ -17,17 +17,19 @@ package com.tencent.kuikly.demo.pages.demo
 
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.module.NotifyModule
 import com.tencent.kuikly.core.module.SharedPreferencesModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.timer.setTimeout
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.base.Utils
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
-import com.tencent.kuikly.core.reactive.handler.*
+
 @Page("ViewDemoPage")
-internal class ViewDemoPage: BasePager() {
+internal class ViewDemoPage : BasePager() {
 
     var borderHeight: Float by observable(2f)
     var animated: Boolean by observable(false)
@@ -39,17 +41,8 @@ internal class ViewDemoPage: BasePager() {
         val ctx = this
         return {
             attr {
-              //  backgroundColor(Color(0xFF3c6cbdL))
-
                 backgroundColor(Color.WHITE)
             }
-            // 背景图
-//            Image {
-//                attr {
-//                    absolutePosition(0f, 0f, 0f, 0f)
-//                    src("https://sqimg.qq.com/qq_product_operations/kan/images/viola/viola_bg.jpg")
-//                }
-//            }
             // navBar
             NavBar {
                 attr {
@@ -83,71 +76,6 @@ internal class ViewDemoPage: BasePager() {
 
                 }
             }
-
-
-
-//            View {
-//                attr {
-//                    margin(50f)
-//                    boxShadow(BoxShadow(0f, 0f, 5f,
-//                        Color(0,0,0,0.6f)
-//                    ))
-//                }
-//                View {
-//                    attr {
-//
-//                        marginTop(700f)
-//                        borderRadius(5f)
-//                        size(100f, 300f)
-//                        backgroundColor(Color.WHITE)
-//                    }
-//
-//                    event {
-//                        didAppear {
-//                            Utils.logToNative(pagerId, "lifeCycle： didAppear")
-//                        }
-//                        didDisappear {
-//                            Utils.logToNative(pagerId, "lifeCycle： didDisappear")
-//                        }
-//                        willAppear {
-//                            Utils.logToNative(pagerId, "lifeCycle： willAppear")
-//                        }
-//                        willDisappear {
-//                            Utils.logToNative(pagerId, "lifeCycle： willDisappear")
-//                        }
-//                    }
-//                }
-//            }
-
-
-//            RichText {
-//                attr {
-//                    margin(20f)
-//
-//                    if (animated) {
-//                        Utils.bridgeModule(pagerId).toast("222")
-//                        transform(Scale(3.6f, 3.6f))
-//                    } else {
-//                        transform(Scale(1f, 1f))
-//                    }
-//                    animation(Animation.linear(1f), animated)
-//                }
-//
-//                Span {
-//                    attr {
-//                        fontSize(20f)
-//                        color(Color.RED)
-//                        text("我是第一段")
-//                    }
-//                }
-//                Span {
-//                    attr {
-//                        fontSize(10f)
-//                        color(Color.BLUE)
-//                        text("我是第二段")
-//                    }
-//                }
-//            }
         }
     }
 
@@ -158,8 +86,7 @@ internal class ViewDemoPage: BasePager() {
     override fun created() {
         super.created()
 
-
-        setTimeout(pagerId, 1000) {
+        setTimeout(1000) {
             if (flag != 1) {
                 throw RuntimeException("error")
             }
@@ -167,12 +94,12 @@ internal class ViewDemoPage: BasePager() {
             if (flag != 2) {
                 throw RuntimeException("error")
             }
-            setTimeout(pagerId, 1000) {
+            setTimeout(1000) {
                 flag0 = false
                 if (flag != 3) {
                     throw RuntimeException("error")
                 }
-                setTimeout(pagerId, 1000) {
+                setTimeout(1000) {
                     flag1 = false
                     if (flag != 3) {
                         throw RuntimeException("error")
@@ -181,50 +108,49 @@ internal class ViewDemoPage: BasePager() {
                 }
             }
 
-
-
         }
 
-        val timeStamp = Utils.bridgeModule(pagerId).currentTimeStamp()
-        val formatString = Utils.bridgeModule(pagerId).dateFormatter(timeStamp, "MM月dd日HH:mm")
-        Utils.logToNative(pagerId, "date format:" + formatString)
-
+        val timeStamp = Utils.bridgeModule(this).currentTimeStamp()
+        val formatString = Utils.bridgeModule(this).dateFormatter(timeStamp, "MM月dd日HH:mm")
+        KLog.i("ViewDemoPage", "date format:$formatString")
 
         // notify module
         val eventName = "TestEventName"
-        val eventRef = getPager().acquireModule<NotifyModule>(NotifyModule.MODULE_NAME).addNotify(eventName) {
-            Utils.bridgeModule(pagerId).toast("收到事件：" + it.toString())
+        val eventRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME).addNotify(eventName) {
+            Utils.bridgeModule(this).toast("收到事件：" + it.toString())
         }
 
-        setTimeout(pagerId, 2000) {
+        setTimeout(2000) {
             val data = JSONObject()
             data.put("key", "value")
-            getPager().acquireModule<NotifyModule>(NotifyModule.MODULE_NAME).postNotify(eventName, data) // 能收到
+            getPager().acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+                .postNotify(eventName, data) // 能收到
             setTimeout(1 * 1000) {
-                getPager().acquireModule<NotifyModule>(NotifyModule.MODULE_NAME).removeNotify(eventName,eventRef)
-                getPager().acquireModule<NotifyModule>(NotifyModule.MODULE_NAME).postNotify(eventName, data) // 不能收到
+                getPager().acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+                    .removeNotify(eventName, eventRef)
+                getPager().acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+                    .postNotify(eventName, data) // 不能收到
             }
         }
 
         // cache module
         val cacheKey = "testKey"
-        getPager().acquireModule<SharedPreferencesModule>(SharedPreferencesModule.MODULE_NAME).setItem(cacheKey, "我是存的值")
+        getPager().acquireModule<SharedPreferencesModule>(SharedPreferencesModule.MODULE_NAME)
+            .setItem(cacheKey, "我是存的值")
 
-        val cacheValue = getPager().acquireModule<SharedPreferencesModule>(SharedPreferencesModule.MODULE_NAME).getItem(cacheKey)
+        val cacheValue =
+            getPager().acquireModule<SharedPreferencesModule>(SharedPreferencesModule.MODULE_NAME)
+                .getItem(cacheKey)
 
-        Utils.logToNative(pagerId, "cacheValue:" + cacheValue)
-
-
-
+        KLog.i("ViewDemoPage", "cacheValue:$cacheValue")
     }
 
     override fun viewDidLayout() {
         super.viewDidLayout()
         animated = true
-        setTimeout(pagerId, 1000) {
+        setTimeout(1000) {
             borderHeight = 10f
         }
     }
-
 
 }

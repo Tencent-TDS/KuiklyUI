@@ -13,17 +13,29 @@
  * limitations under the License.
  */
 
-package com.tencent.kuikly.demo.pages
+package com.tencent.kuikly.demo.pages.demo
 
-import com.tencent.kuikly.core.base.*
-import com.tencent.kuikly.core.base.event.layoutFrameDidChange
-import com.tencent.kuikly.core.directives.vif
-import com.tencent.kuikly.core.layout.Frame
+import com.tencent.kuikly.core.base.Animation
+import com.tencent.kuikly.core.base.Border
+import com.tencent.kuikly.core.base.BorderStyle
+import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ComposeAttr
+import com.tencent.kuikly.core.base.ComposeEvent
+import com.tencent.kuikly.core.base.ComposeView
+import com.tencent.kuikly.core.base.Rotate
+import com.tencent.kuikly.core.base.Translate
+import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.base.ViewContainer
+import com.tencent.kuikly.core.base.ViewRef
 import com.tencent.kuikly.core.log.KLog
-import com.tencent.kuikly.core.reactive.handler.*
-import com.tencent.kuikly.core.views.*
-import com.tencent.kuikly.demo.pages.base.Utils
-import kotlin.math.abs
+import com.tencent.kuikly.core.reactive.handler.observable
+import com.tencent.kuikly.core.views.Image
+import com.tencent.kuikly.core.views.ImageSpan
+import com.tencent.kuikly.core.views.ImageView
+import com.tencent.kuikly.core.views.List
+import com.tencent.kuikly.core.views.RichText
+import com.tencent.kuikly.core.views.Span
+import com.tencent.kuikly.core.views.View
 
 /**
  * Created by kam on 2022/6/22.
@@ -37,6 +49,15 @@ internal class CardView : ComposeView<CardData, ComposeEvent>() {
     var spanColor: Color by observable(Color.RED)
     var animated: Boolean by observable(false)
     var pHeight by observable(1f)
+
+    class Item {
+        var title = ""
+        var subTitle = ""
+        var detialInfo = ""
+        var avatarUrl = ""
+        var pictures = arrayListOf<String>()
+        var index: Int = 0
+    }
 
     fun header(): ViewBuilder {
         val ctx = this
@@ -239,6 +260,5 @@ internal fun ViewContainer<*, *>.Card(init: CardView.() -> Unit) {
 }
 
 internal class CardData : ComposeAttr() {
-    lateinit var item: Item
-
+    lateinit var item: CardView.Item
 }

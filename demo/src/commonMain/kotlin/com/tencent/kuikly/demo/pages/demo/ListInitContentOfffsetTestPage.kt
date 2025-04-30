@@ -21,13 +21,13 @@ import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewRef
 import com.tencent.kuikly.core.directives.vfor
 import com.tencent.kuikly.core.reactive.handler.observableList
+import com.tencent.kuikly.core.timer.setTimeout
 import com.tencent.kuikly.core.views.List
 import com.tencent.kuikly.core.views.ListView
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.base.extension.to375
-import com.tencent.kuikly.demo.pages.base.ktx.setTimeout
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 
 @Page("ListInitContentOfffsetTestPage")
@@ -35,7 +35,6 @@ internal class ListInitContentOfffsetTestPage: BasePager() {
 
     private var list by observableList<String>()
     private var listRef : ViewRef<ListView<*, *>>? = null
-
 
     override fun created() {
         super.created()
@@ -48,7 +47,6 @@ internal class ListInitContentOfffsetTestPage: BasePager() {
         }
 
     }
-
 
     override fun body(): ViewBuilder {
         val ctx = this
@@ -100,8 +98,5 @@ internal class ListInitContentOfffsetTestPage: BasePager() {
             }
         }
     }
-
-
-
 
 }

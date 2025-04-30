@@ -93,8 +93,6 @@ internal class SliderPageViewDemoPage: BasePager() {
                    }
                }
 
-
-
                View {
                    attr {
                        height(40f)
@@ -115,14 +113,10 @@ internal class SliderPageViewDemoPage: BasePager() {
 
                            }
 
-
-
-
                        }
                    }
 
                }
-
 
            }
        }
@@ -151,6 +145,5 @@ internal class SliderPageViewDemoPage: BasePager() {
         }
 
     }
-
 
 }

@@ -77,7 +77,6 @@ internal class KuiklyPageView : DeclarativeBaseView<KuiklyPageAttr, KuiklyPageEv
     override fun createEvent() = KuiklyPageEvent()
     override fun viewName() = "KuiklyPageView"
 
-
     override fun willInit() {
         super.willInit()
         event {
@@ -120,8 +119,6 @@ internal class KuiklyPageView : DeclarativeBaseView<KuiklyPageAttr, KuiklyPageEv
     fun pageDidDisappear() {
         sendPagerEvent("viewDidDisappear")
     }
-
-
 
     override fun onPagerEvent(pagerEvent: String, eventData: JSONObject) {
         sendPagerEvent(pagerEvent, eventData)

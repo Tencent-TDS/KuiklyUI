@@ -17,13 +17,11 @@ package com.tencent.kuikly.demo.pages.demo
 
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
-import com.tencent.kuikly.core.base.ColorStop
-import com.tencent.kuikly.core.base.Direction
-import com.tencent.kuikly.core.base.Rotate
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.directives.vbind
 import com.tencent.kuikly.core.reactive.handler.observable
-import com.tencent.kuikly.core.views.*
+import com.tencent.kuikly.core.views.Date
+import com.tencent.kuikly.core.views.DatePicker
 import com.tencent.kuikly.core.views.ScrollPicker
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
@@ -45,7 +43,6 @@ internal class ScrollPickerDemoPage: BasePager() {
 
     private var date: Date by observable(Date(0,0,0))
     private var dateTimestamp : Long by observable(0L)
-
 
     override fun body(): ViewBuilder {
         val ctx = this@ScrollPickerDemoPage
@@ -290,6 +287,5 @@ internal class ScrollPickerDemoPage: BasePager() {
             }
         }
     }
-
 
 }

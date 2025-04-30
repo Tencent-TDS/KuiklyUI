@@ -21,17 +21,18 @@ import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.directives.vfor
 import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.reactive.handler.observableList
+import com.tencent.kuikly.core.timer.setTimeout
 import com.tencent.kuikly.core.views.PageList
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.core.views.WaterfallList
 import com.tencent.kuikly.demo.pages.base.BasePager
-import com.tencent.kuikly.demo.pages.base.ktx.setTimeout
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 
 internal data class TabData(var tabTitle: String = "", var index: Int = 0) {}
 
 internal data class ItemData(var title: String = "") {}
+
 @Page("222")
 internal class WallfallIssueTest : BasePager() {
     private val tabDataList by observableList<TabData>()
@@ -41,8 +42,8 @@ internal class WallfallIssueTest : BasePager() {
     override fun created() {
         super.created()
         //
-        tabDataList.add(TabData("特权tab1",  0))
-        tabDataList.add(TabData("特权tab2",  1))
+        tabDataList.add(TabData("特权tab1", 0))
+        tabDataList.add(TabData("特权tab2", 1))
         itemsList0.clear()
         val list = arrayListOf<ItemData>().apply {
             add(ItemData("11我司一个文本表达的打发打发水电费0"))
@@ -52,7 +53,6 @@ internal class WallfallIssueTest : BasePager() {
             add(ItemData("1我司一个文本表达的打发打发水电费4"))
             add(ItemData("1我司一个文本表达的打发打发水电费5"))
         }
-      //  itemsList0.addAll(list)
 
         itemsList1.clear()
         val list2 = arrayListOf<ItemData>().apply {
@@ -63,38 +63,29 @@ internal class WallfallIssueTest : BasePager() {
             add(ItemData("2我司一个文本表达的打发打发水电费4"))
             add(ItemData("2我司一个文本表达的打发打发水电费5"))
         }
-      //  itemsList1.addAll(list2)
         setTimeout(3000) {
-          //  getPager().addNextTickTask {
-                itemsList0.clear()
-                val list = arrayListOf<ItemData>().apply {
-                    add(ItemData("我司一个文本表达的打发打发水电费0"))
-                    add(ItemData("我司一个文本表达的打发打发水电费1"))
-                    add(ItemData("我司一个文本表达的打发打发水电费2"))
-                    add(ItemData("我司一个文本表达的打发打发水电费3"))
-                    add(ItemData("我司一个文本表达的打发打发水电费4"))
-                    add(ItemData("我司一个文本表达的打发打发水电费5"))
-                }
-                itemsList0.addAll(list)
+            itemsList0.clear()
+            val list = arrayListOf<ItemData>().apply {
+                add(ItemData("我司一个文本表达的打发打发水电费0"))
+                add(ItemData("我司一个文本表达的打发打发水电费1"))
+                add(ItemData("我司一个文本表达的打发打发水电费2"))
+                add(ItemData("我司一个文本表达的打发打发水电费3"))
+                add(ItemData("我司一个文本表达的打发打发水电费4"))
+                add(ItemData("我司一个文本表达的打发打发水电费5"))
+            }
+            itemsList0.addAll(list)
 
-                itemsList1.clear()
-                val list2 = arrayListOf<ItemData>().apply {
-                    add(ItemData("2我司一个文本表达的打发打发水电费0"))
-                    add(ItemData("2我司一个文本表达的打发打发水电费1"))
-                    add(ItemData("2我司一个文本表达的打发打发水电费2"))
-                    add(ItemData("2我司一个文本表达的打发打发水电费3"))
-                    add(ItemData("2我司一个文本表达的打发打发水电费4"))
-                    add(ItemData("2我司一个文本表达的打发打发水电费5"))
-                }
-                itemsList1.addAll(list2)
-        //    }
+            itemsList1.clear()
+            val list2 = arrayListOf<ItemData>().apply {
+                add(ItemData("2我司一个文本表达的打发打发水电费0"))
+                add(ItemData("2我司一个文本表达的打发打发水电费1"))
+                add(ItemData("2我司一个文本表达的打发打发水电费2"))
+                add(ItemData("2我司一个文本表达的打发打发水电费3"))
+                add(ItemData("2我司一个文本表达的打发打发水电费4"))
+                add(ItemData("2我司一个文本表达的打发打发水电费5"))
+            }
+            itemsList1.addAll(list2)
         }
-
-
-
-
-
-        //tabDataList.add("特权tab2")
 
     }
 
@@ -114,14 +105,13 @@ internal class WallfallIssueTest : BasePager() {
                     flexDirectionRow()
                     marginLeft(16f)
                     marginRight(16f)
-                   // firstContentLoadMaxIndex(10)
                 }
                 event {
                     contentSizeChanged { width, height ->
                         KLog.i("2", "contentSizeWidth:${width}")
                     }
                 }
-                vfor({ctx.tabDataList}) { tab ->
+                vfor({ ctx.tabDataList }) { tab ->
                     WaterfallList {
                         attr {
                             flex(1f)

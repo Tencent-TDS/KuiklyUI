@@ -16,23 +16,24 @@
 package com.tencent.kuikly.demo.pages.router_page
 
 import com.tencent.kuikly.core.annotations.Page
-import com.tencent.kuikly.core.base.*
-import com.tencent.kuikly.core.coroutines.GlobalScope
-import com.tencent.kuikly.core.coroutines.async
-import com.tencent.kuikly.core.coroutines.launch
-import com.tencent.kuikly.core.directives.vif
+import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ColorStop
+import com.tencent.kuikly.core.base.Direction
+import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.base.ViewRef
 import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.module.SharedPreferencesModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
-import com.tencent.kuikly.core.reactive.ObservableThreadSafetyMode
 import com.tencent.kuikly.core.utils.urlParams
-import com.tencent.kuikly.core.views.*
+import com.tencent.kuikly.core.views.Image
+import com.tencent.kuikly.core.views.Input
+import com.tencent.kuikly.core.views.InputView
+import com.tencent.kuikly.core.views.Text
+import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.core.views.compose.Button
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.base.Utils
-import com.tencent.kuikly.demo.pages.base.ktx.bridgeModule
-import com.tencent.kuikly.core.reactive.handler.*
-
+import com.tencent.kuikly.demo.pages.demo.base.NavBar
 
 @Page("router", supportInLocal = true)
 internal class RouterPage : BasePager() {
@@ -44,9 +45,7 @@ internal class RouterPage : BasePager() {
             attr {
                 backgroundColor(Color.WHITE)
             }
-            // 背景图
-
-            RouterNavBar {
+            NavBar {
                 attr {
                     title = TITLE
                     backDisable = true
@@ -88,8 +87,6 @@ internal class RouterPage : BasePager() {
                         height(40f)
                         flex(1f)
                         borderRadius(5f)
-                        // border(Border(1f, BorderStyle.SOLID, Color(0xFFAD37FE)))
-                        //  backgroundLinearGradient(Direction.TO_BOTTOM, ColorStop(Color(0xAA23D3FD), 0f), ColorStop(Color(0xAAAD37FE), 1f))
                     }
                     View {
                         attr {
@@ -152,7 +149,7 @@ internal class RouterPage : BasePager() {
                     event {
                         click {
                             if (ctx.inputText.isEmpty()) {
-                                ctx.bridgeModule.toast("请输入PageName")
+                                Utils.bridgeModule(this).toast("请输入PageName")
                             } else {
                                 ctx.inputRef.view?.blur() // 失焦
                                 getPager().acquireModule<SharedPreferencesModule>(
@@ -182,7 +179,6 @@ internal class RouterPage : BasePager() {
                         ColorStop(Color(0xFF23D3FD), 1f)
                     )
 
-
                 }
             }
 
@@ -196,7 +192,11 @@ internal class RouterPage : BasePager() {
                         fontSize(20f)
                         text("点击前往demo体验区")
                         textDecorationUnderLine()
-                        backgroundLinearGradient(Direction.TO_RIGHT, ColorStop(Color(0xFFAD37FE), 0f), ColorStop(Color(0xFF23D3FD), 1f))
+                        backgroundLinearGradient(
+                            Direction.TO_RIGHT,
+                            ColorStop(Color(0xFFAD37FE), 0f),
+                            ColorStop(Color(0xFF23D3FD), 1f)
+                        )
 
                     }
                 }
@@ -207,13 +207,8 @@ internal class RouterPage : BasePager() {
                 }
             }
 
-
         }
 
-    }
-
-    override fun created() {
-        super.created()
     }
 
     override fun viewDidLoad() {
@@ -227,7 +222,6 @@ internal class RouterPage : BasePager() {
             inputRef.view?.setText(cacheInputText)
         }
     }
-
 
     private fun jumpPage(inputText: String) {
         val params = urlParams("pageName=$inputText")
@@ -252,80 +246,4 @@ internal class RouterPage : BasePager() {
         private const val AAR_MODE_TIP = "如：router 或者 router&key=value （&后面为页面参数）"
     }
 
-}
-
-
-internal class RouterNavigationBar : ComposeView<RouterNavigationBarAttr, ComposeEvent>() {
-    override fun createEvent(): ComposeEvent {
-        return ComposeEvent()
-    }
-
-    override fun createAttr(): RouterNavigationBarAttr {
-        return RouterNavigationBarAttr()
-    }
-
-    override fun body(): ViewBuilder {
-        val ctx = this
-        return {
-            View {
-                attr {
-                    paddingTop(ctx.pagerData.statusBarHeight)
-                    backgroundColor(Color.WHITE)
-                }
-                // nav bar
-                View {
-                    attr {
-                        height(44f)
-                        allCenter()
-                    }
-
-                    Text {
-                        attr {
-                            text(ctx.attr.title)
-                            fontSize(17f)
-                            fontWeightSemisolid()
-                            backgroundLinearGradient(
-                                Direction.TO_BOTTOM,
-                                ColorStop(Color(0xFF23D3FD), 0f),
-                                ColorStop(Color(0xFFAD37FE), 1f)
-                            )
-
-                        }
-                    }
-
-                }
-
-                vif({ !ctx.attr.backDisable }) {
-                    Image {
-                        attr {
-                            absolutePosition(
-                                top = 12f + getPager().pageData.statusBarHeight,
-                                left = 12f,
-                                bottom = 12f,
-                                right = 12f
-                            )
-                            size(10f, 17f)
-                            src("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAASBAMAAAB/WzlGAAAAElBMVEUAAAAAAAAAAAAAAAAAAAAAAADgKxmiAAAABXRSTlMAIN/PELVZAGcAAAAkSURBVAjXYwABQTDJqCQAooSCHUAcVROCHBiFECTMhVoEtRYA6UMHzQlOjQIAAAAASUVORK5CYII=")
-                        }
-                        event {
-                            click {
-                                Utils.bridgeModule(pagerId).closePage()
-                            }
-                        }
-                    }
-                }
-
-            }
-        }
-    }
-}
-
-
-internal class RouterNavigationBarAttr : ComposeAttr() {
-    var title: String by observable("")
-    var backDisable = false
-}
-
-internal fun ViewContainer<*, *>.RouterNavBar(init: RouterNavigationBar.() -> Unit) {
-    addChild(RouterNavigationBar(), init)
 }

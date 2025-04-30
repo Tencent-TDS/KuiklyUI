@@ -16,67 +16,13 @@
 package com.tencent.kuikly.demo.pages.base
 
 import com.tencent.kuikly.core.base.BaseObject
-import com.tencent.kuikly.core.manager.BridgeManager
-import com.tencent.kuikly.core.manager.PagerManager
-import com.tencent.kuikly.core.module.NotifyModule
+import com.tencent.kuikly.core.base.PagerScope
 
 internal object Utils : BaseObject() {
 
-     fun bridgeModule(pager: String) : BridgeModule {
-         return PagerManager.getPager(pager).acquireModule<BridgeModule>(BridgeModule.MODULE_NAME)
+     fun bridgeModule(scope: PagerScope) : BridgeModule {
+         return scope.getPager().acquireModule(BridgeModule.MODULE_NAME)
      }
 
-    fun notifyModule(pagerId: String = ""): NotifyModule {
-        val pgId = pagerId.ifEmpty {
-            BridgeManager.currentPageId
-        }
-        return PagerManager.getPager(pgId).acquireModule(NotifyModule.MODULE_NAME)
-    }
-
-     fun logToNative(pagerId: String, content: String) {
-         // logToNaive
-         bridgeModule(pagerId).log(content)
-     }
-
-    fun currentBridgeModule() : BridgeModule {
-        return PagerManager.getPager(BridgeManager.currentPageId).acquireModule<BridgeModule>(BridgeModule.MODULE_NAME)
-    }
-
-    fun logToNative(content: String) {
-        bridgeModule(BridgeManager.currentPageId).log(content)
-    }
-
-    fun logAndTelemetry(content: String, spanContext: String = "") {
-        bridgeModule(BridgeManager.currentPageId).logAndTelemetry(spanContext, content)
-    }
-
-    fun convertToPriceStr(price: Long): String {
-        return (price / 100f).toString()
-    }
-
-    fun formatCountNumber(count: Int): String {
-        if (count == 0){
-            return ""
-        }
-        return when {
-            count < 10000 -> {
-                count.toString()
-            }
-            count in 10000..999999 -> {
-                val tenThousand = count / 10000
-                val thousand = count / 1000 % 10
-                if (thousand == 0) {
-                    "${tenThousand}万"
-                }
-                "$tenThousand.${thousand}万"
-            }
-            count in 1000000..99999999 -> {
-                "${count/10000}万"
-            }
-            else -> {
-                "$${count/100000000}亿"
-            }
-        }
-    }
 }
 

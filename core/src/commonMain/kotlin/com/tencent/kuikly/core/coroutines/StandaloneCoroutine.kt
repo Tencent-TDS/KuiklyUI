@@ -2,10 +2,9 @@ package com.tencent.kuikly.core.coroutines
 
 import kotlin.coroutines.CoroutineContext
 
-open class StandaloneCoroutine(
+internal class StandaloneCoroutine(
     parentContext: CoroutineContext,
-    active: Boolean
-) : AbstractCoroutine<Unit>(parentContext, initParentJob = true, active = active) {
+) : AbstractCoroutine<Unit>(parentContext) {
 
-    override fun resumeWith(result: Result<Unit>) { }
+    override fun resumeWith(result: Result<Unit>) {}
 }

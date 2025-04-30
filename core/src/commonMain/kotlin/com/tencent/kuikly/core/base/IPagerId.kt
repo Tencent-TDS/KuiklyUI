@@ -55,6 +55,7 @@ interface IPagerId : PagerScope {
  * ```
  *
  */
+@Deprecated("Use PagerScope instead")
 inline fun <reified T> pagerId(
     noinline initializer: (String) -> T
 ): ReadOnlyProperty<PagerScope, T> = PagerIdLazyImpl(initializer)

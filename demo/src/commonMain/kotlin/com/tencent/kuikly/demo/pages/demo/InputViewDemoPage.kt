@@ -16,18 +16,27 @@
 package com.tencent.kuikly.demo.pages.demo
 
 import com.tencent.kuikly.core.annotations.Page
-import com.tencent.kuikly.core.base.*
-import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+import com.tencent.kuikly.core.base.Animation
+import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ComposeEvent
+import com.tencent.kuikly.core.base.Translate
+import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.base.ViewRef
+import com.tencent.kuikly.core.log.KLog
+import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.timer.setTimeout
-import com.tencent.kuikly.core.views.*
+import com.tencent.kuikly.core.views.Image
+import com.tencent.kuikly.core.views.Input
+import com.tencent.kuikly.core.views.InputView
+import com.tencent.kuikly.core.views.List
+import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.base.BasePager
-import com.tencent.kuikly.demo.pages.base.Utils
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
-import com.tencent.kuikly.core.reactive.handler.*
+
 @Page("InputViewDemoPage")
 internal class InputViewDemoPage : BasePager() {
-    lateinit var inputRef : ViewRef<InputView>
-    var keyboardHeight : Float by observable(0f)
+    lateinit var inputRef: ViewRef<InputView>
+    var keyboardHeight: Float by observable(0f)
     override fun body(): ViewBuilder {
         val ctx = this
         return {
@@ -53,19 +62,6 @@ internal class InputViewDemoPage : BasePager() {
                 attr {
                     flex(1f)
                 }
-
-//                View {
-//                    attr {
-//                        height(200f)
-//                        backgroundColor(Color.YELLOW)
-//                    }
-//                }
-//                View {
-//                    attr {
-//                        height(200f)
-//                        backgroundColor(Color.RED)
-//                    }
-//                }
 
                 List {
                     attr {
@@ -100,8 +96,8 @@ internal class InputViewDemoPage : BasePager() {
                             fontSize(30f)
                             fontWeightBold()
 
-                          //  keyboardTypeNumber()
-                           // textAlignCenter()
+                            //  keyboardTypeNumber()
+                            // textAlignCenter()
                             returnKeyTypeNext()
                             placeholder("我是placehooder")
                             placeholderColor(Color.YELLOW)
@@ -116,20 +112,20 @@ internal class InputViewDemoPage : BasePager() {
 
                         event {
                             textDidChange {
-                                Utils.logToNative(pagerId, "test_textDidChange" + it.toString())
+                                KLog.i("InputViewDemoPage", "textDidChange$it")
                             }
 
                             inputBlur {
-                                Utils.logToNative(pagerId, "test_inputBlur" + it.toString())
+                                KLog.i("InputViewDemoPage", "inputBlur$it")
                             }
 
                             inputFocus {
-                                Utils.logToNative(pagerId, "test_inputFocus" + it.toString())
+                                KLog.i("InputViewDemoPage", "inputFocus$it")
                             }
 
                             keyboardHeightChange {
                                 val height = it.height
-                                Utils.logToNative(pagerId, "test_keyboardHeightChange" + it.toString())
+                                KLog.i("InputViewDemoPage", "keyboardHeightChange$it")
                                 ctx.keyboardHeight = height
                             }
                         }
@@ -169,8 +165,6 @@ internal class InputViewDemoPage : BasePager() {
             val inputView = inputRef.view!!
             inputView.setText("")
             inputView.blur()
-
-
         }
     }
 }

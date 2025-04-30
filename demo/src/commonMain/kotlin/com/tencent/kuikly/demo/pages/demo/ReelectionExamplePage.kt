@@ -27,7 +27,6 @@ internal class ReelectionExamplePage : BasePager() {
 
     var title by observable("title")
 
-
     override fun body(): ViewBuilder {
         val ctx = this
         return {
@@ -48,18 +47,8 @@ internal class ReelectionExamplePage : BasePager() {
             dic.callToString("setObject:forKey:", numberStr, "test")
             title = dic.toString()
         } else if (pageData.isAndroid) {
-//            var arg = "java.lang.String".newInstance("hello arg")
-//            val person = "com.tencent.kuikly.core.render.android.expand.vendor.TestPerson".newInstance()
-//            person.setField("pro", "我们都是好孩子")
-//            val test = person.getField("pro")
             val version = "android.os.Build\$VERSION".getField("RELEASE")
             title = "系统版本：$version"
         }
-
-
-
-
-
-
     }
 }

@@ -44,7 +44,9 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
     private val nativeRefViewMap = fastHashMapOf<Int, AbstractBaseView<*, *>>()
     override var pageData = PageData()
     override var pageName: String = ""
-    override val lifecycleScope: LifecycleScope by lazy(LazyThreadSafetyMode.NONE) { LifecycleScope() }
+    override val lifecycleScope: LifecycleScope by lazy(LazyThreadSafetyMode.NONE) {
+        LifecycleScope(this)
+    }
     override var animationManager: AnimationManager? = null
     private var pagerEventObserverSet = fastHashSetOf<IPagerEventObserver>()
     private var layoutEventObserverSet = fastHashSetOf<IPagerLayoutEventObserver>()

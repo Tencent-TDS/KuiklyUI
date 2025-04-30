@@ -24,7 +24,6 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import com.tencent.kuikly.android.demo.module.KRBridgeModule
-import com.tencent.kuikly.android.demo.module.KRNotifyModule
 import com.tencent.kuikly.android.demo.module.KRShareModule
 import com.tencent.kuikly.android.demo.module.tdf.KRTDFTestModule
 import com.tencent.kuikly.core.render.android.IKuiklyRenderExport
@@ -147,9 +146,6 @@ open class ContextCodeHandler(
         with(kuiklyRenderExport) {
             moduleExport(KRBridgeModule.MODULE_NAME) {
                 KRBridgeModule()
-            }
-            moduleExport(KRNotifyModule.MODULE_NAME) {
-                KRNotifyModule()
             }
             moduleExport(KRShareModule.MODULE_NAME) {
                 KRShareModule()

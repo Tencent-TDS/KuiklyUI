@@ -64,7 +64,7 @@ Refer to [Environment Configuration](https://kuikly.tds.qq.com/%E5%BF%AB%E9%80%9
     (this Version default Gradle JDK is 21, it incompatible with the configuration used by the project)
 
     Android Studio -> Settings -> Build,Execution,Deployment -> Build Tools -> Gradle -> Gradle JDK
-- [XCode](https://developer.apple.com/xcode/)和[cocoapods](https://cocoapods.org/)
+- [XCode](https://developer.apple.com/xcode/) and [cocoapods](https://cocoapods.org/)
 - JDK17
 
 ### Running Android App

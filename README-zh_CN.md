@@ -28,7 +28,7 @@
 .
 ├── core                    # 跨平台模块，实现各个平台响应式 UI、布局算法、Bridge 通信等核心能力
   ├── src
-    ├──	commanMain            #	跨平台共享代码、定义跨平台接口 
+    ├──	commonMain            #	跨平台共享代码、定义跨平台接口 
     ├── androidMain           # Android 平台实现代码 （aar）
     ├── jvmMain               # 泛 JVM 平台代码（不涉及 Android API）（jar）
     ├── iosMain               # iOS 平台实现代码（framework）

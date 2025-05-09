@@ -81,7 +81,9 @@
 3. 使用 `Android Studio` 打开 `KuiklyUI` 项目根目录，完成 `sync`
 4. Configuration 选择 iOSApp，Run 'iOSApp'
 
-   或者使用 XCode 打开 KuiklyUI/iosApp 目录，`Run`
+或者使用 XCode 打开 KuiklyUI/iosApp 目录，`Run`
+
+> 注意：源码iosApp工程在编译时会执行KMP脚本，如果遇到脚本读写文件权限报错，需要在`Xcode -> Build Setting`中将`User Script Sandboxing`设置为`No`
 
 ### Kotlin多版本支持
 

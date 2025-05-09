@@ -79,7 +79,9 @@ Ensure environment preparation is complete before building:
 3. Open `KuiklyUI` root directory in Android Studio and sync project
 4. Select iOSApp configuration, then Run 'iOSApp'
 
-   Alternatively, open KuiklyUI/iosApp in Xcode and Run
+Alternatively, open KuiklyUI/iosApp in Xcode and Run
+
+> Note: The iosApp project will execute the KMP script when compiling. If you encounter an error with the script read and write file permissions, you need to set `User Script Sandboxing` to `No` in `Xcode -> Build Setting`.
 
 ### Kotlin Version Support
 The KuiklyUI directory contains Gradle configurations for various `Kotlin versions`:

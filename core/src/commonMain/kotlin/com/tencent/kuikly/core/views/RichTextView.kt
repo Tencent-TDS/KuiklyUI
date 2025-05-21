@@ -217,6 +217,18 @@ open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
         measureOutput.width = size!!.width
         measureOutput.height = size!!.height
         dispatchPlaceholderSpanLayoutEventIfNeed()
+        tryFireLineBreakMarginEvent()
+    }
+
+    private fun tryFireLineBreakMarginEvent() {
+        if (attr.getProp(TextConst.LINE_BREAK_MARGIN) != null) {
+            getPager().addTaskWhenPagerDidCalculateLayout {
+                val isLineBreakMargin = shadow?.callMethod(TextConst.SHADOW_METHOD_IS_LINE_BREAK_MARGIN, "") == "1"
+                if (isLineBreakMargin) {
+                    event.handler?.invoke(null)
+                }
+            }
+        }
     }
 
     private fun buildValuesPropValue(): String {

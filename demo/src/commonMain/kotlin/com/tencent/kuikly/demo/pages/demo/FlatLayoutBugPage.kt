@@ -16,14 +16,18 @@
 package com.tencent.kuikly.demo.pages.demo
 
 import com.tencent.kuikly.core.annotations.Page
-import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ComposeAttr
+import com.tencent.kuikly.core.base.ComposeEvent
+import com.tencent.kuikly.core.base.ComposeView
+import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.event.layoutFrameDidChange
-import com.tencent.kuikly.core.exception.throwRuntimeError
-import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.views.List
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
+
 @Page("FlatLayoutBugPage")
 internal class FlatLayoutBugPage: BasePager() {
     override fun body(): ViewBuilder {

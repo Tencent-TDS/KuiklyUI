@@ -38,7 +38,6 @@ import com.tencent.kuikly.core.views.Modal
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.core.views.compose.Button
 import com.tencent.kuikly.demo.pages.base.BasePager
-import com.tencent.kuikly.demo.pages.base.Utils
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 
 @Page("ModalViewDemoPage")
@@ -197,7 +196,7 @@ internal class ActionSheetView : ComposeView<ComposeAttr, ActionSheetEvent>() {
                 animationCompletion {
                     if (!ctx.animated) {
                         KLog.i("ActionSheetView", "animationCompletion $it")
-                        this@ActionSheetView.emit(ActionSheetEvent.CLOSE, it);
+                        this@ActionSheetView.emit(ActionSheetEvent.CLOSE, it)
                     }
                 }
             }

@@ -20,6 +20,7 @@
 #import "NSObject+KR.h"
 #import <CommonCrypto/CommonCrypto.h>
 #import "KRLogModule.h"
+#import "KuiklyRenderBridge.h"
 
 #define hr_tan(deg)   tan(((deg)/360.f) * (2 * M_PI))
 
@@ -31,12 +32,6 @@
 + (UIFont *)UIFont:(id)json {
     NSString *fontFamily = json[@"fontFamily"];
     CGFloat fontSize = [self CGFloat:json[@"fontSize"]] ?: 15;
-    if (fontFamily.length) {
-        UIFont *font = [UIFont fontWithName:fontFamily size:fontSize];
-        if (font) {
-            return font;
-        }
-    }
     static dispatch_once_t onceToken;
     static NSDictionary *gFontWeightMap = nil;
     dispatch_once(&onceToken, ^{
@@ -55,6 +50,23 @@
         };
     });
     UIFontWeight fontWeight = [(gFontWeightMap[json[@"fontWeight"]?:@""] ?: @(UIFontWeightRegular)) doubleValue];
+    
+    if (fontFamily.length) {
+        UIFont *font = nil;
+        if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_fontWithFontFamily:fontSize:fontWeight:)]) {
+            font = [[KuiklyRenderBridge componentExpandHandler] hr_fontWithFontFamily:fontFamily fontSize:fontSize fontWeight:fontWeight];
+        }
+        if (font == nil && [[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_fontWithFontFamily:fontSize:)]) {
+            font = [[KuiklyRenderBridge componentExpandHandler] hr_fontWithFontFamily:fontFamily fontSize:fontSize];
+        }
+        if (font == nil) {
+            font = [UIFont fontWithName:fontFamily size:fontSize];
+        }
+        if (font) {
+            return font;
+        }
+    }
+    
     if (json[@"fontStyle"] && [@"italic" isEqualToString:json[@"fontStyle"]]) {
         return [self italicFontWithSize:fontSize bold:fontWeight >=UIFontWeightBold itatic:YES weight:fontWeight];
     }
@@ -355,7 +367,7 @@
     if ([JSONString isKindOfClass:[NSArray class]]) {
         return (NSArray *)JSONString;
     }
-    if (JSONString == nil || JSONString.length == 0) {
+    if (JSONString == nil || [JSONString isKindOfClass:[NSNull class]] || JSONString.length == 0) {
         return nil;
     }
     
@@ -567,6 +579,14 @@
             statusBarHeight = UIApplication.sharedApplication.statusBarFrame.size.height;
         }
     }
+    
+    if (@available(iOS 16.0, *)) {
+        BOOL needAdjust = (statusBarHeight == 44);
+        if (needAdjust && [UIApplication sharedApplication].delegate.window.safeAreaInsets.top >= 59) { // 兼容部分场景高度获取不正确
+            statusBarHeight = 54;
+        }
+    }
+   
     return statusBarHeight ?: [self defaultStatusBarHeight];
 }
 

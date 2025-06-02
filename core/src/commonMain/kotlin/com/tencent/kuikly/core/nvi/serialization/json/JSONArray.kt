@@ -189,7 +189,6 @@ class JSONArray internal constructor(values: MutableList<Any?>) {
         return list
     }
 
-
     @Throws(JSONException::class)
     fun writeTo(stringer: JSONStringer) {
         stringer.startArray()

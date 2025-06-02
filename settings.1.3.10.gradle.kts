@@ -6,7 +6,6 @@ pluginManagement {
     }
 }
 
-rootProject.name = "KuiklyUI"
 rootProject.buildFileName = "build.1.3.10.gradle.kts"
 
 include(":core-annotations")

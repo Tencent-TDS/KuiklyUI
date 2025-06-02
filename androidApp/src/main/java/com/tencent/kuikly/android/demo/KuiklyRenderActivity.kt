@@ -20,10 +20,12 @@ import android.content.Intent
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsetsController
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.tencent.kuikly.android.demo.adapter.KRAPNGViewAdapter
 import com.tencent.kuikly.android.demo.adapter.KRColorParserAdapter
@@ -49,6 +51,7 @@ class KuiklyRenderActivity : AppCompatActivity() {
     private lateinit var hrContainerView: ViewGroup
     private lateinit var loadingView: View
     private lateinit var errorView: View
+    private lateinit var nativeBtn: View
 
     private lateinit var kuiklyRenderViewDelegator: KuiklyRenderViewBaseDelegator
 
@@ -72,18 +75,24 @@ class KuiklyRenderActivity : AppCompatActivity() {
         hrContainerView = findViewById(R.id.hr_container)
         loadingView = findViewById(R.id.hr_loading)
         errorView = findViewById(R.id.hr_error)
+        nativeBtn = findViewById(R.id.nativeBtn)
         // 4. 触发Kuikly View实例化
         // hrContainerView：承载Kuikly的容器View
         // contextCode: jvm模式下传递""
         // pageName: 传递想要打开的Kuikly侧的Page名字
         // pageData: 传递给Kuikly页面的参数
         contextCodeHandler.openPage(hrContainerView, pageName, createPageData())
+
+        if (pageName == "OverNativeClickDemo") {
+            nativeBtn.visibility = View.VISIBLE
+        }
     }
 
     override fun onResume() {  // 5.通知Kuikly页面触发onResume
         super.onResume()
         kuiklyRenderViewDelegator.onResume()
     }
+
     override fun onPause() {  // 6. 通知Kuikly页面触发onStop
         super.onPause()
         kuiklyRenderViewDelegator.onPause()
@@ -177,5 +186,18 @@ class KuiklyRenderActivity : AppCompatActivity() {
             starter.putExtra(KEY_PAGE_DATA, pageData.toString())
             context.startActivity(starter)
         }
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
+            if(kuiklyRenderViewDelegator.onBackPressed()) {
+                return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    fun onClick(view: View) {
+        Toast.makeText(this, "成功点击按钮", Toast.LENGTH_LONG).show()
     }
 }

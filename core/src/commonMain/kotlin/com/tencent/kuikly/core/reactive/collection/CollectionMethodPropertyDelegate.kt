@@ -33,7 +33,6 @@ class CollectionMethodPropertyDelegate<T>(
             handler = value
         }
 
-
     private fun notifyElementChanged() {
         handler?.onElementChange()
         val observer = handler?.getReactiveObserver()

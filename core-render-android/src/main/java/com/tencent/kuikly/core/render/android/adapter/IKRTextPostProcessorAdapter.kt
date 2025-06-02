@@ -15,6 +15,7 @@
 
 package com.tencent.kuikly.core.render.android.adapter
 
+import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
 import com.tencent.kuikly.core.render.android.expand.component.KRTextProps
 
 /**
@@ -29,7 +30,18 @@ interface IKRTextPostProcessorAdapter {
      * @param inputParams 处理出入参数
      * @return 处理输出参数
      */
+    @Deprecated("请使用带有 IKuiklyRenderContext 的新方法，override 新方法后，本方法将不再被调用")
     fun onTextPostProcess(inputParams: TextPostProcessorInput): TextPostProcessorOutput
+
+    /**
+     * Core内部检测到文本需要后置处理，调用此方法，业务在此方法中，自定义文本后置处理
+     * @param inputParams 处理出入参数
+     * @return 处理输出参数
+     */
+    fun onTextPostProcess(
+        kuiklyRenderContext: IKuiklyRenderContext?,
+        inputParams: TextPostProcessorInput
+    ): TextPostProcessorOutput = onTextPostProcess(inputParams)
 }
 
 /**

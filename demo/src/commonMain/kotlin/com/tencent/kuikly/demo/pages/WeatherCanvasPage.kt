@@ -69,7 +69,6 @@ internal class WeatherCanvasPage : BasePager() {
     }
 }
 
-
 class RainFallNodeAttr : ComposeAttr() {
     var nodes: List<Float>  by observable(listOf(1.3f, 2.6f, 4.2f, 5.1f, 3.5f, 1.9f, 1.0f, 1.8f, 2.6f, 3.4f, 4.2f, 5.0f, 5.8f, 6.6f, 7.4f, 8.2f, 9.0f, 9.8f, 9.9f, 0.5f, 3.3f, 7.1f, 8.6f, 5.7f))
     var title: String by observable("雨渐大，30分钟后雨会停，40分钟后会下大雨；")
@@ -133,7 +132,6 @@ class WeatherRainFallNodeCanvas : ComposeView<RainFallNodeAttr, ComposeEvent>() 
                 }
             }
 
-
             Canvas(
                 {
                     attr {
@@ -145,11 +143,11 @@ class WeatherRainFallNodeCanvas : ComposeView<RainFallNodeAttr, ComposeEvent>() 
                 context.strokeStyle(Color(0x0085FF, 1f))
                 context.lineWidth(5.0f)
                 context.moveTo(0f, height)
-                context.lineCapRound();
+                context.lineCapRound()
 
 //                var xGap = width / 24
-                var lastPoint = RainFallPoint(0f, height);
-                var nextPoint = RainFallPoint(0f, 0f);
+                var lastPoint = RainFallPoint(0f, height)
+                var nextPoint = RainFallPoint(0f, 0f)
                 for((index, node) in ctx.nodeAttr.nodes.withIndex()) {
                     var x = index * width / 24
                     var y = height - node * height / 10
@@ -186,7 +184,7 @@ class WeatherRainFallNodeCanvas : ComposeView<RainFallNodeAttr, ComposeEvent>() 
                 context.stroke()
 
                 //画虚线
-                var dashLineY = 0f;
+                var dashLineY = 0f
                 if (!ctx.nodeAttr.dashLine1Hidden) {
                     ctx.renderDashLine(context, 315f, RainFallPoint(10f, dashLineY))
                     ctx.dashLine1Y = dashLineY
@@ -343,7 +341,7 @@ class WeatherRainFallNodeCanvas : ComposeView<RainFallNodeAttr, ComposeEvent>() 
         context.strokeStyle(Color(0xffffff, 0.5f))
         context.lineWidth(0.5f)
 
-        val verticalLineMargin = width / 4f;
+        val verticalLineMargin = width / 4f
         context.moveTo(startPoint.x, startPoint.y)
 
         var currentX = startPoint.x
@@ -370,7 +368,6 @@ class WeatherRainFallNodeCanvas : ComposeView<RainFallNodeAttr, ComposeEvent>() 
         return ComposeEvent()
     }
 }
-
 
 internal fun ViewContainer<*, *>.RainFallNodeCanvas(init: WeatherRainFallNodeCanvas.() -> Unit) {
     addChild(WeatherRainFallNodeCanvas(), init)

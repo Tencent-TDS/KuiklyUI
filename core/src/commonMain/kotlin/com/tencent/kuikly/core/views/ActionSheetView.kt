@@ -15,16 +15,21 @@
 
 package com.tencent.kuikly.core.views
 
-import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.base.Animation
+import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ContainerAttr
+import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.base.ViewContainer
+import com.tencent.kuikly.core.base.VirtualView
 import com.tencent.kuikly.core.base.event.ClickParams
 import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.base.event.EventName
-import com.tencent.kuikly.core.directives.velse
 import com.tencent.kuikly.core.directives.vfor
 import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.reactive.handler.observableList
 import com.tencent.kuikly.core.views.compose.Button
+
 /*
  * 操作表组件(用于提供一组可供用户选择的操作，以便完成任务)，UI风格对齐iOS UIActionSheet风格, 并支持自定义弹窗UI
  * 用法示例:
@@ -46,7 +51,6 @@ import com.tencent.kuikly.core.views.compose.Button
 fun ViewContainer<*, *>.ActionSheet(init : ActionSheetView.() -> Unit) {
     addChild(ActionSheetView(), init)
 }
-
 
 class ActionSheetAttr : ContainerAttr() {
     internal var showActionSheet by observable(false)
@@ -280,7 +284,6 @@ class ActionSheetView : VirtualView<ActionSheetAttr, ActionSheetEvent>() {
                         }
 
                     }
-
 
                 }
             }

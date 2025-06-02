@@ -18,7 +18,7 @@
 #import <libkern/OSAtomic.h>
 #import "KRAsyncDeallocManager.h"
 #import <objc/runtime.h>
-
+#import "NSObject+KR.h"
 
 #define KRAssertMainThread() NSAssert(0 != pthread_main_np(), @"This method must be called on the main thread!")
 NSString *const KRHighlightAttributeKey = @"KRHighlightAttributeKey";
@@ -78,11 +78,15 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
     return [self sizeThatFits:size attributedString:attString numberOfLines:lines lineBreakMode:mode lineBreakMarin:0];
 }
 
-+ (CGSize)sizeThatFits:(CGSize)size attributedString:(NSAttributedString *)attString numberOfLines:(NSUInteger)lines lineBreakMode:(NSLineBreakMode)mode lineBreakMarin:(CGFloat)marin{
++ (CGSize)sizeThatFits:(CGSize)size attributedString:(NSAttributedString *)attString numberOfLines:(NSUInteger)lines lineBreakMode:(NSLineBreakMode)mode lineBreakMarin:(CGFloat)marin {
+    return [self sizeThatFits:size attributedString:attString numberOfLines:lines lineBreakMode:mode lineBreakMarin:0 lineHeight:0];
+}
+
++ (CGSize)sizeThatFits:(CGSize)size attributedString:(NSAttributedString *)attString numberOfLines:(NSUInteger)lines lineBreakMode:(NSLineBreakMode)mode lineBreakMarin:(CGFloat)marin lineHeight:(CGFloat)lineHeight {
     attString = [attString isKindOfClass:[NSAttributedString class]] ? attString : [[NSAttributedString alloc] initWithString:@""];
     NSTextStorage *textStorage = [[NSTextStorage alloc] initWithAttributedString:[attString copy]];
     textStorage.hr_hasAttachmentViews = attString.hr_hasAttachmentViews;
-    KRTextRender *textRender = [[KRTextRender alloc] initWithTextStorage:textStorage];
+    KRTextRender *textRender = [[KRTextRender alloc] initWithTextStorage:textStorage lineHeight:lineHeight];
     textRender.lineBreakMargin = marin;
     textRender.maximumNumberOfLines = lines;
     textRender.lineBreakMode = mode;
@@ -112,7 +116,7 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
 
 @end
 //---------KRTextRender类分割线------------
-@interface KRTextRender(){
+@interface KRTextRender() <NSLayoutManagerDelegate> {
     CGRect _textBound;
 }
 @property (nonatomic, strong) KRLayoutManager * layoutManager;
@@ -128,6 +132,7 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
     if (self = [super init]) {
         _textContainer = [NSTextContainer new];
         _layoutManager = [KRLayoutManager new];
+        _layoutManager.delegate = self;
         [_layoutManager addTextContainer:_textContainer];
         _textContainer.lineFragmentPadding = 0;
     }
@@ -141,11 +146,16 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
     return self;
 }
 
-- (instancetype)initWithTextStorage:(NSTextStorage *)textStorage{
+- (instancetype)initWithTextStorage:(NSTextStorage *)textStorage lineHeight:(CGFloat)lineHeight {
     if (self = [self init]) {
+        self.lineHeight = lineHeight;
         self.textStorage = textStorage;
     }
     return self;
+}
+
+- (instancetype)initWithTextStorage:(NSTextStorage *)textStorage{
+    return [self initWithTextStorage:textStorage lineHeight:0];
 }
 #pragma mark - Getter && Setter
 
@@ -253,6 +263,135 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
     [[KRAsyncDeallocManager shareManager] asyncDeallocWithObject:_textContainer];
 
 }
+
+#pragma mark - layout manager delegate
+- (BOOL)layoutManager:(NSLayoutManager *)layoutManager shouldSetLineFragmentRect:(inout CGRect *)lineFragmentRect lineFragmentUsedRect:(inout CGRect *)lineFragmentUsedRect baselineOffset:(inout CGFloat *)baselineOffset inTextContainer:(NSTextContainer *)textContainer forGlyphRange:(NSRange)glyphRange {
+    
+    if (_lineHeight > 0) {
+        UIFont *font;
+        NSParagraphStyle *style;
+        NSArray *attrsList = [self attributesListForGlyphRange:glyphRange layoutManager:layoutManager];
+        [self getFont:&font paragraphStyle:&style fromAttibutesList:attrsList];
+
+        if (![font isKindOfClass:[UIFont class]]) {
+            return NO;
+        }
+
+        UIFont *defaultFont = [self systemDefaultFontForFont:font];
+
+        CGRect rect = *lineFragmentRect;
+        CGRect usedRect = *lineFragmentUsedRect;
+        
+        CGFloat textLineHeight = _lineHeight;
+        CGFloat fixedBaseLineOffset = [self.class baseLineOffsetForLineHeight:textLineHeight font:defaultFont];
+        
+        rect.size.height = textLineHeight;
+        usedRect.size.height = MAX(textLineHeight, usedRect.size.height);
+        
+        *lineFragmentRect = rect;
+        *lineFragmentUsedRect = usedRect;
+        *baselineOffset = fixedBaseLineOffset;
+    }
+    
+    return YES;
+}
+
++ (CGFloat)lineHeightForFont:(UIFont *)font paragraphStyle:(NSParagraphStyle *)style  {
+    CGFloat lineHeight = font.lineHeight;
+    if (!style) {
+        return lineHeight;
+    }
+    if (style.lineHeightMultiple > 0) {
+        lineHeight *= style.lineHeightMultiple;
+    }
+    if (style.minimumLineHeight > 0) {
+        lineHeight = MAX(style.minimumLineHeight, lineHeight);
+    }
+    if (style.maximumLineHeight > 0) {
+        lineHeight = MIN(style.maximumLineHeight, lineHeight);
+    }
+    return lineHeight;
+}
+
+
++ (CGFloat)baseLineOffsetForLineHeight:(CGFloat)lineHeight font:(UIFont *)font {
+    CGFloat baseLine = lineHeight + font.descender / 2;
+    return baseLine;
+}
+
+/// get system default font of size
+- (UIFont *)systemDefaultFontForFont:(UIFont *)font {
+    return [UIFont systemFontOfSize:font.pointSize];
+}
+
+
+- (NSArray<NSDictionary *> *)attributesListForGlyphRange:(NSRange)glyphRange layoutManager:(NSLayoutManager *)layoutManager {
+
+    // exclude the line break. System doesn't calucate the line rect with it.
+    if (glyphRange.length > 1) {
+        NSGlyphProperty property = [layoutManager propertyForGlyphAtIndex:glyphRange.location + glyphRange.length - 1];
+        if (property & NSGlyphPropertyControlCharacter) {
+            glyphRange = NSMakeRange(glyphRange.location, glyphRange.length - 1);
+        }
+    }
+
+    
+    NSTextStorage *textStorage = layoutManager.textStorage;
+    NSRange targetRange = [layoutManager characterRangeForGlyphRange:glyphRange actualGlyphRange:nil];
+    NSMutableArray *dicts = [NSMutableArray arrayWithCapacity:2];
+
+    NSInteger last = -1;
+    NSRange effectRange = NSMakeRange(targetRange.location, 0);
+
+    while (effectRange.location + effectRange.length < targetRange.location + targetRange.length) {
+        NSInteger current = effectRange.location + effectRange.length;
+        // if effectRange didn't advanced, we manuly add 1 to avoid infinate loop.
+        if (current <= last) {
+            current += 1;
+        }
+        NSDictionary *attributes = [textStorage attributesAtIndex:current effectiveRange:&effectRange];
+        if (attributes) {
+            [dicts addObject:attributes];
+        }
+        last = current;
+    }
+
+    return dicts;
+}
+
+- (void)getFont:(UIFont **)returnFont paragraphStyle:(NSParagraphStyle **)returnStyle fromAttibutesList:(NSArray<NSDictionary *> *)attributesList {
+
+    if (attributesList.count == 0) {
+        return;
+    }
+
+    UIFont *findedFont = nil;
+    NSParagraphStyle *findedStyle = nil;
+    CGFloat lastHeight = -CGFLOAT_MAX;
+
+    // find the attributes with max line height
+    for (NSInteger i = 0; i < attributesList.count; i++) {
+        NSDictionary *attrs = attributesList[i];
+
+        NSParagraphStyle *style = attrs[NSParagraphStyleAttributeName];
+        UIFont *font = attrs[NSFontAttributeName];
+
+        if ([font isKindOfClass:[UIFont class]] &&
+            (!style || [style isKindOfClass:[NSParagraphStyle class]]) ) {
+
+            CGFloat height = [self.class lineHeightForFont:font paragraphStyle:style];
+            if (height > lastHeight) {
+                lastHeight = height;
+                findedFont = font;
+                findedStyle = style;
+            }
+        }
+    }
+
+    *returnFont = findedFont;
+    *returnStyle = findedStyle;
+}
+
 
 @end
 

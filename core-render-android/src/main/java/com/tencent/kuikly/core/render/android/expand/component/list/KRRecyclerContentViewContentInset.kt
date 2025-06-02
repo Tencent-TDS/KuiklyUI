@@ -15,6 +15,8 @@
 
 package com.tencent.kuikly.core.render.android.expand.component.list
 
+import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
+import com.tencent.kuikly.core.render.android.KuiklyRenderViewContext
 import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.css.ktx.toPxF
 
@@ -22,6 +24,7 @@ import com.tencent.kuikly.core.render.android.css.ktx.toPxF
  * Created by kam on 2023/5/1.
  */
 class KRRecyclerContentViewContentInset(
+    kuiklyRenderViewContext: IKuiklyRenderContext?,
     contentInset: String = KRCssConst.EMPTY_STRING,
     var finishCallback: KRContentInsertFinishCallback? = null
 ) {
@@ -34,10 +37,10 @@ class KRRecyclerContentViewContentInset(
     init {
         if (contentInset.isNotEmpty()) {
             val spilt = contentInset.split(KRCssConst.BLANK_SEPARATOR)
-            top = spilt[0].toFloat().toPxF()
-            left = spilt[1].toFloat().toPxF()
-            bottom = spilt[2].toFloat().toPxF()
-            right = spilt[3].toFloat().toPxF()
+            top = kuiklyRenderViewContext.toPxF(spilt[0].toFloat())
+            left = kuiklyRenderViewContext.toPxF(spilt[1].toFloat())
+            bottom = kuiklyRenderViewContext.toPxF(spilt[2].toFloat())
+            right = kuiklyRenderViewContext.toPxF(spilt[3].toFloat())
             if (spilt.size > 4) {
                 animate = spilt[4].toInt() == 1
             }

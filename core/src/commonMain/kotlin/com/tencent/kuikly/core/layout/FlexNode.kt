@@ -156,7 +156,6 @@ class FlexNode {
             }
         }
 
-
     var styleMaxWidth: Float
         get() = flexStyle.maxWidth
         set(value) {
@@ -537,7 +536,6 @@ data class Frame(val x: Float = 0f,
     fun isDefaultValue(): Boolean {
         return this === zero
     }
-
 
     fun minY(): Float {
         return y

@@ -49,7 +49,6 @@ internal class BlurExamplePage : BasePager() {
                 }
             }
 
-
             Text {
                 attr {
                     marginTop(100f)
@@ -86,7 +85,6 @@ internal class BlurExamplePage : BasePager() {
                     }
 
                 }
-
 
             }
             Text {

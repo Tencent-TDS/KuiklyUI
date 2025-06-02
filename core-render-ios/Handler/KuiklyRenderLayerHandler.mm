@@ -29,6 +29,8 @@
 @implementation KuiklyRenderLayerHandler {
     /** 渲染层的rootView */
     __weak UIView* _rootView;
+    /** 上下文环境参数 */
+    KuiklyContextParam *_contextParam;
     /** renderView的索引Map */
     NSMutableDictionary<NSNumber *, id<KuiklyRenderViewExportProtocol>> *_renderViewRegistry;
     /** shadow的索引Map */
@@ -51,6 +53,7 @@ Class _Nullable KRClassFromString(NSString *aClassName) {
 - (instancetype)initWithRootView:(UIView *)rootView contextParam:(KuiklyContextParam *)contextParam {
     if (self = [super init]) {
         _rootView = rootView;
+        _contextParam = contextParam;
         _renderViewRegistry = [[NSMutableDictionary alloc] init];
         _renderViewReuseQueue = [[NSMutableDictionary alloc] init];
         _moduleRegistry = [[NSMutableDictionary alloc] init];
@@ -220,6 +223,9 @@ Class _Nullable KRClassFromString(NSString *aClassName) {
             if ([moduleHandler respondsToSelector:@selector(setHr_rootView:)]) {
                 [moduleHandler performSelector:@selector(setHr_rootView:) withObject:_rootView];
             }
+            if ([moduleHandler respondsToSelector:@selector(setHr_contextParam:)]) {
+                [moduleHandler performSelector:@selector(setHr_contextParam:) withObject:_contextParam];
+            }
             if (moduleHandler) {
                _moduleRegistry[moduleName] = moduleHandler;
             } else {
@@ -303,7 +309,8 @@ Class _Nullable KRClassFromString(NSString *aClassName) {
     assert(renderViewHandler);  // renderViewHandler不存在
 #endif
     [renderViewHandler hrv_removeFromSuperview];
-    if ([renderViewHandler respondsToSelector:@selector(hrv_prepareForeReuse)]) {
+    if ([renderViewHandler respondsToSelector:@selector(hrv_prepareForeReuse)]
+        && !(((UIView *)renderViewHandler).kr_reuseDisable)) {
         // 放进复用队列
         [renderViewHandler hrv_prepareForeReuse];
         [self p_pushRenderViewHandlerToReuseQueueWithWithViewHandlder:renderViewHandler];

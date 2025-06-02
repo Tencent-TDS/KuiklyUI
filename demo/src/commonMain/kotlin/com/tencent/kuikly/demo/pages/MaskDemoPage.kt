@@ -15,14 +15,13 @@
 
 package com.tencent.kuikly.demo.pages
 
-import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.Mask
-import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
+import com.tencent.kuikly.demo.pages.base.BasePager
 
 @Page("mask_demo")
 internal class MaskDemoPage : BasePager() {

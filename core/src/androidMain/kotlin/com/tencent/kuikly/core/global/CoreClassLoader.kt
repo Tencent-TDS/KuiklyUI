@@ -63,9 +63,7 @@ internal class InnerPagerClassLoader : Pager() {
 
 }
 
-internal class InnerDirectivesViewClassLoader : DirectivesView() {
-
-}
+internal class InnerDirectivesViewClassLoader : DirectivesView()
 
 class CoreClassLoader {
     init {

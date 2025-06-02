@@ -1,5 +1,4 @@
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
-import org.jetbrains.kotlin.konan.target.Family
 
 plugins {
     kotlin("multiplatform")
@@ -30,10 +29,10 @@ publishing {
 }
 
 kotlin {
-    // targetes
+    // targets
     jvm()
 
-    android {
+    androidTarget {
         publishLibraryVariantsGroupedByFlavor = true
         publishLibraryVariants("release")
     }

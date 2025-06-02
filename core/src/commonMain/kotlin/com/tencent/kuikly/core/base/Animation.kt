@@ -15,12 +15,12 @@
 
 package com.tencent.kuikly.core.base
 
-class Animation {
-    private lateinit var timingFuncType : TimingFuncType
-    private var duration : Float = 0f
-    private var animationType= AnimationType.PLAIN
-    private var damping : Float = 0f
-    private var velocity : Float = 0f
+class Animation internal constructor() {
+    private lateinit var timingFuncType: TimingFuncType
+    private var duration: Float = 0f
+    private var animationType = AnimationType.PLAIN
+    private var damping: Float = 0f
+    private var velocity: Float = 0f
     private var delay: Float = 0f
     private var repeatForever: Boolean = false
 
@@ -37,7 +37,7 @@ class Animation {
     }
 
     override fun toString(): String {
-        return "${animationType.ordinal} ${timingFuncType.ordinal} $duration $damping $velocity $delay ${repeatForever.toInt()} $key"
+        return "${animationType.value} ${timingFuncType.value} $duration $damping $velocity $delay ${repeatForever.toInt()} $key"
     }
 
     companion object {
@@ -55,7 +55,7 @@ class Animation {
          * @param key 业务方设置，动画结束回调会回传，用于区分是哪个动画结束
          */
         fun easeIn(durationS: Float, key: String = ""): Animation {
-            return create(AnimationType.PLAIN, TimingFuncType.EASEIN, durationS, key = key)
+            return create(AnimationType.PLAIN, TimingFuncType.EASE_IN, durationS, key = key)
         }
 
         /*
@@ -63,7 +63,7 @@ class Animation {
          * @param key 业务方设置，动画结束回调会回传，用于区分是哪个动画结束
          */
         fun easeOut(durationS: Float, key: String = ""): Animation {
-            return create(AnimationType.PLAIN, TimingFuncType.EASEOUT, durationS, key = key)
+            return create(AnimationType.PLAIN, TimingFuncType.EASE_OUT, durationS, key = key)
         }
 
         /*
@@ -71,26 +71,53 @@ class Animation {
          * @param key 业务方设置，动画结束回调会回传，用于区分是哪个动画结束
          */
         fun easeInOut(durationS: Float, key: String = ""): Animation {
-            return create(AnimationType.PLAIN, TimingFuncType.EASEINOUT, durationS, key = key)
+            return create(AnimationType.PLAIN, TimingFuncType.EASE_IN_OUT, durationS, key = key)
         }
 
-        fun springLinear(durationS: Float, damping: Float, velocity: Float, key: String = ""): Animation {
+        fun springLinear(
+            durationS: Float,
+            damping: Float,
+            velocity: Float,
+            key: String = ""
+        ): Animation {
             return createSpring(TimingFuncType.LINEAR, durationS, damping, velocity, key = key)
         }
 
-        fun springEaseIn(durationS: Float, damping: Float, velocity: Float, key: String = ""): Animation {
-            return createSpring(TimingFuncType.EASEIN, durationS, damping, velocity, key = key)
+        fun springEaseIn(
+            durationS: Float,
+            damping: Float,
+            velocity: Float,
+            key: String = ""
+        ): Animation {
+            return createSpring(TimingFuncType.EASE_IN, durationS, damping, velocity, key = key)
         }
 
-        fun springEaseOut(durationS: Float, damping: Float, velocity: Float, key: String = ""): Animation {
-            return createSpring(TimingFuncType.EASEOUT, durationS, damping, velocity, key = key)
+        fun springEaseOut(
+            durationS: Float,
+            damping: Float,
+            velocity: Float,
+            key: String = ""
+        ): Animation {
+            return createSpring(TimingFuncType.EASE_OUT, durationS, damping, velocity, key = key)
         }
 
-        fun springEaseInOut(durationS: Float, damping: Float, velocity: Float, key: String = ""): Animation {
-            return createSpring(TimingFuncType.EASEINOUT, durationS, damping, velocity, key = key)
+        fun springEaseInOut(
+            durationS: Float,
+            damping: Float,
+            velocity: Float,
+            key: String = ""
+        ): Animation {
+            return createSpring(TimingFuncType.EASE_IN_OUT, durationS, damping, velocity, key = key)
         }
 
-        private fun create(animationType: AnimationType, timingFuncType: TimingFuncType, durationS: Float, delay: Float = 0f, repeatForever: Boolean = false, key: String = ""): Animation  {
+        private fun create(
+            animationType: AnimationType,
+            timingFuncType: TimingFuncType,
+            durationS: Float,
+            delay: Float = 0f,
+            repeatForever: Boolean = false,
+            key: String = ""
+        ): Animation {
             val animation = Animation()
             animation.animationType = animationType
             animation.timingFuncType = timingFuncType
@@ -101,9 +128,17 @@ class Animation {
             return animation
         }
 
-        private fun createSpring(timingFuncType: TimingFuncType, durationS: Float, damping: Float, velocity: Float, delay: Float = 0f, repeatForever: Boolean = false, key: String = ""): Animation  {
+        private fun createSpring(
+            timingFuncType: TimingFuncType,
+            durationS: Float,
+            damping: Float,
+            velocity: Float,
+            delay: Float = 0f,
+            repeatForever: Boolean = false,
+            key: String = ""
+        ): Animation {
             val animation = Animation()
-            animation.animationType = AnimationType.SRPING
+            animation.animationType = AnimationType.SPRING
             animation.timingFuncType = timingFuncType
             animation.duration = durationS
             animation.damping = damping
@@ -115,24 +150,15 @@ class Animation {
         }
     }
 }
-enum class TimingFuncType(value: Int) {
+
+internal enum class TimingFuncType(internal val value: Int) {
     LINEAR(0),
-    EASEIN(1),
-    EASEOUT(2),
-    EASEINOUT(3);
-    companion object {
-        fun fromInt(value: Int): TimingFuncType {
-            return values().firstOrNull { it.ordinal == value } ?: LINEAR
-        }
-    }
+    EASE_IN(1),
+    EASE_OUT(2),
+    EASE_IN_OUT(3);
 }
 
-enum class AnimationType(value: Int) {
+internal enum class AnimationType(internal val value: Int) {
     PLAIN(0),
-    SRPING(1);
-    companion object {
-        fun fromInt(value: Int): AnimationType {
-            return values().firstOrNull { it.ordinal == value } ?: PLAIN
-        }
-    }
+    SPRING(1);
 }

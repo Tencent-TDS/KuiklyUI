@@ -19,7 +19,6 @@ import com.tencent.kuikly.core.base.ContainerAttr
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.event.Event
 
-
 class CenterView : LayoutView<ContainerAttr, Event>() {
 
     override fun willInit() {
@@ -29,7 +28,6 @@ class CenterView : LayoutView<ContainerAttr, Event>() {
             alignItemsCenter()
         }
     }
-
 
     override fun createAttr(): ContainerAttr {
         return ContainerAttr()

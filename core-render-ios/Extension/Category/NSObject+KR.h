@@ -33,6 +33,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 + (id)kr_performWithClass:(Class)classTarget selector:(SEL)aSelector  withObjects:(NSArray *)objects;
 
++ (BOOL)kr_swizzleInstanceMethod:(SEL)origSel withMethod:(SEL)altSel;
 
 @end
 
@@ -50,6 +51,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (NSString *)kr_base64Encode;
 - (NSString *)kr_base64Decode;
 - (NSString *)kr_sha256String;
+- (NSString *)kr_subStringWithIndex:(NSUInteger)index;
+- (NSUInteger)kr_length; // emoji/中文算一个1个长度来统计字符串长度
 
 @end
 
@@ -72,7 +75,6 @@ NS_ASSUME_NONNULL_BEGIN
  @param radius 模糊的范围 可以1~99
  @return 返回已经模糊过的图片
  */
-
 - (UIImage *)kr_blurBlurRadius:(CGFloat)radius;
 
 /**
@@ -84,12 +86,24 @@ NS_ASSUME_NONNULL_BEGIN
  * 获取图片像素数组
  */
 - (unsigned char *)kr_getRawData;
+
 /**
  * 染色非透明像素为该颜色
  */
 - (UIImage *)kr_tintedImageWithColor:(UIColor *)color;
+
+/**
+ * 图片应用颜色滤镜矩阵
+ */
+- (UIImage *)kr_applyColorFilterWithColorMatrix:(NSString *)colorFilterMatrix;
+
 @end
 
+@interface NSMutableAttributedString (KR)
+
+- (void)kr_addAttribute:(NSAttributedStringKey)name value:(id)value range:(NSRange)range;
+
+@end
 
 @interface UIApplication (KR)
 + (BOOL)isAppExtension;

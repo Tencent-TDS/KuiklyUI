@@ -15,7 +15,6 @@
 
 package com.tencent.kuikly.demo.pages.base.extension
 
-
 internal fun String.ecToLong() : Long {
     return if (isNotEmpty()) toLong()
     else {

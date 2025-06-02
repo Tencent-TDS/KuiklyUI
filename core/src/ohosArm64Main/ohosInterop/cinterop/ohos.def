@@ -1,0 +1,26 @@
+headers = ../include/KRRenderCValue.h
+---
+#include <sys/time.h>
+#include <dlfcn.h>
+
+int com_tencent_kuikly_GetAddress(long address) {
+  Dl_info info;
+  if (dladdr(address, &info) == 0) return 0;
+  void* dli_fbase = info.dli_fbase;
+  void* this_func = (void*)address;
+  int fn_addr = (char *) this_func - (char *) dli_fbase - 1;
+  return fn_addr;
+}
+
+long long com_tencent_kuikly_CurrentTimestamp() {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
+typedef void (*CallKotlin)(int methodId, KRRenderCValue arg0, KRRenderCValue arg1, KRRenderCValue arg2, KRRenderCValue arg3, KRRenderCValue arg4, KRRenderCValue arg5);
+extern int com_tencent_kuikly_SetCallKotlin(CallKotlin callKotlin);
+extern const struct KRRenderCValue com_tencent_kuikly_CallNative(int methodId, KRRenderCValue arg0, KRRenderCValue arg1, KRRenderCValue arg2,
+                                           KRRenderCValue arg3, KRRenderCValue arg4, KRRenderCValue arg5);
+extern void com_tencent_kuikly_ScheduleContextTask(const char* pagerId, void (*onSchedule)(const char* pagerId));
+extern bool com_tencent_kuikly_IsCurrentOnContextThread(const char* pagerId);

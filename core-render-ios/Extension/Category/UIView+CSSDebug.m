@@ -39,7 +39,7 @@
 
 #if DEBUG
 
-#define KTVObjectHookSubClassPrefix     @"KTV"
+#define KTVObjectHookSubClassPrefix     @"KT"
 
 + (void)ktv_replaceSubclass:(id)object debugName:(NSString *)debugName {
     if (debugName.length == 0) {

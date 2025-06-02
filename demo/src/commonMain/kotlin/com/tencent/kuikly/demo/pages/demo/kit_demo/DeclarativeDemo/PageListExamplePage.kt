@@ -107,7 +107,6 @@ internal class PageListExamplePage : BasePager() {
                     }
                 }
 
-
                 event {
                     pageIndexDidChanged {
                         ctx.currentIndex = (it as JSONObject).optInt("index")

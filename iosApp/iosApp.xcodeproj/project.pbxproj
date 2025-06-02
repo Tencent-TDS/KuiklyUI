@@ -23,6 +23,7 @@
 		FF05C64229C851A500C5E02A /* KRBridgeModule.m in Sources */ = {isa = PBXBuildFile; fileRef = FF05C64029C851A500C5E02A /* KRBridgeModule.m */; };
 		FF0DD45329EC211B0024F7FF /* KRRouterHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = FF0DD45229EC211B0024F7FF /* KRRouterHandler.m */; };
 		FF151BB82A23A7E800D2BBED /* KRVideoViewHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = FF151BB72A23A7E800D2BBED /* KRVideoViewHandler.m */; };
+		FF5BF1702B6EC62D001C5632 /* KRFontHanlder.m in Sources */ = {isa = PBXBuildFile; fileRef = FF5BF16F2B6EC62D001C5632 /* KRFontHanlder.m */; };
 		FFBD31B829015A0200D555DE /* UINavigationController+FDFullscreenPopGesture.m in Sources */ = {isa = PBXBuildFile; fileRef = FFBD31B729015A0100D555DE /* UINavigationController+FDFullscreenPopGesture.m */; };
 		FFDEA045288C2DF3008534B5 /* KuiklyRenderViewPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFDEA044288C2DF3008534B5 /* KuiklyRenderViewPage.swift */; };
 		FFEDDC7A2AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = FFEDDC792AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.m */; };
@@ -59,6 +60,8 @@
 		FF0DD45229EC211B0024F7FF /* KRRouterHandler.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = KRRouterHandler.m; sourceTree = "<group>"; };
 		FF151BB62A23A7E800D2BBED /* KRVideoViewHandler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KRVideoViewHandler.h; sourceTree = "<group>"; };
 		FF151BB72A23A7E800D2BBED /* KRVideoViewHandler.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = KRVideoViewHandler.m; sourceTree = "<group>"; };
+		FF5BF16E2B6EC62D001C5632 /* KRFontHanlder.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KRFontHanlder.h; sourceTree = "<group>"; };
+		FF5BF16F2B6EC62D001C5632 /* KRFontHanlder.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = KRFontHanlder.m; sourceTree = "<group>"; };
 		FFBD31B629015A0100D555DE /* UINavigationController+FDFullscreenPopGesture.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "UINavigationController+FDFullscreenPopGesture.h"; sourceTree = "<group>"; };
 		FFBD31B729015A0100D555DE /* UINavigationController+FDFullscreenPopGesture.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "UINavigationController+FDFullscreenPopGesture.m"; sourceTree = "<group>"; };
 		FFDEA03D288BEF1F008534B5 /* iosApp-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "iosApp-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -168,6 +171,8 @@
 				FF0DD45229EC211B0024F7FF /* KRRouterHandler.m */,
 				FF151BB62A23A7E800D2BBED /* KRVideoViewHandler.h */,
 				FF151BB72A23A7E800D2BBED /* KRVideoViewHandler.m */,
+				FF5BF16E2B6EC62D001C5632 /* KRFontHanlder.h */,
+				FF5BF16F2B6EC62D001C5632 /* KRFontHanlder.m */,
 			);
 			path = Handlers;
 			sourceTree = "<group>";
@@ -358,6 +363,7 @@
 				C125EBCC2D96FBE200FBFA34 /* KRAPNGViewHandler.m in Sources */,
 				FFDEA045288C2DF3008534B5 /* KuiklyRenderViewPage.swift in Sources */,
 				7555FF83242A565900829871 /* ContentView.swift in Sources */,
+				FF5BF1702B6EC62D001C5632 /* KRFontHanlder.m in Sources */,
 				FF151BB82A23A7E800D2BBED /* KRVideoViewHandler.m in Sources */,
 				3A622B9C2AB052B0002410B8 /* KRNewTestModule.m in Sources */,
 				3AF526722A9309C300A93682 /* RootViewController.m in Sources */,
@@ -497,7 +503,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = W87D9D2E4L;
 				ENABLE_PREVIEWS = YES;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "";
 				INFOPLIST_FILE = iosApp/Info.plist;
@@ -506,7 +512,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.tencent.kuiklycore.demo;
+				OTHER_CODE_SIGN_FLAGS = "--generate-entitlement-der";
+				PRODUCT_BUNDLE_IDENTIFIER = com.tencent.kuiklycore.demo.luoyibu;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "iosApp/iosApp-Bridging-Header.h";
@@ -535,6 +542,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				OTHER_CODE_SIGN_FLAGS = "--generate-entitlement-der";
 				PRODUCT_BUNDLE_IDENTIFIER = com.tencent.kuiklycore.demo.db;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

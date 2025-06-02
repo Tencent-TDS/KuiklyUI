@@ -56,7 +56,7 @@ suspend fun CoroutineScope.delay(timeMs: Int) {
         @Suppress("DEPRECATION")
         BridgeManager.currentPageId.ifEmpty { return }
     }
-    suspendCoroutine {
+    suspendCoroutine<Unit> {
         setTimeout(pagerId, timeMs) {
             try {
                 it.resume(Unit)

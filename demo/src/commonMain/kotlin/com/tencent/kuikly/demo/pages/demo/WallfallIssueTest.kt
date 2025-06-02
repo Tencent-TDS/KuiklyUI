@@ -29,9 +29,9 @@ import com.tencent.kuikly.core.views.WaterfallList
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 
-internal data class TabData(var tabTitle: String = "", var index: Int = 0) {}
+internal data class TabData(var tabTitle: String = "", var index: Int = 0)
 
-internal data class ItemData(var title: String = "") {}
+internal data class ItemData(var title: String = "")
 
 @Page("222")
 internal class WallfallIssueTest : BasePager() {

@@ -418,7 +418,6 @@ internal fun ViewContainer<*, *>.RepeatForeverImperativeAnimation(init: RepeatFo
     addChild(RepeatForeverImperativeAnimationExampleView(), init)
 }
 
-
 @Page("ImperativeAnimationExamplePage")
 internal class ImperativeAnimationExamplePage: BasePager() {
     override fun body(): ViewBuilder {

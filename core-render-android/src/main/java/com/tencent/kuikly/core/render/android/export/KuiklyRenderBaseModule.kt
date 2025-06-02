@@ -18,7 +18,6 @@ package com.tencent.kuikly.core.render.android.export
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import android.content.Intent
 import android.view.View
 import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
 import com.tencent.kuikly.core.render.android.IKuiklyRenderLifecycleCallback

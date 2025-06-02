@@ -19,7 +19,6 @@ import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.log.KLog
-import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.views.PlayState
 import com.tencent.kuikly.core.views.Video
 import com.tencent.kuikly.core.views.VideoPlayControl

@@ -16,6 +16,7 @@
 package com.tencent.kuikly.core.render.android.expand.component.text
 
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.RectF
@@ -38,6 +39,7 @@ import android.text.style.TypefaceSpan
 import android.text.style.UnderlineSpan
 import android.text.style.UpdateAppearance
 import android.util.SizeF
+import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
 import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.css.decoration.BoxShadow
 import com.tencent.kuikly.core.render.android.css.drawable.KRCSSBackgroundDrawable
@@ -51,12 +53,12 @@ import com.tencent.kuikly.core.render.android.expand.component.KRTextProps
 import org.json.JSONObject
 import kotlin.math.ceil
 import kotlin.math.floor
-
+import kotlin.math.max
 
 /**
  * 富文本构造器
  */
-class KRRichTextBuilder {
+class KRRichTextBuilder(private val kuiklyContext: IKuiklyRenderContext?) {
 
     /**
      * 构建富文本
@@ -112,9 +114,9 @@ class KRRichTextBuilder {
      */
     private fun parseSpanProps(spanValue: JSONObject, defaultTextProps: KRTextProps) : SpanProps {
         if (isPlaceHolderSpan(spanValue)) {
-            return PlaceholderSpanProps(spanValue)
+            return PlaceholderSpanProps(spanValue, kuiklyContext)
         }
-        return  TextSpanProps(spanValue, defaultTextProps)
+        return TextSpanProps(spanValue, defaultTextProps, kuiklyContext)
     }
 
     /**
@@ -162,11 +164,12 @@ class KRRichTextBuilder {
 
         // 字体相关
         if (spanProps.fontSize > 0) {
-            textSpans.add(AbsoluteSizeSpan(if (spanProps.useDpFontSizeDim) spanProps.fontSize.toPxI() else {
-                spanProps.fontSize.spToPxI()
+            textSpans.add(AbsoluteSizeSpan(if (spanProps.useDpFontSizeDim) kuiklyContext.toPxI(spanProps.fontSize) else {
+                kuiklyContext.spToPxI(spanProps.fontSize)
             }))
         }
-        textSpans.add(FontWeightSpan(spanProps.fontWeight, index))
+        val fontWeightSpan = FontWeightSpan(spanProps.fontWeight, index)
+        textSpans.add(fontWeightSpan)
         textSpans.add(StyleSpan(spanProps.fontStyle))
         if (spanProps.fontVariant.isNotEmpty()) {
             textSpans.add(FontVariantSpan(spanProps.fontVariant))
@@ -220,7 +223,7 @@ abstract class SpanProps(spanValue: JSONObject) {
     }
 }
 
-class TextSpanProps(spanValue: JSONObject, defaultProps: KRTextProps) : SpanProps(spanValue) {
+class TextSpanProps(spanValue: JSONObject, defaultProps: KRTextProps, private val kuiklyContext: IKuiklyRenderContext?) : SpanProps(spanValue) {
 
     val color: Int
     val fontSize: Float
@@ -254,25 +257,25 @@ class TextSpanProps(spanValue: JSONObject, defaultProps: KRTextProps) : SpanProp
         }
         fontVariant = spanValue.optString(KRTextProps.PROP_KEY_FONT_VARIANT)
         letterSpacing = if (spanValue.has(KRTextProps.PROP_KEY_LETTER_SPACING)) {
-            spanValue.optDouble(KRTextProps.PROP_KEY_LETTER_SPACING).toFloat().toPxF()
+            spanValue.optDouble(KRTextProps.PROP_KEY_LETTER_SPACING).toFloat() / max(fontSize, 1f)
         } else {
             defaultProps.letterSpacing
         }
         textDecoration = spanValue.optString(KRTextProps.PROP_KEY_TEXT_DECORATION, defaultProps.textDecoration)
         lineHeight = if (spanValue.has(KRTextProps.PROP_KEY_LINE_HEIGHT)) {
-            spanValue.optDouble(KRTextProps.PROP_KEY_LINE_HEIGHT).toFloat().toPxF()
+            kuiklyContext.toPxF(spanValue.optDouble(KRTextProps.PROP_KEY_LINE_HEIGHT).toFloat())
         } else {
             defaultProps.lineHeight
         }
         backgroundImage = spanValue.optString(KRTextProps.PROP_KEY_BACKGROUND_IMAGE, defaultProps.backgroundImage)
         val textShadowStr = spanValue.optString(KRTextProps.PROP_KEY_TEXT_SHADOW, "")
-        textShadow = BoxShadow(textShadowStr)
+        textShadow = BoxShadow(textShadowStr, kuiklyContext)
         useDpFontSizeDim = spanValue.optInt(KRTextProps.PROP_KEY_TEXT_USE_DP_FONT_SIZE_DIM) == 1
     }
 
 }
 
-class PlaceholderSpanProps(spanValue: JSONObject) : SpanProps(spanValue) {
+class PlaceholderSpanProps(spanValue: JSONObject, private val kuiklyContext: IKuiklyRenderContext?) : SpanProps(spanValue) {
 
     companion object {
         const val PROP_KEY_PLACEHOLDER_WIDTH = "placeholderWidth"
@@ -283,8 +286,8 @@ class PlaceholderSpanProps(spanValue: JSONObject) : SpanProps(spanValue) {
     val height: Int
 
     init {
-        width = spanValue.optDouble(PROP_KEY_PLACEHOLDER_WIDTH, 0.0).toFloat().toPxI()
-        height = spanValue.optDouble(PROP_KEY_PLACEHOLDER_HEIGHT, 0.0).toFloat().toPxI()
+        width = kuiklyContext.toPxI(spanValue.optDouble(PROP_KEY_PLACEHOLDER_WIDTH, 0.0).toFloat())
+        height = kuiklyContext.toPxI(spanValue.optDouble(PROP_KEY_PLACEHOLDER_HEIGHT, 0.0).toFloat())
     }
 
 }
@@ -324,7 +327,6 @@ class FontWeightSpan(fontWeight: String, val index: Int = -1) : CharacterStyle()
         private const val FONT_WEIGHT_MEDIUM_VALUE = 0.75f
         private const val FONT_WEIGHT_MEDIUM_BOLD_VALUE = 1f
         private const val FONT_WEIGHT_BOLD_VALUE = 1.5f
-
 
         fun getFontWeight(fontWeight: String): Float {
             return when (fontWeight) {

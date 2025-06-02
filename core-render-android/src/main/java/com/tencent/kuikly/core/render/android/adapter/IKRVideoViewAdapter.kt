@@ -69,7 +69,6 @@ interface IKRVideoView {
      */
     fun setRate(rate: Float)
 
-
     /**
      * seek视频
      * @param seekToTimeMs 时间，单位毫秒
@@ -85,7 +84,6 @@ interface IKRVideoView {
      * kuikly侧调用方法，一般用于业务扩展使用
      */
     fun call(method: String, params: String?)
-
 
 }
 

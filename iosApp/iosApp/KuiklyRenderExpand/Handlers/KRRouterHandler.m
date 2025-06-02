@@ -18,7 +18,7 @@
 #import "KuiklyRenderViewController.h"
 #import "NativeMixKuiklyViewDemoViewController.h"
 
-
+#define KR_MODAL_PRESENT @"kr_modal_present"
 @implementation KRRouterHandler
 
 + (void)load {
@@ -33,14 +33,17 @@
     } else {
         vc = [[KuiklyRenderViewController alloc] initWithPageName:pageName pageData:pageData];
     }
-    
     [controller.navigationController pushViewController:vc animated:YES];
 }
 
 
 - (void)closePage:(UIViewController *)controller {
-    [controller.navigationController popViewControllerAnimated:YES];
-}
+    if (controller.navigationController.viewControllers.count == 1) { // count == 1 说明controller已是根vc，无法正常pop退出，可认定为present出来的vc（模态弹出方式），故退出以dismiss方式
+        [controller.navigationController dismissViewControllerAnimated:NO completion:nil];
+    } else {
+        [controller.navigationController popViewControllerAnimated:YES];
+    }
 
+}
 
 @end

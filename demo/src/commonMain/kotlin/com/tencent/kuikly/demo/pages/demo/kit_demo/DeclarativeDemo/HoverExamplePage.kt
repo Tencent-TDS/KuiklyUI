@@ -23,7 +23,6 @@ import com.tencent.kuikly.core.views.Hover
 import com.tencent.kuikly.core.views.List
 import com.tencent.kuikly.core.views.Text
 
-
 @Page("HoverExamplePage")
 internal class TestPage : BasePager() {
     override fun body(): ViewBuilder {

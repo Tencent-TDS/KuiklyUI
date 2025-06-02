@@ -112,8 +112,7 @@ class WaterfallListAttr : ListAttr() {
 /**
  * 瀑布流列表事件类，继承自 ListEvent。
  */
-class WaterfallListEvent : ListEvent() {
-}
+class WaterfallListEvent : ListEvent()
 
 class WaterfallListView :
     ListView<WaterfallListAttr, WaterfallListEvent>() {
@@ -262,4 +261,3 @@ class WaterfallContentView : ListContentView() {
         }
     }
 }
-

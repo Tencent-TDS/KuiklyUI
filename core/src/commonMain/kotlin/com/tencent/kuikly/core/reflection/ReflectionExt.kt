@@ -57,7 +57,6 @@ fun String.getField(
     return JavaClass(this).getField(name)
 }
 
-
 fun NativeObject<*>.callToString(
     method: String,
     arg0: Any? = null,
@@ -117,7 +116,6 @@ fun OCObject.callToDouble(
 ): Double {
     return call(selector, arg0, arg1, arg2, arg3, arg4, arg5).toDouble()
 }
-
 
 fun NativeObject<*>.toInt(): Int {
     return toString().toIntOrNull() ?: 0

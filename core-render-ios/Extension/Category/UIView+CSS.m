@@ -18,7 +18,8 @@
 #import "KRConvertUtil.h"
 #import "KuiklyRenderBridge.h"
 #import "KuiklyRenderViewExportProtocol.h"
-
+#define LAZY_ANIMATION_KEY @"lazyAnimationKey"
+#define ANIMATION_KEY @"animation"
 
 @interface CSSBorderRadius : NSObject
 
@@ -80,12 +81,20 @@
 
 @end
 
+@interface CSSLazyAnimationImp : NSObject
+
+- (void)setPropWithKey:(NSString *)propKey value:(id)propValue withAnimationKey:(NSString *)animationKey;
+
+- (BOOL)performAnimationWithKey:(NSString *)animationKey withView:(UIView *)view;
+
+@end
 
 
 @interface UIView()<KuiklyRenderViewLifyCycleProtocol>
 
 @property (nonatomic, strong) CSSAnimation *css_animationImp;
 @property (nonatomic, strong) CSSTransform *css_transformImp;
+@property (nonatomic, strong) CSSLazyAnimationImp *css_lazyAnimationImp;
 @property (nonatomic, strong) CSSGradientLayer *css_gradientLayer;
 @property (nonatomic, strong) CSSBorderLayer *css_borderLayer;
 @property (nonatomic, strong) UITapGestureRecognizer *css_tapGR;
@@ -101,6 +110,9 @@
 @implementation UIView (CSS)
 
 - (BOOL)css_setPropWithKey:(NSString *)key value:(id)value {
+    if ([self css_lazySetPropWithKey:key value:value]) {
+        return YES;
+    }
     if ([self.kr_boxShadowView css_setPropWithKey:key value:value]) {
         return YES;
     }
@@ -110,22 +122,42 @@
         IMP imp = [self methodForSelector:selector];
         void (*func)(id, SEL, id) = (void *)imp;
         if (self.css_animationImp) {
+            self.kr_reuseDisable = YES; // animation node should not be reuse
             NSString *animationKey = self.css_animationImp.animationKey;
             __weak typeof(&*self) weakSelf = self;
             [self.css_animationImp animationWithBlock:^{
                 func(self, selector, value);
             } completion:^(BOOL finished) {
-                if (weakSelf.css_animationCompletion && ![key isEqualToString:@"animation"]) {
-                    weakSelf.css_animationCompletion(@{@"finish" : @(finished ? 1 : 0),
-                                                       @"attr": key,
-                                                       @"animationKey": animationKey ?: @""
-                                                     });
+                if ([key isEqualToString:ANIMATION_KEY]) {
+                    return ;
+                }
+                if ([weakSelf.css_lazyAnimationImp performAnimationWithKey:animationKey withView:weakSelf]) {
+                    return ;
+                }
+                if (weakSelf.css_animationCompletion) {
+                    weakSelf.css_animationCompletion(
+                    @{
+                        @"finish" : @(finished ? 1 : 0),
+                        @"attr": key,
+                        @"animationKey": animationKey ?: @""
+                    });
                 }
             }];
            
         } else {
             func(self, selector, value);
         }
+        return YES;
+    }
+    return NO;
+}
+
+// 懒设置属性直到动画结束形成连续关键帧动画（避免异步KT侧驱动）
+- (BOOL)css_lazySetPropWithKey:(NSString *)key value:(id)value {
+    if (key && value
+        && ![key isEqualToString:LAZY_ANIMATION_KEY]
+        && self.css_lazyAnimationKey.length) { // 校验数据合法性
+        [self.css_lazyAnimationImp setPropWithKey:key value:value withAnimationKey:self.css_lazyAnimationKey];
         return YES;
     }
     return NO;
@@ -239,6 +271,14 @@
     objc_setAssociatedObject(self, @selector(css_gradientLayer), css_gradientLayer, OBJC_ASSOCIATION_RETAIN);
 }
 
+- (NSNumber *)css_useShadowPath {
+    return objc_getAssociatedObject(self, @selector(css_useShadowPath));
+}
+
+- (void)setCss_useShadowPath:(NSNumber *)css_useShadowPath {
+    objc_setAssociatedObject(self, @selector(css_useShadowPath), css_useShadowPath, OBJC_ASSOCIATION_RETAIN);
+}
+
 - (NSString *)css_boxShadow {
     return objc_getAssociatedObject(self, @selector(css_boxShadow));
 }
@@ -252,6 +292,9 @@
         self.layer.shadowRadius = boxShadow.shadowRadius;
         self.layer.shadowOffset = CGSizeMake(boxShadow.offsetX, boxShadow.offsetY);
         self.layer.shadowOpacity = css_boxShadow ? 1 : 0;
+        if (self.css_useShadowPath) {
+            self.layer.shadowPath = css_boxShadow ? [[UIBezierPath bezierPathWithRoundedRect:self.layer.bounds cornerRadius:self.layer.cornerRadius] CGPath] : nil;
+        }
     }
 }
 
@@ -355,6 +398,16 @@
     return objc_getAssociatedObject(self, @selector(css_scrollIndex));
 }
 
+- (NSNumber *)css_shouldRasterize {
+    return objc_getAssociatedObject(self, @selector(css_shouldRasterize));
+}
+
+- (void)setCss_shouldRasterize:(NSNumber *)css_shouldRasterize {
+    objc_setAssociatedObject(self, @selector(css_shouldRasterize), css_shouldRasterize, OBJC_ASSOCIATION_RETAIN);
+    self.layer.shouldRasterize = [css_shouldRasterize intValue] == 1;
+    self.layer.rasterizationScale = [UIScreen mainScreen].scale;
+}
+
 - (NSNumber *)css_turboDisplayAutoUpdateEnable {
     return objc_getAssociatedObject(self, @selector(css_turboDisplayAutoUpdateEnable));
 }
@@ -400,6 +453,30 @@
     objc_setAssociatedObject(self, @selector(css_animationImp), css_animationImp, OBJC_ASSOCIATION_RETAIN);
 }
 
+- (NSString *)css_lazyAnimationKey {
+    return objc_getAssociatedObject(self, @selector(css_lazyAnimationKey));
+}
+
+- (void)setCss_lazyAnimationKey:(NSString *)css_lazyAnimationKey {
+    if (self.css_lazyAnimationKey != css_lazyAnimationKey) {
+        objc_setAssociatedObject(self, @selector(css_lazyAnimationKey), css_lazyAnimationKey, OBJC_ASSOCIATION_RETAIN);
+        // reset时调用 self.css_lazyAnimationKey = nil时触发css_lazyAnimationKey == nil条件
+        if (css_lazyAnimationKey == nil) {
+            self.css_lazyAnimationImp = nil;
+        } else if (self.css_lazyAnimationImp == nil) {
+            self.css_lazyAnimationImp = [[CSSLazyAnimationImp alloc] init];
+        }
+    }
+}
+
+- (CSSLazyAnimationImp *)css_lazyAnimationImp {
+    return objc_getAssociatedObject(self, @selector(css_lazyAnimationImp));
+}
+
+- (void)setCss_lazyAnimationImp:(CSSLazyAnimationImp *)css_lazyAnimationImp {
+    objc_setAssociatedObject(self, @selector(css_lazyAnimationImp), css_lazyAnimationImp, OBJC_ASSOCIATION_RETAIN);
+}
+
 - (NSValue *)css_frame {
     return objc_getAssociatedObject(self, @selector(css_frame));
 }
@@ -416,12 +493,30 @@
                     [obj setNeedsLayout];
                 }
      }];
-    [CSSTransform resetTransformWithView:self];
-    self.frame = frame;
-    [self.layer.mask setFrame:self.bounds];
-    [self.css_transformImp applyToView:self]; // 尺寸发生变化，需要同步2D形变
+    dispatch_block_t setFrameBlock = ^{
+        [CSSTransform resetTransformWithView:self];
+        self.frame = frame;
+        [self p_boundsDidChanged];
+        [self.css_transformImp applyToView:self]; // 尺寸发生变化，需要同步2D形变
+    };
+    // 兼容正在做transform动画场景时修改frame
+    if (self.layer.animationKeys.count && !CGAffineTransformEqualToTransform(self.transform, CGAffineTransformIdentity)) {
+        // 原子性设置frame，使得UIView动画可以生效的同时，也可以避免影响transform动画
+        self.bounds = CGRectMake(0, 0, CGRectGetWidth(frame), CGRectGetHeight(frame));
+        self.center = CGPointMake(CGRectGetMidX(frame), CGRectGetMidY(frame));
+        // 无动画设置最终的frame，避免影响transform动画
+        [UIView performWithoutAnimation:setFrameBlock];
+    } else {
+        setFrameBlock();
+    }
     [self p_limitMaxBorderRadisuIfNeed];
-   
+}
+
+- (void)p_boundsDidChanged {
+    [self.layer.mask setFrame:self.bounds];
+    if (self.layer.shadowPath) {
+        self.layer.shadowPath = [[UIBezierPath bezierPathWithRoundedRect:self.layer.bounds cornerRadius:self.layer.cornerRadius] CGPath];
+    }
 }
 
 /// 对齐安卓圆角最大为半圆
@@ -576,6 +671,14 @@
 
 - (void)setKr_canCancelInScrollView:(BOOL)kr_canCancelInScrollView {
     objc_setAssociatedObject(self, @selector(kr_canCancelInScrollView), @(kr_canCancelInScrollView), OBJC_ASSOCIATION_RETAIN);
+}
+
+- (BOOL)kr_reuseDisable {
+    return [objc_getAssociatedObject(self, @selector(kr_reuseDisable)) boolValue];
+}
+
+- (void)setKr_reuseDisable:(BOOL)kr_reuseDisable {
+    objc_setAssociatedObject(self, @selector(kr_reuseDisable), @(kr_reuseDisable), OBJC_ASSOCIATION_RETAIN);
 }
 
 - (void)css_onClickTapWithSender:(UIGestureRecognizer *)sender {
@@ -978,6 +1081,12 @@
     [super setFrame:frame];
     _contentView.css_frame = [NSValue valueWithCGRect:self.bounds];
     _backgroundView.css_frame = [NSValue valueWithCGRect:self.bounds];
+    [self p_updateShadowPathIfNeed];
+}
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    [self p_updateShadowPathIfNeed];
 }
 
 - (void)removeFromSuperview {
@@ -993,6 +1102,7 @@
         || [key isEqualToString:@"border"]) {
         if ([key isEqualToString:@"borderRadius"] || [key isEqualToString:@"backgroundColor"] || [key isEqualToString:@"backgroundImage"] ) {
             [_backgroundView css_setPropWithKey:key value:value];
+            [self p_updateShadowPathIfNeed];
         }
         return !([key isEqualToString:@"borderRadius"] || [key isEqualToString:@"border"]); // return NO 抛给contentView设置
     }
@@ -1001,6 +1111,19 @@
 
 - (void)dealloc {
     
+}
+
+#pragma mark - private
+// 更新阴影路径
+- (void)p_updateShadowPathIfNeed {
+    if (self.layer.shadowPath) {
+        if ([_backgroundView.layer.mask isKindOfClass:[CSSShapeLayer class]]) {
+            CSSShapeLayer *shapeLayer = (CSSShapeLayer *)_backgroundView.layer.mask;
+            self.layer.shadowPath = shapeLayer.path;
+        } else {
+            self.layer.shadowPath = [[UIBezierPath bezierPathWithRoundedRect:self.bounds cornerRadius:_backgroundView.layer.cornerRadius] CGPath];
+        }
+    }
 }
 
 @end
@@ -1099,7 +1222,7 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
     if (_repeatForever) {
         option |= UIViewAnimationOptionRepeat;
     }
-    [UIView animateKeyframesWithDuration:_duration delay:_delay options:option animations:^{
+    [UIView animateKeyframesWithDuration:_duration delay:_delay options:option | UIViewAnimationOptionAllowUserInteraction animations:^{
     UIViewAnimationCurve animationCurve = _viewAnimationCurve;
             [animations enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
                 dispatch_block_t block = obj;
@@ -1121,10 +1244,46 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
 #define TRNASLATE_INDEX 2
 #define ANCHOR_INDEX 3
 #define SKEW_INDEX 4
+#define ROTATE_X_Y_INDEX 5
+
+@interface KRTransformInfo : NSObject
+
+@property (nonatomic, assign) CGAffineTransform affineTransform;
+@property (nonatomic, assign) CATransform3D transform3D;
+
+@end
+@implementation KRTransformInfo {
+    BOOL _is3D;
+    CGAffineTransform _affineTransform;
+    CATransform3D _transform3D;
+}
+
+- (instancetype)initWithCGAffineTransform:(CGAffineTransform)affineTransform transform3D:(CATransform3D)transform3D is3D:(BOOL)is3D {
+    self = [super init];
+    if (self) {
+        _is3D = is3D;
+        _affineTransform = affineTransform;
+        _transform3D = transform3D;
+    }
+    return self;
+}
+
+- (void)applyTransformWithView:(UIView *)view {
+    if (_is3D) {
+        view.transform = CGAffineTransformIdentity;
+        view.layer.transform = _transform3D;
+    } else {
+        view.transform = _affineTransform;
+    }
+}
+
+@end
 
 /// CSSTransform
 @implementation CSSTransform {
     CGFloat _rotateAngle;           // [-360, 360]
+    CGFloat _rotateXAngle;           // [-360, 360]
+    CGFloat _rotateYAngle;           // [-360, 360]
     CGFloat _scaleX;                // [0, 1]
     CGFloat _scaleY;                // [0, 1]
     CGFloat _translatePercentageX;  // [-1, 1]
@@ -1154,6 +1313,9 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
                 } else if (idx == SKEW_INDEX) { // skew
                     _skewX = [values.firstObject floatValue];
                     _skewY = [values.lastObject floatValue];
+                } else if (idx == ROTATE_X_Y_INDEX) {
+                    _rotateXAngle = [values.firstObject floatValue];
+                    _rotateYAngle = [values.lastObject floatValue];
                 }
             }
         }];
@@ -1171,6 +1333,10 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
     if (!CGPointEqualToPoint(anchorPoint, CGPointMake(0.5, 0.5))) {
         [view hr_setAnchorPointAndKeepFrame:CGPointMake(0.5, 0.5)];
     }
+    if (!CATransform3DEqualToTransform(view.layer.transform, CATransform3DIdentity)) {
+        view.layer.transform = CATransform3DIdentity;
+    }
+    
     if (!CGAffineTransformEqualToTransform(view.transform, CGAffineTransformIdentity)) {
         view.transform = CGAffineTransformIdentity;
     }
@@ -1185,45 +1351,65 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
         }];
         NSUInteger stepCount = ceil(rotateAngleDifference / 179.0);
         for (int i = 0; i < stepCount; i++) {
-            CGAffineTransform step = [self generateTransformWithViewFrame:[view.css_frame CGRectValue] relativeCssTransform:oldTransform relativePercentage:1 / (stepCount * 1.0) * (i + 1)];
+            KRTransformInfo * step = [self generateTransformWithViewFrame:[view.css_frame CGRectValue] relativeCssTransform:oldTransform relativePercentage:1 / (stepCount * 1.0) * (i + 1)];
             [animation addKeyframeWithRelativeStartTime:1 / (stepCount * 1.0) * i relativeDuration:1 / (stepCount * 1.0) animations:^{
-                view.transform = step;
+                [step applyTransformWithView:view];
             }];
         }
     } else {
         [view hr_setAnchorPointAndKeepFrame:anchorPoint]; // 设置瞄点并保持frame位置
-        view.transform = [self generateTransformWithViewFrame:[view.css_frame CGRectValue] relativeCssTransform:nil relativePercentage:1.0];
+        KRTransformInfo *transformInfo = [self generateTransformWithViewFrame:[view.css_frame CGRectValue] relativeCssTransform:nil relativePercentage:1.0];
+        [transformInfo applyTransformWithView:view];
     }
 }
 
-- (CGAffineTransform)generateTransformWithViewFrame:(CGRect)frame relativeCssTransform:(CSSTransform *)relativeTransform relativePercentage:(CGFloat)percentage {
+- (KRTransformInfo *)generateTransformWithViewFrame:(CGRect)frame relativeCssTransform:(CSSTransform *)relativeTransform relativePercentage:(CGFloat)percentage {
     CGAffineTransform transform = CGAffineTransformIdentity;
+    CATransform3D transform3d = CATransform3DIdentity;
+    BOOL is3d = NO;
     CGFloat relativeTranslatePercentageX = (relativeTransform ? relativeTransform->_translatePercentageX : 0);
     CGFloat relativeTranslatePercentageY = (relativeTransform ? relativeTransform->_translatePercentageY : 0);
     CGFloat relativeScaleX = (relativeTransform ? relativeTransform->_scaleX : 1.0);
     CGFloat relativeScaleY = (relativeTransform ? relativeTransform->_scaleY : 1.0);
     CGFloat relativeRotateAngle = (relativeTransform ? relativeTransform->_rotateAngle : 0.0);
+    CGFloat relativeRotateXAngle = (relativeTransform ? relativeTransform->_rotateXAngle : 0.0);
+    CGFloat relativeRotateYAngle = (relativeTransform ? relativeTransform->_rotateYAngle : 0.0);
     CGFloat translatePercentageXDifference = _translatePercentageX - relativeTranslatePercentageX;
     CGFloat translatePercentageYDifference = _translatePercentageY - relativeTranslatePercentageY;
     CGFloat scaleXDifference = _scaleX -  relativeScaleX;
     CGFloat scaleYDifference = _scaleY - relativeScaleY;
     CGFloat rotateAngleDifference = _rotateAngle - relativeRotateAngle;
+    CGFloat rotateAngleXDifference = _rotateXAngle - relativeRotateXAngle;
+    CGFloat rotateAngleYDifference = _rotateYAngle - relativeRotateYAngle;
     transform = CGAffineTransformTranslate(transform,
                                            (relativeTranslatePercentageX + translatePercentageXDifference * percentage) * frame.size.width,
                                            (relativeTranslatePercentageY + translatePercentageYDifference * percentage)  * frame.size.height);
     CGFloat scaleX = (relativeScaleX + scaleXDifference * percentage);
     CGFloat scaleY = (relativeScaleY + scaleYDifference * percentage);
     transform = CGAffineTransformScale(transform, scaleX == 0 ? 0.00001 : scaleX, scaleY == 0 ? 0.00001: scaleY);
-    CGFloat rotateAngle = relativeRotateAngle + rotateAngleDifference * percentage;
-    transform = CGAffineTransformRotate(transform, (rotateAngle / 360.0f) * (M_PI * 2));
-
     if (_skewX || _skewY) {
         CGFloat horizontalSkewAngleInRadians = _skewX * M_PI / 180;
         CGFloat verticalSkewAngleInRadians = _skewY * M_PI / 180;
         CGAffineTransform skewTransform = CGAffineTransformMake(1, tan(verticalSkewAngleInRadians), tan(horizontalSkewAngleInRadians), 1, 0, 0);
         transform = CGAffineTransformConcat(transform, skewTransform);
     }
-    return transform;
+    CGFloat rotateAngle = relativeRotateAngle + rotateAngleDifference * percentage;
+
+    CGFloat rotateXAngle = relativeRotateXAngle + rotateAngleXDifference * percentage;
+    CGFloat rotateYAngle = relativeRotateYAngle + rotateAngleYDifference * percentage;
+    if (_rotateXAngle || _rotateYAngle ) {
+        is3d = YES;
+        // 创建一个3D变换
+        transform3d = CATransform3DMakeAffineTransform(transform); // 基于2d作为初始
+        // 设置透视效果，与CSS的rotateX对齐
+        transform3d.m34 = -1.0 / 1000.0;
+        transform3d = CATransform3DRotate(transform3d, (rotateXAngle / 360.0f) * (M_PI * 2), 1, 0, 0);// X轴旋转
+        transform3d = CATransform3DRotate(transform3d, (rotateYAngle / 360.0f) * (M_PI * 2), 0, 1, 0);// Y轴旋转
+        transform3d = CATransform3DRotate(transform3d,(rotateAngle / 360.0f) * (M_PI * 2), 0, 0, 1); // Z轴旋转
+    } else {
+        transform = CGAffineTransformRotate(transform, (rotateAngle / 360.0f) * (M_PI * 2)); // 2d Z轴旋转
+    }
+    return [[KRTransformInfo alloc] initWithCGAffineTransform:transform transform3D:transform3d is3D:is3d];
 }
 
 - (CGFloat)rotateAngle {
@@ -1232,4 +1418,62 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
 
 @end
 
+// **** CSSLazyAnimationImp **** //
+/**
+ 懒设置属性直到动画结束形成连续关键帧动画（避免KT侧异步驱动导致的动画无法连贯）
+ */
+@interface CSSLazyPropInfo : NSObject
+@property (nonatomic, strong) NSString *key;
+@property (nonatomic, strong) id value;
+@end
+@implementation CSSLazyPropInfo
+
+@end
+@interface CSSLazyAnimationImp()
+
+@property (nonatomic, strong) NSMutableDictionary <NSString *, NSMutableArray<CSSLazyPropInfo *> *> *lazyPropsMap;
+
+@end
+
+@implementation CSSLazyAnimationImp
+
+- (void)setPropWithKey:(NSString *)propKey value:(id)propValue withAnimationKey:(NSString *)animationKey {
+    if (!propKey || !propValue || !animationKey) { // 校验数据合法性
+        return ;
+    }
+    NSMutableArray<CSSLazyPropInfo *> *propInfos = self.lazyPropsMap[animationKey];
+    if (!propInfos) {
+        propInfos = [NSMutableArray new];
+        self.lazyPropsMap[animationKey] = propInfos;
+    }
+    CSSLazyPropInfo *propInfo = [CSSLazyPropInfo new];
+    propInfo.key = propKey;
+    propInfo.value = propValue;
+    [propInfos addObject:propInfo];
+}
+
+// 动画结束调用，执行下一个关键帧动画，以此往复，直到最后一帧动画结束
+- (BOOL)performAnimationWithKey:(NSString *)animationKey withView:(UIView *)view {
+    if (!animationKey || !view) { // 校验数据合法性
+        return NO;
+    }
+    NSMutableArray<CSSLazyPropInfo *> *propInfos = self.lazyPropsMap[animationKey];
+    if (propInfos.count) {
+        [self.lazyPropsMap removeObjectForKey:animationKey];
+        for (CSSLazyPropInfo *propInfo in propInfos) {
+            [view css_setPropWithKey:propInfo.key value:propInfo.value];
+        }
+        return YES;
+    }
+    return NO;
+}
+
+- (NSMutableDictionary<NSString *, NSMutableArray<CSSLazyPropInfo *> *> *)lazyPropsMap {
+    if (!_lazyPropsMap) {
+        _lazyPropsMap = [NSMutableDictionary new];
+    }
+    return _lazyPropsMap;
+}
+
+@end
 

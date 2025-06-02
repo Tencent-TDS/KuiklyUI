@@ -20,7 +20,6 @@ import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.manager.PagerManager
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.demo.pages.base.BridgeModule
-import kotlin.native.concurrent.ThreadLocal
 
 enum class AppFeedsType(val value: String) {
     Follow("follow"),      // 关注
@@ -33,7 +32,6 @@ enum class AppFeedsType(val value: String) {
     Test("test"),       // 测试
 }
 
-@ThreadLocal
 internal object AppFeedsManager {
     private var callbackMap: HashMap<Pair<AppFeedsType, Int>, Any> = hashMapOf()
 
@@ -77,7 +75,7 @@ internal object AppFeedsManager {
     }
     
     private fun parseJson(json: JSONObject): List<AppFeedModel> {
-        val jsonArray = json.optJSONArray("result");
+        val jsonArray = json.optJSONArray("result")
         val feeds = mutableListOf<AppFeedModel>()
         jsonArray?.let {
             for (i in 0 until it.length()) {

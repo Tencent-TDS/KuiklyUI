@@ -18,6 +18,7 @@ package com.tencent.kuikly.core.views
 import com.tencent.kuikly.core.base.*
 import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.base.event.EventHandlerFn
+import com.tencent.kuikly.core.module.FontModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 
 class InputView : DeclarativeBaseView<InputAttr, InputEvent>() {
@@ -98,7 +99,6 @@ class InputAttr : Attr() {
      * 主动设置输入框文本内容（该赋值会替换原输入框内容）
      * @param text 新输入框文本内容
      */
-
     fun text(text: String): InputAttr {
         TextConst.VALUE with text
         return this
@@ -117,6 +117,16 @@ class InputAttr : Attr() {
 
     fun fontSize(size: Any): InputAttr {
         TextConst.FONT_SIZE with size
+        return this
+    }
+
+    fun fontSize(size: Float, scaleFontSizeEnable: Boolean? = null): InputAttr {
+        TextConst.FONT_SIZE with FontModule.scaleFontSize(size, scaleFontSizeEnable)
+        return this
+    }
+
+    fun lines(lines: Int): InputAttr {
+        TextConst.LINES with lines
         return this
     }
 

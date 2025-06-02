@@ -15,12 +15,18 @@
 
 package com.tencent.kuikly.core.views
 
-import com.tencent.kuikly.core.base.*
-import com.tencent.kuikly.core.base.event.Event
-import com.tencent.kuikly.core.base.event.EventHandlerFn
+import com.tencent.kuikly.core.base.Animation
+import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ComposeAttr
+import com.tencent.kuikly.core.base.ComposeEvent
+import com.tencent.kuikly.core.base.ComposeView
+import com.tencent.kuikly.core.base.Translate
+import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.layout.undefined
 import com.tencent.kuikly.core.layout.valueEquals
 import com.tencent.kuikly.core.reactive.handler.observable
+
 /*
 *  UISwitch开关组件，风格类iOS UISwitch开关，尺寸默认(51f, 31f), 支持手动设置指定size(xx, xx)
 */
@@ -40,7 +46,6 @@ class SwitchView : ComposeView<SwitchAttr, SwitchEvent>() {
         }
         super.attr(init)
     }
-
 
     override fun body(): ViewBuilder {
         val margin = this.attr.thumbMargin
@@ -98,7 +103,6 @@ class SwitchView : ComposeView<SwitchAttr, SwitchEvent>() {
     override fun createAttr(): SwitchAttr = SwitchAttr()
 
     override fun createEvent(): SwitchEvent = SwitchEvent()
-
 
 }
 

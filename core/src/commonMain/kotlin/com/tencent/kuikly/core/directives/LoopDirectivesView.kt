@@ -102,7 +102,7 @@ class LoopDirectivesView<T>(
             val item = list[index]
             invokeItemCreator(item, index, size, itemCreator)
             if (index != children.lastIndex) {
-                val child = children.removeLast()
+                val child = children.removeAt(children.lastIndex)
                 children.add(index, child)
                 addedChildren.add(child)
             } else {

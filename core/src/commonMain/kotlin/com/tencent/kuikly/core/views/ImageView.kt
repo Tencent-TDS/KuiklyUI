@@ -23,7 +23,6 @@ import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import kotlin.math.max
 import kotlin.math.min
 
-
 /**
  * 创建一个 ImageView 实例并添加到视图容器中。
  * @param init 一个 ImageView.() -> Unit 函数，用于初始化 ImageView 的属性和子视图。
@@ -36,7 +35,6 @@ fun ViewContainer<*, *>.Image(init: ImageView.() -> Unit) {
         addChild(ImageView(), init)
     }
 }
-
 
 open class ImageAttr : Attr(), IImageAttr {
     internal var shouldWrapper = false
@@ -108,6 +106,14 @@ open class ImageAttr : Attr(), IImageAttr {
         } else {
             ImageConst.TINT_COLOR with color.toString()
         }
+        return this
+    }
+
+    /**
+     * 设置图片组件鸿蒙平台上是否可以拖动
+     */
+    fun dragEnable(dragEnable: Boolean): Attr {
+        ImageConst.DRAG_ENABLE with dragEnable.toInt()
         return this
     }
 
@@ -225,7 +231,6 @@ class ImageEvent : Event() {
     }
 }
 
-
 // 图片分辨率参数
 data class LoadResolutionParams(
     val width: Int, // 分辨率实际像素宽大小
@@ -270,7 +275,6 @@ class ImageView : DeclarativeBaseView<ImageAttr, ImageEvent>() {
     }
 }
 
-
 data class LoadSuccessParams(
     val src: String // 对应属性的 src
 ) {
@@ -312,4 +316,6 @@ object ImageConst {
     const val RESIZE_MODE_COVER = "cover"
     const val RESIZE_MODE_CONTAIN = "contain"
     const val RESIZE_MODE_STRETCH = "stretch"
+
+    const val DRAG_ENABLE = "dragEnable"
 }

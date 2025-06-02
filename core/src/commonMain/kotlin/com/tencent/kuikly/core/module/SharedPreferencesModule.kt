@@ -83,7 +83,7 @@ class SharedPreferencesModule : Module() {
     }
 
     fun getObject(key: String): JSONObject? {
-        val value = getItem(key);
+        val value = getItem(key)
         if (value.isNotEmpty()) {
             return JSONObject(value)
         }

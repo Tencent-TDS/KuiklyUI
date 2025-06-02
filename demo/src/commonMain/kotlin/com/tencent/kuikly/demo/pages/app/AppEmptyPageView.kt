@@ -48,14 +48,9 @@ internal class AppEmptyPageView(val title: String): ComposeView<AppEmptyPageView
     }
 }
 
+internal class AppEmptyPageViewAttr : ComposeAttr()
 
-internal class AppEmptyPageViewAttr : ComposeAttr() {
-
-}
-
-internal class AppEmptyPageViewEvent : ComposeEvent() {
-    
-}
+internal class AppEmptyPageViewEvent : ComposeEvent()
 
 internal fun ViewContainer<*, *>.AppEmptyPage(title: String, init: AppEmptyPageView.() -> Unit) {
     addChild(AppEmptyPageView(title), init)

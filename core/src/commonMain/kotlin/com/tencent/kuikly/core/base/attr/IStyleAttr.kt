@@ -58,7 +58,6 @@ interface IStyleAttr {
      */
     fun backgroundLinearGradient(direction: Direction, vararg colorStops: ColorStop): IStyleAttr
 
-
     /**
      * 设置视图的阴影。
      * @param boxShadow 阴影属性。
@@ -171,7 +170,6 @@ interface IStyleAttr {
      * @return 返回 IStyleAttr 接口以支持链式调用。
      */
     fun turboDisplayAutoUpdateEnable(enable: Boolean): IStyleAttr
-
 
     // endregion
 }

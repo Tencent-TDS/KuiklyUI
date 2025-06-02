@@ -15,7 +15,6 @@
 
 package com.tencent.kuikly.core.module
 
-
 interface IModuleAccessor {
 
     fun <T : Module> getModule(name: String): T?

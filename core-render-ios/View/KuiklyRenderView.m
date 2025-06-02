@@ -33,6 +33,8 @@ NSString *const KRWidthKey = @"width";
 NSString *const KRHeightKey = @"height";
 NSString *const KRNativeBuild = @"nativeBuild";
 NSString *const KRSafeAreaInsets = @"safeAreaInsets";
+NSString *const KRAccessibilityRunning = @"isAccessibilityRunning";
+NSString *const KRDensity = @"density";
 
 @interface KuiklyRenderView()<KuiklyRenderCoreDelegate>
 /** 渲染核心实现者对象 */
@@ -54,7 +56,6 @@ NSString *const KRSafeAreaInsets = @"safeAreaInsets";
 }
 
 #pragma mark - init
-
 - (nonnull instancetype)initWithSize:(CGSize)size
                          contextCode:(NSString *)contextCode
                         contextParam:(nonnull KuiklyContextParam *)contextParam
@@ -149,7 +150,6 @@ NSString *const KRSafeAreaInsets = @"safeAreaInsets";
     [_renderCore didInitCore];
 }
 
-
 #pragma mark - override
 
 - (void)setOnExceptionBlock:(OnUnhandledExceptionBlock)onExceptionBlock {
@@ -161,8 +161,12 @@ NSString *const KRSafeAreaInsets = @"safeAreaInsets";
     [super setFrame:frame];
     if (!CGSizeEqualToSize(_lastViewSize, self.bounds.size)) {
         _lastViewSize = self.bounds.size;
+        CGSize screenSize = [UIScreen mainScreen].bounds.size;
         NSDictionary *data = @{KRWidthKey: @(CGRectGetWidth(frame)),
-                               KRHeightKey: @(CGRectGetHeight(frame))};
+                               KRHeightKey: @(CGRectGetHeight(frame)),
+                               KRDeviceWidthKey:@(screenSize.width),
+                               KRDeviceHeightKey:@(screenSize.height)
+        };
         [_renderCore sendWithEvent:KRRootViewSizeDidChangedEventKey
                               data:data];
     }
@@ -213,13 +217,15 @@ NSString *const KRSafeAreaInsets = @"safeAreaInsets";
     mParmas[KROsVersionKey] = [[UIDevice currentDevice] systemVersion] ?: @"";
     mParmas[KRAppVersionKey] = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleShortVersionString"] ? : @"1.0.0";
     mParmas[KRParamKey] = params? : @{};
-    mParmas[KRNativeBuild] = @(2);
+	mParmas[KRNativeBuild] = @(2);
+    mParmas[KRAccessibilityRunning] = @(UIAccessibilityIsVoiceOverRunning() ? 1: 0); // 无障碍化是否开启
     if (@available(iOS 11.0, *)) {
         mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:[KRConvertUtil currentSafeAreaInsets]];
     } else {
         mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:UIEdgeInsetsMake([KRConvertUtil statusBarHeight], 0, 0, 0)];
         // Fallback on earlier versions
     }
+    mParmas[KRDensity] = @([UIScreen mainScreen].scale);
     return mParmas;
 }
 

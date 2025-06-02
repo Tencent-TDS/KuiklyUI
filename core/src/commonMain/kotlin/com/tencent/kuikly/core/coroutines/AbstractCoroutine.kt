@@ -9,7 +9,7 @@ import kotlin.coroutines.CoroutineContext
  * @suppress **This an internal API and should not be used from general code.**
  */
 internal abstract class AbstractCoroutine<in T>(
-    parentContext: CoroutineContext,
+    parentContext: CoroutineContext
 ) : Job, Continuation<T>, CoroutineScope {
 
     @Suppress("LeakingThis")

@@ -37,7 +37,7 @@ object PagerManager {
     }
 
     fun isPagerCreatorExist(pageName: String): Boolean {
-        return pagerNameMap.containsKey(pageName.toLowerCase())
+        return pagerNameMap.containsKey(pageName.lowercase())
     }
     fun getCurrentPager(): IPager {
         return pagerMap[BridgeManager.currentPageId] ?: throw PagerNotFoundException("pager not found: ${BridgeManager.currentPageId}")
@@ -80,7 +80,7 @@ object PagerManager {
     fun destroyPager(pagerId: String) {
         pagerMap[pagerId]?.onDestroyPager()
         pagerMap.remove(pagerId)
-        getCurrentReactiveObserver().destroy()
+        reactiveObserverMap[pagerId]?.destroy()
         reactiveObserverMap.remove(pagerId)
     }
 
@@ -102,12 +102,12 @@ object PagerManager {
 
     fun registerPageRouter(pageName: String, creator: () -> IPager) {
         // need support forward compatible, so use toLowerCase
-        pagerNameMap[pageName.toLowerCase()] = creator
+        pagerNameMap[pageName.lowercase()] = creator
     }
 
     private fun pagerCreator(pageName: String): (() -> IPager)? {
         // need support forward compatible, so use toLowerCase
-        return pagerNameMap[pageName.toLowerCase()]
+        return pagerNameMap[pageName.lowercase()]
     }
 
     private fun pageNameFromUrl(url: String): String {

@@ -19,7 +19,6 @@ import com.tencent.kuikly.core.base.toBoolean
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.pager.PageData
 
-
 internal const val USER_DATA = "userData"
 internal const val EXT_USER_DATA = "ext_userdata"
 

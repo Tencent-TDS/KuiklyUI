@@ -136,7 +136,6 @@ interface ILayoutAttr {
      */
     fun flex(flex: Float): ILayoutAttr
 
-
     /**
      * 设置元素的顶部位置。
      * 仅在绝对布局（positionType.ABSOLUTE）下生效。

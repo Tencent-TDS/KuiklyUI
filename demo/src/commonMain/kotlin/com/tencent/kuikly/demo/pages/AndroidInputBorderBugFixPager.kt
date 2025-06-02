@@ -43,7 +43,6 @@ internal class AndroidInputBorderBugFixPager : BasePager() {
 
     private var jumpText: String = ""
 
-
     override fun body(): ViewBuilder {
         val ctx = this
         return {

@@ -15,8 +15,11 @@
 
 package com.tencent.kuikly.core.views
 
-import com.tencent.kuikly.core.base.*
-import com.tencent.kuikly.core.directives.vbind
+import com.tencent.kuikly.core.base.ComposeAttr
+import com.tencent.kuikly.core.base.ComposeEvent
+import com.tencent.kuikly.core.base.ComposeView
+import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.directives.velse
 import com.tencent.kuikly.core.directives.velseif
 import com.tencent.kuikly.core.directives.vif
@@ -24,6 +27,7 @@ import com.tencent.kuikly.core.exception.throwRuntimeError
 import com.tencent.kuikly.core.layout.undefined
 import com.tencent.kuikly.core.layout.valueEquals
 import com.tencent.kuikly.core.reactive.handler.observable
+
 /*
  * @brief 复选框组件，可用作单击选中
  * 注：CheckBox组件需要设置宽度和高度（attr { size(xxx, xxx)}
@@ -83,7 +87,6 @@ class CheckBoxView : ComposeView<CheckBoxAttr, CheckBoxEvent>() {
         }
         isFirst = false
     }
-
 
     override fun body(): ViewBuilder {
         val ctx = this
@@ -195,7 +198,6 @@ class CheckBoxEvent : ComposeEvent() {
          checkedDidChangedHandlerFn = handlerFn
      }
 }
-
 
 /*
  * @brief 复选框组件，可用作单击选中态/非选中态的切换展示

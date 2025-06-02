@@ -1,0 +1,7 @@
+/node_modules
+/core-render-ohos/oh_modules
+/.preview
+/build
+/.cxx
+/.test
+/.hvigor

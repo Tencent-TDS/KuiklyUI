@@ -19,6 +19,7 @@
 NS_ASSUME_NONNULL_BEGIN
 @class UIView;
 @class KuiklyRenderView;
+@class KuiklyContextParam;
 /*
  * 回调给Kotlin侧的闭包
  * @param result 数据(类型可为NSDictionary, NSArray, NSString, NSNumber, NSData, 注: NSDictionary在Kotlin侧对应为String类型)
@@ -35,6 +36,10 @@ typedef void (^KuiklyRenderCallback)(id _Nullable result);
  * @brief 当前所在根视图
  */
 @property (nonatomic, weak) KuiklyRenderView *hr_rootView;
+/*
+ * @brief
+ */
+@property (nonatomic, strong) KuiklyContextParam *hr_contextParam;
 
 /*
  * @brief Kotlin侧调用当前module的实例方法出发该回调(多线程调用)

@@ -58,7 +58,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @optional
 /// 动画播放停止时暂时最后一帧动画
-@property (nonatomic, assign) BOOL showLastImgaeWhenPause;
+@property (nonatomic, assign) BOOL showLastImageWhenPause;
 
 
 @end

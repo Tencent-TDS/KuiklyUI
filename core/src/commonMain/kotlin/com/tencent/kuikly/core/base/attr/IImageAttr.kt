@@ -60,7 +60,6 @@ interface IImageAttr {
 
     fun resizeStretch(): IImageAttr
 
-
     /**
      * 设置拉伸区域
      * @param top 距离上边偏移

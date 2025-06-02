@@ -43,7 +43,7 @@ class ObservableCollectionProperty<T : IObservableCollection>(
 
     override fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
         if (this.value == value) {
-            return;
+            return
         }
         dismissOldValue(this.value)
         this.value = value

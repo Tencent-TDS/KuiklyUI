@@ -16,9 +16,17 @@
 package com.tencent.kuikly.demo.pages.demo.kit_demo.DeclarativeDemo
 
 import com.tencent.kuikly.core.annotations.Page
-import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.base.Border
+import com.tencent.kuikly.core.base.BorderStyle
+import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ColorStop
+import com.tencent.kuikly.core.base.ComposeAttr
+import com.tencent.kuikly.core.base.ComposeEvent
+import com.tencent.kuikly.core.base.ComposeView
+import com.tencent.kuikly.core.base.Direction
+import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.reactive.handler.observable
-import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
@@ -234,7 +242,7 @@ internal class ScrollViewExamplePage: BasePager() {
                     ScrollViewExamplePageView {
                         attr {
                             title = "动态化"
-                            content = "动态下发编译产物(.so/.js)达到AOT动态化"
+                            content = "动态下发编译产物达到AOT动态化"
                         }
                     }
                     ScrollViewExamplePageView {

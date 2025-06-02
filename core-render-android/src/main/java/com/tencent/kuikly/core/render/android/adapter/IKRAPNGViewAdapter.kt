@@ -15,7 +15,6 @@
 
 package com.tencent.kuikly.core.render.android.adapter
 
-
 import android.content.Context
 import android.view.View
 

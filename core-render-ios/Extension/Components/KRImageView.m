@@ -63,6 +63,9 @@ typedef  void (^KRSetImageBlock) (UIImage *_Nullable image);
 @property (nonatomic, copy) NSString *KUIKLY_PROP(maskLinearGradient);
 /** 图片拉伸区域 */
 @property (nonatomic, copy) NSString *KUIKLY_PROP(capInsets);
+/** 图片颜色滤镜 */
+@property (nonatomic, copy) NSString *KUIKLY_PROP(colorFilter);
+
 
 /** 图片加载成功回调事件 */
 @property (nonatomic, strong, nullable) KuiklyRenderCallback KUIKLY_PROP(loadSuccess);
@@ -72,7 +75,7 @@ typedef  void (^KRSetImageBlock) (UIImage *_Nullable image);
 @end
 
 @implementation KRImageView {
-    __weak UIImage *_originImage;
+    UIImage *_originImage;
 }
 
 @synthesize hr_rootView;
@@ -81,6 +84,7 @@ typedef  void (^KRSetImageBlock) (UIImage *_Nullable image);
     if (self = [super initWithFrame:frame]) {
         self.contentMode = UIViewContentModeScaleAspectFill;
         self.clipsToBounds = YES;
+        self.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     }
     return self;
 }
@@ -93,12 +97,14 @@ typedef  void (^KRSetImageBlock) (UIImage *_Nullable image);
 }
 
 - (void)hrv_prepareForeReuse {
-    if (self.image && self.css_src) {
-        [[KRImageRefreshCache sharedInstance] cacheWithKey:self.css_src image:self.image];
+    if (self.image && self.css_src && _originImage) {
+        [[KRImageRefreshCache sharedInstance] cacheWithKey:self.css_src image:_originImage];
     }
     KUIKLY_RESET_CSS_COMMON_PROP;
+    _originImage = nil;
     self.css_src = nil;
     self.css_tintColor = nil;
+    self.css_colorFilter = nil;
     self.css_resize = nil;
     self.css_dotNineImage = nil;
     self.clipsToBounds = YES;
@@ -115,12 +121,18 @@ typedef  void (^KRSetImageBlock) (UIImage *_Nullable image);
     KuiklyContextParam *contextParam = ((KuiklyRenderView *)self.hr_rootView).contextParam;
     NSURL *url = [contextParam.contextMode urlForFileName:pathWithoutExtension extension:fileExtension];
     NSString *urlString = url ? url.absoluteString : @"";
-    [self setImageWithUrl:urlString];
+    [self setImageWithLocalUrl:urlString];
 }
 
-- (void)setImageWithLocalPath:(NSString *)localPath {
+- (void)setImageWithLocalUrl:(NSString *)localUrl {
+    if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:)]) {
+        bool handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:localUrl forImageView:self];
+        if (handled) {
+            return;
+        }
+    }
     // Remove "file://" prefix to get the actual file path
-    NSString *actualPath = [localPath substringFromIndex:[KRImageLocalPathPrefix length]];
+    NSString *actualPath = [localUrl substringFromIndex:[KRImageLocalPathPrefix length]];
     UIImage *image = [UIImage imageWithContentsOfFile:actualPath];
     self.image = image;
 }
@@ -140,8 +152,8 @@ typedef  void (^KRSetImageBlock) (UIImage *_Nullable image);
             [self setImageWithUrl:nil]; // cancel before url download
             [self p_setBase64Image:css_src];
         } else if([css_src hasPrefix:KRImageLocalPathPrefix]) {
-            [self setImageWithLocalPath:css_src];
-        } else {    // @"http://", @"https://", @"file://"
+            [self setImageWithLocalUrl:css_src];
+        } else {    // @"http://", @"https://"
             [self setImageWithUrl:css_src];
         }
     }
@@ -155,9 +167,18 @@ typedef  void (^KRSetImageBlock) (UIImage *_Nullable image);
 }
 
 - (void)setCss_tintColor:(NSString *)css_tintColor {
-    _css_tintColor = css_tintColor;
-    self.tintColor = [UIView css_color:css_tintColor];
-    [self p_updateWithImage:_originImage];
+    if (_css_tintColor != css_tintColor) {
+        _css_tintColor = css_tintColor;
+        self.tintColor = [UIView css_color:css_tintColor];
+        [self p_updateWithImage:_originImage];
+    }
+}
+
+- (void)setCss_colorFilter:(NSString *)css_colorFilter {
+    if (_css_colorFilter != css_colorFilter) {
+        _css_colorFilter = css_colorFilter;
+        [self p_updateWithImage:_originImage];
+    }
 }
 
 - (void)setCss_maskLinearGradient:(NSString *)css_maskLinearGradient {
@@ -339,6 +360,18 @@ typedef  void (^KRSetImageBlock) (UIImage *_Nullable image);
         UIColor *tintColor = [KRConvertUtil UIColor:self.css_tintColor];
         UIImage *tintedImage = [image kr_tintedImageWithColor:tintColor];
         [self superSetImage:tintedImage];
+    } else if (image && [self.css_colorFilter length]) { // 颜色滤镜
+        NSString *cssColorFilter = self.css_colorFilter;
+        NSString *src = [self.css_src copy];
+        KR_WEAK_SELF
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            UIImage *colorFilterImage = [image kr_applyColorFilterWithColorMatrix:cssColorFilter];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if ([weakSelf.css_src isEqualToString:src] && weakSelf.css_colorFilter == cssColorFilter) {
+                    [weakSelf superSetImage:colorFilterImage];
+                }
+            });
+        });
     } else if (image && [self.css_blurRadius floatValue]) {
         CGFloat blurRadius = [self.css_blurRadius floatValue];
         NSString *src = [self.css_src copy];

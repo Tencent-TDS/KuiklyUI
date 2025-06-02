@@ -19,7 +19,7 @@
 
 @interface KRActivityIndicatorView()
 
-@property (nonatomic, strong) NSString * css_style; // "whilte" or "gray"
+@property (nonatomic, strong) NSString * css_style; // "white" or "gray"
 
 @end
 

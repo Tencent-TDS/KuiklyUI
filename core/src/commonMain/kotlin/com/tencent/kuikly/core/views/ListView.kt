@@ -28,6 +28,7 @@ import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.layout.StyleSpace
 import com.tencent.kuikly.core.layout.undefined
 import com.tencent.kuikly.core.pager.Pager
+import com.tencent.kuikly.core.views.internal.GroupEvent
 import kotlin.math.max
 
 /**
@@ -41,7 +42,7 @@ fun ViewContainer<*, *>.List(init: ListView<*, *>.() -> Unit) {
 open class ListAttr : ScrollerAttr() {
     var firstContentLoadMaxIndex = 8
     internal var preloadViewDistance = 0f
-
+    internal var initContentOffset = 0f
     /**
      * 设置首次内容加载的最大条数。
      * @param maxIndex 首次加载的最大条数。
@@ -67,13 +68,9 @@ open class ListAttr : ScrollerAttr() {
     }
 }
 
-open class ListEvent : ScrollerEvent() {
+open class ListEvent : ScrollerEvent()
 
-}
-
-interface IListViewEventObserver: IScrollerViewEventObserver {
-
-}
+interface IListViewEventObserver: IScrollerViewEventObserver
 
 open class ListView<A : ListAttr, E : ListEvent> : ScrollerView<A, E>() {
     private var prepareForReuse = false
@@ -133,6 +130,7 @@ open class ListContentView : ScrollerContentView() {
     private var didFirstLayout = false
     private var waitingToNextTickLayout = false
     private var didAddNextTickUpdateVisibleOffset = false
+    private var didInitContentOffset = false
 
     override fun setFrameToRenderView(frame: Frame) {
         super.setFrameToRenderView(frame)
@@ -141,12 +139,12 @@ open class ListContentView : ScrollerContentView() {
     override fun didInsertDomChild(child: DeclarativeBaseView<*, *>, index: Int) {
         super.didInsertDomChild(child, index)
         child.getViewAttr().setProp(SCROLL_INDEX, index)
-        val listFlexNode = flexNode;
+        val listFlexNode = flexNode
         val ctx = this
         if (child.flexNode.positionType == FlexPositionType.ABSOLUTE) {
             child.absoluteFlexNode = true
         } else {
-            child.attr {
+            child.getViewAttr().apply {
                 if (ctx.isRowFlexDirection()) {
                     positionAbsolute()
                     top(max(listFlexNode.getPadding(StyleSpace.Type.TOP), 0f))
@@ -169,8 +167,8 @@ open class ListContentView : ScrollerContentView() {
         return ScrollerAttr()
     }
 
-    override fun createEvent(): Event {
-        return Event()
+    override fun createEvent(): GroupEvent {
+        return GroupEvent()
     }
 
     override fun createRenderView() {
@@ -255,6 +253,26 @@ open class ListContentView : ScrollerContentView() {
         }
         absoluteDirtyChildren.forEachIndexed { index, subFlexNode ->
             flexNode.onlyAddChild(subFlexNode) // 绝对布局节点需要不参与分批加载
+        }
+    }
+
+    override fun didSetFrameToRenderView() {
+        super.didSetFrameToRenderView()
+        initContentOffsetIfNeed()
+    }
+
+    private fun initContentOffsetIfNeed() {
+        if (!didInitContentOffset) { // 初始化列表偏移量，默认为0f
+            didInitContentOffset = true
+            (parent as? ListView<*, *>)?.also {
+                if (it.getViewAttr().initContentOffset > 0) {
+                    if (isRowFlexDirection()) {
+                        it.setContentOffset(it.getViewAttr().initContentOffset, 0f)
+                    } else {
+                        it.setContentOffset(0f, it.getViewAttr().initContentOffset)
+                    }
+                }
+            }
         }
     }
 
@@ -412,8 +430,10 @@ open class ListContentView : ScrollerContentView() {
         return !containUnLayoutNode
     }
 
+    internal open fun needUpdateOffset(): Boolean = !flexNode.layoutFrame.isDefaultValue()
+
     private fun updateOffsetIfNeed() {
-        if (flexNode.layoutFrame.isDefaultValue()) {
+        if (!needUpdateOffset()) {
             return
         }
         parent?.also { parentView ->
@@ -437,10 +457,6 @@ open class ListContentView : ScrollerContentView() {
         }
     }
 
-    fun isRowFlexDirection(): Boolean {
-        return flexNode.flexDirection == FlexDirection.ROW || flexNode.flexDirection == FlexDirection.ROW_REVERSE
-    }
-
     open fun updateChildLayout() {
         if (!didFirstLayout) {
             return
@@ -455,4 +471,3 @@ open class ListContentView : ScrollerContentView() {
         const val SCROLL_INDEX = "scrollIndex"
     }
 }
-

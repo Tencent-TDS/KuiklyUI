@@ -18,6 +18,7 @@ package com.tencent.kuikly.core.pager
 import com.tencent.kuikly.core.base.AbstractBaseView
 import com.tencent.kuikly.core.base.AnimationManager
 import com.tencent.kuikly.core.coroutines.LifecycleScope
+import com.tencent.kuikly.core.layout.FlexNode
 import com.tencent.kuikly.core.manager.Task
 import com.tencent.kuikly.core.module.Module
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
@@ -28,6 +29,7 @@ interface IPager {
     val lifecycleScope : LifecycleScope
     var animationManager: AnimationManager?
     val isDebugUIInspector : Boolean
+    var didCreateBody: Boolean
     fun onCreatePager(pagerId: String, pageData: JSONObject)
 
     fun onDestroyPager()

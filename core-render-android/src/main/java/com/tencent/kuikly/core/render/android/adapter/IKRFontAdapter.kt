@@ -16,6 +16,7 @@
 package com.tencent.kuikly.core.render.android.adapter
 
 import android.graphics.Typeface
+import android.util.DisplayMetrics
 
 /**
  *字体适配器
@@ -28,5 +29,21 @@ interface IKRFontAdapter {
      * @param result 结果回调
      */
     fun getTypeface(fontFamily: String, result: (Typeface?) -> Unit)
+    
+    /**
+     * 根据设置的原字体大小返回合适的最终缩放大小尺寸
+     * 注：若要启用该字体缩放，需要实现（override）Kotlin侧Pager#scaleFontSizeEnable接口返回YES
+     */
+    fun scaleFontSize(fontSize: Float): Float {
+        return 1f
+    }
+
+    /**
+     * 宿主可实现此方法来实现DisplayMetrics自定义
+     * @param useHostDisplayMetrics 页面的单元转换是否由宿主外部决定
+     */
+    fun getDisplayMetrics(useHostDisplayMetrics: Boolean?): DisplayMetrics? {
+        return null
+    }
 
 }

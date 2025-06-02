@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    compileSdk = 32
+    compileSdk = 34
     defaultConfig {
         applicationId = "com.tencent.kuikly.android.demo"
         minSdk = 21

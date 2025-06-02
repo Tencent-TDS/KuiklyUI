@@ -24,7 +24,7 @@ import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
-import com.tencent.kuikly.core.reactive.handler.*
+
 @Page("TextViewDemoPage")
 internal class TextViewDemoPage : BasePager() {
     override fun body(): ViewBuilder {
@@ -72,7 +72,6 @@ internal class TextViewDemoPage : BasePager() {
 
             }
         }
-
 
     }
 }

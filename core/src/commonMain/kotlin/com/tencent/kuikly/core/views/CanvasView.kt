@@ -15,8 +15,16 @@
 
 package com.tencent.kuikly.core.views
 
-import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.base.Attr
+import com.tencent.kuikly.core.base.BaseObject
+import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ColorStop
+import com.tencent.kuikly.core.base.DeclarativeBaseView
+import com.tencent.kuikly.core.base.RenderView
+import com.tencent.kuikly.core.base.ViewConst
+import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.event.Event
+import com.tencent.kuikly.core.base.toInt
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.module.ImageRef
 import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
@@ -24,11 +32,9 @@ import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.reactive.ReactiveObserver
 import com.tencent.kuikly.core.views.shadow.TextShadow
 import kotlin.math.PI
-import kotlin.math.max
-import kotlin.math.min
 
 class CanvasView : DeclarativeBaseView<Attr, Event>() {
-    lateinit var drawCallback: CanvasDrawCallback
+    var drawCallback: CanvasDrawCallback? = null
     private var reactiveObserverOwner = BaseObject()
 
     override fun createAttr(): Attr {
@@ -42,7 +48,6 @@ class CanvasView : DeclarativeBaseView<Attr, Event>() {
     override fun viewName(): String {
         return ViewConst.TYPE_CANVAS
     }
-
 
     override fun createRenderView() {
         val isNewRenderView = renderView == null
@@ -64,10 +69,10 @@ class CanvasView : DeclarativeBaseView<Attr, Event>() {
         ReactiveObserver.unbindValueChange(reactiveObserverOwner)
         ReactiveObserver.bindValueChange(reactiveObserverOwner) {
             if (renderView == null || flexNode.layoutFrame.isDefaultValue()) {
-            } else {
+            } else if (drawCallback != null){
                 val context = CanvasContext(renderView!!, pagerId, nativeRef)
                 context.reset()
-                drawCallback(context, flexNode.layoutFrame.width, flexNode.layoutFrame.height)
+                drawCallback!!(context, flexNode.layoutFrame.width, flexNode.layoutFrame.height)
             }
         }
     }
@@ -88,10 +93,10 @@ class TextMetrics(
 
 // api 对齐 h5 canvas 标准
 interface ContextApi {
-    abstract fun beginPath()
-    abstract fun moveTo(x: Float, y: Float)
-    abstract fun lineTo(x: Float, y: Float)
-    abstract fun arc(
+    fun beginPath()
+    fun moveTo(x: Float, y: Float)
+    fun lineTo(x: Float, y: Float)
+    fun arc(
         centerX: Float,
         centerY: Float,
         radius: Float,
@@ -99,25 +104,25 @@ interface ContextApi {
         endAngle: Float,
         counterclockwise: Boolean
     )
-    abstract fun closePath()
-    abstract fun stroke()
-    abstract fun fill()
-    abstract fun strokeStyle(color: Color)
-    abstract fun strokeStyle(linearGradient: CanvasLinearGradient)
-    abstract fun fillStyle(color: Color)
-    abstract fun fillStyle(linearGradient: CanvasLinearGradient)
-    abstract fun lineWidth(width: Float)
-    abstract fun setLineDash(intervals: List<Float>)
-    abstract fun lineCapRound()
-    abstract fun lineCapButt()
-    abstract fun lineCapSquare()
-    abstract fun quadraticCurveTo(
+    fun closePath()
+    fun stroke()
+    fun fill()
+    fun strokeStyle(color: Color)
+    fun strokeStyle(linearGradient: CanvasLinearGradient)
+    fun fillStyle(color: Color)
+    fun fillStyle(linearGradient: CanvasLinearGradient)
+    fun lineWidth(width: Float)
+    fun setLineDash(intervals: List<Float>)
+    fun lineCapRound()
+    fun lineCapButt()
+    fun lineCapSquare()
+    fun quadraticCurveTo(
         controlPointX: Float,
         controlPointY: Float,
         pointX: Float,
         pointY: Float
     )
-    abstract fun bezierCurveTo(
+    fun bezierCurveTo(
         controlPoint1X: Float,
         controlPoint1Y: Float,
         controlPoint2X: Float,
@@ -126,30 +131,48 @@ interface ContextApi {
         pointY: Float
     )
 
-    abstract fun clip()
+    fun save()
+    fun saveLayer(x: Float, y: Float, width: Float, height: Float)
+    fun restore()
+    fun clip(intersect: Boolean = true)
+    fun clipPathIntersect()
+    fun clipPathDifference()
+    fun translate(x: Float, y: Float)
+    fun scale(x: Float, y: Float)
+    fun rotate(angle: Float)
+    fun skew(x: Float, y: Float)
+    fun transform(array: FloatArray)
 
-    abstract fun createLinearGradient(x0: Float, y0: Float, x1: Float, y1: Float): CanvasLinearGradient
-    abstract fun createRadialGradient(x0: Float, y0: Float, r0: Float, x1: Float, y1: Float, r1: Float, alpha: Float, vararg colors: Color)
-    abstract fun textAlign(textAlign: TextAlign)
-    abstract fun font(size: Float, family: String = "")
-    abstract fun font(style: FontStyle = FontStyle.NORMAL, weight: FontWeight = FontWeight.NORMAL, size: Float = 15f, family: String = "")
-    abstract fun measureText(value: String): TextMetrics
-    abstract fun fillText(text: String, x: Float, y: Float)
-    abstract fun strokeText(text: String, x: Float, y: Float)
+    fun createLinearGradient(x0: Float, y0: Float, x1: Float, y1: Float): CanvasLinearGradient
+    fun createRadialGradient(x0: Float, y0: Float, r0: Float, x1: Float, y1: Float, r1: Float, alpha: Float, vararg colors: Color)
 
-    abstract fun drawImage(image: ImageRef, dx: Float, dy: Float)
-    abstract fun drawImage(image: ImageRef, dx: Float, dy: Float, dWidth: Float, dHeight: Float)
-    abstract fun drawImage(image: ImageRef, sx: Float, sy: Float, sWidth : Float, sHeight: Float, dx: Float, dy: Float, dWidth: Float, dHeight: Float)
+    fun textAlign(textAlign: TextAlign)
+    fun font(size: Float, family: String = "")
+    fun font(style: FontStyle = FontStyle.NORMAL, weight: FontWeight = FontWeight.NORMAL, size: Float = 15f, family: String = "")
+    fun measureText(value: String): TextMetrics
+    fun fillText(text: String, x: Float, y: Float)
+    fun strokeText(text: String, x: Float, y: Float)
+
+    fun drawImage(image: ImageRef, dx: Float, dy: Float)
+    fun drawImage(image: ImageRef, dx: Float, dy: Float, dWidth: Float, dHeight: Float)
+    fun drawImage(image: ImageRef, sx: Float, sy: Float, sWidth : Float, sHeight: Float, dx: Float, dy: Float, dWidth: Float, dHeight: Float)
 }
 
-
-class CanvasContext(private val renderView: RenderView, private val pagerId: String, private val nativeRef: Int) : ContextApi {
+open class CanvasContext(private val renderView: RenderView, private val pagerId: String, private val nativeRef: Int) : ContextApi {
 
     private var fontStyle: FontStyle = FontStyle.NORMAL
     private var fontWeight: FontWeight = FontWeight.NORMAL
     private var fontFamily: String = ""
     private var fontSize: Float = 15f
     private var textAlign: TextAlign = TextAlign.LEFT
+
+    internal companion object {
+        private fun FloatArray.isIdentity(): Boolean {
+            return this[0] == 1f && this[1] == 0f && this[2] == 0f &&
+                    this[3] == 0f && this[4] == 1f && this[5] == 0f &&
+                    this[6] == 0f && this[7] == 0f && this[8] == 1f
+        }
+    }
 
     /**
      * 开始创建一个新的路径。
@@ -429,7 +452,7 @@ class CanvasContext(private val renderView: RenderView, private val pagerId: Str
         params.put("y1", y1)
         params.put("r1", r1)
         params.put("alpha", alpha)
-        var colorStopStr: String = String()
+        var colorStopStr = ""
         for (item in colors) {
             colorStopStr += "$item,"
         }
@@ -521,16 +544,16 @@ class CanvasContext(private val renderView: RenderView, private val pagerId: Str
     }
 
     override fun drawImage(image: ImageRef, dx: Float, dy: Float){
-        val params = JSONObject();
-        params.put("cacheKey", image.cacheKey);
+        val params = JSONObject()
+        params.put("cacheKey", image.cacheKey)
         params.put("dx", dx)
         params.put("dy", dy)
 
         renderView.callMethod("drawImage", params.toString())
     }
     override fun drawImage(image: ImageRef, dx: Float, dy: Float, dWidth: Float, dHeight: Float){
-        val params = JSONObject();
-        params.put("cacheKey", image.cacheKey);
+        val params = JSONObject()
+        params.put("cacheKey", image.cacheKey)
         params.put("dx", dx)
         params.put("dy", dy)
         params.put("dWidth", dWidth)
@@ -543,8 +566,8 @@ class CanvasContext(private val renderView: RenderView, private val pagerId: Str
                            sWidth : Float, sHeight: Float,
                            dx: Float, dy: Float,
                            dWidth: Float, dHeight: Float){
-        val params = JSONObject();
-        params.put("cacheKey", image.cacheKey);
+        val params = JSONObject()
+        params.put("cacheKey", image.cacheKey)
         params.put("sx", sx)
         params.put("sy", sy)
         params.put("sWidth", sWidth)
@@ -557,27 +580,106 @@ class CanvasContext(private val renderView: RenderView, private val pagerId: Str
         renderView.callMethod("drawImage", params.toString())
     }
 
+    override fun save() {
+        renderView.callMethod("save", "")
+    }
+
+    override fun saveLayer(x: Float, y: Float, width: Float, height: Float) {
+        val params = JSONObject()
+        params.put("x", x)
+        params.put("y", y)
+        params.put("width", width)
+        params.put("height", height)
+        renderView.callMethod("saveLayer", params.toString())
+    }
+
+    override fun restore() {
+        renderView.callMethod("restore", "")
+    }
+
     /**
      * 裁剪当前路径。
      */
-    override fun clip() {
-        renderView.callMethod("clip")
+    override fun clip(intersect: Boolean) {
+        val params = JSONObject()
+        params.put("intersect", if (intersect) 1 else 0)
+        renderView.callMethod("clip", params.toString())
     }
+
+    override fun clipPathIntersect() {
+        clip(true)
+    }
+
+    override fun clipPathDifference() {
+        clip(false)
+    }
+
+    override fun translate(x: Float, y: Float) {
+        if (x == 0f && y == 0f) {
+            return
+        }
+        val params = JSONObject()
+        params.put("x", x)
+        params.put("y", y)
+        renderView.callMethod("translate", params.toString())
+    }
+
+    override fun scale(x: Float, y: Float) {
+        if (x == 1f && y == 1f) {
+            return
+        }
+        val params = JSONObject()
+        params.put("x", x)
+        params.put("y", y)
+        renderView.callMethod("scale", params.toString())
+    }
+
+    override fun rotate(angle: Float) {
+        if (angle == 0f) {
+            return
+        }
+        val params = JSONObject()
+        params.put("angle", angle)
+        renderView.callMethod("rotate", params.toString())
+    }
+
+    override fun skew(x: Float, y: Float) {
+        if (x == 0f && y == 0f) {
+            return
+        }
+        val params = JSONObject()
+        params.put("x", x)
+        params.put("y", y)
+        renderView.callMethod("skew", params.toString())
+    }
+
+    override fun transform(array: FloatArray) {
+        if (array.size < 9 || array.isIdentity()) {
+            return
+        }
+        val values = JSONArray()
+        for (i in 0 until 9) {
+            values.put(array[i])
+        }
+        val params = JSONObject()
+        params.put("values", values)
+        renderView.callMethod("transform", params.toString())
+    }
+
 }
 
 fun ViewContainer<*, *>.Canvas(
     init: CanvasView.() -> Unit,
     draw: CanvasDrawCallback
 ) {
-      addChild(CanvasView()) {
-          drawCallback = draw
-          init()
-      }
+    addChild(CanvasView()) {
+        drawCallback = draw
+        init()
+    }
 
 }
 
 typealias CanvasDrawCallback = (context: CanvasContext, width: Float, height: Float) -> Unit
-
 
 /**
  * CanvasLinearGradient 类表示一个线性渐变。
@@ -602,7 +704,7 @@ class CanvasLinearGradient(val x0: Float, val y0: Float, val x1: Float, val y1: 
     }
 
     override fun toString(): String {
-        var colorStopStr: String = String()
+        var colorStopStr = ""
         for (item in colorStops) {
             colorStopStr += "$item,"
         }
@@ -617,6 +719,5 @@ class CanvasLinearGradient(val x0: Float, val y0: Float, val x1: Float, val y1: 
             put("colorStops", colorStopStr)
         }.toString()
     }
-
 
 }

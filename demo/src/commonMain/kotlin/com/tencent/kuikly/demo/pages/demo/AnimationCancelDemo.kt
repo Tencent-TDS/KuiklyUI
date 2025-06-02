@@ -30,14 +30,12 @@ import com.tencent.kuikly.core.views.DivView
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 
-
 @Page("AnimationCancelDemo")
 internal class AnimationCancelDemo : Pager() {
 
     var dataList: ObservableList<String> by observableList()
     var viewRef: ViewRef<DivView>? = null
     var touchBeginX = 0f
-
 
     override fun createEvent(): ComposeEvent {
         return ComposeEvent()
@@ -69,7 +67,7 @@ internal class AnimationCancelDemo : Pager() {
                             ctx.viewRef?.view?.animateToAttr(Animation.linear(2f), attrBlock = {
                                 transform(Translate(1f, 0f))
                             }, completion = { finish ->
-                                KLog.i("xxxx", "启动动画结束: $finish")
+                                KLog.i("AnimationCancelDemo", "启动动画结束: $finish")
                             })
                         }
                     }
@@ -88,7 +86,7 @@ internal class AnimationCancelDemo : Pager() {
                             ctx.viewRef?.view?.animateToAttr(Animation.linear(0f), attrBlock = {
                                 transform(Translate(0f, 0f))
                             }, completion = { finish ->
-                                KLog.i("xxxx", "reset动画结束: $finish")
+                                KLog.i("AnimationCancelDemo", "reset动画结束: $finish")
                             })
                         }
                     }
@@ -116,7 +114,7 @@ internal class AnimationCancelDemo : Pager() {
                             ctx.viewRef?.view?.animateToAttr(Animation.linear(0f), attrBlock = {
                                 transform(Translate(deltaX / 100f))
                             }, completion = {
-                                KLog.i("xxxx", "0秒取消动画结束: $it")
+                                KLog.i("AnimationCancelDemo", "0秒取消动画结束: $it")
                             })
                         } else if (it.state == "move") {
                             // 手势驱动动画
@@ -129,7 +127,7 @@ internal class AnimationCancelDemo : Pager() {
                             ctx.viewRef?.view?.animateToAttr(Animation.linear(2f), attrBlock = {
                                 transform(Translate(2f))
                             }, completion = {
-                                KLog.i("xxxx", "2秒的结尾结束: $it")
+                                KLog.i("AnimationCancelDemo", "2秒的结尾结束: $it")
                             })
                         }
                     }

@@ -39,3 +39,7 @@ Kotlin-js-store
 
 proto/**/*.kt
 /iosApp/iosApp.xcodeproj/xcshareddata/xcschemes/iosApp.xcscheme
+
+.kotlin
+/compose/compose.podspec
+/core/core.podspec

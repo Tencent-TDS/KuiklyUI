@@ -190,14 +190,9 @@ internal class AppFeedListPageView(
     }
 }
 
+internal class AppFeedListPageViewAttr : ComposeAttr()
 
-internal class AppFeedListPageViewAttr : ComposeAttr() {
-
-}
-
-internal class AppFeedListPageViewEvent : ComposeEvent() {
-    
-}
+internal class AppFeedListPageViewEvent : ComposeEvent()
 
 internal fun ViewContainer<*, *>.AppFeedListPage(type: AppFeedsType, init: AppFeedListPageView.() -> Unit) {
     addChild(AppFeedListPageView(type), init)

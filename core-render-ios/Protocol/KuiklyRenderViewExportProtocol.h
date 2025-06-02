@@ -103,9 +103,9 @@
 @optional
 /*
  * @brief 生成要在主线程执行的任务当将要设置shadow给RenderView时
- * 注：该方法在contenxt线程被调用
+ * 注：该方法在context线程被调用
  */
-- (dispatch_block_t)hrv_taskToMainQueueWhenWillSetShadowToView;
+- (dispatch_block_t _Nullable)hrv_taskToMainQueueWhenWillSetShadowToView;
 
 @end
 

@@ -27,4 +27,6 @@ object ModuleConst {
     const val CALENDAR = "KRCalendarModule"
     const val REFLECTION = "KRReflectionModule"
     const val PERFORMANCE = "KRPerformanceModule"
+    const val FONT = "KRFontModule"
+    const val VSYNC = "KRVsyncModule"
 }

@@ -86,7 +86,6 @@ class KRCodecModule : KuiklyRenderBaseModule() {
         return URLDecoder.decode(string)
     }
 
-
     private fun urlEncode(params: String?): String {
         val string = params ?: return ""
         return URLEncoder.encode(string)
@@ -100,7 +99,6 @@ class KRCodecModule : KuiklyRenderBaseModule() {
         private const val METHOD_BASE64_DECODE = "base64Decode"
         private const val METHOD_MD5 = "md5"
         private const val METHOD_SHA256 = "sha256"
-
 
         fun base64Encode(params: String?): String {
             val string = params ?: return ""

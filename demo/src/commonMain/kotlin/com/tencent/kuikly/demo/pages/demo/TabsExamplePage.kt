@@ -20,14 +20,18 @@ import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewRef
 import com.tencent.kuikly.core.directives.vfor
-import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.reactive.handler.observableList
-import com.tencent.kuikly.core.views.*
+import com.tencent.kuikly.core.views.PageList
+import com.tencent.kuikly.core.views.PageListView
+import com.tencent.kuikly.core.views.ScrollParams
+import com.tencent.kuikly.core.views.TabItem
+import com.tencent.kuikly.core.views.Tabs
+import com.tencent.kuikly.core.views.Text
+import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 import kotlin.random.Random
-
 
 internal class TabItemData {
     var tabTitle by observable("")
@@ -35,10 +39,8 @@ internal class TabItemData {
     var index by observable(0)
 }
 
-
 @Page("TabsExamplePage")
 internal class TabsExamplePage : BasePager() {
-
 
     private var pageListRef : ViewRef<PageListView<*, *>>? = null
     private var scrollParams : ScrollParams? by observable(null)

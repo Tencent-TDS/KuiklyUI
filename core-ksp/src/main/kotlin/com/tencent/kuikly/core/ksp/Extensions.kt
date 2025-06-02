@@ -30,6 +30,10 @@ fun String.androidJVMFamily(): Boolean {
     return contains("android")
 }
 
+fun String.ohosFamily(): Boolean {
+    return contains("ohos")
+}
+
 private fun KSClassDeclaration.pageAnnotateValue(): String {
     var name = ""
     annotations.toList()[0].arguments.forEach {
@@ -71,7 +75,6 @@ fun KSClassDeclaration.toPageInfo(): PageInfo {
         moduleIdAnnotateValue()
     )
 }
-
 
 fun String.sourceSetBelow(startDirectoryName: String): String =
     substringAfter("/$startDirectoryName/").substringBefore("/kotlin/").substringAfterLast('/')

@@ -235,7 +235,6 @@ open class Event : BaseEvent() {
         }
     }
 
-
     private fun setEventsToRenderView() {
         getRenderView()?.also {
             eventMap.keys.forEach { key ->

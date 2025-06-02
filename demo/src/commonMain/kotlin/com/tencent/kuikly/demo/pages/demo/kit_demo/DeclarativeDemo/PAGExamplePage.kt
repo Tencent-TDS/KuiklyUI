@@ -15,10 +15,8 @@
 
 package com.tencent.kuikly.demo.pages.demo.kit_demo.DeclarativeDemo
 
-import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
-import com.tencent.kuikly.core.base.ComposeAttr
 import com.tencent.kuikly.core.base.ComposeEvent
 import com.tencent.kuikly.core.base.ComposeView
 import com.tencent.kuikly.core.base.ViewBuilder
@@ -27,6 +25,7 @@ import com.tencent.kuikly.core.base.attr.ImageUri
 import com.tencent.kuikly.core.views.List
 import com.tencent.kuikly.core.views.PAG
 import com.tencent.kuikly.core.views.Text
+import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 import com.tencent.kuikly.demo.pages.demo.kit_demo.DeclarativeDemo.Common.ExampleSectionHeaderAttr
 import com.tencent.kuikly.demo.pages.demo.kit_demo.DeclarativeDemo.Common.ViewExampleSectionHeader

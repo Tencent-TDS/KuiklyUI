@@ -18,5 +18,5 @@ package com.tencent.kuikly.core.datetime
 expect object DateTime {
 
     fun currentTimestamp() : Long
-
+    fun nanoTime() : Long
 }

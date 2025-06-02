@@ -194,4 +194,3 @@ class TransitionView : ViewContainer<TransitionAttr, TransitionEvent>() , IPager
         }
     }
 }
-

@@ -17,14 +17,13 @@ package com.tencent.kuikly.demo.pages.demo
 
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
-import com.tencent.kuikly.core.base.ColorStop
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.attr.ImageUri
 import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.manager.PagerManager
+import com.tencent.kuikly.core.module.ImageCacheStatus
 import com.tencent.kuikly.core.module.ImageRef
 import com.tencent.kuikly.core.module.MemoryCacheModule
-import com.tencent.kuikly.core.module.ImageCacheStatus
 import com.tencent.kuikly.core.views.Canvas
 import com.tencent.kuikly.core.views.FontStyle
 import com.tencent.kuikly.core.views.FontWeight
@@ -87,7 +86,7 @@ internal class CanvasTestPage : BasePager() {
                 // 绘制底部圆环
                 context.beginPath()
                 context.arc(centerX, centerY, radius, startAngle, endAngle, true)
-                context.lineWidth(25f.rem);
+                context.lineWidth(25f.rem)
                 context.strokeStyle(Color(0xFFF6C8C2))
                 context.lineCapRound()
                 context.stroke()
@@ -99,9 +98,9 @@ internal class CanvasTestPage : BasePager() {
 //                context.fillStyle(gradient)
 
                 // 绘制进度圆环
-                context.beginPath();
+                context.beginPath()
                 context.arc(centerX, centerY, radius, startAngle, (startAngle + (endAngle - startAngle) * progress).toFloat(), true)
-                context.lineWidth(25f.rem);
+                context.lineWidth(25f.rem)
 
                 val gradient = context.createLinearGradient(0f, 0f,centerX + radius , centerY + radius)
                 gradient.addColorStop(0f, Color.YELLOW)
@@ -117,15 +116,15 @@ internal class CanvasTestPage : BasePager() {
                 context.stroke()
 
                 // 绘制底部圆环
-                context.beginPath();
+                context.beginPath()
                 context.arc(centerX, centerY, radius / 3 * 2, startAngle, endAngle, true)
-                context.lineWidth(25f.rem);
+                context.lineWidth(25f.rem)
                 context.strokeStyle(Color(0xFFFCEFCC))
                 context.lineCapRound()
                 context.stroke()
 
                 // 绘制进度圆环
-                context.beginPath();
+                context.beginPath()
                 context.arc(centerX, centerY, radius / 3 * 2, startAngle, (startAngle + (endAngle - startAngle) * progress).toFloat(), true)
                 context.lineWidth(25f.rem)
 //                context.createLinearGradient(
@@ -144,18 +143,18 @@ internal class CanvasTestPage : BasePager() {
                 context.stroke()
 
                 // 绘制底部圆环
-                context.beginPath();
+                context.beginPath()
                 context.arc(centerX, centerY, radius / 3, startAngle, endAngle, true)
-                context.lineWidth(25f.rem);
+                context.lineWidth(25f.rem)
                 context.strokeStyle(Color(0xFFC7D8FC))
                 context.lineCapRound()
                 context.stroke()
 //
 
                 // 绘制进度圆环
-                context.beginPath();
-                context.arc(centerX, centerY, radius / 3, startAngle, (startAngle + (endAngle - startAngle) * progress).toFloat(), true);
-                context.lineWidth(25f.rem);
+                context.beginPath()
+                context.arc(centerX, centerY, radius / 3, startAngle, (startAngle + (endAngle - startAngle) * progress).toFloat(), true)
+                context.lineWidth(25f.rem)
 //                context.createLinearGradient(
 //                    0f, 0f, 1f, 0f, ColorStop(Color(0xFF53B8DD), 0f),
 //                    ColorStop(Color(0xEE72F6D2), 1f)

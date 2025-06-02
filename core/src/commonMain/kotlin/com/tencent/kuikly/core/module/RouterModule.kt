@@ -55,9 +55,23 @@ class RouterModule : Module() {
         return MODULE_NAME
     }
 
+
+    fun backHandle(isConsumed: Boolean) {
+        toNative(
+            false,
+            METHOD_BACK_HANDLE,
+            param = JSONObject().apply {
+                put("consumed", isConsumed)
+            }.toString(),
+            syncCall = true
+        )
+    }
+
     companion object {
         const val MODULE_NAME = ModuleConst.ROUTER
         const val METHOD_OPEN_PAGE = "openPage"
         const val METHOD_CLOSE_PAGE = "closePage"
+        const val METHOD_BACK_HANDLE = "backHandle"
+
     }
 }

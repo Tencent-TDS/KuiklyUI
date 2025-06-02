@@ -68,10 +68,14 @@ abstract class Props : BaseObject(), IPagerId {
 
     fun setProp(propKey: String, propValue: Any) {
         if (propsMap[propKey] == propValue && !forceUpdate) {
-            return;
+            return
         }
         propsMap[propKey] = propValue
         view()?.didSetProp(propKey, propValue)
+    }
+
+    fun updatePropCache(propKey: String, propValue: Any) {
+        propsMap[propKey] = propValue
     }
 
     fun setNeedLayout() {

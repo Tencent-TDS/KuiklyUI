@@ -57,7 +57,6 @@ class KRBridgeModule : KuiklyRenderBaseModule() {
         return super.call(method, params, callback)
     }
 
-
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
             "showAlert" -> {
@@ -165,7 +164,6 @@ class KRBridgeModule : KuiklyRenderBaseModule() {
         val message = paramJSON.optString("message")
         val buttons = paramJSON.optJSONArray("buttons") ?: JSONArray()
     }
-
 
     private fun localServeTime(params: String?, callback: KuiklyRenderCallback?) {
         val time = (System.currentTimeMillis() / 1000.0)

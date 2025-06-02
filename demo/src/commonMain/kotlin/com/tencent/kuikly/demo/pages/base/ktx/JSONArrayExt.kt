@@ -17,7 +17,6 @@ package com.tencent.kuikly.demo.pages.base.ktx
 
 import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
 
-
 /**
  * Created by zhiyueli on 2022/11/7 17:19.
  */

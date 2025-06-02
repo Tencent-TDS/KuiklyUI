@@ -24,6 +24,7 @@ NSString *const KR_CALLBACK_KEY = @"callback";
 @implementation KRBaseModule
 
 @synthesize hr_rootView;
+@synthesize hr_contextParam;
 #pragma mark - KuiklyRenderModuleExportProtocol
 
 - (id _Nullable)hrv_callWithMethod:(NSString *)method params:(id _Nullable)params callback:(KuiklyRenderCallback)callback {

@@ -18,6 +18,7 @@ package com.tencent.kuikly.core.render.android.css.animation
 import android.graphics.Matrix
 import android.util.ArrayMap
 import android.view.View
+import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
 import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.css.ktx.frameHeight
 import com.tencent.kuikly.core.render.android.css.ktx.frameWidth
@@ -34,7 +35,7 @@ import java.lang.ref.WeakReference
  * @param animation KTV侧传递过来的动画描述
  * @param view 动画应用到的View
  */
-class KRCSSAnimation(animation: String, view: View) {
+class KRCSSAnimation(animation: String, view: View, context: IKuiklyRenderContext?) {
 
     /**
      * 动画结束回调
@@ -102,6 +103,8 @@ class KRCSSAnimation(animation: String, view: View) {
     private var propKey: String? = null
 
     private var animationCommit = false
+
+    private val contextWeakRef = WeakReference(context)
 
     init {
         parseAnimation(animation)
@@ -200,8 +203,8 @@ class KRCSSAnimation(animation: String, view: View) {
         timingFuncType = animationSpilt[TIMING_FUNC_TYPE_INDEX].toInt()
         duration = animationSpilt[DURATION_INDEX].toFloat()
         damping = animationSpilt[DAMPING_INDEX].toFloat()
-        velocity = animationSpilt[VELOCITY_INDEX].toFloat().toPxF()
-        // 兼容旧版本的动态化代码
+        velocity = contextWeakRef.get().toPxF(animationSpilt[VELOCITY_INDEX].toFloat())
+        // 兼容旧版本
         if (animationSpilt.size > DELAY_INDEX) {
             delay = animationSpilt[DELAY_INDEX].toFloat()
         }
@@ -447,7 +450,6 @@ class KRCSSTransform(transform: String?, private val target: View) {
         private const val SKEW_INDEX = 4
         private const val SKEW_X_INDEX = 0
         private const val SKEW_Y_INDEX = 1
-
 
         private const val TRANSFORM_SEPARATOR = "|"
 

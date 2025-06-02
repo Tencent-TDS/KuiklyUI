@@ -51,7 +51,6 @@ object KRFileManager {
         }
     }
 
-
     private fun downloadingFile(url: String): Boolean {
         return downloadingMap[url]?.isNotEmpty() == true
     }

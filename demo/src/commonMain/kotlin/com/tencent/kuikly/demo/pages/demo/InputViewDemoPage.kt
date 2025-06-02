@@ -99,7 +99,7 @@ internal class InputViewDemoPage : BasePager() {
                             //  keyboardTypeNumber()
                             // textAlignCenter()
                             returnKeyTypeNext()
-                            placeholder("我是placehooder")
+                            placeholder("我是placeholder")
                             placeholderColor(Color.YELLOW)
 
                             color(Color.BLACK)
@@ -148,7 +148,6 @@ internal class InputViewDemoPage : BasePager() {
                     }
 
                 }
-
 
             }
         }

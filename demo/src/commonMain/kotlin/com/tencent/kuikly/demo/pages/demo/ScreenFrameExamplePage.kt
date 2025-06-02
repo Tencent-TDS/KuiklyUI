@@ -25,7 +25,6 @@ import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 
-
 @Page("ScreenFrameExamplePage")
 internal class ScreenFrameExamplePage : BasePager() {
     var frameY by observable(0f)

@@ -12,6 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 
 package com.tencent.kuikly.core.module
 
@@ -22,7 +23,6 @@ import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.usePinned
 import platform.Foundation.NSData
 import platform.Foundation.dataWithBytes
-
 
 actual fun Any.toPlatformObject(): Any {
     if (this is ByteArray) {

@@ -17,9 +17,8 @@ package com.tencent.kuikly.core.pager
 
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 
-
 interface IPagerEventObserver {
-    fun onPagerEvent(pagerEvent: String, eventData: JSONObject)
+    fun onPagerEvent(pagerEvent: String, eventData: JSONObject) {}
 }
 
 interface IPagerLayoutEventObserver {

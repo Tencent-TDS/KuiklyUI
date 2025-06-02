@@ -155,7 +155,6 @@ internal class RootDemoPage: BasePager() {
             itemList.add(this)
         }
 
-
         // SliderPageViewDemo
         ButtonDataItem().apply {
             title = "SliderPageViewDemo"
@@ -197,7 +196,6 @@ internal class RootDemoPage: BasePager() {
             jumUrl = generateJumpUrl("${title}Page")
             itemList.add(this)
         }
-
 
         // Transform Demo
         ButtonDataItem().apply {
@@ -246,7 +244,6 @@ internal class RootDemoPage: BasePager() {
             jumUrl = generateJumpUrl("profileDemoPage")
             itemList.add(this)
         }
-
 
     }
 

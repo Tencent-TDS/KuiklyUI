@@ -46,7 +46,7 @@ internal class AppFeedItemView : ComposeView<AppFeedItemViewAttr, AppFeedItemVie
                 attr {
                     userInfo = ctx.attr.item.userInfo
                     tail = ctx.attr.item.tail
-                    createtime = ctx.attr.item.createtime.toLong()
+                    createTime = ctx.attr.item.createTime.toLong()
                 }
             }
             // 文字内容区域
@@ -56,26 +56,26 @@ internal class AppFeedItemView : ComposeView<AppFeedItemViewAttr, AppFeedItemVie
                 }
             }
             // 视频区域
-            AppFeedVedio {
+            AppFeedVideo {
                 attr {
-                    vedioUrl = ctx.attr.item.vediourl
+                    videoUrl = ctx.attr.item.videoUrl
                 }
             }
             // 九宫图
             AppNineGrid {
                 attr {
-                    picUrls = ctx.attr.item.picurl
+                    picUrls = ctx.attr.item.picUrl
                 }
             }
             // 转发内容
-            AppRetWeet {
+            AppForward {
                 attr {
-                    containZf = ctx.attr.item.containZf
-                    zfContent = ctx.attr.item.zfContent
-                    zfNick = ctx.attr.item.zfNick
-                    zfPicUrl = ctx.attr.item.zfPicurl
-                    zfUserId = ctx.attr.item.zfUserId
-                    zfVideoUrl = ctx.attr.item.zfVedioUrl
+                    containForward = ctx.attr.item.containForward
+                    forwardContent = ctx.attr.item.forwardContent
+                    forwardNick = ctx.attr.item.forwardNick
+                    forwardPicUrl = ctx.attr.item.forwardPicUrl
+                    forwardUserId = ctx.attr.item.forwardUserId
+                    forwardVideoUrl = ctx.attr.item.forwardVideoUrl
                 }
             }
             // 下划线
@@ -89,10 +89,10 @@ internal class AppFeedItemView : ComposeView<AppFeedItemViewAttr, AppFeedItemVie
             // 转发收藏点赞
             AppFeedBottom {
                 attr {
-                    retweetNum = ctx.attr.item.zhuanfaNum
+                    retweetNum = ctx.attr.item.forwardNum
                     commentNum = ctx.attr.item.commentNum
                     likeNum = ctx.attr.item.likeNum
-                    likeStatus = ctx.attr.item.zanStatus
+                    likeStatus = ctx.attr.item.likeStatus
                 }
             }
             // 间隔

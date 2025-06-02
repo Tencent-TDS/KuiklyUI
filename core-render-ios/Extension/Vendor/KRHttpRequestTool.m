@@ -19,77 +19,80 @@
 @implementation KRHttpRequestTool
 
 
-+ (void)requestWithMethod:(NSString *)method url:(NSString *)url param:(NSDictionary *)param headers:(NSDictionary *)headerDics timeout:(float)timeout cookie:(NSString * _Nullable)p_cookie responseBlock:(KRKotlinHttpResponse)response {
-    if(!([url isKindOfClass:[NSString class]] && url.length)) return ;
++ (void)requestWithMethod:(NSString *)method url:(NSString *)url param:(NSDictionary *)param binaryData:(NSData * _Nullable)binaryData headers:(NSDictionary *)headerDics timeout:(float)timeout cookie:(NSString * _Nullable)p_cookie responseBlock:(KRKotlinHttpResponse)response {
+    if(!([url isKindOfClass:[NSString class]] && url.length)) return;
+    BOOL binaryMode = binaryData ? YES : NO;
     param = [param isKindOfClass:[NSDictionary class]] ? param : @{};
     
     method = [method uppercaseString];
     
     NSMutableDictionary *headers = [[NSMutableDictionary alloc] init];
-
-    
     if ([headerDics isKindOfClass:[NSDictionary class]] && headerDics.count) {
         [headers addEntriesFromDictionary:headerDics];
     }
-    NSData * postBody = nil;
+    
+    NSData *postBody = nil;
     if ([method isEqualToString:@"POST"]) {
-        NSString * contentType = headers[@"content-type"] ? : headers[@"Content-Type"];
-        if (!contentType) {
-            contentType = headers[@"content-Type"];
-        }
-        
-        if ([contentType isKindOfClass:[NSString class]] && [contentType rangeOfString:@"/json"].length) {//json
-            if (param.count) {
-                postBody = [[param hr_dictionaryToString] dataUsingEncoding:NSUTF8StringEncoding];
+        if (binaryMode) {
+            postBody = binaryData;
+        } else {
+            NSString *contentType = headers[@"content-type"] ? : headers[@"Content-Type"];
+            if (!contentType) {
+                contentType = headers[@"content-Type"];
             }
-        }else {
-            postBody = [self toPostBodyFromParam:param];
+            
+            if ([contentType isKindOfClass:[NSString class]] && [contentType rangeOfString:@"/json"].length) {
+                if (param.count) {
+                    postBody = [[param hr_dictionaryToString] dataUsingEncoding:NSUTF8StringEncoding];
+                }
+            } else {
+                postBody = [self toPostBodyFromParam:param];
+            }
         }
         param = nil;
-    }else if([method isEqualToString:@"GET"]){
+    } else if([method isEqualToString:@"GET"]) {
         if ([param isKindOfClass:[NSDictionary class]] && param.count) {
             url = [url kr_appendUrlEncodeWithParam:param];
             param = nil;
         }
     }
-    
-    NSString * cookie = p_cookie.length ? p_cookie : headers[@"Cookie"] ;
+
+    NSString *cookie = p_cookie.length ? p_cookie : headers[@"Cookie"];
     if ([cookie isKindOfClass:[NSString class]] && cookie.length) {
         [headers removeObjectForKey:@"Cookie"];
     }
     
     NSMutableURLRequest *request = [self _requestWithMethod:method URLString:url parameters:nil error:nil];
     
-    NSDictionary * copyHeaders = [headers copy];
-    for (NSString * key in copyHeaders.allKeys) {
+    NSDictionary *copyHeaders = [headers copy];
+    for (NSString *key in copyHeaders.allKeys) {
         id value = copyHeaders[key];
         if ([value isKindOfClass:[NSNumber class]]) {
             [headers setObject:[((NSNumber *)value) stringValue] forKey:key];
         }
-        
     }
     
     if (headers.count) {
         [request setAllHTTPHeaderFields:headers];
     }
+    
     if (postBody) {
         [request setHTTPBody:postBody];
     }
     
-    
     [request setTimeoutInterval:timeout ? : 30];
+    
     // set cookie
-    NSString * value = [self _getDefaultCookie];// 后面带有分号
+    NSString *value = [self _getDefaultCookie];
     if (cookie.length) {
-        value = [NSString stringWithFormat:@"%@%@",value,cookie];
+        value = [NSString stringWithFormat:@"%@%@", value,cookie];
     }
-    [request setValue:value forHTTPHeaderField:@"Cookie"];// 加了o
-    
-    
+    [request setValue:value forHTTPHeaderField:@"Cookie"];
+
     dispatch_async(dispatch_get_global_queue(0, 0), ^{
-        [KRHttpRequestUtil kotlinRequestWithURLRequest:request completionHandler:^(NSString* _Nullable json, NSURLResponse * _Nullable response2, NSError * _Nullable error) {
+        [KRHttpRequestUtil kotlinRequestWithURLRequest:request completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response2, NSError * _Nullable error) {
             if (response) {
-                 response(json , response2, error);
+                response(data, response2, error);
             }
         }];
     });
@@ -238,7 +241,7 @@
     return task;
 }
 
-+ (NSURLSessionDataTask *)kotlinRequestWithURLRequest:(NSURLRequest *)request completionHandler:(void (^)(NSString * _Nullable json, NSURLResponse * _Nullable response, NSError * _Nullable error))completionHandler{
++ (NSURLSessionDataTask *)kotlinRequestWithURLRequest:(NSURLRequest *)request completionHandler:(void (^)(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error))completionHandler{
     NSURLSession * session = [NSURLSession sharedSession];
     __block NSURLSessionDataTask * task = nil;
     url_session_manager_create_task_safely(^{
@@ -246,8 +249,7 @@
            __block NSError *error = e;
             dispatch_async(dispatch_get_global_queue(0, 0), ^{
                 if([data isKindOfClass:[NSData class]]){
-                    NSString * json = nil;
-                   
+
                     // Check if the response has a non-success status code
                     if ([response isKindOfClass:[NSHTTPURLResponse class]]) {
                         NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *)response;
@@ -256,14 +258,10 @@
                             [KRLogModule logError:[NSString stringWithFormat:@"Received a non-success status code: %ld", (long)statusCode]];
                             // Create a custom error for the non-success status code
                             error = [NSError errorWithDomain:@"ServeErrorDomain" code:statusCode userInfo:@{NSLocalizedDescriptionKey:[NSString stringWithFormat:@"Server returned a non-success status code: %ld", (long)statusCode]}];
-                        } else {
-                            if (!error && data.length) {
-                                json = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-                            }
                         }
                     }
                     if(completionHandler){
-                        completionHandler(json,response,error);
+                        completionHandler(data, response, error);
                     }
                 }else {
                     if(completionHandler){

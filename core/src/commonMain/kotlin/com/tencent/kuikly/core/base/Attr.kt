@@ -74,7 +74,7 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
                 getPager().onLayoutView()
             }
             setProp(StyleConst.ANIMATION, "")
-            getPager().animationManager?.didEndAnmation(nativeRef)
+            getPager().animationManager?.didEndAnimation(nativeRef)
         }
     }
     open fun onViewLayoutFrameDidChanged(view: DeclarativeBaseView<*, *>) {
@@ -206,9 +206,29 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
         StyleConst.BOX_SHADOW with boxShadow.toString()
         return this
     }
+    /**
+     * 这个方法用于设置盒子阴影属性。
+     * @param boxShadow 定义盒子阴影特性的 {@link BoxShadow} 对象。
+     * @param useShadowPath 一个布尔值，表示是否使用显式阴影路径(默认值为 false)。
+     * 这是特定于 iOS 的，可以用于优化阴影渲染性能，一般情况下建议设置为true，
+     * @return 当前 {@link Attr} 实例。
+     * */
+    fun boxShadow(boxShadow: BoxShadow, useShadowPath: Boolean = false): Attr {
+        if (useShadowPath) {
+            StyleConst.USE_SHADOW_PATH with useShadowPath.toInt()
+        }
+        StyleConst.BOX_SHADOW with boxShadow.toString()
+        return this
+    }
+
 
     override fun borderRadius(borderRadius: BorderRectRadius): Attr {
         StyleConst.BORDER_RADIUS with borderRadius.toString()
+        return this
+    }
+
+    fun alignContent(flexAlign: FlexAlign): Attr {
+        flexNode?.alignContent = flexAlign
         return this
     }
 
@@ -341,11 +361,11 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
                 val percentageX = translate.percentageX + ConvertUtil.toIntegerPxOfDpValue(translate.offsetX) / max(ConvertUtil.toIntegerPxOfDpValue(it.width), 0.01f)
                 val percentageY = translate.percentageY + ConvertUtil.toIntegerPxOfDpValue(translate.offsetY) / max(ConvertUtil.toIntegerPxOfDpValue(it.height), 0.01f)
                 val translateOffset = Translate(percentageX, percentageY)
-                StyleConst.TRANSFORM with "$rotate|$scale|$translateOffset|$anchor|$skew"
+                StyleConst.TRANSFORM with "$rotate|$scale|$translateOffset|$anchor|$skew|${rotate.toRotateXYString()}"
             }
         } else {
             removePropFrameTask(StyleConst.TRANSFORM)
-            StyleConst.TRANSFORM with "$rotate|$scale|$translate|$anchor|$skew"
+            StyleConst.TRANSFORM with "$rotate|$scale|$translate|$anchor|$skew|${rotate.toRotateXYString()}"
         }
         return this
     }
@@ -568,6 +588,18 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
         this.keepAlive = keepAlive
     }
 
+    fun preventTouch(enable: Boolean) {
+        StyleConst.PREVENT_TOUCH with enable
+    }
+
+    fun consumeTouchDown(enable: Boolean) {
+        StyleConst.CONSUME_DOWN with enable
+    }
+
+    fun superTouch(enable: Boolean) {
+        StyleConst.SUPER_TOUCH with enable
+    }
+
     object StyleConst {
         const val BACKGROUND_COLOR = "backgroundColor"
 
@@ -578,6 +610,7 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
         const val BORDER_RADIUS = "borderRadius"
 
         const val BOX_SHADOW = "boxShadow"
+        const val USE_SHADOW_PATH = "useShadowPath"
 
         // view
         const val VISIBILITY = "visibility"
@@ -587,6 +620,7 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
         const val OVERFLOW = "overflow"
         const val BACKGROUND_IMAGE = "backgroundImage"
         const val ANIMATION = "animation"
+        const val LAZY_ANIMATION_KEY = "lazyAnimationKey"
         const val ZINDEX = "zIndex"
         const val USE_OUTLINE = "useOutline"
         const val ACCESSIBILITY = "accessibility"
@@ -594,13 +628,13 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
         const val WRAPPER_BOX_SHADOW_VIEW = "wrapperBoxShadowView" // only for ios
         const val AUTO_DARK_ENABLE = "autoDarkEnable"
         const val TURBO_DISPLAY_AUTO_UPDATE_ENABLE = "turboDisplayAutoUpdateEnable"
-
         // 设置属性用作 UI-Inspector 中的视图名称
         const val DEBUG_NAME = "debugName"
+        const val PREVENT_TOUCH = "preventTouch"
+        const val CONSUME_DOWN = "consumeDown"
+        const val SUPER_TOUCH = "superTouch"
     }
 }
-
-typealias NumberString = Any?
 
 enum class Direction(value: Int) {
     TO_TOP(0),
@@ -613,7 +647,7 @@ enum class Direction(value: Int) {
     TO_BOTTOM_RIGHT(7),
 }
 
-class ColorStop(private val color: Color, private val stopIn01: Float) {
+class ColorStop(val color: Color, val stopIn01: Float) {
     override fun toString(): String {
         return "$color $stopIn01"
     }
@@ -637,9 +671,9 @@ enum class BorderStyle(val value: String) {
 }
 
 class Border(
-    private val lineWidth: Float,
-    private val lineStyle: BorderStyle,
-    private val color: Color
+    val lineWidth: Float,
+    val lineStyle: BorderStyle,
+    val color: Color
 ) {
     override fun toString(): String {
         return "$lineWidth ${lineStyle.value} $color"
@@ -657,9 +691,17 @@ class BoxShadow(
     }
 }
 
+/**
+ * 旋转类
+ * 支持2d和3d旋转
+ */
 class Rotate(
-    private val angle: Float // range of [-360, 360]
+    private val angle: Float = 0f, // 围绕z轴旋转,属于2d平面旋转（range of [-360, 360]）
+    private val xAngle: Float = 0f, //  围绕x轴旋转xAngle角度 属于3d旋转 （range of [-360, 360]）
+    private val yAngle: Float = 0f // 围绕y轴旋转yAngle角度 属于3d旋转 （range of [-360, 360]）
 ) {
+    // 是否为3d旋转
+    val is3d: Boolean get() = xAngle != 0f || yAngle != 0f
 
     companion object {
         val DEFAULT: Rotate = Rotate(0f)
@@ -668,6 +710,11 @@ class Rotate(
     override fun toString(): String {
         return "$angle"
     }
+
+    fun toRotateXYString(): String {
+        return "$xAngle $yAngle"
+    }
+
 }
 
 class Scale(
@@ -753,7 +800,7 @@ class Percentage(private val number100: Float) {
 /*
 * 用于表示矩形边缘的内边距。它包含四个浮点值，分别表示顶部、左侧、底部和右侧的内边距。
  */
-class EdgeInsets(val top: Float, val left: Float, val bottom: Float, val right: Float) {
+data class EdgeInsets(val top: Float, val left: Float, val bottom: Float, val right: Float) {
     override fun toString(): String {
         return "$top $left $bottom $right"
     }
@@ -771,4 +818,3 @@ class EdgeInsets(val top: Float, val left: Float, val bottom: Float, val right: 
         }
     }
 }
-

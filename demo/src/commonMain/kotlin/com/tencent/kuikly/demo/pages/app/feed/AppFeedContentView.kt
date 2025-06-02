@@ -25,7 +25,6 @@ import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.app.common.ParsedText
 
-
 internal class AppFeedContentView: ComposeView<AppFeedContentViewAttr, AppFeedContentViewEvent>() {
 
     companion object {
@@ -94,10 +93,10 @@ internal class AppFeedContentView: ComposeView<AppFeedContentViewAttr, AppFeedCo
                             fontSize = 15.0f
                             rendText = fun(str, pattern): Map<String, String> {
                                 val result = mutableMapOf<String, String>()
-                                val idStr = str.substring(str.indexOf(":") + 1, str.lastIndexOf("#"));
+                                val idStr = str.substring(str.indexOf(":") + 1, str.lastIndexOf("#"))
                                 val showStr = str.substring(str.indexOf("#"), str.lastIndexOf("#") + 1).replace(
-                                    ":$idStr", "");
-                                result["display"] = showStr;
+                                    ":$idStr", "")
+                                result["display"] = showStr
                                 result["value"] = idStr
                                 return result
                             }
@@ -127,7 +126,7 @@ internal class AppFeedContentView: ComposeView<AppFeedContentViewAttr, AppFeedCo
                             color = Color(0xff5B778D)
                             rendText = fun(str, pattern): Map<String, String> {
                                 val result = mutableMapOf<String, String>()
-                                result["display"] = "全文";
+                                result["display"] = "全文"
                                 result["value"] = "全文"
                                 return result
                             }
@@ -144,7 +143,6 @@ internal class AppFeedContentView: ComposeView<AppFeedContentViewAttr, AppFeedCo
     }
 }
 
-
 internal class AppFeedContentViewAttr : ComposeAttr() {
     var content: String = ""
         set(value) {
@@ -156,9 +154,7 @@ internal class AppFeedContentViewAttr : ComposeAttr() {
         }
 }
 
-internal class AppFeedContentViewEvent : ComposeEvent() {
-    
-}
+internal class AppFeedContentViewEvent : ComposeEvent()
 
 internal fun ViewContainer<*, *>.AppFeedContent(init: AppFeedContentView.() -> Unit) {
     addChild(AppFeedContentView(), init)

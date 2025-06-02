@@ -330,7 +330,6 @@ object BridgeManager {
         callNativeMethod(NativeMethod.SYNC_FLUSH_UI, instanceId)
     }
 
-
 }
 
 object KotlinMethod {

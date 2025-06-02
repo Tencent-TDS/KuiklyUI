@@ -19,7 +19,7 @@ import com.tencent.kuikly.core.utils.ConvertUtil
 
 class Color {
 
-    private var hexColor: Long = 0
+    var hexColor: Long = 0
     private var colorString: String = ""
     constructor()
 
@@ -98,6 +98,7 @@ class Color {
         }
     }
 }
+
 fun Int.toColorHexString(): String {
     val hexStr = toString(16)
     if (hexStr.length == 1) {

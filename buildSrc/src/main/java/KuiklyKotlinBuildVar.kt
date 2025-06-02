@@ -135,15 +135,17 @@ object Version {
     const val MATERIAL_VERSION = "1.4.0"
     const val SNAPSHOT_SUFFIX = "-SNAPSHOT"
 
-    const val DEFAULT_KUIKLY_VERSION = "1.1.0-beta5"
-    private const val DEFAULT_KOTLIN_VERSION = "1.7.20"
-    private const val DEFAULT_AGP_VERSION = "7.1.3"
+    private const val DEFAULT_KUIKLY_VERSION = "2.0.0"
+    private const val DEFAULT_KOTLIN_VERSION = "2.0.21"
+    private const val DEFAULT_AGP_VERSION = "7.4.2"
 
     private const val KEY_KUIKLY_VERSION = "KUIKLY_VERSION"
     private const val KEY_KOTLIN_VERSION = "KUIKLY_KOTLIN_VERSION"
     private const val KEY_AGP_VERSION = "KUIKLY_AGP_VERSION"
     private const val KEY_CI_BUILD_NUM = "KUIKLY_CI_BUILD_NUM"
     private const val KEY_RENDER_SUFFIX = "KUIKLY_RENDER_SUFFIX"
+    private const val OHOS_KOTLIN_SUFFIX = "KBA-004"
+    private const val KUIKLY_OHOS_KOTLIN_SUFFIX = "ohos"
 
     /**
      * 获取 Kuikly 版本号
@@ -207,6 +209,9 @@ object Version {
             coreVersion = StringBuilder(kuiklyVersion).insert(
                 kuiklyVersion.indexOf(SNAPSHOT_SUFFIX), "-${getKotlinVersion()}").toString()
         }
+        if (coreVersion.contains(OHOS_KOTLIN_SUFFIX)) {
+            coreVersion = coreVersion.replace(OHOS_KOTLIN_SUFFIX, KUIKLY_OHOS_KOTLIN_SUFFIX)
+        }
         return coreVersion
     }
 
@@ -230,6 +235,7 @@ object Version {
             "1.8.21" -> "1.8.21-1.0.11"
             "1.9.22" -> "1.9.22-1.0.16"
             "2.0.21" -> "2.0.21-1.0.27"
+            "2.0.21-KBA-004" -> "2.0.21-1.0.27"
             else -> "${getKotlinVersion()}-1.0.7" // 默认版本
         }
     }

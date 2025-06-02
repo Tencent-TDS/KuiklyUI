@@ -21,6 +21,7 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.util.SizeF
 import android.view.View
+import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
 import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.css.ktx.toColor
 import com.tencent.kuikly.core.render.android.css.ktx.toPxF
@@ -39,6 +40,8 @@ class KRCSSBackgroundDrawable : GradientDrawable() {
      */
     var isForeground = false
     var targetView: View? = null
+    var kuiklyContext: IKuiklyRenderContext? = null
+
 
     private var borderRadiusF = BORDER_RADIUS_UNSET_VALUE
     private var borderRadii: FloatArray? = null
@@ -50,10 +53,10 @@ class KRCSSBackgroundDrawable : GradientDrawable() {
 
             val borders = value.split(",")
             if (borders.size == BORDER_ELEMENT_SIZE) {
-                val tl = borders[BORDER_TOP_LEFT_INDEX].toFloat().toPxF()
-                val tr = borders[BORDER_TOP_RIGHT_INDEX].toFloat().toPxF()
-                val bl = borders[BORDER_BOTTOM_LEFT_INDEX].toFloat().toPxF()
-                val br = borders[BORDER_BOTTOM_RIGHT_INDEX].toFloat().toPxF()
+                val tl = kuiklyContext.toPxF(borders[BORDER_TOP_LEFT_INDEX].toFloat())
+                val tr = kuiklyContext.toPxF(borders[BORDER_TOP_RIGHT_INDEX].toFloat())
+                val bl = kuiklyContext.toPxF(borders[BORDER_BOTTOM_LEFT_INDEX].toFloat())
+                val br = kuiklyContext.toPxF(borders[BORDER_BOTTOM_RIGHT_INDEX].toFloat())
 
                 val raddi = floatArrayOf(
                     tl, tl,
@@ -84,7 +87,7 @@ class KRCSSBackgroundDrawable : GradientDrawable() {
                 return
             }
 
-            val lindWidth = borderStyles[BORDER_STYLE_WIDTH_INDEX].toFloat().toPxI()
+            val lindWidth = kuiklyContext.toPxI(borderStyles[BORDER_STYLE_WIDTH_INDEX].toFloat())
             val lineStyle = borderStyles[BORDER_LINE_STYLE_INDEX]
             val lineColor = borderStyles[BORDER_STYLE_LINE_COLOR].toColor()
 
@@ -93,13 +96,13 @@ class KRCSSBackgroundDrawable : GradientDrawable() {
                     setStroke(lindWidth, ColorStateList.valueOf(lineColor))
                 }
                 "dashed" -> {
-                    setStroke(lindWidth, ColorStateList.valueOf(lineColor), BORDER_DASH_WIDTH, BORDER_DASH_GAP)
+                    setStroke(lindWidth, ColorStateList.valueOf(lineColor), kuiklyContext.toPxF(BORDER_DASH_WIDTH), kuiklyContext.toPxF(BORDER_DASH_GAP))
                 }
                 "dotted" -> {
                     setStroke(lindWidth,
                         ColorStateList.valueOf(lineColor),
                         lindWidth.toFloat(),
-                        BORDER_DASH_GAP
+                        kuiklyContext.toPxF(BORDER_DASH_GAP)
                     )
                 }
             }
@@ -224,11 +227,10 @@ class KRCSSBackgroundDrawable : GradientDrawable() {
             val y0: Float
             val y1: Float
             val r = RectF().apply {
-                val sizeF = size
                 left = 0f
                 top = 0f
-                right = sizeF.width
-                bottom = sizeF.height
+                right = size.width
+                bottom = size.height
             }
 
             when (backgroundImageParseTriple.first) {

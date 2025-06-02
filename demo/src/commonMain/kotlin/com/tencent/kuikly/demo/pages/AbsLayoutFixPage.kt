@@ -19,7 +19,6 @@ import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewBuilder
-import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
@@ -123,15 +122,6 @@ internal class AbsLayoutFixPage : BasePager() {
 @Page("6", supportInLocal = true)
 internal class AbsLayoutWithFlexBugFixPager : BasePager() {
 
-    //private var popDialogBean : DaShiDouPopBean = DaShiDouPopBean()
-
-    private var bgUrl by observable("")
-    private var grabState1 :String = ""
-    private var grabState2 :String = ""
-    private var grabState3 :String = ""
-    private var closeUrl: String = ""
-    private var curGrabState by observable(0)
-
     companion object {
         val TAG = "DaShiDouPopDialog"
     }
@@ -157,7 +147,7 @@ internal class AbsLayoutWithFlexBugFixPager : BasePager() {
                     allCenter()
                 }
 
-                //相对位置，并且由父容器的allcenter决定在中央
+                //相对位置，并且由父容器的allCenter决定在中央
                 View {
                     attr{
 
@@ -202,15 +192,6 @@ internal class AbsLayoutWithFlexBugFixPager : BasePager() {
     override fun debugUIInspector(): Boolean {
 //        return super.debugUIInspector()
         return true
-    }
-
-    private fun initData() {
-
-    }
-
-    override fun created() {
-        super.created()
-
     }
 
 }

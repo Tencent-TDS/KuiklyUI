@@ -23,12 +23,11 @@ import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.attr.ImageUri
 import com.tencent.kuikly.core.coroutines.launch
 import com.tencent.kuikly.core.log.KLog
-import com.tencent.kuikly.core.views.Blur
 import com.tencent.kuikly.core.views.Image
-import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
+
 @Page("BlurViewDemoPage")
 internal class BlurViewDemoPage : BasePager() {
     override fun body(): ViewBuilder {

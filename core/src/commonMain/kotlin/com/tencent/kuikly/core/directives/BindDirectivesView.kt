@@ -50,11 +50,9 @@ class BindDirectivesView(
         }
     }
 
-
     override fun didRemoveFromParentView() {
         super.didRemoveFromParentView()
     }
-
 
     private fun createSubView() {
         creator()
@@ -66,7 +64,6 @@ class BindDirectivesView(
         removeChildren()
     }
 
-
     // 同步创建标签信息到dom
     private fun syncCreateSubViewsToDom() {
         val rParent = realParent
@@ -75,9 +72,9 @@ class BindDirectivesView(
             this.domChildren().forEach { child ->
                 val index = domChildren.indexOf(child)
                 if (index < 0 || index >= domChildren.count()) {
-                    return;
+                    return
                 }
-                parent.insertDomSubView(child, index);
+                parent.insertDomSubView(child, index)
             }
         }
     }

@@ -15,14 +15,11 @@
 
 package com.tencent.kuikly.core.render.android.expand.module
 
-import android.os.Handler
-import android.os.Looper
 import com.tencent.kuikly.core.render.android.expand.vendor.KRReflect
 import com.tencent.kuikly.core.render.android.expand.vendor.ReflectException
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderBaseModule
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.android.scheduler.KuiklyRenderCoreContextScheduler
-
 
 class KRReflectionModule : KuiklyRenderBaseModule() {
     private val objectRegistry = hashMapOf<String, KRJavaObject>()
@@ -125,7 +122,6 @@ class KRReflectionModule : KuiklyRenderBaseModule() {
         return ""
     }
 
-
     private fun getObject(objectID: String, method: String) : Any? {
         val javaObject = objectRegistry[objectID]
             ?: return if (objectID.toLongOrNull() == null) { // 说明为类名
@@ -207,7 +203,6 @@ class KRReflectionModule : KuiklyRenderBaseModule() {
         }
         return args.toArray()
 
-
     }
 
     private fun retain(params: String?) : String {
@@ -224,7 +219,6 @@ class KRReflectionModule : KuiklyRenderBaseModule() {
         setNeedAutoReleaseInNextLoop()
         return ""
     }
-
 
     companion object {
         const val MODULE_NAME = "KRReflectionModule"

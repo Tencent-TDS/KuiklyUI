@@ -20,7 +20,6 @@ import com.tencent.kuikly.core.layout.FlexNode
 import com.tencent.kuikly.core.layout.MeasureOutput
 import com.tencent.kuikly.core.views.*
 
-
 class ExtRichTextAttr: RichTextAttr() {
 
     var internalAccessibilitySet = false
@@ -49,9 +48,7 @@ class ExtRichTextAttr: RichTextAttr() {
     }
 }
 
-class ExtRichTextEvent: RichTextEvent() {
-
-}
+class ExtRichTextEvent: RichTextEvent()
 
 class ExtRichTextView: RichTextView() {
 

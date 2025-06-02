@@ -19,6 +19,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Size
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -40,6 +41,7 @@ import com.tencent.kuikly.core.render.android.expand.component.list.KRRecyclerVi
 import com.tencent.kuikly.core.render.android.expand.component.pag.KRPAGView
 import com.tencent.kuikly.core.render.android.expand.module.KRCalendarModule
 import com.tencent.kuikly.core.render.android.expand.module.KRCodecModule
+import com.tencent.kuikly.core.render.android.expand.module.KRFontModule
 import com.tencent.kuikly.core.render.android.expand.module.KRLogModule
 import com.tencent.kuikly.core.render.android.expand.module.KRKeyboardModule
 import com.tencent.kuikly.core.render.android.expand.module.KRSharedPreferencesModule
@@ -50,6 +52,7 @@ import com.tencent.kuikly.core.render.android.expand.module.KRPerformanceModule
 import com.tencent.kuikly.core.render.android.expand.module.KRRouterModule
 import com.tencent.kuikly.core.render.android.expand.module.KRSnapshotModule
 import com.tencent.kuikly.core.render.android.expand.module.KRReflectionModule
+import com.tencent.kuikly.core.render.android.expand.module.KRVsyncModule
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.android.performace.IKRMonitorCallback
 import com.tencent.kuikly.core.render.android.performace.KRMonitorType
@@ -58,6 +61,7 @@ import com.tencent.kuikly.core.render.android.performace.KRPerformanceManager
 import com.tencent.kuikly.core.render.android.performace.frame.KRFrameMonitor
 import com.tencent.kuikly.core.render.android.performace.launch.KRLaunchData
 import java.lang.ref.WeakReference
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * 宿主工程可使用此类来简化KuiklyRenderCore的接入, 该类是给页面粒度接入，View粒度使用[KuiklyView]
@@ -180,7 +184,7 @@ open class KuiklyRenderViewBaseDelegator(private val delegate: KuiklyRenderViewB
     /**
      * 页面onCreate的时候调用
      * @param container Kuikly根View容器
-     * @param contextCode
+     * @param contextCode 执行上下文code
      * @param pageName 页面名字
      * @param pageData 页面数据
      * @param size 根View大小, 非必传
@@ -323,7 +327,7 @@ open class KuiklyRenderViewBaseDelegator(private val delegate: KuiklyRenderViewB
     private fun initRenderView(size: Size?) {
         KuiklyRenderLog.d(TAG, "initRenderView, executeMode: $executeMode, pageName: $pageName")
         val containerView = containerViewWeakRef?.get() ?: return
-        renderView = KuiklyRenderView(containerView.context, executeMode, delegate.enablePreloadClass()).apply {
+        renderView = KuiklyRenderView(containerView.context, executeMode, delegate.enablePreloadClass(), delegate).apply {
             registerCallback(renderViewCallback)
             registerKuiklyRenderExport(this)
             init(
@@ -483,6 +487,12 @@ open class KuiklyRenderViewBaseDelegator(private val delegate: KuiklyRenderViewB
             moduleExport(KRPerformanceModule.MODULE_NAME) {
                 KRPerformanceModule(performanceManager)
             }
+            moduleExport(KRFontModule.MODULE_NAME) {
+                KRFontModule()
+            }
+            moduleExport(KRVsyncModule.MODULE_NAME) {
+                KRVsyncModule()
+            }
             delegate.registerExternalModule(this) // 代理给外部，让宿主工程可以暴露自己的module
             delegate.registerTDFModule(this)
         }
@@ -502,6 +512,54 @@ open class KuiklyRenderViewBaseDelegator(private val delegate: KuiklyRenderViewB
             ) as IKuiklyRenderViewExport
     }
 
+    /**
+     * 将返回键事件交由框架处理，建议参考以下接入方式：
+     *
+     *     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+     *         if (event.keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
+     *             kuiklyRenderViewDelegator.onBackPressed()
+     *             return true
+     *         }
+     *         return super.dispatchKeyEvent(event)
+     *     }
+     *
+     */
+    fun onBackPressed(): Boolean {
+        val sendTime = System.currentTimeMillis()
+        val isBackPressedConsumed = AtomicBoolean(false)
+
+        // 触发 onBackPressed 逻辑
+        runKuiklyRenderViewTask {
+            it.onBackPressed()
+        }
+
+        // 消费直至超时或结果设定
+        waitForBackConsumedResult(sendTime, isBackPressedConsumed)
+
+        return isBackPressedConsumed.get()
+    }
+
+    /**
+     * 等待Kuikly侧通过路由Module返回Back键的消费状态
+     */
+    private fun waitForBackConsumedResult(sendTime: Long, consumeResult: AtomicBoolean) {
+        val looping = AtomicBoolean(true)
+        while (looping.get()) {
+            Thread.sleep(10)
+            runKuiklyRenderViewTask {
+                val krRouterModule = it.module<KRRouterModule>(KRRouterModule.MODULE_NAME) as KRRouterModule
+                if (krRouterModule.backConsumedTime > sendTime) {
+                    consumeResult.set(krRouterModule.isBackConsumed)
+                    // 获得Kuikly结果退出
+                    looping.set(false)
+                }
+            }
+            // 超时退出
+            if ((System.currentTimeMillis() - sendTime) > 200L) {
+                looping.set(false)
+            }
+        }
+    }
 }
 
 private typealias KuiklyRenderViewPendingTask = (KuiklyRenderView) -> Unit
@@ -610,5 +668,22 @@ interface KuiklyRenderViewBaseDelegatorDelegate {
     fun onPageLoadComplete(isSucceed: Boolean,
                            errorReason: ErrorReason? = null,
                            executeMode: KuiklyRenderCoreExecuteModeBase) {}
+
+    /**
+     * 是否同步发送
+     * @param event 事件名称
+     * @return 是否同步，默认为false
+     */
+    fun syncSendEvent(event: String): Boolean {
+        return false
+    }
+    
+    fun useHostDisplayMetrics(): Boolean {
+        return false
+    }
+
+    fun enableContextReplace(): Boolean {
+        return false
+    }
 
 }

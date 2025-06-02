@@ -86,4 +86,3 @@ object KuiklyRenderLog {
         KuiklyRenderAdapterManager.krLogAdapter?.e(tag, msg)
     }
 }
-

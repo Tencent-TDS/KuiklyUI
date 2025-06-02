@@ -60,6 +60,9 @@ object KRCssConst {
     const val FRAME = "frame"
     const val Z_INDEX = "zIndex"
     const val PAN = "pan"
+    
+    const val PREVENT_TOUCH = "preventTouch"
+    const val CONSUME_TOUCH_DOWN = "consumeDown"
 
     const val ANIMATION = "animation"
     const val ANIMATION_QUEUE = "animationQueue"

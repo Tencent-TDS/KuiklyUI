@@ -1,0 +1,138 @@
+/*
+ * Copyright 2022 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.tencent.kuikly.compose.foundation
+
+import com.tencent.kuikly.compose.ui.Modifier
+import com.tencent.kuikly.compose.ui.layout.LayoutCoordinates
+import com.tencent.kuikly.compose.ui.node.GlobalPositionAwareModifierNode
+import com.tencent.kuikly.compose.ui.node.ModifierNodeElement
+import com.tencent.kuikly.compose.ui.node.TraversableNode
+import com.tencent.kuikly.compose.ui.node.findNearestAncestor
+import com.tencent.kuikly.compose.ui.platform.InspectorInfo
+
+/**
+ * Calls [onPositioned] whenever the bounds of the currently-focused area changes.
+ * If a child of this node has focus, [onPositioned] will be called immediately with a non-null
+ * [LayoutCoordinates] that can be queried for the focused bounds, and again every time the focused
+ * child changes or is repositioned. When a child loses focus, [onPositioned] will be passed `null`.
+ *
+ * When an event occurs, it is bubbled up from the focusable node, so the nearest parent gets the
+ * event first, and then its parent, etc.
+ *
+ * Note that there may be some cases where the focused bounds change but the callback is _not_
+ * invoked, but the last [LayoutCoordinates] will always return the most up-to-date bounds.
+ */
+@ExperimentalFoundationApi
+fun Modifier.onFocusedBoundsChanged(onPositioned: (LayoutCoordinates?) -> Unit): Modifier =
+    this then FocusedBoundsObserverElement(onPositioned)
+
+private class FocusedBoundsObserverElement(
+    val onPositioned: (LayoutCoordinates?) -> Unit
+) : ModifierNodeElement<FocusedBoundsObserverNode>() {
+    override fun create(): FocusedBoundsObserverNode =
+        FocusedBoundsObserverNode(onPositioned)
+
+    override fun update(node: FocusedBoundsObserverNode) {
+        node.onPositioned = onPositioned
+    }
+
+    override fun hashCode(): Int = onPositioned.hashCode()
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        val otherModifier = other as? FocusedBoundsObserverElement ?: return false
+        return onPositioned === otherModifier.onPositioned
+    }
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = "onFocusedBoundsChanged"
+        properties["onPositioned"] = onPositioned
+    }
+}
+
+internal class FocusedBoundsObserverNode(
+    var onPositioned: (LayoutCoordinates?) -> Unit
+) : Modifier.Node(), TraversableNode {
+
+    override val traverseKey: Any = TraverseKey
+
+    /** Called when a child gains/loses focus or is focused and changes position. */
+
+     fun onFocusBoundsChanged(focusedBounds: LayoutCoordinates?) {
+        onPositioned(focusedBounds)
+        findNearestAncestor()?.onFocusBoundsChanged(focusedBounds)
+    }
+
+    companion object TraverseKey
+}
+
+/**
+ * Modifier used by [Modifier.focusable] to publish the location of the focused element.
+ * Should only be applied to the node when it is actually focused. Right now this will keep
+ * this node around, but once the un-delegate API lands we can remove this node entirely if it
+ * is not focused. (b/276790428)
+ */
+internal class FocusedBoundsNode : Modifier.Node(), TraversableNode,
+    GlobalPositionAwareModifierNode {
+    private var isFocused: Boolean = false
+
+    override val traverseKey: Any get() = TraverseKey
+
+    override val shouldAutoInvalidate: Boolean = false
+
+    private val observer: FocusedBoundsObserverNode?
+        get() = if (isAttached) {
+            findNearestAncestor(FocusedBoundsObserverNode.TraverseKey) as? FocusedBoundsObserverNode
+        } else {
+            null
+        }
+
+    private var layoutCoordinates: LayoutCoordinates? = null
+
+    /**
+     * This should be called from a [androidx.compose.ui.focus.FocusEventModifierNode.onFocusEvent]
+     * where it is guarantee that an event will be dispatched during the lifecycle of the node. This
+     * means that when the node is detached (and we should warn observers) we'll receive an event.
+     */
+    fun setFocus(focused: Boolean) {
+        if (focused == isFocused) return
+        if (!focused) {
+            observer?.onFocusBoundsChanged(null)
+        } else {
+            notifyObserverWhenAttached()
+        }
+        isFocused = focused
+    }
+
+    override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
+        layoutCoordinates = coordinates
+        if (!isFocused) return
+        if (coordinates.isAttached) {
+            notifyObserverWhenAttached()
+        } else {
+            observer?.onFocusBoundsChanged(null)
+        }
+    }
+
+    private fun notifyObserverWhenAttached() {
+        if (layoutCoordinates != null && layoutCoordinates!!.isAttached) {
+            observer?.onFocusBoundsChanged(layoutCoordinates)
+        }
+    }
+
+    companion object TraverseKey
+}

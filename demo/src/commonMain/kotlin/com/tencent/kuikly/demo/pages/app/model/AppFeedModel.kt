@@ -23,19 +23,19 @@ data class AppFeedModel(
     val categoryId: String,
     val content: String,
     var userInfo: AppUserInfo,
-    val picurl: List<String>,
-    val zfContent: String?,
-    val zfNick: String?,
-    val zfUserId: String?,
-    val zfPicurl: List<String>?,
-    val zfAppId: String?,
-    val zfVedioUrl: String?,
-    val containZf: Boolean,
-    val vediourl: String,
+    val picUrl: List<String>,
+    val forwardContent: String?,
+    val forwardNick: String?,
+    val forwardUserId: String?,
+    val forwardPicUrl: List<String>?,
+    val forwardAppId: String?,
+    val forwardVideoUrl: String?,
+    val containForward: Boolean,
+    val videoUrl: String,
     val tail: String,
-    val createtime: Int,
-    val zanStatus: Int,
-    val zhuanfaNum: Int,
+    val createTime: Int,
+    val likeStatus: Int,
+    val forwardNum: Int,
     val likeNum: Int,
     val commentNum: Int
 ) {
@@ -48,28 +48,28 @@ data class AppFeedModel(
         private const val KEY_FEED_CONTENT = "content"
         private const val KEY_FEED_PIC_URL = "picurl"
 
-        private const val KEY_FEED_ZF_CONTENT = "zfContent"
-        private const val KEY_FEED_ZF_NICK = "zfNick"
-        private const val KEY_FEED_ZF_USER_ID = "zfUserId"
-        private const val KEY_FEED_ZF_APP_ID = "zfAppId"
-        private const val KEY_FEED_CONTAIN_ZF = "containZf"
-        private const val KEY_FEED_ZF_PIC_URL = "zfPicurl"
-        private const val KEY_FEED_ZF_VIDEO_URL = "zfVedioUrl"
+        private const val KEY_FEED_FORWARD_CONTENT = "zfContent"
+        private const val KEY_FEED_FORWARD_NICK = "zfNick"
+        private const val KEY_FEED_FORWARD_USER_ID = "zfUserId"
+        private const val KEY_FEED_FORWARD_APP_ID = "zfAppId"
+        private const val KEY_FEED_CONTAIN_FORWARD = "containZf"
+        private const val KEY_FEED_FORWARD_PIC_URL = "zfPicurl"
+        private const val KEY_FEED_FORWARD_VIDEO_URL = "zfVedioUrl"
 
         private const val KEY_FEED_VIDEO_URL = "vediourl"
         private const val KEY_FEED_CREATE_TAIL = "tail"
         private const val KEY_FEED_CREATE_TIME = "createtime"
         private const val KEY_FEED_LIKE_STATUS = "zanStatus"
-        private const val KEY_FEED_ZHUANFA_NUM = "zhuanfaNum"
+        private const val KEY_FEED_FORWARD_NUM = "zhuanfaNum"
         private const val KEY_FEED_LIKE_NUM = "likeNum"
         private const val KEY_FEED_COMMENT_NUM = "commentNum"
 
         private fun parsePictureUrl(urlStr: String) : String {
-            var urlStr = urlStr.removePrefix("[")
-            urlStr =  urlStr.removeSuffix("]")
-            urlStr = urlStr.trim()
-            urlStr = urlStr.trim('\'')
             return urlStr
+                .removePrefix("[")
+                .removeSuffix("]")
+                .trim()
+                .trim('\'')
         }
 
         fun fromJson(jsonObject: JSONObject): AppFeedModel? {
@@ -83,24 +83,24 @@ data class AppFeedModel(
                 appId = feedObj.optString(KEY_FEED_APP_ID, ""),
                 categoryId = feedObj.optString(KEY_FEED_CATEGORY_ID, ""),
                 content = feedObj.optString(KEY_FEED_CONTENT, ""),
-                picurl = feedObj.optJSONArray(KEY_FEED_PIC_URL)?.map<String, String> {
+                picUrl = feedObj.optJSONArray(KEY_FEED_PIC_URL)?.map<String, String> {
                     return@map parsePictureUrl(it)
                 } ?: listOf(),
                 userInfo = AppUserInfo.fromJson(userObj),
-                zfContent = feedObj.optString(KEY_FEED_ZF_CONTENT),
-                zfNick = feedObj.optString(KEY_FEED_ZF_NICK),
-                zfUserId = feedObj.optString(KEY_FEED_ZF_USER_ID),
-                zfAppId = feedObj.optString(KEY_FEED_ZF_APP_ID),
-                containZf = feedObj.optBoolean(KEY_FEED_CONTAIN_ZF),
-                zfPicurl = feedObj.optJSONArray(KEY_FEED_ZF_PIC_URL)?.map<String, String> {
+                forwardContent = feedObj.optString(KEY_FEED_FORWARD_CONTENT),
+                forwardNick = feedObj.optString(KEY_FEED_FORWARD_NICK),
+                forwardUserId = feedObj.optString(KEY_FEED_FORWARD_USER_ID),
+                forwardAppId = feedObj.optString(KEY_FEED_FORWARD_APP_ID),
+                containForward = feedObj.optBoolean(KEY_FEED_CONTAIN_FORWARD),
+                forwardPicUrl = feedObj.optJSONArray(KEY_FEED_FORWARD_PIC_URL)?.map<String, String> {
                     return@map parsePictureUrl(it)
                 },
-                zfVedioUrl = "",
-                vediourl = feedObj.optString(KEY_FEED_VIDEO_URL),
+                forwardVideoUrl = "",
+                videoUrl = feedObj.optString(KEY_FEED_VIDEO_URL),
                 tail = feedObj.optString(KEY_FEED_CREATE_TAIL),
-                createtime = feedObj.optInt(KEY_FEED_CREATE_TIME),
-                zanStatus = 0,
-                zhuanfaNum = feedObj.optInt(KEY_FEED_ZHUANFA_NUM),
+                createTime = feedObj.optInt(KEY_FEED_CREATE_TIME),
+                likeStatus = 0,
+                forwardNum = feedObj.optInt(KEY_FEED_FORWARD_NUM),
                 likeNum = feedObj.optInt(KEY_FEED_LIKE_NUM),
                 commentNum = feedObj.optInt(KEY_FEED_COMMENT_NUM)
             )

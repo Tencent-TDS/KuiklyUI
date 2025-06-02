@@ -169,7 +169,7 @@ abstract class AbstractBaseView<A : Attr, E : Event> : BaseObject(), IViewPublic
     private fun internalCreateEvent(): E {
         val event = createEvent()
         event.init(pagerId,nativeRef)
-        return event;
+        return event
     }
 
     protected fun internalCreateAttr(): A {
@@ -204,7 +204,6 @@ abstract class AbstractBaseView<A : Attr, E : Event> : BaseObject(), IViewPublic
             renderViewLazyTasks.clear()
         }
     }
-
 
     protected fun callRenderViewMethod(methodName: String, params: String? = null, callback: CallbackFn? = null) {
         performTaskWhenRenderViewDidLoad {

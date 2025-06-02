@@ -42,7 +42,7 @@ class KRImageLoader(val executeMode: KuiklyRenderCoreExecuteModeBase, val assets
      * 非内置场景需要将 assets 图片转换为本地路径
      */
     private fun convertAssetsPathIfNeed(options: HRImageLoadOption) {
-        executeMode.convertAssetsPathIfNeed(options, assetsPath);
+        executeMode.convertAssetsPathIfNeed(options, assetsPath)
     }
 
 }

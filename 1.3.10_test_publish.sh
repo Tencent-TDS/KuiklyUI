@@ -11,6 +11,7 @@ KUIKLY_ENABLE_ANDROID_SUPPORT_COMPATIBLE=0
 current_dir=$PWD
 core_render_android_dir=$current_dir/core-render-android/src/main/java
 core_convert_util_file=$current_dir/core/src/commonMain/kotlin/com/tencent/kuikly/core/utils/ConvertUtil.kt
+core_pager_manager=$current_dir/core/src/commonMain/kotlin/com/tencent/kuikly/core/manager/PagerManager.kt
 
 # 关闭androidx开关、将androidx包名替换成support包包名
 if [ "$KUIKLY_ENABLE_ANDROID_SUPPORT_COMPATIBLE" -eq 1 ]; then
@@ -26,9 +27,14 @@ if [ "$KUIKLY_ENABLE_ANDROID_SUPPORT_COMPATIBLE" -eq 1 ]; then
 
 fi
 
-# ConvertUtil的encodeToByteArray替换成toByteArray
+# ConvertUtil的encodeToByteArray替换成toByteArray、lowercase → toLowerCase
 echo $core_convert_util_file
-sed -i.bak 's/md5L16\.encodeToByteArray()/md5L16\.toByteArray(Charsets.UTF_8)/g' $core_convert_util_file
+sed -i.bak -e 's/md5L16\.encodeToByteArray()/md5L16\.toByteArray(Charsets.UTF_8)/g' \
+           -e 's/lowercase/toLowerCase/g' $core_convert_util_file
+
+# PagerManager的lowercase替换成toLowerCase
+echo "$core_pager_manager"
+sed -i.bak 's/lowercase/toLowerCase/g' "$core_pager_manager"
 
 # 构建
 KUIKLY_AGP_VERSION="3.5.4" KUIKLY_KOTLIN_VERSION="1.3.10" ./gradlew -c settings.1.3.10.gradle.kts :core-annotations:publishToMavenLocal --stacktrace
@@ -51,3 +57,4 @@ fi
 # 还原其他文件
 mv gradle/wrapper/gradle-wrapper.properties.bak gradle/wrapper/gradle-wrapper.properties
 mv "$core_convert_util_file.bak" $core_convert_util_file
+mv "$core_pager_manager.bak" "$core_pager_manager"

@@ -15,6 +15,4 @@
 
 package com.tencent.kuikly.core.base
 
-open class ComposeAttr : ContainerAttr() {
-
-}
+open class ComposeAttr : ContainerAttr()

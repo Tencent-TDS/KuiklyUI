@@ -46,5 +46,4 @@ data class KRFrameData(
             "frameCount: $frameCount \n" +
             "driveFrameCount: $driveFrameCount \n"
 
-
 }

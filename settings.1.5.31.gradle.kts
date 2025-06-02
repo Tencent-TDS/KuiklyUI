@@ -6,7 +6,6 @@ pluginManagement {
     }
 }
 
-rootProject.name = "KuiklyUI"
 rootProject.buildFileName = "build.1.5.31.gradle.kts"
 
 val buildFileName = "build.1.5.31.gradle.kts"

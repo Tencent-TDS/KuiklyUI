@@ -19,12 +19,15 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.DashPathEffect
 import android.graphics.LinearGradient
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.Region
 import android.graphics.Shader
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.view.View
+import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.const.KRViewConst
@@ -45,7 +48,7 @@ import kotlin.math.PI
 class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
 
     private val drawOperationList = mutableListOf<DrawOperation>()
-    private var currentDrawStyle = DrawOperation.DrawStyle()
+    private var currentDrawStyle = DrawStyle(context as IKuiklyRenderContext)
 
     private val paint by lazy {
         Paint().apply {
@@ -95,6 +98,15 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
             FILL_TEXT -> fillText(params)
             STROKE_TEXT -> strokeText(params)
             DRAW_IMAGE -> drawImage(params)
+            SAVE -> save()
+            SAVE_LAYER -> saveLayer(params)
+            RESTORE -> restore()
+            CLIP -> clip(params)
+            TRANSLATE -> translate(params)
+            SCALE -> scale(params)
+            ROTATE -> rotate(params)
+            SKEW -> skew(params)
+            TRANSFORM -> transform(params)
             else -> super.call(method, params, callback)
         }
     }
@@ -107,10 +119,15 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
 
     private fun reset() {
         drawOperationList.clear()
-        currentDrawStyle = DrawOperation.DrawStyle()
+        currentDrawStyle = DrawStyle(kuiklyRenderContext)
     }
 
     private fun performDrawOperationList(canvas: Canvas) {
+        if (drawOperationList.isEmpty()) {
+            return
+        }
+        // 设置可绘制区域为 Canvas 的整个布局区域
+        canvas.clipRect(0, 0, canvas.width, canvas.height)
         for (op in drawOperationList) {
             op.draw(paint, canvas)
         }
@@ -123,7 +140,7 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
 
     private fun setLineWidth(params: String?) {
         val paramsJSON = params.toJSONObjectSafely()
-        currentDrawStyle.lineWidth(paramsJSON.optDouble(KRViewConst.WIDTH).toFloat().toPxF())
+        currentDrawStyle.lineWidth(kuiklyRenderContext.toPxF(paramsJSON.optDouble(KRViewConst.WIDTH).toFloat()))
     }
 
     private fun setLineDash(params: String?) {
@@ -157,24 +174,23 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
 
     private fun moveTo(params: String?) {
         val paramsJSON = params.toJSONObjectSafely()
-        val x = paramsJSON.optDouble(KRViewConst.X).toFloat().toPxF()
-        val y = paramsJSON.optDouble(KRViewConst.Y).toFloat().toPxF()
+        val x = kuiklyRenderContext.toPxF(paramsJSON.optDouble(KRViewConst.X).toFloat())
+        val y = kuiklyRenderContext.toPxF(paramsJSON.optDouble(KRViewConst.Y).toFloat())
         hrPath.path.moveTo(x, y)
     }
 
     private fun lineTo(params: String?) {
         val paramsJSON = params.toJSONObjectSafely()
-        val x = paramsJSON.optDouble(KRViewConst.X).toFloat().toPxF()
-        val y = paramsJSON.optDouble(KRViewConst.Y).toFloat().toPxF()
+        val x = kuiklyRenderContext.toPxF(paramsJSON.optDouble(KRViewConst.X).toFloat())
+        val y = kuiklyRenderContext.toPxF(paramsJSON.optDouble(KRViewConst.Y).toFloat())
         hrPath.path.lineTo(x, y)
     }
 
-
     private fun arc(params: String?) {
         val paramsJSON = params.toJSONObjectSafely()
-        val cx = paramsJSON.optDouble(KRViewConst.X).toFloat().toPxF()
-        val cy = paramsJSON.optDouble(KRViewConst.Y).toFloat().toPxF()
-        val radius = paramsJSON.optDouble(RADIUS).toFloat().toPxF()
+        val cx = kuiklyRenderContext.toPxF(paramsJSON.optDouble(KRViewConst.X).toFloat())
+        val cy = kuiklyRenderContext.toPxF(paramsJSON.optDouble(KRViewConst.Y).toFloat())
+        val radius = kuiklyRenderContext.toPxF(paramsJSON.optDouble(RADIUS).toFloat())
         val startAngle = paramsJSON.optDouble(START_ANGLE) * KRViewConst.PI_AS_ANGLE / PI
         val endAngle = paramsJSON.optDouble(END_ANGLE) * KRViewConst.PI_AS_ANGLE / PI
         val counterclockwise = paramsJSON.optInt(COUNTER_CLOCKWISE) == TYPE_COUNTER_CLOCKWISE
@@ -236,7 +252,7 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
 
     private fun flushDrawCommand() {
         hrPath.also {
-            it.pushDrawStyle(DrawOperation.DrawStyle().apply {
+            it.pushDrawStyle(DrawStyle(kuiklyRenderContext).apply {
                 lineCap = currentDrawStyle.lineCap
                 fillColor = currentDrawStyle.fillColor
                 fillGradient = currentDrawStyle.fillGradient
@@ -259,21 +275,21 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
 
     private fun quadraticCurveTo(params: String?) {
         val json = params.toJSONObjectSafely()
-        val cpx = json.optDouble("cpx").toFloat().toPxF()
-        val cpy = json.optDouble("cpy").toFloat().toPxF()
-        val x = json.optDouble(KRViewConst.X).toFloat().toPxF()
-        val y = json.optDouble(KRViewConst.Y).toFloat().toPxF()
+        val cpx = kuiklyRenderContext.toPxF(json.optDouble("cpx").toFloat())
+        val cpy = kuiklyRenderContext.toPxF(json.optDouble("cpy").toFloat())
+        val x = kuiklyRenderContext.toPxF(json.optDouble(KRViewConst.X).toFloat())
+        val y = kuiklyRenderContext.toPxF(json.optDouble(KRViewConst.Y).toFloat())
         hrPath.path.quadTo(cpx, cpy, x, y)
     }
 
     private fun bezierCurveTo(params: String?) {
         val json = params.toJSONObjectSafely()
-        val cp1x = json.optDouble("cp1x").toFloat().toPxF()
-        val cp1y = json.optDouble("cp1y").toFloat().toPxF()
-        val cp2x = json.optDouble("cp2x").toFloat().toPxF()
-        val cp2y = json.optDouble("cp2y").toFloat().toPxF()
-        val x = json.optDouble(KRViewConst.X).toFloat().toPxF()
-        val y = json.optDouble(KRViewConst.Y).toFloat().toPxF()
+        val cp1x = kuiklyRenderContext.toPxF(json.optDouble("cp1x").toFloat())
+        val cp1y = kuiklyRenderContext.toPxF(json.optDouble("cp1y").toFloat())
+        val cp2x = kuiklyRenderContext.toPxF(json.optDouble("cp2x").toFloat())
+        val cp2y = kuiklyRenderContext.toPxF(json.optDouble("cp2y").toFloat())
+        val x = kuiklyRenderContext.toPxF(json.optDouble(KRViewConst.X).toFloat())
+        val y = kuiklyRenderContext.toPxF(json.optDouble(KRViewConst.Y).toFloat())
         hrPath.path.cubicTo(cp1x, cp1y, cp2x, cp2y, x, y)
     }
 
@@ -313,7 +329,7 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
         }
         val x = json.optDouble("x")
         val y = json.optDouble("y")
-        val drawStyle = DrawOperation.DrawStyle().apply {
+        val drawStyle = DrawStyle(kuiklyRenderContext).apply {
             lineCap = currentDrawStyle.lineCap
             if (currentDrawStyle.drawStyle == Paint.Style.FILL) {
                 fillColor = currentDrawStyle.fillColor
@@ -374,6 +390,80 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
         invalidate()
     }
 
+    private fun save() {
+        drawOperationList.add(LambdaOp { _, canvas -> canvas.save() })
+    }
+
+    private fun saveLayer(params: String?) {
+        val json = params.toJSONObjectSafely()
+        val x = kuiklyRenderContext.toPxF(json.optDouble(KRViewConst.X).toFloat())
+        val y = kuiklyRenderContext.toPxF(json.optDouble(KRViewConst.Y).toFloat())
+        val width = kuiklyRenderContext.toPxF(json.optDouble(KRViewConst.WIDTH).toFloat())
+        val height = kuiklyRenderContext.toPxF(json.optDouble(KRViewConst.HEIGHT).toFloat())
+        drawOperationList.add(SaveLayerOp(x, y, x + width, y + height))
+    }
+
+    private fun restore() {
+        drawOperationList.add(LambdaOp { _, canvas -> canvas.restore() })
+    }
+
+    private fun clip(params: String?) {
+        hrPath.path.also {
+            val json = params.toJSONObjectSafely()
+            val op = if (json.optInt("intersect", TRUE) == TRUE) {
+                Region.Op.INTERSECT
+            } else {
+                Region.Op.DIFFERENCE
+            }
+            drawOperationList.add(LambdaOp { _, canvas -> canvas.clipPath(it, op) })
+        }
+    }
+
+    private fun translate(params: String?) {
+        val json = params.toJSONObjectSafely()
+        val x = kuiklyRenderContext.toPxF(json.optDouble(KRViewConst.X).toFloat())
+        val y = kuiklyRenderContext.toPxF(json.optDouble(KRViewConst.Y).toFloat())
+        drawOperationList.add(LambdaOp { _, canvas -> canvas.translate(x, y) })
+    }
+
+    private fun scale(params: String?) {
+        val paramsJSON = params.toJSONObjectSafely()
+        val x = paramsJSON.optDouble(KRViewConst.X).toFloat()
+        val y = paramsJSON.optDouble(KRViewConst.Y).toFloat()
+        drawOperationList.add(LambdaOp { _, canvas -> canvas.scale(x, y) })
+    }
+
+    private fun rotate(params: String?) {
+        val paramsJSON = params.toJSONObjectSafely()
+        val degrees = paramsJSON.optDouble("angle") * KRViewConst.PI_AS_ANGLE / PI
+        drawOperationList.add(LambdaOp { _, canvas -> canvas.rotate(degrees.toFloat()) })
+    }
+
+    private fun skew(params: String?) {
+        val json = params.toJSONObjectSafely()
+        val x = json.optDouble(KRViewConst.X).toFloat()
+        val y = json.optDouble(KRViewConst.Y).toFloat()
+        drawOperationList.add(LambdaOp { _, canvas -> canvas.skew(x, y) })
+    }
+
+    private fun transform(params: String?) {
+        val json = params.toJSONObjectSafely()
+        val values = json.optJSONArray("values") ?: return
+        if (values.length() < 9) {
+            return
+        }
+        val array = FloatArray(9)
+        for (i in 0 until 9) {
+            if (i == Matrix.MTRANS_X || i == Matrix.MTRANS_Y) {
+                array[i] = kuiklyRenderContext.toPxF(values.optDouble(i).toFloat())
+            } else {
+                array[i] = values.optDouble(i).toFloat()
+            }
+        }
+        val m = Matrix().apply { setValues(array) }
+        drawOperationList.add(LambdaOp { _, canvas -> canvas.concat(m) })
+    }
+
     companion object {
         const val VIEW_NAME = "KRCanvasView"
 
@@ -398,16 +488,26 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
         private const val BEZIER_CURVE_TO = "bezierCurveTo"
         private const val RESET = "reset"
         private const val TYPE_COUNTER_CLOCKWISE = 1
+        private const val TRUE = 1
         private const val TEXT_ALIGN = "textAlign"
         private const val FONT = "font"
         private const val FILL_TEXT = "fillText"
         private const val STROKE_TEXT = "strokeText"
         private const val DRAW_IMAGE = "drawImage"
+        private const val SAVE = "save"
+        private const val SAVE_LAYER = "saveLayer"
+        private const val RESTORE = "restore"
+        private const val CLIP = "clip"
+        private const val TRANSLATE = "translate"
+        private const val SCALE = "scale"
+        private const val ROTATE = "rotate"
+        private const val SKEW = "skew"
+        private const val TRANSFORM = "transform"
         private const val LINE_DASH = "lineDash"
     }
 }
 
-private class HRPath : DrawOperation() {
+private class HRPath: DrawOperation {
 
     val path: Path = Path()
 
@@ -431,8 +531,6 @@ private class HRPath : DrawOperation() {
     }
 
     override fun draw(paint: Paint, canvas: Canvas) {
-        // 设置可绘制区域为 Canvas 的整个布局区域
-        canvas.clipRect(0, 0, canvas.width, canvas.height)
         for (drawStyle in drawStyleList) {
             drawStyle.applyStyle(paint)
             canvas.drawPath(path, paint)
@@ -441,11 +539,9 @@ private class HRPath : DrawOperation() {
 
 }
 
-private class TextOp(val text: String, val x: Float, val y: Float, val drawStyle: DrawStyle): DrawOperation() {
+private class TextOp(val text: String, val x: Float, val y: Float, val drawStyle: DrawStyle): DrawOperation {
 
     override fun draw(paint: Paint, canvas: Canvas) {
-        // 设置可绘制区域为 Canvas 的整个布局区域
-        canvas.clipRect(0, 0, canvas.width, canvas.height)
         drawStyle.applyStyle(paint)
         drawStyle.typeface?.also { paint.typeface = it }
         paint.textAlign = drawStyle.textAlign
@@ -465,7 +561,7 @@ private class ImageOp(
     val sy: Int,
     val sWidth: Int,
     val sHeight: Int
-) : DrawOperation() {
+) : DrawOperation {
     override fun draw(paint: Paint, canvas: Canvas) {
         canvas.save()
         canvas.clipRect(dx, dy, dx + dWidth, dy + dHeight)
@@ -480,130 +576,149 @@ private class ImageOp(
 
 }
 
-private abstract class DrawOperation {
+private class SaveLayerOp(
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float
+) : DrawOperation {
+    override fun draw(paint: Paint, canvas: Canvas) {
+        canvas.saveLayer(left, top, right, bottom, paint)
+    }
+}
 
-    abstract fun draw(paint: Paint, canvas: Canvas)
+private class LambdaOp(
+    private val drawAction: (Paint, Canvas) -> Unit
+) : DrawOperation {
+    override fun draw(paint: Paint, canvas: Canvas) {
+        drawAction(paint, canvas)
+    }
+}
 
-    class DrawStyle {
-        var lineCap = Paint.Cap.BUTT
-        var lineWidth = 0f
-        var lineDash: DashPathEffect? = null
-        var drawStyle = Paint.Style.STROKE
-        var fillColor: Int? = null
-        var fillGradient: LinearGradient? = null
+interface DrawOperation {
+    fun draw(paint: Paint, canvas: Canvas)
+}
 
-        var strokeColor: Int? = null
-        var strokeGradient: LinearGradient? = null
-        var textAlign = Paint.Align.LEFT
-        var typeface: Typeface? = null
-        var textSize: Float = 15f
-        var fontStyle: String = KRCssConst.EMPTY_STRING
-        var fontWeight: String = KRCssConst.EMPTY_STRING
-        var fontFamily: String = KRCssConst.EMPTY_STRING
 
-        fun lineCap(cap: String): DrawStyle = apply {
-            lineCap = when (cap) {
-                LINE_CAP_TYPE_BUTT -> Paint.Cap.BUTT
-                LINE_CAP_TYPE_ROUND -> Paint.Cap.ROUND
-                LINE_CAP_TYPE_SQUARE -> Paint.Cap.SQUARE
-                else -> Paint.Cap.BUTT
-            }
+private class DrawStyle(private val kuiklyContext: IKuiklyRenderContext?) {
+    var lineCap = Paint.Cap.BUTT
+    var lineWidth = 0f
+    var lineDash: DashPathEffect? = null
+    var drawStyle = Paint.Style.STROKE
+    var fillColor: Int? = null
+    var fillGradient: LinearGradient? = null
+
+    var strokeColor: Int? = null
+    var strokeGradient: LinearGradient? = null
+    var textAlign = Paint.Align.LEFT
+    var typeface: Typeface? = null
+    var textSize: Float = 15f
+    var fontStyle: String = KRCssConst.EMPTY_STRING
+    var fontWeight: String = KRCssConst.EMPTY_STRING
+    var fontFamily: String = KRCssConst.EMPTY_STRING
+
+    fun lineCap(cap: String): DrawStyle = apply {
+        lineCap = when (cap) {
+            LINE_CAP_TYPE_BUTT -> Paint.Cap.BUTT
+            LINE_CAP_TYPE_ROUND -> Paint.Cap.ROUND
+            LINE_CAP_TYPE_SQUARE -> Paint.Cap.SQUARE
+            else -> Paint.Cap.BUTT
         }
+    }
 
-        fun lineWidth(lineWidth: Float): DrawStyle = apply {
-            this.lineWidth = lineWidth
+    fun lineWidth(lineWidth: Float): DrawStyle = apply {
+        this.lineWidth = lineWidth
+    }
+
+    fun lineDash(dashPathEffect: DashPathEffect?): DrawStyle = apply {
+        this.lineDash = dashPathEffect
+    }
+
+    fun fillStyle(style: String): DrawStyle = apply {
+        fillGradient = tryParseGradient(style)
+        fillColor = if (fillGradient == null) {
+            style.toColor()
+        } else {
+            null
         }
+    }
 
-        fun lineDash(dashPathEffect: DashPathEffect?): DrawStyle = apply {
-            this.lineDash = dashPathEffect
+    fun strokeStyle(style: String): DrawStyle = apply {
+        strokeGradient = tryParseGradient(style)
+        strokeColor = if (strokeGradient == null) {
+            style.toColor()
+        } else {
+            null
         }
+    }
 
-        fun fillStyle(style: String): DrawStyle = apply {
-            fillGradient = tryParseGradient(style)
-            fillColor = if (fillGradient == null) {
-                style.toColor()
-            } else {
-                null
-            }
+    fun drawStyle(style: Paint.Style): DrawStyle = apply {
+        this.drawStyle = style
+    }
+
+    fun applyStyle(paint: Paint) {
+        paint.strokeCap = lineCap
+        paint.style = drawStyle
+        if (drawStyle == Paint.Style.FILL) {
+            internalApplyStyle(fillGradient, fillColor, paint)
+            paint.strokeWidth = 0f
+        } else {
+            internalApplyStyle(strokeGradient, strokeColor, paint)
+            paint.strokeWidth = lineWidth
         }
+        paint.setPathEffect(lineDash)
+    }
 
-        fun strokeStyle(style: String): DrawStyle = apply {
-            strokeGradient = tryParseGradient(style)
-            strokeColor = if (strokeGradient == null) {
-                style.toColor()
-            } else {
-                null
-            }
+    private fun internalApplyStyle(gradient: LinearGradient?, color: Int?, paint: Paint) {
+        if (color != null) {
+            paint.color = color
+            paint.shader = null
+            return
         }
-
-        fun drawStyle(style: Paint.Style): DrawStyle = apply {
-            this.drawStyle = style
+        if (gradient != null) {
+            paint.shader = gradient
+            return
         }
+    }
 
-        fun applyStyle(paint: Paint) {
-            paint.strokeCap = lineCap
-            paint.style = drawStyle
-            if (drawStyle == Paint.Style.FILL) {
-                internalApplyStyle(fillGradient, fillColor, paint)
-                paint.strokeWidth = 0f
-            } else {
-                internalApplyStyle(strokeGradient, strokeColor, paint)
-                paint.strokeWidth = lineWidth
-            }
-            paint.setPathEffect(lineDash)
+    private fun tryParseGradient(style: String): LinearGradient? {
+        val gradientPrefix = "linear-gradient"
+        return if (style.startsWith(gradientPrefix)) {
+            createLinearGradient(style.substring(gradientPrefix.length))
+        } else {
+            null
         }
+    }
 
-        private fun internalApplyStyle(gradient: LinearGradient?, color: Int?, paint: Paint) {
-            if (color != null) {
-                paint.color = color
-                paint.shader = null
-                return
-            }
-            if (gradient != null) {
-                paint.shader = gradient
-                return
-            }
+    private fun createLinearGradient(params: String): LinearGradient {
+        val paramsJSON = params.toJSONObjectSafely()
+        val leftX = kuiklyContext.toPxF(paramsJSON.optDouble("x0").toFloat())
+        val leftY = kuiklyContext.toPxF(paramsJSON.optDouble("y0").toFloat())
+        val rightX = kuiklyContext.toPxF(paramsJSON.optDouble("x1").toFloat())
+        val rightY = kuiklyContext.toPxF(paramsJSON.optDouble("y1").toFloat())
+        val colorStops = paramsJSON.optString("colorStops").split(",")
+        val colors = IntArray(colorStops.size)
+        val positions = FloatArray(colorStops.size)
+        colorStops.forEachIndexed { index, s ->
+            val colorAndPosition = s.split(" ")
+            colors[index] = colorAndPosition[0].toColor()
+            positions[index] = colorAndPosition[1].toFloat()
         }
-
-        private fun tryParseGradient(style: String): LinearGradient? {
-            val gradientPrefix = "linear-gradient"
-            return if (style.startsWith(gradientPrefix)) {
-                createLinearGradient(style.substring(gradientPrefix.length))
-            } else {
-                null
-            }
-        }
-
-        private fun createLinearGradient(params: String): LinearGradient {
-            val paramsJSON = params.toJSONObjectSafely()
-            val leftX = paramsJSON.optDouble("x0").toFloat().toPxF()
-            val leftY = paramsJSON.optDouble("y0").toFloat().toPxF()
-            val rightX = paramsJSON.optDouble("x1").toFloat().toPxF()
-            val rightY = paramsJSON.optDouble("y1").toFloat().toPxF()
-            val colorStops = paramsJSON.optString("colorStops").split(",")
-            val colors = IntArray(colorStops.size)
-            val positions = FloatArray(colorStops.size)
-            colorStops.forEachIndexed { index, s ->
-                val colorAndPosition = s.split(" ")
-                colors[index] = colorAndPosition[0].toColor()
-                positions[index] = colorAndPosition[1].toFloat()
-            }
-            return LinearGradient(
-                leftX,
-                leftY,
-                rightX,
-                rightY,
-                colors,
-                positions,
-                Shader.TileMode.CLAMP
-            )
-        }
+        return LinearGradient(
+            leftX,
+            leftY,
+            rightX,
+            rightY,
+            colors,
+            positions,
+            Shader.TileMode.CLAMP
+        )
+    }
 
 
-        companion object {
-            private const val LINE_CAP_TYPE_BUTT = "butt"
-            private const val LINE_CAP_TYPE_ROUND = "round"
-            private const val LINE_CAP_TYPE_SQUARE = "square"
-        }
+    companion object {
+        private const val LINE_CAP_TYPE_BUTT = "butt"
+        private const val LINE_CAP_TYPE_ROUND = "round"
+        private const val LINE_CAP_TYPE_SQUARE = "square"
     }
 }

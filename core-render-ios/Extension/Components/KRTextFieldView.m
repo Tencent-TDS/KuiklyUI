@@ -114,6 +114,12 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 
 - (void)setCss_text:(NSString *)css_text {
     self.text = css_text;
+    NSString *lastText = self.text ?: @"";
+    NSString *newText = css_text ?: @"";
+    if (![lastText isEqualToString:newText]) {
+        self.text = css_text;
+        [self onTextFeildTextChanged:self];
+    }
 }
 
 - (void)setCss_values:(NSString *)css_values {
@@ -138,7 +144,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
         } else {
             self.attributedText = nil;
         }
-  
+        [self onTextFeildTextChanged:self];
     }
 }
 
@@ -181,6 +187,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 
 - (void)setCss_keyboardType:(NSString *)css_keyboardType {
     self.keyboardType = [KRConvertUtil hr_keyBoardType:css_keyboardType];
+    [self setSecureTextEntry:[css_keyboardType isEqualToString:@"password"]];
 }
 
 - (void)setCss_returnKeyType:(NSString *)css_returnKeyType {
@@ -235,7 +242,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     [super layoutSubviews];
     if (_setNeedUpdatePlaceholder) {
         _setNeedUpdatePlaceholder = NO;
-        UIColor *color = [UIView css_color:self.css_placeholderColor];
+        UIColor *color = [UIView css_color:self.css_placeholderColor] ?: [UIColor grayColor];
         UIFont *font = self.font ?: [UIFont systemFontOfSize:16];
         self.attributedPlaceholder = [[NSMutableAttributedString alloc] initWithString:self.placeholder ?: @""
                                                                             attributes:@{NSForegroundColorAttributeName:color?: [UIColor clearColor],
@@ -252,7 +259,8 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     }
     [self p_limitTextInput];
     if (self.css_textDidChange) {
-        self.css_textDidChange(@{@"text": textField.text.copy ?: @""});
+        NSString *text = textField.text.copy ?: @"";
+        self.css_textDidChange(@{@"text": text, @"length": @([text kr_length])});
     }
 }
 
@@ -273,6 +281,10 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     if (self.css_inputReturn) {
         self.css_inputReturn(@{@"text": textField.text.copy ?: @""});
     }
+    return YES;
+}
+
+- (BOOL)textField:(UITextField *)textField shouldChangeCharactersInRange:(NSRange)range replacementString:(NSString *)string {
     return YES;
 }
 
@@ -328,26 +340,79 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 
 
 - (void)p_limitTextInput {
-    UITextField *textField = self;
+    UITextField *textView = self;
     // 判断是否存在高亮字符，不进行字数统计和字符串截断
-    UITextRange *selectedRange = textField.markedTextRange;
-    UITextPosition *position = [textField positionFromPosition:selectedRange.start offset:0];
+    UITextRange *selectedRange = textView.markedTextRange;
+    UITextPosition *position = [textView positionFromPosition:selectedRange.start offset:0];
     if (position) {
         return;
     }
-    NSInteger maxLength = [self.css_maxTextLength intValue];
+    NSInteger maxLength = [self maxInputLengthWithString:textView.attributedText.string];
     if (maxLength == 0) {
         return;
     }
-    if (textField.text.length > maxLength) {
-        NSRange range = [textField.text rangeOfComposedCharacterSequenceAtIndex:maxLength];
-        textField.text = [textField.text substringToIndex:range.location];
+    if (textView.attributedText.length > maxLength) {
+        if (textView.attributedText) {
+            
+           // NSUInteger location = self.selectedTextRange.start.location;
+            NSUInteger location = [self offsetFromPosition:self.beginningOfDocument toPosition:self.selectedTextRange.start];
+            NSMutableAttributedString *truncatedAttributedString = [textView.attributedText mutableCopy];
+            NSUInteger atIndex = MAX(location - 1, 0);
+            NSUInteger deleteLength = 0;
+             
+            while (truncatedAttributedString.length > maxLength && (atIndex < truncatedAttributedString.length && atIndex >= 0)) {
+                NSRange composedRange = [truncatedAttributedString.string rangeOfComposedCharacterSequenceAtIndex:atIndex]; // 避免切割emoji
+                if (composedRange.length == 0) {
+                    break;
+                }
+                [truncatedAttributedString deleteCharactersInRange:composedRange];
+                
+                atIndex = composedRange.location -1;
+                deleteLength += composedRange.length;
+            }
+            if (truncatedAttributedString.length > maxLength) {
+                NSRange range = [truncatedAttributedString.string rangeOfComposedCharacterSequenceAtIndex:maxLength];
+                truncatedAttributedString = [[NSMutableAttributedString alloc] initWithAttributedString:[truncatedAttributedString attributedSubstringFromRange:NSMakeRange(0, range.location)]];
+                location = maxLength;
+                deleteLength = 0;
+            }
+
+            textView.attributedText = truncatedAttributedString;
+            UITextPosition *newPosition = [self positionFromPosition:self.beginningOfDocument offset:MAX(location - deleteLength, 0)];
+          
+            self.selectedTextRange = [self textRangeFromPosition:newPosition toPosition:newPosition];
+
+            dispatch_async(dispatch_get_main_queue(), ^{
+                self.selectedTextRange = [self textRangeFromPosition:newPosition toPosition:newPosition];
+            });
+
+        }
+       
         if (self.css_textLengthBeyondLimit) {
             self.css_textLengthBeyondLimit(@{});
         }
     }
 }
 
+- (NSUInteger)maxInputLengthWithString:(NSString *)string {
+    NSInteger maxLength = [self.css_maxTextLength intValue];
+    if (maxLength <= 0) {
+        return 0;
+    }
+    NSUInteger count = 0;
+    NSUInteger length = string.length;
+    NSUInteger i = 0;
+    for (; i < length; ) {
+        NSRange range = [string rangeOfComposedCharacterSequenceAtIndex:i];
+        count++;
+        i += range.length;
+        if (count >= maxLength)  {
+            break;
+        }
+    }
+    
+    return MAX(i, maxLength);
+}
 
 
 @end

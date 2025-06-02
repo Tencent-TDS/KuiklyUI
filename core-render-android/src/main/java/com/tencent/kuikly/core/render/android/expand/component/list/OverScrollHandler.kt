@@ -20,10 +20,10 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ObjectAnimator
 import android.util.SparseArray
 import android.view.MotionEvent
+import android.view.VelocityTracker
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.animation.DecelerateInterpolator
-import androidx.recyclerview.widget.RecyclerView
 import com.tencent.kuikly.core.render.android.css.ktx.toNumberFloat
 import com.tencent.kuikly.core.render.android.css.ktx.toPxF
 import kotlin.math.abs
@@ -36,7 +36,7 @@ import kotlin.math.abs
  * @param overScrollEventCallback 边缘滚动offset回调
  */
 internal class OverScrollHandler(
-    private val recyclerView: RecyclerView,
+    private val recyclerView: KRRecyclerView,
     private val contentView: View,
     private val isVertical: Boolean,
     private val overScrollEventCallback: OverScrollEventCallback
@@ -69,6 +69,15 @@ internal class OverScrollHandler(
      */
     var contentInsetWhenEndDrag: KRRecyclerContentViewContentInset? = null
     var forceOverScroll = false
+
+    var overScrolling = false
+    var overScrollX: Float = 0f
+    var overScrollY: Float = 0f
+    private var hadBeginDrag = false
+
+    private val maxFlingVelocity = ViewConfiguration.get(recyclerView.context).scaledMaximumFlingVelocity
+    private var velocityTracker =  VelocityTracker.obtain()
+    private var scrollPointerId = -1
 
     fun onTouchEvent(event: MotionEvent): Boolean {
         if (!isInStart() && !isInEnd()) {
@@ -113,20 +122,17 @@ internal class OverScrollHandler(
         updatePointerData(activeIndex, event)
         if (forceOverScroll) {
             dragging = true
-            overScrollEventCallback.onBeginDragOverScroll(
-                contentView.translationX,
-                contentView.translationY,
-                isInStart(),
-                dragging
-            )
+            fireBeginOverScrollCallback()
         }
         initX = event.x
         initY = event.y
+        velocityTracker.addMovement(event)
         return false
     }
 
     private fun processPointerDownEvent(activeIndex: Int, event: MotionEvent): Boolean {
         downing = true
+        scrollPointerId = event.getPointerId(activeIndex)
         updatePointerData(activeIndex, event)
         return false
     }
@@ -136,12 +142,14 @@ internal class OverScrollHandler(
             processDownEvent(event.actionIndex, event)
         }
         if (!acceptEvent(event)) {
+            velocityTracker.clear()
             return false
         }
 
         val currentTranslation = getTranslation()
         val offset = getOverScrollOffset(event)
         if (offset == 0f) {
+            velocityTracker.clear()
             return dragging
         }
 
@@ -150,7 +158,13 @@ internal class OverScrollHandler(
             setTranslation(offset)
             dragging = true
             processEvent = true
+            if (!forceOverScroll && !hadBeginDrag) {
+                fireBeginOverScrollCallback()
+            }
             fireOverScrollCallback(contentView.translationX, contentView.translationY)
+        }
+        if (processEvent) {
+            velocityTracker.addMovement(event)
         }
         return processEvent
     }
@@ -176,7 +190,7 @@ internal class OverScrollHandler(
         )
 
     private fun needInStartTranslate(offset: Float, currentTranslation: Float): Boolean =
-        isInStart() && (offset > 0 || currentTranslation > 0)
+        !recyclerView.limitHeaderBounces && isInStart() && (offset > 0 || currentTranslation > 0)
 
     private fun needInEndTranslate(offset: Float, currentTranslation: Float): Boolean =
         isInEnd() && (offset < 0 || currentTranslation < 0)
@@ -189,14 +203,28 @@ internal class OverScrollHandler(
     private fun processBounceBack(): Boolean {
         pointerDataMap.clear()
         dragging = false
+        overScrollX = contentView.translationX
+        overScrollY = contentView.translationY
+        velocityTracker.computeCurrentVelocity(1000, maxFlingVelocity.toFloat())
+        val velocityX = if (isVertical) 0f else -velocityTracker.getXVelocity(scrollPointerId)
+        val velocityY = if (isVertical) -velocityTracker.getYVelocity(scrollPointerId) else 0f
         overScrollEventCallback.onEndDragOverScroll(
-            contentView.translationX,
-            contentView.translationY,
+            overScrollX,
+            overScrollY,
+            velocityX,
+            velocityY,
             isInStart(),
             dragging
         )
         startBounceBack()
+        velocityTracker.clear()
         return false
+    }
+
+    private fun resetState() {
+        pointerDataMap.clear()
+        dragging = false
+        velocityTracker.clear()
     }
 
     private fun startBounceBack(contentInset: KRRecyclerContentViewContentInset? = null) {
@@ -217,12 +245,16 @@ internal class OverScrollHandler(
         animator.duration = BOUND_BACK_DURATION
         animator.addListener(object : AnimatorListenerAdapter() {
             override fun onAnimationCancel(animation: Animator) {
+                hadBeginDrag = false
+                overScrolling = false
                 fireOverScrollAnimationCallback(finalOffset)
                 tryFireContentInsertFinish()
             }
 
             override fun onAnimationEnd(animation: Animator) {
                 super.onAnimationEnd(animation)
+                hadBeginDrag = false
+                overScrolling = false
                 fireOverScrollAnimationCallback(finalOffset)
                 tryFireContentInsertFinish()
             }
@@ -272,11 +304,26 @@ internal class OverScrollHandler(
         fireOverScrollAnimationCallback(finalOffset)
     }
 
+    private fun fireBeginOverScrollCallback() {
+        overScrolling = true
+        overScrollX = contentView.translationX
+        overScrollY = contentView.translationY
+        overScrollEventCallback.onBeginDragOverScroll(
+            overScrollX,
+            overScrollY,
+            isInStart(),
+            dragging
+        )
+        hadBeginDrag = true
+    }
+
     private fun fireOverScrollCallback(offsetX: Float, offsetY: Float) {
+        overScrollX = offsetX
+        overScrollY = offsetY
         overScrollEventCallback.onOverScroll(offsetX, offsetY, isInStart(), dragging)
     }
 
-    private fun isInStart(): Boolean {
+    fun isInStart(): Boolean {
         return if (isVertical) {
             !recyclerView.canScrollVertically(DIRECTION_SCROLL_UP)
         } else {
@@ -312,7 +359,7 @@ internal class OverScrollHandler(
      * 处理overScroll的值，随着currentTranslation越来越大, newOffset会越来越小，起到一个阻尼的效果
      */
     private fun getNewOffset(currentTranslation: Float, offset: Float): Float =
-        offset / (NEW_OFFSET_ADD_FACTOR + abs(currentTranslation) / NEW_OFFSET_SCALE_FACTOR.toPxF())
+        offset / (NEW_OFFSET_ADD_FACTOR + abs(currentTranslation) / recyclerView.kuiklyRenderContext.toPxF(NEW_OFFSET_SCALE_FACTOR))
 
     private fun getTranslation(): Float {
         return if (isVertical) {
@@ -377,6 +424,8 @@ internal interface OverScrollEventCallback {
     fun onEndDragOverScroll(
         offsetX: Float,
         offsetY: Float,
+        velocityX: Float,
+        velocityY: Float,
         overScrollStart: Boolean,
         isDragging: Boolean
     )

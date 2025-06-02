@@ -19,6 +19,7 @@ import com.tencent.kuikly.core.base.*
 import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.base.event.EventHandlerFn
 import com.tencent.kuikly.core.collection.fastArrayListOf
+import com.tencent.kuikly.core.module.FontModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 
@@ -113,8 +114,18 @@ class TextAreaAttr : Attr() {
         return this
     }
 
-    fun fontSize(size: Any): TextAreaAttr{
+    fun fontSize(size: Any): TextAreaAttr {
         TextConst.FONT_SIZE with size
+        return this
+    }
+
+    fun fontSize(size: Float, scaleFontSizeEnable: Boolean? = null): TextAreaAttr {
+        TextConst.FONT_SIZE with FontModule.scaleFontSize(size, scaleFontSizeEnable)
+        return this
+    }
+
+    fun lines(lines: Int): TextAreaAttr {
+        TextConst.LINES with lines
         return this
     }
 

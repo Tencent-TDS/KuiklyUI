@@ -17,7 +17,6 @@ package com.tencent.kuikly.core.base
 
 import com.tencent.kuikly.core.collection.fastHashMapOf
 import com.tencent.kuikly.core.manager.PagerManager
-import com.tencent.kuikly.core.reactive.ReactiveObserver
 
 @DslMarker
 annotation class ScopeMarker

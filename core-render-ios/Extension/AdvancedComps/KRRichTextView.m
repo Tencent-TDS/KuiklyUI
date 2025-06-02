@@ -17,6 +17,7 @@
 #import "KRComponentDefine.h"
 #import "KRConvertUtil.h"
 #import "KuiklyRenderBridge.h"
+#import "NSObject+KR.h"
 
 NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
 @interface KRRichTextView()
@@ -86,7 +87,7 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
     KRTextRender * textRender = self.attributedText.hr_textRender;
     NSInteger index = [textRender characterIndexForPoint:location];
     NSNumber *spanIndex = nil;
-    if (index >= 0) {
+    if (index >= 0 && index < self.attributedText.length) {
         spanIndex = [self.attributedText attribute:KuiklyIndexAttributeName atIndex:index effectiveRange:nil];
     }
     self.css_click(@{
@@ -140,11 +141,12 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
 - (CGSize)hrv_calculateRenderViewSizeWithConstraintSize:(CGSize)constraintSize {
     _mAttributedString = [self p_buildAttributedString];
    
-    CGFloat height = constraintSize.height > 0 ?: MAXFLOAT;
+    CGFloat height = constraintSize.height > 0 ? constraintSize.height : MAXFLOAT;
     NSInteger numberOfLines = [KRConvertUtil NSInteger:_props[@"numberOfLines"]];
     NSLineBreakMode lineBreakMode = [KRConvertUtil NSLineBreakMode:_props[@"lineBreakMode"]];
     CGFloat lineBreakMargin = [KRConvertUtil CGFloat:_props[@"lineBreakMargin"]];
-    CGSize fitSize = [KRLabel sizeThatFits:CGSizeMake(constraintSize.width, height) attributedString:_mAttributedString numberOfLines:numberOfLines lineBreakMode:lineBreakMode lineBreakMarin:lineBreakMargin];
+    CGFloat lineHeight = [KRConvertUtil CGFloat:_props[@"lineHeight"]];
+    CGSize fitSize = [KRLabel sizeThatFits:CGSizeMake(constraintSize.width, height) attributedString:_mAttributedString numberOfLines:numberOfLines lineBreakMode:lineBreakMode lineBreakMarin:lineBreakMargin lineHeight:lineHeight];
     return fitSize;
 }
 
@@ -181,6 +183,7 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
     _spans = spans;
     NSString *textPostProcessor = nil;
     NSMutableArray * richAttrArray = [NSMutableArray new];
+    UIFont *mainFont = nil;
     for (NSMutableDictionary * span in spans) {
         if (span[@"placeholderWidth"]) { // 属于占位span
             NSAttributedString *placeholderSpanAttributedString = [self p_createPlaceholderSpanAttributedStringWithSpan:span];
@@ -206,8 +209,7 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
         if (propStyle[@"lineHeight"]) {
             lineHeight = @([KRConvertUtil CGFloat:propStyle[@"lineHeight"]]);
         } else {
-            lineSpacing = @([KRConvertUtil CGFloat:propStyle[@"fontSize"]] * 0.2 +
-            [KRConvertUtil CGFloat:propStyle[@"lineSpacing"]]);
+            lineSpacing = @([KRConvertUtil CGFloat:propStyle[@"lineSpacing"]]);
         }
         CGFloat headIndent = [KRConvertUtil CGFloat:propStyle[@"headIndent"]];
         UIColor *strokeColor = [UIView css_color:propStyle[@"strokeColor"]];
@@ -228,6 +230,15 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
             textPostProcessor = propStyle[@"textPostProcessor"];
         }
 
+        if (!mainFont) {
+            mainFont = font;
+        }
+        if ([textPostProcessor isKindOfClass:[NSString class]] && textPostProcessor.length) {
+            // 代理
+            if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(kr_customTextWithText:textPostProcessor:)]) {
+                text = [[KuiklyRenderBridge componentExpandHandler] kr_customTextWithText:text textPostProcessor:textPostProcessor];
+            }
+        }
         NSMutableAttributedString *spanAttrString = [self p_createSpanAttributedStringWithText:text
                                                                                      spanIndex:spanIndex
                                                                                           font:font
@@ -249,14 +260,10 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
     for (NSAttributedString *attr in richAttrArray) {
         [resAttr appendAttributedString:attr];
     }
-    
-    if (resAttr && resAttr.length) {
-        if (@available(iOS 10.0, *)) {//fix 文字书写方向问题 lre rle 混合 资料 https://juejin.im/entry/5837a426ac502e006c0ad103
-            [resAttr addAttribute:NSWritingDirectionAttributeName
-                        value:@[@(NSWritingDirectionLeftToRight|NSWritingDirectionEmbedding ),@(NSWritingDirectionRightToLeft|NSWritingDirectionEmbedding)]
-                        range:NSMakeRange(0, resAttr.length)];
-        } else {
-            // Fallback on earlier versions
+    if ([textPostProcessor isKindOfClass:[NSString class]] && textPostProcessor.length) {
+        // 代理
+        if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(kr_customTextWithAttributedString:font:textPostProcessor:)]) {
+            resAttr = [[KuiklyRenderBridge componentExpandHandler] kr_customTextWithAttributedString:resAttr font:mainFont textPostProcessor:textPostProcessor];
         }
     }
     if ([textPostProcessor isKindOfClass:[NSString class]] && textPostProcessor.length) {
@@ -287,6 +294,8 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
     
     [attributedString addAttribute:NSForegroundColorAttributeName value:color range:range];
 
+//    // 强制使用LTR文本方向
+    [attributedString addAttribute:NSWritingDirectionAttributeName value:@[@(NSWritingDirectionLeftToRight | NSTextWritingDirectionOverride)] range:range];
     
     if(letterSpacing){
         [attributedString addAttribute:NSKernAttributeName value:@(letterSpacing) range:range];
@@ -331,12 +340,23 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
         }
     }
     UIFont *font = [KRConvertUtil UIFont:propStyle];
-    attachment.offsetY = ( height - font.capHeight ) / 2.0;
+
+    CGFloat lineHeight = [KRConvertUtil CGFloat:propStyle[@"lineHeight"]];
+    if (lineHeight > 0) {
+        attachment.offsetY = - font.descender;
+    } else {
+        attachment.offsetY = ( height - font.capHeight ) / 2.0;
+    }
+
     attachment.bounds = CGRectMake(0, -attachment.offsetY, width, height);
     if ([span isKindOfClass:[NSMutableDictionary class]]) {
         ((NSMutableDictionary *)span)[@"attachment"] = attachment;
     }
-    return [NSAttributedString attributedStringWithAttachment:attachment];
+
+    NSAttributedString *attrString = [NSAttributedString attributedStringWithAttachment:attachment];
+    NSMutableAttributedString *mutableAttrString = [[NSMutableAttributedString alloc] initWithAttributedString:attrString];
+    [mutableAttrString kr_addAttribute:NSWritingDirectionAttributeName value:@[@(NSWritingDirectionLeftToRight | NSTextWritingDirectionOverride)] range:NSMakeRange(0, mutableAttrString.length)];
+    return mutableAttrString;
 }
 
 
@@ -350,13 +370,15 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
                                 font:(UIFont *)font {
     NSMutableParagraphStyle *style  = [[NSMutableParagraphStyle alloc] init];
     style.alignment = textAliment;
+    // 强制使用LTR文本方向，确保文本始终从左到右显示
+    style.baseWritingDirection = NSWritingDirectionLeftToRight;
     if (lineSpacing) {
          style.lineSpacing = ceil([lineSpacing floatValue]) ;
     }
     if (lineHeight) {
         style.maximumLineHeight = [lineHeight floatValue];
         style.minimumLineHeight = [lineHeight floatValue];
-        CGFloat baselineOffset = ([lineHeight floatValue]  - font.lineHeight) / 2;
+        CGFloat baselineOffset = ([lineHeight floatValue]  - font.pointSize) / 2;
         [attributedString addAttribute:NSBaselineOffsetAttributeName value:@(baselineOffset) range:range];
     }
     if (paragraphSpacing) {
@@ -379,6 +401,27 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
     NSInteger spanIndex = [params intValue];
     if (spanIndex < _spans.count ) {
         KRRichTextAttachment *attachment = _spans[spanIndex][@"attachment"];
+
+        // 检查attachment是否在可见范围内
+        NSInteger numberOfLines = [KRConvertUtil NSInteger:_props[@"numberOfLines"]];
+        NSLayoutManager *layoutManager = _mAttributedString.hr_textRender.layoutManager;
+        NSTextContainer *textContainer = _mAttributedString.hr_textRender.textContainer;
+
+        if (numberOfLines > 0 && layoutManager && textContainer) {
+            // 获取attachment对应的字形索引
+            NSUInteger glyphIndex = [layoutManager glyphIndexForCharacterAtIndex:attachment.charIndex];
+            // 获取截断的字形范围
+            NSRange truncatedGlyphRange = [layoutManager truncatedGlyphRangeInLineFragmentForGlyphAtIndex:glyphIndex];
+
+            // 如果有截断
+            if (truncatedGlyphRange.location != NSNotFound && truncatedGlyphRange.length > 0) {
+                // 判断attachment是否在截断范围内
+                if (glyphIndex >= truncatedGlyphRange.location) {
+                    return @"";
+                }
+            }
+        }
+
         CGRect frame = [_mAttributedString.hr_textRender boundingRectForCharacterRange:NSMakeRange(attachment.charIndex, 1)];
         CGFloat offsetY = (CGRectGetHeight(frame) - attachment.bounds.size.height) / 2.0;
         return [NSString stringWithFormat:@"%.2lf %.2lf %.2lf %.2lf", CGRectGetMinX(frame), CGRectGetMinY(frame) + offsetY, attachment.bounds.size.width , attachment.bounds.size.height];

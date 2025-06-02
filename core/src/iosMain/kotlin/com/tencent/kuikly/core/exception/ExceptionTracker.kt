@@ -12,12 +12,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:OptIn(kotlin.experimental.ExperimentalNativeApi::class)
 
 package com.tencent.kuikly.core.exception
 
 import com.tencent.kuikly.core.manager.BridgeManager
-import kotlin.native.concurrent.AtomicReference
-import kotlin.native.concurrent.freeze
+import kotlin.concurrent.AtomicReference
 
 object ExceptionTracker {
 
@@ -36,6 +36,6 @@ object ExceptionTracker {
             prevHook.value?.invoke(it)
             terminateWithUnhandledException(it)
         }
-        prevHook.value = setUnhandledExceptionHook(wrappedHook.freeze())
+        prevHook.value = setUnhandledExceptionHook(wrappedHook)
     }
 }

@@ -23,6 +23,8 @@ import com.tencent.kuikly.core.annotations.Page
 import impl.AndroidTargetEntryBuilder
 import impl.KuiklyCoreAbsEntryBuilder
 import impl.IOSTargetEntryBuilder
+import impl.OhOsTargetEntryBuilder
+import impl.OhOsTargetMultiEntryBuilder
 import impl.PageInfo
 import impl.submodule.AndroidMultiEntryBuilder
 import impl.submodule.IOSMultiTargetEntryBuilder
@@ -125,6 +127,13 @@ class CoreProcessor(
                     IOSMultiTargetEntryBuilder(isMainModule, subModules, moduleId)
                 } else {
                     IOSTargetEntryBuilder()
+                }
+            }
+            outputSourceSet.ohosFamily() -> {
+                if (enableMultiModule) {
+                    OhOsTargetMultiEntryBuilder(isMainModule, subModules, moduleId)
+                }else{
+                    OhOsTargetEntryBuilder()
                 }
             }
             else -> {

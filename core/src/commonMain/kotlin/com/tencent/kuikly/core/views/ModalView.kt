@@ -40,7 +40,7 @@ fun ViewContainer<*, *>.Modal(inWindow: Boolean = false, init: ModalView.() -> U
 
 class ModalView : ViewContainer<ContainerAttr, Event>() {
     /* 层级是否顶层，和屏幕等大 */
-    internal var inWindow: Boolean = false
+    var inWindow: Boolean = false
         set(value) {
             // native render版本最低要求
             if (PagerManager.getCurrentPager().pageData.nativeBuild >= MIN_BUILD_VERSION) {

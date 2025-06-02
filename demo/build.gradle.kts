@@ -4,8 +4,10 @@ import org.jetbrains.kotlin.konan.target.Family
 plugins {
     kotlin("multiplatform")
     kotlin("native.cocoapods")
+    kotlin("plugin.compose")
     id("com.android.library")
     id("com.google.devtools.ksp")
+    id("org.jetbrains.compose")
 }
 
 
@@ -19,21 +21,26 @@ repositories {
 kotlin {
 
     // target
-    android() {
+    androidTarget() {
         publishLibraryVariantsGroupedByFlavor = true
         publishLibraryVariants("release")
     }
 
-    jvm()
-
-    ios()
     iosX64()
+    iosArm64()
     iosSimulatorArm64()
+
+    sourceSets {
+        all {
+            languageSettings.optIn("kotlinx.cinterop.ExperimentalForeignApi")
+        }
+    }
 
     // sourceSet
     val commonMain by sourceSets.getting {
         dependencies {
             implementation(project(":core"))
+            implementation(project(":compose"))
             compileOnly(project(":core-annotations"))
         }
     }
@@ -46,26 +53,16 @@ kotlin {
 //        )
     }
 
-    val iosMain by sourceSets.getting {
-        dependsOn(commonMain)
-    }
-
-    val jvmMain by sourceSets.getting {
+    sourceSets.iosMain {
         dependsOn(commonMain)
     }
 
     targets.withType<KotlinNativeTarget> {
         val mainSourceSets = this.compilations.getByName("main").defaultSourceSet
         when {
+
             konanTarget.family.isAppleFamily -> {
-                binaries {
-//                    framework {
-//                        isStatic = true
-//                        embedBitcode("bitcode")
-//                        freeCompilerArgs = freeCompilerArgs + getCommonCompilerArgs()
-//                    }
-                }
-                mainSourceSets.dependsOn(iosMain)
+                mainSourceSets.dependsOn(sourceSets.getByName("iosMain"))
             }
 
             konanTarget.family == Family.ANDROID -> {
@@ -90,6 +87,7 @@ kotlin {
         ios.deploymentTarget = "14.1"
 //        podfile = project.file("../iosApp/Podfile")
         framework {
+            isStatic = true
             baseName = "shared"
         }
         license = "MIT"
@@ -111,7 +109,7 @@ dependencies {
 }
 
 android {
-    compileSdk = 30
+    compileSdk = 34
     sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
     defaultConfig {
         minSdk = 21

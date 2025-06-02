@@ -119,7 +119,6 @@ internal class EasyCardView : ComposeView<EasyCardAttr, EasyCardEvent>() {
     }
 }
 
-
 internal fun ViewContainer<*, *>.EasyCard(init: EasyCardView.() -> Unit) {
     addChild(EasyCardView(), init)
 }

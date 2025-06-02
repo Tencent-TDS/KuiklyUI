@@ -51,7 +51,6 @@ interface IKuiklyRenderContextHandler {
      */
     fun setBridgeStatusListener(listener: IKotlinBridgeStatusListener)
 
-
     /**
      * 设置异常监听
      */
@@ -106,4 +105,3 @@ enum class KuiklyRenderNativeMethod(val value: Int) {
 }
 
 typealias KuiklyRenderNativeMethodCallback = (methodId: KuiklyRenderNativeMethod, args: List<Any?>) -> Any?
-

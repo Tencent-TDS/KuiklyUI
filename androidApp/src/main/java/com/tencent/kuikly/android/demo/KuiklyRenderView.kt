@@ -24,7 +24,6 @@ import com.tencent.kuikly.core.render.android.expand.KuiklyBaseView
 
 class KuiklyRenderView(context: Context, delegate: KuiklyRenderViewBaseDelegatorDelegate? = null) : KuiklyBaseView(context, delegate) {
 
-
     override fun registerExternalModule(kuiklyRenderExport: IKuiklyRenderExport) {
         super.registerExternalModule(kuiklyRenderExport)
         with(kuiklyRenderExport) {

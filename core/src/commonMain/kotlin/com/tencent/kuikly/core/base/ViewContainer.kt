@@ -21,6 +21,7 @@ import com.tencent.kuikly.core.base.attr.IEventCaptureAttr
 import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.collection.fastArrayListOf
 import com.tencent.kuikly.core.collection.toFastList
+import com.tencent.kuikly.core.exception.throwRuntimeError
 import com.tencent.kuikly.core.layout.FlexAlign
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexJustifyContent
@@ -35,6 +36,10 @@ import com.tencent.kuikly.core.views.RichTextView
 import com.tencent.kuikly.core.views.ScrollerContentView
 import com.tencent.kuikly.core.views.TextView
 
+interface IChildInit<T> {
+    fun childInit(child: T)
+}
+
 abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView<A, E>() {
 
     protected val children = fastArrayListOf<DeclarativeBaseView<*, *>>()
@@ -43,7 +48,7 @@ abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView
     private var createRenderViewing = false
 
     open fun <T : DeclarativeBaseView<*, *>> addChild(child: T, init: T.() -> Unit) {
-        addChild(child, init, children.size)
+        addChild(child, init, -1)
     }
 
     open fun realContainerView(): ViewContainer<*, *> {
@@ -61,7 +66,7 @@ abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView
         internalRemoveChild(child)
     }
 
-    fun removeChild(index: Int) {
+    open fun removeChild(index: Int) {
         internalRemoveChild(children[index])
     }
 
@@ -86,7 +91,7 @@ abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView
         templateChildren().forEach(action)
     }
 
-    fun getChild(index: Int): DeclarativeBaseView<*, *> {
+    open fun getChild(index: Int): DeclarativeBaseView<*, *> {
         return children[index]
     }
 
@@ -226,10 +231,29 @@ abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView
         removeChildren()
     }
 
+    fun move(from: Int, to: Int, count: Int) {
+        if (from == to) {
+            return // nothing to do
+        }
+
+        for (i in 0 until count) {
+            // if "from" is after "to," the from index moves because we're inserting before it
+            val fromIndex = if (from > to) from + i else from
+            val toIndex = if (from > to) to + i else to + count - 2
+            val child = children.removeAt(fromIndex)
+
+            children.add(toIndex, child)
+        }
+    }
+
     private fun internalAddChild(child: DeclarativeBaseView<*, *>, index: Int) {
         child.pagerId = pagerId
         child.willMoveToParentComponent()
-        children.add(index, child)
+        if (index < 0) { // append when index -1
+            children.add(child)
+        } else {
+            children.add(index, child)
+        }
         child.parentRef = nativeRef
         child.didMoveToParentView()
     }
@@ -452,5 +476,4 @@ open class ContainerAttr : Attr(), IContainerLayoutAttr, IEventCaptureAttr {
             }
         }.toString()
     }
-
 }

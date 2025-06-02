@@ -17,9 +17,11 @@ package com.tencent.kuikly.core.render.android.css.gesture
 
 import android.view.GestureDetector
 import android.view.MotionEvent
+import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
 import com.tencent.kuikly.core.render.android.const.KRViewConst
 import com.tencent.kuikly.core.render.android.css.ktx.toDpF
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
+import java.lang.ref.WeakReference
 
 /**
  * 手势处理类
@@ -29,7 +31,7 @@ import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
  * 3.[TYPE_LONG_PRESS]: 长按事件
  * 4.[TYPE_PAN]: 拖拽事件
  */
-class KRCSSGestureListener : GestureDetector.SimpleOnGestureListener() {
+class KRCSSGestureListener(private val kuiklyContext: IKuiklyRenderContext?) : GestureDetector.SimpleOnGestureListener() {
 
     /**
      * 事件监听列表
@@ -46,12 +48,28 @@ class KRCSSGestureListener : GestureDetector.SimpleOnGestureListener() {
      */
     var isLongPressEventHappening = false
 
+    private var gestureDetectorWeakRef: WeakReference<GestureDetector>? = null
+
+    fun setGestureDetector(gestureDetector: GestureDetector) {
+        gestureDetectorWeakRef = WeakReference(gestureDetector)
+    }
+
+    fun setLongPressEnable(enable: Boolean) {
+        gestureDetectorWeakRef?.get()?.setIsLongpressEnabled(enable)
+    }
+
     /**
      * 添加感兴趣的事件
      * @param type 事件类型
      * @param callback 事件回调
      */
     fun addListener(type: Int, callback: KuiklyRenderCallback) {
+        for (observe in gestureListeners) {
+            if (observe.type == type) {
+                observe.callback = callback
+                return
+            }
+        }
         gestureListeners.add(GestureObserve(callback, type))
     }
 
@@ -108,11 +126,11 @@ class KRCSSGestureListener : GestureDetector.SimpleOnGestureListener() {
     fun onLongPressMoveOrEnd(e: MotionEvent): Boolean {
         dispatchEvent(
             TYPE_LONG_PRESS, mapOf(
-                KRViewConst.X to e.x.toDpF(),
-                KRViewConst.Y to e.y.toDpF(),
+                KRViewConst.X to kuiklyContext.toDpF(e.x),
+                KRViewConst.Y to kuiklyContext.toDpF(e.y),
                 EVENT_STATE to convertAction(e.action),
-                PAGE_X to e.rawX.toDpF(),
-                PAGE_Y to e.rawY.toDpF()
+                PAGE_X to kuiklyContext.toDpF(e.rawX),
+                PAGE_Y to kuiklyContext.toDpF(e.rawY)
             )
         )
         return true
@@ -138,10 +156,10 @@ class KRCSSGestureListener : GestureDetector.SimpleOnGestureListener() {
         return if (!containEvent(TYPE_DOUBLE_CLICK)) {
             return dispatchEvent(
                 TYPE_CLICK, mapOf(
-                    KRViewConst.X to e.x.toDpF(),
-                    KRViewConst.Y to e.y.toDpF(),
-                    PAGE_X to e.rawX.toDpF(),
-                    PAGE_Y to e.rawY.toDpF()
+                    KRViewConst.X to kuiklyContext.toDpF(e.x),
+                    KRViewConst.Y to kuiklyContext.toDpF(e.y),
+                    PAGE_X to kuiklyContext.toDpF(e.rawX),
+                    PAGE_Y to kuiklyContext.toDpF(e.rawY)
                 )
             )
         } else {
@@ -153,10 +171,10 @@ class KRCSSGestureListener : GestureDetector.SimpleOnGestureListener() {
         return if (containEvent(TYPE_DOUBLE_CLICK)) {
             dispatchEvent(
                 TYPE_CLICK, mapOf(
-                    KRViewConst.X to e.x.toDpF(),
-                    KRViewConst.Y to e.y.toDpF(),
-                    PAGE_X to e.rawX.toDpF(),
-                    PAGE_Y to e.rawY.toDpF()
+                    KRViewConst.X to kuiklyContext.toDpF(e.x),
+                    KRViewConst.Y to kuiklyContext.toDpF(e.y),
+                    PAGE_X to kuiklyContext.toDpF(e.rawX),
+                    PAGE_Y to kuiklyContext.toDpF(e.rawY)
                 )
             )
         } else {
@@ -168,19 +186,19 @@ class KRCSSGestureListener : GestureDetector.SimpleOnGestureListener() {
         return if (!containEvent(TYPE_DOUBLE_CLICK)) {
             dispatchEvent(
                 TYPE_CLICK, mapOf(
-                    KRViewConst.X to e.x.toDpF(),
-                    KRViewConst.Y to e.y.toDpF(),
-                    PAGE_X to e.rawX.toDpF(),
-                    PAGE_Y to e.rawY.toDpF()
+                    KRViewConst.X to kuiklyContext.toDpF(e.x),
+                    KRViewConst.Y to kuiklyContext.toDpF(e.y),
+                    PAGE_X to kuiklyContext.toDpF(e.rawX),
+                    PAGE_Y to kuiklyContext.toDpF(e.rawY)
                 )
             )
         } else {
             dispatchEvent(
                 TYPE_DOUBLE_CLICK, mapOf(
-                    KRViewConst.X to e.x.toDpF(),
-                    KRViewConst.Y to e.y.toDpF(),
-                    PAGE_X to e.rawX.toDpF(),
-                    PAGE_Y to e.rawY.toDpF()
+                    KRViewConst.X to kuiklyContext.toDpF(e.x),
+                    KRViewConst.Y to kuiklyContext.toDpF(e.y),
+                    PAGE_X to kuiklyContext.toDpF(e.rawX),
+                    PAGE_Y to kuiklyContext.toDpF(e.rawY)
                 )
             )
         }
@@ -190,11 +208,11 @@ class KRCSSGestureListener : GestureDetector.SimpleOnGestureListener() {
         isLongPressEventHappening = true
         dispatchEvent(
             TYPE_LONG_PRESS, mapOf(
-                KRViewConst.X to e.x.toDpF(),
-                KRViewConst.Y to e.y.toDpF(),
+                KRViewConst.X to kuiklyContext.toDpF(e.x),
+                KRViewConst.Y to kuiklyContext.toDpF(e.y),
                 EVENT_STATE to convertAction(e.action),
-                PAGE_X to e.rawX.toDpF(),
-                PAGE_Y to e.rawY.toDpF()
+                PAGE_X to kuiklyContext.toDpF(e.rawX),
+                PAGE_Y to kuiklyContext.toDpF(e.rawY)
             )
         )
     }
@@ -220,11 +238,11 @@ class KRCSSGestureListener : GestureDetector.SimpleOnGestureListener() {
 
     private fun dispatchPanEvent(action: Int, e: MotionEvent) {
         dispatchEvent(TYPE_PAN, mapOf(
-            KRViewConst.X to e.x.toDpF(),
-            KRViewConst.Y to e.y.toDpF(),
+            KRViewConst.X to kuiklyContext.toDpF(e.x),
+            KRViewConst.Y to kuiklyContext.toDpF(e.y),
             EVENT_STATE to convertAction(action),
-            PAGE_X to e.rawX.toDpF(),
-            PAGE_Y to e.rawY.toDpF()
+            PAGE_X to kuiklyContext.toDpF(e.rawX),
+            PAGE_Y to kuiklyContext.toDpF(e.rawY)
         ))
     }
 
@@ -252,16 +270,16 @@ class KRCSSGestureListener : GestureDetector.SimpleOnGestureListener() {
         const val TYPE_LONG_PRESS = 3
         const val TYPE_PAN = 4
 
-        private const val EVENT_STATE = "state"
+        const val EVENT_STATE = "state"
         private const val PAGE_X = "pageX"
         private const val PAGE_Y = "pageY"
-        private const val EVENT_STATE_START = "start"
+        const val EVENT_STATE_START = "start"
         private const val EVENT_STATE_MOVE = "move"
         private const val EVENT_STATE_END = "end"
     }
 
-    data class GestureObserve(
-        val callback: KuiklyRenderCallback,
+    class GestureObserve(
+        var callback: KuiklyRenderCallback,
         val type: Int
     )
 }

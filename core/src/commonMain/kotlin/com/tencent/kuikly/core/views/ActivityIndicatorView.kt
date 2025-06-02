@@ -20,8 +20,7 @@ import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.base.ViewConst
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.event.Event
-import com.tencent.kuikly.core.base.toInt
-import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+
 /*
  *  @brief 活动指示器（旋转菊花样式）
  *  注：size ios系统限制为默认size(20f, 20f), 所以这里多端统一固定尺寸为20f，
@@ -59,9 +58,7 @@ class ActivityIndicatorAttr : Attr() {
 
 }
 
-class ActivityIndicatorEvent : Event() {
-
-}
+class ActivityIndicatorEvent : Event()
 
 /*
  *  @brief 活动指示器（旋转菊花样式）

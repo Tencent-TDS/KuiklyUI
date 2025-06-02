@@ -26,7 +26,6 @@ import com.tencent.kuikly.demo.pages.demo.base.NavBar
 @Page("ActivityIndicatorExamplePage")
 internal class ActivityIndicatorExamplePage : BasePager() {
 
-
     override fun body(): ViewBuilder {
         val ctx = this
         return {

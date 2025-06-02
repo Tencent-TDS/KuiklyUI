@@ -86,7 +86,7 @@ kotlin {
             api("androidx.annotation:annotation:1.9.1")
             api("org.jetbrains.kotlinx:atomicfu:0.25.0")
             api("org.jetbrains.compose.collection-internal:collection:1.6.11")
-            implementation("com.tencent.kuiklyx-open:coroutines:1.0.1")
+            implementation("com.tencent.kuiklyx-open:coroutines:1.1.0-1.9.22")
         }
 
         // Android 特有源集中添加 ProfileInstaller 依赖

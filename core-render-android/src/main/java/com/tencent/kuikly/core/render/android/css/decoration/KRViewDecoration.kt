@@ -15,19 +15,20 @@
 
 package com.tencent.kuikly.core.render.android.css.decoration
 
+import android.graphics.BlurMaskFilter
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
+import android.graphics.Outline
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
-import android.graphics.Canvas
-import android.graphics.BlurMaskFilter
-import android.graphics.Matrix
-import android.graphics.Outline
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.LayerDrawable
 import android.os.Build
 import android.view.View
 import android.view.ViewOutlineProvider
+import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
 import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.css.animation.KRCSSTransform
 import com.tencent.kuikly.core.render.android.css.drawable.KRCSSBackgroundDrawable
@@ -42,6 +43,8 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
      * 绘制目标View弱引用
      */
     private val targetViewWeakRef = WeakReference(targetView)
+
+    private val kuiklyContext = targetView.context as? IKuiklyRenderContext
 
     private val path by lazy {
         Path()
@@ -98,7 +101,7 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
 
     // 圆角相关
     private var borderRadii: FloatArray? = null
-    private var borderRadiusF = BORDER_RADIUS_UNSET_VALUE
+    var borderRadiusF = BORDER_RADIUS_UNSET_VALUE
     var borderRadius: String = KRCssConst.EMPTY_STRING
         set(value) {
             if (field == value) {
@@ -194,7 +197,6 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
         canvas.clipPath(path)
     }
 
-
     private fun applyMatrix(w: Int, h: Int, canvas: Canvas) {
         matrix?.also {
             canvas.concat(it)
@@ -225,7 +227,7 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
         if (shadowValue == KRCssConst.EMPTY_STRING) {
             resetShadow()
         } else {
-            BoxShadow(shadowValue).let {
+            BoxShadow(shadowValue, kuiklyContext).let {
                 shadowOffsetX = it.shadowOffsetX
                 shadowOffsetY = it.shadowOffsetY
                 shadowRadius = it.shadowRadius
@@ -244,10 +246,10 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
     private fun parseBorderRadius(borderRadius: String) {
         val borders = borderRadius.split(",")
         if (borders.size == KRCSSBackgroundDrawable.BORDER_ELEMENT_SIZE) {
-            val tl = borders[KRCSSBackgroundDrawable.BORDER_TOP_LEFT_INDEX].toFloat().toPxF()
-            val tr = borders[KRCSSBackgroundDrawable.BORDER_TOP_RIGHT_INDEX].toFloat().toPxF()
-            val bl = borders[KRCSSBackgroundDrawable.BORDER_BOTTOM_LEFT_INDEX].toFloat().toPxF()
-            val br = borders[KRCSSBackgroundDrawable.BORDER_BOTTOM_RIGHT_INDEX].toFloat().toPxF()
+            val tl = kuiklyContext.toPxF(borders[KRCSSBackgroundDrawable.BORDER_TOP_LEFT_INDEX].toFloat())
+            val tr = kuiklyContext.toPxF(borders[KRCSSBackgroundDrawable.BORDER_TOP_RIGHT_INDEX].toFloat())
+            val bl = kuiklyContext.toPxF(borders[KRCSSBackgroundDrawable.BORDER_BOTTOM_LEFT_INDEX].toFloat())
+            val br = kuiklyContext.toPxF(borders[KRCSSBackgroundDrawable.BORDER_BOTTOM_RIGHT_INDEX].toFloat())
 
             val radii = floatArrayOf(
                 tl, tl,
@@ -267,6 +269,7 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
         val gradientDrawable =
             layerDrawable.findDrawableByLayerId(LAYER_ID_GRADIENT_DRAWABLE)
                 ?: KRCSSBackgroundDrawable().apply {
+                    this.kuiklyContext = this@KRViewDecoration.kuiklyContext
                     if (isBeforeM) {
                         val index = if (layerDrawable.findDrawableByLayerId(LAYER_ID_COLOR_DRAWABLE) == null) {
                             0
@@ -290,6 +293,7 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
     private fun updateBgColorDrawable() {
         val colorDrawable = layerDrawable.findDrawableByLayerId(LAYER_ID_COLOR_DRAWABLE)
             ?: KRCSSBackgroundDrawable().apply {
+                this.kuiklyContext = this@KRViewDecoration.kuiklyContext
                 if (isBeforeM) {
                     val index = if (layerDrawable.findDrawableByLayerId(LAYER_ID_GRADIENT_DRAWABLE) == null) {
                         0
@@ -324,6 +328,7 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
         targetViewWeakRef.get()?.also { view ->
             val borderDrawable = view.foregroundCompat ?: KRCSSBackgroundDrawable()
             (borderDrawable as KRCSSBackgroundDrawable).also { d ->
+                d.kuiklyContext = kuiklyContext
                 d.borderStyle = borderStyle
                 d.borderRadius = borderRadius
                 d.targetView = view
@@ -410,13 +415,12 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
         private const val LAYER_ID_COLOR_DRAWABLE = 1
         private const val LAYER_ID_GRADIENT_DRAWABLE = 2
 
-        private const val BORDER_RADIUS_UNSET_VALUE = -1.0f
+        const val BORDER_RADIUS_UNSET_VALUE = -1.0f
     }
 
 }
 
-
-class BoxShadow(shadowValue: String) {
+class BoxShadow(shadowValue: String, private val context: IKuiklyRenderContext?) {
 
     companion object {
         private const val SHADOW_ELEMENT_SIZE = 4
@@ -434,9 +438,9 @@ class BoxShadow(shadowValue: String) {
     init {
         val boxShadows = shadowValue.split(KRCssConst.BLANK_SEPARATOR)
         if (boxShadows.size == SHADOW_ELEMENT_SIZE) {
-            shadowOffsetX = boxShadows[SHADOW_OFFSET_X].toFloat().toPxF()
-            shadowOffsetY = boxShadows[SHADOW_OFFSET_Y].toFloat().toPxF()
-            shadowRadius = boxShadows[SHADOW_RADIUS].toFloat().toPxF()
+            shadowOffsetX = context.toPxF(boxShadows[SHADOW_OFFSET_X].toFloat())
+            shadowOffsetY = context.toPxF(boxShadows[SHADOW_OFFSET_Y].toFloat())
+            shadowRadius = context.toPxF(boxShadows[SHADOW_RADIUS].toFloat())
             shadowColor = boxShadows[SHADOW_COLOR].toColor()
         }
     }

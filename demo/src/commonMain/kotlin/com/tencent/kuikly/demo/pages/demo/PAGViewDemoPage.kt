@@ -20,12 +20,11 @@ import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewRef
 import com.tencent.kuikly.core.log.KLog
-import com.tencent.kuikly.core.timer.setTimeout
+import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.PAG
+import com.tencent.kuikly.core.views.PAGView
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.base.BasePager
-import com.tencent.kuikly.core.reactive.handler.*
-import com.tencent.kuikly.core.views.PAGView
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 
 @Page("PAGViewDemoPage")
@@ -72,7 +71,6 @@ internal class PAGViewDemoPage: BasePager() {
                         animationStart {
                             KLog.d(TAG, "animationStart")
                         }
-
 
                         animationEnd {
                             KLog.d(TAG, "animationEnd")

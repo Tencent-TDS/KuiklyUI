@@ -61,7 +61,7 @@ internal class DemoPage : BasePager() {
 
                 vforIndex({ ctx.dataList }) { itemData, index, count ->
                     // 协商历史卡片
-                    KLog.i("22", "vfor index:${index} count${count}")
+                    KLog.i("DemoPage", "vfor index:${index} count${count}")
                     Card {
                         attr {
                             item = itemData
@@ -88,7 +88,7 @@ internal class DemoPage : BasePager() {
             var item = CardView.Item()
             item.apply {
                 title = "取消售后申请"
-                detialInfo = "撤销售后申请\n进入开始流程"
+                detailInfo = "撤销售后申请\n进入开始流程"
                 avatarUrl = "https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/c498f4b4.jpg"
                 index = dataList.count()
             }
@@ -100,7 +100,7 @@ internal class DemoPage : BasePager() {
             var item = CardView.Item()
             item.apply {
                 title = "同意售后申请"
-                detialInfo = "商家已同意退货申请。\n" +
+                detailInfo = "商家已同意退货申请。\n" +
                         "退货地址：江苏省扬州市仪征新集镇迎宾路3号花藤印染院内亿合帽业二楼"
 
                 index = dataList.count()
@@ -113,7 +113,7 @@ internal class DemoPage : BasePager() {
             var item = CardView.Item()
             item.apply {
                 title = "发起售后申请"
-                detialInfo =
+                detailInfo =
                     "发起了退货退款售后申请\n售后类型：退货退款\n货物状态：已收到货\n退货原因：7天无理由退款\n退款金额：¥59\n退货方式：线下寄件"
                 avatarUrl =
                     "https://p3.toutiaoimg.com/large/pgc-image/54b93ce31b2e47c3aa1224b8fbfe4ffa"
@@ -132,7 +132,7 @@ internal class DemoPage : BasePager() {
             var item = CardView.Item()
             item.apply {
                 title = "取消售后申请"
-                detialInfo = "撤销售后申请\n进入开始流程"
+                detailInfo = "撤销售后申请\n进入开始流程"
                 avatarUrl = "https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/c498f4b4.jpg"
                 index = dataList.count()
             }
@@ -144,7 +144,7 @@ internal class DemoPage : BasePager() {
             var item = CardView.Item()
             item.apply {
                 title = "同意售后申请"
-                detialInfo = "商家已同意退货申请。\n" +
+                detailInfo = "商家已同意退货申请。\n" +
                         "退货地址：江苏省扬州市仪征新集镇迎宾路3号花藤印染院内亿合帽业二楼"
 
                 index = dataList.count()
@@ -158,7 +158,7 @@ internal class DemoPage : BasePager() {
             var item = CardView.Item()
             item.apply {
                 title = "取消售后申请"
-                detialInfo = "撤销售后申请\n进入开始流程"
+                detailInfo = "撤销售后申请\n进入开始流程"
                 avatarUrl = "https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/c498f4b4.jpg"
                 index = dataList.count()
             }
@@ -170,7 +170,7 @@ internal class DemoPage : BasePager() {
             var item = CardView.Item()
             item.apply {
                 title = "同意售后申请"
-                detialInfo = "商家已同意退货申请。\n" +
+                detailInfo = "商家已同意退货申请。\n" +
                         "退货地址：江苏省扬州市仪征新集镇迎宾路3号花藤印染院内亿合帽业二楼"
 
                 index = dataList.count()

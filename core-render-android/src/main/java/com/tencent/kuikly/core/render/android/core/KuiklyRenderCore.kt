@@ -103,8 +103,8 @@ class KuiklyRenderCore(
         }
     }
 
-    override fun sendEvent(event: String, data: Map<String, Any>) {
-        performOnContextQueue {
+    override fun sendEvent(event: String, data: Map<String, Any>, shouldSync: Boolean) {
+        performOnContextQueue(sync = shouldSync) {
             contextHandler?.call(
                 KuiklyRenderContextMethod.KuiklyRenderContextMethodUpdateInstance,
                 listOf(
@@ -113,6 +113,12 @@ class KuiklyRenderCore(
                     data
                 )
             )
+            if (shouldSync) {
+                uiScheduler?.performSyncMainQueueTasksBlockIfNeed(true)
+            }
+        }
+        if (shouldSync) {
+            uiScheduler?.performMainThreadTaskWaitToSyncBlockIfNeed()
         }
     }
 
@@ -486,7 +492,6 @@ class KuiklyRenderCore(
             errorCallback
         )
     }
-
 
     private fun createShadow(method: KuiklyRenderNativeMethod, args: List<Any?>): Any? =
         renderLayerHandler?.createShadow(args.secondArg(), args.thirdArg())

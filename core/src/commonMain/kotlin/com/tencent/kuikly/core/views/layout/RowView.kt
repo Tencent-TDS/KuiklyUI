@@ -20,7 +20,6 @@ import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.layout.FlexAlign
 
-
 class RowView : LayoutView<ContainerAttr, Event>() {
     var align: FlexAlign = FlexAlign.STRETCH
 
@@ -51,4 +50,3 @@ fun ViewContainer<*, *>.Row(align: FlexAlign = FlexAlign.STRETCH, init: RowView.
 fun ViewContainer<*, *>.Row(init: RowView.() -> Unit) {
     Row(FlexAlign.STRETCH, init)
 }
-

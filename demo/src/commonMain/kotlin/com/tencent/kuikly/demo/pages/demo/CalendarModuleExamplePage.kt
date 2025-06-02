@@ -53,7 +53,6 @@ internal class CalendarModuleExamplePage : Pager() {
     private var case5FormatedTime: String = ""
     private var case5TimeMillis: Long by observable(0)
 
-
     override fun body(): ViewBuilder {
         val ctx = this
         return {

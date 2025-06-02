@@ -15,13 +15,15 @@
 
 package com.tencent.kuikly.demo.pages.demo
 
-import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
-import com.tencent.kuikly.core.base.ColorStop
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewRef
-import com.tencent.kuikly.core.views.*
+import com.tencent.kuikly.core.views.Canvas
+import com.tencent.kuikly.core.views.CanvasView
+import com.tencent.kuikly.core.views.ImageView
+import com.tencent.kuikly.core.views.View
+import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 import kotlin.random.Random
 
@@ -71,7 +73,6 @@ internal class HotHeapExamplePage : BasePager() {
 
             }
 
-
         }
     }
 
@@ -84,7 +85,6 @@ internal class HotHeapExamplePage : BasePager() {
 //            ColorStop(Color(red255 = 0, green255 = 255, blue255 = 0, 0f), 1f))
 
     }
-
 
     fun generateRandomNumber(min: Int, max: Int): Int {
         return Random.nextInt(min, max + 1)

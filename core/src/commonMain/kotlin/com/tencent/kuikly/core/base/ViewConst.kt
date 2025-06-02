@@ -15,7 +15,6 @@
 
 package com.tencent.kuikly.core.base
 
-
 object ViewConst {
     const val TYPE = "type"
     const val REF = "ref"

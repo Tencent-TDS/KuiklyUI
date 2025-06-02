@@ -18,7 +18,6 @@ package com.tencent.kuikly.core.views.layout
 import com.tencent.kuikly.core.base.*
 import com.tencent.kuikly.core.base.event.Event
 
-
 abstract class LayoutView<A : ContainerAttr, E : Event>  : ViewContainer<A, E>() {
 
     override fun viewName(): String {

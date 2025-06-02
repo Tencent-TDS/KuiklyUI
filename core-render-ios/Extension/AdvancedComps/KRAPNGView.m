@@ -94,8 +94,8 @@ static APNGViewCreator gAPNGViewCreator;
 - (void)setCss_repeatCount:(NSNumber *)css_repeatCount {
     _css_repeatCount = css_repeatCount;
     _apngView.playCount = [KRConvertUtil NSInteger:css_repeatCount];
-    if ([_apngView respondsToSelector:@selector(setShowLastImgaeWhenPause:)]) {
-         [_apngView setShowLastImgaeWhenPause:YES];
+    if ([_apngView respondsToSelector:@selector(setShowLastImageWhenPause:)]) {
+         [_apngView setShowLastImageWhenPause:YES];
     }
 }
 

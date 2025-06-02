@@ -21,7 +21,6 @@ import com.tencent.kuikly.core.timer.setTimeout
 class PagerNotFoundException(message: String) : RuntimeException(message)
 class ReactiveObserverNotFoundException(message: String) : RuntimeException(message)
 
-
 fun throwRuntimeError(message: String) {
     KLog.e("throwRuntimeError", message)
     setTimeout(1) {

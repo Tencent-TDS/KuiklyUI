@@ -89,6 +89,12 @@ internal class NestedVerticalChildInterceptor(recyclerView: KRRecyclerView) : IN
 
     private fun processMoveEvent(e: MotionEvent): Boolean {
         val recyclerView = recyclerViewWeakRef.get() ?: return false
+
+        // 如果禁用了父组件滑动联动，则拦截事件，滑动事件完全由子组件处理
+        if (!recyclerView.isScrollWithParent()) {
+            return true
+        }
+
         val index = e.findPointerIndex(scrollPointerId)
         if (index < 0) {
             return false

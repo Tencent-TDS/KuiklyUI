@@ -151,4 +151,3 @@ internal class ExampleCardView : ComposeView<ExampleCardAttr, ComposeEvent>() {
 internal fun ViewContainer<*, *>.ExampleCard(init: ExampleCardView.() -> Unit) {
     addChild(ExampleCardView(), init)
 }
-

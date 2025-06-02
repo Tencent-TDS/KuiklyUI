@@ -65,7 +65,6 @@ class VisibilityEvent : BaseEvent(), IScrollerViewEventObserver {
         }
     }
 
-
     override fun onRenderViewDidRemoved() {
         if (listViewNativeRef > 0) {
             getPager().getViewWithNativeRef(listViewNativeRef)?.let {
@@ -288,7 +287,6 @@ enum class VisibilityState(val value: String) {
 }
 
 const val appearPercentageEventName = "appearPercentage"
-
 
 /**
  * view将要可见事件的扩展定义。

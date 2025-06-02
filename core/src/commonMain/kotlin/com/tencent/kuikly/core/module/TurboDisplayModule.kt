@@ -15,7 +15,6 @@
 
 package com.tencent.kuikly.core.module
 
-
 /**
  * @brief TurboDisplay首屏直出渲染模式（通过直接执行二进制产物渲染生成首屏，避免业务代码执行后再生成的首屏等待耗时）
  *        用于首屏直接上屏，彻底告别白屏，极大提升用户体验

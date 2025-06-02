@@ -19,7 +19,6 @@ import com.tencent.kuikly.core.base.*
 import com.tencent.kuikly.core.base.event.Event
 import kotlin.math.min
 
-
 /*
  * 实时高斯模糊（毛玻璃）类（用于该view背后的内容区域进行高斯模糊，若背后内容发生变化，该高斯模糊会实时变化）
  */
@@ -28,7 +27,7 @@ class BlurView : DeclarativeBaseView<BlurAttr, Event>() {
     override fun createAttr(): BlurAttr = BlurAttr()
     override fun createEvent(): Event = Event()
     override fun viewName(): String {
-        return ViewConst.TYPE_BLUR_VIEW;
+        return ViewConst.TYPE_BLUR_VIEW
     }
 
     override fun willInit() {
@@ -68,7 +67,6 @@ class BlurAttr : Attr() {
         "blurOtherLayer" with blur.toInt()
     }
 }
-
 
 /*
  * 实时高斯模糊（毛玻璃）类（用于该view背后的内容区域进行高斯模糊，若背后内容发生变化，该高斯模糊会实时变化）

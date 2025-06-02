@@ -19,7 +19,6 @@ import com.tencent.kuikly.core.collection.fastArrayListOf
 import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 
-
 /**
  *  日期计算，通过 [newCalendarInstance] 拿到 [ICalendar] 实例，然后可访问 [ICalendar] 提供读写的接口
  */
@@ -195,7 +194,6 @@ interface ICalendar {
      */
     fun get(field: Field): Int
 
-
     /**
      * 获取当前日历的时间戳，单位毫秒
      */
@@ -225,4 +223,3 @@ private fun List<Operation>.toJSONArray(): JSONArray {
     }
     return jsonArray
 }
-

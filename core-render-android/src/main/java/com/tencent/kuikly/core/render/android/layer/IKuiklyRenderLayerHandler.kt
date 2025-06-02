@@ -19,13 +19,14 @@ import android.graphics.RectF
 import android.util.SizeF
 import android.view.View
 import com.tencent.kuikly.core.render.android.IKuiklyRenderView
+import com.tencent.kuikly.core.render.android.KuiklyContextParams
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderModuleExport
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderShadowExport
 import com.tencent.tdf.module.TDFBaseModule
 
 /**
- * KTV页面渲染层协议
+ * Kuikly页面渲染层协议
  */
 interface IKuiklyRenderLayerHandler {
 

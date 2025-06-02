@@ -17,7 +17,6 @@ package com.tencent.kuikly.core.render.android.expand.module
 
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
 import com.tencent.kuikly.core.render.android.css.ktx.toJSONObjectSafely
-import com.tencent.kuikly.core.render.android.css.ktx.toMap
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderBaseModule
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 import org.json.JSONObject
@@ -27,10 +26,14 @@ import org.json.JSONObject
  */
 class KRRouterModule : KuiklyRenderBaseModule() {
 
+    var isBackConsumed = false
+    var backConsumedTime = 0L
+
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
             OPEN_PAGE -> openPage(params)
             CLOSE_PAGE -> closePage()
+            BACK_HANDLE -> backHandle(params)
             else -> super.call(method, params, callback)
         }
     }
@@ -51,9 +54,19 @@ class KRRouterModule : KuiklyRenderBaseModule() {
         KuiklyRenderAdapterManager.krRouterAdapter?.closePage(ctx)
     }
 
+    private fun backHandle(params: String?) {
+        if (params != null) {
+            isBackConsumed = JSONObject(params).optBoolean("consumed", false)
+        } else {
+            isBackConsumed = false
+        }
+        backConsumedTime = System.currentTimeMillis()
+    }
+
     companion object {
         const val MODULE_NAME = "KRRouterModule"
         private const val OPEN_PAGE = "openPage"
         private const val CLOSE_PAGE = "closePage"
+        private const val BACK_HANDLE = "backHandle"
     }
 }

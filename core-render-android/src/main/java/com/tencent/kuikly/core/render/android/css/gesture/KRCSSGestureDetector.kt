@@ -56,8 +56,8 @@ class KRCSSGestureDetector(
 
         if (listener.isLongPressEventHappening) {
             if (ev.action == MotionEvent.ACTION_UP || ev.action == MotionEvent.ACTION_CANCEL) {
-                listener.onLongPressMoveOrEnd(ev)
                 listener.isLongPressEventHappening = false
+                listener.onLongPressMoveOrEnd(ev)
             } else if (ev.action == MotionEvent.ACTION_MOVE) {
                 listener.onLongPressMoveOrEnd(ev)
             }
@@ -75,8 +75,19 @@ class KRCSSGestureDetector(
     fun addListener(type: Int, callback: KuiklyRenderCallback) {
         if (type == KRCSSGestureListener.TYPE_LONG_PRESS) {
             setIsLongpressEnabled(true)
+            listener.addListener(type) {
+                // 对齐逻辑，有longPress事件时，要求父亲不拦截
+                (it as? Map<*, *>)?.let { eventMap ->
+                    val state = eventMap[KRCSSGestureListener.EVENT_STATE]
+                    if (state == KRCSSGestureListener.EVENT_STATE_START) {
+                        disallowParentInterceptEvent(true)
+                    }
+                }
+                callback(it)
+            }
+        } else {
+            listener.addListener(type, callback)
         }
-        listener.addListener(type, callback)
     }
 
     companion object {

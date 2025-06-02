@@ -13,7 +13,6 @@
  * limitations under the License.
  */
 
-
 package impl.submodule
 
 import com.squareup.kotlinpoet.*

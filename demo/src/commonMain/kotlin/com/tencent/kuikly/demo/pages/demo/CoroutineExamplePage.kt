@@ -66,6 +66,5 @@ internal class CoroutineExamplePage : BasePager() {
             count += 1
         }
 
-
     }
 }

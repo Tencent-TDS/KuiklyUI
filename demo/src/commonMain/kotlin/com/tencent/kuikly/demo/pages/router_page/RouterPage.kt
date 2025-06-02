@@ -190,7 +190,7 @@ internal class RouterPage : BasePager() {
                 Text {
                     attr {
                         fontSize(20f)
-                        text("点击前往demo体验区")
+                        text("Demo案例-Kuikly语法")
                         textDecorationUnderLine()
                         backgroundLinearGradient(
                             Direction.TO_RIGHT,
@@ -207,6 +207,29 @@ internal class RouterPage : BasePager() {
                 }
             }
 
+            View {
+                attr {
+                    allCenter()
+                    margin(20f)
+                }
+                Text {
+                    attr {
+                        fontSize(20f)
+                        text("Demo案例-Compose语法")
+                        textDecorationUnderLine()
+                        backgroundLinearGradient(
+                            Direction.TO_RIGHT,
+                            ColorStop(Color(0xFFAD37FE), 0f),
+                            ColorStop(Color(0xFF23D3FD), 1f)
+                        )
+                    }
+                }
+                event {
+                    click {
+                        ctx.jumpPage("ComposeAllSample")
+                    }
+                }
+            }
         }
 
     }

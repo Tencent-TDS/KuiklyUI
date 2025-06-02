@@ -6,8 +6,6 @@ pluginManagement {
     }
 }
 
-rootProject.name = "KuiklyCore"
-
 val buildFileName = "build.1.8.21.gradle.kts"
 rootProject.buildFileName = buildFileName
 

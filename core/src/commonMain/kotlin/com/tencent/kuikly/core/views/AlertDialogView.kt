@@ -320,7 +320,6 @@ class AlertDialogView : VirtualView<AlertDialogAttr, AlertDialogEvent>() {
 
                     }
 
-
                 }
             }
         }

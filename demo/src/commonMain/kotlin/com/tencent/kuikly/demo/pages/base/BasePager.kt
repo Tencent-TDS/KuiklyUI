@@ -72,7 +72,6 @@ internal abstract class BasePager : Pager() {
         isNightMode()
     }
 
-
     override fun themeDidChanged(data: JSONObject) {
         super.themeDidChanged(data)
         nightModel = data.optBoolean(IS_NIGHT_MODE_KEY)
@@ -100,14 +99,4 @@ internal abstract class BasePager : Pager() {
         const val IS_NIGHT_MODE_KEY = "isNightMode"
     }
 
-
 }
-/*
- * 页面显示所处状态
- */
-internal enum class ECPageShowState {
-    LOADING, // loading态
-    SUCCESS, // 成功态
-    ERROR   // 失败态
-}
-

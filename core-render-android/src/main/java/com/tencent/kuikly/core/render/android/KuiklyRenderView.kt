@@ -27,25 +27,29 @@ import android.util.SizeF
 import android.util.SparseArray
 import android.view.View
 import android.view.ViewGroup
+import android.view.accessibility.AccessibilityManager
 import android.widget.FrameLayout
+import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.const.KRViewConst
 import com.tencent.kuikly.core.render.android.context.IKotlinBridgeStatusListener
 import com.tencent.kuikly.core.render.android.context.KuiklyRenderCoreExecuteModeBase
 import com.tencent.kuikly.core.render.android.core.IKuiklyRenderContextInitCallback
 import com.tencent.kuikly.core.render.android.core.IKuiklyRenderCore
 import com.tencent.kuikly.core.render.android.core.KuiklyRenderCore
+import com.tencent.kuikly.core.render.android.css.ktx.activity
+import com.tencent.kuikly.core.render.android.css.ktx.getDisplaySize
+import com.tencent.kuikly.core.render.android.css.ktx.isMainThread
+import com.tencent.kuikly.core.render.android.css.ktx.screenHeight
+import com.tencent.kuikly.core.render.android.css.ktx.screenWidth
 import com.tencent.kuikly.core.render.android.css.ktx.statusBarHeight
 import com.tencent.kuikly.core.render.android.css.ktx.toDpF
-import com.tencent.kuikly.core.render.android.css.ktx.screenWidth
-import com.tencent.kuikly.core.render.android.css.ktx.screenHeight
-import com.tencent.kuikly.core.render.android.css.ktx.activity
-import com.tencent.kuikly.core.render.android.css.ktx.isMainThread
 import com.tencent.kuikly.core.render.android.css.ktx.versionName
 import com.tencent.kuikly.core.render.android.exception.ErrorReason
 import com.tencent.kuikly.core.render.android.exception.IKuiklyRenderExceptionListener
 import com.tencent.kuikly.core.render.android.exception.KuiklyRenderModuleExportException
 import com.tencent.kuikly.core.render.android.exception.KuiklyRenderShadowExportException
 import com.tencent.kuikly.core.render.android.exception.KuiklyRenderViewExportException
+import com.tencent.kuikly.core.render.android.expand.KuiklyRenderViewBaseDelegatorDelegate
 import com.tencent.kuikly.core.render.android.expand.component.image.KRImageLoader
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderModuleExport
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderShadowExport
@@ -63,7 +67,8 @@ import java.lang.ref.WeakReference
 class KuiklyRenderView(
     context: Context,
     private var executeMode: KuiklyRenderCoreExecuteModeBase = KuiklyRenderCoreExecuteModeBase.JVM,
-    private val enablePreloadClass: Boolean = true
+    private val enablePreloadClass: Boolean = true,
+    private val delegate: KuiklyRenderViewBaseDelegatorDelegate? = null
 ) : FrameLayout(context), IKuiklyRenderView {
 
     private var renderCore: IKuiklyRenderCore? = null
@@ -83,7 +88,12 @@ class KuiklyRenderView(
     /**
      * [KuiklyRenderView]上下文对象
      */
-    private val kuiklyRenderViewContext = KuiklyRenderViewContext(context, this)
+    private val kuiklyRenderViewContext = KuiklyRenderViewContext(
+        if ((delegate?.enableContextReplace() == true) && context is KuiklyRenderViewContext) context.baseContext!! else context,
+        this,
+        delegate?.enableContextReplace() ?: false,
+        delegate?.useHostDisplayMetrics() ?: false
+    )
 
     /**
      * 暴露给Kuikly页面的管理者
@@ -123,8 +133,18 @@ class KuiklyRenderView(
 
     }
 
+    private var contextInitCallback: IKuiklyRenderContextInitCallback? = null
+
     init {
         clipChildren = false // 不裁剪, 防止孩子做scale或者translation动画时, 显示不全
+    }
+
+    /**
+     * 替换 Context
+     * @param newContext 新的 Context
+     */
+    fun replaceContext(newContext: Context) {
+        kuiklyRenderViewContext.replaceContext(newContext)
     }
 
     override fun init(
@@ -162,7 +182,8 @@ class KuiklyRenderView(
     }
 
     override fun sendEvent(event: String, data: Map<String, Any>) {
-        renderCore?.sendEvent(event, data) ?: also {
+        val shouldSync = delegate?.syncSendEvent(event) == true
+        renderCore?.sendEvent(event, data, shouldSync) ?: also { // core没初始化时, lazy住事件, 等core初始化后统一发送
             val lazyEventList =
                 coreEventLazyEventList ?: mutableListOf<RenderCoreLazyEvent>().apply {
                     coreEventLazyEventList = this
@@ -255,10 +276,16 @@ class KuiklyRenderView(
         if (lastSize == null) {
             lastSize = sizeF
         } else if (lastSize != sizeF) {
+            val activitySize = getActivitySize()
+            val deviceSize = getDeviceSize()
             sendEvent(
                 EVENT_ROOT_VIEW_SIZE_CHANGED, mapOf(
-                    KRViewConst.WIDTH to sizeF.width.toDpF(),
-                    KRViewConst.HEIGHT to sizeF.height.toDpF()
+                    KRViewConst.WIDTH to kuiklyRenderContext.toDpF(sizeF.width),
+                    KRViewConst.HEIGHT to kuiklyRenderContext.toDpF(sizeF.height),
+                    ACTIVITY_WIDTH to kuiklyRenderContext.toDpF(activitySize.width.toFloat()),
+                    ACTIVITY_HEIGHT to kuiklyRenderContext.toDpF(activitySize.height.toFloat()),
+                    DEVICE_WIDTH to kuiklyRenderContext.toDpF(deviceSize.width.toFloat()),
+                    DEVICE_HEIGHT to kuiklyRenderContext.toDpF(deviceSize.height.toFloat())
                 )
             )
             lastSize = sizeF
@@ -275,6 +302,26 @@ class KuiklyRenderView(
         dispatchLifecycleStateChanged(STATE_INIT_CORE_START)
         val contextParams = KuiklyContextParams(executeMode, url, params, assetsPath)
         kuiklyRenderViewContext.initContextParams(contextParams)
+        val contextInitCallback = object : IKuiklyRenderContextInitCallback {
+
+            override fun onStart() {
+                dispatchLifecycleStateChanged(STATE_INIT_CONTEXT_START)
+            }
+
+            override fun onFinish() {
+                dispatchLifecycleStateChanged(STATE_INIT_CONTEXT_FINISH)
+            }
+
+            override fun onCreateInstanceStart() {
+                dispatchLifecycleStateChanged(STATE_CREATE_INSTANCE_START)
+            }
+
+            override fun onCreateInstanceFinish() {
+                dispatchLifecycleStateChanged(STATE_CREATE_INSTANCE_FINISH)
+            }
+
+        }
+        this.contextInitCallback = contextInitCallback
         renderCore = createRenderCore().apply {
             init(
                 this@KuiklyRenderView,
@@ -282,25 +329,7 @@ class KuiklyRenderView(
                 url,
                 generateWithParams(params, size),
                 assetsPath,
-                object : IKuiklyRenderContextInitCallback {
-
-                    override fun onStart() {
-                        dispatchLifecycleStateChanged(STATE_INIT_CONTEXT_START)
-                    }
-
-                    override fun onFinish() {
-                        dispatchLifecycleStateChanged(STATE_INIT_CONTEXT_FINISH)
-                    }
-
-                    override fun onCreateInstanceStart() {
-                        dispatchLifecycleStateChanged(STATE_CREATE_INSTANCE_START)
-                    }
-
-                    override fun onCreateInstanceFinish() {
-                        dispatchLifecycleStateChanged(STATE_CREATE_INSTANCE_FINISH)
-                    }
-
-                })
+                contextInitCallback)
         }
         dispatchLifecycleStateChanged(STATE_INIT_CORE_FINISH)
         trySendCoreEventList() // 尝试发送lazy事件，如果有的话
@@ -315,20 +344,21 @@ class KuiklyRenderView(
     private fun generateWithParams(params: Map<String, Any>, size: SizeF): Map<String, Any> {
         val contentView = context.activity?.findViewById<View>(android.R.id.content)
         return mutableMapOf<String, Any>().apply {
-            put(ROOT_VIEW_WIDTH, size.width.toDpF())
-            put(ROOT_VIEW_HEIGHT, size.height.toDpF())
-            put(STATUS_BAR_HEIGHT, context.statusBarHeight.toFloat().toDpF())
+            put(ROOT_VIEW_WIDTH, kuiklyRenderViewContext.toDpF(size.width))
+            put(ROOT_VIEW_HEIGHT, kuiklyRenderViewContext.toDpF(size.height))
+            put(STATUS_BAR_HEIGHT, kuiklyRenderViewContext.toDpF(context.statusBarHeight.toFloat()))
             put(PLATFORM, "android")
-            put(DEVICE_WIDTH, context.screenWidth.toFloat().toDpF())
-            put(DEVICE_HEIGHT, context.screenHeight.toFloat().toDpF())
+            put(DEVICE_WIDTH, kuiklyRenderViewContext.toDpF(context.screenWidth.toFloat()))
+            put(DEVICE_HEIGHT, kuiklyRenderViewContext.toDpF(context.screenHeight.toFloat()))
             put(OS_VERSION, Build.VERSION.SDK_INT.toString())
             put(APP_VERSION, context.versionName)
             put(PARAMS, params)
-            put(NATIVE_BUILD, 2)
-            put(SAFE_AREA_INSETS, "${context.statusBarHeight.toFloat().toDpF()} 0 0 0")
-            put(ACTIVITY_WIDTH, (contentView?.width ?: 0).toFloat().toDpF())
-            put(ACTIVITY_HEIGHT, (contentView?.height ?: 0).toFloat().toDpF())
+            put(NATIVE_BUILD, 8)
+            put(SAFE_AREA_INSETS, "${kuiklyRenderContext.toDpF(context.statusBarHeight.toFloat())} 0 0 0")
+            put(ACTIVITY_WIDTH, kuiklyRenderContext.toDpF((contentView?.width ?: 0).toFloat()))
+            put(ACTIVITY_HEIGHT, kuiklyRenderContext.toDpF((contentView?.height ?: 0).toFloat()))
             put(DENSITY, Resources.getSystem().displayMetrics.density)
+            put(ACCESSIBILITY_RUNNING, if (isAccessibilityRunning()) 1 else 0)
         }
     }
 
@@ -445,11 +475,38 @@ class KuiklyRenderView(
         dispatchLifecycleStateChanged(STATE_PRELOAD_CLASS_FINISH)
     }
 
+    private fun isAccessibilityRunning(): Boolean {
+        if (context == null) {
+            return false
+        }
+        try {
+            val am = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+            return am.isEnabled && am.isTouchExplorationEnabled
+        } catch (t: Throwable) {
+            // do nothing
+        }
+        return false
+    }
+
+    private fun getActivitySize(): Size {
+        val contentView = context.activity?.findViewById<View>(android.R.id.content) ?: return Size(0, 0)
+        return Size(contentView.width, contentView.height)
+    }
+
+    private fun getDeviceSize(): Size {
+        return getDisplaySize(context)
+    }
+
+    fun onBackPressed() {
+        sendEvent(ON_BACK_PRESSED, mapOf())
+    }
+
     companion object {
         private const val EVENT_ROOT_VIEW_SIZE_CHANGED = "rootViewSizeDidChanged"
         private const val ROOT_VIEW_WIDTH = "rootViewWidth"
         private const val ROOT_VIEW_HEIGHT = "rootViewHeight"
-        private const val STATUS_BAR_HEIGHT = "statusBarHeight"
+        const val STATUS_BAR_HEIGHT = "statusBarHeight"
+        private const val ANDROID_BOTTOM_NAV_BAR_HEIGHT = "androidBottomNavBarHeight"
         private const val PLATFORM = "platform"
         private const val DEVICE_WIDTH = "deviceWidth"
         private const val DEVICE_HEIGHT = "deviceHeight"
@@ -460,6 +517,7 @@ class KuiklyRenderView(
         private const val SAFE_AREA_INSETS = "safeAreaInsets"
         private const val ACTIVITY_WIDTH = "activityWidth"
         private const val ACTIVITY_HEIGHT = "activityHeight"
+        private const val SCALE_FONT_ENABLE = "scaleFontEnable"
         private const val VIEW_DID_DISAPPEAR = "viewDidDisappear"
         private const val VIEW_DID_DISAPPEAR_VALUE = "1"
 
@@ -468,6 +526,9 @@ class KuiklyRenderView(
         private const val DENSITY = "density"
 
         const val PAGER_EVENT_FIRST_FRAME_PAINT = "pageFirstFramePaint"
+        private const val ACCESSIBILITY_RUNNING = "isAccessibilityRunning" // 无障碍化是否开启
+
+        private const val ON_BACK_PRESSED = "onBackPressed"
 
         // RenderView 生命周期状态
         private const val STATE_INIT = 0
@@ -486,7 +547,12 @@ class KuiklyRenderView(
     }
 }
 
-class KuiklyRenderViewContext(context: Context, kuiklyRenderView: IKuiklyRenderView) :
+class KuiklyRenderViewContext(
+    context: Context,
+    kuiklyRenderView: IKuiklyRenderView,
+    private val enableContextReplace: Boolean = false,
+    private val useHostDisplayMetrics: Boolean = false
+) :
     ContextWrapper(context), IKuiklyRenderContext {
 
     private var contextParams : KuiklyContextParams? = null
@@ -509,8 +575,44 @@ class KuiklyRenderViewContext(context: Context, kuiklyRenderView: IKuiklyRenderV
     override val kuiklyRenderRootView: IKuiklyRenderView?
         get() = kuiklyRenderViewWeakRef.get()
 
+    /**
+     * 实际真正的 Context
+     */
+    private var customBaseContext: Context? = null
+
+    init {
+        if (enableContextReplace) {
+            customBaseContext = context
+        }
+    }
+
+    override fun getBaseContext(): Context? {
+        return if (enableContextReplace) {
+            customBaseContext ?: super.getBaseContext()
+        } else {
+            super.getBaseContext()
+        }
+    }
+
+    override fun attachBaseContext(base: Context?) {
+        super.attachBaseContext(base)
+        if (enableContextReplace) {
+            customBaseContext = base
+        }
+    }
+
     override fun initContextParams(contextParams: KuiklyContextParams) {
         this.contextParams = contextParams
+    }
+
+    override fun replaceContext(newContext: Context) {
+        if (enableContextReplace) {
+            customBaseContext = newContext
+        }
+    }
+
+    override fun useHostDisplayMetrics(): Boolean {
+        return useHostDisplayMetrics
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -585,7 +687,7 @@ class KuiklyRenderExport(private val renderContext: IKuiklyRenderContext) : IKui
 
         override fun getModule(moduleName: String?): TDFBaseModule? {
             if (moduleName == null) {
-                return null;
+                return null
             }
             // TODO: 待优化
             return renderContext.kuiklyRenderRootView?.kuiklyRenderExport?.getTDFModule(moduleName)

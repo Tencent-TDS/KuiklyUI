@@ -123,14 +123,11 @@ internal class AppNineGridView: ComposeView<AppNineGridViewAttr, AppNineGridView
     }
 }
 
-
 internal class AppNineGridViewAttr : ComposeAttr() {
     var picUrls = listOf<String>()
 }
 
-internal class AppNineGridViewEvent : ComposeEvent() {
-    
-}
+internal class AppNineGridViewEvent : ComposeEvent()
 
 internal fun ViewContainer<*, *>.AppNineGrid(init: AppNineGridView.() -> Unit) {
     addChild(AppNineGridView(), init)

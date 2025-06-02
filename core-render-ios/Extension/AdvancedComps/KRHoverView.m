@@ -86,6 +86,11 @@
     }
 }
 
+- (void)setCss_hoverMarginTop:(NSNumber *)css_hoverMarginTop {
+    _css_hoverMarginTop = css_hoverMarginTop;
+    [self updateFrameToHoverIfNeed];
+}
+
 #pragma mark - KRScrollContentViewDelegate
 
 - (void)contentViewDidInsertSubview {

@@ -18,6 +18,7 @@
 #import "KRConvertUtil.h"
 #import "KRRichTextView.h"
 #import "KuiklyRenderBridge.h"
+#import "NSObject+KR.h"
 // 字典key常量
 NSString *const KRFontSizeKey = @"fontSize";
 NSString *const KRFontWeightKey = @"fontWeight";
@@ -62,6 +63,9 @@ NSString *const KRFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(keyboardHeightChange);
 /** event is textLengthBeyondLimit 输入长度超过限制 */
 @property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(textLengthBeyondLimit);
+/** event is 用户按下键盘IME动作按键时回调，例如 Send / Go / Search 等 */
+@property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(imeAction);
+
 /** placeholderTextView property */
 @property (nullable, nonatomic, strong) UITextView *placeholderTextView;
 
@@ -71,6 +75,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
     NSString *_text;
     BOOL _didAddKeyboardNotification;
     NSMutableDictionary *_props;
+    BOOL _ignoreTextDidChanged;
 }
 
 @synthesize hr_rootView;
@@ -113,8 +118,13 @@ NSString *const KRFontWeightKey = @"fontWeight";
 #pragma mark - setter (css property)
 
 - (void)setCss_text:(NSString *)css_text {
-    self.text = css_text;
-    [self p_updatePlaceholder];
+    NSString *lastText = self.text ?: @"";
+    NSString *newText = css_text ?: @"";
+    if (![lastText isEqualToString:newText]) {
+        self.text = css_text;
+        [self textViewDidChange:self];
+        [self p_updatePlaceholder];
+    }
 }
 
 - (void)setCss_values:(NSString *)css_values {
@@ -122,29 +132,25 @@ NSString *const KRFontWeightKey = @"fontWeight";
         _css_values = css_values;
         if (_css_values.length) {
             KRRichTextShadow *textShadow = [KRRichTextShadow new];
+            [textShadow hrv_setPropWithKey:@"textPostProcessor" propValue:NSStringFromClass([self class])];
             for (NSString *key in _props.allKeys) {
                 [textShadow hrv_setPropWithKey:key propValue:_props[key]];
             }
             UITextPosition *newPosition = [self positionFromPosition:self.beginningOfDocument offset:self.selectedRange.location];
-            NSAttributedString *resAttr = [textShadow buildAttributedString];
-            // 代理
-            if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_customTextWithAttributedString:textPostProcessor:)]) {
-                resAttr = [[KuiklyRenderBridge componentExpandHandler] hr_customTextWithAttributedString:resAttr textPostProcessor:NSStringFromClass([self class])];
-            }
-            self.attributedText = resAttr;
-           
-            self.attributedText = resAttr;
+
+            self.attributedText =  [textShadow buildAttributedString];;
             self.selectedTextRange = [self textRangeFromPosition:newPosition toPosition:newPosition];
-            
+
         } else {
             self.attributedText = nil;
         }
         [self p_updatePlaceholder];
+        [self textViewDidChange:self];
     }
 }
 
 - (void)setCss_tintColor:(NSNumber *)css_tintColor {
-  self.tintColor = [UIView css_color:css_tintColor];
+    self.tintColor = [UIView css_color:css_tintColor];
 }
 
 - (void)setCss_color:(NSNumber *)css_color {
@@ -190,6 +196,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
 }
 
 - (void)setCss_returnKeyType:(NSString *)css_returnKeyType {
+    _css_returnKeyType = css_returnKeyType;
     self.returnKeyType = [KRConvertUtil hr_toReturnKeyType:css_returnKeyType];
 }
 
@@ -213,7 +220,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
 - (void)css_getCursorIndex:(NSDictionary *)args {
     KuiklyRenderCallback callback = args[KRC_CALLBACK_KEY];
     if (callback) {
-        NSUInteger cursorIndex = self.selectedRange.location;
+        NSUInteger cursorIndex = [self p_getOutputCursorIndex];
         callback(@{@"cursorIndex": @(cursorIndex)});
     }
     
@@ -222,14 +229,29 @@ NSString *const KRFontWeightKey = @"fontWeight";
 
 - (void)css_setCursorIndex:(NSDictionary *)args {
     NSUInteger index = [args[KRC_PARAM_KEY] intValue];
+    [self updateCursorIndex:index];
+}
+
+- (void)updateCursorIndex:(NSUInteger)index {
+    index = [self p_getInputCursorIndexWithIndex:index];
     UITextPosition *newPosition = [self positionFromPosition:self.beginningOfDocument offset:index];
+    _ignoreTextDidChanged = YES;
     self.selectedTextRange = [self textRangeFromPosition:newPosition toPosition:newPosition];
+    _ignoreTextDidChanged = NO;
 }
 
 - (void)css_setText:(NSDictionary *)args {
     NSString *text = args[KRC_PARAM_KEY];
     self.text = text;
     [self textViewDidChange:self];
+}
+
+- (void)css_getInnerContentHeight:(NSDictionary *)args {
+    KuiklyRenderCallback callback = args[KRC_CALLBACK_KEY];
+    if (callback) {
+        CGFloat contentHeight = self.contentSize.height;
+        callback(@{@"height": @(contentHeight)});
+    }
 }
 
 - (void)layoutSubviews {
@@ -243,6 +265,9 @@ NSString *const KRFontWeightKey = @"fontWeight";
 #pragma mark - UITextViewDelegate
 
 - (void)textViewDidChange:(UITextView *)textView { // 文本值变化
+    if (_ignoreTextDidChanged) {
+        return ;
+    }
     [self p_updatePlaceholder];
     if (textView.markedTextRange) {
         return ;
@@ -250,11 +275,29 @@ NSString *const KRFontWeightKey = @"fontWeight";
     [self p_limitTextInput];
    
     if (self.css_textDidChange) {
-        self.css_textDidChange(@{@"text": textView.text.copy ?: @""});
+        NSString *text = [self p_outputText].copy ?: @"";
+        self.css_textDidChange(@{@"text": text, @"length": @([text kr_length])});
     }
-    
 }
 
+- (BOOL)textView:(UITextView *)textView shouldChangeTextInRange:(NSRange)range replacementText:(NSString *)text {
+    if (_ignoreTextDidChanged) {
+        return  NO;
+    }
+    if (text == nil || [text isEqualToString:@""]) { // 删除操作
+        return YES;
+            // It's a delete operation
+            // Perform your desired action for delete operation here
+    }
+    if(self.css_imeAction && [text isEqualToString:@"\n"]) {
+        self.css_imeAction(@{@"ime_action": self.css_returnKeyType ?: @""});
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [textView resignFirstResponder];
+        });
+        return NO;
+      }
+    return YES;
+}
 
 - (void)textViewDidBeginEditing:(UITextView *)textView { // 获焦
     if (self.css_inputFocus) {
@@ -341,17 +384,154 @@ NSString *const KRFontWeightKey = @"fontWeight";
     if (position) {
         return;
     }
-    NSInteger maxLength = [self.css_maxTextLength intValue];
+    NSInteger maxLength = [self maxInputLengthWithString:textView.attributedText.string];
     if (maxLength == 0) {
         return;
     }
-    if (textView.text.length > maxLength) {
-        NSRange range = [textView.text rangeOfComposedCharacterSequenceAtIndex:maxLength];
-        textView.text = [textView.text substringToIndex:range.location];
+    
+    if (textView.attributedText.length > maxLength) {
+        if (textView.attributedText) {
+
+            NSUInteger location = self.selectedRange.location;
+
+            NSMutableAttributedString *truncatedAttributedString = [textView.attributedText mutableCopy];
+            NSUInteger atIndex = MAX(location - 1, 0);
+            NSUInteger deleteLength = 0;
+
+            while (truncatedAttributedString.length > maxLength && (atIndex < truncatedAttributedString.length && atIndex >= 0)) {
+                NSRange composedRange = [truncatedAttributedString.string rangeOfComposedCharacterSequenceAtIndex:atIndex]; // 避免切割emoji
+                if (composedRange.length == 0) {
+                    break;
+                }
+                [truncatedAttributedString deleteCharactersInRange:composedRange];
+
+                atIndex = composedRange.location -1;
+                deleteLength += composedRange.length;
+            }
+            if (truncatedAttributedString.length > maxLength) {
+                NSRange range = [truncatedAttributedString.string rangeOfComposedCharacterSequenceAtIndex:maxLength];
+                truncatedAttributedString = [[NSMutableAttributedString alloc] initWithAttributedString:[truncatedAttributedString attributedSubstringFromRange:NSMakeRange(0, range.location)]];
+                location = maxLength;
+                deleteLength = 0;
+            }
+
+            textView.attributedText = truncatedAttributedString;
+            UITextPosition *newPosition = [self positionFromPosition:self.beginningOfDocument offset:MAX(location - deleteLength, 0)];
+
+            _ignoreTextDidChanged = YES;
+            self.selectedTextRange = [self textRangeFromPosition:newPosition toPosition:newPosition];
+            _ignoreTextDidChanged = NO;
+
+            dispatch_async(dispatch_get_main_queue(), ^{
+                _ignoreTextDidChanged = YES;
+                self.selectedTextRange = [self textRangeFromPosition:newPosition toPosition:newPosition];
+                _ignoreTextDidChanged = NO;
+            });
+        }
+       
         if (self.css_textLengthBeyondLimit) {
             self.css_textLengthBeyondLimit(@{});
         }
     }
+}
+
+- (NSUInteger)maxInputLengthWithString:(NSString *)string {
+    NSInteger maxLength = [self.css_maxTextLength intValue];
+    if (maxLength <= 0) {
+        return 0;
+    }
+    NSUInteger count = 0;
+    NSUInteger length = string.length;
+    NSUInteger i = 0;
+    for (; i < length; ) {
+        NSRange range = [string rangeOfComposedCharacterSequenceAtIndex:i];
+        count++;
+        i += range.length;
+        if (count >= maxLength)  {
+            break;
+        }
+    }
+
+    return MAX(i, maxLength);
+}
+
+- (NSString *)p_outputText {
+    NSAttributedString *attributedString = self.attributedText;
+    if (!attributedString) {
+        return self.text;
+    }
+    
+    __block NSString *outputText = [attributedString.string mutableCopy];
+    __block int offset = 0;
+    
+    [attributedString enumerateAttribute:NSAttachmentAttributeName
+                                   inRange:NSMakeRange(0, attributedString.length)
+                                   options:0
+                                usingBlock:^(NSObject *value, NSRange range, BOOL *stop) {
+        if ([value respondsToSelector:@selector(kr_originlTextBeforeTextAttachment)]) {
+            id<KRTextAttachmentStringProtocol> attachment = (id<KRTextAttachmentStringProtocol> )value;
+            NSString *replaceText = [attachment kr_originlTextBeforeTextAttachment];
+            if (replaceText) {
+                outputText = [outputText stringByReplacingCharactersInRange:NSMakeRange(range.location + offset, range.length)
+                                                                withString:replaceText];
+                offset += (replaceText.length - range.length);
+            }
+        }
+    }];
+    return outputText;
+}
+
+- (NSUInteger)p_getOutputCursorIndex {
+    NSUInteger location = self.selectedRange.location;
+    
+    __block int offset = 0;
+    NSAttributedString *attributedString = self.attributedText;
+    if (!attributedString) {
+        return location;
+    }
+    [attributedString enumerateAttribute:NSAttachmentAttributeName
+                                   inRange:NSMakeRange(0, attributedString.length)
+                                   options:0
+                                usingBlock:^(NSObject *value, NSRange range, BOOL *stop) {
+        if ([value respondsToSelector:@selector(kr_originlTextBeforeTextAttachment)]) {
+            id<KRTextAttachmentStringProtocol> attachment = (id<KRTextAttachmentStringProtocol> )value;
+            NSString *replaceText = [attachment kr_originlTextBeforeTextAttachment] ?: @" ";
+            if (range.location < location) {
+                offset += (replaceText.length - range.length);
+            } else {
+                *stop = YES;
+            }
+        }
+    }];
+    return location + offset;
+}
+
+- (NSUInteger)p_getInputCursorIndexWithIndex:(NSUInteger)cursorIndex {
+    NSUInteger location = cursorIndex;
+    
+    __block int offset = 0;
+   
+    NSAttributedString *attributedString = self.attributedText;
+    if (!attributedString) {
+        return location;
+    }
+    [attributedString enumerateAttribute:NSAttachmentAttributeName
+                                   inRange:NSMakeRange(0, attributedString.length)
+                                   options:0
+                                usingBlock:^(NSObject *value, NSRange range, BOOL *stop) {
+        if ([value respondsToSelector:@selector(kr_originlTextBeforeTextAttachment)]) {
+            id<KRTextAttachmentStringProtocol> attachment = (id<KRTextAttachmentStringProtocol> )value;
+            NSString *replaceText = [attachment kr_originlTextBeforeTextAttachment];
+            if (replaceText) {
+                if (range.location + offset >= cursorIndex) {
+                    *stop = YES;
+                    return ;
+                }
+                offset += (replaceText.length - range.length);
+            }
+        }
+    }];
+    return location - offset;
 }
 
 #pragma mark - getter

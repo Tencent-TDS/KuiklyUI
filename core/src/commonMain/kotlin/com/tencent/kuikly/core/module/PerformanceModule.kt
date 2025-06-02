@@ -139,7 +139,6 @@ data class LaunchData(
         private const val KEY_ON_CREATE_INSTANCE_COST = "createInstanceCost"
         private const val KEY_ON_RENDER_COST = "renderCost"
 
-
         fun fromJson(jsonObject: JSONObject?): LaunchData? {
             if (jsonObject != null) {
                 return LaunchData(
@@ -214,6 +213,5 @@ data class MemoryData(
                 " appPeak=$appPeak," +
                 " appAvg=$appAvg)"
     }
-
 
 }

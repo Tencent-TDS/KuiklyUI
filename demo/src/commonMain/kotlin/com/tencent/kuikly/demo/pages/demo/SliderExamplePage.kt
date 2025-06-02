@@ -21,7 +21,6 @@ import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.views.List
 import com.tencent.kuikly.core.views.Slider
-import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 
@@ -82,7 +81,6 @@ internal class SliderExamplePage : BasePager() {
                     }
                 }
             }
-
 
         }
     }

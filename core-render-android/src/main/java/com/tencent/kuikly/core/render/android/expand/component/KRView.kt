@@ -18,15 +18,18 @@ package com.tencent.kuikly.core.render.android.expand.component
 import android.content.Context
 import android.graphics.Canvas
 import android.view.Choreographer
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.const.KRViewConst
+import com.tencent.kuikly.core.render.android.css.ktx.touchConsumeByNative
 import com.tencent.kuikly.core.render.android.css.ktx.drawCommonDecoration
 import com.tencent.kuikly.core.render.android.css.ktx.drawCommonForegroundDecoration
 import com.tencent.kuikly.core.render.android.css.ktx.toDpF
+import com.tencent.kuikly.core.render.android.css.ktx.touchDownConsumeOnce
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 
@@ -39,6 +42,7 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
     private var screenFramePause: Boolean = false
 
     private var touchListenerProxy: View.OnTouchListener? = null
+    private var currentActionState: Int = -1
 
     override val reusable: Boolean
         get() = true
@@ -72,23 +76,30 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
         val result = propValue == 1
         if (result != screenFramePause) {
             screenFramePause = result
-                if (screenFramePause) {
-                    screenFrameCallback?.also {
-                        Choreographer.getInstance().removeFrameCallback(it)
-                    }
-                } else {
-                    screenFrameCallback?.also {
-                        Choreographer.getInstance().postFrameCallback(it)
-                    }
+            if (screenFramePause) {
+                screenFrameCallback?.also {
+                    Choreographer.getInstance().removeFrameCallback(it)
                 }
+            } else {
+                screenFrameCallback?.also {
+                    Choreographer.getInstance().postFrameCallback(it)
+                }
+            }
         }
 
     }
+
+    private var superTouch: Boolean = false
+    private var superTouchCanceled: Boolean = false
 
     override fun setProp(propKey: String, propValue: Any): Boolean {
         return when (propKey) {
             SCREEN_FRAME_PAUSE -> {
                 setScreenFramePause(propValue)
+                true
+            }
+            SUPER_TOUCH -> {
+                superTouch = propValue as Boolean
                 true
             }
             EVENT_TOUCH_DOWN -> {
@@ -114,6 +125,7 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
     override fun resetProp(propKey: String): Boolean {
         nestedScrollDelegate = null
         touchListenerProxy = null
+        currentActionState = -1
         return when (propKey) {
             EVENT_TOUCH_DOWN -> {
                 touchDownCallback = null
@@ -141,6 +153,7 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
     override fun setOnTouchListener(l: OnTouchListener?) {
         touchListenerProxy = object : OnTouchListener {
             override fun onTouch(v: View, event: MotionEvent): Boolean {
+                currentActionState = event.action
                 tryFireTouchEvent(event)
                 return l?.onTouch(v, event) ?: false
             }
@@ -149,18 +162,84 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
         super.setOnTouchListener(touchListenerProxy)
     }
 
+    /*
+    * 处理触摸事件分发逻辑，优先处理Compose事件，并在子View未消费时进行兜底处理[2,5](@ref)
+    * @param event 触摸事件对象
+    * @return 是否消费该事件
+    */
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (!superTouch) {
+            return super.dispatchTouchEvent(event)
+        }
+
+        // 以下是SuperTouch模式，意味着该View对应Compose的根节点，用于分发Touch事件给Compose
+        tryFireTouchEvent(event)
+        var handle = super.dispatchTouchEvent(event)
+        if (handle) {
+            // 子节点已经接接收了，后面的MOVE UP事件都能收到，不用兜底
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                touchDownConsumeOnce = false
+            }
+        } else {
+            // 子节点未接收，需要在确保命中Compose可点击节点后确保消费Touch事件
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                if (touchDownConsumeOnce) {
+                    // Compose有节点被点击，消费事件
+                    handle = true
+                    touchDownConsumeOnce = false
+                }
+            } else {
+                handle = true
+            }
+        }
+        return handle
+    }
+
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val result = super.onTouchEvent(event)
-        val touchResult = tryFireTouchEvent(event)
+        currentActionState = event.action
+        val touchResult =
+            if (superTouch) {
+                false
+            } else {
+                tryFireTouchEvent(event)
+            }
         return result || touchResult
     }
 
+    private fun tryFireSuperTouchCanceled(event: MotionEvent): Boolean {
+        val action = event.actionMasked
+        if (action == MotionEvent.ACTION_DOWN) {
+            superTouchCanceled = false
+            touchConsumeByNative = false
+            return false
+        }
+        var canceled = false
+        if (superTouchCanceled) {
+            canceled = true
+        } else if (superTouch && touchConsumeByNative) {
+            superTouchCanceled = true
+            tryFireCancelEvent(event)
+            canceled = true
+        }
+        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+            superTouchCanceled = false
+        }
+        return canceled
+    }
+
     private fun tryFireTouchEvent(event: MotionEvent): Boolean {
-        return when (event.action) {
+        if (tryFireSuperTouchCanceled(event)) {
+            return true
+        }
+        val action = event.actionMasked
+        return when (action) {
             MotionEvent.ACTION_DOWN -> tryFireDownEvent(event)
             MotionEvent.ACTION_MOVE -> tryFireMoveEvent(event)
-            MotionEvent.ACTION_UP -> tryFireUpEvent(event, EVENT_TOUCH_UP)
-            MotionEvent.ACTION_CANCEL -> tryFireUpEvent(event, EVENT_TOUCH_CANCEL)
+            MotionEvent.ACTION_UP -> tryFireUpEvent(event)
+            MotionEvent.ACTION_POINTER_UP -> tryFireUpEvent(event)
+            MotionEvent.ACTION_POINTER_DOWN -> tryFireDownEvent(event)
+            MotionEvent.ACTION_CANCEL -> tryFireCancelEvent(event)
             else -> false
         }
     }
@@ -175,14 +254,23 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
     }
 
     private fun tryFireDownEvent(motionEvent: MotionEvent): Boolean {
-        val downCallback = touchDownCallback ?: return false
-        downCallback(generateBaseParamsWithTouch(motionEvent, EVENT_TOUCH_DOWN))
+        if (touchDownCallback == null && touchMoveCallback == null &&
+            touchUpCallback == null) {
+            return false
+        }
+        touchDownCallback?.invoke(generateBaseParamsWithTouch(motionEvent, EVENT_TOUCH_DOWN))
         return true
     }
 
-    private fun tryFireUpEvent(motionEvent: MotionEvent, eventName: String): Boolean {
+    private fun tryFireUpEvent(motionEvent: MotionEvent): Boolean {
         val upCallback = touchUpCallback ?: return false
-        upCallback(generateBaseParamsWithTouch(motionEvent, eventName))
+        upCallback(generateBaseParamsWithTouch(motionEvent, EVENT_TOUCH_UP))
+        return true
+    }
+
+    private fun tryFireCancelEvent(motionEvent: MotionEvent): Boolean {
+        val upCallback = touchUpCallback ?: return false
+        upCallback(generateBaseParamsWithTouch(motionEvent, EVENT_TOUCH_CANCEL))
         return true
     }
 
@@ -210,15 +298,16 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
             val y = motionEvent.getY(i)
 
             touches.add(mapOf(
-                KRViewConst.X to x.toDpF(),
-                KRViewConst.Y to y.toDpF(),
-                PAGE_X to (currentViewRect[0] - rootViewRect[0] + x).toDpF(),
-                PAGE_Y to (currentViewRect[1] - rootViewRect[1] + y).toDpF(),
+                KRViewConst.X to kuiklyRenderContext.toDpF(x),
+                KRViewConst.Y to kuiklyRenderContext.toDpF(y),
+                PAGE_X to kuiklyRenderContext.toDpF((currentViewRect[0] - rootViewRect[0] + x)),
+                PAGE_Y to kuiklyRenderContext.toDpF(currentViewRect[1] - rootViewRect[1] + y),
                 POINTER_ID to pointerId
             ))
         }
         return (touches.first() ?: mapOf()).toMutableMap().apply {
             put(TOUCHES, touches)
+            put(TIMESTAMP, motionEvent.eventTime)
             put(EVENT_ACTION, eventName)
         }
     }
@@ -227,7 +316,6 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
         super.onDestroy()
         setScreenFrameCallback(null)
     }
-
 
     private fun setScreenFrameCallback(callback: KuiklyRenderCallback?) {
         screenFrameCallback?.also {
@@ -262,8 +350,10 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
         private const val TOUCHES = "touches"
         private const val POINTER_ID = "pointerId"
         private const val SCREEN_FRAME_PAUSE = "screenFramePause"
+        private const val TIMESTAMP = "timestamp"
 
         private const val EVENT_ACTION = "action"
+        private const val SUPER_TOUCH = "superTouch"
         private const val EVENT_TOUCH_DOWN = "touchDown"
         private const val EVENT_TOUCH_MOVE = "touchMove"
         private const val EVENT_TOUCH_UP = "touchUp"

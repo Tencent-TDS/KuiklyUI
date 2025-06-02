@@ -28,12 +28,14 @@ import com.tencent.kuikly.core.base.attr.CaptureRule
 import com.tencent.kuikly.core.base.attr.CaptureRuleDirection
 import com.tencent.kuikly.core.base.attr.CaptureRuleType
 import com.tencent.kuikly.core.base.event.layoutFrameDidChange
-import com.tencent.kuikly.core.base.toInt
 import com.tencent.kuikly.core.datetime.DateTime
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.log.KLog
-import com.tencent.kuikly.core.reactive.handler.*
-import com.tencent.kuikly.core.views.*
+import com.tencent.kuikly.core.reactive.handler.observable
+import com.tencent.kuikly.core.views.PageList
+import com.tencent.kuikly.core.views.Slider
+import com.tencent.kuikly.core.views.Text
+import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.core.views.compose.Button
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
@@ -112,7 +114,6 @@ internal class EventCapturePage : BasePager() {
                 ref { ctx.viewRef = it }
                 attr {
                     absolutePositionAllZero()
-                    "mark" with "panel"
                     capture(ctx.captureRule)
                 }
                 event {
@@ -197,7 +198,6 @@ internal class EventCapturePage : BasePager() {
                         defaultPageIndex(1)
                         bouncesEnable(false)
                         showScrollerIndicator(false)
-                        "mark" with "hpager"
                     }
                     ctx.pageItemList.forEach { item ->
                         View {
@@ -246,7 +246,6 @@ internal class EventCapturePage : BasePager() {
                             pageItemWidth(ctx.viewRect.first)
                             pageItemHeight(ctx.viewRect.second)
                             defaultPageIndex(1)
-                            "mark" with "vpager"
                         }
                         View {
                             attr { backgroundColor(0xffffeeee) }
@@ -295,7 +294,6 @@ internal class EventCapturePage : BasePager() {
                                 attr {
                                     size(100f, 100f)
                                     backgroundColor(Color.WHITE)
-                                    "mark" with "innerpan"
                                 }
                                 event {
                                     pan {
@@ -316,7 +314,6 @@ internal class EventCapturePage : BasePager() {
                             absolutePosition(left = 0f, bottom = pagerData.safeAreaInsets.bottom)
                             size(ctx.viewRect.first, 50f)
                             currentProgress(0.5f)
-                            "mark" with "slider"
                         }
                     }
                 }

@@ -35,6 +35,7 @@ import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.layout.MeasureFunction
 import com.tencent.kuikly.core.layout.MeasureOutput
 import com.tencent.kuikly.core.layout.isUndefined
+import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.nvi.serialization.serialization
 import com.tencent.kuikly.core.reactive.ReactiveObserver
@@ -88,7 +89,7 @@ fun RichTextView.ImageSpan(spanInit: ImageSpan.() -> Unit) {
 
 open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
     MeasureFunction {
-    private var shadow: RichTextShadow? = null
+    var shadow: RichTextShadow? = null
     private var didLayout = false
     internal var attrInitBlock: (RichTextAttr.() -> Unit)? = null
     internal var isWillInit = false
@@ -172,7 +173,6 @@ open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
         attrInitBlock = null
     }
 
-
     override fun createAttr(): RichTextAttr {
         return RichTextAttr()
     }
@@ -182,6 +182,12 @@ open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
             ViewConst.TYPE_GRADIENT_RICH_TEXT
         } else {
             ViewConst.TYPE_RICH_TEXT
+        }
+    }
+
+    fun updateShadow() {
+        if (shadow?.calculateFromCache != true) {
+            renderView?.setShadow()
         }
     }
 
@@ -231,7 +237,7 @@ open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
         }
     }
 
-    private fun buildValuesPropValue(): String {
+    fun buildValuesPropValue(): String {
         val values = arrayListOf<Map<String, Any>>()
         attr.spans.forEach { child ->
             val props = hashMapOf<String, Any>()
@@ -244,7 +250,6 @@ open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
         }
         return values.serialization().toString()
     }
-
 
     private fun measureHeightToFloat(height: Float): Float {
         return if (height.isUndefined()) {
@@ -310,12 +315,17 @@ open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
                         val rectStr = shadow?.callMethod("spanRect", index.toString())
                         if (rectStr?.isNotEmpty() == true) {
                             rectStr.split(" ").apply {
-                                placeholderSpan.spanFrame = Frame(
-                                    this[0].toFloat(),
-                                    this[1].toFloat(),
-                                    this[2].toFloat(),
-                                    this[3].toFloat()
-                                )
+                                if (this.size >= 4) {
+                                    placeholderSpan.spanFrame = Frame(
+                                        this[0].toFloatOrNull() ?: 0f,
+                                        this[1].toFloatOrNull() ?: 0f,
+                                        this[2].toFloatOrNull() ?: 0f,
+                                        this[3].toFloatOrNull() ?: 0f
+                                    )
+                                } else {
+                                    KLog.e("KuiklyCore", "spanRect result is error:${rectStr}")
+                                }
+
                             }
                         }
                     }
@@ -324,14 +334,15 @@ open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
         }
     }
 
-
 }
-
 
 open class RichTextAttr : TextAttr() {
     internal var spans: ArrayList<ISpan> = arrayListOf()
     fun spans(spans: ArrayList<ISpan>) {
         this.spans = spans
+        spans.forEach {
+            addSpanClickIfNeed(it)
+        }
         setNeedLayout()
     }
 
@@ -341,11 +352,10 @@ open class RichTextAttr : TextAttr() {
 
     internal open fun resetSpans() {
         spans.forEach {
-            it.willDestroy();
+            it.willDestroy()
         }
         spans = arrayListOf()
     }
-
 
     override fun viewDidRemove() {
         super.viewDidRemove()
@@ -361,6 +371,10 @@ open class RichTextAttr : TextAttr() {
             return
         }
         spans.add(span)
+        addSpanClickIfNeed(span)
+    }
+
+    internal fun addSpanClickIfNeed(span: ISpan) {
         if (span.hasClickEvent()) {
             val event = (view() as? RichTextView)?.getViewEvent()
             if (event?.hasInterceptClick() == true) {
@@ -447,7 +461,7 @@ open class PlaceholderSpan : ISpan {
 
     private var placeholderSize: Size = Size(0f, 0f)
     internal var spanFrameDidChangedHandlerFn: ((Frame) -> Unit)? = null
-    internal var spanFrame: Frame = Frame.zero
+    var spanFrame: Frame = Frame.zero
         set(value) {
             if (field.isDefaultValue() || !value.equals(field)) {
                 field = value
@@ -505,10 +519,12 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
     private var isDotNineImage: Boolean = false
     private var borderRadius = 0f
     private var capInsets: EdgeInsets = EdgeInsets.default
+    private var verticalAlignOffset = 0f
 
     private var richTextFrame by observable(Frame.zero)
     private var placeholderFrame by observable(Frame.zero)
     private var view : ImageView? = null
+    private var clickHandlerFn: ((ClickParams) -> Unit)? = null
 
     fun size(width: Float, height: Float): IImageAttr {
         size = Size(width, height)
@@ -518,6 +534,20 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
     fun borderRadius(borderRadius: Float): IImageAttr {
         this.borderRadius = borderRadius
         return this
+    }
+    /**
+     * ImageSpan被单击时回调
+     * @param handler 事件处理函数
+     */
+    fun click(handler: (ClickParams) -> Unit) {
+        clickHandlerFn = handler
+    }
+
+    /**
+     * 设置ImageSpan在垂直方向对齐的偏移，默认居中对齐
+     */
+    fun verticalAlignOffset(offset: Float) {
+        this.verticalAlignOffset = offset
     }
 
     override fun src(src: String, isDotNineImage: Boolean): IImageAttr {
@@ -603,7 +633,6 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
                 richTextFrame = frame
             }
         }
-
         val ctx = this
         ReactiveObserver.addLazyTaskUtilEndCollectDependency {
             // 添加图片节点
@@ -614,11 +643,12 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
             richTextViewParent?.addChild(ImageView()) {
                 ctx.view = this
                 attr {
+                    visibility(placeholderFrame.width != 0f && placeholderFrame.height != 0f)
                     absolutePosition(
-                        top = richTextFrame.y + placeholderFrame.y,
+                        top = richTextFrame.y + placeholderFrame.y + ctx.verticalAlignOffset,
                         left = richTextFrame.x + placeholderFrame.x
                     )
-                    size(placeholderFrame.width, placeholderFrame.height)
+                    size(size.width, size.height)
                     uri?.let { src(it, isDotNineImage) } ?: src(src, isDotNineImage)
                     when(resizeMode) {
                         ImageConst.RESIZE_MODE_COVER -> resizeCover()
@@ -636,6 +666,10 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
                     }
                     borderRadius(borderRadius)
                     capInsets(ctx.capInsets.top, ctx.capInsets.left, ctx.capInsets.bottom, ctx.capInsets.right)
+
+                }
+                ctx.clickHandlerFn?.also {
+                    getViewEvent().click(it)
                 }
             }
             richTextViewParent?.also {
@@ -645,6 +679,15 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
             }
         }
 
+    }
+
+    override fun hasClickEvent(): Boolean {
+        return clickHandlerFn != null
+    }
+
+    override fun performClickHandler(clickParams: ClickParams): Boolean {
+        clickHandlerFn?.invoke(clickParams)
+        return clickHandlerFn != null
     }
 
 }
@@ -672,4 +715,3 @@ open class RichTextEvent : TextEvent() {
         }
     }
 }
-

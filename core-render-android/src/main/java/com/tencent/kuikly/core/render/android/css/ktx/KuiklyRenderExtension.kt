@@ -22,13 +22,16 @@ import android.os.Looper
 import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.SpannedString
+import android.util.DisplayMetrics
 import android.util.SizeF
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
+import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
 import com.tencent.kuikly.core.render.android.const.KRExtConst
 import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
+import com.tencent.kuikly.core.render.android.exception.KRKotlinBizException
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderViewExport
 import com.tencent.tdf.utils.TDFListUtils
 import com.tencent.tdf.utils.TDFMapUtils
@@ -56,54 +59,105 @@ fun Float.toPxF(): Float {
 fun Float.toPxI(): Int = (toPxF() + KRExtConst.ROUND_SCALE_VALUE).toInt()
 
 /**
+ * 转为px[Int]
+ * a
+ * @return [Float]对应的px[Float]
+ */
+fun IKuiklyRenderContext?.toPxF(value: Float): Float {
+    return toPxF(this?.useHostDisplayMetrics(), value)
+}
+
+fun toPxF(useHostDisplayMetrics: Boolean?, value: Float): Float {
+    return TypedValue.applyDimension(
+        TypedValue.COMPLEX_UNIT_DIP,
+        value,
+        getDisplayMetrics(useHostDisplayMetrics)
+    )
+}
+
+/**
+ * 转为px[Int]
+ * @return [Float]对应的px[Int]
+ */
+fun IKuiklyRenderContext?.toPxI(value: Float): Int = toPxI(this?.useHostDisplayMetrics(), value)
+fun toPxI(useHostDisplayMetrics: Boolean?, value: Float): Int = (toPxF(useHostDisplayMetrics, value) + KRExtConst.ROUND_SCALE_VALUE).toInt()
+
+/**
  * 转为dp[Float]
  * @return [Float]对应的dp[Float]
  */
-fun Float.toDpF(): Float = this / Resources.getSystem().displayMetrics.density
+fun IKuiklyRenderContext?.toDpF(value: Float): Float = toDpF(this?.useHostDisplayMetrics(), value)
+
+fun toDpF(useHostDisplayMetrics: Boolean?, value: Float): Float = value / getDisplayMetrics(useHostDisplayMetrics).density
 
 /**
  * 转为dp[Int]
  * @return [Float]对应的dp[Int]
  */
-fun Float.toDpI(): Int = (toDpF() + KRExtConst.ROUND_SCALE_VALUE).toInt()
+fun IKuiklyRenderContext?.toDpI(value: Float): Int = toDpI(this?.useHostDisplayMetrics(), value)
+fun toDpI(useHostDisplayMetrics: Boolean?, value: Float) = (toDpF(useHostDisplayMetrics, value) + KRExtConst.ROUND_SCALE_VALUE).toInt()
 
 /**
  * 转为sp[Float]
  * @return [Float]对应的sp[Float]
  */
-fun Float.spToPxF(): Float {
+fun IKuiklyRenderContext?.spToPxF(value: Float): Float {
+    return spToPxF(this?.useHostDisplayMetrics(), value)
+}
+fun spToPxF(useHostDisplayMetrics: Boolean?, value: Float): Float {
     return TypedValue.applyDimension(
         TypedValue.COMPLEX_UNIT_SP,
-        this,
-        Resources.getSystem().displayMetrics
+        value,
+        getDisplayMetrics(useHostDisplayMetrics)
     )
 }
 
-fun Float.spToPxI(): Int = (spToPxF() + KRExtConst.ROUND_SCALE_VALUE).toInt()
+private fun IKuiklyRenderContext?.getDisplayMetrics(): DisplayMetrics {
+    return getDisplayMetrics(this?.useHostDisplayMetrics())
+}
+
+private fun getDisplayMetrics(useHostDisplayMetrics: Boolean?): DisplayMetrics {
+    return KuiklyRenderAdapterManager.krFontAdapter?.getDisplayMetrics(useHostDisplayMetrics) ?: Resources.getSystem().displayMetrics
+}
+
+fun IKuiklyRenderContext?.spToPxI(value: Float): Int = spToPxI(this?.useHostDisplayMetrics(), value)
+fun spToPxI(useHostDisplayMetrics: Boolean?, value: Float): Int = (spToPxF(useHostDisplayMetrics, value) +  KRExtConst.ROUND_SCALE_VALUE).toInt()
 
 fun Any.toNumberFloat(): Float = (this as Number).toFloat()
 
 /**
  * 将[SizeF]中的值转换为px值
  */
-fun SizeF.toPxSizeF(): SizeF = SizeF(width.toPxF(), height.toPxF())
+fun IKuiklyRenderContext?.toPxSizeF(sizeF: SizeF): SizeF = toPxSizeF(this?.useHostDisplayMetrics(), sizeF)
+fun toPxSizeF(useHostDisplayMetrics: Boolean?, sizeF: SizeF) = SizeF(toPxF(useHostDisplayMetrics, sizeF.width), toPxF(useHostDisplayMetrics, sizeF.height))
 
 /**
  * 将[SizeF]中的值转为dp值
  */
-fun SizeF.toDpSizeF(): SizeF = SizeF(width.toDpF(), height.toDpF())
+fun IKuiklyRenderContext?.toDpSizeF(sizeF: SizeF): SizeF = toDpSizeF(this?.useHostDisplayMetrics(), sizeF)
+fun toDpSizeF(useHostDisplayMetrics: Boolean?, sizeF: SizeF) = SizeF(toDpF(useHostDisplayMetrics, sizeF.width), toDpF(useHostDisplayMetrics, sizeF.height))
 
 /**
  * 将[RectF]中的值设置给[ViewGroup.MarginLayoutParams]
  */
-internal fun View.setFrameF(frameF: RectF) {
+internal fun View.setFrameF(context: IKuiklyRenderContext?, frameF: RectF) {
     setCommonProp(KRCssConst.FRAME, Rect().apply {
-        left = frameF.left.toPxI()
-        top = frameF.top.toPxI()
-        right = frameF.right.toPxI()
-        bottom = frameF.bottom.toPxI()
+        left = context.toPxI(frameF.left)
+        top = context.toPxI(frameF.top)
+        right = context.toPxI(frameF.right)
+        bottom = context.toPxI(frameF.bottom)
     })
 }
+
+/**
+ * frame中的Rect将right和bottom定义为矩形的宽度和高度
+ * 故扩展符合可读的宽度字段.krWidth代替.right
+ */
+val Rect.krWidth: Int
+    get() = right
+
+val Rect.krHeight: Int
+    get() = bottom
 
 /**
  * 为View扩展frame属性，其中
@@ -388,6 +442,14 @@ internal fun Throwable.stackTraceToString(): String {
     printStackTrace(pw)
     pw.flush()
     return sw.toString()
+}
+
+fun Throwable.kuiklyExceptionStackTraceToString(): String {
+    return if (this is KRKotlinBizException) {
+        message ?: "null"
+    } else {
+        stackTraceToString()
+    }
 }
 
 /**

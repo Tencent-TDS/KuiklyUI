@@ -25,7 +25,6 @@ import android.view.ViewTreeObserver
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.PopupWindow
-import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderBaseModule
 

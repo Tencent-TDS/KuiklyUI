@@ -16,7 +16,6 @@
 package com.tencent.kuikly.core.render.android.export
 
 import android.app.Activity
-import android.content.Intent
 import androidx.annotation.UiThread
 import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
 

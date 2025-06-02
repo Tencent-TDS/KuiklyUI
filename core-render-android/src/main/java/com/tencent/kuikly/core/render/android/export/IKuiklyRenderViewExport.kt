@@ -16,22 +16,20 @@
 package com.tencent.kuikly.core.render.android.export
 
 import android.app.Activity
-import android.content.ContextWrapper
 import android.graphics.Canvas
 import android.view.View
 import android.view.ViewGroup
 import androidx.annotation.UiThread
 import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
 import com.tencent.kuikly.core.render.android.css.decoration.IKRViewDecoration
+import com.tencent.kuikly.core.render.android.css.ktx.activity
+import com.tencent.kuikly.core.render.android.css.ktx.clearViewData
 import com.tencent.kuikly.core.render.android.css.ktx.drawCommonDecoration
 import com.tencent.kuikly.core.render.android.css.ktx.drawCommonForegroundDecoration
 import com.tencent.kuikly.core.render.android.css.ktx.removeOnSetFrameObservers
 import com.tencent.kuikly.core.render.android.css.ktx.resetCommonProp
-import com.tencent.kuikly.core.render.android.css.ktx.activity
-import com.tencent.kuikly.core.render.android.css.ktx.clearViewData
 import com.tencent.kuikly.core.render.android.css.ktx.setCommonProp
 import com.tencent.kuikly.core.render.android.css.ktx.stopAnimations
-
 
 /**
  * 渲染视图组件协议, 组件通过实现[IKuiklyRenderViewExport]协议 完成一个kuikly ui组件暴露

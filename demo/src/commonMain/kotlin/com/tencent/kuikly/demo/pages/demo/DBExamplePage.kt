@@ -31,7 +31,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
 
-internal data class ImageInfo(val url: String, val width: Float, val height:Float ) {}
+internal data class ImageInfo(val url: String, val width: Float, val height:Float )
 
 internal class DBSubTabItemData {
     var tabTitle by observable("")

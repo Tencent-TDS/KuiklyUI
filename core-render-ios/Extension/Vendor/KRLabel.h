@@ -36,6 +36,7 @@ extern NSString *const KRBGAttributeKey;
  */
 + (CGSize)sizeThatFits:(CGSize)size attributedString:(NSAttributedString *)attString numberOfLines:(NSUInteger)lines lineBreakMode:(NSLineBreakMode)mode;
 + (CGSize)sizeThatFits:(CGSize)size attributedString:(NSAttributedString *)attString numberOfLines:(NSUInteger)lines lineBreakMode:(NSLineBreakMode)mode lineBreakMarin:(CGFloat)marin;
++ (CGSize)sizeThatFits:(CGSize)size attributedString:(NSAttributedString *)attString numberOfLines:(NSUInteger)lines lineBreakMode:(NSLineBreakMode)mode lineBreakMarin:(CGFloat)marin lineHeight:(CGFloat)lineHeight;
 
 @end
 
@@ -67,9 +68,12 @@ extern NSString *const KRBGAttributeKey;
 @property (nonatomic, assign) BOOL isBreakLine;//是否被截断
 
 @property (nonatomic, assign) CGFloat lineBreakMargin;//截断边距
+@property (nonatomic, assign) CGFloat lineHeight; 
+
 // initialize
 - (instancetype)initWithAttributedText:(NSAttributedString *)attributedText;
 - (instancetype)initWithTextStorage:(NSTextStorage *)textStorage;
+- (instancetype)initWithTextStorage:(NSTextStorage *)textStorage lineHeight:(CGFloat)lineHeight;
 
 @property (nonatomic, strong, readonly, nullable) NSArray<NSTextAttachment *> *attachmentViews;
 @property (nonatomic, strong, readonly, nullable) NSSet<NSTextAttachment *> *attachmentViewSet;

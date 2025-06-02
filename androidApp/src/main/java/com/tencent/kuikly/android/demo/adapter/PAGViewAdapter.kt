@@ -16,15 +16,13 @@
 package com.tencent.kuikly.android.demo.adapter
 
 import android.content.Context
-import android.content.res.AssetManager
 import android.view.View
 import com.tencent.kuikly.core.render.android.adapter.IKRPAGViewAdapter
 import com.tencent.kuikly.core.render.android.adapter.IPAGView
 import com.tencent.kuikly.core.render.android.adapter.IPAGViewListener
-import com.tencent.kuikly.core.render.android.expand.component.pag.KRPAGView
-import org.libpag.PAGTextLayer
-import org.libpag.PAGImageLayer
 import org.libpag.PAGImage
+import org.libpag.PAGImageLayer
+import org.libpag.PAGTextLayer
 import org.libpag.PAGView
 
 /**

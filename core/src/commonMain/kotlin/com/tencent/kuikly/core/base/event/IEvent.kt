@@ -107,7 +107,6 @@ interface IEvent {
      */
     fun onViewLayoutFrameDidChanged(view: DeclarativeBaseView<*, *>)
 
-
 }
 
 //定义事件处理函数

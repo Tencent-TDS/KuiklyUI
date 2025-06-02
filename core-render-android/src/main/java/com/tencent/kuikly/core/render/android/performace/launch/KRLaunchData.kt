@@ -141,7 +141,6 @@ class KRLaunchData(private val eventTimestamps: Array<Long>) {
             return eventTimestamps[EVENT_ON_FIRST_FRAME_PAINT] - eventTimestamps[EVENT_ON_INIT]
         }
 
-
     /**
      * 获取事件时间戳
      */

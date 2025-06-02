@@ -17,7 +17,6 @@ package com.tencent.kuikly.demo.pages.base.ktx
 
 import com.tencent.kuikly.core.pager.PageData
 
-
 /**
  * Created by wybeeli on 2023/1/9.
  * @author wybeeli

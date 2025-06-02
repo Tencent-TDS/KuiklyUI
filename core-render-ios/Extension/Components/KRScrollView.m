@@ -19,11 +19,14 @@
 #import "KRWrapperView.h"
 #import "KRMultiDelegateProxy.h"
 #import "KRConvertUtil.h"
+#import "KRScrollViewOffsetAnimator.h"
+#import "KRScrollView+NestedScroll.h"
+#import "NSObject+KR.h"
 
 /*
  * @brief 暴露给Kotlin侧调用的Scoller组件
  */
-@interface KRScrollView()<UIScrollViewDelegate>
+@interface KRScrollView()<UIScrollViewDelegate, KRScrollViewOffsetAnimatorDelegate>
 
 /** attr is bouncesEnable  */
 @property (nonatomic, strong) NSNumber *KUIKLY_PROP(bouncesEnable);
@@ -37,6 +40,10 @@
 @property (nonatomic, strong) NSNumber *KUIKLY_PROP(directionRow);
 /** attr is css_dynamicSyncScrollDisable */
 @property (nonatomic, strong) NSNumber *KUIKLY_PROP(dynamicSyncScrollDisable);
+/** attr is minContentOffset */
+@property (nonatomic, strong) NSNumber *KUIKLY_PROP(limitHeaderBounces);
+/** attr nestedScroll */
+@property (nonatomic, strong) NSString *KUIKLY_PROP(nestedScroll);
 /** event is scroll  */
 @property (nonatomic, strong) KuiklyRenderCallback KUIKLY_PROP(scroll);
 /** event is dragBegin  */
@@ -54,8 +61,6 @@
 @implementation KRScrollView {
     /** scrollEventCallback */
     KuiklyRenderCallback _scrollEventCallback;
-    /** lastContentOffset */
-    CGPoint _lastContentOffset;
     /** 松手时offsetY小于insetTop设置该contentInset for 下拉刷新组件 */
     UIEdgeInsets _contentInsetWhenEndDrag;
     /* wrapper self view*/
@@ -68,8 +73,21 @@
     BOOL _didLayout;
     /** 下次列表滚动动画结束回调 */
     dispatch_block_t _nextEndScrollingAnimationCallback;
+    /**是否正在拖拽中，因系统isDragging不准，所以独立维护**/
+    BOOL _isCurrentlyDragging;
+    /** displaylink驱动的offset动画器 */
+    KRScrollViewOffsetAnimator *_offsetAnimator;
+    /**忽略分发ScrollEvent**/
+    BOOL _ignoreDispatchScrollEvent;
 }
 @synthesize hr_rootView;
+@synthesize lastContentOffset = _lastContentOffset;
+@synthesize lContentOffset;
+@synthesize activeInnerScrollView;
+@synthesize activeOuterScrollView;
+@synthesize nestedGestureDelegate;
+@synthesize cascadeLockForNestedScroll;
+@synthesize isLockedInNestedScroll;
 
 #pragma mark - init
 
@@ -127,7 +145,6 @@
     [_delegateProxy removeDelegate:scrollViewDelegate];
 }
 
-
 #pragma mark - override
 
 - (void)layoutSubviews {
@@ -163,6 +180,13 @@
     if (self.autoAdjustContentOffsetDisable) {
         return ;
     }
+    if ([_css_limitHeaderBounces boolValue]) { // 禁止顶部回弹
+        if ([_css_directionRow boolValue]) {
+            contentOffset = CGPointMake(MAX(contentOffset.x, 0), contentOffset.y);
+        } else {
+            contentOffset = CGPointMake(contentOffset.x, MAX(contentOffset.y, 0));
+        }
+    }
     [super setContentOffset:contentOffset];
     [self p_dispatchScrollEventIfNeed];
 }
@@ -180,15 +204,18 @@
     return cancel;
 }
 
+
 #pragma mark - UIScrollViewDelegate
 
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
+    _isCurrentlyDragging = YES;
     if (_css_dragBegin) {
        _css_dragBegin([self p_generateEventBaseParams]);
     }
 }
 
 - (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate {
+    _isCurrentlyDragging = NO;
     if (!decelerate) { // 滑动结束
         if (_css_scrollEnd) {
             _css_scrollEnd([self p_generateEventBaseParams]);
@@ -331,6 +358,38 @@
     }
 }
 
+- (void)parseScrollMode:(NSString *)modeStr forward:(BOOL)isForward {
+    NestedScrollPriority pri = NestedScrollPriorityUndefined;
+    if ([modeStr isEqualToString:@"SELF_ONLY"]) {
+        pri = NestedScrollPrioritySelfOnly;
+    } else if ([modeStr isEqualToString:@"SELF_FIRST"]) {
+        pri = NestedScrollPrioritySelf;
+    } else if ([modeStr isEqualToString:@"PARENT_FIRST"]) {
+        pri = NestedScrollPriorityParent;
+    }
+    // 垂直
+    if (isForward && ![self horizontal]) {
+        [self setNestedScrollTopPriority:pri];
+    } else if (isForward && [self horizontal]) {
+        [self setNestedScrollLeftPriority:pri];
+    } else if (!isForward && ![self horizontal]) {
+        [self setNestedScrollBottomPriority:pri];
+    } else if (!isForward && [self horizontal]) {
+        [self setNestedScrollRightPriority:pri];
+    }
+}
+
+- (void)setCss_nestedScroll:(NSString *)css_nestedScroll {
+    if (![self.css_nestedScroll isEqualToString:css_nestedScroll]) {
+        _css_nestedScroll = css_nestedScroll;
+        NSDictionary *dic = [css_nestedScroll kr_stringToDictionary];
+        NSString *forwardStr = [dic objectForKey:@"forward"];
+        NSString *backwardStr = [dic objectForKey:@"backward"];
+        [self parseScrollMode:forwardStr forward:YES];
+        [self parseScrollMode:backwardStr forward:NO];
+    }
+}
+
 - (void)setCss_dynamicSyncScrollDisable:(NSNumber *)css_dynamicSyncScrollDisable {
     if (self.css_dynamicSyncScrollDisable != css_dynamicSyncScrollDisable) {
         _css_dynamicSyncScrollDisable = css_dynamicSyncScrollDisable;
@@ -363,6 +422,13 @@
     }
 }
 
+#pragma mark - KRScrollViewOffsetAnimatorDelegate
+
+
+- (void)animateContentOffsetDidChanged:(CGPoint)contentOffset {
+    [self dispatchScrollEventWithCurOffset:contentOffset];
+}
+
 #pragma mark - private
 /// 是否有足够多的可见内容视图
 - (BOOL)p_hasEnoughVisibleContentViews {
@@ -384,9 +450,9 @@
         if (CGRectGetWidth(contentView.frame) < CGRectGetHeight(contentView.frame)) { // 纵向布局
             CGRect topAreaRect = CGRectMake(1, 1, CGRectGetWidth(visibleFrame) - 2, CGRectGetHeight(visibleFrame) * 0.3);
             CGRect bottomAreaRect = CGRectMake(1,
-                                               CGRectGetHeight(visibleFrame) * 0.7 - 1,
+                                               CGRectGetHeight(visibleFrame) * 0.5 - 1,
                                                CGRectGetWidth(visibleFrame) - 2,
-                                               CGRectGetHeight(visibleFrame) * 0.3);
+                                               CGRectGetHeight(visibleFrame) * 0.5);
             
             if (CGRectContainsRect(subViewFrame, topAreaRect) || CGRectContainsRect(topAreaRect, subViewFrame)
                 || CGRectIntersectsRect(subViewFrame, topAreaRect)){
@@ -419,12 +485,24 @@
 }
 // 分发scroll变化事件到kotlin
 - (void)p_dispatchScrollEventIfNeed {
-    if (!CGPointEqualToPoint(self.contentOffset, _lastContentOffset)) {
-        _lastContentOffset = self.contentOffset;
+    if (self.isLockedInNestedScroll) {
+        self.isLockedInNestedScroll = NO; // reset
+        return;
+    }
+    
+    if (_ignoreDispatchScrollEvent) {
+        return ;
+    }
+    [self dispatchScrollEventWithCurOffset:self.contentOffset];
+}
+
+- (void)dispatchScrollEventWithCurOffset:(CGPoint)curOffset {
+    if (!CGPointEqualToPoint(curOffset, _lastContentOffset)) {
+        _lastContentOffset = curOffset;
         if (_css_scroll) {
             dispatch_block_t block = ^{
                 BOOL syncCallback = NO;
-                if (![self.css_dynamicSyncScrollDisable boolValue]) {
+                if (![self.css_dynamicSyncScrollDisable boolValue] && !self.setContentSizeing) {
                     syncCallback = ![self p_hasEnoughVisibleContentViews];
                 }
                 NSMutableDictionary *param = [[self p_generateEventBaseParams] mutableCopy];
@@ -447,8 +525,6 @@
 // 在该contentInset下的列表最大可滚动偏移
 - (CGPoint)p_maxContentOffsetInContentInset:(UIEdgeInsets)contentInset {
     CGFloat offsetTop = [_css_directionRow boolValue] ? self.contentOffset.x + contentInset.left : self.contentOffset.y + contentInset.top;
-    CGFloat horizontalOffset;
-    CGFloat verticalOffset;
     CGFloat offsetBottom = [_css_directionRow boolValue]
         ? self.contentOffset.x + CGRectGetWidth(self.frame) - (self.contentSize.width + contentInset.right)
         : self.contentOffset.y + CGRectGetHeight(self.frame) - (self.contentSize.height + contentInset.bottom);
@@ -483,15 +559,25 @@
 
 
 - (NSDictionary *)p_generateEventBaseParams {
+    
+    NSMutableArray *touchesParam = [NSMutableArray new];
+    for (int i = 0; i < self.panGestureRecognizer.numberOfTouches; i++) {
+        CGPoint pagePoint = [self.panGestureRecognizer locationOfTouch:i inView:self.hr_rootView];
+        [touchesParam addObject:@{
+            @"pageX" : @(pagePoint.x),
+            @"pageY" : @(pagePoint.y)
+        }];
+    }
+    
     return @{
-        @"offsetX":@(self.contentOffset.x),
-        @"offsetY":@(self.contentOffset.y),
+        @"offsetX":@(_lastContentOffset.x),
+        @"offsetY":@(_lastContentOffset.y),
         @"contentWidth": @(self.contentSize.width),
         @"contentHeight": @(self.contentSize.height),
         @"viewWidth": @(self.frame.size.width),
         @"viewHeight": @(self.frame.size.height),
-        @"isDragging":@(self.isDragging ? 1 : 0),
-       
+        @"isDragging":@(_isCurrentlyDragging ? 1 : 0),
+        @"touches": touchesParam,
     };
 }
 
@@ -502,6 +588,12 @@
 }
 
 - (void)p_springAnimationWithContentOffset:(CGPoint)contentOffset duration:(CGFloat)duration damping:(CGFloat)damping velocity:(CGFloat)velocity {
+    [_offsetAnimator cancel];
+    _offsetAnimator = [[KRScrollViewOffsetAnimator alloc] initWithScrollView:self delegate:self];
+    [_offsetAnimator animateToOffset:contentOffset withVelocity:CGPointZero];
+    KRScrollViewOffsetAnimator *animator = _offsetAnimator;
+    _ignoreDispatchScrollEvent = YES;
+
     [UIView animateWithDuration:duration / 1000.0 delay:0
          usingSpringWithDamping:damping
           initialSpringVelocity:velocity
@@ -511,7 +603,14 @@
                self.contentInset = UIEdgeInsetsMake(-contentOffset.y,  -contentOffset.x , 0, 0);
             }
             [self setContentOffset:contentOffset];
-    } completion:nil];
+    } completion:^(BOOL finished) {
+        [animator cancel];
+    }];
+    _ignoreDispatchScrollEvent = NO;
+}
+
+- (void)dealloc {
+    [_offsetAnimator cancel];
 }
 
 
@@ -561,7 +660,9 @@
             if (scrollView.isDragging) {
                 scrollView.autoAdjustContentOffsetDisable = YES;
             }
+            scrollView.setContentSizeing = YES;
             scrollView.contentSize = CGSizeMake(CGRectGetWidth(self.frame), CGRectGetHeight(self.frame));
+            scrollView.setContentSizeing = NO;
             scrollView.autoAdjustContentOffsetDisable = NO;
         }
     }

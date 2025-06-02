@@ -44,4 +44,3 @@ class TaskManager(pagerId: String) {
         taskQueue.clear()
     }
 }
-

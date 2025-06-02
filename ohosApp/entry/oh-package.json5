@@ -1,0 +1,13 @@
+{
+  "name": "entry",
+  "version": "1.0.0",
+  "description": "Please describe the basic information.",
+  "main": "",
+  "author": "",
+  "license": "",
+  "dependencies": {
+    "@kuikly-open/render": "file:../../core-render-ohos",
+    "libkuikly_entry.so": "file:./src/main/cpp/types/kuikly_entry",
+    "@tencent/libpag": "4.4.25"
+  }
+}

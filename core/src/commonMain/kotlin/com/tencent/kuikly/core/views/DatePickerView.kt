@@ -15,13 +15,20 @@
 
 package com.tencent.kuikly.core.views
 
-import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ColorStop
+import com.tencent.kuikly.core.base.ComposeAttr
+import com.tencent.kuikly.core.base.ComposeEvent
+import com.tencent.kuikly.core.base.ComposeView
+import com.tencent.kuikly.core.base.Direction
+import com.tencent.kuikly.core.base.Rotate
+import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.directives.vbind
 import com.tencent.kuikly.core.manager.PagerManager
 import com.tencent.kuikly.core.module.CalendarModule
 import com.tencent.kuikly.core.module.ICalendar
 import com.tencent.kuikly.core.reactive.handler.observable
-import kotlin.math.max
 
 class Date(
     var year: Int = 0,
@@ -37,9 +44,8 @@ internal typealias DatePickerChooseEvent = (pickerDate: DatePickerDate) -> Unit
 class DatePickerDate(
     val timeInMillis : Long = 0L,
     val date: Date? = null
-) {
+)
 
-}
 /*
  * 日期选择器组件
  */

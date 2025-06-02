@@ -80,7 +80,6 @@ internal class ExampleIndexPage : BasePager() {
             declarativeExampleUrl = generateJumpUrl("FlexExamplePage")
         })
 
-
         itemList.add(ExampleItemData().apply {
             avatarText = "Zi"
             titleText = "View ZIndex"
@@ -123,7 +122,6 @@ internal class ExampleIndexPage : BasePager() {
             declarativeExampleUrl = generateJumpUrl("CanvasExamplePage")
         })
 
-
         itemList.add(ExampleItemData().apply {
             avatarText = "Bu"
             titleText = "ButtonView"
@@ -154,7 +152,6 @@ internal class ExampleIndexPage : BasePager() {
             declarativeExampleUrl = generateJumpUrl("SliderPageViewDemoPage")
         })
 
-
         itemList.add(ExampleItemData().apply {
             avatarText = "Pa"
             titleText = "PageListView"
@@ -162,14 +159,12 @@ internal class ExampleIndexPage : BasePager() {
             declarativeExampleUrl = generateJumpUrl("PageListExamplePage")
         })
 
-
         itemList.add(ExampleItemData().apply {
             avatarText = "Mo"
             titleText = "ModalView"
             subtitleText = "全屏模态组件，用来做alert弹窗或者浮层"
             declarativeExampleUrl = generateJumpUrl("ModalViewDemoPage")
         })
-
 
         itemList.add(ExampleItemData().apply {
             avatarText = "Re"
@@ -220,7 +215,6 @@ internal class ExampleIndexPage : BasePager() {
             declarativeExampleUrl = generateJumpUrl("HoverExamplePage")
         })
 
-
         // 缺mask
         itemList.add(ExampleItemData().apply {
             avatarText = "Ma"
@@ -270,7 +264,6 @@ internal class ExampleIndexPage : BasePager() {
             subtitleText = "使用VideoView为你的app添加视频"
             declarativeExampleUrl = generateJumpUrl("VideoExamplePage")
         })
-
 
     }
 

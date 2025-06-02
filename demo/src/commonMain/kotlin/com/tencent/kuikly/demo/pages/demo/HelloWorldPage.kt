@@ -16,12 +16,15 @@
 package com.tencent.kuikly.demo.pages
 
 import com.tencent.kuikly.core.annotations.Page
-import com.tencent.kuikly.core.base.*
-import com.tencent.kuikly.core.log.KLog
-import com.tencent.kuikly.core.views.*
+import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ComposeEvent
+import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.reactive.collection.ObservableList
-import com.tencent.kuikly.core.reactive.handler.*
+import com.tencent.kuikly.core.reactive.handler.observableList
+import com.tencent.kuikly.core.views.RichText
+import com.tencent.kuikly.core.views.Span
+
 /**
  * Created by kam on 2022/7/28.
  */

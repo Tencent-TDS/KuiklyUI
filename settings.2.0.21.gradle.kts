@@ -6,8 +6,6 @@ pluginManagement {
     }
 }
 
-rootProject.name = "KuiklyUI"
-
 val buildFileName = "build.2.0.21.gradle.kts"
 rootProject.buildFileName = buildFileName
 
@@ -23,6 +21,10 @@ project(":core").buildFileName = buildFileName
 
 include(":core-render-android")
 project(":core-render-android").buildFileName = buildFileName
+
+include(":compose")
+project(":compose").buildFileName = buildFileName
+
 
 // include(":demo")
 // include(":androidApp")

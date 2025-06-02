@@ -15,14 +15,26 @@
 
 package com.tencent.kuikly.core.views.compose
 
-import com.tencent.kuikly.core.base.*
-import com.tencent.kuikly.core.base.event.EventHandlerFn
+import com.tencent.kuikly.core.base.Anchor
+import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ComposeAttr
+import com.tencent.kuikly.core.base.ComposeEvent
+import com.tencent.kuikly.core.base.ComposeView
+import com.tencent.kuikly.core.base.ContainerAttr
+import com.tencent.kuikly.core.base.Scale
+import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.event.EventName
 import com.tencent.kuikly.core.base.event.TouchParams
 import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.reactive.handler.observable
-import com.tencent.kuikly.core.views.*
+import com.tencent.kuikly.core.views.Image
+import com.tencent.kuikly.core.views.ImageAttr
+import com.tencent.kuikly.core.views.Text
+import com.tencent.kuikly.core.views.TextAttr
+import com.tencent.kuikly.core.views.View
+import com.tencent.kuikly.core.views.internal.TouchEventHandlerFn
 
 class ButtonView : ComposeView<ButtonAttr, ButtonEvent>() {
     private var highlightViewBgColor by observable(Color.TRANSPARENT)
@@ -103,7 +115,6 @@ class ButtonView : ComposeView<ButtonAttr, ButtonEvent>() {
     }
 }
 
-
 class ButtonAttr : ComposeAttr() {
 
     internal var titleAttrInit: (TextAttr.()->Unit)? = null
@@ -136,7 +147,6 @@ class ButtonAttr : ComposeAttr() {
     var foregroundPercent by observable(0f)
 
 }
-
 
 class ButtonEvent : ComposeEvent() {
     private val touchDownHandlers = arrayListOf<TouchEventHandlerFn>()

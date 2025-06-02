@@ -17,12 +17,14 @@ package com.tencent.kuikly.core.views
 
 import com.tencent.kuikly.core.base.*
 import com.tencent.kuikly.core.base.event.Event
+import com.tencent.kuikly.core.base.event.Touch
 import com.tencent.kuikly.core.collection.toFastMutableList
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.layout.StyleSpace
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.pager.IPagerLayoutEventObserver
+import com.tencent.kuikly.core.views.internal.GroupEvent
 
 interface IScrollerViewEventObserver {
     fun onContentOffsetDidChanged(
@@ -39,9 +41,14 @@ interface IScrollerViewEventObserver {
     @Deprecated("Use scrollerScrollDidEnd instead")
     fun onScrollEnd(params: ScrollParams) {}
 
+    fun contentViewDidSetFrameToRenderView() {}
+
     fun contentSizeDidChanged(width: Float, height: Float) { }
 
     fun scrollerDragBegin(params: ScrollParams) {}
+    
+    fun scrollerDragEnd(params: ScrollParams) {}
+
     fun scrollerScrollDidEnd(params: ScrollParams) {}
 
     fun scrollFrameDidChanged(frame: Frame) {}
@@ -53,7 +60,20 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
         private set
     var curOffsetY: Float = 0f
         private set
+    var isDragging: Boolean = false
+
+    val contentViewOffsetX: Float
+      get() {
+          return contentView?.offsetX ?: 0f
+      }
+
+    val contentViewOffsetY: Float
+        get() {
+            return contentView?.offsetY ?: 0f
+        }
+
     private var lastFrame = Frame.zero
+    internal var shouldListenWillEndDrag = false
 
     var contentView: ScrollerContentView? = null
          private set
@@ -82,12 +102,12 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
      * @param springAnimation 弹簧动画参数，可为空，默认为 null。
      */
     fun setContentOffset(offsetX: Float, offsetY: Float, animated: Boolean = false, springAnimation: SpringAnimation? = null) {
+        val contentOffset = transformInputSetContentOffset(offsetX, offsetY)
         performTaskWhenRenderViewDidLoad {
-            var springAnimationString = ""
-            springAnimation?.also {
-                springAnimationString = it.toString()
+            if (!animated && springAnimation == null) {
+                contentView?.contentOffsetWillChanged(contentOffset.first, contentOffset.second)
             }
-            renderView?.callMethod("contentOffset", "$offsetX $offsetY ${animated.toInt()}${springAnimationString}")
+            callContentOffset(contentOffset.first, contentOffset.second, animated, springAnimation)
         }
     }
 
@@ -95,6 +115,31 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
         performTaskWhenRenderViewDidLoad {
             renderView?.callMethod("abortContentOffsetAnimate")
         }
+    }
+
+    open fun callContentOffset(offsetX: Float, offsetY: Float, animated: Boolean = false, springAnimation: SpringAnimation? = null) {
+        var springAnimationString = ""
+        springAnimation?.also {
+            springAnimationString = it.toString()
+        }
+        renderView?.callMethod("contentOffset", "${offsetX} ${offsetY} ${animated.toInt()}${springAnimationString}")
+
+    }
+
+    internal fun contentViewDidSetFrameToRenderView() {
+        scrollerViewEventObserverSet.toFastMutableList().forEach {
+            it.contentViewDidSetFrameToRenderView()
+        }
+    }
+
+    /* 转换输入设置的滚动偏移量 */
+    open fun transformInputSetContentOffset(offsetX: Float, offsetY: Float): Pair<Float, Float> {
+        return Pair(offsetX, offsetY)
+    }
+
+    /* 转换输入设置的滚动偏移量 */
+    open fun transformOutputContentOffset(offsetX: Float, offsetY: Float): Pair<Float, Float> {
+        return Pair(offsetX, offsetY)
     }
 
     fun setContentInset(
@@ -120,9 +165,13 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
         }
     }
 
-    override fun <T : DeclarativeBaseView<*, *>> addChild(child: T, init: T.() -> Unit) {
+    override fun <T : DeclarativeBaseView<*, *>> addChild(
+        child: T,
+        init: T.() -> Unit,
+        index: Int
+    ) {
         initScrollerContentComponentIfNeed()
-        contentView!!.addChild(child, init)
+        contentView!!.addChild(child, init, index)
     }
 
     override fun realContainerView(): ViewContainer<*, *> {
@@ -130,6 +179,14 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
             return contentView!!
         }
         return this
+    }
+
+    override fun getChild(index: Int): DeclarativeBaseView<*, *> {
+        return contentView!!.getChild(index)
+    }
+
+    override fun removeChild(index: Int) {
+        contentView!!.removeChild(index)
     }
 
     override fun willInit() {
@@ -177,10 +234,11 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
         }
     }
 
-    private fun initScrollerContentComponentIfNeed() {
+    fun initScrollerContentComponentIfNeed() {
         if (contentView === null) {
             contentView = createContentView()
             contentView?.also {
+                it.pagerId = this.pagerId
                 it.flexNode.flexDirection = flexNode.flexDirection
                 it.flexNode.justifyContent = flexNode.justifyContent
                 it.flexNode.alignItems = flexNode.alignItems
@@ -205,12 +263,14 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
                     }
                 }, 0)
             }
+            insertDomSubView(contentView!!, 0)
         }
     }
 
     private fun handleListDidScroll(offsetX: Float, offsetY: Float, params: ScrollParams) {
         curOffsetX = offsetX
         curOffsetY = offsetY
+        contentView?.contentOffsetWillChanged(offsetX, offsetY)
         scrollerViewEventObserverSet.toFastMutableList().forEach {
             it.onContentOffsetDidChanged(curOffsetX, curOffsetY, params)
         }
@@ -218,36 +278,48 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
     }
 
     private fun handleListDidScrollEnd(params: ScrollParams) {
+        curOffsetX = params.offsetX
+        curOffsetY = params.offsetY
+        contentView?.contentOffsetWillChanged(params.offsetX, params.offsetY)
         scrollerViewEventObserverSet.toFastMutableList().forEach {
             it.onScrollEnd(params)
         }
+        contentView?.contentOffsetDidChanged(params.offsetX, params.offsetY, params)
     }
 
-    private fun listenScrollEvent() {
+    fun listenScrollEvent() {
         val ctx = this
         val scrollHandler = event.handlerWithEventName(ScrollerEvent.ScrollerEventConst.SCROLL)
-        getViewEvent().scroll {
-            it.also {
-                ctx.handleListDidScroll(it.offsetX, it.offsetY, it)
-            }
-            scrollHandler?.invoke(it)
-        }
-        val dragBeginHandler = event.handlerWithEventName(ScrollerEvent.ScrollerEventConst.DRAG_BEGIN)
-        getViewEvent().dragBegin { scrollParam ->
-            scrollerViewEventObserverSet.toFastMutableList().forEach {
-                it.scrollerDragBegin(scrollParam)
-            }
-            dragBeginHandler?.invoke(scrollParam)
-        }
         val scrollEndHandler = event.handlerWithEventName(ScrollerEvent.ScrollerEventConst.SCROLL_END)
-        getViewEvent().scrollEnd { scrollParam ->
-            scrollerViewEventObserverSet.toFastMutableList().forEach {
-                it.onScrollEnd(scrollParam)
-                it.scrollerScrollDidEnd(scrollParam)
+        val dragBeginHandler = event.handlerWithEventName(ScrollerEvent.ScrollerEventConst.DRAG_BEGIN)
+        val dragEndHandler = event.handlerWithEventName(ScrollerEvent.ScrollerEventConst.DRAG_END)
+        event {
+            scroll(ctx.attr.syncScroll || this.syncScroll) {
+                val contentOffset = ctx.transformOutputContentOffset(it.offsetX, it.offsetY)
+                it.offsetX = contentOffset.first
+                it.offsetY = contentOffset.second
+                it.also {
+                    ctx.handleListDidScroll(it.offsetX, it.offsetY, it)
+                }
+                scrollHandler?.invoke(it)
             }
-            scrollEndHandler?.invoke(scrollParam)
+            dragBegin { scrollParam ->
+                this@ScrollerView.scrollerViewEventObserverSet.toFastMutableList().forEach {
+                    it.scrollerDragBegin(scrollParam)
+                }
+                dragBeginHandler?.invoke(scrollParam)
+            }
+            dragEnd { scrollParam ->
+                this@ScrollerView.scrollerViewEventObserverSet.toFastMutableList().forEach {
+                    it.scrollerDragEnd(scrollParam)
+                }
+                dragEndHandler?.invoke(scrollParam)
+            }
+            scrollEnd {
+                ctx.handleListDidScrollEnd(it)
+                scrollEndHandler?.invoke(it)
+            }
         }
-
     }
 
     internal fun contentSizeDidChanged(width: Float, height: Float) {
@@ -255,6 +327,17 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
             it.contentSizeDidChanged(width, height)
         }
     }
+
+    /**
+     * 是否为横向布局
+     */
+    fun isRowFlexDirection(): Boolean {
+        if ((contentView as? ScrollerContentView) != null) {
+            return (contentView as ScrollerContentView).isRowFlexDirection()
+        }
+        return false
+    }
+
 }
 
 enum class KRNestedScrollMode(val value: String){
@@ -268,14 +351,21 @@ open class ScrollerAttr : ContainerAttr() {
     var syncScroll = false
     var visibleAreaIgnoreTopMargin = 0f
     var visibleAreaIgnoreBottomMargin = 0f
+    internal var bouncesEnable = true
 
     // 是否允许手势滚动
     fun scrollEnable(value: Boolean) {
         SCROLL_ENABLED with value.toInt()
     }
-    // 是否允许边界回弹效果
-    fun bouncesEnable(value: Boolean) {
-        BOUNCES_ENABLE with value.toInt()
+    /*
+     * 是否允许边界回弹效果
+     * @param bouncesEnable 是否允许边界回弹
+     * @param limitHeaderBounces 是否禁止顶部回弹(如bouncesEnable为false，该值就无效)
+     */
+    fun bouncesEnable(bouncesEnable: Boolean, limitHeaderBounces: Boolean = false) {
+        this.bouncesEnable = bouncesEnable
+        BOUNCES_ENABLE with bouncesEnable.toInt()
+        LIMIT_BOUNCES_ENABLE with limitHeaderBounces.toInt()
     }
     // 是否显示滚动指示进度条（默认显示）
     fun showScrollerIndicator(value: Boolean) {
@@ -317,6 +407,14 @@ open class ScrollerAttr : ContainerAttr() {
         syncScroll = syncEnable
     }
 
+    /**
+     * 设置是否父组件滑动联动，即自身滑动到目标方向的边缘时，触发父组件滑动，默认 true
+     * @param enable 是否允许父组件滑动联动
+     */
+    fun scrollWithParent(enable: Boolean) {
+        SCROLL_WITH_PARENT with enable.toInt()
+    }
+
     override fun flexDirection(flexDirection: FlexDirection): ContainerAttr {
         DIRECTION_ROW with (flexDirection == FlexDirection.ROW || flexDirection == FlexDirection.ROW_REVERSE).toInt()
         return super.flexDirection(flexDirection)
@@ -332,10 +430,12 @@ open class ScrollerAttr : ContainerAttr() {
     companion object {
         const val SCROLL_ENABLED = "scrollEnabled"
         const val BOUNCES_ENABLE = "bouncesEnable"
+        const val LIMIT_BOUNCES_ENABLE = "limitHeaderBounces"
         const val SHOW_SCROLLER_INDICATOR = "showScrollerIndicator"
         const val PAGING_ENABLED = "pagingEnabled"
         const val DIRECTION_ROW =  "directionRow"
         const val FLING_ENABLE = "flingEnable"
+        const val SCROLL_WITH_PARENT = "scrollWithParent"
         const val NESTED_SCROLL = "nestedScroll"
     }
 
@@ -379,7 +479,11 @@ open class ScrollerEvent : Event() {
      * @param handler 一个接收 ScrollParams 参数的函数，当开始拖拽滚动时被调用。
      */
     open fun dragBegin(handler: (ScrollParams) -> Unit) {
-        registerScrollerEvent(ScrollerEventConst.DRAG_BEGIN, handler, false)
+        val ctx = this
+        registerScrollerEvent(ScrollerEventConst.DRAG_BEGIN, handler = {
+            (getView() as ScrollerView).isDragging = true
+            handler.invoke(it)
+        }, sync = false)
     }
 
     /**
@@ -388,7 +492,10 @@ open class ScrollerEvent : Event() {
      * @param handler 一个接收 ScrollParams 参数的函数，当结束拖拽滚动时被调用。
      */
     open fun dragEnd(handler: (ScrollParams) -> Unit) {
-        registerScrollerEvent(ScrollerEventConst.DRAG_END, handler, false)
+        registerScrollerEvent(ScrollerEventConst.DRAG_END, handler = {
+            (getView() as ScrollerView).isDragging = false
+            handler.invoke(it)
+        }, sync = false)
     }
 
     /**
@@ -396,14 +503,18 @@ open class ScrollerEvent : Event() {
      * 该方法常用于手松时指定滚动偏移量（setContentOffset）来实现自定义吸附位置
      * @param handler 一个接收 WillEndDragParams 参数的函数，当将要结束拖拽滚动时被调用。
      */
-    open fun willDragEndBySync(handler: (WillEndDragParams) -> Unit) {
+    fun willDragEndBySync(handler: (WillEndDragParams) -> Unit, isSync: Boolean) {
         this.register(ScrollerEventConst.WILL_DRAG_END, {
             if (it is JSONObject) {
                 handler(WillEndDragParams.decode(it))
             } else if (it is WillEndDragParams) {
                 handler(it)
             }
-        }, true) // 平台主线程成会同步回调
+        }, isSync) // 平台主线程成会同步回调
+    }
+
+    open fun willDragEndBySync(handler: (WillEndDragParams) -> Unit) {
+        willDragEndBySync(isSync = true, handler = handler)
     }
 
     /**
@@ -439,11 +550,9 @@ fun ViewContainer<*, *>.Scroller(init: ScrollerView<*, *>.() -> Unit) {
 }
 
 /** 内容视图 */
-open class ScrollerContentView : ViewContainer<ContainerAttr, Event>(), IPagerLayoutEventObserver {
+open class ScrollerContentView : ViewContainer<ContainerAttr, GroupEvent>(), IPagerLayoutEventObserver {
     var offsetX: Float = 0f
-        internal set
     var offsetY: Float = 0f
-        internal set
     protected var needLayout = true
     override fun viewName(): String {
         return ViewConst.TYPE_SCROLL_CONTENT_VIEW
@@ -453,8 +562,8 @@ open class ScrollerContentView : ViewContainer<ContainerAttr, Event>(), IPagerLa
         return ContainerAttr()
     }
 
-    override fun createEvent(): Event {
-        return Event()
+    override fun createEvent(): GroupEvent {
+        return GroupEvent()
     }
 
     override fun createFlexNode() {
@@ -477,10 +586,18 @@ open class ScrollerContentView : ViewContainer<ContainerAttr, Event>(), IPagerLa
 
     override fun layoutFrameDidChanged(frame: Frame) {
         super.layoutFrameDidChanged(frame)
-        (parent as? ScrollerView<*, *>)?.getViewEvent()?.contentSizeChangedHandlerFn?.invoke(
-            frame.width,
-            frame.height
-        )
+        (parent as? ScrollerView<*, *>)?.also {
+            it.getViewEvent().contentSizeChangedHandlerFn?.invoke(
+                frame.width,
+                frame.height
+            )
+            it.contentSizeDidChanged(width = frame.width, height = frame.height)
+        }
+    }
+
+    open fun contentOffsetWillChanged(offsetX: Float, offsetY: Float) {
+        this.offsetX = offsetX
+        this.offsetY = offsetY
     }
 
     open fun contentOffsetDidChanged(offsetX: Float, offsetY: Float, params: ScrollParams) {
@@ -508,16 +625,27 @@ open class ScrollerContentView : ViewContainer<ContainerAttr, Event>(), IPagerLa
 
     }
 
+    override fun didSetFrameToRenderView() {
+        super.didSetFrameToRenderView()
+        (parent as? ScrollerView<*, *>)?.contentViewDidSetFrameToRenderView()
+    }
+
+    fun isRowFlexDirection(): Boolean {
+        return flexNode.flexDirection == FlexDirection.ROW || flexNode.flexDirection == FlexDirection.ROW_REVERSE
+    }
+
 }
 
 data class ScrollParams(
-    val offsetX: Float,  // 列表当前纵轴偏移量
-    val offsetY: Float,  // 列表当前横轴偏移量
+    var offsetX: Float,  // 列表当前纵轴偏移量
+    var offsetY: Float,  // 列表当前横轴偏移量
     val contentWidth: Float, // 列表当前内容总宽度
     val contentHeight: Float, // 列表当前内容总高度
     val viewWidth: Float,  // 列表View宽度
     val viewHeight: Float, // 列表View高度
-    val isDragging: Boolean) { // 当前是否处于拖拽列表滚动中
+    val isDragging: Boolean, // 是否在dragging
+    val touches: List<Touch> = listOf()   // Touch触摸点信息列表
+) { // 当前是否处于拖拽列表滚动中
     companion object {
         fun decode(params: JSONObject): ScrollParams {
             val offsetX = params.optDouble("offsetX").toFloat()
@@ -527,6 +655,14 @@ data class ScrollParams(
             val viewWidth = params.optDouble("viewWidth").toFloat()
             val viewHeight = params.optDouble("viewHeight").toFloat()
             val isDragging = params.optInt("isDragging") == 1
+            val jsonArray = params.optJSONArray("touches")
+            val touches = mutableListOf<Touch>()
+            jsonArray?.let {
+                for (i in 0 until it.length()) {
+                    val touch = Touch.decode(jsonArray.opt(i))
+                    touches.add(touch)
+                }
+            }
             return ScrollParams(
                 offsetX,
                 offsetY,
@@ -534,7 +670,8 @@ data class ScrollParams(
                 contentHeight,
                 viewWidth,
                 viewHeight,
-                isDragging
+                isDragging,
+                touches
             )
         }
     }

@@ -15,7 +15,6 @@
 
 package com.tencent.kuikly.core.nvi
 
-
 expect open class NativeBridge() {
 
     fun toNative(

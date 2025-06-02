@@ -19,29 +19,19 @@ package com.tencent.kuikly.core.reflection
  * 调用OC方法中若有闭包，请使用以下类来创建闭包参数传入call方法参数中
  */
 // 空参数OC 闭包使用
-class OCBlock0(val block: () -> Unit) {
-
-}
+class OCBlock0(val block: () -> Unit)
 
 // 单个参数Native闭包使用
-class OCBlock1(val block: (arg1: NativeObject<*>?) -> Unit) {
-
-}
+class OCBlock1(val block: (arg1: NativeObject<*>?) -> Unit)
 
 // 2个参数Native闭包
-class OCBlock2(val block: (arg1: NativeObject<*>?, arg2: NativeObject<*>?) -> Unit) {
-
-}
+class OCBlock2(val block: (arg1: NativeObject<*>?, arg2: NativeObject<*>?) -> Unit)
 
 // 3个参数Native闭包使用
-class OCBlock3(val block: (arg1: NativeObject<*>?, arg2: NativeObject<*>?, arg3: NativeObject<*>?) -> Unit) {
-
-}
+class OCBlock3(val block: (arg1: NativeObject<*>?, arg2: NativeObject<*>?, arg3: NativeObject<*>?) -> Unit)
 
 // 4个参数Native闭包使用
-class OCBlock4(val block: (arg1: NativeObject<*>?, arg2: NativeObject<*>?, arg3: NativeObject<*>?, arg4: NativeObject<*>?) -> Unit) {
-
-}
+class OCBlock4(val block: (arg1: NativeObject<*>?, arg2: NativeObject<*>?, arg3: NativeObject<*>?, arg4: NativeObject<*>?) -> Unit)
 
 // 5个参数Native闭包使用
 class OCBlock5(
@@ -52,6 +42,4 @@ class OCBlock5(
         arg4: NativeObject<*>?,
         arg5: NativeObject<*>?
     ) -> Unit
-) {
-
-}
+)

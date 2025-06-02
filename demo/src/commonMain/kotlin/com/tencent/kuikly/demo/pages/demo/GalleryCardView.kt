@@ -21,14 +21,12 @@ import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.View
 
-
 internal class GalleryCardAttr : ComposeAttr() {
     var galleryItemData : GalleryCardData? by observable(null)
 }
 
-internal class GalleryCardEvent : ComposeEvent() {
+internal class GalleryCardEvent : ComposeEvent()
 
-}
 // 画廊卡片
 internal class GalleryCardView : ComposeView<GalleryCardAttr, GalleryCardEvent>() {
     override fun createAttr() = GalleryCardAttr()

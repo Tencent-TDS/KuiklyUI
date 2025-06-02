@@ -17,7 +17,7 @@
 #import "KuiklyRenderThreadManager.h"
 #import "KRConvertUtil.h"
 #import "KuiklyRenderThreadManager.h"
-static id<KuiklyLogProtocol> gLogHanlder;
+static id<KuiklyLogProtocol> gLogHandler;
 
 
 @interface KuiklyLogHandler : NSObject<KuiklyLogProtocol>
@@ -71,14 +71,14 @@ static id<KuiklyLogProtocol> gLogHanlder;
  * @brief 注册自定义log实现
  */
 + (void)registerLogHandler:(id<KuiklyLogProtocol>)logHandler {
-    gLogHanlder = logHandler;
+    gLogHandler = logHandler;
 }
 
 + (id<KuiklyLogProtocol>)logHandler {
-    if (!gLogHanlder) {
-        gLogHanlder = [KuiklyLogHandler new];
+    if (!gLogHandler) {
+        gLogHandler = [KuiklyLogHandler new];
     }
-    return gLogHanlder;
+    return gLogHandler;
 }
 
 - (void)logInfo:(NSDictionary *)args {

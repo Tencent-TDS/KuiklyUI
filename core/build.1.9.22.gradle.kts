@@ -30,7 +30,7 @@ publishing {
 }
 
 kotlin {
-    // targetes
+    // targets
     jvm()
 
     androidTarget {
@@ -42,6 +42,11 @@ kotlin {
     iosX64()
     iosArm64()
 
+    sourceSets {
+        all {
+            languageSettings.optIn("kotlinx.cinterop.ExperimentalForeignApi")
+        }
+    }
 
     // sourceSets
     val commonMain by sourceSets.getting

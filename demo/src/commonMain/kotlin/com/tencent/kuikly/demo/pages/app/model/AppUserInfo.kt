@@ -20,32 +20,29 @@ import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 data class AppUserInfo(
     val id: String,
     val nick: String,
-    val headurl: String,
-    val decs: String,
-    val ismember: Int,
-    val isvertify: Int
+    val headUrl: String,
+    val desc: String,
+    val isMember: Int,
+    val isVerify: Int
 ) {
     companion object {
 
         private const val KEY_USER_ID = "id"
         private const val KEY_USER_NICK = "nick"
-        private const val KEY_USER_DECS = "decs"
+        private const val KEY_USER_DESC = "decs"
         private const val KEY_USER_HEAD_URL = "headurl"
         private const val KEY_IS_MEMBER = "ismember"
-        private const val KEY_IS_VERTIFY = "isvertify"
+        private const val KEY_IS_VERIFY = "isvertify"
 
         fun fromJson(jsonObject : JSONObject): AppUserInfo {
             return AppUserInfo(
                 id = jsonObject.optString(KEY_USER_ID, ""),
                 nick = jsonObject.optString(KEY_USER_NICK, ""),
-                headurl = jsonObject.optString(KEY_USER_HEAD_URL, ""),
-                decs = jsonObject.optString(KEY_USER_DECS, ""),
-                ismember = jsonObject.optInt(KEY_IS_MEMBER, 0),
-                isvertify = jsonObject.optInt(KEY_IS_VERTIFY, 0),
+                headUrl = jsonObject.optString(KEY_USER_HEAD_URL, ""),
+                desc = jsonObject.optString(KEY_USER_DESC, ""),
+                isMember = jsonObject.optInt(KEY_IS_MEMBER, 0),
+                isVerify = jsonObject.optInt(KEY_IS_VERIFY, 0),
             )
-        }
-        fun toJson(obj: AppUserInfo) {
-
         }
     }
 }

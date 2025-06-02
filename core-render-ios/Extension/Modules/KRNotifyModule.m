@@ -46,6 +46,9 @@
     NSDictionary *param = [args[KR_PARAM_KEY] hr_stringToDictionary];
     KuiklyRenderCallback callback = args[KR_CALLBACK_KEY];
     NSString * eventName = param[EVENT_NAME];
+    if (!eventName) {
+        return;
+    }
     NSString * callbackId = param[CALLBACK_ID];
     if (!callback) {
         return ;

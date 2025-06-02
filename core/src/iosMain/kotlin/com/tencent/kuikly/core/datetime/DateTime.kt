@@ -15,13 +15,17 @@
 
 package com.tencent.kuikly.core.datetime
 
-import platform.CoreFoundation.CFAbsoluteTimeGetCurrent
 import platform.Foundation.NSDate
+import platform.Foundation.NSProcessInfo
 import platform.Foundation.date
 import platform.Foundation.timeIntervalSince1970
 
 actual object DateTime {
     actual fun currentTimestamp(): Long {
         return (NSDate.date().timeIntervalSince1970() * 1000).toLong()
+    }
+
+    actual fun nanoTime(): Long {
+        return (NSProcessInfo.processInfo.systemUptime() * 1_000_000_000).toLong()
     }
 }

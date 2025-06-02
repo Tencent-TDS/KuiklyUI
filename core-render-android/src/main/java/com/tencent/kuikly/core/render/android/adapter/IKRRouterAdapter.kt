@@ -16,7 +16,6 @@
 package com.tencent.kuikly.core.render.android.adapter
 
 import android.content.Context
-import android.os.Bundle
 import org.json.JSONObject
 
 /**

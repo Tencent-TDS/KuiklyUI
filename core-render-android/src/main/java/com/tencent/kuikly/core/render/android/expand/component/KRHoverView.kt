@@ -99,7 +99,7 @@ class KRHoverView(context: Context) : KRView(context), IKRRecyclerViewListener {
     }
 
     private fun hoverMarginTop(propValue: Any): Boolean {
-        hoverViewMarginTop = propValue.toNumberFloat().toPxF()
+        hoverViewMarginTop = kuiklyRenderContext.toPxF(propValue.toNumberFloat())
         return true
     }
 

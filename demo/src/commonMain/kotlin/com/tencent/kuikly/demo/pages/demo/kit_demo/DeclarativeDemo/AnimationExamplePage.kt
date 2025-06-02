@@ -177,7 +177,7 @@ internal class ParallelAnimationExampleView: ComposeView<ComposeAttr, ComposeEve
                             if (it.animationKey == "lastFrame") {
                                 ctx.buttonState.buttonText = "播放完成"
                             }
-                            KLog.i("xxxx para animation", it.animationKey)
+                            KLog.i("ParallelAnimationExampleView", "para animation ${it.animationKey}")
                         }
                     }
                 }

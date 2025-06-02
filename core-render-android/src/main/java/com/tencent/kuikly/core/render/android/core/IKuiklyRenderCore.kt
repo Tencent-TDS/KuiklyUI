@@ -52,7 +52,7 @@ interface IKuiklyRenderCore {
      * @param event 事件名字
      * @param data 事件数据
      */
-    fun sendEvent(event: String, data: Map<String, Any>)
+    fun sendEvent(event: String, data: Map<String, Any>, shouldSync: Boolean = false)
 
     /**
      * 获取[IKuiklyRenderModuleExport]

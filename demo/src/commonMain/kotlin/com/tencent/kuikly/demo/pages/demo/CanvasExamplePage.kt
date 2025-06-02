@@ -16,19 +16,21 @@
 package com.tencent.kuiklydemo.pages.demo.DeclarativeDemo
 
 import com.tencent.kuikly.core.annotations.Page
-import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ComposeAttr
+import com.tencent.kuikly.core.base.ComposeEvent
+import com.tencent.kuikly.core.base.ComposeView
+import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.layout.Frame
-import com.tencent.kuikly.core.reactive.ReactiveObserver
+import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Canvas
 import com.tencent.kuikly.core.views.CanvasContext
-import com.tencent.kuikly.core.views.CanvasView
-import kotlin.math.PI
-import kotlin.math.cos
-import com.tencent.kuikly.core.reactive.handler.*
 import com.tencent.kuikly.core.views.List
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
-
+import kotlin.math.PI
+import kotlin.math.cos
 
 @Page("CanvasExamplePage")
 internal class CanvasExamplePage : BasePager() {
@@ -165,7 +167,6 @@ internal class CouponBackgroundView : ComposeView<CouponBackgroundAttr, ComposeE
 
     }
 
-
     private fun renderBackground(context: CanvasContext, width: Float, height: Float) {
         val rightWidth = attr.rightAreaWidth
         val lineHeight = 0.5f
@@ -177,7 +178,6 @@ internal class CouponBackgroundView : ComposeView<CouponBackgroundAttr, ComposeE
         val cornerRadius = 4f // 边框角度
         context.lineWidth(lineHeight)
         context.strokeStyle(borderColor())
-
 
         context.moveTo(x, y + cornerRadius)
 
@@ -251,7 +251,6 @@ internal class CouponBackgroundView : ComposeView<CouponBackgroundAttr, ComposeE
         //
         context.arc(x + cornerRadius, y, cornerRadius, PI.toFloat(), PI.toFloat() / 2, true)
 
-
         x = width - rightWidth - bigCornerRadius
         y = height - edge
         context.lineTo(x, y)
@@ -322,7 +321,6 @@ internal class CouponBackgroundView : ComposeView<CouponBackgroundAttr, ComposeE
         context.moveTo(dashLineX, dashLineY)
         context.lineTo(dashLineX, dashLineY + 2f)
         context.stroke()
-
 
     }
 

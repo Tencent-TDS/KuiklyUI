@@ -33,11 +33,12 @@ import com.tencent.kuikly.core.layout.FlexPositionType
 import com.tencent.kuikly.core.layout.MeasureFunction
 import com.tencent.kuikly.core.layout.MeasureOutput
 import com.tencent.kuikly.core.layout.isUndefined
+import com.tencent.kuikly.core.module.FontModule
 import com.tencent.kuikly.core.views.shadow.TextShadow
 
 open class TextView : DeclarativeBaseView<TextAttr, TextEvent>(), MeasureFunction {
 
-    private var shadow: TextShadow? = null
+    var shadow: TextShadow? = null
     private var didLayout = false
 
     override fun willInit() {
@@ -101,6 +102,12 @@ open class TextView : DeclarativeBaseView<TextAttr, TextEvent>(), MeasureFunctio
         }
     }
 
+    fun updateShadow() {
+        if (shadow?.calculateFromCache != true) {
+            renderView?.setShadow()
+        }
+    }
+
     override fun measure(
         node: FlexNode,
         width: Float,
@@ -126,9 +133,8 @@ open class TextView : DeclarativeBaseView<TextAttr, TextEvent>(), MeasureFunctio
             size = heightLayoutSize(size, width, flexNode.styleMinHeight)
         }
         didLayout = true
-        if (shadow?.calculateFromCache != true) {
-            renderView?.setShadow()
-        }
+
+        updateShadow()
         measureOutput.width = size?.width ?: 0f
         measureOutput.height = size?.height ?: 0f
         tryFireLineBreakMarginEvent()
@@ -201,7 +207,6 @@ open class TextView : DeclarativeBaseView<TextAttr, TextEvent>(), MeasureFunctio
         return Size(measureOutputSize.width, outputHeight)
     }
 
-
     private fun flexLayoutSize(measureOutputSize: Size, fitWidth: Float, fitHeight: Float): Size {
         val flexDirection = flexNode.parent?.flexDirection
         if (flexDirection == FlexDirection.ROW || flexDirection == FlexDirection.ROW_REVERSE) {
@@ -224,9 +229,9 @@ open class TextView : DeclarativeBaseView<TextAttr, TextEvent>(), MeasureFunctio
 
 }
 
-
 open class TextAttr : Attr() {
     internal var didSetTextGradient = false
+    internal var letterSpacing: Float? = null
     open fun value(value: String): TextAttr {
         TextConst.VALUE with value
         return this
@@ -247,15 +252,23 @@ open class TextAttr : Attr() {
         return this
     }
 
-    fun fontSize(size: Float): TextAttr {
-        TextConst.FONT_SIZE with size
+    /**
+     * 设置字体大小
+     * @param size 字体大小
+     * @param scaleFontSizeEnable 是否允许端侧随宿主字体模式缩放，默认根据Pager.scaleFontSizeEnable() 返回值决定（业务可通过Pager重写该方式统一页面生效）
+     */
+    open fun fontSize(size: Float, scaleFontSizeEnable: Boolean? = null): TextAttr {
+        TextConst.FONT_SIZE with (FontModule.scaleFontSize(size, scaleFontSizeEnable))
+        letterSpacing?.also {
+            letterSpacing(it)
+        }
         return this
     }
 
     /**
      * 仅iOS、鸿蒙支持ExtraLight字重
      */
-    fun fontWeightExtraLight(): TextAttr {
+    open fun fontWeightExtraLight(): TextAttr {
         TextConst.FONT_WEIGHT with "200"
         return this
     }
@@ -282,7 +295,6 @@ open class TextAttr : Attr() {
         TextConst.FONT_WEIGHT with FontWeight.MEDIUM.value
         return this
     }
-
 
     open fun fontWeightSemiBold(): TextAttr {
         TextConst.FONT_WEIGHT with FontWeight.SEMISOLID.value
@@ -381,6 +393,20 @@ open class TextAttr : Attr() {
 
     open fun lineSpacing(value: Float): TextAttr {
         TextConst.LINE_SPACING with value
+        return this
+    }
+
+    open fun letterSpacing(value: Float): TextAttr {
+        var spacing = value
+        if (pagerData.isAndroid && pagerData.nativeBuild < 4) { // 安卓版本最低支持判断
+            val fontSize = getProp(TextConst.FONT_SIZE) as? Float
+            val dp2PxScale = 3f // 低版本未能直接拿到屏幕PPI比例，这里使用平均值兼容
+            if (fontSize != null && fontSize > 0f) {
+                spacing = (value / fontSize) / dp2PxScale
+            }
+        }
+        letterSpacing = value
+        TextConst.LETTER_SPACING with spacing
         return this
     }
 
@@ -489,6 +515,7 @@ object TextConst {
     const val TINT_COLOR = "tintColor"
     const val LINES = "numberOfLines"
     const val LINE_SPACING = "lineSpacing"
+    const val LETTER_SPACING = "letterSpacing"
     const val LINE_HEIGHT = "lineHeight"
     const val PARAGRAPH_SPACING = "paragraphSpacing"
     const val TEXT_ALIGN = "textAlign"
@@ -520,7 +547,6 @@ enum class FontWeight(val value: String) {
     SEMISOLID("600"),
     BOLD("700")
 }
-
 
 fun ViewContainer<*, *>.Text(init: TextView.() -> Unit) {
     val textView = createViewFromRegister(ViewConst.TYPE_TEXT_CLASS_NAME) as? TextView

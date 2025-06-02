@@ -21,7 +21,7 @@ class ImageRef{
     constructor(cacheKey: String){
         this.cacheKey = cacheKey
     }
-    val cacheKey: String;
+    val cacheKey: String
 }
 
 class ImageCacheStatus{

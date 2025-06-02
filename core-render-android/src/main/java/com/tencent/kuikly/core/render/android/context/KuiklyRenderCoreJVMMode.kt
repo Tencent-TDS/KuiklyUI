@@ -20,7 +20,7 @@ import com.tencent.kuikly.core.render.android.adapter.HRImageLoadOption
 open class KuiklyRenderCoreJVMMode(mode: Int) : KuiklyRenderCoreExecuteModeBase(mode) {
 
     override fun getContextHandler(): IKuiklyRenderContextHandler {
-        return KuiklyRenderJvmContextHandler();
+        return KuiklyRenderJvmContextHandler()
     }
 
     override fun initClassLoaderIfNeed(contextCode: String) {

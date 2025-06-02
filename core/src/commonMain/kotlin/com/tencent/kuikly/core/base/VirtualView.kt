@@ -42,7 +42,6 @@ abstract class VirtualView<A : ContainerAttr, E : Event> :
         return false
     }
 
-
     private fun isVirtualComponent(view: DeclarativeBaseView<*, *>?): Boolean {
         if (view != null
             && view.isVirtualView()

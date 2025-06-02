@@ -26,13 +26,13 @@ abstract class DirectivesView : VirtualView<ContainerAttr, Event>() {
 
     val prevDirectivesView: DirectivesView?
         get() {
-            val views = (parent as? ViewContainer)?.templateChildren();
+            val views = (parent as? ViewContainer)?.templateChildren()
             if (views == null || views.isEmpty()) {
                 return null
             }
-            val index = views.indexOf(this);
+            val index = views.indexOf(this)
             if (index - 1 < 0) {
-                return null;
+                return null
             }
             val prevView = views[index - 1]
             if (prevView is DirectivesView) {
@@ -43,13 +43,13 @@ abstract class DirectivesView : VirtualView<ContainerAttr, Event>() {
 
     val nextDirectivesView: DirectivesView?
         get() {
-            val views = (parent as? ViewContainer)?.templateChildren();
+            val views = (parent as? ViewContainer)?.templateChildren()
             if (views == null || views.isEmpty()) {
                 return null
             }
-            val index = views.indexOf(this);
+            val index = views.indexOf(this)
             if (index < 0 || index == views.lastIndex) {
-                return null;
+                return null
             }
             val nextView = views[index + 1]
             if (nextView is DirectivesView) {

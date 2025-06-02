@@ -17,13 +17,9 @@ package com.tencent.kuikly.demo.pages.base
 
 import com.tencent.kuikly.core.base.toInt
 import com.tencent.kuikly.core.log.KLog
-import com.tencent.kuikly.core.manager.PagerManager
 import com.tencent.kuikly.core.module.CallbackFn
 import com.tencent.kuikly.core.module.Module
-import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 internal class BridgeModule : Module() {
 

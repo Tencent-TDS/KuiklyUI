@@ -130,9 +130,8 @@ class RenderScriptBlur(context: Context) : IBlur {
             val output = Allocation.createTyped(rs, input.type)
             val script = ScriptIntrinsicBlur.create(rs,  Element.U8_4(rs))
 
-            val reBlurCount = if (blurRadius == 12.5f) 5 else 3;
+            val reBlurCount = if (blurRadius == 12.5f) 5 else 3
             val nBlurRadius = min(25f, max(0f,blurRadius / 12.5f * 25f))
-
 
             for (i in 0..reBlurCount) {
                 input.copyFrom(resizedBitmap)

@@ -228,6 +228,10 @@ abstract class DeclarativeBaseView<A : Attr, E : Event> : AbstractBaseView<A, E>
         event.onViewLayoutFrameDidChanged(this)
     }
 
+    open fun didSetFrameToRenderView() {
+
+    }
+
     open fun setFrameToRenderView(frame: Frame) {
         // 换算相对到真实父亲的坐标系
         renderView?.also {
@@ -237,9 +241,10 @@ abstract class DeclarativeBaseView<A : Attr, E : Event> : AbstractBaseView<A, E>
                 attr.setProp(Attr.StyleConst.ANIMATION, toString())
             }
 
-            // 设置frame到renderview
+            // 设置frame到renderView
             val rFrame = frameInParentRenderComponentCoordinate(frame)
             it.setFrame(rFrame.x, rFrame.y, rFrame.width, rFrame.height)
+            didSetFrameToRenderView()
             event.onRelativeCoordinatesDidChanged(this)
 
             // frame设置后，清楚animation对象
@@ -248,7 +253,6 @@ abstract class DeclarativeBaseView<A : Attr, E : Event> : AbstractBaseView<A, E>
             }
         }
     }
-
 
     private fun internalCreateEvent(): E {
         val event = createEvent()
@@ -279,11 +283,10 @@ abstract class DeclarativeBaseView<A : Attr, E : Event> : AbstractBaseView<A, E>
 }
 
 class ViewRef<T : DeclarativeBaseView<*, *>>(
-    private val pagerId: String,
-    private val nativeRef: Int
+    val pagerId: String,
+    val nativeRef: Int
 ) {
     val view: T?
         get() = PagerManager.getPager(pagerId)
             .getViewWithNativeRef(nativeRef) as? T
 }
-

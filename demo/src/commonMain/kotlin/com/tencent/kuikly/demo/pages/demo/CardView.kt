@@ -53,7 +53,7 @@ internal class CardView : ComposeView<CardData, ComposeEvent>() {
     class Item {
         var title = ""
         var subTitle = ""
-        var detialInfo = ""
+        var detailInfo = ""
         var avatarUrl = ""
         var pictures = arrayListOf<String>()
         var index: Int = 0
@@ -217,7 +217,7 @@ internal class CardView : ComposeView<CardData, ComposeEvent>() {
                         fontSize(14f)
                         fontWeightNormal()
                         color(0xFF999999)
-                        value(ctx.cardData.item.detialInfo)
+                        value(ctx.cardData.item.detailInfo)
                     }
                 }
 

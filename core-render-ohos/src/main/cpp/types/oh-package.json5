@@ -1,0 +1,6 @@
+{
+  "name": "libkuikly.so",
+  "types": "./index.d.ts",
+  "version": "2.0.0",
+  "description": "Please describe the basic information."
+}

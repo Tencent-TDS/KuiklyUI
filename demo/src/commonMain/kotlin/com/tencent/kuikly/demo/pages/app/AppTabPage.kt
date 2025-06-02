@@ -50,7 +50,7 @@ internal class AppTabPage : BasePager() {
     )
     private var pageListRef : ViewRef<PageListView<*, *>>? = null
 
-    fun tabbar(): ViewBuilder {
+    private fun tabBar(): ViewBuilder {
         val ctx = this
         return {
             View {
@@ -118,7 +118,7 @@ internal class AppTabPage : BasePager() {
                     AppEmptyPage(ctx.pageTitles[i]) { }
                 }
             }
-            ctx.tabbar().invoke(this)
+            ctx.tabBar().invoke(this)
         }
     }
 

@@ -19,6 +19,4 @@ package com.tencent.kuikly.core.reflection
  * 对应Native类角色，可用"ClassName".perform() 代替 OCClass("ClassName").perform()
  */
 
-class OCClass(className: String) : OCObject(className) {
-
-}
+class OCClass(className: String) : OCObject(className)

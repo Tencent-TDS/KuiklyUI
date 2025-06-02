@@ -34,4 +34,3 @@ actual inline fun <E> Collection<E>.toFastMutableList(): MutableList<E> = toMuta
 actual inline fun <E> Collection<E>.toFastList(): List<E> = toList()
 
 actual inline fun <K, V> MutableMap<K, V>.toFastMap(): Map<K, V> = toMap()
-

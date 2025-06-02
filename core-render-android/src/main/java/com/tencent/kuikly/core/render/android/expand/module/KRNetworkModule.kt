@@ -43,7 +43,19 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
             METHOD_HTTP_REQUEST -> KuiklyRenderAdapterManager.krThreadAdapter?.executeOnSubThread {
-                httpRequest(params, callback)
+                httpRequest(params, null, callback)
+            }
+            else -> super.call(method, params, callback)
+        }
+    }
+
+    override fun call(method: String, params: Any?, callback: KuiklyRenderCallback?): Any? {
+        return when (method) {
+            METHOD_HTTP_REQUEST_BINARY -> {
+                val (jsonStr, bytes) = parseBinaryArgs(params) ?: return null
+                KuiklyRenderAdapterManager.krThreadAdapter?.executeOnSubThread {
+                    httpRequest(jsonStr, bytes, callback)
+                }
             }
             else -> super.call(method, params, callback)
         }
@@ -80,7 +92,7 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
                 } else {
                     resultCallback.invoke(null)
                     errorStream = connection.errorStream
-                    val errorMsg = readInputStream(errorStream)
+                    val errorMsg = readInputStreamAsString(errorStream)
                     KuiklyRenderLog.e(MODULE_NAME, "download file error: $errorMsg")
                 }
             } catch (e: Exception) {
@@ -98,7 +110,8 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         }
     }
 
-    private fun httpRequest(params: String?, callback: KuiklyRenderCallback?) {
+    private fun httpRequest(params: String?, bytes: ByteArray?, callback: KuiklyRenderCallback?) {
+        val binaryMode = bytes != null
         val paramsJSON = params.toJSONObjectSafely()
         val url = paramsJSON.optString("url")
         val method = paramsJSON.optString("method")
@@ -117,7 +130,7 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
             connection.useCaches = false
             connection.doInput = true
             addHeaderToConnection(connection, header, cookie)
-            addBodyParamsIfNeed(connection, method, header, param)
+            addBodyParamsIfNeed(connection, method, header, param, bytes)
             setRequestMethod(connection, method)
 
             val responseCode = connection.responseCode
@@ -129,16 +142,20 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
                     KuiklyRenderLog.e(MODULE_NAME, "headerFields to json occur exception: $e")
                     ""
                 }
-                val data = readInputStream(rawStream)
-                fireSuccessCallback(callback, data, headers, responseCode)
+                val data = if (binaryMode) {
+                    readInputStreamAsBytes(rawStream)
+                } else {
+                    readInputStreamAsString(rawStream)
+                }
+                fireSuccessCallback(binaryMode, callback, data, headers, responseCode)
             } else {
                 errorStream = connection.errorStream
-                val errorMsg = readInputStream(errorStream)
-                fireErrorCallback(callback, errorMsg, responseCode)
+                val errorMsg = readInputStreamAsString(errorStream)
+                fireErrorCallback(binaryMode, callback, errorMsg, responseCode)
             }
         } catch (e: Exception) {
             KuiklyRenderLog.e(MODULE_NAME, "Network module error: $e")
-            fireErrorCallback(callback, "io exception", STATE_CODE_UNKNOWN)
+            fireErrorCallback(binaryMode, callback, "io exception", STATE_CODE_UNKNOWN)
         } finally {
             try {
                 rawStream?.close()
@@ -150,22 +167,65 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         }
     }
 
-    private fun fireErrorCallback(callback: KuiklyRenderCallback?, errorMsg: String, statusCode: Int) {
-        callback?.invoke(mapOf(
-            KEY_SUCCESS to 0,
-            KEY_ERROR_MSG to errorMsg,
-            KEY_STATUS_CODE to statusCode
-        ))
+    private fun fireErrorCallback(
+        binaryMode: Boolean,
+        callback: KuiklyRenderCallback?,
+        errorMsg: String,
+        statusCode: Int
+    ) {
+        if (binaryMode) {
+            callback?.invoke(
+                arrayOf(
+                    JSONObject().apply {
+                        put(KEY_SUCCESS, 0)
+                        put(KEY_ERROR_MSG, errorMsg)
+                        put(KEY_STATUS_CODE, statusCode)
+                    }.toString(),
+                    ByteArray(0) // 二进制模式下返回空字节数组
+                )
+            )
+        } else {
+            callback?.invoke(
+                mapOf(
+                    KEY_SUCCESS to 0,
+                    KEY_ERROR_MSG to errorMsg,
+                    KEY_STATUS_CODE to statusCode
+                )
+            )
+        }
     }
 
-    private fun fireSuccessCallback(callback: KuiklyRenderCallback?, resultData: String, headers: String, statusCode: Int) {
-        callback?.invoke(mapOf(
-            "data" to resultData,
-            KEY_SUCCESS to 1,
-            KEY_ERROR_MSG to "",
-            KEY_HEADERS to headers,
-            KEY_STATUS_CODE to statusCode
-        ))
+    private fun fireSuccessCallback(
+        binaryMode: Boolean,
+        callback: KuiklyRenderCallback?,
+        resultData: Any,
+        headers: String,
+        statusCode: Int
+    ) {
+        if (binaryMode) {
+            // 如果是二进制数据，直接返回字节数组
+            callback?.invoke(
+                arrayOf(
+                    JSONObject().apply {
+                        put(KEY_SUCCESS, 1)
+                        put(KEY_ERROR_MSG, "")
+                        put(KEY_HEADERS, headers)
+                        put(KEY_STATUS_CODE, statusCode)
+                    }.toString(),
+                    resultData as ByteArray
+                )
+            )
+        } else {
+            callback?.invoke(
+                mapOf(
+                    "data" to resultData,
+                    KEY_SUCCESS to 1,
+                    KEY_ERROR_MSG to "",
+                    KEY_HEADERS to headers,
+                    KEY_STATUS_CODE to statusCode
+                )
+            )
+        }
     }
 
     private fun openConnection(url: String, method: String, param: JSONObject?): URLConnection {
@@ -185,22 +245,23 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         connection: URLConnection,
         method: String,
         header: JSONObject?,
-        param: JSONObject?
+        param: JSONObject?,
+        bytes: ByteArray?
     ) {
-        if (param == null) {
+        if (method != HTTP_METHOD_POST) {
             return
         }
-
-        if (method == HTTP_METHOD_POST) {
-            connection.doOutput = true
-            val paramStr = if (isContentTypeJson(header)) {
-                param.toString()
-            } else {
-                buildBodyParamStr(param)
-            }
-            val out = DataOutputStream(connection.getOutputStream())
-            out.write(paramStr.toByteArray())
-            out.close()
+        if (param == null && (bytes == null || bytes.isEmpty())) {
+            return
+        }
+        connection.doOutput = true
+        val outputBytes = when {
+            bytes != null && bytes.isNotEmpty() -> bytes
+            isContentTypeJson(header) -> param.toString().toByteArray()
+            else -> buildBodyParamStr(param).toByteArray()
+        }
+        DataOutputStream(connection.getOutputStream()).use { out ->
+            out.write(outputBytes)
         }
     }
 
@@ -283,26 +344,38 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
     }
 
     @Throws(IOException::class)
-    private fun readInputStream(
+    private fun readInputStreamAsString(
         inputStream: InputStream?
     ): String {
         if (inputStream == null) {
             return "{}"
         }
-        val builder = java.lang.StringBuilder()
-        val localBufferedReader = BufferedReader(InputStreamReader(inputStream))
-        val data = CharArray(2048)
-        var len: Int
-        while (localBufferedReader.read(data).also { len = it } != -1) {
-            builder.append(data, 0, len)
+        return inputStream.bufferedReader(Charsets.UTF_8).use(BufferedReader::readText)
+    }
+
+    @Throws(IOException::class)
+    private fun readInputStreamAsBytes(
+        inputStream: InputStream?
+    ): ByteArray {
+        if (inputStream == null) {
+            return ByteArray(0)
         }
-        localBufferedReader.close()
-        return builder.toString()
+        return inputStream.use(InputStream::readBytes)
+    }
+
+    private fun parseBinaryArgs(params: Any?): Pair<String, ByteArray>? {
+        if (params is Array<*> && params.size >= 2) {
+            val jsonStr = params[0] as? String ?: return null
+            val data = params[1] as? ByteArray ?: return null
+            return Pair(jsonStr, data)
+        }
+        return null
     }
 
     companion object {
         const val MODULE_NAME = "KRNetworkModule"
         private const val METHOD_HTTP_REQUEST = "httpRequest"
+        private const val METHOD_HTTP_REQUEST_BINARY = "httpRequestBinary"
         private const val HTTP_METHOD_GET = "GET"
         private const val HTTP_METHOD_POST = "POST"
         private const val KEY_SUCCESS = "success"

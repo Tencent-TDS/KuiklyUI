@@ -34,4 +34,3 @@ expect inline fun <E> Collection<E>.toFastList(): List<E>
 expect inline fun <E> Collection<E>.toFastMutableList(): MutableList<E>
 
 expect inline fun <K, V> MutableMap<K, V>.toFastMap(): Map<K, V>
-

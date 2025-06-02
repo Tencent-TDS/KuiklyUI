@@ -205,7 +205,7 @@ class KuiklyRenderCoreUIScheduler(
             viewDidLoadMainThreadTasks.clear()
         }
     }
-    companion object {}
+    companion object
 
 }
 

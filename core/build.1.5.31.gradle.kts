@@ -30,7 +30,7 @@ publishing {
 }
 
 kotlin {
-    // targetes
+    // targets
     jvm()
 
     android {

@@ -10,7 +10,7 @@ English | [简体中文](./README-zh_CN.md) | [Homepage](https://framework.tds.q
 `Kuikly` is a comprehensive cross-platform solution for UI and logic based on Kotlin multi-platform. It was launched by Tencent's company-level Oteam in the front-end field. It aims to provide a `high-performance, full-platform development framework with unified codebase, ultimate ease of use, and dynamic flexibility`. Currently supported platforms:
 - [X] Android
 - [X] iOS
-- [ ] HarmonyOS(Open-source in May)
+- [X] HarmonyOS
 - [ ] Web (Open-source in Q2)
 - [ ] Mini Programs (Open-source in Q2)
 
@@ -18,11 +18,11 @@ Since its launch, `Kuikly` has gained wide recognition from the business. It has
 ## Key Features
 
 - **Cross-platform:** Kotlin-based implementation ensuring consistent operation across multiple platforms - one codebase, five platforms
-- **Native performance:** Generates platform-native binaries (.aar/.framework)
+- **Native performance:** Generates platform-native binaries (.aar/.framework/.so)
 - **Native development experience:** Native UI rendering, native toolchain support, Kotlin as primary language
 - **Lightweight:** Minimal SDK footprint (AOT mode: ~300KB for Android, ~1.2MB for iOS)
 - **Dynamic capability:** Supports compilation into dynamic deliverables
-- **Multiple paradigms:** Supports both declarative & reactive programming, with self-developed DSL and Compose DSL (under development).
+- **Multiple paradigms:** Supports both declarative & reactive programming, with self-developed DSL and Compose DSL
 
 ## Project Structure
 
@@ -34,15 +34,26 @@ Since its launch, `Kuikly` has gained wide recognition from the business. It has
     ├── androidMain           # Android platform implementation (outputs aar)
     ├── jvmMain               # Generic JVM platform code (no Android APIs, outputs jar)
     ├── iosMain               # iOS platform implementation (outputs framework)
+    ├── ohosArm64Main         # Ohos platform implementation（outputs so）
 ├── core-render-android    # Android platform renderer module
 ├── core-render-ios        # iOS platform renderer module
+├── core-render-ohos       # HarmonyOS platform rendering module
 ├── core-annotations       # Annotations module, defining business annotations like @Page
 ├── core-ksp               # Annotation processing module, generates Core entry files
 ├── buildSrc               # Build scripts for compilation, packaging, and artifact splitting
 ├── demo                   # DSL example code
 ├── androidApp             # Android host shell project
-└── iosApp                 # iOS host shell project
+├── iosApp                 # iOS host shell project
+├── ohosApp                # Ohos host shell project
+├── compose                # Cross-platform module implementing Compose UI, layout, and Kuikly bridging capabilities
+    ├── src
+        ├── commonMain      # Shared cross-platform code, including Compose UI components, layout and event handling
+        ├── androidMain     # Android platform specific implementation
+        └── nativeMain      # iOS and HarmonyOS platform specific implementation
 ```
+
+> Note: The Compose directory contains cross-platform source code based on Jetpack Compose 1.7.3 version. We have made necessary modifications and adaptations to the original Compose code to support Kuikly framework's rendering requirements. Some unnecessary features have been commented out to facilitate future upgrades. To ensure stable feature support and avoid conflicts with official code, we have changed the package name from `androidx.compose` to `com.tencent.kuikly.compose`. The original Compose code is from [JetBrains Compose Multiplatform](https://github.com/JetBrains/compose-multiplatform-core).
+
 ## System Requirements
 - iOS 12.0+
 - Android 5.0+
@@ -65,6 +76,7 @@ Refer to [Environment Configuration](https://kuikly.tds.qq.com/%E5%BF%AB%E9%80%9
 
     Android Studio -> Settings -> Build,Execution,Deployment -> Build Tools -> Gradle -> Gradle JDK
 - [XCode](https://developer.apple.com/xcode/) and [cocoapods](https://cocoapods.org/)
+- [DevEco Studio](https://developer.huawei.com/consumer/cn/deveco-studio/)(API Version >= 15)(You can check the API Version through【 DevECo Studio -> Help -> About HarmonyOS SDK 】)
 - JDK17
 
 ### Running Android App
@@ -83,10 +95,20 @@ Alternatively, open KuiklyUI/iosApp in Xcode and Run
 
 > Note: The iosApp project will execute the KMP script when compiling. If you encounter an error with the script read and write file permissions, you need to set `User Script Sandboxing` to `No` in `Xcode -> Build Setting`.
 
+### Running Ohos APP
+
+Ensure environment preparation is complete before building:
+1. In `KuiklyUI` root director Run kuikly Ohos product compile script, `./2.0_ohos_test_publish.sh`
+2. Open `KuiklyUI/ohosApp` in DevEco Studio and sync project
+3. Connect to Ohos Phone or start the Ohos Emulator, and perform a signature operation `File -> Project Structure -> Signing Configs`
+4. Use DevEco Studio Run `entry`, Run OhosApp  
+
+Notes: kuikly Ohos product only supports Mac compilation, Windows can use the compiled ohos product to run Ohos APP.
+
 ### Kotlin Version Support
 The KuiklyUI directory contains Gradle configurations for various `Kotlin versions`:
 
-Naming convention: `x.x.xx.gradle.kts` (default uses Kotlin 1.7.20)
+Naming convention: `x.x.xx.gradle.kts` (default uses Kotlin 2.0.21)
 
 Test publishing scripts for each version are available as `x.x.xx_test_publish.sh` for building local artifacts.
 

@@ -20,7 +20,6 @@ import com.tencent.kuikly.core.layout.FlexNode
 import com.tencent.kuikly.core.layout.MeasureOutput
 import com.tencent.kuikly.core.views.TextAttr
 import com.tencent.kuikly.core.views.TextEvent
-import com.tencent.kuikly.core.views.TextSpan
 import com.tencent.kuikly.core.views.TextView
 
 class ExtTextAttr: TextAttr() {
@@ -54,12 +53,9 @@ class ExtTextAttr: TextAttr() {
         return super.text(text)
     }
 
-
 }
 
-class ExtTextEvent: TextEvent() {
-
-}
+class ExtTextEvent: TextEvent()
 
 class ExtTextView: TextView() {
 
@@ -89,4 +85,3 @@ class ExtTextView: TextView() {
     }
 
 }
-

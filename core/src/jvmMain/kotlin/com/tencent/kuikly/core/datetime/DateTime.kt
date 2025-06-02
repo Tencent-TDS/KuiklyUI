@@ -18,5 +18,7 @@ package com.tencent.kuikly.core.datetime
 actual object DateTime {
 
     actual fun currentTimestamp(): Long = System.currentTimeMillis()
-
+    actual fun nanoTime(): Long {
+        return System.nanoTime()
+    }
 }

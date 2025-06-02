@@ -15,15 +15,14 @@
 
 package com.tencent.kuikly.demo.pages.base.extension
 
-import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.base.ComposeAttr
+import com.tencent.kuikly.core.base.ComposeEvent
+import com.tencent.kuikly.core.base.ComposeView
+import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.directives.vbind
 import com.tencent.kuikly.core.reactive.handler.observable
-import com.tencent.kuikly.core.views.DivAttr
 import com.tencent.kuikly.core.views.Image
-import com.tencent.kuikly.core.views.View
-
-
-
 
 internal class GCViewAttr : ComposeAttr() {
     internal var internalBackgroundImageSrc : String? by observable(null)
@@ -34,10 +33,7 @@ internal class GCViewAttr : ComposeAttr() {
 
 }
 
-internal class GCViewEvent : ComposeEvent() {
-
-}
-
+internal class GCViewEvent : ComposeEvent()
 
 internal class GCView : ComposeView<GCViewAttr, GCViewEvent>() {
 

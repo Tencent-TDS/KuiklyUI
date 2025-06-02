@@ -57,7 +57,7 @@ internal class AppFeedBottomView: ComposeView<AppFeedBottomViewAttr, AppFeedBott
                         alignSelfCenter()
                         resizeContain()
                         size(width = 22f, height = 22f)
-                        src(ImageUri.pageAssets("ic_home_reweet.png"))
+                        src(ImageUri.pageAssets("ic_home_forward.png"))
                     }
                 }
 
@@ -150,7 +150,6 @@ internal class AppFeedBottomView: ComposeView<AppFeedBottomViewAttr, AppFeedBott
         }
     }
 }
-
 
 internal class AppFeedBottomViewAttr : ComposeAttr() {
     var retweetNum = 0

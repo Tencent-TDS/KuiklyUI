@@ -17,7 +17,6 @@ package com.tencent.kuikly.core.reflection
 
 import com.tencent.kuikly.core.base.toInt
 import com.tencent.kuikly.core.exception.throwRuntimeError
-import com.tencent.kuikly.core.global.GlobalFunctions
 import com.tencent.kuikly.core.module.ReflectionModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
@@ -128,4 +127,3 @@ abstract class NativeObject<T: NativeObject<T>>(val objectID: String) {
         const val METHOD_RELEASE = "release"
     }
 }
-

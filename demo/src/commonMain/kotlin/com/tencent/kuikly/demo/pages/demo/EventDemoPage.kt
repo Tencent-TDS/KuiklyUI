@@ -207,7 +207,7 @@ internal class EventDemoPage : BasePager() {
                                                 goodsData.animationTranslatePercentY =
                                                     ctx.globalData.preTargetPercentageY
                                                 val movedItem =
-                                                    ctx.list[ctx.globalData.lastMovedIndex];
+                                                    ctx.list[ctx.globalData.lastMovedIndex]
                                                 ctx.list.remove(goodsData)
                                                 val insertIndex = ctx.list.indexOf(movedItem)
                                                 if (movedItem.animationTranslatePercentY == 1f) {
@@ -221,7 +221,7 @@ internal class EventDemoPage : BasePager() {
                                                 // goodsData.animationTranslatePercentY = 0f
                                             }
                                             ctx.globalData.targetAnimationCompletionItem = goodsData
-                                            ctx.globalData.lastMovedIndex = -1;
+                                            ctx.globalData.lastMovedIndex = -1
 
                                         }
 

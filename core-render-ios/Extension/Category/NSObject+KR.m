@@ -18,7 +18,9 @@
 #import "KRConvertUtil.h"
 #import "KRLogModule.h"
 #import <UIKit/UIKit.h>
+#import <objc/runtime.h>
 #import <Accelerate/Accelerate.h>
+#import <CoreImage/CoreImage.h>
 
 @implementation NSObject (KR)
 
@@ -172,6 +174,21 @@
   }
 }
 
++ (BOOL)kr_swizzleInstanceMethod:(SEL)origSel withMethod:(SEL)altSel {
+    Method originMethod = class_getInstanceMethod(self, origSel);
+    Method newMethod = class_getInstanceMethod(self, altSel);
+
+    if (originMethod && newMethod) {
+        if (class_addMethod(self, origSel, method_getImplementation(newMethod), method_getTypeEncoding(newMethod))) {
+            class_replaceMethod(self, altSel, method_getImplementation(originMethod), method_getTypeEncoding(originMethod));
+        } else {
+            method_exchangeImplementations(originMethod, newMethod);
+        }
+        return YES;
+    }
+    return NO;
+}
+
 
 
 @end
@@ -259,7 +276,27 @@
     return hashString;
 }
 
+- (NSString *)kr_subStringWithIndex:(NSUInteger)index {
+    NSString *result = self;
+    if (result.length > index) {
+        NSRange range = [result rangeOfComposedCharacterSequenceAtIndex:index];
+        if (range.location>= 0) {
+            result = [result substringToIndex:range.location];
+        }
+    }
+    return result;
+}
 
+- (NSUInteger )kr_length {
+    NSUInteger count = 0;
+    NSUInteger length = self.length;
+    for (NSUInteger i = 0; i < length; ) {
+        NSRange range = [self rangeOfComposedCharacterSequenceAtIndex:i];
+        count++;
+        i += range.length;
+    }
+    return count;
+}
 
 @end
 
@@ -452,6 +489,65 @@
     return [self imageWithRenderingMode:(UIImageRenderingModeAlwaysTemplate)];
 }
 
+- (UIImage *)kr_applyColorFilterWithColorMatrix:(NSString *)colorFilterMatrix {
+    NSArray<NSString *> *colorMatrix = [colorFilterMatrix componentsSeparatedByString:@"|"];
+    if ([colorMatrix count] < 20) {
+        return self;
+    }
+    UIImage *image = self;
+    CIImage *ciImage = [[CIImage alloc] initWithImage:image];
+    CIFilter *filter = [CIFilter filterWithName:@"CIColorMatrix"];
+    
+    CIVector *vectorR = [CIVector vectorWithX:[colorMatrix[0] floatValue]
+                                            Y:[colorMatrix[1] floatValue]
+                                            Z:[colorMatrix[2] floatValue]
+                                            W:[colorMatrix[3] floatValue]];
+    CIVector *vectorG = [CIVector vectorWithX:[colorMatrix[5] floatValue]
+                                            Y:[colorMatrix[6] floatValue]
+                                            Z:[colorMatrix[7] floatValue]
+                                            W:[colorMatrix[8] floatValue]];
+    CIVector *vectorB = [CIVector vectorWithX:[colorMatrix[10] floatValue]
+                                            Y:[colorMatrix[11] floatValue]
+                                            Z:[colorMatrix[12] floatValue]
+                                            W:[colorMatrix[13] floatValue]];
+    CIVector *vectorA = [CIVector vectorWithX:[colorMatrix[15] floatValue]
+                                            Y:[colorMatrix[16] floatValue]
+                                            Z:[colorMatrix[17] floatValue]
+                                            W:[colorMatrix[18] floatValue]];
+    CIVector *vectorBias = [CIVector vectorWithX:[colorMatrix[4] floatValue]
+                                               Y:[colorMatrix[9] floatValue]
+                                               Z:[colorMatrix[14] floatValue]
+                                               W:[colorMatrix[19] floatValue]];
+    
+    [filter setValue:ciImage forKey:kCIInputImageKey];
+    [filter setValue:vectorR forKey:@"inputRVector"];
+    [filter setValue:vectorG forKey:@"inputGVector"];
+    [filter setValue:vectorB forKey:@"inputBVector"];
+    [filter setValue:vectorA forKey:@"inputAVector"];
+    [filter setValue:vectorBias forKey:@"inputBiasVector"];
+    
+    CIContext *context = [CIContext contextWithOptions:nil];
+    CIImage *outputCIImage = filter.outputImage;
+    CGImageRef filteredImageRef = [context createCGImage:outputCIImage fromRect:outputCIImage.extent];
+    UIImage *filteredImage = [UIImage imageWithCGImage:filteredImageRef scale:image.scale orientation:image.imageOrientation];
+    CGImageRelease(filteredImageRef);
+    
+    return filteredImage;
+}
+
+
+@end
+
+
+
+@implementation NSMutableAttributedString (KR)
+
+- (void)kr_addAttribute:(NSAttributedStringKey)name value:(id)value range:(NSRange)range {
+    if (!value || [value isKindOfClass:[NSNull class]]) {
+        return ;
+    }
+    [self addAttribute:name value:value range:range];
+}
 
 @end
 

@@ -41,7 +41,7 @@
 #pragma mark - override
 
 - (BOOL)respondsToSelector:(SEL)aSelector {
-    for (KRWeakObject *weakObject in self.delegates) {
+    for (KRWeakObject *weakObject in [self.delegates copy]) {
         if ([weakObject.weakObject respondsToSelector:aSelector]) {
             return YES;
         }
@@ -52,7 +52,7 @@
 - (NSMethodSignature *)methodSignatureForSelector:(SEL)aSelector{
     NSMethodSignature *sig = nil;
     if (!sig) {
-        for (KRWeakObject *weakObject in self.delegates) {
+        for (KRWeakObject *weakObject in [self.delegates copy]) {
             if ((sig = [weakObject.weakObject methodSignatureForSelector:aSelector])) {
                 break;
             }
@@ -63,7 +63,7 @@
 
 // 转发方法调用给所有delegate
 - (void)forwardInvocation:(NSInvocation *)anInvocation{
-    for (KRWeakObject *weakObject in self.delegates) {
+    for (KRWeakObject *weakObject in [self.delegates copy]) {
         if ([weakObject.weakObject respondsToSelector:anInvocation.selector]) {
             [anInvocation invokeWithTarget:weakObject.weakObject];
         }

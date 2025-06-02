@@ -18,7 +18,6 @@ package com.tencent.kuikly.android.demo.adapter
 import android.content.Context
 import android.graphics.drawable.Drawable
 import android.view.View
-import android.widget.ImageView
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.vectordrawable.graphics.drawable.Animatable2Compat.AnimationCallback
 import com.github.penfeizhou.animation.apng.APNGDrawable

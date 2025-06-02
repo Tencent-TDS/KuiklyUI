@@ -18,6 +18,8 @@
 #import "KRLogModule.h"
 #import "KRAPNGView.h"
 #import "KRPAGView.h"
+#import "KRFontModule.h"
+#import "KRNotifyModule.h"
 #import "KRCacheManager.h"
 NS_ASSUME_NONNULL_BEGIN
 
@@ -47,6 +49,16 @@ typedef void (^KRBundleResponse)(NSString *_Nullable script , NSError *_Nullable
  * @param creator 创建pageView实例
  */
 + (void)registerPAGViewCreator:(PAGViewCreator)creator;
+/*
+ * @brief 注册自定义Font实现
+ */
++ (void)registerFontHandler:(id<KuiklyFontProtocol>)fontHandler;
+
+/*
+ * @brief 注册自定义Cache实现
+ */
++ (void)registerCacheHandler:(id<KRCacheProtocol>)cacheHandler;
+
 
 /*
  * @brief 注册自定义Cache实现
@@ -70,12 +82,15 @@ typedef void (^KRBundleResponse)(NSString *_Nullable script , NSError *_Nullable
  */
 - (BOOL)hr_setImageWithUrl:(NSString *)url forImageView:(UIImageView *)imageView;
 
+@optional
+
 /*
  * 自定义实现设置颜值
  * @param value 设置的颜色值
  * @return 完成自定义处理的颜色对象
  */
 - (UIColor *)hr_colorWithValue:(NSString *)value;
+
 /*
  * 扩展文本后置处理
  * @param attributedString 源文本对象
@@ -83,6 +98,57 @@ typedef void (^KRBundleResponse)(NSString *_Nullable script , NSError *_Nullable
  * @return 返回新的文本对象
  */
 - (NSMutableAttributedString *)hr_customTextWithAttributedString:(NSAttributedString *)attributedString textPostProcessor:(NSString *)textPostProcessor;
+
+
+/*
+ * 自定义字体创建
+ * @param fontfamily 字体名
+ * @param fontSize 字体大小
+ * @return 返回自定义字体 （注：若返回nil，则走sdk自身默认创建字体逻辑）
+ */
+- (UIFont *)hr_fontWithFontFamily:(NSString *)fontfamily fontSize:(CGFloat)fontSize;
+
+/*
+ * 自定义字体创建
+ * @param fontfamily 字体名
+ * @param fontSize 字体大小
+ * @param fontWeight 字体weight
+ * @return 返回自定义字体 （注：若返回nil，则走sdk自身默认创建字体逻辑）
+ */
+- (UIFont *)hr_fontWithFontFamily:(NSString *)fontfamily fontSize:(CGFloat)fontSize fontWeight:(UIFontWeight)fontWeight;
+
+/*
+ * 扩展Kotlin文本组件的text属性-后置处理
+ * @param text 源文本
+ * @param textPostProcessor 后置处理标记（由kotlin侧text组件属性设置textPostProcessor()而来）
+ * @return 返回新的文本对象
+ */
+- (NSString *)kr_customTextWithText:(NSString *)text textPostProcessor:(NSString *)textPostProcessor;
+
+/*
+ * 扩展Kotlin文本组件的富文本-后置处理
+ * 注:若有插入NSTextAttachment,请其实现KRTextAttachmentStringProtocol协议
+ * @param attributedString 源文本对象
+ * @param font 字体
+ * @param textPostProcessor 后置处理标记（由kotlin侧text组件属性设置textPostProcessor()而来）
+ * @return 返回新的文本对象
+ */
+- (NSMutableAttributedString *)kr_customTextWithAttributedString:(NSAttributedString *)attributedString
+                                                            font:(UIFont *)font
+                                               textPostProcessor:(NSString *)textPostProcessor;
+
+
+@end
+/*
+ * 当对kr_customTextWithAttributedString中插入NSTextAttachment图像时, 需要实现该协议用于还原原来的文本
+ */
+@protocol KRTextAttachmentStringProtocol <NSObject>
+
+/*
+ * 返回TextAttachment前的本来文本
+ */
+- (NSString *)kr_originlTextBeforeTextAttachment;
+
 @end
 
 NS_ASSUME_NONNULL_END

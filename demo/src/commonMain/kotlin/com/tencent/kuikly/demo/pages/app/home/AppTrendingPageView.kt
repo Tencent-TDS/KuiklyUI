@@ -118,7 +118,7 @@ internal class AppTrendingPageView: ComposeView<AppTrendingPageViewAttr, AppTren
                 attr {
                     flexDirectionRow()
                     pageItemWidth(pagerData.pageViewWidth)
-                    pageItemHeight(pagerData.pageViewHeight - pagerData.statusBarHeight - AppHomePageView.TAB_HEADER_HEIGHG - AppTabPage.TAB_BOTTOM_HEIGHT - TAB_HEADER_HEIGHT)
+                    pageItemHeight(pagerData.pageViewHeight - pagerData.statusBarHeight - AppHomePageView.TAB_HEADER_HEIGHT - AppTabPage.TAB_BOTTOM_HEIGHT - TAB_HEADER_HEIGHT)
                     defaultPageIndex(ctx.curIndex)
                     showScrollerIndicator(false)
                 }
@@ -149,7 +149,6 @@ internal class AppTrendingPageView: ComposeView<AppTrendingPageViewAttr, AppTren
         const val TAB_HEADER_HEIGHT = 40f
     }
 }
-
 
 internal class AppTrendingPageViewAttr : ComposeAttr() {
 

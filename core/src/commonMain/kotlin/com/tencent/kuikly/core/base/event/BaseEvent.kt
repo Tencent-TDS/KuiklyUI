@@ -20,8 +20,6 @@ import com.tencent.kuikly.core.base.BaseObject
 import com.tencent.kuikly.core.base.IPagerId
 import com.tencent.kuikly.core.base.RenderView
 import com.tencent.kuikly.core.collection.fastLinkedMapOf
-import com.tencent.kuikly.core.manager.PagerManager
-import com.tencent.kuikly.core.pager.IPager
 
 /**
  * 基础的EventCenter抽象类，实现了一些公共的方法。

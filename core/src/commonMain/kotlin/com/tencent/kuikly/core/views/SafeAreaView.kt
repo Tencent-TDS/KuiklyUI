@@ -64,10 +64,6 @@ class SafeAreaView : ViewContainer<SafeAreaAttr, SafeAreaEvent>() {
     }
 }
 
-class SafeAreaAttr : ContainerAttr() {
+class SafeAreaAttr : ContainerAttr()
 
-}
-
-open class SafeAreaEvent : Event() {
-
-}
+open class SafeAreaEvent : Event()

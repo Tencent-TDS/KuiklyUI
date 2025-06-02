@@ -16,26 +16,34 @@
 package com.tencent.kuikly.core.base
 
 import com.tencent.kuikly.core.global.GlobalFunctions
+import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.manager.BridgeManager
 import com.tencent.kuikly.core.module.CallbackFn
 import com.tencent.kuikly.core.module.CallbackRef
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 
 class RenderView(private val pagerId: String, private val viewRef: Int, private val viewName: String) {
+
+    var currentFrame: Frame = Frame.zero
+
+    var didLayout = false
+       private set
     init {
         BridgeManager.createRenderView(pagerId, viewRef, viewName)
     }
 
     fun setProp(key: String, value: Any) {
-        BridgeManager.setViewProp(pagerId, viewRef, key, value, 0);
+        BridgeManager.setViewProp(pagerId, viewRef, key, value, 0)
     }
 
     fun setFrame(x: Float, y: Float, width: Float, height: Float) {
+        currentFrame = Frame(x, y, width, height)
         BridgeManager.setRenderViewFrame(pagerId, viewRef, x, y, width, height)
+        didLayout = true
     }
 
     fun setEvent(eventName: String, sync: Int = 0) {
-        BridgeManager.setViewProp(pagerId, viewRef, eventName, 1, 1, sync);
+        BridgeManager.setViewProp(pagerId, viewRef, eventName, 1, 1, sync)
     }
 
     fun setShadow() {

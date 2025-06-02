@@ -24,7 +24,6 @@ import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 import com.tencent.kuikly.demo.pages.demo.kit_demo.DeclarativeDemo.Common.ViewExampleSectionHeader
 
-
 @Page("TimerExamplePage")
 internal class TimerExamplePage : BasePager() {
     private var remainTime by observable(100)

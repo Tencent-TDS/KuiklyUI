@@ -16,8 +16,6 @@
 package com.tencent.kuikly.core.base.event
 
 import com.tencent.kuikly.core.collection.fastArrayListOf
-import com.tencent.kuikly.core.exception.throwRuntimeError
-import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 
 /**
@@ -47,6 +45,7 @@ data class TouchParams(
     val y: Float, // 触摸点在自身view坐标系下的坐标Y
     val pageX: Float, // 触摸点在根视图Page下的坐标X
     val pageY: Float, // 触摸点在根视图Page下的坐标Y
+    val timestamp: Long, // 触发事件时，距离系统启动的毫秒数
     val pointerId: Int, // 触摸点的ID
     val action: String, // 事件类型, 该属性从1.1.86版本开始支持，之前的版本获取为空
     val touches: List<Touch> // 包含所有多指触摸信息
@@ -58,6 +57,7 @@ data class TouchParams(
             val y = tempParams.optDouble("y").toFloat()
             val pageX = tempParams.optDouble("pageX").toFloat()
             val pageY = tempParams.optDouble("pageY").toFloat()
+            val timestamp = tempParams.optDouble("timestamp").toLong()
             val pointerId = tempParams.optInt("pointerId")
             val action =  tempParams.optString("action")
             val touches = fastArrayListOf<Touch>()
@@ -67,7 +67,7 @@ data class TouchParams(
                 }
             }
 
-            return TouchParams(x, y, pageX, pageY, pointerId, action, touches)
+            return TouchParams(x, y, pageX, pageY, timestamp, pointerId, action, touches)
         }
     }
 }
@@ -77,7 +77,8 @@ data class Touch(
     val y: Float,
     val pageX: Float,
     val pageY: Float,
-    val pointerId: Int
+    val hash: Float,
+    val pointerId: Long
 ) {
     companion object {
         fun decode(params: Any?): Touch {
@@ -86,13 +87,14 @@ data class Touch(
             val y = tempParams.optDouble("y").toFloat()
             val pageX = tempParams.optDouble("pageX").toFloat()
             val pageY = tempParams.optDouble("pageY").toFloat()
-            val pointerId = tempParams.optInt("pointerId")
-            return Touch(x, y, pageX, pageY, pointerId)
+            val hash = tempParams.optLong("hash").toFloat()
+            val pointerId = tempParams.optLong("pointerId", 5566L)
+            return Touch(x, y, pageX, pageY, hash, pointerId)
         }
     }
 
     override fun toString(): String {
-        return "x:${x}, y:${y}, pageX:${pageX}, pageY:${pageY}"
+        return "x:${x}, y:${y}, pageX:${pageX}, pageY:${pageY} hash:${hash} pointerId:${pointerId}"
     }
 }
 

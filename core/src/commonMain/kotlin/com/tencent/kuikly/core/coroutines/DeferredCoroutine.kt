@@ -6,7 +6,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 internal class DeferredCoroutine<T>(
-    parentContext: CoroutineContext,
+    parentContext: CoroutineContext
 ) : AbstractCoroutine<T>(parentContext), Deferred<T> {
     private var suspendCoroutineResumeTasks = fastArrayListOf<(T) -> Unit>()
     override suspend fun await(): T = awaitInternal()

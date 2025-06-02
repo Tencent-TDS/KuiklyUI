@@ -60,7 +60,7 @@ class AnimationState {
         nextAnimations.clear()
     }
 
-    fun didEndAnmation() {
+    fun didEndAnimation() {
 
     }
 }
@@ -114,10 +114,10 @@ class AnimationManager {
         }
     }
 
-    fun didEndAnmation(viewRef: Int) {
+    fun didEndAnimation(viewRef: Int) {
         currentChangingProperty?.also { propertyKey ->
             val key = genKey(propertyKey, viewRef)
-            animationsHashMap[key]?.didEndAnmation()
+            animationsHashMap[key]?.didEndAnimation()
         }
     }
 

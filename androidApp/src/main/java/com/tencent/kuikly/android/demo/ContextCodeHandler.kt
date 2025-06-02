@@ -173,11 +173,9 @@ open class ContextCodeHandler(
         return listOf(KRMonitorType.LAUNCH, KRMonitorType.FRAME, KRMonitorType.MEMORY)
     }
 
-
     fun turboDisplayKey(): String? {
         return pageName
     }
-
 
     fun onKuiklyRenderViewCreated() {
         beginTime = System.currentTimeMillis()

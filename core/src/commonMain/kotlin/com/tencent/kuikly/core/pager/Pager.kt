@@ -33,6 +33,7 @@ import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.timer.setTimeout
 
 abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
+    open var ignoreLayout: Boolean = false
     private var fontWeightScale = -1.0
     private var fontSizeScale = -1.0
 
@@ -57,8 +58,7 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
     private var willDestroy = false
     private var pageTrace : PageCreateTrace? = null
     override val isDebugUIInspector by lazy { debugUIInspector() } // debug ui
-    var didCreateBody: Boolean = false
-        private set
+    override var didCreateBody: Boolean = false
 
     override fun createAttr(): ComposeAttr = ComposeAttr()
 
@@ -219,6 +219,7 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
             }
             PAGER_EVENT_ROOT_VIEW_SIZE_CHANGED -> {
                 handlePagerViewSizeDidChanged(
+                    eventData,
                     eventData.optDouble(WIDTH),
                     eventData.optDouble(HEIGHT),
                     eventData.optString(SAFE_AREA_INSETS, ""),
@@ -227,7 +228,7 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
             }
             PAGER_EVENT_WINDOW_SIZE_CHANGED -> {
                 handlePagerWindowSizeDidChanged(eventData.optDouble(WIDTH),eventData.optDouble(
-                    HEIGHT));
+                    HEIGHT))
             }
             PAGER_EVENT_CONFIGURATION_DID_CHANGED -> {
                 handlePagerConfigurationDidchanged(eventData)
@@ -352,6 +353,16 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
                 return TurboDisplayModule()
             }
         })
+        registerModule(ModuleConst.FONT, object : IModuleCreator {
+            override fun createModule(): Module {
+                return FontModule()
+            }
+        })
+        registerModule(ModuleConst.VSYNC, object : IModuleCreator {
+            override fun createModule(): Module {
+                return VsyncModule()
+            }
+        })
     }
     private fun initExternalModules() {
         createExternalModules()?.also { map ->
@@ -372,6 +383,9 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
     }
 
     private fun layoutIfNeed() {
+        if (ignoreLayout) {
+            return
+        }
         var maxLoopTimes = 3
         while (flexNode.isDirty && (--maxLoopTimes) >= 0) {
             notifyPagerWillCalculateLayoutObservers()
@@ -487,17 +501,12 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
     }
 
     // pager event
-    private fun handlePagerViewSizeDidChanged(width: Double, height: Double, safeAreaInsetsString: String, densityInfo: String) {
+    private fun handlePagerViewSizeDidChanged(data: JSONObject, width: Double, height: Double, safeAreaInsetsString: String, densityInfo: String) {
         if (safeAreaInsetsString.isNotEmpty()) {
             pageData.safeAreaInsets = EdgeInsets.decodeWithString(safeAreaInsetsString)
         }
-        if (width.toFloat() != pageData.pageViewWidth
-            || height.toFloat() != pageData.pageViewHeight
-        ) {
-            pageData.pageViewWidth = width.toFloat()
-            pageData.pageViewHeight = height.toFloat()
-            setupRootViewSizeStyle()
-        }
+        pageData.updateRootViewSize(data, width, height)
+        setupRootViewSizeStyle()
         if(densityInfo.isNotEmpty()) {
             val info = JSONObject(densityInfo)
             val newDensity = info.optDouble(DENSITY_INFO_KEY_NEW_DENSITY)
@@ -515,6 +524,7 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         const val PAGER_EVENT_DID_DISAPPEAR = "viewDidDisappear"
         const val PAGER_EVENT_FIRST_FRAME_PAINT = "pageFirstFramePaint"
         const val PAGER_EVENT_THEME_DID_CHANGED = "themeDidChanged"
+        const val PAGER_EVENT_WILL_DESTROY = "pageWillDestroy"
         const val PAGER_EVENT_SET_NEED_LAYOUT = "setNeedLayout"
         const val PAGER_EVENT_CONFIGURATION_DID_CHANGED = "configurationDidChanged"
         const val WIDTH = "width"

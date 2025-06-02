@@ -36,6 +36,10 @@ static id<KuiklyRenderComponentExpandProtocol> gComponentExpandHandler;
     [KRPAGView registerPAGViewCreator:creator];
 }
 
++ (void)registerFontHandler:(id<KuiklyFontProtocol>)fontHandler {
+    [KRFontModule registerFontHandler:fontHandler];
+}
+
 + (void)registerCacheHandler:(id<KRCacheProtocol>)cacheHandler {
     [KRCacheManager registerCacheHandler:cacheHandler];
 }

@@ -93,7 +93,6 @@ class FooterRefreshView : ViewContainer<FooterRefreshAttr, FooterRefreshEvent>()
             }
         }
 
-
     override fun didMoveToParentView() {
         super.didMoveToParentView()
         scrollerView?.addScrollerViewEventObserver(this)

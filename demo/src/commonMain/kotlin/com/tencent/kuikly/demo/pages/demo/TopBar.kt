@@ -71,7 +71,6 @@ internal class TopBar : ComposeView<ComposeAttr, ComposeEvent>() {
                 }
             }
 
-
             RichText {
                 Span {
                     fontSize(17f)

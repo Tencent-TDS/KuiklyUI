@@ -218,7 +218,7 @@ class SliderPageAttr: ComposeAttr() {
     internal var lazyCreateItemsTask : (PageListView<*, *>.() -> Unit)? = null
     fun <T> initSliderItems(dataList: List<T>, creator: SliderItemCreator<T>) {
         if (dataList.isEmpty()) {
-            return ;
+            return
         }
         itemCount = dataList.count()
         val ctx = this

@@ -3,7 +3,6 @@ package com.tencent.kuikly.core.nvi.serialization
 import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 
-
 fun Map<String, Any?>.serialization(): JSONObject {
     val serializationObject = JSONObject()
     forEach { (key, value) ->

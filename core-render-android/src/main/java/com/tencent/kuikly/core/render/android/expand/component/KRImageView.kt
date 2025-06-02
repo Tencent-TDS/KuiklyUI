@@ -42,7 +42,6 @@ import com.tencent.kuikly.core.render.android.css.ktx.frameHeight
 import com.tencent.kuikly.core.render.android.css.ktx.frameWidth
 import com.tencent.kuikly.core.render.android.css.ktx.removeFromParent
 import com.tencent.kuikly.core.render.android.css.ktx.toColor
-import com.tencent.kuikly.core.render.android.css.ktx.toNumberFloat
 import com.tencent.kuikly.core.render.android.css.ktx.toPxI
 import com.tencent.kuikly.core.render.android.expand.component.blur.RenderScriptBlur
 import com.tencent.kuikly.core.render.android.expand.component.image.Insets
@@ -105,7 +104,6 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
      * 图片加载失败事件回调
      */
     private var loadFailureCallback: KuiklyRenderCallback? = null
-
 
     /*
      * 源图片
@@ -240,7 +238,6 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
         }
     }
 
-
     private fun superSetImage(drawable: Drawable?) {
         super.setImageDrawable(drawable)
         if (drawable is Animatable) {
@@ -249,7 +246,6 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
         fireLoadSuccessCallback(drawable)
         fireLoadResolutionCallback(drawable)
     }
-
 
     private fun resetSrc(): Boolean {
         src = KRCssConst.EMPTY_STRING
@@ -335,7 +331,6 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
             paintMaskGradient = null
         }
     }
-
 
     private fun setLoadSuccessCallback(propValue: Any): Boolean {
         this.loadSuccessCallback = propValue as KuiklyRenderCallback

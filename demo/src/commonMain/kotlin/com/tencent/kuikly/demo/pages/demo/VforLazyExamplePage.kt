@@ -27,7 +27,6 @@ import com.tencent.kuikly.core.base.attr.ImageUri
 import com.tencent.kuikly.core.directives.scrollToPosition
 import com.tencent.kuikly.core.directives.vforLazy
 import com.tencent.kuikly.core.layout.FlexDirection
-import com.tencent.kuikly.core.layout.undefined
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.reactive.handler.observableList
 import com.tencent.kuikly.core.timer.setTimeout

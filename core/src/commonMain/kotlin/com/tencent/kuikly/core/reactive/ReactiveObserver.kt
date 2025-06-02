@@ -126,7 +126,7 @@ class ReactiveObserver {
     fun addObserver(observerFnOwner: Any, observerFn: ObserverFn) : Boolean {
         if (activeReadPropertyNames.isEmpty()) {
             activeWritePropertyNames.clear()
-            return false;
+            return false
         }
         // 如果收集读的key集合中包含写集合的key，需要取消对该key的依赖收集，避免循环嵌套递归响应
         val readPropertyKeyList = activeReadPropertyNames.toFastMutableSet()

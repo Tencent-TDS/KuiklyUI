@@ -24,7 +24,6 @@ import com.tencent.kuikly.core.views.*
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 
-
 @Page("ScrollPickerExamplePage")
 internal class ScrollPickerExamplePage: BasePager() {
 
@@ -40,7 +39,6 @@ internal class ScrollPickerExamplePage: BasePager() {
 
     private var date: Date by observable(Date(0,0,0))
     private var dateTimestamp : Long by observable(0L)
-
 
     override fun body(): ViewBuilder {
         val ctx = this@ScrollPickerExamplePage
@@ -284,6 +282,5 @@ internal class ScrollPickerExamplePage: BasePager() {
             }
         }
     }
-
 
 }

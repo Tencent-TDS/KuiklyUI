@@ -47,23 +47,21 @@ import com.tencent.kuikly.core.render.android.css.gesture.KRCSSGestureDetector
 import com.tencent.kuikly.core.render.android.css.gesture.KRCSSGestureListener
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 import org.json.JSONObject
+import java.util.Locale
+import kotlin.math.min
 
 /**
  * 设置通用的css样式，支持的属性列表可以查看[KRCssConst]定义的属性
- *
- * <p>这里为啥不用使用map<key, handler>来处理?
- *
- * <p>1.通用属性不会太多, 使用when语句的可读性比map<key，handler>的方式好
- *
- * <p>2.setCommonProp方法比较稳定，一般只有维护者一人编写
- *
- * <p>3.降低内存开销
- *
- * <p>这里的value类型是与kuiklyCore侧约定好的，因此没判断就使用强转
- *
+ * 这里为啥不用使用map<key, handler>来处理?
+ * 1.通用属性不会太多, 使用when语句的可读性比map<key，handler>的方式好
+ * 2.setCommonProp方法比较稳定，一般只有维护者一人编写
+ * 3.降低内存开销
+ * 这里的value类型是与kuiklyCore侧约定好的，因此没判断就使用强转
  * @param key css样式key
  * @param value css样式值
  * @return 是否处理
+ *
+ * 注意: 如果有新增基础属性的话，需要在[createBaseAtrKeySet]中也加上
  */
 @Suppress("UNCHECKED_CAST")
 fun View.setCommonProp(key: String, value: Any): Boolean {
@@ -74,6 +72,14 @@ fun View.setCommonProp(key: String, value: Any): Boolean {
     return when (key) {
         KRCssConst.OPACITY -> {
             opacity = (value as Number).toFloat()
+            true
+        }
+        KRCssConst.PREVENT_TOUCH -> {
+            setPreventTouch(value as Boolean)
+            true
+        }
+        KRCssConst.CONSUME_TOUCH_DOWN -> {
+            setTouchDownConsumeOnce(value as Boolean)
             true
         }
         KRCssConst.VISIBILITY -> {
@@ -320,6 +326,21 @@ private var View.opacity: Float
         alpha = value
     }
 
+internal var touchConsumeByKuikly = false
+internal var touchConsumeByNative = false
+internal var touchDownConsumeOnce = false
+
+/**
+ * 阻止父亲View处理Touch事件
+ */
+fun View.setPreventTouch(value: Boolean) {
+    touchConsumeByKuikly = value
+}
+
+fun View.setTouchDownConsumeOnce(value: Boolean) {
+    touchDownConsumeOnce = value
+}
+
 /**
  * 为View扩展overflow属性
  */
@@ -405,7 +426,6 @@ fun View.removeOnSetFrameObserver(propKey: String) {
         }
     }
 }
-
 
 var View.hadSetFrame: Boolean
     get() = getViewData<Boolean>(KRCssConst.HAD_SET_FRAME) ?: false
@@ -508,7 +528,7 @@ internal var View.viewDecorator: KRViewDecoration?
 @SuppressLint("ClickableViewAccessibility")
 fun View.addEventListener(type: Int, callback: KuiklyRenderCallback) {
     val gestureDetector = getViewData(KRCSSGestureDetector.GESTURE_TAG) ?: KRCSSGestureDetector(
-        context, this@addEventListener, KRCSSGestureListener()).also {
+        context, this@addEventListener, KRCSSGestureListener(context as? IKuiklyRenderContext)).also {
         putViewData(KRCSSGestureDetector.GESTURE_TAG, it)
         setOnTouchListener { _, event -> it.onTouchEvent(event) }
     }
@@ -577,10 +597,10 @@ private fun View.setHRAnimation(animation: String?) {
             }
         }
         else -> {
-            val newAnimation = KRCSSAnimation(animation, this)
-            newAnimation.onAnimationEndBlock = { hrAnimation: KRCSSAnimation, isCancel, propKey, animationKey ->
+            val newAnimation = KRCSSAnimation(animation, this, context as? IKuiklyRenderContext)
+            newAnimation.onAnimationEndBlock = { hrAnimation: KRCSSAnimation, finished, propKey, animationKey ->
                 animationCompletionBlock?.invoke(mapOf(
-                    "finish" to if (isCancel) 0 else 1,
+                    "finish" to if (finished) 1 else 0,
                     "attr" to propKey,
                     "animationKey" to animationKey
                 ))
@@ -818,7 +838,7 @@ val Context.screenHeight: Int
         return innerScreenHeight
     }
 
-private fun getDisplaySize(context: Context): Size {
+internal fun getDisplaySize(context: Context): Size {
     val manager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     val metrics = DisplayMetrics()
     manager.defaultDisplay.getRealMetrics(metrics)

@@ -60,20 +60,20 @@ internal class AppFeedItemAuthorView: ComposeView<AppFeedItemAuthorViewAttr, App
                         resizeContain()
                         size(width = 40f, height = 40f)
                         borderRadius(20f)
-                        src(ctx.attr.userInfo.headurl)
+                        src(ctx.attr.userInfo.headUrl)
                     }
                 }
                 // 实名认证
-                vif({ctx.attr.userInfo.isvertify != 0}) {
+                vif({ctx.attr.userInfo.isVerify != 0}) {
                     Image {
                         attr {
                             alignSelfCenter()
                             resizeContain()
                             size(width = 15f, height = 15f)
-                            if (ctx.attr.userInfo.isvertify == 1) {
-                                src(ImageUri.pageAssets("home_vertify.webp"))
+                            if (ctx.attr.userInfo.isVerify == 1) {
+                                src(ImageUri.pageAssets("home_verify.webp"))
                             } else {
-                                src(ImageUri.pageAssets("home_vertify2.webp"))
+                                src(ImageUri.pageAssets("home_verify2.webp"))
                             }
                             absolutePosition(right = 0f, bottom = 0f)
                         }
@@ -96,20 +96,20 @@ internal class AppFeedItemAuthorView: ComposeView<AppFeedItemAuthorViewAttr, App
                             marginLeft(6f)
                             text(ctx.attr.userInfo.nick)
                             fontSize(15f)
-                            if (ctx.attr.userInfo.ismember == 0) {
+                            if (ctx.attr.userInfo.isMember == 0) {
                                 color(Color.BLACK)
                             } else {
                                 color(Color(0xffF86119))
                             }
                         }
                     }
-                    vif({ctx.attr.userInfo.ismember != 0}) {
+                    vif({ctx.attr.userInfo.isMember != 0}) {
                         Image {
                             attr {
                                 marginLeft(3f)
                                 marginTop(3f)
                                 size(15f, 13f)
-                                src(ImageUri.pageAssets("home_memeber.webp"))
+                                src(ImageUri.pageAssets("home_member.webp"))
                             }
                         }
                     }
@@ -122,7 +122,7 @@ internal class AppFeedItemAuthorView: ComposeView<AppFeedItemAuthorViewAttr, App
                     vif({ctx.attr.tail.isEmpty()}) {
                         Text {
                             attr {
-                                text(ctx.attr.userInfo.decs)
+                                text(ctx.attr.userInfo.desc)
                                 color(Color(0xff808080))
                                 fontSize(11.0f)
                             }
@@ -136,7 +136,7 @@ internal class AppFeedItemAuthorView: ComposeView<AppFeedItemAuthorViewAttr, App
                             Text {
                                 val datetime =
                                     acquireModule<CalendarModule>(CalendarModule.MODULE_NAME).formatTime(
-                                        ctx.attr.createtime,
+                                        ctx.attr.createTime,
                                         "yyyy-MM-dd HH:mm:ss"
                                     )
                                 attr {
@@ -187,11 +187,10 @@ internal class AppFeedItemAuthorView: ComposeView<AppFeedItemAuthorViewAttr, App
     }
 }
 
-
 internal class AppFeedItemAuthorViewAttr : ComposeAttr() {
     lateinit var userInfo: AppUserInfo
     lateinit var tail: String
-    var createtime: Long = 0L
+    var createTime: Long = 0L
 }
 
 internal class AppFeedItemAuthorViewEvent : ComposeEvent() {

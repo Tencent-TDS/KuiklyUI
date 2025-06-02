@@ -1,6 +1,5 @@
 package com.tencent.kuikly.core.layout
 
-
 class FlexStyle {
 
     var direction = FlexLayoutDirection.INHERIT
@@ -109,7 +108,6 @@ class StyleSpace {
             }
         }
     }
-
 
     companion object {
         private val sFlagsMap = intArrayOf(

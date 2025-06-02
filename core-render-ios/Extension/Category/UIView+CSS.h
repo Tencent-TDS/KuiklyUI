@@ -32,6 +32,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong, nullable) NSNumber *css_touchEnable;
 @property (nonatomic, strong, nullable) NSString *css_transform;
 @property (nonatomic, strong, nullable) NSString *css_backgroundImage;
+@property (nonatomic, strong, nullable) NSNumber *css_useShadowPath;
 @property (nonatomic, strong, nullable) NSString *css_boxShadow;
 @property (nonatomic, strong, nullable) NSString *css_borderRadius;
 @property (nonatomic, strong, nullable) NSString *css_border;
@@ -44,6 +45,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong, nullable) NSNumber *css_autoDarkEnable;
 @property (nonatomic, strong, nullable) NSNumber *css_scrollIndex;
 @property (nonatomic, strong, nullable) NSNumber *css_turboDisplayAutoUpdateEnable;
+@property (nonatomic, strong, nullable) NSNumber *css_shouldRasterize;
+@property (nonatomic, strong, nullable) NSString *css_lazyAnimationKey;
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_click;
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_doubleClick;
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_longPress;
@@ -51,6 +54,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_animationCompletion;
 /// 在列表中是否可以允许滑动
 @property (nonatomic, assign) BOOL kr_canCancelInScrollView;
+/// 是否禁止复用
+@property (nonatomic, assign) BOOL kr_reuseDisable;
 
 + (NSString *_Nullable)css_string:(id)value;
 + (BOOL)css_bool:(id)value;

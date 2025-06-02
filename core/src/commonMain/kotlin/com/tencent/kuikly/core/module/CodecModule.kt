@@ -54,7 +54,6 @@ class CodecModule : Module() {
         return MODULE_NAME
     }
 
-
     companion object {
         const val MODULE_NAME = ModuleConst.CODEC
         const val METHOD_URL_ENCODE = "urlEncode"

@@ -15,14 +15,26 @@
 
 #import <UIKit/UIKit.h>
 #import "KuiklyRenderViewExportProtocol.h"
+#import "NestedScrollCoordinator.h"
+#import "NestedScrollProtocol.h"
+
+#import "KRView.h"
 NS_ASSUME_NONNULL_BEGIN
 
 /*
  * @brief 暴露给Kotlin侧调用的Scoller组件
  */
-@interface KRScrollView : UIScrollView<KuiklyRenderViewExportProtocol, UIScrollViewDelegate>
+@interface KRScrollView : UIScrollView<KuiklyRenderViewExportProtocol, UIScrollViewDelegate, NestedScrollProtocol>
 
 @property (nonatomic, assign) BOOL autoAdjustContentOffsetDisable ;
+@property (nonatomic, assign) BOOL setContentSizeing ;
+
+/// Record the last content offset for scroll lock.
+@property (nonatomic, assign) CGPoint lastContentOffset;
+
+/// Nested scroll coordinator
+@property (nonatomic, strong) NestedScrollCoordinator *nestedScrollCoordinator;
+
 /*
  * 添加滚动监听
  */
@@ -40,7 +52,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
-@interface KRScrollContentView : UIView<KuiklyRenderViewExportProtocol>
+@interface KRScrollContentView : KRView<KuiklyRenderViewExportProtocol>
 /*
  * 添加滚动监听
  */

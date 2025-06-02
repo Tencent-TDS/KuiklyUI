@@ -15,11 +15,12 @@
 
 package com.tencent.kuikly.core.pager
 
+import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.base.EdgeInsets
-import com.tencent.kuikly.core.base.toBoolean
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.utils.urlParams
+
 /*
  * 页面数据（包含设备信息和平台以及根视图宽高，以及页面传参params）
  */
@@ -34,9 +35,9 @@ class PageData() {
     var pageViewHeight: Float by observable(0.0f)
     var statusBarHeight: Float = 0.0f
         private set
-    var deviceHeight: Float = 0.0f
+    var deviceHeight: Float by observable(0.0f)
         private set
-    var deviceWidth: Float = 0.0f
+    var deviceWidth: Float by observable(0.0f)
         private set
     var appVersion: String = ""
         private set
@@ -63,6 +64,17 @@ class PageData() {
 
     var density: Float = 3f
         internal set
+	
+    var osVersion: String = ""
+        private set
+    /* 是否处于无障碍化模式 */
+    var isAccessibilityRunning: Boolean = false
+        private set
+    /**
+     * Android 底部导航栏高度
+     */
+    var androidBottomBavBarHeight: Float = 0f
+        private set
 
     fun init(pageData: JSONObject) {
         this.rawPageData = pageData
@@ -74,17 +86,20 @@ class PageData() {
         appVersion = pageData.optString(APP_VERSION, "")
         platform =  pageData.optString(PLATFORM, "")
         nativeBuild = pageData.optInt(NATIVE_BUILD, 0)
-        isIOS = platform == "iOS"
-        isAndroid = platform == "android"
+        isIOS = platform == PLATFORM_IOS
+        isAndroid = platform == PLATFORM_ANDROID
         isOhOs = platform == PLATFORM_OHOS
         navigationBarHeight = statusBarHeight + 44
         isIphoneX = isIOS && statusBarHeight > 30
-        activityWidth = pageData.optDouble(ACTIVITY_WIDTH, 0.0).toFloat()
-        activityHeight = pageData.optDouble(ACTIVITY_HEIGHT, 0.0).toFloat()
+        activityWidth = pageData.optDouble(ACTIVITY_WIDTH, if (isMoreThan8()) deviceWidth.toDouble() else 0.0).toFloat()
+        activityHeight = pageData.optDouble(ACTIVITY_HEIGHT, if (isMoreThan8()) deviceHeight.toDouble() else 0.0).toFloat()
+
         val safeAreaInsetsString = pageData.optString(SAFE_AREA_INSETS, "")
         if (safeAreaInsetsString.isNotEmpty()) {
             safeAreaInsets = EdgeInsets.decodeWithString(safeAreaInsetsString)
         }
+        osVersion = pageData.optString(OS_VERSION)
+        androidBottomBavBarHeight = pageData.optDouble(ANDROID_BOTTOM_NAV_BAR_HEIGHT, 0.0).toFloat()
         density = pageData.optDouble(DENSITY, 3.0).toFloat() // use 3(xxhdpi) for backwards compatibility
         mergeUrlParamsToPageParams()
     }
@@ -102,6 +117,41 @@ class PageData() {
 
     fun isDebug(): Boolean = params.optBoolean("isDebug", false)
 
+    internal fun updateRootViewSize(data: JSONObject, width: Double, height: Double) {
+         this.pageViewWidth = width.toFloat()
+         this.pageViewHeight = height.toFloat()
+         if (data.has(DEVICE_WIDTH) && data.has(DEVICE_HEIGHT)) { // 更新设备宽度/高度
+             val dWidth = data.optDouble(DEVICE_WIDTH).toFloat()
+             val dHeight = data.optDouble(DEVICE_HEIGHT).toFloat()
+             if (dWidth != this.deviceWidth || dHeight != this.deviceHeight) {
+                 this.deviceWidth = dWidth
+                 this.deviceHeight = dHeight
+             }
+         }
+        // 更新activityWidth/Height
+        if (data.has(ACTIVITY_WIDTH) && data.has(ACTIVITY_HEIGHT)) { // 更新设备宽度/高度
+            val aWidth = data.optDouble(ACTIVITY_WIDTH).toFloat()
+            val aHeight = data.optDouble(ACTIVITY_HEIGHT).toFloat()
+            if (aWidth != this.activityWidth || aHeight != this.activityHeight) {
+                this.activityWidth = aWidth
+                this.activityHeight = aHeight
+            }
+        } else { // activityWidth/Height兜底为deviceWidth/Height
+            if (isMoreThan8()) {
+                if (this.activityWidth != this.deviceWidth) {
+                    this.activityWidth = this.deviceWidth
+                }
+                if (this.activityHeight != this.deviceHeight) {
+                    this.activityHeight = this.deviceHeight
+                }
+            }
+        }
+    }
+
+    private fun isMoreThan8(): Boolean {
+        return nativeBuild >= 8
+    }
+
     companion object {
         private const val KEY_PARAM = "param"
         private const val URL = "url"
@@ -111,12 +161,17 @@ class PageData() {
         private const val DEVICE_WIDTH = "deviceWidth"
         private const val DEVICE_HEIGHT = "deviceHeight"
         private const val APP_VERSION = "appVersion"
-        private const val PLATFORM = "platform"
-        private const val NATIVE_BUILD = "nativeBuild"
+        const val PLATFORM = "platform"
+        const val NATIVE_BUILD = "nativeBuild"
         private const val SAFE_AREA_INSETS = "safeAreaInsets"
         private const val ACTIVITY_WIDTH = "activityWidth"
         private const val ACTIVITY_HEIGHT = "activityHeight"
+        private const val ACCESSIBILITY_RUNNING = "isAccessibilityRunning"
+        private const val OS_VERSION = "osVersion"
+        private const val ANDROID_BOTTOM_NAV_BAR_HEIGHT = "androidBottomNavBarHeight"
         private const val DENSITY = "density"
+        const val PLATFORM_ANDROID = "android"
+        const val PLATFORM_IOS = "iOS"
         const val PLATFORM_OHOS = "ohos"
     }
 }

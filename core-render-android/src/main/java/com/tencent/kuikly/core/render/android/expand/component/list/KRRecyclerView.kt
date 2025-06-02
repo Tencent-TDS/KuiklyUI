@@ -19,29 +19,42 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Rect
 import android.util.AttributeSet
-import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
+import androidx.core.view.NestedScrollingChild2
+import androidx.core.view.NestedScrollingParent2
+import androidx.core.view.ViewCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.tencent.kuikly.core.render.android.KuiklyRenderView
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.const.KRCssConst
+import com.tencent.kuikly.core.render.android.css.ktx.touchConsumeByNative
 import com.tencent.kuikly.core.render.android.css.ktx.drawCommonDecoration
 import com.tencent.kuikly.core.render.android.css.ktx.drawCommonForegroundDecoration
 import com.tencent.kuikly.core.render.android.css.ktx.frameHeight
 import com.tencent.kuikly.core.render.android.css.ktx.frameWidth
+import com.tencent.kuikly.core.render.android.css.ktx.touchConsumeByKuikly
 import com.tencent.kuikly.core.render.android.css.ktx.toDpF
 import com.tencent.kuikly.core.render.android.css.ktx.toPxI
-import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderViewExport
+import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
+import org.json.JSONObject
+import kotlin.math.max
+import kotlin.math.min
+
+enum class KRNestedScrollMode(val value: String){
+    SELF_ONLY("SELF_ONLY"),
+    SELF_FIRST("SELF_FIRST"),
+    PARENT_FIRST("PARENT_FIRST"),
+}
 
 /**
  * Kuikly List组件
  */
-class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
+class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChild2,
+    NestedScrollingParent2 {
 
     constructor(context: Context) : super(context)
 
@@ -72,7 +85,6 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
      */
     private var willEndDragEventCallback: KuiklyRenderCallback? = null
 
-
     /**
      * RecyclerView滚动监听器
      */
@@ -97,6 +109,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
      * 是否开启List滚动到边缘回弹效果
      */
     private var bouncesEnable = true
+    internal var limitHeaderBounces = false
 
     /**
      * List上一次的滚动状态
@@ -117,6 +130,24 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
     // 当滑动长时间停留一个位置时，recycleView不会fling，因此不会回调fireWillEndDragEvent，需要在dragEnd时，提前回调
     private var needFireWillEndDragEvent = true
 
+    private var mNestedScrollAxesTouch = SCROLL_AXIS_NONE
+
+    private var mNestedScrollAxesNonTouch = SCROLL_AXIS_NONE
+
+    /**
+     * 向前滑动
+     */
+    private var scrollForwardMode = KRNestedScrollMode.SELF_FIRST
+    /**
+     * 向后滑动
+     */
+    private var scrollBackwardMode = KRNestedScrollMode.SELF_FIRST
+
+    /**
+     * 父组件滑动联动，即自身滑动到目标方向的边缘时，触发父组件滑动，默认 true
+     */
+    private var scrollWithParent = true
+
     var enableSmallTouchSlop = false
         set(value) {
             if (field == value) {
@@ -134,7 +165,9 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
                 f.isAccessible = true
                 f.set(this, touchSlop)
             } catch (e: Exception) {
-                // ignore
+                // 由于不清楚系统mTouchSlop底层会抛出哪种类型的异常，因此这里使用顶层异常来处理
+                // 并且异常不影响主路径
+                KuiklyRenderLog.e(VIEW_NAME, "set mTouchSlop error, $e")
             }
         }
 
@@ -142,6 +175,12 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
      * 将要滚动到的offset字符串描述
      */
     private var pendingSetContentOffsetStr = ""
+
+    /**
+     * List 高度动态改变时, iOS系统会自动调整 contentOffset
+     * Android 对齐iOS 的表现
+     */
+    private var pendingFireOnScroll = true
 
     private val contentView: View
         get() = getChildAt(0)
@@ -193,13 +232,14 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
     init {
         overScrollMode = OVER_SCROLL_NEVER
         isFocusableInTouchMode = false
+        isNestedScrollingEnabled = true
     }
 
     fun setContentInsert(contentInset: KRRecyclerContentViewContentInset?, immediately: Boolean = false) {
         val oh = overScrollHandler ?: return
         if (immediately) {
             oh.contentInsetWhenEndDrag = contentInset
-            oh.bounceWithContentInset(contentInset ?: KRRecyclerContentViewContentInset())
+            oh.bounceWithContentInset(contentInset ?: KRRecyclerContentViewContentInset(kuiklyRenderContext))
         } else {
             oh.contentInsetWhenEndDrag = contentInset
         }
@@ -251,11 +291,26 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
             DIRECTION_ROW -> setDirectionRow(propValue)
             PAGING_ENABLED -> setPagingEnable(propValue)
             SHOW_SCROLLER_INDICATOR -> showScrollerIndicator(propValue)
-            SCROLL_ENABLED -> setScrollEnabled(propValue)
+            SCROLL_ENABLED, KRCssConst.TOUCH_ENABLE -> setScrollEnabled(propValue)
             VERTICAL_BOUNCES, BOUNCES_ENABLE, HORIZONTAL_BOUNCES -> setBouncesEnable(propValue)
+            LIMIT_HEADER_BOUNCES -> limitHeaderBounces(propValue)
             FLING_ENABLE -> setFlingEnable(propValue)
+            SCROLL_WITH_PARENT -> setScrollWithParent(propValue)
+            KRCssConst.FRAME -> {
+                automaticAdjustContentOffset()
+                super.setProp(propKey, propValue)
+            }
+            NESTED_SCROLL -> {
+                setNestedScroll(propValue)
+                true
+            }
             else -> super.setProp(propKey, propValue)
         }
+    }
+
+    private fun limitHeaderBounces(propValue: Any): Boolean {
+        limitHeaderBounces = (propValue as Int) == 1
+        return true
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -312,9 +367,18 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
         scrollEnabled = (propValue as Int) == 1
         return true
     }
+
     fun isScrollEnabled() = scrollEnabled
+
     private fun setBouncesEnable(propValue: Any): Boolean {
         bouncesEnable = (propValue as Int) == 1
+        if (bouncesEnable) {
+            if (childCount > 0) {
+                setupOverscrollHandler(contentView)
+            }
+        } else {
+            overScrollHandler = null
+        }
         return true
     }
 
@@ -322,6 +386,13 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
         supportFling = (propValue as Int) == 1
         return true
     }
+
+    private fun setScrollWithParent(propValue: Any): Boolean {
+        scrollWithParent = (propValue as Int) == 1
+        return true
+    }
+
+    fun isScrollWithParent() = scrollWithParent
 
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
@@ -355,6 +426,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         super.onLayout(changed, l, t, r, b)
         tryApplyPendingSetContentOffset()
+        tryApplyPendingFireOnScroll()
     }
 
     override fun onDestroy() {
@@ -379,7 +451,10 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
     }
 
     override fun onInterceptTouchEvent(e: MotionEvent): Boolean {
-        if (!scrollEnabled) {
+    	if (touchConsumeByKuikly) {
+            return true;
+        }
+        if (!scrollEnabled || mNestedScrollAxesTouch != SCROLL_AXIS_NONE) {
             return false
         }
 
@@ -411,6 +486,10 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
     }
 
     override fun onTouchEvent(e: MotionEvent): Boolean {
+        if (touchConsumeByKuikly) {
+            return true;
+        }
+
         if (!scrollEnabled) {
             return false
         }
@@ -422,13 +501,15 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
     }
 
     override fun fling(velocityX: Int, velocityY: Int): Boolean {
-        fireWillDragEndEvent(velocityX, velocityY)
+        if (overScrollHandler?.overScrolling != true) { // over scroll 时, willDragEnd 由 over scroll handler 处理
+            fireWillDragEndEvent(velocityX, velocityY)
+        }
         if (!supportFling) {
             // 由于没有调用super.fling(velocityX, velocityY)
             // 导致 RV 内部的状态一直都 DRAGGING，因此在 onInterceptEvent的时候，RV 内部一直拦截事件
             // 导致 RV 内部的横向子 List 无法滑动
             // 触发条件：先在横向子 List 滑动然后触发 cancel
-            forceSetScrollState(SCROLL_STATE_IDLE)
+            // forceSetScrollState(SCROLL_STATE_IDLE)
             return true
         }
         return super.fling(velocityX, velocityY)
@@ -478,6 +559,9 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
                 // 由于setScrollState内部在dispatchOnScrollStateChanged之前可能会再次调用setScrollState，
                 // 导致dispatchOnScrollStateChanged逆序回调，因此newState的值不可靠，需要从getScrollState重新获取
                 val currentState = recyclerView.scrollState
+                if (!touchConsumeByNative) {
+                    touchConsumeByNative = newState != SCROLL_STATE_IDLE
+                }
                 if (overScrollHandler?.forceOverScroll == true) {
                     return
                 }
@@ -511,20 +595,37 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
 
     private fun fireEndDragEvent() {
         if (needFireWillEndDragEvent) {
+            // onFling回调，RecyclerView 内部只有在 velocity > 系统的minVelocity
+            // 才会回调, 因此当加速度小于 minVelocity时, 在这里补充回调
+            // 此时加速度介于 0 ~ minVelocity之间，这里直接给个 0给 kuikly 侧
             fireWillDragEndEvent(0, 0)
         }
         dispatchOnEndDrag(contentOffsetX, contentOffsetY)
         dragEndEventCallback?.invoke(getCommonScrollParams())
     }
 
+    private fun automaticAdjustContentOffset() {
+        if (!isContentViewAttached) {
+            return
+        }
+
+        pendingFireOnScroll = true
+    }
+
     private fun fireScrollEvent() {
-        val callback = scrollEventCallback ?: return
         val cv = contentView
         val offsetX = (-cv.left.toFloat())
         val offsetY = (-cv.top.toFloat()) - contentView.translationY
+
+        if (contentOffsetX == offsetX && contentOffsetY == offsetY) {
+            return
+        }
+
         contentOffsetX = offsetX
         contentOffsetY = offsetY
         dispatchOnScroll(offsetX, offsetY)
+
+        val callback = scrollEventCallback ?: return
         callback.invoke(getCommonScrollParams())
     }
 
@@ -534,6 +635,13 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
         val paramsMap = getCommonScrollParams()
         paramsMap[VELOCITY_X] = velocityX / MILLISECOND
         paramsMap[VELOCITY_Y] = velocityY / MILLISECOND
+
+        overScrollHandler?.also {
+            if (it.overScrolling) {
+                paramsMap[OFFSET_X] = kuiklyRenderContext.toDpF(toOverScrollOffset(contentView, it.overScrollX, it.isInStart(), false))
+                paramsMap[OFFSET_Y] = kuiklyRenderContext.toDpF(toOverScrollOffset(contentView, it.overScrollY, it.isInStart(), true))
+            }
+        }
         callback.invoke(paramsMap)
     }
 
@@ -543,15 +651,18 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
 
     private fun getCommonScrollParams(): MutableMap<String, Any> {
         val offsetMap = mutableMapOf<String, Any>()
+        if (!isContentViewAttached) {
+            return offsetMap
+        }
         val cv = contentView
         val offsetX = (-cv.left.toFloat())
         val offsetY = (-cv.top.toFloat())
-        offsetMap[OFFSET_X] = offsetX.toDpF()
-        offsetMap[OFFSET_Y] = offsetY.toDpF()
-        offsetMap[CONTENT_WIDTH] = cv.frameWidth.toFloat().toDpF()
-        offsetMap[CONTENT_HEIGHT] = cv.frameHeight.toFloat().toDpF()
-        offsetMap[VIEW_WIDTH] = frameWidth.toFloat().toDpF()
-        offsetMap[VIEW_HEIGHT] = frameHeight.toFloat().toDpF()
+        offsetMap[OFFSET_X] = kuiklyRenderContext.toDpF(offsetX)
+        offsetMap[OFFSET_Y] = kuiklyRenderContext.toDpF(offsetY)
+        offsetMap[CONTENT_WIDTH] = kuiklyRenderContext.toDpF(cv.frameWidth.toFloat())
+        offsetMap[CONTENT_HEIGHT] = kuiklyRenderContext.toDpF(cv.frameHeight.toFloat())
+        offsetMap[VIEW_WIDTH] = kuiklyRenderContext.toDpF(frameWidth.toFloat())
+        offsetMap[VIEW_HEIGHT] = kuiklyRenderContext.toDpF(frameHeight.toFloat())
         offsetMap[IS_DRAGGING] = getIsDragging(isDragging)
         return offsetMap
     }
@@ -571,61 +682,58 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
             }.attachToRecyclerView(this)
         }
         if (bouncesEnable) {
-            overScrollHandler = OverScrollHandler(this,
-                contentView,
-                !directionRow,
-                object : OverScrollEventCallback {
-                    override fun onBeginDragOverScroll(
-                        offsetX: Float,
-                        offsetY: Float,
-                        overScrollStart: Boolean,
-                        isDragging: Boolean
-                    ) {
-                        if (isContentViewAttached) {
-                            contentOffsetX = toOverScrollOffset(contentView,
-                                offsetX,
-                                overScrollStart,
-                                !directionRow)
-                            contentOffsetY = toOverScrollOffset(contentView,
-                                offsetY,
-                                overScrollStart,
-                                !directionRow)
-                            fireBeginDragEvent()
-                        }
-                    }
-
-                    override fun onOverScroll(
-                        offsetX: Float,
-                        offsetY: Float,
-                        overScrollStart: Boolean,
-                        isDragging: Boolean
-                    ) {
-                        if (isContentViewAttached) { // setupAdapter调用后，RV不会立刻addView
-                            fireOverScrollEvent(offsetX, offsetY, overScrollStart, isDragging)
-                        }
-                    }
-
-                    override fun onEndDragOverScroll(
-                        offsetX: Float,
-                        offsetY: Float,
-                        overScrollStart: Boolean,
-                        isDragging: Boolean
-                    ) {
-                        if (isContentViewAttached) {
-                            contentOffsetX = toOverScrollOffset(contentView,
-                                offsetX,
-                                overScrollStart,
-                                !directionRow)
-                            contentOffsetY = toOverScrollOffset(contentView,
-                                offsetY,
-                                overScrollStart,
-                                !directionRow)
-                            fireEndDragEvent()
-                        }
-                    }
-
-                })
+            setupOverscrollHandler(contentView)
         }
+    }
+
+    private fun setupOverscrollHandler(contentView: View) {
+        overScrollHandler = OverScrollHandler(this,
+            contentView,
+            !directionRow,
+            object : OverScrollEventCallback {
+                override fun onBeginDragOverScroll(
+                    offsetX: Float,
+                    offsetY: Float,
+                    overScrollStart: Boolean,
+                    isDragging: Boolean
+                ) {
+                    if (isContentViewAttached) {
+                        touchConsumeByNative = true
+                        fireOverScrollBeginDragEvent(offsetX, offsetY, overScrollStart)
+                    }
+                }
+
+                override fun onOverScroll(
+                    offsetX: Float,
+                    offsetY: Float,
+                    overScrollStart: Boolean,
+                    isDragging: Boolean
+                ) {
+                    if (isContentViewAttached) { // setupAdapter调用后，RV不会立刻addView
+                        fireOverScrollEvent(offsetX, offsetY, overScrollStart, isDragging)
+                    }
+                }
+
+                override fun onEndDragOverScroll(
+                    offsetX: Float,
+                    offsetY: Float,
+                    velocityX: Float,
+                    velocityY: Float,
+                    overScrollStart: Boolean,
+                    isDragging: Boolean
+                ) {
+                    if (isContentViewAttached) {
+                        fireOverScrollEndDragEvent(
+                            offsetX,
+                            offsetY,
+                            velocityX,
+                            velocityY,
+                            overScrollStart
+                        )
+                    }
+                }
+
+            })
     }
 
     private fun toOverScrollOffset(
@@ -645,24 +753,70 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
         }
     }
 
+    private fun fireOverScrollBeginDragEvent(offsetX: Float, offsetY: Float, overScrollStart: Boolean) {
+        contentOffsetX = toOverScrollOffset(contentView,
+            offsetX,
+            overScrollStart,
+            !directionRow)
+        contentOffsetY = toOverScrollOffset(contentView,
+            offsetY,
+            overScrollStart,
+            !directionRow)
+        needFireWillEndDragEvent = true
+
+        val callback = dragBeginEventCallback ?: return
+
+        dispatchOnBeginDrag(contentOffsetX, contentOffsetY)
+        val paramsMap = getCommonScrollParams()
+        paramsMap[OFFSET_X] = kuiklyRenderContext.toDpF(contentOffsetX)
+        paramsMap[OFFSET_Y] = kuiklyRenderContext.toDpF(contentOffsetY)
+        callback(paramsMap)
+    }
+
     private fun fireOverScrollEvent(
         offsetX: Float,
         offsetY: Float,
         overScrollStart: Boolean,
         isDragging: Boolean
     ) {
-        val callback = scrollEventCallback ?: return
         this.isDragging = isDragging
-        val paramsMap = getCommonScrollParams()
         val cv = contentView
-        val oX = if (overScrollStart) -offsetX else (-offsetX + -cv.left)
-        val oY = if (overScrollStart) -offsetY else (-offsetY + -cv.top)
-        paramsMap[OFFSET_X] = oX.toDpF()
-        paramsMap[OFFSET_Y] = oY.toDpF()
-        contentOffsetX = oX
-        contentOffsetY = oY
-        dispatchOnScroll(oX, oY)
+        contentOffsetX = toOverScrollOffset(cv, offsetX, overScrollStart, false)
+        contentOffsetY = toOverScrollOffset(cv, offsetY, overScrollStart, true)
+
+        dispatchOnScroll(contentOffsetX, contentOffsetY)
+
+        val callback = scrollEventCallback ?: return
+        val paramsMap = getCommonScrollParams()
+        paramsMap[OFFSET_X] = kuiklyRenderContext.toDpF(contentOffsetX)
+        paramsMap[OFFSET_Y] = kuiklyRenderContext.toDpF(contentOffsetY)
         callback.invoke(paramsMap)
+    }
+
+    private fun fireOverScrollEndDragEvent(
+        offsetX: Float,
+        offsetY: Float,
+        velocityX: Float,
+        velocityY: Float,
+        overScrollStart: Boolean
+    ) {
+        contentOffsetX = toOverScrollOffset(contentView,
+            offsetX,
+            overScrollStart,
+            false)
+        contentOffsetY = toOverScrollOffset(contentView,
+            offsetY,
+            overScrollStart,
+            true)
+        if (needFireWillEndDragEvent) {
+            fireWillDragEndEvent(velocityX.toInt(), velocityY.toInt())
+        }
+        val callback = dragEndEventCallback ?: return
+        dispatchOnEndDrag(contentOffsetX, contentOffsetY)
+        val paramsMap = getCommonScrollParams()
+        paramsMap[OFFSET_X] = kuiklyRenderContext.toDpF(contentOffsetX)
+        paramsMap[OFFSET_Y] = kuiklyRenderContext.toDpF(contentOffsetY)
+        callback(paramsMap)
     }
 
     private fun setContentOffset(value: String?) {
@@ -675,14 +829,18 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
         val params = value ?: return
         val isVertical = rvLayoutManager.canScrollVertically()
         val contentOffsetSplits = params.split(KRCssConst.BLANK_SEPARATOR)
-        var offsetX = contentOffsetSplits[0].toFloat().toPxI()
-        var offsetY = contentOffsetSplits[1].toFloat().toPxI()
+        var offsetX = kuiklyRenderContext.toPxI(contentOffsetSplits[0].toFloat())
+        var offsetY = kuiklyRenderContext.toPxI(contentOffsetSplits[1].toFloat())
         val animate = contentOffsetSplits[2] == "1" // "1"为以动画的形式滚动
+        var isExpand = true
+        if (contentOffsetSplits.size >= 4) {
+            isExpand = contentOffsetSplits[3] == "1"
+        }
 
         val originOffsetY = offsetY
         val originOffsetX = offsetX
 
-        pendingSetContentOffsetStr = if (canScrollImmediately(originOffsetX, originOffsetY)) {
+        pendingSetContentOffsetStr = if (canScrollImmediately(originOffsetX, originOffsetY, isExpand)) {
             internalSetContentOffset(originOffsetX,
                 originOffsetY,
                 offsetX,
@@ -693,6 +851,23 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
         } else {
             // KTV侧有可能先更改了contentView的高度或者宽度后, setContentOffset. 此时应该等Layout完后才设置offset
             value
+        }
+    }
+
+    private fun setNestedScroll(propValue: Any): Boolean {
+        if (propValue is String) {
+            JSONObject(propValue).apply {
+                scrollForwardMode = getNestScrollMode(optString("forward", ""))
+                scrollBackwardMode = getNestScrollMode(optString("backward", ""))
+            }
+        }
+        return true
+    }
+
+    private fun getNestScrollMode(rule: String): KRNestedScrollMode {
+        return when (rule) {
+            "" -> KRNestedScrollMode.SELF_FIRST
+            else -> KRNestedScrollMode.valueOf(rule)
         }
     }
 
@@ -743,7 +918,11 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
         }
     }
 
-    private fun canScrollImmediately(offsetX: Int, offsetY: Int): Boolean {
+    private fun canScrollImmediately(offsetX: Int, offsetY: Int, isExpand: Boolean): Boolean {
+        if (!isExpand) {
+            // 非扩容情况，默认支持滚动
+            return true
+        }
         return if (directionRow) {
             offsetX <= contentView.width - width
         } else {
@@ -759,6 +938,16 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
         if (pendingSetContentOffsetStr.isNotEmpty()) {
             setContentOffset(pendingSetContentOffsetStr)
             pendingSetContentOffsetStr = KRCssConst.EMPTY_STRING
+        }
+    }
+
+    private fun tryApplyPendingFireOnScroll() {
+        if (!isContentViewAttached) {
+            return
+        }
+        if (pendingFireOnScroll) {
+            fireScrollEvent()
+            pendingFireOnScroll = false
         }
     }
 
@@ -812,7 +1001,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
         offsetY: Int,
         animate: Boolean
     ) {
-        val contentInset = KRRecyclerContentViewContentInset(KRCssConst.EMPTY_STRING).apply {
+        val contentInset = KRRecyclerContentViewContentInset(kuiklyRenderContext, KRCssConst.EMPTY_STRING).apply {
             top = -offsetY.toFloat()
             left = -offsetX.toFloat()
             this.animate = animate
@@ -832,7 +1021,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
      */
     private fun contentInsetWhenEndDrag(contentInset: String?) {
         val ci = contentInset ?: return
-        overScrollHandler?.contentInsetWhenEndDrag = KRRecyclerContentViewContentInset(ci)
+        overScrollHandler?.contentInsetWhenEndDrag = KRRecyclerContentViewContentInset(kuiklyRenderContext, ci)
     }
 
     /**
@@ -841,7 +1030,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
      */
     private fun contentInset(contentInset: String?) {
         val ci = contentInset ?: return
-        overScrollHandler?.bounceWithContentInset(KRRecyclerContentViewContentInset(ci))
+        overScrollHandler?.bounceWithContentInset(KRRecyclerContentViewContentInset(kuiklyRenderContext, ci))
     }
 
     private fun dispatchOnScroll(offsetX: Float, offsetY: Float) {
@@ -925,7 +1114,6 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
         }
     }
 
-
     private fun findClosestHorizontalRecyclerViewParent(): KRRecyclerView? {
         var rv: KRRecyclerView? = null
         var parent: ViewGroup? = parent as? ViewGroup
@@ -975,7 +1163,6 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
         private const val SCROLL = "scroll"
         private const val SCROLL_END = "scrollEnd"
         private const val WILL_DRAG_END = "willDragEnd"
-        private const val PAGE_INDEX_DID_CHANGED = "pageIndexDidChanged"
         private const val DIRECTION_ROW = "directionRow"
         private const val PAGING_ENABLED = "pagingEnabled"
         private const val SHOW_SCROLLER_INDICATOR = "showScrollerIndicator"
@@ -983,13 +1170,16 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
         private const val VERTICAL_BOUNCES = "verticalbounces"
         private const val HORIZONTAL_BOUNCES = "horizontalbounces"
         private const val BOUNCES_ENABLE = "bouncesEnable"
+        private const val LIMIT_HEADER_BOUNCES = "limitHeaderBounces"
         private const val FLING_ENABLE = "flingEnable"
+        private const val SCROLL_WITH_PARENT = "scrollWithParent"
 
         private const val METHOD_CONTENT_OFFSET = "contentOffset" // 设置内容的偏移量，会把List滚到对应的位置
         private const val METHOD_CONTENT_INSET_WHEN_END_DRAG =
             "contentInsetWhenEndDrag" // 结束拖拽时，设置的ContentInset
         private const val METHOD_CONTENT_INSET = "contentInset" // 设置内容边距
         private const val METHOD_ABORT_CONTENT_OFFSET_ANIMATE = "abortContentOffsetAnimate" // 停止滚动动画
+        private const val NESTED_SCROLL = "nestedScroll"
 
         private const val OFFSET_X = "offsetX"
         private const val OFFSET_Y = "offsetY"
@@ -1001,9 +1191,252 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport {
         private const val VELOCITY_X = "velocityX"
         private const val VELOCITY_Y = "velocityY"
 
-        private const val INDEX = "index"
-
         private const val MILLISECOND = 1000f
     }
-}
 
+    private fun computeHorizontallyScrollDistance(dx: Int): Int {
+        if (dx < 0) {
+            return max(dx.toDouble(), -computeHorizontalScrollOffset().toDouble()).toInt()
+        }
+        if (dx > 0) {
+            val avail = (computeHorizontalScrollRange() - computeHorizontalScrollExtent()
+                    - computeHorizontalScrollOffset() - 1)
+            return min(dx.toDouble(), avail.toDouble()).toInt()
+        }
+        return 0
+    }
+
+    private fun computeVerticallyScrollDistance(dy: Int): Int {
+        if (dy < 0) {
+            return max(dy.toDouble(), -computeVerticalScrollOffset().toDouble()).toInt()
+        }
+        if (dy > 0) {
+            if (this.canScrollVertically(dy)) {
+               return 0
+            } else {
+                val avail = (computeVerticalScrollRange() - computeVerticalScrollExtent()
+                        - computeVerticalScrollOffset() - 1)
+                return min(dy.toDouble(), avail.toDouble()).toInt()
+            }
+        }
+        return 0
+    }
+
+    override fun onStartNestedScroll(child: View, target: View, axes: Int): Boolean {
+        return onStartNestedScroll(child, target, axes, ViewCompat.TYPE_TOUCH)
+    }
+
+    override fun onStartNestedScroll(
+        child: View, target: View, axes: Int,
+        type: Int
+    ): Boolean {
+        if (!isScrollEnabled()) {
+            return false
+        }
+        // Determine whether to respond to the nested scrolling event of the child
+        val manager = layoutManager ?: return false
+        var myAxes = View.SCROLL_AXIS_NONE
+        if (manager.canScrollVertically() && (axes and View.SCROLL_AXIS_VERTICAL) != 0) {
+            myAxes = myAxes or View.SCROLL_AXIS_VERTICAL
+        }
+        if (manager.canScrollHorizontally() && (axes and View.SCROLL_AXIS_HORIZONTAL) != 0) {
+            myAxes = myAxes or View.SCROLL_AXIS_HORIZONTAL
+        }
+        if (myAxes != View.SCROLL_AXIS_NONE) {
+            if (type == ViewCompat.TYPE_TOUCH) {
+                mNestedScrollAxesTouch = myAxes
+            } else {
+                mNestedScrollAxesNonTouch = myAxes
+            }
+            return true
+        }
+        return false
+    }
+
+    override fun onNestedScrollAccepted(child: View, target: View, axes: Int) {
+        onNestedScrollAccepted(child, target, axes, ViewCompat.TYPE_TOUCH)
+    }
+
+    override fun onNestedScrollAccepted(
+        child: View, target: View, axes: Int,
+        type: Int
+    ) {
+        startNestedScroll(
+            if (type == ViewCompat.TYPE_TOUCH) mNestedScrollAxesTouch else mNestedScrollAxesNonTouch,
+            type
+        )
+    }
+
+    override fun onStopNestedScroll(child: View) {
+        onStopNestedScroll(child, ViewCompat.TYPE_TOUCH)
+    }
+
+    override fun onStopNestedScroll(target: View, type: Int) {
+        if (type == ViewCompat.TYPE_TOUCH) {
+            mNestedScrollAxesTouch = View.SCROLL_AXIS_NONE
+        } else {
+            mNestedScrollAxesNonTouch = View.SCROLL_AXIS_NONE
+        }
+        stopNestedScroll(type)
+    }
+
+    override fun onNestedScroll(
+        target: View, dxConsumed: Int, dyConsumed: Int,
+        dxUnconsumed: Int,
+        dyUnconsumed: Int
+    ) {
+        onNestedScroll(
+            target, dxConsumed, dyConsumed, dxUnconsumed, dyUnconsumed,
+            ViewCompat.TYPE_TOUCH
+        )
+    }
+
+    override fun onNestedScroll(
+        target: View, dxConsumed: Int, dyConsumed: Int,
+        dxUnconsumed: Int,
+        dyUnconsumed: Int, type: Int
+    ) {
+        // Process the current View first
+        var dxConsumed = dxConsumed
+        var dyConsumed = dyConsumed
+        var dxUnconsumed = dxUnconsumed
+        var dyUnconsumed = dyUnconsumed
+        val myDx = if (dxUnconsumed != 0) computeHorizontallyScrollDistance(dxUnconsumed) else 0
+        val myDy = if (dyUnconsumed != 0) computeVerticallyScrollDistance(dyUnconsumed) else 0
+
+        val consumed = intArrayOf(0, 0)
+        if (target is KRRecyclerView) {
+            scrollParentIfNeeded(target, myDx, myDy, consumed)
+        }
+        if (consumed[0] != 0 || consumed[1] != 0) {
+            dxConsumed += consumed[0]
+            dyConsumed += consumed[1]
+            dxUnconsumed -= consumed[0]
+            dyUnconsumed -= consumed[1]
+        }
+
+        // Then dispatch to the parent for processing
+        val parentDx = dxUnconsumed
+        val parentDy = dyUnconsumed
+        if (parentDx != 0 || parentDy != 0) {
+            dispatchNestedScroll(dxConsumed, dyConsumed, parentDx, parentDy, null, type)
+        }
+
+        // 在整个嵌套滚动没法继续消费距离时 停止滚动和FLing
+        // FIX: 修复竖向滑动后横向没法立即滑动的问题
+        if (directionRow) {
+            if (dxConsumed == 0) {
+                if(target is KRRecyclerView) {
+                    target.stopScroll()
+                }
+            }
+        } else {
+            if (dyConsumed == 0) {
+                if(target is KRRecyclerView) {
+                    target.stopScroll()
+                }
+            }
+        }
+    }
+
+    override fun onNestedPreScroll(target: View, dx: Int, dy: Int, consumed: IntArray) {
+        onNestedPreScroll(target, dx, dy, consumed, ViewCompat.TYPE_TOUCH)
+    }
+
+    override fun onNestedPreScroll(
+        target: View, dx: Int, dy: Int, consumed: IntArray,
+        type: Int
+    ) {
+        // Dispatch to the parent for processing first
+        val parentDx = dx
+        val parentDy = dy
+        if (parentDx != 0 || parentDy != 0) {
+            // Temporarily store `consumed` to reuse the Array
+            val consumedX = consumed[0]
+            val consumedY = consumed[1]
+            consumed[0] = 0
+            consumed[1] = 0
+            if (target is KRRecyclerView) {
+                scrollParentIfNeeded(target ,parentDx, parentDy, consumed)
+            }
+            dispatchNestedPreScroll(parentDx, parentDy, consumed, null, type)
+            consumed[0] += consumedX
+            consumed[1] += consumedY
+        }
+    }
+
+    /**
+     * 在满足条件的情况下尝试滚动父亲
+     *
+     * target 子List
+     * parentDx 可滑动x轴距离
+     * parentDy 可滑动y轴距离
+     * consumed 用于返回本次被父亲消费了多少距离
+     */
+    private fun scrollParentIfNeeded(target: KRRecyclerView,
+                                     parentDx: Int,
+                                     parentDy: Int,
+                                     consumed: IntArray) {
+        val shouldScrollParentY = when {
+            parentDy > 0 && target.scrollForwardMode == KRNestedScrollMode.PARENT_FIRST -> true
+            parentDy < 0 && target.scrollBackwardMode == KRNestedScrollMode.PARENT_FIRST -> true
+            parentDy > 0 && target.scrollForwardMode == KRNestedScrollMode.SELF_FIRST && !target.canScrollVertically(parentDy) -> true
+            parentDy < 0 && target.scrollBackwardMode == KRNestedScrollMode.SELF_FIRST && !target.canScrollVertically(parentDy) -> true
+            else -> false
+        }
+
+        if (shouldScrollParentY && canScrollVertically(parentDy)) {
+            scrollBy(0, parentDy)
+            consumed[1] = parentDy
+        }
+
+        val shouldScrollParentX = when {
+            parentDx > 0 && target.scrollForwardMode == KRNestedScrollMode.PARENT_FIRST -> true
+            parentDx < 0 && target.scrollBackwardMode == KRNestedScrollMode.PARENT_FIRST -> true
+            parentDx > 0 && target.scrollForwardMode == KRNestedScrollMode.SELF_FIRST && !target.canScrollHorizontally(parentDx) -> true
+            parentDx < 0 && target.scrollBackwardMode == KRNestedScrollMode.SELF_FIRST && !target.canScrollHorizontally(parentDx) -> true
+            else -> false
+        }
+
+        if (shouldScrollParentX && canScrollHorizontally(parentDx)) {
+            scrollBy(parentDx, 0)
+            consumed[0] = parentDx
+        }
+    }
+
+    override fun getNestedScrollAxes(): Int {
+        return mNestedScrollAxesTouch or mNestedScrollAxesNonTouch
+    }
+
+    private fun smoothScrollWithNestIfNeeded(dx: Int, dy: Int) {
+        if (isLayoutSuppressed) {
+            return
+        }
+        layoutManager?.apply {
+            var dx = dx
+            if (!canScrollHorizontally()) {
+                dx = 0
+            }
+            var dy = dy
+            if (!canScrollVertically()) {
+                dy = 0
+            }
+            if (dx != 0 || dy != 0) {
+                val withNestedScrolling = isNestScrolling()
+                if (withNestedScrolling) {
+                    var nestedScrollAxis = ViewCompat.SCROLL_AXIS_NONE
+                    if (dx != 0) {
+                        nestedScrollAxis = nestedScrollAxis or ViewCompat.SCROLL_AXIS_HORIZONTAL
+                    }
+                    if (dy != 0) {
+                        nestedScrollAxis = nestedScrollAxis or ViewCompat.SCROLL_AXIS_VERTICAL
+                    }
+                    startNestedScroll(nestedScrollAxis, ViewCompat.TYPE_NON_TOUCH)
+                }
+                smoothScrollBy(dx, dy)
+            }
+        }
+    }
+
+    private fun isNestScrolling() = nestedScrollAxes != SCROLL_AXIS_NONE
+}

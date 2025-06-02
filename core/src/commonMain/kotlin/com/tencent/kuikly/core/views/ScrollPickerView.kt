@@ -21,7 +21,6 @@ import com.tencent.kuikly.core.timer.setTimeout
 import kotlin.math.max
 import kotlin.math.min
 
-
 internal typealias ScrollPickerDragEndEvent = (centerValue: String, centerItemIndex: Int) -> Unit
 
 class ScrollPickerView(

@@ -55,9 +55,12 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
     fun tabsHeader(): ViewBuilder {
         val ctx = this
         return {
+            attr {
+                backgroundColor(Color(249, 249, 249, 1f))
+            }
             Tabs {
                 attr {
-                    height(TAB_HEADER_HEIGHG)
+                    height(TAB_HEADER_HEIGHT)
                     width(ctx.tabHeaderWidth)
                     defaultInitIndex(ctx.curIndex)
                     alignSelfCenter()
@@ -132,7 +135,7 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
                 attr {
                     flexDirectionRow()
                     pageItemWidth(pagerData.pageViewWidth)
-                    pageItemHeight(pagerData.pageViewHeight - pagerData.statusBarHeight - TAB_HEADER_HEIGHG - AppTabPage.TAB_BOTTOM_HEIGHT)
+                    pageItemHeight(pagerData.pageViewHeight - pagerData.statusBarHeight - TAB_HEADER_HEIGHT - AppTabPage.TAB_BOTTOM_HEIGHT)
                     defaultPageIndex(ctx.curIndex)
                     showScrollerIndicator(false)
                 }
@@ -161,10 +164,9 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
     }
 
     companion object {
-        const val TAB_HEADER_HEIGHG = 50f
+        const val TAB_HEADER_HEIGHT = 50f
     }
 }
-
 
 internal class AppHomePageViewAttr : ComposeAttr() {
 

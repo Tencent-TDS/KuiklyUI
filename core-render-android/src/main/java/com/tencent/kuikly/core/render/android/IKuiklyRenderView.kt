@@ -168,6 +168,17 @@ interface IKuiklyRenderContext {
     fun initContextParams(contextParams: KuiklyContextParams)
 
     /**
+     * 替换当前[IKuiklyRenderContext]
+     * @param newContext 新的android上下文
+     */
+    fun replaceContext(newContext: Context)
+
+    /**
+     * 页面的单元转换是否由宿主外部决定
+     */
+    fun useHostDisplayMetrics(): Boolean
+
+    /**
      * 根据key获取关联在[View]的数据
      * @param T 关联的数据
      * @param view 被关联的对象

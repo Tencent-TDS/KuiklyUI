@@ -17,6 +17,7 @@
 #import "KRComponentDefine.h"
 #import "KuiklyRenderView.h"
 #import "KRDisplayLink.h"
+#import "KRView+Compose.h"
 
 /// 层级置顶方法
 #define CSS_METHOD_BRING_TO_FRONT @"bringToFront"
@@ -85,28 +86,29 @@
 
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
     [super touchesBegan:touches withEvent:event];
-    if (_css_touchDown) {
+    // 如果走compose(superTouch)，由手势驱动，不由touch驱动事件
+    if (_css_touchDown && ![self.css_superTouch boolValue]) {
         _css_touchDown([self p_generateBaseParamsWithEvent:event eventName:@"touchDown"]);
     }
 }
 
 - (void)touchesEnded:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
     [super touchesEnded:touches withEvent:event];
-    if (_css_touchUp) {
+    if (_css_touchUp && ![self.css_superTouch boolValue]) {
         _css_touchUp([self p_generateBaseParamsWithEvent:event eventName:@"touchUp"]);
     }
 }
 
 - (void)touchesMoved:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
     [super touchesMoved:touches withEvent:event];
-    if (_css_touchMove) {
+    if (_css_touchMove && ![self.css_superTouch boolValue]) {
         _css_touchMove([self p_generateBaseParamsWithEvent:event eventName:@"touchMove"]);
     }
 }
 
 - (void)touchesCancelled:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
     [super touchesCancelled:touches withEvent:event];
-    if (_css_touchUp) {
+    if (_css_touchUp && ![self.css_superTouch boolValue]) {
         _css_touchUp([self p_generateBaseParamsWithEvent:event eventName:@"touchCancel"]);
     }
 }
@@ -161,6 +163,7 @@
     __block NSMutableDictionary *result = [([touchesParam firstObject] ?: @{}) mutableCopy];
     result[@"touches"] = touchesParam;
     result[@"action"] = eventName;
+    result[@"timestamp"] = @(event.timestamp);
     return result;
 }
 
@@ -172,6 +175,7 @@
         @"y" : @(locationInSelf.y),
         @"pageX" : @(locationInRootView.x),
         @"pageY" : @(locationInRootView.y),
+        @"hash"  : @(touch.hash),
         @"pointerId" : [NSNumber numberWithUnsignedLong:touch.hash],
     };
 }

@@ -17,11 +17,17 @@ package com.tencent.kuikly.core.render.android.export
 
 import android.util.SizeF
 import androidx.annotation.WorkerThread
+import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
 
 /**
  * shadow 协议，一般用于自定义布局时实现
  */
 interface IKuiklyRenderShadowExport {
+
+    /**
+     * KuiklyRender上下文
+     */
+    var kuiklyRenderContext: IKuiklyRenderContext?
 
     /**
      * 更新shadow对象属性时调用

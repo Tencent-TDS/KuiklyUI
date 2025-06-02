@@ -24,6 +24,7 @@ import com.tencent.kuikly.core.collection.toFastList
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexPositionType
 import com.tencent.kuikly.core.layout.Frame
+import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import kotlin.math.max
 import kotlin.math.min
@@ -288,7 +289,7 @@ open class PageListView<A : PageListAttr, E : PageListEvent> : ListView<A, E>() 
         return CrossItemViewInfo(crossItemView, crossPercentage01, currentOffset, index)
     }
 
-    data class CrossItemViewInfo(val itemView : DeclarativeBaseView<*, *>?, val crossPercentage01: Float, val offset : Float, val index: Int) {}
+    data class CrossItemViewInfo(val itemView : DeclarativeBaseView<*, *>?, val crossPercentage01: Float, val offset : Float, val index: Int)
 
     override fun createContentView(): ScrollerContentView {
         return PageListContentView()
@@ -367,12 +368,17 @@ open class PageListContentView : ListContentView() {
         }
         getPager().addTaskWhenPagerUpdateLayoutFinish {
             // update offset
-            val pageListAttr = (parent as PageListView<*, *>).getViewAttr()
-            val index = currentPageIndex
-            if (pageListAttr.isHorizontalDirection) {
-                (parent as PageListView<*, *>).setContentOffset(index * pageListAttr.flexNode!!.styleWidth, 0f)
+            val pageListView = parent as? PageListView<*, *>
+            if (pageListView == null) {
+                KLog.e("KuiklyError", "autoResetOffsetIfNeed: parent is not a PageListView")
             } else {
-                (parent as PageListView<*, *>).setContentOffset(0f, index * pageListAttr.flexNode!!.styleHeight)
+                val pageListAttr = pageListView.getViewAttr()
+                val index = currentPageIndex
+                if (pageListAttr.isHorizontalDirection) {
+                    pageListView.setContentOffset(index * pageListAttr.flexNode!!.styleWidth, 0f)
+                } else {
+                    pageListView.setContentOffset(0f, index * pageListAttr.flexNode!!.styleHeight)
+                }
             }
         }
     }
@@ -425,7 +431,7 @@ open class PageListContentView : ListContentView() {
         val decimalPart = floatIndex - floatIndex.toInt()
         val indexRatio = 0.05f
         if (decimalPart > indexRatio && decimalPart < (1 - indexRatio)) {
-            return -1;
+            return -1
         }
         return (floatIndex + indexRatio).toInt()
     }
@@ -455,5 +461,9 @@ open class PageListContentView : ListContentView() {
                 .onFireEvent(PageListEvent.PageListEventConst.PAGE_INDEX_DID_CHANGED, data)
         }
     }
-}
 
+    override fun needUpdateOffset(): Boolean {
+        return false
+    }
+
+}

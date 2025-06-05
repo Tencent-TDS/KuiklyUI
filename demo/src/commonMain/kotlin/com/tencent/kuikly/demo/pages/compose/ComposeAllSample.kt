@@ -133,6 +133,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("SimpleGraphicsLayer", "SimpleGraphicsLayer示例", "graphicslayer1"),
             DemoItem("BlockingGraphicsLayer", "BlockingGraphicsLayer示例", "graphicslayer2"),
             DemoItem("GraphicsLayerSettings", "GraphicsLayerSettings示例", "graphicslayer3"),
+            DemoItem("Shadow示例", "Shadow示例", "shadowdemo"),
             DemoItem("Brush", "Brush示例", "BrushDemo"),
             // Coroutines
             DemoItem("Coroutines", "协程示例", "coroutines"),

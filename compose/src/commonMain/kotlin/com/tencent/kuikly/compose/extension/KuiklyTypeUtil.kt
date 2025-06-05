@@ -16,7 +16,7 @@
 package com.tencent.kuikly.compose.extension
 
 import com.tencent.kuikly.compose.ui.Modifier
-import com.tencent.kuikly.compose.ui.draw.ShadowElement
+import com.tencent.kuikly.compose.ui.draw.ShadowGraphicsLayerElement
 import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.compose.ui.unit.IntRect
 import com.tencent.kuikly.compose.ui.unit.IntSize
@@ -54,7 +54,7 @@ fun shouldWrapShadowView(modifier: Modifier): Boolean {
             is SetPropElement -> {
                 hasShadow = hasShadow || (element.key == "boxShadow")
             }
-            is ShadowElement -> {
+            is ShadowGraphicsLayerElement -> {
                 hasShadow = true
             }
         }

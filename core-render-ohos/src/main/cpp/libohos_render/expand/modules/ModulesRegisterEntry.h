@@ -16,6 +16,7 @@
 #ifndef CORE_RENDER_OHOS_MODULESREGISTERENTRY_H
 #define CORE_RENDER_OHOS_MODULESREGISTERENTRY_H
 
+#include "libohos_render/expand/modules/back_press/KRBackPressModule.h"
 #include "libohos_render/expand/modules/cache/KRMemoryCacheModule.h"
 #include "libohos_render/expand/modules/calendar/KRCalendarModule.h"
 #include "libohos_render/expand/modules/codec/KRCodecModule.h"
@@ -53,6 +54,10 @@ static void ModulesRegisterEntry() {
 
     IKRRenderModuleExport::RegisterModuleCreator(kuikly::module::KRPerformanceModule::MODULE_NAME, [] {
         return std::make_shared<kuikly::module::KRPerformanceModule>();
+    });
+    
+    IKRRenderModuleExport::RegisterModuleCreator(kuikly::module::KRBackPressModule::MODULE_NAME, [] {
+        return std::make_shared<kuikly::module::KRBackPressModule>();
     });
 
 }

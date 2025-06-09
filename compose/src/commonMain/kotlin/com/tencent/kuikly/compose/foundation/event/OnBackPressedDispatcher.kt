@@ -44,12 +44,12 @@ class OnBackPressedDispatcher() {
     }
 
     /**
-     * 分发返回键事件
-     * 触发所有已注册的回调
+     * 分发返回键事件，从栈顶往下处理Back回调
      */
     fun dispatchOnBackEvent() {
-        onBackPressedCallbacks.forEach {
-            it.handleOnBackPressed()
+        if (onBackPressedCallbacks.isNotEmpty()) {
+            val callback = onBackPressedCallbacks.removeLast()
+            callback.handleOnBackPressed()
         }
     }
 }

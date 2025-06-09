@@ -75,6 +75,7 @@ set(SOURCE_SET
         libohos_render/expand/modules/codec/KRCodecModule.cpp
         libohos_render/expand/modules/calendar/KRDate.cpp
         libohos_render/expand/modules/calendar/KRCalendarModule.cpp
+        libohos_render/expand/modules/back_press/KRBackPressModule.cpp
         libohos_render/utils/KRURIHelper.cpp
         libohos_render/utils/KRBase64Util.cpp
         libohos_render/utils/KRJSONObject.cpp

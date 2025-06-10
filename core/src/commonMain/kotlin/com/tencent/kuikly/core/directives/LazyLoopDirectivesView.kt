@@ -39,6 +39,7 @@ import com.tencent.kuikly.core.views.ListContentView
 import com.tencent.kuikly.core.views.ListView
 import com.tencent.kuikly.core.views.ScrollParams
 import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.round
@@ -121,6 +122,13 @@ class LazyLoopDirectivesView<T>(
 
     private val Frame.start
         get() = if (isRowDirection()) x else y
+
+    private val FlexNode.start
+        get() = if (isRowDirection()) {
+            layoutFrame.x - getMargin(StyleSpace.Type.LEFT)
+        } else {
+            layoutFrame.y - getMargin(StyleSpace.Type.TOP)
+        }
 
     private val Frame.end
         get() = if (isRowDirection()) maxX() else maxY()
@@ -324,6 +332,9 @@ class LazyLoopDirectivesView<T>(
     }
 
     private fun syncAddChildOperationToDom(operation: CollectionOperation, list: List<T>) {
+        if (operation.count == 0) {
+            return
+        }
         val addedChildren = fastArrayListOf<DeclarativeBaseView<*, *>>()
         var index = operation.index
         val size = list.size
@@ -351,6 +362,9 @@ class LazyLoopDirectivesView<T>(
     }
 
     private fun syncRemoveChildOperationToDom(operation: CollectionOperation): Float {
+        if (operation.count == 0) {
+            return 0f
+        }
         var index = operation.index
         val removedChildren = fastArrayListOf<DeclarativeBaseView<*, *>>()
         while (index < operation.index + operation.count) {
@@ -393,7 +407,8 @@ class LazyLoopDirectivesView<T>(
     }
 
     private fun currentListOffset(): Float {
-        return listView?.let { if (isRowDirection()) it.curOffsetX else it.curOffsetY } ?: 0f
+        // return listView?.let { if (isRowDirection()) it.curOffsetX else it.curOffsetY } ?: 0f
+        return listViewContent?.let { if (isRowDirection()) it.offsetX else it.offsetY } ?: 0f
     }
 
     private fun createChildView(item: T, index: Int, size: Int): DeclarativeBaseView<*, *> {
@@ -434,7 +449,7 @@ class LazyLoopDirectivesView<T>(
 
     internal fun createItemByOffset(contentOffset: Float) {
         val firstVisibleChildIndex = children.indexOfFirst {
-            it.frame.let { frame -> !frame.isDefaultValue() && contentOffset <= frame.end }
+            it.frame.let { frame -> frame.size > 0f && contentOffset <= frame.end }
         }
 
         val itemPosition: Int = when {
@@ -449,7 +464,7 @@ class LazyLoopDirectivesView<T>(
             }
 
             firstVisibleChildIndex < children.size - AFTER_COUNT -> {
-                currentStart + firstVisibleChildIndex
+                currentStart + firstVisibleChildIndex - BEFORE_COUNT
             }
 
             else -> {
@@ -458,22 +473,27 @@ class LazyLoopDirectivesView<T>(
             }
         }
 
-        createItemByPosition(itemPosition, contentOffset)
+        createItemByPosition(itemPosition, contentOffset, true)
     }
 
-    private fun createItemByPosition(position: Int, contentOffset: Float) {
+    /**
+     * 在指定位置创建或更新子节点
+     * @param position 目标子节点位置
+     * @param offset 目标子节点偏移量
+     * @param scrolling 是否正在滚动中，true表示调用来自列表滚动，偏移修正的目标是内容连贯；false表示调用来自跳转
+     * API，偏移修正的目标是跳转位置准确
+     */
+    private fun createItemByPosition(position: Int, offset: Float, scrolling: Boolean) {
         val curListSize = curList.size
         // assume the middle 1/3 items show
         val newStart = max(0, min(position - maxLoadItem / 3, curListSize - maxLoadItem))
         val newEnd = min(newStart + maxLoadItem, curListSize)
-        if (shouldSkipUpdate(newStart, newEnd)) {
+        if (scrolling && shouldSkipUpdate(newStart, newEnd)) {
             return
         }
-        logInfo("createItemByPosition position=$position [$currentStart-$currentEnd]->[$newStart-$newEnd] offset=$contentOffset")
+        logInfo("createItemByPosition position=$position [$currentStart-$currentEnd]->[$newStart-$newEnd] offset=$offset scrolling=$scrolling")
 
         if (newStart >= currentEnd || newEnd <= currentStart) {
-            // assume removed size, to keep scroll range
-            // val removedSize = (newStart - currentStart) * avgItemSize
             // remove all
             syncRemoveChildOperationToDom(
                 CollectionOperation(
@@ -493,22 +513,8 @@ class LazyLoopDirectivesView<T>(
                     newEnd - newStart
                 ), curList
             )
-            val maxScrollOffset = max(0f, listViewContent!!.frame.size - listView!!.frame.size)
-            scrollOffsetCorrectInfo = if (maxScrollOffset - contentOffset < 1f) {
-                // update anchor
-                ScrollOffsetCorrectInfo(
-                    INVALID_POSITION,
-                    INVALID_DIMENSION,
-                    itemEnd.frame.end - itemStart.frame.start
-                )
-            } else {
-                ScrollOffsetCorrectInfo(
-                    position,
-                    contentOffset - itemStart.frame.start,
-                    INVALID_DIMENSION
-                )
-            }
-            updatePadding(true)
+            scrollOffsetCorrectInfo = scrollOffsetCorrectInfoOf(position, offset)
+            // updatePadding(true)
             updatePadding(false)
         } else {
             // space before
@@ -516,20 +522,15 @@ class LazyLoopDirectivesView<T>(
                 // update anchor
                 scrollOffsetCorrectInfo = ScrollOffsetCorrectInfo(
                     currentStart,
-                    children[BEFORE_COUNT].frame.start - itemStart.frame.start,
+                    children[BEFORE_COUNT].flexNode.start - itemStart.frame.start,
                     INVALID_DIMENSION
                 )
                 // add item
-                startSize = INVALID_DIMENSION
+                startSize = if (newStart == 0) 0f else INVALID_DIMENSION
                 val operation =
                     CollectionOperation(CollectionOperation.OPERATION_TYPE_ADD, newStart, currentStart - newStart)
                 currentStart = newStart
                 syncAddChildOperationToDom(operation, curList)
-                if (newStart == 0) {
-                    startSize = 0f
-                    updatePadding(true)
-                    scrollOffsetCorrectInfo = null
-                }
             } else if (newStart > currentStart) {
                 // remove item
                 val removedSize = syncRemoveChildOperationToDom(
@@ -577,6 +578,11 @@ class LazyLoopDirectivesView<T>(
                 syncAddChildOperationToDom(operation, curList)
                 updatePadding(false)
             }
+            if (!scrolling) {
+                scrollOffsetCorrectInfo = scrollOffsetCorrectInfoOf(position, offset)
+                // 来自API的调用可能没有节点变动，主动markDirty确保触发Layout
+                listViewContent?.flexNode?.markDirty()
+            }
         }
     }
 
@@ -598,6 +604,24 @@ class LazyLoopDirectivesView<T>(
             return false
         }
         return true
+    }
+
+    private fun scrollOffsetCorrectInfoOf(
+        position: Int,
+        offset: Float
+    ) = if (position == curList.size - 1) {
+        // 目标位置是最后一个元素，说明滚动到列表底部，偏移修正方式为维持ListContentView的大小不变
+        ScrollOffsetCorrectInfo(
+            INVALID_POSITION,
+            INVALID_DIMENSION,
+            itemEnd.frame.end - itemStart.frame.start
+        )
+    } else {
+        ScrollOffsetCorrectInfo(
+            position,
+            offset - itemStart.frame.start,
+            INVALID_DIMENSION
+        )
     }
 
     override fun subViewsDidLayout() {
@@ -668,8 +692,11 @@ class LazyLoopDirectivesView<T>(
                 }
                 val startOffset = itemStart.frame.x
                 listViewContent?.domChildren()?.forEach { child ->
+                    if (child == itemStart || child.absoluteFlexNode) {
+                        return@forEach
+                    }
                     val node = child.flexNode
-                    if (!node.layoutFrame.isDefaultValue() && !child.absoluteFlexNode && node.layoutFrame.x > startOffset) {
+                    if (!node.layoutFrame.isDefaultValue() && node.layoutFrame.x >= startOffset) {
                         node.updateLayoutFrame(node.layoutFrame.toMutableFrame().let { it.x += diff; it.toFrame() })
                     }
                 }
@@ -682,8 +709,11 @@ class LazyLoopDirectivesView<T>(
                 }
                 val startOffset = itemStart.frame.y
                 listViewContent?.domChildren()?.forEach { child ->
+                    if (child == itemStart || child.absoluteFlexNode) {
+                        return@forEach
+                    }
                     val node = child.flexNode
-                    if (!node.layoutFrame.isDefaultValue() && !child.absoluteFlexNode && node.layoutFrame.y > startOffset) {
+                    if (!node.layoutFrame.isDefaultValue() && node.layoutFrame.y >= startOffset) {
                         node.updateLayoutFrame(node.layoutFrame.toMutableFrame().let { it.y += diff; it.toFrame() })
                     }
                 }
@@ -737,48 +767,88 @@ class LazyLoopDirectivesView<T>(
         listView?.cleanNextScrollToParams()
         scrollOffsetCorrectInfo = null
         val isRow = isRowDirection()
-        val preScrollDistance =
-            if (animate) getPager().pageData.let { if (isRow) it.pageViewWidth else it.pageViewHeight } else 0f
         if (index < currentStart) { // scroll up
             // handle scroll up
-            listView?.setNextScrollToParams(ScrollToParams(index, offset, animate))
             val ratio = index / currentStart.toFloat()
             val estimateOffset = itemStart.frame.start + itemStart.frame.size * ratio + offset
-            val finalOffset = min(estimateOffset + preScrollDistance, currentListOffset())
-            if (isRow) {
-                listViewContent?.offsetX = finalOffset
-                listView?.setContentOffset(finalOffset, 0f, false)
+
+            if (animate) {
+                listView?.setNextScrollToParams(ScrollToParams(index, offset, animate))
+                val (finalIndex, finalOffset) = calculateAnimateScrollStartOffset(isRow, index, estimateOffset, true)
+                scrollToPositionWithoutAnimate(isRow, finalIndex, finalOffset, 0f)
             } else {
-                listViewContent?.offsetY = finalOffset
-                listView?.setContentOffset(0f, finalOffset, false)
+                scrollToPositionWithoutAnimate(isRow, index, min(estimateOffset, currentListOffset()), offset)
             }
-            createItemByOffset(finalOffset)
         } else if (index < currentEnd) {
-            val frame = children[BEFORE_COUNT + (index - currentStart)].frame
+            val node = children[BEFORE_COUNT + (index - currentStart)].flexNode
             // 减hairWidth(1像素)，防止size超过Float精度后，setContentOffset不满足执行条件
             val maxScrollOffset = max(0f, listViewContent!!.frame.size - listView!!.frame.size - hairWidth)
-            val finalOffset = max(0f, min(frame.start + offset, maxScrollOffset))
-            if (isRow) {
-                listView!!.setContentOffset(finalOffset, 0f, animate)
+            val finalOffset = max(0f, min(node.start + offset, maxScrollOffset))
+            if (animate) {
+                if (isRow) {
+                    listView!!.setContentOffset(finalOffset, 0f, animate)
+                } else {
+                    listView!!.setContentOffset(0f, finalOffset, animate)
+                }
             } else {
-                listView!!.setContentOffset(0f, finalOffset, animate)
+                scrollToPositionWithoutAnimate(isRow, index, finalOffset, offset)
             }
         } else { // scroll down
-            listView?.setNextScrollToParams(ScrollToParams(index, offset, animate))
+            if (animate) {
+                listView?.setNextScrollToParams(ScrollToParams(index, offset, animate))
+            }
             // 减hairWidth(1像素)，防止size超过Float精度后，setContentOffset不满足执行条件
             val maxScrollOffset = max(0f, listViewContent!!.frame.size - listView!!.frame.size - hairWidth)
             val ratio = (index - currentEnd) / (curList.size - currentEnd).toFloat()
-            val estimateOffset = min(itemEnd.frame.start + itemEnd.frame.size * ratio, maxScrollOffset)
-            val finalOffset = max(estimateOffset - preScrollDistance, currentListOffset())
-            if (isRow) {
-                listViewContent?.offsetX = finalOffset
-                listView?.setContentOffset(finalOffset, 0f, false)
+            val estimateOffset = min(itemEnd.frame.start + itemEnd.frame.size * ratio + offset, maxScrollOffset)
+
+            if (animate) {
+                listView?.setNextScrollToParams(ScrollToParams(index, offset, animate))
+                val (finalIndex, finalOffset) = calculateAnimateScrollStartOffset(isRow, index, estimateOffset, false)
+                scrollToPositionWithoutAnimate(isRow, finalIndex, finalOffset, 0f)
             } else {
-                listViewContent?.offsetY = finalOffset
-                listView?.setContentOffset(0f, finalOffset, false)
+                scrollToPositionWithoutAnimate(isRow, index, max(estimateOffset, currentListOffset()), offset)
             }
-            createItemByOffset(finalOffset)
         }
+    }
+
+    private fun calculateAnimateScrollStartOffset(
+        isRow: Boolean,
+        index: Int,
+        estimateOffset: Float,
+        scrollUp: Boolean
+    ): Pair<Int, Float> {
+        val distance = min(
+            // 通过view尺寸计算的最大偏移
+            getPager().pageData.let { if (isRow) it.pageViewWidth else it.pageViewHeight },
+            // 通过maxLoadItem计算的最大偏移
+            floor(maxLoadItem / 3f) * avgItemSize
+        )
+        if (scrollUp) {
+            val finalOffset = min(estimateOffset + distance, currentListOffset())
+            val finalIndex = index + floor((finalOffset - estimateOffset) / avgItemSize).toInt()
+            return Pair(finalIndex, finalOffset)
+        } else {
+            val finalOffset = max(estimateOffset - distance, currentListOffset())
+            val finalIndex = index - floor((estimateOffset - finalOffset) / avgItemSize).toInt()
+            return Pair(finalIndex, finalOffset)
+        }
+    }
+
+    private fun scrollToPositionWithoutAnimate(
+        isRow: Boolean,
+        finalIndex: Int,
+        finalOffset: Float,
+        offsetExt: Float
+    ) {
+        if (isRow) {
+            listViewContent?.offsetX = finalOffset
+            listView?.setContentOffset(finalOffset, 0f, false)
+        } else {
+            listViewContent?.offsetY = finalOffset
+            listView?.setContentOffset(0f, finalOffset, false)
+        }
+        createItemByPosition(finalIndex, finalOffset - offsetExt, false)
     }
 
     override fun onPagerWillCalculateLayoutFinish() {
@@ -865,16 +935,16 @@ fun ListView<*, *>.scrollToPosition(index: Int, offset: Float = 0f, animate: Boo
         } else if (child.isVirtualView()) {
             val domChildren = (child as ViewContainer).domChildren()
             if (domChildren.size > index - skip) {
-                val frame = domChildren[index - skip].frame
-                doScroll(this, listViewContent, frame, offset, animate, templateChildren)
+                val node = domChildren[index - skip].flexNode
+                doScroll(this, listViewContent, node, offset, animate, templateChildren)
                 return
             } else {
                 skip += domChildren.size
             }
         } else {
             if (index - skip == 0) {
-                val frame = child.frame
-                doScroll(this, listViewContent, frame, offset, animate, templateChildren)
+                val node = child.flexNode
+                doScroll(this, listViewContent, node, offset, animate, templateChildren)
                 return
             } else {
                 ++skip
@@ -885,22 +955,34 @@ fun ListView<*, *>.scrollToPosition(index: Int, offset: Float = 0f, animate: Boo
 }
 
 /**
- * 滚动到frame对应的位置
+ * 滚动到node对应的位置
  */
 private fun doScroll(
     list: ListView<*, *>,
     content: ListContentView,
-    frame: Frame,
+    node: FlexNode,
     offsetExt: Float,
     animate: Boolean,
     templateChildren: List<DeclarativeBaseView<*, *>>
 ) {
-    if (!frame.isDefaultValue()) {
+    if (!node.layoutFrame.isDefaultValue()) {
         val isRow = content.isRowFlexDirection()
         val finalOffset = if (isRow) {
-            max(0f, min(frame.x + offsetExt, content.frame.width - list.frame.width))
+            max(
+                0f,
+                min(
+                    node.layoutFrame.x - node.getMargin(StyleSpace.Type.LEFT) + offsetExt,
+                    content.frame.width - list.frame.width
+                )
+            )
         } else {
-            max(0f, min(frame.y + offsetExt, content.frame.height - list.frame.height))
+            max(
+                0f,
+                min(
+                    node.layoutFrame.y - node.getMargin(StyleSpace.Type.TOP) + offsetExt,
+                    content.frame.height - list.frame.height
+                )
+            )
         }
         if (isRow) {
             list.setContentOffset(finalOffset, 0f, animate)

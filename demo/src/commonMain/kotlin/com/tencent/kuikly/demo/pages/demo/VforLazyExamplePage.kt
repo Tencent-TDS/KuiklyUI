@@ -26,6 +26,7 @@ import com.tencent.kuikly.core.base.ViewRef
 import com.tencent.kuikly.core.base.attr.ImageUri
 import com.tencent.kuikly.core.directives.scrollToPosition
 import com.tencent.kuikly.core.directives.vforLazy
+import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.reactive.handler.observableList
@@ -67,6 +68,7 @@ internal class VforLazyExamplePage : BasePager() {
     private val list by observableList<ChatItem>()
     private var bottomSpace by observable(0f)
     private var inputText: String? = null
+    private var showPanel by observable(false)
 
     override fun created() {
         super.created()
@@ -231,6 +233,236 @@ internal class VforLazyExamplePage : BasePager() {
             View {
                 attr {
                     height(ctx.bottomSpace)
+                }
+            }
+            View {
+                attr {
+                    absolutePosition(top = ctx.pagerData.statusBarHeight, right = 0f)
+                    flexDirectionRow()
+                    justifyContentFlexStart()
+                    opacity(0.8f)
+                }
+                View {
+                    attr {
+                        allCenter()
+                        borderRadius(10f, 0f, 10f, 0f)
+                        backgroundColor(Color.WHITE)
+                    }
+                    event {
+                        click {
+                            ctx.showPanel = !ctx.showPanel
+                        }
+                    }
+                    Text {
+                        attr {
+                            text(if (ctx.showPanel) "》" else "《")
+                        }
+                    }
+                }
+                vif({ ctx.showPanel }) {
+                    View {
+                        attr {
+                            width(300f)
+                            borderRadius(0f, 10f, 0f, 10f)
+                            backgroundColor(Color.WHITE)
+                        }
+                        View {
+                            attr {
+                                flexWrapWrap()
+                                flexDirectionRow()
+                            }
+                            Button {
+                                attr {
+                                    titleAttr {
+                                        text("goto 10")
+                                    }
+                                    margin(10f)
+                                    padding(5f)
+                                    borderRadius(5f)
+                                    backgroundColor(Color.GRAY)
+                                }
+                                event {
+                                    click {
+                                        ctx.listRef.view?.scrollToPosition(10, animate = false)
+                                    }
+                                }
+                            }
+                            Button {
+                                attr {
+                                    titleAttr {
+                                        text("goto 10 anim")
+                                    }
+                                    margin(10f)
+                                    padding(5f)
+                                    borderRadius(5f)
+                                    backgroundColor(Color.GRAY)
+                                }
+                                event {
+                                    click {
+                                        ctx.listRef.view?.scrollToPosition(10, animate = true)
+                                    }
+                                }
+                            }
+                            Button {
+                                attr {
+                                    titleAttr {
+                                        text("goto 10 - 50dp")
+                                    }
+                                    margin(10f)
+                                    padding(5f)
+                                    borderRadius(5f)
+                                    backgroundColor(Color.GRAY)
+                                }
+                                event {
+                                    click {
+                                        ctx.listRef.view?.scrollToPosition(
+                                            10,
+                                            -50f,
+                                            animate = false
+                                        )
+                                    }
+                                }
+                            }
+                            Button {
+                                attr {
+                                    titleAttr {
+                                        text("goto 10 -50dp anim")
+                                    }
+                                    margin(10f)
+                                    padding(5f)
+                                    borderRadius(5f)
+                                    backgroundColor(Color.GRAY)
+                                }
+                                event {
+                                    click {
+                                        ctx.listRef.view?.scrollToPosition(10, -50f, animate = true)
+                                    }
+                                }
+                            }
+                        }
+                        View {
+                            attr {
+                                flexWrapWrap()
+                                flexDirectionRow()
+                            }
+                            Button {
+                                attr {
+                                    titleAttr {
+                                        text("goto 3000")
+                                    }
+                                    margin(10f)
+                                    padding(5f)
+                                    borderRadius(5f)
+                                    backgroundColor(Color.GRAY)
+                                }
+                                event {
+                                    click {
+                                        ctx.listRef.view?.scrollToPosition(3000, animate = false)
+                                    }
+                                }
+                            }
+                            Button {
+                                attr {
+                                    titleAttr {
+                                        text("goto 3000 anim")
+                                    }
+                                    margin(10f)
+                                    padding(5f)
+                                    borderRadius(5f)
+                                    backgroundColor(Color.GRAY)
+                                }
+                                event {
+                                    click {
+                                        ctx.listRef.view?.scrollToPosition(3000, animate = true)
+                                    }
+                                }
+                            }
+                            Button {
+                                attr {
+                                    titleAttr {
+                                        text("goto 3000 - 50dp")
+                                    }
+                                    margin(10f)
+                                    padding(5f)
+                                    borderRadius(5f)
+                                    backgroundColor(Color.GRAY)
+                                }
+                                event {
+                                    click {
+                                        ctx.listRef.view?.scrollToPosition(
+                                            3000,
+                                            -50f,
+                                            animate = false
+                                        )
+                                    }
+                                }
+                            }
+                            Button {
+                                attr {
+                                    titleAttr {
+                                        text("goto 3000 -50dp anim")
+                                    }
+                                    margin(10f)
+                                    padding(5f)
+                                    borderRadius(5f)
+                                    backgroundColor(Color.GRAY)
+                                }
+                                event {
+                                    click {
+                                        ctx.listRef.view?.scrollToPosition(
+                                            3000,
+                                            -50f,
+                                            animate = true
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        View {
+                            attr {
+                                flexWrapWrap()
+                                flexDirectionRow()
+                            }
+                            Button {
+                                attr {
+                                    titleAttr {
+                                        text("goto next 10")
+                                    }
+                                    margin(10f)
+                                    padding(5f)
+                                    borderRadius(5f)
+                                    backgroundColor(Color.GRAY)
+                                }
+                                event {
+                                    click {
+                                        ctx.listRef.view?.scrollToPosition(20, 0f, false)
+                                        ctx.setTimeout(1000) {
+                                            ctx.listRef.view?.scrollToPosition(30, 0f, false)
+                                        }
+                                    }
+                                }
+                            }
+                            Button {
+                                attr {
+                                    titleAttr {
+                                        text("goto next 20")
+                                    }
+                                    margin(10f)
+                                    padding(5f)
+                                    borderRadius(5f)
+                                    backgroundColor(Color.GRAY)
+                                }
+                                event {
+                                    click {
+                                        ctx.listRef.view?.scrollToPosition(20, 0f, false)
+                                        ctx.setTimeout(1000) {
+                                            ctx.listRef.view?.scrollToPosition(40, 0f, false)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

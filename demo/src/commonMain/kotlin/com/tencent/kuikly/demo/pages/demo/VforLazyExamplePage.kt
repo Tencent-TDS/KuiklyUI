@@ -22,8 +22,10 @@ import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ColorStop
 import com.tencent.kuikly.core.base.Direction
 import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.ViewRef
 import com.tencent.kuikly.core.base.attr.ImageUri
+import com.tencent.kuikly.core.directives.getFirstVisiblePosition
 import com.tencent.kuikly.core.directives.scrollToPosition
 import com.tencent.kuikly.core.directives.vforLazy
 import com.tencent.kuikly.core.directives.vif
@@ -40,10 +42,7 @@ import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.core.views.compose.Button
 import com.tencent.kuikly.demo.pages.base.BasePager
-import com.tencent.kuikly.demo.pages.demo.VforLazyExamplePage.ChatItem.Companion.AUTO_REPLY
-import com.tencent.kuikly.demo.pages.demo.VforLazyExamplePage.ChatItem.Companion.MSG
-import com.tencent.kuikly.demo.pages.demo.VforLazyExamplePage.ChatItem.Companion.RECEIVE
-import com.tencent.kuikly.demo.pages.demo.VforLazyExamplePage.ChatItem.Companion.SEND
+import com.tencent.kuikly.demo.pages.base.BridgeModule
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 import kotlin.math.max
 import kotlin.random.Random
@@ -51,32 +50,21 @@ import kotlin.random.Random
 @Page("vforlazy")
 internal class VforLazyExamplePage : BasePager() {
 
-    private class ChatItem(
-        val message: String,
-        val sendType: SendType
-    ) {
-        companion object {
-            const val SEND = true
-            const val RECEIVE = false
-            const val AUTO_REPLY = "你好，我有事不在，稍后再和你联系。"
-            val MSG = listOf("在吗？", "今天天气真好啊！", "你知道吗？我昨天去动物园了。嗯……就是一些常见的动物，没什么特别的。")
-        }
-    }
-
     private lateinit var inputRef: ViewRef<InputView>
     private lateinit var listRef: ViewRef<ListView<*, *>>
     private val list by observableList<ChatItem>()
     private var bottomSpace by observable(0f)
     private var inputText: String? = null
     private var showPanel by observable(false)
+    private var frontAdded = 0
 
     override fun created() {
         super.created()
         bottomSpace = pageData.safeAreaInsets.bottom
         val tmp = mutableListOf<ChatItem>()
         for (i in 0 until 2000) {
-            tmp.add(ChatItem(MSG[Random.nextInt(MSG.size)], SEND))
-            tmp.add(ChatItem(AUTO_REPLY, RECEIVE))
+            tmp.add(ChatItem.random(sendType = ChatItem.SEND))
+            tmp.add(ChatItem(ChatItem.AUTO_REPLY, ChatItem.RECEIVE))
         }
         list.addAll(tmp)
         scrollToBottom(false)
@@ -101,7 +89,7 @@ internal class VforLazyExamplePage : BasePager() {
                 vforLazy({ ctx.list }) { item, index, count ->
                     View {
                         attr {
-                            flexDirection(if (item.sendType == RECEIVE) FlexDirection.ROW else FlexDirection.ROW_REVERSE)
+                            flexDirection(if (item.sendType == ChatItem.RECEIVE) FlexDirection.ROW else FlexDirection.ROW_REVERSE)
                             alignItemsFlexStart()
                             margin(10f)
                             padding(10f)
@@ -116,7 +104,7 @@ internal class VforLazyExamplePage : BasePager() {
                         }
                         Image {
                             attr {
-                                src(ImageUri.commonAssets(if (item.sendType == RECEIVE) "penguin2.png" else "panda2.png"))
+                                src(ImageUri.commonAssets(if (item.sendType == ChatItem.RECEIVE) "penguin2.png" else "panda2.png"))
                                 size(45f, 45f)
                                 borderRadius(22.5f)
                                 border(Border(1f, BorderStyle.SOLID, Color.GRAY))
@@ -127,7 +115,7 @@ internal class VforLazyExamplePage : BasePager() {
                                 margin(left = 10f, right = 10f)
                                 flex(1f)
                                 flexDirectionRow()
-                                if (item.sendType == RECEIVE) {
+                                if (item.sendType == ChatItem.RECEIVE) {
                                     justifyContentFlexStart()
                                 } else {
                                     justifyContentFlexEnd()
@@ -136,7 +124,7 @@ internal class VforLazyExamplePage : BasePager() {
                             View {
                                 attr {
                                     flexDirectionRow()
-                                    backgroundColor(if (item.sendType == RECEIVE) 0xFFF3F3F3 else 0xFFA9EA7A)
+                                    backgroundColor(if (item.sendType == ChatItem.RECEIVE) 0xFFF3F3F3 else 0xFFA9EA7A)
                                     padding(10f)
                                     borderRadius(10f)
                                 }
@@ -240,13 +228,13 @@ internal class VforLazyExamplePage : BasePager() {
                     absolutePosition(top = ctx.pagerData.statusBarHeight, right = 0f)
                     flexDirectionRow()
                     justifyContentFlexStart()
-                    opacity(0.8f)
                 }
                 View {
                     attr {
                         allCenter()
-                        borderRadius(10f, 0f, 10f, 0f)
-                        backgroundColor(Color.WHITE)
+                        borderRadius(12f, 0f, 12f, 0f)
+                        backgroundColor(0x99EEEEEE)
+                        size(25f, 25f)
                     }
                     event {
                         click {
@@ -255,213 +243,18 @@ internal class VforLazyExamplePage : BasePager() {
                     }
                     Text {
                         attr {
-                            text(if (ctx.showPanel) "》" else "《")
+                            text(if (ctx.showPanel) "→" else "←")
                         }
                     }
                 }
                 vif({ ctx.showPanel }) {
                     View {
                         attr {
-                            width(300f)
+                            width(270f)
                             borderRadius(0f, 10f, 0f, 10f)
-                            backgroundColor(Color.WHITE)
+                            backgroundColor(0x99EEEEEE)
                         }
-                        View {
-                            attr {
-                                flexWrapWrap()
-                                flexDirectionRow()
-                            }
-                            Button {
-                                attr {
-                                    titleAttr {
-                                        text("goto 10")
-                                    }
-                                    margin(10f)
-                                    padding(5f)
-                                    borderRadius(5f)
-                                    backgroundColor(Color.GRAY)
-                                }
-                                event {
-                                    click {
-                                        ctx.listRef.view?.scrollToPosition(10, animate = false)
-                                    }
-                                }
-                            }
-                            Button {
-                                attr {
-                                    titleAttr {
-                                        text("goto 10 anim")
-                                    }
-                                    margin(10f)
-                                    padding(5f)
-                                    borderRadius(5f)
-                                    backgroundColor(Color.GRAY)
-                                }
-                                event {
-                                    click {
-                                        ctx.listRef.view?.scrollToPosition(10, animate = true)
-                                    }
-                                }
-                            }
-                            Button {
-                                attr {
-                                    titleAttr {
-                                        text("goto 10 - 50dp")
-                                    }
-                                    margin(10f)
-                                    padding(5f)
-                                    borderRadius(5f)
-                                    backgroundColor(Color.GRAY)
-                                }
-                                event {
-                                    click {
-                                        ctx.listRef.view?.scrollToPosition(
-                                            10,
-                                            -50f,
-                                            animate = false
-                                        )
-                                    }
-                                }
-                            }
-                            Button {
-                                attr {
-                                    titleAttr {
-                                        text("goto 10 -50dp anim")
-                                    }
-                                    margin(10f)
-                                    padding(5f)
-                                    borderRadius(5f)
-                                    backgroundColor(Color.GRAY)
-                                }
-                                event {
-                                    click {
-                                        ctx.listRef.view?.scrollToPosition(10, -50f, animate = true)
-                                    }
-                                }
-                            }
-                        }
-                        View {
-                            attr {
-                                flexWrapWrap()
-                                flexDirectionRow()
-                            }
-                            Button {
-                                attr {
-                                    titleAttr {
-                                        text("goto 3000")
-                                    }
-                                    margin(10f)
-                                    padding(5f)
-                                    borderRadius(5f)
-                                    backgroundColor(Color.GRAY)
-                                }
-                                event {
-                                    click {
-                                        ctx.listRef.view?.scrollToPosition(3000, animate = false)
-                                    }
-                                }
-                            }
-                            Button {
-                                attr {
-                                    titleAttr {
-                                        text("goto 3000 anim")
-                                    }
-                                    margin(10f)
-                                    padding(5f)
-                                    borderRadius(5f)
-                                    backgroundColor(Color.GRAY)
-                                }
-                                event {
-                                    click {
-                                        ctx.listRef.view?.scrollToPosition(3000, animate = true)
-                                    }
-                                }
-                            }
-                            Button {
-                                attr {
-                                    titleAttr {
-                                        text("goto 3000 - 50dp")
-                                    }
-                                    margin(10f)
-                                    padding(5f)
-                                    borderRadius(5f)
-                                    backgroundColor(Color.GRAY)
-                                }
-                                event {
-                                    click {
-                                        ctx.listRef.view?.scrollToPosition(
-                                            3000,
-                                            -50f,
-                                            animate = false
-                                        )
-                                    }
-                                }
-                            }
-                            Button {
-                                attr {
-                                    titleAttr {
-                                        text("goto 3000 -50dp anim")
-                                    }
-                                    margin(10f)
-                                    padding(5f)
-                                    borderRadius(5f)
-                                    backgroundColor(Color.GRAY)
-                                }
-                                event {
-                                    click {
-                                        ctx.listRef.view?.scrollToPosition(
-                                            3000,
-                                            -50f,
-                                            animate = true
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        View {
-                            attr {
-                                flexWrapWrap()
-                                flexDirectionRow()
-                            }
-                            Button {
-                                attr {
-                                    titleAttr {
-                                        text("goto next 10")
-                                    }
-                                    margin(10f)
-                                    padding(5f)
-                                    borderRadius(5f)
-                                    backgroundColor(Color.GRAY)
-                                }
-                                event {
-                                    click {
-                                        ctx.listRef.view?.scrollToPosition(20, 0f, false)
-                                        ctx.setTimeout(1000) {
-                                            ctx.listRef.view?.scrollToPosition(30, 0f, false)
-                                        }
-                                    }
-                                }
-                            }
-                            Button {
-                                attr {
-                                    titleAttr {
-                                        text("goto next 20")
-                                    }
-                                    margin(10f)
-                                    padding(5f)
-                                    borderRadius(5f)
-                                    backgroundColor(Color.GRAY)
-                                }
-                                event {
-                                    click {
-                                        ctx.listRef.view?.scrollToPosition(20, 0f, false)
-                                        ctx.setTimeout(1000) {
-                                            ctx.listRef.view?.scrollToPosition(40, 0f, false)
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        ctx.debugPanel(this)
                     }
                 }
             }
@@ -474,10 +267,10 @@ internal class VforLazyExamplePage : BasePager() {
             return
         }
         inputRef.view?.setText("")
-        list.add(ChatItem(text, SEND))
+        list.add(ChatItem(text, ChatItem.SEND))
         scrollToBottom(true)
         setTimeout(1000) {
-            list.add(ChatItem(AUTO_REPLY, RECEIVE))
+            list.add(ChatItem(ChatItem.AUTO_REPLY, ChatItem.RECEIVE))
             scrollToBottom(true)
         }
     }
@@ -487,6 +280,157 @@ internal class VforLazyExamplePage : BasePager() {
             listRef.view?.scrollToPosition(list.size - 1, animate = animate)
         }
     }
+
+    private fun debugPanel(parent: ViewContainer<*, *>) {
+        val ctx = this@VforLazyExamplePage
+        with(parent) {
+            View {
+                attr {
+                    flexWrapWrap()
+                    flexDirectionRow()
+                    marginBottom(10f)
+                }
+                TestCase("goto top") {
+                    ctx.listRef.view?.scrollToPosition(0, animate = false)
+                }
+                TestCase("goto top anim") {
+                    ctx.listRef.view?.scrollToPosition(0, animate = true)
+                }
+                TestCase("goto bottom") {
+                    ctx.listRef.view?.scrollToPosition(ctx.list.size - 1, animate = false)
+                }
+                TestCase("goto bottom anim") {
+                    ctx.listRef.view?.scrollToPosition(ctx.list.size - 1, animate = true)
+                }
+            }
+            View {
+                attr {
+                    flexWrapWrap()
+                    flexDirectionRow()
+                    marginBottom(10f)
+                }
+                TestCase("goto 10") {
+                    ctx.listRef.view?.scrollToPosition(10, animate = false)
+                }
+                TestCase("goto 10 anim") {
+                    ctx.listRef.view?.scrollToPosition(10, animate = true)
+                }
+                TestCase("goto 10 - 50dp") {
+                    ctx.listRef.view?.scrollToPosition(10, -50f, animate = false)
+                }
+                TestCase("goto 10 -50dp anim") {
+                    ctx.listRef.view?.scrollToPosition(10, -50f, animate = true)
+                }
+            }
+            View {
+                attr {
+                    flexWrapWrap()
+                    flexDirectionRow()
+                    marginBottom(10f)
+                }
+                TestCase("goto 3k") {
+                    ctx.listRef.view?.scrollToPosition(3000, animate = false)
+                }
+                TestCase("goto 3k anim") {
+                    ctx.listRef.view?.scrollToPosition(3000, animate = true)
+                }
+                TestCase("goto 3k - 50dp") {
+                    ctx.listRef.view?.scrollToPosition(3000, -50f, animate = false)
+                }
+                TestCase("goto 3k -50dp anim") {
+                    ctx.listRef.view?.scrollToPosition(3000, -50f, animate = true)
+                }
+            }
+            View {
+                attr {
+                    flexWrapWrap()
+                    flexDirectionRow()
+                    marginBottom(10f)
+                }
+                TestCase("goto next 10") {
+                    ctx.listRef.view?.scrollToPosition(20, 0f, false)
+                    ctx.setTimeout(1000) {
+                        ctx.listRef.view?.scrollToPosition(30, 0f, false)
+                    }
+                }
+                TestCase("goto next 20") {
+                    ctx.listRef.view?.scrollToPosition(20, 0f, false)
+                    ctx.setTimeout(1000) {
+                        ctx.listRef.view?.scrollToPosition(40, 0f, false)
+                    }
+                }
+                TestCase("goto 50") {
+                    ctx.listRef.view?.scrollToPosition(50, 0f, false)
+                }
+            }
+            View {
+                attr {
+                    flexWrapWrap()
+                    flexDirectionRow()
+                }
+                TestCase("getFirstVisiblePosition") {
+                    val view = ctx.listRef.view ?: return@TestCase
+                    val (index, offset) = view.getFirstVisiblePosition()
+                    val bridgeModule = ctx.acquireModule<BridgeModule>(BridgeModule.MODULE_NAME)
+                    bridgeModule.toast("index=$index, offset=$offset")
+                }
+                TestCase("front add 50") {
+                    val view = ctx.listRef.view ?: return@TestCase
+                    ctx.frontAdded += 50
+                    val newItems = buildList<ChatItem>(50) {
+                        for (i in 0 until 50) {
+                            add(ChatItem.random("added front ${ctx.frontAdded - i}"))
+                        }
+                    }
+                    val (index, offset) = view.getFirstVisiblePosition()
+                    ctx.list.addAll(0, newItems)
+                    ctx.addTaskWhenPagerUpdateLayoutFinish {
+                        view.scrollToPosition(index + 50, offset, animate = false)
+                    }
+                }
+            }
+        }
+    }
+
+}
+
+private class ChatItem(
+    val message: String,
+    val sendType: SendType
+) {
+    companion object {
+        const val SEND = true
+        const val RECEIVE = false
+        const val AUTO_REPLY = "你好，我有事不在，稍后再和你联系。"
+        val MSG = listOf(
+            "在吗？",
+            "今天天气真好啊！",
+            "你知道吗？我昨天去动物园了。嗯……就是一些常见的动物，没什么特别的。"
+        )
+        fun random(suffix: String = "", sendType: SendType = Random.nextBoolean()): ChatItem {
+            return ChatItem(MSG[Random.nextInt(MSG.size)] + suffix, sendType)
+        }
+    }
 }
 
 private typealias SendType = Boolean
+
+private fun ViewContainer<*, *>.TestCase(title: String, action: () -> Unit) {
+    Button {
+        attr {
+            titleAttr {
+                text(title)
+                color(Color.WHITE)
+            }
+            margin(left = 5f, top = 5f)
+            padding(5f)
+            borderRadius(5f)
+            backgroundColor(0x99999999)
+        }
+        event {
+            click {
+                action()
+            }
+        }
+    }
+}

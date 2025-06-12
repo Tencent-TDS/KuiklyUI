@@ -221,6 +221,6 @@ internal class TestCaseView(
     }
 }
 
-internal fun ViewContainer<*, *>.TestCase(title: String, click: (ClickParams) -> Unit) {
+private fun ViewContainer<*, *>.TestCase(title: String, click: (ClickParams) -> Unit) {
     addChild(TestCaseView(title, click)) {}
 }

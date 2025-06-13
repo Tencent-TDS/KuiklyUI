@@ -70,3 +70,5 @@ export const sendEvent: (
 ) => void
 
 export const createNativeRoot: (content: Object, instanceId: string) => void;
+
+export const isBackPressConsumed: (instanceId: string, sendTime: number) => number;

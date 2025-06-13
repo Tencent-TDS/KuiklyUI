@@ -34,6 +34,7 @@ import com.tencent.kuikly.compose.ui.unit.LayoutDirection
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.event.layoutFrameDidChange
 import com.tencent.kuikly.core.layout.Frame
+import com.tencent.kuikly.core.module.BackPressModule
 import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.module.VsyncModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
@@ -253,9 +254,9 @@ open class ComposeContainer :
                     ) {
                         if (pagerEvent == "onBackPressed") {
                             if (backPressedDispatcher.onBackPressedCallbacks.isEmpty()) {
-                                pager.acquireModule<RouterModule>(RouterModule.MODULE_NAME).backHandle(isConsumed = false)
+                                pager.acquireModule<BackPressModule>(BackPressModule.MODULE_NAME).backHandle(isConsumed = false)
                             } else {
-                                pager.acquireModule<RouterModule>(RouterModule.MODULE_NAME).backHandle(isConsumed = true)
+                                pager.acquireModule<BackPressModule>(BackPressModule.MODULE_NAME).backHandle(isConsumed = true)
                             }
                             backPressedDispatcher.dispatchOnBackEvent()
                         }

@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.tencent.kuikly.compose.BackHandler
 import com.tencent.kuikly.compose.ComposeContainer
 import com.tencent.kuikly.compose.foundation.background
 import com.tencent.kuikly.compose.foundation.layout.Arrangement
@@ -141,6 +142,19 @@ internal fun DialogDemo() {
                             },
                         ) {
                             Text("Toggle widthlock")
+                        }
+                        var inEditing by remember { mutableStateOf(false) }
+                        if (inEditing) {
+                            BackHandler {
+                                inEditing = false
+                            }
+                        }
+                        TextButton(
+                            onClick = {
+                                inEditing = !inEditing
+                            },
+                        ) {
+                            Text("Toggle Edit ${ if(inEditing) "编辑态拦截返回键中" else "点击编辑" }")
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             TextButton(onClick = { elevation -= 1.dp }) {

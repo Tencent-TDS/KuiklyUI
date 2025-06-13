@@ -14,24 +14,14 @@
  */
 #include <ark_runtime/jsvm.h>
 #include <arkui/native_node_napi.h>
+#include <cstdint>
+#include "libohos_render/expand/modules/back_press/KRBackPressModule.h"
 #include "libohos_render/foundation/KRCallbackData.h"
 #include "libohos_render/manager/KRArkTSManager.h"
 #include "libohos_render/manager/KRRenderManager.h"
 #include "libohos_render/utils/KRRenderLoger.h"
 #include "libohos_render/utils/NAPIUtil.h"
 #include "napi/native_api.h"
-
-static double getNApiArgsDouble(napi_env env, napi_value value) {
-    double doubleValue;
-    napi_get_value_double(env, value, &doubleValue);
-    return doubleValue;
-}
-
-static int32_t getNApiArgsInt(napi_env env, napi_value value) {
-    int32_t intValue;
-    napi_get_value_int32(env, value, &intValue);
-    return intValue;
-}
 
 //  ArkTs层页面加载事件
 static napi_value OnLaunchStart(napi_env env, napi_callback_info info) {
@@ -78,8 +68,8 @@ static napi_value OnInitRenderView(napi_env env, napi_callback_info info) {
     std::string instance_id = kuikly::util::getNApiArgsStdString(env, args[0]);
     std::string page_name = kuikly::util::getNApiArgsStdString(env, args[1]);
     std::string page_data_json_str = kuikly::util::getNApiArgsStdString(env, args[2]);
-    double renderViewWidth = getNApiArgsDouble(env, args[3]);
-    double renderViewHeight = getNApiArgsDouble(env, args[4]);
+    double renderViewWidth = kuikly::util::getNApiArgsDouble(env, args[3]);
+    double renderViewHeight = kuikly::util::getNApiArgsDouble(env, args[4]);
     std::string config_json = kuikly::util::getNApiArgsStdString(env, args[5]);
     auto renderView = KRRenderManager::GetInstance().GetRenderView(instance_id);
     if (renderView != nullptr) {
@@ -123,8 +113,8 @@ static napi_value OnRenderViewSizeChanged(napi_env env, napi_callback_info info)
     }
 
     std::string instanceId = kuikly::util::getNApiArgsStdString(env, args[0]);
-    double width = getNApiArgsDouble(env, args[1]);
-    double height = getNApiArgsDouble(env, args[2]);
+    double width = kuikly::util::getNApiArgsDouble(env, args[1]);
+    double height = kuikly::util::getNApiArgsDouble(env, args[2]);
     auto renderView = KRRenderManager::GetInstance().GetRenderView(instanceId);
     if (renderView != nullptr) {
         renderView->OnRenderViewSizeChanged(width, height);
@@ -175,6 +165,37 @@ static napi_value CreateNativeRoot(napi_env env, napi_callback_info info) {
     return nullptr;
 }
 
+static napi_value isBackPressConsumed(napi_env env, napi_callback_info info) {
+    size_t argc = 2;
+    napi_value args[2] = {nullptr};
+    napi_value result;
+    napi_create_int32(env, KRBackPressState::Undefined, &result);
+    if (napi_ok != napi_get_cb_info(env, info, &argc, args, nullptr, nullptr)) {
+        napi_throw_error(env, "-1000", "napi_get_cb_info error");
+        return result;
+    }
+    std::string instance_id = kuikly::util::getNApiArgsStdString(env, args[0]);
+    double send_time = kuikly::util::getNApiArgsInt64(env, args[1]);
+
+    auto render_view = KRRenderManager::GetInstance().GetRenderView(instance_id);
+    if (render_view != nullptr) {
+        std::string back_press_module_name = kuikly::module::KRBackPressModule::MODULE_NAME;
+        auto back_press_module = std::dynamic_pointer_cast<kuikly::module::KRBackPressModule>(render_view->GetModule(back_press_module_name));
+        if (!back_press_module) {
+            return result;
+        }
+        if (back_press_module->back_consumed_time.load() >= send_time) {
+            bool is_back_consumed = back_press_module->is_back_consumed.load();
+            if (is_back_consumed) {
+                napi_create_int32(env, KRBackPressState::Consumed, &result);
+            } else {
+                napi_create_int32(env, KRBackPressState::NotConsumed, &result);
+            }
+        }
+    }
+    return result;
+}
+
 EXTERN_C_START
 static napi_value Init(napi_env env, napi_value exports) {
     napi_property_descriptor desc[] = {
@@ -187,6 +208,7 @@ static napi_value Init(napi_env env, napi_value exports) {
         {"updateConfig", nullptr, UpdateConfig, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"OnLaunchStart", nullptr, OnLaunchStart, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"createNativeRoot", nullptr, CreateNativeRoot, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"isBackPressConsumed", nullptr, isBackPressConsumed, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
     KRRenderManager::GetInstance().Export(env, exports);  // 尝试注册RenderView

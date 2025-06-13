@@ -15,44 +15,38 @@
 
 package com.tencent.kuikly.core.render.android.expand.module
 
-import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
-import com.tencent.kuikly.core.render.android.css.ktx.toJSONObjectSafely
+import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderBaseModule
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
-import org.json.JSONObject
 
 /**
- * Created by kam on 2023/4/19.
+ *  监听BackPress消费状态回调
+ *
+ *  created by zhenhuachen on 2025/6/09.
  */
-class KRRouterModule : KuiklyRenderBaseModule() {
+class KRBackPressModule : KuiklyRenderBaseModule() {
+
+    var isBackConsumed = false
+    var backConsumedTime = 0L
 
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
-            OPEN_PAGE -> openPage(params)
-            CLOSE_PAGE -> closePage()
+            METHOD_BACK_HANDLE -> backHandle(params)
             else -> super.call(method, params, callback)
         }
     }
 
-    private fun openPage(params: String?) {
-        val ctx = context ?: return
-        val json = params.toJSONObjectSafely()
-        val pageName = json.optString("pageName")
-        if (pageName.isEmpty()) {
-            return
+    private fun backHandle(params: String?) {
+        if (params != null) {
+            isBackConsumed = JSONObject(params).optInt("consumed", 0) == 1
+        } else {
+            isBackConsumed = false
         }
-        val pageData = json.optJSONObject("pageData") ?: JSONObject()
-        KuiklyRenderAdapterManager.krRouterAdapter?.openPage(ctx, pageName, pageData)
-    }
-
-    private fun closePage() {
-        val ctx = context ?: return
-        KuiklyRenderAdapterManager.krRouterAdapter?.closePage(ctx)
+        backConsumedTime = System.currentTimeMillis()
     }
 
     companion object {
-        const val MODULE_NAME = "KRRouterModule"
-        private const val OPEN_PAGE = "openPage"
-        private const val CLOSE_PAGE = "closePage"
+        const val MODULE_NAME = "KRBackPressModule"
+        const val METHOD_BACK_HANDLE = "backHandle"
     }
 }

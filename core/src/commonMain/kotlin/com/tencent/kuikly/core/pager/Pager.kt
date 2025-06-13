@@ -363,6 +363,11 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
                 return VsyncModule()
             }
         })
+        registerModule(ModuleConst.BACK_PRESS, object : IModuleCreator {
+            override fun createModule(): Module {
+                return BackPressModule()
+            }
+        })
     }
     private fun initExternalModules() {
         createExternalModules()?.also { map ->

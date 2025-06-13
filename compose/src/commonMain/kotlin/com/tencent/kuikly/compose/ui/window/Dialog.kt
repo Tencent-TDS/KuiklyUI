@@ -61,6 +61,7 @@ import com.tencent.kuikly.compose.ui.util.fastForEach
 import com.tencent.kuikly.compose.ui.util.fastMap
 import com.tencent.kuikly.compose.ui.util.fastMaxBy
 import com.tencent.kuikly.compose.container.LocalSlotProvider
+import com.tencent.kuikly.compose.ui.platform.LocalOnBackPressedDispatcherOwner
 import com.tencent.kuikly.core.base.Attr.StyleConst
 import com.tencent.kuikly.core.base.event.Touch
 import com.tencent.kuikly.core.views.DivView
@@ -280,6 +281,7 @@ private fun DialogLayout(
 
     // 插槽标识符
     var slotId = remember { 0 }
+    val backPressedDispatcher= LocalOnBackPressedDispatcherOwner.current
 
     DisposableEffect(Unit) {
         // 插槽内容
@@ -290,8 +292,7 @@ private fun DialogLayout(
                         it.inWindow = true
                     }) {
                         getViewEvent().willDismiss {
-                            onDismissRequest()
-                            slotProvider.removeSlot(slotId)
+                            backPressedDispatcher.onBackPressedDispatcher.dispatchOnBackEvent()
                         }
                     }
                 },

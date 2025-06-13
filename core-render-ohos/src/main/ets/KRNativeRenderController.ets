@@ -87,6 +87,14 @@ export const KRDensity = 'density';
 
 const KROnBackPressedKey = 'onBackPressed';
 
+const KROnBackTimeoutMs = 200;
+
+enum KRBackPressConsumedState {
+  Undefined = 0,
+  Consumed,
+  NotConsumed
+}
+
 /** 全局递增实例ID */
 let gGlobalInstanceId = 0;
 
@@ -441,10 +449,20 @@ export class KRNativeRenderController {
     this.doSendEvent(event, data);
   }
 
-  sendBackPressEvent() {
+  onBackPress() {
+    const sendTime = Date.now();
     this.doSendEvent(KROnBackPressedKey, {});
-  }
 
+    while (Date.now() - sendTime < KROnBackTimeoutMs) {
+      const result = render.isBackPressConsumed(this.instanceId, sendTime);
+      if (result === KRBackPressConsumedState.Consumed) {
+        return true;
+      } else if (result === KRBackPressConsumedState.NotConsumed) {
+        return false;
+      }
+    }
+    return false;
+  }
 
   putParam(key: string, value: KRValue) {
     this.externalParams[key] = value;

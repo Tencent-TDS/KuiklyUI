@@ -18,6 +18,24 @@
 namespace kuikly {
 namespace util {
 
+double getNApiArgsDouble(napi_env env, napi_value value) {
+    double doubleValue;
+    napi_get_value_double(env, value, &doubleValue);
+    return doubleValue;
+}
+
+int32_t getNApiArgsInt(napi_env env, napi_value value) {
+    int32_t intValue;
+    napi_get_value_int32(env, value, &intValue);
+    return intValue;
+}
+
+int64_t getNApiArgsInt64(napi_env env, napi_value value) {
+    int64_t intValue;
+    napi_get_value_int64(env, value, &intValue);
+    return intValue;
+}
+
 char *getNApiArgsString(napi_env env, napi_value value) {
     // 4、获取传递的string长度
     size_t length = 0;

@@ -30,7 +30,7 @@ import kotlin.math.min
 fun ViewContainer<*, *>.Image(init: ImageView.() -> Unit) {
     val imageView = createViewFromRegister(ViewConst.TYPE_IMAGE_CLASS_NAME) as? ImageView
     if (imageView != null) {
-        addChild(ImageView(), init)
+        addChild(imageView, init)
     } else {
         addChild(ImageView(), init)
     }

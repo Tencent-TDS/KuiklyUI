@@ -415,7 +415,7 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
 
     companion object {
         const val ROOT_VIEW_TAG = -1
-        private const val HR_SET_PROP_OPERATION = "hr_set_prop_operation"
+        internal const val HR_SET_PROP_OPERATION = "hr_set_prop_operation"
         private const val MAX_REUSE_COUNT = 50
         private const val TDF_METHOD_PARAMS_KEY = "result"
     }

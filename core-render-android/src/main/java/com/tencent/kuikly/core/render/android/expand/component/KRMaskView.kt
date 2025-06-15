@@ -22,8 +22,10 @@ import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.view.View
+import com.tencent.kuikly.core.render.android.const.KRCssConst.VISIBILITY
 import com.tencent.kuikly.core.render.android.css.ktx.frameHeight
 import com.tencent.kuikly.core.render.android.css.ktx.frameWidth
+import com.tencent.kuikly.core.render.android.layer.KuiklyRenderLayerHandler.Companion.HR_SET_PROP_OPERATION
 
 /**
  * Created by kam on 2023/6/7.
@@ -81,6 +83,13 @@ class KRMaskView(context: Context) : KRView(context) {
             maskBitmap?.recycle()
             maskBitmap = getBitmapFromView(maskView)
             maskView.visibility = View.GONE
+            // 记录设置了VISIBILITY，以免节点复用继承了GONE属性
+            val setPropOperationSet =
+                kuiklyRenderContext?.getViewData<MutableSet<String>>(maskView, HR_SET_PROP_OPERATION)
+                    ?: mutableSetOf<String>().apply {
+                        kuiklyRenderContext?.putViewData(maskView, HR_SET_PROP_OPERATION, this)
+                    }
+            setPropOperationSet.add(VISIBILITY)
         }
     }
 

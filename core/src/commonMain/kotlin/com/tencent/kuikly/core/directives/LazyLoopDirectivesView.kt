@@ -198,6 +198,8 @@ class LazyLoopDirectivesView<T>(
     }
 
     override fun willRemoveFromParentView() {
+        waitToApplyState.contentOffset = false
+        waitToApplyState.scrollEnd = false
         getPager().removePagerLayoutEventObserver(this)
         listView?.removeScrollerViewEventObserver(this)
         listView = null

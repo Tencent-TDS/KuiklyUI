@@ -280,13 +280,13 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     private fun setTextAlign(value: Any): Boolean {
         when (value as String) {
             "left" -> {
-                textAlignment = TEXT_ALIGNMENT_TEXT_START
+                gravity = (gravity and Gravity.HORIZONTAL_GRAVITY_MASK.inv()) or Gravity.LEFT
             }
             "center" -> {
-                textAlignment = TEXT_ALIGNMENT_CENTER
+                gravity = (gravity and Gravity.HORIZONTAL_GRAVITY_MASK.inv()) or Gravity.CENTER_HORIZONTAL
             }
             "right" -> {
-                textAlignment = TEXT_ALIGNMENT_TEXT_END
+                gravity = (gravity and Gravity.HORIZONTAL_GRAVITY_MASK.inv()) or Gravity.RIGHT
             }
         }
         return true

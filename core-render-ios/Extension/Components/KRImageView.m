@@ -357,7 +357,7 @@ typedef  void (^KRSetImageBlock) (UIImage *_Nullable image);
         image = [image resizableImageWithCapInsets:insets resizingMode:(UIImageResizingModeStretch)];
     }
     if (image && [self.css_tintColor length]) {
-        UIColor *tintColor = [KRConvertUtil UIColor:self.css_tintColor];
+        UIColor *tintColor = [UIView css_color:self.css_tintColor];
         UIImage *tintedImage = [image kr_tintedImageWithColor:tintColor];
         [self superSetImage:tintedImage];
     } else if (image && [self.css_colorFilter length]) { // 颜色滤镜

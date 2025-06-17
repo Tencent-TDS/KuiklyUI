@@ -184,7 +184,7 @@ typedef id<KRPagViewProtocol> _Nonnull (^PAGViewCreator)(CGRect frame);
  * Creates a PAGImage object from a path of a image file, return null if the file does not exist or
  * it's not a valid image file.
  */
-+ (id<PAGImageProtocol>)fromPath:(NSString*)path;
++ (id<PAGImageProtocol>)FromPath:(NSString*)path;
 
 @end
 

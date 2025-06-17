@@ -120,8 +120,13 @@ typedef  void (^KRSetImageBlock) (UIImage *_Nullable image);
     NSString *pathWithoutExtension = [css_src substringWithRange:subRange];
     KuiklyContextParam *contextParam = ((KuiklyRenderView *)self.hr_rootView).contextParam;
     NSURL *url = [contextParam.contextMode urlForFileName:pathWithoutExtension extension:fileExtension];
-    NSString *urlString = url ? url.absoluteString : @"";
-    [self setImageWithLocalUrl:urlString];
+    if (url) {
+        NSString *urlString = url ? url.absoluteString : @"";
+        [self setImageWithLocalUrl:urlString];
+    } else {
+        // 没有在默认位置找到assets资源，将src传递给适配器由业务处理
+        [self setImageWithUrl:css_src];
+    }
 }
 
 - (void)setImageWithLocalUrl:(NSString *)localUrl {

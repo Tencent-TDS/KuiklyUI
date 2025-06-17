@@ -280,6 +280,14 @@ NSString *const KRFontWeightKey = @"fontWeight";
     }
 }
 
+- (void)paste:(id)sender {
+    [super paste:sender];
+    // 粘贴后，滚动到当前光标位置（延迟执行确保光标处于正确位置）
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [self scrollRangeToVisible:self.selectedRange];
+    });
+}
+
 - (BOOL)textView:(UITextView *)textView shouldChangeTextInRange:(NSRange)range replacementText:(NSString *)text {
     if (_ignoreTextDidChanged) {
         return  NO;

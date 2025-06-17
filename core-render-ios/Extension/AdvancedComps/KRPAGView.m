@@ -308,7 +308,7 @@ static PAGViewCreator gPagViewCreator;
             continue;
         }
         id<PAGImageLayerProtocol> imageLayer = (id<PAGImageLayerProtocol>)layer;
-        id<PAGImageProtocol> pagImage = [((id<PAGImageProtocol>)NSClassFromString(@"PAGImage")) fromPath:filePath];
+        id<PAGImageProtocol> pagImage = [((id<PAGImageProtocol>)NSClassFromString(@"PAGImage")) FromPath:filePath];
         
         if(!pagImage) {
             [KRLogModule logError:[NSString stringWithFormat:@"替换 imageLayer= %@ 失败，请检查该路径 %@ 的图片素材是否存在", layerName, filePath]];

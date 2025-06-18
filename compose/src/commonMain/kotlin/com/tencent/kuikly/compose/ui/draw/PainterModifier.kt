@@ -19,6 +19,7 @@ package com.tencent.kuikly.compose.ui.draw
 import com.tencent.kuikly.compose.coil3.AsyncImagePainter
 import com.tencent.kuikly.compose.foundation.ImageViewWrap
 import com.tencent.kuikly.compose.ui.Alignment
+import com.tencent.kuikly.compose.ui.KuiklyPainter
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.geometry.Size
 import com.tencent.kuikly.compose.ui.geometry.isSpecified
@@ -114,6 +115,10 @@ private data class PainterElement(
     }
 
     override fun update(node: PainterNode) {
+        if (painter is KuiklyPainter) {
+            painter.updateFromReuse(node.painter)
+        }
+
         val intrinsicsChanged = node.sizeToIntrinsics != sizeToIntrinsics ||
             (sizeToIntrinsics && node.painter.intrinsicSize != painter.intrinsicSize)
 

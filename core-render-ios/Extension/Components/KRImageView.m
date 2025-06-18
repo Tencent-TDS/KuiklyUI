@@ -71,6 +71,12 @@ typedef  void (^KRSetImageBlock) (UIImage *_Nullable image);
 @property (nonatomic, strong, nullable) KuiklyRenderCallback KUIKLY_PROP(loadSuccess);
 /** 图片分辨率加载成功回调事件 */
 @property (nonatomic, strong, nullable) KuiklyRenderCallback KUIKLY_PROP(loadResolution);
+/** 图片加载失败回调事件 */
+@property (nonatomic, strong, nullable) KuiklyRenderCallback KUIKLY_PROP(loadFailure);
+/** 记录图片加载失败，但 loadFailure 属性还未设置的情况 */
+@property (nonatomic, assign) BOOL pendingLoadFailure;
+/** loadFailure 回调还未设置时，图片加载失败的错误码 */
+@property (nonatomic, assign) NSInteger errorCode;
 
 @end
 
@@ -110,7 +116,10 @@ typedef  void (^KRSetImageBlock) (UIImage *_Nullable image);
     self.clipsToBounds = YES;
     self.css_loadSuccess = nil;
     self.css_loadResolution = nil;
+    self.css_loadFailure = nil;
     self.css_capInsets = nil;
+    self.pendingLoadFailure = false;
+    self.errorCode = 0;
 }
 
 #pragma mark - setter
@@ -129,12 +138,11 @@ typedef  void (^KRSetImageBlock) (UIImage *_Nullable image);
     }
 }
 
+// 本地文件格式的("file://")图片，Kuikly支持默认加载
 - (void)setImageWithLocalUrl:(NSString *)localUrl {
-    if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:)]) {
-        bool handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:localUrl forImageView:self];
-        if (handled) {
-            return;
-        }
+    bool handled = [self setImageWithUrl:localUrl];
+    if (handled) {
+        return;
     }
     // Remove "file://" prefix to get the actual file path
     NSString *actualPath = [localUrl substringFromIndex:[KRImageLocalPathPrefix length]];
@@ -198,12 +206,28 @@ typedef  void (^KRSetImageBlock) (UIImage *_Nullable image);
    
 }
 
-- (void)setImageWithUrl:(NSString *)url {
-    if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:)]) {
-        [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url forImageView:self];
+- (BOOL)setImageWithUrl:(NSString *)url {
+    BOOL handled = false;
+    if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:complete:)]) {
+        __weak typeof(self) wself = self;
+        handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url
+                                                                     forImageView:self
+                                                                         complete:^(UIImage * _Nullable image, NSError * _Nullable error, NSURL * _Nullable imageURL) {
+            if (error && [imageURL.absoluteString isEqualToString:url]) {
+                if (wself.css_loadFailure) {
+                    [self p_fireLoadFailureEventWithErrorCode:error.code];
+                } else {
+                    wself.pendingLoadFailure = true;
+                    wself.errorCode = error.code;
+                }
+            }
+        }];
+    } else if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:)]) {
+        handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url forImageView:self];
     } else {
         NSAssert(0, @"should expand hr_setImageWithUrl:forImageView:");
     }
+    return handled;
 }
 
 
@@ -237,6 +261,16 @@ typedef  void (^KRSetImageBlock) (UIImage *_Nullable image);
         if (css_loadResolution && self.image) {
             [self p_fireLoadResolutionEventWithImage:self.image];
         }
+    }
+}
+
+- (void)setCss_loadFailure:(KuiklyRenderCallback)css_loadFailure {
+    if (_css_loadFailure != css_loadFailure) {
+        _css_loadFailure = css_loadFailure;
+    }
+    if (self.pendingLoadFailure) {
+        [self p_fireLoadFailureEventWithErrorCode:self.errorCode];
+        self.pendingLoadFailure = false;
     }
 }
 
@@ -339,6 +373,15 @@ typedef  void (^KRSetImageBlock) (UIImage *_Nullable image);
     }
 }
 
+-(void)p_fireLoadFailureEventWithErrorCode:(NSInteger)errorCode {
+    if (_css_loadFailure) {
+        NSDictionary *params = @{
+            @"src": self.css_src ?: @"",
+            @"errorCode": @(errorCode)
+        };
+        _css_loadFailure(params);
+    }
+}
 
 - (void)p_updateWithImage:(UIImage *)image {
     if(self.css_capInsets != nil && image){

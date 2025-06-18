@@ -71,6 +71,8 @@ typedef void (^KRBundleResponse)(NSString *_Nullable script , NSError *_Nullable
 @end
 
 
+typedef void(^ImageCompletionBlock)(UIImage * _Nullable image, NSError * _Nullable error, NSURL * _Nullable imageURL);
+
 
 @protocol KuiklyRenderComponentExpandProtocol <NSObject>
 
@@ -79,10 +81,24 @@ typedef void (^KRBundleResponse)(NSString *_Nullable script , NSError *_Nullable
  * 自定义实现设置图片
  * @param url 设置的图片url，如果url为nil，则是取消图片设置，需要view.image = nil
  * @return 是否处理该图片设置，返回值为YES，则交给该代理实现，否则sdk内部自己处理
+ *
+ * 注意：如果同时实现了带完成回调的方法
+ *      - (BOOL)hr_setImageWithUrl:(NSString *)url forImageView:(UIImageView *)imageView
+ *                        complete:(ImageCompletionBlock)completeBlock;
+ * 则优先调用带回调的方法。
  */
 - (BOOL)hr_setImageWithUrl:(NSString *)url forImageView:(UIImageView *)imageView;
 
 @optional
+
+
+/*
+ * 自定义实现设置图片（带完成回调，优先调用该方法）
+ * @param url 设置的图片url，如果url为nil，则是取消图片设置，需要view.image = nil
+ * @param complete 图片处理完成后的回调
+ * @return 是否处理该图片设置，返回值为YES，则交给该代理实现，否则sdk内部自己处理
+ */
+- (BOOL)hr_setImageWithUrl:(NSString *)url forImageView:(UIImageView *)imageView complete:(ImageCompletionBlock)completeBlock;
 
 /*
  * 自定义实现设置颜值

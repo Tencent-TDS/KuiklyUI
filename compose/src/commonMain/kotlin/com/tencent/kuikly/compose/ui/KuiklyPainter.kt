@@ -99,6 +99,19 @@ internal class KuiklyPainter(
         _state.value = state
         onState?.invoke(state)
     }
+
+    internal fun updateFromReuse(painter: Painter) {
+        if (painter is KuiklyPainter && painter.src == this.src && painter._state.value != this._state.value) {
+            this.resolution.value = painter.resolution.value
+            this.success = painter.success
+            when (painter._state.value) {
+                is State.Loading -> updateState(State.Loading(placeHolder))
+                is State.Success -> updateState(State.Success(this))
+                is State.Error -> updateState(State.Error(if (src.isNullOrEmpty()) fallback else error))
+                else -> {}
+            }
+        }
+    }
 }
 
 private fun ImageView.applyPlaceHolder(painter: Painter) {

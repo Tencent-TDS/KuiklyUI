@@ -582,8 +582,18 @@
     
     if (@available(iOS 16.0, *)) {
         BOOL needAdjust = (statusBarHeight == 44);
-        if (needAdjust && [UIApplication sharedApplication].delegate.window.safeAreaInsets.top >= 59) { // 兼容部分场景高度获取不正确
-            statusBarHeight = 54;
+        if (needAdjust) {
+            UIWindow* mainWindow = nil;
+            for (UIScene* scene in [UIApplication sharedApplication].connectedScenes) {
+                if (scene.activationState == UISceneActivationStateForegroundActive && [scene isKindOfClass:[UIWindowScene class]]) {
+                    UIWindowScene *windowScene = (UIWindowScene *)scene;
+                    mainWindow = windowScene.windows.firstObject;
+                    break;
+                }
+            }
+            if (mainWindow && mainWindow.safeAreaInsets.top >= 59) { // 兼容部分场景高度获取不正确
+                statusBarHeight = 54;
+            }
         }
     }
    

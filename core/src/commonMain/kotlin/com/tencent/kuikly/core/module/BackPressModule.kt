@@ -15,19 +15,30 @@
 
 package com.tencent.kuikly.core.module
 
-object ModuleConst {
-    const val NOTIFY = "KRNotifyModule"
-    const val MEMORY = "KRMemoryCacheModule"
-    const val SHARED_PREFERENCES = "KRSharedPreferencesModule"
-    const val SNAPSHOT = "KRSnapshotModule"
-    const val ROUTER = "KRRouterModule"
-    const val NETWORK = "KRNetworkModule"
-    const val CODEC = "KRCodecModule"
-    const val TURBO_DISPLAY = "KRTurboDisplayModule"
-    const val CALENDAR = "KRCalendarModule"
-    const val REFLECTION = "KRReflectionModule"
-    const val PERFORMANCE = "KRPerformanceModule"
-    const val FONT = "KRFontModule"
-    const val VSYNC = "KRVsyncModule"
-    const val BACK_PRESS = "KRBackPressModule"
+import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+
+/*
+ * Kuikly返回键模块，用于通知宿主测是否消费返回键按下事件（Android、鸿蒙）
+ */
+class BackPressModule : Module() {
+
+    override fun moduleName(): String {
+        return MODULE_NAME
+    }
+
+    fun backHandle(isConsumed: Boolean) {
+        toNative(
+            false,
+            METHOD_BACK_HANDLE,
+            param = JSONObject().apply {
+                put("consumed", if (isConsumed) 1 else 0)
+            }.toString(),
+            syncCall = true
+        )
+    }
+
+    companion object {
+        const val MODULE_NAME = ModuleConst.BACK_PRESS
+        const val METHOD_BACK_HANDLE = "backHandle"
+    }
 }

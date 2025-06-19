@@ -32,7 +32,7 @@ struct Index {
   private pageData?: KRRecord;
   private contextCode: string = '';
   private contextCodeHandler: ContextCodeHandler = new ContextCodeHandler();
-  private useDefaultBackPress = true;
+  private useDefaultBackPress = false;
   @State showKuikly: boolean = false;
 
   onBackPress(): boolean | void {
@@ -42,11 +42,8 @@ struct Index {
     }
 
     if (this.kuiklyViewDelegate) {
-      this.kuiklyController?.sendBackPressEvent();
-      // Note: true means that we're intercepting this back press event.
-      // 1. We should either close a modal dialog or pop the current page,
-      //    or whatever meaningful to our app, when handling the event.
-      return true;
+      // send back press event and wait for consumed result synchronously
+      return this.kuiklyController?.onBackPress();
     }
   }
 

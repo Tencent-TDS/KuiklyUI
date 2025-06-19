@@ -39,6 +39,7 @@ import com.tencent.kuikly.core.render.android.expand.component.blur.KRBlurView
 import com.tencent.kuikly.core.render.android.expand.component.list.KRRecyclerContentView
 import com.tencent.kuikly.core.render.android.expand.component.list.KRRecyclerView
 import com.tencent.kuikly.core.render.android.expand.component.pag.KRPAGView
+import com.tencent.kuikly.core.render.android.expand.module.KRBackPressModule
 import com.tencent.kuikly.core.render.android.expand.module.KRCalendarModule
 import com.tencent.kuikly.core.render.android.expand.module.KRCodecModule
 import com.tencent.kuikly.core.render.android.expand.module.KRFontModule
@@ -493,6 +494,9 @@ open class KuiklyRenderViewBaseDelegator(private val delegate: KuiklyRenderViewB
             moduleExport(KRVsyncModule.MODULE_NAME) {
                 KRVsyncModule()
             }
+            moduleExport(KRBackPressModule.MODULE_NAME) {
+                KRBackPressModule()
+            }
             delegate.registerExternalModule(this) // 代理给外部，让宿主工程可以暴露自己的module
             delegate.registerTDFModule(this)
         }
@@ -547,11 +551,11 @@ open class KuiklyRenderViewBaseDelegator(private val delegate: KuiklyRenderViewB
         while (looping.get()) {
             Thread.sleep(10)
             runKuiklyRenderViewTask {
-                val krRouterModule = it.module<KRRouterModule>(KRRouterModule.MODULE_NAME) as KRRouterModule
-                if (krRouterModule.backConsumedTime > sendTime) {
-                    consumeResult.set(krRouterModule.isBackConsumed)
-                    // 获得Kuikly结果退出
-                    looping.set(false)
+                it.module<KRBackPressModule>(KRBackPressModule.MODULE_NAME)?.apply {
+                    if (this.backConsumedTime > sendTime) {
+                        consumeResult.set(this.isBackConsumed)
+                        looping.set(false)
+                    }
                 }
             }
             // 超时退出

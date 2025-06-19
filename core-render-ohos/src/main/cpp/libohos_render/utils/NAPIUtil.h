@@ -16,11 +16,18 @@
 #ifndef CORE_RENDER_OHOS_NAPIUTIL_H
 #define CORE_RENDER_OHOS_NAPIUTIL_H
 
+#include <cstdint>
 #include <string>
 #include "napi/native_api.h"
 
 namespace kuikly {
 namespace util {
+
+double getNApiArgsDouble(napi_env env, napi_value value);
+
+int32_t getNApiArgsInt(napi_env env, napi_value value);
+
+int64_t getNApiArgsInt64(napi_env env, napi_value value);
 
 char *getNApiArgsString(napi_env env, napi_value value);
 

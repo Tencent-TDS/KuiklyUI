@@ -22,6 +22,7 @@ import com.tencent.kuikly.compose.foundation.pager.PagerState
 import com.tencent.kuikly.compose.ui.util.fastFirstOrNull
 import com.tencent.kuikly.core.views.SpringAnimation
 import com.tencent.kuikly.core.views.WillEndDragParams
+import kotlin.math.min
 
 /**
  * 处理拖拽结束事件
@@ -71,8 +72,10 @@ private fun PagerState.handleTargetPageScroll(
         val nextPage = allResult.fastFirstOrNull { it.index == targetPage }
         val offset = if (orientation == Orientation.Vertical) params.offsetY.toInt() else params.offsetX.toInt()
 
-        val targetOffset = nextPage?.let { offset + it.offset } 
+        val maxOffset = kuiklyInfo.currentContentSize - kuiklyInfo.viewportSize
+        var targetOffset = nextPage?.let { offset + it.offset }
             ?: (pageSizeWithSpacing * (targetPage - 1))
+        targetOffset = min(targetOffset, maxOffset)
 
         if (targetOffset == offset) return
 

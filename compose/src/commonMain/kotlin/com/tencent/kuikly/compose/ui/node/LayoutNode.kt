@@ -245,6 +245,12 @@ open class LayoutNode(
         }
 
     /**
+     * The real parent node in the LayoutNode hierarchy, including virtual nodes.
+     */
+    internal val foldedParent: LayoutNode?
+        get() = _foldedParent
+
+    /**
      * The view system [Owner]. This `null` until [attach] is called
      */
     internal var owner: Owner? = null
@@ -999,6 +1005,9 @@ open class LayoutNode(
     }
 
     internal open fun onSizeChange() {
+    }
+
+    internal open fun onWillStartMeasure() {
     }
 
     /**

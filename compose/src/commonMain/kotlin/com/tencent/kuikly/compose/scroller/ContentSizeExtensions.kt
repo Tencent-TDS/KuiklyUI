@@ -23,6 +23,7 @@ import com.tencent.kuikly.compose.foundation.lazy.LazyListState
 import com.tencent.kuikly.compose.foundation.lazy.grid.LazyGridState
 import com.tencent.kuikly.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
 import com.tencent.kuikly.compose.foundation.pager.PagerState
+import com.tencent.kuikly.compose.scroller.ScrollableStateConstants.DEFAULT_CONTENT_SIZE
 import com.tencent.kuikly.compose.ui.unit.Dp
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
 import com.tencent.kuikly.compose.ui.util.fastSumBy
@@ -189,14 +190,17 @@ internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolea
 }
 
 internal fun ScrollableState.tryExpandStartSizeNoScroll() {
+    if (this is PagerState) return
     kuiklyInfo.run {
         appleScrollViewOffsetJob?.cancel()
         appleScrollViewOffsetJob = scope?.launch {
             delay(150)
+            val minDelta = (DEFAULT_CONTENT_SIZE * getDensity()).toInt()
+            val epsilon = 0.5 * getDensity()  // 使用 0.5dp 作为误差值
+            val reachBtm = contentOffset + viewportSize - currentContentSize >= -epsilon
+
             if (contentOffset <= 0 && !isAtTop() && scrollView?.isDragging != true) {
                 // 整体把offset 加一下
-                val minDelta = (ScrollableStateConstants.DEFAULT_CONTENT_SIZE * getDensity()).toInt()
-
                 var delta = calculateBackExpandSize(contentOffset)
                 delta = max(delta ?: minDelta, minDelta)
                 val maxDelta = currentContentSize - viewportSize - contentOffset
@@ -205,13 +209,23 @@ internal fun ScrollableState.tryExpandStartSizeNoScroll() {
                     currentContentSize += (delta - maxDelta + minDelta)
                     updateContentSizeToRender()
                 }
-
+                if (pageData?.isOhOs == true) {
+                    delay(25)   // 鸿蒙扩容后，不会立刻刷新，也没有刷新api，华为建议添加一个delay来处理
+                }
                 applyScrollViewOffsetDelta(delta)
                 offsetDirty = true
             } else if (contentOffset > 0 && isAtTop()) {
                 // compose 到顶了，但是scrollview没到顶
                 applyScrollViewOffsetDelta(-contentOffset)
-                kuiklyInfo.offsetDirty = false
+                offsetDirty = false
+            } else if (isAtTop() && realContentSize == null && lastItemVisible() && scrollView?.isDragging != true) {
+                // 更新当前的contentSize大小
+                currentContentSize = calculateContentSize()
+                updateContentSizeToRender()
+            } else if (canScrollForward && reachBtm) {
+                // 底部无法滑动了，扩容
+                currentContentSize += minDelta
+                updateContentSizeToRender()
             }
         }
     }

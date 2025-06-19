@@ -84,12 +84,24 @@ internal fun ScrollableState.isAtTop(): Boolean = when(this) {
 }
 
 /**
+ * 检查最后一个index是否可见
+ */
+internal fun ScrollableState.lastItemVisible(): Boolean = when(this) {
+    is LazyListState -> layoutInfo.visibleItemsInfo.lastOrNull()?.index == layoutInfo.totalItemsCount - 1
+    is PagerState -> currentPage == pageCount - 1
+    is LazyGridState -> layoutInfo.visibleItemsInfo.lastOrNull()?.index == layoutInfo.totalItemsCount - 1
+    is LazyStaggeredGridState -> layoutInfo.visibleItemsInfo.lastOrNull()?.index == layoutInfo.totalItemsCount - 1
+    is ScrollState -> value >= maxValue
+    else -> false
+}
+
+/**
  * 检查偏移量是否有效
  */
 internal fun ScrollableState.isValidOffsetDelta(delta: Int): Boolean {
     if (kuiklyInfo.scrollView?.renderView == null || delta == 0) return false
     val newOffset = kuiklyInfo.contentOffset + delta
-    return newOffset in 0 until (kuiklyInfo.currentContentSize - kuiklyInfo.viewportSize)
+    return newOffset >= 0 && newOffset <= (kuiklyInfo.currentContentSize - kuiklyInfo.viewportSize)
 }
 
 /**

@@ -46,6 +46,7 @@ import com.tencent.kuikly.core.base.domChildren
 import com.tencent.kuikly.core.base.event.notifyLayoutFrameDidChange
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.views.DivView
+import com.tencent.kuikly.core.views.HoverView
 import com.tencent.kuikly.core.views.ModalView
 import kotlin.math.PI
 import kotlin.math.atan2
@@ -61,7 +62,12 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
 ) : LayoutNode(isVirtual = isVirtual) {
 
     var kuiklyCoordinates: LayoutCoordinates? = null
-    var isStickyNode = false
+
+    /**
+     * The key of the Lazy item that this KNode represents
+     * This is used to identify which item this node corresponds to
+     */
+    var lazyItemKey: Any? = null
 
     var viewVisible: Boolean? = null
     var needFixScrollOffset = true
@@ -78,11 +84,6 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
                 update()
             }, update)
         }
-    }
-
-    override fun applyModifier(modifier: Modifier) {
-        kuiklyCoordinates = null
-        super.applyModifier(modifier)
     }
 
     override fun attach(owner: Owner) {
@@ -161,12 +162,28 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
     }
 
     private fun shouldUpdateStickyNode(newSize: IntSize): Boolean {
-        if (!isStickyNode) return true
+        if (view !is HoverView) return true
         val curSize = IntSize(
-            width = view.renderView?.currentFrame?.width?.toInt() ?: 0,
-            height = view.renderView?.currentFrame?.height?.toInt() ?: 0,
+            width = ((view.renderView?.currentFrame?.width ?: 0f) * density.density).toInt(),
+            height = ((view.renderView?.currentFrame?.height ?: 0f) * density.density).toInt(),
         )
-        return curSize != newSize
+        if (curSize != newSize) return true
+
+        // Use foldedParent to get the real parent including virtual nodes
+        val itemKey = (foldedParent as? KNode<*>)?.lazyItemKey
+        val scrollNode = parent as? KNode<*>
+        val kuiklyInfo = scrollNode?.view?.extProps?.get(KuiklyInfoKey) as? KuiklyScrollInfo
+        val currentStickyKey = kuiklyInfo?.stickyItemKey
+
+        if (itemKey != null && itemKey == currentStickyKey) {
+            return false
+        }
+        return true
+    }
+
+    override fun onWillStartMeasure() {
+        super.onWillStartMeasure()
+        kuiklyCoordinates = null
     }
 
     override fun updateKuiklyViewFrame(coordinator: LayoutCoordinates) {

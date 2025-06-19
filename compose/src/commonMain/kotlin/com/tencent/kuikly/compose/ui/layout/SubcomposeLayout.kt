@@ -158,6 +158,7 @@ fun SubcomposeLayout(
     val isIOS = LocalConfiguration.current.isIOS
     val density = LocalDensity.current
     scrollableState.kuiklyInfo.orientation = orientation
+    scrollableState.kuiklyInfo.pageData = LocalConfiguration.current.pageData
 
     LaunchedEffect(scrollViewSize) {
         scrollableState.kuiklyInfo.updateContentSizeToRender()
@@ -631,6 +632,11 @@ internal class LayoutNodeSubcompositionsState(
                         ?: createNodeAt(currentIndex)
                 }
             }
+
+        // Set the lazyItemKey for KNode to establish mapping with LazyList item
+        if (node is KNode<*>) {
+            node.lazyItemKey = slotId
+        }
 
         if (root.foldedChildren.getOrNull(currentIndex) !== node) {
             // the node has a new index in the list

@@ -16,6 +16,10 @@
 
 package com.tencent.kuikly.compose.foundation.lazy
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshots.Snapshot
 import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
 import com.tencent.kuikly.compose.foundation.checkScrollableContainerConstraints
 import com.tencent.kuikly.compose.foundation.gestures.Orientation
@@ -25,13 +29,11 @@ import com.tencent.kuikly.compose.foundation.layout.calculateEndPadding
 import com.tencent.kuikly.compose.foundation.layout.calculateStartPadding
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayout
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayoutMeasureScope
+import com.tencent.kuikly.compose.foundation.lazy.layout.StickyItemsPlacement
 import com.tencent.kuikly.compose.foundation.lazy.layout.calculateLazyLayoutPinnedIndices
 import com.tencent.kuikly.compose.foundation.lazy.layout.lazyLayoutBeyondBoundsModifier
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.snapshots.Snapshot
-import com.tencent.kuikly.compose.foundation.lazy.layout.StickyItemsPlacement
+import com.tencent.kuikly.compose.scroller.kuiklyInfo
+import com.tencent.kuikly.compose.scroller.tryExpandStartSizeNoScroll
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.draw.clipToBounds
@@ -43,11 +45,6 @@ import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.compose.ui.unit.constrainHeight
 import com.tencent.kuikly.compose.ui.unit.constrainWidth
 import com.tencent.kuikly.compose.ui.unit.offset
-import com.tencent.kuikly.compose.scroller.applyScrollViewOffsetDelta
-import com.tencent.kuikly.compose.scroller.calculateBackExpandSize
-import com.tencent.kuikly.compose.scroller.isAtTop
-import com.tencent.kuikly.compose.scroller.kuiklyInfo
-import com.tencent.kuikly.compose.scroller.tryExpandStartSizeNoScroll
 import kotlinx.coroutines.CoroutineScope
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -307,13 +304,7 @@ private fun rememberLazyListMeasurePolicy(
                 val oldHeight = state.kuiklyInfo.itemMainSpaceCache[itemResult.key]
                 // 高度扩大了
                 if ((oldHeight ?: 0) < itemResult.mainAxisSizeWithSpacings && !state.isScrollInProgress ) {
-                    val minDelta = (3000 * state.kuiklyInfo.getDensity()).toInt()
-                    if (state.kuiklyInfo.nearScrollBottom()) {
-                        // 直接扩容3000
-                        state.kuiklyInfo.currentContentSize += minDelta
-                        state.kuiklyInfo.updateContentSizeToRender()
-                    }
-
+                    state.kuiklyInfo.realContentSize = null
                     state.tryExpandStartSizeNoScroll()
                 }
                 state.kuiklyInfo.itemMainSpaceCache[itemResult.key] = itemResult.mainAxisSizeWithSpacings
@@ -378,6 +369,10 @@ private fun rememberLazyListMeasurePolicy(
                     )
                 }
             )
+
+        // Update sticky item key to kuiklyInfo
+        state.kuiklyInfo.stickyItemKey = measureResult.stickyItem?.key
+        
         state.applyMeasureResult(measureResult, isLookingAhead)
         measureResult
     }

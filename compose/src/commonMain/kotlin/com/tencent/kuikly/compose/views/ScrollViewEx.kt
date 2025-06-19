@@ -25,6 +25,7 @@ import com.tencent.kuikly.core.views.ScrollerAttr
 import com.tencent.kuikly.core.views.ScrollerAttr.Companion.NESTED_SCROLL
 import com.tencent.kuikly.core.views.ScrollerEvent
 import com.tencent.kuikly.core.views.ScrollerView
+import kotlin.math.max
 
 internal val KuiklyInfoKey = "KuiklyInfoKey"
 
@@ -85,7 +86,7 @@ internal fun ScrollerView<ScrollerAttr, ScrollerEvent>.applyOffsetDelta(delta: I
     // 更新offset
     if (contentView?.getPager()?.pageData?.isAndroid == true) {
         // 安卓有个bug，刚好滚到最末尾的时候，是不成功的，临时处理下
-        setContentOffset(newOffset.x / density - 0.01f, newOffset.y / density - 0.01f)
+        setContentOffset(max(0f, newOffset.x / density - 0.01f), max(0f, newOffset.y / density - 0.01f))
     } else {
         setContentOffset(newOffset.x / density, newOffset.y / density)
     }

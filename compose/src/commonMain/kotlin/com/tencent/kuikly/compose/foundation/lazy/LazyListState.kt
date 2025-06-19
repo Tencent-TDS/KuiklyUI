@@ -57,6 +57,7 @@ import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.util.fastFirstOrNull
 import com.tencent.kuikly.compose.ui.util.fastRoundToInt
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
+import com.tencent.kuikly.compose.scroller.tryExpandStartSizeNoScroll
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.coroutines.EmptyCoroutineContext
@@ -337,6 +338,8 @@ class LazyListState
             } else {
                 measurementScopeInvalidator.invalidateScope()
             }
+
+            tryExpandStartSizeNoScroll()
         }
 
         /**

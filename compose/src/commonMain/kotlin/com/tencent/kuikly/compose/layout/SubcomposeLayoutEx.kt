@@ -53,15 +53,7 @@ internal fun LayoutNodeSubcompositionsState.checkOffScreenNode(result: MeasureRe
             if (!positionedItemKeys.contains(key) && key != stickyItemKey) {
                 node.hideOffsetScreenView()
             }
-            node.updateIsSticky(key == stickyItemKey)
         }
-    }
-}
-
-internal fun KNode<*>.updateIsSticky(isSticky: Boolean) {
-    when {
-        isVirtual -> forEachChild { (it as? KNode<*>)?.isStickyNode = isSticky }
-        else -> isStickyNode = isSticky
     }
 }
 

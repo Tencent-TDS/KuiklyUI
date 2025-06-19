@@ -615,9 +615,9 @@ abstract class PagerState internal constructor(
         }
         kuiklyInfo.run {
             val targetOffsetDp = if (isVertical()) {
-                Offset(scrollView?.curOffsetX ?: 0f, targetOffset / getDensity() - 0.01f)
+                Offset(scrollView?.curOffsetX ?: 0f, max(0f, targetOffset / getDensity() - 0.01f))
             } else {
-                Offset(targetOffset / getDensity() - 0.01f, scrollView?.curOffsetY ?: 0f)
+                Offset(max(0f, targetOffset / getDensity() - 0.01f), scrollView?.curOffsetY ?: 0f)
             }
             scrollView?.setContentOffset(targetOffsetDp.x, targetOffsetDp.y, true)
         }
@@ -702,11 +702,11 @@ abstract class PagerState internal constructor(
             result.viewportSize.width else result.viewportSize.height
 
         // 非滚动状态，当前的offset和scrolview的不对齐； 调整下；
-        if (!isScrollInProgress && scrollableState.kuiklyInfo.contentOffset < composeOffset.toInt()) {
-            kuiklyInfo.run {
-                appleScrollViewOffsetJob?.cancel()
-                appleScrollViewOffsetJob = scope?.launch {
-                    delay(50)
+        kuiklyInfo.run {
+            appleScrollViewOffsetJob?.cancel()
+            appleScrollViewOffsetJob = scope?.launch {
+                delay(50)
+                if (!isScrollInProgress && scrollableState.kuiklyInfo.contentOffset < composeOffset.toInt()) {
                     // 先扩容
                     currentContentSize = max((maxScrollOffset + layoutSize).toInt(), currentContentSize)
                     updateContentSizeToRender()

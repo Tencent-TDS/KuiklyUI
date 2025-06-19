@@ -316,6 +316,7 @@ internal class LayoutNodeLayoutDelegate(
     private var performMeasureConstraints = Constraints()
 
     private val performMeasureBlock: () -> Unit = {
+        layoutNode.onWillStartMeasure()
         outerCoordinator.measure(performMeasureConstraints)
     }
 

@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import com.tencent.kuikly.compose.foundation.gestures.Orientation
 import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.core.layout.Frame
+import com.tencent.kuikly.core.pager.PageData
 import com.tencent.kuikly.core.views.ScrollerAttr
 import com.tencent.kuikly.core.views.ScrollerEvent
 import com.tencent.kuikly.core.views.ScrollerView
@@ -91,6 +92,18 @@ class KuiklyScrollInfo {
      * 协程作用域
      */
     internal var scope: CoroutineScope? = null
+
+    /**
+     * pageData相关数据
+     */
+    var pageData: PageData? = null
+
+    /**
+     * The key of the current sticky item, used to identify which item is in sticky state
+     * In LazyList, when an item is set as sticky, its key will be stored here
+     * KNode can determine if it's a sticky node by comparing its own slotId with this key
+     */
+    var stickyItemKey: Any? = null
 
     /**
      * 更新内容大小到渲染视图

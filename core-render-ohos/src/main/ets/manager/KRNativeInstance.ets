@@ -75,6 +75,15 @@ export class KRNativeInstance {
     }
   }
 
+  // 根据tag获取自定义view
+  public viewWithTag(tag: number): KuiklyRenderBaseView | null {
+    let view = this.viewRegistry.get(tag);
+    if (view) {
+      return view;
+    }
+    return null;
+  }
+
   public generateViewBuilder(tag: number, nodeId: string): ComponentContent<KuiklyRenderBaseView> | null {
     if (this.viewRegistry.has(tag)) {
       let view = this.viewRegistry.get(tag);

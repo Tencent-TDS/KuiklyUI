@@ -468,9 +468,10 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
 }
 
 private fun ViewContainer<*, *>.removeChildrenAt(index: Int, count: Int) {
+    val parentView = realContainerView()
     for (i in index until index + count) {
-        val childView = getChild(index)
-        removeDomSubView(childView)
-        removeChild(childView)
+        val childView = parentView.getChild(index)
+        parentView.removeDomSubView(childView)
+        parentView.removeChild(childView)
     }
 }

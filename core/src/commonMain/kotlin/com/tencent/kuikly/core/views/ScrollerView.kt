@@ -181,14 +181,6 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
         return this
     }
 
-    override fun getChild(index: Int): DeclarativeBaseView<*, *> {
-        return contentView!!.getChild(index)
-    }
-
-    override fun removeChild(index: Int) {
-        contentView!!.removeChild(index)
-    }
-
     override fun willInit() {
         super.willInit()
         attr.overflow(true)

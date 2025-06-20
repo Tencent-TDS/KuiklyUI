@@ -1241,62 +1241,98 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
 
 #define ROTATE_INDEX 0
 #define SCALE_INDEX 1
-#define TRNASLATE_INDEX 2
+#define TRANSLATE_INDEX 2
 #define ANCHOR_INDEX 3
 #define SKEW_INDEX 4
 #define ROTATE_X_Y_INDEX 5
 
+/**
+ * Represents a 2D or 3D transformation for a view.
+ * Encapsulates transform logic to safely apply either CGAffineTransform or CATransform3D.
+ */
 @interface KRTransformInfo : NSObject
 
-@property (nonatomic, assign) CGAffineTransform affineTransform;
-@property (nonatomic, assign) CATransform3D transform3D;
+// Using readonly properties to enforce immutability after initialization
+@property (nonatomic, readonly, assign) CGAffineTransform affineTransform;
+@property (nonatomic, readonly, assign) CATransform3D transform3D;
+@property (nonatomic, readonly, assign) BOOL is3D;  // Explicit 3D flag for state clarity
+
+// Designated initializer for 2D transforms
+- (instancetype)initWithAffineTransform:(CGAffineTransform)affineTransform;
+
+// Designated initializer for 3D transforms
+- (instancetype)initWithTransform3D:(CATransform3D)transform3D;
+
+// Applies stored transform to target view
+- (void)applyTransformToView:(UIView *)view;
 
 @end
-@implementation KRTransformInfo {
-    BOOL _is3D;
-    CGAffineTransform _affineTransform;
-    CATransform3D _transform3D;
-}
 
-- (instancetype)initWithCGAffineTransform:(CGAffineTransform)affineTransform transform3D:(CATransform3D)transform3D is3D:(BOOL)is3D {
+@implementation KRTransformInfo
+
+#pragma mark - Initializers
+
+- (instancetype)initWithAffineTransform:(CGAffineTransform)affineTransform {
     self = [super init];
     if (self) {
-        _is3D = is3D;
         _affineTransform = affineTransform;
-        _transform3D = transform3D;
+        _transform3D = CATransform3DIdentity;  // Neutral 3D transform
+        _is3D = NO;
     }
     return self;
 }
 
-- (void)applyTransformWithView:(UIView *)view {
-    if (_is3D) {
+- (instancetype)initWithTransform3D:(CATransform3D)transform3D {
+    self = [super init];
+    if (self) {
+        _affineTransform = CGAffineTransformIdentity;  // Neutral 2D transform
+        _transform3D = transform3D;
+        _is3D = YES;
+    }
+    return self;
+}
+
+#pragma mark - Transform Application
+
+- (void)applyTransformToView:(UIView *)view {
+    if (self.is3D) {
+        // Clear 2D transform before applying 3D
         view.transform = CGAffineTransformIdentity;
-        view.layer.transform = _transform3D;
+        view.layer.transform = self.transform3D;
     } else {
-        view.transform = _affineTransform;
+        // Clear 3D transform before applying 2D
+        view.layer.transform = CATransform3DIdentity;
+        view.transform = self.affineTransform;
     }
 }
 
 @end
 
-/// CSSTransform
+
+/**
+ * Represents CSS-style transformations for UIView objects.
+ * Parses transform strings and applies 2D/3D transformations with animation support.
+ */
 @implementation CSSTransform {
-    CGFloat _rotateAngle;           // [-360, 360]
-    CGFloat _rotateXAngle;           // [-360, 360]
-    CGFloat _rotateYAngle;           // [-360, 360]
-    CGFloat _scaleX;                // [0, 1]
-    CGFloat _scaleY;                // [0, 1]
-    CGFloat _translatePercentageX;  // [-1, 1]
-    CGFloat _translatePercentageY;  // [-1, 1]
-    CGFloat _anchorX;               // [0, 1]
-    CGFloat _anchorY;               // [0, 1]
-    CGFloat _skewX;                 // [-360, 360]
-    CGFloat _skewY;                 // [-360, 360]
+    // MARK: - Transformation Parameters
+    CGFloat _rotateAngle;           // Rotation angle in degrees [-360, 360]
+    CGFloat _rotateXAngle;          // X-axis rotation [-360, 360]
+    CGFloat _rotateYAngle;          // Y-axis rotation [-360, 360]
+    CGFloat _scaleX;                // X-axis scale factor [0, 1]
+    CGFloat _scaleY;                // Y-axis scale factor [0, 1]
+    CGFloat _translatePercentageX;  // X translation percentage [-1, 1]
+    CGFloat _translatePercentageY;  // Y translation percentage [-1, 1]
+    CGFloat _anchorX;               // Anchor point X [0, 1]
+    CGFloat _anchorY;               // Anchor point Y [0, 1]
+    CGFloat _skewX;                 // X-axis skew [-360, 360]
+    CGFloat _skewY;                 // Y-axis skew [-360, 360]
 }
 
 - (instancetype)initWithCSSTransform:(NSString *)cssTransform {
     if (self = [super init]) {
-        [[cssTransform componentsSeparatedByString:@"|"] enumerateObjectsUsingBlock:^(NSString * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+        [[cssTransform componentsSeparatedByString:@"|"] enumerateObjectsUsingBlock:^(NSString * _Nonnull obj,
+                                                                                      NSUInteger idx,
+                                                                                      BOOL * _Nonnull stop) {
             if (idx == ROTATE_INDEX) { // rotate
                 _rotateAngle = [obj floatValue];
             } else {
@@ -1304,7 +1340,7 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
                 if (idx == SCALE_INDEX) { // scale
                     _scaleX = [values.firstObject floatValue];
                     _scaleY = [values.lastObject floatValue];
-                } else if (idx == TRNASLATE_INDEX) { // tranlate
+                } else if (idx == TRANSLATE_INDEX) { // tranlate
                     _translatePercentageX = [values.firstObject floatValue];
                     _translatePercentageY = [values.lastObject floatValue];
                 } else if (idx == ANCHOR_INDEX) { // anchor
@@ -1322,96 +1358,161 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
     }
     return self;
 }
+
 - (void)applyToView:(UIView *)view {
     [self applyToView:view animation:nil oldTransform:nil];
 }
 
+#pragma mark - Transformation Application
 
-
+/// Resets all transforms to identity state
 + (void)resetTransformWithView:(UIView *)view {
-    CGPoint anchorPoint = view.layer.anchorPoint;
-    if (!CGPointEqualToPoint(anchorPoint, CGPointMake(0.5, 0.5))) {
+    // Reset anchor point to default if modified
+    if (!CGPointEqualToPoint(view.layer.anchorPoint, CGPointMake(0.5, 0.5))) {
         [view hr_setAnchorPointAndKeepFrame:CGPointMake(0.5, 0.5)];
     }
+    
+    // Reset layer transform
     if (!CATransform3DEqualToTransform(view.layer.transform, CATransform3DIdentity)) {
         view.layer.transform = CATransform3DIdentity;
     }
     
+    // Reset view transform
     if (!CGAffineTransformEqualToTransform(view.transform, CGAffineTransformIdentity)) {
         view.transform = CGAffineTransformIdentity;
     }
 }
 
-- (void)applyToView:(UIView *)view animation:(CSSAnimation *)animation oldTransform:(CSSTransform *)oldTransform {
-    CGPoint anchorPoint = CGPointMake(_anchorX, _anchorY);
-    CGFloat rotateAngleDifference = fabs(_rotateAngle - [oldTransform rotateAngle]); // 该次目标旋转位置相对上次的绝对差值
-    if (animation && rotateAngleDifference >= 180.0) { // 以动画方式&&旋转差值超过半圈，需用关键帧分解多步完成
-        [animation addKeyframeWithRelativeStartTime:0 relativeDuration:1 animations:^{
-            [view hr_setAnchorPointAndKeepFrame:anchorPoint]; // 设置瞄点并保持frame位置
+/// Applies transform with optional animation
+- (void)applyToView:(UIView *)view
+          animation:(CSSAnimation *)animation
+       oldTransform:(CSSTransform *)oldTransform {
+    CGPoint targetAnchor = CGPointMake(_anchorX, _anchorY);
+    
+    // Calculate rotation difference for animation decision
+    CGFloat rotationDelta = oldTransform ? fabs(_rotateAngle - oldTransform.rotateAngle) : 0;
+    
+    if (animation && rotationDelta >= 180.0) {
+        // Complex rotation animation (multi-step)
+        [self applyComplexRotationToView:view
+                               animation:animation
+                            oldTransform:oldTransform
+                            targetAnchor:targetAnchor];
+    } else {
+        // Simple direct application
+        [view hr_setAnchorPointAndKeepFrame:targetAnchor];
+        KRTransformInfo *transform = [self generateTransformForFrame:view.bounds
+                                                   relativeTransform:oldTransform
+                                                       interpolation:1.0];
+        [transform applyTransformToView:view];
+    }
+}
+
+/// Handles complex rotation animations with keyframes
+- (void)applyComplexRotationToView:(UIView *)view
+                         animation:(CSSAnimation *)animation
+                      oldTransform:(CSSTransform *)oldTransform
+                      targetAnchor:(CGPoint)anchor
+{
+    // Apply anchor point change
+    [animation addKeyframeWithRelativeStartTime:0 relativeDuration:1 animations:^{
+        [view hr_setAnchorPointAndKeepFrame:anchor];
+    }];
+    
+    // Calculate animation steps
+    NSUInteger steps = ceil(fabs(_rotateAngle - oldTransform.rotateAngle) / 179.0);
+    CGFloat stepDuration = 1.0 / steps;
+    
+    for (NSUInteger i = 0; i < steps; i++) {
+        CGFloat progress = (i + 1) / (CGFloat)steps;
+        
+        [animation addKeyframeWithRelativeStartTime:i * stepDuration
+                                   relativeDuration:stepDuration
+                                         animations:^{
+            KRTransformInfo *transform = [self generateTransformForFrame:view.bounds
+                                                       relativeTransform:oldTransform
+                                                           interpolation:progress];
+            [transform applyTransformToView:view];
         }];
-        NSUInteger stepCount = ceil(rotateAngleDifference / 179.0);
-        for (int i = 0; i < stepCount; i++) {
-            KRTransformInfo * step = [self generateTransformWithViewFrame:[view.css_frame CGRectValue] relativeCssTransform:oldTransform relativePercentage:1 / (stepCount * 1.0) * (i + 1)];
-            [animation addKeyframeWithRelativeStartTime:1 / (stepCount * 1.0) * i relativeDuration:1 / (stepCount * 1.0) animations:^{
-                [step applyTransformWithView:view];
-            }];
-        }
-    } else {
-        [view hr_setAnchorPointAndKeepFrame:anchorPoint]; // 设置瞄点并保持frame位置
-        KRTransformInfo *transformInfo = [self generateTransformWithViewFrame:[view.css_frame CGRectValue] relativeCssTransform:nil relativePercentage:1.0];
-        [transformInfo applyTransformWithView:view];
     }
 }
 
-- (KRTransformInfo *)generateTransformWithViewFrame:(CGRect)frame relativeCssTransform:(CSSTransform *)relativeTransform relativePercentage:(CGFloat)percentage {
-    CGAffineTransform transform = CGAffineTransformIdentity;
-    CATransform3D transform3d = CATransform3DIdentity;
-    BOOL is3d = NO;
-    CGFloat relativeTranslatePercentageX = (relativeTransform ? relativeTransform->_translatePercentageX : 0);
-    CGFloat relativeTranslatePercentageY = (relativeTransform ? relativeTransform->_translatePercentageY : 0);
-    CGFloat relativeScaleX = (relativeTransform ? relativeTransform->_scaleX : 1.0);
-    CGFloat relativeScaleY = (relativeTransform ? relativeTransform->_scaleY : 1.0);
-    CGFloat relativeRotateAngle = (relativeTransform ? relativeTransform->_rotateAngle : 0.0);
-    CGFloat relativeRotateXAngle = (relativeTransform ? relativeTransform->_rotateXAngle : 0.0);
-    CGFloat relativeRotateYAngle = (relativeTransform ? relativeTransform->_rotateYAngle : 0.0);
-    CGFloat translatePercentageXDifference = _translatePercentageX - relativeTranslatePercentageX;
-    CGFloat translatePercentageYDifference = _translatePercentageY - relativeTranslatePercentageY;
-    CGFloat scaleXDifference = _scaleX -  relativeScaleX;
-    CGFloat scaleYDifference = _scaleY - relativeScaleY;
-    CGFloat rotateAngleDifference = _rotateAngle - relativeRotateAngle;
-    CGFloat rotateAngleXDifference = _rotateXAngle - relativeRotateXAngle;
-    CGFloat rotateAngleYDifference = _rotateYAngle - relativeRotateYAngle;
-    transform = CGAffineTransformTranslate(transform,
-                                           (relativeTranslatePercentageX + translatePercentageXDifference * percentage) * frame.size.width,
-                                           (relativeTranslatePercentageY + translatePercentageYDifference * percentage)  * frame.size.height);
-    CGFloat scaleX = (relativeScaleX + scaleXDifference * percentage);
-    CGFloat scaleY = (relativeScaleY + scaleYDifference * percentage);
-    transform = CGAffineTransformScale(transform, scaleX == 0 ? 0.00001 : scaleX, scaleY == 0 ? 0.00001: scaleY);
-    if (_skewX || _skewY) {
-        CGFloat horizontalSkewAngleInRadians = _skewX * M_PI / 180;
-        CGFloat verticalSkewAngleInRadians = _skewY * M_PI / 180;
-        CGAffineTransform skewTransform = CGAffineTransformMake(1, tan(verticalSkewAngleInRadians), tan(horizontalSkewAngleInRadians), 1, 0, 0);
-        transform = CGAffineTransformConcat(transform, skewTransform);
-    }
-    CGFloat rotateAngle = relativeRotateAngle + rotateAngleDifference * percentage;
+#pragma mark - Transform Generation
 
-    CGFloat rotateXAngle = relativeRotateXAngle + rotateAngleXDifference * percentage;
-    CGFloat rotateYAngle = relativeRotateYAngle + rotateAngleYDifference * percentage;
-    if (_rotateXAngle || _rotateYAngle ) {
-        is3d = YES;
-        // 创建一个3D变换
-        transform3d = CATransform3DMakeAffineTransform(transform); // 基于2d作为初始
-        // 设置透视效果，与CSS的rotateX对齐
-        transform3d.m34 = -1.0 / 1000.0;
-        transform3d = CATransform3DRotate(transform3d, (rotateXAngle / 360.0f) * (M_PI * 2), 1, 0, 0);// X轴旋转
-        transform3d = CATransform3DRotate(transform3d, (rotateYAngle / 360.0f) * (M_PI * 2), 0, 1, 0);// Y轴旋转
-        transform3d = CATransform3DRotate(transform3d,(rotateAngle / 360.0f) * (M_PI * 2), 0, 0, 1); // Z轴旋转
-    } else {
-        transform = CGAffineTransformRotate(transform, (rotateAngle / 360.0f) * (M_PI * 2)); // 2d Z轴旋转
+/// Generates intermediate transformation state
+- (KRTransformInfo *)generateTransformForFrame:(CGRect)frame
+                             relativeTransform:(CSSTransform *)relativeTransform
+                                 interpolation:(CGFloat)progress {
+    // Initialize base transforms
+    CGAffineTransform affine = CGAffineTransformIdentity;
+    CATransform3D transform3D = CATransform3DIdentity;
+    
+    // Calculate interpolated values
+    CGFloat translateX = [self interpolateFrom:relativeTransform ? relativeTransform->_translatePercentageX : 0
+                                            to:_translatePercentageX
+                                      progress:progress];
+    CGFloat translateY = [self interpolateFrom:relativeTransform ? relativeTransform->_translatePercentageY : 0
+                                            to:_translatePercentageY
+                                      progress:progress];
+    
+    CGFloat scaleX = [self interpolateFrom:relativeTransform ? relativeTransform->_scaleX : 1.0
+                                        to:_scaleX
+                                  progress:progress];
+    CGFloat scaleY = [self interpolateFrom:relativeTransform ? relativeTransform->_scaleY : 1.0
+                                        to:_scaleY
+                                  progress:progress];
+    
+    CGFloat rotation = [self interpolateFrom:relativeTransform ? relativeTransform.rotateAngle : 0
+                                          to:_rotateAngle
+                                    progress:progress];
+    
+    CGFloat rotateX = [self interpolateFrom:relativeTransform ? relativeTransform->_rotateXAngle : 0
+                                         to:_rotateXAngle
+                                   progress:progress];
+    
+    CGFloat rotateY = [self interpolateFrom:relativeTransform ? relativeTransform->_rotateYAngle : 0
+                                         to:_rotateYAngle
+                                   progress:progress];
+    
+    // Apply translation and scaling
+    affine = CGAffineTransformTranslate(affine, translateX * frame.size.width, translateY * frame.size.height);
+    affine = CGAffineTransformScale(affine,
+                                    MAX(scaleX, 0.00001),  // Prevent zero scale
+                                    MAX(scaleY, 0.00001));
+    
+    // Apply skew if needed
+    if (_skewX != 0 || _skewY != 0) {
+        CGFloat skewXRad = _skewX * M_PI / 180.0;
+        CGFloat skewYRad = _skewY * M_PI / 180.0;
+        CGAffineTransform skew = CGAffineTransformMake(1, tan(skewYRad), tan(skewXRad), 1, 0, 0);
+        affine = CGAffineTransformConcat(affine, skew);
     }
-    return [[KRTransformInfo alloc] initWithCGAffineTransform:transform transform3D:transform3d is3D:is3d];
+    
+    // Apply rotation (3D or 2D)
+    if (_rotateXAngle != 0 || _rotateYAngle != 0) {
+        transform3D = CATransform3DMakeAffineTransform(affine);
+        transform3D.m34 = -1.0 / 1000.0;  // Perspective effect
+        
+        // Apply 3D rotations (order: X -> Y -> Z)
+        transform3D = CATransform3DRotate(transform3D, rotateX * M_PI / 180.0, 1, 0, 0);
+        transform3D = CATransform3DRotate(transform3D, rotateY * M_PI / 180.0, 0, 1, 0);
+        transform3D = CATransform3DRotate(transform3D, rotation * M_PI / 180.0, 0, 0, 1);
+        return [[KRTransformInfo alloc] initWithTransform3D:transform3D];
+    } else {
+        // Apply 2D rotation
+        affine = CGAffineTransformRotate(affine, rotation * M_PI / 180.0);
+        return [[KRTransformInfo alloc] initWithAffineTransform:affine];
+    }
 }
 
+#pragma mark - Helper Methods
+
+/// Linear interpolation between values
+- (CGFloat)interpolateFrom:(CGFloat)start to:(CGFloat)end progress:(CGFloat)progress {
+    return start + (end - start) * progress;
+}
+
+/// Rotation angle accessor
 - (CGFloat)rotateAngle {
     return _rotateAngle;
 }

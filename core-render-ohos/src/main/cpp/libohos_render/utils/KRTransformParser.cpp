@@ -79,24 +79,56 @@ std::array<double, 16> MultiplyMatrices(const std::array<double, 16> &lhs, const
 }
 
 bool KRTransformParser::ParseFromCssTransform(const std::string &css_transform) {
+    const size_t ROTATE_INDEX = 0;
+    const size_t SCALE_INDEX = 1;
+    const size_t TRANSLATE_INDEX = 2;
+    const size_t ANCHOR_INDEX = 3;
+    const size_t SKEW_INDEX = 4;
+    const size_t ROTATE_XY_INDEX = 5;
+    
     auto splits = ConvertSplit(css_transform, "|");
+    // 至少5个参数
     if (splits.size() < 5) {
         return false;
     }
-    auto anchors = ConvertSplit(splits[3], " ");
-    anchor_x_ = ConvertToDouble(anchors[0]);
-    anchor_y_ = ConvertToDouble(anchors[1]);
-    rotate_angle_ = ConvertToDouble(splits[0]);
-    auto scales = ConvertSplit(splits[1], " ");
+    
+    auto checkSize = [](const std::vector<std::string>& v, size_t n) {
+        return v.size() >= n;
+    };
+    
+    rotate_angle_ = ConvertToDouble(splits[ROTATE_INDEX]);
+    
+    auto scales = ConvertSplit(splits[SCALE_INDEX], " ");
+    if (!checkSize(scales, 2)) return false;
     scale_x_ = ConvertToDouble(scales[0]);
     scale_y_ = ConvertToDouble(scales[1]);
-    auto translates = ConvertSplit(splits[2], " ");
+    
+    auto translates = ConvertSplit(splits[TRANSLATE_INDEX], " ");
+    if (!checkSize(translates, 2)) return false;
     translation_x_ = ConvertToDouble(translates[0]);
     translation_y_ = ConvertToDouble(translates[1]);
-
-    auto skews = ConvertSplit(splits[4], " ");
+    auto anchors = ConvertSplit(splits[ANCHOR_INDEX], " ");
+    if (!checkSize(anchors, 2)) return false;
+    anchor_x_ = ConvertToDouble(anchors[0]);
+    anchor_y_ = ConvertToDouble(anchors[1]);
+    
+    auto skews = ConvertSplit(splits[SKEW_INDEX], " ");
+    if (!checkSize(skews, 2)) return false;
     skew_x_ = ConvertToDouble(skews[0]);
     skew_y_ = ConvertToDouble(skews[1]);
+    
+    // 旋转XY
+    if (splits.size() > ROTATE_XY_INDEX) {
+        auto rotateXY = ConvertSplit(splits[ROTATE_XY_INDEX], " ");
+        if (checkSize(rotateXY, 2)) {
+            rotate_x_angle_ = ConvertToDouble(rotateXY[0]);
+            rotate_y_angle_ = ConvertToDouble(rotateXY[1]);
+        }
+    } else {
+        rotate_x_angle_ = 0.0;
+        rotate_y_angle_ = 0.0;
+    }
+    
     return true;
 }
 

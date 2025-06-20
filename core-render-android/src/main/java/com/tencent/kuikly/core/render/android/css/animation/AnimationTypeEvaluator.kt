@@ -69,6 +69,8 @@ internal class TransformTypeEvaluator(private val targetView: View) : TypeEvalua
         endValue: KRCSSTransform
     ): KRCSSTransform {
         reuseTransform.rotate = startValue.rotate + (endValue.rotate - startValue.rotate) * fraction
+        reuseTransform.rotateX = startValue.rotateX + (endValue.rotateX - startValue.rotateX) * fraction
+        reuseTransform.rotateY = startValue.rotateY + (endValue.rotateY - startValue.rotateY) * fraction
         reuseTransform.scaleX = startValue.scaleX + (endValue.scaleX - startValue.scaleX) * fraction
         reuseTransform.scaleY = startValue.scaleY + (endValue.scaleY - startValue.scaleY) * fraction
         reuseTransform.translateX = startValue.translateX + (endValue.translateX - startValue.translateX) * fraction

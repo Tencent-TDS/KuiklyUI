@@ -97,7 +97,24 @@ internal class TransformExamplePage: BasePager() {
         Rotate(180f),
         Rotate(-135f),
         Rotate(-90f),
-        Rotate(-45f)
+        Rotate(-45f),
+        Rotate(0f),
+        Rotate(xAngle = 45f),
+        Rotate(xAngle = 90f),
+        Rotate(xAngle = 135f),
+        Rotate(xAngle = 180f),
+        Rotate(xAngle = -135f),
+        Rotate(xAngle = -90f),
+        Rotate(xAngle = -45f),
+        Rotate(xAngle = 0f),
+        Rotate(yAngle = 45f),
+        Rotate(yAngle = 90f),
+        Rotate(yAngle = 135f),
+        Rotate(yAngle = 180f),
+        Rotate(yAngle = -135f),
+        Rotate(yAngle = -90f),
+        Rotate(yAngle = -45f),
+        Rotate(yAngle = 0f),
     )
     private var rotateValueIndex: Int = 0
 
@@ -161,7 +178,7 @@ internal class TransformExamplePage: BasePager() {
                 }
                 Text {
                     attr {
-                        text("Rotate(${ctx.rotate})\n" +
+                        text("Rotate(${ctx.rotate}, ${ctx.rotate.toRotateXYString()})\n" +
                             "Scale(${ctx.scale})\n" +
                             "Translate(${ctx.translate})\n" +
                             "Anchor(${ctx.anchor})")
@@ -230,7 +247,7 @@ internal class TransformExamplePage: BasePager() {
                         borderRadius(20f)
                         size(width = 80f, height = 40f)
                         titleAttr {
-                            text("Scale")
+                            text("Anchor")
                         }
                     }
                     event {

@@ -27,6 +27,8 @@ class KRTransformParser : public std::enable_shared_from_this<KRTransformParser>
     double translation_x_ = 0;  // default 0.0
     double translation_y_ = 0;  // default 0.0
     double rotate_angle_ = 0;   // default 0 [-360, 360] deg角度
+    double rotate_x_angle_ = 0; // default 0 [-360, 360] deg角度
+    double rotate_y_angle_ = 0; // default 0 [-360, 360] deg角度
     double scale_x_ = 1;        // default 1
     double scale_y_ = 1;        // default 1
     double skew_x_ = 0;         // 水平方向倾斜角度[-180, 180]

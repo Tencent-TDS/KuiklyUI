@@ -292,10 +292,14 @@ internal val View.transform: KRCSSTransform
  * 5.[KRCSSTransform.translateY]: 对应[android.view.View.TRANSLATION_Y]
  * 6.[KRCSSTransform.pivotX]: 对应[android.view.View.getPivotX]
  * 7.[KRCSSTransform.pivotY]: 对应[android.view.View.getPivotY]
+ * 8.[KRCSSTransform.rotateX]: 对应[android.view.View.ROTATION_X]
+ * 9.[KRCSSTransform.rotateY]: 对应[android.view.View.ROTATION_Y]
  */
 class KRCSSTransform(transform: String?, private val target: View) {
 
     var rotate = DEFAULT_ROTATE
+    var rotateX = DEFAULT_ROTATE_X
+    var rotateY = DEFAULT_ROTATE_Y
 
     var scaleX = DEFAULT_SCALE_X
     var scaleY = DEFAULT_SCALE_Y
@@ -318,6 +322,8 @@ class KRCSSTransform(transform: String?, private val target: View) {
      */
     fun applyTransform() {
         target.rotation = rotate
+        target.rotationX = rotateX
+        target.rotationY = rotateY
         target.scaleX = scaleX
         target.scaleY = scaleY
         target.translationX = translateX
@@ -333,6 +339,12 @@ class KRCSSTransform(transform: String?, private val target: View) {
     fun resetTransform() {
         if (rotate != DEFAULT_ROTATE) {
             target.rotation = DEFAULT_ROTATE
+        }
+        if (rotateX != DEFAULT_ROTATE_X) {
+            target.rotationX = DEFAULT_ROTATE_X
+        }
+        if (rotateY != DEFAULT_ROTATE_Y) {
+            target.rotationY = DEFAULT_ROTATE_Y
         }
         if (scaleX != DEFAULT_SCALE_X) {
             target.scaleX = DEFAULT_SCALE_X
@@ -371,6 +383,8 @@ class KRCSSTransform(transform: String?, private val target: View) {
 
     private fun initTransformFromTargetView() {
         rotate = target.rotation
+        rotateX = target.rotationX
+        rotateY = target.rotationY
         scaleX = target.scaleX
         scaleY = target.scaleY
         translateX = target.translationX
@@ -381,6 +395,8 @@ class KRCSSTransform(transform: String?, private val target: View) {
 
     private fun initDefaultTransform() {
         rotate = DEFAULT_ROTATE
+        rotateX = DEFAULT_ROTATE_X
+        rotateY = DEFAULT_ROTATE_Y
         scaleX = DEFAULT_SCALE_X
         scaleY = DEFAULT_SCALE_Y
         translateX = DEFAULT_TRANSLATE_X
@@ -412,6 +428,13 @@ class KRCSSTransform(transform: String?, private val target: View) {
             skewX = skewSplit[SKEW_X_INDEX].toFloat()
             skewY = skewSplit[SKEW_Y_INDEX].toFloat()
         }
+
+        if (splits.size > ROTATE_XY_INDEX) {
+            val rotateXYSpilt = splits[ROTATE_XY_INDEX].split(KRCssConst.BLANK_SEPARATOR)
+            rotateX = rotateXYSpilt[ROTATE_X_INDEX].toFloat()
+            rotateY = rotateXYSpilt[ROTATE_Y_INDEX].toFloat()
+        }
+
     }
 
     private fun applySkewTransform() {
@@ -451,9 +474,14 @@ class KRCSSTransform(transform: String?, private val target: View) {
         private const val SKEW_X_INDEX = 0
         private const val SKEW_Y_INDEX = 1
 
+        private const val ROTATE_XY_INDEX = 5
+        private const val ROTATE_X_INDEX = 0
+        private const val ROTATE_Y_INDEX = 1
         private const val TRANSFORM_SEPARATOR = "|"
 
         private const val DEFAULT_ROTATE = 0f
+        private const val DEFAULT_ROTATE_X = 0f
+        private const val DEFAULT_ROTATE_Y = 0f
         private const val DEFAULT_SCALE_X = 1f
         private const val DEFAULT_SCALE_Y = 1f
         private const val DEFAULT_TRANSLATE_X = 0f

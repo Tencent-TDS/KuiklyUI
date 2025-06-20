@@ -375,7 +375,7 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
         val tempSrc = src
         if (isBase64Src()) {
             loadBase64Image(tempSrc)
-        } else {
+        } else if (tempSrc.isNotEmpty()) {
             fetchDrawable(createImageLoadOption(tempSrc)) { drawable ->
                 runOnUiThread {
                     setResultImageDrawable(tempSrc, drawable)

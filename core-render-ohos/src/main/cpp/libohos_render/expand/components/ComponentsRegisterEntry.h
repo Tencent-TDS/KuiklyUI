@@ -42,8 +42,6 @@ static void ComponentsRegisterEntry() {
     // 注册通用转发ArkTS侧View组件
     IKRRenderViewExport::RegisterForwardArkTSViewCreator([] { return std::make_shared<KRForwardArkTSView>(); });
 
-    IKRRenderViewExport::RegisterViewCreator("KRRichTextView", [] { return std::make_shared<KRRichTextView>(); });
-
     IKRRenderViewExport::RegisterViewCreator("KRView", [] { return std::make_shared<KRView>(); });
     IKRRenderViewExport::RegisterViewCreator("KRImageView", [] { return std::make_shared<KRImageView>(); });
 

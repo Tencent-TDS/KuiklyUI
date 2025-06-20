@@ -37,6 +37,7 @@ class KRView : public IKRRenderViewExport {
     bool RegisterTouchDownEvent(const KRRenderCallback &event_call_back);
     bool RegisterTouchMoveEvent(const KRRenderCallback &event_call_back);
     bool RegisterTouchUpEvent(const KRRenderCallback &event_call_back);
+	bool SetTargetHitTestMode(const std::string &mode);
     void ProcessTouchEvent(ArkUI_NodeEvent *event);
     void TryFireOnTouchDownEvent(ArkUI_UIInputEvent *input_event);
     void TryFireOnTouchMoveEvent(ArkUI_UIInputEvent *input_event);
@@ -45,7 +46,7 @@ class KRView : public IKRRenderViewExport {
     bool TryFireSuperTouchCancelEvent(ArkUI_UIInputEvent *input_event);
     KRAnyValue GenerateBaseParamsWithTouch(ArkUI_UIInputEvent *input_event, const std::string &action);
     bool HasTouchEvent();
-    void UpdateHitTestMode(bool is_default);
+    void UpdateHitTestMode(bool shouldUseTarget);
 
  private:
     KRRenderCallback touch_down_callback_ = nullptr;
@@ -53,8 +54,9 @@ class KRView : public IKRRenderViewExport {
     KRRenderCallback touch_up_callback_ = nullptr;
 
     bool register_touch_event_ = false;
-    bool is_default_hit_test_mode = true;
-    std::shared_ptr<SuperTouchHandler> super_touch_handler_ = nullptr;
+    short using_target_hit_test_mode = -1;
+    ArkUI_HitTestMode target_hit_test_mode = ARKUI_HIT_TEST_MODE_DEFAULT;
+	std::shared_ptr<SuperTouchHandler> super_touch_handler_ = nullptr;
 };
 
 #endif  // CORE_RENDER_OHOS_KRVIEW_H

@@ -25,6 +25,13 @@ constexpr char kPropNameTouchUp[] = "touchUp";
 constexpr char kPropNameTouchCancel[] = "touchCancel";
 constexpr char kPropNamePreventTouch[] = "preventTouch";
 constexpr char kPropNameSuperTouch[] = "superTouch";
+constexpr char kPropNameHitTestModeOhos[] = "hit-test-ohos";
+
+constexpr char kOhosHitTestModeDefault[] = "default";
+constexpr char kOhosHitTestModeBlock[] = "block";
+constexpr char kOhosHitTestModeNone[] = "none";
+constexpr char kOhosHitTestModeTransparent[] = "transparent";
+
 
 bool KRView::ReuseEnable() {
     return true;
@@ -59,6 +66,8 @@ bool KRView::SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
             }
         }
         didHand = true;
+    } else if (kuikly::util::isEqual(prop_key, kPropNameHitTestModeOhos)) {
+        didHand = SetTargetHitTestMode(prop_value->toString());
     }
     return didHand;
 }
@@ -94,6 +103,10 @@ bool KRView::ResetProp(const std::string &prop_key) {
         didHande = true;
     } else if (kuikly::util::isEqual(prop_key, kPropNameSuperTouch)) {
         super_touch_handler_ = nullptr;
+        didHande = true;
+    } else if (kuikly::util::isEqual(prop_key, kPropNameHitTestModeOhos)) {
+        target_hit_test_mode = ARKUI_HIT_TEST_MODE_DEFAULT;
+        UpdateHitTestMode(HasBaseEvent() || HasTouchEvent());
         didHande = true;
     } else {
         didHande = IKRRenderViewExport::ResetProp(prop_key);
@@ -142,6 +155,19 @@ bool KRView::RegisterTouchMoveEvent(const KRRenderCallback &event_call_back) {
 bool KRView::RegisterTouchUpEvent(const KRRenderCallback &event_call_back) {
     EnsureRegisterTouchEvent();
     touch_up_callback_ = event_call_back;
+    return true;
+}
+
+bool KRView::SetTargetHitTestMode(const std::string &mode) {
+    if (kuikly::util::isEqual(mode, kOhosHitTestModeBlock)) {
+        target_hit_test_mode = ARKUI_HIT_TEST_MODE_BLOCK;
+    } else if (kuikly::util::isEqual(mode, kOhosHitTestModeNone)) {
+        target_hit_test_mode = ARKUI_HIT_TEST_MODE_NONE;
+    } else if (kuikly::util::isEqual(mode, kOhosHitTestModeTransparent)) {
+        target_hit_test_mode = ARKUI_HIT_TEST_MODE_TRANSPARENT;
+    } else if (kuikly::util::isEqual(mode, kOhosHitTestModeDefault)) {
+        target_hit_test_mode = ARKUI_HIT_TEST_MODE_DEFAULT;
+    }
     return true;
 }
 
@@ -230,9 +256,9 @@ bool KRView::HasTouchEvent() {
     return touch_up_callback_ != nullptr || touch_down_callback_ != nullptr || touch_move_callback_ != nullptr;
 }
 
-void KRView::UpdateHitTestMode(bool is_default) {
-    if (is_default_hit_test_mode != is_default) {
-        is_default_hit_test_mode = is_default;
-        kuikly::util::UpdateNodeHitTestMode(GetNode(), is_default ? ARKUI_HIT_TEST_MODE_DEFAULT : ARKUI_HIT_TEST_MODE_NONE);
+void KRView::UpdateHitTestMode(bool shouldUseTarget) {
+    if (using_target_hit_test_mode != (shouldUseTarget ? 1 : 0)) {
+        using_target_hit_test_mode = shouldUseTarget;
+        kuikly::util::UpdateNodeHitTestMode(GetNode(), shouldUseTarget ? target_hit_test_mode : ARKUI_HIT_TEST_MODE_NONE);
     }
 }

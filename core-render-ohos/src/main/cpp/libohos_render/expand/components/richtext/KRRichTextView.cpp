@@ -77,7 +77,12 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
     }
     if (auto rootView = GetRootView().lock()) {
         if (rootView->IsPerformMainTasking()) {
-            kuikly::util::GetNodeApi()->markDirty(GetNode(), NODE_NEED_RENDER);
+            std::weak_ptr<IKRRenderViewExport> weakSelf = shared_from_this();
+            KRMainThread::RunOnMainThreadForNextLoop([weakSelf] {
+                if(auto strongSelf = weakSelf.lock()){
+                    kuikly::util::GetNodeApi()->markDirty(strongSelf->GetNode(), NODE_NEED_RENDER);
+                }
+            });
             KR_LOG_ERROR << "OnForegroundDraw, IsPerformMainTasking Skip" << shadow_.get();
             return;
         }

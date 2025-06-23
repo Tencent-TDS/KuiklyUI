@@ -28,6 +28,7 @@ import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 /**
  * 创建一个分页组件实例并添加到视图容器中。
@@ -226,7 +227,31 @@ open class PageListView<A : PageListAttr, E : PageListEvent> : ListView<A, E>() 
         }
         var result = false
         contentView?.getSubview(index)?.flexNode?.layoutFrame?.also {
-            setContentOffset(it.x, it.y, animated)
+            val indexSize = contentView?.getSubviews()?.size
+            var x = it.x
+            var y = it.y
+            // 由于浮点计算误差可能导致内容宽高溢出而无法滚动，故此处这里做出判断
+            if (indexSize != null && index == indexSize - 1) {
+                val density = attr.pagerData.density
+                if (attr.isHorizontalDirection) {
+                    val pageListViewRenderWidth = (this.flexNode.layoutFrame.width * density).roundToInt()
+                    val contentViewRenderWidth = (contentView?.flexNode?.layoutFrame?.width!! * density).roundToInt()
+                    val renderMaxX = contentViewRenderWidth - pageListViewRenderWidth
+                    val renderX = (it.x * density).roundToInt()
+                    if (renderX > renderMaxX) {
+                        x = renderMaxX / density
+                    }
+                } else {
+                    val pageListViewRenderHeight = (this.flexNode.layoutFrame.height * density).roundToInt()
+                    val contentViewRenderHeight = (contentView?.flexNode?.layoutFrame?.height!! * density).roundToInt()
+                    val renderMaxY = contentViewRenderHeight - pageListViewRenderHeight
+                    val renderY = (it.y * density).roundToInt()
+                    if (renderY > renderMaxY) {
+                        y = renderMaxY / density
+                    }
+                }
+            }
+            setContentOffset(x, y, animated)
             result = true
         }
         return result

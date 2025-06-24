@@ -17,6 +17,7 @@ import { KRAny, KuiklyRenderCallback } from '../../utils/KRDataTypes';
 import { KRNativeRenderController } from '../../KRNativeRenderController';
 import { KRNativeManager } from '../../manager/KRNativeManager';
 import { IKuiklyRenderModuleExport } from './IKRModuleExport';
+import { KuiklyRenderBaseView } from '../../components/base/KRBaseViewExport';
 
 export abstract class KuiklyRenderBaseModule implements IKuiklyRenderModuleExport {
   protected controller: KRNativeRenderController | null = null;
@@ -34,5 +35,14 @@ export abstract class KuiklyRenderBaseModule implements IKuiklyRenderModuleExpor
   }
 
   onDestroy(): void {
+  }
+
+  // 根据tag获取自定义view
+  viewWithTag(tag: number): KuiklyRenderBaseView | null {
+    let nativeInstance = KRNativeManager.getInstance().getNativeInstance(this.instanceId);
+    if (nativeInstance) {
+      return nativeInstance.viewWithTag(tag);
+    }
+    return null;
   }
 }

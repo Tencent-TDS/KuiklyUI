@@ -31,6 +31,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshots.Snapshot
+import com.tencent.kuikly.compose.scroller.kuiklyInfo
+import com.tencent.kuikly.compose.scroller.tryExpandStartSizeNoScroll
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.layout.MeasureResult
 import com.tencent.kuikly.compose.ui.layout.Placeable
@@ -67,6 +69,8 @@ internal fun LazyGrid(
     verticalArrangement: Arrangement.Vertical,
     /** The horizontal arrangement for items/lines. */
     horizontalArrangement: Arrangement.Horizontal,
+    /** The number of lines to layout and display beyond the visible area */
+    beyondBoundsLineCount: Int = 0,
     /** The content of the grid */
     content: LazyGridScope.() -> Unit
 ) {
@@ -75,6 +79,7 @@ internal fun LazyGrid(
 //    val semanticState = rememberLazyGridSemanticState(state, reverseLayout)
 
     val coroutineScope = rememberCoroutineScope()
+    state.kuiklyInfo.scope = coroutineScope
 //    val graphicsContext = LocalGraphicsContext.current
     val measurePolicy = rememberLazyGridMeasurePolicy(
         itemProviderLambda,
@@ -86,6 +91,7 @@ internal fun LazyGrid(
         horizontalArrangement,
         verticalArrangement,
         coroutineScope,
+        beyondBoundsLineCount
 //        graphicsContext
     )
 
@@ -155,6 +161,8 @@ private fun rememberLazyGridMeasurePolicy(
     verticalArrangement: Arrangement.Vertical?,
     /** Coroutine scope for item animations */
     coroutineScope: CoroutineScope,
+    /** The number of lines to layout and display beyond the visible area */
+    beyondBoundsLineCount: Int = 0
 //    /** Used for creating graphics layers */
 //    graphicsContext: GraphicsContext
 ) = remember<LazyLayoutMeasureScope.(Constraints) -> MeasureResult>(
@@ -165,6 +173,7 @@ private fun rememberLazyGridMeasurePolicy(
     isVertical,
     horizontalArrangement,
     verticalArrangement,
+    beyondBoundsLineCount
 //    graphicsContext
 ) {
     { containerConstraints ->
@@ -281,21 +290,35 @@ private fun rememberLazyGridMeasurePolicy(
             gridItemsCount = itemsCount,
             spaceBetweenLines = spaceBetweenLines,
             measuredItemProvider = measuredItemProvider,
-            spanLayoutProvider = spanLayoutProvider
+            _spanLayoutProvider = spanLayoutProvider
         ) {
             override fun createLine(
                 index: Int,
                 items: Array<LazyGridMeasuredItem>,
                 spans: List<GridItemSpan>,
                 mainAxisSpacing: Int
-            ) = LazyGridMeasuredLine(
-                index = index,
-                items = items,
-                spans = spans,
-                slots = resolvedSlots,
-                isVertical = isVertical,
-                mainAxisSpacing = mainAxisSpacing,
-            )
+            ): LazyGridMeasuredLine {
+                val lineResult = LazyGridMeasuredLine(
+                    index = index,
+                    items = items,
+                    spans = spans,
+                    slots = resolvedSlots,
+                    isVertical = isVertical,
+                    mainAxisSpacing = mainAxisSpacing,
+                )
+
+                // 检查行高度是否扩大了 - 基于行的第一个item的key作为行的唯一标识
+                val lineKey = "line_${index}_${items.firstOrNull()?.key ?: ""}"
+                val oldLineHeight = state.kuiklyInfo.itemMainSpaceCache[lineKey]
+                // 行高度扩大了
+                if ((oldLineHeight ?: 0) < lineResult.mainAxisSizeWithSpacings && !state.isScrollInProgress) {
+                    state.kuiklyInfo.realContentSize = null
+                    state.tryExpandStartSizeNoScroll()
+                }
+                state.kuiklyInfo.itemMainSpaceCache[lineKey] = lineResult.mainAxisSizeWithSpacings
+
+                return lineResult
+            }
         }
         val prefetchInfoRetriever: (line: Int) -> List<Pair<Int, Constraints>> = { line ->
             val lineConfiguration = spanLayoutProvider.getLineConfiguration(line)
@@ -356,6 +379,7 @@ private fun rememberLazyGridMeasurePolicy(
                 itemAnimator = state.itemAnimator,
                 slotsPerLine = slotsPerLine,
                 pinnedItems = pinnedItems,
+                beyondBoundsLineCount = beyondBoundsLineCount,
                 coroutineScope = coroutineScope,
                 placementScopeInvalidator = state.placementScopeInvalidator,
                 prefetchInfoRetriever = prefetchInfoRetriever,

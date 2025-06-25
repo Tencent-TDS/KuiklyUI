@@ -115,7 +115,7 @@ fun LazyLayout(
 
         SubcomposeLayout(
             subcomposeLayoutState,
-            modifier.setProp("scrollEnabled", userScrollEnabled.toInt()),
+            modifier.setProp("scrollEnabled", userScrollEnabled.toInt()).clipToBounds(),
 //            modifier.traversablePrefetchState(prefetchState),
             remember(itemContentFactory, measurePolicy) {
                 { constraints ->

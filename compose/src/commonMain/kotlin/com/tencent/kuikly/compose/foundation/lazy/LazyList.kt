@@ -36,7 +36,6 @@ import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.tryExpandStartSizeNoScroll
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
-import com.tencent.kuikly.compose.ui.draw.clipToBounds
 import com.tencent.kuikly.compose.ui.layout.MeasureResult
 import com.tencent.kuikly.compose.ui.layout.Placeable
 import com.tencent.kuikly.compose.ui.platform.LocalLayoutDirection
@@ -116,7 +115,6 @@ internal fun LazyList(
 //                userScrollEnabled = userScrollEnabled,
 //                reverseScrolling = reverseLayout,
 //            )
-            .clipToBounds()
             .lazyLayoutBeyondBoundsModifier(
                 state = rememberLazyListBeyondBoundsState(
                     state = state,

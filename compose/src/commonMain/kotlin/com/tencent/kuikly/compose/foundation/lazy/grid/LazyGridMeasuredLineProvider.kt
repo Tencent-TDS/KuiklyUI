@@ -28,8 +28,11 @@ internal abstract class LazyGridMeasuredLineProvider(
     private val gridItemsCount: Int,
     private val spaceBetweenLines: Int,
     private val measuredItemProvider: LazyGridMeasuredItemProvider,
-    private val spanLayoutProvider: LazyGridSpanLayoutProvider
+    private val _spanLayoutProvider: LazyGridSpanLayoutProvider
 ) {
+    // 暴露spanLayoutProvider以供外部使用
+    val spanLayoutProvider: LazyGridSpanLayoutProvider get() = _spanLayoutProvider
+
     // The constraints for cross axis size. The main axis is not restricted.
     internal fun childConstraints(startSlot: Int, span: Int): Constraints {
         val crossAxisSize = if (span == 1) {
@@ -45,14 +48,14 @@ internal abstract class LazyGridMeasuredLineProvider(
         }
     }
 
-    fun spanOf(index: Int): Int = spanLayoutProvider.spanOf(index, spanLayoutProvider.slotsPerLine)
+    fun spanOf(index: Int): Int = _spanLayoutProvider.spanOf(index, _spanLayoutProvider.slotsPerLine)
 
     /**
      * Used to subcompose items on lines of lazy grids. Composed placeables will be measured
      * with the correct constraints and wrapped into [LazyGridMeasuredLine].
      */
     fun getAndMeasure(lineIndex: Int): LazyGridMeasuredLine {
-        val lineConfiguration = spanLayoutProvider.getLineConfiguration(lineIndex)
+        val lineConfiguration = _spanLayoutProvider.getLineConfiguration(lineIndex)
         val lineItemsCount = lineConfiguration.spans.size
 
         // we add space between lines as an extra spacing for all lines apart from the last one

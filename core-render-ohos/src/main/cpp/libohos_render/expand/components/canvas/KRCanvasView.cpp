@@ -357,6 +357,9 @@ void KRCanvasView::DrawText(std::string params, std::shared_ptr<struct KRFontCol
     // 设置文字大小、字重等属性
     float fontSizeScale = 1;
     auto rootView = GetRootView().lock();
+    if (rootView == nullptr) {
+        return;
+    }
     if (auto context = rootView->GetContext()) {
         fontSizeScale = context->Config()->GetFontSizeScale();
     }

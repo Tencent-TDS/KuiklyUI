@@ -454,6 +454,7 @@ struct RotationResult {
     float total_angle_deg;
 };
 
+/*
  * 将欧拉角转换为轴角表示
  * @param x_deg X轴旋转角度（度）
  * @param y_deg Y轴旋转角度（度）
@@ -463,6 +464,19 @@ struct RotationResult {
 static RotationResult ConvertEulerToAxisAngle(double x_deg, double y_deg, double z_deg) {
     constexpr double EPSILON = 1e-10;
     constexpr double DEG_TO_RAD = M_PI / 180.0;
+    
+    // 处理纯Z轴旋转的特殊情况，直接返回Z轴和角度
+    if (std::abs(x_deg) < EPSILON && std::abs(y_deg) < EPSILON) {
+        return {0.0f, 0.0f, 1.0f, static_cast<float>(z_deg)};
+    }
+    // 只绕X轴的特殊情况
+    if (std::abs(y_deg) < EPSILON && std::abs(z_deg) < EPSILON) {
+        return {1.0f, 0.0f, 0.0f, static_cast<float>(x_deg)};
+    }
+    // 只绕Y轴的特殊情况
+    if (std::abs(x_deg) < EPSILON && std::abs(z_deg) < EPSILON) {
+        return {0.0f, 1.0f, 0.0f, static_cast<float>(y_deg)};
+    }
     
     // 角度转弧度
     double rx_rad = x_deg * DEG_TO_RAD;
@@ -506,9 +520,9 @@ static RotationResult ConvertEulerToAxisAngle(double x_deg, double y_deg, double
  * @param cssTransform CSS变换字符串
  * @param size 元素尺寸（单位px）
  */
-void void UpdateNodeTransform(ArkUI_NodeHandle nodeHandle, 
-							  const std::string &cssTransform, 
-                              KRSize size) {
+void UpdateNodeTransform(ArkUI_NodeHandle nodeHandle, 
+						 const std::string &cssTransform, 
+                         KRSize size) {
     auto nodeAPI = GetNodeApi();
     auto transform = std::make_shared<KRTransformParser>();
     

@@ -19,8 +19,10 @@ import com.tencent.kuikly.core.utils.ConvertUtil
 
 class Color {
 
-    var hexColor: Long = 0
     private var colorString: String = ""
+    var hexColor: Long = 0
+        private set
+
     constructor()
 
     /**
@@ -69,6 +71,14 @@ class Color {
         return colorString.ifEmpty {
             hexColor.toString()
         }
+    }
+
+    /**
+     * 与 SwiftUI 方法类似：https://developer.apple.com/documentation/swiftui/color/opacity(_:)
+     * 通过 Color 对象生成指定 alpha 通道的颜
+     */
+    fun opacity(opacity: Float): Color {
+        return Color(hexColor and 0x00FFFFFF, opacity)
     }
 
     companion object {

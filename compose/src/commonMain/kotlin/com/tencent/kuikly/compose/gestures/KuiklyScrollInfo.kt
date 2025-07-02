@@ -29,7 +29,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 
 /**
- * 滚动信息管理类，负责处理滚动相关的状态和计算
+ * Scroll information management class, responsible for handling scroll-related state and calculations
  */
 class KuiklyScrollInfo {
     companion object {
@@ -39,62 +39,62 @@ class KuiklyScrollInfo {
     }
 
     /**
-     * 需要忽略的滚动偏移量
+     * Scroll offset that needs to be ignored
      */
     var ignoreScrollOffset: IntOffset? = null
 
     /**
-     * 滚动视图实例
+     * Scroll view instance
      */
     var scrollView: ScrollerView<ScrollerAttr, ScrollerEvent>? = null
 
     /**
-     * 滚动方向
+     * Scroll orientation
      */
     var orientation: Orientation = Orientation.Vertical
 
     /**
-     * Compose侧的偏移量，不会超越边界
+     * Offset on the Compose side, does not exceed boundaries
      */
     var composeOffset = 0f
 
     /**
-     * 当前contentView的size，用来扩展底部边界
+     * Current contentView size, used to expand the bottom boundary
      */
     var currentContentSize by mutableStateOf((DEFAULT_CONTENT_SIZE * getDensity()).toInt())
 
     /**
-     * 滑到底后，真实的contentSize
+     * Real contentSize after scrolling to the bottom
      */
     var realContentSize: Int? = null
 
     /**
-     * offset是否有偏差
+     * Whether the offset has deviation
      */
     var offsetDirty = false
 
     /**
-     * Scrollview的滑动偏移量
+     * ScrollView's scroll offset
      */
     var contentOffset: Int by mutableStateOf(0)
 
     /**
-     * 列表的高度缓存
+     * List height cache
      */
     internal var itemMainSpaceCache = hashMapOf<Any, Int>()
 
     /**
-     * 用于跟踪延迟执行的applyScrollViewOffsetDelta任务
+     * Used to track delayed execution of applyScrollViewOffsetDelta tasks
      */
     internal var appleScrollViewOffsetJob: Job? = null
 
     /**
-     * 协程作用域
+     * Coroutine scope
      */
     internal var scope: CoroutineScope? = null
 
     /**
-     * pageData相关数据
+     * PageData related data
      */
     var pageData: PageData? = null
 
@@ -106,7 +106,13 @@ class KuiklyScrollInfo {
     var stickyItemKey: Any? = null
 
     /**
-     * 更新内容大小到渲染视图
+     * Flag indicating whether the current list uses PullToRefresh
+     * When PullToRefresh is used, the isAtTop judgment logic needs to be adjusted
+     */
+    var hasPullToRefresh: Boolean = false
+
+    /**
+     * Update content size to render view
      */
     fun updateContentSizeToRender() {
         val frame = createContentFrame()
@@ -114,7 +120,7 @@ class KuiklyScrollInfo {
     }
 
     /**
-     * 创建内容Frame
+     * Create content Frame
      */
     private fun createContentFrame(): Frame {
         return if (isVertical()) {
@@ -135,7 +141,7 @@ class KuiklyScrollInfo {
     }
 
     /**
-     * 获取视口大小
+     * Get viewport size
      */
     val viewportSize: Int
         get() {
@@ -148,19 +154,19 @@ class KuiklyScrollInfo {
         }
 
     /**
-     * 获取密度
+     * Get density
      */
     fun getDensity(): Float {
         return scrollView?.getPager()?.pagerDensity() ?: DEFAULT_DENSITY
     }
 
     /**
-     * 判断是否为垂直滚动
+     * Check if it's vertical scrolling
      */
     fun isVertical(): Boolean = orientation == Orientation.Vertical
 
     /**
-     * 判断是否接近滚动底部
+     * Check if it's near the bottom of scrolling
      */
     fun nearScrollBottom(): Boolean {
         val threshold = SCROLL_BOTTOM_THRESHOLD * getDensity()

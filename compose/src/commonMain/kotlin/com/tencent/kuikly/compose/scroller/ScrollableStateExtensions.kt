@@ -28,7 +28,7 @@ import com.tencent.kuikly.compose.gestures.KuiklyScrollableState
 import com.tencent.kuikly.core.views.ScrollParams
 
 /**
- * 获取ScrollableState对应的KuiklyScrollInfo实例
+ * Get the KuiklyScrollInfo instance corresponding to ScrollableState
  */
 internal val ScrollableState.kuiklyInfo: KuiklyScrollInfo
     get() = when (this) {
@@ -42,9 +42,9 @@ internal val ScrollableState.kuiklyInfo: KuiklyScrollInfo
     }
 
 /**
- * 处理滚动事件
- * @param delta 滚动偏移量
- * @return 实际消耗的偏移量
+ * Handle scroll events
+ * @param delta scroll offset
+ * @return actual consumed offset
  */
 internal fun ScrollableState.kuiklyOnScroll(delta: Float): Float = when (this) {
     is LazyListState -> scrollableState.kuiklyOnScroll(delta)
@@ -57,7 +57,7 @@ internal fun ScrollableState.kuiklyOnScroll(delta: Float): Float = when (this) {
 }
 
 /**
- * 处理滚动结束事件
+ * Handle scroll end events
  */
 internal fun ScrollableState.kuiklyOnScrollEnd(params: ScrollParams) {
     when (this) {
@@ -67,24 +67,34 @@ internal fun ScrollableState.kuiklyOnScrollEnd(params: ScrollParams) {
         is LazyStaggeredGridState -> scrollableState.kuiklyOnScrollEnd(params)
         is ScrollState -> scrollableState.kuiklyOnScrollEnd(params)
         is KuiklyScrollableState -> kuiklyOnScrollEnd(params)
-        else -> { /* 无需处理 */ }
+        else -> { /* No need to handle */ }
     }
 }
 
 /**
- * 检查是否在顶部
+ * Check if at top position
+ * If PullToRefresh exists, need to consider the index it occupies
  */
 internal fun ScrollableState.isAtTop(): Boolean = when(this) {
-    is LazyListState -> firstVisibleItemIndex == 0 && firstVisibleItemScrollOffset == 0
+    is LazyListState -> {
+        val pullToRefreshOffset = if (kuiklyInfo.hasPullToRefresh) 1 else 0
+        firstVisibleItemIndex <= pullToRefreshOffset && firstVisibleItemScrollOffset == 0
+    }
     is PagerState -> firstVisiblePage == 0 && firstVisiblePageOffset == 0
-    is LazyGridState -> firstVisibleItemIndex == 0 && firstVisibleItemScrollOffset == 0
-    is LazyStaggeredGridState -> firstVisibleItemIndex == 0 && firstVisibleItemScrollOffset == 0
+    is LazyGridState -> {
+        val pullToRefreshOffset = if (kuiklyInfo.hasPullToRefresh) 1 else 0
+        firstVisibleItemIndex <= pullToRefreshOffset && firstVisibleItemScrollOffset == 0
+    }
+    is LazyStaggeredGridState -> {
+        val pullToRefreshOffset = if (kuiklyInfo.hasPullToRefresh) 1 else 0
+        firstVisibleItemIndex <= pullToRefreshOffset && firstVisibleItemScrollOffset == 0
+    }
     is ScrollState -> value == 0
     else -> false
 }
 
 /**
- * 检查最后一个index是否可见
+ * Check if the last index is visible
  */
 internal fun ScrollableState.lastItemVisible(): Boolean = when(this) {
     is LazyListState -> layoutInfo.visibleItemsInfo.lastOrNull()?.index == layoutInfo.totalItemsCount - 1
@@ -96,7 +106,7 @@ internal fun ScrollableState.lastItemVisible(): Boolean = when(this) {
 }
 
 /**
- * 检查偏移量是否有效
+ * Check if the offset is valid
  */
 internal fun ScrollableState.isValidOffsetDelta(delta: Int): Boolean {
     if (kuiklyInfo.scrollView?.renderView == null || delta == 0) return false
@@ -105,7 +115,7 @@ internal fun ScrollableState.isValidOffsetDelta(delta: Int): Boolean {
 }
 
 /**
- * 应用滚动视图偏移量
+ * Apply scroll view offset delta
  */
 internal fun ScrollableState.applyScrollViewOffsetDelta(delta: Int) {
     if (kuiklyInfo.scrollView == null || delta == 0) return

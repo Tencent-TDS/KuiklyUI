@@ -19,12 +19,16 @@ import android.os.Handler
 import android.os.Looper
 import android.util.ArrayMap
 import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
+import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.css.ktx.isMainThread
 import com.tencent.kuikly.core.render.android.expand.module.KRNetworkModule
 import java.io.File
+import java.io.IOException
 
 object KRFileManager {
     private val downloadingMap = ArrayMap<String, MutableList<(String?) -> Unit>>()
+
+    private const val TAG = "KRFileManager"
     /*
      *  获取文件(优先磁盘缓存，其次网络下载)
      */
@@ -38,7 +42,13 @@ object KRFileManager {
                 resultCallback(storePath)
             }
         } else {
-            storeFile.createNewFile()
+            try {
+                storeFile.createNewFile()
+            } catch (e: IOException) {
+                KuiklyRenderLog.e(TAG, "fetchFile: $e")
+                resultCallback(null)
+                return
+            }
             recordDownloadingFile(cdnUrl, resultCallback)
             context.module<KRNetworkModule>(KRNetworkModule.MODULE_NAME)?.downloadFile(cdnUrl, storePath) { filePath ->
                 if (filePath == null && storeFile.exists()) {

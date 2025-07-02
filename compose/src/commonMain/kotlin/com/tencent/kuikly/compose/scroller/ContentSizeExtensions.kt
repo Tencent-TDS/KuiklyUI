@@ -134,21 +134,25 @@ private fun ScrollState.calculateScrollStateContentSize(): Int? {
 }
 
 /**
- * 计算向后扩展的大小
+ * Calculate back expansion size
  */
 internal fun ScrollableState.calculateBackExpandSize(offset: Int): Int? {
     if (this !is LazyListState) return null
-    
+
     val visibleItems = layoutInfo.visibleItemsInfo
     if (visibleItems.isEmpty()) return null
-    
+
     val itemsSum = visibleItems.fastSumBy { it.size }
     val avgSize = itemsSum / visibleItems.size + layoutInfo.mainAxisItemSpacing
     val firstItem = visibleItems.firstOrNull() ?: return null
-    
-    val estimateOffset = firstItem.index * avgSize - firstItem.offset
+
+    // Adjust for PullToRefresh offset if it exists
+    val pullToRefreshOffset = if (kuiklyInfo.hasPullToRefresh) 1 else 0
+    val adjustedFirstItemIndex = maxOf(0, firstItem.index - pullToRefreshOffset)
+
+    val estimateOffset = adjustedFirstItemIndex * avgSize - firstItem.offset
     val density = this.kuiklyInfo.getDensity()
-    
+
     return if (estimateOffset - offset > ScrollableStateConstants.SCROLL_THRESHOLD * density) {
         estimateOffset - offset + (ScrollableStateConstants.MIN_EXPAND_SIZE * density).toInt()
     } else null
@@ -169,7 +173,7 @@ internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolea
 
         val littleDelta = (ScrollableStateConstants.SCROLL_THRESHOLD * density).toInt()
         val maxDelta = kuiklyInfo.currentContentSize - kuiklyInfo.viewportSize - kuiklyInfo.contentOffset
-        
+
         if ((delta + littleDelta) > maxDelta) {
             // 不够直接扩容offset，先扩容contentSize
             kuiklyInfo.currentContentSize += (delta - maxDelta + minDelta)

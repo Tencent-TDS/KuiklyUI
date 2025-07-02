@@ -61,6 +61,7 @@ internal fun measureLazyGrid(
     horizontalArrangement: Arrangement.Horizontal?,
     reverseLayout: Boolean,
     density: Density,
+    beyondBoundsLineCount: Int,
     itemAnimator: LazyLayoutItemAnimator<LazyGridMeasuredItem>,
     slotsPerLine: Int,
     pinnedItems: List<Int>,
@@ -196,8 +197,8 @@ internal fun measureLazyGrid(
         // offscreen, this can happen if the content padding is larger than the available size.
         while (index < itemsCount &&
             (currentMainAxisOffset < maxMainAxis ||
-                currentMainAxisOffset <= 0 || // filling beforeContentPadding area
-                visibleLines.isEmpty())
+                    currentMainAxisOffset <= 0 || // filling beforeContentPadding area
+                    visibleLines.isEmpty())
         ) {
             val measuredLine = measuredLineProvider.getAndMeasure(index)
             if (measuredLine.isEmpty()) {
@@ -260,6 +261,27 @@ internal fun measureLazyGrid(
 
         val firstItemIndex = firstLine.items.firstOrNull()?.index ?: 0
         val lastItemIndex = visibleLines.lastOrNull()?.items?.lastOrNull()?.index ?: 0
+
+        // 计算可见范围的第一行和最后行索引
+        val firstVisibleLineIndex = visibleLines.firstOrNull()?.index ?: 0
+        val lastVisibleLineIndex = visibleLines.lastOrNull()?.index ?: 0
+
+        // 计算预加载的行
+        val extraLinesBefore = calculateExtraLinesBefore(
+            measuredLineProvider = measuredLineProvider,
+            beyondBoundsLineCount = beyondBoundsLineCount,
+            firstVisibleLineIndex = firstVisibleLineIndex,
+            itemsCount = itemsCount
+        )
+
+        val extraLinesAfter = calculateExtraLinesAfter(
+            measuredLineProvider = measuredLineProvider,
+            beyondBoundsLineCount = beyondBoundsLineCount,
+            lastVisibleLineIndex = lastVisibleLineIndex,
+            itemsCount = itemsCount
+        )
+
+        // 计算sticky headers (pinnedItems)
         val extraItemsBefore = calculateExtraItems(
             pinnedItems = pinnedItems,
             measuredItemProvider = measuredItemProvider,
@@ -303,6 +325,8 @@ internal fun measureLazyGrid(
 
         val positionedItems = calculateItemsOffsets(
             lines = visibleLines,
+            extraLinesBefore = extraLinesBefore,
+            extraLinesAfter = extraLinesAfter,
             itemsBefore = extraItemsBefore,
             itemsAfter = extraItemsAfter,
             layoutWidth = layoutWidth,
@@ -314,7 +338,7 @@ internal fun measureLazyGrid(
             verticalArrangement = verticalArrangement,
             horizontalArrangement = horizontalArrangement,
             reverseLayout = reverseLayout,
-            density = density
+            density = density,
         )
 
         itemAnimator.onMeasured(
@@ -363,7 +387,8 @@ internal fun measureLazyGrid(
             viewportStartOffset = -beforeContentPadding,
             viewportEndOffset = mainAxisAvailableSize + afterContentPadding,
             positionedItems = positionedItems,
-            visibleItemsInfo = if (extraItemsBefore.isEmpty() && extraItemsAfter.isEmpty()) {
+            visibleItemsInfo = if (extraLinesBefore.isEmpty() && extraLinesAfter.isEmpty() &&
+                extraItemsBefore.isEmpty() && extraItemsAfter.isEmpty()) {
                 positionedItems
             } else {
                 positionedItems.fastFilter {
@@ -393,6 +418,7 @@ private inline fun calculateExtraItems(
 ): List<LazyGridMeasuredItem> {
     var items: MutableList<LazyGridMeasuredItem>? = null
 
+    // 只处理固定项目 (pinnedItems) - 这些通常是fullSpan的stickyHeader
     pinnedItems.fastForEach { index ->
         if (filter(index)) {
             val span = measuredLineProvider.spanOf(index)
@@ -414,10 +440,75 @@ private inline fun calculateExtraItems(
 }
 
 /**
+ * 计算可见范围之前的预加载行
+ */
+@ExperimentalFoundationApi
+private fun calculateExtraLinesBefore(
+    measuredLineProvider: LazyGridMeasuredLineProvider,
+    beyondBoundsLineCount: Int,
+    firstVisibleLineIndex: Int,
+    itemsCount: Int
+): List<LazyGridMeasuredLine> {
+    if (beyondBoundsLineCount <= 0 || firstVisibleLineIndex <= 0) {
+        return emptyList()
+    }
+
+    val startLine = maxOf(0, firstVisibleLineIndex - beyondBoundsLineCount)
+    val endLine = firstVisibleLineIndex - 1
+
+    val lines = mutableListOf<LazyGridMeasuredLine>()
+    for (lineIndex in startLine..endLine) {
+        val lineConfiguration = measuredLineProvider.spanLayoutProvider.getLineConfiguration(lineIndex)
+        if (lineConfiguration.firstItemIndex < itemsCount) {
+            val measuredLine = measuredLineProvider.getAndMeasure(lineIndex)
+            lines.add(measuredLine)
+        }
+    }
+
+    return lines
+}
+
+/**
+ * 计算可见范围之后的预加载行
+ */
+@ExperimentalFoundationApi
+private fun calculateExtraLinesAfter(
+    measuredLineProvider: LazyGridMeasuredLineProvider,
+    beyondBoundsLineCount: Int,
+    lastVisibleLineIndex: Int,
+    itemsCount: Int
+): List<LazyGridMeasuredLine> {
+    if (beyondBoundsLineCount <= 0) {
+        return emptyList()
+    }
+
+    val lastItemLineIndex = measuredLineProvider.spanLayoutProvider.getLineIndexOfItem(itemsCount - 1)
+    if (lastVisibleLineIndex >= lastItemLineIndex) {
+        return emptyList()
+    }
+
+    val startLine = lastVisibleLineIndex + 1
+    val endLine = minOf(lastItemLineIndex, lastVisibleLineIndex + beyondBoundsLineCount)
+
+    val lines = mutableListOf<LazyGridMeasuredLine>()
+    for (lineIndex in startLine..endLine) {
+        val lineConfiguration = measuredLineProvider.spanLayoutProvider.getLineConfiguration(lineIndex)
+        if (lineConfiguration.firstItemIndex < itemsCount) {
+            val measuredLine = measuredLineProvider.getAndMeasure(lineIndex)
+            lines.add(measuredLine)
+        }
+    }
+
+    return lines
+}
+
+/**
  * Calculates [LazyGridMeasuredLine]s offsets.
  */
 private fun calculateItemsOffsets(
     lines: List<LazyGridMeasuredLine>,
+    extraLinesBefore: List<LazyGridMeasuredLine>,
+    extraLinesAfter: List<LazyGridMeasuredLine>,
     itemsBefore: List<LazyGridMeasuredItem>,
     itemsAfter: List<LazyGridMeasuredItem>,
     layoutWidth: Int,
@@ -434,13 +525,10 @@ private fun calculateItemsOffsets(
     val mainAxisLayoutSize = if (isVertical) layoutHeight else layoutWidth
     val hasSpareSpace = finalMainAxisOffset < min(mainAxisLayoutSize, maxOffset)
     if (hasSpareSpace) {
-        check(firstLineScrollOffset == 0) { "non-zero firstLineScrollOffset" }
-    }
+        require(extraLinesBefore.isEmpty() && extraLinesAfter.isEmpty() &&
+                itemsBefore.isEmpty() && itemsAfter.isEmpty()) { "no extra items when hasSpareSpace" }
+        require(firstLineScrollOffset == 0) { "non-zero firstLineScrollOffset" }
 
-    val positionedItems = ArrayList<LazyGridMeasuredItem>(lines.fastSumBy { it.items.size })
-
-    if (hasSpareSpace) {
-        require(itemsBefore.isEmpty() && itemsAfter.isEmpty()) { "no items" }
         val linesCount = lines.size
         fun Int.reverseAware() =
             if (!reverseLayout) this else linesCount - this - 1
@@ -463,6 +551,8 @@ private fun calculateItemsOffsets(
         val reverseAwareOffsetIndices =
             if (reverseLayout) offsets.indices.reversed() else offsets.indices
 
+        val positionedItems = ArrayList<LazyGridMeasuredItem>(lines.fastSumBy { it.items.size })
+
         for (index in reverseAwareOffsetIndices) {
             val absoluteOffset = offsets[index]
             // when reverseLayout == true, offsets are stored in the reversed order to items
@@ -477,28 +567,55 @@ private fun calculateItemsOffsets(
                 line.position(relativeOffset, layoutWidth, layoutHeight)
             )
         }
+
+        return positionedItems
     } else {
+        val positionedItems = ArrayList<LazyGridMeasuredItem>(
+            lines.fastSumBy { it.items.size } +
+                    extraLinesBefore.fastSumBy { it.items.size } +
+                    extraLinesAfter.fastSumBy { it.items.size } +
+                    itemsBefore.size + itemsAfter.size
+        )
+
         var currentMainAxis = firstLineScrollOffset
 
+        // 1. 处理预加载的行 - 在可见范围之前
+        extraLinesBefore.fastForEachReversed { line ->
+            currentMainAxis -= line.mainAxisSizeWithSpacings
+            positionedItems.addAllFromArray(line.position(currentMainAxis, layoutWidth, layoutHeight))
+        }
+
+        // 2. 处理sticky headers - 在可见范围之前
         itemsBefore.fastForEachReversed {
             currentMainAxis -= it.mainAxisSizeWithSpacings
+            // sticky headers通常是fullSpan的，放在crossAxis的0位置
             it.position(currentMainAxis, 0, layoutWidth, layoutHeight)
             positionedItems.add(it)
         }
 
+        // 3. 处理可见的行
         currentMainAxis = firstLineScrollOffset
         lines.fastForEach {
             positionedItems.addAllFromArray(it.position(currentMainAxis, layoutWidth, layoutHeight))
             currentMainAxis += it.mainAxisSizeWithSpacings
         }
 
+        // 4. 处理预加载的行 - 在可见范围之后
+        extraLinesAfter.fastForEach { line ->
+            positionedItems.addAllFromArray(line.position(currentMainAxis, layoutWidth, layoutHeight))
+            currentMainAxis += line.mainAxisSizeWithSpacings
+        }
+
+        // 5. 处理sticky headers - 在可见范围之后
         itemsAfter.fastForEach {
+            // sticky headers通常是fullSpan的，放在crossAxis的0位置
             it.position(currentMainAxis, 0, layoutWidth, layoutHeight)
             positionedItems.add(it)
             currentMainAxis += it.mainAxisSizeWithSpacings
         }
+
+        return positionedItems
     }
-    return positionedItems
 }
 
 // Faster version of addAll that does not create a list for each array

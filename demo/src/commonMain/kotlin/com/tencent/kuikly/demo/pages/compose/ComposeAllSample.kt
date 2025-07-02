@@ -104,6 +104,8 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("焦点处理", "Focus焦点处理示例", "focusDemo"),
             DemoItem("封装KuiklyView", "封装Kuikly的VideoView为一个Composeable组件示例", "ComposeVideoDemo"),
             DemoItem("TextField", "TextField 组件示例", "TextFieldDemo"),
+            DemoItem("PullToRefresh", "PullToRefresh 组件示例", "PullToRefreshDemo"),
+
             // 动画
             DemoItem("AnimatedVisibility", "AnimatedVisibility动画API示例", "AnimatedVisibilityDemo"),
             DemoItem("AnimatedContent", "AnimatedContent内容过渡动画示例", "AnimatedContentDemo"),

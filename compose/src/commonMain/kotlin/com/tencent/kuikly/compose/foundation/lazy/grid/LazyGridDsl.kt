@@ -54,6 +54,9 @@ import com.tencent.kuikly.compose.ui.unit.dp
  * @param flingBehavior logic describing fling behavior
  * @param userScrollEnabled whether the scrolling via the user gestures or accessibility actions
  * is allowed. You can still scroll programmatically using the state even when it is disabled.
+ * @param beyondBoundsLineCount the number of lines (rows) that should be composed and laid out
+ * beyond the bounds of the grid. This helps with scroll performance and enables features like
+ * prefetching items that are about to become visible.
  * @param content the [LazyGridScope] which describes the content
  */
 @Composable
@@ -68,6 +71,7 @@ fun LazyVerticalGrid(
     horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
 //    flingBehavior: FlingBehavior = ScrollableDefaults.flingBehavior(),
     userScrollEnabled: Boolean = true,
+    beyondBoundsLineCount: Int = 3,
     content: LazyGridScope.() -> Unit
 ) {
     LazyGrid(
@@ -81,6 +85,7 @@ fun LazyVerticalGrid(
         verticalArrangement = verticalArrangement,
 //        flingBehavior = flingBehavior,
         userScrollEnabled = userScrollEnabled,
+        beyondBoundsLineCount = beyondBoundsLineCount,
         content = content
     )
 }
@@ -107,6 +112,9 @@ fun LazyVerticalGrid(
  * @param flingBehavior logic describing fling behavior
  * @param userScrollEnabled whether the scrolling via the user gestures or accessibility actions
  * is allowed. You can still scroll programmatically using the state even when it is disabled.
+ * @param beyondBoundsLineCount the number of lines (columns) that should be composed and laid out
+ * beyond the bounds of the grid. This helps with scroll performance and enables features like
+ * prefetching items that are about to become visible.
  * @param content the [LazyGridScope] which describes the content
  */
 @Composable
@@ -121,6 +129,7 @@ fun LazyHorizontalGrid(
     verticalArrangement: Arrangement.Vertical = Arrangement.Top,
 //    flingBehavior: FlingBehavior = ScrollableDefaults.flingBehavior(),
     userScrollEnabled: Boolean = true,
+    beyondBoundsLineCount: Int = 3,
     content: LazyGridScope.() -> Unit
 ) {
     LazyGrid(
@@ -134,6 +143,7 @@ fun LazyHorizontalGrid(
         verticalArrangement = verticalArrangement,
 //        flingBehavior = flingBehavior,
         userScrollEnabled = userScrollEnabled,
+        beyondBoundsLineCount = beyondBoundsLineCount,
         content = content
     )
 }
@@ -154,7 +164,7 @@ private fun rememberColumnWidthSums(
             "LazyVerticalGrid's width should be bound by parent."
         }
         val horizontalPadding = contentPadding.calculateStartPadding(LayoutDirection.Ltr) +
-            contentPadding.calculateEndPadding(LayoutDirection.Ltr)
+                contentPadding.calculateEndPadding(LayoutDirection.Ltr)
         val gridWidth = constraints.maxWidth - horizontalPadding.roundToPx()
         with(columns) {
             calculateCrossAxisCellSizes(
@@ -187,7 +197,7 @@ private fun rememberRowHeightSums(
             "LazyHorizontalGrid's height should be bound by parent."
         }
         val verticalPadding = contentPadding.calculateTopPadding() +
-            contentPadding.calculateBottomPadding()
+                contentPadding.calculateBottomPadding()
         val gridHeight = constraints.maxHeight - verticalPadding.roundToPx()
         with(rows) {
             calculateCrossAxisCellSizes(

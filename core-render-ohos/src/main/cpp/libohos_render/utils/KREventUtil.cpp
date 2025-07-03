@@ -23,6 +23,8 @@
 // typically the levels of gestures are 2 or 3, set max to 10 should be good enough
 #define GESTURE_MAX_LEVELS 10
 
+#define MAX_NODE_ID_LENGTH 128
+
 #if KUIKLY_ENABLE_ARKUI_NODE_VALID_CHECK
 #define KUIKLY_CHECK_NODE_OR_RETURN(NODE)                                                                              \
     do {                                                                                                               \
@@ -155,6 +157,17 @@ ArkUI_NodeHandle ArkUINativeGestureAPI::GetAttachedNodeForRecognizer(ArkUI_Gestu
 
     return nullptr;
 }
+
+std::string ArkUINativeGestureAPI::GetGestureBindNodeId(ArkUI_GestureRecognizer *recognizer) {
+    char node_id[MAX_NODE_ID_LENGTH];
+    int32_t result;
+    int32_t code = OH_ArkUI_GetGestureBindNodeId(recognizer, node_id, MAX_NODE_ID_LENGTH, &result);
+    if (code != ARKUI_ERROR_CODE_NO_ERROR || result <= 0) {
+        node_id[0] = '\0';
+    }
+    return node_id;
+}
+
 int32_t ArkUINativeGestureAPI::addChildGesture(ArkUI_GestureRecognizer *group, ArkUI_GestureRecognizer *child) {
     KREnsureMainThread();
     OnAddChildGesture(gestureToParentGesture_, group, child);

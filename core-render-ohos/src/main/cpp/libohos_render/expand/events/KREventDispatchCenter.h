@@ -136,6 +136,7 @@ class KREventDispatchCenter {
     std::unordered_map<ArkUI_NodeHandle, std::shared_ptr<KRCustomEventRegisterEntry>> custom_event_handler_map_;
     std::unordered_map<ArkUI_NodeHandle, std::shared_ptr<KRGestureEventRegisterEntry>> gesture_event_handler_map_;
     std::unordered_map<ArkUI_NodeHandle, std::shared_ptr<KRGestureEventRegisterEntry>> gesture_interrupter_handler_map_;
+    std::unordered_map<std::string, std::shared_ptr<KRGestureEventRegisterEntry>> legacy_gesture_interrupter_handler_map_;
 };
 
 #endif  // CORE_RENDER_OHOS_KREVENTDISPATCHCENTER_H

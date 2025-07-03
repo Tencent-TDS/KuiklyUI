@@ -41,10 +41,14 @@ void KRRenderLayerHandler::CreateRenderView(int tag, const std::string &view_nam
         auto view = PopViewFromReuseQueue(view_name);
         if (view == nullptr) {
             view = IKRRenderViewExport::CreateView(view_name);
-            view->SetRootView(root_view_, context_->InstanceId());
-            view->SetViewName(view_name);
-            view->SetViewTag(tag);
-            view->ToInit();
+            if(view){
+                view->SetRootView(root_view_, context_->InstanceId());
+                view->SetViewName(view_name);
+                view->SetViewTag(tag);
+                view->ToInit();
+            }else{
+                KR_LOG_ERROR << "Failed to create view with name:"<<view_name<<", tag:"<<tag;
+            }
         } else {
             view->SetViewTag(tag);
         }

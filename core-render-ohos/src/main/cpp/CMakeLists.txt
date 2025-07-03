@@ -63,6 +63,7 @@ set(SOURCE_SET
         libohos_render/expand/modules/preferences/KRPreferences.cpp
         libohos_render/expand/modules/preferences/KRSharedPreferencesModule.cpp
         libohos_render/expand/components/forward/KRForwardArkTSView.cpp
+        libohos_render/expand/components/forward/KRForwardArkTSViewV2.cpp
         libohos_render/expand/components/modal/KRModalView.cpp
         libohos_render/expand/components/ActivityIndicator/KRActivityIndicatorAnimationView.cpp
         libohos_render/expand/components/hover/KRHoverView.cpp

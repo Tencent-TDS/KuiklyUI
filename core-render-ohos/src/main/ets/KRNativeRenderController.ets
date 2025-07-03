@@ -642,6 +642,17 @@ export abstract class IKuiklyViewDelegate extends KRNativeRenderController {
   abstract getCustomRenderViewCreatorRegisterMap(): Map<string, KRRenderViewExportCreator>;
 
   /**
+   * 获取自定义扩展渲染视图创建注册Map。
+   * 通过这个方式注册的creator，创建的自定义view将不会有影子节点处理基础事件，需要用户在arkts侧响应所有属性的设置。
+   * 当这个方式的好处是，由于不存在影子节点，其view曾经和DSL中定义的是保持一致的。
+   * 建议仅在有强一致层级需求的时候才采用。
+   */
+  getCustomRenderViewCreatorRegisterMapV2(): Map<string, KRRenderViewExportCreator>{
+    // by default
+    return new Map();
+  }
+
+  /**
    * 获取自定义扩展module创建注册Map
    */
   abstract getCustomRenderModuleCreatorRegisterMap(): Map<string, KRRenderModuleExportCreator>;

@@ -14,7 +14,7 @@
  */
 
 import { KRAny, KRValue, KuiklyRenderCallback } from '../../utils/KRDataTypes';
-import { ComponentContent, UIContext } from '@kit.ArkUI';
+import { ComponentContent, NodeContent, UIContext } from '@kit.ArkUI';
 import { KRNativeManager } from '../../manager/KRNativeManager';
 import { KRNativeInstance } from '../../manager/KRNativeInstance';
 import { KRColorParser } from '../../utils/KRColorParser';
@@ -180,6 +180,10 @@ export abstract class KuiklyRenderBaseView implements IKuiklyRenderViewExport {
    */
   abstract createArkUIView(): ComponentContent<KuiklyRenderBaseView>
 
+  getContentSlot(): NodeContent | null{
+    return null
+  }
+
   /**
    * View销毁时，此方法会被调用，用于销毁View中的资源
    */
@@ -240,6 +244,10 @@ export abstract class KuiklyRenderBaseView implements IKuiklyRenderViewExport {
    */
   toDestroy(): void {
     this.onDestroy();
+
+    if(this.arkUINode){
+      (this.arkUINode as ComponentContent<KuiklyRenderBaseView>).dispose()
+    }
     this.arkUINode = null;
   }
 

@@ -35,6 +35,36 @@ void KRRenderViewSetExternalPropHandler(KRRenderViewOnSetProp set, KRRenderViewO
 }
 #endif
 
+std::shared_ptr<IKRRenderViewExport> IKRRenderViewExport::CreateView(const std::string &view_name) {
+    KREnsureMainThread();
+
+    auto &ViewCreatorMap = GetRegisterViewCreator();
+    if (ViewCreatorMap.find(view_name) != ViewCreatorMap.end()) {
+        return ViewCreatorMap[view_name]();
+    } else {  // 使用通用View，转发到ArkTS层Module
+        switch(KRArkTSViewNameRegistry::GetInstance().KindOfView(view_name)){
+        case KRArkTSViewNameRegistry::ViewKindV1:{
+            auto it = GetRegisterViewCreator().find(std::string(FORWARD_ARKTS_VIEW_NAME));
+            if (it != GetRegisterViewCreator().end()) {
+                KR_LOG_DEBUG << "Creating View with Forwarder V1 for View:"<<view_name;
+                return it->second();
+            }
+        }
+        break;
+        case KRArkTSViewNameRegistry::ViewKindV2:{
+            auto it = GetRegisterViewCreator().find(std::string(FORWARD_ARKTS_VIEW_NAME_V2));
+            if (it != GetRegisterViewCreator().end()) {
+                KR_LOG_DEBUG << "Creating View with Forwarder V1 for View:"<<view_name;
+                return it->second();
+            }
+        }
+        break;
+        }
+    }
+    KR_LOG_ERROR << "View Creator Not Found! View Name:"<<view_name;
+    return nullptr;
+}
+
 void IKRRenderViewExport::CallMethod(const std::string &method, const KRAnyValue &params,
                                      const KRRenderCallback &callback) {
     if (method == "toImage") {

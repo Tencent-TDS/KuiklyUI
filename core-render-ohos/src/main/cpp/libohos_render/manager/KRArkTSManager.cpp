@@ -15,12 +15,14 @@
 
 #include "libohos_render/manager/KRArkTSManager.h"
 
+#include "libohos_render/foundation/ark_ts.h"
 #include "libohos_render/foundation/KRCallbackData.h"
 #include "libohos_render/manager/KRKeyboardManager.h"
 #include "libohos_render/manager/KRRenderManager.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"
 #include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/view/KRRenderView.h"
+
 
 napi_value CToNApiValue(napi_env env, const KRAnyValue &value) {
     napi_value arg0Value;
@@ -54,6 +56,9 @@ void KRArkTSManager::HandleArkTSCallNative(napi_env env, napi_value *args, size_
     } else if (methodId == static_cast<int>(KRArkTSCallNativeMethod::FireViewEvent)) {
         // 响应View的事件（From ArkTS侧）
         FireViewEventFromArkTS(env, args, arg_size);
+    }else if(methodId == static_cast<int>(KRArkTSCallNativeMethod::General)){
+        // ArkTS到C++方向到通用信息传递
+        HandleGeneralMessage(env, args, arg_size);
     }
 }
 
@@ -80,7 +85,8 @@ KRAnyValue KRArkTSManager::CallArkTSMethod(const std::string &instanceId, KRNati
                                            const KRAnyValue &arg0, const KRAnyValue &arg1, const KRAnyValue &arg2,
                                            const KRAnyValue &arg3, const KRAnyValue &arg4,
                                            const KRRenderCallback &callback, bool callback_keep_alive,
-                                           ArkUI_NodeHandle *return_node_handle, bool arg_prefers_raw_napi_value) {
+                                           ArkUI_NodeHandle *return_node_handle, bool arg_prefers_raw_napi_value,
+                                           ArkUI_NodeContentHandle *pContentHandle) {
     if (arkTSCallbackData_ == nullptr) {
         return nullptr;
     }
@@ -117,7 +123,20 @@ KRAnyValue KRArkTSManager::CallArkTSMethod(const std::string &instanceId, KRNati
     napi_value result;
     napi_call_function(env, nullptr, callbackFun, 8, callbackArgs, &result);
     if (return_node_handle != nullptr) {  // 返回一个arkui侧的node_handle
-        OH_ArkUI_GetNodeHandleFromNapiValue(env, result, return_node_handle);
+        napi_value componentContent = nullptr;
+        napi_get_element(env, result, 0, &componentContent);
+        //napi_get_named_property(env, result, "componentContent", &componentContent);
+        OH_ArkUI_GetNodeHandleFromNapiValue(env, componentContent, return_node_handle);
+        
+        napi_value nodeContent = nullptr;
+        napi_get_element(env, result, 1, &nodeContent);
+        //napi_get_named_property(env, result, "slot", &nodeContent);
+        ArkUI_NodeContentHandle contentHandle = nullptr;
+        OH_ArkUI_GetNodeContentFromNapiValue(env, nodeContent, &contentHandle);
+        if(pContentHandle){
+            *pContentHandle = contentHandle;
+        }
+        
         return std::make_shared<KRRenderValue>(nullptr);
     }
     return std::make_shared<KRRenderValue>(env, result);
@@ -168,5 +187,32 @@ void KRArkTSManager::FireViewEventFromArkTS(napi_env env, napi_value *args, size
             auto data = std::make_shared<KRRenderValue>(env, args[4]);
             view->FireViewEventFromArkTS(eventKey, data);
         }
+    }
+}
+
+enum KRGenralMessageKind{
+  RegisterCreateor = 0
+};
+
+void KRArkTSManager::HandleGeneralMessage(napi_env env, napi_value *args, size_t arg_size){
+    if(arg_size < 3){
+        return;
+    }
+    ArkTS arkts(env);
+    int messageKind = arkts.GetInteger(args[2]);
+    switch(messageKind){
+    case RegisterCreateor:
+        std::string viewType = arkts.GetString(args[3]);
+        int version = arkts.GetInteger(args[4]);
+        KRArkTSViewNameRegistry::ViewKind viewKind = KRArkTSViewNameRegistry::ViewKindNotFound;
+        if(version == 1){
+            viewKind = KRArkTSViewNameRegistry::ViewKindV1;
+        }else if(version == 2){
+            viewKind = KRArkTSViewNameRegistry::ViewKindV2;
+        }
+        if(viewKind != KRArkTSViewNameRegistry::ViewKindNotFound){
+            KRArkTSViewNameRegistry::GetInstance().AddViewName(viewType, viewKind);
+        }
+        break;
     }
 }

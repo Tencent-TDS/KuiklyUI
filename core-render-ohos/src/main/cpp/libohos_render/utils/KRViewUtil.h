@@ -45,11 +45,13 @@
 #define KUIKLY_ENABLE_ARKUI_NODE_VALID_CHECK 1
 
 class KRForwardArkTSView;
+class KRForwardArkTSViewV2;
 namespace kuikly {
 namespace util {
 
 class ArkUINativeNodeAPI {
     friend class ::KRForwardArkTSView;
+    friend class ::KRForwardArkTSViewV2;
 
  public:
     ArkUI_NodeHandle createNode(ArkUI_NodeType type);
@@ -81,6 +83,7 @@ class ArkUINativeNodeAPI {
     ~ArkUINativeNodeAPI() = default;
     ArkUI_NativeNodeAPI_1 *impl_;
 
+    void unregisterNodeCreatedFromArkTS(ArkUI_NodeHandle node);
     void registerNodeCreatedFromArkTS(ArkUI_NodeHandle node);
 #if KUIKLY_ENABLE_ARKUI_NODE_VALID_CHECK
     std::unordered_set<ArkUI_NodeHandle> nodesAlive_;

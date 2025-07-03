@@ -25,11 +25,15 @@ import { ViewsRegisterEntry } from '../components/ViewsRegisterEntry';
 import { KRNativeRenderController } from '../KRNativeRenderController';
 
 export enum KRCallNativeMethod {
-  Unknown = 0,
+  General = 0,
   Register = 1, // 注册native回调arkTS方法
   FireCallback = 2, // 响应native callback
   KeyboardHeightChange = 3, // 键盘高度变化
   FireViewEvent = 4, // 响应View事件
+}
+
+enum KRGenralMessageKind{
+  RegisterCreateor = 0
 }
 
 export enum KRNativeCallArkTSMethod {
@@ -195,6 +199,14 @@ export class KRNativeManager {
    */
   public registerViewCreator(viewType: string, viewCreator: KRViewCreator) {
     KRNativeInstance.registerViewCreator(viewType, viewCreator);
+    this.arkTSCallNative('0', KRCallNativeMethod.General.valueOf(),  KRGenralMessageKind.RegisterCreateor.valueOf(), viewType, 1, null,
+      null, null);
+  }
+
+  public registerViewCreatorV2(viewType: string, viewCreator: KRViewCreator) {
+    KRNativeInstance.registerViewCreator(viewType, viewCreator);
+    this.arkTSCallNative('0', KRCallNativeMethod.General.valueOf(), KRGenralMessageKind.RegisterCreateor.valueOf(), viewType, 2, null,
+      null, null);
   }
 
   /**

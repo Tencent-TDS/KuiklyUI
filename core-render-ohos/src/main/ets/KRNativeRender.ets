@@ -84,6 +84,9 @@ export struct KRNativeRender {
     this.delegate?.getCustomRenderViewCreatorRegisterMap().forEach((value, key) => {
       KRNativeManager.getInstance().registerViewCreator(key, value);
     });
+    this.delegate?.getCustomRenderViewCreatorRegisterMapV2().forEach((value, key) => {
+      KRNativeManager.getInstance().registerViewCreatorV2(key, value);
+    });
     this.delegate?.getCustomRenderModuleCreatorRegisterMap().forEach((value, key) => {
       KRNativeManager.getInstance().registerModuleCreator(key, value);
     });

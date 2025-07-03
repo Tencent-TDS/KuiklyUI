@@ -20,6 +20,7 @@
 #include "libohos_render/expand/components/apng/KRApngView.h"
 #include "libohos_render/expand/components/canvas/KRCanvasView.h"
 #include "libohos_render/expand/components/forward/KRForwardArkTSView.h"
+#include "libohos_render/expand/components/forward/KRForwardArkTSViewV2.h"
 #include "libohos_render/expand/components/hover/KRHoverView.h"
 #include "libohos_render/expand/components/image/KRImageView.h"
 #include "libohos_render/expand/components/image/KRImageViewWrapper.h"
@@ -41,6 +42,7 @@
 static void ComponentsRegisterEntry() {
     // 注册通用转发ArkTS侧View组件
     IKRRenderViewExport::RegisterForwardArkTSViewCreator([] { return std::make_shared<KRForwardArkTSView>(); });
+    IKRRenderViewExport::RegisterForwardArkTSViewCreatorV2([] { return std::make_shared<KRForwardArkTSViewV2>(); });
 
     IKRRenderViewExport::RegisterViewCreator("KRView", [] { return std::make_shared<KRView>(); });
     IKRRenderViewExport::RegisterViewCreator("KRImageView", [] { return std::make_shared<KRImageView>(); });

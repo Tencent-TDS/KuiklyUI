@@ -16,7 +16,7 @@
 import { KRAny, KRValue, KuiklyRenderCallback } from '../utils/KRDataTypes';
 import { KuiklyRenderBaseView } from '../components/base/KRBaseViewExport';
 import { IKuiklyRenderModuleExport, KRRenderModuleExportCreator } from '../modules/base/IKRModuleExport';
-import { ComponentContent } from '@kit.ArkUI';
+import { ComponentContent, NodeContent } from '@kit.ArkUI';
 import { KRNativeRenderController } from '../KRNativeRenderController';
 import { KuiklyRenderBaseModule } from '../modules/base/KRBaseModule';
 import { KRRenderExecuteModeBase } from '../context/KRRenderExecuteModeBase';
@@ -28,7 +28,6 @@ export type KRViewCreator = () => KuiklyRenderBaseView;
 export type KRExceptionCallback = (executeMode: KRRenderExecuteModeBase, stack: string) => void;
 
 export type KRNativeRenderControllerReadyCallback = (controller: KRNativeRenderController) => void;
-
 
 export class KRNativeInstance {
   private uiContext: UIContext | null = null;
@@ -84,11 +83,12 @@ export class KRNativeInstance {
     return null;
   }
 
-  public generateViewBuilder(tag: number, nodeId: string): ComponentContent<KuiklyRenderBaseView> | null {
+  public generateViewBuilder(tag: number, nodeId: string): KRAny {
     if (this.viewRegistry.has(tag)) {
       let view = this.viewRegistry.get(tag);
       if (view) {
-        return view.toCreateArkUIView(nodeId);
+        let arr = [view.toCreateArkUIView(nodeId), view.getContentSlot()]
+        return arr
       }
     }
     return null;

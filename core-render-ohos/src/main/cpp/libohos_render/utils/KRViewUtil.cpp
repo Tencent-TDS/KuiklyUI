@@ -75,6 +75,16 @@ ArkUINativeNodeAPI *ArkUINativeNodeAPI::GetInstance() {
     return instance_;
 }
 
+void ArkUINativeNodeAPI::unregisterNodeCreatedFromArkTS(ArkUI_NodeHandle node) {
+    KREnsureMainThread();
+#if KUIKLY_ENABLE_ARKUI_NODE_VALID_CHECK
+    {
+        std::lock_guard<std::mutex> guard(mutex_);
+        nodesAlive_.erase(node);
+    }
+#endif
+}
+
 void ArkUINativeNodeAPI::registerNodeCreatedFromArkTS(ArkUI_NodeHandle node) {
     KREnsureMainThread();
 #if KUIKLY_ENABLE_ARKUI_NODE_VALID_CHECK

@@ -26,22 +26,23 @@
 class KRBaseEventHandler : public std::enable_shared_from_this<KRBaseEventHandler> {
  public:
     explicit KRBaseEventHandler(const std::shared_ptr<KRConfig> &kr_config);
+    virtual ~KRBaseEventHandler() = default;
     KRBaseEventHandler(const KRBaseEventHandler &) = delete;
     KRBaseEventHandler(const KRBaseEventHandler &&) = delete;
     KRBaseEventHandler &operator=(const KRBaseEventHandler &) = delete;
     KRBaseEventHandler &operator=(const KRBaseEventHandler &&) = delete;
 
-    bool SetProp(const std::shared_ptr<IKRRenderViewExport> &view_export, const std::string &prop_key,
+    virtual bool SetProp(const std::shared_ptr<IKRRenderViewExport> &view_export, const std::string &prop_key,
                  const KRAnyValue &prop_value, const KRRenderCallback event_call_back = nullptr);
-    bool OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEventType &event_type);
-    bool OnCustomEvent(ArkUI_NodeCustomEvent *event, const ArkUI_NodeCustomEventType &event_type);
-    bool OnGestureEvent(const std::shared_ptr<KRGestureEventData> &gesture_event_data,
+    virtual bool OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEventType &event_type);
+    virtual bool OnCustomEvent(ArkUI_NodeCustomEvent *event, const ArkUI_NodeCustomEventType &event_type);
+    virtual bool OnGestureEvent(const std::shared_ptr<KRGestureEventData> &gesture_event_data,
                         const KRGestureEventType &event_type);
-    bool ResetProp(const std::string &prop_key);
-    void OnDestroy();
+    virtual bool ResetProp(const std::string &prop_key);
+    virtual void OnDestroy();
     // 是否含有手势事件监听
-    bool HasTouchEvent();
-    bool HasCaptureRule();
+    virtual bool HasTouchEvent();
+    virtual bool HasCaptureRule();
 
  private:
     bool RegisterOnClick(const std::shared_ptr<IKRRenderViewExport> &view_export,
@@ -75,4 +76,38 @@ class KRBaseEventHandler : public std::enable_shared_from_this<KRBaseEventHandle
     bool is_long_press_happening = false;
 };
 
+class KRArkTSBaseEventHandler : public KRBaseEventHandler {
+ public:
+    KRArkTSBaseEventHandler(const std::shared_ptr<KRConfig> &kr_config):
+    KRBaseEventHandler(kr_config){
+            // blank
+    }
+    bool SetProp(const std::shared_ptr<IKRRenderViewExport> &view_export, const std::string &prop_key,
+                 const KRAnyValue &prop_value, const KRRenderCallback event_call_back = nullptr) override {
+        return false;
+    }
+    bool OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEventType &event_type) override {
+        return false;
+    }
+    bool OnCustomEvent(ArkUI_NodeCustomEvent *event, const ArkUI_NodeCustomEventType &event_type) override {
+        return false;
+    }
+    bool OnGestureEvent(const std::shared_ptr<KRGestureEventData> &gesture_event_data,
+                        const KRGestureEventType &event_type) override {
+        return false;
+    }
+    bool ResetProp(const std::string &prop_key) override {
+        return false;
+    }
+    void OnDestroy() override {
+        KRBaseEventHandler::OnDestroy();
+    }
+    // 是否含有手势事件监听
+    bool HasTouchEvent() override {
+        return false;
+    }
+    bool HasCaptureRule() override {
+        return false;
+    }
+};
 #endif  // CORE_RENDER_OHOS_KRBASEEVENTHANDLER_H

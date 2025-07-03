@@ -15,14 +15,21 @@
 
 import { IKuiklyViewDelegate, KRRenderModuleExportCreator, KRRenderViewExportCreator } from '@kuikly-open/render';
 import { KRMyView } from './components/KRMyView';
+import { KRMyDemoCustomView } from './components/KRMyDemoCustomView';
 import { KRMyModule } from './modules/KRMyModule';
 import { KRBridgeModule } from './modules/KRBridgeModule';
 
 
 export class KuiklyViewDelegate extends IKuiklyViewDelegate {
-  getCustomRenderViewCreatorRegisterMap(): Map<string, KRRenderViewExportCreator> {
+  getCustomRenderViewCreatorRegisterMap(): Map<string, KRRenderViewExportCreator>{
     const map: Map<string, KRRenderViewExportCreator> = new Map();
     map.set(KRMyView.VIEW_NAME, () => new KRMyView());
+    return map;
+  }
+
+  getCustomRenderViewCreatorRegisterMapV2(): Map<string, KRRenderViewExportCreator> {
+    const map: Map<string, KRRenderViewExportCreator> = new Map();
+    map.set(KRMyDemoCustomView.VIEW_NAME, () => new KRMyDemoCustomView());
     return map;
   }
 

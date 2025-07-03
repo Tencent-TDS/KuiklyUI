@@ -18,6 +18,7 @@
 #include <arkui/native_type.h>
 #include <cstddef>
 #include <string>
+#include <set>
 #include "libohos_render/foundation/KRCallbackData.h"
 #include "libohos_render/foundation/KRCommon.h"
 #include "napi/native_api.h"
@@ -38,7 +39,7 @@ enum class KRNativeCallArkTSMethod {
 
 /// ArkTS调用Native方法枚举
 enum class KRArkTSCallNativeMethod {
-    Unknown = 0,
+    General = 0,
     Register = 1,              // 注册给Native回调ArkTS闭包
     FireCallback = 2,          // 响应native callback
     KeyboardHeightChange = 3,  // 键盘高度变化
@@ -67,7 +68,7 @@ class KRArkTSManager {
                                const KRAnyValue &arg1, const KRAnyValue &arg2, const KRAnyValue &arg3,
                                const KRAnyValue &arg4, const KRRenderCallback &callback,
                                bool callback_keep_alive = false, ArkUI_NodeHandle *return_node_handle = nullptr,
-                               bool arg_prefers_raw_napi_value = false);
+                               bool arg_prefers_raw_napi_value = false, ArkUI_NodeContentHandle *contentHandle = nullptr);
 
     /**
      * 获取NAPI Env
@@ -99,6 +100,44 @@ class KRArkTSManager {
      * ArkTS侧响应ViewEvent事件
      */
     void FireViewEventFromArkTS(napi_env env, napi_value *args, size_t arg_size);
+    
+    void HandleGeneralMessage(napi_env env, napi_value *args, size_t arg_size);
 };
 
+class IKRRenderViewExport;
+class KRArkTSViewNameRegistry{
+    friend class KRArkTSManager;
+    friend class IKRRenderViewExport;
+    //friend std::shared_ptr<IKRRenderViewExport> IKRRenderViewExport::CreateView(const std::string &view_name);
+private:
+    enum ViewKind{
+        ViewKindNotFound, ViewKindV1, ViewKindV2
+    };
+    static KRArkTSViewNameRegistry& GetInstance(){
+        static KRArkTSViewNameRegistry instance_;
+        return instance_;
+    }
+    
+    void AddViewName(const std::string &name, ViewKind kind ){
+        if(kind == ViewKindV1){
+            v1_names_.insert(name);
+        }else if(kind == ViewKindV2){
+            v2_names_.insert(name);
+        }
+    }
+    
+    ViewKind KindOfView(const std::string& viewName){
+        if(v1_names_.find(viewName) != v1_names_.end()){
+            return ViewKindV1;
+        }
+        if(v2_names_.find(viewName) != v2_names_.end()){
+            return ViewKindV2;
+        }
+        return ViewKindNotFound;
+    }
+    
+private:
+    std::set<std::string> v1_names_;
+    std::set<std::string> v2_names_;
+};
 #endif  // CORE_RENDER_OHOS_KRARKTSMANAGER_H

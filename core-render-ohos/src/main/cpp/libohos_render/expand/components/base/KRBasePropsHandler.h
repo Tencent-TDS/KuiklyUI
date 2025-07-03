@@ -33,14 +33,15 @@ class KRBasePropsHandler : public std::enable_shared_from_this<KRBasePropsHandle
         : weakView_(weakView), node_(node), context_(context) {
         // blank
     }
+    virtual ~KRBasePropsHandler() = default;
 
-    bool SetProp(const std::string &prop_key, const KRAnyValue &prop_value, const KRRenderCallback event_call_back);
-    bool SetPropWithoutAnimation(const std::string &prop_key, const KRAnyValue &prop_value,
+    virtual bool SetProp(const std::string &prop_key, const KRAnyValue &prop_value, const KRRenderCallback event_call_back);
+    virtual bool SetPropWithoutAnimation(const std::string &prop_key, const KRAnyValue &prop_value,
                                  const KRRenderCallback event_call_back);
 
-    bool ResetProp(const std::string &prop_key);
+    virtual bool ResetProp(const std::string &prop_key);
 
-    void OnDestroy();
+    virtual void OnDestroy();
 
     const KRRect GetFrame() const {
         return frame_;
@@ -53,15 +54,15 @@ class KRBasePropsHandler : public std::enable_shared_from_this<KRBasePropsHandle
     }
 
     // 新增动画配置
-    void AddAnimation(std::shared_ptr<IKRNodeAnimation> anim);
+    virtual void AddAnimation(std::shared_ptr<IKRNodeAnimation> anim);
     // 触发所有配置动画
-    void CommitAnimations();
+    virtual void CommitAnimations();
     // 删除动画配置
-    bool RemoveAnimation(const std::shared_ptr<IKRNodeAnimation> &animation);
+    virtual bool RemoveAnimation(const std::shared_ptr<IKRNodeAnimation> &animation);
     // 删除所有动画配置
-    void RemoveAllAnimations();
+    virtual void RemoveAllAnimations();
     // 动画配置完成回调
-    void OnAnimationCompletion(std::shared_ptr<IKRNodeAnimation> animation, bool finished, const std::string &propKey,
+    virtual void OnAnimationCompletion(std::shared_ptr<IKRNodeAnimation> animation, bool finished, const std::string &propKey,
                                const std::string &animationKey);
     // zIndex
     int GetZIndex() {
@@ -98,4 +99,51 @@ class KRBasePropsHandler : public std::enable_shared_from_this<KRBasePropsHandle
     bool tryAddCurrentAnimationOperation(const std::string &prop_key, const KRAnyValue &prop_value);
 };
 
+
+class KRArkTSViewBasePropsHandler : public KRBasePropsHandler{
+ public:
+    KRArkTSViewBasePropsHandler(std::weak_ptr<IKRRenderViewExport> weakView)
+        : KRBasePropsHandler(weakView, nullptr, nullptr) {
+        // blank
+    }
+    virtual ~KRArkTSViewBasePropsHandler() = default;
+
+    bool SetProp(const std::string &prop_key, const KRAnyValue &prop_value, const KRRenderCallback event_call_back) override {
+        return false;
+    }
+    bool SetPropWithoutAnimation(const std::string &prop_key, const KRAnyValue &prop_value,
+                                 const KRRenderCallback event_call_back) override {
+        return false;
+    }
+
+    bool ResetProp(const std::string &prop_key) override {
+        return false;
+    }
+
+    void OnDestroy() override {
+        // blank
+    }
+
+    // 新增动画配置
+    void AddAnimation(std::shared_ptr<IKRNodeAnimation> anim) override {
+        // blank
+    }
+    // 触发所有配置动画
+    void CommitAnimations() override {
+        // blank
+    }
+    // 删除动画配置
+    bool RemoveAnimation(const std::shared_ptr<IKRNodeAnimation> &animation) override {
+        return false;
+    }
+    // 删除所有动画配置
+    void RemoveAllAnimations() override {
+        // blank
+    }
+    // 动画配置完成回调
+    void OnAnimationCompletion(std::shared_ptr<IKRNodeAnimation> animation, bool finished, const std::string &propKey,
+                               const std::string &animationKey) override {
+        // blank
+    }
+};
 #endif  // CORE_RENDER_OHOS_KRBASEPROPSHANDLER_H

@@ -588,6 +588,7 @@ void KRScrollerView::DidMoveToParentView() {
             auto handler = view->GetSuperTouchHandler();
             if (handler) {
                 weak_super_touch_handler_ = handler;
+                SetViewTag(GetViewTag());
                 RegisterGestureInterrupter();
                 break;
             }

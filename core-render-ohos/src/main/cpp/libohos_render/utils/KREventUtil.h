@@ -56,6 +56,7 @@ class ArkUINativeGestureAPI {
                                                                    double distanceThreshold);
 
     ArkUI_NodeHandle GetAttachedNodeForRecognizer(ArkUI_GestureRecognizer *recognizer);
+    std::string GetGestureBindNodeId(ArkUI_GestureRecognizer *recognizer);
     static ArkUINativeGestureAPI *GetInstance();
 
  private:

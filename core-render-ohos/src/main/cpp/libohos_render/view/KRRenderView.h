@@ -35,7 +35,7 @@ class KRRenderView : public IKRRenderView {
     void Init(std::shared_ptr<KRRenderContextParams> context, ArkUI_ContextHandle &ui_context_handle,
               NativeResourceManager *native_resources_manager, float width, float height, int64_t launch_time);
     void OnRenderViewSizeChanged(float width, float height);
-    void WillDestroy();
+    void WillDestroy(const std::string &instanceId);
     /**
      * 发送页面事件到kotlin侧
      * @param event_name 事件名

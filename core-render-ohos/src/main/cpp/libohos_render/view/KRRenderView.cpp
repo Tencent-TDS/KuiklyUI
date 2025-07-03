@@ -52,8 +52,8 @@ KRRenderView::~KRRenderView() {
     method_arg_callback_map_.clear();
 }
 
-void KRRenderView::WillDestroy() {
-    core_->WillDealloc();
+void KRRenderView::WillDestroy(const std::string &instanceId) {
+    core_->WillDealloc(instanceId);
     // send event to call
     // delay destroy for core
 }

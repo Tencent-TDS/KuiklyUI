@@ -104,9 +104,17 @@ void KRRenderManager::DestroyRenderView(std::string &instanceId) {
         KRScopedSpinLock lock(&render_view_map_lock_);
         if (auto it = render_view_map_.find(instanceId); it != render_view_map_.end()) {
             if (it->second != nullptr) {
-                it->second->WillDestroy();
-                render_view_map_.erase(it);
+                it->second->WillDestroy(instanceId);
             }
+        }
+    }
+}
+
+void KRRenderManager::DestroyRenderViewCallBack(const std::string &instanceId) {
+    {
+        KRScopedSpinLock lock(&render_view_map_lock_);
+        if (render_view_map_.find(instanceId) != render_view_map_.end()) {
+            render_view_map_.erase(instanceId);
         }
     }
     {
@@ -116,6 +124,7 @@ void KRRenderManager::DestroyRenderView(std::string &instanceId) {
         }
     }
 }
+
 
 void KRRenderManager::OnLaunchStart(std::string &instanceId) {
     auto now_system = std::chrono::system_clock::

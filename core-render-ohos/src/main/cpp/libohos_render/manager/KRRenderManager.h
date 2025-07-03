@@ -37,6 +37,8 @@ class KRRenderManager {
 
     void DestroyRenderView(std::string &instanceId);
 
+    void DestroyRenderViewCallBack(const std::string &instanceId);
+
     void OnLaunchStart(std::string &instanceId);  //  ArkTS层页面启动事件
     int64_t GetLaunchStartTime(std::string &instanceId);
     void RegisterExcuteModeCreator(const std::shared_ptr<KRRenderExecuteModeWrapper> &execute_mode_wrapper);

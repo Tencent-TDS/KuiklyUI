@@ -86,8 +86,9 @@ class KRRenderCore : public std::enable_shared_from_this<KRRenderCore>,
 
     /**
      * @brief Core销毁前调用，用于Core提前发送事件到Kotlin侧销毁内在资源.
+     * @param instanceId 用于回调销毁RenderManager存储的RenderView的标识
      */
-    void WillDealloc();
+    void WillDealloc(const std::string &instanceId);
     /**
      * 添加任务到主线程中
      * @param task

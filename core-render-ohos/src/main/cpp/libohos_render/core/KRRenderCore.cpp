@@ -23,6 +23,7 @@
 #include "libohos_render/scheduler/KRContextScheduler.h"
 #include "libohos_render/utils/KRRenderLoger.h"
 #include "libohos_render/view/KRRenderView.h"
+#include "libohos_render/manager/KRRenderManager.h"
 
 EXTERN_C_START
 const KRRenderCValue com_tencent_kuikly_CallNative(int methodId, KRRenderCValue arg0, KRRenderCValue arg1,
@@ -138,16 +139,20 @@ std::shared_ptr<IKRRenderModuleExport> KRRenderCore::GetModuleOrCreate(std::stri
     return renderLayerHandler_->GetModuleOrCreate(module_name);
 }
 
-void KRRenderCore::WillDealloc() {
+void KRRenderCore::WillDealloc(const std::string &instanceId) {
     contextHandler_->WillDestroy();
     renderLayerHandler_->WillDestroy();
     auto self = shared_from_this();
-    PerformTaskOnContextQueue(false, 0, [self] {
+    std::string id = instanceId;
+    PerformTaskOnContextQueue(false, 0, [self, id] {
         auto nullValue = self->defaultNullValue_;
         self->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodDestroyInstance, nullValue, nullValue,
                                nullValue, nullValue, nullValue);
         self->contextHandler_->OnDestroy();
-        self->uiScheduler_->AddTaskToMainQueueWithTask([self] { self->OnDestroy(); });
+        self->uiScheduler_->AddTaskToMainQueueWithTask([self, id] {
+            self->OnDestroy();
+            KRRenderManager::GetInstance().DestroyRenderViewCallBack(id);
+        });
     });
 }
 

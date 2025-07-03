@@ -15,16 +15,20 @@
 
 #include "KRCanvasView.h"
 
+#include <multimedia/image_framework/image/image_source_native.h>
+#include <multimedia/image_framework/image/pixelmap_native.h>
 #include <native_drawing/drawing_bitmap.h>
 #include <native_drawing/drawing_brush.h>
 #include <native_drawing/drawing_canvas.h>
 #include <native_drawing/drawing_path.h>
 #include <native_drawing/drawing_path_effect.h>
 #include <native_drawing/drawing_pen.h>
+#include <native_drawing/drawing_pixel_map.h>
 #include <native_drawing/drawing_rect.h>
 #include <native_drawing/drawing_shader_effect.h>
 #include <native_drawing/drawing_types.h>
 
+#include "libohos_render/expand/modules/cache/KRMemoryCacheModule.h"
 #include "libohos_render/utils/KRColor.h"
 #include "libohos_render/utils/KRJSONObject.h"
 
@@ -49,12 +53,13 @@ static constexpr std::string_view STROKE_TEXT = "strokeText";
 static constexpr std::string_view BEZIER_CURVE_TO = "bezierCurveTo";
 static constexpr std::string_view RESET = "reset";
 static constexpr std::string_view LINEAR_GRADIENT = "linear-gradient";
+static constexpr std::string_view DRAW_IMAGE = "drawImage";
 static constexpr int TYPE_COUNTER_CLOCKWISE = 1;
 
 KRCanvasView::KRCanvasView()
     : KRView(), cachable_methods_({LINE_CAP, LINE_WIDTH, LINE_DASH, STROKE_STYLE, FILL_STYLE, BEGIN_PATH, MOVE_TO,
                                    LINE_TO, ARC, CLOSE_PATH, STROKE, FILL, CREATE_LINEAR_GRADIENT, QUADRATIC_CURVE_TO,
-                                   TEXT_ALIGN, FONT, FILL_TEXT, STROKE_TEXT}) {
+                                   TEXT_ALIGN, FONT, FILL_TEXT, STROKE_TEXT, DRAW_IMAGE}) {
     // ctor body left blank
 }
 void KRCanvasView::DidMoveToParentView() {
@@ -444,6 +449,52 @@ void KRCanvasView::BezierCurveTo(const std::string &params) {
     // TODO(userName):
 }
 
+void KRCanvasView::DrawImage(const std::string &params) {
+    auto obj = kuikly::util::JSONObject::Parse(params);
+    // dx、dy参数必有，其余可能没有
+    float dx = obj->GetNumber("dx");
+    float dy = obj->GetNumber("dy");
+    float sx = obj->GetNumber("sx");
+    float sy = obj->GetNumber("sy");
+    float sWidth = obj->GetNumber("sWidth");
+    float sHeight = obj->GetNumber("sHeight");
+    float dWidth = obj->GetNumber("dWidth");
+    float dHeight = obj->GetNumber("dHeight");
+    std::string cacheKey = obj->GetString("cacheKey");
+
+    // 从KRMemoryCacheModule中获取缓存好的图片
+    auto module_name = std::string(kMemoryCacheModuleName);
+    auto memory_cache_module = std::dynamic_pointer_cast<KRMemoryCacheModule>(GetModule(module_name));
+    OH_PixelmapNative *pixelMap = nullptr;
+    if (memory_cache_module) {
+        pixelMap = memory_cache_module->GetImage(cacheKey);
+    }
+    if (!pixelMap) {
+        return;
+    }
+
+    OH_Pixelmap_ImageInfo *imageInfo = nullptr;
+    OH_PixelmapImageInfo_Create(&imageInfo);
+    OH_PixelmapNative_GetImageInfo(pixelMap, imageInfo);
+    // 图片宽高
+    uint32_t width, height;
+    OH_PixelmapImageInfo_GetWidth(imageInfo, &width);
+    OH_PixelmapImageInfo_GetHeight(imageInfo, &height);
+    OH_PixelmapImageInfo_Release(imageInfo);
+
+    OH_Drawing_PixelMap *drawingPixelMap = OH_Drawing_PixelMapGetFromOhPixelMapNative(pixelMap);
+    // 图片绘制区域
+    sWidth = sWidth ? sWidth : width;
+    sHeight = sHeight ? sHeight : height;
+    OH_Drawing_Rect *src = OH_Drawing_RectCreate(sx, sy, sx + sWidth, sy + sHeight);
+    // 画布中显示的区域
+    dWidth = dWidth ? dWidth : width;
+    dHeight = dHeight ? dHeight : height;
+    OH_Drawing_Rect *dst = OH_Drawing_RectCreate(dx, dy, dx + dWidth, dy + dHeight);
+    // 绘制PixelMap
+    OH_Drawing_CanvasDrawPixelMapRect(canvas_, drawingPixelMap, src, dst, nullptr);
+}
+
 void KRCanvasView::Reset() {
     ops_.clear();
 
@@ -522,6 +573,8 @@ void KRCanvasView::OnDraw(ArkUI_NodeCustomEvent *event) {
             FillText(params);
         } else if (method == STROKE_TEXT) {
             StrokeText(params);
+        } else if (method == DRAW_IMAGE) {
+            DrawImage(params);
         } else if (method == RESET) {
             Reset();
         }

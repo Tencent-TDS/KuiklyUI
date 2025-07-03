@@ -46,7 +46,6 @@ set(SOURCE_SET
         libohos_render/expand/modules/log/KRLogModule.cpp
         libohos_render/expand/components/view/SuperTouchHandler.cpp
         libohos_render/expand/components/view/KRView.cpp
-        libohos_render/expand/components/image/KRImageAdapterManager.cpp
         libohos_render/expand/components/image/KRImageView.cpp
         libohos_render/expand/components/image/KRImageViewWrapper.cpp
         libohos_render/expand/components/richtext/KRFontAdapterManager.cpp

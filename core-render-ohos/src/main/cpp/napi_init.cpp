@@ -15,6 +15,7 @@
 #include <ark_runtime/jsvm.h>
 #include <arkui/native_node_napi.h>
 #include <cstdint>
+#include <multimedia/image_framework/image/pixelmap_native.h>
 #include "libohos_render/expand/modules/back_press/KRBackPressModule.h"
 #include "libohos_render/foundation/KRCallbackData.h"
 #include "libohos_render/manager/KRArkTSManager.h"
@@ -165,6 +166,33 @@ static napi_value CreateNativeRoot(napi_env env, napi_callback_info info) {
     return nullptr;
 }
 
+static napi_value RegisterImageAdapter(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value args[1] = {nullptr};
+    if (napi_ok != napi_get_cb_info(env, info, &argc, args, nullptr, nullptr)) {
+        napi_throw_error(env, "-1000", "napi_get_cb_info error");
+        return 0;
+    }
+    KRRenderAdapterManager::GetInstance().RegisterImageAdapter(env, args[0]);
+    return nullptr;
+}
+
+static napi_value FireImageCallback(napi_env env, napi_callback_info info) {
+    size_t argc = 3;
+    napi_value args[3] = {nullptr};
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    if (napi_ok != napi_get_cb_info(env, info, &argc, args, nullptr, nullptr)) {
+        napi_throw_error(env, "-1000", "napi_get_cb_info error");
+        return 0;
+    }
+    char *src = kuikly::util::getNApiArgsString(env, args[0]);
+    OH_PixelmapNative *pixel_map = nullptr;
+    OH_PixelmapNative_ConvertPixelmapNativeFromNapi(env, args[1], &pixel_map);
+    std::string callback_id = kuikly::util::getNApiArgsStdString(env, args[2]);
+    KRRenderAdapterManager::GetInstance().fireImageCallback(src, pixel_map, callback_id);
+    return nullptr;
+}
+
 static napi_value isBackPressConsumed(napi_env env, napi_callback_info info) {
     size_t argc = 2;
     napi_value args[2] = {nullptr};
@@ -209,6 +237,8 @@ static napi_value Init(napi_env env, napi_value exports) {
         {"OnLaunchStart", nullptr, OnLaunchStart, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"createNativeRoot", nullptr, CreateNativeRoot, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"isBackPressConsumed", nullptr, isBackPressConsumed, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"registerImageAdapter", nullptr, RegisterImageAdapter, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"fireImageCallback", nullptr, FireImageCallback, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
     KRRenderManager::GetInstance().Export(env, exports);  // 尝试注册RenderView

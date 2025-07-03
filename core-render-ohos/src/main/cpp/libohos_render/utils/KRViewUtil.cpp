@@ -17,6 +17,7 @@
 
 #include "libohos_render/export/IKRRenderViewExport.h"
 #include "libohos_render/utils/KRThreadChecker.h"
+#include <multimedia/image_framework/image/image_source_native.h>
 
 namespace kuikly {
 namespace util {
@@ -849,6 +850,24 @@ void UpdateLoadingProgressNodeColor(ArkUI_NodeHandle node, uint32_t hexColorValu
     ArkUI_NumberValue value[] = {{.u32 = hexColorValue}};
     ArkUI_AttributeItem colorItem = {value, 1};
     nodeAPI->setAttribute(node, NODE_LOADING_PROGRESS_COLOR, &colorItem);
+}
+
+OH_PixelmapNative* GetPixelMapFromUri(const char *uri) {
+    OH_ImageSourceNative *source = nullptr;
+    Image_ErrorCode errCode = OH_ImageSourceNative_CreateFromUri((char*)uri, strlen(uri), &source);
+    if (errCode != IMAGE_SUCCESS) {
+       return nullptr;
+    }
+    
+    // 通过图片解码参数创建PixelMap对象
+    OH_DecodingOptions *ops = nullptr;
+    OH_DecodingOptions_Create(&ops);
+    // 设置为AUTO会根据图片资源格式解码
+    OH_DecodingOptions_SetDesiredDynamicRange(ops, IMAGE_DYNAMIC_RANGE_AUTO);
+    OH_PixelmapNative *resPixMap = nullptr;
+    // ops参数支持传入nullptr, 当不需要设置解码参数时，不用创建
+    errCode = OH_ImageSourceNative_CreatePixelmap(source, ops, &resPixMap);
+    return resPixMap;
 }
 }  // namespace util
 }  // namespace kuikly

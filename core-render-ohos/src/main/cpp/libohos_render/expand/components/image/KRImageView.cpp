@@ -17,7 +17,6 @@
 
 #include <resourcemanager/ohresmgr.h>
 #include <string_view>
-#include "libohos_render/expand/components/image/KRImageAdapterManager.h"
 #include "libohos_render/expand/modules/cache/KRMemoryCacheModule.h"
 #include "libohos_render/manager/KRSnapshotManager.h"
 #include "libohos_render/utils/KRURIHelper.h"
@@ -167,23 +166,18 @@ bool KRImageView::SetImageSrc(const KRAnyValue &value) {
     if (image_src_ == src) {
         return true;
     }
-
-    auto imageAdapter = KRImageAdapterManager::GetInstance()->GetAdapter();
-    if (imageAdapter) {
-        ArkUI_DrawableDescriptor *imageDescriptor = nullptr;
-        KRImageDataDeallocator deallocator = nullptr;
-        char *imageSrc = imageAdapter(src.c_str(), &imageDescriptor, &deallocator);
-        if (imageDescriptor) {
-            kuikly::util::SetArkUIImageSrc(GetNode(), imageDescriptor);
-            if (deallocator) {
-                deallocator(imageDescriptor);
+    
+    if (KRRenderAdapterManager::GetInstance().HasCustomImageAdapter()) {
+        KRRenderAdapterManager::GetInstance().CallImageAdapter(src.c_str(), [this](char *imageSrc, OH_PixelmapNative *imagePixelMap) {
+            if (imagePixelMap) {
+                ArkUI_DrawableDescriptor *imageDescriptor =
+                    OH_ArkUI_DrawableDescriptor_CreateFromPixelMap(imagePixelMap);
+                kuikly::util::SetArkUIImageSrc(GetNode(), imageDescriptor);
+                OH_ArkUI_DrawableDescriptor_Dispose(imageDescriptor);
+            } else if (imageSrc) {
+                LoadFromSrc(std::string(imageSrc));
             }
-        } else if (imageSrc) {
-            LoadFromSrc(std::string(imageSrc));
-            if (deallocator) {
-                deallocator(imageSrc);
-            }
-        }
+        });
         return true;
     }
 
@@ -379,11 +373,6 @@ std::shared_ptr<KRImageLoadOption> KRImageView::ToImageLoadOption(const std::str
         option->src_type_ = KRImageSrcType::kImageSrcTypeFile;
     } else if (isAssets(src)) {
         option->src_type_ = KRImageSrcType::kImageSrcTypeAssets;
-    }
-
-    auto image_adapter = KRRenderAdapterManager::GetInstance().GetImageAdapter();
-    if (image_adapter != nullptr) {
-        image_adapter->ConvertImageLoadOption(option);
     }
     return option;
 }

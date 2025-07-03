@@ -18,6 +18,7 @@ import { common } from "@kit.AbilityKit"
 import { Context, UIContext } from "@ohos.arkui.UIContext"
 import { ComponentContent } from "@kit.ArkUI"
 import { resourceManager } from "@kit.LocalizationKit"
+import { image } from '@kit.ImageKit'
 
 type KRValue = number | string | ArrayBuffer | Array<KRAny> | boolean | object
 type KRArray = Array<KRValue | Record<string, KRValue>>
@@ -72,3 +73,8 @@ export const sendEvent: (
 export const createNativeRoot: (content: Object, instanceId: string) => void;
 
 export const isBackPressConsumed: (instanceId: string, sendTime: number) => number;
+
+export type ImageAdapterInternalFunc = (src: string, callbackId: string) => void;
+export const registerImageAdapter: (imageAdapter: ImageAdapterInternalFunc) => void;
+
+export const fireImageCallback: (src: string, pixelMap: image.PixelMap, callbackId: string) => void;

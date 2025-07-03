@@ -554,9 +554,9 @@ NSString *const KRFontWeightKey = @"fontWeight";
         _placeholderTextView.textContainer.lineFragmentPadding = self.textContainer.lineFragmentPadding;
         _placeholderTextView.backgroundColor = [UIColor clearColor];
         if (@available(iOS 13.0, *)) {
-         _placeholderTextView.textColor = UIColor.placeholderTextColor;
+            _placeholderTextView.textColor = UIColor.placeholderTextColor;
         } else {
-         _placeholderTextView.textColor = UIColor.lightGrayColor;
+            _placeholderTextView.textColor = UIColor.lightGrayColor;
         }
         [self insertSubview:_placeholderTextView atIndex:0];
      }

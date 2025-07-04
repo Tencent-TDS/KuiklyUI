@@ -34,6 +34,9 @@ import com.tencent.kuikly.compose.setContent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
+import com.tencent.kuikly.compose.extension.NestedScrollMode
+import com.tencent.kuikly.compose.extension.bouncesEnable
+import com.tencent.kuikly.compose.extension.nestedScroll
 import com.tencent.kuikly.compose.foundation.border
 import com.tencent.kuikly.compose.material3.pullToRefreshItem
 import com.tencent.kuikly.compose.material3.rememberPullToRefreshState
@@ -208,25 +211,36 @@ class PullToRefreshDemo : ComposeContainer() {
                     
                     // 列表项
                     items(customItemCount) { index ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(60.dp)
-                                .background(
-                                    when (index % 3) {
-                                        0 -> Color.Cyan.copy(alpha = 0.3f)
-                                        1 -> Color.Magenta.copy(alpha = 0.3f)
-                                        else -> Color.Yellow.copy(alpha = 0.3f)
-                                    }
+                        if (index == 1) {
+                            LazyColumn(modifier = Modifier.height(100.dp).fillMaxSize().bouncesEnable(false)
+                                .nestedScroll(scrollUp = NestedScrollMode.SELF_FIRST
+                                    , scrollDown = NestedScrollMode.SELF_FIRST))
+                            {
+                                items(50) {
+                                    Text("123")
+                                }
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(60.dp)
+                                    .background(
+                                        when (index % 3) {
+                                            0 -> Color.Cyan.copy(alpha = 0.3f)
+                                            1 -> Color.Magenta.copy(alpha = 0.3f)
+                                            else -> Color.Yellow.copy(alpha = 0.3f)
+                                        }
+                                    )
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                Text(
+                                    "自定义 Item ${index + 1}",
+                                    fontSize = 16.sp,
+                                    color = Color.Black
                                 )
-                                .padding(16.dp),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            Text(
-                                "自定义 Item ${index + 1}",
-                                fontSize = 16.sp,
-                                color = Color.Black
-                            )
+                            }
                         }
                     }
                     

@@ -89,6 +89,11 @@ DataPreferences::DataPreferences(const std::string &filesDir, const std::string 
     }
 }
 
+std::shared_ptr<util::DataPreferences> DataPreferences::GetInstance(const std::string &filesDir, const std::string &filesName) {
+    static std::shared_ptr<util::DataPreferences> preference = std::make_shared<util::DataPreferences>(filesDir, filesName);
+    return preference;
+}
+
 void DataPreferences::SetSync(const std::string &key, const std::string &value) {
     std::unique_lock<std::mutex> lock(this->mtx_);
     this->keyValueMap_[key] = value;

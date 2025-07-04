@@ -385,6 +385,11 @@ void UpdateNodeHitTestMode(ArkUI_NodeHandle node, ArkUI_HitTestMode mode) {
     nodeAPI->setAttribute(node, NODE_HIT_TEST_BEHAVIOR, &item);
 }
 
+static uint32_t GetNodeHitTestMode(ArkUI_NodeHandle node) {
+    auto item = GetNodeApi()->getAttribute(node, NODE_HIT_TEST_BEHAVIOR);
+    return item ? item->value[0].i32 : 0;
+}
+
 void UpdateNodeAccessibility(ArkUI_NodeHandle node, const std::string &accessibility) {
     auto nodeAPI = GetNodeApi();
     ArkUI_AttributeItem textItem = {.string = accessibility.c_str()};

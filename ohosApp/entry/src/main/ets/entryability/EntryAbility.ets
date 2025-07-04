@@ -21,6 +21,7 @@ import { AppKRRouterAdapter } from '../kuikly/adapters/AppKRRouterAdapter';
 import fs from '@ohos.file.fs';
 import { BusinessError } from '@kit.BasicServicesKit';
 import Napi from 'libkuikly_entry.so';
+import { AppKRImageAdapter } from '../kuikly/adapters/AppKRImageAdapter';
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
@@ -35,6 +36,7 @@ export default class EntryAbility extends UIAbility {
     // Main window is created, set main page for this ability
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
     KuiklyRenderAdapterManager.krRouterAdapter = new AppKRRouterAdapter();
+    KuiklyRenderAdapterManager.registerKRImageAdapter(AppKRImageAdapter);
 
     // KRNativeManager.getInstance().onWindowStageCreate(windowStage);
     windowStage.loadContent('pages/Index', (err) => {

@@ -24,6 +24,14 @@ KRRenderAdapterManager &KRRenderAdapterManager::GetInstance() {
     return adapter_manager;
 }
 
+std::string KRRenderAdapterManager::GetIncreaseImageCallbackId(ImageCallback image_call_back) {
+    static int g_image_callback_id = 0;
+    g_image_callback_id++;
+    std::string image_callback_id =  NewKRRenderValue(g_image_callback_id)->toString();
+    image_callback_map_[image_callback_id] = image_call_back;
+    return image_callback_id;
+}
+
 void KRRenderAdapterManager::OnFatalException(const std::string &instance_id, const std::string &stack) {
     CallArkTsExceptionModule(instance_id, "onException", stack);
 }
@@ -82,14 +90,44 @@ void KRRenderAdapterManager::RegisterLogAdapter(std::shared_ptr<IKRLogAdapter> l
     log_adapter_ = log_adapter;
 }
 
-void KRRenderAdapterManager::RegisterImageAdapter(IKRImageAdapter *image_adapter) {
-    image_adapter_ = image_adapter;
+void KRRenderAdapterManager::RegisterImageAdapter(napi_env env, napi_value func) {
+    if (image_adapter_ != nullptr) {
+        napi_delete_reference(image_adapter_->env, image_adapter_->func_ref);
+    }
+    image_adapter_ = std::make_shared<ArkTSFuncData>();
+    image_adapter_->env = env;
+    image_adapter_->func = func;
+    // 将传入的callback转换为napi_ref延长其生命周期，防止被GC掉
+    napi_create_reference(env, func, 1, &(image_adapter_->func_ref));
+}
+
+void KRRenderAdapterManager::CallImageAdapter(const char *image_src, ImageCallback callback) {
+    napi_env env = image_adapter_->env;
+    napi_value image_adapter_func;
+    napi_get_reference_value(env, image_adapter_->func_ref, &image_adapter_func);
+    napi_value func_Args[2] = {nullptr};
+    napi_value src_value;
+    napi_create_string_utf8(env, image_src, strlen(image_src), &src_value);
+    func_Args[0] = src_value;
+    std::string image_callback_id = GetIncreaseImageCallbackId(callback);
+    napi_value callback_id_value;
+    napi_create_string_utf8(env, image_callback_id.c_str(), image_callback_id.length(), &callback_id_value);
+    func_Args[1] = callback_id_value;
+    // 执行ArkTS图片适配器函数
+    napi_value result;
+    napi_call_function(env, nullptr, image_adapter_func, 2, func_Args, &result);
+}
+
+void KRRenderAdapterManager::fireImageCallback(const char *image_src, OH_PixelmapNative *pixel_map, std::string callback_id) {
+    auto callback = image_callback_map_.find(callback_id);
+    if (callback != image_callback_map_.end()) {
+        if (callback->second != nullptr) {
+            callback->second((char *)image_src, pixel_map);
+        }
+        image_callback_map_.erase(callback_id);
+    }
 }
 
 IKRColorParseAdapter *KRRenderAdapterManager::GetColorAdapter() {
     return color_adapter_;
-}
-
-IKRImageAdapter *KRRenderAdapterManager::GetImageAdapter() {
-    return image_adapter_;
 }

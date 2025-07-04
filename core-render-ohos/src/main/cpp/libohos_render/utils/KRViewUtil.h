@@ -252,6 +252,8 @@ void SetNodeAnimation(std::weak_ptr<IKRRenderViewExport> view, std::string *anim
 #endif
 void UpdateLoadingProgressNodeColor(ArkUI_NodeHandle node, uint32_t hexColorValue);
 
+OH_PixelmapNative* GetPixelMapFromUri(const char *uri);
+
 }  // namespace util
 }  // namespace kuikly
 

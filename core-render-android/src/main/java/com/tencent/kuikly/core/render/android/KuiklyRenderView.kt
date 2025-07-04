@@ -51,6 +51,7 @@ import com.tencent.kuikly.core.render.android.exception.KuiklyRenderShadowExport
 import com.tencent.kuikly.core.render.android.exception.KuiklyRenderViewExportException
 import com.tencent.kuikly.core.render.android.expand.KuiklyRenderViewBaseDelegatorDelegate
 import com.tencent.kuikly.core.render.android.expand.component.image.KRImageLoader
+import com.tencent.kuikly.core.render.android.expand.component.text.TypeFaceLoader
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderModuleExport
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderShadowExport
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderViewExport
@@ -564,6 +565,8 @@ class KuiklyRenderViewContext(
 
     private var imageLoader: KRImageLoader? = null
 
+    private var typeFaceLoader: TypeFaceLoader? = null
+
     /**
      * [IKuiklyRenderView]弱引用
      */
@@ -650,6 +653,13 @@ class KuiklyRenderViewContext(
             }
         }
         return imageLoader
+    }
+
+    override fun getTypeFaceLoader(): TypeFaceLoader? {
+        if (typeFaceLoader == null) {
+            typeFaceLoader = TypeFaceLoader(contextParams)
+        }
+        return typeFaceLoader
     }
 
 }
@@ -742,8 +752,12 @@ class KuiklyRenderExport(private val renderContext: IKuiklyRenderContext) : IKui
     }
 
     override fun createRenderShadow(name: String): IKuiklyRenderShadowExport {
-        return shadowExportCreator[name]?.invoke()
+        val shadow = shadowExportCreator[name]?.invoke()
             ?: throw KuiklyRenderShadowExportException("can not find shadowExport, name: $name")
+        if (shadow is IKuiklyRenderContextWrapper) {
+            shadow.kuiklyRenderContext = renderContext
+        }
+        return shadow
     }
 
     override fun setViewExternalProp(

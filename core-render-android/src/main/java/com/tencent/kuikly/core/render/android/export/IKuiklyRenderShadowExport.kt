@@ -25,11 +25,6 @@ import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
 interface IKuiklyRenderShadowExport {
 
     /**
-     * KuiklyRender上下文
-     */
-    var kuiklyRenderContext: IKuiklyRenderContext?
-
-    /**
      * 更新shadow对象属性时调用
      * @param propKey 属性key
      * @param propValue 属性value

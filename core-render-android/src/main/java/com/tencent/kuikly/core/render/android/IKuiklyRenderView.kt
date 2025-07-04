@@ -23,6 +23,7 @@ import android.view.ViewGroup
 import com.tencent.kuikly.core.render.android.context.KuiklyRenderCoreExecuteModeBase
 import com.tencent.kuikly.core.render.android.exception.ErrorReason
 import com.tencent.kuikly.core.render.android.expand.component.image.KRImageLoader
+import com.tencent.kuikly.core.render.android.expand.component.text.TypeFaceLoader
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderBaseModule
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderModuleExport
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderShadowExport
@@ -237,6 +238,11 @@ interface IKuiklyRenderContext {
      */
     fun getImageLoader(): KRImageLoader?
 
+    /**
+     * 获取TypeFace加载器
+     */
+    fun getTypeFaceLoader(): TypeFaceLoader?
+
 }
 
 /**
@@ -418,5 +424,15 @@ interface IKuiklyRenderLifecycleCallback {
      * @param data 数据
      */
     fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {}
+
+}
+
+/**
+ * KuiklyyRenderContext的Wrapper
+ * 提供kuiklyRenderContext的引用
+ */
+interface IKuiklyRenderContextWrapper {
+
+    var kuiklyRenderContext: IKuiklyRenderContext?
 
 }

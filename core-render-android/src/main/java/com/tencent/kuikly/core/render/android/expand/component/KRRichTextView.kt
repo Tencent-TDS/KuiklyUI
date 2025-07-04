@@ -35,6 +35,7 @@ import android.text.style.LeadingMarginSpan
 import android.util.SizeF
 import android.view.ViewGroup
 import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
+import com.tencent.kuikly.core.render.android.IKuiklyRenderContextWrapper
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
 import com.tencent.kuikly.core.render.android.adapter.TextPostProcessorInput
 import com.tencent.kuikly.core.render.android.const.KRCssConst
@@ -44,7 +45,6 @@ import com.tencent.kuikly.core.render.android.css.decoration.BoxShadow
 import com.tencent.kuikly.core.render.android.css.ktx.*
 import com.tencent.kuikly.core.render.android.expand.component.text.*
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderShadowExport
-import com.tencent.kuikly.core.render.android.export.KuiklyRenderBaseShadow
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 import org.json.JSONArray
 import kotlin.math.max
@@ -389,19 +389,12 @@ open class KRTextProps(private val kuiklyContext: IKuiklyRenderContext?) {
 /**
  * 富文本shadow对象，用于在子线程提前测量文本
  */
-class KRRichTextShadow : KuiklyRenderBaseShadow() {
+class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper {
 
     /**
      * 文本属性
      */
     private var textProps = KRTextProps(null)
-
-    override var kuiklyRenderContext: IKuiklyRenderContext?
-        get() = super.kuiklyRenderContext
-        set(value) {
-            super.kuiklyRenderContext = value
-            textProps = KRTextProps(value)
-        }
 
     /**
      * 文本Layout, 目前实现为StaticLayout
@@ -428,6 +421,11 @@ class KRRichTextShadow : KuiklyRenderBaseShadow() {
      * 用于记录富文本中 DSL Span 对应的文本区间
      */
     private val spanTextRanges: MutableList<SpanTextRange> = mutableListOf()
+
+    /**
+     * 上下文对象[IKuiklyRenderContext]
+     */
+    override var kuiklyRenderContext: IKuiklyRenderContext? = null
 
     /**
      *
@@ -565,7 +563,8 @@ class KRRichTextShadow : KuiklyRenderBaseShadow() {
             textPaint.style = Paint.Style.FILL_AND_STROKE
             textPaint.strokeWidth = FontWeightSpan.getFontWeight(textProps.fontWeight)
         }
-        textPaint.typeface = TypeFaceUtil.getTypeface(textProps.fontFamily, textProps.fontStyle == Typeface.ITALIC)
+        textPaint.typeface = kuiklyRenderContext?.getTypeFaceLoader()?.getTypeface(textProps.fontFamily,
+            textProps.fontStyle == Typeface.ITALIC)
         textPaint.textSize = if (textProps.useDpFontSizeDim) {
 
             kuiklyRenderContext.toPxI(textProps.fontSize).toFloat()

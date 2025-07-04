@@ -175,7 +175,7 @@ class KRRichTextBuilder(private val kuiklyContext: IKuiklyRenderContext?) {
             textSpans.add(FontVariantSpan(spanProps.fontVariant))
         }
         if (spanProps.fontFamily.isNotEmpty()) {
-            textSpans.add(FontFamilySpan(spanProps.fontFamily))
+            textSpans.add(FontFamilySpan(spanProps.fontFamily, kuiklyContext?.getTypeFaceLoader()))
         }
 
         // 修饰相关
@@ -374,12 +374,12 @@ class LetterSpacingSpan(private val letterSpacing: Float) : MetricAffectingSpan(
 /**
  * 字体span
  */
-class FontFamilySpan(fontFamily: String) : TypefaceSpan(KRCssConst.EMPTY_STRING) {
+class FontFamilySpan(fontFamily: String, typeFaceLoader: TypeFaceLoader?) : TypefaceSpan(KRCssConst.EMPTY_STRING) {
 
     private var tfe: Typeface? = null
 
     init {
-        tfe = TypeFaceUtil.getTypeface(fontFamily, false)
+        tfe = typeFaceLoader?.getTypeface(fontFamily, false)
     }
 
     override fun updateDrawState(ds: TextPaint) {

@@ -35,7 +35,6 @@ import com.tencent.kuikly.core.render.android.css.ktx.toColor
 import com.tencent.kuikly.core.render.android.css.ktx.toJSONObjectSafely
 import com.tencent.kuikly.core.render.android.css.ktx.toPxF
 import com.tencent.kuikly.core.render.android.expand.component.text.FontWeightSpan
-import com.tencent.kuikly.core.render.android.expand.component.text.TypeFaceUtil
 import com.tencent.kuikly.core.render.android.expand.module.KRMemoryCacheModule
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
@@ -351,7 +350,7 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
             textAlign = currentDrawStyle.textAlign
             textSize = currentDrawStyle.textSize
             val italic = currentDrawStyle.fontStyle == KRTextProps.FONT_STYLE_ITALIC
-            typeface = TypeFaceUtil.getTypeface(currentDrawStyle.fontFamily, italic)
+            typeface = kuiklyRenderContext?.getTypeFaceLoader()?.getTypeface(currentDrawStyle.fontFamily, italic)
         }
         val op = TextOp(text, x.toFloat().toPxF(), y.toFloat().toPxF(), drawStyle)
         drawOperationList.add(op)

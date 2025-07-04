@@ -213,8 +213,6 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
             "must call on sub thread"
         }
 
-        val renderView = renderViewWeakRef?.get() ?: return
-
         val shadowMap = shadowRegistry ?: SparseArray<IKuiklyRenderShadowExport>().apply {
             shadowRegistry = this
         }
@@ -223,9 +221,7 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
         }
 
         val kuiklyRenderExport = renderViewWeakRef?.get()?.kuiklyRenderExport ?: return
-        val shadow = kuiklyRenderExport.createRenderShadow(viewName)
-        shadow.kuiklyRenderContext = renderView.kuiklyRenderContext
-        shadowMap.put(tag, shadow)
+        shadowMap.put(tag, kuiklyRenderExport.createRenderShadow(viewName))
     }
 
     override fun removeShadow(tag: Int) {

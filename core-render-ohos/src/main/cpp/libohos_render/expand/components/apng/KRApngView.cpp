@@ -105,10 +105,9 @@ void KRApngView::SetSrc(std::string &src) {
             if (cfg == nullptr) {
                 return;
             }
-            const std::string &resfileDir = cfg->GetResfileDir();
-            if (!resfileDir.empty()) {
-                std::string uri = resfileDir + "/" + src.substr(KR_ASSET_PREFIX.size());
-
+            const std::string &assetsDir = cfg->GetAssetsDir();
+            if (!assetsDir.empty()) {
+                std::string uri = assetsDir + "/" + src.substr(KR_ASSET_PREFIX.size());
                 LoadFile(uri);
                 return;
             }

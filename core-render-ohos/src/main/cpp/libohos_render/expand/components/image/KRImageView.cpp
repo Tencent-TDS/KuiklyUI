@@ -461,10 +461,10 @@ void KRImageView::LoadFromResourceMedia(const std::shared_ptr<KRImageLoadOption>
 void KRImageView::LoadFromAssets(const std::shared_ptr<KRImageLoadOption> image_option) {
     const auto &rootView = GetRootView().lock();
     if (rootView) {
-        const std::string &resfileDir = rootView->GetContext()->Config()->GetResfileDir();
-        if (!resfileDir.empty()) {
+        const std::string &assetsDir = rootView->GetContext()->Config()->GetAssetsDir();
+        if (!assetsDir.empty()) {
             std::string uri =
-                KRURIHelper::GetInstance()->URIForResFile(image_src_.substr(KR_ASSET_PREFIX.size()), resfileDir);
+                KRURIHelper::GetInstance()->URIForResFile(image_src_.substr(KR_ASSET_PREFIX.size()), assetsDir);
             kuikly::util::SetArkUIImageSrc(GetNode(), uri);
             return;
         }

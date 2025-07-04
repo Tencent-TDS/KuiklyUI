@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+#include <assert.h>
 #include "DefaultRenderNativeContextHandler.h"
 
 extern CallKotlin callKotlin_;
@@ -24,6 +25,9 @@ void DefaultRenderNativeContextHandler::CallKotlinMethod(const KuiklyRenderConte
                                                          const std::shared_ptr<KRRenderValue> &arg3,
                                                          const std::shared_ptr<KRRenderValue> &arg4,
                                                          const std::shared_ptr<KRRenderValue> &arg5) {
+    if(callKotlin_ == nullptr){
+        __assert_fail("Tips: make sure initKuikly() has been called!", __FILE__, __LINE__, __func__);
+    }
     callKotlin_(static_cast<int>(method), arg0->toCValue(), arg1->toCValue(), arg2->toCValue(), arg3->toCValue(),
                 arg4->toCValue(), arg5->toCValue());
 }

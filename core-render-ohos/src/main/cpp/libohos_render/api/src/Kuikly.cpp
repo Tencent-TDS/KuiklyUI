@@ -250,6 +250,11 @@ void KRRegisterLogAdapter(KRLogAdapter adapter) {
     KRRenderAdapterManager::GetInstance().RegisterLogAdapter(std::dynamic_pointer_cast<IKRLogAdapter>(bridge));
 }
 
+// API for troubleshooting view reuse issue
+int g_kuikly_disable_view_reuse = 0;
+void KRDisableViewReuse(){
+    g_kuikly_disable_view_reuse = 1;
+}
 #ifdef __cplusplus
 }
 #endif

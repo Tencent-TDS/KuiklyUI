@@ -115,9 +115,9 @@ void KREventDispatchCenter::UnregisterEvent(const std::shared_ptr<IKRRenderViewE
 
     kuikly::util::GetNodeApi()->removeNodeEventReceiver(ark_ui_node_handle, KRNodeEventReceiver);
     const auto &register_event = it->second->RegisterEvents();
-    for (const auto &event_type : register_event) {
+    std::for_each(register_event.begin(), register_event.end(), [ark_ui_node_handle](auto event_type){
         kuikly::util::GetNodeApi()->unregisterNodeEvent(ark_ui_node_handle, event_type);
-    }
+    });
     event_handler_map_.erase(ark_ui_node_handle);
 }
 
@@ -155,9 +155,9 @@ void KREventDispatchCenter::UnregisterCustomEvent(const std::shared_ptr<IKRRende
     kuikly::util::GetNodeApi()->removeNodeCustomEventReceiver(ark_ui_node_handle, KRNodeCustomEventReceiver);
 
     const auto &register_event = it->second->RegisterEvents();
-    for (const auto &event_type : register_event) {
+    std::for_each(register_event.begin(), register_event.end(), [ark_ui_node_handle](auto event_type){
         kuikly::util::GetNodeApi()->unregisterNodeCustomEvent(ark_ui_node_handle, event_type);
-    }
+    });
     custom_event_handler_map_.erase(ark_ui_node_handle);
 }
 

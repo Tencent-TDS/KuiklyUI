@@ -205,6 +205,12 @@ typedef void (*KRLogAdapter)(int logLevel, const char *tag, const char *message)
  */
 void KRRegisterLogAdapter(KRLogAdapter adapter);
 
+/**
+ * 禁止view复用。
+ * 这是一个临时API，后续会删除，未经沟通，请勿调用。
+ */
+void KRDisableViewReuse();
+
 #ifdef __cplusplus
 }
 #endif

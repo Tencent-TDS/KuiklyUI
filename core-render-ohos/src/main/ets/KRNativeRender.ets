@@ -47,6 +47,10 @@ export struct KRNativeRender {
    */
   contextCode: string = '';
   /**
+   * assets资源的实际路径，如未设置，默认在resfile中找assets资源
+   */
+  assetsDir: string = '';
+  /**
    * 控制器ready 回调
    */
   onControllerReadyCallback: KRNativeRenderControllerReadyCallback | null = null;
@@ -92,7 +96,8 @@ export struct KRNativeRender {
       this.pagerName ?? this.pageName,
       this.pagerData ?? this.pageParams ?? this.pageData,
       this.contextCode,
-      this.imeMode
+      this.imeMode,
+      this.assetsDir
     );
 
     if (this.onRenderException) {

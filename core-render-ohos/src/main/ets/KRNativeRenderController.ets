@@ -108,6 +108,10 @@ export class KRNativeRenderController {
    */
   contextCode: string = '';
   /**
+   * assets资源的实际路径，如未设置，默认在resfile中找assets资源
+   */
+  assetsDir: string = '';
+  /**
    * 执行模式
    */
   executeMode: KRRenderExecuteModeBase = KRRenderNativeMode.Native;
@@ -191,7 +195,8 @@ export class KRNativeRenderController {
     pageName: string,
     pageParams: KRRecord,
     contextCode: string,
-    imeMode: boolean
+    imeMode: boolean,
+    assetsDir: string
   ) {
     this.uiContext = uiContext;
     this.uiAbilityContext = uiAbilityContext;
@@ -200,6 +205,7 @@ export class KRNativeRenderController {
     this.pageParams = pageParams;
     this.contextCode = contextCode;
     this.imeMode = imeMode;
+    this.assetsDir = assetsDir;
     gGlobalInstanceId++;
     this.instanceId = gGlobalInstanceId + '';
     render.OnLaunchStart(this.instanceId, executeMode.mode); //  页面启动事件通知到native层，用于Performance性能采集
@@ -574,6 +580,7 @@ export class KRNativeRenderController {
       'screen_height': screenSize.height,
       'resfile_dir': getContext().resourceDir,
       'files_dir': getContext().filesDir,
+      'assets_dir': this.assetsDir,
       'fontWeightScale': this.fontWeightScale,
       'fontSizeScale': this.fontSizeScale
     };

@@ -54,6 +54,11 @@ class KRConfig {
         if (files_dir != map.end()) {
             files_dir_ = files_dir->second->toString();
         }
+        
+        auto assets_dir = map.find("assets_dir");
+        if (assets_dir != map.end()) {
+            assets_dir_ = assets_dir->second->toString();
+        }
 
         auto screenDensity = map.find("screenDensity");
         if (screenDensity != map.end()) {
@@ -102,6 +107,14 @@ class KRConfig {
     const std::string &GetFilesDir() {
         return files_dir_;
     }
+    
+    const std::string &GetAssetsDir() {
+        if (!assets_dir_.empty()) {
+            return assets_dir_;
+        } else {
+            return resfile_dir_;
+        }
+    }
 
     const float GetFontWeightScale() {
         return fontWeightScale_;
@@ -124,6 +137,7 @@ class KRConfig {
     float screen_height_ = 0;  // vp单位
     std::string resfile_dir_;
     std::string files_dir_;
+    std::string assets_dir_;
 };
 
 #endif  // CORE_RENDER_OHOS_KRCONFIG_H

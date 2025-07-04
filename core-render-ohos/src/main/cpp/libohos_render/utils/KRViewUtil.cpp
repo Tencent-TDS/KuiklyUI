@@ -451,37 +451,130 @@ void UpdateNodeBackgroundImage(ArkUI_NodeHandle nodeHandle, const std::string &c
     }
 }
 
-void UpdateNodeTransform(ArkUI_NodeHandle nodeHandle, const std::string &cssTransform, KRSize size) {
+// 旋转转换结果结构体
+struct RotationResult {
+    float axis_x;
+    float axis_y;
+    float axis_z;
+    float total_angle_deg;
+};
+
+/*
+ * 将欧拉角转换为轴角表示
+ * @param x_deg X轴旋转角度（度）
+ * @param y_deg Y轴旋转角度（度）
+ * @param z_deg Z轴旋转角度（度）
+ * @return RotationResult 包含旋转轴和总旋转角度的结构体
+ */
+static RotationResult ConvertEulerToAxisAngle(double x_deg, double y_deg, double z_deg) {
+    constexpr double EPSILON = 1e-10;
+    constexpr double DEG_TO_RAD = M_PI / 180.0;
+    
+    // 处理纯Z轴旋转的特殊情况，直接返回Z轴和角度
+    if (std::abs(x_deg) < EPSILON && std::abs(y_deg) < EPSILON) {
+        return {0.0f, 0.0f, 1.0f, static_cast<float>(z_deg)};
+    }
+    // 只绕X轴的特殊情况
+    if (std::abs(y_deg) < EPSILON && std::abs(z_deg) < EPSILON) {
+        return {1.0f, 0.0f, 0.0f, static_cast<float>(x_deg)};
+    }
+    // 只绕Y轴的特殊情况
+    if (std::abs(x_deg) < EPSILON && std::abs(z_deg) < EPSILON) {
+        return {0.0f, 1.0f, 0.0f, static_cast<float>(y_deg)};
+    }
+    
+    // 角度转弧度
+    double rx_rad = x_deg * DEG_TO_RAD;
+    double ry_rad = y_deg * DEG_TO_RAD;
+    double rz_rad = z_deg * DEG_TO_RAD;
+    // 计算半角三角函数
+    double cx = cos(rx_rad / 2), sx = sin(rx_rad / 2);
+    double cy = cos(ry_rad / 2), sy = sin(ry_rad / 2);
+    double cz = cos(rz_rad / 2), sz = sin(rz_rad / 2);
+    // 计算四元数分量 (X → Y → Z 顺序)
+    double w = cz * cy * cx + sz * sy * sx;
+    double x = cz * cy * sx - sz * sy * cx;
+    double y = cz * sy * cx + sz * cy * sx;
+    double z = sz * cy * cx - cz * sy * sx;
+    // 归一化处理
+    double norm = std::sqrt(w*w + x*x + y*y + z*z);
+    if (norm < EPSILON) {
+        return {0.0f, 0.0f, 1.0f, 0.0f}; // 零旋转默认值
+    }
+    w /= norm; x /= norm; y /= norm; z /= norm;
+    // 提取旋转角度（弧度→角度）
+    double total_angle_rad = 2 * std::acos(std::clamp(w, -1.0, 1.0));
+    double total_angle_deg = total_angle_rad * 180.0 / M_PI;
+    // 零旋转特殊处理
+    if (total_angle_rad < EPSILON) {
+        return {0.0f, 0.0f, 1.0f, 0.0f};
+    }
+    // 计算旋转轴
+    double inv_sin = 1.0 / std::sin(total_angle_rad / 2);
+    return {
+        static_cast<float>(x * inv_sin),
+        static_cast<float>(y * inv_sin),
+        static_cast<float>(z * inv_sin),
+        static_cast<float>(total_angle_deg)
+    };
+}
+
+/**
+ * 更新transform 带有anchor更新
+ * @param nodeHandle 节点句柄
+ * @param cssTransform CSS变换字符串
+ * @param size 元素尺寸（单位px）
+ */
+void UpdateNodeTransform(ArkUI_NodeHandle nodeHandle, 
+						 const std::string &cssTransform, 
+                         KRSize size) {
     auto nodeAPI = GetNodeApi();
     auto transform = std::make_shared<KRTransformParser>();
-    if (!(transform->ParseFromCssTransform(cssTransform))) {
+    
+    if (!transform->ParseFromCssTransform(cssTransform)) {
         return;
     }
-    ArkUI_NumberValue transformCenterValue[] = {0, 0, 0, static_cast<float>(transform->anchor_x_),
-                                                static_cast<float>(transform->anchor_y_)};
-
-    ArkUI_AttributeItem transformCenterItem = {transformCenterValue,
-                                               sizeof(transformCenterValue) / sizeof(ArkUI_NumberValue)};
+    // 设置变换中心点
+    ArkUI_NumberValue transformCenterValue[] = {
+        0, 0, 0, 
+        static_cast<float>(transform->anchor_x_),
+        static_cast<float>(transform->anchor_y_)
+    };
+    ArkUI_AttributeItem transformCenterItem = {
+        transformCenterValue, 
+        sizeof(transformCenterValue) / sizeof(ArkUI_NumberValue)
+    };
     nodeAPI->setAttribute(nodeHandle, NODE_TRANSFORM_CENTER, &transformCenterItem);
-
-    // NOTE: ArkUI translation is in `px` units, while React Native uses `vp`
-    // units, so we need to correct for the scale factor here
+    // 处理平移变换（转换为px单位）
     auto matrix = transform->GetMatrixWithNoRotate();
-
-    matrix[12] *= size.width;  // px单位
-    matrix[13] *= size.height;
-
-    // 设置 transform
+    matrix[12] *= size.width;   // X轴平移
+    matrix[13] *= size.height;  // Y轴平移
+    // 设置变换矩阵
     std::array<ArkUI_NumberValue, 16> transformValue;
     for (int i = 0; i < 16; i++) {
         transformValue[i] = {.f32 = static_cast<float>(matrix[i])};
     }
     ArkUI_AttributeItem transformItem = {transformValue.data(), transformValue.size()};
     nodeAPI->setAttribute(nodeHandle, NODE_TRANSFORM, &transformItem);
-
-    // 设置 rotate
-    ArkUI_NumberValue rotateValue[] = {0, 0, 1, static_cast<float>(transform->rotate_angle_), 0};
-    ArkUI_AttributeItem rotateItem = {rotateValue, sizeof(rotateValue) / sizeof(ArkUI_NumberValue)};
+    
+    // 处理旋转变换（欧拉角→轴角）
+    RotationResult rotation = ConvertEulerToAxisAngle(
+        transform->rotate_x_angle_,
+        transform->rotate_y_angle_,
+        transform->rotate_angle_
+    );
+    // 设置旋转属性
+    ArkUI_NumberValue rotateValue[] = {
+        rotation.axis_x,
+        rotation.axis_y,
+        rotation.axis_z,
+        rotation.total_angle_deg,
+        0.0f  // perspective默认值
+    };
+    ArkUI_AttributeItem rotateItem = {
+        rotateValue, 
+        sizeof(rotateValue) / sizeof(ArkUI_NumberValue)
+    };
     nodeAPI->setAttribute(nodeHandle, NODE_ROTATE, &rotateItem);
 }
 

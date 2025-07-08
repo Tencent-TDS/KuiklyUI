@@ -45,6 +45,7 @@ typedef void (^KRPathRenderAction)(CGContextRef context, CGMutablePathRef path);
 @property (nonatomic, strong) NSNumber *fontSize;
 @property (nonatomic, strong) NSNumber *fontFamily;
 @property (nonatomic, strong) NSString *textAlign;
+@property (nonatomic, strong) NSMutableArray<NSString *> *saveStack;
 @end
 
 @implementation KRCanvasView
@@ -54,6 +55,7 @@ typedef void (^KRPathRenderAction)(CGContextRef context, CGMutablePathRef path);
     if ([super initWithFrame:frame]) {
         self.backgroundColor = [UIColor clearColor];
         _path = CGPathCreateMutable();
+        _saveStack = [NSMutableArray array];
     }
     return self;
 }
@@ -88,6 +90,7 @@ typedef void (^KRPathRenderAction)(CGContextRef context, CGMutablePathRef path);
         CGPathRelease(_path);
     }
     _path = CGPathCreateMutable();
+    [self.saveStack removeAllObjects];
     self.fillStyle = nil;
     self.strokeStyle = nil;
     self.lineWidth = 0;
@@ -375,8 +378,15 @@ typedef void (^KRPathRenderAction)(CGContextRef context, CGMutablePathRef path);
 }
 
 - (void)css_clip:(NSDictionary *)args {
+    NSDictionary *params = [args[KRC_PARAM_KEY] hr_stringToDictionary];
+    BOOL intersect = [params[@"intersect"] boolValue];
     [self addRenderAction:^(CGContextRef context, CGMutablePathRef path) {
-        CGContextClip(context);
+        CGContextAddPath(context, path);
+        if (intersect) {
+            CGContextClip(context);
+        } else {
+            CGContextEOClip(context);
+        }
     }];
 }
 
@@ -442,9 +452,88 @@ typedef void (^KRPathRenderAction)(CGContextRef context, CGMutablePathRef path);
     [self.layer setNeedsDisplay];
 }
 
+- (void)css_save:(NSDictionary *)args {
+    __weak typeof(self) weakSelf = self;
+    [self addRenderAction:^(CGContextRef context, CGMutablePathRef path) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (!strongSelf) return;
+        CGContextSaveGState(context);
+        [strongSelf.saveStack addObject:@"gstate"];
+    }];
+}
+
+- (void)css_restore:(NSDictionary *)args {
+    __weak typeof(self) weakSelf = self;
+    [self addRenderAction:^(CGContextRef context, CGMutablePathRef path) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (!strongSelf) return;
+        NSString *type = strongSelf.saveStack.lastObject;
+        if (type) {
+            [strongSelf.saveStack removeLastObject];
+            if ([type isEqualToString:@"layer"]) {
+                CGContextEndTransparencyLayer(context);
+                CGContextRestoreGState(context);
+            } else {
+                CGContextRestoreGState(context);
+            }
+        }
+    }];
+}
+
+- (void)css_saveLayer:(NSDictionary *)args {
+    NSDictionary *params = [args[KRC_PARAM_KEY] hr_stringToDictionary];
+    CGFloat x = [params[@"x"] floatValue];
+    CGFloat y = [params[@"y"] floatValue];
+    CGFloat width = [params[@"width"] floatValue];
+    CGFloat height = [params[@"height"] floatValue];
+    __weak typeof(self) weakSelf = self;
+    [self addRenderAction:^(CGContextRef context, CGMutablePathRef path) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (!strongSelf) return;
+        CGContextSaveGState(context);
+        CGContextBeginTransparencyLayer(context, NULL);
+        CGContextClipToRect(context, CGRectMake(x, y, width, height));
+        [strongSelf.saveStack addObject:@"layer"];
+    }];
+}
+
+- (void)css_translate:(NSDictionary *)args {
+    NSDictionary *params = [args[KRC_PARAM_KEY] hr_stringToDictionary];
+    CGFloat dx = [params[@"x"] floatValue];
+    CGFloat dy = [params[@"y"] floatValue];
+    [self addRenderAction:^(CGContextRef context, CGMutablePathRef path) {
+        CGContextTranslateCTM(context, dx, dy);
+    }];
+}
+
+- (void)css_scale:(NSDictionary *)args {
+    NSDictionary *params = [args[KRC_PARAM_KEY] hr_stringToDictionary];
+    CGFloat sx = [params[@"x"] floatValue];
+    CGFloat sy = [params[@"y"] floatValue];
+    [self addRenderAction:^(CGContextRef context, CGMutablePathRef path) {
+        CGContextScaleCTM(context, sx, sy);
+    }];
+}
+
+- (void)css_rotate:(NSDictionary *)args {
+    NSDictionary *params = [args[KRC_PARAM_KEY] hr_stringToDictionary];
+    CGFloat angle = [params[@"angle"] floatValue];
+    [self addRenderAction:^(CGContextRef context, CGMutablePathRef path) {
+        CGContextRotateCTM(context, angle);
+    }];
+}
+
+- (void)css_skew:(NSDictionary *)args {
+    NSDictionary *params = [args[KRC_PARAM_KEY] hr_stringToDictionary];
+    CGFloat sx = [params[@"x"] floatValue];
+    CGFloat sy = [params[@"y"] floatValue];
+    [self addRenderAction:^(CGContextRef context, CGMutablePathRef path) {
+        CGAffineTransform transform = CGAffineTransformMake(1, sy, sx, 1, 0, 0);
+        CGContextConcatCTM(context, transform);
+    }];
+}
 
 #pragma mark - override
-
 
 - (void)drawRect:(CGRect)rect {
     [super drawRect:rect];

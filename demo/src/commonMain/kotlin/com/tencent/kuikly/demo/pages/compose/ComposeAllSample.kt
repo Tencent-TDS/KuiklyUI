@@ -98,6 +98,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("LazyColumn", "LazyColumn各种状态信息示例", "LazyColumnDemo3"),
             DemoItem("LazyRow", "LazyRow基本用法示例", "LazyRowDemo1"),
             DemoItem("Dialog", "Dialog 组件示例", "DialogDemo"),
+            DemoItem("BottomSheet", "底部弹窗示例", "BottomSheetDemo1"),
             DemoItem("Shape", "shape示例", "shapedemo"),
             DemoItem("HorizontalPager", "HorizontalPager基本用法示例", "HorizontalPagerDemo1"),
             DemoItem("LazyHorizontalGrid", "LazyHorizontalGrid基本用法示例", "LazyHorizontalGridDemo1"),

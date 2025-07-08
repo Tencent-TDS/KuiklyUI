@@ -37,6 +37,7 @@ import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import com.tencent.kuikly.compose.KuiklyApplier
+import com.tencent.kuikly.compose.extension.shouldWrapShadowView
 import com.tencent.kuikly.compose.foundation.gestures.Orientation
 import com.tencent.kuikly.compose.foundation.gestures.ScrollableState
 import com.tencent.kuikly.compose.foundation.pager.PagerState
@@ -72,6 +73,7 @@ import com.tencent.kuikly.compose.scroller.kuiklyOnScroll
 import com.tencent.kuikly.compose.scroller.kuiklyOnScrollEnd
 import com.tencent.kuikly.compose.scroller.kuiklyWillDragEnd
 import com.tencent.kuikly.compose.scroller.tryExpandStartSize
+import com.tencent.kuikly.compose.ui.node.ComposeUiNode.Companion.ShadowLayoutConstructor
 import com.tencent.kuikly.compose.ui.scaleWithDensity
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.base.event.layoutFrameDidChange
@@ -81,7 +83,6 @@ import com.tencent.kuikly.core.views.ScrollerView
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.roundToInt
 
 /**
  * Analogue of [Layout] which allows to subcompose the actual content during the measuring stage
@@ -115,6 +116,56 @@ fun SubcomposeLayout(
         scrollableState = scrollableState,
         orientation = orientation,
     )
+}
+
+/**
+ * Analogue of [Layout] which allows to subcompose the actual content during the measuring stage
+ * for example to use the values calculated during the measurement as params for the composition
+ * of the children.
+ *
+ * Possible use cases:
+ * * You need to know the constraints passed by the parent during the composition and can't solve
+ * your use case with just custom [Layout] or [LayoutModifier].
+ * See [androidx.compose.foundation.layout.BoxWithConstraints].
+ * * You want to use the size of one child during the composition of the second child.
+ * * You want to compose your items lazily based on the available size. For example you have a
+ * list of 100 items and instead of composing all of them you only compose the ones which are
+ * currently visible(say 5 of them) and compose next items when the component is scrolled.
+ *
+ *
+ * @param modifier [Modifier] to apply for the layout.
+ * @param measurePolicy Measure policy which provides ability to subcompose during the measuring.
+ */
+@Composable
+@UiComposable
+fun SubcomposeLayoutNoScroll(
+    modifier: Modifier = Modifier,
+    state: SubcomposeLayoutState,
+    measurePolicy: SubcomposeMeasureScope.(Constraints) -> MeasureResult
+) {
+    val compositeKeyHash = currentCompositeKeyHash
+    val compositionContext = rememberCompositionContext()
+    val materialized = currentComposer.materialize(modifier)
+    val hasShadow = shouldWrapShadowView(materialized)
+    val localMap = currentComposer.currentCompositionLocalMap
+
+    ReusableComposeNode<KNode<*>, KuiklyApplier>(
+        factory = ShadowLayoutConstructor.invoke(hasShadow),
+        update = {
+            set(state, state.setRoot)
+            set(compositionContext, state.setCompositionContext)
+            set(measurePolicy, state.setMeasurePolicy)
+            set(localMap, SetResolvedCompositionLocals)
+            set(materialized, SetModifier)
+            @OptIn(ExperimentalComposeUiApi::class)
+            set(compositeKeyHash, SetCompositeKeyHash)
+        }
+    )
+    if (!currentComposer.skipping) {
+        SideEffect {
+            state.forceRecomposeChildren()
+        }
+    }
 }
 
 /**

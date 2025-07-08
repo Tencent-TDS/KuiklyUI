@@ -48,6 +48,7 @@ import com.tencent.kuikly.compose.ui.layout.RemeasurementModifier
 import com.tencent.kuikly.compose.ui.unit.Constraints
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
+import com.tencent.kuikly.compose.scroller.tryExpandStartSizeNoScroll
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
@@ -370,7 +371,7 @@ class LazyStaggeredGridState internal constructor(
 
     internal fun snapToItemInternal(index: Int, scrollOffset: Int, forceRemeasure: Boolean) {
         val positionChanged = scrollPosition.index != index ||
-            scrollPosition.scrollOffset != scrollOffset
+                scrollPosition.scrollOffset != scrollOffset
         // sometimes this method is called not to scroll, but to stay on the same index when
         // the data changes, as by default we maintain the scroll position by key, not index.
         // when this happens we don't need to reset the animations as from the user perspective
@@ -380,7 +381,8 @@ class LazyStaggeredGridState internal constructor(
         // reset previously known item positions as we don't want offset changes to be animated.
         // this offset should be considered as a scroll, not the placement change.
         if (positionChanged) {
-            itemAnimator.reset()
+//            itemAnimator.reset()
+            kuiklyInfo.offsetDirty = true
         }
         val layoutInfo = layoutInfoState.value
         val visibleItem = layoutInfo.findVisibleItem(index)
@@ -403,6 +405,8 @@ class LazyStaggeredGridState internal constructor(
         } else {
             measurementScopeInvalidator.invalidateScope()
         }
+
+        tryExpandStartSizeNoScroll()
     }
 
     /**

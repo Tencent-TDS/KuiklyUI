@@ -23,6 +23,7 @@ import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayout
 import com.tencent.kuikly.compose.foundation.lazy.layout.lazyLayoutBeyondBoundsModifier
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
+import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.platform.LocalLayoutDirection
 import com.tencent.kuikly.compose.ui.unit.Dp
@@ -56,6 +57,7 @@ internal fun LazyStaggeredGrid(
 ) {
     val itemProviderLambda = rememberStaggeredGridItemProviderLambda(state, content)
     val coroutineScope = rememberCoroutineScope()
+    state.kuiklyInfo.scope = coroutineScope
 //    val graphicsContext = LocalGraphicsContext.current
     val measurePolicy = rememberStaggeredGridMeasurePolicy(
         state,

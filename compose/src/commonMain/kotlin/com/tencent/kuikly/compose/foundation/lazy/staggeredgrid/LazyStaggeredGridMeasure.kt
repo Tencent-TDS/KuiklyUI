@@ -24,6 +24,8 @@ import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayoutMeasuredItem
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayoutMeasuredItemProvider
 import com.tencent.kuikly.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridLaneInfo.Companion.FullSpan
 import com.tencent.kuikly.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridLaneInfo.Companion.Unset
+import com.tencent.kuikly.compose.scroller.kuiklyInfo
+import com.tencent.kuikly.compose.scroller.tryExpandStartSizeNoScroll
 import com.tencent.kuikly.compose.ui.layout.Placeable
 import com.tencent.kuikly.compose.ui.unit.Constraints
 import com.tencent.kuikly.compose.ui.unit.IntOffset
@@ -209,20 +211,34 @@ internal class LazyStaggeredGridMeasureContext(
             contentType: Any?,
             placeables: List<Placeable>,
             constraints: Constraints
-        ) = LazyStaggeredGridMeasuredItem(
-            index = index,
-            key = key,
-            placeables = placeables,
-            isVertical = isVertical,
-            spacing = mainAxisSpacing,
-            lane = lane,
-            span = span,
-            beforeContentPadding = beforeContentPadding,
-            afterContentPadding = afterContentPadding,
-            contentType = contentType,
-            animator = state.itemAnimator,
-            constraints = constraints
-        )
+        ): LazyStaggeredGridMeasuredItem {
+            val itemResult = LazyStaggeredGridMeasuredItem(
+                index = index,
+                key = key,
+                placeables = placeables,
+                isVertical = isVertical,
+                spacing = mainAxisSpacing,
+                lane = lane,
+                span = span,
+                beforeContentPadding = beforeContentPadding,
+                afterContentPadding = afterContentPadding,
+                contentType = contentType,
+                animator = state.itemAnimator,
+                constraints = constraints
+            )
+
+            // Check if item height has expanded - use item key as unique identifier
+            val itemKey = "item_${index}_${key}"
+            val oldItemHeight = state.kuiklyInfo.itemMainSpaceCache[itemKey]
+            // Item height has expanded
+            if ((oldItemHeight ?: 0) < itemResult.mainAxisSizeWithSpacings && !state.isScrollInProgress) {
+                state.kuiklyInfo.realContentSize = null
+                state.tryExpandStartSizeNoScroll()
+            }
+            state.kuiklyInfo.itemMainSpaceCache[itemKey] = itemResult.mainAxisSizeWithSpacings
+
+            return itemResult
+        }
     }
 
     val laneInfo = state.laneInfo

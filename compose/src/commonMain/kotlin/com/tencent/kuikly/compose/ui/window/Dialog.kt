@@ -61,6 +61,7 @@ import com.tencent.kuikly.compose.ui.util.fastForEach
 import com.tencent.kuikly.compose.ui.util.fastMap
 import com.tencent.kuikly.compose.ui.util.fastMaxBy
 import com.tencent.kuikly.compose.container.LocalSlotProvider
+import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.platform.LocalOnBackPressedDispatcherOwner
 import com.tencent.kuikly.core.base.Attr.StyleConst
 import com.tencent.kuikly.core.base.event.Touch
@@ -108,7 +109,7 @@ interface DialogProperties {
  * The default scrim opacity.
  */
 private const val DefaultScrimOpacity = 0.6f
-private val DefaultScrimColor = Color.Black.copy(alpha = DefaultScrimOpacity)
+internal val DefaultScrimColor = Color.Black.copy(alpha = DefaultScrimOpacity)
 
 /**
  * Properties used to customize the behavior of a [Dialog].
@@ -127,13 +128,14 @@ private val DefaultScrimColor = Color.Black.copy(alpha = DefaultScrimOpacity)
  * @property scrimColor Color of background fill.
  */
 @Immutable
-private class KuiklyDialogProperties(
+internal class KuiklyDialogProperties(
     override val dismissOnBackPress: Boolean = true,
     override val dismissOnClickOutside: Boolean = true,
     override val usePlatformDefaultWidth: Boolean = true,
     val usePlatformInsets: Boolean = true,
     val useSoftwareKeyboardInset: Boolean = true,
     val scrimColor: Color = Color.Transparent,
+    val contentAlignment: Alignment? = null
 ) : DialogProperties {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -145,6 +147,7 @@ private class KuiklyDialogProperties(
         if (usePlatformInsets != other.usePlatformInsets) return false
         if (useSoftwareKeyboardInset != other.useSoftwareKeyboardInset) return false
         if (scrimColor != other.scrimColor) return false
+        if (contentAlignment != other.contentAlignment) return false
 
         return true
     }
@@ -156,6 +159,7 @@ private class KuiklyDialogProperties(
         result = 31 * result + usePlatformInsets.hashCode()
         result = 31 * result + useSoftwareKeyboardInset.hashCode()
         result = 31 * result + scrimColor.hashCode()
+        result = 31 * result + (contentAlignment?.hashCode() ?: 0)
         return result
     }
 }
@@ -228,7 +232,10 @@ private object DialogMeasurePolicy : MeasurePolicy {
     }
 }
 
-private class DialogContentMeasurePolicy(val usePlatformDefaultWidth: Boolean) : MeasurePolicy {
+private class DialogContentMeasurePolicy(
+    val usePlatformDefaultWidth: Boolean,
+    val properties: KuiklyDialogProperties
+): MeasurePolicy {
     override fun MeasureScope.measure(
         measurables: List<Measurable>,
         constraints: Constraints
@@ -245,10 +252,19 @@ private class DialogContentMeasurePolicy(val usePlatformDefaultWidth: Boolean) :
             width = placeables.fastMaxBy { it.width }?.width ?: dialogConstraints.minWidth,
             height = placeables.fastMaxBy { it.height }?.height ?: dialogConstraints.minHeight
         )
-        val position = IntOffset(
-            x = (constraints.maxWidth - contentSize.width) / 2,
-            y = (constraints.maxHeight - contentSize.height) / 2
-        )
+
+        val position = if (properties.contentAlignment == Alignment.BottomCenter) {
+            IntOffset(
+                x = (constraints.maxWidth - contentSize.width) / 2,
+                y = constraints.maxHeight - contentSize.height
+            )
+        } else {
+            IntOffset(
+                x = (constraints.maxWidth - contentSize.width) / 2,
+                y = (constraints.maxHeight - contentSize.height) / 2
+            )
+        }
+
         return layout(constraints.maxWidth, constraints.maxHeight) {
             placeables.fastForEach {
                 it.place(position.x, position.y)
@@ -283,6 +299,7 @@ private fun DialogLayout(
     var slotId = remember { 0 }
     val backPressedDispatcher= LocalOnBackPressedDispatcherOwner.current
 
+
     DisposableEffect(Unit) {
         // 插槽内容
         slotId = slotProvider.addSlot {
@@ -308,7 +325,6 @@ private fun DialogLayout(
                         properties = properties,
                         onDismissRequest = {
                             onDismissRequest()
-                            slotProvider.removeSlot(slotId)
                         },
                         content = currentContent
                     )
@@ -332,8 +348,8 @@ private fun DialogContent(
     val compositeKeyHash = currentCompositeKeyHash
     val localMap = currentComposer.currentCompositionLocalMap
     val scene = LocalComposeScene.current
-    val measurePolicy = remember(properties.usePlatformDefaultWidth) {
-        DialogContentMeasurePolicy(properties.usePlatformDefaultWidth)
+    val measurePolicy = remember(properties.usePlatformDefaultWidth, properties) {
+        DialogContentMeasurePolicy(properties.usePlatformDefaultWidth, properties)
     }
     val modifier: Modifier
     val wrappedContent: @Composable () -> Unit
@@ -345,7 +361,7 @@ private fun DialogContent(
     if (properties.dismissOnClickOutside) {
         modifier = currentComposer.materialize(Modifier.clickable { onDismissRequest() })
         wrappedContent = {
-            Box(modifier = Modifier.clickable { }) {
+            Box(modifier = Modifier.clickable {  }) {
                 content()
             }
         }

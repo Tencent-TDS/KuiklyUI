@@ -429,8 +429,9 @@ open class TextAttr : Attr() {
      * 首行缩进距离
      * @param headIndent 缩进距离
      */
-    open fun firstLineHeadIndent(headIndent: Float) {
+    open fun firstLineHeadIndent(headIndent: Float): TextAttr {
         TextConst.HEAD_INDENT with headIndent
+        return this
     }
 
     /**

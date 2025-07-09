@@ -21,6 +21,7 @@ import androidx.compose.runtime.Stable
 import com.tencent.kuikly.compose.material3.tokens.TypeScaleTokens
 import com.tencent.kuikly.compose.ui.text.style.TextAlign
 import com.tencent.kuikly.compose.ui.text.style.TextDirection
+import com.tencent.kuikly.compose.ui.text.style.TextIndent
 import com.tencent.kuikly.compose.ui.text.style.lerp
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
 import com.tencent.kuikly.compose.ui.unit.TextUnit
@@ -64,7 +65,7 @@ class ParagraphStyle(
     val textAlign: TextAlign = TextAlign.Left,
 //    val textDirection: TextDirection = TextDirection.Unspecified,
     val lineHeight: TextUnit = TextUnit.Unspecified,
-//    val textIndent: TextIndent? = null,
+    val textIndent: TextIndent? = null,
 //    val platformStyle: PlatformParagraphStyle? = null,
 //    val lineHeightStyle: LineHeightStyle? = null,
 //    val lineBreak: LineBreak = LineBreak.Unspecified,
@@ -215,7 +216,7 @@ class ParagraphStyle(
             textAlign = other.textAlign,
 //            textDirection = other.textDirection,
             lineHeight = other.lineHeight,
-//            textIndent = other.textIndent,
+            textIndent = other.textIndent,
 //            platformStyle = other.platformStyle,
 //            lineHeightStyle = other.lineHeightStyle,
 //            lineBreak = other.lineBreak,
@@ -232,21 +233,21 @@ class ParagraphStyle(
 
     @Deprecated(
         "ParagraphStyle copy constructors that do not take new stable parameters " +
-            "like LineHeightStyle, LineBreak, Hyphens are deprecated. Please use the new stable " +
-            "copy constructor.",
+                "like LineHeightStyle, LineBreak, Hyphens are deprecated. Please use the new stable " +
+                "copy constructor.",
         level = DeprecationLevel.HIDDEN
     )
     fun copy(
         textAlign: TextAlign? = this.textAlign,
 //        textDirection: TextDirection? = this.textDirection,
         lineHeight: TextUnit = this.lineHeight,
-//        textIndent: TextIndent? = this.textIndent
+        textIndent: TextIndent? = this.textIndent
     ): ParagraphStyle {
         return ParagraphStyle(
             textAlign = textAlign ?: TextAlign.Unspecified,
 //            textDirection = textDirection ?: TextDirection.Unspecified,
             lineHeight = lineHeight,
-//            textIndent = textIndent,
+            textIndent = textIndent,
 //            platformStyle = this.platformStyle,
 //            lineHeightStyle = this.lineHeightStyle,
 //            lineBreak = this.lineBreak,
@@ -344,7 +345,7 @@ class ParagraphStyle(
         textAlign: TextAlign = this.textAlign,
 //        textDirection: TextDirection = this.textDirection,
         lineHeight: TextUnit = this.lineHeight,
-//        textIndent: TextIndent? = this.textIndent,
+        textIndent: TextIndent? = this.textIndent,
 //        platformStyle: PlatformParagraphStyle? = this.platformStyle,
 //        lineHeightStyle: LineHeightStyle? = this.lineHeightStyle,
 //        lineBreak: LineBreak = this.lineBreak,
@@ -355,7 +356,7 @@ class ParagraphStyle(
             textAlign = textAlign,
 //            textDirection = textDirection,
             lineHeight = lineHeight,
-//            textIndent = textIndent,
+            textIndent = textIndent,
 //            platformStyle = platformStyle,
 //            lineHeightStyle = lineHeightStyle,
 //            lineBreak = lineBreak,
@@ -371,7 +372,7 @@ class ParagraphStyle(
         if (textAlign != other.textAlign) return false
 //        if (textDirection != other.textDirection) return false
         if (lineHeight != other.lineHeight) return false
-//        if (textIndent != other.textIndent) return false
+        if (textIndent != other.textIndent) return false
 //        if (platformStyle != other.platformStyle) return false
 //        if (lineHeightStyle != other.lineHeightStyle) return false
 //        if (lineBreak != other.lineBreak) return false
@@ -385,7 +386,7 @@ class ParagraphStyle(
         var result = textAlign.hashCode()
 //        result = 31 * result + textDirection.hashCode()
         result = 31 * result + lineHeight.hashCode()
-//        result = 31 * result + (textIndent?.hashCode() ?: 0)
+        result = 31 * result + (textIndent?.hashCode() ?: 0)
 //        result = 31 * result + (platformStyle?.hashCode() ?: 0)
 //        result = 31 * result + (lineHeightStyle?.hashCode() ?: 0)
 //        result = 31 * result + lineBreak.hashCode()
@@ -402,7 +403,7 @@ class ParagraphStyle(
             append("textAlign=$textAlign, ")
 //            append("textDirection=$textDirection, ")
             append("lineHeight=$lineHeight, ")
-//            append("textIndent=$textIndent, ")
+            append("textIndent=$textIndent, ")
 //            append("platformStyle=$platformStyle, ")
 //            append("lineHeightStyle=$lineHeightStyle, ")
 //            append("lineBreak=$lineBreak, ")
@@ -436,11 +437,11 @@ fun lerp(start: ParagraphStyle, stop: ParagraphStyle, fraction: Float): Paragrap
 //            fraction
 //        ),
         lineHeight = lerpTextUnitInheritable(start.lineHeight, stop.lineHeight, fraction),
-//        textIndent = lerp(
-//            start.textIndent ?: TextIndent.None,
-//            stop.textIndent ?: TextIndent.None,
-//            fraction
-//        ),
+        textIndent = lerp(
+            start.textIndent ?: TextIndent.None,
+            stop.textIndent ?: TextIndent.None,
+            fraction
+        ),
 //        platformStyle = lerpPlatformStyle(start.platformStyle, stop.platformStyle, fraction),
 //        lineHeightStyle = lerpDiscrete(
 //            start.lineHeightStyle,
@@ -471,7 +472,7 @@ internal fun resolveParagraphStyleDefaults(
     textAlign = if (style.textAlign == TextAlign.Unspecified) TextAlign.Start else style.textAlign,
 //    textDirection = resolveTextDirection(direction, style.textDirection),
     lineHeight = if (style.lineHeight.isUnspecified) DefaultLineHeight else style.lineHeight,
-//    textIndent = style.textIndent ?: TextIndent.None,
+    textIndent = style.textIndent ?: TextIndent.None,
 //    platformStyle = style.platformStyle,
 //    lineHeightStyle = style.lineHeightStyle,
 //    lineBreak = if (style.lineBreak == LineBreak.Unspecified) LineBreak.Simple else style.lineBreak,
@@ -479,27 +480,27 @@ internal fun resolveParagraphStyleDefaults(
 //    textMotion = style.textMotion ?: TextMotion.Static
 )
 
- internal fun ParagraphStyle.fastMerge(
+internal fun ParagraphStyle.fastMerge(
     textAlign: TextAlign,
 //    textDirection: TextDirection,
     lineHeight: TextUnit,
-//    textIndent: TextIndent?,
+    textIndent: TextIndent?,
 //    platformStyle: PlatformParagraphStyle?,
 //    lineHeightStyle: LineHeightStyle?,
 //    lineBreak: LineBreak,
 //    hyphens: Hyphens,
 //    textMotion: TextMotion?
 ): ParagraphStyle {
-     // prioritize the parameters to Text in diffs here
-     /**
-      *  textAlign: TextAlign?
-      *  lineHeight: TextUnit
-      */
+    // prioritize the parameters to Text in diffs here
+    /**
+     *  textAlign: TextAlign?
+     *  lineHeight: TextUnit
+     */
 
-     // any new vals should do a pre-merge check here
-     val requiresAlloc = textAlign != TextAlign.Unspecified && textAlign != this.textAlign ||
-         lineHeight.isSpecified && lineHeight != this.lineHeight
-//         textIndent != null && textIndent != this.textIndent ||
+    // any new vals should do a pre-merge check here
+    val requiresAlloc = textAlign != TextAlign.Unspecified && textAlign != this.textAlign ||
+            lineHeight.isSpecified && lineHeight != this.lineHeight ||
+            textIndent != null && textIndent != this.textIndent
 //         textDirection != TextDirection.Unspecified && textDirection != this.textDirection ||
 //         platformStyle != null && platformStyle != this.platformStyle ||
 //         lineHeightStyle != null && lineHeightStyle != this.lineHeightStyle ||
@@ -508,18 +509,18 @@ internal fun resolveParagraphStyleDefaults(
 //             ||
 //         textMotion != null && textMotion != this.textMotion
 
-     if (!requiresAlloc) {
-         return this
-     }
+    if (!requiresAlloc) {
+        return this
+    }
 
-     return ParagraphStyle(
-         lineHeight = if (lineHeight.isUnspecified) {
-             this.lineHeight
-         } else {
-             lineHeight
-         },
-//         textIndent = textIndent ?: this.textIndent,
-         textAlign = if (textAlign != TextAlign.Unspecified) textAlign else this.textAlign,
+    return ParagraphStyle(
+        lineHeight = if (lineHeight.isUnspecified) {
+            this.lineHeight
+        } else {
+            lineHeight
+        },
+        textIndent = textIndent ?: this.textIndent,
+        textAlign = if (textAlign != TextAlign.Unspecified) textAlign else this.textAlign,
 //         textDirection =
 //         if (textDirection != TextDirection.Unspecified) textDirection else this.textDirection,
 ////         platformStyle = mergePlatformStyle(platformStyle),
@@ -527,7 +528,7 @@ internal fun resolveParagraphStyleDefaults(
 //         lineBreak = if (lineBreak != LineBreak.Unspecified) lineBreak else this.lineBreak,
 //         hyphens = if (hyphens != Hyphens.Unspecified) hyphens else this.hyphens,
 //         textMotion = textMotion ?: this.textMotion
-     )
+    )
 }
 
 //private fun ParagraphStyle.mergePlatformStyle(

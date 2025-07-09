@@ -6,6 +6,7 @@ import com.tencent.kuikly.core.base.domChildren
 import com.tencent.kuikly.core.base.isVirtualView
 import com.tencent.kuikly.core.directives.LazyLoopDirectivesView.Companion.cleanNextScrollToParams
 import com.tencent.kuikly.core.directives.LazyLoopDirectivesView.Companion.logInfo
+import com.tencent.kuikly.core.directives.LazyLoopDirectivesView.Companion.needScroll
 import com.tencent.kuikly.core.directives.LazyLoopDirectivesView.Companion.setScrollEventFilterRule
 import com.tencent.kuikly.core.layout.FlexNode
 import com.tencent.kuikly.core.layout.StyleSpace
@@ -82,6 +83,10 @@ private fun doScroll(
                     content.frame.width - list.frame.width
                 )
             )
+            if (!needScroll(currentOffset, finalOffset)) {
+                logInfo("doScroll offset not changed, skip")
+                return
+            }
             list.setContentOffset(finalOffset, 0f, animate)
         } else {
             currentOffset = content.offsetY
@@ -92,6 +97,10 @@ private fun doScroll(
                     content.frame.height - list.frame.height
                 )
             )
+            if (!needScroll(currentOffset, finalOffset)) {
+                logInfo("doScroll offset not changed, skip")
+                return
+            }
             list.setContentOffset(0f, finalOffset, animate)
         }
         list.setScrollEventFilterRule(currentOffset, finalOffset, animate)

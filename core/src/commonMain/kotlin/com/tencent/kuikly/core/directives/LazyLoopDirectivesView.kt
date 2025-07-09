@@ -117,6 +117,10 @@ class LazyLoopDirectivesView<T>(
             return true
         }
 
+        internal inline fun needScroll(currentOffset: Float, finalOffset: Float): Boolean {
+            return abs(currentOffset - finalOffset) >= 1f
+        }
+
         internal inline fun logInfo(msg: String) {
             if (DEBUG_LOG) {
                 KLog.i(TAG, msg)
@@ -837,13 +841,19 @@ class LazyLoopDirectivesView<T>(
             // 减hairWidth(1像素)，防止size超过Float精度后，setContentOffset不满足执行条件
             val maxScrollOffset = max(0f, listViewContent!!.frame.size - listView!!.frame.size - hairWidth)
             val finalOffset = max(0f, min(node.start + offset, maxScrollOffset))
+            val currentOffset = if (isRow) {
+                listViewContent!!.offsetX
+            } else {
+                listViewContent!!.offsetY
+            }
+            if (!needScroll(currentOffset, finalOffset)) {
+                logInfo("scrollToPosition offset not changed, skip")
+                return
+            }
             if (animate) {
-                val currentOffset: Float
                 if (isRow) {
-                    currentOffset = listViewContent!!.offsetX
                     listView!!.setContentOffset(finalOffset, 0f, true)
                 } else {
-                    currentOffset = listViewContent!!.offsetY
                     listView!!.setContentOffset(0f, finalOffset, true)
                 }
                 listView!!.setScrollEventFilterRule(currentOffset, finalOffset, true)

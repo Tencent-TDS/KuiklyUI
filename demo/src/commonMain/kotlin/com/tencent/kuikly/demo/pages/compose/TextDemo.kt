@@ -25,6 +25,7 @@ import com.tencent.kuikly.compose.coil3.rememberAsyncImagePainter
 import com.tencent.kuikly.compose.foundation.Image
 import com.tencent.kuikly.compose.foundation.background
 import com.tencent.kuikly.compose.foundation.border
+import com.tencent.kuikly.compose.foundation.clickable
 import com.tencent.kuikly.compose.foundation.gestures.detectHorizontalDragGestures
 import com.tencent.kuikly.compose.foundation.gestures.detectTapGestures
 import com.tencent.kuikly.compose.foundation.layout.Arrangement
@@ -62,6 +63,7 @@ import com.tencent.kuikly.compose.ui.text.buildAnnotatedString
 import com.tencent.kuikly.compose.ui.text.font.FontStyle
 import com.tencent.kuikly.compose.ui.text.font.FontWeight
 import com.tencent.kuikly.compose.ui.text.style.TextDecoration
+import com.tencent.kuikly.compose.ui.text.style.TextIndent
 import com.tencent.kuikly.compose.ui.text.style.TextOverflow
 import com.tencent.kuikly.compose.ui.text.withLink
 import com.tencent.kuikly.compose.ui.text.withStyle
@@ -100,6 +102,9 @@ class TextDemo : ComposeContainer() {
                     }
                     item {
                         BrushTextDemo()
+                    }
+                    item {
+                        TextIndentDemo()
                     }
                 }
             }
@@ -1038,6 +1043,154 @@ class TextDemo : ComposeContainer() {
                                 blurRadius = 3f,
                             ),
                     ),
+            )
+        }
+    }
+
+    @Composable
+    fun TextIndentDemo() {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            Text(
+                "文本首行缩进效果演示",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            // 1. 基本首行缩进效果
+            Text(
+                "【基本缩进】这是一段测试首行缩进效果的文本。首行应该有 16dp 的缩进距离，而后续行则保持正常的左对齐。这样可以看到明显的首行缩进效果。",
+                style = TextStyle(
+                    textIndent = TextIndent(firstLine = 16.sp),
+                    fontSize = 16.sp
+                ),
+                modifier = Modifier.background(Color.LightGray).padding(8.dp).width(300.dp)
+            )
+
+            // 2. 不同缩进距离对比
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(8, 16, 24, 32).forEach { indent ->
+                    Text(
+                        "【${indent}sp缩进】这是一段测试不同缩进距离的文本。当前首行缩进为 ${indent}sp，可以观察不同缩进距离的视觉效果差异。",
+                        style = TextStyle(
+                            textIndent = TextIndent(firstLine = indent.sp),
+                            fontSize = 14.sp
+                        ),
+                        modifier = Modifier.background(Color(0xFFE3F2FD)).padding(8.dp).width(280.dp)
+                    )
+                }
+            }
+
+            // 3. 与其他样式组合使用
+            Text(
+                "【组合样式】这是一段同时使用首行缩进、字体加粗、颜色和阴影效果的文本。可以看到各种样式效果能够很好地组合在一起使用。",
+                style = TextStyle(
+                    textIndent = TextIndent(firstLine = 20.sp),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1976D2),
+                    shadow = Shadow(
+                        color = Color(0x33000000),
+                        offset = Offset(1f, 1f),
+                        blurRadius = 2f
+                    )
+                ),
+                modifier = Modifier.background(Color.White).padding(8.dp).width(320.dp)
+            )
+
+            // 4. AnnotatedString 中的段落缩进
+            Text(
+                buildAnnotatedString {
+                    append("【富文本缩进】这是第一段文本，展示了 AnnotatedString 中的段落缩进效果。这段文本应该有首行缩进。\n\n")
+
+                    withStyle(SpanStyle(color = Color.Red, fontSize = 18.sp)) {
+                        append("这是第二段红色文本，")
+                    }
+                    append("同样具有首行缩进效果。可以看到不同样式的文本都能正确应用段落缩进。")
+                },
+                style = TextStyle(
+                    textIndent = TextIndent(firstLine = 24.sp),
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp
+                ),
+                modifier = Modifier.background(Color(0xFFF3E5F5)).padding(8.dp).width(300.dp)
+            )
+
+            // 5. 动态切换缩进效果
+            var currentIndent by remember { mutableStateOf(0.sp) }
+            var showIndent by remember { mutableStateOf(true) }
+
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    "【动态缩进测试】这是一段用来测试动态切换缩进效果的文本。通过点击下面的按钮可以动态调整首行缩进的大小，或者完全取消缩进效果。",
+                    style = TextStyle(
+                        textIndent = if (showIndent) TextIndent(firstLine = currentIndent) else null,
+                        fontSize = 15.sp
+                    ),
+                    modifier = Modifier.background(Color(0xFFE8F5E8)).padding(8.dp).width(300.dp)
+                )
+
+                // 控制按钮行
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(0, 8, 16, 24).forEach { indent ->
+                        Text(
+                            "${indent}sp",
+                            modifier = Modifier
+                                .background(
+                                    if (currentIndent.value == indent.toFloat() && showIndent)
+                                        Color.Green
+                                    else
+                                        Color.Gray
+                                )
+                                .padding(8.dp)
+                                .clickable {
+                                    currentIndent = indent.sp
+                                    showIndent = true
+                                },
+                            color = Color.White
+                        )
+                    }
+
+                    Text(
+                        "无缩进",
+                        modifier = Modifier
+                            .background(if (!showIndent) Color.Red else Color.Gray)
+                            .padding(8.dp)
+                            .clickable {
+                                showIndent = false
+                            },
+                        color = Color.White
+                    )
+                }
+
+                Text(
+                    "当前状态: ${if (showIndent) "缩进 ${currentIndent.value}sp" else "无缩进"}",
+                    fontSize = 12.sp,
+                    color = Color.Blue
+                )
+            }
+
+            // 6. 长文本缩进效果
+            Text(
+                "【长文本缩进】这是一段比较长的文本，用来展示在多行文本中首行缩进的效果。" +
+                        "只有第一行会有缩进，后续的所有行都会保持正常的左对齐。" +
+                        "这样的效果在传统的印刷排版中非常常见，特别是在书籍和报纸的段落排版中。" +
+                        "通过合理的首行缩进，可以让段落的开始更加明显，提升文本的可读性和美观性。",
+                style = TextStyle(
+                    textIndent = TextIndent(firstLine = 32.sp),
+                    fontSize = 14.sp,
+                    lineHeight = 22.sp
+                ),
+                modifier = Modifier.background(Color(0xFFFFF3E0)).padding(12.dp).width(350.dp)
             )
         }
     }

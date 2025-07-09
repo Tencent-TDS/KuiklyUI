@@ -29,6 +29,7 @@ import com.tencent.kuikly.compose.ui.text.style.TextAlign
 import com.tencent.kuikly.compose.ui.text.style.TextDecoration
 import com.tencent.kuikly.compose.ui.text.style.TextDirection
 import com.tencent.kuikly.compose.ui.text.style.TextForegroundStyle
+import com.tencent.kuikly.compose.ui.text.style.TextIndent
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
 import com.tencent.kuikly.compose.ui.unit.TextUnit
 import kotlin.jvm.JvmName
@@ -112,7 +113,7 @@ class TextStyle internal constructor(
         textAlign: TextAlign = TextAlign.Left,
 //        textDirection: TextDirection = TextDirection.Ltr,
         lineHeight: TextUnit = TextUnit.Unspecified,
-//        textIndent: TextIndent? = null,
+        textIndent: TextIndent? = null,
 //        platformStyle: PlatformTextStyle? = null,
 //        lineHeightStyle: LineHeightStyle? = null,
 //        lineBreak: LineBreak = LineBreak.Unspecified,
@@ -141,7 +142,7 @@ class TextStyle internal constructor(
             textAlign = textAlign,
 //            textDirection = textDirection,
             lineHeight = lineHeight,
-//            textIndent = textIndent,
+            textIndent = textIndent,
 //            platformStyle = platformStyle?.paragraphStyle,
 //            lineHeightStyle = lineHeightStyle,
 //            lineBreak = lineBreak,
@@ -214,7 +215,7 @@ class TextStyle internal constructor(
         textAlign: TextAlign = TextAlign.Unspecified,
 //        textDirection: TextDirection = TextDirection.Unspecified,
         lineHeight: TextUnit = TextUnit.Unspecified,
-//        textIndent: TextIndent? = null,
+        textIndent: TextIndent? = null,
 //        platformStyle: PlatformTextStyle? = null,
 //        lineHeightStyle: LineHeightStyle? = null,
 //        lineBreak: LineBreak = LineBreak.Unspecified,
@@ -244,7 +245,7 @@ class TextStyle internal constructor(
             textAlign = textAlign,
 //            textDirection = textDirection,
             lineHeight = lineHeight,
-//            textIndent = textIndent,
+            textIndent = textIndent,
 //            platformStyle = platformStyle?.paragraphStyle,
 //            lineHeightStyle = lineHeightStyle,
 //            lineBreak = lineBreak,
@@ -333,7 +334,7 @@ class TextStyle internal constructor(
         textAlign: TextAlign = TextAlign.Unspecified,
 //        textDirection: TextDirection = TextDirection.Unspecified,
         lineHeight: TextUnit = TextUnit.Unspecified,
-//        textIndent: TextIndent? = null,
+        textIndent: TextIndent? = null,
 //        lineHeightStyle: LineHeightStyle? = null,
 //        lineBreak: LineBreak = LineBreak.Unspecified,
 //        hyphens: Hyphens = Hyphens.Unspecified,
@@ -364,7 +365,7 @@ class TextStyle internal constructor(
             textAlign = textAlign,
 //            textDirection = textDirection,
             lineHeight = lineHeight,
-//            textIndent = textIndent,
+            textIndent = textIndent,
 //            platformStyle = platformStyle?.paragraphStyle,
 //            lineHeightStyle = lineHeightStyle,
 //            lineBreak = lineBreak,
@@ -438,7 +439,7 @@ class TextStyle internal constructor(
         textAlign: TextAlign = this.paragraphStyle.textAlign,
 //        textDirection: TextDirection = this.paragraphStyle.textDirection,
         lineHeight: TextUnit = this.paragraphStyle.lineHeight,
-//        textIndent: TextIndent? = this.paragraphStyle.textIndent,
+        textIndent: TextIndent? = this.paragraphStyle.textIndent,
 //        platformStyle: PlatformTextStyle? = this.platformStyle,
 //        lineHeightStyle: LineHeightStyle? = this.paragraphStyle.lineHeightStyle,
 //        lineBreak: LineBreak = this.paragraphStyle.lineBreak,
@@ -472,7 +473,7 @@ class TextStyle internal constructor(
                 textAlign = textAlign,
 //                textDirection = textDirection,
                 lineHeight = lineHeight,
-//                textIndent = textIndent,
+                textIndent = textIndent,
 //                platformStyle = platformStyle?.paragraphStyle,
 //                lineHeightStyle = lineHeightStyle,
 //                lineBreak = lineBreak,
@@ -503,7 +504,7 @@ class TextStyle internal constructor(
         textAlign: TextAlign = this.paragraphStyle.textAlign,
 //        textDirection: TextDirection = this.paragraphStyle.textDirection,
         lineHeight: TextUnit = this.paragraphStyle.lineHeight,
-//        textIndent: TextIndent? = this.paragraphStyle.textIndent,
+        textIndent: TextIndent? = this.paragraphStyle.textIndent,
 //        platformStyle: PlatformTextStyle? = this.platformStyle,
 //        lineHeightStyle: LineHeightStyle? = this.paragraphStyle.lineHeightStyle,
 //        lineBreak: LineBreak = this.paragraphStyle.lineBreak,
@@ -534,7 +535,7 @@ class TextStyle internal constructor(
                 textAlign = textAlign,
 //                textDirection = textDirection,
                 lineHeight = lineHeight,
-//                textIndent = textIndent,
+                textIndent = textIndent,
 //                platformStyle = platformStyle?.paragraphStyle,
 //                lineHeightStyle = lineHeightStyle,
 //                lineBreak = lineBreak,
@@ -663,10 +664,10 @@ class TextStyle internal constructor(
      */
     val lineHeight: TextUnit get() = this.paragraphStyle.lineHeight
 
-//    /**
-//     * The indentation of the paragraph.
-//     */
-//    val textIndent: TextIndent? get() = this.paragraphStyle.textIndent
+    /**
+     * The indentation of the paragraph.
+     */
+    val textIndent: TextIndent? get() = this.paragraphStyle.textIndent
 
     /**
      * The configuration for line height such as vertical alignment of the line, whether to apply
@@ -773,7 +774,7 @@ class TextStyle internal constructor(
             append("textAlign=$textAlign, ")
 //            append("textDirection=$textDirection, ")
             append("lineHeight=$lineHeight, ")
-//            append("textIndent=$textIndent, ")
+            append("textIndent=$textIndent, ")
 //            append("platformStyle=$platformStyle, ")
 //            append("lineHeightStyle=$lineHeightStyle, ")
 //            append("lineBreak=$lineBreak, ")

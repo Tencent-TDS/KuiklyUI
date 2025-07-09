@@ -63,6 +63,7 @@ import com.tencent.kuikly.compose.ui.text.font.FontWeight
 import com.tencent.kuikly.compose.ui.text.font.GenericFontFamily
 import com.tencent.kuikly.compose.ui.text.style.TextAlign
 import com.tencent.kuikly.compose.ui.text.style.TextDecoration
+import com.tencent.kuikly.compose.ui.text.style.TextIndent
 import com.tencent.kuikly.compose.ui.text.style.TextOverflow
 import com.tencent.kuikly.compose.ui.unit.Constraints
 import com.tencent.kuikly.compose.ui.unit.IntOffset
@@ -464,6 +465,7 @@ private fun TextAttr.applyTextStyle(style: TextStyle) {
     }
 
     applyTextAlign(style.textAlign)
+    applyTextIndent(style.textIndent)
 
     if (style.brush is SolidColor) {
         color((style.brush as SolidColor).value.toKuiklyColor())
@@ -544,6 +546,15 @@ private fun TextAttr.applyTextAlign(textAlign: TextAlign?) {
         TextAlign.Right -> textAlignRight()
         null -> textAlignLeft()
         else -> textAlignLeft()
+    }
+}
+
+private fun TextAttr.applyTextIndent(textIndent: TextIndent?) {
+    if (textIndent != null && textIndent.firstLine.isSpecified) {
+        firstLineHeadIndent(textIndent.firstLine.value)
+    } else {
+        // 当 textIndent 为 null 或 firstLine 为 Unspecified 时，重置为 0
+        firstLineHeadIndent(0f)
     }
 }
 
@@ -654,7 +665,7 @@ private fun RichTextAttr.applyAnnotatedString(
     } else {
         Pair(null, null)
     }
-    
+
     // 添加 placeholder 的位置
     placeholders?.forEach { range ->
         positions.add(range.start)
@@ -662,17 +673,17 @@ private fun RichTextAttr.applyAnnotatedString(
     }
 
     val sortedPositions = positions.sorted()
-    
+
     // 按照位置点分段处理
     for (i in 0 until sortedPositions.size - 1) {
         val start = sortedPositions[i]
         val end = sortedPositions[i + 1]
-        
+
         // 检查这个范围是否是 placeholder
-        val isPlaceholder = placeholders?.any { 
-            it.start == start && it.end == end 
+        val isPlaceholder = placeholders?.any {
+            it.start == start && it.end == end
         } ?: false
-        
+
         if (isPlaceholder) {
             // 是 placeholder，创建 PlaceholderSpan
             placeholders?.find { it.start == start }?.let { placeholder ->
@@ -685,50 +696,51 @@ private fun RichTextAttr.applyAnnotatedString(
             spans.add(TextSpan().apply {
                 this.pagerId = this@applyAnnotatedString.pagerId
                 text(annoText.text.substring(start, end))
-                
+
                 // 应用适用的 SpanStyle
                 annoText.spanStyles
                     .filter { range -> !(end <= range.start || start >= range.end) }
                     .forEach { range -> applySpanStyle(range.item) }
-                
+
                 // 应用适用的 ParagraphStyle
                 annoText.paragraphStyles
                     .filter { range -> !(end <= range.start || start >= range.end) }
-                    .forEach { range -> 
+                    .forEach { range ->
                         range.item.let { style ->
                             applyTextAlign(style.textAlign)
                             lineHeight(style.lineHeight.value)
+                            applyTextIndent(style.textIndent)
                         }
                     }
-                
+
                 // 处理适用于当前范围的 LinkAnnotation
                 val linkAnnotation = linkAnnotations
                     .firstOrNull { range -> !(end <= range.start || start >= range.end) }
-                
+
                 // 如果找到适用的 LinkAnnotation，应用其样式
                 linkAnnotation?.let { range ->
                     val spanStyle = range.item.styles?.style ?: SpanStyle()
                     applySpanStyle(spanStyle)
-                    
+
                     // 添加点击事件处理
                     click { _ ->
                         range.item.linkInteractionListener?.onClick(range.item)
                     }
-                    
+
                     // 调用 applyLinkStyle 以支持将来的扩展
                     applyLinkStyle(range.item)
                 }
             })
         }
     }
-    
+
     if (spans.isEmpty()) {
         spans.add(TextSpan().apply {
             pagerId = this@applyAnnotatedString.pagerId
             text(annoText.text)
         })
     }
-    
+
     spans(spans)
 }
 

@@ -128,6 +128,7 @@ export struct KRNativeRender {
       //   .id(this.controller!.instanceId)
 
     }
+    .hitTestBehavior(HitTestMode.None)
     .width('100%')
     .height('100%')
     .onAttach(() => {

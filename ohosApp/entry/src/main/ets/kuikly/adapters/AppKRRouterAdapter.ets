@@ -19,8 +19,9 @@ import { common } from '@kit.AbilityKit';
 
 export class AppKRRouterAdapter implements IKRRouterAdapter {
   openPage(context: common.UIAbilityContext, pageName: string, pageData: KRRecord): void {
+    const url = pageName == 'OverNativeClickDemo' ? 'pages/GestureThrough' : 'pages/Index';
     router.pushUrl({
-      url: 'pages/Index',
+      url,
       params: {
         pageName,
         pageData

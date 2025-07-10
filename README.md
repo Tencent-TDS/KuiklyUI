@@ -134,6 +134,17 @@ All project participants are expected to adhere to our [Code of Conduct](CODE_OF
 - Thanks to the following core contributors for the continuous construction, maintenance, development and optimization of `Kuikly`:
  <br>tom kam watson rocky jonas ruifan pel layen bird zealot zhenhua vinney xuanxi arnon alexa allens eason
 
+## Application Cases
+### Application Integration
+At Tencent, Kuikly has been deeply used by 20+ applications, covering 1,000+ pages and serving 500 million+ daily active users, meeting diverse complex requirements across various scenarios.
+<div style="display: inline-block; text-align: left;">
+  <img src="img/applications.png" width="85%">
+</div>
+Since going open-source, more external applications beyond Tencent have been actively adopting Kuikly. Additional use cases will be progressively shared upon obtaining approval from respective partners.
+
+### Scenario Examples
+For typical business application scenarios, please refer to: [Application Scenario Cases](https://kuikly.tds.qq.com/%E7%AE%80%E4%BB%8B/application_cases.html)
+
 ## Stay Connected
 Scan the QR codes below to follow our latest updates or contact us for inquiries.
 <p align="left">

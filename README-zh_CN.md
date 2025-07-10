@@ -135,6 +135,17 @@ KuiklyUI目录下有各个`Kotlin`版本的gradle配置项
 - 感谢以下核心贡献者对Kuikly持续建设维护与发展优化：
   <br>tom kam watson rocky jonas ruifan pel layen bird zealot zhenhua vinney xuanxi arnon alexa allens eason
 
+## 应用案例
+### 接入应用
+在腾讯，`Kuikly` 已有20+应用深度使用，页面数1000+，日活用户5亿+，满足了这些业务众多场景下的各类复杂需求。
+<div style="display: inline-block; text-align: left;">
+  <img src="img/applications.png" width="85%">
+</div>
+同时开源后，更多腾讯外部业务已在积极接入中，使用案例在征得业务同意后陆续补充
+
+### 场景案例
+业务典型应用场景，请参考：[应用场景案例](https://kuikly.tds.qq.com/%E7%AE%80%E4%BB%8B/application_cases.html)
+
 ## 欢迎关注交流
 欢迎扫码下方二维码关注最新动态或咨询交流。
 <p align="left">

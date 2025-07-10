@@ -200,7 +200,7 @@ internal class OverScrollHandler(
         return false
     }
 
-    private fun processBounceBack(): Boolean {
+    internal fun processBounceBack(): Boolean {
         pointerDataMap.clear()
         dragging = false
         overScrollX = contentView.translationX
@@ -394,6 +394,17 @@ internal class OverScrollHandler(
             motionEvent.getY(activeIndex)
         } else {
             motionEvent.getX(activeIndex)
+        }
+    }
+
+    internal fun setTranslationByNestScrollTouch(parentDy: Float) {
+        val newOffset = getNewOffset(getTranslation(), parentDy)
+        setTranslation(-newOffset)
+        if (!overScrolling) {
+            dragging = true
+            fireBeginOverScrollCallback()
+        } else {
+            fireOverScrollCallback(contentView.translationX, contentView.translationY)
         }
     }
 

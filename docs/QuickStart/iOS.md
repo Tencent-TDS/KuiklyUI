@@ -29,7 +29,7 @@ pod 'OpenKuiklyIOSRender', 'KUIKLY_RENDER_VERSION'
 end
 ```
 :::tip 提示
-* KUIKLY_RENDER_VERSION 需要替换为实际的 Kuikly 版本号，在这里[查看最新版本](../更新日志/changelog.md)
+* KUIKLY_RENDER_VERSION 需要替换为实际的 Kuikly 版本号，在这里[查看最新版本](../ChangeLog/changelog.md)
 * 版本号需要和[KMP跨端工程](common.md)保持一致
 :::
 

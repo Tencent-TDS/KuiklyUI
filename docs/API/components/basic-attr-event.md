@@ -629,7 +629,7 @@ internal class OverflowPage : BasePager() {
 
 ### animate方法
 
-设置组件的动画参数, 具体效果和写法可以参看[动画文档](../../开发文档/animation-basic.md)
+设置组件的动画参数, 具体效果和写法可以参看[动画文档](../../DevGuide/animation-basic.md)
 
 ### accessibility方法
 
@@ -637,7 +637,7 @@ internal class OverflowPage : BasePager() {
 
 ---
 
-下面只描述布局相关属性方法的定义, 更详细的描述, 可查看[Kuikly的布局教程](../../开发文档/layout.md)
+下面只描述布局相关属性方法的定义, 更详细的描述, 可查看[Kuikly的布局教程](../../DevGuide/layout.md)
 
 ### width方法
 

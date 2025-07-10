@@ -1,10 +1,10 @@
 import {sidebar} from "vuepress-theme-hope";
 
 export const zhSidebar = sidebar({
-    "/简介": [
+    "/Introduction": [
             {
                 text: "",
-                prefix: "/简介",
+                prefix: "/Introduction",
                 collapsible: false,
                 children: [
                     {
@@ -25,10 +25,10 @@ export const zhSidebar = sidebar({
                 ],
             },
         ],
-    "/快速开始": [
+    "/QuickStart": [
         {
             text: "",
-            prefix: "/快速开始",
+            prefix: "/QuickStart",
             collapsible: false,
             children: [
                 {
@@ -51,10 +51,10 @@ export const zhSidebar = sidebar({
             ],
         },
     ],
-    "/开发文档": [
+    "/DevGuide": [
         {
             text: "",
-            prefix: "/开发文档",
+            prefix: "/DevGuide",
             children: [
                 {
                     text: "入门指南",
@@ -151,7 +151,7 @@ export const zhSidebar = sidebar({
     "/API": [
         {
             text: "组件",
-            prefix: "/API/组件",
+            prefix: "/API/components",
             children: [
                 "override.md", "basic-attr-event.md", "view.md", "text.md", "rich-text.md", "image.md", "input.md", "text-area.md",  "canvas.md",
                 "button.md", "scroller.md", "list.md", "waterfall-list.md", "slider-page.md", "page-list.md", "modal.md", "refresh.md",
@@ -161,7 +161,7 @@ export const zhSidebar = sidebar({
         },
         {
             text: "Module",
-            prefix: "/API/模块",
+            prefix: "/API/modules",
             children: [
                 "overview.md", 'memory-cache.md', "sp.md", "router.md", "network.md", "notify.md", "snapshot.md","codec.md","calendar.md", "performance.md"
             ]
@@ -172,7 +172,7 @@ export const zhSidebar = sidebar({
         "quickStart.md",
         "allApi.md"
     ],
-    "/博客": [
+    "/Blog": [
         "roadmap2025.md",
         "kuikly-rendering.md"
     ],

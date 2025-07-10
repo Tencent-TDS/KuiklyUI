@@ -12,7 +12,7 @@
 
 - 网络图片
 - base64 字符串
-- assets 图片（1.1版本起支持），使用指引：[assets 资源与图片](../../开发文档/assets-resource.md)
+- assets 图片（1.1版本起支持），使用指引：[assets 资源与图片](../../DevGuide/assets-resource.md)
 - File 图片（1.1版本起支持）
 
 Kuikly约定用“**assets://**”前缀标识资源图片路径，用“**file://**”前缀标识应用沙盒目录图片路径，用“**data:image**”前缀标识base64图片内容，用“**http//**”或“**https//**”标识网络图片路径。同时提供了`ImageUri`类，通过`ImageUri.commonAssets(path)`、`ImageUri.pageAssets(path)`、`ImageUri.file(path)`方法能快速将`path`加上对应前缀传入`src`属性。如果业务自行实现了图片各端的图片适配器，也可根据不同的前缀来使用不同方式加载图片。

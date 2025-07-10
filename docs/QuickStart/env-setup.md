@@ -9,7 +9,7 @@
 
     切换方式: Android Studio -> Settings -> Build,Execution,Deployment -> Build Tools -> Gradle -> Gradle JDK
 2. 在``Android Studio``中安装``Kotlin``和``Kotlin MultiPlatform``插件，路径为**Setting->Preferences->Plugins->Marketplace**
-   ![安装kotlin和kmp插件](../开发文档/img/kotlin_and_kmm_plugin.png)
+   ![安装kotlin和kmp插件](../DevGuide/img/kotlin_and_kmm_plugin.png)
 3. 在``Android Studio``中安装``Kuikly``插件
 
    安装步骤：
@@ -53,7 +53,7 @@
 
 切换到Project视图，打开shared/build.gradle.kts，并注释iOS相关配置。
 
-![忽略iOS编译打包](../开发文档/img/ios_app_ignore.png)
+![忽略iOS编译打包](../DevGuide/img/ios_app_ignore.png)
 
 需要注释的配置如下：
 ```kotlin
@@ -117,7 +117,7 @@ dependencies {
 1. 安装**kdoctor**: ``brew install kdoctor``
 2. 安装完毕后，命令行输入``kdoctor``, 检查环境是否准备好
 
-![kdoctor检查](../开发文档/img/kdoctor_check.png)
+![kdoctor检查](../DevGuide/img/kdoctor_check.png)
 
 ## 更多
 

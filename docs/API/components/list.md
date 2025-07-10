@@ -2,7 +2,7 @@
 
 用于展示一系列项目的视图组件，支持垂直方向和水平方向，继承自`Scroller`
 
-通常配合[循环语句指令](../../开发文档/directive.md#vfor-vforindex-vforlazy循环语句指令)使用，
+通常配合[循环语句指令](../../DevGuide/directive.md#vfor-vforindex-vforlazy循环语句指令)使用，
 [组件使用范例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/ListViewDemoPage.kt)。
 
 ## 属性

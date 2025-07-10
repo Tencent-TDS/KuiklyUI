@@ -7,7 +7,7 @@
 
 ## Kuikly整体架构
 
-![](../快速开始/img/architecture.png)
+![](../QuickStart/img/architecture.png)
 
 1. **KuiklyUI**
 

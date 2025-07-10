@@ -47,7 +47,7 @@ attr {
 }
 ```
 
-如果想查阅组件支持的布局属性列表，可移步[组件布局属性](../API/组件/basic-attr-event.md#width方法)
+如果想查阅组件支持的布局属性列表，可移步[组件布局属性](../API/components/basic-attr-event.md#width方法)
 
 > Pager本身也是一个组件，因此也有attr闭包
 
@@ -59,7 +59,7 @@ attr {
   ``border``等属性
 * **组件样式**：组件特有的样式，例如``Text``组件有``text``和``fontSize``属性；``Image``组件有``src``属性
 
-如果想查阅组件的支持的样式列表, 可移步[组件文档](../API/组件/override.md)
+如果想查阅组件的支持的样式列表, 可移步[组件文档](../API/components/override.md)
 
 
 ## 加载图片

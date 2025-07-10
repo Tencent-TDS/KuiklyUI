@@ -22,7 +22,7 @@
   * Android壳工程：``androidApp/build.gradle.kts``
   * iOS壳工程：``iosApp/Podfile``
   * 鸿蒙壳工程：``ohosApp/entry/oh-package.json5``
-* 在这里[查看最新版本](../更新日志/changelog.md)
+* 在这里[查看最新版本](../ChangeLog/changelog.md)
 * 各端的版本号需要保持一致
 :::
 
@@ -67,7 +67,7 @@
 4. 当手机出现下面界面时，说明已运行成功
 
 <div align="center">
-<img src="../开发文档/img/kuikly_ios_app_demo.png" width="30%"  alt="运行成功" style="border: 1px solid black;">
+<img src="../DevGuide/img/kuikly_ios_app_demo.png" width="30%"  alt="运行成功" style="border: 1px solid black;">
 </div>
 
 ## 运行鸿蒙App

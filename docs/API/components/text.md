@@ -338,7 +338,7 @@ internal class FontWeightPage : BasePager() {
 | fontFamily | 字体名称  | String |
 
 :::tip 注意
-如果需要使用自定义字体，安卓和鸿蒙端需要实现[自定义字体适配器](../../快速开始/android.md#自定义字体适配器)，iOS端需要在系统中[注册字体](https://developer.apple.com/documentation/uikit/adding-a-custom-font-to-your-app?language=objc)。
+如果需要使用自定义字体，安卓和鸿蒙端需要实现[自定义字体适配器](../../QuickStart/android.md#自定义字体适配器)，iOS端需要在系统中[注册字体](https://developer.apple.com/documentation/uikit/adding-a-custom-font-to-your-app?language=objc)。
 :::
 示例：
 ```kotlin

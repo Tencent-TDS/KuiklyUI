@@ -27,7 +27,7 @@
 }
 ```
 :::tip 提示
-* KUIKLY_RENDER_VERSION 需要替换为实际的 kuikly 版本号，在这里[查看最新版本](../更新日志/changelog.md)
+* KUIKLY_RENDER_VERSION 需要替换为实际的 kuikly 版本号，在这里[查看最新版本](../ChangeLog/changelog.md)
 * 版本号需要和[KMP跨端工程](common.md)保持一致
 :::
 点击右上角【Sync Now】（或者在entry目录下命令行执行ohpm install）。
@@ -322,7 +322,7 @@ Kuikly业务代码，在鸿蒙平台上会被编译成 so 产物，下面以本�
 我们先前在``Kuikly``[KMP跨端工程接入](common.md)中已经新建了``Kuikly``业务工程，然后我们将这个业务工程的业务代码编译成的``.so``链接到我们的现有鸿蒙工程。
 
 ### 生成 so 产物和头文件
-鸿蒙Kuikly业务代码编译生成 so 产物，详细步骤参考[鸿蒙平台开发方式](../开发文档/harmony-dev.md)。
+鸿蒙Kuikly业务代码编译生成 so 产物，详细步骤参考[鸿蒙平台开发方式](../DevGuide/harmony-dev.md)。
 <br>[KMP侧接入](common.md)工程中，编译跨端工程的``shared``模块，命令行执行 ``./gradlew -c settings.ohos.gradle.kts :shared:linkOhosArm64`` 编译鸿蒙so产物。
 
 

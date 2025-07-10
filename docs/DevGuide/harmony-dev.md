@@ -11,7 +11,7 @@
 
 给ohos单独配置gradle配置项，使用此配置项编译鸿蒙产物
 
-在[编写第一个Kuikly页面](../快速开始/hello-world.md)中，Android Studio中创建的Kuikly工程中会默认带了鸿蒙产物的gradle设置项，可以参考使用。
+在[编写第一个Kuikly页面](../QuickStart/hello-world.md)中，Android Studio中创建的Kuikly工程中会默认带了鸿蒙产物的gradle设置项，可以参考使用。
 (若创建的工程无鸿蒙模版可以升级Andriod Studio Kuikly plugin)
 <div>
 <img src="./img/ohosgradle.png"  alt="intro_5" width="400">
@@ -106,7 +106,7 @@ dependencies {
 
 ### 编写Kuikly页面
 
-参照[编写第一个Kuikly页面](../快速开始/hello-world.md)的指引编写页面。在页面中可以通过以下方式判断鸿蒙平台：
+参照[编写第一个Kuikly页面](../QuickStart/hello-world.md)的指引编写页面。在页面中可以通过以下方式判断鸿蒙平台：
 ```kotlin
 internal class RouterPage : BasePager() {
   override fun body(): ViewBuilder {

@@ -54,7 +54,7 @@
 4. 当手机出现下面界面时，说明已运行成功
 
 <div align="center">
-<img src="../开发文档/img/kuikly_ios_app_demo.png" width="30%"  alt="运行成功" style="border: 1px solid black;">
+<img src="../DevGuide/img/kuikly_ios_app_demo.png" width="30%"  alt="运行成功" style="border: 1px solid black;">
 </div>
 
 :::tip 注意
@@ -186,4 +186,4 @@ demo工程模块需要编译源码方可进行体验。 可参考Readme 源码�
 ## 下一步
 
 * 如果你的应用还没接入Kuikly的话，建议先移步[Kuikly接入](./overview.md)，查看如何将``Kuikly``接入您的应用。
-* 如果您的应用已经接入Kuikly，那么建议您继续浏览Kuikly教程，从理解[Kuikly中的Pager概念](../开发文档/pager.md)开始
+* 如果您的应用已经接入Kuikly，那么建议您继续浏览Kuikly教程，从理解[Kuikly中的Pager概念](../DevGuide/pager.md)开始

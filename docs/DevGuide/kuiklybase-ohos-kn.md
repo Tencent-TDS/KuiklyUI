@@ -3,7 +3,7 @@
 在Kuikly工程中，可能会需要集成本地其他KMP模块。目前官方的KMP模块还不支持编译到鸿蒙平台，为了使Kuikly工程在集成其他KMP模块后仍能编译到鸿蒙平台，需要对KMP模块进行鸿蒙Kotlin/Native的适配。现假设你的Kuikly工程目录如下：
 
 <div align="center">
-<img src="../快速开始/img/project-structure2.png" width="50%">
+<img src="../QuickStart/img/project-structure2.png" width="50%">
 </div>
 
 其中，`kmp-biz`是`shared`模块依赖的其他KMP模块，对`kmp-biz`进行鸿蒙Kotlin/Native适配需要以下步骤：

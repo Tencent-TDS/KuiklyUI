@@ -9,7 +9,7 @@
 2. 在Marketplace页签，输入Kuikly回车搜索，点击Install，然后Restart IDE即可
 
    <div align="center">
-      <img src="../快速开始/img/plugin_load.png">
+      <img src="../QuickStart/img/plugin_load.png">
    </div>
 
 目前``Kuikly`` Android Studio插件提供了以下功能
@@ -22,7 +22,7 @@
 
 1. 使用Android Studio新建Kuikly工程。 File -> New -> New Project -> Kuikly Project Template
 
-![新建Kuikly工程](../快速开始/img/new_kuikly_project.png)
+![新建Kuikly工程](../QuickStart/img/new_kuikly_project.png)
 
 2. 新建完后你会自动集成Kuikly相关的依赖，以下为新建工程的目录
 

@@ -150,4 +150,4 @@ internal class ProfileItem {
 
 ## 发送POST请求
 
-**NetworkModule**支持发送HTTP POST请求，使用方式与GET请求基本一致，这里不做详细演示, 大家可以参考[NetworkModule文档](../API/模块/network.md)
+**NetworkModule**支持发送HTTP POST请求，使用方式与GET请求基本一致，这里不做详细演示, 大家可以参考[NetworkModule文档](../API/modules/network.md)

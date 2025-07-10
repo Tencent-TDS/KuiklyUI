@@ -4,7 +4,7 @@
 
 标准模式是业务使用最多的模式，在这个模式中业务使用Kuikly进行页面的开发，其中每个Page都用Kuikly DSL和Kotlin来实现，包含了UI及其配套逻辑，结构如图所示。
 
-![标准模式](../快速开始/img/paradigm1.png)
+![标准模式](../QuickStart/img/paradigm1.png)
 
 > * UI表示层：通过Kuikly DSL实现UI页面
 > * UI控制逻辑：通过kotlin实现业务逻辑，控制UI的展示
@@ -23,7 +23,7 @@
 有些时候随着跨端提效的要求进一步提高，业务往往不满足于标准模式，希望在提效上更进一步，把更多的底层逻辑通过跨端实现。可以参考下图结构，可以把底层逻辑实现到跨端层。
 其中绿色部分可动态化也可内置，红色部分只能内置。
 
-![进阶模式](../快速开始/img/paradigm2.png)
+![进阶模式](../QuickStart/img/paradigm2.png)
 
 > * UI表示层：通过Kuikly DSL实现UI页面
 > * UI控制逻辑：通过kotlin实现业务逻辑，控制UI的展示
@@ -38,7 +38,7 @@
 1. 可动态化类型
 
   * 不可直接依赖平台能力
-  * 不可使用多线程，协程只支持[Kuikly内建协程](../开发文档/thread-and-coroutines.md#kuikly-coroutinescope-api)
+  * 不可使用多线程，协程只支持[Kuikly内建协程](../DevGuide/thread-and-coroutines.md#kuikly-coroutinescope-api)
   * 不可依赖内置部分
   * 不可依赖使用到了平台能力的KMP组件，如果无法避免需要使用相关能力，请通过Kuikly Module方式进行解耦调用
   
@@ -70,4 +70,4 @@
 > * 业务逻辑：泛指通过kotlin实现业务逻辑，比如底层的网络请求、回包处理、数据存储等模块逻辑
 
 
-![纯逻辑跨端模式](../快速开始/img/paradigm3.png)
+![纯逻辑跨端模式](../QuickStart/img/paradigm3.png)

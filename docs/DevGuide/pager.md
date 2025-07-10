@@ -46,7 +46,7 @@ internal class HelloWorldPage : Pager() {
 @tab 效果
 
 <div align="center">
-<img src="../快速开始/img/hello_world.png" style="width: 30%; border: 1px gray solid">
+<img src="../QuickStart/img/hello_world.png" style="width: 30%; border: 1px gray solid">
 </div>
 
 :::

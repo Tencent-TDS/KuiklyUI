@@ -45,7 +45,7 @@ Xcode可以调试Kotlin代码，也可以AndroidStudio调试iOS平台的kolint�
 
 ## Kotlin编译成iOS的framework后的堆栈还原是否有问题？
 
-没问题，kotlin/native 编译的framework可完整还原堆栈，详情可参考[官网文档（iOS framework模式堆栈翻译）](../开发文档/symbol-iOS.md)
+没问题，kotlin/native 编译的framework可完整还原堆栈，详情可参考[官网文档（iOS framework模式堆栈翻译）](../DevGuide/symbol-iOS.md)
 
 ## 编译后的shared库，头文件庞大且无注释，目前是怎么处理的？
 shared.framework的头文件内容包括Kotlin runtime类，Kuikly Core类、业务类，其中业务类是可以做到完全不导出在头文件中的，因为业务类不需要和原生直接交互，其交互通过KuiklyCore的CallNaitve/CallKotlin两个接口通信交互，所以接入层的业务方按理可以不理解share.framework的头文件。
@@ -60,7 +60,7 @@ KMM作为后来者，生态上因发展时间较短尚还不具备其生态优�
 
 <br/>
 
-为了Kuikly能完全满足业务能力诉求（包括动态化诉求），我们和native生态实现融合，设计了一套可扩展的去中心化设计，业务方对于需要Native Api的场景下可通过Kuikly的[扩展原生模块](../开发文档/expand-native-api.md) 来复用Native生态扩展Kuikly能力。
+为了Kuikly能完全满足业务能力诉求（包括动态化诉求），我们和native生态实现融合，设计了一套可扩展的去中心化设计，业务方对于需要Native Api的场景下可通过Kuikly的[扩展原生模块](../DevGuide/expand-native-api.md) 来复用Native生态扩展Kuikly能力。
 
 ## 目前多业务场景深度使用后线上Crash数据有不？比较担心有一些特定平台下的Bug，只能等JB来解决
 
@@ -77,7 +77,7 @@ Kuikly作为原生开发框架，理论配套开发工具可复用原生开发�
 
 ## 非代理的情况下，Kuikly是否可完整实现logic层和data层的跨平台？（比如某个业务完整的网络请求，pb/jce数据的序列化，缓存，跳转和通信）
 
-见[跨端工程模式](../简介/paradigm.md)
+见[跨端工程模式](../Introduction/paradigm.md)
 ## 宿主非页面作为容器（局部使用Kuikly）有最佳实践不？（比如某个页面，其他都是原生的，Banner或者某个Section块需要用到Kuikly）
 
 Kuikly提供给接入层的就是一个view粒度形式，所以可以把它简单当作如系统webview的概念来使用，该view粒度可用来页面级，也可以是嵌入其它原生场景的view级，两者的使用目前是一致的，无使用上的区别

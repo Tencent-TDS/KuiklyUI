@@ -99,4 +99,4 @@ Kotlin调试脚本命名必须是``konan_lldb.py``
 ![Inspect Variables](./img/ohos-debug-inspect.png)
 
 ## KuiklyBase鸿蒙调试插件
-通过上述方式，可以实现Kotlin 跨端代码与鸿蒙 ArkTS 的联合调试，但现有流程仍需较多人工操作。为进一步提升开发效率，Kuikly 团队计划推出鸿蒙调试插件，进一步提升调试体验。具体进展可关注[Roadmap](../博客/roadmap2025.md)鸿蒙调试插件开发进度。
+通过上述方式，可以实现Kotlin 跨端代码与鸿蒙 ArkTS 的联合调试，但现有流程仍需较多人工操作。为进一步提升开发效率，Kuikly 团队计划推出鸿蒙调试插件，进一步提升调试体验。具体进展可关注[Roadmap](../Blog/roadmap2025.md)鸿蒙调试插件开发进度。

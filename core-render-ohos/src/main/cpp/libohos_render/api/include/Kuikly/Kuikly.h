@@ -146,31 +146,6 @@ typedef char *(*KRFontAdapter)(const char *fontFamily, char **fontBuffer, size_t
 void KRRegisterFontAdapter(KRFontAdapter adapter, const char *fontFamily);
 
 /**
- * @brief 一个用于析构KRImageAdapter返回的imageDescriptor或src的回调函数
- * @param imageDescriptor或src
- */
-typedef void (*KRImageDataDeallocator)(void *data);
-
-/**
- * @brief 根据imageScr返回image src或image descriptor
- *        模式1：返回image src，这种情况输入是imageSrc, 输出是函数返回值，deallocator
- *        模式2: 通过参数指针返回image descriptor，这种情况输入是imageSrc，输出是imageDescriptor，deallocator
- * @param imageSrc image组件设置的scr属性
- * @param[out] imageDescriptor 用于返回image的drawable descriptor
- * @param[out] deallocator 用于释放imageDescriptor指针或src，如果是非空则kuikly使用完imageDescriptor或image
- * src后会用调用deallocator
- * @return image src
- */
-typedef char *(*KRImageAdapter)(const char *imageSrc, ArkUI_DrawableDescriptor **imageDescriptor,
-                                KRImageDataDeallocator *deallocator);
-
-/**
- * @brief 注册image adapter
- * @param adapter adapter函数指针
- */
-void KRRegisterImageAdapter(KRImageAdapter adapter);
-
-/**
  * Log level定义
  * 判断loglevel的时候，不要假设每个level的值是永远固定的，请通过常量对比进行判断
  */

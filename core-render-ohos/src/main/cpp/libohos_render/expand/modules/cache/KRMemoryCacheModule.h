@@ -28,12 +28,19 @@ class KRMemoryCacheModule : public IKRRenderModuleExport {
 
     KRAnyValue Get(const std::string &key);
     void Set(const std::string &key, const KRAnyValue &value);
+    OH_PixelmapNative* GetImage(const std::string &key);
+    void OnDestroy() override;
 
  private:
     KRAnyValue SetObject(const KRAnyValue &params);
+    KRAnyValue CacheImage(const KRAnyValue &params, const KRRenderCallback &callback);
 
  private:
     std::unordered_map<std::string, KRAnyValue> cache_map_;
+    std::unordered_map<std::string, OH_PixelmapNative*> image_cache_map_;
+    std::mutex mtx_;
+    std::condition_variable cv_;
+    bool download_completed_;
 };
 
 #endif  // CORE_RENDER_OHOS_KRMEMORYCACHEMODULE_H

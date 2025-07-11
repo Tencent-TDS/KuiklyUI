@@ -18,7 +18,22 @@ import { IKRRouterAdapter } from './IKRRouterAdapter';
 import { IKRColorParserAdapter } from './IKRColorParserAdapter';
 import { IKRPAGViewAdapter } from './IKRPAGViewAdapter';
 import { IKRVideoViewAdapter } from './IKRVideoViewAdapter';
+import render from 'libkuikly.so';
+import { image } from '@kit.ImageKit';
 
+/**
+ * 图片回调函数
+ * @param src 新图片源
+ * @param pixelMap 适配器实际获取到的图片资源
+ * 注：Kuikly内部会优先使用pixelMap作为图片资源，如果pixelMap为空，则会根据src内部加载图片资源
+ */
+export type ImageCallback = (src: string, pixelMap: image.PixelMap | null) => void;
+/**
+ * 业务注册的图片适配器函数
+ * @param src 图片源
+ * @param callback 图片回调函数，在适配器函数内部获取到图片资源后需主动调用
+ */
+export type ImageAdapterFunc = (src: string, callback: ImageCallback) => void;
 
 export class KuiklyRenderAdapterManager {
   /**
@@ -41,4 +56,14 @@ export class KuiklyRenderAdapterManager {
    * Pag适配器
    */
   static krPagAdapter: IKRPAGViewAdapter | null = null;
+  /**
+   * 注册图片适配器
+   */
+  static registerKRImageAdapter(imageAdapterFunc: ImageAdapterFunc) {
+    render.registerImageAdapter((src: string, callbackId: string) => {
+      imageAdapterFunc(src, (src: string, pixelMap: image.PixelMap | null) => {
+        render.fireImageCallback(src, pixelMap, callbackId);
+      })
+    });
+  }
 }

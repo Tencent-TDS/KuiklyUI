@@ -69,45 +69,6 @@ static char *MyFontAdapter(const char *fontFamily, char **fontBuffer, size_t *le
     return (char *)customFontPath.c_str();
 }
 
-static char *MyImageAdapter(const char *imageSrc, ArkUI_DrawableDescriptor **imageDescriptor,
-                            KRImageDataDeallocator *deallocator) {
-    if (std::strcmp(imageSrc, "customImageSrc") == 0) {
-        // 创建ImageSource实例
-        OH_ImageSourceNative *source = nullptr;
-        Image_ErrorCode errCode =
-            OH_ImageSourceNative_CreateFromUri((char *)customImagePath.c_str(), customImagePath.length(), &source);
-        if (errCode != IMAGE_SUCCESS) {
-            return nullptr;
-        }
-
-        // 通过图片解码参数创建PixelMap对象
-        OH_DecodingOptions *ops = nullptr;
-        OH_DecodingOptions_Create(&ops);
-        // 设置为AUTO会根据图片资源格式解码，如果图片资源为HDR资源则会解码为HDR的pixelmap。
-        OH_DecodingOptions_SetDesiredDynamicRange(ops, IMAGE_DYNAMIC_RANGE_AUTO);
-        OH_PixelmapNative *resPixMap = nullptr;
-
-        // ops参数支持传入nullptr, 当不需要设置解码参数时，不用创建
-        errCode = OH_ImageSourceNative_CreatePixelmap(source, ops, &resPixMap);
-        OH_DecodingOptions_Release(ops);
-        if (errCode != IMAGE_SUCCESS) {
-            return nullptr;
-        }
-        OH_ImageSourceNative_Release(source);
-
-        // 通过PixelMap创建DrawableDescriptor
-        *imageDescriptor = OH_ArkUI_DrawableDescriptor_CreateFromPixelMap(resPixMap);
-
-        OH_PixelmapNative_Release(resPixMap);
-        *deallocator = [](void *data) {
-            OH_ArkUI_DrawableDescriptor_Dispose(static_cast<ArkUI_DrawableDescriptor *>(data));
-        };
-        return nullptr;
-    } else {
-        char *newImageSrc = (char *)imageSrc;
-        return newImageSrc;
-    }
-}
 static void MyLogAdapter(int logLevel, const char *tag, const char *message) {
     static int MyDomain = 0x1234;
     OH_LOG_Print(LOG_APP, LOG_INFO, MyDomain, tag, "%{public}s", message);
@@ -159,7 +120,6 @@ static napi_value InitKuikly(napi_env env, napi_callback_info info) {
         
         KRRegisterLogAdapter(MyLogAdapter);
         KRRegisterFontAdapter(MyFontAdapter, "Satisfy-Regular");
-        KRRegisterImageAdapter(MyImageAdapter);
         adapterRegistered = true;
     }
 

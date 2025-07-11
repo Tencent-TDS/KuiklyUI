@@ -952,6 +952,13 @@ void UpdateInputNodeSelectionStartPosition(ArkUI_NodeHandle node, int32_t index)
     GetNodeApi()->setAttribute(node, NODE_TEXT_INPUT_TEXT_SELECTION, &item);
 }
 
+void UpdateTextAreaNodeLineHeight(ArkUI_NodeHandle node, float lineHeight) {
+    ArkUI_NumberValue value[] = {lineHeight};
+    ArkUI_AttributeItem item = {value, sizeof(value) / sizeof(ArkUI_NumberValue)};
+    // NODE_TEXT_AREA_LINE_HEIGHT 属性未来版本待支持
+    GetNodeApi()->setAttribute(node, NODE_TEXT_LINE_HEIGHT, &item);
+}
+
 void UpdateLoadingProgressNodeColor(ArkUI_NodeHandle node, uint32_t hexColorValue) {
     auto nodeAPI = GetNodeApi();
     ArkUI_NumberValue value[] = {{.u32 = hexColorValue}};

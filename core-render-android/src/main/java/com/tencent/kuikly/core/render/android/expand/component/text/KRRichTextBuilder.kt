@@ -403,7 +403,7 @@ class FontFamilySpan(fontFamily: String, typeFaceLoader: TypeFaceLoader?) : Type
     }
 }
 
-class HRLineHeightSpan(private val height: Int) : LineHeightSpan {
+class HRLineHeightSpan(internal val height: Int) : LineHeightSpan {
 
     override fun chooseHeight(
         text: CharSequence?,

@@ -26,6 +26,7 @@ import android.os.Build
 import android.text.Editable
 import android.text.InputFilter
 import android.text.InputType
+import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.TextWatcher
@@ -51,6 +52,7 @@ import com.tencent.kuikly.core.render.android.css.ktx.toPxI
 import com.tencent.kuikly.core.render.android.expand.component.input.KRTextLengthLimitInputFilter
 import com.tencent.kuikly.core.render.android.expand.component.list.KRRecyclerView
 import com.tencent.kuikly.core.render.android.expand.component.text.FontWeightSpan
+import com.tencent.kuikly.core.render.android.expand.component.text.HRLineHeightSpan
 import com.tencent.kuikly.core.render.android.expand.component.text.KRRichTextBuilder
 import com.tencent.kuikly.core.render.android.expand.module.KRKeyboardModule
 import com.tencent.kuikly.core.render.android.expand.module.KeyboardStatusListener
@@ -104,6 +106,9 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     private var imeActionCallBack: KuiklyRenderCallback? = null
 
     private var fontSize = -1f
+    private var lineHeight = -1f
+    private var lineHeightSpan: HRLineHeightSpan? = null
+    private var textWatcher: TextWatcher? = null
     /**
      * 是否使用dp来作为字体单位
      */
@@ -129,7 +134,11 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     init {
         resetDefaultStyle()
         enableFocusInTouchMode()
-        setSingleLine()
+        initSingleLine()
+    }
+
+    protected open fun initSingleLine() {
+        isSingleLine = true
     }
 
     /**
@@ -181,6 +190,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
             KRTextProps.PROP_KEY_TEXT_USE_DP_FONT_SIZE_DIM -> setUseDpFontSizeDim(propValue)
             KRTextProps.PROP_KEY_NUMBER_OF_LINES -> setNumberLines(propValue)
             IME_NO_FULLSCREEN -> setImeNoFullscreen(propValue)
+            KRTextProps.PROP_KEY_LINE_HEIGHT -> setLineHeight(propValue)
             else -> super.setProp(propKey, propValue)
         }
     }
@@ -253,7 +263,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
 
     private fun setInputText(params: String?) {
         val text = params ?: KRCssConst.EMPTY_STRING
-        setText(text)
+        super.setText(text)
         setSelection(text.length)
     }
 
@@ -417,7 +427,9 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     }
 
     private fun setValues(propValue: Any): Boolean {
-        val textProps = KRTextProps(kuiklyRenderContext)
+        val textProps = KRTextProps(kuiklyRenderContext).also {
+            it.fontSize = -1f
+        }
         this.textProps = textProps
         textProps.setProp(KRTextProps.PROP_KEY_VALUES, propValue)
         val richTextBuilder = KRRichTextBuilder(kuiklyRenderContext)
@@ -426,7 +438,8 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         }
         setInputEditorAdapterIfNeed()
         val selStart = selectionStart
-        setText(text)
+        text?.also(::ensureLineHeightSpan)
+        super.setText(text)
         setSelection(selStart)
         return true
     }
@@ -509,9 +522,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     @Suppress("UNCHECKED_CAST")
     private fun observeTextChanged(propValue: Any): Boolean {
         textDidChangeCallback = propValue as KuiklyRenderCallback
-        addTextChangedListener(afterTextChanged = {
-            textDidChangeCallback?.invoke(createCallbackParamMap())
-        })
+        observeTextWatcher()
         return true
     }
 
@@ -619,11 +630,15 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
 
     private fun setUseDpFontSizeDim(propValue: Any): Boolean {
         val useDp = (propValue as Int) == 1
-        if (fontSize != -1f && useDpFontSizeDim != useDp) {
-            useDpFontSizeDim = useDp
-            setFontSize(fontSize)
-        } else {
-            useDpFontSizeDim = useDp
+        val change = useDpFontSizeDim != useDp
+        useDpFontSizeDim = useDp
+        if (change) {
+            if (fontSize != -1f) {
+                setFontSize(fontSize)
+            }
+            if (lineHeight != -1f) {
+                setLineHeight(lineHeight)
+            }
         }
         return true
     }
@@ -655,6 +670,55 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         val imm = context.getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
         if (imm.isActive(this)) {
             imm.restartInput(this)
+        }
+    }
+
+    private fun setLineHeight(propValue: Any): Boolean {
+        val rawLineHeight = (propValue as Number).toFloat()
+        lineHeight = rawLineHeight
+        val pxLineHeight = if (useDpFontSizeDim) {
+            kuiklyRenderContext.toPxI(rawLineHeight)
+        } else {
+            kuiklyRenderContext.spToPxI(rawLineHeight)
+        }
+        lineHeightSpan?.also {
+            if (it.height == pxLineHeight) {
+                return true // not changed
+            }
+            text.removeSpan(it)
+        }
+        lineHeightSpan = HRLineHeightSpan(pxLineHeight)
+        ensureLineHeightSpan(text)
+        observeTextWatcher()
+        return true
+    }
+
+    private fun ensureLineHeightSpan(text: Spannable) {
+        val span = lineHeightSpan ?: return
+        text.apply {
+            if (getSpanStart(span) != 0 || getSpanEnd(span) != length) {
+                // range changed, call setSpan to update
+                setSpan(span, 0, length, Spanned.SPAN_EXCLUSIVE_INCLUSIVE)
+            }
+        }
+    }
+
+    private fun observeTextWatcher() {
+        if (textWatcher == null) {
+            textWatcher = object : TextWatcher {
+                override fun afterTextChanged(s: Editable?) {
+                    s?.also(::ensureLineHeightSpan)
+                    textDidChangeCallback?.invoke(createCallbackParamMap())
+                }
+
+                override fun beforeTextChanged(text: CharSequence?, start: Int, count: Int, after: Int) {
+                }
+
+                override fun onTextChanged(text: CharSequence?, start: Int, before: Int, count: Int) {
+                }
+            }.also {
+                addTextChangedListener(it)
+            }
         }
     }
 
@@ -692,39 +756,6 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         private const val KEY_KEYBOARD_CHANGED_DURATION = "duration"
         private const val DEFAULT_KEYBOARD_CHANGED_ANIMATION_DURATION = 0.2
     }
-}
-
-private inline fun TextView.addTextChangedListener(
-    crossinline beforeTextChanged: (
-        text: CharSequence?,
-        start: Int,
-        count: Int,
-        after: Int
-    ) -> Unit = { _, _, _, _ -> },
-    crossinline onTextChanged: (
-        text: CharSequence?,
-        start: Int,
-        before: Int,
-        count: Int
-    ) -> Unit = { _, _, _, _ -> },
-    crossinline afterTextChanged: (text: Editable?) -> Unit = {}
-): TextWatcher {
-    val textWatcher = object : TextWatcher {
-        override fun afterTextChanged(s: Editable?) {
-            afterTextChanged.invoke(s)
-        }
-
-        override fun beforeTextChanged(text: CharSequence?, start: Int, count: Int, after: Int) {
-            beforeTextChanged.invoke(text, start, count, after)
-        }
-
-        override fun onTextChanged(text: CharSequence?, start: Int, before: Int, count: Int) {
-            onTextChanged.invoke(text, start, before, count)
-        }
-    }
-    addTextChangedListener(textWatcher)
-
-    return textWatcher
 }
 
 private class TextLengthLimitInputFilter(

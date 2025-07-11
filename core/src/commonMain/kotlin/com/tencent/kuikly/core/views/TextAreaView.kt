@@ -19,16 +19,55 @@ import com.tencent.kuikly.core.base.*
 import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.base.event.EventHandlerFn
 import com.tencent.kuikly.core.collection.fastArrayListOf
+import com.tencent.kuikly.core.layout.FlexAlign
+import com.tencent.kuikly.core.layout.FlexDirection
+import com.tencent.kuikly.core.layout.FlexNode
+import com.tencent.kuikly.core.layout.FlexPositionType
+import com.tencent.kuikly.core.layout.MeasureFunction
+import com.tencent.kuikly.core.layout.MeasureOutput
+import com.tencent.kuikly.core.layout.isUndefined
 import com.tencent.kuikly.core.module.FontModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+import com.tencent.kuikly.core.views.shadow.TextShadow
 
-class TextAreaView : DeclarativeBaseView<TextAreaAttr, TextAreaEvent>() {
+open class TextAreaView : DeclarativeBaseView<TextAreaAttr, TextAreaEvent>(), MeasureFunction {
+
+    companion object {
+        private val NON_SHADOW_PROPS by lazy(LazyThreadSafetyMode.NONE) {
+            setOf(
+                Attr.StyleConst.TRANSFORM,
+                Attr.StyleConst.OPACITY,
+                Attr.StyleConst.VISIBILITY,
+                Attr.StyleConst.BACKGROUND_COLOR,
+                TextConst.TEXT_COLOR,
+                TextConst.TINT_COLOR,
+                TextConst.TEXT_SHADOW,
+                TextConst.PLACEHOLDER,
+                TextConst.PLACEHOLDER_COLOR
+            )
+        }
+    }
+
+    private var shadow: TextShadow? = null
+    private val remeasureObserver: InputEventHandlerFn = {
+        if (getViewAttr().getProp(TextConst.VALUES) != null) {
+            // 如果设置了inputSpans，则必须主动监听textDidChange更新输入文本，无需自动重测量
+        } else {
+            shadow?.setProp(TextConst.VALUE, it.text)
+            flexNode.markDirty()
+        }
+    }
 
     override fun willInit() {
         super.willInit()
-        getViewAttr().fontSize(15)
+        shadow = TextShadow(pagerId, nativeRef, ViewConst.TYPE_RICH_TEXT)
+        getViewAttr().apply {
+            fontSize(15)
+            lineHeight(20f)
+        }
     }
+
     override fun createAttr(): TextAreaAttr {
         return TextAreaAttr()
     }
@@ -41,10 +80,30 @@ class TextAreaView : DeclarativeBaseView<TextAreaAttr, TextAreaEvent>() {
         return ViewConst.TYPE_TEXT_AREA
     }
 
+    override fun didRemoveFromParentView() {
+        super.didRemoveFromParentView()
+        flexNode.measureFunction = null
+        shadow?.removeFromParentComponent()
+        shadow = null
+    }
+
+    override fun createFlexNode() {
+        super.createFlexNode()
+        flexNode.measureFunction = this
+    }
+
     override fun createRenderView() {
         super.createRenderView()
         if (attr.autofocus) {
             focus()
+        }
+    }
+
+    override fun didSetProp(propKey: String, propValue: Any) {
+        super.didSetProp(propKey, propValue)
+        if (propKey !in NON_SHADOW_PROPS) {
+            shadow?.setProp(propKey, propValue)
+            flexNode.markDirty()
         }
     }
 
@@ -92,9 +151,96 @@ class TextAreaView : DeclarativeBaseView<TextAreaAttr, TextAreaEvent>() {
         }
     }
 
+    override fun measure(
+        node: FlexNode,
+        width: Float,
+        height: Float,
+        measureOutput: MeasureOutput
+    ) {
+        node.layoutDimensions.run {
+            if (!this[0].isUndefined() && !this[1].isUndefined()) {
+                getViewEvent().removeTextDidChangeObserver(remeasureObserver)
+                measureOutput.width = this[0]
+                measureOutput.height = this[1]
+                return
+            } else {
+                getViewEvent().addTextDidChangeObserver(remeasureObserver)
+            }
+        }
+        val cWidth = if (width.isUndefined()) 100000f else width
+        val cHeight = if (height.isUndefined()) -1f else height
+        // measure by shadow
+        val size = shadow?.calculateRenderViewSize(cWidth, cHeight)
+        var outWidth = size?.width ?: 0f
+        var outHeight = size?.height ?: 0f
+        // check stretch
+        if (!width.isUndefined() && outWidth < width && node.stretchWidth()) {
+            outWidth = width
+        }
+        if (!height.isUndefined() && outHeight < height && node.stretchHeight()) {
+            outHeight = height
+        }
+        // check minWidth
+        node.styleMinWidth.also {
+            if (!it.isUndefined() && outWidth < it) {
+                outWidth = it
+            }
+        }
+        // check maxHeight
+        node.styleMaxHeight.also {
+            if (!it.isUndefined() && outHeight > it) {
+                outHeight = it
+            }
+        }
+        // check minHeight
+        node.styleMinHeight.also {
+            if (!it.isUndefined() && outHeight < it) {
+                outHeight = it
+            }
+        }
+
+        measureOutput.width = outWidth
+        measureOutput.height = outHeight
+    }
+
+    private fun FlexNode.stretchWidth(): Boolean {
+        if (positionType != FlexPositionType.RELATIVE) {
+            return false
+        }
+        val direction = parent?.flexDirection
+        return if (direction == FlexDirection.ROW || direction == FlexDirection.ROW_REVERSE) {
+            stretchMainAxis
+        } else {
+            parent?.layoutWidth?.isUndefined() == false && stretchCrossAxis
+        }
+    }
+
+    private fun FlexNode.stretchHeight(): Boolean {
+        if (positionType != FlexPositionType.RELATIVE) {
+            return false
+        }
+        val direction = parent?.flexDirection
+        return if (direction == FlexDirection.ROW || direction == FlexDirection.ROW_REVERSE) {
+            parent?.layoutHeight?.isUndefined() == false && stretchCrossAxis
+        } else {
+            stretchMainAxis
+        }
+    }
+
+    private inline val FlexNode.stretchMainAxis: Boolean get() = flex != 0f
+
+    private inline val FlexNode.stretchCrossAxis: Boolean
+        get() = alignSelf == FlexAlign.STRETCH ||
+                (alignSelf == FlexAlign.AUTO && parent?.alignItems == FlexAlign.STRETCH)
+
+    internal fun markDirty() {
+        flexNode.markDirty()
+        shadow?.markDirty()
+    }
+
 }
 
-class TextAreaAttr : Attr() {
+open class TextAreaAttr : Attr() {
 
     internal var autofocus = false
 
@@ -170,12 +316,12 @@ class TextAreaAttr : Attr() {
     }
 
     fun placeholderColor(color: Color): TextAreaAttr {
-        "placeholderColor" with color.toString()
+        TextConst.PLACEHOLDER_COLOR with color.toString()
         return this
     }
 
     fun placeholder(placeholder: String): TextAreaAttr {
-        "placeholder" with placeholder
+        TextConst.PLACEHOLDER with placeholder
         return this
     }
 
@@ -244,6 +390,11 @@ class TextAreaAttr : Attr() {
         return this
     }
 
+    fun lineHeight(lineHeight: Float): TextAreaAttr {
+        TextConst.LINE_HEIGHT with lineHeight
+        return this
+    }
+
     companion object {
         const val RETURN_KEY_TYPE = "returnKeyType"
         const val KEYBOARD_TYPE = "keyboardType"
@@ -286,6 +437,7 @@ class InputSpans {
     }
 }
 
+@ScopeMarker
 class InputSpan {
     private val propMap = JSONObject()
 
@@ -319,12 +471,68 @@ class InputSpan {
         return this
     }
 
+    fun lineHeight(lineHeight: Float): InputSpan {
+        propMap.put(TextConst.LINE_HEIGHT, lineHeight)
+        return this
+    }
+
     internal fun toJSON(): JSONObject {
         return propMap
     }
 }
 
-class TextAreaEvent : Event() {
+open class TextAreaEvent : Event() {
+
+    private val syncTextDidChangeObservers = fastArrayListOf<InputEventHandlerFn>()
+    private var textDidChangeHandler: InputEventHandlerFn? = null
+    private var isSyncEdit = false
+
+    internal fun addTextDidChangeObserver(observer: InputEventHandlerFn) {
+        if (observer in syncTextDidChangeObservers) {
+            return
+        }
+        val empty = syncTextDidChangeObservers.isEmpty()
+        syncTextDidChangeObservers.add(observer)
+        if (empty) {
+            updateTextDidChangeInternal()
+        }
+    }
+
+    internal fun removeTextDidChangeObserver(observer: InputEventHandlerFn) {
+        if (observer !in syncTextDidChangeObservers) {
+            return
+        }
+        syncTextDidChangeObservers.remove(observer)
+        if (syncTextDidChangeObservers.isEmpty()) {
+            updateTextDidChangeInternal()
+        }
+    }
+
+    private fun updateTextDidChangeInternal() {
+        if (textDidChangeHandler == null && syncTextDidChangeObservers.isEmpty()) {
+            super.unRegister(TEXT_DID_CHANGE)
+        } else {
+            super.register(TEXT_DID_CHANGE, {
+                val text = (it as JSONObject).optString("text")
+                val params = InputParams(text)
+                syncTextDidChangeObservers.forEach { observer -> observer.invoke(params) }
+                textDidChangeHandler?.invoke(params)
+            }, isSync = isSyncEdit || syncTextDidChangeObservers.isNotEmpty())
+        }
+    }
+
+    override fun unRegister(eventName: String) {
+        if (eventName == TEXT_DID_CHANGE) {
+            if (textDidChangeHandler == null) {
+                return
+            }
+            textDidChangeHandler = null
+            isSyncEdit = false
+            updateTextDidChangeInternal()
+        } else {
+            super.unRegister(eventName)
+        }
+    }
 
     /**
      * 当文本发生变化时调用的方法
@@ -332,11 +540,12 @@ class TextAreaEvent : Event() {
      * @param handler 处理文本变化事件的回调函数
      */
     fun textDidChange(isSyncEdit: Boolean = false, handler: InputEventHandlerFn) {
-        this.register(TEXT_DID_CHANGE, {
-            it as JSONObject
-            val text = it.optString("text")
-            handler(InputParams(text))
-        }, isSync = isSyncEdit)
+        if (handler == this.textDidChangeHandler && isSyncEdit == this.isSyncEdit) {
+            return
+        }
+        this.isSyncEdit = isSyncEdit
+        this.textDidChangeHandler = handler
+        updateTextDidChangeInternal()
     }
 
     /**
@@ -380,6 +589,13 @@ class TextAreaEvent : Event() {
      */
     fun textLengthBeyondLimit(handler: EventHandlerFn /* = (parma: kotlin.Any?) -> kotlin.Unit */) {
         this.register(TEXT_LENGTH_BEYOND_LIMIT,handler)
+    }
+
+    override fun onViewDidRemove() {
+        super.onViewDidRemove()
+        syncTextDidChangeObservers.clear()
+        textDidChangeHandler = null
+        isSyncEdit = false
     }
 
     companion object {

@@ -24,6 +24,9 @@ class KRTextAreaView : public KRTextFieldView {
         return kuikly::util::GetNodeApi()->createNode(ARKUI_NODE_TEXT_AREA);
     }
 
+    bool SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
+                 const KRRenderCallback event_call_back = nullptr) override;
+
  private:
     ArkUI_NodeEventType GetOnSubmitEventType() override {
         return ArkUI_NodeEventType::NODE_TEXT_AREA_ON_SUBMIT;

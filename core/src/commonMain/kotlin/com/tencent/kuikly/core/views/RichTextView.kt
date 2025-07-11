@@ -19,6 +19,7 @@ import com.tencent.kuikly.core.base.Attr
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.base.EdgeInsets
+import com.tencent.kuikly.core.base.ScopeMarker
 import com.tencent.kuikly.core.base.Size
 import com.tencent.kuikly.core.base.ViewConst
 import com.tencent.kuikly.core.base.ViewContainer
@@ -390,6 +391,8 @@ open class RichTextAttr : TextAttr() {
         }
     }
 }
+
+@ScopeMarker
 interface ISpan {
     abstract fun isEmptySpan(): Boolean
     abstract fun spanPropsMap(): Map<String, Any>
@@ -627,13 +630,14 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
                 placeholderFrame = frame
             }
         }
+        val ctx = this
         richTextFrame = richTextView.flexNode.layoutFrame
         richTextView.event {
             addLayoutFrameDidChange { frame ->
-                richTextFrame = frame
+                ctx.richTextFrame = frame
             }
         }
-        val ctx = this
+
         ReactiveObserver.addLazyTaskUtilEndCollectDependency {
             // 添加图片节点
             var richTextViewParent = richTextView.parent
@@ -643,28 +647,32 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
             richTextViewParent?.addChild(ImageView()) {
                 ctx.view = this
                 attr {
-                    visibility(placeholderFrame.width != 0f && placeholderFrame.height != 0f)
+                    visibility(ctx.placeholderFrame.width != 0f && ctx.placeholderFrame.height != 0f)
                     absolutePosition(
-                        top = richTextFrame.y + placeholderFrame.y + ctx.verticalAlignOffset,
-                        left = richTextFrame.x + placeholderFrame.x
+                        top = ctx.richTextFrame.y + ctx.placeholderFrame.y + ctx.verticalAlignOffset,
+                        left = ctx.richTextFrame.x + ctx.placeholderFrame.x
                     )
-                    size(size.width, size.height)
-                    uri?.let { src(it, isDotNineImage) } ?: src(src, isDotNineImage)
-                    when(resizeMode) {
+                    size(ctx.size.width, ctx.size.height)
+                    if (ctx.uri != null) {
+                        src(ctx.uri!!, ctx.isDotNineImage)
+                    } else {
+                        src(ctx.src, ctx.isDotNineImage)
+                    }
+                    when(ctx.resizeMode) {
                         ImageConst.RESIZE_MODE_COVER -> resizeCover()
                         ImageConst.RESIZE_MODE_CONTAIN -> resizeContain()
                         ImageConst.RESIZE_MODE_STRETCH -> resizeStretch()
                     }
-                    if (blurRadius > 0) {
-                        blurRadius(blurRadius)
+                    if (ctx.blurRadius > 0) {
+                        blurRadius(ctx.blurRadius)
                     }
                     ctx.tintColor?.also {
                         tintColor(it)
                     }
-                    if (placeholder.isNotEmpty()) {
-                        placeholderSrc(placeholder)
+                    if (ctx.placeholder.isNotEmpty()) {
+                        placeholderSrc(ctx.placeholder)
                     }
-                    borderRadius(borderRadius)
+                    borderRadius(ctx.borderRadius)
                     capInsets(ctx.capInsets.top, ctx.capInsets.left, ctx.capInsets.bottom, ctx.capInsets.right)
 
                 }

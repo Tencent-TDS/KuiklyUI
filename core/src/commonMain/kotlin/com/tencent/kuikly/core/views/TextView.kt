@@ -529,6 +529,8 @@ object TextConst {
     const val TEXT_USE_DP_FONT_SIZE_DIM = "useDpFontSizeDim"
 
     const val SHADOW_METHOD_IS_LINE_BREAK_MARGIN = "isLineBreakMargin"
+    const val PLACEHOLDER = "placeholder"
+    const val PLACEHOLDER_COLOR = "placeholderColor"
 }
 
 enum class TextAlign(val value: String) {

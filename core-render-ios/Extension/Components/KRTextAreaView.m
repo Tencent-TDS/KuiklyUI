@@ -29,6 +29,8 @@ NSString *const KRFontWeightKey = @"fontWeight";
 @interface KRTextAreaView()<UITextViewDelegate>
 /** attr is text */
 @property (nonatomic, copy, readwrite) NSString *KUIKLY_PROP(text);
+/** attr is lineHeight */
+@property (nonatomic, copy, readwrite) NSNumber *KUIKLY_PROP(lineHeight);
 /** attr is values */
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(values);
 /** attr is fontSize */
@@ -123,8 +125,41 @@ NSString *const KRFontWeightKey = @"fontWeight";
     if (![lastText isEqualToString:newText]) {
         self.text = css_text;
         [self textViewDidChange:self];
+        [self updateLineHeightIfApplicable];
         [self p_updatePlaceholder];
     }
+}
+
+- (void)setCss_lineHeight:(NSNumber *)css_lineHeight {
+    if (_css_lineHeight != css_lineHeight) {
+        _css_lineHeight = css_lineHeight;
+        [self updateLineHeightIfApplicable];
+    }
+}
+
+- (void)updateLineHeightIfApplicable {
+    if (_css_lineHeight.floatValue <= FLT_EPSILON) {
+        return;
+    }
+    UIFont* font = self.font ?: [UIFont systemFontOfSize:16];
+    NSMutableAttributedString *attrStr = [[NSMutableAttributedString alloc] initWithAttributedString:self.attributedText ?:
+                                         [[NSAttributedString alloc] initWithString:self.text ?: @""]];
+    NSMutableParagraphStyle *paragraphStyle = [[NSMutableParagraphStyle alloc] init];
+    paragraphStyle.minimumLineHeight = [_css_lineHeight floatValue];
+    paragraphStyle.maximumLineHeight = [_css_lineHeight floatValue];
+    paragraphStyle.lineSpacing = ceil(0.2 * _css_fontSize.floatValue);
+
+    NSRange range = NSMakeRange(0, attrStr.length);
+    [attrStr addAttribute:NSParagraphStyleAttributeName value:paragraphStyle range:range];
+    CGFloat baselineOffset = ([_css_lineHeight floatValue]  - font.pointSize) / 2;
+    [attrStr addAttribute:NSBaselineOffsetAttributeName value:@(baselineOffset) range:range];
+
+    self.attributedText = attrStr;
+    NSMutableDictionary *typingAttrs = [self.typingAttributes mutableCopy] ?: [NSMutableDictionary dictionary];
+    typingAttrs[NSParagraphStyleAttributeName] = paragraphStyle;
+    typingAttrs[NSFontAttributeName] = font;
+    typingAttrs[NSBaselineOffsetAttributeName] = @(baselineOffset);
+    self.typingAttributes = typingAttrs;
 }
 
 - (void)setCss_values:(NSString *)css_values {
@@ -562,8 +597,5 @@ NSString *const KRFontWeightKey = @"fontWeight";
      }
      return _placeholderTextView;
 }
-    
 
 @end
-
-

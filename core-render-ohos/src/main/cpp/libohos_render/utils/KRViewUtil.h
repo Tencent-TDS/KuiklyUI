@@ -218,6 +218,8 @@ uint32_t GetInputNodeSelectionStartPosition(ArkUI_NodeHandle node);
 
 void UpdateInputNodeSelectionStartPosition(ArkUI_NodeHandle node, int32_t index);
 
+void UpdateTextAreaNodeLineHeight(ArkUI_NodeHandle node, float lineHeight);
+
 void SetNodeAnimation(std::weak_ptr<IKRRenderViewExport> view, std::string *animationStr);
 #if 0
 {

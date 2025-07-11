@@ -28,7 +28,6 @@ import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 class KRTextAreaView(context: Context, softInputMode: Int?) : KRTextFieldView(context, softInputMode) {
 
     init {
-        isSingleLine = false
         gravity = Gravity.LEFT or Gravity.TOP
     }
 
@@ -102,6 +101,10 @@ class KRTextAreaView(context: Context, softInputMode: Int?) : KRTextFieldView(co
         private const val RETURN_KEY_TYPE = "returnKeyType"
 
         const val METHOD_GET_INNER_CONTENT_HEIGHT = "getInnerContentHeight"
+    }
+
+    override fun initSingleLine() {
+        isSingleLine = false
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {

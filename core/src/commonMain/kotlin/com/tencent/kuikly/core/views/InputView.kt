@@ -154,11 +154,11 @@ class InputAttr : Attr() {
     }
 
     fun placeholderColor(color: Color) {
-        "placeholderColor" with color.toString()
+        TextConst.PLACEHOLDER_COLOR with color.toString()
     }
 
     fun placeholder(placeholder: String) {
-        "placeholder" with placeholder
+        TextConst.PLACEHOLDER with placeholder
     }
 
     fun keyboardTypePassword() {

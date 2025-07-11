@@ -34,6 +34,7 @@ import com.tencent.kuikly.core.layout.valueEquals
 import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
 import com.tencent.kuikly.core.views.RichTextView
 import com.tencent.kuikly.core.views.ScrollerContentView
+import com.tencent.kuikly.core.views.TextAreaView
 import com.tencent.kuikly.core.views.TextView
 
 interface IChildInit<T> {
@@ -317,6 +318,9 @@ abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView
                 }
                 if(child is RichTextView){
                     (child as RichTextView).markDirty()
+                }
+                if (child is TextAreaView) {
+                    (child as TextAreaView).markDirty()
                 }
             } else if (child is ViewContainer) {
                 (child as ViewContainer).markChildTextViewsDirty()

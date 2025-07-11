@@ -20,7 +20,7 @@
 #include <arkui/native_type.h>
 #include "libohos_render/expand/events/gesture/KRGestueEventType.h"
 
-class KRGestureEventHandler {
+class KRGestureEventHandler: public std::enable_shared_from_this<KRGestureEventHandler>{
  public:
     KRGestureEventHandler(ArkUI_NodeHandle node_handle, ArkUI_GestureRecognizer *gesture_group,
                           KRGestureEventCallback gesture_callback);

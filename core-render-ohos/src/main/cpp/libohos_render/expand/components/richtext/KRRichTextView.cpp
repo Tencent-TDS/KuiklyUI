@@ -120,7 +120,12 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
 void KRRichTextView::ToSetProp(const std::string &prop_key, const KRAnyValue &prop_value,
                                const KRRenderCallback event_callback) {
     if (kuikly::util::isEqual(prop_key, "click")) {
-        KRRenderCallback middleManCallback = [this, event_callback](KRAnyValue res) {
+        std::weak_ptr<KRRichTextView> weakSelf = std::dynamic_pointer_cast<KRRichTextView>(shared_from_this());
+        KRRenderCallback middleManCallback = [weakSelf, event_callback](KRAnyValue res) {
+            auto strongSelf = weakSelf.lock();
+            if(strongSelf == nullptr){
+                return;
+            }
             if (res->isMap()) {
                 const auto oldParam = res->toMap();
                 const auto x = oldParam.find("x");
@@ -144,7 +149,7 @@ void KRRichTextView::ToSetProp(const std::string &prop_key, const KRAnyValue &pr
                     params["pageY"] = pageY->second;
                 }
 
-                if (auto richTextShadow = dynamic_pointer_cast<KRRichTextShadow>(shadow_)) {
+                if (auto richTextShadow = dynamic_pointer_cast<KRRichTextShadow>(strongSelf->shadow_)) {
                     int index = richTextShadow->SpanIndexAt(x->second->toFloat(), y->second->toFloat());
                     if (index < 0) {
                         index = 0;

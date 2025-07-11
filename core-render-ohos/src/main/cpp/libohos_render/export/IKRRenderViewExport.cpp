@@ -18,6 +18,7 @@
 #include "libohos_render/api/include/Kuikly/Kuikly.h"
 #include "libohos_render/api/src/KRAnyDataInternal.h"
 #include "libohos_render/manager/KRSnapshotManager.h"
+#include "libohos_render/manager/KRWeakObjectManager.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -68,7 +69,7 @@ std::shared_ptr<IKRRenderViewExport> IKRRenderViewExport::CreateView(const std::
 void IKRRenderViewExport::CallMethod(const std::string &method, const KRAnyValue &params,
                                      const KRRenderCallback &callback) {
     if (method == "toImage") {
-        std::string instance_id = this->GetInstanceId();
+        std::string instance_id = GetInstanceId();
         std::string method_name = method;
         // set node id before taking a snapshot
         std::string nodeId = GetNodeId();
@@ -110,7 +111,12 @@ void IKRRenderViewExport::SetupTouchInterrupter() {
         nodeApi->setAttribute(touch_interrupt_node_, NODE_HIT_TEST_BEHAVIOR, &hit_test_item);
         // register NODE_TOUCH_EVENT
         nodeApi->addNodeEventReceiver(touch_interrupt_node_, [](ArkUI_NodeEvent *event) {
-            auto view_export = static_cast<IKRRenderViewExport *>(kuikly::util::GetUserData(event));
+            void *userData = kuikly::util::GetUserData(event);
+            if(userData == nullptr){
+                return;
+            }
+            std::weak_ptr<IKRRenderViewExport> weakSelf = KRWeakObjectManagerGetWeakObject<IKRRenderViewExport>(userData);
+            std::shared_ptr<IKRRenderViewExport> view_export = weakSelf.lock();
             if (!view_export) {
                 return;
             }
@@ -127,7 +133,8 @@ void IKRRenderViewExport::SetupTouchInterrupter() {
                 kuikly::util::StopPropagation(event);
             }
         });
-        nodeApi->registerNodeEvent(touch_interrupt_node_, NODE_TOUCH_EVENT, NODE_TOUCH_EVENT, this);
+        void* userData = KRWeakObjectManagerRegisterWeakObject<>(shared_from_this());
+        nodeApi->registerNodeEvent(touch_interrupt_node_, NODE_TOUCH_EVENT, NODE_TOUCH_EVENT, userData);
     }
     if (!touch_interrupt_node_attached_) {
         kuikly::util::GetNodeApi()->addChild(node_, touch_interrupt_node_);

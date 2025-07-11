@@ -19,13 +19,13 @@
 
 void KRForwardArkTSView::DidInit() {
     KRArkTSManager::GetInstance().CallArkTSMethod(
-        this->GetInstanceId(), KRNativeCallArkTSMethod::CreateView, std::make_shared<KRRenderValue>(this->GetViewTag()),
-        std::make_shared<KRRenderValue>(this->GetViewName()), nullptr, nullptr, nullptr, nullptr);
+        GetInstanceId(), KRNativeCallArkTSMethod::CreateView, std::make_shared<KRRenderValue>(GetViewTag()),
+        std::make_shared<KRRenderValue>(GetViewName()), nullptr, nullptr, nullptr, nullptr);
 }
 
 void KRForwardArkTSView::OnDestroy() {
-    KRArkTSManager::GetInstance().CallArkTSMethod(this->GetInstanceId(), KRNativeCallArkTSMethod::RemoveView,
-                                                  std::make_shared<KRRenderValue>(this->GetViewTag()), nullptr, nullptr,
+    KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(), KRNativeCallArkTSMethod::RemoveView,
+                                                  std::make_shared<KRRenderValue>(GetViewTag()), nullptr, nullptr,
                                                   nullptr, nullptr, nullptr);
     if (ark_node_ != nullptr) {
         kuikly::util::GetNodeApi()->disposeNode(ark_node_);
@@ -38,8 +38,8 @@ bool KRForwardArkTSView::ToSetBaseProp(const std::string &prop_key, const KRAnyV
     bool handled = IKRRenderViewExport::ToSetBaseProp(prop_key, prop_value, event_call_back);
     if (handled) {
         if (prop_key == kBackgroundColor || prop_key == kBackgroundImage) {
-            KRArkTSManager::GetInstance().CallArkTSMethod(this->GetInstanceId(), KRNativeCallArkTSMethod::SetViewProp,
-                                                          std::make_shared<KRRenderValue>(this->GetViewTag()),
+            KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(), KRNativeCallArkTSMethod::SetViewProp,
+                                                          std::make_shared<KRRenderValue>(GetViewTag()),
                                                           std::make_shared<KRRenderValue>(prop_key), prop_value,
                                                           nullptr, nullptr, nullptr);
         }
@@ -52,14 +52,14 @@ bool KRForwardArkTSView::SetProp(const std::string &prop_key, const KRAnyValue &
     if (event_call_back) {  // is event
         event_registry_[prop_key] = event_call_back;
         // 设置事件
-        KRArkTSManager::GetInstance().CallArkTSMethod(this->GetInstanceId(), KRNativeCallArkTSMethod::SetViewEvent,
-                                                      std::make_shared<KRRenderValue>(this->GetViewTag()),
+        KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(), KRNativeCallArkTSMethod::SetViewEvent,
+                                                      std::make_shared<KRRenderValue>(GetViewTag()),
                                                       std::make_shared<KRRenderValue>(prop_key), nullptr, nullptr,
                                                       nullptr, nullptr);
     } else {  // is prop
         // 设置属性
-        KRArkTSManager::GetInstance().CallArkTSMethod(this->GetInstanceId(), KRNativeCallArkTSMethod::SetViewProp,
-                                                      std::make_shared<KRRenderValue>(this->GetViewTag()),
+        KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(), KRNativeCallArkTSMethod::SetViewProp,
+                                                      std::make_shared<KRRenderValue>(GetViewTag()),
                                                       std::make_shared<KRRenderValue>(prop_key), prop_value, nullptr,
                                                       nullptr, nullptr);
     }
@@ -69,8 +69,8 @@ bool KRForwardArkTSView::SetProp(const std::string &prop_key, const KRAnyValue &
 void KRForwardArkTSView::SetRenderViewFrame(const KRRect &frame) {
     if (ark_node_ != nullptr) {
         KRArkTSManager::GetInstance().CallArkTSMethod(
-            this->GetInstanceId(), KRNativeCallArkTSMethod::SetViewSize,
-            std::make_shared<KRRenderValue>(this->GetViewTag()), std::make_shared<KRRenderValue>(frame.width),
+            GetInstanceId(), KRNativeCallArkTSMethod::SetViewSize,
+            std::make_shared<KRRenderValue>(GetViewTag()), std::make_shared<KRRenderValue>(frame.width),
             std::make_shared<KRRenderValue>(frame.height), nullptr, nullptr, nullptr);
     }
 }
@@ -88,9 +88,9 @@ void KRForwardArkTSView::DidMoveToParentView() {
         napi_env g_env = KRArkTSManager::GetInstance().GetEnv();
         napi_open_handle_scope(g_env, &scope);
         ArkUI_NodeHandle node = nullptr;
-        KRArkTSManager::GetInstance().CallArkTSMethod(this->GetInstanceId(), KRNativeCallArkTSMethod::CreateArkUINode,
-                                                      std::make_shared<KRRenderValue>(this->GetViewTag()),
-                                                      std::make_shared<KRRenderValue>(this->GetNodeId()),
+        KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(), KRNativeCallArkTSMethod::CreateArkUINode,
+                                                      std::make_shared<KRRenderValue>(GetViewTag()),
+                                                      std::make_shared<KRRenderValue>(GetNodeId()),
                                                       nullptr, nullptr, nullptr, nullptr, false, &node);
         if (node == nullptr) {
             return;
@@ -98,9 +98,9 @@ void KRForwardArkTSView::DidMoveToParentView() {
         ark_node_ = node;
         kuikly::util::GetNodeApi()->registerNodeCreatedFromArkTS(node);
         kuikly::util::GetNodeApi()->addChild(GetNode(), node);
-        KRArkTSManager::GetInstance().CallArkTSMethod(this->GetInstanceId(),
+        KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(),
                                                       KRNativeCallArkTSMethod::DidMoveToParentView,
-                                                      std::make_shared<KRRenderValue>(this->GetViewTag()), nullptr,
+                                                      std::make_shared<KRRenderValue>(GetViewTag()), nullptr,
                                                       nullptr, nullptr, nullptr, nullptr, false, &node);
     }
 }
@@ -114,8 +114,8 @@ void KRForwardArkTSView::FireViewEventFromArkTS(std::string eventKey, KRAnyValue
 
 void KRForwardArkTSView::CallMethod(const std::string &method, const KRAnyValue &params,
                                     const KRRenderCallback &callback) {
-    KRArkTSManager::GetInstance().CallArkTSMethod(this->GetInstanceId(), KRNativeCallArkTSMethod::CallViewMethod,
-                                                  std::make_shared<KRRenderValue>(this->GetViewTag()),
+    KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(), KRNativeCallArkTSMethod::CallViewMethod,
+                                                  std::make_shared<KRRenderValue>(GetViewTag()),
                                                   std::make_shared<KRRenderValue>(method), params, nullptr, nullptr,
                                                   callback);
 }

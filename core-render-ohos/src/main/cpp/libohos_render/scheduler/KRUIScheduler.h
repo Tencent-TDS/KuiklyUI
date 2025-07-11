@@ -28,6 +28,7 @@ using KRSyncSchedulerTask = std::function<void(bool sync)>;
 
 class KRRenderUISchedulerDelegate {
  public:
+    ~KRRenderUISchedulerDelegate() = default;
     // UI任务将要执行前回调
     virtual void WillPerformUITasksWithScheduler() = 0;
 };
@@ -52,6 +53,9 @@ class KRUIScheduler : public IKRScheduler {
      */
     bool IsPerformMainTasking();
 
+    void ResetDelegate(){
+        m_delegate_ = nullptr;
+    }
  private:
     void SetNeedSyncMainQuequeTasks();
 

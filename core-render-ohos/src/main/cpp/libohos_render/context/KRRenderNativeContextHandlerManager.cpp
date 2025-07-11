@@ -22,7 +22,7 @@
 extern CallKotlin callKotlin_;
 
 void KRRenderNativeContextHandlerManager::SetContextHandlerCreator(const KRRenderContextHandlerCreator &creator) {
-    this->creator_ = creator;
+    creator_ = creator;
 }
 
 std::shared_ptr<IKRRenderNativeContextHandler> KRRenderNativeContextHandlerManager::CreateContextHandler(
@@ -63,9 +63,9 @@ void KRRenderNativeContextHandlerManager::ScheduleDeallocRenderValues(
     pending_dealloc_render_values_.push_back(will_dealloc_render_value);
     if (!scheduling_dealloc_render_values_) {
         scheduling_dealloc_render_values_ = true;
-        KRContextScheduler::ScheduleTask(false, 16, [this]() {
-            pending_dealloc_render_values_.clear();
-            scheduling_dealloc_render_values_ = false;
+        KRContextScheduler::ScheduleTask(false, 16, []() {
+            KRRenderNativeContextHandlerManager::GetInstance().pending_dealloc_render_values_.clear();
+            KRRenderNativeContextHandlerManager::GetInstance().scheduling_dealloc_render_values_ = false;
         });
     }
 }

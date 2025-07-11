@@ -92,7 +92,7 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
             onDestruct_(moduleInstance_);
         }
         std::lock_guard<std::mutex> guard(callbacksMutex_);
-        std::for_each(callbacks_.begin(), callbacks_.end(), [this](auto item) { FreeCallbackContext(item); });
+        std::for_each(callbacks_.begin(), callbacks_.end(), [this /* non-escaping lambda, safe*/](auto item) { FreeCallbackContext(item); });
     }
 
     KRAnyValue CallMethod(bool sync, const std::string &method, KRAnyValue params,

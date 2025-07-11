@@ -18,6 +18,7 @@
 #include "libohos_render/scheduler/KRUIScheduler.h"
 #include "libohos_render/utils/KREventUtil.h"
 #include "libohos_render/utils/KRRenderLoger.h"
+#include "libohos_render/manager/KRWeakObjectManager.h"
 
 KRGestureEventHandler::KRGestureEventHandler(ArkUI_NodeHandle node_handle, ArkUI_GestureRecognizer *gesture_group,
                                              KRGestureEventCallback gesture_callback)
@@ -44,11 +45,10 @@ void KRGestureEventHandler::OnGestureEvent(ArkUI_GestureEvent *event) {
 }
 
 static void OnReceiveGestureEvent(ArkUI_GestureEvent *event, void *extraParams) {
-    auto gesture_handler = reinterpret_cast<KRGestureEventHandler *>(extraParams);
-    if (!gesture_handler) {
-        return;
+    auto weakHandler = KRWeakObjectManagerGetWeakObject<KRGestureEventHandler>(extraParams);
+    if(auto strongHandler = weakHandler.lock()){
+        strongHandler->OnGestureEvent(event);
     }
-    gesture_handler->OnGestureEvent(event);
 }
 
 KRPanGestureEventHandler::KRPanGestureEventHandler(ArkUI_NodeHandle node_handle, ArkUI_GestureRecognizer *gesture_group,
@@ -63,8 +63,10 @@ bool KRPanGestureEventHandler::RegisterEvent(const KRGestureEventType &event_typ
     event_type_ = KRGestureEventType::kPan;
     auto gesture_api = kuikly::util::GetGestureApi();
     gesture_recognizer_ = gesture_api->createPanGesture(1, GESTURE_DIRECTION_ALL, 5);
+    void* userData = KRWeakObjectManagerRegisterWeakObject<>(shared_from_this());
+    
     gesture_api->setGestureEventTarget(
-        gesture_recognizer_, GESTURE_EVENT_ACTION_ACCEPT | GESTURE_EVENT_ACTION_UPDATE | GESTURE_EVENT_ACTION_END, this,
+        gesture_recognizer_, GESTURE_EVENT_ACTION_ACCEPT | GESTURE_EVENT_ACTION_UPDATE | GESTURE_EVENT_ACTION_END, userData,
         OnReceiveGestureEvent);
     gesture_api->addChildGesture(gesture_group_, gesture_recognizer_);
     return true;
@@ -83,8 +85,9 @@ bool KRPinchGestureEventHandler::RegisterEvent(const KRGestureEventType &event_t
     event_type_ = KRGestureEventType::kPinch;
     auto gesture_api = kuikly::util::GetGestureApi();
     gesture_recognizer_ = gesture_api->createPinchGesture(2, 3);
+    void* userData = KRWeakObjectManagerRegisterWeakObject<>(shared_from_this());
     gesture_api->setGestureEventTarget(
-        gesture_recognizer_, GESTURE_EVENT_ACTION_ACCEPT | GESTURE_EVENT_ACTION_UPDATE | GESTURE_EVENT_ACTION_END, this,
+        gesture_recognizer_, GESTURE_EVENT_ACTION_ACCEPT | GESTURE_EVENT_ACTION_UPDATE | GESTURE_EVENT_ACTION_END, userData,
         OnReceiveGestureEvent);
     gesture_api->addChildGesture(gesture_group_, gesture_recognizer_);
     return true;
@@ -107,13 +110,14 @@ bool KRLongPressGestureEventHandler::RegisterEvent(const KRGestureEventType &eve
     // 由长按和滑动构成的组合手势
     auto sequential_gesture_group = gesture_api->createGroupGesture(ArkUI_GroupGestureMode::SEQUENTIAL_GROUP);
     auto long_press_gesture = gesture_api->createLongPressGesture(1, false, 250);
+    void* userData = KRWeakObjectManagerRegisterWeakObject(shared_from_this());
     gesture_api->setGestureEventTarget(
-        long_press_gesture, GESTURE_EVENT_ACTION_ACCEPT | GESTURE_EVENT_ACTION_UPDATE | GESTURE_EVENT_ACTION_END, this,
+        long_press_gesture, GESTURE_EVENT_ACTION_ACCEPT | GESTURE_EVENT_ACTION_UPDATE | GESTURE_EVENT_ACTION_END, userData,
         OnReceiveGestureEvent);
     gesture_api->addChildGesture(sequential_gesture_group, long_press_gesture);
     auto pan_gesture = gesture_api->createPanGesture(1, GESTURE_DIRECTION_ALL, 1);
     gesture_api->setGestureEventTarget(
-        pan_gesture, GESTURE_EVENT_ACTION_ACCEPT | GESTURE_EVENT_ACTION_UPDATE | GESTURE_EVENT_ACTION_END, this,
+        pan_gesture, GESTURE_EVENT_ACTION_ACCEPT | GESTURE_EVENT_ACTION_UPDATE | GESTURE_EVENT_ACTION_END, userData,
         OnReceiveGestureEvent);
     gesture_api->addChildGesture(sequential_gesture_group, pan_gesture);
 
@@ -144,7 +148,8 @@ bool KRTapGestureEventHandler::RegisterEvent(const KRGestureEventType &event_typ
     event_type_ = KRGestureEventType::kClick;
     auto gesture_api = kuikly::util::GetGestureApi();
     gesture_recognizer_ = kuikly::util::GetGestureApi()->createTapGesture(1, 1);
-    gesture_api->setGestureEventTarget(gesture_recognizer_, GESTURE_EVENT_ACTION_ACCEPT, this, OnReceiveGestureEvent);
+    void *userData = KRWeakObjectManagerRegisterWeakObject(shared_from_this());
+    gesture_api->setGestureEventTarget(gesture_recognizer_, GESTURE_EVENT_ACTION_ACCEPT, userData, OnReceiveGestureEvent);
     gesture_api->addChildGesture(gesture_group_, gesture_recognizer_);
     return true;
 }

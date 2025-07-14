@@ -26,6 +26,7 @@ set(SOURCE_SET
         libohos_render/adapter/KRRenderAdapterManager.cpp
         libohos_render/manager/KRArkTSManager.cpp
         libohos_render/manager/KRSnapshotManager.cpp
+        libohos_render/manager/KRWeakObjectManager.cpp
         libohos_render/core/KRRenderCore.cpp
         libohos_render/expand/modules/network/KRNetworkModule.cpp
         libohos_render/expand/components/apng/KRApngView.cpp

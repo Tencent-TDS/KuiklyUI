@@ -45,6 +45,13 @@ class KRRenderCore : public std::enable_shared_from_this<KRRenderCore>,
      * @param context 页面上下文
      * */
     KRRenderCore(std::weak_ptr<IKRRenderView> renderView, std::shared_ptr<KRRenderContextParams> context);
+    ~KRRenderCore(){
+        if (uiScheduler_){
+            uiScheduler_->ResetDelegate();
+            uiScheduler_ = nullptr;
+        }
+        contextHandler_->RegisterCallNative(nullptr);
+    }
 
     /** ICallNativeCallback interface override */
     std::shared_ptr<KRRenderValue>

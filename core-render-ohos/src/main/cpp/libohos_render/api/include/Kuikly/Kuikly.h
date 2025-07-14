@@ -16,8 +16,9 @@
 #ifndef CORE_RENDER_OHOS_KUIKLY_H
 #define CORE_RENDER_OHOS_KUIKLY_H
 
-#include <arkui/drawable_descriptor.h>
+#include <stdint.h>
 #include <stddef.h>
+#include <arkui/drawable_descriptor.h>
 
 #include "KRAnyData.h"
 
@@ -204,6 +205,30 @@ typedef void (*KRLogAdapter)(int logLevel, const char *tag, const char *message)
  * @param adapter
  */
 void KRRegisterLogAdapter(KRLogAdapter adapter);
+
+
+/**
+ * Color Adapter回调
+ */
+typedef int64_t (*KRColorAdapterParseColor)(const char* str);
+
+/**
+ * 注册c实现的颜色解析adapter，进程声明周期中，只应调用一次，建议在初始化阶段（如调用initKuikly前）进行调用。
+ * example:
+ * 1. Implement the adapter
+ * static uint32_t MyColorParser(const char* str){
+ *     uint32_t val = 0;
+ *     ... parse from str ...
+ *     return val;
+ * }
+ * 
+ * 2. Register before calling initKuikly
+ * if(!registerd){// e.g. register could a static variable
+ *     KRRegisterColorAdapter(&MyColorParser);
+ * }
+ *
+ */
+void KRRegisterColorAdapter(KRColorAdapterParseColor adapter);
 
 /**
  * 禁止view复用。

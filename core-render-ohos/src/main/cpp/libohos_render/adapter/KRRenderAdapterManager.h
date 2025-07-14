@@ -22,6 +22,7 @@
 
 class IKRColorParseAdapter {
  public:
+    virtual ~IKRColorParseAdapter() = default;
     /**
      * 宿主自定义颜色转换接口
      * @param colorStr 来自Kotlin侧传递的颜色字符串
@@ -52,7 +53,7 @@ class KRRenderAdapterManager {
     /**
      * NDK侧注册自定义Color解析Public接口
      */
-    void RegisterColorAdapter(IKRColorParseAdapter *color_adapter);
+    void RegisterColorAdapter(std::shared_ptr<IKRColorParseAdapter> color_adapter);
     /**
      * 注册 C++层日志接口
      */
@@ -64,7 +65,7 @@ class KRRenderAdapterManager {
      */
     void RegisterImageAdapter(IKRImageAdapter *image_adapter);
 
-    IKRColorParseAdapter *GetColorAdapter();
+    std::shared_ptr<IKRColorParseAdapter> GetColorAdapter();
 
     IKRImageAdapter *GetImageAdapter();
 
@@ -74,7 +75,7 @@ class KRRenderAdapterManager {
 
  private:
     KRRenderAdapterManager() = default;
-    IKRColorParseAdapter *color_adapter_ = nullptr;
+    std::shared_ptr<IKRColorParseAdapter> color_adapter_;
     std::shared_ptr<IKRLogAdapter> log_adapter_;
     IKRImageAdapter *image_adapter_ = nullptr;
     void LogInfo(const std::string &tag, const std::string &msg);

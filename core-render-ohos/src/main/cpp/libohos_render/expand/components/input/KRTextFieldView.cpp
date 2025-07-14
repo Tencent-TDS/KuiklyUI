@@ -63,6 +63,54 @@ void KRTextFieldView::OnDestroy() {
     keyboard_height_changed_callback_ = nullptr;
 }
 
+void KRTextFieldView::UpdateInputNodePlaceholder(const std::string& propValue){
+    kuikly::util::UpdateInputNodePlaceholder(GetNode(), propValue);
+}
+
+void KRTextFieldView::UpdateInputNodePlaceholderColor(const std::string& propValue){
+    kuikly::util::UpdateInputNodePlaceholderColor(GetNode(), kuikly::util::ConvertToHexColor(propValue));
+}
+
+void KRTextFieldView::UpdateInputNodeColor(const std::string& propValue){
+    kuikly::util::UpdateInputNodeColor(GetNode(), kuikly::util::ConvertToHexColor(propValue));
+}
+void KRTextFieldView::UpdateInputNodeCaretrColor(const std::string& propValue){
+    kuikly::util::UpdateInputNodeCaretrColor(GetNode(), kuikly::util::ConvertToHexColor(propValue));
+}
+void KRTextFieldView::UpdateInputNodeTextAlign(const std::string& propValue){
+    kuikly::util::UpdateInputNodeTextAlign(GetNode(), propValue);
+}
+void KRTextFieldView::UpdateInputNodeFocusable(int propValue){
+    kuikly::util::UpdateInputNodeFocusable(GetNode(), propValue);
+}
+void KRTextFieldView::UpdateInputNodeKeyboardType(const std::string& propValue){
+    kuikly::util::UpdateInputNodeKeyboardType(GetNode(), kuikly::util::ConvertToInputType(propValue));
+}
+void KRTextFieldView::UpdateInputNodeEnterKeyType(const std::string& propValue){
+    kuikly::util::UpdateInputNodeEnterKeyType(GetNode(), kuikly::util::ConvertToEnterKeyType(propValue));
+}
+void KRTextFieldView::UpdateInputNodeMaxLength(int maxLength){
+    kuikly::util::UpdateInputNodeMaxLength(GetNode(), maxLength);  // 直接限制
+}
+void KRTextFieldView::UpdateInputNodeFocusStatus(int status){
+    kuikly::util::UpdateInputNodeFocusStatus(GetNode(), status);
+}
+uint32_t KRTextFieldView::GetInputNodeSelectionStartPosition(){
+    return kuikly::util::GetInputNodeSelectionStartPosition(GetNode());
+}
+
+void KRTextFieldView::UpdateInputNodeSelectionStartPosition(uint32_t index){
+    kuikly::util::UpdateInputNodeSelectionStartPosition(GetNode(), index);
+}
+void KRTextFieldView::UpdateInputNodePlaceholderFont(uint32_t font_size, ArkUI_FontWeight font_weight){
+    kuikly::util::UpdateInputNodePlaceholderFont(GetNode(), font_size, font_weight);
+}
+void KRTextFieldView::UpdateInputNodeContentText(const std::string &text){
+    kuikly::util::UpdateInputNodeContentText(GetNode(), text);
+}
+std::string KRTextFieldView::GetInputNodeContentText(){
+    return kuikly::util::GetInputNodeContentText(GetNode());
+}
 bool KRTextFieldView::SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
                               const KRRenderCallback event_call_back) {
     if (kuikly::util::isEqual(prop_key, kText)) {  // 占位
@@ -70,11 +118,11 @@ bool KRTextFieldView::SetProp(const std::string &prop_key, const KRAnyValue &pro
         return true;
     }
     if (kuikly::util::isEqual(prop_key, kPlaceholder)) {  // 占位
-        kuikly::util::UpdateInputNodePlaceholder(GetNode(), prop_value->toString());
+        UpdateInputNodePlaceholder(prop_value->toString());
         return true;
     }
     if (kuikly::util::isEqual(prop_key, kPlaceholderColor)) {  // 占位颜色
-        kuikly::util::UpdateInputNodePlaceholderColor(GetNode(), kuikly::util::ConvertToHexColor(prop_value->toString()));
+        UpdateInputNodePlaceholderColor(prop_value->toString());
         return true;
     }
     if (kuikly::util::isEqual(prop_key, kFontSize)) {  // 字体大小
@@ -88,33 +136,33 @@ bool KRTextFieldView::SetProp(const std::string &prop_key, const KRAnyValue &pro
         return true;
     }
     if (kuikly::util::isEqual(prop_key, kColor)) {  // 字体颜色
-        kuikly::util::UpdateInputNodeColor(GetNode(), kuikly::util::ConvertToHexColor(prop_value->toString()));
+        UpdateInputNodeColor(prop_value->toString());
         return true;
     }
 
     if (kuikly::util::isEqual(prop_key, kTintColor)) {  // 光标颜色
-        kuikly::util::UpdateInputNodeCaretrColor(GetNode(), kuikly::util::ConvertToHexColor(prop_value->toString()));
+        UpdateInputNodeCaretrColor(prop_value->toString());
         return true;
     }
 
     if (kuikly::util::isEqual(prop_key, kTextAlign)) {  // 文本对齐
-        kuikly::util::UpdateInputNodeTextAlign(GetNode(), prop_value->toString());
+        UpdateInputNodeTextAlign(prop_value->toString());
         return true;
     }
 
     if (kuikly::util::isEqual(prop_key, kEditable)) {  // 是否可以编辑输入
         focusable_ = prop_value->toBool();
-        kuikly::util::UpdateInputNodeFocusable(GetNode(), prop_value->toInt());
+        UpdateInputNodeFocusable(prop_value->toInt());
         return true;
     }
 
     if (kuikly::util::isEqual(prop_key, kKeyboardType)) {  // 键盘输入类型
-        kuikly::util::UpdateInputNodeKeyboardType(GetNode(), kuikly::util::ConvertToInputType(prop_value->toString()));
+        UpdateInputNodeKeyboardType(prop_value->toString());
         return true;
     }
 
     if (kuikly::util::isEqual(prop_key, kReturnKeyType)) {  // 完成键类型
-        kuikly::util::UpdateInputNodeEnterKeyType(GetNode(), kuikly::util::ConvertToEnterKeyType(prop_value->toString()));
+        UpdateInputNodeEnterKeyType(prop_value->toString());
         return true;
     }
 
@@ -122,7 +170,7 @@ bool KRTextFieldView::SetProp(const std::string &prop_key, const KRAnyValue &pro
         max_length_ = prop_value->toInt();
         LimitInputContentTextInMaxLength();
         if (!text_length_beyond_limit_callback_) {
-            kuikly::util::UpdateInputNodeMaxLength(GetNode(), max_length_);  // 直接限制
+            UpdateInputNodeMaxLength(max_length_);  // 直接限制
         }
         return true;
     }
@@ -153,7 +201,7 @@ bool KRTextFieldView::SetProp(const std::string &prop_key, const KRAnyValue &pro
     }
     if (kuikly::util::isEqual(prop_key, kEventTextLengthBeyondLimit)) {  // 监听文字是否超过输入最大的限制事件
         text_length_beyond_limit_callback_ = event_call_back;
-        kuikly::util::UpdateInputNodeMaxLength(GetNode(), 10000000);  // 不限制，通过LimitInputContentTextInMaxLength
+        UpdateInputNodeMaxLength(10000000);  // 不限制，通过LimitInputContentTextInMaxLength
         return true;
     }
 
@@ -205,21 +253,21 @@ void KRTextFieldView::CallMethod(const std::string &method, const KRAnyValue &pa
  * 输入框获焦（弹起键盘）
  */
 void KRTextFieldView::Focus() {
-    kuikly::util::UpdateInputNodeFocusStatus(GetNode(), 1);
+    UpdateInputNodeFocusStatus(1);
 }
 
 /**
  * 输入框失焦（收起键盘）
  */
 void KRTextFieldView::Blur() {
-    kuikly::util::UpdateInputNodeFocusStatus(GetNode(), 0);
+    UpdateInputNodeFocusStatus(0);
 }
 
 /**
  * 获取光标位置
  */
 void KRTextFieldView::GetCursorIndex(const KRRenderCallback &callback) {
-    int32_t selectionLeft = kuikly::util::GetInputNodeSelectionStartPosition(GetNode());
+    int32_t selectionLeft = GetInputNodeSelectionStartPosition();
     if (callback) {
         KRRenderValueMap map;
         map["cursorIndex"] = NewKRRenderValue(selectionLeft);
@@ -231,7 +279,7 @@ void KRTextFieldView::GetCursorIndex(const KRRenderCallback &callback) {
  * 设置光标位置
  */
 void KRTextFieldView::SetCursorIndex(uint32_t index) {
-    kuikly::util::UpdateInputNodeSelectionStartPosition(GetNode(), index);
+    UpdateInputNodeSelectionStartPosition(index);
 }
 /**
  * 设置字体（包括占位字体）
@@ -239,7 +287,8 @@ void KRTextFieldView::SetCursorIndex(uint32_t index) {
  * @param font_weight
  */
 void KRTextFieldView::SetFont(uint32_t font_size, ArkUI_FontWeight font_weight) {
-    kuikly::util::UpdateInputNodePlaceholderFont(GetNode(), font_size, font_weight);
+    UpdateInputNodePlaceholderFont(font_size, font_weight);
+    
 }
 
 /******* 事件回调 ******/
@@ -288,13 +337,13 @@ void KRTextFieldView::OnInputReturn(ArkUI_NodeEvent *event) {
  * 获取输入的文本内容
  */
 std::string KRTextFieldView::GetContentText() {
-    return kuikly::util::GetInputNodeContentText(GetNode());
+    return GetInputNodeContentText();
 }
 /***
  * 设置输入的文本内容
  */
 void KRTextFieldView::SetContentText(const std::string &text) {
-    kuikly::util::UpdateInputNodeContentText(GetNode(), text);
+    UpdateInputNodeContentText(text);
 }
 
 bool KRTextFieldView::LimitInputContentTextInMaxLength() {

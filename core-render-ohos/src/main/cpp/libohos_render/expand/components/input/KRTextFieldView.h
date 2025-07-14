@@ -42,6 +42,22 @@ class KRTextFieldView : public IKRRenderViewExport {
     virtual ArkUI_NodeEventType GetOnChangeEventType() {
         return ArkUI_NodeEventType::NODE_TEXT_INPUT_ON_CHANGE;
     }
+    
+    virtual void UpdateInputNodePlaceholder(const std::string &propValue);
+    virtual void UpdateInputNodePlaceholderColor(const std::string &propValue);
+    virtual void UpdateInputNodeColor(const std::string &propValue);
+    virtual void UpdateInputNodeCaretrColor(const std::string &propValue);
+    virtual void UpdateInputNodeTextAlign(const std::string &propValue);
+    virtual void UpdateInputNodeFocusable(int propValue);
+    virtual void UpdateInputNodeKeyboardType(const std::string &propValue);
+    virtual void UpdateInputNodeEnterKeyType(const std::string &propValue);
+    virtual void UpdateInputNodeMaxLength(int maxLength);
+    virtual void UpdateInputNodeFocusStatus(int status);
+    virtual uint32_t GetInputNodeSelectionStartPosition();
+    virtual void UpdateInputNodeSelectionStartPosition(uint32_t index);
+    virtual void UpdateInputNodePlaceholderFont(uint32_t font_size, ArkUI_FontWeight font_weight);
+    virtual void UpdateInputNodeContentText(const std::string &text);
+    virtual std::string GetInputNodeContentText();
 
  private:
     float font_size_ = 15;  // default 15

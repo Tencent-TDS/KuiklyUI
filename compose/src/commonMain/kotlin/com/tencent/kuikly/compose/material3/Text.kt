@@ -92,7 +92,7 @@ fun Text(
     color: Color = Color.Unspecified,
     fontSize: TextUnit = 16.sp,
     fontStyle: FontStyle? = null,
-    fontWeight: FontWeight? = null, // 暂时不支持
+    fontWeight: FontWeight? = null,
     fontFamily: FontFamily? = null,
     letterSpacing: TextUnit = TextUnit.Unspecified,
     textDecoration: TextDecoration? = null,

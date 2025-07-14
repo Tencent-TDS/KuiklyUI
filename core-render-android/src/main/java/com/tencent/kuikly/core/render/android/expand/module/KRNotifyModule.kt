@@ -179,6 +179,7 @@ fun Intent.getKuiklyEventName(): String = getStringExtra(KRNotifyModule.KEY_EVEN
 
 private fun Context.sendKREvent(eventName: String, data: String) {
     val intent = Intent(KRNotifyModule.BROADCAST_RECEIVER_ACTION).apply {
+        setPackage(applicationContext.packageName)
         putExtra(KRNotifyModule.KEY_EVENT_NAME, eventName)
         putExtra(KRNotifyModule.KEY_DATA, data)
     }

@@ -178,9 +178,8 @@ fun Intent.getKuiklyEventParams(): JSONObject {
 fun Intent.getKuiklyEventName(): String = getStringExtra(KRNotifyModule.KEY_EVENT_NAME) ?: ""
 
 private fun Context.sendKREvent(eventName: String, data: String) {
-    val intent = Intent(KRNotifyModule.BROADCAST_RECEIVER_ACTION).setPackage(
-        applicationContext.packageName
-    ).apply {
+    val intent = Intent(KRNotifyModule.BROADCAST_RECEIVER_ACTION).apply {
+        setPackage(applicationContext.packageName)
         putExtra(KRNotifyModule.KEY_EVENT_NAME, eventName)
         putExtra(KRNotifyModule.KEY_DATA, data)
     }

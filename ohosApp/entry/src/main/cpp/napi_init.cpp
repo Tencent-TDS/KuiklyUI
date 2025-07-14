@@ -113,6 +113,11 @@ static void MyLogAdapter(int logLevel, const char *tag, const char *message) {
     OH_LOG_Print(LOG_APP, LOG_INFO, MyDomain, tag, "%{public}s", message);
 }
 
+static int64_t MyColorAdapter(const char* str){
+    // Add custom parsing and return actual color value.
+    // Demo only returns -1 to allow kuikly automatically convert the color string
+    return -1;
+}
 
 static void* ExampleModuleOnConstruct(const char *moduleName){
     return nullptr;
@@ -157,6 +162,7 @@ static napi_value InitKuikly(napi_env env, napi_callback_info info) {
     if (!adapterRegistered) {
         registerExampleCModule();
         
+        KRRegisterColorAdapter(MyColorAdapter);
         KRRegisterLogAdapter(MyLogAdapter);
         KRRegisterFontAdapter(MyFontAdapter, "Satisfy-Regular");
         KRRegisterImageAdapter(MyImageAdapter);

@@ -74,7 +74,7 @@ void KRRenderAdapterManager::LogError(const std::string &tag, const std::string 
     }
 }
 
-void KRRenderAdapterManager::RegisterColorAdapter(IKRColorParseAdapter *color_adapter) {
+void KRRenderAdapterManager::RegisterColorAdapter(std::shared_ptr<IKRColorParseAdapter> color_adapter) {
     color_adapter_ = color_adapter;
 }
 
@@ -86,7 +86,7 @@ void KRRenderAdapterManager::RegisterImageAdapter(IKRImageAdapter *image_adapter
     image_adapter_ = image_adapter;
 }
 
-IKRColorParseAdapter *KRRenderAdapterManager::GetColorAdapter() {
+std::shared_ptr<IKRColorParseAdapter> KRRenderAdapterManager::GetColorAdapter() {
     return color_adapter_;
 }
 

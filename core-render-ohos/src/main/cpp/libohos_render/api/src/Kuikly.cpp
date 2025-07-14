@@ -249,6 +249,25 @@ void KRRegisterLogAdapter(KRLogAdapter adapter) {
     auto bridge = std::make_shared<BridgeLogAdapter>(adapter);
     KRRenderAdapterManager::GetInstance().RegisterLogAdapter(std::dynamic_pointer_cast<IKRLogAdapter>(bridge));
 }
+    
+void KRRegisterColorAdapter(KRColorAdapterParseColor adapter){
+    class BridgedColorParseAdapter : public IKRColorParseAdapter {
+     public:
+        BridgedColorParseAdapter(KRColorAdapterParseColor parser): parser_(parser){
+            // blank
+        }
+        std::int64_t GetHexColor(const std::string &colorStr) override{
+            return parser_ ? parser_(colorStr.c_str()) : 0;
+        }
+    private:
+        KRColorAdapterParseColor parser_;
+    };
+    if(adapter){
+        KRRenderAdapterManager::GetInstance().RegisterColorAdapter(std::make_shared<BridgedColorParseAdapter>(adapter));        
+    }else{
+        KRRenderAdapterManager::GetInstance().RegisterColorAdapter(nullptr);
+    }
+}
 
 // API for troubleshooting view reuse issue
 int g_kuikly_disable_view_reuse = 0;

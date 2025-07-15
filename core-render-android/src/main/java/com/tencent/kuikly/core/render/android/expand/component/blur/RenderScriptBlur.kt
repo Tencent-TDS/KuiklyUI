@@ -46,6 +46,16 @@ class RenderScriptBlur(context: Context) : IBlur {
     private var hadDestroy = false
 
     override fun blur(bitmap: Bitmap, radius: Float): Bitmap {
+        // rs要求半径在(0 < r <= 25)
+        // 1.5f为放大系数，用于对齐ScriptBlur与EffectBlur的模糊半径效果
+        val r = (radius * 1.5f).let { scaledRadius ->
+            if (scaledRadius <= 0f) {
+                return bitmap
+            } else {
+                scaledRadius.coerceAtMost(25f)
+            }
+        }
+
         val allocation = Allocation.createFromBitmap(renderScript, bitmap)
         if (!canReuseAllocation(bitmap)) {
             outAllocation?.destroy()
@@ -54,14 +64,6 @@ class RenderScriptBlur(context: Context) : IBlur {
             lastBitmapHeight = bitmap.height
         }
 
-        // rs要求半径在(0 < r <= 25)
-        val r = if (radius <= 0) {
-            1f
-        } else if (radius > 25f) {
-            25f
-        } else {
-            radius
-        }
         try {
             blurScript.setRadius(r)
             blurScript.setInput(allocation)

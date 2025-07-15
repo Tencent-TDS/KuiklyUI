@@ -131,7 +131,6 @@ class KRRenderView : public IKRRenderView {
 
  private:
     ArkUI_NodeContentHandle node_content_handle_ = nullptr;
-    OH_NativeXComponent *native_x_component_ = nullptr; // TODO(ruifanyuan): remove xcomponent pointer in next release
     ArkUI_NodeHandle root_node_ = nullptr;
     float root_view_width_ = 0.0;
     float root_view_height_ = 0.0;

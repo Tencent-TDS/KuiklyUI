@@ -83,7 +83,9 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
                     kuikly::util::GetNodeApi()->markDirty(strongSelf->GetNode(), NODE_NEED_RENDER);
                 }
             });
-            KR_LOG_ERROR << "OnForegroundDraw, IsPerformMainTasking Skip" << shadow_.get();
+#ifndef NDEBUG
+            KR_LOG_ERROR << "OnForegroundDraw, IsPerformMainTasking Skip:" << shadow_.get();
+#endif
             return;
         }
     }

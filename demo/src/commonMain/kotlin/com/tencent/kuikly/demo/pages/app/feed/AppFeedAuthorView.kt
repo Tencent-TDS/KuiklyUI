@@ -27,13 +27,34 @@ import com.tencent.kuikly.core.base.attr.ImageUri
 import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.module.CalendarModule
+import com.tencent.kuikly.core.module.CallbackRef
+import com.tencent.kuikly.core.module.NotifyModule
+import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.app.model.AppUserInfo
+import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
 
 internal class AppFeedItemAuthorView: ComposeView<AppFeedItemAuthorViewAttr, AppFeedItemAuthorViewEvent>() {
-    
+
+    private var colorScheme by observable(ThemeManager.colorScheme)
+    private lateinit var eventCallbackRef: CallbackRef
+
+    override fun created() {
+        super.created()
+        eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .addNotify("skinChanged") { _ ->
+                colorScheme = ThemeManager.colorScheme
+            }
+    }
+
+    override fun viewDestroyed() {
+        super.viewDestroyed()
+        acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .removeNotify("skinChanged", eventCallbackRef)
+    }
+
     override fun createEvent(): AppFeedItemAuthorViewEvent {
         return AppFeedItemAuthorViewEvent()
     }
@@ -97,9 +118,9 @@ internal class AppFeedItemAuthorView: ComposeView<AppFeedItemAuthorViewAttr, App
                             text(ctx.attr.userInfo.nick)
                             fontSize(15f)
                             if (ctx.attr.userInfo.isMember == 0) {
-                                color(Color.BLACK)
+                                color(ctx.colorScheme.feedUserNameNormal)
                             } else {
-                                color(Color(0xffF86119))
+                                color(ctx.colorScheme.feedUserNameMember)
                             }
                         }
                     }
@@ -123,7 +144,7 @@ internal class AppFeedItemAuthorView: ComposeView<AppFeedItemAuthorViewAttr, App
                         Text {
                             attr {
                                 text(ctx.attr.userInfo.desc)
-                                color(Color(0xff808080))
+                                color(ctx.colorScheme.feedUserSignature)
                                 fontSize(11.0f)
                             }
                         }
@@ -141,7 +162,7 @@ internal class AppFeedItemAuthorView: ComposeView<AppFeedItemAuthorViewAttr, App
                                     )
                                 attr {
                                     text(datetime)
-                                    color(Color(0xff808080))
+                                    color(ctx.colorScheme.feedUserSignature)
                                     fontSize(11.0f)
                                 }
                             }
@@ -149,14 +170,14 @@ internal class AppFeedItemAuthorView: ComposeView<AppFeedItemAuthorViewAttr, App
                                 attr {
                                     margin(left = 7.0f, right = 7.0f)
                                     text("来自")
-                                    color(Color(0xff808080))
+                                    color(ctx.colorScheme.feedUserSignature)
                                     fontSize(11.0f)
                                 }
                             }
                             Text {
                                 attr {
                                     text(ctx.attr.tail)
-                                    color(Color(0xff5B778D))
+                                    color(ctx.colorScheme.feedUserDevice)
                                     fontSize(11.0f)
                                 }
                             }
@@ -169,15 +190,14 @@ internal class AppFeedItemAuthorView: ComposeView<AppFeedItemAuthorViewAttr, App
                 attr {
                     justifyContentFlexEnd()
                     alignItemsCenter()
-                    backgroundColor(Color.WHITE)
                     padding(top = 4.0f, bottom = 4.0f, left = 8.0f, right = 8.0f)
                     borderRadius(12.0f)
-                    border(Border(lineWidth = 0.5f, lineStyle = BorderStyle.SOLID, color = Color(0xFFFB8C00)))
+                    border(Border(lineWidth = 0.5f, lineStyle = BorderStyle.SOLID, color = ctx.colorScheme.feedUserFollowButton))
                 }
                 Text {
                     attr {
                         text("+ 关注")
-                        color(Color(0xFFFB8C00))
+                        color(ctx.colorScheme.feedUserFollowButton)
                         fontSize(12.0f)
                     }
                 }

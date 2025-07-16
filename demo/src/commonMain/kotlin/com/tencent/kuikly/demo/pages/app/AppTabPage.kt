@@ -21,6 +21,9 @@ import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewRef
 import com.tencent.kuikly.core.base.attr.ImageUri
+import com.tencent.kuikly.core.module.CallbackRef
+import com.tencent.kuikly.core.module.NotifyModule
+import com.tencent.kuikly.core.module.SharedPreferencesModule
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.PageList
@@ -28,6 +31,7 @@ import com.tencent.kuikly.core.views.PageListView
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.app.home.AppHomePage
+import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
 
 @Page("AppTabPage")
 internal class AppTabPage : BasePager() {
@@ -49,6 +53,39 @@ internal class AppTabPage : BasePager() {
         "tabbar_profile_highlighted.png"
     )
     private var pageListRef : ViewRef<PageListView<*, *>>? = null
+    private var colorScheme by observable(ThemeManager.colorScheme)
+    private var assetScheme by observable(ThemeManager.assetScheme)
+    private var typoScheme by observable(ThemeManager.typoScheme)
+    private lateinit var eventCallbackRef: CallbackRef
+
+    override fun created() {
+        super.created()
+        eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .addNotify("skinChanged") { _ ->
+                colorScheme = ThemeManager.colorScheme
+                assetScheme = ThemeManager.assetScheme
+            }
+        val colorTheme = getPager().acquireModule<SharedPreferencesModule>(SharedPreferencesModule.MODULE_NAME)
+            .getString("colorTheme").takeUnless { it.isEmpty() } ?: "light"
+        val assetTheme = getPager().acquireModule<SharedPreferencesModule>(SharedPreferencesModule.MODULE_NAME)
+            .getString("assetTheme").takeUnless { it.isEmpty() } ?: "default"
+        val typoTheme = getPager().acquireModule<SharedPreferencesModule>(SharedPreferencesModule.MODULE_NAME)
+            .getString("typoTheme").takeUnless { it.isEmpty() } ?: "default"
+
+        ThemeManager.changeColorScheme(colorTheme)
+        ThemeManager.changeAssetScheme(assetTheme)
+        ThemeManager.changeTypoScheme(typoTheme)
+
+        colorScheme = ThemeManager.colorScheme
+        assetScheme = ThemeManager.assetScheme
+        typoScheme = ThemeManager.typoScheme
+    }
+
+    override fun pageWillDestroy() {
+        super.pageWillDestroy()
+        acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .removeNotify("skinChanged", eventCallbackRef)
+    }
 
     private fun tabBar(): ViewBuilder {
         val ctx = this
@@ -58,7 +95,7 @@ internal class AppTabPage : BasePager() {
                     height(TAB_BOTTOM_HEIGHT)
                     flexDirectionRow()
                     turboDisplayAutoUpdateEnable(false)
-                    backgroundColor(Color(250, 250, 250, 1f))
+                    backgroundColor(ctx.colorScheme.tabBarBackground)
                 }
                 for (i in 0 until ctx.pageTitles.size) {
                     View {
@@ -74,15 +111,22 @@ internal class AppTabPage : BasePager() {
                         }
                         Image {
                             attr {
-                                val path = if (i == ctx.selectedTabIndex) ctx.pageIconsHighlight[i] else ctx.pageIcons[i]
-                                src(ImageUri.pageAssets(path))
                                 size(30f, 30f)
+                                val path = if (i == ctx.selectedTabIndex) ctx.pageIconsHighlight[i] else ctx.pageIcons[i]
+                                if (i == ctx.selectedTabIndex) {
+                                    src(ThemeManager.getAssetUri(ctx.assetScheme, ctx.pageIconsHighlight[i]))
+                                    tintColor(ctx.colorScheme.tabBarIconFocused)
+                                } else {
+                                    src(ThemeManager.getAssetUri(ctx.assetScheme, ctx.pageIcons[i]))
+                                    tintColor(ctx.colorScheme.tabBarIconUnfocused)
+                                }
                             }
                         }
                         Text {
                             attr {
                                 text(ctx.pageTitles[i])
-                                color(if (i == ctx.selectedTabIndex) Color.RED else Color.BLACK)
+                                color(if (i == ctx.selectedTabIndex) ctx.colorScheme.tabBarTextFocused
+                                      else ctx.colorScheme.tabBarTextUnfocused)
                             }
                         }
                     }
@@ -97,6 +141,7 @@ internal class AppTabPage : BasePager() {
             View {
                 attr {
                     height(pagerData.statusBarHeight)
+                    backgroundColor(ctx.colorScheme.topBarBackground)
                 }
             }
 

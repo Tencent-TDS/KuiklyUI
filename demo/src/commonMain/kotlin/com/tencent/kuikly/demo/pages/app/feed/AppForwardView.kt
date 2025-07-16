@@ -21,10 +21,31 @@ import com.tencent.kuikly.core.base.ComposeAttr
 import com.tencent.kuikly.core.base.ComposeEvent
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewContainer
+import com.tencent.kuikly.core.module.CallbackRef
+import com.tencent.kuikly.core.module.NotifyModule
+import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.demo.pages.app.common.AppNineGrid
+import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
 
 internal class AppForwardView: ComposeView<AppForwardViewAttr, AppForwardViewEvent>() {
-    
+
+    private var colorScheme by observable(ThemeManager.colorScheme)
+    private lateinit var eventCallbackRef: CallbackRef
+
+    override fun created() {
+        super.created()
+        eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .addNotify("skinChanged") { _ ->
+                colorScheme = ThemeManager.colorScheme
+            }
+    }
+
+    override fun viewDestroyed() {
+        super.viewDestroyed()
+        acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .removeNotify("skinChanged", eventCallbackRef)
+    }
+
     override fun createEvent(): AppForwardViewEvent {
         return AppForwardViewEvent()
     }
@@ -51,7 +72,7 @@ internal class AppForwardView: ComposeView<AppForwardViewAttr, AppForwardViewEve
                 attr {
                     padding(12.0f)
                     marginTop(5.0f)
-                    backgroundColor(Color(0xffF7F7F7))
+                    backgroundColor(ctx.colorScheme.feedContentQuoteBackground)
                 }
                 if (displayContent.isNotEmpty()) {
                     AppFeedContent {

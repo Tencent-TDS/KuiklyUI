@@ -22,6 +22,8 @@ import com.tencent.kuikly.core.base.ComposeEvent
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.ViewRef
+import com.tencent.kuikly.core.module.CallbackRef
+import com.tencent.kuikly.core.module.NotifyModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.PageList
@@ -33,6 +35,7 @@ import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.app.AppTabPage
 import com.tencent.kuikly.demo.pages.app.model.AppFeedsType
+import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
 
 internal class AppTrendingPageView: ComposeView<AppTrendingPageViewAttr, AppTrendingPageViewEvent>() {
 
@@ -50,6 +53,22 @@ internal class AppTrendingPageView: ComposeView<AppTrendingPageViewAttr, AppTren
         AppFeedsType.Test,
     )
     private var viewRefs: MutableList<ViewRef<AppFeedListPageView>> = mutableListOf()
+    private var colorScheme by observable(ThemeManager.colorScheme)
+    private lateinit var eventCallbackRef: CallbackRef
+
+    override fun created() {
+        super.created()
+        eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .addNotify("skinChanged") { _ ->
+                colorScheme = ThemeManager.colorScheme
+            }
+    }
+
+    override fun viewDestroyed() {
+        super.viewDestroyed()
+        acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .removeNotify("skinChanged", eventCallbackRef)
+    }
 
     internal fun loadFirstFeeds() {
         this.viewRefs.first().view?.loadFirstFeeds()
@@ -70,7 +89,7 @@ internal class AppTrendingPageView: ComposeView<AppTrendingPageViewAttr, AppTren
                 attr {
                     height(TAB_HEADER_HEIGHT)
                     defaultInitIndex(ctx.curIndex)
-                    backgroundColor(Color.WHITE)
+                    backgroundColor(ctx.colorScheme.topBarNestedBackground)
                     ctx.scrollParams?.also {
                         scrollParams(it)
                     }
@@ -94,11 +113,8 @@ internal class AppTrendingPageView: ComposeView<AppTrendingPageViewAttr, AppTren
                             attr {
                                 text(ctx.pageTitles[i])
                                 fontSize(17f)
-                                if (state.selected) {
-                                    color(Color.RED)
-                                } else {
-                                    color(Color.GRAY)
-                                }
+                                color(if (state.selected) ctx.colorScheme.topBarNestedTextFocused
+                                      else ctx.colorScheme.topBarNestedTextUnfocused)
                             }
                         }
                     }

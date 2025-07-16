@@ -22,8 +22,13 @@ import com.tencent.kuikly.core.base.ComposeEvent
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.ViewRef
+import com.tencent.kuikly.core.base.attr.ImageUri
+import com.tencent.kuikly.core.module.CallbackRef
+import com.tencent.kuikly.core.module.NotifyModule
+import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.reactive.handler.observable
+import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.PageList
 import com.tencent.kuikly.core.views.PageListView
 import com.tencent.kuikly.core.views.ScrollParams
@@ -33,6 +38,7 @@ import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.app.AppTabPage
 import com.tencent.kuikly.demo.pages.app.model.AppFeedsType
+import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
 
 internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageViewEvent>() {
 
@@ -43,6 +49,22 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
     private var tabHeaderWidth by observable(300f)
     private lateinit var followViewRef: ViewRef<AppFeedListPageView>
     private lateinit var trendViewRef: ViewRef<AppTrendingPageView>
+    private var colorScheme by observable(ThemeManager.colorScheme)
+    private lateinit var eventCallbackRef: CallbackRef
+
+    override fun created() {
+        super.created()
+        eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .addNotify("skinChanged") { _ ->
+                colorScheme = ThemeManager.colorScheme
+            }
+    }
+
+    override fun viewDestroyed() {
+        super.viewDestroyed()
+        acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .removeNotify("skinChanged", eventCallbackRef)
+    }
 
     override fun createEvent(): AppHomePageViewEvent {
         return AppHomePageViewEvent()
@@ -56,7 +78,7 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
         val ctx = this
         return {
             attr {
-                backgroundColor(Color(249, 249, 249, 1f))
+                backgroundColor(ctx.colorScheme.topBarBackground)
             }
             Tabs {
                 attr {
@@ -64,14 +86,13 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
                     width(ctx.tabHeaderWidth)
                     defaultInitIndex(ctx.curIndex)
                     alignSelfCenter()
-                    backgroundColor(Color(249, 249, 249, 1f))
                     indicatorInTabItem {
                         View {
                             attr {
                                 height(3f)
                                 absolutePosition(left = 2f, right = 2f, bottom = 5f)
                                 borderRadius(2f)
-                                backgroundColor(Color.RED)
+                                backgroundColor(ctx.colorScheme.topBarIndicator)
                             }
                         }
                     }
@@ -90,7 +111,6 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
                             marginLeft(10f)
                             marginRight(10f)
                             allCenter()
-//                            backgroundColor(Color.BLUE)
                         }
                         event {
                             click {
@@ -103,12 +123,28 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
                                 fontSize(17f)
                                 if (state.selected) {
                                     fontWeightBold()
-                                    color(Color.BLACK)
+                                    color(ctx.colorScheme.topBarTextFocused)
                                 } else {
-                                    color(Color.GRAY)
+                                    color(ctx.colorScheme.topBarTextUnfocused)
                                 }
                             }
                         }
+                    }
+                }
+            }
+
+            Image {
+                attr {
+                    absolutePosition(top = 12f, right = 12f)
+                    size(20f, 20f)
+                    src(ImageUri.pageAssets("ic_settings.png"))
+                    tintColor(ctx.colorScheme.topBarTextFocused)
+                }
+                event {
+                    click {
+                        // 跳转到新页面
+                        ctx.acquireModule<RouterModule>(RouterModule.MODULE_NAME)
+                            .openPage("AppSettingPage")
                     }
                 }
             }

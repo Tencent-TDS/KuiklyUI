@@ -19,8 +19,18 @@
 #include "libohos_render/expand/components/base/KRCustomUserCallback.h"
 #include "libohos_render/expand/events/gesture/KRGestueEventType.h"
 #include "libohos_render/export/IKRRenderViewExport.h"
+#include "libohos_render/manager/KRWeakObjectManager.h"
 #include "libohos_render/utils/KRThreadChecker.h"
 #include "libohos_render/utils/KRViewUtil.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+// Remove this declaration if compatable api is raised to 18 and above
+extern void* OH_ArkUI_GestureInterrupter_GetUserData(ArkUI_GestureInterruptInfo* event) __attribute__((weak));
+#ifdef __cplusplus
+};
+#endif
 
 bool returnIfNull(const ArkUI_NodeHandle ark_ui_node_handle) {
     if (!ark_ui_node_handle) {
@@ -253,7 +263,8 @@ void KREventDispatchCenter::RegisterGestureInterrupter(const std::shared_ptr<IKR
         }
         gesture_interrupter_handler_map_[node_handle] = entry;
         legacy_gesture_interrupter_handler_map_[view_export->GetNodeId()] = entry;
-        kuikly::util::GetGestureApi()->setGestureInterrupterToNode(node_handle, [](ArkUI_GestureInterruptInfo *info) {
+        void *userData = KRWeakObjectManagerRegisterWeakObject(view_export);
+        kuikly::util::GetGestureApi()->setGestureInterrupterToNode(node_handle, userData,  [](ArkUI_GestureInterruptInfo *info) {
             return KREventDispatchCenter::GetInstance().OnInterruptGestureEvent(info);
         });
     }
@@ -268,7 +279,7 @@ void KREventDispatchCenter::UnregisterGestureInterrupter(const std::shared_ptr<I
     }
     if (gesture_interrupter_handler_map_.find(ark_ui_node_handle) != gesture_interrupter_handler_map_.end()) {
         kuikly::util::GetGestureApi()->setGestureInterrupterToNode(
-            ark_ui_node_handle, [](ArkUI_GestureInterruptInfo *info) { return GESTURE_INTERRUPT_RESULT_CONTINUE; });
+            ark_ui_node_handle, nullptr, [](ArkUI_GestureInterruptInfo *info) { return GESTURE_INTERRUPT_RESULT_CONTINUE; });
         gesture_interrupter_handler_map_.erase(ark_ui_node_handle);
         legacy_gesture_interrupter_handler_map_.erase(view_export->GetNodeId());
     }
@@ -288,8 +299,22 @@ void KREventDispatchCenter::OnReceiverGestureEvent(const ArkUI_NodeHandle node_h
 }
 
 ArkUI_GestureInterruptResult KREventDispatchCenter::OnInterruptGestureEvent(const ArkUI_GestureInterruptInfo *info) {
-    auto recognizer = OH_ArkUI_GestureInterruptInfo_GetRecognizer(info);
-    auto node_handle = kuikly::util::GetGestureApi()->GetAttachedNodeForRecognizer(recognizer);
+    ArkUI_NodeHandle node_handle = nullptr;
+    ArkUI_GestureRecognizer *recognizer = OH_ArkUI_GestureInterruptInfo_GetRecognizer(info);
+    if(OH_ArkUI_GestureInterrupter_GetUserData){
+        // new api available (systems with api version >= 18)
+        void* userData = OH_ArkUI_GestureInterrupter_GetUserData((ArkUI_GestureInterruptInfo*)info);
+        if(userData){
+            std::shared_ptr<IKRRenderViewExport> view = KRWeakObjectManagerGetWeakObject<IKRRenderViewExport>(userData).lock();
+            if(view){
+                node_handle = view->GetNode();
+            }
+        }
+    }else{
+        // fallback
+        node_handle = kuikly::util::GetGestureApi()->GetAttachedNodeForRecognizer(recognizer);
+    }
+
     std::shared_ptr<KRGestureEventRegisterEntry> entry;
     if (node_handle) {
         auto it = gesture_interrupter_handler_map_.find(node_handle);

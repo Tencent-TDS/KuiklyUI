@@ -46,7 +46,7 @@ class ArkUINativeGestureAPI {
     int32_t addGestureToNode(ArkUI_NodeHandle node, ArkUI_GestureRecognizer *recognizer, ArkUI_GesturePriority mode,
                              ArkUI_GestureMask mask);
     int32_t removeGestureFromNode(ArkUI_NodeHandle node, ArkUI_GestureRecognizer *recognizer);
-    int32_t setGestureInterrupterToNode(ArkUI_NodeHandle node,
+    int32_t setGestureInterrupterToNode(ArkUI_NodeHandle node, void* userData,
                                         ArkUI_GestureInterruptResult (*interrupter)(ArkUI_GestureInterruptInfo *info));
     ArkUI_GestureRecognizerType getGestureType(ArkUI_GestureRecognizer *recognizer);
     int32_t
@@ -62,7 +62,8 @@ class ArkUINativeGestureAPI {
  private:
     ArkUINativeGestureAPI();
     ~ArkUINativeGestureAPI() = default;
-    ArkUI_NativeGestureAPI_1 *impl_;
+    ArkUI_NativeGestureAPI_1 *impl_ = nullptr;
+    ArkUI_NativeGestureAPI_2 *impl2_ = nullptr;
 
     // map from gesture to parent gesture
     std::unordered_map<void *, void *> gestureToParentGesture_;

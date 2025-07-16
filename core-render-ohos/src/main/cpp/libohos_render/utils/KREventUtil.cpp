@@ -205,9 +205,12 @@ int32_t ArkUINativeGestureAPI::removeGestureFromNode(ArkUI_NodeHandle node, ArkU
 }
 
 int32_t ArkUINativeGestureAPI::setGestureInterrupterToNode(
-    ArkUI_NodeHandle node, ArkUI_GestureInterruptResult (*interrupter)(ArkUI_GestureInterruptInfo *info)) {
+    ArkUI_NodeHandle node, void* userData, ArkUI_GestureInterruptResult (*interrupter)(ArkUI_GestureInterruptInfo *info)) {
     KREnsureMainThread();
     KUIKLY_CHECK_NODE_OR_RETURN_ERROR(node);
+    if(impl2_){
+        return impl2_->setGestureInterrupterToNode(node, userData, interrupter);
+    }
     return impl_->setGestureInterrupterToNode(node, interrupter);
 }
 
@@ -238,7 +241,16 @@ ArkUINativeGestureAPI *ArkUINativeGestureAPI::GetInstance() {
     return instance_;
 }
 
-ArkUINativeGestureAPI::ArkUINativeGestureAPI() {
+
+ArkUINativeGestureAPI::ArkUINativeGestureAPI(){
+    
+    void* ptr = OH_ArkUI_QueryModuleInterfaceByName(ARKUI_NATIVE_GESTURE, "ArkUI_NativeGestureAPI_2");
+    void* p1 = nullptr;
+    if(ptr){
+        impl2_ = (ArkUI_NativeGestureAPI_2 *)ptr;
+        impl_ = impl2_->gestureApi1;
+        return;
+    }
     OH_ArkUI_GetModuleInterface(ARKUI_NATIVE_GESTURE, ArkUI_NativeGestureAPI_1, impl_);
 }
 

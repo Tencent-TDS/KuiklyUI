@@ -19,6 +19,16 @@
 #include "libohos_render/foundation/type/KRRenderValue.h"
 #include "libohos_render/utils/KRJSONObject.h"
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+// Remove this declaration if compatable api is raised to 18 and above
+extern void* OH_ArkUI_GestureInterrupter_GetUserData(ArkUI_GestureInterruptInfo* event) __attribute__((weak));
+#ifdef __cplusplus
+};
+#endif
+
 constexpr char kPropNameDirectionRow[] = "directionRow";
 constexpr char kPropNamePagingEnabled[] = "pagingEnabled";
 constexpr char kPropNameScrollEnabled[] = "scrollEnabled";
@@ -588,7 +598,10 @@ void KRScrollerView::DidMoveToParentView() {
             auto handler = view->GetSuperTouchHandler();
             if (handler) {
                 weak_super_touch_handler_ = handler;
-                SetViewTag(GetViewTag());
+                if(!OH_ArkUI_GestureInterrupter_GetUserData){
+                    // Only needed when `OH_ArkUI_GestureInterrupter_GetUserData` unavailable
+                    SetViewTag(GetViewTag());
+                }
                 RegisterGestureInterrupter();
                 break;
             }

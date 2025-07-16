@@ -141,6 +141,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("OverNativeClickDemo", "遮住原生View可点击", "OverNativeClickDemo"),
             DemoItem("AppearPercentDemo", "可见度百度比", "AppearDemo"),
             DemoItem("内外边距", "Compose内外边距，边框写法示例", "MarginPaddingTest"),
+            DemoItem("MaterialDemo", "material3组件示例", "material_demo"),
         )
 
     @Composable
@@ -249,7 +250,7 @@ internal class ComposeAllSample : ComposeContainer() {
         var hotReloadIp: String? = null
         acquireModule<RouterModule>(RouterModule.MODULE_NAME).openPage(pageName, pageData)
     }
-} 
+}
 
 @Composable
 fun NavBar(title: String) {

@@ -516,8 +516,8 @@ class ColorScheme(
 //    internal var defaultSegmentedButtonColorsCached: SegmentedButtonColors? = null
 //
     internal var defaultSliderColorsCached: SliderColors? = null
-//
-//    internal var defaultSwitchColorsCached: SwitchColors? = null
+
+    internal var defaultSwitchColorsCached: SwitchColors? = null
 
     internal var defaultOutlinedTextFieldColorsCached: TextFieldColors? = null
     internal var defaultTextFieldColorsCached: TextFieldColors? = null

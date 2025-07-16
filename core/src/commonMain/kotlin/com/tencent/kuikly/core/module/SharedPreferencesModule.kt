@@ -62,8 +62,8 @@ class SharedPreferencesModule : Module() {
         }
     }
 
-    fun getString(key: String): String {
-        return getItem(key)
+    fun getString(key: String): String? {
+        return getItem(key).takeUnless { it.isEmpty() }
     }
 
     fun getInt(key: String): Int? {

@@ -56,7 +56,7 @@
 
 ## getString方法
 
-获取key对应的String?类型的缓存值
+获取key对应的String类型的缓存值，当key不存在时返回空串
 
 <br/>
 

@@ -6,24 +6,38 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.tencent.kuikly.compose.ComposeContainer
+import com.tencent.kuikly.compose.animation.core.animateFloatAsState
 import com.tencent.kuikly.compose.foundation.Canvas
+import com.tencent.kuikly.compose.foundation.layout.Column
+import com.tencent.kuikly.compose.foundation.layout.Row
+import com.tencent.kuikly.compose.foundation.layout.fillMaxWidth
+import com.tencent.kuikly.compose.foundation.layout.height
+import com.tencent.kuikly.compose.foundation.layout.padding
 import com.tencent.kuikly.compose.foundation.layout.size
+import com.tencent.kuikly.compose.foundation.layout.width
+import com.tencent.kuikly.compose.material3.CircularProgressIndicator
+import com.tencent.kuikly.compose.material3.LinearProgressIndicator
 import com.tencent.kuikly.compose.material3.LocalContentColor
+import com.tencent.kuikly.compose.material3.MaterialTheme
+import com.tencent.kuikly.compose.material3.ProgressIndicatorDefaults
+import com.tencent.kuikly.compose.material3.Slider
 import com.tencent.kuikly.compose.material3.Switch
 import com.tencent.kuikly.compose.material3.SwitchDefaults
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.setContent
+import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.geometry.Offset
+import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.Path
+import com.tencent.kuikly.compose.ui.graphics.StrokeCap
 import com.tencent.kuikly.compose.ui.graphics.drawscope.scale
-import com.tencent.kuikly.compose.ui.graphics.drawscope.translate
 import com.tencent.kuikly.compose.ui.platform.LocalDensity
 import com.tencent.kuikly.compose.ui.semantics.contentDescription
 import com.tencent.kuikly.compose.ui.semantics.semantics
-import com.tencent.kuikly.demo.pages.base.BasePager
+import com.tencent.kuikly.compose.ui.unit.dp
+import com.tencent.kuikly.compose.ui.unit.sp
 import com.tencent.kuikly.core.annotations.Page
-import com.tencent.kuikly.core.base.ViewBuilder
 
 @Page("material_demo")
 internal class MaterialDemo : ComposeContainer() {
@@ -36,11 +50,36 @@ internal class MaterialDemo : ComposeContainer() {
             ) {
                 Text("Switch")
                 SwitchSample()
-                Text("Switch with Thumb Icon")
+                SecondaryText("Switch with Thumb Icon")
                 SwitchWithThumbIconSample()
+                Text("Linear Progress Indicator")
+                LinearProgressIndicatorSample()
+                SecondaryText("Legacy Linear Progress Indicator")
+                LegacyLinearProgressIndicatorSample()
+                SecondaryText("Indeterminate Linear Progress Indicator")
+                IndeterminateLinearProgressIndicatorSample()
+                SecondaryText("Legacy Indeterminate Linear Progress Indicator")
+                LegacyIndeterminateLinearProgressIndicatorSample()
+                Text("Circular Progress Indicator")
+                CircularProgressIndicatorSample()
+                SecondaryText("Legacy Circular Progress Indicator")
+                LegacyCircularProgressIndicatorSample()
+                SecondaryText("Indeterminate Circular Progress Indicator")
+                IndeterminateCircularProgressIndicatorSample()
+                SecondaryText("Legacy Indeterminate Circular Progress Indicator")
+                LegacyIndeterminateCircularProgressIndicatorSample()
             }
         }
     }
+}
+
+@Composable
+private fun SecondaryText(text: String) {
+    Text(
+        text = text,
+        color = MaterialTheme.colorScheme.secondary,
+        fontSize = 12.sp
+    )
 }
 
 @Composable
@@ -86,5 +125,138 @@ private val IconChecked by lazy(LazyThreadSafetyMode.NONE) {
         lineTo(21.0f, 7.0f)
         relativeLineTo(-1.41f, -1.41f)
         close()
+    }
+}
+
+@Composable
+private fun LinearProgressIndicatorSample() {
+    var progress by remember { mutableStateOf(0.2f) }
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec
+    )
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        LinearProgressIndicator(
+            progress = { animatedProgress },
+        )
+        Row(modifier = Modifier.padding(10.dp)) {
+            SecondaryText("Set progress:")
+            Slider(
+                modifier = Modifier.width(150.dp).height(12.dp),
+                value = progress,
+                valueRange = 0f..1f,
+                onValueChange = { progress = it },
+            )
+        }
+    }
+}
+
+@Composable
+private fun LegacyLinearProgressIndicatorSample() {
+    var progress by remember { mutableStateOf(0.2f) }
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec
+    )
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        LinearProgressIndicator(
+            progress = { animatedProgress },
+            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            strokeCap = StrokeCap.Butt,
+            gapSize = 0.dp,
+            drawStopIndicator = {}
+        )
+        Row(modifier = Modifier.padding(10.dp)) {
+            SecondaryText("Set progress:")
+            Slider(
+                modifier = Modifier.width(150.dp).height(12.dp),
+                value = progress,
+                valueRange = 0f..1f,
+                onValueChange = { progress = it },
+            )
+        }
+    }
+}
+
+@Composable
+private fun IndeterminateLinearProgressIndicatorSample() {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        LinearProgressIndicator()
+    }
+}
+
+@Composable
+private fun LegacyIndeterminateLinearProgressIndicatorSample() {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        LinearProgressIndicator(
+            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            strokeCap = StrokeCap.Butt,
+            gapSize = 0.dp
+        )
+    }
+}
+
+@Composable
+private fun CircularProgressIndicatorSample() {
+    var progress by remember { mutableStateOf(0.2f) }
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec
+    )
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        CircularProgressIndicator(progress = { animatedProgress })
+        Row(modifier = Modifier.padding(10.dp)) {
+            SecondaryText("Set progress:")
+            Slider(
+                modifier = Modifier.width(150.dp).height(12.dp),
+                value = progress,
+                valueRange = 0f..1f,
+                onValueChange = { progress = it },
+            )
+        }
+    }
+}
+
+@Composable
+private fun LegacyCircularProgressIndicatorSample() {
+    var progress by remember { mutableStateOf(0.2f) }
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec
+    )
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        CircularProgressIndicator(
+            progress = { animatedProgress },
+            trackColor = Color.Transparent,
+            strokeCap = StrokeCap.Butt,
+            gapSize = 0.dp
+        )
+        Row(modifier = Modifier.padding(10.dp)) {
+            SecondaryText("Set progress:")
+            Slider(
+                modifier = Modifier.width(150.dp).height(12.dp),
+                value = progress,
+                valueRange = 0f..1f,
+                onValueChange = { progress = it },
+            )
+        }
+    }
+}
+
+@Composable
+private fun IndeterminateCircularProgressIndicatorSample() {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        CircularProgressIndicator()
+    }
+}
+
+@Composable
+private fun LegacyIndeterminateCircularProgressIndicatorSample() {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        CircularProgressIndicator(strokeCap = StrokeCap.Butt)
     }
 }

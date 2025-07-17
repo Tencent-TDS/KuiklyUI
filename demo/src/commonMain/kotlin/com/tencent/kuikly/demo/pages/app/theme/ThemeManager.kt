@@ -20,6 +20,7 @@ object ThemeManager {
     )
     val TYPO_SCHEME_MAP = mapOf("default" to defaultTypography)
     val ASSET_SCHEME_LIST = listOf("default", "game")
+    const val SKIN_CHANGED_EVENT = "skinChanged"
 
     enum class ThemeType { COLOR, ASSET, TYPOGRAPHY }
 

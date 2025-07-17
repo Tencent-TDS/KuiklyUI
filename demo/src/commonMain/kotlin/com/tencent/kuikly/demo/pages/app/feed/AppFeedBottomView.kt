@@ -39,7 +39,7 @@ internal class AppFeedBottomView: ComposeView<AppFeedBottomViewAttr, AppFeedBott
     override fun created() {
         super.created()
         eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
-            .addNotify("skinChanged") { _ ->
+            .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
                 colorScheme = ThemeManager.colorScheme
             }
     }
@@ -47,7 +47,7 @@ internal class AppFeedBottomView: ComposeView<AppFeedBottomViewAttr, AppFeedBott
     override fun viewDestroyed() {
         super.viewDestroyed()
         acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
-            .removeNotify("skinChanged", eventCallbackRef)
+            .removeNotify(ThemeManager.SKIN_CHANGED_EVENT, eventCallbackRef)
     }
 
     override fun createEvent(): AppFeedBottomViewEvent {

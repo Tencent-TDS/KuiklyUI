@@ -41,7 +41,7 @@ internal class AppFeedContentView: ComposeView<AppFeedContentViewAttr, AppFeedCo
     override fun viewDestroyed() {
         super.viewDestroyed()
         acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
-            .removeNotify("skinChanged", eventCallbackRef)
+            .removeNotify(ThemeManager.SKIN_CHANGED_EVENT, eventCallbackRef)
     }
 
 
@@ -57,7 +57,7 @@ internal class AppFeedContentView: ComposeView<AppFeedContentViewAttr, AppFeedCo
         super.created()
         initContent()
         eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
-            .addNotify("skinChanged") { _ ->
+            .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
                 colorScheme = ThemeManager.colorScheme
             }
     }

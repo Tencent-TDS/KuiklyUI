@@ -17,11 +17,26 @@
 #define CORE_RENDER_OHOS_KRSCOPEDSPINLOCK_H
 
 #include <pthread.h>
+
+class KRScopedSpinLock;
+class KRSpinLock{
+public:
+    KRSpinLock(){
+        pthread_spin_init(&spin_, PTHREAD_PROCESS_PRIVATE);
+    }
+    ~KRSpinLock(){
+        pthread_spin_destroy(&spin_);
+    }
+private:
+    friend class KRScopedSpinLock;
+    pthread_spinlock_t spin_;
+};
+
 class KRScopedSpinLock{
 public:
-    KRScopedSpinLock(pthread_spinlock_t *spinlock): spinlock_(spinlock), status_(-1){
+    KRScopedSpinLock(KRSpinLock *spinlock): spinlock_(spinlock), status_(-1){
         if(spinlock){
-            status_ = pthread_spin_lock(spinlock);
+            status_ = pthread_spin_lock(&spinlock_->spin_);
         }
     }
     KRScopedSpinLock(const KRScopedSpinLock &) = delete;
@@ -29,12 +44,12 @@ public:
     
     ~KRScopedSpinLock(){
         if(spinlock_ && status_ == 0){
-            status_ = pthread_spin_unlock(spinlock_);
+            status_ = pthread_spin_unlock(&spinlock_->spin_);
         }
     }
     
 private:
-    pthread_spinlock_t* spinlock_;
+    KRSpinLock* spinlock_;
     int status_;
 };
 #endif //CORE_RENDER_OHOS_KRSCOPEDSPINLOCK_H

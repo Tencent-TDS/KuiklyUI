@@ -20,7 +20,7 @@
 #include <pthread.h>
 #include "libohos_render/context/KRRenderExecuteModeWrapper.h"
 #include "libohos_render/view/KRRenderView.h"
-
+#include "libohos_render/utils/KRScopedSpinLock.h"
 /** 全局递增实例ID */
 static int gGlobalInstanceId = 0;
 
@@ -46,9 +46,9 @@ class KRRenderManager {
     void CreateRenderViewIfNeeded(napi_env env, napi_callback_info info);
 
  private:
-    pthread_spinlock_t render_view_map_lock_;
+    KRSpinLock render_view_map_lock_;
     std::unordered_map<std::string, std::shared_ptr<KRRenderView>> render_view_map_;
-    pthread_spinlock_t launch_init_time_map_lock_;
+    KRSpinLock launch_init_time_map_lock_;
     std::unordered_map<std::string, int64_t> launch_init_time_map_;
     KRRenderManager();  // 构造函数私有化
     ~KRRenderManager();

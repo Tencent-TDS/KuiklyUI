@@ -34,9 +34,7 @@ KRRenderManager &KRRenderManager::GetInstance() {
     return instance;
 }
 
-KRRenderManager::KRRenderManager() : render_view_map_lock_(0), launch_init_time_map_lock_(0){
-    pthread_spin_init(&render_view_map_lock_, PTHREAD_PROCESS_PRIVATE);
-    pthread_spin_init(&launch_init_time_map_lock_, PTHREAD_PROCESS_PRIVATE);
+KRRenderManager::KRRenderManager(){
     // 注册内置UI组件
     ComponentsRegisterEntry();
     // 注册内置Module
@@ -47,14 +45,6 @@ KRRenderManager::KRRenderManager() : render_view_map_lock_(0), launch_init_time_
 
 KRRenderManager::~KRRenderManager(){
     // Add destroy calls even though they won't actually get called
-    if(render_view_map_lock_){
-        pthread_spin_destroy(&render_view_map_lock_);
-        render_view_map_lock_ = 0;
-    }
-    if(launch_init_time_map_lock_){
-        pthread_spin_destroy(&launch_init_time_map_lock_);
-        launch_init_time_map_lock_ = 0;
-    }
 }
 
 void KRRenderManager::CreateRenderViewIfNeeded(napi_env env, napi_callback_info info) {

@@ -17,12 +17,66 @@
 #define CORE_RENDER_OHOS_KR_WEAK_OBJECT_MANAGER_H
 
 #include <memory>
+#include <map>
+#include "libohos_render/utils/KRScopedSpinLock.h"
 
 template<typename T>
-void *KRWeakObjectManagerRegisterWeakObject(std::shared_ptr<T> ptr);
+class KRWeakRegistry{
+public:
+    void Set(void* key, std::weak_ptr<T> value){
+        KRScopedSpinLock lock(&spin_);
+        entries_[key] = value;
+    }
+    void Remove(void* key){
+        KRScopedSpinLock lock(&spin_);
+        entries_.erase(key);
+    }
+
+    std::weak_ptr<T> Get(void* key){
+        KRScopedSpinLock lock(&spin_);
+        if (auto it = entries_.find(key); it != entries_.end()) {
+            return it->second;
+        }
+        return std::weak_ptr<T>();
+    }
+
+private:
+    KRSpinLock spin_;
+    std::map<void*, std::weak_ptr<T>> entries_;
+};
 
 template<typename T>
-std::weak_ptr<T> KRWeakObjectManagerGetWeakObject(void *key);
+class KRWeakObjectMgr : public KRWeakRegistry<T>{
+public:
+    static KRWeakObjectMgr<T> &GetInstance(){
+        static KRWeakObjectMgr<T> instance_;
+        return instance_;;
+    }
+};
 
+template<typename T>
+void *KRWeakObjectManagerRegisterWeakObject(std::shared_ptr<T> ptr){
+    if(ptr){
+        void* key = ptr.get();
+        KRWeakObjectMgr<T>::GetInstance().Set(key, ptr);
+        return key;
+    }
+    return nullptr;
+}
+
+template<typename T>
+void KRWeakObjectManagerUnregisterWeakObject(std::shared_ptr<T> ptr){
+    if(ptr){
+        KRWeakObjectMgr<T>::GetInstance().Remove(ptr.get());
+    }
+}
+
+template<typename T>
+std::weak_ptr<T> KRWeakObjectManagerGetWeakObject(void *key){
+    if(key){
+        return KRWeakObjectMgr<T>::GetInstance().Get(key);
+    }
+    return std::weak_ptr<T>();
+}
 
 #endif //CORE_RENDER_OHOS_KR_WEAK_OBJECT_MANAGER_H

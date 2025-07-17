@@ -156,6 +156,7 @@ void IKRRenderViewExport::DestroyTouchInterrupter() {
         auto node = touch_interrupt_node_;
         KRMainThread::RunOnMainThreadForNextLoop([node] { kuikly::util::GetNodeApi()->disposeNode(node); });
         touch_interrupt_node_ = nullptr;
+        KRWeakObjectManagerUnregisterWeakObject(shared_from_this());
     }
 }
 

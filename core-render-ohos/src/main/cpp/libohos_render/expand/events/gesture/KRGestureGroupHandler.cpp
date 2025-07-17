@@ -17,6 +17,8 @@
 
 #include "libohos_render/expand/events/KREventDispatchCenter.h"
 #include "libohos_render/utils/KREventUtil.h"
+#include "libohos_render/manager/KRWeakObjectManager.h"
+
 
 KRGestureGroupHandler::KRGestureGroupHandler(const ArkUI_NodeHandle node_handle,
                                              KRGestureEventCallback gesture_event_callback)
@@ -25,6 +27,9 @@ KRGestureGroupHandler::KRGestureGroupHandler(const ArkUI_NodeHandle node_handle,
 }
 
 KRGestureGroupHandler::~KRGestureGroupHandler() {
+    std::for_each(gesture_event_handlers_.begin(), gesture_event_handlers_.end(), [](auto gesture){
+        KRWeakObjectManagerUnregisterWeakObject(gesture);
+    });
     gesture_event_handlers_.clear();
     capture_rules_.clear();
 

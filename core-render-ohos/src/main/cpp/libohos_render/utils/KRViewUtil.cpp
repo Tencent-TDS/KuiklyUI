@@ -372,9 +372,9 @@ void SetTextShadow(OH_Drawing_TextShadow *shadow, const std::string &css_box_sha
     OH_Drawing_PointDestroy(offset);
 }
 
-void UpdateNodeZIndex(ArkUI_NodeHandle node, float zIndex) {
+void UpdateNodeZIndex(ArkUI_NodeHandle node, int zIndex) {
     auto nodeAPI = GetNodeApi();
-    ArkUI_NumberValue value[] = {zIndex};
+    ArkUI_NumberValue value[] = {{.i32 = zIndex}};
     ArkUI_AttributeItem item = {value, sizeof(value) / sizeof(ArkUI_NumberValue)};
     nodeAPI->setAttribute(node, NODE_Z_INDEX, &item);
 }

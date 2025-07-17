@@ -114,7 +114,7 @@ void UpdateNodeBoxShadow(ArkUI_NodeHandle node, const std::string &css_box_shado
 
 void SetTextShadow(OH_Drawing_TextShadow *shadow, const std::string &css_box_shadow);
 
-void UpdateNodeZIndex(ArkUI_NodeHandle node, float zIndex);
+void UpdateNodeZIndex(ArkUI_NodeHandle node, int zIndex);
 
 void UpdateNodeHitTest(ArkUI_NodeHandle node, bool touchEnable);
 

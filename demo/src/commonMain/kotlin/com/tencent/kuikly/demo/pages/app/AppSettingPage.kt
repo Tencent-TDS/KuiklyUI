@@ -103,7 +103,7 @@ internal class AppSettingPage : BasePager() {
                                         ThemeManager.changeColorScheme(name)
                                         ctx.colorScheme = ThemeManager.colorScheme
                                         getPager().acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
-                                            .postNotify("skinChanged", JSONObject())
+                                            .postNotify(ThemeManager.SKIN_CHANGED_EVENT, JSONObject())
                                         getPager().acquireModule<SharedPreferencesModule>(
                                             SharedPreferencesModule.MODULE_NAME)
                                             .setString("colorTheme", name)
@@ -157,7 +157,7 @@ internal class AppSettingPage : BasePager() {
                                         ThemeManager.assetScheme = name
                                         ctx.assetScheme = name
                                         getPager().acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
-                                            .postNotify("skinChanged", JSONObject())
+                                            .postNotify(ThemeManager.SKIN_CHANGED_EVENT, JSONObject())
                                         getPager().acquireModule<SharedPreferencesModule>(
                                             SharedPreferencesModule.MODULE_NAME)
                                             .setString("assetTheme", name)

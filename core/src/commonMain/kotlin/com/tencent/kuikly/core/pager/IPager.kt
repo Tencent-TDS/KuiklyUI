@@ -145,7 +145,7 @@ interface IPager {
      * 自定义返回页面对应的缩放系数
      */
     fun pagerDensity(): Float {
-        return pageData.density ?: 0f
+        return pageData.density
     }
 
     fun setPageTrace(pageTrace: PageCreateTrace) {}

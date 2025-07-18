@@ -19,7 +19,7 @@
 package com.tencent.kuikly.compose.foundation.text
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.ReusableComposeNode
+import androidx.compose.runtime.ComposeNode
 import androidx.compose.runtime.currentComposer
 import androidx.compose.runtime.currentCompositeKeyHash
 import androidx.compose.runtime.getValue
@@ -288,7 +288,7 @@ internal fun CoreTextField(
         }
     ) {
         decorationBox {
-            ReusableComposeNode<ComposeUiNode, KuiklyApplier>(
+            ComposeNode<ComposeUiNode, KuiklyApplier>(
                 factory = {
                     val textView = autoHeightTextAreaView
                     KNode(textView) {
@@ -359,10 +359,12 @@ internal fun CoreTextField(
                         }
                     }
                     set(onValueChange) {
-                        autoHeightTextAreaView.getViewEvent().textDidChange {
-                            autoHeightTextAreaView.getViewAttr()
-                                .updatePropCache(TextConst.VALUE, it.text)
-                            onValueChange(TextFieldValue(it.text))
+                        withTextAreaView {
+                            getViewEvent().textDidChange {
+                                autoHeightTextAreaView.getViewAttr()
+                                    .updatePropCache(TextConst.VALUE, it.text)
+                                onValueChange(TextFieldValue(it.text))
+                            }
                         }
                     }
                     set(cursorBrush) {

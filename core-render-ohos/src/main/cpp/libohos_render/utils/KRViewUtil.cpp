@@ -663,11 +663,17 @@ void SetArkUIImageTintColor(ArkUI_NodeHandle handle, const std::tuple<float, flo
         return;
     }
 
-    ArkUI_NumberValue value[] = {{.f32 = 0}, {.f32 = 0}, {.f32 = 0}, {.f32 = std::get<1>(hex_color)}, {.f32 = 0},
-                                 {.f32 = 0}, {.f32 = 0}, {.f32 = 0}, {.f32 = std::get<2>(hex_color)}, {.f32 = 0},
-                                 {.f32 = 0}, {.f32 = 0}, {.f32 = 0}, {.f32 = std::get<3>(hex_color)}, {.f32 = 0},
-                                 {.f32 = 0}, {.f32 = 0}, {.f32 = 0}, {.f32 = std::get<0>(hex_color)}, {.f32 = 0}};
+    float a = std::get<0>(hex_color); // alpha
+    float r = std::get<1>(hex_color); // red
+    float g = std::get<2>(hex_color); // green
+    float b = std::get<3>(hex_color); // blue
 
+    ArkUI_NumberValue value[] = {
+        {.f32 = 1 - a}, {.f32 = 0}, {.f32 = 0}, {.f32 = 0}, {.f32 = r * a},
+        {.f32 = 0}, {.f32 = 1 - a}, {.f32 = 0}, {.f32 = 0}, {.f32 = g * a},
+        {.f32 = 0}, {.f32 = 0}, {.f32 = 1 - a}, {.f32 = 0}, {.f32 = b * a},
+        {.f32 = 0}, {.f32 = 0}, {.f32 = 0}, {.f32 = 1}, {.f32 = 0}
+    };
     ArkUI_AttributeItem item = {value, sizeof(value) / sizeof(ArkUI_NumberValue)};
     GetNodeApi()->setAttribute(handle, NODE_IMAGE_COLOR_FILTER, &item);
 }

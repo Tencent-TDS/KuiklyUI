@@ -65,6 +65,15 @@ internal class ImageDemoPage: BasePager() {
                             tintColor(Color.RED)
                             accessibilityRole(AccessibilityRole.BUTTON)
                             size(pagerData.pageViewWidth * 0.6f, 100f)
+                            src(ImageUri.pageAssets("withAlphaTest.png"))
+                        }
+                    }
+                    Image {
+                        attr {
+                            resizeContain()
+                            tintColor(Color.RED)
+                            accessibilityRole(AccessibilityRole.BUTTON)
+                            size(pagerData.pageViewWidth * 0.6f, 100f)
                             src(ImageUri.pageAssets("panda.png"))
                         }
                     }

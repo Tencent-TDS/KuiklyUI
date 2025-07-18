@@ -18,7 +18,6 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import "KuiklyRenderModuleExportProtocol.h"
-#import "KRComponentDefine.h"
 
 @protocol KuiklyRenderShadowProtocol;
 @protocol KuiklyRenderViewLifyCycleProtocol;
@@ -121,7 +120,7 @@
 
 @end
 
-
+#import "KRComponentDefine.h"
 
 #endif /* KuiklyRenderViewExportProtocol_h */
 

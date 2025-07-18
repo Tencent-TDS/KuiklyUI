@@ -32,6 +32,7 @@ import com.tencent.kuikly.core.layout.StyleSpace
 import com.tencent.kuikly.core.layout.undefined
 import com.tencent.kuikly.core.layout.valueEquals
 import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
+import com.tencent.kuikly.core.views.InterfaceStyle
 import com.tencent.kuikly.core.views.RichTextView
 import com.tencent.kuikly.core.views.ScrollerContentView
 import com.tencent.kuikly.core.views.TextAreaView
@@ -347,6 +348,34 @@ open class ContainerAttr : Attr(), IContainerLayoutAttr, IEventCaptureAttr {
 
     open fun flexDirectionRow(): ContainerAttr {
         flexDirection(FlexDirection.ROW)
+        return this
+    }
+
+    open fun glassEffectIOS(tintColor: Color? = null,
+                            enable: Boolean = true,
+                            interactive: Boolean? = true,
+                            interfaceStyle: InterfaceStyle? = null
+    ): ContainerAttr {
+        "glassEffectEnable" with enable
+        if (interactive != null) {
+            "glassEffectInteractive" with interactive
+        }
+        if (tintColor != null) {
+            "glassEffectTintColor" with tintColor.toString()
+        }
+        if (interfaceStyle != null) {
+            "interfaceStyle" with interfaceStyle.value
+        }
+        return this
+    }
+
+    open fun glassEffectContainerIOS(spacing: Float,
+                                     interfaceStyle: InterfaceStyle? = null
+    ): ContainerAttr {
+        "glassEffectSpacing" with spacing
+        if (interfaceStyle != null) {
+            "interfaceStyle" with interfaceStyle.value
+        }
         return this
     }
 

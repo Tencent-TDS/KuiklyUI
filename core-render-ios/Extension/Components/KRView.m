@@ -28,6 +28,15 @@
 /**屏幕刷新帧事件(VSYNC信号)**/
 @property (nonatomic, strong) KuiklyRenderCallback KUIKLY_PROP(screenFrame);
 
+/// Whether to enable liquid glass effect
+@property (nonatomic, assign) BOOL glassEffectEnable;
+/// Tint color of glass effect
+@property (nonatomic, strong) UIColor *glassEffectColor;
+/// Whether is interactive of glass effect
+@property (nonatomic, strong) NSNumber *glassEffectInteractive;
+/// Spacing prop of liquid glass container
+@property (nonatomic, strong) NSNumber *glassEffectContainerSpacing;
+
 @end
 
 
@@ -39,6 +48,8 @@
     BOOL _hitTesting;
     /// 屏幕刷新定时器
     KRDisplayLink *_displaylink;
+    /// For iOS's special effect, like `liquid glass`, etc.
+    UIVisualEffectView *_effectView;
 }
 
 @synthesize hr_rootView;
@@ -54,6 +65,15 @@
 - (void)hrv_callWithMethod:(NSString *)method params:(NSString *)params callback:(KuiklyRenderCallback)callback {
     if ([method isEqualToString:CSS_METHOD_BRING_TO_FRONT]) {
         [self.superview bringSubviewToFront:self];
+    }
+}
+
+- (void)hrv_insertSubview:(UIView *)subView atIndex:(NSInteger)index {
+    if (_effectView || self.glassEffectEnable || self.glassEffectContainerSpacing != nil) {
+        [self ensureGlassEffectView];
+        [_effectView.contentView insertSubview:subView atIndex:index];
+    } else {
+        [super hrv_insertSubview:subView atIndex:index];
     }
 }
 
@@ -151,6 +171,128 @@
     }
     return views;
 }
+
+
+#pragma mark - Liquid Glass Support
+
+- (void)setCss_borderRadius:(NSString *)css_borderRadius {
+    [super setCss_borderRadius:css_borderRadius];
+    
+    // Liquid glass currently does not support layer mask,
+    // so, only the cornerRadius attribute is synchronized here.
+    if (_effectView) {
+        _effectView.layer.cornerRadius = self.layer.cornerRadius;
+    }
+}
+
+- (void)setCss_glassEffectEnable:(NSNumber *)css_glassEffectEnable {
+    BOOL shouldEnable = [css_glassEffectEnable boolValue];
+    if (self.glassEffectEnable != shouldEnable) {
+        self.glassEffectEnable = shouldEnable;
+        if (_effectView) {
+            if (!shouldEnable) {
+                UIVisualEffect *effect = [[UIVisualEffect alloc] init];
+                _effectView.effect = effect;
+            } else {
+                if (@available(iOS 26.0, *)) {
+                    _effectView.effect = [self generateGlassEffect];
+                }
+            }
+        }
+    }
+}
+
+- (void)setCss_glassEffectSpacing:(NSNumber *)spacing {
+    if (@available(iOS 26.0, *)) {
+        if (![self.glassEffectContainerSpacing isEqualToNumber:spacing]) {
+            self.glassEffectContainerSpacing = spacing;
+            
+            if (_effectView) {
+                UIVisualEffect *effect = _effectView.effect;
+                if ([effect isKindOfClass:UIGlassContainerEffect.class]) {
+                    UIGlassContainerEffect *effect = (UIGlassContainerEffect *)_effectView.effect;
+                    effect.spacing = spacing.doubleValue;
+                    _effectView.effect = effect;
+                }
+            }
+        }
+    }
+}
+
+- (void)setCss_glassEffectInteractive:(NSNumber *)interactive {
+    if (@available(iOS 26.0, *)) {
+        if (![self.glassEffectInteractive isEqualToNumber:interactive]) {
+            self.glassEffectInteractive = interactive;
+            
+            if (_effectView) {
+                UIVisualEffect *effect = _effectView.effect;
+                if ([effect isKindOfClass:UIGlassEffect.class]) {
+                    UIGlassEffect *glassEffect = (UIGlassEffect *)_effectView.effect;
+                    glassEffect.interactive = [interactive boolValue];
+                    _effectView.effect = glassEffect;
+                }
+            }
+        }
+    }
+}
+
+- (void)setCss_glassEffectTintColor:(NSNumber *)cssColor {
+    if (@available(iOS 26.0, *)) {
+        UIColor *color = [UIView css_color:cssColor];
+        if (![self.glassEffectColor isEqual:color]) {
+            self.glassEffectColor = color;
+            
+            if (_effectView) {
+                UIVisualEffect *effect = _effectView.effect;
+                if ([effect isKindOfClass:UIGlassEffect.class]) {
+                    UIGlassEffect *glassEffect = (UIGlassEffect *)_effectView.effect;
+                    glassEffect.tintColor = color;
+                    _effectView.effect = glassEffect;
+                }
+            }
+        }
+    }
+}
+
+- (UIGlassEffect *)generateGlassEffect API_AVAILABLE(ios(26.0)) {
+    UIGlassEffect *glassEffect = [[UIGlassEffect alloc] init];
+    glassEffect.tintColor = self.glassEffectColor;
+    glassEffect.interactive = self.glassEffectInteractive.boolValue;
+    return glassEffect;
+}
+
+- (void)ensureGlassEffectView {
+    if (@available(iOS 26.0, *)) {
+        if (self.glassEffectEnable) {
+            if (!_effectView) {
+                UIGlassEffect * glassEffect = [self generateGlassEffect];
+                _effectView = [UIVisualEffectView.alloc initWithEffect:glassEffect];
+                [_effectView setFrame:CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height)];
+                _effectView.layer.cornerRadius = self.layer.cornerRadius;
+                _effectView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+                [self addSubview:_effectView];
+            }
+        } else if (self.glassEffectContainerSpacing) {
+            if (!_effectView) {
+                UIGlassContainerEffect *glassContainerEffect = [[UIGlassContainerEffect alloc] init];
+                glassContainerEffect.spacing = self.glassEffectContainerSpacing.doubleValue;
+                _effectView = [UIVisualEffectView.alloc initWithEffect:glassContainerEffect];
+                [_effectView setFrame:CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height)];
+                _effectView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+                [self addSubview:_effectView];
+            }
+        }
+    }
+}
+
+- (void)setFrame:(CGRect)frame {
+    [super setFrame:frame];
+    
+    if (@available(iOS 26.0, *)) {
+        [self ensureGlassEffectView];
+    }
+}
+
 
 #pragma mark - private
 

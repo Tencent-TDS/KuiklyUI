@@ -33,14 +33,14 @@ import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
 
 internal class AppFeedBottomView: ComposeView<AppFeedBottomViewAttr, AppFeedBottomViewEvent>() {
 
-    private var colorScheme by observable(ThemeManager.colorScheme)
+    private var theme by observable(ThemeManager.getTheme())
     private lateinit var eventCallbackRef: CallbackRef
 
     override fun created() {
         super.created()
         eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
             .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
-                colorScheme = ThemeManager.colorScheme
+                theme = ThemeManager.getTheme()
             }
     }
 
@@ -79,7 +79,7 @@ internal class AppFeedBottomView: ComposeView<AppFeedBottomViewAttr, AppFeedBott
                         resizeContain()
                         size(width = 22f, height = 22f)
                         src(ImageUri.pageAssets("ic_home_forward.png"))
-                        tintColor(ctx.colorScheme.feedBottomIcon)
+                        tintColor(ctx.theme.colors.feedBottomIcon)
                     }
                 }
 
@@ -88,7 +88,7 @@ internal class AppFeedBottomView: ComposeView<AppFeedBottomViewAttr, AppFeedBott
                         text("${ctx.attr.retweetNum}")
                         marginLeft(4f)
                         fontSize(13f)
-                        color(ctx.colorScheme.feedBottomText)
+                        color(ctx.theme.colors.feedBottomText)
                     }
                 }
 
@@ -107,7 +107,7 @@ internal class AppFeedBottomView: ComposeView<AppFeedBottomViewAttr, AppFeedBott
                         resizeContain()
                         size(width = 22f, height = 22f)
                         src(ImageUri.pageAssets("ic_home_comment.webp"))
-                        tintColor(ctx.colorScheme.feedBottomIcon)
+                        tintColor(ctx.theme.colors.feedBottomIcon)
                     }
                 }
 
@@ -116,7 +116,7 @@ internal class AppFeedBottomView: ComposeView<AppFeedBottomViewAttr, AppFeedBott
                         text("${ctx.attr.commentNum}")
                         marginLeft(4f)
                         fontSize(13f)
-                        color(ctx.colorScheme.feedBottomText)
+                        color(ctx.theme.colors.feedBottomText)
                     }
                 }
             }
@@ -139,7 +139,7 @@ internal class AppFeedBottomView: ComposeView<AppFeedBottomViewAttr, AppFeedBott
                             } else {
                                 src(ImageUri.pageAssets("ic_home_like.webp"))
                             }
-                            tintColor(ctx.colorScheme.feedBottomIcon)
+                            tintColor(ctx.theme.colors.feedBottomIcon)
                         }
                     }
 
@@ -152,7 +152,7 @@ internal class AppFeedBottomView: ComposeView<AppFeedBottomViewAttr, AppFeedBott
                             }
                             marginLeft(4f)
                             fontSize(13f)
-                            color(ctx.colorScheme.feedBottomText)
+                            color(ctx.theme.colors.feedBottomText)
                         }
                     }
 

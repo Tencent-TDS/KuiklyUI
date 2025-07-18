@@ -35,7 +35,7 @@ internal class AppFeedContentView: ComposeView<AppFeedContentViewAttr, AppFeedCo
     }
 
     private var content by observable("")
-    private var colorScheme by observable(ThemeManager.colorScheme)
+    private var theme by observable(ThemeManager.getTheme())
     private lateinit var eventCallbackRef: CallbackRef
 
     override fun viewDestroyed() {
@@ -58,7 +58,7 @@ internal class AppFeedContentView: ComposeView<AppFeedContentViewAttr, AppFeedCo
         initContent()
         eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
             .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
-                colorScheme = ThemeManager.colorScheme
+                theme = ThemeManager.getTheme()
             }
     }
 
@@ -81,12 +81,12 @@ internal class AppFeedContentView: ComposeView<AppFeedContentViewAttr, AppFeedCo
                 ParsedText {
                     attr {
                         text(ctx.content)
-                        color(ctx.colorScheme.feedContentText)
+                        color(ctx.theme.colors.feedContentText)
                         fontSize(15.0f)
 
                         matchText {
                             pattern = "\\[(@[^:]+):([^\\]]+)\\]"
-                            color = ctx.colorScheme.feedContentQuoteText
+                            color = ctx.theme.colors.feedContentQuoteText
                             fontSize = 15.0f
                             rendText = fun(str, pattern): Map<String, String> {
                                 val result = mutableMapOf<String, String>()
@@ -105,7 +105,7 @@ internal class AppFeedContentView: ComposeView<AppFeedContentViewAttr, AppFeedCo
 
                         matchText {
                             pattern = "#.*?#"
-                            color = ctx.colorScheme.feedContentQuoteText
+                            color = ctx.theme.colors.feedContentQuoteText
                             fontSize = 15.0f
                             rendText = fun(str, pattern): Map<String, String> {
                                 val result = mutableMapOf<String, String>()
@@ -123,7 +123,7 @@ internal class AppFeedContentView: ComposeView<AppFeedContentViewAttr, AppFeedCo
 
                         matchText {
                             pattern = "(\\\\[/).*?(\\\\])"
-                            color = ctx.colorScheme.feedContentText
+                            color = ctx.theme.colors.feedContentText
                             fontSize = 15.0f
                             rendText = fun(str, pattern): Map<String, String> {
                                 val result = mutableMapOf<String, String>()
@@ -140,7 +140,7 @@ internal class AppFeedContentView: ComposeView<AppFeedContentViewAttr, AppFeedCo
                         matchText {
                             pattern = "全文"
                             fontSize = 15.0f
-                            color = ctx.colorScheme.feedContentQuoteText
+                            color = ctx.theme.colors.feedContentQuoteText
                             rendText = fun(str, pattern): Map<String, String> {
                                 val result = mutableMapOf<String, String>()
                                 result["display"] = "全文"

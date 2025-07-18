@@ -29,14 +29,14 @@ import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
 
 internal class AppForwardView: ComposeView<AppForwardViewAttr, AppForwardViewEvent>() {
 
-    private var colorScheme by observable(ThemeManager.colorScheme)
+    private var theme by observable(ThemeManager.getTheme())
     private lateinit var eventCallbackRef: CallbackRef
 
     override fun created() {
         super.created()
         eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
             .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
-                colorScheme = ThemeManager.colorScheme
+                theme = ThemeManager.getTheme()
             }
     }
 
@@ -72,7 +72,7 @@ internal class AppForwardView: ComposeView<AppForwardViewAttr, AppForwardViewEve
                 attr {
                     padding(12.0f)
                     marginTop(5.0f)
-                    backgroundColor(ctx.colorScheme.feedContentQuoteBackground)
+                    backgroundColor(ctx.theme.colors.feedContentQuoteBackground)
                 }
                 if (displayContent.isNotEmpty()) {
                     AppFeedContent {

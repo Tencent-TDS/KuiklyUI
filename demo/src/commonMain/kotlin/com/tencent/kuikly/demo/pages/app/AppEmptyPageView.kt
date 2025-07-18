@@ -28,14 +28,14 @@ import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
 
 internal class AppEmptyPageView(val title: String): ComposeView<AppEmptyPageViewAttr, AppEmptyPageViewEvent>() {
 
-    private var colorScheme by observable(ThemeManager.colorScheme)
+    private var theme by observable(ThemeManager.getTheme())
     private lateinit var eventCallbackRef: CallbackRef
 
     override fun created() {
         super.created()
         eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
             .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
-                colorScheme = ThemeManager.colorScheme
+                theme = ThemeManager.getTheme()
             }
     }
 
@@ -59,12 +59,12 @@ internal class AppEmptyPageView(val title: String): ComposeView<AppEmptyPageView
             attr {
                 allCenter()
                 flex(1f)
-                backgroundColor(ctx.colorScheme.background)
+                backgroundColor(ctx.theme.colors.background)
             }
             Text {
                 attr {
                     text(ctx.title)
-                    color(ctx.colorScheme.backgroundElement)
+                    color(ctx.theme.colors.backgroundElement)
                 }
             }
         }

@@ -31,14 +31,14 @@ import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
 
 internal class AppFeedItemView : ComposeView<AppFeedItemViewAttr, AppFeedItemViewEvent>() {
 
-    private var colorScheme by observable(ThemeManager.colorScheme)
+    private var theme by observable(ThemeManager.getTheme())
     private lateinit var eventCallbackRef: CallbackRef
 
     override fun created() {
         super.created()
         eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
             .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
-                colorScheme = ThemeManager.colorScheme
+                theme = ThemeManager.getTheme()
             }
     }
 
@@ -60,7 +60,7 @@ internal class AppFeedItemView : ComposeView<AppFeedItemViewAttr, AppFeedItemVie
         val ctx = this
         return {
             attr {
-                backgroundColor(ctx.colorScheme.feedBackground)
+                backgroundColor(ctx.theme.colors.feedBackground)
             }
             // 作者
             AppFeedItemAuthor {
@@ -104,7 +104,7 @@ internal class AppFeedItemView : ComposeView<AppFeedItemViewAttr, AppFeedItemVie
                 attr {
                     margin(left = 15.0f, right = 15.0f, bottom = 10.0f, top = 0.0f)
                     height(0.5f)
-                    backgroundColor(ctx.colorScheme.feedContentDivider)
+                    backgroundColor(ctx.theme.colors.feedContentDivider)
                 }
             }
             // 转发收藏点赞
@@ -121,7 +121,7 @@ internal class AppFeedItemView : ComposeView<AppFeedItemViewAttr, AppFeedItemVie
                 attr {
                     marginTop(10.0f)
                     height(12.0f)
-                    backgroundColor(ctx.colorScheme.background)
+                    backgroundColor(ctx.theme.colors.background)
                 }
             }
         }

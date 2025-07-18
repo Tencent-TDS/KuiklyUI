@@ -861,6 +861,9 @@ val Context.versionName: String
 val isBeforeM: Boolean
     get() = Build.VERSION.SDK_INT <= Build.VERSION_CODES.M
 
+val isBeforeOreoMr1: Boolean
+    get() = Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1
+
 internal fun View.setFrameForAndroidM(frame: Rect) {
     var lp = layoutParams
     if (lp is ViewGroup.MarginLayoutParams) {

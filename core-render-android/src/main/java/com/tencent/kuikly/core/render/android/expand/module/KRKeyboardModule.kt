@@ -162,8 +162,10 @@ class KeyboardStatusWatcher(private val activity: Activity) : PopupWindow(activi
     }
 
     fun destroy() {
-        // 销毁 popupView，避免内存泄露
-        dismiss()
+        if (isShowing) {
+            // 销毁 popupView，避免内存泄露
+            dismiss()
+        }
         popupView.viewTreeObserver.removeOnGlobalLayoutListener(this)
         listeners.clear()
     }

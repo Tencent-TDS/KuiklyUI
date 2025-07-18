@@ -31,6 +31,7 @@ import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.IntRect
 import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
+import com.tencent.kuikly.compose.ui.util.fastRoundToInt
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.event.layoutFrameDidChange
 import com.tencent.kuikly.core.layout.Frame
@@ -200,8 +201,8 @@ open class ComposeContainer :
 
     private fun updateWindowContainer(frame: Frame) {
         windowInfo.containerSize = IntSize(
-            (frame.width * pagerDensity()).toInt(),
-            (frame.height * pagerDensity()).toInt()
+            (frame.width * pagerDensity()).fastRoundToInt(),
+            (frame.height * pagerDensity()).fastRoundToInt()
         )
         mediator?.configuration?.onRootViewSizeChanged(frame.width.toDouble(), frame.height.toDouble())
         mediator?.viewWillLayoutSubviews()

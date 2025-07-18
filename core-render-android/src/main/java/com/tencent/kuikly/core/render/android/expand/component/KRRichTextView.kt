@@ -420,7 +420,7 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
     /**
      * 用于记录富文本中 DSL Span 对应的文本区间
      */
-    private val spanTextRanges: MutableList<SpanTextRange> = mutableListOf()
+    private var spanTextRanges: MutableList<SpanTextRange> = mutableListOf()
 
     /**
      * 上下文对象[IKuiklyRenderContext]
@@ -616,9 +616,9 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
     }
 
     private fun buildRichText(): SpannableStringBuilder? {
-        spanTextRanges.clear()
+        val newSpanTextRanges = mutableListOf<SpanTextRange>()
         val richTextBuilder = KRRichTextBuilder(kuiklyRenderContext)
-        return richTextBuilder.build(textProps, spanTextRanges) {
+        val result = richTextBuilder.build(textProps, newSpanTextRanges) {
             val layout = textLayout
             if (layout == null) {
                 SizeF(0f, 0f)
@@ -626,6 +626,8 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
                 SizeF(layout.width.toFloat(), layout.height.toFloat())
             }
         }
+        spanTextRanges = newSpanTextRanges
+        return result
     }
 
     private fun getTextAlign(): Layout.Alignment {

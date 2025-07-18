@@ -23,7 +23,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface UIView (CSS)
+@interface UIView (CSS) <KuiklyRenderViewLifyCycleProtocol>
 
 @property (nonatomic, strong, nullable) NSNumber *css_visibility;
 @property (nonatomic, strong, nullable) NSNumber *css_opacity;

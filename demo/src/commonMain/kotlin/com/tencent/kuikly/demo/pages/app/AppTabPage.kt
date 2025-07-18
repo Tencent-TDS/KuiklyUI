@@ -24,8 +24,10 @@ import com.tencent.kuikly.core.module.SharedPreferencesModule
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.reactive.handler.observableList
 import com.tencent.kuikly.core.views.Image
+import com.tencent.kuikly.core.views.TabbarIOS
 import com.tencent.kuikly.core.views.PageList
 import com.tencent.kuikly.core.views.PageListView
+import com.tencent.kuikly.core.views.TabbarItem
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.app.home.AppHomePage
@@ -150,8 +152,42 @@ internal class AppTabPage : MultiLingualPager() {
         }
     }
 
+    private fun tabBarIOS(): ViewBuilder {
+        val ctx = this
+        val barItems = mutableListOf<TabbarItem>()
+        val iconPrefix = getPager().pageName + "/";
+        for (i in 0 until ctx.pageTitles.size) {
+            barItems.add(TabbarItem(
+                pageTitles[i],
+                iconPrefix + pageIcons[i],
+                iconPrefix + pageIconsHighlight[i])
+            )
+        }
+
+        return {
+            TabbarIOS {
+                attr {
+                    height(TAB_BOTTOM_HEIGHT)
+                    absolutePosition(bottom = 0f, left = 0f, right = 0f)
+                    items(barItems)
+                    selectedIndex(ctx.selectedTabIndex)
+                }
+                event {
+                    onTabSelected {
+                        // 处理 tab 切换
+                        ctx.selectedTabIndex = it.index
+                        ctx.pageListRef?.view?.scrollToPageIndex(it.index)
+                    }
+                }
+            }
+        }
+    }
+
     override fun body(): ViewBuilder {
         val ctx = this
+        val isIOS = getPager().pageData.isIOS
+        val tabBottomHeight = if (isIOS) 0f else TAB_BOTTOM_HEIGHT
+
         return {
             View {
                 attr {
@@ -167,7 +203,7 @@ internal class AppTabPage : MultiLingualPager() {
                 attr {
                     flexDirectionRow()
                     pageItemWidth(pagerData.pageViewWidth)
-                    pageItemHeight(pagerData.pageViewHeight - pagerData.statusBarHeight - TAB_BOTTOM_HEIGHT)
+                    pageItemHeight(pagerData.pageViewHeight - pagerData.statusBarHeight - tabBottomHeight)
                     defaultPageIndex(0)
                     showScrollerIndicator(false)
                     scrollEnable(false)
@@ -182,7 +218,11 @@ internal class AppTabPage : MultiLingualPager() {
                     }
                 }
             }
-            ctx.tabBar().invoke(this)
+            if (isIOS) {
+                ctx.tabBarIOS().invoke(this)
+            } else {
+                ctx.tabBar().invoke(this)
+            }
         }
     }
 

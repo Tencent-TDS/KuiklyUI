@@ -148,6 +148,15 @@
     }
 }
 
++ (UIUserInterfaceStyle)KRUserInterfaceStyle:(NSString *)style API_AVAILABLE(ios(12.0)) {
+    if ([[UIView css_string:style] isEqualToString:@"dark"]) {
+        return UIUserInterfaceStyleDark;
+    } else if ([[UIView css_string:style] isEqualToString:@"light"]) {
+        return UIUserInterfaceStyleLight;
+    }
+    return UIUserInterfaceStyleUnspecified;
+}
+
 
 + (KRBorderStyle)KRBorderStyle:(NSString *)stringValue {
     if ([stringValue isEqualToString:@"solid"]) {

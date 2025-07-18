@@ -434,6 +434,12 @@
     }
 }
 
+- (void)setCss_interfaceStyle:(NSString *)style {
+    if (@available(iOS 13.0, *)) {
+        self.overrideUserInterfaceStyle = [KRConvertUtil UIUserInterfaceStyle:style];
+    }
+}
+
 - (NSString *)css_animation {
     return objc_getAssociatedObject(self, @selector(css_animation));
 }

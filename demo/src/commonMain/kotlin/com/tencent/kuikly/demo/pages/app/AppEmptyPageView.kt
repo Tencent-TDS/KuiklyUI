@@ -20,10 +20,31 @@ import com.tencent.kuikly.core.base.ComposeAttr
 import com.tencent.kuikly.core.base.ComposeEvent
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewContainer
+import com.tencent.kuikly.core.module.CallbackRef
+import com.tencent.kuikly.core.module.NotifyModule
+import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Text
+import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
 
 internal class AppEmptyPageView(val title: String): ComposeView<AppEmptyPageViewAttr, AppEmptyPageViewEvent>() {
-    
+
+    private var theme by observable(ThemeManager.getTheme())
+    private lateinit var eventCallbackRef: CallbackRef
+
+    override fun created() {
+        super.created()
+        eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
+                theme = ThemeManager.getTheme()
+            }
+    }
+
+    override fun viewDestroyed() {
+        super.viewDestroyed()
+        acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .removeNotify(ThemeManager.SKIN_CHANGED_EVENT, eventCallbackRef)
+    }
+
     override fun createEvent(): AppEmptyPageViewEvent {
         return AppEmptyPageViewEvent()
     }
@@ -38,10 +59,12 @@ internal class AppEmptyPageView(val title: String): ComposeView<AppEmptyPageView
             attr {
                 allCenter()
                 flex(1f)
+                backgroundColor(ctx.theme.colors.background)
             }
             Text {
                 attr {
                     text(ctx.title)
+                    color(ctx.theme.colors.backgroundElement)
                 }
             }
         }

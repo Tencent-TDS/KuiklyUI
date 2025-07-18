@@ -25,6 +25,8 @@ import com.tencent.kuikly.core.base.ViewRef
 import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.directives.velse
 import com.tencent.kuikly.core.directives.vfor
+import com.tencent.kuikly.core.module.CallbackRef
+import com.tencent.kuikly.core.module.NotifyModule
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.reactive.handler.observableList
 import com.tencent.kuikly.core.views.FooterRefresh
@@ -40,6 +42,7 @@ import com.tencent.kuikly.demo.pages.app.feed.AppFeedItem
 import com.tencent.kuikly.demo.pages.app.model.AppFeedModel
 import com.tencent.kuikly.demo.pages.app.model.AppFeedsManager
 import com.tencent.kuikly.demo.pages.app.model.AppFeedsType
+import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
 
 internal class AppFeedListPageView(
     private val type: AppFeedsType
@@ -52,6 +55,22 @@ internal class AppFeedListPageView(
     private lateinit var footerRefreshRef : ViewRef<FooterRefreshView>
     private var footerRefreshText by observable( "加载更多")
     private var didLoadFirstFeeds = false
+    private var theme by observable(ThemeManager.getTheme())
+    private lateinit var eventCallbackRef: CallbackRef
+
+    override fun created() {
+        super.created()
+        eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
+                theme = ThemeManager.getTheme()
+            }
+    }
+
+    override fun viewDestroyed() {
+        super.viewDestroyed()
+        acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .removeNotify(ThemeManager.SKIN_CHANGED_EVENT, eventCallbackRef)
+    }
 
     override fun createEvent(): AppFeedListPageViewEvent {
         return AppFeedListPageViewEvent()
@@ -88,12 +107,13 @@ internal class AppFeedListPageView(
         return {
             attr {
                 flex(1f)
-                backgroundColor(Color.WHITE)
+                backgroundColor(ctx.theme.colors.background)
             }
             vif({ ctx.feeds.isEmpty() }) {
                 Text {
                     attr {
                         text("loading...")
+                        color(ctx.theme.colors.feedContentText)
                     }
                 }
             }
@@ -130,7 +150,7 @@ internal class AppFeedListPageView(
                         }
                         Text {
                             attr {
-                                color(Color.BLACK)
+                                color(ctx.theme.colors.feedContentText)
                                 text(ctx.refreshText)
                             }
                         }
@@ -178,7 +198,7 @@ internal class AppFeedListPageView(
                             }
                             Text {
                                 attr {
-                                    color(Color.BLACK)
+                                    color(ctx.theme.colors.feedContentText)
                                     text(ctx.footerRefreshText)
                                 }
                             }

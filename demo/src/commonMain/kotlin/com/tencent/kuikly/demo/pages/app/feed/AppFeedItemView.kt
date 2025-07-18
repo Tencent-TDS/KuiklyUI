@@ -21,11 +21,32 @@ import com.tencent.kuikly.core.base.ComposeEvent
 import com.tencent.kuikly.core.base.ComposeView
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewContainer
+import com.tencent.kuikly.core.module.CallbackRef
+import com.tencent.kuikly.core.module.NotifyModule
+import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.app.common.AppNineGrid
 import com.tencent.kuikly.demo.pages.app.model.AppFeedModel
+import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
 
 internal class AppFeedItemView : ComposeView<AppFeedItemViewAttr, AppFeedItemViewEvent>() {
+
+    private var theme by observable(ThemeManager.getTheme())
+    private lateinit var eventCallbackRef: CallbackRef
+
+    override fun created() {
+        super.created()
+        eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
+                theme = ThemeManager.getTheme()
+            }
+    }
+
+    override fun viewDestroyed() {
+        super.viewDestroyed()
+        acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .removeNotify(ThemeManager.SKIN_CHANGED_EVENT, eventCallbackRef)
+    }
 
     override fun createAttr(): AppFeedItemViewAttr {
         return AppFeedItemViewAttr()
@@ -39,7 +60,7 @@ internal class AppFeedItemView : ComposeView<AppFeedItemViewAttr, AppFeedItemVie
         val ctx = this
         return {
             attr {
-                backgroundColor(Color.WHITE)
+                backgroundColor(ctx.theme.colors.feedBackground)
             }
             // 作者
             AppFeedItemAuthor {
@@ -83,7 +104,7 @@ internal class AppFeedItemView : ComposeView<AppFeedItemViewAttr, AppFeedItemVie
                 attr {
                     margin(left = 15.0f, right = 15.0f, bottom = 10.0f, top = 0.0f)
                     height(0.5f)
-                    backgroundColor(Color(0xffDBDBDB))
+                    backgroundColor(ctx.theme.colors.feedContentDivider)
                 }
             }
             // 转发收藏点赞
@@ -100,7 +121,7 @@ internal class AppFeedItemView : ComposeView<AppFeedItemViewAttr, AppFeedItemVie
                 attr {
                     marginTop(10.0f)
                     height(12.0f)
-                    backgroundColor(Color(0xffEFEFEF))
+                    backgroundColor(ctx.theme.colors.background)
                 }
             }
         }

@@ -9,8 +9,8 @@ Kuikly 是基于Kotlin Multiplatform的UI与逻辑全面跨端综合解决方案
 
 ## 快速开始
 ### 环境准备
-- [DevEco Studio](https://developer.huawei.com/consumer/cn/deveco-studio/)
-- HarmonyOS Next 5.0.0(12)版本及以上
+- [DevEco Studio 5.1.0 or newer](https://developer.huawei.com/consumer/cn/download/deveco-studio)
+- Device or Emulator with HarmonyOS Next 5.0.0(12) or newer
 
 ### 集成Kuikly
 1. 你可以通过ohpm将kuikly添加到你的项目中：

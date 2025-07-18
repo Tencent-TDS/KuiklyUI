@@ -55,14 +55,14 @@ internal class AppFeedListPageView(
     private lateinit var footerRefreshRef : ViewRef<FooterRefreshView>
     private var footerRefreshText by observable( "加载更多")
     private var didLoadFirstFeeds = false
-    private var colorScheme by observable(ThemeManager.colorScheme)
+    private var theme by observable(ThemeManager.getTheme())
     private lateinit var eventCallbackRef: CallbackRef
 
     override fun created() {
         super.created()
         eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
             .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
-                colorScheme = ThemeManager.colorScheme
+                theme = ThemeManager.getTheme()
             }
     }
 
@@ -107,13 +107,13 @@ internal class AppFeedListPageView(
         return {
             attr {
                 flex(1f)
-                backgroundColor(ctx.colorScheme.background)
+                backgroundColor(ctx.theme.colors.background)
             }
             vif({ ctx.feeds.isEmpty() }) {
                 Text {
                     attr {
                         text("loading...")
-                        color(ctx.colorScheme.feedContentText)
+                        color(ctx.theme.colors.feedContentText)
                     }
                 }
             }
@@ -150,7 +150,7 @@ internal class AppFeedListPageView(
                         }
                         Text {
                             attr {
-                                color(ctx.colorScheme.feedContentText)
+                                color(ctx.theme.colors.feedContentText)
                                 text(ctx.refreshText)
                             }
                         }
@@ -198,7 +198,7 @@ internal class AppFeedListPageView(
                             }
                             Text {
                                 attr {
-                                    color(ctx.colorScheme.feedContentText)
+                                    color(ctx.theme.colors.feedContentText)
                                     text(ctx.footerRefreshText)
                                 }
                             }

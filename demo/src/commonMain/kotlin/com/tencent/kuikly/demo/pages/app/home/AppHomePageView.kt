@@ -49,14 +49,14 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
     private var tabHeaderWidth by observable(300f)
     private lateinit var followViewRef: ViewRef<AppFeedListPageView>
     private lateinit var trendViewRef: ViewRef<AppTrendingPageView>
-    private var colorScheme by observable(ThemeManager.colorScheme)
+    private var theme by observable(ThemeManager.getTheme())
     private lateinit var eventCallbackRef: CallbackRef
 
     override fun created() {
         super.created()
         eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
             .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
-                colorScheme = ThemeManager.colorScheme
+                theme = ThemeManager.getTheme()
             }
     }
 
@@ -78,7 +78,7 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
         val ctx = this
         return {
             attr {
-                backgroundColor(ctx.colorScheme.topBarBackground)
+                backgroundColor(ctx.theme.colors.topBarBackground)
             }
             Tabs {
                 attr {
@@ -92,7 +92,7 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
                                 height(3f)
                                 absolutePosition(left = 2f, right = 2f, bottom = 5f)
                                 borderRadius(2f)
-                                backgroundColor(ctx.colorScheme.topBarIndicator)
+                                backgroundColor(ctx.theme.colors.topBarIndicator)
                             }
                         }
                     }
@@ -123,9 +123,9 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
                                 fontSize(17f)
                                 if (state.selected) {
                                     fontWeightBold()
-                                    color(ctx.colorScheme.topBarTextFocused)
+                                    color(ctx.theme.colors.topBarTextFocused)
                                 } else {
-                                    color(ctx.colorScheme.topBarTextUnfocused)
+                                    color(ctx.theme.colors.topBarTextUnfocused)
                                 }
                             }
                         }
@@ -138,7 +138,7 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
                     absolutePosition(top = 12f, right = 12f)
                     size(20f, 20f)
                     src(ImageUri.pageAssets("ic_settings.png"))
-                    tintColor(ctx.colorScheme.topBarTextFocused)
+                    tintColor(ctx.theme.colors.topBarTextFocused)
                 }
                 event {
                     click {

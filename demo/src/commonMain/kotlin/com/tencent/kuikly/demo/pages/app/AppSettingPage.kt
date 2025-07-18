@@ -21,8 +21,7 @@ import com.tencent.kuikly.demo.pages.demo.base.NavBar
 @Page("AppSettingPage")
 internal class AppSettingPage : BasePager() {
 
-    private var colorScheme by observable(ThemeManager.colorScheme)
-    private var assetScheme by observable(ThemeManager.assetScheme)
+    private var theme by observable(ThemeManager.getTheme())
 
     override fun body(): ViewBuilder {
         val ctx = this
@@ -31,7 +30,7 @@ internal class AppSettingPage : BasePager() {
             View {
                 attr {
                     paddingTop(ctx.pagerData.statusBarHeight)
-                    backgroundColor(ctx.colorScheme.topBarBackground)
+                    backgroundColor(ctx.theme.colors.topBarBackground)
                 }
                 View {
                     attr {
@@ -42,7 +41,7 @@ internal class AppSettingPage : BasePager() {
                     Text {
                         attr {
                             text("换肤设置")
-                            color(ctx.colorScheme.topBarTextFocused)
+                            color(ctx.theme.colors.topBarTextFocused)
                             fontSize(17f)
                             fontWeightSemiBold()
                         }
@@ -55,7 +54,7 @@ internal class AppSettingPage : BasePager() {
                         absolutePosition(12f + getPager().pageData.statusBarHeight, 12f, 12f, 12f)
                         size(10f, 17f)
                         src("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAASBAMAAAB/WzlGAAAAElBMVEUAAAAAAAAAAAAAAAAAAAAAAADgKxmiAAAABXRSTlMAIN/PELVZAGcAAAAkSURBVAjXYwABQTDJqCQAooSCHUAcVROCHBiFECTMhVoEtRYA6UMHzQlOjQIAAAAASUVORK5CYII=")
-                        tintColor(ctx.colorScheme.topBarTextFocused)
+                        tintColor(ctx.theme.colors.topBarTextFocused)
                     }
                     event {
                         click {
@@ -68,7 +67,7 @@ internal class AppSettingPage : BasePager() {
             View {
                 attr {
                     flex(1f)
-                    backgroundColor(ctx.colorScheme.background)
+                    backgroundColor(ctx.theme.colors.background)
                     paddingTop(12f)
                     flexDirectionColumn()
                     flexWrapWrap()
@@ -82,12 +81,12 @@ internal class AppSettingPage : BasePager() {
                             attr {
                                 size(100f, 64f)
                                 marginLeft(12f)
-                                border(Border(1f, BorderStyle.SOLID, ctx.colorScheme.backgroundElement))
+                                border(Border(1f, BorderStyle.SOLID, ctx.theme.colors.backgroundElement))
                                 borderRadius(12f)
                                 backgroundColor(theme.primary)
                                 allCenter()
                             }
-                            vif ({ ctx.colorScheme == theme }) {
+                            vif ({ ctx.theme.colors == theme }) {
                                 Text {
                                     attr {
                                         margin(12f)
@@ -99,9 +98,9 @@ internal class AppSettingPage : BasePager() {
                             }
                             event {
                                 click {
-                                    if (theme != ThemeManager.colorScheme) {
+                                    if (theme != ctx.theme.colors) {
                                         ThemeManager.changeColorScheme(name)
-                                        ctx.colorScheme = ThemeManager.colorScheme
+                                        ctx.theme = ThemeManager.getTheme()
                                         getPager().acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
                                             .postNotify(ThemeManager.SKIN_CHANGED_EVENT, JSONObject())
                                         getPager().acquireModule<SharedPreferencesModule>(
@@ -117,8 +116,8 @@ internal class AppSettingPage : BasePager() {
                     attr {
                         margin(16f)
                         fontSize(20f)
-                        text("选择资源主题：" + ctx.assetScheme)
-                        color(ctx.colorScheme.backgroundElement)
+                        text("选择资源主题：" + ctx.theme.asset)
+                        color(ctx.theme.colors.backgroundElement)
                         fontWeightBold()
                     }
                 }
@@ -139,7 +138,7 @@ internal class AppSettingPage : BasePager() {
                                     size(40f, 40f)
                                     marginTop(12f)
                                     src(ThemeManager.getAssetUri(name, "tabbar_home.png"))
-                                    tintColor(ctx.colorScheme.backgroundElement)
+                                    tintColor(ctx.theme.colors.backgroundElement)
                                 }
                             }
 
@@ -148,14 +147,14 @@ internal class AppSettingPage : BasePager() {
                                     fontSize(16f)
                                     marginTop(6f)
                                     text(name)
-                                    color(ctx.colorScheme.backgroundElement)
+                                    color(ctx.theme.colors.backgroundElement)
                                 }
                             }
                             event {
                                 click {
-                                    if (name != ThemeManager.assetScheme) {
-                                        ThemeManager.assetScheme = name
-                                        ctx.assetScheme = name
+                                    if (name != ctx.theme.asset) {
+                                        ThemeManager.changeAssetScheme(name)
+                                        ctx.theme = ThemeManager.getTheme()
                                         getPager().acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
                                             .postNotify(ThemeManager.SKIN_CHANGED_EVENT, JSONObject())
                                         getPager().acquireModule<SharedPreferencesModule>(

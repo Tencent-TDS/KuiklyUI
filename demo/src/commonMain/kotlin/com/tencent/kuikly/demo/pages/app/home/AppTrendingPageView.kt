@@ -53,14 +53,14 @@ internal class AppTrendingPageView: ComposeView<AppTrendingPageViewAttr, AppTren
         AppFeedsType.Test,
     )
     private var viewRefs: MutableList<ViewRef<AppFeedListPageView>> = mutableListOf()
-    private var colorScheme by observable(ThemeManager.colorScheme)
+    private var theme by observable(ThemeManager.getTheme())
     private lateinit var eventCallbackRef: CallbackRef
 
     override fun created() {
         super.created()
         eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
             .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
-                colorScheme = ThemeManager.colorScheme
+                theme = ThemeManager.getTheme()
             }
     }
 
@@ -89,7 +89,7 @@ internal class AppTrendingPageView: ComposeView<AppTrendingPageViewAttr, AppTren
                 attr {
                     height(TAB_HEADER_HEIGHT)
                     defaultInitIndex(ctx.curIndex)
-                    backgroundColor(ctx.colorScheme.topBarNestedBackground)
+                    backgroundColor(ctx.theme.colors.topBarNestedBackground)
                     ctx.scrollParams?.also {
                         scrollParams(it)
                     }
@@ -113,8 +113,8 @@ internal class AppTrendingPageView: ComposeView<AppTrendingPageViewAttr, AppTren
                             attr {
                                 text(ctx.pageTitles[i])
                                 fontSize(17f)
-                                color(if (state.selected) ctx.colorScheme.topBarNestedTextFocused
-                                      else ctx.colorScheme.topBarNestedTextUnfocused)
+                                color(if (state.selected) ctx.theme.colors.topBarNestedTextFocused
+                                      else ctx.theme.colors.topBarNestedTextUnfocused)
                             }
                         }
                     }

@@ -3,12 +3,20 @@ package com.tencent.kuikly.demo.pages.app.theme
 import com.tencent.kuikly.core.base.attr.ImageUri
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 
+data class Theme(
+    var colors: ThemeColors,
+    var asset: String,
+    var typo: ThemeTypography
+)
+
 object ThemeManager {
 
     // 主题配置
-    var colorScheme: ThemeColors = lightColorScheme
-    var assetScheme: String = "default"
-    var typoScheme: ThemeTypography = defaultTypography
+    private val theme: Theme = Theme(
+        colors = lightColorScheme,
+        asset = "default",
+        typo = defaultTypography
+    )
     private var assetJSON = JSONObject()
 
     // 主题常量
@@ -25,6 +33,9 @@ object ThemeManager {
     enum class ThemeType { COLOR, ASSET, TYPOGRAPHY }
 
     // 公共API
+    fun getTheme(): Theme {
+        return theme.copy()
+    }
 
     fun changeColorScheme(theme: String) {
         changeTheme(ThemeType.COLOR, theme)
@@ -39,27 +50,27 @@ object ThemeManager {
     }
 
     fun loadColorFromJson(json: JSONObject) {
-        colorScheme = ThemeColors.fromJson(json)
+        theme.colors = ThemeColors.fromJson(json)
     }
 
-    fun getAssetUri(theme: String = assetScheme, asset: String): ImageUri {
+    fun getAssetUri(theme: String, asset: String): ImageUri {
         return ImageUri.commonAssets("$ASSET_PATH_PREFIX$theme/$asset")
     }
 
-    fun getAssetUrl(theme: String = assetScheme, asset: String): String {
+    fun getAssetUrl(theme: String, asset: String): String {
         return assetJSON.optString("")
     }
 
     private fun changeTheme(type: ThemeType, theme: String) {
         when (type) {
             ThemeType.COLOR -> {
-                colorScheme = COLOR_SCHEME_MAP[theme] ?: run {
+                this.theme.colors = COLOR_SCHEME_MAP[theme] ?: run {
                     // TODO: 业务自定义主题加载（如远程下载）
                     ThemeColors.fromJson(JSONObject())
                 }
             }
             ThemeType.ASSET -> {
-                assetScheme = theme
+                this.theme.asset = theme
                 if (theme !in ASSET_SCHEME_LIST) {
                     // TODO: 业务自定义资源加载（如远程下载）
                     loadAssetFromJson(JSONObject())
@@ -67,7 +78,7 @@ object ThemeManager {
             }
             ThemeType.TYPOGRAPHY -> {
                 // TODO: 业务自定义排版加载（如远程下载）
-                typoScheme = TYPO_SCHEME_MAP[theme] ?: run {
+                this.theme.typo = TYPO_SCHEME_MAP[theme] ?: run {
                     ThemeTypography.fromJson(JSONObject())
                 }
             }

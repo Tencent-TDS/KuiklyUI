@@ -53,17 +53,14 @@ internal class AppTabPage : BasePager() {
         "tabbar_profile_highlighted.png"
     )
     private var pageListRef : ViewRef<PageListView<*, *>>? = null
-    private var colorScheme by observable(ThemeManager.colorScheme)
-    private var assetScheme by observable(ThemeManager.assetScheme)
-    private var typoScheme by observable(ThemeManager.typoScheme)
+    private var theme by observable(ThemeManager.getTheme())
     private lateinit var eventCallbackRef: CallbackRef
 
     override fun created() {
         super.created()
         eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
             .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
-                colorScheme = ThemeManager.colorScheme
-                assetScheme = ThemeManager.assetScheme
+                theme = ThemeManager.getTheme()
             }
         val colorTheme = getPager().acquireModule<SharedPreferencesModule>(SharedPreferencesModule.MODULE_NAME)
             .getString("colorTheme").takeUnless { it.isEmpty() } ?: "light"
@@ -76,9 +73,7 @@ internal class AppTabPage : BasePager() {
         ThemeManager.changeAssetScheme(assetTheme)
         ThemeManager.changeTypoScheme(typoTheme)
 
-        colorScheme = ThemeManager.colorScheme
-        assetScheme = ThemeManager.assetScheme
-        typoScheme = ThemeManager.typoScheme
+        theme = ThemeManager.getTheme()
     }
 
     override fun pageWillDestroy() {
@@ -95,7 +90,7 @@ internal class AppTabPage : BasePager() {
                     height(TAB_BOTTOM_HEIGHT)
                     flexDirectionRow()
                     turboDisplayAutoUpdateEnable(false)
-                    backgroundColor(ctx.colorScheme.tabBarBackground)
+                    backgroundColor(ctx.theme.colors.tabBarBackground)
                 }
                 for (i in 0 until ctx.pageTitles.size) {
                     View {
@@ -114,19 +109,19 @@ internal class AppTabPage : BasePager() {
                                 size(30f, 30f)
                                 val path = if (i == ctx.selectedTabIndex) ctx.pageIconsHighlight[i] else ctx.pageIcons[i]
                                 if (i == ctx.selectedTabIndex) {
-                                    src(ThemeManager.getAssetUri(ctx.assetScheme, ctx.pageIconsHighlight[i]))
-                                    tintColor(ctx.colorScheme.tabBarIconFocused)
+                                    src(ThemeManager.getAssetUri(ctx.theme.asset, ctx.pageIconsHighlight[i]))
+                                    tintColor(ctx.theme.colors.tabBarIconFocused)
                                 } else {
-                                    src(ThemeManager.getAssetUri(ctx.assetScheme, ctx.pageIcons[i]))
-                                    tintColor(ctx.colorScheme.tabBarIconUnfocused)
+                                    src(ThemeManager.getAssetUri(ctx.theme.asset, ctx.pageIcons[i]))
+                                    tintColor(ctx.theme.colors.tabBarIconUnfocused)
                                 }
                             }
                         }
                         Text {
                             attr {
                                 text(ctx.pageTitles[i])
-                                color(if (i == ctx.selectedTabIndex) ctx.colorScheme.tabBarTextFocused
-                                      else ctx.colorScheme.tabBarTextUnfocused)
+                                color(if (i == ctx.selectedTabIndex) ctx.theme.colors.tabBarTextFocused
+                                      else ctx.theme.colors.tabBarTextUnfocused)
                             }
                         }
                     }
@@ -141,7 +136,7 @@ internal class AppTabPage : BasePager() {
             View {
                 attr {
                     height(pagerData.statusBarHeight)
-                    backgroundColor(ctx.colorScheme.topBarBackground)
+                    backgroundColor(ctx.theme.colors.topBarBackground)
                 }
             }
 

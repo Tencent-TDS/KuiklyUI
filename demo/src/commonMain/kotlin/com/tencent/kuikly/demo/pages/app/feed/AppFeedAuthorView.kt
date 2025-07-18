@@ -38,14 +38,14 @@ import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
 
 internal class AppFeedItemAuthorView: ComposeView<AppFeedItemAuthorViewAttr, AppFeedItemAuthorViewEvent>() {
 
-    private var colorScheme by observable(ThemeManager.colorScheme)
+    private var theme by observable(ThemeManager.getTheme())
     private lateinit var eventCallbackRef: CallbackRef
 
     override fun created() {
         super.created()
         eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
             .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
-                colorScheme = ThemeManager.colorScheme
+                theme = ThemeManager.getTheme()
             }
     }
 
@@ -118,9 +118,9 @@ internal class AppFeedItemAuthorView: ComposeView<AppFeedItemAuthorViewAttr, App
                             text(ctx.attr.userInfo.nick)
                             fontSize(15f)
                             if (ctx.attr.userInfo.isMember == 0) {
-                                color(ctx.colorScheme.feedUserNameNormal)
+                                color(ctx.theme.colors.feedUserNameNormal)
                             } else {
-                                color(ctx.colorScheme.feedUserNameMember)
+                                color(ctx.theme.colors.feedUserNameMember)
                             }
                         }
                     }
@@ -144,7 +144,7 @@ internal class AppFeedItemAuthorView: ComposeView<AppFeedItemAuthorViewAttr, App
                         Text {
                             attr {
                                 text(ctx.attr.userInfo.desc)
-                                color(ctx.colorScheme.feedUserSignature)
+                                color(ctx.theme.colors.feedUserSignature)
                                 fontSize(11.0f)
                             }
                         }
@@ -162,7 +162,7 @@ internal class AppFeedItemAuthorView: ComposeView<AppFeedItemAuthorViewAttr, App
                                     )
                                 attr {
                                     text(datetime)
-                                    color(ctx.colorScheme.feedUserSignature)
+                                    color(ctx.theme.colors.feedUserSignature)
                                     fontSize(11.0f)
                                 }
                             }
@@ -170,14 +170,14 @@ internal class AppFeedItemAuthorView: ComposeView<AppFeedItemAuthorViewAttr, App
                                 attr {
                                     margin(left = 7.0f, right = 7.0f)
                                     text("来自")
-                                    color(ctx.colorScheme.feedUserSignature)
+                                    color(ctx.theme.colors.feedUserSignature)
                                     fontSize(11.0f)
                                 }
                             }
                             Text {
                                 attr {
                                     text(ctx.attr.tail)
-                                    color(ctx.colorScheme.feedUserDevice)
+                                    color(ctx.theme.colors.feedUserDevice)
                                     fontSize(11.0f)
                                 }
                             }
@@ -192,12 +192,12 @@ internal class AppFeedItemAuthorView: ComposeView<AppFeedItemAuthorViewAttr, App
                     alignItemsCenter()
                     padding(top = 4.0f, bottom = 4.0f, left = 8.0f, right = 8.0f)
                     borderRadius(12.0f)
-                    border(Border(lineWidth = 0.5f, lineStyle = BorderStyle.SOLID, color = ctx.colorScheme.feedUserFollowButton))
+                    border(Border(lineWidth = 0.5f, lineStyle = BorderStyle.SOLID, color = ctx.theme.colors.feedUserFollowButton))
                 }
                 Text {
                     attr {
                         text("+ 关注")
-                        color(ctx.colorScheme.feedUserFollowButton)
+                        color(ctx.theme.colors.feedUserFollowButton)
                         fontSize(12.0f)
                     }
                 }

@@ -75,7 +75,7 @@
 
   切换方式: Android Studio -> Settings -> Build,Execution,Deployment -> Build Tools -> Gradle -> Gradle JDK
 - [XCode](https://developer.apple.com/xcode/)和[cocoapods](https://cocoapods.org/)
-- [DevEco Studio](https://developer.huawei.com/consumer/cn/deveco-studio/)(API Version >= 15) (你可以通过【 DevECo Studio -> Help -> About HarmonyOS SDK 】查看API Version)
+- [DevEco Studio 5.1.0 或者更新版本](https://developer.huawei.com/consumer/cn/deveco-studio/)(API Version >= 18) (你可以通过【 DevECo Studio -> Help -> About HarmonyOS SDK 】查看API Version)
 - JDK17
 
 ### 运行Android APP

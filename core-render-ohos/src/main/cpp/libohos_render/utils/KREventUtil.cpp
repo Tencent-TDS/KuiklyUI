@@ -17,8 +17,11 @@
 
 #include <mutex>
 
+#include <info/application_target_sdk_version.h>
 #include "libohos_render/utils/KRThreadChecker.h"
 #include "libohos_render/utils/KRViewUtil.h"
+
+static_assert(OH_CURRENT_API_VERSION >= 18, "DevEco Studio too old, please upgrade to 5.1.0 or newer!");
 
 // typically the levels of gestures are 2 or 3, set max to 10 should be good enough
 #define GESTURE_MAX_LEVELS 10

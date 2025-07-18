@@ -76,7 +76,7 @@ Refer to [Environment Configuration](https://kuikly.tds.qq.com/%E5%BF%AB%E9%80%9
 
     Android Studio -> Settings -> Build,Execution,Deployment -> Build Tools -> Gradle -> Gradle JDK
 - [XCode](https://developer.apple.com/xcode/) and [cocoapods](https://cocoapods.org/)
-- [DevEco Studio](https://developer.huawei.com/consumer/cn/deveco-studio/)(API Version >= 15)(You can check the API Version through【 DevECo Studio -> Help -> About HarmonyOS SDK 】)
+- [DevEco Studio 5.1.0 or newer](https://developer.huawei.com/consumer/cn/deveco-studio/)(API Version >= 18)(You can check the API Version through【 DevECo Studio -> Help -> About HarmonyOS SDK 】)
 - JDK17
 
 ### Running Android App

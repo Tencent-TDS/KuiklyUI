@@ -14,7 +14,7 @@
  */
 
 #import <UIKit/UIKit.h>
-#import <TDFCommon/TDFModuleProtocol.h>
+#import "TDFModuleProtocol.h"
 #import "KuiklyRenderViewExportProtocol.h"
 #import "KuiklyContextParam.h"
 #import "KuiklyRenderContextProtocol.h"

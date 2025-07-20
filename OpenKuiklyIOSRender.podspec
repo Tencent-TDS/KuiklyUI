@@ -10,10 +10,6 @@ Pod::Spec.new do |spec|
   spec.author           = { "Kuikly" => "ruifanyuan@tencent.com" }
   spec.ios.deployment_target = '9.0'
   spec.source           = { :git => "https://github.com/Tencent-TDS/KuiklyUI.git", :tag => "#{spec.version}" }
-  spec.dependency "OpenTDFCommon", "~> 1.0.0"
-  spec.pod_target_xcconfig = {
-        'VALID_ARCHS[sdk=iphonesimulator*]' => 'arm64 x86_64'
-  }
   spec.user_target_xcconfig = { 'CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES' => 'YES' }
   spec.requires_arc     = true
   spec.source_files = 'core-render-ios/**/*.{h,m,c,mm,s,cpp,cc}'

@@ -14,7 +14,7 @@
  */
 
 #import <Foundation/Foundation.h>
-#import <TDFCommon/TDFBaseModule.h>
+#import "TDFBaseModule.h"
 
 NS_ASSUME_NONNULL_BEGIN
 

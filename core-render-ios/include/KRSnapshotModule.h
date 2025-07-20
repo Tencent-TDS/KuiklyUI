@@ -1,0 +1,1 @@
+../Extension/Modules/KRSnapshotModule.h

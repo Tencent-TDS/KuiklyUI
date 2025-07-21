@@ -286,7 +286,7 @@ static SEL selectorForType(NSString *type)
         methodName = [methodName substringToIndex:colonRange.location];
       }
       methodName = [methodName stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-      NSAssert(methodName.length,@"%s 非法方法名，module: %@", _methodInfo->objcName, NSStringFromClass(_moduleClass));
+      NSAssert(methodName.length,@"%s Illegal method name, module: %@", _methodInfo->objcName, NSStringFromClass(_moduleClass));
     }
       _wrapMethodName = methodName;
   }

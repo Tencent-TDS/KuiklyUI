@@ -44,7 +44,6 @@ import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.draw.clip
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.text.font.FontWeight
-import com.tencent.kuikly.compose.ui.text.style.TextAlign
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
 import com.tencent.kuikly.core.annotations.Page
@@ -142,6 +141,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("AppearPercentDemo", "可见度百度比", "AppearDemo"),
             DemoItem("内外边距", "Compose内外边距，边框写法示例", "MarginPaddingTest"),
             DemoItem("MaterialDemo", "material3组件示例", "material_demo"),
+            DemoItem("Dialog弹出菜单PopMenu", "基于Dialog实现的弹出菜单PopMenu示例", "PopMenuDialogDemo"),
         )
 
     @Composable

@@ -48,7 +48,7 @@ class OnBackPressedDispatcher() {
      */
     fun dispatchOnBackEvent() {
         if (onBackPressedCallbacks.isNotEmpty()) {
-            val callback = onBackPressedCallbacks.removeLast()
+            val callback = onBackPressedCallbacks.last()
             callback.handleOnBackPressed()
         }
     }

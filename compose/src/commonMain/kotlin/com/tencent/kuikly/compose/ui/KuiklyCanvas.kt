@@ -84,7 +84,7 @@ internal class KuiklyCanvas : Canvas {
                     value.renderView!!,
                     value.pagerId,
                     value.nativeRef,
-                    view?.getPager()?.pagerDensity() ?: 3f
+                    value.getPager().pagerDensity()
                 )
                 value.renderView?.callMethod("reset", "")
                 strokeCap = StrokeCap.Butt

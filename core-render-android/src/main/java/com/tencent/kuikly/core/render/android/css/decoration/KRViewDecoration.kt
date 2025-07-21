@@ -33,6 +33,7 @@ import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.css.animation.KRCSSTransform
 import com.tencent.kuikly.core.render.android.css.drawable.KRCSSBackgroundDrawable
 import com.tencent.kuikly.core.render.android.css.ktx.isBeforeM
+import com.tencent.kuikly.core.render.android.css.ktx.isBeforeOreoMr1
 import com.tencent.kuikly.core.render.android.css.ktx.toColor
 import com.tencent.kuikly.core.render.android.css.ktx.toPxF
 import java.lang.ref.WeakReference
@@ -368,7 +369,11 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
                                     // 不然border 会被限制在 clip 的区域内，只有setRoundRect这个 api 才会
                                     outline.setRoundRect(-borderWidth, -borderWidth, view.width + borderWidth, view.height + borderWidth, borderRadiusF)
                                 } else {
-                                    outline.setRoundRect(0, 0, view.width, view.height, borderRadiusF)
+                                    var compatBorderRadiusF = borderRadiusF
+                                    if (isBeforeOreoMr1 && compatBorderRadiusF < 0.5f) {
+                                        compatBorderRadiusF = 0.5f
+                                    }
+                                    outline.setRoundRect(0, 0, view.width, view.height, compatBorderRadiusF)
                                 }
                             }
                             borderRadii != null -> { // 非四个角都是圆角

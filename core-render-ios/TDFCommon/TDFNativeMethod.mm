@@ -201,10 +201,8 @@ static SEL selectorForType(NSString *type)
             [argumentBlocks addObject:^(NSUInteger index, id json) {
               void *returnValue = malloc(typeSignature.methodReturnLength);
               if (!returnValue) {
-                // CWE - 391 : Unchecked error condition
-                // https://www.cvedetails.com/cwe-details/391/Unchecked-Error-Condition.html
-                // https://eli.thegreenplace.net/2009/10/30/handling-out-of-memory-conditions-in-c
-                abort();
+                NSLog(@"Error: Memory allocation failed in argument block for selector %@", NSStringFromSelector(selector));
+                return NO;
               }
               [typeInvocation setArgument:&json atIndex:2];
               [typeInvocation invoke];

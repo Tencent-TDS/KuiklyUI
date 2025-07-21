@@ -123,7 +123,7 @@ void TDFRegisterModule(Class moduleClass) {
     });
     
 #if DEBUG
-    // TDFModule 必须继承自TDFBaseModule
+    // TDFModule must inherit from TDFBaseModule
     assert([moduleClass isSubclassOfClass:[TDFBaseModule class]]);
 #endif
     NSString *name = [moduleClass moduleName];

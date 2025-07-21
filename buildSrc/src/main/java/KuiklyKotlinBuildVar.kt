@@ -46,10 +46,6 @@ object Dependencies {
         "androidx.core:core-ktx:1.7.0"
     }
 
-    val tdfCommon by lazy {
-        "com.tencent.tdf:tdf-common:1.0.1"
-    }
-
     val kspSymbolProcessingGradlePlugin by lazy {
         "com.google.devtools.ksp:symbol-processing-gradle-plugin:${Version.getKSPVersion()}"
     }

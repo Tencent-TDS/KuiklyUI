@@ -64,7 +64,6 @@ android {
 }
 
 dependencies {
-    api(Dependencies.tdfCommon)
     compileOnly("androidx.recyclerview:recyclerview:1.2.1")
     compileOnly(project(":core"))
     compileOnly("androidx.core:core-ktx:1.7.0")

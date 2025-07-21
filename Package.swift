@@ -19,5 +19,4 @@ let package = Package(
             publicHeadersPath: "include",
         ),
     ],
-    cxxLanguageStandard: .gnucxx11
 )

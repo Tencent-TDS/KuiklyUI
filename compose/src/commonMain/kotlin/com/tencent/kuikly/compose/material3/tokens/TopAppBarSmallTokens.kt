@@ -29,8 +29,5 @@ internal object TopAppBarSmallTokens {
     val HeadlineColor = ColorSchemeKeyTokens.OnSurface
     val HeadlineFont = TypographyKeyTokens.TitleLarge
     val LeadingIconColor = ColorSchemeKeyTokens.OnSurface
-    val LeadingIconSize = 24.0.dp
-    val OnScrollContainerElevation = ElevationTokens.Level2
     val TrailingIconColor = ColorSchemeKeyTokens.OnSurfaceVariant
-    val TrailingIconSize = 24.0.dp
 }

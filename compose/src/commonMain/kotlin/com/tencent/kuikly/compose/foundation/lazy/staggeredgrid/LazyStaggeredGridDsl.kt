@@ -67,6 +67,7 @@ fun LazyVerticalStaggeredGrid(
     horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(0.dp),
 //    flingBehavior: FlingBehavior = ScrollableDefaults.flingBehavior(),
     userScrollEnabled: Boolean = true,
+    beyondBoundsItemCount: Int = 3,
     content: LazyStaggeredGridScope.() -> Unit
 ) {
     LazyStaggeredGrid(
@@ -79,6 +80,7 @@ fun LazyVerticalStaggeredGrid(
         crossAxisSpacing = horizontalArrangement.spacing,
 //        flingBehavior = flingBehavior,
         userScrollEnabled = userScrollEnabled,
+        beyondBoundsItemCount = beyondBoundsItemCount,
         slots = rememberColumnSlots(columns, horizontalArrangement, contentPadding),
         content = content
     )
@@ -101,7 +103,7 @@ private fun rememberColumnSlots(
         }
         val horizontalPadding =
             contentPadding.calculateStartPadding(LayoutDirection.Ltr) +
-                contentPadding.calculateEndPadding(LayoutDirection.Ltr)
+                    contentPadding.calculateEndPadding(LayoutDirection.Ltr)
         val gridWidth = constraints.maxWidth - horizontalPadding.roundToPx()
         with(columns) {
             calculateCrossAxisCellSizes(
@@ -157,6 +159,7 @@ fun LazyHorizontalStaggeredGrid(
     horizontalItemSpacing: Dp = 0.dp,
 //    flingBehavior: FlingBehavior = ScrollableDefaults.flingBehavior(),
     userScrollEnabled: Boolean = true,
+    beyondBoundsItemCount: Int = 3,
     content: LazyStaggeredGridScope.() -> Unit
 ) {
     LazyStaggeredGrid(
@@ -169,6 +172,7 @@ fun LazyHorizontalStaggeredGrid(
         crossAxisSpacing = verticalArrangement.spacing,
 //        flingBehavior = flingBehavior,
         userScrollEnabled = userScrollEnabled,
+        beyondBoundsItemCount = beyondBoundsItemCount,
         slots = rememberRowSlots(rows, verticalArrangement, contentPadding),
         content = content
     )
@@ -190,7 +194,7 @@ private fun rememberRowSlots(
             "LazyHorizontalStaggeredGrid's height should be bound by parent."
         }
         val verticalPadding = contentPadding.calculateTopPadding() +
-            contentPadding.calculateBottomPadding()
+                contentPadding.calculateBottomPadding()
         val gridHeight = constraints.maxHeight - verticalPadding.roundToPx()
         with(rows) {
             calculateCrossAxisCellSizes(

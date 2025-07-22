@@ -30,47 +30,47 @@ import com.tencent.kuikly.compose.ui.platform.InspectorInfo
 import com.tencent.kuikly.compose.ui.unit.Dp
 import com.tencent.kuikly.compose.ui.unit.dp
 
-///**
-// * Creates a [graphicsLayer] that draws a shadow. The [elevation] defines the visual
-// * depth of the physical object. The physical object has a shape specified by [shape].
-// *
-// * If the passed [shape] is concave the shadow will not be drawn on Android versions less than 10.
-// *
-// * Note that [elevation] is only affecting the shadow size and doesn't change the drawing order.
-// * Use a [com.tencent.kuikly.compose.ui.zIndex] modifier if you want to draw the elements with larger
-// * [elevation] after all the elements with a smaller one.
-// *
-// * Usage of this API renders this composable into a separate graphics layer
-// * @see graphicsLayer
-// *
-// * Example usage:
-// *
-// * @sample com.tencent.kuikly.compose.ui.samples.ShadowSample
-// *
-// * @param elevation The elevation for the shadow in pixels
-// * @param shape Defines a shape of the physical object
-// * @param clip When active, the content drawing clips to the shape.
-// */
-//@Deprecated(
-//    "Replace with shadow which accepts ambientColor and spotColor parameters",
-//    ReplaceWith(
-//        "Modifier.shadow(elevation, shape, clip, DefaultShadowColor, DefaultShadowColor)",
-//        "com.tencent.kuikly.compose.ui.draw"
-//    ),
-//    DeprecationLevel.HIDDEN
-//)
-//@Stable
-//fun Modifier.shadow(
-//    elevation: Dp,
-//    shape: Shape = RectangleShape,
-//    clip: Boolean = elevation > 0.dp
-//) = shadow(
-//    elevation,
-//    shape,
-//    clip,
-//    DefaultShadowColor,
-//    DefaultShadowColor,
-//)
+/**
+ * Creates a [graphicsLayer] that draws a shadow. The [elevation] defines the visual
+ * depth of the physical object. The physical object has a shape specified by [shape].
+ *
+ * If the passed [shape] is concave the shadow will not be drawn on Android versions less than 10.
+ *
+ * Note that [elevation] is only affecting the shadow size and doesn't change the drawing order.
+ * Use a [com.tencent.kuikly.compose.ui.zIndex] modifier if you want to draw the elements with larger
+ * [elevation] after all the elements with a smaller one.
+ *
+ * Usage of this API renders this composable into a separate graphics layer
+ * @see graphicsLayer
+ *
+ * Example usage:
+ *
+ * @sample com.tencent.kuikly.compose.ui.samples.ShadowSample
+ *
+ * @param elevation The elevation for the shadow in pixels
+ * @param shape Defines a shape of the physical object
+ * @param clip When active, the content drawing clips to the shape.
+ */
+@Deprecated(
+    "Replace with shadow which accepts ambientColor and spotColor parameters",
+    ReplaceWith(
+        "Modifier.shadow(elevation, shape, clip, DefaultShadowColor, DefaultShadowColor)",
+        "com.tencent.kuikly.compose.ui.draw"
+    ),
+    DeprecationLevel.HIDDEN
+)
+@Stable
+fun Modifier.shadow(
+    elevation: Dp,
+    shape: Shape = RectangleShape,
+    clip: Boolean = elevation > 0.dp
+) = shadow(
+    elevation,
+    shape,
+    clip,
+    DefaultShadowColor,
+    DefaultShadowColor,
+)
 
 /**
  * Creates a [graphicsLayer] that draws a shadow. The [elevation] defines the visual

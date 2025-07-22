@@ -126,7 +126,7 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
             return
         }
         // 设置可绘制区域为 Canvas 的整个布局区域
-        canvas.clipRect(0, 0, canvas.width, canvas.height)
+        canvas.clipRect(0, 0, width, height)
         for (op in drawOperationList) {
             op.draw(paint, canvas)
         }

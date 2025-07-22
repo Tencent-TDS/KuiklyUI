@@ -35,6 +35,7 @@ import com.tencent.kuikly.compose.ui.node.KNode.Companion.clip
 import com.tencent.kuikly.compose.ui.node.KNode.Companion.measuredSize
 import com.tencent.kuikly.compose.ui.node.KNode.Companion.rotate
 import com.tencent.kuikly.compose.ui.node.KNode.Companion.scale
+import com.tencent.kuikly.compose.ui.node.KNode.Companion.shadow
 import com.tencent.kuikly.compose.ui.node.KNode.Companion.translate
 import com.tencent.kuikly.compose.ui.node.OwnedLayer
 import com.tencent.kuikly.compose.ui.unit.IntOffset
@@ -226,7 +227,8 @@ internal class RenderNodeLayer(
                 translate(translationX, translationY)
                 scale(scaleX, scaleY)
                 rotate(rotationX, rotationY, rotationZ)
-                // todo shadowElevation
+                // 0.19f is from the Original Compose Multiplatform, which is the default spotShadowAlpha in Android.
+                shadow(shadowElevation, spotShadowColor.copy(alpha = 0.19f * alpha))
                 // todo renderEffect
                 alpha(alpha)
                 if (clip) {

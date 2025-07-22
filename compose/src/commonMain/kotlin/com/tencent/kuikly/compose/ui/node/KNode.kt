@@ -23,10 +23,12 @@ import com.tencent.kuikly.compose.ui.geometry.Offset
 import com.tencent.kuikly.compose.ui.geometry.RoundRect
 import com.tencent.kuikly.compose.ui.geometry.isRect
 import com.tencent.kuikly.compose.ui.graphics.Canvas
+import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.Matrix
 import com.tencent.kuikly.compose.ui.graphics.isIdentity
 import com.tencent.kuikly.compose.ui.layout.LayoutCoordinates
 import com.tencent.kuikly.compose.ui.platform.LocalDensity
+import com.tencent.kuikly.compose.ui.text.style.modulate
 import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.views.KuiklyInfoKey
@@ -37,6 +39,7 @@ import com.tencent.kuikly.compose.layout.resetViewVisible
 import com.tencent.kuikly.compose.node.extPropsVar
 import com.tencent.kuikly.core.base.Attr
 import com.tencent.kuikly.core.base.Attr.StyleConst
+import com.tencent.kuikly.core.base.BoxShadow
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.base.Rotate
 import com.tencent.kuikly.core.base.Scale
@@ -296,6 +299,8 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         }
         private var DeclarativeBaseView<*, *>.borderRadius by extPropsVar("borderRadius") { FloatArray(4) }
         private var DeclarativeBaseView<*, *>.clip by extPropsVar("clip") { false }
+        private var DeclarativeBaseView<*, *>.shadowElevation by extPropsVar("shadowElevation") { 0f }
+        private var DeclarativeBaseView<*, *>.shadowColor by extPropsVar("shadowColor") { Color.Transparent }
 
         fun DeclarativeBaseView<*, *>.measuredSize(width: Int, height: Int) {
             measuredSize = IntSize(width, height)
@@ -361,6 +366,13 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             this.clip = true
         }
 
+        fun DeclarativeBaseView<*, *>.shadow(elevation: Float, color: Color) {
+            if (elevation > 0f) {
+                shadowElevation = elevation
+                shadowColor = color
+            }
+        }
+
         fun DeclarativeBaseView<*, *>.reset() {
             getMatrix()?.also {
                 if (!it.isIdentity()) {
@@ -371,6 +383,8 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             alpha = 1f
             borderRadius.fill(0f)
             clip = false
+            shadowElevation = 0f
+            shadowColor = Color.Transparent
         }
 
         fun DeclarativeBaseView<*, *>.flush(density: Density) {
@@ -399,6 +413,15 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
                     // 利用一个很小的borderRadius来实现clip效果，避免和shadow冲突
                     attr.borderRadius(if (hasClip) 0.001f else 0f)
                 }
+            }
+            if (shadowElevation > 0f && shadowColor != Color.Transparent || attr.getProp(StyleConst.BOX_SHADOW) != null) {
+                val elevationValue = with(density) { shadowElevation.toDp().value }
+                attr.boxShadow(BoxShadow(
+                    offsetX = 0f,
+                    offsetY = elevationValue * 0.5f,
+                    shadowRadius = elevationValue,
+                    shadowColor = shadowColor.toKuiklyColor()
+                ))
             }
         }
 

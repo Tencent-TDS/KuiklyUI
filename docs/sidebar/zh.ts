@@ -178,7 +178,7 @@ export const zhSidebar = sidebar({
             text: "架构原理",
             prefix: "/Blog/architecture",
             children: [
-                "kuikly-rendering.md"
+                "kuikly-rendering.md", "architecture_and_advantages.md"
                 ]
         },
         {

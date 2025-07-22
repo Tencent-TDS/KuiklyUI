@@ -487,9 +487,9 @@ class ColorScheme(
 //    internal var defaultMediumTopAppBarColorsCached: TopAppBarColors? = null
 //    @OptIn(ExperimentalMaterial3Api::class)
 //    internal var defaultLargeTopAppBarColorsCached: TopAppBarColors? = null
-//
-//    internal var defaultCheckboxColorsCached: CheckboxColors? = null
-//
+
+    internal var defaultCheckboxColorsCached: CheckboxColors? = null
+
 //    @OptIn(ExperimentalMaterial3Api::class)
 //    internal var defaultDatePickerColorsCached: DatePickerColors? = null
 //

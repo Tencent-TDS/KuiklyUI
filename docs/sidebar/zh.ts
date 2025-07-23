@@ -174,7 +174,20 @@ export const zhSidebar = sidebar({
     ],
     "/Blog": [
         "roadmap2025.md",
-        "kuikly-rendering.md"
+        {
+            text: "架构原理",
+            prefix: "/Blog/architecture",
+            children: [
+                "kuikly-rendering.md", "architecture_and_advantages.md"
+                ]
+        },
+        {
+            text: "实践分享",
+            prefix: "/Blog/sharing",
+            children: [
+                "tech_practice_sharing_template.md"
+                ]
+        }
     ],
     "/QA": [
         "kuikly-qa.md"

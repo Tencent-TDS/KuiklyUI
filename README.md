@@ -62,13 +62,13 @@ Since its launch, `Kuikly` has gained wide recognition from the business. It has
 
 ## Getting Started
 
-- [Quick Start](https://kuikly.tds.qq.com/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B/hello-world.html)
-- [Integration Guide](https://kuikly.tds.qq.com/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B/overview.html)
-- [Component Features](https://kuikly.tds.qq.com/API/%E7%BB%84%E4%BB%B6/override.html)
+- [Quick Start](https://kuikly.tds.qq.com/QuickStart/hello-world.html)
+- [Integration Guide](https://kuikly.tds.qq.com/QuickStart/overview.html)
+- [Component Features](https://kuikly.tds.qq.com/API/components/override.html)
 
 ## Building from Source
 ### Environment Setup
-Refer to [Environment Configuration](https://kuikly.tds.qq.com/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B/env-setup.html)
+Refer to [Environment Configuration](https://kuikly.tds.qq.com/QuickStart/env-setup.html)
 - [Android Studio](https://developer.android.com/studio)
 
     if your Android Studio Version >= (2024.2.1) Please switch your Gradle JDK Version to JDK17
@@ -116,9 +116,15 @@ Test publishing scripts for each version are available as `x.x.xx_test_publish.s
 
 After successful build on any platform, you can modify Core, Render, and Demo to experience `Kuikly` development.
 
+### Quick Demo Experience
+<div style="display: inline-block; text-align: left;">
+  <img src="img/kuikly_demo_android_qr.png" width="200">
+</div>
+
+Scan the QR code with an Android phone to quickly try the demo. For iPhone and HarmonyOS phones, please follow the steps above to compile and experience the demo app from the source code.
 
 ## Roadmap
-[Roadmap (2025)](https://kuikly.tds.qq.com/%E5%8D%9A%E5%AE%A2/roadmap2025.html)
+[Roadmap (2025)](https://kuikly.tds.qq.com/Blog/roadmap2025.html)
 
 ## Contribution Guidelines
 We welcome all developers to submit issues or PRs for `Kuikly`. Please review our [Contribution Guide](CONTRIBUTING.md) before contributing.
@@ -143,7 +149,7 @@ At Tencent, Kuikly has been deeply used by 20+ applications, covering 1,000+ pag
 Since going open-source, more external applications beyond Tencent have been actively adopting Kuikly. Additional use cases will be progressively shared upon obtaining approval from respective partners.
 
 ### Scenario Examples
-For typical business application scenarios, please refer to: [Application Scenario Cases](https://kuikly.tds.qq.com/%E7%AE%80%E4%BB%8B/application_cases.html)
+For typical business application scenarios, please refer to: [Application Scenario Cases](https://kuikly.tds.qq.com/Introduction/application_cases.html)
 
 ## Stay Connected
 Scan the QR codes below to follow our latest updates or contact us for inquiries.

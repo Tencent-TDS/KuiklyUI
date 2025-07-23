@@ -60,14 +60,14 @@
 
 ## 快速上手
 
-- [快速体验](https://kuikly.tds.qq.com/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B/hello-world.html)
-- [接入指引](https://kuikly.tds.qq.com/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B/overview.html)
-- [组件特性](https://kuikly.tds.qq.com/API/%E7%BB%84%E4%BB%B6/override.html)
+- [快速体验](https://kuikly.tds.qq.com/QuickStart/hello-world.html)
+- [接入指引](https://kuikly.tds.qq.com/QuickStart/overview.html)
+- [组件特性](https://kuikly.tds.qq.com/API/components/override.html)
 
 ## 源码构建
 
 ### 编译环境
-参照[环境搭建](https://kuikly.tds.qq.com/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B/env-setup.html)进行配置
+参照[环境搭建](https://kuikly.tds.qq.com/QuickStart/env-setup.html)进行配置
 - [Android Studio](https://developer.android.com/studio)
   
   如果你的 Android Studio 版本大于等于 (2024.2.1)，请将 Gradle JDK 版本切换为 JDK17 
@@ -118,8 +118,15 @@ KuiklyUI目录下有各个`Kotlin`版本的gradle配置项
 
 上述任一平台构建成功后，即可通过修改Core、Render、Demo，体验`Kuikly`开发。
 
+### Demo快速体验
+<div style="display: inline-block; text-align: left;">
+  <img src="img/kuikly_demo_android_qr.png" width="200">
+</div>
+
+安卓手机扫码快速体验。iPhone和鸿蒙手机请按上述步骤源码编译Demo APP体验。
+
 ## Roadmap
-[Roadmap(2025)](https://kuikly.tds.qq.com/%E5%8D%9A%E5%AE%A2/roadmap2025.html)
+[Roadmap(2025)](https://kuikly.tds.qq.com/Blog/roadmap2025.html)
 
 ## 贡献指南
 欢迎各位开发者为 `Kuikly` 提出问题或发起 PR，建议你在为 `Kuikly` 贡献代码先阅读 [贡献指引](CONTRIBUTING.md)。
@@ -144,7 +151,7 @@ KuiklyUI目录下有各个`Kotlin`版本的gradle配置项
 同时开源后，更多腾讯外部业务已在积极接入中，使用案例在征得业务同意后陆续补充
 
 ### 场景案例
-业务典型应用场景，请参考：[应用场景案例](https://kuikly.tds.qq.com/%E7%AE%80%E4%BB%8B/application_cases.html)
+业务典型应用场景，请参考：[应用场景案例](https://kuikly.tds.qq.com/Introduction/application_cases.html)
 
 ## 欢迎关注交流
 欢迎扫码下方二维码关注最新动态或咨询交流。

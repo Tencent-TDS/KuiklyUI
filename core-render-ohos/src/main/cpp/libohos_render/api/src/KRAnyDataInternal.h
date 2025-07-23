@@ -23,6 +23,9 @@ extern "C" {
 
 struct KRAnyDataInternal {
     KRAnyValue anyValue;
+    ~KRAnyDataInternal(){
+        anyValue = nullptr;
+    }
 };
 
 #ifdef __cplusplus

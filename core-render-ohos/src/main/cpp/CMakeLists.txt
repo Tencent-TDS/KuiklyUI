@@ -11,6 +11,7 @@ endif()
 set(SOURCE_SET
         napi_init.cpp
         libohos_render/api/src/Kuikly.cpp
+        libohos_render/api/src/KRAnyData.cpp
         libohos_render/foundation/ark_ts.cpp
         libohos_render/foundation/thread/KRMainThread.cpp
         libohos_render/manager/KRRenderManager.cpp

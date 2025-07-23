@@ -1,0 +1,1 @@
+../Performance/KRPerformanceManager+LifeCircle.h

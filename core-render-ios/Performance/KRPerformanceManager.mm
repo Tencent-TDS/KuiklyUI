@@ -10,6 +10,7 @@
 #import "KRFPSMonitor.h"
 #import "KuiklyRenderThreadManager.h"
 #import "KRMemoryMonitor.h"
+#import <UIKit/UIKit.h>
 #import <pthread.h>
 
 @interface KRPerformanceManager ()

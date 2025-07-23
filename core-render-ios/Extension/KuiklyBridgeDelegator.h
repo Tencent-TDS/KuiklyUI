@@ -14,7 +14,7 @@
  */
 
 #import <Foundation/Foundation.h>
-#import <TDFCommon/TDFModuleProtocol.h>
+#import "TDFModuleProtocol.h"
 
 NS_ASSUME_NONNULL_BEGIN
 

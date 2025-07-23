@@ -64,7 +64,6 @@ android {
 }
 
 dependencies {
-    api(Dependencies.tdfCommon)
     compileOnly("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.5.31")
     compileOnly("androidx.recyclerview:recyclerview:1.2.1")
     compileOnly(project(":core"))

@@ -18,7 +18,7 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import "KuiklyRenderViewExportProtocol.h"
-#import <TDFCommon/TDFModuleProtocol.h>
+#import "TDFModuleProtocol.h"
 #import "KuiklyContextParam.h"
 
 NS_ASSUME_NONNULL_BEGIN

@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 #import <Foundation/Foundation.h>
-#import <TDFCommon/TDFModuleProtocol.h>
 #import <UIKit/UIKit.h>
+#import "TDFModuleProtocol.h"
 #import "KuiklyRenderContextProtocol.h"
 #import "KuiklyRenderViewExportProtocol.h"
 

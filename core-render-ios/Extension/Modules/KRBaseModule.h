@@ -18,7 +18,7 @@
 #import <UIKit/UIKit.h>
 #import "NSObject+KR.h"
 #import "KuiklyRenderView.h"
-#import <TDFCommon/TDFBaseModule.h>
+#import "TDFBaseModule.h"
 NS_ASSUME_NONNULL_BEGIN
 
 UIKIT_EXTERN NSString *const KR_PARAM_KEY;

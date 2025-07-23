@@ -118,6 +118,13 @@ KuiklyUI目录下有各个`Kotlin`版本的gradle配置项
 
 上述任一平台构建成功后，即可通过修改Core、Render、Demo，体验`Kuikly`开发。
 
+### Demo快速体验
+<div style="display: inline-block; text-align: left;">
+  <img src="img/kuikly_demo_android_qr.png" width="200">
+</div>
+
+安卓手机扫码快速体验。iPhone和鸿蒙手机请按上述步骤源码编译Demo APP体验。
+
 ## Roadmap
 [Roadmap(2025)](https://kuikly.tds.qq.com/%E5%8D%9A%E5%AE%A2/roadmap2025.html)
 

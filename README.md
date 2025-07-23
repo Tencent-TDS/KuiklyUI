@@ -116,6 +116,12 @@ Test publishing scripts for each version are available as `x.x.xx_test_publish.s
 
 After successful build on any platform, you can modify Core, Render, and Demo to experience `Kuikly` development.
 
+### Quick Demo Experience
+<div style="display: inline-block; text-align: left;">
+  <img src="img/kuikly_demo_android_qr.png" width="200">
+</div>
+
+Scan the QR code with an Android phone to quickly try the demo. For iPhone and HarmonyOS phones, please follow the steps above to compile and experience the demo app from the source code.
 
 ## Roadmap
 [Roadmap (2025)](https://kuikly.tds.qq.com/%E5%8D%9A%E5%AE%A2/roadmap2025.html)

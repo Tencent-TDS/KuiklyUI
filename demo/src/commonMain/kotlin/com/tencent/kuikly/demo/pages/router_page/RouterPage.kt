@@ -190,6 +190,30 @@ internal class RouterPage : BasePager() {
                 Text {
                     attr {
                         fontSize(20f)
+                        text("APP原型Demo")
+                        textDecorationUnderLine()
+                        backgroundLinearGradient(
+                            Direction.TO_RIGHT,
+                            ColorStop(Color(0xFFAD37FE), 0f),
+                            ColorStop(Color(0xFF23D3FD), 1f)
+                        )
+                    }
+                }
+                event {
+                    click {
+                        ctx.jumpPage("AppTabPage")
+                    }
+                }
+            }
+
+            View {
+                attr {
+                    allCenter()
+                    margin(20f)
+                }
+                Text {
+                    attr {
+                        fontSize(20f)
                         text("Demo案例-Kuikly语法")
                         textDecorationUnderLine()
                         backgroundLinearGradient(

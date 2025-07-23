@@ -22,6 +22,11 @@ export const zhSidebar = sidebar({
                         collapsible: false,
                         children: ["application_cases.md"]
                     },
+                    {
+                        text: "Demo体验",
+                        collapsible: false,
+                        children: ["demo_experience.md"]
+                    },
                 ],
             },
         ],

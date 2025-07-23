@@ -23,6 +23,7 @@ import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.Window
 import android.view.WindowInsetsController
 import android.view.WindowManager
 import android.widget.Toast
@@ -152,28 +153,82 @@ class KuiklyRenderActivity : AppCompatActivity() {
     }
 
     private fun setupImmersiveMode() {
-        window?.apply {
-            addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
-            statusBarColor = Color.TRANSPARENT
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                // Android 11+ 使用新 API
-                setDecorFitsSystemWindows(false)
-                insetsController?.apply {
-                    setSystemBarsAppearance(
-                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
-                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
-                    )
-                }
+        setDecorFitsSystemWindows(window)
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = if (Build.VERSION.SDK_INT >= 26) Color.TRANSPARENT else 0x66000000
+        if (Build.VERSION.SDK_INT >= 28) {
+            val newMode = if (Build.VERSION.SDK_INT >= 30) {
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
             } else {
-                // Android 10 及以下使用旧 API
-                @Suppress("DEPRECATION", "NewApi")
-                decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
-                        View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
-                        View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+            val attrs = window.attributes
+            if (attrs.layoutInDisplayCutoutMode != newMode) {
+                attrs.layoutInDisplayCutoutMode = newMode
+                window.attributes = attrs
             }
         }
+        if (Build.VERSION.SDK_INT >= 29) {
+            window.isStatusBarContrastEnforced = false
+            window.isNavigationBarContrastEnforced = false
+        }
 
+        setAppearanceLightStatusBars(window)
+        setAppearanceLightNavigationBars(window)
+    }
+
+    private fun setAppearanceLightStatusBars(window: Window) {
+        if (Build.VERSION.SDK_INT >= 30) {
+            window.decorView.apply {
+                systemUiVisibility = systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+            }
+            window.insetsController?.setSystemBarsAppearance(
+                WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+            )
+        } else if (Build.VERSION.SDK_INT >= 23) {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS)
+            window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+            window.decorView.apply {
+                systemUiVisibility = systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+            }
+        }
+    }
+
+    private fun setAppearanceLightNavigationBars(window: Window) {
+        if (Build.VERSION.SDK_INT >= 30) {
+            window.decorView.apply {
+                systemUiVisibility = systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+            }
+            window.insetsController?.setSystemBarsAppearance(
+                WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,
+                WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+            )
+        } else if (Build.VERSION.SDK_INT >= 26) {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION)
+            window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+            window.decorView.apply {
+                systemUiVisibility = systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+            }
+        }
+    }
+
+    private fun setDecorFitsSystemWindows(window: Window) {
+        if (Build.VERSION.SDK_INT < 35) {
+            val flag = if (Build.VERSION.SDK_INT >= 30) {
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            } else {
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                        View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                        View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            }
+            window.decorView.apply {
+                systemUiVisibility = systemUiVisibility or flag
+            }
+        }
+        if (Build.VERSION.SDK_INT >= 30) {
+            window.setDecorFitsSystemWindows(false)
+        }
     }
 
     companion object {

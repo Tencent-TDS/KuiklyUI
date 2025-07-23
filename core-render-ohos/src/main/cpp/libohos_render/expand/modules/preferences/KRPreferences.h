@@ -35,6 +35,7 @@ class DataPreferences {
     std::string GetSync(const std::string &key, const std::string &defaultValue);
     void Flush();
     void FlushSync();
+    static std::shared_ptr<util::DataPreferences> GetInstance(const std::string &filesDir, const std::string &filesName);
 
  private:
     std::string preferencesFullPath_;

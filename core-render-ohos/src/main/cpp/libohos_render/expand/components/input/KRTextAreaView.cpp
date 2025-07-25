@@ -13,7 +13,6 @@
  * limitations under the License.
  */
 
-#include "libohos_render/expand/components/input/KRTextareaView.h"
 #include "libohos_render/manager/KRKeyboardManager.h"
 #include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/utils/KRViewUtil.h"

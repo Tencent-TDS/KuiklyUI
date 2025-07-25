@@ -61,6 +61,7 @@ import com.tencent.kuikly.compose.ui.util.fastForEach
 import com.tencent.kuikly.compose.ui.util.fastMap
 import com.tencent.kuikly.compose.ui.util.fastMaxBy
 import com.tencent.kuikly.compose.container.LocalSlotProvider
+import com.tencent.kuikly.compose.container.SuperTouchManager
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.platform.LocalOnBackPressedDispatcherOwner
 import com.tencent.kuikly.core.base.Attr.StyleConst
@@ -394,99 +395,17 @@ private class DialogContentView(
 ) : DivView() {
     lateinit var layoutNode: KNode<DialogContentView>
 
+    val superTouchManager = SuperTouchManager()
+
     private var touchConsumeByNative = false
     override fun willInit() {
         super.willInit()
         val ctx = this
+        scene?.apply {
+            superTouchManager.manage(ctx, scene, layoutNode)
+        }
         getViewAttr().apply {
-            superTouch(true)
             backgroundColor(ctx.scrimColor.toKuiklyColor())
         }
-        getViewEvent().apply {
-            touchDown(true) {
-                ctx.touchConsumeByNative = false
-                val result = ctx.onTouchesEvent(
-                    it.touches,
-                    PointerEventType.Press,
-                    it.timestamp
-                )
-                if (result.dispatchedToAPointerInputModifier) {
-                    getView()?.getViewAttr()?.forceUpdate = true
-                    getView()?.getViewAttr()?.consumeTouchDown(true)
-                }
-            }
-            ctx.setTouchMove(true)
-            touchUp(false) {
-                ctx.onTouchesEvent(
-                    it.touches,
-                    PointerEventType.Release,
-                    it.timestamp,
-                    ctx.touchConsumeByNative
-                )
-                if (ctx.getViewAttr().getProp(StyleConst.PREVENT_TOUCH) == true) {
-                    ctx.getViewAttr().preventTouch(false)
-                    ctx.setTouchMove(true)
-                }
-            }
-            touchCancel(false) {
-                ctx.touchConsumeByNative = true
-
-                ctx.onTouchesEvent(
-                    it.touches,
-                    PointerEventType.Release,
-                    it.timestamp,
-                    ctx.touchConsumeByNative
-                )
-                if (ctx.getViewAttr().getProp(StyleConst.PREVENT_TOUCH) == true) {
-                    ctx.getViewAttr().preventTouch(false)
-                    ctx.setTouchMove(true)
-                }
-            }
-        }
-    }
-
-    private fun setTouchMove(isSync: Boolean) {
-        val ctx = this
-        getViewEvent().touchMove(isSync) {
-            val handled = ctx.onTouchesEvent(
-                it.touches,
-                PointerEventType.Move,
-                it.timestamp
-            )
-            if (handled.anyMovementConsumed) {
-                ctx.getViewAttr().preventTouch(true)
-                ctx.setTouchMove(false)
-            }
-        }
-    }
-
-    private fun onTouchesEvent(
-        touches: List<Touch>,
-        type: PointerEventType,
-        timestamp: Long,
-        isConsumeByNative: Boolean = false
-    ): ProcessResult {
-        return scene?.sendPointerEvent(
-            eventType = type,
-            pointers = touches.map { touch ->
-                val position = Offset(
-                    touch.pageX * getPager().pagerDensity(),
-                    touch.pageY * getPager().pagerDensity()
-                )
-                ComposeScenePointer(
-                    id = PointerId(touch.pointerId.toLong()),
-                    position = position,
-                    pressed = (type != PointerEventType.Release),
-                    type = PointerType.Touch,
-                )
-            },
-            timeMillis = timestamp,
-            nativeEvent = if (isConsumeByNative) {
-                "cancel"
-            } else {
-                null
-            },
-            rootNode = layoutNode
-        ) ?: ProcessResult(false, false)
     }
 }

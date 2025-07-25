@@ -209,6 +209,7 @@
     NSMutableDictionary *result = touchesParam.count > 0 ? [touchesParam.firstObject mutableCopy] : [@{} mutableCopy];
     result[@"touches"] = touchesParam;
     result[@"action"] = eventName;
+    result[@"consumed"] =  @(self.nativeScrollGestureOnGoing ? 1 : 0);
     result[@"timestamp"] = @(event.timestamp * 1000);  // 将时间戳转换为毫秒
     
     return result;

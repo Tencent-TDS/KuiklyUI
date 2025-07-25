@@ -110,6 +110,7 @@ internal class SyntheticEventSender @OptIn(InternalCoreApi::class) constructor(
             previousEvent.copySynthetic(
                 type = PointerEventType.Move,
                 copyPointer = { it.copySynthetic(position = idToPosition[it.id] ?: it.position) },
+                nativeEvent = pointersSourceEvent.nativeEvent
             )
         )
     }
@@ -146,7 +147,8 @@ internal class SyntheticEventSender @OptIn(InternalCoreApi::class) constructor(
                             //  The test pass in both cases
                             down = !sendingAsUp.contains(it.id)
                         )
-                    }
+                    },
+                    nativeEvent = currentEvent.nativeEvent
                 )
             )
         }
@@ -184,7 +186,7 @@ internal class SyntheticEventSender @OptIn(InternalCoreApi::class) constructor(
         _send(event)
         // We don't send nativeEvent for synthetic events.
         // Nullify to avoid memory leaks (native events can point to native views).
-        previousEvent = event.copy(nativeEvent = null)
+        previousEvent = event.copy(nativeEvent = event.nativeEvent)
     }
 
     private fun isMoveEventMissing(
@@ -210,11 +212,12 @@ internal class SyntheticEventSender @OptIn(InternalCoreApi::class) constructor(
     private fun PointerInputEvent.copySynthetic(
         type: PointerEventType,
         copyPointer: (PointerInputEventData) -> PointerInputEventData,
+        nativeEvent: Any? = null,
     ) = PointerInputEvent(
         eventType = type,
         pointers = pointers.map(copyPointer),
         uptime = uptime,
-        nativeEvent = null,
+        nativeEvent = nativeEvent,
 //        buttons = buttons,
 //        keyboardModifiers = keyboardModifiers,
         button = null

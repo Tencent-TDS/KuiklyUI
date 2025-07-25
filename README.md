@@ -167,3 +167,6 @@ Scan the QR codes below to follow our latest updates or contact us for inquiries
         <img alt="Online Consult" src="img/consult_qrcode.png" width="200" />
     </div>
 </p>
+
+## Additional Notes
+The copyright notice pertaining to the Tencent code in this repo was previously in the name of “THL A29 Limited.”  That entity has now been de-registered.  You should treat all previously distributed copies of the code as if the copyright notice was in the name of “Tencent.”

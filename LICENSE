@@ -1,6 +1,6 @@
 Tencent is pleased to support the open source community by making KuiklyUI available.
 
-Copyright (C) 2025 THL A29 Limited, a Tencent company.  All rights reserved. The below software in this distribution may have been modified by THL A29 Limited ("Tencent Modifications"). All Tencent Modifications are Copyright (C) THL A29 Limited.
+Copyright (C) 2025 Tencent.  All rights reserved. The below software in this distribution may have been modified by Tencent ("Tencent Modifications"). All Tencent Modifications are Copyright (C) Tencent.
 
 KuiklyUI is licensed under the License Terms of KuiklyUI except for the third-party components listed below, which is licensed under different terms. KuiklyUI does not impose any additional limitations beyond what is outlined in the respective licenses of these third-party components. Users must comply with all terms and conditions of original licenses of these third-party components and must ensure that the usage of the third party components adheres to all relevant laws and regulations.
 
@@ -19,7 +19,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 Other dependencies and licenses:
 
 Open Source Software Licensed under the MIT License:
-The below software in this distribution may have been modified by THL A29 Limited ("Tencent Modifications"). All Tencent Modifications are Copyright (C) 2025 THL A29 Limited.
+The below software in this distribution may have been modified by Tencent ("Tencent Modifications"). All Tencent Modifications are Copyright (C) 2025 Tencent.
 --------------------------------------------------------------------
 1. SDWebImage
 Copyright (c) 2009-2020 Olivier Poitrey rs@dailymotion.com
@@ -57,7 +57,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 
 Open Source Software Licensed under the Apache License Version 2.0:
-The below software in this distribution may have been modified by THL A29 Limited ("Tencent Modifications"). All Tencent Modifications are Copyright (C) 2025 THL A29 Limited.
+The below software in this distribution may have been modified by Tencent ("Tencent Modifications"). All Tencent Modifications are Copyright (C) 2025 Tencent.
 --------------------------------------------------------------------
 1. com.squareup.okhttp3:okhttp
 Copyright (C) 2017 Square, Inc.
@@ -468,7 +468,7 @@ https://github.com/JetBrains/compose-multiplatform/tree/v1.7.3/license
 Open Source Software Licensed under the Apache License Version 2.0 and Other Licenses of the Third-Party Components therein:
 --------------------------------------------------------------------
 1. com.tencent.hippy:hippy-common
-Copyright (C) 2017-2019 THL A29 Limited, a Tencent company.
+Copyright (C) 2017-2019 Tencent.
 All rights reserved.
 
 
@@ -493,7 +493,7 @@ https://github.com/JetBrains/kotlin/blob/v1.7.20/license/README.md
 Open Source Software Licensed under the Apache License Version 2.0 and Other Licenses of the Third-Party Components therein:
 --------------------------------------------------------------------
 1. com.tencent.tav:libpag
-Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+Copyright (C) 2021 Tencent.  All rights reserved.
 
 
 A copy of the Apache 2.0 is included in this file.

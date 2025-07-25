@@ -301,7 +301,7 @@ class LazyLoopDirectivesView<T>(
                 startSize = INVALID_DIMENSION
                 updatePadding(true)
                 needRefreshRange = true
-            } else if (operation.index <= currentEnd) { // add到中间
+            } else if (operation.index < currentEnd) { // add到中间
                 val addCount = min(currentStart + maxLoadItem - operation.index, operation.count)
                 val removeCount = max(0, currentEnd - currentStart + addCount - maxLoadItem)
                 currentEnd += addCount - removeCount

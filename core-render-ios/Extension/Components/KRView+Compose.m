@@ -80,17 +80,6 @@
                         }
                         break;
                     case TouchesEventKindMoved:
-                        // native滑动中
-                        if ([weakSelf.composeGesHandler nativeScrollGestureOnGoing]) {
-                            weakSelf.composeGesture.state = UIGestureRecognizerStateCancelled;
-                            if (weakSelf.css_touchUp) {
-                                NSDictionary *params = [weakSelf.composeGesHandler generateParamsWithTouches:touches event:event eventName:@"touchCancel"];
-                                weakSelf.css_touchUp(params);
-                            }
-//                            NSLog(@"xxxxx touch 原生滑动中，修改状态为cancel");
-                            return;
-                        }
-                        
                         if (weakSelf.css_touchMove) {
                             NSDictionary *params = [weakSelf.composeGesHandler generateParamsWithTouches:touches event:event eventName:@"touchMove"];
                             weakSelf.css_touchMove(params);

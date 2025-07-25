@@ -48,7 +48,8 @@ data class TouchParams(
     val timestamp: Long, // 触发事件时，距离系统启动的毫秒数
     val pointerId: Int, // 触摸点的ID
     val action: String, // 事件类型, 该属性从1.1.86版本开始支持，之前的版本获取为空
-    val touches: List<Touch> // 包含所有多指触摸信息
+    val touches: List<Touch>, // 包含所有多指触摸信息
+    val consumed: Boolean, // 是否已经被消费了，来自渲染层的消费状态，目前用于滑动中
 ) {
     companion object {
         fun decode(params: Any?): TouchParams {
@@ -60,14 +61,14 @@ data class TouchParams(
             val timestamp = tempParams.optDouble("timestamp").toLong()
             val pointerId = tempParams.optInt("pointerId")
             val action =  tempParams.optString("action")
-            val touches = fastArrayListOf<Touch>()
+            val consumed = tempParams.optInt("consumed", 0) == 1
+            val touches = arrayListOf<Touch>()
             tempParams.optJSONArray("touches")?.also {
                 for (i in 0 until it.length()) {
                     touches.add(Touch.decode(it.opt(i)))
                 }
             }
-
-            return TouchParams(x, y, pageX, pageY, timestamp, pointerId, action, touches)
+            return TouchParams(x, y, pageX, pageY, timestamp, pointerId, action, touches, consumed)
         }
     }
 }

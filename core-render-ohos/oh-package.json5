@@ -1,6 +1,6 @@
 {
   "name": "@kuikly-open/render",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "description": "Kuikly is a comprehensive cross-platform solution for UI and logic based on Kotlin multi-platform. It was launched by Tencent's company-level Oteam in the front-end field. It aims to provide a high-performance, full-platform development framework with unified codebase, ultimate ease of use, and dynamic flexibility",
   "main": "Index.ets",
   "author": "Kuikly Team",

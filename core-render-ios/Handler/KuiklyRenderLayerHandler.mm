@@ -13,10 +13,10 @@
 * limitations under the License.
 */
 
-#import <TDFCommon/TDFBaseModule.h>
-#import <TDFCommon/TDFConvert.h>
-#import <TDFCommon/TDFModuleProtocol.h>
-#import <TDFCommon/TDFNativeMethod.h>
+#import "TDFBaseModule.h"
+#import "TDFConvert.h"
+#import "TDFModuleProtocol.h"
+#import "TDFNativeMethod.h"
 #import <pthread.h>
 #import "KRConvertUtil.h"
 #import "KRLogModule.h"

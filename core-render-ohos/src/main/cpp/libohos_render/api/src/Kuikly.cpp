@@ -15,6 +15,7 @@
 
 #include "libohos_render/api/include/Kuikly/Kuikly.h"
 
+#include <cstdint>
 #include <hilog/log.h>
 #include <unordered_set>
 
@@ -42,31 +43,6 @@ struct KRRenderModuleCallbackContextData {
     }
 };
 
-
-bool KRAnyDataIsString(KRAnyData data) {
-    struct KRAnyDataInternal *internal = (struct KRAnyDataInternal *)data;
-    if (internal == nullptr || internal->anyValue == nullptr) {
-        return false;
-    }
-    return internal->anyValue->isString();
-}
-
-bool KRAnyDataIsInt(KRAnyData data) {
-    struct KRAnyDataInternal *internal = (struct KRAnyDataInternal *)data;
-    if (internal == nullptr || internal->anyValue == nullptr) {
-        return false;
-    }
-    return internal->anyValue->isInt();
-}
-
-const char *KRAnyDataGetString(KRAnyData data) {
-    struct KRAnyDataInternal *internal = (struct KRAnyDataInternal *)data;
-    if (internal == nullptr || internal->anyValue == nullptr) {
-        return nullptr;
-    }
-    return internal->anyValue->toCValue().value.stringValue;
-}
-
 #ifdef __cplusplus
 }
 #endif
@@ -78,9 +54,10 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
                             KRRenderModuleOnConstruct onConstruct,
                             KRRenderModuleOnDestruct  onDestruct,
                             KRRenderModuleCallMethod  onCallMethod,
+                            KRRenderModuleCallMethodV2  onCallMethodV2,
                             void *userData)
         : moduleName_(moduleName), userData_(userData),
-          onConstruct_(onConstruct), onDestruct_(onDestruct), onCallMethod_(onCallMethod) {
+          onConstruct_(onConstruct), onDestruct_(onDestruct), onCallMethod_(onCallMethod), onCallMethodV2_(onCallMethodV2) {
         if (onConstruct) {
             moduleInstance_ = onConstruct(moduleName.c_str());
         }else{
@@ -97,7 +74,23 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
 
     KRAnyValue CallMethod(bool sync, const std::string &method, KRAnyValue params,
                           const KRRenderCallback &callback, bool callback_keep_alive) override {
-        if (onCallMethod_) {
+        if (onCallMethodV2_) {
+            std::string paramStr = params->toString();
+            // create a callback context
+            struct KRRenderModuleCallbackContextData *cbData = AllocCallbackContext(shared_from_this(), callback, callback_keep_alive);
+            struct KRAnyDataInternal anyDataInternal;
+            anyDataInternal.anyValue = params;
+            auto val = onCallMethodV2_(moduleInstance_, moduleName_.c_str(), sync, method.c_str(), &anyDataInternal, (KRRenderModuleCallbackContext)cbData);
+
+            if (val) {
+                KRAnyDataInternal* internal = static_cast<KRAnyDataInternal*>(val);
+                std::shared_ptr<KRRenderValue> v = internal->anyValue;
+                KRAnyDataDestroy(val);
+                return v;
+            }
+
+            return std::make_shared<KRRenderValue>();
+        } else if (onCallMethod_) {
             std::string paramStr = params->toString();
             // create a callback context
             struct KRRenderModuleCallbackContextData *cbData = AllocCallbackContext(shared_from_this(), callback, callback_keep_alive);
@@ -176,6 +169,7 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
     KRRenderModuleOnConstruct onConstruct_;
     KRRenderModuleOnDestruct onDestruct_;
     KRRenderModuleCallMethod onCallMethod_;
+    KRRenderModuleCallMethodV2 onCallMethodV2_;
     void *userData_;
     void *moduleInstance_;
     std::unordered_set<struct KRRenderModuleCallbackContextData *> callbacks_;
@@ -229,7 +223,18 @@ void KRRenderModuleRegister(const char *moduleName,
                             void *userData) {
     std::string name = moduleName;
     IKRRenderModuleExport::RegisterModuleCreator(moduleName, [onConstruct, onDestruct, onCallMethod, userData, name]() {
-        return std::make_shared<KRForwardRenderModule>(name, onConstruct, onDestruct, onCallMethod, userData);
+        return std::make_shared<KRForwardRenderModule>(name, onConstruct, onDestruct, onCallMethod, nullptr, userData);
+    });
+}
+
+void KRRenderModuleRegisterV2(const char *moduleName,
+                            KRRenderModuleOnConstruct onConstruct,
+                            KRRenderModuleOnDestruct  onDestruct,
+                            KRRenderModuleCallMethodV2  onCallMethod,
+                            void *userData) {
+    std::string name = moduleName;
+    IKRRenderModuleExport::RegisterModuleCreator(moduleName, [onConstruct, onDestruct, onCallMethod, userData, name]() {
+        return std::make_shared<KRForwardRenderModule>(name, onConstruct, onDestruct, nullptr, onCallMethod, userData);
     });
 }
 

@@ -73,6 +73,19 @@ typedef KRCallMethodCValue (*KRRenderModuleCallMethod)(const void* moduleInstanc
                                                        KRRenderModuleCallbackContext context);
 
 /**
+ * Module的CallMethod调用(V2)
+ * @param moduleInstance 模块实例，这是KRRenderModuleOnConstruct的返回值
+ * @param moduleName 模块实例，这是KRRenderModuleOnConstruct的返回值
+ * @param sync bool 是否同步
+ * @param method 调用的模块方法
+ * @param context 回调的上下文，可为nullptr，有值的时候业务可通过KRRenderModuleDoCallback回调数据给kotlin调用方
+ * @return KRAnyData
+ * @note 返回值KRAnyData由框架Destroy
+ */
+typedef KRAnyData (*KRRenderModuleCallMethodV2)(const void* moduleInstance, const char* moduleName, int sync, const char *method, KRAnyData param,
+                                                       KRRenderModuleCallbackContext context);
+
+/**
  * Module的OnConstruct调用，Module构造时，此方法会被调用。返回的指针在后续的调用中会作为moduleInstance回传。
  * @param moduleName 模块名字
  */
@@ -97,6 +110,20 @@ void KRRenderModuleRegister(const char *moduleName,
                             KRRenderModuleOnConstruct onConstruct,
                             KRRenderModuleOnDestruct  onDestruct,
                             KRRenderModuleCallMethod  onCallMethod,
+                            void *reserved);
+
+/**
+ * 注册自定义模块(V2)
+ * @param moduleName 模块名称
+ * @param onConstruct Module构造时调用的方法
+ * @param onDestruct Module析构时调用的方法
+ * @param onCallMethod 模块的call method实现
+ * @param reserved 保留字段
+ */
+void KRRenderModuleRegisterV2(const char *moduleName,
+                            KRRenderModuleOnConstruct onConstruct,
+                            KRRenderModuleOnDestruct  onDestruct,
+                            KRRenderModuleCallMethodV2  onCallMethod,
                             void *reserved);
 
 /**

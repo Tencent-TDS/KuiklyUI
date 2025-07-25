@@ -14,6 +14,8 @@
 
 ## 添加Kuikly iOS 渲染器依赖
 
+### 方式一：通过 CocoaPods 集成
+
 1. 添加``kuikly ios render``, 在你的工程的podfile添加以下代码
 
 ```ruby{1,9}
@@ -28,12 +30,68 @@ inhibit_all_warnings!
 pod 'OpenKuiklyIOSRender', 'KUIKLY_RENDER_VERSION'
 end
 ```
+
 :::tip 提示
 * KUIKLY_RENDER_VERSION 需要替换为实际的 Kuikly 版本号，在这里[查看最新版本](../ChangeLog/changelog.md)
 * 版本号需要和[KMP跨端工程](common.md)保持一致
 :::
 
 2. 执行``pod install --repo-update``安装依赖
+
+---
+
+### 方式二：通过 SPM（Swift Package Manager）集成
+
+Kuikly iOS 渲染器已支持通过 SPM 集成，推荐 Xcode 12 及以上版本使用。
+
+#### 1. 添加 Kuikly SPM 依赖
+
+* 打开 Xcode，选择你的项目工程，点击左侧导航栏的 **Project**。
+* 选择 **Package Dependencies** 标签页，点击右下角的 **+** 按钮。
+* 在弹出的对话框中，输入 Kuikly iOS 渲染器的 Git 仓库地址：
+
+  ```shell
+  https://github.com/kuikly/OpenKuiklyIOSRender.git
+  ```
+
+* 选择你需要的版本（建议与 KMP 工程保持一致），点击 **Add Package**。
+* 在弹出的选择框中，勾选你的 Target，点击 **Add Package** 完成依赖添加。
+
+:::tip
+如需指定版本号，请选择与 KMP 工程一致的版本号。
+:::
+
+#### 2. 链接 Kuikly 业务代码 framework
+
+Kuikly 业务代码在 iOS 平台会被编译为 `.xcframework`，推荐以下集成方式：
+
+* **推荐：通过 SPM 集成业务 `.xcframework`**  
+  建议将业务 `shared.xcframework` 封装为一个本地或私有的 Swift Package，然后通过 SPM 集成到主工程。  
+  步骤如下：
+
+  1. 新建一个 Swift Package（如 `SharedFrameworkWrapper`）。
+  2. 在 `Package.swift` 中添加：
+
+      ```swift
+      .binaryTarget(
+          name: "shared",
+          path: "./shared.xcframework"
+      )
+      ```
+
+  3. 将 `shared.xcframework` 拷贝到该包目录下。
+  4. 在主工程中通过 SPM 添加该 Package 依赖。
+
+* **其他方式：**
+  * **CocoaPods 集成**：在 Podfile 中添加业务模块的 pod 路径。
+  * **手动集成**：将 `shared.xcframework` 拖入 Xcode 工程，并设置为 `Embed & Sign`。
+
+#### 3. 其他说明
+
+* 适配器实现、Kuikly 容器等代码与 Pod 方式一致，参考下文实现即可。
+* SPM 方式下，部分三方库（如 SDWebImage）如需使用，请自行通过 SPM 或 CocoaPods 集成。
+
+---
 
 ## 实现Kuikly承载容器
 
@@ -424,9 +482,3 @@ class TestPage : Pager(){
 
 @end
 ```
-
-
-
-
-
-

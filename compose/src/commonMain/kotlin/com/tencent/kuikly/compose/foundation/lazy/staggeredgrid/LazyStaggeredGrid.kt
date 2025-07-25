@@ -52,6 +52,8 @@ internal fun LazyStaggeredGrid(
     mainAxisSpacing: Dp = 0.dp,
     /** The horizontal spacing for items/lines. */
     crossAxisSpacing: Dp = 0.dp,
+    /** Number of items to preload beyond visible bounds */
+    beyondBoundsItemCount: Int = 3,
     /** The content of the grid */
     content: LazyStaggeredGridScope.() -> Unit
 ) {
@@ -67,6 +69,7 @@ internal fun LazyStaggeredGrid(
         orientation,
         mainAxisSpacing,
         crossAxisSpacing,
+        beyondBoundsItemCount,
         coroutineScope,
         slots,
 //        graphicsContext

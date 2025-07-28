@@ -15,7 +15,6 @@
 
 package com.tencent.kuikly.demo.pages.app.home
 
-import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ComposeView
 import com.tencent.kuikly.core.base.ComposeAttr
 import com.tencent.kuikly.core.base.ComposeEvent
@@ -26,6 +25,7 @@ import com.tencent.kuikly.core.module.CallbackRef
 import com.tencent.kuikly.core.module.NotifyModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.reactive.handler.observable
+import com.tencent.kuikly.core.reactive.handler.observableList
 import com.tencent.kuikly.core.views.PageList
 import com.tencent.kuikly.core.views.PageListView
 import com.tencent.kuikly.core.views.ScrollParams
@@ -34,6 +34,7 @@ import com.tencent.kuikly.core.views.Tabs
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.app.AppTabPage
+import com.tencent.kuikly.demo.pages.app.lang.LangManager
 import com.tencent.kuikly.demo.pages.app.model.AppFeedsType
 import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
 
@@ -42,7 +43,6 @@ internal class AppTrendingPageView: ComposeView<AppTrendingPageViewAttr, AppTren
     private var curIndex: Int by observable(0)
     private var scrollParams: ScrollParams? by observable(null)
     private var pageListRef : ViewRef<PageListView<*, *>>? = null
-    private val pageTitles = listOf<String>("推荐", "附近", "榜单", "明星", "搞笑", "社会","测试")
     private val pageTypes = listOf<AppFeedsType>(
         AppFeedsType.Recommend,
         AppFeedsType.Nearby,
@@ -54,20 +54,49 @@ internal class AppTrendingPageView: ComposeView<AppTrendingPageViewAttr, AppTren
     )
     private var viewRefs: MutableList<ViewRef<AppFeedListPageView>> = mutableListOf()
     private var theme by observable(ThemeManager.getTheme())
-    private lateinit var eventCallbackRef: CallbackRef
+    private var resString by observable(LangManager.getCurrentResString())
+    private lateinit var themeEventCallbackRef: CallbackRef
+    private lateinit var langEventCallbackRef: CallbackRef
+    private val pageTitles by observableList<String>()
+
+    private fun updateData() {
+        resString = LangManager.getCurrentResString()
+        pageTitles[0] = resString.topBarRecommend
+        pageTitles[1] = resString.topBarNearby
+        pageTitles[2] = resString.topBarRanking
+        pageTitles[3] = resString.topBarCelebrity
+        pageTitles[4] = resString.topBarEntertain
+        pageTitles[5] = resString.topBarSociety
+        pageTitles[6] = resString.topBarTest
+    }
 
     override fun created() {
         super.created()
-        eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+        pageTitles.addAll(listOf(
+            resString.topBarRecommend,
+            resString.topBarNearby,
+            resString.topBarRanking,
+            resString.topBarCelebrity,
+            resString.topBarEntertain,
+            resString.topBarSociety,
+            resString.topBarTest
+        ))
+        themeEventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
             .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
                 theme = ThemeManager.getTheme()
+            }
+        langEventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .addNotify(LangManager.LANG_CHANGED_EVENT) { _ ->
+                updateData()
             }
     }
 
     override fun viewDestroyed() {
         super.viewDestroyed()
         acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
-            .removeNotify(ThemeManager.SKIN_CHANGED_EVENT, eventCallbackRef)
+            .removeNotify(ThemeManager.SKIN_CHANGED_EVENT, themeEventCallbackRef)
+        acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .removeNotify(ThemeManager.SKIN_CHANGED_EVENT, langEventCallbackRef)
     }
 
     internal fun loadFirstFeeds() {
@@ -114,7 +143,7 @@ internal class AppTrendingPageView: ComposeView<AppTrendingPageViewAttr, AppTren
                                 text(ctx.pageTitles[i])
                                 fontSize(17f)
                                 color(if (state.selected) ctx.theme.colors.topBarNestedTextFocused
-                                      else ctx.theme.colors.topBarNestedTextUnfocused)
+                                else ctx.theme.colors.topBarNestedTextUnfocused)
                             }
                         }
                     }
@@ -171,7 +200,7 @@ internal class AppTrendingPageViewAttr : ComposeAttr() {
 }
 
 internal class AppTrendingPageViewEvent : ComposeEvent() {
-    
+
 }
 
 internal fun ViewContainer<*, *>.AppTrendingPage(init: AppTrendingPageView.() -> Unit) {

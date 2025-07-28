@@ -17,27 +17,27 @@ package com.tencent.kuikly.demo.pages.app
 
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.core.annotations.Page
-import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewRef
-import com.tencent.kuikly.core.base.attr.ImageUri
 import com.tencent.kuikly.core.module.CallbackRef
 import com.tencent.kuikly.core.module.NotifyModule
 import com.tencent.kuikly.core.module.SharedPreferencesModule
 import com.tencent.kuikly.core.reactive.handler.observable
+import com.tencent.kuikly.core.reactive.handler.observableList
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.PageList
 import com.tencent.kuikly.core.views.PageListView
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.app.home.AppHomePage
+import com.tencent.kuikly.demo.pages.app.lang.LangManager
 import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
 
 @Page("AppTabPage")
 internal class AppTabPage : BasePager() {
 
     private var selectedTabIndex: Int by observable(0)
-    private val pageTitles = listOf<String>("首页", "视频", "发现", "消息", "我")
+    private var pageTitles by observableList<String>()
     private val pageIcons = listOf<String>(
         "tabbar_home.png",
         "tabbar_video.png",
@@ -54,32 +54,70 @@ internal class AppTabPage : BasePager() {
     )
     private var pageListRef : ViewRef<PageListView<*, *>>? = null
     private var theme by observable(ThemeManager.getTheme())
-    private lateinit var eventCallbackRef: CallbackRef
+    private var resString by observable(LangManager.getCurrentResString())
+    private lateinit var themeEventCallbackRef: CallbackRef
+    private lateinit var langEventCallbackRef: CallbackRef
 
-    override fun created() {
-        super.created()
-        eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
-            .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
-                theme = ThemeManager.getTheme()
-            }
-        val colorTheme = getPager().acquireModule<SharedPreferencesModule>(SharedPreferencesModule.MODULE_NAME)
-            .getString("colorTheme").takeUnless { it.isEmpty() } ?: "light"
-        val assetTheme = getPager().acquireModule<SharedPreferencesModule>(SharedPreferencesModule.MODULE_NAME)
-            .getString("assetTheme").takeUnless { it.isEmpty() } ?: "default"
-        val typoTheme = getPager().acquireModule<SharedPreferencesModule>(SharedPreferencesModule.MODULE_NAME)
-            .getString("typoTheme").takeUnless { it.isEmpty() } ?: "default"
+    private val PageTitleList = listOf(
+        resString.btmBarHome,
+        resString.btmBarVideo,
+        resString.btmBarDiscover,
+        resString.btmBarMessage,
+        resString.btmBarMe
+    )
+
+    private fun updateLangData() {
+        resString = LangManager.getCurrentResString()
+        pageTitles[0] = resString.btmBarHome
+        pageTitles[1] = resString.btmBarVideo
+        pageTitles[2] = resString.btmBarDiscover
+        pageTitles[3] = resString.btmBarMessage
+        pageTitles[4] = resString.btmBarMe
+    }
+
+    private fun loadPrefData() {
+        val spModule = acquireModule<SharedPreferencesModule>(SharedPreferencesModule.MODULE_NAME)
+
+        val lang = spModule.getString(LangManager.KEY_PREF_LANGUAGE)
+            .takeUnless { it.isEmpty() } ?: pagerData.params.optString(LangManager.KEY_PARAM_LANGUAGE)
+        val colorTheme = spModule.getString(ThemeManager.PREF_KEY_COLOR)
+            .takeUnless { it.isEmpty() } ?: "light"
+        val assetTheme = spModule.getString(ThemeManager.PREF_KEY_ASSET)
+            .takeUnless { it.isEmpty() } ?: "default"
+        val typoTheme = spModule.getString(ThemeManager.PREF_KEY_TYPO)
+            .takeUnless { it.isEmpty() } ?: "default"
+
+        LangManager.changeLanguage(lang)
+        updateLangData()
 
         ThemeManager.changeColorScheme(colorTheme)
         ThemeManager.changeAssetScheme(assetTheme)
         ThemeManager.changeTypoScheme(typoTheme)
-
         theme = ThemeManager.getTheme()
+    }
+
+    override fun created() {
+        super.created()
+        pageTitles.addAll(PageTitleList)
+        loadPrefData()
+
+        // 注册换肤和语言相关的事件监听
+        themeEventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
+                theme = ThemeManager.getTheme()
+            }
+        langEventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .addNotify(LangManager.LANG_CHANGED_EVENT) { _ ->
+                updateLangData()
+            }
     }
 
     override fun pageWillDestroy() {
         super.pageWillDestroy()
         acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
-            .removeNotify(ThemeManager.SKIN_CHANGED_EVENT, eventCallbackRef)
+            .removeNotify(ThemeManager.SKIN_CHANGED_EVENT, themeEventCallbackRef)
+        acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .removeNotify(LangManager.LANG_CHANGED_EVENT, langEventCallbackRef)
     }
 
     private fun tabBar(): ViewBuilder {
@@ -121,7 +159,7 @@ internal class AppTabPage : BasePager() {
                             attr {
                                 text(ctx.pageTitles[i])
                                 color(if (i == ctx.selectedTabIndex) ctx.theme.colors.tabBarTextFocused
-                                      else ctx.theme.colors.tabBarTextUnfocused)
+                                else ctx.theme.colors.tabBarTextUnfocused)
                             }
                         }
                     }
@@ -155,7 +193,11 @@ internal class AppTabPage : BasePager() {
                 }
                 AppHomePage { }
                 for (i in 1 until ctx.pageTitles.size) {
-                    AppEmptyPage(ctx.pageTitles[i]) { }
+                    AppEmptyPage {
+                        attr {
+                            title = ctx.pageTitles[i]
+                        }
+                    }
                 }
             }
             ctx.tabBar().invoke(this)

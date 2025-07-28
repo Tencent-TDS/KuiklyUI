@@ -20,7 +20,6 @@
 #include <unordered_set>
 
 #include "KRAnyDataInternal.h"
-#include "libohos_render/expand/components/image/KRImageAdapterManager.h"
 #include "libohos_render/expand/components/richtext/KRFontAdapterManager.h"
 #include "libohos_render/export/IKRRenderModuleExport.h"
 
@@ -240,10 +239,6 @@ void KRRenderModuleRegisterV2(const char *moduleName,
 
 void KRRegisterFontAdapter(KRFontAdapter adapter, const char *fontFamily) {
     KRFontAdapterManager::GetInstance()->RegisterFontAdapter(adapter, fontFamily);
-}
-
-void KRRegisterImageAdapter(KRImageAdapter adapter) {
-    KRImageAdapterManager::GetInstance()->RegisterImageAdapter(adapter);
 }
 
 int KRLogLevelInfo = LogLevel::LOG_INFO;

@@ -23,6 +23,8 @@ import com.tencent.kuikly.core.base.attr.ImageUri
 import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.base.event.EventHandlerFn
 import com.tencent.kuikly.core.base.toInt
+import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+
 /**
  * 创建一个 PAGView 实例并添加到视图容器中。
  * @param init 一个 PAGView.() -> Unit 函数，用于初始化 PAGView 的属性和子视图。
@@ -166,6 +168,17 @@ class PAGView : DeclarativeBaseView<PAGViewAttr, PAGViewEvent>() {
     fun stop() {
         performTaskWhenRenderViewDidLoad {
             renderView?.callMethod("stop", "")
+        }
+    }
+
+    /*
+     * 设置播放的进度，有效值为0.0到1.0
+     */
+    fun setProgress(value: Float) {
+        val jsonObject = JSONObject()
+        jsonObject.put("value", value)
+        performTaskWhenRenderViewDidLoad {
+            renderView?.callMethod("setProgress", jsonObject.toString())
         }
     }
 

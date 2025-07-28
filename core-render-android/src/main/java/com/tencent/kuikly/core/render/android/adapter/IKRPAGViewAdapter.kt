@@ -17,9 +17,11 @@ package com.tencent.kuikly.core.render.android.adapter
 
 import android.content.Context
 import android.view.View
+import com.tencent.kuikly.core.render.android.expand.component.pag.KRPAGView
+import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 
 /**
- * Created by kam on 2023/5/17.
+ * Created by kamlin on 2023/5/17.
  */
 interface IKRPAGViewAdapter {
 
@@ -51,6 +53,8 @@ interface IPAGView {
 
     fun stopPAGView()
 
+    fun setProgressPAGView(value: Double) {}
+
     fun addPAGViewListener(listener: IPAGViewListener)
 
     fun removePAGViewListener(listener: IPAGViewListener)
@@ -76,6 +80,17 @@ interface IPAGView {
      * @return 如果处理了该属性就返回true，否则false
      */
     fun setKRProp(propKey: String, propValue: Any): Boolean {
+        return false
+    }
+
+    /**
+     * kuikly侧调用方法，一般用于业务扩展使用
+     * @param method 方法名
+     * @param params 参数
+     * @param callback 回调
+     * @return 如果处理了该方法就返回true，否则false
+     */
+    fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Boolean {
         return false
     }
 

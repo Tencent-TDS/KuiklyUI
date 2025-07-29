@@ -41,6 +41,7 @@ import com.tencent.kuikly.core.render.android.expand.component.list.KRRecyclerVi
 import com.tencent.kuikly.core.render.android.expand.component.pag.KRPAGView
 import com.tencent.kuikly.core.render.android.expand.module.KRBackPressModule
 import com.tencent.kuikly.core.render.android.expand.module.KRCalendarModule
+import com.tencent.kuikly.core.render.android.expand.module.KRClipboardModule
 import com.tencent.kuikly.core.render.android.expand.module.KRCodecModule
 import com.tencent.kuikly.core.render.android.expand.module.KRFontModule
 import com.tencent.kuikly.core.render.android.expand.module.KRLogModule
@@ -493,6 +494,9 @@ open class KuiklyRenderViewBaseDelegator(private val delegate: KuiklyRenderViewB
             }
             moduleExport(KRVsyncModule.MODULE_NAME) {
                 KRVsyncModule()
+            }
+            moduleExport(KRClipboardModule.MODULE_NAME) {
+                KRClipboardModule()
             }
             moduleExport(KRBackPressModule.MODULE_NAME) {
                 KRBackPressModule()

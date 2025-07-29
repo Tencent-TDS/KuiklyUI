@@ -30,6 +30,15 @@ import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
 import com.tencent.kuikly.compose.platform.Configuration
 import com.tencent.kuikly.core.manager.PagerManager
+import com.tencent.kuikly.core.module.ClipboardModule
+import com.tencent.kuikly.core.module.ModuleConst
+
+/**
+ * The CompositionLocal to provide communication with platform clipboard service.
+ */
+val LocalClipboardManager = staticCompositionLocalOf<ClipboardManager> {
+    noLocalProvidedFor("LocalClipboardManager")
+}
 
 /**
  * Provides the [Density] to be used to transform between [density-independent pixel
@@ -110,6 +119,11 @@ internal fun ProvideCommonCompositionLocals(
     val currentActivity = remember {
         PagerManager.getCurrentPager() as ComposeContainer
     }
+    val clipboardModule: ClipboardManagerImpl = remember {
+        val module = currentActivity.acquireModule(ModuleConst.CLIPBOARD) as ClipboardModule
+        ClipboardManagerImpl(module)
+    }
+
     CompositionLocalProvider(
         LocalDensity provides owner.density,
         LocalFocusManager provides owner.focusOwner,
@@ -118,6 +132,7 @@ internal fun ProvideCommonCompositionLocals(
         LocalSoftwareKeyboardController provides owner.softwareKeyboardController,
         // Kuikly
         LocalActivity provides currentActivity,
+        LocalClipboardManager provides clipboardModule,
         LocalOnBackPressedDispatcherOwner provides currentActivity,
         content = content,
     )

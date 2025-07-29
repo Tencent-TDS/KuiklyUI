@@ -21,6 +21,7 @@ import { KRNotifyModule } from './KRNotifyModule';
 import { KRExceptionModule } from './KRExceptionModule';
 import { KRNetworkModule } from './KRNetworkModule';
 import { KRRouterModule } from './KRRouterModule';
+import { KRClipboardModule } from './KRClipboardModule'
 
 /**
  * ArkTS侧内置Module均在此注册生成实例闭包
@@ -45,6 +46,9 @@ export class ModulesRegisterEntry {
     });
     KRNativeManager.getInstance().registerModuleCreator(KRNotifyModule.MODULE_NAME, (): IKuiklyRenderModuleExport => {
       return new KRNotifyModule();
+    });
+    KRNativeManager.getInstance().registerModuleCreator(KRClipboardModule.MODULE_NAME, (): IKuiklyRenderModuleExport => {
+      return new KRClipboardModule()
     });
     KRNativeManager.getInstance().registerModuleCreator(KRLogModuleArkTS.MODULE_NAME, (): IKuiklyRenderModuleExport => {
       return new KRLogModuleArkTS();

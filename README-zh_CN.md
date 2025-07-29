@@ -170,4 +170,6 @@ KuiklyUI目录下有各个`Kotlin`版本的gradle配置项
     </div>
 </p>
 
+## 其他说明
+The copyright notice pertaining to the Tencent code in this repo was previously in the name of “THL A29 Limited.”  That entity has now been de-registered.  You should treat all previously distributed copies of the code as if the copyright notice was in the name of “Tencent.”
 

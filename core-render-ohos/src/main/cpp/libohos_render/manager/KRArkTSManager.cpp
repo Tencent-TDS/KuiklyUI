@@ -120,8 +120,11 @@ KRAnyValue KRArkTSManager::CallArkTSMethod(const std::string &instanceId, KRNati
         callbackArgs[7] = nullValue;
     }
     // 执行回调函数
-    napi_value result;
-    napi_call_function(env, nullptr, callbackFun, 8, callbackArgs, &result);
+    napi_value result = nullptr;
+    status = napi_call_function(env, nullptr, callbackFun, 8, callbackArgs, &result);
+    if(napi_ok != status){
+        return std::make_shared<KRRenderValue>(nullptr);
+    }
     if (return_node_handle != nullptr) {  // 返回一个arkui侧的node_handle
         napi_value componentContent = nullptr;
         napi_get_element(env, result, 0, &componentContent);

@@ -116,7 +116,7 @@ bool KRView::ResetProp(const std::string &prop_key) {
 
 void KRView::ProcessTouchEvent(ArkUI_NodeEvent *event) {
     auto input_event = kuikly::util::GetArkUIInputEvent(event);
-    TryFireSuperTouchCancelEvent(input_event)
+    TryFireSuperTouchCancelEvent(input_event);
     auto action = kuikly::util::GetArkUIInputEventAction(input_event);
     if (action == UI_TOUCH_EVENT_ACTION_DOWN) {
         TryFireOnTouchDownEvent(input_event);
@@ -247,7 +247,7 @@ KRAnyValue KRView::GenerateBaseParamsWithTouch(ArkUI_UIInputEvent *input_event, 
     auto event_time_millis = kuikly::util::GetArkUIInputEventTime(input_event) / NS_PER_MS;
     first_touch["timestamp"] = NewKRRenderValue(event_time_millis);
     if (super_touch_handler_) {
-        first_touch["consumed"] = NewKTRenderValue(super_touch_handler_->IsCanceled() ? 1 : 0);
+        first_touch["consumed"] = NewKRRenderValue(super_touch_handler_->IsCanceled() ? 1 : 0);
     }
     return NewKRRenderValue(first_touch);
 }

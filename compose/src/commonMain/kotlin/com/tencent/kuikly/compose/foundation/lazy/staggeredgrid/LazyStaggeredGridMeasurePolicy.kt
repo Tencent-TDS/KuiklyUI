@@ -44,6 +44,7 @@ internal fun rememberStaggeredGridMeasurePolicy(
     orientation: Orientation,
     mainAxisSpacing: Dp,
     crossAxisSpacing: Dp,
+    beyondBoundsItemCount: Int,
     coroutineScope: CoroutineScope,
     slots: LazyGridStaggeredGridSlotsProvider,
 //    graphicsContext: GraphicsContext
@@ -55,6 +56,7 @@ internal fun rememberStaggeredGridMeasurePolicy(
     orientation,
     mainAxisSpacing,
     crossAxisSpacing,
+    beyondBoundsItemCount,
     slots,
 //    graphicsContext
 ) {
@@ -117,6 +119,7 @@ internal fun rememberStaggeredGridMeasurePolicy(
                 reverseLayout = reverseLayout,
                 beforeContentPadding = beforeContentPadding,
                 afterContentPadding = afterContentPadding,
+                beyondBoundsItemCount = beyondBoundsItemCount,
                 coroutineScope = coroutineScope,
 //                graphicsContext = graphicsContext
             )

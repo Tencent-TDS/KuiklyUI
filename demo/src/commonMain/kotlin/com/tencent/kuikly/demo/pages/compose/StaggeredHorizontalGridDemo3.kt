@@ -249,6 +249,7 @@ class StaggeredHorizontalGridDemo3 : ComposeContainer() {
                 Text("滚动交错网格以查看状态变化:")
                 LazyHorizontalStaggeredGrid(
                     rows = StaggeredGridCells.Fixed(3),
+                    beyondBoundsItemCount = 9,
                     modifier =
                         Modifier
                             .height(180.dp)

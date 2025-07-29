@@ -66,6 +66,15 @@ class KRCanvasView : public KRView {
     void SetFont(const std::string &params);
     void QuadraticCurveTo(const std::string &params);
     void BezierCurveTo(const std::string &params);
+    void Save();
+    void SaveLayer(const std::string &params);
+    void Restore();
+    void clip(const std::string &params);
+    void Translate(const std::string &params);
+    void Scale(const std::string &params);
+    void Rotate(const std::string &params);
+    void Skew(const std::string &params);
+    void Transform(const std::string &params);
     void Reset();
     void DrawText(std::string params, std::shared_ptr<struct KRFontCollectionWrapper> wrapper, std::string_view type);
 

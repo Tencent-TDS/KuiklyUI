@@ -6,6 +6,7 @@ plugins {
     id("com.android.library")
     id("org.jetbrains.compose")
     id("maven-publish")
+    signing
 }
 
 group = MavenConfig.GROUP
@@ -25,6 +26,11 @@ publishing {
             }
         } else {
             mavenLocal()
+        }
+
+        publications.withType<MavenPublication>().configureEach {
+            pom.configureMavenCentralMetadata()
+            signPublicationIfKeyPresent(project)
         }
     }
 }
@@ -47,14 +53,6 @@ kotlin {
             }
         }
     }
-
-    android {
-        publishLibraryVariantsGroupedByFlavor = true
-        publishLibraryVariants("release")
-    }
-
-    // targetes
-    jvm()
 
     android {
         publishLibraryVariantsGroupedByFlavor = true

@@ -6,6 +6,7 @@ plugins {
     kotlin("native.cocoapods")
     id("com.android.library")
     id("maven-publish")
+    signing
 }
 
 group = MavenConfig.GROUP
@@ -26,12 +27,15 @@ publishing {
         } else {
             mavenLocal()
         }
+
+        publications.withType<MavenPublication>().configureEach {
+            pom.configureMavenCentralMetadata()
+            signPublicationIfKeyPresent(project)
+        }
     }
 }
 
 kotlin {
-    // targets
-    jvm()
 
     android {
         publishLibraryVariantsGroupedByFlavor = true
@@ -40,20 +44,10 @@ kotlin {
 
     ios()
     iosSimulatorArm64()
+    iosX64()
 
     // sourceSets
-    val commonMain by sourceSets.getting {
-        dependencies {
-            compileOnly("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.6.21")
-        }
-    }
-
-    val androidMain by sourceSets.getting {
-        dependsOn(commonMain)
-        dependencies {
-            compileOnly("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.6.21")
-        }
-    }
+    val commonMain by sourceSets.getting
 
     val iosMain by sourceSets.getting {
         dependsOn(commonMain)

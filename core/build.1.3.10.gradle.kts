@@ -2,6 +2,7 @@ plugins {
     id("com.android.library")
     id("org.jetbrains.kotlin.android")
     id("maven-publish")
+    signing
 }
 
 group = MavenConfig.GROUP
@@ -37,6 +38,8 @@ afterEvaluate {
 //            tasks.named("publishReleasePublicationToMavenRepository").configure {
 //                dependsOn("bundleReleaseAar")
 //            }
+//            signPublicationIfKeyPresent(project)
+//            pom.configureMavenCentralMetadata()
         }
     }
 

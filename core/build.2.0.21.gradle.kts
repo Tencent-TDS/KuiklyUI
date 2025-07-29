@@ -6,6 +6,7 @@ plugins {
     kotlin("native.cocoapods")
     id("com.android.library")
     id("maven-publish")
+    signing
 }
 
 group = MavenConfig.GROUP
@@ -26,12 +27,15 @@ publishing {
         } else {
             mavenLocal()
         }
+
+        publications.withType<MavenPublication>().configureEach {
+            pom.configureMavenCentralMetadata()
+            signPublicationIfKeyPresent(project)
+        }
     }
 }
 
 kotlin {
-    // targets
-    jvm()
 
     androidTarget {
         publishLibraryVariantsGroupedByFlavor = true
@@ -78,6 +82,7 @@ kotlin {
 
 android {
     compileSdk = 30
+    namespace = "com.tencent.kuikly.core"
     sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
     defaultConfig {
         minSdk = 21

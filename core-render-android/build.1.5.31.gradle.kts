@@ -2,6 +2,7 @@ plugins {
     id("com.android.library")
     id("org.jetbrains.kotlin.android")
     id("maven-publish")
+    signing
 }
 
 group = MavenConfig.GROUP
@@ -31,6 +32,8 @@ afterEvaluate {
                 artifactId = MavenConfig.RENDER_ANDROID_ARTIFACT_ID
                 version = Version.getRenderVersion()
                 from(components["release"])
+                pom.configureMavenCentralMetadata()
+                signPublicationIfKeyPresent(project)
             }
         }
     }

@@ -12,6 +12,7 @@ current_dir=$PWD
 core_render_android_dir=$current_dir/core-render-android/src/main/java
 core_convert_util_file=$current_dir/core/src/commonMain/kotlin/com/tencent/kuikly/core/utils/ConvertUtil.kt
 core_pager_manager=$current_dir/core/src/commonMain/kotlin/com/tencent/kuikly/core/manager/PagerManager.kt
+kuikly_kotlin_build_var=$current_dir/buildSrc/src/main/java/KuiklyKotlinBuildVar.kt
 
 # 关闭androidx开关、将androidx包名替换成support包包名
 if [ "$KUIKLY_ENABLE_ANDROID_SUPPORT_COMPATIBLE" -eq 1 ]; then
@@ -36,6 +37,9 @@ sed -i.bak -e 's/md5L16\.encodeToByteArray()/md5L16\.toByteArray(Charsets.UTF_8)
 echo "$core_pager_manager"
 sed -i.bak 's/lowercase/toLowerCase/g' "$core_pager_manager"
 
+# buildSrc替换useInMemoryPgpKeys方法
+sed -i.bak 's/useInMemoryPgpKeys(keyId, secretKey, password)/useInMemoryPgpKeys(secretKey, password)/g' "$kuikly_kotlin_build_var"
+
 # 构建
 KUIKLY_AGP_VERSION="3.5.4" KUIKLY_KOTLIN_VERSION="1.3.10" ./gradlew -c settings.1.3.10.gradle.kts :core-annotations:publishToMavenLocal --stacktrace
 KUIKLY_AGP_VERSION="3.5.4" KUIKLY_KOTLIN_VERSION="1.3.10" ./gradlew -c settings.1.3.10.gradle.kts :core-kapt:publishToMavenLocal --stacktrace
@@ -58,3 +62,4 @@ fi
 mv gradle/wrapper/gradle-wrapper.properties.bak gradle/wrapper/gradle-wrapper.properties
 mv "$core_convert_util_file.bak" $core_convert_util_file
 mv "$core_pager_manager.bak" "$core_pager_manager"
+mv "$kuikly_kotlin_build_var.bak" $kuikly_kotlin_build_var

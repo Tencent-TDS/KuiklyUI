@@ -3,6 +3,7 @@ plugins {
     kotlin("native.cocoapods")
     id("com.android.library")
     id("maven-publish")
+    signing
 }
 
 group = MavenConfig.GROUP
@@ -22,6 +23,17 @@ publishing {
             }
         } else {
             mavenLocal()
+        }
+    }
+
+    afterEvaluate {
+        publications.withType<MavenPublication>().configureEach {
+            pom.configureMavenCentralMetadata()
+            signPublicationIfKeyPresent(project)
+        }
+        // for mavenCentral verify
+        publications.named<MavenPublication>("jvm") {
+            artifact(emptyJavadocJar)
         }
     }
 }
@@ -56,4 +68,8 @@ android {
         minSdk = 21
         targetSdk = 32
     }
+}
+
+val emptyJavadocJar by tasks.registering(Jar::class) {
+    archiveClassifier.set("javadoc")
 }

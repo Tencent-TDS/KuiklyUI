@@ -1,6 +1,7 @@
 plugins {
     kotlin("multiplatform")
     id("maven-publish")
+    signing
 }
 
 group = MavenConfig.GROUP
@@ -22,6 +23,16 @@ publishing {
             mavenLocal()
         }
     }
+
+    afterEvaluate {
+        publications.withType<MavenPublication>().configureEach {
+            pom.configureMavenCentralMetadata()
+            signPublicationIfKeyPresent(project)
+        }
+        publications.named<MavenPublication>("jvm") {
+            artifact(emptyJavadocJar)
+        }
+    }
 }
 
 kotlin {
@@ -39,4 +50,8 @@ kotlin {
             resources.srcDir("src/main/resources")
         }
     }
+}
+
+val emptyJavadocJar by tasks.registering(Jar::class) {
+    archiveClassifier.set("javadoc")
 }

@@ -6,6 +6,7 @@ plugins {
     // kotlin("native.cocoapods")
     id("com.android.library")
     id("maven-publish")
+    signing
 }
 
 group = MavenConfig.GROUP
@@ -26,12 +27,15 @@ publishing {
         } else {
             mavenLocal()
         }
+
+        publications.withType<MavenPublication>().configureEach {
+            pom.configureMavenCentralMetadata()
+            signPublicationIfKeyPresent(project)
+        }
     }
 }
 
 kotlin {
-    // targets
-    jvm()
 
     android {
         publishLibraryVariantsGroupedByFlavor = true

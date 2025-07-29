@@ -24,6 +24,17 @@ publishing {
             mavenLocal()
         }
     }
+
+    afterEvaluate {
+        publications.withType<MavenPublication>().configureEach {
+            pom.configureMavenCentralMetadata()
+            signPublicationIfKeyPresent(project)
+        }
+        // for mavenCentral verify
+        publications.named<MavenPublication>("jvm") {
+            artifact(emptyJavadocJar)
+        }
+    }
 }
 
 kotlin {
@@ -56,4 +67,8 @@ android {
         minSdk = 21
         targetSdk = 32
     }
+}
+
+val emptyJavadocJar by tasks.registering(Jar::class) {
+    archiveClassifier.set("javadoc")
 }

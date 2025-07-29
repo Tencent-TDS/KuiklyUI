@@ -44,8 +44,5 @@ project(":compose").buildFileName = buildFileName
 include(":demo")
 project(":demo").buildFileName = buildFileName
 
-include(":compose")
-project(":compose").buildFileName = buildFileName
-
 // include(":androidApp")
 

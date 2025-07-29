@@ -2,6 +2,7 @@ plugins {
     id 'com.android.library'
     id 'org.jetbrains.kotlin.android'
     id("maven-publish")
+    id("signing")
 }
 
 group = MavenConfig.GROUP
@@ -32,6 +33,8 @@ afterEvaluate {
                 version Version.INSTANCE.getRenderVersion()
                 artifact(tasks.getByName("bundleReleaseAar"))
 //                artifact("$buildDir/outputs/aar/core-render-android-compoat-release.aar")
+//                pom.configureMavenCentralMetadata()
+//                signPublicationIfKeyPresent(project)
             }
         }
     }

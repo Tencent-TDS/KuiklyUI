@@ -4,6 +4,7 @@ plugins {
     id 'kotlin'
     id 'kotlin-kapt'
     id 'maven-publish'
+    id 'signing'
 }
 
 group = MavenConfig.GROUP
@@ -36,6 +37,8 @@ afterEvaluate {
 //                artifact(tasks.getByName("bundleReleaseAar"))
 //                artifact("$buildDir/outputs/aar/core-render-android-compoat-release.aar")
             }
+//            pom.configureMavenCentralMetadata()
+//            signPublicationIfKeyPresent(project)
         }
     }
 

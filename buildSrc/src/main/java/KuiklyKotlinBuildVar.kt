@@ -14,6 +14,9 @@
  */
 
 import org.gradle.api.Project
+import org.gradle.api.publish.maven.MavenPom
+import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.plugins.signing.SigningExtension
 import java.io.File
 import java.io.FileInputStream
 import java.util.Properties
@@ -72,8 +75,8 @@ object Output {
 
 object MavenConfig {
     const val GROUP = "com.tencent.kuikly-open"
-    const val REPO_URL = "https://oss.sonatype.org/service/local/staging/deploy/maven2"
-    const val SNAPSHOT_REPO_URL = ""
+    const val REPO_URL = "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2"
+    const val SNAPSHOT_REPO_URL = "https://central.sonatype.com/repository/maven-snapshots/"
     const val RENDER_ANDROID_ARTIFACT_ID = "core-render-android"
 
     private const val KEY_USER_NAME = "username"
@@ -236,4 +239,43 @@ object Version {
         }
     }
 
+}
+
+fun MavenPom.configureMavenCentralMetadata() {
+    name.set("KuiklyUI")
+    description.set("`Kuikly` is a comprehensive cross-platform solution for UI and logic based on Kotlin multi-platform. It was launched by Tencent's company-level Oteam in the front-end field. It aims to provide a `high-performance, full-platform development framework with unified codebase, ultimate ease of use, and dynamic flexibility`")
+    url.set("https://github.com/Tencent-TDS/KuiklyUI")
+
+    licenses {
+        license {
+            name.set("KuiklyUI")
+            url.set("https://github.com/Tencent-TDS/KuiklyUI/blob/main/LICENSE")
+        }
+    }
+
+    developers {
+        developer {
+            id.set("tds-Kuikly")
+            name.set("tds-Kuikly Team")
+        }
+    }
+    scm {
+        url.set("https://github.com/Tencent-TDS/KuiklyUI")
+    }
+}
+
+fun MavenPublication.signPublicationIfKeyPresent(project: Project) {
+    val keyId = getSensitiveProperty(project, "signing.keyId")
+    val secretKey = getSensitiveProperty(project, "signing.secretKey")
+    val password = getSensitiveProperty(project, "signing.password")
+    if (!secretKey.isNullOrBlank()) {
+        project.extensions.configure<SigningExtension>("signing") {
+            useInMemoryPgpKeys(keyId, secretKey, password)
+            sign(this@signPublicationIfKeyPresent)
+        }
+    }
+}
+
+fun getSensitiveProperty(project: Project, name: String): String? {
+    return project.findProperty(name) as? String ?: System.getenv(name)
 }

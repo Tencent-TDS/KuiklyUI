@@ -35,15 +35,15 @@ class KRClipboardModule : KuiklyRenderBaseModule() {
         val json = try { JSONObject(params ?: "") } catch (_: Exception) { null } ?: return
         val text = json.optString("text", "")
         val clipboard = this.context?.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
-        val clip = ClipData.newPlainText("label", text)
+        val clip = ClipData.newPlainText(null, text)
         clipboard.setPrimaryClip(clip)
     }
 
     private fun getText(): String {
-        val clipboard = this.context?.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return ""
-        val ctx = this.context
+        val ctx = this.context ?: return ""
+        val clipboard = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return ""
         val clip = clipboard.primaryClip
-        if (clip != null && clip.itemCount > 0 && ctx != null) {
+        if (clip != null && clip.itemCount > 0) {
             return clip.getItemAt(0).coerceToText(ctx).toString()
         }
         return ""

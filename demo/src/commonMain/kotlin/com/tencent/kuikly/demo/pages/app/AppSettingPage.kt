@@ -1,6 +1,5 @@
 package com.tencent.kuikly.demo.pages.app
 
-import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Animation
 import com.tencent.kuikly.core.base.Border
@@ -24,15 +23,15 @@ import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.TransitionType
 import com.tencent.kuikly.core.views.TransitionView
 import com.tencent.kuikly.core.views.View
+import com.tencent.kuikly.demo.pages.app.lang.MultiLingualPager
 import com.tencent.kuikly.demo.pages.app.lang.LangManager
 import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
 
 @Page("AppSettingPage")
-internal class AppSettingPage : BasePager() {
+internal class AppSettingPage : MultiLingualPager() {
 
     private var theme by observable(ThemeManager.getTheme())
     private var lang by observable(LangManager.getCurrentLanguage())
-    private var resString by observable(LangManager.getCurrentResString())
     private lateinit var settingLangHint: String
     private var showModal by observable(false)
 
@@ -61,7 +60,7 @@ internal class AppSettingPage : BasePager() {
 
                     Text {
                         attr {
-                            text(ctx.resString.setting)
+                            text(ctx.resStrings.setting)
                             color(ctx.theme.colors.topBarTextFocused)
                             fontSize(17f)
                             fontWeightSemiBold()
@@ -93,7 +92,7 @@ internal class AppSettingPage : BasePager() {
                 attr {
                     margin(16f)
                     fontSize(20f)
-                    text(ctx.resString.themeHint)
+                    text(ctx.resStrings.themeHint)
                     color(ctx.theme.colors.backgroundElement)
                     fontWeightBold()
                 }
@@ -118,7 +117,7 @@ internal class AppSettingPage : BasePager() {
                                 attr {
                                     margin(12f)
                                     fontSize(16f)
-                                    text(ctx.resString.chosen)
+                                    text(ctx.resStrings.chosen)
                                     color(theme.topBarTextFocused)
                                 }
                             }
@@ -148,7 +147,7 @@ internal class AppSettingPage : BasePager() {
                 attr {
                     margin(16f)
                     fontSize(20f)
-                    text(ctx.resString.themeHint + ": " + ctx.theme.asset)
+                    text(ctx.resStrings.themeHint + ": " + ctx.theme.asset)
                     color(ctx.theme.colors.backgroundElement)
                     fontWeightBold()
                 }
@@ -207,7 +206,7 @@ internal class AppSettingPage : BasePager() {
                 attr {
                     margin(16f)
                     fontSize(20f)
-                    text(ctx.resString.themeHint + ": " + ctx.theme.asset)
+                    text(ctx.resStrings.themeHint + ": " + ctx.theme.asset)
                     color(ctx.theme.colors.backgroundElement)
                     fontWeightBold()
                 }
@@ -256,7 +255,6 @@ internal class AppSettingPage : BasePager() {
                                     ctx.showModal = true
                                     setTimeout(500) {
                                         ctx.lang = LangManager.getCurrentLanguage()
-                                        ctx.resString = LangManager.getCurrentResString()
                                         // 持久化缓存后通知所有页面
                                         ctx.spModule.setString(LangManager.KEY_PREF_LANGUAGE, v)
                                         ctx.notifyModule.postNotify(LangManager.LANG_CHANGED_EVENT, JSONObject())

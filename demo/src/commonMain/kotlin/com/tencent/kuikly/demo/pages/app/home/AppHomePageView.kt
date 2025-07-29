@@ -50,28 +50,28 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
     private lateinit var followViewRef: ViewRef<AppFeedListPageView>
     private lateinit var trendViewRef: ViewRef<AppTrendingPageView>
     private var theme by observable(ThemeManager.getTheme())
-    private var resString by observable(LangManager.getCurrentResString())
+    private var resStrings by observable(LangManager.getCurrentResStrings())
     private var titles by observableList<String>()
     private lateinit var themeEventCallbackRef: CallbackRef
     private lateinit var langEventCallbackRef: CallbackRef
 
     override fun created() {
         super.created()
-        titles.addAll(listOf(resString.topBarFollow, resString.topBarTrend))
+        titles.addAll(listOf(resStrings.topBarFollow, resStrings.topBarTrend))
         themeEventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
             .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
                 theme = ThemeManager.getTheme()
             }
         langEventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
             .addNotify(LangManager.LANG_CHANGED_EVENT) { _ ->
-                resString = LangManager.getCurrentResString()
-                titles[0] = resString.topBarFollow
-                titles[1] = resString.topBarTrend
+                resStrings = LangManager.getCurrentResStrings()
+                titles[0] = resStrings.topBarFollow
+                titles[1] = resStrings.topBarTrend
             }
     }
 
-    override fun viewDestroyed() {
-        super.viewDestroyed()
+    override fun viewWillUnload() {
+        super.viewWillUnload()
         acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
             .removeNotify(ThemeManager.SKIN_CHANGED_EVENT, themeEventCallbackRef)
         acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)

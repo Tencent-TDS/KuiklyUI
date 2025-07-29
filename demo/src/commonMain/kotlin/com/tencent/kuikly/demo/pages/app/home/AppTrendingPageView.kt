@@ -54,32 +54,32 @@ internal class AppTrendingPageView: ComposeView<AppTrendingPageViewAttr, AppTren
     )
     private var viewRefs: MutableList<ViewRef<AppFeedListPageView>> = mutableListOf()
     private var theme by observable(ThemeManager.getTheme())
-    private var resString by observable(LangManager.getCurrentResString())
+    private var resStrings by observable(LangManager.getCurrentResStrings())
     private lateinit var themeEventCallbackRef: CallbackRef
     private lateinit var langEventCallbackRef: CallbackRef
-    private val pageTitles by observableList<String>()
+    private var pageTitles by observableList<String>()
 
-    private fun updateData() {
-        resString = LangManager.getCurrentResString()
-        pageTitles[0] = resString.topBarRecommend
-        pageTitles[1] = resString.topBarNearby
-        pageTitles[2] = resString.topBarRanking
-        pageTitles[3] = resString.topBarCelebrity
-        pageTitles[4] = resString.topBarEntertain
-        pageTitles[5] = resString.topBarSociety
-        pageTitles[6] = resString.topBarTest
+    private fun updateLangResources() {
+        resStrings = LangManager.getCurrentResStrings()
+        pageTitles[0] = resStrings.topBarRecommend
+        pageTitles[1] = resStrings.topBarNearby
+        pageTitles[2] = resStrings.topBarRanking
+        pageTitles[3] = resStrings.topBarCelebrity
+        pageTitles[4] = resStrings.topBarEntertain
+        pageTitles[5] = resStrings.topBarSociety
+        pageTitles[6] = resStrings.topBarTest
     }
 
     override fun created() {
         super.created()
-        pageTitles.addAll(listOf(
-            resString.topBarRecommend,
-            resString.topBarNearby,
-            resString.topBarRanking,
-            resString.topBarCelebrity,
-            resString.topBarEntertain,
-            resString.topBarSociety,
-            resString.topBarTest
+        pageTitles.addAll(arrayOf(
+            resStrings.topBarRecommend,
+            resStrings.topBarNearby,
+            resStrings.topBarRanking,
+            resStrings.topBarCelebrity,
+            resStrings.topBarEntertain,
+            resStrings.topBarSociety,
+            resStrings.topBarTest
         ))
         themeEventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
             .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
@@ -87,12 +87,12 @@ internal class AppTrendingPageView: ComposeView<AppTrendingPageViewAttr, AppTren
             }
         langEventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
             .addNotify(LangManager.LANG_CHANGED_EVENT) { _ ->
-                updateData()
+                updateLangResources()
             }
     }
 
-    override fun viewDestroyed() {
-        super.viewDestroyed()
+    override fun viewWillUnload() {
+        super.viewWillUnload()
         acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
             .removeNotify(ThemeManager.SKIN_CHANGED_EVENT, themeEventCallbackRef)
         acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
@@ -126,7 +126,7 @@ internal class AppTrendingPageView: ComposeView<AppTrendingPageViewAttr, AppTren
                         View {}
                     }
                 }
-                for (i in 0 until ctx.pageTitles.size) {
+                for (i in ctx.pageTitles.indices) {
                     TabItem { state ->
                         attr {
                             marginLeft(18f)

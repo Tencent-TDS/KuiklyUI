@@ -2,7 +2,7 @@ package com.tencent.kuikly.demo.pages.app.lang
 
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 
-data class ResString (
+data class ResStrings (
     val language: String,
 
     // Top navigation bar
@@ -70,8 +70,8 @@ data class ResString (
         private const val KEY_THEME_HINT = "themeHint"
         private const val KEY_LANGUAGE_HINT = "languageHint"
 
-        fun fromJson(json: JSONObject): ResString {
-            return ResString(
+        fun fromJson(json: JSONObject): ResStrings {
+            return ResStrings(
                 language = json.optString(KEY_LANGUAGE),
                 topBarFollow = json.optString(KEY_TOP_BAR_FOLLOW),
                 topBarTrend = json.optString(KEY_TOP_BAR_TREND),
@@ -105,7 +105,7 @@ data class ResString (
     }
 }
 
-val SimplifiedChinese = ResString(
+val SimplifiedChinese = ResStrings(
     language = "zh-Hans",
     topBarFollow = "关注",
     topBarTrend = "热门",
@@ -136,7 +136,7 @@ val SimplifiedChinese = ResString(
     languageHint = "请选择语言"
 )
 
-val TraditionalChinese = ResString(
+val TraditionalChinese = ResStrings(
     language = "zh-Hant",
     topBarFollow = "關注",
     topBarTrend = "熱門",

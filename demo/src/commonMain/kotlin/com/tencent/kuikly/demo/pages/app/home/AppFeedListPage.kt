@@ -54,9 +54,9 @@ internal class AppFeedListPageView(
     private lateinit var footerRefreshRef : ViewRef<FooterRefreshView>
     private var didLoadFirstFeeds = false
     private var theme by observable(ThemeManager.getTheme())
-    private var resString by observable(LangManager.getCurrentResString())
-    private var refreshText by observable(resString.pullToRefresh)
-    private var footerRefreshText by observable(resString.loadMore)
+    private var resStrings by observable(LangManager.getCurrentResStrings())
+    private var refreshText by observable(resStrings.pullToRefresh)
+    private var footerRefreshText by observable(resStrings.loadMore)
     private lateinit var themeEventCallbackRef: CallbackRef
     private lateinit var langEventCallbackRef: CallbackRef
 
@@ -69,12 +69,12 @@ internal class AppFeedListPageView(
             }
         langEventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
             .addNotify(LangManager.LANG_CHANGED_EVENT) { _ ->
-                resString = LangManager.getCurrentResString()
+                resStrings = LangManager.getCurrentResStrings()
             }
     }
 
-    override fun viewDestroyed() {
-        super.viewDestroyed()
+    override fun viewWillUnload() {
+        super.viewWillUnload()
         acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
             .removeNotify(ThemeManager.SKIN_CHANGED_EVENT, themeEventCallbackRef)
         acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
@@ -121,7 +121,7 @@ internal class AppFeedListPageView(
             vif({ ctx.feeds.isEmpty() }) {
                 Text {
                     attr {
-                        text(ctx.resString.loading)
+                        text(ctx.resStrings.loading)
                         color(ctx.theme.colors.feedContentText)
                     }
                 }
@@ -145,15 +145,15 @@ internal class AppFeedListPageView(
                             refreshStateDidChange {
                                 when(it) {
                                     RefreshViewState.REFRESHING -> {
-                                        ctx.refreshText = ctx.resString.refreshing
+                                        ctx.refreshText = ctx.resStrings.refreshing
                                         ctx.requestFeeds(0) {
                                             ctx.refreshRef.view?.endRefresh()
-                                            ctx.refreshText = ctx.resString.refreshDone
+                                            ctx.refreshText = ctx.resStrings.refreshDone
                                             ctx.footerRefreshRef.view?.resetRefreshState()
                                         }
                                     }
-                                    RefreshViewState.IDLE -> ctx.refreshText = ctx.resString.pullToRefresh
-                                    RefreshViewState.PULLING -> ctx.refreshText = ctx.resString.releaseToRefresh
+                                    RefreshViewState.IDLE -> ctx.refreshText = ctx.resStrings.pullToRefresh
+                                    RefreshViewState.PULLING -> ctx.refreshText = ctx.resStrings.releaseToRefresh
                                 }
                             }
                         }
@@ -187,16 +187,16 @@ internal class AppFeedListPageView(
                                 refreshStateDidChange {
                                     when(it) {
                                         FooterRefreshState.REFRESHING -> {
-                                            ctx.footerRefreshText = ctx.resString.loading
+                                            ctx.footerRefreshText = ctx.resStrings.loading
                                             ctx.curPage++
                                             ctx.requestFeeds(ctx.curPage) {
                                                 val state = if (ctx.curPage == 9) FooterRefreshEndState.NONE_MORE_DATA else FooterRefreshEndState.SUCCESS
                                                 ctx.footerRefreshRef.view?.endRefresh(state)
                                             }
                                         }
-                                        FooterRefreshState.IDLE -> ctx.footerRefreshText = ctx.resString.loadMore
-                                        FooterRefreshState.NONE_MORE_DATA -> ctx.footerRefreshText = ctx.resString.noMoreData
-                                        FooterRefreshState.FAILURE -> ctx.footerRefreshText = ctx.resString.tapToRetry
+                                        FooterRefreshState.IDLE -> ctx.footerRefreshText = ctx.resStrings.loadMore
+                                        FooterRefreshState.NONE_MORE_DATA -> ctx.footerRefreshText = ctx.resStrings.noMoreData
+                                        FooterRefreshState.FAILURE -> ctx.footerRefreshText = ctx.resStrings.tapToRetry
                                         else -> {}
                                     }
                                 }

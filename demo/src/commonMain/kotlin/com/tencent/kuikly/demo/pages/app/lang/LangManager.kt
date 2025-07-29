@@ -8,7 +8,7 @@ import com.tencent.kuikly.demo.pages.base.BridgeModule
 object LangManager {
     private const val LANG_MANAGER_TAG = "LangManager"
     const val KEY_PREF_LANGUAGE = "lang"
-    const val KEY_PARAM_LANGUAGE = "sysLang"
+    const val KEY_PARAM_SYSTEM_LANGUAGE = "sysLang"
     const val LANG_CHANGED_EVENT = "langChanged"
     val SUPPORTED_LANGUAGES = mapOf(
         "简体中文" to "zh-Hans",
@@ -25,20 +25,20 @@ object LangManager {
 
     // 当前语言和资源
     private val defaultLanguage = "zh-Hans"
-    private val defaultResString = SimplifiedChinese
+    private val defaultResStrings = SimplifiedChinese
     private var language: String = defaultLanguage
-    private var resString: ResString = defaultResString
+    private var resStrings: ResStrings = defaultResStrings
 
     /**
      * 获取资源字符串
      */
-    private fun getResString(lang: String): ResString {
+    private fun getResString(lang: String): ResStrings {
         return when (lang) {
             "zh-Hans" -> SimplifiedChinese
             "zh-Hant" -> TraditionalChinese
-            "en" -> ResString.fromJson(JSONObject(enJsonString))
-            "de" -> ResString.fromJson(JSONObject(deJsonString))
-            else -> defaultResString
+            "en" -> ResStrings.fromJson(JSONObject(enJsonString))
+            "de" -> ResStrings.fromJson(JSONObject(deJsonString))
+            else -> defaultResStrings
         }
     }
 
@@ -55,7 +55,7 @@ object LangManager {
                 KLog.e(LANG_MANAGER_TAG, "Failed to read json from assets: $jsonPath")
             } else {
                 val langJson = json.optJSONObject("result")
-                resString = langJson?.let { ResString.fromJson(it) } ?: defaultResString
+                resStrings = langJson?.let { ResStrings.fromJson(it) } ?: defaultResStrings
             }
         }
     }
@@ -63,7 +63,7 @@ object LangManager {
     /**
      * 获取当前资源字符串
      */
-    fun getCurrentResString(): ResString = resString
+    fun getCurrentResStrings(): ResStrings = resStrings
 
     /**
      * 获取当前语言
@@ -76,13 +76,13 @@ object LangManager {
     fun changeLanguage(lang: String) {
         if (lang !in SUPPORTED_LANGUAGES.values) {
             language = defaultLanguage
-            resString = defaultResString
+            resStrings = defaultResStrings
             KLog.e(LANG_MANAGER_TAG, "Unsupported language: $lang")
             return
         }
 
         language = lang
-        resString = getResString(lang)
+        resStrings = getResString(lang)
         KLog.d(LANG_MANAGER_TAG, "Language changed to: $lang")
     }
 }

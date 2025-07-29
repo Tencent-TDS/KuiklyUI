@@ -116,9 +116,7 @@ bool KRView::ResetProp(const std::string &prop_key) {
 
 void KRView::ProcessTouchEvent(ArkUI_NodeEvent *event) {
     auto input_event = kuikly::util::GetArkUIInputEvent(event);
-    if (TryFireSuperTouchCancelEvent(input_event)) {
-        return;
-    }
+    TryFireSuperTouchCancelEvent(input_event)
     auto action = kuikly::util::GetArkUIInputEventAction(input_event);
     if (action == UI_TOUCH_EVENT_ACTION_DOWN) {
         TryFireOnTouchDownEvent(input_event);
@@ -213,7 +211,6 @@ bool KRView::TryFireSuperTouchCancelEvent(ArkUI_UIInputEvent *input_event) {
     if (super_touch_handler_->IsCanceled()) {
         canceled = true;
     } else if (super_touch_handler_->ProcessCancel()) {
-        TryFireOnTouchCancelEvent(input_event);
         canceled = true;
     }
     if ((action == UI_TOUCH_EVENT_ACTION_UP && pointer_count == 1) || action == UI_TOUCH_EVENT_ACTION_CANCEL) {
@@ -249,6 +246,9 @@ KRAnyValue KRView::GenerateBaseParamsWithTouch(ArkUI_UIInputEvent *input_event, 
     first_touch["action"] = NewKRRenderValue(action);
     auto event_time_millis = kuikly::util::GetArkUIInputEventTime(input_event) / NS_PER_MS;
     first_touch["timestamp"] = NewKRRenderValue(event_time_millis);
+    if (super_touch_handler_) {
+        first_touch["consumed"] = NewKTRenderValue(super_touch_handler_->IsCanceled() ? 1 : 0);
+    }
     return NewKRRenderValue(first_touch);
 }
 

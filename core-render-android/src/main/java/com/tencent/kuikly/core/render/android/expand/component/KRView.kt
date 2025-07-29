@@ -219,7 +219,6 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
             canceled = true
         } else if (superTouch && touchConsumeByNative) {
             superTouchCanceled = true
-            tryFireCancelEvent(event)
             canceled = true
         }
         if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
@@ -229,9 +228,7 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
     }
 
     private fun tryFireTouchEvent(event: MotionEvent): Boolean {
-        if (tryFireSuperTouchCanceled(event)) {
-            return true
-        }
+        tryFireSuperTouchCanceled(event)
         val action = event.actionMasked
         return when (action) {
             MotionEvent.ACTION_DOWN -> tryFireDownEvent(event)
@@ -307,8 +304,15 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
         }
         return (touches.first() ?: mapOf()).toMutableMap().apply {
             put(TOUCHES, touches)
-            put(TIMESTAMP, motionEvent.eventTime)
             put(EVENT_ACTION, eventName)
+            if (superTouch) {
+                put(TIMESTAMP, motionEvent.eventTime)
+                put(CONSUMED, if (touchConsumeByNative) {
+                    1
+                } else {
+                    0
+                })
+            }
         }
     }
 
@@ -351,6 +355,7 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
         private const val POINTER_ID = "pointerId"
         private const val SCREEN_FRAME_PAUSE = "screenFramePause"
         private const val TIMESTAMP = "timestamp"
+        private const val CONSUMED = "consumed"
 
         private const val EVENT_ACTION = "action"
         private const val SUPER_TOUCH = "superTouch"

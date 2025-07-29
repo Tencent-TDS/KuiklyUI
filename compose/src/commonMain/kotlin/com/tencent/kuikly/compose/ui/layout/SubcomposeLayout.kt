@@ -274,7 +274,22 @@ fun SubcomposeLayout(
                 }
 
                 // 更新当前的contentSize大小
-                kuiklyInfo.currentContentSize = scrollableState.calculateContentSize()
+                val oldContentSize = kuiklyInfo.currentContentSize
+                val newContentSize = scrollableState.calculateContentSize()
+
+                // 如果contentSize变小了，需要确保composeOffset不会超出边界
+                if (newContentSize < oldContentSize) {
+                    val newMaxScrollOffset = maxOf(0, newContentSize - kuiklyInfo.viewportSize)
+                    if (kuiklyInfo.composeOffset > newMaxScrollOffset) {
+                        // 如果composeOffset超出新的边界，增加contentSize来保持composeOffset不变
+                        val requiredContentSize = kuiklyInfo.composeOffset.toInt() + kuiklyInfo.viewportSize
+                        kuiklyInfo.currentContentSize = maxOf(newContentSize, requiredContentSize)
+                    } else {
+                        kuiklyInfo.currentContentSize = newContentSize
+                    }
+                } else {
+                    kuiklyInfo.currentContentSize = newContentSize
+                }
                 kuiklyInfo.updateContentSizeToRender()
 
                 val toButtomDelta = if (kuiklyInfo.realContentSize == null) {
@@ -286,7 +301,10 @@ fun SubcomposeLayout(
                 if (offset < 0 && scrollableState.isAtTop()) {
                     return@scroll
                 } else if (toButtomDelta != null && delta > toButtomDelta) {
-                    if (toButtomDelta.toInt() <= 0) return@scroll
+                    if (toButtomDelta.toInt() <= 0) {
+                        scrollableState.tryExpandStartSize(offset, true)
+                        return@scroll
+                    }
                     kuiklyInfo.composeOffset += min(delta, toButtomDelta)
                 } else {
                     kuiklyInfo.composeOffset = max(0f, kuiklyInfo.composeOffset + delta)

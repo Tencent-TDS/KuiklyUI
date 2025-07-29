@@ -24,6 +24,7 @@
 #include <native_drawing/drawing_rect.h>
 #include <native_drawing/drawing_shader_effect.h>
 #include <native_drawing/drawing_types.h>
+#include <native_drawing/drawing_matrix.h>
 
 #include "libohos_render/utils/KRColor.h"
 #include "libohos_render/utils/KRJSONObject.h"
@@ -49,12 +50,21 @@ static constexpr std::string_view STROKE_TEXT = "strokeText";
 static constexpr std::string_view BEZIER_CURVE_TO = "bezierCurveTo";
 static constexpr std::string_view RESET = "reset";
 static constexpr std::string_view LINEAR_GRADIENT = "linear-gradient";
-static constexpr int TYPE_COUNTER_CLOCKWISE = 1;
+static constexpr std::string_view SAVE = "save";
+static constexpr std::string_view SAVE_LAYER = "saveLayer";
+static constexpr std::string_view RESTORE = "restore";
+static constexpr std::string_view CLIP = "clip";
+static constexpr std::string_view TRANSLATE = "translate";
+static constexpr std::string_view SCALE = "scale";
+static constexpr std::string_view ROTATE = "rotate";
+static constexpr std::string_view SKEW = "skew";
+static constexpr std::string_view TRANSFORM = "transform";
 
 KRCanvasView::KRCanvasView()
     : KRView(), cachable_methods_({LINE_CAP, LINE_WIDTH, LINE_DASH, STROKE_STYLE, FILL_STYLE, BEGIN_PATH, MOVE_TO,
                                    LINE_TO, ARC, CLOSE_PATH, STROKE, FILL, CREATE_LINEAR_GRADIENT, QUADRATIC_CURVE_TO,
-                                   TEXT_ALIGN, FONT, FILL_TEXT, STROKE_TEXT}) {
+                                   TEXT_ALIGN, FONT, FILL_TEXT, STROKE_TEXT, BEZIER_CURVE_TO, SAVE, SAVE_LAYER,
+                                   RESTORE, CLIP, TRANSLATE, SCALE, ROTATE, SKEW, TRANSFORM}) {
     // ctor body left blank
 }
 void KRCanvasView::DidMoveToParentView() {
@@ -263,7 +273,7 @@ void KRCanvasView::Arc(const std::string &params) {
         float r = paramObj->GetNumber("r");
         float startAngle = paramObj->GetNumber("sAngle") * 180 / M_PI;
         float endAngle = paramObj->GetNumber("eAngle") * 180 / M_PI;
-        bool ccw = paramObj->GetNumber("counterclockwise") == TYPE_COUNTER_CLOCKWISE;
+        bool ccw = paramObj->GetNumber("counterclockwise");
         float sweepAngle = endAngle - startAngle;
         if (ccw) {
             if (sweepAngle > 0) {
@@ -441,10 +451,115 @@ void KRCanvasView::DrawText(std::string params, std::shared_ptr<struct KRFontCol
 }
 
 void KRCanvasView::QuadraticCurveTo(const std::string &params) {
-    // TODO(userName):
+    if (drawingPath_ == nullptr) {
+        return;
+    }
+    auto obj = kuikly::util::JSONObject::Parse(params);
+    float cpx = obj->GetNumber("cpx");
+    float cpy = obj->GetNumber("cpy");
+    float x = obj->GetNumber("x");
+    float y = obj->GetNumber("y");
+    OH_Drawing_PathQuadTo(drawingPath_, cpx, cpy, x, y);
 }
+
 void KRCanvasView::BezierCurveTo(const std::string &params) {
-    // TODO(userName):
+    if (drawingPath_ == nullptr) {
+        return;
+    }
+    auto obj = kuikly::util::JSONObject::Parse(params);
+    float cp1x = obj->GetNumber("cp1x");
+    float cp1y = obj->GetNumber("cp1y");
+    float cp2x = obj->GetNumber("cp2x");
+    float cp2y = obj->GetNumber("cp2y");
+    float x = obj->GetNumber("x");
+    float y = obj->GetNumber("y");
+    OH_Drawing_PathCubicTo(drawingPath_, cp1x, cp1y, cp2x, cp2y, x, y);
+}
+
+void KRCanvasView::Save() {
+    if (canvas_) {
+        OH_Drawing_CanvasSave(canvas_);
+    }
+}
+
+void KRCanvasView::SaveLayer(const std::string &params) {
+    if (canvas_) {
+        auto obj = kuikly::util::JSONObject::Parse(params);
+        float x = obj->GetNumber("x");
+        float y = obj->GetNumber("y");
+        float width = obj->GetNumber("width");
+        float height = obj->GetNumber("height");
+        OH_Drawing_Rect *rect = OH_Drawing_RectCreate(x, y, x + width, y + height);
+        OH_Drawing_CanvasSaveLayer(canvas_, rect, brush_);
+        OH_Drawing_RectDestroy(rect);
+    }
+}
+
+void KRCanvasView::Restore() {
+    if (canvas_) {
+        OH_Drawing_CanvasRestore(canvas_);
+    }
+}
+
+void KRCanvasView::clip(const std::string &params) {
+    if (canvas_ && drawingPath_) {
+        auto obj = kuikly::util::JSONObject::Parse(params);
+        auto op = obj->GetNumber("intersect") ? OH_Drawing_CanvasClipOp::INTERSECT
+                                              : OH_Drawing_CanvasClipOp::DIFFERENCE;
+        OH_Drawing_CanvasClipPath(canvas_, drawingPath_, op, true);
+    }
+}
+
+void KRCanvasView::Translate(const std::string &params) {
+    if (canvas_) {
+        auto obj = kuikly::util::JSONObject::Parse(params);
+        float x = obj->GetNumber("x");
+        float y = obj->GetNumber("y");
+        OH_Drawing_CanvasTranslate(canvas_, x, y);
+    }
+}
+
+void KRCanvasView::Scale(const std::string &params) {
+    if (canvas_) {
+        auto obj = kuikly::util::JSONObject::Parse(params);
+        float x = obj->GetNumber("x");
+        float y = obj->GetNumber("y");
+        OH_Drawing_CanvasScale(canvas_, x, y);
+    }
+}
+
+void KRCanvasView::Rotate(const std::string &params) {
+    if (canvas_) {
+        auto obj = kuikly::util::JSONObject::Parse(params);
+        float degrees = obj->GetNumber("angle") * 180 / M_PI;
+        OH_Drawing_CanvasRotate(canvas_, degrees, 0, 0);
+    }
+}
+
+void KRCanvasView::Skew(const std::string &params) {
+    if (canvas_) {
+        auto obj = kuikly::util::JSONObject::Parse(params);
+        float x = obj->GetNumber("x");
+        float y = obj->GetNumber("y");
+        OH_Drawing_CanvasSkew(canvas_, x, y);
+    }
+}
+
+void KRCanvasView::Transform(const std::string &params) {
+    if (canvas_) {
+        auto obj = kuikly::util::JSONObject::Parse(params);
+        auto values = obj->GetNumberArray("values");
+        if (values.size() < 9) {
+            return;
+        }
+        auto matrix = OH_Drawing_MatrixCreate();
+        OH_Drawing_MatrixSetMatrix(matrix,
+                                   values[0], values[1], values[2],
+                                   values[3], values[4], values[5],
+                                   values[6], values[7], values[8]);
+        OH_Drawing_CanvasConcatMatrix(canvas_, matrix);
+        OH_Drawing_MatrixDestroy(matrix);
+    }
 }
 
 void KRCanvasView::Reset() {
@@ -525,8 +640,28 @@ void KRCanvasView::OnDraw(ArkUI_NodeCustomEvent *event) {
             FillText(params);
         } else if (method == STROKE_TEXT) {
             StrokeText(params);
+        } else if (method == BEZIER_CURVE_TO) {
+            BezierCurveTo(params);
         } else if (method == RESET) {
             Reset();
+        } else if (method == SAVE) {
+            Save();
+        } else if (method == SAVE_LAYER) {
+            SaveLayer(params);
+        } else if (method == RESTORE) {
+            Restore();
+        } else if (method == CLIP) {
+            clip(params);
+        } else if (method == TRANSLATE) {
+            Translate(params);
+        } else if (method == SCALE) {
+            Scale(params);
+        } else if (method == ROTATE) {
+            Rotate(params);
+        } else if (method == SKEW) {
+            Skew(params);
+        } else if (method == TRANSFORM) {
+            Transform(params);
         }
     });
 }

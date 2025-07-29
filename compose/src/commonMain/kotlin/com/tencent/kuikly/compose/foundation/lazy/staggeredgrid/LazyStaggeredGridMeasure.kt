@@ -279,6 +279,11 @@ private fun LazyStaggeredGridMeasureContext.measure(
     withDebugLogging(measureScope) {
         val itemCount = itemProvider.itemCount
 
+        if (state.kuiklyInfo.cachedTotalItems > 0 && itemCount < state.kuiklyInfo.cachedTotalItems) {
+            state.kuiklyInfo.offsetDirty = true
+        }
+        state.kuiklyInfo.cachedTotalItems = itemCount
+
         if (itemCount <= 0 || laneCount == 0) {
             var layoutWidth = constraints.minWidth
             var layoutHeight = constraints.minHeight

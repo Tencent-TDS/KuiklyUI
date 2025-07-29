@@ -112,6 +112,11 @@ class KuiklyScrollInfo {
     var hasPullToRefresh: Boolean = false
 
     /**
+     * Cached total number of items, used to detect changes in item count
+     */
+    var cachedTotalItems: Int = 0
+
+    /**
      * Update content size to render view
      */
     fun updateContentSizeToRender() {

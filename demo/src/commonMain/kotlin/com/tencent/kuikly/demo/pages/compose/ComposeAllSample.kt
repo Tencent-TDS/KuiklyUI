@@ -99,6 +99,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("BoxWithConstraints", "BoxWithConstraints 响应式布局组件示例", "BoxWithConstraintsDemo"),
             DemoItem("Dialog", "Dialog 组件示例", "DialogDemo"),
             DemoItem("BottomSheet", "底部弹窗示例", "BottomSheetDemo1"),
+            DemoItem("AppBar", "AppBar组件示例", "AppBarDemo"),
             DemoItem("Shape", "shape示例", "shapedemo"),
             DemoItem("HorizontalPager", "HorizontalPager基本用法示例", "HorizontalPagerDemo1"),
             DemoItem("LazyHorizontalGrid", "LazyHorizontalGrid基本用法示例", "LazyHorizontalGridDemo1"),

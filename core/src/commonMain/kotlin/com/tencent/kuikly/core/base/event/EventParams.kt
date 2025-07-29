@@ -49,7 +49,7 @@ data class TouchParams(
     val pointerId: Int, // 触摸点的ID
     val action: String, // 事件类型, 该属性从1.1.86版本开始支持，之前的版本获取为空
     val touches: List<Touch>, // 包含所有多指触摸信息
-    val consumed: Boolean, // 是否已经被消费了，来自渲染层的消费状态，目前用于滑动中
+    val consumed: Boolean // 是否已经被消费了，来自渲染层的消费状态，目前用于滑动中
 ) {
     companion object {
         fun decode(params: Any?): TouchParams {

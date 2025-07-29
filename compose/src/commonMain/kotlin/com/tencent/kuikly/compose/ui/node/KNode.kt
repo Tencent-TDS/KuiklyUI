@@ -51,6 +51,7 @@ import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.views.DivView
 import com.tencent.kuikly.core.views.HoverView
 import com.tencent.kuikly.core.views.ModalView
+import com.tencent.kuikly.core.views.ScrollerView
 import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.max
@@ -239,6 +240,85 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         view.updateFrame(newFrame)
     }
 
+    /**
+     * Corrects composeOffset when ScrollView height changes
+     * Mainly handles the following scenarios:
+     * 1. When currently scrolled to the bottom and height becomes shorter, adjust offset to avoid exceeding boundaries
+     * 2. When there is current offset but height increases, scrolling may no longer be needed, set offset to 0
+     */
+    private fun updateScrollViewOffset(curFrame: Frame, newFrame: Frame) {
+        if (view !is ScrollerView<*, *>) {
+            return
+        }
+
+        val scrollerView = view as ScrollerView<*, *>
+        val kuiklyInfo = scrollerView.extProps[KuiklyInfoKey] as? KuiklyScrollInfo ?: return
+
+        // Get current and new height
+        val curHeight = if (kuiklyInfo.isVertical()) curFrame.height else curFrame.width
+        val newHeight = if (kuiklyInfo.isVertical()) newFrame.height else newFrame.width
+
+        // If height hasn't changed, no correction needed
+        if (curHeight == newHeight) {
+            return
+        }
+
+        // Get current scroll offset - convert to pixel units
+        val currentOffset = if (kuiklyInfo.isVertical()) {
+            (scrollerView.curOffsetY * kuiklyInfo.getDensity()).toInt()
+        } else {
+            (scrollerView.curOffsetX * kuiklyInfo.getDensity()).toInt()
+        }
+
+        // Calculate maximum scrollable distance - use pixel units, consistent with composeOffset
+        val currentContentSize = kuiklyInfo.currentContentSize // already in pixel units
+        val viewportSize = if (kuiklyInfo.isVertical()) {
+            (newHeight * kuiklyInfo.getDensity()).toInt()
+        } else {
+            (newFrame.width * kuiklyInfo.getDensity()).toInt()
+        }
+
+        // Handle edge cases: if contentSize is 0 or viewportSize is 0, no scrolling needed
+        if (currentContentSize <= 0 || viewportSize <= 0) {
+            kuiklyInfo.composeOffset = 0f
+            return
+        }
+
+        val maxScrollOffset = maxOf(0, currentContentSize - viewportSize)
+
+        // Correct composeOffset - use pixel units
+        val correctedOffset = when {
+            // If currently scrolled to bottom and height becomes shorter, adjust offset
+            currentOffset >= maxScrollOffset && newHeight < curHeight -> {
+                val newMaxScrollOffset = maxOf(0, currentContentSize - viewportSize)
+                minOf(currentOffset, newMaxScrollOffset)
+            }
+            // If there is current offset but height increases, check if adjustment is needed
+            currentOffset > 0 && newHeight > curHeight -> {
+                val newMaxScrollOffset = maxOf(0, currentContentSize - viewportSize)
+                if (newMaxScrollOffset <= 0) {
+                    0 // no scrolling needed
+                } else {
+                    // When height increases, keep composeOffset unchanged, but check if it exceeds boundaries
+                    if (currentOffset > newMaxScrollOffset) {
+                        newMaxScrollOffset // adjust to maximum when exceeding boundaries
+                    } else {
+                        currentOffset // keep unchanged when within boundaries
+                    }
+                }
+            }
+            // Other cases keep current offset
+            else -> {
+                currentOffset
+            }
+        }
+
+        // Update composeOffset
+        if (correctedOffset != currentOffset) {
+            kuiklyInfo.composeOffset = correctedOffset.toFloat()
+        }
+    }
+
     private fun DeclarativeBaseView<*, *>.updateFrame(newFrame: Frame) {
         val curFrame = renderView?.currentFrame ?: Frame.zero
         if (!curFrame.intEqual(newFrame)) {
@@ -249,6 +329,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
                 height = newFrame.height
             )
 
+            updateScrollViewOffset(curFrame, densityFrame)
             setFrameToRenderView(densityFrame)
             getViewEvent().notifyLayoutFrameDidChange(newFrame)
         }

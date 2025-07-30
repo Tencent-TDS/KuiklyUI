@@ -144,6 +144,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("内外边距", "Compose内外边距，边框写法示例", "MarginPaddingTest"),
             DemoItem("MaterialDemo", "material3组件示例", "material_demo"),
             DemoItem("Dialog弹出菜单PopMenu", "基于Dialog实现的弹出菜单PopMenu示例", "PopMenuDialogDemo"),
+            DemoItem("AnchoredDraggableDemo", "AnchoredDraggable使用案例", "AnchoredDraggableDemo"),
         )
 
     @Composable

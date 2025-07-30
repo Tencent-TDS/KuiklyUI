@@ -37,6 +37,8 @@ import com.tencent.kuikly.compose.extension.intEqual
 import com.tencent.kuikly.compose.gestures.KuiklyScrollInfo
 import com.tencent.kuikly.compose.layout.resetViewVisible
 import com.tencent.kuikly.compose.node.extPropsVar
+import com.tencent.kuikly.compose.ui.layout.LookaheadLayoutCoordinates
+import com.tencent.kuikly.compose.ui.unit.plus
 import com.tencent.kuikly.core.base.Attr
 import com.tencent.kuikly.core.base.Attr.StyleConst
 import com.tencent.kuikly.core.base.BoxShadow
@@ -190,6 +192,20 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         kuiklyCoordinates = null
     }
 
+    private fun LayoutCoordinates.toCoordinator() =
+        (this as? LookaheadLayoutCoordinates)?.coordinator ?: this as NodeCoordinator
+
+    private fun LayoutCoordinates.viewPositionOf(coordinator: LayoutCoordinates): Offset {
+        var nodeCoordinator = coordinator.toCoordinator()
+        nodeCoordinator.onCoordinatesUsed()
+        var position = Offset.Zero
+        while (nodeCoordinator !== this) {
+            position += nodeCoordinator.position
+            nodeCoordinator = nodeCoordinator.wrappedBy!!
+        }
+        return position
+    }
+
     override fun updateKuiklyViewFrame(coordinator: LayoutCoordinates) {
 
         val curCoordinator = kuiklyCoordinates ?: innerCoordinator
@@ -203,7 +219,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         val ksScrollSubView = view.parent is VirtualNodeView
         val parentNode = parent as? KNode<*>
         val parentCoordinator = parentNode?.kuiklyCoordinates ?: parentNode?.innerCoordinator
-        var pos = parentCoordinator?.localPositionOf(curCoordinator, Offset.Zero) ?: Offset.Zero
+        var pos = parentCoordinator?.viewPositionOf(curCoordinator) ?: Offset.Zero
 
         // scrollview上的子节点，父亲是virtual节点
         if (ksScrollSubView && needFixScrollOffset) {

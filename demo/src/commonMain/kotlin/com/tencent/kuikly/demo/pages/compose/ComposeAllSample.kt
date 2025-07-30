@@ -145,6 +145,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("MaterialDemo", "material3组件示例", "material_demo"),
             DemoItem("Dialog弹出菜单PopMenu", "基于Dialog实现的弹出菜单PopMenu示例", "PopMenuDialogDemo"),
             DemoItem("AnchoredDraggableDemo", "AnchoredDraggable使用案例", "AnchoredDraggableDemo"),
+            DemoItem("ScaffoldDemo", "Scaffold使用案例", "ScaffoldDemo"),
         )
 
     @Composable

@@ -105,17 +105,25 @@ import kotlin.math.min
 @Composable
 fun SubcomposeLayout(
     modifier: Modifier = Modifier,
-    measurePolicy: SubcomposeMeasureScope.(Constraints) -> MeasureResult,
     scrollableState: ScrollableState? = null,
     orientation: Orientation = Orientation.Vertical,
+    measurePolicy: SubcomposeMeasureScope.(Constraints) -> MeasureResult,
 ) {
-    SubcomposeLayout(
-        state = remember { SubcomposeLayoutState() },
-        modifier = modifier,
-        measurePolicy = measurePolicy,
-        scrollableState = scrollableState,
-        orientation = orientation,
-    )
+    if (scrollableState == null) {
+        SubcomposeLayoutNoScroll(
+            state = remember { SubcomposeLayoutState() },
+            modifier = modifier,
+            measurePolicy = measurePolicy,
+        )
+    } else {
+        SubcomposeLayout(
+            state = remember { SubcomposeLayoutState() },
+            modifier = modifier,
+            measurePolicy = measurePolicy,
+            scrollableState = scrollableState,
+            orientation = orientation,
+        )
+    }
 }
 
 /**

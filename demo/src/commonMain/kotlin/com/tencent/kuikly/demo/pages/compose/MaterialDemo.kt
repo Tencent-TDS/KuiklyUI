@@ -1,13 +1,17 @@
 package com.tencent.kuikly.demo.pages.compose
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import com.tencent.kuikly.compose.ComposeContainer
 import com.tencent.kuikly.compose.animation.core.animateFloatAsState
 import com.tencent.kuikly.compose.foundation.Canvas
+import com.tencent.kuikly.compose.foundation.border
+import com.tencent.kuikly.compose.foundation.layout.Box
 import com.tencent.kuikly.compose.foundation.layout.Column
 import com.tencent.kuikly.compose.foundation.layout.Row
 import com.tencent.kuikly.compose.foundation.layout.Spacer
@@ -18,6 +22,7 @@ import com.tencent.kuikly.compose.foundation.layout.size
 import com.tencent.kuikly.compose.foundation.layout.width
 import com.tencent.kuikly.compose.foundation.selection.toggleable
 import com.tencent.kuikly.compose.foundation.selection.triStateToggleable
+import com.tencent.kuikly.compose.material3.ButtonDefaults
 import com.tencent.kuikly.compose.material3.Checkbox
 import com.tencent.kuikly.compose.material3.CircularProgressIndicator
 import com.tencent.kuikly.compose.material3.LinearProgressIndicator
@@ -25,9 +30,16 @@ import com.tencent.kuikly.compose.material3.LocalContentColor
 import com.tencent.kuikly.compose.material3.MaterialTheme
 import com.tencent.kuikly.compose.material3.ProgressIndicatorDefaults
 import com.tencent.kuikly.compose.material3.Slider
+import com.tencent.kuikly.compose.material3.Snackbar
+import com.tencent.kuikly.compose.material3.SnackbarDuration
+import com.tencent.kuikly.compose.material3.SnackbarHost
+import com.tencent.kuikly.compose.material3.SnackbarHostState
+import com.tencent.kuikly.compose.material3.SnackbarResult
+import com.tencent.kuikly.compose.material3.SnackbarVisuals
 import com.tencent.kuikly.compose.material3.Switch
 import com.tencent.kuikly.compose.material3.SwitchDefaults
 import com.tencent.kuikly.compose.material3.Text
+import com.tencent.kuikly.compose.material3.TextButton
 import com.tencent.kuikly.compose.material3.TriStateCheckbox
 import com.tencent.kuikly.compose.setContent
 import com.tencent.kuikly.compose.ui.Alignment
@@ -42,9 +54,13 @@ import com.tencent.kuikly.compose.ui.semantics.Role
 import com.tencent.kuikly.compose.ui.semantics.contentDescription
 import com.tencent.kuikly.compose.ui.semantics.semantics
 import com.tencent.kuikly.compose.ui.state.ToggleableState
+import com.tencent.kuikly.compose.ui.text.style.TextOverflow
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
 import com.tencent.kuikly.core.annotations.Page
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.launch
 
 @Page("material_demo")
 internal class MaterialDemo : ComposeContainer() {
@@ -55,6 +71,13 @@ internal class MaterialDemo : ComposeContainer() {
                 title = "Material Demo",
                 back = true
             ) {
+                Text("Snackbar")
+                SimpleSnackbar()
+                IndefiniteSnackbar()
+                CustomSnackbar()
+                CoroutinesSnackbar()
+                MultilineSnackbar()
+
                 Text("Checkbox")
                 CheckboxSample()
                 SecondaryText("Checkbox with Text")
@@ -373,6 +396,169 @@ private fun TriStateCheckboxSample() {
             ) {
                 Checkbox(state2, null)
                 Text("Weekly")
+            }
+        }
+    }
+}
+
+@Composable
+private fun SimpleSnackbar() {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    Box {
+        var clickCount by remember { mutableStateOf(0) }
+        Button(onClick = {
+            scope.launch { snackbarHostState.showSnackbar("Snackbar # ${++clickCount}") }
+        }) {
+            Text("Simple snackbar")
+        }
+        SnackbarHost(snackbarHostState)
+    }
+}
+
+@Composable
+private fun IndefiniteSnackbar() {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    Box {
+        var clickCount by remember { mutableStateOf(0) }
+        Button(onClick = {
+            // show snackbar as a suspend function
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = "Snackbar # ${++clickCount}",
+                    actionLabel = "Action",
+                    withDismissAction = true,
+                    duration = SnackbarDuration.Indefinite
+                )
+            }
+        }) {
+            Text("Indefinite snackbar")
+        }
+        SnackbarHost(snackbarHostState)
+    }
+}
+
+@Composable
+private fun CustomSnackbar() {
+    class SnackbarVisualsWithError(override val message: String, val isError: Boolean) :
+        SnackbarVisuals {
+        override val actionLabel: String
+            get() = if (isError) "Error" else "OK"
+
+        override val withDismissAction: Boolean
+            get() = false
+
+        override val duration: SnackbarDuration
+            get() = SnackbarDuration.Indefinite
+    }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    Box {
+        var clickCount by remember { mutableStateOf(0) }
+        Button(onClick = {
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    SnackbarVisualsWithError(
+                        "Snackbar # ${++clickCount}",
+                        isError = clickCount % 2 != 0
+                    )
+                )
+            }
+        }) {
+            Text("Custom snackbar")
+        }
+        // reuse default SnackbarHost to have default animation and timing handling
+        SnackbarHost(snackbarHostState) { data ->
+            // custom snackbar with the custom action button color and border
+            val isError = (data.visuals as? SnackbarVisualsWithError)?.isError ?: false
+            val buttonColor =
+                if (isError) {
+                    ButtonDefaults.textButtonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                } else {
+                    ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.inversePrimary
+                    )
+                }
+
+            Snackbar(
+                modifier =
+                    Modifier.border(2.dp, MaterialTheme.colorScheme.secondary).padding(12.dp),
+                action = {
+                    TextButton(
+                        onClick = { if (isError) data.dismiss() else data.performAction() },
+                        colors = buttonColor
+                    ) {
+                        Text(data.visuals.actionLabel ?: "")
+                    }
+                }
+            ) {
+                Text(data.visuals.message)
+            }
+        }
+    }
+}
+
+@Composable
+private fun CoroutinesSnackbar() {
+    // decouple snackbar host state from scaffold state for demo purposes
+    // this state, channel and flow is for demo purposes to demonstrate business logic layer
+    val snackbarHostState = remember { SnackbarHostState() }
+    // we allow only one snackbar to be in the queue here, hence conflated
+    val channel = remember { Channel<Int>(Channel.CONFLATED) }
+    var clickCount by remember { mutableStateOf(0) }
+    LaunchedEffect(channel) {
+        channel.receiveAsFlow().collect { index ->
+            val result =
+                snackbarHostState.showSnackbar(
+                    message = "Snackbar # $index",
+                    actionLabel = "Action on $index"
+                )
+            when (result) {
+                SnackbarResult.ActionPerformed -> {
+                    /* action has been performed */
+                }
+                SnackbarResult.Dismissed -> {
+                    /* dismissed, no action needed */
+                }
+            }
+        }
+    }
+    Box {
+        Button(onClick = {
+            // offset snackbar data to the business logic
+            channel.trySend(++clickCount)
+        }) {
+            Text("Coroutines snackbar")
+        }
+        SnackbarHost(snackbarHostState)
+    }
+}
+
+@Composable
+private fun MultilineSnackbar() {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    Box {
+        Button(onClick = {
+            scope.launch {
+                val longMessage =
+                    "Very very very very very very very very very very very very very " +
+                            "very very very very very very very very very very very very " +
+                            "very very very very very very very very very very long message"
+                snackbarHostState.showSnackbar(longMessage)
+            }
+        }) {
+            Text("Multiline snackbar")
+        }
+        SnackbarHost(snackbarHostState) { data ->
+            Snackbar {
+                // The Material spec recommends a maximum of 2 lines of text.
+                Text(data.visuals.message, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
     }

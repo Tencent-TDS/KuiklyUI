@@ -16,6 +16,7 @@
 package com.tencent.kuikly.demo.pages.compose
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import com.tencent.kuikly.compose.ComposeContainer
 import com.tencent.kuikly.compose.foundation.background
@@ -152,6 +153,11 @@ internal class ComposeAllSample : ComposeContainer() {
 
     @Composable
     fun DemoListScreen() {
+
+        LaunchedEffect(Unit) {
+            println("DemoListScreen ")
+        }
+
         // 使用抽离出的函数获取演示列表
         val demoList = remember { getDemoItems() }
 

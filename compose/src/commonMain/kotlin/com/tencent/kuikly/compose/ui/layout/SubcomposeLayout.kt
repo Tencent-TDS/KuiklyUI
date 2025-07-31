@@ -223,11 +223,6 @@ fun SubcomposeLayout(
         scrollableState.kuiklyInfo.updateContentSizeToRender()
     }
 
-    LaunchedEffect(density) {
-        scrollableState.kuiklyInfo.composeOffset = scrollableState.kuiklyInfo.composeOffset * density.density / scrollableState.kuiklyInfo.getDensity()
-        scrollableState.kuiklyInfo.updateContentSizeToRender()
-    }
-
     // 更新kuiklyInfo和scrollview
     LaunchedEffect(scrollViewRef, scrollableState) {
         if (scrollViewRef == null) {

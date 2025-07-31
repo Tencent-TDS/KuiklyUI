@@ -41,6 +41,7 @@ import com.tencent.kuikly.compose.foundation.layout.offset
 import com.tencent.kuikly.compose.foundation.layout.padding
 import com.tencent.kuikly.compose.foundation.layout.size
 import com.tencent.kuikly.compose.foundation.layout.width
+import com.tencent.kuikly.compose.material3.Button
 import com.tencent.kuikly.compose.material3.MaterialTheme
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.resources.DrawableResource
@@ -209,7 +210,7 @@ private fun PlaceholderSamples() {
                 Text("with color")
             }
             Button({ type = 1; ++count }) {
-                Text("brush gradient")
+                Text("brush gradient", fontSize = 12.sp)
             }
             Button({ type = 2; ++count }) {
                 Text("brush solid")
@@ -275,7 +276,7 @@ private fun ErrorSamples() {
                 Text("with color")
             }
             Button({ type = 1; ++count }) {
-                Text("brush gradient")
+                Text("brush gradient", fontSize = 12.sp)
             }
             Button({ type = 2; ++count }) {
                 Text("brush solid")
@@ -341,7 +342,7 @@ private fun FallbackSamples() {
                 Text("with color")
             }
             Button({ type = 1; ++count }) {
-                Text("brush gradient")
+                Text("brush gradient", fontSize = 12.sp)
             }
             Button({ type = 2; ++count }) {
                 Text("brush solid")

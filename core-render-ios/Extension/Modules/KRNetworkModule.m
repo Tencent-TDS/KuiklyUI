@@ -107,4 +107,46 @@
     }];
 }
 
+/*
+ * 用于SSE的Http请求接口， call by kotlin
+ */
+- (void)httpRequestSSE:(NSDictionary *)args {
+    NSDictionary *param = [args[KR_PARAM_KEY] hr_stringToDictionary];
+    KuiklyRenderCallback callback = args[KR_CALLBACK_KEY];
+    NSString *url = param[@"url"];
+    NSString *method = param[@"method"];
+    NSDictionary *requestParam = param[@"param"];
+    NSDictionary *headers = param[@"headers"];
+    NSString *cookie = param[@"cookie"];
+    NSInteger timeout = [param[@"timeout"] intValue];
+
+    [KRHttpRequestTool requestWithMethodSSE:method
+                                        url:url
+                                      param:requestParam
+                                    headers:headers
+                                    timeout:timeout
+                                     cookie:cookie
+                              responseBlock:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+        int success = data && error == nil ? 1 : 0;
+        NSString * errorMsg = (error ? [error localizedDescription] : @"") ?: @"";
+        if (callback) {
+            NSString *headers = nil;
+            NSInteger statusCode = success ? 200 : error.code;
+            if ([response isKindOfClass:[NSHTTPURLResponse class]]) {
+                statusCode = ((NSHTTPURLResponse *)response).statusCode;
+                headers = [((NSHTTPURLResponse *)response).allHeaderFields hr_dictionaryToString];// 获取回包的headers
+            }
+            NSString * result = nil;
+            if (!error && data.length) {
+                result = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+            }
+            callback(@{@"data": result ?: @"",
+                      @"success": @(success),
+                      @"headers": headers?: @"",
+                      @"statusCode": @(statusCode),
+                      @"errorMsg": errorMsg});
+        }
+    }];
+}
+
 @end

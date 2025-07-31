@@ -16,6 +16,61 @@
 #import "KRHttpRequestTool.h"
 #import "NSObject+KR.h"
 #import "KRLogModule.h"
+
+// --- 下面是SSE流式处理的关键部分 ---
+// 用NSURLSession+Delegate流式接收
+@implementation KRHttpSSEDelegate
+
+- (instancetype)initWithBlock:(KRKotlinHttpResponse)block {
+    self = [super init];
+    if (self) {
+        self.responseBlock = block;
+        self.buffer = [NSMutableData data];
+    }
+    return self;
+}
+
+- (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)dataTask
+didReceiveResponse:(NSURLResponse *)response
+ completionHandler:(void (^)(NSURLSessionResponseDisposition disposition))completionHandler
+{
+    self.response = (NSHTTPURLResponse *)response;
+    if (completionHandler) completionHandler(NSURLSessionResponseAllow);
+}
+
+- (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)dataTask
+    didReceiveData:(NSData *)data
+{
+    [self.buffer appendData:data];
+    NSString *all = [[NSString alloc] initWithData:self.buffer encoding:NSUTF8StringEncoding];
+    if (!all) return;
+    NSArray *events = [all componentsSeparatedByString:@"\n\n"];
+    for (NSInteger i = 0; i < events.count - 1; i++) {
+        NSString *event = events[i];
+        if (event.length == 0) continue;
+        event = [event stringByAppendingString:@"\n"];
+        NSData *eventData = [event dataUsingEncoding:NSUTF8StringEncoding];
+        if (self.responseBlock) {
+            self.responseBlock(eventData, self.response, nil);
+        }
+    }
+    // 保留最后一段（可能是不完整event）
+    NSString *remain = events.lastObject;
+    self.buffer = [NSMutableData dataWithData:[remain dataUsingEncoding:NSUTF8StringEncoding]];
+}
+
+- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task
+didCompleteWithError:(NSError *)error
+{
+    if (error && self.responseBlock) {
+        self.responseBlock(nil, self.response, error);
+    }
+}
+
+@end
+
+//类分割线
+
 @implementation KRHttpRequestTool
 
 
@@ -96,6 +151,79 @@
             }
         }];
     });
+}
+
++ (void)requestWithMethodSSE:(NSString *)method url:(NSString *)url param:(NSDictionary *)param headers:(NSDictionary *)headerDics timeout:(float)timeout cookie:(NSString * _Nullable)p_cookie responseBlock:(KRKotlinHttpResponse)response {
+    if(!([url isKindOfClass:[NSString class]] && url.length)) return;
+    param = [param isKindOfClass:[NSDictionary class]] ? param : @{};
+
+    method = [method uppercaseString];
+
+    NSMutableDictionary *headers = [[NSMutableDictionary alloc] init];
+    if ([headerDics isKindOfClass:[NSDictionary class]] && headerDics.count) {
+        [headers addEntriesFromDictionary:headerDics];
+    }
+
+    NSData *postBody = nil;
+    if ([method isEqualToString:@"POST"]) {
+        NSString *contentType = headers[@"content-type"] ? : headers[@"Content-Type"];
+        if (!contentType) {
+            contentType = headers[@"content-Type"];
+        }
+
+        if ([contentType isKindOfClass:[NSString class]] && [contentType rangeOfString:@"/json"].length) {
+            if (param.count) {
+                postBody = [[param hr_dictionaryToString] dataUsingEncoding:NSUTF8StringEncoding];
+            }
+        } else {
+            postBody = [self toPostBodyFromParam:param];
+        }
+        param = nil;
+    } else if([method isEqualToString:@"GET"]) {
+        if ([param isKindOfClass:[NSDictionary class]] && param.count) {
+            url = [url kr_appendUrlEncodeWithParam:param];
+            param = nil;
+        }
+    }
+
+    NSString *cookie = p_cookie.length ? p_cookie : headers[@"Cookie"];
+    if ([cookie isKindOfClass:[NSString class]] && cookie.length) {
+        [headers removeObjectForKey:@"Cookie"];
+    }
+
+    NSMutableURLRequest *request = [self _requestWithMethod:method URLString:url parameters:nil error:nil];
+
+    NSDictionary *copyHeaders = [headers copy];
+    for (NSString *key in copyHeaders.allKeys) {
+        id value = copyHeaders[key];
+        if ([value isKindOfClass:[NSNumber class]]) {
+            [headers setObject:[((NSNumber *)value) stringValue] forKey:key];
+        }
+    }
+
+    if (headers.count) {
+        [request setAllHTTPHeaderFields:headers];
+    }
+
+    if (postBody) {
+        [request setHTTPBody:postBody];
+    }
+
+    [request setTimeoutInterval:timeout ? : 30];
+
+    // set cookie
+    NSString *value = [self _getDefaultCookie];
+    if (cookie.length) {
+        value = [NSString stringWithFormat:@"%@%@", value,cookie];
+    }
+    [request setValue:value forHTTPHeaderField:@"Cookie"];
+
+    KRHttpSSEDelegate *delegate = [[KRHttpSSEDelegate alloc] initWithBlock:response];
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration]
+                                                          delegate:delegate
+                                                     delegateQueue:[NSOperationQueue mainQueue]];
+    NSURLSessionDataTask *task = [session dataTaskWithRequest:request];
+    [task resume];
 }
 
 +(NSData *) toPostBodyFromParam:(NSDictionary *)dictionary {

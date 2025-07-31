@@ -234,7 +234,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             }
         }
 
-        val densityValue = density.density
+        val densityValue = view.getPager().pagerDensity()
 
         var newFrame = Frame(
             x = pos.x / densityValue,
@@ -288,6 +288,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
 
         // Calculate maximum scrollable distance - use pixel units, consistent with composeOffset
         val currentContentSize = kuiklyInfo.currentContentSize // already in pixel units
+        kuiklyInfo.offsetDirty = true
         val viewportSize = if (kuiklyInfo.isVertical()) {
             (newHeight * kuiklyInfo.getDensity()).toInt()
         } else {

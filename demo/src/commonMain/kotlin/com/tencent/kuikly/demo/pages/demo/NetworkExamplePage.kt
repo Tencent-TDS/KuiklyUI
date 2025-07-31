@@ -269,7 +269,7 @@ internal class NetworkExamplePage: BasePager() {
 
     private fun requestStatus204() {
         acquireModule<NetworkModule>(NetworkModule.MODULE_NAME).requestGet(
-            "http://httpbin.org/status/204",
+            "https://httpbin.org/status/204",
             JSONObject(),
         ) { data, success, errorMsg, response ->
             output = """Get request completed:

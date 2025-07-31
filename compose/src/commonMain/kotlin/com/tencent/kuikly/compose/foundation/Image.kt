@@ -18,26 +18,29 @@ package com.tencent.kuikly.compose.foundation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReusableComposeNode
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.currentComposer
 import androidx.compose.runtime.currentCompositeKeyHash
+import androidx.compose.runtime.key
 import com.tencent.kuikly.compose.KuiklyApplier
 import com.tencent.kuikly.compose.extension.shouldWrapShadowView
 import com.tencent.kuikly.compose.foundation.layout.EmptyBoxMeasurePolicy
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
+import com.tencent.kuikly.compose.ui.KuiklyPainter
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.ColorFilter
 import com.tencent.kuikly.compose.ui.graphics.DefaultAlpha
 import com.tencent.kuikly.compose.ui.graphics.painter.Painter
 import com.tencent.kuikly.compose.ui.layout.ContentScale
-import com.tencent.kuikly.compose.ui.materialize
 import com.tencent.kuikly.compose.ui.node.ComposeUiNode
 import com.tencent.kuikly.compose.ui.node.KNode
 import com.tencent.kuikly.compose.ui.semantics.Role
 import com.tencent.kuikly.compose.ui.semantics.contentDescription
 import com.tencent.kuikly.compose.ui.semantics.role
 import com.tencent.kuikly.compose.ui.semantics.semantics
-import com.tencent.kuikly.compose.ui.draw.paint
+import com.tencent.kuikly.compose.ui.draw.paintInternal
+import com.tencent.kuikly.compose.ui.materialize
 import com.tencent.kuikly.core.base.Attr
 import com.tencent.kuikly.core.views.DivView
 import com.tencent.kuikly.core.views.ImageView
@@ -88,7 +91,7 @@ fun Image(
         } else {
             Modifier
         }
-    ).paint(
+    ).paintInternal(
         painter = painter,
         alignment = alignment,
         contentScale = contentScale,
@@ -102,31 +105,40 @@ fun Image(
     val needWrap = needWrap(contentScale, alignment)
 
     val hasShadow = shouldWrapShadowView(combined)
+    val hasPlaceholder = painter is KuiklyPainter && painter.placeHolder is KuiklyPainter
+    val loadState = (painter as? KuiklyPainter)?.state?.collectAsState()
 
-    ReusableComposeNode<ComposeUiNode, KuiklyApplier>(
-        factory = {
-            val imageViewWrap = if (needWrap) ImageViewWrap() else ImageView()
-            KNode(imageViewWrap) {
-                attr {
+    key(needWrap, hasShadow, hasPlaceholder) {
+        ReusableComposeNode<ComposeUiNode, KuiklyApplier>(
+            factory = {
+                val imageViewWrap = if (needWrap || hasPlaceholder) {
+                    ImageViewWrap(hasPlaceholder)
+                } else {
+                    ImageView()
+                }
+                KNode(imageViewWrap) {
                     if (hasShadow) {
-                        setProp(Attr.StyleConst.WRAPPER_BOX_SHADOW_VIEW, 1)
+                        getViewAttr().setProp(Attr.StyleConst.WRAPPER_BOX_SHADOW_VIEW, 1)
                     }
                 }
-            }
-        },
-        update = {
-            set(EmptyBoxMeasurePolicy, ComposeUiNode.SetMeasurePolicy)
-            set(localMap, ComposeUiNode.SetResolvedCompositionLocals)
-            @OptIn(ExperimentalComposeUiApi::class)
-            set(compositeKeyHash, ComposeUiNode.SetCompositeKeyHash)
-            set(combined) {
-                this.modifier = combined
-            }
-            set(painter.intrinsicSize) {
-                (this as KNode<*>).invalidateDraw()
-            }
-        },
-    )
+            },
+            update = {
+                set(EmptyBoxMeasurePolicy, ComposeUiNode.SetMeasurePolicy)
+                set(localMap, ComposeUiNode.SetResolvedCompositionLocals)
+                @OptIn(ExperimentalComposeUiApi::class)
+                set(compositeKeyHash, ComposeUiNode.SetCompositeKeyHash)
+                set(combined) {
+                    this.modifier = combined
+                }
+                set(painter.intrinsicSize) {
+                    (this as KNode<*>).invalidateDraw()
+                }
+                set(loadState?.value) {
+                    (this as KNode<*>).invalidateDraw()
+                }
+            },
+        )
+    }
 }
 
 private fun needWrap(contentScale: ContentScale, alignment: Alignment): Boolean {
@@ -147,13 +159,19 @@ private fun needWrap(contentScale: ContentScale, alignment: Alignment): Boolean 
     }
 }
 
-internal class ImageViewWrap : DivView() {
+internal class ImageViewWrap(val placeholder: Boolean) : DivView() {
     lateinit var imageView: ImageView
+        private set
+    lateinit var placeholderView: ImageView
         private set
     override fun isRenderView() = true
     override fun didInit() {
         super.didInit()
         imageView = ImageView()
         addChild(imageView) {}
+        if (placeholder) {
+            placeholderView = ImageView()
+            addChild(placeholderView) {}
+        }
     }
 }

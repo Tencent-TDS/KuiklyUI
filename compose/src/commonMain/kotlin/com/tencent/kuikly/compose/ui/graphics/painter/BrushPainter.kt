@@ -18,10 +18,7 @@ package com.tencent.kuikly.compose.ui.graphics.painter
 
 import com.tencent.kuikly.compose.ui.geometry.Size
 import com.tencent.kuikly.compose.ui.graphics.Brush
-import com.tencent.kuikly.compose.ui.graphics.drawscope.DrawScope
-import com.tencent.kuikly.compose.ui.applyBrushToBackground
 import com.tencent.kuikly.core.base.DeclarativeBaseView
-import com.tencent.kuikly.core.views.ImageView
 
 /**
  * [Painter] implementation used to fill the provided bounds with the specified [Brush].
@@ -36,8 +33,8 @@ class BrushPainter(
     override val intrinsicSize: Size
         get() = brush.intrinsicSize
 
-    override fun applyTo(view: ImageView) {
-        view.applyBrushToBackground(brush, alpha)
+    override fun applyTo(view: DeclarativeBaseView<*, *>) {
+        brush.applyTo(view, alpha)
     }
 
     override fun applyAlpha(alpha: Float): Boolean {

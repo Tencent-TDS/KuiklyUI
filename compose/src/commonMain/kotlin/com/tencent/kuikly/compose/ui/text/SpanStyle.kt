@@ -42,7 +42,7 @@ import com.tencent.kuikly.compose.ui.unit.lerp
 import com.tencent.kuikly.compose.ui.unit.sp
 
 /** The default font size if none is specified. */
-private val DefaultFontSize = 14.sp
+internal val DefaultFontSize = 14.sp
 private val DefaultLetterSpacing = 0.sp
 private val DefaultBackgroundColor = Color.Unspecified
 // TODO(nona): Introduce TextUnit.Original for representing "do not change the original result".
@@ -88,7 +88,7 @@ class SpanStyle internal constructor(
     // The fill to draw text, a unified representation of Color and Brush.
     internal val textForegroundStyle: TextForegroundStyle,
     // TODO
-    val fontSize: TextUnit = TextUnit.Unspecified,
+    val fontSize: TextUnit = DefaultFontSize,
 //    val fontSize: TextUnit = TextUnit.Unspecified,
     val fontWeight: FontWeight? = null,
     val fontStyle: FontStyle? = null,

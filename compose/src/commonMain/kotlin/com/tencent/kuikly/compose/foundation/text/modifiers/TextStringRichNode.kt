@@ -31,9 +31,12 @@ import com.tencent.kuikly.compose.ui.layout.MeasureResult
 import com.tencent.kuikly.compose.ui.layout.MeasureScope
 import com.tencent.kuikly.compose.ui.node.KNode
 import com.tencent.kuikly.compose.ui.node.LayoutModifierNode
+import com.tencent.kuikly.compose.ui.node.SemanticsModifierNode
 import com.tencent.kuikly.compose.ui.node.invalidateMeasurement
+import com.tencent.kuikly.compose.ui.node.invalidateSemantics
 import com.tencent.kuikly.compose.ui.node.requireDensity
 import com.tencent.kuikly.compose.ui.node.requireLayoutNode
+import com.tencent.kuikly.compose.ui.semantics.SemanticsPropertyReceiver
 import com.tencent.kuikly.compose.ui.text.AnnotatedString
 import com.tencent.kuikly.compose.ui.text.MultiParagraph
 import com.tencent.kuikly.compose.ui.text.TextLayoutInput
@@ -67,7 +70,7 @@ internal class TextStringRichNode(
     private var minLines: Int = DefaultMinLines,
     private var overrideColor: ColorProducer? = null,
     private var inlineContent: Map<String, InlineTextContent> = EmptyInlineContent
-) : Modifier.Node(), LayoutModifierNode {
+) : Modifier.Node(), LayoutModifierNode, SemanticsModifierNode {
 
     private var cacheResult: TextLayoutResult? = null
 
@@ -161,6 +164,7 @@ internal class TextStringRichNode(
 
         if (textChanged || layoutChanged || callbacksChanged) {
             invalidateMeasurement()
+            invalidateSemantics()
         }
     }
 
@@ -174,29 +178,30 @@ internal class TextStringRichNode(
         val placeholderRects = mutableListOf<Rect>()
 
         val textView = (requireLayoutNode() as? KNode<RichTextView>)?.view
+        val pageDensity = textView!!.getPager().pagerDensity()
         // 遍历所有文本片段,处理占位符
         textView?.getViewAttr()?.getSpans()?.forEachIndexed { index, span ->
             if (span !is PlaceholderSpan) return@forEachIndexed
-            
+
             // 获取占位符的位置和大小信息
             val rectStr = textView.shadow?.callMethod("spanRect", index.toString())
             if (rectStr.isNullOrEmpty()) return@forEachIndexed
-            
+
             // 解析位置和大小信息
             val rectComponents = rectStr.split(" ")
             if (rectComponents.size < 4) return@forEachIndexed
-            
+
             // 提取坐标和尺寸
-            val (x, y, width, height) = rectComponents.take(4).map { 
-                it.toFloatOrNull() ?: 0f 
+            val (x, y, width, height) = rectComponents.take(4).map {
+                it.toFloatOrNull() ?: 0f
             }
-            
+
             // 更新占位符的frame并添加到矩形列表
             span.spanFrame = Frame(x, y, width, height)
             placeholderRects.add(
                 Rect(
-                    offset = Offset(x *  requireDensity().density, y *  requireDensity().density),
-                    size = Size(width * requireDensity().density, height *  requireDensity().density)
+                    offset = Offset(x * pageDensity, y * pageDensity),
+                    size = Size(width * pageDensity, height * pageDensity)
                 )
             )
         }
@@ -227,17 +232,19 @@ internal class TextStringRichNode(
             shadow?.setValuesProp(value)
         }
 
+        val density = textView?.getPager()?.pagerDensity() ?: 3f
+
         val size = textView?.shadow?.calculateRenderViewSize(
-            maxWidth.toFloat() / requireDensity().density,
-            maxHeight.toFloat() / requireDensity().density
+            maxWidth.toFloat() / density,
+            maxHeight.toFloat() / density
         )
         textView?.updateShadow()
 
         var intSize = IntSize(1000, 1000)
         size?.also {
             intSize = IntSize(
-                ceil(it.width * requireDensity().density).toInt(),
-                ceil(it.height * requireDensity().density).toInt()
+                ceil(it.width * density).toInt(),
+                ceil(it.height * density).toInt()
             )
         }
         return intSize
@@ -313,5 +320,9 @@ internal class TextStringRichNode(
     ): Int {
         val intSize = measureTextView(width, Constraints.Infinity)
         return intSize.height
+    }
+
+    override fun SemanticsPropertyReceiver.applySemantics() {
+        text = this@TextStringRichNode.text
     }
 }

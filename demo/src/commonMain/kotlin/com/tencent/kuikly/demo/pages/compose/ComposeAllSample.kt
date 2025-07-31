@@ -16,6 +16,7 @@
 package com.tencent.kuikly.demo.pages.compose
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import com.tencent.kuikly.compose.ComposeContainer
 import com.tencent.kuikly.compose.foundation.background
@@ -146,10 +147,17 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("Dialog弹出菜单PopMenu", "基于Dialog实现的弹出菜单PopMenu示例", "PopMenuDialogDemo"),
             DemoItem("AnchoredDraggableDemo", "AnchoredDraggable使用案例", "AnchoredDraggableDemo"),
             DemoItem("ScaffoldDemo", "Scaffold使用案例", "ScaffoldDemo"),
+            DemoItem("DensityScaleDemo", "基于Density实现跨端缩放", "DensityScaleDemo"),
+            DemoItem("BackHandlerDemo", "监听并拦截返回键", "BackHandlerDemo"),
         )
 
     @Composable
     fun DemoListScreen() {
+
+        LaunchedEffect(Unit) {
+            println("DemoListScreen ")
+        }
+
         // 使用抽离出的函数获取演示列表
         val demoList = remember { getDemoItems() }
 

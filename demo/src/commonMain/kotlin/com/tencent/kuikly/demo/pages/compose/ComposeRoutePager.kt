@@ -18,6 +18,7 @@ import com.tencent.kuikly.compose.foundation.layout.height
 import com.tencent.kuikly.compose.foundation.layout.padding
 import com.tencent.kuikly.compose.foundation.layout.size
 import com.tencent.kuikly.compose.foundation.shape.RoundedCornerShape
+import com.tencent.kuikly.compose.material3.Button
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.setContent
 import com.tencent.kuikly.compose.ui.Alignment
@@ -101,7 +102,7 @@ fun KuiklyPage() {
                     )
                 }
             }
-            Button(
+            KuiklyButton(
                 modifier = Modifier.padding(12.dp).background(
                     brush = Brush.horizontalGradient(
                         colors = listOf(Color(0xFF7B7FE4), Color(0xFFA65CF9))

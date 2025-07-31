@@ -234,7 +234,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             }
         }
 
-        val densityValue = density.density
+        val densityValue = view.getPager().pagerDensity()
 
         var newFrame = Frame(
             x = pos.x / densityValue,

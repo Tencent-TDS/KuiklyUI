@@ -150,7 +150,7 @@ fun Modifier.dragEnable(enable: Boolean): Modifier {
 }
 
 @Composable
-internal fun Button(
+internal fun KuiklyButton(
     onClick: () -> Unit = {},
     onClick2: (Offset) -> Unit = {},
     modifier: Modifier = Modifier,

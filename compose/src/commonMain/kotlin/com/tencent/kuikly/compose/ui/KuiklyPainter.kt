@@ -19,56 +19,65 @@ import androidx.compose.runtime.mutableStateOf
 import com.tencent.kuikly.compose.coil3.AsyncImagePainter
 import com.tencent.kuikly.compose.ui.geometry.Size
 import com.tencent.kuikly.compose.ui.geometry.isSpecified
-import com.tencent.kuikly.compose.ui.graphics.Brush
-import com.tencent.kuikly.compose.ui.graphics.LinearGradient
-import com.tencent.kuikly.compose.ui.graphics.SolidColor
 import com.tencent.kuikly.compose.ui.graphics.painter.BrushPainter
 import com.tencent.kuikly.compose.ui.graphics.painter.ColorPainter
 import com.tencent.kuikly.compose.ui.graphics.painter.Painter
-import com.tencent.kuikly.core.base.Attr
-import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.DeclarativeBaseView
-import com.tencent.kuikly.core.views.ImageConst
 import com.tencent.kuikly.core.views.ImageView
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 internal class KuiklyPainter(
     internal val src: String?,
-    private val placeHolder: Painter? = null,
+    internal val placeHolder: Painter? = null,
     private val error: Painter? = null,
     private val fallback: Painter? = null
 ) : AsyncImagePainter() {
-    
+
     private val resolution = mutableStateOf(Size.Unspecified)
     private var success = false
-    private val _state: MutableStateFlow<State> = MutableStateFlow(State.Empty)
+    private val _state: MutableStateFlow<State> = MutableStateFlow(
+        if (src.isNullOrEmpty() && fallback !is AsyncImagePainter) {
+            State.Error(fallback)
+        } else {
+            State.Empty
+        }
+    )
     override val state = _state.asStateFlow()
     internal var onState: ((State) -> Unit)? = null
 
     override val intrinsicSize: Size
-        get() = resolution.value
+        get() {
+            val self = resolution.value
+            if (placeHolder != null && (_state.value is State.Empty || _state.value is State.Loading)) {
+                return placeHolder.intrinsicSize
+            }
+            return self
+        }
 
-    override fun applyTo(view: ImageView) {
-        view.getViewEvent().apply {
+    override fun applyTo(view: DeclarativeBaseView<*, *>) {
+        val imageView = view as? ImageView ?: return
+        imageView.getViewEvent().apply {
             loadResolution {
                 resolution.value = Size(it.width.toFloat(), it.height.toFloat())
                 if (success) {
                     updateState(State.Success(this@KuiklyPainter))
                 }
             }
-            
+
             loadSuccess {
+                if (_state.value !is State.Loading) {
+                    return@loadSuccess
+                }
                 success = true
-                if (intrinsicSize.isSpecified) {
+                if (resolution.value.isSpecified) {
                     updateState(State.Success(this@KuiklyPainter))
                 }
-                placeHolder?.also(view::clearPlaceHolder)
             }
-            
+
             loadFailure {
                 updateState(State.Error(error))
-                error?.also(view::applyFallback)
+                error?.also(imageView::applyFallback)
             }
         }
 
@@ -79,19 +88,14 @@ internal class KuiklyPainter(
                 updateState(State.Loading(placeHolder))
             }
         }
-
-        if (_state.value is State.Loading) {
-            placeHolder?.also(view::applyPlaceHolder)
-        }
-
         if (_state.value is State.Error) {
             if (_state.value.painter != null) {
-                view.applyFallback(_state.value.painter!!)
+                imageView.applyFallback(_state.value.painter!!)
             } else {
-                view.getViewAttr().src(src ?: "")
+                imageView.getViewAttr().src(src ?: "")
             }
         } else {
-            view.getViewAttr().src(src!!)
+            imageView.getViewAttr().src(src!!)
         }
     }
 
@@ -114,57 +118,9 @@ internal class KuiklyPainter(
     }
 }
 
-private fun ImageView.applyPlaceHolder(painter: Painter) {
-    when (painter) {
-        is KuiklyPainter -> {
-            if (!painter.src.isNullOrEmpty()) {
-                getViewAttr().placeholderSrc(painter.src)
-            }
-        }
-        is ColorPainter, is BrushPainter -> painter.applyTo(this)
-    }
-}
-
-private fun ImageView.clearPlaceHolder(painter: Painter) {
-    when (painter) {
-        is KuiklyPainter -> {
-            getViewAttr().setProp(ImageConst.PLACEHOLDER, "")
-        }
-        is ColorPainter -> {
-            getViewAttr().setProp(Attr.StyleConst.BACKGROUND_COLOR, Color.TRANSPARENT)
-        }
-        is BrushPainter -> {
-            getViewAttr().setProp(Attr.StyleConst.BACKGROUND_IMAGE, "")
-        }
-    }
-}
-
 private fun ImageView.applyFallback(painter: Painter) {
     when (painter) {
         is KuiklyPainter -> getViewAttr().src(painter.src ?: "")
         is ColorPainter, is BrushPainter -> painter.applyTo(this)
     }
 }
-
-fun DeclarativeBaseView<*, *>.applyBrushToBackground(
-    brush: Brush?,
-    alpha: Float
-): Boolean {
-    val viewAttr = this.getViewAttr()
-    return when (brush) {
-        is LinearGradient -> {
-            val newBrush = brush.copy(alpha) as LinearGradient
-            viewAttr.backgroundLinearGradient(
-                newBrush.direction,
-                *newBrush.colorStops.toTypedArray()
-            )
-            true
-        }
-        is SolidColor -> {
-            viewAttr.backgroundColor(brush.value.copy(alpha).toKuiklyColor())
-            true
-        }
-        else -> false
-    }
-}
-

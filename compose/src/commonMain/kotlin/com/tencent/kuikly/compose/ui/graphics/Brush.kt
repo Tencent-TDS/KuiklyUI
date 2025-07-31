@@ -21,7 +21,9 @@ import androidx.compose.runtime.Stable
 import com.tencent.kuikly.compose.ui.geometry.Offset
 import com.tencent.kuikly.compose.ui.geometry.Size
 import com.tencent.kuikly.compose.ui.geometry.isFinite
+import com.tencent.kuikly.compose.ui.text.style.modulate
 import com.tencent.kuikly.core.base.ColorStop
+import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.base.Direction
 import kotlin.math.abs
 
@@ -38,6 +40,8 @@ sealed class Brush {
     open val intrinsicSize: Size = Size.Unspecified
 
     abstract fun applyTo(size: Size, p: Paint, alpha: Float)
+
+    abstract fun applyTo(view: DeclarativeBaseView<*, *>, alpha: Float)
 
     /**
      * Creates a copy of this brush with the specified alpha value.
@@ -285,6 +289,10 @@ class SolidColor(val value: Color) : Brush() {
 //        if (p.shader != null) p.shader = null
     }
 
+    override fun applyTo(view: DeclarativeBaseView<*, *>, alpha: Float) {
+        view.getViewAttr().backgroundColor(value.modulate(alpha).toKuiklyColor())
+    }
+
     override fun copy(alpha: Float): Brush {
         return SolidColor(value.copy(alpha = value.alpha * alpha))
     }
@@ -321,8 +329,8 @@ class LinearGradient internal constructor(
     override val intrinsicSize: Size
         get() =
             Size(
-                if (start.x.isFinite() && end.x.isFinite()) abs(start.x - end.x) else Float.NaN,
-                if (start.y.isFinite() && end.y.isFinite()) abs(start.y - end.y) else Float.NaN
+                if (start.x.isFinite() && end.x.isFinite() && start.x != end.x) abs(start.x - end.x) else Float.NaN,
+                if (start.y.isFinite() && end.y.isFinite() && start.x != end.x) abs(start.y - end.y) else Float.NaN
             )
 
     override fun applyTo(size: Size, p: Paint, alpha: Float) {
@@ -332,9 +340,17 @@ class LinearGradient internal constructor(
 //        if (p.shader != null) p.shader = null
     }
 
-    override fun copy(alpha: Float): Brush {
+    override fun applyTo(view: DeclarativeBaseView<*, *>, alpha: Float) {
+        val brush = if (alpha.isNaN() || alpha >= 1f) this else copy(alpha)
+        view.getViewAttr().backgroundLinearGradient(
+            brush.direction,
+            *brush.colorStops.toTypedArray()
+        )
+    }
+
+    override fun copy(alpha: Float): LinearGradient {
         return LinearGradient(
-            colors = colors.map { it.copy(alpha = it.alpha * alpha) },
+            colors = colors.map { it.modulate(alpha) },
             stops = stops,
             start = start,
             end = end,

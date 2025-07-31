@@ -25,7 +25,6 @@ import com.tencent.kuikly.compose.ui.graphics.drawscope.drawIntoCanvas
 import com.tencent.kuikly.compose.ui.graphics.drawscope.inset
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
 import com.tencent.kuikly.core.base.DeclarativeBaseView
-import com.tencent.kuikly.core.views.ImageView
 
 /**
  * Abstraction for something that can be drawn. In addition to providing the ability to draw
@@ -163,7 +162,7 @@ abstract class Painter {
      * internally within [draw] after the positioning and configuring the [Painter]
      */
     // protected abstract fun DrawScope.onDraw(view: ImageView)
-    abstract fun applyTo(view: ImageView)
+    abstract fun applyTo(view: DeclarativeBaseView<*, *>)
 
     /**
      * Apply the provided alpha value returning true if it was applied successfully,

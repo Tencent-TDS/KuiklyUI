@@ -19,7 +19,7 @@ package com.tencent.kuikly.compose.ui.graphics.painter
 import com.tencent.kuikly.compose.ui.geometry.Size
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.text.style.modulate
-import com.tencent.kuikly.core.views.ImageView
+import com.tencent.kuikly.core.base.DeclarativeBaseView
 
 /**
  * [Painter] implementation used to fill the provided bounds with the specified color
@@ -29,7 +29,7 @@ class ColorPainter(val color: Color) : Painter() {
 
 //    private var colorFilter: ColorFilter? = null
 
-    override fun applyTo(view: ImageView) {
+    override fun applyTo(view: DeclarativeBaseView<*, *>) {
 //        drawRect(color = color, alpha = alpha, colorFilter = colorFilter)
         view.getViewAttr().backgroundColor(color.modulate(alpha).toKuiklyColor())
     }

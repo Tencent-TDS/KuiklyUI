@@ -48,17 +48,11 @@ internal fun Frame.toIntRect(density: Float): IntRect {
 }
 
 fun shouldWrapShadowView(modifier: Modifier): Boolean {
-    var hasShadow = false
-    modifier.foldIn(Unit) { acc, element ->
+    return modifier.any { element ->
         when (element) {
-            is SetPropElement -> {
-                hasShadow = hasShadow || (element.key == "boxShadow")
-            }
-            is ShadowGraphicsLayerElement -> {
-                hasShadow = true
-            }
+            is SetPropElement -> element.key == "boxShadow"
+            is ShadowGraphicsLayerElement -> true
+            else -> false
         }
     }
-    return hasShadow
 }
-

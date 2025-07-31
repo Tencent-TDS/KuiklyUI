@@ -39,7 +39,6 @@ import com.tencent.kuikly.compose.ui.platform.InspectorInfo
 import com.tencent.kuikly.compose.ui.platform.debugInspectorInfo
 import com.tencent.kuikly.compose.ui.text.style.modulate
 import com.tencent.kuikly.compose.ui.unit.toSize
-import com.tencent.kuikly.compose.ui.applyBrushToBackground
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.exception.throwRuntimeError
 
@@ -187,7 +186,9 @@ private class BackgroundNode(
             view!!.borderRadius(it.roundRect)
         }
         view?.getViewAttr()?.run {
-            if (!view.applyBrushToBackground(brush, alpha)) {
+            if (brush != null) {
+                brush!!.applyTo(view, alpha)
+            } else {
                 backgroundColor(color.modulate(alpha).toKuiklyColor())
             }
         }

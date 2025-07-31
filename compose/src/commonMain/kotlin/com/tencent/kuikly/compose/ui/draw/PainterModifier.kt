@@ -52,6 +52,8 @@ import com.tencent.kuikly.compose.ui.unit.constrainHeight
 import com.tencent.kuikly.compose.ui.unit.constrainWidth
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.layout.Frame
+import com.tencent.kuikly.core.log.KLog
+import com.tencent.kuikly.core.views.ImageConst
 import com.tencent.kuikly.core.views.ImageView
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -68,6 +70,19 @@ import kotlin.math.roundToInt
  * @sample com.tencent.kuikly.compose.ui.samples.PainterModifierSample
  */
 fun Modifier.paint(
+    painter: Painter,
+    sizeToIntrinsics: Boolean = true,
+    alignment: Alignment = Alignment.Center,
+    contentScale: ContentScale = ContentScale.Inside,
+    alpha: Float = DefaultAlpha,
+    colorFilter: ColorFilter? = null
+): Modifier {
+    // Kuikly modified: implementation moved to `paintInternal` due to it can only be used with Image
+    KLog.e("Kuikly.Compose", "paint can only be used with Image")
+    return this
+}
+
+internal fun Modifier.paintInternal(
     painter: Painter,
     sizeToIntrinsics: Boolean = true,
     alignment: Alignment = Alignment.Center,
@@ -315,7 +330,7 @@ private class PainterNode(
     }
 
     override fun ContentDrawScope.draw(view: DeclarativeBaseView<*, *>?) {
-        val (isWrap, imageView) = view?.asImageView() ?: let {
+        val (isWrap, imageView, placeholder) = view?.asImageView() ?: let {
             drawContent()
             return
         }
@@ -323,6 +338,51 @@ private class PainterNode(
             drawContent()
             return
         }
+
+        if (painter.showPlaceholder()) {
+            drawPainter(painter.requirePlaceholder(), view, placeholder)
+        } else {
+            placeholder?.getViewAttr()?.visibility(false)
+        }
+        drawPainter(painter, view, imageView)
+        // Maintain the same pattern as Modifier.drawBehind to allow chaining of DrawModifiers
+        drawContent()
+    }
+
+    private fun drawSimple(imageView: ImageView): Boolean {
+        when (contentScale) {
+            ContentScale.FillBounds -> imageView.getViewAttr().resizeStretch()
+            ContentScale.Crop -> imageView.getViewAttr().resizeCover()
+            ContentScale.Fit -> imageView.getViewAttr().resizeContain()
+            else -> return false
+        }
+        applyCommon(imageView)
+        if (painter.showPlaceholder()) {
+            applyPainter(painter.requirePlaceholder(), imageView, imageView)
+        }
+        applyPainter(painter, imageView, imageView)
+        return true
+    }
+
+    private fun Size.hasSpecifiedAndFiniteWidth() = this != Size.Unspecified && width.isFinite()
+    private fun Size.hasSpecifiedAndFiniteHeight() = this != Size.Unspecified && height.isFinite()
+
+    private inline fun DeclarativeBaseView<*, *>.asImageView(): Triple<Boolean, ImageView, ImageView?>? {
+        if (this is ImageView) {
+            return Triple(false, this, null)
+        }
+        if (this is ImageViewWrap) {
+            val placeholder = if (this.placeholder) this.placeholderView else null
+            return Triple(true, this.imageView, placeholder)
+        }
+        return null
+    }
+
+    private fun ContentDrawScope.drawPainter(
+        painter: Painter,
+        view: DeclarativeBaseView<*, *>,
+        imageView: ImageView?
+    ) {
         val intrinsicSize = painter.intrinsicSize
         val srcWidth = if (intrinsicSize.hasSpecifiedAndFiniteWidth()) {
             intrinsicSize.width
@@ -364,13 +424,13 @@ private class PainterNode(
 //                draw(size = scaledSize, alpha = alpha, colorFilter = colorFilter)
 //            }
 //        }
-        imageView.getViewAttr().apply {
+        imageView?.getViewAttr()?.apply {
             visibility(painter.visible())
             if (scaledSize.width <= 0 || scaledSize.height <= 0) {
                 resizeStretch()
                 // 因为0宽高的图片不会加载，所以指定一个1x1的大小
                 imageView.setFrameToRenderView(Frame(-1f, -1f, 1f, 1f))
-            } else if (isWrap) {
+            } else if (/*isWrap*/view != imageView) {
                 // 使用wrap时，裁切到view的宽高
                 view.clip()
                 // 使用wrap时，ImageView设置为scaledSize宽高
@@ -385,7 +445,7 @@ private class PainterNode(
                         )
                     )
                 }
-            } else if (scaledSize.width < size.width || scaledSize.height < size.height) {
+            } else if (scaledSize.width - size.width < 1e-6 && scaledSize.height - size.height < 1e-6) {
                 // 非wrap时，如果图片宽高小于等于显示区域，使用contain模式
                 resizeContain()
             } else {
@@ -393,44 +453,28 @@ private class PainterNode(
                 resizeCover()
             }
         }
-        applyCommon(imageView)
-        applyPainter(view, imageView)
-
-        // Maintain the same pattern as Modifier.drawBehind to allow chaining of DrawModifiers
-        drawContent()
+        imageView?.also(this@PainterNode::applyCommon)
+        applyPainter(painter, view, imageView)
     }
 
-    private fun drawSimple(imageView: ImageView): Boolean {
-        when (contentScale) {
-            ContentScale.FillBounds -> imageView.getViewAttr().resizeStretch()
-            ContentScale.Crop -> imageView.getViewAttr().resizeCover()
-            ContentScale.Fit -> imageView.getViewAttr().resizeContain()
-            else -> return false
-        }
-        applyCommon(imageView)
-        applyPainter(imageView, imageView)
-        return true
-    }
-
-    private fun Size.hasSpecifiedAndFiniteWidth() = this != Size.Unspecified && width.isFinite()
-    private fun Size.hasSpecifiedAndFiniteHeight() = this != Size.Unspecified && height.isFinite()
-
-    private inline fun DeclarativeBaseView<*, *>.asImageView(): Pair<Boolean, ImageView>? {
-        if (this is ImageView) {
-            return Pair(false, this)
-        }
-        if (this is ImageViewWrap) {
-            return Pair(true, this.imageView)
-        }
-        return null
-    }
-
-    private fun applyPainter(view: DeclarativeBaseView<*, *>, imageView: ImageView) {
+    private fun applyPainter(
+        painter: Painter,
+        view: DeclarativeBaseView<*, *>,
+        imageView: ImageView?
+    ) {
         if (!painter.applyAlpha(alpha)) {
             view.alpha(alpha)
         }
-        painter.applyTo(imageView)
+        painter.applyTo(imageView ?: view)
     }
+
+    private fun Painter.showPlaceholder(): Boolean {
+        return (this is KuiklyPainter) && placeHolder != null && state.value.let {
+            it is AsyncImagePainter.State.Empty || it is AsyncImagePainter.State.Loading
+        }
+    }
+
+    private inline fun Painter.requirePlaceholder(): Painter = (this as KuiklyPainter).placeHolder!!
 
     private fun Painter.visible(): Boolean {
         return if (this is AsyncImagePainter) {
@@ -444,8 +488,12 @@ private class PainterNode(
 
     private fun applyCommon(imageView: ImageView) {
         val colorFilter = this.colorFilter
-        if (colorFilter is BlendModeColorFilter && colorFilter.blendMode.isSupported()) {
-            imageView.getViewAttr().tintColor(colorFilter.color.toKuiklyColor())
+        imageView.getViewAttr().apply {
+            if (colorFilter is BlendModeColorFilter && colorFilter.blendMode.isSupported()) {
+                tintColor(colorFilter.color.toKuiklyColor())
+            } else if (getProp(ImageConst.TINT_COLOR) != null) {
+                tintColor(null)
+            }
         }
     }
 

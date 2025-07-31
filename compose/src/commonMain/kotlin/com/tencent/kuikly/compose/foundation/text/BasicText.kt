@@ -51,6 +51,8 @@ import com.tencent.kuikly.compose.ui.layout.Placeable
 import com.tencent.kuikly.compose.ui.materialize
 import com.tencent.kuikly.compose.ui.node.ComposeUiNode
 import com.tencent.kuikly.compose.ui.node.KNode
+import com.tencent.kuikly.compose.ui.platform.LocalDensity
+import com.tencent.kuikly.compose.ui.platform.LocalLayoutDirection
 import com.tencent.kuikly.compose.ui.text.AnnotatedString
 import com.tencent.kuikly.compose.ui.text.LinkAnnotation
 import com.tencent.kuikly.compose.ui.text.SpanStyle
@@ -61,14 +63,17 @@ import com.tencent.kuikly.compose.ui.text.font.FontListFontFamily
 import com.tencent.kuikly.compose.ui.text.font.FontStyle
 import com.tencent.kuikly.compose.ui.text.font.FontWeight
 import com.tencent.kuikly.compose.ui.text.font.GenericFontFamily
+import com.tencent.kuikly.compose.ui.text.resolveDefaults
 import com.tencent.kuikly.compose.ui.text.style.TextAlign
 import com.tencent.kuikly.compose.ui.text.style.TextDecoration
 import com.tencent.kuikly.compose.ui.text.style.TextIndent
 import com.tencent.kuikly.compose.ui.text.style.TextOverflow
 import com.tencent.kuikly.compose.ui.unit.Constraints
+import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.compose.ui.unit.isSpecified
 import com.tencent.kuikly.compose.ui.util.fastRoundToInt
+import com.tencent.kuikly.compose.extension.scaleToDensity
 import com.tencent.kuikly.core.views.ISpan
 import com.tencent.kuikly.core.views.PlaceholderSpan
 import com.tencent.kuikly.core.views.RichTextAttr
@@ -338,14 +343,17 @@ private fun BasicTextWithNoInlinContent(
     val compositeKeyHash = currentCompositeKeyHash
     val localMap = currentComposer.currentCompositionLocalMap
     val materializedModifier = currentComposer.materialize(modifier)
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
 
     val measurePolicy = EmptyMeasurePolicy
 
     val inText = annoText ?: AnnotatedString(text ?: "")
+    val finalStyle = resolveDefaults(style, layoutDirection)
 
     val textElement = TextStringRichElement(
         text = inText,
-        style = style,
+        style = finalStyle,
         overflow = overflow,
         softWrap = softWrap,
         maxLines = maxLines,
@@ -380,11 +388,13 @@ private fun BasicTextWithNoInlinContent(
                 this.modifier = materializedModifier then textElement
             }
 
+            var isAnnotatedStringUpdate = false
             set(annoText) {
                 if (annoText == null) return@set
                 withTextView {
-                    applyAnnotatedString(annoText, inlineContent)
+                    applyAnnotatedString(annoText, inlineContent, density)
                 }
+                isAnnotatedStringUpdate = true
                 this.modifier = materializedModifier then textElement
             }
 
@@ -392,17 +402,37 @@ private fun BasicTextWithNoInlinContent(
             set(inlineContent) {
                 if (annoText == null) return@set
                 withTextView {
-                    applyAnnotatedString(annoText, inlineContent)
+                    applyAnnotatedString(annoText, inlineContent, density)
                 }
+                isAnnotatedStringUpdate = true
                 this.modifier = materializedModifier then textElement
             }
 
+            var isTextUpdate = false
             // 样式属性
             set(style) {
                 withTextView {
-                    applyTextStyle(style)
+                    applyTextStyle(finalStyle, density)
                 }
+                isTextUpdate = true
                 this.modifier = materializedModifier then textElement
+            }
+
+            if (!isTextUpdate || !isAnnotatedStringUpdate) {
+                set(density) {
+                    if (!isTextUpdate) {
+                        withTextView {
+                            applyTextStyle(finalStyle, density)
+                        }
+                    }
+
+                    if (!isAnnotatedStringUpdate) {
+                        if (annoText == null) return@set
+                        withTextView {
+                            applyAnnotatedString(annoText, inlineContent, density)
+                        }
+                    }
+                }
             }
 
             set(color) {
@@ -446,10 +476,10 @@ private fun BasicTextWithNoInlinContent(
 
 
 // 扩展函数用于处理各种文本属性
-private fun TextAttr.applyTextStyle(style: TextStyle) {
+private fun TextAttr.applyTextStyle(style: TextStyle, density: Density) {
     // 字体相关
     if (style.fontSize.isSpecified) {
-        fontSize(style.fontSize.value)
+        fontSize(this.scaleToDensity(density, style.fontSize.value))
     }
     applyFontWeight(style.fontWeight)
     applyFontStyle(style.fontStyle)
@@ -458,10 +488,10 @@ private fun TextAttr.applyTextStyle(style: TextStyle) {
 
     // 布局相关
     if (style.letterSpacing.isSpecified) {
-        letterSpacing(style.letterSpacing.value)
+        letterSpacing(this.scaleToDensity(density, style.letterSpacing.value))
     }
     if (style.lineHeight.isSpecified) {
-        lineHeight(style.lineHeight.value)
+        lineHeight(this.scaleToDensity(density, style.lineHeight.value))
     }
 
     applyTextAlign(style.textAlign)
@@ -631,8 +661,10 @@ private inline fun ComposeUiNode.withTextView(action: RichTextAttr.() -> Unit) {
 
 private fun RichTextAttr.applyAnnotatedString(
     annoText: AnnotatedString,
-    inlineContent: Map<String, InlineTextContent> = EmptyInlineContent
+    inlineContent: Map<String, InlineTextContent> = EmptyInlineContent,
+    density: Density
 ) {
+
     val spans = arrayListOf<ISpan>()
     
     // 收集所有的样式变化点
@@ -688,7 +720,10 @@ private fun RichTextAttr.applyAnnotatedString(
             // 是 placeholder，创建 PlaceholderSpan
             placeholders?.find { it.start == start }?.let { placeholder ->
                 spans.add(PlaceholderSpan().apply {
-                    placeholderSize(placeholder.item.width.value, placeholder.item.height.value)
+                    placeholderSize(
+                        this@applyAnnotatedString.scaleToDensity(density, placeholder.item.width.value),
+                        this@applyAnnotatedString.scaleToDensity(density, placeholder.item.height.value),
+                    )
                 })
             }
         } else if (start < end) {
@@ -700,7 +735,7 @@ private fun RichTextAttr.applyAnnotatedString(
                 // 应用适用的 SpanStyle
                 annoText.spanStyles
                     .filter { range -> !(end <= range.start || start >= range.end) }
-                    .forEach { range -> applySpanStyle(range.item) }
+                    .forEach { range -> applySpanStyle(range.item, density) }
 
                 // 应用适用的 ParagraphStyle
                 annoText.paragraphStyles
@@ -720,7 +755,7 @@ private fun RichTextAttr.applyAnnotatedString(
                 // 如果找到适用的 LinkAnnotation，应用其样式
                 linkAnnotation?.let { range ->
                     val spanStyle = range.item.styles?.style ?: SpanStyle()
-                    applySpanStyle(spanStyle)
+                    applySpanStyle(spanStyle, density)
 
                     // 添加点击事件处理
                     click { _ ->
@@ -749,10 +784,10 @@ private fun TextSpan.applyLinkStyle(link: LinkAnnotation) {
 }
 
 // 添加一个辅助方法来应用 SpanStyle
-private fun TextSpan.applySpanStyle(spanStyle: SpanStyle) {
+private fun TextSpan.applySpanStyle(spanStyle: SpanStyle, density: Density) {
     // 应用字体样式
     if (spanStyle.fontSize.isSpecified) {
-        fontSize(spanStyle.fontSize.value)
+        fontSize(scaleToDensity(density, spanStyle.fontSize.value))
     }
     applyFontWeight(spanStyle.fontWeight)
     applyFontStyle(spanStyle.fontStyle)

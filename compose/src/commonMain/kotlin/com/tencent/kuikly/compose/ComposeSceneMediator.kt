@@ -80,10 +80,7 @@ class ComposeSceneMediator(
         }
         scene.setContent {
             ProvideComposeSceneMediatorCompositionLocals {
-                val currentConfiguration = LocalConfiguration.current
-                key(currentConfiguration.pageViewWidth, currentConfiguration.pageViewHeight) {
-                    content()
-                }
+                content()
                 LocalSlotProvider.current.slots.forEach { slotContent ->
                     key(slotContent.first) {
                         slotContent.second?.invoke()

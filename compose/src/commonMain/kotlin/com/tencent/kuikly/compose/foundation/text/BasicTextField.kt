@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.tencent.kuikly.compose.extension.scaleToDensity
 import com.tencent.kuikly.compose.foundation.interaction.MutableInteractionSource
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.Brush
@@ -34,16 +35,19 @@ import com.tencent.kuikly.compose.ui.text.input.KeyboardType
 import com.tencent.kuikly.compose.ui.text.input.TextFieldValue
 import com.tencent.kuikly.compose.ui.text.input.VisualTransformation
 import com.tencent.kuikly.compose.ui.text.style.TextAlign
+import com.tencent.kuikly.compose.ui.unit.Density
+import com.tencent.kuikly.compose.ui.unit.isSpecified
 import com.tencent.kuikly.core.views.TextAreaAttr
 
-internal fun TextAreaAttr.setTextStyle(style: TextStyle) {
+internal fun TextAreaAttr.setTextStyle(style: TextStyle, density: Density) {
     style.color.also {
         color(it.toKuiklyColor())
     }
-    style.fontSize.also {
-        fontSize(it.value)
+    // 字体相关
+    if (style.fontSize.isSpecified) {
+        fontSize(this.scaleToDensity(density, style.fontSize.value))
     }
-    style.textAlign.also {
+    style.textAlign?.also {
         if (it.value == TextAlign.Right.value || it.value == TextAlign.End.value) {
             textAlignRight()
         } else if (it.value == TextAlign.Center.value || it.value == TextAlign.Center.value) {
@@ -66,6 +70,9 @@ internal fun TextAreaAttr.setTextStyle(style: TextStyle) {
         }
     }
 
+    if (style.lineHeight.isSpecified) {
+        lineHeight(this.scaleToDensity(density, style.lineHeight.value))
+    }
 }
 
 /**
@@ -218,6 +225,7 @@ fun BasicTextField(
         cursorBrush = cursorBrush,
         singleLine = singleLine,
         keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
         softWrap = !singleLine,
         maxLines = if (singleLine) 1 else maxLines,
         decorationBox = decorationBox,
@@ -343,6 +351,7 @@ fun BasicTextField(
         interactionSource = interactionSource,
         cursorBrush = cursorBrush,
         keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
         softWrap = !singleLine,
         maxLines = if (singleLine) 1 else maxLines,
         decorationBox = decorationBox,

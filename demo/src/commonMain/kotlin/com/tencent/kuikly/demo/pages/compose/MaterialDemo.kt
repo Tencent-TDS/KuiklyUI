@@ -441,7 +441,7 @@ private fun IndefiniteSnackbar() {
 }
 
 @Composable
-private fun CustomSnackbar() {
+fun CustomSnackbar() {
     class SnackbarVisualsWithError(override val message: String, val isError: Boolean) :
         SnackbarVisuals {
         override val actionLabel: String

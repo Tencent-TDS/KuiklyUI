@@ -57,6 +57,7 @@ import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.SolidColor
 import com.tencent.kuikly.compose.ui.layout.ContentScale
 import com.tencent.kuikly.compose.ui.platform.LocalFocusManager
+import com.tencent.kuikly.compose.ui.platform.LocalSoftwareKeyboardController
 import com.tencent.kuikly.compose.ui.text.TextStyle
 import com.tencent.kuikly.compose.ui.text.input.ImeAction
 import com.tencent.kuikly.compose.ui.text.input.KeyboardType
@@ -213,17 +214,25 @@ class TextFieldDemo : ComposeContainer() {
                     )
 //
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(text = "4 密码输入无法换行，高度36dp，响应键盘高度")
+                    var doneState by remember { mutableStateOf("") }
+                    Text(text = "4 密码输入无法换行，高度36dp，响应键盘高度 ${doneState}")
+                    val keyboardController = LocalSoftwareKeyboardController.current
                     Box(modifier = Modifier.border(1.dp, Color.Black)) {
                         TextField(
                             value = "",
                             onValueChange = {
 
                             },
-                            visualTransformation = PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Password,
                                 imeAction = ImeAction.Done,
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = {
+                                    // 处理回车Done逻辑
+                                    doneState = "已点击Done"
+                                    keyboardController?.hide()
+                                }
                             ),
                             modifier = Modifier.fillMaxWidth().height(36.dp).onFocusChanged {
                                 awareKeyboardHeight = it.isFocused

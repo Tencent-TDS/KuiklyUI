@@ -48,38 +48,7 @@ fun Pager.DemoScaffold(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .background(Color(0xFFF5F5F5))
-            .fillMaxSize().then(modifier)
-    ) {
-        Spacer(modifier = Modifier.height(40.dp))
-        Row {
-            if (back) {
-                Text(
-                    "<",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    color = Color(0xFF333333),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .width(40.dp)
-                        .padding(vertical = 12.dp, horizontal = 4.dp)
-                        .clickable {
-                            acquireModule<RouterModule>(RouterModule.MODULE_NAME).closePage()
-                        }
-                )
-            }
-            Text(
-                title,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF333333),
-                modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp)
-            )
-        }
-
+    ComposeNavigationBar(title) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(all = 8.dp),

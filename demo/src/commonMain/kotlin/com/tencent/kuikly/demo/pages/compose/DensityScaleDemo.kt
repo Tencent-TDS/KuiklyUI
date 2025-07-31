@@ -86,7 +86,11 @@ fun DensityScaleDemo() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            testContent()
+            CompositionLocalProvider(
+                LocalDensity provides Density(2f, fontScale = 1f)
+            ) {
+                testContent()
+            }
         }
         Column(
             modifier = Modifier.wrapContentSize(),
@@ -117,9 +121,9 @@ fun DensityScaleDemo() {
                     Text("+")
                 }
                 Button(
-                    onClick = { density = 3f },
+                    onClick = { density = 2f },
                 ) {
-                    Text("=3")
+                    Text("=2")
                 }
                 Button(
                     onClick = { density = 1f },
@@ -197,7 +201,7 @@ private fun testContent() {
         CustomSnackbar()
         Row {
             LazyColumn {
-                items(10) {
+                items(20) {
                     Row {
                         Text("LazyColumn${it}")
                         Switch(false, onCheckedChange = {

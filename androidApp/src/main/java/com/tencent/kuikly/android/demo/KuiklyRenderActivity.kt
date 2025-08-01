@@ -106,6 +106,7 @@ class KuiklyRenderActivity : AppCompatActivity() {
     private fun createPageData(): Map<String, Any> {
         val param = argsToMap()
         param["appId"] = 1
+        param["sysLang"] = resources.configuration.locale.language
         return param
     }
 

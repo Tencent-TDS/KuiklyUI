@@ -48,7 +48,7 @@ Since the AI request implementation differs across platforms in this demo: Andro
 
 ### Android and iOS
 
-- First, uncomment the following function and import the corresponding ktor package:
+- First, uncomment the following function and import the corresponding ktor package in the `ChatDemo.kt` file:
 
 ```Kotlin
 /* For Android and iOS (ktor request method) */

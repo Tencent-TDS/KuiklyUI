@@ -141,6 +141,7 @@ internal class ComposeAllSample : ComposeContainer() {
             // 在这里添加更多的demo
             DemoItem("OverNativeClickDemo", "遮住原生View可点击", "OverNativeClickDemo"),
             DemoItem("AppearPercentDemo", "可见度百度比", "AppearDemo"),
+            DemoItem("ClipboardDemo", "剪贴板示例", "ClipboardDemo"),
             DemoItem("内外边距", "Compose内外边距，边框写法示例", "MarginPaddingTest"),
             DemoItem("MaterialDemo", "material3组件示例", "material_demo"),
             DemoItem("Dialog弹出菜单PopMenu", "基于Dialog实现的弹出菜单PopMenu示例", "PopMenuDialogDemo"),

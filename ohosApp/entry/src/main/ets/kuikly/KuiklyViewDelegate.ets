@@ -18,6 +18,7 @@ import { KRMyView } from './components/KRMyView';
 import { KRMyDemoCustomView } from './components/KRMyDemoCustomView';
 import { KRMyModule } from './modules/KRMyModule';
 import { KRBridgeModule } from './modules/KRBridgeModule';
+import { KROhosStreamRequestModule } from './modules/KROhosStreamRequestModule';
 
 
 export class KuiklyViewDelegate extends IKuiklyViewDelegate {
@@ -39,6 +40,7 @@ export class KuiklyViewDelegate extends IKuiklyViewDelegate {
     //map.set(HRBridgeModule.MODULE_NAME, () => new HRBridgeModule());
 
     map.set(KRMyModule.MODULE_NAME, () => new KRMyModule());
+    map.set(KROhosStreamRequestModule.MODULE_NAME, () => new KROhosStreamRequestModule());
     return map;
   }
 }

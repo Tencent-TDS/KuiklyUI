@@ -42,11 +42,17 @@ kotlin {
             implementation(project(":core"))
             implementation(project(":compose"))
             compileOnly(project(":core-annotations"))
+            // Chat Demo 相关依赖
+            implementation("com.tencent.kuiklybase:markdown:0.1.0")
+            implementation("io.ktor:ktor-client-core:2.3.10")
         }
     }
 
     val androidMain by sourceSets.getting {
         dependsOn(commonMain)
+        dependencies {
+            implementation("io.ktor:ktor-client-okhttp:2.3.10")
+        }
 //        kotlin.srcDirs(
 //            "build/generated/ksp/android/androidDebug/kotlin",
 //            "build/generated/ksp/android/androidRelease/kotlin",
@@ -55,6 +61,9 @@ kotlin {
 
     sourceSets.iosMain {
         dependsOn(commonMain)
+        dependencies {
+            implementation("io.ktor:ktor-client-darwin:2.3.10")
+        }
     }
 
     targets.withType<KotlinNativeTarget> {

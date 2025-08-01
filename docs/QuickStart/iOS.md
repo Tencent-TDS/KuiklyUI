@@ -14,7 +14,7 @@
 
 ## 添加Kuikly iOS 渲染器依赖
 
-### 方式一：通过 CocoaPods 集成
+### 方式一：通过 CocoaPods 集成（推荐）
 
 1. 添加``kuikly ios render``, 在你的工程的podfile添加以下代码
 
@@ -51,7 +51,7 @@ Kuikly iOS 渲染器已支持通过 SPM 集成，推荐 Xcode 12 及以上版本
 * 在弹出的对话框中，输入 Kuikly iOS 渲染器的 Git 仓库地址：
 
   ```shell
-  https://github.com/kuikly/OpenKuiklyIOSRender.git
+  https://github.com/Tencent-TDS/KuiklyUI.git
   ```
 
 * 选择你需要的版本（建议与 KMP 工程保持一致），点击 **Add Package**。
@@ -66,10 +66,9 @@ Kuikly iOS 渲染器已支持通过 SPM 集成，推荐 Xcode 12 及以上版本
 Kuikly 业务代码在 iOS 平台会被编译为 `.xcframework`，推荐以下集成方式：
 
 * **推荐：通过 SPM 集成业务 `.xcframework`**  
-  建议将业务 `shared.xcframework` 封装为一个本地或私有的 Swift Package，然后通过 SPM 集成到主工程。  
-  步骤如下：
+  建议将业务 `shared.xcframework` 封装为一个本地或私有的 Swift Package，然后通过 SPM 集成到主工程。步骤如下：
 
-  1. 新建一个 Swift Package（如 `SharedFrameworkWrapper`）。
+  1. 新建一个 Swift Package（如 `SharedFrameworkWrapper`）,并将 `shared.xcframework` 拷贝到该包目录下。
   2. 在 `Package.swift` 中添加：
 
       ```swift
@@ -79,11 +78,14 @@ Kuikly 业务代码在 iOS 平台会被编译为 `.xcframework`，推荐以下�
       )
       ```
 
-  3. 将 `shared.xcframework` 拷贝到该包目录下。
-  4. 在主工程中通过 SPM 添加该 Package 依赖。
+  3. 在主工程中通过 SPM 添加该 Package 依赖。
+  4. 对于图片等资源文件，由于Kuikly默认从 `mainBundle`按路径加载，因此有如下两种处理方式：
 
+  * **方式一**：将图片资源文件直接拖动至工程中，由 Xcode 自动在打包时拷贝到 `main bundle` 内，注意需对齐Kuikly侧的使用方式，按需保留文件夹结构。
+  
+  * **方式二**：自定义资源Swift Package, 并参考下文`实现图片加载适配器`一节进行自定义适配，注意确保路径正确匹配。
+  
 * **其他方式：**
-  * **CocoaPods 集成**：在 Podfile 中添加业务模块的 pod 路径。
   * **手动集成**：将 `shared.xcframework` 拖入 Xcode 工程，并设置为 `Embed & Sign`。
 
 #### 3. 其他说明

@@ -33,6 +33,7 @@ import com.tencent.kuikly.compose.foundation.layout.Box
 import com.tencent.kuikly.compose.foundation.layout.Column
 import com.tencent.kuikly.compose.foundation.layout.ExperimentalLayoutApi
 import com.tencent.kuikly.compose.foundation.layout.FlowRow
+import com.tencent.kuikly.compose.foundation.layout.PaddingValues
 import com.tencent.kuikly.compose.foundation.layout.Row
 import com.tencent.kuikly.compose.foundation.layout.Spacer
 import com.tencent.kuikly.compose.foundation.layout.fillMaxWidth
@@ -157,6 +158,13 @@ private fun PainterSamples() {
 }
 
 @Composable
+private fun SmallButton(text: String, onClick: () -> Unit) {
+    Button(onClick, contentPadding = PaddingValues(12.dp, 8.dp)) {
+        Text(text, fontSize = 12.sp)
+    }
+}
+
+@Composable
 private fun PlaceholderSamples() {
     Row(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -206,18 +214,10 @@ private fun PlaceholderSamples() {
             }
         }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            Button({ type = 0; ++count }) {
-                Text("with color")
-            }
-            Button({ type = 1; ++count }) {
-                Text("brush gradient", fontSize = 12.sp)
-            }
-            Button({ type = 2; ++count }) {
-                Text("brush solid")
-            }
-            Button({ type = 3; ++count }) {
-                Text("with image")
-            }
+            SmallButton("with color", { type = 0; ++count })
+            SmallButton("brush gradient", { type = 1; ++count })
+            SmallButton("brush solid", { type = 2; ++count })
+            SmallButton("with image", { type = 3; ++count })
         }
     }
 }
@@ -272,18 +272,10 @@ private fun ErrorSamples() {
             }
         }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            Button({ type = 0; ++count }) {
-                Text("with color")
-            }
-            Button({ type = 1; ++count }) {
-                Text("brush gradient", fontSize = 12.sp)
-            }
-            Button({ type = 2; ++count }) {
-                Text("brush solid")
-            }
-            Button({ type = 3; ++count }) {
-                Text("with image")
-            }
+            SmallButton("with color", { type = 0; ++count })
+            SmallButton("brush gradient", { type = 1; ++count })
+            SmallButton("brush solid", { type = 2; ++count })
+            SmallButton("with image", { type = 3; ++count })
         }
     }
 }
@@ -338,18 +330,10 @@ private fun FallbackSamples() {
             }
         }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            Button({ type = 0; ++count }) {
-                Text("with color")
-            }
-            Button({ type = 1; ++count }) {
-                Text("brush gradient", fontSize = 12.sp)
-            }
-            Button({ type = 2; ++count }) {
-                Text("brush solid")
-            }
-            Button({ type = 3; ++count }) {
-                Text("with image")
-            }
+            SmallButton("with color", { type = 0; ++count })
+            SmallButton("brush gradient", { type = 1; ++count })
+            SmallButton("brush solid", { type = 2; ++count })
+            SmallButton("with image", { type = 3; ++count })
         }
     }
 }
@@ -394,6 +378,287 @@ private fun AlignmentAndContentScaleSamples() {
         val largePainter = rememberAsyncImagePainter("https://wfiles.gtimg.cn/wuji_dashboard/xy/starter/baa91edc.png")
         val smallPainter = rememberAsyncImagePainter("https://wfiles.gtimg.cn/wuji_dashboard/xy/starter/be8ff284.png")
 
+        Column(
+            modifier = Modifier.width(60.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Center", Modifier.height(20.dp))
+            Image(
+                modifier = imageModifier,
+                painter = largePainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.Center,
+                contentScale = ContentScale.Crop,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = largePainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.Center,
+                contentScale = ContentScale.Fit,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = largePainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.Center,
+                contentScale = ContentScale.FillHeight,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = largePainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.Center,
+                contentScale = ContentScale.FillWidth,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = largePainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.Center,
+                contentScale = ContentScale.Inside,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = largePainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.Center,
+                contentScale = ContentScale.None,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = largePainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.Center,
+                contentScale = ContentScale.FillBounds,
+                colorFilter = tint
+            )
+        }
+        Column(
+            modifier = Modifier.width(60.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("TopStart", Modifier.height(20.dp))
+            Image(
+                modifier = imageModifier,
+                painter = largePainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.TopStart,
+                contentScale = ContentScale.Crop,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = largePainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.TopStart,
+                contentScale = ContentScale.Fit,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = largePainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.TopStart,
+                contentScale = ContentScale.FillHeight,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = largePainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.TopStart,
+                contentScale = ContentScale.FillWidth,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = largePainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.TopStart,
+                contentScale = ContentScale.Inside,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = largePainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.TopStart,
+                contentScale = ContentScale.None,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = largePainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.TopStart,
+                contentScale = ContentScale.FillBounds,
+                colorFilter = tint
+            )
+        }
+        Column(
+            modifier = Modifier.width(60.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Center", Modifier.height(20.dp))
+            Image(
+                modifier = imageModifier,
+                painter = smallPainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.Center,
+                contentScale = ContentScale.Crop,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = smallPainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.Center,
+                contentScale = ContentScale.Fit,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = smallPainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.Center,
+                contentScale = ContentScale.FillHeight,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = smallPainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.Center,
+                contentScale = ContentScale.FillWidth,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = smallPainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.Center,
+                contentScale = ContentScale.Inside,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = smallPainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.Center,
+                contentScale = ContentScale.None,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = smallPainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.Center,
+                contentScale = ContentScale.FillBounds,
+                colorFilter = tint
+            )
+        }
+        Column(
+            modifier = Modifier.width(60.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("TopStart", Modifier.height(20.dp))
+            Image(
+                modifier = imageModifier,
+                painter = smallPainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.TopStart,
+                contentScale = ContentScale.Crop,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = smallPainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.TopStart,
+                contentScale = ContentScale.Fit,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = smallPainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.TopStart,
+                contentScale = ContentScale.FillHeight,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = smallPainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.TopStart,
+                contentScale = ContentScale.FillWidth,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = smallPainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.TopStart,
+                contentScale = ContentScale.Inside,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = smallPainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.TopStart,
+                contentScale = ContentScale.None,
+                colorFilter = tint
+            )
+            Image(
+                modifier = imageModifier,
+                painter = smallPainter,
+                contentDescription = null,
+                alpha = if (imageAlpha) 0.5f else 1f,
+                alignment = Alignment.TopStart,
+                contentScale = ContentScale.FillBounds,
+                colorFilter = tint
+            )
+        }
+
         Column {
             Spacer(Modifier.height(20.dp))
             Text("Crop", Modifier.height(60.dp))
@@ -405,286 +670,6 @@ private fun AlignmentAndContentScaleSamples() {
             Text("FillBounds", Modifier.height(60.dp))
         }
 
-        Column(
-            modifier = Modifier.width(90.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("Center", Modifier.height(20.dp))
-            Image(
-                modifier = imageModifier,
-                painter = largePainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.Center,
-                contentScale = ContentScale.Crop,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = largePainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.Center,
-                contentScale = ContentScale.Fit,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = largePainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.Center,
-                contentScale = ContentScale.FillHeight,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = largePainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.Center,
-                contentScale = ContentScale.FillWidth,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = largePainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.Center,
-                contentScale = ContentScale.Inside,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = largePainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.Center,
-                contentScale = ContentScale.None,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = largePainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.Center,
-                contentScale = ContentScale.FillBounds,
-                colorFilter = tint
-            )
-        }
-        Column(
-            modifier = Modifier.width(90.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("TopStart", Modifier.height(20.dp))
-            Image(
-                modifier = imageModifier,
-                painter = largePainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.TopStart,
-                contentScale = ContentScale.Crop,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = largePainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.TopStart,
-                contentScale = ContentScale.Fit,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = largePainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.TopStart,
-                contentScale = ContentScale.FillHeight,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = largePainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.TopStart,
-                contentScale = ContentScale.FillWidth,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = largePainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.TopStart,
-                contentScale = ContentScale.Inside,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = largePainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.TopStart,
-                contentScale = ContentScale.None,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = largePainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.TopStart,
-                contentScale = ContentScale.FillBounds,
-                colorFilter = tint
-            )
-        }
-        Column(
-            modifier = Modifier.width(90.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("Center", Modifier.height(20.dp))
-            Image(
-                modifier = imageModifier,
-                painter = smallPainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.Center,
-                contentScale = ContentScale.Crop,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = smallPainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.Center,
-                contentScale = ContentScale.Fit,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = smallPainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.Center,
-                contentScale = ContentScale.FillHeight,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = smallPainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.Center,
-                contentScale = ContentScale.FillWidth,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = smallPainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.Center,
-                contentScale = ContentScale.Inside,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = smallPainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.Center,
-                contentScale = ContentScale.None,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = smallPainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.Center,
-                contentScale = ContentScale.FillBounds,
-                colorFilter = tint
-            )
-        }
-        Column(
-            modifier = Modifier.width(90.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("TopStart", Modifier.height(20.dp))
-            Image(
-                modifier = imageModifier,
-                painter = smallPainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.TopStart,
-                contentScale = ContentScale.Crop,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = smallPainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.TopStart,
-                contentScale = ContentScale.Fit,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = smallPainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.TopStart,
-                contentScale = ContentScale.FillHeight,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = smallPainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.TopStart,
-                contentScale = ContentScale.FillWidth,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = smallPainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.TopStart,
-                contentScale = ContentScale.Inside,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = smallPainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.TopStart,
-                contentScale = ContentScale.None,
-                colorFilter = tint
-            )
-            Image(
-                modifier = imageModifier,
-                painter = smallPainter,
-                contentDescription = null,
-                alpha = if (imageAlpha) 0.5f else 1f,
-                alignment = Alignment.TopStart,
-                contentScale = ContentScale.FillBounds,
-                colorFilter = tint
-            )
-        }
     }
 }
 

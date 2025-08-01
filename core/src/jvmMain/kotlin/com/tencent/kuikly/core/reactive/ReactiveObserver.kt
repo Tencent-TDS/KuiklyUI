@@ -16,6 +16,6 @@
 @file:JvmName("ReactiveObserverJvm")
 package com.tencent.kuikly.core.reactive
 
-internal actual inline fun platformCheckThread(msg: () -> String) {
+internal actual inline fun platformCheckThread(block: () -> Unit) {
 
 }

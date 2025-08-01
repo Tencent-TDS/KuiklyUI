@@ -18,8 +18,8 @@ package com.tencent.kuikly.core.reactive
 
 import com.tencent.kuikly.core.nvi.NativeBridge
 
-internal actual inline fun platformCheckThread(msg: () -> String) {
+internal actual inline fun platformCheckThread(block: () -> Unit) {
     if (!NativeBridge.isContextThread) {
-        throw IllegalStateException(msg())
+        block()
     }
 }

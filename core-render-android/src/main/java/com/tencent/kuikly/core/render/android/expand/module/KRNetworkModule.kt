@@ -45,6 +45,9 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
             METHOD_HTTP_REQUEST -> KuiklyRenderAdapterManager.krThreadAdapter?.executeOnSubThread {
                 httpRequest(params, null, callback)
             }
+            METHOD_HTTP_REQUEST_SSE -> KuiklyRenderAdapterManager.krThreadAdapter?.executeOnSubThread {
+                httpRequestSSE(params, callback)
+            }
             else -> super.call(method, params, callback)
         }
     }
@@ -156,6 +159,72 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         } catch (e: Exception) {
             KuiklyRenderLog.e(MODULE_NAME, "Network module error: $e")
             fireErrorCallback(binaryMode, callback, "io exception", STATE_CODE_UNKNOWN)
+        } finally {
+            try {
+                rawStream?.close()
+                errorStream?.close()
+                connection?.disconnect()
+            } catch (e: IOException) {
+                KuiklyRenderLog.e(MODULE_NAME, "Network module close error: $e")
+            }
+        }
+    }
+
+    // 用于SSE的http流式请求方法
+    private fun httpRequestSSE(params: String?, callback: KuiklyRenderCallback?) {
+        val paramsJSON = params.toJSONObjectSafely()
+        val url = paramsJSON.optString("url")
+        val method = paramsJSON.optString("method")
+        val param = paramsJSON.optJSONObject("param")
+        val header = paramsJSON.optJSONObject("headers")
+        val cookie = paramsJSON.optString("cookie")
+        val timeoutS = paramsJSON.optInt("timeout")
+
+        var rawStream: InputStream? = null
+        var errorStream: InputStream? = null
+        var connection: HttpURLConnection? = null
+        try {
+            connection = openConnection(url, method, param) as HttpURLConnection
+            connection.connectTimeout = timeoutS * 1000
+            // SSE 一般不设置超时
+            connection.readTimeout = 0
+            connection.useCaches = false
+            connection.doInput = true
+            addHeaderToConnection(connection, header, cookie)
+            setRequestMethod(connection, method)
+            addBodyParamsIfNeed(connection, method, header, param, null)
+
+            val responseCode = connection.responseCode
+            if (responseCode in 200..299) {
+                rawStream = connection.inputStream
+                val headers: String = try {
+                    connection.headerFields?.toJSONObject()?.toString() ?: ""
+                } catch (e: Throwable) {
+                    KuiklyRenderLog.e(MODULE_NAME, "headerFields to json occur exception: $e")
+                    ""
+                }
+                val reader = BufferedReader(InputStreamReader(rawStream, Charsets.UTF_8))
+                val eventBuilder = StringBuilder()
+                var line: String?
+
+                while (reader.readLine().also { line = it } != null) {
+                    if (line!!.isEmpty()) {
+                        val eventData = eventBuilder.toString()
+                        if (eventData.isNotBlank())
+                            fireSuccessCallback(false, callback, eventData, headers, responseCode)
+                        eventBuilder.clear()
+                    } else {
+                        eventBuilder.append(line).append("\n")
+                    }
+                }
+            } else {
+                errorStream = connection.errorStream
+                val errorMsg = readInputStreamAsString(errorStream)
+                fireErrorCallback(false, callback, errorMsg, responseCode)
+            }
+        } catch (e: Exception) {
+            KuiklyRenderLog.e(MODULE_NAME, "Network module error: $e")
+            fireErrorCallback(false, callback, "io exception", STATE_CODE_UNKNOWN)
         } finally {
             try {
                 rawStream?.close()
@@ -376,6 +445,7 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         const val MODULE_NAME = "KRNetworkModule"
         private const val METHOD_HTTP_REQUEST = "httpRequest"
         private const val METHOD_HTTP_REQUEST_BINARY = "httpRequestBinary"
+        private const val METHOD_HTTP_REQUEST_SSE = "httpRequestSSE"
         private const val HTTP_METHOD_GET = "GET"
         private const val HTTP_METHOD_POST = "POST"
         private const val KEY_SUCCESS = "success"

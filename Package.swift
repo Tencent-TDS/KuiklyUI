@@ -9,12 +9,12 @@ let package = Package(
     products: [
         .library(
             name: "OpenKuiklyIOSRender",
-            targets: ["KuiklyIOSRender"]
+            targets: ["OpenKuiklyIOSRender"]
         ),
     ],
     targets: [
         .target(
-            name: "KuiklyIOSRender",
+            name: "OpenKuiklyIOSRender",
             path: "core-render-ios",
             publicHeadersPath: "include",
         ),

@@ -63,10 +63,13 @@ android {
 
 修改`shared/shared.podspec`
 
-```shell
+```kotlin
 ...
-	// 添加 ios assets 资源路径
-	spec.resources = ['src/commonMain/assets/**']
+cocoapods {
+    ...
+    // 添加 ios assets 资源路径
+    extraSpecAttributes["resources"] = "['src/commonMain/assets/**']"
+}
 ...
 ```
 

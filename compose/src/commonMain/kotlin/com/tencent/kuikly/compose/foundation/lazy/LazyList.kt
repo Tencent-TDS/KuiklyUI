@@ -247,6 +247,11 @@ private fun rememberLazyListMeasurePolicy(
 
         val itemsCount = itemProvider.itemCount
 
+        if (state.kuiklyInfo.cachedTotalItems > 0 && itemsCount < state.kuiklyInfo.cachedTotalItems) {
+            state.kuiklyInfo.offsetDirty = true
+        }
+        state.kuiklyInfo.cachedTotalItems = itemsCount
+
         // can be negative if the content padding is larger than the max size from constraints
         val mainAxisAvailableSize = if (isVertical) {
             containerConstraints.maxHeight - totalVerticalPadding

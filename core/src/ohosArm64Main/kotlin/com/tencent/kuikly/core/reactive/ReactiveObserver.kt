@@ -18,9 +18,9 @@ package com.tencent.kuikly.core.reactive
 import com.tencent.kuikly.core.manager.BridgeManager
 import ohos.com_tencent_kuikly_IsCurrentOnContextThread
 
-internal actual inline fun platformCheckThread(msg: () -> String) {
+internal actual inline fun platformCheckThread(block: () -> Unit) {
     @OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
     if (!com_tencent_kuikly_IsCurrentOnContextThread(BridgeManager.currentPageId)) {
-        throw IllegalStateException(msg())
+        block()
     }
 }

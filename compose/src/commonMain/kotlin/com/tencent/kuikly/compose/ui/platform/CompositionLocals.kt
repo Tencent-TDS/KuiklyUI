@@ -130,6 +130,7 @@ internal fun ProvideCommonCompositionLocals(
         LocalInputModeManager provides owner.inputModeManager,
         LocalLayoutDirection provides owner.layoutDirection,
         LocalSoftwareKeyboardController provides owner.softwareKeyboardController,
+        LocalViewConfiguration provides owner.viewConfiguration,
         // Kuikly
         LocalActivity provides currentActivity,
         LocalClipboardManager provides clipboardModule,

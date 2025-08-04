@@ -258,7 +258,11 @@ class ReactiveObserver {
 
     private fun checkThread() {
         if (VERIFY_THREAD) {
-            platformCheckThread { "observable must access on context thread" }
+            platformCheckThread {
+                verifyFailedHandler(
+                    IllegalStateException("observable must access on context thread")
+                )
+            }
         }
     }
 
@@ -355,6 +359,10 @@ class ReactiveObserver {
 
         var VERIFY_THREAD = false
         var VERIFY_OBSERVER = false
+        internal var verifyFailedHandler: (RuntimeException) -> Unit = { throw it }
+        fun verifyFailed(handler: (RuntimeException) -> Unit) {
+            verifyFailedHandler = handler
+        }
     }
 }
 
@@ -396,17 +404,21 @@ internal class UnsafePropertyAccessHandlerImpl(
     override fun getReactiveObserver(): ReactiveObserver? {
         val pagerId = scope.pagerId.ifEmpty {
             if (ReactiveObserver.VERIFY_OBSERVER) {
-                throw ReactiveObserverNotFoundException("PagerScope not initialized")
+                ReactiveObserver.verifyFailedHandler(
+                    ReactiveObserverNotFoundException("PagerScope not initialized")
+                )
             }
             // 用currentPageId兜底，以保持向前兼容
             BridgeManager.currentPageId
         }
         val observer = PagerManager.getReactiveObserver(pagerId)
         if (observer == null && ReactiveObserver.VERIFY_OBSERVER) {
-            throw ReactiveObserverNotFoundException("ReactiveObserver not found: $pagerId")
+            ReactiveObserver.verifyFailedHandler(
+                ReactiveObserverNotFoundException("ReactiveObserver not found: $pagerId")
+            )
         }
         return observer
     }
 }
 
-internal expect inline fun platformCheckThread(msg: () -> String)
+internal expect inline fun platformCheckThread(block: () -> Unit)

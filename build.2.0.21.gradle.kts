@@ -21,11 +21,13 @@ allprojects {
         google()
         mavenCentral()
         mavenLocal()
+        maven("https://mirrors.tencent.com/repository/maven/tencent_public/")
     }
     configurations.all {
         resolutionStrategy.dependencySubstitution {
             substitute(module("${MavenConfig.GROUP}:core")).using(project(":core"))
             substitute(module("${MavenConfig.GROUP}:core-annotations")).using(project(":core-annotations"))
+            substitute(module("${MavenConfig.GROUP}:compose")).using(project(":compose"))
         }
     }
 }

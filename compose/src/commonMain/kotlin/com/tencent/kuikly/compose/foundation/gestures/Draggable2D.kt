@@ -19,9 +19,11 @@ package com.tencent.kuikly.compose.foundation.gestures
 import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
 import com.tencent.kuikly.compose.foundation.MutatePriority
 import com.tencent.kuikly.compose.foundation.MutatorMutex
+import com.tencent.kuikly.compose.foundation.gestures.DragEvent.DragDelta
 import com.tencent.kuikly.compose.foundation.interaction.DragInteraction
 import com.tencent.kuikly.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import com.tencent.kuikly.compose.ui.Modifier
@@ -32,6 +34,7 @@ import com.tencent.kuikly.compose.ui.platform.InspectorInfo
 import com.tencent.kuikly.compose.ui.unit.Velocity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 /**
  * State of Draggable2D. Allows for granular control of how deltas are consumed by the user as well
@@ -106,7 +109,7 @@ fun Draggable2DState(onDelta: (Offset) -> Unit): Draggable2DState =
  * Create and remember default implementation of [Draggable2DState] interface that allows to pass a
  * simple action that will be invoked when the drag occurs.
  *
- * This is the simplest way to set up a [draggable] modifier. When constructing this
+ * This is the simplest way to set up a [draggable2D] modifier. When constructing this
  * [Draggable2DState], you must provide a [onDelta] lambda, which will be invoked whenever
  * drag happens (by gesture input or a custom [Draggable2DState.drag] call) with the delta in
  * pixels.
@@ -129,7 +132,54 @@ fun rememberDraggable2DState(onDelta: (Offset) -> Unit): Draggable2DState {
  *
  * If you are implementing dragging in a single orientation, consider using [draggable].
  *
- * @sample com.tencent.kuikly.compose.foundation.samples.Draggable2DSample
+ * @sample androidx.compose.foundation.samples.Draggable2DSample
+ *
+ * @param state [Draggable2DState] state of the draggable2D. Defines how drag events will be
+ * interpreted by the user land logic.
+ * @param enabled whether or not drag is enabled
+ * @param interactionSource [MutableInteractionSource] that will be used to emit
+ * [DragInteraction.Start] when this draggable is being dragged.
+ * @param startDragImmediately when set to true, draggable2D will start dragging immediately and
+ * prevent other gesture detectors from reacting to "down" events (in order to block composed
+ * press-based gestures). This is intended to allow end users to "catch" an animating widget by
+ * pressing on it. It's useful to set it when value you're dragging is settling / animating.
+ * @param onDragStarted callback that will be invoked when drag is about to start at the starting
+ * position, allowing user to perform preparation for drag.
+ * @param onDragStopped callback that will be invoked when drag is finished, allowing the
+ * user to react on velocity and process it.
+ * @param reverseDirection reverse the direction of the scroll, so top to bottom scroll will
+ * behave like bottom to top and left to right will behave like right to left.
+ */
+@ExperimentalFoundationApi
+@Stable
+fun Modifier.draggable2D(
+    state: Draggable2DState,
+    enabled: Boolean = true,
+    interactionSource: MutableInteractionSource? = null,
+    startDragImmediately: Boolean = false,
+    onDragStarted: (startedPosition: Offset) -> Unit = NoOpOnDragStart,
+    onDragStopped: (velocity: Velocity) -> Unit = NoOpOnDragStop,
+    reverseDirection: Boolean = false
+): Modifier = this then Draggable2DElement(
+    state = state,
+    enabled = enabled,
+    interactionSource = interactionSource,
+    startDragImmediately = startDragImmediately,
+    onDragStarted = onDragStarted,
+    onDragStopped = onDragStopped,
+    reverseDirection = reverseDirection
+)
+
+/**
+ * Configure touch dragging for the UI element in both orientations. The drag distance
+ * reported to [Draggable2DState], allowing users to react to the drag delta and update their state.
+ *
+ * The common common usecase for this component is when you need to be able to drag something
+ * inside the component on the screen and represent this state via one float value
+ *
+ * If you are implementing dragging in a single orientation, consider using [draggable].
+ *
+ * @sample androidx.compose.foundation.samples.Draggable2DSample
  *
  * @param state [Draggable2DState] state of the draggable2D. Defines how drag events will be
  * interpreted by the user land logic.
@@ -143,70 +193,72 @@ fun rememberDraggable2DState(onDelta: (Offset) -> Unit): Draggable2DState {
  * @param onDragStarted callback that will be invoked when drag is about to start at the starting
  * position, allowing user to suspend and perform preparation for drag, if desired.This suspend
  * function is invoked with the draggable2D scope, allowing for async processing, if desired. Note
- * that the scope used here is the onw provided by the draggable2D node, for long running work that
+ * that the scope used here is the one provided by the draggable2D node, for long-running work that
  * needs to outlast the modifier being in the composition you should use a scope that fits the
  * lifecycle needed.
  * @param onDragStopped callback that will be invoked when drag is finished, allowing the
  * user to react on velocity and process it. This suspend function is invoked with the draggable2D
- * scope, allowing for async processing, if desired. Note that the scope used here is the onw
- * provided by the draggable2D scope, for long running work that needs to outlast the modifier being
+ * scope, allowing for async processing, if desired. Note that the scope used here is the one
+ * provided by the draggable2D scope, for long-running work that needs to outlast the modifier being
  * in the composition you should use a scope that fits the lifecycle needed.
  * @param reverseDirection reverse the direction of the scroll, so top to bottom scroll will
  * behave like bottom to top and left to right will behave like right to left.
  */
+@Deprecated(
+    "Please use overload without the suspend onDragStarted onDragStopped and callbacks",
+    level = DeprecationLevel.HIDDEN
+)
 @ExperimentalFoundationApi
+@Stable
 fun Modifier.draggable2D(
     state: Draggable2DState,
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
     startDragImmediately: Boolean = false,
-    onDragStarted: suspend CoroutineScope.(startedPosition: Offset) -> Unit = {},
-    onDragStopped: suspend CoroutineScope.(velocity: Velocity) -> Unit = {},
+    onDragStarted: suspend CoroutineScope.(startedPosition: Offset) -> Unit = NoOpOnDragStarted,
+    onDragStopped: suspend CoroutineScope.(velocity: Velocity) -> Unit = NoOpOnDragStopped,
     reverseDirection: Boolean = false
-): Modifier = this then Draggable2DElement(
+): Modifier = this then Draggable2DCompatElement(
     state = state,
     enabled = enabled,
     interactionSource = interactionSource,
-    startDragImmediately = { startDragImmediately },
+    startDragImmediately = startDragImmediately,
     onDragStarted = onDragStarted,
     onDragStopped = onDragStopped,
-    reverseDirection = reverseDirection,
-    canDrag = { true }
+    reverseDirection = reverseDirection
 )
 
 @OptIn(ExperimentalFoundationApi::class)
-internal class Draggable2DElement(
+internal class Draggable2DCompatElement(
     private val state: Draggable2DState,
-    private val canDrag: (PointerInputChange) -> Boolean,
     private val enabled: Boolean,
     private val interactionSource: MutableInteractionSource?,
-    private val startDragImmediately: () -> Boolean,
+    private val startDragImmediately: Boolean,
     private val onDragStarted: suspend CoroutineScope.(startedPosition: Offset) -> Unit,
     private val onDragStopped: suspend CoroutineScope.(velocity: Velocity) -> Unit,
-    private val reverseDirection: Boolean,
-
-    ) : ModifierNodeElement<Draggable2DNode>() {
+    private val reverseDirection: Boolean
+) : ModifierNodeElement<Draggable2DNode>() {
     override fun create(): Draggable2DNode = Draggable2DNode(
         state,
-        canDrag,
+        CanDrag,
         enabled,
         interactionSource,
         startDragImmediately,
-        onDragStarted,
-        onDragStopped,
-        reverseDirection
+        reverseDirection,
+        onDragStarted = onDragStarted,
+        onDragStopped = onDragStopped,
     )
 
     override fun update(node: Draggable2DNode) {
         node.update(
             state,
-            canDrag,
+            CanDrag,
             enabled,
             interactionSource,
             startDragImmediately,
-            onDragStarted,
-            onDragStopped,
-            reverseDirection
+            reverseDirection,
+            onDragStarted = onDragStarted,
+            onDragStopped = onDragStopped,
         )
     }
 
@@ -215,15 +267,14 @@ internal class Draggable2DElement(
         if (other === null) return false
         if (this::class != other::class) return false
 
-        other as Draggable2DElement
+        other as Draggable2DCompatElement
 
         if (state != other.state) return false
-        if (canDrag != other.canDrag) return false
         if (enabled != other.enabled) return false
         if (interactionSource != other.interactionSource) return false
         if (startDragImmediately != other.startDragImmediately) return false
-        if (onDragStarted != other.onDragStarted) return false
-        if (onDragStopped != other.onDragStopped) return false
+        if (onDragStarted !== other.onDragStarted) return false
+        if (onDragStopped !== other.onDragStopped) return false
         if (reverseDirection != other.reverseDirection) return false
 
         return true
@@ -231,7 +282,6 @@ internal class Draggable2DElement(
 
     override fun hashCode(): Int {
         var result = state.hashCode()
-        result = 31 * result + canDrag.hashCode()
         result = 31 * result + enabled.hashCode()
         result = 31 * result + (interactionSource?.hashCode() ?: 0)
         result = 31 * result + startDragImmediately.hashCode()
@@ -243,7 +293,6 @@ internal class Draggable2DElement(
 
     override fun InspectorInfo.inspectableProperties() {
         name = "draggable2D"
-        properties["canDrag"] = canDrag
         properties["enabled"] = enabled
         properties["interactionSource"] = interactionSource
         properties["startDragImmediately"] = startDragImmediately
@@ -251,6 +300,89 @@ internal class Draggable2DElement(
         properties["onDragStopped"] = onDragStopped
         properties["reverseDirection"] = reverseDirection
         properties["state"] = state
+    }
+
+    companion object {
+        val CanDrag: (PointerInputChange) -> Boolean = { true }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+internal class Draggable2DElement(
+    private val state: Draggable2DState,
+    private val enabled: Boolean,
+    private val interactionSource: MutableInteractionSource?,
+    private val startDragImmediately: Boolean,
+    private val onDragStarted: (startedPosition: Offset) -> Unit,
+    private val onDragStopped: (velocity: Velocity) -> Unit,
+    private val reverseDirection: Boolean
+) : ModifierNodeElement<Draggable2DNode>() {
+    override fun create(): Draggable2DNode = Draggable2DNode(
+        state,
+        CanDrag,
+        enabled,
+        interactionSource,
+        startDragImmediately,
+        reverseDirection,
+        onDragStart = onDragStarted,
+        onDragStop = onDragStopped,
+    )
+
+    override fun update(node: Draggable2DNode) {
+        node.update(
+            state,
+            CanDrag,
+            enabled,
+            interactionSource,
+            startDragImmediately,
+            reverseDirection,
+            onDragStart = onDragStarted,
+            onDragStop = onDragStopped,
+        )
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other === null) return false
+        if (this::class != other::class) return false
+
+        other as Draggable2DElement
+
+        if (state != other.state) return false
+        if (enabled != other.enabled) return false
+        if (interactionSource != other.interactionSource) return false
+        if (startDragImmediately != other.startDragImmediately) return false
+        if (onDragStarted !== other.onDragStarted) return false
+        if (onDragStopped !== other.onDragStopped) return false
+        if (reverseDirection != other.reverseDirection) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = state.hashCode()
+        result = 31 * result + enabled.hashCode()
+        result = 31 * result + (interactionSource?.hashCode() ?: 0)
+        result = 31 * result + startDragImmediately.hashCode()
+        result = 31 * result + onDragStarted.hashCode()
+        result = 31 * result + onDragStopped.hashCode()
+        result = 31 * result + reverseDirection.hashCode()
+        return result
+    }
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = "draggable2D"
+        properties["enabled"] = enabled
+        properties["interactionSource"] = interactionSource
+        properties["startDragImmediately"] = startDragImmediately
+        properties["onDragStarted"] = onDragStarted
+        properties["onDragStopped"] = onDragStopped
+        properties["reverseDirection"] = reverseDirection
+        properties["state"] = state
+    }
+
+    companion object {
+        val CanDrag: (PointerInputChange) -> Boolean = { true }
     }
 }
 
@@ -260,83 +392,94 @@ internal class Draggable2DNode(
     canDrag: (PointerInputChange) -> Boolean,
     enabled: Boolean,
     interactionSource: MutableInteractionSource?,
-    startDragImmediately: () -> Boolean,
-    onDragStarted: suspend CoroutineScope.(startedPosition: Offset) -> Unit,
-    onDragStopped: suspend CoroutineScope.(velocity: Velocity) -> Unit,
-    reverseDirection: Boolean
-) : AbstractDraggableNode(
-    canDrag,
-    enabled,
-    interactionSource,
-    startDragImmediately,
-    onDragStarted,
-    onDragStopped,
-    reverseDirection
+    private var startDragImmediately: Boolean,
+    private var reverseDirection: Boolean,
+    // keeping both lambdas for compatibility
+    private var onDragStarted: suspend CoroutineScope.(startedPosition: Offset) -> Unit =
+        NoOpOnDragStarted,
+    private var onDragStart: (startedPosition: Offset) -> Unit =
+        NoOpOnDragStart,
+    private var onDragStopped: suspend CoroutineScope.(velocity: Velocity) -> Unit =
+        NoOpOnDragStopped,
+    private var onDragStop: (velocity: Velocity) -> Unit = NoOpOnDragStop,
+) : DragGestureNode(
+    canDrag = canDrag,
+    enabled = enabled,
+    interactionSource = interactionSource,
+    orientationLock = null
 ) {
-    var drag2DScope: Drag2DScope = NoOpDrag2DScope
 
-    private val abstractDragScope = object : AbstractDragScope {
-        override fun dragBy(pixels: Offset) {
-            drag2DScope.dragBy(pixels)
-        }
-    }
-
-    override suspend fun drag(block: suspend AbstractDragScope.() -> Unit) {
+    override suspend fun drag(
+        forEachDelta: suspend ((dragDelta: DragDelta) -> Unit) -> Unit
+    ) {
         state.drag(MutatePriority.UserInput) {
-            drag2DScope = this
-            block.invoke(abstractDragScope)
+            forEachDelta { dragDelta ->
+                dragBy(dragDelta.delta.reverseIfNeeded())
+            }
         }
     }
 
-    override suspend fun AbstractDragScope.draggingBy(dragDelta: DragEvent.DragDelta) {
-        dragBy(dragDelta.delta)
+    override fun onDragStarted(startedPosition: Offset) {
+        onDragStart.invoke(startedPosition)
+        // do not launch if callback is no no-op
+        if (!isAttached || onDragStarted === NoOpOnDragStarted) return
+        coroutineScope.launch {
+            this@Draggable2DNode.onDragStarted(this, startedPosition)
+        }
     }
 
-    override val pointerDirectionConfig = BidirectionalPointerDirectionConfig
+    override fun onDragStopped(velocity: Velocity) {
+        onDragStop.invoke(velocity)
+        // do not launch if callback is no no-op
+        if (!isAttached || onDragStopped === NoOpOnDragStopped) return
+        coroutineScope.launch {
+            this@Draggable2DNode.onDragStopped(this, velocity.reverseIfNeeded())
+        }
+    }
+
+    override fun startDragImmediately(): Boolean = startDragImmediately
 
     fun update(
         state: Draggable2DState,
         canDrag: (PointerInputChange) -> Boolean,
         enabled: Boolean,
         interactionSource: MutableInteractionSource?,
-        startDragImmediately: () -> Boolean,
-        onDragStarted: suspend CoroutineScope.(startedPosition: Offset) -> Unit,
-        onDragStopped: suspend CoroutineScope.(velocity: Velocity) -> Unit,
-        reverseDirection: Boolean
+        startDragImmediately: Boolean,
+        reverseDirection: Boolean,
+        onDragStarted: suspend CoroutineScope.(startedPosition: Offset) -> Unit =
+            this.onDragStarted,
+        onDragStopped: suspend CoroutineScope.(velocity: Velocity) -> Unit =
+            this.onDragStopped,
+        onDragStart: (startedPosition: Offset) -> Unit = this.onDragStart,
+        onDragStop: (velocity: Velocity) -> Unit = this.onDragStop,
     ) {
         var resetPointerInputHandling = false
         if (this.state != state) {
             this.state = state
             resetPointerInputHandling = true
         }
-        this.canDrag = canDrag
-        if (this.enabled != enabled) {
-            this.enabled = enabled
-            if (!enabled) {
-                disposeInteractionSource()
-            }
-            resetPointerInputHandling = true
-        }
-        if (this.interactionSource != interactionSource) {
-            disposeInteractionSource()
-            this.interactionSource = interactionSource
-        }
-        this.startDragImmediately = startDragImmediately
-        this.onDragStarted = onDragStarted
-        this.onDragStopped = onDragStopped
         if (this.reverseDirection != reverseDirection) {
             this.reverseDirection = reverseDirection
             resetPointerInputHandling = true
         }
-        if (resetPointerInputHandling) {
-            pointerInputNode.resetPointerInputHandler()
-        }
-    }
-}
 
-@OptIn(ExperimentalFoundationApi::class)
-private val NoOpDrag2DScope: Drag2DScope = object : Drag2DScope {
-    override fun dragBy(pixels: Offset) {}
+        this.onDragStarted = onDragStarted
+        this.onDragStopped = onDragStopped
+        this.onDragStart = onDragStart
+        this.onDragStop = onDragStop
+        this.startDragImmediately = startDragImmediately
+
+        update(
+            canDrag = canDrag,
+            enabled = enabled,
+            interactionSource = interactionSource,
+            orientationLock = null,
+            shouldResetPointerInputHandling = resetPointerInputHandling
+        )
+    }
+
+    private fun Velocity.reverseIfNeeded() = if (reverseDirection) this * -1f else this * 1f
+    private fun Offset.reverseIfNeeded() = if (reverseDirection) this * -1f else this * 1f
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -358,3 +501,8 @@ private class DefaultDraggable2DState(val onDelta: (Offset) -> Unit) : Draggable
         return onDelta(delta)
     }
 }
+
+private val NoOpOnDragStarted: suspend CoroutineScope.(startedPosition: Offset) -> Unit = {}
+private val NoOpOnDragStart: (startedPosition: Offset) -> Unit = {}
+private val NoOpOnDragStopped: suspend CoroutineScope.(velocity: Velocity) -> Unit = {}
+private val NoOpOnDragStop: (velocity: Velocity) -> Unit = {}

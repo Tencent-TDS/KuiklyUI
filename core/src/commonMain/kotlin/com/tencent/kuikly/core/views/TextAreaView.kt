@@ -591,6 +591,18 @@ open class TextAreaEvent : Event() {
         this.register(TEXT_LENGTH_BEYOND_LIMIT,handler)
     }
 
+    /**
+     * 当用户按下键盘IME动作按键是回调，例如 Send / Go / Search 等
+     * @param handler 用户按下对应按键时的回调函数
+     */
+    fun onIMEAction(handler: IMEActionEventHandlerFn) {
+        register(IME_ACTION){
+            it as JSONObject
+            val imeAction = it.optString("ime_action")
+            handler(imeAction)
+        }
+    }
+
     override fun onViewDidRemove() {
         super.onViewDidRemove()
         syncTextDidChangeObservers.clear()
@@ -604,9 +616,12 @@ open class TextAreaEvent : Event() {
         const val INPUT_BLUR = "inputBlur"
         const val KEYBOARD_HEIGHT_CHANGE = "keyboardHeightChange"
         const val TEXT_LENGTH_BEYOND_LIMIT = "textLengthBeyondLimit"
+        const val IME_ACTION = "imeAction"
     }
 }
 
 fun ViewContainer<*, *>.TextArea(init: TextAreaView.() -> Unit) {
     addChild(TextAreaView(), init)
 }
+
+typealias IMEActionEventHandlerFn = (imeAction: String) -> Unit

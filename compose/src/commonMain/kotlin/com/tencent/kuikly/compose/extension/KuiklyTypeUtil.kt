@@ -17,9 +17,11 @@ package com.tencent.kuikly.compose.extension
 
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.draw.ShadowGraphicsLayerElement
+import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.compose.ui.unit.IntRect
 import com.tencent.kuikly.compose.ui.unit.IntSize
+import com.tencent.kuikly.core.base.Attr
 import com.tencent.kuikly.core.layout.Frame
 
 /**
@@ -55,4 +57,8 @@ fun shouldWrapShadowView(modifier: Modifier): Boolean {
             else -> false
         }
     }
+}
+
+fun Attr.scaleToDensity(density: Density, value: Float): Float {
+    return value * density.density / getPager().pagerDensity()
 }

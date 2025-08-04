@@ -102,7 +102,7 @@ fun KuiklyPage() {
                     )
                 }
             }
-            Button(
+            KuiklyButton(
                 modifier = Modifier.padding(12.dp).background(
                     brush = Brush.horizontalGradient(
                         colors = listOf(Color(0xFF7B7FE4), Color(0xFFA65CF9))

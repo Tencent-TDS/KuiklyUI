@@ -24,5 +24,5 @@ body:
     id: supportOthers
     attributes:
       label: 其他补充信息
-      description: 编译构建等技术使用类问题，请提供更多复现条件，比如可复现问题的仓库、构建IDE环境、构建命令等。标有 'need reproduction' 的 Issue 在 7 天内不提供相关步骤，将被关闭。
+      description: 编译构建等技术使用类问题，请提供更多复现条件，比如可复现问题的仓库、错误堆栈或日志、构建IDE环境、构建命令等。标有 'need reproduction' 的 Issue 在 7 天内不提供相关步骤，将被关闭。
       placeholder: 请填写

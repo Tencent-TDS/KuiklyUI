@@ -66,7 +66,7 @@ internal class EasyCardView : ComposeView<EasyCardAttr, EasyCardEvent>() {
                         click {
                             // 响应自定义事件
                             ctx.didClick = !ctx.didClick
-                            this@EasyCardView.onFireEvent(EasyCardEvent.TITLE_DID_CLICKED, it as JSONObject)
+                            this@EasyCardView.onFireEvent(EasyCardEvent.TITLE_DID_CLICKED, JSONObject())
                         }
 
                         didAppear {

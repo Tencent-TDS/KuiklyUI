@@ -20,6 +20,7 @@ import { http } from '@kit.NetworkKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import Url from '@ohos.url';
 import buffer from '@ohos.buffer';
+import { util } from '@kit.ArkTS';
 
 interface ParamsObject {
   url: string;
@@ -38,6 +39,7 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
   static readonly MODULE_NAME = 'KRNetworkModule';
   private static readonly METHOD_HTTP_REQUEST = 'httpRequest';
   private static readonly METHOD_HTTP_REQUEST_BINARY = "httpRequestBinary";
+  private static readonly METHOD_HTTP_REQUEST_SSE = "httpRequestSSE";
 
   call(method: string, params: KRAny, callback: KuiklyRenderCallback | null): KRAny {
     switch (method) {
@@ -52,6 +54,8 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
       case KRNetworkModule.METHOD_HTTP_REQUEST_BINARY:
         const args = params as Array<KRAny>;
         return this.httpRequest(args[0], args[1] as Int8Array, callback);
+      case KRNetworkModule.METHOD_HTTP_REQUEST_SSE:
+        return this.httpRequestSSE(params, callback);
       default:
         return null;
     }
@@ -110,6 +114,62 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
       }
 
       httpRequest.destroy();
+    });
+
+    return null;
+  }
+
+  // 用于SSE的http请求方法
+  private httpRequestSSE(params: KRAny, callback: KuiklyRenderCallback | null): KRAny {
+    let paramsObj: ParamsObject = JSON.parse(params as string);
+    let decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true });
+
+    let urlOptions = this.createURLAndOptions(paramsObj, null);
+    if (urlOptions == null) {
+      return null;
+    }
+    let url = urlOptions[0];
+    let options = urlOptions[1];
+
+    let httpRequest = http.createHttp();
+    let responseHeader: string;
+    httpRequest.on('headersReceive', (header) => {
+      responseHeader = JSON.stringify(header);
+    });
+
+    httpRequest.on('dataReceive', (data: ArrayBuffer) => {
+      const text = decoder.decodeToString(new Uint8Array(data));
+      console.log(`[Kuikly SSE Native]received text:${text}`);
+      let resultObject: Record<string, string> = {};
+      resultObject['headers'] = responseHeader;
+      resultObject['data'] = text;
+      resultObject['errorMsg'] = '';
+      resultObject['success'] = '1';
+      callback?.(resultObject);
+    });
+
+    httpRequest.on('dataEnd', () => {
+      httpRequest.off('dataReceive');
+      httpRequest.off('dataEnd');
+      httpRequest.destroy();
+    });
+
+    httpRequest.requestInStream(url.toString(), options).then((data: number) => {
+      // 取消订阅HTTP响应头事件。
+      httpRequest.off('headersReceive');
+      // 取消订阅HTTP流式响应数据接收事件。
+      httpRequest.off('dataReceive');
+      // 取消订阅HTTP流式响应数据接收完毕事件。
+      httpRequest.off('dataEnd');
+      // 当该请求使用完毕时，调用destroy方法主动销毁。
+      httpRequest.destroy();
+    }).catch((err: Error) => {
+      let resultObject: Record<string, string> = {};
+      resultObject['headers'] = responseHeader;
+      resultObject['data'] = '';
+      resultObject['errorMsg'] = JSON.stringify(err);
+      resultObject['success'] = '0';
+      callback?.(resultObject);
     });
 
     return null;

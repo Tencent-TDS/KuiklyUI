@@ -29,6 +29,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { Configuration } from '@ohos.app.ability.Configuration';
 import { KRRenderExecuteModeBase } from './context/KRRenderExecuteModeBase';
 import { KRRenderNativeMode } from './context/KRRenderNativeMode';
+import { i18n } from '@kit.LocalizationKit';
 
 /** window尺寸变化事件名 */
 export const KRWindowSizeDidChangedEventKey = 'windowSizeDidChanged';
@@ -84,6 +85,8 @@ export const KRExecuteMode = 'executeMode';
 export const KRContextCode = 'contextCode';
 
 export const KRDensity = 'density';
+
+export const KRSystemLanguageKey = 'sysLang';
 
 const KROnBackPressedKey = 'onBackPressed';
 
@@ -547,6 +550,7 @@ export class KRNativeRenderController {
   private createPageParams(params: KRRecord, viewWidth: number, viewHeight: number): string {
     let screenSize = KRConvertUtil.screenSize();
     let pageData: Record<string, string | number | KRRecord> = {};
+    params[KRSystemLanguageKey] = i18n.System.getSystemLanguages()[0];
     pageData[KRParamKey] = params;
     pageData[KRRootViewWidthKey] = viewWidth;
     pageData[KRRootViewHeightKey] = viewHeight;

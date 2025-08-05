@@ -30,6 +30,10 @@ object ThemeManager {
     val ASSET_SCHEME_LIST = listOf("default", "game")
     const val SKIN_CHANGED_EVENT = "skinChanged"
 
+    const val PREF_KEY_COLOR = "colorTheme"
+    const val PREF_KEY_ASSET = "assetTheme"
+    const val PREF_KEY_TYPO = "typoTheme"
+
     enum class ThemeType { COLOR, ASSET, TYPOGRAPHY }
 
     // 公共API

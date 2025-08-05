@@ -15,7 +15,6 @@
 
 package com.tencent.kuikly.demo.pages.app.home
 
-import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ComposeView
 import com.tencent.kuikly.core.base.ComposeAttr
 import com.tencent.kuikly.core.base.ComposeEvent
@@ -28,6 +27,7 @@ import com.tencent.kuikly.core.module.NotifyModule
 import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.reactive.handler.observable
+import com.tencent.kuikly.core.reactive.handler.observableList
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.PageList
 import com.tencent.kuikly.core.views.PageListView
@@ -37,6 +37,7 @@ import com.tencent.kuikly.core.views.Tabs
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.app.AppTabPage
+import com.tencent.kuikly.demo.pages.app.lang.LangManager
 import com.tencent.kuikly.demo.pages.app.model.AppFeedsType
 import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
 
@@ -44,26 +45,37 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
 
     private var curIndex: Int by observable(0)
     private var scrollParams: ScrollParams? by observable(null)
-    private var titles = listOf<String>("关注", "热门 ")
     private var pageListRef : ViewRef<PageListView<*, *>>? = null
     private var tabHeaderWidth by observable(300f)
     private lateinit var followViewRef: ViewRef<AppFeedListPageView>
     private lateinit var trendViewRef: ViewRef<AppTrendingPageView>
     private var theme by observable(ThemeManager.getTheme())
-    private lateinit var eventCallbackRef: CallbackRef
+    private var resStrings by observable(LangManager.getCurrentResStrings())
+    private var titles by observableList<String>()
+    private lateinit var themeEventCallbackRef: CallbackRef
+    private lateinit var langEventCallbackRef: CallbackRef
 
     override fun created() {
         super.created()
-        eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+        titles.addAll(listOf(resStrings.topBarFollow, resStrings.topBarTrend))
+        themeEventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
             .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
                 theme = ThemeManager.getTheme()
             }
+        langEventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .addNotify(LangManager.LANG_CHANGED_EVENT) { _ ->
+                resStrings = LangManager.getCurrentResStrings()
+                titles[0] = resStrings.topBarFollow
+                titles[1] = resStrings.topBarTrend
+            }
     }
 
-    override fun viewDestroyed() {
-        super.viewDestroyed()
+    override fun viewWillUnload() {
+        super.viewWillUnload()
         acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
-            .removeNotify(ThemeManager.SKIN_CHANGED_EVENT, eventCallbackRef)
+            .removeNotify(ThemeManager.SKIN_CHANGED_EVENT, themeEventCallbackRef)
+        acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .removeNotify(ThemeManager.SKIN_CHANGED_EVENT, langEventCallbackRef)
     }
 
     override fun createEvent(): AppHomePageViewEvent {
@@ -209,7 +221,7 @@ internal class AppHomePageViewAttr : ComposeAttr() {
 }
 
 internal class AppHomePageViewEvent : ComposeEvent() {
-    
+
 }
 
 internal fun ViewContainer<*, *>.AppHomePage(init: AppHomePageView.() -> Unit) {

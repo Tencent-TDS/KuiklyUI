@@ -398,6 +398,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         private var DeclarativeBaseView<*, *>.clip by extPropsVar("clip") { false }
         private var DeclarativeBaseView<*, *>.shadowElevation by extPropsVar("shadowElevation") { 0f }
         private var DeclarativeBaseView<*, *>.shadowColor by extPropsVar("shadowColor") { Color.Transparent }
+        private var DeclarativeBaseView<*, *>.shadowHasSet by extPropsVar("shadowHasSet") { false }
 
         fun DeclarativeBaseView<*, *>.measuredSize(width: Int, height: Int) {
             measuredSize = IntSize(width, height)
@@ -511,7 +512,8 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
                     attr.borderRadius(if (hasClip) 0.001f else 0f)
                 }
             }
-            if (shadowElevation > 0f && shadowColor != Color.Transparent || attr.getProp(StyleConst.BOX_SHADOW) != null) {
+            if (shadowElevation > 0f && shadowColor != Color.Transparent || shadowHasSet) {
+                shadowHasSet = true
                 val elevationValue = with(density) { shadowElevation.toDp().value }
                 attr.boxShadow(BoxShadow(
                     offsetX = 0f,

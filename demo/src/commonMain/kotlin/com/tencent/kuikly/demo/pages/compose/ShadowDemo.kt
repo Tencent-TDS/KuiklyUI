@@ -28,7 +28,9 @@ import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.graphicsLayer
 import com.tencent.kuikly.compose.ui.platform.LocalDensity
 import com.tencent.kuikly.compose.ui.unit.dp
+import com.tencent.kuikly.compose.extension.setProp
 import com.tencent.kuikly.core.annotations.Page
+import com.tencent.kuikly.core.base.BoxShadow
 
 @Page("shadowdemo")
 class ShadowDemoPage : ComposeContainer() {
@@ -77,5 +79,24 @@ private fun ShadowDemo() {
                 spotShadowColor = Color.Blue
             }
             .background(Color.White)
+    )
+    Text("Modifier.setProp(\"boxShadow\")")
+    Box(
+        Modifier
+            .size(100.dp)
+            .boxShadow(0f, 5f, 10f, Color.Blue)
+            .background(Color.White)
+    )
+}
+
+private fun Modifier.boxShadow(
+    offsetX: Float,
+    offsetY: Float,
+    shadowRadius: Float,
+    shadowColor: Color
+): Modifier {
+    return this.setProp(
+        "boxShadow",
+        BoxShadow(offsetX, offsetY, shadowRadius, shadowColor.toKuiklyColor()).toString()
     )
 }

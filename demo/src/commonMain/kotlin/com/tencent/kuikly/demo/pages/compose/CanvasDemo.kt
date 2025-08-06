@@ -17,6 +17,7 @@ package com.tencent.kuikly.demo.pages.compose
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -31,14 +32,23 @@ import com.tencent.kuikly.compose.foundation.layout.Box
 import com.tencent.kuikly.compose.foundation.layout.Column
 import com.tencent.kuikly.compose.foundation.layout.Row
 import com.tencent.kuikly.compose.foundation.layout.fillMaxSize
+import com.tencent.kuikly.compose.foundation.layout.fillMaxWidth
+import com.tencent.kuikly.compose.foundation.layout.height
 import com.tencent.kuikly.compose.foundation.layout.offset
 import com.tencent.kuikly.compose.foundation.layout.size
 import com.tencent.kuikly.compose.foundation.layout.width
+import com.tencent.kuikly.compose.foundation.lazy.LazyColumn
+import com.tencent.kuikly.compose.foundation.shape.CircleShape
+import com.tencent.kuikly.compose.material3.Button
+import com.tencent.kuikly.compose.material3.ExperimentalMaterial3Api
+import com.tencent.kuikly.compose.material3.Slider
+import com.tencent.kuikly.compose.material3.SliderDefaults
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.setContent
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.draw.drawBehind
+import com.tencent.kuikly.compose.ui.draw.shadow
 import com.tencent.kuikly.compose.ui.geometry.CornerRadius
 import com.tencent.kuikly.compose.ui.geometry.Offset
 import com.tencent.kuikly.compose.ui.geometry.Rect
@@ -89,6 +99,7 @@ class CanvasDemo : ComposeContainer() {
                 CanvasDemoContent()
                 ArcDemo()
                 TranslatePathDemo()
+                ChangeThemeDemo()
             }
         }
     }
@@ -668,4 +679,34 @@ private fun TranslatePathDemo() {
         path2.translate(Offset(60.dp.toPx(), 60.dp.toPx()))
         drawPath(path2, Color(0x9900FF00))
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ChangeThemeDemo() {
+    class ThemeData(val activeTrackColor: Color, val inactiveTrackColor: Color)
+    var theme by remember { mutableStateOf(ThemeData(Color.Blue, Color.Gray)) }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Button({
+            theme = if (theme.activeTrackColor == Color.Blue) {
+                ThemeData(Color.Red, Color.LightGray)
+            } else {
+                ThemeData(Color.Blue, Color.Gray)
+            }
+        }) {
+            Text("Change Theme")
+        }
+        Text("Seekbar", color = theme.activeTrackColor)
+        var sliderPosition by remember { mutableFloatStateOf(0.5f) }
+        Slider(
+            value = sliderPosition,
+            onValueChange = { sliderPosition = it },
+            colors = SliderDefaults.colors(
+                activeTrackColor = theme.activeTrackColor,
+                inactiveTrackColor = theme.inactiveTrackColor,
+                thumbColor = theme.activeTrackColor
+            ),
+        )
+    }
+
 }

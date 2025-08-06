@@ -29,8 +29,12 @@ import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.draw.drawBehind
 import com.tencent.kuikly.compose.ui.graphics.drawscope.DrawScope
+import com.tencent.kuikly.compose.ui.materialize
 import com.tencent.kuikly.compose.ui.node.ComposeUiNode
+import com.tencent.kuikly.compose.ui.node.ComposeUiNode.Companion.SetModifier
 import com.tencent.kuikly.compose.ui.node.KNode
+import com.tencent.kuikly.compose.ui.semantics.contentDescription
+import com.tencent.kuikly.compose.ui.semantics.semantics
 import com.tencent.kuikly.core.views.CanvasView
 
 /**
@@ -50,7 +54,25 @@ fun Canvas(
     modifier: Modifier,
     onDraw: DrawScope.() -> Unit,
 ) {
-    Canvas(modifier, "", onDraw)
+    val compositeKeyHash = currentCompositeKeyHash
+    val localMap = currentComposer.currentCompositionLocalMap
+
+    val measurePolicy = columnMeasurePolicy(Arrangement.Top, Alignment.Start)
+    val materialized = currentComposer.materialize(modifier.drawBehind(onDraw))
+
+    ReusableComposeNode<ComposeUiNode, KuiklyApplier>(
+        factory = {
+            val canvasView = CanvasView()
+            KNode(canvasView) {}
+        },
+        update = {
+            set(measurePolicy, ComposeUiNode.SetMeasurePolicy)
+            set(localMap, ComposeUiNode.SetResolvedCompositionLocals)
+            @OptIn(ExperimentalComposeUiApi::class)
+            set(compositeKeyHash, ComposeUiNode.SetCompositeKeyHash)
+            set(materialized, SetModifier)
+        }
+    )
 }
 
 /**
@@ -70,31 +92,13 @@ fun Canvas(
  *   invocation inside it will result to runtime exception
  */
 @Composable
-fun Canvas(
+inline fun Canvas(
     modifier: Modifier,
     contentDescription: String,
-    onDraw: DrawScope.() -> Unit,
+    noinline onDraw: DrawScope.() -> Unit
 ) {
-    // TODO: jonas   contentDescription支持
-
-    val compositeKeyHash = currentCompositeKeyHash
-    val localMap = currentComposer.currentCompositionLocalMap
-
-    val measurePolicy = columnMeasurePolicy(Arrangement.Top, Alignment.Start)
-
-    ReusableComposeNode<ComposeUiNode, KuiklyApplier>(
-        factory = {
-            val canvasView = CanvasView()
-            KNode(canvasView) {}
-        },
-        update = {
-            set(measurePolicy, ComposeUiNode.SetMeasurePolicy)
-            set(localMap, ComposeUiNode.SetResolvedCompositionLocals)
-            @OptIn(ExperimentalComposeUiApi::class)
-            set(compositeKeyHash, ComposeUiNode.SetCompositeKeyHash)
-            set(modifier) {
-                this.modifier = modifier.drawBehind(onDraw)
-            }
-        },
+    Canvas(
+        modifier = modifier.semantics { this.contentDescription = contentDescription },
+        onDraw = onDraw
     )
 }

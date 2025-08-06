@@ -22,14 +22,18 @@ import com.tencent.kuikly.compose.foundation.layout.size
 import com.tencent.kuikly.compose.foundation.layout.width
 import com.tencent.kuikly.compose.foundation.selection.toggleable
 import com.tencent.kuikly.compose.foundation.selection.triStateToggleable
+import com.tencent.kuikly.compose.foundation.shape.RoundedCornerShape
+import com.tencent.kuikly.compose.foundation.text.BasicText
 import com.tencent.kuikly.compose.material3.Button
 import com.tencent.kuikly.compose.material3.ButtonDefaults
 import com.tencent.kuikly.compose.material3.Checkbox
 import com.tencent.kuikly.compose.material3.CircularProgressIndicator
 import com.tencent.kuikly.compose.material3.LinearProgressIndicator
 import com.tencent.kuikly.compose.material3.LocalContentColor
+import com.tencent.kuikly.compose.material3.LocalTextStyle
 import com.tencent.kuikly.compose.material3.MaterialTheme
 import com.tencent.kuikly.compose.material3.ProgressIndicatorDefaults
+import com.tencent.kuikly.compose.material3.ProvideTextStyle
 import com.tencent.kuikly.compose.material3.Slider
 import com.tencent.kuikly.compose.material3.Snackbar
 import com.tencent.kuikly.compose.material3.SnackbarDuration
@@ -55,6 +59,7 @@ import com.tencent.kuikly.compose.ui.semantics.Role
 import com.tencent.kuikly.compose.ui.semantics.contentDescription
 import com.tencent.kuikly.compose.ui.semantics.semantics
 import com.tencent.kuikly.compose.ui.state.ToggleableState
+import com.tencent.kuikly.compose.ui.text.TextStyle
 import com.tencent.kuikly.compose.ui.text.style.TextOverflow
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
@@ -108,6 +113,9 @@ internal class MaterialDemo : ComposeContainer() {
                 IndeterminateCircularProgressIndicatorSample()
                 SecondaryText("Legacy Indeterminate Circular Progress Indicator")
                 LegacyIndeterminateCircularProgressIndicatorSample()
+
+                Text("ProvideTextStyle")
+                ProvideTextStyleSamples()
             }
         }
     }
@@ -562,5 +570,32 @@ private fun MultilineSnackbar() {
                 Text(data.visuals.message, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
+    }
+}
+
+@Composable
+private fun ProvideTextStyleSamples() {
+    SecondaryText("With ProvideTextStyle")
+    ProvideTextStyle(TextStyle.Default.copy(
+        fontSize = 24.sp,
+        color = Color.Blue
+    )) {
+        Column(Modifier.border(1.dp, Color.Gray, RoundedCornerShape(8.dp)).padding(8.dp)) {
+            Text("This Text is using LocalTextStyle")
+            BasicText("This BasicText is not using LocalTextStyle")
+            BasicText(
+                "This BasicText applies LocalTextStyle.current.color manually",
+                style = TextStyle(color = LocalTextStyle.current.color)
+            )
+        }
+    }
+    SecondaryText("Without ProvideTextStyle")
+    Column(Modifier.border(1.dp, Color.Gray, RoundedCornerShape(8.dp)).padding(8.dp)) {
+        Text("This Text is using LocalTextStyle")
+        BasicText("This BasicText is not using LocalTextStyle")
+        BasicText(
+            "This BasicText applies LocalTextStyle.current.color manually",
+            style = TextStyle(color = LocalTextStyle.current.color)
+        )
     }
 }

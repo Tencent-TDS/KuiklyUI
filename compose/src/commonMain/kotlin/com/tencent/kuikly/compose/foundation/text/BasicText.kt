@@ -17,20 +17,15 @@
 package com.tencent.kuikly.compose.foundation.text
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.ReusableComposeNode
-import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.currentComposer
 import androidx.compose.runtime.currentCompositeKeyHash
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.structuralEqualityPolicy
 import com.tencent.kuikly.compose.KuiklyApplier
 import com.tencent.kuikly.compose.foundation.text.modifiers.TextStringRichElement
 import com.tencent.kuikly.compose.material3.EmptyInlineContent
-import com.tencent.kuikly.compose.material3.Text
-import com.tencent.kuikly.compose.material3.tokens.DefaultTextStyle
 import com.tencent.kuikly.compose.resources.toKuiklyFontFamily
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.Modifier
@@ -598,28 +593,19 @@ private object EmptyMeasurePolicy : MeasurePolicy {
     }
 }
 
-/**
- * CompositionLocal containing the preferred [TextStyle] that will be used by [Text] components by
- * default. To set the value for this CompositionLocal, see [ProvideTextStyle] which will merge any
- * missing [TextStyle] properties with the existing [TextStyle] set in this CompositionLocal.
- *
- * @see ProvideTextStyle
- */
-val LocalTextStyle = compositionLocalOf(structuralEqualityPolicy()) { DefaultTextStyle }
+@Deprecated(
+    "Use com.tencent.kuikly.compose.material3.LocalTextStyle instead",
+    ReplaceWith("com.tencent.kuikly.compose.material3.LocalTextStyle")
+)
+val LocalTextStyle get() = com.tencent.kuikly.compose.material3.LocalTextStyle
 
-// TODO(b/156598010): remove this and replace with fold definition on the backing CompositionLocal
-/**
- * This function is used to set the current value of [LocalTextStyle], merging the given style
- * with the current style values for any missing attributes. Any [Text] components included in
- * this component's [content] will be styled with this style unless styled explicitly.
- *
- * @see LocalTextStyle
- */
+@Deprecated(
+    "Use com.tencent.kuikly.compose.material3.ProvideTextStyle instead",
+    ReplaceWith("com.tencent.kuikly.compose.material3.ProvideTextStyle(value, content)")
+)
 @Composable
-fun ProvideTextStyle(value: TextStyle, content: @Composable () -> Unit) {
-    val mergedStyle = LocalTextStyle.current.merge(value)
-    CompositionLocalProvider(LocalTextStyle provides mergedStyle, content = content)
-}
+fun ProvideTextStyle(value: TextStyle, content: @Composable () -> Unit) =
+    com.tencent.kuikly.compose.material3.ProvideTextStyle(value, content)
 
 private inline fun ComposeUiNode.withTextView(action: RichTextAttr.() -> Unit) {
     (this as? KNode<*>)?.run {

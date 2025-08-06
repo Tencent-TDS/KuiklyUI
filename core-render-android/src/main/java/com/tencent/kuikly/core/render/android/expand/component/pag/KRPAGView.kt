@@ -17,7 +17,6 @@ package com.tencent.kuikly.core.render.android.expand.component.pag
 
 import android.content.Context
 import android.view.View
-import android.view.ViewGroup
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.render.android.adapter.IPAGViewListener
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager

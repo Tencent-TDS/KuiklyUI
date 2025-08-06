@@ -17,11 +17,10 @@ package com.tencent.kuikly.core.render.android.adapter
 
 import android.content.Context
 import android.view.View
-import com.tencent.kuikly.core.render.android.expand.component.pag.KRPAGView
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 
 /**
- * Created by kamlin on 2023/5/17.
+ * Created by kam on 2023/5/17.
  */
 interface IKRPAGViewAdapter {
 

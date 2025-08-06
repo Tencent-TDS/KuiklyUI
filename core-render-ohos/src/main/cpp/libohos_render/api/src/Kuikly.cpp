@@ -23,6 +23,7 @@
 #include "libohos_render/expand/components/image/KRImageAdapterManager.h"
 #include "libohos_render/expand/components/richtext/KRFontAdapterManager.h"
 #include "libohos_render/export/IKRRenderModuleExport.h"
+#include "libohos_render/export/IKRRenderViewExport.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -214,6 +215,21 @@ void KRRenderModuleDoCallback(KRRenderModuleCallbackContext context, const char 
             std::dynamic_pointer_cast<KRForwardRenderModule>(renderModule);
         forwardRenderModule->DoCallback(context, data);
     }
+}
+
+ArkUI_NodeHandle KRRenderModuleGetViewWithTag(KRRenderModuleCallbackContext context, int tag) {
+    struct KRRenderModuleCallbackContextData *contextData = (struct KRRenderModuleCallbackContextData *)context;
+    if (!contextData) {
+        return nullptr;
+    }
+    if (auto renderModule = contextData->module_.lock()) {
+        if (auto rootView = renderModule->GetRootView().lock()) {
+            if (std::shared_ptr<IKRRenderViewExport> view = rootView->GetView(tag)) {
+                return view->GetNode();
+            }
+        }
+    }
+    return nullptr;
 }
 
 void KRRenderModuleRegister(const char *moduleName,

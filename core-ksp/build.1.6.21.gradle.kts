@@ -7,6 +7,7 @@ plugins {
 group = MavenConfig.GROUP
 version = Version.getCoreVersion()
 
+
 publishing {
     repositories {
         val username = MavenConfig.getUsername(project)

@@ -14,7 +14,6 @@
  */
 
 #import "KuiklyRenderViewControllerBaseDelegator.h"
-#import "KuiklyRenderViewControllerBaseDelegator+Extension.h"
 #import "KuiklyRenderView.h"
 #import "KRSnapshotModule.h"
 #import "KRHttpRequestTool.h"
@@ -37,6 +36,8 @@
 NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
 @interface KuiklyRenderViewControllerBaseDelegator()<KuiklyRenderViewDelegate>
 
+@property (nonatomic, strong) NSString *pageName;
+@property (nullable, nonatomic, weak) UIView * view;
 @property (nonatomic, strong) NSDictionary *pageData;
 @property (nullable, nonatomic, strong) UIView * loadingView;
 @property (nullable, nonatomic, strong) UIView * errorView;

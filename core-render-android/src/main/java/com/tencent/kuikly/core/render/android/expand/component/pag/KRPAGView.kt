@@ -17,6 +17,7 @@ package com.tencent.kuikly.core.render.android.expand.component.pag
 
 import android.content.Context
 import android.view.View
+import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.render.android.adapter.IPAGViewListener
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
 import com.tencent.kuikly.core.render.android.expand.component.KRAPNGView
@@ -92,7 +93,15 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
         return when (method) {
             METHOD_PLAY -> play(params)
             METHOD_STOP -> stop(params)
-            else -> super.call(method, params, callback)
+            METHOD_SET_PROGRESS -> setProgress(params)
+            else -> {
+                val result = pagView?.call(method, params, callback)
+                if (result == true) {
+                    null
+                } else {
+                    super.call(method, params, callback)
+                }
+            }
         }
     }
 
@@ -174,6 +183,14 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
         }
     }
 
+    private fun setProgress(params: String?) {
+        if (params != null) {
+            val jsonObject = JSONObject(params)
+            val value = jsonObject.optDouble("value")
+            pagView?.setProgressPAGView(value)
+        }
+    }
+
     private fun setSrc(params: Any): Boolean {
         val newSrc = params as String
         if (src == newSrc) {
@@ -246,6 +263,7 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
 
         private const val METHOD_PLAY = "play"
         private const val METHOD_STOP = "stop"
+        private const val METHOD_SET_PROGRESS = "setProgress"
 
         const val VIEW_NAME = "KRPAGView"
     }

@@ -115,6 +115,9 @@ class KuiklyRenderCore(
             )
             if (shouldSync) {
                 uiScheduler?.performSyncMainQueueTasksBlockIfNeed(true)
+                uiScheduler?.performOnMainQueueWithTask(sync = false) {
+                    uiScheduler?.performMainThreadTaskWaitToSyncBlockIfNeed()
+                }
             }
         }
         if (shouldSync) {
@@ -364,6 +367,9 @@ class KuiklyRenderCore(
                         )
                         if (shouldSync) {
                             uiScheduler?.performSyncMainQueueTasksBlockIfNeed(true)
+                            uiScheduler?.performOnMainQueueWithTask(sync = false) {
+                                uiScheduler?.performMainThreadTaskWaitToSyncBlockIfNeed()
+                            }
                         }
                     }
                     if (shouldSync) {

@@ -46,6 +46,7 @@ import com.tencent.kuikly.compose.ui.layout.Placeable
 import com.tencent.kuikly.compose.ui.materialize
 import com.tencent.kuikly.compose.ui.node.ComposeUiNode
 import com.tencent.kuikly.compose.ui.node.KNode
+import com.tencent.kuikly.compose.ui.platform.LocalLayoutDirection
 import com.tencent.kuikly.compose.ui.text.AnnotatedString
 import com.tencent.kuikly.compose.ui.text.LinkAnnotation
 import com.tencent.kuikly.compose.ui.text.SpanStyle
@@ -56,6 +57,7 @@ import com.tencent.kuikly.compose.ui.text.font.FontListFontFamily
 import com.tencent.kuikly.compose.ui.text.font.FontStyle
 import com.tencent.kuikly.compose.ui.text.font.FontWeight
 import com.tencent.kuikly.compose.ui.text.font.GenericFontFamily
+import com.tencent.kuikly.compose.ui.text.resolveDefaults
 import com.tencent.kuikly.compose.ui.text.style.TextAlign
 import com.tencent.kuikly.compose.ui.text.style.TextDecoration
 import com.tencent.kuikly.compose.ui.text.style.TextIndent
@@ -333,14 +335,16 @@ private fun BasicTextWithNoInlinContent(
     val compositeKeyHash = currentCompositeKeyHash
     val localMap = currentComposer.currentCompositionLocalMap
     val materializedModifier = currentComposer.materialize(modifier)
+    val layoutDirection = LocalLayoutDirection.current
 
     val measurePolicy = EmptyMeasurePolicy
 
     val inText = annoText ?: AnnotatedString(text ?: "")
+    val finalStyle = resolveDefaults(style, layoutDirection)
 
     val textElement = TextStringRichElement(
         text = inText,
-        style = style,
+        style = finalStyle,
         overflow = overflow,
         softWrap = softWrap,
         maxLines = maxLines,
@@ -395,7 +399,7 @@ private fun BasicTextWithNoInlinContent(
             // 样式属性
             set(style) {
                 withTextView {
-                    applyTextStyle(style)
+                    applyTextStyle(finalStyle)
                 }
                 this.modifier = materializedModifier then textElement
             }

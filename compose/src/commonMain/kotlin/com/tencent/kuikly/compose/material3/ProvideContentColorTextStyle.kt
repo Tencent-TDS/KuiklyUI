@@ -18,7 +18,6 @@ package com.tencent.kuikly.compose.material3
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import com.tencent.kuikly.compose.foundation.text.LocalTextStyle
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.text.TextStyle
 

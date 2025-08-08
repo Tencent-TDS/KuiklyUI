@@ -246,10 +246,10 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     [self p_disptachDelegatorLifeCycleWithSel:@selector(willFetchContextCode) object:nil];
     [self fetchContextCodeWithResultCallback:^(NSString * _Nullable contextCode, NSError * _Nullable error) {
         if (!weakSelf) {
-            return ;
+            return;
         }
         [weakSelf p_performOnMainThreadWithBlock:^{
-            weakSelf.contextMode = [self createContextMode:contextCode];
+            weakSelf.contextMode = [weakSelf createContextMode:contextCode];
             [weakSelf p_disptachDelegatorLifeCycleWithSel:@selector(didFetchContextCode) object:nil];
             weakSelf.fetchContextCoding = NO;
             [weakSelf p_hideAllStatusView];

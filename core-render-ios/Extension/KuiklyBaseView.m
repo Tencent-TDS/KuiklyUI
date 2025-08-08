@@ -61,6 +61,16 @@
     [super setFrame:frame];
     [_delegator viewDidLayoutSubviews];
 }
+
+- (void)willMoveToSuperview:(UIView *)newSuperview {
+    [super willMoveToSuperview:newSuperview];
+    if (!newSuperview) {
+        if (_delegator) {
+            _delegator = nil;
+        }
+    }
+}
+
 #pragma mark - public
 /*
  * @brief ViewController的viewWillAppear时机调用该方法.

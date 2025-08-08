@@ -169,6 +169,7 @@ internal fun CoreTextField(
 
     var lineHeight by remember { mutableStateOf(0f) }
     var oldSize by remember { mutableStateOf(IntSize.Zero) }
+    var editable = enabled && !readOnly
 
     val measurePolicy = remember(value) {
         object : MeasurePolicy {
@@ -321,10 +322,9 @@ internal fun CoreTextField(
                         }
                         this.modifier = combinedModifier
                     }
-                    set(readOnly) {
-                        if (readOnly == null) return@set
+                    set(editable) {
                         withTextAreaView {
-                            getViewAttr().editable(!readOnly)
+                            getViewAttr().editable(editable)
                         }
                     }
                     set(placeholder) {

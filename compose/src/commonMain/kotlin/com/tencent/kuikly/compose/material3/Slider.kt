@@ -680,6 +680,7 @@ private fun SliderImpl(
 
     Layout(
         {
+            Box(modifier = Modifier.layoutId(SliderComponents.TRACK)) { track(state) }
             Box(
                 modifier =
                     Modifier.layoutId(SliderComponents.THUMB).wrapContentWidth().onSizeChanged {
@@ -688,7 +689,6 @@ private fun SliderImpl(
             ) {
                 thumb(state)
             }
-            Box(modifier = Modifier.layoutId(SliderComponents.TRACK)) { track(state) }
         },
         modifier =
             modifier
@@ -751,6 +751,7 @@ private fun RangeSliderImpl(
 
     Layout(
         {
+            Box(modifier = Modifier.layoutId(RangeSliderComponents.TRACK)) { track(state) }
             Box(
                 modifier =
                     Modifier.layoutId(RangeSliderComponents.STARTTHUMB)
@@ -777,7 +778,6 @@ private fun RangeSliderImpl(
             ) {
                 endThumb(state)
             }
-            Box(modifier = Modifier.layoutId(RangeSliderComponents.TRACK)) { track(state) }
         },
         modifier =
             modifier

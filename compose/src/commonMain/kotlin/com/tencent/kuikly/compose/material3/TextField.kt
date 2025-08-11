@@ -34,7 +34,6 @@ import com.tencent.kuikly.compose.foundation.layout.wrapContentHeight
 import com.tencent.kuikly.compose.foundation.text.BasicTextField
 import com.tencent.kuikly.compose.foundation.text.KeyboardActions
 import com.tencent.kuikly.compose.foundation.text.KeyboardOptions
-import com.tencent.kuikly.compose.foundation.text.LocalTextStyle
 import com.tencent.kuikly.compose.foundation.text.selection.LocalTextSelectionColors
 import com.tencent.kuikly.compose.material3.internal.ContainerId
 import com.tencent.kuikly.compose.material3.internal.HorizontalIconPadding

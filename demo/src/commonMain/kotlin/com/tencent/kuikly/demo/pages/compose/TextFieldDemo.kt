@@ -273,6 +273,21 @@ class TextFieldDemo : ComposeContainer() {
                         label = { Text("禁用输入框") },
                         modifier = Modifier.fillMaxWidth(),
                     )
+
+                    // 5. 禁用状态的输入框
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(text = " 禁用状态的输入框:")
+                    TextField(
+                        value = "禁用状态",
+                        enabled = false,
+                        onValueChange = { },
+                        textStyle = TextStyle(
+                            fontSize = 36.sp,
+                            color = Color.Red,
+                        ),
+                        label = { Text("禁用输入框") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
         }

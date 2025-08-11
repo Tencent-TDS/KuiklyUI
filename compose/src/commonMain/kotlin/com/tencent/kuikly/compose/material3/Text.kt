@@ -17,9 +17,12 @@
 package com.tencent.kuikly.compose.material3
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.structuralEqualityPolicy
 import com.tencent.kuikly.compose.foundation.text.BasicText
 import com.tencent.kuikly.compose.foundation.text.InlineTextContent
-import com.tencent.kuikly.compose.foundation.text.LocalTextStyle
+import com.tencent.kuikly.compose.material3.tokens.DefaultTextStyle
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.takeOrElse
@@ -90,7 +93,7 @@ fun Text(
     text: String,
     modifier: Modifier = Modifier,
     color: Color = Color.Unspecified,
-    fontSize: TextUnit = 16.sp,
+    fontSize: TextUnit = TextUnit.Unspecified,
     fontStyle: FontStyle? = null,
     fontWeight: FontWeight? = null,
     fontFamily: FontFamily? = null,
@@ -103,7 +106,7 @@ fun Text(
     maxLines: Int = Int.MAX_VALUE,
     minLines: Int = 1, // 暂时不支持
     onTextLayout: ((TextLayoutResult) -> Unit)? = null,
-    style: TextStyle = LocalTextStyle.current,
+    style: TextStyle = LocalTextStyle.current
 ) {
     val textColor =
         color.takeOrElse {
@@ -205,7 +208,7 @@ fun Text(
     minLines: Int = 1, // TODO: jonas
     inlineContent: Map<String, InlineTextContent> = EmptyInlineContent,
     onTextLayout: (TextLayoutResult) -> Unit = {},
-    style: TextStyle = LocalTextStyle.current,
+    style: TextStyle = LocalTextStyle.current
 ) {
     val textColor =
         color.takeOrElse {
@@ -240,3 +243,26 @@ fun Text(
 
 // 添加一个共享的空 Map 常量
 internal val EmptyInlineContent = mapOf<String, InlineTextContent>()
+
+/**
+ * CompositionLocal containing the preferred [TextStyle] that will be used by [Text] components by
+ * default. To set the value for this CompositionLocal, see [ProvideTextStyle] which will merge any
+ * missing [TextStyle] properties with the existing [TextStyle] set in this CompositionLocal.
+ *
+ * @see ProvideTextStyle
+ */
+val LocalTextStyle = compositionLocalOf(structuralEqualityPolicy()) { DefaultTextStyle }
+
+// TODO(b/156598010): remove this and replace with fold definition on the backing CompositionLocal
+/**
+ * This function is used to set the current value of [LocalTextStyle], merging the given style
+ * with the current style values for any missing attributes. Any [Text] components included in
+ * this component's [content] will be styled with this style unless styled explicitly.
+ *
+ * @see LocalTextStyle
+ */
+@Composable
+fun ProvideTextStyle(value: TextStyle, content: @Composable () -> Unit) {
+    val mergedStyle = LocalTextStyle.current.merge(value)
+    CompositionLocalProvider(LocalTextStyle provides mergedStyle, content = content)
+}

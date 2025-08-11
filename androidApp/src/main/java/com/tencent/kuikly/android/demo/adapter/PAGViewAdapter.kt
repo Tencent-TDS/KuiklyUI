@@ -67,6 +67,10 @@ class KRPagView(context: Context) : PAGView(context), IPAGView {
         stop()
     }
 
+    override fun setProgressPAGView(value: Double) {
+        setProgress(value)
+    }
+
     override fun replaceTextLayerContent(layerName: String, text: String) {
         if (composition == null) return
         val layers = composition.getLayersByName(layerName) ?: return

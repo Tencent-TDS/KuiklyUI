@@ -66,6 +66,8 @@ std::shared_ptr<IKRRenderViewExport> IKRRenderViewExport::CreateView(const std::
     return nullptr;
 }
 
+extern int g_kuikly_disable_view_reuse;
+
 void IKRRenderViewExport::CallMethod(const std::string &method, const KRAnyValue &params,
                                      const KRRenderCallback &callback) {
     if (method == "toImage") {
@@ -201,4 +203,14 @@ void IKRRenderViewExport::ToSetProp(const std::string &prop_key, const KRAnyValu
 
 bool IKRRenderViewExport::ResetProp(const std::string &prop_key) {
     return gExternalPropHandlerOnReset ? gExternalPropHandlerOnReset(GetNode(), prop_key.c_str()) : false;
+}
+
+bool IKRRenderViewExport::CanReuse() {
+    if(g_kuikly_disable_view_reuse){
+        return false;
+    }
+    if (base_props_handler_->isAnimationNode()) {  // 对齐iOS（避免执行中动画影响新的复用）
+        return false;
+    }
+    return ReuseEnable();
 }

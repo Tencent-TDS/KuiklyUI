@@ -16,7 +16,6 @@
 #ifndef CORE_RENDER_OHOS_IKRRENDERVIEWEXPORT_H
 #define CORE_RENDER_OHOS_IKRRENDERVIEWEXPORT_H
 
-#include <arkui/native_interface.h>
 #include <arkui/native_node.h>
 #include <functional>
 #include <map>
@@ -38,7 +37,6 @@
 
 #define FORWARD_ARKTS_VIEW_NAME "FORWARD_ARKTS_VIEW_NAME"
 #define FORWARD_ARKTS_VIEW_NAME_V2 "FORWARD_ARKTS_VIEW_NAME_V2"
-extern int g_kuikly_disable_view_reuse;
 
 class IKRRenderViewExport;
 using KRViewCreator = std::function<std::shared_ptr<IKRRenderViewExport>()>;
@@ -220,15 +218,7 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
     /**
      * 最终判断能否复用Api
      */
-    bool CanReuse() {
-        if(g_kuikly_disable_view_reuse){
-            return false;
-        }
-        if (base_props_handler_->isAnimationNode()) {  // 对齐iOS（避免执行中动画影响新的复用）
-            return false;
-        }
-        return ReuseEnable();
-    }
+    bool CanReuse();
 
     /**
      * 注册View创建器

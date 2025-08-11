@@ -97,6 +97,22 @@ UIKIT_EXTERN NSString *const KRPageDataSnapshotKey;
  */
 + (BOOL)isPageExistWithPageName:(NSString *)pageName frameworkName:(NSString *)frameworkName;
 
+/*
+ * @brief 获取kmm工程打包的framework名字，并将获取到的名字传入callback处理
+ * @param callback 处理获取到的framework名字的回调函数
+ */
+- (void)fetchContextCodeWithResultCallback:(KuiklyContextCodeCallback)callback;
+/*
+ * @brief 创建Kuikly接入模式实例
+ * @param contextCode kmm工程打包的framework名字
+ */
+- (KuiklyBaseContextMode *)createContextMode:(NSString * _Nullable) contextCode;
+/*
+ * @brief 初始化renderView
+ * @param contextCode kmm工程打包的framework名字
+ */
+- (void)initRenderViewWithContextCode:(NSString *)contextCode;
+
 @end
 
 @protocol KuiklyRenderViewControllerBaseDelegatorDelegate<NSObject>

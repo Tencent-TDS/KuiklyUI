@@ -87,9 +87,7 @@ private val DefaultColor = Color.Black
 class SpanStyle internal constructor(
     // The fill to draw text, a unified representation of Color and Brush.
     internal val textForegroundStyle: TextForegroundStyle,
-    // TODO
     val fontSize: TextUnit = TextUnit.Unspecified,
-//    val fontSize: TextUnit = TextUnit.Unspecified,
     val fontWeight: FontWeight? = null,
     val fontStyle: FontStyle? = null,
 //    val fontSynthesis: FontSynthesis? = null,

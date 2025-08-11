@@ -104,6 +104,9 @@ open class ContextCodeHandler(
                 this@ContextCodeHandler.onPageLoadComplete(isSucceed, errorReason, executeMode.mode)
             }
 
+            override fun syncSendEvent(event: String): Boolean {
+                return pageName == "root_size" // 同步事件测试
+            }
         }
         // 2.2 创建KuiklyRenderViewBaseDelegator实例
         kuiklyRenderViewDelegator = KuiklyRenderViewBaseDelegator(delegate)

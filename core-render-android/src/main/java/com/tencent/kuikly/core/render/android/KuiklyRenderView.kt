@@ -136,6 +136,8 @@ class KuiklyRenderView(
 
     private var contextInitCallback: IKuiklyRenderContextInitCallback? = null
 
+    private var isInOnSizeChanged = false
+
     init {
         clipChildren = false // 不裁剪, 防止孩子做scale或者translation动画时, 显示不全
     }
@@ -191,6 +193,9 @@ class KuiklyRenderView(
                 }
             lazyEventList.add(event to data)
         }
+        if (shouldSync) {
+            remeasureIfNeeded()
+        }
     }
 
     override fun addView(child: View?, index: Int) {
@@ -219,6 +224,7 @@ class KuiklyRenderView(
     override fun syncFlushAllRenderTasks() {
         addTaskWhenCoreDidInit {
             it.syncFlushAllRenderTasks()
+            remeasureIfNeeded()
         }
     }
 
@@ -258,9 +264,11 @@ class KuiklyRenderView(
         get() = renderExport
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        isInOnSizeChanged = true
         super.onSizeChanged(w, h, oldw, oldh)
         performInitRenderCoreLazyTaskOnce(w, h)
         sendSizeChangeIfNeed(w, h)
+        isInOnSizeChanged = false
     }
 
     private fun performInitRenderCoreLazyTaskOnce(w: Int, h: Int
@@ -502,7 +510,19 @@ class KuiklyRenderView(
         sendEvent(ON_BACK_PRESSED, mapOf())
     }
 
+    private fun remeasureIfNeeded() {
+        // KuiklyRenderView's onSizeChanged triggers between onMeasure and onLayout,
+        // set frame here may cause a wrong measure state, so we manually call measure again.
+        if (isInOnSizeChanged) {
+            KuiklyRenderLog.i(TAG, "remeasure with $width x $height")
+            val widthMeasureSpec = MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY)
+            val heightMeasureSpec = MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY)
+            measure(widthMeasureSpec, heightMeasureSpec)
+        }
+    }
+
     companion object {
+        private const val TAG = "KuiklyRenderView"
         private const val EVENT_ROOT_VIEW_SIZE_CHANGED = "rootViewSizeDidChanged"
         private const val ROOT_VIEW_WIDTH = "rootViewWidth"
         private const val ROOT_VIEW_HEIGHT = "rootViewHeight"

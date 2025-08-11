@@ -162,11 +162,11 @@ internal fun ScrollableState.calculateBackExpandSize(offset: Int): Int? {
  * 尝试扩展起始大小
  */
 internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolean) {
-    if (kuiklyInfo.scrollView == null || !kuiklyInfo.offsetDirty) return
+    if (kuiklyInfo.scrollView == null) return
 
     val density = kuiklyInfo.getDensity()
     // scrollview 到顶了，但是compose没到顶
-    if (offset <= 0 && !isAtTop()) {
+    if (offset <= 0 && !isAtTop() && !kuiklyInfo.offsetDirty) {
         var delta = calculateBackExpandSize(offset)
         val minDelta = (ScrollableStateConstants.DEFAULT_CONTENT_SIZE * density).toInt()
         delta = max(delta ?: minDelta, minDelta)

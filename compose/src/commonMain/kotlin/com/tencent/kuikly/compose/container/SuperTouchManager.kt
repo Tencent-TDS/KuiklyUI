@@ -108,7 +108,7 @@ class SuperTouchManager {
                 return scene.sendPointerEvent(
                     eventType = type,
                     pointers = touches.map { touch ->
-                        val position = Offset(touch.pageX * density, touch.pageY * density)
+                        val position = Offset(touch.x * density, touch.y * density)
                         ComposeScenePointer(
                             id = PointerId(touch.pointerId),
                             position = position,

@@ -1407,11 +1407,15 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 consumed[1] = parentDy
             } else {
                 if (touchType == ViewCompat.TYPE_TOUCH) {
-                    // 只有触摸拖拽模式才处理OverScroll，避免fling直接触发了下拉刷新
-                    overScrollHandler?.let{
-                        it.setTranslationByNestScrollTouch(parentDy.toFloat())
-                        target.skipFlingIfNestOverScroll = true
-                        consumed[1] = parentDy
+                    // 走Overscroll时，如果是ParentFirst模式，容易出现父亲有Overscroll可处理，导致子列表没法下拉查看数据的情况
+                    val needChildFirstWhenOverscroll = parentDy > 0 && target.canScrollVertically(parentDy)
+                    if (!needChildFirstWhenOverscroll) {
+                        // 只有触摸拖拽下拉模式才处理OverScroll，避免fling直接触发了下拉刷新
+                        overScrollHandler?.let{
+                            it.setTranslationByNestScrollTouch(parentDy.toFloat())
+                            target.skipFlingIfNestOverScroll = true
+                            consumed[1] = parentDy
+                        }
                     }
                 }
             }

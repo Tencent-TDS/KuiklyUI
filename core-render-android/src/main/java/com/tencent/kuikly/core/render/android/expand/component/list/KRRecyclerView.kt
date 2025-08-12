@@ -154,6 +154,12 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
      */
     private var scrollWithParent = true
 
+    private var lastScrollParentX = 0
+
+    private var lastScrollParentY = 0
+
+    private var pagerSnapHelper: KRPagerSnapHelper? = null
+
     var enableSmallTouchSlop = false
         set(value) {
             if (field == value) {
@@ -515,7 +521,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             // 导致 RV 内部的状态一直都 DRAGGING，因此在 onInterceptEvent的时候，RV 内部一直拦截事件
             // 导致 RV 内部的横向子 List 无法滑动
             // 触发条件：先在横向子 List 滑动然后触发 cancel
-            // forceSetScrollState(SCROLL_STATE_IDLE)
+            stopScroll()
             return true
         }
         return super.fling(velocityX, velocityY)
@@ -565,6 +571,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 // 由于setScrollState内部在dispatchOnScrollStateChanged之前可能会再次调用setScrollState，
                 // 导致dispatchOnScrollStateChanged逆序回调，因此newState的值不可靠，需要从getScrollState重新获取
                 val currentState = recyclerView.scrollState
+
                 if (!touchConsumeByNative) {
                     touchConsumeByNative = newState != SCROLL_STATE_IDLE
                 }
@@ -683,9 +690,11 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         layoutManager =
             LinearLayoutManager(context, if (directionRow) HORIZONTAL else VERTICAL, false)
         if (pageEnable) {
-            KRPagerSnapHelper { index ->
+            pagerSnapHelper = KRPagerSnapHelper { index ->
 
-            }.attachToRecyclerView(this)
+            }.apply {
+                attachToRecyclerView(this@KRRecyclerView)
+            }
         }
         if (bouncesEnable) {
             setupOverscrollHandler(contentView)
@@ -1285,6 +1294,20 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         }
         stopNestedScroll(type)
 
+        if (overScrollHandler?.overScrolling != true) {
+            // over scroll 时, willDragEnd 由 over scroll handler 处理
+            if (lastScrollParentX != 0 || lastScrollParentY != 0) {
+                if (pagerSnapHelper != null) {
+                    pagerSnapHelper?.snapFromFling(lastScrollParentX, lastScrollParentY)
+                } else {
+                    // 用上次滚动父亲的距离作为WillDragEnd的速度，以驱动Pager选择滑动的方向
+                    fireWillDragEndEvent(lastScrollParentX, lastScrollParentY)
+                }
+                lastScrollParentX = 0
+                lastScrollParentY = 0
+            }
+        }
+
         overScrollHandler?.let { handler ->
             if ((target as KRRecyclerView).skipFlingIfNestOverScroll) {
                 target.skipFlingIfNestOverScroll = false
@@ -1393,6 +1416,14 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                                      parentDy: Int,
                                      consumed: IntArray,
                                      touchType: Int) {
+        // 两种情况可以滚动父亲
+        // 1、父亲支持fling情况下，无论是子列表传递过来fling和touch都可以消费
+        // 2、父亲不支持fling的情况，需要时touch拖拽非fling才能消费
+        val canScrollParent = (supportFling && !pageEnable) || touchType == ViewCompat.TYPE_TOUCH
+        if (!canScrollParent) {
+            return
+        }
+
         val shouldScrollParentY = when {
             parentDy > 0 && target.scrollForwardMode == KRNestedScrollMode.PARENT_FIRST -> true
             parentDy < 0 && target.scrollBackwardMode == KRNestedScrollMode.PARENT_FIRST -> true
@@ -1405,6 +1436,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             if (canScrollVertically(parentDy)) {
                 scrollBy(0, parentDy)
                 consumed[1] = parentDy
+                lastScrollParentY = parentDy
             } else {
                 if (touchType == ViewCompat.TYPE_TOUCH) {
                     // 走Overscroll时，如果是ParentFirst模式，容易出现父亲有Overscroll可处理，导致子列表没法下拉查看数据的情况
@@ -1415,6 +1447,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                             it.setTranslationByNestScrollTouch(parentDy.toFloat())
                             target.skipFlingIfNestOverScroll = true
                             consumed[1] = parentDy
+                            lastScrollParentY = parentDy
                         }
                     }
                 }
@@ -1432,6 +1465,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         if (shouldScrollParentX && canScrollHorizontally(parentDx)) {
             scrollBy(parentDx, 0)
             consumed[0] = parentDx
+            lastScrollParentX = parentDx
         }
     }
 

@@ -1,6 +1,6 @@
 
 <p align="center">
-    <img alt="Kuikly Logo"  src="img/kuikly_logo.svg" />
+    <img alt="Kuikly Logo"  src="img/kuikly_logo.svg" width="200" />
 </p>
 
 English | [简体中文](./README-zh_CN.md) | [Homepage](https://framework.tds.qq.com/)

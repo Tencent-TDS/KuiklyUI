@@ -1,5 +1,5 @@
 <p align="center">
-    <img alt="Kuikly Logo"  src="img/kuikly_logo.svg" />
+    <img alt="Kuikly Logo"  src="img/kuikly_logo.svg" width="200" />
 </p>
 
 [English](./README.md) | 简体中文 | [官网](https://framework.tds.qq.com/)

@@ -216,10 +216,66 @@ class NetworkModule : Module() {
         )
     }
 
+    /**
+     * 用于SSE的流式http请求
+     */
+    fun httpRequestSSE(
+        url: String,
+        isPost: Boolean,
+        param: JSONObject,
+        headers: JSONObject? = null,
+        cookie: String? = null,
+        timeout: Int = 30,
+        responseCallback: NMAllResponse
+    ) {
+        val params = JSONObject().apply {
+            put("url", url)
+            put("method", if (isPost) "POST" else "GET")
+            put("param", param)
+            put("headers", JSONObject().apply {
+                headers?.let { incomingHeaders ->
+                    incomingHeaders.keys().forEach { key ->
+                        put(key, incomingHeaders.optString(key))
+                    }
+                }
+                put("Accept", "text/event-stream")
+            })
+            cookie?.also {
+                put("cookie", it)
+            }
+            put("timeout", timeout)
+        }
+        toNative(
+            true,
+            METHOD_HTTP_REQUEST_SSE,
+            params.toString(),
+            callback = { res ->
+                res?.also {
+                    val dataString = it.optString("data","")
+                    val headers = it.optString("headers", "{}").toJSONObjectSafely()
+                    val success = it.optInt("success").toBoolean()
+                    val errorMsg = it.optString("errorMsg")
+                    var statusCode: Int? = null
+                    if (it.has("statusCode")) {
+                        statusCode = it.optInt("statusCode")
+                    }
+                    val response = NetworkResponse(headers ?: JSONObject(), statusCode)
+
+                    val sseLines = dataString.split("\n")
+                    sseLines.forEach { line ->
+                        val data = JSONObject().apply { put("data", line) }
+                        responseCallback(data, success, errorMsg, response)
+                    }
+                }
+            }
+        )
+    }
+
     companion object {
         const val MODULE_NAME = ModuleConst.NETWORK
         private const val METHOD_HTTP_REQUEST = "httpRequest"
         private const val METHOD_HTTP_REQUEST_BINARY = "httpRequestBinary"
+        private const val METHOD_HTTP_REQUEST_SSE = "httpRequestSSE"
 
         private fun Any.toJSONObjectSafely(): JSONObject? {
             return when {

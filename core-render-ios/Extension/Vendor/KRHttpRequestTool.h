@@ -23,6 +23,7 @@ typedef void (^KRHttpFileResponse)(NSString * _Nullable path , NSError * _Nullab
 
 + (void)downloadWithUrl:(NSString * )url param:(NSDictionary * _Nullable)param sotrePath:(NSString * )path responseBlock:(KRHttpFileResponse)response;
 + (void)requestWithMethod:(NSString *)method url:(NSString *)url param:(NSDictionary *)param binaryData:(NSData * _Nullable)binaryData headers:(NSDictionary *)headerDics timeout:(float)timeout cookie:(NSString * _Nullable)cookie responseBlock:(KRKotlinHttpResponse)response;
++ (void)requestWithMethodSSE:(NSString *)method url:(NSString *)url param:(NSDictionary *)param headers:(NSDictionary *)headerDics timeout:(float)timeout cookie:(NSString * _Nullable)p_cookie responseBlock:(KRKotlinHttpResponse)response;
 
 
 
@@ -36,6 +37,13 @@ typedef void (^KRHttpFileResponse)(NSString * _Nullable path , NSError * _Nullab
 + (void)downloadWithUrl:(NSString * )url responseBlock:(KRHttpFileResponse)response;
 + (void)requestContentLengthWithUrl:(NSString *)url completionHandler:(void (^)(long long contentLength, NSError * _Nullable error))completionHandler;
 + (NSURLSessionDataTask *)kotlinRequestWithURLRequest:(NSURLRequest *)request completionHandler:(void (^)(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error))completionHandler;
+@end
+
+
+@interface KRHttpSSEDelegate : NSObject <NSURLSessionDataDelegate>
+@property (nonatomic, copy) KRKotlinHttpResponse responseBlock;
+@property (nonatomic, strong) NSMutableData *buffer;
+@property (nonatomic, strong) NSHTTPURLResponse *response;
 @end
 
 NS_ASSUME_NONNULL_END

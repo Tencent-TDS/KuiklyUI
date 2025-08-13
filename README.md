@@ -156,11 +156,11 @@ Scan the QR codes below to follow our latest updates or contact us for inquiries
 <p align="left">
     <div style="display: inline-block; text-align: center; margin-right: 20px;">
         <div>TDS WeChat Official Account</div>
-        <img alt="TDS" src="img/tds_qrcode.jpg" width="200" />
+        <img alt="TDS" src="img/tds_qrcode.jpeg" width="200" />
     </div>
     <div style="display: inline-block; text-align: center; margin-right: 20px;">
         <div>TDS Framework WeChat Official Account</div>
-        <img alt="TDS Framework WeChat Official Account" src="img/tds_framework_qrcode.jpg" width="200" />
+        <img alt="TDS Framework WeChat Official Account" src="img/tds_framework_qrcode.jpeg" width="200" />
     </div>
     <div style="display: inline-block; text-align: center;">
         <div>Online Support</div>

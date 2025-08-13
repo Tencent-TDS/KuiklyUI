@@ -150,7 +150,7 @@ static NSString *const kCacheStateInProgress = @"InProgress";
             NSRange subRange = NSMakeRange(KRImageAssetsPrefix.length, src.length - KRImageAssetsPrefix.length - fileExtension.length - 1);
             NSString *pathWithoutExtension = [src substringWithRange:subRange];
             KuiklyContextParam *contextParam = ((KuiklyRenderView *)self.hr_rootView).contextParam;
-            url = [contextParam.contextMode urlForFileName:pathWithoutExtension extension:fileExtension];
+            url = [contextParam urlForFileName:pathWithoutExtension extension:fileExtension];
         }
         if([src hasPrefix:KRImageLocalPathPrefix]){
             url = [NSURL URLWithString:src];

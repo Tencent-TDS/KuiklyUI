@@ -148,6 +148,17 @@ UIKIT_EXTERN NSString *const KRPageDataSnapshotKey;
  * @return 字典类型数据，其中value仅支持基础数据结构，如NSString，NSNumber，NSArray，NSDictionary等可被json序列化数据结构
  */
 - (NSDictionary<NSString *, NSObject *> * _Nullable)contextPageData;
+
+/*
+ * @breif 用于支持在SPM接入等场景下，资源放置于非mainBundle根目录时，指定自定义目录
+ * @return 自定义资源目录地址
+ *
+ * 示例：资源目录可以以如下格式传入：
+ * [[[NSBundle mainBundle] bundleURL] URLByAppendingPathComponent:@"shared_SharedResource.bundle/KuiklyResources"]；
+ * 将“shared_SharedResource”和“KuiklyResources”分别替换为实际的bundle名和子目录名。
+ */
+- (NSURL *)resourceFolderUrlForKuikly:(NSString *)pageName;
+
 /*
  * @breif 发生未处理的kotlin代码异常时回调，回调完后，直接crash
  * @param exReason, 异常原因, 如ThrowArrayIndexOutOfBoundsException

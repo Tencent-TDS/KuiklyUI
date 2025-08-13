@@ -187,7 +187,12 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
 
 - (void)initRenderViewWithContextCode:(NSString *)contextCode {
     [self p_disptachDelegatorLifeCycleWithSel:@selector(willInitRenderView) object:nil];
-    KuiklyContextParam *contextParam = [KuiklyContextParam newWithPageName:self.pageName];
+    NSURL *resourceFolderUrl = nil;
+    if ([self.delegate respondsToSelector:@selector(resourceFolderUrlForKuikly:)]) {
+        resourceFolderUrl = [self.delegate resourceFolderUrlForKuikly:_pageName];
+    }
+    KuiklyContextParam *contextParam = [KuiklyContextParam newWithPageName:self.pageName
+                                                         resourceFolderUrl:resourceFolderUrl];
     contextParam.contextMode = self.contextMode;
 
     _renderView = [[KuiklyRenderView alloc] initWithSize:self.view.bounds.size

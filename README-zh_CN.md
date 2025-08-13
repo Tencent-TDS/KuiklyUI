@@ -1,5 +1,5 @@
 <p align="center">
-    <img alt="Kuikly Logo"  src="img/kuikly_logo.svg" />
+    <img alt="Kuikly Logo"  src="img/kuikly_logo.svg" width="200" />
 </p>
 
 [English](./README.md) | 简体中文 | [官网](https://framework.tds.qq.com/)
@@ -158,11 +158,11 @@ KuiklyUI目录下有各个`Kotlin`版本的gradle配置项
 <p align="left">
     <div style="display: inline-block; text-align: center; margin-right: 20px;">
         <div>腾讯端服务微信公众号</div>
-        <img alt="TDS" src="img/tds_qrcode.jpg" width="200" />
+        <img alt="TDS" src="img/tds_qrcode.jpeg" width="200" />
     </div>
     <div style="display: inline-block; text-align: center; margin-right: 20px;">
         <div>TDS Framework 微信公众号</div>
-        <img alt="TDS Framework" src="img/tds_framework_qrcode.jpg" width="200" />
+        <img alt="TDS Framework" src="img/tds_framework_qrcode.jpeg" width="200" />
     </div>
     <div style="display: inline-block; text-align: center;">
         <div>在线咨询</div>

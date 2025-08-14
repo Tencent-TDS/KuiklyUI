@@ -61,9 +61,17 @@ class MemoryCacheModule : Module() {
     }
 
     fun cacheImage(src: String, sync: Boolean, callback: ImageCacheCallback):ImageCacheStatus {
+        return cacheImage(src, null, sync, callback)
+    }
+
+    fun cacheImage(src: String, imageParams: JSONObject?, sync: Boolean, callback: ImageCacheCallback):ImageCacheStatus {
         val params = JSONObject()
         params.put("src", src)
         params.put("sync", if(sync) 1 else 0)
+        if (imageParams != null) {
+            params.put("imageParams", imageParams)
+        }
+
         val retStr = toNative(
             false,
             MemoryCacheModule.METHOD_CACHE_IMAGE,

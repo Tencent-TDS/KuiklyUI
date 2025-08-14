@@ -75,6 +75,31 @@ open class ImageAttr : Attr(), IImageAttr {
     }
 
     /**
+     * 设置图片源(支持http&base64&宿主扩展能力)。
+     * @param src 图片源路径。
+     * @param imageParams 图片额外参数
+     * @param isDotNineImage 是否为 .9 图。
+     * @return 返回 ImageAttr 以支持链式调用。
+     */
+    override fun src(src: String, imageParams: JSONObject?, isDotNineImage: Boolean): IImageAttr {
+        if (imageParams != null) {
+            ImageConst.IMAGE_PARAMS with imageParams.toString()
+        }
+        return src(src, isDotNineImage)
+    }
+
+    /**
+     * 设置图片源。
+     * @param uri ImageUri 对象。
+     * @param imageParams 图片额外参数
+     * @param isDotNineImage 是否为 .9 图。
+     * @return 返回 IImageAttr 以支持链式调用。
+     */
+    override fun src(uri: ImageUri, imageParams: JSONObject?, isDotNineImage: Boolean): IImageAttr {
+        return src(uri.toUrl(getPager().pageName), imageParams, isDotNineImage)
+    }
+
+    /**
      * 设置图片占位图。
      * @param placeholder 占位图路径。
      * @return 返回 ImageAttr 以支持链式调用。
@@ -311,6 +336,7 @@ object ImageConst {
     const val BASE64_ICON_PREFIX = "data:image"
     const val BASE64_CACHE_KEY_PREFIX = BASE64_ICON_PREFIX + "_Md5_"
     const val DOT_NINE_IMAGE = "dotNineImage"
+    const val IMAGE_PARAMS = "imageParams"
     const val CAP_INSETS = "capInsets"
 
     const val RESIZE_MODE_COVER = "cover"

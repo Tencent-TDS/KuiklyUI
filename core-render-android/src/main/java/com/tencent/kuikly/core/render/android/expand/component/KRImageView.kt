@@ -42,6 +42,7 @@ import com.tencent.kuikly.core.render.android.css.ktx.frameHeight
 import com.tencent.kuikly.core.render.android.css.ktx.frameWidth
 import com.tencent.kuikly.core.render.android.css.ktx.removeFromParent
 import com.tencent.kuikly.core.render.android.css.ktx.toColor
+import com.tencent.kuikly.core.render.android.css.ktx.toJSONObjectSafely
 import com.tencent.kuikly.core.render.android.css.ktx.toPxI
 import com.tencent.kuikly.core.render.android.expand.component.blur.RenderScriptBlur
 import com.tencent.kuikly.core.render.android.expand.component.image.Insets
@@ -50,6 +51,7 @@ import com.tencent.kuikly.core.render.android.expand.module.KRMemoryCacheModule
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.android.scheduler.KRSubThreadScheduler
+import org.json.JSONObject
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.roundToInt
@@ -78,6 +80,12 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
      * 是否加载为.9图
      */
     private var isNinePatchDrawable = false
+
+    /**
+     * 图片额外参数
+     */
+    private var imageParams: JSONObject? = null
+
     /**
      * 高斯模糊半径
      */
@@ -132,6 +140,7 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
             PROP_EVENT_LOAD_RESOLUTION -> setLoadResolutionCallback(propValue)
             PROP_EVENT_LOAD_FAILURE->setLoadFailureCallback(propValue)
             PROP_CAP_INSETS -> setCapInsets(propValue as String)
+            PROP_IMAGE_PARAMS -> setImageParams(propValue as String)
             else -> super.setProp(propKey, propValue)
         }
     }
@@ -161,6 +170,7 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
             PROP_EVENT_LOAD_RESOLUTION -> resetLoadResolutionCallback()
             PROP_EVENT_LOAD_FAILURE -> resetLoadFailureCallback()
             PROP_CAP_INSETS -> resetCapInsets()
+            PROP_IMAGE_PARAMS -> resetImageParams()
             else -> super.resetProp(propKey)
         }
     }
@@ -516,10 +526,10 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
     private fun fetchDrawable(imageLoadOption: HRImageLoadOption, callback: (drawable: Drawable?) -> Unit) {
         if (kuiklyRenderContext?.kuiklyRenderRootView != null && shouldWaitViewDidLoad) {
             kuiklyRenderContext?.kuiklyRenderRootView?.performWhenViewDidLoad {
-                kuiklyRenderContext?.getImageLoader()?.fetchImageAsync(imageLoadOption, callback)
+                kuiklyRenderContext?.getImageLoader()?.fetchImageAsync(imageLoadOption, imageParams, callback)
             }
         } else {
-            kuiklyRenderContext?.getImageLoader()?.fetchImageAsync(imageLoadOption, callback)
+            kuiklyRenderContext?.getImageLoader()?.fetchImageAsync(imageLoadOption, imageParams, callback)
         }
     }
 
@@ -549,6 +559,16 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
         return capInsets?.isZero() == false && scaleType == ScaleType.FIT_XY
     }
 
+    private fun setImageParams(params: String): Boolean {
+        imageParams = params.toJSONObjectSafely()
+        return true
+    }
+
+    private fun resetImageParams(): Boolean {
+        imageParams = null
+        return true
+    }
+
     companion object {
         const val VIEW_NAME = "KRImageView"
         const val PROP_SRC = "src" // 外部用引用到，因此不是private
@@ -561,6 +581,7 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
         private const val PROP_EVENT_LOAD_RESOLUTION = "loadResolution"
         private const val PROP_EVENT_LOAD_FAILURE = "loadFailure"
         private const val PROP_CAP_INSETS = "capInsets"
+        private const val PROP_IMAGE_PARAMS = "imageParams"
         private const val RESIZE_MODE_COVER = "cover"
         private const val RESIZE_MODE_CONTAIN = "contain"
         private const val RESIZE_MODE_STRETCH = "stretch"

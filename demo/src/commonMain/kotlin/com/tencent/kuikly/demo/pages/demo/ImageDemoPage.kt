@@ -21,6 +21,7 @@ import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.attr.AccessibilityRole
 import com.tencent.kuikly.core.base.attr.ImageUri
 import com.tencent.kuikly.core.log.KLog
+import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
@@ -75,6 +76,9 @@ internal class ImageDemoPage: BasePager() {
                             accessibilityRole(AccessibilityRole.BUTTON)
                             size(pagerData.pageViewWidth * 0.6f, 100f)
                             src(ImageUri.pageAssets("panda.png"))
+                            val params = JSONObject()
+                            params.put("key", "value")
+                            src(ImageUri.pageAssets("panda.png"), params)
                         }
                     }
                     Image {

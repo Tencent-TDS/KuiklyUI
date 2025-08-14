@@ -17,6 +17,7 @@ package com.tencent.kuikly.core.render.android.adapter
 
 import android.graphics.drawable.Drawable
 import android.widget.ImageView
+import org.json.JSONObject
 
 /**
  * 图片加载适配器
@@ -32,6 +33,20 @@ interface IKRImageAdapter {
      * @return 是否加载此图片类型
      */
     fun fetchDrawable(imageLoadOption: HRImageLoadOption, callback: (drawable: Drawable?) -> Unit)
+
+
+    /**
+     * 根据[HRImageLoadOption]来加载图片
+     *
+     * @param imageLoadOption 图片加载选项
+     * @param imageParams 图片额外参数
+     * @param callback 回调
+     *
+     * @return 是否加载此图片类型
+     */
+    fun fetchDrawable(imageLoadOption: HRImageLoadOption, imageParams: JSONObject?, callback: (drawable: Drawable?) -> Unit) {
+        fetchDrawable(imageLoadOption, callback)
+    }
 
     /**
      * 是否需要等待首屏完成后再加载

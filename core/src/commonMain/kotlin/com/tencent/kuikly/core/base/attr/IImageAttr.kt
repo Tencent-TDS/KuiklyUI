@@ -16,6 +16,8 @@
 package com.tencent.kuikly.core.base.attr
 
 import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+
 /**
  * Image 相关接口
  */
@@ -29,6 +31,10 @@ interface IImageAttr {
     fun src(src: String, isDotNineImage: Boolean = false): IImageAttr
 
     fun src(uri: ImageUri, isDotNineImage: Boolean = false): IImageAttr
+
+    fun src(src: String, imageParams: JSONObject?, isDotNineImage: Boolean = false): IImageAttr
+
+    fun src(uri: ImageUri, imageParams: JSONObject?, isDotNineImage: Boolean = false): IImageAttr
 
     /**
      * 设置图片占位图。

@@ -24,6 +24,7 @@ import com.tencent.kuikly.core.manager.PagerManager
 import com.tencent.kuikly.core.module.ImageCacheStatus
 import com.tencent.kuikly.core.module.ImageRef
 import com.tencent.kuikly.core.module.MemoryCacheModule
+import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.views.Canvas
 import com.tencent.kuikly.core.views.FontStyle
 import com.tencent.kuikly.core.views.FontWeight
@@ -48,7 +49,10 @@ internal class CanvasTestPage : BasePager() {
             KLog.i("CanvasTestPage", "0 Cache Code:" + it.errorCode + ", CacheKey:" + it.cacheKey)
         }
 
-        val status = acquireModule<MemoryCacheModule>(MemoryCacheModule.MODULE_NAME).cacheImage(BASE64_IMAGE, true){
+
+        val imageParams = JSONObject()
+        imageParams.put("key", "value")
+        val status = acquireModule<MemoryCacheModule>(MemoryCacheModule.MODULE_NAME).cacheImage(BASE64_IMAGE, imageParams, true){
             KLog.i("CanvasTestPage", "Cache Code:" + it.errorCode + ", CacheKey:" + it.cacheKey)
         }
         if(status.state == ImageCacheStatus.Complete){

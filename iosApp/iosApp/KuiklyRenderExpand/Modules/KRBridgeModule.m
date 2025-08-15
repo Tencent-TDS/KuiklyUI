@@ -113,7 +113,7 @@
     NSString *path = params[@"assetPath"];
     KuiklyContextParam *contextParam = ((KuiklyRenderView *)self.hr_rootView).contextParam;
     NSURL *pathUrl = nil;
-    pathUrl = [contextParam.contextMode urlForFileName:[path stringByDeletingPathExtension] extension:[path pathExtension]];
+    pathUrl = [contextParam urlForFileName:[path stringByDeletingPathExtension] extension:[path pathExtension]];
     dispatch_async(dispatch_get_global_queue(0, 0), ^{
         NSError *error;
         NSString *jsonStr = [NSString stringWithContentsOfURL:pathUrl encoding:NSUTF8StringEncoding error:&error];

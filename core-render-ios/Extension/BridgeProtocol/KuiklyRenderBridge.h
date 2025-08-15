@@ -87,7 +87,7 @@ typedef void(^ImageCompletionBlock)(UIImage * _Nullable image, NSError * _Nullab
  *                        complete:(ImageCompletionBlock)completeBlock;
  * 则优先调用带回调的方法。
  */
-- (BOOL)hr_setImageWithUrl:(NSString *)url forImageView:(UIImageView *)imageView;
+- (BOOL)hr_setImageWithUrl:(nullable NSString *)url forImageView:(UIImageView *)imageView;
 
 @optional
 
@@ -98,7 +98,7 @@ typedef void(^ImageCompletionBlock)(UIImage * _Nullable image, NSError * _Nullab
  * @param complete 图片处理完成后的回调
  * @return 是否处理该图片设置，返回值为YES，则交给该代理实现，否则sdk内部自己处理
  */
-- (BOOL)hr_setImageWithUrl:(NSString *)url forImageView:(UIImageView *)imageView complete:(ImageCompletionBlock)completeBlock;
+- (BOOL)hr_setImageWithUrl:(nullable NSString *)url forImageView:(UIImageView *)imageView complete:(ImageCompletionBlock)completeBlock;
 
 /*
  * 自定义实现设置颜值

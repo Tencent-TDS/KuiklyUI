@@ -26,7 +26,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import com.tencent.kuikly.compose.extension.RefFunc
 import com.tencent.kuikly.compose.extension.keyboardHeightChange
-import com.tencent.kuikly.compose.extension.nativeRef
 import com.tencent.kuikly.compose.extension.placeHolder
 import com.tencent.kuikly.compose.extension.setProp
 import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
@@ -147,6 +146,41 @@ fun Modal(
 @Composable
 fun Modifier.dragEnable(enable: Boolean): Modifier {
     return this.setProp("dragEnable", enable)
+}
+
+@Composable
+internal fun Button(
+    onClick: () -> Unit = {},
+    onClick2: (Offset) -> Unit = {},
+    modifier: Modifier = Modifier,
+    content: (@Composable () -> Unit) = {}
+) {
+    var rootPosition by remember { mutableStateOf(Offset.Zero) }
+    val onClickUpdate = rememberUpdatedState(onClick)
+    val onClick2Update = rememberUpdatedState(onClick2)
+    val density = LocalDensity.current
+    Box(
+        modifier = Modifier
+            .onGloballyPositioned {
+                rootPosition = it.positionInRoot()
+            }
+            .pointerInput(Unit) {
+                detectTapGestures { offset ->
+                    // 获取点击的相对于 Box 的坐标
+                    val clickedPositionInBox = offset
+                    // 转换为相对于根节点的位置
+                    val clickedPositionInRoot = with(density) {
+                        Offset(
+                            (clickedPositionInBox.x + rootPosition.x).toDp().value,
+                            (clickedPositionInBox.y + rootPosition.y).toDp().value
+                        )
+                    }
+                    onClickUpdate.value.invoke()
+                    onClick2Update.value.invoke(clickedPositionInRoot)
+                }
+            } then modifier, contentAlignment = Alignment.Center) {
+        content()
+    }
 }
 
 @Composable

@@ -30,4 +30,5 @@ object ModuleConst {
     const val FONT = "KRFontModule"
     const val VSYNC = "KRVsyncModule"
     const val BACK_PRESS = "KRBackPressModule"
+    const val CLIPBOARD = "KRClipboardModule"
 }

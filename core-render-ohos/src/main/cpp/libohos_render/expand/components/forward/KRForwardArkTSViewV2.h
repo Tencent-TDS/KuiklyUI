@@ -39,18 +39,14 @@ class KRForwardArkTSViewV2 : public IKRRenderViewExport {
     void SetRenderViewFrame(const KRRect &frame) override;
 
     void CallMethod(const std::string &method, const KRAnyValue &params, const KRRenderCallback &callback) override;
-    void InsertChildNode(ArkUI_NodeHandle parent, ArkUI_NodeHandle child, int index) override{
-        if(node_content_handle_  && child  && kuikly::util::ArkUINativeNodeAPI::GetInstance()->IsNodeAlive(child)){
-            kuikly::util::GetNodeApi()->insertChildAt(parent, child, index);
+    void InsertChildNode(ArkUI_NodeHandle parent, ArkUI_NodeHandle child, int index,
+                         const std::shared_ptr<IKRRenderViewExport> &sub_render_view) override {
+        if (node_content_handle_ && child && kuikly::util::ArkUINativeNodeAPI::GetInstance()->IsNodeAlive(child)) {
+            sub_render_view->parent_node_content_handle_ = node_content_handle_;
             int32_t err = OH_ArkUI_NodeContent_AddNode(node_content_handle_, child);
             if(err != ARKUI_ERROR_CODE_NO_ERROR){
                 KR_LOG_ERROR<<"Failed to add node content";
             }   
-        }
-    }
-    void RemoveChildNode(ArkUI_NodeHandle parent, ArkUI_NodeHandle child) override {
-        if(node_content_handle_ && child && kuikly::util::ArkUINativeNodeAPI::GetInstance()->IsNodeAlive(child)){
-            OH_ArkUI_NodeContent_RemoveNode(node_content_handle_, child);
         }
     }
     void WillMoveToParentView() override;

@@ -201,6 +201,7 @@ typedef void (^KRPathRenderAction)(CGContextRef context, CGMutablePathRef path);
     [shadow hrv_setPropWithKey:@"fontWeight" propValue:self.fontWeight];
     [shadow hrv_setPropWithKey:@"fontFamily" propValue:self.fontFamily];
     [shadow hrv_setPropWithKey:@"textAlign" propValue:self.textAlign];
+    [shadow hrv_setPropWithKey:@"contextParam" propValue:self.hr_rootView.contextParam];    // shadow注入ContextParam
     shadow.strokeAndFill = false;
     
     if(isStroke){
@@ -321,6 +322,31 @@ typedef void (^KRPathRenderAction)(CGContextRef context, CGMutablePathRef path);
     NSDictionary *params = [args[KRC_PARAM_KEY] hr_stringToDictionary];
     [self addRenderAction:^(CGContextRef context, CGMutablePathRef path) {
         weakSelf.fillStyle = params[@"style"];
+    }];
+}
+
+- (void)css_lineDash:(NSDictionary *)args {
+    KR_WEAK_SELF
+    NSDictionary *params = [args[KRC_PARAM_KEY] hr_stringToDictionary];
+    NSArray < NSNumber * > *intervals = params[@"intervals"];
+
+    // 检查 intervals 是否为 NSNull  nil 或空数组
+    if (intervals == [NSNull null] || ![intervals isKindOfClass:[NSArray class]] ||
+        [(NSArray *) intervals count] == 0) {
+        return;
+    }
+    // 基于参数绘制虚线
+    [self addRenderAction:^(CGContextRef context, CGMutablePathRef path) {
+        KR_STRONG_SELF_RETURN_IF_NIL
+
+        CGFloat *dashPattern = malloc(intervals.count * sizeof(CGFloat));
+
+        for (NSUInteger i = 0; i < intervals.count; i++) {
+            dashPattern[i] = [intervals[i] floatValue];
+        }
+
+        CGContextSetLineDash(context, 0, dashPattern, intervals.count);
+        free(dashPattern);
     }];
 }
 

@@ -37,5 +37,21 @@ static id<KuiklyFontProtocol> gFontHandler;
     return nil;
 }
 
+/*
+ * 动态加载第三方字体函数
+ */
++ (BOOL)hr_loadCustomFont:(NSString *)fontFamily
+            contextParams:(KuiklyContextParam *)contextParam {
+
+    // 预防资源掠夺，保证线程安全
+    if (!gFontHandler) {
+        static dispatch_once_t onceToken;
+        dispatch_once(&onceToken, ^{
+            gFontHandler = [[NSClassFromString(@"KRFontHandler") alloc] init];  // KRFontHandler，业务侧自定义的字体适配器的接口名
+        });
+    }
+    return [gFontHandler hr_loadCustomFont:fontFamily contextParams:contextParam];
+}
+
 
 @end

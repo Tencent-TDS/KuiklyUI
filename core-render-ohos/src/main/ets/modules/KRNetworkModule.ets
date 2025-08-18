@@ -114,15 +114,15 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
         httpRequest.destroy();
       });
     }catch (e) {
-      if(callback){
-        const errmsg = `${(e as BusinessError).message}. params: ${params}`
-        KRRenderLog.e("NetworkModule", errmsg)
-        setTimeout(()=>{
+      if (callback) {
+        const errmsg = `${(e as BusinessError).message}. params: ${params}`;
+        KRRenderLog.e("NetworkModule", errmsg);
+        setTimeout(() => {
           let resultObject: Record<string, string> = {};
           resultObject['errorMsg'] = errmsg;
           resultObject['success'] = "0";
           callback(resultObject);
-        })
+        });
       }
     }
     return null;

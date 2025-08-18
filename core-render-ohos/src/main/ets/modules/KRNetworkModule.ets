@@ -20,6 +20,7 @@ import { http } from '@kit.NetworkKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import Url from '@ohos.url';
 import buffer from '@ohos.buffer';
+import { KRRenderLog } from '../adapter/KRRenderLog';
 
 interface ParamsObject {
   url: string;
@@ -62,56 +63,68 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
 
   private httpRequest(params: KRAny, bytes: Int8Array | null, callback: KuiklyRenderCallback | null): KRAny {
     const binaryMode = bytes != null;
-    let paramsObj: ParamsObject = JSON.parse(params as string);
+    try {
+      let paramsObj: ParamsObject = JSON.parse(params as string);
 
-    let urlOptions = this.createURLAndOptions(paramsObj, bytes);
-    if (urlOptions == null) {
-      return null;
-    }
-
-    let url = urlOptions[0];
-    let options = urlOptions[1];
-
-    let httpRequest = http.createHttp();
-    httpRequest.request(url.toString(), options, (err: BusinessError, response: http.HttpResponse) => {
-      if (callback) {
-        let resultObject: Record<string, string> = {};
-        let bytes: Int8Array | null = null;
-
-        if (response && response.header) {
-          resultObject['headers'] = JSON.stringify(response.header);
-        } else {
-          resultObject['headers'] = '';
-        }
-
-        if (err) {
-          resultObject['data'] = '';
-          resultObject['errorMsg'] = JSON.stringify(err);
-          resultObject['success'] = '0';
-        } else {
-          if (binaryMode) {
-            if (response.result instanceof ArrayBuffer) {
-              bytes = new Int8Array(response.result);
-            } else if (typeof response.result == 'string') {
-              bytes = new Int8Array(buffer.from(response.result).buffer);
-            }
-          } else {
-            resultObject['data'] = response.result.toString();
-          }
-          resultObject['errorMsg'] = '';
-          resultObject['success'] = '1';
-        }
-
-        if (binaryMode) {
-          callback([JSON.stringify(resultObject), bytes ?? new Int8Array(0)]);
-        } else {
-          callback(resultObject);
-        }
+      let urlOptions = this.createURLAndOptions(paramsObj, bytes);
+      if (urlOptions == null) {
+        return null;
       }
 
-      httpRequest.destroy();
-    });
+      let url = urlOptions[0];
+      let options = urlOptions[1];
 
+      let httpRequest = http.createHttp();
+      httpRequest.request(url.toString(), options, (err: BusinessError, response: http.HttpResponse) => {
+        if (callback) {
+          let resultObject: Record<string, string> = {};
+          let bytes: Int8Array | null = null;
+
+          if (response && response.header) {
+            resultObject['headers'] = JSON.stringify(response.header);
+          } else {
+            resultObject['headers'] = '';
+          }
+
+          if (err) {
+            resultObject['data'] = '';
+            resultObject['errorMsg'] = JSON.stringify(err);
+            resultObject['success'] = '0';
+          } else {
+            if (binaryMode) {
+              if (response.result instanceof ArrayBuffer) {
+                bytes = new Int8Array(response.result);
+              } else if (typeof response.result == 'string') {
+                bytes = new Int8Array(buffer.from(response.result).buffer);
+              }
+            } else {
+              resultObject['data'] = response.result.toString();
+            }
+            resultObject['errorMsg'] = '';
+            resultObject['success'] = '1';
+          }
+
+          if (binaryMode) {
+            callback([JSON.stringify(resultObject), bytes ?? new Int8Array(0)]);
+          } else {
+            callback(resultObject);
+          }
+        }
+
+        httpRequest.destroy();
+      });
+    } catch (e) {
+      if (callback) {
+        const errmsg = `${(e as BusinessError).message}. params: ${params}`;
+        KRRenderLog.e("NetworkModule", errmsg);
+        setTimeout(() => {
+          let resultObject: Record<string, string> = {};
+          resultObject['errorMsg'] = errmsg;
+          resultObject['success'] = "0";
+          callback(resultObject);
+        });
+      }
+    }
     return null;
   }
 
@@ -121,7 +134,6 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
     }
 
     let url = Url.URL.parseURL(params.url);
-    console.log(`url parsed:${url}, url passed in :${params.url}`);
 
     let options: http.HttpRequestOptions = {};
 

@@ -390,6 +390,7 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
         if (node_ == nullptr || sub_render_view->GetNode() == nullptr) {
             return;
         }
+        is_leaf_node_ = false;
         auto childrenCount = GetChildCount();
         if (index < 0 || index > childrenCount) {
             index = childrenCount;
@@ -540,6 +541,7 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
     float interrupt_x_ = -1;
     float interrupt_y_ = -1;
     bool handling_capture_event_ = false;
+    bool is_leaf_node_ = true;
 };
 
 #endif  // CORE_RENDER_OHOS_IKRRENDERVIEWEXPORT_H

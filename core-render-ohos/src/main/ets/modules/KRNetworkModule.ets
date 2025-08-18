@@ -113,7 +113,7 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
 
         httpRequest.destroy();
       });
-    }catch (e) {
+    } catch (e) {
       if (callback) {
         const errmsg = `${(e as BusinessError).message}. params: ${params}`;
         KRRenderLog.e("NetworkModule", errmsg);

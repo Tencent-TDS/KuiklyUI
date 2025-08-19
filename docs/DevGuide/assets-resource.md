@@ -79,6 +79,21 @@ cocoapods {
 shared/src/commonMain/assets/common/* -> entry/src/main/resources/resfile/common/*
 ```
 
+#### H5
+H5不存在打包的需求，构建够的静态资源产物会在build/distributions/assets
+一般把这个目录的资源发布到web server或者cdn上即可
+
+#### 微信小程序
+
+在微信小程序工程目录下，执行下面的脚本，会把shared目录下的资源文件复制到微信小程序的壳工程工中
+
+```shell
+// 复制业务的assets文件到小程序目录
+./gradlew :miniApp:copyAssets
+```
+
+内置打包会增大微信小程序的包大小，微信小程序包限制为2M，一般不建议资源内置打包到微信小程序中
+
 ### 2. 动态化打包
 
 动态化资源打包不需要增加配置，assets 资源会被一起打进产物包，如下：

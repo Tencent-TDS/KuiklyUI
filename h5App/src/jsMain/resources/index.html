@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Kuikly-Web-Render</title>
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+</head>
+<style>
+    *{
+      margin: 0;
+      padding: 0;
+    }
+    body {
+        overflow: hidden
+    }
+    /* 隐藏输入框边框的样式 */
+    input:focus {
+      outline: none;
+    }
+    /* toast提示框的样式 */
+    .toast-wrapper {
+        position: fixed;
+        z-index: 100000;
+        height: 30px;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        top: 70px;
+        background-color: white;
+    }
+    .toast-content {
+        display: flex;
+        font-size: 12px;
+        line-height: 30px;
+        min-width: 150px;
+        border: 1px solid gray;
+        border-radius: 5px;
+        justify-content: center;
+    }
+    /* 隐藏滚动条的样式 */
+    .list-no-scrollbar {
+        scrollbar-width: none;
+    }
+    .list-no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    /* 转菊花的动画样式 */
+    @keyframes activityIndicatorRotate {
+        0% { transform: rotate(0deg) }
+        100% { transform: rotate(360deg) }
+    }
+</style>
+<body>
+<div id="root"></div>
+<script type="text/javascript" src="http://127.0.0.1:8083/nativevue2.js"></script>
+<script type="text/javascript"
+        src="https://cdn.jsdelivr.net/npm/libpag@latest/lib/libpag.min.js"></script>
+<script type="text/javascript" src="h5App.js"></script>
+</body>
+</html>

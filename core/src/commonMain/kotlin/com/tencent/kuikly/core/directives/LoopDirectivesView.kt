@@ -15,11 +15,11 @@
 
 package com.tencent.kuikly.core.directives
 
+import com.tencent.kuikly.core.collection.fastMutableListOf
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.domChildren
 import com.tencent.kuikly.core.base.isVirtualView
-import com.tencent.kuikly.core.collection.fastArrayListOf
 import com.tencent.kuikly.core.collection.toFastList
 import com.tencent.kuikly.core.exception.throwRuntimeError
 import com.tencent.kuikly.core.log.KLog
@@ -91,7 +91,7 @@ class LoopDirectivesView<T>(
     }
 
     internal fun syncAddChildOperationToDom(operation: CollectionOperation, list: List<T>) {
-        val addedChildren = fastArrayListOf<DeclarativeBaseView<*, *>>()
+        val addedChildren = fastMutableListOf<DeclarativeBaseView<*, *>>()
         var index = operation.index
         val size = list.size
         while (index < operation.index + operation.count) {
@@ -121,7 +121,7 @@ class LoopDirectivesView<T>(
 
     private fun syncRemoveChildOperationToDom(operation: CollectionOperation) {
         var index = operation.index
-        val removedChildren = fastArrayListOf<DeclarativeBaseView<*, *>>()
+        val removedChildren = fastMutableListOf<DeclarativeBaseView<*, *>>()
         while (index < operation.index + operation.count) {
             if (!(index < children.size && index >= 0)) {
                 KLog.e("KuiklyError", "sync remove operation out index with index:${index} listSize:${children.size} oIndex:${operation.index} oSize:${operation.count} ")

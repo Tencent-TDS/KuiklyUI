@@ -91,13 +91,68 @@
         <img src="./img/ohos_run_success.jpg" width="30%"  alt="运行成功" style="border: 1px solid black;">
     </div>
 
+## 运行H5
+H5 是通过 gradle 启动 dev-server 来运行
+
+1. 编译demo代码成js
+```shell
+# 运行 demo 项目 dev server 服务器，没有安装 npm 包则先 npm install 安装一下依赖
+npm run serve
+#  构建 shared 项目 Debug 版
+./gradlew :shared:packLocalJsBundleDebug
+```
+
+2. 编译h5App代码成js，然后启动调试服务
+```shell
+#  运行 h5App 服务器 Debug 版
+./gradlew :h5App:jsBrowserRun -t
+kotlin 2.0 以上运行: ./gradlew :h5App:jsBrowserDevelopmentRun -t
+如果window平台因为编译iOS模块失败，可以参考"快速开始-环境搭建"指引配置
+# 拷贝 assets 资源到 dev server
+./gradlew :h5App:copyAssetsToWebpackDevServer
+```
+3. 浏览器查看效果
+就可以在 http://localhost:8080/ 看到效果了，如果要访问不同的页面，可以通过 url 参数指定页面名称，如：http://localhost:8080/?page_name=router
+
+4. 浏览器下面界面时，说明已运行成功h5App
+
+<div align="center">
+    <img src="./img/web_run_success.png" width="30%"  alt="运行成功" style="border: 1px solid black;">
+</div>
+
+
+## 运行微信小程序
+微信小程序先通过 gradle 编译js，然后通过微信开发者工具来运行
+1. 编译demo代码成js
+```shell
+# 运行 demo 项目 dev server 服务器，没有安装 npm 包则先 npm install 安装一下依赖
+npm run serve
+#  构建 demo 项目 Debug 版
+./gradlew :shared:packLocalJsBundleDebug
+```
+
+2. 编译miniApp代码成js，然后启动调试服务
+```shell
+#  运行 miniApp 服务器 Debug 版
+./gradlew :miniApp:jsMiniAppDevelopmentWebpack
+```
+
+3.使用微信小程序开发者工具打开miniApp下的dist目录，根据你的实际页面，修改app.json里面的pages数组和在pages里新建对应的页面
+
+4. 微信开发者工具编译运行，出现下面界面时，说明已运行成功miniApp
+    <div align="center">
+        <img src="./img/miniapp_run_success.png" width="30%"  alt="运行成功" style="border: 1px solid black;">
+    </div>        
+
 ## 下一步
 
 在成功运行androidApp和iosApp后我们就已经完成Kuikly KMP工程的新建。下一步，我们还需要在各个平台接入Kuikly的渲染器和设置一些适配器的工作。 以下是各个平台Kuikly渲染器的接入文档:
 
 1. [Android KuiklyRender接入](android.md)
 2. [iOS KuiklyRender接入](iOS.md)
-2. [鸿蒙 KuiklyRender接入](harmony.md)
+3. [鸿蒙 KuiklyRender接入](harmony.md)
+4. [H5 KuiklyRender接入](Web.md)
+5. [微信小程序 KuiklyRender接入](Miniapp.md)
 
 ## 可能会遇到的问题
 

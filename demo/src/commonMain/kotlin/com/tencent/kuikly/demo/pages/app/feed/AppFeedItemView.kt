@@ -67,7 +67,7 @@ internal class AppFeedItemView : ComposeView<AppFeedItemViewAttr, AppFeedItemVie
                 attr {
                     userInfo = ctx.attr.item.userInfo
                     tail = ctx.attr.item.tail
-                    createTime = ctx.attr.item.createTime.toLong()
+                    createTime = ctx.attr.item.createTime
                 }
             }
             // 文字内容区域

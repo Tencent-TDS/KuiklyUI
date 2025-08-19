@@ -17,9 +17,15 @@ package com.tencent.kuikly.core.collection
 
 expect inline fun <E> fastArrayListOf(): MutableList<E>
 
+expect inline fun <E> fastMutableListOf(): MutableList<E>
+
+expect inline fun <K, V> fastMutableMapOf(): MutableMap<K, V>
+
 expect inline fun <K, V> fastHashMapOf(): MutableMap<K, V>
 
 expect inline fun <E> fastHashSetOf(): MutableSet<E>
+
+expect inline fun <E> fastMutableSetOf(): MutableSet<E>
 
 expect inline fun <K, V> fastLinkedMapOf(): MutableMap<K, V>
 

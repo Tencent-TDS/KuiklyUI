@@ -13,7 +13,7 @@
 | -- | -- | -- |
 | index | 置顶层级值 | Int |
 
-### hoverMarginTop
+### hoverMarginTop <Badge text="H5实现中" type="warn"/> <Badge text="微信小程序实现中" type="warn"/>
 
 设置悬停距离列表顶部距离（默认为 0）。
 

@@ -15,13 +15,14 @@
 
 package com.tencent.kuikly.core.base
 
-import com.tencent.kuikly.core.collection.fastArrayListOf
-import com.tencent.kuikly.core.collection.fastLinkedHashSetOf
+import com.tencent.kuikly.core.collection.fastHashMapOf
+import com.tencent.kuikly.core.collection.fastMutableListOf
+import com.tencent.kuikly.core.collection.fastMutableSetOf
 import com.tencent.kuikly.core.collection.toFastList
 import com.tencent.kuikly.core.manager.PagerManager
 
 class AnimationState {
-    private var nextAnimations: MutableList<Animation> = fastArrayListOf()
+    private var nextAnimations: MutableList<Animation> = fastMutableListOf()
     private var animIndex: Int = 0     // 记录正常动画的index
     private var layoutIndex: Int? = null   // 记录触发layout动画的index
     private var curAnimations: List<Animation> = listOf()
@@ -66,9 +67,8 @@ class AnimationState {
 }
 
 class AnimationManager {
-
     private val animationsHashMap: HashMap<Pair<String, Int>, AnimationState> by lazy(LazyThreadSafetyMode.NONE) { HashMap<Pair<String, Int>, AnimationState>() }
-    private val viewRefToKeys: HashMap<Int, MutableSet<Pair<String, Int>>> by lazy(LazyThreadSafetyMode.NONE) { HashMap<Int, MutableSet<Pair<String, Int>>>() }
+    private val viewRefToKeys by lazy(LazyThreadSafetyMode.NONE) { fastHashMapOf<Int, MutableSet<Pair<String, Int>>>() }
     private val currentChangingProperty: String?
         get() {
             return PagerManager.getCurrentReactiveObserver().currentChangingPropertyKey
@@ -82,11 +82,11 @@ class AnimationManager {
         val key = genKey(propertyKey, viewRef)
         val animationState = animationsHashMap.getOrPut(key) { AnimationState() }
         viewRefToKeys.getOrPut(viewRef) {
-            fastLinkedHashSetOf()
+            fastMutableSetOf()
         }.add(key)
         animationState.addAnimation(animation, makeDirty)
     }
-    
+
     fun destroy() {
         viewRefToKeys.clear()
         animationsHashMap.clear()

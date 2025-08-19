@@ -18,6 +18,8 @@ package com.tencent.kuikly.core.base
 import com.tencent.kuikly.core.base.attr.AccessibilityRole
 import com.tencent.kuikly.core.base.attr.ILayoutAttr
 import com.tencent.kuikly.core.base.attr.IStyleAttr
+import com.tencent.kuikly.core.collection.fastHashMapOf
+import com.tencent.kuikly.core.collection.fastLinkedMapOf
 import com.tencent.kuikly.core.collection.toFastMap
 import com.tencent.kuikly.core.exception.throwRuntimeError
 import com.tencent.kuikly.core.layout.FlexAlign
@@ -36,9 +38,9 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
     var flexNode: FlexNode? = null
     var keepAlive: Boolean = false
     internal var isStaticAttr = true
-    private var animationMap: HashMap<String, Animation>? = null
+    private var animationMap: MutableMap<String, Animation>? = null
     internal var isBeginApplyAttrProperty = false
-    internal var propSetByFrameTasks: LinkedHashMap<String, FrameTask>? = null
+    internal var propSetByFrameTasks: MutableMap<String, FrameTask>? = null
 
     override fun viewDidRemove() {
         super.viewDidRemove()
@@ -96,7 +98,7 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
             frameTask(flexNode?.layoutFrame ?: Frame.zero)
         }
         if (propSetByFrameTasks == null) {
-            propSetByFrameTasks = linkedMapOf()
+            propSetByFrameTasks = fastLinkedMapOf()
         }
         propSetByFrameTasks?.set(taskKey, frameTask)
     }
@@ -283,7 +285,7 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
 
     override fun animation(animation: Animation, value: Any): Attr {
         if (animationMap == null) {
-            animationMap = hashMapOf()
+            animationMap = fastHashMapOf()
         }
         val observablePropertyKey = PagerManager.getCurrentReactiveObserver().currentObservablePropertyKey ?: ""
         if (observablePropertyKey.isEmpty()) {

@@ -1,5 +1,5 @@
 # Mask(遮罩)
-<Badge text="鸿蒙实现中" type="warn"/>
+<Badge text="鸿蒙实现中" type="warn"/> <Badge text="H5实现中" type="warn"/> <Badge text="微信小程序实现中" type="warn"/>
 创建一个遮罩视图。遮罩视图的 alpha 通道用于屏蔽视图内容。Mask的构造需传入两个参数：
 
 | 参数 | 描述 | 类型 |

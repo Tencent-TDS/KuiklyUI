@@ -41,6 +41,20 @@ kotlin {
     iosSimulatorArm64()
     iosX64()
 
+    js(IR) {
+        moduleName = "KuiklyCore-core"
+        browser {
+            webpackTask {
+                outputFileName = "${moduleName}.js" // 最后输出的名字
+            }
+
+            commonWebpackConfig {
+                output?.library = null // 不导出全局对象，只导出必要的入口函数
+            }
+        }
+        binaries.executable() //将kotlin.js与kotlin代码打包成一份可直接运行的js文件
+    }
+
     // sourceSets
     val commonMain by sourceSets.getting
 

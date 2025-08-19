@@ -52,7 +52,10 @@ shared.framework的头文件内容包括Kotlin runtime类，Kuikly Core类、业
 <br/>同时，为了减少不必要的share.framework头文件导出，我们正在开发支持all-internal编译插件，通过编译时在业务类增加internal，避免业务类导出引起的产物增量。
 
 ## 既然已经可以用kotlin跨端，那么再进一步，是不是可以用kotlin.js再对接上前端呢
-Kuikly已经支持小程序和 H5跨端，计划Q2开源
+Kuikly已经开源微信小程序和 H5跨端的beta版本，欢迎使用。
+
+## Kuikly H5 渲染在浏览器上的兼容性怎样
+由于使用css实现部分属性，可能会在低版本浏览器有兼容性问题。建议Chrome在57版本以上, Safari在11版本以上
 
 ##  KMM的生态环境目前看还不那么成熟，如果有一些组件需要下沉到KMM层或者说遇到一些问题，目前是怎么解决的？
 

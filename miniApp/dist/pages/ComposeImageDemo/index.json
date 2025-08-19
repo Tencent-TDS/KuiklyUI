@@ -1,0 +1,5 @@
+{
+    "navigationBarTitleText":"ComposeImageDemo",
+    "disableScroll":true,
+    "usingComponents":{"custom-wrapper":"../../custom-wrapper","comp":"../../comp"}
+}

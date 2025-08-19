@@ -18,6 +18,7 @@ package com.tencent.kuikly.core.views
 import com.tencent.kuikly.core.base.*
 import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.base.event.Touch
+import com.tencent.kuikly.core.collection.fastHashSetOf
 import com.tencent.kuikly.core.collection.toFastMutableList
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.Frame
@@ -77,8 +78,8 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
 
     var contentView: ScrollerContentView? = null
          private set
-    private val scrollerViewEventObserverSet: HashSet<IScrollerViewEventObserver> by lazy(LazyThreadSafetyMode.NONE) {
-        hashSetOf<IScrollerViewEventObserver>()
+    private val scrollerViewEventObserverSet by lazy(LazyThreadSafetyMode.NONE) {
+        fastHashSetOf<IScrollerViewEventObserver>()
     }
 
     fun addScrollerViewEventObserver(observer: IScrollerViewEventObserver) {

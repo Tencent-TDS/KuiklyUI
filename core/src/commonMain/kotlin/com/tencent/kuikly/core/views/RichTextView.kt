@@ -29,6 +29,7 @@ import com.tencent.kuikly.core.base.domChildren
 import com.tencent.kuikly.core.base.event.ClickParams
 import com.tencent.kuikly.core.base.event.addLayoutFrameDidChange
 import com.tencent.kuikly.core.base.isVirtualView
+import com.tencent.kuikly.core.collection.fastHashMapOf
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexNode
 import com.tencent.kuikly.core.layout.FlexPositionType
@@ -241,7 +242,7 @@ open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
     fun buildValuesPropValue(): String {
         val values = arrayListOf<Map<String, Any>>()
         attr.spans.forEach { child ->
-            val props = hashMapOf<String, Any>()
+            val props = fastHashMapOf<String, Any>()
             child.spanPropsMap().also {
                 props.putAll(it)
             }
@@ -485,7 +486,7 @@ open class PlaceholderSpan : ISpan {
     }
 
     override fun spanPropsMap(): Map<String, Any> {
-        return hashMapOf<String, Any>().apply {
+        return fastHashMapOf<String, Any>().apply {
             put(PROP_KEY_PLACEHOLDER_WIDTH, placeholderSize.width)
             put(PROP_KEY_PLACEHOLDER_HEIGHT, placeholderSize.height)
             put(PROP_KEY_PLACEHOLDER_TEXT, " ")

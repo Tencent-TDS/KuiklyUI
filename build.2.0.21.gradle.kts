@@ -14,6 +14,11 @@ buildscript {
         mavenCentral()
         mavenLocal()
     }
+    dependencies {
+        classpath(BuildPlugin.kotlin)
+        classpath(BuildPlugin.android)
+        classpath(BuildPlugin.kuikly)
+    }
 }
 
 allprojects {
@@ -32,3 +37,4 @@ allprojects {
         }
     }
 }
+

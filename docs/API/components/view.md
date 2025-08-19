@@ -111,7 +111,7 @@ internal class TouchEventTestPage : BasePager() {
 
 ## 方法
 
-### bringToFront<Badge text="鸿蒙实现中" type="warn"/>
+### bringToFront<Badge text="鸿蒙实现中" type="warn"/><Badge text="微信小程序实现中" type="warn"/><Badge text="H5实现中" type="warn"/>
 
 将组件置顶到父组件的最高层级
 

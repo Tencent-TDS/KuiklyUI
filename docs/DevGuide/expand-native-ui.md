@@ -756,3 +756,410 @@ export class KuiklyViewDelegate extends IKuiklyViewDelegate {
 :::tip 注意
 HRImageView.VIEW_NAME需要与Kuikly侧的组件名相同，为"HRImageView"
 :::
+
+## H5侧
+H5侧要完成原生image标签暴露给Kuikly侧，需要完成以下步骤
+
+1. 新建HRImageView实现IKuiklyRenderViewExport接口,并且创建具体img标签作为实际操作的dom节点
+2. 实现IKuiklyRenderViewExport中的setProp方法
+3. 实现IKuiklyRenderViewExport中的call方法
+4. 注册HRImageView，完成HRImageView暴露给Kuikly侧
+
+我们完成上述4部分后，即可实现将``HRImageView``组件暴露给``Kuikly``侧
+
+
+```kotlin
+class HRImageView: IKuiklyRenderViewExport {
+    private val img = document.createElement("img")
+
+    override val ele: HTMLImageElement
+        get() = img.unsafeCast<HTMLImageElement>()
+
+    override fun setProp(propKey: String, propValue: Any): Boolean {
+       return super.setProp(propKey, propValue)
+    }
+
+    override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
+        return super.call(method, params, callback)
+    }
+}
+```
+``HRImageView``中实现了``setProp``和``call``方法
+
+1. ``setProp``方法: ``Kuikly``侧组件支持的**属性**和**事件**调用都会走到这个方法。例如上述的**属性**``src``和**事件**``loadSuccess``
+2. ``call``方法: ``Kuikly``侧组件支持的**方法**调用都会走到这个方法。例如上述的**方法**``test``
+3. 这里的``ele``是最终会参与dom布局的抽象属性，这里我们返回实际创建的img标签，后续我们会操作这个ele
+### 实现src属性和loadSuccess事件
+
+前面讲到``Kuikly``的``ImageView``组件，它支持**src属性**和**loadSuccess事件**，在运行的时候会调用到我们新建的``HRImageView``的``setProp``方法，我们来看下如何实现
+
+#### 实现src属性
+```kotlin
+class HRImageView: IKuiklyRenderViewExport {
+    private val img = document.createElement("img")
+    override val ele: HTMLImageElement
+        get() = img.unsafeCast<HTMLImageElement>()
+    
+    override fun setProp(propKey: String, propValue: Any): Boolean {
+        return when (propKey) {
+            "src" -> {
+                ele.src = propValue as String
+                true
+            }
+            else -> super.setProp(propKey, propValue)
+        }
+    }
+
+}
+```
+
+#### 实现loadSuccess事件
+```kotlin
+class HRImageView: IKuiklyRenderViewExport {
+    private val img = document.createElement("img")
+    private var loadSuccessCallback: KuiklyRenderCallback? = null
+    private var hasAddLoadListener = false
+
+    override val ele: HTMLImageElement
+        get() = img.unsafeCast<HTMLImageElement>()
+    
+    
+    override fun setProp(propKey: String, propValue: Any): Boolean {
+        return when (propKey) {
+            "src" -> {
+                ele.src = propValue as String
+                true
+            }
+            "loadSuccess" -> {
+                loadSuccessCallback = propValue as KuiklyRenderCallback
+                if (!hasAddLoadListener) {
+                    hasAddLoadListener = true
+                    ele.addEventListener("load", {
+                        // When loading succeeds, callback the actual image source content
+                        loadSuccessCallback?.invoke(
+                            mapOf(
+                                "src" to imageElement.src
+                            )
+                        )
+                    })
+                }
+                true
+            }
+            else -> super.setProp(propKey, propValue)
+        }
+    }
+
+}
+```
+
+### 实现call方法
+
+在Kuikly侧的ImageView含有一个test方法，该方法实现为:
+```kotlin
+fun test() {
+    performTaskWhenRenderViewDidLoad {
+        renderView?.callMethod("test", "params")
+    }
+}
+```
+
+我们看到``renderView?.callMethod``方法传递了test方法名字和一个params字符串，这个调用会对应到HRImageView的call方法, 即
+```kotlin
+class HRImageView: IKuiklyRenderViewExport {
+    private val img = document.createElement("img")
+    override val ele: HTMLImageElement
+        get() = img.unsafeCast<HTMLImageElement>()
+
+    override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
+        return when(method) {
+            "test" -> callTestMethod(params)
+            else -> super.call(method, params, callback)
+        }
+    }
+
+    private fun callTestMethod(params: String?) {
+        Log.d("HRImageView", "callTestMethod: $params")
+    }
+}
+```
+在上述的代码中，我们重写**HRImageView**的侧``call``方法，识别到方法名字为"test"时, 调用``callTestMethod``方法，以此来响应**Kuikly侧的ImageView.test方法的调用**
+
+### 注册HRImageView到Kuikly中
+
+原生侧完成HRImageView的编写后，还需要注册暴露给Kuikly侧，指定这个UI组件对应Kuikly侧组件的名字。我们在实现了``KuiklyRenderViewDelegatorDelegate``接口的类中重写registerExternalRenderView方法，
+然后调用renderViewExport完成HRImageView的注册暴露
+
+### 拓展更多H5组件
+要拓展更多的H5组件，只需要把``document.createElement("img")``里的``img``换成你想要操作的h5标签，然后操作这个标签做你想要的行为即可
+
+
+## 微信小程序侧
+微信小程序侧要完成小程序的image标签暴露给Kuikly侧，需要完成以下步骤
+
+1. 新建HRImageView实现IKuiklyRenderViewExport接口,并且创建MiniImageElement作为实际操作的dom节点
+2. 实现IKuiklyRenderViewExport中的setProp方法
+3. 实现IKuiklyRenderViewExport中的call方法
+4. 注册HRImageView，完成HRImageView暴露给Kuikly侧
+
+我们完成上述4部分后，即可实现将``HRImageView``组件暴露给``Kuikly``侧
+
+
+```kotlin
+class HRImageView: IKuiklyRenderViewExport {
+    private val img = MiniImageElement()
+
+    override val ele: HTMLImageElement
+        get() = img.unsafeCast<HTMLImageElement>()
+
+    override fun setProp(propKey: String, propValue: Any): Boolean {
+       return super.setProp(propKey, propValue)
+    }
+
+    override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
+        return super.call(method, params, callback)
+    }
+}
+```
+``HRImageView``中实现了``setProp``和``call``方法
+
+1. ``setProp``方法: ``Kuikly``侧组件支持的**属性**和**事件**调用都会走到这个方法。例如上述的**属性**``src``和**事件**``loadSuccess``
+2. ``call``方法: ``Kuikly``侧组件支持的**方法**调用都会走到这个方法。例如上述的**方法**``test``
+3. 这里的``ele``是最终会参与dom布局的抽象属性，这里我们返回实际创建的img标签，后续我们会操作这个ele
+### 实现src属性和loadSuccess事件
+
+前面讲到``Kuikly``的``ImageView``组件，它支持**src属性**和**loadSuccess事件**，在运行的时候会调用到我们新建的``HRImageView``的``setProp``方法，我们来看下如何实现
+
+#### 实现src属性
+```kotlin
+class HRImageView: IKuiklyRenderViewExport {
+    private val img = MiniImageElement()
+    override val ele: HTMLImageElement
+        get() = img.unsafeCast<HTMLImageElement>()
+    
+    override fun setProp(propKey: String, propValue: Any): Boolean {
+        return when (propKey) {
+            "src" -> {
+                ele.src = propValue as String
+                true
+            }
+            else -> super.setProp(propKey, propValue)
+        }
+    }
+
+}
+```
+
+#### 实现loadSuccess事件
+```kotlin
+class HRImageView: IKuiklyRenderViewExport {
+    private val img = MiniImageElement()
+    private var loadSuccessCallback: KuiklyRenderCallback? = null
+    private var hasAddLoadListener = false
+
+    override val ele: HTMLImageElement
+        get() = img.unsafeCast<HTMLImageElement>()
+    
+    
+    override fun setProp(propKey: String, propValue: Any): Boolean {
+        return when (propKey) {
+            "src" -> {
+                ele.src = propValue as String
+                true
+            }
+            "loadSuccess" -> {
+                loadSuccessCallback = propValue as KuiklyRenderCallback
+                if (!hasAddLoadListener) {
+                    hasAddLoadListener = true
+                    ele.addEventListener("load", {
+                        // When loading succeeds, callback the actual image source content
+                        loadSuccessCallback?.invoke(
+                            mapOf(
+                                "src" to imageElement.src
+                            )
+                        )
+                    })
+                }
+                true
+            }
+            else -> super.setProp(propKey, propValue)
+        }
+    }
+
+}
+```
+
+### 实现call方法
+
+在Kuikly侧的ImageView含有一个test方法，该方法实现为:
+```kotlin
+fun test() {
+    performTaskWhenRenderViewDidLoad {
+        renderView?.callMethod("test", "params")
+    }
+}
+```
+
+我们看到``renderView?.callMethod``方法传递了test方法名字和一个params字符串，这个调用会对应到HRImageView的call方法, 即
+```kotlin
+class HRImageView: IKuiklyRenderViewExport {
+    private val img = MiniImageElement()
+    override val ele: HTMLImageElement
+        get() = img.unsafeCast<HTMLImageElement>()
+
+    override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
+        return when(method) {
+            "test" -> callTestMethod(params)
+            else -> super.call(method, params, callback)
+        }
+    }
+
+    private fun callTestMethod(params: String?) {
+        Log.d("HRImageView", "callTestMethod: $params")
+    }
+}
+```
+在上述的代码中，我们重写**HRImageView**的侧``call``方法，识别到方法名字为"test"时, 调用``callTestMethod``方法，以此来响应**Kuikly侧的ImageView.test方法的调用**
+
+### 注册HRImageView到Kuikly中
+
+原生侧完成HRImageView的编写后，还需要注册暴露给Kuikly侧，指定这个UI组件对应Kuikly侧组件的名字。我们在实现了``KuiklyRenderViewDelegatorDelegate``接口的类中重写registerExternalRenderView方法，
+然后调用renderViewExport完成HRImageView的注册暴露
+
+### 拓展更多小程序组件
+
+上面的例子里，我们使用的MiniImageElement是内置的Element实现，目前kuikly并没有实现全部的微信小程序基础组件，当你需要的微信小程序组件不是内置组件的时候，需要参照下面的方式进行拓展，这里以小程序的web-view组件为例子
+
+#### 1. 在Kuikly创建KRWebView
+
+```kotlin
+internal class KRWebView: DeclarativeBaseView<WebViewAttr, WebViewEvent>() {
+    
+    override fun createEvent(): WebViewEvent {
+        return WebViewEvent()
+    }
+
+    override fun createAttr(): WebViewAttr {
+        return WebViewAttr().apply {
+            overflow(true)
+        }
+    }
+
+    override fun viewName(): String {
+        return "KRWebView"
+    }
+}
+
+internal class WebViewAttr : ComposeAttr() {
+    fun src(src: String): WebViewAttr {
+        "src" with src
+        return this
+    }
+}
+
+internal class WebViewEvent : ComposeEvent() {
+    
+}
+
+internal fun ViewContainer<*, *>.WebView(init: KRWebView.() -> Unit) {
+    addChild(KRWebView(), init)
+}
+
+```
+#### 2. 在微信小程序工程创建KRWebView
+这里和上面创建HRImageView的流程很像，但是多了个MiniWebViewElement，这个不是内置的类，我们需要自己创建
+```kotlin
+class KRWebView : IKuiklyRenderViewExport {
+    private val webElement = MiniWebViewElement()
+    override val ele: Element
+        get() = webElement.unsafeCast<Element>()
+    override fun setProp(propKey: String, propValue: Any): Boolean {
+        return when (propKey) {
+            SRC -> {
+                webElement.src = propValue.unsafeCast<String>()
+                true
+            }
+
+            KRCssConst.FRAME -> {
+                if (!MiniGlobal.globalThis.hasWebViewShowDialog.unsafeCast<Boolean>()) {
+                    MiniGlobal.globalThis.hasWebViewShowDialog = true
+                    NativeApi.plat.showToast(
+                        json(
+                            "title" to "Mini program web-view will automatically " +
+                                    "fill the full screen, cannot set width, height and position",
+                            "duration" to 3000,
+                            "icon" to "none"
+                        )
+                    )
+                }
+                Log.warn(
+                    "Mini program web-view will automatically fill the full screen, cannot set width, height and position"
+                )
+                true
+            }
+
+            else -> super.setProp(propKey, propValue)
+        }
+    }
+
+    companion object {
+        const val SRC = "src"
+        const val VIEW_NAME = "KRWebView"
+    }
+}
+```
+#### 3. 实现MiniWebViewElement
+实现MiniWebViewElement, 继承MiniElement, 然后补充NODE_NAME和componentsAlias
+1. NODE_NAME是小程序实际标签名
+2. componentsAlias是后续要添加到小程序渲染模版里的相关参数Map
+3. 补充我们的自定义逻辑，这里我添加了src的操作
+```kotlin
+class MiniWebViewElement(
+    nodeName: String = NODE_NAME,
+    nodeType: Int = MiniElementUtil.ELEMENT_NODE
+) : MiniElement(nodeName, nodeType) {
+    var src: String = ""
+        set(value) {
+            setAttribute("src", value)
+        }
+
+    companion object {
+        const val NODE_NAME = "web-view"
+        val componentsAlias = js("{_num: '74', src: 'p0'}")
+    }
+}
+```
+#### 4. 注册KRWebView到Kuikly中
+这里比起上面注册内置的MiniImageElement,我们多了Transform.addComponentsAlias函数的调用，这里需要添加新组件的模版信息
+```kotlin
+class KuiklyWebRenderViewDelegator : KuiklyRenderViewDelegatorDelegate {
+    override fun registerExternalRenderView(kuiklyRenderExport: IKuiklyRenderExport) {
+        super.registerExternalRenderView(kuiklyRenderExport)
+
+        // 补充KRWebView的模版信息
+        Transform.addComponentsAlias(
+            MiniWebViewElement.NODE_NAME,
+            MiniWebViewElement.componentsAlias
+        )
+
+        // 注册KRWebView
+        kuiklyRenderExport.renderViewExport(KRWebView.VIEW_NAME, {
+            KRWebView()
+        })
+
+    }
+}
+
+```
+#### 5. 补充小程序web-view的模版信息
+在小程序壳工程的base.wxml里, 添加下面的代码
+```xml
+<template name="tmpl_0_74">
+  <web-view src="{{i.p0}}" bindmessage="eh" bindload="eh" binderror="eh" bindtap="eh"  id="{{i.uid||i.sid}}" >
+  </web-view>
+</template>
+```
+这里简单解释下，目前kuikly的小程序依赖循环基础模板来完成整个UI的渲染，默认只内置了Kuikly运行需要的微信小程序组件模板，如果新增新的微信小程序组件，需要补充模板定义
+1. _num配置的值74, 会对应到模板的tmpl_0_74
+2. src配置的p0, 对应到模板的
+
+ps: 因为web-view组件不支持有子组件，所以只有一个模板，类似view这种支持嵌套的组件，可以参考base.wxml里view组件模板的写法

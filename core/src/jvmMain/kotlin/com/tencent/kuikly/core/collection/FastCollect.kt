@@ -17,7 +17,13 @@ package com.tencent.kuikly.core.collection
 
 actual inline fun <E> fastArrayListOf(): MutableList<E> = arrayListOf<E>()
 
+actual inline fun <E> fastMutableListOf(): MutableList<E> = mutableListOf<E>()
+
 actual inline fun <K, V> fastHashMapOf(): MutableMap<K, V> = hashMapOf<K, V>()
+
+actual inline fun <K, V> fastMutableMapOf(): MutableMap<K, V> = mutableMapOf<K, V>()
+
+actual inline fun <E> fastMutableSetOf(): MutableSet<E> = mutableSetOf<E>()
 
 actual inline fun <E> fastHashSetOf(): MutableSet<E> = hashSetOf<E>()
 

@@ -24,6 +24,7 @@ import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.ViewRef
 import com.tencent.kuikly.core.base.domChildren
 import com.tencent.kuikly.core.base.event.Event
+import com.tencent.kuikly.core.collection.fastArrayListOf
 import com.tencent.kuikly.core.exception.throwRuntimeError
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.layout.undefined
@@ -68,7 +69,7 @@ class TabsView : ListView<TabsAttr, TabsEvent>(), IPagerLayoutEventObserver {
         if (contentViewFrame === Frame.zero) {
             return
         }
-        val tabItems = contentView?.domChildren()?.filter { it is TabItemView } ?: arrayListOf()
+        val tabItems = contentView?.domChildren()?.filter { it is TabItemView } ?: fastArrayListOf()
         if (tabItems.isEmpty()) {
             this.indicatorViewRef?.view?.getViewAttr()?.visibility(false)
             return

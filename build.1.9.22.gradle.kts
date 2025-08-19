@@ -16,6 +16,7 @@ buildscript {
     dependencies {
         classpath(BuildPlugin.kotlin)
         classpath(BuildPlugin.android)
+        classpath(BuildPlugin.kuikly)
     }
 }
 

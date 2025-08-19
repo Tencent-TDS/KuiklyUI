@@ -6,7 +6,7 @@
 
 支持所有[基础属性](basic-attr-event.md#基础属性)
 
-### src
+### src <Badge text="isDotNineImage小程序支持中" type="warn"/>
 
 设置图片加载的数据源，目前 Kuikly 支持 4 种图片加载方式：
 
@@ -320,7 +320,7 @@ internal class TestPage : BasePager() {
 
 :::
 
-### tintColor
+### tintColor <Badge text="微信小程序实现中" type="warn"/>
 
 将指定颜色应用于图像，生成一个新的已染色的图像。
 
@@ -372,7 +372,7 @@ internal class TestPage: BasePager() {
 
 :::
 
-### maskLinearGradient
+### maskLinearGradient<Badge text="H5实现中" type="warn"/> <Badge text="微信小程序实现中" type="warn"/>
 
 设置图片组件的渐变遮罩（其渐变遮罩像素颜色的alpha值会应用在图片组件同位置像素的alpha上）
 
@@ -425,7 +425,7 @@ internal class TestPage : BasePager() {
 
 :::
 
-### capInsets
+### capInsets <Badge text="微信小程序实现中" type="warn"/>
 
 当图片需要拉伸时，设置图片拉伸区域，图像边缘不会被拉伸，中间的区域被拉伸
 

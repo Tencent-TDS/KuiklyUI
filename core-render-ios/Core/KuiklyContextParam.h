@@ -30,9 +30,6 @@ extern const KuiklyContextMode KuiklyContextMode_Framework;
 // 创建Framework接入模式实例，modeId为KuiklyContextMode_Framework
 - (instancetype)initFrameworkMode;
 
-// 获取资源文件的URL，用于加载图片等资源
-- (NSURL *)urlForFileName:(NSString *)fileName extension:(NSString *)fileExtension;
-
 // 创建Kuikly执行环境的实现者
 - (id<KuiklyRenderContextProtocol>)createContextHandlerWithContextCode:(NSString *)contextCode
                                                           contextParam:(KuiklyContextParam *)contextParam;
@@ -41,17 +38,32 @@ extern const KuiklyContextMode KuiklyContextMode_Framework;
 
 @interface KuiklyContextParam : NSObject
 
-// pageName 页面名 （对应的值为kotlin侧页面注解 @Page("xxxx")中的xxx名）
+/// pageName 页面名 （对应的值为kotlin侧页面注解 @Page("xxxx")中的xxx名）
 @property (nonatomic, copy, readonly) NSString *pageName;
 
-// contextMode context产物模式
+/// contextMode context产物模式
 @property (nonatomic, strong) KuiklyBaseContextMode *contextMode;
 
-/*
- * @brief 初始化context相关参数
- * @param pageName 页面名 （对应的值为kotlin侧页面注解 @Page("xxxx")中的xxx名，区分大小写）
- */
-+ (instancetype)newWithPageName:(NSString *)pageName;
+/// 资源文件目录URL, 用于资源文件放置于非MainBundle根目录下时指定自定义路径
+@property (nonatomic, strong, readonly, nullable) NSURL *resourceFolderUrl;
+
+/// Initialize context-related parameters
+/// - Parameters:
+///   - pageName: Page name (corresponds to the value in the Kotlin-side page annotation @Page("xxxx"), case-sensitive)
+///   - resourceFolderUrl: URL of the folder containing resource files. If empty, the mainBundle URL will be used by default.
+///
+///   When using SPM for integration, resource files are typically located in an independent bundle.
+///   The resource directory can be passed in the following format:
+///   [[[NSBundle mainBundle] bundleURL] URLByAppendingPathComponent:@"shared_SharedResource.bundle/KuiklyResources"];
+///   Replace shared_SharedResource and KuiklyResources with the actual bundle name and subdirectory name, respectively.
++ (instancetype)newWithPageName:(NSString *)pageName
+              resourceFolderUrl:(nullable NSURL *)resourceFolderUrl;
+
+/// Obtain the URL of the resource file, which is used to load resources such as images
+/// - Parameters:
+///   - fileName: File name
+///   - fileExtension: File extension
+- (NSURL *)urlForFileName:(NSString *)fileName extension:(NSString *)fileExtension;
 
 @end
 

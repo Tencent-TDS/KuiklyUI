@@ -19,6 +19,7 @@ import android.graphics.drawable.Drawable
 import com.tencent.kuikly.core.render.android.adapter.HRImageLoadOption
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
 import com.tencent.kuikly.core.render.android.context.KuiklyRenderCoreExecuteModeBase
+import org.json.JSONObject
 
 typealias FetchImageCallback = (drawable: Drawable?) -> Unit
 
@@ -31,11 +32,12 @@ class KRImageLoader(val executeMode: KuiklyRenderCoreExecuteModeBase, val assets
      * 异步拉取图片并解码返回 Drawable
      *
      * @param options 图片加载参数
+     * @param imageParams 图片额外参数
      * @param callback 图片加载回调
      */
-    fun fetchImageAsync(options: HRImageLoadOption, callback: FetchImageCallback) {
+    fun fetchImageAsync(options: HRImageLoadOption, imageParams: JSONObject?, callback: FetchImageCallback) {
         convertAssetsPathIfNeed(options)
-        KuiklyRenderAdapterManager.krImageAdapter?.fetchDrawable(options, callback)
+        KuiklyRenderAdapterManager.krImageAdapter?.fetchDrawable(options, imageParams, callback)
     }
 
     /**

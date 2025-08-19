@@ -71,6 +71,7 @@ class KRMemoryCacheModule : KuiklyRenderBaseModule() {
     private fun cacheImage(params: String?, callback: KuiklyRenderCallback?): JSONObject {
         val json = params.toJSONObjectSafely()
         val src = json.optString("src", "")
+        val imageParams = json.optJSONObject("imageParams")
         val cacheKey = generateCacheKey(src)
         val result = JSONObject()
         if (cacheMap.containsKey(cacheKey)) {
@@ -90,7 +91,7 @@ class KRMemoryCacheModule : KuiklyRenderBaseModule() {
             val sync = json.optInt("sync") == 1
             val option = HRImageLoadOption(src, -1, -1, false, ImageView.ScaleType.FIT_XY)
             val notify = CountDownLatch(1)
-            imageLoader.fetchImageAsync(option, generateCacheImageCallback(this, cacheKey, notify, callback))
+            imageLoader.fetchImageAsync(option, imageParams, generateCacheImageCallback(this, cacheKey, notify, callback))
             if (sync) {
                 // wait
                 val flag = notify.await(5, TimeUnit.SECONDS)

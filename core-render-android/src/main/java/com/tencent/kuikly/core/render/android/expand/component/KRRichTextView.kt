@@ -616,6 +616,8 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
     }
 
     private fun buildRichText(): SpannableStringBuilder? {
+        updateTextPaintTextSize()
+
         val newSpanTextRanges = mutableListOf<SpanTextRange>()
         val richTextBuilder = KRRichTextBuilder(kuiklyRenderContext)
         val result = richTextBuilder.build(textProps, newSpanTextRanges) {
@@ -628,6 +630,14 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
         }
         spanTextRanges = newSpanTextRanges
         return result
+    }
+
+    private fun updateTextPaintTextSize() {
+        textPaint.textSize = if (textProps.useDpFontSizeDim) {
+            kuiklyRenderContext.toPxI(textProps.fontSize).toFloat()
+        } else {
+            kuiklyRenderContext.spToPxI(textProps.fontSize).toFloat()
+        }
     }
 
     private fun getTextAlign(): Layout.Alignment {

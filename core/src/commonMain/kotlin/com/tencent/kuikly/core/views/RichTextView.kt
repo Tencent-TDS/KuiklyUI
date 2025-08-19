@@ -522,6 +522,7 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
     private var isDotNineImage: Boolean = false
     private var borderRadius = 0f
     private var capInsets: EdgeInsets = EdgeInsets.default
+    private var imageParams: JSONObject? = null
     private var verticalAlignOffset = 0f
 
     private var richTextFrame by observable(Frame.zero)
@@ -564,6 +565,21 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
         this.uri = uri
         this.isDotNineImage = isDotNineImage
         this.src = ""
+        return this
+    }
+
+    override fun src(uri: ImageUri, imageParams: JSONObject?, isDotNineImage: Boolean): IImageAttr {
+        this.uri = uri
+        this.imageParams = imageParams
+        this.isDotNineImage = isDotNineImage
+        return this
+    }
+
+    override fun src(src: String, imageParams: JSONObject?, isDotNineImage: Boolean): IImageAttr {
+        this.src = src
+        this.imageParams = imageParams
+        this.isDotNineImage = isDotNineImage
+        this.uri = null
         return this
     }
 
@@ -654,9 +670,9 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
                     )
                     size(ctx.size.width, ctx.size.height)
                     if (ctx.uri != null) {
-                        src(ctx.uri!!, ctx.isDotNineImage)
+                        src(ctx.uri!!, ctx.imageParams, ctx.isDotNineImage)
                     } else {
-                        src(ctx.src, ctx.isDotNineImage)
+                        src(ctx.src, ctx.imageParams, ctx.isDotNineImage)
                     }
                     when(ctx.resizeMode) {
                         ImageConst.RESIZE_MODE_COVER -> resizeCover()

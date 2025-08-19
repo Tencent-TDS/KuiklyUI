@@ -215,7 +215,6 @@ fun SubcomposeLayout(
     var scrollViewSize by remember { mutableStateOf(Size.Zero) } // dp值
     val materialized = currentComposer.materialize(modifier)
     val isIOS = LocalConfiguration.current.isIOS
-    val density = LocalDensity.current
     scrollableState.kuiklyInfo.orientation = orientation
     scrollableState.kuiklyInfo.pageData = LocalConfiguration.current.pageData
 
@@ -242,7 +241,7 @@ fun SubcomposeLayout(
             if (scrollableState is PagerState) {
                 willDragEndBySync(isSync = isIOS, handler = {
                     val viewportSize = kuiklyInfo.viewportSize
-                    val scaleParams = it.scaleWithDensity(density.density)
+                    val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
                     // 实现分页滑动
                     val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
                     if ((offset < 0 && scrollableState.isAtTop()) || offset > (kuiklyInfo.currentContentSize - viewportSize)) {
@@ -252,7 +251,7 @@ fun SubcomposeLayout(
                 })
             }
             scrollEnd {
-                val scaleParams = it.scaleWithDensity(density.density)
+                val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
                 val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
                 kuiklyInfo.contentOffset = offset
 
@@ -261,13 +260,13 @@ fun SubcomposeLayout(
                 scrollableState.kuiklyOnScrollEnd(scaleParams)
             }
             scroll {
-                val scaleParams = it.scaleWithDensity(density.density)
+                val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
                 val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
 
                 kuiklyInfo.contentOffset = offset
                 if (kuiklyInfo.ignoreScrollOffset != null) {
                     val ignoreOffset = kuiklyInfo.ignoreScrollOffset!!
-                    val epsilon = 0.5 * density.density  // 使用 0.5dp 作为误差值
+                    val epsilon = 0.5 * kuiklyInfo.getDensity()  // 使用 0.5dp 作为误差值
                     if (abs(ignoreOffset.x.minus(scaleParams.offsetX)) <= epsilon
                         && abs(ignoreOffset.y.minus(scaleParams.offsetY)) <= epsilon) {
                         kuiklyInfo.ignoreScrollOffset = null

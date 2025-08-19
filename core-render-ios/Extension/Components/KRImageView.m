@@ -128,7 +128,7 @@ typedef  void (^KRSetImageBlock) (UIImage *_Nullable image);
     NSRange subRange = NSMakeRange(KRImageAssetsPrefix.length, css_src.length - KRImageAssetsPrefix.length - fileExtension.length - 1);
     NSString *pathWithoutExtension = [css_src substringWithRange:subRange];
     KuiklyContextParam *contextParam = ((KuiklyRenderView *)self.hr_rootView).contextParam;
-    NSURL *url = [contextParam.contextMode urlForFileName:pathWithoutExtension extension:fileExtension];
+    NSURL *url = [contextParam urlForFileName:pathWithoutExtension extension:fileExtension];
     if (url) {
         NSString *urlString = url ? url.absoluteString : @"";
         [self setImageWithLocalUrl:urlString];

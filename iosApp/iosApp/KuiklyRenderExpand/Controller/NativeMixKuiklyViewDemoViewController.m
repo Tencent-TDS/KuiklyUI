@@ -60,22 +60,24 @@
                                            delegate:self
                                       frameworkName:@"shared"];
     [self.view addSubview:_kuiklyBaseView];
-    
+    [_kuiklyBaseView viewWillAppear];
     [UIView animateWithDuration:0.25 animations:^{
         self.kuiklyBaseView.frame = CGRectMake(0, CGRectGetHeight(self.view.bounds) - height, CGRectGetWidth(self.view.bounds), height);
         self.bgMaskView.alpha = 0.5f;
+        [self.kuiklyBaseView viewDidAppear];
     }];
 }
 
 // 点击背景蒙层
 - (void)onClickBgMaskViewWithSender:(id)sender {
-    
+    [_kuiklyBaseView viewWillDisappear];
     [UIView animateWithDuration:0.25 animations:^{
         self.kuiklyBaseView.frame = CGRectMake(0, CGRectGetHeight(self.view.bounds), CGRectGetWidth(self.view.bounds), CGRectGetHeight(self.kuiklyBaseView.frame));
         self.bgMaskView.alpha = 0;
     } completion:^(BOOL finished) {
         [self.kuiklyBaseView removeFromSuperview];
         [self.bgMaskView removeFromSuperview];
+        [self.kuiklyBaseView viewDidDisappear];
         self.kuiklyBaseView = nil;
         self.bgMaskView = nil;
     }];

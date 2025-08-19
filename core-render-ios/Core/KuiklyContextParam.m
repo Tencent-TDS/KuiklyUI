@@ -28,12 +28,6 @@ const KuiklyContextMode KuiklyContextMode_Framework = 1;
     return self;
 }
 
-- (NSURL *)urlForFileName:(NSString *)fileName extension:(NSString *)fileExtension {
-    NSBundle *mainBundle = [NSBundle mainBundle];
-    NSURL *fileURL = [mainBundle URLForResource:fileName withExtension:fileExtension];
-    return fileURL;
-}
-
 - (id<KuiklyRenderContextProtocol>)createContextHandlerWithContextCode:(NSString *)contextCode
                                                           contextParam:(KuiklyContextParam *)contextParam {
     return [[KuiklyRenderFrameworkContextHandler alloc] initWithContext:contextCode contextParam:contextParam];
@@ -48,15 +42,30 @@ const KuiklyContextMode KuiklyContextMode_Framework = 1;
 // pageName 页面名 （对应的值为kotlin侧页面注解 @Page("xxxx")中的xxx名）
 @property (nonatomic, copy, readwrite) NSString *pageName;
 
+/// 资源文件目录URL, 用于资源文件放置于非MainBundle根目录下时指定自定义路径
+@property (nonatomic, strong, nullable) NSURL *resourceFolderUrl;
+
 @end
 
 @implementation KuiklyContextParam
 
 + (instancetype)newWithPageName:(NSString *)pageName
-{
+              resourceFolderUrl:(nullable NSURL *)resourceFolderUrl {
     KuiklyContextParam *param = [KuiklyContextParam new];
     param.pageName = pageName;
+    param.resourceFolderUrl = resourceFolderUrl;
     return param;
+}
+
+- (NSURL *)urlForFileName:(NSString *)fileName extension:(NSString *)fileExtension {
+    if (self.resourceFolderUrl) {
+        NSURL *rscUrl = [[self.resourceFolderUrl URLByAppendingPathComponent:fileName] URLByAppendingPathExtension:fileExtension];
+        return rscUrl;
+    }
+    
+    // use main bundle as default
+    NSURL *fileURL = [[NSBundle mainBundle] URLForResource:fileName withExtension:fileExtension];
+    return fileURL;
 }
 
 @end

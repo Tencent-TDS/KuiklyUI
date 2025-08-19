@@ -339,7 +339,7 @@ class LazyListState
                 measurementScopeInvalidator.invalidateScope()
             }
 
-            tryExpandStartSizeNoScroll()
+            tryExpandStartSizeNoScroll(true)
         }
 
         /**

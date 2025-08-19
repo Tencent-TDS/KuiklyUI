@@ -326,7 +326,7 @@ static PAGViewCreator gPagViewCreator;
     NSString *pathWithoutExtension = [css_src substringWithRange:subRange];
     
     KuiklyContextParam *contextParam = ((KuiklyRenderView *)self.hr_rootView).contextParam;
-    url = [contextParam.contextMode urlForFileName:pathWithoutExtension extension:fileExtension];
+    url = [contextParam urlForFileName:pathWithoutExtension extension:fileExtension];
     return url ? url.path : @"";
 }
 

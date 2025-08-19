@@ -162,11 +162,11 @@ internal fun ScrollableState.calculateBackExpandSize(offset: Int): Int? {
  * 尝试扩展起始大小
  */
 internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolean) {
-    if (kuiklyInfo.scrollView == null || !kuiklyInfo.offsetDirty) return
+    if (kuiklyInfo.scrollView == null) return
 
     val density = kuiklyInfo.getDensity()
     // scrollview 到顶了，但是compose没到顶
-    if (offset <= 0 && !isAtTop()) {
+    if (offset <= 0 && !isAtTop() && !kuiklyInfo.offsetDirty) {
         var delta = calculateBackExpandSize(offset)
         val minDelta = (ScrollableStateConstants.DEFAULT_CONTENT_SIZE * density).toInt()
         delta = max(delta ?: minDelta, minDelta)
@@ -193,7 +193,7 @@ internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolea
     }
 }
 
-internal fun ScrollableState.tryExpandStartSizeNoScroll() {
+internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = false) {
     if (this is PagerState) return
     kuiklyInfo.run {
         appleScrollViewOffsetJob?.cancel()
@@ -203,7 +203,7 @@ internal fun ScrollableState.tryExpandStartSizeNoScroll() {
             val epsilon = 0.5 * getDensity()  // 使用 0.5dp 作为误差值
             val reachBtm = contentOffset + viewportSize - currentContentSize >= -epsilon
 
-            if (contentOffset <= 0 && !isAtTop() && scrollView?.isDragging != true) {
+            if (contentOffset <= 0 && !isAtTop() && (forceExpand || scrollView?.isDragging != true)) {
                 // 整体把offset 加一下
                 var delta = calculateBackExpandSize(contentOffset)
                 delta = max(delta ?: minDelta, minDelta)

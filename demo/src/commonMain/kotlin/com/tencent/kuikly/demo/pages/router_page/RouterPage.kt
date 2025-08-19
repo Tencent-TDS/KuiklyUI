@@ -67,8 +67,8 @@ internal class RouterPage : BasePager() {
                         attr {
                             src(LOGO)
                             size(
-                                pagerData.pageViewWidth * 0.4f,
-                                (pagerData.pageViewWidth * 0.4f) * (1678f / 2284f)
+                                pagerData.pageViewWidth * 0.6f,
+                                (pagerData.pageViewWidth * 0.6f) * (1987f / 2894f)
                             )
                         }
                     }
@@ -286,7 +286,7 @@ internal class RouterPage : BasePager() {
         const val CACHE_KEY = "router_last_input_key2"
         const val BG_URL =
             "https://sqimg.qq.com/qq_product_operations/kan/images/viola/viola_bg.jpg"
-        const val LOGO = "https://vfiles.gtimg.cn/wuji_dashboard/xy/componenthub/Dfnp7Q9F.png"
+        const val LOGO = "https://vfiles.gtimg.cn/wuji_dashboard/wupload/xy/starter/62394e19.png"
         const val JUMP_TEXT = "跳转"
         const val TEXT_KEY = "text"
         const val TITLE = "Kuikly页面路由"

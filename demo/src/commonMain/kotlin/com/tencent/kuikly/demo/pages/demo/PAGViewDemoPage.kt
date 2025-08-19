@@ -74,7 +74,7 @@ internal class PAGViewDemoPage: BasePager() {
 
                         animationEnd {
                             KLog.d(TAG, "animationEnd")
-
+                            ctx.pagViewRef.view?.setProgress(0.2f)
                         }
 
                     }

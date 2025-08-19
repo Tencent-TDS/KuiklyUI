@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <arkui/drawable_descriptor.h>
+#include <arkui/native_type.h>
 
 #include "KRAnyData.h"
 
@@ -41,6 +42,12 @@ typedef struct KRRenderModuleCallbackContextData *KRRenderModuleCallbackContext;
  */
 void KRRenderModuleDoCallback(KRRenderModuleCallbackContext context, const char *data);
 
+/**
+ * 从回调上下文对象根据tag获取capi的handle
+ * @param tag
+ * @return ArkUI_NodeHandle
+ */
+ArkUI_NodeHandle KRRenderModuleGetViewWithTag(KRRenderModuleCallbackContext context, int tag);
 
 /**
  * The type of a funtion to free an object

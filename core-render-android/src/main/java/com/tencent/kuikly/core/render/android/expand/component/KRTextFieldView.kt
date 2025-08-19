@@ -415,8 +415,12 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     }
 
     private fun setTintColor(propValue: Any): Boolean {
-        KuiklyRenderAdapterManager.krColorParseAdapter?.toColor(propValue as String)?.also {
-            setCursorDrawableColor(it)
+        if (propValue is String && propValue.isNotEmpty()) {
+            setCursorDrawableColor(propValue.toColor())
+        } else {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                textCursorDrawable = null
+            }
         }
         return true
     }

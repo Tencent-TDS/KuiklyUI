@@ -14,7 +14,6 @@
  */
 
 #import "KuiklyRenderViewControllerBaseDelegator.h"
-#import "KuiklyRenderViewControllerBaseDelegator+Extension.h"
 #import "KuiklyRenderView.h"
 #import "KRSnapshotModule.h"
 #import "KRHttpRequestTool.h"
@@ -37,6 +36,8 @@
 NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
 @interface KuiklyRenderViewControllerBaseDelegator()<KuiklyRenderViewDelegate>
 
+@property (nonatomic, strong) NSString *pageName;
+@property (nullable, nonatomic, weak) UIView * view;
 @property (nonatomic, strong) NSDictionary *pageData;
 @property (nullable, nonatomic, strong) UIView * loadingView;
 @property (nullable, nonatomic, strong) UIView * errorView;
@@ -186,7 +187,12 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
 
 - (void)initRenderViewWithContextCode:(NSString *)contextCode {
     [self p_disptachDelegatorLifeCycleWithSel:@selector(willInitRenderView) object:nil];
-    KuiklyContextParam *contextParam = [KuiklyContextParam newWithPageName:self.pageName];
+    NSURL *resourceFolderUrl = nil;
+    if ([self.delegate respondsToSelector:@selector(resourceFolderUrlForKuikly:)]) {
+        resourceFolderUrl = [self.delegate resourceFolderUrlForKuikly:_pageName];
+    }
+    KuiklyContextParam *contextParam = [KuiklyContextParam newWithPageName:self.pageName
+                                                         resourceFolderUrl:resourceFolderUrl];
     contextParam.contextMode = self.contextMode;
 
     _renderView = [[KuiklyRenderView alloc] initWithSize:self.view.bounds.size
@@ -245,10 +251,10 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     [self p_disptachDelegatorLifeCycleWithSel:@selector(willFetchContextCode) object:nil];
     [self fetchContextCodeWithResultCallback:^(NSString * _Nullable contextCode, NSError * _Nullable error) {
         if (!weakSelf) {
-            return ;
+            return;
         }
         [weakSelf p_performOnMainThreadWithBlock:^{
-            weakSelf.contextMode = [self createContextMode:contextCode];
+            weakSelf.contextMode = [weakSelf createContextMode:contextCode];
             [weakSelf p_disptachDelegatorLifeCycleWithSel:@selector(didFetchContextCode) object:nil];
             weakSelf.fetchContextCoding = NO;
             [weakSelf p_hideAllStatusView];

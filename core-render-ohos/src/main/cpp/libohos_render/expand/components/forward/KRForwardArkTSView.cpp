@@ -14,13 +14,14 @@
  */
 
 #include "libohos_render/expand/components/forward/KRForwardArkTSView.h"
-
 #include "libohos_render/manager/KRArkTSManager.h"
 
 void KRForwardArkTSView::DidInit() {
     KRArkTSManager::GetInstance().CallArkTSMethod(
         GetInstanceId(), KRNativeCallArkTSMethod::CreateView, std::make_shared<KRRenderValue>(GetViewTag()),
         std::make_shared<KRRenderValue>(GetViewName()), nullptr, nullptr, nullptr, nullptr);
+    // 设置ARKUI_HIT_TEST_MODE_NONE,否则ForwardArkTSView会遮挡同层级事件
+    kuikly::util::UpdateNodeHitTestMode(GetNode(), ARKUI_HIT_TEST_MODE_NONE);
 }
 
 void KRForwardArkTSView::OnDestroy() {

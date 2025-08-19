@@ -260,40 +260,40 @@ actual value class Key(val keyCode: Long) {
         actual val PageDown: Key = skikoKeyToKey(KEY_PGDOWN)
 
         /** F1 key. */
-        actual val F1: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F1)
+        actual val F1: Key = skikoKeyToKey(KEY_F1)
 
         /** F2 key. */
-        actual val F2: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F2)
+        actual val F2: Key = skikoKeyToKey(KEY_F2)
 
         /** F3 key. */
-        actual val F3: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F3)
+        actual val F3: Key = skikoKeyToKey(KEY_F3)
 
         /** F4 key. */
-        actual val F4: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F4)
+        actual val F4: Key = skikoKeyToKey(KEY_F4)
 
         /** F5 key. */
-        actual val F5: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F5)
+        actual val F5: Key = skikoKeyToKey(KEY_F5)
 
         /** F6 key. */
-        actual val F6: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F6)
+        actual val F6: Key = skikoKeyToKey(KEY_F6)
 
         /** F7 key. */
-        actual val F7: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F7)
+        actual val F7: Key = skikoKeyToKey(KEY_F7)
 
         /** F8 key. */
-        actual val F8: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F8)
+        actual val F8: Key = skikoKeyToKey(KEY_F8)
 
         /** F9 key. */
-        actual val F9: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F9)
+        actual val F9: Key = skikoKeyToKey(KEY_F9)
 
         /** F10 key. */
-        actual val F10: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F10)
+        actual val F10: Key = skikoKeyToKey(KEY_F10)
 
         /** F11 key. */
-        actual val F11: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F11)
+        actual val F11: Key = skikoKeyToKey(KEY_F11)
 
         /** F12 key. */
-        actual val F12: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F12)
+        actual val F12: Key = skikoKeyToKey(KEY_F12)
 
         /**
          * Num Lock key.

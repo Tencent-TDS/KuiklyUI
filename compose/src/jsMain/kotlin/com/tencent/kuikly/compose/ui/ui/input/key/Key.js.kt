@@ -1,6 +1,6 @@
 package com.tencent.kuikly.compose.ui.input.key
 
-import com.tencent.kuikly.compose_dsl.compose.ui.ui.input.key.SkikoKey
+import com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey
 
 /**
  * Actual implementation of [Key] for JS and Native.
@@ -11,288 +11,288 @@ import com.tencent.kuikly.compose_dsl.compose.ui.ui.input.key.SkikoKey
 actual value class Key(val keyCode: Long) {
     actual companion object {
         /** Unknown key. */
-        actual val Unknown: Key = skikoKeyToKey(SkikoKey.KEY_UNKNOWN)
+        actual val Unknown: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_UNKNOWN)
 
         /**
          * Home key.
          *
          * This key is handled by the framework and is never delivered to applications.
          */
-        actual val Home: Key = skikoKeyToKey(SkikoKey.KEY_HOME)
+        actual val Home: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_HOME)
 
         /**
          * Up Arrow Key / Directional Pad Up key.
          *
          * May also be synthesized from trackball motions.
          */
-        actual val DirectionUp: Key = skikoKeyToKey(SkikoKey.KEY_UP)
+        actual val DirectionUp: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_UP)
 
         /**
          * Down Arrow Key / Directional Pad Down key.
          *
          * May also be synthesized from trackball motions.
          */
-        actual val DirectionDown: Key = skikoKeyToKey(SkikoKey.KEY_DOWN)
+        actual val DirectionDown: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_DOWN)
 
         /**
          * Left Arrow Key / Directional Pad Left key.
          *
          * May also be synthesized from trackball motions.
          */
-        actual val DirectionLeft: Key = skikoKeyToKey(SkikoKey.KEY_LEFT)
+        actual val DirectionLeft: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_LEFT)
 
         /**
          * Right Arrow Key / Directional Pad Right key.
          *
          * May also be synthesized from trackball motions.
          */
-        actual val DirectionRight: Key = skikoKeyToKey(SkikoKey.KEY_RIGHT)
+        actual val DirectionRight: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_RIGHT)
 
         /** '0' key. */
-        actual val Zero: Key = skikoKeyToKey(SkikoKey.KEY_0)
+        actual val Zero: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_0)
 
         /** '1' key. */
-        actual val One: Key = skikoKeyToKey(SkikoKey.KEY_1)
+        actual val One: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_1)
 
         /** '2' key. */
-        actual val Two: Key = skikoKeyToKey(SkikoKey.KEY_2)
+        actual val Two: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_2)
 
         /** '3' key. */
-        actual val Three: Key = skikoKeyToKey(SkikoKey.KEY_3)
+        actual val Three: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_3)
 
         /** '4' key. */
-        actual val Four: Key = skikoKeyToKey(SkikoKey.KEY_4)
+        actual val Four: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_4)
 
         /** '5' key. */
-        actual val Five: Key = skikoKeyToKey(SkikoKey.KEY_5)
+        actual val Five: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_5)
 
         /** '6' key. */
-        actual val Six: Key = skikoKeyToKey(SkikoKey.KEY_6)
+        actual val Six: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_6)
 
         /** '7' key. */
-        actual val Seven: Key = skikoKeyToKey(SkikoKey.KEY_7)
+        actual val Seven: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_7)
 
         /** '8' key. */
-        actual val Eight: Key = skikoKeyToKey(SkikoKey.KEY_8)
+        actual val Eight: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_8)
 
         /** '9' key. */
-        actual val Nine: Key = skikoKeyToKey(SkikoKey.KEY_9)
+        actual val Nine: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_9)
 
         /** '-' key. */
-        actual val Minus: Key = skikoKeyToKey(SkikoKey.KEY_MINUS)
+        actual val Minus: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_MINUS)
 
         /** '=' key. */
-        actual val Equals: Key = skikoKeyToKey(SkikoKey.KEY_EQUALS)
+        actual val Equals: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_EQUALS)
 
         /** 'A' key. */
-        actual val A: Key = skikoKeyToKey(SkikoKey.KEY_A)
+        actual val A: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_A)
 
         /** 'B' key. */
-        actual val B: Key = skikoKeyToKey(SkikoKey.KEY_B)
+        actual val B: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_B)
 
         /** 'C' key. */
-        actual val C: Key = skikoKeyToKey(SkikoKey.KEY_C)
+        actual val C: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_C)
 
         /** 'D' key. */
-        actual val D: Key = skikoKeyToKey(SkikoKey.KEY_D)
+        actual val D: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_D)
 
         /** 'E' key. */
-        actual val E: Key = skikoKeyToKey(SkikoKey.KEY_E)
+        actual val E: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_E)
 
         /** 'F' key. */
-        actual val F: Key = skikoKeyToKey(SkikoKey.KEY_F)
+        actual val F: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F)
 
         /** 'G' key. */
-        actual val G: Key = skikoKeyToKey(SkikoKey.KEY_G)
+        actual val G: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_G)
 
         /** 'H' key. */
-        actual val H: Key = skikoKeyToKey(SkikoKey.KEY_H)
+        actual val H: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_H)
 
         /** 'I' key. */
-        actual val I: Key = skikoKeyToKey(SkikoKey.KEY_I)
+        actual val I: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_I)
 
         /** 'J' key. */
-        actual val J: Key = skikoKeyToKey(SkikoKey.KEY_J)
+        actual val J: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_J)
 
         /** 'K' key. */
-        actual val K: Key = skikoKeyToKey(SkikoKey.KEY_K)
+        actual val K: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_K)
 
         /** 'L' key. */
-        actual val L: Key = skikoKeyToKey(SkikoKey.KEY_L)
+        actual val L: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_L)
 
         /** 'M' key. */
-        actual val M: Key = skikoKeyToKey(SkikoKey.KEY_M)
+        actual val M: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_M)
 
         /** 'N' key. */
-        actual val N: Key = skikoKeyToKey(SkikoKey.KEY_N)
+        actual val N: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_N)
 
         /** 'O' key. */
-        actual val O: Key = skikoKeyToKey(SkikoKey.KEY_O)
+        actual val O: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_O)
 
         /** 'P' key. */
-        actual val P: Key = skikoKeyToKey(SkikoKey.KEY_P)
+        actual val P: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_P)
 
         /** 'Q' key. */
-        actual val Q: Key = skikoKeyToKey(SkikoKey.KEY_Q)
+        actual val Q: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_Q)
 
         /** 'R' key. */
-        actual val R: Key = skikoKeyToKey(SkikoKey.KEY_R)
+        actual val R: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_R)
 
         /** 'S' key. */
-        actual val S: Key = skikoKeyToKey(SkikoKey.KEY_S)
+        actual val S: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_S)
 
         /** 'T' key. */
-        actual val T: Key = skikoKeyToKey(SkikoKey.KEY_T)
+        actual val T: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_T)
 
         /** 'U' key. */
-        actual val U: Key = skikoKeyToKey(SkikoKey.KEY_U)
+        actual val U: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_U)
 
         /** 'V' key. */
-        actual val V: Key = skikoKeyToKey(SkikoKey.KEY_V)
+        actual val V: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_V)
 
         /** 'W' key. */
-        actual val W: Key = skikoKeyToKey(SkikoKey.KEY_W)
+        actual val W: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_W)
 
         /** 'X' key. */
-        actual val X: Key = skikoKeyToKey(SkikoKey.KEY_X)
+        actual val X: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_X)
 
         /** 'Y' key. */
-        actual val Y: Key = skikoKeyToKey(SkikoKey.KEY_Y)
+        actual val Y: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_Y)
 
         /** 'Z' key. */
-        actual val Z: Key = skikoKeyToKey(SkikoKey.KEY_Z)
+        actual val Z: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_Z)
 
         /** ',' key. */
-        actual val Comma: Key = skikoKeyToKey(SkikoKey.KEY_COMMA)
+        actual val Comma: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_COMMA)
 
         /** '.' key. */
-        actual val Period: Key = skikoKeyToKey(SkikoKey.KEY_PERIOD)
+        actual val Period: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_PERIOD)
 
         /** Left Alt modifier key. */
-        actual val AltLeft: Key = skikoKeyToKey(SkikoKey.KEY_LEFT_ALT)
+        actual val AltLeft: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_LEFT_ALT)
 
         /** Right Alt modifier key. */
-        actual val AltRight: Key = skikoKeyToKey(SkikoKey.KEY_RIGHT_ALT)
+        actual val AltRight: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_RIGHT_ALT)
 
         /** Left Shift modifier key. */
-        actual val ShiftLeft: Key = skikoKeyToKey(SkikoKey.KEY_LEFT_SHIFT)
+        actual val ShiftLeft: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_LEFT_SHIFT)
 
         /** Right Shift modifier key. */
-        actual val ShiftRight: Key = skikoKeyToKey(SkikoKey.KEY_RIGHT_SHIFT)
+        actual val ShiftRight: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_RIGHT_SHIFT)
 
         /** Tab key. */
-        actual val Tab: Key = skikoKeyToKey(SkikoKey.KEY_TAB)
+        actual val Tab: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_TAB)
 
         /** Space key. */
-        actual val Spacebar: Key = skikoKeyToKey(SkikoKey.KEY_SPACE)
+        actual val Spacebar: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_SPACE)
 
         /** Enter key. */
-        actual val Enter: Key = skikoKeyToKey(SkikoKey.KEY_ENTER)
+        actual val Enter: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_ENTER)
 
         /**
          * Backspace key.
          *
          * Deletes characters before the insertion point, unlike [Delete].
          */
-        actual val Backspace: Key = skikoKeyToKey(SkikoKey.KEY_BACKSPACE) // Key(KeyEvent.VK_BACK_SPACE)
+        actual val Backspace: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_BACKSPACE) // Key(KeyEvent.VK_BACK_SPACE)
 
         /**
          * Delete key.
          *
          * Deletes characters ahead of the insertion point, unlike [Backspace].
          */
-        actual val Delete: Key = skikoKeyToKey(SkikoKey.KEY_DELETE)
+        actual val Delete: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_DELETE)
 
         /** Escape key. */
-        actual val Escape: Key = skikoKeyToKey(SkikoKey.KEY_ESCAPE)
+        actual val Escape: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_ESCAPE)
 
         /** Left Control modifier key. */
-        actual val CtrlLeft: Key = skikoKeyToKey(SkikoKey.KEY_LEFT_CONTROL)
+        actual val CtrlLeft: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_LEFT_CONTROL)
 
         /** Right Control modifier key. */
-        actual val CtrlRight: Key = skikoKeyToKey(SkikoKey.KEY_RIGHT_CONTROL)
+        actual val CtrlRight: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_RIGHT_CONTROL)
 
         /** Caps Lock key. */
-        actual val CapsLock: Key = skikoKeyToKey(SkikoKey.KEY_CAPSLOCK)
+        actual val CapsLock: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_CAPSLOCK)
 
         /** Scroll Lock key. */
-        actual val ScrollLock: Key = skikoKeyToKey(SkikoKey.KEY_SCROLL_LOCK)
+        actual val ScrollLock: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_SCROLL_LOCK)
 
         /** Left Meta modifier key. */
-        actual val MetaLeft: Key = skikoKeyToKey(SkikoKey.KEY_LEFT_META)
+        actual val MetaLeft: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_LEFT_META)
 
         /** Right Meta modifier key. */
-        actual val MetaRight: Key = skikoKeyToKey(SkikoKey.KEY_RIGHT_META)
+        actual val MetaRight: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_RIGHT_META)
 
         /** System Request / Print Screen key. */
-        actual val PrintScreen: Key = skikoKeyToKey(SkikoKey.KEY_PRINTSCEEN)
+        actual val PrintScreen: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_PRINTSCEEN)
 
         /**
          * Insert key.
          *
          * Toggles insert / overwrite edit mode.
          */
-        actual val Insert: Key = skikoKeyToKey(SkikoKey.KEY_INSERT)
+        actual val Insert: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_INSERT)
 
         /** '`' (backtick) key. */
-        actual val Grave: Key = skikoKeyToKey(SkikoKey.KEY_BACK_QUOTE)
+        actual val Grave: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_BACK_QUOTE)
 
         /** '[' key. */
-        actual val LeftBracket: Key = skikoKeyToKey(SkikoKey.KEY_OPEN_BRACKET)
+        actual val LeftBracket: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_OPEN_BRACKET)
 
         /** ']' key. */
-        actual val RightBracket: Key = skikoKeyToKey(SkikoKey.KEY_CLOSE_BRACKET)
+        actual val RightBracket: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_CLOSE_BRACKET)
 
         /** '/' key. */
-        actual val Slash: Key = skikoKeyToKey(SkikoKey.KEY_SLASH)
+        actual val Slash: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_SLASH)
 
         /** '\' key. */
-        actual val Backslash: Key = skikoKeyToKey(SkikoKey.KEY_BACKSLASH)
+        actual val Backslash: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_BACKSLASH)
 
         /** ';' key. */
-        actual val Semicolon: Key = skikoKeyToKey(SkikoKey.KEY_SEMICOLON)
+        actual val Semicolon: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_SEMICOLON)
 
         /** Page Up key. */
-        actual val PageUp: Key = skikoKeyToKey(SkikoKey.KEY_PGUP)
+        actual val PageUp: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_PGUP)
 
         /** Page Down key. */
-        actual val PageDown: Key = skikoKeyToKey(SkikoKey.KEY_PGDOWN)
+        actual val PageDown: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_PGDOWN)
 
         /** F1 key. */
-        actual val F1: Key = skikoKeyToKey(SkikoKey.KEY_F1)
+        actual val F1: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F1)
 
         /** F2 key. */
-        actual val F2: Key = skikoKeyToKey(SkikoKey.KEY_F2)
+        actual val F2: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F2)
 
         /** F3 key. */
-        actual val F3: Key = skikoKeyToKey(SkikoKey.KEY_F3)
+        actual val F3: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F3)
 
         /** F4 key. */
-        actual val F4: Key = skikoKeyToKey(SkikoKey.KEY_F4)
+        actual val F4: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F4)
 
         /** F5 key. */
-        actual val F5: Key = skikoKeyToKey(SkikoKey.KEY_F5)
+        actual val F5: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F5)
 
         /** F6 key. */
-        actual val F6: Key = skikoKeyToKey(SkikoKey.KEY_F6)
+        actual val F6: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F6)
 
         /** F7 key. */
-        actual val F7: Key = skikoKeyToKey(SkikoKey.KEY_F7)
+        actual val F7: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F7)
 
         /** F8 key. */
-        actual val F8: Key = skikoKeyToKey(SkikoKey.KEY_F8)
+        actual val F8: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F8)
 
         /** F9 key. */
-        actual val F9: Key = skikoKeyToKey(SkikoKey.KEY_F9)
+        actual val F9: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F9)
 
         /** F10 key. */
-        actual val F10: Key = skikoKeyToKey(SkikoKey.KEY_F10)
+        actual val F10: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F10)
 
         /** F11 key. */
-        actual val F11: Key = skikoKeyToKey(SkikoKey.KEY_F11)
+        actual val F11: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F11)
 
         /** F12 key. */
-        actual val F12: Key = skikoKeyToKey(SkikoKey.KEY_F12)
+        actual val F12: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_F12)
 
         /**
          * Num Lock key.
@@ -300,56 +300,56 @@ actual value class Key(val keyCode: Long) {
          * This is the Num Lock key; it is different from [Number].
          * This key alters the behavior of other keys on the numeric keypad.
          */
-        actual val NumLock: Key = skikoKeyToKey(SkikoKey.KEY_NUM_LOCK)
+        actual val NumLock: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUM_LOCK)
 
         /** Numeric keypad '0' key. */
-        actual val NumPad0: Key = skikoKeyToKey(SkikoKey.KEY_NUMPAD_0)
+        actual val NumPad0: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_0)
 
         /** Numeric keypad '1' key. */
-        actual val NumPad1: Key = skikoKeyToKey(SkikoKey.KEY_NUMPAD_1)
+        actual val NumPad1: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_1)
 
         /** Numeric keypad '2' key. */
-        actual val NumPad2: Key = skikoKeyToKey(SkikoKey.KEY_NUMPAD_2)
+        actual val NumPad2: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_2)
 
         /** Numeric keypad '3' key. */
-        actual val NumPad3: Key = skikoKeyToKey(SkikoKey.KEY_NUMPAD_3)
+        actual val NumPad3: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_3)
 
         /** Numeric keypad '4' key. */
-        actual val NumPad4: Key = skikoKeyToKey(SkikoKey.KEY_NUMPAD_4)
+        actual val NumPad4: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_4)
 
         /** Numeric keypad '5' key. */
-        actual val NumPad5: Key = skikoKeyToKey(SkikoKey.KEY_NUMPAD_5)
+        actual val NumPad5: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_5)
 
         /** Numeric keypad '6' key. */
-        actual val NumPad6: Key = skikoKeyToKey(SkikoKey.KEY_NUMPAD_6)
+        actual val NumPad6: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_6)
 
         /** Numeric keypad '7' key. */
-        actual val NumPad7: Key = skikoKeyToKey(SkikoKey.KEY_NUMPAD_7)
+        actual val NumPad7: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_7)
 
         /** Numeric keypad '8' key. */
-        actual val NumPad8: Key = skikoKeyToKey(SkikoKey.KEY_NUMPAD_8)
+        actual val NumPad8: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_8)
 
         /** Numeric keypad '9' key. */
-        actual val NumPad9: Key = skikoKeyToKey(SkikoKey.KEY_NUMPAD_9)
+        actual val NumPad9: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_9)
 
         /** Numeric keypad '/' key (for division). */
-        actual val NumPadDivide: Key = skikoKeyToKey(SkikoKey.KEY_NUMPAD_DIVIDE)
+        actual val NumPadDivide: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_DIVIDE)
 
         /** Numeric keypad '*' key (for multiplication). */
-        actual val NumPadMultiply: Key = skikoKeyToKey(SkikoKey.KEY_NUMPAD_MULTIPLY)
+        actual val NumPadMultiply: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_MULTIPLY)
 
         /** Numeric keypad '-' key (for subtraction). */
-        actual val NumPadSubtract: Key = skikoKeyToKey(SkikoKey.KEY_NUMPAD_SUBTRACT)
+        actual val NumPadSubtract: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_SUBTRACT)
 
         /** Numeric keypad '+' key (for addition). */
-        actual val NumPadAdd: Key = skikoKeyToKey(SkikoKey.KEY_NUMPAD_ADD)
+        actual val NumPadAdd: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_ADD)
 
         /** Numeric keypad Enter key. */
-        actual val NumPadEnter: Key = skikoKeyToKey(SkikoKey.KEY_NUMPAD_ENTER)
+        actual val NumPadEnter: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_ENTER)
 
-        actual val MoveHome: Key = skikoKeyToKey(SkikoKey.KEY_HOME)
+        actual val MoveHome: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_HOME)
 
-        actual val MoveEnd: Key = skikoKeyToKey(SkikoKey.KEY_END)
+        actual val MoveEnd: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_END)
 
         // Unsupported Keys
         actual val SoftLeft = Key(-1000000001)
@@ -542,5 +542,5 @@ actual value class Key(val keyCode: Long) {
     actual override fun toString() = "Key keyCode: $keyCode"
 }
 
-fun skikoKeyToKey(skikoKey: SkikoKey) = Key(skikoKey.platformKeyCode.toLong())
+fun skikoKeyToKey(skikoKey: com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey) = Key(skikoKey.platformKeyCode.toLong())
 

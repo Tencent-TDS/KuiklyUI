@@ -1,4 +1,4 @@
-package com.tencent.kuikly.compose_dsl.compose.ui.ui.input.key
+package com.tencent.kuikly.compose.ui.ui.input.key
 
 enum class SkikoKey(val platformKeyCode: Int) {
     KEY_UNKNOWN(-1),
@@ -108,8 +108,8 @@ enum class SkikoKey(val platformKeyCode: Int) {
     KEY_NUMPAD_DECIMAL(110);
 
     companion object {
-        fun valueOf(platformKeyCode: Int): SkikoKey {
-            return entries.firstOrNull { it.platformKeyCode == platformKeyCode } ?: KEY_UNKNOWN
+        fun valueOf(platformKeyCode: Int): com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey {
+            return entries.firstOrNull { it.platformKeyCode == platformKeyCode } ?: com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_UNKNOWN
         }
     }
 }

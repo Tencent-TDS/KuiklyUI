@@ -64,7 +64,7 @@ object BuildPlugin {
     }
 
     val kuikly by lazy {
-        "com.tencent.kuikly-open:core-gradle-plugin:2.3.0-${Version.getKotlinVersion()}"
+        "com.tencent.kuikly-open:core-gradle-plugin:2.4.0-${Version.getKotlinVersion()}"
     }
 }
 

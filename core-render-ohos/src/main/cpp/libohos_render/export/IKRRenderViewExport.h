@@ -365,8 +365,15 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
         ResetTouchInterrupter();
     }
 
-    virtual void RemoveChildNode(ArkUI_NodeHandle parent, ArkUI_NodeHandle child){
-        kuikly::util::GetNodeApi()->removeChild(parent, child);
+    virtual void RemoveChildNode(ArkUI_NodeHandle parent, ArkUI_NodeHandle child) {
+        if (parent_node_content_handle_ && child &&
+            kuikly::util::ArkUINativeNodeAPI::GetInstance()->IsNodeAlive(child)) {
+            // For KRForwardArkTSViewV2
+            OH_ArkUI_NodeContent_RemoveNode(parent_node_content_handle_, child);
+            parent_node_content_handle_ = nullptr;
+        } else {
+            kuikly::util::GetNodeApi()->removeChild(parent, child);
+        }
     }
     void ToRemoveFromSuperView() {
         KREnsureMainThread();
@@ -380,7 +387,8 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
         DidRemoveFromParentView();
     }
 
-    virtual void InsertChildNode(ArkUI_NodeHandle parent, ArkUI_NodeHandle child, int index){
+    virtual void InsertChildNode(ArkUI_NodeHandle parent, ArkUI_NodeHandle child, int index,
+                                 const std::shared_ptr<IKRRenderViewExport> &sub_render_view) {
         kuikly::util::GetNodeApi()->insertChildAt(parent, child, index);
     }
     void ToInsertSubRenderView(const std::shared_ptr<IKRRenderViewExport> &sub_render_view, int index) {
@@ -398,7 +406,7 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
         sub_render_view->parent_node_ = GetNode();
         sub_render_view->parent_tag_ = this->GetViewTag();
 
-        InsertChildNode(GetNode(), sub_render_view->GetNode(), index);
+        InsertChildNode(GetNode(), sub_render_view->GetNode(), index, sub_render_view);
         sub_render_view->DidMoveToParentView();
         DidInsertSubRenderView(sub_render_view, index);
     }
@@ -542,6 +550,8 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
     float interrupt_y_ = -1;
     bool handling_capture_event_ = false;
     bool is_leaf_node_ = true;
+ public:
+    ArkUI_NodeContentHandle parent_node_content_handle_ = nullptr;
 };
 
 #endif  // CORE_RENDER_OHOS_IKRRENDERVIEWEXPORT_H

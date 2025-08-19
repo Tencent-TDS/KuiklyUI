@@ -109,7 +109,7 @@ enum class SkikoKey(val platformKeyCode: Int) {
 
     companion object {
         fun valueOf(platformKeyCode: Int): com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey {
-            return entries.firstOrNull { it.platformKeyCode == platformKeyCode } ?: com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_UNKNOWN
+            return entries.firstOrNull { it.platformKeyCode == platformKeyCode } ?: KEY_UNKNOWN
         }
     }
 }

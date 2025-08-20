@@ -15,29 +15,28 @@
 
 package com.tencent.kuikly.demo.pages.app
 
-import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.core.annotations.Page
-import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewRef
-import com.tencent.kuikly.core.base.attr.ImageUri
 import com.tencent.kuikly.core.module.CallbackRef
 import com.tencent.kuikly.core.module.NotifyModule
 import com.tencent.kuikly.core.module.SharedPreferencesModule
 import com.tencent.kuikly.core.reactive.handler.observable
+import com.tencent.kuikly.core.reactive.handler.observableList
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.PageList
 import com.tencent.kuikly.core.views.PageListView
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.app.home.AppHomePage
+import com.tencent.kuikly.demo.pages.app.lang.MultiLingualPager
 import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
 
 @Page("AppTabPage")
-internal class AppTabPage : BasePager() {
+internal class AppTabPage : MultiLingualPager() {
 
     private var selectedTabIndex: Int by observable(0)
-    private val pageTitles = listOf<String>("首页", "视频", "发现", "消息", "我")
+    private var pageTitles by observableList<String>()
     private val pageIcons = listOf<String>(
         "tabbar_home.png",
         "tabbar_video.png",
@@ -54,32 +53,54 @@ internal class AppTabPage : BasePager() {
     )
     private var pageListRef : ViewRef<PageListView<*, *>>? = null
     private var theme by observable(ThemeManager.getTheme())
-    private lateinit var eventCallbackRef: CallbackRef
+    private lateinit var themeEventCallbackRef: CallbackRef
+
+    override fun langEventCallbackFn() {
+        super.langEventCallbackFn()
+        pageTitles[0] = resStrings.btmBarHome
+        pageTitles[1] = resStrings.btmBarVideo
+        pageTitles[2] = resStrings.btmBarDiscover
+        pageTitles[3] = resStrings.btmBarMessage
+        pageTitles[4] = resStrings.btmBarMe
+    }
 
     override fun created() {
         super.created()
-        eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
-            .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
-                theme = ThemeManager.getTheme()
-            }
-        val colorTheme = getPager().acquireModule<SharedPreferencesModule>(SharedPreferencesModule.MODULE_NAME)
-            .getString("colorTheme").takeUnless { it.isEmpty() } ?: "light"
-        val assetTheme = getPager().acquireModule<SharedPreferencesModule>(SharedPreferencesModule.MODULE_NAME)
-            .getString("assetTheme").takeUnless { it.isEmpty() } ?: "default"
-        val typoTheme = getPager().acquireModule<SharedPreferencesModule>(SharedPreferencesModule.MODULE_NAME)
-            .getString("typoTheme").takeUnless { it.isEmpty() } ?: "default"
+        pageTitles.addAll(listOf(
+            resStrings.btmBarHome,
+            resStrings.btmBarVideo,
+            resStrings.btmBarDiscover,
+            resStrings.btmBarMessage,
+            resStrings.btmBarMe
+        ))
+        val spModule = acquireModule<SharedPreferencesModule>(SharedPreferencesModule.MODULE_NAME)
 
+        // 获取当前设置的主题
+        val colorTheme = spModule.getString(ThemeManager.PREF_KEY_COLOR)
+            .takeUnless { it.isEmpty() } ?: "light"
+        val assetTheme = spModule.getString(ThemeManager.PREF_KEY_ASSET)
+            .takeUnless { it.isEmpty() } ?: "default"
+        val typoTheme = spModule.getString(ThemeManager.PREF_KEY_TYPO)
+            .takeUnless { it.isEmpty() } ?: "default"
+
+        // 切换主题并更新当前页面的样式
         ThemeManager.changeColorScheme(colorTheme)
         ThemeManager.changeAssetScheme(assetTheme)
         ThemeManager.changeTypoScheme(typoTheme)
 
         theme = ThemeManager.getTheme()
+
+        // 注册换肤相关的事件监听
+        themeEventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
+                theme = ThemeManager.getTheme()
+            }
     }
 
     override fun pageWillDestroy() {
         super.pageWillDestroy()
         acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
-            .removeNotify(ThemeManager.SKIN_CHANGED_EVENT, eventCallbackRef)
+            .removeNotify(ThemeManager.SKIN_CHANGED_EVENT, themeEventCallbackRef)
     }
 
     private fun tabBar(): ViewBuilder {
@@ -107,7 +128,6 @@ internal class AppTabPage : BasePager() {
                         Image {
                             attr {
                                 size(30f, 30f)
-                                val path = if (i == ctx.selectedTabIndex) ctx.pageIconsHighlight[i] else ctx.pageIcons[i]
                                 if (i == ctx.selectedTabIndex) {
                                     src(ThemeManager.getAssetUri(ctx.theme.asset, ctx.pageIconsHighlight[i]))
                                     tintColor(ctx.theme.colors.tabBarIconFocused)
@@ -121,7 +141,7 @@ internal class AppTabPage : BasePager() {
                             attr {
                                 text(ctx.pageTitles[i])
                                 color(if (i == ctx.selectedTabIndex) ctx.theme.colors.tabBarTextFocused
-                                      else ctx.theme.colors.tabBarTextUnfocused)
+                                else ctx.theme.colors.tabBarTextUnfocused)
                             }
                         }
                     }
@@ -155,7 +175,11 @@ internal class AppTabPage : BasePager() {
                 }
                 AppHomePage { }
                 for (i in 1 until ctx.pageTitles.size) {
-                    AppEmptyPage(ctx.pageTitles[i]) { }
+                    AppEmptyPage {
+                        attr {
+                            title = ctx.pageTitles[i]
+                        }
+                    }
                 }
             }
             ctx.tabBar().invoke(this)

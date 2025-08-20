@@ -15,7 +15,7 @@ import org.w3c.dom.get
 import kotlin.js.Json
 
 /**
- * H5 下的 styleSheet 操作类
+ * h5 style sheet class
  */
 class StyleSheet {
     private var style: HTMLStyleElement? = null
@@ -26,7 +26,7 @@ class StyleSheet {
     }
 
     /**
-     * 添加 style 标签
+     * append style sheet to dom
      */
     private fun appendStyleSheet() {
         val style = this.style
@@ -39,13 +39,13 @@ class StyleSheet {
         }
     }
 
-    // 添加样式命令
+    // append css text to style sheet
     fun add(cssText: String, index: Int = 0) {
         if (this.sheet == null) {
-            // $style 未插入到 DOM，则先进行插入
+            // insert style sheet first when not inserted
             this.appendStyleSheet()
         }
-        // 插入实际的动画样式内容
+        // insert real animation css text
         this.sheet?.insertRule(cssText, index)
     }
 }
@@ -55,7 +55,7 @@ class StyleSheet {
  * h5 style operator
  */
 object H5StyleSheet {
-    // 处理样式表样式的插入删除等
+    // style sheet
     val styleSheet = StyleSheet()
 }
 
@@ -73,17 +73,17 @@ object AnimationProcessor : IAnimationProcessor {
  * H5 render real animation
  */
 class H5Animation(options: AnimationOption) : IAnimation {
-    // 属性组合
+    // css rules list
     private val rules: JsArray<Pair<String, String>> = JsArray()
-    // transform 对象
+    // transform list
     private val transforms: JsArray<Pair<String, String>> = JsArray()
-    // 组合动画
+    // animation steps list
     private val steps: JsArray<String> = JsArray()
-    // 组合动画的过度类型
+    // animation transition steps list
     private val transitionSteps: JsArray<String> = JsArray()
-    // animationMap 的长度
+    // animationMap count
     private var animationMapCount = 0
-    // 动画id
+    // animation id
     private var id = ++animationId
 
     override val delay = options.delay
@@ -92,19 +92,19 @@ class H5Animation(options: AnimationOption) : IAnimation {
     override val timingFunction = options.timingFunction
 
     /**
-     * 创建实际底层动画数据
+     * create real animation json
      */
     override fun export(ele: HTMLElement?): dynamic = getAnimationJson()
 
     /**
-     * 动画关键帧载入
+     * animation keyframe generate
      */
     override fun step(options: Json): IAnimation {
         if (this.rules.isEmpty() && this.transforms.isEmpty()) {
             return this
         }
 
-        // 动画类型参数
+        // animation params
         val transformOrigin = options["transformOrigin"] ?: "50% 50% 0"
         val delay = options["delay"] ?: "0"
         val duration = options["duration"] ?: "0"
@@ -112,34 +112,32 @@ class H5Animation(options: AnimationOption) : IAnimation {
 
 
         val transforms: JsArray<String> = JsArray()
-        // 得到要执行的 transform 动画属性列表
+        // insert transform animation properties list
         this.transforms.forEach { transform ->
-            // 查找历史记录中是否已有当前类型的动画
-            // 插入要执行的transform的动画属性
             transforms.push(transform.second)
         }
-        // 按顺序执行
+        // execute transform animation by order
         val transformSequence = if (transforms.length > 0)
             "transform:${transforms.join(" ")}!important"
         else ""
 
         if (transformSequence != "") {
-            // 有 transform 动画
+            // insert transform properties
             this.steps.push(transformSequence)
             this.steps.push(("transform-origin: $transformOrigin"))
-            // 插入动画类型
+            // insert transition properties
             this.transitionSteps.push("transform ${duration}s $timingFunction ${delay}s")
         }
 
-        // 得到要执行的全部规则动画
+        // generate all animation rules
         this.rules.forEach { rule ->
-            // 插入要执行的规则动画的动画属性
+            // insert rules
             this.steps.push("${rule.second}!important")
-            // 插入动画类型
+            // insert transitions
             this.transitionSteps.push("${rule.first} ${duration}s $timingFunction ${delay}s")
         }
 
-        // 清空 rules 和 transforms
+        // clear rules & transforms
         this.rules.clear()
         this.transforms.clear()
 
@@ -211,27 +209,27 @@ class H5Animation(options: AnimationOption) : IAnimation {
     }
 
     /**
-     * 获取实际要给 dom 使用的数据
+     * get real animation json
      */
     private fun getAnimationJson(): dynamic {
-        // 创建本次动画执行的索引
+        // create animation index
         val animIndex = "kuikly-animation_${this.id}_create-animation__${this.animationMapCount++}"
         val selector = "[animation=\"${animIndex}\"]"
-        // 吐出 step，kuikly 单元素动画统一处理，不分步骤，先设置要指定的动作列表
+        // generate steps, kuikly single element animation unified processing, no steps
         val stepList = "transition: ${this.transitionSteps.join(",")};"
-        // 再设置要指定的动画属性列表
+        // set animation properties list
         val animationList = this.steps.join(";")
-        // 往 stylesheet 中插入动画的选择器和动画的内容
+        // insert animation selector and animation content to stylesheet
         H5StyleSheet.styleSheet.add("$selector { $stepList$animationList }")
-        // 清空 steps
+        // clear steps & transition steps
         this.steps.clear()
         this.transitionSteps.clear()
-        // 返回动画数据
+        // return animation index
         return animIndex
     }
 
     companion object {
-        // 全局动画id
+        // global animation id
         private var animationId = 0
     }
 }

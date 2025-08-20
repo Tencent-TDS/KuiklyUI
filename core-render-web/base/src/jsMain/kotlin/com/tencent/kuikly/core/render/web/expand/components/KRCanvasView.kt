@@ -28,16 +28,15 @@ class KRCanvasView : IKuiklyRenderViewExport {
      */
     private val canvas = kuiklyDocument.createElement(ElementType.CANVAS)
     /**
-     * 实际 canvas 上下文对象
+     * real canvas context instance
      */
     private var _context: CanvasRenderingContext2D? = null
 
     /**
-     * canvas 元素上下文对象
+     * get canvas context
      */
     private val canvasContext: CanvasRenderingContext2D?
         get() = if (_context != null) {
-            // 处理 canvas 尺寸不一致问题
             _context
         } else {
             _context = ele.getContext("2d").unsafeCast<CanvasRenderingContext2D?>()
@@ -98,7 +97,7 @@ class KRCanvasView : IKuiklyRenderViewExport {
     }
 
     /**
-     * 移动到
+     * move to
      */
     private fun moveTo(params: String?) {
         val paramsJSON = params.toJSONObjectSafely()
@@ -108,7 +107,7 @@ class KRCanvasView : IKuiklyRenderViewExport {
     }
 
     /**
-     * 划线到
+     * line to
      */
     private fun lineTo(params: String?) {
         val paramsJSON = params.toJSONObjectSafely()
@@ -118,7 +117,7 @@ class KRCanvasView : IKuiklyRenderViewExport {
     }
 
     /**
-     * 绘制圆弧路径
+     * draw arc path
      */
     private fun arc(params: String?) {
         val paramsJSON = params.toJSONObjectSafely()
@@ -132,7 +131,7 @@ class KRCanvasView : IKuiklyRenderViewExport {
     }
 
     /**
-     * 设置绘制样式
+     * set stroke style
      */
     private fun setStrokeStyle(params: String?) {
         val paramsJSON = params.toJSONObjectSafely()
@@ -141,7 +140,7 @@ class KRCanvasView : IKuiklyRenderViewExport {
     }
 
     /**
-     * 设置描边区域文本
+     * set stroke text
      */
     private fun setStrokeText(params: String?) {
         val paramsJSON = params.toJSONObjectSafely()
@@ -152,7 +151,7 @@ class KRCanvasView : IKuiklyRenderViewExport {
     }
 
     /**
-     * 设置填充内容区域样式
+     * set fill style
      */
     private fun setFillStyle(params: String?) {
         val paramsJSON = params.toJSONObjectSafely()
@@ -161,7 +160,7 @@ class KRCanvasView : IKuiklyRenderViewExport {
     }
 
     /**
-     * 设置填充内容区域文本
+     * set fill text
      */
     private fun setFillText(params: String?) {
         val paramsJSON = params.toJSONObjectSafely()
@@ -172,7 +171,7 @@ class KRCanvasView : IKuiklyRenderViewExport {
     }
 
     /**
-     * 设置线条宽度
+     * set line width
      */
     private fun setLineWidth(params: String?) {
         val paramsJSON = params.toJSONObjectSafely()
@@ -202,7 +201,7 @@ class KRCanvasView : IKuiklyRenderViewExport {
     }
 
     /**
-     * 处理渐变背景
+     * handle gradient
      */
     private fun tryParseGradient(style: String): CanvasGradient? {
         val gradientPrefix = "linear-gradient"
@@ -214,7 +213,7 @@ class KRCanvasView : IKuiklyRenderViewExport {
     }
 
     /**
-     * 设置线条末端属性
+     * set line cap
      */
     private fun setLineCap(params: String?) {
         val paramsJSON = params.toJSONObjectSafely()
@@ -226,7 +225,7 @@ class KRCanvasView : IKuiklyRenderViewExport {
     }
 
     /**
-     * 设置线条虚线
+     * set line dash
      */
     private fun setLineDash(params: String?) {
         val json = params.toJSONObjectSafely()
@@ -244,7 +243,7 @@ class KRCanvasView : IKuiklyRenderViewExport {
     }
 
     /**
-     * 绘制二次贝塞尔曲线路径
+     * draw quadratic curve path
      */
     private fun quadraticCurveTo(params: String?) {
         val json = params.toJSONObjectSafely()
@@ -257,7 +256,7 @@ class KRCanvasView : IKuiklyRenderViewExport {
 
 
     /**
-     * 绘制三次贝塞尔曲线路径
+     * draw bezier curve path
      */
     private fun bezierCurveTo(params: String?) {
         val json = params.toJSONObjectSafely()
@@ -271,10 +270,11 @@ class KRCanvasView : IKuiklyRenderViewExport {
     }
 
     /**
-     * 清除画布
+     * clear canvas
      */
     private fun reset() {
-        // 目前 canvasRenderingContext2D 的 reset 方法支持度太低，因此先用 clearRect 实现，清除整块画布
+        // because canvasRenderingContext2D's reset method support degree too low,
+        // so use clearRect to implement, clear the whole canvas
         canvasContext?.clearRect(0.0, 0.0, ele.width.toDouble(), ele.height.toDouble())
     }
 

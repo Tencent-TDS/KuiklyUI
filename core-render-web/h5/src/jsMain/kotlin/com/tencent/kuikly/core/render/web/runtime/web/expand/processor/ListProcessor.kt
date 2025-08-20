@@ -2,7 +2,7 @@ package com.tencent.kuikly.core.render.web.runtime.web.expand.processor
 
 import com.tencent.kuikly.core.render.web.processor.IListProcessor
 import com.tencent.kuikly.core.render.web.runtime.dom.element.IListElement
-import com.tencent.kuikly.core.render.web.runtime.web.H5ListView
+import com.tencent.kuikly.core.render.web.runtime.web.expand.components.list.H5ListView
 
 /**
  * h5 list processor

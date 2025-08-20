@@ -2,11 +2,11 @@
 
 ## 项目介绍
 
-本项目为 Kuikly Web Render H5 宿主 App 项目，用于运行 kuiklyCore 示例项目的 H5 版本，小程序版本请参考 miniprogramApp 目录下的文档
+本项目为 Kuikly Web Render H5 宿主 App 项目，用于运行 kuiklyCore 示例项目的 H5 版本，小程序版本请参考 miniApp 目录下的文档
 
 ## 接入文档
 
-可以参考官网[KuiklyWeb工程接入](https://kuikly.woa.com/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B/Web.html#%E6%96%B0%E5%BB%BAwebapp%E7%9B%AE%E5%BD%95)
+可以参考官网[KuiklyWeb工程接入](https://kuikly.tds.qq.com/QuickStart/Web.html)
 
 ## 快速开始
 
@@ -69,23 +69,6 @@ addSplitPages(listOf("实际的页面名称"))
 >分页构建的产物为分页面的 JS，demo 下每个 Page 生成一个对应的 JS 文件
 >业务构建产物在 h5App/build/distributions/page 下
 >h5App 构建产物在 h5App/build/distributions 下
-
-因本示例代码中所使用的代码较旧，如果要在本项目的demo中跑分页构建，还有几点需要修改
-```shell
-# 1 修改 Android 构建参数，core-gradle-plugin/src/main/kotlin/com.tencent.kuikly.gradle/config/AndroidApkConfig.kt，
-# 将
-DEFAULT_SHELL_PROJECT_NAME = "kuikly-dynamic-apk-builder"
-# 改成
-DEFAULT_SHELL_PROJECT_NAME = "apkbuilder"
-
-# 2 修改 buildSrc/src/main/java/HippyKotlinBuildVar.kt，将使用的 gradle plugin 插件版本修改为最新
-val kuikly by lazy {
-    "com.tencent.kuikly:core-gradle-plugin:1.1.71-${Version.getKotlinVersion()}"
-}
-# 3 修改 demo/build.gradle.kts，将其中的 ksp 指定版本
-id("com.google.devtools.ksp") version "1.7.20-1.0.7"
-```
-修改完成后，即可成功执行 ./gradlew :demo:packSplitJSBundleRelease 构建出分页的 JS Page 文件
 
 - 统一构建
 

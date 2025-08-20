@@ -1,13 +1,9 @@
-package com.tencent.kuikly.core.render.web.runtime.web.list
+package com.tencent.kuikly.core.render.web.runtime.web.expand.components.list
 
 import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
 import com.tencent.kuikly.core.render.web.nvi.serialization.json.JSONObject
 
 import com.tencent.kuikly.core.render.web.runtime.dom.element.IListElement
-import com.tencent.kuikly.core.render.web.runtime.web.KRNestedScrollMode
-import com.tencent.kuikly.core.render.web.runtime.web.KRNestedScrollState
-import com.tencent.kuikly.core.render.web.runtime.web.H5ListView.Companion.SCROLL_DIRECTION_COLUMN
-import com.tencent.kuikly.core.render.web.runtime.web.H5ListView.Companion.SCROLL_DIRECTION_ROW
 import org.w3c.dom.CustomEvent
 import org.w3c.dom.CustomEventInit
 import org.w3c.dom.HTMLElement
@@ -42,7 +38,7 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
     private var nestScrollDistanceX = 0f;
 
     // Scroll direction
-    var scrollDirection: String = SCROLL_DIRECTION_COLUMN
+    var scrollDirection: String = H5ListView.SCROLL_DIRECTION_COLUMN
 
     // Inertia scroll related properties
     private var lastTouchTime = 0L
@@ -51,15 +47,17 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
     private var lastTouchY = 0f
     private var lastTouchX = 0f
     private var animationFrameId: Int = 0
-    private val friction = 0.97f // 摩擦系数
-    private val minVelocity = 0.1f // 最小速度阈值
+    // Friction factor
+    private val friction = 0.97f
+    // Minimum velocity threshold
+    private val minVelocity = 0.1f
     private var shouldHandleScroll = false
 
     init {
         ele.setAttribute("data-nested-scroll", "true")
 
         ele.addEventListener("nestedScrollToParent", { event: dynamic ->
-            // 如果事件的目标元素是当前元素，则不处理
+            // don't handle the event if the target element is self
             if (event.target == ele) {
                 return@addEventListener
             }
@@ -71,7 +69,7 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
         }, json("passive" to false))
 
         ele.addEventListener("nestedScrollToChild", { event: dynamic ->
-            // 如果事件的目标元素是当前元素，则不处理
+            // don't handle the event if the target element is self
             if (event.target == ele) {
                 val deltaY = event.detail.deltaY.unsafeCast<Float>()
                 val deltaX = event.detail.deltaX.unsafeCast<Float>()
@@ -117,9 +115,7 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
         val childElements = ele.querySelectorAll("[data-nested-scroll]")
         for (i in 0 until childElements.length) {
             val childElement = childElements[i] as? HTMLElement
-            if (childElement != null) {
-                childElement.dispatchEvent(event)
-            }
+            childElement?.dispatchEvent(event)
         }
     }
 
@@ -193,21 +189,19 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
             touchX = touch.clientX.toFloat()
         }
 
-        // 判断是否可以继续滚动
+        // judge whether to continue scrolling
         val canScrollUp = ele.scrollTop > 0
         val canScrollDown = ceil(ele.scrollTop + ele.offsetHeight).toInt() < ele.scrollHeight
         val canScrollLeft = ele.scrollLeft > 0
         val canScrollRight = ceil(ele.scrollLeft + ele.offsetWidth).toInt() < ele.scrollWidth
 
-//        var shouldHandleScroll = false
-
-        var delta = if (scrollDirection == SCROLL_DIRECTION_COLUMN) deltaY else deltaX
-        var scrollMode = if (delta < 0) scrollForwardMode else scrollBackwardMode
+        val delta = if (scrollDirection == H5ListView.SCROLL_DIRECTION_COLUMN) deltaY else deltaX
+        val scrollMode = if (delta < 0) scrollForwardMode else scrollBackwardMode
         when (scrollMode) {
             KRNestedScrollMode.SELF_FIRST -> {
-                if (scrollDirection == SCROLL_DIRECTION_COLUMN) {
+                if (scrollDirection == H5ListView.SCROLL_DIRECTION_COLUMN) {
                     shouldHandleScroll = (deltaY < 0 && canScrollDown) || (deltaY > 0 && canScrollUp)
-                } else if (scrollDirection == SCROLL_DIRECTION_ROW) {
+                } else if (scrollDirection == H5ListView.SCROLL_DIRECTION_ROW) {
                     shouldHandleScroll = (deltaX < 0 && canScrollRight) || (deltaX > 0 && canScrollLeft)
                 }
                 parentScrollState = KRNestedScrollState.CAN_SCROLL
@@ -226,15 +220,15 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
             event.preventDefault()
             event.stopPropagation()
 
-            // 主动控制滚动
-            if (scrollDirection == SCROLL_DIRECTION_COLUMN) {
+            // manually control scroll
+            if (scrollDirection == H5ListView.SCROLL_DIRECTION_COLUMN) {
                 ele.scrollTo(ele.scrollLeft, (lastScrollY - distanceY).toDouble())
             } else {
                 ele.scrollTo((lastScrollX - distanceX).toDouble(), ele.scrollTop)
             }
 
-            // 更新偏移量信息
-            var offsetMap = listElement.updateOffsetMap(ele.scrollLeft.toFloat(), ele.scrollTop.toFloat(), isDragging)
+            // update offsetMap
+            val offsetMap = listElement.updateOffsetMap(ele.scrollLeft.toFloat(), ele.scrollTop.toFloat(), isDragging)
             listElement.scrollEventCallback?.invoke(offsetMap)
         }  else if (lastScrollState == KRNestedScrollState.CAN_SCROLL) {
             // Dispatch scroll event to parent
@@ -266,8 +260,8 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
 
         // Get horizontal and vertical offset of the element during scroll event
         val offsetX = ele.scrollLeft.toFloat()
-        var offsetY = ele.scrollTop.toFloat()
-        var offsetMap = listElement.updateOffsetMap(offsetX, offsetY, isDragging)
+        val offsetY = ele.scrollTop.toFloat()
+        val offsetMap = listElement.updateOffsetMap(offsetX, offsetY, isDragging)
         // Event callback
         listElement.willDragEndEventCallback?.invoke(offsetMap)
         listElement.dragEndEventCallback?.invoke(offsetMap)
@@ -275,7 +269,7 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
     }
 
     fun handleNestScrollTouchScroll(event: TouchEvent) {
-        var offsetMap = listElement.updateOffsetMap(ele.scrollLeft.toFloat(), ele.scrollTop.toFloat(), isDragging)
+        val offsetMap = listElement.updateOffsetMap(ele.scrollLeft.toFloat(), ele.scrollTop.toFloat(), isDragging)
         listElement.scrollEventCallback?.invoke(offsetMap)
     }
 
@@ -320,8 +314,7 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
             }
 
             // Apply scroll
-            // 主动控制滚动
-            if (scrollDirection == SCROLL_DIRECTION_COLUMN) {
+            if (scrollDirection == H5ListView.SCROLL_DIRECTION_COLUMN) {
                 ele.scrollTo(ele.scrollLeft, currentY.toDouble())
             } else {
                 ele.scrollTo(currentX.toDouble(), ele.scrollTop)

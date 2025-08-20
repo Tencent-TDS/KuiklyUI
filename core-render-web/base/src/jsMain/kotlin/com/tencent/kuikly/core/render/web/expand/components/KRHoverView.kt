@@ -40,7 +40,7 @@ class KRHoverView : IKuiklyRenderViewExport {
      */
     private fun getTotalTop(element: HTMLElement?): Float {
         var totalTop = 0f
-        if (element === null) {
+        if (element == null) {
             return totalTop
         }
         // calculate current top value

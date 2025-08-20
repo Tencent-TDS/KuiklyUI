@@ -41,19 +41,19 @@ class MiniAppAnimation(options: AnimationOption) : IAnimation {
     override val timingFunction = options.timingFunction
 
     /**
-     * 创建实际底层动画数据
+     * create real animation data
      */
     override fun export(ele: HTMLElement?): dynamic = getAnimationJson(ele)
 
     /**
-     * 动画关键帧载入
+     * generate animation keyframes
      */
     override fun step(options: Json): IAnimation {
         if (this.rules.isEmpty() && this.transforms.isEmpty()) {
             return this
         }
 
-        // 动画类型参数
+        // animation params
         val transformOrigin = options["transformOrigin"] ?: "50% 50% 0"
         val delay = options["delay"] ?: "0"
         val duration = options["duration"] ?: "0"
@@ -61,35 +61,30 @@ class MiniAppAnimation(options: AnimationOption) : IAnimation {
 
 
         val transforms: JsArray<String> = JsArray()
-        // 得到要执行的 transform 动画属性列表
+        // generate transform list to execute
         this.transforms.forEach { transform ->
-            // 查找历史记录中是否已有当前类型的动画
-            // 插入要执行的transform的动画属性
+            // insert to transform list
             transforms.push(transform.second)
         }
-        // 按顺序执行
+        // execute by order
         val transformSequence = if (transforms.length > 0)
             transforms.join(" ")
         else ""
 
         if (transformSequence != "") {
-            // 有 transform 动画
             this.steps.push(Pair("transform", transformSequence))
-            // transform origin
             this.steps.push(Pair("transformOrigin", "$transformOrigin"))
-            // 插入动画类型
+            // insert transition
             this.transitionSteps.push("transform ${duration}s $timingFunction ${delay}s")
         }
 
-        // 得到要执行的全部规则动画
+        // generate all rule animation
         this.rules.forEach { rule ->
-            // 插入要执行的规则动画的动画属性
             this.steps.push(rule)
-            // 插入动画类型
             this.transitionSteps.push("${rule.first} ${duration}s $timingFunction ${delay}s")
         }
 
-        // 清空 rules 和 transforms
+        // clear rules & transforms
         this.rules.clear()
         this.transforms.clear()
 
@@ -161,23 +156,19 @@ class MiniAppAnimation(options: AnimationOption) : IAnimation {
     }
 
     /**
-     * 实际执行动画
+     * execute animation
      */
     private fun executeAnimation(ele: HTMLElement) {
-        // dynamic 元素
         val dynamicElement = ele.asDynamic()
-        // 动画数据
         val animationData = json()
-        // 动画属性数据
         val rules = json()
-        // dynamic 样式属性
         val dynamicStyle = ele.style.asDynamic()
-        // 首先设置transition
+        // first. set transition
         val execTransitionSteps = dynamicElement.execTransitionSteps.unsafeCast<JsArray<String>>()
         ele.style.transition = execTransitionSteps.join(",")
-        // 保存 transition
+        // save transition
         animationData["transition"] = ele.style.transition
-        // 再设置动画属性
+        // then. set animation attributes
         val execAnimationRules = dynamicElement.execAnimationRules.unsafeCast<JsArray<Pair<String, String>>>()
         execAnimationRules.forEach { step ->
             val key = if (step.first == "background-color")  {
@@ -185,14 +176,14 @@ class MiniAppAnimation(options: AnimationOption) : IAnimation {
             } else {
                 step.first
             }
-            // 保存原值和新值
+            // save old value and new value
             rules[key] = json(
                 "oldValue" to dynamicStyle[key],
                 "newValue" to step.second
             )
-            // 设置新值
+            // set new value
             ele.style.setProperty(key, step.second)
-            // rawLeft,rawTop 也需要更新，不然计算会有问题
+            // rawLeft,rawTop should update, otherwise the animation will not work
             if (step.first == "left") {
                 ele.asDynamic().rawLeft = step.second.pxToFloat()
             }
@@ -200,69 +191,66 @@ class MiniAppAnimation(options: AnimationOption) : IAnimation {
                 ele.asDynamic().rawTop = step.second.pxToFloat()
             }
         }
-        // 保存属性值
+        // save animation rules
         animationData["rules"] = rules
-        // 保存动画数据
+        // save animation data
         ele.asDynamic().animationData = animationData
 
-        // 清除形变属性
+        // clear transition
         dynamicElement.execTransitionSteps = undefined
-        // 清除动画属性
+        // clear animation rules
         dynamicElement.execAnimationRules = undefined
-        // 清除动画延迟 id
+        // clear animation timeout id
         dynamicElement.executeAnimationId = 0
     }
 
     /**
-     * 获取实际要给 dom 使用的数据
+     * generate animation json data for dom element to execute
      */
     private fun getAnimationJson(ele: HTMLElement?): dynamic {
-        // 有传入
         if (ele != null) {
             val dynamicElement = ele.asDynamic()
 
-            // 如果当前有动画尚未执行，则先清除
+            // clear animation un executed
             if (dynamicElement.executeAnimationId != 0) {
                 MiniGlobal.clearTimeout(dynamicElement.executeAnimationId.unsafeCast<Int>())
             }
 
-            // 真正要执行的过渡动画列表
+            // generate transition steps
             val execTransitionSteps: JsArray<String> =
                 if (jsTypeOf(dynamicElement.execTransitionSteps) != "undefined") {
-                // 如果当前元素已经有则使用已有的
+                // use existing steps if exists
                 dynamicElement.execTransitionSteps.unsafeCast<JsArray<String>>()
             } else {
                 JsArray()
             }
-            // 真正要执行的属性列表
-            val execAnimationRules: JsArray<Pair<String, String>> =
-                if (jsTypeOf(dynamicElement.execAnimationRules) != "undefined") {
-                // 如果当前元素已经有则使用已有的
+            // should execute rules list
+            val execAnimationRules: JsArray<Pair<String, String>> = if (jsTypeOf(dynamicElement.execAnimationRules) != "undefined") {
                 dynamicElement.execAnimationRules.unsafeCast<JsArray<Pair<String, String>>>()
             } else {
                 JsArray()
             }
 
-            // 保存当前所有形变
+            // save transition steps list
             this.transitionSteps.forEach { transition ->
                 execTransitionSteps.push(transition)
             }
             dynamicElement.execTransitionSteps = execTransitionSteps
-            // 保存当前所有动画属性
+            // save animation rules
             this.steps.forEach { step ->
                 execAnimationRules.push(step)
             }
             dynamicElement.execAnimationRules = execAnimationRules
-            // 延迟执行动画
+            // delay 10ms to execute animation to avoid flicker
             dynamicElement.executeAnimationId = MiniGlobal.setTimeout({
                 executeAnimation(ele)
             }, 10)
         }
 
-        // 清空 steps
+        // clear steps
         this.steps.clear()
         this.transitionSteps.clear()
-        // 返回动画数据
+        // mini app do not return animation index
         return ""
     }
 }

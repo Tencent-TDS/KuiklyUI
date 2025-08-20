@@ -124,7 +124,7 @@ object RichTextProcessor : IRichTextProcessor {
         if(view.isRichTextValues()) {
             newEle = ele
         } else {
-            // 复制所有必要的样式和属性
+            // save necessary styles
             newEle.style.cssText = ele.style.cssText
             newEle.innerText = renderText.ifEmpty { ele.innerText }
         }

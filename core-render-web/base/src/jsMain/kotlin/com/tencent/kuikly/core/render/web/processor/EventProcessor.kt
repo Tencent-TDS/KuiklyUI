@@ -3,7 +3,7 @@ package com.tencent.kuikly.core.render.web.processor
 import org.w3c.dom.HTMLElement
 
 /**
- * 需要不同平台通用的事件参数，需要在不同的宿主 render 中自行处理
+ * common event, should implement in different host
  */
 interface IEvent {
     val screenX: Int

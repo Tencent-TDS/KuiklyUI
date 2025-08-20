@@ -15,25 +15,31 @@
 
 package com.tencent.kuikly.compose.ui
 
+import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.mutableStateOf
+import com.tencent.kuikly.compose.ComposeContainer
 import com.tencent.kuikly.compose.coil3.AsyncImagePainter
 import com.tencent.kuikly.compose.ui.geometry.Size
 import com.tencent.kuikly.compose.ui.geometry.isSpecified
+import com.tencent.kuikly.compose.ui.graphics.Canvas
+import com.tencent.kuikly.compose.ui.graphics.ImageBitmap
+import com.tencent.kuikly.compose.ui.graphics.drawscope.DrawScope
 import com.tencent.kuikly.compose.ui.graphics.painter.BrushPainter
 import com.tencent.kuikly.compose.ui.graphics.painter.ColorPainter
 import com.tencent.kuikly.compose.ui.graphics.painter.Painter
+import com.tencent.kuikly.compose.ui.unit.toIntSize
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.views.ImageView
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 internal class KuiklyPainter(
+    private val context: ComposeContainer,
     internal val src: String?,
     internal val placeHolder: Painter? = null,
     private val error: Painter? = null,
     private val fallback: Painter? = null
-) : AsyncImagePainter() {
-
+) : AsyncImagePainter(), RememberObserver {
     private val resolution = mutableStateOf(Size.Unspecified)
     private var success = false
     private val _state: MutableStateFlow<State> = MutableStateFlow(
@@ -46,9 +52,19 @@ internal class KuiklyPainter(
     override val state = _state.asStateFlow()
     internal var onState: ((State) -> Unit)? = null
 
+    private var isActive = false
+    private var imageCache: ImageBitmap? = null
+
     override val intrinsicSize: Size
         get() {
             val self = resolution.value
+            (imageCache as? KuiklyImageBitmap)?.also {
+                if (it.isReady) {
+                    return it.status.let { status ->
+                        Size(status.width.toFloat(), status.height.toFloat())
+                    }
+                }
+            }
             if (placeHolder != null && (_state.value is State.Empty || _state.value is State.Loading)) {
                 return placeHolder.intrinsicSize
             }
@@ -115,6 +131,41 @@ internal class KuiklyPainter(
                 else -> {}
             }
         }
+    }
+
+    private fun loadImage(src: String): ImageBitmap {
+        return imageCache ?: context.imageCacheManager.loadImage(src).also {
+            if (isActive) {
+                (it as? RememberObserver)?.onRemembered()
+            }
+            imageCache = it
+        }
+    }
+
+    override fun prefetch() {
+        val src = this@KuiklyPainter.src ?: return
+        loadImage(src)
+    }
+
+    override fun onAbandoned() {
+        isActive = false
+        (imageCache as? RememberObserver)?.onAbandoned()
+    }
+
+    override fun onForgotten() {
+        isActive = false
+        (imageCache as? RememberObserver)?.onForgotten()
+    }
+
+    override fun onRemembered() {
+        isActive = true
+        (imageCache as? RememberObserver)?.onRemembered()
+    }
+
+    override fun DrawScope.onDraw(canvas: Canvas) {
+        val src = this@KuiklyPainter.src ?: return
+        val cache = loadImage(src)
+        drawImage(cache, dstSize = size.toIntSize())
     }
 }
 

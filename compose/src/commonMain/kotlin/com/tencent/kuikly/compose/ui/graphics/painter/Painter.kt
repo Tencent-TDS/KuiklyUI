@@ -18,6 +18,7 @@ package com.tencent.kuikly.compose.ui.graphics.painter
 import com.tencent.kuikly.compose.ui.geometry.Offset
 import com.tencent.kuikly.compose.ui.geometry.Rect
 import com.tencent.kuikly.compose.ui.geometry.Size
+import com.tencent.kuikly.compose.ui.graphics.Canvas
 import com.tencent.kuikly.compose.ui.graphics.DefaultAlpha
 import com.tencent.kuikly.compose.ui.graphics.Paint
 import com.tencent.kuikly.compose.ui.graphics.drawscope.DrawScope
@@ -25,6 +26,7 @@ import com.tencent.kuikly.compose.ui.graphics.drawscope.drawIntoCanvas
 import com.tencent.kuikly.compose.ui.graphics.drawscope.inset
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
 import com.tencent.kuikly.core.base.DeclarativeBaseView
+import com.tencent.kuikly.core.log.KLog
 
 /**
  * Abstraction for something that can be drawn. In addition to providing the ability to draw
@@ -164,6 +166,10 @@ abstract class Painter {
     // protected abstract fun DrawScope.onDraw(view: ImageView)
     abstract fun applyTo(view: DeclarativeBaseView<*, *>)
 
+    protected open fun DrawScope.onDraw(canvas: Canvas) {
+        // no-op by default
+    }
+
     /**
      * Apply the provided alpha value returning true if it was applied successfully,
      * or false if it could not be applied
@@ -182,12 +188,23 @@ abstract class Painter {
 //     */
 //    protected open fun applyLayoutDirection(layoutDirection: LayoutDirection): Boolean = false
 //
-//    fun DrawScope.draw(
-//        view: ImageView,
-//        size: Size,
-//        alpha: Float = DefaultAlpha,
-//        // colorFilter: ColorFilter? = null
-//    ) {
+    fun DrawScope.draw(
+        size: Size
+        // alpha: Float = DefaultAlpha,
+        // colorFilter: ColorFilter? = null
+    ) {
+        if (drawContext.canvas.view != null) {
+            inset(
+                left = 0.0f,
+                top = 0.0f,
+                right = this.size.width - size.width,
+                bottom = this.size.height - size.height
+            ) {
+                onDraw(drawContext.canvas)
+            }
+        } else {
+            KLog.e("Kuikly.Compose", "draw can only be used with Canvas")
+        }
 //        configureAlpha(alpha)
 //        // configureColorFilter(colorFilter)
 //        configureLayoutDirection(layoutDirection)
@@ -215,5 +232,5 @@ abstract class Painter {
 //                onDraw(view)
 //            }
 //        }
-//    }
+    }
 }

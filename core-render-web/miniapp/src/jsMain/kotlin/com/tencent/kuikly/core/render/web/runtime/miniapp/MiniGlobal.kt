@@ -13,24 +13,22 @@ import kotlin.js.Promise
 import kotlin.js.json
 
 /**
- * mini app http response class
+ * mini app http response class, used to transfer the response from wx.request to web Response type
  */
 class MiniResponse(rsp: dynamic) {
-    /**
-     * 初始化，将 wx.request 的 rsp 对象转换为 web 的 Response 类型
-     */
-    // 响应状态码
+    // response status code
     @JsName("status")
     val status: Int = rsp.statusCode as Int
-    // 响应头字段
+    // response headers
     @JsName("headers")
     val headers: dynamic = if (jsTypeOf(rsp.headers) == "object")
         JSON.parse(JSON.stringify(rsp.headers))
     else json()
-    // 响应是否成功，能回调到这里就是成功的
+    // response is success
     @JsName("ok")
     val ok = true
-    // 内部保存实际的数据值
+
+    // real response data store by inner
     private val data: dynamic = rsp.data
 
     /**
@@ -38,11 +36,11 @@ class MiniResponse(rsp: dynamic) {
      */
     @JsName("json")
     fun miniJson(): Promise<dynamic> = Promise { resolve, _ ->
-        // 如果 data 已经是对象，直接返回
+        // direct return data when is object type
         if (jsTypeOf(data) == "object") {
             resolve(data)
         } else if (jsTypeOf(data) == "string") {
-            // 尝试解析 JSON 字符串
+            // try to parse json string
             try {
                 resolve(JSON.parse(data.unsafeCast<String>()))
             } catch (e: dynamic) {
@@ -59,11 +57,11 @@ class MiniResponse(rsp: dynamic) {
     @JsName("arrayBuffer")
     fun arrayBuffer(): Promise<ArrayBuffer> = Promise { resolve, _ ->
         val dataType = jsTypeOf(data)
-        // 如果 data 已经是 ArrayBuffer
+        // direct return data when is ArrayBuffer type
         if (dataType == "object") {
             resolve(data.unsafeCast<ArrayBuffer>())
         } else if (dataType == "string") {
-            // 把字符串转成 ArrayBuffer
+            // convert string to ArrayBuffer
             val str = data.unsafeCast<String>()
             val buf = js("new TextEncoder().encode(str).buffer").unsafeCast<ArrayBuffer>()
             resolve(buf)
@@ -462,9 +460,9 @@ object MiniGlobal {
      */
     @JsName("btoa")
     fun btoa(str: String): String {
-        // 1. 字符串转 Uint8Array
+        // 1. string to Uint8Array
         val uint8Array = js("new TextEncoder().encode(str)").unsafeCast<Uint8Array>()
-        // 2. Uint8Array.buffer 转 base64
+        // 2. Uint8Array.buffer to base64
         return NativeApi.plat.arrayBufferToBase64(uint8Array.buffer).unsafeCast<String>();
     }
 
@@ -473,9 +471,9 @@ object MiniGlobal {
      */
     @JsName("atob")
     fun atob(str: String): String {
-        // 2. Uint8Array.buffer 转 base64
+        // 2. Uint8Array.buffer to base64
         val uint8Array = NativeApi.plat.base64ToArrayBuffer(str).unsafeCast<Uint8Array>();
-        // 2. ArrayBuffer 转字符串
+        // 2. ArrayBuffer to string
         return js("new TextDecoder().decode(uint8Array)").unsafeCast<String>()
     }
 

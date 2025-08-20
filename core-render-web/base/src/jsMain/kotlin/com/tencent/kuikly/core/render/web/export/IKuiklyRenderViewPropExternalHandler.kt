@@ -1,16 +1,18 @@
 package com.tencent.kuikly.core.render.web.export
 
 /**
- * [IKuiklyRenderViewExport]自定义属性Handler
+ * [IKuiklyRenderViewExport] Custom Prop Handler
  */
 interface IKuiklyRenderViewPropExternalHandler {
 
     /**
-     * 设置属性
+     * set custom prop
+     *
      * @param renderViewExport
      * @param propKey
      * @param propValue
-     * @return 是否处理该属性
+     *
+     * @return should handle prop
      */
     fun setViewExternalProp(
         renderViewExport: IKuiklyRenderViewExport,
@@ -19,10 +21,12 @@ interface IKuiklyRenderViewPropExternalHandler {
     ): Boolean
 
     /**
-     * 重置属性，只有在[IKuiklyRenderViewExport]是可复用的情况下，才会被调用
+     * reset prop，only call when [IKuiklyRenderViewExport] is reusable
+     *
      * @param renderViewExport
      * @param propKey
-     * @return 是否处理了resetProp
+     *
+     * @return  handle prop reset yes or no
      */
     fun resetViewExternalProp(renderViewExport: IKuiklyRenderViewExport, propKey: String): Boolean
 }

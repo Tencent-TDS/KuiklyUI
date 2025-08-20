@@ -268,24 +268,24 @@ fun String.toRgbColor(): String {
         return this
     }
 
-    // 如果是 rgba 颜色，则直接设置
+    // set direct if is rgba color format
     if (this.startsWith("rgba")) {
         return this
     }
 
-    // 如果颜色adapter存在，则使用 adapter 处理
+    // handle by color adapter if exists
     var color = if (KuiklyRenderAdapterManager.krColorParseAdapter != null) {
-        // 使用 adapter 处理
+        // handle by adapter
         KuiklyRenderAdapterManager.krColorParseAdapter?.toColor(this)
     } else {
         toLongOrNull()
     }
     if (color == null) {
-        // 如果颜色处理失败，则默认黑色
+        // default by black
         color = 0L
     }
 
-    // 透明度通道，web使用需要除以 255 得到小数展示
+    // alpha channel, web platform should divide 255 to get the actual alpha
     val alpha = ((color shr 24) and 0xFF).toFloat() / 255
     val red = (color shr 16) and 0xFF
     val green = (color shr 8) and 0xFF

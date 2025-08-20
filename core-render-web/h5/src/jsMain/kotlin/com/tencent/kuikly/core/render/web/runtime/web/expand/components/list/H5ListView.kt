@@ -1,4 +1,4 @@
-package com.tencent.kuikly.core.render.web.runtime.web
+package com.tencent.kuikly.core.render.web.runtime.web.expand.components.list
 
 import com.tencent.kuikly.core.render.web.expand.components.list.KRListViewContentInset
 import com.tencent.kuikly.core.render.web.expand.components.toPanEventParams
@@ -8,10 +8,7 @@ import com.tencent.kuikly.core.render.web.ktx.kuiklyDocument
 import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
 import com.tencent.kuikly.core.render.web.runtime.dom.element.ElementType
 import com.tencent.kuikly.core.render.web.runtime.dom.element.IListElement
-import com.tencent.kuikly.core.render.web.runtime.web.list.H5ListPagingHelper
-import com.tencent.kuikly.core.render.web.runtime.web.list.H5NestScrollHelper
 import com.tencent.kuikly.core.render.web.scheduler.KuiklyRenderCoreContextScheduler
-import com.tencent.kuikly.core.render.web.utils.Log
 import org.w3c.dom.AUTO
 import org.w3c.dom.HTMLDivElement
 import org.w3c.dom.HTMLElement
@@ -211,7 +208,7 @@ class H5ListView : IListElement {
         offsetMap["offsetX"] = offsetX
         // Current horizontal offset of the list
         offsetMap["offsetY"] = offsetY
-        var offsetMap = updateOffsetMap(offsetX, offsetY, isDragging)
+        val offsetMap = updateOffsetMap(offsetX, offsetY, isDragging)
         // If current scroll distance is 0, and not a PageList paging component, enter pre-pull-down state
         isPrePullDown = offsetY == 0f && !pagingEnabled
 
@@ -222,10 +219,10 @@ class H5ListView : IListElement {
     fun handleTouchMove(it: TouchEvent) {
         // Need to check if it contains pull-to-refresh component, if not, don't process todo fixme
         val eventsParams = it.unsafeCast<TouchEvent>().toPanEventParams()
-        var deltaY = eventsParams["y"] as Float - touchStartY
-        var deltaX = eventsParams["x"] as Float - touchStartX
-        var absDeltaY = abs(deltaY)
-        var absDeltaX = abs(deltaX)
+        val deltaY = eventsParams["y"] as Float - touchStartY
+        val deltaX = eventsParams["x"] as Float - touchStartX
+        val absDeltaY = abs(deltaY)
+        val absDeltaX = abs(deltaX)
 
         // If not yet in scrolling state, determine scroll direction, once determined don't change
         if (isScrolling == -1) {
@@ -252,7 +249,7 @@ class H5ListView : IListElement {
             // During pull-to-refresh, set overflow to visible, restore after pull-to-refresh completes
             ele.style.overflowY = "visible"
             ele.style.overflowX = "visible"
-            var offsetMap = updateOffsetMap(ele.scrollLeft.toFloat(), -deltaY, isDragging)
+            val offsetMap = updateOffsetMap(ele.scrollLeft.toFloat(), -deltaY, isDragging)
             // Notify
             scrollEventCallback?.invoke(offsetMap)
         }
@@ -296,7 +293,7 @@ class H5ListView : IListElement {
         offsetMap["offsetX"] = offsetX
         // Current horizontal offset of the list
         offsetMap["offsetY"] = offsetY
-        var offsetMap = updateOffsetMap(offsetX, offsetY, isDragging)
+        val offsetMap = updateOffsetMap(offsetX, offsetY, isDragging)
         // Event callback
         willDragEndEventCallback?.invoke(offsetMap)
         dragEndEventCallback?.invoke(offsetMap)
@@ -305,7 +302,7 @@ class H5ListView : IListElement {
 
     fun handleTouchScroll() {
         // Get horizontal and vertical offset of the element during scroll event
-        var offsetMap = updateOffsetMap(ele.scrollLeft.toFloat(), ele.scrollTop.toFloat(), isDragging)
+        val offsetMap = updateOffsetMap(ele.scrollLeft.toFloat(), ele.scrollTop.toFloat(), isDragging)
         // Callback with offset
         scrollEventCallback?.invoke(offsetMap)
     }

@@ -45,6 +45,7 @@ object ViewConst {
     const val TYPE_TEXT_AREA = "KRTextAreaView"
     const val TYPE_SCROLL_CONTENT_VIEW = "KRScrollContentView"
     const val TYPE_BLUR_VIEW = "KRBlurView"
+    const val TYPE_LIQUID_GLASS_VIEW = "KRLiquidGlassView"
     const val TYPE_PAG_VIEW = "KRPAGView"
     const val TYPE_APNG_VIEW = "KRAPNGView"
     const val TYPE_VIDEO_VIEW = "KRVideoView"

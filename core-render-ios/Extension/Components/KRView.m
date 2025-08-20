@@ -22,6 +22,56 @@
 /// 层级置顶方法
 #define CSS_METHOD_BRING_TO_FRONT @"bringToFront"
 
+
+#pragma mark - KRVisualEffectView
+
+/// VisualEffect Wrapper View for KRView
+@interface KRVisualEffectView : UIVisualEffectView
+
+/// The wrapped KRView
+@property (nonatomic, weak) UIView *wrappedView;
+
+/// Init method
+/// - Parameters:
+///   - effect: visual effect
+///   - wrappedView: wrapped view
+- (instancetype)initWithEffect:(UIVisualEffect *)effect wrappedView:(UIView *)wrappedView NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithEffect:(UIVisualEffect *)effect NS_UNAVAILABLE;
+- (instancetype)initWithCoder:(NSCoder *)coder NS_UNAVAILABLE;
+
+@end
+
+@implementation KRVisualEffectView
+
+- (instancetype)initWithEffect:(UIVisualEffect *)effect wrappedView:(UIView *)wrappedView {
+    self = [super initWithEffect:effect];
+    if (self) {
+        self.wrappedView = wrappedView;
+        self.userInteractionEnabled = wrappedView.userInteractionEnabled;
+    }
+    return self;
+}
+
+- (BOOL)css_setPropWithKey:(NSString *)key value:(id)value {
+    return NO;
+}
+
+- (void)setFrame:(CGRect)frame {
+    [super setFrame:frame];
+    _wrappedView.frame = self.bounds;
+}
+
+- (void)removeFromSuperview {
+    [_wrappedView removeFromSuperview];
+    _wrappedView.kr_commonWrapperView = nil;
+    [super removeFromSuperview];
+}
+
+@end
+
+
+#pragma mark - KRView
+
 @interface KRView()
 /**禁止屏幕刷新帧事件**/
 @property (nonatomic, strong) NSNumber *KUIKLY_PROP(screenFramePause);
@@ -49,7 +99,7 @@
     /// 屏幕刷新定时器
     KRDisplayLink *_displaylink;
     /// For iOS's special effect, like `liquid glass`, etc.
-    UIVisualEffectView *_effectView;
+    __weak KRVisualEffectView *_effectView;
 }
 
 @synthesize hr_rootView;
@@ -65,15 +115,6 @@
 - (void)hrv_callWithMethod:(NSString *)method params:(NSString *)params callback:(KuiklyRenderCallback)callback {
     if ([method isEqualToString:CSS_METHOD_BRING_TO_FRONT]) {
         [self.superview bringSubviewToFront:self];
-    }
-}
-
-- (void)hrv_insertSubview:(UIView *)subView atIndex:(NSInteger)index {
-    if (_effectView || self.glassEffectEnable || self.glassEffectContainerSpacing != nil) {
-        [self ensureGlassEffectView];
-        [_effectView.contentView insertSubview:subView atIndex:index];
-    } else {
-        [super hrv_insertSubview:subView atIndex:index];
     }
 }
 
@@ -204,7 +245,7 @@
 
 - (void)setCss_glassEffectSpacing:(NSNumber *)spacing {
     if (@available(iOS 26.0, *)) {
-        if (![self.glassEffectContainerSpacing isEqualToNumber:spacing]) {
+        if (spacing && ![self.glassEffectContainerSpacing isEqualToNumber:spacing]) {
             self.glassEffectContainerSpacing = spacing;
             
             if (_effectView) {
@@ -221,7 +262,8 @@
 
 - (void)setCss_glassEffectInteractive:(NSNumber *)interactive {
     if (@available(iOS 26.0, *)) {
-        if (![self.glassEffectInteractive isEqualToNumber:interactive]) {
+        if ((interactive != nil && ![self.glassEffectInteractive isEqualToNumber:interactive]) ||
+            (interactive == nil && self.glassEffectInteractive != nil)) {
             self.glassEffectInteractive = interactive;
             
             if (_effectView) {
@@ -261,38 +303,42 @@
     return glassEffect;
 }
 
-- (void)ensureGlassEffectView {
+- (void)ensureGlassEffectWrapperView {
     if (@available(iOS 26.0, *)) {
         if (self.glassEffectEnable) {
             if (!_effectView) {
                 UIGlassEffect * glassEffect = [self generateGlassEffect];
-                _effectView = [UIVisualEffectView.alloc initWithEffect:glassEffect];
-                [_effectView setFrame:CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height)];
-                _effectView.layer.cornerRadius = self.layer.cornerRadius;
-                _effectView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-                [self addSubview:_effectView];
+                KRVisualEffectView *effectView = [KRVisualEffectView.alloc initWithEffect:glassEffect
+                                                                              wrappedView:self];
+                _effectView = effectView;
+                effectView.layer.cornerRadius = self.layer.cornerRadius;
+                [effectView setFrame:self.frame];
+                [effectView.contentView addSubview:self];
+                
+                self.kr_commonWrapperView = effectView;
             }
         } else if (self.glassEffectContainerSpacing) {
             if (!_effectView) {
                 UIGlassContainerEffect *glassContainerEffect = [[UIGlassContainerEffect alloc] init];
                 glassContainerEffect.spacing = self.glassEffectContainerSpacing.doubleValue;
-                _effectView = [UIVisualEffectView.alloc initWithEffect:glassContainerEffect];
-                [_effectView setFrame:CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height)];
-                _effectView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-                [self addSubview:_effectView];
+                KRVisualEffectView *effectView = [KRVisualEffectView.alloc initWithEffect:glassContainerEffect
+                                                                              wrappedView:self];
+                _effectView = effectView;
+                [effectView setFrame:self.frame];
+                [effectView.contentView addSubview:self];
+                
+                self.kr_commonWrapperView = _effectView;
             }
         }
     }
 }
 
-- (void)setFrame:(CGRect)frame {
-    [super setFrame:frame];
-    
-    if (@available(iOS 26.0, *)) {
-        [self ensureGlassEffectView];
+- (void)setCss_frame:(NSValue *)css_frame {
+    [super setCss_frame:css_frame];
+    if (_effectView) {
+        _effectView.frame = self.frame;
     }
 }
-
 
 #pragma mark - private
 

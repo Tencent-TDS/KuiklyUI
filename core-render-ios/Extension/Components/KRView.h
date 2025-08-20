@@ -32,6 +32,9 @@ NS_ASSUME_NONNULL_BEGIN
 // The touch move callback for the view
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_touchMove;
 
+/// Prepare glass effect wrapper view if needed
+- (void)ensureGlassEffectWrapperView API_AVAILABLE(ios(26.0));
+
 @end
 
 NS_ASSUME_NONNULL_END

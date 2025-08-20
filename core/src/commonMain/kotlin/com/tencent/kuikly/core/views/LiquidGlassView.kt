@@ -20,6 +20,7 @@ import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ComposeAttr
 import com.tencent.kuikly.core.base.ComposeEvent
 import com.tencent.kuikly.core.base.DeclarativeBaseView
+import com.tencent.kuikly.core.base.ViewConst
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
@@ -47,7 +48,7 @@ class LiquidGlassView: ViewContainer<LiquidGlassViewAttr, LiquidGlassViewEvent>(
     }
 
     override fun viewName(): String {
-        return "KRLiquidGlassView"
+        return ViewConst.TYPE_LIQUID_GLASS_VIEW
     }
 }
 

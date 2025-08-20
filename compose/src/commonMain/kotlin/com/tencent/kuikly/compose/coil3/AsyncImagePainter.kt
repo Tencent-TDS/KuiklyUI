@@ -6,6 +6,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import com.tencent.kuikly.compose.coil3.AsyncImagePainter.State
 import com.tencent.kuikly.compose.ui.graphics.painter.Painter
+import com.tencent.kuikly.compose.ui.platform.LocalActivity
 import com.tencent.kuikly.compose.ui.KuiklyPainter
 import kotlinx.coroutines.flow.StateFlow
 
@@ -82,8 +83,10 @@ private fun rememberAsyncImagePainterInternal(
     fallback: Painter?,
     onState: ((State) -> Unit)?,
 ): AsyncImagePainter {
+    val context = LocalActivity.current
     return remember(src, placeholder) {
         KuiklyPainter(
+            context,
             src = src,
             placeHolder = placeholder,
             error = error,
@@ -117,6 +120,8 @@ private fun onStateOf(
 abstract class AsyncImagePainter internal constructor() : Painter() {
 
     abstract val state: StateFlow<State>
+
+    abstract fun prefetch()
 
     /**
      * The current state of the [AsyncImagePainter].

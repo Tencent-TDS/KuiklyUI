@@ -15,11 +15,13 @@
 
 package com.tencent.kuikly.compose.ui
 
+import com.tencent.kuikly.core.module.ImageRef
+
 /**
  * 给CanvasContext操作增加Density支持
  *  * Created by zhenhuachen on 2025/4/30.
  */
-fun CanvasContextEx.getDensity(): Float {
+private inline fun CanvasContextEx.getDensity(): Float {
     return this.densityValue
 }
 
@@ -107,4 +109,38 @@ fun CanvasContextEx.transformWithDensity(array: FloatArray) {
     transformedArray[2] = array[2] / density // adjusting the tx (translation x)
     transformedArray[5] = array[5] / density // adjusting the ty (translation y)
     transform(transformedArray)
+}
+
+fun CanvasContextEx.drawImageWithDensity(image: ImageRef, dx: Float, dy: Float) {
+    drawImage(image, dx / getDensity(), dy / getDensity())
+}
+
+fun CanvasContextEx.drawImageWithDensity(
+    image: ImageRef,
+    dx: Float,
+    dy: Float,
+    dWidth: Float,
+    dHeight: Float
+) {
+    drawImage(
+        image,
+        dx / getDensity(), dy / getDensity(),
+        dWidth / getDensity(), dHeight / getDensity()
+    )
+}
+
+fun CanvasContextEx.drawImageWithDensity(
+    image: ImageRef,
+    sx: Float, sy: Float,
+    sWidth: Float, sHeight: Float,
+    dx: Float, dy: Float,
+    dWidth: Float, dHeight: Float
+) {
+    drawImage(
+        image,
+        sx / getDensity(), sy / getDensity(),
+        sWidth / getDensity(), sHeight / getDensity(),
+        dx / getDensity(), dy / getDensity(),
+        dWidth / getDensity(), dHeight / getDensity()
+    )
 }

@@ -22,6 +22,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.tencent.kuikly.compose.ComposeContainer
+import com.tencent.kuikly.compose.coil3.rememberAsyncImagePainter
 import com.tencent.kuikly.compose.foundation.Canvas
 import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
 import com.tencent.kuikly.compose.foundation.background
@@ -44,6 +45,9 @@ import com.tencent.kuikly.compose.material3.ExperimentalMaterial3Api
 import com.tencent.kuikly.compose.material3.Slider
 import com.tencent.kuikly.compose.material3.SliderDefaults
 import com.tencent.kuikly.compose.material3.Text
+import com.tencent.kuikly.compose.resources.DrawableResource
+import com.tencent.kuikly.compose.resources.InternalResourceApi
+import com.tencent.kuikly.compose.resources.imageResource
 import com.tencent.kuikly.compose.setContent
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
@@ -53,6 +57,7 @@ import com.tencent.kuikly.compose.ui.geometry.CornerRadius
 import com.tencent.kuikly.compose.ui.geometry.Offset
 import com.tencent.kuikly.compose.ui.geometry.Rect
 import com.tencent.kuikly.compose.ui.geometry.Size
+import com.tencent.kuikly.compose.ui.geometry.isSpecified
 import com.tencent.kuikly.compose.ui.graphics.Brush
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.Matrix
@@ -72,9 +77,12 @@ import com.tencent.kuikly.compose.ui.graphics.drawscope.withTransform
 import com.tencent.kuikly.compose.ui.platform.LocalDensity
 import com.tencent.kuikly.compose.ui.text.font.FontWeight
 import com.tencent.kuikly.compose.ui.unit.DpSize
+import com.tencent.kuikly.compose.ui.unit.IntOffset
+import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
 import com.tencent.kuikly.core.annotations.Page
+import com.tencent.kuikly.core.base.attr.ImageUri
 import com.tencent.kuikly.core.module.Module
 import com.tencent.kuikly.demo.pages.base.BridgeModule
 import kotlin.math.PI
@@ -597,6 +605,52 @@ private fun CanvasAPIDemo() {
             }
         }
     }
+
+    // 绘制图片
+    Text("绘制图片", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+    val image = imageResource(penguin)
+    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        CanvasExample("drawImage - 原图") {
+            drawImage(image)
+        }
+        CanvasExample("drawImage - 缩放") {
+            drawImage(
+                image,
+                dstSize = IntSize(50, 50)
+            )
+        }
+        CanvasExample("drawImage - 裁剪") {
+            drawImage(
+                image,
+                srcOffset = IntOffset(100, 100),
+                srcSize = IntSize(300, 300),
+                dstOffset = IntOffset(0, 0),
+                dstSize = IntSize(100, 100)
+            )
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        val painter = rememberAsyncImagePainter("https://robohash.org/1?size=50x50")
+        CanvasExample("painter - specified size") {
+            with(painter) { draw(Size(100f, 100f)) }
+        }
+
+        val painter2 = rememberAsyncImagePainter("https://robohash.org/2?size=50x50")
+        painter2.prefetch()
+        CanvasExample("painter - intrinsic size") {
+            with(painter2) {
+                if (intrinsicSize.isSpecified) {
+                    draw(intrinsicSize)
+                }
+            }
+        }
+    }
+
+}
+
+@OptIn(InternalResourceApi::class)
+private val penguin by lazy(LazyThreadSafetyMode.NONE) {
+    DrawableResource(ImageUri.commonAssets("penguin2.png").toUrl(""))
 }
 
 private inline fun Float.toRadians(): Float = (this * PI / 180f).toFloat()

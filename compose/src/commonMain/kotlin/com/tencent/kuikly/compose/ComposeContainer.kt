@@ -32,6 +32,7 @@ import com.tencent.kuikly.compose.ui.unit.IntRect
 import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
 import com.tencent.kuikly.compose.ui.util.fastRoundToInt
+import com.tencent.kuikly.compose.ui.KuiklyImageCacheManager
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.event.layoutFrameDidChange
 import com.tencent.kuikly.core.layout.Frame
@@ -70,6 +71,10 @@ open class ComposeContainer :
     }
 
     private var innerOnBackPressedDispatcher: OnBackPressedDispatcher? = null
+
+    internal val imageCacheManager by lazy(LazyThreadSafetyMode.NONE) {
+        KuiklyImageCacheManager(this)
+    }
 
     override val onBackPressedDispatcher: OnBackPressedDispatcher
         get() {

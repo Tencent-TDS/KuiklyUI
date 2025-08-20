@@ -25,6 +25,7 @@ import com.tencent.kuikly.compose.ui.graphics.Brush
 import com.tencent.kuikly.compose.ui.graphics.Canvas
 import com.tencent.kuikly.compose.ui.graphics.ClipOp
 import com.tencent.kuikly.compose.ui.graphics.Color
+import com.tencent.kuikly.compose.ui.graphics.ImageBitmap
 import com.tencent.kuikly.compose.ui.graphics.KuiklyPaint
 import com.tencent.kuikly.compose.ui.graphics.Matrix
 import com.tencent.kuikly.compose.ui.graphics.Paint
@@ -187,21 +188,21 @@ class CanvasDrawScope : DrawScope {
         paint = configurePaint(color, style, alpha)
     )
 
-//    /**
-//     * @see [DrawScope.drawImage]
-//     */
-//    override fun drawImage(
-//        image: ImageBitmap,
-//        topLeft: Offset,
-//        @FloatRange(from = 0.0, to = 1.0) alpha: Float,
-//        style: DrawStyle,
+    /**
+     * @see [DrawScope.drawImage]
+     */
+    override fun drawImage(
+        image: ImageBitmap,
+        topLeft: Offset,
+        @FloatRange(from = 0.0, to = 1.0) alpha: Float,
+        style: DrawStyle,
 //        colorFilter: ColorFilter?,
 //        blendMode: BlendMode
-//    ) = drawParams.canvas.drawImage(
-//        image,
-//        topLeft,
-//        configurePaint(null, style, alpha, colorFilter, blendMode)
-//    )
+    ) = drawParams.canvas.drawImage(
+        image,
+        topLeft,
+        configurePaint(null, style, alpha/*, colorFilter, blendMode*/)
+    )
 
 //    /**
 //     * @see [DrawScope.drawImage]
@@ -235,28 +236,28 @@ class CanvasDrawScope : DrawScope {
 //        configurePaint(null, style, alpha, colorFilter, blendMode)
 //    )
 
-//    /**
-//     * @see [DrawScope.drawImage]
-//     */
-//    override fun drawImage(
-//        image: ImageBitmap,
-//        srcOffset: IntOffset,
-//        srcSize: IntSize,
-//        dstOffset: IntOffset,
-//        dstSize: IntSize,
-//        @FloatRange(from = 0.0, to = 1.0) alpha: Float,
-//        style: DrawStyle,
-////        colorFilter: ColorFilter?,
-////        blendMode: BlendMode,
-////        filterQuality: FilterQuality
-//    ) = drawParams.canvas.drawImageRect(
-//        image,
-//        srcOffset,
-//        srcSize,
-//        dstOffset,
-//        dstSize,
-//        configurePaint(null, style, alpha, colorFilter, blendMode, filterQuality)
-//    )
+    /**
+     * @see [DrawScope.drawImage]
+     */
+    override fun drawImage(
+        image: ImageBitmap,
+        srcOffset: IntOffset,
+        srcSize: IntSize,
+        dstOffset: IntOffset,
+        dstSize: IntSize,
+        @FloatRange(from = 0.0, to = 1.0) alpha: Float,
+        style: DrawStyle,
+//        colorFilter: ColorFilter?,
+//        blendMode: BlendMode,
+//        filterQuality: FilterQuality
+    ) = drawParams.canvas.drawImageRect(
+        image,
+        srcOffset,
+        srcSize,
+        dstOffset,
+        dstSize,
+        configurePaint(null, style, alpha/*, colorFilter, blendMode, filterQuality*/)
+    )
 
     /**
      * @see [DrawScope.drawRoundRect]

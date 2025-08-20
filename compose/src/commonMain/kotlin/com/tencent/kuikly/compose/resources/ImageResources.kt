@@ -19,8 +19,10 @@ package com.tencent.kuikly.compose.resources
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
-import com.tencent.kuikly.compose.ui.graphics.painter.Painter
 import com.tencent.kuikly.compose.ui.KuiklyPainter
+import com.tencent.kuikly.compose.ui.graphics.ImageBitmap
+import com.tencent.kuikly.compose.ui.graphics.painter.Painter
+import com.tencent.kuikly.compose.ui.platform.LocalActivity
 import kotlin.jvm.JvmInline
 
 @Immutable
@@ -30,5 +32,14 @@ value class DrawableResource
 
 @Composable
 fun painterResource(resource: DrawableResource): Painter {
-    return remember(resource) { KuiklyPainter(resource.value) }
+    val context = LocalActivity.current
+    return remember(resource) { KuiklyPainter(context, resource.value) }
+}
+
+@Composable
+fun imageResource(resource: DrawableResource): ImageBitmap {
+    val activity = LocalActivity.current
+    return remember(resource) {
+        activity.imageCacheManager.loadImage(resource.value)
+    }
 }

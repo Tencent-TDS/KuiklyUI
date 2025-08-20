@@ -26,7 +26,7 @@ import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
 
-internal class AppEmptyPageView(val title: String): ComposeView<AppEmptyPageViewAttr, AppEmptyPageViewEvent>() {
+internal class AppEmptyPageView(): ComposeView<AppEmptyPageViewAttr, AppEmptyPageViewEvent>() {
 
     private var theme by observable(ThemeManager.getTheme())
     private lateinit var eventCallbackRef: CallbackRef
@@ -63,7 +63,7 @@ internal class AppEmptyPageView(val title: String): ComposeView<AppEmptyPageView
             }
             Text {
                 attr {
-                    text(ctx.title)
+                    text(ctx.attr.title)
                     color(ctx.theme.colors.backgroundElement)
                 }
             }
@@ -71,10 +71,12 @@ internal class AppEmptyPageView(val title: String): ComposeView<AppEmptyPageView
     }
 }
 
-internal class AppEmptyPageViewAttr : ComposeAttr()
+internal class AppEmptyPageViewAttr : ComposeAttr() {
+    var title by observable("")
+}
 
 internal class AppEmptyPageViewEvent : ComposeEvent()
 
-internal fun ViewContainer<*, *>.AppEmptyPage(title: String, init: AppEmptyPageView.() -> Unit) {
-    addChild(AppEmptyPageView(title), init)
+internal fun ViewContainer<*, *>.AppEmptyPage(init: AppEmptyPageView.() -> Unit) {
+    addChild(AppEmptyPageView(), init)
 }

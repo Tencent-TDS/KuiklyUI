@@ -89,6 +89,7 @@ typedef void(^ImageCompletionBlock)(UIImage * _Nullable image, NSError * _Nullab
  * 通过文件名从自定义bundle获取图片等资源URL，用于加载图片等资源
  * 适用于模块化、组件化开发，自定义资源bundle（非mainBundle的场景）
  * 通过传入的fileName，确定该资源所在模块bundle的路径，返回该资源的完整URL
+ * eg：fileName为 XXXModule/XXXPage/btn_back_ic，该模块资源打包成XXXModule.bundle，业务根据fileName确定模块并返回该资源URL
  * @param fileName 资源图片文件名
  * @param extension 资源图片fileExtension
  * @return 图片等资源URL

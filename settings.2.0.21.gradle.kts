@@ -22,6 +22,10 @@ project(":core").buildFileName = buildFileName
 include(":core-render-android")
 project(":core-render-android").buildFileName = buildFileName
 
+include(":core-render-web:base")
+include(":core-render-web:h5")
+include(":core-render-web:miniapp")
+
 include(":compose")
 project(":compose").buildFileName = buildFileName
 

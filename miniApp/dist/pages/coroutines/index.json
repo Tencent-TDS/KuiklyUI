@@ -1,0 +1,5 @@
+{
+    "navigationBarTitleText":"coroutines",
+    "disableScroll":true,
+    "usingComponents":{"custom-wrapper":"../../custom-wrapper","comp":"../../comp"}
+}

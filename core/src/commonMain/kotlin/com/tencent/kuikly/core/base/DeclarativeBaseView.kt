@@ -16,6 +16,7 @@
 package com.tencent.kuikly.core.base
 
 import com.tencent.kuikly.core.base.event.Event
+import com.tencent.kuikly.core.collection.fastHashMapOf
 import com.tencent.kuikly.core.exception.throwRuntimeError
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.layout.MutableFrame
@@ -204,11 +205,11 @@ abstract class DeclarativeBaseView<A : Attr, E : Event> : AbstractBaseView<A, E>
         }
     }
 
-    private fun getAnimateCompletionMap(): HashMap<String,  (Boolean)->Unit> {
+    private fun getAnimateCompletionMap(): MutableMap<String,  (Boolean)->Unit> {
         val animateCompletionMapKey = "animateCompletionMapKey"
-        var animateCompletionMap = extProps[animateCompletionMapKey] as? HashMap<String,  (Boolean)->Unit>
+        var animateCompletionMap = extProps[animateCompletionMapKey] as? MutableMap<String,  (Boolean)->Unit>
         if (animateCompletionMap == null) {
-            animateCompletionMap = hashMapOf<String,  ((Boolean)->Unit)>()
+            animateCompletionMap = fastHashMapOf<String,  ((Boolean)->Unit)>()
             extProps[animateCompletionMapKey] = animateCompletionMap
         }
         return animateCompletionMap

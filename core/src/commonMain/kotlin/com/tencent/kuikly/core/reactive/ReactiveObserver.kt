@@ -18,7 +18,7 @@ package com.tencent.kuikly.core.reactive
 import com.tencent.kuikly.core.base.PagerScope
 import com.tencent.kuikly.core.collection.fastArrayListOf
 import com.tencent.kuikly.core.collection.fastHashMapOf
-import com.tencent.kuikly.core.collection.fastHashSetOf
+import com.tencent.kuikly.core.collection.fastMutableSetOf
 import com.tencent.kuikly.core.collection.fastLinkedHashSetOf
 import com.tencent.kuikly.core.collection.toFastList
 import com.tencent.kuikly.core.collection.toFastMutableSet
@@ -36,8 +36,8 @@ import kotlin.properties.ReadWriteProperty
  */
 class ReactiveObserver {
 
-    private val activeReadPropertyNames = fastHashSetOf<String>() // 当前待收集依赖的key
-    private val activeWritePropertyNames = fastHashSetOf<String>()
+    private val activeReadPropertyNames = fastMutableSetOf<String>() // 当前待收集依赖的key
+    private val activeWritePropertyNames = fastMutableSetOf<String>()
     private val propertyObserverFnMap = fastHashMapOf<String, MutableSet<ObserverFn>>() // 对key感兴趣的观察者
     private val observerRemoveFnOwnerMap = fastHashMapOf<Int, MutableSet<ObserverRemoveFn>>()
     private val observerFnCollectionPropertiesMap = fastHashMapOf<ObserverFn, Set<String>>() // 闭包收集的属性

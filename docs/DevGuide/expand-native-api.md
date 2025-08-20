@@ -485,3 +485,221 @@ export class KuiklyViewDelegate extends IKuiklyViewDelegate {
     }
 }
 ```
+
+## H5侧
+1. 在接入``Kuikly``的H5宿主工程中新建``KRMyLogModule``类，然后继承``KuiklyRenderBaseModule``，并重写其``call``方法（``call``方法有两个实现，**根据Module传输的数据类型，选择重写其中之一**）
+
+```kotlin
+class KRMyLogModule : KuiklyRenderBaseModule() {
+    // 传输基本类型、数组、字符串
+    override fun call(method: String, params: Any?, callback: KuiklyRenderCallback?): Any? {
+
+    }
+
+    // 传输Json（会被序列化为Json字符串）
+    override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
+       
+    }
+}
+```
+
+``Kuikly``的``MyLogModule``的``toNative``方法最终会调用原生对应的``Module``的``call``方法，也就是``KRMyLogModule``中的``call``方法。
+
+在``Kuikly``的``MyLogModule``中定义了三个方法，下面我们来看在H5侧如何实现这三个方法
+
+### log方法
+
+```kotlin
+class KRMyLogModule : KuiklyRenderBaseModule() {
+
+    override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
+        return when (method) {
+            "log" -> log(params ?: "")
+            else -> super.call(method, params, callback)
+        }
+    }
+
+    private fun log(content: String) {
+        Log.d("test", content)
+    }
+
+}
+```
+
+在``call``方法中，我们通过``method``参数来识别``log``方法，然后调用我们定义的私有方法``log``，并将``Kuikly``侧传递过来的``content``参数传递给``log``方法
+
+### logWithCallback方法
+
+```kotlin
+class KRMyLogModule : KuiklyRenderBaseModule() {
+
+    override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
+        return when (method) {
+            "log" -> log(params ?: "")
+            "logWithCallback" -> logWithCallback(params ?: "", callback)
+            else -> super.call(method, params, callback)
+        }
+    }
+
+    private fun logWithCallback(content: String, callback: KuiklyRenderCallback?) {
+        Log.d("test", content) // 1. 打印日志
+        callback?.invoke(mapOf(
+            "result" to "1",
+            // 这里可以使用H5宿主提供的方法和属性，做你自己想做的事情 
+            "locationHref" to window.location.href
+        )) // 2. callback对应kuikly module侧方法的callbackFn, 此处将数据存放到map中并传递给kuikly侧
+    }
+    ...
+}
+```
+
+### syncLog方法
+
+```kotlin
+class KRMyLogModule : KuiklyRenderBaseModule() {
+
+    override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
+        return when (method) {
+            "log" -> log(params ?: "")
+            "logWithCallback" -> logWithCallback(params ?: "", callback)
+            "syncLog" -> syncLog(params ?: "")
+            else -> super.call(method, params, callback)
+        }
+    }
+    
+    private fun syncLog(content: String): String {
+        Log.d("test", content) // 1. 打印日志
+        return "success" // 2. 将字符串同步返回给kuikly侧
+    }
+    ...
+}
+```
+
+2. 原生侧实现完API后，我们将``KRMyLogModule``注册暴露到``Kuikly``中，与``Kuikly``侧的``MyLogModule``对应起来。在实现了``KuiklyRenderViewDelegatorDelegate``接口
+   类中重写``registerExternalModule``方法，注册``KRMyLogModule``
+
+:::tip 注意
+注册的名字必须与``Kuikly moudle``侧注册的名字一样
+::::
+
+```kotlin
+    override fun registerExternalModule(kuiklyRenderExport: IKuiklyRenderExport) {
+        super.registerExternalModule(kuiklyRenderExport)
+        with(kuiklyRenderExport) {
+            ...
+            moduleExport("KRMyLogModule") {
+                KRMyLogModule()
+            }
+        }
+    }
+```
+## 微信小程序侧
+1. 在接入``Kuikly``的微信小程序宿主工程中新建``KRMyLogModule``类，然后继承``KuiklyRenderBaseModule``，并重写其``call``方法（``call``方法有两个实现，**根据Module传输的数据类型，选择重写其中之一**）
+
+```kotlin
+class KRMyLogModule : KuiklyRenderBaseModule() {
+    // 传输基本类型、数组、字符串
+    override fun call(method: String, params: Any?, callback: KuiklyRenderCallback?): Any? {
+
+    }
+
+    // 传输Json（会被序列化为Json字符串）
+    override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
+       
+    }
+}
+```
+
+``Kuikly``的``MyLogModule``的``toNative``方法最终会调用原生对应的``Module``的``call``方法，也就是``KRMyLogModule``中的``call``方法。
+
+kuikly提供了几个变量，方便大家拓展微信小程序的Native接口
+1. ``NativeApi.plat``就是全局的``wx``对象, ``NativeApi.plat.showToast`` = ``wx.showToast``
+2. ``NativeApi.globalThis``, 就是微信小程序全局的``global``
+
+在``Kuikly``的``MyLogModule``中定义了三个方法，下面我们来看在微信小程序侧如何实现这三个方法
+
+### log方法
+
+```kotlin
+class KRMyLogModule : KuiklyRenderBaseModule() {
+
+    override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
+        return when (method) {
+            "log" -> log(params ?: "")
+            else -> super.call(method, params, callback)
+        }
+    }
+
+    private fun log(content: String) {
+        Log.d("test", content)
+    }
+
+}
+```
+
+在``call``方法中，我们通过``method``参数来识别``log``方法，然后调用我们定义的私有方法``log``，并将``Kuikly``侧传递过来的``content``参数传递给``log``方法
+
+### logWithCallback方法
+
+```kotlin
+class KRMyLogModule : KuiklyRenderBaseModule() {
+
+    override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
+        return when (method) {
+            "log" -> log(params ?: "")
+            "logWithCallback" -> logWithCallback(params ?: "", callback)
+            else -> super.call(method, params, callback)
+        }
+    }
+
+    private fun logWithCallback(content: String, callback: KuiklyRenderCallback?) {
+        Log.d("test", content) // 1. 打印日志
+        callback?.invoke(mapOf(
+            "result" to "1",
+            "platform" to NativeApi.plat.getSystemInfoSync().platform
+        )) // 2. callback对应kuikly module侧方法的callbackFn, 此处将数据存放到map中并传递给kuikly侧
+    }
+    ...
+}
+```
+
+### syncLog方法
+
+```kotlin
+class KRMyLogModule : KuiklyRenderBaseModule() {
+
+    override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
+        return when (method) {
+            "log" -> log(params ?: "")
+            "logWithCallback" -> logWithCallback(params ?: "", callback)
+            "syncLog" -> syncLog(params ?: "")
+            else -> super.call(method, params, callback)
+        }
+    }
+    
+    private fun syncLog(content: String): String {
+        Log.d("test", content) // 1. 打印日志
+        return "success" // 2. 将字符串同步返回给kuikly侧
+    }
+    ...
+}
+```
+
+2. 原生侧实现完API后，我们将``KRMyLogModule``注册暴露到``Kuikly``中，与``Kuikly``侧的``MyLogModule``对应起来。在实现了``KuiklyRenderViewDelegatorDelegate``接口
+   类中重写``registerExternalModule``方法，注册``KRMyLogModule``
+
+:::tip 注意
+注册的名字必须与``Kuikly moudle``侧注册的名字一样
+::::
+
+```kotlin
+    override fun registerExternalModule(kuiklyRenderExport: IKuiklyRenderExport) {
+        super.registerExternalModule(kuiklyRenderExport)
+        with(kuiklyRenderExport) {
+            ...
+            moduleExport("KRMyLogModule") {
+                KRMyLogModule()
+            }
+        }
+    }
+```

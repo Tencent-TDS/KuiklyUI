@@ -49,7 +49,7 @@ export const zhSidebar = sidebar({
                 {
                     text: "Kuikly接入",
                     collapsible: false,
-                    children: ["overview.md", "privacy-policy.md", "common.md", "android.md", "iOS.md", "harmony.md"]
+                    children: ["overview.md", "privacy-policy.md", "common.md", "android.md", "iOS.md", "harmony.md", "Web.md", "Miniapp.md"]
                 },
 
                 
@@ -114,12 +114,12 @@ export const zhSidebar = sidebar({
                                 {
                                     text: "开发方式与集成",
                                     collapsible: true,
-                                    children : ["dev-overview.md", "android-dev.md", "ios-dev.md", "harmony-dev.md"]
+                                    children : ["dev-overview.md", "android-dev.md", "ios-dev.md", "harmony-dev.md", "web-dev.md", "miniapp-dev.md"]
                                 },
                                 {
                                     text: "调试与工具",
                                     collapsible: true,
-                                    children: ["android-debug.md", "iOS-debug.md", "ohos-debug.md"]
+                                    children: ["android-debug.md", "iOS-debug.md", "ohos-debug.md", "web-debug.md", "miniapp-debug.md"]
                                 },
                             ]
                         },

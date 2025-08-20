@@ -11,8 +11,8 @@ English | [简体中文](./README-zh_CN.md) | [Homepage](https://framework.tds.q
 - [X] Android
 - [X] iOS
 - [X] HarmonyOS
-- [ ] Web (Open-source in Q2)
-- [ ] Mini Programs (Open-source in Q2)
+- [X] Web (Beta)
+- [X] Mini Programs (Beta)
 
 Since its launch, `Kuikly` has gained wide recognition from the business. It has been used by many products such as QQ, QQ Music, QQ Browser, Tencent News, Sogou Input Method, MyApp Hub(Tencent's app store), WeSing, Kugou Music, Kuwo Music, Tencent Self-selected Stock, ima.copilot, Weishi, etc.
 ## Key Features
@@ -35,9 +35,11 @@ Since its launch, `Kuikly` has gained wide recognition from the business. It has
     ├── jvmMain               # Generic JVM platform code (no Android APIs, outputs jar)
     ├── iosMain               # iOS platform implementation (outputs framework)
     ├── ohosArm64Main         # Ohos platform implementation（outputs so）
+    ├── jsMain                # H5 and MiniApp platform implementation（outputs js）
 ├── core-render-android    # Android platform renderer module
 ├── core-render-ios        # iOS platform renderer module
 ├── core-render-ohos       # HarmonyOS platform rendering module
+├── core-render-web        # H5 and MiniApp platform rendering module
 ├── core-annotations       # Annotations module, defining business annotations like @Page
 ├── core-ksp               # Annotation processing module, generates Core entry files
 ├── buildSrc               # Build scripts for compilation, packaging, and artifact splitting
@@ -45,11 +47,14 @@ Since its launch, `Kuikly` has gained wide recognition from the business. It has
 ├── androidApp             # Android host shell project
 ├── iosApp                 # iOS host shell project
 ├── ohosApp                # Ohos host shell project
+├── miniApp                # miniApp host shell project
+├── h5App                  # h5App host shell project
 ├── compose                # Cross-platform module implementing Compose UI, layout, and Kuikly bridging capabilities
     ├── src
         ├── commonMain      # Shared cross-platform code, including Compose UI components, layout and event handling
         ├── androidMain     # Android platform specific implementation
         └── nativeMain      # iOS and HarmonyOS platform specific implementation
+        └── jsMain          # H5 and MiniApp platform specific implementation
 ```
 
 > Note: The Compose directory contains cross-platform source code based on Jetpack Compose 1.7.3 version. We have made necessary modifications and adaptations to the original Compose code to support Kuikly framework's rendering requirements. Some unnecessary features have been commented out to facilitate future upgrades. To ensure stable feature support and avoid conflicts with official code, we have changed the package name from `androidx.compose` to `com.tencent.kuikly.compose`. The original Compose code is from [JetBrains Compose Multiplatform](https://github.com/JetBrains/compose-multiplatform-core).

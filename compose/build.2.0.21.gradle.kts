@@ -24,6 +24,11 @@ kotlin {
     iosArm64()
     iosSimulatorArm64()
 
+
+    js(IR) {
+        browser()
+    }
+
     cocoapods {
         summary = "Some description for the Shared Module"
         homepage = "Link to the Shared Module homepage"
@@ -70,7 +75,10 @@ kotlin {
             api("androidx.annotation:annotation:1.9.1")
             api("org.jetbrains.kotlinx:atomicfu:0.25.0")
             api("org.jetbrains.compose.collection-internal:collection:1.7.3")
-            implementation("com.tencent.kuiklyx-open:coroutines:1.1.0-2.0.21")
+            implementation("com.tencent.kuiklyx-open:coroutines:1.3.0-2.0.21") {
+                exclude(group = "com.tencent.kuikly-open", module = "core")
+                exclude(group = "com.tencent.kuikly-open", module = "core-annotations")
+            }
         }
 
         commonTest.dependencies {

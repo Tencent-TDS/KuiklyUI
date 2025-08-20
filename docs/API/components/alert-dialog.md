@@ -118,7 +118,7 @@ Alert点击按钮的自定义按钮文字样式，如取消（红色或加粗）
 
 支持所有[基础事件](basic-attr-event.md#基础事件)，此外还支持以下事件：
 
-### willDismiss
+### willDismiss<Badge text="H5实现中" type="warn"/> <Badge text="微信小程序实现中" type="warn"/> 
 
 系统返回事件（back按钮或右滑）回调
 

@@ -15,11 +15,11 @@
 
 package com.tencent.kuikly.core.reactive.collection
 
-import com.tencent.kuikly.core.collection.fastHashSetOf
+import com.tencent.kuikly.core.collection.fastMutableSetOf
 import com.tencent.kuikly.core.reactive.handler.ObservableCollectionElementChangeHandler
 
 class ObservableSet<T>(
-    private val innerSet: MutableSet<T> = fastHashSetOf(),
+    private val innerSet: MutableSet<T> = fastMutableSetOf(),
     handler: ObservableCollectionElementChangeHandler? = null,
     private val collectionMethodPropertyDelegate: CollectionMethodPropertyDelegate<T>
     = CollectionMethodPropertyDelegate(handler)

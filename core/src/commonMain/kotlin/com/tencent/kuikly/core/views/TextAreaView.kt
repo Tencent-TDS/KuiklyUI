@@ -18,7 +18,7 @@ package com.tencent.kuikly.core.views
 import com.tencent.kuikly.core.base.*
 import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.base.event.EventHandlerFn
-import com.tencent.kuikly.core.collection.fastArrayListOf
+import com.tencent.kuikly.core.collection.fastMutableListOf
 import com.tencent.kuikly.core.layout.FlexAlign
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexNode
@@ -403,7 +403,7 @@ open class TextAreaAttr : Attr() {
 
 class InputSpans {
 
-    private val spans = fastArrayListOf<InputSpan>()
+    private val spans = fastMutableListOf<InputSpan>()
 
     fun addSpan(span: InputSpan): InputSpans {
         spans.add(span)
@@ -483,7 +483,7 @@ class InputSpan {
 
 open class TextAreaEvent : Event() {
 
-    private val syncTextDidChangeObservers = fastArrayListOf<InputEventHandlerFn>()
+    private val syncTextDidChangeObservers = fastMutableListOf<InputEventHandlerFn>()
     private var textDidChangeHandler: InputEventHandlerFn? = null
     private var isSyncEdit = false
 

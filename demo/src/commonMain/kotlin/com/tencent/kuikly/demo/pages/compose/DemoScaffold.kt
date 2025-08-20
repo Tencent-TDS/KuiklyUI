@@ -16,6 +16,7 @@
 package com.tencent.kuikly.demo.pages.compose
 
 import androidx.compose.runtime.Composable
+import com.tencent.kuikly.compose.extension.setProp
 import com.tencent.kuikly.compose.foundation.background
 import com.tencent.kuikly.compose.foundation.clickable
 import com.tencent.kuikly.compose.foundation.layout.Arrangement
@@ -50,7 +51,7 @@ fun Pager.DemoScaffold(
 ) {
     ComposeNavigationBar(title) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().setProp("needCustomWrapper", false),
             contentPadding = PaddingValues(all = 8.dp),
         ) {
             item {

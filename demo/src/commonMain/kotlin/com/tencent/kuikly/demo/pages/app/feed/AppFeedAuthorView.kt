@@ -156,10 +156,7 @@ internal class AppFeedItemAuthorView: ComposeView<AppFeedItemAuthorViewAttr, App
                             }
                             Text {
                                 val datetime =
-                                    acquireModule<CalendarModule>(CalendarModule.MODULE_NAME).formatTime(
-                                        ctx.attr.createTime,
-                                        "yyyy-MM-dd HH:mm:ss"
-                                    )
+                                    ctx.attr.createTime
                                 attr {
                                     text(datetime)
                                     color(ctx.theme.colors.feedUserSignature)
@@ -210,7 +207,7 @@ internal class AppFeedItemAuthorView: ComposeView<AppFeedItemAuthorViewAttr, App
 internal class AppFeedItemAuthorViewAttr : ComposeAttr() {
     lateinit var userInfo: AppUserInfo
     lateinit var tail: String
-    var createTime: Long = 0L
+    var createTime: String = ""
 }
 
 internal class AppFeedItemAuthorViewEvent : ComposeEvent() {

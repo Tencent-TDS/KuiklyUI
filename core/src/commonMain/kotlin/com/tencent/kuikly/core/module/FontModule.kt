@@ -15,12 +15,13 @@
 
 package com.tencent.kuikly.core.module
 
+import com.tencent.kuikly.core.collection.fastHashMapOf
 import com.tencent.kuikly.core.manager.PagerManager
 
 class FontModule : Module() {
 
-    private val fontFitResultCacheMap: HashMap<Float, Float> by lazy(LazyThreadSafetyMode.NONE) {
-        HashMap<Float, Float>()
+    private val fontFitResultCacheMap by lazy(LazyThreadSafetyMode.NONE) {
+        fastHashMapOf<Float, Float>()
     }
 
     override fun moduleName(): String {

@@ -15,7 +15,7 @@
 
 package com.tencent.kuikly.core.utils
 
-import com.tencent.kuikly.core.collection.fastLinkedMapOf
+import com.tencent.kuikly.core.collection.fastMutableMapOf
 
 fun getParamFromUrl(url: String, key: String): String {
     val paramFirstIndex = url.indexOfFirst {
@@ -35,7 +35,7 @@ fun getParamFromUrl(url: String, key: String): String {
 }
 
 fun urlParams(url: String): Map<String, String> {
-    val params = fastLinkedMapOf<String, String>()
+    val params = fastMutableMapOf<String, String>()
     val urlParamStr = url.split("?").last()
     urlParamStr.split("&").forEach {
         val keyValue = it.split("=")

@@ -8,7 +8,7 @@
 
 支持所有[基础属性](basic-attr-event.md#基础属性)，此外还支持：
 
-### src
+### src <Badge text="微信小程序实现中" type="warn"/>
 
 设置`PAGView`的源文件路径，支持URL或本地文件路径
 
@@ -16,7 +16,7 @@
 | -- | -- | -- |
 | src | 源文件路径 | String |
 
-### repeatCount
+### repeatCount <Badge text="微信小程序实现中" type="warn"/>
 
 设置动画重复次数，默认值为 1，表示动画仅播放一次。0 表示动画将无限次播放
 
@@ -24,7 +24,7 @@
 | -- | -- | -- |
 | repeatCount | 动画重复次数 | Int |
 
-### autoPlay
+### autoPlay <Badge text="微信小程序实现中" type="warn"/>
 
 设置是否自动播放，默认值为 true
 
@@ -32,7 +32,7 @@
 | -- | -- | -- |
 | play | 是否自动播放 | Boolean |
 
-### replaceLayerContents
+### replaceLayerContents<Badge text="H5实现中" type="warn"/> <Badge text="微信小程序实现中" type="warn"/>
 
 替换当前 PAG 资源中的图像图层信息，需要传入`PAGReplaceItem`类型参数
 
@@ -106,32 +106,32 @@ internal class TestPage : BasePager() {
 
 支持所有[基础事件](basic-attr-event.md#基础事件)，此外还支持：
 
-### loadFailure
+### loadFailure <Badge text="微信小程序实现中" type="warn"/>
 
 设置加载失败时的事件回调
 
-### animationStart
+### animationStart <Badge text="微信小程序实现中" type="warn"/>
 
 设置动画开始时的事件回调
 
-### animationEnd
+### animationEnd <Badge text="微信小程序实现中" type="warn"/>
 
 设置动画结束时的事件回调
 
-### animationCancel
+### animationCancel <Badge text="微信小程序实现中" type="warn"/>
 
 设置动画取消时的事件回调
 
-### animationRepeat
+### animationRepeat <Badge text="微信小程序实现中" type="warn"/>
 
 设置动画重复时的事件回调
 
 ## 方法
 
-### play
+### play <Badge text="微信小程序实现中" type="warn"/>
 
 设置动画重复时的事件回调播放动画（autoPlay属性为true时不需要手动调用该接口）
 
-### stop
+### stop <Badge text="微信小程序实现中" type="warn"/>
 
 停止动画

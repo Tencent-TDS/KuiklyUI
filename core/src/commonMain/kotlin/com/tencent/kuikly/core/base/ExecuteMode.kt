@@ -21,6 +21,7 @@ package com.tencent.kuikly.core.base
 enum class ExecuteMode(val value: Int) {
     JVM(0),
     FRAMEWORK(1),
+    JS(2),
     OHOS_NATIVE(4);
 
     companion object {

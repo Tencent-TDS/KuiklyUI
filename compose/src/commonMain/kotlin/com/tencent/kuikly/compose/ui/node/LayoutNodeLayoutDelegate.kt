@@ -860,6 +860,7 @@ internal class LayoutNodeLayoutDelegate(
             if (!layoutPending && isPlaced) {
                 outerCoordinator.placeSelfApparentToRealOffset(position, zIndex, layerBlock)
                 onNodePlaced()
+                layoutNode.updateKuiklyViewFrame(layoutNode.innerCoordinator)
             } else {
                 alignmentLines.usedByModifierLayout = false
                 coordinatesAccessedDuringModifierPlacement = false

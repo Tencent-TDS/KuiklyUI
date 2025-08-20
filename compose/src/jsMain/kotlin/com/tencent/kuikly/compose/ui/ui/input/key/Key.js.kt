@@ -301,56 +301,56 @@ actual value class Key(val keyCode: Long) {
          * This is the Num Lock key; it is different from [Number].
          * This key alters the behavior of other keys on the numeric keypad.
          */
-        actual val NumLock: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUM_LOCK)
+        actual val NumLock: Key = skikoKeyToKey(KEY_NUM_LOCK)
 
         /** Numeric keypad '0' key. */
-        actual val NumPad0: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_0)
+        actual val NumPad0: Key = skikoKeyToKey(KEY_NUMPAD_0)
 
         /** Numeric keypad '1' key. */
-        actual val NumPad1: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_1)
+        actual val NumPad1: Key = skikoKeyToKey(KEY_NUMPAD_1)
 
         /** Numeric keypad '2' key. */
-        actual val NumPad2: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_2)
+        actual val NumPad2: Key = skikoKeyToKey(KEY_NUMPAD_2)
 
         /** Numeric keypad '3' key. */
-        actual val NumPad3: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_3)
+        actual val NumPad3: Key = skikoKeyToKey(KEY_NUMPAD_3)
 
         /** Numeric keypad '4' key. */
-        actual val NumPad4: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_4)
+        actual val NumPad4: Key = skikoKeyToKey(KEY_NUMPAD_4)
 
         /** Numeric keypad '5' key. */
-        actual val NumPad5: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_5)
+        actual val NumPad5: Key = skikoKeyToKey(KEY_NUMPAD_5)
 
         /** Numeric keypad '6' key. */
-        actual val NumPad6: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_6)
+        actual val NumPad6: Key = skikoKeyToKey(KEY_NUMPAD_6)
 
         /** Numeric keypad '7' key. */
-        actual val NumPad7: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_7)
+        actual val NumPad7: Key = skikoKeyToKey(KEY_NUMPAD_7)
 
         /** Numeric keypad '8' key. */
-        actual val NumPad8: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_8)
+        actual val NumPad8: Key = skikoKeyToKey(KEY_NUMPAD_8)
 
         /** Numeric keypad '9' key. */
-        actual val NumPad9: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_9)
+        actual val NumPad9: Key = skikoKeyToKey(KEY_NUMPAD_9)
 
         /** Numeric keypad '/' key (for division). */
-        actual val NumPadDivide: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_DIVIDE)
+        actual val NumPadDivide: Key = skikoKeyToKey(KEY_NUMPAD_DIVIDE)
 
         /** Numeric keypad '*' key (for multiplication). */
-        actual val NumPadMultiply: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_MULTIPLY)
+        actual val NumPadMultiply: Key = skikoKeyToKey(KEY_NUMPAD_MULTIPLY)
 
         /** Numeric keypad '-' key (for subtraction). */
-        actual val NumPadSubtract: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_SUBTRACT)
+        actual val NumPadSubtract: Key = skikoKeyToKey(KEY_NUMPAD_SUBTRACT)
 
         /** Numeric keypad '+' key (for addition). */
-        actual val NumPadAdd: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_ADD)
+        actual val NumPadAdd: Key = skikoKeyToKey(KEY_NUMPAD_ADD)
 
         /** Numeric keypad Enter key. */
-        actual val NumPadEnter: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_NUMPAD_ENTER)
+        actual val NumPadEnter: Key = skikoKeyToKey(KEY_NUMPAD_ENTER)
 
-        actual val MoveHome: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_HOME)
+        actual val MoveHome: Key = skikoKeyToKey(KEY_HOME)
 
-        actual val MoveEnd: Key = skikoKeyToKey(com.tencent.kuikly.compose.ui.ui.input.key.SkikoKey.KEY_END)
+        actual val MoveEnd: Key = skikoKeyToKey(KEY_END)
 
         // Unsupported Keys
         actual val SoftLeft = Key(-1000000001)

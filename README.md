@@ -11,8 +11,8 @@ English | [简体中文](./README-zh_CN.md) | [Homepage](https://framework.tds.q
 - [X] Android
 - [X] iOS
 - [X] HarmonyOS
-- [ ] Web (Open-source in Q2)
-- [ ] Mini Programs (Open-source in Q2)
+- [X] Web (Beta)
+- [X] Mini Programs (Beta)
 
 Since its launch, `Kuikly` has gained wide recognition from the business. It has been used by many products such as QQ, QQ Music, QQ Browser, Tencent News, Sogou Input Method, MyApp Hub(Tencent's app store), WeSing, Kugou Music, Kuwo Music, Tencent Self-selected Stock, ima.copilot, Weishi, etc.
 ## Key Features

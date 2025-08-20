@@ -122,6 +122,7 @@ project.afterEvaluate {
         // Then copy corresponding nativevue2.zip from business build result and copy nativevue2.js
         // to miniprogramApp's release directory
         copyLocalJSBundle("distributions")
+        copyLocalJSBundle("productionExecutable")
     }
 
     tasks.register("jsMiniAppDevelopmentWebpack") {

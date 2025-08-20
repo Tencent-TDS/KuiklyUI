@@ -448,6 +448,19 @@ npm run serve
 
 使用微信小程序开发者工具打开miniApp下的dist目录，根据你的实际页面，修改app.json里面的pages数组和在pages里新建对应的页面。
 然后编译即可看到微信小程序的效果
+(如果发现Demo路由页没有成功跳转页面, 可以检查是否有在 miniApp/dist/pages 下新建页面模版，可以通过dist/create_page.sh脚本来生成)
+```javascript
+// 例如demo里存在router的Page, 就需要在app.json的pages数组里添加 "pages/router/index", 同时在pages的目录里新建router目录补充和pages/index目录一样的内容
+
+// pages/index/index.js内容
+var render = require('../../lib/miniApp.js')
+render.renderView({
+    // 这里的pageName是最高优先级，如果没配置，会去拿微信小程序启动参数里的page_name，如果都没有会报错
+    // 建议微信小程序的第一个页面必须配置pageName
+    // pageName: "router",
+    statusBarHeight: 0 // 如果要全屏，需要把状态栏高度设置为0
+})
+```
 ## 补充说明
 
 ### 微信小程序平台逻辑处理

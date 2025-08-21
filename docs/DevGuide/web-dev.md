@@ -31,8 +31,8 @@ kotlin 2.0 以上运行: ./gradlew :h5App:jsBrowserDevelopmentRun -t
 #  构建 h5App webpack 打包 Debug 版
 ./gradlew :h5App:jsBrowserDevelopmentWebpack
 ```
-开发环境构建产物在 h5App/build/developmentExecutable 中
-生产环境构建产物在 h5App/build/distributions 中
+开发环境构建产物在 h5App/build/dist/js/developmentExecutable 中
+生产环境构建产物在 h5App/build/dist/js/productionExecutable 中
 
 >如果修改了 shared 项目的代码，需要重新执行 shared 项目的构建脚本
 >首次 Sync 时如果不成功，可以 Build/Clean Project 试下
@@ -57,9 +57,9 @@ kotlin 2.0 以上运行: ./gradlew :h5App:jsBrowserDevelopmentRun -t
 ./gradlew :h5App:publishLocalJSBundle
 ```
 >业务构建的产物为 nativevue2.js，在 @Page 注解中同一 Module 下的 Page 都会集成到一个 JS 文件<br>
->业务构建产物在 h5App/build/distributions/page 下<br>
->业务的 assets 资源在 h5App/build/distributions/assets 下<br>
->h5App 构建产物在 h5App/build/distributions 下
+>业务构建产物在 h5App/build/dist/js/productionExecutable/page 下<br>
+>业务的 assets 资源在 h5App/build/dist/js/productionExecutable/assets 下<br>
+>h5App 构建产物在 h5App/build/dist/js/productionExecutable 下
 
 >如果业务规模较大导致构建失败，可能是构建内存不足，可以先执行 export NODE_OPTIONS=--max_old_space_size=16384 提升 nodejs 的运行内存
 >更多关于构建相关的说明，请参考github中h5App示例项目的Readme文档
@@ -76,12 +76,12 @@ h5App是项目的宿主APP，依赖 webRender，构建得到 h5App.js，shared �
 <!-- 宿主 APP 和 webRender 的 JS文件 -->
 <script type="text/javascript" src="h5App.js"></script>
 ```
-另外因为 kuikly 支持 assets 方式引用项目 demo 目录下的 assets 中的图片，因此项目构建完成后，如果你有使用 assets 方式引用的图片，那么需要将 h5App/build/distributions/assets 目录整个拷贝
+另外因为 kuikly 支持 assets 方式引用项目 demo 目录下的 assets 中的图片，因此项目构建完成后，如果你有使用 assets 方式引用的图片，那么需要将 h5App/build/dist/js/productionExecutable/assets 目录整个拷贝
 到你的服务器根目录，这样项目才可以通过相对路径访问到图片，例如你的网站部署在 https://kuikly.qq.com/, 那么你的 assets 图片就要通过 https://kuikly.qq.com/assets/xxx/xxx.png 来访问了****
 
 > 我们模版的index.html中是有 pag 文件的 JS 库的引用的，在您实际部署时，如果没有 pag 文件的需求，则可以移除该 JS 引用
 
 ### 部署说明
 
-最终我们可以将 h5App/build/distributions 中的全部内容作为 H5 的部署产物进行部署，这里实际的部署方式则依赖您的 H5 项目的实际部署方式了。您可以将产物内置到 APP 中进行加载运行，也可以作为通用的 H5 服务进行提供。
+最终我们可以将 h5App/build/dist/js/productionExecutable 中的全部内容作为 H5 的部署产物进行部署，这里实际的部署方式则依赖您的 H5 项目的实际部署方式了。您可以将产物内置到 APP 中进行加载运行，也可以作为通用的 H5 服务进行提供。
 这取决于你们的业务需要

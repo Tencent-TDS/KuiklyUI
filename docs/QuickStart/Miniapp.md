@@ -122,7 +122,7 @@ fun copyLocalJSBundle(buildSubPath: String) {
 project.afterEvaluate {
 
     tasks.register<Copy>("syncRenderProductionToDist") {
-        from("$buildDir/distributions")
+        from("$buildDir/productionExecutable")
         into("$projectDir/dist/lib")
         include("**/*.js", "**/*.d.ts")
     }
@@ -158,7 +158,7 @@ project.afterEvaluate {
         // First execute jsBrowserProductionWebpack build task
         dependsOn("jsBrowserProductionWebpack")
         // Then copy corresponding nativevue2.zip from business build result and copy nativevue2.js to miniApp's release directory
-        copyLocalJSBundle("distributions")
+        copyLocalJSBundle("productionExecutable")
     }
 
     tasks.register("jsMiniAppDevelopmentWebpack") {

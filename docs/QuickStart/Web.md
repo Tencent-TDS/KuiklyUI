@@ -88,12 +88,12 @@ kotlin {
 val businessPathName = "demo"
 
 /**
- * Copy locally built unified JS result to h5App's build/distributions/page directory
+ * Copy locally built unified JS result to h5App's build/dist/js/productionExecutable/page directory
  */
 fun copyLocalJSBundle() {
     // Output target path
     val destDir = Paths.get(project.buildDir.absolutePath,
-        "distributions", "page").toFile()
+        "dist/js/productionExecutable", "page").toFile()
     if (!destDir.exists()) {
         // Create directory if it doesn't exist
         destDir.mkdirs()
@@ -103,7 +103,7 @@ fun copyLocalJSBundle() {
     }
 
     // Input target path, in demo/outputs/kuikly/js/release/local/nativevue2.zip
-    val sourceDir = Paths.get(project.buildDir.absolutePath, "distributions", "kotlin2js").toFile()
+    val sourceDir = Paths.get(project.buildDir.absolutePath, "dist/js/productionExecutable", "kotlin2js").toFile()
 
     // File to be decompressed
     val zipFile = Paths.get(
@@ -112,7 +112,7 @@ fun copyLocalJSBundle() {
         "build", "outputs", "kuikly", "js", "release", "local", "nativevue2.zip"
     ).toFile()
     // Compressed file directory
-    val zipDir = Paths.get(project.buildDir.absolutePath, "distributions/kotlin2js").toFile()
+    val zipDir = Paths.get(project.buildDir.absolutePath, "dist/js/productionExecutable/kotlin2js").toFile()
     if (!zipDir.exists()) {
         zipDir.mkdirs()
     } else {
@@ -137,12 +137,12 @@ fun copyLocalJSBundle() {
 }
 
 /**
- * Copy business built page JS result to h5App's build/distributions/page directory
+ * Copy business built page JS result to h5App's build/dist/js/productionExecutable/page directory
  */
 fun copySplitJSBundle() {
     // Output target path
     val destDir = Paths.get(project.buildDir.absolutePath,
-        "distributions", "page").toFile()
+        "dist/js/productionExecutable", "page").toFile()
     if (!destDir.exists()) {
         // Directory does not exist, create it
         destDir.mkdirs()
@@ -173,7 +173,7 @@ fun copySplitJSBundle() {
 fun generateLocalHtml() {
     // File path to be processed
     val filePath = Paths.get(project.buildDir.absolutePath,
-        "distributions", "index.html")
+        "dist/js/productionExecutable", "index.html")
     val fileContent = Files.readString(filePath)
     // Placeholder to be replaced
     val placeText = "http://127.0.0.1:8899/nativevue2.js"
@@ -191,13 +191,13 @@ fun generateLocalHtml() {
 fun generateSplitHtml() {
     // File path to be processed
     val htmlFilePath = Paths.get(project.buildDir.absolutePath,
-        "distributions", "index.html")
+        "dist/js/productionExecutable", "index.html")
     val fileContent = Files.readString(htmlFilePath)
     // Placeholder to be replaced
     val placeText = "http://127.0.0.1:8899/nativevue2.js"
     // Need to read all js files in page, get file names, then modify business js in index.html to corresponding
     val pagePath = Paths.get(project.buildDir.absolutePath,
-        "distributions", "page")
+        "dist/js/productionExecutable", "page")
     val pageDir = file(pagePath)
     if (pageDir.exists()) {
         // File names, and change new html file name to page name
@@ -209,7 +209,7 @@ fun generateSplitHtml() {
                 val updatedContent = fileContent.replace(placeText, "page/$fileName")
                 // File path to be written
                 val filePath = Paths.get(project.buildDir.absolutePath,
-                    "distributions", "${file.nameWithoutExtension}.html")
+                    "dist/js/productionExecutable", "${file.nameWithoutExtension}.html")
                 // Write new file content
                 Files.writeString(filePath, updatedContent, StandardCharsets.UTF_8)
             }
@@ -225,7 +225,7 @@ fun generateSplitHtml() {
 }
 
 /**
- * Copy business assets resources to h5App's build/distributions/page directory
+ * Copy business assets resources to h5App's build/dist/js/productionExecutable/page directory
  */
 fun copyAssetsResource() {
     // Source target path
@@ -243,7 +243,7 @@ fun copyAssetsResource() {
             project.rootDir.absolutePath,
             "h5App",
             "build",
-            "distributions",
+            "dist/js/productionExecutable",
             "assets"
         )
 

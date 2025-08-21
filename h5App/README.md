@@ -42,8 +42,13 @@ npm run serve
 ./gradlew :h5App:jsBrowserDevelopmentWebpack
 ```
 
-开发环境构建产物在 h5App/build/developmentExecutable 中
-生产环境构建产物在 h5App/build/distributions 中
+对于 kotlin2.0 +版本 （当前默认）
+开发环境构建产物在 h5App/build/kotlin-webpack/js/developmentExecutable 中
+生产环境构建产物在 h5App/build/kotlin-webpack/js/productionExecutable 中
+
+对于 kotlin1.9 版本
+开发环境构建产物在 h5App/build/dist/js/developmentExecutable 中
+生产环境构建产物在 h5App/build/dist/js/productionExecutable 中
 
 >如果修改了 demo 项目的代码，需要重新执行 demo 项目的构建脚本 ./gradlew :demo:packLocalJsBundleDebug 或 ./gradlew :demo:packLocalJsBundleRelease
 >如果发现项目首次 Sync 时不成功，可以尝试 Build/Clean Project 后再次执行
@@ -54,7 +59,21 @@ npm run serve
 
 >如果业务规模较大，构建失败，可能是构建内存不足，可以先执行 export NODE_OPTIONS=--max_old_space_size=16384 提升 nodejs 的运行内存
 
-- 分页构建（推荐使用）
+- 统一构建
+
+```shell
+# 构建业务 h5App 和 JSBundle
+# 首先构建业务 Bundle
+./gradlew :demo:packLocalJSBundleRelease
+# 然后构建宿主 APP
+./gradlew :h5App:publishLocalJSBundle
+```
+>统一构建的产物为 nativevue2.js，同 Module 下的 Page 都集成到一个 JS 文件了
+>业务构建产物在 h5App/dist/js/productionExecutable/page 下
+>业务的 assets 资源在 h5App/build/dist/js/productionExecutable/assets 下
+>h5App 构建产物在 h5App/build/dist/js/productionExecutable 下
+
+- 分页构建
 ```shell
 # 构建业务 h5App 和 JSBundle
 # 首先构建业务 Bundle
@@ -67,22 +86,8 @@ npm run serve
 addSplitPages(listOf("实际的页面名称"))
 ```
 >分页构建的产物为分页面的 JS，demo 下每个 Page 生成一个对应的 JS 文件
->业务构建产物在 h5App/build/distributions/page 下
->h5App 构建产物在 h5App/build/distributions 下
-
-- 统一构建
-
-```shell
-# 构建业务 h5App 和 JSBundle
-# 首先构建业务 Bundle
-./gradlew :demo:packLocalJSBundleRelease
-# 然后构建宿主 APP
-./gradlew :h5App:publishLocalJSBundle
-```
->统一构建的产物为 nativevue2.js，同 Module 下的 Page 都集成到一个 JS 文件了
->业务构建产物在 h5App/build/distributions/page 下
->业务的 assets 资源在 h5App/build/distributions/assets 下
->h5App 构建产物在 h5App/build/distributions 下
+>业务构建产物在 h5App/build/dist/js/productionExecutable/page 下
+>h5App 构建产物在 h5App/build/dist/js/productionExecutable 下
 
 ## 构建产物说明
 
@@ -99,7 +104,7 @@ h5App是项目的宿主APP，依赖 webRender，构建得到 h5App.js，demo 则
 <script type="text/javascript" src="h5App.js"></script>
 ```
 
-另外因为 kuikly 支持 assets 方式引用项目 demo 目录下的 assets 中的图片，因此项目构建完成后，如果你有使用 assets 方式引用的图片，那么需要将 h5App/build/distributions/assets 目录整个拷贝
+另外因为 kuikly 支持 assets 方式引用项目 demo 目录下的 assets 中的图片，因此项目构建完成后，如果你有使用 assets 方式引用的图片，那么需要将 h5App/build/dist/js/productionExecutable/assets 目录整个拷贝
 到你的 web 服务器根目录，这样项目才可以通过相对路径访问到图片，例如你的网站部署在 https://kuikly.qq.com/, 那么你的 assets 图片就要通过 https://kuikly.qq.com/assets/xxx/xxx.png 来访问了****
 
 ## 项目说明
@@ -130,5 +135,5 @@ h5App是项目的宿主APP，依赖 webRender，构建得到 h5App.js，demo 则
 
 - assets 资源处理
 web 已支持项目中 assets 目录内图片资源的引用，但需要注意，assets 资源的引用有 ImageUri.pageAssets 和 ImageUri.commonAssets 两种方式，其中 commonAssets 方式引用的是 demo/src/commonMain/assets/common 目录内的图片，
-pageAssets 方式引用的是 demo/src/commonMain/assets/{pageName}/内的图片，注意这里{pageName}一定是业务Page中@Page注解内的真实pageName，包括大小写，分隔符等。在部署时，需要将 h5App/build/distributions/assets 目录
+pageAssets 方式引用的是 demo/src/commonMain/assets/{pageName}/内的图片，注意这里{pageName}一定是业务Page中@Page注解内的真实pageName，包括大小写，分隔符等。在部署时，需要将 h5App/build/dist/js/productionExecutable/assets 目录
 整个拷贝到 web 项目根目录下，这样业务内通过 ImageUrl.pageAssets 和 ImageUri.commonAssets 所拿到的 assets 资源相对路径就能访问到对应的图片资源了

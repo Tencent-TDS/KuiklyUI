@@ -13,10 +13,19 @@ npm run serve
 ./gradlew :demo:packLocalJsBundleDebug
 ```
 
-然后构建 miniprogramApp 项目
+然后构建 miniApp 项目
 ```shell
-#  运行 miniprogramApp 服务器 Debug 版
+#  运行 miniApp 服务器 Debug 版
 ./gradlew :miniApp:jsMiniAppDevelopmentWebpack
+```
+
+# 构建 release 版本
+```shell
+# 首先构建业务 Bundle
+./gradlew :demo:packLocalJSBundleRelease
+
+# 然后构建 miniApp
+./gradlew :miniApp:jsMiniAppProductionWebpack
 ```
 
 

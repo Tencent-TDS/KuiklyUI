@@ -80,16 +80,15 @@ fun copyLocalJSBundle(buildSubPath: String) {
 }
 
 project.afterEvaluate {
-    // kotlin 1.9 from 改为 $buildDir/dist/js/distributions
+
     tasks.register<Copy>("syncRenderProductionToDist") {
-        from("$buildDir/kotlin-webpack/js/productionExecutable")
+        from("$buildDir/dist/js/productionExecutable")
         into("$projectDir/dist/lib")
         include("**/*.js", "**/*.d.ts")
     }
 
-    // kotlin 1.9 from 改为 $buildDir/dist/js/developmentExecutable
     tasks.register<Copy>("syncRenderDevelopmentToDist") {
-        from("$buildDir/kotlin-webpack/js/developmentExecutable")
+        from("$buildDir/dist/js/developmentExecutable")
         into("$projectDir/dist/lib")
         include("**/*.js", "**/*.d.ts")
     }

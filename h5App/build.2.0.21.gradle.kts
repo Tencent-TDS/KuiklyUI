@@ -268,7 +268,7 @@ project.afterEvaluate {
 
         // First execute h5App build task
         dependsOn("jsBrowserDistribution")
-        
+
         doFirst {
             // Then copy corresponding nativevue2.zip from business build result and copy nativevue2.js
             // to h5App's release directory
@@ -276,7 +276,7 @@ project.afterEvaluate {
             // Copy assets resources
             copyAssetsResource("dist/js/productionExecutable")
         }
-        
+
         doLast {
             // Finally modify html file page.js reference
             generateLocalHtml("dist/js/productionExecutable")
@@ -289,17 +289,13 @@ project.afterEvaluate {
 
         // First execute h5App build task
         dependsOn("jsBrowserDistribution")
-        
-        doFirst {
-            // Then copy corresponding page js from business build result to h5App's release directory
-            copySplitJSBundle("distributions")
-            // Copy assets resources
-            copyAssetsResource("distributions")
-        }
-        
+        // Then copy corresponding page js from business build result to h5App's release directory
+        copySplitJSBundle("dist/js/productionExecutable")
+        // Copy assets resources
+        copyAssetsResource("dist/js/productionExecutable")
         doLast {
             // Finally modify html file page.js reference
-            generateSplitHtml("distributions")
+            generateSplitHtml("dist/js/productionExecutable")
         }
     }
 

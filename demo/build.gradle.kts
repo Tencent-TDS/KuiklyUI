@@ -194,7 +194,7 @@ kuikly {
     // JS 产物配置
     js {
         // 构建产物名，与 KMM 插件 webpackTask#outputFileName 一致
-        outputName("nativevue")
+        outputName("nativevue2")
         // 可选：分包构建时的页面列表，如果为空则构建全部页面
         // addSplitPage("route","home")
     }

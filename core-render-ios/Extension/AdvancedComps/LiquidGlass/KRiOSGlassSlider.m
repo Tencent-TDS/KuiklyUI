@@ -65,29 +65,16 @@
     self.maximumValue = [maxValue floatValue];
 }
 
-- (void)setCss_glassEffect:(NSNumber *)enabled {
-    if (@available(iOS 26.0, *)) {
-        // iOS 26.0+ 支持液态玻璃效果
-        // 这里可以根据需要设置特殊的样式
-        if ([enabled boolValue]) {
-            // 启用玻璃效果的特殊样式
-            self.alpha = 0.9f;
-        } else {
-            self.alpha = 1.0f;
-        }
-    }
-}
-
 - (void)setCss_thumbColor:(NSNumber *)color {
     self.thumbTintColor = [UIView css_color:color];
 }
 
 - (void)setCss_trackColor:(NSNumber *)color {
-    self.minimumTrackTintColor = [UIView css_color:color];
+    self.maximumTrackTintColor = [UIView css_color:color];
 }
 
 - (void)setCss_progressColor:(NSNumber *)color {
-    self.maximumTrackTintColor = [UIView css_color:color];
+    self.minimumTrackTintColor = [UIView css_color:color];
 }
 
 - (void)setCss_continuous:(NSNumber *)continuous {

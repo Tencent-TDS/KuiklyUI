@@ -14,15 +14,70 @@
  */
 
 #import "KRiOSGlassSwitch.h"
+#import <objc/runtime.h>
+
+@interface KRiOSGlassSwitch ()
+
+/// 开关值变化回调
+@property (nonatomic, strong, nullable) KuiklyRenderCallback css_onValueChanged;
+
+@end
 
 @implementation KRiOSGlassSwitch
+
+- (instancetype)initWithFrame:(CGRect)frame {
+    if (self = [super initWithFrame:frame]) {
+        // 添加开关值变化事件监听
+        [self addTarget:self action:@selector(switchValueChanged:) forControlEvents:UIControlEventValueChanged];
+    }
+    return self;
+}
 
 - (void)hrv_setPropWithKey:(NSString * _Nonnull)propKey propValue:(id _Nonnull)propValue { 
     KUIKLY_SET_CSS_COMMON_PROP
 }
 
-- (void)setCss_value:(NSString *)cssValue {
+- (void)setCss_enabled:(NSString *)cssValue {
+    self.enabled = [UIView css_bool:cssValue];
+}
+
+- (void)setCss_isOn:(NSString *)cssValue {
     self.on = [UIView css_bool:cssValue];
+}
+
+- (void)setCss_onColor:(NSString *)cssValue {
+    UIColor *color = [UIView css_color:cssValue];
+    if (color) {
+        self.onTintColor = color;
+    }
+}
+
+- (void)setCss_unOnColor:(NSString *)cssValue {
+    UIColor *color = [UIView css_color:cssValue];
+    if (color) {
+        // Map unOnColor to the appropriate property if available
+        // For UISwitch, we use tintColor for the off state
+        self.tintColor = color;
+    }
+}
+
+- (void)setCss_thumbColor:(NSString *)cssValue {
+    UIColor *color = [UIView css_color:cssValue];
+    if (color) {
+        self.thumbTintColor = color;
+    }
+}
+
+#pragma mark - Event Handlers
+
+- (void)switchValueChanged:(UISwitch *)sender {
+    // 发送开关值变化事件
+    NSDictionary *params = @{
+        @"value": @(sender.on)
+    };
+    if (self.css_onValueChanged) {
+        self.css_onValueChanged(params);
+    }
 }
 
 @end

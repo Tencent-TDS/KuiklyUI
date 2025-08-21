@@ -6,6 +6,7 @@ import com.tencent.kuikly.core.base.Border
 import com.tencent.kuikly.core.base.BorderStyle
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.InterfaceStyle
+import com.tencent.kuikly.core.base.Size
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewRef
 import com.tencent.kuikly.core.base.attr.ImageUri
@@ -20,6 +21,8 @@ import com.tencent.kuikly.core.views.InputView
 import com.tencent.kuikly.core.views.LiquidGlass
 import com.tencent.kuikly.core.views.ios.TabbarIOS
 import com.tencent.kuikly.core.views.Scroller
+import com.tencent.kuikly.core.views.Slider
+import com.tencent.kuikly.core.views.Switch
 import com.tencent.kuikly.core.views.ios.TabbarItem
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
@@ -37,6 +40,11 @@ internal class LiquidGlassDemoPage : BasePager() {
     private var shouldAnimate by observable(false)
     private var randomTintColor by observable(0xFF90EE90.toString())
     private lateinit var inputRef: ViewRef<InputView>
+
+    private var switch1State by observable("On")
+    private var switch2State by observable("On")
+    private var slider1Value by observable(0.5f)
+    private var slider2Value by observable(0.5f)
 
     override fun body(): ViewBuilder {
         val ctx = this
@@ -123,8 +131,9 @@ internal class LiquidGlassDemoPage : BasePager() {
                                 fontWeight600()
                             }
                             // 使用Liquid Glass时，不能同时设置背景色
-                            glassEffectIOS(interactive = true, tintColor = Color(ctx.randomTintColor))
-                            if (!getPager().pageData.isIOS) {
+                            if (PlatformUtils.isLiquidGlassSupported()) {
+                                glassEffectIOS(interactive = true, tintColor = Color(ctx.randomTintColor))
+                            } else {
                                 backgroundColor(Color(ctx.randomTintColor))
                             }
                         }
@@ -232,6 +241,208 @@ internal class LiquidGlassDemoPage : BasePager() {
                             }
                         }
                     }
+                    
+                    // Switch 演示
+                    View {
+                        attr {
+                            margin(10f)
+                            padding(15f)
+                            borderRadius(15f)
+                            backgroundColor(Color(0xFFF8F9FA))
+                            border(border = Border(
+                                color = Color(0xFFE9ECEF),
+                                lineWidth = 1f,
+                                lineStyle = BorderStyle.SOLID)
+                            )
+                        }
+                        Text {
+                            attr {
+                                text("Switch 液态玻璃效果:")
+                                fontSize(18f)
+                                fontWeight500()
+                                color(Color(0xFF495057))
+                                marginBottom(15f)
+                            }
+                        }
+                        
+                        // 使用统一的Switch组件，自动切换iOS原生实现
+                        View {
+                            attr {
+                                flexDirectionRow()
+                                alignItemsCenter()
+                                justifyContentSpaceBetween()
+                                marginBottom(10f)
+                            }
+                            Text {
+                                attr {
+                                    text("启用玻璃效果")
+                                    fontSize(16f)
+                                }
+                            }
+                            Switch {
+                                attr {
+                                    isOn(true)
+                                    enableGlassEffect(true) // iOS 26.0+将自动使用原生Switch
+                                    thumbColor(Color.WHITE)
+                                    onColor(Color(0xFF34C759))
+                                    unOnColor(Color(0xFF8E8E93))
+                                }
+                                event {
+                                    switchOnChanged { isOn ->
+                                        ctx.switch1State = if (isOn) "On" else "Off"
+                                    }
+                                }
+                            }
+                            Text {
+                                attr {
+                                    text(ctx.switch1State)
+                                    fontSize(16f)
+                                    marginLeft(10f)
+                                }
+                            }
+                        }
+                        
+                        View {
+                            attr {
+                                flexDirectionRow()
+                                alignItemsCenter()
+                                justifyContentSpaceBetween()
+                            }
+                            Text {
+                                attr {
+                                    text("禁用玻璃效果")
+                                    fontSize(16f)
+                                }
+                            }
+                            Switch {
+                                attr {
+                                    isOn(true)
+                                    enableGlassEffect(false) // 使用自定义实现
+                                    thumbColor(Color.WHITE)
+                                    onColor(Color(0xFF34C759))
+                                    unOnColor(Color(0xFF8E8E93))
+                                }
+                                event {
+                                    switchOnChanged { isOn ->
+                                        ctx.switch2State = if (isOn) "On" else "Off"
+                                    }
+                                }
+                            }
+                            Text {
+                                attr {
+                                    text(ctx.switch2State)
+                                    fontSize(16f)
+                                    marginLeft(10f)
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Slider 演示
+                    View {
+                        attr {
+                            margin(10f)
+                            padding(15f)
+                            borderRadius(15f)
+                            backgroundColor(Color(0xFFF8F9FA))
+                            border(border = Border(
+                                color = Color(0xFFE9ECEF),
+                                lineWidth = 1f,
+                                lineStyle = BorderStyle.SOLID)
+                            )
+                        }
+                        Text {
+                            attr {
+                                text("Slider 液态玻璃效果:")
+                                fontSize(18f)
+                                fontWeight500()
+                                color(Color(0xFF495057))
+                                marginBottom(15f)
+                            }
+                        }
+                        
+                        // 启用玻璃效果的 Slider
+                        View {
+                            attr {
+                                flexDirectionRow()
+                                alignItemsCenter()
+                                justifyContentSpaceBetween()
+                                marginBottom(10f)
+                            }
+                            Text {
+                                attr {
+                                    text("启用：")
+                                    fontSize(16f)
+                                    width(50f)
+                                }
+                            }
+                            Slider {
+                                attr {
+                                    currentProgress(0.5f)
+                                    enableGlassEffect(true)
+                                    progressColor(Color(0xFF34C759))
+                                    trackColor(Color(0xFF8E8E93))
+                                    thumbColor(Color.WHITE)
+                                    size(150f, 30f)
+                                }
+                                event {
+                                    progressDidChanged {
+                                        ctx.slider1Value = it
+                                    }
+                                }
+                            }
+                            Text {
+                                attr {
+                                    text("${ctx.slider1Value}")
+                                    fontSize(16f)
+                                    marginLeft(10f)
+                                    lines(1)
+                                    width(50f)
+                                }
+                            }
+                        }
+                        
+                        // 禁用玻璃效果的 Slider
+                        View {
+                            attr {
+                                flexDirectionRow()
+                                alignItemsCenter()
+                                justifyContentSpaceBetween()
+                            }
+                            Text {
+                                attr {
+                                    text("禁用：")
+                                    fontSize(16f)
+                                    width(50f)
+                                }
+                            }
+                            Slider {
+                                attr {
+                                    currentProgress(0.5f)
+                                    enableGlassEffect(false)
+                                    progressColor(Color(0xFF34C759))
+                                    trackColor(Color(0xFF8E8E93))
+                                    thumbColor(Color.WHITE)
+                                    thumbSize(Size(30f, 20f))
+                                    size(150f, 30f)
+                                }
+                                event {
+                                    progressDidChanged {
+                                        ctx.slider2Value = it
+                                    }
+                                }
+                            }
+                            Text {
+                                attr {
+                                    text("${ctx.slider2Value}")
+                                    fontSize(16f)
+                                    marginLeft(10f)
+                                    lines(1)
+                                    width(50f)
+                                }
+                            }
+                        }
+                    }
                 }()
 
                 // 动画效果演示分组
@@ -271,16 +482,12 @@ internal class LiquidGlassDemoPage : BasePager() {
                     }
                 }()
 
-                vif({ getPager().pageData.isIOS }) {
-                    // iOS 平台原生组件演示分组
-                    ctx.createDemoSection("iOS 原生组件") {
-                        ctx.iOSSwitchAndSliderDemo()()
-                        ctx.iOSSystemTabbarDemo()()
-                    }()
-
+                vif({ PlatformUtils.isIOS() }) {
                     // 组件方式写法演示分组
                     ctx.createDemoSection("独立组件方式使用示例") {
                         ctx.liquidGlassComponentDemo()()
+                        ctx.iOSSwitchAndSliderDemo()()
+                        ctx.iOSSystemTabbarDemo()()
                     }()
                 }
             }
@@ -411,7 +618,7 @@ internal class LiquidGlassDemoPage : BasePager() {
                     iOSSwitch {
                         attr {
                             size(100f, 30f)
-                            value(true)
+                            isOn(true)
                         }
                     }
                 }
@@ -439,10 +646,10 @@ internal class LiquidGlassDemoPage : BasePager() {
                     }
                     iOSSlider {
                         attr {
-                            width(280f)
-                            height(30f)
-                            value(0.5f)
+                            size(200f, 30f)
+                            currentProgress(0.5f)
                             alignSelfCenter()
+                            directionHorizontal(false)
                         }
                     }
                 }

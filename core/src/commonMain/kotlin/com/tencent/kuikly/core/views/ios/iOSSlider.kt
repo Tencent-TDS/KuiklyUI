@@ -47,7 +47,7 @@ class iOSSliderAttr : Attr() {
      * Sets the current value of the slider (0.0 - 1.0).
      * @param value The slider value between 0 and 1
      */
-    fun value(value: Float): iOSSliderAttr {
+    fun currentProgress(value: Float): iOSSliderAttr {
         require(value in 0f..1f) { "Slider value must be between 0 and 1" }
         "value" with value
         return this

@@ -114,7 +114,9 @@ class SliderView : ComposeView<SliderAttr, SliderEvent>() {
                 // 使用iOS原生滑块
                  iOSSlider {
                      attr {
-                         value(ctx.attr.currentProgress)
+                         width(ctx.attr.sliderWidth)
+                         height(ctx.attr.sliderHeight)
+                         currentProgress(ctx.attr.currentProgress)
                          minValue(0.0f)
                          maxValue(1.0f)
                          continuous(true)
@@ -241,8 +243,8 @@ class SliderView : ComposeView<SliderAttr, SliderEvent>() {
      * 条件：iOS平台 && 支持液态玻璃效果 && 启用了玻璃效果
      */
     private fun shouldUseIOSNativeSlider(): Boolean {
-        return PlatformUtils.isLiquidGlassSupported() &&
-               attr.enableGlassEffect
+        return attr.enableGlassEffect && PlatformUtils.isLiquidGlassSupported()
+
     }
     private fun handlePanGesture(params: PanGestureParams) {
         var progress = if (attr.directionHorizontal) {

@@ -14,6 +14,7 @@
  */
 
 #import "KRView.h"
+#import "KRConvertUtil.h"
 #import "KRComponentDefine.h"
 #import "KuiklyRenderView.h"
 #import "KRDisplayLink.h"
@@ -82,6 +83,8 @@
 @property (nonatomic, assign) BOOL glassEffectEnable;
 /// Tint color of glass effect
 @property (nonatomic, strong) UIColor *glassEffectColor;
+/// Style of glass effect
+@property (nonatomic, strong) NSString *glassEffectStyle;
 /// Whether is interactive of glass effect
 @property (nonatomic, strong) NSNumber *glassEffectInteractive;
 /// Spacing prop of liquid glass container
@@ -296,8 +299,30 @@
     }
 }
 
+- (void)setCss_glassEffectStyle:(NSString *)style {
+    if (@available(iOS 26.0, *)) {
+        UIGlassEffectStyle curStyle = [KRConvertUtil KRGlassEffectStyle:self.glassEffectStyle];
+        UIGlassEffectStyle newStyle = [KRConvertUtil KRGlassEffectStyle:style];
+        if (curStyle != newStyle) {
+            self.glassEffectStyle = style;
+            
+            if (_effectView) {
+                UIVisualEffect *effect = _effectView.effect;
+                if ([effect isKindOfClass:UIGlassEffect.class]) {
+                    UIGlassEffect *curEffect = (UIGlassEffect *)_effectView.effect;
+                    UIGlassEffect *updatedEffect = [UIGlassEffect effectWithStyle:newStyle];
+                    updatedEffect.tintColor = curEffect.tintColor;
+                    updatedEffect.interactive = curEffect.interactive;
+                    _effectView.effect = updatedEffect;
+                }
+            }
+        }
+    }
+}
+
 - (UIGlassEffect *)generateGlassEffect API_AVAILABLE(ios(26.0)) {
-    UIGlassEffect *glassEffect = [[UIGlassEffect alloc] init];
+    UIGlassEffectStyle style = [KRConvertUtil KRGlassEffectStyle:self.glassEffectStyle];
+    UIGlassEffect *glassEffect = [UIGlassEffect effectWithStyle:style];
     glassEffect.tintColor = self.glassEffectColor;
     glassEffect.interactive = self.glassEffectInteractive.boolValue;
     return glassEffect;

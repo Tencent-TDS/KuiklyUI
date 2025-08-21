@@ -14,7 +14,7 @@
  */
 
 #import <UIKit/UIKit.h>
-#import <KuiklyRenderViewExportProtocol.h>
+#import "KuiklyRenderViewExportProtocol.h"
 
 NS_ASSUME_NONNULL_BEGIN
 

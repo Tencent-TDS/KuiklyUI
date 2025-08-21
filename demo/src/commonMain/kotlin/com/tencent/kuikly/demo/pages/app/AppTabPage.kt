@@ -24,12 +24,12 @@ import com.tencent.kuikly.core.module.SharedPreferencesModule
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.reactive.handler.observableList
 import com.tencent.kuikly.core.views.Image
-import com.tencent.kuikly.core.views.TabbarIOS
 import com.tencent.kuikly.core.views.PageList
 import com.tencent.kuikly.core.views.PageListView
-import com.tencent.kuikly.core.views.TabbarItem
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
+import com.tencent.kuikly.core.views.ios.TabbarIOS
+import com.tencent.kuikly.core.views.ios.TabbarItem
 import com.tencent.kuikly.demo.pages.app.home.AppHomePage
 import com.tencent.kuikly.demo.pages.app.lang.MultiLingualPager
 import com.tencent.kuikly.demo.pages.app.theme.ThemeManager

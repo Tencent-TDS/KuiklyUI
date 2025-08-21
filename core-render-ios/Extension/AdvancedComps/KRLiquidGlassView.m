@@ -14,14 +14,14 @@
  */
 
 #import "KRLiquidGlassView.h"
-
+#import "KRConvertUtil.h"
 
 @implementation KRLiquidGlassView
 
 - (instancetype)initWithFrame:(CGRect)frame {
     if (self = [super initWithFrame: frame]) {
         if (@available(iOS 26.0, *)) {
-            self.effect = [[UIGlassEffect alloc] init];
+            self.effect = [UIGlassEffect effectWithStyle:UIGlassEffectStyleRegular];
         } else {
             // Fallback on earlier versions
         }
@@ -39,7 +39,7 @@
 
 #pragma mark - CSS properties
 
-- (void)setCss_tintColor:(NSNumber *)color {
+- (void)setCss_glassEffectTintColor:(NSNumber *)color {
     if (@available(iOS 26.0, *)) {
         UIGlassEffect *effect = (UIGlassEffect *)self.effect;
         if (![effect.tintColor isEqual:color]) {
@@ -49,13 +49,27 @@
     }
 }
 
-- (void)setCss_interactive:(NSNumber *)interactive {
+- (void)setCss_glassEffectInteractive:(NSNumber *)interactive {
     if (@available(iOS 26.0, *)) {
         UIGlassEffect *effect = (UIGlassEffect *)self.effect;
         if (effect.isInteractive != [interactive boolValue]) {
             effect.interactive = [interactive boolValue];
             self.effect = effect;
         }
+    }
+}
+
+- (void)setCss_glassEffectStyle:(NSString *)style {
+    if (@available(iOS 26.0, *)) {
+        UIGlassEffectStyle glassStyle = [KRConvertUtil KRGlassEffectStyle:style];
+        UIGlassEffect *newEffect = [UIGlassEffect effectWithStyle:glassStyle];
+        UIGlassEffect *currentEffect = (UIGlassEffect *)self.effect;
+        
+        // Preserve existing properties
+        newEffect.tintColor = currentEffect.tintColor;
+        newEffect.interactive = currentEffect.isInteractive;
+        
+        self.effect = newEffect;
     }
 }
 
@@ -85,24 +99,12 @@
 
 #pragma mark - CSS properties
 
-- (void)setCss_spacing:(NSNumber *)spacing {
+- (void)setCss_glassEffectSpacing:(NSNumber *)spacing {
     if (@available(iOS 26.0, *)) {
         UIGlassContainerEffect *effect = (UIGlassContainerEffect *)self.effect;
         if (effect.spacing != spacing.doubleValue) {
             effect.spacing = spacing.doubleValue;
             self.effect = effect;
-        }
-    }
-}
-
-- (void)setCss_interfaceStyle:(NSString *)style {
-    if (@available(iOS 13.0, *)) {
-        if ([[UIView css_string:style] isEqualToString:@"dark"]) {
-            self.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
-        } else if ([[UIView css_string:style] isEqualToString:@"light"]) {
-            self.overrideUserInterfaceStyle = UIUserInterfaceStyleLight;
-        } else if ([[UIView css_string:style] isEqualToString:@"auto"]) {
-            self.overrideUserInterfaceStyle = UIUserInterfaceStyleUnspecified;
         }
     }
 }

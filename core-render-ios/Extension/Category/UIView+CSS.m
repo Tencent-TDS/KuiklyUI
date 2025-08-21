@@ -435,7 +435,7 @@
 
 - (void)setCss_interfaceStyle:(NSString *)style {
     if (@available(iOS 13.0, *)) {
-        self.overrideUserInterfaceStyle = [KRConvertUtil UIUserInterfaceStyle:style];
+        self.overrideUserInterfaceStyle = [KRConvertUtil KRUserInterfaceStyle:style];
     }
 }
 

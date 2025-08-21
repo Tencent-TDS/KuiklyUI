@@ -21,7 +21,6 @@ import com.tencent.kuikly.core.base.attr.IEventCaptureAttr
 import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.collection.fastArrayListOf
 import com.tencent.kuikly.core.collection.toFastList
-import com.tencent.kuikly.core.exception.throwRuntimeError
 import com.tencent.kuikly.core.layout.FlexAlign
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexJustifyContent
@@ -32,7 +31,7 @@ import com.tencent.kuikly.core.layout.StyleSpace
 import com.tencent.kuikly.core.layout.undefined
 import com.tencent.kuikly.core.layout.valueEquals
 import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
-import com.tencent.kuikly.core.views.InterfaceStyle
+import com.tencent.kuikly.core.views.GlassEffectStyle
 import com.tencent.kuikly.core.views.RichTextView
 import com.tencent.kuikly.core.views.ScrollerContentView
 import com.tencent.kuikly.core.views.TextAreaView
@@ -351,31 +350,26 @@ open class ContainerAttr : Attr(), IContainerLayoutAttr, IEventCaptureAttr {
         return this
     }
 
-    open fun glassEffectIOS(tintColor: Color? = null,
-                            enable: Boolean = true,
+    open fun glassEffectIOS(enable: Boolean = true,
                             interactive: Boolean? = true,
-                            interfaceStyle: InterfaceStyle? = null
+                            tintColor: Color? = null,
+                            style: GlassEffectStyle? = null
     ): ContainerAttr {
-        "glassEffectEnable" with enable
+        StyleConst.GLASS_EFFECT_ENABLE with enable
         if (interactive != null) {
-            "glassEffectInteractive" with interactive
+            StyleConst.GLASS_EFFECT_INTERACTIVE with interactive
         }
         if (tintColor != null) {
-            "glassEffectTintColor" with tintColor.toString()
+            StyleConst.GLASS_EFFECT_TINT_COLOR with tintColor.toString()
         }
-        if (interfaceStyle != null) {
-            "interfaceStyle" with interfaceStyle.value
+        if (style != null) {
+            StyleConst.GLASS_EFFECT_STYLE with style.value
         }
         return this
     }
 
-    open fun glassEffectContainerIOS(spacing: Float,
-                                     interfaceStyle: InterfaceStyle? = null
-    ): ContainerAttr {
-        "glassEffectSpacing" with spacing
-        if (interfaceStyle != null) {
-            "interfaceStyle" with interfaceStyle.value
-        }
+    open fun glassEffectContainerIOS(spacing: Float): ContainerAttr {
+        StyleConst.GLASS_EFFECT_SPACING with spacing
         return this
     }
 

@@ -29,7 +29,7 @@ import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.reactive.handler.observableList
 import com.tencent.kuikly.core.views.Image
-import com.tencent.kuikly.core.views.MySegmented
+import com.tencent.kuikly.core.views.ios.iOSSegmentedControlView
 import com.tencent.kuikly.core.views.PageList
 import com.tencent.kuikly.core.views.PageListView
 import com.tencent.kuikly.core.views.ScrollParams
@@ -37,6 +37,7 @@ import com.tencent.kuikly.core.views.TabItem
 import com.tencent.kuikly.core.views.Tabs
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
+import com.tencent.kuikly.core.views.ios.iOSSegmentedControl
 import com.tencent.kuikly.demo.pages.app.AppTabPage
 import com.tencent.kuikly.demo.pages.app.lang.LangManager
 import com.tencent.kuikly.demo.pages.app.model.AppFeedsType
@@ -167,7 +168,7 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
     fun tabsHeaderIOS(): ViewBuilder {
         val ctx = this
         return {
-            MySegmented {
+            iOSSegmentedControl {
                 attr {
                     height(TAB_HEADER_HEIGHT)
                     width(ctx.tabHeaderWidth * 0.6f)

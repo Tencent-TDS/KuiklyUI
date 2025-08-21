@@ -54,7 +54,8 @@ typedef NS_ENUM(NSInteger, KRTextDecorationLineType) {
 + (NSInteger)NSInteger:(id)value;
 + (UIFont *)UIFont:(id)json;
 + (UIColor *)UIColor:(id)json;
-+ (UIUserInterfaceStyle)UIUserInterfaceStyle:(NSString *)style API_AVAILABLE(ios(12.0));
++ (UIUserInterfaceStyle)KRUserInterfaceStyle:(NSString *)style API_AVAILABLE(ios(12.0));
++ (UIGlassEffectStyle)KRGlassEffectStyle:(nullable NSString *)style API_AVAILABLE(ios(26.0));
 + (KRBorderStyle)KRBorderStyle:(NSString *)stringValue;
 + (NSTextAlignment)NSTextAlignment:(NSString *)stringValue;
 + (KRTextDecorationLineType)KRTextDecorationLineType:(NSString *)value;

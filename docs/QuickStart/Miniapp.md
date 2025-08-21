@@ -446,6 +446,15 @@ npm run serve
 ./gradlew :miniApp:copyAssets
 ```
 
+构建 release 版本
+```shell
+# 首先构建业务 Bundle
+./gradlew :demo:packLocalJSBundleRelease
+
+# 然后构建 miniApp
+./gradlew :miniApp:jsMiniAppProductionWebpack
+```
+
 使用微信小程序开发者工具打开miniApp下的dist目录，根据你的实际页面，修改app.json里面的pages数组和在pages里新建对应的页面。
 然后编译即可看到微信小程序的效果
 (如果发现Demo路由页没有成功跳转页面, 可以检查是否有在 miniApp/dist/pages 下新建页面模版，可以通过dist/create_page.sh脚本来生成)

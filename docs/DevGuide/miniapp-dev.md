@@ -17,6 +17,15 @@ npm run serve
 ./gradlew :miniApp:jsMiniAppDevelopmentWebpack
 ```
 
+构建 release 版本
+```shell
+# 首先构建业务 Bundle
+./gradlew :demo:packLocalJSBundleRelease
+
+# 然后构建 miniApp
+./gradlew :miniApp:jsMiniAppProductionWebpack
+```
+
 
 使用微信小程序开发者工具打开miniApp下的dist目录，根据你的实际页面，修改app.json里面的pages数组和在pages里新建对应的页面
 ```javascript

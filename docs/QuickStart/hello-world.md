@@ -89,8 +89,6 @@
     </div>
 
 ## 运行H5
-模版工程小程序H5正在发布审核中，如果未更新可以先使用 Github 源码体验，或者[参考文档](https://doc.weixin.qq.com/doc/w3_ANsAsgZ1ACcCNWexFbikQQFW4435m?scode=AJEAIQdfAAo3uUNcaFANsAsgZ1ACc)本地安装插件
-
 H5 是通过 gradle 启动 dev-server 来运行
 
 1. 编译demo代码成js
@@ -121,8 +119,6 @@ kotlin 2.0 以上运行: ./gradlew :h5App:jsBrowserDevelopmentRun -t
 
 
 ## 运行微信小程序
-模版工程小程序正在发布审核中，如果未更新可以先使用 Github 源码体验，或者[参考文档](https://doc.weixin.qq.com/doc/w3_ANsAsgZ1ACcCNWexFbikQQFW4435m?scode=AJEAIQdfAAo3uUNcaFANsAsgZ1ACc)本地安装插件
-
 微信小程序先通过 gradle 编译js，然后通过微信开发者工具来运行
 1. 编译demo代码成js
 ```shell

@@ -80,7 +80,7 @@ shared/src/commonMain/assets/common/* -> entry/src/main/resources/resfile/common
 ```
 
 #### H5
-H5不存在打包的需求，构建够的静态资源产物会在build/distributions/assets
+H5不存在打包的需求，构建够的静态资源产物会在build/dist/js/productionExecutable/assets
 一般把这个目录的资源发布到web server或者cdn上即可
 
 #### 微信小程序

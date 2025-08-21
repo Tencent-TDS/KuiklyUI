@@ -260,6 +260,8 @@ class KRCSSGestureListener(private val kuiklyContext: IKuiklyRenderContext?) : G
         return when (action) {
             MotionEvent.ACTION_DOWN -> EVENT_STATE_START
             MotionEvent.ACTION_MOVE -> EVENT_STATE_MOVE
+            MotionEvent.ACTION_UP -> EVENT_STATE_END
+            MotionEvent.ACTION_CANCEL -> EVENT_STATE_CANCEL
             else -> EVENT_STATE_END
         }
     }
@@ -276,6 +278,7 @@ class KRCSSGestureListener(private val kuiklyContext: IKuiklyRenderContext?) : G
         const val EVENT_STATE_START = "start"
         private const val EVENT_STATE_MOVE = "move"
         private const val EVENT_STATE_END = "end"
+        private const val EVENT_STATE_CANCEL = "cancel"
     }
 
     class GestureObserve(

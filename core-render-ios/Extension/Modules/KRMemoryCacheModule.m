@@ -68,7 +68,11 @@ static NSString *const kCacheStateInProgress = @"InProgress";
     if (key && value) {
        self.memoryKeyValueMap[key] = value;
     }
-    
+    [_imageCacheLock lock];
+    if(_imageCache && [_imageCache objectForKey:key]){
+        [_imageCache removeObjectForKey:key];
+    }
+    [_imageCacheLock unlock];
 }
 
 #pragma mark - getter

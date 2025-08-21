@@ -196,9 +196,10 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
         drawCommonDecoration(frameWidth, frameHeight, canvas)
         if (capInsetsValid()) {
             drawable?.also {
+                val loader = kuiklyRenderContext?.getImageLoader()
                 val density = resources.displayMetrics.density
-                val drawableWidth = if (it.intrinsicWidth > 0) (it.intrinsicWidth * density).roundToInt() else frameWidth
-                val drawableHeight = if (it.intrinsicHeight > 0) (it.intrinsicHeight * density).roundToInt() else frameHeight
+                val drawableWidth = loader?.getImageWidth(it)?.roundToInt()?.takeIf { w -> w > 0 } ?: frameWidth
+                val drawableHeight = loader?.getImageHeight(it)?.roundToInt()?.takeIf { h -> h > 0 } ?: frameHeight
                 it.setBounds(0, 0, drawableWidth, drawableHeight)
                 NinePatchHelper.draw(canvas, { c, dr -> dr.draw(c) }, it, drawableWidth, drawableHeight, density,
                     frameWidth, frameHeight, capInsets!!)
@@ -502,11 +503,12 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
             return
         }
         val cb = loadResolutionCallback ?: return
-        val density = resources.displayMetrics.density
-        cb.invoke(mapOf(
-            IMAGE_WIDTH to drawable.intrinsicWidth * density,
-            IMAGE_HEIGHT to drawable.intrinsicHeight * density
-        ))
+        kuiklyRenderContext?.getImageLoader()?.run {
+            cb.invoke(mapOf(
+                IMAGE_WIDTH to getImageWidth(drawable),
+                IMAGE_HEIGHT to getImageHeight(drawable)
+            ))
+        }
     }
 
     private fun fireLoadFailureCallback() {

@@ -265,7 +265,13 @@ internal class KuiklyCanvas : Canvas {
             if (!kImage.isReady) {
                 return@apply
             }
-            drawImageWithDensity(kImage.imageRef, topLeftOffset.x, topLeftOffset.y)
+            drawImageWithDensity(
+                kImage.imageRef,
+                topLeftOffset.x,
+                topLeftOffset.y,
+                kImage.width.toFloat(),
+                kImage.height.toFloat()
+            )
         }
     }
 

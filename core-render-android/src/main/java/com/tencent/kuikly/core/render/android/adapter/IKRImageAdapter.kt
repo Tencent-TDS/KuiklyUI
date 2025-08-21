@@ -34,7 +34,6 @@ interface IKRImageAdapter {
      */
     fun fetchDrawable(imageLoadOption: HRImageLoadOption, callback: (drawable: Drawable?) -> Unit)
 
-
     /**
      * 根据[HRImageLoadOption]来加载图片
      *
@@ -54,6 +53,16 @@ interface IKRImageAdapter {
      */
     val shouldWaitViewDidLoad: Boolean
         get() = true
+
+    /**
+     * 返回图片的宽度px值，如果[fetchDrawable]返回图片经过了density缩放，可以重载此方法返回正确的px值
+     */
+    fun getDrawableWidth(drawable: Drawable): Float = drawable.intrinsicWidth.toFloat()
+
+    /**
+     * 返回图片的高度px值，如果[fetchDrawable]返回图片经过了density缩放，可以重载此方法返回正确的px值
+     */
+    fun getDrawableHeight(drawable: Drawable): Float = drawable.intrinsicHeight.toFloat()
 
 }
 

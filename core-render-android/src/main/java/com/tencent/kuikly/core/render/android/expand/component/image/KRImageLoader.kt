@@ -40,6 +40,14 @@ class KRImageLoader(val executeMode: KuiklyRenderCoreExecuteModeBase, val assets
         KuiklyRenderAdapterManager.krImageAdapter?.fetchDrawable(options, imageParams, callback)
     }
 
+    fun getImageWidth(drawable: Drawable): Float {
+        return KuiklyRenderAdapterManager.krImageAdapter?.getDrawableWidth(drawable) ?: 0f
+    }
+
+    fun getImageHeight(drawable: Drawable): Float {
+        return KuiklyRenderAdapterManager.krImageAdapter?.getDrawableHeight(drawable) ?: 0f
+    }
+
     /**
      * 非内置场景需要将 assets 图片转换为本地路径
      */

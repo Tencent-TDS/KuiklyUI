@@ -155,9 +155,9 @@ class KRMemoryCacheModule : KuiklyRenderBaseModule() {
         }
     }
 
-    private inline val Drawable.width get() = kuiklyRenderContext.toPxF(intrinsicWidth.toFloat())
+    private inline val Drawable.width get() = kuiklyRenderContext?.getImageLoader()?.getImageWidth(this) ?: 0f
 
-    private inline val Drawable.height get() = kuiklyRenderContext.toPxF(intrinsicHeight.toFloat())
+    private inline val Drawable.height get() = kuiklyRenderContext?.getImageLoader()?.getImageHeight(this) ?: 0f
 
     companion object {
         const val MODULE_NAME = "KRMemoryCacheModule"

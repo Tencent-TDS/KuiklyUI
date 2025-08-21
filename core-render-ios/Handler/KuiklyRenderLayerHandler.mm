@@ -106,8 +106,14 @@ Class _Nullable KRClassFromString(NSString *aClassName) {
     [self p_removeViewWithTag:tag];
 }
 
+- (void)setContextParamToShadow:(id<KuiklyRenderShadowProtocol>)shadow {
+    NSAssert([NSThread isMainThread], @"should call on main thread");
+    [shadow hrv_setPropWithKey:@"contextParam" propValue:_contextParam];        // Turdisplay shadow注入ContextParam
+}
+
 - (CGSize)calculateRenderViewSizeWithTag:(NSNumber *)tag constraintSize:(CGSize)constraintSize {
     id<KuiklyRenderShadowProtocol> shadow = [self p_shadowHandlerWithTag:tag];
+    [shadow hrv_setPropWithKey:@"contextParam" propValue:_contextParam];
     return [shadow hrv_calculateRenderViewSizeWithConstraintSize:constraintSize];
 }
 

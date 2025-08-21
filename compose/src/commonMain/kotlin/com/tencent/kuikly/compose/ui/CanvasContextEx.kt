@@ -111,10 +111,6 @@ fun CanvasContextEx.transformWithDensity(array: FloatArray) {
     transform(transformedArray)
 }
 
-fun CanvasContextEx.drawImageWithDensity(image: ImageRef, dx: Float, dy: Float) {
-    drawImage(image, dx / getDensity(), dy / getDensity())
-}
-
 fun CanvasContextEx.drawImageWithDensity(
     image: ImageRef,
     dx: Float,
@@ -138,8 +134,8 @@ fun CanvasContextEx.drawImageWithDensity(
 ) {
     drawImage(
         image,
-        sx / getDensity(), sy / getDensity(),
-        sWidth / getDensity(), sHeight / getDensity(),
+        sx, sy,
+        sWidth, sHeight,
         dx / getDensity(), dy / getDensity(),
         dWidth / getDensity(), dHeight / getDensity()
     )

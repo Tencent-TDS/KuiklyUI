@@ -21,12 +21,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
-import android.graphics.drawable.DrawableWrapper
-import android.os.Build
 import android.util.Base64
 import android.util.Log
 import android.widget.ImageView
-import androidx.annotation.RequiresApi
 import com.bumptech.glide.Glide
 import com.bumptech.glide.RequestBuilder
 import com.bumptech.glide.request.target.CustomTarget
@@ -97,13 +94,7 @@ class KRImageAdapter(val context: Context) : IKRImageAdapter {
                     resource: Drawable,
                     transition: Transition<in Drawable>?,
                 ) {
-                    val newDrawable = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        DensityAwareDrawable(context, resource)
-                    } else {
-                        // 这里接入方可以自己实现响应Density的Drawable
-                        resource
-                    };
-                    callback.invoke(newDrawable)
+                    callback.invoke(resource)
                 }
             })
     }
@@ -165,25 +156,3 @@ class KRImageAdapter(val context: Context) : IKRImageAdapter {
     }
 
 }
-
-/**
- * Glide默认的表现是不处理density缩放的，这一点会导致和iOS，鸿蒙表现不一致
- * 这里统一加上对density处理
- */
-@RequiresApi(Build.VERSION_CODES.M)
-class DensityAwareDrawable(
-    context: Context,
-    drawable: Drawable
-) : DrawableWrapper(drawable) {
-
-    private val density: Float = context.resources.displayMetrics.density
-
-    override fun getIntrinsicWidth(): Int {
-        return (super.getIntrinsicWidth() / density).toInt()
-    }
-
-    override fun getIntrinsicHeight(): Int {
-        return (super.getIntrinsicHeight() / density).toInt()
-    }
-}
-

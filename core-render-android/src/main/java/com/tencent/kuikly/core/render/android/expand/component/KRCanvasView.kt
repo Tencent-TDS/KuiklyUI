@@ -40,6 +40,7 @@ import com.tencent.kuikly.core.render.android.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 import org.json.JSONObject
 import kotlin.math.PI
+import kotlin.math.roundToInt
 
 /**
  * KTV CanvasView, 用于绘制一些不规则图形
@@ -365,11 +366,14 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
             KuiklyRenderLog.e("KRCanvas", "image cacheKey invalid")
             return
         }
-        drawable.setBounds(0, 0, drawable.intrinsicWidth, drawable.intrinsicHeight)
+        val loader = kuiklyRenderContext?.getImageLoader() ?: return
+        val intrinsicWidth = loader.getImageWidth(drawable).roundToInt()
+        val intrinsicHeight = loader.getImageHeight(drawable).roundToInt()
+        drawable.setBounds(0, 0, intrinsicWidth, intrinsicHeight)
         val sx = json.optInt("sx", 0)
         val sy = json.optInt("sy", 0)
-        val sWidth = json.optInt("sWidth", drawable.intrinsicWidth)
-        val sHeight = json.optInt("sHeight", drawable.intrinsicHeight)
+        val sWidth = json.optInt("sWidth", intrinsicWidth)
+        val sHeight = json.optInt("sHeight", intrinsicHeight)
         val dx = json.optDouble("dx", 0.0)
         val dy = json.optDouble("dy", 0.0)
         val dWidth = json.optDouble("dWidth", sWidth.toDouble())

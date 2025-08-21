@@ -52,7 +52,7 @@ internal class LiquidGlassDemoPage : BasePager() {
             ctx.testBackground()()
             NavBar {
                 attr {
-                    title = "iOS Liquid Glass Demo"
+                    title = "iOS 26 Liquid Glass Demo"
                 }
             }
 
@@ -383,6 +383,7 @@ internal class LiquidGlassDemoPage : BasePager() {
                                     progressColor(Color(0xFF34C759))
                                     trackColor(Color(0xFF8E8E93))
                                     thumbColor(Color.WHITE)
+                                    thumbSize(Size(40f, 30f))
                                     size(150f, 30f)
                                 }
                                 event {
@@ -423,7 +424,7 @@ internal class LiquidGlassDemoPage : BasePager() {
                                     progressColor(Color(0xFF34C759))
                                     trackColor(Color(0xFF8E8E93))
                                     thumbColor(Color.WHITE)
-                                    thumbSize(Size(30f, 20f))
+                                    thumbSize(Size(40f, 30f))
                                     size(150f, 30f)
                                 }
                                 event {
@@ -649,7 +650,16 @@ internal class LiquidGlassDemoPage : BasePager() {
                             size(200f, 30f)
                             currentProgress(0.5f)
                             alignSelfCenter()
-                            directionHorizontal(false)
+                        }
+                    }
+                    iOSSlider {
+                        attr {
+                            size(100f, 100f)
+                            marginTop(10f)
+                            currentProgress(0.5f)
+                            alignSelfCenter()
+                            sliderDirection(false)
+                            trackThickness(6f)
                         }
                     }
                 }

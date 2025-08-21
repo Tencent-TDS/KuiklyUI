@@ -18,6 +18,7 @@ package com.tencent.kuikly.core.views.ios
 import com.tencent.kuikly.core.base.Attr
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.DeclarativeBaseView
+import com.tencent.kuikly.core.base.Size
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.ViewConst
 import com.tencent.kuikly.core.base.event.Event
@@ -49,7 +50,7 @@ class iOSSliderAttr : Attr() {
      */
     fun currentProgress(value: Float): iOSSliderAttr {
         require(value in 0f..1f) { "Slider value must be between 0 and 1" }
-        "value" with value
+        KEY_VALUE with value
         return this
     }
 
@@ -58,7 +59,7 @@ class iOSSliderAttr : Attr() {
      * @param minValue The minimum value (default: 0.0)
      */
     fun minValue(minValue: Float): iOSSliderAttr {
-        "minValue" with minValue
+        KEY_MIN_VALUE with minValue
         return this
     }
 
@@ -67,7 +68,7 @@ class iOSSliderAttr : Attr() {
      * @param maxValue The maximum value (default: 1.0)
      */
     fun maxValue(maxValue: Float): iOSSliderAttr {
-        "maxValue" with maxValue
+        KEY_MAX_VALUE with maxValue
         return this
     }
 
@@ -76,7 +77,7 @@ class iOSSliderAttr : Attr() {
      * @param color The color for the slider thumb
      */
     fun thumbColor(color: Color): iOSSliderAttr {
-        "thumbColor" with color.toString()
+        KEY_THUMB_COLOR with color.toString()
         return this
     }
 
@@ -85,7 +86,7 @@ class iOSSliderAttr : Attr() {
      * @param color The color for the slider track
      */
     fun trackColor(color: Color): iOSSliderAttr {
-        "trackColor" with color.toString()
+        KEY_TRACK_COLOR with color.toString()
         return this
     }
 
@@ -94,7 +95,7 @@ class iOSSliderAttr : Attr() {
      * @param color The color for the slider progress
      */
     fun progressColor(color: Color): iOSSliderAttr {
-        "progressColor" with color.toString()
+        KEY_PROGRESS_COLOR with color.toString()
         return this
     }
 
@@ -103,7 +104,7 @@ class iOSSliderAttr : Attr() {
      * @param continuous true for continuous updates, false for discrete updates
      */
     fun continuous(continuous: Boolean): iOSSliderAttr {
-        "continuous" with continuous
+        KEY_CONTINUOUS with continuous
         return this
     }
 
@@ -112,7 +113,7 @@ class iOSSliderAttr : Attr() {
      * @param thickness The thickness of the slider track
      */
     fun trackThickness(thickness: Float): iOSSliderAttr {
-        "trackThickness" with thickness
+        KEY_TRACK_THICKNESS with thickness
         return this
     }
 
@@ -121,18 +122,33 @@ class iOSSliderAttr : Attr() {
      * @param width The width of the slider thumb
      * @param height The height of the slider thumb
      */
-    fun thumbSize(width: Float, height: Float): iOSSliderAttr {
-        "thumbSize" with mapOf("width" to width, "height" to height)
+    fun thumbSize(size: Size): iOSSliderAttr {
+        KEY_THUMB_SIZE with mapOf(KEY_WIDTH to size.width, KEY_HEIGHT to size.height)
         return this
     }
 
     /**
      * Sets the slider direction.
-     * @param horizontal true for horizontal, false for vertical
+     * @param isHorizontal true for horizontal, false for vertical
      */
-    fun directionHorizontal(horizontal: Boolean): iOSSliderAttr {
-        "directionHorizontal" with horizontal
+    fun sliderDirection(isHorizontal: Boolean): iOSSliderAttr {
+        KEY_DIRECTION_HORIZONTAL with isHorizontal
         return this
+    }
+
+    companion object {
+        const val KEY_VALUE = "value"
+        const val KEY_MIN_VALUE = "minValue"
+        const val KEY_MAX_VALUE = "maxValue"
+        const val KEY_THUMB_COLOR = "thumbColor"
+        const val KEY_TRACK_COLOR = "trackColor"
+        const val KEY_PROGRESS_COLOR = "progressColor"
+        const val KEY_CONTINUOUS = "continuous"
+        const val KEY_TRACK_THICKNESS = "trackThickness"
+        const val KEY_THUMB_SIZE = "thumbSize"
+        const val KEY_DIRECTION_HORIZONTAL = "directionHorizontal"
+        const val KEY_WIDTH = "width"
+        const val KEY_HEIGHT = "height"
     }
 }
 

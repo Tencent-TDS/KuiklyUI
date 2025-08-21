@@ -20,7 +20,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /**
  * iOS玻璃滑块组件
- * 基于UISlider实现的玻璃效果滑块，支持丰富的自定义属性和事件回调
+ * 基于UISlider实现的玻璃效果滑块
  */
 @interface KRiOSGlassSlider : UISlider <KuiklyRenderViewExportProtocol>
 

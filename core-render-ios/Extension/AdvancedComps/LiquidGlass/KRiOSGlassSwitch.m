@@ -14,7 +14,6 @@
  */
 
 #import "KRiOSGlassSwitch.h"
-#import <objc/runtime.h>
 
 @interface KRiOSGlassSwitch ()
 
@@ -27,7 +26,6 @@
 
 - (instancetype)initWithFrame:(CGRect)frame {
     if (self = [super initWithFrame:frame]) {
-        // 添加开关值变化事件监听
         [self addTarget:self action:@selector(switchValueChanged:) forControlEvents:UIControlEventValueChanged];
     }
     return self;

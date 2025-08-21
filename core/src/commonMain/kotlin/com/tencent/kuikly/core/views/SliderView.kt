@@ -117,9 +117,6 @@ class SliderView : ComposeView<SliderAttr, SliderEvent>() {
                          width(ctx.attr.sliderWidth)
                          height(ctx.attr.sliderHeight)
                          currentProgress(ctx.attr.currentProgress)
-                         minValue(0.0f)
-                         maxValue(1.0f)
-                         continuous(true)
                          
                          // Apply colors if available
                          progressColor(ctx.attr.progressColor)
@@ -128,8 +125,8 @@ class SliderView : ComposeView<SliderAttr, SliderEvent>() {
                          
                          // Apply additional properties
                          trackThickness(ctx.attr.trackThickness)
-                         thumbSize(ctx.attr.thumbSize.width, ctx.attr.thumbSize.height)
-                         directionHorizontal(ctx.attr.directionHorizontal)
+                         thumbSize(ctx.attr.thumbSize)
+                         sliderDirection(ctx.attr.directionHorizontal)
                      }
                      // 将iOS滑块的事件转发到SliderView的事件
                      event {
@@ -147,7 +144,7 @@ class SliderView : ComposeView<SliderAttr, SliderEvent>() {
                                  y = params.y,
                                  state = "start",
                                  pageX = params.pageX,
-                                 pageY = params.pageY,
+                                 pageY = params.pageY
                              ))
                          }
                          
@@ -158,7 +155,7 @@ class SliderView : ComposeView<SliderAttr, SliderEvent>() {
                                  y = params.y,
                                  state = "end",
                                  pageX = params.pageX,
-                                 pageY = params.pageY,
+                                 pageY = params.pageY
                              ))
                          }
                      }

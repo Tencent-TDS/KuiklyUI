@@ -14,17 +14,26 @@
  */
 
 #import "KRiOSGlassSlider.h"
-#import <objc/runtime.h>
+
 
 @interface KRiOSGlassSlider ()
 
-/// 数值变化回调
+/// Whether is a vertical slider.
+@property (nonatomic, assign) BOOL krIsVertical;
+
+/// Custom track thickness (0 means use system default)
+@property (nonatomic, assign) CGFloat krTrackThickness;
+
+/// Custom thumb size (CGSizeZero means use system default)
+@property (nonatomic, assign) CGSize krThumbSize;
+
+/// Value change callback.
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_onValueChanged;
 
-/// 触摸开始回调
+/// Touch down callback.
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_onTouchDown;
 
-/// 触摸结束回调
+/// Touch up callback.
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_onTouchUp;
 
 @end
@@ -33,16 +42,11 @@
 
 - (instancetype)initWithFrame:(CGRect)frame {
     if (self = [super initWithFrame:frame]) {
-        // 设置默认值
-        self.minimumValue = 0.0f;
-        self.maximumValue = 1.0f;
-        self.value = 0.0f;
-        self.continuous = YES;
-        
-        // 添加值变化事件监听
         [self addTarget:self action:@selector(sliderValueChanged:) forControlEvents:UIControlEventValueChanged];
         [self addTarget:self action:@selector(sliderTouchDown:) forControlEvents:UIControlEventTouchDown];
         [self addTarget:self action:@selector(sliderTouchUp:) forControlEvents:UIControlEventTouchUpInside | UIControlEventTouchUpOutside];
+        _krTrackThickness = 0.0;
+        _krThumbSize = CGSizeZero;
     }
     return self;
 }
@@ -82,34 +86,45 @@
 }
 
 - (void)setCss_trackThickness:(NSNumber *)thickness {
-    // iOS UISlider doesn't directly support track thickness
-    // This would require custom drawing or subclassing
-    // For now, we'll store the value for potential future use
-    objc_setAssociatedObject(self, @"trackThickness", thickness, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    // Update track thickness
+    self.krTrackThickness = MAX(0.0, thickness.doubleValue);
+    [self setNeedsLayout];
+    [self layoutIfNeeded];
 }
 
 - (void)setCss_thumbSize:(NSDictionary *)sizeDict {
-    // iOS UISlider doesn't directly support thumb size customization
-    // This would require custom thumb image or subclassing
-    // For now, we'll store the value for potential future use
-    objc_setAssociatedObject(self, @"thumbSize", sizeDict, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    if (sizeDict && [sizeDict isKindOfClass:[NSDictionary class]]) {
+        CGFloat width = [[sizeDict objectForKey:@"width"] ?: @0 floatValue];
+        CGFloat height = [[sizeDict objectForKey:@"height"] ?: @0 floatValue];
+        self.krThumbSize = CGSizeMake(width, height);
+    } else {
+        self.krThumbSize = CGSizeZero;
+    }
+    [self setNeedsLayout];
+    [self layoutIfNeeded];
 }
 
 - (void)setCss_directionHorizontal:(NSNumber *)horizontal {
     // iOS UISlider is horizontal by default
     // Vertical orientation would require transform or custom implementation
-    if (![horizontal boolValue]) {
-        // Apply 90-degree rotation for vertical slider
-        self.transform = CGAffineTransformMakeRotation(-M_PI_2);
-    } else {
-        self.transform = CGAffineTransformIdentity;
+    if (self.krIsVertical != ![horizontal boolValue]) {
+        self.krIsVertical = ![horizontal boolValue];
+        
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (![horizontal boolValue]) {
+                // Apply 90-degree rotation for vertical slider
+                self.transform = CGAffineTransformMakeRotation(-M_PI_2);
+            } else {
+                self.transform = CGAffineTransformIdentity;
+            }
+        });
     }
 }
 
 #pragma mark - Event Handlers
 
 - (void)sliderValueChanged:(UISlider *)slider {
-    // 发送值变化事件
+    // Send value change event
     NSDictionary *params = @{
         @"value": @(slider.value)
     };
@@ -119,7 +134,7 @@
 }
 
 - (void)sliderTouchDown:(UISlider *)slider {
-    // 发送开始拖拽事件
+    // Send touch down event
     CGPoint relativePoint = slider.center;
     CGPoint absolutePoint = [slider.superview convertPoint:slider.center toView:nil];
     
@@ -150,6 +165,35 @@
     if (self.css_onTouchUp) {
         self.css_onTouchUp(params);
     }
+}
+
+
+#pragma mark - Custom Layout
+
+- (CGRect)trackRectForBounds:(CGRect)bounds {
+    // Get the default track rect
+    CGRect track = [super trackRectForBounds:bounds];
+    CGFloat customHeight = self.krTrackThickness;
+    if (customHeight > 0.0) {
+            CGFloat centerY = CGRectGetMidY(track);
+            track.size.height = customHeight;
+            track.origin.y = centerY - customHeight * 0.5f;
+    }
+    return track;
+}
+
+- (CGRect)thumbRectForBounds:(CGRect)bounds trackRect:(CGRect)rect value:(float)value {
+    // Get the default thumb rect
+    CGRect thumbRect = [super thumbRectForBounds:bounds trackRect:rect value:value];
+    
+    // If custom thumb size is set, adjust the size while maintaining the center
+    if (!CGSizeEqualToSize(self.krThumbSize, CGSizeZero)) {
+        CGPoint center = CGPointMake(CGRectGetMidX(thumbRect), CGRectGetMidY(thumbRect));
+        CGSize size = self.krThumbSize;
+        thumbRect.size = size;
+        thumbRect.origin = CGPointMake(center.x - size.width / 2.0, center.y - size.height / 2.0);
+    }
+    return thumbRect;
 }
 
 @end

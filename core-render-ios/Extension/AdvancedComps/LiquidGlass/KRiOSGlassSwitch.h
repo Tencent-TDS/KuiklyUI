@@ -18,23 +18,12 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface KRLiquidGlassView : UIVisualEffectView <KuiklyRenderViewExportProtocol>
-
-@end
-
-@interface KRGlassContainerView : UIVisualEffectView <KuiklyRenderViewExportProtocol>
-
-@end
-
-
-
+/**
+ * iOS玻璃开关组件
+ * 基于UISwitch实现的玻璃效果开关
+ */
 @interface KRiOSGlassSwitch : UISwitch <KuiklyRenderViewExportProtocol>
 
 @end
-
-@interface KRiOSGlassSlider : UISlider <KuiklyRenderViewExportProtocol>
-
-@end
-
 
 NS_ASSUME_NONNULL_END

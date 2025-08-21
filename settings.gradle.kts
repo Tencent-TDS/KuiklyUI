@@ -6,13 +6,10 @@ pluginManagement {
     }
 }
 
-include(":demo")
-include(":androidApp")
-include(":h5App")
-include(":miniApp")
-
 val buildFileName = "build.2.0.21.gradle.kts"
 
+include(":androidApp")
+include(":demo")
 
 include(":core-annotations")
 project(":core-annotations").buildFileName = buildFileName
@@ -30,7 +27,13 @@ include(":core-render-web:base")
 include(":core-render-web:h5")
 include(":core-render-web:miniapp")
 
+include(":h5App")
+project(":h5App").buildFileName = buildFileName
+include(":miniApp")
+project(":miniApp").buildFileName = buildFileName
+
 
 include(":compose")
+project(":compose").buildFileName = buildFileName
 
 rootProject.buildFileName = buildFileName

@@ -80,7 +80,6 @@ fun copyLocalJSBundle(buildSubPath: String) {
 }
 
 project.afterEvaluate {
-
     // kotlin 1.9 from 改为 $buildDir/dist/js/distributions
     tasks.register<Copy>("syncRenderProductionToDist") {
         from("$buildDir/kotlin-webpack/js/productionExecutable")
@@ -121,7 +120,6 @@ project.afterEvaluate {
         dependsOn("jsBrowserProductionWebpack")
         // Then copy corresponding nativevue2.zip from business build result and copy nativevue2.js
         // to miniprogramApp's release directory
-        copyLocalJSBundle("distributions")
         copyLocalJSBundle("productionExecutable")
     }
 

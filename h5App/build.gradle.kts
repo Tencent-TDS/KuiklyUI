@@ -50,10 +50,10 @@ val businessPathName = "demo"
 /**
  * Copy locally built unified JS result to h5App's build/distributions/page directory
  */
-fun copyLocalJSBundle() {
+fun copyLocalJSBundle(buildSubPath: String) {
     // Output target path
     val destDir = Paths.get(project.buildDir.absolutePath,
-        "distributions", "page").toFile()
+        buildSubPath, "page").toFile()
     if (!destDir.exists()) {
         // Create directory if it doesn't exist
         destDir.mkdirs()
@@ -63,7 +63,7 @@ fun copyLocalJSBundle() {
     }
 
     // Input target path, in demo/outputs/kuikly/js/release/local/nativevue2.zip
-    val sourceDir = Paths.get(project.buildDir.absolutePath, "distributions", "kotlin2js").toFile()
+    val sourceDir = Paths.get(project.buildDir.absolutePath, buildSubPath, "kotlin2js").toFile()
 
     // File to be decompressed
     val zipFile = Paths.get(
@@ -72,7 +72,7 @@ fun copyLocalJSBundle() {
         "build", "outputs", "kuikly", "js", "release", "local", "nativevue2.zip"
     ).toFile()
     // Compressed file directory
-    val zipDir = Paths.get(project.buildDir.absolutePath, "distributions/kotlin2js").toFile()
+    val zipDir = Paths.get(project.buildDir.absolutePath, buildSubPath, "kotlin2js").toFile()
     if (!zipDir.exists()) {
         zipDir.mkdirs()
     } else {
@@ -99,10 +99,10 @@ fun copyLocalJSBundle() {
 /**
  * Copy business built page JS result to h5App's build/distributions/page directory
  */
-fun copySplitJSBundle() {
+fun copySplitJSBundle(buildSubPath: String) {
     // Output target path
     val destDir = Paths.get(project.buildDir.absolutePath,
-        "distributions", "page").toFile()
+        buildSubPath, "page").toFile()
     if (!destDir.exists()) {
         // Directory does not exist, create it
         destDir.mkdirs()
@@ -130,64 +130,73 @@ fun copySplitJSBundle() {
 /**
  * Generate unified build page html file
  */
-fun generateLocalHtml() {
+fun generateLocalHtml(buildSubPath: String) {
     // File path to be processed
+    // 如果是 kotlin 1.9 以下，这里路径是 distributions/index.html
     val filePath = Paths.get(project.buildDir.absolutePath,
-        "distributions", "index.html")
-    val fileContent = Files.readString(filePath)
-    // Placeholder to be replaced
-    val placeText = "http://127.0.0.1:8083/nativevue2.js"
-    // Replace development environment JSBundle link with production environment link
-    val updatedContent = fileContent.replace(placeText, "page/nativevue2.js")
-    // Write new file content
-    Files.writeString(filePath, updatedContent, StandardCharsets.UTF_8)
-    // Write success
-    println("generate local html file success.")
+        buildSubPath, "index.html")
+    if (Files.exists(filePath)) {
+        val fileContent = Files.readString(filePath)
+        // Placeholder to be replaced
+        val placeText = "http://127.0.0.1:8083/nativevue2.js"
+        // Replace development environment JSBundle link with production environment link
+        val updatedContent = fileContent.replace(placeText, "page/nativevue2.js")
+        // Write new file content
+        Files.writeString(filePath, updatedContent, StandardCharsets.UTF_8)
+        // Write success
+        println("generate local html file success.")
+    }
 }
 
 /**
  * Generate page build html file
  */
-fun generateSplitHtml() {
+fun generateSplitHtml(buildSubPath: String) {
     // File path to be processed
     val htmlFilePath = Paths.get(project.buildDir.absolutePath,
-        "distributions", "index.html")
-    val fileContent = Files.readString(htmlFilePath)
-    // Placeholder to be replaced
-    val placeText = "http://127.0.0.1:8083/nativevue2.js"
-    // Need to read all js files in page, get file names, then modify business js in index.html to corresponding
-    val pagePath = Paths.get(project.buildDir.absolutePath,
-        "distributions", "page")
-    val pageDir = file(pagePath)
-    if (pageDir.exists()) {
-        // File names, and change new html file name to page name
-        val files = pageDir.listFiles()
-        files?.forEach { file ->
-            if (file.isFile) {
-                val fileName = file.name
-                // Replace development environment JSBundle link with production environment link
-                val updatedContent = fileContent.replace(placeText, "page/$fileName")
-                // File path to be written
-                val filePath = Paths.get(project.buildDir.absolutePath,
-                    "distributions", "${file.nameWithoutExtension}.html")
-                // Write new file content
-                Files.writeString(filePath, updatedContent, StandardCharsets.UTF_8)
+        buildSubPath, "index.html")
+    if (Files.exists(htmlFilePath)) {
+        val fileContent = Files.readString(htmlFilePath)
+        // Placeholder to be replaced
+        val placeText = "http://127.0.0.1:8083/nativevue2.js"
+        // Need to read all js files in page, get file names, then modify business js in index.html to corresponding
+        val pagePath = Paths.get(
+            project.buildDir.absolutePath,
+            buildSubPath, "page"
+        )
+        val pageDir = file(pagePath)
+        if (pageDir.exists()) {
+            // File names, and change new html file name to page name
+            val files = pageDir.listFiles()
+            files?.forEach { file ->
+                if (file.isFile) {
+                    val fileName = file.name
+                    // Replace development environment JSBundle link with production environment link
+                    val updatedContent = fileContent.replace(placeText, "page/$fileName")
+                    // File path to be written
+                    val filePath = Paths.get(
+                        project.buildDir.absolutePath,
+                        buildSubPath, "${file.nameWithoutExtension}.html"
+                    )
+                    // Write new file content
+                    Files.writeString(filePath, updatedContent, StandardCharsets.UTF_8)
+                }
             }
+            // Remove index.html
+            htmlFilePath.toFile().delete()
+            // Write success
+            println("generate local html file success.")
+        } else {
+            // Write failure
+            println("generate local html file failure, no such files.")
         }
-        // Remove index.html
-        htmlFilePath.toFile().delete()
-        // Write success
-        println("generate local html file success.")
-    } else {
-        // Write failure
-        println("generate local html file failure, no such files.")
     }
 }
 
 /**
  * Copy business assets resources to h5App's build/distributions/page directory
  */
-fun copyAssetsResource() {
+fun copyAssetsResource(buildSubPath: String) {
     // Source target path
     val sourceDir = Paths.get(project.rootDir.absolutePath,
         businessPathName,
@@ -203,7 +212,7 @@ fun copyAssetsResource() {
             project.rootDir.absolutePath,
             "h5App",
             "build",
-            "distributions",
+            buildSubPath,
             "assets"
         )
 
@@ -259,14 +268,18 @@ project.afterEvaluate {
 
         // First execute h5App build task
         dependsOn("jsBrowserDistribution")
-        // Then copy corresponding nativevue2.zip from business build result and copy nativevue2.js
-        // to h5App's release directory
-        copyLocalJSBundle()
-        // Copy assets resources
-        copyAssetsResource()
+        
+        doFirst {
+            // Then copy corresponding nativevue2.zip from business build result and copy nativevue2.js
+            // to h5App's release directory
+            copyLocalJSBundle("dist/js/productionExecutable")
+            // Copy assets resources
+            copyAssetsResource("dist/js/productionExecutable")
+        }
+        
         doLast {
             // Finally modify html file page.js reference
-            generateLocalHtml()
+            generateLocalHtml("dist/js/productionExecutable")
         }
     }
 
@@ -276,13 +289,17 @@ project.afterEvaluate {
 
         // First execute h5App build task
         dependsOn("jsBrowserDistribution")
-        // Then copy corresponding page js from business build result to h5App's release directory
-        copySplitJSBundle()
-        // Copy assets resources
-        copyAssetsResource()
+        
+        doFirst {
+            // Then copy corresponding page js from business build result to h5App's release directory
+            copySplitJSBundle("distributions")
+            // Copy assets resources
+            copyAssetsResource("distributions")
+        }
+        
         doLast {
             // Finally modify html file page.js reference
-            generateSplitHtml()
+            generateSplitHtml("distributions")
         }
     }
 

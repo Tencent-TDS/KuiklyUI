@@ -153,18 +153,32 @@ typedef  void (^KRSetImageBlock) (UIImage *_Nullable image);
 - (void)setCss_src:(NSString *)css_src {
     if (self.css_src != css_src) {
         _css_src = css_src;
-        [self bindImageToView:nil]; // clear current image
-        UIImage *image = [[KRImageRefreshCache sharedInstance] imageWithKey:css_src];
-        if (image) {
-            self.image = image;
-            return ;
+        if (css_src) {
+            [self bindImageToView:nil]; // clear current image
+            UIImage *image = [[KRImageRefreshCache sharedInstance] imageWithKey:css_src];
+            if (image) {
+                self.image = image;
+                return ;
+            }
+            // 缓存中不存在当前src对应的图片，则再执行加载
+            [self setImageWithSrc:css_src];
         }
+    }
+}
+
+/*
+ * 根据src加载原始图片 + 原始图片染色
+ * @param css_src：图片路径
+ */
+- (void)setImageWithSrc:(NSString *)css_src {
+    if (css_src) {
+        [self bindImageToView:nil]; // clear current image
         if ([css_src hasPrefix:KRImageAssetsPrefix]) {
             [self setAssetsImage:css_src];
         } else if ([css_src hasPrefix:KRImageBase64Prefix]) {
             [self setImageWithUrl:nil]; // cancel before url download
             [self p_setBase64Image:css_src];
-        } else if([css_src hasPrefix:KRImageLocalPathPrefix]) {
+        } else if ([css_src hasPrefix:KRImageLocalPathPrefix]) {
             [self setImageWithLocalUrl:css_src];
         } else {    // @"http://", @"https://"
             [self setImageWithUrl:css_src];
@@ -175,22 +189,33 @@ typedef  void (^KRSetImageBlock) (UIImage *_Nullable image);
 - (void)setCss_blurRadius:(NSNumber *)css_blurRadius {
     if (_css_blurRadius != css_blurRadius) {
         _css_blurRadius = css_blurRadius;
-        [self p_updateWithImage:_originImage];
+        if (_originImage == nil) {
+            [self setImageWithSrc:self.css_src];
+        } else {
+            [self p_updateWithImage:_originImage];
+        }
     }
 }
 
 - (void)setCss_tintColor:(NSString *)css_tintColor {
-    if (_css_tintColor != css_tintColor) {
-        _css_tintColor = css_tintColor;
-        self.tintColor = [UIView css_color:css_tintColor];
+    _css_tintColor = css_tintColor;
+    self.tintColor = [UIView css_color:css_tintColor];
+    if (_originImage == nil) {
+        [self setImageWithSrc:self.css_src];
+    } else {
         [self p_updateWithImage:_originImage];
     }
+
 }
 
 - (void)setCss_colorFilter:(NSString *)css_colorFilter {
     if (_css_colorFilter != css_colorFilter) {
         _css_colorFilter = css_colorFilter;
-        [self p_updateWithImage:_originImage];
+        if (_originImage == nil) {
+            [self setImageWithSrc:self.css_src];
+        } else {
+            [self p_updateWithImage:_originImage];
+        }
     }
 }
 
@@ -242,7 +267,11 @@ typedef  void (^KRSetImageBlock) (UIImage *_Nullable image);
 - (void)setCss_capInsets:(NSString*)insets{
     if (_css_capInsets != insets) {
         _css_capInsets = insets;
-        [self p_updateWithImage:_originImage];
+        if (_originImage == nil) {
+            [self setImageWithSrc:self.css_src];
+        } else {
+            [self p_updateWithImage:_originImage];
+        }
     }
 }
 

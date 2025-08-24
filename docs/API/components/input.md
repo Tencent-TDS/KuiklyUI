@@ -136,7 +136,7 @@ internal class TestPage : BasePager() {
 
 | 参数  | 描述     | 类型 |
 |:----|:-------|:--|
-| color | 提示文本颜色  | Long `|` Color |
+| color | 提示文本颜色  | Color |
 
 </div>
 
@@ -183,7 +183,7 @@ internal class TestPage : BasePager() {
 
 | 参数  | 描述     | 类型 |
 |:----|:-------|:--|
-| color | 输入框光标颜色  | Long `|` Color |
+| color | 输入框光标颜色  | Color |
 
 </div>
 
@@ -226,11 +226,11 @@ internal class TestPage : BasePager() {
 
 <div class="table-01">
 
-**tintColor方法**
+**maxTextLength方法**
 
 | 参数  | 描述     | 类型 |
 |:----|:-------|:--|
-| color | 输入框光标颜色  | Long `|` Color |
+| maxLength | 最长字符长度 | Int |
 
 </div>
 

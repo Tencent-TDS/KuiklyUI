@@ -187,6 +187,7 @@
 
 - (void)setContextParamToShadow:(id<KuiklyRenderShadowProtocol>)shadow {
     [_renderLayerHandler setContextParamToShadow:shadow];
+}
 
 - (void)setShadowWithTag:(NSNumber *)tag shadow:(id<KuiklyRenderShadowProtocol>)shadow {
     [self setNeedUpdateNextTurboDisplayRootNode];

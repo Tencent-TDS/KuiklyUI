@@ -42,7 +42,7 @@ static id<KuiklyFontProtocol> gFontHandler;
  */
 + (BOOL)hr_loadCustomFont:(NSString *)fontFamily
             contextParams:(KuiklyContextParam *)contextParam {
-
+    
     // 预防资源掠夺，保证线程安全
     if (!gFontHandler) {
         static dispatch_once_t onceToken;
@@ -50,6 +50,6 @@ static id<KuiklyFontProtocol> gFontHandler;
             gFontHandler = [[NSClassFromString(@"KRFontHandler") alloc] init];
         });
     }
-
-
+    return [gFontHandler hr_loadCustomFont:fontFamily contextParams:contextParam];
+}
 @end

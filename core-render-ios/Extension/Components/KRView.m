@@ -117,6 +117,22 @@
     if ([self p_hasZIndexInSubviews]) {
         _hitTesting = YES;
     }
+
+    CALayer *presentationLayer = self.layer.presentationLayer;      // 获取父view 渲染视图
+    CALayer *modelLayer = self.layer.modelLayer;                    // 获取父view model视图
+    BOOL hasAnimation = !CGRectEqualToRect(presentationLayer.frame, modelLayer.frame);
+    if (hasAnimation) {
+        // 1.有动画：检查点击是否在动画的当前位置
+        if (self.superview) {
+            CGPoint pointInSuperView = [self convertPoint:point toView:self.superview];     // 找到point在父视图中的位置
+            // 点击位置位于此动画中，返回当前视图
+            if (CGRectContainsPoint(presentationLayer.frame, pointInSuperView)) {
+                _hitTesting = NO;
+                return self;
+            }
+        }
+    }
+    // 2. 没有动画：执行原有的穿透逻辑
     UIView *hitView = [super hitTest:point withEvent:event];
     _hitTesting = NO;
     if (hitView == self) {

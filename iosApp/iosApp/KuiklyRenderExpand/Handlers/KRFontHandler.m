@@ -38,15 +38,9 @@
     }
     
     // 2 构建动态化模式下，三方字体资源的路径
-    //    NSString *fontPath = [NSString stringWithFormat:@"%@/%@", contextParam.resourceFolderUrl, fontFamily];
-    //    NSURL *fontPathURL = [NSURL fileURLWithPath:fontPath];
-    
-    // 从 mainBundle 中获取到本地的字体资源文件
-    NSString *fontFileName = @"Qvideo Digit.ttf";
-    NSURL *fontPathURL = [[NSBundle mainBundle] URLForResource:fontFileName.stringByDeletingPathExtension
-                                                 withExtension:fontFileName.pathExtension];
-    
-    
+        NSString *fontPath = [NSString stringWithFormat:@"%@/%@", contextParam.resourceFolderUrl, fontFamily];
+        NSURL *fontPathURL = [NSURL fileURLWithPath:fontPath];
+
     // 3 执行HotReload动态化模式下，字体资源已被加载到本地，因此字体加载实际是加载本地URL（走else部分）
     // 若指定通过网络URL的方式加载字体资源，将由业务方自行设定加载逻辑，且注意加载时的异步 与 在主线程返回加载完成的UIFont 如何实现相互配合
     if ([fontPathURL.scheme hasPrefix:@"http"]) {

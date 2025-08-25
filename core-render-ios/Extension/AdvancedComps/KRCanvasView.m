@@ -333,7 +333,7 @@ typedef void (^KRPathRenderAction)(CGContextRef context, CGMutablePathRef path);
     }];
 }
 
-// 实现虚线效果
+// 虚线效果
 - (void)css_lineDash:(NSDictionary *)args {
     KR_WEAK_SELF
     NSDictionary *params = [args[KRC_PARAM_KEY] hr_stringToDictionary];

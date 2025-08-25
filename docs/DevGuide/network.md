@@ -10,7 +10,7 @@
 
 该url返回json格式数据，其中**dataList**表示列表，在列表item中，含有**avatar**和**name**字段。
 
-具体参考[Demo使用示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/NetworkPage.kt)
+具体参考[Demo使用示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/NetworkExamplePage.kt)
 
 ```json
 {

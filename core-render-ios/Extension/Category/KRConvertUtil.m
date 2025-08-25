@@ -32,6 +32,33 @@
 + (UIFont *)UIFont:(id)json {
     NSString *fontFamily = json[@"fontFamily"];
     CGFloat fontSize = [self CGFloat:json[@"fontSize"]] ?: 15;
+    KuiklyContextParam* contextParam = json[@"contextParam"];
+
+    if (fontFamily && fontFamily.length) {
+        // 优先判断当前字体是否已经生效
+        UIFont* font = [UIFont fontWithName:fontFamily size:fontSize];
+        if (font) {
+            return font;
+        }
+        if(contextParam) {
+            //fontFamily 与 ContextParam全部有效，则调用业务方hr_loadCustomFont
+            if ([KRFontModule hr_loadCustomFont:fontFamily contextParams:contextParam]) {
+                UIFont* font = [UIFont fontWithName:fontFamily size:fontSize];      // 增加用户侧加载完成后，返回字体前的判空操作，确保目标字体时肯定被注册进系统的
+                if (font) {
+                    return font;
+                }
+            }
+            //本地加载失败，则返回系统默认字体
+        } else {
+            //contextParam无效，则判断当前系统内是否已注册目标FontFamily；若有，则直接返回。若没有，则执行加载默认字体的逻辑，并返回默认字体
+            UIFont* font = [UIFont fontWithName:fontFamily size:fontSize];
+            if (font) {
+                return font;
+            }
+        }
+    }
+
+    // 执行默认字体加载的情形包括：fontFamily为nil或者为空、ContextParam为nil、业务方字体加载失败
     static dispatch_once_t onceToken;
     static NSDictionary *gFontWeightMap = nil;
     dispatch_once(&onceToken, ^{

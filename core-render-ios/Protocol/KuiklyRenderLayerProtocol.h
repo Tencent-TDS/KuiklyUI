@@ -56,6 +56,12 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)removeRenderViewWithTag:(NSNumber *)tag;
 
 /*
+ * @brief 向shadow内注入ContextParam
+ * @param shadow shadow实例
+ */
+- (void)setContextParamToShadow:(id<KuiklyRenderShadowProtocol>)shadow;
+
+/*
  * @brief 父渲染视图插入子渲染视图
  * @param parentTag 父亲视图id
  * @param childTag 插入的子视图id

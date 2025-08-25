@@ -19,21 +19,10 @@
 NS_ASSUME_NONNULL_BEGIN
 
 /**
- * @brief This is a container view component exposed for Kotlin side to call
+ * iOS玻璃滑块组件
+ * 基于UISlider实现的玻璃效果滑块
  */
-@interface KRView : UIView<KuiklyRenderViewExportProtocol>
-
-// The touch down callback for the view
-@property (nonatomic, strong, nullable) KuiklyRenderCallback css_touchDown;
-
-// The touch up callback for the view
-@property (nonatomic, strong, nullable) KuiklyRenderCallback css_touchUp;
-
-// The touch move callback for the view
-@property (nonatomic, strong, nullable) KuiklyRenderCallback css_touchMove;
-
-/// Prepare glass effect wrapper view if needed
-- (void)ensureGlassEffectWrapperView API_AVAILABLE(ios(26.0));
+@interface KRiOSGlassSlider : UISlider <KuiklyRenderViewExportProtocol>
 
 @end
 

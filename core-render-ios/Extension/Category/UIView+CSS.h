@@ -23,7 +23,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface UIView (CSS)
+@interface UIView (CSS) <KuiklyRenderViewLifyCycleProtocol>
 
 @property (nonatomic, strong, nullable) NSNumber *css_visibility;
 @property (nonatomic, strong, nullable) NSNumber *css_opacity;
@@ -56,6 +56,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign) BOOL kr_canCancelInScrollView;
 /// 是否禁止复用
 @property (nonatomic, assign) BOOL kr_reuseDisable;
+/// View的Wrapper，部分情况下需要外层包裹KRView，比如boxShadowView等
+@property (nonatomic, strong, nullable) UIView *kr_commonWrapperView;
 
 + (NSString *_Nullable)css_string:(id)value;
 + (BOOL)css_bool:(id)value;

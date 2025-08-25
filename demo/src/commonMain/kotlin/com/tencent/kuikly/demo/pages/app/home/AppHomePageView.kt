@@ -29,6 +29,7 @@ import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.reactive.handler.observableList
 import com.tencent.kuikly.core.views.Image
+import com.tencent.kuikly.core.views.ios.iOSSegmentedControlView
 import com.tencent.kuikly.core.views.PageList
 import com.tencent.kuikly.core.views.PageListView
 import com.tencent.kuikly.core.views.ScrollParams
@@ -36,6 +37,7 @@ import com.tencent.kuikly.core.views.TabItem
 import com.tencent.kuikly.core.views.Tabs
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
+import com.tencent.kuikly.core.views.ios.iOSSegmentedControl
 import com.tencent.kuikly.demo.pages.app.AppTabPage
 import com.tencent.kuikly.demo.pages.app.lang.LangManager
 import com.tencent.kuikly.demo.pages.app.model.AppFeedsType
@@ -163,6 +165,27 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
         }
     }
 
+    fun tabsHeaderIOS(): ViewBuilder {
+        val ctx = this
+        return {
+            iOSSegmentedControl {
+                attr {
+                    height(TAB_HEADER_HEIGHT)
+                    width(ctx.tabHeaderWidth * 0.6f)
+                    titles(ctx.titles)
+                    selectedIndex(ctx.curIndex)
+                    alignSelfCenter()
+                }
+                event {
+                    onValueChanged {
+                        // 处理选中变化
+                        ctx.pageListRef?.view?.scrollToPageIndex(it.index, true)
+                    }
+                }
+            }
+        }
+    }
+
     override fun viewDidLoad() {
         super.viewDidLoad()
         this.followViewRef.view?.loadFirstFeeds()
@@ -170,11 +193,18 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
 
     override fun body(): ViewBuilder {
         val ctx = this
+        val isIOS = getPager().pageData.isIOS
+        val tabBottomHeight = if (isIOS) 0f else AppTabPage.TAB_BOTTOM_HEIGHT
+
         return {
             attr {
                 flex(1f)
             }
-            ctx.tabsHeader().invoke(this)
+            if (getPager().pageData.isIOS) {
+                ctx.tabsHeaderIOS().invoke(this)
+            } else {
+                ctx.tabsHeader().invoke(this)
+            }
 
             PageList {
                 ref {
@@ -183,7 +213,7 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
                 attr {
                     flexDirectionRow()
                     pageItemWidth(pagerData.pageViewWidth)
-                    pageItemHeight(pagerData.pageViewHeight - pagerData.statusBarHeight - TAB_HEADER_HEIGHT - AppTabPage.TAB_BOTTOM_HEIGHT)
+                    pageItemHeight(pagerData.pageViewHeight - pagerData.statusBarHeight - TAB_HEADER_HEIGHT - tabBottomHeight)
                     defaultPageIndex(ctx.curIndex)
                     showScrollerIndicator(false)
                 }

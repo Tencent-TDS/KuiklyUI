@@ -148,6 +148,26 @@
     }
 }
 
++ (UIUserInterfaceStyle)KRUserInterfaceStyle:(NSString *)style API_AVAILABLE(ios(12.0)) {
+    if ([[UIView css_string:style] isEqualToString:@"dark"]) {
+        return UIUserInterfaceStyleDark;
+    }
+    if ([[UIView css_string:style] isEqualToString:@"light"]) {
+        return UIUserInterfaceStyleLight;
+    }
+    return UIUserInterfaceStyleUnspecified;
+}
+
++ (UIGlassEffectStyle)KRGlassEffectStyle:(NSString *)style API_AVAILABLE(ios(26.0)) {
+    if (!style || [[UIView css_string:style] isEqualToString:@"regular"]) {
+        return UIGlassEffectStyleRegular;
+    }
+    if ([[UIView css_string:style] isEqualToString:@"clear"]) {
+        return UIGlassEffectStyleClear;
+    }
+    return UIGlassEffectStyleRegular;
+}
+
 
 + (KRBorderStyle)KRBorderStyle:(NSString *)stringValue {
     if ([stringValue isEqualToString:@"solid"]) {

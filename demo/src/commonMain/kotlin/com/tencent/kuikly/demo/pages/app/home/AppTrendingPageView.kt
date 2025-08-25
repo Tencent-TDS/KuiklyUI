@@ -154,6 +154,9 @@ internal class AppTrendingPageView: ComposeView<AppTrendingPageViewAttr, AppTren
 
     override fun body(): ViewBuilder {
         val ctx = this
+        val isIOS = getPager().pageData.isIOS
+        val tabBottomHeight = if (isIOS) 0f else AppTabPage.TAB_BOTTOM_HEIGHT
+
         return {
             ctx.tabsHeader().invoke(this)
             PageList {
@@ -163,7 +166,7 @@ internal class AppTrendingPageView: ComposeView<AppTrendingPageViewAttr, AppTren
                 attr {
                     flexDirectionRow()
                     pageItemWidth(pagerData.pageViewWidth)
-                    pageItemHeight(pagerData.pageViewHeight - pagerData.statusBarHeight - AppHomePageView.TAB_HEADER_HEIGHT - AppTabPage.TAB_BOTTOM_HEIGHT - TAB_HEADER_HEIGHT)
+                    pageItemHeight(pagerData.pageViewHeight - pagerData.statusBarHeight - AppHomePageView.TAB_HEADER_HEIGHT - tabBottomHeight - TAB_HEADER_HEIGHT)
                     defaultPageIndex(ctx.curIndex)
                     showScrollerIndicator(false)
                 }

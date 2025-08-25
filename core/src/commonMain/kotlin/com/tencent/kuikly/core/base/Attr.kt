@@ -401,6 +401,16 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
         StyleConst.AUTO_DARK_ENABLE with enable.toInt()
         return this
     }
+
+    /**
+     * Sets the interface style for automatic color adaptation. iOS only.
+     * 设置视图的界面样式，用于自动颜色适配。仅在iOS上生效。
+     * @param style The interface style (AUTO, LIGHT, DARK)
+     */
+    fun interfaceStyle(style: InterfaceStyle) {
+        StyleConst.INTERFACE_STYLE with style.value
+    }
+
     /**
      * 设置该view以及其children下视图能否在TurboDisplay首屏中持续更新其属性值
      * @param enable 布尔值，表示是否持续更新其属性值到TurboDisplay首屏，默认true
@@ -629,12 +639,20 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
         const val ACCESSIBILITY_ROLE = "accessibilityRole"
         const val WRAPPER_BOX_SHADOW_VIEW = "wrapperBoxShadowView" // only for ios
         const val AUTO_DARK_ENABLE = "autoDarkEnable"
+        const val INTERFACE_STYLE = "interfaceStyle"
         const val TURBO_DISPLAY_AUTO_UPDATE_ENABLE = "turboDisplayAutoUpdateEnable"
         // 设置属性用作 UI-Inspector 中的视图名称
         const val DEBUG_NAME = "debugName"
         const val PREVENT_TOUCH = "preventTouch"
         const val CONSUME_DOWN = "consumeDown"
         const val SUPER_TOUCH = "superTouch"
+        
+        // glass effect
+        const val GLASS_EFFECT_ENABLE = "glassEffectEnable"
+        const val GLASS_EFFECT_INTERACTIVE = "glassEffectInteractive"
+        const val GLASS_EFFECT_TINT_COLOR = "glassEffectTintColor"
+        const val GLASS_EFFECT_STYLE = "glassEffectStyle"
+        const val GLASS_EFFECT_SPACING = "glassEffectSpacing"
     }
 }
 
@@ -819,4 +837,16 @@ data class EdgeInsets(val top: Float, val left: Float, val bottom: Float, val ri
             return default
         }
     }
+}
+
+/**
+ * Interface style options for automatic color adaptation.
+ */
+enum class InterfaceStyle(val value: String) {
+    /** Automatically adapt to system theme */
+    AUTO("auto"),
+    /** Force light mode */
+    LIGHT("light"),
+    /** Force dark mode */
+    DARK("dark")
 }

@@ -98,6 +98,9 @@ static PAGViewCreator gPagViewCreator;
 
 - (void)hrv_callWithMethod:(NSString *)method params:(NSString *)params callback:(KuiklyRenderCallback)callback {
     KUIKLY_CALL_CSS_METHOD;
+    if ([_pagView respondsToSelector:@selector(kr_callWithMethod:params:)]) {
+        [_pagView kr_callWithMethod:method params:params];
+    }
 }
 
 #pragma mark - Setters
@@ -173,6 +176,14 @@ static PAGViewCreator gPagViewCreator;
 - (void)css_stop:(NSDictionary *)args  {
     _css_autoPlay = @(NO);
     [self.pagView stop];
+}
+
+- (void)css_setProgress:(NSDictionary *)args {
+    NSDictionary *params = [args[KRC_PARAM_KEY] hr_stringToDictionary];
+    double value = [params[@"value"] doubleValue];
+    if ([self.pagView respondsToSelector:@selector(setProgress:)]) {
+        [self.pagView setProgress:value];
+    }
 }
 
 #pragma mark - override

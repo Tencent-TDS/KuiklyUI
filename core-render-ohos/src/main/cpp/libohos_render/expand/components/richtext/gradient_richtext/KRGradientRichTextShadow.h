@@ -40,7 +40,6 @@ class KRGradientRichTextShadow : public KRRichTextShadow {
     void DidBuildTextStyle(OH_Drawing_TextStyle *textStyle, double dpi) override;
 
  private:
-    std::shared_ptr<kuikly::util::KRLinearGradientParser> text_linearGradient_;
     double calculate_width_ = 0.0;
     double calculate_height_ = 0.0;
 };

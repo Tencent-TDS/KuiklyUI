@@ -16,11 +16,14 @@
 #ifndef CORE_RENDER_OHOS_KRRICHTEXTSHADOW_H
 #define CORE_RENDER_OHOS_KRRICHTEXTSHADOW_H
 
+#include <arkui/styled_string.h>
 #include <native_drawing/drawing_text_declaration.h>
 #include <native_drawing/drawing_text_typography.h>
 #include <native_drawing/drawing_types.h>
 #include <unordered_set>
 #include "libohos_render/expand/components/richtext/KRFontAdapterManager.h"
+#include "libohos_render/expand/components/richtext/KRParagraph.h"
+#include "libohos_render/utils/KRScopedSpinLock.h"
 #include "libohos_render/export/IKRRenderShadowExport.h"
 
 struct KRFontCollectionWrapper {
@@ -94,8 +97,15 @@ class KRRichTextShadow : public IKRRenderShadowExport {
         main_thread_typography_ = typography;
     }
 
+    std::shared_ptr<KRParagraph> GetParagraph(){
+        KRScopedSpinLock lock(&paragraph_lock_);
+        return paragraph_;
+    }
+    
+    virtual bool StyledStringEnabled();
  private:
     std::string GetTextContent();
+    KRSize CalculateRenderViewSizeWithStyledString(double constraint_width, double constraint_height);
 
  private:
     KRRenderValue::Map props_;
@@ -114,7 +124,14 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     std::unordered_map<int, int> placeholder_index_map_;
     std::vector<std::tuple<int, int, int>> span_offsets_;  // span, begin, end
     std::shared_ptr<struct KRFontCollectionWrapper> font_collection_wrapper_;
-
+    std::shared_ptr<KRParagraph> paragraph_;
+    KRSpinLock paragraph_lock_;
+    std::shared_ptr<kuikly::util::KRLinearGradientParser> text_linearGradient_;
+    
+    void SetParagraph(std::shared_ptr<KRParagraph> paragraph){
+        KRScopedSpinLock lock(&paragraph_lock_);
+        paragraph_ = paragraph;
+    }
     OH_Drawing_Typography *BuildTextTypography(double constraint_width, double constraint_height);
 
     void ReleaseLastTypography();
@@ -126,6 +143,7 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     int SpanIndexAt(float x, float y);
 
     friend class KRRichTextView;
+    friend class KRGradientRichTextShadow;
 };
 
 void SetCustomFontIfApplicable(NativeResourceManager *resMgr, std::shared_ptr<struct KRFontCollectionWrapper> wrapper,

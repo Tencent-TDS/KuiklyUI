@@ -270,6 +270,13 @@ void KRRegisterColorAdapter(KRColorAdapterParseColor adapter);
  */
 void KRDisableViewReuse();
 
+/**
+ * 启用新的文本渲染能力。
+ * 这是一个临时API，后续会删除，未经沟通，请勿调用。
+ */
+void KREnableTextRenderV2();
+
+
 #ifdef __cplusplus
 }
 #endif

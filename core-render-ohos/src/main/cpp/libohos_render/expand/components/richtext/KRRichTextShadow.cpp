@@ -13,7 +13,6 @@
  * limitations under the License.
  */
 
-#include "libohos_render/expand/components/richtext/KRRichTextShadow.h"
 
 #include <native_drawing/drawing_brush.h>
 #include <native_drawing/drawing_font_collection.h>
@@ -26,9 +25,25 @@
 #include <codecvt>
 #include <unordered_set>
 
+#include "libohos_render/expand/components/richtext/KRParagraph.h"
+#include "libohos_render/expand/components/richtext/KRRichTextShadow.h"
 #include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/utils/KRStringUtil.h"
 #include "libohos_render/utils/KRViewUtil.h"
+
+static bool KR_TEXT_RENDER_V2_ENABLED = false;
+#ifdef __cplusplus
+extern "C" {
+#endif
+// Remove this declaration if compatable api is raised to 14 and above
+extern OH_Drawing_FontCollection* OH_Drawing_GetFontCollectionGlobalInstance(void) __attribute__((weak));
+
+void KREnableTextRenderV2(){
+    KR_TEXT_RENDER_V2_ENABLED = true;
+}
+#ifdef __cplusplus
+};
+#endif
 
 // utility wrapper to adapt locale-bound facets for wstring/wbuffer convert
 template <class Facet> struct deletable_facet : Facet {
@@ -82,10 +97,63 @@ KRAnyValue KRRichTextShadow::Call(const std::string &method_name, const std::str
  * @return
  */
 KRSize KRRichTextShadow::CalculateRenderViewSize(double constraint_width, double constraint_height) {
+    if(StyledStringEnabled()){
+        KRSize sz = CalculateRenderViewSizeWithStyledString(constraint_width, constraint_height);
+        return sz;
+    }else{
+        SetParagraph(nullptr);
+    }
     ReleaseLastTypography();
     BuildTextTypography(constraint_width, constraint_height);
     return context_measure_size_;
 }
+
+KRSize KRRichTextShadow::CalculateRenderViewSizeWithStyledString(double constraint_width, double constraint_height) {
+    auto rootView = GetRootView().lock();
+    if (rootView == nullptr) {
+        return KRSize(0,0);
+    }
+
+    struct RootViewThreadingDispatcher{
+        RootViewThreadingDispatcher(std::shared_ptr<IKRRenderView> r): rootView_(r){
+            // blank
+        }
+        ~RootViewThreadingDispatcher(){
+            if(auto theRootView = rootView_) {
+                //
+                // We need to dispatch it back to main thread to avoid destructing it on context thread,
+                // in case `rootView` variable is the last holding onto the root render view.
+                //
+                KRMainThread::RunOnMainThread([theRootView]{
+                    theRootView.get();
+                });
+            }
+        }
+
+        std::shared_ptr<IKRRenderView> rootView_;
+    } rootViewThreadingDispatcher(rootView);
+
+    float fontSizeScale = rootView->GetContext()->Config()->GetFontSizeScale();
+    float fontWeightScale = rootView->GetContext()->Config()->GetFontWeightScale();
+
+    span_offsets_.clear();
+    placeholder_index_map_.clear();
+    KRRenderValue::Array spans = values_;
+    if (spans.empty()) {
+        spans.push_back(std::make_shared<KRRenderValue>(props_));
+    }
+    
+    auto nativeResMgr = rootView->GetNativeResourceManager();
+    std::shared_ptr<KRParagraph> paragraph = std::make_shared<KRParagraph>(spans, props_, fontSizeScale, fontWeightScale, KRConfig::GetDpi(), nativeResMgr, text_linearGradient_);
+    auto [width, height] = paragraph->Measure(constraint_width);
+    SetParagraph(paragraph);
+    return KRSize(width, height);
+}
+
+bool KRRichTextShadow::StyledStringEnabled(){
+    return KR_TEXT_RENDER_V2_ENABLED;
+}
+
 
 /**
  * 将要SetShadow调用
@@ -449,6 +517,14 @@ void KRRichTextShadow::ReleaseLastTypography() {
  * 调用获取Span位置方法
  */
 KRAnyValue KRRichTextShadow::SpanRect(int spanIndex) {
+    if(auto paragraph = GetParagraph()){
+        auto [paragraphX, paragraphY, paragraphW, paragraphH] = paragraph->SpanRect(spanIndex);
+        char buffer[50] = {0};
+        auto dpi = KRConfig::GetDpi();
+        std::snprintf(buffer, sizeof(buffer), "%.0f %.0f %.0f %.0f", paragraphX / dpi, paragraphY / dpi, paragraphW / dpi, paragraphH / dpi);
+        return NewKRRenderValue(buffer);
+    }
+
     if (placeholder_index_map_.find(spanIndex) != placeholder_index_map_.end()) {
         auto placeholderIndex = placeholder_index_map_[spanIndex];
         auto placeholderRects = OH_Drawing_TypographyGetRectsForPlaceholders(context_thread_typography_);
@@ -468,6 +544,11 @@ KRAnyValue KRRichTextShadow::SpanRect(int spanIndex) {
 }
 
 int KRRichTextShadow::SpanIndexAt(float spanX, float spanY) {
+    int paragraphResultIndex = -1;
+    if(auto paragraph = GetParagraph()){
+        paragraphResultIndex = paragraph->SpanIndexAt(spanX, spanY);
+        return paragraphResultIndex;
+    }
     int resultIndex = -1;
     for (int index = 0; index < span_offsets_.size(); ++index) {
         int lastSpanIndex = std::get<0>(span_offsets_[index]);

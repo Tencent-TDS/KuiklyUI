@@ -13,15 +13,6 @@ kotlin {
             webpackTask {
                 // Final output executable JS filename
                 outputFileName = "miniprogramApp.js"
-                webpackConfigApplier {
-                    val tempConfigFile = File(projectDir.absolutePath, "/webpack.config.d/config.js")
-                    tempConfigFile.parentFile.mkdirs()
-                    // use node target
-                    tempConfigFile.writeText("""
-                        config.target = 'node';
-                    """.trimIndent())
-                    file(tempConfigFile.absolutePath)
-                }
             }
 
             commonWebpackConfig {
@@ -80,6 +71,39 @@ fun copyLocalJSBundle(buildSubPath: String) {
 }
 
 project.afterEvaluate {
+    // 创建前置任务：生成 webpack 配置
+    tasks.register("generateWebpackConfig") {
+        group = "kuikly"
+        description = "Generate webpack configuration before compilation"
+        
+        doLast {
+            val configDir = File(projectDir.absolutePath, "webpack.config.d")
+            if (!configDir.exists()) {
+                configDir.mkdirs()
+            }
+            
+            val configFile = File(configDir, "config.js")
+            configFile.writeText("""
+                config.target = 'node';
+            """.trimIndent())
+            
+            println("Generated webpack config at: ${configFile.absolutePath}")
+        }
+    }
+
+    // 让 JS 编译任务依赖于配置生成任务
+    tasks.named("compileKotlinJs") {
+        dependsOn("generateWebpackConfig")
+    }
+    
+    tasks.named("jsBrowserDevelopmentWebpack") {
+        dependsOn("generateWebpackConfig")
+    }
+    
+    tasks.named("jsBrowserProductionWebpack") {
+        dependsOn("generateWebpackConfig")
+    }
+
     // kotlin 1.9 from 改为 $buildDir/dist/js/distributions
     tasks.register<Copy>("syncRenderProductionToDist") {
         from("$buildDir/kotlin-webpack/js/productionExecutable")

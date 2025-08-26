@@ -254,7 +254,8 @@ object MiniGlobal {
     private const val HTTP_METHOD_GET = "GET"
 
     @JsName("global")
-    val globalThis: dynamic = global
+    val globalThis: dynamic
+        get() = js("global")
 
     private val miniSystemInitInfo = NativeApi.plat.getSystemInfoSync()
 

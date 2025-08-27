@@ -270,12 +270,15 @@ KRAnyValue KRRenderLayerHandler::CallShadowMethod(int tag, const std::string &me
  * @param name module 的名称
  * @return 对应名称的 module 实例，如果不存在则返回 null
  */
-std::shared_ptr<IKRRenderModuleExport> KRRenderLayerHandler::GetModule(const std::string &name) {
+std::shared_ptr<IKRRenderModuleExport> KRRenderLayerHandler::GetModule(const std::string &name) const {
     std::shared_lock lock(module_rw_mutex_);
     if (destroying_) {
         return nullptr;
     }
-    return module_registry_[name];
+    if (auto it = module_registry_.find(name); it != module_registry_.end()){
+        return it->second;
+    }
+    return nullptr;
 }
 
 /**
@@ -362,7 +365,9 @@ std::shared_ptr<IKRRenderModuleExport> KRRenderLayerHandler::GetModuleOrCreate(c
         if (destroying_) {
             return nullptr;
         }
-        module = module_registry_[module_name];
+        if (auto it = module_registry_.find(module_name); it != module_registry_.end()){
+            module = it->second;
+        }
         if (module == nullptr) {
             module = IKRRenderModuleExport::CreateModule(module_name);
             if (module != nullptr) {

@@ -169,7 +169,7 @@ class IKRRenderLayer {
      * @param name module 的名称
      * @return 对应名称的 module 实例，如果不存在则返回 null
      */
-    virtual std::shared_ptr<IKRRenderModuleExport> GetModule(const std::string &name) = 0;
+    virtual std::shared_ptr<IKRRenderModuleExport> GetModule(const std::string &name) const = 0;
 
     /**
      * * 获取指定名称的 module 实例

@@ -158,10 +158,11 @@ export const zhSidebar = sidebar({
             text: "组件",
             prefix: "/API/components",
             children: [
-                "override.md", "basic-attr-event.md", "view.md", "text.md", "rich-text.md", "image.md", "input.md", "text-area.md",  "canvas.md",
+                "override.md", "basic-attr-event.md", "ios26-liquid-glass.md", "view.md", "text.md", "rich-text.md", "image.md", "input.md", "text-area.md",  "canvas.md",
                 "button.md", "scroller.md", "list.md", "waterfall-list.md", "slider-page.md", "page-list.md", "modal.md", "refresh.md",
                 "footer-refresh.md", "date-picker.md", "scroll-picker.md", "slider.md", "switch.md", "blur.md",
-                "activity-indicator.md", "hover.md", "mask.md", "checkbox.md", "pag.md","apng.md", "tabs.md","alert-dialog.md","action-sheet.md", "video.md"
+                "activity-indicator.md", "hover.md", "mask.md", "checkbox.md", "pag.md","apng.md", "tabs.md","alert-dialog.md","action-sheet.md", "video.md",
+                "liquid-glass.md", "glass-effect-container.md", "ios-segmented-control.md"
             ],
         },
         {

@@ -86,6 +86,11 @@ typedef id<KRPagViewProtocol> _Nonnull (^PAGViewCreator)(CGRect frame);
 - (void)stop;
 
 /**
+ * Set the animation progress.
+ */
+- (void)setProgress:(double)value;
+
+/**
  * Set the number of times the animation will repeat. The default is 1, which means the animation
  * will play only once. 0 means the animation will play infinity times.
  */
@@ -99,6 +104,9 @@ typedef id<KRPagViewProtocol> _Nonnull (^PAGViewCreator)(CGRect frame);
 @optional
 // kuikly侧设置的属性，一般用于业务扩展使用
 - (void)kr_setKuiklyPropWithKey:(NSString *)propKey propValue:(id)propValue;
+
+// kuikly侧调用方法，一般用于业务扩展使用
+- (void)kr_callWithMethod:(NSString * _Nonnull)method params:(NSString * _Nullable)params;
 
 @end
 

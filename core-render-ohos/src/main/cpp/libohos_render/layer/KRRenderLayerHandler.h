@@ -160,7 +160,7 @@ class KRRenderLayerHandler : public IKRRenderLayer {
      * @param name module 的名称
      * @return 对应名称的 module 实例，如果不存在则返回 null
      */
-    std::shared_ptr<IKRRenderModuleExport> GetModule(const std::string &name) override;
+    std::shared_ptr<IKRRenderModuleExport> GetModule(const std::string &name) const override;
 
     /**
      * 获取指定 ID 的渲染视图实例
@@ -188,7 +188,7 @@ class KRRenderLayerHandler : public IKRRenderLayer {
     std::unordered_map<int, std::shared_ptr<IKRRenderViewExport>> view_registry_;
     std::unordered_map<std::string, std::shared_ptr<IKRRenderModuleExport>> module_registry_;
     std::unordered_map<int, std::shared_ptr<IKRRenderShadowExport>> shadow_registry_;
-    std::shared_mutex module_rw_mutex_;  // 用于module读写安全用的读写锁
+    mutable std::shared_mutex module_rw_mutex_;  // 用于module读写安全用的读写锁
     bool destroying_ = false;
 
     /** 从复用队列中弹出一个view */

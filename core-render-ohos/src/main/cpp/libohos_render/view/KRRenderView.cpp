@@ -24,6 +24,8 @@
 #include "libohos_render/utils/KRViewUtil.h"
 
 static constexpr char PAGER_EVENT_FIRST_FRAME_PAINT[] = "pageFirstFramePaint";
+static constexpr char KR_PERFORMANCE_MODULE[] = "KRPerformanceModule";
+static constexpr char NOTIFY_INIT_STATE[] = "notifyInitState";
 
 const unsigned int LOG_PRINT_DOMAIN = 0xFF01;
 static std::string GetIncreaseCallbackId() {
@@ -242,7 +244,7 @@ KRRenderCallback KRRenderView::GetArgCallback(std::string callbackId, bool &arg_
 }
 
 void KRRenderView::OnFirstFramePaint() {
-    performance_manager_->OnFirstFramePaint();
+    DispatchInitState(KRInitState::kStateFirstFramePaint);
     SendEvent(PAGER_EVENT_FIRST_FRAME_PAINT, "{}");
 }
 
@@ -269,7 +271,13 @@ void KRRenderView::DispatchInitState(KRInitState state) {
     case KRInitState::kStateCreateInstanceFinish:
         performance_manager_->OnCreateInstanceFinish();
         break;
+    case KRInitState::kStateFirstFramePaint:
+       performance_manager_->OnFirstFramePaint();
     default:
         break;
     }
+    // 通知ArkTS侧
+    KRArkTSManager::GetInstance().CallArkTSMethod(GetContext()->InstanceId(), KRNativeCallArkTSMethod::CallModuleMethod,
+        NewKRRenderValue(KR_PERFORMANCE_MODULE), NewKRRenderValue(NOTIFY_INIT_STATE),
+        NewKRRenderValue(static_cast<int>(state)), nullptr, nullptr, nullptr);
 }

@@ -98,11 +98,8 @@ export class  KRNetworkCacheUtil {
    * @param url
    */
   static generateCacheFilePathByUrl(context: common.UIAbilityContext, url: string): string {
-      let type = KRNetworkCacheUtil.getPathExtension(url);
-      if (type && type.length) {
-         return context.cacheDir + '/' + KRNetworkCacheUtil.urlToFilename(url) + '.' + type
-      }
-      return ''
+    const type = KRNetworkCacheUtil.getPathExtension(url) ?? 'data';
+    return `${context.cacheDir}/${KRNetworkCacheUtil.urlToFilename(url)}.${type}`;
   }
 
 

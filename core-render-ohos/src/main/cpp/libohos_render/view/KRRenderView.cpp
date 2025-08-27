@@ -86,14 +86,14 @@ std::shared_ptr<IKRRenderViewExport> KRRenderView::GetView(int tag) {
  * @param tag 所在tag
  * @return 对应节点view
  */
-std::shared_ptr<IKRRenderModuleExport> KRRenderView::GetModule(std::string &module_name) {
+std::shared_ptr<IKRRenderModuleExport> KRRenderView::GetModule(const std::string &module_name) {
     if (core_) {
         return core_->GetModule(module_name);
     }
     return nullptr;
 }
 
-std::shared_ptr<IKRRenderModuleExport> KRRenderView::GetModuleOrCreate(std::string &module_name) {
+std::shared_ptr<IKRRenderModuleExport> KRRenderView::GetModuleOrCreate(const std::string &module_name) {
     if (core_) {
         return core_->GetModuleOrCreate(module_name);
     }

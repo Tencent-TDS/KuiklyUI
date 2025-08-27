@@ -82,14 +82,14 @@ class KRRenderCore : public std::enable_shared_from_this<KRRenderCore>,
      * @param tag 所在tag
      * @return 对应节点view
      */
-    std::shared_ptr<IKRRenderModuleExport> GetModule(std::string &module_name);
+    std::shared_ptr<IKRRenderModuleExport> GetModule(const std::string &module_name);
 
     /**
      * 获取渲染节点视图（要求在主线程调用）
      * @param tag 所在tag
      * @return 对应节点view
      */
-    std::shared_ptr<IKRRenderModuleExport> GetModuleOrCreate(std::string &module_name);
+    std::shared_ptr<IKRRenderModuleExport> GetModuleOrCreate(const std::string &module_name);
 
     /**
      * @brief Core销毁前调用，用于Core提前发送事件到Kotlin侧销毁内在资源.

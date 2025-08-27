@@ -230,16 +230,21 @@
 }
 
 - (void)setCss_glassEffectEnable:(NSNumber *)css_glassEffectEnable {
-    BOOL shouldEnable = [css_glassEffectEnable boolValue];
-    if (self.glassEffectEnable != shouldEnable) {
-        self.glassEffectEnable = shouldEnable;
-        if (_effectView) {
-            if (!shouldEnable) {
-                UIVisualEffect *effect = [[UIVisualEffect alloc] init];
-                _effectView.effect = effect;
-            } else {
-                if (@available(iOS 26.0, *)) {
+    if (@available(iOS 26.0, *)) {
+        BOOL shouldEnable = [css_glassEffectEnable boolValue];
+        if (self.glassEffectEnable != shouldEnable) {
+            self.glassEffectEnable = shouldEnable;
+            if (_effectView) {
+                if (!shouldEnable) {
+                    UIVisualEffect *effect = [[UIVisualEffect alloc] init];
+                    _effectView.effect = effect;
+                } else {
                     _effectView.effect = [self generateGlassEffect];
+                }
+            } else {
+                // If the view has already been inserted without wrapper, create it now
+                if (shouldEnable) {
+                    [self ensureGlassEffectWrapperView];
                 }
             }
         }
@@ -258,6 +263,9 @@
                     effect.spacing = spacing.doubleValue;
                     _effectView.effect = effect;
                 }
+            } else {
+                // If wrapper not created yet and spacing is set, create container wrapper now
+                [self ensureGlassEffectWrapperView];
             }
         }
     }
@@ -337,8 +345,19 @@
                                                                               wrappedView:self];
                 _effectView = effectView;
                 effectView.layer.cornerRadius = self.layer.cornerRadius;
-                [effectView setFrame:self.frame];
-                [effectView.contentView addSubview:self];
+                // Preserve current parent relationship if already inserted
+                UIView *parent = self.superview;
+                CGRect oldFrame = self.frame;
+                if (parent) {
+                    NSUInteger idx = [[parent subviews] indexOfObject:self];
+                    [self removeFromSuperview];
+                    effectView.frame = oldFrame;
+                    [effectView.contentView addSubview:self];
+                    [parent insertSubview:effectView atIndex:idx];
+                } else {
+                    effectView.frame = oldFrame;
+                    [effectView.contentView addSubview:self];
+                }
                 
                 self.kr_commonWrapperView = effectView;
             }
@@ -349,8 +368,21 @@
                 KRVisualEffectView *effectView = [KRVisualEffectView.alloc initWithEffect:glassContainerEffect
                                                                               wrappedView:self];
                 _effectView = effectView;
-                [effectView setFrame:self.frame];
-                [effectView.contentView addSubview:self];
+                // Preserve current parent relationship if already inserted
+                UIView *parent = self.superview;
+                CGRect oldFrame = self.frame;
+                if (parent) {
+                    NSUInteger idx = [[parent subviews] indexOfObject:self];
+                    [self removeFromSuperview];
+                    effectView.frame = oldFrame;
+                    [effectView.contentView addSubview:self];
+                    [parent insertSubview:effectView atIndex:idx];
+                    
+                    [effectView setNeedsDisplay];
+                } else {
+                    effectView.frame = oldFrame;
+                    [effectView.contentView addSubview:self];
+                }
                 
                 self.kr_commonWrapperView = _effectView;
             }

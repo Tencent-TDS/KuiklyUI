@@ -15,6 +15,7 @@
 
 package com.tencent.kuikly.demo.pages.app.home
 
+import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ComposeView
 import com.tencent.kuikly.core.base.ComposeAttr
 import com.tencent.kuikly.core.base.ComposeEvent
@@ -28,6 +29,7 @@ import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.reactive.handler.observableList
+import com.tencent.kuikly.core.utils.PlatformUtils
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.ios.iOSSegmentedControlView
 import com.tencent.kuikly.core.views.PageList
@@ -88,7 +90,7 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
         return AppHomePageViewAttr()
     }
 
-    fun tabsHeader(): ViewBuilder {
+    private fun tabsHeader(): ViewBuilder {
         val ctx = this
         return {
             attr {
@@ -165,7 +167,7 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
         }
     }
 
-    fun tabsHeaderIOS(): ViewBuilder {
+    private fun tabsHeaderIOS(): ViewBuilder {
         val ctx = this
         return {
             iOSSegmentedControl {
@@ -200,7 +202,7 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
             attr {
                 flex(1f)
             }
-            if (getPager().pageData.isIOS) {
+            if (PlatformUtils.isLiquidGlassSupported()) {
                 ctx.tabsHeaderIOS().invoke(this)
             } else {
                 ctx.tabsHeader().invoke(this)

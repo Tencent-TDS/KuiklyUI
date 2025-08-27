@@ -19,11 +19,10 @@ import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.Input
 import com.tencent.kuikly.core.views.InputView
 import com.tencent.kuikly.core.views.LiquidGlass
-import com.tencent.kuikly.core.views.ios.TabbarIOS
+import com.tencent.kuikly.core.views.ios.SegmentedControlIOS
 import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.Slider
 import com.tencent.kuikly.core.views.Switch
-import com.tencent.kuikly.core.views.ios.TabbarItem
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.core.views.compose.Button
@@ -31,6 +30,8 @@ import com.tencent.kuikly.core.views.ios.iOSSlider
 import com.tencent.kuikly.core.views.ios.iOSSwitch
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
+import com.tencent.kuikly.demo.pages.demo.base.TabbarIOS
+import com.tencent.kuikly.demo.pages.demo.base.TabbarIOSItem
 import kotlin.random.Random
 
 @Page("LiquidGlassDemoPage")
@@ -484,10 +485,15 @@ internal class LiquidGlassDemoPage : BasePager() {
                 }()
 
                 vif({ PlatformUtils.isIOS() }) {
-                    // 组件方式写法演示分组
-                    ctx.createDemoSection("独立组件方式使用示例") {
+                    // 组件方式写法演示分组 - 内置
+                    ctx.createDemoSection("独立组件方式使用示例（内置组件）") {
                         ctx.liquidGlassComponentDemo()()
                         ctx.iOSSwitchAndSliderDemo()()
+                        ctx.iOSSystemSegmentedControlDemo()()
+                    }()
+                    
+                    // 组件方式写法演示分组 - 自定义
+                    ctx.createDemoSection("独立组件方式使用示例（自定义组件）") {
                         ctx.iOSSystemTabbarDemo()()
                     }()
                 }
@@ -569,8 +575,8 @@ internal class LiquidGlassDemoPage : BasePager() {
                         height(80f)
                         items(
                             listOf(
-                                TabbarItem("首页", "home_icon", "home_icon_selected"),
-                                TabbarItem("我的", "me_icon", "me_icon_selected")
+                                TabbarIOSItem("首页", "home_icon", "home_icon_selected"),
+                                TabbarIOSItem("我的", "me_icon", "me_icon_selected")
                             )
                         )
                         selectedIndex(0)
@@ -578,6 +584,45 @@ internal class LiquidGlassDemoPage : BasePager() {
                     event {
                         onTabSelected {
                             // 处理 tab 切换
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun iOSSystemSegmentedControlDemo(): ViewBuilder {
+        return {
+            View {
+                attr {
+                    margin(10f)
+                    padding(15f)
+                    borderRadius(15f)
+                    backgroundColor(Color(0xFFF8F9FA))
+                }
+
+                Text {
+                    attr {
+                        text("系统风格 SegmentedControl 组件")
+                        fontSize(18f)
+                        fontWeight500()
+                        color(Color(0xFF495057))
+                        marginBottom(15f)
+                        alignSelfCenter()
+                    }
+                }
+                
+                SegmentedControlIOS {
+                    attr {
+                        height(40f)
+                        width(200f)
+                        alignSelfCenter()
+                        titles(listOf("选项1", "选项2", "选项3"))
+                        selectedIndex(0)
+                    }
+                    event {
+                        onValueChanged {
+                            // 处理选中变化
                         }
                     }
                 }

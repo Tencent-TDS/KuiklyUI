@@ -100,7 +100,6 @@ object PlatformUtils {
             val majorVersion = versionParts[0].toIntOrNull() ?: return false
             majorVersion >= 26
         } catch (e: Exception) {
-            // 版本解析失败时，为了安全起见返回false
             false
         }
     }

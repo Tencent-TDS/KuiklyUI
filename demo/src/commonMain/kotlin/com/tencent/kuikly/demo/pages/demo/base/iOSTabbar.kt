@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-package com.tencent.kuikly.core.views.ios
+package com.tencent.kuikly.demo.pages.demo.base
 
 import com.tencent.kuikly.core.base.Attr
 import com.tencent.kuikly.core.base.DeclarativeBaseView
@@ -60,7 +60,7 @@ class TabbarIOSAttr : Attr() {
      * Sets the tab items.
      * @param items List of tab items
      */
-    fun items(items: List<TabbarItem>): TabbarIOSAttr {
+    fun items(items: List<TabbarIOSItem>): TabbarIOSAttr {
         "items" with items.map { it.toMap() }
         return this
     }
@@ -71,15 +71,6 @@ class TabbarIOSAttr : Attr() {
      */
     fun selectedIndex(index: Int): TabbarIOSAttr {
         "selectedIndex" with index
-        return this
-    }
-
-    /**
-     * Enables/disables glass effect styling.
-     * @param enabled true to enable glass effect
-     */
-    fun glassEffect(enabled: Boolean): TabbarIOSAttr {
-        "glassEffect" with enabled
         return this
     }
 }
@@ -106,7 +97,7 @@ class TabbarIOSEvent : Event() {
 /**
  * Represents a tab bar item.
  */
-data class TabbarItem(
+data class TabbarIOSItem(
     val title: String,
     val icon: String,
     val selectedIcon: String

@@ -25,37 +25,23 @@ import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 /**
  * iOS native UISegmentedControl component with glass effect styling.
  */
-fun ViewContainer<*, *>.iOSSegmentedControl(init: iOSSegmentedControlView.() -> Unit) {
+fun ViewContainer<*, *>.SegmentedControlIOS(init: iOSSegmentedControlView.() -> Unit) {
     addChild(iOSSegmentedControlView(), init)
 }
 
 /**
  * iOS native segmented control component that supports glass effect styling.
  */
-class iOSSegmentedControlView : DeclarativeBaseView<iOSSegmentedControlAttr, iOSSegmentedControlEvent>() {
+open class iOSSegmentedControlView : DeclarativeBaseView<iOSSegmentedControlAttr, iOSSegmentedControlEvent>() {
     override fun createAttr() = iOSSegmentedControlAttr()
     override fun createEvent() = iOSSegmentedControlEvent()
     override fun viewName() = ViewConst.TYPE_IOS_SEGMENTED_CONTROL
-
-    /**
-     * Sets badge for segment.
-     * @param index The segment index
-     * @param badge The badge text (empty string to remove)
-     */
-    fun setBadge(index: Int, badge: String) {
-        performTaskWhenRenderViewDidLoad {
-            renderView?.callMethod("setBadge", JSONObject().apply {
-                put("index", index)
-                put("badge", badge)
-            }.toString())
-        }
-    }
 }
 
 /**
  * Attributes for iOS native segmented control.
  */
-class iOSSegmentedControlAttr : Attr() {
+open class iOSSegmentedControlAttr : Attr() {
     /**
      * Sets the segment titles.
      * @param titles List of segment titles
@@ -73,21 +59,12 @@ class iOSSegmentedControlAttr : Attr() {
         "selectedIndex" with index
         return this
     }
-
-    /**
-     * Enables/disables glass effect styling.
-     * @param enabled true to enable glass effect
-     */
-    fun glassEffect(enabled: Boolean): iOSSegmentedControlAttr {
-        "glassEffect" with enabled
-        return this
-    }
 }
 
 /**
  * Events for iOS native segmented control.
  */
-class iOSSegmentedControlEvent : Event() {
+open class iOSSegmentedControlEvent : Event() {
     /**
      * Segment selection change event.
      * @param handler Callback with selected segment index

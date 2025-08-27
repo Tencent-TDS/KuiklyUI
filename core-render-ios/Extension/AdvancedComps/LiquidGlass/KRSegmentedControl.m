@@ -18,8 +18,12 @@
 #import "KRComponentDefine.h"
 
 @interface KRSegmentedControl ()
+
+/// 分段控件
 @property (nonatomic, strong) UISegmentedControl *segmentedControl;
+/// 选中索引变化回调
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_onValueChanged;
+
 @end
 
 @implementation KRSegmentedControl
@@ -75,15 +79,5 @@
     KUIKLY_CALL_CSS_METHOD;
 }
 
-// 可选：设置 badge（如需支持）
-- (void)css_setBadge:(NSString *)params {
-    // params: {"index": 1, "badge": "99+"}
-    NSData *data = [params dataUsingEncoding:NSUTF8StringEncoding];
-    NSDictionary *dict = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
-    NSInteger idx = [dict[@"index"] integerValue];
-    NSString *badge = dict[@"badge"];
-    // UISegmentedControl 原生不支持 badge，可自定义实现
-    // 这里只是示例，实际可用自定义视图覆盖 segment
-}
 
 @end

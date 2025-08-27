@@ -19,7 +19,11 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+/**
+ * iOS 系统分段控件
+ */
 @interface KRSegmentedControl : UIView<KuiklyRenderViewExportProtocol>
+
 @end
 
 NS_ASSUME_NONNULL_END

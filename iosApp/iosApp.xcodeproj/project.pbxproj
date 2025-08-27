@@ -15,7 +15,6 @@
 		3A622B9C2AB052B0002410B8 /* KRNewTestModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 3A622B992AB052B0002410B8 /* KRNewTestModule.m */; };
 		3AF526722A9309C300A93682 /* RootViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 3AF526712A9309C300A93682 /* RootViewController.m */; };
 		7126B4462E1E726900B6B1D9 /* KRTabbarView.m in Sources */ = {isa = PBXBuildFile; fileRef = 7126B4452E1E709000B6B1D9 /* KRTabbarView.m */; };
-		71691DD52E212DFD00510388 /* KRSegmentedControl.m in Sources */ = {isa = PBXBuildFile; fileRef = 71691DD42E212BF500510388 /* KRSegmentedControl.m */; };
 		7555FF83242A565900829871 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7555FF82242A565900829871 /* ContentView.swift */; };
 		AFEB55D22D9C17820014FCBD /* Satisfy-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = AFEB55D12D9C17820014FCBD /* Satisfy-Regular.ttf */; };
 		C125EBCC2D96FBE200FBFA34 /* KRAPNGViewHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = C125EBCA2D96FBE200FBFA34 /* KRAPNGViewHandler.m */; };
@@ -43,8 +42,6 @@
 		3AF526712A9309C300A93682 /* RootViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = RootViewController.m; sourceTree = "<group>"; };
 		7126B4442E1E708100B6B1D9 /* KRTabbarView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KRTabbarView.h; sourceTree = "<group>"; };
 		7126B4452E1E709000B6B1D9 /* KRTabbarView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = KRTabbarView.m; sourceTree = "<group>"; };
-		71691DD32E212BDE00510388 /* KRSegmentedControl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KRSegmentedControl.h; sourceTree = "<group>"; };
-		71691DD42E212BF500510388 /* KRSegmentedControl.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = KRSegmentedControl.m; sourceTree = "<group>"; };
 		7555FF7B242A565900829871 /* iosApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iosApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7555FF82242A565900829871 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		7555FF8C242A565B00829871 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -218,8 +215,6 @@
 		FFE6EAA2289A65D400AAAA3A /* Modules */ = {
 			isa = PBXGroup;
 			children = (
-				71691DD32E212BDE00510388 /* KRSegmentedControl.h */,
-				71691DD42E212BF500510388 /* KRSegmentedControl.m */,
 				7126B4442E1E708100B6B1D9 /* KRTabbarView.h */,
 				7126B4452E1E709000B6B1D9 /* KRTabbarView.m */,
 				FF05C64129C851A500C5E02A /* KRBridgeModule.h */,
@@ -311,9 +306,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -350,9 +349,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -380,7 +383,6 @@
 				3AF526722A9309C300A93682 /* RootViewController.m in Sources */,
 				FF05C64229C851A500C5E02A /* KRBridgeModule.m in Sources */,
 				FF05C63C29C84FFF00C5E02A /* KuiklyRenderViewController.m in Sources */,
-				71691DD52E212DFD00510388 /* KRSegmentedControl.m in Sources */,
 				FFEDDC7A2AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.m in Sources */,
 				3A622B9B2AB052B0002410B8 /* TDFTestModule.m in Sources */,
 				FF05C63F29C850BC00C5E02A /* KuiklyRenderComponentExpandHandler.m in Sources */,

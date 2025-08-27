@@ -23,13 +23,14 @@ import com.tencent.kuikly.core.module.NotifyModule
 import com.tencent.kuikly.core.module.SharedPreferencesModule
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.reactive.handler.observableList
+import com.tencent.kuikly.core.utils.PlatformUtils
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.PageList
 import com.tencent.kuikly.core.views.PageListView
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
-import com.tencent.kuikly.core.views.ios.TabbarIOS
-import com.tencent.kuikly.core.views.ios.TabbarItem
+import com.tencent.kuikly.demo.pages.demo.base.TabbarIOS
+import com.tencent.kuikly.demo.pages.demo.base.TabbarIOSItem
 import com.tencent.kuikly.demo.pages.app.home.AppHomePage
 import com.tencent.kuikly.demo.pages.app.lang.MultiLingualPager
 import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
@@ -154,10 +155,11 @@ internal class AppTabPage : MultiLingualPager() {
 
     private fun tabBarIOS(): ViewBuilder {
         val ctx = this
-        val barItems = mutableListOf<TabbarItem>()
+        val barItems = mutableListOf<TabbarIOSItem>()
         val iconPrefix = getPager().pageName + "/";
         for (i in 0 until ctx.pageTitles.size) {
-            barItems.add(TabbarItem(
+            barItems.add(
+                TabbarIOSItem(
                 pageTitles[i],
                 iconPrefix + pageIcons[i],
                 iconPrefix + pageIconsHighlight[i])
@@ -185,8 +187,8 @@ internal class AppTabPage : MultiLingualPager() {
 
     override fun body(): ViewBuilder {
         val ctx = this
-        val isIOS = getPager().pageData.isIOS
-        val tabBottomHeight = if (isIOS) 0f else TAB_BOTTOM_HEIGHT
+        val isLiquidGlassSupported = PlatformUtils.isLiquidGlassSupported()
+        val tabBottomHeight = if (isLiquidGlassSupported) 0f else TAB_BOTTOM_HEIGHT
 
         return {
             View {
@@ -218,7 +220,7 @@ internal class AppTabPage : MultiLingualPager() {
                     }
                 }
             }
-            if (isIOS) {
+            if (isLiquidGlassSupported) {
                 ctx.tabBarIOS().invoke(this)
             } else {
                 ctx.tabBar().invoke(this)

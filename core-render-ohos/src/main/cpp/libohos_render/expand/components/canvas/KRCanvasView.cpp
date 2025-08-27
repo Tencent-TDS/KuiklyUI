@@ -15,17 +15,20 @@
 
 #include "KRCanvasView.h"
 
+#include <multimedia/image_framework/image/pixelmap_native.h>
 #include <native_drawing/drawing_bitmap.h>
 #include <native_drawing/drawing_brush.h>
 #include <native_drawing/drawing_canvas.h>
 #include <native_drawing/drawing_path.h>
 #include <native_drawing/drawing_path_effect.h>
 #include <native_drawing/drawing_pen.h>
+#include <native_drawing/drawing_pixel_map.h>
 #include <native_drawing/drawing_rect.h>
 #include <native_drawing/drawing_shader_effect.h>
 #include <native_drawing/drawing_types.h>
 #include <native_drawing/drawing_matrix.h>
 
+#include "libohos_render/expand/modules/cache/KRMemoryCacheModule.h"
 #include "libohos_render/utils/KRColor.h"
 #include "libohos_render/utils/KRJSONObject.h"
 
@@ -59,12 +62,13 @@ static constexpr std::string_view SCALE = "scale";
 static constexpr std::string_view ROTATE = "rotate";
 static constexpr std::string_view SKEW = "skew";
 static constexpr std::string_view TRANSFORM = "transform";
+static constexpr std::string_view DRAW_IMAGE = "drawImage";
 
 KRCanvasView::KRCanvasView()
     : KRView(), cachable_methods_({LINE_CAP, LINE_WIDTH, LINE_DASH, STROKE_STYLE, FILL_STYLE, BEGIN_PATH, MOVE_TO,
                                    LINE_TO, ARC, CLOSE_PATH, STROKE, FILL, CREATE_LINEAR_GRADIENT, QUADRATIC_CURVE_TO,
                                    TEXT_ALIGN, FONT, FILL_TEXT, STROKE_TEXT, BEZIER_CURVE_TO, SAVE, SAVE_LAYER,
-                                   RESTORE, CLIP, TRANSLATE, SCALE, ROTATE, SKEW, TRANSFORM}) {
+                                   RESTORE, CLIP, TRANSLATE, SCALE, ROTATE, SKEW, TRANSFORM, DRAW_IMAGE}) {
     // ctor body left blank
 }
 void KRCanvasView::DidMoveToParentView() {
@@ -562,6 +566,45 @@ void KRCanvasView::Transform(const std::string &params) {
     }
 }
 
+void KRCanvasView::DrawImage(const std::string &params) {
+    if (canvas_) {
+        auto obj = kuikly::util::JSONObject::Parse(params);
+        std::string cacheKey = obj->GetString("cacheKey");
+        auto module = std::dynamic_pointer_cast<KRMemoryCacheModule>(GetModule(kMemoryCacheModuleName));
+        auto pixelmap = module->GetImage(cacheKey);
+        if (!pixelmap) {
+            return;
+        }
+        float sx = obj->GetNumber("sx");
+        float sy = obj->GetNumber("sy");
+        float sWidth = obj->GetNumber("sWidth", -1);
+        float sHeight = obj->GetNumber("sHeight", -1);
+        if (sWidth < 0 || sHeight < 0) {
+            OH_Pixelmap_ImageInfo *info;
+            OH_PixelmapImageInfo_Create(&info);
+            OH_PixelmapNative_GetImageInfo(pixelmap, info);
+            uint32_t width = 0;
+            OH_PixelmapImageInfo_GetWidth(info, &width);
+            uint32_t height = 0;
+            OH_PixelmapImageInfo_GetHeight(info, &height);
+            OH_PixelmapImageInfo_Release(info);
+            sWidth = width;
+            sHeight = height;
+        }
+        float dx = obj->GetNumber("dx");
+        float dy = obj->GetNumber("dy");
+        float dWidth = obj->GetNumber("dWidth", sWidth);
+        float dHeight = obj->GetNumber("dHeight", sHeight);
+
+        OH_Drawing_PixelMap *drawingPixelMap = OH_Drawing_PixelMapGetFromOhPixelMapNative(pixelmap);
+        OH_Drawing_Rect *srcRect = OH_Drawing_RectCreate(sx, sy, sx + sWidth, sy + sHeight);
+        OH_Drawing_Rect *dstRect = OH_Drawing_RectCreate(dx, dy, dx + dWidth, dy + dHeight);
+        OH_Drawing_CanvasDrawPixelMapRect(canvas_, drawingPixelMap, srcRect, dstRect, nullptr);
+        OH_Drawing_RectDestroy(srcRect);
+        OH_Drawing_RectDestroy(dstRect);
+    }
+}
+
 void KRCanvasView::Reset() {
     ops_.clear();
 
@@ -598,7 +641,7 @@ void KRCanvasView::OnDraw(ArkUI_NodeCustomEvent *event) {
     // 设置可绘制区域为 Canvas 的整个布局区域
     auto frame = GetFrame();
     OH_Drawing_Rect *rect = OH_Drawing_RectCreate(0, 0, frame.width, frame.height);
-    OH_Drawing_CanvasClipRect(canvas_, rect, OH_Drawing_CanvasClipOp::INTERSECT, true);
+    OH_Drawing_CanvasClipRect(canvas_, rect, OH_Drawing_CanvasClipOp::INTERSECT, false);
     OH_Drawing_RectDestroy(rect);
 
     std::for_each(ops_.begin(), ops_.end(), [this](auto item) {
@@ -662,6 +705,8 @@ void KRCanvasView::OnDraw(ArkUI_NodeCustomEvent *event) {
             Skew(params);
         } else if (method == TRANSFORM) {
             Transform(params);
+        } else if (method == DRAW_IMAGE) {
+            DrawImage(params);
         }
     });
 }

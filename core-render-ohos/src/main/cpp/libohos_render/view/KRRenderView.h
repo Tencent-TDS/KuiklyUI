@@ -55,10 +55,10 @@ class KRRenderView : public IKRRenderView {
      * @param tag 所在tag
      * @return 对应节点view
      */
-    std::shared_ptr<IKRRenderModuleExport> GetModule(std::string &module_name) override;
+    std::shared_ptr<IKRRenderModuleExport> GetModule(const std::string &module_name) override;
     ~KRRenderView();
 
-    std::shared_ptr<IKRRenderModuleExport> GetModuleOrCreate(std::string &module_name) override;
+    std::shared_ptr<IKRRenderModuleExport> GetModuleOrCreate(const std::string &module_name) override;
 
     void AddContentView(const std::shared_ptr<IKRRenderViewExport> contentView, int index) override;
     /**

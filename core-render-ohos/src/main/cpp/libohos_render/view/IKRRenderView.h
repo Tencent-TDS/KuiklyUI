@@ -55,14 +55,14 @@ class IKRRenderView : public std::enable_shared_from_this<IKRRenderView> {
      * @param tag 所在tag
      * @return 对应节点view
      */
-    virtual std::shared_ptr<IKRRenderModuleExport> GetModule(std::string &module_name) = 0;
+    virtual std::shared_ptr<IKRRenderModuleExport> GetModule(const std::string &module_name) = 0;
 
     /**
      * 获取渲染节点视图（要求在主线程调用）
      * @param tag 所在tag
      * @return 对应Module（不存在则新建）
      */
-    virtual std::shared_ptr<IKRRenderModuleExport> GetModuleOrCreate(std::string &module_name) = 0;
+    virtual std::shared_ptr<IKRRenderModuleExport> GetModuleOrCreate(const std::string &module_name) = 0;
 
     /**
      * 添加内容View

@@ -168,7 +168,7 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
      * view添加到父节点前调用
      */
     virtual void WillMoveToParentView() {}
-    
+
     /**
      * view添加到父节点中后调用
      */
@@ -207,7 +207,7 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
         DestroyNode();
         parent_node_ = nullptr;
     }
-    
+
     virtual void DestroyNode(){
         if (node_) {
             auto node = node_;
@@ -476,7 +476,7 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
         return nullptr;
     }
 
-    std::shared_ptr<IKRRenderModuleExport> GetModule(std::string &name) {
+    std::shared_ptr<IKRRenderModuleExport> GetModule(const std::string &name) {
         auto root_view = GetRootView().lock();
         if (!root_view) {
             return nullptr;
@@ -538,7 +538,7 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
     std::string view_name_;
     int view_tag_ = 0;
     std::vector<std::string> did_set_props_;
-    
+
     ArkUI_NodeHandle parent_node_ = nullptr;
     int parent_tag_ = -1;
     std::shared_ptr<KRBasePropsHandler> base_props_handler_;

@@ -117,9 +117,9 @@ class KRMemoryCacheModule : KuiklyRenderBaseModule() {
                     result.put("errorMsg", "fetch timeout")
                 }
             } else {
-                result.put("state", "Complete")
-                result.put("errorCode", -1)
-                result.put("errorMsg", "async call, should get result from callback")
+                result.put("state", "InProgress")
+                result.put("errorCode", 0)
+                result.put("errorMsg", "loading async")
             }
             return result
         } else {

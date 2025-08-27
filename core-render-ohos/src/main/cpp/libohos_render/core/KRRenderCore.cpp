@@ -131,11 +131,11 @@ std::shared_ptr<IKRRenderViewExport> KRRenderCore::GetView(int tag) {
     return renderLayerHandler_->GetRenderView(tag);
 }
 
-std::shared_ptr<IKRRenderModuleExport> KRRenderCore::GetModule(std::string &module_name) {
+std::shared_ptr<IKRRenderModuleExport> KRRenderCore::GetModule(const std::string &module_name) {
     return renderLayerHandler_->GetModule(module_name);
 }
 
-std::shared_ptr<IKRRenderModuleExport> KRRenderCore::GetModuleOrCreate(std::string &module_name) {
+std::shared_ptr<IKRRenderModuleExport> KRRenderCore::GetModuleOrCreate(const std::string &module_name) {
     return renderLayerHandler_->GetModuleOrCreate(module_name);
 }
 

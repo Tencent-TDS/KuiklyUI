@@ -217,6 +217,8 @@ fun SubcomposeLayout(
     val isIOS = LocalConfiguration.current.isIOS
     scrollableState.kuiklyInfo.orientation = orientation
     scrollableState.kuiklyInfo.pageData = LocalConfiguration.current.pageData
+    val isPagerState = scrollableState is PagerState
+
 
     LaunchedEffect(scrollViewSize) {
         scrollableState.kuiklyInfo.updateContentSizeToRender()
@@ -341,6 +343,9 @@ fun SubcomposeLayout(
                         flexDirectionRow()
                     }
                     showScrollerIndicator(false)
+                    if (isPagerState) {
+                        flingEnable(false)
+                    }
                 }
                 event {
                     layoutFrameDidChange {

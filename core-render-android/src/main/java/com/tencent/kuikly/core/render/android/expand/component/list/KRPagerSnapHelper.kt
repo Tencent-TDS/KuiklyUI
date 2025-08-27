@@ -120,7 +120,7 @@ internal class KRPagerSnapHelper(
         }
     }
 
-    private fun snapFromFling(velocityX: Int, velocityY: Int): Boolean {
+    fun snapFromFling(velocityX: Int, velocityY: Int): Boolean {
         val layoutManager = krRecyclerView?.layoutManager ?: return false
         val distances = distanceToSnapFromFling(layoutManager, velocityX, velocityY)
         if (distances[0] != 0 || distances[1] != 0) {

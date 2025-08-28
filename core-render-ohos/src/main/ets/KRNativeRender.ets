@@ -92,6 +92,12 @@ export struct KRNativeRender {
     });
 
     this.controller = this.delegate ?? new KRNativeRenderController();
+    if (this.delegate != null) {
+      const callback = this.delegate?.getKuiklyRenderViewLifecycleCallback()
+      if (callback != null) {
+        this.controller.addKuiklyRenderViewLifecycleCallback(callback)
+      }
+    }
     this.controller!.init(
       this.getUIContext(),
       getContext(this) as common.UIAbilityContext,

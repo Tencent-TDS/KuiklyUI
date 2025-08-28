@@ -37,7 +37,7 @@ export * from './src/main/ets/modules/export';
 
 export { KRNativeRender as Kuikly } from './src/main/ets/KRNativeRender';
 
-export { IKuiklyViewDelegate, KRNativeRenderController } from './src/main/ets/KRNativeRenderController';
+export { IKuiklyViewDelegate, KRNativeRenderController, IKuiklyRenderViewLifecycleCallback } from './src/main/ets/KRNativeRenderController';
 
 // 兼容旧版本
 export { KRNativeRenderController as KTNativeRenderController } from './src/main/ets/KRNativeRenderController';

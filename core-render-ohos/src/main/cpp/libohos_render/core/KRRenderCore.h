@@ -32,7 +32,8 @@ enum class KRInitState {
     kStateInitContextStart = 4,
     kStateInitContextFinish = 5,
     kStateCreateInstanceStart = 6,
-    kStateCreateInstanceFinish = 7
+    kStateCreateInstanceFinish = 7,
+    kStateFirstFramePaint = 8
 };
 
 class KRRenderCore : public std::enable_shared_from_this<KRRenderCore>,

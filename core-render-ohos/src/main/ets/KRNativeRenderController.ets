@@ -126,6 +126,9 @@ export class KRNativeRenderController {
    * 透传给KR侧的页面数据
    */
   pageParams: KRRecord = {};
+
+  private lifecycleCallbacks: Array<IKuiklyRenderViewLifecycleCallback> = [];
+
   private fontSizeScale = 1.0;
   private fontWeightScale = 1.0;
   /**
@@ -535,6 +538,48 @@ export class KRNativeRenderController {
     this.runLazyTasksOnce();
   }
 
+
+  addKuiklyRenderViewLifecycleCallback(callback: IKuiklyRenderViewLifecycleCallback) {
+    this.lifecycleCallbacks.push(callback)
+  }
+
+  dispatchLifecycleStateChanged(state: number, params?: Object): void {
+    switch (state) {
+      case KRLifecycleState.STATE_INIT: {
+        this.lifecycleCallbacks.forEach(callback => callback.onInit());
+        break;
+      }
+      case KRLifecycleState.STATE_INIT_CORE_START: {
+        this.lifecycleCallbacks.forEach(callback => callback.onInitCoreStart());
+        break;
+      }
+      case KRLifecycleState.STATE_INIT_CORE_FINISH: {
+        this.lifecycleCallbacks.forEach(callback => callback.onInitCoreFinish());
+        break;
+      }
+      case KRLifecycleState.STATE_INIT_CONTEXT_START: {
+        this.lifecycleCallbacks.forEach(callback => callback.onInitContextStart());
+        break;
+      }
+      case KRLifecycleState.STATE_INIT_CONTEXT_FINISH: {
+        this.lifecycleCallbacks.forEach(callback => callback.onInitContextStart());
+        break;
+      }
+      case KRLifecycleState.STATE_CREATE_INSTANCE_START: {
+        this.lifecycleCallbacks.forEach(callback => callback.onCreateInstanceStart());
+        break;
+      }
+      case KRLifecycleState.STATE_CREATE_INSTANCE_FINISH: {
+        this.lifecycleCallbacks.forEach(callback => callback.onCreateInstanceFinish());
+        break;
+      }
+      case KRLifecycleState.STATE_FIRST_FRAME_PAINT: {
+        this.lifecycleCallbacks.forEach(callback => callback.onFirstFramePaint());
+        break;
+      }
+    }
+  }
+
   private doAboutToDisappear() {
     this.runKRRenderTask(() => {
       render.onDestroyRenderView(this.instanceId);
@@ -668,4 +713,69 @@ export abstract class IKuiklyViewDelegate extends KRNativeRenderController {
   pageDidDisappear() {
     this.onPageHide();
   }
+
+  /**
+   * 获取自定义[KuiklyRenderView]生命周期回调
+   */
+  getKuiklyRenderViewLifecycleCallback(): IKuiklyRenderViewLifecycleCallback | null {
+    return null
+  }
+}
+
+enum KRLifecycleState {
+  STATE_INIT = 1,
+  STATE_INIT_CORE_START,
+  STATE_INIT_CORE_FINISH,
+  STATE_INIT_CONTEXT_START,
+  STATE_INIT_CONTEXT_FINISH,
+  STATE_CREATE_INSTANCE_START,
+  STATE_CREATE_INSTANCE_FINISH,
+  STATE_FIRST_FRAME_PAINT
+}
+
+/**
+ * RenderView 生命周期回调
+ */
+export interface IKuiklyRenderViewLifecycleCallback {
+
+  /**
+   * 启动
+   */
+  onInit(): void
+
+  /**
+   * renderCore 初始化开始
+   */
+  onInitCoreStart(): void
+
+  /**
+   * renderCore 初始化完成
+   */
+  onInitCoreFinish(): void
+
+  /**
+   * 初始化渲染环境开始
+   */
+  onInitContextStart(): void
+
+  /**
+   * 初始化渲染环境完成
+   */
+  onInitContextFinish(): void
+
+  /**
+   * 创建页面开始
+   */
+  onCreateInstanceStart(): void
+
+  /**
+   * 创建页面结束
+   */
+  onCreateInstanceFinish(): void
+
+  /**
+   * 页面首帧渲染完成
+   */
+  onFirstFramePaint(): void
+
 }

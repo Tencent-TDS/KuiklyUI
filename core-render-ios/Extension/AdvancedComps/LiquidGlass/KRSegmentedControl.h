@@ -13,27 +13,16 @@
  * limitations under the License.
  */
 
+
 #import <UIKit/UIKit.h>
 #import "KuiklyRenderViewExportProtocol.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
 /**
- * @brief This is a container view component exposed for Kotlin side to call
+ * iOS 系统分段控件
  */
-@interface KRView : UIView<KuiklyRenderViewExportProtocol>
-
-// The touch down callback for the view
-@property (nonatomic, strong, nullable) KuiklyRenderCallback css_touchDown;
-
-// The touch up callback for the view
-@property (nonatomic, strong, nullable) KuiklyRenderCallback css_touchUp;
-
-// The touch move callback for the view
-@property (nonatomic, strong, nullable) KuiklyRenderCallback css_touchMove;
-
-/// Prepare glass effect wrapper view if needed
-- (void)ensureGlassEffectWrapperView API_AVAILABLE(ios(26.0));
+@interface KRSegmentedControl : UIView<KuiklyRenderViewExportProtocol>
 
 @end
 

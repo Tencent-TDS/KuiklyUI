@@ -45,6 +45,15 @@ object ViewConst {
     const val TYPE_TEXT_AREA = "KRTextAreaView"
     const val TYPE_SCROLL_CONTENT_VIEW = "KRScrollContentView"
     const val TYPE_BLUR_VIEW = "KRBlurView"
+    
+    // iOS Native Components
+    const val TYPE_IOS_LIQUID_GLASS_VIEW = "KRLiquidGlassView"
+    const val TYPE_IOS_GLASS_EFFECT_CONTAINER_VIEW = "KRGlassContainerView"
+    const val TYPE_IOS_SWITCH = "KRiOSGlassSwitch"
+    const val TYPE_IOS_SLIDER = "KRiOSGlassSlider"
+    const val TYPE_IOS_TABBAR = "KRTabbarView"
+    const val TYPE_IOS_SEGMENTED_CONTROL = "KRSegmentedControl"
+    
     const val TYPE_PAG_VIEW = "KRPAGView"
     const val TYPE_APNG_VIEW = "KRAPNGView"
     const val TYPE_VIDEO_VIEW = "KRVideoView"

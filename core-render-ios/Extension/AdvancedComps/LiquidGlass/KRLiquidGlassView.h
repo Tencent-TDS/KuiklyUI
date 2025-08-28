@@ -19,21 +19,10 @@
 NS_ASSUME_NONNULL_BEGIN
 
 /**
- * @brief This is a container view component exposed for Kotlin side to call
+ * 液态玻璃视图组件
+ * 提供iOS 26.0+的UIGlassEffect支持
  */
-@interface KRView : UIView<KuiklyRenderViewExportProtocol>
-
-// The touch down callback for the view
-@property (nonatomic, strong, nullable) KuiklyRenderCallback css_touchDown;
-
-// The touch up callback for the view
-@property (nonatomic, strong, nullable) KuiklyRenderCallback css_touchUp;
-
-// The touch move callback for the view
-@property (nonatomic, strong, nullable) KuiklyRenderCallback css_touchMove;
-
-/// Prepare glass effect wrapper view if needed
-- (void)ensureGlassEffectWrapperView API_AVAILABLE(ios(26.0));
+@interface KRLiquidGlassView : UIVisualEffectView <KuiklyRenderViewExportProtocol>
 
 @end
 

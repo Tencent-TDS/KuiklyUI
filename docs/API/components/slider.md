@@ -88,6 +88,49 @@
 | -- | -- | -- |
 | horizontal | 滑动方向 | Boolean |
 
+### enableGlassEffect
+
+:::tip 系统要求
+iOS 26.0+ 支持。在低版本系统上会自动使用标准滑块外观。
+:::
+
+启用iOS 26+液态玻璃效果。
+
+| 参数 | 描述 | 类型 | 默认值 |
+| -- | -- | -- | -- |
+| enabled | 是否启用液态玻璃效果 | Boolean | false |
+
+**示例：**
+```kotlin
+Slider {
+    attr {
+        enableGlassEffect(true) // 启用液态玻璃效果
+        currentProgress(0.5f)
+    }
+}
+```
+
+:::warning 限制说明
+启用液态玻璃效果后，以下自定义属性将不再生效：
+- `progressViewCreator` - 使用原生玻璃效果进度条
+- `trackViewCreator` - 使用原生玻璃效果轨道  
+- `thumbViewCreator` - 使用原生玻璃效果滑块
+- 部分颜色自定义可能被系统效果覆盖
+:::
+
+:::tip 兼容性处理
+```kotlin
+Slider {
+    attr {
+        // 内部自动降级处理，仅iOS 26+会自动启用液态玻璃
+        enableGlassEffect(true)
+        currentProgress(0.5f)
+        progressColor(Color(0xFF34C759))
+        trackColor(Color(0xFF8E8E93))
+    }
+}
+```
+:::
 
 ## 事件
 

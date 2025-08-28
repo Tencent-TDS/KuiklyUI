@@ -25,16 +25,16 @@ import com.tencent.kuikly.core.base.Attr
 import com.tencent.kuikly.core.layout.Frame
 
 /**
- * 判断2个Frame是否相等，精度为int
+ * 判断2个Frame是否相等，精度为Float
  * @receiver Frame
  * @param other Frame
  * @return Boolean
  */
 internal fun Frame.intEqual(other: Frame): Boolean {
-    return this.x.toInt() == other.x.toInt() &&
-            y.toInt() == other.y.toInt() &&
-            width.toInt() == other.width.toInt() &&
-            height.toInt() == other.height.toInt()
+    return this.x == other.x &&
+            y == other.y &&
+            width == other.width &&
+            height == other.height
 }
 
 /**

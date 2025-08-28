@@ -273,6 +273,7 @@
 
 - (void)setCss_glassEffectInteractive:(NSNumber *)interactive {
     if (@available(iOS 26.0, *)) {
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
         if ((interactive != nil && ![self.glassEffectInteractive isEqualToNumber:interactive]) ||
             (interactive == nil && self.glassEffectInteractive != nil)) {
             self.glassEffectInteractive = interactive;
@@ -286,11 +287,13 @@
                 }
             }
         }
+#endif
     }
 }
 
 - (void)setCss_glassEffectTintColor:(NSNumber *)cssColor {
     if (@available(iOS 26.0, *)) {
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
         UIColor *color = [UIView css_color:cssColor];
         if (![self.glassEffectColor isEqual:color]) {
             self.glassEffectColor = color;
@@ -304,11 +307,13 @@
                 }
             }
         }
+#endif
     }
 }
 
 - (void)setCss_glassEffectStyle:(NSString *)style {
     if (@available(iOS 26.0, *)) {
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
         UIGlassEffectStyle curStyle = [KRConvertUtil KRGlassEffectStyle:self.glassEffectStyle];
         UIGlassEffectStyle newStyle = [KRConvertUtil KRGlassEffectStyle:style];
         if (curStyle != newStyle) {
@@ -325,9 +330,11 @@
                 }
             }
         }
+#endif
     }
 }
 
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
 - (UIGlassEffect *)generateGlassEffect API_AVAILABLE(ios(26.0)) {
     UIGlassEffectStyle style = [KRConvertUtil KRGlassEffectStyle:self.glassEffectStyle];
     UIGlassEffect *glassEffect = [UIGlassEffect effectWithStyle:style];
@@ -335,9 +342,11 @@
     glassEffect.interactive = self.glassEffectInteractive.boolValue;
     return glassEffect;
 }
+#endif
 
 - (void)ensureGlassEffectWrapperView {
     if (@available(iOS 26.0, *)) {
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
         if (self.glassEffectEnable) {
             if (!_effectView) {
                 UIGlassEffect * glassEffect = [self generateGlassEffect];
@@ -387,6 +396,7 @@
                 self.kr_commonWrapperView = _effectView;
             }
         }
+#endif
     }
 }
 

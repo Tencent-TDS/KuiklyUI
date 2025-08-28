@@ -20,7 +20,9 @@
 - (instancetype)initWithFrame:(CGRect)frame {
     if (self = [super initWithFrame: frame]) {
         if (@available(iOS 26.0, *)) {
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
             self.effect = [[UIGlassContainerEffect alloc] init];
+#endif
         }
     }
     return self;
@@ -38,11 +40,13 @@
 
 - (void)setCss_glassEffectSpacing:(NSNumber *)spacing {
     if (@available(iOS 26.0, *)) {
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
         UIGlassContainerEffect *effect = (UIGlassContainerEffect *)self.effect;
         if (effect.spacing != spacing.doubleValue) {
             effect.spacing = spacing.doubleValue;
             self.effect = effect;
         }
+#endif
     }
 }
 

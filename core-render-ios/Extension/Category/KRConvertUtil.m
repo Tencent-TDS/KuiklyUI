@@ -158,6 +158,7 @@
     return UIUserInterfaceStyleUnspecified;
 }
 
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
 + (UIGlassEffectStyle)KRGlassEffectStyle:(NSString *)style API_AVAILABLE(ios(26.0)) {
     if (!style || [[UIView css_string:style] isEqualToString:@"regular"]) {
         return UIGlassEffectStyleRegular;
@@ -167,7 +168,7 @@
     }
     return UIGlassEffectStyleRegular;
 }
-
+#endif
 
 + (KRBorderStyle)KRBorderStyle:(NSString *)stringValue {
     if ([stringValue isEqualToString:@"solid"]) {

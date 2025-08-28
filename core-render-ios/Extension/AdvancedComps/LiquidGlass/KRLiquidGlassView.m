@@ -21,7 +21,9 @@
 - (instancetype)initWithFrame:(CGRect)frame {
     if (self = [super initWithFrame: frame]) {
         if (@available(iOS 26.0, *)) {
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
             self.effect = [UIGlassEffect effectWithStyle:UIGlassEffectStyleRegular];
+#endif
         } else {
             // Fallback on earlier versions
         }
@@ -41,26 +43,31 @@
 
 - (void)setCss_glassEffectTintColor:(NSNumber *)color {
     if (@available(iOS 26.0, *)) {
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
         UIGlassEffect *effect = (UIGlassEffect *)self.effect;
         if (![effect.tintColor isEqual:color]) {
             effect.tintColor = [UIView css_color:color];
             self.effect = effect;
         }
+#endif
     }
 }
 
 - (void)setCss_glassEffectInteractive:(NSNumber *)interactive {
     if (@available(iOS 26.0, *)) {
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
         UIGlassEffect *effect = (UIGlassEffect *)self.effect;
         if (effect.isInteractive != [interactive boolValue]) {
             effect.interactive = [interactive boolValue];
             self.effect = effect;
         }
+#endif
     }
 }
 
 - (void)setCss_glassEffectStyle:(NSString *)style {
     if (@available(iOS 26.0, *)) {
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
         UIGlassEffectStyle glassStyle = [KRConvertUtil KRGlassEffectStyle:style];
         UIGlassEffect *newEffect = [UIGlassEffect effectWithStyle:glassStyle];
         UIGlassEffect *currentEffect = (UIGlassEffect *)self.effect;
@@ -70,6 +77,7 @@
         newEffect.interactive = currentEffect.isInteractive;
         
         self.effect = newEffect;
+#endif
     }
 }
 

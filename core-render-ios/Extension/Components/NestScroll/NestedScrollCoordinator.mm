@@ -21,10 +21,9 @@
 
 // 修改NSLogTrace宏定义
 //#define NSLogTrace(...) NSLog(@"nested " __VA_ARGS__)
-
 #define NSLogTrace(...)
 
-#define NESTED_OPEN_BOUNCES 1 // Turn off the outer bounces feature for now
+#define NESTED_OPEN_BOUNCES 1 // Enable the outer bounces feature
 
 typedef NS_ENUM(char, NestedScrollDirection) {
     NestedScrollDirectionNone = 0,
@@ -67,7 +66,6 @@ static CGFloat const kNestedScrollFloatThreshold = 0.1;
 
 - (void)setOuterScrollView:(UIScrollView<NestedScrollProtocol> *)outerScrollView {
     _outerScrollView = outerScrollView;
-    _outerScrollView.bounces = NO;
 }
 
 
@@ -135,8 +133,40 @@ static inline BOOL isScrollInSpringbackState(const UIScrollView *scrollview,
     return NO;
 }
 
-static inline void lockScrollView(const UIScrollView<NestedScrollProtocol> *scrollView) {
-    scrollView.contentOffset = scrollView.lContentOffset;
+static inline bool isIntersect(const UIScrollView *outerScrollView, const UIScrollView *innerScrollView) {
+    CALayer *outerPresentation = outerScrollView.layer.presentationLayer;
+    CALayer *innerPresentation = innerScrollView.layer.presentationLayer;
+    CGRect actualOuter = [outerPresentation convertRect:outerPresentation.bounds toLayer:nil];
+    CGRect actualInner = [innerPresentation convertRect:innerPresentation.bounds toLayer:nil];
+    return CGRectIntersectsRect(actualOuter, actualInner);
+}
+
+static inline CGPoint clampContentOffsetToBounds(const UIScrollView *scrollView,
+                                                 CGPoint contentOffset,
+                                                 NestedScrollDirection direction) {
+    if (direction == NestedScrollDirectionLeft || direction == NestedScrollDirectionRight) {
+        // 横向滚动边界检查
+        CGFloat maxContentOffsetX = scrollView.contentSize.width - scrollView.bounds.size.width + scrollView.contentInset.right;
+        if (contentOffset.x > maxContentOffsetX) {
+            contentOffset.x = maxContentOffsetX;
+        }
+    } else if (direction == NestedScrollDirectionUp || direction == NestedScrollDirectionDown) {
+        // 纵向滚动边界检查
+        CGFloat maxContentOffsetY = scrollView.contentSize.height - scrollView.bounds.size.height + scrollView.contentInset.bottom;
+        if (contentOffset.y > maxContentOffsetY) {
+            contentOffset.y = maxContentOffsetY;
+        }
+    }
+    return contentOffset;
+}
+
+static inline void lockScrollView(const UIScrollView<NestedScrollProtocol> *scrollView,
+                                  const CGPoint lastContentOffset) {
+    // The value of lastContentOffset may experience redundant repeated updates,
+    // primarily to avoid an infinite loop of contentOffset updates
+    // caused by inconsistencies in lastContentOffset in multi-layer nested scenarios.
+    scrollView.lContentOffset = lastContentOffset;
+    scrollView.contentOffset = lastContentOffset;
     scrollView.isLockedInNestedScroll = YES;
 }
 
@@ -150,32 +180,69 @@ static inline void lockScrollView(const UIScrollView<NestedScrollProtocol> *scro
     BOOL isInner = (sv == innerScrollView);
     
     NSLogTrace(@"%@(%p) did scroll: %@",
-                    isOuter ? @"Outer" : @"Inner", sv,
-                    isOuter ?
-                    NSStringFromCGPoint(outerScrollView.contentOffset) :
-                    NSStringFromCGPoint(innerScrollView.contentOffset));
+               isOuter ? @"Outer" : @"Inner", sv,
+               isOuter ?
+               NSStringFromCGPoint(outerScrollView.contentOffset) :
+               NSStringFromCGPoint(innerScrollView.contentOffset));
     
     // 0. Exclude irrelevant scroll events using `activeInnerScrollView`
     if (outerScrollView.activeInnerScrollView &&
         outerScrollView.activeInnerScrollView != innerScrollView) {
         NSLogTrace(@"Not active inner return.");
         return;
+    } else if (isOuter && !outerScrollView.activeInnerScrollView) {
+        if (outerScrollView.shouldHaveActiveInner) {
+            // 0.1 If outer should have an active innder but not, ignore.
+            NSLogTrace(@"Not active inner return 2.");
+            return;
+        } else if (!isIntersect(outerScrollView, innerScrollView)) {
+            // 0.2 If the two ScrollViews do not intersect at all, ignore.
+            NSLogTrace(@"Not Intersect return. %p", sv);
+            return;
+        }
     }
     
     // 1. Determine direction of scrolling
     NestedScrollDirection direction = NestedScrollDirectionNone;
-    if (sv.lContentOffset.y > sv.contentOffset.y) {
+    
+    // 1.1 Find the right lastContentOffset
+    // In multi-layer nested scenarios, the scrollable object may have more than two coordinator listeners.
+    // In this case, if the first coordinator listener has already updated the lastContentOffset,
+    // the subsequent coordinator listeners will not be able to process normally because the direction judgment has become invalid.
+    // To handle this, our strategy is to record the original lastContentOffset through tempLastContentOffsetForMultiLayerNested,
+    // thereby establishing the connection between multiple coordinators.
+    BOOL shouldRecordLastContentOffsetForMultiLayerNested = YES;
+    CGPoint lastContentOffset;
+    if (sv.tempLastContentOffsetForMultiLayerNested) {
+        lastContentOffset = [sv.tempLastContentOffsetForMultiLayerNested CGPointValue];
+        sv.tempLastContentOffsetForMultiLayerNested = nil;
+        shouldRecordLastContentOffsetForMultiLayerNested = NO;
+        NSLogTrace(@"tempLastContentOffset Updated! lastContentOffset=%@. %p", NSStringFromCGPoint(lastContentOffset), sv);
+    } else {
+        lastContentOffset = sv.lContentOffset;
+    }
+    
+    // 1.2 Do the judge to get direction
+    if (lastContentOffset.y > sv.contentOffset.y) {
         direction = NestedScrollDirectionUp;
-    } else if (sv.lContentOffset.y < sv.contentOffset.y) {
+    } else if (lastContentOffset.y < sv.contentOffset.y) {
         direction = NestedScrollDirectionDown;
-    } else if (sv.lContentOffset.x > sv.contentOffset.x) {
+    } else if (lastContentOffset.x > sv.contentOffset.x) {
         direction = NestedScrollDirectionLeft;
-    } else if (sv.lContentOffset.x < sv.contentOffset.x) {
+    } else if (lastContentOffset.x < sv.contentOffset.x) {
         direction = NestedScrollDirectionRight;
     }
     if (direction == NestedScrollDirectionNone) {
         NSLogTrace(@"No direction return. %p", sv);
         return;
+    }
+    
+    // 1.3 If it is a multi-layer nested scroll
+    // and the `lastContentOffset` of the current refresh frame has not been recorded,
+    // record it for the next coordinator to use.
+    if (((isInner && sv.activeInnerScrollView) || (isOuter && sv.activeOuterScrollView)) &&
+        !sv.tempLastContentOffsetForMultiLayerNested && shouldRecordLastContentOffsetForMultiLayerNested) {
+        sv.tempLastContentOffsetForMultiLayerNested = @(sv.lContentOffset);
     }
     
     // 2. Lock inner scrollview if necessary
@@ -199,8 +266,10 @@ static inline void lockScrollView(const UIScrollView<NestedScrollProtocol> *scro
         
         // Do lock inner action!
         if (isInner && !self.shouldUnlockInnerScrollView) {
-            NSLogTrace(@"lock inner (%p) !!!!", sv);
-            lockScrollView(innerScrollView);
+            NSLogTrace(@"lock inner (%p) to %@ !!!!", sv, NSStringFromCGPoint(lastContentOffset));
+            // some times inner may generate a weired huge contentOffset, so double check it
+            lastContentOffset = clampContentOffsetToBounds(innerScrollView, lastContentOffset, direction);
+            lockScrollView(innerScrollView, lastContentOffset);
         }
         
         // Handle the scenario where the Inner can slide when the Outer's bounces on.
@@ -212,7 +281,7 @@ static inline void lockScrollView(const UIScrollView<NestedScrollProtocol> *scro
             // When the finger is dragging, the Outer has slipped to the edge and is ready to bounce,
             // but the Inner can still slide.
             // At this time, the sliding of the Outer needs to be locked.
-            lockScrollView(outerScrollView);
+            lockScrollView(outerScrollView, lastContentOffset);
             NSLogTrace(@"lock outer due to inner scroll");
         }
         
@@ -240,11 +309,11 @@ static inline void lockScrollView(const UIScrollView<NestedScrollProtocol> *scro
         
         // Do cascade lock action!
         if (isOuter && outerScrollView.cascadeLockForNestedScroll) {
-            lockScrollView(outerScrollView);
+            lockScrollView(outerScrollView, lastContentOffset);
             NSLogTrace(@"lock outer due to cascadeLock");
             outerScrollView.cascadeLockForNestedScroll = NO;
         } else if (isInner && innerScrollView.cascadeLockForNestedScroll) {
-            lockScrollView(innerScrollView);
+            lockScrollView(innerScrollView, lastContentOffset);
             NSLogTrace(@"lock outer due to cascadeLock");
             innerScrollView.cascadeLockForNestedScroll = NO;
         }
@@ -257,10 +326,16 @@ static inline void lockScrollView(const UIScrollView<NestedScrollProtocol> *scro
             if (hasScrollToTheDirectionEdge(innerScrollView, direction)) {
                 self.shouldUnlockOuterScrollView = YES;
                 NSLogTrace(@"set unlock outer ~");
-            } else {
+            } else if (outerScrollView.activeInnerScrollView) {
                 self.shouldUnlockOuterScrollView = NO;
                 NSLogTrace(@"set lock outer !");
             }
+        }
+        
+        // Special handles the SelfOnly case
+        if ([self isDirection:direction hasPriority:NestedScrollPrioritySelfOnly] &&
+            self.dragType != NestedScrollDragTypeOuterOnly && isOuter) {
+            self.shouldUnlockOuterScrollView = NO;
         }
         
         // Handle the effect of outerScroll auto bouncing back when bounces is on.
@@ -274,9 +349,9 @@ static inline void lockScrollView(const UIScrollView<NestedScrollProtocol> *scro
         
         // Do lock outer action!
         if (self.dragType != NestedScrollDragTypeOuterOnly &&
-            isOuter && (!self.shouldUnlockOuterScrollView || [self isDirection:direction hasPriority:NestedScrollPrioritySelfOnly])) {
+            isOuter && (!self.shouldUnlockOuterScrollView )) {
             NSLogTrace(@"lock outer (%p) !!!!", sv);
-            lockScrollView(outerScrollView);
+            lockScrollView(outerScrollView, lastContentOffset);
         }
         
         // Deal with the multi-level nesting (greater than or equal to three layers).
@@ -291,11 +366,11 @@ static inline void lockScrollView(const UIScrollView<NestedScrollProtocol> *scro
         
         // Do cascade lock action!
         if (isInner && innerScrollView.cascadeLockForNestedScroll) {
-            lockScrollView(innerScrollView);
+            lockScrollView(innerScrollView, lastContentOffset);
             NSLogTrace(@"lock outer due to cascadeLock");
             innerScrollView.cascadeLockForNestedScroll = NO;
         } else if (isOuter && outerScrollView.cascadeLockForNestedScroll) {
-            lockScrollView(outerScrollView);
+            lockScrollView(outerScrollView, lastContentOffset);
             NSLogTrace(@"lock outer due to cascadeLock");
             outerScrollView.cascadeLockForNestedScroll = NO;
         }
@@ -304,11 +379,18 @@ static inline void lockScrollView(const UIScrollView<NestedScrollProtocol> *scro
     // 4. Update the lContentOffset record
     sv.lContentOffset = sv.contentOffset;
     NSLogTrace(@"end handle %@(%p) scroll -------------",
-                    isOuter ? @"Outer" : @"Inner", sv);
+               isOuter ? @"Outer" : @"Inner", sv);
 }
 
 
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
+    if (!self.outerScrollView.shouldHaveActiveInner) {
+        // Clear any recorded activeInner or activeOuter if shouldHaveActiveInner is NO,
+        // this code is executed only if the scrollView is an outer.
+        self.outerScrollView.activeInnerScrollView = nil;
+        self.innerScrollView.activeOuterScrollView = nil;
+    }
+    
     if (scrollView == self.outerScrollView) {
         self.shouldUnlockOuterScrollView = NO;
         NSLogTrace(@"reset outer scroll lock");
@@ -331,13 +413,12 @@ static inline void lockScrollView(const UIScrollView<NestedScrollProtocol> *scro
 }
 
 - (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate {
-    if (!decelerate) {
-        self.dragType = NestedScrollDragTypeUndefined;
-    }
-}
-
-- (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
     self.dragType = NestedScrollDragTypeUndefined;
+    
+    // Reset shouldHaveActiveInner flag when user end dragging.
+    if (self.outerScrollView.shouldHaveActiveInner) {
+        self.outerScrollView.shouldHaveActiveInner = NO;
+    }
 }
 
 
@@ -359,6 +440,7 @@ static inline void lockScrollView(const UIScrollView<NestedScrollProtocol> *scro
             self.nestedScrollBottomPriority > NestedScrollPriorityNone ||
             self.nestedScrollLeftPriority > NestedScrollPriorityNone ||
             self.nestedScrollRightPriority > NestedScrollPriorityNone) {
+            self.outerScrollView.shouldHaveActiveInner = YES;
             return YES;
         }
     } else if (self.outerScrollView.nestedGestureDelegate) {

@@ -585,11 +585,7 @@ class CanvasDrawScope : DrawScope {
      */
     private fun selectPaint(drawStyle: DrawStyle): Paint =
         when (drawStyle) {
-            Fill -> {
-                val fillPaint = obtainFillPaint()
-                fillPaint.brush = null
-                fillPaint
-            }
+            Fill -> obtainFillPaint()
             is Stroke ->
                 obtainStrokePaint()
                     .apply {
@@ -616,7 +612,7 @@ class CanvasDrawScope : DrawScope {
         if (brush != null) {
             brush.applyTo(size, this, alpha)
         } else {
-//            if (this.shader != null) this.shader = null
+            if (this.shader != null) this.shader = null
             if (this.color != Color.Black) this.color = Color.Black
             if (this.alpha != alpha) this.alpha = alpha
         }
@@ -641,7 +637,7 @@ class CanvasDrawScope : DrawScope {
         // instead of configuring a separate alpha parameter
         val targetColor = color.modulate(alpha)
         if (this.color != targetColor) this.color = targetColor
-//        if (this.shader != null) this.shader = null
+        if (this.shader != null) this.shader = null
 //        if (this.colorFilter != colorFilter) this.colorFilter = colorFilter
 //        if (this.blendMode != blendMode) this.blendMode = blendMode
 //        if (this.filterQuality != filterQuality) this.filterQuality = filterQuality
@@ -664,12 +660,12 @@ class CanvasDrawScope : DrawScope {
             // instead of configuring a separate alpha parameter
             val targetColor = color.modulate(alpha)
             if (this.color != targetColor) this.color = targetColor
-//            if (this.shader != null) this.shader = null
+            if (this.shader != null) this.shader = null
 //            if (this.colorFilter != colorFilter) this.colorFilter = colorFilter
 //            if (this.blendMode != blendMode) this.blendMode = blendMode
             if (this.strokeWidth != strokeWidth) this.strokeWidth = strokeWidth
             if (this.strokeMiterLimit != miter) this.strokeMiterLimit = miter
-//            if (this.strokeCap != cap) this.strokeCap = cap
+            if (this.strokeCap != cap) this.strokeCap = cap
 //            if (this.strokeJoin != join) this.strokeJoin = join
 //            if (this.pathEffect != pathEffect) this.pathEffect = pathEffect
 //            if (this.filterQuality != filterQuality) this.filterQuality = filterQuality
@@ -696,7 +692,7 @@ class CanvasDrawScope : DrawScope {
 //        if (this.blendMode != blendMode) this.blendMode = blendMode
         if (this.strokeWidth != strokeWidth) this.strokeWidth = strokeWidth
         if (this.strokeMiterLimit != miter) this.strokeMiterLimit = miter
-//        if (this.strokeCap != cap) this.strokeCap = cap
+        if (this.strokeCap != cap) this.strokeCap = cap
 //        if (this.strokeJoin != join) this.strokeJoin = join
 //        if (this.pathEffect != pathEffect) this.pathEffect = pathEffect
 //        if (this.filterQuality != filterQuality) this.filterQuality = filterQuality

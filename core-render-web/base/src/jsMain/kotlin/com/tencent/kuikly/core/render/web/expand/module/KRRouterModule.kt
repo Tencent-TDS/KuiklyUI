@@ -42,13 +42,15 @@ class KRRouterModule : KuiklyRenderBaseModule() {
             ""
         }
         // url data
-        val pageData: MutableMap<String, Any> =
-            (params.optJSONObject("pageData") ?: JSONObject()).toMap()
+        val pageData =
+            (params.optJSONObject("pageData") ?: JSONObject())
         // Set new page name
-        pageData["page_name"] = pageName
+        pageData.put("page_name", pageName)
         // generate url params
-        val urlParamsString = pageData.entries.joinToString("&") { (key, value) ->
-            "${key}=${value}"
+        val urlParamsString = pageData.keySet().joinToString("&") { key ->
+            val value = pageData.optString(key)
+            val encodedValue = js("encodeURIComponent(value)")
+            "$key=$encodedValue"
         }
 
         // Open new URL

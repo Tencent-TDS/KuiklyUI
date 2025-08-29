@@ -363,6 +363,11 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
                 return VsyncModule()
             }
         })
+        registerModule(ModuleConst.CLIPBOARD, object : IModuleCreator {
+            override fun createModule(): Module {
+                return ClipboardModule()
+            }
+        })
         registerModule(ModuleConst.BACK_PRESS, object : IModuleCreator {
             override fun createModule(): Module {
                 return BackPressModule()

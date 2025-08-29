@@ -528,3 +528,41 @@ Kuikly Compose 完全支持官方Compose的动画系统，包括所有动画 API
 ## 手势
 
 Kuikly Compose 完全支持官方Compose的手势系统，包括所有手势检测和手势修饰符，可查阅官网文档。
+
+## 嵌套滚动
+
+Kuikly Compose 支持嵌套滚动修饰符，用于控制父子滚动容器之间的滚动行为。
+
+### Modifier.nestedScroll
+
+```kotlin
+fun Modifier.nestedScroll(
+    scrollUp: NestedScrollMode,
+    scrollDown: NestedScrollMode
+): Modifier
+```
+
+- 功能：设置子滚动容器的嵌套滚动模式，控制父子滚动容器之间的滚动行为
+- 参数：
+  - scrollUp: 向上滚动时的嵌套滚动模式
+  - scrollDown: 向下滚动时的嵌套滚动模式
+
+**NestedScrollMode 枚举值：**
+
+| 值 | 描述 |
+|----|------|
+| SELF_ONLY | 仅当前控件处理滚动，不传递给父控件 |
+| SELF_FIRST | 当前控件优先处理滚动，未消费完的滚动量传递给父控件 |
+| PARENT_FIRST | 父控件优先处理滚动，未消费完的滚动量传递给当前控件 |
+
+**使用示例：**
+```kotlin
+LazyColumn(
+    modifier = Modifier.nestedScroll(
+        scrollUp = NestedScrollMode.SELF_FIRST,     // 向上滚动时，子列表优先
+        scrollDown = NestedScrollMode.PARENT_FIRST  // 向下滚动时，父列表优先
+    )
+) {
+    // 列表内容
+}
+```

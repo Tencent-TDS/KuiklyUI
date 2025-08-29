@@ -337,7 +337,6 @@ enum class KRNestedScrollMode(val value: String){
     SELF_ONLY("SELF_ONLY"),
     SELF_FIRST("SELF_FIRST"),
     PARENT_FIRST("PARENT_FIRST"),
-    PARALLEL("PARALLEL")
 }
 
 open class ScrollerAttr : ContainerAttr() {

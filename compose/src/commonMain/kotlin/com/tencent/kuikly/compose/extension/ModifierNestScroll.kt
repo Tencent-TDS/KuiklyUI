@@ -29,13 +29,11 @@ import com.tencent.kuikly.core.views.ScrollerView
  * - SELF_ONLY   : 仅当前控件处理滚动
  * - SELF_FIRST  : 当前控件优先处理滚动，未消费完的滚动量传递给父控件
  * - PARENT_FIRST: 父控件优先处理滚动，未消费完的滚动量传递给当前控件
- * - PARALLEL    : 当前控件和父控件同时处理滚动
  */
 enum class NestedScrollMode(val value: String) {
     SELF_ONLY("SELF_ONLY"),
     SELF_FIRST("SELF_FIRST"),
     PARENT_FIRST("PARENT_FIRST"),
-    PARALLEL("PARALLEL")
 }
 
 // region ------------------------------ 核心实现 ------------------------------
@@ -47,7 +45,6 @@ private fun NestedScrollMode.toFrameworkMode(): KRNestedScrollMode = when (this)
     NestedScrollMode.SELF_ONLY -> KRNestedScrollMode.SELF_ONLY
     NestedScrollMode.SELF_FIRST -> KRNestedScrollMode.SELF_FIRST
     NestedScrollMode.PARENT_FIRST -> KRNestedScrollMode.PARENT_FIRST
-    NestedScrollMode.PARALLEL -> KRNestedScrollMode.PARALLEL
 }
 
 /**

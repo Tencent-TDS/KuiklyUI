@@ -37,7 +37,7 @@ void KRRenderLayerHandler::CreateRenderView(int tag, const std::string &view_nam
         return;
     }
     auto it = view_registry_.find(tag);
-    if (it == view_registry_.end()) {
+    if (it == view_registry_.end() || it->second == nullptr) {
         auto view = PopViewFromReuseQueue(view_name);
         if (view == nullptr) {
             view = IKRRenderViewExport::CreateView(view_name);

@@ -82,12 +82,7 @@
 }
 @synthesize hr_rootView;
 @synthesize lastContentOffset = _lastContentOffset;
-@synthesize lContentOffset;
-@synthesize activeInnerScrollView;
-@synthesize activeOuterScrollView;
-@synthesize nestedGestureDelegate;
-@synthesize cascadeLockForNestedScroll;
-@synthesize isLockedInNestedScroll;
+KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 
 #pragma mark - init
 

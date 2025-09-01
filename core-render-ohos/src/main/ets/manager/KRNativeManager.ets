@@ -158,7 +158,7 @@ export class KRNativeManager {
             this.fireViewEvent(instanceId, tag, propKey, data);
           };
           nativeInstance.setViewEvent(arg0 as number, arg1 as string, callback);
-        } else if (methodId == KRNativeCallArkTSMethod.CallViewMethod.valueOf()) { // 调用module方法
+        } else if (methodId == KRNativeCallArkTSMethod.CallViewMethod.valueOf()) { // 调用view方法
           let callback: KuiklyRenderCallback | null = null;
           if (callbackId != null && callbackId.length) { // 构造一个callback
             callback = (res: KRAny) => {

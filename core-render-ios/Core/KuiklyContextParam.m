@@ -67,8 +67,9 @@ const KuiklyContextMode KuiklyContextMode_Framework = 1;
             return url;
         }
     }
+    
     // 通过resourceFolderUrl从自定义bundle中获取资源URL
-    else if (self.resourceFolderUrl) {
+    if (self.resourceFolderUrl) {
         NSURL *rscUrl = [[self.resourceFolderUrl URLByAppendingPathComponent:fileName] URLByAppendingPathExtension:fileExtension];
         return rscUrl;
     }

@@ -80,8 +80,10 @@
 
 - (void)setCss_selectedIndex:(NSNumber *)css_selectedIndex {
     NSInteger idx = [css_selectedIndex integerValue];
-    self.tabBar.selectedItem = self.tabBar.items[idx];
-    self.selectedIndex = idx;
+    if (idx >= 0 && idx < self.tabBar.items.count) {
+        self.tabBar.selectedItem = self.tabBar.items[idx];
+        self.selectedIndex = idx;
+    }
 }
 
 - (void)setCss_onTabSelected:(KuiklyRenderCallback)css_onTabSelected {

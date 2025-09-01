@@ -63,33 +63,32 @@
 
 ## 运行鸿蒙App
 :::tip 注意
-1. 当前kuikly鸿蒙跨端产物仅支持Mac编译，Windows可以使用编译好的跨端产物运行Ohos宿主APP 
+1. 当前kuikly鸿蒙跨端产物仅支持Mac编译，Windows可以使用编译好的跨端产物运行Ohos宿主APP
 2. 若想通过插件生成Ohos工程，需要更新插件至1.1.0版本以上
 
 :::
 1. 如果是首次运行Ohos的话，需要用鸿蒙DevEco-Studio打开ohosApp目录
-    >若初次打开鸿蒙IDEsync出错，打开ohosApp目录下的.npmrc文件，右上角点击sync重新sync即可
+   >若初次打开鸿蒙IDEsync出错，打开ohosApp目录下的.npmrc文件，右上角点击sync重新sync即可
 
 2. 在运行之前App之前，需要执行签名操作
-    File -> Project Structure -> Signing Configs
+   File -> Project Structure -> Signing Configs
     <div align="center">
         <img src="./img/ohos_ide_sign.png" style="width: 100%;">
     </div>
 3. 运行``ohosApp``
 
-    可以选择在 DevEco-Studio 内运行 或 Android Studio 内运行
+   可以选择在 DevEco-Studio 内运行 或 Android Studio 内运行
 
    ![DevEco运行OhosApp](./img/ohos_run1.png)
 
    ![AndroidStudio运行OhosApp](./img/ohos_run2.png)
-    > 若 Android Studio 无ohosApp选项 重新打开Android Studio即可
+   > 若 Android Studio 无ohosApp选项 重新打开Android Studio即可
 4. 当手机出现下面界面时，说明已运行成功ohosApp
     <div align="center">
         <img src="./img/ohos_run_success.jpg" width="30%"  alt="运行成功" style="border: 1px solid black;">
     </div>
 
 ## 运行H5
-模版工程H5正在发布审核中，如果未更新可以先使用 Github 源码体验，或者[参考文档](https://doc.weixin.qq.com/doc/w3_ANsAsgZ1ACcCNWexFbikQQFW4435m?scode=AJEAIQdfAAo3uUNcaFANsAsgZ1ACc)本地安装插件
 
 H5 是通过 gradle 启动 dev-server 来运行
 
@@ -111,7 +110,7 @@ kotlin 2.0 以上运行: ./gradlew :h5App:jsBrowserDevelopmentRun -t
 ./gradlew :h5App:copyAssetsToWebpackDevServer
 ```
 3. 浏览器查看效果
-就可以在 http://localhost:8080/ 看到效果了，如果要访问不同的页面，可以通过 url 参数指定页面名称，如：http://localhost:8080/?page_name=router
+   就可以在 http://localhost:8080/ 看到效果了，如果要访问不同的页面，可以通过 url 参数指定页面名称，如：http://localhost:8080/?page_name=router
 
 4. 浏览器下面界面时，说明已运行成功h5App
 
@@ -121,7 +120,6 @@ kotlin 2.0 以上运行: ./gradlew :h5App:jsBrowserDevelopmentRun -t
 
 
 ## 运行微信小程序
-模版工程微信小程序正在发布审核中，如果未更新可以先使用 Github 源码体验，或者[参考文档](https://doc.weixin.qq.com/doc/w3_ANsAsgZ1ACcCNWexFbikQQFW4435m?scode=AJEAIQdfAAo3uUNcaFANsAsgZ1ACc)本地安装插件
 
 微信小程序先通过 gradle 编译js，然后通过微信开发者工具来运行
 1. 编译demo代码成js
@@ -206,20 +204,20 @@ internal class HelloWorldPage : Pager() {
 @Page("HelloWorld")
 internal class HelloWorldPage : Pager() {
 
-    override fun body(): ViewBuilder {
-        return {
-            attr {
-                allCenter()
-            }
+   override fun body(): ViewBuilder {
+      return {
+         attr {
+            allCenter()
+         }
 
-            Text {
-                attr {
-                    text("Hello Kuikly")
-                    fontSize(14f)
-                }
+         Text {
+            attr {
+               text("Hello Kuikly")
+               fontSize(14f)
             }
-        }
-    }
+         }
+      }
+   }
 }
 ```
 

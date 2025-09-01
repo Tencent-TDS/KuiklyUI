@@ -35,19 +35,19 @@
     KuiklyContextParam* contextParam = json[@"contextParam"];
 
     if (fontFamily && fontFamily.length) {
-        UIFont* font = [UIFont fontWithName:fontFamily size:fontSize];      // 增加用户侧加载完成后，返回字体前的判空操作，确保目标字体时肯定被注册进系统的
+        UIFont* font = [UIFont fontWithName:fontFamily size:fontSize];      // 判断字体是否已静态注册到info.plist中，有则直接使用
         if (font) {
             return font;
         }
-
+        // 字体未静态注册，执行动态加载
         //fontFamily 与 ContextParam全部有效，则调用业务方hr_loadCustomFont
         if (contextParam && [KRFontModule hr_loadCustomFont:fontFamily contextParams:contextParam]) {
-            UIFont* font = [UIFont fontWithName:fontFamily size:fontSize];      // 增加用户侧加载完成后，返回字体前的判空操作，确保目标字体时肯定被注册进系统的
+            UIFont* font = [UIFont fontWithName:fontFamily size:fontSize];
             if (font) {
                 return font;
             }
         } else {
-            return [UIFont systemFontOfSize:fontSize];
+            return [UIFont systemFontOfSize:fontSize];  // 动态加载失败，返回系统默认字体
         }
     }
 

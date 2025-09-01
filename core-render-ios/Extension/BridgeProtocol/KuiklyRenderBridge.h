@@ -60,12 +60,6 @@ typedef void (^KRBundleResponse)(NSString *_Nullable script , NSError *_Nullable
 + (void)registerCacheHandler:(id<KRCacheProtocol>)cacheHandler;
 
 
-/*
- * @brief 注册自定义Cache实现
- */
-+ (void)registerCacheHandler:(id<KRCacheProtocol>)cacheHandler;
-
-
 + (id<KuiklyRenderComponentExpandProtocol>)componentExpandHandler;
 
 @end
@@ -91,6 +85,16 @@ typedef void(^ImageCompletionBlock)(UIImage * _Nullable image, NSError * _Nullab
 
 @optional
 
+/*
+ * 通过文件名从自定义bundle获取图片等资源URL，用于加载图片等资源
+ * 适用于模块化、组件化开发，自定义资源bundle（非mainBundle的场景）
+ * 通过传入的fileName（fileName带有模块名），确定该资源所在模块bundle的路径，返回该资源的完整URL
+ * eg：fileName为 XXXModule/XXXPage/btn_back_ic，该模块资源打包成XXXModule.bundle，业务根据fileName确定模块并返回该资源URL
+ * @param fileName 资源图片文件名
+ * @param extension 资源图片fileExtension
+ * @return 图片等资源URL
+ */
+- (NSURL *)hr_customBundleUrlForFileName:(NSString *)fileName extension:(NSString *)fileExtension;
 
 /*
  * 自定义实现设置图片（带完成回调，优先调用该方法）

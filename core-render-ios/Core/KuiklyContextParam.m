@@ -15,6 +15,7 @@
 
 #import "KuiklyContextParam.h"
 #import "KuiklyRenderFrameworkContextHandler.h"
+#import "KuiklyRenderBridge.h"
 
 const KuiklyContextMode KuiklyContextMode_Framework = 1;
 

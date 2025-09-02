@@ -6,6 +6,9 @@
       "arguments": "",
       "cppFlags": ""
     },
+    "arkOptions": {
+      "byteCodeHar": true
+    }
   },
   "buildOptionSet": [
     {

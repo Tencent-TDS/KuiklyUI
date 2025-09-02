@@ -18,5 +18,8 @@
   },
   "nodeOptions": {
     // "maxOldSpaceSize": 4096                  /* Enable nodeOptions maxOldSpaceSize compilation. Unit M. Used for the daemon process */
+  },
+  "properties": {
+    "ohos.sign.har": true
   }
 }

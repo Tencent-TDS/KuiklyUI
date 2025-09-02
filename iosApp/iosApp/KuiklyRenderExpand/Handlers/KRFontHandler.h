@@ -13,20 +13,12 @@
  * limitations under the License.
  */
 
-#import "KRFontHanlder.h"
-#import "KRFontModule.h"
+#import <Foundation/Foundation.h>
+#import "KuiklyRenderBridge.h"
+NS_ASSUME_NONNULL_BEGIN
 
-
-
-
-@implementation KRFontHanlder
-
-+ (void)load {
-    [KuiklyRenderBridge registerFontHandler:[KRFontHanlder new]];
-}
-
-- (CGFloat)scaleFitWithFontSize:(CGFloat)fontSize {
-    return (fontSize *2);
-}
+@interface KRFontHandler : NSObject<KuiklyFontProtocol>
 
 @end
+
+NS_ASSUME_NONNULL_END

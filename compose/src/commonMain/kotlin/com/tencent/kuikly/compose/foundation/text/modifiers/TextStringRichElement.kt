@@ -42,7 +42,9 @@ internal class TextStringRichElement(
     private val maxLines: Int = Int.MAX_VALUE,
     private val minLines: Int = DefaultMinLines,
     private val color: ColorProducer? = null,
-    private val inlineContent: Map<String, InlineTextContent> = EmptyInlineContent
+    private val inlineContent: Map<String, InlineTextContent> = EmptyInlineContent,
+    private val fontSizeScale: Float = 1.0f,
+    private val fontWeightScale: Float = 1.0f
 ) : ModifierNodeElement<TextStringRichNode>() {
 
     override fun create(): TextStringRichNode = TextStringRichNode(
@@ -55,7 +57,9 @@ internal class TextStringRichElement(
         maxLines,
         minLines,
         color,
-        inlineContent
+        inlineContent,
+        fontSizeScale,
+        fontWeightScale
     )
 
     override fun update(node: TextStringRichNode) {
@@ -74,6 +78,10 @@ internal class TextStringRichElement(
             ),
             callbacksChanged = node.updateCallbacks(
                 onTextLayout = onTextLayout,
+            ),
+            configChanged = node.updateConfiguration(
+                fontSizeScale = fontSizeScale,
+                fontWeightScale = fontWeightScale
             )
         )
     }
@@ -97,6 +105,8 @@ internal class TextStringRichElement(
         if (softWrap != other.softWrap) return false
         if (maxLines != other.maxLines) return false
         if (minLines != other.minLines) return false
+        if (fontSizeScale != other.fontSizeScale) return false
+        if (fontWeightScale != other.fontWeightScale) return false
 
         return true
     }
@@ -113,6 +123,8 @@ internal class TextStringRichElement(
         result = 31 * result + inlineContent.hashCode()
 //        result = 31 * result + (placeholders?.hashCode() ?: 0)
         result = 31 * result + (color?.hashCode() ?: 0)
+        result = 31 * result + fontSizeScale.hashCode()
+        result = 31 * result + fontWeightScale.hashCode()
         return result
     }
 

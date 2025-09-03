@@ -202,6 +202,10 @@ open class ComposeContainer :
             setFrameToRenderView(newFrame)
             rootKView.setFrameToRenderView(newFrame)
             updateWindowContainer(newFrame)
+        } else if (pagerEvent == PAGER_EVENT_CONFIGURATION_DID_CHANGED) {
+            val fontWeightScale = eventData.optDouble("fontWeightScale", 1.0)
+            val fontSizeScale = eventData.optDouble("fontSizeScale", 1.0)
+            mediator?.configuration?.onFontConfigChange(fontSizeScale, fontWeightScale)
         }
     }
 
@@ -275,6 +279,9 @@ open class ComposeContainer :
             innerOnBackPressedDispatcher = backPressedDispatcher
         }
     }
+
+
+
 
     /**
      * 注册扩展module接口，（注：注册时机为override ComponentActivity.createExternalModules中统一注册）

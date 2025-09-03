@@ -277,7 +277,10 @@ void KRRenderView::DispatchInitState(KRInitState state) {
         break;
     }
     // 通知ArkTS侧
-    KRArkTSManager::GetInstance().CallArkTSMethod(GetContext()->InstanceId(), KRNativeCallArkTSMethod::CallModuleMethod,
-        NewKRRenderValue(KR_PERFORMANCE_MODULE), NewKRRenderValue(NOTIFY_INIT_STATE),
-        NewKRRenderValue(static_cast<int>(state)), nullptr, nullptr, nullptr);
+    std::string instance_id = context_->InstanceId();
+    KRContextScheduler::ScheduleTaskOnMainThread(false, [instance_id, state] {
+        KRArkTSManager::GetInstance().CallArkTSMethod(instance_id, KRNativeCallArkTSMethod::CallModuleMethod,
+            NewKRRenderValue(KR_PERFORMANCE_MODULE), NewKRRenderValue(NOTIFY_INIT_STATE),
+            NewKRRenderValue(static_cast<int>(state)), nullptr, nullptr, nullptr);
+    });
 }

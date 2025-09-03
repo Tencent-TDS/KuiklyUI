@@ -90,8 +90,6 @@ export const KRSystemLanguageKey = 'sysLang';
 
 const KROnBackPressedKey = 'onBackPressed';
 
-const KROnBackTimeoutMs = 200;
-
 enum KRBackPressConsumedState {
   Undefined = 0,
   Consumed,
@@ -464,14 +462,11 @@ export class KRNativeRenderController {
   onBackPress() {
     const sendTime = Date.now();
     this.doSendEvent(KROnBackPressedKey, {});
-
-    while (Date.now() - sendTime < KROnBackTimeoutMs) {
-      const result = render.isBackPressConsumed(this.instanceId, sendTime);
-      if (result === KRBackPressConsumedState.Consumed) {
-        return true;
-      } else if (result === KRBackPressConsumedState.NotConsumed) {
-        return false;
-      }
+    const result = render.isBackPressConsumed(this.instanceId, sendTime);
+    if (result === KRBackPressConsumedState.Consumed) {
+      return true;
+    } else if (result === KRBackPressConsumedState.NotConsumed) {
+      return false;
     }
     return false;
   }

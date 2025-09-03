@@ -118,13 +118,24 @@ void KRRenderCore::DidInit() {
 // kt通信
 void KRRenderCore::SendEvent(std::string event_name, const std::string &json_data) {
     auto self = shared_from_this();
-    PerformTaskOnContextQueue(false, 0, [self, event_name, json_data] {
+    bool needSync = false;
+    if (auto rv = renderView_.lock()) {
+        needSync = rv->syncSendEvent(event_name);
+    }
+
+    auto task = [self, event_name, json_data] {
         auto event = std::make_shared<KRRenderValue>(event_name);
         auto data = std::make_shared<KRRenderValue>(json_data);
         auto nullValue = self->defaultNullValue_;
         self->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodUpdateInstance, event, data, nullValue,
                                nullValue, nullValue);
-    });
+    };
+
+    if (needSync) {
+        task();
+        return;
+    }
+    PerformTaskOnContextQueue(false, 0, task);
 }
 
 std::shared_ptr<IKRRenderViewExport> KRRenderCore::GetView(int tag) {

@@ -175,7 +175,6 @@ static napi_value isBackPressConsumed(napi_env env, napi_callback_info info) {
         return result;
     }
     std::string instance_id = kuikly::util::getNApiArgsStdString(env, args[0]);
-    double send_time = kuikly::util::getNApiArgsInt64(env, args[1]);
 
     auto render_view = KRRenderManager::GetInstance().GetRenderView(instance_id);
     if (render_view != nullptr) {
@@ -184,13 +183,11 @@ static napi_value isBackPressConsumed(napi_env env, napi_callback_info info) {
         if (!back_press_module) {
             return result;
         }
-        if (back_press_module->back_consumed_time.load() >= send_time) {
-            bool is_back_consumed = back_press_module->is_back_consumed.load();
-            if (is_back_consumed) {
-                napi_create_int32(env, KRBackPressState::Consumed, &result);
-            } else {
-                napi_create_int32(env, KRBackPressState::NotConsumed, &result);
-            }
+        bool is_back_consumed = back_press_module->is_back_consumed.load();
+        if (is_back_consumed) {
+            napi_create_int32(env, KRBackPressState::Consumed, &result);
+        } else {
+            napi_create_int32(env, KRBackPressState::NotConsumed, &result);
         }
     }
     return result;

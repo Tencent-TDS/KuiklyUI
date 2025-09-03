@@ -36,9 +36,6 @@ KRAnyValue KRBackPressModule::CallMethod(bool sync, const std::string &method, K
 void KRBackPressModule::BackHandle(const KRAnyValue &params) {
     auto jsonObj = kuikly::util::JSONObject::Parse(params->toString());
     is_back_consumed.store(jsonObj->GetNumber("consumed", 0) == 1);
-    back_consumed_time.store(std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch()
-    ).count());
 }
 
 }

@@ -42,6 +42,7 @@ import com.tencent.kuikly.core.module.VsyncModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.pager.IPagerEventObserver
 import com.tencent.kuikly.core.pager.Pager
+import com.tencent.kuikly.core.timer.setTimeout
 import com.tencent.kuikly.core.views.DivView
 import com.tencent.kuiklyx.coroutines.Kuikly
 import kotlinx.coroutines.Dispatchers
@@ -264,7 +265,9 @@ open class ComposeContainer :
                             } else {
                                 pager.acquireModule<BackPressModule>(BackPressModule.MODULE_NAME).backHandle(isConsumed = true)
                             }
-                            backPressedDispatcher.dispatchOnBackEvent()
+                            this@ComposeContainer.setTimeout {
+                                backPressedDispatcher.dispatchOnBackEvent()
+                            }
                         }
                     }
                 },

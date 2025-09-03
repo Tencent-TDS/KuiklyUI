@@ -36,7 +36,6 @@ class KRBackPressModule : public IKRRenderModuleExport {
                           const KRRenderCallback &callback) override;
     
     std::atomic<bool> is_back_consumed{false};
-    std::atomic<int64_t> back_consumed_time{0};
 
  private:
     static const char METHOD_BACK_HANDLE[];

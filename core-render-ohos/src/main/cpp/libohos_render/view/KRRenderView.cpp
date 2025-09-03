@@ -71,6 +71,14 @@ void KRRenderView::SendEvent(std::string event_name, const std::string &json_dat
     }
 }
 
+bool KRRenderView::syncSendEvent(const std::string &event_name) {
+    // 与 ETS 侧常量保持一致：'onBackPressed'
+    if (event_name == "onBackPressed") {
+        return true;
+    }
+    return false;
+}
+
 /**
  * 获取渲染节点视图（要求在主线程调用）
  * @param tag 所在tag

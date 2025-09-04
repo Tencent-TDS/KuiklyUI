@@ -87,6 +87,7 @@ void KRRichTextView::DidRemoveFromParentView() {
     IKRRenderViewExport::DidRemoveFromParentView();
     shadow_ = nullptr;
     paragraph_ = nullptr;
+    last_draw_frame_width_ = -1.0;
 }
 
 void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
@@ -126,11 +127,19 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
     auto *drawContext = OH_ArkUI_NodeCustomEvent_GetDrawContextInDraw(event);
     auto *drawingHandle = reinterpret_cast<OH_Drawing_Canvas *>(OH_ArkUI_DrawContext_GetCanvas(drawContext));
     auto frameWidth = GetFrame().width;
-    if (fabs(textTypoSize.width - frameWidth) > 1 || textAlign != TEXT_ALIGN_LEFT) {  // 文本非左对齐，需要重新排版一次
+    bool needReLayout = false;
+    if (last_draw_frame_width_ > 0 && fabs(last_draw_frame_width_ - frameWidth) > 0.01) {
+        needReLayout = true;
+    }
+    if (fabs(textTypoSize.width - frameWidth) > 1 || textAlign != TEXT_ALIGN_LEFT) {
+        needReLayout = true;
+    }
+    if (needReLayout) {
         auto dpi = KRConfig::GetDpi();
         OH_Drawing_TypographyLayout(textTypo, frameWidth * dpi);
+        last_draw_frame_width_ = frameWidth;
         if (textAlign != TEXT_ALIGN_LEFT) {
-            richTextShadow->ResetTextAlign();  // 重设避免重复排版
+            richTextShadow->ResetTextAlign();
         }
     }
     // Note: turn this on only when absolutely needed in testing build

@@ -30,21 +30,48 @@
 @interface KRVisualEffectView : UIVisualEffectView
 
 /// The wrapped KRView
-@property (nonatomic, weak) UIView *wrappedView;
+@property (nonatomic, weak) KRView *wrappedView;
 
 /// Init method
 /// - Parameters:
 ///   - effect: visual effect
 ///   - wrappedView: wrapped view
-- (instancetype)initWithEffect:(UIVisualEffect *)effect wrappedView:(UIView *)wrappedView NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithEffect:(UIVisualEffect *)effect wrappedView:(KRView *)wrappedView NS_DESIGNATED_INITIALIZER;
 - (instancetype)initWithEffect:(UIVisualEffect *)effect NS_UNAVAILABLE;
 - (instancetype)initWithCoder:(NSCoder *)coder NS_UNAVAILABLE;
 
 @end
 
+
+#pragma mark - KRView
+
+@interface KRView()
+/**禁止屏幕刷新帧事件**/
+@property (nonatomic, strong) NSNumber *KUIKLY_PROP(screenFramePause);
+/**屏幕刷新帧事件(VSYNC信号)**/
+@property (nonatomic, strong) KuiklyRenderCallback KUIKLY_PROP(screenFrame);
+
+/// For iOS's special effect, like `liquid glass`, etc.
+@property (nonatomic, weak) KRVisualEffectView *effectView;
+/// Whether to enable liquid glass effect
+@property (nonatomic, assign) BOOL glassEffectEnable;
+/// Tint color of glass effect
+@property (nonatomic, strong) UIColor *glassEffectColor;
+/// Style of glass effect
+@property (nonatomic, strong) NSString *glassEffectStyle;
+/// Whether is interactive of glass effect
+@property (nonatomic, strong) NSNumber *glassEffectInteractive;
+/// Spacing prop of liquid glass container
+@property (nonatomic, strong) NSNumber *glassEffectContainerSpacing;
+
+@end
+
+
+#pragma mark - KRVisualEffectView IMP
+
 @implementation KRVisualEffectView
 
-- (instancetype)initWithEffect:(UIVisualEffect *)effect wrappedView:(UIView *)wrappedView {
+- (instancetype)initWithEffect:(UIVisualEffect *)effect wrappedView:(KRView *)wrappedView {
     self = [super initWithEffect:effect];
     if (self) {
         self.wrappedView = wrappedView;
@@ -65,33 +92,14 @@
 - (void)removeFromSuperview {
     [_wrappedView removeFromSuperview];
     _wrappedView.kr_commonWrapperView = nil;
+    _wrappedView.effectView = nil;
     [super removeFromSuperview];
 }
 
 @end
 
 
-#pragma mark - KRView
-
-@interface KRView()
-/**禁止屏幕刷新帧事件**/
-@property (nonatomic, strong) NSNumber *KUIKLY_PROP(screenFramePause);
-/**屏幕刷新帧事件(VSYNC信号)**/
-@property (nonatomic, strong) KuiklyRenderCallback KUIKLY_PROP(screenFrame);
-
-/// Whether to enable liquid glass effect
-@property (nonatomic, assign) BOOL glassEffectEnable;
-/// Tint color of glass effect
-@property (nonatomic, strong) UIColor *glassEffectColor;
-/// Style of glass effect
-@property (nonatomic, strong) NSString *glassEffectStyle;
-/// Whether is interactive of glass effect
-@property (nonatomic, strong) NSNumber *glassEffectInteractive;
-/// Spacing prop of liquid glass container
-@property (nonatomic, strong) NSNumber *glassEffectContainerSpacing;
-
-@end
-
+#pragma mark - KRView IMP
 
 /*
  * @brief 暴露给Kotlin侧调用的View容器组件
@@ -101,8 +109,6 @@
     BOOL _hitTesting;
     /// 屏幕刷新定时器
     KRDisplayLink *_displaylink;
-    /// For iOS's special effect, like `liquid glass`, etc.
-    __weak KRVisualEffectView *_effectView;
 }
 
 @synthesize hr_rootView;

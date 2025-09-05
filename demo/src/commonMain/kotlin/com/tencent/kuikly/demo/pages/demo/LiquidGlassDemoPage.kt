@@ -89,7 +89,7 @@ internal class LiquidGlassDemoPage : BasePager() {
                         Text {
                             attr {
                                 if (ctx.shouldUseGlassEffect) {
-                                    text("液态玻璃-Regular Style")
+                                    text("Regular Style")
                                 } else {
                                     text("普通背景效果")
                                 }
@@ -111,7 +111,7 @@ internal class LiquidGlassDemoPage : BasePager() {
                         }
                         Text {
                             attr {
-                                text("液态玻璃-Clear Style")
+                                text("Clear Style")
                                 fontSize(21f)
                                 alignSelfCenter()
                                 fontWeight600()

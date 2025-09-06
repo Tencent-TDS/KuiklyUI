@@ -47,6 +47,7 @@ class KRRichTextView : public IKRRenderViewExport {
  private:
     std::shared_ptr<KRParagraph> paragraph_;
     std::shared_ptr<IKRRenderShadowExport> shadow_;
+    float last_draw_frame_width_ = -1.0;
     void OnForegroundDraw(ArkUI_NodeCustomEvent *event);
 };
 

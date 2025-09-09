@@ -63,7 +63,7 @@ void KRRenderManager::CreateRenderViewIfNeeded(napi_env env, napi_callback_info 
     auto renderView = GetRenderView(id);
 
     if (renderView == nullptr) {
-        auto render_view = std::make_shared<KRRenderView>(contentHandle);
+        auto render_view = std::make_shared<KRRenderView>(contentHandle, id);
         SetRenderView(id, render_view);
     }
 }

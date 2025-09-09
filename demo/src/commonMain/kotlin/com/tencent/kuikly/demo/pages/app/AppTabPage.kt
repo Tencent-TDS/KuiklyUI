@@ -156,13 +156,15 @@ internal class AppTabPage : MultiLingualPager() {
     private fun tabBarIOS(): ViewBuilder {
         val ctx = this
         val barItems = mutableListOf<TabbarIOSItem>()
-        val iconPrefix = getPager().pageName + "/";
+        val pageName = getPager().pageName
+
         for (i in 0 until ctx.pageTitles.size) {
             barItems.add(
                 TabbarIOSItem(
-                pageTitles[i],
-                iconPrefix + pageIcons[i],
-                iconPrefix + pageIconsHighlight[i])
+                    pageTitles[i],
+                    ThemeManager.getAssetUri(ctx.theme.asset, ctx.pageIcons[i]).toUrl(pageName),
+                    ThemeManager.getAssetUri(ctx.theme.asset, ctx.pageIconsHighlight[i]).toUrl(pageName)
+                )
             )
         }
 

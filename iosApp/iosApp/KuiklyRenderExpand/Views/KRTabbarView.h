@@ -19,6 +19,12 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+/**
+ * KRTabbarView - A Kuikly extension component that wraps iOS native UITabBar
+ * 
+ * This is an example extension component for Kuikly framework, providing
+ * a declarative interface to iOS native TabBar functionality.
+ */
 @interface KRTabbarView : UIView<KuiklyRenderViewExportProtocol>
 
 @end

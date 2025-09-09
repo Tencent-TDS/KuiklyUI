@@ -17,6 +17,18 @@
 #import "KRTabbarView.h"
 #import "KRComponentDefine.h"
 
+extern NSString *const KRImageAssetsPrefix;
+
+/**
+ * KRTabbarView Implementation
+ * 
+ * A Kuikly extension component that wraps iOS native UITabBar.
+ * Provides declarative interface for TabBar functionality including:
+ * - Dynamic tab items configuration
+ * - Icon and selected icon support
+ * - Badge value management
+ * - Tab selection callbacks
+ */
 @interface KRTabbarView ()
 @property (nonatomic, strong) UITabBar *tabBar;
 @property (nonatomic, copy) NSArray *items;
@@ -48,30 +60,18 @@
     KUIKLY_SET_CSS_COMMON_PROP;
 }
 
-- (UIImage *)resizeImage:(UIImage *)image toSize:(CGSize)size {
-    UIGraphicsBeginImageContextWithOptions(size, NO, 0.0);
-    [image drawInRect:CGRectMake(0, 0, size.width, size.height)];
-    UIImage *scaledImage = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
-    return scaledImage;
-}
-
 - (void)setCss_items:(NSArray *)css_items {
     // css_items: [{title, icon, selectedIcon}]
     NSMutableArray *tabBarItems = [NSMutableArray array];
     for (NSDictionary *item in css_items) {
         NSString *title = item[@"title"] ?: @"";
-        NSString *icon = item[@"icon"] ?: @"";
-        NSString *selectedIcon = item[@"selectedIcon"] ?: @"";
+        NSString *iconCssPath = item[@"icon"] ?: @"";
+        NSString *selectedIconCssPath = item[@"selectedIcon"] ?: @"";
         
-        
-        UIImage *image = [UIImage imageNamed:icon];
-        UIImage *selectedImage = [UIImage imageNamed:selectedIcon];
-        UIImage *scaledImg = [self resizeImage:image toSize:CGSizeMake(25.0, 25.0)];
-        UIImage *scaledselectedImg = [self resizeImage:selectedImage toSize:CGSizeMake(25.0, 25.0)];
-        UITabBarItem *tabBarItem = [[UITabBarItem alloc] initWithTitle:title
-                                                                 image:scaledImg
-                                                         selectedImage:scaledselectedImg];
+        // 创建TabBarItem
+        UITabBarItem *tabBarItem = [self createTabBarItemWithTitle:title
+                                                              icon:iconCssPath
+                                                      selectedIcon:selectedIconCssPath];
         [tabBarItems addObject:tabBarItem];
     }
     self.tabBar.items = tabBarItems;
@@ -116,6 +116,67 @@
         UITabBarItem *item = self.tabBar.items[idx];
         item.badgeValue = badge;
     }
+}
+
+#pragma mark - Private Helper Methods
+
+- (UIImage *)resizeImage:(UIImage *)image toSize:(CGSize)size {
+    if (!image) return nil;
+    
+    UIGraphicsBeginImageContextWithOptions(size, NO, 0.0);
+    [image drawInRect:CGRectMake(0, 0, size.width, size.height)];
+    UIImage *scaledImage = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return scaledImage;
+}
+
+- (UIImage *)loadImageFromPath:(NSString *)cssPath {
+    if (!cssPath || cssPath.length == 0) return nil;
+    
+    // 检查路径是否以KRImageAssetsPrefix开头
+    if (![cssPath hasPrefix:KRImageAssetsPrefix]) {
+        NSLog(@"Warning: Image path does not start with expected prefix: %@", cssPath);
+        return nil;
+    }
+    
+    // 提取资源路径
+    NSRange subRange = NSMakeRange(KRImageAssetsPrefix.length, cssPath.length - KRImageAssetsPrefix.length);
+    if (subRange.length <= 0) return nil;
+    
+    NSString *path = [cssPath substringWithRange:subRange];
+    NSString *fileName = [path stringByDeletingPathExtension];
+    NSString *extension = [cssPath pathExtension];
+    
+    // 从Bundle加载图片
+    NSURL *imageUrl = [[NSBundle mainBundle] URLForResource:fileName withExtension:extension];
+    if (!imageUrl) {
+        NSLog(@"Warning: Could not find image resource: %@.%@", fileName, extension);
+        return nil;
+    }
+    
+    UIImage *image = [UIImage imageWithContentsOfFile:imageUrl.path];
+    return image;
+}
+
+- (UITabBarItem *)createTabBarItemWithTitle:(NSString *)title
+                                       icon:(NSString *)iconPath
+                               selectedIcon:(NSString *)selectedIconPath {
+    // 加载图片
+    UIImage *iconImage = [self loadImageFromPath:iconPath];
+    UIImage *selectedIconImage = [self loadImageFromPath:selectedIconPath];
+    
+    // 缩放图片到标准尺寸
+    static const CGFloat kTabBarIconSize = 25.0;
+    CGSize iconSize = CGSizeMake(kTabBarIconSize, kTabBarIconSize);
+    
+    UIImage *scaledIcon = [self resizeImage:iconImage toSize:iconSize];
+    UIImage *scaledSelectedIcon = [self resizeImage:selectedIconImage toSize:iconSize];
+    
+    // 创建TabBarItem
+    UITabBarItem *tabBarItem = [[UITabBarItem alloc] initWithTitle:title
+                                                             image:scaledIcon
+                                                     selectedImage:scaledSelectedIcon];
+    return tabBarItem;
 }
 
 @end

@@ -110,6 +110,15 @@
 			path = Pods;
 			sourceTree = "<group>";
 		};
+		71F799552E702FBA00EA8A8F /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				7126B4442E1E708100B6B1D9 /* KRTabbarView.h */,
+				7126B4452E1E709000B6B1D9 /* KRTabbarView.m */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
 		7555FF72242A565900829871 = {
 			isa = PBXGroup;
 			children = (
@@ -208,6 +217,7 @@
 				FF05C63929C84FF500C5E02A /* Controller */,
 				FF05C63829C84FE800C5E02A /* Handlers */,
 				FFE6EAA2289A65D400AAAA3A /* Modules */,
+				71F799552E702FBA00EA8A8F /* Views */,
 			);
 			path = KuiklyRenderExpand;
 			sourceTree = "<group>";
@@ -215,8 +225,6 @@
 		FFE6EAA2289A65D400AAAA3A /* Modules */ = {
 			isa = PBXGroup;
 			children = (
-				7126B4442E1E708100B6B1D9 /* KRTabbarView.h */,
-				7126B4452E1E709000B6B1D9 /* KRTabbarView.m */,
 				FF05C64129C851A500C5E02A /* KRBridgeModule.h */,
 				FF05C64029C851A500C5E02A /* KRBridgeModule.m */,
 				3A622B9A2AB052B0002410B8 /* KRNewTestModule.h */,

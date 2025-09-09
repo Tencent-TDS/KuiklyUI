@@ -17,6 +17,7 @@
 
 #include <functional>
 #include "libohos_render/context/IKRRenderNativeContextHandler.h"
+#include "libohos_render/manager/KRRenderManager.h"
 #include "libohos_render/scheduler/IKRScheduler.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"
 #include "libohos_render/scheduler/KRUIScheduler.h"
@@ -33,15 +34,38 @@ static std::string GetIncreaseCallbackId() {
     gCallbackId++;
     return NewKRRenderValue(gCallbackId)->toString();
 }
-KRRenderView::~KRRenderView() {
-    if (node_content_handle_ && root_node_){
-        ArkUI_NodeContentHandle content_handle = node_content_handle_;
-        ArkUI_NodeHandle root_node = root_node_;
 
-        KRMainThread::RunOnMainThread([content_handle, root_node] {
-            OH_ArkUI_NodeContent_RemoveNode(content_handle, root_node);
-        });
-    }
+KRRenderView::KRRenderView(ArkUI_NodeContentHandle handle, std::string instance_id) : IKRRenderView(), node_content_handle_((handle)) {
+    unsigned long long id_value = std::atoi(instance_id.c_str());
+    OH_ArkUI_NodeContent_SetUserData(handle, (void*)id_value);
+    auto cb = [](ArkUI_NodeContentEvent* event){
+        auto event_type = OH_ArkUI_NodeContentEvent_GetEventType(event);
+        if(event_type == NODE_CONTENT_EVENT_ON_DETACH_FROM_WINDOW){
+            auto handle = OH_ArkUI_NodeContentEvent_GetNodeContentHandle(event);
+            void *user_data = OH_ArkUI_NodeContent_GetUserData(handle);
+            unsigned long long id_value = (unsigned long long)user_data;
+            std::string instance_id = std::to_string(id_value);
+            if (auto instance = KRRenderManager::GetInstance().GetRenderView(instance_id)) {
+                std::shared_ptr<KRRenderView> render_view = std::dynamic_pointer_cast<KRRenderView>(instance);
+                if(render_view){
+                    render_view->RemoveRootViewFromContentHandle(true);
+                }
+            }
+        }
+    };
+    OH_ArkUI_NodeContent_RegisterCallback(handle, cb);
+}
+
+KRRenderView::~KRRenderView() {
+    RemoveRootViewFromContentHandle(false);
+//    if (node_content_handle_ && root_node_){
+//        ArkUI_NodeContentHandle content_handle = node_content_handle_;
+//        ArkUI_NodeHandle root_node = root_node_;
+//
+//        KRMainThread::RunOnMainThread([content_handle, root_node] {
+//            OH_ArkUI_NodeContent_RemoveNode(content_handle, root_node);
+//        });
+//    }
     if(root_node_ != nullptr){
         ArkUI_NodeHandle root_node = root_node_;
         KRMainThread::RunOnMainThread([root_node] {
@@ -52,6 +76,28 @@ KRRenderView::~KRRenderView() {
     node_content_handle_ = nullptr;
     native_resources_manager_ = nullptr;
     method_arg_callback_map_.clear();
+}
+
+void KRRenderView::RemoveRootViewFromContentHandle(bool immediate){
+    if(node_content_handle_ && root_node_){
+        ArkUI_NodeContentHandle content_handle = node_content_handle_;
+        ArkUI_NodeHandle root_node = root_node_;
+        
+        auto unregister_and_remove = [content_handle, root_node](){
+            OH_ArkUI_NodeContent_RegisterCallback(content_handle, [](ArkUI_NodeContentEvent*){}); // set callback to noop
+            OH_ArkUI_NodeContent_RemoveNode(content_handle, root_node);
+        };
+        
+        if(immediate){
+            unregister_and_remove();
+        }else{
+            KRMainThread::RunOnMainThread([unregister_and_remove] {
+                unregister_and_remove();
+            });
+        }
+        
+        node_content_handle_ = nullptr;
+    }
 }
 
 void KRRenderView::WillDestroy(const std::string &instanceId) {

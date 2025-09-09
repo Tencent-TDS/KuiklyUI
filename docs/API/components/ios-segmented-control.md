@@ -41,7 +41,7 @@ SegmentedControlIOS {
 
 | 参数 | 描述 | 类型 | 默认值 |
 | -- | -- | -- | -- |
-| titles | 分段标题列表 | List<String> | 空列表 |
+| titles | 分段标题列表 | List\<String\> | 空列表 |
 
 #### 示例
 

@@ -28,6 +28,7 @@ import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.core.views.compose.Button
 import com.tencent.kuikly.core.views.ios.iOSSlider
 import com.tencent.kuikly.core.views.ios.iOSSwitch
+import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 import com.tencent.kuikly.demo.pages.demo.base.TabbarIOS
@@ -550,6 +551,7 @@ internal class LiquidGlassDemoPage : BasePager() {
     }
 
     private fun iOSSystemTabbarDemo(): ViewBuilder {
+        val pageName = getPager().pageName
         return {
             View {
                 attr {
@@ -575,8 +577,16 @@ internal class LiquidGlassDemoPage : BasePager() {
                         height(80f)
                         items(
                             listOf(
-                                TabbarIOSItem("首页", "home_icon", "home_icon_selected"),
-                                TabbarIOSItem("我的", "me_icon", "me_icon_selected")
+                                TabbarIOSItem(
+                                    "首页",
+                                    ThemeManager.getAssetUri("default", "tabbar_home.png").toUrl(pageName),
+                                    ThemeManager.getAssetUri("default", "tabbar_home_highlighted.png").toUrl(pageName),
+                                ),
+                                TabbarIOSItem(
+                                    "我的",
+                                    ThemeManager.getAssetUri("default", "tabbar_profile.png").toUrl(pageName),
+                                    ThemeManager.getAssetUri("default", "tabbar_profile_highlighted.png").toUrl(pageName),
+                                )
                             )
                         )
                         selectedIndex(0)

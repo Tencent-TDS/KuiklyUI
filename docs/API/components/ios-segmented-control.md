@@ -77,24 +77,6 @@ SegmentedControlIOS {
 
 分段选择变化时触发的事件。
 
-```kotlin
-SegmentedControlIOS {
-    event {
-        onValueChanged { params ->
-            val selectedIndex = params.index
-            println("用户选择了第${selectedIndex + 1}个选项")
-            
-            // 根据选择执行不同操作
-            when (selectedIndex) {
-                0 -> showAllItems()
-                1 -> showActiveItems()
-                2 -> showCompletedItems()
-            }
-        }
-    }
-}
-```
-
 #### ValueChangedParams
 
 | 参数 | 描述 | 类型 |
@@ -106,4 +88,4 @@ SegmentedControlIOS {
 - [Switch](./switch.md) - 支持液态玻璃效果的开关组件
 - [Slider](./slider.md) - 支持液态玻璃效果的滑块组件
 - [Tabs](./tabs.md) - 通用标签页组件
-- [iOS 26 液态玻璃概述](./ios26-liquid-glass.md) - 液态玻璃效果详解
+- [iOS 液态玻璃概述](./ios26-liquid-glass.md) - 液态玻璃效果详解

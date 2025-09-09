@@ -98,7 +98,7 @@ internal class ExampleIndexPage : BasePager() {
         itemList.add(ExampleItemData().apply {
             avatarText = "LG"
             titleText = "Liquid Glass (iOS Only)"
-            subtitleText = "iOS 26 液态玻璃效果"
+            subtitleText = "iOS 液态玻璃效果"
             declarativeExampleUrl = generateJumpUrl("LiquidGlassDemoPage")
         })
 

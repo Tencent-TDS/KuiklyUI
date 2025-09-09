@@ -138,4 +138,4 @@ LiquidGlass {
 
 - [GlassEffectContainer](./glass-effect-container.md) - 液态玻璃容器组合
 - [View](./view.md#glasseffectios) - 基础容器（支持glassEffectIOS属性）
-- [iOS 26 液态玻璃概述](./ios26-liquid-glass.md) - 完整使用指南
+- [iOS 液态玻璃概述](./ios26-liquid-glass.md) - 完整使用指南

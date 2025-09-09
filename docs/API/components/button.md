@@ -87,7 +87,6 @@ Button {
             tintColor = Color.BLUE,
             interactive = true
         )
-        backgroundColor(Color.TRANSPARENT) // 必须设置为透明
     }
     titleAttr {
         text("液态玻璃按钮")
@@ -96,7 +95,7 @@ Button {
 ```
 
 :::warning 注意
-使用glassEffectIOS时，必须将backgroundColor设置为Color.TRANSPARENT，否则会覆盖玻璃效果。
+使用glassEffectIOS时，不能同时设置backgroundColor，否则会覆盖玻璃效果。
 :::
 
 ### glassEffectContainerIOS

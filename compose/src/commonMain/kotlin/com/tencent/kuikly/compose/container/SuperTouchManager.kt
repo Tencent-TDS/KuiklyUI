@@ -69,7 +69,7 @@ class SuperTouchManager {
 
     internal fun DivEvent.setTouchUp(isSync: Boolean) {
         touchUp(isSync) {
-            touchesDelegate.onTouchesEvent(it.touches, PointerEventType.Release, it.timestamp)
+            touchesDelegate.onTouchesEvent(it.touches, PointerEventType.Release, it.timestamp, it.consumed)
             if (container.getViewAttr().getProp(StyleConst.PREVENT_TOUCH) == true) {
                 container.getViewAttr().preventTouch(false)
                 container.getViewEvent().setTouchMove(true)

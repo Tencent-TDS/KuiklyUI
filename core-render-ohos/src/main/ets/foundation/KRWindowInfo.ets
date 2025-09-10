@@ -15,24 +15,38 @@
 
 
 import { window } from '@kit.ArkUI';
+import { KRRenderLog } from '../adapter/KRRenderLog';
 import { KRNativeManager } from '../manager/KRNativeManager';
 import { KRRect } from './KRRect';
 
 export class KRWindowInfo {
   private statusBarHeight: number | null = null;
   private windowRect: KRRect = new KRRect(0, 0, 0, 0);
+  private window: window.Window|null = null
 
   constructor(mainWindow: window.Window) {
     let height = mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM).topRect.height;
     this.statusBarHeight = px2vp(height);
-    mainWindow.on('keyboardHeightChange', (data) => {
-      KRNativeManager.getInstance().keyboardHeightChange(px2vp(data), 300);
-    });
     let rect = mainWindow.getWindowProperties().windowRect;
+    this.window = mainWindow
     this.windowRect.x = rect.left;
     this.windowRect.y = rect.top;
     this.windowRect.width = rect.width;
     this.windowRect.height = rect.height;
+    try {
+      mainWindow.on('keyboardHeightChange', (data) => {
+        KRNativeManager.getInstance().keyboardHeightChange(px2vp(data), 300);
+      });
+      mainWindow.on('windowSizeChange', () => {
+        let rect = mainWindow.getWindowProperties().windowRect
+        this.windowRect.x = rect.left
+        this.windowRect.y = rect.top
+        this.windowRect.width = rect.width
+        this.windowRect.height = rect.height
+      })
+    } catch (e) {
+      KRRenderLog.e("WindowInfo", `setWindow on error code:${e.code}`)
+    }
   }
 
   getStatusBarHeightS(): number {
@@ -45,4 +59,14 @@ export class KRWindowInfo {
   getWindowRect(): KRRect {
     return this.windowRect;
   }
+
+  public setWindowOff(): void {
+    try {
+      this.window?.off('keyboardHeightChange', () => {});
+      this.window?.off('windowSizeChange', () => {});
+    } catch (e) {
+      KRRenderLog.e("WindowInfo", `setWindow off error code:${e.code}`)
+    }
+  }
+
 }

@@ -58,7 +58,7 @@ export class KRNativeManager {
   // 是否初始化过
   private didInit: boolean = false;
   // 窗口信息
-  private windowInfo: KRWindowInfo | null = null;
+  private windowInfoMap = new Map<string, KRWindowInfo>()
 
   // 私有构造函数，确保不能通过 new 关键字创建新实例
   private constructor() {
@@ -72,21 +72,12 @@ export class KRNativeManager {
     return KRNativeManager.instance;
   }
 
-  // 窗口创建时调用该方法进行初始化
-  public onWindowStageCreate(windowStage: window.WindowStage): void {
-    if (this.windowInfo == null) {
-      this.windowInfo = new KRWindowInfo(windowStage.getMainWindowSync());
-    }
+  public createWindowInfo(instanceId: string, win: window.Window): void{
+    this.windowInfoMap[instanceId] = new KRWindowInfo(win)
   }
 
-  public onLastWindow(win: window.Window): void {
-    if (this.windowInfo == null) {
-      this.windowInfo = new KRWindowInfo(win);
-    }
-  }
-
-  public getWindowInfo(): KRWindowInfo | null {
-    return this.windowInfo;
+  public getWindowInfo(instanceId: string): KRWindowInfo |null {
+    return this.windowInfoMap[instanceId]
   }
 
   /**
@@ -107,6 +98,9 @@ export class KRNativeManager {
       let instance = this.getNativeInstance(instanceId);
       instance?.onDestroy();
       this.instancesMap.delete(instanceId);
+      let windowInfo = this.getWindowInfo(instanceId);
+      windowInfo?.setWindowOff();
+      this.windowInfoMap.delete(instanceId);
     }, 1000);
   }
 

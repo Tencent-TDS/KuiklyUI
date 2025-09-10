@@ -74,6 +74,11 @@ class KRConfig {
         if (fontSizeScale != map.end()) {
             fontSizeScale_ = fontSizeScale->second->toFloat();
         }
+        
+        auto ime_mode = map.find("imeMode");
+        if (ime_mode != map.end()) {
+            ime_mode_ = ime_mode->second->toBool();
+        }
     }
 
     /**
@@ -127,6 +132,10 @@ class KRConfig {
     const float GetScreenDensity() {
         return screenDensity_;
     }
+    
+    const bool ImeMode() {
+        return ime_mode_;
+    }
 
  private:
     float vp2px_ = 0;
@@ -138,6 +147,7 @@ class KRConfig {
     std::string resfile_dir_;
     std::string files_dir_;
     std::string assets_dir_;
+    bool ime_mode_ = false;
 };
 
 #endif  // CORE_RENDER_OHOS_KRCONFIG_H

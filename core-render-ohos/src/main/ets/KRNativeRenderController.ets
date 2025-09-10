@@ -626,7 +626,8 @@ export class KRNativeRenderController {
       'files_dir': getContext().filesDir,
       'assets_dir': this.assetsDir,
       'fontWeightScale': this.fontWeightScale,
-      'fontSizeScale': this.fontSizeScale
+      'fontSizeScale': this.fontSizeScale,
+      'imeMode': this.imeMode ? 1 : 0,
     };
 
     return JSON.stringify(data);

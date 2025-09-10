@@ -153,8 +153,8 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 - (void)setCss_src:(NSString *)css_src {
     if (self.css_src != css_src) {
         _css_src = css_src;
+        [self bindImageToView:nil]; // clear current image 清除缓存
         if (css_src) {
-            [self bindImageToView:nil]; // clear current image
             UIImage *image = [[KRImageRefreshCache sharedInstance] imageWithKey:css_src];
             if (image) {
                 self.image = image;

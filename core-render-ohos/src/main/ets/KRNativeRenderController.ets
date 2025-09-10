@@ -246,7 +246,7 @@ export class KRNativeRenderController {
         this.windowClass = windowData;
         const winRect = windowData.getWindowProperties().windowRect;
         this.windowRect = new KRRect(0, 0, px2vp(winRect.width), px2vp(winRect.height));
-        KRNativeManager.getInstance().createWindowInfo(this.instanceId, windowData)
+        KRNativeManager.getInstance().setWindowInfo(this.instanceId, windowData)
         this.onSafeAreaInsetsChanged(this.getSafeAreaRect(windowData));
         windowData.on('avoidAreaChange', this.avoidAreaListener);
         windowData.on('windowSizeChange', this.onWindowSizeChanged);

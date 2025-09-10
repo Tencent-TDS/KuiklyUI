@@ -23,6 +23,7 @@ import { KRWindowInfo } from '../foundation/KRWindowInfo';
 import { KRConvertUtil } from '../utils/KRConvertUtil';
 import { ViewsRegisterEntry } from '../components/ViewsRegisterEntry';
 import { KRNativeRenderController } from '../KRNativeRenderController';
+import { KRRenderLog } from '../adapter/KRRenderLog';
 
 export enum KRCallNativeMethod {
   General = 0,
@@ -59,6 +60,8 @@ export class KRNativeManager {
   private didInit: boolean = false;
   // 窗口信息
   private windowInfoMap = new Map<string, KRWindowInfo>()
+  // 是否注册了键盘高度变化回调
+  private didKeyboardHeightChangeOn = false
 
   // 私有构造函数，确保不能通过 new 关键字创建新实例
   private constructor() {
@@ -72,7 +75,17 @@ export class KRNativeManager {
     return KRNativeManager.instance;
   }
 
-  public createWindowInfo(instanceId: string, win: window.Window): void{
+  public setWindowInfo(instanceId: string, win: window.Window): void{
+    if (!this.didKeyboardHeightChangeOn) {
+      try {
+        win.on('keyboardHeightChange', (data) => {
+          KRNativeManager.getInstance().keyboardHeightChange(px2vp(data), 300);
+        });
+      } catch (e) {
+        KRRenderLog.e("KTNativeManager", `keyboardHeightChange on error code:${e.code}`)
+      }
+      this.didKeyboardHeightChangeOn = true
+    }
     this.windowInfoMap[instanceId] = new KRWindowInfo(win)
   }
 

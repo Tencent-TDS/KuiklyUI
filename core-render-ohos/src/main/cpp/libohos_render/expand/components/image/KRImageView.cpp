@@ -15,6 +15,7 @@
 
 #include "libohos_render/expand/components/image/KRImageView.h"
 
+#include <deviceinfo.h>
 #include <resourcemanager/ohresmgr.h>
 #include <string_view>
 #include "libohos_render/expand/components/image/KRImageAdapterManager.h"
@@ -75,7 +76,17 @@ void KRImageView::DidInit() {
 }
 
 bool KRImageView::ReuseEnable() {
-    return true;
+    static bool reuse_enable = true;
+    static std::once_flag flag;
+    std::call_once(flag, [this]() {
+        if (OH_GetSdkApiVersion() < 20) {
+            auto rootView = GetRootView().lock();
+            if (rootView) {
+                reuse_enable = !rootView->GetContext()->Config()->ImeMode();
+            }
+        }
+    });
+    return reuse_enable;
 }
 
 void KRImageView::OnDestroy() {

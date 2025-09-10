@@ -112,7 +112,7 @@ export class KRNativeManager {
       instance?.onDestroy();
       this.instancesMap.delete(instanceId);
       let windowInfo = this.getWindowInfo(instanceId);
-      windowInfo?.setWindowOff();
+      windowInfo?.removeWindowSizeChangeCallback();
       this.windowInfoMap.delete(instanceId);
     }, 1000);
   }

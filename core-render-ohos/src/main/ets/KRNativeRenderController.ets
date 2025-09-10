@@ -240,9 +240,6 @@ export class KRNativeRenderController {
     if (!imeMode) {
       try {
         const windowData = window.findWindow(uiContext.getWindowName())
-        if (this.destroyed) {
-          return;
-        }
         this.windowClass = windowData;
         const winRect = windowData.getWindowProperties().windowRect;
         this.windowRect = new KRRect(0, 0, px2vp(winRect.width), px2vp(winRect.height));

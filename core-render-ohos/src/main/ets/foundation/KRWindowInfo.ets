@@ -62,7 +62,7 @@ export class KRWindowInfo {
     return this.windowRect;
   }
 
-  public setWindowOff(): void {
+  public removeWindowSizeChangeCallback(): void {
     try {
       this.window?.off('windowSizeChange', this.onWindowSizeChanged);
     } catch (e) {

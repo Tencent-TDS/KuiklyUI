@@ -23,6 +23,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
+import android.view.accessibility.AccessibilityNodeInfo
 import androidx.core.view.NestedScrollingChild2
 import androidx.core.view.NestedScrollingParent2
 import androidx.core.view.ViewCompat
@@ -242,6 +243,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         }
 
     init {
+        isFocusable = false
         overScrollMode = OVER_SCROLL_NEVER
         isFocusableInTouchMode = false
         isNestedScrollingEnabled = true

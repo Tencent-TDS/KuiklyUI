@@ -23,7 +23,6 @@ import { KRWindowInfo } from '../foundation/KRWindowInfo';
 import { KRConvertUtil } from '../utils/KRConvertUtil';
 import { ViewsRegisterEntry } from '../components/ViewsRegisterEntry';
 import { KRNativeRenderController } from '../KRNativeRenderController';
-import { KRRenderLog } from '../adapter/KRRenderLog';
 
 export enum KRCallNativeMethod {
   General = 0,

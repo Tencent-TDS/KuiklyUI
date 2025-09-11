@@ -74,7 +74,7 @@ export class KRNativeManager {
   }
 
   public onLastWindow(win: window.Window): void{
-    if(this.windowInfo == null){
+    if (this.windowInfo == null) {
       this.windowInfo = new KRWindowInfo(win)
     }
   }

@@ -59,7 +59,7 @@ export class KRNativeManager {
   // 是否初始化过
   private didInit: boolean = false;
   // 窗口信息
-  private windowInfo: KRWindowInfo|null = null;
+  private windowInfo: KRWindowInfo | null = null;
 
   // 私有构造函数，确保不能通过 new 关键字创建新实例
   private constructor() {
@@ -79,7 +79,7 @@ export class KRNativeManager {
     }
   }
 
-  public getWindowInfo(): KRWindowInfo|null {
+  public getWindowInfo(): KRWindowInfo | null {
     return this.windowInfo;
   }
 

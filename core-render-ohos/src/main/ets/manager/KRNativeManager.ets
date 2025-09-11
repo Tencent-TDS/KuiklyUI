@@ -59,9 +59,7 @@ export class KRNativeManager {
   // 是否初始化过
   private didInit: boolean = false;
   // 窗口信息
-  private windowInfoMap = new Map<string, KRWindowInfo>()
-  // 是否注册了键盘高度变化回调
-  private didKeyboardHeightChangeOn = false
+  private windowInfo: KRWindowInfo|null = null;
 
   // 私有构造函数，确保不能通过 new 关键字创建新实例
   private constructor() {
@@ -75,22 +73,14 @@ export class KRNativeManager {
     return KRNativeManager.instance;
   }
 
-  public setWindowInfo(instanceId: string, win: window.Window): void{
-    if (!this.didKeyboardHeightChangeOn) {
-      try {
-        win.on('keyboardHeightChange', (data) => {
-          KRNativeManager.getInstance().keyboardHeightChange(px2vp(data), 300);
-        });
-      } catch (e) {
-        KRRenderLog.e("KTNativeManager", `keyboardHeightChange on error code:${e.code}`)
-      }
-      this.didKeyboardHeightChangeOn = true
+  public onLastWindow(win: window.Window): void{
+    if(this.windowInfo == null){
+      this.windowInfo = new KRWindowInfo(win)
     }
-    this.windowInfoMap[instanceId] = new KRWindowInfo(win)
   }
 
-  public getWindowInfo(instanceId: string): KRWindowInfo |null {
-    return this.windowInfoMap[instanceId]
+  public getWindowInfo(): KRWindowInfo|null {
+    return this.windowInfo;
   }
 
   /**
@@ -111,9 +101,6 @@ export class KRNativeManager {
       let instance = this.getNativeInstance(instanceId);
       instance?.onDestroy();
       this.instancesMap.delete(instanceId);
-      let windowInfo = this.getWindowInfo(instanceId);
-      windowInfo?.removeWindowSizeChangeCallback();
-      this.windowInfoMap.delete(instanceId);
     }, 1000);
   }
 

@@ -22,30 +22,26 @@ import { KRRect } from './KRRect';
 export class KRWindowInfo {
   private statusBarHeight: number | null = null;
   private windowRect: KRRect = new KRRect(0, 0, 0, 0);
-  private window: window.Window|null = null
-
-  private onWindowSizeChanged: Callback<window.Size> = (params: window.Size) => {
-    if (this.window == null) {
-      return
-    }
-    let rect = this.window.getWindowProperties().windowRect
-    this.windowRect.x = rect.left
-    this.windowRect.y = rect.top
-    this.windowRect.width = rect.width
-    this.windowRect.height = rect.height
-  }
 
   constructor(mainWindow: window.Window) {
     let height = mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM).topRect.height;
     this.statusBarHeight = px2vp(height);
     let rect = mainWindow.getWindowProperties().windowRect;
-    this.window = mainWindow
     this.windowRect.x = rect.left;
     this.windowRect.y = rect.top;
     this.windowRect.width = rect.width;
     this.windowRect.height = rect.height;
     try {
-      mainWindow.on('windowSizeChange', this.onWindowSizeChanged);
+      mainWindow.on('keyboardHeightChange', (data) => {
+        KRNativeManager.getInstance().keyboardHeightChange(px2vp(data), 300);
+      });
+      mainWindow.on('windowSizeChange', () => {
+        let rect = mainWindow.getWindowProperties().windowRect
+        this.windowRect.x = rect.left
+        this.windowRect.y = rect.top
+        this.windowRect.width = rect.width
+        this.windowRect.height = rect.height
+      })
     } catch (e) {
       KRRenderLog.e("WindowInfo", `setWindow on error code:${e.code}`)
     }
@@ -61,13 +57,4 @@ export class KRWindowInfo {
   getWindowRect(): KRRect {
     return this.windowRect;
   }
-
-  public removeWindowSizeChangeCallback(): void {
-    try {
-      this.window?.off('windowSizeChange', this.onWindowSizeChanged);
-    } catch (e) {
-      KRRenderLog.e("WindowInfo", `setWindow off error code:${e.code}`)
-    }
-  }
-
 }

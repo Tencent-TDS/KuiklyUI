@@ -237,20 +237,23 @@ export class KRNativeRenderController {
         `error: ${(paramError as BusinessError).code}, ${(paramError as BusinessError).message}`);
     }
 
-    if (!imeMode) {
-      try {
-        const windowData = window.findWindow(uiContext.getWindowName())
-        this.windowClass = windowData;
-        const winRect = windowData.getWindowProperties().windowRect;
-        this.windowRect = new KRRect(0, 0, px2vp(winRect.width), px2vp(winRect.height));
-        KRNativeManager.getInstance().setWindowInfo(this.instanceId, windowData)
-        this.onSafeAreaInsetsChanged(this.getSafeAreaRect(windowData));
-        windowData.on('avoidAreaChange', this.avoidAreaListener);
-        windowData.on('windowSizeChange', this.onWindowSizeChanged);
-      } catch (e) {
-        KRRenderLog.e("Window", `getWindow callback error code:${e.code}`)
+    // window api not available in ime according to hw representative, which is not documented anywhere though :(
+    window.getLastWindow(getContext(this)).then((data) => {
+      if (this.destroyed) {
+        return;
       }
-    }
+      try {
+        this.windowClass = data;
+        const winRect = data.getWindowProperties().windowRect;
+        this.windowRect = new KRRect(0, 0, px2vp(winRect.width), px2vp(winRect.height));
+        KRNativeManager.getInstance().onLastWindow(data);
+        this.onSafeAreaInsetsChanged(this.getSafeAreaRect(data));
+        data.on('avoidAreaChange', this.avoidAreaListener);
+        data.on('windowSizeChange', this.onWindowSizeChanged);
+      } catch (e) {
+        KRRenderLog.e('Window', `getLastWindow callback error code:${e.code}`);
+      }
+    });
 
   }
 
@@ -290,7 +293,7 @@ export class KRNativeRenderController {
       return this.viewRect != null;
     } else {
       return this.safeAreaRect != null && // safearea updated
-        KRNativeManager.getInstance().getWindowInfo(this.instanceId) != null && // window info updated
+        KRNativeManager.getInstance().getWindowInfo() != null && // window info updated
         this.viewRect != null; // view rect updated
     }
   }
@@ -593,7 +596,7 @@ export class KRNativeRenderController {
     pageData[KRUrlKey] = this.pageName;
     if (!this.imeMode) {
       pageData[KRStatusBarHeightKey] = this.safeAreaRect!.y;
-      let windowInfo = KRNativeManager.getInstance().getWindowInfo(this.instanceId);
+      let windowInfo = KRNativeManager.getInstance().getWindowInfo();
       if (windowInfo) {
         pageData[KRActivityWidthKey] = px2vp(windowInfo.getWindowRect().width);
         pageData[KRActivityHeightKey] = px2vp(windowInfo.getWindowRect().height);

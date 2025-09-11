@@ -4,6 +4,7 @@
 
 为解决这一问题，需要采用Kuikly工程的多模块，通过合理的模块化设计来配置Kuikly工程。
 
+注：子模块中有Kuikly页面(即使用了@Page注解)才需要进行多模块设置，若无页面则为普通的一个模块，无需设置。
 
 ## 工程配置
 
@@ -41,6 +42,12 @@
         ...
     }
    
+    dependencies {
+        compileOnly("com.tencent.kuikly-open:core-ksp:xxx") {
+            ...
+        }
+    }
+
     ```
 
 3. 子模块在 `ksp` 配置 `Kuikly` 多模块信息
@@ -53,6 +60,13 @@
         arg("enableMultiModule","true")   // 启用多模块
         ...
     }
+   
+    dependencies {
+        compileOnly("com.tencent.kuikly-open:core-ksp:xxx") {
+            ...
+        }
+    }
+
    ```    
    其余配置项与主模块相同
 

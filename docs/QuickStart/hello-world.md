@@ -63,7 +63,7 @@
 
 ## 运行鸿蒙App
 :::tip 注意
-1. 当前kuikly鸿蒙跨端产物仅支持Mac编译，Windows可以使用编译好的跨端产物运行Ohos宿主APP 
+1. Kuikly鸿蒙跨端产物已支持Windows平台编译，请参考[鸿蒙平台开发方式](../DevGuide/harmony-dev.md/#windows平台编译配置)进行配置 
 2. 若想通过插件生成Ohos工程，需要更新插件至1.1.0版本以上
 
 :::

@@ -237,23 +237,25 @@ export class KRNativeRenderController {
         `error: ${(paramError as BusinessError).code}, ${(paramError as BusinessError).message}`);
     }
 
-    // window api not available in ime according to hw representative, which is not documented anywhere though :(
-    window.getLastWindow(getContext(this)).then((data) => {
-      if (this.destroyed) {
-        return;
-      }
-      try {
-        this.windowClass = data;
-        const winRect = data.getWindowProperties().windowRect;
-        this.windowRect = new KRRect(0, 0, px2vp(winRect.width), px2vp(winRect.height));
-        KRNativeManager.getInstance().onLastWindow(data);
-        this.onSafeAreaInsetsChanged(this.getSafeAreaRect(data));
-        data.on('avoidAreaChange', this.avoidAreaListener);
-        data.on('windowSizeChange', this.onWindowSizeChanged);
-      } catch (e) {
-        KRRenderLog.e('Window', `getLastWindow callback error code:${e.code}`);
-      }
-    });
+    if (!imeMode) {
+      // window api not available in ime according to hw representative, which is not documented anywhere though :(
+      window.getLastWindow(getContext(this)).then((data) => {
+        if (this.destroyed) {
+          return;
+        }
+        try {
+          this.windowClass = data;
+          const winRect = data.getWindowProperties().windowRect;
+          this.windowRect = new KRRect(0, 0, px2vp(winRect.width), px2vp(winRect.height));
+          KRNativeManager.getInstance().onLastWindow(data);
+          this.onSafeAreaInsetsChanged(this.getSafeAreaRect(data));
+          data.on('avoidAreaChange', this.avoidAreaListener);
+          data.on('windowSizeChange', this.onWindowSizeChanged);
+        } catch (e) {
+          KRRenderLog.e('Window', `getLastWindow callback error code:${e.code}`);
+        }
+      });
+    }
 
   }
 

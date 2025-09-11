@@ -73,6 +73,13 @@ export class KRNativeManager {
     return KRNativeManager.instance;
   }
 
+  // 窗口创建时调用该方法进行初始化
+  public onWindowStageCreate(windowStage: window.WindowStage): void {
+    if (this.windowInfo == null) {
+      this.windowInfo = new KRWindowInfo(windowStage.getMainWindowSync());
+    }
+  }
+
   public onLastWindow(win: window.Window): void{
     if (this.windowInfo == null) {
       this.windowInfo = new KRWindowInfo(win)

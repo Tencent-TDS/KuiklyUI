@@ -171,6 +171,7 @@ kuikly.ohosGradleSettings=settings.ohos.gradle
 # OPTIONAL Parameters
 kuikly.soPath=Your so product path(Relative path to the Ohos project root directory, the default is entry/libs/arm64-v8a)
 kuikly.headerPath=Your header product path(Relative path to the Ohos project root directory, the default is entry/src/main/cpp)
+kuikly.compilePluginEnabled=Whether the kuikly compile plugin is enabled during build(true or false, the default is true)
 ```
 :::tip 注意
 插件会在 `projectPath` 中执行 `./gradlew -c ohosGradleSettings moduleName:linkOhosArm64`

@@ -23,11 +23,14 @@ import com.tencent.kuikly.core.module.NotifyModule
 import com.tencent.kuikly.core.module.SharedPreferencesModule
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.reactive.handler.observableList
+import com.tencent.kuikly.core.utils.PlatformUtils
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.PageList
 import com.tencent.kuikly.core.views.PageListView
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
+import com.tencent.kuikly.demo.pages.demo.base.TabbarIOS
+import com.tencent.kuikly.demo.pages.demo.base.TabbarIOSItem
 import com.tencent.kuikly.demo.pages.app.home.AppHomePage
 import com.tencent.kuikly.demo.pages.app.lang.MultiLingualPager
 import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
@@ -150,8 +153,45 @@ internal class AppTabPage : MultiLingualPager() {
         }
     }
 
+    private fun tabBarIOS(): ViewBuilder {
+        val ctx = this
+        val barItems = mutableListOf<TabbarIOSItem>()
+        val pageName = getPager().pageName
+
+        for (i in 0 until ctx.pageTitles.size) {
+            barItems.add(
+                TabbarIOSItem(
+                    pageTitles[i],
+                    ThemeManager.getAssetUri(ctx.theme.asset, ctx.pageIcons[i]).toUrl(pageName),
+                    ThemeManager.getAssetUri(ctx.theme.asset, ctx.pageIconsHighlight[i]).toUrl(pageName)
+                )
+            )
+        }
+
+        return {
+            TabbarIOS {
+                attr {
+                    height(TAB_BOTTOM_HEIGHT)
+                    absolutePosition(bottom = 0f, left = 0f, right = 0f)
+                    items(barItems)
+                    selectedIndex(ctx.selectedTabIndex)
+                }
+                event {
+                    onTabSelected {
+                        // 处理 tab 切换
+                        ctx.selectedTabIndex = it.index
+                        ctx.pageListRef?.view?.scrollToPageIndex(it.index)
+                    }
+                }
+            }
+        }
+    }
+
     override fun body(): ViewBuilder {
         val ctx = this
+        val isLiquidGlassSupported = PlatformUtils.isLiquidGlassSupported()
+        val tabBottomHeight = if (isLiquidGlassSupported) 0f else TAB_BOTTOM_HEIGHT
+
         return {
             View {
                 attr {
@@ -167,7 +207,7 @@ internal class AppTabPage : MultiLingualPager() {
                 attr {
                     flexDirectionRow()
                     pageItemWidth(pagerData.pageViewWidth)
-                    pageItemHeight(pagerData.pageViewHeight - pagerData.statusBarHeight - TAB_BOTTOM_HEIGHT)
+                    pageItemHeight(pagerData.pageViewHeight - pagerData.statusBarHeight - tabBottomHeight)
                     defaultPageIndex(0)
                     showScrollerIndicator(false)
                     scrollEnable(false)
@@ -182,7 +222,11 @@ internal class AppTabPage : MultiLingualPager() {
                     }
                 }
             }
-            ctx.tabBar().invoke(this)
+            if (isLiquidGlassSupported) {
+                ctx.tabBarIOS().invoke(this)
+            } else {
+                ctx.tabBar().invoke(this)
+            }
         }
     }
 

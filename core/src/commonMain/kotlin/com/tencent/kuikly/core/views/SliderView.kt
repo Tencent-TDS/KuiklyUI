@@ -21,6 +21,8 @@ import com.tencent.kuikly.core.exception.throwRuntimeError
 import com.tencent.kuikly.core.layout.undefined
 import com.tencent.kuikly.core.layout.valueEquals
 import com.tencent.kuikly.core.reactive.handler.observable
+import com.tencent.kuikly.core.utils.PlatformUtils
+import com.tencent.kuikly.core.views.ios.iOSSlider
 import kotlin.math.max
 import kotlin.math.min
 
@@ -107,77 +109,139 @@ class SliderView : ComposeView<SliderAttr, SliderEvent>() {
     override fun body(): ViewBuilder {
         val ctx = this
         return {
-            attr {
-                if (ctx.attr.directionHorizontal) {
-                    flexDirectionRow()
-                } else {
-                    flexDirectionColumn()
-                }
-            }
-            event {
-                pan {
-                    ctx.handlePanGesture(it)
-                }
-            }
-            // 背景轨道
-            View {
+            // 检查是否应该使用iOS原生滑块
+            if (ctx.shouldUseIOSNativeSlider()) {
+                // 使用iOS原生滑块
+                 iOSSlider {
+                     attr {
+                         width(ctx.attr.sliderWidth)
+                         height(ctx.attr.sliderHeight)
+                         currentProgress(ctx.attr.currentProgress)
+                         
+                         // Apply colors if available
+                         progressColor(ctx.attr.progressColor)
+                         trackColor(ctx.attr.trackColor)
+                         thumbColor(ctx.attr.thumbColor)
+                         
+                         // Apply additional properties
+                         trackThickness(ctx.attr.trackThickness)
+                         thumbSize(ctx.attr.thumbSize)
+                         sliderDirection(ctx.attr.directionHorizontal)
+                     }
+                     // 将iOS滑块的事件转发到SliderView的事件
+                     event {
+                         onValueChanged { params ->
+                             // 更新SliderView的进度值
+                             ctx.attr.currentProgress = params.value
+                             // 触发SliderView的进度变化事件
+                             ctx.event.progressDidChangedHandlerFn?.invoke(params.value)
+                         }
+                         
+                         onTouchDown { params ->
+                             // 触发开始拖拽事件
+                             ctx.event.beginDragSliderHandlerFn?.invoke(PanGestureParams(
+                                 x = params.x,
+                                 y = params.y,
+                                 state = "start",
+                                 pageX = params.pageX,
+                                 pageY = params.pageY
+                             ))
+                         }
+                         
+                         onTouchUp { params ->
+                             // 触发结束拖拽事件
+                             ctx.event.endDragSliderHandlerFn?.invoke(PanGestureParams(
+                                 x = params.x,
+                                 y = params.y,
+                                 state = "end",
+                                 pageX = params.pageX,
+                                 pageY = params.pageY
+                             ))
+                         }
+                     }
+                 }
+            } else {
+                // 使用自定义滑块实现
                 attr {
-                    absolutePosition(
-                        left = ctx.attr.paddingLeft,
-                        top = ctx.attr.paddingTop,
-                        right = ctx.attr.paddingRight,
-                        bottom = ctx.attr.paddingBottom
-                    )
                     if (ctx.attr.directionHorizontal) {
-                       flexDirectionColumn()
-                    } else {
                         flexDirectionRow()
-                    }
-                    justifyContentCenter()
-                }
-                ctx.attr.trackViewCreator?.invoke(this)
-            }
-            // progress
-            View {
-                attr {
-                    justifyContentCenter()
-                    if (ctx.attr.directionHorizontal) {
+                    } else {
                         flexDirectionColumn()
+                    }
+                }
+                event {
+                    pan {
+                        ctx.handlePanGesture(it)
+                    }
+                }
+                // 背景轨道
+                View {
+                    attr {
                         absolutePosition(
                             left = ctx.attr.paddingLeft,
                             top = ctx.attr.paddingTop,
+                            right = ctx.attr.paddingRight,
                             bottom = ctx.attr.paddingBottom
                         )
-                        width(ctx.attr.contentWidth * ctx.attr.currentProgress)
-                    } else {
-                        flexDirectionRow()
-                        absolutePosition(
-                            left = ctx.attr.paddingLeft,
-                            top = ctx.attr.paddingTop,
-                            right = ctx.attr.paddingRight
-                        )
-                        height(ctx.attr.contentHeight * ctx.attr.currentProgress)
+                        if (ctx.attr.directionHorizontal) {
+                           flexDirectionColumn()
+                        } else {
+                            flexDirectionRow()
+                        }
+                        justifyContentCenter()
                     }
+                    ctx.attr.trackViewCreator?.invoke(this)
                 }
-                ctx.attr.progressViewCreator?.invoke(this)
-            }
-            // 滑块
-            View {
-                attr {
-                    allCenter()
-                    if (ctx.attr.directionHorizontal) {
-                        transform(Translate(-0.5f, 0f))
-                        marginLeft(ctx.attr.paddingLeft + ctx.attr.contentWidth * ctx.attr.currentProgress)
-                    } else {
-                        transform(Translate(0f, -0.5f))
-                        marginTop(ctx.attr.paddingTop + ctx.attr.contentHeight * ctx.attr.currentProgress)
+                // progress
+                View {
+                    attr {
+                        justifyContentCenter()
+                        if (ctx.attr.directionHorizontal) {
+                            flexDirectionColumn()
+                            absolutePosition(
+                                left = ctx.attr.paddingLeft,
+                                top = ctx.attr.paddingTop,
+                                bottom = ctx.attr.paddingBottom
+                            )
+                            width(ctx.attr.contentWidth * ctx.attr.currentProgress)
+                        } else {
+                            flexDirectionRow()
+                            absolutePosition(
+                                left = ctx.attr.paddingLeft,
+                                top = ctx.attr.paddingTop,
+                                right = ctx.attr.paddingRight
+                            )
+                            height(ctx.attr.contentHeight * ctx.attr.currentProgress)
+                        }
                     }
-
+                    ctx.attr.progressViewCreator?.invoke(this)
                 }
-                ctx.attr.thumbViewCreator?.invoke(this)
-            }
+                // 滑块
+                View {
+                    attr {
+                        allCenter()
+                        if (ctx.attr.directionHorizontal) {
+                            transform(Translate(-0.5f, 0f))
+                            marginLeft(ctx.attr.paddingLeft + ctx.attr.contentWidth * ctx.attr.currentProgress)
+                        } else {
+                            transform(Translate(0f, -0.5f))
+                            marginTop(ctx.attr.paddingTop + ctx.attr.contentHeight * ctx.attr.currentProgress)
+                        }
 
+                    }
+                    ctx.attr.thumbViewCreator?.invoke(this)
+                }
+            }
         }
+    }
+
+    /**
+     * 判断是否应该使用iOS原生滑块
+     * 条件：iOS平台 && 支持液态玻璃效果 && 启用了玻璃效果
+     */
+    private fun shouldUseIOSNativeSlider(): Boolean {
+        return attr.enableGlassEffect && PlatformUtils.isLiquidGlassSupported()
+
     }
     private fun handlePanGesture(params: PanGestureParams) {
         var progress = if (attr.directionHorizontal) {
@@ -219,6 +283,7 @@ class SliderAttr : ComposeAttr() {
         get() = sliderHeight - paddingTop - paddingBottom
 
     internal var directionHorizontal = true
+    internal var enableGlassEffect by observable(false)
 
     override fun width(width: Float): Attr{
         sliderWidth = width
@@ -277,6 +342,15 @@ class SliderAttr : ComposeAttr() {
     // 滑动方向（横向还是纵向, 默认横向）
     fun sliderDirection(horizontal : Boolean) {
         directionHorizontal = horizontal
+    }
+
+    /**
+     * 启用/禁用iOS液态玻璃效果
+     * 仅在iOS 26.0+设备上生效
+     * @param enabled 是否启用玻璃效果
+     */
+    fun enableGlassEffect(enabled: Boolean) {
+        enableGlassEffect = enabled
     }
 }
 

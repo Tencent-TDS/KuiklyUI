@@ -19,6 +19,7 @@ import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.directives.vfor
+import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.reactive.handler.observableList
 import com.tencent.kuikly.core.views.List
@@ -92,6 +93,13 @@ internal class ExampleIndexPage : BasePager() {
             titleText = "KTView Animation"
             subtitleText = "简单好用的动画，也支持动画状态的监听"
             declarativeExampleUrl = generateJumpUrl("AnimationExamplePage")
+        })
+
+        itemList.add(ExampleItemData().apply {
+            avatarText = "LG"
+            titleText = "Liquid Glass (iOS Only)"
+            subtitleText = "iOS 液态玻璃效果"
+            declarativeExampleUrl = generateJumpUrl("LiquidGlassDemoPage")
         })
 
         itemList.add(ExampleItemData().apply {

@@ -26,6 +26,8 @@ import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.layout.undefined
 import com.tencent.kuikly.core.layout.valueEquals
 import com.tencent.kuikly.core.reactive.handler.observable
+import com.tencent.kuikly.core.utils.PlatformUtils
+import com.tencent.kuikly.core.views.ios.iOSSwitch
 
 /*
 *  UISwitch开关组件，风格类iOS UISwitch开关，尺寸默认(51f, 31f), 支持手动设置指定size(xx, xx)
@@ -51,52 +53,81 @@ class SwitchView : ComposeView<SwitchAttr, SwitchEvent>() {
         val margin = this.attr.thumbMargin
         val ctx = this
         return {
-            attr {
-                overflow(false)
-                flexDirectionRow()
-                alignItemsCenter()
-                justifyContentFlexStart()
-            }
-            // 独立一个绝对布局的背景色
-            View {
-                attr {
-                    absolutePositionAllZero()
-                    borderRadius(ctx.height / 2f)
-                    if (ctx.attr.isOn) {
-                        backgroundColor(ctx.attr.onColor)
-                    } else {
-                        backgroundColor(ctx.attr.unOnColor)
+            if (ctx.shouldUseIOSNativeSwitch()) {
+                // 使用iOS原生开关
+                iOSSwitch {
+                    attr {
+                        isOn(ctx.attr.isOn)
+                        enabled(true)
+                        
+                        // 映射颜色属性
+                        onColor(ctx.attr.onColor)
+                        unOnColor(ctx.attr.unOnColor)
+                        thumbColor(ctx.attr.thumbColor)
                     }
-                    animation(Animation.linear(0.2f), ctx.attr.isOn)
-
-                }
-            }
-
-            event {
-                click {
-                    ctx.attr.isOn = !ctx.attr.isOn
-                    ctx.event.switchOnChangedHandlerFn?.invoke(ctx.attr.isOn)
-                }
-            }
-            // 圆圈
-            View {
-                attr {
-                    val thumbSize = (ctx.height - 2f * margin)
-                    borderRadius(thumbSize / 2f)
-                    backgroundColor(ctx.attr.thumbColor)
-                    size(thumbSize , thumbSize )
-                    margin(margin)
-                    if (ctx.attr.isOn) {
-                        val percentageX = (ctx.width - 2f * margin - thumbSize) / thumbSize
-                        transform(Translate(percentageX, 0f))
-                    } else {
-                        transform(Translate(0f, 0f))
+                    event {
+                        switchOnChanged { params ->
+                            ctx.attr.isOn = params.value
+                            ctx.event.switchOnChangedHandlerFn?.invoke(ctx.attr.isOn)
+                        }
                     }
-                    animation(Animation.linear(0.2f), ctx.attr.isOn)
+                }
+            } else {
+                // 使用自定义开关实现
+                attr {
+                    overflow(false)
+                    flexDirectionRow()
+                    alignItemsCenter()
+                    justifyContentFlexStart()
+                }
+                // 独立一个绝对布局的背景色
+                View {
+                    attr {
+                        absolutePositionAllZero()
+                        borderRadius(ctx.height / 2f)
+                        if (ctx.attr.isOn) {
+                            backgroundColor(ctx.attr.onColor)
+                        } else {
+                            backgroundColor(ctx.attr.unOnColor)
+                        }
+                        animation(Animation.linear(0.2f), ctx.attr.isOn)
+                    }
+                }
+
+                event {
+                    click {
+                        ctx.attr.isOn = !ctx.attr.isOn
+                        ctx.event.switchOnChangedHandlerFn?.invoke(ctx.attr.isOn)
+                    }
+                }
+                // 圆圈
+                View {
+                    attr {
+                        val thumbSize = (ctx.height - 2f * margin)
+                        borderRadius(thumbSize / 2f)
+                        backgroundColor(ctx.attr.thumbColor)
+                        size(thumbSize , thumbSize )
+                        margin(margin)
+                        if (ctx.attr.isOn) {
+                            val percentageX = (ctx.width - 2f * margin - thumbSize) / thumbSize
+                            transform(Translate(percentageX, 0f))
+                        } else {
+                            transform(Translate(0f, 0f))
+                        }
+                        animation(Animation.linear(0.2f), ctx.attr.isOn)
+                    }
                 }
             }
-
         }
+    }
+
+    /**
+     * 判断是否应该使用iOS原生开关
+     * 条件：iOS平台 && 支持液态玻璃效果 && 启用了玻璃效果
+     */
+    private fun shouldUseIOSNativeSwitch(): Boolean {
+        return attr.enableGlassEffect && PlatformUtils.isLiquidGlassSupported()
+
     }
 
     //
@@ -116,6 +147,7 @@ class SwitchAttr : ComposeAttr() {
     // 开关
     internal var isOn by observable(false)
     internal var thumbMargin = 2f // 圆块与开关的边距，默认为2f
+    internal var enableGlassEffect by observable(false)
 
     // 设置开关
     fun isOn(on : Boolean) {
@@ -136,6 +168,15 @@ class SwitchAttr : ComposeAttr() {
     // 圆块与开关的贴边边距，默认为2f
     fun thumbMargin(margin: Float) {
         thumbMargin = margin
+    }
+
+    /**
+     * 启用/禁用iOS液态玻璃效果
+     * 仅在iOS 26.0+设备上生效
+     * @param enabled 是否启用玻璃效果
+     */
+    fun enableGlassEffect(enabled: Boolean) {
+        enableGlassEffect = enabled
     }
 }
 

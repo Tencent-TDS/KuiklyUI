@@ -21,6 +21,7 @@
 #include "libohos_render/context/IKRRenderNativeContextHandler.h"
 #include "libohos_render/context/KRRenderContextParams.h"
 #include "libohos_render/foundation/type/KRRenderValue.h"
+#include "libohos_render/utils/KRScopedSpinLock.h"
 
 class KRRenderNativeContextHandlerManager {
  public:
@@ -54,13 +55,14 @@ class KRRenderNativeContextHandlerManager {
 
  private:
     KRRenderNativeContextHandlerManager() {}
-    void ScheduleDeallocRenderValues(const std::shared_ptr<KRRenderValue> will_dealloc_render_value);
+    void ScheduleDeallocRenderValues(std::shared_ptr<KRRenderValue> will_dealloc_render_value);
 
  private:
     std::unordered_map<std::string, std::shared_ptr<IKRRenderNativeContextHandler>> context_handler_map_;
     KRRenderContextHandlerCreator creator_;
     bool scheduling_dealloc_render_values_ = false;
     std::vector<std::shared_ptr<KRRenderValue>> pending_dealloc_render_values_;
+    KRSpinLock pending_dealloc_render_values_lock_;
 
     static KRRenderNativeContextHandlerManager *instance_;
 };

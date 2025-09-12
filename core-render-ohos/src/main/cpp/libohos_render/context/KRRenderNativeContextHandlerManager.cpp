@@ -59,12 +59,21 @@ void KRRenderNativeContextHandlerManager::UnregisterContextHandler(const std::st
 }
 
 void KRRenderNativeContextHandlerManager::ScheduleDeallocRenderValues(
-    const std::shared_ptr<KRRenderValue> will_dealloc_render_value) {
-    pending_dealloc_render_values_.push_back(will_dealloc_render_value);
+    std::shared_ptr<KRRenderValue> will_dealloc_render_value) {
+    {
+        KRScopedSpinLock lock(&pending_dealloc_render_values_lock_);
+        pending_dealloc_render_values_.push_back(will_dealloc_render_value);
+    }
     if (!scheduling_dealloc_render_values_) {
         scheduling_dealloc_render_values_ = true;
-        KRContextScheduler::ScheduleTask(false, 16, []() {
-            KRRenderNativeContextHandlerManager::GetInstance().pending_dealloc_render_values_.clear();
+        KRContextScheduler::ScheduleTask(false, 16, [this]() {
+            // `this` is safe to be captured in the closure, because it is an singleton.
+            decltype(pending_dealloc_render_values_) values;
+            {
+                KRScopedSpinLock lock(&pending_dealloc_render_values_lock_);
+                values.swap(pending_dealloc_render_values_);
+            }
+            
             KRRenderNativeContextHandlerManager::GetInstance().scheduling_dealloc_render_values_ = false;
         });
     }

@@ -3,7 +3,7 @@
 ## so模式
 :::tip 注意
 1. 鸿蒙平台跨端产物的需要使用鸿蒙SDK的LLVM工具编译生成，官方版的Kotlin工具链并不支持鸿蒙平台，因此我们需要使用定制版的Kotlin工具链。
-2. 当前鸿蒙Kotlin工具链仅支持Mac平台，Kuikly鸿蒙跨端产物请使用Mac编译，Windows可以使用编译好的跨端产物运行Ohos APP。
+2. 鸿蒙Kotlin工具链当前两个可用版本：`2.0.21-KBA-004`和`2.0.21-KBA-010`。 `2.0.21-KBA-010` 版本已支持Windows/Linux平台编译，`Kuikly` 鸿蒙跨端产物使用Windows平台编译，请参考 [Windows平台编译配置](#windows平台编译配置) 步骤配置。
 :::
 
 ### 配置kuikly Ohos编译环境
@@ -41,10 +41,10 @@ repositories {
 
 - 修改版本号
 
-把工程的Kotlin版本改为**2.0.21-KBA-004**，Kuikly版本改为**KUIKLY_VERSION-2.0.21-KBA-004**，ksp版本改为**2.0.21-1.0.27**。改完后，执行 ./gradlew bE 和 ./gradlew :shared:d 命令确认依赖项的版本resolve正确。
+把工程的Kotlin版本改为**2.0.21-KBA-010**，Kuikly版本改为**KUIKLY_VERSION-2.0.21-KBA-010**，ksp版本改为**2.0.21-1.0.27**。改完后，执行 ./gradlew bE 和 ./gradlew :shared:d 命令确认依赖项的版本resolve正确。
 
 :::tip 注意
-目前鸿蒙编译链仅支持此版本 **2.0.21-KBA-004**
+目前鸿蒙编译链有可用版本：`2.0.21-KBA-004`和`2.0.21-KBA-010`。其中 `2.0.21-KBA-010` 已支持Window/Linux平台编译。
 :::
 
 以插件创建的模板工程为例，需要修改的有：
@@ -53,8 +53,8 @@ repositories {
 
 ```gradle
 plugins {
-    kotlin("android").version("2.0.21-KBA-004").apply(false)
-    kotlin("multiplatform").version("2.0.21-KBA-004").apply(false)
+    kotlin("android").version("2.0.21-KBA-010").apply(false)
+    kotlin("multiplatform").version("2.0.21-KBA-010").apply(false)
     ...
 }
 ```
@@ -68,8 +68,8 @@ kotlin{
         val commonMain by getting {
             dependencies {
                 // KUIKLY_VERSION 用实际使用的Kuikly版本号替换
-                implementation("com.tencent.kuikly-open:core:KUIKLY_VERSION-2.0.21-KBA-004")
-                implementation("com.tencent.kuikly-open:core-annotations:KUIKLY_VERSION-2.0.21-KBA-004")
+                implementation("com.tencent.kuikly-open:core:KUIKLY_VERSION-2.0.21-KBA-010")
+                implementation("com.tencent.kuikly-open:core-annotations:KUIKLY_VERSION-2.0.21-KBA-010")
             }
         }
         ...
@@ -78,7 +78,7 @@ kotlin{
 ...
 dependencies {
     // KUIKLY_VERSION 用实际使用的Kuikly版本号替换
-    compileOnly("com.tencent.kuikly-open:core-ksp:KUIKLY_VERSION-2.0.21-KBA-004") {
+    compileOnly("com.tencent.kuikly-open:core-ksp:KUIKLY_VERSION-2.0.21-KBA-010") {
         ...
     }
 }
@@ -97,12 +97,84 @@ kotlin {
     }
 }
 dependencies {
-    compileOnly("com.tencent.kuikly-open:core-ksp:KUIKLY_VERSION-2.0.21-KBA-004") {
+    compileOnly("com.tencent.kuikly-open:core-ksp:KUIKLY_VERSION-2.0.21-KBA-010") {
         ....
         add("kspOhosArm64", this)
     }
 }
 ```
+
+### Windows平台编译配置
+#### 环境配置
+在Windows平台配置，需指定 OHOS SDK 位置，配置环境变量，比如：
+
+变量名: `OHOS_SDK_HOME`
+路径: `D:\Program Files\DevEco Studio\sdk\default\openharmony`
+
+#### 模板工程 - Windows编译步骤
+`Kuikly` Android Studio Plugin: `KuiklyTemplate`，1.2.0及之前版本生成的模板工程，需做如下配置：
+
+1、将Kotlin编译插件，修改为支持Window平台编译的版本：`2.0.21-KBA-010`。在build.ohos.gradle.kts脚本做如下修改：
+
+```gradle
+plugins {
+    ....
+    kotlin("android").version("2.0.21-KBA-010").apply(false)
+    kotlin("multiplatform").version("2.0.21-KBA-010").apply(false)
+    ....
+}
+```
+
+2、编译鸿蒙跨端产物，及Ohos App
+
+由于Window Android Studio上暂未适配sh脚本运行，不能直接通过 `runOhosApp.sh` 联动编译 Ohos APP。Ohos APP 编译需要分两步：
+
+**Step1**: 在Android Studio，通过命令行，编译鸿蒙跨端产物。并将编译后的跨端产物拷贝到Ohos APP对应目录。这一步可以通过gradle脚本自动拷贝，业务自行实现。
+
+产物编译命令：
+
+`./gradlew -c settings.ohos.gradle.kts :shared:linkOhosArm64`
+
+仅编译Debug产物：
+
+`./gradlew -c settings.ohos.gradle.kts :shared:linkDebugSharedOhosArm64`
+
+仅编译Release产物：
+
+`./gradlew -c settings.ohos.gradle.kts :shared:linkReleaseSharedOhosArm64`
+
+拷贝编译产物到Ohos APP对应目录：
+<div>
+<img src="./img/ohos_app_copy_shared_artifact.png" width="25%">
+</div>
+
+**Step2** : 在DevEco 打开Ohos APP，编译鸿蒙APP
+
+#### 业务存量工程 - Windows编译步骤
+业务现有工程已经接入了 `Kuikly` 并开发鸿蒙APP，同样参考上述模板工程进行如下配置：
+
+**Step1**: 将Kotlin编译工具链，修改为支持Window平台编译的版本：`2.0.21-KBA-010`
+
+**Step2**: 通过编译命令，编译跨端产物，拷贝到Ohos APP对应目录，启动DevEco，编译鸿蒙APP
+
+#### 源码工程 - Windows编译步骤
+KuiklyUI 源码工程已将Kotlin编译插件版本升级为`2.0.21-KBA-010`版本，开发者可以直接通过命令行编译跨端产物，运行鸿蒙APP：
+**Step1**: 编译跨端产物，拷贝到Ohos APP对应目录
+
+编译命令
+
+`./gradlew -c .\settings.2.0.ohos.gradle.kts :demo:linkSharedOhosArm64`
+
+仅编译Debug产物：
+
+`./gradlew -c settings.2.0.ohos.gradle.kts :demo:linkSharedDebugSharedOhosArm64`
+
+仅编译Release产物：
+
+`./gradlew -c settings.2.0.ohos.gradle.kts :demo:linkSharedReleaseSharedOhosArm64`
+
+**Step2**: 启动DevEco，编译鸿蒙APP
+
 
 ### 编写Kuikly页面
 

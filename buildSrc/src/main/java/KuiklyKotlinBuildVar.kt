@@ -152,7 +152,7 @@ object Version {
     private const val KEY_AGP_VERSION = "KUIKLY_AGP_VERSION"
     private const val KEY_CI_BUILD_NUM = "KUIKLY_CI_BUILD_NUM"
     private const val KEY_RENDER_SUFFIX = "KUIKLY_RENDER_SUFFIX"
-    private const val OHOS_KOTLIN_SUFFIX = "KBA-004"
+    private const val OHOS_KOTLIN_SUFFIX = "KBA-010"
     private const val KUIKLY_OHOS_KOTLIN_SUFFIX = "ohos"
 
     /**
@@ -244,6 +244,7 @@ object Version {
             "1.9.22" -> "1.9.22-1.0.16"
             "2.0.21" -> "2.0.21-1.0.27"
             "2.0.21-KBA-004" -> "2.0.21-1.0.27"
+            "2.0.21-KBA-010" -> "2.0.21-1.0.27"
             else -> "${getKotlinVersion()}-1.0.7" // 默认版本
         }
     }

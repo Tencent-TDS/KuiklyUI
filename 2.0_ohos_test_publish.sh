@@ -7,12 +7,12 @@ sed -i.bak "s/distributionUrl=.*$/distributionUrl=$NEW_DISTRIBUTION_URL/" gradle
 echo "new gradle url: " $(grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties | cut -d "=" -f 2)
 
 # 3.开始发布
-KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="2.0.21-KBA-004" ./gradlew -c settings.2.0.ohos.gradle.kts :core-annotations:publishToMavenLocal --stacktrace
-KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="2.0.21-KBA-004" ./gradlew -c settings.2.0.ohos.gradle.kts :core:publishToMavenLocal --stacktrace
-KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="2.0.21-KBA-004" ./gradlew -c settings.2.0.ohos.gradle.kts :core-ksp:publishToMavenLocal --stacktrace
-KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="2.0.21-KBA-004" ./gradlew -c settings.2.0.ohos.gradle.kts :core-render-android:publishToMavenLocal --stacktrace
-KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="2.0.21-KBA-004" ./gradlew -c settings.2.0.ohos.gradle.kts :compose:publishToMavenLocal --stacktrace
-KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="2.0.21-KBA-004" ./gradlew -c settings.2.0.ohos.gradle.kts :demo:linkSharedReleaseSharedOhosArm64  --stacktrace
+KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="2.0.21-KBA-010" ./gradlew -c settings.2.0.ohos.gradle.kts :core-annotations:publishToMavenLocal --stacktrace
+KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="2.0.21-KBA-010" ./gradlew -c settings.2.0.ohos.gradle.kts :core:publishToMavenLocal --stacktrace
+KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="2.0.21-KBA-010" ./gradlew -c settings.2.0.ohos.gradle.kts :core-ksp:publishToMavenLocal --stacktrace
+KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="2.0.21-KBA-010" ./gradlew -c settings.2.0.ohos.gradle.kts :core-render-android:publishToMavenLocal --stacktrace
+KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="2.0.21-KBA-010" ./gradlew -c settings.2.0.ohos.gradle.kts :compose:publishToMavenLocal --stacktrace
+KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="2.0.21-KBA-010" ./gradlew -c settings.2.0.ohos.gradle.kts :demo:linkSharedReleaseSharedOhosArm64  --stacktrace
 
 
 # 4.还原文件

@@ -30,6 +30,7 @@ import com.tencent.kuikly.compose.foundation.layout.PaddingValues
 import com.tencent.kuikly.compose.foundation.layout.Row
 import com.tencent.kuikly.compose.foundation.layout.Spacer
 import com.tencent.kuikly.compose.foundation.layout.fillMaxSize
+import com.tencent.kuikly.compose.foundation.layout.fillMaxWidth
 import com.tencent.kuikly.compose.foundation.layout.height
 import com.tencent.kuikly.compose.foundation.layout.padding
 import com.tencent.kuikly.compose.foundation.layout.size
@@ -76,6 +77,11 @@ class LazyColumnDemo3 : ComposeContainer() {
                     contentPadding = PaddingValues(vertical = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
+                    stickyHeader {
+                        Box(modifier = Modifier.fillMaxWidth().height(100.dp).background(Color.Red)){
+                            Text("header")
+                        }
+                    }
                     items(20) { index ->
                         Box(
                             modifier =

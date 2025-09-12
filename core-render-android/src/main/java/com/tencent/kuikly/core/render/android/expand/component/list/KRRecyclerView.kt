@@ -546,6 +546,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 } else {
                     dy
                 }
+                automaticAdjustContentOffset()
                 if (offset == 0) {
                     return
                 }

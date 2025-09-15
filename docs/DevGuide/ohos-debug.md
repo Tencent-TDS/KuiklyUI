@@ -6,7 +6,7 @@
 
 设置kotlin版本和maven源如下
 
-Kotlin版本：kotlinVersion=2.0.21-KBA-004
+Kotlin版本：kotlinVersion=2.0.21-KBA-010
 
 maven源：maven("https://mirrors.tencent.com/nexus/repository/maven-public/")
 
@@ -66,7 +66,7 @@ Preferences -> Editor -> File Types，选中C code file，右侧pannel中点击�
 :::
 
 ## 加载Kotlin调试脚本
-对于2.0.21-KBA-004kotlin版本，需下载[konan_lldb.py](https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/2a6c8dff.py)文件
+对于2.0.21-KBA-010 Kotlin版本，需下载[konan_lldb.py](https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/2a6c8dff.py)文件
 加载文件有两中方式，一种自动，一种手动，一般而言，如果不介意加载脚本带来的轻微启动耗时，建议在ide配置自动加载。
 
 ### 自动加载

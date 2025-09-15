@@ -62,11 +62,7 @@ void KRTextAreaView::UpdateInputNodeKeyboardType(const std::string &propValue) {
     ArkUI_AttributeItem item = {value, sizeof(value) / sizeof(ArkUI_NumberValue)};
     kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_AREA_TYPE, &item);
 }
-void KRTextAreaView::UpdateInputNodeEnterKeyType(const std::string &propValue) {
-    ArkUI_NumberValue value[] = {{.i32 = kuikly::util::ConvertToEnterKeyType(propValue)}};
-    ArkUI_AttributeItem item = {value, sizeof(value) / sizeof(ArkUI_NumberValue)};
-    kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_AREA_ENTER_KEY_TYPE, &item);
-}
+
 void KRTextAreaView::UpdateInputNodeMaxLength(int maxLength) {
     ArkUI_NumberValue value[] = {{.i32 = maxLength}};
     ArkUI_AttributeItem item = {value, sizeof(value) / sizeof(ArkUI_NumberValue)};

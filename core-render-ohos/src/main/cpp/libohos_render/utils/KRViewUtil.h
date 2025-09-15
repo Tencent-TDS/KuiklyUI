@@ -194,6 +194,8 @@ void UpdateInputNodeKeyboardType(ArkUI_NodeHandle node, ArkUI_TextInputType inpu
 
 void UpdateInputNodeEnterKeyType(ArkUI_NodeHandle node, ArkUI_EnterKeyType enter_key_type);
 
+ArkUI_EnterKeyType GetInputNodeEnterKeyType(ArkUI_NodeHandle node);
+
 void UpdateInputNodeMaxLength(ArkUI_NodeHandle node, int32_t max_length);
 
 void UpdateInputNodeContentText(ArkUI_NodeHandle node, const std::string &text);

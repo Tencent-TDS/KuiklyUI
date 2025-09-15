@@ -38,7 +38,32 @@ ArkUI_EnterKeyType ConvertToEnterKeyType(const std::string &enter_key_type) {
     if (enter_key_type == "next") {
         return ARKUI_ENTER_KEY_TYPE_NEXT;
     }
+    if (enter_key_type == "previous") {
+        return ARKUI_ENTER_KEY_TYPE_PREVIOUS;
+    }
+    if (enter_key_type == "none") {
+        return ARKUI_ENTER_KEY_TYPE_NEW_LINE;
+    }
     return ARKUI_ENTER_KEY_TYPE_DONE;
+}
+
+const std::string ConvertEnterKeyTypeToString(ArkUI_EnterKeyType enter_key_type) {
+    switch (enter_key_type) {
+        case ARKUI_ENTER_KEY_TYPE_SEARCH:
+            return "search";
+        case ARKUI_ENTER_KEY_TYPE_SEND:
+            return "send";
+        case ARKUI_ENTER_KEY_TYPE_GO:
+            return "go";
+        case ARKUI_ENTER_KEY_TYPE_DONE:
+            return "done";
+        case ARKUI_ENTER_KEY_TYPE_NEXT:
+            return "next";
+        case ARKUI_ENTER_KEY_TYPE_PREVIOUS:
+            return "previous";
+        default:
+            return "";
+    }
 }
 
 ArkUI_TextInputType ConvertToInputType(const std::string &input_type) {

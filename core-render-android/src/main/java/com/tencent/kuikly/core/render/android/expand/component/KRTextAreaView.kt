@@ -73,6 +73,9 @@ class KRTextAreaView(context: Context, softInputMode: Int?) : KRTextFieldView(co
         setHorizontallyScrolling(false)
 
         imeOptions = when (value as String) {
+            "none" -> {
+                EditorInfo.IME_ACTION_NONE
+            }
             "search" -> {
                 EditorInfo.IME_ACTION_SEARCH
             }
@@ -87,6 +90,9 @@ class KRTextAreaView(context: Context, softInputMode: Int?) : KRTextFieldView(co
             }
             "go" -> {
                 EditorInfo.IME_ACTION_GO
+            }
+            "previous" -> {
+                EditorInfo.IME_ACTION_PREVIOUS
             }
             else -> {
                 EditorInfo.IME_NULL

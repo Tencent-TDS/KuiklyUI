@@ -67,6 +67,8 @@ NSString *const KRFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(textLengthBeyondLimit);
 /** event is 用户按下键盘IME动作按键时回调，例如 Send / Go / Search 等 */
 @property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(imeAction);
+/** event is 用户按下键盘IME动作按键时回调，例如 Send / Go / Search 等 */
+@property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(inputReturn);
 
 /** placeholderTextView property */
 @property (nullable, nonatomic, strong) UITextView *placeholderTextView;
@@ -331,6 +333,13 @@ NSString *const KRFontWeightKey = @"fontWeight";
         return YES;
             // It's a delete operation
             // Perform your desired action for delete operation here
+    }
+    if (self.css_inputReturn && self.css_returnKeyType && [text isEqualToString:@"\n"]) {
+        self.css_inputReturn(@{@"text": textView.text.copy ?: @"", @"ime_action": self.css_returnKeyType ?: @""});
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [textView resignFirstResponder];
+        });
+        return NO;
     }
     if(self.css_imeAction && [text isEqualToString:@"\n"]) {
         self.css_imeAction(@{@"ime_action": self.css_returnKeyType ?: @""});

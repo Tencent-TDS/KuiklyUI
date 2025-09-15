@@ -28,6 +28,8 @@ namespace util {
 
 ArkUI_EnterKeyType ConvertToEnterKeyType(const std::string &enter_key_type);
 
+const std::string ConvertEnterKeyTypeToString(ArkUI_EnterKeyType enter_key_type);
+
 ArkUI_TextInputType ConvertToInputType(const std::string &input_type);
 
 std::u32string ConvertToU32String(const std::string &input);

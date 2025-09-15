@@ -834,11 +834,6 @@
 #pragma mark - KuiklyRenderViewLifyCycleProtocol
 
 - (void)hrv_insertSubview:(UIView *)subView atIndex:(NSInteger)index {
-    if (@available(iOS 26.0, *)) {
-        if ([subView isKindOfClass:KRView.class]) {
-            [(KRView *)subView ensureGlassEffectWrapperView];
-        }
-    }
     UIView *view = subView.kr_commonWrapperView;
     if (view) {
         [self insertSubview:view atIndex:index];

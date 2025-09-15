@@ -252,6 +252,7 @@
 }
 
 - (void)setCss_glassEffectEnable:(NSNumber *)css_glassEffectEnable {
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
     if (@available(iOS 26.0, *)) {
         BOOL shouldEnable = [css_glassEffectEnable boolValue];
         if (self.glassEffectEnable != shouldEnable) {
@@ -271,9 +272,11 @@
             }
         }
     }
+#endif
 }
 
 - (void)setCss_glassEffectSpacing:(NSNumber *)spacing {
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
     if (@available(iOS 26.0, *)) {
         if (spacing && ![self.glassEffectContainerSpacing isEqualToNumber:spacing]) {
             self.glassEffectContainerSpacing = spacing;
@@ -291,6 +294,7 @@
             }
         }
     }
+#endif
 }
 
 - (void)setCss_glassEffectInteractive:(NSNumber *)interactive {
@@ -408,8 +412,6 @@
                     effectView.frame = oldFrame;
                     [effectView.contentView addSubview:self];
                     [parent insertSubview:effectView atIndex:idx];
-                    
-                    [effectView setNeedsDisplay];
                 } else {
                     effectView.frame = oldFrame;
                     [effectView.contentView addSubview:self];

@@ -197,7 +197,6 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
 
     private fun LayoutCoordinates.viewPositionOf(coordinator: LayoutCoordinates): Offset {
         var nodeCoordinator = coordinator.toCoordinator()
-        nodeCoordinator.onCoordinatesUsed()
         var position = Offset.Zero
         while (nodeCoordinator !== this) {
             position += nodeCoordinator.position

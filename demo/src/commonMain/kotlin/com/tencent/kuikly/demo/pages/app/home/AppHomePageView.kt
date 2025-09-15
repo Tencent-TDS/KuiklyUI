@@ -99,8 +99,9 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
             if (PlatformUtils.isLiquidGlassSupported()) {
                 SegmentedControlIOS {
                     attr {
-                        height(TAB_HEADER_HEIGHT)
+                        height(TAB_HEADER_HEIGHT * 0.8f)
                         width(ctx.tabHeaderWidth * 0.5f)
+                        margin(top = TAB_HEADER_HEIGHT * 0.1f, bottom = TAB_HEADER_HEIGHT * 0.1f)
                         titles(ctx.titles)
                         selectedIndex(ctx.curIndex)
                         alignSelfCenter()
@@ -167,21 +168,29 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
                 }
             }
 
-            Image {
+            View {
                 attr {
-                    absolutePosition(top = 12f, right = 12f)
-                    size(20f, 20f)
-                    src(ImageUri.pageAssets("ic_settings.png"))
-                    tintColor(ctx.theme.colors.topBarTextFocused)
+                    absolutePosition(top = 6f, right = 12f)
+                    glassEffectIOS()
+                    padding(10f)
+                    borderRadius(20f)
                 }
-                event {
-                    click {
-                        // 跳转到新页面
-                        ctx.acquireModule<RouterModule>(RouterModule.MODULE_NAME)
-                            .openPage("AppSettingPage")
+                Image {
+                    attr {
+                        size(20f, 20f)
+                        src(ImageUri.pageAssets("ic_settings.png"))
+                        tintColor(ctx.theme.colors.topBarTextFocused)
+                    }
+                    event {
+                        click {
+                            // 跳转到新页面
+                            ctx.acquireModule<RouterModule>(RouterModule.MODULE_NAME)
+                                .openPage("AppSettingPage")
+                        }
                     }
                 }
             }
+
         }
     }
 

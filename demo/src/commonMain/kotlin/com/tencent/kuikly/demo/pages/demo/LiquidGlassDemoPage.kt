@@ -286,8 +286,8 @@ internal class LiquidGlassDemoPage : BasePager() {
                                     isOn(true)
                                     enableGlassEffect(true) // iOS 26.0+将自动使用原生Switch
                                     thumbColor(Color.WHITE)
-                                    onColor(Color(0xFF34C759))
-                                    unOnColor(Color(0xFF8E8E93))
+                                    onColor(Color.BLUE)
+                                    unOnColor(Color.GRAY)
                                 }
                                 event {
                                     switchOnChanged { isOn ->

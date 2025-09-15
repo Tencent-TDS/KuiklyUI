@@ -40,7 +40,6 @@ class KRTextAreaView : public KRTextFieldView {
     void UpdateInputNodeColor(const std::string &propValue) override;
     void UpdateInputNodeCaretrColor(const std::string &propValue) override;
     void UpdateInputNodeKeyboardType(const std::string &propValue) override;
-    void UpdateInputNodeEnterKeyType(const std::string &propValue) override;
     void UpdateInputNodeMaxLength(int maxLength) override;
     uint32_t GetInputNodeSelectionStartPosition() override;
     void UpdateInputNodeSelectionStartPosition(uint32_t index) override;

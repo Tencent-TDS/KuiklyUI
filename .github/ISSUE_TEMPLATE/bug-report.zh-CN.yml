@@ -1,7 +1,8 @@
-name: 反馈 Bug
-description: 通过 github 模板进行 Bug 反馈。
-title: "描述问题的标题"
-labels: [🐞 bug,🧐 unconfirmed]
+name: 🐞 错误报告 Bug Report
+description: 反馈新Bug。一般性、咨询类问题请选择“社区支持”入口进行反馈
+title: ''
+type: Bug
+labels: [s: need triage]
 body:
   - type: markdown
     attributes:
@@ -34,7 +35,7 @@ body:
     id: reproduceSteps
     attributes:
       label: 重现步骤
-      description: 请清晰的描述重现该 Issue 的步骤，这能帮助我们快速定位问题。没有清晰重现步骤将不会被修复，标有 'need reproduction' 的 Issue 在 7 天内不提供相关步骤，将被关闭。
+      description: 请清晰的描述重现该 Issue 的步骤，这能帮助我们快速定位问题。没有清晰重现步骤将不会被修复，标有 'need info' 的 Issue 在 15 天内不提供相关步骤，将被关闭。
       placeholder: |
         1. 安装 '...'
         2. 点击 '...'
@@ -49,6 +50,8 @@ body:
         - Device: [e.g. iPhone12]
         - OS and Version: [e.g. iOS 13.3.1]
         - Kuikly SDK version: [e.g. 2.0.0]
+        - Kuikly Android Studio 插件版本
+        - IDE 版本
         - Other
 
   - type: textarea

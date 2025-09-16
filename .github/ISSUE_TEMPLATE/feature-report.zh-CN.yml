@@ -1,7 +1,8 @@
-name: 反馈新功能
-description: 通过 github 模板进行新功能反馈。
-title: "描述问题的标题"
-labels: [💪🏻 enhancement,🧐 unconfirmed]
+name: ✨ 反馈新功能 Feature Request
+description: 反馈新功能或现有功能增强
+title: ""
+type: Feature
+labels: [s: need triage]
 body:
   - type: markdown
     attributes:

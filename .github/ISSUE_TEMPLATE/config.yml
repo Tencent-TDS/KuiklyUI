@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🤝 社区支持 Support
+    url: https://github.com/Tencent-TDS/KuiklyUI/discussions/categories/q-a
+    about: 一般性、咨询类问题讨论、交流
+  - name: 🏗️ 生态建设 Ecosystem
+    url: https://github.com/Tencent-TDS/KuiklyUI/discussions/categories/%E7%A4%BE%E5%8C%BA%E7%94%9F%E6%80%81
+    about: 组件、配套工具等互助讨论、分享

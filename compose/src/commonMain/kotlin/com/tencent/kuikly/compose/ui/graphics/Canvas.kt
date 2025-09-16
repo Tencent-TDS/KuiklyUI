@@ -19,6 +19,8 @@ package com.tencent.kuikly.compose.ui.graphics
 import com.tencent.kuikly.compose.ui.geometry.Offset
 import com.tencent.kuikly.compose.ui.geometry.Rect
 import com.tencent.kuikly.compose.ui.internal.JvmDefaultWithCompatibility
+import com.tencent.kuikly.compose.ui.unit.IntOffset
+import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 
 ///**
@@ -522,37 +524,37 @@ interface Canvas {
      */
     fun drawPath(path: Path, paint: Paint)
 
-//    /**
-//     * Draws the given [ImageBitmap] into the canvas with its top-left corner at the
-//     * given [Offset]. The image is composited into the canvas using the given [Paint].
-//     */
-//    fun drawImage(image: ImageBitmap, topLeftOffset: Offset, paint: Paint)
+    /**
+     * Draws the given [ImageBitmap] into the canvas with its top-left corner at the
+     * given [Offset]. The image is composited into the canvas using the given [Paint].
+     */
+    fun drawImage(image: ImageBitmap, topLeftOffset: Offset, paint: Paint)
 
-//    /**
-//     * Draws the subset of the given image described by the `src` argument into
-//     * the canvas in the axis-aligned rectangle given by the `dst` argument.
-//     *
-//     * This might sample from outside the `src` rect by up to half the width of
-//     * an applied filter.
-//     *
-//     * @param image ImageBitmap to draw
-//     * @param srcOffset: Optional offset representing the top left offset of the source image
-//     * to draw, this defaults to the origin of [image]
-//     * @param srcSize: Optional dimensions of the source image to draw relative to [srcOffset],
-//     * this defaults the width and height of [image]
-//     * @param dstOffset: Offset representing the top left offset of the destination image
-//     * to draw
-//     * @param dstSize: Dimensions of the destination to draw
-//     * @param paint Paint used to composite the [ImageBitmap] pixels into the canvas
-//     */
-//    fun drawImageRect(
-//        image: ImageBitmap,
-//        srcOffset: IntOffset = IntOffset.Zero,
-//        srcSize: IntSize = IntSize(image.width, image.height),
-//        dstOffset: IntOffset = IntOffset.Zero,
-//        dstSize: IntSize = srcSize,
-//        paint: Paint
-//    )
+    /**
+     * Draws the subset of the given image described by the `src` argument into
+     * the canvas in the axis-aligned rectangle given by the `dst` argument.
+     *
+     * This might sample from outside the `src` rect by up to half the width of
+     * an applied filter.
+     *
+     * @param image ImageBitmap to draw
+     * @param srcOffset: Optional offset representing the top left offset of the source image
+     * to draw, this defaults to the origin of [image]
+     * @param srcSize: Optional dimensions of the source image to draw relative to [srcOffset],
+     * this defaults the width and height of [image]
+     * @param dstOffset: Offset representing the top left offset of the destination image
+     * to draw
+     * @param dstSize: Dimensions of the destination to draw
+     * @param paint Paint used to composite the [ImageBitmap] pixels into the canvas
+     */
+    fun drawImageRect(
+        image: ImageBitmap,
+        srcOffset: IntOffset = IntOffset.Zero,
+        srcSize: IntSize = IntSize(image.width, image.height),
+        dstOffset: IntOffset = IntOffset.Zero,
+        dstSize: IntSize = srcSize,
+        paint: Paint
+    )
 
     /**
      * Draws a sequence of points according to the given [PointMode].

@@ -32,6 +32,7 @@ import com.tencent.kuikly.compose.ui.unit.IntRect
 import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
 import com.tencent.kuikly.compose.ui.util.fastRoundToInt
+import com.tencent.kuikly.compose.ui.KuiklyImageCacheManager
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.event.layoutFrameDidChange
 import com.tencent.kuikly.core.layout.Frame
@@ -41,6 +42,7 @@ import com.tencent.kuikly.core.module.VsyncModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.pager.IPagerEventObserver
 import com.tencent.kuikly.core.pager.Pager
+import com.tencent.kuikly.core.timer.setTimeout
 import com.tencent.kuikly.core.views.DivView
 import com.tencent.kuiklyx.coroutines.Kuikly
 import kotlinx.coroutines.Dispatchers
@@ -70,6 +72,10 @@ open class ComposeContainer :
     }
 
     private var innerOnBackPressedDispatcher: OnBackPressedDispatcher? = null
+
+    internal val imageCacheManager by lazy(LazyThreadSafetyMode.NONE) {
+        KuiklyImageCacheManager(this)
+    }
 
     override val onBackPressedDispatcher: OnBackPressedDispatcher
         get() {
@@ -196,6 +202,10 @@ open class ComposeContainer :
             setFrameToRenderView(newFrame)
             rootKView.setFrameToRenderView(newFrame)
             updateWindowContainer(newFrame)
+        } else if (pagerEvent == PAGER_EVENT_CONFIGURATION_DID_CHANGED) {
+            val fontWeightScale = eventData.optDouble("fontWeightScale", 1.0)
+            val fontSizeScale = eventData.optDouble("fontSizeScale", 1.0)
+            mediator?.configuration?.onFontConfigChange(fontSizeScale, fontWeightScale)
         }
     }
 
@@ -259,7 +269,9 @@ open class ComposeContainer :
                             } else {
                                 pager.acquireModule<BackPressModule>(BackPressModule.MODULE_NAME).backHandle(isConsumed = true)
                             }
-                            backPressedDispatcher.dispatchOnBackEvent()
+                            this@ComposeContainer.setTimeout {
+                                backPressedDispatcher.dispatchOnBackEvent()
+                            }
                         }
                     }
                 },

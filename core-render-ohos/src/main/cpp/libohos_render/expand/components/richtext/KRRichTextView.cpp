@@ -23,10 +23,12 @@
 #include "libohos_render/expand/components/richtext/KRRichTextShadow.h"
 
 ArkUI_NodeHandle KRRichTextView::CreateNode() {
-    return kuikly::util::GetNodeApi()->createNode(ARKUI_NODE_CUSTOM);
+    return kuikly::util::GetNodeApi()->createNode(ARKUI_NODE_TEXT);
 }
 
 void KRRichTextView::OnDestroy() {
+    kuikly::util::GetNodeApi()->resetAttribute(GetNode(), NODE_TEXT_CONTENT_WITH_STYLED_STRING);
+
     IKRRenderViewExport::OnDestroy();
     auto self = shared_from_this();
     KREventDispatchCenter::GetInstance().UnregisterCustomEvent(self);
@@ -49,13 +51,29 @@ void KRRichTextView::OnCustomEvent(ArkUI_NodeCustomEvent *event, const ArkUI_Nod
 
 void KRRichTextView::DidInit() {
     IKRRenderViewExport::DidInit();
-    auto self = shared_from_this();
-    KREventDispatchCenter::GetInstance().RegisterCustomEvent(self, ARKUI_NODE_CUSTOM_EVENT_ON_FOREGROUND_DRAW);
 }
 
 void KRRichTextView::SetShadow(const std::shared_ptr<IKRRenderShadowExport> &shadow) {
     shadow_ = shadow;
-    kuikly::util::GetNodeApi()->markDirty(GetNode(), NODE_NEED_RENDER);
+
+    auto textShadow = std::dynamic_pointer_cast<KRRichTextShadow>(shadow);
+    if(textShadow && textShadow->StyledStringEnabled()){
+        ArkUI_AttributeItem item;
+        if(std::shared_ptr<KRParagraph> paragraph = std::dynamic_pointer_cast<KRRichTextShadow>(shadow)->GetParagraph()){
+            item.object = paragraph->GetStyledString();
+            kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_CONTENT_WITH_STYLED_STRING, &item);
+            // Note:
+            // The ownership of the styled string is not going to be transferred,
+            // by setting the style item to the note by calling 
+            // setAttribute with NODE_TEXT_CONTENT_WITH_STYLED_STRING.
+            // Besides, it is not reference counted,
+            // we need to make sure it is alive after setting it to the node.
+            paragraph_ = paragraph;
+        }
+    }else {
+        KREventDispatchCenter::GetInstance().RegisterCustomEvent(shared_from_this(), ARKUI_NODE_CUSTOM_EVENT_ON_FOREGROUND_DRAW);
+        kuikly::util::GetNodeApi()->markDirty(GetNode(), NODE_NEED_RENDER);
+    }
 }
 
 void KRRichTextView::DidMoveToParentView() {
@@ -65,8 +83,11 @@ void KRRichTextView::DidMoveToParentView() {
 }
 
 void KRRichTextView::DidRemoveFromParentView() {
+    kuikly::util::GetNodeApi()->resetAttribute(GetNode(), NODE_TEXT_CONTENT_WITH_STYLED_STRING);
     IKRRenderViewExport::DidRemoveFromParentView();
     shadow_ = nullptr;
+    paragraph_ = nullptr;
+    last_draw_frame_width_ = -1.0;
 }
 
 void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
@@ -106,11 +127,19 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
     auto *drawContext = OH_ArkUI_NodeCustomEvent_GetDrawContextInDraw(event);
     auto *drawingHandle = reinterpret_cast<OH_Drawing_Canvas *>(OH_ArkUI_DrawContext_GetCanvas(drawContext));
     auto frameWidth = GetFrame().width;
-    if (fabs(textTypoSize.width - frameWidth) > 1 || textAlign != TEXT_ALIGN_LEFT) {  // 文本非左对齐，需要重新排版一次
+    bool needReLayout = false;
+    if (last_draw_frame_width_ > 0 && fabs(last_draw_frame_width_ - frameWidth) > 0.01) {
+        needReLayout = true;
+    }
+    if (fabs(textTypoSize.width - frameWidth) > 1 || textAlign != TEXT_ALIGN_LEFT) {
+        needReLayout = true;
+    }
+    if (needReLayout) {
         auto dpi = KRConfig::GetDpi();
         OH_Drawing_TypographyLayout(textTypo, frameWidth * dpi);
+        last_draw_frame_width_ = frameWidth;
         if (textAlign != TEXT_ALIGN_LEFT) {
-            richTextShadow->ResetTextAlign();  // 重设避免重复排版
+            richTextShadow->ResetTextAlign();
         }
     }
     // Note: turn this on only when absolutely needed in testing build
@@ -151,7 +180,7 @@ void KRRichTextView::ToSetProp(const std::string &prop_key, const KRAnyValue &pr
                     params["pageY"] = pageY->second;
                 }
 
-                if (auto richTextShadow = dynamic_pointer_cast<KRRichTextShadow>(strongSelf->shadow_)) {
+                if (auto richTextShadow = std::dynamic_pointer_cast<KRRichTextShadow>(strongSelf->shadow_)) {
                     int index = richTextShadow->SpanIndexAt(x->second->toFloat(), y->second->toFloat());
                     if (index < 0) {
                         index = 0;

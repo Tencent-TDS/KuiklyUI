@@ -16,7 +16,7 @@
 package com.tencent.kuikly.core.module
 
 import com.tencent.kuikly.core.base.toInt
-import com.tencent.kuikly.core.collection.fastArrayListOf
+import com.tencent.kuikly.core.collection.fastMutableListOf
 import com.tencent.kuikly.core.exception.throwRuntimeError
 import com.tencent.kuikly.core.global.GlobalFunctionRef
 import com.tencent.kuikly.core.global.GlobalFunctions
@@ -83,7 +83,7 @@ abstract class Module {
         callbackFn: AnyCallbackFn?
     ): Any? {
         // 转成平台数据结构
-        val argsValue = fastArrayListOf<Any>()
+        val argsValue = fastMutableListOf<Any>()
         args.forEach {
             if (it is String || it is Int || it is Float || it is ByteArray) {
                 argsValue.add(it.toPlatformObject())
@@ -127,7 +127,7 @@ abstract class Module {
         callbackFn: AnyCallbackFn?
     ) {
         // 转成平台数据结构
-        val argsValue = fastArrayListOf<Any>()
+        val argsValue = fastMutableListOf<Any>()
         args.forEach {
             argsValue.add(it.toPlatformObject())
         }

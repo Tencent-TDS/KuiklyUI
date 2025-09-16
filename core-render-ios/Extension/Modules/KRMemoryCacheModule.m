@@ -68,7 +68,11 @@ static NSString *const kCacheStateInProgress = @"InProgress";
     if (key && value) {
        self.memoryKeyValueMap[key] = value;
     }
-    
+    [_imageCacheLock lock];
+    if(_imageCache && [_imageCache objectForKey:key]){
+        [_imageCache removeObjectForKey:key];
+    }
+    [_imageCacheLock unlock];
 }
 
 #pragma mark - getter
@@ -103,7 +107,9 @@ static NSString *const kCacheStateInProgress = @"InProgress";
         @"state": kCacheStateComplete,
         @"errorCode": @(0),
         @"errorMsg": @"",
-        @"cacheKey": cacheKey
+        @"cacheKey": cacheKey,
+        @"width": @(image.size.width),
+        @"height": @(image.size.height)
     };
     return [result hr_dictionaryToString];
 }
@@ -169,6 +175,7 @@ static NSString *const kCacheStateInProgress = @"InProgress";
     KR_WEAK_SELF
     dispatch_async(dispatch_get_main_queue(), ^{
         KRImageView* imageView = [[KRImageView alloc] init];
+        imageView.hr_rootView = self.hr_rootView;
         KR_STRONG_SELF_RETURN_IF_NIL
         
         [strongSelf->_imageCacheLock lock];
@@ -188,7 +195,9 @@ static NSString *const kCacheStateInProgress = @"InProgress";
                     @"state": kCacheStateComplete,
                     @"errorCode": @(0),
                     @"errorMsg": @"",
-                    @"cacheKey": cacheKey
+                    @"cacheKey": cacheKey,
+                    @"width": @(img.size.width),
+                    @"height": @(img.size.height)
                 };
                 callback(result);
             };

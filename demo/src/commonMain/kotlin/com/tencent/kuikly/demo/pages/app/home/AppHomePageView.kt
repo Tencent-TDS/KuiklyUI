@@ -28,6 +28,8 @@ import com.tencent.kuikly.core.module.NotifyModule
 import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.reactive.handler.observable
+import com.tencent.kuikly.core.reactive.handler.observableList
+import com.tencent.kuikly.core.utils.PlatformUtils
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.PageList
 import com.tencent.kuikly.core.views.PageListView
@@ -36,7 +38,9 @@ import com.tencent.kuikly.core.views.TabItem
 import com.tencent.kuikly.core.views.Tabs
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
+import com.tencent.kuikly.core.views.ios.SegmentedControlIOS
 import com.tencent.kuikly.demo.pages.app.AppTabPage
+import com.tencent.kuikly.demo.pages.app.lang.LangManager
 import com.tencent.kuikly.demo.pages.app.model.AppFeedsType
 import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
 
@@ -44,26 +48,37 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
 
     private var curIndex: Int by observable(0)
     private var scrollParams: ScrollParams? by observable(null)
-    private var titles = listOf<String>("关注", "热门 ")
     private var pageListRef : ViewRef<PageListView<*, *>>? = null
     private var tabHeaderWidth by observable(300f)
     private lateinit var followViewRef: ViewRef<AppFeedListPageView>
     private lateinit var trendViewRef: ViewRef<AppTrendingPageView>
     private var theme by observable(ThemeManager.getTheme())
-    private lateinit var eventCallbackRef: CallbackRef
+    private var resStrings by observable(LangManager.getCurrentResStrings())
+    private var titles by observableList<String>()
+    private lateinit var themeEventCallbackRef: CallbackRef
+    private lateinit var langEventCallbackRef: CallbackRef
 
     override fun created() {
         super.created()
-        eventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+        titles.addAll(listOf(resStrings.topBarFollow, resStrings.topBarTrend))
+        themeEventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
             .addNotify(ThemeManager.SKIN_CHANGED_EVENT) { _ ->
                 theme = ThemeManager.getTheme()
             }
+        langEventCallbackRef = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .addNotify(LangManager.LANG_CHANGED_EVENT) { _ ->
+                resStrings = LangManager.getCurrentResStrings()
+                titles[0] = resStrings.topBarFollow
+                titles[1] = resStrings.topBarTrend
+            }
     }
 
-    override fun viewDestroyed() {
-        super.viewDestroyed()
+    override fun viewWillUnload() {
+        super.viewWillUnload()
         acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
-            .removeNotify(ThemeManager.SKIN_CHANGED_EVENT, eventCallbackRef)
+            .removeNotify(ThemeManager.SKIN_CHANGED_EVENT, themeEventCallbackRef)
+        acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
+            .removeNotify(ThemeManager.SKIN_CHANGED_EVENT, langEventCallbackRef)
     }
 
     override fun createEvent(): AppHomePageViewEvent {
@@ -74,58 +89,78 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
         return AppHomePageViewAttr()
     }
 
-    fun tabsHeader(): ViewBuilder {
+    private fun tabsHeader(): ViewBuilder {
         val ctx = this
         return {
             attr {
                 backgroundColor(ctx.theme.colors.topBarBackground)
             }
-            Tabs {
-                attr {
-                    height(TAB_HEADER_HEIGHT)
-                    width(ctx.tabHeaderWidth)
-                    defaultInitIndex(ctx.curIndex)
-                    alignSelfCenter()
-                    indicatorInTabItem {
-                        View {
-                            attr {
-                                height(3f)
-                                absolutePosition(left = 2f, right = 2f, bottom = 5f)
-                                borderRadius(2f)
-                                backgroundColor(ctx.theme.colors.topBarIndicator)
-                            }
-                        }
+
+            if (PlatformUtils.isLiquidGlassSupported()) {
+                SegmentedControlIOS {
+                    attr {
+                        height(TAB_HEADER_HEIGHT * 0.8f)
+                        width(ctx.tabHeaderWidth * 0.5f)
+                        margin(top = TAB_HEADER_HEIGHT * 0.1f, bottom = TAB_HEADER_HEIGHT * 0.1f)
+                        titles(ctx.titles)
+                        selectedIndex(ctx.curIndex)
+                        alignSelfCenter()
                     }
-                    ctx.scrollParams?.also {
-                        scrollParams(it)
+                    event {
+                        onValueChanged {
+                            // 处理选中变化
+                            ctx.pageListRef?.view?.scrollToPageIndex(it.index, true)
+                        }
                     }
                 }
-                event {
-                    contentSizeChanged { width, _ ->
-                        ctx.tabHeaderWidth = width
-                    }
-                }
-                for (i in 0 until ctx.titles.size) {
-                    TabItem { state ->
-                        attr {
-                            marginLeft(10f)
-                            marginRight(10f)
-                            allCenter()
-                        }
-                        event {
-                            click {
-                                ctx.pageListRef?.view?.scrollToPageIndex(i, true)
+            } else {
+                Tabs {
+                    attr {
+                        height(TAB_HEADER_HEIGHT)
+                        width(ctx.tabHeaderWidth)
+                        defaultInitIndex(ctx.curIndex)
+                        alignSelfCenter()
+                        indicatorInTabItem {
+                            View {
+                                attr {
+                                    height(3f)
+                                    absolutePosition(left = 2f, right = 2f, bottom = 5f)
+                                    borderRadius(2f)
+                                    backgroundColor(ctx.theme.colors.topBarIndicator)
+                                }
                             }
                         }
-                        Text {
+                        ctx.scrollParams?.also {
+                            scrollParams(it)
+                        }
+                    }
+                    event {
+                        contentSizeChanged { width, _ ->
+                            ctx.tabHeaderWidth = width
+                        }
+                    }
+                    for (i in 0 until ctx.titles.size) {
+                        TabItem { state ->
                             attr {
-                                text(ctx.titles[i])
-                                fontSize(17f)
-                                if (state.selected) {
-                                    fontWeightBold()
-                                    color(ctx.theme.colors.topBarTextFocused)
-                                } else {
-                                    color(ctx.theme.colors.topBarTextUnfocused)
+                                marginLeft(10f)
+                                marginRight(10f)
+                                allCenter()
+                            }
+                            event {
+                                click {
+                                    ctx.pageListRef?.view?.scrollToPageIndex(i, true)
+                                }
+                            }
+                            Text {
+                                attr {
+                                    text(ctx.titles[i])
+                                    fontSize(17f)
+                                    if (state.selected) {
+                                        fontWeightBold()
+                                        color(ctx.theme.colors.topBarTextFocused)
+                                    } else {
+                                        color(ctx.theme.colors.topBarTextUnfocused)
+                                    }
                                 }
                             }
                         }
@@ -133,21 +168,29 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
                 }
             }
 
-            Image {
+            View {
                 attr {
-                    absolutePosition(top = 12f, right = 12f)
-                    size(20f, 20f)
-                    src(ImageUri.pageAssets("ic_settings.png"))
-                    tintColor(ctx.theme.colors.topBarTextFocused)
+                    absolutePosition(top = 6f, right = 12f)
+                    glassEffectIOS()
+                    padding(10f)
+                    borderRadius(20f)
                 }
-                event {
-                    click {
-                        // 跳转到新页面
-                        ctx.acquireModule<RouterModule>(RouterModule.MODULE_NAME)
-                            .openPage("AppSettingPage")
+                Image {
+                    attr {
+                        size(20f, 20f)
+                        src(ImageUri.pageAssets("ic_settings.png"))
+                        tintColor(ctx.theme.colors.topBarTextFocused)
+                    }
+                    event {
+                        click {
+                            // 跳转到新页面
+                            ctx.acquireModule<RouterModule>(RouterModule.MODULE_NAME)
+                                .openPage("AppSettingPage")
+                        }
                     }
                 }
             }
+
         }
     }
 
@@ -158,6 +201,9 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
 
     override fun body(): ViewBuilder {
         val ctx = this
+        val isIOS = getPager().pageData.isIOS
+        val tabBottomHeight = if (isIOS) 0f else AppTabPage.TAB_BOTTOM_HEIGHT
+
         return {
             attr {
                 flex(1f)
@@ -171,7 +217,7 @@ internal class AppHomePageView: ComposeView<AppHomePageViewAttr, AppHomePageView
                 attr {
                     flexDirectionRow()
                     pageItemWidth(pagerData.pageViewWidth)
-                    pageItemHeight(pagerData.pageViewHeight - pagerData.statusBarHeight - TAB_HEADER_HEIGHT - AppTabPage.TAB_BOTTOM_HEIGHT)
+                    pageItemHeight(pagerData.pageViewHeight - pagerData.statusBarHeight - TAB_HEADER_HEIGHT - tabBottomHeight)
                     defaultPageIndex(ctx.curIndex)
                     showScrollerIndicator(false)
                 }
@@ -209,7 +255,7 @@ internal class AppHomePageViewAttr : ComposeAttr() {
 }
 
 internal class AppHomePageViewEvent : ComposeEvent() {
-    
+
 }
 
 internal fun ViewContainer<*, *>.AppHomePage(init: AppHomePageView.() -> Unit) {

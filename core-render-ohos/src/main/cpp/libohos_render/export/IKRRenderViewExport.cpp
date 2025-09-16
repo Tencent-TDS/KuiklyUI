@@ -206,7 +206,7 @@ bool IKRRenderViewExport::ResetProp(const std::string &prop_key) {
 }
 
 bool IKRRenderViewExport::CanReuse() {
-    if(g_kuikly_disable_view_reuse){
+    if(g_kuikly_disable_view_reuse || !is_leaf_node_){
         return false;
     }
     if (base_props_handler_->isAnimationNode()) {  // 对齐iOS（避免执行中动画影响新的复用）

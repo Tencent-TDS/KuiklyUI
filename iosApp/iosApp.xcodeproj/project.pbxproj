@@ -14,6 +14,7 @@
 		3A622B9B2AB052B0002410B8 /* TDFTestModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 3A622B982AB052B0002410B8 /* TDFTestModule.m */; };
 		3A622B9C2AB052B0002410B8 /* KRNewTestModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 3A622B992AB052B0002410B8 /* KRNewTestModule.m */; };
 		3AF526722A9309C300A93682 /* RootViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 3AF526712A9309C300A93682 /* RootViewController.m */; };
+		7126B4462E1E726900B6B1D9 /* KRTabbarView.m in Sources */ = {isa = PBXBuildFile; fileRef = 7126B4452E1E709000B6B1D9 /* KRTabbarView.m */; };
 		7555FF83242A565900829871 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7555FF82242A565900829871 /* ContentView.swift */; };
 		AFEB55D22D9C17820014FCBD /* Satisfy-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = AFEB55D12D9C17820014FCBD /* Satisfy-Regular.ttf */; };
 		C125EBCC2D96FBE200FBFA34 /* KRAPNGViewHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = C125EBCA2D96FBE200FBFA34 /* KRAPNGViewHandler.m */; };
@@ -39,6 +40,8 @@
 		3A622B9A2AB052B0002410B8 /* KRNewTestModule.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KRNewTestModule.h; sourceTree = "<group>"; };
 		3AF526702A9309C300A93682 /* RootViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RootViewController.h; sourceTree = "<group>"; };
 		3AF526712A9309C300A93682 /* RootViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = RootViewController.m; sourceTree = "<group>"; };
+		7126B4442E1E708100B6B1D9 /* KRTabbarView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KRTabbarView.h; sourceTree = "<group>"; };
+		7126B4452E1E709000B6B1D9 /* KRTabbarView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = KRTabbarView.m; sourceTree = "<group>"; };
 		7555FF7B242A565900829871 /* iosApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iosApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7555FF82242A565900829871 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		7555FF8C242A565B00829871 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -105,6 +108,15 @@
 				C57F6971A5640F2A8FDA3C78 /* Pods-iosApp.release.xcconfig */,
 			);
 			path = Pods;
+			sourceTree = "<group>";
+		};
+		71F799552E702FBA00EA8A8F /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				7126B4442E1E708100B6B1D9 /* KRTabbarView.h */,
+				7126B4452E1E709000B6B1D9 /* KRTabbarView.m */,
+			);
+			path = Views;
 			sourceTree = "<group>";
 		};
 		7555FF72242A565900829871 = {
@@ -205,6 +217,7 @@
 				FF05C63929C84FF500C5E02A /* Controller */,
 				FF05C63829C84FE800C5E02A /* Handlers */,
 				FFE6EAA2289A65D400AAAA3A /* Modules */,
+				71F799552E702FBA00EA8A8F /* Views */,
 			);
 			path = KuiklyRenderExpand;
 			sourceTree = "<group>";
@@ -361,6 +374,7 @@
 				FF0DD45329EC211B0024F7FF /* KRRouterHandler.m in Sources */,
 				FF047757288C4842008D3F39 /* NSObject+RIJCategory.m in Sources */,
 				C125EBCC2D96FBE200FBFA34 /* KRAPNGViewHandler.m in Sources */,
+				7126B4462E1E726900B6B1D9 /* KRTabbarView.m in Sources */,
 				FFDEA045288C2DF3008534B5 /* KuiklyRenderViewPage.swift in Sources */,
 				7555FF83242A565900829871 /* ContentView.swift in Sources */,
 				FF5BF1702B6EC62D001C5632 /* KRFontHanlder.m in Sources */,

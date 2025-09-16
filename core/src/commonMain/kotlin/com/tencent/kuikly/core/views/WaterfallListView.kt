@@ -19,6 +19,7 @@ import com.tencent.kuikly.core.base.Attr
 import com.tencent.kuikly.core.base.ContainerAttr
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.base.ViewContainer
+import com.tencent.kuikly.core.collection.fastArrayListOf
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.layout.undefined
 import com.tencent.kuikly.core.layout.valueEquals
@@ -192,7 +193,7 @@ class WaterfallContentView : ListContentView() {
     override fun onPagerCalculateLayoutFinish() {
         val listView = (parent as WaterfallListView)
         val attr = listView.getViewAttr()
-        val minHeightArray = arrayListOf<Float>()
+        val minHeightArray = fastArrayListOf<Float>()
         var curAbsoluteNodeOffset = 0f
         for (i in 0 until attr.columnCount) {
             minHeightArray.add(attr.contentPaddingTop - attr.lineSpacing)

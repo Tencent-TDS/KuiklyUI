@@ -62,6 +62,10 @@ object BuildPlugin {
     val android by lazy {
         "com.android.tools.build:gradle:${Version.getAGPVersion()}"
     }
+
+    val kuikly by lazy {
+        "com.tencent.kuikly-open:core-gradle-plugin:2.4.0-${Version.getKotlinVersion()}"
+    }
 }
 
 object Publishing {
@@ -70,14 +74,19 @@ object Publishing {
 
 object Output {
     const val name = "nativevue2"
+    const val KEY_PACK_LOCAL_JS_BUNDLE = "packLocalJsBundle"
     const val KEY_PACK_LOCAL_AAR_BUNDLE = "packLocalAarBundle"
 }
 
 object MavenConfig {
     const val GROUP = "com.tencent.kuikly-open"
+    const val GROUP_WEB = "com.tencent.kuikly-open.core-render-web"
     const val REPO_URL = "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2"
     const val SNAPSHOT_REPO_URL = "https://central.sonatype.com/repository/maven-snapshots/"
     const val RENDER_ANDROID_ARTIFACT_ID = "core-render-android"
+    const val RENDER_WEB_BASE_ARTIFACT_ID = "core-render-web-base"
+    const val RENDER_WEB_H5_ARTIFACT_ID = "core-render-web-h5"
+    const val RENDER_WEB_MINI_APP_ARTIFACT_ID = "core-render-web-miniapp"
 
     private const val KEY_USER_NAME = "username"
     private const val KEY_USER_PASSWORD = "password"
@@ -143,7 +152,7 @@ object Version {
     private const val KEY_AGP_VERSION = "KUIKLY_AGP_VERSION"
     private const val KEY_CI_BUILD_NUM = "KUIKLY_CI_BUILD_NUM"
     private const val KEY_RENDER_SUFFIX = "KUIKLY_RENDER_SUFFIX"
-    private const val OHOS_KOTLIN_SUFFIX = "KBA-004"
+    private const val OHOS_KOTLIN_SUFFIX = "KBA-010"
     private const val KUIKLY_OHOS_KOTLIN_SUFFIX = "ohos"
 
     /**
@@ -235,6 +244,7 @@ object Version {
             "1.9.22" -> "1.9.22-1.0.16"
             "2.0.21" -> "2.0.21-1.0.27"
             "2.0.21-KBA-004" -> "2.0.21-1.0.27"
+            "2.0.21-KBA-010" -> "2.0.21-1.0.27"
             else -> "${getKotlinVersion()}-1.0.7" // 默认版本
         }
     }

@@ -237,7 +237,10 @@
 
 
 - (NSDictionary<NSString *,NSObject *> *)contextPageData {
-    return @{@"dd": @(1)};
+    NSMutableDictionary *pageData = [NSMutableDictionary dictionary];
+    pageData[@"appId"] = @"1";
+    pageData[@"sysLang"] = [[NSLocale preferredLanguages] firstObject];
+    return pageData;
 }
 
 - (NSString *)turboDisplayKey {

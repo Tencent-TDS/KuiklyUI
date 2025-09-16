@@ -21,7 +21,6 @@ import com.tencent.kuikly.core.base.attr.IEventCaptureAttr
 import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.collection.fastArrayListOf
 import com.tencent.kuikly.core.collection.toFastList
-import com.tencent.kuikly.core.exception.throwRuntimeError
 import com.tencent.kuikly.core.layout.FlexAlign
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexJustifyContent
@@ -32,6 +31,7 @@ import com.tencent.kuikly.core.layout.StyleSpace
 import com.tencent.kuikly.core.layout.undefined
 import com.tencent.kuikly.core.layout.valueEquals
 import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
+import com.tencent.kuikly.core.views.GlassEffectStyle
 import com.tencent.kuikly.core.views.RichTextView
 import com.tencent.kuikly.core.views.ScrollerContentView
 import com.tencent.kuikly.core.views.TextAreaView
@@ -347,6 +347,29 @@ open class ContainerAttr : Attr(), IContainerLayoutAttr, IEventCaptureAttr {
 
     open fun flexDirectionRow(): ContainerAttr {
         flexDirection(FlexDirection.ROW)
+        return this
+    }
+
+    open fun glassEffectIOS(enable: Boolean = true,
+                            interactive: Boolean? = true,
+                            tintColor: Color? = null,
+                            style: GlassEffectStyle? = null
+    ): ContainerAttr {
+        StyleConst.GLASS_EFFECT_ENABLE with enable
+        if (interactive != null) {
+            StyleConst.GLASS_EFFECT_INTERACTIVE with interactive
+        }
+        if (tintColor != null) {
+            StyleConst.GLASS_EFFECT_TINT_COLOR with tintColor.toString()
+        }
+        if (style != null) {
+            StyleConst.GLASS_EFFECT_STYLE with style.value
+        }
+        return this
+    }
+
+    open fun glassEffectContainerIOS(spacing: Float): ContainerAttr {
+        StyleConst.GLASS_EFFECT_SPACING with spacing
         return this
     }
 

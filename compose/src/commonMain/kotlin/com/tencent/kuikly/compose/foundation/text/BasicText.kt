@@ -69,6 +69,7 @@ import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.compose.ui.unit.isSpecified
 import com.tencent.kuikly.compose.ui.util.fastRoundToInt
 import com.tencent.kuikly.compose.extension.scaleToDensity
+import com.tencent.kuikly.compose.ui.platform.LocalConfiguration
 import com.tencent.kuikly.core.views.ISpan
 import com.tencent.kuikly.core.views.PlaceholderSpan
 import com.tencent.kuikly.core.views.RichTextAttr
@@ -340,6 +341,9 @@ private fun BasicTextWithNoInlinContent(
     val materializedModifier = currentComposer.materialize(modifier)
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
+    val configuration = LocalConfiguration.current
+    val fontSizeScale = configuration.fontSizeScale
+    val fontWeightScale = configuration.fontWeightScale
 
     val measurePolicy = EmptyMeasurePolicy
 
@@ -354,7 +358,9 @@ private fun BasicTextWithNoInlinContent(
         maxLines = maxLines,
         onTextLayout = onTextLayout,
         color = null,
-        inlineContent = inlineContent
+        inlineContent = inlineContent,
+        fontSizeScale = fontSizeScale,
+        fontWeightScale = fontWeightScale
     )
 
     ReusableComposeNode<ComposeUiNode, KuiklyApplier>(
@@ -463,6 +469,17 @@ private fun BasicTextWithNoInlinContent(
                         applyMaxLines(maxLines)
                     }
                 }
+                this.modifier = materializedModifier then textElement
+            }
+
+            // 监听配置变化，触发重新测量
+            set(fontSizeScale) {
+                // 配置变化时，重新创建 textElement 以触发测量
+                this.modifier = materializedModifier then textElement
+            }
+
+            set(fontWeightScale) {
+                // 配置变化时，重新创建 textElement 以触发测量
                 this.modifier = materializedModifier then textElement
             }
         },

@@ -16,6 +16,9 @@
 #ifndef CORE_RENDER_OHOS_KRMEMORYCACHEMODULE_H
 #define CORE_RENDER_OHOS_KRMEMORYCACHEMODULE_H
 
+#include <cstdint>
+#include <shared_mutex>
+
 #include "libohos_render/export/IKRRenderModuleExport.h"
 
 constexpr char kMemoryCacheModuleName[] = "KRMemoryCacheModule";
@@ -27,13 +30,23 @@ class KRMemoryCacheModule : public IKRRenderModuleExport {
                           const KRRenderCallback &callback) override;
 
     KRAnyValue Get(const std::string &key);
-    void Set(const std::string &key, const KRAnyValue &value);
+    OH_PixelmapNative *GetImage(const std::string &key);
+    void OnDestroy() override;
 
  private:
     KRAnyValue SetObject(const KRAnyValue &params);
+    KRAnyValue CacheImage(const KRAnyValue &params, const KRRenderCallback &callback);
+    std::string GenerateCacheKey(const std::string &src);
+    void SetImage(const std::string &cache_key, OH_PixelmapNative *pixelmap);
+    KRRenderValueMap GenerateResult(const std::string &cache_key, OH_PixelmapNative *pixelmap);
+    KRRenderValueMap GenerateError(int32_t code, const std::string &message);
+    OH_PixelmapNative *LoadPixelmapFromLocal(std::string &src);
+    void ReleasePixelmap(OH_PixelmapNative *pixelmap);
 
  private:
     std::unordered_map<std::string, KRAnyValue> cache_map_;
+    std::unordered_map<std::string, OH_PixelmapNative *> image_cache_map_;
+    std::shared_mutex mtx_;
 };
 
 #endif  // CORE_RENDER_OHOS_KRMEMORYCACHEMODULE_H

@@ -17,22 +17,20 @@ package com.tencent.kuikly.core.module
 
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 
-class ImageRef{
-    constructor(cacheKey: String){
-        this.cacheKey = cacheKey
-    }
-    val cacheKey: String
-}
+class ImageRef(val cacheKey: String)
 
-class ImageCacheStatus{
-    companion object{
+class ImageCacheStatus(
+    val state: String = InProgress,
+    val errorCode: Int = 0,
+    val errorMsg: String = "",
+    val cacheKey: String = "",
+    val width: Int = 0,
+    val height: Int = 0
+) {
+    companion object {
         const val InProgress = "InProgress"
         const val Complete   = "Complete"
     }
-    var state: String = InProgress
-    var errorCode: Int = 0
-    var errorMsg: String = ""
-    var cacheKey: String = ""
 }
 
 typealias ImageCacheCallback = (status: ImageCacheStatus) -> Unit
@@ -78,13 +76,14 @@ class MemoryCacheModule : Module() {
             params.toString(),
             callback = { res ->
                 res?.also {
-                    val status = ImageCacheStatus()
-
-                    status.errorCode = it.optInt("errorCode",0)
-                    status.errorMsg = it.optString("errorMsg", "")
-                    status.state = ImageCacheStatus.Complete
-                    status.cacheKey = it.optString("cacheKey", "")
-
+                    val status = ImageCacheStatus(
+                        errorCode = it.optInt("errorCode",-1),
+                        errorMsg = it.optString("errorMsg", ""),
+                        state = ImageCacheStatus.Complete,
+                        cacheKey = it.optString("cacheKey", ""),
+                        width = it.optInt("width", 0),
+                        height = it.optInt("height", 0)
+                    )
                     callback(status)
                 }
             },
@@ -92,19 +91,21 @@ class MemoryCacheModule : Module() {
         ).toString()
         try {
             val json = JSONObject(retStr)
-            val status = ImageCacheStatus()
-            json?.also {
-                status.errorCode = it.optInt("errorCode",0)
-                status.errorMsg = it.optString("errorMsg", "")
-                status.state = it.optString("state", ImageCacheStatus.Complete)
-                status.cacheKey = it.optString("cacheKey", "")
-            }
+            val status = ImageCacheStatus(
+                errorCode = json.optInt("errorCode",-1),
+                errorMsg = json.optString("errorMsg", ""),
+                state = json.optString("state", ImageCacheStatus.Complete),
+                cacheKey = json.optString("cacheKey", ""),
+                width = json.optInt("width", 0),
+                height = json.optInt("height", 0)
+            )
             return status
         } catch (e : Throwable) {
-            val status = ImageCacheStatus()
-            status.state = ImageCacheStatus.Complete
-            status.errorCode = -1
-            status.errorMsg = "Error parsing result:$e"
+            val status = ImageCacheStatus(
+                state = ImageCacheStatus.Complete,
+                errorCode = -1,
+                errorMsg = "Error parsing result:$e"
+            )
             return status
         }
     }

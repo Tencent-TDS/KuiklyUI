@@ -1,0 +1,5 @@
+{
+    "navigationBarTitleText":"LazyColumnDemo4",
+    "disableScroll":true,
+    "usingComponents":{"custom-wrapper":"../../custom-wrapper","comp":"../../comp"}
+}

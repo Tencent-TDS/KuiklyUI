@@ -17,6 +17,7 @@
 package com.tencent.kuikly.compose.ui.graphics
 
 import com.tencent.kuikly.compose.ui.text.style.modulate
+import com.tencent.kuikly.core.views.CanvasLinearGradient
 import kotlin.js.JsName
 
 /**
@@ -30,6 +31,20 @@ fun Paint(): Paint = KuiklyPaint()
 
 internal fun Paint.toKuiklyColor() = color.modulate(alpha).toKuiklyColor()
 
+internal fun Paint.toKuiklyLinearGradient(densityValue: Float) =
+    (shader as? LinearGradient)?.let { gradient ->
+        val canvasGradient = CanvasLinearGradient(
+            x0 = gradient.start.x / densityValue,
+            y0 = gradient.start.y / densityValue,
+            x1 = gradient.end.x / densityValue,
+            y1 = gradient.end.y / densityValue,
+        )
+        gradient.colorStops.forEach {
+            canvasGradient.addColorStop(it.stopIn01, it.color)
+        }
+        canvasGradient
+    }
+
 class KuiklyPaint : Paint {
     override var alpha: Float = DefaultAlpha
     override var isAntiAlias: Boolean = true
@@ -38,7 +53,7 @@ class KuiklyPaint : Paint {
     override var strokeCap: StrokeCap = StrokeCap.Butt
     override var strokeMiterLimit: Float = 4f
     override var style: PaintingStyle = PaintingStyle.Fill
-    override var brush: Brush? = null
+    override var shader: Any? = null
 }
 
 interface Paint {
@@ -100,5 +115,10 @@ interface Paint {
      */
     var strokeMiterLimit: Float
 
-    var brush: Brush?
+    /**
+     * The shader to use when stroking or filling a shape.
+     *
+     * When this is null, the [color] is used instead.
+     */
+    var shader: Any?
 }

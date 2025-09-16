@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-import { IKuiklyViewDelegate, KRRenderModuleExportCreator, KRRenderViewExportCreator } from '@kuikly-open/render';
+import { IKuiklyRenderViewLifecycleCallback, IKuiklyViewDelegate, KRRenderModuleExportCreator,KRRenderViewExportCreator } from '@kuikly-open/render';
 import { KRMyView } from './components/KRMyView';
 import { KRMyDemoCustomView } from './components/KRMyDemoCustomView';
 import { KRMyModule } from './modules/KRMyModule';
@@ -42,5 +42,42 @@ export class KuiklyViewDelegate extends IKuiklyViewDelegate {
     map.set(KRMyModule.MODULE_NAME, () => new KRMyModule());
     map.set(KROhosStreamRequestModule.MODULE_NAME, () => new KROhosStreamRequestModule());
     return map;
+  }
+
+  getKuiklyRenderViewLifecycleCallback(): IKuiklyRenderViewLifecycleCallback | null {
+    return new MyLifecycleCallBack()
+  }
+}
+
+class MyLifecycleCallBack implements IKuiklyRenderViewLifecycleCallback {
+  onInitCoreStart(): void {
+    console.log("--KuiklyRenderView onInitCoreStart--")
+  }
+
+  onInitCoreFinish(): void {
+    console.log("--KuiklyRenderView onInitCoreFinish--")
+  }
+  onInit(): void {
+    console.log("--KuiklyRenderView onInit--")
+  }
+
+  onInitContextStart(): void {
+    console.log("--KuiklyRenderView onInitContextStart--")
+  }
+
+  onInitContextFinish(): void {
+    console.log("--KuiklyRenderView onInitContextFinish--")
+  }
+
+  onCreateInstanceStart(): void {
+    console.log("--KuiklyRenderView onCreateInstanceStart--")
+  }
+
+  onCreateInstanceFinish(): void {
+    console.log("--KuiklyRenderView onCreateInstanceFinish--")
+  }
+
+  onFirstFramePaint(): void {
+    console.log("--KuiklyRenderView onFirstFramePaint--")
   }
 }

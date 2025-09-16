@@ -16,6 +16,7 @@
 package com.tencent.kuiklydemo.pages.demo.DeclarativeDemo
 
 import com.tencent.kuikly.core.annotations.Page
+import com.tencent.kuikly.core.base.Attr
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ComposeAttr
 import com.tencent.kuikly.core.base.ComposeEvent
@@ -32,6 +33,10 @@ import com.tencent.kuikly.demo.pages.demo.base.NavBar
 import kotlin.math.PI
 import kotlin.math.cos
 
+fun Attr.needCustomWrapper(value: Boolean) {
+    "needCustomWrapper" with value
+}
+
 @Page("CanvasExamplePage")
 internal class CanvasExamplePage : BasePager() {
     override fun body(): ViewBuilder {
@@ -46,6 +51,7 @@ internal class CanvasExamplePage : BasePager() {
             List {
                 attr {
                     flex(1f)
+                    needCustomWrapper(false)
                 }
                 CouponBackground {
                     attr {
@@ -91,7 +97,6 @@ internal class CanvasExamplePage : BasePager() {
                     }
                 }
             }
-
         }
     }
 }

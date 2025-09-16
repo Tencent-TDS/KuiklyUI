@@ -18,7 +18,7 @@ package com.tencent.kuikly.core.manager
 import com.tencent.kuikly.core.base.Attr
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.base.event.Event
-import com.tencent.kuikly.core.collection.fastLinkedMapOf
+import com.tencent.kuikly.core.collection.fastMutableMapOf
 import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.nvi.NativeBridge
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
@@ -58,8 +58,8 @@ object BridgeManager {
     @Deprecated("使用Pager上下文的pagerId代替")
     var currentPageId : String = ""
 
-    private val nativeBridgeMap = fastLinkedMapOf<String, NativeBridge>()
-    private val callObserverMap = fastLinkedMapOf<String, IBridgeCallObserver>()
+    private val nativeBridgeMap = fastMutableMapOf<String, NativeBridge>()
+    private val callObserverMap = fastMutableMapOf<String, IBridgeCallObserver>()
 
     fun isDidInit(): Boolean {
         return didInit

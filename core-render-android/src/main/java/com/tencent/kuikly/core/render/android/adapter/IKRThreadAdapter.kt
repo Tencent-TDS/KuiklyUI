@@ -20,4 +20,13 @@ package com.tencent.kuikly.core.render.android.adapter
  */
 interface IKRThreadAdapter {
     fun executeOnSubThread(task: () -> Unit)
+
+    /**
+     * increase Kuikly Thread StackSize to avoid StackOverflow Exception under Compose Scene
+     *
+     * @return <=0 mean use System default, it all depend platform setting, usually
+     *             system default is 1024 * 1024
+     *         >0 mean you custom the stackSize
+     */
+    fun stackSize(): Long = 0
 }

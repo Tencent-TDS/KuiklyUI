@@ -880,6 +880,11 @@ void UpdateInputNodeEnterKeyType(ArkUI_NodeHandle node, ArkUI_EnterKeyType enter
     GetNodeApi()->setAttribute(node, NODE_TEXT_INPUT_ENTER_KEY_TYPE, &item);
 }
 
+ArkUI_EnterKeyType GetInputNodeEnterKeyType(ArkUI_NodeHandle node) {
+    auto item = GetNodeApi()->getAttribute(node, NODE_TEXT_INPUT_ENTER_KEY_TYPE);
+    return item ? static_cast<ArkUI_EnterKeyType>(item->value[0].i32) : ARKUI_ENTER_KEY_TYPE_NEW_LINE;
+}
+
 void UpdateInputNodeMaxLength(ArkUI_NodeHandle node, int32_t max_length) {
     ArkUI_NumberValue value[] = {{.i32 = max_length}};
     ArkUI_AttributeItem item = {value, sizeof(value) / sizeof(ArkUI_NumberValue)};

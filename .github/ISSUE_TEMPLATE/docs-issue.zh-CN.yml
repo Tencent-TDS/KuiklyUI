@@ -1,0 +1,29 @@
+name: 📝 反馈文档问题 Docs Issue
+description: 文档类问题反馈
+title: 'Title'
+type: Doc
+labels: [s: need triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        # 📝 Docs Issue Report
+        在发布一个 Issue 前，请确保：
+        - 在 [官方文档](https://kuikly.tds.qq.com/Introduction/arch.html) 和 [Issue列表](https://github.com/Tencent-TDS/KuiklyUI/issues?q=is%3Aissue) 中搜索过你的问题。（你的问题可能已有人提出，也可能已在最新版本中被修正）
+        - 如果你发现一个已经关闭的旧 Issue 在最新版本中仍然存在，不要在旧 Issue 下面留言，请建一个新的 issue。
+
+  - type: textarea
+    id: DocsIssueContent
+    attributes:
+      label: 描述你的问题
+      description: 清晰简明地描述你的疑问。标有 'need info' 的 Issue 在 15 天内不提供相关信息，将被关闭。
+      placeholder: 请填写
+    validations:
+      required: true
+
+  - type: textarea
+    id: DocsIssueOthers
+    attributes:
+      label: 其他补充信息
+      description:
+      placeholder: 请填写

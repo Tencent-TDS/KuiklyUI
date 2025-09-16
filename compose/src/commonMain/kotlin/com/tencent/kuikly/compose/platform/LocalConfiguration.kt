@@ -99,10 +99,25 @@ class Configuration {
     val isDebug: Boolean
        get() = pageData.isDebug()
 
+    private var _fontSizeScale = mutableStateOf(1f)
+    private var _fontWeightScale = mutableStateOf(1f)
+
+    // 当前活动（Activity/Pager）的宽度
+    val fontSizeScale: Float by _fontSizeScale
+    // 当前活动（Activity/Pager）的宽度
+    val fontWeightScale: Float by _fontWeightScale
+
     fun onRootViewSizeChanged(width: Double, height: Double) {
         _pageViewWidth.value = width.toFloat()
         _pageViewHeight.value = height.toFloat()
         _activityWidth.value = width.toFloat()
         _activityHeight.value = height.toFloat()
+    }
+
+    fun onFontConfigChange(
+        fontSizeScale: Double, fontWeightScale: Double
+    ) {
+        _fontSizeScale.value = fontSizeScale.toFloat()
+        _fontWeightScale.value = fontWeightScale.toFloat()
     }
 }

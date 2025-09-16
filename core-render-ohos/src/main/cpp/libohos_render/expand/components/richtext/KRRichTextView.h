@@ -18,6 +18,7 @@
 
 #include <arkui/native_node.h>
 #include "libohos_render/expand/components/base/KRCustomUserCallback.h"
+#include "libohos_render/expand/components/richtext/KRParagraph.h"
 #include "libohos_render/export/IKRRenderShadowExport.h"
 #include "libohos_render/export/IKRRenderViewExport.h"
 #include "libohos_render/view/IKRRenderView.h"
@@ -44,7 +45,9 @@ class KRRichTextView : public IKRRenderViewExport {
                    const KRRenderCallback event_call_back = nullptr) override;
 
  private:
+    std::shared_ptr<KRParagraph> paragraph_;
     std::shared_ptr<IKRRenderShadowExport> shadow_;
+    float last_draw_frame_width_ = -1.0;
     void OnForegroundDraw(ArkUI_NodeCustomEvent *event);
 };
 

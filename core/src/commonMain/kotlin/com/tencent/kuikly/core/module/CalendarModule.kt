@@ -15,7 +15,7 @@
 
 package com.tencent.kuikly.core.module
 
-import com.tencent.kuikly.core.collection.fastArrayListOf
+import com.tencent.kuikly.core.collection.fastMutableListOf
 import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 
@@ -91,7 +91,7 @@ class CalendarModule : Module() {
 
     private inner class Calendar(val originTimestamp: Long) : ICalendar {
 
-        private val operationRecords = fastArrayListOf<Operation>()
+        private val operationRecords = fastMutableListOf<Operation>()
 
         override fun set(field: ICalendar.Field, value: Int): ICalendar {
             operationRecords.add(Operation.Set(field, value))

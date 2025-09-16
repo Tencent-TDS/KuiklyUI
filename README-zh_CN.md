@@ -10,8 +10,8 @@
 - [X] Android
 - [X] iOS
 - [X] 鸿蒙
-- [ ] Web（Q2开源）
-- [ ] 小程序（Q2开源）
+- [X] Web（beta）
+- [X] 小程序（beta）
 
 `Kuikly` 推出后受到业务广泛认可，已应用于 QQ、QQ 音乐、QQ 浏览器、腾讯新闻、搜狗输入法、应用宝、全民K歌、酷狗音乐、酷我音乐、自选股、ima.copilot、微视等多款产品。
 ## 特点
@@ -34,21 +34,26 @@
     ├── jvmMain               # 泛 JVM 平台代码（不涉及 Android API）（jar）
     ├── iosMain               # iOS 平台实现代码（framework）
     ├── ohosArm64Main         # Ohos 平台实现代码（so）
+    ├── jsMain                # H5 和 微信小程序 平台实现代码（so）
 ├── core-render-android    # android 平台的渲染器模块
 ├── core-render-ios        # iOS 平台的渲染器模块
 ├── core-render-ohos       # Ohos 平台的渲染模块
+├── core-render-web        # Web 平台的渲染模块
 ├── core-annotations       # 注解模块，定义业务注解 @Page
 ├── core-ksp               # 注解处理模块，生成 Core 入口文件 
 ├── buildSrc               # 编译脚本，用于编译、打包、分包产物相关脚本
 ├── demo                   # DSL 示例代码 
 ├── androidApp             # Android 宿主壳工程
 ├── iosApp                 # iOS 宿主壳工程
+├── miniApp                # 微信小程序 宿主壳工程
+├── h5App                  # H5 宿主壳工程
 ├── ohosApp                # Ohos 宿主壳工程
 ├── compose                # 跨平台模块，实现Compose UI、布局，桥接Kuikly等核心能力
     ├── src
         ├── commonMain      # 跨平台共享代码，包含 Compose UI 组件、布局和事件处理
         ├── androidMain     # Android 平台特定实现
         └── nativeMain      # iOS 和鸿蒙平台特定实现
+        └── jsMain          # H5 和小程序平台特定实现
 ```
 > 注: Compose 目录包含基于 Jetpack Compose 1.7.3 版本的跨平台源代码。我们对原始 Compose 代码进行了必要的修改和适配,以支持 Kuikly 框架的渲染需求。为了便于后续升级,我们注释掉了一些不必要的功能。为了确保功能稳定支持并避免与官方代码冲突,我们将包名从 `androidx.compose` 改为 `com.tencent.kuikly.compose`。原始 Compose 代码来自 [JetBrains Compose Multiplatform](https://github.com/JetBrains/compose-multiplatform-core)。
 

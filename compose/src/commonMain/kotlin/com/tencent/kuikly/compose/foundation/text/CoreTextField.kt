@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-@file:Suppress("DEPRECATION")
-
 package com.tencent.kuikly.compose.foundation.text
 
 import androidx.compose.runtime.Composable
@@ -143,9 +141,8 @@ import kotlin.math.ceil
  * innerTextField exactly once.
  */
 private inline fun ComposeUiNode.withTextAreaView(action: AutoHeightTextAreaView.() -> Unit) {
-    (this as? KNode<*>)?.run {
-        (view as? AutoHeightTextAreaView)?.run(action)
-    }
+    val textArea = (this as? KNode<*>)?.view as? AutoHeightTextAreaView ?: return
+    textArea.action()
 }
 
 const val CHANGE_LINE_SPACE = 3
@@ -405,7 +402,7 @@ internal fun CoreTextField(
                     set(keyboardOptions) {
                         if (keyboardOptions == null) return@set
                         withTextAreaView {
-                            updateKeyboardOptions(keyboardOptions, getViewAttr())
+                            updateKeyboardOptions(singleLineNew, keyboardOptions, getViewAttr())
                         }
                     }
                     set(keyboardActions) {
@@ -436,7 +433,11 @@ internal fun CoreTextField(
     }
 }
 
-private fun updateKeyboardOptions(options: KeyboardOptions, attr: TextAreaAttr) {
+private fun updateKeyboardOptions(
+    singleLine: Boolean,
+    options: KeyboardOptions,
+    attr: TextAreaAttr
+) {
     // 处理键盘类型
     when (options.keyboardType) {
         KeyboardType.Number -> attr.keyboardTypeNumber()
@@ -447,15 +448,23 @@ private fun updateKeyboardOptions(options: KeyboardOptions, attr: TextAreaAttr) 
 
     // 处理输入法动作
     when (options.imeAction) {
+        ImeAction.Go -> attr.returnKeyTypeGo()
         ImeAction.Search -> attr.returnKeyTypeSearch()
         ImeAction.Send -> attr.returnKeyTypeSend()
+        ImeAction.Previous -> attr.returnKeyTypePrevious()
         ImeAction.Next -> attr.returnKeyTypeNext()
         ImeAction.Done -> attr.returnKeyTypeDone()
-        // 其他情况使用默认行为
-        ImeAction.Unspecified,
-        ImeAction.Default,
-        ImeAction.None,
-        ImeAction.Previous -> {}
+        ImeAction.Unspecified, // fall through
+        ImeAction.Default -> {
+            if (singleLine) {
+                attr.returnKeyTypeDone()
+            }
+        }
+        ImeAction.None -> {
+            if (singleLine) {
+                attr.returnKeyTypeNone()
+            }
+        }
     }
 }
 
@@ -463,10 +472,12 @@ fun updateKeyboardActions(
     event: TextAreaEvent,
     state: LegacyTextFieldState
 ) {
-    event.onIMEAction {
-        val imeAction = when(it) {
-            "send" -> ImeAction.Send
+    event.inputReturn {
+        val imeAction = when (it.imeAction) {
+            "go" -> ImeAction.Go
             "search" -> ImeAction.Search
+            "send" -> ImeAction.Send
+            "previous" -> ImeAction.Previous
             "next" -> ImeAction.Next
             "done" -> ImeAction.Done
             else -> null

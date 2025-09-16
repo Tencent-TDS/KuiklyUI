@@ -19,6 +19,9 @@
 /core-ksp/ @elixxli
 /core-render-android/ @iPel @hidawei
 /core-render-ios/ @Cyunong
+/core-render-web/ @gguoyu @xyc-cn @zealotchen0
+/h5App/ @gguoyu @xyc-cn @zealotchen0
+/miniApp/ @gguoyu @xyc-cn @zealotchen0
 /demo/ @hidawei
 /gradle/ @elixxli
 /img/ @hidawei

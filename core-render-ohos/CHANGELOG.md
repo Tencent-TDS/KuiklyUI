@@ -1,5 +1,13 @@
 # ChangeLog
 
+## 2.5.0
+### What's New
+https://github.com/Tencent-TDS/KuiklyUI/releases/tag/2.5.0
+
+## 2.4.0
+### What's New
+https://github.com/Tencent-TDS/KuiklyUI/releases/tag/2.4.0
+
 ## 2.2.0
 ### What's New
 https://github.com/Tencent-TDS/KuiklyUI/releases/tag/2.2.0

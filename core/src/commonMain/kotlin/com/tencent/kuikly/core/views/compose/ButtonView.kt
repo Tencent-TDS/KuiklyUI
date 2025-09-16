@@ -26,6 +26,7 @@ import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.event.EventName
 import com.tencent.kuikly.core.base.event.TouchParams
+import com.tencent.kuikly.core.collection.fastArrayListOf
 import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.reactive.handler.observable
@@ -149,8 +150,8 @@ class ButtonAttr : ComposeAttr() {
 }
 
 class ButtonEvent : ComposeEvent() {
-    private val touchDownHandlers = arrayListOf<TouchEventHandlerFn>()
-    private val touchUpHandlers = arrayListOf<TouchEventHandlerFn>()
+    private val touchDownHandlers = fastArrayListOf<TouchEventHandlerFn>()
+    private val touchUpHandlers = fastArrayListOf<TouchEventHandlerFn>()
     fun touchDown(handler: TouchEventHandlerFn) {
         if (touchDownHandlers.isEmpty()) {
             register(EventName.TOUCH_DOWN.value) {

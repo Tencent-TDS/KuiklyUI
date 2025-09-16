@@ -20,6 +20,7 @@ import com.tencent.kuikly.core.base.Size
 import com.tencent.kuikly.core.base.ViewConst
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.domChildren
+import com.tencent.kuikly.core.collection.fastArrayListOf
 import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexNode
@@ -203,8 +204,8 @@ open class ListContentView : ScrollerContentView() {
             return
         }
         val onlyParentDirty = (parentDirty == true && !flexNode.isDirty)
-        val dirtyChildren = arrayListOf<FlexNode>()
-        val absoluteDirtyChildren = arrayListOf<FlexNode>()
+        val dirtyChildren = fastArrayListOf<FlexNode>()
+        val absoluteDirtyChildren = fastArrayListOf<FlexNode>()
         val domChildren = domChildren()
         domChildren.forEachIndexed { index, declarativeBaseView ->
             if (onlyParentDirty || declarativeBaseView.flexNode.isDirty) {
@@ -232,7 +233,7 @@ open class ListContentView : ScrollerContentView() {
             }
         } else {
             if (waitingToNextTickLayout) { // maxIndex内的item位置以及layout过的节点继续更新
-                val domFlexNodes = arrayListOf<FlexNode>()
+                val domFlexNodes = fastArrayListOf<FlexNode>()
                 domChildren.forEach {
                     domFlexNodes.add(it.flexNode)
                 }
@@ -373,8 +374,8 @@ open class ListContentView : ScrollerContentView() {
         if (parent === null || parent!!.flexNode.layoutFrame.isDefaultValue() || renderView == null) {
             return true
         }
-        val needRemoveViewViews = arrayListOf<DeclarativeBaseView<*, *>>()
-        val needCreateViewViews = arrayListOf<DeclarativeBaseView<*, *>>()
+        val needRemoveViewViews = fastArrayListOf<DeclarativeBaseView<*, *>>()
+        val needCreateViewViews = fastArrayListOf<DeclarativeBaseView<*, *>>()
         if (isRowFlexDirection()) {
             val visibleOffset = visibleOffset(true)
             val visibleLeft = offsetX - visibleOffset

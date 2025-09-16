@@ -52,7 +52,7 @@ internal class TestPage : BasePager() {
 
 :::
 
-### repeatCount
+### repeatCount<Badge text="H5实现中" type="warn"/> <Badge text="微信小程序实现中" type="warn"/>
 
 设置动画重复次数，默认值为 0，表示动画将无限次播放
 
@@ -60,7 +60,8 @@ internal class TestPage : BasePager() {
 | -- | -- | -- |
 | repeatCount | 动画重复次数 | Int |
 
-### autoPlay
+
+### autoPlay<Badge text="H5实现中" type="warn"/> <Badge text="微信小程序实现中" type="warn"/>
 
 设置是否自动播放，默认值为 true
 
@@ -76,11 +77,11 @@ internal class TestPage : BasePager() {
 
 设置加载失败时的事件回调
 
-### animationStart
+### animationStart<Badge text="H5实现中" type="warn"/> <Badge text="微信小程序实现中" type="warn"/>
 
 设置动画开始时的事件回调
 
-### animationEnd
+### animationEnd<Badge text="H5实现中" type="warn"/> <Badge text="微信小程序实现中" type="warn"/>
 
 设置动画结束时的事件回调
 

@@ -49,6 +49,10 @@ class PageData() {
         private set
     var isOhOs: Boolean = false
         private set
+    var isWeb: Boolean = false
+        private set
+    var isMiniApp: Boolean = false
+        private set
     var isIphoneX: Boolean = false
         private set
     var navigationBarHeight: Float = 0.0f
@@ -89,6 +93,8 @@ class PageData() {
         isIOS = platform == PLATFORM_IOS
         isAndroid = platform == PLATFORM_ANDROID
         isOhOs = platform == PLATFORM_OHOS
+        isWeb = platform == PLATFORM_WEB
+        isMiniApp = platform == PLATFORM_MINIAPP
         navigationBarHeight = statusBarHeight + 44
         isIphoneX = isIOS && statusBarHeight > 30
         activityWidth = pageData.optDouble(ACTIVITY_WIDTH, if (isMoreThan8()) deviceWidth.toDouble() else 0.0).toFloat()
@@ -173,5 +179,7 @@ class PageData() {
         const val PLATFORM_ANDROID = "android"
         const val PLATFORM_IOS = "iOS"
         const val PLATFORM_OHOS = "ohos"
+        const val PLATFORM_WEB = "web"
+        const val PLATFORM_MINIAPP = "miniprogram"
     }
 }

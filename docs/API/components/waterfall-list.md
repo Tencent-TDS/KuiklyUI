@@ -56,7 +56,7 @@
 |--------------| ------------------------------------------------------------ | ------------- |
 | value | 是否允许滑动内容，默认`true`                                 | Boolean       |
 
-### bouncesEnable
+### bouncesEnable <Badge text="H5实现中" type="warn"/> <Badge text="微信小程序实现中" type="warn"/>
 
 是否开启回弹效果，默认 `true`
 

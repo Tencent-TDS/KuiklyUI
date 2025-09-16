@@ -25,6 +25,7 @@ import com.tencent.kuikly.compose.ui.graphics.Brush
 import com.tencent.kuikly.compose.ui.graphics.Canvas
 import com.tencent.kuikly.compose.ui.graphics.ClipOp
 import com.tencent.kuikly.compose.ui.graphics.Color
+import com.tencent.kuikly.compose.ui.graphics.ImageBitmap
 import com.tencent.kuikly.compose.ui.graphics.KuiklyPaint
 import com.tencent.kuikly.compose.ui.graphics.Matrix
 import com.tencent.kuikly.compose.ui.graphics.Paint
@@ -187,21 +188,21 @@ class CanvasDrawScope : DrawScope {
         paint = configurePaint(color, style, alpha)
     )
 
-//    /**
-//     * @see [DrawScope.drawImage]
-//     */
-//    override fun drawImage(
-//        image: ImageBitmap,
-//        topLeft: Offset,
-//        @FloatRange(from = 0.0, to = 1.0) alpha: Float,
-//        style: DrawStyle,
+    /**
+     * @see [DrawScope.drawImage]
+     */
+    override fun drawImage(
+        image: ImageBitmap,
+        topLeft: Offset,
+        @FloatRange(from = 0.0, to = 1.0) alpha: Float,
+        style: DrawStyle,
 //        colorFilter: ColorFilter?,
 //        blendMode: BlendMode
-//    ) = drawParams.canvas.drawImage(
-//        image,
-//        topLeft,
-//        configurePaint(null, style, alpha, colorFilter, blendMode)
-//    )
+    ) = drawParams.canvas.drawImage(
+        image,
+        topLeft,
+        configurePaint(null, style, alpha/*, colorFilter, blendMode*/)
+    )
 
 //    /**
 //     * @see [DrawScope.drawImage]
@@ -235,28 +236,28 @@ class CanvasDrawScope : DrawScope {
 //        configurePaint(null, style, alpha, colorFilter, blendMode)
 //    )
 
-//    /**
-//     * @see [DrawScope.drawImage]
-//     */
-//    override fun drawImage(
-//        image: ImageBitmap,
-//        srcOffset: IntOffset,
-//        srcSize: IntSize,
-//        dstOffset: IntOffset,
-//        dstSize: IntSize,
-//        @FloatRange(from = 0.0, to = 1.0) alpha: Float,
-//        style: DrawStyle,
-////        colorFilter: ColorFilter?,
-////        blendMode: BlendMode,
-////        filterQuality: FilterQuality
-//    ) = drawParams.canvas.drawImageRect(
-//        image,
-//        srcOffset,
-//        srcSize,
-//        dstOffset,
-//        dstSize,
-//        configurePaint(null, style, alpha, colorFilter, blendMode, filterQuality)
-//    )
+    /**
+     * @see [DrawScope.drawImage]
+     */
+    override fun drawImage(
+        image: ImageBitmap,
+        srcOffset: IntOffset,
+        srcSize: IntSize,
+        dstOffset: IntOffset,
+        dstSize: IntSize,
+        @FloatRange(from = 0.0, to = 1.0) alpha: Float,
+        style: DrawStyle,
+//        colorFilter: ColorFilter?,
+//        blendMode: BlendMode,
+//        filterQuality: FilterQuality
+    ) = drawParams.canvas.drawImageRect(
+        image,
+        srcOffset,
+        srcSize,
+        dstOffset,
+        dstSize,
+        configurePaint(null, style, alpha/*, colorFilter, blendMode, filterQuality*/)
+    )
 
     /**
      * @see [DrawScope.drawRoundRect]
@@ -584,11 +585,7 @@ class CanvasDrawScope : DrawScope {
      */
     private fun selectPaint(drawStyle: DrawStyle): Paint =
         when (drawStyle) {
-            Fill -> {
-                val fillPaint = obtainFillPaint()
-                fillPaint.brush = null
-                fillPaint
-            }
+            Fill -> obtainFillPaint()
             is Stroke ->
                 obtainStrokePaint()
                     .apply {
@@ -615,7 +612,7 @@ class CanvasDrawScope : DrawScope {
         if (brush != null) {
             brush.applyTo(size, this, alpha)
         } else {
-//            if (this.shader != null) this.shader = null
+            if (this.shader != null) this.shader = null
             if (this.color != Color.Black) this.color = Color.Black
             if (this.alpha != alpha) this.alpha = alpha
         }
@@ -640,7 +637,7 @@ class CanvasDrawScope : DrawScope {
         // instead of configuring a separate alpha parameter
         val targetColor = color.modulate(alpha)
         if (this.color != targetColor) this.color = targetColor
-//        if (this.shader != null) this.shader = null
+        if (this.shader != null) this.shader = null
 //        if (this.colorFilter != colorFilter) this.colorFilter = colorFilter
 //        if (this.blendMode != blendMode) this.blendMode = blendMode
 //        if (this.filterQuality != filterQuality) this.filterQuality = filterQuality
@@ -663,12 +660,12 @@ class CanvasDrawScope : DrawScope {
             // instead of configuring a separate alpha parameter
             val targetColor = color.modulate(alpha)
             if (this.color != targetColor) this.color = targetColor
-//            if (this.shader != null) this.shader = null
+            if (this.shader != null) this.shader = null
 //            if (this.colorFilter != colorFilter) this.colorFilter = colorFilter
 //            if (this.blendMode != blendMode) this.blendMode = blendMode
             if (this.strokeWidth != strokeWidth) this.strokeWidth = strokeWidth
             if (this.strokeMiterLimit != miter) this.strokeMiterLimit = miter
-//            if (this.strokeCap != cap) this.strokeCap = cap
+            if (this.strokeCap != cap) this.strokeCap = cap
 //            if (this.strokeJoin != join) this.strokeJoin = join
 //            if (this.pathEffect != pathEffect) this.pathEffect = pathEffect
 //            if (this.filterQuality != filterQuality) this.filterQuality = filterQuality
@@ -695,7 +692,7 @@ class CanvasDrawScope : DrawScope {
 //        if (this.blendMode != blendMode) this.blendMode = blendMode
         if (this.strokeWidth != strokeWidth) this.strokeWidth = strokeWidth
         if (this.strokeMiterLimit != miter) this.strokeMiterLimit = miter
-//        if (this.strokeCap != cap) this.strokeCap = cap
+        if (this.strokeCap != cap) this.strokeCap = cap
 //        if (this.strokeJoin != join) this.strokeJoin = join
 //        if (this.pathEffect != pathEffect) this.pathEffect = pathEffect
 //        if (this.filterQuality != filterQuality) this.filterQuality = filterQuality

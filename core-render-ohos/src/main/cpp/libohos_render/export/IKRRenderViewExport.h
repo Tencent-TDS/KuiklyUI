@@ -168,7 +168,7 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
      * view添加到父节点前调用
      */
     virtual void WillMoveToParentView() {}
-    
+
     /**
      * view添加到父节点中后调用
      */
@@ -207,7 +207,7 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
         DestroyNode();
         parent_node_ = nullptr;
     }
-    
+
     virtual void DestroyNode(){
         if (node_) {
             auto node = node_;
@@ -365,8 +365,15 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
         ResetTouchInterrupter();
     }
 
-    virtual void RemoveChildNode(ArkUI_NodeHandle parent, ArkUI_NodeHandle child){
-        kuikly::util::GetNodeApi()->removeChild(parent, child);
+    virtual void RemoveChildNode(ArkUI_NodeHandle parent, ArkUI_NodeHandle child) {
+        if (parent_node_content_handle_ && child &&
+            kuikly::util::ArkUINativeNodeAPI::GetInstance()->IsNodeAlive(child)) {
+            // For KRForwardArkTSViewV2
+            OH_ArkUI_NodeContent_RemoveNode(parent_node_content_handle_, child);
+            parent_node_content_handle_ = nullptr;
+        } else {
+            kuikly::util::GetNodeApi()->removeChild(parent, child);
+        }
     }
     void ToRemoveFromSuperView() {
         KREnsureMainThread();
@@ -380,7 +387,8 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
         DidRemoveFromParentView();
     }
 
-    virtual void InsertChildNode(ArkUI_NodeHandle parent, ArkUI_NodeHandle child, int index){
+    virtual void InsertChildNode(ArkUI_NodeHandle parent, ArkUI_NodeHandle child, int index,
+                                 const std::shared_ptr<IKRRenderViewExport> &sub_render_view) {
         kuikly::util::GetNodeApi()->insertChildAt(parent, child, index);
     }
     void ToInsertSubRenderView(const std::shared_ptr<IKRRenderViewExport> &sub_render_view, int index) {
@@ -390,6 +398,7 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
         if (node_ == nullptr || sub_render_view->GetNode() == nullptr) {
             return;
         }
+        is_leaf_node_ = false;
         auto childrenCount = GetChildCount();
         if (index < 0 || index > childrenCount) {
             index = childrenCount;
@@ -397,7 +406,7 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
         sub_render_view->parent_node_ = GetNode();
         sub_render_view->parent_tag_ = this->GetViewTag();
 
-        InsertChildNode(GetNode(), sub_render_view->GetNode(), index);
+        InsertChildNode(GetNode(), sub_render_view->GetNode(), index, sub_render_view);
         sub_render_view->DidMoveToParentView();
         DidInsertSubRenderView(sub_render_view, index);
     }
@@ -467,7 +476,7 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
         return nullptr;
     }
 
-    std::shared_ptr<IKRRenderModuleExport> GetModule(std::string &name) {
+    std::shared_ptr<IKRRenderModuleExport> GetModule(const std::string &name) {
         auto root_view = GetRootView().lock();
         if (!root_view) {
             return nullptr;
@@ -529,7 +538,7 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
     std::string view_name_;
     int view_tag_ = 0;
     std::vector<std::string> did_set_props_;
-    
+
     ArkUI_NodeHandle parent_node_ = nullptr;
     int parent_tag_ = -1;
     std::shared_ptr<KRBasePropsHandler> base_props_handler_;
@@ -540,6 +549,9 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
     float interrupt_x_ = -1;
     float interrupt_y_ = -1;
     bool handling_capture_event_ = false;
+    bool is_leaf_node_ = true;
+ public:
+    ArkUI_NodeContentHandle parent_node_content_handle_ = nullptr;
 };
 
 #endif  // CORE_RENDER_OHOS_IKRRENDERVIEWEXPORT_H

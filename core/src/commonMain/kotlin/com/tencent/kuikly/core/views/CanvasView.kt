@@ -25,6 +25,7 @@ import com.tencent.kuikly.core.base.ViewConst
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.base.toInt
+import com.tencent.kuikly.core.collection.fastArrayListOf
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.module.ImageRef
 import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
@@ -691,7 +692,7 @@ typealias CanvasDrawCallback = (context: CanvasContext, width: Float, height: Fl
  */
 class CanvasLinearGradient(val x0: Float, val y0: Float, val x1: Float, val y1: Float) {
     // 用于存储渐变中的颜色停点
-    private val colorStops = arrayListOf<ColorStop>()
+    private val colorStops = fastArrayListOf<ColorStop>()
 
     /**
      * 向渐变中添加一个颜色停点。

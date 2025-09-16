@@ -20,7 +20,7 @@ package com.tencent.kuikly.core.base
  */
 object CrossPlatFeature {
     // 是否启用FastCollection，启用后在js宿主会使用js自己的map list set
-    var isUseFastCollection = false
+    var isUseFastCollection = true
     // 是否忽略isRenderViewForFlatLayer判断容器能否展平
     var isIgnoreRenderViewForFlatLayer = false
 }

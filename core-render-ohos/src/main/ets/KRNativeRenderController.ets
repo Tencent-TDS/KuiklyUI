@@ -29,6 +29,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { Configuration } from '@ohos.app.ability.Configuration';
 import { KRRenderExecuteModeBase } from './context/KRRenderExecuteModeBase';
 import { KRRenderNativeMode } from './context/KRRenderNativeMode';
+import { i18n } from '@kit.LocalizationKit';
 
 /** window尺寸变化事件名 */
 export const KRWindowSizeDidChangedEventKey = 'windowSizeDidChanged';
@@ -85,9 +86,9 @@ export const KRContextCode = 'contextCode';
 
 export const KRDensity = 'density';
 
-const KROnBackPressedKey = 'onBackPressed';
+export const KRSystemLanguageKey = 'sysLang';
 
-const KROnBackTimeoutMs = 200;
+const KROnBackPressedKey = 'onBackPressed';
 
 enum KRBackPressConsumedState {
   Undefined = 0,
@@ -123,6 +124,9 @@ export class KRNativeRenderController {
    * 透传给KR侧的页面数据
    */
   pageParams: KRRecord = {};
+
+  private lifecycleCallbacks: Array<IKuiklyRenderViewLifecycleCallback> = [];
+
   private fontSizeScale = 1.0;
   private fontWeightScale = 1.0;
   /**
@@ -458,14 +462,11 @@ export class KRNativeRenderController {
   onBackPress() {
     const sendTime = Date.now();
     this.doSendEvent(KROnBackPressedKey, {});
-
-    while (Date.now() - sendTime < KROnBackTimeoutMs) {
-      const result = render.isBackPressConsumed(this.instanceId, sendTime);
-      if (result === KRBackPressConsumedState.Consumed) {
-        return true;
-      } else if (result === KRBackPressConsumedState.NotConsumed) {
-        return false;
-      }
+    const result = render.isBackPressConsumed(this.instanceId, sendTime);
+    if (result === KRBackPressConsumedState.Consumed) {
+      return true;
+    } else if (result === KRBackPressConsumedState.NotConsumed) {
+      return false;
     }
     return false;
   }
@@ -532,6 +533,48 @@ export class KRNativeRenderController {
     this.runLazyTasksOnce();
   }
 
+
+  addKuiklyRenderViewLifecycleCallback(callback: IKuiklyRenderViewLifecycleCallback) {
+    this.lifecycleCallbacks.push(callback)
+  }
+
+  dispatchLifecycleStateChanged(state: number, params?: Object): void {
+    switch (state) {
+      case KRLifecycleState.STATE_INIT: {
+        this.lifecycleCallbacks.forEach(callback => callback.onInit());
+        break;
+      }
+      case KRLifecycleState.STATE_INIT_CORE_START: {
+        this.lifecycleCallbacks.forEach(callback => callback.onInitCoreStart());
+        break;
+      }
+      case KRLifecycleState.STATE_INIT_CORE_FINISH: {
+        this.lifecycleCallbacks.forEach(callback => callback.onInitCoreFinish());
+        break;
+      }
+      case KRLifecycleState.STATE_INIT_CONTEXT_START: {
+        this.lifecycleCallbacks.forEach(callback => callback.onInitContextStart());
+        break;
+      }
+      case KRLifecycleState.STATE_INIT_CONTEXT_FINISH: {
+        this.lifecycleCallbacks.forEach(callback => callback.onInitContextStart());
+        break;
+      }
+      case KRLifecycleState.STATE_CREATE_INSTANCE_START: {
+        this.lifecycleCallbacks.forEach(callback => callback.onCreateInstanceStart());
+        break;
+      }
+      case KRLifecycleState.STATE_CREATE_INSTANCE_FINISH: {
+        this.lifecycleCallbacks.forEach(callback => callback.onCreateInstanceFinish());
+        break;
+      }
+      case KRLifecycleState.STATE_FIRST_FRAME_PAINT: {
+        this.lifecycleCallbacks.forEach(callback => callback.onFirstFramePaint());
+        break;
+      }
+    }
+  }
+
   private doAboutToDisappear() {
     this.runKRRenderTask(() => {
       render.onDestroyRenderView(this.instanceId);
@@ -547,6 +590,7 @@ export class KRNativeRenderController {
   private createPageParams(params: KRRecord, viewWidth: number, viewHeight: number): string {
     let screenSize = KRConvertUtil.screenSize();
     let pageData: Record<string, string | number | KRRecord> = {};
+    params[KRSystemLanguageKey] = i18n.System.getSystemLanguages()[0];
     pageData[KRParamKey] = params;
     pageData[KRRootViewWidthKey] = viewWidth;
     pageData[KRRootViewHeightKey] = viewHeight;
@@ -582,7 +626,8 @@ export class KRNativeRenderController {
       'files_dir': getContext().filesDir,
       'assets_dir': this.assetsDir,
       'fontWeightScale': this.fontWeightScale,
-      'fontSizeScale': this.fontSizeScale
+      'fontSizeScale': this.fontSizeScale,
+      'imeMode': this.imeMode ? 1 : 0,
     };
 
     return JSON.stringify(data);
@@ -664,4 +709,69 @@ export abstract class IKuiklyViewDelegate extends KRNativeRenderController {
   pageDidDisappear() {
     this.onPageHide();
   }
+
+  /**
+   * 获取自定义[KuiklyRenderView]生命周期回调
+   */
+  getKuiklyRenderViewLifecycleCallback(): IKuiklyRenderViewLifecycleCallback | null {
+    return null
+  }
+}
+
+enum KRLifecycleState {
+  STATE_INIT = 1,
+  STATE_INIT_CORE_START,
+  STATE_INIT_CORE_FINISH,
+  STATE_INIT_CONTEXT_START,
+  STATE_INIT_CONTEXT_FINISH,
+  STATE_CREATE_INSTANCE_START,
+  STATE_CREATE_INSTANCE_FINISH,
+  STATE_FIRST_FRAME_PAINT
+}
+
+/**
+ * RenderView 生命周期回调
+ */
+export interface IKuiklyRenderViewLifecycleCallback {
+
+  /**
+   * 启动
+   */
+  onInit(): void
+
+  /**
+   * renderCore 初始化开始
+   */
+  onInitCoreStart(): void
+
+  /**
+   * renderCore 初始化完成
+   */
+  onInitCoreFinish(): void
+
+  /**
+   * 初始化渲染环境开始
+   */
+  onInitContextStart(): void
+
+  /**
+   * 初始化渲染环境完成
+   */
+  onInitContextFinish(): void
+
+  /**
+   * 创建页面开始
+   */
+  onCreateInstanceStart(): void
+
+  /**
+   * 创建页面结束
+   */
+  onCreateInstanceFinish(): void
+
+  /**
+   * 页面首帧渲染完成
+   */
+  onFirstFramePaint(): void
+
 }

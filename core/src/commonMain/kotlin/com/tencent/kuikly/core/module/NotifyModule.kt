@@ -15,14 +15,14 @@
 
 package com.tencent.kuikly.core.module
 
-import com.tencent.kuikly.core.collection.fastLinkedMapOf
+import com.tencent.kuikly.core.collection.fastMutableMapOf
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 /*
  * Native与Kuikly 或 Kuikly与Kuikly 之间的通信能力模块
  */
 class NotifyModule : Module() {
 
-    private val cbIdMap = fastLinkedMapOf<String, String>()
+    private val cbIdMap = fastMutableMapOf<String, String>()
     private var cbIdProducer = 0
 
     override fun moduleName(): String {

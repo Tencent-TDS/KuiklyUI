@@ -1,7 +1,7 @@
 package com.tencent.kuikly.core.layout
 
-import com.tencent.kuikly.core.collection.fastArrayListOf
-import com.tencent.kuikly.core.collection.fastHashSetOf
+import com.tencent.kuikly.core.collection.fastMutableListOf
+import com.tencent.kuikly.core.collection.fastMutableSetOf
 
 class FlexNode {
 
@@ -340,7 +340,7 @@ class FlexNode {
         }
 
         if (children == null) {
-            children = fastArrayListOf()
+            children = fastMutableListOf()
         }
         if (index >= children!!.count()) {
             children?.add(child)
@@ -357,7 +357,7 @@ class FlexNode {
 
     fun onlyAddChild(child: FlexNode) {
         if (children == null) {
-            children = fastArrayListOf()
+            children = fastMutableListOf()
         }
         children?.add(child)
     }
@@ -381,7 +381,7 @@ class FlexNode {
 
     fun calculateLayout(layoutContext: FlexLayoutContext?) {
         flexLayout.resetResult()
-        val dirtyList = fastHashSetOf<FlexNode>()
+        val dirtyList = fastMutableSetOf<FlexNode>()
         val maxWidth = if (!styleMaxWidth.isUndefined()) {
             styleMaxWidth
         } else {

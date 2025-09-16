@@ -5,3 +5,5 @@
 * 如果你是一位Android开发者, 建议您参考[Android平台开发方式](android-dev.md)
 * 如果你是一位iOS开发者, 建议您参考[iOS平台开发方式](ios-dev.md)
 * 如果你是一位鸿蒙开发者, 建议您参考[鸿蒙平台开发方式](harmony-dev.md)
+* 如果你是一位H5开发者, 建议您参考[H5平台开发方式](web-dev.md)
+* 如果你是一位微信小程序开发者, 建议您参考[小程序平台开发方式](miniapp-dev.md)

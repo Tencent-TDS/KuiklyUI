@@ -72,13 +72,6 @@ export class KRNativeManager {
     return KRNativeManager.instance;
   }
 
-  // 窗口创建时调用该方法进行初始化
-  public onWindowStageCreate(windowStage: window.WindowStage): void {
-    if (this.windowInfo == null) {
-      this.windowInfo = new KRWindowInfo(windowStage.getMainWindowSync());
-    }
-  }
-
   public onLastWindow(win: window.Window): void {
     if (this.windowInfo == null) {
       this.windowInfo = new KRWindowInfo(win);
@@ -158,7 +151,7 @@ export class KRNativeManager {
             this.fireViewEvent(instanceId, tag, propKey, data);
           };
           nativeInstance.setViewEvent(arg0 as number, arg1 as string, callback);
-        } else if (methodId == KRNativeCallArkTSMethod.CallViewMethod.valueOf()) { // 调用module方法
+        } else if (methodId == KRNativeCallArkTSMethod.CallViewMethod.valueOf()) { // 调用view方法
           let callback: KuiklyRenderCallback | null = null;
           if (callbackId != null && callbackId.length) { // 构造一个callback
             callback = (res: KRAny) => {

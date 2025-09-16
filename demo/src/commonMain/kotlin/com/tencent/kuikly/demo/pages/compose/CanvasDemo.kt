@@ -22,6 +22,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.tencent.kuikly.compose.ComposeContainer
+import com.tencent.kuikly.compose.coil3.rememberAsyncImagePainter
 import com.tencent.kuikly.compose.foundation.Canvas
 import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
 import com.tencent.kuikly.compose.foundation.background
@@ -32,33 +33,34 @@ import com.tencent.kuikly.compose.foundation.layout.Box
 import com.tencent.kuikly.compose.foundation.layout.Column
 import com.tencent.kuikly.compose.foundation.layout.Row
 import com.tencent.kuikly.compose.foundation.layout.fillMaxSize
-import com.tencent.kuikly.compose.foundation.layout.fillMaxWidth
-import com.tencent.kuikly.compose.foundation.layout.height
 import com.tencent.kuikly.compose.foundation.layout.offset
 import com.tencent.kuikly.compose.foundation.layout.size
 import com.tencent.kuikly.compose.foundation.layout.width
-import com.tencent.kuikly.compose.foundation.lazy.LazyColumn
-import com.tencent.kuikly.compose.foundation.shape.CircleShape
 import com.tencent.kuikly.compose.material3.Button
 import com.tencent.kuikly.compose.material3.ExperimentalMaterial3Api
 import com.tencent.kuikly.compose.material3.Slider
 import com.tencent.kuikly.compose.material3.SliderDefaults
 import com.tencent.kuikly.compose.material3.Text
+import com.tencent.kuikly.compose.resources.DrawableResource
+import com.tencent.kuikly.compose.resources.InternalResourceApi
+import com.tencent.kuikly.compose.resources.imageResource
 import com.tencent.kuikly.compose.setContent
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.draw.drawBehind
-import com.tencent.kuikly.compose.ui.draw.shadow
 import com.tencent.kuikly.compose.ui.geometry.CornerRadius
 import com.tencent.kuikly.compose.ui.geometry.Offset
 import com.tencent.kuikly.compose.ui.geometry.Rect
 import com.tencent.kuikly.compose.ui.geometry.Size
+import com.tencent.kuikly.compose.ui.geometry.isSpecified
 import com.tencent.kuikly.compose.ui.graphics.Brush
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.Matrix
 import com.tencent.kuikly.compose.ui.graphics.Path
 import com.tencent.kuikly.compose.ui.graphics.PointMode
+import com.tencent.kuikly.compose.ui.graphics.SolidColor
 import com.tencent.kuikly.compose.ui.graphics.StrokeCap
+import com.tencent.kuikly.compose.ui.graphics.StrokeJoin
 import com.tencent.kuikly.compose.ui.graphics.drawscope.DrawScope
 import com.tencent.kuikly.compose.ui.graphics.drawscope.Fill
 import com.tencent.kuikly.compose.ui.graphics.drawscope.Stroke
@@ -72,9 +74,12 @@ import com.tencent.kuikly.compose.ui.graphics.drawscope.withTransform
 import com.tencent.kuikly.compose.ui.platform.LocalDensity
 import com.tencent.kuikly.compose.ui.text.font.FontWeight
 import com.tencent.kuikly.compose.ui.unit.DpSize
+import com.tencent.kuikly.compose.ui.unit.IntOffset
+import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
 import com.tencent.kuikly.core.annotations.Page
+import com.tencent.kuikly.core.base.attr.ImageUri
 import com.tencent.kuikly.core.module.Module
 import com.tencent.kuikly.demo.pages.base.BridgeModule
 import kotlin.math.PI
@@ -597,6 +602,380 @@ private fun CanvasAPIDemo() {
             }
         }
     }
+
+    // 绘制图片
+    Text("绘制图片", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+    val image = imageResource(penguin)
+    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        CanvasExample("drawImage - 原图") {
+            drawImage(image)
+        }
+        CanvasExample("drawImage - 缩放") {
+            drawImage(
+                image,
+                dstSize = IntSize(50, 50)
+            )
+        }
+        CanvasExample("drawImage - 裁剪") {
+            drawImage(
+                image,
+                srcOffset = IntOffset(100, 100),
+                srcSize = IntSize(300, 300),
+                dstOffset = IntOffset(0, 0),
+                dstSize = IntSize(100, 100)
+            )
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        val painter = rememberAsyncImagePainter("https://robohash.org/1?size=50x50")
+        CanvasExample("painter - specified size") {
+            with(painter) { draw(Size(100f, 100f)) }
+        }
+
+        val painter2 = rememberAsyncImagePainter("https://robohash.org/2?size=50x50")
+        painter2.prefetch()
+        CanvasExample("painter - intrinsic size") {
+            with(painter2) {
+                if (intrinsicSize.isSpecified) {
+                    draw(intrinsicSize)
+                }
+            }
+        }
+    }
+    // 渐变色
+    Text("渐变色", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        CanvasExample("0 - Infinity") {
+            drawRect(
+                brush = Brush.linearGradient(
+                    listOf(Color.Red, Color.Green, Color.Blue)
+                ),
+                topLeft = Offset(25.dp.toPx(), 25.dp.toPx()),
+                size = Size(50.dp.toPx(), 50.dp.toPx())
+            )
+        }
+        CanvasExample("0 - 2*size") {
+            drawRect(
+                brush = Brush.linearGradient(
+                    listOf(Color.Red, Color.Green, Color.Blue),
+                    start = Offset.Zero,
+                    end = Offset(2 * size.width, 2 * size.height)
+                ),
+                topLeft = Offset(25.dp.toPx(), 25.dp.toPx()),
+                size = Size(50.dp.toPx(), 50.dp.toPx())
+            )
+        }
+        CanvasExample("Infinity - 0") {
+            drawRect(
+                brush = Brush.linearGradient(
+                    listOf(Color.Red, Color.Green, Color.Blue),
+                    start = Offset.Infinite,
+                    end = Offset.Zero
+                ),
+                topLeft = Offset(25.dp.toPx(), 25.dp.toPx()),
+                size = Size(50.dp.toPx(), 50.dp.toPx())
+            )
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        CanvasExample("fill 0") {
+            val brush = Brush.linearGradient(
+                listOf(Color.Red, Color.Green, Color.Blue),
+                end = Offset(100.dp.toPx(), 100.dp.toPx())
+            )
+            drawRect(
+                brush = brush,
+                topLeft = Offset.Zero,
+                size = Size(50.dp.toPx(), 50.dp.toPx())
+            )
+            drawRoundRect(
+                brush = brush,
+                topLeft = Offset(25.dp.toPx(), 10.dp.toPx()),
+                size = Size(50.dp.toPx(), 50.dp.toPx())
+            )
+            drawCircle(
+                brush = brush,
+                radius = 25.dp.toPx(),
+                center = Offset(75.dp.toPx(), 45.dp.toPx())
+            )
+            drawOval(
+                brush = brush,
+                topLeft = Offset(0f, 50.dp.toPx()),
+                size = Size(50.dp.toPx(), 40.dp.toPx())
+            )
+            drawArc(
+                brush = brush,
+                startAngle = 270f,
+                sweepAngle = 200f,
+                useCenter = true,
+                topLeft = Offset(25.dp.toPx(), 60.dp.toPx()),
+                size = Size(50.dp.toPx(), 40.dp.toPx())
+            )
+            drawPath(
+                Path().apply {
+                    moveTo(90.dp.toPx(), 100.dp.toPx())
+                    lineTo(80.dp.toPx(), 80.dp.toPx())
+                    lineTo(80.dp.toPx(), 100.dp.toPx())
+                    close()
+                },
+                brush = brush
+            )
+        }
+        CanvasExample("fill 1") {
+            drawRect(
+                brush = Brush.linearGradient(
+                    listOf(Color.Red, Color.Green, Color.Blue),
+                    start = Offset.Zero,
+                    end = Offset(50.dp.toPx(), 50.dp.toPx())
+                ),
+                topLeft = Offset.Zero,
+                size = Size(50.dp.toPx(), 50.dp.toPx())
+            )
+            drawRoundRect(
+                brush = Brush.linearGradient(
+                    listOf(Color.Red, Color.Green, Color.Blue),
+                    start = Offset(25.dp.toPx(), 10.dp.toPx()),
+                    end = Offset(75.dp.toPx(), 60.dp.toPx())
+                ),
+                topLeft = Offset(25.dp.toPx(), 10.dp.toPx()),
+                size = Size(50.dp.toPx(), 50.dp.toPx())
+            )
+            drawCircle(
+                brush = Brush.linearGradient(
+                    listOf(Color.Red, Color.Green, Color.Blue),
+                    start = Offset(50.dp.toPx(), 20.dp.toPx()),
+                    end = Offset(100.dp.toPx(), 70.dp.toPx())
+                ),
+                radius = 25.dp.toPx(),
+                center = Offset(75.dp.toPx(), 45.dp.toPx())
+            )
+            drawOval(
+                brush = Brush.linearGradient(
+                    listOf(Color.Red, Color.Green, Color.Blue),
+                    start = Offset(0f, 50.dp.toPx()),
+                    end = Offset(50.dp.toPx(), 90.dp.toPx())
+                ),
+                topLeft = Offset(0f, 50.dp.toPx()),
+                size = Size(50.dp.toPx(), 40.dp.toPx())
+            )
+            drawArc(
+                brush = Brush.linearGradient(
+                    listOf(Color.Red, Color.Green, Color.Blue),
+                    start = Offset(25.dp.toPx(), 60.dp.toPx()),
+                    end = Offset(75.dp.toPx(), 100.dp.toPx())
+                ),
+                startAngle = 270f,
+                sweepAngle = 200f,
+                useCenter = true,
+                topLeft = Offset(25.dp.toPx(), 60.dp.toPx()),
+                size = Size(50.dp.toPx(), 40.dp.toPx())
+            )
+            drawPath(
+                Path().apply {
+                    moveTo(90.dp.toPx(), 100.dp.toPx())
+                    lineTo(80.dp.toPx(), 80.dp.toPx())
+                    lineTo(80.dp.toPx(), 100.dp.toPx())
+                    close()
+                },
+                brush = Brush.linearGradient(
+                    listOf(Color.Red, Color.Green, Color.Blue),
+                    start = Offset(80.dp.toPx(), 80.dp.toPx()),
+                    end = Offset(90.dp.toPx(), 100.dp.toPx())
+                )
+            )
+        }
+        CanvasExample("stroke 0") {
+            val brush = Brush.linearGradient(
+                listOf(Color.Red, Color.Green, Color.Blue),
+                end = Offset(100.dp.toPx(), 100.dp.toPx())
+            )
+            val stroke = Stroke(width = 3.dp.toPx(), join = StrokeJoin.Round)
+            drawRect(
+                brush = brush,
+                topLeft = Offset.Zero,
+                size = Size(50.dp.toPx(), 50.dp.toPx()),
+                style = stroke
+            )
+            drawRoundRect(
+                brush = brush,
+                topLeft = Offset(25.dp.toPx(), 10.dp.toPx()),
+                size = Size(50.dp.toPx(), 50.dp.toPx()),
+                style = stroke
+            )
+            drawCircle(
+                brush = brush,
+                radius = 25.dp.toPx(),
+                center = Offset(75.dp.toPx(), 45.dp.toPx()),
+                style = stroke
+            )
+            drawOval(
+                brush = brush,
+                topLeft = Offset(0f, 50.dp.toPx()),
+                size = Size(50.dp.toPx(), 40.dp.toPx()),
+                style = stroke
+            )
+            drawArc(
+                brush = brush,
+                startAngle = 270f,
+                sweepAngle = 200f,
+                useCenter = true,
+                topLeft = Offset(25.dp.toPx(), 60.dp.toPx()),
+                size = Size(50.dp.toPx(), 40.dp.toPx()),
+                style = stroke
+            )
+            drawPath(
+                Path().apply {
+                    moveTo(90.dp.toPx(), 100.dp.toPx())
+                    lineTo(80.dp.toPx(), 80.dp.toPx())
+                    lineTo(80.dp.toPx(), 100.dp.toPx())
+                    close()
+                },
+                brush = brush,
+                style = stroke
+            )
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        CanvasExample("stroke 1") {
+            val stroke = Stroke(width = 3.dp.toPx(), join = StrokeJoin.Round)
+            drawRect(
+                brush = Brush.linearGradient(
+                    listOf(Color.Red, Color.Green, Color.Blue),
+                    start = Offset.Zero,
+                    end = Offset(50.dp.toPx(), 50.dp.toPx())
+                ),
+                topLeft = Offset.Zero,
+                size = Size(50.dp.toPx(), 50.dp.toPx()),
+                style = stroke
+            )
+            drawRoundRect(
+                brush = Brush.linearGradient(
+                    listOf(Color.Red, Color.Green, Color.Blue),
+                    start = Offset(25.dp.toPx(), 10.dp.toPx()),
+                    end = Offset(75.dp.toPx(), 60.dp.toPx())
+                ),
+                topLeft = Offset(25.dp.toPx(), 10.dp.toPx()),
+                size = Size(50.dp.toPx(), 50.dp.toPx()),
+                style = stroke
+            )
+            drawCircle(
+                brush = Brush.linearGradient(
+                    listOf(Color.Red, Color.Green, Color.Blue),
+                    start = Offset(50.dp.toPx(), 20.dp.toPx()),
+                    end = Offset(100.dp.toPx(), 70.dp.toPx())
+                ),
+                radius = 25.dp.toPx(),
+                center = Offset(75.dp.toPx(), 45.dp.toPx()),
+                style = stroke
+            )
+            drawOval(
+                brush = Brush.linearGradient(
+                    listOf(Color.Red, Color.Green, Color.Blue),
+                    start = Offset(0f, 50.dp.toPx()),
+                    end = Offset(50.dp.toPx(), 90.dp.toPx())
+                ),
+                topLeft = Offset(0f, 50.dp.toPx()),
+                size = Size(50.dp.toPx(), 40.dp.toPx()),
+                style = stroke
+            )
+            drawArc(
+                brush = Brush.linearGradient(
+                    listOf(Color.Red, Color.Green, Color.Blue),
+                    start = Offset(25.dp.toPx(), 60.dp.toPx()),
+                    end = Offset(75.dp.toPx(), 100.dp.toPx())
+                ),
+                startAngle = 270f,
+                sweepAngle = 200f,
+                useCenter = true,
+                topLeft = Offset(25.dp.toPx(), 60.dp.toPx()),
+                size = Size(50.dp.toPx(), 40.dp.toPx()),
+                style = stroke
+            )
+            drawPath(
+                Path().apply {
+                    moveTo(90.dp.toPx(), 100.dp.toPx())
+                    lineTo(80.dp.toPx(), 80.dp.toPx())
+                    lineTo(80.dp.toPx(), 100.dp.toPx())
+                    close()
+                },
+                brush = Brush.linearGradient(
+                    listOf(Color.Red, Color.Green, Color.Blue),
+                    start = Offset(80.dp.toPx(), 80.dp.toPx()),
+                    end = Offset(90.dp.toPx(), 100.dp.toPx())
+                ),
+                style = stroke
+            )
+        }
+    }
+    // alpha
+    Text("透明度", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        CanvasExample("color") {
+            drawRect(
+                Color.Red,
+                Offset.Zero,
+                Size(50.dp.toPx(), 50.dp.toPx()),
+                alpha = 0.5f
+            )
+            drawCircle(
+                Color.Green,
+                25.dp.toPx(),
+                Offset(50.dp.toPx(), 50.dp.toPx()),
+                alpha = 0.5f
+            )
+            drawOval(
+                Color.Blue,
+                topLeft = Offset(50.dp.toPx(), 60.dp.toPx()),
+                size = Size(50.dp.toPx(), 30.dp.toPx()),
+                alpha = 0.5f
+            )
+        }
+        CanvasExample("solid") {
+            drawRect(
+                SolidColor(Color.Red),
+                Offset.Zero,
+                Size(50.dp.toPx(), 50.dp.toPx()),
+                alpha = 0.5f
+            )
+            drawCircle(
+                SolidColor(Color.Green),
+                25.dp.toPx(),
+                Offset(50.dp.toPx(), 50.dp.toPx()),
+                alpha = 0.5f
+            )
+            drawOval(
+                SolidColor(Color.Blue),
+                topLeft = Offset(50.dp.toPx(), 60.dp.toPx()),
+                size = Size(50.dp.toPx(), 30.dp.toPx()),
+                alpha = 0.5f
+            )
+        }
+        CanvasExample("linear") {
+            drawRect(
+                Brush.horizontalGradient(listOf(Color.Red, Color.Red.copy(alpha = 0f))),
+                Offset.Zero,
+                Size(50.dp.toPx(), 50.dp.toPx()),
+                alpha = 0.5f
+            )
+            drawCircle(
+                Brush.horizontalGradient(listOf(Color.Green, Color.Green.copy(alpha = 0f))),
+                25.dp.toPx(),
+                Offset(50.dp.toPx(), 50.dp.toPx()),
+                alpha = 0.5f
+            )
+            drawOval(
+                Brush.horizontalGradient(listOf(Color.Blue, Color.Blue.copy(alpha = 0f))),
+                topLeft = Offset(50.dp.toPx(), 60.dp.toPx()),
+                size = Size(50.dp.toPx(), 30.dp.toPx()),
+                alpha = 0.5f
+            )
+        }
+    }
+}
+
+@OptIn(InternalResourceApi::class)
+private val penguin by lazy(LazyThreadSafetyMode.NONE) {
+    DrawableResource(ImageUri.commonAssets("penguin2.png").toUrl(""))
 }
 
 private inline fun Float.toRadians(): Float = (this * PI / 180f).toFloat()

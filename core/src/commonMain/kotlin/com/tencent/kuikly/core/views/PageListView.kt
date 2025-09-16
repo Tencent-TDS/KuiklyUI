@@ -20,6 +20,7 @@ import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.domChildren
 import com.tencent.kuikly.core.base.event.EventHandlerFn
+import com.tencent.kuikly.core.collection.fastArrayListOf
 import com.tencent.kuikly.core.collection.toFastList
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexPositionType
@@ -146,7 +147,7 @@ open class PageListAttr : ListAttr() {
 
 open class PageListEvent : ListEvent() {
 
-    private val willDragEndHandlers = arrayListOf<(WillEndDragParams) -> Unit>()
+    private val willDragEndHandlers = fastArrayListOf<(WillEndDragParams) -> Unit>()
 
     /**
      * 设置页面索引改变时的事件处理器。

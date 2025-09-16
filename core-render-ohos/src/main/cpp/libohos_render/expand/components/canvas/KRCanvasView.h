@@ -75,6 +75,7 @@ class KRCanvasView : public KRView {
     void Rotate(const std::string &params);
     void Skew(const std::string &params);
     void Transform(const std::string &params);
+    void DrawImage(const std::string &params);
     void Reset();
     void DrawText(std::string params, std::shared_ptr<struct KRFontCollectionWrapper> wrapper, std::string_view type);
 

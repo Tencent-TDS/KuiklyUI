@@ -279,14 +279,13 @@ sealed class Brush {
 @Immutable
 class SolidColor(val value: Color) : Brush() {
     override fun applyTo(size: Size, p: Paint, alpha: Float) {
-        p.alpha = alpha
+        p.alpha = DefaultAlpha
         p.color = if (alpha != DefaultAlpha) {
             value.copy(alpha = value.alpha * alpha)
         } else {
             value
         }
-        // todo: jonas
-//        if (p.shader != null) p.shader = null
+        if (p.shader != null) p.shader = null
     }
 
     override fun applyTo(view: DeclarativeBaseView<*, *>, alpha: Float) {
@@ -326,6 +325,8 @@ class LinearGradient internal constructor(
     private val tileMode: TileMode = TileMode.Clamp
 ) : Brush() {
 
+    private val isFinite get() = start.isFinite && end.isFinite
+
     override val intrinsicSize: Size
         get() =
             Size(
@@ -334,10 +335,24 @@ class LinearGradient internal constructor(
             )
 
     override fun applyTo(size: Size, p: Paint, alpha: Float) {
-        p.alpha = alpha
-        p.brush = this
-        // todo: jonas
-//        if (p.shader != null) p.shader = null
+        p.alpha = DefaultAlpha
+        p.shader = if (isFinite && alpha == DefaultAlpha) {
+            this
+        } else {
+            LinearGradient(
+                colors = if (alpha == DefaultAlpha) colors else colors.map { it.modulate(alpha) },
+                stops = stops,
+                start = if (start.isFinite) start else Offset(
+                    if (start.x.isFinite()) start.x else size.width,
+                    if (start.y.isFinite()) start.y else size.height
+                ),
+                end = if (end.isFinite) end else Offset(
+                    if (end.x.isFinite()) end.x else size.width,
+                    if (end.y.isFinite()) end.y else size.height
+                ),
+                tileMode = tileMode
+            )
+        }
     }
 
     override fun applyTo(view: DeclarativeBaseView<*, *>, alpha: Float) {

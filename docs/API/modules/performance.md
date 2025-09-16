@@ -100,6 +100,12 @@ typedef NS_OPTIONS(NSInteger, KRMonitorType) {
 <br>
 <br>
 
+### **H5**
+H5目前拿到的性能数据无内存和FPS数据
+
+### **微信小程序**
+微信小程序目前拿到的性能数据无内存和FPS数据
+
 除了在宿主侧获取性能数据方式外，还可以在`Kuikly`跨端侧获取。
 ### **Kuikly**
 通过`performanceModule`调用`getPerformanceData`获取性能数据

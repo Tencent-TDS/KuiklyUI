@@ -17,6 +17,7 @@ package com.tencent.kuikly.core.views
 
 import com.tencent.kuikly.core.base.*
 import com.tencent.kuikly.core.base.event.didAppear
+import com.tencent.kuikly.core.collection.fastArrayListOf
 import com.tencent.kuikly.core.timer.setTimeout
 import kotlin.math.max
 import kotlin.math.min
@@ -54,7 +55,7 @@ class ScrollPickerView(
         val offset = ctx.attr.countPerScreen / 2
         return {
             Scroller {
-                val dataList = arrayListOf<String>()
+                val dataList = fastArrayListOf<String>()
                 val placeHolderArray = Array<String>(offset) {""}
                 dataList.addAll(placeHolderArray)
                 dataList.addAll(ctx.itemList)

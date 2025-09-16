@@ -20,6 +20,7 @@ import com.tencent.kuikly.compose.ui.geometry.Rect
 import com.tencent.kuikly.compose.ui.geometry.RoundRect
 import com.tencent.kuikly.compose.ui.graphics.Canvas
 import com.tencent.kuikly.compose.ui.graphics.ClipOp
+import com.tencent.kuikly.compose.ui.graphics.ImageBitmap
 import com.tencent.kuikly.compose.ui.graphics.LinearGradient
 import com.tencent.kuikly.compose.ui.graphics.Matrix
 import com.tencent.kuikly.compose.ui.graphics.Paint
@@ -29,6 +30,9 @@ import com.tencent.kuikly.compose.ui.graphics.PointMode
 import com.tencent.kuikly.compose.ui.graphics.SolidColor
 import com.tencent.kuikly.compose.ui.graphics.StrokeCap
 import com.tencent.kuikly.compose.ui.graphics.toKuiklyColor
+import com.tencent.kuikly.compose.ui.graphics.toKuiklyLinearGradient
+import com.tencent.kuikly.compose.ui.unit.IntOffset
+import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.ui.util.fastForEach
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.base.RenderView
@@ -40,30 +44,20 @@ import kotlin.math.PI
 internal class KuiklyCanvas : Canvas {
 
     private fun CanvasContextEx.fillOrStroke(paint: Paint) {
+        val linearGradient = paint.toKuiklyLinearGradient(densityValue)
         if (paint.style == PaintingStyle.Fill) {
-            if (paint.brush != null) {
-                if (paint.brush is SolidColor) {
-                    fillStyle((paint.brush as SolidColor).value.toKuiklyColor())
-                } else if (paint.brush is LinearGradient) {
-                    val gradient = paint.brush as LinearGradient
-                    gradient.direction
-                    val canvasGradient = CanvasLinearGradient(
-                        x0 = gradient.start.x,
-                        y0 = gradient.start.y,
-                        x1 = gradient.end.x,
-                        y1 = gradient.end.y,
-                    )
-                    gradient.colorStops.forEach {
-                        canvasGradient.addColorStop(it.stopIn01, it.color)
-                    }
-                    fillStyle(canvasGradient)
-                }
+            if (linearGradient != null) {
+                fillStyle(linearGradient)
             } else {
                 fillStyle(paint.toKuiklyColor())
             }
             fill()
         } else {
-            strokeStyle(paint.toKuiklyColor())
+            if (linearGradient != null) {
+                strokeStyle(linearGradient)
+            } else {
+                strokeStyle(paint.toKuiklyColor())
+            }
             lineWidthWithDensity(paint.strokeWidth)
             if (strokeCap != paint.strokeCap) {
                 strokeCap = paint.strokeCap
@@ -253,6 +247,49 @@ internal class KuiklyCanvas : Canvas {
                 closePath()
             }
             fillOrStroke(paint)
+        }
+    }
+
+    override fun drawImage(image: ImageBitmap, topLeftOffset: Offset, paint: Paint) {
+        context?.apply {
+            val kImage = image as? KuiklyImageBitmap ?: return@apply
+            if (!kImage.isReady) {
+                return@apply
+            }
+            drawImageWithDensity(
+                kImage.imageRef,
+                topLeftOffset.x,
+                topLeftOffset.y,
+                kImage.width.toFloat(),
+                kImage.height.toFloat()
+            )
+        }
+    }
+
+    override fun drawImageRect(
+        image: ImageBitmap,
+        srcOffset: IntOffset,
+        srcSize: IntSize,
+        dstOffset: IntOffset,
+        dstSize: IntSize,
+        paint: Paint
+    ) {
+        context?.apply {
+            val kImage = image as? KuiklyImageBitmap ?: return@apply
+            if (!kImage.isReady) {
+                return@apply
+            }
+            drawImageWithDensity(
+                kImage.imageRef,
+                srcOffset.x.toFloat(),
+                srcOffset.y.toFloat(),
+                srcSize.width.toFloat(),
+                srcSize.height.toFloat(),
+                dstOffset.x.toFloat(),
+                dstOffset.y.toFloat(),
+                dstSize.width.toFloat(),
+                dstSize.height.toFloat()
+            )
         }
     }
 

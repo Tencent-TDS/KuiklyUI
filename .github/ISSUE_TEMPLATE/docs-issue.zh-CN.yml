@@ -1,6 +1,6 @@
 name: 📝 反馈文档问题 Docs Issue
 description: 文档类问题反馈
-title: ''
+title: 'Title'
 type: Doc
 labels: [s: need triage]
 body:

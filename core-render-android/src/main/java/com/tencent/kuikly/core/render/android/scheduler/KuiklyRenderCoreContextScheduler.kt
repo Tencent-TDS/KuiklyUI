@@ -21,24 +21,26 @@ import android.os.HandlerThread
 import android.os.Looper
 import android.os.Process
 import com.tencent.kuikly.core.nvi.NativeBridge
+import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
 
 /**
  * KTV页面执行环境调度器
  */
 object KuiklyRenderCoreContextScheduler : IKuiklyRenderCoreScheduler {
 
-    private val contextQueueHandlerThread by lazy {
-        val ht = object : HandlerThread("HRContextQueueHandlerThread", Process.THREAD_PRIORITY_FOREGROUND) {
-            override fun onLooperPrepared() {
-                NativeBridge.isContextThread = true
-            }
-        }
-        ht.start()
-        ht
-    }
+    const val THREAD_NAME = "HRContextQueueHandlerThread"
 
     private val handler by lazy {
-        Handler(contextQueueHandlerThread.looper)
+        val stackSize = KuiklyRenderAdapterManager.krThreadAdapter?.stackSize() ?: -1L
+        Handler(if (stackSize <= 0L) {
+            object : HandlerThread(THREAD_NAME, Process.THREAD_PRIORITY_FOREGROUND) {
+                override fun onLooperPrepared() { NativeBridge.isContextThread = true }
+            }.apply { start() }.looper
+        } else {
+            object : KRHandlerThread(THREAD_NAME, Process.THREAD_PRIORITY_FOREGROUND, stackSize) {
+                override fun onLooperPrepared() { NativeBridge.isContextThread = true }
+            }.apply { start() }.looper
+        })
     }
 
     override fun scheduleTask(delayMs: Long, task: KuiklyRenderCoreTask) {

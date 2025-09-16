@@ -1,10 +1,14 @@
-# LiquidGlass(液态玻璃容器)
+# LiquidGlass(液态玻璃组件)
 
-:::tip 系统要求
-iOS 26.0+ 支持。在低版本系统上会自动降级到普通背景效果。
+:::tip 系统和版本要求
+
+- **系统版本**：iOS 26.0+
+
+- **Kuikly版本**：2.5.0+
+
 :::
 
-`LiquidGlass` 是专门为 iOS 26+ 液态玻璃效果设计的容器组件，提供原生的玻璃外观和交互体验。该组件封装了复杂的液态玻璃实现细节，让开发者能够轻松使用这一视觉效果。
+`LiquidGlass` 是专门为 iOS 26+ 液态玻璃效果设计的容器组件。其等同于View组件设置 `glassEffectIOS()` 属性。
 
 [组件使用示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/LiquidGlassDemoPage.kt)
 
@@ -12,18 +16,15 @@ iOS 26.0+ 支持。在低版本系统上会自动降级到普通背景效果。
 
 ```kotlin
 import com.tencent.kuikly.core.views.LiquidGlass
-import com.tencent.kuikly.core.views.GlassEffectStyle
 
 LiquidGlass {
     attr {
         height(60f)
         borderRadius(30f)
-        justifyContentCenter()
     }
     Text {
         attr {
             text("液态玻璃效果")
-            alignSelfCenter()
         }
     }
 }
@@ -41,16 +42,6 @@ LiquidGlass {
 | -- | -- | -- | -- |
 | isInteractive | 是否启用交互效果 | Boolean | false |
 
-**示例**
-
-```kotlin
-LiquidGlass {
-    attr {
-        glassEffectInteractive(true) // 启用交互效果
-    }
-}
-```
-
 ### glassEffectTintColor
 
 设置液态玻璃效果的色调颜色。
@@ -58,16 +49,6 @@ LiquidGlass {
 | 参数 | 描述 | 类型 | 默认值 |
 | -- | -- | -- | -- |
 | color | 色调颜色 | Color | 系统默认 |
-
-**示例**
-
-```kotlin
-LiquidGlass {
-    attr {
-        glassEffectTintColor(Color.BLUE) // 蓝色色调
-    }
-}
-```
 
 ### glassEffectStyle
 
@@ -82,16 +63,6 @@ LiquidGlass {
 - `REGULAR` - 标准液态玻璃效果
 - `CLEAR` - 清透液态玻璃效果
 
-**示例**
-
-```kotlin
-LiquidGlass {
-    attr {
-        glassEffectStyle(GlassEffectStyle.CLEAR) // 清透样式
-    }
-}
-```
-
 ## 事件
 
 `LiquidGlass` 支持所有[基础事件](basic-attr-event.md#基础事件)。
@@ -99,6 +70,8 @@ LiquidGlass {
 ## 注意事项
 
 ### 1. 系统兼容性
+
+使用独立液态玻璃组件时，请做好系统版本检测，确保在 iOS 26+ 系统上使用液态玻璃效果。对于不支持的版本，建议提供降级方案。
 
 ```kotlin
 import com.tencent.kuikly.core.utils.PlatformUtils

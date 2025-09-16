@@ -1,10 +1,14 @@
-# iOSSegmentedControl(iOS原生分段控制器)
+# iOSSegmentedControl(iOS分段控件)
 
-:::tip 系统要求
-iOS 26.0+ 自动支持液态玻璃效果。在低版本系统上使用标准UISegmentedControl外观。
+:::tip 系统和版本要求
+
+- **系统版本**：iOS 26.0+ 自动支持液态玻璃效果，低版本系统上使用标准UISegmentedControl外观。
+
+- **Kuikly版本**：2.5.0+
+
 :::
 
-`iOSSegmentedControl` 是基于 iOS 原生 `UISegmentedControl` 实现的分段控制器组件，在 iOS 26+ 系统上自动具备液态玻璃视觉效果。该组件提供了完整的原生分段选择功能，支持多选项切换、自定义标题和选择事件处理。
+`iOSSegmentedControl` 是基于 iOS 原生 `UISegmentedControl` 实现的分段控件组件，在 iOS 26+ 系统上自动具备液态玻璃视觉效果。该组件提供了完整的原生分段选择功能，支持多选项切换、自定义标题和选择事件处理。
 
 [组件使用示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/LiquidGlassDemoPage.kt)
 

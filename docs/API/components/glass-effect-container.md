@@ -1,10 +1,14 @@
-# GlassEffectContainer(液态玻璃容器组合)
+# GlassEffectContainer(液态玻璃容器组件)
 
-:::tip 系统要求
-iOS 26.0+ 支持。在低版本系统上会自动降级到普通容器效果。
+:::tip 系统和版本要求
+
+- **系统版本**：iOS 26.0+
+
+- **Kuikly版本**：2.5.0+
+
 :::
 
-`GlassEffectContainer` 是专门用于组织和管理多个液态玻璃元素的容器组件，用于实现多个液态玻璃元素相互靠近时的融合效果。
+`GlassEffectContainer` 组件用于实现多个液态玻璃元素相互靠近时的融合效果。其等同于View组件设置 `glassEffectContainerIOS()` 属性。
 
 [组件使用示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/LiquidGlassDemoPage.kt)
 
@@ -26,12 +30,6 @@ GlassEffectContainer {
             height(60f)
             borderRadius(30f)
         }
-        Text {
-            attr {
-                text("左侧")
-                alignSelfCenter()
-            }
-        }
     }
     
     LiquidGlass {
@@ -39,12 +37,6 @@ GlassEffectContainer {
             flex(1f)
             height(60f)
             borderRadius(30f)
-        }
-        Text {
-            attr {
-                text("右侧")
-                alignSelfCenter()
-            }
         }
     }
 }
@@ -74,7 +66,7 @@ GlassEffectContainer {
 ```
 
 :::tip 注意
-spacing 值必须为非负数，否则会抛出异常。
+spacing 值须为非负数，否则会抛出异常。
 :::
 
 ## 事件

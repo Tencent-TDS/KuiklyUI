@@ -82,7 +82,7 @@ export struct KRNativeRender {
   private loaded = false;
 
   loadNativeLibIfNeeded(): void{
-    if(!this.loaded && this.nativeManager != null){
+    if (!this.loaded && this.nativeManager != null){
       this.nativeManager?.internalDoLoad()
       this.loaded = true
     }

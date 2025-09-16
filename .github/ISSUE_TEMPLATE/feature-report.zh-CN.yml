@@ -1,8 +1,7 @@
 name: ✨ 反馈新功能 Feature Request
 description: 反馈新功能或现有功能增强
-title: 'Title'
 type: Feature
-labels: [s: need triage]
+labels: ['s: need triage']
 body:
   - type: markdown
     attributes:

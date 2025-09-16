@@ -1,8 +1,7 @@
 name: 🐞 错误报告 Bug Report
 description: 反馈新Bug。一般性、咨询类问题请选择“社区支持”入口进行反馈
-title: 'Title'
 type: Bug
-labels: [s: need triage]
+labels: ['s: need triage']
 body:
   - type: markdown
     attributes:
@@ -17,12 +16,16 @@ body:
     attributes:
       label: 期望结果
       placeholder: 请填写
+    validations:
+      required: true
 
   - type: textarea
     id: actual
     attributes:
       label: 实际结果
       placeholder: 请填写
+    validations:
+      required: true
       
   - type: input
     id: reproduce
@@ -30,6 +33,8 @@ body:
       label: 重现链接
       description: 请提供尽可能精简的复现Demo GitHub 仓库的链接，比如Fork仓库的可复现Demo分支。请不要填无关链接，否则你的 Issue 将被关闭。
       placeholder: https://github.com/<myuser>/<myreproducer>
+    validations:
+      required: true
 
   - type: textarea
     id: reproduceSteps
@@ -40,6 +45,8 @@ body:
         1. 安装 '...'
         2. 点击 '...'
         3. 查看 '...' 错误
+    validations:
+      required: true
 
   - type: textarea
     id: reproduceEnvironment
@@ -53,6 +60,8 @@ body:
         - Kuikly Android Studio 插件版本
         - IDE 版本
         - Other
+    validations:
+      required: true
 
   - type: textarea
     id: remarks

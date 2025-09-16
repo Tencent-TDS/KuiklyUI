@@ -17,7 +17,6 @@ package com.tencent.kuikly.compose.ui.node
 
 import androidx.compose.runtime.CompositionLocalMap
 import com.tencent.kuikly.compose.foundation.gestures.Orientation
-import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.geometry.CornerRadius
 import com.tencent.kuikly.compose.ui.geometry.Offset
 import com.tencent.kuikly.compose.ui.geometry.RoundRect
@@ -68,6 +67,39 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
 ) : LayoutNode(isVirtual = isVirtual) {
 
     var kuiklyCoordinates: LayoutCoordinates? = null
+
+    /**
+     * Determines if the current node is a sticky header
+     * Any HoverView type is considered a sticky header, not limited to currently active ones
+     */
+    private fun isStickyHeaderNode(): Boolean {
+        return view is HoverView
+    }
+
+    /**
+     * Gets cached position for sticky header
+     * Uses StickyHeaderCacheManager bound to KuiklyScrollInfo to manage cache
+     */
+    private fun getCachedStickyPosition(currentPos: Offset): Offset {
+        val currentItemKey = (foldedParent as? KNode<*>)?.lazyItemKey ?: return currentPos
+
+        // Get bound cache manager
+        val cacheManager = getCacheManager()
+
+        return cacheManager?.getCachedStickyPosition(currentItemKey, currentPos) ?: currentPos
+    }
+
+    /**
+     * Gets StickyHeaderCacheManager instance
+     * Gets bound cache manager from KuiklyScrollInfo
+     */
+    private fun getCacheManager(): StickyHeaderCacheManager? {
+        val scrollNode = parent as? KNode<*>
+        val kuiklyInfo = scrollNode?.view?.extProps?.get(KuiklyInfoKey) as? KuiklyScrollInfo
+
+        return kuiklyInfo?.stickyHeaderCacheManager
+    }
+
 
     /**
      * The key of the Lazy item that this KNode represents
@@ -121,7 +153,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             }
         }
 
-    // 构造下kuikly的节点树
+    // Construct Kuikly node tree
     fun insertTopDown(index: Int, instance: KNode<DeclarativeBaseView<*, *>>) {
         val childView = instance.view
         currentView.addChild(childView, instance.init, index)
@@ -167,26 +199,6 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         }
     }
 
-    private fun shouldUpdateStickyNode(newSize: IntSize): Boolean {
-        if (view !is HoverView) return true
-        val curSize = IntSize(
-            width = ((view.renderView?.currentFrame?.width ?: 0f) * density.density).toInt(),
-            height = ((view.renderView?.currentFrame?.height ?: 0f) * density.density).toInt(),
-        )
-        if (curSize != newSize) return true
-
-        // Use foldedParent to get the real parent including virtual nodes
-        val itemKey = (foldedParent as? KNode<*>)?.lazyItemKey
-        val scrollNode = parent as? KNode<*>
-        val kuiklyInfo = scrollNode?.view?.extProps?.get(KuiklyInfoKey) as? KuiklyScrollInfo
-        val currentStickyKey = kuiklyInfo?.stickyItemKey
-
-        if (itemKey != null && itemKey == currentStickyKey) {
-            return false
-        }
-        return true
-    }
-
     override fun onWillStartMeasure() {
         super.onWillStartMeasure()
         kuiklyCoordinates = null
@@ -206,12 +218,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
     }
 
     override fun updateKuiklyViewFrame(coordinator: LayoutCoordinates) {
-
         val curCoordinator = kuiklyCoordinates ?: innerCoordinator
-        val shouldUpdateSticky = shouldUpdateStickyNode(curCoordinator.size)
-        if (!shouldUpdateSticky) {
-            return
-        }
 
         resetViewVisible()
 
@@ -220,7 +227,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         val parentCoordinator = parentNode?.kuiklyCoordinates ?: parentNode?.innerCoordinator
         var pos = parentCoordinator?.viewPositionOf(curCoordinator) ?: Offset.Zero
 
-        // scrollview上的子节点，父亲是virtual节点
+        // Child nodes on scrollview, parent is virtual node
         if (ksScrollSubView && needFixScrollOffset) {
             val scrollerView = (parent as KNode<*>).view
             (scrollerView.extProps[KuiklyInfoKey] as? KuiklyScrollInfo)?.apply {
@@ -235,6 +242,12 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
 
         val densityValue = view.getPager().pagerDensity()
 
+        // Check if it's a sticky header and handle position caching
+        val isStickyHeader = isStickyHeaderNode()
+        if (isStickyHeader) {
+            pos = getCachedStickyPosition(pos)
+        }
+
         var newFrame = Frame(
             x = pos.x / densityValue,
             y = pos.y / densityValue,
@@ -242,7 +255,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             height = curCoordinator.size.height.toFloat() / densityValue,
         )
 
-        // modalView特殊处理
+        // Special handling for modalView
         if (view is ModalView) {
             newFrame = Frame(
                 0f,
@@ -361,7 +374,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
                         flexDirectionColumn()
                         justifyContentCenter()
                         alignItemsCenter()
-                        // 禁用DivView优化 保证布局正常
+                        // Disable DivView optimization to ensure normal layout
                         setProp("flatLayer", false)
                         if (hasShadow) {
                             setProp(Attr.StyleConst.WRAPPER_BOX_SHADOW_VIEW, 1)
@@ -377,7 +390,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
                     flexDirectionColumn()
                     justifyContentCenter()
                     alignItemsCenter()
-                    // 禁用DivView优化 保证布局正常
+                    // Disable DivView optimization to ensure normal layout
                     setProp("flatLayer", false)
                 }
             }
@@ -508,7 +521,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
                         )
                     }
                 } else {
-                    // 利用一个很小的borderRadius来实现clip效果，避免和shadow冲突
+                    // Use a very small borderRadius to implement clip effect, avoiding conflict with shadow
                     attr.borderRadius(if (hasClip) 0.001f else 0f)
                 }
             }
@@ -538,48 +551,48 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             var v20 = matrix[2, 0]
             var v21 = matrix[2, 1]
             var v22 = matrix[2, 2]
-            // 计算X轴缩放
+            // Calculate X-axis scaling
             var scaleX = sqrt(v00 * v00 + v01 * v01 + v02 * v02)
-            // 归一化X轴
+            // Normalize X-axis
             v00 /= scaleX
             v01 /= scaleX
             v02 /= scaleX
-            // 计算XY错切
+            // Calculate XY shear
             val xy = v00 * v10 + v01 * v11 + v02 * v12
-            // 计算XY正交分量
+            // Calculate XY orthogonal component
             v10 -= xy * v00
             v11 -= xy * v01
             v12 -= xy * v02
-            // 计算Y轴缩放
+            // Calculate Y-axis scaling
             var scaleY = sqrt(v10 * v10 + v11 * v11 + v12 * v12)
-            // 归一化Y轴
+            // Normalize Y-axis
             v10 /= scaleY
             v11 /= scaleY
             v12 /= scaleY
-            // 计算XZ错切
+            // Calculate XZ shear
             val xz = v00 * v20 + v01 * v21 + v02 * v22
-            // 计算XZ正交分量
+            // Calculate XZ orthogonal component
             v20 -= xz * v00
             v21 -= xz * v01
             v22 -= xz * v02
-            // 计算YZ错切
+            // Calculate YZ shear
             val yz = v10 * v20 + v11 * v21 + v12 * v22
-            // 计算YZ正交分量
+            // Calculate YZ orthogonal component
             v20 -= yz * v10
             v21 -= yz * v11
             v22 -= yz * v12
-            // 计算Z轴缩放
+            // Calculate Z-axis scaling
             var scaleZ = sqrt(v20 * v20 + v21 * v21 + v22 * v22)
-            // 归一化Z轴
+            // Normalize Z-axis
             v20 /= scaleZ
             v21 /= scaleZ
             v22 /= scaleZ
 
-            // 计算旋转角度
+            // Calculate rotation angles
             val rotateX = -atan2(v21, v22).toDegrees()
             val rotateY = -atan2(-v20, sqrt(v21 * v21 + v22 * v22)).toDegrees()
             val rotateZ = -atan2(v10, v00).toDegrees()
-            // todo 未考虑skew分量，scale+rotate变换会有问题
+            // TODO: Skew component not considered, scale+rotate transformation may have issues
             transform(
                 translate = Translate(translateX / size.width, translateY / size.height),
                 scale = Scale(scaleX, scaleY),

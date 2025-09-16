@@ -153,6 +153,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("AI对话Demo", "支持Markdown渲染的AI对话示例", "ChatDemo"),
             DemoItem("DensityScaleDemo", "基于Density实现跨端缩放", "DensityScaleDemo"),
             DemoItem("BackHandlerDemo", "监听并拦截返回键", "BackHandlerDemo"),
+            DemoItem("LazyColumnStickyHeader", "LazyColumnStickyHeader", "LazyColumnStickyHeader"),
         )
 
     @Composable

@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.tencent.kuikly.compose.foundation.gestures.Orientation
+import com.tencent.kuikly.compose.ui.node.StickyHeaderCacheManager
 import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.pager.PageData
@@ -115,6 +116,11 @@ class KuiklyScrollInfo {
      * Cached total number of items, used to detect changes in item count
      */
     var cachedTotalItems: Int = 0
+
+    /**
+     * Sticky Header Position Cache Manager
+     */
+    val stickyHeaderCacheManager = StickyHeaderCacheManager()
 
     /**
      * Update content size to render view

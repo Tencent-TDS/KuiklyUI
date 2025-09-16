@@ -16,7 +16,7 @@ body:
     id: DocsIssueContent
     attributes:
       label: 描述你的问题
-      description: 清晰简明地描述你的疑问。标有 'need info' 的 Issue 在 15 天内不提供相关步骤，将被关闭。
+      description: 清晰简明地描述你的疑问。标有 'need info' 的 Issue 在 15 天内不提供相关信息，将被关闭。
       placeholder: 请填写
     validations:
       required: true

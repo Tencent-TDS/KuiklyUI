@@ -62,7 +62,7 @@ internal class TextViewPage : BasePager() {
 
 | 参数  | 描述     | 类型 |
 |:----|:-------|:--|
-| color | 字体颜色  | Long `|` Color |
+| color | 字体颜色  | Color or Long |
 
 </div>
 
@@ -699,7 +699,7 @@ internal class TestPage : BasePager() {
 
 @tab:active 示例
 
-```kotlin{13}
+```kotlin{16}
 @Page("demo_page")
 internal class TestPage : BasePager() {
     override fun body(): ViewBuilder {

@@ -100,6 +100,7 @@ kotlin {
                 exclude(group = "com.tencent.kuikly-open", module = "core")
                 exclude(group = "com.tencent.kuikly-open", module = "core-annotations")
             }
+            implementation(project(":core-annotations"))
         }
 
         // Android 特有源集中添加 ProfileInstaller 依赖

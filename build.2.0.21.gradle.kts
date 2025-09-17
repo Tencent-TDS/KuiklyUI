@@ -13,6 +13,7 @@ buildscript {
         google()
         mavenCentral()
         mavenLocal()
+        maven("https://mirrors.tencent.com/repository/maven-tencent/")
     }
     dependencies {
         classpath(BuildPlugin.kotlin)
@@ -26,8 +27,7 @@ allprojects {
         google()
         mavenCentral()
         mavenLocal()
-        //maven("https://mirrors.tencent.com/repository/maven/tencent_public/")
-        maven("https://mirrors.tencent.com/nexus/repository/maven-public/")
+        maven("https://mirrors.tencent.com/repository/maven-tencent/")
     }
     configurations.all {
         resolutionStrategy.dependencySubstitution {

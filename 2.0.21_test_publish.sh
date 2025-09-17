@@ -11,6 +11,9 @@ KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="2.0.21" ./gradlew -c settings.
 KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="2.0.21" ./gradlew -c settings.2.0.21.gradle.kts :core-ksp:publishToMavenLocal --stacktrace
 KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="2.0.21" ./gradlew -c settings.2.0.21.gradle.kts :core-render-android:publishToMavenLocal --stacktrace
 KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="2.0.21" ./gradlew -c settings.2.0.21.gradle.kts :compose:publishToMavenLocal --stacktrace
+KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="2.0.21" ./gradlew -c settings.2.0.21.gradle.kts :core-render-web:base:publishToMavenLocal --stacktrace
+KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="2.0.21" ./gradlew -c settings.2.0.21.gradle.kts :core-render-web:h5:publishToMavenLocal --stacktrace
+KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="2.0.21" ./gradlew -c settings.2.0.21.gradle.kts :core-render-web:miniapp:publishToMavenLocal --stacktrace
 
 # 4.还原文件
 mv gradle/wrapper/gradle-wrapper.properties.bak gradle/wrapper/gradle-wrapper.properties

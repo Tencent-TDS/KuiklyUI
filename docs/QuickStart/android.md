@@ -18,6 +18,10 @@
 
 :::tip 注意
 此处 core-render-android 和 core 的 Kuikly 版本需要和KMM跨端工程使用的版本保持一致，否则可能会出现兼容性问题
+
+注: 2.5.0版本后需要添加maven源
+
+maven("https://mirrors.tencent.com/repository/maven-tencent/")
 :::
 
 ```gradle{2,3}

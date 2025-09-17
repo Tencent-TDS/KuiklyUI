@@ -26,8 +26,6 @@ allprojects {
         google()
         mavenCentral()
         mavenLocal()
-        //maven("https://mirrors.tencent.com/repository/maven/tencent_public/")
-        maven("https://mirrors.tencent.com/nexus/repository/maven-public/")
     }
     configurations.all {
         resolutionStrategy.dependencySubstitution {

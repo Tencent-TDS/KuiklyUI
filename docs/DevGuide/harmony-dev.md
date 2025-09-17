@@ -34,7 +34,7 @@
 repositories {
     // 定制版kotlin工具链
     maven {
-        url = uri("https://mirrors.tencent.com/nexus/repository/maven-public/")
+        url = uri("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
     }
 }
 ```

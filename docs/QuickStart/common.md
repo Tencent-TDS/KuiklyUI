@@ -24,6 +24,7 @@
   * 鸿蒙壳工程：``ohosApp/entry/oh-package.json5``
 * 在这里[查看最新版本](../ChangeLog/changelog.md)
 * 各端的版本号需要保持一致
+* Kuikly 2.5.0 版本maven源进行了切换。请添加源 maven("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
 :::
 
 ## 按需创建额外的模块

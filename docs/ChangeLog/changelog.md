@@ -4,7 +4,7 @@
 
 注: 2.5.0版本后使用该maven源
 
-maven("https://mirrors.tencent.com/repository/maven-public/")
+maven("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
 
 [cocoapods](https://cocoapods.org/pods/OpenKuiklyIOSRender)
 

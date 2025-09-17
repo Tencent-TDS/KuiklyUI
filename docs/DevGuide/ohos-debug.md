@@ -8,7 +8,7 @@
 
 Kotlin版本：kotlinVersion=2.0.21-KBA-010
 
-maven源：maven("https://mirrors.tencent.com/nexus/repository/maven-public/")
+maven源：maven("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
 
 
 ## IDE设置

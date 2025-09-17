@@ -21,7 +21,7 @@
 
 注: 2.5.0版本后需要添加maven源
 
-maven("https://mirrors.tencent.com/repository/maven-public/")
+maven("https://mirrors.tencent.com/repository/maven-tencent/")
 :::
 
 ```gradle{2,3}

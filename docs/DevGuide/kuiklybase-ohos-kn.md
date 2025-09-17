@@ -13,7 +13,7 @@ Kuikly定制化了特定的Kotlin版本，以支持鸿蒙Kotlin/Native编译。
 
 1. 添加maven源
 
-maven("https://mirrors.tencent.com/nexus/repository/maven-public/")
+maven("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
 
 2. 设置依赖插件的版本
 

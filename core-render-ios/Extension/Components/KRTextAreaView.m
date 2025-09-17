@@ -164,6 +164,10 @@ NSString *const KRFontWeightKey = @"fontWeight";
     self.typingAttributes = typingAttrs;
 }
 
+- (void)setCss_enablesReturnKeyAutomatically:(NSNumber *)flag{
+    self.enablesReturnKeyAutomatically = [flag boolValue];
+}
+
 - (void)setCss_values:(NSString *)css_values {
     if (_css_values != css_values) {
         _css_values = css_values;

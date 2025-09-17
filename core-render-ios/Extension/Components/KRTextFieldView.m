@@ -195,6 +195,10 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     self.returnKeyType = [KRConvertUtil hr_toReturnKeyType:css_returnKeyType];
 }
 
+- (void)setCss_enablesReturnKeyAutomatically:(NSNumber *)flag{
+    self.enablesReturnKeyAutomatically = [flag boolValue];
+}
+
 - (void)setCss_keyboardHeightChange:(KuiklyRenderCallback)css_keyboardHeightChange {
     _css_keyboardHeightChange = css_keyboardHeightChange;
     [self p_addKeyboardNotificationIfNeed];

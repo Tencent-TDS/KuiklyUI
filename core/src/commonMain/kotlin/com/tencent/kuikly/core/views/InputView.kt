@@ -260,10 +260,20 @@ class InputAttr : Attr() {
         return this
     }
 
+    /**
+     * 仅iOS支持
+     * 当设置为true的时候，输入框中如果是空的，则软键盘的Return Key会自动置灰禁用，非空的时候自动启用。
+     */
+    fun enablesReturnKeyAutomatically(flag: Boolean): InputAttr{
+        ENABLES_RETURN_KEY_AUTOMATICALLY with if( flag ) 1 else 0
+        return this
+    }
+
     companion object {
         const val RETURN_KEY_TYPE = "returnKeyType"
         const val KEYBOARD_TYPE = "keyboardType"
         const val IME_NO_FULLSCREEN = "imeNoFullscreen"
+        const val ENABLES_RETURN_KEY_AUTOMATICALLY =  "enablesReturnKeyAutomatically"
     }
 }
 

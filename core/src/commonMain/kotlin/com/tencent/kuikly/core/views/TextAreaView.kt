@@ -29,6 +29,7 @@ import com.tencent.kuikly.core.layout.isUndefined
 import com.tencent.kuikly.core.module.FontModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+import com.tencent.kuikly.core.views.InputAttr.Companion.ENABLES_RETURN_KEY_AUTOMATICALLY
 import com.tencent.kuikly.core.views.InputEvent.Companion.INPUT_RETURN
 import com.tencent.kuikly.core.views.shadow.TextShadow
 
@@ -401,6 +402,15 @@ open class TextAreaAttr : Attr() {
 
     fun lineHeight(lineHeight: Float): TextAreaAttr {
         TextConst.LINE_HEIGHT with lineHeight
+        return this
+    }
+
+    /**
+     * 仅iOS支持
+     * 当设置为true的时候，输入框中如果是空的，则软键盘的Return Key会自动置灰禁用，非空的时候自动启用。
+     */
+    fun enablesReturnKeyAutomatically(flag: Boolean): TextAreaAttr{
+        ENABLES_RETURN_KEY_AUTOMATICALLY with if( flag ) 1 else 0
         return this
     }
 

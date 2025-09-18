@@ -1,82 +1,80 @@
-# KuiklyUI 项目完整开发指南 - Cursor AI 助手
+# KuiklyUI Project Complete Development Guide - Cursor AI Assistant
 
-## 1. 项目概述
+## 1. Project Overview
 
-### 1.1 项目简介
-KuiklyUI 是基于 Kotlin Multiplatform (KMP) 的跨平台 UI 框架，由腾讯前端 Oteam 开源。
-实现"一套代码，五端运行"：Android、iOS、HarmonyOS、H5、小程序。
+### 1.1 Project Introduction
+KuiklyUI is a cross-platform UI framework based on Kotlin Multiplatform (KMP), open-sourced by Tencent Frontend Oteam.
+Achieving "one codebase, five platforms": Android, iOS, HarmonyOS, H5, and Mini Programs.
 
-### 1.2 核心特性
-- **跨平台一致性**: 基于 Kotlin 实现，确保多端逻辑和表现一致
-- **原生性能**: 编译生成平台原生二进制产物，UI由原生渲染层驱动
-- **轻量级**: SDK 体积小（Android ~300KB, iOS ~1.2MB）
-- **动态化能力**: 支持编译为动态化产物，实现UI和逻辑的动态更新
-- **双 DSL 支持**: 自研声明式 DSL + 深度适配的 Compose DSL
+### 1.2 Core Features
+- **Cross-platform Consistency**: Based on Kotlin implementation, ensuring consistent logic and presentation across platforms
+- **Native Performance**: Compiles to platform-native binary products, UI driven by native rendering layers
+- **Lightweight**: Small SDK size (Android ~300KB, iOS ~1.2MB)
+- **Dynamic Capabilities**: Supports compilation to dynamic products, enabling dynamic updates of UI and logic
+- **Dual DSL Support**: Self-developed declarative DSL + deeply adapted Compose DSL
 
-### 1.3 技术架构
+### 1.3 Technical Architecture
 ```
 ┌─────────────────────────────────────────────────┐
-│                业务层 (Demo)                      │
+│               Business Layer (Demo)              │
 ├─────────────────────────────────────────────────┤
-│            核心层 (Core + Compose)                │
-│  • UI 描述 DSL (自研 + Compose)                   │
-│  • 状态管理和响应式系统                            │
-│  • 通用布局算法                                   │
-│  • Bridge 通信机制                                │
+│           Core Layer (Core + Compose)            │
+│  • UI Description DSL (Self-developed + Compose) │
+│  • State Management and Reactive System          │
+│  • Universal Layout Algorithm                    │
+│  • Bridge Communication Mechanism                │
 ├─────────────────────────────────────────────────┤
-│           平台渲染层 (core-render-*)               │
-│  • Android: View 系统                            │
+│        Platform Rendering Layer (core-render-*)  │
+│  • Android: View System                          │
 │  • iOS: UIKit                                    │ 
 │  • HarmonyOS: ArkUI                              │
-│  • Web: DOM/WXML                                 │
+│  • Web: DOM(H5)/WXML(MiniApp)                                 │
 ├─────────────────────────────────────────────────┤
-│        注解处理层 (annotations + ksp)              │
-│  • @Page 注解处理                                │
-│  • 自动生成平台入口代码                            │
+│     Annotation Processing Layer (annotations + ksp) │
+│  • @Page Annotation Processing                   │
+│  • Auto-generate Platform Entry Code             │
 └─────────────────────────────────────────────────┘
 ```
 
-## 2. 项目结构详解
+## 2. Project Structure Details
 
-### 2.1 主要模块
+### 2.1 Main Modules
 ```
 KuiklyUI/
-├── core/                    # 核心模块：响应式UI、布局算法、Bridge通信
-│   ├── src/commonMain/      # 跨平台通用代码
-│   ├── src/androidMain/     # Android 平台实现 (输出 .aar)
-│   ├── src/iosMain/         # iOS 平台实现 (输出 .framework)
-│   ├── src/ohosArm64Main/   # 鸿蒙平台实现 (输出 .so)
-│   └── src/jsMain/          # H5/小程序平台实现 (输出 .js)
-├── compose/                 # Compose DSL 模块 (基于 Jetpack Compose 1.7.3)
-├── core-render-*/           # 各平台渲染器模块
-├── core-annotations/        # 注解定义模块 (@Page 等)
-├── core-ksp/               # 注解处理模块 (KSP)
-├── demo/                   # 示例代码
-├── *App/                   # 各平台宿主应用
-└── buildSrc/               # 构建脚本
+├── core/                    # Core module: Reactive UI, Layout Algorithm, Bridge Communication
+│   ├── src/commonMain/      # Cross-platform common code
+│   ├── src/androidMain/     # Android platform implementation (outputs .aar)
+│   ├── src/iosMain/         # iOS platform implementation (outputs .framework)
+│   ├── src/ohosArm64Main/   # HarmonyOS platform implementation (outputs .so)
+│   └── src/jsMain/          # H5/Mini Program platform implementation (outputs .js)
+├── compose/                 # Compose DSL module (based on Jetpack Compose 1.7.3)
+├── core-render-*/           # Platform renderer modules
+├── core-annotations/        # Annotation definition module (@Page etc.)
+├── core-ksp/               # Annotation processing module (KSP)
+├── demo/                   # Example code
+├── *App/                   # Platform host applications
+└── buildSrc/               # Build scripts
 
 ```
 
-### 2.2 包名约定
-- 框架包名：`com.tencent.kuikly.core.*`
-- Compose包名：`com.tencent.kuikly.compose.*` (修改自 `androidx.compose`)
-- 应用包名：项目自定义
+### 2.2 Package Naming Conventions
+- Framework package name: `com.tencent.kuikly.core.*`
+- Compose package name: `com.tencent.kuikly.compose.*` (modified from `androidx.compose`)
+- Application package name: Project-defined
 
-## 3. 核心概念与 API
+## 3. Core Concepts & API
 
-### 3.1 页面开发模式
-编写代码时，可以参考 demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages 里面的例子
+### 3.1 Page Development Pattern
+When writing code, you can refer to examples in demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages
 
-如果是 compose dsl，可以参考 demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose 里面的例子
+For compose dsl, you can refer to examples in demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose
 
-#### 页面类定义
+#### Page Class Definition
 ```kotlin
 package com.tencent.kuikly.demo.page.my_page
 
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.ViewBuilder
-import com.tencent.kuikly.core.reactive.ObservableThreadSafetyMode
-import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.demo.pages.base.BasePager
 
 @Page("my_page")
@@ -96,17 +94,17 @@ internal class MyPage : BasePager() {
 
     override fun pageDidAppear() {
         super.pageDidAppear()
-        // 页面可见时的逻辑
+        // Logic when page becomes visible
     }
 
     override fun pageWillDestroy() {
         super.pageWillDestroy()
-        // 页面销毁前的清理工作
+        // Cleanup work before page destruction
     }
 }
 ```
 
-#### UI 构建文件 (pageUI.kt)
+#### UI Building File (pageUI.kt)
 ```kotlin
 package com.tencent.kuikly.demo.page.my_page
 
@@ -125,7 +123,7 @@ fun buildUI(page: Pager): ViewBuilder {
                 flexDirectionColumn()
             }
 
-            // 标题栏
+            // Title bar
             View {
                 attr {
                     height(60f)
@@ -143,24 +141,24 @@ fun buildUI(page: Pager): ViewBuilder {
                 }
             }
 
-            // 内容区域
+            // Content area
             View {
                 attr {
                     flex(1f)
                     padding(16f)
                 }
                 
-                // 条件渲染
+                // Conditional rendering
                 vif({ ctx.isLoading }) {
                     Text {
                         attr {
-                            text("加载中...")
+                            text("Loading...")
                             textAlignCenter()
                         }
                     }
                 }
 
-                // 列表渲染
+                // List rendering
                 vfor({ ctx.dataList }) { item, index ->
                     View {
                         attr {
@@ -184,7 +182,7 @@ fun buildUI(page: Pager): ViewBuilder {
 }
 ```
 
-### 3.2 组件开发模式
+### 3.2 Component Development Pattern
 
 ```kotlin
 package com.tencent.kuikly.demo.page.component
@@ -192,7 +190,7 @@ package com.tencent.kuikly.demo.page.component
 import com.tencent.kuikly.core.base.*
 import com.tencent.kuikly.core.views.*
 
-// 组件属性定义
+// Component attribute definition
 internal class MyButtonAttr : ComposeAttr() {
     var text: String = ""
     var width: Float = 120f
@@ -203,12 +201,12 @@ internal class MyButtonAttr : ComposeAttr() {
     var borderRadius: Float = 8f
 }
 
-// 组件事件定义
+// Component event definition
 internal class MyButtonEvent : ComposeEvent() {
     var onClick: (() -> Unit)? = null
 }
 
-// 组件实现
+// Component implementation
 internal class MyButton : ComposeView<MyButtonAttr, MyButtonEvent>() {
     override fun createEvent() = MyButtonEvent()
     override fun createAttr() = MyButtonAttr()
@@ -240,16 +238,16 @@ internal class MyButton : ComposeView<MyButtonAttr, MyButtonEvent>() {
     }
 }
 
-// 使用组件
+// Using the component
 fun ViewContainer<*, *>.MyButton(init: MyButton.() -> Unit) {
     addChild(MyButton(), init)
 }
 ```
 
-### 3.3 模块开发模式
+### 3.3 Module Development Pattern
 
 ```kotlin
-// Kuikly 侧模块定义
+// Kuikly module definition
 class TimerModule : Module() {
     override fun moduleName(): String = MODULE_NAME
 
@@ -283,7 +281,7 @@ class TimerModule : Module() {
     }
 }
 
-// 页面中注册和使用模块
+// Register and use module in page
 @Page("timer_page")
 internal class TimerPage : BasePager() {
     private lateinit var timerModule: TimerModule
@@ -307,123 +305,123 @@ internal class TimerPage : BasePager() {
 ```
 
 
-## 4. 常见错误与解决方案
+## 4. Common Errors & Solutions
 
-### 4.1 导入错误
+### 4.1 Import Errors
 ```kotlin
-// ❌ 错误写法 - 使用标准库路径
+// ❌ Wrong approach - using standard library paths
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
-// ✅ 正确写法 - 使用 Kuikly 框架路径
+// ✅ Correct approach - using Kuikly framework paths
 import com.tencent.kuikly.core.coroutines.GlobalScope
 import com.tencent.kuikly.core.coroutines.launch
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 ```
 
-### 4.2 组件属性错误
+### 4.2 Component Attribute Errors
 ```kotlin
-// ❌ 错误写法 - Text 组件使用 View 属性
+// ❌ Wrong approach - Text component using View attributes
 Text {
     attr {
-        alignItemsCenter()       // Text 不支持此属性
-        paddingHorizontal(4f)    // Text 不支持 padding
+        alignItemsCenter()       // Text doesn't support this attribute
+        paddingHorizontal(4f)    // Text doesn't support padding
     }
 }
 
-// ✅ 正确写法 - Text 组件使用对应属性
+// ✅ Correct approach - Text component using corresponding attributes
 Text {
     attr {
-        textAlignCenter()        // 文本居中对齐
-        marginLeft(4f)           // 使用 margin
+        textAlignCenter()        // Text center alignment
+        marginLeft(4f)           // Use margin
         marginRight(4f)
     }
 }
 ```
 
-### 4.3 颜色处理错误
+### 4.3 Color Handling Errors
 ```kotlin
-// ❌ 错误写法 - 使用 Android Color.parseColor
+// ❌ Wrong approach - using Android Color.parseColor
 color(Color.parseColor("#333333"))
 
-// ✅ 正确写法 - 使用 Kuikly Color 构造函数
+// ✅ Correct approach - using Kuikly Color constructor
 color(Color(0xFF333333))
 color(Color.parseString16ToLong("#333333"))
 ```
 
-### 4.4 生命周期方法错误
+### 4.4 Lifecycle Method Errors
 ```kotlin
-// ❌ 错误写法 - 使用不存在的生命周期方法
-override fun onDestroyView() {          // 不存在此方法
+// ❌ Wrong approach - using non-existent lifecycle methods
+override fun onDestroyView() {          // This method doesn't exist
     super.onDestroyView()
 }
 
-// ✅ 正确写法 - 使用正确的生命周期方法
-override fun pageWillDestroy() {        // 正确的生命周期方法
+// ✅ Correct approach - using correct lifecycle methods
+override fun pageWillDestroy() {        // Correct lifecycle method
     super.pageWillDestroy()
 }
 ```
 
-### 4.5 模块调用错误
+### 4.5 Module Call Errors
 ```kotlin
-// ❌ 错误写法 - 在 pageWillDestroy 中调用 Module
+// ❌ Wrong approach - calling Module in pageWillDestroy
 override fun pageWillDestroy() {
     super.pageWillDestroy()
-    // 此时 Module 的 Native 方法不可用
-    timerModule.clearAllInterval()      // 可能失败
+    // At this point Module's Native methods are unavailable
+    timerModule.clearAllInterval()      // May fail
 }
 
-// ✅ 正确写法 - 在页面可见期间或销毁前调用
+// ✅ Correct approach - call during page visibility or before destruction
 override fun pageDidDisappear() {
     super.pageDidDisappear()
-    timerModule.clearAllInterval()      // 安全调用
+    timerModule.clearAllInterval()      // Safe call
 }
 ```
 
-### 错误解决策略
+### Error Resolution Strategies
 
-#### 策略1：属性使用规则
-- **View 组件**：支持 `alignItemsCenter()`、`padding()`、`paddingLeft()`、`paddingRight()` 等布局属性
-- **Text 组件**：使用 `textAlignCenter()`、`marginLeft()`、`marginRight()` 等文本和间距属性
-- **规则**：布局属性用于容器组件，文本属性用于文本组件
+#### Strategy 1: Attribute Usage Rules
+- **View Components**: Support `alignItemsCenter()`, `padding()`, `paddingLeft()`, `paddingRight()` and other layout attributes
+- **Text Components**: Use `textAlignCenter()`, `marginLeft()`, `marginRight()` and other text and spacing attributes
+- **Rule**: Layout attributes for container components, text attributes for text components
 
-#### 策略2：导入路径检查
-- **原则**：优先使用 `com.tencent.kuikly.core.*` 路径下的类
-- **方法**：遇到导入错误时，搜索项目中其他文件的正确导入路径
-- **工具**：使用 `search_codebase` 搜索正确的导入示例
+#### Strategy 2: Import Path Checking
+- **Principle**: Prioritize using classes under `com.tencent.kuikly.core.*` paths
+- **Method**: When encountering import errors, search for correct import paths in other project files
+- **Tool**: Use `search_codebase` to search for correct import examples
 
-#### 策略3：生命周期方法查找
-- **方法**：搜索其他组件文件中的生命周期方法使用示例
-- **常用方法**：`created()`、`viewDestroyed()`、`pageDidAppear()`、`onDestroyPager()`
-- **避免**：不要使用 Android 特有的生命周期方法
+#### Strategy 3: Lifecycle Method Finding
+- **Method**: Search for lifecycle method usage examples in other component files
+- **Common Methods**: `created()`, `viewDestroyed()`, `pageDidAppear()`, `onDestroyPager()`
+- **Avoid**: Don't use Android-specific lifecycle methods
 
 
-## 5. 开发最佳实践
+## 5. Development Best Practices
 
-### 5.1 调试技巧
+### 5.1 Debugging Techniques
 ```kotlin
-// 1. 使用编译错误快速定位问题
-// 编译命令：./gradlew :shared:compileKotlinIosArm64
+// 1. Use compilation errors to quickly locate issues
+// Compile command: ./gradlew :shared:compileKotlinIosArm64
 
-// 2. 分段注释调试复杂 UI
+// 2. Debug complex UI with segmented commenting
 fun buildUI(page: Pager): ViewBuilder {
     val ctx = page as ComplexPage
     return {
         View {
             attr { flex(1f) }
             
-            // TODO: 暂时注释复杂部分，逐步添加
+            // TODO: Temporarily comment complex parts, add gradually
             HeaderComponent { /* ... */ }
             
-            // ContentComponent { /* ... */ }  // 注释掉
+            // ContentComponent { /* ... */ }  // Commented out
             
-            // FooterComponent { /* ... */ }   // 注释掉
+            // FooterComponent { /* ... */ }   // Commented out
         }
     }
 }
 
-// 3. 使用 TODO 标记待处理项
+// 3. Use TODO to mark pending items
 fun buildUI(page: Pager): ViewBuilder {
     val ctx = page as TodoPage
     return {
@@ -431,38 +429,38 @@ fun buildUI(page: Pager): ViewBuilder {
             Text {
                 attr {
                     text(ctx.title)
-                    // TODO: 需要从 ctx.themeColor 解析颜色
+                    // TODO: Need to parse color from ctx.themeColor
                     color(Color.BLACK)
                 }
             }
             
-            // TODO: 添加数据列表
+            // TODO: Add data list
             // vfor({ ctx.dataArray }) { item, index ->
-            //     // 待实现
+            //     // To be implemented
             // }
         }
     }
 }
 ```
 
-## 6. Compose DSL 支持 (Beta)
-编写 compose dsl 代码，可以参考 demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose 里面的例子
+## 6. Compose DSL Support (Beta)
+For writing compose dsl code, you can refer to examples in demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose
 
-### 6.1 Compose 页面
+### 6.1 Compose Pages
 ```kotlin
 @Page("compose_page")
 internal class ComposePage : ComposeContainer() {
     override fun willInit() {
         super.willInit()
         setContent {
-            // 使用标准 Compose DSL
+            // Use standard Compose DSL
             Column(
                 modifier = Modifier.fillMaxSize().padding(16.dp),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text("Hello Compose!")
-                Button(onClick = { /* 点击事件 */ }) {
+                Button(onClick = { /* Click event */ }) {
                     Text("Click Me")
                 }
             }
@@ -471,9 +469,9 @@ internal class ComposePage : ComposeContainer() {
 }
 ```
 
-### 6.2 两种 DSL 对比
+### 6.2 Comparison of Two DSLs
 ```kotlin
-// 自研 DSL 风格
+// Self-developed DSL style
 View {
     attr {
         flex(1f)
@@ -490,7 +488,7 @@ View {
     }
 }
 
-// Compose DSL 风格 (Beta)
+// Compose DSL style (Beta)
 Column(
     modifier = Modifier.fillMaxSize(),
     verticalArrangement = Arrangement.Center,
@@ -507,17 +505,17 @@ Column(
 
 ---
 
-## 总结
+## Summary
 
-KuiklyUI 是一个功能强大的跨平台 UI 框架，支持多种 DSL 风格和平台。开发时需要注意：
+KuiklyUI is a powerful cross-platform UI framework that supports multiple DSL styles and platforms. When developing, pay attention to:
 
-1. **严格遵循框架的包名和 API 规范**
-2. **正确使用响应式数据系统**
-3. **合理组织页面和组件结构**
-4. **注意生命周期方法的使用时机**
-5. **善用调试技巧快速定位问题**
+1. **Strictly follow the framework's package names and API specifications**
+2. **Correctly use the reactive data system**
+3. **Properly organize page and component structure**
+4. **Pay attention to the timing of lifecycle method usage**
+5. **Make good use of debugging techniques to quickly locate issues**
 
-通过本文档的指导，可以快速上手 KuiklyUI 开发，并避免常见的开发陷阱。
+Through the guidance in this document, you can quickly get started with KuiklyUI development and avoid common development pitfalls.
 description:
 globs:
 alwaysApply: true

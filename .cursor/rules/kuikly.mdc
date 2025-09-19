@@ -1,0 +1,522 @@
+# KuiklyUI Project Complete Development Guide - Cursor AI Assistant
+
+## 1. Project Overview
+
+### 1.1 Project Introduction
+KuiklyUI is a cross-platform UI framework based on Kotlin Multiplatform (KMP), open-sourced by Tencent Frontend Oteam.
+Achieving "one codebase, five platforms": Android, iOS, HarmonyOS, H5, and Mini Programs.
+
+### 1.2 Core Features
+- **Cross-platform Consistency**: Based on Kotlin implementation, ensuring consistent logic and presentation across platforms
+- **Native Performance**: Compiles to platform-native binary products, UI driven by native rendering layers
+- **Lightweight**: Small SDK size (Android ~300KB, iOS ~1.2MB)
+- **Dynamic Capabilities**: Supports compilation to dynamic products, enabling dynamic updates of UI and logic
+- **Dual DSL Support**: Self-developed declarative DSL + deeply adapted Compose DSL
+
+### 1.3 Technical Architecture
+```
+┌─────────────────────────────────────────────────┐
+│               Business Layer (Demo)              │
+├─────────────────────────────────────────────────┤
+│           Core Layer (Core + Compose)            │
+│  • UI Description DSL (Self-developed + Compose) │
+│  • State Management and Reactive System          │
+│  • Universal Layout Algorithm                    │
+│  • Bridge Communication Mechanism                │
+├─────────────────────────────────────────────────┤
+│        Platform Rendering Layer (core-render-*)  │
+│  • Android: View System                          │
+│  • iOS: UIKit                                    │ 
+│  • HarmonyOS: ArkUI                              │
+│  • Web: DOM(H5)/WXML(MiniApp)                                 │
+├─────────────────────────────────────────────────┤
+│     Annotation Processing Layer (annotations + ksp) │
+│  • @Page Annotation Processing                   │
+│  • Auto-generate Platform Entry Code             │
+└─────────────────────────────────────────────────┘
+```
+
+## 2. Project Structure Details
+
+### 2.1 Main Modules
+```
+KuiklyUI/
+├── core/                    # Core module: Reactive UI, Layout Algorithm, Bridge Communication
+│   ├── src/commonMain/      # Cross-platform common code
+│   ├── src/androidMain/     # Android platform implementation (outputs .aar)
+│   ├── src/iosMain/         # iOS platform implementation (outputs .framework)
+│   ├── src/ohosArm64Main/   # HarmonyOS platform implementation (outputs .so)
+│   └── src/jsMain/          # H5/Mini Program platform implementation (outputs .js)
+├── compose/                 # Compose DSL module (based on Jetpack Compose 1.7.3)
+├── core-render-*/           # Platform renderer modules
+├── core-annotations/        # Annotation definition module (@Page etc.)
+├── core-ksp/               # Annotation processing module (KSP)
+├── demo/                   # Example code
+├── *App/                   # Platform host applications
+└── buildSrc/               # Build scripts
+
+```
+
+### 2.2 Package Naming Conventions
+- Framework package name: `com.tencent.kuikly.core.*`
+- Compose package name: `com.tencent.kuikly.compose.*` (modified from `androidx.compose`)
+- Application package name: Project-defined
+
+## 3. Core Concepts & API
+
+### 3.1 Page Development Pattern
+When writing code, you can refer to examples in demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages
+
+For compose dsl, you can refer to examples in demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose
+
+#### Page Class Definition
+```kotlin
+package com.tencent.kuikly.demo.page.my_page
+
+import com.tencent.kuikly.core.annotations.Page
+import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.demo.pages.base.BasePager
+
+@Page("my_page")
+internal class MyPage : BasePager() {
+    override fun created() {
+        super.created()
+        initData()
+    }
+
+    private fun initData() {
+        dataList.add("item1")
+    }
+
+    override fun body(): ViewBuilder {
+        return buildUI(this)
+    }
+
+    override fun pageDidAppear() {
+        super.pageDidAppear()
+        // Logic when page becomes visible
+    }
+
+    override fun pageWillDestroy() {
+        super.pageWillDestroy()
+        // Cleanup work before page destruction
+    }
+}
+```
+
+#### UI Building File (pageUI.kt)
+```kotlin
+package com.tencent.kuikly.demo.page.my_page
+
+import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.pager.Pager
+import com.tencent.kuikly.core.views.*
+
+fun buildUI(page: Pager): ViewBuilder {
+    val ctx = page as MyPage
+    return {
+        View {
+            attr {
+                flex(1f)
+                backgroundColor(Color.WHITE)
+                flexDirectionColumn()
+            }
+
+            // Title bar
+            View {
+                attr {
+                    height(60f)
+                    flexDirectionRow()
+                    alignItemsCenter()
+                    paddingHorizontal(16f)
+                }
+                Text {
+                    attr {
+                        text(ctx.title)
+                        fontSize(18f)
+                        color(Color.BLACK)
+                        fontWeightBold()
+                    }
+                }
+            }
+
+            // Content area
+            View {
+                attr {
+                    flex(1f)
+                    padding(16f)
+                }
+                
+                // Conditional rendering
+                vif({ ctx.isLoading }) {
+                    Text {
+                        attr {
+                            text("Loading...")
+                            textAlignCenter()
+                        }
+                    }
+                }
+
+                // List rendering
+                vfor({ ctx.dataList }) { item, index ->
+                    View {
+                        attr {
+                            height(44f)
+                            flexDirectionRow()
+                            alignItemsCenter()
+                            marginBottom(8f)
+                        }
+                        Text {
+                            attr {
+                                text(item)
+                                fontSize(16f)
+                                color(Color(0xFF333333))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+### 3.2 Component Development Pattern
+
+```kotlin
+package com.tencent.kuikly.demo.page.component
+
+import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.views.*
+
+// Component attribute definition
+internal class MyButtonAttr : ComposeAttr() {
+    var text: String = ""
+    var width: Float = 120f
+    var height: Float = 44f
+    var backgroundColor: Color = Color.BLUE
+    var textColor: Color = Color.WHITE
+    var fontSize: Float = 16f
+    var borderRadius: Float = 8f
+}
+
+// Component event definition
+internal class MyButtonEvent : ComposeEvent() {
+    var onClick: (() -> Unit)? = null
+}
+
+// Component implementation
+internal class MyButton : ComposeView<MyButtonAttr, MyButtonEvent>() {
+    override fun createEvent() = MyButtonEvent()
+    override fun createAttr() = MyButtonAttr()
+
+    override fun body(): ViewBuilder {
+        val ctx = this
+        return {
+            View {
+                attr {
+                    width(ctx.attr.width)
+                    height(ctx.attr.height)
+                    backgroundColor(ctx.attr.backgroundColor)
+                    borderRadius(ctx.attr.borderRadius)
+                    justifyContentCenter()
+                    alignItemsCenter()
+                }
+                Text {
+                    attr {
+                        text(ctx.attr.text)
+                        fontSize(ctx.attr.fontSize)
+                        color(ctx.attr.textColor)
+                    }
+                }
+                event {
+                    click { ctx.event.onClick?.invoke() }
+                }
+            }
+        }
+    }
+}
+
+// Using the component
+fun ViewContainer<*, *>.MyButton(init: MyButton.() -> Unit) {
+    addChild(MyButton(), init)
+}
+```
+
+### 3.3 Module Development Pattern
+
+```kotlin
+// Kuikly module definition
+class TimerModule : Module() {
+    override fun moduleName(): String = MODULE_NAME
+
+    companion object {
+        const val MODULE_NAME = "KRTimerModule"
+    }
+
+    fun setInterval(interval: Long, callbackFn: CallbackFn?): String {
+        if (interval <= 0) throw IllegalArgumentException("Delay must be a positive integer")
+        val safeParam = JSONObject().apply { put("interval", interval) }
+        return toNative(
+            true,
+            "setInterval",
+            safeParam.toString(),
+            callbackFn ?: throw IllegalArgumentException("Callback function cannot be null"),
+            true
+        ).toString()
+    }
+
+    fun clearInterval(intervalID: String) {
+        if (intervalID.isEmpty()) throw IllegalArgumentException("Interval ID must be a non-negative integer")
+        syncCallNativeMethod(
+            "clearInterval",
+            JSONObject().apply { put("intervalID", intervalID) },
+            null
+        )
+    }
+
+    fun clearAllInterval() {
+        syncCallNativeMethod("clearAllInterval", null, null)
+    }
+}
+
+// Register and use module in page
+@Page("timer_page")
+internal class TimerPage : BasePager() {
+    private lateinit var timerModule: TimerModule
+    
+    override fun created() {
+        super.created()
+        timerModule = acquireModule(TimerModule.MODULE_NAME)
+    }
+
+    override fun createExternalModules(): Map<String, Module> {
+        return mapOf(
+            TimerModule.MODULE_NAME to TimerModule()
+        )
+    }
+
+    override fun pageWillDestroy() {
+        super.pageWillDestroy()
+        timerModule.clearAllInterval()
+    }
+}
+```
+
+
+## 4. Common Errors & Solutions
+
+### 4.1 Import Errors
+```kotlin
+// ❌ Wrong approach - using standard library paths
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import org.json.JSONObject
+
+// ✅ Correct approach - using Kuikly framework paths
+import com.tencent.kuikly.core.coroutines.GlobalScope
+import com.tencent.kuikly.core.coroutines.launch
+import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+```
+
+### 4.2 Component Attribute Errors
+```kotlin
+// ❌ Wrong approach - Text component using View attributes
+Text {
+    attr {
+        alignItemsCenter()       // Text doesn't support this attribute
+        paddingHorizontal(4f)    // Text doesn't support padding
+    }
+}
+
+// ✅ Correct approach - Text component using corresponding attributes
+Text {
+    attr {
+        textAlignCenter()        // Text center alignment
+        marginLeft(4f)           // Use margin
+        marginRight(4f)
+    }
+}
+```
+
+### 4.3 Color Handling Errors
+```kotlin
+// ❌ Wrong approach - using Android Color.parseColor
+color(Color.parseColor("#333333"))
+
+// ✅ Correct approach - using Kuikly Color constructor
+color(Color(0xFF333333))
+color(Color.parseString16ToLong("#333333"))
+```
+
+### 4.4 Lifecycle Method Errors
+```kotlin
+// ❌ Wrong approach - using non-existent lifecycle methods
+override fun onDestroyView() {          // This method doesn't exist
+    super.onDestroyView()
+}
+
+// ✅ Correct approach - using correct lifecycle methods
+override fun pageWillDestroy() {        // Correct lifecycle method
+    super.pageWillDestroy()
+}
+```
+
+### 4.5 Module Call Errors
+```kotlin
+// ❌ Wrong approach - calling Module in pageWillDestroy
+override fun pageWillDestroy() {
+    super.pageWillDestroy()
+    // At this point Module's Native methods are unavailable
+    timerModule.clearAllInterval()      // May fail
+}
+
+// ✅ Correct approach - call during page visibility or before destruction
+override fun pageDidDisappear() {
+    super.pageDidDisappear()
+    timerModule.clearAllInterval()      // Safe call
+}
+```
+
+### Error Resolution Strategies
+
+#### Strategy 1: Attribute Usage Rules
+- **View Components**: Support `alignItemsCenter()`, `padding()`, `paddingLeft()`, `paddingRight()` and other layout attributes
+- **Text Components**: Use `textAlignCenter()`, `marginLeft()`, `marginRight()` and other text and spacing attributes
+- **Rule**: Layout attributes for container components, text attributes for text components
+
+#### Strategy 2: Import Path Checking
+- **Principle**: Prioritize using classes under `com.tencent.kuikly.core.*` paths
+- **Method**: When encountering import errors, search for correct import paths in other project files
+- **Tool**: Use `search_codebase` to search for correct import examples
+
+#### Strategy 3: Lifecycle Method Finding
+- **Method**: Search for lifecycle method usage examples in other component files
+- **Common Methods**: `created()`, `viewDestroyed()`, `pageDidAppear()`, `onDestroyPager()`
+- **Avoid**: Don't use Android-specific lifecycle methods
+
+
+## 5. Development Best Practices
+
+### 5.1 Debugging Techniques
+```kotlin
+// 1. Use compilation errors to quickly locate issues
+// Compile command: ./gradlew :shared:compileKotlinIosArm64
+
+// 2. Debug complex UI with segmented commenting
+fun buildUI(page: Pager): ViewBuilder {
+    val ctx = page as ComplexPage
+    return {
+        View {
+            attr { flex(1f) }
+            
+            // TODO: Temporarily comment complex parts, add gradually
+            HeaderComponent { /* ... */ }
+            
+            // ContentComponent { /* ... */ }  // Commented out
+            
+            // FooterComponent { /* ... */ }   // Commented out
+        }
+    }
+}
+
+// 3. Use TODO to mark pending items
+fun buildUI(page: Pager): ViewBuilder {
+    val ctx = page as TodoPage
+    return {
+        View {
+            Text {
+                attr {
+                    text(ctx.title)
+                    // TODO: Need to parse color from ctx.themeColor
+                    color(Color.BLACK)
+                }
+            }
+            
+            // TODO: Add data list
+            // vfor({ ctx.dataArray }) { item, index ->
+            //     // To be implemented
+            // }
+        }
+    }
+}
+```
+
+## 6. Compose DSL Support (Beta)
+For writing compose dsl code, you can refer to examples in demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose
+
+### 6.1 Compose Pages
+```kotlin
+@Page("compose_page")
+internal class ComposePage : ComposeContainer() {
+    override fun willInit() {
+        super.willInit()
+        setContent {
+            // Use standard Compose DSL
+            Column(
+                modifier = Modifier.fillMaxSize().padding(16.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("Hello Compose!")
+                Button(onClick = { /* Click event */ }) {
+                    Text("Click Me")
+                }
+            }
+        }
+    }
+}
+```
+
+### 6.2 Comparison of Two DSLs
+```kotlin
+// Self-developed DSL style
+View {
+    attr {
+        flex(1f)
+        flexDirectionColumn()
+        alignItemsCenter()
+        justifyContentCenter()
+    }
+    Text {
+        attr {
+            text("Hello World")
+            fontSize(18f)
+            color(Color.BLACK)
+        }
+    }
+}
+
+// Compose DSL style (Beta)
+Column(
+    modifier = Modifier.fillMaxSize(),
+    verticalArrangement = Arrangement.Center,
+    horizontalAlignment = Alignment.CenterHorizontally
+) {
+    Text(
+        text = "Hello World",
+        fontSize = 18.sp,
+        color = androidx.compose.ui.graphics.Color.Black
+    )
+}
+```
+
+
+---
+
+## Summary
+
+KuiklyUI is a powerful cross-platform UI framework that supports multiple DSL styles and platforms. When developing, pay attention to:
+
+1. **Strictly follow the framework's package names and API specifications**
+2. **Correctly use the reactive data system**
+3. **Properly organize page and component structure**
+4. **Pay attention to the timing of lifecycle method usage**
+5. **Make good use of debugging techniques to quickly locate issues**
+
+Through the guidance in this document, you can quickly get started with KuiklyUI development and avoid common development pitfalls.
+description:
+globs:
+alwaysApply: true
+---

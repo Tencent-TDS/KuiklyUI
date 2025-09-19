@@ -40,6 +40,7 @@ import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.css.drawable.KRCSSBackgroundDrawable
 import com.tencent.kuikly.core.render.android.css.ktx.frameHeight
 import com.tencent.kuikly.core.render.android.css.ktx.frameWidth
+import com.tencent.kuikly.core.render.android.css.ktx.getDisplayMetrics
 import com.tencent.kuikly.core.render.android.css.ktx.removeFromParent
 import com.tencent.kuikly.core.render.android.css.ktx.toColor
 import com.tencent.kuikly.core.render.android.css.ktx.toJSONObjectSafely
@@ -197,7 +198,7 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
         if (capInsetsValid()) {
             drawable?.also {
                 val loader = kuiklyRenderContext?.getImageLoader()
-                val density = resources.displayMetrics.density
+                val density = kuiklyRenderContext.getDisplayMetrics().density
                 val drawableWidth = loader?.getImageWidth(it)?.roundToInt()?.takeIf { w -> w > 0 } ?: frameWidth
                 val drawableHeight = loader?.getImageHeight(it)?.roundToInt()?.takeIf { h -> h > 0 } ?: frameHeight
                 it.setBounds(0, 0, drawableWidth, drawableHeight)
@@ -539,10 +540,10 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
         capInsets = param.split(" ").takeIf { it.size >= 4 }?.let {
             try {
                 // "$top $left $bottom $right"
-                val top = it[0].toFloat().toPxI()
-                val left = it[1].toFloat().toPxI()
-                val bottom = it[2].toFloat().toPxI()
-                val right = it[3].toFloat().toPxI()
+                val top = kuiklyRenderContext.toPxI(it[0].toFloat())
+                val left = kuiklyRenderContext.toPxI(it[1].toFloat())
+                val bottom = kuiklyRenderContext.toPxI(it[2].toFloat())
+                val right = kuiklyRenderContext.toPxI(it[3].toFloat())
                 Insets(left, top, right, bottom)
             } catch (e: NumberFormatException) {
                 null

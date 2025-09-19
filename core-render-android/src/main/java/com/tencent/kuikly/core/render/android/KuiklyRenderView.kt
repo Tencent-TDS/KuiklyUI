@@ -669,7 +669,7 @@ class KuiklyRenderViewContext(
     override fun getImageLoader(): KRImageLoader? {
         if (imageLoader == null) {
             contextParams?.let {
-                imageLoader = KRImageLoader(it.executeMode, it.assetsPath)
+                imageLoader = KRImageLoader(this, it.executeMode, it.assetsPath)
             }
         }
         return imageLoader

@@ -16,6 +16,7 @@
 package com.tencent.kuikly.core.render.android.expand.component.image
 
 import android.graphics.drawable.Drawable
+import com.tencent.kuikly.core.render.android.KuiklyRenderViewContext
 import com.tencent.kuikly.core.render.android.adapter.HRImageLoadOption
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
 import com.tencent.kuikly.core.render.android.context.KuiklyRenderCoreExecuteModeBase
@@ -26,7 +27,11 @@ typealias FetchImageCallback = (drawable: Drawable?) -> Unit
 /**
  * 图片加载器
  */
-class KRImageLoader(val executeMode: KuiklyRenderCoreExecuteModeBase, val assetsPath: String?) {
+class KRImageLoader(
+    private val kuiklyRenderViewContext: KuiklyRenderViewContext,
+    val executeMode: KuiklyRenderCoreExecuteModeBase,
+    val assetsPath: String?
+) {
 
     /**
      * 异步拉取图片并解码返回 Drawable
@@ -41,11 +46,11 @@ class KRImageLoader(val executeMode: KuiklyRenderCoreExecuteModeBase, val assets
     }
 
     fun getImageWidth(drawable: Drawable): Float {
-        return KuiklyRenderAdapterManager.krImageAdapter?.getDrawableWidth(drawable) ?: 0f
+        return KuiklyRenderAdapterManager.krImageAdapter?.getDrawableWidth(kuiklyRenderViewContext, drawable) ?: 0f
     }
 
     fun getImageHeight(drawable: Drawable): Float {
-        return KuiklyRenderAdapterManager.krImageAdapter?.getDrawableHeight(drawable) ?: 0f
+        return KuiklyRenderAdapterManager.krImageAdapter?.getDrawableHeight(kuiklyRenderViewContext, drawable) ?: 0f
     }
 
     /**

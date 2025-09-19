@@ -204,7 +204,13 @@ static NSString *const kCacheStateInProgress = @"InProgress";
         }
         
         [imageView hrv_setPropWithKey:@"loadSuccess" propValue:imageLoadSuccessCB];
-        [imageView hrv_setPropWithKey:@"src" propValue:src];
+        if ([src hasPrefix:KRImageBase64Prefix]) {
+            NSString *cacheKeySrc = [NSString stringWithFormat:@"data:image_Md5_%@", cacheKey];
+            [self setMemoryObjectWithKey:cacheKeySrc value:src];
+            [imageView hrv_setPropWithKey:@"src" propValue:cacheKeySrc];
+        } else {
+            [imageView hrv_setPropWithKey:@"src" propValue:src];
+        }
     });
     
     result = @{

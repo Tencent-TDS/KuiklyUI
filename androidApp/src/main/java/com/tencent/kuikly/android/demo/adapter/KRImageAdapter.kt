@@ -29,6 +29,7 @@ import com.bumptech.glide.RequestBuilder
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import com.tencent.kuikly.android.demo.KRApplication
+import com.tencent.kuikly.core.render.android.KuiklyRenderViewContext
 import com.tencent.kuikly.core.render.android.adapter.HRImageLoadOption
 import com.tencent.kuikly.core.render.android.adapter.IKRImageAdapter
 import kotlin.math.roundToInt
@@ -48,6 +49,20 @@ class KRImageAdapter(val context: Context) : IKRImageAdapter {
             // http/assets/file 图片使用 glide 加载
             requestImage(imageLoadOption, callback)
         }
+    }
+
+    override fun getDrawableWidth(
+        kuiklyRenderViewContext: KuiklyRenderViewContext,
+        drawable: Drawable
+    ): Float {
+        return drawable.intrinsicWidth.toFloat()
+    }
+
+    override fun getDrawableHeight(
+        kuiklyRenderViewContext: KuiklyRenderViewContext,
+        drawable: Drawable
+    ): Float {
+        return drawable.intrinsicHeight.toFloat()
     }
 
     private fun requestImage(

@@ -16,9 +16,17 @@
 package com.tencent.kuikly.compose.ui
 
 import com.tencent.kuikly.compose.ui.graphics.ImageBitmap
+import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.module.ImageCacheStatus
 import com.tencent.kuikly.core.module.MemoryCacheModule
 import com.tencent.kuikly.core.pager.Pager
+
+private const val DEBUG_LOG = false
+private inline fun logInfo(msg: () -> String) {
+    if (DEBUG_LOG) {
+        KLog.i("CacheMgr", msg())
+    }
+}
 
 internal class KuiklyImageCacheManager(pager: Pager) {
     private val cacheMap = mutableMapOf<String, KuiklyImageBitmap>()
@@ -29,6 +37,7 @@ internal class KuiklyImageCacheManager(pager: Pager) {
         val imageBitmap = cacheMap.getOrPut(src) {
             KuiklyImageBitmap(src) {
                 val refCount = (referenceMap[src] ?: 1) - 1
+                logInfo { "forgot $src refCount=$refCount" }
                 if (refCount <= 0) {
                     referenceMap.remove(src)
                     cacheMap.remove(src)
@@ -40,12 +49,16 @@ internal class KuiklyImageCacheManager(pager: Pager) {
         }
         referenceMap[src] = (referenceMap[src] ?: 0) + 1
         if (imageBitmap.status.errorCode != 0) {
+            logInfo { "start cache $src" }
             imageBitmap.status = memoryCacheModule.cacheImage(src, false) {
+                logInfo { "end cache code=${it.errorCode} state=${it.state} $src" }
                 imageBitmap.status = it
                 if (src !in cacheMap) {
                     clearCache(it)
                 }
             }
+        } else {
+            logInfo { "use cache code=${imageBitmap.status.errorCode} state=${imageBitmap.status.state} $src" }
         }
         return imageBitmap
     }

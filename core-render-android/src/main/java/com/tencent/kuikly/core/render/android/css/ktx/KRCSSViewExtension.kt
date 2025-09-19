@@ -864,6 +864,9 @@ val isBeforeM: Boolean
 val isBeforeOreoMr1: Boolean
     get() = Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1
 
+val isAfterAndroid11: Boolean
+    get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+
 internal fun View.setFrameForAndroidM(frame: Rect) {
     var lp = layoutParams
     if (lp is ViewGroup.MarginLayoutParams) {

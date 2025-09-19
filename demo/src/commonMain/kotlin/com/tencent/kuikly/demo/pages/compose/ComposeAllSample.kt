@@ -154,6 +154,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("DensityScaleDemo", "基于Density实现跨端缩放", "DensityScaleDemo"),
             DemoItem("BackHandlerDemo", "监听并拦截返回键", "BackHandlerDemo"),
             DemoItem("LazyColumnStickyHeader", "LazyColumnStickyHeader", "LazyColumnStickyHeader"),
+            DemoItem("KeyboardHeightDemo", "KeyboardHeightDemo", "KeyboardHeightDemo"),
         )
 
     @Composable

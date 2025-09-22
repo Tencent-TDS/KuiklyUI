@@ -39,4 +39,20 @@ extern NSString *const KuiklyIndexAttributeName;
 
 @end
 
+@interface TextGradientHandler : NSObject
+
++ (void)applyGradientToAttributedString:(NSMutableAttributedString *)attributedString
+                                   range:(NSRange)range
+                             cssGradient:(NSString *)cssGradient
+                                    font:(UIFont *)font;
+
+@end
+
+// 辅助类
+@interface CSSGradientInfo : NSObject
+@property (nonatomic, assign) NSInteger direction;
+@property (nonatomic, strong) NSMutableArray<UIColor *> *colors;
+@property (nonatomic, strong) NSMutableArray<NSNumber *> *locations;
+@end
+
 NS_ASSUME_NONNULL_END

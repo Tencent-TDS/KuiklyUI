@@ -61,7 +61,6 @@ open class ComposeContainer :
     var layoutDirection: LayoutDirection = LayoutDirection.Ltr
 
     private var mediator: ComposeSceneMediator? = null
-    private val coroutineDispatcher = Dispatchers.Kuikly[this]
 
     internal var content: (@Composable () -> Unit)? = null
 
@@ -186,7 +185,7 @@ open class ComposeContainer :
             ComposeSceneMediator(
                 rootKView,
                 windowInfo,
-                coroutineDispatcher,
+                Dispatchers.Kuikly[this],
                 pagerDensity(),
                 ::createComposeScene,
             )

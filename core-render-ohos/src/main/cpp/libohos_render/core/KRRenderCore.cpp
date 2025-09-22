@@ -131,11 +131,7 @@ void KRRenderCore::SendEvent(std::string event_name, const std::string &json_dat
                                nullValue, nullValue);
     };
 
-    if (needSync) {
-        task();
-        return;
-    }
-    PerformTaskOnContextQueue(false, 0, task);
+    PerformTaskOnContextQueue(needSync, 0, task);
 }
 
 std::shared_ptr<IKRRenderViewExport> KRRenderCore::GetView(int tag) {

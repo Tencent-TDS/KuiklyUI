@@ -17,7 +17,7 @@
 #ifndef ScrollableProtocol_h
 #define ScrollableProtocol_h
 
-#import <UIKit/UIKit.h>
+#import "RCTUIKit.h" // [macOS]
 
 /**
  * Protocol for any scrollable components inherit from UIScrollView

@@ -14,7 +14,7 @@
  */
 
 #import <Foundation/Foundation.h>
-#import <UIKit/UIKit.h>
+#import "RCTUIKit.h"
 #import "KuiklyRenderView.h"
 
 typedef void (^KuiklyContextCodeCallback)(NSString * _Nullable contextCode, NSError * _Nullable error);
@@ -22,7 +22,7 @@ typedef void (^KuiklyContextCodeCallback)(NSString * _Nullable contextCode, NSEr
 
 NS_ASSUME_NONNULL_BEGIN
 /** Snapshot页面快照Key. */
-UIKIT_EXTERN NSString *const KRPageDataSnapshotKey;
+FOUNDATION_EXTERN NSString *const KRPageDataSnapshotKey;
 @protocol KuiklyRenderViewControllerBaseDelegatorDelegate;
 @protocol KRControllerDelegatorLifeCycleProtocol;
 /*

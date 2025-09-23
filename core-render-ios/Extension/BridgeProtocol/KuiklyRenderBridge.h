@@ -14,7 +14,7 @@
  */
 
 #import <Foundation/Foundation.h>
-#import <UIKit/UIKit.h>
+#import "RCTUIKit.h" // [macOS]
 #import "KRLogModule.h"
 #import "KRAPNGView.h"
 #import "KRPAGView.h"

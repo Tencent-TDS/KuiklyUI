@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#import <UIKit/UIKit.h>
+#import "RCTUIKit.h" // [macOS]
 #import <QuartzCore/QuartzCore.h>
 
 

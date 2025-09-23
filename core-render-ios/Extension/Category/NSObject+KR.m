@@ -17,7 +17,7 @@
 #import <CommonCrypto/CommonDigest.h>
 #import "KRConvertUtil.h"
 #import "KRLogModule.h"
-#import <UIKit/UIKit.h>
+#import "RCTUIKit.h" // [macOS]
 #import <objc/runtime.h>
 #import <Accelerate/Accelerate.h>
 #import <CoreImage/CoreImage.h>

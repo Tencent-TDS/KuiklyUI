@@ -15,8 +15,29 @@
 		3A622B9C2AB052B0002410B8 /* KRNewTestModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 3A622B992AB052B0002410B8 /* KRNewTestModule.m */; };
 		3AF526722A9309C300A93682 /* RootViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 3AF526712A9309C300A93682 /* RootViewController.m */; };
 		7126B4462E1E726900B6B1D9 /* KRTabbarView.m in Sources */ = {isa = PBXBuildFile; fileRef = 7126B4452E1E709000B6B1D9 /* KRTabbarView.m */; };
+		718A06FC2E8184C600C99B5D /* UINavigationController+FDFullscreenPopGesture.m in Sources */ = {isa = PBXBuildFile; fileRef = FFBD31B729015A0100D555DE /* UINavigationController+FDFullscreenPopGesture.m */; };
+		718A06FD2E8184C600C99B5D /* iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2152FB032600AC8F00CF470E /* iOSApp.swift */; };
+		718A06FE2E8184C600C99B5D /* KRRouterHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = FF0DD45229EC211B0024F7FF /* KRRouterHandler.m */; };
+		718A06FF2E8184C600C99B5D /* NSObject+RIJCategory.m in Sources */ = {isa = PBXBuildFile; fileRef = FF047756288C4842008D3F39 /* NSObject+RIJCategory.m */; };
+		718A07002E8184C600C99B5D /* KRAPNGViewHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = C125EBCA2D96FBE200FBFA34 /* KRAPNGViewHandler.m */; };
+		718A07012E8184C600C99B5D /* KRTabbarView.m in Sources */ = {isa = PBXBuildFile; fileRef = 7126B4452E1E709000B6B1D9 /* KRTabbarView.m */; };
+		718A07022E8184C600C99B5D /* KuiklyRenderViewPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFDEA044288C2DF3008534B5 /* KuiklyRenderViewPage.swift */; };
+		718A07032E8184C600C99B5D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7555FF82242A565900829871 /* ContentView.swift */; };
+		718A07042E8184C600C99B5D /* KRFontHanlder.m in Sources */ = {isa = PBXBuildFile; fileRef = FF5BF16F2B6EC62D001C5632 /* KRFontHanlder.m */; };
+		718A07052E8184C600C99B5D /* KRVideoViewHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = FF151BB72A23A7E800D2BBED /* KRVideoViewHandler.m */; };
+		718A07062E8184C600C99B5D /* KRNewTestModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 3A622B992AB052B0002410B8 /* KRNewTestModule.m */; };
+		718A07072E8184C600C99B5D /* RootViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 3AF526712A9309C300A93682 /* RootViewController.m */; };
+		718A07082E8184C600C99B5D /* KRBridgeModule.m in Sources */ = {isa = PBXBuildFile; fileRef = FF05C64029C851A500C5E02A /* KRBridgeModule.m */; };
+		718A07092E8184C600C99B5D /* KuiklyRenderViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = FF05C63A29C84FFF00C5E02A /* KuiklyRenderViewController.m */; };
+		718A070A2E8184C600C99B5D /* NativeMixKuiklyViewDemoViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = FFEDDC792AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.m */; };
+		718A070B2E8184C600C99B5D /* TDFTestModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 3A622B982AB052B0002410B8 /* TDFTestModule.m */; };
+		718A070C2E8184C600C99B5D /* KuiklyRenderComponentExpandHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = FF05C63E29C850BC00C5E02A /* KuiklyRenderComponentExpandHandler.m */; };
+		718A070E2E8184C600C99B5D /* Satisfy-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = AFEB55D12D9C17820014FCBD /* Satisfy-Regular.ttf */; };
+		718A070F2E8184C600C99B5D /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 058557D8273AAEEB004C7B11 /* Preview Assets.xcassets */; };
+		718A07102E8184C600C99B5D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 058557BA273AAA24004C7B11 /* Assets.xcassets */; };
 		7555FF83242A565900829871 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7555FF82242A565900829871 /* ContentView.swift */; };
 		AFEB55D22D9C17820014FCBD /* Satisfy-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = AFEB55D12D9C17820014FCBD /* Satisfy-Regular.ttf */; };
+		B3063AF83744E6EDF5066B8A /* libPods-macApp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 13AC302F313FBA5C0D47811B /* libPods-macApp.a */; };
 		C125EBCC2D96FBE200FBFA34 /* KRAPNGViewHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = C125EBCA2D96FBE200FBFA34 /* KRAPNGViewHandler.m */; };
 		FF047757288C4842008D3F39 /* NSObject+RIJCategory.m in Sources */ = {isa = PBXBuildFile; fileRef = FF047756288C4842008D3F39 /* NSObject+RIJCategory.m */; };
 		FF05C63C29C84FFF00C5E02A /* KuiklyRenderViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = FF05C63A29C84FFF00C5E02A /* KuiklyRenderViewController.m */; };
@@ -33,7 +54,9 @@
 /* Begin PBXFileReference section */
 		058557BA273AAA24004C7B11 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		058557D8273AAEEB004C7B11 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		13AC302F313FBA5C0D47811B /* libPods-macApp.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-macApp.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		2152FB032600AC8F00CF470E /* iOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSApp.swift; sourceTree = "<group>"; };
+		34AF70076043A5BF5F7AEE48 /* Pods-macApp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-macApp.release.xcconfig"; path = "Target Support Files/Pods-macApp/Pods-macApp.release.xcconfig"; sourceTree = "<group>"; };
 		3A622B972AB052B0002410B8 /* TDFTestModule.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TDFTestModule.h; sourceTree = "<group>"; };
 		3A622B982AB052B0002410B8 /* TDFTestModule.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TDFTestModule.m; sourceTree = "<group>"; };
 		3A622B992AB052B0002410B8 /* KRNewTestModule.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = KRNewTestModule.m; sourceTree = "<group>"; };
@@ -42,10 +65,12 @@
 		3AF526712A9309C300A93682 /* RootViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = RootViewController.m; sourceTree = "<group>"; };
 		7126B4442E1E708100B6B1D9 /* KRTabbarView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KRTabbarView.h; sourceTree = "<group>"; };
 		7126B4452E1E709000B6B1D9 /* KRTabbarView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = KRTabbarView.m; sourceTree = "<group>"; };
+		718A07182E8184C600C99B5D /* macApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = macApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		718A07192E8184C600C99B5D /* iosApp copy-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "iosApp copy-Info.plist"; path = "/Users/ray/Documents/repo2/Kuikly2/iosApp/iosApp copy-Info.plist"; sourceTree = "<absolute>"; };
 		7555FF7B242A565900829871 /* iosApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iosApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7555FF82242A565900829871 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		7555FF8C242A565B00829871 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		A7C23635AC7E5FC78D01F91C /* libPods-iosApp.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-iosApp.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		90F5AE7925889A14829B95E6 /* Pods-macApp.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-macApp.debug.xcconfig"; path = "Target Support Files/Pods-macApp/Pods-macApp.debug.xcconfig"; sourceTree = "<group>"; };
 		AFEB55D12D9C17820014FCBD /* Satisfy-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Satisfy-Regular.ttf"; sourceTree = "<group>"; };
 		C125EBCA2D96FBE200FBFA34 /* KRAPNGViewHandler.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = KRAPNGViewHandler.m; sourceTree = "<group>"; };
 		C125EBCB2D96FBE200FBFA34 /* KRAPNGViewHandler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KRAPNGViewHandler.h; sourceTree = "<group>"; };
@@ -74,6 +99,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		718A07112E8184C600C99B5D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B3063AF83744E6EDF5066B8A /* libPods-macApp.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		83A38DD41A3EE4289A4363A5 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -96,7 +129,7 @@
 		20C14EE155EAD6E18AEF6034 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				A7C23635AC7E5FC78D01F91C /* libPods-iosApp.a */,
+				13AC302F313FBA5C0D47811B /* libPods-macApp.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -106,6 +139,8 @@
 			children = (
 				F1A0CBBBE932EBF38B00760C /* Pods-iosApp.debug.xcconfig */,
 				C57F6971A5640F2A8FDA3C78 /* Pods-iosApp.release.xcconfig */,
+				90F5AE7925889A14829B95E6 /* Pods-macApp.debug.xcconfig */,
+				34AF70076043A5BF5F7AEE48 /* Pods-macApp.release.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
@@ -126,6 +161,7 @@
 				7555FF7C242A565900829871 /* Products */,
 				4D5AF2F73867F5563F1F911C /* Pods */,
 				20C14EE155EAD6E18AEF6034 /* Frameworks */,
+				718A07192E8184C600C99B5D /* iosApp copy-Info.plist */,
 			);
 			sourceTree = "<group>";
 		};
@@ -133,6 +169,7 @@
 			isa = PBXGroup;
 			children = (
 				7555FF7B242A565900829871 /* iosApp.app */,
+				718A07182E8184C600C99B5D /* macApp.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -238,6 +275,25 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		718A06F92E8184C600C99B5D /* macApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 718A07152E8184C600C99B5D /* Build configuration list for PBXNativeTarget "macApp" */;
+			buildPhases = (
+				718A06FA2E8184C600C99B5D /* [CP] Check Pods Manifest.lock */,
+				718A06FB2E8184C600C99B5D /* Sources */,
+				718A070D2E8184C600C99B5D /* Resources */,
+				718A07112E8184C600C99B5D /* Frameworks */,
+				718A07132E8184C600C99B5D /* [CP] Copy Pods Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = macApp;
+			productName = iosApp;
+			productReference = 718A07182E8184C600C99B5D /* macApp.app */;
+			productType = "com.apple.product-type.application";
+		};
 		7555FF7A242A565900829871 /* iosApp */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 7555FFA5242A565B00829871 /* Build configuration list for PBXNativeTarget "iosApp" */;
@@ -288,11 +344,22 @@
 			projectRoot = "";
 			targets = (
 				7555FF7A242A565900829871 /* iosApp */,
+				718A06F92E8184C600C99B5D /* macApp */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		718A070D2E8184C600C99B5D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				718A070E2E8184C600C99B5D /* Satisfy-Regular.ttf in Resources */,
+				718A070F2E8184C600C99B5D /* Preview Assets.xcassets in Resources */,
+				718A07102E8184C600C99B5D /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		7555FF79242A565900829871 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -306,6 +373,45 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		718A06FA2E8184C600C99B5D /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-macApp-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		718A07132E8184C600C99B5D /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-macApp/Pods-macApp-resources-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Copy Pods Resources";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-macApp/Pods-macApp-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-macApp/Pods-macApp-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
 		933D71A4A92D36640C8F8840 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -365,6 +471,30 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		718A06FB2E8184C600C99B5D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				718A06FC2E8184C600C99B5D /* UINavigationController+FDFullscreenPopGesture.m in Sources */,
+				718A06FD2E8184C600C99B5D /* iOSApp.swift in Sources */,
+				718A06FE2E8184C600C99B5D /* KRRouterHandler.m in Sources */,
+				718A06FF2E8184C600C99B5D /* NSObject+RIJCategory.m in Sources */,
+				718A07002E8184C600C99B5D /* KRAPNGViewHandler.m in Sources */,
+				718A07012E8184C600C99B5D /* KRTabbarView.m in Sources */,
+				718A07022E8184C600C99B5D /* KuiklyRenderViewPage.swift in Sources */,
+				718A07032E8184C600C99B5D /* ContentView.swift in Sources */,
+				718A07042E8184C600C99B5D /* KRFontHanlder.m in Sources */,
+				718A07052E8184C600C99B5D /* KRVideoViewHandler.m in Sources */,
+				718A07062E8184C600C99B5D /* KRNewTestModule.m in Sources */,
+				718A07072E8184C600C99B5D /* RootViewController.m in Sources */,
+				718A07082E8184C600C99B5D /* KRBridgeModule.m in Sources */,
+				718A07092E8184C600C99B5D /* KuiklyRenderViewController.m in Sources */,
+				718A070A2E8184C600C99B5D /* NativeMixKuiklyViewDemoViewController.m in Sources */,
+				718A070B2E8184C600C99B5D /* TDFTestModule.m in Sources */,
+				718A070C2E8184C600C99B5D /* KuiklyRenderComponentExpandHandler.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		7555FF77242A565900829871 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -392,6 +522,68 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
+		718A07162E8184C600C99B5D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 90F5AE7925889A14829B95E6 /* Pods-macApp.debug.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
+				DEVELOPMENT_TEAM = W87D9D2E4L;
+				ENABLE_PREVIEWS = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "";
+				INFOPLIST_FILE = "iosApp copy-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_CODE_SIGN_FLAGS = "--generate-entitlement-der";
+				PRODUCT_BUNDLE_IDENTIFIER = com.tencent.kuiklycore.demo.luoyibu;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = macosx;
+				SWIFT_OBJC_BRIDGING_HEADER = "iosApp/iosApp-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		718A07172E8184C600C99B5D /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 34AF70076043A5BF5F7AEE48 /* Pods-macApp.release.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_IDENTITY = "iPhone Distribution: Tencent Technology (Shenzhen) Co., Ltd";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = HKB8WPFBR9;
+				ENABLE_PREVIEWS = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "";
+				INFOPLIST_FILE = "iosApp copy-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_CODE_SIGN_FLAGS = "--generate-entitlement-der";
+				PRODUCT_BUNDLE_IDENTIFIER = com.tencent.kuiklycore.demo.db;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "com.tencent.kuiklycore.demo.db InHouse";
+				SDKROOT = macosx;
+				SWIFT_OBJC_BRIDGING_HEADER = "iosApp/iosApp-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		7555FFA3242A565B00829871 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -515,6 +707,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
 				DEVELOPMENT_TEAM = W87D9D2E4L;
@@ -530,6 +723,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.tencent.kuiklycore.demo.luoyibu;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = iphoneos;
 				SWIFT_OBJC_BRIDGING_HEADER = "iosApp/iosApp-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -561,6 +755,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "com.tencent.kuiklycore.demo.db InHouse";
+				SDKROOT = iphoneos;
 				SWIFT_OBJC_BRIDGING_HEADER = "iosApp/iosApp-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -570,6 +765,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		718A07152E8184C600C99B5D /* Build configuration list for PBXNativeTarget "macApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				718A07162E8184C600C99B5D /* Debug */,
+				718A07172E8184C600C99B5D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		7555FF76242A565900829871 /* Build configuration list for PBXProject "iosApp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#import <UIKit/UIKit.h>
+#import "RCTUIKit.h" // [macOS]
 #import "UIView+CSSDebug.h"
 #import "KuiklyRenderViewExportProtocol.h"
 

@@ -13,5 +13,6 @@ Pod::Spec.new do |spec|
   spec.user_target_xcconfig = { 'CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES' => 'YES' }
   spec.requires_arc     = true
   spec.source_files = 'core-render-ios/**/*.{h,m,c,mm,s,cpp,cc}'
+  spec.exclude_files = 'core-render-ios/include/**/*'
   spec.libraries    = "c++"
 end

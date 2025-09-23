@@ -5,7 +5,7 @@ package com.tencent.kuikly.core.nvi.serialization.json
  */
 object JSON {
 
-    var useNativeMethod: Boolean = false
+    var useNativeMethod: Boolean = true
 
     fun toBoolean(value: Any?): Boolean? {
         if (value is Boolean) {

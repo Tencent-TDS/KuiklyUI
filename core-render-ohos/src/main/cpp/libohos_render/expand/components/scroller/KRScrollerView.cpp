@@ -38,6 +38,7 @@ constexpr char kPropNameBouncesEnable[] = "bouncesEnable";
 constexpr char kPropNameLimitHeaderBounces[] = "limitHeaderBounces";
 constexpr char kPropNameShowScrollerIndicator[] = "showScrollerIndicator";
 constexpr char kPropNameNestedScroll[] = "nestedScroll";
+constexpr char kPropNameFlingEnable[] = "flingEnable";
 constexpr char kPropKeyNestedScrollForward[] = "forward";
 constexpr char kPropKeyNestedScrollBackward[] = "backward";
 
@@ -158,6 +159,8 @@ bool KRScrollerView::SetProp(const std::string &prop_key, const KRAnyValue &prop
         didHanded = SetLimitHeaderBounces(prop_value);
     } else if (kuikly::util::isEqual(prop_key, kPropNameNestedScroll)) {
         didHanded = SetNestedScroll(prop_value);
+    } else if (kuikly::util::isEqual(prop_key, kPropNameFlingEnable)) {
+        didHanded = SetFlingEnable(prop_value->toBool());
     }
     return didHanded;
 }
@@ -173,6 +176,9 @@ bool KRScrollerView::ResetProp(const std::string &prop_key) {
         if (prop_key == kPropNameNestedScroll) {
             didHanded = true;
             kuikly::util::ResetArkUINestedScroll(GetNode());
+        } else if (prop_key == kPropNameFlingEnable) {
+            didHanded = true;
+            SetFlingEnable(true);
         }
     }
     return didHanded;
@@ -485,6 +491,12 @@ void KRScrollerView::OnWillScroll(ArkUI_NodeEvent *event) {
 
 void KRScrollerView::OnWillDragEnd(ArkUI_NodeEvent *event) {
     is_dragging_ = false;
+    if (!is_fling_enabled_) {
+        // call scrollBy with 0 velocity to stop fling
+        ArkUI_NumberValue values[] = {{.f32 = 0}, {.f32 = 0}};
+        ArkUI_AttributeItem item = {values, 2};
+        kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_SCROLL_BY, &item);
+    }
     ApplyContentInsetWhenDragEnd();
     FireWillDragEndEvent(event);
     FireEndDragEvent(event);
@@ -626,3 +638,7 @@ ArkUI_GestureInterruptResult KRScrollerView::OnInterruptGestureEvent(const ArkUI
     return IKRRenderViewExport::OnInterruptGestureEvent(info);
 }
 
+bool KRScrollerView::SetFlingEnable(bool enable) {
+    is_fling_enabled_ = enable;
+    return true;
+}

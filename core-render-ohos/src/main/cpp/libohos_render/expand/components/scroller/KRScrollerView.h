@@ -120,6 +120,7 @@ class KRScrollerView : public IKRRenderViewExport {
     void InnerSetBouncesEnable(bool enable);
     void AdjustHeaderBouncesEnableWhenWillScroll(ArkUI_NodeEvent *event);
     void DispatchDidScrollToObservers();
+    bool SetFlingEnable(bool enable);
 
  private:
     KRRenderCallback on_scroll_callback_ = nullptr;
@@ -151,6 +152,7 @@ class KRScrollerView : public IKRRenderViewExport {
     float velocity_x_ = 0;
     float velocity_y_ = 0;
     std::weak_ptr<SuperTouchHandler> weak_super_touch_handler_;
+    bool is_fling_enabled_ = true;
 };
 
 #endif  // CORE_RENDER_OHOS_KRSCROLLERVIEW_H

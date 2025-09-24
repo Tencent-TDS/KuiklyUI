@@ -232,7 +232,11 @@ export abstract class KuiklyRenderBaseView implements IKuiklyRenderViewExport {
   /**
    * @final  （禁止重写）
    */
-  toCreateArkUIView(nodeId: string): ComponentContent<KuiklyRenderBaseView> {
+  toCreateArkUIView(nodeId: string): ComponentContent<KuiklyRenderBaseView> | null {
+    if(this.getUIContext() == null){
+      // in this case, the instance must has been destroyed
+      return null
+    }
     this.nodeId = nodeId;
     let node: ComponentContent<KuiklyRenderBaseView> = this.createArkUIView();
     this.arkUINode = node;

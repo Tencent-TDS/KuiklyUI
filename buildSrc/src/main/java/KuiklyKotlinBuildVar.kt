@@ -143,7 +143,7 @@ object Version {
     const val MATERIAL_VERSION = "1.4.0"
     const val SNAPSHOT_SUFFIX = "-SNAPSHOT"
 
-    private const val DEFAULT_KUIKLY_VERSION = "2.0.0"
+    private const val DEFAULT_KUIKLY_VERSION = "2.5.0"
     private const val DEFAULT_KOTLIN_VERSION = "2.0.21"
     private const val DEFAULT_AGP_VERSION = "7.4.2"
 

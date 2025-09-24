@@ -39,6 +39,7 @@ extern NSString *const KuiklyIndexAttributeName;
 
 @end
 
+// 实现字体渐变色绘制类
 @interface TextGradientHandler : NSObject
 
 + (void)applyGradientToAttributedString:(NSMutableAttributedString *)attributedString

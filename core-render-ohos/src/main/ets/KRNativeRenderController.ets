@@ -557,7 +557,7 @@ export class KRNativeRenderController {
         break;
       }
       case KRLifecycleState.STATE_INIT_CONTEXT_FINISH: {
-        this.lifecycleCallbacks.forEach(callback => callback.onInitContextStart());
+        this.lifecycleCallbacks.forEach(callback => callback.onInitContextFinish());
         break;
       }
       case KRLifecycleState.STATE_CREATE_INSTANCE_START: {

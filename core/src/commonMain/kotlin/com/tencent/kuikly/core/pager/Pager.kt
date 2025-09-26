@@ -59,6 +59,9 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
     private var pageTrace : PageCreateTrace? = null
     override val isDebugUIInspector by lazy { debugUIInspector() } // debug ui
     override var didCreateBody: Boolean = false
+    private val innerBackPressHandler: BackPressHandler by lazy(LazyThreadSafetyMode.NONE) {
+        BackPressHandler()
+    }
 
     override fun createAttr(): ComposeAttr = ComposeAttr()
 
@@ -232,6 +235,13 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
             }
             PAGER_EVENT_CONFIGURATION_DID_CHANGED -> {
                 handlePagerConfigurationDidchanged(eventData)
+            }
+            PAGER_EVENT_ON_BACK_PRESSED -> {
+                val hasCallbacks = getBackPressHandler().backPressCallbackList.isNotEmpty()
+                acquireModule<BackPressModule>(BackPressModule.MODULE_NAME).backHandle(isConsumed = hasCallbacks)
+                this@Pager.setTimeout {
+                    getBackPressHandler().dispatchOnBackEvent()
+                }
             }
         }
     }
@@ -522,6 +532,10 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         }
     }
 
+    open fun getBackPressHandler(): BackPressHandler {
+        return innerBackPressHandler
+    }
+
     companion object {
         const val PAGER_EVENT_WINDOW_SIZE_CHANGED = "windowSizeDidChanged"
         const val PAGER_EVENT_ROOT_VIEW_SIZE_CHANGED = "rootViewSizeDidChanged"
@@ -532,6 +546,9 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         const val PAGER_EVENT_WILL_DESTROY = "pageWillDestroy"
         const val PAGER_EVENT_SET_NEED_LAYOUT = "setNeedLayout"
         const val PAGER_EVENT_CONFIGURATION_DID_CHANGED = "configurationDidChanged"
+
+        const val PAGER_EVENT_ON_BACK_PRESSED = "onBackPressed"
+
         const val WIDTH = "width"
         const val HEIGHT = "height"
         const val SAFE_AREA_INSETS = "safeAreaInsets"

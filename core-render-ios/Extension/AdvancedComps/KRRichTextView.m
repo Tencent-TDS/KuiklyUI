@@ -610,12 +610,12 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
     CGPoint startPoint = CGPointMake(gradientLayer.startPoint.x * size.width, gradientLayer.startPoint.y * size.height);
     CGPoint endPoint = CGPointMake(gradientLayer.endPoint.x * size.width, gradientLayer.endPoint.y * size.height);
     
-    if (info.direction == 1) {
-        // 交换起点和终点
-        CGPoint temp = startPoint;
-        startPoint = endPoint;
-        endPoint = temp;
-    }
+//    if (info.direction == 1) {
+//        // 交换起点和终点
+//        CGPoint temp = startPoint;
+//        startPoint = endPoint;
+//        endPoint = temp;
+//    }
     
     // 第二处设置宽高
     CGContextDrawLinearGradient(context, gradient, startPoint, endPoint, 0);

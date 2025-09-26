@@ -182,7 +182,7 @@ class IKRRenderModuleExport : public std::enable_shared_from_this<IKRRenderModul
         return module_name_;
     }
 
-    std::string GetInstanceId() {
+    const std::string& GetInstanceId() {
         return instance_id_;
     }
 

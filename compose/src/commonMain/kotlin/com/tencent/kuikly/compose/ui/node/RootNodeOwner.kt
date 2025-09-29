@@ -22,7 +22,7 @@ import androidx.compose.runtime.collection.mutableVectorOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshots.Snapshot
+import com.tencent.kuikly.compose.extension.KuiklySemantisHandler
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.InternalComposeUiApi
 import com.tencent.kuikly.compose.ui.Modifier
@@ -47,6 +47,7 @@ import com.tencent.kuikly.compose.ui.scene.ComposeScene
 import com.tencent.kuikly.compose.ui.scene.ComposeSceneInputHandler
 import com.tencent.kuikly.compose.ui.semantics.EmptySemanticsElement
 import com.tencent.kuikly.compose.ui.semantics.EmptySemanticsModifier
+import com.tencent.kuikly.compose.ui.semantics.SemanticsOwner
 import com.tencent.kuikly.compose.ui.unit.Constraints
 import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.IntSize
@@ -118,8 +119,11 @@ internal class RootNodeOwner(
 //            isTraversalGroup = true
 //        }
     val owner: Owner = OwnerImpl(layoutDirection, coroutineContext, rootKView, density)
+    val semanticsOwner = SemanticsOwner(owner.root)
+    private val semanticsKuiklyHandler = KuiklySemantisHandler()
 
-//    val semanticsOwner = SemanticsOwner(owner.root, rootSemanticsNode)
+    val isSemanticsRunnnng: Boolean
+        get() = rootKView.getPager().isAccessibilityRunning()
     var size: IntSize? = size
         set(value) {
             field = value
@@ -276,6 +280,7 @@ internal class RootNodeOwner(
             measureAndLayoutDelegate.onNodeDetached(node)
             snapshotObserver.clear(node)
             needClearObservations = true
+            semanticsKuiklyHandler.clearCache()
         }
 
         override fun measureAndLayout(sendPointerUpdate: Boolean) {
@@ -382,6 +387,9 @@ internal class RootNodeOwner(
 
         override fun onSemanticsChange() {
 //            platformContext.semanticsOwnerListener?.onSemanticsChange(semanticsOwner)
+            if (isSemanticsRunnnng) {
+                semanticsKuiklyHandler.onSemanticsChange(semanticsOwner)
+            }
         }
 
         override fun onZIndexChange(layoutNode: LayoutNode) {

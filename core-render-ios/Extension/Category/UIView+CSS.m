@@ -856,6 +856,49 @@
     self.layer.anchorPoint = anchorPoint;
     self.layer.position = newPosition;
 }
+
+- (NSString *)css_accessibilityInfo {
+    return objc_getAssociatedObject(self, @selector(css_accessibilityInfo));
+}
+
+- (void)setCss_accessibilityInfo:(NSString *)css_accessibilityInfo {
+    if (self.css_accessibilityInfo != css_accessibilityInfo) {
+        objc_setAssociatedObject(self, @selector(css_accessibilityInfo), css_accessibilityInfo, OBJC_ASSOCIATION_RETAIN);
+        if (css_accessibilityInfo && css_accessibilityInfo.length > 0) {
+            // 解析 "1 1" 格式的值
+            NSArray<NSString *> *values = [css_accessibilityInfo componentsSeparatedByString:@" "];
+            if (values.count >= 2) {
+                BOOL isClickable = [values[0] boolValue];
+                BOOL isLongClickable = [values[1] boolValue];
+
+                // 设置无障碍特性
+                UIAccessibilityTraits traits = UIAccessibilityTraitNone;
+                NSMutableArray<NSString *> *hints = [NSMutableArray array];
+
+                if (isClickable) {
+                    traits |= UIAccessibilityTraitButton;
+                    [hints addObject:@"点按两次即可激活"];
+                }
+
+                if (isLongClickable) {
+                    traits |= UIAccessibilityTraitAllowsDirectInteraction;
+                    [hints addObject:@"点按两次并按住即可长按"];
+                }
+
+                // 合并多个 hint
+                if (hints.count > 0) {
+                    self.accessibilityHint = [hints componentsJoinedByString:@"，"];
+                }
+
+                // 如果有点击功能，确保组件是可访问的
+                if (isClickable || isLongClickable) {
+                    self.accessibilityTraits = traits;
+                }
+            }
+        }
+    }
+}
+
 @end
 
 

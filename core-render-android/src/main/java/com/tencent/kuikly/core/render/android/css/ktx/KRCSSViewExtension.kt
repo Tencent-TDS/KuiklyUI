@@ -30,6 +30,7 @@ import android.view.View
 import android.view.View.AccessibilityDelegate
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Button
 import android.widget.CheckBox
@@ -168,6 +169,10 @@ fun View.setCommonProp(key: String, value: Any): Boolean {
             }
             initAccessibilityDelegate()
             setFocusable(true)
+            true
+        }
+        KRCssConst.ACCESSIBILITY_INFO -> {
+            setAccessibilityInfo(value)
             true
         }
         KRCssConst.DEBUG_NAME -> {
@@ -766,24 +771,52 @@ private fun View.setAccessibilityRole(propValue: Any) {
     initAccessibilityDelegate()
 }
 
+private fun View.setAccessibilityInfo(propValue: Any) {
+    putViewData(KRCssConst.ACCESSIBILITY_INFO, propValue)
+    initAccessibilityDelegate()
+}
+
+internal fun View.hasInitAccessibilityDelegate(): Boolean {
+    return getViewData<Boolean>(KRCssConst.HAD_INIT_ACCESSIBILITY_DELEGATE) == true
+}
+
 private fun View.initAccessibilityDelegate() {
     if (getViewData<Boolean>(KRCssConst.HAD_INIT_ACCESSIBILITY_DELEGATE) == true) {
         return
     }
-    accessibilityDelegate =  object : AccessibilityDelegate() {
+    accessibilityDelegate = object : AccessibilityDelegate() {
         override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfo) {
             super.onInitializeAccessibilityNodeInfo(host, info)
             val name = getViewData<String>(KRCssConst.ACCESSIBILITY_ROLE)
             if (name != null) {
                 info.className = name
             }
+
+            getViewData<String>(KRCssConst.ACCESSIBILITY_INFO)?.apply {
+                val flags = (this as String).split(" ")
+                info.isClickable = flags[0] == "1"
+                info.isLongClickable = flags[1] == "1"
+            }
+
             if (hasEventListener(KRCSSGestureListener.TYPE_CLICK)) {
+                info.isClickable = true
                 info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_CLICK)
             }
+
             if (hasEventListener(KRCSSGestureListener.TYPE_LONG_PRESS)) {
+                info.isLongClickable = true
                 info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_LONG_CLICK)
             }
         }
+
+        override fun sendAccessibilityEventUnchecked(host: View, event: AccessibilityEvent) {
+            // 避免因为内容变化对Compose得stateDescription造成重复播报
+            if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+                return
+            }
+            super.sendAccessibilityEventUnchecked(host, event)
+        }
+
     }
     putViewData(KRCssConst.HAD_INIT_ACCESSIBILITY_DELEGATE, true)
 }

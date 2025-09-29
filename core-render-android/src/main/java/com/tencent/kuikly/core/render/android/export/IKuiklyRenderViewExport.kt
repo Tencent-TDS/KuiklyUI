@@ -19,11 +19,13 @@ import android.app.Activity
 import android.graphics.Canvas
 import android.view.View
 import android.view.ViewGroup
+import android.view.accessibility.AccessibilityEvent
 import androidx.annotation.UiThread
 import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
 import com.tencent.kuikly.core.render.android.css.decoration.IKRViewDecoration
 import com.tencent.kuikly.core.render.android.css.ktx.activity
 import com.tencent.kuikly.core.render.android.css.ktx.clearViewData
+import com.tencent.kuikly.core.render.android.css.ktx.hasInitAccessibilityDelegate
 import com.tencent.kuikly.core.render.android.css.ktx.drawCommonDecoration
 import com.tencent.kuikly.core.render.android.css.ktx.drawCommonForegroundDecoration
 import com.tencent.kuikly.core.render.android.css.ktx.removeOnSetFrameObservers
@@ -119,6 +121,23 @@ interface IKuiklyRenderViewExport : IKuiklyRenderModuleExport, IKRViewDecoration
         return when (method) {
             "bringToFront" -> {
                 view().bringToFront()
+            }
+            "accessibilityAnnounce" -> {
+                val view = view()
+                if (view.hasInitAccessibilityDelegate()) {
+                    params?.apply {
+                        view().announceForAccessibility(params)
+                    }
+                }
+                ""
+            }
+            "accessibilityFocus" -> {
+                val view = view()
+                if (view.hasInitAccessibilityDelegate()) {
+                    view.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_HOVER_ENTER)
+                    view.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED)
+                }
+                ""
             }
             else -> super.call(method, params, callback)
         }

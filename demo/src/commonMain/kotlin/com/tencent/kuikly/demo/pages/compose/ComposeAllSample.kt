@@ -155,6 +155,8 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("BackHandlerDemo", "监听并拦截返回键", "BackHandlerDemo"),
             DemoItem("LazyColumnStickyHeader", "LazyColumnStickyHeader", "LazyColumnStickyHeader"),
             DemoItem("KeyboardHeightDemo", "KeyboardHeightDemo", "KeyboardHeightDemo"),
+            DemoItem("AccessibilityDemo(Android&iOS)", "无障碍", "AccessibilityDemo"),
+            DemoItem("InteractionSourceDemo", "交互源Demo", "InteractionSourceDemo"),
         )
 
     @Composable

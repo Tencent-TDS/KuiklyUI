@@ -22,6 +22,10 @@
 
 /// 层级置顶方法
 #define CSS_METHOD_BRING_TO_FRONT @"bringToFront"
+/// 无障碍聚焦
+#define CSS_METHOD_ACCESSIBILITY_FOCUS @"accessibilityFocus"
+/// 无障碍朗读语音
+#define CSS_METHOD_ACCESSIBILITY_ANNOUNCE @"accessibilityAnnounce"
 
 
 #pragma mark - KRVisualEffectView
@@ -124,6 +128,14 @@
 - (void)hrv_callWithMethod:(NSString *)method params:(NSString *)params callback:(KuiklyRenderCallback)callback {
     if ([method isEqualToString:CSS_METHOD_BRING_TO_FRONT]) {
         [self.superview bringSubviewToFront:self];
+    } else if ([method isEqualToString:CSS_METHOD_ACCESSIBILITY_FOCUS]) {
+        // 设置无障碍焦点到当前视图
+        UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification, self);
+    } else if ([method isEqualToString:CSS_METHOD_ACCESSIBILITY_ANNOUNCE]) {
+        // 朗读指定的文本内容
+        if (params && params.length > 0) {
+            UIAccessibilityPostNotification(UIAccessibilityAnnouncementNotification, params);
+        }
     }
 }
 

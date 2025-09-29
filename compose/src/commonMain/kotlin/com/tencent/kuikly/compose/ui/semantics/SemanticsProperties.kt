@@ -18,6 +18,7 @@ package com.tencent.kuikly.compose.ui.semantics
 
 import androidx.compose.runtime.Immutable
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
+import com.tencent.kuikly.compose.ui.text.AnnotatedString
 import kotlin.reflect.KProperty
 
 /**
@@ -187,15 +188,15 @@ object SemanticsProperties {
         }
     )
 
-//    /**
-//     * @see SemanticsPropertyReceiver.text
-//     */
-//    val Text = AccessibilityKey<List<AnnotatedString>>(
-//        name = "Text",
-//        mergePolicy = { parentValue, childValue ->
-//            parentValue?.toMutableList()?.also { it.addAll(childValue) } ?: childValue
-//        }
-//    )
+    /**
+     * @see SemanticsPropertyReceiver.text
+     */
+    val Text = AccessibilityKey<List<AnnotatedString>>(
+        name = "Text",
+        mergePolicy = { parentValue, childValue ->
+            parentValue?.toMutableList()?.also { it.addAll(childValue) } ?: childValue
+        }
+    )
 //
 //    /**
 //     * @see SemanticsPropertyReceiver.textSubstitution
@@ -395,6 +396,12 @@ object SemanticsActions {
      * @see SemanticsPropertyReceiver.pageRight
      */
     val PageRight = ActionPropertyKey<() -> Boolean>("PageRight")
+
+    /**
+     * @see SemanticsPropertyReceiver.getScrollViewportLength
+     */
+    val GetScrollViewportLength =
+        ActionPropertyKey<(MutableList<Float>) -> Boolean>("GetScrollViewportLength")
 }
 
 /**
@@ -950,16 +957,16 @@ var SemanticsPropertyReceiver.role by SemanticsProperties.Role
  */
 var SemanticsPropertyReceiver.testTag by SemanticsProperties.TestTag
 
-///**
-// * Text of the semantics node. It must be real text instead of developer-set content description.
-// *
-// * @see SemanticsPropertyReceiver.editableText
-// */
-//var SemanticsPropertyReceiver.text: AnnotatedString
-//    get() = throwSemanticsGetNotSupported()
-//    set(value) {
-//        set(SemanticsProperties.Text, listOf(value))
-//    }
+/**
+ * Text of the semantics node. It must be real text instead of developer-set content description.
+ *
+ * @see SemanticsPropertyReceiver.editableText
+ */
+var SemanticsPropertyReceiver.text: AnnotatedString
+    get() = throwSemanticsGetNotSupported()
+    set(value) {
+        set(SemanticsProperties.Text, listOf(value))
+    }
 
 ///**
 // * Text substitution of the semantics node. This property is only available after calling
@@ -1427,4 +1434,26 @@ fun SemanticsPropertyReceiver.pageRight(
     action: (() -> Boolean)?
 ) {
     this[SemanticsActions.PageRight] = AccessibilityAction(label, action)
+}
+
+/**
+ * Action to get a scrollable's active view port amount for scrolling actions.
+ *
+ * @param label Optional label for this action.
+ * @param action Action to be performed when the [SemanticsActions.GetScrollViewportLength] is
+ * called.
+ */
+fun SemanticsPropertyReceiver.getScrollViewportLength(
+    label: String? = null,
+    action: (() -> Float?)
+) {
+    this[SemanticsActions.GetScrollViewportLength] = AccessibilityAction(label) {
+        val viewport = action.invoke()
+        if (viewport == null) {
+            false
+        } else {
+            it.add(viewport)
+            true
+        }
+    }
 }

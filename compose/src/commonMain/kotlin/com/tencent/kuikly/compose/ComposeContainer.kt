@@ -236,6 +236,10 @@ open class ComposeContainer :
 
     override val onBackPressedDispatcher: OnBackPressedDispatcher by lazy { OnBackPressedDispatcher() }
 
+    override fun isAccessibilityRunning(): Boolean {
+        return pageData.isAccessibilityRunning
+    }
+
     /**
      * 注册扩展module接口，（注：注册时机为override ComponentActivity.createExternalModules中统一注册）
      */

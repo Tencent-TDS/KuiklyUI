@@ -388,6 +388,15 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
         return this
     }
 
+    /**
+     * 补充无障碍节点信息 目前有clickable 和 long clickable
+     * 这些信息用于关键的播报比如"点击两次即可激活"，"点击两次长按即可激活"
+     */
+    fun accessibilityInfo(clickable: Boolean, longClickable: Boolean) {
+        val accessibilityInfo = "${if(clickable) 1 else 0 } ${if(longClickable) 1 else 0}"
+        StyleConst.ACCESSIBILITY_INFO with accessibilityInfo
+    }
+
     // 自动暗黑模式
     /**
      * true（默认值）:
@@ -613,6 +622,7 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
     }
 
     object StyleConst {
+        const val ACCESSIBILITY_INFO = "accessibilityInfo"
         const val BACKGROUND_COLOR = "backgroundColor"
 
         // border

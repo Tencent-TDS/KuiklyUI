@@ -50,6 +50,13 @@ void KRRenderModuleDoCallback(KRRenderModuleCallbackContext context, const char 
 ArkUI_NodeHandle KRRenderModuleGetViewWithTag(KRRenderModuleCallbackContext context, int tag);
 
 /**
+ * 从回调上下文对象获取当前页面的InstanceID
+ * @param context 回调上下文
+ * @return 字符串指针，仅当前scope有效，请勿转移指针，如有需要请拷贝字符串内容。
+ */
+const char* KRRenderModuleGetInstanceID(KRRenderModuleCallbackContext context);
+
+/**
  * The type of a funtion to free an object
  * @param 
  */

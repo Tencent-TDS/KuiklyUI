@@ -96,7 +96,7 @@ kotlin {
             api("androidx.annotation:annotation:1.9.1")
             api("org.jetbrains.kotlinx:atomicfu:0.25.0")
             api("org.jetbrains.compose.collection-internal:collection:1.6.11")
-            implementation("com.tencent.kuiklyx-open:coroutines:1.3.0-1.9.22") {
+            implementation("com.tencent.kuiklyx-open:coroutines:1.5.0-1.9.22") {
                 exclude(group = "com.tencent.kuikly-open", module = "core")
                 exclude(group = "com.tencent.kuikly-open", module = "core-annotations")
             }

@@ -33,16 +33,13 @@ import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
 import com.tencent.kuikly.compose.ui.util.fastRoundToInt
 import com.tencent.kuikly.compose.ui.KuiklyImageCacheManager
+import com.tencent.kuikly.core.base.BackPressHandler
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.event.layoutFrameDidChange
 import com.tencent.kuikly.core.layout.Frame
-import com.tencent.kuikly.core.module.BackPressModule
-import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.module.VsyncModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
-import com.tencent.kuikly.core.pager.IPagerEventObserver
 import com.tencent.kuikly.core.pager.Pager
-import com.tencent.kuikly.core.timer.setTimeout
 import com.tencent.kuikly.core.views.DivView
 import com.tencent.kuiklyx.coroutines.Kuikly
 import kotlinx.coroutines.Dispatchers
@@ -70,17 +67,9 @@ open class ComposeContainer :
         DivView()
     }
 
-    private var innerOnBackPressedDispatcher: OnBackPressedDispatcher? = null
-
     internal val imageCacheManager by lazy(LazyThreadSafetyMode.NONE) {
         KuiklyImageCacheManager(this)
     }
-
-    override val onBackPressedDispatcher: OnBackPressedDispatcher
-        get() {
-            ensureOnBackDispatcher()
-            return innerOnBackPressedDispatcher!!
-        }
 
     override fun viewDidLoad() {
         super.viewDidLoad()
@@ -100,7 +89,6 @@ open class ComposeContainer :
         pageData: JSONObject,
     ) {
         super.onCreatePager(pagerId, pageData)
-        initBackDispatcher()
 
         val frame =
             Frame(
@@ -242,42 +230,11 @@ open class ComposeContainer :
         }
     }
 
-    /**
-     * 启用Back键拦截
-     * 1、若业务未让Kuikly完全接管，该拦截无效果
-     * 2、若业务让Kuikly完全接管，该拦截有效。Compose中可以需要搭配[BackHandler]启用拦截使用
-     * Kuikly中可以通过[ComposeContainer.onBackPressedDispatcher]注册进行拦截
-     */
-    private fun initBackDispatcher() {
-        onBackPressedDispatcher
+    override fun getBackPressHandler(): BackPressHandler {
+        return onBackPressedDispatcher
     }
 
-    private fun ensureOnBackDispatcher() {
-        if (innerOnBackPressedDispatcher == null) {
-            val backPressedDispatcher = OnBackPressedDispatcher()
-            val pager = this
-            pager.addPagerEventObserver(
-                object : IPagerEventObserver {
-                    override fun onPagerEvent(
-                        pagerEvent: String,
-                        eventData: JSONObject,
-                    ) {
-                        if (pagerEvent == "onBackPressed") {
-                            if (backPressedDispatcher.onBackPressedCallbacks.isEmpty()) {
-                                pager.acquireModule<BackPressModule>(BackPressModule.MODULE_NAME).backHandle(isConsumed = false)
-                            } else {
-                                pager.acquireModule<BackPressModule>(BackPressModule.MODULE_NAME).backHandle(isConsumed = true)
-                            }
-                            this@ComposeContainer.setTimeout {
-                                backPressedDispatcher.dispatchOnBackEvent()
-                            }
-                        }
-                    }
-                },
-            )
-            innerOnBackPressedDispatcher = backPressedDispatcher
-        }
-    }
+    override val onBackPressedDispatcher: OnBackPressedDispatcher by lazy { OnBackPressedDispatcher() }
 
     /**
      * 注册扩展module接口，（注：注册时机为override ComponentActivity.createExternalModules中统一注册）

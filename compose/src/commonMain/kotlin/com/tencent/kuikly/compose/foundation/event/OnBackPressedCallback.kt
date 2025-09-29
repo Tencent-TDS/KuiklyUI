@@ -16,15 +16,17 @@
 
 package com.tencent.kuikly.compose.foundation.event
 
+import com.tencent.kuikly.core.base.BackPressCallback
+
 /**
  * 返回键回调抽象类
  * 用于处理系统返回键事件的回调接口
  */
-abstract class OnBackPressedCallback {
+abstract class OnBackPressedCallback : BackPressCallback() {
 
     /**
      * 处理返回键按下事件
      * 子类需要实现此方法来处理具体的返回逻辑
      */
-    abstract fun handleOnBackPressed()
+    abstract override fun handleOnBackPressed()
 }

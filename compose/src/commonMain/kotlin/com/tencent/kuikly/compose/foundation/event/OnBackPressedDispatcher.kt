@@ -16,40 +16,10 @@
 
 package com.tencent.kuikly.compose.foundation.event
 
+import com.tencent.kuikly.core.base.BackPressHandler
+
 /**
  * 返回键事件分发器
  * 负责管理和分发系统返回键事件
  */
-class OnBackPressedDispatcher() {
-
-    /**
-     * 存储所有返回键回调的列表
-     */
-    val onBackPressedCallbacks = mutableListOf<OnBackPressedCallback>()
-
-    /**
-     * 添加返回键回调
-     * @param onBackPressedCallback 需要添加的返回键回调
-     */
-    fun addCallback(onBackPressedCallback: OnBackPressedCallback) {
-        onBackPressedCallbacks.add(onBackPressedCallback)
-    }
-
-    /**
-     * 移除返回键回调
-     * @param onBackPressedCallback 需要移除的返回键回调
-     */
-    fun removeCallback(onBackPressedCallback: OnBackPressedCallback) {
-        onBackPressedCallbacks.remove(onBackPressedCallback)
-    }
-
-    /**
-     * 分发返回键事件，从栈顶往下处理Back回调
-     */
-    fun dispatchOnBackEvent() {
-        if (onBackPressedCallbacks.isNotEmpty()) {
-            val callback = onBackPressedCallbacks.last()
-            callback.handleOnBackPressed()
-        }
-    }
-}
+class OnBackPressedDispatcher : BackPressHandler()

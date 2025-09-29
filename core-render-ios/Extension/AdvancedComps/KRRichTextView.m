@@ -493,6 +493,7 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
     if (!gradientInfo) {
         return;
     }
+
     // 2 计算文本的实际宽度
     NSString *text = [[attributedString string] substringWithRange:range];
     

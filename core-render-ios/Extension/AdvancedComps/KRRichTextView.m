@@ -484,63 +484,58 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
 
 // 文件渐变色绘制实现类
 @implementation TextGradientHandler
-
-
 + (void)applyGradientToAttributedString:(NSMutableAttributedString *)attributedString
                                    range:(NSRange)range
                              cssGradient:(NSString *)cssGradient
                                     font:(UIFont *)font {
-    // 解析渐变信息
+    // 1 解析渐变信息
     CSSGradientInfo *gradientInfo = [self parseGradient:cssGradient];
     if (!gradientInfo) {
         return;
     }
-    // 计算文本的实际宽度
+    // 2 计算文本的实际宽度
     NSString *text = [[attributedString string] substringWithRange:range];
     
-    // 计算文本跨行后的实际尺寸
+    // 3 计算文本跨行后的实际尺寸
     CGSize textSize = [self calculateMultilineTextSize:text font:font attributedString:attributedString range:range];
     
-//    CGSize textSize = [text sizeWithAttributes:@{NSFontAttributeName: font}];
-    // 创建渐变图片，需要设置宽高
-    UIImage *gradientImage = [self createGradientImageWithInfo:gradientInfo
-                                                          size:CGSizeMake(textSize.width,
-                                                                          textSize.height)];
-    // 使用图片作为文字颜色
+    // 4 创建渐变图片，需要设置宽高
+    UIImage *gradientImage = [self createGradientImageWithInfo:gradientInfo size:CGSizeMake(textSize.width, textSize.height)];
+    
+    // 5 使用图片作为文字颜色
     if (gradientImage) {
         [attributedString addAttribute:NSForegroundColorAttributeName value:[UIColor colorWithPatternImage:gradientImage] range:range];
     }
 }
 
 
-// 新增方法：计算文本跨行后的实际尺寸
+// 计算文本跨行后的实际尺寸
 + (CGSize)calculateMultilineTextSize:(NSString *)text
                                  font:(UIFont *)font
                      attributedString:(NSMutableAttributedString *)attributedString
                                 range:(NSRange)range {
     
-    // 方法1：使用 NSTextContainer 和 NSLayoutManager 计算（推荐）
+    // 使用 NSTextContainer 和 NSLayoutManager 计算
     NSTextStorage *textStorage = [[NSTextStorage alloc] initWithAttributedString:attributedString];
     NSLayoutManager *layoutManager = [[NSLayoutManager alloc] init];
-    NSTextContainer *textContainer = [[NSTextContainer alloc] init];
+    CGFloat maxWidth = [UIScreen mainScreen].bounds.size.width;
+    CGSize containerSize = CGSizeMake(maxWidth, CGFLOAT_MAX);
+    NSTextContainer *textContainer = [[NSTextContainer alloc] initWithSize:containerSize];
+    
+    textContainer.lineFragmentPadding = 0;
+    textContainer.lineBreakMode = NSLineBreakByWordWrapping;
+    textContainer.maximumNumberOfLines = 0;
     
     [layoutManager addTextContainer:textContainer];
     [textStorage addLayoutManager:layoutManager];
     
-    // 设置容器的最大宽度（可以根据实际需求调整）
-    CGFloat maxWidth = [UIScreen mainScreen].bounds.size.width; // 或者使用实际的容器宽度
-    textContainer.size = CGSizeMake(maxWidth, CGFLOAT_MAX);
-    textContainer.lineFragmentPadding = 0;
-    
-    // 获取文本在布局中的实际矩形
-    NSRange glyphRange = [layoutManager glyphRangeForCharacterRange:range actualCharacterRange:NULL];
-    CGRect textRect = [layoutManager boundingRectForGlyphRange:glyphRange inTextContainer:textContainer];
-    
-    return textRect.size;
+    // 获取实际的矩形
+    CGRect usedRect = [layoutManager usedRectForTextContainer:textContainer];
+    return usedRect.size;
 }
 
 
-
+// 解析渐变色
 + (CSSGradientInfo *)parseGradient:(NSString *)cssGradient {
     NSString *lineargradientPrefix = @"linear-gradient(";
     if (![cssGradient hasPrefix:lineargradientPrefix]) {
@@ -568,35 +563,24 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
             color = [UIColor blackColor]; // 默认颜色
         }
         [info.colors addObject:color];
-        [info.locations addObject:@([colorAndStop.lastObject floatValue])];
+        [info.locations addObject:@([colorAndStop.lastObject doubleValue])];    // 验证点1
     }
     
     return info;
 }
 
+// 创建渐变色信息类
 + (UIImage *)createGradientImageWithInfo:(CSSGradientInfo *)info size:(CGSize)size {
     UIGraphicsBeginImageContextWithOptions(size, NO, [UIScreen mainScreen].scale);
     CGContextRef context = UIGraphicsGetCurrentContext();
-    
-    if (info.direction == 1) {
-        // 保存当前图形状态
-        CGContextSaveGState(context);
-        // 垂直翻转坐标系（翻转Y轴）
-        CGContextTranslateCTM(context, 0, size.height);
-        CGContextScaleCTM(context, 1.0, -1.0);
-    }
-    
-    
     CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    
     // 转换颜色为 CGColor
     NSMutableArray *cgColors = [NSMutableArray array];
-    for (UIColor *color in info.colors) {
-        [cgColors addObject:(__bridge id)color.CGColor];
-    }
-    
-    // 转换 locations
     CGFloat locations[info.locations.count];
+    
     for (int i = 0; i < info.locations.count; i++) {
+        [cgColors addObject:(__bridge id)(info.colors[i].CGColor)];
         locations[i] = [info.locations[i] floatValue];
     }
     
@@ -610,14 +594,6 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
     CGPoint startPoint = CGPointMake(gradientLayer.startPoint.x * size.width, gradientLayer.startPoint.y * size.height);
     CGPoint endPoint = CGPointMake(gradientLayer.endPoint.x * size.width, gradientLayer.endPoint.y * size.height);
     
-//    if (info.direction == 1) {
-//        // 交换起点和终点
-//        CGPoint temp = startPoint;
-//        startPoint = endPoint;
-//        endPoint = temp;
-//    }
-    
-    // 第二处设置宽高
     CGContextDrawLinearGradient(context, gradient, startPoint, endPoint, 0);
     
     CGGradientRelease(gradient);

@@ -321,7 +321,7 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
             text = GetKRValue("text", spanMap, spanMap)->toString();
         }
         auto fontWeight = kuikly::util::ConvertFontWeight(GetKRValue("fontWeight", spanMap, props_)->toInt() * fontWeightScale);
-        // 解析字体颜色：渐变色和纯色
+        // 解析基于Span的多个渐变色属性
         auto colorStr = GetKRValue("color", spanMap, props_)->toString();
         auto backgroundImage = GetKRValue("backgroundImage", spanMap, props_)->toString();
         OH_Drawing_ShaderEffect *colorShaderEffect = nullptr;
@@ -402,7 +402,7 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
             OH_Drawing_SetTextStyleForegroundPen(txtStyle, textForegroundPen);
         }
 
-        // 计算当前的渐变色
+        // 颜色设置，优先判断是否存在渐变色待加载
         if (hasBackgroundImage) {
             // 获取 colors 和 locations
             const std::vector<uint32_t> &colors = linearGradient->GetColors();
@@ -423,13 +423,12 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
                     stopsArray[i] = locations[i];
                 }
             }
-            // 估算当前Text的宽高
-            double estWidthPx  = text.length()*fontSize / 1.5;
-            double estHeightPx = fontSize;
+            // 估算文本宽高
+            auto calculateSize = CalculateRenderViewSizeWithStyledString(constraint_width, constraint_height);
             // 开始点
-            OH_Drawing_Point *startPt = linearGradient->GetStartPoint(estWidthPx, estHeightPx);
+            OH_Drawing_Point *startPt = linearGradient->GetStartPoint(calculateSize.width * dpi, calculateSize.height * dpi);
             // 结束点
-            OH_Drawing_Point *endPt = linearGradient->GetEndPoint(estWidthPx, estHeightPx);
+            OH_Drawing_Point *endPt = linearGradient->GetEndPoint(calculateSize.width * dpi, calculateSize.height * dpi);
             // 创建线性渐变着色器效果
              colorShaderEffect = OH_Drawing_ShaderEffectCreateLinearGradient(startPt, endPt, colorsArray, stopsArray, colors.size(), OH_Drawing_TileMode::CLAMP);
         }
@@ -475,7 +474,9 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
         if (!isFirst) {
             OH_Drawing_TypographyHandlerPopTextStyle(handler);
         }
-        DidBuildTextStyle(txtStyle, dpi);
+        // 调用KRGradientRichTextShadow 绘制渐变色，KRGradientRichTextShadow支持对整个文本基于BackgroundImage属性绘制渐变色
+        // 此调用与当前RichtextShadow中的渐变操作不冲突
+        DidBuildTextStyle(txtStyle, dpi);   
         OH_Drawing_TypographyHandlerPushTextStyle(handler, txtStyle);
         if (placeholderWidth != 0) {  // 添加占位Span
             auto placeholderHeight = GetKRValue("placeholderHeight", spanMap, spanMap)->toDouble();

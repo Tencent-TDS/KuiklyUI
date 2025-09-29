@@ -49,7 +49,7 @@ extern NSString *const KuiklyIndexAttributeName;
 
 @end
 
-// 辅助类
+// 渐变信息辅助类
 @interface CSSGradientInfo : NSObject
 @property (nonatomic, assign) NSInteger direction;
 @property (nonatomic, strong) NSMutableArray<UIColor *> *colors;

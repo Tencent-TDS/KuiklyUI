@@ -30,6 +30,7 @@ import com.tencent.kuikly.compose.foundation.layout.calculateStartPadding
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayout
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayoutMeasureScope
 import com.tencent.kuikly.compose.foundation.lazy.layout.StickyItemsPlacement
+import com.tencent.kuikly.compose.foundation.lazy.layout.lazyLayoutSemantics
 import com.tencent.kuikly.compose.foundation.lazy.layout.calculateLazyLayoutPinnedIndices
 import com.tencent.kuikly.compose.foundation.lazy.layout.lazyLayoutBeyondBoundsModifier
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
@@ -78,7 +79,7 @@ internal fun LazyList(
 ) {
     val itemProviderLambda = rememberLazyListItemProviderLambda(state, content)
 
-//    val semanticState = rememberLazyListSemanticState(state, isVertical)
+    val semanticState = rememberLazyListSemanticState(state, isVertical)
     val coroutineScope = rememberCoroutineScope()
     state.kuiklyInfo.scope = coroutineScope
 
@@ -108,13 +109,13 @@ internal fun LazyList(
         modifier = modifier
             .then(state.remeasurementModifier)
             .then(state.awaitLayoutModifier)
-//            .lazyLayoutSemantics(
-//                itemProviderLambda = itemProviderLambda,
-//                state = semanticState,
-//                orientation = orientation,
-//                userScrollEnabled = userScrollEnabled,
-//                reverseScrolling = reverseLayout,
-//            )
+            .lazyLayoutSemantics(
+                itemProviderLambda = itemProviderLambda,
+                state = semanticState,
+                orientation = orientation,
+                userScrollEnabled = userScrollEnabled,
+                reverseScrolling = reverseLayout,
+            )
             .lazyLayoutBeyondBoundsModifier(
                 state = rememberLazyListBeyondBoundsState(
                     state = state,

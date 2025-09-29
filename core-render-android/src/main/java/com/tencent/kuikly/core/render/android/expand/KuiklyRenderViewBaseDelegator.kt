@@ -19,7 +19,6 @@ import android.content.Context
 import android.content.Intent
 import android.util.Size
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -529,41 +528,14 @@ open class KuiklyRenderViewBaseDelegator(private val delegate: KuiklyRenderViewB
      *
      */
     fun onBackPressed(): Boolean {
-        val sendTime = System.currentTimeMillis()
         val isBackPressedConsumed = AtomicBoolean(false)
-
-        // 触发 onBackPressed 逻辑
-        runKuiklyRenderViewTask {
-            it.onBackPressed()
+        renderView?.onBackPressed()
+        renderView?.module<KRBackPressModule>(KRBackPressModule.MODULE_NAME)?.apply {
+            isBackPressedConsumed.set(isBackConsumed)
         }
-
-        // 消费直至超时或结果设定
-        waitForBackConsumedResult(sendTime, isBackPressedConsumed)
-
         return isBackPressedConsumed.get()
     }
 
-    /**
-     * 等待Kuikly侧通过路由Module返回Back键的消费状态
-     */
-    private fun waitForBackConsumedResult(sendTime: Long, consumeResult: AtomicBoolean) {
-        val looping = AtomicBoolean(true)
-        while (looping.get()) {
-            Thread.sleep(10)
-            runKuiklyRenderViewTask {
-                it.module<KRBackPressModule>(KRBackPressModule.MODULE_NAME)?.apply {
-                    if (this.backConsumedTime > sendTime) {
-                        consumeResult.set(this.isBackConsumed)
-                        looping.set(false)
-                    }
-                }
-            }
-            // 超时退出
-            if ((System.currentTimeMillis() - sendTime) > 200L) {
-                looping.set(false)
-            }
-        }
-    }
 }
 
 private typealias KuiklyRenderViewPendingTask = (KuiklyRenderView) -> Unit

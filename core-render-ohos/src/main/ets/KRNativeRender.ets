@@ -79,7 +79,14 @@ export struct KRNativeRender {
   imeMode = false;
   private controller?: KRNativeRenderController;
   private nodeContent: Content = new NodeContent();
+  private loaded = false;
 
+  loadNativeLibIfNeeded(): void{
+    if (!this.loaded && this.nativeManager != null){
+      this.nativeManager?.internalDoLoad()
+      this.loaded = true
+    }
+  }
   aboutToAppear(): void {
     this.delegate?.getCustomRenderViewCreatorRegisterMap().forEach((value, key) => {
       KRNativeManager.getInstance().registerViewCreator(key, value);
@@ -116,6 +123,7 @@ export struct KRNativeRender {
     }
     this.onControllerReadyCallback?.(this.controller!);
     render.createNativeRoot(this.nodeContent, this.controller!.instanceId);
+    this.loadNativeLibIfNeeded()
   }
 
   aboutToDisappear(): void {
@@ -126,22 +134,12 @@ export struct KRNativeRender {
     Stack({ alignContent: Alignment.TopStart }) {
       // Use content slot as a bridge
       ContentSlot(this.nodeContent);
-
-      // Use xcomponent as a bridge(To be removed soon)
-      // XComponent({
-      //   id: this.controller!.instanceId,
-      //   type: XComponentType.NODE,
-      //   libraryname: 'kuikly'
-      // })
-      //   .backgroundColor(Color.Transparent)
-      //   .id(this.controller!.instanceId)
-
     }
     .hitTestBehavior(HitTestMode.None)
     .width('100%')
     .height('100%')
     .onAttach(() => {
-      this.nativeManager?.internalDoLoad();
+      this.loadNativeLibIfNeeded()
       this.controller!.onAttach();
     })
     .onAreaChange((_: Area, newValue: Area) => {

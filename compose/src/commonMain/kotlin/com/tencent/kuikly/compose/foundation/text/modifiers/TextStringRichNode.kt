@@ -37,6 +37,7 @@ import com.tencent.kuikly.compose.ui.node.invalidateSemantics
 import com.tencent.kuikly.compose.ui.node.requireDensity
 import com.tencent.kuikly.compose.ui.node.requireLayoutNode
 import com.tencent.kuikly.compose.ui.semantics.SemanticsPropertyReceiver
+import com.tencent.kuikly.compose.ui.semantics.text
 import com.tencent.kuikly.compose.ui.text.AnnotatedString
 import com.tencent.kuikly.compose.ui.text.MultiParagraph
 import com.tencent.kuikly.compose.ui.text.TextLayoutInput
@@ -69,7 +70,9 @@ internal class TextStringRichNode(
     private var maxLines: Int = Int.MAX_VALUE,
     private var minLines: Int = DefaultMinLines,
     private var overrideColor: ColorProducer? = null,
-    private var inlineContent: Map<String, InlineTextContent> = EmptyInlineContent
+    private var inlineContent: Map<String, InlineTextContent> = EmptyInlineContent,
+    private var fontSizeScale: Float = 1.0f,
+    private var fontWeightScale: Float = 1.0f
 ) : Modifier.Node(), LayoutModifierNode, SemanticsModifierNode {
 
     private var cacheResult: TextLayoutResult? = null
@@ -149,20 +152,43 @@ internal class TextStringRichNode(
     }
 
     /**
+     * Element has configuration parameters to update
+     */
+    fun updateConfiguration(
+        fontSizeScale: Float,
+        fontWeightScale: Float
+    ): Boolean {
+        var changed = false
+
+        if (this.fontSizeScale != fontSizeScale) {
+            this.fontSizeScale = fontSizeScale
+            changed = true
+        }
+
+        if (this.fontWeightScale != fontWeightScale) {
+            this.fontWeightScale = fontWeightScale
+            changed = true
+        }
+
+        return changed
+    }
+
+    /**
      * request invalidate based on the results of [updateText] and [updateLayoutRelatedArgs]
      */
     fun doInvalidations(
 //        drawChanged: Boolean,
         textChanged: Boolean,
         layoutChanged: Boolean,
-        callbacksChanged: Boolean
+        callbacksChanged: Boolean,
+        configChanged: Boolean = false
     ) {
         if (!isAttached) {
             // no-up for !isAttached. The node will invalidate when attaching again.
             return
         }
 
-        if (textChanged || layoutChanged || callbacksChanged) {
+        if (textChanged || layoutChanged || callbacksChanged || configChanged) {
             invalidateMeasurement()
             invalidateSemantics()
         }

@@ -16,6 +16,7 @@
 #import "UIView+CSS.h"
 #import <objc/runtime.h>
 #import "KRConvertUtil.h"
+#import "KRView.h"
 #import "KuiklyRenderBridge.h"
 #import "KuiklyRenderViewExportProtocol.h"
 #define LAZY_ANIMATION_KEY @"lazyAnimationKey"
@@ -103,8 +104,6 @@
 @property (nonatomic, strong) UIPanGestureRecognizer *css_panGR;
 @property (nonatomic, strong, readonly) NSMutableSet<NSString *> *css_didSetProps;
 
-@property (nonatomic, strong) KRBoxShadowView *kr_boxShadowView;
-
 @end
 
 @implementation UIView (CSS)
@@ -113,7 +112,7 @@
     if ([self css_lazySetPropWithKey:key value:value]) {
         return YES;
     }
-    if ([self.kr_boxShadowView css_setPropWithKey:key value:value]) {
+    if ([self.kr_commonWrapperView css_setPropWithKey:key value:value]) {
         return YES;
     }
     SEL selector = NSSelectorFromString( [NSString stringWithFormat:@"setCss_%@:", key] );
@@ -431,6 +430,12 @@
                 self.overrideUserInterfaceStyle = UIUserInterfaceStyleLight;
             }
         }
+    }
+}
+
+- (void)setCss_interfaceStyle:(NSString *)style {
+    if (@available(iOS 13.0, *)) {
+        self.overrideUserInterfaceStyle = [KRConvertUtil KRUserInterfaceStyle:style];
     }
 }
 
@@ -805,12 +810,12 @@
     [self.css_didSetProps removeAllObjects];
 }
 
-- (KRBoxShadowView *)kr_boxShadowView {
-    return  objc_getAssociatedObject(self, @selector(kr_boxShadowView));
+- (KRBoxShadowView *)kr_commonWrapperView {
+    return  objc_getAssociatedObject(self, @selector(kr_commonWrapperView));
 }
 
-- (void)setKr_boxShadowView:(KRBoxShadowView *)kr_boxShadowView {
-    objc_setAssociatedObject(self, @selector(kr_boxShadowView), kr_boxShadowView, OBJC_ASSOCIATION_RETAIN);
+- (void)setKr_commonWrapperView:(KRBoxShadowView *)kr_boxShadowView {
+    objc_setAssociatedObject(self, @selector(kr_commonWrapperView), kr_boxShadowView, OBJC_ASSOCIATION_RETAIN);
 }
 
 - (NSNumber *)css_wrapperBoxShadowView {
@@ -820,8 +825,8 @@
 - (void)setCss_wrapperBoxShadowView:(NSNumber *)css_wrapperBoxShadowView {
     if (self.css_wrapperBoxShadowView != css_wrapperBoxShadowView) {
         objc_setAssociatedObject(self, @selector(css_wrapperBoxShadowView), css_wrapperBoxShadowView, OBJC_ASSOCIATION_RETAIN);
-        if ([css_wrapperBoxShadowView boolValue] && !self.kr_boxShadowView) {
-            self.kr_boxShadowView = [[KRBoxShadowView alloc] initWithContentView:self];
+        if ([css_wrapperBoxShadowView boolValue] && !self.kr_commonWrapperView) {
+            self.kr_commonWrapperView = [[KRBoxShadowView alloc] initWithContentView:self];
         }
     }
 }
@@ -829,11 +834,16 @@
 #pragma mark - KuiklyRenderViewLifyCycleProtocol
 
 - (void)hrv_insertSubview:(UIView *)subView atIndex:(NSInteger)index {
-    [self insertSubview:subView.kr_boxShadowView ?: subView atIndex:index];
+    UIView *view = subView.kr_commonWrapperView;
+    if (view) {
+        [self insertSubview:view atIndex:index];
+    } else {
+        [self insertSubview:subView atIndex:index];
+    }
 }
 
 - (void)hrv_removeFromSuperview {
-    [(self.kr_boxShadowView ?: self) removeFromSuperview];
+    [(self.kr_commonWrapperView ?: self) removeFromSuperview];
 }
 
 #pragma mark - view extension
@@ -846,6 +856,49 @@
     self.layer.anchorPoint = anchorPoint;
     self.layer.position = newPosition;
 }
+
+- (NSString *)css_accessibilityInfo {
+    return objc_getAssociatedObject(self, @selector(css_accessibilityInfo));
+}
+
+- (void)setCss_accessibilityInfo:(NSString *)css_accessibilityInfo {
+    if (self.css_accessibilityInfo != css_accessibilityInfo) {
+        objc_setAssociatedObject(self, @selector(css_accessibilityInfo), css_accessibilityInfo, OBJC_ASSOCIATION_RETAIN);
+        if (css_accessibilityInfo && css_accessibilityInfo.length > 0) {
+            // 解析 "1 1" 格式的值
+            NSArray<NSString *> *values = [css_accessibilityInfo componentsSeparatedByString:@" "];
+            if (values.count >= 2) {
+                BOOL isClickable = [values[0] boolValue];
+                BOOL isLongClickable = [values[1] boolValue];
+
+                // 设置无障碍特性
+                UIAccessibilityTraits traits = UIAccessibilityTraitNone;
+                NSMutableArray<NSString *> *hints = [NSMutableArray array];
+
+                if (isClickable) {
+                    traits |= UIAccessibilityTraitButton;
+                    [hints addObject:@"点按两次即可激活"];
+                }
+
+                if (isLongClickable) {
+                    traits |= UIAccessibilityTraitAllowsDirectInteraction;
+                    [hints addObject:@"点按两次并按住即可长按"];
+                }
+
+                // 合并多个 hint
+                if (hints.count > 0) {
+                    self.accessibilityHint = [hints componentsJoinedByString:@"，"];
+                }
+
+                // 如果有点击功能，确保组件是可访问的
+                if (isClickable || isLongClickable) {
+                    self.accessibilityTraits = traits;
+                }
+            }
+        }
+    }
+}
+
 @end
 
 
@@ -1091,7 +1144,7 @@
 
 - (void)removeFromSuperview {
     [_contentView removeFromSuperview];
-    _contentView.kr_boxShadowView = nil;
+    _contentView.kr_commonWrapperView = nil;
     [super removeFromSuperview];
 }
 

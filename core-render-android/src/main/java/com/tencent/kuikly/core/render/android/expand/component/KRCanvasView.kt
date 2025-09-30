@@ -151,7 +151,7 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
         } else {
             val intervals = FloatArray(jsonArray.length())
             for (i in intervals.indices) {
-                intervals[i] = jsonArray.getDouble(i).toFloat().toPxF()
+                intervals[i] = kuiklyRenderContext.toPxF(jsonArray.getDouble(i).toFloat())
             }
             currentDrawStyle.lineDash(DashPathEffect(intervals, 0f))
         }
@@ -305,7 +305,7 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
         val json = params.toJSONObjectSafely()
         val size = json.optDouble("size", 0.0)
         if (size > 0) {
-            currentDrawStyle.textSize = size.toFloat().toPxF()
+            currentDrawStyle.textSize = kuiklyRenderContext.toPxF(size.toFloat())
         }
         currentDrawStyle.fontStyle = json.optString("style")
         currentDrawStyle.fontWeight = json.optString("weight")
@@ -353,7 +353,12 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
             val italic = currentDrawStyle.fontStyle == KRTextProps.FONT_STYLE_ITALIC
             typeface = kuiklyRenderContext?.getTypeFaceLoader()?.getTypeface(currentDrawStyle.fontFamily, italic)
         }
-        val op = TextOp(text, x.toFloat().toPxF(), y.toFloat().toPxF(), drawStyle)
+        val op = TextOp(
+            text,
+            kuiklyRenderContext.toPxF(x.toFloat()),
+            kuiklyRenderContext.toPxF(y.toFloat()),
+            drawStyle
+        )
         drawOperationList.add(op)
         invalidate()
     }
@@ -380,10 +385,10 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
         val dHeight = json.optDouble("dHeight", sHeight.toDouble())
         val op = ImageOp(
             drawable,
-            dx.toFloat().toPxF(),
-            dy.toFloat().toPxF(),
-            dWidth.toFloat().toPxF(),
-            dHeight.toFloat().toPxF(),
+            kuiklyRenderContext.toPxF(dx.toFloat()),
+            kuiklyRenderContext.toPxF(dy.toFloat()),
+            kuiklyRenderContext.toPxF(dWidth.toFloat()),
+            kuiklyRenderContext.toPxF(dHeight.toFloat()),
             sx,
             sy,
             sWidth,

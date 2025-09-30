@@ -17,6 +17,7 @@ package com.tencent.kuikly.core.pager
 
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.base.EdgeInsets
+import com.tencent.kuikly.core.base.toBoolean
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.utils.urlParams
@@ -99,6 +100,7 @@ class PageData() {
         isIphoneX = isIOS && statusBarHeight > 30
         activityWidth = pageData.optDouble(ACTIVITY_WIDTH, if (isMoreThan8()) deviceWidth.toDouble() else 0.0).toFloat()
         activityHeight = pageData.optDouble(ACTIVITY_HEIGHT, if (isMoreThan8()) deviceHeight.toDouble() else 0.0).toFloat()
+        isAccessibilityRunning = pageData.optInt(ACCESSIBILITY_RUNNING, 0).toBoolean()
 
         val safeAreaInsetsString = pageData.optString(SAFE_AREA_INSETS, "")
         if (safeAreaInsetsString.isNotEmpty()) {

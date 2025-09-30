@@ -192,7 +192,12 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 }
 
 - (void)setCss_returnKeyType:(NSString *)css_returnKeyType {
+    _css_returnKeyType = css_returnKeyType;
     self.returnKeyType = [KRConvertUtil hr_toReturnKeyType:css_returnKeyType];
+}
+
+- (void)setCss_enablesReturnKeyAutomatically:(NSNumber *)flag{
+    self.enablesReturnKeyAutomatically = [flag boolValue];
 }
 
 - (void)setCss_keyboardHeightChange:(KuiklyRenderCallback)css_keyboardHeightChange {
@@ -280,7 +285,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 
 - (BOOL)textFieldShouldReturn:(UITextField *)textField {
     if (self.css_inputReturn) {
-        self.css_inputReturn(@{@"text": textField.text.copy ?: @""});
+        self.css_inputReturn(@{@"text": textField.text.copy ?: @"", @"ime_action": self.css_returnKeyType ?: @""});
     }
     return YES;
 }

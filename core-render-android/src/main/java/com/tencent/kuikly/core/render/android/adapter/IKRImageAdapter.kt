@@ -17,6 +17,8 @@ package com.tencent.kuikly.core.render.android.adapter
 
 import android.graphics.drawable.Drawable
 import android.widget.ImageView
+import com.tencent.kuikly.core.render.android.KuiklyRenderViewContext
+import com.tencent.kuikly.core.render.android.css.ktx.getDisplayMetrics
 import org.json.JSONObject
 
 /**
@@ -57,12 +59,18 @@ interface IKRImageAdapter {
     /**
      * 返回图片的宽度px值，如果[fetchDrawable]返回图片经过了density缩放，可以重载此方法返回正确的px值
      */
-    fun getDrawableWidth(drawable: Drawable): Float = drawable.intrinsicWidth.toFloat()
+    fun getDrawableWidth(kuiklyRenderViewContext: KuiklyRenderViewContext, drawable: Drawable): Float {
+        // 为了兼容旧版，这里默认乘以density
+        return drawable.intrinsicWidth.toFloat() * kuiklyRenderViewContext.getDisplayMetrics().density
+    }
 
     /**
      * 返回图片的高度px值，如果[fetchDrawable]返回图片经过了density缩放，可以重载此方法返回正确的px值
      */
-    fun getDrawableHeight(drawable: Drawable): Float = drawable.intrinsicHeight.toFloat()
+    fun getDrawableHeight(kuiklyRenderViewContext: KuiklyRenderViewContext, drawable: Drawable): Float {
+        // 为了兼容旧版，这里默认乘以density
+        return drawable.intrinsicHeight.toFloat() * kuiklyRenderViewContext.getDisplayMetrics().density
+    }
 
 }
 

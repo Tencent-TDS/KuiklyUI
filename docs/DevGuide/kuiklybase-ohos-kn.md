@@ -13,15 +13,15 @@ Kuikly定制化了特定的Kotlin版本，以支持鸿蒙Kotlin/Native编译。
 
 1. 添加maven源
 
-maven("https://mirrors.tencent.com/nexus/repository/maven-public/")
+maven("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
 
 2. 设置依赖插件的版本
 
-修改`kmp-biz`模块的`build.gradle.kts`，将`kotlin("multiplatform")`插件的版本设为`2.0.21-KBA-004`
+修改`kmp-biz`模块的`build.gradle.kts`，将`kotlin("multiplatform")`插件的版本设为`2.0.21-KBA-010`
 
 ```gradle
 plugins {
-    kotlin("multiplatform").version("2.0.21-KBA-004")
+    kotlin("multiplatform").version("2.0.21-KBA-010")
     ...
 }
 ```

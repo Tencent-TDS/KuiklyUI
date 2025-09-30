@@ -29,9 +29,7 @@
 
 class KRRenderView : public IKRRenderView {
  public:
-    explicit KRRenderView(ArkUI_NodeContentHandle handle) : IKRRenderView(), node_content_handle_((handle)) {
-        // blank
-    }
+    explicit KRRenderView(ArkUI_NodeContentHandle handle, std::string instance_id);
     void Init(std::shared_ptr<KRRenderContextParams> context, ArkUI_ContextHandle &ui_context_handle,
               NativeResourceManager *native_resources_manager, float width, float height, int64_t launch_time);
     void OnRenderViewSizeChanged(float width, float height);
@@ -42,6 +40,13 @@ class KRRenderView : public IKRRenderView {
      * @param json_data json数据字符串）
      */
     void SendEvent(std::string event_name, const std::string &json_data) override;
+    
+    /**
+     * 是否同步发送事件
+     * @param event_name 事件名
+     * @return true 为同步，false 为异步
+     */
+    bool syncSendEvent(const std::string &event_name) override;
 
     /**
      * 获取渲染节点视图（要求在主线程调用）
@@ -130,6 +135,8 @@ class KRRenderView : public IKRRenderView {
     };
 
  private:
+    friend void NodeContentCallback(ArkUI_NodeContentEvent* event);
+    void RemoveRootViewFromContentHandle(bool immediate);
     ArkUI_NodeContentHandle node_content_handle_ = nullptr;
     ArkUI_NodeHandle root_node_ = nullptr;
     float root_view_width_ = 0.0;

@@ -23,6 +23,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
+import android.view.accessibility.AccessibilityNodeInfo
 import androidx.core.view.NestedScrollingChild2
 import androidx.core.view.NestedScrollingParent2
 import androidx.core.view.ViewCompat
@@ -242,6 +243,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         }
 
     init {
+        isFocusable = false
         overScrollMode = OVER_SCROLL_NEVER
         isFocusableInTouchMode = false
         isNestedScrollingEnabled = true
@@ -558,6 +560,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 } else {
                     dy
                 }
+                automaticAdjustContentOffset()
                 if (offset == 0) {
                     return
                 }
@@ -1434,8 +1437,12 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
 
         if (shouldScrollParentY) {
             if (canScrollVertically(parentDy)) {
+                // 记录滚动前的偏移量
+                val beforeScrollY = computeVerticalScrollOffset()
                 scrollBy(0, parentDy)
-                consumed[1] = parentDy
+                // 计算实际滚动的距离
+                val actualScrollY = computeVerticalScrollOffset() - beforeScrollY
+                consumed[1] = actualScrollY
                 lastScrollParentY = parentDy
             } else {
                 if (touchType == ViewCompat.TYPE_TOUCH) {
@@ -1463,8 +1470,12 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         }
 
         if (shouldScrollParentX && canScrollHorizontally(parentDx)) {
+            // 记录滚动前的偏移量
+            val beforeScrollX = computeHorizontalScrollOffset()
             scrollBy(parentDx, 0)
-            consumed[0] = parentDx
+            // 计算实际滚动的距离
+            val actualScrollX = computeHorizontalScrollOffset() - beforeScrollX
+            consumed[0] = actualScrollX
             lastScrollParentX = parentDx
         }
     }

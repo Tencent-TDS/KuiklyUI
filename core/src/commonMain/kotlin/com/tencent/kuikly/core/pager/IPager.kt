@@ -149,4 +149,6 @@ interface IPager {
     }
 
     fun setPageTrace(pageTrace: PageCreateTrace) {}
+
+    fun isAccessibilityRunning(): Boolean { return false }
 }

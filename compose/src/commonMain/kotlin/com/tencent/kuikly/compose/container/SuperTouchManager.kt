@@ -43,6 +43,10 @@ class SuperTouchManager {
 
     private var density = 3f
 
+    private var _useSyncMove: Boolean? = null
+    private val DivEvent.useSyncMove
+        get() = _useSyncMove ?: (!getPager().pageData.isOhOs).also { _useSyncMove = it }
+
     internal fun manage(container: DivView, scene: ComposeScene, layoutNode: KNode<*>? = null) {
         this.layoutNode = layoutNode
         this.density = container.getPager().pagerDensity()
@@ -51,7 +55,7 @@ class SuperTouchManager {
         this.container.getViewAttr().superTouch(true)
         this.container.getViewEvent().run {
             setTouchDown(true)
-            setTouchMove(true)
+            setTouchMove(useSyncMove)
             setTouchUp(false)
             setTouchCancel(false)
         }
@@ -69,10 +73,12 @@ class SuperTouchManager {
 
     internal fun DivEvent.setTouchUp(isSync: Boolean) {
         touchUp(isSync) {
-            touchesDelegate.onTouchesEvent(it.touches, PointerEventType.Release, it.timestamp)
+            touchesDelegate.onTouchesEvent(it.touches, PointerEventType.Release, it.timestamp, it.consumed)
             if (container.getViewAttr().getProp(StyleConst.PREVENT_TOUCH) == true) {
                 container.getViewAttr().preventTouch(false)
-                container.getViewEvent().setTouchMove(true)
+                if (useSyncMove) {
+                    container.getViewEvent().setTouchMove(true)
+                }
             }
         }
     }
@@ -83,7 +89,9 @@ class SuperTouchManager {
             if (!it.consumed) {
                 if (result.anyMovementConsumed) {
                     container.getViewAttr().preventTouch(true)
-                    container.getViewEvent().setTouchMove(false)
+                    if (useSyncMove) {
+                        container.getViewEvent().setTouchMove(false)
+                    }
                 }
             }
         }
@@ -94,7 +102,9 @@ class SuperTouchManager {
             touchesDelegate.onTouchesEvent(it.touches, PointerEventType.Release, it.timestamp, true)
             if (container.getViewAttr().getProp(StyleConst.PREVENT_TOUCH) == true) {
                 container.getViewAttr().preventTouch(false)
-                container.getViewEvent().setTouchMove(true)
+                if (useSyncMove) {
+                    container.getViewEvent().setTouchMove(true)
+                }
             }
         }
     }

@@ -18,6 +18,10 @@
 
 :::tip 注意
 此处 core-render-android 和 core 的 Kuikly 版本需要和KMM跨端工程使用的版本保持一致，否则可能会出现兼容性问题
+
+注: 2.5.0版本后需要添加maven源
+
+maven("https://mirrors.tencent.com/repository/maven-tencent/")
 :::
 
 ```gradle{2,3}
@@ -184,6 +188,7 @@ object KRImageAdapter : IKRImageAdapter {
 
 }
 ```
+完成后，可通过示例中的``ImageAdapter基准测试``页面来验证功能正常，可能需要重载``IKRImageAdapter``的``getDrawableWidth``和``getDrawableHeight``方法调节渲染效果。
 
 ### 实现日志适配器
 具体实现代码，请参考源码工程androidApp模块的``KRLogAdapter``类。

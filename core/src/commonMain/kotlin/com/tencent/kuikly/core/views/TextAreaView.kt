@@ -29,6 +29,8 @@ import com.tencent.kuikly.core.layout.isUndefined
 import com.tencent.kuikly.core.module.FontModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+import com.tencent.kuikly.core.views.InputAttr.Companion.ENABLES_RETURN_KEY_AUTOMATICALLY
+import com.tencent.kuikly.core.views.InputEvent.Companion.INPUT_RETURN
 import com.tencent.kuikly.core.views.shadow.TextShadow
 
 open class TextAreaView : DeclarativeBaseView<TextAreaAttr, TextAreaEvent>(), MeasureFunction {
@@ -342,6 +344,10 @@ open class TextAreaAttr : Attr() {
         KEYBOARD_TYPE with "email"
     }
 
+    fun returnKeyTypeNone() {
+        RETURN_KEY_TYPE with "none"
+    }
+
     fun returnKeyTypeSearch() {
         RETURN_KEY_TYPE with "search"
     }
@@ -370,6 +376,10 @@ open class TextAreaAttr : Attr() {
         RETURN_KEY_TYPE with "google"
     }
 
+    fun returnKeyTypePrevious() {
+        RETURN_KEY_TYPE with "previous"
+    }
+
     fun autofocus(focus: Boolean) {
         autofocus = focus
     }
@@ -392,6 +402,15 @@ open class TextAreaAttr : Attr() {
 
     fun lineHeight(lineHeight: Float): TextAreaAttr {
         TextConst.LINE_HEIGHT with lineHeight
+        return this
+    }
+
+    /**
+     * 仅iOS支持
+     * 当设置为true的时候，输入框中如果是空的，则软键盘的Return Key会自动置灰禁用，非空的时候自动启用。
+     */
+    fun enablesReturnKeyAutomatically(flag: Boolean): TextAreaAttr{
+        ENABLES_RETURN_KEY_AUTOMATICALLY with if( flag ) 1 else 0
         return this
     }
 
@@ -592,9 +611,25 @@ open class TextAreaEvent : Event() {
     }
 
     /**
+     * 当用户按下return键时调用的方法
+     * @param handler 处理用户按下return键事件的回调函数
+     */
+    fun inputReturn(handler: InputEventHandlerFn) {
+        register(INPUT_RETURN){
+            it as JSONObject
+            val text = it.optString("text")
+            val imeAction = it.optString("ime_action").ifEmpty {
+                getView()?.getViewAttr()?.getProp(InputAttr.RETURN_KEY_TYPE) as? String ?: ""
+            }
+            handler(InputParams(text, imeAction))
+        }
+    }
+
+    /**
      * 当用户按下键盘IME动作按键是回调，例如 Send / Go / Search 等
      * @param handler 用户按下对应按键时的回调函数
      */
+    @Deprecated("Use inputReturn instead", ReplaceWith("inputReturn { (_, it) -> handler(it) }"))
     fun onIMEAction(handler: IMEActionEventHandlerFn) {
         register(IME_ACTION){
             it as JSONObject

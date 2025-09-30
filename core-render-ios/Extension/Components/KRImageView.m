@@ -153,8 +153,8 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 - (void)setCss_src:(NSString *)css_src {
     if (self.css_src != css_src) {
         _css_src = css_src;
+        [self bindImageToView:nil]; // clear current image 清除缓存
         if (css_src) {
-            [self bindImageToView:nil]; // clear current image
             UIImage *image = [[KRImageRefreshCache sharedInstance] imageWithKey:css_src];
             if (image) {
                 self.image = image;
@@ -504,6 +504,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 
 - (void)setHr_rootView:(KuiklyRenderView *)hr_rootView {
     _imageView.hr_rootView = hr_rootView;
+    _placeholderView.hr_rootView = hr_rootView;
 }
 
 #pragma mark - KuiklyRenderViewExportProtocol
@@ -545,6 +546,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
         if (_css_placeholder.length) {
             _placeholderView = [[KRImageView alloc] initWithFrame:self.bounds];
             _placeholderView.contentMode = _imageView.contentMode;
+            _placeholderView.hr_rootView = _imageView.hr_rootView;
             _placeholderView.css_src = css_placeholder;
             [self insertSubview:_placeholderView atIndex:0];
         } else {

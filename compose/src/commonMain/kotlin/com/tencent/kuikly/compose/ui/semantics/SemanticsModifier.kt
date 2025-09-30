@@ -20,14 +20,17 @@ import androidx.compose.runtime.InternalComposeApi
 //import androidx.compose.runtime.identityHashCode
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.internal.JvmDefaultWithCompatibility
+import com.tencent.kuikly.compose.ui.node.KNode
 import com.tencent.kuikly.compose.ui.node.ModifierNodeElement
 import com.tencent.kuikly.compose.ui.node.SemanticsModifierNode
+import com.tencent.kuikly.compose.ui.node.invalidateSemantics
+import com.tencent.kuikly.compose.ui.node.requireLayoutNode
 import com.tencent.kuikly.compose.ui.platform.InspectorInfo
+import com.tencent.kuikly.core.base.attr.AccessibilityRole
 import kotlinx.atomicfu.AtomicInt
 
-// todo: jonas
-//private var lastIdentifier = AtomicInt(0)
-//internal fun generateSemanticsId() = lastIdentifier.addAndGet(1)
+private var lastIdentifier = 0
+internal fun generateSemanticsId() = lastIdentifier++
 
 /**
  * A [Modifier.Element] that adds semantics key/value for use in testing,

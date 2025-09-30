@@ -173,6 +173,10 @@ class InputAttr : Attr() {
         KEYBOARD_TYPE with "email"
     }
 
+    fun returnKeyTypeNone() {
+        RETURN_KEY_TYPE with "none"
+    }
+
     fun returnKeyTypeSearch() {
         RETURN_KEY_TYPE with "search"
     }
@@ -199,6 +203,10 @@ class InputAttr : Attr() {
 
     fun returnKeyTypeGoogle() {
         RETURN_KEY_TYPE with "google"
+    }
+
+    fun returnKeyTypePrevious() {
+        RETURN_KEY_TYPE with "previous"
     }
 
     fun textAlignCenter(): InputAttr {
@@ -252,16 +260,28 @@ class InputAttr : Attr() {
         return this
     }
 
+    /**
+     * 仅iOS支持
+     * 当设置为true的时候，输入框中如果是空的，则软键盘的Return Key会自动置灰禁用，非空的时候自动启用。
+     */
+    fun enablesReturnKeyAutomatically(flag: Boolean): InputAttr{
+        ENABLES_RETURN_KEY_AUTOMATICALLY with if( flag ) 1 else 0
+        return this
+    }
+
     companion object {
         const val RETURN_KEY_TYPE = "returnKeyType"
         const val KEYBOARD_TYPE = "keyboardType"
         const val IME_NO_FULLSCREEN = "imeNoFullscreen"
+        const val ENABLES_RETURN_KEY_AUTOMATICALLY =  "enablesReturnKeyAutomatically"
     }
 }
 
 data class InputParams(
-    val text: String
-    )
+    val text: String,
+    val imeAction: String? = null
+)
+
 data class KeyboardParams(
     val height: Float,
     val duration: Float
@@ -313,7 +333,10 @@ class InputEvent : Event() {
         register(INPUT_RETURN){
             it as JSONObject
             val text = it.optString("text")
-            handler(InputParams(text))
+            val imeAction = it.optString("ime_action").ifEmpty {
+                getView()?.getViewAttr()?.getProp(InputAttr.RETURN_KEY_TYPE) as? String ?: ""
+            }
+            handler(InputParams(text, imeAction))
         }
     }
 
@@ -334,6 +357,7 @@ class InputEvent : Event() {
      * 当用户按下return键时调用的方法（与 inputReturn 方法相同）
      * @param handler 处理用户按下返回键事件的回调函数
      */
+    @Deprecated("Use inputReturn instead", ReplaceWith("inputReturn(handler)"))
     fun onTextReturn(handler: InputEventHandlerFn) {
         register(INPUT_RETURN){
             it as JSONObject

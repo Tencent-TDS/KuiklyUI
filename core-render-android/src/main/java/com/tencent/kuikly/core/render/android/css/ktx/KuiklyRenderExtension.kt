@@ -112,7 +112,7 @@ fun spToPxF(useHostDisplayMetrics: Boolean?, value: Float): Float {
     )
 }
 
-private fun IKuiklyRenderContext?.getDisplayMetrics(): DisplayMetrics {
+internal fun IKuiklyRenderContext?.getDisplayMetrics(): DisplayMetrics {
     return getDisplayMetrics(this?.useHostDisplayMetrics())
 }
 

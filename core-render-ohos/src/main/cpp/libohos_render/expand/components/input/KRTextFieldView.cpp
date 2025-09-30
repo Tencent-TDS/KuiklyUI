@@ -330,6 +330,8 @@ void KRTextFieldView::OnInputReturn(ArkUI_NodeEvent *event) {
     if (input_return_callback_) {
         KRRenderValueMap map;
         map["text"] = NewKRRenderValue(GetContentText());
+        auto returnKeyType = kuikly::util::GetInputNodeEnterKeyType(GetNode());
+        map["ime_action"] = NewKRRenderValue(kuikly::util::ConvertEnterKeyTypeToString(returnKeyType));
         input_return_callback_(NewKRRenderValue(map));
     }
 }

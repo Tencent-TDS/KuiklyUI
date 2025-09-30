@@ -41,12 +41,14 @@ import com.tencent.kuikly.compose.ui.layout.PinnableContainer
 import com.tencent.kuikly.compose.ui.node.CompositionLocalConsumerModifierNode
 import com.tencent.kuikly.compose.ui.node.DelegatingNode
 import com.tencent.kuikly.compose.ui.node.GlobalPositionAwareModifierNode
+import com.tencent.kuikly.compose.ui.node.KNode
 import com.tencent.kuikly.compose.ui.node.ModifierNodeElement
 import com.tencent.kuikly.compose.ui.node.ObserverModifierNode
 import com.tencent.kuikly.compose.ui.node.SemanticsModifierNode
 import com.tencent.kuikly.compose.ui.node.currentValueOf
 import com.tencent.kuikly.compose.ui.node.invalidateSemantics
 import com.tencent.kuikly.compose.ui.node.observeReads
+import com.tencent.kuikly.compose.ui.node.requireLayoutNode
 import com.tencent.kuikly.compose.ui.platform.InspectableModifier
 import com.tencent.kuikly.compose.ui.platform.InspectorInfo
 import com.tencent.kuikly.compose.ui.platform.LocalInputModeManager
@@ -233,6 +235,13 @@ internal class FocusableNode(
             focusableInteractionNode.setFocus(isFocused)
             focusedBoundsNode.setFocus(isFocused)
             focusablePinnableContainer.setFocus(isFocused)
+
+            (requireLayoutNode() as? KNode<*>)?.run {
+                if (isFocused) {
+                    this.view.accessibilityFocus()
+                }
+            }
+
             this.focusState = focusState
         }
     }

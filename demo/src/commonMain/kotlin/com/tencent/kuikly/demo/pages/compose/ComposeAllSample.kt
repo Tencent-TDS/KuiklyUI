@@ -105,9 +105,11 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("HorizontalPager", "HorizontalPager基本用法示例", "HorizontalPagerDemo1"),
             DemoItem("LazyHorizontalGrid", "LazyHorizontalGrid基本用法示例", "LazyHorizontalGridDemo1"),
             DemoItem("焦点处理", "Focus焦点处理示例", "focusDemo"),
-            DemoItem("封装KuiklyView", "封装Kuikly的VideoView为一个Composeable组件示例", "ComposeVideoDemo"),
             DemoItem("TextField", "TextField 组件示例", "TextFieldDemo"),
             DemoItem("PullToRefresh", "PullToRefresh 组件示例", "PullToRefreshDemo"),
+            // 其他
+            DemoItem("封装KuiklyView", "封装Kuikly的VideoView为一个Composeable组件示例", "ComposeVideoDemo"),
+            DemoItem("iOS LiquidGlass", "iOS LiquidGlass 组件示例", "LiquidGlassComposeDemo"),
 
             // 动画
             DemoItem("AnimatedVisibility", "AnimatedVisibility动画API示例", "AnimatedVisibilityDemo"),
@@ -151,6 +153,10 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("AI对话Demo", "支持Markdown渲染的AI对话示例", "ChatDemo"),
             DemoItem("DensityScaleDemo", "基于Density实现跨端缩放", "DensityScaleDemo"),
             DemoItem("BackHandlerDemo", "监听并拦截返回键", "BackHandlerDemo"),
+            DemoItem("LazyColumnStickyHeader", "LazyColumnStickyHeader", "LazyColumnStickyHeader"),
+            DemoItem("KeyboardHeightDemo", "KeyboardHeightDemo", "KeyboardHeightDemo"),
+            DemoItem("AccessibilityDemo(Android&iOS)", "无障碍", "AccessibilityDemo"),
+            DemoItem("InteractionSourceDemo", "交互源Demo", "InteractionSourceDemo"),
         )
 
     @Composable

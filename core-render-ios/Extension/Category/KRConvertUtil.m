@@ -643,7 +643,7 @@
     }
     
     if (@available(iOS 11, *)) {
-        UIWindow *window = UIApplication.sharedApplication.windows.firstObject;
+        UIWindow *window = UIApplication.sharedApplication.keyWindow;
         return window.safeAreaInsets;
     } else {
         // 在 iOS 11 之前的版本中，您需要根据需要自己计算安全边距

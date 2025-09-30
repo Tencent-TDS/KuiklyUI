@@ -247,5 +247,9 @@
     return _pageName;
 }
 
+- (UIWindow *)targetWindow {
+    return UIApplication.sharedApplication.keyWindow;
+}
+
 
 @end

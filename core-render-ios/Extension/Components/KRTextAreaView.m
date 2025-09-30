@@ -177,6 +177,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
             for (NSString *key in _props.allKeys) {
                 [textShadow hrv_setPropWithKey:key propValue:_props[key]];
             }
+            [textShadow hrv_setPropWithKey:@"contextParam" propValue:self.hr_rootView.contextParam];
             UITextPosition *newPosition = [self positionFromPosition:self.beginningOfDocument offset:self.selectedRange.location];
 
             self.attributedText =  [textShadow buildAttributedString];;

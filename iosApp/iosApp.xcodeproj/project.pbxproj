@@ -10,7 +10,7 @@
 		058557BB273AAA24004C7B11 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 058557BA273AAA24004C7B11 /* Assets.xcassets */; };
 		058557D9273AAEEB004C7B11 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 058557D8273AAEEB004C7B11 /* Preview Assets.xcassets */; };
 		2152FB042600AC8F00CF470E /* iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2152FB032600AC8F00CF470E /* iOSApp.swift */; };
-		21F377D7DA829CA29FB974A9 /* (null) in Frameworks */ = {isa = PBXBuildFile; };
+		21F377D7DA829CA29FB974A9 /* BuildFile in Frameworks */ = {isa = PBXBuildFile; };
 		3A622B9B2AB052B0002410B8 /* TDFTestModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 3A622B982AB052B0002410B8 /* TDFTestModule.m */; };
 		3A622B9C2AB052B0002410B8 /* KRNewTestModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 3A622B992AB052B0002410B8 /* KRNewTestModule.m */; };
 		3AF526722A9309C300A93682 /* RootViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 3AF526712A9309C300A93682 /* RootViewController.m */; };
@@ -36,6 +36,7 @@
 		718A070F2E8184C600C99B5D /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 058557D8273AAEEB004C7B11 /* Preview Assets.xcassets */; };
 		718A07102E8184C600C99B5D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 058557BA273AAA24004C7B11 /* Assets.xcassets */; };
 		7555FF83242A565900829871 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7555FF82242A565900829871 /* ContentView.swift */; };
+		AAEA1C808D295174487047AD /* libPods-iosApp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 389E5FAFF97F19DA513B54A5 /* libPods-iosApp.a */; };
 		AFEB55D22D9C17820014FCBD /* Satisfy-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = AFEB55D12D9C17820014FCBD /* Satisfy-Regular.ttf */; };
 		B3063AF83744E6EDF5066B8A /* libPods-macApp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 13AC302F313FBA5C0D47811B /* libPods-macApp.a */; };
 		C125EBCC2D96FBE200FBFA34 /* KRAPNGViewHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = C125EBCA2D96FBE200FBFA34 /* KRAPNGViewHandler.m */; };
@@ -57,6 +58,7 @@
 		13AC302F313FBA5C0D47811B /* libPods-macApp.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-macApp.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		2152FB032600AC8F00CF470E /* iOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSApp.swift; sourceTree = "<group>"; };
 		34AF70076043A5BF5F7AEE48 /* Pods-macApp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-macApp.release.xcconfig"; path = "Target Support Files/Pods-macApp/Pods-macApp.release.xcconfig"; sourceTree = "<group>"; };
+		389E5FAFF97F19DA513B54A5 /* libPods-iosApp.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-iosApp.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		3A622B972AB052B0002410B8 /* TDFTestModule.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TDFTestModule.h; sourceTree = "<group>"; };
 		3A622B982AB052B0002410B8 /* TDFTestModule.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TDFTestModule.m; sourceTree = "<group>"; };
 		3A622B992AB052B0002410B8 /* KRNewTestModule.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = KRNewTestModule.m; sourceTree = "<group>"; };
@@ -110,7 +112,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				21F377D7DA829CA29FB974A9 /* (null) in Frameworks */,
+				21F377D7DA829CA29FB974A9 /* BuildFile in Frameworks */,
+				AAEA1C808D295174487047AD /* libPods-iosApp.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -129,6 +132,7 @@
 			isa = PBXGroup;
 			children = (
 				13AC302F313FBA5C0D47811B /* libPods-macApp.a */,
+				389E5FAFF97F19DA513B54A5 /* libPods-iosApp.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -401,13 +405,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-macApp/Pods-macApp-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-macApp/Pods-macApp-resources-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -422,13 +422,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -465,13 +461,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-resources-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;

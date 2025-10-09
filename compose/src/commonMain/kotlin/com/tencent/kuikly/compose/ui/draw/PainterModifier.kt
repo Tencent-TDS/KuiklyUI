@@ -17,6 +17,7 @@
 package com.tencent.kuikly.compose.ui.draw
 
 import com.tencent.kuikly.compose.coil3.AsyncImagePainter
+import com.tencent.kuikly.compose.extension.approximatelyEqual
 import com.tencent.kuikly.compose.foundation.ImageViewWrap
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.KuiklyPainter
@@ -378,6 +379,13 @@ private class PainterNode(
         return null
     }
 
+    private fun DeclarativeBaseView<*, *>.updateFrame(newFrame: Frame) {
+        val curFrame = renderView?.currentFrame ?: Frame.zero
+        if (!curFrame.approximatelyEqual(newFrame)) {
+            setFrameToRenderView(newFrame)
+        }
+    }
+
     private fun ContentDrawScope.drawPainter(
         painter: Painter,
         view: DeclarativeBaseView<*, *>,
@@ -429,14 +437,14 @@ private class PainterNode(
             if (scaledSize.width <= 0 || scaledSize.height <= 0) {
                 resizeStretch()
                 // 因为0宽高的图片不会加载，所以指定一个1x1的大小
-                imageView.setFrameToRenderView(Frame(-1f, -1f, 1f, 1f))
+                imageView.updateFrame(Frame(-1f, -1f, 1f, 1f))
             } else if (/*isWrap*/view != imageView) {
                 // 使用wrap时，裁切到view的宽高
                 view.clip()
                 // 使用wrap时，ImageView设置为scaledSize宽高
                 resizeStretch()
                 with(requireDensity()) {
-                    imageView.setFrameToRenderView(
+                    imageView.updateFrame(
                         Frame(
                             dx.toDp().value,
                             dy.toDp().value,
@@ -445,7 +453,7 @@ private class PainterNode(
                         )
                     )
                 }
-            } else if (scaledSize.width - size.width < 1e-6 && scaledSize.height - size.height < 1e-6) {
+            } else if (scaledSize.width.approximatelyEqual(size.width) && scaledSize.height.approximatelyEqual(size.height)) {
                 // 非wrap时，如果图片宽高小于等于显示区域，使用contain模式
                 resizeContain()
             } else {
@@ -478,9 +486,7 @@ private class PainterNode(
 
     private fun Painter.visible(): Boolean {
         return if (this is AsyncImagePainter) {
-            intrinsicSize.isSpecified ||
-            state.value is AsyncImagePainter.State.Success ||
-            state.value is AsyncImagePainter.State.Error
+            intrinsicSize.isSpecified || state.value.painter.let { it != null && it !is AsyncImagePainter }
         } else {
             true
         }

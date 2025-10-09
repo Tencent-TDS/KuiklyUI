@@ -27,9 +27,11 @@
 @synthesize hr_rootView;
 - (instancetype)initWithFrame:(CGRect)frame {
     if ([super initWithFrame:frame]) {
+#if !TARGET_OS_OSX // [macOS]
         self.backgroundColor = [UIColor clearColor];
         self.activityIndicatorViewStyle = UIActivityIndicatorViewStyleWhite;
         [self startAnimating];
+#endif
     }
     return self;
 }
@@ -46,11 +48,13 @@
 
 - (void)setCss_style:(NSString *)css_style {
     _css_style = css_style;
+#if !TARGET_OS_OSX // [macOS]
     if ([css_style isEqualToString:@"white"]) {
         self.activityIndicatorViewStyle = UIActivityIndicatorViewStyleWhite;
     } else {
         self.activityIndicatorViewStyle = UIActivityIndicatorViewStyleGray;
     }
+#endif
 }
 
 @end

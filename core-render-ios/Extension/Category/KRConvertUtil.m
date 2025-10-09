@@ -623,12 +623,14 @@
 
 + (CGFloat)defaultStatusBarHeight {
     CGFloat statusBarHeight = 20;
+#if !TARGET_OS_OSX // [macOS]
     if (UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPhone) {
         CGSize screenSize = UIScreen.mainScreen.bounds.size;
         if (MAX(screenSize.width, screenSize.height) / MIN(screenSize.width, screenSize.height) >= 2.0) {
             statusBarHeight = 44;
         }
     }
+#endif
     return statusBarHeight;
 }
 

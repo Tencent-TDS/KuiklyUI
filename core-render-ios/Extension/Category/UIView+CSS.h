@@ -16,6 +16,7 @@
 #import "RCTUIKit.h" // [macOS]
 #import "UIView+CSSDebug.h"
 #import "KuiklyRenderViewExportProtocol.h"
+#import <Quartz/Quartz.h>
 
 #define KR_SCROLL_INDEX  @"scrollIndex"
 
@@ -69,7 +70,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)css_onClickTapWithSender:(UIGestureRecognizer *)sender;
 - (void)css_onDoubleClickWithSender:(UIGestureRecognizer *)sender;
-- (void)css_onLongPressWithSender:(UILongPressGestureRecognizer *)sender;
+// TODO
+// - (void)css_onLongPressWithSender:(UILongPressGestureRecognizer *)sender;
 @end
 
 // ***  CSSGrientLayer  ** //

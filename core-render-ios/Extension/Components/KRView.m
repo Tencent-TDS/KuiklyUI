@@ -24,6 +24,7 @@
 #define CSS_METHOD_BRING_TO_FRONT @"bringToFront"
 
 
+#if !TARGET_OS_OSX // [macOS]
 #pragma mark - KRVisualEffectView
 
 /// VisualEffect Wrapper View for KRView
@@ -40,7 +41,9 @@
 - (instancetype)initWithEffect:(UIVisualEffect *)effect NS_UNAVAILABLE;
 - (instancetype)initWithCoder:(NSCoder *)coder NS_UNAVAILABLE;
 
+
 @end
+#endif
 
 
 #pragma mark - KRView
@@ -51,8 +54,12 @@
 /**屏幕刷新帧事件(VSYNC信号)**/
 @property (nonatomic, strong) KuiklyRenderCallback KUIKLY_PROP(screenFrame);
 
+#if !TARGET_OS_OSX // [macOS]
 /// For iOS's special effect, like `liquid glass`, etc.
 @property (nonatomic, weak) KRVisualEffectView *effectView;
+#else
+@property (nonatomic, weak) NSGlassEffectView *effectView;
+#endif
 /// Whether to enable liquid glass effect
 @property (nonatomic, assign) BOOL glassEffectEnable;
 /// Tint color of glass effect
@@ -67,6 +74,7 @@
 @end
 
 
+#if !TARGET_OS_OSX // [macOS]
 #pragma mark - KRVisualEffectView IMP
 
 @implementation KRVisualEffectView
@@ -97,7 +105,7 @@
 }
 
 @end
-
+#endif
 
 #pragma mark - KRView IMP
 
@@ -154,6 +162,8 @@
 
 #pragma mark - override - base touch
 
+#if !TARGET_OS_OSX // [macOS]
+
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
     [super touchesBegan:touches withEvent:event];
     // 如果走compose(superTouch)，由手势驱动，不由touch驱动事件
@@ -182,6 +192,39 @@
         _css_touchUp([self p_generateBaseParamsWithEvent:event eventName:@"touchCancel"]);
     }
 }
+
+#else
+
+- (void)touchesBeganWithEvent:(NSEvent *)event {
+    [super touchesBeganWithEvent:event];
+    // 如果走compose(superTouch)，由手势驱动，不由touch驱动事件
+    if (_css_touchDown && ![self.css_superTouch boolValue]) {
+        _css_touchDown([self p_generateBaseParamsWithEvent:event eventName:@"touchDown"]);
+    }
+}
+
+- (void)touchesEndedWithEvent:(UIEvent *)event {
+    [super touchesEndedWithEvent:event];
+    if (_css_touchUp && ![self.css_superTouch boolValue]) {
+        _css_touchUp([self p_generateBaseParamsWithEvent:event eventName:@"touchUp"]);
+    }
+}
+
+- (void)touchesMovedWithEvent:(UIEvent *)event {
+    [super touchesMovedWithEvent:event];
+    if (_css_touchMove && ![self.css_superTouch boolValue]) {
+        _css_touchMove([self p_generateBaseParamsWithEvent:event eventName:@"touchMove"]);
+    }
+}
+
+- (void)touchesCancelledWithEvent:(UIEvent *)event {
+    [super touchesCancelledWithEvent:event];
+    if (_css_touchUp && ![self.css_superTouch boolValue]) {
+        _css_touchUp([self p_generateBaseParamsWithEvent:event eventName:@"touchCancel"]);
+    }
+}
+
+#endif // [macOS]
 
 - (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
     if ([self p_hasZIndexInSubviews]) {
@@ -447,8 +490,14 @@
 }
 
 - (NSDictionary *)p_generateTouchParamWithTouch:(UITouch *)touch {
+#if !TARGET_OS_OSX // [macOS]
     CGPoint locationInSelf = [touch locationInView:self];
     CGPoint locationInRootView = [touch locationInView:self.hr_rootView];
+#else
+    // TODO
+    CGPoint locationInSelf = [touch locationInWindow];
+    CGPoint locationInRootView = [touch locationInWindow];
+#endif
     return @{
         @"x" : @(locationInSelf.x),
         @"y" : @(locationInSelf.y),

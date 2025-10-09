@@ -114,7 +114,7 @@
 
 - (void)setFrame:(CGRect)frame {
     assert([NSThread isMainThread]);
-    [self setPropWithKey:FRAME_KEY propValue:[NSValue valueWithCGRect:frame] propType:KRTurboDisplayPropTypeFrame];
+    [self setPropWithKey:FRAME_KEY propValue:@(frame) propType:KRTurboDisplayPropTypeFrame];
 }
 
 - (void)setShadow:(KRTurboDisplayShadow *)shadow {
@@ -161,7 +161,7 @@
 - (CGRect)renderFrame {
     for (KRTurboDisplayProp *prop in self.props) { //
         if (prop.propType == KRTurboDisplayPropTypeFrame) {
-            return  [((NSValue *)prop.propValue) CGRectValue];
+            return CGRectValue((NSValue *)prop.propValue); // [macOS]
         }
     }
     return CGRectZero;

@@ -117,6 +117,39 @@ NS_ASSUME_NONNULL_END
 
 NS_ASSUME_NONNULL_BEGIN
 
+// [macOS] UIKit enum/type shims for headers referenced by cross-platform code
+// Keep types lightweight to satisfy compile-time; behavior implemented elsewhere or guarded
+typedef NSInteger UIUserInterfaceStyle; // placeholder on macOS
+enum : NSInteger {
+  UIUserInterfaceStyleUnspecified = 0,
+  UIUserInterfaceStyleLight = 1,
+  UIUserInterfaceStyleDark = 2,
+};
+
+typedef NSUInteger UIViewAnimationOptions; // bitmask placeholder on macOS
+typedef NSUInteger UIViewKeyframeAnimationOptions; // [macOS]
+enum : NSUInteger {
+  UIViewAnimationOptionAllowUserInteraction = 1 << 0,
+  UIViewAnimationOptionRepeat = 1 << 1,
+  UIViewKeyframeAnimationOptionCalculationModeCubicPaced = 0,
+};
+typedef NS_ENUM(NSInteger, UIViewAnimationCurve) {
+  UIViewAnimationCurveEaseInOut = 0,
+  UIViewAnimationCurveEaseIn = 1,
+  UIViewAnimationCurveEaseOut = 2,
+  UIViewAnimationCurveLinear = 3,
+};
+
+typedef NS_ENUM(NSInteger, UIKeyboardType) {
+  UIKeyboardTypeDefault = 0
+};
+
+typedef NS_ENUM(NSInteger, UIReturnKeyType) {
+  UIReturnKeyDefault = 0
+};
+
+typedef unsigned long long UIAccessibilityTraits; // match iOS underlying type
+
 //
 // semantically equivalent constants
 //
@@ -221,11 +254,19 @@ enum : NSUInteger
 
 // UIView/NSView.h
 typedef NS_ENUM(NSInteger, UIViewContentMode) {
-  UIViewContentModeScaleAspectFill = NSViewLayerContentsPlacementScaleProportionallyToFill,
-  UIViewContentModeScaleAspectFit  = NSViewLayerContentsPlacementScaleProportionallyToFit,
   UIViewContentModeScaleToFill     = NSViewLayerContentsPlacementScaleAxesIndependently,
+  UIViewContentModeScaleAspectFit  = NSViewLayerContentsPlacementScaleProportionallyToFit,
+  UIViewContentModeScaleAspectFill = NSViewLayerContentsPlacementScaleProportionallyToFill,
+  UIViewContentModeRedraw          = 1000, // [macOS] 占位
   UIViewContentModeCenter          = NSViewLayerContentsPlacementCenter,
+  UIViewContentModeTop             = NSViewLayerContentsPlacementTop,
+  UIViewContentModeBottom          = NSViewLayerContentsPlacementBottom,
+  UIViewContentModeLeft            = NSViewLayerContentsPlacementLeft,
+  UIViewContentModeRight           = NSViewLayerContentsPlacementRight,
   UIViewContentModeTopLeft         = NSViewLayerContentsPlacementTopLeft,
+  UIViewContentModeTopRight        = NSViewLayerContentsPlacementTopRight,
+  UIViewContentModeBottomLeft      = NSViewLayerContentsPlacementBottomLeft,
+  UIViewContentModeBottomRight     = NSViewLayerContentsPlacementBottomRight,
 };
 
 // UIInterface.h/NSUserInterfaceLayout.h
@@ -338,6 +379,9 @@ NS_INLINE NSEdgeInsets UIEdgeInsetsMake(CGFloat top, CGFloat left, CGFloat botto
 // UIGestureRecognizer
 #define UIGestureRecognizer NSGestureRecognizer
 #define UIGestureRecognizerDelegate NSGestureRecognizerDelegate
+#define UIPanGestureRecognizer NSPanGestureRecognizer
+#define UITapGestureRecognizer NSPressGestureRecognizer
+#define UILongPressGestureRecognizer NSPressGestureRecognizer
 
 // UIApplication
 #define UIApplication NSApplication
@@ -415,6 +459,11 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 - (NSDictionary*)locationInfoFromEvent:(NSEvent*)event;
 
 
+- (void)setIsAccessibilityElement:(BOOL)isAccessibilityElement;
+
+@property (nonatomic, assign) CGFloat alpha;
+
+
 // FUTURE: When Xcode 14 is no longer supported (CI is building with Xcode 15), we can remove this override since it's now declared on NSView
 @property BOOL clipsToBounds;
 @property (nonatomic, copy) NSColor *backgroundColor;
@@ -438,6 +487,35 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
  */
 @property (nonatomic, assign) BOOL enableFocusRing;
 
+@end
+
+// [macOS] UIView 动画 API 兼容（最小实现，执行 block 并回调 completion）
+@interface RCTUIView (AnimationCompat)
++ (void)animateWithDuration:(NSTimeInterval)duration
+                      delay:(NSTimeInterval)delay
+                    options:(UIViewAnimationOptions)options
+                 animations:(void (^)(void))animations
+                 completion:(void (^ __nullable)(BOOL finished))completion;
+
++ (void)animateWithDuration:(NSTimeInterval)duration
+                      delay:(NSTimeInterval)delay
+     usingSpringWithDamping:(CGFloat)damping
+      initialSpringVelocity:(CGFloat)velocity
+                    options:(UIViewAnimationOptions)options
+                 animations:(void (^)(void))animations
+                 completion:(void (^ __nullable)(BOOL finished))completion;
+
++ (void)animateKeyframesWithDuration:(NSTimeInterval)duration
+                                delay:(NSTimeInterval)delay
+                              options:(UIViewKeyframeAnimationOptions)options
+                           animations:(void (^)(void))animations
+                           completion:(void (^ __nullable)(BOOL finished))completion;
+
++ (void)addKeyframeWithRelativeStartTime:(double)frameStartTime
+                        relativeDuration:(double)frameDuration
+                               animations:(void (^)(void))animations;
+
++ (void)setAnimationCurve:(UIViewAnimationCurve)curve;
 @end
 
 // UIScrollView

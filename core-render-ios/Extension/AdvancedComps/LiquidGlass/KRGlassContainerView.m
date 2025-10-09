@@ -15,6 +15,8 @@
 
 #import "KRGlassContainerView.h"
 
+#if TARGET_OS_IOS // [macOS]
+
 @implementation KRGlassContainerView
 
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -51,3 +53,5 @@
 }
 
 @end
+
+#endif

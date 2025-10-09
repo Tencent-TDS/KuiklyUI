@@ -15,6 +15,7 @@
 
 #import "KRiOSGlassSlider.h"
 
+#if TARGET_OS_IOS // [macOS]
 
 @interface KRiOSGlassSlider ()
 
@@ -197,3 +198,5 @@
 }
 
 @end
+
+#endif

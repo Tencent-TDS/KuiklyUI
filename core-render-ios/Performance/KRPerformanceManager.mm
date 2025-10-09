@@ -11,6 +11,9 @@
 #import "KuiklyRenderThreadManager.h"
 #import "KRMemoryMonitor.h"
 #import "RCTUIKit.h" // [macOS]
+#import "KRDisplayLink.h" // macOS 显示时钟垫片
+#include <TargetConditionals.h>
+#import <objc/message.h>
 #import <pthread.h>
 
 @interface KRPerformanceManager ()
@@ -26,7 +29,11 @@
 
 @implementation KRPerformanceManager {
     
+    #if TARGET_OS_OSX
+    id _uiDisplayLink; // KRDisplayLink on macOS
+    #else
     CADisplayLink *_uiDisplayLink;
+    #endif
     dispatch_source_t _kotlinTimer;
     
     NSString *_pageName;
@@ -87,11 +94,24 @@ static NSMutableDictionary<NSString *, NSNumber *> *gLaunchDic = nil;
         if (!_mainFPS) {
             _mainFPS = [[KRFPSMonitor alloc] initWithThread:KRFPSThead_Main pageName:_pageName];
         }
+#if TARGET_OS_OSX
+        // macOS: 使用 KRDisplayLink 垫片（NSTimer）
+        KRDisplayLink *link = [KRDisplayLink new];
+        __weak typeof(self) weakSelf = self;
+        [link startWithCallback:^(CFTimeInterval timestamp) {
+            __strong typeof(self) self_ = weakSelf;
+            if (!self_) return;
+            [self_->_mainFPS onTick:timestamp];
+        }];
+        // 保存到 ivar 以在 endMonitor 中统一停用
+        _uiDisplayLink = (id)link;
+#else
         _uiDisplayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(mainFPSKick:)];
         if (@available(iOS 10.0, *)) {
             _uiDisplayLink.preferredFramesPerSecond = 60;
         }
         [_uiDisplayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
+#endif
     }
 
     // kotlin fps
@@ -122,8 +142,17 @@ static NSMutableDictionary<NSString *, NSNumber *> *gLaunchDic = nil;
 - (void)endMonitor {
     _isMoniting = NO;
     if ((_monitorType & KRMonitorType_MainFPS)) {
+        #if TARGET_OS_OSX
+        // macOS: KRDisplayLink 垫片
+        if ([_uiDisplayLink respondsToSelector:@selector(stop)]) {
+            void (*stopMsg)(id, SEL) = (void(*)(id, SEL))objc_msgSend;
+            stopMsg(_uiDisplayLink, @selector(stop));
+        }
+        _uiDisplayLink = nil;
+        #else
         [_uiDisplayLink invalidate];
         _uiDisplayLink = nil;
+        #endif
         [_mainFPS endMonitor];
     }
 
@@ -238,9 +267,11 @@ static NSMutableDictionary<NSString *, NSNumber *> *gLaunchDic = nil;
 
 #pragma mark load time end
 
+#if !TARGET_OS_OSX
 - (void)mainFPSKick:(CADisplayLink *)displayLink
 {
     [_mainFPS onTick:displayLink.timestamp];
 }
+#endif
 
 @end

@@ -115,7 +115,7 @@
         return ;
     }
     CGPoint offset = self.scrollView.contentOffset;
-    CGRect frame = [frameValue CGRectValue];
+    CGRect frame = CGRectValue(frameValue); // [macOS]
     // 仅支持垂直方向置顶
     if (offset.y  > CGRectGetMinY(frame) - [self.css_hoverMarginTop floatValue]) {
         frame.origin.y = offset.y + [self.css_hoverMarginTop floatValue];
@@ -143,7 +143,7 @@
     }];
     
     [hoverViews enumerateObjectsUsingBlock:^(KRHoverView *  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
-        [self.superview bringSubviewToFront:obj];
+        [(RCTUIView *)self.superview bringSubviewToFront:obj]; // [macOS]
     }];
     
 }

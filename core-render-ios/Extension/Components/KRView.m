@@ -16,9 +16,14 @@
 #import "KRView.h"
 #import "KRConvertUtil.h"
 #import "KRComponentDefine.h"
+#if !TARGET_OS_OSX
 #import "KuiklyRenderView.h"
+#endif
 #import "KRDisplayLink.h"
 #import "KRView+Compose.h"
+#if TARGET_OS_OSX // [macOS]
+#import "NSView+KuiklyCompat.h"
+#endif
 
 /// 层级置顶方法
 #define CSS_METHOD_BRING_TO_FRONT @"bringToFront"

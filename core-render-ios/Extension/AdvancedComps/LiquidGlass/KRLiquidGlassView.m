@@ -16,6 +16,8 @@
 #import "KRLiquidGlassView.h"
 #import "KRConvertUtil.h"
 
+#if TARGET_OS_IOS // [macOS]
+
 @implementation KRLiquidGlassView
 
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -82,3 +84,5 @@
 }
 
 @end
+
+#endif

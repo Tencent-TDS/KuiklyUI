@@ -12,6 +12,7 @@
 #define RCTAssert(...) // TODO
 
 #import "RCTUIKit.h" // [macOS]
+#import <QuartzCore/QuartzCore.h> // [macOS] for CATransaction
 #import <objc/runtime.h>
 #import <CoreImage/CIFilter.h>
 #import <CoreImage/CIVector.h>
@@ -263,12 +264,11 @@ static RCTUIView *RCTUIViewCommonInit(RCTUIView *self)
 //}
 
 // TODO
-//- (BOOL)hasMouseHoverEvent
-//{
-//  // This can be overridden by subclasses as needed.
-//  // e.g., RCTTextView, which consolidates its JS children into a single gigantic NSAttributedString
-//  return self.onMouseEnter || self.onMouseLeave;
-//}
+- (BOOL)hasMouseHoverEvent
+{
+  // [macOS] M1：先统一关闭 hover 追踪，避免选择器告警
+  return NO;
+}
 
 - (NSDictionary*)locationInfoFromDraggingLocation:(NSPoint)locationInWindow
 {
@@ -534,6 +534,10 @@ static RCTUIView *RCTUIViewCommonInit(RCTUIView *self)
   self.needsDisplay = YES;
 }
 
+- (void)setIsAccessibilityElement:(BOOL)isAccessibilityElement {
+    self.accessibilityElement = isAccessibilityElement;
+}
+
 @synthesize clipsToBounds = _clipsToBounds;
 
 @synthesize backgroundColor = _backgroundColor;
@@ -554,6 +558,59 @@ static RCTUIView *RCTUIViewCommonInit(RCTUIView *self)
   // This method is required to be defined due to [RCTVirtualTextViewManager view] returning a RCTUIView.
 }
 
+@end
+
+@implementation RCTUIView (AnimationCompat)
++ (void)animateWithDuration:(NSTimeInterval)duration
+                      delay:(NSTimeInterval)delay
+                    options:(UIViewAnimationOptions)options
+                 animations:(void (^)(void))animations
+                 completion:(void (^ __nullable)(BOOL finished))completion
+{
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    [CATransaction begin];
+    [CATransaction setAnimationDuration:duration];
+    if (animations) { animations(); }
+    [CATransaction commit];
+    if (completion) { completion(YES); }
+  });
+}
+
++ (void)animateWithDuration:(NSTimeInterval)duration
+                      delay:(NSTimeInterval)delay
+     usingSpringWithDamping:(CGFloat)damping
+      initialSpringVelocity:(CGFloat)velocity
+                    options:(UIViewAnimationOptions)options
+                 animations:(void (^)(void))animations
+                 completion:(void (^ __nullable)(BOOL finished))completion
+{
+  // 简化：与普通动画同处理
+  [self animateWithDuration:duration delay:delay options:options animations:animations completion:completion];
+}
+
++ (void)animateKeyframesWithDuration:(NSTimeInterval)duration
+                                delay:(NSTimeInterval)delay
+                              options:(UIViewKeyframeAnimationOptions)options
+                           animations:(void (^)(void))animations
+                           completion:(void (^ __nullable)(BOOL finished))completion
+{
+  [self animateWithDuration:duration delay:delay options:(UIViewAnimationOptions)options animations:animations completion:completion];
+}
+
+static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
+
++ (void)addKeyframeWithRelativeStartTime:(double)frameStartTime
+                        relativeDuration:(double)frameDuration
+                               animations:(void (^)(void))animations
+{
+  if (!g_keyframeBlocks) { g_keyframeBlocks = [NSMutableArray array]; }
+  if (animations) { [g_keyframeBlocks addObject:[animations copy]]; }
+}
+
++ (void)setAnimationCurve:(UIViewAnimationCurve)curve
+{
+  // 最小兼容：不做额外处理
+}
 @end
 
 // RCTUIScrollView
@@ -850,7 +907,11 @@ BOOL RCTUIViewSetClipsToBounds(RCTPlatformView *view)
   
   switch (activityIndicatorViewStyle) {
     case UIActivityIndicatorViewStyleLarge:
-      self.controlSize = NSControlSizeLarge;
+      if (@available(macos 11.0, *)) {
+        self.controlSize = NSControlSizeLarge;
+      } else {
+        self.controlSize = NSControlSizeRegular;
+      }
       break;
     case UIActivityIndicatorViewStyleMedium:
       self.controlSize = NSControlSizeRegular;

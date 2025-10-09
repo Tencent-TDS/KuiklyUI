@@ -15,7 +15,13 @@
 
 #import "RCTUIKit.h" // [macOS]
 #import "UIView+CSSDebug.h"
+#if !TARGET_OS_OSX
 #import "KuiklyRenderViewExportProtocol.h"
+#else
+// [macOS] 前向声明以避免强依赖（保持编译，通过后续回收协议实际能力）
+@protocol KuiklyRenderViewLifyCycleProtocol; 
+#endif
+#import "KuiklyRenderModuleExportProtocol.h" // 引入 KuiklyRenderCallback 定义
 #import <Quartz/Quartz.h>
 
 #define KR_SCROLL_INDEX  @"scrollIndex"
@@ -24,7 +30,11 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+#if !TARGET_OS_OSX
 @interface UIView (CSS) <KuiklyRenderViewLifyCycleProtocol>
+#else
+@interface UIView (CSS)
+#endif
 
 @property (nonatomic, strong, nullable) NSNumber *css_visibility;
 @property (nonatomic, strong, nullable) NSNumber *css_opacity;

@@ -17,10 +17,29 @@
 #import <JavaScriptCore/JavaScriptCore.h>
 #import <CoreText/CoreText.h>
 #import <CommonCrypto/CommonDigest.h>
+#if !TARGET_OS_OSX
 #import "NSObject+KR.h"
+#endif
 #import <CommonCrypto/CommonCrypto.h>
+#if !TARGET_OS_OSX
 #import "KRLogModule.h"
 #import "KuiklyRenderBridge.h"
+#else
+// [macOS] 避免引入未适配模块：提供最小 no-op 声明
+@interface KRLogModule : NSObject
++ (void)logError:(NSString *)msg;
+@end
+@implementation KRLogModule
++ (void)logError:(NSString *)msg {}
+@end
+@interface KuiklyRenderBridge : NSObject
++ (id)componentExpandHandler; // 返回 nil，调用方需判空
+@end
+@implementation KuiklyRenderBridge
++ (id)componentExpandHandler { return nil; }
+@end
+#endif
+#import "UIView+CSS.h" // 用于 css_string: 等静态工具方法
 
 #define hr_tan(deg)   tan(((deg)/360.f) * (2 * M_PI))
 
@@ -53,12 +72,14 @@
     
     if (fontFamily.length) {
         UIFont *font = nil;
+        #if !TARGET_OS_OSX
         if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_fontWithFontFamily:fontSize:fontWeight:)]) {
             font = [[KuiklyRenderBridge componentExpandHandler] hr_fontWithFontFamily:fontFamily fontSize:fontSize fontWeight:fontWeight];
         }
         if (font == nil && [[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_fontWithFontFamily:fontSize:)]) {
             font = [[KuiklyRenderBridge componentExpandHandler] hr_fontWithFontFamily:fontFamily fontSize:fontSize];
         }
+        #endif
         if (font == nil) {
             font = [UIFont fontWithName:fontFamily size:fontSize];
         }
@@ -71,6 +92,10 @@
         return [self italicFontWithSize:fontSize bold:fontWeight >=UIFontWeightBold itatic:YES weight:fontWeight];
     }
     
+    #if TARGET_OS_OSX
+    // [macOS] NSFont 无 iOS 权重 API，对齐为系统字体尺寸
+    return [UIFont systemFontOfSize:fontSize];
+    #else
     if (@available(iOS 8.2, *)) {
         return  [UIFont systemFontOfSize:fontSize weight:fontWeight];
     } else {
@@ -79,6 +104,7 @@
         }
         return [UIFont systemFontOfSize:fontSize];
     }
+    #endif
 }
 
 + (UIFont *)italicFontWithSize:(CGFloat)fontSize
@@ -149,6 +175,9 @@
 }
 
 + (UIUserInterfaceStyle)KRUserInterfaceStyle:(NSString *)style API_AVAILABLE(ios(12.0)) {
+    #if TARGET_OS_OSX
+    return UIUserInterfaceStyleUnspecified;
+    #else
     if ([[UIView css_string:style] isEqualToString:@"dark"]) {
         return UIUserInterfaceStyleDark;
     }
@@ -156,8 +185,10 @@
         return UIUserInterfaceStyleLight;
     }
     return UIUserInterfaceStyleUnspecified;
+    #endif
 }
 
+#if !TARGET_OS_OSX
 #if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
 + (UIGlassEffectStyle)KRGlassEffectStyle:(NSString *)style API_AVAILABLE(ios(26.0)) {
     if (!style || [[UIView css_string:style] isEqualToString:@"regular"]) {
@@ -168,6 +199,7 @@
     }
     return UIGlassEffectStyleRegular;
 }
+#endif
 #endif
 
 + (KRBorderStyle)KRBorderStyle:(NSString *)stringValue {
@@ -248,7 +280,7 @@
             @"scale-to-fill": @(UIViewContentModeScaleToFill),
             @"scale-aspect-fit": @(UIViewContentModeScaleAspectFit),
             @"scale-aspect-fill": @(UIViewContentModeScaleAspectFill),
-            @"redraw": @(UIViewContentModeRedraw),
+            // redraw 在 macOS 下不一定有等价，已在 RCTUIKit.h 以函数处理
             @"center": @(UIViewContentModeCenter),
             @"top": @(UIViewContentModeTop),
             @"bottom": @(UIViewContentModeBottom),
@@ -366,6 +398,7 @@
                            topRightCornerRadius:(CGFloat)topRightCornerRadius
                            bottomLeftCornerRadius:(CGFloat)bottomLeftCornerRadius
                        bottomRightCornerRadius:(CGFloat)bottomRightCornerRadius {
+#if !TARGET_OS_OSX
     CGSize size = rect.size;
     UIBezierPath * path = [UIBezierPath bezierPath];
     CGFloat radius = topLeftCornerRadius;
@@ -381,6 +414,16 @@
     [path addArcWithCenter:CGPointMake(radius, size.height - radius) radius:radius startAngle:M_PI_2 endAngle:M_PI clockwise:YES];
     [path closePath];
     return path;
+#else
+    // macOS: 使用 NSBezierPath 近似（各角半径不一致时取最小半径）
+    CGFloat rx = topLeftCornerRadius;
+    if (!(topLeftCornerRadius == topRightCornerRadius && topLeftCornerRadius == bottomLeftCornerRadius && topLeftCornerRadius == bottomRightCornerRadius)) {
+        CGFloat minR = MIN(MIN(topLeftCornerRadius, topRightCornerRadius), MIN(bottomLeftCornerRadius, bottomRightCornerRadius));
+        rx = MAX(0, minR);
+    }
+    NSBezierPath *bp = [NSBezierPath bezierPathWithRoundedRect:rect xRadius:rx yRadius:rx];
+    return (UIBezierPath *)bp;
+#endif
 }
 
 
@@ -416,6 +459,7 @@
 }
 
 + (UIViewAnimationOptions)hr_viewAnimationOptions:(NSString *)value {
+#if !TARGET_OS_OSX
     if ([value intValue] == 1) {
         return UIViewAnimationOptionCurveEaseIn;
     }
@@ -426,6 +470,9 @@
         return UIViewAnimationOptionCurveEaseInOut;
     }
     return UIViewAnimationOptionCurveLinear;
+#else
+    (void)value; return (UIViewAnimationOptions)0;
+#endif
 }
 
 + (UIViewAnimationCurve)hr_viewAnimationCurve:(NSString *)value {
@@ -444,6 +491,10 @@
 
 + (UIKeyboardType)hr_keyBoardType:(id)value {
     NSString *keyboardType = [self hr_toString:value];
+    #if TARGET_OS_OSX
+    (void)keyboardType; // 未使用
+    return UIKeyboardTypeDefault;
+    #else
     if ([keyboardType isEqualToString:@"password"]) {
         return UIKeyboardTypeAlphabet;
     }
@@ -454,6 +505,7 @@
         return UIKeyboardTypeEmailAddress;
     }
     return UIKeyboardTypeDefault;
+    #endif
 }
 
 + (NSString *)hr_toString:(id)value {
@@ -467,6 +519,10 @@
 
 + (UIReturnKeyType)hr_toReturnKeyType:(id)value {
     NSString *returnKeyType = [self hr_toString:value];
+    #if TARGET_OS_OSX
+    (void)returnKeyType;
+    return UIReturnKeyDefault;
+    #else
     if ([returnKeyType isEqualToString:@"default"]) {
         return UIReturnKeyDefault;
     } else if ([returnKeyType isEqualToString:@"search"]) {
@@ -492,11 +548,14 @@
     } else if ([returnKeyType isEqualToString:@"emergencyCall"]) {
         return UIReturnKeyEmergencyCall;
     }
-    return UIReturnKeyDefault;;
-    
+    return UIReturnKeyDefault;
+    #endif
 }
 
 + (UIAccessibilityTraits)kr_accessibilityTraits:(id)value {
+    #if TARGET_OS_OSX
+    (void)value; return 0; // macOS 暂不支持，返回空 traits
+    #else
     NSString *returnKeyType = [self hr_toString:value];
     if ([returnKeyType isEqualToString:@"button"]) {
         return UIAccessibilityTraitButton;
@@ -510,7 +569,7 @@
         return UIAccessibilityTraitButton | UIAccessibilityTraitSelected;
     }
     return UIAccessibilityTraitNone;
-    
+    #endif
 }
 
 + (NSString *)hr_base64Decode:(NSString *)string {
@@ -559,10 +618,12 @@
 }
 
 + (void)hr_alertWithTitle:(NSString *)title message:(NSString *)message {
+    #if TARGET_OS_OSX
+    (void)title; (void)message; return; // macOS M1：不弹窗
+    #else
     if([UIApplication isAppExtension]){
         return;
     }
-    
     dispatch_async(dispatch_get_main_queue(), ^{
         UIAlertController *alertController = [UIAlertController alertControllerWithTitle:title
                                                                                  message:message
@@ -571,7 +632,7 @@
         [alertController addAction:action];
         [[UIApplication sharedApplication].keyWindow.rootViewController presentViewController:alertController animated:YES completion:nil];
     });
-  
+    #endif
 }
 
 + (NSString *)hr_md5StringWithString:(NSString *)string {
@@ -588,6 +649,9 @@
 }
 
 + (CGFloat)statusBarHeight {
+    #if TARGET_OS_OSX
+    return 0;
+    #else
     CGFloat statusBarHeight = 0;
     if(![UIApplication isAppExtension]){
         if (@available(iOS 13.0, *)) {
@@ -600,7 +664,6 @@
             statusBarHeight = UIApplication.sharedApplication.statusBarFrame.size.height;
         }
     }
-    
     if (@available(iOS 16.0, *)) {
         BOOL needAdjust = (statusBarHeight == 44);
         if (needAdjust) {
@@ -617,8 +680,8 @@
             }
         }
     }
-   
     return statusBarHeight ?: [self defaultStatusBarHeight];
+    #endif
 }
 
 + (CGFloat)defaultStatusBarHeight {
@@ -640,17 +703,19 @@
 
 
 + (UIEdgeInsets)currentSafeAreaInsets {
+    #if TARGET_OS_OSX
+    return UIEdgeInsetsZero;
+    #else
     if([UIApplication isAppExtension]){
         return UIEdgeInsetsZero;
     }
-    
     if (@available(iOS 11, *)) {
         UIWindow *window = UIApplication.sharedApplication.windows.firstObject;
         return window.safeAreaInsets;
     } else {
-        // 在 iOS 11 之前的版本中，您需要根据需要自己计算安全边距
         return UIEdgeInsetsZero;
     }
+    #endif
 }
 
 + (CGFloat)toSafeFloat:(CGFloat)value {

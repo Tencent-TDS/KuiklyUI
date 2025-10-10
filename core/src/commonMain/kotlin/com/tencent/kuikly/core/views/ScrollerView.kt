@@ -240,7 +240,6 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
                 it.flexNode.setPadding(StyleSpace.Type.LEFT, flexNode.getPadding(StyleSpace.Type.LEFT))
                 it.flexNode.setPadding(StyleSpace.Type.RIGHT, flexNode.getPadding(StyleSpace.Type.RIGHT))
                 it.flexNode.setPadding(StyleSpace.Type.BOTTOM, flexNode.getPadding(StyleSpace.Type.BOTTOM))
-                // 修改ScrollView的padding
             }
             if (flexNode.flexDirection == FlexDirection.ROW
                 || flexNode.flexDirection == FlexDirection.ROW_REVERSE

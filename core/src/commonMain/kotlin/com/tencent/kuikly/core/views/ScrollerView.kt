@@ -257,9 +257,7 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
                 }, 0)
             }
             insertDomSubView(contentView!!, 0)
-            // 清空ScrollerView所设置的padding效果，仅仅只让ScrollContentView保持有padding效果
-            // 如果同时保留二者，则ScrollContentView 设置的绝对布局会导致 Scroll内部的内容区域全部偏向于一侧，
-            // 而另一侧则是堆叠了此主轴方向上所设置的所有padding效果
+            // 暂时的解决方案：清除ScrollerView的padding，保留ScollerContentView的padding
             flexNode.setPadding(StyleSpace.Type.TOP, 0f)
             flexNode.setPadding(StyleSpace.Type.LEFT, 0f)
             flexNode.setPadding(StyleSpace.Type.RIGHT, 0f)

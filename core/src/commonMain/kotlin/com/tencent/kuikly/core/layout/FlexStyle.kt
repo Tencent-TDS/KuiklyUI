@@ -89,7 +89,6 @@ class StyleSpace {
         return spacing[spacingType.ordinal]
     }
 
-
     enum class Type(value: Int) {
         LEFT(0),
         TOP(1),

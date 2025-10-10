@@ -23,6 +23,13 @@ import com.tencent.kuikly.compose.ui.unit.IntRect
 import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.core.base.Attr
 import com.tencent.kuikly.core.layout.Frame
+import kotlin.math.abs
+
+private const val FRAME_FLOAT_PRECISION = 1e-6f
+
+internal inline fun Float.approximatelyEqual(other: Float): Boolean {
+    return abs(this - other) < FRAME_FLOAT_PRECISION
+}
 
 /**
  * 判断2个Frame是否相等，精度为Float
@@ -30,11 +37,11 @@ import com.tencent.kuikly.core.layout.Frame
  * @param other Frame
  * @return Boolean
  */
-internal fun Frame.intEqual(other: Frame): Boolean {
-    return this.x == other.x &&
-            y == other.y &&
-            width == other.width &&
-            height == other.height
+internal fun Frame.approximatelyEqual(other: Frame): Boolean {
+    return x.approximatelyEqual(other.x) &&
+        y.approximatelyEqual(other.y) &&
+        width.approximatelyEqual(other.width) &&
+        height.approximatelyEqual(other.height)
 }
 
 /**

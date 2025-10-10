@@ -123,6 +123,8 @@ abstract class AsyncImagePainter internal constructor() : Painter() {
 
     abstract fun prefetch()
 
+    abstract fun restart()
+
     /**
      * The current state of the [AsyncImagePainter].
      */

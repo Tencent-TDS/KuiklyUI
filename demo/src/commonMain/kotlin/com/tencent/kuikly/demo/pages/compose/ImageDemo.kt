@@ -16,6 +16,7 @@
 package com.tencent.kuikly.demo.pages.compose
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +37,7 @@ import com.tencent.kuikly.compose.foundation.layout.FlowRow
 import com.tencent.kuikly.compose.foundation.layout.PaddingValues
 import com.tencent.kuikly.compose.foundation.layout.Row
 import com.tencent.kuikly.compose.foundation.layout.Spacer
+import com.tencent.kuikly.compose.foundation.layout.fillMaxSize
 import com.tencent.kuikly.compose.foundation.layout.fillMaxWidth
 import com.tencent.kuikly.compose.foundation.layout.height
 import com.tencent.kuikly.compose.foundation.layout.offset
@@ -87,6 +89,8 @@ internal class ImageDemo : ComposeContainer() {
                 FallbackSamples()
                 Text("Alignment and ContentScale")
                 AlignmentAndContentScaleSamples()
+                Text("Reload")
+                ReloadSamples()
             }
         }
     }
@@ -713,4 +717,39 @@ private fun ImageLayout() {
             }
         )
     }
+}
+
+@Composable
+private fun ReloadSamples() {
+    Box(Modifier.padding(15.dp).fillMaxWidth().height(100.dp)) {
+        val painter = rememberAsyncImagePainter(
+            "https://httpbin.org/status/404",
+            placeholder = painterResource(loading),
+            error = painterResource(error),
+        )
+        Image(
+            painter = painter,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Fit,
+        )
+        val state by painter.state.collectAsState()
+        if (state is AsyncImagePainter.State.Error) {
+            Button(onClick = {
+                painter.restart()
+            }, Modifier.align(Alignment.Center)) {
+                Text("Click to reload")
+            }
+        }
+    }
+}
+
+@OptIn(InternalResourceApi::class)
+private val loading by lazy(LazyThreadSafetyMode.NONE) {
+    DrawableResource(ImageUri.commonAssets("loading.png").toUrl(""))
+}
+
+@OptIn(InternalResourceApi::class)
+private val error by lazy(LazyThreadSafetyMode.NONE) {
+    DrawableResource(ImageUri.commonAssets("error.png").toUrl(""))
 }

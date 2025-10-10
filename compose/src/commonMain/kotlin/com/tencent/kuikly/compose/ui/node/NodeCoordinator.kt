@@ -1161,6 +1161,16 @@ internal abstract class NodeCoordinator(
 //        }
         // Kuikly Modified: redraw should be handled in LayoutNode scope
         layoutNode.invalidateDraw()
+        // then notify redraw of the first ancestor with a layer
+        var coordinator: NodeCoordinator? = this
+        while (coordinator != null) {
+            val layer = coordinator.layer
+            if (layer != null) {
+                layer.invalidate()
+                break
+            }
+            coordinator = coordinator.wrappedBy
+        }
     }
 
     /**

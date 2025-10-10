@@ -179,6 +179,7 @@ bool KRImageView::SetImageSrc(const KRAnyValue &value) {
         return true;
     }
 
+    kuikly::util::ResetArkUIImageSrc(GetNode());
     auto imageAdapter = KRImageAdapterManager::GetInstance()->GetAdapter();
     if (imageAdapter) {
         ArkUI_DrawableDescriptor *imageDescriptor = nullptr;

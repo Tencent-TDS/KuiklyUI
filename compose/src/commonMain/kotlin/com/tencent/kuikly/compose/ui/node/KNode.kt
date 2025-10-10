@@ -16,6 +16,7 @@
 package com.tencent.kuikly.compose.ui.node
 
 import androidx.compose.runtime.CompositionLocalMap
+import com.tencent.kuikly.compose.extension.approximatelyEqual
 import com.tencent.kuikly.compose.foundation.gestures.Orientation
 import com.tencent.kuikly.compose.ui.geometry.CornerRadius
 import com.tencent.kuikly.compose.ui.geometry.Offset
@@ -32,7 +33,6 @@ import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.views.KuiklyInfoKey
 import com.tencent.kuikly.compose.views.VirtualNodeView
-import com.tencent.kuikly.compose.extension.intEqual
 import com.tencent.kuikly.compose.gestures.KuiklyScrollInfo
 import com.tencent.kuikly.compose.layout.resetViewVisible
 import com.tencent.kuikly.compose.node.extPropsVar
@@ -350,7 +350,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
 
     private fun DeclarativeBaseView<*, *>.updateFrame(newFrame: Frame) {
         val curFrame = renderView?.currentFrame ?: Frame.zero
-        if (!curFrame.intEqual(newFrame)) {
+        if (!curFrame.approximatelyEqual(newFrame)) {
             val densityFrame = Frame(
                 x = newFrame.x,
                 y = newFrame.y,

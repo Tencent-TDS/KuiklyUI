@@ -236,16 +236,7 @@ class FlexNode {
     fun getPadding(spacingType: StyleSpace.Type): Float {
         return flexStyle.padding[spacingType]
     }
-    // 置空当前记录padding、margin、Border的spacing
-    fun resetPaddingToZero() {
-        if (flexStyle.padding.resetSpacingToZero()) {
-            children?.forEach {
-                if (it.positionType != FlexPositionType.ABSOLUTE) {
-                    it.markDirty()
-                }
-            }
-        }
-    }
+
 
     fun setBorder(spacingType: StyleSpace.Type, value: Float) {
         if (!getBorder(spacingType).valueEquals(value)) {

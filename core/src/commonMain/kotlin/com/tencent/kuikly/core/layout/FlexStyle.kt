@@ -88,15 +88,7 @@ class StyleSpace {
     operator fun get(spacingType: Type): Float {
         return spacing[spacingType.ordinal]
     }
-    // 置空当前记录padding、margin、Border的spacing
-    fun resetSpacingToZero(): Boolean {
-        if (valueFlags == 0) {
-            return false
-        }
-        spacing.fill(0f)
-        valueFlags = 0
-        return true
-    }
+
 
     enum class Type(value: Int) {
         LEFT(0),

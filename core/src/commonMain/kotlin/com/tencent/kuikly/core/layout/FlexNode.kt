@@ -237,7 +237,6 @@ class FlexNode {
         return flexStyle.padding[spacingType]
     }
 
-
     fun setBorder(spacingType: StyleSpace.Type, value: Float) {
         if (!getBorder(spacingType).valueEquals(value)) {
             setStyleSpace(spacingType, flexStyle.border, value)

@@ -238,8 +238,9 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
                 it.flexNode.flexWrap = flexNode.flexWrap
                 it.flexNode.setPadding(StyleSpace.Type.TOP, flexNode.getPadding(StyleSpace.Type.TOP))
                 it.flexNode.setPadding(StyleSpace.Type.LEFT, flexNode.getPadding(StyleSpace.Type.LEFT))
-                it.flexNode.setPadding(StyleSpace.Type.TOP, flexNode.getPadding(StyleSpace.Type.TOP))
+                it.flexNode.setPadding(StyleSpace.Type.RIGHT, flexNode.getPadding(StyleSpace.Type.RIGHT))
                 it.flexNode.setPadding(StyleSpace.Type.BOTTOM, flexNode.getPadding(StyleSpace.Type.BOTTOM))
+                // 修改ScrollView的padding
             }
             if (flexNode.flexDirection == FlexDirection.ROW
                 || flexNode.flexDirection == FlexDirection.ROW_REVERSE
@@ -257,6 +258,10 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
                 }, 0)
             }
             insertDomSubView(contentView!!, 0)
+            // 清空ScrollerView所设置的padding效果，仅仅只让ScrollContentView保持有padding效果
+            // 如果同时保留二者，则ScrollContentView 设置的绝对布局会导致 Scroll内部的内容区域全部偏向于一侧，
+            // 而另一侧则是堆叠了此主轴方向上所设置的所有padding效果
+            flexNode.resetPaddingToZero()
         }
     }
 

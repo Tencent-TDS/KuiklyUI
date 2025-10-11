@@ -178,7 +178,7 @@ internal class AppFeedBottomView: ComposeView<AppFeedBottomViewAttr, AppFeedBott
 internal class AppFeedBottomViewAttr : ComposeAttr() {
     var retweetNum = 0
     var commentNum = 0
-    var likeStatus = 0
+    var likeStatus by observable(0)
     var likeNum = 0
 }
 

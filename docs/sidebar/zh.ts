@@ -178,6 +178,12 @@ export const zhSidebar = sidebar({
         "quickStart.md",
         "allApi.md"
     ],
+    "/Community": [
+        "component_market.md",
+        "tech_sharing.md",
+        "contribute-guide.md",
+        "contributor_role.md",
+    ],
     "/Blog": [
         "roadmap2025.md",
         {
@@ -185,13 +191,6 @@ export const zhSidebar = sidebar({
             prefix: "/Blog/architecture",
             children: [
                 "kuikly-rendering.md", "architecture_and_advantages.md"
-                ]
-        },
-        {
-            text: "实践分享",
-            prefix: "/Blog/sharing",
-            children: [
-                "tech_practice_sharing_template.md"
                 ]
         }
     ],

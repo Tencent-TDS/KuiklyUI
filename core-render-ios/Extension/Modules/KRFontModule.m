@@ -37,5 +37,17 @@ static id<KuiklyFontProtocol> gFontHandler;
     return nil;
 }
 
+/*
+ * 动态加载第三方字体函数
+ */
++ (BOOL)hr_loadCustomFont:(NSString *)fontFamily
+            contextParams:(KuiklyContextParam *)contextParam {
+    if (gFontHandler && [gFontHandler respondsToSelector:@selector(hr_loadCustomFont:contextParams:)]) {
+        return [gFontHandler hr_loadCustomFont:fontFamily contextParams:contextParam];
+    }
+    return NO;
+}
+
+
 
 @end

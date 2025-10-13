@@ -201,6 +201,7 @@ typedef void (^KRPathRenderAction)(CGContextRef context, CGMutablePathRef path);
     [shadow hrv_setPropWithKey:@"fontWeight" propValue:self.fontWeight];
     [shadow hrv_setPropWithKey:@"fontFamily" propValue:self.fontFamily];
     [shadow hrv_setPropWithKey:@"textAlign" propValue:self.textAlign];
+    [shadow hrv_setPropWithKey:@"contextParam" propValue:self.hr_rootView.contextParam];
     shadow.strokeAndFill = false;
     
     if(isStroke){

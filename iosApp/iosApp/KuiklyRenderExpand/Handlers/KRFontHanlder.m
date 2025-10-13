@@ -15,6 +15,8 @@
 
 #import "KRFontHanlder.h"
 #import "KRFontModule.h"
+#import "KuiklyContextParam.h"
+#import <CoreText/CoreText.h>
 
 
 
@@ -27,6 +29,64 @@
 
 - (CGFloat)scaleFitWithFontSize:(CGFloat)fontSize {
     return (fontSize *2);
+}
+
+- (BOOL)hr_loadCustomFont:(NSString *)fontFamily
+            contextParams:(KuiklyContextParam *)contextParam {
+    // 1 判断字体是否已经注册，已注册直接返回
+    if ([[UIFont familyNames] containsObject:fontFamily]) {
+        return YES;
+    }
+
+    // 2 构建动态化模式下，三方字体资源的路径
+    NSString *fontPath = [NSString stringWithFormat:@"%@/%@", contextParam.resourceFolderUrl, fontFamily];
+    NSURL *fontPathURL = [NSURL fileURLWithPath:fontPath];
+
+
+    // 3 执行HotReload动态化模式下，字体资源已被加载到本地，因此字体加载实际是加载本地URL（走else部分）
+    // 若指定通过网络URL的方式加载字体资源，将由业务方自行设定加载逻辑，且注意加载时的异步 与 在主线程返回加载完成的UIFont 如何实现相互配合
+    if ([fontPathURL.scheme hasPrefix:@"http"]) {
+        // 待实现
+        return NO;
+    } else {
+        // 加载本地URL加载字体资源
+        return [self registerFontAtLocalURL:fontPathURL];
+    }
+}
+
+/*
+ * 字体动态加载函数
+ */
+- (BOOL)registerFontAtLocalURL:(NSURL *)fontURL {
+
+    CGDataProviderRef fontDataProvider = CGDataProviderCreateWithURL((__bridge CFURLRef)fontURL);
+    if (!fontDataProvider) {
+        return NO;
+    }
+
+    // 创建目标字体Provider
+    CGFontRef newFont = CGFontCreateWithDataProvider(fontDataProvider);
+    CGDataProviderRelease(fontDataProvider);
+
+    if (!newFont) {
+        return NO;
+    }
+
+    // 字体加载成功，进行字体注册
+    CFErrorRef error = NULL;
+    BOOL success = CTFontManagerRegisterFontsForURL((__bridge  CFURLRef)fontURL,
+                                                    kCTFontManagerScopeProcess,
+                                                    &error);
+
+    // 获取字体的名称
+    CGFontRelease(newFont);
+    if (!success) {
+        if (error) {
+            CFRelease(error);
+        }
+        return NO;
+    }
+    return YES;
 }
 
 @end

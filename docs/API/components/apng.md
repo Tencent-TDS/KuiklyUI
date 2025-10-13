@@ -4,6 +4,18 @@
 
 [组件使用示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/APNGExamplePage.kt)
 
+:::tip 需要提前实现adapter
+
+可参考：
+
+- **安卓**：[KRAPNGViewAdapter.kt](https://github.com/Tencent-TDS/KuiklyUI/blob/main/androidApp/src/main/java/com/tencent/kuikly/android/demo/adapter/KRAPNGViewAdapter.kt)
+
+- **iOS**：[KRAPNGViewHandler.h](https://github.com/Tencent-TDS/KuiklyUI/blob/main/iosApp/iosApp/KuiklyRenderExpand/Handlers/KRAPNGViewHandler.h)
+
+- **鸿蒙**：无须额外实现。
+
+:::
+
 ## 属性
 
 支持所有[基础属性](basic-attr-event.md#基础属性)，此外还支持：

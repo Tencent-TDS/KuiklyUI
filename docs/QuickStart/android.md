@@ -173,6 +173,8 @@ class KuiklyRenderActivity : AppCompatActivity() {
 5. **异常适配器器**: 当Kuikly业务执行逻辑出错时，决定如何处理异常。**推荐宿主侧实现**
 6. **颜色值转换适配器**: Kuikly框架对颜色值的处理，默认只处理十六进制的颜色值。**宿主按需实现**
 7. **自定义字体适配器**: Kuikly框架不会内置一些自定义字体。业务如果有自定义字体的需求, 需实现此适配器来扩展字体。**宿主按需实现**
+8. **APNG图片加载适配器**: 用于给Kuikly提供APNG图片加载的能力。**宿主按需实现**（使用APNG组件时必须实现，可参考[KRAPNGViewAdapter.kt](https://github.com/Tencent-TDS/KuiklyUI/blob/main/androidApp/src/main/java/com/tencent/kuikly/android/demo/adapter/KRAPNGViewAdapter.kt)）
+9. **PAG加载适配器**: 用于给Kuikly提供PAG加载的能力。**宿主按需实现**（使用PAG组件时必须实现，可参考[PAGViewAdapter.kt](https://github.com/Tencent-TDS/KuiklyUI/blob/main/androidApp/src/main/java/com/tencent/kuikly/android/demo/adapter/PAGViewAdapter.kt)）
 
 ### 实现图片适配器
 具体实现代码，请参考源码工程androidApp模块的``KRImageAdapter``类。

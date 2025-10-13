@@ -11,3 +11,4 @@
 ``Kuikly``在Github Discussion增加了[社区生态](https://github.com/Tencent-TDS/KuiklyUI/discussions/categories/%E7%A4%BE%E5%8C%BA%E7%94%9F%E6%80%81)讨论区。关于组件的需求、组件的维护问题等在这里进行交流、讨论。
 
 ## 组件适配指引
+建设中

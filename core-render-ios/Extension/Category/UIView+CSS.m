@@ -727,6 +727,7 @@
         @"y": @(location.y),
         @"pageX": @(pageLocation.x),
         @"pageY": @(pageLocation.y),
+        @"isCancel": @(sender.state == UIGestureRecognizerStateCancelled)
     };
     if (self.css_longPress) {
         self.css_longPress(param);

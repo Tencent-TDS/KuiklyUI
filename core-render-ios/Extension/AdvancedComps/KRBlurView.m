@@ -29,7 +29,7 @@
 @synthesize hr_rootView;
 - (instancetype)initWithFrame:(CGRect)frame {
     if (self = [super initWithFrame: frame]) {
-        self.effect = [UIBlurEffect effectWithStyle:(UIBlurEffectStyleLight)];
+        self.effect = [UIBlurEffect effectWithStyle:(UIBlurEffectStyleExtraLight)];
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(onReceiveApplicationDidBecomeActiveNotification:)
                                                      name:UIApplicationDidBecomeActiveNotification object:nil];
@@ -62,9 +62,9 @@
             [animator finishAnimationAtPosition:(UIViewAnimatingPositionCurrent)];
         }
         animator = [[UIViewPropertyAnimator alloc] initWithDuration:1 curve:(UIViewAnimationCurveLinear) animations:^{
-            self.effect = [UIBlurEffect effectWithStyle:(UIBlurEffectStyleLight)];
+            self.effect = [UIBlurEffect effectWithStyle:(UIBlurEffectStyleExtraLight)];
         }];
-        animator.fractionComplete = css_blurRadius.floatValue / 10;
+        animator.fractionComplete = css_blurRadius.floatValue / 4.5;
         _animator = animator;
     } else {
         // Fallback on earlier versions

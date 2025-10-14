@@ -282,6 +282,10 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         val scrollerView = view as ScrollerView<*, *>
         val kuiklyInfo = scrollerView.extProps[KuiklyInfoKey] as? KuiklyScrollInfo ?: return
 
+        if (curFrame != newFrame) {
+            kuiklyInfo.offsetDirty = true
+        }
+
         // Get current and new height
         val curHeight = if (kuiklyInfo.isVertical()) curFrame.height else curFrame.width
         val newHeight = if (kuiklyInfo.isVertical()) newFrame.height else newFrame.width
@@ -300,7 +304,6 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
 
         // Calculate maximum scrollable distance - use pixel units, consistent with composeOffset
         val currentContentSize = kuiklyInfo.currentContentSize // already in pixel units
-        kuiklyInfo.offsetDirty = true
         val viewportSize = if (kuiklyInfo.isVertical()) {
             (newHeight * kuiklyInfo.getDensity()).toInt()
         } else {
@@ -308,7 +311,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         }
 
         // Handle edge cases: if contentSize is 0 or viewportSize is 0, no scrolling needed
-        if (currentContentSize <= 0 || viewportSize <= 0) {
+        if (currentContentSize <= 0) {
             kuiklyInfo.composeOffset = 0f
             return
         }

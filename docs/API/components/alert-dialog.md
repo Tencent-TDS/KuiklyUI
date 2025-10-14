@@ -74,7 +74,7 @@ Alert内容（当title不为空时可选）
 | -- | -- | -- |
 | message | Alert内容 | String |
 
-### message
+### actionButtons
 
 Alert点击的按钮，如取消，确定(必须设置)
 

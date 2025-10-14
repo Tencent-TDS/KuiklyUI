@@ -83,6 +83,28 @@ typedef void(^ImageCompletionBlock)(UIImage * _Nullable image, NSError * _Nullab
  */
 - (BOOL)hr_setImageWithUrl:(nullable NSString *)url forImageView:(UIImageView *)imageView;
 
+
+/*
+ * 自定义实现设置图片
+ * @param url 设置的图片url，如果url为nil，则是取消图片设置，需要view.image = nil
+ * @param imageParams 设置的图片url之外的其他参数
+ * @return 是否处理该图片设置，返回值为YES，则交给该代理实现，否则sdk内部自己处理
+ */
+- (BOOL)hr_setImageWithUrl:(NSString *)url forImageView:(UIImageView *)imageView imageParams:(NSDictionary * _Nullable)imageParams;
+
+/*
+ * 自定义实现设置图片（带完成回调，优先调用该方法）
+ * @param url 设置的图片url，如果url为nil，则是取消图片设置，需要view.image = nil
+ * @param imageParams 设置的图片url之外的其他参数
+ * @param complete 图片处理完成后的回调
+ * @return 是否处理该图片设置，返回值为YES，则交给该代理实现，否则sdk内部自己处理
+ */
+- (BOOL)hr_setImageWithUrl:(NSString *)url
+              forImageView:(UIImageView *)imageView
+                  complete:(ImageCompletionBlock)completeBlock
+               imageParams:(NSDictionary * _Nullable)imageParams;
+
+
 @optional
 
 /*

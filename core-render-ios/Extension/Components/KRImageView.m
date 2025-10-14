@@ -65,6 +65,8 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 @property (nonatomic, copy) NSString *KUIKLY_PROP(capInsets);
 /** 图片颜色滤镜 */
 @property (nonatomic, copy) NSString *KUIKLY_PROP(colorFilter);
+/** 图片加载参数 */
+@property (nonatomic, copy) NSDictionary *KUIKLY_PROP(imageParams);
 
 
 /** 图片加载成功回调事件 */
@@ -186,6 +188,19 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
     }
 }
 
+/*
+ * 新增图片加载参数Image_parmas的set方法
+ * @css_imageParmas 图片加载参数
+ */
+- (void)setCss_imageParams:(NSDictionary *)css_imageParmas {
+    if (self.css_imageParams != css_imageParmas) {
+        _css_imageParams = css_imageParmas;
+        NSString *target_css_src = _css_src;
+        _css_src = nil;
+        [self setCss_src:target_css_src];
+    }
+}
+
 - (void)setCss_blurRadius:(NSNumber *)css_blurRadius {
     if (_css_blurRadius != css_blurRadius) {
         _css_blurRadius = css_blurRadius;
@@ -232,25 +247,45 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 
 - (BOOL)setImageWithUrl:(NSString *)url {
     BOOL handled = false;
-    if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:complete:)]) {
-        __weak typeof(self) wself = self;
+
+    // 强弱共舞的方式 定义Block 避免循环引用以及wself为nil的情况
+    __weak typeof(self) wself = self;
+    void (^completionBlock)(UIImage *, NSError *, NSURL *) = ^(UIImage *_Nullable image, NSError *_Nullable error, NSURL *_Nullable imageURL) {
+        __strong typeof(self) sself = wself;
+        if (!sself) {
+            return;
+        }
+        if (error && [imageURL.absoluteString isEqualToString:url]) {
+            if (sself.css_loadFailure) {
+                [sself p_fireLoadFailureEventWithErrorCode:error.code];
+            } else {
+                sself.pendingLoadFailure = true;
+                sself.errorCode = error.code;
+            }
+        }
+    };
+
+
+    if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:complete:imageParams:)]) {
         handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url
                                                                      forImageView:self
-                                                                         complete:^(UIImage * _Nullable image, NSError * _Nullable error, NSURL * _Nullable imageURL) {
-            if (error && [imageURL.absoluteString isEqualToString:url]) {
-                if (wself.css_loadFailure) {
-                    [self p_fireLoadFailureEventWithErrorCode:error.code];
-                } else {
-                    wself.pendingLoadFailure = true;
-                    wself.errorCode = error.code;
-                }
-            }
-        }];
+                                                                         complete:completionBlock
+                                                                      imageParams:self.css_imageParams];
+    } else if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:imageParams:)]) {
+        handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url
+                                                                     forImageView:self
+                                                                      imageParams:self.css_imageParams];
+    } else if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:complete:)]) {
+        handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url
+                                                                     forImageView:self
+                                                                         complete:completionBlock];
     } else if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:)]) {
-        handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url forImageView:self];
+        handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url
+                                                                     forImageView:self];
     } else {
         NSAssert(0, @"should expand hr_setImageWithUrl:forImageView:");
     }
+    
     return handled;
 }
 

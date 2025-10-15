@@ -276,6 +276,7 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
         contentView?.contentOffsetWillChanged(params.offsetX, params.offsetY)
         scrollerViewEventObserverSet.toFastMutableList().forEach {
             it.onScrollEnd(params)
+            it.scrollerScrollDidEnd(params)
         }
         contentView?.contentOffsetDidChanged(params.offsetX, params.offsetY, params)
     }
@@ -593,8 +594,6 @@ open class ScrollerContentView : ViewContainer<ContainerAttr, GroupEvent>(), IPa
     }
 
     open fun contentOffsetDidChanged(offsetX: Float, offsetY: Float, params: ScrollParams) {
-        this.offsetX = offsetX
-        this.offsetY = offsetY
     }
 
     override fun onPagerWillCalculateLayoutFinish() {

@@ -23,7 +23,7 @@ import kotlin.math.min
  * @see getFirstVisiblePosition
  */
 fun ListView<*, *>.scrollToPosition(index: Int, offset: Float = 0f, animate: Boolean = false) {
-    logInfo("scrollToPosition index=$index $offset $animate")
+    logInfo { "scrollToPosition index=$index $offset $animate" }
     val listViewContent = contentView as ListContentView
     val templateChildren = listViewContent.templateChildren()
     var skip = 0
@@ -56,7 +56,7 @@ fun ListView<*, *>.scrollToPosition(index: Int, offset: Float = 0f, animate: Boo
             }
         }
     }
-    logInfo("can't scroll position invalid")
+    logInfo { "can't scroll position invalid" }
 }
 
 /**
@@ -84,7 +84,7 @@ private fun doScroll(
                 )
             )
             if (!needScroll(currentOffset, finalOffset)) {
-                logInfo("doScroll offset not changed, skip")
+                logInfo { "doScroll offset not changed, skip" }
                 return
             }
             list.setContentOffset(finalOffset, 0f, animate)
@@ -98,7 +98,7 @@ private fun doScroll(
                 )
             )
             if (!needScroll(currentOffset, finalOffset)) {
-                logInfo("doScroll offset not changed, skip")
+                logInfo { "doScroll offset not changed, skip" }
                 return
             }
             list.setContentOffset(0f, finalOffset, animate)
@@ -117,7 +117,7 @@ private fun doScroll(
             }
         }
     } else {
-        logInfo("can't scroll, frame is zero")
+        logInfo { "can't scroll, frame is zero" }
     }
 }
 

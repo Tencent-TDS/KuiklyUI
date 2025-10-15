@@ -31,11 +31,13 @@ import com.tencent.kuikly.core.pager.IPagerLayoutEventObserver
 import com.tencent.kuikly.core.reactive.ReactiveObserver
 import com.tencent.kuikly.core.reactive.collection.CollectionOperation
 import com.tencent.kuikly.core.reactive.collection.ObservableList
+import com.tencent.kuikly.core.timer.setTimeout
 import com.tencent.kuikly.core.views.DivView
 import com.tencent.kuikly.core.views.IScrollerViewEventObserver
 import com.tencent.kuikly.core.views.ListContentView
 import com.tencent.kuikly.core.views.ListView
 import com.tencent.kuikly.core.views.ScrollParams
+import com.tencent.kuikly.core.views.ScrollerAttr
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -60,6 +62,7 @@ class LazyLoopDirectivesView<T>(
         private const val DEFAULT_ITEM_SIZE = 100f
         private const val KEY_NEXT_SCROLL_TO_PARAMS = "lazy_loop_next_scroll_to_params"
         private const val KEY_SCROLL_EVENT_FILTER_RULE = "lazy_loop_scroll_event_filter_rule"
+        private const val KEY_VIEW_SIZE_EXTRA = "lazy_loop_view_size_extra"
         private const val FILTER_TIMEOUT = 2000L
         private const val DEBUG_LOG = false
         private const val TAG = "LazyLoop"
@@ -76,23 +79,47 @@ class LazyLoopDirectivesView<T>(
             extProps.remove(KEY_NEXT_SCROLL_TO_PARAMS)
         }
 
+        internal enum class FilterType {
+            SCROLL, SCROLL_END
+        }
+
+        private data class FilterRuleInfo(
+            val from: Float,
+            val to: Float,
+            val disabled: Boolean,
+            val filterType: FilterType,
+            val timestamp: Long
+        )
+
         internal fun ListView<*, *>.setScrollEventFilterRule(
             from: Float,
             to: Float,
-            animate: Boolean
+            animate: Boolean,
+            disableScroll: Boolean = false,
+            filterType: FilterType = FilterType.SCROLL
         ) {
-            logInfo("setScrollEventFilterRule from=$from to=$to animate=$animate")
+            logInfo { "setScrollEventFilterRule from=$from to=$to animate=$animate disable=$disableScroll type=$filterType" }
+            val disabled = if (disableScroll && getViewAttr().getProp(ScrollerAttr.SCROLL_ENABLED) != false) {
+                getViewAttr().scrollEnable(false)
+                true
+            } else {
+                false
+            }
             // TODO: 由于不确定滚动偏移量是否有误差，这里加上10f的经验值，待优化
             extProps[KEY_SCROLL_EVENT_FILTER_RULE] = if (animate) {
-                Triple(
+                FilterRuleInfo(
                     floor(if (from < to) from else to - 10f),
                     ceil(if (from < to) to + 10f else from),
+                    disabled,
+                    filterType,
                     DateTime.currentTimestamp() + FILTER_TIMEOUT
                 )
             } else {
-                Triple(
+                FilterRuleInfo(
                     floor(to - 10f),
                     ceil(to + 10f),
+                    disabled,
+                    filterType,
                     DateTime.currentTimestamp() + FILTER_TIMEOUT
                 )
             }
@@ -102,30 +129,52 @@ class LazyLoopDirectivesView<T>(
          * 过滤scroll事件，解决调用setContentOffset后，异步触发的滚动事件和跳转逻辑冲突
          * @return true表示过滤掉滚动事件，false表示不过滤
          */
-        internal fun ListView<*, *>.verifyScrollEventFilterRule(offset: Float): Boolean {
-            val (from, to, timestamp) = extProps[KEY_SCROLL_EVENT_FILTER_RULE] as? Triple<*, *, *>
-                ?: return false
-            if ((timestamp as Long) < DateTime.currentTimestamp()) {
+        internal fun ListView<*, *>.verifyScrollEventFilterRule(
+            offset: Float,
+            filterType: FilterType
+        ): Boolean {
+            val info = extProps[KEY_SCROLL_EVENT_FILTER_RULE] as? FilterRuleInfo ?: return false
+            if (info.timestamp < DateTime.currentTimestamp()) {
+                logInfo { "scroll filter timeout, remove rule" }
+                if (info.disabled) {
+                    getViewAttr().scrollEnable(true)
+                }
                 extProps.remove(KEY_SCROLL_EVENT_FILTER_RULE)
                 return false
             }
-            if ((from as Float) <= offset && offset <= (to as Float)) {
-                logInfo("scroll in range, remove rule")
+            if ((info.filterType == FilterType.SCROLL || info.filterType == filterType) &&
+                    info.from <= offset && offset <= info.to) {
+                logInfo { "scroll in range, remove rule" }
+                if (info.disabled) {
+                    getViewAttr().scrollEnable(true)
+                }
                 extProps.remove(KEY_SCROLL_EVENT_FILTER_RULE)
                 return false
             }
             return true
         }
 
+        internal fun ListView<*, *>.hasValidScrollEventFilterRule(): Boolean {
+            val info = extProps[KEY_SCROLL_EVENT_FILTER_RULE] as? FilterRuleInfo ?: return false
+            return info.timestamp > DateTime.currentTimestamp()
+        }
+
         internal inline fun needScroll(currentOffset: Float, finalOffset: Float): Boolean {
             return abs(currentOffset - finalOffset) >= 1f
         }
 
-        internal inline fun logInfo(msg: String) {
+        internal inline fun logInfo(msg: () -> String) {
             if (DEBUG_LOG) {
-                KLog.i(TAG, msg)
+                KLog.i(TAG, msg())
             }
         }
+
+        // store for negative size value
+        private var DivView.sizeExtra: Float
+            get() = (extProps[KEY_VIEW_SIZE_EXTRA] as? Float) ?: 0f
+            set(value) {
+                extProps[KEY_VIEW_SIZE_EXTRA] = value
+            }
     }
 
     private class ScrollToParams(
@@ -192,6 +241,8 @@ class LazyLoopDirectivesView<T>(
     private val hairWidth: Float by lazy(LazyThreadSafetyMode.NONE) {
         1f / getPager().pageData.density
     }
+
+    private val isOhos by lazy(LazyThreadSafetyMode.NONE) { getPager().pageData.isOhOs }
 
     override fun didMoveToParentView() {
         super.didMoveToParentView()
@@ -275,14 +326,28 @@ class LazyLoopDirectivesView<T>(
         }
     }
 
+    // 鸿蒙系统连续滚动时，会多次触发scrollEnd事件，因此需要校验列表是否真的停止滚动
+    private fun needConfirmScrollEnd() = isOhos
+
     override fun scrollerScrollDidEnd(params: ScrollParams) {
         val offset = if (isRowDirection()) params.offsetX else params.offsetY
-        if (listView!!.verifyScrollEventFilterRule(offset)) {
-            logInfo("scrollDidEnd filtered offset=$offset")
+        if (listView!!.verifyScrollEventFilterRule(offset, FilterType.SCROLL_END)) {
+            logInfo { "scrollDidEnd filtered offset=$offset" }
             return
         }
-        logInfo("handleScrollEnd offset=$offset")
-        if (needWaitLayout()) {
+        logInfo { "handleScrollEnd offset=$offset" }
+        if (needConfirmScrollEnd()) {
+            setTimeout(16) {
+                listViewContent?.also {
+                    if (it.offsetX == params.offsetX && it.offsetY == params.offsetY) {
+                        logInfo { "scrollEnd confirmed" }
+                        correctScrollOffsetInScrollEnd(offset)
+                    } else {
+                        logInfo { "scrollEnd skipped due to offset changed" }
+                    }
+                }
+            }
+        } else if (needWaitLayout()) {
             registerAfterLayoutTaskFor(scrollEnd = true)
         } else {
             correctScrollOffsetInScrollEnd(offset)
@@ -480,8 +545,8 @@ class LazyLoopDirectivesView<T>(
 
     override fun onContentOffsetDidChanged(contentOffsetX: Float, contentOffsetY: Float, params: ScrollParams) {
         val contentOffset = if (isRowDirection()) contentOffsetX else contentOffsetY
-        if (listView!!.verifyScrollEventFilterRule(contentOffset)) {
-            logInfo("scroll filtered offset=$contentOffset")
+        if (listView!!.verifyScrollEventFilterRule(contentOffset, FilterType.SCROLL)) {
+            logInfo { "scroll filtered offset=$contentOffset" }
             return
         }
         // KLog.e("pel", "contentOffsetY=$contentOffsetY paramsHeight=${params.contentHeight} frameHeight=${listViewContent?.frame?.height}")
@@ -496,7 +561,7 @@ class LazyLoopDirectivesView<T>(
         createItemByOffset(contentOffset)
 
         if (currentStart == 0 && itemStart.frame.size > 0f && itemStart.frame.end >= contentOffset) {
-            logInfo("onContentOffsetDidChanged reach top ${itemStart.frame.end} contentOffset=$contentOffset")
+            logInfo { "onContentOffsetDidChanged reach top ${itemStart.frame.end} contentOffset=$contentOffset" }
             listView?.cleanNextScrollToParams()
             scrollOffsetCorrectInfo = null
             listView?.abortContentOffsetAnimate()
@@ -548,7 +613,7 @@ class LazyLoopDirectivesView<T>(
         if (scrolling && shouldSkipUpdate(newStart, newEnd)) {
             return
         }
-        logInfo("createItemByPosition position=$position [$currentStart-$currentEnd]->[$newStart-$newEnd] offset=$offset scrolling=$scrolling")
+        logInfo { "createItemByPosition position=$position [$currentStart-$currentEnd]->[$newStart-$newEnd] offset=$offset scrolling=$scrolling" }
 
         if (newStart >= currentEnd || newEnd <= currentStart) {
             // remove all
@@ -577,10 +642,9 @@ class LazyLoopDirectivesView<T>(
             // space before
             if (newStart < currentStart) {
                 // update anchor
-                scrollOffsetCorrectInfo = ScrollOffsetCorrectInfo(
+                scrollOffsetCorrectInfo = scrollOffsetCorrectInfoOf(
                     currentStart,
-                    children[BEFORE_COUNT].flexNode.start - itemStart.frame.start,
-                    INVALID_DIMENSION
+                    children[BEFORE_COUNT].flexNode.start
                 )
                 // add item
                 startSize = if (newStart == 0) 0f else INVALID_DIMENSION
@@ -687,15 +751,17 @@ class LazyLoopDirectivesView<T>(
     private fun correctScrollOffsetInScrollEnd(offset: Float) {
         val isRow = isRowDirection()
         val correctSize = if (startSize >= 0f) startSize else avgItemSize * currentStart
-        val currentSize = itemStart.frame.size
+        val currentSize = itemStart.sizeExtra.takeIf { it < 0f } ?: itemStart.frame.size
         val diff = correctSize - currentSize
+        logInfo { "correctScrollOffset $currentSize->$correctSize size" }
         if (diff != 0f) {
-            logInfo("correctScrollOffset $currentSize->$correctSize size")
+            itemStart.sizeExtra = 0f
             setItemStartSize(correctSize)
-            if (offset > itemStart.frame.start) {
+            if (offset >= itemStart.frame.start) {
                 val toOffset = max(0f, offset + diff)
-                logInfo("correctScrollOffset offset=$offset diff=$diff scroll")
+                logInfo { "correctScrollOffset offset=$offset diff=$diff scroll" }
                 listView?.apply {
+                    setScrollEventFilterRule(toOffset, toOffset, false)
                     if (isRow) {
                         // 提前更新ListContentView.offsetX, 避免ListView重复修改item的RenderView闪烁
                         this@LazyLoopDirectivesView.listViewContent?.offsetX = toOffset
@@ -706,7 +772,46 @@ class LazyLoopDirectivesView<T>(
                         setContentOffset(0f, toOffset)
                     }
                 }
+            } else {
+                logInfo { "offset before itemStart" }
             }
+        }
+    }
+
+    private fun calcRange(start: Int, end: Int): Float {
+        var range = 0f
+        for (i in 0 until end - start) {
+            val child = children[BEFORE_COUNT + i]
+            val node = child.flexNode
+            if (!node.layoutFrame.isDefaultValue() && !child.absoluteFlexNode) {
+                range += node.range
+            }
+        }
+        return range
+    }
+
+    private fun handleStartSpaceNotEnoughInLayout(spaceExtra: Float, offset: Float) {
+        require(spaceExtra < 0f)
+        val listView = listView ?: return
+        if (!listView.hasValidScrollEventFilterRule() && needScroll(currentListOffset(), offset)) {
+            listView.setScrollEventFilterRule(
+                offset,
+                offset,
+                animate = false,
+                disableScroll = true,
+                filterType = FilterType.SCROLL_END
+            )
+            // 来一个缓动，避免突然停下的突兀
+            if (isRowDirection()) {
+                listView.setContentOffset(offset, 0f, true)
+            } else {
+                listView.setContentOffset(0f, offset, true)
+            }
+        } else {
+            itemStart.sizeExtra = spaceExtra
+            // this method called by `onPagerCalculateLayoutFinish`,
+            // so we don't need to check `needWaitLayout`
+            registerAfterLayoutTaskFor(scrollEnd = true)
         }
     }
 
@@ -716,33 +821,26 @@ class LazyLoopDirectivesView<T>(
         val isRow = isRowDirection()
         val currentSize = itemStart.frame.size
         val correctSize = if (size != INVALID_DIMENSION) {
-            var range = 0f
-            for (i in 0 until currentEnd - currentStart) {
-                val child = children[BEFORE_COUNT + i]
-                val node = child.flexNode
-                if (!node.layoutFrame.isDefaultValue() && !child.absoluteFlexNode) {
-                    range += node.range
-                }
-            }
+            val range = calcRange(currentStart, currentEnd)
             max(0f, size - range - itemEnd.frame.size)
         } else if (index in currentStart until currentEnd) {
-            var range = 0f
-            for (i in 0 until index - currentStart) {
-                val child = children[BEFORE_COUNT + i]
-                val node = child.flexNode
-                if (!node.layoutFrame.isDefaultValue() && !child.absoluteFlexNode) {
-                    range += node.range
-                }
+            val range = calcRange(currentStart, index)
+            val tmp = offset - range
+            if (tmp < -hairWidth) {
+                // 小于-1px说明顶端空间已经不足，必须停下滑动并执行correctScrollOffsetInScrollEnd
+                logInfo { "correctScrollOffset invalid size=$tmp $index $offset ${currentListOffset()}" }
+                handleStartSpaceNotEnoughInLayout(tmp, offset)
+                return false
             }
-            max(0f, offset - range)
+            tmp.coerceAtLeast(0f)
         } else {
-            logInfo("correctScrollOffset failed $index $offset")
+            logInfo { "correctScrollOffset failed $index $offset" }
             return false
         }
 
         val diff = correctSize - currentSize
         if (diff != 0f) {
-            logInfo("correctScrollOffset $index $offset $size diff=$diff newSize=$correctSize layout")
+            logInfo { "correctScrollOffset $index $offset $size diff=$diff newSize=$correctSize layout" }
             if (isRow) {
                 itemStart.flexNode.also { node ->
                     node.updateLayoutFrame(node.layoutFrame.toMutableFrame().let { it.width = correctSize; it.toFrame() })
@@ -817,7 +915,7 @@ class LazyLoopDirectivesView<T>(
 
     internal fun scrollToPosition(index: Int, offset: Float, animate: Boolean) {
         if (listViewContent?.flexNode?.isDirty != false || itemEnd.flexNode.layoutFrame.isDefaultValue()) {
-            logInfo("layout not finished, delay scroll")
+            logInfo { "layout not finished, delay scroll" }
             listView?.setNextScrollToParams(ScrollToParams(index, offset, animate))
             return
         }
@@ -847,7 +945,7 @@ class LazyLoopDirectivesView<T>(
                 listViewContent!!.offsetY
             }
             if (!needScroll(currentOffset, finalOffset)) {
-                logInfo("scrollToPosition offset not changed, skip")
+                logInfo { "scrollToPosition offset not changed, skip" }
                 return
             }
             if (animate) {
@@ -861,20 +959,18 @@ class LazyLoopDirectivesView<T>(
                 scrollToPositionWithoutAnimate(isRow, index, finalOffset, offset)
             }
         } else { // scroll down
-            if (animate) {
-                listView?.setNextScrollToParams(ScrollToParams(index, offset, animate))
-            }
-            // 减hairWidth(1像素)，防止size超过Float精度后，setContentOffset不满足执行条件
-            val maxScrollOffset = max(0f, listViewContent!!.frame.size - listView!!.frame.size - hairWidth)
             val ratio = (index - currentEnd) / (curList.size - currentEnd).toFloat()
-            val estimateOffset = min(itemEnd.frame.start + itemEnd.frame.size * ratio + offset, maxScrollOffset)
+            val estimateOffset = itemEnd.frame.start + itemEnd.frame.size * ratio + offset
 
             if (animate) {
                 listView?.setNextScrollToParams(ScrollToParams(index, offset, animate))
                 val (finalIndex, finalOffset) = calculateAnimateScrollStartOffset(isRow, index, estimateOffset, false)
                 scrollToPositionWithoutAnimate(isRow, finalIndex, finalOffset, 0f)
             } else {
-                scrollToPositionWithoutAnimate(isRow, index, max(estimateOffset, currentListOffset()), offset)
+                // 减hairWidth(1像素)，防止size超过Float精度后，setContentOffset不满足执行条件
+                val maxScrollOffset = max(0f, listViewContent!!.frame.size - listView!!.frame.size - hairWidth)
+                val finalOffset = max(currentListOffset(), min(estimateOffset, maxScrollOffset))
+                scrollToPositionWithoutAnimate(isRow, index, finalOffset, offset)
             }
         }
     }
@@ -896,7 +992,9 @@ class LazyLoopDirectivesView<T>(
             val finalIndex = index + floor((finalOffset - estimateOffset) / avgItemSize).toInt()
             return Pair(finalIndex, finalOffset)
         } else {
-            val finalOffset = max(estimateOffset - distance, currentListOffset())
+            // 减hairWidth(1像素)，防止size超过Float精度后，setContentOffset不满足执行条件
+            val maxScrollOffset = max(0f, listViewContent!!.frame.size - listView!!.frame.size - hairWidth)
+            val finalOffset = max(currentListOffset(), min(estimateOffset, maxScrollOffset) - distance)
             val finalIndex = index - floor((estimateOffset - finalOffset) / avgItemSize).toInt()
             return Pair(finalIndex, finalOffset)
         }
@@ -932,7 +1030,7 @@ class LazyLoopDirectivesView<T>(
 
     override fun onPagerDidLayout() {
         if (itemEnd.flexNode.layoutFrame.isDefaultValue()) {
-            logInfo("layout not finished, skip update")
+            logInfo { "layout not finished, skip update" }
             return
         }
         avgItemSize = if (currentEnd > currentStart) {
@@ -940,7 +1038,7 @@ class LazyLoopDirectivesView<T>(
         } else {
             DEFAULT_ITEM_SIZE
         }
-        logInfo("avgItemSize=$avgItemSize")
+        logInfo { "avgItemSize=$avgItemSize" }
         if (listView?.getNextScrollToParams() != null) {
             getPager().addNextTickTask {
                 val params = listView?.getNextScrollToParams()

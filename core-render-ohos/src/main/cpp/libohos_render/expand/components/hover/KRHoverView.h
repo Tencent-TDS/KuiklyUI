@@ -30,6 +30,8 @@ class KRHoverView : public KRView, public IKRScrollObserver, public IKRContentSc
     void WillRemoveFromParentView() override;
     void OnDidScroll(float offsetX, float offsetY) override;
     void ContentViewDidInsertSubview() override;
+    void ContentViewDidMoveToParentView() override;
+    void ContentViewWillRemoveFromParentView() override;
     void SetRenderViewFrame(const KRRect &frame) override;
     int GetBringIndex();
 

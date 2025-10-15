@@ -86,6 +86,23 @@ void KRHoverView::ContentViewDidInsertSubview() {
     UpdateFrameToHoverIfNeed();
 }
 
+void KRHoverView::ContentViewDidMoveToParentView() {
+    if (auto contentView = GetParentView()) {
+        if (auto scrollView = std::dynamic_pointer_cast<KRScrollerView>(contentView->GetParentView())) {
+            scrollView->AddScrollObserver(this);
+        }
+    }
+    UpdateFrameToHoverIfNeed();
+}
+
+void KRHoverView::ContentViewWillRemoveFromParentView() {
+    if (auto contentView = GetParentView()) {
+        if (auto scrollView = std::dynamic_pointer_cast<KRScrollerView>(contentView->GetParentView())) {
+            scrollView->RemoveScrollObserver(this);
+        }
+    }
+}
+
 void KRHoverView::UpdateFrameToHoverIfNeed() {
     auto contentView = GetParentView();
     auto offset = GetContentOffset();

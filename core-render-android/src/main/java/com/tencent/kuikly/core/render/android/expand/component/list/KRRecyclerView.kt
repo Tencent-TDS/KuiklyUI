@@ -620,7 +620,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         dragEndEventCallback?.invoke(getCommonScrollParams())
     }
 
-    private fun automaticAdjustContentOffset() {
+    internal fun automaticAdjustContentOffset() {
         if (!isContentViewAttached) {
             return
         }

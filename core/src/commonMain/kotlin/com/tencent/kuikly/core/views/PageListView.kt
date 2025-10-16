@@ -488,8 +488,4 @@ open class PageListContentView : ListContentView() {
         }
     }
 
-    override fun needUpdateOffset(): Boolean {
-        return false
-    }
-
 }

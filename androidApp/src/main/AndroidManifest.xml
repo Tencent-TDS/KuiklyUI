@@ -13,6 +13,14 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         android:networkSecurityConfig="@xml/network_security_config">
+        <!-- 折叠屏设备支持应用内分屏 -->
+        <meta-data
+            android:name="EasyGoClient"
+            android:value="true" />
+        <!-- vivo折叠屏设备支持应用内分屏 -->
+        <meta-data
+            android:name="VivoMultiWindow"
+            android:value="true" />
         <activity
             android:name="com.tencent.kuikly.android.demo.KuiklyRenderActivity"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"

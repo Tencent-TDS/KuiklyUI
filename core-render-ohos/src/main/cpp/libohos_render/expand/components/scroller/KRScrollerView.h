@@ -33,6 +33,8 @@ class IKRContentScrollObserver {
  public:
     // 子孩子有插入时回调
     virtual void ContentViewDidInsertSubview() {}
+    virtual void ContentViewDidMoveToParentView() {}
+    virtual void ContentViewWillRemoveFromParentView() {}
 };
 
 class KRScrollerContentView : public IKRRenderViewExport {
@@ -44,9 +46,13 @@ class KRScrollerContentView : public IKRRenderViewExport {
     KRScrollerContentView &operator=(KRScrollerContentView &&) = delete;
 
     ArkUI_NodeHandle CreateNode() override;
+    void DidInit() override;
+    void OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEventType &event_type) override;
     bool CustomSetViewFrame() override;
     void SetRenderViewFrame(const KRRect &frame) override;
     void DidInsertSubRenderView(const std::shared_ptr<IKRRenderViewExport> &sub_render_view, int index) override;
+    void DidMoveToParentView() override;
+    void WillRemoveFromParentView() override;
     void AddContentScrollObserver(IKRContentScrollObserver *observer);
     void RemoveContentScrollObserver(IKRContentScrollObserver *observer);
 
@@ -56,6 +62,7 @@ class KRScrollerContentView : public IKRRenderViewExport {
 
  private:
     std::vector<IKRContentScrollObserver *> contentScrollObservers_;
+    bool handling_set_view_frame_ = false;
 };
 
 class KRScrollerView : public IKRRenderViewExport {
@@ -82,6 +89,7 @@ class KRScrollerView : public IKRRenderViewExport {
     void DidMoveToParentView() override;
     void WillRemoveFromParentView() override;
     ArkUI_GestureInterruptResult OnInterruptGestureEvent(const ArkUI_GestureInterruptInfo *info) override;
+    void TryApplyPendingFireOnScroll();
 
  private:
     bool SetNestedScroll(const KRAnyValue &value);
@@ -119,7 +127,7 @@ class KRScrollerView : public IKRRenderViewExport {
     void ApplyContentInsetWhenDragEnd();
     void InnerSetBouncesEnable(bool enable);
     void AdjustHeaderBouncesEnableWhenWillScroll(ArkUI_NodeEvent *event);
-    void DispatchDidScrollToObservers();
+    void DispatchDidScrollToObservers(KRPoint point);
     bool SetFlingEnable(bool enable);
 
  private:
@@ -153,6 +161,8 @@ class KRScrollerView : public IKRRenderViewExport {
     float velocity_y_ = 0;
     std::weak_ptr<SuperTouchHandler> weak_super_touch_handler_;
     bool is_fling_enabled_ = true;
+    float last_fired_scroll_x_ = 0;
+    float last_fired_scroll_y_ = 0;
 };
 
 #endif  // CORE_RENDER_OHOS_KRSCROLLERVIEW_H

@@ -238,7 +238,7 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
                 it.flexNode.flexWrap = flexNode.flexWrap
                 it.flexNode.setPadding(StyleSpace.Type.TOP, flexNode.getPadding(StyleSpace.Type.TOP))
                 it.flexNode.setPadding(StyleSpace.Type.LEFT, flexNode.getPadding(StyleSpace.Type.LEFT))
-                it.flexNode.setPadding(StyleSpace.Type.TOP, flexNode.getPadding(StyleSpace.Type.TOP))
+                it.flexNode.setPadding(StyleSpace.Type.RIGHT, flexNode.getPadding(StyleSpace.Type.RIGHT))
                 it.flexNode.setPadding(StyleSpace.Type.BOTTOM, flexNode.getPadding(StyleSpace.Type.BOTTOM))
             }
             if (flexNode.flexDirection == FlexDirection.ROW
@@ -257,6 +257,11 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
                 }, 0)
             }
             insertDomSubView(contentView!!, 0)
+            // 暂时的解决方案：清除ScrollerView的padding，保留ScollerContentView的padding
+            flexNode.setPadding(StyleSpace.Type.TOP, 0f)
+            flexNode.setPadding(StyleSpace.Type.LEFT, 0f)
+            flexNode.setPadding(StyleSpace.Type.RIGHT, 0f)
+            flexNode.setPadding(StyleSpace.Type.BOTTOM, 0f)
         }
     }
 

@@ -368,7 +368,7 @@ private fun BasicTextWithNoInlinContent(
             val textView = RichTextView()
             KNode(textView) {
                 getViewAttr().run {
-
+                    didSetTextGradient = true
                 }
             }
         },

@@ -929,11 +929,43 @@
     _diretion = [splits.firstObject intValue];
     _colors = [[NSMutableArray alloc] init];
     _locations = [[NSMutableArray alloc] init];
+    NSMutableArray<NSNumber *> *_alphas = [[NSMutableArray alloc] init];    // 记录渐变背景色中所有颜色的透明度
+    CGFloat lastestColor[3];                                                // 记录当前的有效颜色，即透明度不为零的颜色
     for (int i = 1; i < splits.count; i++) {
         NSString *colorStopStr = splits[i];
         NSArray<NSString *> *colorAndStop = [colorStopStr componentsSeparatedByString:@" "];
         UIColor *color = [UIView css_color:(NSString *)colorAndStop.firstObject];
-        [_colors addObject:(__bridge id)color.CGColor];
+        // 渐变色异常情况：ios 透明度为0的颜色，仍然会显现。
+        // 处理思路：对所有透明度为0的颜色，将其rgb替换为同方向上最近的非全透明颜色的rgb，即保证透明 -> 非透明之间是同一颜色值，透明向非透明颜色保持一致，从而不会影响UI效果
+        CGFloat red, green, blue, alpha;
+        [color getRed:&red green:&green blue:&blue alpha:&alpha];
+        // 1 更新当前有效颜色
+        if (alpha > 0) {
+            lastestColor[0] = red;
+            lastestColor[1] = green;
+            lastestColor[2] = blue;
+        }
+        // 2 处理透明度为零的颜色
+        if (alpha == 0) {
+            if (i == splits.count - 1){
+                color = [UIColor colorWithRed:lastestColor[0] green:lastestColor[1] blue:lastestColor[2] alpha:alpha];
+            } else {
+                [_alphas addObject:@(alpha)];
+            }
+        }
+        // 3 构建有效颜色
+        if (alpha > 0 || i == splits.count - 1) {
+            CGFloat currentRed = (alpha > 0) ? red : lastestColor[0];
+            CGFloat currentGreen = (alpha > 0) ? green : lastestColor[1];
+            CGFloat currentBlue = (alpha > 0) ? blue : lastestColor[2];
+            for (NSNumber *value in _alphas) {
+                UIColor *combinedColor = [UIColor colorWithRed:currentRed green:currentGreen blue:currentBlue alpha:[value floatValue]];
+                [_colors addObject:(__bridge id)combinedColor.CGColor];
+            }
+            // 添加当前有效的颜色
+            [_colors addObject:(__bridge id)color.CGColor];
+            [_alphas removeAllObjects];
+        }
         [_locations addObject:@([colorAndStop.lastObject floatValue])];
     }
     return YES;

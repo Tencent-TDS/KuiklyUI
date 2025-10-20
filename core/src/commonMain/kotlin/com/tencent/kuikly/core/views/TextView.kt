@@ -230,7 +230,7 @@ open class TextView : DeclarativeBaseView<TextAttr, TextEvent>(), MeasureFunctio
 }
 
 open class TextAttr : Attr() {
-    internal var didSetTextGradient = false
+    var didSetTextGradient = false
     internal var letterSpacing: Float? = null
     open fun value(value: String): TextAttr {
         TextConst.VALUE with value

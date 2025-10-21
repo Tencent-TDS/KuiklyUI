@@ -17,6 +17,7 @@ package com.tencent.kuikly.demo.pages.demo
 
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.PagerScope
 import com.tencent.kuikly.core.base.Scale
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.directives.vfor
@@ -29,10 +30,12 @@ import com.tencent.kuikly.demo.pages.demo.base.NavBar
 
 const val minScale = 0.85f
 const val galleryMarginLeft = 50f // 画廊居中的内容距离最左边margin
-internal class GalleryCardData {
+internal class GalleryCardData(scope: PagerScope) {
     var bgColor = Color.BLACK
-    var transformScale by observable(minScale)
+    var transformScale by scope.observable(minScale)
 }
+// helper fun for refactoring
+internal fun PagerScope.GalleryCardData() = GalleryCardData(this)
 
 @Page("GalleryExamplePage")
 internal class GalleryExamplePage : BasePager() {

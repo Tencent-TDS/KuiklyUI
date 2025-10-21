@@ -347,11 +347,12 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
 
 - (void)setExceptionBlock:(KuiklyRenderView *)view {
     __weak typeof(self) wself = self;
-    view.onExceptionBlock = ^(NSString *exReason, NSString *callstackStr, KuiklyContextMode mode) {
+    view.onExceptionBlock = ^(NSString *exReason, NSString *callstackStr, NSString *pageName, KuiklyContextMode mode) {
         if (!wself.contentViewDidLoad) {
             NSDictionary *userInfo = @{
-                @"reason": exReason?:@"",
-                @"callStack": callstackStr ?: @""
+                @"reason": exReason ?: @"",
+                @"callStack": callstackStr ?: @"",
+                @"pageName": pageName ?: @""
             };
             NSError *error = [NSError errorWithDomain:KuiklyLoadErrorDomain
                                                  code:KuiklyLoadError_fatalException
@@ -360,6 +361,8 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
         }
         if ([wself.delegate respondsToSelector:@selector(onUnhandledException:stack:mode:)]) {
             [wself.delegate onUnhandledException:exReason stack:callstackStr mode:mode];
+        } else if ([wself.delegate respondsToSelector:@selector(onUnhandledException:stack:pageName:mode:)]) {
+            [wself.delegate onUnhandledException:exReason stack:callstackStr pageName:pageName mode:mode];
         } else if (wself && wself.contextMode.modeId == KuiklyContextMode_Framework) {
             @throw [NSException exceptionWithName:exReason reason:callstackStr userInfo:nil];
         }

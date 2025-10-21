@@ -169,6 +169,18 @@ UIKIT_EXTERN NSString *const KRPageDataSnapshotKey;
                        stack:(NSString *)callstackStr
                         mode:(KuiklyContextMode)mode;
 /*
+ * @brief 发生未处理的kotlin代码异常时回调，回调完后，直接crash
+ * 注意：此回调与 -onUnhandledException:stack:mode:根据需要二者实现其一即可。
+ * @param exReason, 异常原因, 如ThrowArrayIndexOutOfBoundsException
+ * @param callstackStr, 导致异常的kotlin代码堆栈，分隔符: \n
+ * @param pageName, 发送异常的Page名称
+ * @param mode, 当前的产物类型
+ */
+- (void)onUnhandledException:(NSString *)exReason
+                       stack:(NSString *)callstackStr
+                    pageName:(NSString *)pageName
+                        mode:(KuiklyContextMode)mode;
+/*
  * @breif 首屏加载完成回调
  * @param isSucceed 首屏是否正常加载
  * @param error 首屏加载错误

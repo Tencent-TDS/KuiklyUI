@@ -24,7 +24,7 @@ NS_ASSUME_NONNULL_BEGIN
 @class KuiklyContextParam;
 
 typedef NSInteger KuiklyContextMode;
-typedef void(^OnUnhandledExceptionBlock)(NSString *exReason, NSString *callstackStr, KuiklyContextMode mode);
+typedef void(^OnUnhandledExceptionBlock)(NSString *exReason, NSString *callstackStr, NSString *pageName, KuiklyContextMode mode);
 
 /*
  * Native侧调用Kotlin侧方法枚举

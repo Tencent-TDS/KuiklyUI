@@ -476,7 +476,10 @@ NSString *const kKuiklyFatalExceptionNotification = @"KuiklyFatalExceptionNotifi
                                           NSString *exceptionName = [components firstObject];
                                           NSString *stackStr = [exception substringFromIndex:exceptionName.length + @"\n".length];
                                           if (weakSelf.onExceptionBlock) {
-                                              weakSelf.onExceptionBlock(exceptionName, stackStr, weakSelf.contextParam.contextMode.modeId);
+                                              weakSelf.onExceptionBlock(exceptionName,
+                                                                        stackStr,
+                                                                        weakSelf.contextParam.pageName,
+                                                                        weakSelf.contextParam.contextMode.modeId);
                                           }
                                        }
                                        return nil;

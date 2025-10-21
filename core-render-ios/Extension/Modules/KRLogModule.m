@@ -17,7 +17,9 @@
 #import "KuiklyRenderThreadManager.h"
 #import "KRConvertUtil.h"
 #import "KuiklyRenderThreadManager.h"
+
 static id<KuiklyLogProtocol> gLogHandler;
+static dispatch_once_t gLogHandlerOnceToken;
 
 
 @interface KuiklyLogHandler : NSObject<KuiklyLogProtocol>
@@ -72,12 +74,16 @@ static id<KuiklyLogProtocol> gLogHandler;
  */
 + (void)registerLogHandler:(id<KuiklyLogProtocol>)logHandler {
     gLogHandler = logHandler;
+    
+    gLogHandlerOnceToken = 0; // 往外部gLogHandler置为nil后允许重新初始化
 }
 
 + (id<KuiklyLogProtocol>)logHandler {
-    if (!gLogHandler) {
-        gLogHandler = [KuiklyLogHandler new];
-    }
+    dispatch_once(&gLogHandlerOnceToken, ^{
+        if (!gLogHandler) {
+            gLogHandler = [KuiklyLogHandler new];
+        }
+    });
     return gLogHandler;
 }
 

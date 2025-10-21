@@ -18,6 +18,7 @@ package com.tencent.kuikly.demo.pages.demo
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.BaseObject
 import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.PagerScope
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.directives.vforIndex
 import com.tencent.kuikly.core.reactive.collection.ObservableList
@@ -28,10 +29,10 @@ import com.tencent.kuikly.core.views.*
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 
-internal class WaterFallItem : BaseObject() {
-    var title: String by observable("")
-    var bgColor: Color by observable(Color.WHITE)
-    var height: Float by observable(0f)
+internal class WaterFallItem(scope: PagerScope) : BaseObject() {
+    var title: String by scope.observable("")
+    var bgColor: Color by scope.observable(Color.WHITE)
+    var height: Float by scope.observable(0f)
 }
 
 @Page("WaterfallListDemoPage")
@@ -138,7 +139,7 @@ internal class WaterfallListDemoPage : BasePager() {
     override fun created() {
         super.created()
         for (index in 0..1000) {
-            dataList.add(WaterFallItem().apply {
+            dataList.add(WaterFallItem(this).apply {
                 title = "我是第${this@WaterfallListDemoPage.dataList.size + 1}个卡片"
                 height = (200..500).random().toFloat()
                 bgColor = Color((0..255).random(), (0..255).random(), (0..255).random(), 1.0f)
@@ -147,7 +148,7 @@ internal class WaterfallListDemoPage : BasePager() {
 
         setTimeout(30) {
             for (index in 0..1000) {
-                dataList.add(WaterFallItem().apply {
+                dataList.add(WaterFallItem(this).apply {
                     title = "我是第${this@WaterfallListDemoPage.dataList.size + 1}个卡片"
                     height = (200..500).random().toFloat()
                     bgColor = Color((0..255).random(), (0..255).random(), (0..255).random(), 1.0f)

@@ -30,7 +30,7 @@ import com.tencent.kuikly.demo.pages.demo.base.NavBar
 import kotlin.math.max
 import kotlin.random.Random
 
-internal class ZIndexViewData {
+internal class ZIndexViewData(pagerScope: PagerScope) : PagerScope by pagerScope {
     var zIndex by observable(0)
     var color by observable(Color(0xFF000000))
     var boxShadow by observable(BoxShadow(offsetX = 0f, offsetY = 0f, shadowColor = Color(0x00000000), shadowRadius = 0f))
@@ -155,7 +155,7 @@ internal class ZIndexExamplePage: BasePager() {
     }
 
     fun addRandomZIndexViewData() {
-        var data = ZIndexViewData()
+        var data = ZIndexViewData(this)
         data.boxShadow = shadowList[shadowIndex]
         data.color = randomColor()
         data.position = randomPosition()

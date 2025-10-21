@@ -15,8 +15,8 @@
 
 package com.tencent.kuikly.core.pager
 
-import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.base.EdgeInsets
+import com.tencent.kuikly.core.base.PagerScope
 import com.tencent.kuikly.core.base.toBoolean
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.reactive.handler.observable
@@ -25,20 +25,20 @@ import com.tencent.kuikly.core.utils.urlParams
 /*
  * 页面数据（包含设备信息和平台以及根视图宽高，以及页面传参params）
  */
-class PageData() {
+class PageData(scope: PagerScope) {
     private lateinit var rawPageData : JSONObject
     // 页面参数（页面携带参数&扩展参数都在该数据里，可打印查看所有数据）
     val params: JSONObject
         get() {
             return rawPageData.optJSONObject(KEY_PARAM) ?: JSONObject()
         }
-    var pageViewWidth: Float by observable(0.0f)
-    var pageViewHeight: Float by observable(0.0f)
+    var pageViewWidth: Float by scope.observable(0.0f)
+    var pageViewHeight: Float by scope.observable(0.0f)
     var statusBarHeight: Float = 0.0f
         private set
-    var deviceHeight: Float by observable(0.0f)
+    var deviceHeight: Float by scope.observable(0.0f)
         private set
-    var deviceWidth: Float by observable(0.0f)
+    var deviceWidth: Float by scope.observable(0.0f)
         private set
     var appVersion: String = ""
         private set
@@ -60,12 +60,12 @@ class PageData() {
         private set
     var nativeBuild: Int = 0
         private set
-    var activityWidth: Float by observable(0.0f)
+    var activityWidth: Float by scope.observable(0.0f)
         internal set
-    var activityHeight: Float by observable(0.0f)
+    var activityHeight: Float by scope.observable(0.0f)
         internal set
     /** 安全区域是指不被系统界面（如状态栏、导航栏、工具栏或底部 Home 指示器、刘海屏底部边距）遮挡的视图区域 */
-    var safeAreaInsets: EdgeInsets by observable(EdgeInsets.default)
+    var safeAreaInsets: EdgeInsets by scope.observable(EdgeInsets.default)
 
     var density: Float = 3f
         internal set

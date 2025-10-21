@@ -252,7 +252,7 @@ fun ViewContainer<*, *>.TabItem(init: TabItemView.(newState : TabItemView.ItemSt
 
 class TabItemView : ViewContainer<TabItemAttr, TabItemEvent>() {
     internal var state = ItemState()
-    class ItemState {
+    inner class ItemState {
         /// 是否选中（用于更新选中高亮UI）
         var selected by observable(false)
     }

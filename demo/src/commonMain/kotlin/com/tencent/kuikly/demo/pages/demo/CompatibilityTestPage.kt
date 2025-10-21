@@ -30,6 +30,7 @@ import com.tencent.kuikly.demo.pages.demo.base.NavBar
  * This Page uses **deprecated** APIs for compatibility testing.
  * **DO NOT** use these APIs in production code.
  */
+@Suppress("DEPRECATION")
 @Page("compat")
 internal class CompatibilityTestPage : BasePager() {
 

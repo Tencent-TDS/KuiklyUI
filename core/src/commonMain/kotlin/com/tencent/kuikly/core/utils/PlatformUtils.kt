@@ -27,17 +27,12 @@ object PlatformUtils {
     /**
      * 获取当前页面数据
      */
-    private fun getCurrentPageData(): PageData {
+    private fun getCurrentPageData(): PageData? {
         return try {
             PagerManager.getCurrentPager().pageData
         } catch (e: Exception) {
-            // 如果获取失败，返回默认的PageData（非iOS平台）
-            PageData().apply {
-                // 创建一个默认的非iOS平台数据
-                init(com.tencent.kuikly.core.nvi.serialization.json.JSONObject().apply {
-                    put("platform", "unknown")
-                })
-            }
+            // 如果获取失败，返回null（非iOS平台）
+            null
         }
     }
     
@@ -45,35 +40,35 @@ object PlatformUtils {
      * 判断当前是否为iOS平台
      */
     fun isIOS(): Boolean {
-        return getCurrentPageData().isIOS
+        return getCurrentPageData()?.isIOS ?: false
     }
     
     /**
      * 判断当前是否为Android平台
      */
     fun isAndroid(): Boolean {
-        return getCurrentPageData().isAndroid
+        return getCurrentPageData()?.isAndroid ?: false
     }
     
     /**
      * 判断当前是否为HarmonyOS平台
      */
     fun isOhOs(): Boolean {
-        return getCurrentPageData().isOhOs
+        return getCurrentPageData()?.isOhOs ?: false
     }
     
     /**
      * 获取当前平台名称
      */
     fun getPlatform(): String {
-        return getCurrentPageData().platform
+        return getCurrentPageData()?.platform ?: "unknown"
     }
     
     /**
      * 获取当前系统版本
      */
     fun getOSVersion(): String {
-        return getCurrentPageData().osVersion
+        return getCurrentPageData()?.osVersion ?: ""
     }
     
     /**

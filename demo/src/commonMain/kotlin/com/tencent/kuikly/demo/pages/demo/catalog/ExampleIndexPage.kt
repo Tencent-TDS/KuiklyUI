@@ -17,6 +17,7 @@ package com.tencent.kuikly.demo.pages.demo.catalog
 
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.core.annotations.Page
+import com.tencent.kuikly.core.base.PagerScope
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.directives.vfor
 import com.tencent.kuikly.core.directives.vif
@@ -281,9 +282,5 @@ internal class ExampleIndexPage : BasePager() {
 
 }
 
-internal class ExampleItemData {
-    var avatarText by observable("")
-    var titleText by observable("")
-    var subtitleText by observable("")
-    var declarativeExampleUrl by observable("")
-}
+// helper fun for refactoring
+private fun PagerScope.ExampleItemData() = ExampleItemData(this)

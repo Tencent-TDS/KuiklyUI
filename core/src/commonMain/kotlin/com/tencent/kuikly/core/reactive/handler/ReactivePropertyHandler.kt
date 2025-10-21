@@ -35,32 +35,35 @@ import kotlin.properties.ReadWriteProperty
 @Deprecated(
     "use PagerScope.observable(mode, value) instead",
     ReplaceWith(
-        "observable<T>(ObservableThreadSafetyMode.NONE, init)",
-        "com.tencent.kuikly.core.reactive.ObservableThreadSafetyMode"
+        "scope.observable<T>(init)",
+        "com.tencent.kuikly.core.base.PagerScope"
     )
 )
 fun <T> observable(init: T): ReadWriteProperty<Any, T> {
+    @Suppress("DEPRECATION")
     return ReactiveObserver.observable(init)
 }
 
 // 列表容器   用法：var listProp: ObservableList<String>  by observableList<String>()
 @Deprecated("use PagerScope.observableList(mode) instead",
     ReplaceWith(
-        "observableList<T>(ObservableThreadSafetyMode.NONE)",
-        "com.tencent.kuikly.core.reactive.ObservableThreadSafetyMode"
+        "scope.observableList<T>()",
+        "com.tencent.kuikly.core.base.PagerScope"
     )
 )
 fun <T> observableList(): ReadWriteProperty<Any, ObservableList<T>> {
+    @Suppress("DEPRECATION")
     return ReactiveObserver.observableList()
 }
 
 @Deprecated("use PagerScope.observableSet(mode) instead",
     ReplaceWith(
-        "observableSet<T>(ObservableThreadSafetyMode.NONE)",
-        "com.tencent.kuikly.core.reactive.ObservableThreadSafetyMode"
+        "scope.observableSet<T>()",
+        "com.tencent.kuikly.core.base.PagerScope"
     )
 )
 fun <T> observableSet(): ReadWriteProperty<Any, ObservableSet<T>> {
+    @Suppress("DEPRECATION")
     return ReactiveObserver.observableSet()
 }
 

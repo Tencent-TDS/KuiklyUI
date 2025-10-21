@@ -22,6 +22,7 @@ import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ComposeAttr
 import com.tencent.kuikly.core.base.ComposeEvent
 import com.tencent.kuikly.core.base.ComposeView
+import com.tencent.kuikly.core.base.PagerScope
 import com.tencent.kuikly.core.base.Translate
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewContainer
@@ -291,12 +292,14 @@ internal class EventDemoPage : BasePager() {
 
 }
 
-internal class GoodsData : BaseObject() {
+internal class GoodsData(scope: PagerScope) : BaseObject() {
     lateinit var bgColor: Color
-    var translatePercentY: Float by observable(0f)
-    var animationTranslatePercentY: Float by observable(0f)
+    var translatePercentY: Float by scope.observable(0f)
+    var animationTranslatePercentY: Float by scope.observable(0f)
     lateinit var viewRef: ViewRef<LiveGoodsCard>
 }
+// helper fun for refactoring
+private fun PagerScope.GoodsData() = GoodsData(this)
 
 internal class GlobalData : BaseObject() {
     var zIndex = 0

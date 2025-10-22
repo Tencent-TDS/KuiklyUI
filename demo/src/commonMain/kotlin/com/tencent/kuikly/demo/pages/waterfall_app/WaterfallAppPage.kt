@@ -1,5 +1,3 @@
-package com.tencent.kuikly.demo.pages.waterfall_app
-
 /*
  * Tencent is pleased to support the open source community by making KuiklyUI
  * available.
@@ -14,6 +12,8 @@ package com.tencent.kuikly.demo.pages.waterfall_app
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+package com.tencent.kuikly.demo.pages.waterfall_app
 
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color

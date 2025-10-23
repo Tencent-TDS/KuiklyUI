@@ -20,6 +20,7 @@ import com.tencent.kuikly.core.base.*
 import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.AlertDialog
+import com.tencent.kuikly.core.views.Text
 
 /*
  * 提示对话框组件，UI风格对齐iOS UIAlertController风格, 并支持自定义弹窗UI
@@ -31,6 +32,22 @@ internal class AlertDialogPage : Pager() {
     override fun body(): ViewBuilder {
         val ctx = this
         return {
+            attr {
+                allCenter()
+            }
+
+
+            Text {
+                attr {
+                    text("点击弹出 Dialog")
+                }
+                event {
+                    click {
+                        ctx.showAlert = true
+                    }
+                }
+            }
+
             AlertDialog {
                 attr {
                     showAlert(ctx.showAlert)  // 控制Alert是否显示，不显示时不占用布局(必须设置该属性)

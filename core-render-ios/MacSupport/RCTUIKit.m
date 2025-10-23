@@ -103,6 +103,40 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
                                 @{NSImageCompressionFactor: @(compressionQuality)});
 }
 
+// [macOS] NSImage category to mimic common UIImage constructors
+@implementation NSImage (KRUIImageCompat)
++ (instancetype)imageWithCGImage:(CGImageRef)cgImage {
+  if (!cgImage) { return nil; }
+  return [[NSImage alloc] initWithCGImage:cgImage size:NSZeroSize];
+}
++ (instancetype)imageWithData:(NSData *)data {
+  return [[NSImage alloc] initWithData:data];
+}
++ (instancetype)imageWithContentsOfFile:(NSString *)filePath {
+  return [[NSImage alloc] initWithContentsOfFile:filePath];
+}
+@end
+
+// [macOS
+NSImage *UIImageResizableImageWithCapInsets(NSImage *image, NSEdgeInsets capInsets, UIImageResizingMode resizingMode)
+{
+  if (image == nil) {
+    return nil;
+  }
+  
+  // For macOS 10.10+, we can use the built-in capInsets property
+  if (@available(macOS 10.10, *)) {
+    NSImage *resizableImage = [image copy];
+    resizableImage.capInsets = capInsets;
+    resizableImage.resizingMode = (NSImageResizingMode)resizingMode;
+    return resizableImage;
+  }
+  
+  // For older macOS versions, return the original image
+  return image;
+}
+// macOS]
+
 // UIBezierPath
 UIBezierPath *UIBezierPathWithRoundedRect(CGRect rect, CGFloat cornerRadius)
 {
@@ -394,7 +428,6 @@ static RCTUIView *RCTUIViewCommonInit(RCTUIView *self)
   self.alphaValue = alpha;
 }
 
-
 - (CGAffineTransform)transform
 {
   return self.layer.affineTransform;
@@ -560,7 +593,7 @@ static RCTUIView *RCTUIViewCommonInit(RCTUIView *self)
 
 @end
 
-@implementation RCTUIView (AnimationCompat)
+@implementation RCTPlatformView (AnimationCompat)
 + (void)animateWithDuration:(NSTimeInterval)duration
                       delay:(NSTimeInterval)delay
                     options:(UIViewAnimationOptions)options
@@ -980,6 +1013,38 @@ BOOL RCTUIViewSetClipsToBounds(RCTPlatformView *view)
   }
 }
 
+// [macOS] 添加 layoutSubviews 方法实现，以兼容 iOS UIImageView 的行为
+- (void)layoutSubviews
+{
+  // 在 macOS 上，NSImageView 不需要显式的 layoutSubviews 调用
+  // 但为了兼容 iOS 代码，我们提供一个空实现
+  // 如果需要，可以在这里添加特定的布局逻辑
+}
+
+// [macOS] 重写 setFrame 方法，确保在布局变化时触发相应的回调
+- (void)setFrame:(NSRect)frame
+{
+  NSRect oldFrame = self.frame;
+  [super setFrame:frame];
+  
+  // 当 frame 发生变化时，触发 layoutSubviews 以保持与 iOS 行为一致
+  if (!NSEqualRects(oldFrame, frame)) {
+    [self layoutSubviews];
+  }
+}
+
+// [macOS] 重写 setBounds 方法，确保在 bounds 变化时触发相应的回调
+- (void)setBounds:(NSRect)bounds
+{
+  NSRect oldBounds = self.bounds;
+  [super setBounds:bounds];
+  
+  // 当 bounds 发生变化时，触发 layoutSubviews 以保持与 iOS 行为一致
+  if (!NSEqualRects(oldBounds, bounds)) {
+    [self layoutSubviews];
+  }
+}
+
 @end
 
 // RCTUIImageView
@@ -997,6 +1062,18 @@ BOOL RCTUIViewSetClipsToBounds(RCTPlatformView *view)
   
   return self;
 }
+
+// [macOS] 添加 initWithImage: 方法实现，以兼容 iOS UIImageView 的行为
+- (instancetype)initWithImage:(UIImage *)image {
+  if (self = [self initWithFrame:CGRectZero]) {
+    [self setImage:image];
+    if (image) {
+      [self setFrame:CGRectMake(0, 0, image.size.width, image.size.height)];
+    }
+  }
+  return self;
+}
+// macOS]
 
 - (BOOL)clipsToBounds
 {
@@ -1069,6 +1146,17 @@ BOOL RCTUIViewSetClipsToBounds(RCTPlatformView *view)
       [layer setContents:image];
       [layer setBackgroundColor:nil];
     }
+  }
+}
+
+// [macOS] 添加 insertSubview:atIndex: 方法实现，以兼容 iOS UIImageView 的行为
+- (void)insertSubview:(NSView *)view atIndex:(NSInteger)index
+{
+  NSArray<__kindof NSView *> *subviews = self.subviews;
+  if ((NSUInteger)index == subviews.count) {
+    [self addSubview:view];
+  } else {
+    [self addSubview:view positioned:NSWindowBelow relativeTo:subviews[index]];
   }
 }
 

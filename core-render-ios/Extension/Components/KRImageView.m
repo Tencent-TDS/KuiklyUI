@@ -90,7 +90,9 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
     if (self = [super initWithFrame:frame]) {
         self.contentMode = UIViewContentModeScaleAspectFill;
         self.clipsToBounds = YES;
+#if !TARGET_OS_OSX // [macOS]
         self.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
+#endif // [macOS]
     }
     return self;
 }
@@ -146,7 +148,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
     }
     // Remove "file://" prefix to get the actual file path
     NSString *actualPath = [localUrl substringFromIndex:[KRImageLocalPathPrefix length]];
-    UIImage *image = [UIImage imageWithContentsOfFile:actualPath];
+    UIImage *image = UIImageWithContentsOfFile(actualPath); // [macOS]
     self.image = image;
 }
 
@@ -352,7 +354,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
             if (range.length) {
                 NSString * base64 = [base64Str substringFromIndex:NSMaxRange(range)];
                 NSData * imageData =[[NSData alloc] initWithBase64EncodedString:base64 options:NSDataBase64DecodingIgnoreUnknownCharacters];
-                UIImage *image = [UIImage imageWithData:imageData];
+                UIImage *image = UIImageWithData(imageData);
                 dispatch_async(dispatch_get_main_queue(), ^{
                     [module setMemoryObjectWithKey:md5Key value:image];
                     if (weakSelf.css_src == md5Key) {
@@ -395,8 +397,8 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 
 -(void)p_fireLoadResolutionEventWithImage:(UIImage *)image {
     if (_css_loadResolution) {
-        _css_loadResolution(@{ @"imageWidth" : @(image.size.width * image.scale),
-                               @"imageHeight" : @(image.size.height * image.scale)
+        _css_loadResolution(@{ @"imageWidth" : @(image.size.width * UIImageGetScale(image)), // [macOS]
+                               @"imageHeight" : @(image.size.height * UIImageGetScale(image)) // [macOS]
                             });
     }
 }
@@ -422,7 +424,11 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
             
             if(top > 0 || left > 0 || bottom > 0 || right >0){
                 UIEdgeInsets insets = UIEdgeInsetsMake(top, left, bottom, right);
+#if !TARGET_OS_OSX // [macOS]
                 image = [image resizableImageWithCapInsets:insets resizingMode:(UIImageResizingModeStretch)];
+#else // [macOS
+                image = UIImageResizableImageWithCapInsets(image, insets, UIImageResizingModeStretch);
+#endif // macOS]
             }
         }
     }else if ([self.css_dotNineImage boolValue] && image) {
@@ -430,7 +436,11 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
         CGFloat imageHeight = image.size.height;
         UIEdgeInsets insets = UIEdgeInsetsMake(imageHeight * 0.5, imageWidth * 0.5,
                                                imageHeight * 0.5 - 1, imageWidth * 0.5 - 1);
+#if !TARGET_OS_OSX // [macOS]
         image = [image resizableImageWithCapInsets:insets resizingMode:(UIImageResizingModeStretch)];
+#else // [macOS
+        image = UIImageResizableImageWithCapInsets(image, insets, UIImageResizingModeStretch);
+#endif // macOS]
     }
     if (image && [self.css_tintColor length]) {
         UIColor *tintColor = [UIView css_color:self.css_tintColor];

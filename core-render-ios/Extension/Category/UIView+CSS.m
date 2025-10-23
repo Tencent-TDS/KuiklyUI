@@ -16,22 +16,19 @@
 #import "UIView+CSS.h"
 #import <objc/runtime.h>
 #import "KRConvertUtil.h"
-#if !TARGET_OS_OSX
 #import "KRView.h"
-#import "KuiklyRenderViewExportProtocol.h"
-#else
-@class KRView; // [macOS]
-@protocol KuiklyRenderViewLifyCycleProtocol; // [macOS]
-#endif
-#import "RCTUIKit.h" // [macOS]
+
 #if !TARGET_OS_OSX
 #import "KuiklyRenderBridge.h"
+#import "KuiklyRenderViewExportProtocol.h"
 #else
+@protocol KuiklyRenderViewLifyCycleProtocol; // [macOS]
 // [macOS] 前向声明以避免强依赖
 @interface KuiklyRenderBridge : NSObject
 + (id)componentExpandHandler;
 @end
 #endif
+
 #define LAZY_ANIMATION_KEY @"lazyAnimationKey"
 #define ANIMATION_KEY @"animation"
 
@@ -104,7 +101,7 @@
 @end
 
 
-@interface UIView()
+@interface UIView()<KuiklyRenderViewLifyCycleProtocol>
 
 @property (nonatomic, strong) CSSAnimation *css_animationImp;
 @property (nonatomic, strong) CSSTransform *css_transformImp;

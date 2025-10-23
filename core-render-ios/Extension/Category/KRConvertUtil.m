@@ -459,7 +459,7 @@
 }
 
 + (UIViewAnimationOptions)hr_viewAnimationOptions:(NSString *)value {
-#if !TARGET_OS_OSX
+#if !TARGET_OS_OSX // [macOS]
     if ([value intValue] == 1) {
         return UIViewAnimationOptionCurveEaseIn;
     }
@@ -470,9 +470,19 @@
         return UIViewAnimationOptionCurveEaseInOut;
     }
     return UIViewAnimationOptionCurveLinear;
-#else
-    (void)value; return (UIViewAnimationOptions)0;
-#endif
+#else // [macOS
+    // macOS 平台使用简化的动画选项映射
+    if ([value intValue] == 1) {
+        return UIViewAnimationOptionCurveEaseIn;
+    }
+    if ([value intValue] == 2) {
+        return UIViewAnimationOptionCurveEaseOut;
+    }
+    if ([value intValue] == 3) {
+        return UIViewAnimationOptionCurveEaseInOut;
+    }
+    return UIViewAnimationOptionCurveLinear;
+#endif // macOS]
 }
 
 + (UIViewAnimationCurve)hr_viewAnimationCurve:(NSString *)value {

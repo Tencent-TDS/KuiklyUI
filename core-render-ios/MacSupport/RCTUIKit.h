@@ -11,7 +11,7 @@
 
 #if !TARGET_OS_OSX
 
-#import "RCTUIKit.h" // [macOS]
+#import <UIKit/UIKit.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -114,6 +114,7 @@ NS_ASSUME_NONNULL_END
 #else // TARGET_OS_OSX [
 
 #import <AppKit/AppKit.h>
+#import "NSView+KuiklyCompat.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -132,6 +133,12 @@ enum : NSUInteger {
   UIViewAnimationOptionAllowUserInteraction = 1 << 0,
   UIViewAnimationOptionRepeat = 1 << 1,
   UIViewKeyframeAnimationOptionCalculationModeCubicPaced = 0,
+  // [macOS] 添加动画曲线选项
+  UIViewAnimationOptionCurveEaseInOut = 0 << 16,
+  UIViewAnimationOptionCurveEaseIn = 1 << 16,
+  UIViewAnimationOptionCurveEaseOut = 2 << 16,
+  UIViewAnimationOptionCurveLinear = 3 << 16,
+  // macOS]
 };
 typedef NS_ENUM(NSInteger, UIViewAnimationCurve) {
   UIViewAnimationCurveEaseInOut = 0,
@@ -155,7 +162,7 @@ typedef unsigned long long UIAccessibilityTraits; // match iOS underlying type
 //
 
 
-#define UIView RCTUIView
+#define UIView NSView
 #define UIScreen NSScreen
 #define UIScrollView RCTUIScrollView
 #define UIImageView RCTUIImageView
@@ -340,6 +347,8 @@ CGImageRef UIImageGetCGImageRef(NSImage *image);
 
 // UIViewController.h/NSViewController.h
 @compatibility_alias UIViewController NSViewController;
+// [macOS] Bridge UIResponder to NSResponder for cross-platform code
+@compatibility_alias UIResponder NSResponder;
 
 NS_INLINE NSFont *UIFontWithSize(NSFont *font, CGFloat pointSize)
 {
@@ -389,10 +398,24 @@ NS_INLINE NSEdgeInsets UIEdgeInsetsMake(CGFloat top, CGFloat left, CGFloat botto
 // UIImage
 @compatibility_alias UIImage NSImage;
 
+// [macOS] Provide UIImage-like class constructors on NSImage via category
+@interface NSImage (KRUIImageCompat)
++ (instancetype)imageWithCGImage:(CGImageRef)cgImage;
++ (instancetype)imageWithData:(NSData *)data;
++ (instancetype)imageWithContentsOfFile:(NSString *)filePath;
+@end
+
 typedef NS_ENUM(NSInteger, UIImageRenderingMode) {
     UIImageRenderingModeAlwaysOriginal,
     UIImageRenderingModeAlwaysTemplate,
 };
+
+// [macOS
+typedef NS_ENUM(NSInteger, UIImageResizingMode) {
+    UIImageResizingModeStretch = NSImageResizingModeStretch,
+    UIImageResizingModeTile = NSImageResizingModeTile,
+};
+// macOS]
 
 #ifdef __cplusplus
 extern "C"
@@ -400,6 +423,13 @@ extern "C"
 CGFloat UIImageGetScale(NSImage *image);
 
 CGImageRef UIImageGetCGImageRef(NSImage *image);
+
+// [macOS
+#ifdef __cplusplus
+extern "C"
+#endif
+NSImage *UIImageResizableImageWithCapInsets(NSImage *image, NSEdgeInsets capInsets, UIImageResizingMode resizingMode);
+// macOS]
 
 NS_INLINE UIImage *UIImageWithContentsOfFile(NSString *filePath)
 {
@@ -490,7 +520,7 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 @end
 
 // [macOS] UIView 动画 API 兼容（最小实现，执行 block 并回调 completion）
-@interface RCTUIView (AnimationCompat)
+@interface RCTPlatformView (AnimationCompat)
 + (void)animateWithDuration:(NSTimeInterval)duration
                       delay:(NSTimeInterval)delay
                     options:(UIViewAnimationOptions)options
@@ -708,6 +738,13 @@ NS_ASSUME_NONNULL_BEGIN
 @property (assign) BOOL clipsToBounds;
 @property (nonatomic, strong) RCTUIColor *tintColor;
 @property (nonatomic, assign) UIViewContentMode contentMode;
+
+- (instancetype)initWithImage:(UIImage *)image;
+
+// [macOS] 添加 layoutSubviews 方法声明，以兼容 iOS UIImageView 的行为
+- (void)layoutSubviews;
+- (void)insertSubview:(NSView *)view atIndex:(NSInteger)index; // [macOS]
+
 NS_ASSUME_NONNULL_END
 @end
 #endif

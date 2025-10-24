@@ -82,7 +82,7 @@ class KuiklyRenderView(
         size: SizeI,
     ) {
         // ignore flat view for h5 & miniapp
-        kuiklyWindow.asDynamic().com.tencent.kuikly.core.setIsIgnoreRenderViewForFlatLayer(true)
+        kuiklyWindow.asDynamic().com?.tencent?.kuikly?.core?.setIsIgnoreRenderViewForFlatLayer?.call(null, true)
         // renderView initialization
         dispatchLifecycleStateChanged(STATE_INIT)
         // Initialize performance manager

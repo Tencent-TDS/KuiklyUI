@@ -17,7 +17,9 @@
 #import "KuiklyRenderThreadManager.h"
 #import "KRConvertUtil.h"
 #import "KuiklyRenderThreadManager.h"
+
 static id<KuiklyLogProtocol> gLogHandler;
+static id<KuiklyLogProtocol> gLogUserSuppliedHandler;
 
 
 @interface KuiklyLogHandler : NSObject<KuiklyLogProtocol>
@@ -71,13 +73,22 @@ static id<KuiklyLogProtocol> gLogHandler;
  * @brief 注册自定义log实现
  */
 + (void)registerLogHandler:(id<KuiklyLogProtocol>)logHandler {
-    gLogHandler = logHandler;
+    gLogUserSuppliedHandler = logHandler;
 }
 
 + (id<KuiklyLogProtocol>)logHandler {
-    if (!gLogHandler) {
-        gLogHandler = [KuiklyLogHandler new];
+    // 优先使用用户赋值的 handler
+    if (gLogUserSuppliedHandler) {
+        return gLogUserSuppliedHandler;
     }
+    
+    static dispatch_once_t onceToken;
+    // 避免多线程同时访问，确保只创建一次
+    dispatch_once(&onceToken, ^{
+        if (!gLogHandler) {
+            gLogHandler = [KuiklyLogHandler new];
+        }
+    });
     return gLogHandler;
 }
 

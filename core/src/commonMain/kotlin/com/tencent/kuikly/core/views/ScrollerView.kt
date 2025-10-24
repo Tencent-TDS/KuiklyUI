@@ -189,6 +189,19 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
 
     override fun didInit() {
         super.didInit()
+        // 注册padding变更回调
+        (attr as? ScrollerAttr)?.onPaddingChanged = {top, left, bottom, right ->
+            contentView?.let {
+                it.flexNode.setPadding(StyleSpace.Type.TOP, top)
+                it.flexNode.setPadding(StyleSpace.Type.LEFT, left)
+                it.flexNode.setPadding(StyleSpace.Type.RIGHT, right)
+                it.flexNode.setPadding(StyleSpace.Type.BOTTOM, bottom)
+            }
+            flexNode.setPadding(StyleSpace.Type.TOP, 0f)
+            flexNode.setPadding(StyleSpace.Type.LEFT, 0f)
+            flexNode.setPadding(StyleSpace.Type.RIGHT, 0f)
+            flexNode.setPadding(StyleSpace.Type.BOTTOM, 0f)
+        }
         listenScrollEvent()
     }
 
@@ -238,7 +251,7 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
                 it.flexNode.flexWrap = flexNode.flexWrap
                 it.flexNode.setPadding(StyleSpace.Type.TOP, flexNode.getPadding(StyleSpace.Type.TOP))
                 it.flexNode.setPadding(StyleSpace.Type.LEFT, flexNode.getPadding(StyleSpace.Type.LEFT))
-                it.flexNode.setPadding(StyleSpace.Type.TOP, flexNode.getPadding(StyleSpace.Type.TOP))
+                it.flexNode.setPadding(StyleSpace.Type.RIGHT, flexNode.getPadding(StyleSpace.Type.RIGHT))
                 it.flexNode.setPadding(StyleSpace.Type.BOTTOM, flexNode.getPadding(StyleSpace.Type.BOTTOM))
             }
             if (flexNode.flexDirection == FlexDirection.ROW
@@ -257,6 +270,11 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
                 }, 0)
             }
             insertDomSubView(contentView!!, 0)
+            // 暂时的解决方案：清除ScrollerView的padding，保留ScollerContentView的padding
+            flexNode.setPadding(StyleSpace.Type.TOP, 0f)
+            flexNode.setPadding(StyleSpace.Type.LEFT, 0f)
+            flexNode.setPadding(StyleSpace.Type.RIGHT, 0f)
+            flexNode.setPadding(StyleSpace.Type.BOTTOM, 0f)
         }
     }
 
@@ -345,6 +363,13 @@ open class ScrollerAttr : ContainerAttr() {
     var visibleAreaIgnoreTopMargin = 0f
     var visibleAreaIgnoreBottomMargin = 0f
     internal var bouncesEnable = true
+    internal var onPaddingChanged: ((top: Float, left: Float, bottom: Float, right: Float) -> Unit)? = null
+
+    override fun padding(top: Float, left: Float, bottom: Float, right: Float): ContainerAttr {
+        super.padding(top, left, bottom, right)
+        onPaddingChanged?.invoke(top, left, bottom, right)
+        return this
+    }
 
     // 是否允许手势滚动
     fun scrollEnable(value: Boolean) {
@@ -419,6 +444,8 @@ open class ScrollerAttr : ContainerAttr() {
         param.put("backward", backward.value)
         NESTED_SCROLL with param.toString()
     }
+
+
 
     companion object {
         const val SCROLL_ENABLED = "scrollEnabled"

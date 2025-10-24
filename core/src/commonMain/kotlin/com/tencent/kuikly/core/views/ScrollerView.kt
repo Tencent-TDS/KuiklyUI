@@ -189,19 +189,6 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
 
     override fun didInit() {
         super.didInit()
-        // 注册padding变更回调
-        (attr as? ScrollerAttr)?.onPaddingChanged = {top, left, bottom, right ->
-            contentView?.let {
-                it.flexNode.setPadding(StyleSpace.Type.TOP, top)
-                it.flexNode.setPadding(StyleSpace.Type.LEFT, left)
-                it.flexNode.setPadding(StyleSpace.Type.RIGHT, right)
-                it.flexNode.setPadding(StyleSpace.Type.BOTTOM, bottom)
-            }
-            flexNode.setPadding(StyleSpace.Type.TOP, 0f)
-            flexNode.setPadding(StyleSpace.Type.LEFT, 0f)
-            flexNode.setPadding(StyleSpace.Type.RIGHT, 0f)
-            flexNode.setPadding(StyleSpace.Type.BOTTOM, 0f)
-        }
         listenScrollEvent()
     }
 
@@ -271,10 +258,7 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
             }
             insertDomSubView(contentView!!, 0)
             // 暂时的解决方案：清除ScrollerView的padding，保留ScollerContentView的padding
-            flexNode.setPadding(StyleSpace.Type.TOP, 0f)
-            flexNode.setPadding(StyleSpace.Type.LEFT, 0f)
-            flexNode.setPadding(StyleSpace.Type.RIGHT, 0f)
-            flexNode.setPadding(StyleSpace.Type.BOTTOM, 0f)
+            flexNode.setPadding(StyleSpace.Type.ALL, 0f)
         }
     }
 
@@ -363,12 +347,14 @@ open class ScrollerAttr : ContainerAttr() {
     var visibleAreaIgnoreTopMargin = 0f
     var visibleAreaIgnoreBottomMargin = 0f
     internal var bouncesEnable = true
-    internal var onPaddingChanged: ((top: Float, left: Float, bottom: Float, right: Float) -> Unit)? = null
 
     override fun padding(top: Float, left: Float, bottom: Float, right: Float): ContainerAttr {
-        super.padding(top, left, bottom, right)
-        onPaddingChanged?.invoke(top, left, bottom, right)
-        return this
+        val contentView = (view() as ScrollerView)?.contentView
+        if(contentView != null) {
+            contentView.getViewAttr().padding(top, left, bottom, right)
+            return this
+        }
+        return super.padding(top, left, bottom, right)
     }
 
     // 是否允许手势滚动

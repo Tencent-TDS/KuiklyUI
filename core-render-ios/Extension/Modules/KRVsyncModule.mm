@@ -33,9 +33,9 @@
     [self invalidateTimer];
     _kotlinTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, contextQueue);
     dispatch_source_set_timer(_kotlinTimer, DISPATCH_TIME_NOW, NSEC_PER_SEC / 60.0, NSEC_PER_MSEC);
-    __weak typeof(self) wself = self;
+    __weak __typeof__(self) wself = self;
     dispatch_source_set_event_handler(_kotlinTimer, ^{
-        __strong typeof(self) sself = wself;
+        __strong __typeof__(self) sself = wself;
         [sself vsyncFire];
     });
     dispatch_resume(_kotlinTimer);

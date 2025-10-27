@@ -349,7 +349,7 @@ open class ScrollerAttr : ContainerAttr() {
     internal var bouncesEnable = true
 
     override fun padding(top: Float, left: Float, bottom: Float, right: Float): ContainerAttr {
-        val contentView = (view() as ScrollerView)?.contentView
+        val contentView = (view() as? ScrollerView)?.contentView
         if(contentView != null) {
             contentView.getViewAttr().padding(top, left, bottom, right)
             return this

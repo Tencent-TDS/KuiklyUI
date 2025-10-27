@@ -431,8 +431,6 @@ open class ScrollerAttr : ContainerAttr() {
         NESTED_SCROLL with param.toString()
     }
 
-
-
     companion object {
         const val SCROLL_ENABLED = "scrollEnabled"
         const val BOUNCES_ENABLE = "bouncesEnable"

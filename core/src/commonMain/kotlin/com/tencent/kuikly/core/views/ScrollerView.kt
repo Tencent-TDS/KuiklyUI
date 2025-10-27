@@ -238,7 +238,7 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
                 it.flexNode.flexWrap = flexNode.flexWrap
                 it.flexNode.setPadding(StyleSpace.Type.TOP, flexNode.getPadding(StyleSpace.Type.TOP))
                 it.flexNode.setPadding(StyleSpace.Type.LEFT, flexNode.getPadding(StyleSpace.Type.LEFT))
-                it.flexNode.setPadding(StyleSpace.Type.TOP, flexNode.getPadding(StyleSpace.Type.TOP))
+                it.flexNode.setPadding(StyleSpace.Type.RIGHT, flexNode.getPadding(StyleSpace.Type.RIGHT))
                 it.flexNode.setPadding(StyleSpace.Type.BOTTOM, flexNode.getPadding(StyleSpace.Type.BOTTOM))
             }
             if (flexNode.flexDirection == FlexDirection.ROW
@@ -257,6 +257,8 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
                 }, 0)
             }
             insertDomSubView(contentView!!, 0)
+            // 暂时的解决方案：清除ScrollerView的padding，保留ScollerContentView的padding
+            flexNode.setPadding(StyleSpace.Type.ALL, 0f)
         }
     }
 
@@ -345,6 +347,15 @@ open class ScrollerAttr : ContainerAttr() {
     var visibleAreaIgnoreTopMargin = 0f
     var visibleAreaIgnoreBottomMargin = 0f
     internal var bouncesEnable = true
+
+    override fun padding(top: Float, left: Float, bottom: Float, right: Float): ContainerAttr {
+        val contentView = (view() as? ScrollerView)?.contentView
+        if(contentView != null) {
+            contentView.getViewAttr().padding(top, left, bottom, right)
+            return this
+        }
+        return super.padding(top, left, bottom, right)
+    }
 
     // 是否允许手势滚动
     fun scrollEnable(value: Boolean) {

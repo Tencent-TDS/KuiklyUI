@@ -173,7 +173,12 @@ static inline void lockScrollView(const UIScrollView<NestedScrollProtocol> *scro
 #pragma mark - ScrollEvents Delegate
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
-    const UIScrollView<NestedScrollProtocol> *sv = (UIScrollView<NestedScrollProtocol> *)scrollView;
+    const UIScrollView<NestedScrollProtocol> *sv = (UIScrollView<NestedScrollProtocol> *)scrollView;    
+    // Skip nested scroll lock when setting frame to avoid offset conflicts
+    if ([sv isKindOfClass:[KRScrollView class]] && ((KRScrollView *)sv).skipNestScrollLock) {
+        return;
+    }
+
     const UIScrollView<NestedScrollProtocol> *outerScrollView = self.outerScrollView;
     const UIScrollView<NestedScrollProtocol> *innerScrollView = self.innerScrollView;
     BOOL isOuter = (sv == outerScrollView);

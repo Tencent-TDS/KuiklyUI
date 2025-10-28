@@ -81,7 +81,7 @@ object Output {
 object MavenConfig {
     const val GROUP = "com.tencent.kuikly-open"
     const val GROUP_WEB = "com.tencent.kuikly-open.core-render-web"
-    const val REPO_URL = "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2"
+    const val REPO_URL = ""
     const val SNAPSHOT_REPO_URL = "https://central.sonatype.com/repository/maven-snapshots/"
     const val RENDER_ANDROID_ARTIFACT_ID = "core-render-android"
     const val RENDER_WEB_BASE_ARTIFACT_ID = "core-render-web-base"

@@ -100,7 +100,11 @@ internal class ScrollPickerDemoPage: BasePager() {
                             backgroundColor(Color.WHITE)
                         }
                         event {
-                            dragEndEvent { centerValue, centerItemIndex ->
+                            scrollEvent { centerValue, centerItemIndex ->
+                                ctx.chooseIdx = centerItemIndex
+                                ctx.chooseValue = centerValue
+                            }
+                            scrollEndEvent { centerValue, centerItemIndex ->
                                 ctx.chooseIdx = centerItemIndex
                                 ctx.chooseValue = centerValue
                             }
@@ -148,7 +152,10 @@ internal class ScrollPickerDemoPage: BasePager() {
                             backgroundColor(Color.WHITE)
                         }
                         event {
-                            dragEndEvent { centerValue, centerItemIndex ->
+                            scrollEvent { centerValue, centerItemIndex ->
+                                ctx.hourStr = centerValue
+                            }
+                            scrollEndEvent { centerValue, centerItemIndex ->
                                 ctx.hourStr = centerValue
                             }
                         }
@@ -164,7 +171,10 @@ internal class ScrollPickerDemoPage: BasePager() {
                             backgroundColor(Color.WHITE)
                         }
                         event {
-                            dragEndEvent { centerValue, centerItemIndex ->
+                            scrollEvent { centerValue, centerItemIndex ->
+                                ctx.minuteStr = centerValue
+                            }
+                            scrollEndEvent { centerValue, centerItemIndex ->
                                 ctx.minuteStr = centerValue
                             }
                         }
@@ -219,7 +229,11 @@ internal class ScrollPickerDemoPage: BasePager() {
                             backgroundColor(Color.WHITE)
                         }
                         event {
-                            dragEndEvent { centerValue, centerItemIndex ->
+                            scrollEvent { centerValue, centerItemIndex ->
+                                ctx.provinceIndex = centerItemIndex
+                                ctx.provinceName = centerValue
+                            }
+                            scrollEndEvent { centerValue, centerItemIndex ->
                                 ctx.provinceIndex = centerItemIndex
                                 ctx.provinceName = centerValue
                             }
@@ -236,7 +250,10 @@ internal class ScrollPickerDemoPage: BasePager() {
                                 backgroundColor(Color.WHITE)
                             }
                             event {
-                                dragEndEvent { centerValue, centerItemIndex ->
+                                scrollEvent { centerValue, centerItemIndex ->
+                                    ctx.cityStr = centerValue
+                                }
+                                scrollEndEvent { centerValue, centerItemIndex ->
                                     ctx.cityStr = centerValue
                                 }
                             }

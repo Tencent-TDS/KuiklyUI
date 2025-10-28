@@ -26,9 +26,8 @@ include(":core-render-web:base")
 include(":core-render-web:h5")
 include(":core-render-web:miniapp")
 
-include(":compose")
-project(":compose").buildFileName = buildFileName
-
+//include(":compose")
+//project(":compose").buildFileName = buildFileName
 
 // include(":demo")
 // include(":androidApp")

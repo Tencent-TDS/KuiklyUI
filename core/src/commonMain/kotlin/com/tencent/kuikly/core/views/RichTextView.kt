@@ -512,9 +512,12 @@ open class PlaceholderSpan : ISpan {
  */
 open class ImageSpan: PlaceholderSpan(), IImageAttr {
 
-    private var scope = object : PagerScope {
+    private class MutablePagerScope : PagerScope {
         override var pagerId: String = ""
     }
+
+    private var scope = MutablePagerScope()
+
     private var size: Size = Size(0f, 0f)
 
     private var src: String = ""

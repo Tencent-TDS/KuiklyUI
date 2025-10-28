@@ -12,8 +12,6 @@ KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="2.0.21-KBA-010" ./gradlew -c s
 
 # 4.还原文件
 mv gradle/wrapper/gradle-wrapper.properties.bak gradle/wrapper/gradle-wrapper.properties
-mv gradle.properties.bak gradle.properties
-
 
 # 5.拷贝so
 echo "Copying artifact files:"

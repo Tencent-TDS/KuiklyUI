@@ -95,6 +95,9 @@ kotlin {
     }
 }
 
+group = MavenConfig.GROUP
+version = Version.getCoreVersion()
+
 // 配置Maven发布
 publishing {
 //    publications.withType<MavenPublication> {
@@ -122,9 +125,6 @@ publishing {
         }
     }
 }
-
-group = MavenConfig.GROUP
-version = Version.getCoreVersion()
 
 android {
     namespace = "com.tencent.kuikly.compose"

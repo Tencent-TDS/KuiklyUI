@@ -3,25 +3,10 @@ pluginManagement {
         google()
         gradlePluginPortal()
         mavenCentral()
-        maven {
-            url = uri("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
-        }
     }
 }
 
-dependencyResolutionManagement {
-    repositories {
-        mavenLocal()
-        google()
-        gradlePluginPortal()
-        mavenCentral()
-        maven {
-            url = uri("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
-        }
-    }
-}
-
-val buildFileName = "build.2.0.ohos.gradle.kts"
+val buildFileName = "build.2.1.21.gradle.kts"
 rootProject.buildFileName = buildFileName
 
 
@@ -37,11 +22,12 @@ project(":core").buildFileName = buildFileName
 include(":core-render-android")
 project(":core-render-android").buildFileName = buildFileName
 
+include(":core-render-web:base")
+include(":core-render-web:h5")
+include(":core-render-web:miniapp")
+
 include(":compose")
 project(":compose").buildFileName = buildFileName
 
-include(":demo")
-project(":demo").buildFileName = buildFileName
-
+// include(":demo")
 // include(":androidApp")
-

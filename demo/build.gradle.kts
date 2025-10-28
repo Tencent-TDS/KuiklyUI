@@ -147,6 +147,7 @@ dependencies {
 android {
     compileSdk = 34
     sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
+    namespace = "com.tencent.kuikly.demo"
     defaultConfig {
         minSdk = 21
         targetSdk = 30

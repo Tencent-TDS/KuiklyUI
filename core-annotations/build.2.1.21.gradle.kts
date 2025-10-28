@@ -1,6 +1,3 @@
-import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
-import org.jetbrains.kotlin.konan.target.Family
-
 plugins {
     kotlin("multiplatform")
     kotlin("native.cocoapods")
@@ -27,60 +24,57 @@ publishing {
         } else {
             mavenLocal()
         }
+    }
 
+    afterEvaluate {
         publications.withType<MavenPublication>().configureEach {
             pom.configureMavenCentralMetadata()
             signPublicationIfKeyPresent(project)
+        }
+        // for mavenCentral verify
+        publications.named<MavenPublication>("jvm") {
+            artifact(emptyJavadocJar)
         }
     }
 }
 
 kotlin {
+    jvm()
 
-    android {
-        publishLibraryVariantsGroupedByFlavor = true
-        publishLibraryVariants("release")
+    androidTarget()
+
+    js(IR) {
+        browser()
     }
 
-    ios()
-    iosSimulatorArm64()
+    iosArm64()
     iosX64()
-
-    // sourceSets
-    val commonMain by sourceSets.getting
-
-    val iosMain by sourceSets.getting {
-        dependsOn(commonMain)
-    }
-
-    targets.withType<KotlinNativeTarget> {
-        val mainSourceSets = this.compilations.getByName("main").defaultSourceSet
-        when {
-            konanTarget.family.isAppleFamily -> {
-                mainSourceSets.dependsOn(iosMain)
-            }
-        }
-    }
+    iosSimulatorArm64()
 
 //    cocoapods {
 //        summary = "Some description for the Shared Module"
 //        homepage = "Link to the Shared Module homepage"
 //        ios.deploymentTarget = "14.1"
-//        if (!buildForAndroidCompat) {
-//            framework {
-//                isStatic = true
-//                baseName = "kuiklyCore"
-//            }
-//        }
+////        framework {
+////            baseName = "core-annotations"
+////        }
 //    }
+
+    sourceSets {
+        val commonMain by getting
+    }
 }
 
 android {
-    compileSdk = 30
-    namespace = "com.tencent.kuikly.core"
+    compileSdk = 32
+    namespace = "com.tencent.kuikly.core.annotations"
     sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
     defaultConfig {
         minSdk = 21
-        targetSdk = 30
+        targetSdk = 32
     }
+}
+
+val emptyJavadocJar by tasks.registering(Jar::class) {
+    archiveClassifier.set("javadoc")
 }

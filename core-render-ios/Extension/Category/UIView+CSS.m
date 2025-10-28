@@ -17,17 +17,8 @@
 #import <objc/runtime.h>
 #import "KRConvertUtil.h"
 #import "KRView.h"
-
-#if !TARGET_OS_OSX
 #import "KuiklyRenderBridge.h"
 #import "KuiklyRenderViewExportProtocol.h"
-#else
-@protocol KuiklyRenderViewLifyCycleProtocol; // [macOS]
-// [macOS] 前向声明以避免强依赖
-@interface KuiklyRenderBridge : NSObject
-+ (id)componentExpandHandler;
-@end
-#endif
 
 #define LAZY_ANIMATION_KEY @"lazyAnimationKey"
 #define ANIMATION_KEY @"animation"
@@ -893,10 +884,6 @@
 
 + (UIColor *)css_color:(id)value {
     if ([value isKindOfClass:[NSString class]]) {
-        #if TARGET_OS_OSX // [macOS]
-        // macOS 先不依赖 KuiklyRenderBridge 的扩展色值解析，直接走 KRConvertUtil 数值路径
-        return [KRConvertUtil UIColor:@([(NSString *)value longLongValue])];
-        #else
         if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_colorWithValue:)]) {
             UIColor *color = [[KuiklyRenderBridge componentExpandHandler] hr_colorWithValue:value];
             if (color) {
@@ -904,7 +891,6 @@
             }
         }
         return [KRConvertUtil UIColor:@([(NSString *)value longLongValue])];
-        #endif // [macOS]
     }
     return [KRConvertUtil UIColor:value];
 }

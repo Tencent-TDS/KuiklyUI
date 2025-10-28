@@ -392,7 +392,9 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 }
 
 - (void)setCss_frame:(NSValue *)css_frame {
+    self.skipNestScrollLock = YES;
     [super setCss_frame:css_frame];
+    self.skipNestScrollLock = NO;
     _wrapperView.frame = self.frame;
 }
 

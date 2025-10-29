@@ -17,29 +17,10 @@
 #import <JavaScriptCore/JavaScriptCore.h>
 #import <CoreText/CoreText.h>
 #import <CommonCrypto/CommonDigest.h>
-#if !TARGET_OS_OSX
 #import "NSObject+KR.h"
-#endif
 #import <CommonCrypto/CommonCrypto.h>
-#if !TARGET_OS_OSX
 #import "KRLogModule.h"
 #import "KuiklyRenderBridge.h"
-#else
-// [macOS] 避免引入未适配模块：提供最小 no-op 声明
-@interface KRLogModule : NSObject
-+ (void)logError:(NSString *)msg;
-@end
-@implementation KRLogModule
-+ (void)logError:(NSString *)msg {}
-@end
-@interface KuiklyRenderBridge : NSObject
-+ (id)componentExpandHandler; // 返回 nil，调用方需判空
-@end
-@implementation KuiklyRenderBridge
-+ (id)componentExpandHandler { return nil; }
-@end
-#endif
-#import "UIView+CSS.h" // 用于 css_string: 等静态工具方法
 
 #define hr_tan(deg)   tan(((deg)/360.f) * (2 * M_PI))
 

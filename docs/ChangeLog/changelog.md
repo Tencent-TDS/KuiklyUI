@@ -10,6 +10,19 @@ maven("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
 
 [ohpm](https://ohpm.openharmony.cn/#/cn/detail/@kuikly-open%2Frender)
 
+## [2025-10-29, Version 2.7.0](https://github.com/Tencent-TDS/KuiklyUI/tree/2.7.0)
+### What's Changed
+https://github.com/Tencent-TDS/KuiklyUI/releases/tag/2.6.0
+
+#### Note:
+Kuikly-ComposeDSL使用的kotlin版本由 kotlin2.0.21 变更为 kotlin2.1.21
+
+老版本升级注意事项：2.6.0-2.0.21 -> 2.7.0-2.1.21
+
+## [2025-10-13, Version 2.6.0](https://github.com/Tencent-TDS/KuiklyUI/tree/2.6.0)
+### What's Changed
+https://github.com/Tencent-TDS/KuiklyUI/releases/tag/2.6.0
+
 ## [2025-09-17, Version 2.5.0](https://github.com/Tencent-TDS/KuiklyUI/tree/2.5.0)
 ### What's Changed
 https://github.com/Tencent-TDS/KuiklyUI/releases/tag/2.5.0

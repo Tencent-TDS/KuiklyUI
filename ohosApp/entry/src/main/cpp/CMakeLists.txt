@@ -32,6 +32,7 @@ target_link_libraries(kuikly_entry PUBLIC
     libnative_drawing.so
     libpixelmap.so
     libimage_source.so
+    librawfile.z.so
     # biz库
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../libs/arm64-v8a/libshared.so
 )

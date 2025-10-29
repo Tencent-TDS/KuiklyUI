@@ -18,6 +18,7 @@
 #include <hilog/log.h>
 #include <multimedia/image_framework/image/image_source_native.h>
 #include <multimedia/image_framework/image/pixelmap_native.h>
+#include <rawfile/raw_file_manager.h>
 #include <thread>
 #include <memory>
 #include <string>
@@ -27,6 +28,59 @@
 
 static std::string customFontPath;
 static std::string customImagePath;
+static NativeResourceManager *g_resource_manager = nullptr;
+
+static napi_threadsafe_function g_threadsafe_func = NULL;
+struct ImageCallbackTask{
+    ImageCallbackTask(const void* ctx,
+                      const char *src,
+                      ArkUI_DrawableDescriptor *image_descriptor,
+                      KRSetImageCallback cb):context(ctx), src(src), imageDescriptor(image_descriptor), callback(cb){
+        // blank
+    }
+    void run(){
+        callback(context, src.c_str(), imageDescriptor, nullptr);
+        OH_ArkUI_DrawableDescriptor_Dispose(imageDescriptor);
+    }
+    ArkUI_DrawableDescriptor *imageDescriptor;
+    KRSetImageCallback callback;
+    const void *context;
+    std::string src;
+};
+
+static void threadsafe_func(napi_env env, napi_value js_fun, void *context, void *data) {
+    struct ImageCallbackTask *task = (struct ImageCallbackTask *)data;
+    if (task != nullptr) {
+        task->run();
+        delete task;
+    }
+}
+
+static napi_value SetResourceManager(napi_env env, napi_callback_info info) {
+    if (g_resource_manager) {
+        return nullptr;
+    }
+
+    size_t argc = 1;
+    napi_value args[1] = {nullptr};
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    g_resource_manager = OH_ResourceManager_InitNativeResourceManager(env, args[0]);
+    // Note: One should call OH_ResourceManager_ReleaseNativeResourceManager for the resource manager when it is no longer needed anymore,
+    // for the simplicity of the demo, we just keep it around forever. 
+    
+    if (g_threadsafe_func == NULL) {
+        napi_value work_name;
+        napi_create_string_utf8(env, "Image callback", NAPI_AUTO_LENGTH, &work_name);
+        napi_status status = napi_create_threadsafe_function(env, NULL, NULL, work_name, 0, 1, NULL, NULL, NULL,
+                                                             threadsafe_func, &g_threadsafe_func);
+        if (status != napi_ok) {
+            napi_throw_error(env, "-1", "napi_create_threadsafe_function error");
+            return nullptr;
+        }
+    }
+    
+    return nullptr;
+}
 
 static napi_value SetFontPath(napi_env env, napi_callback_info info) {
     if (customFontPath.size() > 0) {
@@ -67,6 +121,58 @@ static char *MyFontAdapter(const char *fontFamily, char **fontBuffer, size_t *le
         return "rawfile:Satisfy-Regular.ttf";
     }
     return (char *)customFontPath.c_str();
+}
+
+#define MyImageAdapterV2_SYNC_CALLBACK 1
+
+int32_t MyImageAdapterV2(const void *context,
+                                 const char *src,
+                                 KRSetImageCallback callback){
+    static int counter = 0;
+    if(counter++ % 2 == 0){
+        return 0;
+    }
+    std::string_view src_view(src);
+    if(src_view.find("panda2") != std::string_view::npos){
+        if(RawFile *raw_file = OH_ResourceManager_OpenRawFile(g_resource_manager, "panda2.png")){
+            RawFileDescriptor descriptor;
+            if(OH_ResourceManager_GetRawFileDescriptor(raw_file, descriptor)){
+                OH_ImageSourceNative *image_source = nullptr;
+                Image_ErrorCode errCode = OH_ImageSourceNative_CreateFromRawFile(&descriptor, &image_source);
+                if(image_source){
+                    OH_DecodingOptions *ops = nullptr;
+                    OH_DecodingOptions_Create(&ops);
+                    // 设置为AUTO会根据图片资源格式解码，如果图片资源为HDR资源则会解码为HDR的pixelmap。
+                    OH_DecodingOptions_SetDesiredDynamicRange(ops, IMAGE_DYNAMIC_RANGE_AUTO);
+                    OH_PixelmapNative *resPixMap = nullptr;
+            
+                    // ops参数支持传入nullptr, 当不需要设置解码参数时，不用创建
+                    errCode = OH_ImageSourceNative_CreatePixelmap(image_source, ops, &resPixMap);
+                    OH_DecodingOptions_Release(ops);
+                    if (errCode != IMAGE_SUCCESS) {
+                        return 0;
+                    }
+                    OH_ImageSourceNative_Release(image_source);
+            
+                    // 通过PixelMap创建DrawableDescriptor
+                    ArkUI_DrawableDescriptor *imageDescriptor = OH_ArkUI_DrawableDescriptor_CreateFromPixelMap(resPixMap);
+#if MyImageAdapterV2_SYNC_CALLBACK
+                    // call back immediate ly
+                    callback(context, src, imageDescriptor, nullptr);
+                    OH_ArkUI_DrawableDescriptor_Dispose(imageDescriptor);
+#else
+                    // use thread safe function to simulate an async callback
+                    ImageCallbackTask *mainTask = new ImageCallbackTask(context, src, imageDescriptor, callback);
+                    napi_call_threadsafe_function(g_threadsafe_func, static_cast<void *>(mainTask), napi_tsfn_blocking);
+#endif
+                    OH_PixelmapNative_Release(resPixMap);
+                    return 1;
+                }
+                OH_ResourceManager_ReleaseRawFileDescriptor(descriptor);
+            }
+        }
+    }
+    return 0;
 }
 
 static char *MyImageAdapter(const char *imageSrc, ArkUI_DrawableDescriptor **imageDescriptor,
@@ -166,6 +272,7 @@ static napi_value InitKuikly(napi_env env, napi_callback_info info) {
         KRRegisterLogAdapter(MyLogAdapter);
         KRRegisterFontAdapter(MyFontAdapter, "Satisfy-Regular");
         KRRegisterImageAdapter(MyImageAdapter);
+        KRRegisterImageAdapterV2(MyImageAdapterV2);
         adapterRegistered = true;
     }
 
@@ -181,6 +288,7 @@ static napi_value Init(napi_env env, napi_value exports) {
     napi_property_descriptor desc[] = {
         {"initKuikly", nullptr, InitKuikly, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"setFontPath", nullptr, SetFontPath, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"setResourceManager", nullptr, SetResourceManager, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
     return exports;

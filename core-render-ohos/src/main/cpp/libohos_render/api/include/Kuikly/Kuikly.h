@@ -207,10 +207,39 @@ typedef char *(*KRImageAdapter)(const char *imageSrc, ArkUI_DrawableDescriptor *
                                 KRImageDataDeallocator *deallocator);
 
 /**
+ * @brief 业务图片加载完成后，用于回调给kuikly的函数指针
+ * @param context 上下文
+ * @param src src image组件设置的src属性
+ * @param image_descriptor 解码好的图片
+ * @param new_src 新的src地址，比如从原src映射到一个新的src路径
+ * @discuss 当image_descriptor非空时，kuikly优先用image_descriptor，其次再使用new_src
+ */
+typedef void (*KRSetImageCallback)(const void* context,
+                                   const char *src,
+                                   ArkUI_DrawableDescriptor *image_descriptor,
+                                   const char *new_src);
+/**
+ * @brief 自定义image adapter
+ * @param context 上下文
+ * @param src image组件设置的src属性
+ * @param callback 自定义加载图片完成后可通过callback指针回调给kuikly，并把context以及src参数回填
+ * @return 已处理则返回1，否则返回0
+ */
+typedef int32_t (*KRImageAdapterV2)(const void *context,
+                                 const char *src,
+                                 KRSetImageCallback callback);
+/**
  * @brief 注册image adapter
  * @param adapter adapter函数指针
  */
+[[deprecated("Use KRRegisterImageAdapterV2(KRImageAdapterV2) instead.")]]
 void KRRegisterImageAdapter(KRImageAdapter adapter);
+
+/**
+ * @brief 注册image adapter
+ * @param adapter adapter函数指针
+ */
+void KRRegisterImageAdapterV2(KRImageAdapterV2 adapter);
 
 /**
  * Log level定义

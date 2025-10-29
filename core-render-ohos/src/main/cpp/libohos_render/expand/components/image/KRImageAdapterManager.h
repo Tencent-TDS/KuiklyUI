@@ -21,12 +21,13 @@ class KRImageAdapterManager final {
  public:
     static KRImageAdapterManager *GetInstance();
     void RegisterImageAdapter(KRImageAdapter adapter);
-
     KRImageAdapter GetAdapter();
-
+    void RegisterImageAdapterV2(KRImageAdapterV2 adapter);
+    KRImageAdapterV2 GetAdapterV2();
  private:
     KRImageAdapterManager() = default;
     ~KRImageAdapterManager() = delete;
 
-    KRImageAdapter adapter;
+    KRImageAdapter adapter = nullptr;
+    KRImageAdapterV2 adapter_v2 = nullptr;
 };

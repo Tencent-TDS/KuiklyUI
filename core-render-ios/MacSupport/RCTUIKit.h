@@ -210,7 +210,7 @@ typedef unsigned long long UIAccessibilityTraits; // match iOS underlying type
 
 
 // RCTActivityIndicatorView.h
-#define UIActivityIndicatorView NSProgressIndicator
+#define UIActivityIndicatorView RCTUIActivityIndicatorView
 
 
 // UIGeometry.h/NSGeometry.h

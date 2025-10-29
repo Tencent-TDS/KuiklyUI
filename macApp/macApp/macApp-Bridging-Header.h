@@ -13,20 +13,5 @@
  * limitations under the License.
  */
 
-import Foundation
-import SwiftUI
+#import "KuiklyPageViewController.h"
 
-struct KuiklyRenderViewPage : NSViewControllerRepresentable {
-    typealias NSViewControllerType = KuiklyPageViewController
-    
-    var pageName: String
-    var data: Dictionary<String, Any>
-    
-    func makeNSViewController(context: Context) -> KuiklyPageViewController {
-        return KuiklyPageViewController(pageName: pageName, data: data)
-    }
-    
-    func updateNSViewController(_ nsViewController: KuiklyPageViewController, context: Context) {
-        nsViewController.update(withPageName: pageName, data: data)
-    }
-}

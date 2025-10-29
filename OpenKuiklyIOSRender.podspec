@@ -9,7 +9,7 @@ Pod::Spec.new do |spec|
   spec.license          = { :type => "KuiklyUI", :file => "LICENSE" }
   spec.author           = { "Kuikly" => "ruifanyuan@tencent.com" }
   spec.ios.deployment_target = '9.0'
-  spec.osx.deployment_target = '10.15'
+  spec.osx.deployment_target = '10.13'
   spec.source           = { :git => "https://github.com/Tencent-TDS/KuiklyUI.git", :tag => "#{spec.version}" }
   spec.user_target_xcconfig = { 'CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES' => 'YES' }
   spec.requires_arc     = true
@@ -33,6 +33,7 @@ Pod::Spec.new do |spec|
 
   # macOS 先行编译通过：排除暂未适配的 iOS-only/复杂组件
   spec.osx.exclude_files = [
+    'core-render-ios/Extension/Vendor/KRLabel.m',
     'core-render-ios/Extension/Components/KRTextFieldView.{h,m}',
     'core-render-ios/Extension/Components/KRTextAreaView.{h,m}',
     'core-render-ios/Extension/Components/KRScrollView.{h,m}',
@@ -40,12 +41,21 @@ Pod::Spec.new do |spec|
     'core-render-ios/Extension/Components/KRScrollView+NestedScroll.{h,m}',
     'core-render-ios/Extension/Components/NestScroll/**/*',
     'core-render-ios/Extension/Components/KRView+Compose.{h,m}',
-    'core-render-ios/Extension/AdvancedComps/**/*',
-    
-    # 其他UI组件
-    'core-render-ios/Extension/Vendor/KRLabel.m',
     'core-render-ios/Extension/Components/KRComposeGesture.m',
-    'core-render-ios/Extension/AdvancedComps/KRModalView.m',
-
+    
+    # AdvancedComps 组件
+    'core-render-ios/Extension/AdvancedComps/KRActivityIndicatorView.{h,m}',
+#    'core-render-ios/Extension/AdvancedComps/KRAPNGView.{h,m}',
+#    'core-render-ios/Extension/AdvancedComps/KRPAGView.{h,m}',
+    # 'core-render-ios/Extension/AdvancedComps/KRBlurView.{h,m}',
+    'core-render-ios/Extension/AdvancedComps/KRCanvasView.{h,m}',
+    'core-render-ios/Extension/AdvancedComps/KRGradientRichTextView.{h,m}',
+    'core-render-ios/Extension/AdvancedComps/KRHoverView.{h,m}',
+    'core-render-ios/Extension/AdvancedComps/KRMaskView.{h,m}',
+    'core-render-ios/Extension/AdvancedComps/KRModalView.{h,m}',
+    'core-render-ios/Extension/AdvancedComps/KRRichTextView.{h,m}',
+    'core-render-ios/Extension/AdvancedComps/KRVideoView.{h,m}',
+    'core-render-ios/Extension/AdvancedComps/LiquidGlass/**/*',
+    
   ]
 end

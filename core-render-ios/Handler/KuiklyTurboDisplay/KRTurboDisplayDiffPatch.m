@@ -269,6 +269,10 @@ static UIView *gBaseView = nil;
                                     renderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer {
     // create shadow
     id<KuiklyRenderShadowProtocol> realShadow = [NSClassFromString(shadow.viewName) hrv_createShadow];
+    
+    // 向shadow增加ContextParam
+    [renderLayer setContextParamToShadow:realShadow];
+    
     if (!realShadow) {
         NSString *assertMsg = [NSString stringWithFormat:@"create shadow failed:%@", shadow.viewName];
         NSAssert(NO, assertMsg);

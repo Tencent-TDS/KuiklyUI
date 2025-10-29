@@ -78,6 +78,7 @@ object KRCssConst {
     const val HAD_SET_FRAME = "hadSetFrame"
 
     const val ACCESSIBILITY = "accessibility"
+    const val ACCESSIBILITY_INFO = "accessibilityInfo"
     const val ACCESSIBILITY_ROLE = "accessibilityRole"
 
     // 同 Attr.StyleConst.DEBUG_NAME

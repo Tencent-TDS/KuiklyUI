@@ -133,10 +133,6 @@ open class ListContentView : ScrollerContentView() {
     private var didAddNextTickUpdateVisibleOffset = false
     private var didInitContentOffset = false
 
-    override fun setFrameToRenderView(frame: Frame) {
-        super.setFrameToRenderView(frame)
-        updateOffsetIfNeed()
-    }
     override fun didInsertDomChild(child: DeclarativeBaseView<*, *>, index: Int) {
         super.didInsertDomChild(child, index)
         child.getViewAttr().setProp(SCROLL_INDEX, index)
@@ -429,33 +425,6 @@ open class ListContentView : ScrollerContentView() {
             renderView!!.insertSubRenderView(component.nativeRef, -1)
         }
         return !containUnLayoutNode
-    }
-
-    internal open fun needUpdateOffset(): Boolean = !flexNode.layoutFrame.isDefaultValue()
-
-    private fun updateOffsetIfNeed() {
-        if (!needUpdateOffset()) {
-            return
-        }
-        parent?.also { parentView ->
-            var maxOffset = flexNode.layoutFrame.height - parentView.flexNode.layoutFrame.height
-            var currentOffset = offsetY
-            if (isRowFlexDirection()) {
-                maxOffset = flexNode.layoutFrame.width - parentView.flexNode.layoutFrame.width
-                currentOffset = offsetX
-            }
-            if (maxOffset < 0f) {
-                maxOffset = 0f
-            }
-            if (currentOffset >= 0 && currentOffset > maxOffset) {
-                if (isRowFlexDirection()) {
-                    offsetX = maxOffset
-                } else {
-                    offsetY = maxOffset
-                }
-                (parentView as ScrollerView).setContentOffset(offsetX, offsetY, false)
-            }
-        }
     }
 
     open fun updateChildLayout() {

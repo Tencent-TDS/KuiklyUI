@@ -28,6 +28,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (nonatomic, assign) BOOL autoAdjustContentOffsetDisable ;
 @property (nonatomic, assign) BOOL setContentSizeing ;
+@property (nonatomic, assign) BOOL skipNestScrollLock;
 
 /// Record the last content offset for scroll lock.
 @property (nonatomic, assign) CGPoint lastContentOffset;

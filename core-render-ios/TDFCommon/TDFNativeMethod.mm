@@ -93,7 +93,7 @@ static SEL selectorForType(NSString *type)
 }
 
 - (void)processMethodSignature {
-    __weak typeof(self) wself = self;
+    __weak __typeof__(self) wself = self;
     NSArray<TDFMethodArgument *> *arguments;
     _selector = NSSelectorFromString(TDFParseMethodSignature(_methodInfo->objcName, &arguments));
     NSAssert(_selector, @"%s is not a valid selector", _methodInfo->objcName);

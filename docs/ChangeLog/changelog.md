@@ -14,7 +14,8 @@ maven("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
 ### What's Changed
 https://github.com/Tencent-TDS/KuiklyUI/releases/tag/2.5.0
 
-Note: maven源切换 maven("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
+#### Note: 
+maven源切换 maven("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
 
 ## [2025-08-20, Version 2.4.0](https://github.com/Tencent-TDS/KuiklyUI/tree/2.4.0)
 ### What's Changed

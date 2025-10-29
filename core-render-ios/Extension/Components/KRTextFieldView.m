@@ -130,6 +130,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
             for (NSString *key in _props.allKeys) {
                 [textShadow hrv_setPropWithKey:key propValue:_props[key]];
             }
+            [textShadow hrv_setPropWithKey:@"contextParam" propValue:self.hr_rootView.contextParam];
             // 保存原光标位置
             UITextRange *originalSelectedTextRange = self.selectedTextRange;
             // 设置新的 attributedText

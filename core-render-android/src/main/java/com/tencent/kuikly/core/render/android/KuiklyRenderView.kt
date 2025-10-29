@@ -185,7 +185,10 @@ class KuiklyRenderView(
     }
 
     override fun sendEvent(event: String, data: Map<String, Any>) {
-        val shouldSync = delegate?.syncSendEvent(event) == true
+        var shouldSync = delegate?.syncSendEvent(event) == true
+        if (!shouldSync) {
+            shouldSync = innerSyncSendEvent(event)
+        }
         renderCore?.sendEvent(event, data, shouldSync) ?: also { // core没初始化时, lazy住事件, 等core初始化后统一发送
             val lazyEventList =
                 coreEventLazyEventList ?: mutableListOf<RenderCoreLazyEvent>().apply {
@@ -196,6 +199,10 @@ class KuiklyRenderView(
         if (shouldSync) {
             remeasureIfNeeded()
         }
+    }
+
+    fun innerSyncSendEvent(event: String): Boolean {
+        return event == ON_BACK_PRESSED
     }
 
     override fun addView(child: View?, index: Int) {

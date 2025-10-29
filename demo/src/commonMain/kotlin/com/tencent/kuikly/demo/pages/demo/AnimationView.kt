@@ -16,6 +16,7 @@
 package com.tencent.kuikly.demo.pages.demo
 
 import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.base.PagerScope
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.compose.Button
@@ -70,11 +71,13 @@ fun ViewContainer<*, *>.AnimationBall(init: AnimationBall.() -> Unit) {
     addChild(AnimationBall(), init)
 }
 
-class AnimationControlButtonState() {
+class AnimationControlButtonState(scope: PagerScope) : PagerScope by scope {
     var buttonEnable by observable(true)
     var buttonColor: Color by observable(Color())
     var buttonText: String by observable("播放动画")
 }
+// helper function for refactoring
+internal fun PagerScope.AnimationControlButtonState() = AnimationControlButtonState(this)
 
 class AnimationControlButtonAttr(): ComposeAttr() {
     var state by observable(AnimationControlButtonState())

@@ -112,12 +112,12 @@ bool KRLongPressGestureEventHandler::RegisterEvent(const KRGestureEventType &eve
     auto long_press_gesture = gesture_api->createLongPressGesture(1, false, 250);
     void* userData = KRWeakObjectManagerRegisterWeakObject(shared_from_this());
     gesture_api->setGestureEventTarget(
-        long_press_gesture, GESTURE_EVENT_ACTION_ACCEPT | GESTURE_EVENT_ACTION_UPDATE | GESTURE_EVENT_ACTION_END, userData,
+        long_press_gesture, GESTURE_EVENT_ACTION_ACCEPT | GESTURE_EVENT_ACTION_UPDATE | GESTURE_EVENT_ACTION_END | GESTURE_EVENT_ACTION_CANCEL, userData,
         OnReceiveGestureEvent);
     gesture_api->addChildGesture(sequential_gesture_group, long_press_gesture);
     auto pan_gesture = gesture_api->createPanGesture(1, GESTURE_DIRECTION_ALL, 1);
     gesture_api->setGestureEventTarget(
-        pan_gesture, GESTURE_EVENT_ACTION_ACCEPT | GESTURE_EVENT_ACTION_UPDATE | GESTURE_EVENT_ACTION_END, userData,
+        pan_gesture, GESTURE_EVENT_ACTION_ACCEPT | GESTURE_EVENT_ACTION_UPDATE | GESTURE_EVENT_ACTION_END | GESTURE_EVENT_ACTION_CANCEL, userData,
         OnReceiveGestureEvent);
     gesture_api->addChildGesture(sequential_gesture_group, pan_gesture);
 

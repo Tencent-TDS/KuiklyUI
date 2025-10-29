@@ -242,8 +242,8 @@ var Element.animationCompletionBlock: KuiklyRenderCallback?
 private fun Element.checkAndUpdatePositionForH5(frame: Frame, style: CSSStyleDeclaration) {
     // update style for h5
     if (style.borderWidth.endsWith("px")) {
+        val borderWidth = style.borderWidth.pxToDouble()
         Promise.resolve(null).then {
-            val borderWidth = style.borderWidth.pxToDouble()
             // if element has border, then element is border-box, then adjust the children's offset
             for (i in 0 until this.children.length) {
                 val child = this.children[i].unsafeCast<HTMLElement>()
@@ -253,6 +253,15 @@ private fun Element.checkAndUpdatePositionForH5(frame: Frame, style: CSSStyleDec
                 // add sign
                 dynamicChild.isAdujustedOffset = true
             }
+        }
+        
+        // Only apply border adjustment for span or p elements
+        val tagName = this.tagName.lowercase()
+        if (tagName == "span" || tagName == "p") {
+            frame.width += 2 * borderWidth
+            frame.height += 2 * borderWidth
+            frame.x -= borderWidth
+            frame.y -= borderWidth
         }
     }
 
@@ -285,12 +294,6 @@ fun Element.setFrame(frame: Frame, style: CSSStyleDeclaration) {
     dynamicElement.rawLeft = left
     dynamicElement.rawTop = top
 
-    // set element frame
-    style.left = left.toPxF()
-    style.top = top.toPxF()
-    style.width = frame.width.toPxF()
-    style.height = frame.height.toPxF()
-
     // adjust element offset for border element
     if (style.asDynamic().checkAndUpdatePosition != null) {
         // update style for miniapp
@@ -298,6 +301,12 @@ fun Element.setFrame(frame: Frame, style: CSSStyleDeclaration) {
     } else {
         checkAndUpdatePositionForH5(frame, style)
     }
+
+    // set element frame
+    style.left = frame.x.toPxF()
+    style.top = frame.y.toPxF()
+    style.width = frame.width.toPxF()
+    style.height = frame.height.toPxF()
 }
 
 /**

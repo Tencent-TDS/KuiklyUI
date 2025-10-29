@@ -44,17 +44,10 @@ Pod::Spec.new do |spec|
     'core-render-ios/Extension/Components/KRComposeGesture.m',
     
     # AdvancedComps 组件
-    'core-render-ios/Extension/AdvancedComps/KRActivityIndicatorView.{h,m}',
-#    'core-render-ios/Extension/AdvancedComps/KRAPNGView.{h,m}',
-#    'core-render-ios/Extension/AdvancedComps/KRPAGView.{h,m}',
-    # 'core-render-ios/Extension/AdvancedComps/KRBlurView.{h,m}',
     'core-render-ios/Extension/AdvancedComps/KRCanvasView.{h,m}',
     'core-render-ios/Extension/AdvancedComps/KRGradientRichTextView.{h,m}',
     'core-render-ios/Extension/AdvancedComps/KRHoverView.{h,m}',
-    'core-render-ios/Extension/AdvancedComps/KRMaskView.{h,m}',
-    'core-render-ios/Extension/AdvancedComps/KRModalView.{h,m}',
     'core-render-ios/Extension/AdvancedComps/KRRichTextView.{h,m}',
-    'core-render-ios/Extension/AdvancedComps/KRVideoView.{h,m}',
     'core-render-ios/Extension/AdvancedComps/LiquidGlass/**/*',
     
   ]

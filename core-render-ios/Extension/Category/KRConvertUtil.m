@@ -156,9 +156,6 @@
 }
 
 + (UIUserInterfaceStyle)KRUserInterfaceStyle:(NSString *)style API_AVAILABLE(ios(12.0)) {
-    #if TARGET_OS_OSX
-    return UIUserInterfaceStyleUnspecified;
-    #else
     if ([[UIView css_string:style] isEqualToString:@"dark"]) {
         return UIUserInterfaceStyleDark;
     }
@@ -166,7 +163,6 @@
         return UIUserInterfaceStyleLight;
     }
     return UIUserInterfaceStyleUnspecified;
-    #endif
 }
 
 #if !TARGET_OS_OSX

@@ -21,10 +21,12 @@ import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ComposeAttr
 import com.tencent.kuikly.core.base.ComposeEvent
 import com.tencent.kuikly.core.base.ComposeView
+import com.tencent.kuikly.core.base.PagerScope
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.module.RouterModule
+import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.core.views.compose.Button
@@ -170,4 +172,11 @@ internal fun ViewContainer<*, *>.ExampleItem(init: ExampleItemView.() -> Unit) {
 
 internal class ExampleItemAttr : ComposeAttr() {
     lateinit var itemData: ExampleItemData
+}
+
+internal class ExampleItemData(scope: PagerScope) {
+    var avatarText by scope.observable("")
+    var titleText by scope.observable("")
+    var subtitleText by scope.observable("")
+    var declarativeExampleUrl by scope.observable("")
 }

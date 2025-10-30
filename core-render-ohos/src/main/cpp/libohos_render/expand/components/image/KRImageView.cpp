@@ -20,9 +20,12 @@
 #include <string_view>
 #include "libohos_render/expand/components/image/KRImageAdapterManager.h"
 #include "libohos_render/expand/modules/cache/KRMemoryCacheModule.h"
+#include "libohos_render/manager/KRRenderManager.h"
 #include "libohos_render/manager/KRSnapshotManager.h"
+#include "libohos_render/utils/KRThreadChecker.h"
 #include "libohos_render/utils/KRURIHelper.h"
 #include "libohos_render/utils/KRStringUtil.h"
+#include "libohos_render/utils/KRViewContext.h"
 
 constexpr char kPropNameSrc[] = "src";
 constexpr char kBase64Prefix[] = "data:image";
@@ -173,6 +176,31 @@ void KRImageView::OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEventType &eve
     }
 }
 
+void KRImageView::AdapterSetImageCallback(const void* context,
+                                   const char *src,
+                                   ArkUI_DrawableDescriptor *imageDescriptor,
+                                   const char *new_src){
+    KREnsureMainThread();
+    KRViewContext ctx(context);
+    if(auto render_view = KRRenderManager::GetInstance().GetRenderView(ctx.InstanceString())){
+        if (std::shared_ptr<IKRRenderViewExport> view = render_view->GetView(ctx.Tag());
+        auto image_view = std::dynamic_pointer_cast<KRImageView> (view)) {
+            if(src != image_view->image_src_){
+                KR_LOG_ERROR << "Image src mismatch, src in callback:" << src <<", current src of image view:"<<image_view->image_src_;
+                return;
+            }
+            
+            if(imageDescriptor){
+                kuikly::util::SetArkUIImageSrc(image_view->GetNode(), imageDescriptor);
+            }else if(new_src){
+                image_view->LoadFromSrc(std::string(new_src));
+            }else{
+                KR_LOG_INFO << "Neither image descriptor nor new_src is returned";
+            }
+        }
+    }
+}
+
 bool KRImageView::SetImageSrc(const KRAnyValue &value) {
     auto src = value->toString();
     if (image_src_ == src) {
@@ -180,8 +208,14 @@ bool KRImageView::SetImageSrc(const KRAnyValue &value) {
     }
 
     kuikly::util::ResetArkUIImageSrc(GetNode());
-    auto imageAdapter = KRImageAdapterManager::GetInstance()->GetAdapter();
-    if (imageAdapter) {
+    image_src_ = src;
+    if (auto imageAdapterV2 = KRImageAdapterManager::GetInstance()->GetAdapterV2()) {
+        KRViewContext ctx(GetInstanceId(), GetViewTag());
+        if(imageAdapterV2((const void*)ctx.Context(), (const char*)src.c_str(), &KRImageView::AdapterSetImageCallback)){
+            // handled by the adapter, return immediately
+            return true;
+        }
+    }else if (auto imageAdapter = KRImageAdapterManager::GetInstance()->GetAdapter()) {
         ArkUI_DrawableDescriptor *imageDescriptor = nullptr;
         KRImageDataDeallocator deallocator = nullptr;
         char *imageSrc = imageAdapter(src.c_str(), &imageDescriptor, &deallocator);

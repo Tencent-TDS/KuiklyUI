@@ -72,6 +72,11 @@ class KRImageView : public IKRRenderViewExport {
     bool had_register_on_error_event_ = false;
     bool is_dot_nine_image_ = false;
     ArkUI_NodeHandle mask_linear_gradient_node_ = nullptr;
+    
+    static void AdapterSetImageCallback(const void* context,
+                                   const char *src,
+                                   ArkUI_DrawableDescriptor *imageDescriptor,
+                                   const char *new_src);
 };
 
 #endif  // CORE_RENDER_OHOS_KRIMAGEVIEW_H

@@ -5,9 +5,10 @@ plugins {
 
 android {
     compileSdk = 34
+    namespace = "com.tencent.kuikly.android.demo"
     defaultConfig {
         applicationId = "com.tencent.kuikly.android.demo"
-        minSdk = 21
+        minSdk = 24
         targetSdk = 32
         versionCode = 1
         versionName = "1.0"

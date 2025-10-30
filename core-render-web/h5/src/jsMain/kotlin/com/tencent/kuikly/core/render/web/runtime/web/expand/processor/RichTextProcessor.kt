@@ -58,11 +58,14 @@ object RichTextProcessor : IRichTextProcessor {
     private val measureElement: HTMLElement by lazy {
         kuiklyDocument.createElement(ElementType.P).unsafeCast<HTMLElement>().apply {
             // 初始化基础样式
+            id = "measure_iframe"
             style.display = "inline-block"
             style.asDynamic().webkitLineClamp = ""
             style.asDynamic().webkitBoxOrient = ""
             style.whiteSpace = "pre-wrap"
             style.overflowY = "auto"
+            style.top = "-5000px"
+            style.position = "absolute"
         }
     }
 
@@ -124,8 +127,9 @@ object RichTextProcessor : IRichTextProcessor {
         if(view.isRichTextValues()) {
             newEle = ele
         } else {
-            // save necessary styles
+            // Copy all styles at once using cssText for better performance
             newEle.style.cssText = ele.style.cssText
+            // Set content after style copying to avoid potential style interference
             newEle.innerText = renderText.ifEmpty { ele.innerText }
         }
 
@@ -141,6 +145,7 @@ object RichTextProcessor : IRichTextProcessor {
         newEle.style.whiteSpace = "pre-wrap"
         // If lines are set, also need to limit maximum number of lines
         if (view.numberOfLines > 0) {
+            setMultiLineStyle(view.numberOfLines, newEle)
             setMultiLineStyle(view.numberOfLines, ele)
         }
         // Insert the node into the page to complete rendering, used to get the actual size of the node
@@ -166,6 +171,7 @@ object RichTextProcessor : IRichTextProcessor {
             if (expectHeight - h > singleLineHeight / 2) {
                 // Need to remove multi-line style
                 setMultiLineStyle(0, ele)
+                setMultiLineStyle(0, newEle)
                 // And get height and width again
                 w = newEle.offsetWidth
                 h = newEle.offsetHeight.toFloat()
@@ -218,6 +224,10 @@ object RichTextProcessor : IRichTextProcessor {
         return defaultFontFamily
     }
 
+    private fun isSupportLetterSpacing(view: KRRichTextView): Boolean {
+        return view.ele.style.letterSpacing.isNotEmpty() || view.ele.style.letterSpacing == "0px"
+    }
+
     /**
      * Calculate the actual space size occupied by the element using Canvas method
      *
@@ -228,7 +238,7 @@ object RichTextProcessor : IRichTextProcessor {
         view: KRRichTextView,
         renderText: String
     ): SizeF {
-        if (!isSupportFontBoundingBox) {
+        if (!isSupportFontBoundingBox || isSupportLetterSpacing(view)) {
             // If this property is not supported, use the DOM method
             return calculateRenderViewSizeByDom(constraintSize, view, renderText)
         }

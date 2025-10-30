@@ -214,12 +214,11 @@ static UIView *gBaseView = nil;
             }
             [renderLayer setPropWithTag:newNode.tag propKey:newProp.propKey propValue:newProp.propValue];
         } else if (newProp.propType == KRTurboDisplayPropTypeFrame) {
-            if (curProp.propValue && CGRectEqualToRect(CGRectValue((NSValue *)curProp.propValue),
-                                                       CGRectValue((NSValue *)newProp.propValue))) {
+            if (curProp.propValue && CGRectEqualToRect([((NSValue *)curProp.propValue) CGRectValue],
+                                                       [((NSValue *)newProp.propValue) CGRectValue])) {
                 // nothing to do
             } else {
-                
-                [renderLayer setRenderViewFrameWithTag:newNode.tag frame:CGRectValue((NSValue *)newProp.propValue)]; // [macOS]
+               [renderLayer setRenderViewFrameWithTag:newNode.tag frame:[((NSValue *)newProp.propValue) CGRectValue]];
             }
         } else if (newProp.propType == KRTurboDisplayPropTypeShadow) {
             if (newNode.renderShadow) {

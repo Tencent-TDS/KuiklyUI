@@ -22,9 +22,7 @@
 #import "KuiklyRenderThreadManager.h"
 #import "KuiklyRenderUIScheduler.h"
 #import "NSObject+KR.h"
-#if !TARGET_OS_OSX // [macOS] TurboDisplay 暂仅在 iOS 路径启用
 #import "KuiklyTurboDisplayRenderLayerHandler.h"
-#endif
 
 // 注：args固定参数个数，不会存在数组访问越界
 #define FISRT_ARG args[0]
@@ -490,7 +488,6 @@ NSString *const kKuiklyFatalExceptionNotification = @"KuiklyFatalExceptionNotifi
     if ([_delegate respondsToSelector:@selector(turboDisplayKey)]) {
         turboDisplayKey = [_delegate turboDisplayKey];
     }
-#if !TARGET_OS_OSX
     if (turboDisplayKey.length) {
         KuiklyTurboDisplayRenderLayerHandler *handler = [[KuiklyTurboDisplayRenderLayerHandler alloc] 
                                                          initWithRootView:rootView
@@ -499,7 +496,6 @@ NSString *const kKuiklyFatalExceptionNotification = @"KuiklyFatalExceptionNotifi
         handler.uiScheduler = _uiScheduler;
         return handler;
     }
-#endif
     return [[KuiklyRenderLayerHandler alloc] initWithRootView:rootView contextParam:_contextParam];
 }
 

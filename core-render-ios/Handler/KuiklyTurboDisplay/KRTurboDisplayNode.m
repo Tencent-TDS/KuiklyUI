@@ -161,7 +161,7 @@
 - (CGRect)renderFrame {
     for (KRTurboDisplayProp *prop in self.props) { //
         if (prop.propType == KRTurboDisplayPropTypeFrame) {
-            return CGRectValue((NSValue *)prop.propValue); // [macOS]
+            return  [((NSValue *)prop.propValue) CGRectValue];
         }
     }
     return CGRectZero;

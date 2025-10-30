@@ -15,9 +15,7 @@
 
 #import "KuiklyContextParam.h"
 #import "KuiklyRenderFrameworkContextHandler.h"
-#if !TARGET_OS_OSX // [macOS] 避免在 macOS 下强依赖 Bridge
 #import "KuiklyRenderBridge.h"
-#endif
 
 const KuiklyContextMode KuiklyContextMode_Framework = 1;
 
@@ -62,7 +60,6 @@ const KuiklyContextMode KuiklyContextMode_Framework = 1;
 
 - (NSURL *)urlForFileName:(NSString *)fileName extension:(NSString *)fileExtension {
     // 通过fileName从自定义bundle中获取资源URL
-    #if !TARGET_OS_OSX
     if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_customBundleUrlForFileName:extension:)]) {
         NSURL *url = [[KuiklyRenderBridge componentExpandHandler] hr_customBundleUrlForFileName:fileName
                                                                                 extension:fileExtension];
@@ -70,7 +67,6 @@ const KuiklyContextMode KuiklyContextMode_Framework = 1;
             return url;
         }
     }
-    #endif
     
     // 通过resourceFolderUrl从自定义bundle中获取资源URL
     if (self.resourceFolderUrl) {

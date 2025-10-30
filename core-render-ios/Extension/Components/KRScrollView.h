@@ -15,10 +15,8 @@
 
 #import "RCTUIKit.h" // [macOS]
 #import "KuiklyRenderViewExportProtocol.h"
-#if !TARGET_OS_OSX // [macOS] NestedScroll暂未完成适配，临时屏蔽
 #import "NestedScrollCoordinator.h"
 #import "NestedScrollProtocol.h"
-#endif // [macOS]
 
 #import "KRView.h"
 NS_ASSUME_NONNULL_BEGIN
@@ -26,11 +24,7 @@ NS_ASSUME_NONNULL_BEGIN
 /*
  * @brief 暴露给Kotlin侧调用的Scoller组件
  */
-#if TARGET_OS_OSX // [macOS]
-@interface KRScrollView : UIScrollView<KuiklyRenderViewExportProtocol, UIScrollViewDelegate>
-#else // [macOS
 @interface KRScrollView : UIScrollView<KuiklyRenderViewExportProtocol, UIScrollViewDelegate, NestedScrollProtocol>
-#endif // macOS]
 
 @property (nonatomic, assign) BOOL autoAdjustContentOffsetDisable ;
 @property (nonatomic, assign) BOOL setContentSizeing ;
@@ -38,10 +32,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// Record the last content offset for scroll lock.
 @property (nonatomic, assign) CGPoint lastContentOffset;
 
-#if !TARGET_OS_OSX // [macOS]
 /// Nested scroll coordinator
 @property (nonatomic, strong) NestedScrollCoordinator *nestedScrollCoordinator;
-#endif // [macOS]
 
 /*
  * 添加滚动监听

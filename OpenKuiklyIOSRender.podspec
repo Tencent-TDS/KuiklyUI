@@ -36,10 +36,8 @@ Pod::Spec.new do |spec|
     'core-render-ios/Extension/Vendor/KRLabel.m',
     'core-render-ios/Extension/Components/KRTextFieldView.{h,m}',
     'core-render-ios/Extension/Components/KRTextAreaView.{h,m}',
-    'core-render-ios/Extension/Components/KRScrollView.{h,m}',
-    'core-render-ios/Extension/Components/KRListView.{h,m}',
-    'core-render-ios/Extension/Components/KRScrollView+NestedScroll.{h,m}',
-    'core-render-ios/Extension/Components/NestScroll/**/*',
+    # 嵌套滚动功能未完全适配
+ 
     'core-render-ios/Extension/Components/KRView+Compose.{h,m}',
     'core-render-ios/Extension/Components/KRComposeGesture.m',
     

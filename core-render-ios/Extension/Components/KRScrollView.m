@@ -20,9 +20,7 @@
 #import "KRMultiDelegateProxy.h"
 #import "KRConvertUtil.h"
 #import "KRScrollViewOffsetAnimator.h"
-#if !TARGET_OS_OSX // [macOS]
 #import "KRScrollView+NestedScroll.h"
-#endif // [macOS]
 #import "NSObject+KR.h"
 
 /*
@@ -84,9 +82,7 @@
 }
 @synthesize hr_rootView;
 @synthesize lastContentOffset = _lastContentOffset;
-#if !TARGET_OS_OSX // [macOS]
 KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
-#endif // [macOS]
 
 #pragma mark - init
 
@@ -246,8 +242,9 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
     #if !TARGET_OS_OSX // [macOS]
-    // iOS: 保持空实现，避免与 setContentOffset: 分发重复 // [macOS]
-    #else // [macOS
+    // iOS: 用户滚动会触发 setContentOffset:，已在那里分发事件，这里保持空实现避免重复
+    #else // [macOS]
+    // macOS: 用户滚动不会调用 setContentOffset:，必须通过此 delegate 回调分发事件
     [self p_dispatchScrollEventIfNeed];
     #endif // macOS]
 }
@@ -367,7 +364,6 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     }
 }
 
-#if !TARGET_OS_OSX // [macOS] // TODO:嵌套滚动暂未适配
 - (void)parseScrollMode:(NSString *)modeStr forward:(BOOL)isForward {
     NestedScrollPriority pri = NestedScrollPriorityUndefined;
     if ([modeStr isEqualToString:@"SELF_ONLY"]) {
@@ -399,7 +395,6 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
         [self parseScrollMode:backwardStr forward:NO];
     }
 }
-#endif // [macOS]
 
 - (void)setCss_dynamicSyncScrollDisable:(NSNumber *)css_dynamicSyncScrollDisable {
     if (self.css_dynamicSyncScrollDisable != css_dynamicSyncScrollDisable) {
@@ -496,12 +491,10 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 }
 // 分发scroll变化事件到kotlin
 - (void)p_dispatchScrollEventIfNeed {
-#if !TARGET_OS_OSX // [macOS] // TODO:嵌套滚动暂未适配
     if (self.isLockedInNestedScroll) {
         self.isLockedInNestedScroll = NO; // reset
         return;
     }
-#endif
     
     if (_ignoreDispatchScrollEvent) {
         return ;

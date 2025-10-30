@@ -626,9 +626,11 @@ NS_INLINE CGRect CGRectValue(NSValue *value)
   return rect;
 }
 
-// [macOS] NSValue does not provide CGSizeValue selector; add a shim via category declaration
-@interface NSValue (KUCGSizeCompat)
+// [macOS] NSValue does not provide CGPoint/CGSize/CGRect value selectors; add shims via category declaration
+@interface NSValue (KUCGGeometryCompat)
+- (CGPoint)CGPointValue;
 - (CGSize)CGSizeValue;
+- (CGRect)CGRectValue;
 @end
 
 NS_ASSUME_NONNULL_END

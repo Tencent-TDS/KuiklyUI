@@ -1042,13 +1042,26 @@ BOOL RCTUIViewSetClipsToBounds(RCTPlatformView *view)
 @end
 
 // [macOS] NSValue CGSizeValue shim to match UIKit API surface
-@implementation NSValue (KUCGSizeCompat)
-- (CGSize)CGSizeValue {
-  CGSize size = CGSizeZero;
-  [self getValue:&size];
-  return size;
+// [macOS] NSValue geometry compatibility - map iOS CGXxxValue to macOS native methods
+@implementation NSValue (KUCGGeometryCompat)
+
+- (CGPoint)CGPointValue {
+  // On macOS, CGPoint is NSPoint, use native pointValue
+  return [self pointValue];
 }
+
+- (CGSize)CGSizeValue {
+  // On macOS, CGSize is NSSize, use native sizeValue
+  return [self sizeValue];
+}
+
+- (CGRect)CGRectValue {
+  // On macOS, CGRect is NSRect, use native rectValue
+  return [self rectValue];
+}
+
 @end
+// macOS]
 
 // RCTUIActivityIndicatorView
 

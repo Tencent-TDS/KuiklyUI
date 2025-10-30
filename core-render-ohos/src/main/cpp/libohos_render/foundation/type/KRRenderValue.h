@@ -448,6 +448,7 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
                 map[item->string] = fromJsonValue(item);
             }
             json_to_map_or_array_value_ = map;
+            cJSON_Delete(cjson);
             return std::get<Map>(json_to_map_or_array_value_);
         } else {
             json_to_map_or_array_value_ = Map();
@@ -471,6 +472,7 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
                 json_vec.push_back(fromJsonValue(cJSON_GetArrayItem(cjson, i)));
             }
             json_to_map_or_array_value_ = json_vec;
+            cJSON_Delete(cjson);
             return std::get<Array>(json_to_map_or_array_value_);
         } else {
             json_to_map_or_array_value_ = Array();

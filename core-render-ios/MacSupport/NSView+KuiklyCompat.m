@@ -46,6 +46,67 @@ static NSComparisonResult KuiklyBringToFrontCompare(__kindof NSView *a, __kindof
     [self layout];
 }
 
+// [macOS] Swizzled lifecycle methods - these replace the original NSView methods
+- (void)ku_viewDidMoveToSuperview {
+    // Call original implementation (swizzled, so this actually calls the original viewDidMoveToSuperview)
+    [self ku_viewDidMoveToSuperview];
+    
+    // Call UIView-style method if subclass overrides it
+    // Use class_getInstanceMethod to check if subclass really implemented the method
+    Method categoryMethod = class_getInstanceMethod([NSView class], @selector(didMoveToSuperview));
+    Method instanceMethod = class_getInstanceMethod([self class], @selector(didMoveToSuperview));
+    
+    // If the instance method is different from category method, subclass overrode it
+    if (instanceMethod && instanceMethod != categoryMethod) {
+        [self didMoveToSuperview];
+    }
+}
+
+- (void)ku_viewWillMoveToSuperview:(nullable NSView *)newSuperview {
+    // Call UIView-style method if subclass overrides it
+    Method categoryMethod = class_getInstanceMethod([NSView class], @selector(willMoveToSuperview:));
+    Method instanceMethod = class_getInstanceMethod([self class], @selector(willMoveToSuperview:));
+    
+    if (instanceMethod && instanceMethod != categoryMethod) {
+        [self willMoveToSuperview:newSuperview];
+    }
+    
+    // Call original implementation (swizzled, so this actually calls the original viewWillMoveToSuperview:)
+    [self ku_viewWillMoveToSuperview:newSuperview];
+}
+
+- (void)ku_viewDidMoveToWindow {
+    // Call original implementation (swizzled, so this actually calls the original viewDidMoveToWindow)
+    [self ku_viewDidMoveToWindow];
+    
+    // Call UIView-style method if subclass overrides it
+    Method categoryMethod = class_getInstanceMethod([NSView class], @selector(didMoveToWindow));
+    Method instanceMethod = class_getInstanceMethod([self class], @selector(didMoveToWindow));
+    
+    if (instanceMethod && instanceMethod != categoryMethod) {
+        [self didMoveToWindow];
+    }
+}
+
+// Default implementations for subclasses to override (UIView-style API)
+- (void)didMoveToSuperview {
+    // Default implementation does nothing
+    // Subclasses override this method for UIView-like behavior
+    // This is called automatically by ku_viewDidMoveToSuperview after the native callback
+}
+
+- (void)willMoveToSuperview:(nullable NSView *)newSuperview {
+    // Default implementation does nothing
+    // Subclasses override this method for UIView-like behavior
+    // This is called automatically by ku_viewWillMoveToSuperview before the native callback
+}
+
+- (void)didMoveToWindow {
+    // Default implementation does nothing
+    // Subclasses override this method for UIView-like behavior
+    // This is called automatically by ku_viewDidMoveToWindow after the native callback
+}
+
 #pragma mark - Alpha & Background Color
 
 - (CGFloat)alpha {
@@ -115,11 +176,33 @@ static char kKUUserInteractionEnabledKey;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         Class cls = [NSView class];
+        
+        // Swizzle hitTest:
         Method original = class_getInstanceMethod(cls, @selector(hitTest:));
         Method swizzled = class_getInstanceMethod(cls, @selector(ku_hitTest:));
         if (original && swizzled) {
             method_exchangeImplementations(original, swizzled);
         }
+        
+        // [macOS] Swizzle lifecycle methods to bridge UIView-style API
+        Method originalMoveToSuperview = class_getInstanceMethod(cls, @selector(viewDidMoveToSuperview));
+        Method swizzledMoveToSuperview = class_getInstanceMethod(cls, @selector(ku_viewDidMoveToSuperview));
+        if (originalMoveToSuperview && swizzledMoveToSuperview) {
+            method_exchangeImplementations(originalMoveToSuperview, swizzledMoveToSuperview);
+        }
+        
+        Method originalMoveToWindow = class_getInstanceMethod(cls, @selector(viewDidMoveToWindow));
+        Method swizzledMoveToWindow = class_getInstanceMethod(cls, @selector(ku_viewDidMoveToWindow));
+        if (originalMoveToWindow && swizzledMoveToWindow) {
+            method_exchangeImplementations(originalMoveToWindow, swizzledMoveToWindow);
+        }
+        
+        Method originalWillMoveToSuperview = class_getInstanceMethod(cls, @selector(viewWillMoveToSuperview:));
+        Method swizzledWillMoveToSuperview = class_getInstanceMethod(cls, @selector(ku_viewWillMoveToSuperview:));
+        if (originalWillMoveToSuperview && swizzledWillMoveToSuperview) {
+            method_exchangeImplementations(originalWillMoveToSuperview, swizzledWillMoveToSuperview);
+        }
+        // macOS]
     });
 }
 
@@ -151,6 +234,12 @@ static char kKUUserInteractionEnabledKey;
     NSPoint pointInSuperview = superview ? [self convertPoint:point toView:superview] : NSPointFromCGPoint(point);
     return [self hitTest:pointInSuperview];
 }
+
+// [macOS] UIView pointInside:withEvent: compatibility
+- (BOOL)pointInside:(CGPoint)point withEvent:(__unused UIEvent *)event {
+    return self.userInteractionEnabled ? NSPointInRect(NSPointFromCGPoint(point), self.bounds) : NO;
+}
+// macOS]
 
 
 #pragma mark - Accessibility

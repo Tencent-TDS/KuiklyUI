@@ -20,7 +20,9 @@
 #import "KRMultiDelegateProxy.h"
 #import "KRConvertUtil.h"
 #import "KRScrollViewOffsetAnimator.h"
+#if !TARGET_OS_OSX // [macOS]
 #import "KRScrollView+NestedScroll.h"
+#endif // [macOS]
 #import "NSObject+KR.h"
 
 /*
@@ -82,12 +84,15 @@
 }
 @synthesize hr_rootView;
 @synthesize lastContentOffset = _lastContentOffset;
+#if !TARGET_OS_OSX // [macOS]
 KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
+#endif // [macOS]
 
 #pragma mark - init
 
 - (instancetype)initWithFrame:(CGRect)frame {
     if (self = [super initWithFrame: frame]) {
+        #if !TARGET_OS_OSX // [macOS]
         if (@available(iOS 13.0, *)) {
             self.automaticallyAdjustsScrollIndicatorInsets = NO;
         } else {
@@ -98,11 +103,14 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
         } else {
             // Fallback on earlier versions
         }
+        #endif // [macOS]
         self.alwaysBounceVertical = YES;
         _delegateProxy = [KRMultiDelegateProxy alloc];
         [_delegateProxy addDelegate:self];
         self.delegate = (id<UIScrollViewDelegate>)_delegateProxy;
+        #if !TARGET_OS_OSX // [macOS]
         self.delaysContentTouches = NO;
+        #endif // [macOS]
     }
     return self;
     
@@ -191,6 +199,7 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     [_wrapperView setUserInteractionEnabled:userInteractionEnabled];
 }
 
+#if !TARGET_OS_OSX // [macOS]
 - (BOOL)touchesShouldCancelInContentView:(UIView *)view {
     BOOL cancel = [super touchesShouldCancelInContentView:view];
     if ([view isKindOfClass:[UIControl class]] || view.kr_canCancelInScrollView) {
@@ -198,6 +207,7 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     }
     return cancel;
 }
+#endif // [macOS]
 
 
 #pragma mark - UIScrollViewDelegate
@@ -235,7 +245,11 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 }
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
-    // need imp this method
+    #if !TARGET_OS_OSX // [macOS]
+    // iOS: 保持空实现，避免与 setContentOffset: 分发重复 // [macOS]
+    #else // [macOS
+    [self p_dispatchScrollEventIfNeed];
+    #endif // macOS]
 }
 
 - (void)scrollViewDidEndScrollingAnimation:(UIScrollView *)scrollView {
@@ -353,6 +367,7 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     }
 }
 
+#if !TARGET_OS_OSX // [macOS] // TODO:嵌套滚动暂未适配
 - (void)parseScrollMode:(NSString *)modeStr forward:(BOOL)isForward {
     NestedScrollPriority pri = NestedScrollPriorityUndefined;
     if ([modeStr isEqualToString:@"SELF_ONLY"]) {
@@ -384,6 +399,7 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
         [self parseScrollMode:backwardStr forward:NO];
     }
 }
+#endif // [macOS]
 
 - (void)setCss_dynamicSyncScrollDisable:(NSNumber *)css_dynamicSyncScrollDisable {
     if (self.css_dynamicSyncScrollDisable != css_dynamicSyncScrollDisable) {
@@ -480,10 +496,12 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 }
 // 分发scroll变化事件到kotlin
 - (void)p_dispatchScrollEventIfNeed {
+#if !TARGET_OS_OSX // [macOS] // TODO:嵌套滚动暂未适配
     if (self.isLockedInNestedScroll) {
         self.isLockedInNestedScroll = NO; // reset
         return;
     }
+#endif
     
     if (_ignoreDispatchScrollEvent) {
         return ;
@@ -556,6 +574,7 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 - (NSDictionary *)p_generateEventBaseParams {
     
     NSMutableArray *touchesParam = [NSMutableArray new];
+    #if !TARGET_OS_OSX // [macOS]
     for (int i = 0; i < self.panGestureRecognizer.numberOfTouches; i++) {
         CGPoint pagePoint = [self.panGestureRecognizer locationOfTouch:i inView:self.hr_rootView];
         [touchesParam addObject:@{
@@ -563,6 +582,14 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
             @"pageY" : @(pagePoint.y)
         }];
     }
+    #else // [macOS
+    // On macOS, get mouse location to simulate single touch point
+    CGPoint mousePoint = [self rct_mouseLocationInView:self.hr_rootView];
+    [touchesParam addObject:@{
+        @"pageX" : @(mousePoint.x),
+        @"pageY" : @(mousePoint.y)
+    }];
+    #endif // macOS]
     
     return @{
         @"offsetX":@(_lastContentOffset.x),

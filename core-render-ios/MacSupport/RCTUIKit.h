@@ -458,47 +458,28 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 // UIView
 #define RCTPlatformView NSView
 
+// [macOS] RCTUIView provides macOS-specific extensions beyond NSView+KuiklyCompat
+// Note: Basic UIKit compatibility (layoutSubviews, didMoveToSuperview, etc.) is provided by NSView+KuiklyCompat
 @interface RCTUIView : RCTPlatformView
 
+// Responder chain
 @property (nonatomic, readonly) BOOL canBecomeFirstResponder;
 - (BOOL)becomeFirstResponder;
 @property(nonatomic, readonly) BOOL isFirstResponder;
 
-@property (nonatomic, getter=isUserInteractionEnabled) BOOL userInteractionEnabled;
-
-- (NSView *)hitTest:(CGPoint)point withEvent:(UIEvent *_Nullable)event;
-- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent *)event;
-
-- (void)insertSubview:(NSView *)view atIndex:(NSInteger)index;
-- (void)bringSubviewToFront:(NSView *)view;
-
-- (void)didMoveToWindow;
-- (void)willMoveToSuperview:(nullable NSView *)newSuperview;
-- (void)didMoveToSuperview;
-
+// Layout (only methods not in Category)
 - (void)setNeedsLayout;
-- (void)layoutIfNeeded;
-
-- (void)layoutSubviews;
-
 - (void)setNeedsDisplay;
 
-// Methods related to mouse events
+// Mouse events (macOS-specific)
 - (BOOL)hasMouseHoverEvent;
 - (NSDictionary*)locationInfoFromDraggingLocation:(NSPoint)locationInWindow;
 - (NSDictionary*)locationInfoFromEvent:(NSEvent*)event;
 
-
-- (void)setIsAccessibilityElement:(BOOL)isAccessibilityElement;
-
-@property (nonatomic, assign) CGFloat alpha;
-
-
-// FUTURE: When Xcode 14 is no longer supported (CI is building with Xcode 15), we can remove this override since it's now declared on NSView
+// Clipping
 @property BOOL clipsToBounds;
-@property (nonatomic, copy) NSColor *backgroundColor;
-@property (nonatomic) CGAffineTransform transform;
 
+// macOS-specific behavior properties
 /**
  * Specifies whether the view should receive the mouse down event when the
  * containing window is in the background.
@@ -549,6 +530,20 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 @end
 
 // UIScrollView
+@class RCTUIScrollView;
+
+// [macOS] Define UIScrollViewDelegate protocol for compatibility
+@protocol UIScrollViewDelegate <NSObject>
+@optional
+- (void)scrollViewDidScroll:(UIScrollView *)scrollView;
+- (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView;
+- (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate;
+- (void)scrollViewWillEndDragging:(UIScrollView *)scrollView
+                      withVelocity:(CGPoint)velocity
+               targetContentOffset:(inout CGPoint *)targetContentOffset;
+- (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView;
+- (void)scrollViewDidEndScrollingAnimation:(UIScrollView *)scrollView;
+@end
 
 @interface RCTUIScrollView : NSScrollView
 
@@ -564,11 +559,26 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 @property (nonatomic, assign) CGFloat zoomScale;
 @property (nonatomic, assign) BOOL alwaysBounceHorizontal;
 @property (nonatomic, assign) BOOL alwaysBounceVertical;
+@property (nonatomic, assign) BOOL bounces; // [macOS]
+@property (nonatomic, assign) BOOL pagingEnabled; // [macOS]
+@property (nonatomic, readonly, getter=isDragging) BOOL dragging;
+@property (nonatomic, readonly, getter=isDecelerating) BOOL decelerating;
 // macOS specific properties
 @property (nonatomic, assign) BOOL enableFocusRing;
 @property (nonatomic, assign, getter=isScrollEnabled) BOOL scrollEnabled;
+// [macOS] UIScrollViewDelegate compatibility
+@property (nonatomic, weak, nullable) id<UIScrollViewDelegate> delegate;
 
 - (void)setContentOffset:(CGPoint)contentOffset animated:(BOOL)animated;
+
+// [macOS] UIView layout bridge (subclasses can override for UIKit-style layout)
+// Note: didMoveToSuperview/didMoveToWindow are handled by NSView+KuiklyCompat swizzling
+- (void)layoutSubviews;
+
+// [macOS] Mouse location tracking for touch position queries
+// Returns mouse location in the given view (simulates touch location on macOS)
+- (CGPoint)rct_mouseLocationInView:(nullable UIView *)view;
+// macOS]
 
 @end
 

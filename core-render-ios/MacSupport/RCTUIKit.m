@@ -155,42 +155,21 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath)
 // UIView
 
 
+// [macOS] RCTUIView implementation - provides macOS-specific extensions
+// Note: Most UIKit compatibility is handled by NSView+KuiklyCompat Category
 @implementation RCTUIView
 {
 @private
-  NSColor *_backgroundColor;
   BOOL _clipsToBounds;
   BOOL _hasMouseOver;
-  BOOL _userInteractionEnabled;
   NSTrackingArea *_trackingArea;
   BOOL _mouseDownCanMoveWindow;
-}
-
-+ (NSSet<NSString *> *)keyPathsForValuesAffectingValueForKey:(NSString *)key
-{
-  NSSet<NSString *> *keyPaths = [super keyPathsForValuesAffectingValueForKey:key];
-  NSString *alternatePath = nil;
-
-  // alpha is a wrapper for alphaValue
-  if ([key isEqualToString:@"alpha"]) {
-    alternatePath = @"alphaValue";
-  // isAccessibilityElement is a wrapper for accessibilityElement
-  } else if ([key isEqualToString:@"isAccessibilityElement"]) {
-    alternatePath = @"accessibilityElement";
-  }
-
-  if (alternatePath != nil) {
-    keyPaths = keyPaths != nil ? [keyPaths setByAddingObject:alternatePath] : [NSSet setWithObject:alternatePath];
-  }
-
-  return keyPaths;
 }
 
 static RCTUIView *RCTUIViewCommonInit(RCTUIView *self)
 {
   if (self != nil) {
     self.wantsLayer = YES;
-    self->_userInteractionEnabled = YES;
     self->_enableFocusRing = YES;
     self->_mouseDownCanMoveWindow = YES;
   }
@@ -254,7 +233,8 @@ static RCTUIView *RCTUIViewCommonInit(RCTUIView *self)
     // TODO
 //  [self reactViewDidMoveToWindow]; // [macOS] Github#1412
 
-  [self didMoveToWindow];
+  // [macOS] didMoveToWindow is handled by NSView+KuiklyCompat swizzling
+  [super viewDidMoveToWindow];
 }
 
 // TODO
@@ -454,30 +434,26 @@ static RCTUIView *RCTUIViewCommonInit(RCTUIView *self)
 - (void)updateLayer
 {
   CALayer *layer = [self layer];
-  if (_backgroundColor) {
+  // [macOS] backgroundColor is handled by NSView+KuiklyCompat
+  if (self.backgroundColor) {
     // updateLayer will be called when the view's current appearance changes.
     // The layer's backgroundColor is a CGColor which is not appearance aware
-    // so it has to be reset from the view's NSColor ivar.
-    [layer setBackgroundColor:[_backgroundColor CGColor]];
+    // so it has to be reset from the view's NSColor.
+    [layer setBackgroundColor:[self.backgroundColor CGColor]];
   }
   [(id<CALayerDelegate>)self displayLayer:layer];
 }
 
 - (void)drawRect:(CGRect)rect
 {
-  if (_backgroundColor) {
-    [_backgroundColor set];
-    NSRectFill(rect);
-  }
+  // [macOS] backgroundColor is handled by NSView+KuiklyCompat
   [super drawRect:rect];
 }
 
 - (void)layout
 {
   [super layout];
-  if (self.window != nil) {
-    [self layoutSubviews];
-  }
+  // [macOS] layoutSubviews is handled by NSView+KuiklyCompat
 }
 
 - (BOOL)canBecomeFirstResponder
@@ -490,99 +466,19 @@ static RCTUIView *RCTUIViewCommonInit(RCTUIView *self)
   return [[self window] makeFirstResponder:self];
 }
 
-@synthesize userInteractionEnabled = _userInteractionEnabled;
-
-- (NSView *)hitTest:(CGPoint)point withEvent:(__unused UIEvent *)event
-{
-// [macOS
-  // IMPORTANT point is expected to be passed in local coordinates, but OSX expects point to be super 
-  NSView *superview = [self superview];
-  NSPoint pointInSuperview = superview != nil ? [self convertPoint:point toView:superview] : point;
-  return self.userInteractionEnabled ? [super hitTest:pointInSuperview] : nil;
-}
-
-- (BOOL)pointInside:(CGPoint)point withEvent:(__unused UIEvent *)event
-{
-  return self.userInteractionEnabled ? NSPointInRect(NSPointFromCGPoint(point), self.bounds) : NO;
-}
-
-- (void)insertSubview:(NSView *)view atIndex:(NSInteger)index
-{
-  NSArray<__kindof NSView *> *subviews = self.subviews;
-  if ((NSUInteger)index == subviews.count) {
-    [self addSubview:view];
-  } else {
-    [self addSubview:view positioned:NSWindowBelow relativeTo:subviews[index]];
-  }
-}
-
-- (void)bringSubviewToFront:(NSView *)view
-{
-  if ([self.subviews containsObject:view]) {
-    [view removeFromSuperview];
-    [self addSubview:view positioned:NSWindowAbove relativeTo:nil];
-  }
-}
-
-- (void)didMoveToWindow
-{
-  [super viewDidMoveToWindow];
-}
-
-- (void)viewWillMoveToSuperview:(NSView *)newSuperview {
-    [self willMoveToSuperview:newSuperview];
-}
-
-- (void)willMoveToSuperview:(NSView *)newSuperview {
-    [super viewWillMoveToSuperview:newSuperview];
-}
-
-- (void)viewDidMoveToSuperview {
-    [self didMoveToSuperview];
-}
-
-- (void)didMoveToSuperview {
-    [super viewDidMoveToSuperview];
-}
-
+// [macOS] setNeedsLayout: wrapper for NSView.needsLayout
 - (void)setNeedsLayout
 {
   self.needsLayout = YES;
 }
 
-- (void)layoutIfNeeded
-{
-  if ([self needsLayout]) {
-    [self layout];
-  }
-}
-
-- (void)layoutSubviews
-{
-  [super layout];
-}
-
+// [macOS] setNeedsDisplay: wrapper for NSView.needsDisplay
 - (void)setNeedsDisplay
 {
   self.needsDisplay = YES;
 }
 
-- (void)setIsAccessibilityElement:(BOOL)isAccessibilityElement {
-    self.accessibilityElement = isAccessibilityElement;
-}
-
 @synthesize clipsToBounds = _clipsToBounds;
-
-@synthesize backgroundColor = _backgroundColor;
-
-- (void)setBackgroundColor:(NSColor *)backgroundColor
-{
-  if (_backgroundColor != backgroundColor && ![_backgroundColor isEqual:backgroundColor])
-  {
-    _backgroundColor = [backgroundColor copy];
-    [self setNeedsDisplay:YES];
-  }
-}
 
 // We purposely don't use RCTCursor for the parameter type here because it would introduce an import cycle:
 // RCTUIKit > RCTCursor > RCTConvert > RCTUIKit
@@ -650,15 +546,46 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
 
 @implementation RCTUIScrollView
 
+- (void)dealloc
+{
+  [[NSNotificationCenter defaultCenter] removeObserver:self name:NSViewBoundsDidChangeNotification object:self.contentView];
+}
+
 - (instancetype)initWithFrame:(CGRect)frame
 {
   if (self = [super initWithFrame:frame]) {
     self.scrollEnabled = YES;
     self.drawsBackground = NO;
+    self.contentView.postsBoundsChangedNotifications = YES;
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(rct_contentViewBoundsDidChange:)
+                                                 name:NSViewBoundsDidChangeNotification
+                                               object:self.contentView];
   }
   
   return self;
 }
+
+// [macOS] Bridge UIView layout methods for UIScrollView subclasses
+// Note: NSView+KuiklyCompat provides layoutSubviews (which calls layout), but we need
+// the reverse direction for RCTUIScrollView: when NSView's layout is called, we need
+// to call the UIKit-style layoutSubviews so subclasses like KRScrollView can override it.
+// Lifecycle methods (didMoveToSuperview, didMoveToWindow) are handled by NSView+KuiklyCompat swizzling.
+
+- (void)layout
+{
+  [super layout];
+  // Bridge NSView's layout to UIView's layoutSubviews
+  if (self.window != nil) {
+    [self layoutSubviews];
+  }
+}
+
+- (void)layoutSubviews
+{
+  // Subclasses (like KRScrollView) override this for UIView-style layout
+}
+// macOS]
 
 - (void)setEnableFocusRing:(BOOL)enableFocusRing {
   if (_enableFocusRing != enableFocusRing) {
@@ -690,7 +617,11 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
         [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
             context.duration = 0.3; // Set the duration of the animation
             [self.documentView.animator scrollPoint:contentOffset];
-        } completionHandler:nil];
+        } completionHandler:^{
+            if ([self.delegate respondsToSelector:@selector(scrollViewDidEndScrollingAnimation:)]) {
+                [self.delegate scrollViewDidEndScrollingAnimation:(UIScrollView *)self];
+            }
+        }];
     } else {
         [self.documentView scrollPoint:contentOffset];
     }
@@ -797,6 +728,224 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
 - (void)setAlwaysBounceVertical:(BOOL)alwaysBounceVertical
 {
   self.verticalScrollElasticity = alwaysBounceVertical ? NSScrollElasticityAllowed : NSScrollElasticityNone;
+}
+
+// [macOS] bounces property bridge
+- (BOOL)bounces
+{
+  return self.horizontalScrollElasticity != NSScrollElasticityNone || 
+         self.verticalScrollElasticity != NSScrollElasticityNone;
+}
+
+- (void)setBounces:(BOOL)bounces
+{
+  NSScrollElasticity elasticity = bounces ? NSScrollElasticityAllowed : NSScrollElasticityNone;
+  self.horizontalScrollElasticity = elasticity;
+  self.verticalScrollElasticity = elasticity;
+}
+
+// [macOS] pagingEnabled property bridge
+- (BOOL)pagingEnabled
+{
+  static char kPagingEnabledKey;
+  NSNumber *value = objc_getAssociatedObject(self, &kPagingEnabledKey);
+  return value ? [value boolValue] : NO;
+}
+
+- (void)setPagingEnabled:(BOOL)pagingEnabled
+{
+  static char kPagingEnabledKey;
+  objc_setAssociatedObject(self, &kPagingEnabledKey, @(pagingEnabled), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+// [macOS] Store last scroll event for mouse location tracking
+- (NSEvent *)rct_lastScrollEvent
+{
+  static char kLastScrollEventKey;
+  return objc_getAssociatedObject(self, &kLastScrollEventKey);
+}
+
+- (void)rct_setLastScrollEvent:(NSEvent *)event
+{
+  static char kLastScrollEventKey;
+  objc_setAssociatedObject(self, &kLastScrollEventKey, event, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+// [macOS] Get current mouse location in given view (simulates touch location)
+- (CGPoint)rct_mouseLocationInView:(UIView *)view
+{
+  NSEvent *lastEvent = [self rct_lastScrollEvent];
+  NSPoint locationInWindow;
+  
+  if (lastEvent) {
+    locationInWindow = lastEvent.locationInWindow;
+  } else {
+    // Fallback: get current mouse position outside of event stream
+    locationInWindow = [[self window] mouseLocationOutsideOfEventStream];
+  }
+  
+  if (view && self.window) {
+    NSPoint locationInView = [view convertPoint:locationInWindow fromView:nil];
+    return NSPointToCGPoint(locationInView);
+  }
+  
+  return CGPointZero;
+}
+// macOS]
+
+@end
+
+#pragma mark - RCTUIScrollView (Delegate Bridge)
+
+@implementation RCTUIScrollView (DelegateBridge)
+
+// [macOS] Public readonly properties for UIScrollView compatibility
+- (BOOL)isDragging
+{
+  return [self rct_isDragging];
+}
+
+- (BOOL)isDecelerating
+{
+  return [self rct_isDecelerating];
+}
+// macOS]
+
+// [macOS] Internal state tracking using associated objects
+- (BOOL)rct_isDragging
+{
+  static char kDraggingKey;
+  NSNumber *v = objc_getAssociatedObject(self, &kDraggingKey);
+  return v.boolValue;
+}
+
+- (void)rct_setDragging:(BOOL)dragging
+{
+  static char kDraggingKey;
+  objc_setAssociatedObject(self, &kDraggingKey, @(dragging), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+- (BOOL)rct_isDecelerating
+{
+  static char kDeceleratingKey;
+  NSNumber *v = objc_getAssociatedObject(self, &kDeceleratingKey);
+  return v.boolValue;
+}
+
+- (void)rct_setDecelerating:(BOOL)decelerating
+{
+  static char kDeceleratingKey;
+  objc_setAssociatedObject(self, &kDeceleratingKey, @(decelerating), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+// macOS]
+
+- (void)rct_contentViewBoundsDidChange:(NSNotification *)__unused note
+{
+  if ([self.delegate respondsToSelector:@selector(scrollViewDidScroll:)]) {
+    [self.delegate scrollViewDidScroll:(UIScrollView *)self];
+  }
+}
+
+// [macOS] Snap to nearest page boundary when pagingEnabled is YES
+- (void)rct_snapToNearestPage
+{
+  CGRect bounds = self.bounds;
+  CGPoint currentOffset = self.contentOffset;
+  CGSize pageSize = bounds.size;
+  
+  // Calculate the page index for both directions
+  CGFloat pageX = round(currentOffset.x / pageSize.width);
+  CGFloat pageY = round(currentOffset.y / pageSize.height);
+  
+  // Calculate target offset aligned to page boundaries
+  CGPoint targetOffset = CGPointMake(
+    pageX * pageSize.width,
+    pageY * pageSize.height
+  );
+  
+  // Clamp to valid scroll range
+  CGSize contentSize = self.contentSize;
+  UIEdgeInsets contentInset = self.contentInset;
+  
+  CGFloat maxOffsetX = MAX(0, contentSize.width - pageSize.width + contentInset.right);
+  CGFloat maxOffsetY = MAX(0, contentSize.height - pageSize.height + contentInset.bottom);
+  
+  targetOffset.x = MAX(-contentInset.left, MIN(targetOffset.x, maxOffsetX));
+  targetOffset.y = MAX(-contentInset.top, MIN(targetOffset.y, maxOffsetY));
+  
+  // Animate to target page if different from current offset
+  if (!CGPointEqualToPoint(targetOffset, currentOffset)) {
+    [self setContentOffset:targetOffset animated:YES];
+  }
+}
+// macOS]
+
+- (void)scrollWheel:(NSEvent *)event
+{
+  // [macOS] Store event for mouse location tracking
+  [self rct_setLastScrollEvent:event];
+  // macOS]
+  
+  // Begin dragging
+  if (![self rct_isDragging] && event.phase != NSEventPhaseNone) {
+    [self rct_setDragging:YES];
+    if ([self.delegate respondsToSelector:@selector(scrollViewWillBeginDragging:)]) {
+      [self.delegate scrollViewWillBeginDragging:(UIScrollView *)self];
+    }
+  }
+
+  // Will end dragging: provide velocity and targetContentOffset approximation
+  if (event.phase == NSEventPhaseEnded && event.momentumPhase == NSEventPhaseNone) {
+    CGPoint velocity = CGPointMake((CGFloat)event.scrollingDeltaX, (CGFloat)event.scrollingDeltaY);
+    CGPoint target = self.contentOffset; // best-effort current offset
+    if ([self.delegate respondsToSelector:@selector(scrollViewWillEndDragging:withVelocity:targetContentOffset:)]) {
+      [self.delegate scrollViewWillEndDragging:(UIScrollView *)self withVelocity:velocity targetContentOffset:&target];
+    }
+    // If delegate adjusted target, honor it
+    if (!CGPointEqualToPoint(target, self.contentOffset)) {
+      [self setContentOffset:target animated:NO];
+    }
+  }
+
+  // Pass event to super to actually scroll
+  [super scrollWheel:event];
+
+  // Momentum begin: decelerate
+  if ([self rct_isDragging] && event.momentumPhase == NSEventPhaseBegan) {
+    if ([self.delegate respondsToSelector:@selector(scrollViewDidEndDragging:willDecelerate:)]) {
+      [self.delegate scrollViewDidEndDragging:(UIScrollView *)self willDecelerate:YES];
+    }
+    [self rct_setDragging:NO];
+    [self rct_setDecelerating:YES];
+  }
+
+  // No momentum: end dragging without decelerate
+  if ([self rct_isDragging] && event.phase == NSEventPhaseEnded && event.momentumPhase == NSEventPhaseNone) {
+    if ([self.delegate respondsToSelector:@selector(scrollViewDidEndDragging:willDecelerate:)]) {
+      [self.delegate scrollViewDidEndDragging:(UIScrollView *)self willDecelerate:NO];
+    }
+    [self rct_setDragging:NO];
+    
+    // [macOS] Apply paging snap after drag ends without momentum
+    if (self.pagingEnabled) {
+      [self rct_snapToNearestPage];
+    }
+    // macOS]
+  }
+
+  // Momentum end: deceleration done
+  if ([self rct_isDecelerating] && event.momentumPhase == NSEventPhaseEnded) {
+    if ([self.delegate respondsToSelector:@selector(scrollViewDidEndDecelerating:)]) {
+      [self.delegate scrollViewDidEndDecelerating:(UIScrollView *)self];
+    }
+    [self rct_setDecelerating:NO];
+    
+    // [macOS] Apply paging snap after momentum ends
+    if (self.pagingEnabled) {
+      [self rct_snapToNearestPage];
+    }
+    // macOS]
+  }
 }
 
 @end

@@ -21,6 +21,9 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)insertSubview:(NSView *)view atIndex:(NSInteger)index;
 - (void)layoutIfNeeded;
 - (void)layoutSubviews;
+- (void)didMoveToSuperview;
+- (void)willMoveToSuperview:(nullable NSView *)newSuperview;
+- (void)didMoveToWindow;
 
 #pragma mark -
 
@@ -29,6 +32,7 @@ NS_ASSUME_NONNULL_BEGIN
 #pragma mark -
 
 - (NSView *)hitTest:(CGPoint)point withEvent:(UIEvent *_Nullable)event;
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent *_Nullable)event;
 
 @end
 

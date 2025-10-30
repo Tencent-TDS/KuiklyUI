@@ -20,9 +20,7 @@ import org.w3c.fetch.Response
 import kotlin.js.Promise
 import kotlin.js.json
 
-/**
- * Kuikly network request module
- */
+/** Kuikly network request module */
 class KRNetworkModule : KuiklyRenderBaseModule() {
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
@@ -125,13 +123,16 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
     private fun httpStreamRequest(params: Any?, callback: KuiklyRenderCallback?) {
         // Get http request related parameters
         val dataArray = params.unsafeCast<Array<*>>()
-        val url = dataArray[0]
+
         val body = dataArray[1].unsafeCast<ByteArray>()
-        val headerStr = dataArray[2].unsafeCast<String>()
-        // Web does not support custom cookie settings, can be handled in the host app
-        val cookie = dataArray[3].unsafeCast<String>()
-        // Request timeout duration, original unit is seconds
-        val timeout = (dataArray[4].unsafeCast<Number>()).toInt() * 1000
+        val paramsString = dataArray[0].unsafeCast<String>()
+        val paramsArray = JSONObject(paramsString)
+        val url = paramsArray.optString("url")
+        val headerStr = paramsArray.optString("headers")
+        val cookie = paramsArray.optString("cookie")
+        var method = paramsArray.optString("method")
+        val timeout = paramsArray.optInt("timeout") * 1000
+
         Log.trace("httpStreamRequest", url ?: "", body, headerStr, cookie, timeout)
 
         // HTTP response status code
@@ -150,11 +151,11 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         val fetchPromise = kuiklyWindow.fetch(
             url, RequestInit(
                 // Request method
-                method = "POST",
+                method = method,
                 // Include all cookies
                 credentials = RequestCredentials.INCLUDE,
                 // Request header information
-                headers = getRequestHeaders(JSONObject(headerStr), cookie),
+                headers = getRequestHeaders(if (headerStr.isNullOrEmpty()) null else JSONObject(headerStr), cookie),
                 // Request data, non-POST request passes null
                 body = body.toBlob(),
                 // Request mode is cross-domain mode
@@ -169,6 +170,7 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
 
                 // Save the status code of this response
                 httpCode = response.status.toInt()
+
                 // Save headers
                 httpHeaders = JSON.stringify(response.headers)
                 if (!response.ok) {
@@ -201,6 +203,7 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
             }
             .catch {
                 val errorMsg = it.message
+                it.message?.let { it1 -> Log.error(it1) }
                 // Exception or error occurred, callback
                 fireStreamRequestResultCallback(
                     callback,
@@ -228,12 +231,16 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         errorMsg: String,
         statusCode: Int,
     ) {
+        val info = JSONObject().apply {
+            put("headers", headers)
+            put("errorMsg", errorMsg)
+            put("statusCode", statusCode)
+            put("success", 1)
+        }
         callback?.invoke(
             arrayOf(
+                info.toString(),
                 arrayBuffer.toByteArray(),
-                headers,
-                errorMsg,
-                statusCode
             )
         )
     }
@@ -348,14 +355,14 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         if (cookie != null) {
             headers["Cookie"] = cookie
         }
-
+        headers["Content-Type"] = "application/json"
         return Headers(headers)
     }
 
     companion object {
         const val MODULE_NAME = "KRNetworkModule"
         private const val METHOD_HTTP_REQUEST = "httpRequest"
-        private const val METHOD_HTTP_STREAM_REQUEST = "httpStreamRequest"
+        private const val METHOD_HTTP_STREAM_REQUEST = "httpRequestBinary"
         // Network request success
         private const val KEY_SUCCESS = "success"
         // Network request failure
@@ -370,6 +377,30 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         private const val HTTP_METHOD_POST = "POST"
         // Unknown status code
         private const val STATE_CODE_UNKNOWN = -1000
-
+        // HTTP success status code range
+        private val HTTP_SUCCESS_RANGE = 200..299
     }
+
+    /**
+     * HTTP 请求参数数据类
+     */
+    private data class HttpRequestParams(
+        val url: String,
+        val method: String,
+        val param: JSONObject?,
+        val header: JSONObject?,
+        val cookie: String,
+        val timeout: Int
+    )
+
+    /**
+     * 流式 HTTP 请求参数数据类
+     */
+    private data class HttpStreamRequestParams(
+        val url: String,
+        val body: ByteArray,
+        val headerStr: String,
+        val cookie: String,
+        val timeout: Int
+    )
 }

@@ -1,9 +1,7 @@
 package com.tencent.kuikly.demo.pages.compose.chatDemo
 
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.okhttp.OkHttp
-
+// todo 后续迁移module
 internal actual object NetworkClient {
     actual val client: Any?
-        get() = HttpClient(OkHttp)
+        get() = null
 }

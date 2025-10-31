@@ -744,10 +744,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (instancetype)initWithImage:(UIImage *)image;
 
-// [macOS] UIImageView layout compatibility
-- (void)layoutSubviews;
-- (void)insertSubview:(NSView *)view atIndex:(NSInteger)index; // [macOS]
-
 NS_ASSUME_NONNULL_END
 @end
 #endif

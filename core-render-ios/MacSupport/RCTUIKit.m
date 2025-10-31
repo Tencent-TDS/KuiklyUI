@@ -1177,19 +1177,6 @@ BOOL RCTUIViewSetClipsToBounds(RCTPlatformView *view) {
     }
 }
 
-#pragma mark Subview Management
-
-// [macOS] insertSubview:atIndex: compatibility for iOS UIImageView behavior
-- (void)insertSubview:(NSView *)view atIndex:(NSInteger)index {
-    NSArray<__kindof NSView *> *subviews = self.subviews;
-    if ((NSUInteger)index == subviews.count) {
-        [self addSubview:view];
-    } else {
-        [self addSubview:view positioned:NSWindowBelow relativeTo:subviews[index]];
-    }
-}
-// macOS]
-
 @end
 
 #pragma mark - RCTUIGraphicsImageRendererFormat

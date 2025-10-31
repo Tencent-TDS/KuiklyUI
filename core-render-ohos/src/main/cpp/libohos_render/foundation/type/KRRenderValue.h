@@ -447,6 +447,7 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
             for (cJSON *item = cjson->child; item != NULL; item = item->next) {
                 map[item->string] = fromJsonValue(item);
             }
+            cJSON_Delete(cjson);
             json_to_map_or_array_value_ = map;
             cJSON_Delete(cjson);
             return std::get<Map>(json_to_map_or_array_value_);

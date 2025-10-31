@@ -33,19 +33,17 @@ Pod::Spec.new do |spec|
 
   # macOS 先行编译通过：排除暂未适配的 iOS-only/复杂组件
   spec.osx.exclude_files = [
-    'core-render-ios/Extension/Vendor/KRLabel.m',
+
     'core-render-ios/Extension/Components/KRTextFieldView.{h,m}',
     'core-render-ios/Extension/Components/KRTextAreaView.{h,m}',
+    
     # 嵌套滚动功能未完全适配
- 
     'core-render-ios/Extension/Components/KRView+Compose.{h,m}',
     'core-render-ios/Extension/Components/KRComposeGesture.m',
     
     # AdvancedComps 组件
     'core-render-ios/Extension/AdvancedComps/KRCanvasView.{h,m}',
     'core-render-ios/Extension/AdvancedComps/KRGradientRichTextView.{h,m}',
-    'core-render-ios/Extension/AdvancedComps/KRHoverView.{h,m}',
-    'core-render-ios/Extension/AdvancedComps/KRRichTextView.{h,m}',
     'core-render-ios/Extension/AdvancedComps/LiquidGlass/**/*',
     
   ]

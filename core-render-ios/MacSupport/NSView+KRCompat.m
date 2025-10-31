@@ -57,6 +57,15 @@ static NSComparisonResult KuiklyBringToFrontCompare(__kindof NSView *a, __kindof
     [self layoutSubtreeIfNeeded];
 }
 
+// [macOS] iOS 兼容：无参 setNeedsLayout 与 setNeedsDisplay
+- (void)setNeedsLayout {
+    self.needsLayout = YES;
+}
+
+- (void)setNeedsDisplay {
+    [self setNeedsDisplay:YES];
+}
+
 - (void)layoutSubviews {
     // 对齐 iOS 语义：layoutSubviews 对应 NSView 的 layout
     [self layout];

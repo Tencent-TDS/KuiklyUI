@@ -20,6 +20,7 @@
 #import "RCTUIKit.h" // [macOS]
 #import <QuartzCore/QuartzCore.h> // [macOS] for CATransaction
 #import <objc/runtime.h>
+#import <objc/message.h>
 #import <CoreImage/CIFilter.h>
 #import <CoreImage/CIVector.h>
 
@@ -118,7 +119,7 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 
 @end
 
-// [macOS
+
 NSImage *UIImageResizableImageWithCapInsets(NSImage *image, NSEdgeInsets capInsets, UIImageResizingMode resizingMode) {
     if (image == nil) {
         return nil;
@@ -135,7 +136,7 @@ NSImage *UIImageResizableImageWithCapInsets(NSImage *image, NSEdgeInsets capInse
     // For older macOS versions, return the original image
     return image;
 }
-// macOS]
+
 
 #pragma mark - UIBezierPath Functions
 
@@ -146,6 +147,21 @@ UIBezierPath *UIBezierPathWithRoundedRect(CGRect rect, CGFloat cornerRadius) {
 void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath) {
     return [path appendBezierPath:appendPath];
 }
+
+#pragma mark - NSFont UIKit Compatibility
+
+// Provide UIKit-like lineHeight on NSFont so call sites can use font.lineHeight
+@interface NSFont (KRUIKitCompatLineHeight)
+- (CGFloat)lineHeight;
+@end
+
+@implementation NSFont (KRUIKitCompatLineHeight)
+- (CGFloat)lineHeight {
+    // NSFont doesn't expose lineHeight; synthesize via ascender/descender/leading
+    CGFloat h = self.ascender + fabs(self.descender) + self.leading;
+    return ceil(h);
+}
+@end
 
 #pragma mark - RCTUIView
 
@@ -900,6 +916,31 @@ BOOL RCTUIViewSetClipsToBounds(RCTPlatformView *view) {
     [self setStringValue:text];
 }
 
+// Bridge UILabel.attributedText <-> NSTextField.attributedStringValue
+- (NSAttributedString *)attributedText {
+    return [self attributedStringValue];
+}
+
+- (void)setAttributedText:(NSAttributedString *)attributedText {
+    [self setAttributedStringValue:attributedText ?: [[NSAttributedString alloc] initWithString:@""]];
+}
+
+// Bridge iOS UILabel drawing pipeline to call drawTextInRect: if implemented by subclass (e.g. KRLabel)
+- (void)drawRect:(NSRect)dirtyRect {
+    SEL drawTextSel = @selector(drawTextInRect:);
+    if ([self respondsToSelector:drawTextSel]) {
+        void (*msgSend)(id, SEL, CGRect) = (void (*)(id, SEL, CGRect))objc_msgSend;
+        msgSend(self, drawTextSel, self.bounds);
+        return;
+    }
+    [super drawRect:dirtyRect];
+}
+
+// [macOS] Use iOS-like flipped coordinates for consistency with UIKit drawing
+- (BOOL)isFlipped {
+    return YES;
+}
+
 @end
 
 #pragma mark - RCTUISwitch
@@ -941,7 +982,23 @@ BOOL RCTUIViewSetClipsToBounds(RCTPlatformView *view) {
 }
 
 @end
-// macOS]
+
+// NSValue class methods to provide UIKit-like factory methods
+@implementation NSValue (KRUIKitCompatFactory)
+
++ (instancetype)valueWithCGSize:(CGSize)size {
+    return [NSValue valueWithBytes:&size objCType:@encode(CGSize)];
+}
+
++ (instancetype)valueWithCGRect:(CGRect)rect {
+    return [NSValue valueWithBytes:&rect objCType:@encode(CGRect)];
+}
+
++ (instancetype)valueWithCGPoint:(CGPoint)point {
+    return [NSValue valueWithBytes:&point objCType:@encode(CGPoint)];
+}
+
+@end
 
 #pragma mark - RCTUIActivityIndicatorView
 
@@ -1054,7 +1111,7 @@ BOOL RCTUIViewSetClipsToBounds(RCTPlatformView *view) {
 
 #pragma mark Layout
 
-// [macOS] layoutSubviews compatibility for iOS behavior
+// layoutSubviews compatibility for iOS behavior
 - (void)layoutSubviews {
     // On macOS, NSProgressIndicator doesn't need explicit layoutSubviews call
     // Provide empty implementation for iOS compatibility
@@ -1079,7 +1136,6 @@ BOOL RCTUIViewSetClipsToBounds(RCTPlatformView *view) {
         [self layoutSubviews];
     }
 }
-// macOS]
 
 @end
 
@@ -1100,7 +1156,7 @@ BOOL RCTUIViewSetClipsToBounds(RCTPlatformView *view) {
     return self;
 }
 
-// [macOS] initWithImage: compatibility for iOS UIImageView behavior
+// initWithImage: compatibility for iOS UIImageView behavior
 - (instancetype)initWithImage:(UIImage *)image {
     if (self = [self initWithFrame:CGRectZero]) {
         [self setImage:image];
@@ -1110,7 +1166,6 @@ BOOL RCTUIViewSetClipsToBounds(RCTPlatformView *view) {
     }
     return self;
 }
-// macOS]
 
 #pragma mark Content Mode
 

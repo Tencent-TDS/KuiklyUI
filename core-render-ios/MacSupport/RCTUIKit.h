@@ -167,6 +167,7 @@ typedef unsigned long long UIAccessibilityTraits;
 #define UIVisualEffectView NSVisualEffectView
 #define UIColor RCTUIColor
 #define UITouch RCTUITouch
+#define UILabel RCTUILabel
 
 // Application aliases
 #define UIApplication NSApplication
@@ -370,6 +371,13 @@ NS_INLINE CGFloat UIFontLineHeight(NSFont *font) {
     return ceilf(font.ascender + ABS(font.descender) + font.leading);
 }
 
+#pragma mark - NSFont UIKit Compatibility
+
+// Provide UIKit-like lineHeight on NSFont so call sites can use font.lineHeight
+@interface NSFont (KRUIKitCompatLineHeight)
+- (CGFloat)lineHeight;
+@end
+
 #pragma mark - Edge Insets Type
 
 typedef NSEdgeInsets UIEdgeInsets;
@@ -544,15 +552,15 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 @property (nonatomic, assign) CGFloat zoomScale;
 @property (nonatomic, assign) BOOL alwaysBounceHorizontal;
 @property (nonatomic, assign) BOOL alwaysBounceVertical;
-@property (nonatomic, assign) BOOL bounces; // [macOS]
-@property (nonatomic, assign) BOOL pagingEnabled; // [macOS]
+@property (nonatomic, assign) BOOL bounces;
+@property (nonatomic, assign) BOOL pagingEnabled;
 @property (nonatomic, readonly, getter=isDragging) BOOL dragging;
 @property (nonatomic, readonly, getter=isDecelerating) BOOL decelerating;
 @property (nonatomic, assign, getter=isScrollEnabled) BOOL scrollEnabled;
 
 #pragma mark Delegate
 
-@property (nonatomic, weak, nullable) id<UIScrollViewDelegate> delegate; // [macOS]
+@property (nonatomic, weak, nullable) id<UIScrollViewDelegate> delegate;
 
 #pragma mark macOS-Specific Properties
 
@@ -627,6 +635,13 @@ NS_INLINE CGRect CGRectValue(NSValue *value) {
 - (CGRect)CGRectValue;
 @end
 
+// [macOS] NSValue class methods to provide UIKit-like valueWithCGSize:/valueWithCGRect: APIs
+@interface NSValue (KRUIKitCompatFactory)
++ (instancetype)valueWithCGSize:(CGSize)size;
++ (instancetype)valueWithCGRect:(CGRect)rect;
++ (instancetype)valueWithCGPoint:(CGPoint)point;
+@end
+
 NS_ASSUME_NONNULL_END
 
 #endif // ] TARGET_OS_OSX
@@ -676,19 +691,18 @@ NS_ASSUME_NONNULL_END
 @end
 #endif // macOS]
 
+
 #pragma mark RCTUILabel
 
-#if !TARGET_OS_OSX
-typedef UILabel RCTUILabel;
-#else
 @interface RCTUILabel : NSTextField
 NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy, nullable) NSString *text;
+@property (nonatomic, copy, nullable) NSAttributedString *attributedText; // [macOS]
 @property (nonatomic, assign) NSInteger numberOfLines;
 @property (nonatomic, assign) NSTextAlignment textAlignment;
 NS_ASSUME_NONNULL_END
 @end
-#endif
+
 
 #pragma mark RCTUISwitch
 

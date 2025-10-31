@@ -117,38 +117,38 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
     return [[NSImage alloc] initWithContentsOfFile:filePath];
 }
 
+- (CGImageRef)CGImage {
+    return [self CGImageForProposedRect:NULL context:NULL hints:NULL];
+}
+
+@end
+
+@interface UITextPosition ()
+@property (nonatomic, assign, readwrite) NSInteger index;
 @end
 
 @implementation UITextPosition
 
 + (instancetype)positionWithIndex:(NSInteger)index {
     UITextPosition *p = [UITextPosition new];
-    [p setValue:@(index) forKey:@"_index"]; // KVC to set readonly
+    p.index = index;
     return p;
 }
 
-- (NSInteger)index {
-    NSNumber *n = [self valueForKey:@"_index"];
-    return n ? n.integerValue : 0;
-}
+@end
 
+@interface UITextRange ()
+@property (nonatomic, strong, readwrite) UITextPosition *start;
+@property (nonatomic, strong, readwrite) UITextPosition *end;
 @end
 
 @implementation UITextRange
 
 + (instancetype)rangeWithStart:(UITextPosition *)start end:(UITextPosition *)end {
     UITextRange *r = [UITextRange new];
-    [r setValue:start forKey:@"_start"]; // KVC to set readonly
-    [r setValue:end forKey:@"_end"]; // KVC to set readonly
+    r.start = start;
+    r.end = end;
     return r;
-}
-
-- (UITextPosition *)start {
-    return [self valueForKey:@"_start"];
-}
-
-- (UITextPosition *)end {
-    return [self valueForKey:@"_end"];
 }
 
 @end

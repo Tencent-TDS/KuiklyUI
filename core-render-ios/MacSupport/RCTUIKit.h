@@ -455,6 +455,8 @@ NS_INLINE NSEdgeInsets UIEdgeInsetsMake(CGFloat top, CGFloat left, CGFloat botto
 + (instancetype)imageWithCGImage:(CGImageRef)cgImage;
 + (instancetype)imageWithData:(NSData *)data;
 + (instancetype)imageWithContentsOfFile:(NSString *)filePath;
+// Provide UIImage.CGImage-like getter
+- (CGImageRef)CGImage;
 @end
 
 typedef NS_ENUM(NSInteger, UIImageRenderingMode) {

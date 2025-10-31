@@ -37,17 +37,32 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
 - (NSString *)accessibilityLabel{
     NSString * res = [super accessibilityLabel];
     if (res.length <= 0) {
+#if TARGET_OS_IOS
         return self.attributedText.string;
+#elif TARGET_OS_OSX
+        return self.attributedStringValue.string;
+#endif
     }
     return res;
 }
 
 
 - (void)setAttributedText:(NSAttributedString *)attributedText {
+#if TARGET_OS_IOS
     [super setAttributedText:attributedText];
+#elif TARGET_OS_OSX
+    [super setAttributedStringValue:attributedText];
+#endif
+    
     self.textRender = attributedText.hr_textRender;
+#if TARGET_OS_IOS
     self.attributedText.hr_textRender = self.textRender;
     [self setNeedsDisplay];
+#elif TARGET_OS_OSX
+    self.attributedStringValue.hr_textRender = self.textRender;
+    [self setNeedsDisplay];     // valo 调用到的是NSControl类，是否正确？
+#endif
+    
 }
 
 
@@ -296,6 +311,7 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
     return YES;
 }
 
+#if TARGET_OS_IOS
 + (CGFloat)lineHeightForFont:(UIFont *)font paragraphStyle:(NSParagraphStyle *)style  {
     CGFloat lineHeight = font.lineHeight;
     if (!style) {
@@ -312,6 +328,24 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
     }
     return lineHeight;
 }
+#elif TARGET_OS_OSX
++ (CGFloat)lineHeightForFont:(NSFont *)font paragraphStyle:(NSParagraphStyle *)style  { // Macos
+    CGFloat lineHeight = font.ascender - font.descender + font.leading; // Macos
+    if (!style) {
+        return lineHeight;
+    }
+    if (style.lineHeightMultiple > 0) {
+        lineHeight *= style.lineHeightMultiple;
+    }
+    if (style.minimumLineHeight > 0) {
+        lineHeight = MAX(style.minimumLineHeight, lineHeight);
+    }
+    if (style.maximumLineHeight > 0) {
+        lineHeight = MIN(style.maximumLineHeight, lineHeight);
+    }
+    return lineHeight;
+}
+#endif
 
 
 + (CGFloat)baseLineOffsetForLineHeight:(CGFloat)lineHeight font:(UIFont *)font {
@@ -550,9 +584,16 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
     return [objc_getAssociatedObject(self, @selector(hr_size)) CGSizeValue];
 }
 
+#if TARGET_OS_IOS
 - (void)setHr_size:(CGSize)hr_size{
     objc_setAssociatedObject(self, @selector(hr_size), [NSValue valueWithCGSize:hr_size], OBJC_ASSOCIATION_RETAIN);
 }
+#elif TARGET_OS_OSX
+- (void)setHr_size:(CGSize)hr_size{
+    objc_setAssociatedObject(self, @selector(hr_size), [NSValue valueWithSize:hr_size], OBJC_ASSOCIATION_RETAIN);
+}
+#endif
+
 @end
 
 

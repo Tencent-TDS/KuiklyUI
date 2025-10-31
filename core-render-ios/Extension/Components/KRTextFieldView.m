@@ -17,6 +17,8 @@
 #import "KRConvertUtil.h"
 #import "KRRichTextView.h"
 #import "KuiklyRenderBridge.h"
+#import <TargetConditionals.h>
+
 // 字典key常量
 NSString *const KRVFontSizeKey = @"fontSize";
 NSString *const KRVFontWeightKey = @"fontWeight";
@@ -24,7 +26,12 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 /*
  * @brief 暴露给Kotlin侧调用的多行输入框组件
  */
+#if TARGET_OS_IOS
 @interface KRTextFieldView()<UITextFieldDelegate>
+#elif TARGET_OS_OSX
+@interface KRTextFieldView()<NSTextFieldDelegate>   // [macOS] for TextFieldView
+#endif
+
 /** attr is text */
 @property (nonatomic, copy, readwrite) NSString *KUIKLY_PROP(text);
 /** attr is values */
@@ -83,10 +90,24 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     if (self = [super init]) {
         self.delegate = self;
         _props = [NSMutableDictionary new];
+#if TARGET_OS_IOS
         [self addTarget:self action:@selector(onTextFeildTextChanged:) forControlEvents:UIControlEventEditingChanged];
+#elif TARGET_OS_OSX
+        self.delegate = self;
+        self.continuous = YES;  // 每一次键入，都会触发回调，这点待确认，看上去是可以取消的
+#endif
     }
     return self;
 }
+
+#pragma mark - NSTextFieldDelegate
+
+/// 增加文字变化事件的监听函数
+#if TARGET_OS_OSX   // [macos]
+- (void)controlTextDidChange:(NSNotification *)obj {
+    [self onTextFeildTextChanged:self];
+}
+#endif
 
 #pragma mark - dealloc
 
@@ -97,7 +118,6 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 }
 
 #pragma mark - KuiklyRenderViewExportProtocol
-
 
 - (void)hrv_setPropWithKey:(NSString *)propKey propValue:(id)propValue {
     if (propKey && propValue) {
@@ -113,6 +133,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 #pragma mark - setter (css property)
 
 - (void)setCss_text:(NSString *)css_text {
+#if TARGET_OS_IOS
     self.text = css_text;
     NSString *lastText = self.text ?: @"";
     NSString *newText = css_text ?: @"";
@@ -120,6 +141,15 @@ NSString *const KRVFontWeightKey = @"fontWeight";
         self.text = css_text;
         [self onTextFeildTextChanged:self];
     }
+#elif TARGET_OS_OSX
+    self.stringValue = css_text;
+    NSString *lastText = self.stringValue ?: @"";
+    NSString *newText = css_text ?: @"";
+    if (![lastText isEqualToString:newText]) {
+        self.stringValue = css_text;
+        [self onTextFeildTextChanged:self];
+    }
+#endif
 }
 
 - (void)setCss_values:(NSString *)css_values {
@@ -131,18 +161,49 @@ NSString *const KRVFontWeightKey = @"fontWeight";
                 [textShadow hrv_setPropWithKey:key propValue:_props[key]];
             }
             // 保存原光标位置
+#if TARGET_OS_IOS
             UITextRange *originalSelectedTextRange = self.selectedTextRange;
+#elif TARGET_OS_OSX
+            NSRange originalSelectedTextRange = NSMakeRange(NSNotFound, 0);
+            NSTextView *editor = (NSTextView *)[self currentEditor];
+            if (editor) {
+                originalSelectedTextRange = editor.selectedRange;
+            }
+#endif
             // 设置新的 attributedText
             NSAttributedString *resAttr = [textShadow buildAttributedString];
             // 代理
             if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_customTextWithAttributedString:textPostProcessor:)]) {
                 resAttr = [[KuiklyRenderBridge componentExpandHandler] hr_customTextWithAttributedString:resAttr textPostProcessor:NSStringFromClass([self class])];
             }
+            /// 恢复原光标位置 valo 待评估其正确性
+#if TARGET_OS_IOS
             self.attributedText = resAttr;
-            // 恢复原光标位置
             self.selectedTextRange = originalSelectedTextRange;
+#elif TARGET_OS_OSX
+            self.attributedStringValue = resAttr;
+            if (originalSelectedTextRange.location != NSNotFound) {
+                // 让控件取得焦点（如果已经是第一响应者，这一步不会有副作用）
+                [[self window] makeFirstResponder:self];
+                
+                // 再次获取编辑器（此时一定存在）
+                NSTextView *editor2 = (NSTextView *)[self currentEditor];
+                if (editor2) {
+                    // 防止越界（当我们刚刚把 attributedStringValue 改短时）
+                    NSUInteger maxLen = self.stringValue.length;
+                    NSRange safeRange = originalSelectedTextRange;
+                    if (safeRange.location > maxLen) safeRange.location = maxLen;
+                    if (NSMaxRange(safeRange) > maxLen) safeRange.length = maxLen - safeRange.location;
+                    editor2.selectedRange = safeRange;
+                }
+            }
+#endif
         } else {
+#if TARGET_OS_IOS
             self.attributedText = nil;
+#elif TARGET_OS_OSX
+            self.attributedStringValue = nil;
+#endif
         }
         [self onTextFeildTextChanged:self];
     }
@@ -152,8 +213,13 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     self.textColor = [UIView css_color:css_color];
 }
 
+/// valo 待评估正确性 tintColor 替换为 textColor
 - (void)setCss_tintColor:(NSNumber *)css_tintColor {
+#if TARGET_OS_IOS
     self.tintColor = [UIView css_color:css_tintColor];
+#elif TARGET_OS_OSX
+    self.textColor = [UIView css_color:css_tintColor];
+#endif
 }
 
 - (void)setCss_editable:(NSNumber *)css_editable {
@@ -161,7 +227,11 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 }
 
 - (void)setCss_textAlign:(NSString *)css_textAlign {
+#if TARGET_OS_IOS
     self.textAlignment = [KRConvertUtil NSTextAlignment:css_textAlign];
+#elif TARGET_OS_OSX
+    self.alignment = [KRConvertUtil NSTextAlignment:css_textAlign];
+#endif
 }
 
 - (void)setCss_fontSize:(NSNumber *)css_fontSize {
@@ -176,7 +246,11 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 }
 
 - (void)setCss_placeholder:(NSString *)css_placeholder {
+#if TARGET_OS_IOS
     self.placeholder = css_placeholder;
+#elif TARGET_OS_OSX
+    self.placeholderString = css_placeholder;
+#endif
     [self p_setNeedUpdatePlaceholder];
 }
 
@@ -185,16 +259,17 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     [self p_setNeedUpdatePlaceholder];
 }
 
+/// valo 暂未能支持 属于 UITextInputTraits  替代方案思考中
 - (void)setCss_keyboardType:(NSString *)css_keyboardType {
     self.keyboardType = [KRConvertUtil hr_keyBoardType:css_keyboardType];
     [self setSecureTextEntry:[css_keyboardType isEqualToString:@"password"]];
 }
-
+/// valo 暂未能支持 属于 UITextInputTraits  替代方案思考中
 - (void)setCss_returnKeyType:(NSString *)css_returnKeyType {
     _css_returnKeyType = css_returnKeyType;
     self.returnKeyType = [KRConvertUtil hr_toReturnKeyType:css_returnKeyType];
 }
-
+/// valo 暂未能支持 属于 UITextInputTraits  替代方案思考中
 - (void)setCss_enablesReturnKeyAutomatically:(NSNumber *)flag{
     self.enablesReturnKeyAutomatically = [flag boolValue];
 }
@@ -218,7 +293,11 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 
 - (void)css_setText:(NSDictionary *)args {
     NSString *text = args[KRC_PARAM_KEY];
+#if TARGET_OS_IOS
     self.text = text;
+#elif TARGET_OS_OSX
+    self.stringValue = text;
+#endif
     [self onTextFeildTextChanged:self];
 }
 
@@ -226,17 +305,28 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 - (void)css_getCursorIndex:(NSDictionary *)args {
     KuiklyRenderCallback callback = args[KRC_CALLBACK_KEY];
     if (callback) {
+#if TARGET_OS_IOS
         UITextRange *selectedRange = self.selectedTextRange;
         NSUInteger cursorIndex = [self offsetFromPosition:self.beginningOfDocument toPosition:selectedRange.start];
+#elif TARGET_OS_OSX
+        NSRange selectedRange = NSMakeRange(NSNotFound, 0);
+        NSTextView *editor = (NSTextView *)[self currentEditor];
+        if (editor) {
+            selectedRange = editor.selectedRange;
+        }
+        NSUInteger cursorIndex = selectedRange.location;
+#endif
         callback(@{@"cursorIndex": @(cursorIndex)});
     }
 }
 
-// 设置光标位置
+// 设置光标位置 valo 暂未能支持 属于 UITextInputTraits  替代方案思考中
 - (void)css_setCursorIndex:(NSDictionary *)args {
     NSUInteger index = [args[KRC_PARAM_KEY] intValue];
+#if TARGET_OS_IOS
     UITextPosition *newPosition = [self positionFromPosition:self.beginningOfDocument offset:index];
     self.selectedTextRange = [self textRangeFromPosition:newPosition toPosition:newPosition];
+#elif TARGET_OS_OSX
 }
 
 
@@ -249,15 +339,22 @@ NSString *const KRVFontWeightKey = @"fontWeight";
         _setNeedUpdatePlaceholder = NO;
         UIColor *color = [UIView css_color:self.css_placeholderColor] ?: [UIColor grayColor];
         UIFont *font = self.font ?: [UIFont systemFontOfSize:16];
+#if TARGET_OS_IOS
         self.attributedPlaceholder = [[NSMutableAttributedString alloc] initWithString:self.placeholder ?: @""
                                                                             attributes:@{NSForegroundColorAttributeName:color?: [UIColor clearColor],
                                                                                          NSFontAttributeName:font}];
+#elif TARGET_OS_OSX
+        self.placeholderAttributedString = [[NSMutableAttributedString alloc] initWithString:self.placeholderString ?: @""
+                                                                            attributes:@{NSForegroundColorAttributeName:color?: [UIColor clearColor],
+                                                                                         NSFontAttributeName:font}];
+#endif
     }
 }
 
 
 #pragma mark - UITextViewDelegate
 
+#if TARGET_OS_IOS
 - (void)onTextFeildTextChanged:(UITextField *)textField {  // 文本值变化
     if (textField.markedTextRange) {
         return ;
@@ -268,28 +365,60 @@ NSString *const KRVFontWeightKey = @"fontWeight";
         self.css_textDidChange(@{@"text": text, @"length": @([text kr_length])});
     }
 }
+#elif TARGET_OS_OSX
+- (void)onTextFeildTextChanged:(NSTextField *)textField {  // 文本值变化
+    // [macos]
+    NSTextView *editor = (NSTextView *)[textField currentEditor];
+    if (editor && editor.hasMarkedText) {
+        return;
+    }
+   
+    [self p_limitTextInput];
+    if (self.css_textDidChange) {
+        NSString *text = textField.stringValue.copy ?: @"";
+        self.css_textDidChange(@{@"text": text, @"length": @([text kr_length])});
+    }
+}
+#endif
 
 
+#if TARGET_OS_IOS
 - (void)textFieldDidBeginEditing:(UITextField *)textField {  // 聚焦
+#elif TARGET_OS_OSX
+- (void)textFieldDidBeginEditing:(NSTextField *)textField {  // 聚焦
+#endif
     if (self.css_inputFocus) {
         self.css_inputFocus(@{@"text": textField.text.copy ?: @""});
     }
 }
 
+#if TARGET_OS_IOS
 - (void)textFieldDidEndEditing:(UITextField *)textField {  // 失焦
+#elif TARGET_OS_OSX
+- (void)textFieldDidEndEditing:(NSTextField *)textField {  // 失焦
+#endif
     if (self.css_inputBlur) {
         self.css_inputBlur(@{@"text": textField.text.copy ?: @""});
     }
 }
 
+#if TARGET_OS_IOS
 - (BOOL)textFieldShouldReturn:(UITextField *)textField {
+#elif TARGET_OS_OSX
+- (BOOL)textFieldShouldReturn:(NSTextField *)textField {
+#endif
     if (self.css_inputReturn) {
         self.css_inputReturn(@{@"text": textField.text.copy ?: @"", @"ime_action": self.css_returnKeyType ?: @""});
     }
     return YES;
 }
 
+
+#if TARGET_OS_IOS
 - (BOOL)textField:(UITextField *)textField shouldChangeCharactersInRange:(NSRange)range replacementString:(NSString *)string {
+#elif TARGET_OS_OSX
+- (BOOL)textField:(NSTextField *)textField shouldChangeCharactersInRange:(NSRange)range replacementString:(NSString *)string {
+#endif
     return YES;
 }
 

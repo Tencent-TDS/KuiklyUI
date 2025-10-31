@@ -17,6 +17,12 @@
 #import <QuartzCore/QuartzCore.h>
 
 
+#if TARGET_OS_IOS
+    #import <UIKit/UIKit.h>
+#elif TARGET_OS_OSX
+    #import <AppKit/AppKit.h>
+#endif
+
 NS_ASSUME_NONNULL_BEGIN
 @class KRTextRender;
 
@@ -24,7 +30,7 @@ NS_ASSUME_NONNULL_BEGIN
 extern NSString *const KRHighlightAttributeKey;
 extern NSString *const KRBGAttributeKey;
 
-
+#if TARGET_OS_IOS
 @interface KRLabel : UILabel
 
 @property (nonatomic, strong, nullable) KRTextRender *textRender;
@@ -39,22 +45,32 @@ extern NSString *const KRBGAttributeKey;
 + (CGSize)sizeThatFits:(CGSize)size attributedString:(NSAttributedString *)attString numberOfLines:(NSUInteger)lines lineBreakMode:(NSLineBreakMode)mode lineBreakMarin:(CGFloat)marin lineHeight:(CGFloat)lineHeight;
 
 @end
+#elif TARGET_OS_OSX
+@interface KRLabel : NSTextField
 
+@property (nonatomic, strong, nullable) KRTextRender *textRender;
+@property (nonatomic, assign) BOOL displaysAsynchronously;
 
+/**
+ * 获取富文本的对应尺寸大小
+ * note：任意线程都可以调用该方法，一般用于 子线程 执行
+ */
++ (CGSize)sizeThatFits:(CGSize)size attributedString:(NSAttributedString *)attString numberOfLines:(NSUInteger)lines lineBreakMode:(NSLineBreakMode)mode;
++ (CGSize)sizeThatFits:(CGSize)size attributedString:(NSAttributedString *)attString numberOfLines:(NSUInteger)lines lineBreakMode:(NSLineBreakMode)mode lineBreakMarin:(CGFloat)marin;
++ (CGSize)sizeThatFits:(CGSize)size attributedString:(NSAttributedString *)attString numberOfLines:(NSUInteger)lines lineBreakMode:(NSLineBreakMode)mode lineBreakMarin:(CGFloat)marin lineHeight:(CGFloat)lineHeight;
 
-//------KRLayoutManager类分割线-----
+@end
+#endif
 
+//------KRLayoutManager 类分割线-----
 @interface KRLayoutManager : NSLayoutManager
 
 @property (nonatomic, assign) NSRange highlightRange;
 
-
 @end
 
 
-
-
-//---------KRTextRender类分割线------------
+//---------KRTextRender 类分割线------------
 @interface KRTextRender : NSObject
 
 @property (nonatomic, strong, nullable) NSTextStorage *textStorage;
@@ -94,22 +110,13 @@ extern NSString *const KRBGAttributeKey;
 
 
 
-
-
-// ------- 类分割线--------
-
-@interface NSAttributedString(MIJAsync)
-@property(nullable, nonatomic, strong) KRTextRender * hr_textRender;
-@property(nonatomic, assign) CGSize hr_size;
-@end
-
-
 typedef NS_ENUM(NSUInteger, KRAttachmentAlignment) {
     KRAttachmentAlignmentBaseline,
     KRAttachmentAlignmentCenter,
     KRAttachmentAlignmentBottom
 };
-// ------- 类分割线--------
+// ------- KRTextAttachment 类分割线--------
+#if TARGET_OS_IOS
 @interface KRTextAttachment : NSTextAttachment
 
 @property (nonatomic, strong, nullable) UIView *view;
@@ -118,7 +125,18 @@ typedef NS_ENUM(NSUInteger, KRAttachmentAlignment) {
 @property (nonatomic,assign) KRAttachmentAlignment verticalAlignment;
 
 @end
-// ------- 类分割线--------
+#elif TARGET_OS_OSX
+@interface KRTextAttachment : NSTextAttachment
+
+@property (nonatomic, strong, nullable) NSView *view;
+@property (nonatomic,assign) CGSize size;
+@property (nonatomic,assign) CGFloat baseline;
+@property (nonatomic,assign) KRAttachmentAlignment verticalAlignment;
+
+@end
+#endif
+
+#if TARGET_OS_IOS
 @interface KRTextAttachment (Display)
 @property (nonatomic, assign, readonly) NSRange range;
 @property (nonatomic, assign, readonly) CGPoint position;
@@ -126,10 +144,30 @@ typedef NS_ENUM(NSUInteger, KRAttachmentAlignment) {
 - (void)addToSuperView:(UIView *)superView;
 - (void)removeFromSuperView:(UIView *)superView;
 @end
+
+#elif TARGET_OS_OSX
+@interface KRTextAttachment (Display)
+@property (nonatomic, assign, readonly) NSRange range;
+@property (nonatomic, assign, readonly) CGPoint position;
+- (void)setFrame:(CGRect)frame;
+- (void)addToSuperView:(NSView *)superView;
+- (void)removeFromSuperView:(NSView *)superView;
+@end
+#endif
+
+
 // ------- 类分割线--------
 @interface NSAttributedString (KRTextAttachment)
 @property(nonatomic, assign) BOOL hr_hasAttachmentViews;
 - (NSArray<KRTextAttachment *> *)hr_viewAttachments;
+
+@end
+
+// ------- 类分割线--------
+@interface NSAttributedString(MIJAsync)
+
+@property(nullable, nonatomic, strong) KRTextRender * hr_textRender;
+@property(nonatomic, assign) CGSize hr_size;
 
 @end
 

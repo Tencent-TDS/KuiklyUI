@@ -20,12 +20,8 @@ NS_ASSUME_NONNULL_BEGIN
 /*
  * @brief 暴露给Kotlin侧调用的单行输入框组件
  */
-#if TARGET_OS_IOS
 @interface KRTextFieldView : UITextField<KuiklyRenderViewExportProtocol>
+
 @end
-#elif TARGET_OS_OSX
-@interface KRTextFieldView : NSTextField<KuiklyRenderViewExportProtocol>
-@end
-#endif
 
 NS_ASSUME_NONNULL_END

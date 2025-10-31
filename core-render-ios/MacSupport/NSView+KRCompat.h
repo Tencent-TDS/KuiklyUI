@@ -33,6 +33,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)bringSubviewToFront:(NSView *)view;
 - (void)insertSubview:(NSView *)view atIndex:(NSInteger)index;
+- (void)setNeedsLayout;
+- (void)setNeedsDisplay;
 - (void)layoutIfNeeded;
 - (void)layoutSubviews;
 - (void)didMoveToSuperview;

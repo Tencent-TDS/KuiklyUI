@@ -168,6 +168,7 @@ typedef unsigned long long UIAccessibilityTraits;
 #define UIColor RCTUIColor
 #define UITouch RCTUITouch
 #define UILabel RCTUILabel
+#define UITextField RCTUITextField
 
 // Application aliases
 #define UIApplication NSApplication
@@ -214,6 +215,13 @@ typedef NSFontWeight UIFontWeight;
 #define UIApplicationDidFinishLaunchingNotification   NSApplicationDidFinishLaunchingNotification
 #define UIApplicationWillResignActiveNotification     NSApplicationWillResignActiveNotification
 #define UIApplicationWillEnterForegroundNotification  NSApplicationWillUnhideNotification
+
+#pragma mark - Keyboard Notifications (compat)
+
+#define UIKeyboardWillShowNotification @"UIKeyboardWillShowNotification"
+#define UIKeyboardWillHideNotification @"UIKeyboardWillHideNotification"
+#define UIKeyboardFrameEndUserInfoKey @"UIKeyboardFrameEndUserInfoKey"
+#define UIKeyboardAnimationDurationUserInfoKey @"UIKeyboardAnimationDurationUserInfoKey"
 
 #pragma mark - Font Descriptor Attribute Aliases
 
@@ -376,6 +384,60 @@ NS_INLINE CGFloat UIFontLineHeight(NSFont *font) {
 // Provide UIKit-like lineHeight on NSFont so call sites can use font.lineHeight
 @interface NSFont (KRUIKitCompatLineHeight)
 - (CGFloat)lineHeight;
+@end
+
+
+#pragma mark RCTUITextField
+
+@class UITextRange, UITextPosition;
+
+typedef NS_OPTIONS(NSUInteger, UIControlEvents) {
+    UIControlEventEditingChanged = 1UL << 0,
+};
+
+@protocol UITextFieldDelegate <NSObject>
+@optional
+- (void)textFieldDidBeginEditing:(id)textField;
+- (void)textFieldDidEndEditing:(id)textField;
+- (BOOL)textFieldShouldReturn:(id)textField;
+- (BOOL)textField:(id)textField shouldChangeCharactersInRange:(NSRange)range replacementString:(NSString *)string;
+@end
+
+@interface UITextPosition : NSObject
+@property (nonatomic, assign, readonly) NSInteger index;
++ (instancetype)positionWithIndex:(NSInteger)index;
+@end
+
+@interface UITextRange : NSObject
+@property (nonatomic, strong, readonly) UITextPosition *start;
+@property (nonatomic, strong, readonly) UITextPosition *end;
++ (instancetype)rangeWithStart:(UITextPosition *)start end:(UITextPosition *)end;
+@end
+
+@interface RCTUITextField : NSTextField
+
+@property (nonatomic, copy, nullable) NSString *text;
+@property (nonatomic, copy, nullable) NSAttributedString *attributedText;
+@property (nonatomic, copy, nullable) NSString *placeholder;
+@property (nonatomic, copy, nullable) NSAttributedString *attributedPlaceholder;
+@property (nonatomic, assign) NSTextAlignment textAlignment;
+@property (nonatomic, assign) BOOL enablesReturnKeyAutomatically;
+@property (nonatomic, assign) UIKeyboardType keyboardType;
+@property (nonatomic, assign) UIReturnKeyType returnKeyType;
+@property (nonatomic, strong, nullable) RCTUIColor *tintColor;
+@property (nonatomic, assign) BOOL secureTextEntry;
+
+// UITextInput-like compatibility
+@property (nonatomic, strong, readonly) UITextPosition *beginningOfDocument;
+@property (nonatomic, strong, nullable) UITextRange *selectedTextRange;
+@property (nonatomic, strong, readonly, nullable) UITextRange *markedTextRange;
+- (UITextPosition *)positionFromPosition:(UITextPosition *)position offset:(NSInteger)offset;
+- (UITextRange *)textRangeFromPosition:(UITextPosition *)fromPosition toPosition:(UITextPosition *)toPosition;
+- (NSInteger)offsetFromPosition:(UITextPosition *)from toPosition:(UITextPosition *)to;
+
+// UIControl-like compatibility
+- (void)addTarget:(id)target action:(SEL)action forControlEvents:(UIControlEvents)events;
+
 @end
 
 #pragma mark - Edge Insets Type

@@ -119,6 +119,227 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 
 @end
 
+@implementation UITextPosition
+
++ (instancetype)positionWithIndex:(NSInteger)index {
+    UITextPosition *p = [UITextPosition new];
+    [p setValue:@(index) forKey:@"_index"]; // KVC to set readonly
+    return p;
+}
+
+- (NSInteger)index {
+    NSNumber *n = [self valueForKey:@"_index"];
+    return n ? n.integerValue : 0;
+}
+
+@end
+
+@implementation UITextRange
+
++ (instancetype)rangeWithStart:(UITextPosition *)start end:(UITextPosition *)end {
+    UITextRange *r = [UITextRange new];
+    [r setValue:start forKey:@"_start"]; // KVC to set readonly
+    [r setValue:end forKey:@"_end"]; // KVC to set readonly
+    return r;
+}
+
+- (UITextPosition *)start {
+    return [self valueForKey:@"_start"];
+}
+
+- (UITextPosition *)end {
+    return [self valueForKey:@"_end"];
+}
+
+@end
+
+#pragma mark - RCTUITextField
+
+@interface RCTUITextField () <NSTextFieldDelegate>
+@property (nonatomic, strong) NSMutableArray<NSDictionary *> *rct_targets;
+@end
+
+@implementation RCTUITextField
+
+- (instancetype)initWithFrame:(NSRect)frameRect {
+    if (self = [super initWithFrame:frameRect]) {
+        self.bezeled = YES;
+        self.editable = YES;
+        self.selectable = YES;
+        self.drawsBackground = YES;
+        self.usesSingleLineMode = YES;
+        self.delegate = (id<NSTextFieldDelegate>)self;
+        _rct_targets = [NSMutableArray array];
+    }
+    return self;
+}
+
+#pragma mark - Property Bridges
+
+- (NSString *)text {
+    return self.stringValue;
+}
+
+- (void)setText:(NSString *)text {
+    self.stringValue = text ?: @"";
+}
+
+- (NSAttributedString *)attributedText {
+    return self.attributedStringValue;
+}
+
+- (void)setAttributedText:(NSAttributedString *)attributedText {
+    self.attributedStringValue = attributedText ?: [[NSAttributedString alloc] initWithString:@""];
+}
+
+- (NSString *)placeholder {
+    return self.placeholderString;
+}
+
+- (void)setPlaceholder:(NSString *)placeholder {
+    self.placeholderString = placeholder;
+}
+
+- (NSAttributedString *)attributedPlaceholder {
+    return self.placeholderAttributedString;
+}
+
+- (void)setAttributedPlaceholder:(NSAttributedString *)attributedPlaceholder {
+    self.placeholderAttributedString = attributedPlaceholder;
+}
+
+- (NSTextAlignment)textAlignment {
+    return self.alignment;
+}
+
+- (void)setTextAlignment:(NSTextAlignment)textAlignment {
+    self.alignment = textAlignment;
+}
+
+#pragma mark - UITextInput-like
+
+- (UITextPosition *)beginningOfDocument {
+    return [UITextPosition positionWithIndex:0];
+}
+
+- (NSTextView *)rct_fieldEditorIfAvailable {
+    id editor = [self currentEditor];
+    return [editor isKindOfClass:[NSTextView class]] ? (NSTextView *)editor : nil;
+}
+
+- (UITextRange *)selectedTextRange {
+    NSTextView *editor = [self rct_fieldEditorIfAvailable];
+    if (editor) {
+        NSRange r = editor.selectedRange;
+        return [UITextRange rangeWithStart:[UITextPosition positionWithIndex:(NSInteger)r.location]
+                                       end:[UITextPosition positionWithIndex:(NSInteger)(r.location + r.length)]];
+    }
+    return [UITextRange rangeWithStart:[UITextPosition positionWithIndex:0] end:[UITextPosition positionWithIndex:0]];
+}
+
+- (void)setSelectedTextRange:(UITextRange *)selectedTextRange {
+    NSTextView *editor = [self rct_fieldEditorIfAvailable];
+    if (editor && selectedTextRange) {
+        NSInteger loc = selectedTextRange.start.index;
+        NSInteger end = selectedTextRange.end.index;
+        if (loc < 0) loc = 0;
+        if (end < loc) end = loc;
+        NSRange r = NSMakeRange((NSUInteger)loc, (NSUInteger)(end - loc));
+        editor.selectedRange = r;
+    }
+}
+
+- (UITextRange *)markedTextRange {
+    NSTextView *editor = [self rct_fieldEditorIfAvailable];
+    if (editor) {
+        NSRange r = editor.markedRange;
+        if (r.location != NSNotFound) {
+            return [UITextRange rangeWithStart:[UITextPosition positionWithIndex:(NSInteger)r.location]
+                                           end:[UITextPosition positionWithIndex:(NSInteger)(r.location + r.length)]];
+        }
+    }
+    return nil;
+}
+
+- (UITextPosition *)positionFromPosition:(UITextPosition *)position offset:(NSInteger)offset {
+    NSInteger idx = MAX(0, position.index + offset);
+    NSString *s = self.stringValue ?: @"";
+    if (idx > (NSInteger)s.length) idx = (NSInteger)s.length;
+    return [UITextPosition positionWithIndex:idx];
+}
+
+- (UITextRange *)textRangeFromPosition:(UITextPosition *)fromPosition toPosition:(UITextPosition *)toPosition {
+    return [UITextRange rangeWithStart:fromPosition end:toPosition];
+}
+
+- (NSInteger)offsetFromPosition:(UITextPosition *)from toPosition:(UITextPosition *)to {
+    return to.index - from.index;
+}
+
+#pragma mark - UIControl-like
+
+- (void)addTarget:(id)target action:(SEL)action forControlEvents:(UIControlEvents)events {
+    if (events & UIControlEventEditingChanged) {
+        if (target && action) {
+            [_rct_targets addObject:@{ @"t": target, @"a": NSStringFromSelector(action) }];
+        }
+    }
+}
+
+- (void)rct_dispatchEditingChanged {
+    for (NSDictionary *entry in _rct_targets) {
+        id t = entry[@"t"]; SEL a = NSSelectorFromString(entry[@"a"]);
+        if (t && [t respondsToSelector:a]) {
+            ((void (*)(id, SEL, id))objc_msgSend)(t, a, self);
+        }
+    }
+}
+
+#pragma mark - NSTextFieldDelegate
+
+- (void)controlTextDidBeginEditing:(NSNotification *)obj {
+    id<UITextFieldDelegate> d = (id)self.delegate;
+    if ([d respondsToSelector:@selector(textFieldDidBeginEditing:)]) {
+        [d textFieldDidBeginEditing:(id)self];
+    }
+}
+
+- (void)controlTextDidEndEditing:(NSNotification *)obj {
+    id<UITextFieldDelegate> d = (id)self.delegate;
+    if ([d respondsToSelector:@selector(textFieldDidEndEditing:)]) {
+        [d textFieldDidEndEditing:(id)self];
+    }
+}
+
+- (void)controlTextDidChange:(NSNotification *)obj {
+    [self rct_dispatchEditingChanged];
+}
+
+- (BOOL)control:(NSControl *)control textView:(NSTextView *)textView shouldChangeTextInRange:(NSRange)affectedCharRange replacementString:(NSString *)replacementString {
+    id<UITextFieldDelegate> d = (id)self.delegate;
+    if ([d respondsToSelector:@selector(textField:shouldChangeCharactersInRange:replacementString:)]) {
+        return [d textField:(id)self shouldChangeCharactersInRange:affectedCharRange replacementString:replacementString];
+    }
+    return YES;
+}
+
+- (BOOL)control:(NSControl *)control textView:(NSTextView *)textView doCommandBySelector:(SEL)commandSelector {
+    if (commandSelector == @selector(insertNewline:)) {
+        id<UITextFieldDelegate> d = (id)self.delegate;
+        BOOL should = YES;
+        if ([d respondsToSelector:@selector(textFieldShouldReturn:)]) {
+            should = [d textFieldShouldReturn:(id)self];
+        }
+        if (should) {
+            [[self window] makeFirstResponder:nil];
+        }
+        return YES;
+    }
+    return NO;
+}
+
+@end
+
 
 NSImage *UIImageResizableImageWithCapInsets(NSImage *image, NSEdgeInsets capInsets, UIImageResizingMode resizingMode) {
     if (image == nil) {
@@ -939,6 +1160,15 @@ BOOL RCTUIViewSetClipsToBounds(RCTPlatformView *view) {
 // [macOS] Use iOS-like flipped coordinates for consistency with UIKit drawing
 - (BOOL)isFlipped {
     return YES;
+}
+
+// Bridge textAlignment <-> alignment
+- (NSTextAlignment)textAlignment {
+    return self.alignment;
+}
+
+- (void)setTextAlignment:(NSTextAlignment)textAlignment {
+    self.alignment = textAlignment;
 }
 
 @end

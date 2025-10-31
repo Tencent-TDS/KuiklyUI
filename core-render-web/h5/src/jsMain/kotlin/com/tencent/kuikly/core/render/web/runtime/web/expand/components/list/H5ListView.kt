@@ -269,7 +269,11 @@ class H5ListView : IListElement {
                 ele.style.transform = "translate(0, 0)"
                 // Handle extreme sliding in static sliding scenarios
                 if (scrollEnabled) {
-                    ele.style.overflowY = "scroll"
+                    if (scrollDirection == SCROLL_DIRECTION_COLUMN) {
+                        ele.style.overflowY = "scroll"
+                    } else {
+                        ele.style.overflowX = "scroll"
+                    }
                 }
 
                 // remove transform attribute after transform end
@@ -468,8 +472,13 @@ class H5ListView : IListElement {
         val transform = "translate(${contentInset.left}px, ${contentInset.top}px)"
         if (contentInset.top == 0f) {
             // Restore listView to scrollable
-            ele.style.overflowY = "scroll"
-            ele.style.overflowX = "hidden"
+            if (scrollDirection == SCROLL_DIRECTION_COLUMN) {
+                ele.style.overflowY = "scroll"
+                ele.style.overflowX = "hidden"
+            } else {
+                ele.style.overflowX = "scroll"
+                ele.style.overflowY = "hidden"
+            }
             // When top > 0, it sets the terminal listView inset height when terminal pull-to-refresh,
             // web doesn't support pull bounce by default,
             // so this value is not processed, only handle the value when preparing for pull-to-refresh

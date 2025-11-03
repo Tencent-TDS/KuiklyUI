@@ -292,7 +292,9 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
     NSTextView *editor = [self rct_fieldEditorIfAvailable];
     if (editor) {
         NSRange r = editor.markedRange;
-        if (r.location != NSNotFound) {
+        // Check both location and length to match iOS behavior
+        // Only return non-nil when there's actual marked text (e.g., IME input)
+        if (r.location != NSNotFound && r.length > 0) {
             return [UITextRange rangeWithStart:[UITextPosition positionWithIndex:(NSInteger)r.location]
                                            end:[UITextPosition positionWithIndex:(NSInteger)(r.location + r.length)]];
         }
@@ -301,6 +303,10 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 }
 
 - (UITextPosition *)positionFromPosition:(UITextPosition *)position offset:(NSInteger)offset {
+    // Return nil when position is nil to match iOS behavior
+    if (!position) {
+        return nil;
+    }
     NSInteger idx = MAX(0, position.index + offset);
     NSString *s = self.stringValue ?: @"";
     if (idx > (NSInteger)s.length) idx = (NSInteger)s.length;

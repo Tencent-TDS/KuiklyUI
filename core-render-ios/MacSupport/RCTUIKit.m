@@ -15,14 +15,34 @@
 
 #if TARGET_OS_OSX
 
-#define RCTAssert(...) // TODO
-
 #import "RCTUIKit.h" // [macOS]
-#import <QuartzCore/QuartzCore.h> // [macOS] for CATransaction
+#import <QuartzCore/QuartzCore.h>
 #import <objc/runtime.h>
 #import <objc/message.h>
 #import <CoreImage/CIFilter.h>
 #import <CoreImage/CIVector.h>
+
+// KRMAssert implementation for macOS
+#define KRMAssert(condition, ...) _KRMAssert((condition), __FILE__, __LINE__, __func__, __VA_ARGS__)
+
+NS_INLINE void _KRMAssert(BOOL condition, const char *fileName, int lineNumber, const char *function, NSString *format, ...) {
+    if (!condition) {
+        va_list args;
+        va_start(args, format);
+        NSString *message = [[NSString alloc] initWithFormat:format arguments:args];
+        va_end(args);
+        
+        NSString *log = [NSString stringWithFormat:@"[KRMAssert] %s:%d (%s): %@", 
+                         fileName, lineNumber, function, message];
+        NSLog(@"%@", log);
+        
+#if DEBUG
+        // In DEBUG mode, trigger assertion to help catch issues during development
+        assert(condition);
+#endif
+    }
+}
+
 
 static char RCTGraphicsContextSizeKey;
 
@@ -58,7 +78,7 @@ CGFloat UIImageGetScale(NSImage *image) {
         return 0.0;
     }
     
-    RCTAssert(image.representations.count == 1, @"The scale can only be derived if the image has one representation.");
+    KRMAssert(image.representations.count == 1, @"The scale can only be derived if the image has one representation.");
     
     NSImageRep *imageRep = image.representations.firstObject;
     if (imageRep != nil) {
@@ -76,12 +96,31 @@ CGImageRef __nullable UIImageGetCGImageRef(NSImage *image) {
 }
 
 static NSData *NSImageDataForFileType(NSImage *image, NSBitmapImageFileType fileType, NSDictionary<NSString *, id> *properties) {
-    RCTAssert(image.representations.count == 1, @"Expected only a single representation since UIImage only supports one.");
+    // Try to get existing NSBitmapImageRep if available
+    NSBitmapImageRep *imageRep = nil;
+    for (NSImageRep *rep in image.representations) {
+        if ([rep isKindOfClass:[NSBitmapImageRep class]]) {
+            imageRep = (NSBitmapImageRep *)rep;
+            break;
+        }
+    }
     
-    NSBitmapImageRep *imageRep = (NSBitmapImageRep *)image.representations.firstObject;
-    if (![imageRep isKindOfClass:[NSBitmapImageRep class]]) {
-        RCTAssert([imageRep isKindOfClass:[NSBitmapImageRep class]], @"We need an NSBitmapImageRep to create an image.");
-        return nil;
+    // If no NSBitmapImageRep exists, create one by rendering the image
+    if (imageRep == nil) {
+        // Lock focus to render the image into a bitmap representation
+        CGSize imageSize = image.size;
+        NSRect imageRect = NSMakeRect(0, 0, imageSize.width, imageSize.height);
+        
+        // Get the CGImage representation and create NSBitmapImageRep from it
+        CGImageRef cgImage = [image CGImageForProposedRect:&imageRect context:nil hints:nil];
+        if (cgImage == NULL) {
+            return nil;
+        }
+        
+        imageRep = [[NSBitmapImageRep alloc] initWithCGImage:cgImage];
+        if (imageRep == nil) {
+            return nil;
+        }
     }
     
     return [imageRep representationUsingType:fileType properties:properties];

@@ -747,26 +747,27 @@ NS_ASSUME_NONNULL_END
 #endif
 
 #if TARGET_OS_OSX // [macOS
+
 @protocol RCTUISliderDelegate <NSObject>
 @optional
 NS_ASSUME_NONNULL_BEGIN
 - (void)slider:(RCTUISlider *)slider didPress:(BOOL)press;
 NS_ASSUME_NONNULL_END
 @end
-#endif // macOS]
 
 
-#pragma mark RCTUILabel
+#pragma mark - RCTUILabel
 
 @interface RCTUILabel : NSTextField
 NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy, nullable) NSString *text;
-@property (nonatomic, copy, nullable) NSAttributedString *attributedText; // [macOS]
+@property (nonatomic, copy, nullable) NSAttributedString *attributedText;
 @property (nonatomic, assign) NSInteger numberOfLines;
 @property (nonatomic, assign) NSTextAlignment textAlignment;
 NS_ASSUME_NONNULL_END
 @end
 
+#endif // macOS]
 
 #pragma mark RCTUISwitch
 

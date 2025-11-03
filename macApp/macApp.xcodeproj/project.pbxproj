@@ -7,14 +7,16 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		1450E6613B9C3CFC0E34981B /* Pods_macApp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F542143BE6FE326B23E5B71D /* Pods_macApp.framework */; };
+		7172F6BC2EB4AA6B0057D3E4 /* shared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7172F6BB2EB4AA6B0057D3E4 /* shared.framework */; };
+		912318ADA99CA49ACDAF4485 /* libPods-macApp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B035F9F282F5E9ED7B8F03EF /* libPods-macApp.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		56B7E2820AE86C16B59781DD /* Pods-macApp.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-macApp.debug.xcconfig"; path = "Target Support Files/Pods-macApp/Pods-macApp.debug.xcconfig"; sourceTree = "<group>"; };
+		7172F6BB2EB4AA6B0057D3E4 /* shared.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = shared.framework; sourceTree = "<group>"; };
 		71EFBB742EB1E9E400A1922C /* macApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = macApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B035F9F282F5E9ED7B8F03EF /* libPods-macApp.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-macApp.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E50D6A8A02AE3F0F2BE79D3B /* Pods-macApp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-macApp.release.xcconfig"; path = "Target Support Files/Pods-macApp/Pods-macApp.release.xcconfig"; sourceTree = "<group>"; };
-		F542143BE6FE326B23E5B71D /* Pods_macApp.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_macApp.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -32,7 +34,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1450E6613B9C3CFC0E34981B /* Pods_macApp.framework in Frameworks */,
+				7172F6BC2EB4AA6B0057D3E4 /* shared.framework in Frameworks */,
+				912318ADA99CA49ACDAF4485 /* libPods-macApp.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -69,7 +72,8 @@
 		8E40819899D11722B19F6E07 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				F542143BE6FE326B23E5B71D /* Pods_macApp.framework */,
+				7172F6BB2EB4AA6B0057D3E4 /* shared.framework */,
+				B035F9F282F5E9ED7B8F03EF /* libPods-macApp.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -85,7 +89,7 @@
 				71EFBB702EB1E9E400A1922C /* Sources */,
 				71EFBB712EB1E9E400A1922C /* Frameworks */,
 				71EFBB722EB1E9E400A1922C /* Resources */,
-				063A8AF2DB824702901E162D /* [CP] Embed Pods Frameworks */,
+				3DF70E8A88D7F5D293C394FE /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -144,21 +148,21 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		063A8AF2DB824702901E162D /* [CP] Embed Pods Frameworks */ = {
+		3DF70E8A88D7F5D293C394FE /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-macApp/Pods-macApp-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-macApp/Pods-macApp-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			name = "[CP] Embed Pods Frameworks";
+			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-macApp/Pods-macApp-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-macApp/Pods-macApp-resources-${CONFIGURATION}-output-files.xcfilelist",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-macApp/Pods-macApp-frameworks.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-macApp/Pods-macApp-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 		EE2184EAF11E8CDC4BECA8D0 /* [CP] Check Pods Manifest.lock */ = {
@@ -327,6 +331,10 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -360,6 +368,10 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (

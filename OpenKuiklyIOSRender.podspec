@@ -37,6 +37,7 @@ Pod::Spec.new do |spec|
     'core-render-ios/Extension/Components/KRTextAreaView.{h,m}',
     
     # 嵌套滚动功能未完全适配
+    # Compose手势相关未适配
     'core-render-ios/Extension/Components/KRView+Compose.{h,m}',
     'core-render-ios/Extension/Components/KRComposeGesture.m',
     

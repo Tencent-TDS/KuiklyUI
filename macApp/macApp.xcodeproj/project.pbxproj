@@ -22,6 +22,8 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		71EFBB762EB1E9E400A1922C /* macApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = macApp;
 			sourceTree = "<group>";
 		};
@@ -154,13 +156,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-macApp/Pods-macApp-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-macApp/Pods-macApp-resources-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;

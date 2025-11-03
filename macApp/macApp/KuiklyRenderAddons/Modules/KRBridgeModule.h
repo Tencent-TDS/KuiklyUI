@@ -13,20 +13,14 @@
  * limitations under the License.
  */
 
-import Foundation
-import SwiftUI
+#import <Foundation/Foundation.h>
+#import "KRBaseModule.h"
+NS_ASSUME_NONNULL_BEGIN
 
-struct KuiklyRenderViewPage : NSViewControllerRepresentable {
-    typealias NSViewControllerType = KuiklyRenderViewController
-    
-    var pageName: String
-    var data: Dictionary<String, Any>
-    
-    func makeNSViewController(context: Context) -> KuiklyRenderViewController {
-        return KuiklyRenderViewController(pageName: pageName, data: data)
-    }
-    
-    func updateNSViewController(_ nsViewController: KuiklyRenderViewController, context: Context) {
-        nsViewController.update(withPageName: pageName, data: data)
-    }
-}
+
+
+@interface KRBridgeModule : KRBaseModule
+
+@end
+
+NS_ASSUME_NONNULL_END

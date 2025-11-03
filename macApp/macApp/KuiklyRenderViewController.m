@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#import "KuiklyPageViewController.h"
+#import "KuiklyRenderViewController.h"
 #import "KuiklyRenderViewControllerBaseDelegator.h"
 #import "KuiklyRenderContextProtocol.h"
 #import "KuiklyRenderCore.h"
@@ -110,7 +110,7 @@ static const NSInteger kBytesToMegabytes = 1024 * 1024;
 
 #pragma mark - KuiklyPageViewController
 
-@interface KuiklyPageViewController () <KuiklyRenderViewControllerBaseDelegatorDelegate>
+@interface KuiklyRenderViewController () <KuiklyRenderViewControllerBaseDelegatorDelegate>
 
 /// Kuikly渲染代理器
 @property (nonatomic, strong, readonly) KuiklyRenderViewControllerBaseDelegator *delegator;
@@ -132,7 +132,7 @@ static const NSInteger kBytesToMegabytes = 1024 * 1024;
 
 @end
 
-@implementation KuiklyPageViewController
+@implementation KuiklyRenderViewController
 
 #pragma mark - Lifecycle
 

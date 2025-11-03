@@ -13,5 +13,5 @@
  * limitations under the License.
  */
 
-#import "KuiklyPageViewController.h"
+#import "KuiklyRenderViewController.h"
 

@@ -27,11 +27,11 @@ NS_ASSUME_NONNULL_BEGIN
  * @discussion 使用示例：
  * @code
  * NSDictionary *pageData = @{@"userId": @"12345"};
- * KuiklyPageViewController *pageVC = [[KuiklyPageViewController alloc]
+ * KuiklyRenderViewController *pageVC = [[KuiklyRenderViewController alloc]
  *     initWithPageName:@"HomePage" data:pageData];
  * @endcode
  */
-@interface KuiklyPageViewController : NSViewController
+@interface KuiklyRenderViewController : NSViewController
 
 /**
  * @brief 指定初始化方法

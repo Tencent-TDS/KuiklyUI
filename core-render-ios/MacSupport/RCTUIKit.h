@@ -180,7 +180,7 @@ typedef unsigned long long UIAccessibilityTraits;
 #define UIGestureRecognizer NSGestureRecognizer
 #define UIGestureRecognizerDelegate NSGestureRecognizerDelegate
 #define UIPanGestureRecognizer NSPanGestureRecognizer
-#define UITapGestureRecognizer NSPressGestureRecognizer
+#define UITapGestureRecognizer NSClickGestureRecognizer // [macOS] Use NSClickGestureRecognizer for tap/click events
 #define UILongPressGestureRecognizer NSPressGestureRecognizer
 
 // Event aliases

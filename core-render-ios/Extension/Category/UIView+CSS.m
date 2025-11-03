@@ -99,17 +99,12 @@
 @property (nonatomic, strong) CSSLazyAnimationImp *css_lazyAnimationImp;
 @property (nonatomic, strong) CSSGradientLayer *css_gradientLayer;
 @property (nonatomic, strong) CSSBorderLayer *css_borderLayer;
-#if !TARGET_OS_OSX // [macOS]
+// [macOS] 统一使用UIKit类型，由RCTUIKit宏定义自动映射到对应的AppKit类型
 @property (nonatomic, strong) UITapGestureRecognizer *css_tapGR;
 @property (nonatomic, strong) UITapGestureRecognizer *css_doubleTapGR;
 @property (nonatomic, strong) UILongPressGestureRecognizer *css_longPressGR;
 @property (nonatomic, strong) UIPanGestureRecognizer *css_panGR;
-#else
-@property (nonatomic, strong) NSPressGestureRecognizer *css_tapGR;
-@property (nonatomic, strong) NSPressGestureRecognizer *css_doubleTapGR;
-@property (nonatomic, strong) NSPressGestureRecognizer *css_longPressGR;
-@property (nonatomic, strong) NSPanGestureRecognizer *css_panGR;
-#endif
+// macOS]
 @property (nonatomic, strong, readonly) NSMutableSet<NSString *> *css_didSetProps;
 
 @end
@@ -659,7 +654,7 @@
             self.css_tapGR = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(css_onClickTapWithSender:)];
             [self addGestureRecognizer:self.css_tapGR];
             #if TARGET_OS_OSX // [macOS]
-            // NSPressGestureRecognizer 无 requireGestureRecognizerToFail，跳过
+            // macOS NSGestureRecognizer 无 requireGestureRecognizerToFail 方法，使用 delegate 方式处理手势依赖
             #else
             if (self.css_doubleTapGR) {
                 [self.css_tapGR requireGestureRecognizerToFail:self.css_doubleTapGR];
@@ -686,14 +681,15 @@
         if (css_doubleClick != nil) {
             #if TARGET_OS_OSX // [macOS]
             self.css_doubleTapGR = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(css_onDoubleClickWithSender:)];
-            // macOS NSPressGestureRecognizer 语义不同，这里维持 UITapGestureRecognizer 接口由 RCTUIKit 映射
+            // macOS 使用 NSClickGestureRecognizer，设置 numberOfClicksRequired 识别双击
+            ((NSClickGestureRecognizer *)self.css_doubleTapGR).numberOfClicksRequired = 2;
             #else
             self.css_doubleTapGR = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(css_onDoubleClickWithSender:)];
             self.css_doubleTapGR.numberOfTapsRequired = 2;
             #endif // [macOS]
             [self addGestureRecognizer:self.css_doubleTapGR];
             #if TARGET_OS_OSX // [macOS]
-            // 无 requireGestureRecognizerToFail
+            // macOS NSGestureRecognizer 无 requireGestureRecognizerToFail 方法
             #else
             if (self.css_tapGR) {
                 [self.css_tapGR requireGestureRecognizerToFail:self.css_doubleTapGR];

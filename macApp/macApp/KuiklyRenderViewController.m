@@ -137,7 +137,7 @@ static const NSInteger kBytesToMegabytes = 1024 * 1024;
 #pragma mark - Lifecycle
 
 - (instancetype)initWithPageName:(NSString *)pageName 
-                            data:(nullable NSDictionary<NSString *, id> *)data {
+                        pageData:(nullable NSDictionary<NSString *, id> *)data {
     NSParameterAssert(pageName.length > 0);
     
     self = [super initWithNibName:nil bundle:nil];
@@ -161,7 +161,9 @@ static const NSInteger kBytesToMegabytes = 1024 * 1024;
 #pragma mark - View Lifecycle
 
 - (void)loadView {
-    self.view = [[NSView alloc] initWithFrame:NSZeroRect];
+    // 设置合理的初始尺寸，避免窗口过小
+    // 注意：实际窗口尺寸由包含它的窗口或导航控制器决定
+    self.view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600)];
 }
 
 - (void)viewDidLoad {
@@ -201,7 +203,7 @@ static const NSInteger kBytesToMegabytes = 1024 * 1024;
 #pragma mark - Public Methods
 
 - (void)updateWithPageName:(NSString *)pageName 
-                      data:(nullable NSDictionary<NSString *, id> *)data {
+                  pageData:(nullable NSDictionary<NSString *, id> *)data {
     NSParameterAssert(pageName.length > 0);
     
     if ([self shouldUpdateWithPageName:pageName data:data]) {

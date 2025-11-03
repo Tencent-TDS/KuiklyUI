@@ -28,7 +28,7 @@ NS_ASSUME_NONNULL_BEGIN
  * @code
  * NSDictionary *pageData = @{@"userId": @"12345"};
  * KuiklyRenderViewController *pageVC = [[KuiklyRenderViewController alloc]
- *     initWithPageName:@"HomePage" data:pageData];
+ *     initWithPageName:@"HomePage" pageData:pageData];
  * @endcode
  */
 @interface KuiklyRenderViewController : NSViewController
@@ -37,25 +37,25 @@ NS_ASSUME_NONNULL_BEGIN
  * @brief 指定初始化方法
  *
  * @param pageName 页面名称，对应Kotlin侧@Page注解的值，不能为nil
- * @param data 页面参数字典，Kotlin侧可通过pageData.params获取，可以为nil
+ * @param pageData 页面参数字典，Kotlin侧可通过pageData.params获取，可以为nil
  * @return 初始化的KuiklyPageViewController实例
  *
  * @warning 此方法为指定初始化方法，请勿使用init或其他初始化方法
  */
 - (instancetype)initWithPageName:(NSString *)pageName 
-                            data:(nullable NSDictionary<NSString *, id> *)data NS_DESIGNATED_INITIALIZER;
+                        pageData:(nullable NSDictionary<NSString *, id> *)data NS_DESIGNATED_INITIALIZER;
 
 /**
  * @brief 动态更新页面内容
  *
  * @param pageName 新的页面名称，不能为nil
- * @param data 新的页面参数，可以为nil
+ * @param pageData 新的页面参数，可以为nil
  *
  * @discussion 此方法用于在不重新创建控制器的情况下更新页面内容。
  *            只有当页面名称或数据发生变化时才会执行更新操作。
  */
 - (void)updateWithPageName:(NSString *)pageName 
-                      data:(nullable NSDictionary<NSString *, id> *)data;
+                  pageData:(nullable NSDictionary<NSString *, id> *)data;
 
 #pragma mark - Unavailable Initializers
 

@@ -23,10 +23,10 @@ struct KuiklyRenderViewPage : NSViewControllerRepresentable {
     var data: Dictionary<String, Any>
     
     func makeNSViewController(context: Context) -> KuiklyRenderViewController {
-        return KuiklyRenderViewController(pageName: pageName, data: data)
+        return KuiklyRenderViewController(pageName: pageName, pageData: data)
     }
     
     func updateNSViewController(_ nsViewController: KuiklyRenderViewController, context: Context) {
-        nsViewController.update(withPageName: pageName, data: data)
+        nsViewController.update(withPageName: pageName, pageData: data)
     }
 }

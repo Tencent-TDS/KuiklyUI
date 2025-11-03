@@ -24,7 +24,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface RCTPlatformView (CSS) <KuiklyRenderViewLifyCycleProtocol>
+@interface RCTPlatformView (CSS) <KuiklyRenderViewLifyCycleProtocol> // [macOS]
 
 @property (nonatomic, strong, nullable) NSNumber *css_visibility;
 @property (nonatomic, strong, nullable) NSNumber *css_opacity;

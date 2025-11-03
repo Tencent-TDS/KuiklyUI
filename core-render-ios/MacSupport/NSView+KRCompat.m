@@ -13,8 +13,6 @@
  * limitations under the License.
  */
 
-//  支持macOS 10.11及以上版本
-
 #import <Availability.h>
 #if TARGET_OS_OSX
 
@@ -244,28 +242,40 @@ static char kKUUserInteractionEnabledKey;
     }
 }
 
-// swizzle 后的方法名调用原始命中逻辑
 - (NSView *)ku_hitTest:(NSPoint)point {
     // 当禁用交互时，直接返回 nil，阻止事件路由到自身及其子视图
     if (!self.userInteractionEnabled) {
         return nil;
     }
-    // 调用原始的 hitTest:（通过方法交换实现）
+    
+    // 桥接 iOS 风格的 hitTest:withEvent: 方法
+    // 检查子类是否重写了 iOS 风格的 hitTest:withEvent: 方法
+    Method categoryMethod = class_getInstanceMethod([NSView class], @selector(hitTest:withEvent:));
+    Method instanceMethod = class_getInstanceMethod([self class], @selector(hitTest:withEvent:));
+    
+    // 如果子类重写了 hitTest:withEvent: 方法，则调用它
+    if (instanceMethod && instanceMethod != categoryMethod) {
+        // AppKit 的 hitTest: 接收的 point 是在父视图坐标系中
+        // UIKit 的 hitTest:withEvent: 接收的 point 是在自身坐标系中
+        // 需要将 point 从父视图坐标系转换到自身坐标系
+        NSPoint pointInSelf = [self convertPoint:point fromView:self.superview];
+        CGPoint cgPoint = NSPointToCGPoint(pointInSelf);
+        return [self hitTest:cgPoint withEvent:nil];
+    }
+    
+    // 否则调用原始的 hitTest: 实现
     return [self ku_hitTest:point];
 }
 
 - (NSView *)hitTest:(CGPoint)point withEvent:(__unused UIEvent *)event {
     NSView *superview = self.superview;
     NSPoint pointInSuperview = superview ? [self convertPoint:point toView:superview] : NSPointFromCGPoint(point);
-    return [self hitTest:pointInSuperview];
+    return [self ku_hitTest:pointInSuperview];
 }
 
-// [macOS] UIView pointInside:withEvent: compatibility
 - (BOOL)pointInside:(CGPoint)point withEvent:(__unused UIEvent *)event {
     return self.userInteractionEnabled ? NSPointInRect(NSPointFromCGPoint(point), self.bounds) : NO;
 }
-// macOS]
-
 
 #pragma mark - Accessibility
 

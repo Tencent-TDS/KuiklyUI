@@ -160,7 +160,7 @@ typedef unsigned long long UIAccessibilityTraits;
 #pragma mark - Type Aliases
 
 // View aliases
-#define UIView NSView
+#define UIView RCTUIView
 #define UIScreen NSScreen
 #define UIScrollView RCTUIScrollView
 #define UIImageView RCTUIImageView

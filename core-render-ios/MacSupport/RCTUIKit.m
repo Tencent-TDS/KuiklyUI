@@ -570,15 +570,6 @@ static RCTUIView *RCTUIViewCommonInit(RCTUIView *self) {
     self.layer.affineTransform = transform;
 }
 
-#pragma mark Hit Testing
-
-- (NSView *)hitTest:(NSPoint)point {
-    // IMPORTANT: point is passed in superview coordinates by macOS, but expected to be passed in local coordinates
-    NSView *superview = [self superview];
-    NSPoint pointInSelf = superview != nil ? [self convertPoint:point fromView:superview] : point;
-    return [self hitTest:pointInSelf withEvent:nil];
-}
-
 #pragma mark Layer Backing
 
 - (BOOL)wantsUpdateLayer {

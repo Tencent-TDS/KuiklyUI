@@ -18,12 +18,17 @@
 #import "KuiklyContextParam.h"
 #import "KuiklyRenderView.h"
 #import "NSObject+KR.h"
+#import "KRNavigationController.h"
 #import <SDWebImageManager.h>
 #import <SDWebImageDownloader.h>
 #import <SDImageCache.h>
+#import <objc/runtime.h>
 
 #define REQ_PARAM_KEY @"reqParam"
 #define CMD_KEY @"cmd"
+
+// Associated object key for window self-retention
+static char kBridgeWindowSelfRetentionKey;
 
 // macOS Helper: 解析URL参数
 static NSDictionary *ParseURLParameters(NSString *urlString) {
@@ -68,48 +73,114 @@ static NSViewController *GetViewControllerFromView(NSView *view) {
 // 页面退出
 - (void)closePage:(NSDictionary *)args {
     NSViewController *viewController = GetViewControllerFromView((NSView *)self.hr_rootView);
-    NSWindow *window = GetWindowFromView((NSView *)self.hr_rootView);
     
-    if (viewController) {
-        // macOS: 关闭当前窗口或通知父ViewController处理
-        if (window && window.sheetParent) {
-            // 如果是sheet模式，关闭sheet
-            [window.sheetParent endSheet:window];
-        } else if (window) {
-            // 关闭窗口
-            [window close];
-        }
+    // 方案1：NavigationController 堆栈管理（自定义，与iOS一致）
+    KRNavigationController *navController = viewController.kr_navigationController;
+    if (navController) {
+        [navController popViewControllerAnimated:YES];
+        return;
+    }
+    
+    // 方案2：关闭 Sheet（macOS 原生方式）
+    if (viewController.presentingViewController) {
+        [viewController.presentingViewController dismissViewController:viewController];
+        return;
+    }
+    
+    // 方案3：关闭窗口（后备方案）
+    NSWindow *window = GetWindowFromView((NSView *)self.hr_rootView);
+    if (window && window.sheetParent) {
+        [window.sheetParent endSheet:window];
+    } else if (window) {
+        [window close];
     }
 }
 
 // 打开页面
 - (void)openPage:(NSDictionary *)args {
     NSDictionary *params = [args[KR_PARAM_KEY] hr_stringToDictionary];
-    // KuiklyRenderCallback callback = args[KR_CALLBACK_KEY];
-    NSString *pageName = params[@"pageName"] ?: params[@"url"]; // == pageName
+    NSString *pageName = params[@"pageName"] ?: params[@"url"];
     NSMutableDictionary *pageData = [params[@"pageData"] mutableCopy] ?: [NSMutableDictionary new];
     
-    // macOS: 解析URL参数
+    // 解析URL参数
     NSDictionary *urlParams = ParseURLParameters(pageName);
     if (urlParams.count) {
         [pageData addEntriesFromDictionary:urlParams];
     }
     
-    KuiklyRenderViewController *renderViewController = [[KuiklyRenderViewController alloc] initWithPageName:pageName data:pageData];
+    KuiklyRenderViewController *renderViewController = [[KuiklyRenderViewController alloc] 
+        initWithPageName:pageName pageData:pageData];
+    renderViewController.title = pageName;
     
     NSViewController *currentViewController = GetViewControllerFromView((NSView *)self.hr_rootView);
-    NSWindow *window = GetWindowFromView((NSView *)self.hr_rootView);
     
-    // macOS: 使用新窗口打开页面
+    // 方案1：NavigationController 堆栈管理（自定义，与iOS一致）
+    KRNavigationController *navController = currentViewController.kr_navigationController;
+    if (navController) {
+        [navController pushViewController:renderViewController animated:YES];
+        return;
+    }
+    
+    // 方案2：Sheet 方式（macOS 原生推荐）
+    // 适用于设置、详情等临时页面
+    if (currentViewController && currentViewController.presentedViewControllers.count == 0) {
+        // 检查是否应该使用 Sheet（可以根据 params 中的标记判断）
+        BOOL useSheet = [params[@"presentAsSheet"] boolValue];
+        if (useSheet) {
+            [currentViewController presentViewControllerAsSheet:renderViewController];
+            return;
+        }
+    }
+    
+    // 方案3：新窗口（适用于独立功能模块）
+    NSWindow *window = GetWindowFromView((NSView *)self.hr_rootView);
     if (window) {
-        NSWindow *newWindow = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 800, 600)
-                                                          styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable
+        // 确保 view 已加载
+        [renderViewController loadViewIfNeeded];
+        
+        // 获取视图尺寸，使用较大值确保窗口不会太小
+        CGSize viewSize = renderViewController.view.frame.size;
+        CGFloat windowWidth = MAX(viewSize.width, 900.0);
+        CGFloat windowHeight = MAX(viewSize.height, 650.0);
+        
+        NSWindow *newWindow = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, windowWidth, windowHeight)
+                                                          styleMask:NSWindowStyleMaskTitled | 
+                                                                   NSWindowStyleMaskClosable | 
+                                                                   NSWindowStyleMaskResizable | 
+                                                                   NSWindowStyleMaskMiniaturizable
                                                             backing:NSBackingStoreBuffered
                                                               defer:NO];
+        
+        // 关键1：防止窗口关闭时自动释放
+        newWindow.releasedWhenClosed = NO;
+        
         newWindow.contentViewController = renderViewController;
         newWindow.title = pageName ?: @"Kuikly Page";
+        newWindow.minSize = NSMakeSize(400, 300);
+        
+        // 设置自动调整大小
+        renderViewController.view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+        
+        // 关键2：让窗口持有自己的强引用，防止被提前释放
+        objc_setAssociatedObject(newWindow, &kBridgeWindowSelfRetentionKey, newWindow, OBJC_ASSOCIATION_RETAIN);
+        
+        // 关键3：监听窗口关闭通知，在关闭后释放强引用
+        [[NSNotificationCenter defaultCenter] addObserverForName:NSWindowWillCloseNotification
+                                                           object:newWindow
+                                                            queue:[NSOperationQueue mainQueue]
+                                                       usingBlock:^(NSNotification *note) {
+            // 延迟释放，确保关闭动画完成
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                // 移除强引用，让窗口可以被释放
+                objc_setAssociatedObject(newWindow, &kBridgeWindowSelfRetentionKey, nil, OBJC_ASSOCIATION_RETAIN);
+                NSLog(@"[KRBridgeModule] Window released: %@", newWindow.title);
+            });
+        }];
+        
         [newWindow center];
         [newWindow makeKeyAndOrderFront:nil];
+        
+        NSLog(@"[KRBridgeModule] Created window with size: %.0fx%.0f", windowWidth, windowHeight);
     }
 }
 

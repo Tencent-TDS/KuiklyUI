@@ -33,9 +33,6 @@ Pod::Spec.new do |spec|
 
   # macOS 先行编译通过：排除暂未适配的 iOS-only/复杂组件
   spec.osx.exclude_files = [
-
-    'core-render-ios/Extension/Components/KRTextAreaView.{h,m}',
-    
     # 嵌套滚动功能未完全适配
     # Compose手势相关未适配
     'core-render-ios/Extension/Components/KRView+Compose.{h,m}',

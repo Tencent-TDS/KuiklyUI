@@ -169,6 +169,7 @@ typedef unsigned long long UIAccessibilityTraits;
 #define UITouch RCTUITouch
 #define UILabel RCTUILabel
 #define UITextField RCTUITextField
+#define UITextView RCTUITextView
 
 // Application aliases
 #define UIApplication NSApplication
@@ -403,6 +404,16 @@ typedef NS_OPTIONS(NSUInteger, UIControlEvents) {
 - (BOOL)textField:(id)textField shouldChangeCharactersInRange:(NSRange)range replacementString:(NSString *)string;
 @end
 
+
+@protocol UITextViewDelegate <NSObject>
+@optional
+- (void)textViewDidChange:(id)textView;
+- (void)textViewDidBeginEditing:(id)textView;
+- (void)textViewDidEndEditing:(id)textView;
+- (BOOL)textView:(id)textView shouldChangeTextInRange:(NSRange)range replacementText:(NSString *)text;
+@end
+
+
 @interface UITextPosition : NSObject
 @property (nonatomic, assign, readonly) NSInteger index;
 + (instancetype)positionWithIndex:(NSInteger)index;
@@ -440,13 +451,39 @@ typedef NS_OPTIONS(NSUInteger, UIControlEvents) {
 
 @end
 
-#pragma mark - Edge Insets Type
+
+#pragma mark - Edge Insets Type (forward declaration for RCTUITextView)
 
 typedef NSEdgeInsets UIEdgeInsets;
 
 NS_INLINE NSEdgeInsets UIEdgeInsetsMake(CGFloat top, CGFloat left, CGFloat bottom, CGFloat right) {
     return NSEdgeInsetsMake(top, left, bottom, right);
 }
+
+#pragma mark RCTUITextView
+
+@interface RCTUITextView : NSTextView
+
+@property (nonatomic, copy, nullable) NSString *text;
+@property (nonatomic, copy, nullable) NSAttributedString *attributedText;
+@property (nonatomic, assign) NSTextAlignment textAlignment;
+@property (nonatomic, assign) BOOL enablesReturnKeyAutomatically;
+@property (nonatomic, assign) UIKeyboardType keyboardType;
+@property (nonatomic, assign) UIReturnKeyType returnKeyType;
+@property (nonatomic, strong, nullable) RCTUIColor *tintColor;
+// Override textContainerInset to bridge NSSize -> UIEdgeInsets
+@property (nonatomic, assign) UIEdgeInsets textContainerInset;
+
+// UITextInput-like compatibility
+@property (nonatomic, strong, readonly) UITextPosition *beginningOfDocument;
+@property (nonatomic, strong, nullable) UITextRange *selectedTextRange;
+@property (nonatomic, strong, readonly, nullable) UITextRange *markedTextRange;
+
+- (UITextPosition *)positionFromPosition:(UITextPosition *)position offset:(NSInteger)offset;
+- (UITextRange *)textRangeFromPosition:(UITextPosition *)fromPosition toPosition:(UITextPosition *)toPosition;
+- (NSInteger)offsetFromPosition:(UITextPosition *)from toPosition:(UITextPosition *)to;
+
+@end
 
 #pragma mark - NSImage UIKit Compatibility
 

@@ -385,6 +385,200 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 
 @end
 
+#pragma mark - RCTUITextView
+
+@interface RCTUITextView () <NSTextViewDelegate>
+@property (nonatomic, weak) id<UITextViewDelegate> uiDelegate;
+@end
+
+@implementation RCTUITextView
+
+- (instancetype)initWithFrame:(NSRect)frameRect {
+    if (self = [super initWithFrame:frameRect]) {
+        self.delegate = self;
+        self.richText = NO;
+        self.allowsUndo = YES;
+        self.usesFontPanel = NO;
+        self.usesRuler = NO;
+        self.importsGraphics = NO;
+        self.automaticQuoteSubstitutionEnabled = NO;
+        self.automaticLinkDetectionEnabled = NO;
+        self.automaticDashSubstitutionEnabled = NO;
+        self.automaticTextReplacementEnabled = NO;
+        self.automaticSpellingCorrectionEnabled = NO;
+        
+        // Make it behave like iOS UITextView
+        [self setDrawsBackground:YES];
+        [self setEditable:YES];
+        [self setSelectable:YES];
+        [self setWantsLayer:YES];
+    }
+    return self;
+}
+
+#pragma mark - Property Bridges
+
+- (NSString *)text {
+    return self.string;
+}
+
+- (void)setText:(NSString *)text {
+    self.string = text ?: @"";
+}
+
+- (NSAttributedString *)attributedText {
+    return self.attributedString;
+}
+
+- (void)setAttributedText:(NSAttributedString *)attributedText {
+    [[self textStorage] setAttributedString:attributedText ?: [[NSAttributedString alloc] initWithString:@""]];
+}
+
+- (NSTextAlignment)textAlignment {
+    return self.alignment;
+}
+
+- (void)setTextAlignment:(NSTextAlignment)textAlignment {
+    self.alignment = textAlignment;
+}
+
+#pragma mark - Override inherited properties
+
+// Override NSView backgroundColor to handle drawsBackground
+- (RCTUIColor *)backgroundColor {
+    return [self drawsBackground] ? [super backgroundColor] : [NSColor clearColor];
+}
+
+- (void)setBackgroundColor:(RCTUIColor *)backgroundColor {
+    if (backgroundColor && ![backgroundColor isEqual:[NSColor clearColor]]) {
+        [self setDrawsBackground:YES];
+        [super setBackgroundColor:backgroundColor];
+    } else {
+        [self setDrawsBackground:NO];
+    }
+}
+
+// Override NSTextView textContainerInset to bridge UIEdgeInsets <-> NSSize
+- (UIEdgeInsets)textContainerInset {
+    // NSTextView uses NSSize textContainerInset: width = left/right, height = top/bottom
+    NSSize inset = [super textContainerInset];
+    return NSEdgeInsetsMake(inset.height, inset.width, inset.height, inset.width);
+}
+
+- (void)setTextContainerInset:(UIEdgeInsets)textContainerInset {
+    // Map iOS-style UIEdgeInsets to NSTextView's symmetric NSSize inset
+    [super setTextContainerInset:NSMakeSize(textContainerInset.left, textContainerInset.top)];
+}
+
+- (void)setDelegate:(id)delegate {
+    // Store UI delegate separately to avoid conflict with NSTextView delegate
+    if ([delegate conformsToProtocol:@protocol(UITextViewDelegate)]) {
+        _uiDelegate = delegate;
+    }
+    [super setDelegate:self];
+}
+
+#pragma mark - UITextInput-like compatibility
+
+- (UITextPosition *)beginningOfDocument {
+    return [UITextPosition positionWithIndex:0];
+}
+
+// Override NSText selectedRange for UIKit compatibility
+- (NSRange)selectedRange {
+    return self.selectedRanges.firstObject ? [self.selectedRanges.firstObject rangeValue] : NSMakeRange(0, 0);
+}
+
+- (void)setSelectedRange:(NSRange)selectedRange {
+    [self setSelectedRange:selectedRange affinity:NSSelectionAffinityDownstream stillSelecting:NO];
+}
+
+- (UITextRange *)selectedTextRange {
+    NSRange r = self.selectedRange;
+    return [UITextRange rangeWithStart:[UITextPosition positionWithIndex:(NSInteger)r.location]
+                                   end:[UITextPosition positionWithIndex:(NSInteger)(r.location + r.length)]];
+}
+
+- (void)setSelectedTextRange:(UITextRange *)selectedTextRange {
+    if (selectedTextRange) {
+        NSInteger loc = selectedTextRange.start.index;
+        NSInteger len = selectedTextRange.end.index - loc;
+        [self setSelectedRange:NSMakeRange(MAX(0, loc), MAX(0, len))];
+    }
+}
+
+- (UITextRange *)markedTextRange {
+    NSRange r = self.markedRange;
+    if (r.location != NSNotFound && r.length > 0) {
+        return [UITextRange rangeWithStart:[UITextPosition positionWithIndex:(NSInteger)r.location]
+                                       end:[UITextPosition positionWithIndex:(NSInteger)(r.location + r.length)]];
+    }
+    return nil;
+}
+
+- (UITextPosition *)positionFromPosition:(UITextPosition *)position offset:(NSInteger)offset {
+    if (!position) {
+        return nil;
+    }
+    NSInteger idx = MAX(0, position.index + offset);
+    NSString *s = self.string ?: @"";
+    if (idx > (NSInteger)s.length) idx = (NSInteger)s.length;
+    return [UITextPosition positionWithIndex:idx];
+}
+
+- (UITextRange *)textRangeFromPosition:(UITextPosition *)fromPosition toPosition:(UITextPosition *)toPosition {
+    return [UITextRange rangeWithStart:fromPosition end:toPosition];
+}
+
+- (NSInteger)offsetFromPosition:(UITextPosition *)from toPosition:(UITextPosition *)to {
+    return to.index - from.index;
+}
+
+#pragma mark - NSTextViewDelegate
+
+- (void)textDidChange:(NSNotification *)notification {
+    if ([_uiDelegate respondsToSelector:@selector(textViewDidChange:)]) {
+        [_uiDelegate textViewDidChange:(id)self];
+    }
+}
+
+- (void)textDidBeginEditing:(NSNotification *)notification {
+    if ([_uiDelegate respondsToSelector:@selector(textViewDidBeginEditing:)]) {
+        [_uiDelegate textViewDidBeginEditing:(id)self];
+    }
+}
+
+- (void)textDidEndEditing:(NSNotification *)notification {
+    if ([_uiDelegate respondsToSelector:@selector(textViewDidEndEditing:)]) {
+        [_uiDelegate textViewDidEndEditing:(id)self];
+    }
+}
+
+- (BOOL)textView:(NSTextView *)textView shouldChangeTextInRange:(NSRange)affectedCharRange replacementString:(NSString *)replacementString {
+    if ([_uiDelegate respondsToSelector:@selector(textView:shouldChangeTextInRange:replacementText:)]) {
+        return [_uiDelegate textView:(id)self shouldChangeTextInRange:affectedCharRange replacementText:replacementString];
+    }
+    return YES;
+}
+
+#pragma mark - iOS compatibility methods
+
+- (BOOL)becomeFirstResponder {
+    [[self window] makeFirstResponder:self];
+    return [super becomeFirstResponder];
+}
+
+- (BOOL)resignFirstResponder {
+    [[self window] makeFirstResponder:nil];
+    return [super resignFirstResponder];
+}
+
+- (BOOL)isFirstResponder {
+    return [[self window] firstResponder] == self;
+}
+
+@end
+
 
 NSImage *UIImageResizableImageWithCapInsets(NSImage *image, NSEdgeInsets capInsets, UIImageResizingMode resizingMode) {
     if (image == nil) {

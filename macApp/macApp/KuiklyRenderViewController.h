@@ -43,7 +43,7 @@ NS_ASSUME_NONNULL_BEGIN
  * @warning 此方法为指定初始化方法，请勿使用init或其他初始化方法
  */
 - (instancetype)initWithPageName:(NSString *)pageName 
-                        pageData:(nullable NSDictionary<NSString *, id> *)data NS_DESIGNATED_INITIALIZER;
+                        pageData:(nullable NSDictionary<NSString *, id> *)pageData NS_DESIGNATED_INITIALIZER;
 
 /**
  * @brief 动态更新页面内容
@@ -55,7 +55,7 @@ NS_ASSUME_NONNULL_BEGIN
  *            只有当页面名称或数据发生变化时才会执行更新操作。
  */
 - (void)updateWithPageName:(NSString *)pageName 
-                  pageData:(nullable NSDictionary<NSString *, id> *)data;
+                  pageData:(nullable NSDictionary<NSString *, id> *)pageData;
 
 #pragma mark - Unavailable Initializers
 

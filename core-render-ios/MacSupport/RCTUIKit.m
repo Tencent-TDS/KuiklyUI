@@ -210,7 +210,7 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
     CGFloat heightDelta = rect.size.height - textSize.height;
     if (heightDelta > 0) {
         rect.size.height = textSize.height;
-        rect.origin.y += (heightDelta / 2.0);
+        rect.origin.y += floor(heightDelta / 2.0);  // floor() for pixel alignment
     }
     return rect;
 }
@@ -245,6 +245,7 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 
 @interface RCTUITextField () <NSTextFieldDelegate>
 @property (nonatomic, strong) NSMutableArray<NSDictionary *> *rct_targets;
+@property (nonatomic, copy) NSString *rct_cachedPlaceholder; // Cache for placeholder text
 @end
 
 @implementation RCTUITextField
@@ -264,6 +265,13 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
         self.delegate = (id<NSTextFieldDelegate>)self;
         self.focusRingType = NSFocusRingTypeNone;
         _rct_targets = [NSMutableArray array];
+        
+        // Ensure cell is also set to single line mode
+        if ([self.cell isKindOfClass:[NSTextFieldCell class]]) {
+            ((NSTextFieldCell *)self.cell).usesSingleLineMode = YES;
+            ((NSTextFieldCell *)self.cell).wraps = NO;
+            ((NSTextFieldCell *)self.cell).scrollable = YES;
+        }
     }
     return self;
 }
@@ -287,10 +295,13 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 }
 
 - (NSString *)placeholder {
-    return self.placeholderString;
+    // Always return cached value on macOS, because placeholderString gets cleared
+    // when placeholderAttributedString is set
+    return self.rct_cachedPlaceholder ?: self.placeholderString;
 }
 
 - (void)setPlaceholder:(NSString *)placeholder {
+    self.rct_cachedPlaceholder = placeholder;
     self.placeholderString = placeholder;
 }
 
@@ -991,25 +1002,6 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
     return self;
 }
 
-#pragma mark Layout Bridge
-
-// Bridge UIView layout methods for UIScrollView subclasses
-// Note: NSView+KRCompat provides layoutSubviews (which calls layout), but we need
-// the reverse direction for RCTUIScrollView: when NSView's layout is called, we need
-// to call the UIKit-style layoutSubviews so subclasses like KRScrollView can override it.
-// Lifecycle methods (didMoveToSuperview, didMoveToWindow) are handled by NSView+KRCompat swizzling.
-
-- (void)layout {
-    [super layout];
-    // Bridge NSView's layout to UIView's layoutSubviews
-    if (self.window != nil) {
-        [self layoutSubviews];
-    }
-}
-
-- (void)layoutSubviews {
-    // Subclasses (like KRScrollView) override this for UIView-style layout
-}
 
 #pragma mark Focus Ring
 

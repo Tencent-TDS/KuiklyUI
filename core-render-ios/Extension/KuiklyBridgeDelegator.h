@@ -14,6 +14,7 @@
  */
 
 #import <Foundation/Foundation.h>
+#import "RCTUIKit.h" // [macOS]
 #import "TDFModuleProtocol.h"
 
 NS_ASSUME_NONNULL_BEGIN

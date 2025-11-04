@@ -13,9 +13,11 @@
  * limitations under the License.
  */
 
+// [macOS]
+
 #if TARGET_OS_OSX
 
-#import "RCTUIKit.h" // [macOS]
+#import "RCTUIKit.h"
 #import <QuartzCore/QuartzCore.h>
 #import <objc/runtime.h>
 #import <objc/message.h>
@@ -138,7 +140,7 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 
 #pragma mark - NSImage (KRUIImageCompat)
 
-// [macOS] NSImage category to mimic common UIImage constructors
+// NSImage category to mimic common UIImage constructors
 @implementation NSImage (KRUIImageCompat)
 
 + (instancetype)imageWithCGImage:(CGImageRef)cgImage {
@@ -192,6 +194,53 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 
 @end
 
+#pragma mark - RCTUITextFieldCell
+
+// Custom cell to center text vertically like iOS
+// This is the standard approach in macOS to achieve vertical centering in NSTextField
+@interface RCTUITextFieldCell : NSTextFieldCell
+@end
+
+@implementation RCTUITextFieldCell
+
+// Helper method to calculate vertically centered rect
+// Takes the cell's bounds and adjusts the origin.y to center the text vertically
+- (NSRect)adjustedRectForBounds:(NSRect)rect {
+    NSSize textSize = [self cellSizeForBounds:rect];
+    CGFloat heightDelta = rect.size.height - textSize.height;
+    if (heightDelta > 0) {
+        rect.size.height = textSize.height;
+        rect.origin.y += (heightDelta / 2.0);
+    }
+    return rect;
+}
+
+// Called when drawing the text content in non-editing state
+// Adjusts the rect to vertically center the displayed text
+- (NSRect)drawingRectForBounds:(NSRect)rect {
+    return [self adjustedRectForBounds:[super drawingRectForBounds:rect]];
+}
+
+// Called when drawing the title/placeholder text
+// Adjusts the rect to vertically center the title text
+- (NSRect)titleRectForBounds:(NSRect)rect {
+    return [self adjustedRectForBounds:[super titleRectForBounds:rect]];
+}
+
+// Called when entering edit mode (e.g., user clicks on the text field)
+// Adjusts the rect to vertically center the field editor (cursor and text input)
+- (void)editWithFrame:(NSRect)rect inView:(NSView *)controlView editor:(NSText *)textObj delegate:(id)delegate event:(NSEvent *)event {
+    [super editWithFrame:[self adjustedRectForBounds:rect] inView:controlView editor:textObj delegate:delegate event:event];
+}
+
+// Called when text selection changes (e.g., user drags to select text)
+// Adjusts the rect to vertically center the text selection
+- (void)selectWithFrame:(NSRect)rect inView:(NSView *)controlView editor:(NSText *)textObj delegate:(id)delegate start:(NSInteger)selStart length:(NSInteger)selLength {
+    [super selectWithFrame:[self adjustedRectForBounds:rect] inView:controlView editor:textObj delegate:delegate start:selStart length:selLength];
+}
+
+@end
+
 #pragma mark - RCTUITextField
 
 @interface RCTUITextField () <NSTextFieldDelegate>
@@ -200,15 +249,20 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 
 @implementation RCTUITextField
 
++ (Class)cellClass {
+    return [RCTUITextFieldCell class];
+}
+
 - (instancetype)initWithFrame:(NSRect)frameRect {
     if (self = [super initWithFrame:frameRect]) {
         self.bezeled = NO;
         self.bordered = NO;
         self.editable = YES;
         self.selectable = YES;
-        self.drawsBackground = YES;
+        self.drawsBackground = NO;
         self.usesSingleLineMode = YES;
         self.delegate = (id<NSTextFieldDelegate>)self;
+        self.focusRingType = NSFocusRingTypeNone;
         _rct_targets = [NSMutableArray array];
     }
     return self;
@@ -621,7 +675,7 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath) {
 
 #pragma mark - RCTUIView
 
-// [macOS] RCTUIView implementation - provides macOS-specific extensions
+// RCTUIView implementation - provides macOS-specific extensions
 // Note: Most UIKit compatibility is handled by NSView+KRCompat Category
 @implementation RCTUIView {
 @private
@@ -702,7 +756,7 @@ static RCTUIView *RCTUIViewCommonInit(RCTUIView *self) {
     }
     
     // TODO: Implement reactViewDidMoveToWindow if needed
-    // [macOS] didMoveToWindow is handled by NSView+KRCompat swizzling
+    // didMoveToWindow is handled by NSView+KRCompat swizzling
     [super viewDidMoveToWindow];
 }
 
@@ -717,7 +771,7 @@ static RCTUIView *RCTUIViewCommonInit(RCTUIView *self) {
 #pragma mark Mouse Event Handling
 
 - (BOOL)hasMouseHoverEvent {
-    // [macOS] Disabled for now to avoid selector warnings
+    // Disabled for now to avoid selector warnings
     return NO;
 }
 
@@ -813,7 +867,7 @@ static RCTUIView *RCTUIViewCommonInit(RCTUIView *self) {
 
 - (void)updateLayer {
     CALayer *layer = [self layer];
-    // [macOS] backgroundColor is handled by NSView+KRCompat
+    // backgroundColor is handled by NSView+KRCompat
     if (self.backgroundColor) {
         // updateLayer will be called when the view's current appearance changes.
         // The layer's backgroundColor is a CGColor which is not appearance aware
@@ -824,13 +878,13 @@ static RCTUIView *RCTUIViewCommonInit(RCTUIView *self) {
 }
 
 - (void)drawRect:(CGRect)rect {
-    // [macOS] backgroundColor is handled by NSView+KRCompat
+    // backgroundColor is handled by NSView+KRCompat
     [super drawRect:rect];
 }
 
 - (void)layout {
     [super layout];
-    // [macOS] layoutSubviews is handled by NSView+KRCompat
+    // layoutSubviews is handled by NSView+KRCompat
 }
 
 #pragma mark Layout Methods
@@ -939,7 +993,7 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
 
 #pragma mark Layout Bridge
 
-// [macOS] Bridge UIView layout methods for UIScrollView subclasses
+// Bridge UIView layout methods for UIScrollView subclasses
 // Note: NSView+KRCompat provides layoutSubviews (which calls layout), but we need
 // the reverse direction for RCTUIScrollView: when NSView's layout is called, we need
 // to call the UIKit-style layoutSubviews so subclasses like KRScrollView can override it.
@@ -956,7 +1010,6 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
 - (void)layoutSubviews {
     // Subclasses (like KRScrollView) override this for UIView-style layout
 }
-// macOS]
 
 #pragma mark Focus Ring
 
@@ -1080,7 +1133,7 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
     self.verticalScrollElasticity = alwaysBounceVertical ? NSScrollElasticityAllowed : NSScrollElasticityNone;
 }
 
-// [macOS] bounces property bridge
+// bounces property bridge
 - (BOOL)bounces {
     return self.horizontalScrollElasticity != NSScrollElasticityNone ||
            self.verticalScrollElasticity != NSScrollElasticityNone;
@@ -1092,7 +1145,7 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
     self.verticalScrollElasticity = elasticity;
 }
 
-// [macOS] pagingEnabled property bridge
+// pagingEnabled property bridge
 - (BOOL)pagingEnabled {
     static char kPagingEnabledKey;
     NSNumber *value = objc_getAssociatedObject(self, &kPagingEnabledKey);
@@ -1106,7 +1159,7 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
 
 #pragma mark Mouse Location Tracking
 
-// [macOS] Store last scroll event for mouse location tracking
+// Store last scroll event for mouse location tracking
 - (NSEvent *)rct_lastScrollEvent {
     static char kLastScrollEventKey;
     return objc_getAssociatedObject(self, &kLastScrollEventKey);
@@ -1117,7 +1170,7 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
     objc_setAssociatedObject(self, &kLastScrollEventKey, event, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
-// [macOS] Get current mouse location in given view (simulates touch location)
+// Get current mouse location in given view (simulates touch location)
 - (CGPoint)rct_mouseLocationInView:(UIView *)view {
     NSEvent *lastEvent = [self rct_lastScrollEvent];
     NSPoint locationInWindow;
@@ -1136,7 +1189,6 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
     
     return CGPointZero;
 }
-// macOS]
 
 @end
 
@@ -1146,7 +1198,7 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
 
 #pragma mark State Properties
 
-// [macOS] Public readonly properties for UIScrollView compatibility
+// Public readonly properties for UIScrollView compatibility
 - (BOOL)isDragging {
     return [self rct_isDragging];
 }
@@ -1154,11 +1206,10 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
 - (BOOL)isDecelerating {
     return [self rct_isDecelerating];
 }
-// macOS]
 
 #pragma mark Internal State Tracking
 
-// [macOS] Internal state tracking using associated objects
+// Internal state tracking using associated objects
 - (BOOL)rct_isDragging {
     static char kDraggingKey;
     NSNumber *v = objc_getAssociatedObject(self, &kDraggingKey);
@@ -1180,7 +1231,6 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
     static char kDeceleratingKey;
     objc_setAssociatedObject(self, &kDeceleratingKey, @(decelerating), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
-// macOS]
 
 #pragma mark Scroll Notifications
 
@@ -1192,7 +1242,7 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
 
 #pragma mark Paging Support
 
-// [macOS] Snap to nearest page boundary when pagingEnabled is YES
+// Snap to nearest page boundary when pagingEnabled is YES
 - (void)rct_snapToNearestPage {
     CGRect bounds = self.bounds;
     CGPoint currentOffset = self.contentOffset;
@@ -1223,14 +1273,12 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
         [self setContentOffset:targetOffset animated:YES];
     }
 }
-// macOS]
 
 #pragma mark Scroll Wheel Handling
 
 - (void)scrollWheel:(NSEvent *)event {
-    // [macOS] Store event for mouse location tracking
+    // Store event for mouse location tracking
     [self rct_setLastScrollEvent:event];
-    // macOS]
     
     // Begin dragging
     if (![self rct_isDragging] && event.phase != NSEventPhaseNone) {
@@ -1272,11 +1320,10 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
         }
         [self rct_setDragging:NO];
         
-        // [macOS] Apply paging snap after drag ends without momentum
+        // Apply paging snap after drag ends without momentum
         if (self.pagingEnabled) {
             [self rct_snapToNearestPage];
         }
-        // macOS]
     }
     
     // Momentum end: deceleration done
@@ -1286,11 +1333,10 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
         }
         [self rct_setDecelerating:NO];
         
-        // [macOS] Apply paging snap after momentum ends
+        // Apply paging snap after momentum ends
         if (self.pagingEnabled) {
             [self rct_snapToNearestPage];
         }
-        // macOS]
     }
 }
 
@@ -1383,7 +1429,7 @@ BOOL RCTUIViewSetClipsToBounds(RCTPlatformView *view) {
     [super drawRect:dirtyRect];
 }
 
-// [macOS] Use iOS-like flipped coordinates for consistency with UIKit drawing
+// Use iOS-like flipped coordinates for consistency with UIKit drawing
 - (BOOL)isFlipped {
     return YES;
 }
@@ -1419,7 +1465,7 @@ BOOL RCTUIViewSetClipsToBounds(RCTPlatformView *view) {
 
 #pragma mark - NSValue (KUCGGeometryCompat)
 
-// [macOS] NSValue geometry compatibility - map iOS CGXxxValue to macOS native methods
+// NSValue geometry compatibility - map iOS CGXxxValue to macOS native methods
 @implementation NSValue (KUCGGeometryCompat)
 
 - (CGPoint)CGPointValue {

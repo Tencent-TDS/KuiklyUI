@@ -668,7 +668,7 @@ class LazyLoopDirectivesView<T>(
             scrollOffsetCorrectInfo = scrollOffsetCorrectInfoOf(
                 position = position,
                 offset = offset,
-                reachEnd = newEnd == curListSize,
+                reachEnd = newStart != 0 && newEnd == curListSize,
                 scrolling = scrolling
             )
             // updatePadding(true)

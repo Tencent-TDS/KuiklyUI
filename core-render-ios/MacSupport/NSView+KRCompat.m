@@ -64,8 +64,40 @@ static NSComparisonResult KuiklyBringToFrontCompare(__kindof NSView *a, __kindof
     [self setNeedsDisplay:YES];
 }
 
+// Associated object key for tracking layout recursion
+static char kKUIsInLayoutKey;
+
+// Swizzled layout method - automatically calls layoutSubviews for subclasses that override it
+- (void)ku_layout {
+    // Set flag to prevent recursion when layoutSubviews calls [super layoutSubviews] -> layout
+    objc_setAssociatedObject(self, &kKUIsInLayoutKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    
+    // Call original implementation (swizzled, so this actually calls the original layout)
+    [self ku_layout];
+    
+    // Call UIView-style layoutSubviews if subclass overrides it
+    Method categoryMethod = class_getInstanceMethod([NSView class], @selector(layoutSubviews));
+    Method instanceMethod = class_getInstanceMethod([self class], @selector(layoutSubviews));
+    
+    // If the instance method is different from category method, subclass overrode it
+    if (instanceMethod && instanceMethod != categoryMethod && self.window != nil) {
+        [self layoutSubviews];
+    }
+    
+    // Clear flag after layout is done
+    objc_setAssociatedObject(self, &kKUIsInLayoutKey, @NO, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
 - (void)layoutSubviews {
-    // 对齐 iOS 语义：layoutSubviews 对应 NSView 的 layout
+    // Check if we're already in a layout cycle to prevent recursion
+    NSNumber *isInLayout = objc_getAssociatedObject(self, &kKUIsInLayoutKey);
+    if ([isInLayout boolValue]) {
+        // Already in layout, don't call layout again
+        return;
+    }
+    
+    // Call layout to trigger NSView's native layout behavior
+    // This allows [super layoutSubviews] in subclasses to work correctly
     [self layout];
 }
 
@@ -224,6 +256,13 @@ static char kKUUserInteractionEnabledKey;
         Method swizzledWillMoveToSuperview = class_getInstanceMethod(cls, @selector(ku_viewWillMoveToSuperview:));
         if (originalWillMoveToSuperview && swizzledWillMoveToSuperview) {
             method_exchangeImplementations(originalWillMoveToSuperview, swizzledWillMoveToSuperview);
+        }
+        
+        // Swizzle layout to automatically call layoutSubviews
+        Method originalLayout = class_getInstanceMethod(cls, @selector(layout));
+        Method swizzledLayout = class_getInstanceMethod(cls, @selector(ku_layout));
+        if (originalLayout && swizzledLayout) {
+            method_exchangeImplementations(originalLayout, swizzledLayout);
         }
         // macOS]
     });

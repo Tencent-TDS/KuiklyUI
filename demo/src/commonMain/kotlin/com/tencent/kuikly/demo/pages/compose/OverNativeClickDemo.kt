@@ -49,29 +49,31 @@ internal class OverNativeClickDemo : ComposeContainer() {
                     Box(
                         modifier =
                         Modifier
+                            .padding(start = 20.dp)
                             .size(50.dp, 150.dp)
-                            .background(Color.Red)
+                            .background(Color.Red.copy(alpha = .75f))
                             .clickable {
                                 println("ComposeSceneMediator.result = ComposeClick ")
                             }
                             .setEvent(EventName.CLICK.value) {},
                     ) {
-                        Text("Compose点击，原生不触发")
+                        Text("Compose点击，原生不触发", color = Color.White)
                     }
 
                     Box(
                         modifier =
                             Modifier
                                 .size(50.dp, 150.dp)
-                                .background(Color.Blue)
+                                .background(Color.Blue.copy(alpha = .75f))
                                 .clickable {
                                     println("ComposeSceneMediator.result = ComposeClick ")
                                 }
                                 .setEvent(EventName.TOUCH_DOWN.value) {}
                                 .setEvent(EventName.TOUCH_MOVE.value) {}
-                                .setEvent(EventName.TOUCH_UP.value) {},
+                                .setEvent(EventName.TOUCH_UP.value) {}
+                                .setEvent(EventName.TOUCH_CANCEL.value) {},
                     ) {
-                        Text("ComposeTouch，原生不触发")
+                        Text("ComposeTouch，原生不触发", color = Color.White)
                     }
                 }
             }

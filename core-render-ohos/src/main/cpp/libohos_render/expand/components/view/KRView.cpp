@@ -118,14 +118,18 @@ void KRView::ProcessTouchEvent(ArkUI_NodeEvent *event) {
     auto input_event = kuikly::util::GetArkUIInputEvent(event);
     TryFireSuperTouchCancelEvent(input_event);
     auto action = kuikly::util::GetArkUIInputEventAction(input_event);
+    bool handled = false;
     if (action == UI_TOUCH_EVENT_ACTION_DOWN) {
-        TryFireOnTouchDownEvent(input_event);
+        handled = TryFireOnTouchDownEvent(input_event);
     } else if (action == UI_TOUCH_EVENT_ACTION_MOVE) {
-        TryFireOnTouchMoveEvent(input_event);
+        handled = TryFireOnTouchMoveEvent(input_event);
     } else if (action == UI_TOUCH_EVENT_ACTION_UP) {
-        TryFireOnTouchUpEvent(input_event);
+        handled = TryFireOnTouchUpEvent(input_event);
     } else if (action == UI_TOUCH_EVENT_ACTION_CANCEL) {
-        TryFireOnTouchCancelEvent(input_event);
+        handled = TryFireOnTouchCancelEvent(input_event);
+    }
+    if (handled && !super_touch_handler_) {
+        kuikly::util::StopPropagation(event);
     }
 }
 
@@ -169,32 +173,36 @@ bool KRView::SetTargetHitTestMode(const std::string &mode) {
     return true;
 }
 
-void KRView::TryFireOnTouchDownEvent(ArkUI_UIInputEvent *input_event) {
+bool KRView::TryFireOnTouchDownEvent(ArkUI_UIInputEvent *input_event) {
     if (!touch_down_callback_) {
-        return;
+        return false;
     }
     touch_down_callback_(GenerateBaseParamsWithTouch(input_event, kPropNameTouchDown));
+    return true;
 }
 
-void KRView::TryFireOnTouchMoveEvent(ArkUI_UIInputEvent *input_event) {
+bool KRView::TryFireOnTouchMoveEvent(ArkUI_UIInputEvent *input_event) {
     if (!touch_move_callback_) {
-        return;
+        return false;
     }
     touch_move_callback_(GenerateBaseParamsWithTouch(input_event, kPropNameTouchMove));
+    return true;
 }
 
-void KRView::TryFireOnTouchUpEvent(ArkUI_UIInputEvent *input_event) {
+bool KRView::TryFireOnTouchUpEvent(ArkUI_UIInputEvent *input_event) {
     if (!touch_up_callback_) {
-        return;
+        return false;
     }
     touch_up_callback_(GenerateBaseParamsWithTouch(input_event, kPropNameTouchUp));
+    return true;
 }
 
-void KRView::TryFireOnTouchCancelEvent(ArkUI_UIInputEvent *input_event) {
+bool KRView::TryFireOnTouchCancelEvent(ArkUI_UIInputEvent *input_event) {
     if (!touch_up_callback_) {
-        return;
+        return false;
     }
     touch_up_callback_(GenerateBaseParamsWithTouch(input_event, kPropNameTouchCancel));
+    return true;
 }
 
 bool KRView::TryFireSuperTouchCancelEvent(ArkUI_UIInputEvent *input_event) {

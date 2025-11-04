@@ -229,13 +229,22 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 
 // Called when entering edit mode (e.g., user clicks on the text field)
 // Adjusts the rect to vertically center the field editor (cursor and text input)
-- (void)editWithFrame:(NSRect)rect inView:(NSView *)controlView editor:(NSText *)textObj delegate:(id)delegate event:(NSEvent *)event {
+- (void)editWithFrame:(NSRect)rect
+               inView:(NSView *)controlView
+               editor:(NSText *)textObj
+             delegate:(id)delegate
+                event:(NSEvent *)event {
     [super editWithFrame:[self adjustedRectForBounds:rect] inView:controlView editor:textObj delegate:delegate event:event];
 }
 
 // Called when text selection changes (e.g., user drags to select text)
 // Adjusts the rect to vertically center the text selection
-- (void)selectWithFrame:(NSRect)rect inView:(NSView *)controlView editor:(NSText *)textObj delegate:(id)delegate start:(NSInteger)selStart length:(NSInteger)selLength {
+- (void)selectWithFrame:(NSRect)rect
+                 inView:(NSView *)controlView
+                 editor:(NSText *)textObj
+               delegate:(id)delegate
+                  start:(NSInteger)selStart
+                 length:(NSInteger)selLength {
     [super selectWithFrame:[self adjustedRectForBounds:rect] inView:controlView editor:textObj delegate:delegate start:selStart length:selLength];
 }
 

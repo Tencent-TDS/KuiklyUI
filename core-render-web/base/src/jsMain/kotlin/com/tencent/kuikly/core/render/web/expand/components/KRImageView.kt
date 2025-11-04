@@ -61,7 +61,7 @@ open class KRImageView(
         divElement.style.overflowY = "hidden"
 
         appendChild(image)
-    }
+    }.unsafeCast<HTMLDivElement>()
 
     private var tintColorValue = ""
     private var rootWidth = 0.0
@@ -140,12 +140,7 @@ open class KRImageView(
      * Apply tint color
      */
     private fun tintColorIfNeed() {
-        if (rootWidth != 0.0 && tintColorValue != "") {
-            image.style.borderBottom = "${this.rootWidth.toPxF()} solid transparent"
-            image.style.transform = "translate(0px, ${(-this.rootWidth).toPxF()})"
-            image.style.filter =
-                "drop-shadow(0px ${this.rootWidth.toPxF()} 0px ${this.tintColorValue.toRgbColor()})"
-        }
+        KuiklyProcessor.imageProcessor.applyTintColor(image, tintColorValue, rootWidth)
     }
 
     /**

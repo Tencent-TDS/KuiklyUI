@@ -336,7 +336,7 @@ fun SubcomposeLayout(
             KNode(scrollView) {
                 attr {
                     flingEnable(!isPagerView)
-                    setProp("isComposePager", 1)
+                    setProp("isComposePager", if (isPagerView) 1 else 0)
                     if (orientation == Orientation.Vertical) {
                         flexDirectionColumn()
                     } else {

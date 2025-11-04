@@ -2,6 +2,7 @@ package com.tencent.kuikly.core.render.web.runtime.miniapp.processor
 
 import com.tencent.kuikly.core.render.web.collection.array.JsArray
 import com.tencent.kuikly.core.render.web.collection.array.add
+import com.tencent.kuikly.core.render.web.collection.array.clear
 import com.tencent.kuikly.core.render.web.collection.array.get
 import com.tencent.kuikly.core.render.web.expand.components.KRRichTextView
 import com.tencent.kuikly.core.render.web.expand.components.RichTextSpan
@@ -23,6 +24,7 @@ import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.MiniElement
 import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.MiniImageElement
 import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.MiniSpanElement
 import com.tencent.kuikly.core.render.web.utils.Log
+import kotlinx.dom.clear
 import org.w3c.dom.HTMLElement
 import kotlin.js.json
 import kotlin.math.ceil
@@ -713,6 +715,13 @@ object RichTextProcessor : IRichTextProcessor {
         }
     }
 
+    fun clearRichTextValues(view: KRRichTextView) {
+        view.childSpanList.clear()
+        view.richTextSpanList.clear()
+        view.imageSpanList.clear()
+        view.imageSpanCount = 0
+    }
+
     /**
      * Rich text content setting, here we need to calculate the overall width and height of the rich text,
      * the calculation method is quite complex:
@@ -724,6 +733,9 @@ object RichTextProcessor : IRichTextProcessor {
      *    when some lines need to be omitted, the height of the preserved lines needs to be calculated.
      */
     override fun setRichTextValues(richTextValues: JSONArray, view: KRRichTextView) {
+        // Clear all child nodes
+        clearRichTextValues(view)
+        
         for (i in 0 until richTextValues.length()) {
             val span = createSpan(richTextValues.optJSONObject(i) ?: JSONObject(), view)
             if (span.textContent != null) {

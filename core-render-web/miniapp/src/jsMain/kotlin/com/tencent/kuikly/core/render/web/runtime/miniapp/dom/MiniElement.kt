@@ -197,6 +197,24 @@ open class MiniElement(var nodeName: String, val nodeType: Int) {
             }
         }
 
+    @JsName("firstChild")
+    val firstChild: MiniElement?
+        get() {
+            return if (childNodes.length > 0) {
+                childNodes[0]
+            } else {
+                null
+            }
+        }
+
+    /**
+     * Check if this element has child nodes
+     */
+    @JsName("hasChildNodes")
+    fun hasChildNodes(): Boolean {
+        return childNodes.length > 0
+    }
+
     /**
      * If parent node is in update queue, child node updates can be ignored
      */

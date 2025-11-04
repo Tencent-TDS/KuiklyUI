@@ -18,6 +18,7 @@ import com.tencent.kuikly.core.render.web.nvi.serialization.json.JSONArray
 import com.tencent.kuikly.core.render.web.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.render.web.runtime.dom.element.ElementType
 import com.tencent.kuikly.core.render.web.utils.Log
+import kotlinx.dom.clear
 import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.Element
 import org.w3c.dom.HTMLCanvasElement
@@ -450,6 +451,8 @@ object RichTextProcessor : IRichTextProcessor {
      * create rich text spans
      */
     override fun setRichTextValues(richTextValues: JSONArray, view: KRRichTextView) {
+        // fix repeat node when change richText styles
+        view.ele.clear();
         for (i in 0 until richTextValues.length()) {
             view.ele.appendChild(createSpan(richTextValues.optJSONObject(i) ?: JSONObject(), view))
         }

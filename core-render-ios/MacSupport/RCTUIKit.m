@@ -202,7 +202,8 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 
 - (instancetype)initWithFrame:(NSRect)frameRect {
     if (self = [super initWithFrame:frameRect]) {
-        self.bezeled = YES;
+        self.bezeled = NO;
+        self.bordered = NO;
         self.editable = YES;
         self.selectable = YES;
         self.drawsBackground = YES;
@@ -609,11 +610,6 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath) {
 }
 
 #pragma mark - NSFont UIKit Compatibility
-
-// Provide UIKit-like lineHeight on NSFont so call sites can use font.lineHeight
-@interface NSFont (KRUIKitCompatLineHeight)
-- (CGFloat)lineHeight;
-@end
 
 @implementation NSFont (KRUIKitCompatLineHeight)
 - (CGFloat)lineHeight {

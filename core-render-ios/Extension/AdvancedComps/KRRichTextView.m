@@ -83,7 +83,11 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
 
 - (void)css_onClickTapWithSender:(UIGestureRecognizer *)sender {
     CGPoint location = [sender locationInView:self];
+#if TARGET_OS_OSX // [macOS NSWindow is not a subclass of NSView, use contentView
+    CGPoint pageLocation = [sender locationInView:self.window.contentView];
+#else
     CGPoint pageLocation = [sender locationInView:self.window];
+#endif // macOS]
     KRTextRender * textRender = self.attributedText.hr_textRender;
     NSInteger index = [textRender characterIndexForPoint:location];
     NSNumber *spanIndex = nil;

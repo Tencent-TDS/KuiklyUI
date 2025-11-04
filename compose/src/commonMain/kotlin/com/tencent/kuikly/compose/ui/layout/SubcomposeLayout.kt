@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import com.tencent.kuikly.compose.KuiklyApplier
@@ -80,6 +81,8 @@ import com.tencent.kuikly.core.base.event.layoutFrameDidChange
 import com.tencent.kuikly.core.views.ScrollerAttr
 import com.tencent.kuikly.core.views.ScrollerEvent
 import com.tencent.kuikly.core.views.ScrollerView
+import com.tencent.kuikly.compose.scroller.animateScrollToTop
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -217,6 +220,7 @@ fun SubcomposeLayout(
     scrollableState.kuiklyInfo.orientation = orientation
     scrollableState.kuiklyInfo.pageData = LocalConfiguration.current.pageData
     val isPagerView = scrollableState is PagerState
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(scrollViewSize) {
         scrollableState.kuiklyInfo.updateContentSizeToRender()
@@ -322,6 +326,13 @@ fun SubcomposeLayout(
 
                 // 尝试扩容
                 scrollableState.tryExpandStartSize(offset, true)
+            }
+
+            // Listen to native "scroll to top" event and scroll to index 0
+            scrollToTop {
+                coroutineScope.launch {
+                    scrollableState.animateScrollToTop()
+                }
             }
         }
 

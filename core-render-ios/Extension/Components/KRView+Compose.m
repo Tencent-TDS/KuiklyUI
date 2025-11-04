@@ -17,6 +17,7 @@
 #import <objc/runtime.h>
 #import "KRScrollView.h"
 #import "KRComposeGesture.h"
+#import "KuiklyRenderView.h"
 
 @interface KRView ()
 
@@ -51,6 +52,8 @@
     if (self.css_superTouch != css_superTouch) {
         objc_setAssociatedObject(self, @selector(css_superTouch), css_superTouch, OBJC_ASSOCIATION_RETAIN);
         
+        self.hr_rootView.contextParam.isCompose = [css_superTouch boolValue];
+
         // 移除现有的手势识别器
         if (self.composeGesture) {
             [self removeGestureRecognizer:self.composeGesture];

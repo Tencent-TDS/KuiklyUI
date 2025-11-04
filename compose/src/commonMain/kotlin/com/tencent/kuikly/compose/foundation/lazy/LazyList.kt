@@ -248,8 +248,13 @@ private fun rememberLazyListMeasurePolicy(
 
         val itemsCount = itemProvider.itemCount
 
-        if (state.kuiklyInfo.cachedTotalItems > 0 && itemsCount < state.kuiklyInfo.cachedTotalItems) {
-            state.kuiklyInfo.offsetDirty = true
+        if (state.kuiklyInfo.cachedTotalItems > 0) {
+            if (itemsCount < state.kuiklyInfo.cachedTotalItems) {
+                state.kuiklyInfo.offsetDirty = true
+            } else if (itemsCount > state.kuiklyInfo.cachedTotalItems) {
+                state.kuiklyInfo.realContentSize = null
+                state.tryExpandStartSizeNoScroll()
+            }
         }
         state.kuiklyInfo.cachedTotalItems = itemsCount
 

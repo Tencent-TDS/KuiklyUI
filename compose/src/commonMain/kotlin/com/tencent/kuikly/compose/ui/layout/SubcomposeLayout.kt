@@ -214,11 +214,9 @@ fun SubcomposeLayout(
     val isVertical = orientation == Orientation.Vertical
     var scrollViewSize by remember { mutableStateOf(Size.Zero) } // dp值
     val materialized = currentComposer.materialize(modifier)
-    val isIOS = LocalConfiguration.current.isIOS
     scrollableState.kuiklyInfo.orientation = orientation
     scrollableState.kuiklyInfo.pageData = LocalConfiguration.current.pageData
-    val isPagerState = scrollableState is PagerState
-
+    val isPagerView = scrollableState is PagerState
 
     LaunchedEffect(scrollViewSize) {
         scrollableState.kuiklyInfo.updateContentSizeToRender()
@@ -241,7 +239,7 @@ fun SubcomposeLayout(
             }
 
             if (scrollableState is PagerState) {
-                willDragEndBySync(isSync = isIOS, handler = {
+                willDragEndBySync(isSync = false, handler = {
                     val viewportSize = kuiklyInfo.viewportSize
                     val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
                     // 实现分页滑动
@@ -337,15 +335,14 @@ fun SubcomposeLayout(
 
             KNode(scrollView) {
                 attr {
+                    flingEnable(!isPagerView)
+                    setProp("isComposePager", 1)
                     if (orientation == Orientation.Vertical) {
                         flexDirectionColumn()
                     } else {
                         flexDirectionRow()
                     }
                     showScrollerIndicator(false)
-                    if (isPagerState) {
-                        flingEnable(false)
-                    }
                 }
                 event {
                     layoutFrameDidChange {

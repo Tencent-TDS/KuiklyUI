@@ -15,8 +15,6 @@
 
 #import "KRiOSGlassSwitch.h"
 
-#if TARGET_OS_IOS // [macOS]
-
 @interface KRiOSGlassSwitch ()
 
 /// 开关值变化回调
@@ -81,5 +79,3 @@
 }
 
 @end
-
-#endif

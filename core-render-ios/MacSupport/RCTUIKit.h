@@ -396,6 +396,7 @@ NS_INLINE CGFloat UIFontLineHeight(NSFont *font) {
 
 typedef NS_OPTIONS(NSUInteger, UIControlEvents) {
     UIControlEventEditingChanged = 1UL << 0,
+    UIControlEventValueChanged = 1UL << 12,
 };
 
 @protocol UITextFieldDelegate <NSObject>
@@ -803,19 +804,32 @@ NS_ASSUME_NONNULL_END
 
 #endif // macOS]
 
+
 #pragma mark RCTUISwitch
 
-#if !TARGET_OS_OSX
-typedef UISwitch RCTUISwitch;
-#else
-@interface RCTUISwitch : NSSwitch
+#if TARGET_OS_OSX
+
+// NSSwitch is only available on macOS 10.15+, use NSButton for compatibility
+@interface RCTUISwitch : NSButton
 NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, getter=isOn) BOOL on;
 
+// Color properties: LIMITED support on macOS
+// - onTintColor/tintColor: partial support via contentTintColor (macOS 10.14+), visual effect is subtle
+// - thumbTintColor: NO support, NSButton cannot customize thumb color
+// Visual appearance is controlled by system theme in most cases
+@property (nonatomic, strong, nullable) RCTUIColor *onTintColor;
+@property (nonatomic, strong, nullable) RCTUIColor *thumbTintColor;
+@property (nonatomic, strong, nullable) RCTUIColor *tintColor;
+
 - (void)setOn:(BOOL)on animated:(BOOL)animated;
+- (void)addTarget:(id)target action:(SEL)action forControlEvents:(UIControlEvents)events;
 
 NS_ASSUME_NONNULL_END
 @end
+
+typedef RCTUISwitch UISwitch;
+
 #endif
 
 #pragma mark RCTUIActivityIndicatorView

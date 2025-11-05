@@ -38,8 +38,5 @@ Pod::Spec.new do |spec|
     'core-render-ios/Extension/Components/KRView+Compose.{h,m}',
     'core-render-ios/Extension/Components/KRComposeGesture.m',
     
-    # AdvancedComps 组件
-    'core-render-ios/Extension/AdvancedComps/LiquidGlass/**/*',
-    
   ]
 end

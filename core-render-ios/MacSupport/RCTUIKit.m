@@ -267,9 +267,9 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
     if (self = [super initWithFrame:frameRect]) {
         self.bezeled = NO;
         self.bordered = NO;
+        self.drawsBackground = NO;
         self.editable = YES;
         self.selectable = YES;
-        self.drawsBackground = NO;
         self.usesSingleLineMode = YES;
         self.delegate = (id<NSTextFieldDelegate>)self;
         self.focusRingType = NSFocusRingTypeNone;
@@ -1584,7 +1584,54 @@ BOOL RCTUIViewSetClipsToBounds(RCTPlatformView *view) {
 
 #pragma mark - RCTUISwitch
 
+@interface RCTUISwitch ()
+@property (nonatomic, strong) NSMutableDictionary<NSNumber *, NSMutableArray<NSDictionary *> *> *eventHandlers;
+@end
+
 @implementation RCTUISwitch
+
+// Color properties: LIMITED support on NSButton-based switch
+// thumbTintColor has no visual effect (cannot customize thumb on NSButton)
+@synthesize onTintColor = _onTintColor;
+@synthesize thumbTintColor = _thumbTintColor;
+@synthesize tintColor = _tintColor;
+
+- (void)setOnTintColor:(RCTUIColor *)onTintColor {
+    _onTintColor = onTintColor;
+    // Try to apply contentTintColor on macOS 10.14+
+    // This has limited visual effect on NSButtonTypeSwitch
+    if (@available(macOS 10.14, *)) {
+        if (onTintColor && self.state == NSControlStateValueOn) {
+            self.contentTintColor = onTintColor;
+        }
+    }
+}
+
+- (void)setTintColor:(RCTUIColor *)tintColor {
+    _tintColor = tintColor;
+    // contentTintColor affects the overall tint when available
+    if (@available(macOS 10.14, *)) {
+        if (tintColor) {
+            self.contentTintColor = tintColor;
+        }
+    }
+}
+
+- (instancetype)initWithFrame:(CGRect)frame {
+    if (self = [super initWithFrame:frame]) {
+        _eventHandlers = [NSMutableDictionary new];
+        
+        // Configure NSButton as a switch-style control
+        // On macOS 10.15+, NSButtonTypeSwitch renders as a modern switch
+        // On earlier versions, it renders as a checkbox
+        [self setButtonType:NSButtonTypeSwitch];
+        self.title = @""; // No text label by default
+        
+        [super setTarget:self];
+        [super setAction:@selector(switchValueChanged:)];
+    }
+    return self;
+}
 
 - (BOOL)isOn {
     return self.state == NSControlStateValueOn;
@@ -1596,6 +1643,48 @@ BOOL RCTUIViewSetClipsToBounds(RCTPlatformView *view) {
 
 - (void)setOn:(BOOL)on animated:(BOOL)animated {
     self.state = on ? NSControlStateValueOn : NSControlStateValueOff;
+    
+    // Update contentTintColor based on state (macOS 10.14+)
+    if (@available(macOS 10.14, *)) {
+        if (on && _onTintColor) {
+            self.contentTintColor = _onTintColor;
+        } else if (!on && _tintColor) {
+            self.contentTintColor = _tintColor;
+        }
+    }
+}
+
+// UIControl-like target-action support
+- (void)addTarget:(id)target action:(SEL)action forControlEvents:(UIControlEvents)events {
+    if (!target || !action) return;
+    
+    NSNumber *eventsKey = @(events);
+    NSMutableArray *handlers = self.eventHandlers[eventsKey];
+    if (!handlers) {
+        handlers = [NSMutableArray new];
+        self.eventHandlers[eventsKey] = handlers;
+    }
+    
+    [handlers addObject:@{
+        @"target": target,
+        @"action": NSStringFromSelector(action)
+    }];
+}
+
+- (void)switchValueChanged:(id)sender {
+    // Invoke all registered handlers for UIControlEventValueChanged
+    NSArray *handlers = self.eventHandlers[@(UIControlEventValueChanged)];
+    for (NSDictionary *handler in handlers) {
+        id target = handler[@"target"];
+        SEL action = NSSelectorFromString(handler[@"action"]);
+        
+        if (target && [target respondsToSelector:action]) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+            [target performSelector:action withObject:self];
+#pragma clang diagnostic pop
+        }
+    }
 }
 
 @end

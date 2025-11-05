@@ -39,10 +39,10 @@ class KRView : public IKRRenderViewExport {
     bool RegisterTouchUpEvent(const KRRenderCallback &event_call_back);
 	bool SetTargetHitTestMode(const std::string &mode);
     void ProcessTouchEvent(ArkUI_NodeEvent *event);
-    void TryFireOnTouchDownEvent(ArkUI_UIInputEvent *input_event);
-    void TryFireOnTouchMoveEvent(ArkUI_UIInputEvent *input_event);
-    void TryFireOnTouchUpEvent(ArkUI_UIInputEvent *input_event);
-    void TryFireOnTouchCancelEvent(ArkUI_UIInputEvent *input_event);
+    bool TryFireOnTouchDownEvent(ArkUI_UIInputEvent *input_event);
+    bool TryFireOnTouchMoveEvent(ArkUI_UIInputEvent *input_event);
+    bool TryFireOnTouchUpEvent(ArkUI_UIInputEvent *input_event);
+    bool TryFireOnTouchCancelEvent(ArkUI_UIInputEvent *input_event);
     bool TryFireSuperTouchCancelEvent(ArkUI_UIInputEvent *input_event);
     KRAnyValue GenerateBaseParamsWithTouch(ArkUI_UIInputEvent *input_event, const std::string &action);
     bool HasTouchEvent();

@@ -15,12 +15,14 @@
 
 package com.tencent.kuikly.android.demo
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
@@ -52,7 +54,6 @@ class KuiklyRenderActivity : AppCompatActivity() {
     private lateinit var hrContainerView: ViewGroup
     private lateinit var loadingView: View
     private lateinit var errorView: View
-    private lateinit var nativeBtn: View
 
     private lateinit var kuiklyRenderViewDelegator: KuiklyRenderViewBaseDelegator
 
@@ -76,7 +77,6 @@ class KuiklyRenderActivity : AppCompatActivity() {
         hrContainerView = findViewById(R.id.hr_container)
         loadingView = findViewById(R.id.hr_loading)
         errorView = findViewById(R.id.hr_error)
-        nativeBtn = findViewById(R.id.nativeBtn)
         // 4. 触发Kuikly View实例化
         // hrContainerView：承载Kuikly的容器View
         // contextCode: jvm模式下传递""
@@ -85,7 +85,22 @@ class KuiklyRenderActivity : AppCompatActivity() {
         contextCodeHandler.openPage(hrContainerView, pageName, createPageData())
 
         if (pageName == "OverNativeClickDemo") {
+            val nativeBtn: View = findViewById(R.id.nativeBtn)
             nativeBtn.visibility = View.VISIBLE
+            val nativeTouch: View = findViewById(R.id.nativeTouchView)
+            nativeTouch.visibility = View.VISIBLE
+            @SuppressLint("ClickableViewAccessibility")
+            nativeTouch.setOnTouchListener { v, event ->
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        Toast.makeText(this, "成功触发TouchDown", Toast.LENGTH_SHORT).show()
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        Toast.makeText(this, "成功触发TouchUp", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                true
+            }
         }
     }
 
@@ -254,6 +269,6 @@ class KuiklyRenderActivity : AppCompatActivity() {
     }
 
     fun onClick(view: View) {
-        Toast.makeText(this, "成功点击按钮", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "成功点击按钮", Toast.LENGTH_SHORT).show()
     }
 }

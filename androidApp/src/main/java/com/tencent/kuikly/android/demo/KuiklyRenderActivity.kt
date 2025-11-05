@@ -84,7 +84,7 @@ class KuiklyRenderActivity : AppCompatActivity() {
         // pageData: 传递给Kuikly页面的参数
         contextCodeHandler.openPage(hrContainerView, pageName, createPageData())
 
-        if (pageName == "OverNativeClickDemo") {
+        if (pageName.startsWith("OverNativeClickDemo")) {
             val nativeBtn: View = findViewById(R.id.nativeBtn)
             nativeBtn.visibility = View.VISIBLE
             val nativeTouch: View = findViewById(R.id.nativeTouchView)

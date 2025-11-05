@@ -1555,15 +1555,22 @@ BOOL RCTUIViewSetClipsToBounds(RCTPlatformView *view) {
     [self setAttributedStringValue:attributedText ?: [[NSAttributedString alloc] initWithString:@""]];
 }
 
-// Bridge iOS UILabel drawing pipeline to call drawTextInRect: if implemented by subclass (e.g. KRLabel)
+// Bridge iOS UILabel drawing pipeline to call drawTextInRect: if implemented by subclass
 - (void)drawRect:(NSRect)dirtyRect {
-    SEL drawTextSel = @selector(drawTextInRect:);
-    if ([self respondsToSelector:drawTextSel]) {
-        void (*msgSend)(id, SEL, CGRect) = (void (*)(id, SEL, CGRect))objc_msgSend;
-        msgSend(self, drawTextSel, self.bounds);
+    // Check if subclass overrides drawTextInRect: (compare method implementations)
+    if ([self methodForSelector:@selector(drawTextInRect:)] != 
+        [RCTUILabel instanceMethodForSelector:@selector(drawTextInRect:)]) {
+        // Subclass has custom drawing, call it with full bounds to match iOS UILabel behavior
+        [self drawTextInRect:self.bounds];
         return;
     }
+    // Use default NSTextField drawing
     [super drawRect:dirtyRect];
+}
+
+// Base implementation for subclasses to override
+- (void)drawTextInRect:(CGRect)rect {
+    // Subclasses (e.g. KRLabel) should override this method to perform custom text drawing
 }
 
 // Use iOS-like flipped coordinates for consistency with UIKit drawing

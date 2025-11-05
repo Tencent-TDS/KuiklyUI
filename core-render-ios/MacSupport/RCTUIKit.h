@@ -799,6 +799,11 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy, nullable) NSAttributedString *attributedText;
 @property (nonatomic, assign) NSInteger numberOfLines;
 @property (nonatomic, assign) NSTextAlignment textAlignment;
+
+// Bridge method for iOS UILabel custom text drawing
+// Subclasses (e.g. KRLabel) should override this method to perform custom text drawing
+- (void)drawTextInRect:(CGRect)rect;
+
 NS_ASSUME_NONNULL_END
 @end
 

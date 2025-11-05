@@ -140,3 +140,17 @@ internal fun ScrollableState.applyScrollViewOffsetDelta(delta: Int) {
         newOffset.x.toFloat()
     }
 } 
+
+/**
+ * Request scroll to top in a non-suspending way. This defers the jump to when layout is ready,
+ * avoiding timing issues right after ScrollView recreation.
+ */
+internal fun ScrollableState.requestScrollToTop() {
+    when (this) {
+        is LazyListState -> requestScrollToItem(0)
+        is LazyGridState -> requestScrollToItem(0)
+        is LazyStaggeredGridState -> requestScrollToItem(0)
+        // ScrollState does not have request API; skip for now
+        else -> {}
+    }
+}

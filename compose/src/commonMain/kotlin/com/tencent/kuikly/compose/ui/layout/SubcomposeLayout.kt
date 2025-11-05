@@ -73,6 +73,7 @@ import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.kuiklyOnScroll
 import com.tencent.kuikly.compose.scroller.kuiklyOnScrollEnd
 import com.tencent.kuikly.compose.scroller.kuiklyWillDragEnd
+import com.tencent.kuikly.compose.scroller.requestScrollToTop
 import com.tencent.kuikly.compose.scroller.tryExpandStartSize
 import com.tencent.kuikly.compose.ui.node.ComposeUiNode.Companion.ShadowLayoutConstructor
 import com.tencent.kuikly.compose.ui.scaleWithDensity
@@ -214,6 +215,7 @@ fun SubcomposeLayout(
     val compositionContext = rememberCompositionContext()
     val localMap = currentComposer.currentCompositionLocalMap
     var scrollViewRef: ScrollerView<ScrollerAttr, ScrollerEvent>? by remember { mutableStateOf(null) }
+    var newScrollViewDetected by remember { mutableStateOf(false) }
     val isVertical = orientation == Orientation.Vertical
     var scrollViewSize by remember { mutableStateOf(Size.Zero) } // dp值
     val materialized = currentComposer.materialize(modifier)
@@ -232,10 +234,19 @@ fun SubcomposeLayout(
             return@LaunchedEffect
         }
 
-        scrollableState.kuiklyInfo.scrollView = scrollViewRef
-        scrollableState.kuiklyInfo.orientation = orientation
-        scrollViewRef?.extProps?.set(KuiklyInfoKey, scrollableState.kuiklyInfo as Any)
         val kuiklyInfo = scrollableState.kuiklyInfo
+
+        // Bind the new scrollView after computing reset flags so density is available for reset
+        kuiklyInfo.scrollView = scrollViewRef
+        if (newScrollViewDetected) {
+            kuiklyInfo.resetForNewScrollView()
+            scrollableState.requestScrollToTop()
+            newScrollViewDetected = false
+        }
+
+        // Set other properties after reset to ensure they are correctly set
+        kuiklyInfo.orientation = orientation
+        scrollViewRef?.extProps?.set(KuiklyInfoKey, kuiklyInfo as Any)
 
         scrollViewRef?.getViewEvent()?.run {
             layoutFrameDidChange {
@@ -341,10 +352,11 @@ fun SubcomposeLayout(
 
     ComposeNode<KNode<*>, KuiklyApplier>(
         factory = {
-            val scrollView = ScrollerView<ScrollerAttr, ScrollerEvent>()
-            scrollViewRef = scrollView
+            val newView = ScrollerView<ScrollerAttr, ScrollerEvent>()
+            newScrollViewDetected = scrollViewRef !== newView
+            scrollViewRef = newView
 
-            KNode(scrollView) {
+            KNode(newView) {
                 attr {
                     flingEnable(!isPagerView)
                     setProp("isComposePager", if (isPagerView) 1 else 0)

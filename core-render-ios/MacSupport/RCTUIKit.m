@@ -991,95 +991,19 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
 
 // Flipped container view for NSScrollView to match iOS coordinate system
 @interface RCTUIDocumentView : NSView
-@property (nonatomic, assign) BOOL isUpdatingSize;
 @end
 
 @implementation RCTUIDocumentView
 
-- (instancetype)initWithFrame:(NSRect)frameRect {
-    if (self = [super initWithFrame:frameRect]) {
-        self.isUpdatingSize = NO;
-    }
-    return self;
-}
-
 - (BOOL)isFlipped {
     // Return YES to use top-left origin coordinate system like iOS
+    // This matches UIKit's coordinate system where (0,0) is top-left
     return YES;
 }
 
 // Accept first responder to enable keyboard/mouse interaction
 - (BOOL)acceptsFirstResponder {
     return YES;
-}
-
-// Override to auto-resize based on subviews (for KRScrollContentView compatibility)
-- (void)didAddSubview:(NSView *)subview {
-    [super didAddSubview:subview];
-    
-    // Observe frame changes of the subview
-    @try {
-        [subview addObserver:self
-                  forKeyPath:@"frame"
-                     options:NSKeyValueObservingOptionNew
-                     context:nil];
-    } @catch (NSException *exception) {
-        // Ignore if already observing
-    }
-    
-    // Update size immediately
-    [self rct_updateSizeFromSubviews];
-}
-
-- (void)willRemoveSubview:(NSView *)subview {
-    // Stop observing frame changes
-    @try {
-        [subview removeObserver:self forKeyPath:@"frame"];
-    } @catch (NSException *exception) {
-        // Ignore if not observing
-    }
-    
-    [super willRemoveSubview:subview];
-}
-
-- (void)observeValueForKeyPath:(NSString *)keyPath
-                      ofObject:(id)object
-                        change:(NSDictionary *)change
-                       context:(void *)context {
-    if ([keyPath isEqualToString:@"frame"] && !self.isUpdatingSize) {
-        // Subview frame changed, update our size
-        [self rct_updateSizeFromSubviews];
-    }
-}
-
-// Helper method to update our size based on subviews
-- (void)rct_updateSizeFromSubviews {
-    if (self.isUpdatingSize) {
-        return; // Prevent re-entrance
-    }
-    
-    self.isUpdatingSize = YES;
-    
-    // Calculate the union of all subviews' frames
-    CGRect contentRect = CGRectZero;
-    for (NSView *subview in self.subviews) {
-        contentRect = CGRectUnion(contentRect, subview.frame);
-    }
-    
-    // Update our frame to encompass all subviews
-    if (!CGSizeEqualToSize(contentRect.size, CGSizeZero)) {
-        CGRect newFrame = self.frame;
-        newFrame.size = contentRect.size;
-        
-        // Only update if size actually changed
-        if (!CGSizeEqualToSize(newFrame.size, self.frame.size)) {
-            // Note: Just update our frame size
-            // The contentSize getter in RCTUIScrollView will automatically return documentView.frame.size
-            self.frame = newFrame;
-        }
-    }
-    
-    self.isUpdatingSize = NO;
 }
 
 @end
@@ -1253,28 +1177,13 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
 }
 
 - (CGSize)contentSize {
-    if ([self.documentView isKindOfClass:[RCTUIDocumentView class]]) {
-        return self.documentView.frame.size;
-    }
-    return [super documentView].frame.size;
+    return self.documentView.frame.size;
 }
 
 - (void)setContentSize:(CGSize)contentSize {
-    if ([self.documentView isKindOfClass:[RCTUIDocumentView class]]) {
-        RCTUIDocumentView *docView = (RCTUIDocumentView *)self.documentView;
-        // Temporarily disable size updates from subview observations
-        docView.isUpdatingSize = YES;
-        
-        CGRect frame = docView.frame;
-        frame.size = contentSize;
-        docView.frame = frame;
-        
-        docView.isUpdatingSize = NO;
-    } else {
-        CGRect frame = self.documentView.frame;
-        frame.size = contentSize;
-        self.documentView.frame = frame;
-    }
+    CGRect frame = self.documentView.frame;
+    frame.size = contentSize;
+    self.documentView.frame = frame;
 }
 
 - (BOOL)showsHorizontalScrollIndicator {

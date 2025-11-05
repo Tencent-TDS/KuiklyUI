@@ -670,7 +670,23 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 
 - (void)syncScrollViewContentSize {
     if (self.superview) {
+        #if TARGET_OS_OSX // [macOS]
+        // On macOS, KRScrollContentView is added to documentView, not directly to KRScrollView
+        // Need to traverse up the view hierarchy to find the scroll view
+        KRScrollView *scrollView = nil;
+        RCTPlatformView *view = self.superview;
+        while (view) {
+            if ([view isKindOfClass:[KRScrollView class]]) {
+                scrollView = (KRScrollView *)view;
+                break;
+            }
+            view = view.superview;
+        }
+        #else // iOS
+        // On iOS, KRScrollContentView is directly added to KRScrollView
         KRScrollView *scrollView = (KRScrollView *)self.superview;
+        #endif // [macOS]
+        
         if ([scrollView isKindOfClass:[KRScrollView class]]) {
             if (scrollView.isDragging) {
                 scrollView.autoAdjustContentOffsetDisable = YES;

@@ -522,6 +522,16 @@ open class ScrollerEvent : Event() {
     }
 
     /**
+     * Listen to native "scroll to top" event.
+     * Note: This is triggered by the iOS system (status bar tap) only.
+     */
+    open fun scrollToTop(handler: () -> Unit) {
+        register(ScrollerEventConst.SCROLL_TO_TOP, {
+            handler.invoke()
+        }, false)
+    }
+
+    /**
      * 设置内容尺寸变化事件的处理器。当内容尺寸发生变化时，会调用传入的处理器函数。
      * 一般使用该时机初始化initContentOffset位置
      * @param handler 一个接收宽度和高度参数的函数，当内容尺寸发生变化时被调用。
@@ -546,6 +556,7 @@ open class ScrollerEvent : Event() {
         const val DRAG_BEGIN = "dragBegin"
         const val DRAG_END = "dragEnd"
         const val WILL_DRAG_END = "willDragEnd"
+        const val SCROLL_TO_TOP = "scrollToTop"
     }
 }
 

@@ -56,6 +56,8 @@
 @property (nonatomic, strong) KuiklyRenderCallback KUIKLY_PROP(willDragEnd);
 /** event is scrollEnd  */
 @property (nonatomic, strong) KuiklyRenderCallback KUIKLY_PROP(scrollEnd);
+/** event is scrollToTop  */
+@property (nonatomic, strong) KuiklyRenderCallback KUIKLY_PROP(scrollToTop);
 
 
 @end
@@ -204,6 +206,17 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 
 #pragma mark - UIScrollViewDelegate
 
+- (BOOL)scrollViewShouldScrollToTop:(UIScrollView *)scrollView {
+    BOOL isCompose = self.hr_rootView.contextParam.isCompose;
+    if (isCompose) {
+        if (_css_scrollToTop) {
+            _css_scrollToTop(nil);
+        }
+        return NO; // Handled by Kotlin side
+    }
+    return YES;
+}
+    
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
     _isCurrentlyDragging = YES;
     if (_css_dragBegin) {

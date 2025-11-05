@@ -170,7 +170,7 @@ static char kWindowSelfRetentionKey;
                                                         backing:NSBackingStoreBuffered
                                                           defer:NO];
     
-    // 关键1：防止窗口关闭时自动释放
+    // 防止窗口在关闭动画期间被释放（会导致crash）
     newWindow.releasedWhenClosed = NO;
     
     // 设置窗口属性
@@ -181,20 +181,19 @@ static char kWindowSelfRetentionKey;
     // 设置 contentView 的自动布局
     viewController.view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     
-    // 关键2：让窗口持有自己的强引用，防止被提前释放
+    // 让窗口持有自己的强引用，防止被提前释放
     objc_setAssociatedObject(newWindow, &kWindowSelfRetentionKey, newWindow, OBJC_ASSOCIATION_RETAIN);
     
-    // 关键3：监听窗口关闭通知，在关闭后释放强引用
+    // 监听窗口关闭通知，关闭后移除强引用让窗口可以被释放
+    // 重要：不要在block中捕获newWindow，而是从notification.object获取，避免循环引用
     [[NSNotificationCenter defaultCenter] addObserverForName:NSWindowWillCloseNotification
                                                        object:newWindow
                                                         queue:[NSOperationQueue mainQueue]
                                                    usingBlock:^(NSNotification *note) {
-        // 延迟释放，确保关闭动画完成
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            // 移除强引用，让窗口可以被释放
-            objc_setAssociatedObject(newWindow, &kWindowSelfRetentionKey, nil, OBJC_ASSOCIATION_RETAIN);
-            NSLog(@"[KRRouterHandler] Window released: %@", newWindow.title);
-        });
+        NSWindow *closingWindow = note.object; // 从通知获取窗口，不捕获外部引用
+        NSLog(@"[KRRouterHandler] Window closing: %@", closingWindow.title);
+        // 立即移除强引用，让窗口在关闭动画完成后可以被释放
+        objc_setAssociatedObject(closingWindow, &kWindowSelfRetentionKey, nil, OBJC_ASSOCIATION_RETAIN);
     }];
     
     // 居中并显示

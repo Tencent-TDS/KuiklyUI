@@ -175,7 +175,9 @@ typedef unsigned long long UIAccessibilityTraits;
 #define UIApplication NSApplication
 
 // Image alias
+#ifndef UIImage
 @compatibility_alias UIImage NSImage;
+#endif
 
 // Gesture recognizer aliases
 #define UIGestureRecognizer NSGestureRecognizer
@@ -671,11 +673,6 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 
 - (void)setContentOffset:(CGPoint)contentOffset animated:(BOOL)animated;
 
-#pragma mark Layout Bridge
-
-// [macOS] UIView layout bridge (subclasses can override for UIKit-style layout)
-// Note: didMoveToSuperview/didMoveToWindow are handled by NSView+KRCompat swizzling
-- (void)layoutSubviews;
 
 #pragma mark Mouse Location Tracking
 

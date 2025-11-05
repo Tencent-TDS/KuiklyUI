@@ -987,9 +987,108 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
 
 @end
 
+#pragma mark - RCTUIDocumentView
+
+// Flipped container view for NSScrollView to match iOS coordinate system
+@interface RCTUIDocumentView : NSView
+@property (nonatomic, assign) BOOL isUpdatingSize;
+@end
+
+@implementation RCTUIDocumentView
+
+- (instancetype)initWithFrame:(NSRect)frameRect {
+    if (self = [super initWithFrame:frameRect]) {
+        self.isUpdatingSize = NO;
+    }
+    return self;
+}
+
+- (BOOL)isFlipped {
+    // Return YES to use top-left origin coordinate system like iOS
+    return YES;
+}
+
+// Accept first responder to enable keyboard/mouse interaction
+- (BOOL)acceptsFirstResponder {
+    return YES;
+}
+
+// Override to auto-resize based on subviews (for KRScrollContentView compatibility)
+- (void)didAddSubview:(NSView *)subview {
+    [super didAddSubview:subview];
+    
+    // Observe frame changes of the subview
+    @try {
+        [subview addObserver:self
+                  forKeyPath:@"frame"
+                     options:NSKeyValueObservingOptionNew
+                     context:nil];
+    } @catch (NSException *exception) {
+        // Ignore if already observing
+    }
+    
+    // Update size immediately
+    [self rct_updateSizeFromSubviews];
+}
+
+- (void)willRemoveSubview:(NSView *)subview {
+    // Stop observing frame changes
+    @try {
+        [subview removeObserver:self forKeyPath:@"frame"];
+    } @catch (NSException *exception) {
+        // Ignore if not observing
+    }
+    
+    [super willRemoveSubview:subview];
+}
+
+- (void)observeValueForKeyPath:(NSString *)keyPath
+                      ofObject:(id)object
+                        change:(NSDictionary *)change
+                       context:(void *)context {
+    if ([keyPath isEqualToString:@"frame"] && !self.isUpdatingSize) {
+        // Subview frame changed, update our size
+        [self rct_updateSizeFromSubviews];
+    }
+}
+
+// Helper method to update our size based on subviews
+- (void)rct_updateSizeFromSubviews {
+    if (self.isUpdatingSize) {
+        return; // Prevent re-entrance
+    }
+    
+    self.isUpdatingSize = YES;
+    
+    // Calculate the union of all subviews' frames
+    CGRect contentRect = CGRectZero;
+    for (NSView *subview in self.subviews) {
+        contentRect = CGRectUnion(contentRect, subview.frame);
+    }
+    
+    // Update our frame to encompass all subviews
+    if (!CGSizeEqualToSize(contentRect.size, CGSizeZero)) {
+        CGRect newFrame = self.frame;
+        newFrame.size = contentRect.size;
+        
+        // Only update if size actually changed
+        if (!CGSizeEqualToSize(newFrame.size, self.frame.size)) {
+            // Note: Just update our frame size
+            // The contentSize getter in RCTUIScrollView will automatically return documentView.frame.size
+            self.frame = newFrame;
+        }
+    }
+    
+    self.isUpdatingSize = NO;
+}
+
+@end
+
 #pragma mark - RCTUIScrollView
 
-@implementation RCTUIScrollView
+@implementation RCTUIScrollView {
+    BOOL _isInitializing; // Flag to avoid intercepting internal subview additions during init
+}
 
 #pragma mark Initialization and Deallocation
 
@@ -998,6 +1097,8 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
+    _isInitializing = YES; // Mark as initializing to avoid intercepting internal addSubview calls
+    
     if (self = [super initWithFrame:frame]) {
         self.scrollEnabled = YES;
         self.drawsBackground = NO;
@@ -1006,9 +1107,100 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
                                                  selector:@selector(rct_contentViewBoundsDidChange:)
                                                      name:NSViewBoundsDidChangeNotification
                                                    object:self.contentView];
+        
+        // Setup custom documentView after super init completes
+        [self rct_setupDocumentView];
     }
     
+    _isInitializing = NO; // Init complete
     return self;
+}
+
+// Setup the document view container
+- (void)rct_setupDocumentView {
+    // Create a flipped container view as documentView to hold subviews
+    // Use a flipped view to match iOS coordinate system (origin at top-left)
+    // Start with a minimal size - it will be resized when content is added
+    RCTUIDocumentView *documentView = [[RCTUIDocumentView alloc] initWithFrame:CGRectMake(0, 0, 1, 1)];
+    [documentView setWantsLayer:YES];
+    // Ensure documentView accepts mouse events
+    documentView.layerContentsRedrawPolicy = NSViewLayerContentsRedrawDuringViewResize;
+    self.documentView = documentView;
+}
+
+
+#pragma mark Subview Management
+
+// Override to add subviews to documentView instead of NSScrollView itself
+- (void)addSubview:(NSView *)view {
+    // During initialization, don't intercept internal NSScrollView subview additions
+    if (_isInitializing) {
+        [super addSubview:view];
+        return;
+    }
+    
+    // After initialization, add content views to documentView
+    if ([self.documentView isKindOfClass:[RCTUIDocumentView class]]) {
+        [self.documentView addSubview:view];
+    } else {
+        [super addSubview:view];
+    }
+}
+
+- (void)insertSubview:(NSView *)view atIndex:(NSInteger)index {
+    if (!view) { return; }
+    
+    // During initialization, don't intercept internal NSScrollView subview additions
+    if (_isInitializing) {
+        [super addSubview:view];
+        return;
+    }
+    
+    // After initialization, add content views to documentView
+    if ([self.documentView isKindOfClass:[RCTUIDocumentView class]]) {
+        NSArray<__kindof NSView *> *subviews = self.documentView.subviews;
+        if (index < 0) { index = 0; }
+        if ((NSUInteger)index >= subviews.count) {
+            [self.documentView addSubview:view];
+        } else {
+            [self.documentView addSubview:view positioned:NSWindowBelow relativeTo:subviews[index]];
+        }
+    } else {
+        [super addSubview:view];
+    }
+}
+
+// Override subviews to return documentView's subviews for UIKit compatibility
+- (NSArray<__kindof NSView *> *)subviews {
+    // After initialization, return documentView's subviews for UIKit compatibility
+    if (!_isInitializing && self.documentView && [self.documentView isKindOfClass:[RCTUIDocumentView class]]) {
+        return self.documentView.subviews;
+    }
+    return [super subviews];
+}
+
+#pragma mark Event Handling
+
+// Override hitTest to ensure proper event routing to subviews
+- (NSView *)hitTest:(NSPoint)point {
+    // First check if the point is within our bounds
+    if (![self mouse:point inRect:self.bounds]) {
+        return nil;
+    }
+    
+    // Only do custom hit testing if we have our custom documentView
+    if ([self.documentView isKindOfClass:[RCTUIDocumentView class]]) {
+        // Convert point to documentView's coordinate space and check subviews
+        NSView *hitView = [self.documentView hitTest:[self.documentView convertPoint:point fromView:self]];
+        
+        // If a subview was hit, return it
+        if (hitView && hitView != self.documentView) {
+            return hitView;
+        }
+    }
+    
+    // Otherwise, use default behavior or return self for scrolling
+    return [super hitTest:point];
 }
 
 
@@ -1061,13 +1253,28 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
 }
 
 - (CGSize)contentSize {
-    return self.documentView.frame.size;
+    if ([self.documentView isKindOfClass:[RCTUIDocumentView class]]) {
+        return self.documentView.frame.size;
+    }
+    return [super documentView].frame.size;
 }
 
 - (void)setContentSize:(CGSize)contentSize {
-    CGRect frame = self.documentView.frame;
-    frame.size = contentSize;
-    self.documentView.frame = frame;
+    if ([self.documentView isKindOfClass:[RCTUIDocumentView class]]) {
+        RCTUIDocumentView *docView = (RCTUIDocumentView *)self.documentView;
+        // Temporarily disable size updates from subview observations
+        docView.isUpdatingSize = YES;
+        
+        CGRect frame = docView.frame;
+        frame.size = contentSize;
+        docView.frame = frame;
+        
+        docView.isUpdatingSize = NO;
+    } else {
+        CGRect frame = self.documentView.frame;
+        frame.size = contentSize;
+        self.documentView.frame = frame;
+    }
 }
 
 - (BOOL)showsHorizontalScrollIndicator {
@@ -1157,6 +1364,19 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
     static char kPagingEnabledKey;
     objc_setAssociatedObject(self, &kPagingEnabledKey, @(pagingEnabled), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
+
+// scrollEnabled property bridge
+- (BOOL)isScrollEnabled {
+    static char kScrollEnabledKey;
+    NSNumber *value = objc_getAssociatedObject(self, &kScrollEnabledKey);
+    return value ? [value boolValue] : YES; // Default is YES
+}
+
+- (void)setScrollEnabled:(BOOL)scrollEnabled {
+    static char kScrollEnabledKey;
+    objc_setAssociatedObject(self, &kScrollEnabledKey, @(scrollEnabled), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
 
 #pragma mark Mouse Location Tracking
 
@@ -1278,6 +1498,13 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
 #pragma mark Scroll Wheel Handling
 
 - (void)scrollWheel:(NSEvent *)event {
+    // Check if scrolling is enabled
+    if (!self.isScrollEnabled) {
+        // If scrolling is disabled, pass the event to the next responder
+        [self.nextResponder scrollWheel:event];
+        return;
+    }
+    
     // Store event for mouse location tracking
     [self rct_setLastScrollEvent:event];
     

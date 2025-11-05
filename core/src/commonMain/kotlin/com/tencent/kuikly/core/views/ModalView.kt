@@ -178,7 +178,7 @@ enum class ModalDismissReason(val value: Int) {
 
 typealias DismissEventHandlerFn = (ModalDismissReason) -> Unit
 
-open class ModalEvent: DivEvent()
+class ModalEvent: DivEvent()
 
 /**
  * 设置一个用于监听系统back按钮事件的回调

@@ -191,22 +191,6 @@ std::tuple<float, float, float, float> ToArgb(const std::string &color_str) {
     return std::make_tuple(a, r, g, b);
 }
 
-std::string ConvertDoubleToString(double value) {
-    std::ostringstream oss;
-    oss << value;
-    std::string str = oss.str();
-
-    // 去除小数点后所有的零
-    std::size_t last_not_zero = str.find_last_not_of('0');
-    if (last_not_zero != std::string::npos) {
-        if (str[last_not_zero] == '.') {
-            last_not_zero--;  // 保留小数点前的数字
-        }
-        str = str.substr(0, last_not_zero + 1);
-    }
-    return str;
-}
-
 std::vector<std::string> ConvertSplit(const std::string &str, const std::string &delimiters) {
     std::vector<std::string> result;
     std::size_t start = 0;

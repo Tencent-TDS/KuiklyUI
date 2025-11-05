@@ -18,6 +18,7 @@
 
 #include <ark_runtime/jsvm.h>
 #include <ark_runtime/jsvm_types.h>
+#include <charconv>
 #include <js_native_api.h>
 #include <js_native_api_types.h>
 #include <cmath>
@@ -36,24 +37,24 @@
 #include "libohos_render/utils/NAPIUtil.h"
 #include "thirdparty/cJSON/cJSON.h"
 
+// Test cases : 1.0, 100000.0, 9999999900.0, 0.01, 0.020, 0.01234560, 12345670.0123456
 static std::string DoubleToString(double value) {
-    std::ostringstream oss;
-    oss << value;
-    std::string str = oss.str();
-
-    if (str.find(".") == std::string::npos) {  // 没有小数点的话直接返回
-        return str;
-    }
-
-    // 去除小数点后所有的零
-    std::size_t last_not_zero = str.find_last_not_of('0');
-    if (last_not_zero != std::string::npos) {
-        if (str[last_not_zero] == '.') {
-            last_not_zero--;  // 保留小数点前的数字
+    std::string ret(16, 0);
+    for(;;){
+        std::to_chars_result result = std::to_chars((char*)ret.c_str(), (char*)ret.c_str() + ret.length(), value, std::chars_format::fixed);
+        if(result.ec == std::errc()){
+            int sz = result.ptr - ret.c_str();
+            ret.resize(sz, 0);
+            return ret;
         }
-        str = str.substr(0, last_not_zero + 1);
+        if(result.ec == std::errc::value_too_large){
+            if(ret.size() > 100){
+                break;
+            }
+            ret.resize(ret.size() * 2);
+        }
     }
-    return str;
+    return "";
 }
 
 struct NapiValue {
@@ -447,7 +448,6 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
             for (cJSON *item = cjson->child; item != NULL; item = item->next) {
                 map[item->string] = fromJsonValue(item);
             }
-            cJSON_Delete(cjson);
             json_to_map_or_array_value_ = map;
             cJSON_Delete(cjson);
             return std::get<Map>(json_to_map_or_array_value_);

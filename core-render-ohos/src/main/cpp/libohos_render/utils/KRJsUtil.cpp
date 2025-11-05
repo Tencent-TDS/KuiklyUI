@@ -25,10 +25,10 @@ void get_str_from_js_str(const JSVM_Env &env, const JSVM_Value &value, std::stri
     if (status != JSVM_OK) {
         return;
     }
-    std::vector<char> result_str(size + 1);
-    status = OH_JSVM_GetValueStringUtf8(env, value, result_str.data(), size + 1, &size);
+    str.resize(size + 1, 0);
+    status = OH_JSVM_GetValueStringUtf8(env, value, str.data(), str.size(), &size);
     if (status == JSVM_OK) {
-        str.append(result_str.data());
+        str.resize(size);
     }
 }
 }  // namespace util

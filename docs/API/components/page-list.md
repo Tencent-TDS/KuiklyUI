@@ -42,7 +42,7 @@
 
 <div class="table-01">
 
-**pageItemHeight**
+**pageDirection**
 
 | 参数  | 描述     | 类型 |
 |:----|:-------|:--|
@@ -84,7 +84,7 @@
 
 <div class="table-01">
 
-**keepItemAlive**
+**offscreenPageLimit**
 
 | 参数  | 描述     | 类型 |
 |:----|:-------|:--|

@@ -30,6 +30,7 @@ class KRView : public IKRRenderViewExport {
     void WillReuse() override;
     void DidSetProp(const std::string &prop_key) override;
     void CallMethod(const std::string &method, const KRAnyValue &params, const KRRenderCallback &callback) override;
+    void WillRemoveFromParentView() override;
     std::shared_ptr<SuperTouchHandler> GetSuperTouchHandler() { return super_touch_handler_; }
 
  private:
@@ -47,8 +48,16 @@ class KRView : public IKRRenderViewExport {
     KRAnyValue GenerateBaseParamsWithTouch(ArkUI_UIInputEvent *input_event, const std::string &action);
     bool HasTouchEvent();
     void UpdateHitTestMode(bool shouldUseTarget);
+    void EnsureSuperTouchType();
 
  private:
+    enum SuperTouchType {
+        UNKNOWN,
+        NONE,
+        SELF,
+        PARENT
+    };
+
     KRRenderCallback touch_down_callback_ = nullptr;
     KRRenderCallback touch_move_callback_ = nullptr;
     KRRenderCallback touch_up_callback_ = nullptr;
@@ -57,6 +66,8 @@ class KRView : public IKRRenderViewExport {
     short using_target_hit_test_mode = -1;
     ArkUI_HitTestMode target_hit_test_mode = ARKUI_HIT_TEST_MODE_DEFAULT;
 	std::shared_ptr<SuperTouchHandler> super_touch_handler_ = nullptr;
+    std::weak_ptr<SuperTouchHandler> parent_super_touch_handler_;
+    SuperTouchType super_touch_type_ = UNKNOWN;
 };
 
 #endif  // CORE_RENDER_OHOS_KRVIEW_H

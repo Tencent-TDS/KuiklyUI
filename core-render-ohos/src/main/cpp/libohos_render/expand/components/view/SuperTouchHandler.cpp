@@ -73,3 +73,37 @@ bool SuperTouchHandler::ProcessCancel() {
 }
 
 void SuperTouchHandler::ResetCancel() { super_touch_canceled_ = false; }
+
+void SuperTouchHandler::SetStopPropagation(const int32_t action, bool value) {
+    switch (action) {
+        case UI_TOUCH_EVENT_ACTION_DOWN:
+            stop_propagation_for_down_ = value;
+            break;
+        case UI_TOUCH_EVENT_ACTION_MOVE:
+            stop_propagation_for_move_ = value;
+            break;
+        case UI_TOUCH_EVENT_ACTION_UP:
+            stop_propagation_for_up_ = value;
+            break;
+        case UI_TOUCH_EVENT_ACTION_CANCEL:
+            stop_propagation_for_cancel_ = value;
+            break;
+        default:
+            break;
+    }
+}
+
+bool SuperTouchHandler::GetStopPropagation(const int32_t action) {
+    switch (action) {
+        case UI_TOUCH_EVENT_ACTION_DOWN:
+            return stop_propagation_for_down_;
+        case UI_TOUCH_EVENT_ACTION_MOVE:
+            return stop_propagation_for_move_;
+        case UI_TOUCH_EVENT_ACTION_UP:
+            return stop_propagation_for_up_;
+        case UI_TOUCH_EVENT_ACTION_CANCEL:
+            return stop_propagation_for_cancel_;
+        default:
+            return false;
+    }
+}

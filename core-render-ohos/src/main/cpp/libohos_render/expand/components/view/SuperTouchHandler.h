@@ -31,11 +31,18 @@ public:
     bool IsCanceled();
     bool ProcessCancel();
     void ResetCancel();
+    void SetStopPropagation(const int32_t action, bool value);
+    bool GetStopPropagation(const int32_t action);
 private:
     std::unordered_set<ArkUI_GestureRecognizer *> gesture_recognizers_;
     bool prevent_touch_ = false;
     std::weak_ptr<IKRRenderViewExport> native_touch_consumer_;
     bool super_touch_canceled_ = false;
+    
+    bool stop_propagation_for_down_ = false;
+    bool stop_propagation_for_move_ = false;
+    bool stop_propagation_for_up_ = false;
+    bool stop_propagation_for_cancel_ = false;
 };
 
 #endif //CORE_RENDER_OHOS_SUPERTOUCHHANDLER_H

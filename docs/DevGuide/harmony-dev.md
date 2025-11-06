@@ -41,10 +41,12 @@ repositories {
 
 - 修改版本号
 
-把工程的Kotlin版本改为**2.0.21-KBA-010**，Kuikly版本改为**KUIKLY_VERSION-2.0.21-KBA-010**，ksp版本改为**2.0.21-1.0.27**。改完后，执行 ./gradlew bE 和 ./gradlew :shared:d 命令确认依赖项的版本resolve正确。
+把工程的Kotlin版本改为**2.0.21-KBA-010**，Kuikly版本改为**KUIKLY_VERSION-2.0.21-ohos**，ksp版本改为**2.0.21-1.0.27**。改完后，执行 ./gradlew bE 和 ./gradlew :shared:d 命令确认依赖项的版本resolve正确。
 
 :::tip 注意
-目前鸿蒙编译链有可用版本：`2.0.21-KBA-004`和`2.0.21-KBA-010`。其中 `2.0.21-KBA-010` 已支持Window/Linux平台编译。
+1. 目前鸿蒙编译链有可用版本：`2.0.21-KBA-004`和`2.0.21-KBA-010`。其中 `2.0.21-KBA-010` 已支持Window/Linux平台编译。
+2. Kuikly DSL相关SDK -ohos后缀版本支持Android/iOS/Ohos三端。
+   Compose DSL 相关SDK -ohos后缀版本当前仅支持ohos，待后续发布跨多端版本。统一编译链使用时，所依赖的Compose SDK，需根据当前编译target不同，判断选择带-ohos后缀版本(ohos target)和不带-ohos后缀版本(Android/iOS target)。
 :::
 
 以插件创建的模板工程为例，需要修改的有：
@@ -68,8 +70,8 @@ kotlin{
         val commonMain by getting {
             dependencies {
                 // KUIKLY_VERSION 用实际使用的Kuikly版本号替换
-                implementation("com.tencent.kuikly-open:core:KUIKLY_VERSION-2.0.21-KBA-010")
-                implementation("com.tencent.kuikly-open:core-annotations:KUIKLY_VERSION-2.0.21-KBA-010")
+                implementation("com.tencent.kuikly-open:core:KUIKLY_VERSION-2.0.21-ohos")
+                implementation("com.tencent.kuikly-open:core-annotations:KUIKLY_VERSION-2.0.21-ohos")
             }
         }
         ...
@@ -78,7 +80,7 @@ kotlin{
 ...
 dependencies {
     // KUIKLY_VERSION 用实际使用的Kuikly版本号替换
-    compileOnly("com.tencent.kuikly-open:core-ksp:KUIKLY_VERSION-2.0.21-KBA-010") {
+    compileOnly("com.tencent.kuikly-open:core-ksp:KUIKLY_VERSION-2.0.21-ohos") {
         ...
     }
 }
@@ -97,7 +99,7 @@ kotlin {
     }
 }
 dependencies {
-    compileOnly("com.tencent.kuikly-open:core-ksp:KUIKLY_VERSION-2.0.21-KBA-010") {
+    compileOnly("com.tencent.kuikly-open:core-ksp:KUIKLY_VERSION-2.0.21-ohos") {
         ....
         add("kspOhosArm64", this)
     }
@@ -109,6 +111,7 @@ dependencies {
 在Windows平台配置，需指定 OHOS SDK 位置，配置环境变量，比如：
 
 变量名: `OHOS_SDK_HOME`
+
 路径: `D:\Program Files\DevEco Studio\sdk\default\openharmony`
 
 #### 模板工程 - Windows编译步骤
@@ -159,6 +162,7 @@ plugins {
 
 #### 源码工程 - Windows编译步骤
 KuiklyUI 源码工程已将Kotlin编译插件版本升级为`2.0.21-KBA-010`版本，开发者可以直接通过命令行编译跨端产物，运行鸿蒙APP：
+
 **Step1**: 编译跨端产物，拷贝到Ohos APP对应目录
 
 编译命令

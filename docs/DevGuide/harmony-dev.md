@@ -41,10 +41,12 @@ repositories {
 
 - 修改版本号
 
-把工程的Kotlin版本改为**2.0.21-KBA-010**，Kuikly版本改为**KUIKLY_VERSION-2.0.21-ohos**(相关SDK -ohos后缀版本支持Android/iOS/Ohos三端)，ksp版本改为**2.0.21-1.0.27**。改完后，执行 ./gradlew bE 和 ./gradlew :shared:d 命令确认依赖项的版本resolve正确。
+把工程的Kotlin版本改为**2.0.21-KBA-010**，Kuikly版本改为**KUIKLY_VERSION-2.0.21-ohos**，ksp版本改为**2.0.21-1.0.27**。改完后，执行 ./gradlew bE 和 ./gradlew :shared:d 命令确认依赖项的版本resolve正确。
 
 :::tip 注意
-目前鸿蒙编译链有可用版本：`2.0.21-KBA-004`和`2.0.21-KBA-010`。其中 `2.0.21-KBA-010` 已支持Window/Linux平台编译。
+1. 目前鸿蒙编译链有可用版本：`2.0.21-KBA-004`和`2.0.21-KBA-010`。其中 `2.0.21-KBA-010` 已支持Window/Linux平台编译。
+2. Kuikly DSL相关SDK -ohos后缀版本支持Android/iOS/Ohos三端。
+   Compose DSL 相关SDK -ohos后缀版本当前仅支持ohos，待后续发布跨多端版本。统一编译链使用时，所依赖的Compose SDK，需根据当前编译target不同，判断选择带-ohos后缀版本(ohos target)和不带-ohos后缀版本(Android/iOS target)。
 :::
 
 以插件创建的模板工程为例，需要修改的有：

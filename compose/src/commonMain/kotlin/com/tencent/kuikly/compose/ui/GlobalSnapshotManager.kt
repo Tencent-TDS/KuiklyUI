@@ -17,7 +17,7 @@
 package com.tencent.kuikly.compose.ui
 
 import androidx.compose.runtime.snapshots.Snapshot
-import com.tencent.kuiklyx.coroutines.KuiklyContextScheduler
+import com.tencent.kuikly.compose.coroutines.internal.KuiklyContextScheduler
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

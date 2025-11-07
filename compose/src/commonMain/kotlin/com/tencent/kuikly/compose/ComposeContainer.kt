@@ -20,6 +20,7 @@ package com.tencent.kuikly.compose
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.InternalComposeApi
+import com.tencent.kuikly.compose.coroutines.internal.ComposeDispatcher
 import com.tencent.kuikly.compose.foundation.event.OnBackPressedDispatcher
 import com.tencent.kuikly.compose.foundation.event.OnBackPressedDispatcherOwner
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
@@ -41,8 +42,6 @@ import com.tencent.kuikly.core.module.VsyncModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.views.DivView
-import com.tencent.kuiklyx.coroutines.Kuikly
-import kotlinx.coroutines.Dispatchers
 import kotlin.coroutines.CoroutineContext
 
 fun ComposeContainer.setContent(content: @Composable () -> Unit) {
@@ -173,7 +172,7 @@ open class ComposeContainer :
             ComposeSceneMediator(
                 rootKView,
                 windowInfo,
-                Dispatchers.Kuikly[this],
+                ComposeDispatcher(pagerId),
                 pagerDensity(),
                 ::createComposeScene,
             )

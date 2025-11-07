@@ -1,0 +1,9 @@
+package = com.tencent.kuikly
+---
+#include <stdbool.h>
+
+/// Schedule a task on the Kuikly context queue for the given pagerId.
+extern void com_tencent_kuikly_ScheduleContextTask(const char* pagerId, void (*onSchedule)(const char* pagerId));
+
+/// Return true if the current thread is the context thread.
+extern bool com_tencent_kuikly_IsCurrentOnContextThread(const char* pagerId);

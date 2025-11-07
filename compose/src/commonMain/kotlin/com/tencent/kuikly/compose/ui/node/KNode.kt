@@ -189,7 +189,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         canvas.view = view
         super.draw(canvas)
         canvas.view = null
-        view.flush(density)
+        view.flush()
     }
 
     override fun invalidateDraw() {
@@ -501,7 +501,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             shadowColor = Color.Transparent
         }
 
-        fun DeclarativeBaseView<*, *>.flush(density: Density) {
+        fun DeclarativeBaseView<*, *>.flush() {
             val attr = getViewAttr()
             if (alpha != 1f || attr.getProp(StyleConst.OPACITY) != null) {
                 attr.opacity(alpha)
@@ -515,14 +515,13 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             if (hasBorderRadius || hasClip || attr.getProp(StyleConst.BORDER_RADIUS) != null) {
                 if (hasBorderRadius) {
                     val array = borderRadius
-                    with(density) {
-                        attr.borderRadius(
-                            topLeft = array[0].toDp().value,
-                            topRight = array[1].toDp().value,
-                            bottomRight = array[2].toDp().value,
-                            bottomLeft = array[3].toDp().value
-                        )
-                    }
+                    val densityValue = getPager().pagerDensity()
+                    attr.borderRadius(
+                        topLeft = array[0] / densityValue,
+                        topRight = array[1] / densityValue,
+                        bottomRight = array[2] / densityValue,
+                        bottomLeft = array[3] / densityValue
+                    )
                 } else {
                     // Use a very small borderRadius to implement clip effect, avoiding conflict with shadow
                     attr.borderRadius(if (hasClip) 0.001f else 0f)
@@ -530,7 +529,8 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             }
             if (shadowElevation > 0f && shadowColor != Color.Transparent || shadowHasSet) {
                 shadowHasSet = true
-                val elevationValue = with(density) { shadowElevation.toDp().value }
+                val densityValue = getPager().pagerDensity()
+                val elevationValue = shadowElevation / densityValue
                 attr.boxShadow(BoxShadow(
                     offsetX = 0f,
                     offsetY = elevationValue * 0.5f,

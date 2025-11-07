@@ -131,6 +131,34 @@ class KuiklyScrollInfo {
     }
 
     /**
+     * Reset scroll-related state when binding to a new ScrollView (e.g., when LazyColumn's key changes and causes rebuild)
+     * Note: This depends on scrollView to get density, so it should be called after setting scrollView
+     */
+    fun resetForNewScrollView() {
+        // Cancel and clear any pending tasks
+        appleScrollViewOffsetJob?.cancel()
+        appleScrollViewOffsetJob = null
+
+        // Reset basic offset and scroll state
+        ignoreScrollOffset = null
+        composeOffset = 0f
+        contentOffset = 0
+        offsetDirty = false
+
+        // Reset content size related (reinitialize based on current density)
+        currentContentSize = (DEFAULT_CONTENT_SIZE * getDensity()).toInt()
+        realContentSize = null
+
+        // Clear list items and pagination caches
+        itemMainSpaceCache.clear()
+        stickyItemKey = null
+        cachedTotalItems = 0
+
+        // Reset business flags
+        hasPullToRefresh = false
+    }
+
+    /**
      * Create content Frame
      */
     private fun createContentFrame(): Frame {

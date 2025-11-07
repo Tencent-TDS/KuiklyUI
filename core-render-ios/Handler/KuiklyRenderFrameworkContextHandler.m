@@ -196,7 +196,6 @@
     Protocol *entryDelegateProtocol = NSProtocolFromString(entryDelegateName);
     if (!entryDelegateProtocol) {
         entryDelegateProtocol = objc_allocateProtocol(entryDelegateName.UTF8String);
-        objc_registerProtocol(entryDelegateProtocol);
     }
     if (entryDelegateProtocol && !class_conformsToProtocol(self, entryDelegateProtocol)) {
         class_addProtocol(self, entryDelegateProtocol);

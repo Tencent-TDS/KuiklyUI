@@ -17,3 +17,4 @@ export const injectToKTRender: () => void
 export const initKuikly: () => number;
 export const saveImageOfInternet: (internetUrl: string, tarPath: string, tarName: string, callback: Function) => string;
 export const setFontPath: (path: string) => number;
+export const setResourceManager: (resmgr: resourceManager.ResourceManager) => number;

@@ -43,6 +43,7 @@ export default class EntryAbility extends UIAbility {
       }
       hilog.info(0x0000, 'testTag', 'Succeeded in loading the content.');
 
+      Napi.setResourceManager(getContext()?.resourceManager)
       // copy font data to tmp folder
       const content = getContext().resourceManager.getRawFileContentSync('Satisfy-Regular.ttf')
       const destPath = `${getContext().tempDir}/Satisfy-Regular.ttf`;

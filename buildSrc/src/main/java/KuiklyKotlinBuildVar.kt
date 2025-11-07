@@ -64,7 +64,7 @@ object BuildPlugin {
     }
 
     val kuikly by lazy {
-        "com.tencent.kuikly-open:core-gradle-plugin:2.4.0-${Version.getKotlinVersion()}"
+        "com.tencent.kuikly-open:core-gradle-plugin:2.4.0-2.0.21"
     }
 }
 
@@ -81,7 +81,7 @@ object Output {
 object MavenConfig {
     const val GROUP = "com.tencent.kuikly-open"
     const val GROUP_WEB = "com.tencent.kuikly-open.core-render-web"
-    const val REPO_URL = "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2"
+    const val REPO_URL = ""
     const val SNAPSHOT_REPO_URL = "https://central.sonatype.com/repository/maven-snapshots/"
     const val RENDER_ANDROID_ARTIFACT_ID = "core-render-android"
     const val RENDER_WEB_BASE_ARTIFACT_ID = "core-render-web-base"
@@ -144,7 +144,7 @@ object Version {
     const val SNAPSHOT_SUFFIX = "-SNAPSHOT"
 
     private const val DEFAULT_KUIKLY_VERSION = "2.0.0"
-    private const val DEFAULT_KOTLIN_VERSION = "2.0.21"
+    private const val DEFAULT_KOTLIN_VERSION = "2.1.21"
     private const val DEFAULT_AGP_VERSION = "7.4.2"
 
     private const val KEY_KUIKLY_VERSION = "KUIKLY_VERSION"
@@ -245,7 +245,8 @@ object Version {
             "2.0.21" -> "2.0.21-1.0.27"
             "2.0.21-KBA-004" -> "2.0.21-1.0.27"
             "2.0.21-KBA-010" -> "2.0.21-1.0.27"
-            else -> "${getKotlinVersion()}-1.0.7" // 默认版本
+            "2.1.21" -> "2.1.21-2.0.1"
+            else -> "${getKotlinVersion()}-2.0.1" // 默认版本
         }
     }
 

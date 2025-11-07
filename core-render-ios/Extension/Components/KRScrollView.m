@@ -32,6 +32,8 @@
 @property (nonatomic, strong) NSNumber *KUIKLY_PROP(bouncesEnable);
 /** attr is pagingEnabled  */
 @property (nonatomic, strong) NSNumber *KUIKLY_PROP(pagingEnabled);
+/** attr is isComposePager  */
+@property (nonatomic, strong) NSNumber *KUIKLY_PROP(isComposePager);
 /** attr is scrollEnabled  */
 @property (nonatomic, strong) NSNumber *KUIKLY_PROP(scrollEnabled);
 /** attr is showScrollerIndicator  */
@@ -54,6 +56,8 @@
 @property (nonatomic, strong) KuiklyRenderCallback KUIKLY_PROP(willDragEnd);
 /** event is scrollEnd  */
 @property (nonatomic, strong) KuiklyRenderCallback KUIKLY_PROP(scrollEnd);
+/** event is scrollToTop  */
+@property (nonatomic, strong) KuiklyRenderCallback KUIKLY_PROP(scrollToTop);
 
 
 @end
@@ -202,6 +206,17 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 
 #pragma mark - UIScrollViewDelegate
 
+- (BOOL)scrollViewShouldScrollToTop:(UIScrollView *)scrollView {
+    BOOL isCompose = self.hr_rootView.contextParam.isCompose;
+    if (isCompose) {
+        if (_css_scrollToTop) {
+            _css_scrollToTop(nil);
+        }
+        return NO; // Handled by Kotlin side
+    }
+    return YES;
+}
+    
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
     _isCurrentlyDragging = YES;
     if (_css_dragBegin) {
@@ -250,6 +265,22 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 
 - (void)scrollViewWillEndDragging:(UIScrollView *)scrollView withVelocity:(CGPoint)velocity targetContentOffset:(inout CGPoint *)targetContentOffset {
     if (_css_willDragEnd) {
+        if ([_css_isComposePager boolValue]) {
+            // 这里将惯性滑动最大距离限制为300
+            CGPoint currentOffset = scrollView.contentOffset;
+            CGPoint proposedOffset = *targetContentOffset;
+            CGFloat maxDistance = 300.0;
+            CGFloat dx = proposedOffset.x - currentOffset.x;
+            CGFloat dy = proposedOffset.y - currentOffset.y;
+            if (fabs(dx) > maxDistance) {
+                proposedOffset.x = currentOffset.x + (dx > 0 ? maxDistance : -maxDistance);
+            } else if (fabs(dy) > maxDistance) {
+                proposedOffset.y = currentOffset.y + (dy > 0 ? maxDistance : -maxDistance);
+            }
+            // iOS 18会偶现出现大距离跳变，限制下最大的距离
+            *targetContentOffset = proposedOffset;
+        }
+
         _targetContentOffset = targetContentOffset;
         NSMutableDictionary *params = [[self p_generateEventBaseParams] mutableCopy];
         params[@"velocityX"] = @(velocity.x);
@@ -336,6 +367,11 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     }
 }
 
+- (void)setCss_isComposePager:(NSNumber *)css_isComposePager {
+    if (self.css_isComposePager != css_isComposePager) {
+        _css_isComposePager = css_isComposePager;
+    }
+}
 
 - (void)setCss_showScrollerIndicator:(NSNumber *)css_showScrollerIndicator {
     if (self.css_showScrollerIndicator != css_showScrollerIndicator) {
@@ -392,7 +428,9 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 }
 
 - (void)setCss_frame:(NSValue *)css_frame {
+    self.skipNestScrollLock = YES;
     [super setCss_frame:css_frame];
+    self.skipNestScrollLock = NO;
     _wrapperView.frame = self.frame;
 }
 
@@ -583,6 +621,7 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 }
 
 - (void)p_springAnimationWithContentOffset:(CGPoint)contentOffset duration:(CGFloat)duration damping:(CGFloat)damping velocity:(CGFloat)velocity {
+    [self setContentOffset:self.contentOffset animated:NO];
     [_offsetAnimator cancel];
     _offsetAnimator = [[KRScrollViewOffsetAnimator alloc] initWithScrollView:self delegate:self];
     [_offsetAnimator animateToOffset:contentOffset withVelocity:CGPointZero];

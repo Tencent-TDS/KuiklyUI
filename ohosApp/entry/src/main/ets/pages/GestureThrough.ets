@@ -46,11 +46,33 @@ struct GestureThrough {
 
   build() {
     Stack() {
-      Button('按钮遮挡')
+      Button('我是Native按钮，请试试能否点击')
         .onClick(() => {
           this.getUIContext().getPromptAction().showToast({
-            message: 'Button onClick'
+            message: '成功点击按钮'
           })
+        })
+        .position({
+          left: 0,
+          top: 100,
+        })
+      Stack() { Text('我是Native触摸区域，请试试能否触摸').fontColor(Color.White) }
+        .onTouch((e) => {
+          if (e.type == TouchType.Down) {
+            this.getUIContext().getPromptAction().showToast({
+              message: '成功触发TouchDown'
+            })
+          } else if (e.type == TouchType.Up) {
+            this.getUIContext().getPromptAction().showToast({
+              message: '成功触发TouchUp'
+            })
+          }
+        })
+        .backgroundColor('#6200EE')
+        .padding(10)
+        .position({
+          left: 0,
+          top: 150,
         })
       // Row() {
       //   Stack().width(50).height(50).backgroundColor(Color.Green).hitTestBehavior(HitTestMode.Transparent)

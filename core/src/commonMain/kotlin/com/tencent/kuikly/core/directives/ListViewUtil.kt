@@ -112,7 +112,7 @@ private fun doScroll(
             }
             for (child in templateChildren) {
                 if (child is LazyLoopDirectivesView<*>) {
-                    child.createItemByOffset(finalOffset)
+                    child.createItemByOffset(finalOffset, false)
                 }
             }
         }

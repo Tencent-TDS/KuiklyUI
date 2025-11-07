@@ -16,9 +16,11 @@
 package com.tencent.kuikly.demo.pages.compose
 
 import com.tencent.kuikly.compose.ComposeContainer
+import com.tencent.kuikly.compose.extension.setEvent
 import com.tencent.kuikly.compose.foundation.background
 import com.tencent.kuikly.compose.foundation.clickable
 import com.tencent.kuikly.compose.foundation.layout.Box
+import com.tencent.kuikly.compose.foundation.layout.Row
 import com.tencent.kuikly.compose.foundation.layout.fillMaxSize
 import com.tencent.kuikly.compose.foundation.layout.padding
 import com.tencent.kuikly.compose.foundation.layout.size
@@ -28,6 +30,7 @@ import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.core.annotations.Page
+import com.tencent.kuikly.core.base.event.EventName
 
 @Page("OverNativeClickDemo")
 internal class OverNativeClickDemo : ComposeContainer() {
@@ -35,24 +38,42 @@ internal class OverNativeClickDemo : ComposeContainer() {
         super.willInit()
         setContent {
             ComposeNavigationBar {
-                Box(
+                Row(
                     modifier =
                     Modifier
                         .fillMaxSize()
                         .background(
                             Color.Green.copy(0.3f),
-                        ).padding(top = 100.dp),
+                        ),
                 ) {
                     Box(
                         modifier =
                         Modifier
-                            .size(50.dp)
-                            .background(Color.Red)
+                            .padding(start = 20.dp)
+                            .size(50.dp, 150.dp)
+                            .background(Color.Red.copy(alpha = .75f))
                             .clickable {
                                 println("ComposeSceneMediator.result = ComposeClick ")
-                            },
+                            }
+                            .setEvent(EventName.CLICK.value) {},
                     ) {
-                        Text("Compose点击，原生不触发")
+                        Text("Compose点击，原生不触发", color = Color.White)
+                    }
+
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(50.dp, 150.dp)
+                                .background(Color.Blue.copy(alpha = .75f))
+                                .clickable {
+                                    println("ComposeSceneMediator.result = ComposeClick ")
+                                }
+                                .setEvent(EventName.TOUCH_DOWN.value) {}
+                                .setEvent(EventName.TOUCH_MOVE.value) {}
+                                .setEvent(EventName.TOUCH_UP.value) {}
+                                .setEvent(EventName.TOUCH_CANCEL.value) {},
+                    ) {
+                        Text("ComposeTouch，原生不触发", color = Color.White)
                     }
                 }
             }

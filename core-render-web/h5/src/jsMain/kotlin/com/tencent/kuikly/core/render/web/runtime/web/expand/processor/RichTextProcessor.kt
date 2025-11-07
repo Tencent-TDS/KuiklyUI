@@ -84,6 +84,10 @@ object RichTextProcessor : IRichTextProcessor {
             // if exceeds one line, then need to set to multi-line wrapping
             ele.style.whiteSpace = "pre-wrap"
             ele.style.overflowY = "hidden"
+        } else if (lines == 1) {
+            // Single line with ellipsis
+            ele.style.whiteSpace = "nowrap"
+            ele.style.textOverflow = "ellipsis"
         } else {
             // Clear multi-line style
             ele.style.display = "inline-block"
@@ -125,13 +129,15 @@ object RichTextProcessor : IRichTextProcessor {
         val originParent = ele.parentElement
         val index = indexOfChild(ele)
         var newEle = measureElement
-        if(view.isRichTextValues()) {
-            newEle = ele
-        } else {
+        var useMeasureElement = !view.isRichTextValues()
+        if (useMeasureElement) {
             // Copy all styles at once using cssText for better performance
             newEle.style.cssText = ele.style.cssText
             // Set content after style copying to avoid potential style interference
             newEle.innerText = renderText.ifEmpty { ele.innerText }
+        } else {
+            // can not measure for RichTextValues
+            newEle = ele
         }
 
         // Remove width
@@ -145,10 +151,10 @@ object RichTextProcessor : IRichTextProcessor {
         // No truncation or ellipsis when calculating actual size
         newEle.style.whiteSpace = "pre-wrap"
         // If lines are set, also need to limit maximum number of lines
-        if (view.numberOfLines > 0) {
+        if (useMeasureElement) {
             setMultiLineStyle(view.numberOfLines, newEle)
-            setMultiLineStyle(view.numberOfLines, ele)
         }
+        setMultiLineStyle(view.numberOfLines, ele)
         // Insert the node into the page to complete rendering, used to get the actual size of the node
         kuiklyDocument.body?.appendChild(newEle)
         // Element width
@@ -187,10 +193,11 @@ object RichTextProcessor : IRichTextProcessor {
         // Actual height
         val realHeight = h
 
-        if (index != -1 && originParent != null) {
+        if (index != -1 && originParent != null && view.isRichTextValues()) {
             // After recalculating element size, the old element has been removed, if the node
             // itself was already inserted into the page, need to reinsert it into the original
             // parent node
+            // measureElement is removed so don't need insert newEle
             insertChild(originParent, newEle, index)
         }
         Log.trace("real size by dom, size:", realWidth, realHeight)

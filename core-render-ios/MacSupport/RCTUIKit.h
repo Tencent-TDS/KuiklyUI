@@ -126,9 +126,9 @@ enum : NSInteger {
 };
 
 typedef NSUInteger UIViewAnimationOptions;
-typedef NSUInteger UIViewKeyframeAnimationOptions; // [macOS]
+typedef NSUInteger UIViewKeyframeAnimationOptions;
 
-// [macOS Animation options
+// Animation options
 enum : NSUInteger {
     UIViewAnimationOptionAllowUserInteraction = 1 << 0,
     UIViewAnimationOptionRepeat = 1 << 1,
@@ -138,7 +138,6 @@ enum : NSUInteger {
     UIViewAnimationOptionCurveEaseOut = 2 << 16,
     UIViewAnimationOptionCurveLinear = 3 << 16,
 };
-// macOS]
 
 typedef NS_ENUM(NSInteger, UIViewAnimationCurve) {
     UIViewAnimationCurveEaseInOut = 0,

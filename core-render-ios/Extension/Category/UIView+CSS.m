@@ -99,12 +99,10 @@
 @property (nonatomic, strong) CSSLazyAnimationImp *css_lazyAnimationImp;
 @property (nonatomic, strong) CSSGradientLayer *css_gradientLayer;
 @property (nonatomic, strong) CSSBorderLayer *css_borderLayer;
-// [macOS] 统一使用UIKit类型，由RCTUIKit宏定义自动映射到对应的AppKit类型
 @property (nonatomic, strong) UITapGestureRecognizer *css_tapGR;
 @property (nonatomic, strong) UITapGestureRecognizer *css_doubleTapGR;
 @property (nonatomic, strong) UILongPressGestureRecognizer *css_longPressGR;
 @property (nonatomic, strong) UIPanGestureRecognizer *css_panGR;
-// macOS]
 @property (nonatomic, strong, readonly) NSMutableSet<NSString *> *css_didSetProps;
 
 @end
@@ -546,7 +544,7 @@
         self.frame = CGRectZero;
         return ;
     }
-    CGRect frame = CGRectValue(css_frame); // [macOS]
+    CGRect frame =  [css_frame CGRectValue];
     [self.layer.sublayers enumerateObjectsUsingBlock:^(__kindof CALayer * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
                 if (![obj isMemberOfClass:[CALayer class]]) {
                     [obj setNeedsLayout];
@@ -1217,8 +1215,8 @@
 
 - (void)setFrame:(CGRect)frame {
     [super setFrame:frame];
-    _contentView.css_frame = @(self.bounds);
-    _backgroundView.css_frame = @(self.bounds);
+    _contentView.css_frame = [NSValue valueWithCGRect:self.bounds];
+    _backgroundView.css_frame = [NSValue valueWithCGRect:self.bounds];
     [self p_updateShadowPathIfNeed];
 }
 

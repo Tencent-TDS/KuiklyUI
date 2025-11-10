@@ -11,10 +11,3 @@ target 'iosApp' do
   pod 'libpag', "~> 4.3.21"
 end
 
-target 'macApp' do
-  platform :osx, '10.15'
-  pod 'SDWebImage', '~> 5.20.1'
-  pod 'OpenKuiklyIOSRender', :path => '../'
-#  pod 'demo', :path => '../demo'
-end
-

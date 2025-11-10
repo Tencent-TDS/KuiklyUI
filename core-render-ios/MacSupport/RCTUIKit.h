@@ -929,12 +929,7 @@ NS_ASSUME_NONNULL_END
 
 #pragma mark RCTUIGraphicsImageRenderer
 
-#if !TARGET_OS_OSX
-typedef UIGraphicsImageRendererContext RCTUIGraphicsImageRendererContext;
-typedef UIGraphicsImageDrawingActions RCTUIGraphicsImageDrawingActions;
-typedef UIGraphicsImageRendererFormat RCTUIGraphicsImageRendererFormat;
-typedef UIGraphicsImageRenderer RCTUIGraphicsImageRenderer;
-#else
+#if TARGET_OS_OSX
 NS_ASSUME_NONNULL_BEGIN
 
 typedef NSGraphicsContext RCTUIGraphicsImageRendererContext;

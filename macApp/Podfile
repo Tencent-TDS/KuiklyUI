@@ -6,7 +6,9 @@ target 'macApp' do
 
   # Pods for macApp
   pod 'SDWebImage', '~> 5.20.1'
+  # pod 'libpag-macOS', '~> 4.5' pag-mac存在问题暂不可用
+  
   pod 'OpenKuiklyIOSRender', :path => '../'
-#  pod 'demo', :path => '../demo'
+  pod 'demo', :path => '../demo'
 
 end

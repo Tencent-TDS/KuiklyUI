@@ -72,7 +72,7 @@ import com.tencent.kuikly.compose.ui.platform.ViewConfiguration
 import com.tencent.kuikly.compose.ui.platform.simpleIdentityToString
 //import com.tencent.kuikly.compose.ui.platform.simpleIdentityToString
 import com.tencent.kuikly.compose.ui.semantics.SemanticsConfiguration
-//import com.tencent.kuikly.compose.ui.semantics.generateSemanticsId
+import com.tencent.kuikly.compose.ui.semantics.generateSemanticsId
 import com.tencent.kuikly.compose.ui.unit.Constraints
 import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.DpSize
@@ -106,8 +106,7 @@ open class LayoutNode(
     // The unique semantics ID that is used by all semantics modifiers attached to this LayoutNode.
     // TODO(b/281907968): Implement this with a getter that returns the compositeKeyHash.
     // todo: jonasluo
-//    override var semanticsId: Int = generateSemanticsId()
-    override val semanticsId: Int = 0
+    override var semanticsId: Int = generateSemanticsId()
 ) : ComposeNodeLifecycleCallback,
     Remeasurement,
     OwnerScope,

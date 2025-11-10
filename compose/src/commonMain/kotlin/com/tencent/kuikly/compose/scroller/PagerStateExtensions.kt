@@ -28,10 +28,6 @@ import kotlin.math.min
  * 处理拖拽结束事件
  */
 internal fun PagerState.kuiklyWillDragEnd(params: WillEndDragParams, orientation: Orientation) {
-    kuiklyInfo.scrollView?.getViewAttr()?.apply {
-        flingEnable(false)
-    }
-
     val effectivePageSizePx = pageSize + pageSpacing
     if (effectivePageSizePx == 0) return
     

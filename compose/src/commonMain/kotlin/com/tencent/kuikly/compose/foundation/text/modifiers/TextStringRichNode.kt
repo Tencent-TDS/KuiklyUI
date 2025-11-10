@@ -37,6 +37,7 @@ import com.tencent.kuikly.compose.ui.node.invalidateSemantics
 import com.tencent.kuikly.compose.ui.node.requireDensity
 import com.tencent.kuikly.compose.ui.node.requireLayoutNode
 import com.tencent.kuikly.compose.ui.semantics.SemanticsPropertyReceiver
+import com.tencent.kuikly.compose.ui.semantics.text
 import com.tencent.kuikly.compose.ui.text.AnnotatedString
 import com.tencent.kuikly.compose.ui.text.MultiParagraph
 import com.tencent.kuikly.compose.ui.text.TextLayoutInput

@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import com.tencent.kuikly.compose.KuiklyApplier
@@ -72,6 +73,7 @@ import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.kuiklyOnScroll
 import com.tencent.kuikly.compose.scroller.kuiklyOnScrollEnd
 import com.tencent.kuikly.compose.scroller.kuiklyWillDragEnd
+import com.tencent.kuikly.compose.scroller.requestScrollToTop
 import com.tencent.kuikly.compose.scroller.tryExpandStartSize
 import com.tencent.kuikly.compose.ui.node.ComposeUiNode.Companion.ShadowLayoutConstructor
 import com.tencent.kuikly.compose.ui.scaleWithDensity
@@ -80,6 +82,8 @@ import com.tencent.kuikly.core.base.event.layoutFrameDidChange
 import com.tencent.kuikly.core.views.ScrollerAttr
 import com.tencent.kuikly.core.views.ScrollerEvent
 import com.tencent.kuikly.core.views.ScrollerView
+import com.tencent.kuikly.compose.scroller.animateScrollToTop
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -211,14 +215,14 @@ fun SubcomposeLayout(
     val compositionContext = rememberCompositionContext()
     val localMap = currentComposer.currentCompositionLocalMap
     var scrollViewRef: ScrollerView<ScrollerAttr, ScrollerEvent>? by remember { mutableStateOf(null) }
+    var newScrollViewDetected by remember { mutableStateOf(false) }
     val isVertical = orientation == Orientation.Vertical
     var scrollViewSize by remember { mutableStateOf(Size.Zero) } // dp值
     val materialized = currentComposer.materialize(modifier)
-    val isIOS = LocalConfiguration.current.isIOS
     scrollableState.kuiklyInfo.orientation = orientation
     scrollableState.kuiklyInfo.pageData = LocalConfiguration.current.pageData
-    val isPagerState = scrollableState is PagerState
-
+    val isPagerView = scrollableState is PagerState
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(scrollViewSize) {
         scrollableState.kuiklyInfo.updateContentSizeToRender()
@@ -230,10 +234,19 @@ fun SubcomposeLayout(
             return@LaunchedEffect
         }
 
-        scrollableState.kuiklyInfo.scrollView = scrollViewRef
-        scrollableState.kuiklyInfo.orientation = orientation
-        scrollViewRef?.extProps?.set(KuiklyInfoKey, scrollableState.kuiklyInfo as Any)
         val kuiklyInfo = scrollableState.kuiklyInfo
+
+        // Bind the new scrollView after computing reset flags so density is available for reset
+        kuiklyInfo.scrollView = scrollViewRef
+        if (newScrollViewDetected) {
+            kuiklyInfo.resetForNewScrollView()
+            scrollableState.requestScrollToTop()
+            newScrollViewDetected = false
+        }
+
+        // Set other properties after reset to ensure they are correctly set
+        kuiklyInfo.orientation = orientation
+        scrollViewRef?.extProps?.set(KuiklyInfoKey, kuiklyInfo as Any)
 
         scrollViewRef?.getViewEvent()?.run {
             layoutFrameDidChange {
@@ -241,7 +254,7 @@ fun SubcomposeLayout(
             }
 
             if (scrollableState is PagerState) {
-                willDragEndBySync(isSync = isIOS, handler = {
+                willDragEndBySync(isSync = false, handler = {
                     val viewportSize = kuiklyInfo.viewportSize
                     val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
                     // 实现分页滑动
@@ -325,6 +338,13 @@ fun SubcomposeLayout(
                 // 尝试扩容
                 scrollableState.tryExpandStartSize(offset, true)
             }
+
+            // Listen to native "scroll to top" event and scroll to index 0
+            scrollToTop {
+                coroutineScope.launch {
+                    scrollableState.animateScrollToTop()
+                }
+            }
         }
 
         scrollViewRef?.listenScrollEvent()
@@ -332,20 +352,20 @@ fun SubcomposeLayout(
 
     ComposeNode<KNode<*>, KuiklyApplier>(
         factory = {
-            val scrollView = ScrollerView<ScrollerAttr, ScrollerEvent>()
-            scrollViewRef = scrollView
+            val newView = ScrollerView<ScrollerAttr, ScrollerEvent>()
+            newScrollViewDetected = scrollViewRef !== newView
+            scrollViewRef = newView
 
-            KNode(scrollView) {
+            KNode(newView) {
                 attr {
+                    flingEnable(!isPagerView)
+                    setProp("isComposePager", if (isPagerView) 1 else 0)
                     if (orientation == Orientation.Vertical) {
                         flexDirectionColumn()
                     } else {
                         flexDirectionRow()
                     }
                     showScrollerIndicator(false)
-                    if (isPagerState) {
-                        flingEnable(false)
-                    }
                 }
                 event {
                     layoutFrameDidChange {

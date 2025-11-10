@@ -27,7 +27,6 @@ import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 class KRBackPressModule : KuiklyRenderBaseModule() {
 
     var isBackConsumed = false
-    var backConsumedTime = 0L
 
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
@@ -42,7 +41,6 @@ class KRBackPressModule : KuiklyRenderBaseModule() {
         } else {
             isBackConsumed = false
         }
-        backConsumedTime = System.currentTimeMillis()
     }
 
     companion object {

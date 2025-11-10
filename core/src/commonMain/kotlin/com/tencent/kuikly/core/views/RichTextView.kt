@@ -19,6 +19,7 @@ import com.tencent.kuikly.core.base.Attr
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.base.EdgeInsets
+import com.tencent.kuikly.core.base.PagerScope
 import com.tencent.kuikly.core.base.ScopeMarker
 import com.tencent.kuikly.core.base.Size
 import com.tencent.kuikly.core.base.ViewConst
@@ -511,6 +512,12 @@ open class PlaceholderSpan : ISpan {
  */
 open class ImageSpan: PlaceholderSpan(), IImageAttr {
 
+    private class MutablePagerScope : PagerScope {
+        override var pagerId: String = ""
+    }
+
+    private var scope = MutablePagerScope()
+
     private var size: Size = Size(0f, 0f)
 
     private var src: String = ""
@@ -526,8 +533,8 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
     private var imageParams: JSONObject? = null
     private var verticalAlignOffset = 0f
 
-    private var richTextFrame by observable(Frame.zero)
-    private var placeholderFrame by observable(Frame.zero)
+    private var richTextFrame by scope.observable(Frame.zero)
+    private var placeholderFrame by scope.observable(Frame.zero)
     private var view : ImageView? = null
     private var clickHandlerFn: ((ClickParams) -> Unit)? = null
 
@@ -640,6 +647,8 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
      * 构建 Placeholder + ImageView 组合
      */
     fun build(richTextView: RichTextView) {
+        val ctx = this
+        ctx.scope.pagerId = richTextView.pagerId
         // Placeholder
         apply {
             placeholderSize(size.width, size.height)
@@ -647,7 +656,6 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
                 placeholderFrame = frame
             }
         }
-        val ctx = this
         richTextFrame = richTextView.flexNode.layoutFrame
         richTextView.event {
             addLayoutFrameDidChange { frame ->

@@ -72,6 +72,12 @@ NS_ASSUME_NONNULL_BEGIN
  */
 - (void)setPropWithTag:(NSNumber *)tag propKey:(NSString *)propKey propValue:(id)propValue;
 /*
+ * @brief 向shadow内注入ContextParam
+ * @param shadow shadow实例
+ */
+- (void)setContextParamToShadow:(id<KuiklyRenderShadowProtocol>)shadow;
+
+/*
  * @brief 设置view对应的shadow对象
  * @param tag 对应的视图索引id
  * @param shadow shadow实例

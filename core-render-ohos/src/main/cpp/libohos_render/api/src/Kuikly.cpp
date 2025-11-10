@@ -232,6 +232,19 @@ ArkUI_NodeHandle KRRenderModuleGetViewWithTag(KRRenderModuleCallbackContext cont
     return nullptr;
 }
 
+const char* KRRenderModuleGetInstanceID(KRRenderModuleCallbackContext context) {
+    struct KRRenderModuleCallbackContextData *contextData = (struct KRRenderModuleCallbackContextData *)context;
+    if (!contextData) {
+        return nullptr;
+    }
+    if (auto renderModule = contextData->module_.lock()) {
+        std::shared_ptr<KRForwardRenderModule> forwardRenderModule =
+            std::dynamic_pointer_cast<KRForwardRenderModule>(renderModule);
+        return forwardRenderModule->GetInstanceId().c_str();
+    }
+    return nullptr;
+}
+
 void KRRenderModuleRegister(const char *moduleName,
                             KRRenderModuleOnConstruct onConstruct,
                             KRRenderModuleOnDestruct  onDestruct,
@@ -260,6 +273,9 @@ void KRRegisterFontAdapter(KRFontAdapter adapter, const char *fontFamily) {
 
 void KRRegisterImageAdapter(KRImageAdapter adapter) {
     KRImageAdapterManager::GetInstance()->RegisterImageAdapter(adapter);
+}
+void KRRegisterImageAdapterV2(KRImageAdapterV2 adapter) {
+    KRImageAdapterManager::GetInstance()->RegisterImageAdapterV2(adapter);
 }
 
 int KRLogLevelInfo = LogLevel::LOG_INFO;

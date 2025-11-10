@@ -26,10 +26,4 @@ allprojects {
         mavenCentral()
         mavenLocal()
     }
-    configurations.all {
-        resolutionStrategy.dependencySubstitution {
-            substitute(module("${MavenConfig.GROUP}:core")).using(project(":core"))
-            substitute(module("${MavenConfig.GROUP}:core-annotations")).using(project(":core-annotations"))
-        }
-    }
 }

@@ -246,6 +246,9 @@ export class ContextCodeHandler {
 ``Kuikly``框架为了灵活和可拓展性，不会内置实现异常处理，日志实现等功能，而是通过适配器的设计模式，将具体实现委托给宿主App实现。
 
 ``Kuikly``为鸿蒙端宿主工程提供了以下适配器, 需宿主平台按需实现
+1. 日志适配器: 用于给Kuikly框架和Kuikly业务实现日志打印。推荐宿主侧实现
+2. 页面路由适配器: 用于实现跳转到Kuikly容器。宿主侧必须实现
+3. PAG加载适配器: 用于给Kuikly提供PAG加载的能力。**宿主按需实现**（使用PAG组件时必须实现，可参考[AppKRPAGAdapter.ets](https://github.com/Tencent-TDS/KuiklyUI/blob/main/ohosApp/entry/src/main/ets/kuikly/adapters/AppKRPAGAdapter.ets)）
 
 ### 日志适配器示例
 请参考源码工程 core-render-ohos/entry 模块的**AppKRLogAdapter.ets**类。

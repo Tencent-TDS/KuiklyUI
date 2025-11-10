@@ -16,6 +16,7 @@
 package com.tencent.kuikly.compose.ui.node
 
 import androidx.compose.runtime.CompositionLocalMap
+import com.tencent.kuikly.compose.extension.approximatelyEqual
 import com.tencent.kuikly.compose.foundation.gestures.Orientation
 import com.tencent.kuikly.compose.ui.geometry.CornerRadius
 import com.tencent.kuikly.compose.ui.geometry.Offset
@@ -32,7 +33,6 @@ import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.views.KuiklyInfoKey
 import com.tencent.kuikly.compose.views.VirtualNodeView
-import com.tencent.kuikly.compose.extension.intEqual
 import com.tencent.kuikly.compose.gestures.KuiklyScrollInfo
 import com.tencent.kuikly.compose.layout.resetViewVisible
 import com.tencent.kuikly.compose.node.extPropsVar
@@ -189,7 +189,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         canvas.view = view
         super.draw(canvas)
         canvas.view = null
-        view.flush(density)
+        view.flush()
     }
 
     override fun invalidateDraw() {
@@ -282,6 +282,10 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         val scrollerView = view as ScrollerView<*, *>
         val kuiklyInfo = scrollerView.extProps[KuiklyInfoKey] as? KuiklyScrollInfo ?: return
 
+        if (curFrame != newFrame) {
+            kuiklyInfo.offsetDirty = true
+        }
+
         // Get current and new height
         val curHeight = if (kuiklyInfo.isVertical()) curFrame.height else curFrame.width
         val newHeight = if (kuiklyInfo.isVertical()) newFrame.height else newFrame.width
@@ -300,7 +304,6 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
 
         // Calculate maximum scrollable distance - use pixel units, consistent with composeOffset
         val currentContentSize = kuiklyInfo.currentContentSize // already in pixel units
-        kuiklyInfo.offsetDirty = true
         val viewportSize = if (kuiklyInfo.isVertical()) {
             (newHeight * kuiklyInfo.getDensity()).toInt()
         } else {
@@ -308,7 +311,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         }
 
         // Handle edge cases: if contentSize is 0 or viewportSize is 0, no scrolling needed
-        if (currentContentSize <= 0 || viewportSize <= 0) {
+        if (currentContentSize <= 0) {
             kuiklyInfo.composeOffset = 0f
             return
         }
@@ -350,7 +353,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
 
     private fun DeclarativeBaseView<*, *>.updateFrame(newFrame: Frame) {
         val curFrame = renderView?.currentFrame ?: Frame.zero
-        if (!curFrame.intEqual(newFrame)) {
+        if (!curFrame.approximatelyEqual(newFrame)) {
             val densityFrame = Frame(
                 x = newFrame.x,
                 y = newFrame.y,
@@ -498,7 +501,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             shadowColor = Color.Transparent
         }
 
-        fun DeclarativeBaseView<*, *>.flush(density: Density) {
+        fun DeclarativeBaseView<*, *>.flush() {
             val attr = getViewAttr()
             if (alpha != 1f || attr.getProp(StyleConst.OPACITY) != null) {
                 attr.opacity(alpha)
@@ -512,14 +515,13 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             if (hasBorderRadius || hasClip || attr.getProp(StyleConst.BORDER_RADIUS) != null) {
                 if (hasBorderRadius) {
                     val array = borderRadius
-                    with(density) {
-                        attr.borderRadius(
-                            topLeft = array[0].toDp().value,
-                            topRight = array[1].toDp().value,
-                            bottomRight = array[2].toDp().value,
-                            bottomLeft = array[3].toDp().value
-                        )
-                    }
+                    val densityValue = getPager().pagerDensity()
+                    attr.borderRadius(
+                        topLeft = array[0] / densityValue,
+                        topRight = array[1] / densityValue,
+                        bottomRight = array[2] / densityValue,
+                        bottomLeft = array[3] / densityValue
+                    )
                 } else {
                     // Use a very small borderRadius to implement clip effect, avoiding conflict with shadow
                     attr.borderRadius(if (hasClip) 0.001f else 0f)
@@ -527,7 +529,8 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             }
             if (shadowElevation > 0f && shadowColor != Color.Transparent || shadowHasSet) {
                 shadowHasSet = true
-                val elevationValue = with(density) { shadowElevation.toDp().value }
+                val densityValue = getPager().pagerDensity()
+                val elevationValue = shadowElevation / densityValue
                 attr.boxShadow(BoxShadow(
                     offsetX = 0f,
                     offsetY = elevationValue * 0.5f,

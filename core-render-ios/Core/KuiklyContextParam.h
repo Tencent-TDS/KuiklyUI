@@ -44,6 +44,9 @@ extern const KuiklyContextMode KuiklyContextMode_Framework;
 /// contextMode context产物模式
 @property (nonatomic, strong) KuiklyBaseContextMode *contextMode;
 
+/// isCompose 是否是Compose页面
+@property (nonatomic, assign) BOOL isCompose;
+
 /// 资源文件目录URL, 用于资源文件放置于非MainBundle根目录下时指定自定义路径
 @property (nonatomic, strong, readonly, nullable) NSURL *resourceFolderUrl;
 

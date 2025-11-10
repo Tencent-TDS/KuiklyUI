@@ -38,6 +38,7 @@ constexpr char kPropNameBouncesEnable[] = "bouncesEnable";
 constexpr char kPropNameLimitHeaderBounces[] = "limitHeaderBounces";
 constexpr char kPropNameShowScrollerIndicator[] = "showScrollerIndicator";
 constexpr char kPropNameNestedScroll[] = "nestedScroll";
+constexpr char kPropNameFlingEnable[] = "flingEnable";
 constexpr char kPropKeyNestedScrollForward[] = "forward";
 constexpr char kPropKeyNestedScrollBackward[] = "backward";
 
@@ -64,6 +65,10 @@ ArkUI_NodeHandle KRScrollerContentView::CreateNode() {
     return kuikly::util::GetNodeApi()->createNode(ARKUI_NODE_STACK);
 }
 
+void KRScrollerContentView::DidInit() {
+    RegisterEvent(NODE_EVENT_ON_AREA_CHANGE);
+}
+
 bool KRScrollerContentView::CustomSetViewFrame() {
     return true;
 }
@@ -71,6 +76,7 @@ bool KRScrollerContentView::CustomSetViewFrame() {
 void KRScrollerContentView::SetRenderViewFrame(const KRRect &frame) {
     IKRRenderViewExport::SetRenderViewFrame(frame);
     kuikly::util::UpdateNodeSize(GetNode(), frame.width, frame.height);
+    handling_set_view_frame_ = true;
 }
 
 void KRScrollerContentView::AddContentScrollObserver(IKRContentScrollObserver *observer) {
@@ -89,6 +95,31 @@ void KRScrollerContentView::DidInsertSubRenderView(const std::shared_ptr<IKRRend
     IKRRenderViewExport::DidInsertSubRenderView(sub_render_view, index);
     for (IKRContentScrollObserver *observer : contentScrollObservers_) {
         observer->ContentViewDidInsertSubview();
+    }
+}
+
+void KRScrollerContentView::DidMoveToParentView() {
+    IKRRenderViewExport::DidMoveToParentView();
+    for (IKRContentScrollObserver *observer : contentScrollObservers_) {
+        observer->ContentViewDidMoveToParentView();
+    }
+}
+
+void KRScrollerContentView::WillRemoveFromParentView() {
+    IKRRenderViewExport::WillRemoveFromParentView();
+    for (IKRContentScrollObserver *observer : contentScrollObservers_) {
+        observer->ContentViewWillRemoveFromParentView();
+    }
+}
+
+void KRScrollerContentView::OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEventType &event_type) {
+    if (event_type == NODE_EVENT_ON_AREA_CHANGE) {
+        if (handling_set_view_frame_) {
+            handling_set_view_frame_ = false;
+            if (auto parentView = std::dynamic_pointer_cast<KRScrollerView>(GetParentView())) {
+                parentView->TryApplyPendingFireOnScroll();
+            }
+        }
     }
 }
 
@@ -158,6 +189,8 @@ bool KRScrollerView::SetProp(const std::string &prop_key, const KRAnyValue &prop
         didHanded = SetLimitHeaderBounces(prop_value);
     } else if (kuikly::util::isEqual(prop_key, kPropNameNestedScroll)) {
         didHanded = SetNestedScroll(prop_value);
+    } else if (kuikly::util::isEqual(prop_key, kPropNameFlingEnable)) {
+        didHanded = SetFlingEnable(prop_value->toBool());
     }
     return didHanded;
 }
@@ -173,6 +206,9 @@ bool KRScrollerView::ResetProp(const std::string &prop_key) {
         if (prop_key == kPropNameNestedScroll) {
             didHanded = true;
             kuikly::util::ResetArkUINestedScroll(GetNode());
+        } else if (prop_key == kPropNameFlingEnable) {
+            didHanded = true;
+            SetFlingEnable(true);
         }
     }
     return didHanded;
@@ -207,8 +243,14 @@ void KRScrollerView::OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEventType &
 }
 
 void KRScrollerView::FireOnScrollEvent(ArkUI_NodeEvent *event) {
+    auto point = kuikly::util::GetArkUIScrollContentOffset(GetNode());
+    if (point.x == last_fired_scroll_x_ && point.y == last_fired_scroll_y_) {
+        return;
+    }
+    last_fired_scroll_x_ = point.x;
+    last_fired_scroll_y_ = point.y;
     // 分发滚动事件
-    DispatchDidScrollToObservers();
+    DispatchDidScrollToObservers(point);
     if (!on_scroll_callback_) {
         return;
     }
@@ -485,6 +527,12 @@ void KRScrollerView::OnWillScroll(ArkUI_NodeEvent *event) {
 
 void KRScrollerView::OnWillDragEnd(ArkUI_NodeEvent *event) {
     is_dragging_ = false;
+    if (!is_fling_enabled_) {
+        // call scrollBy with 0 velocity to stop fling
+        ArkUI_NumberValue values[] = {{.f32 = 0}, {.f32 = 0}};
+        ArkUI_AttributeItem item = {values, 2};
+        kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_SCROLL_BY, &item);
+    }
     ApplyContentInsetWhenDragEnd();
     FireWillDragEndEvent(event);
     FireEndDragEvent(event);
@@ -579,8 +627,7 @@ void KRScrollerView::RemoveScrollObserver(IKRScrollObserver *observer) {
     }
 }
 
-void KRScrollerView::DispatchDidScrollToObservers() {
-    auto point = kuikly::util::GetArkUIScrollContentOffset(GetNode());
+void KRScrollerView::DispatchDidScrollToObservers(KRPoint point) {
     for (IKRScrollObserver *observer : scroll_observers_) {
         observer->OnDidScroll(point.x, point.y);
     }
@@ -626,3 +673,11 @@ ArkUI_GestureInterruptResult KRScrollerView::OnInterruptGestureEvent(const ArkUI
     return IKRRenderViewExport::OnInterruptGestureEvent(info);
 }
 
+bool KRScrollerView::SetFlingEnable(bool enable) {
+    is_fling_enabled_ = enable;
+    return true;
+}
+
+void KRScrollerView::TryApplyPendingFireOnScroll() {
+    FireOnScrollEvent(nullptr);
+}

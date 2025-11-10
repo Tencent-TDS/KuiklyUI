@@ -65,8 +65,13 @@ internal class KuiklyPainter(
                     }
                 }
             }
+            error?.intrinsicSize // read to observe changes
+            fallback?.intrinsicSize // read to observe changes
             if (placeHolder != null && (_state.value is State.Empty || _state.value is State.Loading)) {
                 return placeHolder.intrinsicSize
+            }
+            if (_state.value is State.Error) {
+                return _state.value.painter?.intrinsicSize ?: Size.Unspecified
             }
             return self
         }
@@ -92,8 +97,11 @@ internal class KuiklyPainter(
             }
 
             loadFailure {
+                if (it.src != this@KuiklyPainter.src) {
+                    return@loadFailure
+                }
                 updateState(State.Error(error))
-                error?.also(imageView::applyFallback)
+                error?.applyTo(imageView)
             }
         }
 
@@ -105,11 +113,7 @@ internal class KuiklyPainter(
             }
         }
         if (_state.value is State.Error) {
-            if (_state.value.painter != null) {
-                imageView.applyFallback(_state.value.painter!!)
-            } else {
-                imageView.getViewAttr().src(src ?: "")
-            }
+            _state.value.painter?.applyTo(imageView) ?: imageView.getViewAttr().src("")
         } else {
             imageView.getViewAttr().src(src!!)
         }
@@ -147,6 +151,10 @@ internal class KuiklyPainter(
         loadImage(src)
     }
 
+    override fun restart() {
+        this._state.value = State.Empty
+    }
+
     override fun onAbandoned() {
         isActive = false
         (imageCache as? RememberObserver)?.onAbandoned()
@@ -166,12 +174,5 @@ internal class KuiklyPainter(
         val src = this@KuiklyPainter.src ?: return
         val cache = loadImage(src)
         drawImage(cache, dstSize = size.toIntSize())
-    }
-}
-
-private fun ImageView.applyFallback(painter: Painter) {
-    when (painter) {
-        is KuiklyPainter -> getViewAttr().src(painter.src ?: "")
-        is ColorPainter, is BrushPainter -> painter.applyTo(this)
     }
 }

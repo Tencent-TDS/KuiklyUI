@@ -20,9 +20,11 @@ package com.tencent.kuikly.compose
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.InternalComposeApi
+import com.tencent.kuikly.compose.coroutines.internal.ComposeDispatcher
 import com.tencent.kuikly.compose.foundation.event.OnBackPressedDispatcher
 import com.tencent.kuikly.compose.foundation.event.OnBackPressedDispatcherOwner
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
+import com.tencent.kuikly.compose.ui.GlobalSnapshotManager
 import com.tencent.kuikly.compose.ui.InternalComposeUiApi
 import com.tencent.kuikly.compose.ui.platform.WindowInfoImpl
 import com.tencent.kuikly.compose.ui.scene.ComposeScene
@@ -33,19 +35,14 @@ import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
 import com.tencent.kuikly.compose.ui.util.fastRoundToInt
 import com.tencent.kuikly.compose.ui.KuiklyImageCacheManager
+import com.tencent.kuikly.core.base.BackPressHandler
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.event.layoutFrameDidChange
 import com.tencent.kuikly.core.layout.Frame
-import com.tencent.kuikly.core.module.BackPressModule
-import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.module.VsyncModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
-import com.tencent.kuikly.core.pager.IPagerEventObserver
 import com.tencent.kuikly.core.pager.Pager
-import com.tencent.kuikly.core.timer.setTimeout
 import com.tencent.kuikly.core.views.DivView
-import com.tencent.kuiklyx.coroutines.Kuikly
-import kotlinx.coroutines.Dispatchers
 import kotlin.coroutines.CoroutineContext
 
 fun ComposeContainer.setContent(content: @Composable () -> Unit) {
@@ -70,17 +67,9 @@ open class ComposeContainer :
         DivView()
     }
 
-    private var innerOnBackPressedDispatcher: OnBackPressedDispatcher? = null
-
     internal val imageCacheManager by lazy(LazyThreadSafetyMode.NONE) {
         KuiklyImageCacheManager(this)
     }
-
-    override val onBackPressedDispatcher: OnBackPressedDispatcher
-        get() {
-            ensureOnBackDispatcher()
-            return innerOnBackPressedDispatcher!!
-        }
 
     override fun viewDidLoad() {
         super.viewDidLoad()
@@ -100,7 +89,6 @@ open class ComposeContainer :
         pageData: JSONObject,
     ) {
         super.onCreatePager(pagerId, pageData)
-        initBackDispatcher()
 
         val frame =
             Frame(
@@ -140,11 +128,13 @@ open class ComposeContainer :
 
     override fun pageDidAppear() {
         super.pageDidAppear()
+        GlobalSnapshotManager.resume()
         mediator?.updateAppState(true)
     }
 
     override fun pageDidDisappear() {
         super.pageDidDisappear()
+        GlobalSnapshotManager.pause()
     }
 
     override fun pageWillDestroy() {
@@ -166,6 +156,7 @@ open class ComposeContainer :
             boundsInWindow = IntRect(0, 0, windowInfo.containerSize.width, windowInfo.containerSize.height),
             invalidate = invalidate,
             coroutineContext = coroutineContext,
+            enableConsumeSnapshotWhenPause = enableConsumeSnapshotWhenPause(),
         )
 
     private fun createMediatorIfNeeded() {
@@ -185,7 +176,7 @@ open class ComposeContainer :
             ComposeSceneMediator(
                 rootKView,
                 windowInfo,
-                Dispatchers.Kuikly[this],
+                ComposeDispatcher(pagerId),
                 pagerDensity(),
                 ::createComposeScene,
             )
@@ -242,41 +233,24 @@ open class ComposeContainer :
         }
     }
 
-    /**
-     * 启用Back键拦截
-     * 1、若业务未让Kuikly完全接管，该拦截无效果
-     * 2、若业务让Kuikly完全接管，该拦截有效。Compose中可以需要搭配[BackHandler]启用拦截使用
-     * Kuikly中可以通过[ComposeContainer.onBackPressedDispatcher]注册进行拦截
-     */
-    private fun initBackDispatcher() {
-        onBackPressedDispatcher
+    override fun getBackPressHandler(): BackPressHandler {
+        return onBackPressedDispatcher
     }
 
-    private fun ensureOnBackDispatcher() {
-        if (innerOnBackPressedDispatcher == null) {
-            val backPressedDispatcher = OnBackPressedDispatcher()
-            val pager = this
-            pager.addPagerEventObserver(
-                object : IPagerEventObserver {
-                    override fun onPagerEvent(
-                        pagerEvent: String,
-                        eventData: JSONObject,
-                    ) {
-                        if (pagerEvent == "onBackPressed") {
-                            if (backPressedDispatcher.onBackPressedCallbacks.isEmpty()) {
-                                pager.acquireModule<BackPressModule>(BackPressModule.MODULE_NAME).backHandle(isConsumed = false)
-                            } else {
-                                pager.acquireModule<BackPressModule>(BackPressModule.MODULE_NAME).backHandle(isConsumed = true)
-                            }
-                            this@ComposeContainer.setTimeout {
-                                backPressedDispatcher.dispatchOnBackEvent()
-                            }
-                        }
-                    }
-                },
-            )
-            innerOnBackPressedDispatcher = backPressedDispatcher
-        }
+    override val onBackPressedDispatcher: OnBackPressedDispatcher by lazy { OnBackPressedDispatcher() }
+
+    override fun isAccessibilityRunning(): Boolean {
+        return pageData.isAccessibilityRunning
+    }
+
+    /**
+     * 当KuiklyCompose和原生Compose同时存在时候，通过覆盖该方法禁止KuiklyCompose页面在后台时
+     * 会继续消费Compose Runtime 共享 Snapshot的变更。解决原生Compose的重组状态偶现丢失的问题。
+     *
+     * 如果业务仅仅在Android平台使用了原生Compose，可以单独在Android平台返回false来规避问题
+     */
+    open fun enableConsumeSnapshotWhenPause(): Boolean {
+        return true
     }
 
     /**

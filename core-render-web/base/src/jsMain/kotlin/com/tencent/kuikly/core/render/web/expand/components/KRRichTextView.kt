@@ -267,7 +267,7 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
             FONT_FAMILY -> style.fontFamily = propValue.unsafeCast<String>()
             FONT_SIZE -> style.fontSize = propValue.toNumberFloat().toPxF()
             BACKGROUND_IMAGE -> setBackgroundImage(propValue)
-            else -> {}
+            else -> super.setProp(propKey, propValue)
         }
     }
 

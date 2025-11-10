@@ -118,14 +118,37 @@ void KRView::ProcessTouchEvent(ArkUI_NodeEvent *event) {
     auto input_event = kuikly::util::GetArkUIInputEvent(event);
     TryFireSuperTouchCancelEvent(input_event);
     auto action = kuikly::util::GetArkUIInputEventAction(input_event);
+    EnsureSuperTouchType();
+    if (super_touch_type_ == PARENT) {
+        auto parent_super_touch_handler = parent_super_touch_handler_.lock();
+        if (parent_super_touch_handler && parent_super_touch_handler->GetStopPropagation(action)) {
+            return;
+        }
+    }
+    bool handled = false;
     if (action == UI_TOUCH_EVENT_ACTION_DOWN) {
-        TryFireOnTouchDownEvent(input_event);
+        handled = TryFireOnTouchDownEvent(input_event);
     } else if (action == UI_TOUCH_EVENT_ACTION_MOVE) {
-        TryFireOnTouchMoveEvent(input_event);
+        handled = TryFireOnTouchMoveEvent(input_event);
     } else if (action == UI_TOUCH_EVENT_ACTION_UP) {
-        TryFireOnTouchUpEvent(input_event);
+        handled = TryFireOnTouchUpEvent(input_event);
     } else if (action == UI_TOUCH_EVENT_ACTION_CANCEL) {
-        TryFireOnTouchCancelEvent(input_event);
+        handled = TryFireOnTouchCancelEvent(input_event);
+    }
+    if (super_touch_type_ == SELF) {
+        if (super_touch_handler_->GetStopPropagation(action)) {
+            kuikly::util::StopPropagation(event);
+            super_touch_handler_->SetStopPropagation(action, false);
+        }
+    } else if (handled) {
+        if (super_touch_type_ == PARENT) {
+            auto parent_super_touch_handler = parent_super_touch_handler_.lock();
+            if (parent_super_touch_handler) {
+                parent_super_touch_handler->SetStopPropagation(action, true);
+            }
+        } else if (super_touch_type_ == NONE) {
+            kuikly::util::StopPropagation(event);
+        }
     }
 }
 
@@ -169,32 +192,36 @@ bool KRView::SetTargetHitTestMode(const std::string &mode) {
     return true;
 }
 
-void KRView::TryFireOnTouchDownEvent(ArkUI_UIInputEvent *input_event) {
+bool KRView::TryFireOnTouchDownEvent(ArkUI_UIInputEvent *input_event) {
     if (!touch_down_callback_) {
-        return;
+        return false;
     }
     touch_down_callback_(GenerateBaseParamsWithTouch(input_event, kPropNameTouchDown));
+    return true;
 }
 
-void KRView::TryFireOnTouchMoveEvent(ArkUI_UIInputEvent *input_event) {
+bool KRView::TryFireOnTouchMoveEvent(ArkUI_UIInputEvent *input_event) {
     if (!touch_move_callback_) {
-        return;
+        return false;
     }
     touch_move_callback_(GenerateBaseParamsWithTouch(input_event, kPropNameTouchMove));
+    return true;
 }
 
-void KRView::TryFireOnTouchUpEvent(ArkUI_UIInputEvent *input_event) {
+bool KRView::TryFireOnTouchUpEvent(ArkUI_UIInputEvent *input_event) {
     if (!touch_up_callback_) {
-        return;
+        return false;
     }
     touch_up_callback_(GenerateBaseParamsWithTouch(input_event, kPropNameTouchUp));
+    return true;
 }
 
-void KRView::TryFireOnTouchCancelEvent(ArkUI_UIInputEvent *input_event) {
+bool KRView::TryFireOnTouchCancelEvent(ArkUI_UIInputEvent *input_event) {
     if (!touch_up_callback_) {
-        return;
+        return false;
     }
     touch_up_callback_(GenerateBaseParamsWithTouch(input_event, kPropNameTouchCancel));
+    return true;
 }
 
 bool KRView::TryFireSuperTouchCancelEvent(ArkUI_UIInputEvent *input_event) {
@@ -261,4 +288,36 @@ void KRView::UpdateHitTestMode(bool shouldUseTarget) {
         using_target_hit_test_mode = shouldUseTarget;
         kuikly::util::UpdateNodeHitTestMode(GetNode(), shouldUseTarget ? target_hit_test_mode : ARKUI_HIT_TEST_MODE_NONE);
     }
+}
+
+void KRView::WillRemoveFromParentView() {
+    IKRRenderViewExport::WillRemoveFromParentView();
+    parent_super_touch_handler_.reset();
+    super_touch_type_ = UNKNOWN;
+}
+
+void KRView::EnsureSuperTouchType() {
+    if (super_touch_type_ != UNKNOWN) {
+        return;
+    }
+    
+    if (super_touch_handler_) {
+        super_touch_type_ = SELF;
+        return;
+    }
+
+    auto parent_view = GetParentView();
+    while (parent_view != nullptr) {
+        if (auto view = std::dynamic_pointer_cast<KRView>(parent_view)) {
+            auto handler = view->GetSuperTouchHandler();
+            if (handler) {
+                parent_super_touch_handler_ = handler;
+                super_touch_type_ = PARENT;
+                return;
+            }
+        }
+        parent_view = parent_view->GetParentView();
+    }
+
+    super_touch_type_ = NONE;
 }

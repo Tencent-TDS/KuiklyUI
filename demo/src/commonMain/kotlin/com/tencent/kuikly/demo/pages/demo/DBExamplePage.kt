@@ -17,6 +17,7 @@ package com.tencent.kuikly.demo.pages.demo
 
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.PagerScope
 import com.tencent.kuikly.core.base.Translate
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewRef
@@ -33,10 +34,10 @@ import kotlin.random.Random
 
 internal data class ImageInfo(val url: String, val width: Float, val height:Float )
 
-internal class DBSubTabItemData {
-    var tabTitle by observable("")
-    var contentImages by observableList<ImageInfo>()
-    var index by observable(0)
+internal class DBSubTabItemData(scope: PagerScope) {
+    var tabTitle by scope.observable("")
+    var contentImages by scope.observableList<ImageInfo>()
+    var index by scope.observable(0)
 }
 
 /*
@@ -71,7 +72,7 @@ internal class DBExamplePage : BasePager() {
             ImageInfo("", width = 1271f, height = 2219f)
         )
         for (i in 0..2) {
-            val tabItemData = DBSubTabItemData().apply {
+            val tabItemData = DBSubTabItemData(this).apply {
                 tabTitle = tabTitles[i]
                 for (j in 0 .. 2) {
                     contentImages.add(images[i])

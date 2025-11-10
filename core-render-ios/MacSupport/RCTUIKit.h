@@ -156,6 +156,25 @@ typedef NS_ENUM(NSInteger, UIReturnKeyType) {
 
 typedef unsigned long long UIAccessibilityTraits;
 
+// [macOS] Accessibility trait constants (iOS uses bitmask, macOS uses roles)
+static const UIAccessibilityTraits UIAccessibilityTraitNone = 0;
+static const UIAccessibilityTraits UIAccessibilityTraitButton = (1 << 0);
+static const UIAccessibilityTraits UIAccessibilityTraitLink = (1 << 1);
+static const UIAccessibilityTraits UIAccessibilityTraitSearchField = (1 << 2);
+static const UIAccessibilityTraits UIAccessibilityTraitImage = (1 << 3);
+static const UIAccessibilityTraits UIAccessibilityTraitSelected = (1 << 4);
+static const UIAccessibilityTraits UIAccessibilityTraitPlaysSound = (1 << 5);
+static const UIAccessibilityTraits UIAccessibilityTraitKeyboardKey = (1 << 6);
+static const UIAccessibilityTraits UIAccessibilityTraitStaticText = (1 << 7);
+static const UIAccessibilityTraits UIAccessibilityTraitSummaryElement = (1 << 8);
+static const UIAccessibilityTraits UIAccessibilityTraitNotEnabled = (1 << 9);
+static const UIAccessibilityTraits UIAccessibilityTraitUpdatesFrequently = (1 << 10);
+static const UIAccessibilityTraits UIAccessibilityTraitStartsMediaSession = (1 << 11);
+static const UIAccessibilityTraits UIAccessibilityTraitAdjustable = (1 << 12);
+static const UIAccessibilityTraits UIAccessibilityTraitAllowsDirectInteraction = (1 << 13);
+static const UIAccessibilityTraits UIAccessibilityTraitCausesPageTurn = (1 << 14);
+static const UIAccessibilityTraits UIAccessibilityTraitHeader = (1 << 15);
+
 #pragma mark - Type Aliases
 
 // View aliases
@@ -206,6 +225,35 @@ typedef NSFontWeight UIFontWeight;
 
 // Accessibility alias
 @compatibility_alias UIAccessibilityCustomAction NSAccessibilityCustomAction;
+
+#pragma mark - Accessibility Notifications
+
+// [macOS] Accessibility notification constants
+#define UIAccessibilityScreenChangedNotification NSAccessibilityLayoutChangedNotification
+#define UIAccessibilityAnnouncementNotification NSAccessibilityAnnouncementRequestedNotification
+
+// [macOS] Accessibility notification functions
+NS_INLINE void UIAccessibilityPostNotification(NSAccessibilityNotificationName notification, id _Nullable argument) {
+    if ([notification isEqualToString:NSAccessibilityAnnouncementRequestedNotification]) {
+        // For announcements, use NSAccessibilityPostNotificationWithUserInfo with the announcement key
+        if (argument && [argument isKindOfClass:[NSString class]]) {
+            NSDictionary *userInfo = @{
+                NSAccessibilityAnnouncementKey: argument,
+                NSAccessibilityPriorityKey: @(NSAccessibilityPriorityHigh)
+            };
+            NSAccessibilityPostNotificationWithUserInfo(
+                [NSApp mainWindow],
+                NSAccessibilityAnnouncementRequestedNotification,
+                userInfo
+            );
+        }
+    } else {
+        // For other notifications (like layout changed), post to the specific element
+        if (argument) {
+            NSAccessibilityPostNotification(argument, notification);
+        }
+    }
+}
 
 // Activity indicator alias
 #define UIActivityIndicatorView RCTUIActivityIndicatorView

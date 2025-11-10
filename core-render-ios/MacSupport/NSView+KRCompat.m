@@ -322,6 +322,55 @@ static char kKUUserInteractionEnabledKey;
     self.accessibilityElement = isAccessibilityElement;
 }
 
+// [macOS] Accessibility traits compatibility - map iOS traits to macOS roles
+static const void *kAccessibilityTraitsKey = &kAccessibilityTraitsKey;
+
+- (UIAccessibilityTraits)accessibilityTraits {
+    NSNumber *traits = objc_getAssociatedObject(self, kAccessibilityTraitsKey);
+    return traits ? [traits unsignedLongLongValue] : 0;
+}
+
+- (void)setAccessibilityTraits:(UIAccessibilityTraits)accessibilityTraits {
+    objc_setAssociatedObject(self, kAccessibilityTraitsKey, @(accessibilityTraits), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    
+    // Map iOS traits to macOS accessibility roles
+    // iOS uses bitmask traits, macOS uses role strings and separate properties
+    
+    if (accessibilityTraits & (1 << 0)) { // UIAccessibilityTraitButton
+        self.accessibilityRole = NSAccessibilityButtonRole;
+    } else if (accessibilityTraits & (1 << 1)) { // UIAccessibilityTraitLink
+        self.accessibilityRole = NSAccessibilityLinkRole;
+    } else if (accessibilityTraits & (1 << 2)) { // UIAccessibilityTraitSearchField
+        self.accessibilityRole = NSAccessibilityTextFieldRole;
+    } else if (accessibilityTraits & (1 << 3)) { // UIAccessibilityTraitImage
+        self.accessibilityRole = NSAccessibilityImageRole;
+    } else if (accessibilityTraits & (1 << 7)) { // UIAccessibilityTraitStaticText
+        self.accessibilityRole = NSAccessibilityStaticTextRole;
+    } else if (accessibilityTraits & (1 << 15)) { // UIAccessibilityTraitHeader
+        self.accessibilityRole = NSAccessibilityGroupRole;
+        self.accessibilitySubrole = @"AXHeader";
+    }
+    
+    // Handle selected state
+    if (accessibilityTraits & (1 << 4)) { // UIAccessibilityTraitSelected
+        self.accessibilitySelected = YES;
+    }
+    
+    // Handle enabled state
+    if (accessibilityTraits & (1 << 9)) { // UIAccessibilityTraitNotEnabled
+        self.accessibilityEnabled = NO;
+    }
+}
+
+// [macOS] Accessibility hint compatibility - map to macOS accessibilityHelp
+- (NSString *)accessibilityHint {
+    return self.accessibilityHelp;
+}
+
+- (void)setAccessibilityHint:(NSString *)accessibilityHint {
+    self.accessibilityHelp = accessibilityHint;
+}
+
 
 @end
 

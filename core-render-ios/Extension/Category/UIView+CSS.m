@@ -395,14 +395,8 @@
 - (void)setCss_accessibilityRole:(NSString *)css_accessibilityRole {
     if (self.css_accessibilityRole != css_accessibilityRole) {
         objc_setAssociatedObject(self, @selector(css_accessibilityRole), css_accessibilityRole, OBJC_ASSOCIATION_RETAIN);
-        #if TARGET_OS_OSX // [macOS]
-        // macOS：无 UIAccessibilityTraits，后续用 NSAccessibilityRole 等回收；此处保持最小无功能变化
-        // 先依据是否提供 role 决定可达性元素标记
-        self.isAccessibilityElement = css_accessibilityRole.length > 0;
-        #else
         self.accessibilityTraits = [KRConvertUtil kr_accessibilityTraits:css_accessibilityRole];
         self.isAccessibilityElement = self.accessibilityTraits != UIAccessibilityTraitNone;
-        #endif // [macOS]
     }
 }
 

@@ -20,6 +20,9 @@
 
 #define UIEvent NSEvent
 
+// Forward declaration for accessibility compatibility
+typedef unsigned long long UIAccessibilityTraits;
+
 NS_ASSUME_NONNULL_BEGIN
 
 @interface NSView (KuiklyCompat)
@@ -44,6 +47,10 @@ NS_ASSUME_NONNULL_BEGIN
 #pragma mark -
 
 - (void)setIsAccessibilityElement:(BOOL)isAccessibilityElement;
+
+// [macOS] Accessibility traits and hint compatibility
+@property (nonatomic, assign) UIAccessibilityTraits accessibilityTraits;
+@property (nonatomic, copy, nullable) NSString *accessibilityHint;
 
 #pragma mark -
 

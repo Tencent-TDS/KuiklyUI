@@ -487,14 +487,14 @@
     CGSize newSize = CGSizeMake(image.size.width * ratio, image.size.height * ratio);
     
 #if TARGET_OS_OSX // [macOS]
-    RCTUIGraphicsImageRendererFormat *format = [RCTUIGraphicsImageRendererFormat defaultFormat]; // [macOS]
-    format.scale = [NSScreen mainScreen].backingScaleFactor ?: 1.0; // [macOS]
-    format.opaque = YES; // [macOS]
-    RCTUIGraphicsImageRenderer *renderer = [[RCTUIGraphicsImageRenderer alloc] initWithSize:newSize format:format]; // [macOS]
-    UIImage *resizedImage = [renderer imageWithActions:^(RCTUIGraphicsImageRendererContext *rendererContext) { // [macOS]
-        [image drawInRect:CGRectMake(0, 0, newSize.width, newSize.height)]; // [macOS]
-    }]; // [macOS]
-    return resizedImage; // [macOS]
+    RCTUIGraphicsImageRendererFormat *format = [RCTUIGraphicsImageRendererFormat defaultFormat];
+    format.scale = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
+    format.opaque = YES;
+    RCTUIGraphicsImageRenderer *renderer = [[RCTUIGraphicsImageRenderer alloc] initWithSize:newSize format:format];
+    UIImage *resizedImage = [renderer imageWithActions:^(RCTUIGraphicsImageRendererContext *rendererContext) {
+        [image drawInRect:CGRectMake(0, 0, newSize.width, newSize.height)];
+    }];
+    return resizedImage;
 #else // [macOS]
     UIGraphicsBeginImageContextWithOptions(newSize, YES, 0.0);
     [image drawInRect:CGRectMake(0, 0, newSize.width, newSize.height)];

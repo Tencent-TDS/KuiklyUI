@@ -561,9 +561,6 @@
 }
 
 + (UIAccessibilityTraits)kr_accessibilityTraits:(id)value {
-    #if TARGET_OS_OSX
-    (void)value; return 0; // macOS 暂不支持，返回空 traits
-    #else
     NSString *returnKeyType = [self hr_toString:value];
     if ([returnKeyType isEqualToString:@"button"]) {
         return UIAccessibilityTraitButton;
@@ -577,7 +574,6 @@
         return UIAccessibilityTraitButton | UIAccessibilityTraitSelected;
     }
     return UIAccessibilityTraitNone;
-    #endif
 }
 
 + (NSString *)hr_base64Decode:(NSString *)string {

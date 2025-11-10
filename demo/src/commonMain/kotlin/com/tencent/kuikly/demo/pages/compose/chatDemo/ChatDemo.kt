@@ -249,17 +249,20 @@ internal class ChatDemo : ComposeContainer() {
             modifier = modifier,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "AI智能对话",
-                fontSize = 22.sp,
-                color = Color.Black,
-                fontWeight = FontWeight.Bold
+            // Kuikly logo
+            @OptIn(InternalResourceApi::class)
+            val logoDrawable = DrawableResource(ImageUri.pageAssets(LOGO_ICON).toUrl("ChatDemo"))
+            Image(
+                painter = painterResource(logoDrawable),
+                contentDescription = "Kuikly Logo",
+                modifier = Modifier
+                    .width(240.dp)
+                    .height(70.dp)
             )
-            Spacer(modifier = Modifier.height(20.dp))
+            
+            Spacer(modifier = Modifier.height(40.dp))
 
             // 使用循环生成卡片 - 艺术化设计
             val promptBoxes = listOf(
@@ -300,17 +303,19 @@ internal class ChatDemo : ComposeContainer() {
                     Color(0xFFE8D5F2)
                 )
             )
+            // kuikly logo
 
-            promptBoxes.forEachIndexed { index, box ->
-                // 根据索引决定对齐方式：偶数左对齐，奇数右对齐
+            promptBoxes.forEachIndexed { _, box ->
+                
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp),
-                    contentAlignment = if (index % 2 == 0) Alignment.CenterStart else Alignment.CenterEnd
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Box(
                         modifier = Modifier
+                            .fillMaxWidth(0.92f)
                             .clip(RoundedCornerShape(16.dp))
                             .background(
                                 com.tencent.kuikly.compose.ui.graphics.Brush.Companion.horizontalGradient(
@@ -318,25 +323,28 @@ internal class ChatDemo : ComposeContainer() {
                                 )
                             )
                             .clickable { onInputTextChange(box.prompt) }
-                            .padding(vertical = 14.dp, horizontal = 16.dp)
+                            .padding(vertical = 16.dp, horizontal = 18.dp)
                     ) {
-                        Column {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             Text(
                                 text = box.title,
-                                fontSize = 16.sp,
+                                fontSize = 20.sp,
                                 color = Color.Black,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = box.subtitle,
-                                fontSize = 12.sp,
+                                fontSize = 15.sp,
                                 color = Color.Black.copy(alpha = 0.9f)
                             )
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
             }
 
         }
@@ -458,6 +466,7 @@ internal class ChatDemo : ComposeContainer() {
     companion object {
         private const val BACK_ICON = "ic_back.png"
         private const val SEND_ICON = "ic_send.png"
+        private const val LOGO_ICON = "kuikly_logo.png"
 
         private const val PLACEHOLDER = "Type something..."
         private val markdown = """

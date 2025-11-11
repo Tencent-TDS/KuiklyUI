@@ -71,6 +71,10 @@ class ObservableList<T>(
         return collectionMethodPropertyDelegate.removeAll(innerList, elements)
     }
 
+    override fun toString(): String {
+        return innerList.toString()
+    }
+
     /**
      * Myers diff算法
      * 通过比较新旧列表的差异，只执行必要的添加、删除和移动操作

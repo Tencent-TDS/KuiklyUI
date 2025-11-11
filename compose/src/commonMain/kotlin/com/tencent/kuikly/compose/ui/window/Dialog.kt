@@ -77,13 +77,15 @@ fun DialogProperties(
     dismissOnBackPress: Boolean = true,
     dismissOnClickOutside: Boolean = true,
     usePlatformDefaultWidth: Boolean = true,
-    scrimColor: Color = DefaultScrimColor
+    scrimColor: Color = DefaultScrimColor,
+    inWindow: Boolean = true
 ): DialogProperties {
     return KuiklyDialogProperties(
         dismissOnBackPress,
         dismissOnClickOutside,
         usePlatformDefaultWidth,
-        scrimColor = scrimColor
+        scrimColor = scrimColor,
+        inWindow = inWindow
     )
 }
 
@@ -98,12 +100,14 @@ fun DialogProperties(
  * @property usePlatformDefaultWidth Whether the width of the dialog's content should be limited to
  * the platform default, which is smaller than the screen width.
  * **Might be used only as named argument**.
+ * @property inWindow when true the dialog in single window, when false user current window
  */
 @Immutable
 interface DialogProperties {
     val dismissOnBackPress: Boolean get() = true
     val dismissOnClickOutside: Boolean get() = true
     val usePlatformDefaultWidth: Boolean get() = true
+    val inWindow: Boolean get() = true
 }
 
 /**
@@ -133,6 +137,7 @@ internal class KuiklyDialogProperties(
     override val dismissOnBackPress: Boolean = true,
     override val dismissOnClickOutside: Boolean = true,
     override val usePlatformDefaultWidth: Boolean = true,
+    override val inWindow: Boolean = true,
     val usePlatformInsets: Boolean = true,
     val useSoftwareKeyboardInset: Boolean = true,
     val scrimColor: Color = Color.Transparent,
@@ -169,7 +174,8 @@ private fun DialogProperties.asKuiklyDialogProperties(): KuiklyDialogProperties 
     return this as? KuiklyDialogProperties ?: KuiklyDialogProperties(
         dismissOnBackPress,
         dismissOnClickOutside,
-        usePlatformDefaultWidth
+        usePlatformDefaultWidth,
+        inWindow
     )
 }
 
@@ -307,7 +313,7 @@ private fun DialogLayout(
             ReusableComposeNode<ComposeUiNode, KuiklyApplier>(
                 factory = {
                     KNode(ModalView().also {
-                        it.inWindow = true
+                        it.inWindow = properties.inWindow
                     }) {
                         getViewEvent().willDismiss {
                             backPressedDispatcher.onBackPressedDispatcher.dispatchOnBackEvent()

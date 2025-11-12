@@ -47,6 +47,9 @@ kotlin {
     iosArm64()
     iosSimulatorArm64()
 
+    macosX64()
+    macosArm64()
+
     sourceSets {
         all {
             languageSettings.optIn("kotlinx.cinterop.ExperimentalForeignApi")
@@ -91,12 +94,19 @@ kotlin {
         }
     }
 
+    sourceSets.appleMain {
+        dependsOn(commonMain)
+        dependencies {
+            implementation("io.ktor:ktor-client-darwin:2.3.10")
+        }
+    }
+
     targets.withType<KotlinNativeTarget> {
         val mainSourceSets = this.compilations.getByName("main").defaultSourceSet
         when {
 
             konanTarget.family.isAppleFamily -> {
-                mainSourceSets.dependsOn(sourceSets.getByName("iosMain"))
+                mainSourceSets.dependsOn(sourceSets.getByName("appleMain"))
             }
 
             konanTarget.family == Family.ANDROID -> {
@@ -140,6 +150,8 @@ dependencies {
         add("kspIosArm64", this)
         add("kspIosX64", this)
         add("kspIosSimulatorArm64", this)
+        add("kspMacosArm64", this)
+        add("kspMacosX64", this)
         add("kspAndroid", this)
         add("kspJs", this)
     }

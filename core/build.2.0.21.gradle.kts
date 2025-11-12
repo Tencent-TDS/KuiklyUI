@@ -46,6 +46,9 @@ kotlin {
     iosX64()
     iosArm64()
 
+    macosX64()
+    macosArm64()
+
     js(IR) {
         moduleName = "KuiklyCore-core"
         browser {
@@ -60,37 +63,31 @@ kotlin {
         binaries.executable() //将kotlin.js与kotlin代码打包成一份可直接运行的js文件
     }
 
-
-    // sourceSets
-    val commonMain by sourceSets.getting
-
-    val iosMain by sourceSets.creating {
-        dependsOn(commonMain)
+    sourceSets {
+        val commonMain by getting
+        val appleMain by sourceSets.creating {
+            dependsOn(commonMain)
+        }
+        val iosMain by sourceSets.creating {
+            dependsOn(appleMain)
+        }
+        val macosMain by sourceSets.creating {
+            dependsOn(appleMain)
+        }
     }
 
     targets.withType<KotlinNativeTarget> {
+        val appleMain by sourceSets.getting
         when {
             konanTarget.family.isAppleFamily -> {
                 val main by compilations.getting
-                main.defaultSourceSet.dependsOn(iosMain)
+                main.defaultSourceSet.dependsOn(appleMain)
                 val kuikly by main.cinterops.creating {
-                    defFile(project.file("src/iosMain/iosInterop/cinterop/ios.def"))
+                    defFile(project.file("src/appleMain/iosInterop/cinterop/ios.def"))
                 }
             }
         }
     }
-
-//    cocoapods {
-//        summary = "Some description for the Shared Module"
-//        homepage = "Link to the Shared Module homepage"
-//        ios.deploymentTarget = "14.1"
-//        if (!buildForAndroidCompat) {
-//            framework {
-//                isStatic = true
-//                baseName = "kuiklyCore"
-//            }
-//        }
-//    }
 }
 
 android {

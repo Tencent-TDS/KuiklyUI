@@ -7,13 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		7172F6BC2EB4AA6B0057D3E4 /* shared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7172F6BB2EB4AA6B0057D3E4 /* shared.framework */; };
 		912318ADA99CA49ACDAF4485 /* libPods-macApp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B035F9F282F5E9ED7B8F03EF /* libPods-macApp.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		56B7E2820AE86C16B59781DD /* Pods-macApp.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-macApp.debug.xcconfig"; path = "Target Support Files/Pods-macApp/Pods-macApp.debug.xcconfig"; sourceTree = "<group>"; };
-		7172F6BB2EB4AA6B0057D3E4 /* shared.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = shared.framework; sourceTree = "<group>"; };
 		71EFBB742EB1E9E400A1922C /* macApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = macApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B035F9F282F5E9ED7B8F03EF /* libPods-macApp.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-macApp.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E50D6A8A02AE3F0F2BE79D3B /* Pods-macApp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-macApp.release.xcconfig"; path = "Target Support Files/Pods-macApp/Pods-macApp.release.xcconfig"; sourceTree = "<group>"; };
@@ -22,8 +20,6 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		71EFBB762EB1E9E400A1922C /* macApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = macApp;
 			sourceTree = "<group>";
 		};
@@ -34,7 +30,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7172F6BC2EB4AA6B0057D3E4 /* shared.framework in Frameworks */,
 				912318ADA99CA49ACDAF4485 /* libPods-macApp.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -72,7 +67,6 @@
 		8E40819899D11722B19F6E07 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				7172F6BB2EB4AA6B0057D3E4 /* shared.framework */,
 				B035F9F282F5E9ED7B8F03EF /* libPods-macApp.a */,
 			);
 			name = Frameworks;
@@ -156,9 +150,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-macApp/Pods-macApp-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-macApp/Pods-macApp-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;

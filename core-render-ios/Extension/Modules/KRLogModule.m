@@ -140,14 +140,14 @@ static dispatch_semaphore_t gLogHandlerLock;
 + (void)logError:(NSString *)errorLog {
     NSString *message = [NSString stringWithFormat:@"[kuikly error]%@", errorLog];
     NSLog(@"%@", message);
-    [[KRLogModule logHandler] logError:message];
+    [[KRLogModule logHandler] logError:message]; // 日志落入接入层体系中
 #if DEBUG
-    [KRConvertUtil hr_alertWithTitle:@"kuikly error" message:message];
+    [KRConvertUtil hr_alertWithTitle:@"kuikly error" message:message]; // 本地开发可视化提醒
 #endif
 }
 
 + (void)logInfo:(NSString *)infoLog {
-    [[KRLogModule logHandler] logInfo:infoLog];
+    [[KRLogModule logHandler] logInfo:infoLog]; // 日志落入接入层体系中
 }
 
 
@@ -158,37 +158,34 @@ static dispatch_semaphore_t gLogHandlerLock;
     if (!task) {
         return ;
     }
-    
     [_logTasks addObject:task];
-    
     [self setNeedSyncLogTasks];
 }
 
 - (void)setNeedSyncLogTasks {
     // 检查和设置标志位
-    if (_needSyncLogTasks) {
-        return;
+    if (!_needSyncLogTasks) {
+        _needSyncLogTasks = YES;
+
+        [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
+            // 先重置标志位，允许新的批次立即开始
+            // 这样在复制任务期间添加的新任务会触发新的批次处理
+            self.needSyncLogTasks = NO;
+
+            // 获取并清空任务列表
+            NSArray *tasks = [self.logTasks copy];
+            [self.logTasks removeAllObjects];
+
+            // 在日志队列中执行任务
+            if (tasks.count > 0) {
+                [KuiklyRenderThreadManager performOnLogQueueWithBlock:^{
+                    for (dispatch_block_t task in tasks) {
+                        task();
+                    }
+                }];
+            }
+        }];
     }
-    _needSyncLogTasks = YES;
-    
-    [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
-        // 先重置标志位，允许新的批次立即开始
-        // 这样在复制任务期间添加的新任务会触发新的批次处理
-        self.needSyncLogTasks = NO;
-        
-        // 获取并清空任务列表
-        NSArray *tasks = [self.logTasks copy];
-        [self.logTasks removeAllObjects];
-        
-        // 在日志队列中执行任务
-        if (tasks.count > 0) {
-            [KuiklyRenderThreadManager performOnLogQueueWithBlock:^{
-                for (dispatch_block_t task in tasks) {
-                    task();
-                }
-            }];
-        }
-    }];
 }
 
 - (NSString *)logTimeDate {

@@ -166,9 +166,12 @@ static dispatch_semaphore_t gLogHandlerLock;
     if (!_needSyncLogTasks) {
         _needSyncLogTasks = YES;
         [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
-            self.needSyncLogTasks = NO;
+            // 先复制任务并清空数组
             NSArray *tasks = [self.logTasks copy];
             self.logTasks = [NSMutableArray new];
+            // 重置标志位，允许新的批次开始
+            self.needSyncLogTasks = NO;
+            // 异步执行日志任务
             [KuiklyRenderThreadManager performOnLogQueueWithBlock:^{
                 for (dispatch_block_t task in tasks) {
                     task();

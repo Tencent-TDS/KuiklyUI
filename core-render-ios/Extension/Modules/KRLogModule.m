@@ -163,27 +163,17 @@ static dispatch_semaphore_t gLogHandlerLock;
 }
 
 - (void)setNeedSyncLogTasks {
-    // 检查和设置标志位
     if (!_needSyncLogTasks) {
         _needSyncLogTasks = YES;
-
         [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
-            // 先重置标志位，允许新的批次立即开始
-            // 这样在复制任务期间添加的新任务会触发新的批次处理
             self.needSyncLogTasks = NO;
-
-            // 获取并清空任务列表
             NSArray *tasks = [self.logTasks copy];
-            [self.logTasks removeAllObjects];
-
-            // 在日志队列中执行任务
-            if (tasks.count > 0) {
-                [KuiklyRenderThreadManager performOnLogQueueWithBlock:^{
-                    for (dispatch_block_t task in tasks) {
-                        task();
-                    }
-                }];
-            }
+            self.logTasks = [NSMutableArray new];
+            [KuiklyRenderThreadManager performOnLogQueueWithBlock:^{
+                for (dispatch_block_t task in tasks) {
+                    task();
+                }
+            }];
         }];
     }
 }

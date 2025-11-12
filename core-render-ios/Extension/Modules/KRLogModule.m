@@ -51,7 +51,6 @@ static dispatch_semaphore_t gLogHandlerLock;
 
 @interface KRLogModule()
 
-@property (nonatomic, strong) dispatch_semaphore_t logTasksLock;
 @property (nonatomic, assign) BOOL needSyncLogTasks; // 防抖标志位，用于避免重复触发批量日志处理任务。
 @property (nonatomic, strong) NSMutableArray<dispatch_block_t> *logTasks;
 @property (nonatomic, assign) BOOL asyncLogEnable;
@@ -63,8 +62,6 @@ static dispatch_semaphore_t gLogHandlerLock;
     if (self = [super init]) {
         // 在异步日志模式下，日志任务会先存入这个数组，然后批量处理
         _logTasks = [NSMutableArray new];
-        // 初始化一个信号量为1，用于保护 _logTasks 数组的线程安全访问
-        _logTasksLock = dispatch_semaphore_create(1);
         // 设置异步日志开关
         _asyncLogEnable = [[[self class] logHandler] asyncLogEnable];
     }
@@ -143,53 +140,45 @@ static dispatch_semaphore_t gLogHandlerLock;
 + (void)logError:(NSString *)errorLog {
     NSString *message = [NSString stringWithFormat:@"[kuikly error]%@", errorLog];
     NSLog(@"%@", message);
-    [[KRLogModule logHandler] logError:message]; // 日志落入接入层体系中
+    [[KRLogModule logHandler] logError:message];
 #if DEBUG
-    [KRConvertUtil hr_alertWithTitle:@"kuikly error" message:message]; // 本地开发可视化提醒
+    [KRConvertUtil hr_alertWithTitle:@"kuikly error" message:message];
 #endif
 }
 
 + (void)logInfo:(NSString *)infoLog {
-    [[KRLogModule logHandler] logInfo:infoLog]; // 日志落入接入层体系中
+    [[KRLogModule logHandler] logInfo:infoLog];
 }
 
 
 #pragma mark - private
   
 - (void)addLogTask:(dispatch_block_t)task {
-    // 移除断言，允许从任何线程调用，因为日志方法可能从 Kotlin 层的任意线程调用
+    assert([KuiklyRenderThreadManager isContextQueue]);
     if (!task) {
         return ;
     }
     
-    dispatch_semaphore_wait(_logTasksLock, DISPATCH_TIME_FOREVER);
     [_logTasks addObject:task];
-    dispatch_semaphore_signal(_logTasksLock);
     
     [self setNeedSyncLogTasks];
 }
 
 - (void)setNeedSyncLogTasks {
-    // 使用原子操作检查和设置标志位
-    @synchronized(self) {
-        if (_needSyncLogTasks) {
-            return;
-        }
-        _needSyncLogTasks = YES;
+    // 检查和设置标志位
+    if (_needSyncLogTasks) {
+        return;
     }
+    _needSyncLogTasks = YES;
     
     [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
         // 先重置标志位，允许新的批次立即开始
         // 这样在复制任务期间添加的新任务会触发新的批次处理
-        @synchronized(self) {
-            self.needSyncLogTasks = NO;
-        }
+        self.needSyncLogTasks = NO;
         
-        // 原子地获取并清空任务列表
-        dispatch_semaphore_wait(self.logTasksLock, DISPATCH_TIME_FOREVER);
+        // 获取并清空任务列表
         NSArray *tasks = [self.logTasks copy];
         [self.logTasks removeAllObjects];
-        dispatch_semaphore_signal(self.logTasksLock);
         
         // 在日志队列中执行任务
         if (tasks.count > 0) {

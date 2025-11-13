@@ -411,6 +411,47 @@ internal class UpdateWithTest : BasePager() {
                                     println("Actual:   $list17")
                                     println("Pass: ${list17.toList() == listOf("A", "A", "C", "D")}")
 
+                                    // Test 17.1: 2000 items with only 2 differences - Performance Test
+                                    println("\n======= test 17.1: 2000 items with only 2 differences =========")
+                                    val list17_1 = ObservableList((0..1999).map { "Item$it" }.toMutableList())
+                                    val newList17_1 = (0..1999).map { 
+                                        when (it) {
+                                            500 -> "Modified500"
+                                            1500 -> "Modified1500"
+                                            else -> "Item$it"
+                                        }
+                                    }
+                                    val startTime17_1 = DateTime.currentTimestamp()
+                                    list17_1.updateWith(newList17_1)
+                                    val endTime17_1 = DateTime.currentTimestamp()
+                                    println("Expected size: 2000")
+                                    println("Actual size:   ${list17_1.size}")
+                                    println("Expected changes at index 500 and 1500")
+                                    println("Actual[500]:   ${list17_1[500]}")
+                                    println("Actual[1500]:  ${list17_1[1500]}")
+                                    println("Time taken: ${endTime17_1 - startTime17_1}ms")
+                                    println("Pass: ${list17_1.size == 2000 && list17_1[500] == "Modified500" && list17_1[1500] == "Modified1500"}")
+
+                                    // Test 17.2: 2000 items completely different - Performance Test
+                                    println("\n======= test 17.2: 2000 items completely different =========")
+                                    val list17_2 = ObservableList((0..1999).map { "OldItem$it" }.toMutableList())
+                                    val newList17_2 = (0..1999).map { "NewItem$it" }
+                                    val startTime17_2 = DateTime.currentTimestamp()
+                                    list17_2.updateWith(newList17_2)
+                                    val endTime17_2 = DateTime.currentTimestamp()
+                                    println("Expected size: 2000")
+                                    println("Actual size:   ${list17_2.size}")
+                                    println("Expected first: NewItem0, last: NewItem1999")
+                                    println("Actual first:   ${list17_2.first()}, last: ${list17_2.last()}")
+                                    println("Time taken: ${endTime17_2 - startTime17_2}ms")
+                                    println("Pass: ${list17_2.size == 2000 && list17_2.first() == "NewItem0" && list17_2.last() == "NewItem1999"}")
+
+                                    // Performance comparison
+                                    println("\n======= Performance Comparison =========")
+                                    println("2000 items with 2 differences: ${endTime17_1 - startTime17_1}ms")
+                                    println("2000 items completely different: ${endTime17_2 - startTime17_2}ms")
+                                    println("Difference: ${(endTime17_2 - startTime17_2) - (endTime17_1 - startTime17_1)}ms")
+
                                     // Test 18: single element same
                                     println("\n======= test 18: single element same ==========")
                                     val list18 = ObservableList(mutableListOf("A"))

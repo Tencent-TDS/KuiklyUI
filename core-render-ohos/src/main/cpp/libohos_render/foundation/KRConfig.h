@@ -79,6 +79,11 @@ class KRConfig {
         if (ime_mode != map.end()) {
             ime_mode_ = ime_mode->second->toBool();
         }
+        
+        auto fontSizeScaleFollowSystem = map.find("fontSizeScaleFollowSystem");
+        if (fontSizeScaleFollowSystem != map.end()) {
+            fontSizeScaleFollowSystem_ = fontSizeScaleFollowSystem->second->toBool();
+        }
     }
 
     /**
@@ -99,6 +104,10 @@ class KRConfig {
 
     float vp2px(float vp) {
         return vp * vp2px_;
+    }
+
+    float fp2px(float fp) {
+        return fp * fontSizeScale_ * vp2px_;
     }
 
     float Px2Vp(float px) {
@@ -137,6 +146,10 @@ class KRConfig {
         return ime_mode_;
     }
 
+    const bool fontSizeScaleFollowSystem() {
+        return fontSizeScaleFollowSystem_;
+    }
+
  private:
     float vp2px_ = 0;
     float fontWeightScale_ = 1;
@@ -148,6 +161,7 @@ class KRConfig {
     std::string files_dir_;
     std::string assets_dir_;
     bool ime_mode_ = false;
+    bool fontSizeScaleFollowSystem_ = true;
 };
 
 #endif  // CORE_RENDER_OHOS_KRCONFIG_H

@@ -26,6 +26,8 @@ NSString *const KRStatusBarHeightKey = @"statusBarHeight";
 NSString *const KRPlatformKey = @"platform";
 NSString *const KRDeviceWidthKey = @"deviceWidth";
 NSString *const KRDeviceHeightKey = @"deviceHeight";
+NSString *const KRActivityWidthKey = @"activityWidth";
+NSString *const KRActivityHeightKey = @"activityHeight";
 NSString *const KROsVersionKey = @"osVersion";
 NSString *const KRAppVersionKey = @"appVersion";
 NSString *const KRParamKey = @"param";
@@ -162,16 +164,21 @@ NSString *const KRDensity = @"density";
     if (!CGSizeEqualToSize(_lastViewSize, self.bounds.size)) {
         _lastViewSize = self.bounds.size;
         CGSize screenSize = [UIScreen mainScreen].bounds.size;
+        UIViewController *viewController = [self getViewController];
         NSDictionary *data = @{KRWidthKey: @(CGRectGetWidth(frame)),
                                KRHeightKey: @(CGRectGetHeight(frame)),
                                KRDeviceWidthKey:@(screenSize.width),
-                               KRDeviceHeightKey:@(screenSize.height)
+                               KRDeviceHeightKey:@(screenSize.height),
+                               KRActivityWidthKey:@(CGRectGetWidth(viewController.view.bounds)),
+                               KRActivityHeightKey:@(CGRectGetHeight(viewController.view.bounds)),
+                               
         };
         [_renderCore sendWithEvent:KRRootViewSizeDidChangedEventKey
                               data:data];
     }
   
 }
+
 
 - (void)insertSubview:(UIView *)view atIndex:(NSInteger)index {
     [super insertSubview:view atIndex:index];
@@ -246,6 +253,20 @@ NSString *const KRDensity = @"density";
         task();
     }
     _dellocTasks = nil;
+}
+
+/**
+ * 获取当前RenderView所属的ViewController
+ */
+- (UIViewController *)getViewController {
+    UIResponder *responder = self.nextResponder;
+    while (responder) {
+        if ([responder isKindOfClass:[UIViewController class]]) {
+            return (UIViewController *)responder;
+        }
+        responder = responder.nextResponder;
+    }
+    return nil;
 }
 
 #pragma mark - dealloc

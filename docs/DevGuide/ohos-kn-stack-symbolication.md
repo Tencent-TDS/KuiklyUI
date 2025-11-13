@@ -4,26 +4,16 @@
 
 ### Kotlin侧设置
 
-在build.gradle.kts中配置堆栈回溯能力为libbacktrace。
+在build.gradle.kts中增加add-light-debug=enable编译器参数。
 <br>参考源码工程：demo 模块配置。
 
-:::danger 注意
-1. 由于libbacktrace性能消耗大，所以只建议在Debug中使用。
-2. 性能一般的设备上libbacktrace也可能导致断点调试超时，因此在断点调试的时候也建议不要启用libbacktrace，性能特别好的设备除外。
-:::
 
 ```gradle.kts
 kotlin {
     ...
     ohosArm64 {
         binaries.sharedLib(){
-            if(debuggable){
-                freeCompilerArgs += "-Xadd-light-debug=enable"
-                freeCompilerArgs += "-Xbinary=sourceInfoType=libbacktrace"
-            }else{
-                freeCompilerArgs += "-Xadd-light-debug=enable"
-                freeCompilerArgs += "-Xbinary=sourceInfoType=noop"
-            }
+            freeCompilerArgs += "-Xadd-light-debug=enable"
         }
         val main by compilations.getting
     }

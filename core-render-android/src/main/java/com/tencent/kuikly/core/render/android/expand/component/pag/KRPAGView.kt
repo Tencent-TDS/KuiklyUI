@@ -17,9 +17,13 @@ package com.tencent.kuikly.core.render.android.expand.component.pag
 
 import android.content.Context
 import android.view.View
+import android.widget.ImageView
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+import com.tencent.kuikly.core.render.android.adapter.HRImageLoadOption
 import com.tencent.kuikly.core.render.android.adapter.IPAGViewListener
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
+import com.tencent.kuikly.core.render.android.css.ktx.frameHeight
+import com.tencent.kuikly.core.render.android.css.ktx.frameWidth
 import com.tencent.kuikly.core.render.android.expand.component.KRAPNGView
 import com.tencent.kuikly.core.render.android.expand.component.KRView
 import com.tencent.kuikly.core.render.android.expand.module.KRCodecModule
@@ -212,7 +216,9 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
     }
 
     private fun setFilePath(filePath: String) {
-        pagView?.setFilePath(filePath)
+        val pagImageLoadOption = HRImageLoadOption(filePath, frameWidth, frameHeight, false, ImageView.ScaleType.FIT_CENTER)
+        kuiklyRenderContext?.getImageLoader()?.convertAssetsPathIfNeed(pagImageLoadOption)
+        pagView?.setFilePath(pagImageLoadOption.src)
         hadFilePath = true
     }
 

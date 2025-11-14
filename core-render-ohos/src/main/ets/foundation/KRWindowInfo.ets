@@ -22,8 +22,25 @@ import { KRRect } from './KRRect';
 export class KRWindowInfo {
   private statusBarHeight: number | null = null;
   private windowRect: KRRect = new KRRect(0, 0, 0, 0);
+  private window: window.Window
+  private windowId: string = ""
+  public instanceCount: number = 0
+  private keyboardHeightChangeCallback = (data: number) => {
+    KRNativeManager.getInstance().keyboardHeightChange(px2vp(data), 300, this.windowId);
+  };
+
+  private windowSizeChangeCallback = () => {
+    let rect = this.window.getWindowProperties().windowRect;
+    this.windowRect.x = rect.left;
+    this.windowRect.y = rect.top;
+    this.windowRect.width = rect.width;
+    this.windowRect.height = rect.height;
+  };
 
   constructor(mainWindow: window.Window) {
+    this.window = mainWindow
+    this.windowId = mainWindow.getWindowProperties().id + ""
+    this.instanceCount = 1
     let height = mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM).topRect.height;
     this.statusBarHeight = px2vp(height);
     let rect = mainWindow.getWindowProperties().windowRect;
@@ -32,16 +49,8 @@ export class KRWindowInfo {
     this.windowRect.width = rect.width;
     this.windowRect.height = rect.height;
     try {
-      mainWindow.on('keyboardHeightChange', (data) => {
-        KRNativeManager.getInstance().keyboardHeightChange(px2vp(data), 300);
-      });
-      mainWindow.on('windowSizeChange', () => {
-        let rect = mainWindow.getWindowProperties().windowRect
-        this.windowRect.x = rect.left
-        this.windowRect.y = rect.top
-        this.windowRect.width = rect.width
-        this.windowRect.height = rect.height
-      })
+      mainWindow.on('keyboardHeightChange', this.keyboardHeightChangeCallback);
+      mainWindow.on('windowSizeChange', this.windowSizeChangeCallback)
     } catch (e) {
       KRRenderLog.e("WindowInfo", `setWindow on error code:${e.code}`)
     }
@@ -56,5 +65,26 @@ export class KRWindowInfo {
 
   getWindowRect(): KRRect {
     return this.windowRect;
+  }
+
+  addInstanceCount() {
+    this.instanceCount++;
+  }
+
+  subInstanceCount() {
+    this.instanceCount--;
+  }
+
+  getInstanceCount(): number {
+    return this.instanceCount;
+  }
+
+  offWindowCallback() {
+    try {
+      this.window.off('keyboardHeightChange', this.keyboardHeightChangeCallback);
+      this.window.off('windowSizeChange', this.windowSizeChangeCallback)
+    } catch (e) {
+      KRRenderLog.e("WindowInfo", `setWindow off error code:${e.code}`)
+    }
   }
 }

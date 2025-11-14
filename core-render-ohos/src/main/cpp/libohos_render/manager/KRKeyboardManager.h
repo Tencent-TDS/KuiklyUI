@@ -40,21 +40,26 @@ class KRKeyboardManager {
     /**
      * 添加对键盘事件的订阅者
      */
-    void AddKeyboardTask(std::string key, const KRKeyboardCallback &callback);
+    void AddKeyboardTask(std::string window_id, std::string key, const KRKeyboardCallback &callback);
 
     /**
      * 删除对键盘事件的订阅者
      */
-    void RemoveKeyboardTask(std::string key);
+    void RemoveKeyboardTask(std::string window_id, std::string key);
 
     /**
      * 通知响应键盘变化，内部分发给感兴趣的订阅者
      */
-    void NotifyKeyboardHeightChanged(float height, int duration_ms);
+    void NotifyKeyboardHeightChanged(float height, int duration_ms, std::string window_id);
 
  private:
     KRKeyboardManager() {}  // 构造函数私有化
-    std::unordered_map<std::string, KRKeyboardCallback> keyboard_listens_;
+    /**
+     * 键盘事件callback集合
+     * 外层map: <窗口ID, 该窗口的键盘事件callback集合>
+     * 内层map: <viewTag, 键盘事件callBack>
+     */
+    std::unordered_map<std::string, std::unordered_map<std::string, KRKeyboardCallback>> keyboard_listens_;
 };
 
 #endif  // CORE_RENDER_OHOS_KRKEYBOARDMANAGER_H

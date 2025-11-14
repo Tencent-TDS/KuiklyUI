@@ -16,8 +16,12 @@
 
 package com.tencent.kuikly.compose.ui.platform
 
+import com.tencent.kuikly.compose.extension.approximatelyEqual
+import com.tencent.kuikly.compose.ui.KuiklyPath
 import com.tencent.kuikly.compose.ui.geometry.MutableRect
 import com.tencent.kuikly.compose.ui.geometry.Offset
+import com.tencent.kuikly.compose.ui.geometry.Rect
+import com.tencent.kuikly.compose.ui.geometry.RoundRect
 import com.tencent.kuikly.compose.ui.graphics.Canvas
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.CompositingStrategy
@@ -26,12 +30,15 @@ import com.tencent.kuikly.compose.ui.graphics.DefaultShadowColor
 import com.tencent.kuikly.compose.ui.graphics.Fields
 import com.tencent.kuikly.compose.ui.graphics.Matrix
 import com.tencent.kuikly.compose.ui.graphics.Outline
+import com.tencent.kuikly.compose.ui.graphics.Path
 import com.tencent.kuikly.compose.ui.graphics.RenderEffect
 import com.tencent.kuikly.compose.ui.graphics.ReusableGraphicsLayerScope
 import com.tencent.kuikly.compose.ui.graphics.TransformOrigin
+import com.tencent.kuikly.compose.ui.graphics.addOutline
 import com.tencent.kuikly.compose.ui.node.KNode.Companion.alpha
 import com.tencent.kuikly.compose.ui.node.KNode.Companion.borderRadius
 import com.tencent.kuikly.compose.ui.node.KNode.Companion.clip
+import com.tencent.kuikly.compose.ui.node.KNode.Companion.clipPath
 import com.tencent.kuikly.compose.ui.node.KNode.Companion.measuredSize
 import com.tencent.kuikly.compose.ui.node.KNode.Companion.rotate
 import com.tencent.kuikly.compose.ui.node.KNode.Companion.scale
@@ -51,6 +58,7 @@ internal class RenderNodeLayer(
     private var size = IntSize.Zero
     private var position = IntOffset.Zero
     private var outline: Outline? = null
+    private var roundRect: RoundRect? = null
     private var matrixInvalided = true
     // Internal for testing
     internal val matrix = Matrix()
@@ -133,9 +141,13 @@ internal class RenderNodeLayer(
 
         val x = position.x
         val y = position.y
-        val outline = outline ?: return true
-
-        return isInOutline(outline, x, y)
+        roundRect?.also {
+            return isInRoundedRect(it, x, y)
+        }
+        outline?.also {
+            return isInOutline(it, x, y)
+        }
+        return x >= 0f && x < size.width && y >= 0f && y < size.height
     }
 
     private var mutatedFields: Int = 0
@@ -159,6 +171,7 @@ internal class RenderNodeLayer(
         this.spotShadowColor = scope.spotShadowColor
         this.compositingStrategy = scope.compositingStrategy
         this.outline = scope.outline
+        this.roundRect = scope.roundRect
         if (maybeChangedFields and Fields.MatrixAffectingFields != 0) {
             // updateMatrix()
             matrixInvalided = true
@@ -232,8 +245,18 @@ internal class RenderNodeLayer(
                 // todo renderEffect
                 alpha(alpha)
                 if (clip) {
-                    (outline as? Outline.Rounded)?.also {
-                        borderRadius(it.roundRect)
+                    if (outline != null) {
+                        val outline = outline!!
+                        val path = if (outline is Outline.Generic) {
+                            outline.path as? KuiklyPath
+                        } else {
+                            Path().apply { addOutline(outline) } as? KuiklyPath
+                        }
+                        if (path != null) {
+                            clipPath(path)
+                        }
+                    } else if (roundRect != null) {
+                        borderRadius(roundRect!!)
                     }
                     clip()
                 }

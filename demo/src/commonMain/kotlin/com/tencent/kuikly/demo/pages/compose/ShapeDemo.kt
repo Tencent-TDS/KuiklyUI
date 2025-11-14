@@ -94,13 +94,17 @@ internal class ShapeDemoPage : ComposeContainer() {
                 Text("background")
                 Row(Modifier.wrapContentHeight()) {
                     Box(Modifier.size(80.dp).background(Color.Red, shape = CircleShape))
-                    Box(Modifier.size(80.dp).background(Color.Red, shape = RoundedCornerShape(25.dp)))
                     Box(Modifier.size(80.dp).background(Color.Red, shape = RectangleShape))
+                    Box(Modifier.size(80.dp).background(Color.Red, shape = StarShape))
+                    Box(Modifier.size(80.dp).background(Color.Red, shape = RoundedCornerShape(25.dp)))
                 }
                 Text("border")
                 Row(Modifier.wrapContentHeight()) {
                     Box(Modifier.size(80.dp).border(2.dp, Color.Red, CircleShape))
                     Box(Modifier.size(80.dp).border(2.dp, Color.Red, RectangleShape))
+                    Box(Modifier.size(80.dp).border(2.dp, Color.Red, StarShape))
+                }
+                Row(Modifier.wrapContentHeight()) {
                     Image(
                         modifier = Modifier.size(80.dp).border(2.dp, Color.Red, CircleShape),
                         painter = rememberAsyncImagePainter("https://wfiles.gtimg.cn/wuji_dashboard/xy/starter/baa91edc.png"),
@@ -108,6 +112,11 @@ internal class ShapeDemoPage : ComposeContainer() {
                     )
                     Image(
                         modifier = Modifier.size(80.dp).border(2.dp, Color.Red, RectangleShape),
+                        painter = rememberAsyncImagePainter("https://wfiles.gtimg.cn/wuji_dashboard/xy/starter/baa91edc.png"),
+                        contentDescription = null
+                    )
+                    Image(
+                        modifier = Modifier.size(80.dp).border(2.dp, Color.Red, StarShape),
                         painter = rememberAsyncImagePainter("https://wfiles.gtimg.cn/wuji_dashboard/xy/starter/baa91edc.png"),
                         contentDescription = null
                     )

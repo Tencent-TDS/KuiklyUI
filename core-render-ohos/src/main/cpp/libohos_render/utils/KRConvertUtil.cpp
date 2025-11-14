@@ -14,6 +14,7 @@
  */
 
 #include "libohos_render/utils/KRConvertUtil.h"
+#include "libohos_render/foundation/KRConfig.h"
 #include <codecvt>
 #include <iostream>
 #include <locale>
@@ -173,12 +174,15 @@ ArkUI_BorderStyle ConverToBorderStyle(const std::string &string) {
     return ARKUI_BORDER_STYLE_SOLID;
 }
 
-float ConvertToDouble(const std::string &string) {
+float ConvertToFloat(const std::string &string) {
     if (string.length() == 1 && string == "0") {
         return 0;
     }
-    auto value = std::make_shared<KRRenderValue>(string);
-    return value->toFloat();
+    try {
+        return std::stof(string);
+    } catch (...) {
+        return 0;
+    }
 }
 
 std::tuple<float, float, float, float> ToArgb(const std::string &color_str) {
@@ -267,8 +271,125 @@ std::string ConvertSizeToString(const KRSize &size) {
 
 KRBorderRadiuses ConverToBorderRadiuses(const std::string &borderRadiusString) {
     auto splits = ConvertSplit(borderRadiusString, ",");
-    return KRBorderRadiuses(ConvertToDouble(splits[0]), ConvertToDouble(splits[1]), ConvertToDouble(splits[2]),
-                            ConvertToDouble(splits[3]));
+    return KRBorderRadiuses(ConvertToFloat(splits[0]), ConvertToFloat(splits[1]), ConvertToFloat(splits[2]),
+                            ConvertToFloat(splits[3]));
+}
+
+std::string ConvertToPathCommand(const std::string &pathProp) {
+    if (pathProp.empty()) {
+        return "";
+    }
+    auto splits = ConvertSplit(pathProp, " ");
+    std::ostringstream oss;
+    int index = 0;
+    auto dpi = KRConfig::GetDpi();
+    try {
+        bool indexOutOfBounds = false;
+        int size = splits.size();
+        while (index < size) {
+            const std::string &command = splits[index];
+            if (command == "M" || command == "L") {
+                if (size < index + 3) {
+                    indexOutOfBounds = true;
+                    break;
+                }
+                float x = std::stof(splits[index + 1]) * dpi;
+                float y = std::stof(splits[index + 2]) * dpi;
+                oss << command << x << ',' << y;
+                index += 3;
+            } else if (command == "R") {
+                if (size < index + 7) {
+                    indexOutOfBounds = true;
+                    break;
+                }
+                float cx = std::stof(splits[index + 1]) * dpi;
+                float cy = std::stof(splits[index + 2]) * dpi;
+                float radius = std::stof(splits[index + 3]) * dpi;
+                float startAngle = std::stof(splits[index + 4]) * 180 / M_PI;
+                float endAngle = std::stof(splits[index + 5]) * 180 / M_PI;
+                bool ccw = splits[index + 6] == "1";
+                float sweepAngle = endAngle - startAngle;
+                if (ccw) {
+                    // Preprocessing for counter-clockwise drawing:
+                    // 0. Angles in (-720, 0] require no processing
+                    // 1. sweepAngle > 0, startAngle and endAngle represent absolute angles, convert to [-360, 0)
+                    // 2. sweepAngle <= -720, drawing exceeds 2 turns, convert to (-720, -360]
+                    // Rules 2 and 3 share the same formula; In summary, final sweepAngle is in (-720, 0]
+                    if (sweepAngle > 0 || sweepAngle <= -720) {
+                        sweepAngle = std::fmod(sweepAngle, 360) - 360;
+                    }
+                } else {
+                    // Preprocessing for clockwise drawing:
+                    // 0. Angles in [0, 720) require no processing
+                    // 1. sweepAngle < 0, startAngle and endAngle represent absolute angles, convert to (0, 360]
+                    // 2. sweepAngle >= 720, drawing exceeds 2 turns, convert to [360, 720)
+                    // Rules 2 and 3 share the same formula; In summary, final sweepAngle is in [0, 720)
+                    if (sweepAngle < 0 || sweepAngle >= 720) {
+                        sweepAngle = std::fmod(sweepAngle, 360) + 360;
+                    }
+                }
+                float startX = cx + radius * std::cos(startAngle * M_PI / 180.0);
+                float startY = cy + radius * std::sin(startAngle * M_PI / 180.0);
+                float endX = cx + radius * std::cos(endAngle * M_PI / 180.0);
+                float endY = cy + radius * std::sin(endAngle * M_PI / 180.0);
+                char sweepFlag = ccw ? '0' : '1';
+                oss << (index == 0 ? 'M' : 'L') << startX << ',' << startY;
+                if (std::fabs(sweepAngle) < 360) {
+                    // Deal with arc less than 2π
+                    char largeArcFlag = (std::fabs(sweepAngle) < 180) ? '0' : '1';
+                    oss << 'A' << radius << ',' << radius << " 0 " << largeArcFlag << ' ' << sweepFlag << ' ' << endX
+                        << ',' << endY;
+                } else {
+                    // Deal with arc greater than or equal to 2π
+                    float halfSweepAngle = sweepAngle * 0.5;
+                    float midX = cx + radius * std::cos((startAngle + halfSweepAngle) * M_PI / 180.0);
+                    float midY = cy + radius * std::sin((startAngle + halfSweepAngle) * M_PI / 180.0);
+                    oss << 'A' << radius << ',' << radius << " 0 1 " << sweepFlag << ' ' << midX << ',' << midY;
+                    oss << 'A' << radius << ',' << radius << " 0 1 " << sweepFlag << ' ' << endX << ',' << endY;
+                }
+                index += 7;
+            } else if (command == "Z") {
+                oss << command;
+                index += 1;
+            } else if (command == "Q") {
+                if (size < index + 5) {
+                    indexOutOfBounds = true;
+                    break;
+                }
+                float cx = std::stof(splits[index + 1]) * dpi;
+                float cy = std::stof(splits[index + 2]) * dpi;
+                float x = std::stof(splits[index + 3]) * dpi;
+                float y = std::stof(splits[index + 4]) * dpi;
+                oss << command << cx << ',' << cy << ' ' << x << ',' << y;
+                index += 5;
+            } else if (command == "C") {
+                if (size < index + 7) {
+                    indexOutOfBounds = true;
+                    break;
+                }
+                float cx1 = std::stof(splits[index + 1]) * dpi;
+                float cy1 = std::stof(splits[index + 2]) * dpi;
+                float cx2 = std::stof(splits[index + 3]) * dpi;
+                float cy2 = std::stof(splits[index + 4]) * dpi;
+                float x = std::stof(splits[index + 5]) * dpi;
+                float y = std::stof(splits[index + 6]) * dpi;
+                oss << command << cx1 << ',' << cy1 << ' ' << cx2 << ',' << cy2 << ' ' << x << ',' << y;
+                index += 7;
+            } else {
+                KR_LOG_ERROR_WITH_TAG("ClipPath") << "Unknown path command: " << command;
+                return "";
+            }
+        }
+        if (indexOutOfBounds) {
+            KR_LOG_ERROR_WITH_TAG("ClipPath")
+                << "Invalid param length command: " << splits[index] << " size: " << (size - index);
+            return "";
+        }
+        return oss.str();
+    } catch (...) {
+        KR_LOG_ERROR_WITH_TAG("ClipPath") << "Invalid param type";
+        return "";
+    }
 }
 
 }  // namespace util

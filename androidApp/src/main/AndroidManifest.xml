@@ -24,7 +24,7 @@
         <activity
             android:name="com.tencent.kuikly.android.demo.KuiklyRenderActivity"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
-            android:windowSoftInputMode="stateVisible|adjustNothing"
+            android:windowSoftInputMode="stateUnspecified|adjustNothing"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

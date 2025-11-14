@@ -29,14 +29,16 @@ import android.os.Build
 import android.view.View
 import android.view.ViewOutlineProvider
 import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
+import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.const.KRCssConst
-import com.tencent.kuikly.core.render.android.css.animation.KRCSSTransform
+import com.tencent.kuikly.core.render.android.const.KRViewConst
 import com.tencent.kuikly.core.render.android.css.drawable.KRCSSBackgroundDrawable
 import com.tencent.kuikly.core.render.android.css.ktx.isBeforeM
 import com.tencent.kuikly.core.render.android.css.ktx.isBeforeOreoMr1
 import com.tencent.kuikly.core.render.android.css.ktx.toColor
 import com.tencent.kuikly.core.render.android.css.ktx.toPxF
 import java.lang.ref.WeakReference
+import kotlin.math.PI
 
 class KRViewDecoration(targetView: View) : IKRViewDecoration {
 
@@ -139,16 +141,30 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
             field = value
 
             parseShadow(value)
-            if (shadowRadius != 0f) {
-                setOutlineViewProvider(null) // 清除掉outlineViewProvider
-                targetViewWeakRef.get()?.invalidate()
-            }
+            setOutlineViewProviderIfNeed()
         }
 
     /**
-     * Android 6.0以下不支持foreground属性，这里新增这个属性来模拟foreground
+     * Android 6.0以下不支持foreground属性，这里新增这个属性来模拟foreground；
+     * 自定义剪裁路径避免前景被剪裁，也使用这个属性来绘制前景
      */
-    private var foregroundDrawableForAndroidM: Drawable? = null
+    private var customForegroundDrawable: Drawable? = null
+
+    private var isCustomClipPathMode: Boolean = false
+        set(value) {
+            if (field == value) {
+                return
+            }
+            if (value && !isBeforeM) {
+                targetViewWeakRef.get()?.also {
+                    if (it.foreground != null) {
+                        customForegroundDrawable = it.foreground
+                        it.foreground = null
+                    }
+                }
+            }
+            field = value
+        }
 
     /**
      * 使用OutlineViewProvider开关，为了向前兼容，默认开。设为false可以解决zIndex阴影问题
@@ -156,20 +172,36 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
     var useOutline: Boolean = true
         set(value) {
             field = value
-            if (!value && targetViewWeakRef.get()?.outlineProvider != null) {
-                setOutlineViewProvider(null)
+            setOutlineViewProviderIfNeed()
+        }
+
+    var clipPathData: String = KRCssConst.EMPTY_STRING
+        set(value) {
+            if (field == value) {
+                return
             }
+            field = value
+            if (value == KRCssConst.EMPTY_STRING) {
+                path.reset()
+            } else {
+                parseClipPath(value)
+                isCustomClipPathMode = true
+            }
+            setOutlineViewProviderIfNeed()
+            updateBgColorDrawable()
+            updateBgGradientDrawable()
+            updateFgBorderDrawable()
         }
 
     override fun drawCommonDecoration(w: Int, h: Int, canvas: Canvas) {
         drawShadow(w, h, canvas) // 绘制阴影
-        clipRoundRect(w, h, canvas) // 裁剪圆角
+        clipPath(w, h, canvas) // 裁剪圆角或路径
         applyMatrix(w, h, canvas) // 矩阵变换
     }
 
     override fun drawCommonForegroundDecoration(w: Int, h: Int, canvas: Canvas) {
-        if (isBeforeM) {
-            foregroundDrawableForAndroidM?.also {
+        if (isBeforeM || isCustomClipPathMode) {
+            customForegroundDrawable?.also {
                 val bounds = it.bounds
                 bounds.set(0, 0, w, h)
                 it.bounds = bounds
@@ -177,14 +209,25 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
             }
         }
     }
-    private fun clipRoundRect(w: Int, h: Int, canvas: Canvas) {
-        if (borderRadiusF == BORDER_RADIUS_UNSET_VALUE && borderRadii == null) { // 没有设置圆角的情况
+
+    override fun hasCustomClipPath(): Boolean {
+        return isCustomClipPathMode
+    }
+
+    private fun clipPath(w: Int, h: Int, canvas: Canvas) {
+        val needClip = borderRadiusF != BORDER_RADIUS_UNSET_VALUE ||
+                borderRadii?.any { it > 0f } == true ||
+                clipPathData.isNotEmpty()
+        if (!needClip) { // 没有设置圆角或路径的情况
             return
         }
 
         rectF.set(0f, 0f, w.toFloat(), h.toFloat())
         paint.color = Color.TRANSPARENT
         when {
+            clipPathData.isNotEmpty() -> {
+                // path 已经在 setClipPathData 里解析好了，这里直接用就行
+            }
             borderRadiusF != BORDER_RADIUS_UNSET_VALUE -> { // 设置四个角都是圆角的情况
                 path.reset()
                 path.addRoundRect(rectF, borderRadiusF, borderRadiusF, Path.Direction.CW)
@@ -212,6 +255,12 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
         paint.color = shadowColor
         paint.maskFilter = BlurMaskFilter(shadowRadius, BlurMaskFilter.Blur.NORMAL)
         when {
+            clipPathData.isNotEmpty() -> {
+                canvas.translate(shadowOffsetX, shadowOffsetY)
+                // path 已经在 setClipPathData 里解析好了，这里直接用就行
+                canvas.drawPath(path, paint)
+                canvas.translate(-shadowOffsetX, -shadowOffsetY)
+            }
             borderRadiusF != BORDER_RADIUS_UNSET_VALUE -> {
                 canvas.drawRoundRect(rectF, borderRadiusF, borderRadiusF, paint) // 四个角都是圆角的阴影
             }
@@ -260,7 +309,9 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
             )
             if (KRCSSBackgroundDrawable.isAllBorderRadiusEqual(radii)) {
                 borderRadiusF = tl
+                borderRadii = null
             } else {
+                borderRadiusF = BORDER_RADIUS_UNSET_VALUE
                 borderRadii = radii
             }
         }
@@ -287,6 +338,7 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
         (gradientDrawable as KRCSSBackgroundDrawable).also {
             it.backgroundImage = backgroundImage
             it.borderRadius = borderRadius
+            it.clipPath = if (clipPathData.isNotEmpty()) path else null
         }
         updateLayerDrawable()
     }
@@ -311,6 +363,7 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
         (colorDrawable as KRCSSBackgroundDrawable).also {
             it.setColor(backgroundColor)
             it.borderRadius = borderRadius
+            it.clipPath = if (clipPathData.isNotEmpty()) path else null
         }
         updateLayerDrawable()
     }
@@ -334,6 +387,7 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
                 d.borderRadius = borderRadius
                 d.targetView = view
                 d.isForeground = true
+                d.clipPath = if (clipPathData.isNotEmpty()) path else null
             }
             if (view.foregroundCompat == null) {
                 view.foregroundCompat = borderDrawable
@@ -343,78 +397,207 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
         }
     }
 
-    private fun setOutlineViewProviderIfNeed() {
-        targetViewWeakRef.get()?.also {
-            if (!useOutline || boxShadow.isNotEmpty()) { // 如果有设置阴影的话，使用clipRoundRect裁剪圆角，不然的话，阴影会无效
-                setOutlineViewProvider(null)
-            } else {
-                setOutlineViewProvider(object : ViewOutlineProvider() {
-                    override fun getOutline(view: View?, outline: Outline?) {
-                        if (view == null || outline == null) {
-                            return
-                        }
+    private val outlineProvider by lazy(LazyThreadSafetyMode.NONE) {
+        object : ViewOutlineProvider() {
+            override fun getOutline(view: View?, outline: Outline?) {
+                if (view == null || outline == null) {
+                    return
+                }
 
-                        if (view.width <= 0 || view.height <= 0) {
-                            return
-                        }
-                        when {
-                            borderRadiusF != BORDER_RADIUS_UNSET_VALUE -> { // 四个角都是圆角
-                                if (isBeforeM) {
-                                    var borderWidth = 0
-                                    (targetViewWeakRef.get()?.foregroundCompat as? KRCSSBackgroundDrawable)
-                                        ?.also {
-                                            borderWidth = it.borderWidth
-                                        }
-                                    // <= 6.0 的系统，前景 border 是我们绘制的，如果业务设置了圆角和 border，需要减去border 的宽度
-                                    // 不然border 会被限制在 clip 的区域内，只有setRoundRect这个 api 才会
-                                    outline.setRoundRect(-borderWidth, -borderWidth, view.width + borderWidth, view.height + borderWidth, borderRadiusF)
-                                } else {
-                                    var compatBorderRadiusF = borderRadiusF
-                                    if (isBeforeOreoMr1 && compatBorderRadiusF < 0.5f) {
-                                        compatBorderRadiusF = 0.5f
-                                    }
-                                    outline.setRoundRect(0, 0, view.width, view.height, compatBorderRadiusF)
+                if (view.width <= 0 || view.height <= 0) {
+                    return
+                }
+                when {
+                    clipPathData.isNotEmpty() -> {
+                        // since getOutline may be called before we remove outlineProvider,
+                        // we need to check this case
+                        return
+                    }
+                    borderRadiusF != BORDER_RADIUS_UNSET_VALUE -> { // 四个角都是圆角
+                        if (isBeforeM) {
+                            var borderWidth = 0
+                            (targetViewWeakRef.get()?.foregroundCompat as? KRCSSBackgroundDrawable)
+                                ?.also {
+                                    borderWidth = it.borderWidth
                                 }
+                            // <= 6.0 的系统，前景 border 是我们绘制的，如果业务设置了圆角和 border，需要减去border 的宽度
+                            // 不然border 会被限制在 clip 的区域内，只有setRoundRect这个 api 才会
+                            outline.setRoundRect(-borderWidth, -borderWidth, view.width + borderWidth, view.height + borderWidth, borderRadiusF)
+                        } else {
+                            var compatBorderRadiusF = borderRadiusF
+                            if (isBeforeOreoMr1 && compatBorderRadiusF < 0.5f) {
+                                compatBorderRadiusF = 0.5f
                             }
-                            borderRadii != null -> { // 非四个角都是圆角
-                                path.reset()
-                                rectF.set(0f, 0f, view.width.toFloat(), view.height.toFloat())
-                                path.addRoundRect(rectF, borderRadii!!, Path.Direction.CW)
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                                    outline.setPath(path)
-                                } else {
-                                    outline.setConvexPath(path)
-                                }
-                            }
+                            outline.setRoundRect(0, 0, view.width, view.height, compatBorderRadiusF)
                         }
                     }
-                })
+                    borderRadii != null -> { // 非四个角都是圆角
+                        path.reset()
+                        rectF.set(0f, 0f, view.width.toFloat(), view.height.toFloat())
+                        path.addRoundRect(rectF, borderRadii!!, Path.Direction.CW)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            outline.setPath(path)
+                        } else {
+                            outline.setConvexPath(path)
+                        }
+                    }
+                }
             }
         }
     }
 
-    private fun setOutlineViewProvider(outlineProvider: ViewOutlineProvider?) {
+    private fun setOutlineViewProviderIfNeed() {
         targetViewWeakRef.get()?.also {
-            it.outlineProvider = outlineProvider
-            it.clipToOutline = outlineProvider != null
+            val hasBorderRadius = borderRadiusF != BORDER_RADIUS_UNSET_VALUE ||
+                    borderRadii?.any { it > 0f } == true
+            val needOutline = useOutline &&
+                    // 如果有设置阴影的话，使用clipPath裁剪圆角，不然的话，阴影会无效
+                    shadowRadius != 0f &&
+                    // 自定义Path可能不是凸的，无法使用outline裁剪，也使用clipPath裁剪
+                    clipPathData.isEmpty() &&
+                    hasBorderRadius
+
+            if (needOutline) {
+                setOutlineViewProvider(it, outlineProvider)
+            } else {
+                setOutlineViewProvider(it, null)
+            }
         }
+    }
+
+    private fun setOutlineViewProvider(view: View, outlineProvider: ViewOutlineProvider?) {
+        view.outlineProvider = outlineProvider
+        view.clipToOutline = outlineProvider != null
+        view.invalidate()
     }
 
     var View.foregroundCompat: Drawable?
         get() {
-            return if (isBeforeM) {
-                foregroundDrawableForAndroidM
+            return if (isBeforeM || isCustomClipPathMode) {
+                customForegroundDrawable
             } else {
                 foreground
             }
         }
         set(value) {
-            if (isBeforeM) {
-                foregroundDrawableForAndroidM = value
+            if (isBeforeM || isCustomClipPathMode) {
+                customForegroundDrawable = value
             } else {
                 foreground = value
             }
         }
+
+    private fun parseClipPath(pathData: String) {
+        val values = pathData.split(KRCssConst.BLANK_SEPARATOR)
+        var index = 0
+        path.rewind()
+        try {
+            while (index < values.size) {
+                val command = values[index]
+                when (command) {
+                    "M" -> {
+                        val x = kuiklyContext.toPxF(values[index + 1].toFloat())
+                        val y = kuiklyContext.toPxF(values[index + 2].toFloat())
+                        path.moveTo(x, y)
+                        index += 3
+                    }
+                    "L" -> {
+                        val x = kuiklyContext.toPxF(values[index + 1].toFloat())
+                        val y = kuiklyContext.toPxF(values[index + 2].toFloat())
+                        path.lineTo(x, y)
+                        index += 3
+                    }
+                    "R" -> {
+                        val cx = kuiklyContext.toPxF(values[index + 1].toFloat())
+                        val cy = kuiklyContext.toPxF(values[index + 2].toFloat())
+                        val radius = kuiklyContext.toPxF(values[index + 3].toFloat())
+                        val startAngle = values[index + 4].toFloat() * KRViewConst.PI_AS_ANGLE / PI
+                        val endAngle = values[index + 5].toFloat() * KRViewConst.PI_AS_ANGLE / PI
+                        val counterclockwise = values[index + 6] == "1"
+                        var sweepAngle = endAngle - startAngle
+                        if (counterclockwise) {
+                            // Preprocessing for counter-clockwise drawing:
+                            // 0. Angles in (-720, 0] require no processing
+                            // 1. sweepAngle > 0, startAngle and endAngle represent absolute angles, convert to [-360, 0)
+                            // 2. sweepAngle <= -720, drawing exceeds 2 turns, convert to (-720, -360]
+                            // Rules 2 and 3 share the same formula; In summary, final sweepAngle is in (-720, 0]
+                            if (sweepAngle > 0 || sweepAngle <= -2 * KRViewConst.ROUND_ANGLE) {
+                                sweepAngle = sweepAngle % KRViewConst.ROUND_ANGLE - KRViewConst.ROUND_ANGLE
+                            }
+                        } else {
+                            // Preprocessing for clockwise drawing:
+                            // 0. Angles in [0, 720) require no processing
+                            // 1. sweepAngle < 0, startAngle and endAngle represent absolute angles, convert to (0, 360]
+                            // 2. sweepAngle >= 720, drawing exceeds 2 turns, convert to [360, 720)
+                            // Rules 2 and 3 share the same formula; In summary, final sweepAngle is in [0, 720)
+                            if (sweepAngle < 0 || sweepAngle >= 2 * KRViewConst.ROUND_ANGLE) {
+                                sweepAngle = sweepAngle % KRViewConst.ROUND_ANGLE + KRViewConst.ROUND_ANGLE
+                            }
+                        }
+
+                        if (-KRViewConst.ROUND_ANGLE < sweepAngle && sweepAngle < KRViewConst.ROUND_ANGLE) {
+                            // deal with arc less than 2π
+                            path.arcTo(
+                                cx - radius, cy - radius, cx + radius, cy + radius,
+                                startAngle.toFloat(),
+                                sweepAngle.toFloat(),
+                                false
+                            )
+                        } else {
+                            // deal with arc greater than or equal to 2π
+                            val halfSweepAngle = sweepAngle * 0.5f
+                            path.arcTo(
+                                cx - radius, cy - radius, cx + radius, cy + radius,
+                                startAngle.toFloat(),
+                                halfSweepAngle.toFloat(),
+                                false
+                            )
+                            path.arcTo(
+                                cx - radius, cy - radius, cx + radius, cy + radius,
+                                (startAngle + halfSweepAngle).toFloat(),
+                                halfSweepAngle.toFloat(),
+                                false
+                            )
+                        }
+                        index += 7
+                    }
+                    "Z" -> {
+                        path.close()
+                        index += 1
+                    }
+                    "Q" -> {
+                        val cx = kuiklyContext.toPxF(values[index + 1].toFloat())
+                        val cy = kuiklyContext.toPxF(values[index + 2].toFloat())
+                        val x = kuiklyContext.toPxF(values[index + 3].toFloat())
+                        val y = kuiklyContext.toPxF(values[index + 4].toFloat())
+                        path.quadTo(cx, cy, x, y)
+                        index += 5
+                    }
+                    "C" -> {
+                        val cx1 = kuiklyContext.toPxF(values[index + 1].toFloat())
+                        val cy1 = kuiklyContext.toPxF(values[index + 2].toFloat())
+                        val cx2 = kuiklyContext.toPxF(values[index + 3].toFloat())
+                        val cy2 = kuiklyContext.toPxF(values[index + 4].toFloat())
+                        val x = kuiklyContext.toPxF(values[index + 5].toFloat())
+                        val y = kuiklyContext.toPxF(values[index + 6].toFloat())
+                        path.cubicTo(cx1, cy1, cx2, cy2, x, y)
+                        index += 7
+                    }
+                    else -> {
+                        KuiklyRenderLog.e("ClipPath", "Unknown path command: $command")
+                        path.rewind()
+                        return
+                    }
+                }
+            }
+        } catch (e: NumberFormatException) {
+            KuiklyRenderLog.e("ClipPath", "Invalid param type: ${e.message}")
+            path.rewind()
+        } catch (e: IndexOutOfBoundsException) {
+            KuiklyRenderLog.e("ClipPath", "Invalid param length: ${e.message}")
+            path.rewind()
+        }
+    }
 
     companion object {
         private const val LAYER_ID_COLOR_DRAWABLE = 1

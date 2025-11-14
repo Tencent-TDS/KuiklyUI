@@ -28,6 +28,7 @@ import com.tencent.kuikly.core.render.android.css.ktx.clearViewData
 import com.tencent.kuikly.core.render.android.css.ktx.hasInitAccessibilityDelegate
 import com.tencent.kuikly.core.render.android.css.ktx.drawCommonDecoration
 import com.tencent.kuikly.core.render.android.css.ktx.drawCommonForegroundDecoration
+import com.tencent.kuikly.core.render.android.css.ktx.hasCustomClipPath
 import com.tencent.kuikly.core.render.android.css.ktx.removeOnSetFrameObservers
 import com.tencent.kuikly.core.render.android.css.ktx.resetCommonProp
 import com.tencent.kuikly.core.render.android.css.ktx.setCommonProp
@@ -57,6 +58,8 @@ interface IKuiklyRenderViewExport : IKuiklyRenderModuleExport, IKRViewDecoration
     override fun drawCommonForegroundDecoration(w: Int, h: Int, canvas: Canvas) {
         view().drawCommonForegroundDecoration(canvas)
     }
+
+    override fun hasCustomClipPath(): Boolean = view().hasCustomClipPath()
 
     /**
      * 重置view, 准备被复用 (可选实现). 若实现该方法返回true则意味着能被复用

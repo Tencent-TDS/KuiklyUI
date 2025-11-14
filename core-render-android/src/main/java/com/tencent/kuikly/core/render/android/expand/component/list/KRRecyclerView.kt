@@ -424,8 +424,16 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
     }
 
     override fun draw(c: Canvas) {
+        val checkpoint: Int = if (hasCustomClipPath()) {
+            c.save()
+        } else {
+            -1
+        }
         drawCommonDecoration(c)
         super.draw(c)
+        if (checkpoint != -1) {
+            c.restoreToCount(checkpoint)
+        }
         drawCommonForegroundDecoration(c)
     }
 

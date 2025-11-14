@@ -25,6 +25,7 @@ import com.tencent.kuikly.compose.ui.geometry.toRect
 import com.tencent.kuikly.compose.ui.graphics.Path
 import com.tencent.kuikly.compose.ui.graphics.degrees
 import com.tencent.kuikly.compose.ui.util.fastForEach
+import com.tencent.kuikly.core.views.PathApi
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -36,7 +37,7 @@ import kotlin.math.sign
 import kotlin.math.sin
 import kotlin.math.tan
 
-private typealias CanvasOp = CanvasContextEx.() -> Unit
+private typealias CanvasOp = PathApi.() -> Unit
 
 internal inline fun radians(degrees: Float): Float = degrees * (PI / 180f).toFloat()
 
@@ -56,7 +57,7 @@ class KuiklyPath : Path {
             return Offset(radiusX * cos(radians), radiusY * sin(radians))
         }
 
-        private fun CanvasContextEx.drawCircularArc(
+        private fun PathApi.drawCircularArc(
             centerX: Float,
             centerY: Float,
             radius: Float,
@@ -64,7 +65,7 @@ class KuiklyPath : Path {
             sweepAngle: Float
         ) {
             if (abs(sweepAngle) < 360) {
-                arcWithDensity(
+                arc(
                     centerX,
                     centerY,
                     radius,
@@ -75,7 +76,7 @@ class KuiklyPath : Path {
             } else {
                 // draw two half arcs to avoid the limitation of the kuikly canvas
                 val halfSweepAngle = sign(sweepAngle) * (abs(sweepAngle) % 360 + 360) * 0.5f
-                arcWithDensity(
+                arc(
                     centerX,
                     centerY,
                     radius,
@@ -83,7 +84,7 @@ class KuiklyPath : Path {
                     radians(startAngle + halfSweepAngle),
                     sweepAngle < 0
                 )
-                arcWithDensity(
+                arc(
                     centerX,
                     centerY,
                     radius,
@@ -105,7 +106,7 @@ class KuiklyPath : Path {
             return max(current - HALF_PI, limit)
         }
 
-        private fun CanvasContextEx.drawOvalArc(
+        private fun PathApi.drawOvalArc(
             centerX: Float,
             centerY: Float,
             radiusX: Float,
@@ -136,9 +137,9 @@ class KuiklyPath : Path {
             var startX = centerX + radiusX * cos(rad)
             var startY = centerY + radiusY * sin(rad)
             if (moveTo) {
-                moveToWithDensity(startX, startY)
+                moveTo(startX, startY)
             } else {
-                lineToWithDensity(startX, startY)
+                lineTo(startX, startY)
             }
             do {
                 // draw quarter arc
@@ -147,7 +148,7 @@ class KuiklyPath : Path {
                 val c = tan((nextRad - rad) * 0.25f) * 4f / 3f // 控制点常量
                 val ctrlW = radiusX * c
                 val ctrlH = radiusY * c
-                bezierCurveToWithDensity(
+                bezierCurveTo(
                     startX - ctrlW * sin(rad),
                     startY + ctrlH * cos(rad),
                     endX + ctrlW * sin(nextRad),
@@ -247,6 +248,7 @@ class KuiklyPath : Path {
     }
 
     private val ops = mutableListOf<CanvasOp>()
+    private var densityValue: Float = 1f
 
     /**
      * current X for creating Path, not available inside CanvasOp
@@ -259,7 +261,6 @@ class KuiklyPath : Path {
     private var currentY = 0f
     private var startX = 0f
     private var startY = 0f
-    internal var closed = false
     private var offsetX = 0f
     private var offsetY = 0f
 
@@ -283,7 +284,7 @@ class KuiklyPath : Path {
         currentX = x
         currentY = y
         bounds.expandPoint(x, y)
-        ops += { moveToWithDensity(offsetX + x, offsetY + y) }
+        ops += { moveTo((offsetX + x) / densityValue, (offsetY + y) / densityValue) }
     }
 
     override fun relativeMoveTo(dx: Float, dy: Float) {
@@ -294,7 +295,7 @@ class KuiklyPath : Path {
         currentX = x
         currentY = y
         bounds.expandPoint(x, y)
-        ops += { lineToWithDensity(offsetX + x, offsetY + y) }
+        ops += { lineTo((offsetX + x) / densityValue, (offsetY + y) / densityValue) }
     }
 
     override fun relativeLineTo(dx: Float, dy: Float) {
@@ -307,11 +308,11 @@ class KuiklyPath : Path {
         bounds.expandPoint(x1, y1) // FIXME: 直接用控制点坐标是不对的，应该换算为解析式的极值点
         bounds.expandPoint(x2, y2)
         ops += {
-            quadraticCurveToWithDensity(
-                offsetX + x1,
-                offsetY + y1,
-                offsetX + x2,
-                offsetY + y2
+            quadraticCurveTo(
+                (offsetX + x1) / densityValue,
+                (offsetY + y1) / densityValue,
+                (offsetX + x2) / densityValue,
+                (offsetY + y2) / densityValue
             )
         }
     }
@@ -327,13 +328,13 @@ class KuiklyPath : Path {
         bounds.expandPoint(x2, y2) // FIXME: 直接用控制点坐标是不对的，应该换算为解析式的极值点
         bounds.expandPoint(x3, y3)
         ops += {
-            bezierCurveToWithDensity(
-                offsetX + x1,
-                offsetY + y1,
-                offsetX + x2,
-                offsetY + y2,
-                offsetX + x3,
-                offsetY + y3
+            bezierCurveTo(
+                (offsetX + x1) / densityValue,
+                (offsetY + y1) / densityValue,
+                (offsetX + x2) / densityValue,
+                (offsetY + y2) / densityValue,
+                (offsetX + x3) / densityValue,
+                (offsetY + y3) / densityValue
             )
         }
     }
@@ -378,12 +379,15 @@ class KuiklyPath : Path {
             val moveTo = forceMoveTo && !isEmpty
             ops += {
                 if (moveTo) {
-                    moveToWithDensity(offsetX + startPoint.x, offsetY + startPoint.y)
+                    moveTo(
+                        (offsetX + startPoint.x) / densityValue,
+                        (offsetY + startPoint.y) / densityValue
+                    )
                 }
                 drawCircularArc(
-                    offsetX + center.x,
-                    offsetY + center.y,
-                    radiusX,
+                    (offsetX + center.x) / densityValue,
+                    (offsetY + center.y) / densityValue,
+                    radiusX / densityValue,
                     startAngleDegrees,
                     sweepAngleDegrees
                 )
@@ -392,10 +396,10 @@ class KuiklyPath : Path {
             val moveTo = forceMoveTo || isEmpty
             ops += {
                 drawOvalArc(
-                    offsetX + center.x,
-                    offsetY + center.y,
-                    radiusX,
-                    radiusY,
+                    (offsetX + center.x) / densityValue,
+                    (offsetY + center.y) / densityValue,
+                    radiusX / densityValue,
+                    radiusY / densityValue,
                     startAngleDegrees,
                     sweepAngleDegrees,
                     moveTo
@@ -410,14 +414,14 @@ class KuiklyPath : Path {
         bounds.expandRect(rect)
         ops += {
             val startX = (rect.left + rect.right) * 0.5f // 从顶边中点开始画，避免strokeJoin问题
-            moveToWithDensity(offsetX + startX, offsetY + rect.top)
-            lineToWithDensity(offsetX + rect.right, offsetY + rect.top)
-            lineToWithDensity(offsetX + rect.right, offsetY + rect.bottom)
-            lineToWithDensity(offsetX + rect.left, offsetY + rect.bottom)
-            lineToWithDensity(offsetX + rect.left, offsetY + rect.top)
-            lineToWithDensity(offsetX + startX, offsetY + rect.top)
+            moveTo((offsetX + startX) / densityValue, (offsetY + rect.top) / densityValue)
+            lineTo((offsetX + rect.right) / densityValue, (offsetY + rect.top) / densityValue)
+            lineTo((offsetX + rect.right) / densityValue, (offsetY + rect.bottom) / densityValue)
+            lineTo((offsetX + rect.left) / densityValue, (offsetY + rect.bottom) / densityValue)
+            lineTo((offsetX + rect.left) / densityValue, (offsetY + rect.top) / densityValue)
+            lineTo((offsetX + startX) / densityValue, (offsetY + rect.top) / densityValue)
             // move back to the original position
-            moveToWithDensity(offsetX + originalX, offsetY + originalY)
+            moveTo((offsetX + originalX) / densityValue, (offsetY + originalY) / densityValue)
         }
     }
 
@@ -439,28 +443,31 @@ class KuiklyPath : Path {
         if ((radiusX - radiusY).isZero()) {
             val startPoint = center + pointOfArc(radiusX, radiusY, startAngleDegrees)
             ops += {
-                moveToWithDensity(offsetX + startPoint.x, offsetY + startPoint.y)
+                moveTo(
+                    (offsetX + startPoint.x) / densityValue,
+                    (offsetY + startPoint.y) / densityValue
+                )
                 drawCircularArc(
-                    offsetX + center.x,
-                    offsetY + center.y,
-                    radiusX,
+                    (offsetX + center.x) / densityValue,
+                    (offsetY + center.y) / densityValue,
+                    radiusX / densityValue,
                     startAngleDegrees,
                     sweepAngleDegrees
                 )
-                moveToWithDensity(offsetX + originalX, offsetY + originalY)
+                moveTo((offsetX + originalX) / densityValue, (offsetY + originalY) / densityValue)
             }
         } else {
             ops += {
                 drawOvalArc(
-                    offsetX + center.x,
-                    offsetY + center.y,
-                    radiusX,
-                    radiusY,
+                    (offsetX + center.x) / densityValue,
+                    (offsetY + center.y) / densityValue,
+                    radiusX / densityValue,
+                    radiusY / densityValue,
                     startAngleDegrees,
                     sweepAngleDegrees,
                     true
                 )
-                moveToWithDensity(offsetX + originalX, offsetY + originalY)
+                moveTo((offsetX + originalX) / densityValue, (offsetY + originalY) / densityValue)
             }
         }
     }
@@ -474,50 +481,59 @@ class KuiklyPath : Path {
         val bottomLeftRadius = roundRect.bottomLeftCornerRadius.radius
         bounds.expandRect(roundRect.boundingRect)
         ops += {
-            moveToWithDensity(offsetX + roundRect.left, offsetY + roundRect.top + topLeftRadius)
-            arcWithDensity(
-                offsetX + roundRect.left + topLeftRadius,
-                offsetY + roundRect.top + topLeftRadius,
-                topLeftRadius,
+            moveTo(
+                (offsetX + roundRect.left) / densityValue,
+                (offsetY + roundRect.top + topLeftRadius) / densityValue
+            )
+            arc(
+                (offsetX + roundRect.left + topLeftRadius) / densityValue,
+                (offsetY + roundRect.top + topLeftRadius) / densityValue,
+                topLeftRadius / densityValue,
                 PI.toFloat(),
                 1.5f * PI.toFloat(),
                 false
             )
-            lineToWithDensity(offsetX + roundRect.right - topRightRadius, offsetY + roundRect.top)
-            arcWithDensity(
-                offsetX + roundRect.right - topRightRadius,
-                offsetY + roundRect.top + topRightRadius,
-                topRightRadius,
+            lineTo(
+                (offsetX + roundRect.right - topRightRadius) / densityValue,
+                (offsetY + roundRect.top) / densityValue
+            )
+            arc(
+                (offsetX + roundRect.right - topRightRadius) / densityValue,
+                (offsetY + roundRect.top + topRightRadius) / densityValue,
+                topRightRadius / densityValue,
                 1.5f * PI.toFloat(),
                 2f * PI.toFloat(),
                 false
             )
-            lineToWithDensity(
-                offsetX + roundRect.right,
-                offsetY + roundRect.bottom - bottomRightRadius
+            lineTo(
+                (offsetX + roundRect.right) / densityValue,
+                (offsetY + roundRect.bottom - bottomRightRadius) / densityValue
             )
-            arcWithDensity(
-                offsetX + roundRect.right - bottomRightRadius,
-                offsetY + roundRect.bottom - bottomRightRadius,
-                bottomRightRadius,
+            arc(
+                (offsetX + roundRect.right - bottomRightRadius) / densityValue,
+                (offsetY + roundRect.bottom - bottomRightRadius) / densityValue,
+                bottomRightRadius / densityValue,
                 0f,
                 0.5f * PI.toFloat(),
                 false
             )
-            lineToWithDensity(
-                offsetX + roundRect.left + bottomLeftRadius,
-                offsetY + roundRect.bottom
+            lineTo(
+                (offsetX + roundRect.left + bottomLeftRadius) / densityValue,
+                (offsetY + roundRect.bottom) / densityValue
             )
-            arcWithDensity(
-                offsetX + roundRect.left + bottomLeftRadius,
-                offsetY + roundRect.bottom - bottomLeftRadius,
-                bottomLeftRadius,
+            arc(
+                (offsetX + roundRect.left + bottomLeftRadius) / densityValue,
+                (offsetY + roundRect.bottom - bottomLeftRadius) / densityValue,
+                bottomLeftRadius / densityValue,
                 0.5f * PI.toFloat(),
                 PI.toFloat(),
                 false
             )
-            lineToWithDensity(offsetX + roundRect.left, offsetY + roundRect.top + topLeftRadius)
-            moveToWithDensity(offsetX + originalX, offsetY + originalY)
+            lineTo(
+                (offsetX + roundRect.left) / densityValue,
+                (offsetY + roundRect.top + topLeftRadius) / densityValue
+            )
+            moveTo((offsetX + originalX) / densityValue, (offsetY + originalY) / densityValue)
         }
     }
 
@@ -533,27 +549,24 @@ class KuiklyPath : Path {
             path.offsetX += offsetX + offset.x
             path.offsetY += offsetY + offset.y
             // draw the path
-            path.draw(this)
-            if (path.closed) {
-                lineToWithDensity(
-                    offsetX + path.offsetX + path.startX,
-                    offsetY + path.offsetY + path.startY
-                )
-            }
+            path.draw(this, densityValue)
             // restore the path
             path.offsetX -= offsetX + offset.x
             path.offsetY -= offsetX + offset.y
-            moveToWithDensity(offsetX + originalX, offsetY + originalY)
+            moveTo((offsetX + originalX) / densityValue, (offsetY + originalY) / densityValue)
         }
     }
 
     override fun close() {
-        closed = true
+        currentX = startX
+        currentY = startY
+        ops += {
+            closePath()
+        }
     }
 
     override fun reset() {
         ops.clear()
-        closed = false
         currentX = 0f
         currentY = 0f
         startX = 0f
@@ -579,7 +592,8 @@ class KuiklyPath : Path {
         }
     }
 
-    fun draw(context: CanvasContextEx) {
+    fun draw(context: PathApi, densityValue: Float) {
+        this.densityValue = densityValue
         val originOffsetX = offsetX
         val originOffsetY = offsetY
         ops.fastForEach { context.it() }

@@ -27,6 +27,7 @@ import com.tencent.kuikly.core.base.Rotate
 import com.tencent.kuikly.core.base.Scale
 import com.tencent.kuikly.core.base.Translate
 import com.tencent.kuikly.core.base.Skew
+import com.tencent.kuikly.core.views.PathApi
 
 /**
  * 样式属性接口，用于设置视图的样式属性。
@@ -171,6 +172,11 @@ interface IStyleAttr {
      */
     fun turboDisplayAutoUpdateEnable(enable: Boolean): IStyleAttr
 
+    /**
+     * 设置视图的裁剪路径。
+     * @param builder 裁剪路径构建器函数，接收 ContextApi、宽度和高度作为参数。
+     */
+    fun clipPath(builder: ClipPathBuilder?)
     // endregion
 }
 
@@ -195,3 +201,5 @@ enum class AccessibilityRole(val roleName: String) {
     /** 表示视图是一个复选框 */
     CHECKBOX("checkbox")
 }
+
+typealias ClipPathBuilder = PathApi.(width: Float, height: Float) -> Unit

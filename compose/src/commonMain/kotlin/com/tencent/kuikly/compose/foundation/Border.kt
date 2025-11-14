@@ -17,18 +17,24 @@
 package com.tencent.kuikly.compose.foundation
 
 import androidx.compose.runtime.Stable
+import com.tencent.kuikly.compose.ui.KuiklyPath
 import com.tencent.kuikly.compose.ui.Modifier
+import com.tencent.kuikly.compose.ui.geometry.RoundRect
 import com.tencent.kuikly.compose.ui.graphics.Brush
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.Outline
+import com.tencent.kuikly.compose.ui.graphics.Path
 import com.tencent.kuikly.compose.ui.graphics.RectangleShape
 import com.tencent.kuikly.compose.ui.graphics.Shape
 import com.tencent.kuikly.compose.ui.graphics.SolidColor
+import com.tencent.kuikly.compose.ui.graphics.addOutline
 import com.tencent.kuikly.compose.ui.graphics.drawscope.ContentDrawScope
+import com.tencent.kuikly.compose.ui.graphics.parseOutline
 import com.tencent.kuikly.compose.ui.layout.LayoutCoordinates
 import com.tencent.kuikly.compose.ui.node.DrawModifierNode
 import com.tencent.kuikly.compose.ui.node.KNode
 import com.tencent.kuikly.compose.ui.node.KNode.Companion.borderRadius
+import com.tencent.kuikly.compose.ui.node.KNode.Companion.clipPath
 import com.tencent.kuikly.compose.ui.node.LayoutAwareModifierNode
 import com.tencent.kuikly.compose.ui.node.ModifierNodeElement
 import com.tencent.kuikly.compose.ui.node.Nodes
@@ -113,13 +119,16 @@ internal class BorderModifierNode(
             if (field != value) {
                 field = value
                 outline = null
+                roundRect = null
             }
         }
 
     private var outline: Outline? = null
+    private var roundRect: RoundRect? = null
 
     override fun onMeasureResultChanged() {
         outline = null
+        roundRect = null
     }
 
     override fun onReset() {
@@ -132,13 +141,28 @@ internal class BorderModifierNode(
             throwRuntimeError("view null")
         }
         val color = (brush as? SolidColor)?.value ?: Color.Transparent
-        if (outline == null && shape != RectangleShape) {
+        if (outline == null && roundRect == null && shape != RectangleShape) {
             val size = requireCoordinator(Nodes.LayoutAware).size.toSize()
-            outline = shape.createOutline(size, layoutDirection, this)
+            shape.parseOutline(size, layoutDirection, this).apply {
+                outline = first
+                roundRect = second
+            }
         }
-        (outline as? Outline.Rounded)?.also {
-            view!!.borderRadius(it.roundRect)
+
+        if (outline != null) {
+            val outline = outline!!
+            val path = if (outline is Outline.Generic) {
+                outline.path as? KuiklyPath
+            } else {
+                Path().apply { addOutline(outline) } as? KuiklyPath
+            }
+            if (path != null) {
+                view!!.clipPath(path)
+            }
+        } else if (roundRect != null) {
+            view!!.borderRadius(roundRect!!)
         }
+
         view!!.getViewAttr().border(Border(width.value, BorderStyle.SOLID, color.toKuiklyColor()))
 
         drawContent()

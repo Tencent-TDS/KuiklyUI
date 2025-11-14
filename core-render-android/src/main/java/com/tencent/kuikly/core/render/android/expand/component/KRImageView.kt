@@ -194,6 +194,11 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
         paintMaskGradient?.also {
             saveCount = canvas.saveLayer(0f, 0f, frameWidth.toFloat(), frameHeight.toFloat(), null)
         }
+        val checkpoint: Int = if (hasCustomClipPath()) {
+            canvas.save()
+        } else {
+            -1
+        }
         drawCommonDecoration(frameWidth, frameHeight, canvas)
         if (capInsetsValid()) {
             drawable?.also {
@@ -207,6 +212,9 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
             }
         } else {
             super.onDraw(canvas)
+        }
+        if (checkpoint != -1) {
+            canvas.restoreToCount(checkpoint)
         }
         drawCommonForegroundDecoration(frameWidth, frameHeight, canvas)
         paintMaskGradient?.also {// 绘制渐变遮罩

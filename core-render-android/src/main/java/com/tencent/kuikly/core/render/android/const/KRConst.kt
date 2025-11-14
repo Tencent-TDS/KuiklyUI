@@ -89,4 +89,6 @@ object KRCssConst {
     const val USE_OUTLINE = "useOutline"
 
     const val HAD_INIT_ACCESSIBILITY_DELEGATE = "hadInitAccessibilityDelegate"
+
+    const val CLIP_PATH = "clipPath"
 }

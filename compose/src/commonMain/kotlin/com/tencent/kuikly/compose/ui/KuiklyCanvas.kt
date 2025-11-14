@@ -43,7 +43,7 @@ import kotlin.math.PI
 
 internal class KuiklyCanvas : Canvas {
 
-    private fun CanvasContextEx.fillOrStroke(paint: Paint) {
+    private fun CanvasContext.fillOrStroke(paint: Paint) {
         val linearGradient = paint.toKuiklyLinearGradient(densityValue)
         if (paint.style == PaintingStyle.Fill) {
             if (linearGradient != null) {
@@ -58,7 +58,7 @@ internal class KuiklyCanvas : Canvas {
             } else {
                 strokeStyle(paint.toKuiklyColor())
             }
-            lineWidthWithDensity(paint.strokeWidth)
+            lineWidth(paint.strokeWidth / densityValue)
             if (strokeCap != paint.strokeCap) {
                 strokeCap = paint.strokeCap
                 when (paint.strokeCap) {
@@ -74,12 +74,8 @@ internal class KuiklyCanvas : Canvas {
     override var view: DeclarativeBaseView<*, *>? = null
         set(value) {
             if (value is CanvasView) {
-                context = CanvasContextEx(
-                    value.renderView!!,
-                    value.pagerId,
-                    value.nativeRef,
-                    value.getPager().pagerDensity()
-                )
+                context = CanvasContext(value.renderView!!, value.pagerId, value.nativeRef)
+                densityValue = value.getPager().pagerDensity()
                 value.renderView?.callMethod("reset", "")
                 strokeCap = StrokeCap.Butt
             } else {
@@ -88,7 +84,8 @@ internal class KuiklyCanvas : Canvas {
             field = value
         }
 
-    private var context: CanvasContextEx? = null
+    private var context: CanvasContext? = null
+    private var densityValue: Float = 1f
     private var strokeCap = StrokeCap.Butt
 
     override fun save() {
@@ -100,11 +97,16 @@ internal class KuiklyCanvas : Canvas {
     }
 
     override fun saveLayer(bounds: Rect, paint: Paint) {
-        context?.saveLayerWithDensity(bounds.left, bounds.top, bounds.width, bounds.height)
+        context?.saveLayer(
+            x = bounds.left / densityValue,
+            y = bounds.top / densityValue,
+            width = bounds.width / densityValue,
+            height = bounds.height / densityValue
+        )
     }
 
     override fun translate(dx: Float, dy: Float) {
-        context?.translateWithDensity(dx, dy)
+        context?.translate(dx / densityValue, dy / densityValue)
     }
 
     override fun scale(sx: Float, sy: Float) {
@@ -123,19 +125,21 @@ internal class KuiklyCanvas : Canvas {
         context?.apply {
             val values = FloatArray(9)
             values.setFrom(matrix)
-            transformWithDensity(values)
+            values[2] /= densityValue // adjusting the tx (translation x)
+            values[5] /= densityValue // adjusting the ty (translation y)
+            transform(values)
         }
     }
 
     override fun clipRect(left: Float, top: Float, right: Float, bottom: Float, clipOp: ClipOp) {
         context?.apply {
             beginPath()
-            moveToWithDensity(left, top)
-            lineToWithDensity(right, top)
-            lineToWithDensity(right, bottom)
-            lineToWithDensity(left, bottom)
+            moveTo(left / densityValue, top / densityValue)
+            lineTo(right / densityValue, top / densityValue)
+            lineTo(right / densityValue, bottom / densityValue)
+            lineTo(left / densityValue, bottom / densityValue)
             closePath()
-            clip()
+            clip(clipOp == ClipOp.Intersect)
         }
     }
 
@@ -145,21 +149,18 @@ internal class KuiklyCanvas : Canvas {
                 throw IllegalArgumentException("require KuiklyPath, but got ${path::class.simpleName}")
             }
             beginPath()
-            path.draw(this)
-            if (path.closed) {
-                closePath()
-            }
-            clip()
+            path.draw(this, densityValue)
+            clip(clipOp == ClipOp.Intersect)
         }
     }
 
     override fun drawLine(p1: Offset, p2: Offset, paint: Paint) {
         context?.apply {
             beginPath()
-            moveToWithDensity(p1.x, p1.y)
-            lineToWithDensity(p2.x, p2.y)
+            moveTo(p1.x / densityValue, p1.y / densityValue)
+            lineTo(p2.x / densityValue, p2.y / densityValue)
             strokeStyle(paint.toKuiklyColor())
-            lineWidthWithDensity(paint.strokeWidth)
+            lineWidth(paint.strokeWidth / densityValue)
             stroke()
         }
     }
@@ -167,10 +168,10 @@ internal class KuiklyCanvas : Canvas {
     override fun drawRect(left: Float, top: Float, right: Float, bottom: Float, paint: Paint) {
         context?.apply {
             beginPath()
-            moveToWithDensity(left, top)
-            lineToWithDensity(right, top)
-            lineToWithDensity(right, bottom)
-            lineToWithDensity(left, bottom)
+            moveTo(left / densityValue, top / densityValue)
+            lineTo(right / densityValue, top / densityValue)
+            lineTo(right / densityValue, bottom / densityValue)
+            lineTo(left / densityValue, bottom / densityValue)
             closePath()
             fillOrStroke(paint)
         }
@@ -201,10 +202,10 @@ internal class KuiklyCanvas : Canvas {
     override fun drawCircle(center: Offset, radius: Float, paint: Paint) {
         context?.apply {
             beginPath()
-            arcWithDensity(
-                center.x,
-                center.y,
-                radius,
+            arc(
+                center.x / densityValue,
+                center.y / densityValue,
+                radius / densityValue,
                 0f,
                 PI.toFloat() * 2f,
                 false
@@ -242,10 +243,7 @@ internal class KuiklyCanvas : Canvas {
                 throw IllegalArgumentException("require KuiklyPath, but got ${path::class.simpleName}")
             }
             beginPath()
-            path.draw(this)
-            if (path.closed) {
-                closePath()
-            }
+            path.draw(this, densityValue)
             fillOrStroke(paint)
         }
     }
@@ -256,12 +254,12 @@ internal class KuiklyCanvas : Canvas {
             if (!kImage.isReady) {
                 return@apply
             }
-            drawImageWithDensity(
+            drawImage(
                 kImage.imageRef,
-                topLeftOffset.x,
-                topLeftOffset.y,
-                kImage.width.toFloat(),
-                kImage.height.toFloat()
+                topLeftOffset.x / densityValue,
+                topLeftOffset.y / densityValue,
+                kImage.width.toFloat() / densityValue,
+                kImage.height.toFloat() / densityValue
             )
         }
     }
@@ -279,16 +277,16 @@ internal class KuiklyCanvas : Canvas {
             if (!kImage.isReady) {
                 return@apply
             }
-            drawImageWithDensity(
+            drawImage(
                 kImage.imageRef,
                 srcOffset.x.toFloat(),
                 srcOffset.y.toFloat(),
                 srcSize.width.toFloat(),
                 srcSize.height.toFloat(),
-                dstOffset.x.toFloat(),
-                dstOffset.y.toFloat(),
-                dstSize.width.toFloat(),
-                dstSize.height.toFloat()
+                dstOffset.x.toFloat() / densityValue,
+                dstOffset.y.toFloat() / densityValue,
+                dstSize.width.toFloat() / densityValue,
+                dstSize.height.toFloat() / densityValue
             )
         }
     }
@@ -321,8 +319,8 @@ internal class KuiklyCanvas : Canvas {
             beginPath()
             val radius = paint.strokeWidth * 0.5f
             points.fastForEach { point ->
-                moveToWithDensity(point.x - radius, point.y)
-                lineToWithDensity(point.x + radius, point.y)
+                moveTo((point.x - radius) / densityValue, point.y / densityValue)
+                lineTo((point.x + radius) / densityValue, point.y / densityValue)
             }
             fillOrStroke(paint)
         }
@@ -352,10 +350,3 @@ internal class KuiklyCanvas : Canvas {
         }
     }
 }
-
-class CanvasContextEx(
-    renderView: RenderView,
-    pagerId: String,
-    nativeRef: Int,
-    val densityValue: Float
-) : CanvasContext(renderView, pagerId, nativeRef)

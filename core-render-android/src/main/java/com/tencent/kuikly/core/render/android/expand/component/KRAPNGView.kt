@@ -17,8 +17,12 @@ package com.tencent.kuikly.core.render.android.expand.component
 
 import android.content.Context
 import android.view.View
+import android.widget.ImageView
+import com.tencent.kuikly.core.render.android.adapter.HRImageLoadOption
 import com.tencent.kuikly.core.render.android.adapter.IAPNGViewAnimationListener
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
+import com.tencent.kuikly.core.render.android.css.ktx.frameHeight
+import com.tencent.kuikly.core.render.android.css.ktx.frameWidth
 import com.tencent.kuikly.core.render.android.expand.module.KRCodecModule
 import com.tencent.kuikly.core.render.android.expand.vendor.KRFileManager
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
@@ -194,7 +198,9 @@ class KRAPNGView(context: Context) : KRView(context), IAPNGViewAnimationListener
     }
 
     private fun setFilePath(filePath: String) {
-        apngView?.setFilePath(filePath)
+        val apngImageLoadOption = HRImageLoadOption(filePath, frameWidth, frameHeight, false, ImageView.ScaleType.FIT_CENTER)
+        kuiklyRenderContext?.getImageLoader()?.convertAssetsPathIfNeed(apngImageLoadOption)
+        apngView?.setFilePath(apngImageLoadOption.src)
         hadFilePath = true
     }
 

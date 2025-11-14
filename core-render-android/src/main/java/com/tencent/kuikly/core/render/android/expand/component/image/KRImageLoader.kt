@@ -56,7 +56,7 @@ class KRImageLoader(
     /**
      * 非内置场景需要将 assets 图片转换为本地路径
      */
-    private fun convertAssetsPathIfNeed(options: HRImageLoadOption) {
+    fun convertAssetsPathIfNeed(options: HRImageLoadOption) {
         executeMode.convertAssetsPathIfNeed(options, assetsPath)
     }
 

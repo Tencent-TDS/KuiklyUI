@@ -16,10 +16,10 @@
 #import "KRLogModule.h"
 #import "KuiklyRenderThreadManager.h"
 #import "KRConvertUtil.h"
-#import "KuiklyRenderThreadManager.h"
 
 static id<KuiklyLogProtocol> gLogHandler;
 static id<KuiklyLogProtocol> gLogUserSuppliedHandler;
+static dispatch_semaphore_t gLogHandlerLock;
 
 
 @interface KuiklyLogHandler : NSObject<KuiklyLogProtocol>
@@ -51,8 +51,7 @@ static id<KuiklyLogProtocol> gLogUserSuppliedHandler;
 
 @interface KRLogModule()
 
-
-@property (nonatomic, assign) BOOL needSyncLogTasks;
+@property (nonatomic, assign) BOOL needSyncLogTasks; // 防抖标志位，用于避免重复触发批量日志处理任务。
 @property (nonatomic, strong) NSMutableArray<dispatch_block_t> *logTasks;
 @property (nonatomic, assign) BOOL asyncLogEnable;
 @end
@@ -61,10 +60,10 @@ static id<KuiklyLogProtocol> gLogUserSuppliedHandler;
 
 - (instancetype)init {
     if (self = [super init]) {
+        // 在异步日志模式下，日志任务会先存入这个数组，然后批量处理
         _logTasks = [NSMutableArray new];
-        if ([[[self class] logHandler] respondsToSelector:@selector(asyncLogEnable)]) {
-            _asyncLogEnable = [[[self class] logHandler] asyncLogEnable];
-        }
+        // 设置异步日志开关
+        _asyncLogEnable = [[[self class] logHandler] asyncLogEnable];
     }
     return self;
 }
@@ -73,23 +72,29 @@ static id<KuiklyLogProtocol> gLogUserSuppliedHandler;
  * @brief 注册自定义log实现
  */
 + (void)registerLogHandler:(id<KuiklyLogProtocol>)logHandler {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        gLogHandlerLock = dispatch_semaphore_create(1);
+    });
+    
+    dispatch_semaphore_wait(gLogHandlerLock, DISPATCH_TIME_FOREVER);
     gLogUserSuppliedHandler = logHandler;
+    dispatch_semaphore_signal(gLogHandlerLock);
 }
 
 + (id<KuiklyLogProtocol>)logHandler {
-    // 优先使用用户赋值的 handler
-    if (gLogUserSuppliedHandler) {
-        return gLogUserSuppliedHandler;
-    }
-    
     static dispatch_once_t onceToken;
-    // 避免多线程同时访问，确保只创建一次
     dispatch_once(&onceToken, ^{
-        if (!gLogHandler) {
-            gLogHandler = [KuiklyLogHandler new];
-        }
+        gLogHandlerLock = dispatch_semaphore_create(1);
+        gLogHandler = [KuiklyLogHandler new];
     });
-    return gLogHandler;
+    
+    // 优先使用用户赋值的 handler
+    dispatch_semaphore_wait(gLogHandlerLock, DISPATCH_TIME_FOREVER);
+    id<KuiklyLogProtocol> handler = gLogUserSuppliedHandler ?: gLogHandler;
+    dispatch_semaphore_signal(gLogHandlerLock);
+    
+    return handler;
 }
 
 - (void)logInfo:(NSDictionary *)args {
@@ -161,9 +166,12 @@ static id<KuiklyLogProtocol> gLogUserSuppliedHandler;
     if (!_needSyncLogTasks) {
         _needSyncLogTasks = YES;
         [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
-            self.needSyncLogTasks = NO;
+            // 先复制任务并清空数组
             NSArray *tasks = [self.logTasks copy];
             self.logTasks = [NSMutableArray new];
+            // 重置标志位，允许新的批次开始
+            self.needSyncLogTasks = NO;
+            // 异步执行日志任务
             [KuiklyRenderThreadManager performOnLogQueueWithBlock:^{
                 for (dispatch_block_t task in tasks) {
                     task();

@@ -29,6 +29,10 @@ import com.tencent.kuikly.core.manager.PagerManager
 import com.tencent.kuikly.core.reactive.collection.ObservableList
 import com.tencent.kuikly.core.reactive.collection.ObservableSet
 import com.tencent.kuikly.core.reactive.handler.PropertyAccessHandler
+import com.tencent.kuikly.core.utils.VERIFY_REACTIVE_OBSERVER
+import com.tencent.kuikly.core.utils.VERIFY_THREAD_LEGACY
+import com.tencent.kuikly.core.utils.checkThreadLegacy
+import com.tencent.kuikly.core.utils.verifyFailedHandler
 import kotlin.properties.ReadWriteProperty
 
 /*
@@ -194,7 +198,7 @@ class ReactiveObserver {
 
     // get value callback
     internal fun notifyGetValue(propertyOwner: PropertyOwner, propertyName: String) {
-        checkThread()
+        checkThreadLegacy()
         if (!startCollectDependency) {
             return
         }
@@ -203,7 +207,7 @@ class ReactiveObserver {
 
     // set value callback
     internal fun notifyPropertyObserver(propertyOwner: PropertyOwner, propertyName: String) {
-        checkThread()
+        checkThreadLegacy()
         val propertyKey = buildPropertyKey(
             propertyOwner,
             propertyName
@@ -254,16 +258,6 @@ class ReactiveObserver {
     private fun buildPropertyKey(propertyOwner: PropertyOwner, propertyName: String): String {
         currentObservablePropertyKey = "${propertyOwner}_$propertyName"
         return currentObservablePropertyKey
-    }
-
-    private fun checkThread() {
-        if (VERIFY_THREAD) {
-            platformCheckThread {
-                verifyFailedHandler(
-                    IllegalStateException("observable must access on context thread")
-                )
-            }
-        }
     }
 
     companion object {
@@ -357,9 +351,33 @@ class ReactiveObserver {
             })
         }
 
-        var VERIFY_THREAD = false
-        var VERIFY_OBSERVER = false
-        internal var verifyFailedHandler: (RuntimeException) -> Unit = { throw it }
+        @Deprecated(
+            "Use Pager.VERIFY_THREAD instead",
+            ReplaceWith("Pager.VERIFY_THREAD", "com.tencent.kuikly.core.pager.Pager"),
+            DeprecationLevel.ERROR
+        )
+        var VERIFY_THREAD
+            get() = VERIFY_THREAD_LEGACY
+            set(value) {
+                VERIFY_THREAD_LEGACY = value
+            }
+
+        @Deprecated(
+            "Use Pager.VERIFY_REACTIVE_OBSERVER instead",
+            ReplaceWith("Pager.VERIFY_REACTIVE_OBSERVER", "com.tencent.kuikly.core.pager.Pager"),
+            DeprecationLevel.ERROR
+        )
+        var VERIFY_OBSERVER
+            get() = VERIFY_REACTIVE_OBSERVER
+            set(value) {
+                VERIFY_REACTIVE_OBSERVER = value
+            }
+
+        @Deprecated(
+            "Use Pager.verifyFailed(handler) method instead",
+            ReplaceWith("Pager.verifyFailed(handler)", "com.tencent.kuikly.core.pager.Pager"),
+            DeprecationLevel.ERROR
+        )
         fun verifyFailed(handler: (RuntimeException) -> Unit) {
             verifyFailedHandler = handler
         }
@@ -403,8 +421,8 @@ internal class UnsafePropertyAccessHandlerImpl(
 
     override fun getReactiveObserver(): ReactiveObserver? {
         val pagerId = scope.pagerId.ifEmpty {
-            if (ReactiveObserver.VERIFY_OBSERVER) {
-                ReactiveObserver.verifyFailedHandler(
+            if (VERIFY_REACTIVE_OBSERVER) {
+                verifyFailedHandler(
                     ReactiveObserverNotFoundException("PagerScope not initialized")
                 )
             }
@@ -412,13 +430,11 @@ internal class UnsafePropertyAccessHandlerImpl(
             BridgeManager.currentPageId
         }
         val observer = PagerManager.getReactiveObserver(pagerId)
-        if (observer == null && ReactiveObserver.VERIFY_OBSERVER) {
-            ReactiveObserver.verifyFailedHandler(
+        if (observer == null && VERIFY_REACTIVE_OBSERVER) {
+            verifyFailedHandler(
                 ReactiveObserverNotFoundException("ReactiveObserver not found: $pagerId")
             )
         }
         return observer
     }
 }
-
-internal expect inline fun platformCheckThread(block: () -> Unit)

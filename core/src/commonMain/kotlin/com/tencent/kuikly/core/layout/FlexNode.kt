@@ -2,6 +2,7 @@ package com.tencent.kuikly.core.layout
 
 import com.tencent.kuikly.core.collection.fastMutableListOf
 import com.tencent.kuikly.core.collection.fastMutableSetOf
+import com.tencent.kuikly.core.utils.checkThread
 
 class FlexNode {
 
@@ -419,6 +420,7 @@ class FlexNode {
     }
 
     fun markDirty() {
+        checkThread("Layout", "modify")
         if (isDirty) {
             return
         }

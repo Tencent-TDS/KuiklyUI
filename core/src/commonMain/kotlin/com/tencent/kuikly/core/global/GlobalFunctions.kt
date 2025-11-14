@@ -16,9 +16,14 @@
 package com.tencent.kuikly.core.global
 
 import com.tencent.kuikly.core.collection.fastHashMapOf
+import com.tencent.kuikly.core.utils.checkThread
 
 object GlobalFunctions {
     private var globalFunctionProducer = 0
+        set(value) {
+            checkThread("Callback function", "create")
+            field = value
+        }
 
     private val functionMap = fastHashMapOf<String, MutableMap<String, GlobalFunction>>()
 

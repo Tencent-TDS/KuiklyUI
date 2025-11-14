@@ -12,9 +12,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.tencent.kuikly.core.utils
 
-package com.tencent.kuikly.core.reactive
-
-internal actual inline fun platformCheckThread(block: () -> Unit) {
-
+internal actual inline fun platformCheckThread(failure: () -> Unit) {
+    // do nothing
 }

@@ -22,6 +22,7 @@ import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.module.CallbackFn
 import com.tencent.kuikly.core.module.IModuleAccessor
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+import com.tencent.kuikly.core.utils.checkThread
 
 /*
  * View公共基础Api供外部使用
@@ -212,6 +213,10 @@ abstract class AbstractBaseView<A : Attr, E : Event> : BaseObject(), IViewPublic
     }
 
     companion object {
-        var nativeRefProducer = 0
+        private var nativeRefProducer = 0
+            set(value) {
+                checkThread("View", "create")
+                field = value
+            }
     }
 }

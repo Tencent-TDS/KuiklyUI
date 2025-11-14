@@ -20,6 +20,7 @@ import com.tencent.kuikly.core.collection.toFastMap
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.pager.PageData
 import com.tencent.kuikly.core.reactive.ReactiveObserver
+import com.tencent.kuikly.core.utils.checkThread
 
 internal typealias FrameTask = (frame: Frame) -> Unit
 
@@ -67,6 +68,7 @@ abstract class Props : BaseObject(), IPagerId {
     }
 
     fun setProp(propKey: String, propValue: Any) {
+        checkThread("attr", "access")
         if (propsMap[propKey] == propValue && !forceUpdate) {
             return
         }

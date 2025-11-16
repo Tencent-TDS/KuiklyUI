@@ -91,7 +91,7 @@ class KRRenderView : public IKRRenderView {
 
     std::shared_ptr<KRPerformanceManager> GetPerformanceManager() override;
 
-    KRPoint GetRootViewPosition() const override;
+    KRPoint GetRootNodePositionInWindow() const override;
 
     void OnFirstFramePaint();
     /**

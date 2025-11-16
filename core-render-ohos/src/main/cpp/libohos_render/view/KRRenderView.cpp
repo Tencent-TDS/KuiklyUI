@@ -302,7 +302,7 @@ void KRRenderView::OnFirstFramePaint() {
     SendEvent(PAGER_EVENT_FIRST_FRAME_PAINT, "{}");
 }
 
-KRPoint KRRenderView::GetRootViewPosition() const {
+KRPoint KRRenderView::GetRootNodePositionInWindow() const {
     if (root_node_ == nullptr) {
         return KRPoint{0.0f, 0.0f};
     }

@@ -117,7 +117,7 @@ class IKRRenderView : public std::enable_shared_from_this<IKRRenderView> {
      * 获取容器在视口中的位置
      * @return 容器位置 (x, y)
      */
-    virtual KRPoint GetRootViewPosition() const = 0;
+    virtual KRPoint GetRootNodePositionInWindow() const = 0;
 };
 
 #endif  // CORE_RENDER_OHOS_IKRRENDERVIEW_H

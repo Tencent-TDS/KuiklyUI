@@ -232,7 +232,7 @@ KRAnyValue KRView::GenerateBaseParamsWithTouch(ArkUI_UIInputEvent *input_event, 
     KRPoint container_position{0.0f, 0.0f};
 
     if (auto root_view = GetRootView().lock()) {
-        container_position = root_view->GetRootViewPosition();
+        container_position = root_view->GetRootNodePositionInWindow();
     }
 
     KRRenderValueArray touches;

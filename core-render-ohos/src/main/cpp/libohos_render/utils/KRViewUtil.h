@@ -259,6 +259,8 @@ void SetNodeAnimation(std::weak_ptr<IKRRenderViewExport> view, std::string *anim
 #endif
 void UpdateLoadingProgressNodeColor(ArkUI_NodeHandle node, uint32_t hexColorValue);
 
+void UpdateNodeClipPath(ArkUI_NodeHandle node, float width, float height, const std::string &pathCommand);
+
 }  // namespace util
 }  // namespace kuikly
 

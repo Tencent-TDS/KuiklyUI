@@ -351,9 +351,9 @@ void UpdateNodeOverflow(ArkUI_NodeHandle node, int overflow) {
 void UpdateNodeBoxShadow(ArkUI_NodeHandle node, const std::string &css_box_shadow) {
     auto nodeAPI = GetNodeApi();
     auto splits = ConvertSplit(css_box_shadow, " ");
-    float x = ConvertToDouble(splits[0]);
-    float y = ConvertToDouble(splits[1]);
-    float radius = ConvertToDouble(splits[2]);
+    float x = ConvertToFloat(splits[0]);
+    float y = ConvertToFloat(splits[1]);
+    float radius = ConvertToFloat(splits[2]);
     uint32_t color = ConvertToHexColor(splits[3]);
     ArkUI_NumberValue value[] = {radius,         {.i32 = 0}, x, y, {.i32 = ARKUI_SHADOW_TYPE_COLOR},
                                  {.u32 = color}, {.i32 = 0}};
@@ -363,9 +363,9 @@ void UpdateNodeBoxShadow(ArkUI_NodeHandle node, const std::string &css_box_shado
 
 void SetTextShadow(OH_Drawing_TextShadow *shadow, const std::string &css_box_shadow) {
     auto splits = ConvertSplit(css_box_shadow, " ");
-    float x = ConvertToDouble(splits[0]);
-    float y = ConvertToDouble(splits[1]);
-    float radius = ConvertToDouble(splits[2]);
+    float x = ConvertToFloat(splits[0]);
+    float y = ConvertToFloat(splits[1]);
+    float radius = ConvertToFloat(splits[2]);
     uint32_t color = ConvertToHexColor(splits[3]);
     auto offset = OH_Drawing_PointCreate(x, y);
     OH_Drawing_SetTextShadow(shadow, color, offset, radius);
@@ -409,7 +409,7 @@ void UpdateNodeAccessibility(ArkUI_NodeHandle node, const std::string &accessibi
 void UpdateNodeBorder(ArkUI_NodeHandle node, std::string borderStr) {
     auto nodeAPI = GetNodeApi();
     auto splits = ConvertSplit(borderStr, " ");
-    auto boderWidth = ConvertToDouble(splits[0]);
+    auto boderWidth = ConvertToFloat(splits[0]);
     ArkUI_NumberValue value[] = {{.f32 = boderWidth}, {.f32 = boderWidth}, {.f32 = boderWidth}, {.f32 = boderWidth}};
     ArkUI_AttributeItem borderWidthItem = {value, 4};
     nodeAPI->setAttribute(node, NODE_BORDER_WIDTH, &borderWidthItem);
@@ -976,5 +976,25 @@ void UpdateLoadingProgressNodeColor(ArkUI_NodeHandle node, uint32_t hexColorValu
     ArkUI_AttributeItem colorItem = {value, 1};
     nodeAPI->setAttribute(node, NODE_LOADING_PROGRESS_COLOR, &colorItem);
 }
+
+void UpdateNodeClipPath(ArkUI_NodeHandle node, float width, float height, const std::string &pathCommand) {
+    auto nodeAPI = GetNodeApi();
+    if (pathCommand.empty()) {
+        nodeAPI->resetAttribute(node, NODE_CLIP_SHAPE);
+        return;
+    }
+    ArkUI_NumberValue value[] = {
+        {.i32 = ARKUI_CLIP_TYPE_PATH},
+        {.f32 = width},
+        {.f32 = height}
+    };
+    ArkUI_AttributeItem clipPathItem = {
+        .value = value,
+        .size = 3,
+        .string = pathCommand.c_str()
+    };
+    nodeAPI->setAttribute(node, NODE_CLIP_SHAPE, &clipPathItem);
+}
+
 }  // namespace util
 }  // namespace kuikly

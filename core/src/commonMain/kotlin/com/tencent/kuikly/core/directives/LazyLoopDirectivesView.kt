@@ -740,7 +740,7 @@ class LazyLoopDirectivesView<T>(
                 scrollOffsetCorrectInfo = scrollOffsetCorrectInfoOf(
                     position = position,
                     offset = offset,
-                    reachEnd = newEnd == curListSize,
+                    reachEnd = newStart != 0 && newEnd == curListSize,
                     scrolling = scrolling
                 )
                 // 来自API的调用可能没有节点变动，主动markDirty确保触发Layout

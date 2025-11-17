@@ -96,33 +96,33 @@ bool KRTransformParser::ParseFromCssTransform(const std::string &css_transform) 
         return v.size() >= n;
     };
     
-    rotate_angle_ = ConvertToDouble(splits[ROTATE_INDEX]);
+    rotate_angle_ = ConvertToFloat(splits[ROTATE_INDEX]);
     
     auto scales = ConvertSplit(splits[SCALE_INDEX], " ");
     if (!checkSize(scales, 2)) return false;
-    scale_x_ = ConvertToDouble(scales[0]);
-    scale_y_ = ConvertToDouble(scales[1]);
+    scale_x_ = ConvertToFloat(scales[0]);
+    scale_y_ = ConvertToFloat(scales[1]);
     
     auto translates = ConvertSplit(splits[TRANSLATE_INDEX], " ");
     if (!checkSize(translates, 2)) return false;
-    translation_x_ = ConvertToDouble(translates[0]);
-    translation_y_ = ConvertToDouble(translates[1]);
+    translation_x_ = ConvertToFloat(translates[0]);
+    translation_y_ = ConvertToFloat(translates[1]);
     auto anchors = ConvertSplit(splits[ANCHOR_INDEX], " ");
     if (!checkSize(anchors, 2)) return false;
-    anchor_x_ = ConvertToDouble(anchors[0]);
-    anchor_y_ = ConvertToDouble(anchors[1]);
+    anchor_x_ = ConvertToFloat(anchors[0]);
+    anchor_y_ = ConvertToFloat(anchors[1]);
     
     auto skews = ConvertSplit(splits[SKEW_INDEX], " ");
     if (!checkSize(skews, 2)) return false;
-    skew_x_ = ConvertToDouble(skews[0]);
-    skew_y_ = ConvertToDouble(skews[1]);
+    skew_x_ = ConvertToFloat(skews[0]);
+    skew_y_ = ConvertToFloat(skews[1]);
     
     // 旋转XY
     if (splits.size() > ROTATE_XY_INDEX) {
         auto rotateXY = ConvertSplit(splits[ROTATE_XY_INDEX], " ");
         if (checkSize(rotateXY, 2)) {
-            rotate_x_angle_ = ConvertToDouble(rotateXY[0]);
-            rotate_y_angle_ = ConvertToDouble(rotateXY[1]);
+            rotate_x_angle_ = ConvertToFloat(rotateXY[0]);
+            rotate_y_angle_ = ConvertToFloat(rotateXY[1]);
         }
     } else {
         rotate_x_angle_ = 0.0;

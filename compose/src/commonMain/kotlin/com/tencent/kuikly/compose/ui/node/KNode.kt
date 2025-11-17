@@ -36,12 +36,15 @@ import com.tencent.kuikly.compose.views.VirtualNodeView
 import com.tencent.kuikly.compose.gestures.KuiklyScrollInfo
 import com.tencent.kuikly.compose.layout.resetViewVisible
 import com.tencent.kuikly.compose.node.extPropsVar
+import com.tencent.kuikly.compose.ui.KuiklyPath
+import com.tencent.kuikly.compose.ui.graphics.Path
 import com.tencent.kuikly.compose.ui.layout.LookaheadLayoutCoordinates
 import com.tencent.kuikly.compose.ui.unit.plus
 import com.tencent.kuikly.core.base.Attr
 import com.tencent.kuikly.core.base.Attr.StyleConst
 import com.tencent.kuikly.core.base.BoxShadow
 import com.tencent.kuikly.core.base.DeclarativeBaseView
+import com.tencent.kuikly.core.base.PropValuePath
 import com.tencent.kuikly.core.base.Rotate
 import com.tencent.kuikly.core.base.Scale
 import com.tencent.kuikly.core.base.Translate
@@ -410,6 +413,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
                 0
             )
         }
+        private var DeclarativeBaseView<*, *>.clipPath by extPropsVar("clipPath") { "" }
         private var DeclarativeBaseView<*, *>.borderRadius by extPropsVar("borderRadius") { FloatArray(4) }
         private var DeclarativeBaseView<*, *>.clip by extPropsVar("clip") { false }
         private var DeclarativeBaseView<*, *>.shadowElevation by extPropsVar("shadowElevation") { 0f }
@@ -476,6 +480,14 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             array[3] = max(array[3], radius.bottomLeftCornerRadius.radius)
         }
 
+        fun DeclarativeBaseView<*, *>.clipPath(path: KuiklyPath) {
+            val densityValue = getPager().pagerDensity()
+            this.clipPath = PropValuePath().let {
+                path.draw(it, densityValue)
+                it.toPropValue()
+            }
+        }
+
         fun DeclarativeBaseView<*, *>.clip() {
             this.clip = true
         }
@@ -499,6 +511,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             clip = false
             shadowElevation = 0f
             shadowColor = Color.Transparent
+            clipPath = ""
         }
 
         fun DeclarativeBaseView<*, *>.flush() {
@@ -510,9 +523,13 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
                 attr.applyTransform(measuredSize, getMatrix()!!)
                 matrixChanged = false
             }
+            val clipPath = clipPath
+            if (clipPath.isNotEmpty() || attr.getProp(StyleConst.CLIP_PATH) != null) {
+                attr.setProp(StyleConst.CLIP_PATH, clipPath)
+            }
             val hasBorderRadius = borderRadius.any { it > 0f }
             val hasClip = clip
-            if (hasBorderRadius || hasClip || attr.getProp(StyleConst.BORDER_RADIUS) != null) {
+            if (clipPath.isEmpty() && (hasBorderRadius || hasClip || attr.getProp(StyleConst.BORDER_RADIUS) != null)) {
                 if (hasBorderRadius) {
                     val array = borderRadius
                     val densityValue = getPager().pagerDensity()

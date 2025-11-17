@@ -14,7 +14,6 @@ import com.tencent.kuikly.core.datetime.DateTime
 import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.log.KLog
-import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.Modal
@@ -25,7 +24,7 @@ import com.tencent.kuikly.core.views.VideoPlayControl
 import com.tencent.kuikly.core.views.VideoView
 import com.tencent.kuikly.demo.pages.video.type.VideoItem
 import com.tencent.kuikly.demo.pages.app.AppTabPage
-import com.tencent.kuiklydemo.mtt.cover.LAYER_BOTTOM
+import com.tencent.kuikly.demo.pages.video.cover.LAYER_BOTTOM
 
 enum class CoverType{
     Cover,

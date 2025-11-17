@@ -124,13 +124,15 @@ class KRCSSGestureListener(private val kuiklyContext: IKuiklyRenderContext?) : G
      * @return 是否消费事件
      */
     fun onLongPressMoveOrEnd(e: MotionEvent): Boolean {
+        val isCancel = e.action == MotionEvent.ACTION_CANCEL
         dispatchEvent(
             TYPE_LONG_PRESS, mapOf(
                 KRViewConst.X to kuiklyContext.toDpF(e.x),
                 KRViewConst.Y to kuiklyContext.toDpF(e.y),
                 EVENT_STATE to convertAction(e.action),
                 PAGE_X to kuiklyContext.toDpF(e.rawX),
-                PAGE_Y to kuiklyContext.toDpF(e.rawY)
+                PAGE_Y to kuiklyContext.toDpF(e.rawY),
+                IS_CANCEL to isCancel
             )
         )
         return true
@@ -276,6 +278,7 @@ class KRCSSGestureListener(private val kuiklyContext: IKuiklyRenderContext?) : G
         const val EVENT_STATE_START = "start"
         private const val EVENT_STATE_MOVE = "move"
         private const val EVENT_STATE_END = "end"
+        private const val IS_CANCEL = "isCancel"
     }
 
     class GestureObserve(

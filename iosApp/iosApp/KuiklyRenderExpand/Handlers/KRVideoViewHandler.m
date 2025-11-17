@@ -14,8 +14,11 @@
  */
 
 #import "KRVideoViewHandler.h"
+#import <AVFoundation/AVFoundation.h>
 
 @interface KRVideoViewHandler()<WMPlayerDelegate>
+
+@property (nonatomic, assign) BOOL hasNotifiedFirstFrame;
 
 @end
 
@@ -35,6 +38,36 @@
 
 @synthesize krv_delegate;
 
+- (instancetype)initPlayerModel:(WMPlayerModel *)playerModel {
+    if (self = [super initPlayerModel:playerModel]) {
+        _hasNotifiedFirstFrame = NO;
+        // 监听 playerLayer 的 readyForDisplay 属性来检测首帧渲染
+        [self addObserver:self forKeyPath:@"playerLayer.readyForDisplay" options:NSKeyValueObservingOptionNew context:nil];
+    }
+    return self;
+}
+
+- (void)dealloc {
+    @try {
+        [self removeObserver:self forKeyPath:@"playerLayer.readyForDisplay"];
+    } @catch (NSException *exception) {
+        // 忽略重复移除观察者的异常
+    }
+}
+
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSKeyValueChangeKey,id> *)change context:(void *)context {
+    if ([keyPath isEqualToString:@"playerLayer.readyForDisplay"]) {
+        BOOL isReady = [[change objectForKey:NSKeyValueChangeNewKey] boolValue];
+        if (isReady && !self.hasNotifiedFirstFrame) {
+            self.hasNotifiedFirstFrame = YES;
+            // 首帧已经渲染，通知代理
+            if (self.krv_delegate && [self.krv_delegate respondsToSelector:@selector(videoFirstFrameDidDisplay)]) {
+                [self.krv_delegate videoFirstFrameDidDisplay];
+            }
+        }
+    }
+}
+
 - (void)krv_play {
     [self play];
 }
@@ -48,6 +81,8 @@
 }
 
 - (void)krv_stop {
+    // 重置首帧标记
+    self.hasNotifiedFirstFrame = NO;
     [self resetWMPlayer];
 }
 

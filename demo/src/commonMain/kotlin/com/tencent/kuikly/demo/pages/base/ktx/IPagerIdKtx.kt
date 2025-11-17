@@ -15,6 +15,7 @@
 
 package com.tencent.kuikly.demo.pages.base.ktx
 
+import com.tencent.kuikly.core.base.IPagerId
 import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.module.CallbackFn
 import com.tencent.kuikly.core.module.NotifyModule
@@ -51,4 +52,8 @@ internal fun IPager.callbackResult(param: JSONObject) {
     }
     val notifyModule = acquireModule<NotifyModule>(NotifyModule.MODULE_NAME)
     notifyModule.postNotify("$callbackId", param)
+}
+
+internal fun IPagerId.setTimeout(delay: Int, callback: () -> Unit): String {
+    return com.tencent.kuikly.core.timer.setTimeout(pagerId, delay, callback)
 }

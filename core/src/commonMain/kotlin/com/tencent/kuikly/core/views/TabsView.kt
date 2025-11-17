@@ -202,6 +202,9 @@ class TabsAttr : ListAttr() {
      * 注：该参数必须设置，才能让tabs组件正常使用，该参数来自PageList等Scroller容器组件中监听scroll事件的参数
      */
     fun scrollParams(scrollParams: ScrollParams) {
+        if (scrollParams == this.scrollParams) {
+            return
+        }
         this.scrollParams = scrollParams
         (this.view() as? TabsView)?.scrollParamsDidChanged()
     }

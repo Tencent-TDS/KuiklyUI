@@ -12,10 +12,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.tencent.kuikly.core.utils
 
-@file:JvmName("ReactiveObserverJvm")
-package com.tencent.kuikly.core.reactive
+import com.tencent.kuikly.com_tencent_kuikly_IsCurrentOnContextThread
+import com.tencent.kuikly.core.manager.BridgeManager
 
-internal actual inline fun platformCheckThread(block: () -> Unit) {
-
+internal actual inline fun platformCheckThread(failure: () -> Unit) {
+    @Suppress("DEPRECATION")
+    @OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+    if (com_tencent_kuikly_IsCurrentOnContextThread(BridgeManager.currentPageId)) {
+        failure()
+    }
 }

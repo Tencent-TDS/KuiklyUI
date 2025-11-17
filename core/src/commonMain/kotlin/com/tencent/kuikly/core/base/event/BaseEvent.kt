@@ -20,6 +20,7 @@ import com.tencent.kuikly.core.base.BaseObject
 import com.tencent.kuikly.core.base.IPagerId
 import com.tencent.kuikly.core.base.RenderView
 import com.tencent.kuikly.core.collection.fastLinkedMapOf
+import com.tencent.kuikly.core.utils.checkThread
 
 /**
  * 基础的EventCenter抽象类，实现了一些公共的方法。
@@ -38,10 +39,12 @@ abstract class BaseEvent: BaseObject(), IEvent, IPagerId {
         this.viewId = viewId
     }
     override fun register(eventName: String, eventHandlerFn: EventHandlerFn) {
+        checkThread("Event register", "call")
         eventMap[eventName] = eventHandlerFn
     }
 
     override fun unRegister(eventName: String) {
+        checkThread("Event unRegister", "call")
         eventMap.remove(eventName)
     }
 

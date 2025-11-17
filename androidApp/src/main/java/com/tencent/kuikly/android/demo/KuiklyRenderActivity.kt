@@ -122,6 +122,7 @@ class KuiklyRenderActivity : AppCompatActivity() {
         val param = argsToMap()
         param["appId"] = 1
         param["sysLang"] = resources.configuration.locale.language
+        param["debug"] = if (BuildConfig.DEBUG) 1 else 0
         return param
     }
 

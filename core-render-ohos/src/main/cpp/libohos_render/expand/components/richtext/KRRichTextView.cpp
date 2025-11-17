@@ -123,17 +123,22 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
     double drawOffsetY = richTextShadow->DrawOffsetY();
     OH_Drawing_TextAlign textAlign = richTextShadow->TextAlign();
     auto textTypoSize = richTextShadow->MainMeasureSize();
-    // 在容器前景上绘制额外图形，实现图形显示在子组件之上。
+    
+    // 获取绘制上下文和画布
     auto *drawContext = OH_ArkUI_NodeCustomEvent_GetDrawContextInDraw(event);
     auto *drawingHandle = reinterpret_cast<OH_Drawing_Canvas *>(OH_ArkUI_DrawContext_GetCanvas(drawContext));
     auto frameWidth = GetFrame().width;
     bool needReLayout = false;
+    
+    // 检测是否需要重新布局
     if (last_draw_frame_width_ > 0 && fabs(last_draw_frame_width_ - frameWidth) > 0.01) {
         needReLayout = true;
     }
     if (fabs(textTypoSize.width - frameWidth) > 1 || textAlign != TEXT_ALIGN_LEFT) {
         needReLayout = true;
     }
+    
+    // 执行重新布局
     if (needReLayout) {
         auto dpi = KRConfig::GetDpi();
         OH_Drawing_TypographyLayout(textTypo, frameWidth * dpi);
@@ -142,9 +147,8 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
             richTextShadow->ResetTextAlign();
         }
     }
-    // Note: turn this on only when absolutely needed in testing build
-    // KR_LOG_INFO<<"OnForegroundDraw, frameWidth:"<<frameWidth<<", shadow:"<<richTextShadow<<", node
-    // handle"<<this->GetNode();
+    
+    // 绘制富文本到画布
     OH_Drawing_TypographyPaint(textTypo, drawingHandle, 0, -drawOffsetY);
 }
 

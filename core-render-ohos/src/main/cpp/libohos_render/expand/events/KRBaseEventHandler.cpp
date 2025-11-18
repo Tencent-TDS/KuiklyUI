@@ -36,7 +36,7 @@ constexpr char kParamKeyState[] = "state";
 constexpr char kStartState[] = "start";
 constexpr char kEndState[] = "end";
 constexpr char kParamKeyScale[] = "scale";
-constexpr char kParamKeyIsCancel[] = "isCancel";    // 新增cancel手势
+constexpr char kParamKeyIsCancel[] = "isCancel";    // 增加cancel手势支持
 
 KRBaseEventHandler::KRBaseEventHandler(const std::shared_ptr<KRConfig> &kr_config) : kr_config_(kr_config) {}
 

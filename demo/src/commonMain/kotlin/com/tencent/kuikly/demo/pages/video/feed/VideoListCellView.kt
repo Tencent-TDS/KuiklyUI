@@ -198,7 +198,7 @@ class VideoListCellView : ComposeView<VideoListCellAttr, VideoListCellEvent>() {
                     attr {
                         absolutePositionAllZero()
                         src(ctx.attr.vitem.imgUrl)
-                        size(pagerData.pageViewWidth, ctx.attr.videoHeight)
+                        size(pagerData.pageViewWidth, pagerData.pageViewHeight - pagerData.statusBarHeight - AppTabPage.TAB_BOTTOM_HEIGHT)
                         resizeContain()
                     }
                     event {

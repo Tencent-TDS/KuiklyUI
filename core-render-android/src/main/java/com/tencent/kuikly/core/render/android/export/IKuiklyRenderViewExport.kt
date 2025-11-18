@@ -110,7 +110,7 @@ interface IKuiklyRenderViewExport : IKuiklyRenderModuleExport, IKRViewDecoration
         get() {
             return view().context as? IKuiklyRenderContext
         }
-        set(_) {}
+        set(value) {}
 
     /**
      * 获取实现[IKuiklyRenderViewExport]的View所在的[Activity]

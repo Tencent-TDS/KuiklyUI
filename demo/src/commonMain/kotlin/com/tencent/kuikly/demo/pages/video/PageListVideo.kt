@@ -98,6 +98,7 @@ internal class PageListVideo: BasePager() {
                 attr {
                     size(pagerData.pageViewWidth, pagerData.pageViewHeight)
                     pageDirection(false)
+                    pageItemHeight(pagerData.pageViewHeight) // 设置每个视频页面的高度，启用原生分页
                     showScrollerIndicator(false)
                 }
                 event {
@@ -117,6 +118,7 @@ internal class PageListVideo: BasePager() {
                         }
                         KLog.d("kuikly", ctx.currentIndex.toString())
                         KLog.d("kuikly", ctx.videoFeeds.size.toString())
+                        KLog.d("PageListHeight", ctx.pagerData.pageViewHeight.toString())
                     }
                     dragBegin {
                         ctx.isDragging = true

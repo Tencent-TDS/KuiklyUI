@@ -80,6 +80,26 @@
 
 设置输入法的下一步按钮类型为谷歌类型
 
+### enablesReturnKeyAutomatically方法<Badge text="仅iOS" type="warn"/>
+
+自定根据内容禁用和启用iOS软件盘的Return Key
+
+### imeNoFullscreen方法<Badge text="仅Android" type="warn"/>
+
+控制横屏状态下IME输入法是否进入全屏模式
+
+### returnKeyTypeContinue方法<Badge text="仅iOS" type="warn"/>
+
+设置输入法的下一步按钮类型为继续类型
+
+### returnKeyTypeGo方法
+
+设置输入法的下一步按钮类型为前往类型
+
+### returnKeyTypeGoogle方法<Badge text="仅iOS" type="warn"/>
+
+设置输入法的下一步按钮类型为谷歌类型
+
 ### placeholder方法<Badge text="微信小程序实现中" type="warn"/>
 
 设置输入框的提示文本

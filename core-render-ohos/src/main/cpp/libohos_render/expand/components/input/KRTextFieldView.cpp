@@ -58,7 +58,10 @@ void KRTextFieldView::DidInit() {
 void KRTextFieldView::OnDestroy() {
     if (keyboard_height_changed_callback_) {
         auto key = NewKRRenderValue(GetViewTag())->toString();
-        KRKeyboardManager::GetInstance().RemoveKeyboardTask(key);
+        if (auto root = GetRootView().lock()) {
+            auto window_id = root->GetContext()->WindowId();
+            KRKeyboardManager::GetInstance().RemoveKeyboardTask(window_id, key);
+        }
     }
     keyboard_height_changed_callback_ = nullptr;
 }
@@ -208,12 +211,15 @@ bool KRTextFieldView::SetProp(const std::string &prop_key, const KRAnyValue &pro
     if (kuikly::util::isEqual(prop_key, kEventKeyboardHeightChange)) {  // 监听文字是否超过输入最大的限制事件
         keyboard_height_changed_callback_ = event_call_back;
         auto key = NewKRRenderValue(GetViewTag())->toString();
-        KRKeyboardManager::GetInstance().AddKeyboardTask(key, [event_call_back](float height, int duration_ms) {
-            KRRenderValueMap map;
-            map["height"] = NewKRRenderValue(height);
-            map["duration"] = NewKRRenderValue(duration_ms / 1000.0);
-            event_call_back(NewKRRenderValue(map));
-        });
+        if (auto root = GetRootView().lock()) {
+            auto window_id = root->GetContext()->WindowId();
+            KRKeyboardManager::GetInstance().AddKeyboardTask(window_id, key, [event_call_back](float height, int duration_ms) {
+                KRRenderValueMap map;
+                map["height"] = NewKRRenderValue(height);
+                map["duration"] = NewKRRenderValue(duration_ms / 1000.0);
+                event_call_back(NewKRRenderValue(map));
+            });
+        }
         return true;
     }
 

@@ -23,6 +23,8 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
+import android.animation.ValueAnimator
+import android.view.animation.LinearInterpolator
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.core.view.NestedScrollingChild2
 import androidx.core.view.NestedScrollingParent2
@@ -44,6 +46,8 @@ import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 import org.json.JSONObject
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.PI
+import kotlin.math.pow
 
 enum class KRNestedScrollMode(val value: String){
     SELF_ONLY("SELF_ONLY"),
@@ -242,6 +246,18 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             overScrollHandler?.forceOverScroll = value
         }
 
+    private var springAnimationX: KRSpringAnimation? = null
+    private var springAnimationY: KRSpringAnimation? = null
+    private var springAnimationConsumedX = 0f
+    private var springAnimationConsumedY = 0f
+
+    private fun cancelSpringAnimations() {
+        springAnimationX?.cancel()
+        springAnimationY?.cancel()
+        springAnimationX = null
+        springAnimationY = null
+    }
+
     init {
         isFocusable = false
         overScrollMode = OVER_SCROLL_NEVER
@@ -413,7 +429,10 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             METHOD_CONTENT_OFFSET -> setContentOffset(params)
             METHOD_CONTENT_INSET_WHEN_END_DRAG -> contentInsetWhenEndDrag(params)
             METHOD_CONTENT_INSET -> contentInset(params)
-            METHOD_ABORT_CONTENT_OFFSET_ANIMATE -> stopScroll()
+            METHOD_ABORT_CONTENT_OFFSET_ANIMATE -> {
+                cancelSpringAnimations()
+                stopScroll()
+            }
             else -> super.call(method, params, callback)
         }
     }
@@ -531,6 +550,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             // 导致 RV 内部的状态一直都 DRAGGING，因此在 onInterceptEvent的时候，RV 内部一直拦截事件
             // 导致 RV 内部的横向子 List 无法滑动
             // 触发条件：先在横向子 List 滑动然后触发 cancel
+            cancelSpringAnimations()
             stopScroll()
             return true
         }
@@ -591,6 +611,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 }
                 if (isIdeaStateToDraggingState(currentState) || isSettlingStateToDraggingState(currentState)) {
                     isDragging = true
+                    cancelSpringAnimations()
                     fireBeginDragEvent()
                 }
 
@@ -858,21 +879,29 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         var offsetX = kuiklyRenderContext.toPxI(contentOffsetSplits[0].toFloat())
         var offsetY = kuiklyRenderContext.toPxI(contentOffsetSplits[1].toFloat())
         val animate = contentOffsetSplits[2] == "1" // "1"为以动画的形式滚动
-        var isExpand = true
-        if (contentOffsetSplits.size >= 4) {
-            isExpand = contentOffsetSplits[3] == "1"
+        var springDuration = 0
+        var springDamping = 0f
+        var springVelocity = 0f
+
+        if (contentOffsetSplits.size >= 6) {
+            springDuration = contentOffsetSplits[3].toInt()
+            springDamping = contentOffsetSplits[4].toFloat()
+            springVelocity = contentOffsetSplits[5].toFloat()
         }
 
         val originOffsetY = offsetY
         val originOffsetX = offsetX
 
-        pendingSetContentOffsetStr = if (canScrollImmediately(originOffsetX, originOffsetY, isExpand)) {
+        pendingSetContentOffsetStr = if (canScrollImmediately(originOffsetX, originOffsetY)) {
             internalSetContentOffset(originOffsetX,
                 originOffsetY,
                 offsetX,
                 offsetY,
                 isVertical,
-                animate)
+                animate,
+                springDuration,
+                springDamping,
+                springVelocity)
             KRCssConst.EMPTY_STRING
         } else {
             // KTV侧有可能先更改了contentView的高度或者宽度后, setContentOffset. 此时应该等Layout完后才设置offset
@@ -903,7 +932,10 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         offsetX: Int,
         offsetY: Int,
         isVertical: Boolean,
-        animate: Boolean
+        animate: Boolean,
+        springDuration: Int = 0,
+        springDamping: Float = 0f,
+        springVelocity: Float = 0f
     ) {
         if (isContentViewAttached) {
             var dx = 0
@@ -924,7 +956,11 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 dx = ox - (-contentView.left)
             }
             if (animate) {
-                smoothScrollBy(dx, dy)
+                if (springDuration > 0) {
+                    startSpringScroll(dx, dy, springDuration, springDamping, springVelocity, isVertical)
+                } else {
+                    smoothScrollBy(dx, dy)
+                }
             } else {
                 scrollBy(dx, dy)
             }
@@ -944,11 +980,54 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         }
     }
 
-    private fun canScrollImmediately(offsetX: Int, offsetY: Int, isExpand: Boolean): Boolean {
-        if (!isExpand) {
-            // 非扩容情况，默认支持滚动
-            return true
+    private fun startSpringScroll(
+        dx: Int,
+        dy: Int,
+        duration: Int,
+        damping: Float,
+        velocity: Float,
+        isVertical: Boolean
+    ) {
+        cancelSpringAnimations()
+
+        if (dx == 0 && dy == 0) return
+
+        // Stiffness calculation: (2 * PI / (duration / 1000))^2 * mass(1)
+        val durationSec = duration / 1000.0
+        val stiffness = (2 * PI / durationSec).pow(2).toFloat()
+
+        if (dx != 0) {
+            springAnimationConsumedX = 0f
+            springAnimationX = KRSpringAnimation(0f, dx.toFloat(), if (!isVertical) velocity else 0f, stiffness, damping).apply {
+                onUpdate = { value ->
+                    val consumed = value - springAnimationConsumedX
+                    val intConsumed = consumed.toInt()
+                    if (intConsumed != 0) {
+                        scrollBy(intConsumed, 0)
+                        springAnimationConsumedX += intConsumed
+                    }
+                }
+                start()
+            }
         }
+
+        if (dy != 0) {
+            springAnimationConsumedY = 0f
+            springAnimationY = KRSpringAnimation(0f, dy.toFloat(), if (isVertical) velocity else 0f, stiffness, damping).apply {
+                onUpdate = { value ->
+                    val consumed = value - springAnimationConsumedY
+                    val intConsumed = consumed.toInt()
+                    if (intConsumed != 0) {
+                        scrollBy(0, intConsumed)
+                        springAnimationConsumedY += intConsumed
+                    }
+                }
+                start()
+            }
+        }
+    }
+
+    private fun canScrollImmediately(offsetX: Int, offsetY: Int): Boolean {
         return if (directionRow) {
             offsetX <= contentView.width - width
         } else {

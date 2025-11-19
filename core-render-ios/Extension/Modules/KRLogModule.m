@@ -84,8 +84,6 @@ static id<KuiklyLogProtocol> gLogUserSuppliedHandler;
     });
     
     // 优先使用用户赋值的 handler
-    // 由于 gLogUserSuppliedHandler 通过 dispatch_once 只写入一次，
-    // 且 dispatch_once 保证了内存可见性，因此读取时不需要加锁
     id<KuiklyLogProtocol> handler = gLogUserSuppliedHandler ?: gLogHandler;
     
     return handler;

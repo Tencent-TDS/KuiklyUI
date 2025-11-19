@@ -63,6 +63,7 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
             SRC -> setSrc(propValue)
             REPEAT_COUNT -> repeatCount(propValue)
             AUTO_PLAY -> autoPlay(propValue)
+            SCALE_MODE -> setScaleMode(propValue)
             REPLACE_TEXT_LAYER_CONTENT -> setReplaceTextLayerContent(propValue)
             REPLACE_IMAGE_LAYER_CONTENT -> setReplaceImageLayerContent(propValue)
             LOAD_FAIL -> {
@@ -91,6 +92,11 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
             result = pagView?.setKRProp(propKey, propValue) ?: false
         }
         return result
+    }
+
+    private fun setScaleMode(propValue: Any): Boolean {
+        pagView?.setPAGViewScaleMode(propValue as Int)
+        return true
     }
 
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
@@ -259,6 +265,7 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
         private const val SRC = "src"
         private const val REPEAT_COUNT = "repeatCount"
         private const val AUTO_PLAY = "autoPlay"
+        private const val SCALE_MODE = "scaleMode"
         private const val REPLACE_TEXT_LAYER_CONTENT = "replaceTextLayerContent"
         private const val REPLACE_IMAGE_LAYER_CONTENT = "replaceImageLayerContent"
         private const val LOAD_FAIL = "loadFailure"

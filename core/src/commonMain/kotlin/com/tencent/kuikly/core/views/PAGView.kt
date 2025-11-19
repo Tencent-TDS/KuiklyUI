@@ -125,21 +125,6 @@ class PAGViewAttr : Attr() {
         SCALE_MODE with mode
     }
 
-    /**
-     * 设置缩放模式（字符串版本，用于兼容）
-     * @param mode 缩放模式，支持 "letterBox"（等比缩放适应容器）、"stretch"（拉伸填充）、"zoom"（等比缩放填充，可能裁剪）
-     */
-    fun scaleMode(mode: String) {
-        val scaleModeValue = when (mode.lowercase()) {
-            "none" -> PAGScaleMode.NONE
-            "stretch", "fill" -> PAGScaleMode.STRETCH
-            "letterbox", "fit" -> PAGScaleMode.LETTER_BOX
-            "zoom" -> PAGScaleMode.ZOOM
-            else -> PAGScaleMode.LETTER_BOX
-        }
-        SCALE_MODE with scaleModeValue
-    }
-
     companion object {
         const val SRC = "src"
         const val REPEAT_COUNT = "repeatCount"

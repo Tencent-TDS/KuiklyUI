@@ -44,6 +44,89 @@ internal class PAGViewDemoPage: BasePager() {
                     }
 
                 }
+
+                PAG {
+                    ref {
+                        ctx.pagViewRef = it
+                    }
+                    attr {
+                        backgroundColor(Color.GRAY)
+                        marginTop(100f)
+                        size(250f, 50f)
+                        repeatCount(3)
+                        autoPlay(ctx.autoPlay)
+                        scaleMode(0)
+                        src("https://vfiles.gtimg.cn/wuji_dashboard/xy/componenthub/1pwxlc62.pag?test=15")
+                    }
+
+                    event {
+                        animationStart {
+                            KLog.d(TAG, "animationStart")
+                        }
+
+                        animationEnd {
+                            KLog.d(TAG, "animationEnd")
+                            ctx.pagViewRef.view?.setProgress(0.2f)
+                        }
+
+                    }
+                }
+
+                PAG {
+                    ref {
+                        ctx.pagViewRef = it
+                    }
+                    attr {
+                        backgroundColor(Color.GRAY)
+                        marginTop(100f)
+                        size(250f, 50f)
+                        repeatCount(3)
+                        autoPlay(ctx.autoPlay)
+                        scaleMode(1)
+                        src("https://vfiles.gtimg.cn/wuji_dashboard/xy/componenthub/1pwxlc62.pag?test=15")
+                    }
+
+                    event {
+                        animationStart {
+                            KLog.d(TAG, "animationStart")
+                        }
+
+                        animationEnd {
+                            KLog.d(TAG, "animationEnd")
+                            ctx.pagViewRef.view?.setProgress(0.2f)
+                        }
+
+                    }
+                }
+
+
+                PAG {
+                    ref {
+                        ctx.pagViewRef = it
+                    }
+                    attr {
+                        backgroundColor(Color.GRAY)
+                        marginTop(100f)
+                        size(250f, 50f)
+                        repeatCount(3)
+                        autoPlay(ctx.autoPlay)
+                        scaleMode(2)
+                        src("https://vfiles.gtimg.cn/wuji_dashboard/xy/componenthub/1pwxlc62.pag?test=15")
+                    }
+
+                    event {
+                        animationStart {
+                            KLog.d(TAG, "animationStart")
+                        }
+
+                        animationEnd {
+                            KLog.d(TAG, "animationEnd")
+                            ctx.pagViewRef.view?.setProgress(0.2f)
+                        }
+
+                    }
+                }
+
                 PAG {
                     ref {
                         ctx.pagViewRef = it
@@ -61,9 +144,10 @@ internal class PAGViewDemoPage: BasePager() {
                     attr {
                         backgroundColor(Color.GRAY)
                         marginTop(100f)
-                        size(50f, 50f)
+                        size(250f, 50f)
                         repeatCount(3)
                         autoPlay(ctx.autoPlay)
+                        scaleMode(3)
                         src("https://vfiles.gtimg.cn/wuji_dashboard/xy/componenthub/1pwxlc62.pag?test=15")
                     }
 

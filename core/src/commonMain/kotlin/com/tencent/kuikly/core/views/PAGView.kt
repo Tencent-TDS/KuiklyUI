@@ -26,17 +26,33 @@ import com.tencent.kuikly.core.base.toInt
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 
 /**
- * PAG scale mode constants, aligned with libpag's PAGScaleMode.
- * Specifies the rule of how to scale the pag content to fit the surface size.
- * 
+ * PAG scale mode, aligned with libpag's `PAGScaleMode`.
+ *
+ * This enum specifies how to scale the PAG content to fit the surface size.
+ * The [value] of each enum item is the corresponding libpag numeric constant:
+ * 0: NONE, 1: STRETCH, 2: LETTER_BOX, 3: ZOOM.
+ *
  * Reference: https://github.com/Tencent/libpag
- * Default: LETTER_BOX (2)
+ * Default: [LETTER_BOX] (2)
  */
-object PAGScaleMode {
-    const val NONE = 0                  // Content is not scaled. The original size is used.
-    const val STRETCH = 1               // Stretches to fill without preserving aspect ratio (may distort).
-    const val LETTER_BOX = 2            // Scales to fit while preserving aspect ratio (default, libpag default behavior).
-    const val ZOOM = 3                  // Scales to fill while preserving aspect ratio. Content may be cropped.
+enum class PAGScaleMode(val value: Int) {
+    /** Content is not scaled. The original size is used. */
+    NONE(0),
+
+    /** Stretches to fill without preserving aspect ratio (may distort). */
+    STRETCH(1),
+
+    /** Scales to fit while preserving aspect ratio (default, libpag default behavior). */
+    LETTER_BOX(2),
+
+    /** Scales to fill while preserving aspect ratio. Content may be cropped. */
+    ZOOM(3);
+
+    companion object {
+        fun fromValue(value: Int): PAGScaleMode {
+            return values().firstOrNull { it.value == value } ?: LETTER_BOX
+        }
+    }
 }
 
 /**
@@ -50,7 +66,7 @@ fun ViewContainer<*, *>.PAG(init: PAGView.() -> Unit) {
 class PAGViewAttr : Attr() {
     init {
         // Set default scaleMode to LETTER_BOX (2), which is libpag's default behavior
-        SCALE_MODE with PAGScaleMode.LETTER_BOX
+        SCALE_MODE with PAGScaleMode.LETTER_BOX.value
     }
 
     /**
@@ -118,11 +134,41 @@ class PAGViewAttr : Attr() {
     }
 
     /**
-     * 设置缩放模式，对齐 libpag PAGScaleMode
-     * @param mode 缩放模式数值 (0: NONE, 1: STRETCH, 2: LETTER_BOX, 3: ZOOM)
+     * 设置缩放模式，对齐 libpag 的 `PAGScaleMode`。
+     *
+     * @param mode 缩放模式枚举值：
+     * [PAGScaleMode.NONE]、[PAGScaleMode.STRETCH]、[PAGScaleMode.LETTER_BOX]、[PAGScaleMode.ZOOM]
      */
-    fun scaleMode(mode: Int) {
-        SCALE_MODE with mode
+    fun scaleMode(mode: PAGScaleMode) {
+        SCALE_MODE with mode.value
+    }
+
+    /**
+     * 使用 NONE 模式：不缩放，使用原始大小。
+     */
+    fun scaleModeNone() {
+        scaleMode(PAGScaleMode.NONE)
+    }
+
+    /**
+     * 使用 STRETCH 模式：拉伸填充，不保持宽高比（可能会变形）。
+     */
+    fun scaleModeStretch() {
+        scaleMode(PAGScaleMode.STRETCH)
+    }
+
+    /**
+     * 使用 LETTER_BOX 模式：按比例缩放以完整显示内容（默认行为）。
+     */
+    fun scaleModeLetterBox() {
+        scaleMode(PAGScaleMode.LETTER_BOX)
+    }
+
+    /**
+     * 使用 ZOOM 模式：按比例缩放以填满容器，内容可能会被裁剪。
+     */
+    fun scaleModeZoom() {
+        scaleMode(PAGScaleMode.ZOOM)
     }
 
     companion object {

@@ -23,6 +23,7 @@ import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.PAG
 import com.tencent.kuikly.core.views.PAGView
+import com.tencent.kuikly.core.views.PAGScaleMode
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
@@ -55,7 +56,7 @@ internal class PAGViewDemoPage: BasePager() {
                         size(250f, 50f)
                         repeatCount(3)
                         autoPlay(ctx.autoPlay)
-                        scaleMode(0)
+                        scaleMode(PAGScaleMode.NONE)
                         src("https://vfiles.gtimg.cn/wuji_dashboard/xy/componenthub/1pwxlc62.pag?test=15")
                     }
 
@@ -82,7 +83,7 @@ internal class PAGViewDemoPage: BasePager() {
                         size(250f, 50f)
                         repeatCount(3)
                         autoPlay(ctx.autoPlay)
-                        scaleMode(1)
+                        scaleMode(PAGScaleMode.STRETCH)
                         src("https://vfiles.gtimg.cn/wuji_dashboard/xy/componenthub/1pwxlc62.pag?test=15")
                     }
 
@@ -110,7 +111,7 @@ internal class PAGViewDemoPage: BasePager() {
                         size(250f, 50f)
                         repeatCount(3)
                         autoPlay(ctx.autoPlay)
-                        scaleMode(2)
+                        scaleMode(PAGScaleMode.LETTER_BOX)
                         src("https://vfiles.gtimg.cn/wuji_dashboard/xy/componenthub/1pwxlc62.pag?test=15")
                     }
 
@@ -147,7 +148,7 @@ internal class PAGViewDemoPage: BasePager() {
                         size(250f, 50f)
                         repeatCount(3)
                         autoPlay(ctx.autoPlay)
-                        scaleMode(3)
+                        scaleMode(PAGScaleMode.ZOOM)
                         src("https://vfiles.gtimg.cn/wuji_dashboard/xy/componenthub/1pwxlc62.pag?test=15")
                     }
 

@@ -19,7 +19,6 @@
 
 static id<KuiklyLogProtocol> gLogHandler;
 static id<KuiklyLogProtocol> gLogUserSuppliedHandler;
-static dispatch_semaphore_t gLogHandlerLock;
 
 
 @interface KuiklyLogHandler : NSObject<KuiklyLogProtocol>
@@ -69,30 +68,25 @@ static dispatch_semaphore_t gLogHandlerLock;
 }
 
 /*
- * @brief 注册自定义log实现
+ * @brief 注册自定义log实现（只能注册一次，重复调用会被忽略）
  */
 + (void)registerLogHandler:(id<KuiklyLogProtocol>)logHandler {
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        gLogHandlerLock = dispatch_semaphore_create(1);
+    static dispatch_once_t registerOnceToken;
+    dispatch_once(&registerOnceToken, ^{
+        gLogUserSuppliedHandler = logHandler;
     });
-    
-    dispatch_semaphore_wait(gLogHandlerLock, DISPATCH_TIME_FOREVER);
-    gLogUserSuppliedHandler = logHandler;
-    dispatch_semaphore_signal(gLogHandlerLock);
 }
 
 + (id<KuiklyLogProtocol>)logHandler {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        gLogHandlerLock = dispatch_semaphore_create(1);
         gLogHandler = [KuiklyLogHandler new];
     });
     
     // 优先使用用户赋值的 handler
-    dispatch_semaphore_wait(gLogHandlerLock, DISPATCH_TIME_FOREVER);
+    // 由于 gLogUserSuppliedHandler 通过 dispatch_once 只写入一次，
+    // 且 dispatch_once 保证了内存可见性，因此读取时不需要加锁
     id<KuiklyLogProtocol> handler = gLogUserSuppliedHandler ?: gLogHandler;
-    dispatch_semaphore_signal(gLogHandlerLock);
     
     return handler;
 }

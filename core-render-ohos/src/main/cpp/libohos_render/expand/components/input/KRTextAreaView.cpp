@@ -81,11 +81,26 @@ void KRTextAreaView::UpdateInputNodeSelectionStartPosition(uint32_t index) {
 void KRTextAreaView::UpdateInputNodePlaceholderFont(uint32_t font_size, ArkUI_FontWeight font_weight) {
     ArkUI_NumberValue fontWeight = {.i32 = font_weight};
     ArkUI_NumberValue tempStyle = {.i32 = ARKUI_FONT_STYLE_NORMAL};
-    std::array<ArkUI_NumberValue, 3> value = {{{.f32 = static_cast<float>(font_size)}, tempStyle, fontWeight}};
-    ArkUI_AttributeItem item = {value.data(), value.size()};
+    const auto &rootView = GetRootView().lock();
+    bool fontSizeScaleFollowSystem = true;
+    bool font_size_px = 0;
+    if (rootView) {
+        fontSizeScaleFollowSystem = rootView->GetContext()->Config()->fontSizeScaleFollowSystem();
+        font_size_px = rootView->GetContext()->Config()->fp2px(font_size);
+    }
+    float font_size_temp = font_size;
     auto node = GetNode();
+    // 如果禁用输入框内字体缩放需要设置为px
+    if (!fontSizeScaleFollowSystem) {
+        kuikly::util::GetNodeApi()->setLengthMetricUnit(node, ARKUI_LENGTH_METRIC_UNIT_PX);
+        font_size_temp = font_size_px;
+    }
+    std::array<ArkUI_NumberValue, 3> value = {{{.f32 = font_size_temp}, tempStyle, fontWeight}};
+    ArkUI_AttributeItem item = {value.data(), value.size()};
     kuikly::util::GetNodeApi()->setAttribute(node, NODE_TEXT_AREA_PLACEHOLDER_FONT, &item);
-
+    if (!fontSizeScaleFollowSystem) {
+        kuikly::util::GetNodeApi()->setLengthMetricUnit(node, ARKUI_LENGTH_METRIC_UNIT_DEFAULT);
+    }
     {
         ArkUI_NumberValue valueSize[] = {{.f32 = static_cast<float>(font_size)}};
         ArkUI_AttributeItem itemSize = {valueSize, sizeof(valueSize) / sizeof(ArkUI_NumberValue)};

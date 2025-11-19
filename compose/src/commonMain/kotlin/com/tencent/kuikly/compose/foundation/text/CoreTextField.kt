@@ -335,6 +335,7 @@ internal fun CoreTextField(
                     val textView = autoHeightTextAreaView
                     KNode(textView) {
                         getViewAttr().autofocus(false)
+                        getViewAttr().enablePinyinCallback(true)
                         getViewEvent().inputFocus {
                             focusRequester.requestFocus()
                         }

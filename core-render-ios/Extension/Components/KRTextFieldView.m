@@ -63,6 +63,8 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(keyboardHeightChange);
 /** event is textLengthBeyondLimit 输入长度超过限制 */
 @property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(textLengthBeyondLimit);
+/** attr is enablePinyinCallback 是否启用拼音输入回调 */
+@property (nonatomic, strong)  NSNumber *KUIKLY_PROP(enablePinyinCallback);
 
 @end
 
@@ -205,6 +207,10 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     [self p_addKeyboardNotificationIfNeed];
 }
 
+- (void)setCss_enablePinyinCallback:(NSNumber *)css_enablePinyinCallback {
+    _css_enablePinyinCallback = css_enablePinyinCallback;
+}
+
 #pragma mark - css method
 
 - (void)css_focus:(NSDictionary *)args  {
@@ -260,8 +266,16 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 #pragma mark - UITextViewDelegate
 
 - (void)onTextFeildTextChanged:(UITextField *)textField {  // 文本值变化
+    // 如果有拼音输入，根据配置决定是否触发回调
     if (textField.markedTextRange) {
-        return ;
+        BOOL enablePinyinCallback = [self.css_enablePinyinCallback boolValue];
+        if (enablePinyinCallback) {
+            if (self.css_textDidChange) {
+                NSString *text = textField.text.copy ?: @"";
+                self.css_textDidChange(@{@"text": text, @"length": @([text kr_length])});
+            }
+        }
+        return;
     }
     [self p_limitTextInput];
     if (self.css_textDidChange) {

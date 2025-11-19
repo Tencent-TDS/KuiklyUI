@@ -140,16 +140,6 @@ class PAGViewAttr : Attr() {
         SCALE_MODE with scaleModeValue
     }
 
-    /**
-     * 设置缩放模式（已废弃，使用 scaleMode 替代）
-     * @param mode 缩放模式，支持 "fit"（等比缩放适应容器）和 "fill"（填充整个容器）
-     */
-    @Deprecated("Use scaleMode(Int) or scaleMode(String) instead", 
-                replaceWith = ReplaceWith("scaleMode(mode)"))
-    fun resizeMode(mode: String) {
-        scaleMode(mode)
-    }
-
     companion object {
         const val SRC = "src"
         const val REPEAT_COUNT = "repeatCount"

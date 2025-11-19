@@ -64,11 +64,6 @@ fun ViewContainer<*, *>.PAG(init: PAGView.() -> Unit) {
 }
 
 class PAGViewAttr : Attr() {
-    init {
-        // Set default scaleMode to LETTER_BOX (2), which is libpag's default behavior
-        SCALE_MODE with PAGScaleMode.LETTER_BOX.value
-    }
-
     /**
      * 设置 PAGView 的源文件路径。
      * 支持 CDN URL 或本地文件路径。

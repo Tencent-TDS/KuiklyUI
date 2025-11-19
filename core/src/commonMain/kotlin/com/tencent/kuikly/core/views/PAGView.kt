@@ -26,6 +26,20 @@ import com.tencent.kuikly.core.base.toInt
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 
 /**
+ * PAG scale mode constants, aligned with libpag's PAGScaleMode.
+ * Specifies the rule of how to scale the pag content to fit the surface size.
+ * 
+ * Reference: https://github.com/Tencent/libpag
+ * Default: LETTER_BOX (2)
+ */
+object PAGScaleMode {
+    const val NONE = 0                  // Content is not scaled. The original size is used.
+    const val STRETCH = 1               // Stretches to fill without preserving aspect ratio (may distort).
+    const val LETTER_BOX = 2            // Scales to fit while preserving aspect ratio (default, libpag default behavior).
+    const val ZOOM = 3                  // Scales to fill while preserving aspect ratio. Content may be cropped.
+}
+
+/**
  * 创建一个 PAGView 实例并添加到视图容器中。
  * @param init 一个 PAGView.() -> Unit 函数，用于初始化 PAGView 的属性和子视图。
  */
@@ -34,6 +48,11 @@ fun ViewContainer<*, *>.PAG(init: PAGView.() -> Unit) {
 }
 
 class PAGViewAttr : Attr() {
+    init {
+        // Set default scaleMode to LETTER_BOX (2), which is libpag's default behavior
+        SCALE_MODE with PAGScaleMode.LETTER_BOX
+    }
+
     /**
      * 设置 PAGView 的源文件路径。
      * 支持 CDN URL 或本地文件路径。
@@ -98,10 +117,44 @@ class PAGViewAttr : Attr() {
         REPLACE_IMAGE_LAYER_CONTENT with "$layerName,$imageFilePath"
     }
 
+    /**
+     * 设置缩放模式，对齐 libpag PAGScaleMode
+     * @param mode 缩放模式数值 (0: NONE, 1: STRETCH, 2: LETTER_BOX, 3: ZOOM)
+     */
+    fun scaleMode(mode: Int) {
+        SCALE_MODE with mode
+    }
+
+    /**
+     * 设置缩放模式（字符串版本，用于兼容）
+     * @param mode 缩放模式，支持 "letterBox"（等比缩放适应容器）、"stretch"（拉伸填充）、"zoom"（等比缩放填充，可能裁剪）
+     */
+    fun scaleMode(mode: String) {
+        val scaleModeValue = when (mode.lowercase()) {
+            "none" -> PAGScaleMode.NONE
+            "stretch", "fill" -> PAGScaleMode.STRETCH
+            "letterbox", "fit" -> PAGScaleMode.LETTER_BOX
+            "zoom" -> PAGScaleMode.ZOOM
+            else -> PAGScaleMode.LETTER_BOX
+        }
+        SCALE_MODE with scaleModeValue
+    }
+
+    /**
+     * 设置缩放模式（已废弃，使用 scaleMode 替代）
+     * @param mode 缩放模式，支持 "fit"（等比缩放适应容器）和 "fill"（填充整个容器）
+     */
+    @Deprecated("Use scaleMode(Int) or scaleMode(String) instead", 
+                replaceWith = ReplaceWith("scaleMode(mode)"))
+    fun resizeMode(mode: String) {
+        scaleMode(mode)
+    }
+
     companion object {
         const val SRC = "src"
         const val REPEAT_COUNT = "repeatCount"
         const val AUTO_PLAY = "autoPlay"
+        const val SCALE_MODE = "scaleMode"
         const val REPLACE_TEXT_LAYER_CONTENT = "replaceTextLayerContent"
         const val REPLACE_IMAGE_LAYER_CONTENT = "replaceImageLayerContent"
     }

@@ -452,7 +452,7 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
                     borderRadii?.any { it > 0f } == true
             val needOutline = useOutline &&
                     // 如果有设置阴影的话，使用clipPath裁剪圆角，不然的话，阴影会无效
-                    shadowRadius != 0f &&
+                    shadowRadius == 0f &&
                     // 自定义Path可能不是凸的，无法使用outline裁剪，也使用clipPath裁剪
                     clipPathData.isEmpty() &&
                     hasBorderRadius

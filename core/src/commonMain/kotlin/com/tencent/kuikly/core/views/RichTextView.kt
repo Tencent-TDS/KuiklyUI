@@ -532,6 +532,7 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
     private var capInsets: EdgeInsets = EdgeInsets.default
     private var imageParams: JSONObject? = null
     private var verticalAlignOffset = 0f
+    private var horizontalAlignOffset = 0f
 
     private var richTextFrame by scope.observable(Frame.zero)
     private var placeholderFrame by scope.observable(Frame.zero)
@@ -560,6 +561,13 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
      */
     fun verticalAlignOffset(offset: Float) {
         this.verticalAlignOffset = offset
+    }
+
+    /**
+     * 设置ImageSpan在水平方向对齐的偏移，默认居中对齐
+     */
+    fun horizontalAlignOffset(offset: Float) {
+        this.horizontalAlignOffset = offset
     }
 
     override fun src(src: String, isDotNineImage: Boolean): IImageAttr {
@@ -675,7 +683,7 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
                     visibility(ctx.placeholderFrame.width != 0f && ctx.placeholderFrame.height != 0f)
                     absolutePosition(
                         top = ctx.richTextFrame.y + ctx.placeholderFrame.y + ctx.verticalAlignOffset,
-                        left = ctx.richTextFrame.x + ctx.placeholderFrame.x
+                        left = ctx.richTextFrame.x + ctx.placeholderFrame.x + ctx.horizontalAlignOffset
                     )
                     size(ctx.size.width, ctx.size.height)
                     if (ctx.uri != null) {

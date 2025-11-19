@@ -533,7 +533,7 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         }
     }
 
-    open fun getBackPressHandler(): BackPressHandler {
+    override fun getBackPressHandler(): BackPressHandler {
         return innerBackPressHandler
     }
 

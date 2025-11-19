@@ -60,7 +60,9 @@ static id<KuiklyLogProtocol> gLogUserSuppliedHandler;
 - (instancetype)init {
     if (self = [super init]) {
         _logTasks = [NSMutableArray new];
-        _asyncLogEnable = [[[self class] logHandler] asyncLogEnable];
+        if ([[[self class] logHandler] respondsToSelector:@selector(asyncLogEnable)]) {
+            _asyncLogEnable = [[[self class] logHandler] asyncLogEnable];
+        }
     }
     return self;
 }

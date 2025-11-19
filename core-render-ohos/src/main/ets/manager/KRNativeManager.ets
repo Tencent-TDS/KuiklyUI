@@ -88,7 +88,7 @@ export class KRNativeManager {
    */
   public createNativeInstance(instanceId: string, uiContext: UIContext, controller: KRNativeRenderController) {
     this.initIfNeed();
-    this.instancesMap[instanceId] = new KRNativeInstance(instanceId, uiContext, controller);
+    this.instancesMap.set(instanceId, new KRNativeInstance(instanceId, uiContext, controller));
   }
 
   /**
@@ -109,7 +109,8 @@ export class KRNativeManager {
    * @returns
    */
   public getNativeInstance(instanceId: string): KRNativeInstance | null {
-    return this.instancesMap[instanceId];
+    let instance = this.instancesMap.get(instanceId);
+    return instance ? instance : null
   }
 
 

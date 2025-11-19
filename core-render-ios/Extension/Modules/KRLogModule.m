@@ -50,7 +50,7 @@ static id<KuiklyLogProtocol> gLogUserSuppliedHandler;
 
 @interface KRLogModule()
 
-@property (nonatomic, assign) BOOL needSyncLogTasks; // 防抖标志位，用于避免重复触发批量日志处理任务。
+@property (nonatomic, assign) BOOL needSyncLogTasks;
 @property (nonatomic, strong) NSMutableArray<dispatch_block_t> *logTasks;
 @property (nonatomic, assign) BOOL asyncLogEnable;
 @end
@@ -59,16 +59,14 @@ static id<KuiklyLogProtocol> gLogUserSuppliedHandler;
 
 - (instancetype)init {
     if (self = [super init]) {
-        // 在异步日志模式下，日志任务会先存入这个数组，然后批量处理
         _logTasks = [NSMutableArray new];
-        // 设置异步日志开关
         _asyncLogEnable = [[[self class] logHandler] asyncLogEnable];
     }
     return self;
 }
 
 /*
- * @brief 注册自定义log实现（只能注册一次，重复调用会被忽略）
+ * @brief 注册自定义log实现
  */
 + (void)registerLogHandler:(id<KuiklyLogProtocol>)logHandler {
     static dispatch_once_t registerOnceToken;
@@ -158,12 +156,10 @@ static id<KuiklyLogProtocol> gLogUserSuppliedHandler;
     if (!_needSyncLogTasks) {
         _needSyncLogTasks = YES;
         [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
-            // 先复制任务并清空数组
+            self.needSyncLogTasks = NO;
             NSArray *tasks = [self.logTasks copy];
             self.logTasks = [NSMutableArray new];
-            // 重置标志位，允许新的批次开始
-            self.needSyncLogTasks = NO;
-            // 异步执行日志任务
+
             [KuiklyRenderThreadManager performOnLogQueueWithBlock:^{
                 for (dispatch_block_t task in tasks) {
                     task();

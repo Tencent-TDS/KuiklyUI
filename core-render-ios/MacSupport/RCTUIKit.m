@@ -936,16 +936,31 @@ static RCTUIView *RCTUIViewCommonInit(RCTUIView *self) {
                     options:(UIViewAnimationOptions)options
                  animations:(void (^)(void))animations
                  completion:(void (^ __nullable)(BOOL finished))completion {
+    // 使用 NSAnimationContext
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        [CATransaction begin];
-        [CATransaction setAnimationDuration:duration];
-        if (animations) {
-            animations();
-        }
-        [CATransaction commit];
-        if (completion) {
-            completion(YES);
-        }
+        [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
+            context.duration = duration;
+            context.allowsImplicitAnimation = YES; // [macOS] 关键：启用隐式动画
+            
+            // 根据 UIViewAnimationOptions 设置动画曲线
+            if (options & UIViewAnimationOptionCurveLinear) {
+                context.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionLinear];
+            } else if (options & UIViewAnimationOptionCurveEaseIn) {
+                context.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseIn];
+            } else if (options & UIViewAnimationOptionCurveEaseOut) {
+                context.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut];
+            } else {
+                context.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+            }
+            
+            if (animations) {
+                animations();
+            }
+        } completionHandler:^{
+            if (completion) {
+                completion(YES);
+            }
+        }];
     });
 }
 
@@ -956,8 +971,74 @@ static RCTUIView *RCTUIViewCommonInit(RCTUIView *self) {
                     options:(UIViewAnimationOptions)options
                  animations:(void (^)(void))animations
                  completion:(void (^ __nullable)(BOOL finished))completion {
-    // Simplified: treat as normal animation
-    [self animateWithDuration:duration delay:delay options:options animations:animations completion:completion];
+    // [macOS] 使用 NSAnimationContext + spring timing，这是 macOS 上最可靠的方案
+    // 虽然不如 iOS 的 spring 动画物理准确，但在 NSAnimationContext 框架下最兼容
+    
+    // Spring 动画阻尼分级阈值
+    static const CGFloat kHighDampingThreshold = 0.85;  // 高阻尼阈值：几乎无振荡
+    static const CGFloat kMediumDampingThreshold = 0.6; // 中等阻尼阈值：轻微弹性
+    static const CGFloat kLowDampingThreshold = 0.8;    // 低阻尼时延长动画的阈值
+    
+    // 动画时长调整参数
+    static const CGFloat kDurationMultiplier = 0.5;     // 低阻尼时的时长延长系数
+    
+    // Cubic Bezier 控制点 - 中等阻尼
+    static const CGFloat kMediumDampingCP1X = 0.25;    // 控制点1 X：加速度起始
+    static const CGFloat kMediumDampingCP1Y = 0.1;     // 控制点1 Y：平缓起始
+    static const CGFloat kMediumDampingCP2X = 0.25;    // 控制点2 X：减速度起始
+    static const CGFloat kMediumDampingCP2Y = 1.0;     // 控制点2 Y：平滑结束
+    
+    // Cubic Bezier 控制点 - 低阻尼（弹性效果）
+    static const CGFloat kLowDampingCP1X = 0.3;        // 控制点1 X：快速加速
+    static const CGFloat kLowDampingCP1Y = 0.0;        // 控制点1 Y：从零开始
+    static const CGFloat kLowDampingCP2X = 0.2;        // 控制点2 X：提前到达峰值
+    static const CGFloat kOvershootMultiplier = 0.8;   // 过冲幅度系数（增大以增强过冲）
+    
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
+            // Spring 参数映射：
+            // - iOS damping: 0 = 无阻尼（强烈震荡），1 = 完全阻尼（无震荡）
+            // - 通过调整 duration 和 timing function 的控制点来模拟物理弹簧效果
+            
+            // 低阻尼时延长动画时间，给振荡留出时间
+            CGFloat adjustedDuration = duration;
+            if (damping < kLowDampingThreshold) {
+                // 阻尼越小，动画时长延长越多，以显示完整的振荡过程
+                adjustedDuration = duration * (1.0 + (1.0 - damping) * kDurationMultiplier);
+            }
+            context.duration = adjustedDuration;
+            context.allowsImplicitAnimation = YES;
+            
+            // 根据阻尼值分级设置 timing function
+            if (damping >= kHighDampingThreshold) {
+                // 高阻尼（0.85-1.0）：平滑过渡，接近线性减速，无振荡
+                context.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut];
+                
+            } else if (damping >= kMediumDampingThreshold) {
+                // 中等阻尼（0.6-0.85）：使用 cubic bezier 模拟轻微弹性
+                // 曲线稍微超过终点后快速回归，产生微弱的弹簧感
+                context.timingFunction = [CAMediaTimingFunction functionWithControlPoints:
+                    kMediumDampingCP1X :kMediumDampingCP1Y :kMediumDampingCP2X :kMediumDampingCP2Y];
+                
+            } else {
+                // 低阻尼（0.0-0.6）：明显的弹性曲线，有过冲效果
+                // CP2Y > 1.0 会产生过冲（超过目标值），模拟弹簧振荡
+                CGFloat overshoot = (1.0 - damping) * kOvershootMultiplier; // 阻尼越小，过冲越大
+                CGFloat cp2y = 1.0 + overshoot; // 过冲量：控制点2的Y值超过1.0
+                
+                context.timingFunction = [CAMediaTimingFunction functionWithControlPoints:
+                    kLowDampingCP1X :kLowDampingCP1Y :kLowDampingCP2X :cp2y];
+            }
+            
+            if (animations) {
+                animations();
+            }
+        } completionHandler:^{
+            if (completion) {
+                completion(YES);
+            }
+        }];
+    });
 }
 
 + (void)animateKeyframesWithDuration:(NSTimeInterval)duration
@@ -965,7 +1046,43 @@ static RCTUIView *RCTUIViewCommonInit(RCTUIView *self) {
                               options:(UIViewKeyframeAnimationOptions)options
                            animations:(void (^)(void))animations
                            completion:(void (^ __nullable)(BOOL finished))completion {
-    [self animateWithDuration:duration delay:delay options:(UIViewAnimationOptions)options animations:animations completion:completion];
+    // 修复关键帧动画：重置 keyframe blocks 数组，准备收集新的关键帧
+    g_keyframeBlocks = [NSMutableArray array];
+    
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        // [macOS] 执行 animations block 收集所有关键帧（通过 addKeyframeWithRelativeStartTime 添加）
+        if (animations) {
+            animations();
+        }
+        
+        // [macOS] 如果没有关键帧，直接调用 completion
+        if (g_keyframeBlocks.count == 0) {
+            if (completion) {
+                completion(YES);
+            }
+            return;
+        }
+        
+        // [macOS] 使用 NSAnimationContext 执行关键帧动画
+        NSArray<void (^)(void)> *keyframes = [g_keyframeBlocks copy];
+        g_keyframeBlocks = nil; // Clear for next animation
+        
+        [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
+            context.duration = duration;
+            context.allowsImplicitAnimation = YES; // [macOS] 关键：启用隐式动画
+            
+            // Execute all keyframe animations
+            for (void (^keyframeBlock)(void) in keyframes) {
+                if (keyframeBlock) {
+                    keyframeBlock();
+                }
+            }
+        } completionHandler:^{
+            if (completion) {
+                completion(YES);
+            }
+        }];
+    });
 }
 
 static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
@@ -973,6 +1090,7 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
 + (void)addKeyframeWithRelativeStartTime:(double)frameStartTime
                         relativeDuration:(double)frameDuration
                                animations:(void (^)(void))animations {
+    // [macOS] Store keyframe blocks to be executed in animateKeyframesWithDuration
     if (!g_keyframeBlocks) {
         g_keyframeBlocks = [NSMutableArray array];
     }
@@ -981,8 +1099,30 @@ static NSMutableArray<void (^)(void)> *g_keyframeBlocks;
     }
 }
 
+static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseInOut;
+
 + (void)setAnimationCurve:(UIViewAnimationCurve)curve {
-    // Minimal compatibility: no additional processing
+    // [macOS] Store animation curve to be used in keyframe animations
+    g_currentAnimationCurve = curve;
+    
+    // Set timing function for current CATransaction if one is active
+    NSString *timingFunction = kCAMediaTimingFunctionEaseInEaseOut;
+    switch (curve) {
+        case UIViewAnimationCurveLinear:
+            timingFunction = kCAMediaTimingFunctionLinear;
+            break;
+        case UIViewAnimationCurveEaseIn:
+            timingFunction = kCAMediaTimingFunctionEaseIn;
+            break;
+        case UIViewAnimationCurveEaseOut:
+            timingFunction = kCAMediaTimingFunctionEaseOut;
+            break;
+        case UIViewAnimationCurveEaseInOut:
+        default:
+            timingFunction = kCAMediaTimingFunctionEaseInEaseOut;
+            break;
+    }
+    [CATransaction setAnimationTimingFunction:[CAMediaTimingFunction functionWithName:timingFunction]];
 }
 
 @end

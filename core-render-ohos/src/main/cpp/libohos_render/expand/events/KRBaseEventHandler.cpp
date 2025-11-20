@@ -36,6 +36,7 @@ constexpr char kParamKeyState[] = "state";
 constexpr char kStartState[] = "start";
 constexpr char kEndState[] = "end";
 constexpr char kParamKeyScale[] = "scale";
+constexpr char kParamKeyIsCancel[] = "isCancel";
 
 KRBaseEventHandler::KRBaseEventHandler(const std::shared_ptr<KRConfig> &kr_config) : kr_config_(kr_config) {}
 
@@ -182,6 +183,7 @@ bool KRBaseEventHandler::FireOnLongPressCallback(const std::shared_ptr<KRGesture
     params[kParamKeyPageX] = NewKRRenderValue(kr_config_->Px2Vp(gesture_event_data->gesture_event_window_point_.x));
     params[kParamKeyPageY] = NewKRRenderValue(kr_config_->Px2Vp(gesture_event_data->gesture_event_window_point_.y));
     params[kParamKeyState] = NewKRRenderValue(kuikly::util::GetArkUIGestureActionState(gesture_event_data->gesture_event_));
+    params[kParamKeyIsCancel] = NewKRRenderValue(kuikly::util::GetArkUIGestureActionType(gesture_event_data->gesture_event_) == GESTURE_EVENT_ACTION_CANCEL);
     long_press_callback_(NewKRRenderValue(params));
     return true;
 }

@@ -48,6 +48,12 @@ interface IPAGView {
      */
     fun setPAGViewRepeatCount(count: Int)
 
+    /**
+     * 设置PAG缩放模式
+     * @param scaleMode 缩放模式 (0: NONE, 1: STRETCH, 2: LETTER_BOX, 3: ZOOM)
+     */
+    fun setPAGViewScaleMode(scaleMode: Int)
+
     fun playPAGView()
 
     fun stopPAGView()

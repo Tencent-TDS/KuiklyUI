@@ -34,6 +34,7 @@ NSString *const KRPagAssetsPrefix = @"assets://";
 @property (nonatomic, strong) NSString *css_src;
 @property (nonatomic, strong) NSNumber *css_autoPlay;
 @property (nonatomic, strong) NSNumber *css_repeatCount;
+@property (nonatomic, strong) NSNumber *css_scaleMode;
 @property (nonatomic, strong) NSString *css_replaceTextLayerContent;
 @property (nonatomic, strong) NSString *css_replaceImageLayerContent;
 
@@ -139,6 +140,13 @@ static PAGViewCreator gPagViewCreator;
     if ([_css_autoPlay boolValue]) {
         [self p_tryToAutoPlay];
     }
+}
+
+- (void)setCss_scaleMode:(NSNumber *)css_scaleMode {
+    _css_scaleMode = css_scaleMode;
+    
+    int scaleMode = (int)[KRConvertUtil NSInteger:css_scaleMode];
+    [self.pagView setScaleMode:scaleMode];
 }
 
 - (void)setCss_replaceTextLayerContent:(NSString *)css_replaceTextLayerContent {

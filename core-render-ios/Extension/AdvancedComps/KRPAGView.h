@@ -97,6 +97,12 @@ typedef id<KRPagViewProtocol> _Nonnull (^PAGViewCreator)(CGRect frame);
 - (void)setRepeatCount:(int)repeatCount;
 
 /**
+ * Set the scale mode for the PAG content.
+ * 0: NONE, 1: STRETCH, 2: LETTER_BOX, 3: ZOOM.
+ */
+- (void)setScaleMode:(int)scaleMode;
+
+/**
  * Returns the current PAGComposition for PAGView to render as content.
  */
 - (id<IPAGCompositionProtocol>)getComposition;

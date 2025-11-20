@@ -26,6 +26,36 @@ import com.tencent.kuikly.core.base.toInt
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 
 /**
+ * PAG scale mode, aligned with libpag's `PAGScaleMode`.
+ *
+ * This enum specifies how to scale the PAG content to fit the surface size.
+ * The [value] of each enum item is the corresponding libpag numeric constant:
+ * 0: NONE, 1: STRETCH, 2: LETTER_BOX, 3: ZOOM.
+ *
+ * Reference: https://github.com/Tencent/libpag
+ * Default: [LETTER_BOX] (2)
+ */
+enum class PAGScaleMode(val value: Int) {
+    /** Content is not scaled. The original size is used. */
+    NONE(0),
+
+    /** Stretches to fill without preserving aspect ratio (may distort). */
+    STRETCH(1),
+
+    /** Scales to fit while preserving aspect ratio (default, libpag default behavior). */
+    LETTER_BOX(2),
+
+    /** Scales to fill while preserving aspect ratio. Content may be cropped. */
+    ZOOM(3);
+
+    companion object {
+        fun fromValue(value: Int): PAGScaleMode {
+            return values().firstOrNull { it.value == value } ?: LETTER_BOX
+        }
+    }
+}
+
+/**
  * 创建一个 PAGView 实例并添加到视图容器中。
  * @param init 一个 PAGView.() -> Unit 函数，用于初始化 PAGView 的属性和子视图。
  */
@@ -98,10 +128,49 @@ class PAGViewAttr : Attr() {
         REPLACE_IMAGE_LAYER_CONTENT with "$layerName,$imageFilePath"
     }
 
+    /**
+     * 设置缩放模式，对齐 libpag 的 `PAGScaleMode`。
+     *
+     * @param mode 缩放模式枚举值：
+     * [PAGScaleMode.NONE]、[PAGScaleMode.STRETCH]、[PAGScaleMode.LETTER_BOX]、[PAGScaleMode.ZOOM]
+     */
+    fun scaleMode(mode: PAGScaleMode) {
+        SCALE_MODE with mode.value
+    }
+
+    /**
+     * 使用 NONE 模式：不缩放，使用原始大小。
+     */
+    fun scaleModeNone() {
+        scaleMode(PAGScaleMode.NONE)
+    }
+
+    /**
+     * 使用 STRETCH 模式：拉伸填充，不保持宽高比（可能会变形）。
+     */
+    fun scaleModeStretch() {
+        scaleMode(PAGScaleMode.STRETCH)
+    }
+
+    /**
+     * 使用 LETTER_BOX 模式：按比例缩放以完整显示内容（默认行为）。
+     */
+    fun scaleModeLetterBox() {
+        scaleMode(PAGScaleMode.LETTER_BOX)
+    }
+
+    /**
+     * 使用 ZOOM 模式：按比例缩放以填满容器，内容可能会被裁剪。
+     */
+    fun scaleModeZoom() {
+        scaleMode(PAGScaleMode.ZOOM)
+    }
+
     companion object {
         const val SRC = "src"
         const val REPEAT_COUNT = "repeatCount"
         const val AUTO_PLAY = "autoPlay"
+        const val SCALE_MODE = "scaleMode"
         const val REPLACE_TEXT_LAYER_CONTENT = "replaceTextLayerContent"
         const val REPLACE_IMAGE_LAYER_CONTENT = "replaceImageLayerContent"
     }

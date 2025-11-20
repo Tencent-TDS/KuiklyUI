@@ -90,6 +90,9 @@ class KRRenderView : public IKRRenderView {
     NativeResourceManager *GetNativeResourceManager() override;
 
     std::shared_ptr<KRPerformanceManager> GetPerformanceManager() override;
+
+    KRPoint GetRootNodePositionInWindow() const override;
+
     void OnFirstFramePaint();
     /**
      * 根据Callback生成callback_id

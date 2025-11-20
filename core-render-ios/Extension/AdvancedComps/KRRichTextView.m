@@ -302,7 +302,6 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
             }
         }
         
-        
         // 创建 Span 属性对象
         KRSpanAttributes *spanAttrs = [[KRSpanAttributes alloc] init];
         spanAttrs.text = text;
@@ -358,7 +357,7 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
     
     // 渐变色延迟应用机制：
     // 1. 检测到渐变时，先使用临时颜色占位，避免黑色文字闪现
-    // 2. 记录渐变信息到 _pendingGradients，包含全局位置（globalRange）
+    // 2. 记录渐变信息到 _pendingGradients，包含各段文字所在的位置（globalRange）
     // 3. 等待布局完成后，在 hrv_calculateRenderViewSizeWithConstraintSize 中统一应用
     if (attrs.hasGradient && attrs.cssGradient) {
         [attributedString addAttribute:NSForegroundColorAttributeName value:attrs.color range:range];
@@ -590,49 +589,6 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
     [attributedString addAttribute:NSForegroundColorAttributeName 
                              value:patternColor 
                              range:range];
-}
-
-// 单行渐变实现：用于单行文本的行内渐变效果（保留用于特殊场景）
-+ (void)applyGradientToAttributedString:(NSMutableAttributedString *)attributedString
-                                   range:(NSRange)range
-                             cssGradient:(NSString *)cssGradient
-                                    font:(UIFont *)font {
-    CSSGradientInfo *gradientInfo = [self parseGradient:cssGradient];
-    if (!gradientInfo) {
-        return;
-    }
-    
-    // 计算单行文本的宽度
-    NSString *text = [[attributedString string] substringWithRange:range];
-    CGSize singleLineSize = [self calculateSingleLineTextSize:text font:font];
-    
-    // 创建单行渐变图片
-    UIImage *gradientImage = [self createGradientImageWithInfo:gradientInfo size:singleLineSize];
-    
-    if (!gradientImage) {
-        return;
-    }
-    
-    UIColor *patternColor = [UIColor colorWithPatternImage:gradientImage];
-    [attributedString addAttribute:NSForegroundColorAttributeName 
-                             value:patternColor 
-                             range:range];
-}
-
-
-// 计算单行文本的实际尺寸
-+ (CGSize)calculateSingleLineTextSize:(NSString *)text font:(UIFont *)font {
-    if (!text.length || !font) {
-        return CGSizeZero;
-    }
-    
-    NSDictionary *attributes = @{NSFontAttributeName: font};
-    CGRect boundingRect = [text boundingRectWithSize:CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX)
-                                             options:NSStringDrawingUsesLineFragmentOrigin
-                                          attributes:attributes
-                                             context:nil];
-    
-    return CGSizeMake(ceil(boundingRect.size.width), ceil(boundingRect.size.height));
 }
 
 

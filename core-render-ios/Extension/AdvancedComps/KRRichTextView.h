@@ -66,10 +66,6 @@ extern NSString *const KuiklyIndexAttributeName;
 // 字体渐变色绘制实现类
 @interface TextGradientHandler : NSObject
 
-+ (void)applyGradientToAttributedString:(NSMutableAttributedString *)attributedString
-                                   range:(NSRange)range
-                             cssGradient:(NSString *)cssGradient
-                                    font:(UIFont *)font;
 + (void)applyGlobalGradientToAttributedString:(NSMutableAttributedString *)attributedString
                                          range:(NSRange)range
                                    cssGradient:(NSString *)cssGradient

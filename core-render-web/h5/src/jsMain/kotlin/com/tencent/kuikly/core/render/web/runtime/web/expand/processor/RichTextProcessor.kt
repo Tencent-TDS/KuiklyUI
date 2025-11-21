@@ -55,6 +55,8 @@ object RichTextProcessor : IRichTextProcessor {
     private const val FONT_VARIANT = "fontVariant"
     private const val HEAD_INDENT = "headIndent"
     private const val LINE_HEIGHT = "lineHeight"
+    // specify to use dom measure text size
+    private val useDomMeasure = kuiklyDocument.location?.href?.contains("use_dom_measure=1")
 
     private val measureElement: HTMLElement by lazy {
         kuiklyDocument.createElement(ElementType.P).unsafeCast<HTMLElement>().apply {
@@ -445,7 +447,7 @@ object RichTextProcessor : IRichTextProcessor {
         // need to calculate width in segments, and consider height after line breaks. If there are
         // multiple child nodes, also need to calculate width in segments here, this will be
         // optimized later todo
-        return if (view.ele.children.length > 0) {
+        return if ((useDomMeasure == true) || view.ele.children.length > 0) {
             // There are child nodes, need to loop calculation, temporarily use Dom method for calculation
             calculateRenderViewSizeByDom(constraintSize, view, renderText)
         } else {

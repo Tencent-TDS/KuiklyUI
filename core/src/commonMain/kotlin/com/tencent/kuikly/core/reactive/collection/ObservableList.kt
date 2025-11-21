@@ -82,7 +82,7 @@ class ObservableList<T>(
      * @param areItemsTheSame 用于判断两个元素是否相同的比较函数，默认使用 == 比较
      *                        对于复杂对象，可以传入自定义比较逻辑，例如：{ old, new -> old.id == new.id }
      */
-    fun updateWith(newList: List<T>, areItemsTheSame: ((T, T) -> Boolean)? = null) {
+    fun diffUpdate(newList: List<T>, areItemsTheSame: ((T, T) -> Boolean)? = null) {
         if (newList.isEmpty() && innerList.isEmpty()) {
             return
         }

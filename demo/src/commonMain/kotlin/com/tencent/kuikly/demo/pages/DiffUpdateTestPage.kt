@@ -21,8 +21,8 @@ import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.core.reactive.collection.ObservableList
 import kotlin.random.Random
 
-@Page("UpdateWithTest")
-internal class UpdateWithTest : BasePager() {
+@Page("DiffUpdateTestPage")
+internal class DiffUpdateTestPage : BasePager() {
     private var list by observableList<String>()
     private var inputIndex by observable("0")
 
@@ -210,7 +210,7 @@ internal class UpdateWithTest : BasePager() {
                                         newLists[index+1] = ctx.imageUrls[6]
                                         newLists[index+2] = ctx.imageUrls[7]
 
-                                        ctx.list.updateWith(newLists)
+                                        ctx.list.diffUpdate(newLists)
                                     }
                                 }
                             }
@@ -245,7 +245,7 @@ internal class UpdateWithTest : BasePager() {
                                     val tempList = mutableListOf<String>()
                                     tempList.clear()
                                     tempList.addAll(ctx.imageUrls)
-                                    ctx.list.updateWith(tempList)
+                                    ctx.list.diffUpdate(tempList)
                                 }
                             }
                         }
@@ -267,7 +267,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 1: insert at beginning
                                     println("======= test 1: insert at beginning ==========")
                                     val list1 = ObservableList(mutableListOf("B", "C", "D"))
-                                    list1.updateWith(listOf("A", "B", "C", "D"))
+                                    list1.diffUpdate(listOf("A", "B", "C", "D"))
                                     println("Expected: [A, B, C, D]")
                                     println("Actual:   $list1")
                                     println("Pass: ${list1.toList() == listOf("A", "B", "C", "D")}")
@@ -275,7 +275,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 2: delete from middle
                                     println("\n======= test 2: delete from middle ==========")
                                     val list2 = ObservableList(mutableListOf("A", "B", "C", "D"))
-                                    list2.updateWith(listOf("A", "C", "D"))
+                                    list2.diffUpdate(listOf("A", "C", "D"))
                                     println("Expected: [A, C, D]")
                                     println("Actual:   $list2")
                                     println("Pass: ${list2.toList() == listOf("A", "C", "D")}")
@@ -283,7 +283,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 3: replace element
                                     println("\n======= test 3: replace element ==========")
                                     val list3 = ObservableList(mutableListOf("A", "B", "C"))
-                                    list3.updateWith(listOf("A", "X", "C"))
+                                    list3.diffUpdate(listOf("A", "X", "C"))
                                     println("Expected: [A, X, C]")
                                     println("Actual:   $list3")
                                     println("Pass: ${list3.toList() == listOf("A", "X", "C")}")
@@ -291,7 +291,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 4: move element
                                     println("\n======= test 4: move element ==========")
                                     val list4 = ObservableList(mutableListOf("A", "B", "C", "D"))
-                                    list4.updateWith(listOf("D", "B", "C", "A"))
+                                    list4.diffUpdate(listOf("D", "B", "C", "A"))
                                     println("Expected: [D, B, C, A]")
                                     println("Actual:   $list4")
                                     println("Pass: ${list4.toList() == listOf("D", "B", "C", "A")}")
@@ -299,7 +299,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 5: complex scenario
                                     println("\n======= test 5: complex scenario ==========")
                                     val list5 = ObservableList(mutableListOf("A", "B", "C", "D", "E"))
-                                    list5.updateWith(listOf("B", "C", "X", "D", "F"))
+                                    list5.diffUpdate(listOf("B", "C", "X", "D", "F"))
                                     println("Expected: [B, C, X, D, F]")
                                     println("Actual:   $list5")
                                     println("Pass: ${list5.toList() == listOf("B", "C", "X", "D", "F")}")
@@ -311,7 +311,7 @@ internal class UpdateWithTest : BasePager() {
                                         User(1, "Alice"),
                                         User(2, "Bob")
                                     ))
-                                    list6.updateWith(
+                                    list6.diffUpdate(
                                         listOf(
                                             User(1, "Alice Updated"),
                                             User(3, "Charlie")
@@ -326,7 +326,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 7: empty to non-empty
                                     println("\n======= test 7: empty to non-empty ==========")
                                     val list7 = ObservableList<String>()
-                                    list7.updateWith(listOf("A", "B", "C"))
+                                    list7.diffUpdate(listOf("A", "B", "C"))
                                     println("Expected: [A, B, C]")
                                     println("Actual:   $list7")
                                     println("Pass: ${list7.toList() == listOf("A", "B", "C")}")
@@ -334,7 +334,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 8: non-empty to empty
                                     println("\n======= test 8: non-empty to empty ==========")
                                     val list8 = ObservableList(mutableListOf("A", "B", "C"))
-                                    list8.updateWith(emptyList())
+                                    list8.diffUpdate(emptyList())
                                     println("Expected: []")
                                     println("Actual:   $list8")
                                     println("Pass: ${list8.toList() == emptyList<String>()}")
@@ -342,7 +342,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 9: duplicate elements
                                     println("\n======= test 9: duplicate elements ==========")
                                     val list9 = ObservableList(mutableListOf("A", "A", "B", "C"))
-                                    list9.updateWith(listOf("A", "B", "C"))
+                                    list9.diffUpdate(listOf("A", "B", "C"))
                                     println("Expected: [A, B, C]")
                                     println("Actual:   $list9")
                                     println("Pass: ${list9.toList() == listOf("A", "B", "C")}")
@@ -350,7 +350,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 10: completely different lists
                                     println("\n======= test 10: completely different lists ==========")
                                     val list10 = ObservableList(mutableListOf("A", "B", "C"))
-                                    list10.updateWith(listOf("X", "Y", "Z"))
+                                    list10.diffUpdate(listOf("X", "Y", "Z"))
                                     println("Expected: [X, Y, Z]")
                                     println("Actual:   $list10")
                                     println("Pass: ${list10.toList() == listOf("X", "Y", "Z")}")
@@ -358,7 +358,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 11: single to single (different)
                                     println("\n======= test 11: single to single (different) ==========")
                                     val list11 = ObservableList(mutableListOf("A"))
-                                    list11.updateWith(listOf("B"))
+                                    list11.diffUpdate(listOf("B"))
                                     println("Expected: [B]")
                                     println("Actual:   $list11")
                                     println("Pass: ${list11.toList() == listOf("B")}")
@@ -366,7 +366,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 12: single to multiple
                                     println("\n======= test 12: single to multiple ==========")
                                     val list12 = ObservableList(mutableListOf("A"))
-                                    list12.updateWith(listOf("A", "B", "C"))
+                                    list12.diffUpdate(listOf("A", "B", "C"))
                                     println("Expected: [A, B, C]")
                                     println("Actual:   $list12")
                                     println("Pass: ${list12.toList() == listOf("A", "B", "C")}")
@@ -374,7 +374,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 13: multiple to single
                                     println("\n======= test 13: multiple to single ==========")
                                     val list13 = ObservableList(mutableListOf("A", "B", "C"))
-                                    list13.updateWith(listOf("B"))
+                                    list13.diffUpdate(listOf("B"))
                                     println("Expected: [B]")
                                     println("Actual:   $list13")
                                     println("Pass: ${list13.toList() == listOf("B")}")
@@ -382,7 +382,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 14: complete reverse
                                     println("\n======= test 14: complete reverse ==========")
                                     val list14 = ObservableList(mutableListOf("A", "B", "C", "D", "E"))
-                                    list14.updateWith(listOf("E", "D", "C", "B", "A"))
+                                    list14.diffUpdate(listOf("E", "D", "C", "B", "A"))
                                     println("Expected: [E, D, C, B, A]")
                                     println("Actual:   $list14")
                                     println("Pass: ${list14.toList() == listOf("E", "D", "C", "B", "A")}")
@@ -390,7 +390,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 15: partial overlap
                                     println("\n======= test 15: partial overlap ==========")
                                     val list15 = ObservableList(mutableListOf("A", "B", "C"))
-                                    list15.updateWith(listOf("B", "C", "D", "E"))
+                                    list15.diffUpdate(listOf("B", "C", "D", "E"))
                                     println("Expected: [B, C, D, E]")
                                     println("Actual:   $list15")
                                     println("Pass: ${list15.toList() == listOf("B", "C", "D", "E")}")
@@ -398,7 +398,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 16: identical lists (no change)
                                     println("\n======= test 16: identical lists (no change) ==========")
                                     val list16 = ObservableList(mutableListOf("A", "B", "C"))
-                                    list16.updateWith(listOf("A", "B", "C"))
+                                    list16.diffUpdate(listOf("A", "B", "C"))
                                     println("Expected: [A, B, C]")
                                     println("Actual:   $list16")
                                     println("Pass: ${list16.toList() == listOf("A", "B", "C")}")
@@ -406,7 +406,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 17: multiple duplicates complex scenario
                                     println("\n======= test 17: multiple duplicates complex ==========")
                                     val list17 = ObservableList(mutableListOf("A", "B", "A", "C", "A"))
-                                    list17.updateWith(listOf("A", "A", "C", "D"))
+                                    list17.diffUpdate(listOf("A", "A", "C", "D"))
                                     println("Expected: [A, A, C, D]")
                                     println("Actual:   $list17")
                                     println("Pass: ${list17.toList() == listOf("A", "A", "C", "D")}")
@@ -422,7 +422,7 @@ internal class UpdateWithTest : BasePager() {
                                         }
                                     }
                                     val startTime17_1 = DateTime.currentTimestamp()
-                                    list17_1.updateWith(newList17_1)
+                                    list17_1.diffUpdate(newList17_1)
                                     val endTime17_1 = DateTime.currentTimestamp()
                                     println("Expected size: 2000")
                                     println("Actual size:   ${list17_1.size}")
@@ -437,7 +437,7 @@ internal class UpdateWithTest : BasePager() {
                                     val list17_2 = ObservableList((0..1999).map { "OldItem$it" }.toMutableList())
                                     val newList17_2 = (0..1999).map { "NewItem$it" }
                                     val startTime17_2 = DateTime.currentTimestamp()
-                                    list17_2.updateWith(newList17_2)
+                                    list17_2.diffUpdate(newList17_2)
                                     val endTime17_2 = DateTime.currentTimestamp()
                                     println("Expected size: 2000")
                                     println("Actual size:   ${list17_2.size}")
@@ -455,7 +455,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 18: single element same
                                     println("\n======= test 18: single element same ==========")
                                     val list18 = ObservableList(mutableListOf("A"))
-                                    list18.updateWith(listOf("A"))
+                                    list18.diffUpdate(listOf("A"))
                                     println("Expected: [A]")
                                     println("Actual:   $list18")
                                     println("Pass: ${list18.toList() == listOf("A")}")
@@ -463,7 +463,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 19: insert at end
                                     println("\n======= test 19: insert at end ==========")
                                     val list19 = ObservableList(mutableListOf("A", "B", "C"))
-                                    list19.updateWith(listOf("A", "B", "C", "D", "E"))
+                                    list19.diffUpdate(listOf("A", "B", "C", "D", "E"))
                                     println("Expected: [A, B, C, D, E]")
                                     println("Actual:   $list19")
                                     println("Pass: ${list19.toList() == listOf("A", "B", "C", "D", "E")}")
@@ -471,7 +471,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 20: delete from end
                                     println("\n======= test 20: delete from end ==========")
                                     val list20 = ObservableList(mutableListOf("A", "B", "C", "D", "E"))
-                                    list20.updateWith(listOf("A", "B", "C"))
+                                    list20.diffUpdate(listOf("A", "B", "C"))
                                     println("Expected: [A, B, C]")
                                     println("Actual:   $list20")
                                     println("Pass: ${list20.toList() == listOf("A", "B", "C")}")
@@ -479,7 +479,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 21: alternating pattern
                                     println("\n======= test 21: alternating pattern ==========")
                                     val list21 = ObservableList(mutableListOf("A", "B", "C", "D"))
-                                    list21.updateWith(listOf("B", "A", "D", "C"))
+                                    list21.diffUpdate(listOf("B", "A", "D", "C"))
                                     println("Expected: [B, A, D, C]")
                                     println("Actual:   $list21")
                                     println("Pass: ${list21.toList() == listOf("B", "A", "D", "C")}")
@@ -492,7 +492,7 @@ internal class UpdateWithTest : BasePager() {
                                         Item("A", 2),
                                         Item("B", 3)
                                     ))
-                                    list22.updateWith(
+                                    list22.diffUpdate(
                                         listOf(
                                             Item("A", 10),
                                             Item("B", 20)
@@ -506,7 +506,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 23: all duplicates
                                     println("\n======= test 23: all duplicates ==========")
                                     val list23 = ObservableList(mutableListOf("A", "A", "A"))
-                                    list23.updateWith(listOf("A", "A"))
+                                    list23.diffUpdate(listOf("A", "A"))
                                     println("Expected: [A, A]")
                                     println("Actual:   $list23")
                                     println("Pass: ${list23.toList() == listOf("A", "A")}")
@@ -514,7 +514,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 24: interleaved insert and delete
                                     println("\n======= test 24: interleaved insert and delete ==========")
                                     val list24 = ObservableList(mutableListOf("A", "B", "C", "D", "E"))
-                                    list24.updateWith(listOf("A", "X", "C", "Y", "E"))
+                                    list24.diffUpdate(listOf("A", "X", "C", "Y", "E"))
                                     println("Expected: [A, X, C, Y, E]")
                                     println("Actual:   $list24")
                                     println("Pass: ${list24.toList() == listOf("A", "X", "C", "Y", "E")}")
@@ -524,7 +524,7 @@ internal class UpdateWithTest : BasePager() {
                                     val list25 = ObservableList((0..99).map { "Item$it" }.toMutableList())
                                     val newList25 = (50..149).map { "Item$it" }
                                     val startTime = DateTime.currentTimestamp()
-                                    list25.updateWith(newList25)
+                                    list25.diffUpdate(newList25)
                                     val endTime = DateTime.currentTimestamp()
                                     println("Expected size: 100")
                                     println("Actual size:   ${list25.size}")
@@ -534,7 +534,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 26: empty to empty
                                     println("\n======= test 26: empty to empty ==========")
                                     val list26 = ObservableList<String>()
-                                    list26.updateWith(emptyList())
+                                    list26.diffUpdate(emptyList())
                                     println("Expected: []")
                                     println("Actual:   $list26")
                                     println("Pass: ${list26.toList() == emptyList<String>()}")
@@ -542,17 +542,17 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 27: with null values
                                     println("\n======= test 27: with null values ==========")
                                     val list27 = ObservableList(mutableListOf<String?>("A", null, "C"))
-                                    list27.updateWith(listOf(null, "B", "C"))
+                                    list27.diffUpdate(listOf(null, "B", "C"))
                                     println("Expected: [null, B, C]")
                                     println("Actual:   $list27")
                                     println("Pass: ${list27.toList() == listOf(null, "B", "C")}")
 
-                                    // Test 28: consecutive updateWith calls
-                                    println("\n======= test 28: consecutive updateWith calls ==========")
+                                    // Test 28: consecutive diffUpdate calls
+                                    println("\n======= test 28: consecutive diffUpdate calls ==========")
                                     val list28 = ObservableList(mutableListOf("A", "B", "C"))
-                                    list28.updateWith(listOf("A", "X", "C"))
-                                    list28.updateWith(listOf("A", "X", "C", "D"))
-                                    list28.updateWith(listOf("X", "C", "D"))
+                                    list28.diffUpdate(listOf("A", "X", "C"))
+                                    list28.diffUpdate(listOf("A", "X", "C", "D"))
+                                    list28.diffUpdate(listOf("X", "C", "D"))
                                     println("Expected: [X, C, D]")
                                     println("Actual:   $list28")
                                     println("Pass: ${list28.toList() == listOf("X", "C", "D")}")
@@ -561,7 +561,7 @@ internal class UpdateWithTest : BasePager() {
                                     println("\n======= test 29: massive middle insertion ==========")
                                     val list29 = ObservableList(mutableListOf("A", "B"))
                                     val middleElements = (1..50).map { "X$it" }
-                                    list29.updateWith(listOf("A") + middleElements + listOf("B"))
+                                    list29.diffUpdate(listOf("A") + middleElements + listOf("B"))
                                     println("Expected size: 52")
                                     println("Actual size:   ${list29.size}")
                                     println("Pass: ${list29.size == 52 && list29.first() == "A" && list29.last() == "B"}")
@@ -570,7 +570,7 @@ internal class UpdateWithTest : BasePager() {
                                     println("\n======= test 30: large list single difference ==========")
                                     val list30 = ObservableList((0..99).map { "Item$it" }.toMutableList())
                                     val newList30 = (0..99).map { if (it == 50) "Modified" else "Item$it" }
-                                    list30.updateWith(newList30)
+                                    list30.diffUpdate(newList30)
                                     println("Expected: Item49, Modified, Item51")
                                     println("Actual:   ${list30[49]}, ${list30[50]}, ${list30[51]}")
                                     println("Pass: ${list30[50] == "Modified" && list30.size == 100}")
@@ -578,7 +578,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 31: alternating repeat pattern
                                     println("\n======= test 31: alternating repeat pattern ==========")
                                     val list31 = ObservableList(mutableListOf("A", "B", "A", "B", "A", "B"))
-                                    list31.updateWith(listOf("B", "A", "B", "A", "B", "A"))
+                                    list31.diffUpdate(listOf("B", "A", "B", "A", "B", "A"))
                                     println("Expected: [B, A, B, A, B, A]")
                                     println("Actual:   $list31")
                                     println("Pass: ${list31.toList() == listOf("B", "A", "B", "A", "B", "A")}")
@@ -586,7 +586,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 32: delete only middle elements
                                     println("\n======= test 32: delete only middle elements ==========")
                                     val list32 = ObservableList(mutableListOf("A", "B", "C", "D", "E"))
-                                    list32.updateWith(listOf("A", "E"))
+                                    list32.diffUpdate(listOf("A", "E"))
                                     println("Expected: [A, E]")
                                     println("Actual:   $list32")
                                     println("Pass: ${list32.toList() == listOf("A", "E")}")
@@ -594,7 +594,7 @@ internal class UpdateWithTest : BasePager() {
                                     // Test 33: replace both first and last
                                     println("\n======= test 33: replace both first and last ==========")
                                     val list33 = ObservableList(mutableListOf("A", "B", "C", "D", "E"))
-                                    list33.updateWith(listOf("X", "B", "C", "D", "Y"))
+                                    list33.diffUpdate(listOf("X", "B", "C", "D", "Y"))
                                     println("Expected: [X, B, C, D, Y]")
                                     println("Actual:   $list33")
                                     println("Pass: ${list33.toList() == listOf("X", "B", "C", "D", "Y")}")
@@ -606,7 +606,7 @@ internal class UpdateWithTest : BasePager() {
                                         Product(1, "A"),
                                         Product(2, "B")
                                     ))
-                                    list34.updateWith(
+                                    list34.diffUpdate(
                                         listOf(
                                             Product(3, "C"),
                                             Product(4, "D")
@@ -624,7 +624,7 @@ internal class UpdateWithTest : BasePager() {
                                     val list35 = ObservableList(mutableListOf(
                                         Entity(1, "old")
                                     ))
-                                    list35.updateWith(
+                                    list35.diffUpdate(
                                         listOf(Entity(1, "old"))
                                     ) { old, new -> old.id == new.id }
                                     println("Expected size: 1")

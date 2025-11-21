@@ -22,9 +22,9 @@ sed -i.bak '/@OptIn(kotlinx\.cinterop\.ExperimentalForeignApi::class)/d' "$ios_v
 
 # 4.开始发布
 KUIKLY_KOTLIN_VERSION="1.8.21" ./gradlew -c settings.1.8.21.gradle.kts :core:publishToMavenLocal --stacktrace
-#KUIKLY_KOTLIN_VERSION="1.8.21" ./gradlew -c settings.1.8.21.gradle.kts :core-render-android:publishToMavenLocal --stacktrace
-#KUIKLY_KOTLIN_VERSION="1.8.21" ./gradlew -c settings.1.8.21.gradle.kts :core-annotations:publishToMavenLocal --stacktrace
-#KUIKLY_KOTLIN_VERSION="1.8.21" ./gradlew -c settings.1.8.21.gradle.kts :core-ksp:publishToMavenLocal --stacktrace
+KUIKLY_KOTLIN_VERSION="1.8.21" ./gradlew -c settings.1.8.21.gradle.kts :core-render-android:publishToMavenLocal --stacktrace
+KUIKLY_KOTLIN_VERSION="1.8.21" ./gradlew -c settings.1.8.21.gradle.kts :core-annotations:publishToMavenLocal --stacktrace
+KUIKLY_KOTLIN_VERSION="1.8.21" ./gradlew -c settings.1.8.21.gradle.kts :core-ksp:publishToMavenLocal --stacktrace
 
 # 5.还原文件
 mv gradle/wrapper/gradle-wrapper.properties.bak gradle/wrapper/gradle-wrapper.properties

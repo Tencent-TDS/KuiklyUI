@@ -21,9 +21,9 @@ ios_verify_util="$ios_main_dir/core/utils/VerifyUtil.ios.kt"
 sed -i.bak '/@OptIn(kotlinx\.cinterop\.ExperimentalForeignApi::class)/d' "$ios_verify_util"
 
 KUIKLY_KOTLIN_VERSION="1.7.20" ./gradlew -c settings.1.7.20.gradle.kts :core:publishToMavenLocal
-#KUIKLY_KOTLIN_VERSION="1.7.20" ./gradlew -c settings.1.7.20.gradle.kts :core-annotations:publishToMavenLocal
-#KUIKLY_KOTLIN_VERSION="1.7.20" ./gradlew -c settings.1.7.20.gradle.kts :core-ksp:publishToMavenLocal
-#KUIKLY_KOTLIN_VERSION="1.7.20" ./gradlew -c settings.1.7.20.gradle.kts :core-render-android:publishToMavenLocal
+KUIKLY_KOTLIN_VERSION="1.7.20" ./gradlew -c settings.1.7.20.gradle.kts :core-annotations:publishToMavenLocal
+KUIKLY_KOTLIN_VERSION="1.7.20" ./gradlew -c settings.1.7.20.gradle.kts :core-ksp:publishToMavenLocal
+KUIKLY_KOTLIN_VERSION="1.7.20" ./gradlew -c settings.1.7.20.gradle.kts :core-render-android:publishToMavenLocal
 
 # 5.还原文件
 mv gradle/wrapper/gradle-wrapper.properties.bak gradle/wrapper/gradle-wrapper.properties

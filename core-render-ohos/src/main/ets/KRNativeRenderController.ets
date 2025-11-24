@@ -311,11 +311,11 @@ export class KRNativeRenderController {
     if (config.fontSizeScale) {
       data['fontSizeScale'] = config.fontSizeScale;
     }
-    let fontSizeScaleFollowSystem = this.fontSizeScaleFollowSystem()
+    let fontSizeScaleFollowSystem = this.fontSizeScaleFollowSystem();
     if (!fontSizeScaleFollowSystem) {
       data['fontSizeScale'] = 1
     }
-    data['fontSizeScaleFollowSystem'] = this.fontSizeScaleFollowSystem()
+    data['fontSizeScaleFollowSystem'] = this.fontSizeScaleFollowSystem();
     // update config to render core
     render.updateConfig(this.instanceId, JSON.stringify(data));
 
@@ -602,8 +602,8 @@ export class KRNativeRenderController {
     pageData[KRUrlKey] = this.pageName;
     if (!this.imeMode) {
       pageData[KRStatusBarHeightKey] = this.safeAreaRect!.y;
-      let windowInfo = KRNativeManager.getInstance().getWindowInfo(this.windowId)
-      if (windowInfo != undefined){
+      let windowInfo = KRNativeManager.getInstance().getWindowInfo(this.windowId);
+      if (windowInfo != undefined) {
         pageData[KRActivityWidthKey] = px2vp(windowInfo.getWindowRect().width);
         pageData[KRActivityHeightKey] = px2vp(windowInfo.getWindowRect().height);
       }

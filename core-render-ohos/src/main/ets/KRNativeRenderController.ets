@@ -245,7 +245,7 @@ export class KRNativeRenderController {
     }
 
     if (!imeMode) {
-      let windowData = window.findWindow(uiContext.getWindowName())
+      let windowData = window.findWindow(uiContext.getWindowName());
       this.windowClass = windowData;
       const winRect = windowData.getWindowProperties().windowRect;
       this.windowRect = new KRRect(0,0, px2vp(winRect.width), px2vp(winRect.height));
@@ -403,7 +403,7 @@ export class KRNativeRenderController {
     }
 
     this.doAboutToDisappear();
-    KRNativeManager.getInstance().removeWindowInfoIfNeed(this.windowId)
+    KRNativeManager.getInstance().removeWindowInfoIfNeed(this.windowId);
     KRNativeManager.getInstance().removeNativeInstance(this.instanceId);
   }
 

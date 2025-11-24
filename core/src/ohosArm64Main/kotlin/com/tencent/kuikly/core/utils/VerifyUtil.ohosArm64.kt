@@ -12,15 +12,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package com.tencent.kuikly.core.reactive
+package com.tencent.kuikly.core.utils
 
 import com.tencent.kuikly.core.manager.BridgeManager
 import ohos.com_tencent_kuikly_IsCurrentOnContextThread
 
-internal actual inline fun platformCheckThread(block: () -> Unit) {
+internal actual inline fun platformCheckThread(failure: () -> Unit) {
+    @Suppress("DEPRECATION")
     @OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
-    if (!com_tencent_kuikly_IsCurrentOnContextThread(BridgeManager.currentPageId)) {
-        block()
+    if (com_tencent_kuikly_IsCurrentOnContextThread(BridgeManager.currentPageId)) {
+        failure()
     }
 }

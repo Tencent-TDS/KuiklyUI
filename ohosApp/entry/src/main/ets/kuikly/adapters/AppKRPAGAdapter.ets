@@ -125,6 +125,8 @@ class AppKRPAGViewController implements IKRPAGViewController, PAGViewListener {
       }
     } else if (propKey == 'repeatCount' && typeof (propValue) === 'number') {
       this.viewController.setRepeatCount(propValue as number);
+    } else if (propKey == 'scaleMode' && typeof (propValue) === 'number') {
+      this.viewController.setScaleMode(propValue as number);
     } else if (propKey == 'replaceLayerContents') {
       this.cachedUpdateContent.push(propValue);
       if (this.viewController.getComposition()) {

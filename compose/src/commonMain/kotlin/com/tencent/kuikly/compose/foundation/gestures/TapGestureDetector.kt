@@ -121,7 +121,7 @@ suspend fun PointerInputScope.detectTapGestures(
         try {
             // wait for first tap up or long press
             upOrCancel = withTimeout(longPressTimeout) {
-                waitForUpOrCancellation()
+                waitForUpOrCancellation(down = down)
             }
             if (upOrCancel == null) {
                 launch {
@@ -163,7 +163,7 @@ suspend fun PointerInputScope.detectTapGestures(
                     try {
                         // Might have a long second press as the second tap
                         withTimeout(longPressTimeout) {
-                            val secondUp = waitForUpOrCancellation()
+                            val secondUp = waitForUpOrCancellation(down = secondDown)
                             if (secondUp != null) {
                                 secondUp.consume()
                                 launch {
@@ -256,7 +256,7 @@ internal suspend fun PointerInputScope.detectTapAndPress(
                 }
             }
 
-            val up = waitForUpOrCancellation()
+            val up = waitForUpOrCancellation(down = down)
             if (up == null) {
                 launch {
                     pressScope.cancel() // tap-up was canceled
@@ -318,7 +318,8 @@ suspend fun AwaitPointerEventScope.waitForUpOrCancellation(): PointerInputChange
  * event was canceled.
  */
 suspend fun AwaitPointerEventScope.waitForUpOrCancellation(
-    pass: PointerEventPass = PointerEventPass.Main
+    pass: PointerEventPass = PointerEventPass.Main,
+    down: PointerInputChange? = null
 ): PointerInputChange? {
     while (true) {
         val event = awaitPointerEvent(pass)
@@ -332,6 +333,24 @@ suspend fun AwaitPointerEventScope.waitForUpOrCancellation(
             }
         ) {
             return null // Canceled
+        }
+
+        // Check if the pointer moved too far (touch slop)
+        if (down != null) {
+            if (GlobalTapManager.enableTouchSlopForTap) {
+                val touchSlop = viewConfiguration.touchSlop
+                var movedTooFar = false
+                event.changes.fastForEach {
+                    if (it.id == down.id) {
+                        if ((it.position - down.position).getDistance() > touchSlop) {
+                            movedTooFar = true
+                        }
+                    }
+                }
+                if (movedTooFar) {
+                    return null
+                }
+            }
         }
 
         // Check for cancel by position consumption. We can look on the Final pass of the

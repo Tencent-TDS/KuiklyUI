@@ -112,8 +112,16 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
     }
 
     override fun onDraw(canvas: Canvas) {
+        val checkpoint: Int = if (hasCustomClipPath()) {
+            canvas.save()
+        } else {
+            -1
+        }
         drawCommonDecoration(width, height, canvas) // 绘制通用样式
         performDrawOperationList(canvas) // 绘制canvas指令
+        if (checkpoint != -1) {
+            canvas.restoreToCount(checkpoint)
+        }
         drawCommonForegroundDecoration(width, height, canvas)
     }
 
@@ -196,11 +204,21 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
         val counterclockwise = paramsJSON.optInt(COUNTER_CLOCKWISE) == TYPE_COUNTER_CLOCKWISE
         var sweepAngle = endAngle - startAngle
         if (counterclockwise) {
-            if (sweepAngle > 0) {
+            // Preprocessing for counter-clockwise drawing:
+            // 0. Angles in (-720, 0] require no processing
+            // 1. sweepAngle > 0, startAngle and endAngle represent absolute angles, convert to [-360, 0)
+            // 2. sweepAngle <= -720, drawing exceeds 2 turns, convert to (-720, -360]
+            // Rules 2 and 3 share the same formula; In summary, final sweepAngle is in (-720, 0]
+            if (sweepAngle > 0 || sweepAngle <= -2 * KRViewConst.ROUND_ANGLE) {
                 sweepAngle = sweepAngle % KRViewConst.ROUND_ANGLE - KRViewConst.ROUND_ANGLE
             }
         } else {
-            if (sweepAngle < 0) {
+            // Preprocessing for clockwise drawing:
+            // 0. Angles in [0, 720) require no processing
+            // 1. sweepAngle < 0, startAngle and endAngle represent absolute angles, convert to (0, 360]
+            // 2. sweepAngle >= 720, drawing exceeds 2 turns, convert to [360, 720)
+            // Rules 2 and 3 share the same formula; In summary, final sweepAngle is in [0, 720)
+            if (sweepAngle < 0 || sweepAngle >= 2 * KRViewConst.ROUND_ANGLE) {
                 sweepAngle = sweepAngle % KRViewConst.ROUND_ANGLE + KRViewConst.ROUND_ANGLE
             }
         }
@@ -215,24 +233,19 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
             )
         } else {
             // deal with arc greater than or equal to 2π
-            // lineTo start-point
+            val halfSweepAngle = sweepAngle * 0.5f
             hrPath.path.arcTo(
                 cx - radius, cy - radius, cx + radius, cy + radius,
                 startAngle.toFloat(),
-                0f,
+                halfSweepAngle.toFloat(),
                 false
             )
-            // draw circle
-            hrPath.path.addCircle(cx, cy, radius, if (counterclockwise) Path.Direction.CCW else Path.Direction.CW)
-            if (sweepAngle < -KRViewConst.ROUND_ANGLE || KRViewConst.ROUND_ANGLE < sweepAngle) {
-                // moveTo end-point
-                hrPath.path.arcTo(
-                    cx - radius, cy - radius, cx + radius, cy + radius,
-                    endAngle.toFloat(),
-                    0f,
-                    true
-                )
-            }
+            hrPath.path.arcTo(
+                cx - radius, cy - radius, cx + radius, cy + radius,
+                (startAngle + halfSweepAngle).toFloat(),
+                halfSweepAngle.toFloat(),
+                false
+            )
         }
     }
 

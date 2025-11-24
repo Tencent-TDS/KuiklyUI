@@ -238,6 +238,11 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     }
 
     override fun onDraw(canvas: Canvas) {
+        val checkpoint: Int = if (hasCustomClipPath()) {
+            canvas.save()
+        } else {
+            -1
+        }
         val scrollX = scrollX.toFloat()
         val scrollY = scrollY.toFloat()
         val needTrans = needTranslate(scrollX, scrollY)
@@ -249,6 +254,9 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
             canvas.translate(-scrollX, -scrollY)
         }
         super.onDraw(canvas)
+        if (checkpoint != -1) {
+            canvas.restoreToCount(checkpoint)
+        }
         drawCommonForegroundDecoration(canvas)
     }
 

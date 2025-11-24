@@ -55,6 +55,8 @@ object RichTextProcessor : IRichTextProcessor {
     private const val FONT_VARIANT = "fontVariant"
     private const val HEAD_INDENT = "headIndent"
     private const val LINE_HEIGHT = "lineHeight"
+    // specify to use dom measure text size
+    private val useDomMeasure = kuiklyDocument.location?.href?.contains("use_dom_measure=1")
 
     private val measureElement: HTMLElement by lazy {
         kuiklyDocument.createElement(ElementType.P).unsafeCast<HTMLElement>().apply {
@@ -84,6 +86,10 @@ object RichTextProcessor : IRichTextProcessor {
             // if exceeds one line, then need to set to multi-line wrapping
             ele.style.whiteSpace = "pre-wrap"
             ele.style.overflowY = "hidden"
+        } else if (lines == 1) {
+            // Single line with ellipsis
+            ele.style.whiteSpace = "nowrap"
+            ele.style.textOverflow = "ellipsis"
         } else {
             // Clear multi-line style
             ele.style.display = "inline-block"
@@ -125,13 +131,15 @@ object RichTextProcessor : IRichTextProcessor {
         val originParent = ele.parentElement
         val index = indexOfChild(ele)
         var newEle = measureElement
-        if(view.isRichTextValues()) {
-            newEle = ele
-        } else {
+        var useMeasureElement = !view.isRichTextValues()
+        if (useMeasureElement) {
             // Copy all styles at once using cssText for better performance
             newEle.style.cssText = ele.style.cssText
             // Set content after style copying to avoid potential style interference
             newEle.innerText = renderText.ifEmpty { ele.innerText }
+        } else {
+            // can not measure for RichTextValues
+            newEle = ele
         }
 
         // Remove width
@@ -145,10 +153,10 @@ object RichTextProcessor : IRichTextProcessor {
         // No truncation or ellipsis when calculating actual size
         newEle.style.whiteSpace = "pre-wrap"
         // If lines are set, also need to limit maximum number of lines
-        if (view.numberOfLines > 0) {
+        if (useMeasureElement) {
             setMultiLineStyle(view.numberOfLines, newEle)
-            setMultiLineStyle(view.numberOfLines, ele)
         }
+        setMultiLineStyle(view.numberOfLines, ele)
         // Insert the node into the page to complete rendering, used to get the actual size of the node
         kuiklyDocument.body?.appendChild(newEle)
         // Element width
@@ -187,10 +195,11 @@ object RichTextProcessor : IRichTextProcessor {
         // Actual height
         val realHeight = h
 
-        if (index != -1 && originParent != null) {
+        if (index != -1 && originParent != null && view.isRichTextValues()) {
             // After recalculating element size, the old element has been removed, if the node
             // itself was already inserted into the page, need to reinsert it into the original
             // parent node
+            // measureElement is removed so don't need insert newEle
             insertChild(originParent, newEle, index)
         }
         Log.trace("real size by dom, size:", realWidth, realHeight)
@@ -438,7 +447,7 @@ object RichTextProcessor : IRichTextProcessor {
         // need to calculate width in segments, and consider height after line breaks. If there are
         // multiple child nodes, also need to calculate width in segments here, this will be
         // optimized later todo
-        return if (view.ele.children.length > 0) {
+        return if ((useDomMeasure == true) || view.ele.children.length > 0) {
             // There are child nodes, need to loop calculation, temporarily use Dom method for calculation
             calculateRenderViewSizeByDom(constraintSize, view, renderText)
         } else {

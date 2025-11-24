@@ -26,6 +26,7 @@ import com.tencent.kuikly.core.module.ImageRef
 import com.tencent.kuikly.core.module.MemoryCacheModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.views.Canvas
+import com.tencent.kuikly.core.views.ContextApi
 import com.tencent.kuikly.core.views.FontStyle
 import com.tencent.kuikly.core.views.FontWeight
 import com.tencent.kuikly.core.views.TextAlign
@@ -42,6 +43,17 @@ internal class CanvasTestPage : BasePager() {
     var imageCacheKey: String = ""
     companion object{
         const val BASE64_IMAGE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAMAAAC5zwKfAAABQVBMVEUAAAD////v6u/////t5+3y7PL7+/vx7fLg19/07PTr6+vd1Nzh1uHp5Oj09PTu6e749Pjy8vPv7O/o5Oj4+Pns6ez19fXm3Ob4+Pjp4urp4ujz8PLc2N7Z1dvm5Ofh2uH7/Pzn4efz8/P6+vr09/fb0Nvl2uXr5+ri3+Laztr09fbe1t/o3Ofx8fHdz9729vbk2uHw6fDx8vL9/f3d0N38/Pzb1dvi2ODx8vLq6urv8PDt7e3t7+78/P3s6+zj4uTi4OLRxdHn5uf+//7z9PTZz9je297WztXRx9Dg3uHWydXTytLb19vZ0tjl5OX2+Pfo6OjZ19rOw8329ffu5+7d193d0Nzr5Ovn4ejY1djOzM/d1NzUxtTh0+Hh2+Dc2tzTzNLOxc3ay9rV09bS0NPSx9HW0Nb4+Pnp3+nMyMzl2eVVtzfcAAAAOHRSTlMAA0QHPjAP/uMWDfnYlIZgHOTW0LSgko94d1km9fG6rptsa2BI/O3n5NPKxcKsnFVVI/Ty8OqmhNTrSmMAAAL9SURBVFjD7dXXVuJQFIDh0FE60rGOjr1OTUglGtAEkFCCVAWU4vs/wOxzIjNzw5IVnKvJv7yKrs99SoAwMzMzMzMz+79z2i92A3tpy8doK4ljmqYp6CBq/YDhYl8yDI3FsiiW1pYlraEMjsEzirzAR1eX8T4xgJEkCSKDxBIvCGsrS3iYQyBE0xyMyN/ljIt7DHi42apFGDGX27QYPI8Qo3OzNXM6WCgkjYExTp/vBiIzyNOX/KiuB414QYrJIO4eApHhOHwod48FdegzAib+gDBiBg+IQFUdjjbe7o7DfxbdcS4Ihjk4EwziJf8eUG0+t54j27HE7l4M78KhdaETsVIIzOg7SMKK4VXhMTh8brXEKkTSDA0PhXXHO5t34Y+ESBKDICIOL7gsgpcrNMGbrp+uHTQ4+DUHD+sn8zHYlTBVKj1AFEdngMQah7wyPwOnLTf8qQ/+I03Bs3r7ah63ekY9NodF99bPlE/kaEYPOPD0AfGKp9MNuNubNHmje925u7jNihs/UkH82okUFtEbhzwReXBnmsOnljLKJbaPSdJVe4CRi5pmnwdGWPZ7xL9rTzttAQSiOJ0rlUqiKJYpeHvu2fsq6XLVJq9dRW2O8oNvzrk7GBqz1zj2K/tX1/AUx7JVsGqNyWT/NL7f7vfzeSXbOSfmZktFw67qGCOzMDke61Jj8vra7XbjK7CJl1Jevr3NZo/e+Yi0pa2BpN8XbjRqKEAacOiC0MvV25KUz8uDgabfPPuRnM1mz8FbpFRPEHiefxCgO8AKarMIC1TkTkf2WgicxXFpXfjT0XZYz/V66AewQrMI2tOT8gIjdQYBwkiBertQB0uFkxxhTUE7loUBbYZAy2YR18azAXbb71cqAH62G/1GdkuSVGy3NUlSlDcOPC1JGC2NxG5X0yTwKuBVkBcnjHflhWsiadoAgXg++XOSWKZVn0eSoRfYQcQNvHZiyRxbQCryCyRL7h0bsXzBnS2vx+Nxn8TtFuKjsthsFsLMzMzMzMzsH/cLPKnsav8gklIAAAAASUVORK5CYII="
+        private fun ContextApi.drawSector(centerX: Float, centerY: Float, sweepAngle: Float, ccw: Boolean, color: Color) {
+            beginPath()
+            moveTo(centerX, centerY)
+            arc(centerX, centerY, 50f.rem, 0f, sweepAngle, ccw)
+            closePath()
+            fillStyle(Color(0x33000000))
+            fill()
+            strokeStyle(color)
+            lineWidth(10f)
+            stroke()
+        }
     }
     override fun created() {
         super.created()
@@ -76,7 +88,7 @@ internal class CanvasTestPage : BasePager() {
                         overflow( false)
                         absolutePositionAllZero()
                         backgroundColor(Color.GRAY)
-                        absolutePosition(top = 220f.rem, left = 320f.rem, 0f, 0f)
+                        absolutePosition(top = 220f.rem, left = 30f.rem, 0f, 0f)
                     }
                 }
             ) { context, width, height ->
@@ -169,42 +181,63 @@ internal class CanvasTestPage : BasePager() {
                 context.fillStyle(gradient)
                 context.fill()
 
-                context.beginPath()
-                context.moveTo(50f, 150f)
-                context.arc(50f, 150f, 50f, 0f, (PI * 2.5).toFloat(), true)
-                context.lineTo(50f, 150f)
-                context.strokeStyle(Color(0x00ff00, .5f))
-                context.fillStyle(Color(0x00ff00, .25f))
-                context.lineWidth(10f)
-                context.stroke()
-                context.fill()
-                context.beginPath()
-                context.moveTo(150f, 150f)
-                context.arc(150f, 150f, 50f, 0f, (PI * 2.5).toFloat(), false)
-                context.lineTo(150f, 150f)
-                context.strokeStyle(Color(0xff0000, .5f))
-                context.fillStyle(Color(0xff0000, .25f))
-                context.lineWidth(5f)
-                context.stroke()
-                context.fill()
-                context.beginPath()
-                context.moveTo(50f, 250f)
-                context.arc(50f, 250f, 50f, 0f, (PI * -2.5).toFloat(), true)
-                context.lineTo(50f, 250f)
-                context.strokeStyle(Color(0xffff00, .5f))
-                context.fillStyle(Color(0xffff00, .25f))
-                context.lineWidth(10f)
-                context.stroke()
-                context.fill()
-                context.beginPath()
-                context.moveTo(150f, 250f)
-                context.arc(150f, 250f, 50f, 0f, (PI * -2.5).toFloat(), false)
-                context.lineTo(150f, 250f)
-                context.strokeStyle(Color(0x0000ff, .5f))
-                context.fillStyle(Color(0x0000ff, .25f))
-                context.lineWidth(5f)
-                context.stroke()
-                context.fill()
+                context.drawSector(
+                    centerX = 60f.rem,
+                    centerY = 300f.rem,
+                    sweepAngle = (PI * 0.5).toFloat(),
+                    ccw = true,
+                    color = Color(0x000000, .5f)
+                )
+                context.drawSector(
+                    centerX = 180f.rem,
+                    centerY = 300f.rem,
+                    sweepAngle = (PI * -1.5).toFloat(),
+                    ccw = true,
+                    color = Color(0x00ff00, .5f)
+                )
+                context.drawSector(
+                    centerX = 300f.rem,
+                    centerY = 300f.rem,
+                    sweepAngle = (PI * -3.5).toFloat(),
+                    ccw = true,
+                    color = Color(0xff0000, .5f)
+                )
+                context.drawSector(
+                    centerX = 420f.rem,
+                    centerY = 300f.rem,
+                    sweepAngle = (PI * -5.5).toFloat(),
+                    ccw = true,
+                    color = Color(0xffff00, .5f)
+                )
+
+                context.drawSector(
+                    centerX = 60f.rem,
+                    centerY = 450f.rem,
+                    sweepAngle = (PI * -0.5).toFloat(),
+                    ccw = false,
+                    color = Color(0xffffff, .5f)
+                )
+                context.drawSector(
+                    centerX = 180f.rem,
+                    centerY = 450f.rem,
+                    sweepAngle = (PI * 1.5).toFloat(),
+                    ccw = false,
+                    color = Color(0x0000ff, .5f)
+                )
+                context.drawSector(
+                    centerX = 300f.rem,
+                    centerY = 450f.rem,
+                    sweepAngle = (PI * 3.5).toFloat(),
+                    ccw = false,
+                    color = Color(0xff00ff, .5f)
+                )
+                context.drawSector(
+                    centerX = 420f.rem,
+                    centerY = 450f.rem,
+                    sweepAngle = (PI * 5.5).toFloat(),
+                    ccw = false,
+                    color = Color(0x00ffff, .5f)
+                )
 
                 val x = 50f
                 val y = 300f
@@ -224,6 +257,32 @@ internal class CanvasTestPage : BasePager() {
                 context.lineWidth(2f)
                 context.strokeText("Hello world", x, y + 50f)
                 context.drawImage(ImageRef(ctx.imageCacheKey), x, y + 100f)
+
+                // 大于360度的圆弧
+                context.beginPath()
+                context.moveTo(500f.rem, 100f.rem)
+                context.lineTo(700f.rem, 100f.rem)
+                context.lineTo(700f.rem, 225f.rem)
+                context.arc(625f.rem, 225f.rem, 75f.rem, 0f, (PI * 2.5).toFloat(), false)
+                context.lineTo(500f.rem, 300f.rem)
+                context.closePath()
+                context.lineWidth(10f)
+                context.fillStyle(Color(0x33000000))
+                context.fill()
+                context.strokeStyle(Color(0x33FF0000))
+                context.stroke()
+                context.beginPath()
+                context.moveTo(500f.rem, 350f.rem)
+                context.lineTo(500f.rem, 550f.rem)
+                context.lineTo(625f.rem, 550f.rem)
+                context.arc(625f.rem, 475f.rem, 75f.rem, (PI * 0.5).toFloat(), (PI * -2).toFloat(), true)
+                context.lineTo(700f.rem, 350f.rem)
+                context.closePath()
+                context.lineWidth(10f)
+                context.fillStyle(Color(0x33000000))
+                context.fill()
+                context.strokeStyle(Color(0x330000FF))
+                context.stroke()
             }
         }
 

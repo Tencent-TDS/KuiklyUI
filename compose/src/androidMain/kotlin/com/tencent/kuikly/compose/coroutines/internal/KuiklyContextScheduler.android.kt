@@ -12,14 +12,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.tencent.kuikly.compose.coroutines.internal
 
-@file:JvmName("ReactiveObserverJvm")
-package com.tencent.kuikly.core.reactive
-
+import com.tencent.kuikly.core.manager.BridgeManager
 import com.tencent.kuikly.core.nvi.NativeBridge
+import com.tencent.kuikly.core.render.android.scheduler.KuiklyRenderCoreContextScheduler
 
-internal actual inline fun platformCheckThread(block: () -> Unit) {
-    if (!NativeBridge.isContextThread) {
-        block()
+internal actual fun platformInitScheduler() {
+}
+
+internal actual inline fun platformIsOnKuiklyThread(pagerId: String): Boolean =
+    NativeBridge.isContextThread
+
+internal actual inline fun platformScheduleOnKuiklyThread(pagerId: String) {
+    KuiklyRenderCoreContextScheduler.scheduleTask {
+        KuiklyContextScheduler.runTask(pagerId)
     }
+}
+
+internal actual inline fun platformNotifyKuiklyException(t: Throwable) {
+    // todo support notify exception
+    BridgeManager.callExceptionMethod(t.stackTraceToString())
 }

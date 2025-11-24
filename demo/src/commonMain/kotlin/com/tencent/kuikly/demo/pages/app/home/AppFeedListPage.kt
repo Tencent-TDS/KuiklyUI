@@ -55,8 +55,8 @@ internal class AppFeedListPageView(
     private var didLoadFirstFeeds = false
     private var theme by observable(ThemeManager.getTheme())
     private var resStrings by observable(LangManager.getCurrentResStrings())
-    private var refreshText by observable(resStrings.pullToRefresh)
-    private var footerRefreshText by observable(resStrings.loadMore)
+    private var refreshText by observable(LangManager.getCurrentResStrings().pullToRefresh)
+    private var footerRefreshText by observable(LangManager.getCurrentResStrings().loadMore)
     private lateinit var themeEventCallbackRef: CallbackRef
     private lateinit var langEventCallbackRef: CallbackRef
 

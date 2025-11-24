@@ -44,6 +44,7 @@ import com.tencent.kuikly.core.render.android.css.ktx.getDisplayMetrics
 import com.tencent.kuikly.core.render.android.css.ktx.removeFromParent
 import com.tencent.kuikly.core.render.android.css.ktx.toColor
 import com.tencent.kuikly.core.render.android.css.ktx.toJSONObjectSafely
+import com.tencent.kuikly.core.render.android.css.ktx.toNumberFloat
 import com.tencent.kuikly.core.render.android.css.ktx.toPxI
 import com.tencent.kuikly.core.render.android.expand.component.blur.RenderScriptBlur
 import com.tencent.kuikly.core.render.android.expand.component.image.Insets
@@ -133,7 +134,7 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
         return when (propKey) {
             PROP_SRC -> setSrc(propValue as String)
             PROP_RESIZE -> setResize(propValue as String)
-            PROP_BLUR_RADIUS -> setBlurRadius(propValue as Float)
+            PROP_BLUR_RADIUS -> setBlurRadius(propValue)
             PROP_TINT_COLOR -> setTintColor(propValue)
             PROP_MASK_LINEAR_GRADIENT -> setMaskLinearGradient(propValue as String)
             PROP_DOT_NINE_IMAGE -> setIsNineDotImage(propValue)
@@ -194,6 +195,11 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
         paintMaskGradient?.also {
             saveCount = canvas.saveLayer(0f, 0f, frameWidth.toFloat(), frameHeight.toFloat(), null)
         }
+        val checkpoint: Int = if (hasCustomClipPath()) {
+            canvas.save()
+        } else {
+            -1
+        }
         drawCommonDecoration(frameWidth, frameHeight, canvas)
         if (capInsetsValid()) {
             drawable?.also {
@@ -207,6 +213,9 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
             }
         } else {
             super.onDraw(canvas)
+        }
+        if (checkpoint != -1) {
+            canvas.restoreToCount(checkpoint)
         }
         drawCommonForegroundDecoration(frameWidth, frameHeight, canvas)
         paintMaskGradient?.also {// 绘制渐变遮罩
@@ -313,9 +322,9 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
         return true
     }
 
-    private fun setBlurRadius(blurRadius: Float): Boolean {
+    private fun setBlurRadius(blurRadius: Any): Boolean {
         // image
-        this.blurRadius = blurRadius
+        this.blurRadius = blurRadius.toNumberFloat()
         updateDrawableImage(originDrawable)
         return true
     }

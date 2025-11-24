@@ -20,9 +20,11 @@ package com.tencent.kuikly.compose
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.InternalComposeApi
+import com.tencent.kuikly.compose.coroutines.internal.ComposeDispatcher
 import com.tencent.kuikly.compose.foundation.event.OnBackPressedDispatcher
 import com.tencent.kuikly.compose.foundation.event.OnBackPressedDispatcherOwner
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
+import com.tencent.kuikly.compose.ui.GlobalSnapshotManager
 import com.tencent.kuikly.compose.ui.InternalComposeUiApi
 import com.tencent.kuikly.compose.ui.platform.WindowInfoImpl
 import com.tencent.kuikly.compose.ui.scene.ComposeScene
@@ -41,8 +43,6 @@ import com.tencent.kuikly.core.module.VsyncModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.views.DivView
-import com.tencent.kuiklyx.coroutines.Kuikly
-import kotlinx.coroutines.Dispatchers
 import kotlin.coroutines.CoroutineContext
 
 fun ComposeContainer.setContent(content: @Composable () -> Unit) {
@@ -128,11 +128,13 @@ open class ComposeContainer :
 
     override fun pageDidAppear() {
         super.pageDidAppear()
+        GlobalSnapshotManager.resume()
         mediator?.updateAppState(true)
     }
 
     override fun pageDidDisappear() {
         super.pageDidDisappear()
+        GlobalSnapshotManager.pause()
     }
 
     override fun pageWillDestroy() {
@@ -154,6 +156,7 @@ open class ComposeContainer :
             boundsInWindow = IntRect(0, 0, windowInfo.containerSize.width, windowInfo.containerSize.height),
             invalidate = invalidate,
             coroutineContext = coroutineContext,
+            enableConsumeSnapshotWhenPause = enableConsumeSnapshotWhenPause(),
         )
 
     private fun createMediatorIfNeeded() {
@@ -173,7 +176,7 @@ open class ComposeContainer :
             ComposeSceneMediator(
                 rootKView,
                 windowInfo,
-                Dispatchers.Kuikly[this],
+                ComposeDispatcher(pagerId),
                 pagerDensity(),
                 ::createComposeScene,
             )
@@ -238,6 +241,16 @@ open class ComposeContainer :
 
     override fun isAccessibilityRunning(): Boolean {
         return pageData.isAccessibilityRunning
+    }
+
+    /**
+     * 当KuiklyCompose和原生Compose同时存在时候，通过覆盖该方法禁止KuiklyCompose页面在后台时
+     * 会继续消费Compose Runtime 共享 Snapshot的变更。解决原生Compose的重组状态偶现丢失的问题。
+     *
+     * 如果业务仅仅在Android平台使用了原生Compose，可以单独在Android平台返回false来规避问题
+     */
+    open fun enableConsumeSnapshotWhenPause(): Boolean {
+        return true
     }
 
     /**

@@ -19,6 +19,14 @@ import com.tencent.kuikly.compose.ui.geometry.Offset
 import com.tencent.kuikly.compose.ui.node.KNode
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 
+/**
+ * Represents a tap event collected from the UI.
+ *
+ * @property position The coordinates of the tap event relative to the view.
+ * @property node The Compose node associated with the tap event (usually KNode).
+ * @property nativeView The underlying native view (DeclarativeBaseView) associated with the node.
+ * @property eventType The type of the tap event (e.g., TAP).
+ */
 data class TapEvent(
     val position: Offset,
     val node: Any?,
@@ -30,21 +38,55 @@ data class TapEvent(
     }
 }
 
+/**
+ * Enum class defining the types of tap events.
+ */
 enum class TapEventType {
     TAP,
 }
 
+/**
+ * A global manager for handling and distributing tap events across the application.
+ * This allows for centralized monitoring or processing of tap interactions.
+ */
 object GlobalTapManager {
+
+    /**
+     * Flag to enable or disable touch slop detection for tap gestures.
+     * When enabled, tap gestures that move beyond the touch slop distance will be cancelled.
+     * This helps in preventing accidental taps during scrolling or other gestures.
+     * Default is false.
+     */
+    var enableTouchSlopForTap: Boolean = false
+
     private val tapEventListeners = mutableListOf<(TapEvent) -> Unit>()
 
+    /**
+     * Registers a listener to receive global tap events.
+     *
+     * @param listener A lambda that will be invoked with a [TapEvent] when a tap occurs.
+     */
     fun addTapEventListener(listener: (TapEvent) -> Unit) {
         tapEventListeners += listener
     }
 
+    /**
+     * Unregisters a previously added tap event listener.
+     *
+     * @param listener The listener to remove.
+     */
     fun removeTapEventListener(listener: (TapEvent) -> Unit) {
         tapEventListeners -= listener
     }
 
+    /**
+     * Collects a tap event and dispatches it to all registered listeners.
+     * This method should be called by gesture detectors when a valid tap is detected.
+     *
+     * @param position The position of the tap.
+     * @param node The Compose node where the tap occurred.
+     * @param eventType The type of the tap event.
+     */
     fun collectTap(position: Offset, node: Any?, eventType: TapEventType) {
         if (node is KNode<*>) {
             val event = TapEvent(position, node, node.view, eventType)

@@ -110,6 +110,7 @@ class BottomSheetDemo1 : ComposeContainer() {
             }
 
             ModalBottomSheet(
+                dismissOnDrag = true,
                 visible = showBottomSheet,
                 modifier = Modifier
                     .padding(bottom = 24.dp)
@@ -120,7 +121,7 @@ class BottomSheetDemo1 : ComposeContainer() {
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color.Red)
-                        .padding(16.dp),
+                        .padding(50.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(

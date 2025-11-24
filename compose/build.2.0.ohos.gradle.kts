@@ -8,6 +8,24 @@ plugins {
 }
 
 kotlin {
+    androidTarget {
+        compilations.all {
+            kotlinOptions {
+                jvmTarget = "1.8"
+                freeCompilerArgs += "-Xjvm-default=all"
+            }
+        }
+        publishLibraryVariants("release")
+    }
+
+    iosX64()
+    iosArm64()
+    iosSimulatorArm64()
+
+    js(IR) {
+        browser()
+    }
+
     targets.all {
         compilations.all {
             kotlinOptions {
@@ -35,19 +53,22 @@ kotlin {
         }
         commonMain.dependencies {
             implementation(project(":core"))
-            api("com.tencent.kuikly-open.compose.runtime:runtime:2.1.0-2.0.21-ohos")
-            api("com.tencent.kuikly-open.compose.runtime:runtime-saveable:2.1.0-2.0.21-ohos")
-            api("com.tencent.kuikly-open.compose.collection-internal:collection:2.1.0-2.0.21-ohos")
+            api("com.tencent.kuikly-open.compose.runtime:runtime:1.7.3-kuikly1")
+            api("com.tencent.kuikly-open.compose.runtime:runtime-saveable:1.7.3-kuikly1")
+            api("com.tencent.kuikly-open.compose.annotation-internal:annotation:1.7.3-kuikly1")
+            api("com.tencent.kuikly-open.compose.collection-internal:collection:1.7.3-kuikly1")
             api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0-KBA-001")
-            api("androidx.annotation:annotation:1.8.0-KBA-001")
             api("org.jetbrains.kotlinx:atomicfu:0.23.2-KBA-001")
-            implementation("com.tencent.kuiklyx-open:coroutines:1.5.0-2.0.21-ohos")  {
-                exclude(group = "com.tencent.kuikly-open", module = "core")
-                exclude(group = "com.tencent.kuikly-open", module = "core-annotations")
-            }
-            implementation(project(":core-annotations"))
         }
 
+        // Android 特有源集中添加 ProfileInstaller 依赖
+        val androidMain by getting {
+            dependencies {
+                compileOnly(project(":core-render-android"))
+                implementation("androidx.profileinstaller:profileinstaller:1.3.1")
+                // 保留现有依赖...
+            }
+        }
     }
 }
 

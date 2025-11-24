@@ -158,6 +158,7 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
     private var color = ""
     private var fontSize = 13f
     private var renderText = ""
+    private var strokeColor = ""
 
     // Initialize p tag
     private val textEle = kuiklyDocument.createElement(ElementType.P).apply {
@@ -267,6 +268,8 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
             FONT_FAMILY -> style.fontFamily = propValue.unsafeCast<String>()
             FONT_SIZE -> style.fontSize = propValue.toNumberFloat().toPxF()
             BACKGROUND_IMAGE -> setBackgroundImage(propValue)
+            STROKE_WIDTH -> setStokeWidth(propValue)
+            STROKE_COLOR -> strokeColor = propValue.unsafeCast<String>().toRgbColor()
             else -> super.setProp(propKey, propValue)
         }
     }
@@ -386,6 +389,17 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
             ele.style.asDynamic().webkitBackgroundClip = "text"
             // Then set text to transparent to show background
             ele.style.color = "transparent"
+        }
+    }
+
+    /**
+    * Set stroke width
+     */
+    private fun setStokeWidth(value: Any) {
+        val strokeWidth = value.unsafeCast<String>()
+        if (strokeWidth != "0.0") {
+            val usedStrokeWidth = strokeWidth.toDouble() / 4
+            ele.style.asDynamic().webkitTextStroke = "${usedStrokeWidth}px $strokeColor"
         }
     }
 

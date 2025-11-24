@@ -69,6 +69,8 @@ NSString *const KRFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(imeAction);
 /** event is 用户按下键盘IME动作按键时回调，例如 Send / Go / Search 等 */
 @property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(inputReturn);
+/** attr is enablePinyinCallback 是否启用拼音输入回调 */
+@property (nonatomic, strong)  NSNumber *KUIKLY_PROP(enablePinyinCallback);
 
 /** placeholderTextView property */
 @property (nullable, nonatomic, strong) UITextView *placeholderTextView;
@@ -248,6 +250,10 @@ NSString *const KRFontWeightKey = @"fontWeight";
     [self p_addKeyboardNotificationIfNeed];
 }
 
+- (void)setCss_enablePinyinCallback:(NSNumber *)css_enablePinyinCallback {
+    _css_enablePinyinCallback = css_enablePinyinCallback;
+}
+
 #pragma mark - css method
 
 - (void)css_focus:(NSDictionary *)args  {
@@ -312,8 +318,16 @@ NSString *const KRFontWeightKey = @"fontWeight";
         return ;
     }
     [self p_updatePlaceholder];
+    // 如果有拼音输入，根据配置决定是否触发回调
     if (textView.markedTextRange) {
-        return ;
+        BOOL enablePinyinCallback = [self.css_enablePinyinCallback boolValue];
+        if (enablePinyinCallback) {
+            if (self.css_textDidChange) {
+                NSString *text = [self p_outputText].copy ?: @"";
+                self.css_textDidChange(@{@"text": text, @"length": @([text kr_length])});
+            }
+        }
+        return;
     }
     [self p_limitTextInput];
    

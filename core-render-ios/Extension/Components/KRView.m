@@ -61,7 +61,7 @@
 /// For iOS's special effect, like `liquid glass`, etc.
 @property (nonatomic, weak) KRVisualEffectView *effectView;
 #else
-@property (nonatomic, weak) NSGlassEffectView *effectView;
+@property (nonatomic, weak) NSVisualEffectView *effectView;
 #endif
 /// Whether to enable liquid glass effect
 @property (nonatomic, assign) BOOL glassEffectEnable;
@@ -237,7 +237,7 @@
 
 #endif // [macOS]
 
-- (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
+- (RCTPlatformView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event { // [macOS]
     if ([self p_hasZIndexInSubviews]) {
         _hitTesting = YES;
     }
@@ -257,7 +257,7 @@
         }
     }
     // 2. 没有动画：执行原有的穿透逻辑
-    UIView *hitView = [super hitTest:point withEvent:event];
+    RCTPlatformView *hitView = [super hitTest:point withEvent:event]; // [macOS]
     _hitTesting = NO;
     if (hitView == self) {
         // 对齐安卓事件机制，无手势事件监听则将手势穿透

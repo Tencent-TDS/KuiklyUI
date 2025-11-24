@@ -35,6 +35,8 @@ import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
 import com.tencent.kuikly.compose.ui.util.fastRoundToInt
 import com.tencent.kuikly.compose.ui.KuiklyImageCacheManager
+import com.tencent.kuikly.compose.ui.platform.LocalActivity
+import com.tencent.kuikly.compose.ui.platform.LocalOnBackPressedDispatcherOwner
 import com.tencent.kuikly.core.base.BackPressHandler
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.event.layoutFrameDidChange
@@ -43,6 +45,13 @@ import com.tencent.kuikly.core.module.VsyncModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.views.DivView
+import com.tencent.kuikly.lifecycle.Lifecycle
+import com.tencent.kuikly.lifecycle.LifecycleOwner
+import com.tencent.kuikly.lifecycle.LifecycleRegistry
+import com.tencent.kuikly.lifecycle.ViewModelStore
+import com.tencent.kuikly.lifecycle.ViewModelStoreOwner
+import com.tencent.kuikly.lifecycle.compose.LocalLifecycleOwner
+import com.tencent.kuikly.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import kotlin.coroutines.CoroutineContext
 
 fun ComposeContainer.setContent(content: @Composable () -> Unit) {
@@ -51,9 +60,12 @@ fun ComposeContainer.setContent(content: @Composable () -> Unit) {
 
 open class ComposeContainer :
     Pager(),
-    OnBackPressedDispatcherOwner {
+    OnBackPressedDispatcherOwner, LifecycleOwner, ViewModelStoreOwner {
     override var ignoreLayout = true
     override var didCreateBody: Boolean = false
+
+    override val lifecycle = LifecycleRegistry(this)
+    override val viewModelStore = ViewModelStore()
 
     var layoutDirection: LayoutDirection = LayoutDirection.Ltr
 
@@ -126,15 +138,22 @@ open class ComposeContainer :
         }
     }
 
+    override fun created() {
+        super.created()
+        lifecycle.currentState = Lifecycle.State.CREATED
+    }
+
     override fun pageDidAppear() {
         super.pageDidAppear()
         GlobalSnapshotManager.resume()
         mediator?.updateAppState(true)
+        lifecycle.currentState = Lifecycle.State.RESUMED
     }
 
     override fun pageDidDisappear() {
         super.pageDidDisappear()
         GlobalSnapshotManager.pause()
+        lifecycle.currentState = Lifecycle.State.CREATED
     }
 
     override fun pageWillDestroy() {
@@ -142,6 +161,7 @@ open class ComposeContainer :
         stopFrameDispatcher()
         mediator?.updateAppState(false)
         dispose()
+        lifecycle.currentState = Lifecycle.State.DESTROYED
     }
 
     @OptIn(InternalComposeUiApi::class)
@@ -166,6 +186,7 @@ open class ComposeContainer :
     }
 
     private fun dispose() {
+        viewModelStore.clear()
         mediator?.dispose()
         mediator = null
     }
@@ -216,6 +237,11 @@ open class ComposeContainer :
     @Composable
     internal fun ProvideContainerCompositionLocals(content: @Composable () -> Unit) =
         CompositionLocalProvider(
+            LocalLifecycleOwner provides this,
+            LocalViewModelStoreOwner provides this,
+            // Kuikly
+            LocalActivity provides this,
+            LocalOnBackPressedDispatcherOwner provides this,
             content = content,
         )
 

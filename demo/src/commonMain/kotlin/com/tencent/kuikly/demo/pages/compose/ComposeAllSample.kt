@@ -157,6 +157,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("KeyboardHeightDemo", "KeyboardHeightDemo", "KeyboardHeightDemo"),
             DemoItem("AccessibilityDemo(Android&iOS)", "无障碍", "AccessibilityDemo"),
             DemoItem("InteractionSourceDemo", "交互源Demo", "InteractionSourceDemo"),
+            DemoItem("ViewModel示例", "Lifecycle和ViewModel", "ViewModelDemo"),
         )
 
     @Composable

@@ -111,6 +111,12 @@ class KRConfig {
         return vp * vp2px_;
     }
 
+    /**
+     * 将字体相关单位fp转换为像素值px
+     * 
+     * @param fp 输入的单位值（字体相关单位）
+     * @return 转换后的像素值
+     */
     float fp2px(float fp) {
         return fp * fontSizeScale_ * vp2px_;
     }

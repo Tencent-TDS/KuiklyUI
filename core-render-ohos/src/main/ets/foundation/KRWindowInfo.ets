@@ -50,7 +50,7 @@ export class KRWindowInfo {
     this.windowRect.height = rect.height;
     try {
       mainWindow.on('keyboardHeightChange', this.keyboardHeightChangeCallback);
-      mainWindow.on('windowSizeChange', this.windowSizeChangeCallback)
+      mainWindow.on('windowSizeChange', this.windowSizeChangeCallback);
     } catch (e) {
       KRRenderLog.e("WindowInfo", `setWindow on error code:${e.code}`)
     }
@@ -82,7 +82,7 @@ export class KRWindowInfo {
   offWindowCallback() {
     try {
       this.window.off('keyboardHeightChange', this.keyboardHeightChangeCallback);
-      this.window.off('windowSizeChange', this.windowSizeChangeCallback)
+      this.window.off('windowSizeChange', this.windowSizeChangeCallback);
     } catch (e) {
       KRRenderLog.e("WindowInfo", `setWindow off error code:${e.code}`)
     }

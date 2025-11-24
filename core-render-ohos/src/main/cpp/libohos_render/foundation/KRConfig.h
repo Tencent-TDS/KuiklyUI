@@ -79,6 +79,11 @@ class KRConfig {
         if (ime_mode != map.end()) {
             ime_mode_ = ime_mode->second->toBool();
         }
+
+        auto windowId = map.find("windowId");
+        if (windowId != map.end()) {
+            window_id_ = windowId->second->toString();
+        }
     }
 
     /**
@@ -137,6 +142,10 @@ class KRConfig {
         return ime_mode_;
     }
 
+    const std::string &GetWindowId() {
+        return window_id_;
+    }
+
  private:
     float vp2px_ = 0;
     float fontWeightScale_ = 1;
@@ -147,6 +156,7 @@ class KRConfig {
     std::string resfile_dir_;
     std::string files_dir_;
     std::string assets_dir_;
+    std::string window_id_; // 页面所在的窗口ID，用于标识页面所在的窗口
     bool ime_mode_ = false;
 };
 

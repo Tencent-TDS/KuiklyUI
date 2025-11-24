@@ -69,6 +69,9 @@ class KRRenderContextParams {
     const std::shared_ptr<KRConfig> &Config() const {
         return config_;
     }
+    const std::string &WindowId() const {
+        return config_->GetWindowId();
+    }
 
     KRRenderContextParams(const KRRenderContextParams &) = delete;
     KRRenderContextParams &operator=(const KRRenderContextParams &) = delete;

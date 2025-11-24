@@ -151,7 +151,8 @@ KRAnyValue KRArkTSManager::CallArkTSMethod(const std::string &instanceId, KRNati
 void KRArkTSManager::KeyboardHeightChange(napi_env env, napi_value *args, size_t arg_size) {
     auto height = std::make_shared<KRRenderValue>(env, args[2])->toFloat();
     auto duration_ms = std::make_shared<KRRenderValue>(env, args[3])->toInt();
-    KRKeyboardManager::GetInstance().NotifyKeyboardHeightChanged(height, duration_ms);
+    auto window_id = std::make_shared<KRRenderValue>(env, args[4])->toString();
+    KRKeyboardManager::GetInstance().NotifyKeyboardHeightChanged(height, duration_ms, window_id);
 }
 
 /**

@@ -23,25 +23,33 @@ KRKeyboardManager &KRKeyboardManager::GetInstance() {
 /**
  * 添加对键盘事件的订阅者
  */
-void KRKeyboardManager::AddKeyboardTask(std::string key, const KRKeyboardCallback &callback) {
-    keyboard_listens_[key] = callback;
+void KRKeyboardManager::AddKeyboardTask(std::string window_id, std::string key, const KRKeyboardCallback &callback) {
+    keyboard_listens_[window_id][key] = callback;
 }
 
 /**
  * 删除对键盘事件的订阅者
  */
-void KRKeyboardManager::RemoveKeyboardTask(std::string key) {
-    keyboard_listens_.erase(key);
+void KRKeyboardManager::RemoveKeyboardTask(std::string window_id, std::string key) {
+    auto it = keyboard_listens_.find(window_id);
+    if (it != keyboard_listens_.end()) {
+        auto& window_tasks = it->second;
+        window_tasks.erase(key);
+        if (window_tasks.empty()) {
+            keyboard_listens_.erase(window_id);
+        }
+    }
 }
 
 /**
  * 通知响应键盘变化，内部分发给感兴趣的订阅者
  */
-void KRKeyboardManager::NotifyKeyboardHeightChanged(float height, int duration_ms) {
-    // 复制keyboard_listens_
-    auto keyboard_listens_copy = keyboard_listens_;
-    for (auto &listener : keyboard_listens_copy) {
-        // 调用订阅者的回调函数
-        listener.second(height, duration_ms);
+void KRKeyboardManager::NotifyKeyboardHeightChanged(float height, int duration_ms, std::string window_id) {
+    auto it = keyboard_listens_.find(window_id);
+    if (it != keyboard_listens_.end()) {
+        auto keyboard_listens_copy = it->second;
+        for (auto &listener : keyboard_listens_copy) {
+            listener.second(height, duration_ms);
+        }
     }
 }

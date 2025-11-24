@@ -1,6 +1,8 @@
 import com.tencent.kuikly.core.render.web.ktx.SizeI
+import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
 import kotlinx.browser.document
 import kotlinx.browser.window
+import processor.CustomImageProcessor
 import utils.URL
 
 /**
@@ -27,6 +29,7 @@ fun main() {
             params[key] = value
         }
     }
+
     // Add web-specific parameters
     params[H5Sign] = "1"
     // Page parameter Map
@@ -48,7 +51,8 @@ fun main() {
     )
     // Trigger resume
     delegator.resume()
-
+    // modify image cdn
+    // KuiklyProcessor.imageProcessor = CustomImageProcessor
     // Register visibility event
     document.addEventListener("visibilitychange", {
         val hidden = document.asDynamic().hidden as Boolean

@@ -36,6 +36,21 @@
 | -- | -- | -- |
 | repeatCount | 动画重复次数 | Int |
 
+### scaleMode <Badge text="微信小程序实现中" type="warn"/>
+
+设置 PAG 内容在视图中的缩放模式，对齐 libpag 的 `PAGScaleMode`，控制动画如何适配容器尺寸。
+
+可选值如下（括号为底层对应的数值，来自 libpag，便于在自定义 adapter 中透传）：
+
+- **NONE (0)**: 不缩放，使用内容原始大小，容器剩余区域将留空。
+- **STRETCH (1)**: 拉伸填充容器，不保持宽高比，可能产生拉伸变形。
+- **LETTER_BOX (2)**: 等比缩放以完整显示内容，保持宽高比，可能在两侧留黑边（默认）。
+- **ZOOM (3)**: 等比缩放以填满容器，保持宽高比，但内容可能被裁剪。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| scaleMode | 缩放模式 | PAGScaleMode |
+
 ### autoPlay <Badge text="微信小程序实现中" type="warn"/>
 
 设置是否自动播放，默认值为 true

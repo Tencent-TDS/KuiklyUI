@@ -116,6 +116,10 @@
         gradientLayer.mask = _contentTextView.layer;
 #endif // [macOS]
         
+    } else {
+#if TARGET_OS_OSX // [macOS
+        [self addSubview:_contentTextView];
+#endif // macOS]
     }
 }
 

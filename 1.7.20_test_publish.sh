@@ -17,6 +17,8 @@ sed -i.bak \
     -e 's/import kotlin\.concurrent\.AtomicReference/import kotlin.native.concurrent.AtomicReference/g' \
     "$ios_exception_tracker"
 
+ios_verify_util="$ios_main_dir/core/utils/VerifyUtil.ios.kt"
+sed -i.bak '/@OptIn(kotlinx\.cinterop\.ExperimentalForeignApi::class)/d' "$ios_verify_util"
 
 KUIKLY_KOTLIN_VERSION="1.7.20" ./gradlew -c settings.1.7.20.gradle.kts :core:publishToMavenLocal
 KUIKLY_KOTLIN_VERSION="1.7.20" ./gradlew -c settings.1.7.20.gradle.kts :core-annotations:publishToMavenLocal
@@ -27,3 +29,4 @@ KUIKLY_KOTLIN_VERSION="1.7.20" ./gradlew -c settings.1.7.20.gradle.kts :core-ren
 mv gradle/wrapper/gradle-wrapper.properties.bak gradle/wrapper/gradle-wrapper.properties
 mv "$ios_platform_impl.bak" "$ios_platform_impl"
 mv "$ios_exception_tracker.bak" "$ios_exception_tracker"
+mv "$ios_verify_util.bak" "$ios_verify_util"

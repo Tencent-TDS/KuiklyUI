@@ -18,6 +18,7 @@ package com.tencent.kuikly.compose.foundation.lazy.grid
 
 import com.tencent.kuikly.compose.foundation.gestures.Orientation
 import com.tencent.kuikly.compose.ui.unit.IntSize
+import kotlin.math.max
 
 /**
  * Contains useful information about the currently displayed layout state of lazy grids like
@@ -85,4 +86,37 @@ sealed interface LazyGridLayoutInfo {
      * The spacing between lines in the direction of scrolling.
      */
     val mainAxisItemSpacing: Int
+}
+
+/**
+ * Calculate the average line size (including spacing) for visible items.
+ * 
+ * @return Average line size, or 0 if visibleItemsInfo is empty
+ */
+internal fun LazyGridLayoutInfo.calculateAverageLineSize(): Int {
+    val visibleItems = visibleItemsInfo
+    if (visibleItems.isEmpty()) return 0
+    
+    val isVertical = orientation == Orientation.Vertical
+    
+    // Group items by line (row for vertical, column for horizontal)
+    val linesMap = visibleItems
+        .filter { 
+            if (isVertical) it.row != LazyGridItemInfo.UnknownRow 
+            else it.column != LazyGridItemInfo.UnknownColumn 
+        }
+        .groupBy { 
+            if (isVertical) it.row else it.column 
+        }
+    
+    if (linesMap.isEmpty()) return 0
+    
+    // Calculate max size for each line and sum them
+    val totalLinesMainAxisSize = linesMap.values.sumOf { lineItems ->
+        lineItems.maxOf { item ->
+            if (isVertical) item.size.height else item.size.width
+        }
+    }
+    
+    return totalLinesMainAxisSize / linesMap.size + mainAxisItemSpacing
 }

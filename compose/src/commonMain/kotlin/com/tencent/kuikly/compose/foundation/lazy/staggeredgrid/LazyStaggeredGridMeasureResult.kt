@@ -26,6 +26,7 @@ import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.ui.util.fastForEach
+import com.tencent.kuikly.compose.ui.util.fastSumBy
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.CoroutineScope
 
@@ -124,6 +125,24 @@ sealed interface LazyStaggeredGridLayoutInfo {
      * The spacing between items in scroll direction.
      */
     val mainAxisItemSpacing: Int
+}
+
+/**
+ * Calculate the average size of visible items (including spacing).
+ * 
+ * @return Average item size, or 0 if visibleItemsInfo is empty
+ */
+internal fun LazyStaggeredGridLayoutInfo.calculateAverageItemSize(): Int {
+    val visibleItems = visibleItemsInfo
+    if (visibleItems.isEmpty()) return 0
+    val itemSizeSum = visibleItems.fastSumBy {
+        if (orientation == Orientation.Vertical) {
+            it.size.height
+        } else {
+            it.size.width
+        }
+    }
+    return itemSizeSum / visibleItems.size + mainAxisItemSpacing
 }
 
 internal fun LazyStaggeredGridLayoutInfo.findVisibleItem(

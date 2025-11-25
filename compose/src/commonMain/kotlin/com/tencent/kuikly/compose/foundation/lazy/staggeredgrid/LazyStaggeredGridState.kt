@@ -47,9 +47,11 @@ import com.tencent.kuikly.compose.ui.layout.Remeasurement
 import com.tencent.kuikly.compose.ui.layout.RemeasurementModifier
 import com.tencent.kuikly.compose.ui.unit.Constraints
 import com.tencent.kuikly.compose.ui.unit.dp
+import com.tencent.kuikly.compose.ui.util.fastSumBy
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.tryExpandStartSizeNoScroll
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
@@ -328,7 +330,32 @@ class LazyStaggeredGridState internal constructor(
     ) {
         kuiklyInfo.offsetDirty = true
         val layoutInfo = layoutInfoState.value
-        val numOfItemsToTeleport = 100 * layoutInfo.slots.sizes.size
+        
+        // Calculate teleport distance based on viewportSize and average item size
+        val numOfItemsToTeleport = if (layoutInfo.visibleItemsInfo.isNotEmpty()) {
+            val averageItemSize = layoutInfo.calculateAverageItemSize()
+            
+            // Calculate the number of items that can fit in the viewport
+            val viewportSize = if (layoutInfo.orientation == Orientation.Vertical) {
+                layoutInfo.viewportSize.height
+            } else {
+                layoutInfo.viewportSize.width
+            }
+            
+            val itemsPerViewport = if (averageItemSize > 0) {
+                viewportSize.toFloat() / averageItemSize.toFloat()
+            } else {
+                10.0f // Default value to avoid division by zero
+            }
+            
+            // 6 times the viewport's item count, with a minimum of 10 * laneCount
+            val laneCount = layoutInfo.slots.sizes.size
+            maxOf((6 * itemsPerViewport).toInt(), 10 * laneCount)
+        } else {
+            // Use default value if visibleItemsInfo is empty
+            100 * layoutInfo.slots.sizes.size
+        }
+        
         animateScrollScope.animateScrollToItem(
             index,
             scrollOffset,

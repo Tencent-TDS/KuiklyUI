@@ -54,6 +54,7 @@ import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.tryExpandStartSizeNoScroll
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -458,8 +459,6 @@ class LazyGridState @ExperimentalFoundationApi constructor(
         }
     }
 
-    private val numOfItemsToTeleport: Int get() = 100 * slotsPerLine
-
     /**
      * Animate (smooth scroll) to the given item.
      *
@@ -474,6 +473,32 @@ class LazyGridState @ExperimentalFoundationApi constructor(
         scrollOffset: Int = 0
     ) {
         kuiklyInfo.offsetDirty = true
+        
+        // Calculate teleport distance based on viewportSize and average line size
+        val layoutInfo = layoutInfoState.value
+        val numOfItemsToTeleport = if (layoutInfo.visibleItemsInfo.isNotEmpty()) {
+            val averageLineSize = layoutInfo.calculateAverageLineSize()
+            
+            // Calculate the number of lines that can fit in the viewport
+            val viewportSize = if (layoutInfo.orientation == Orientation.Vertical) {
+                layoutInfo.viewportSize.height
+            } else {
+                layoutInfo.viewportSize.width
+            }
+            
+            val linesPerViewport = if (averageLineSize > 0) {
+                viewportSize.toFloat() / averageLineSize.toFloat()
+            } else {
+                10.0f // Default value to avoid division by zero
+            }
+            
+            // 6 times the viewport's line count, multiplied by slotsPerLine, with a minimum of 10 * slotsPerLine
+            maxOf((6 * linesPerViewport * slotsPerLine).toInt(), 10 * slotsPerLine)
+        } else {
+            // Use default value if visibleItemsInfo is empty
+            100 * slotsPerLine
+        }
+        
         animateScrollScope.animateScrollToItem(index, scrollOffset, numOfItemsToTeleport, density)
     }
 

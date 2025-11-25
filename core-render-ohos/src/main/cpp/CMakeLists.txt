@@ -106,6 +106,7 @@ target_link_directories(kuikly PUBLIC ${HMOS_SDK_NATIVE}/sysroot/usr/lib/aarch64
 target_include_directories(kuikly PRIVATE ${NATIVERENDER_ROOT_PATH}
                     ${NATIVERENDER_ROOT_PATH}/include)
 target_link_libraries(kuikly PUBLIC hilog_ndk.z.so
+                                    libability_runtime.so
                                     libace_napi.z.so
                                     libace_ndk.z.so
                                     libdeviceinfo_ndk.z.so
@@ -113,6 +114,7 @@ target_link_libraries(kuikly PUBLIC hilog_ndk.z.so
                                     libimage_source.so
                                     libjsvm.so
                                     libnative_drawing.so
+                                    libohcrypto.so
                                     libohfileuri.so
                                     libohresmgr.so
                                     libpixelmap.so
@@ -120,4 +122,5 @@ target_link_libraries(kuikly PUBLIC hilog_ndk.z.so
                                     librawfile.z.so
                                     librcp_c.so
                                     libuv.so
+                                    libz.so
                                     )

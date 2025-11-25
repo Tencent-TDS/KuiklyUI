@@ -141,7 +141,7 @@ export class KRNativeRenderController {
   private environmentCallbackId = -1;
   private densityPixels: number = 0;
   /**
-   * 首次获取的densityPixels，用于密度不跟随系统时使用
+   * 首次获取的densityPixels，用于density不跟随系统时使用
    */
   private firstInitDensityPixels: number = 0;
   private uiContext: UIContext | null = null;
@@ -706,7 +706,7 @@ export class KRNativeRenderController {
   }
 
   /**
-   * Density是否跟随系统
+   * density是否跟随系统
    * @return boolean
    *         true:跟随系统(默认)
    *         false:不跟随系统(当窗口设置setDefaultDensityEnabled(true), 保持内容大小不变)

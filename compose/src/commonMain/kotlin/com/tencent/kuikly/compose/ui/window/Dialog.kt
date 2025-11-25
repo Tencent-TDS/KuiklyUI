@@ -17,6 +17,7 @@
 package com.tencent.kuikly.compose.ui.window
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.NonRestartableComposable
@@ -62,6 +63,7 @@ import com.tencent.kuikly.compose.ui.util.fastMap
 import com.tencent.kuikly.compose.ui.util.fastMaxBy
 import com.tencent.kuikly.compose.container.LocalSlotProvider
 import com.tencent.kuikly.compose.container.SuperTouchManager
+import com.tencent.kuikly.compose.foundation.event.OnBackPressedDispatcherOwner
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.platform.LocalOnBackPressedDispatcherOwner
 import com.tencent.kuikly.core.base.Attr.StyleConst
@@ -334,6 +336,7 @@ private fun DialogLayout(
                         onDismissRequest = {
                             onDismissRequest()
                         },
+                        backPressedDispatcherOwner = backPressedDispatcher,
                         content = currentContent
                     )
                 }
@@ -351,6 +354,7 @@ private fun DialogLayout(
 private fun DialogContent(
     properties: KuiklyDialogProperties,
     onDismissRequest: () -> Unit,
+    backPressedDispatcherOwner: OnBackPressedDispatcherOwner,
     content: @Composable () -> Unit
 ) {
     val compositeKeyHash = currentCompositeKeyHash
@@ -361,10 +365,6 @@ private fun DialogContent(
     }
     val modifier: Modifier
     val wrappedContent: @Composable () -> Unit
-
-    BackHandler {
-        onDismissRequest()
-    }
 
     if (properties.dismissOnClickOutside) {
         modifier = currentComposer.materialize(Modifier.clickable { onDismissRequest() })
@@ -377,27 +377,39 @@ private fun DialogContent(
         modifier = Modifier
         wrappedContent = content
     }
-    ReusableComposeNode<ComposeUiNode, KuiklyApplier>(
-        factory = {
-            val view = DialogContentView(scene, properties.scrimColor)
-            val layoutNode = KNode(view)
-            view.layoutNode = layoutNode
-            layoutNode
-        },
-        update = {
-            set(localMap, ComposeUiNode.SetResolvedCompositionLocals)
-            @OptIn(ExperimentalComposeUiApi::class)
-            set(compositeKeyHash, ComposeUiNode.SetCompositeKeyHash)
-            set(measurePolicy, ComposeUiNode.SetMeasurePolicy)
-            set(modifier, ComposeUiNode.SetModifier)
-            set(properties.scrimColor) {
-                if (this is KNode<*>) {
-                    (this.view as DialogContentView).scrimColor = it
-                }
+
+    // 提供 LocalOnBackPressedDispatcherOwner 以便 BackHandler 可以访问
+    CompositionLocalProvider(
+        LocalOnBackPressedDispatcherOwner provides backPressedDispatcherOwner
+    ) {
+        if (properties.dismissOnBackPress) {
+            BackHandler {
+                onDismissRequest()
             }
-        },
-        content = wrappedContent
-    )
+        }
+
+        ReusableComposeNode<ComposeUiNode, KuiklyApplier>(
+            factory = {
+                val view = DialogContentView(scene, properties.scrimColor)
+                val layoutNode = KNode(view)
+                view.layoutNode = layoutNode
+                layoutNode
+            },
+            update = {
+                set(localMap, ComposeUiNode.SetResolvedCompositionLocals)
+                @OptIn(ExperimentalComposeUiApi::class)
+                set(compositeKeyHash, ComposeUiNode.SetCompositeKeyHash)
+                set(measurePolicy, ComposeUiNode.SetMeasurePolicy)
+                set(modifier, ComposeUiNode.SetModifier)
+                set(properties.scrimColor) {
+                    if (this is KNode<*>) {
+                        (this.view as DialogContentView).scrimColor = it
+                    }
+                }
+            },
+            content = wrappedContent
+        )
+    }
 }
 
 @OptIn(InternalComposeUiApi::class, ExperimentalComposeUiApi::class)

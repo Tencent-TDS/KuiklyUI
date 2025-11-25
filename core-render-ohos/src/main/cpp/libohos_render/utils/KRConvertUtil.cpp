@@ -210,57 +210,50 @@ std::vector<std::string> ConvertSplit(const std::string &str, const std::string 
     return result;
 }
 
-OH_Drawing_FontWeight ConvertFontWeight(int fontWeight) {
-    if (fontWeight == 200) {
-        return FONT_WEIGHT_200;
+static int FontWeightApplyScale(int fontWeight, float scale){
+    if(fontWeight == 0){
+        // font weight defaults to `regular` if not specified
+        fontWeight = 400;
     }
-    if (fontWeight == 300) {
-        return FONT_WEIGHT_300;
+
+    if(scale <= 0.00001){
+        // scale defaults to 1(no scale) 
+        scale = 1;
     }
-    if (fontWeight == 400) {
-        return FONT_WEIGHT_400;
-    }
-    if (fontWeight == 500) {
-        return FONT_WEIGHT_500;
-    }
-    if (fontWeight == 600) {
-        return FONT_WEIGHT_600;
-    }
-    if (fontWeight == 700) {
-        return FONT_WEIGHT_700;
-    }
-    if (fontWeight > 700) {
-        return FONT_WEIGHT_800;
-    }
-    return FONT_WEIGHT_400;
+    // apply scale
+    return (int)(fontWeight * scale);
 }
 
-ArkUI_FontWeight ConvertArkUIFontWeight(int fontWeight) {
-    if (fontWeight < 200) {
-        return ARKUI_FONT_WEIGHT_W100;
-    }
-    if (fontWeight < 300) {
-        return ARKUI_FONT_WEIGHT_W200;
-    }
-    if (fontWeight < 400) {
-        return ARKUI_FONT_WEIGHT_W300;
-    }
-    if (fontWeight < 500) {
-        return ARKUI_FONT_WEIGHT_W400;
-    }
-    if (fontWeight < 600) {
-        return ARKUI_FONT_WEIGHT_W500;
-    }
-    if (fontWeight < 700) {
-        return ARKUI_FONT_WEIGHT_W600;
-    }
-    if (fontWeight < 800) {
-        return ARKUI_FONT_WEIGHT_W700;
-    }
-    if (fontWeight < 900) {
-        return ARKUI_FONT_WEIGHT_W800;
-    }
-    return ARKUI_FONT_WEIGHT_W900;
+OH_Drawing_FontWeight ConvertFontWeight(int fontWeight, float scale) {
+    // apply scale
+    fontWeight = FontWeightApplyScale(fontWeight, scale);
+
+    int index = (fontWeight + 50) / 100;
+    index = (index < 1) ? 1 : (index > 9 ? 9 : index);
+    
+    static constexpr OH_Drawing_FontWeight weightMap[] = {
+        FONT_WEIGHT_100, FONT_WEIGHT_200, FONT_WEIGHT_300, FONT_WEIGHT_400,
+        FONT_WEIGHT_500, FONT_WEIGHT_600, FONT_WEIGHT_700, FONT_WEIGHT_800,
+        FONT_WEIGHT_900
+    };
+    
+    return weightMap[index - 1];
+}
+
+ArkUI_FontWeight ConvertArkUIFontWeight(int fontWeight, float scale) {
+    // apply scale
+    fontWeight = FontWeightApplyScale(fontWeight, scale);
+    
+    int index = fontWeight / 100;
+    index = (index < 1) ? 1 : (index > 9 ? 9 : index);
+    
+    static constexpr ArkUI_FontWeight weightMap[] = {
+        ARKUI_FONT_WEIGHT_W100, ARKUI_FONT_WEIGHT_W200, ARKUI_FONT_WEIGHT_W300,
+        ARKUI_FONT_WEIGHT_W400, ARKUI_FONT_WEIGHT_W500, ARKUI_FONT_WEIGHT_W600,
+        ARKUI_FONT_WEIGHT_W700, ARKUI_FONT_WEIGHT_W800, ARKUI_FONT_WEIGHT_W900
+    };
+    
+    return weightMap[index - 1];
 }
 
 std::string ConvertSizeToString(const KRSize &size) {

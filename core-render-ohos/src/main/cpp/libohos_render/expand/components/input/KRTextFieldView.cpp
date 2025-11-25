@@ -143,7 +143,11 @@ bool KRTextFieldView::SetProp(const std::string &prop_key, const KRAnyValue &pro
         return true;
     }
     if (kuikly::util::isEqual(prop_key, kFontWeight)) {  // 字重
-        font_weight_ = kuikly::util::ConvertArkUIFontWeight(prop_value->toInt());
+        float scale = 1.0;
+        if (auto root = GetRootView().lock()) {
+            scale = root->GetContext()->Config()->GetFontWeightScale();
+        }
+        font_weight_ = kuikly::util::ConvertArkUIFontWeight(prop_value->toInt(), scale);
         SetFont(font_size_, font_weight_);
         return true;
     }

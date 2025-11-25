@@ -29,12 +29,7 @@ kotlin {
 
     ohosArm64 {
         binaries.sharedLib("shared"){
-            if(debuggable){
-                freeCompilerArgs += "-Xadd-light-debug=enable"
-                freeCompilerArgs += "-Xbinary=sourceInfoType=libbacktrace"
-            }else{
-                freeCompilerArgs += "-Xadd-light-debug=enable"
-            }
+            freeCompilerArgs += "-Xadd-light-debug=enable"
         }
     }
 

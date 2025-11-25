@@ -2,14 +2,12 @@ import com.tencent.kuikly.core.render.web.ktx.SizeI
 import kotlinx.browser.document
 import kotlinx.browser.window
 import manager.KuiklyRouter
-import processor.CustomImageProcessor
 import utils.URL
 
 /**
  * WebApp entry, use renderView delegate method to initialize and create renderView
  */
 fun main() {
-    // Hook for SPA Router (Vue-Router Style)
     // Takes over control if "use_spa=1" is present in URL or ENABLE_BY_DEFAULT is true
     if (KuiklyRouter.handleEntry()) {
         return

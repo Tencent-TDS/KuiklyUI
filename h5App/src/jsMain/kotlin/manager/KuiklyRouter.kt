@@ -21,6 +21,26 @@ object KuiklyRouter {
     // or control via URL param "use_spa=1"
     private const val ENABLE_BY_DEFAULT = false
 
+    private const val DEFAULT_PAGE_NAME = "router"
+    private const val URL_PARAM_USE_SPA = "use_spa"
+    private const val URL_PARAM_PAGE_NAME = "page_name"
+    private const val PARAM_IS_H5 = "is_H5"
+    private const val VALUE_FLAG_ON = "1"
+    private const val DEFAULT_STATUS_BAR_HEIGHT = 0f
+    private const val SCROLL_RESTORATION_DELAY_MS = 10
+    private const val RANDOM_MULTIPLIER = 10000
+    private const val KEY_GENERATION_RADIX = 36
+
+    private const val SCROLL_RESTORATION_MANUAL = "manual"
+    private const val STATE_KEY = "key"
+    
+    private const val SCROLL_DATA_Y = "y"
+    private const val SCROLL_DATA_TARGET = "target"
+    
+    private const val SCROLL_TARGET_ROOT = "root"
+    private const val SCROLL_TARGET_CHILD = "child"
+    private const val SCROLL_TARGET_WINDOW = "window"
+
     // Page Cache: Key -> PageInfo
     private val pageCache = mutableMapOf<String, PageInfo>()
     
@@ -40,7 +60,7 @@ object KuiklyRouter {
      */
     fun handleEntry(): Boolean {
         val urlParams = URL.parseParams(window.location.href)
-        val useSpa = urlParams["use_spa"] == "1" || ENABLE_BY_DEFAULT
+        val useSpa = urlParams[URL_PARAM_USE_SPA] == VALUE_FLAG_ON || ENABLE_BY_DEFAULT
         
         if (useSpa) {
             init()
@@ -54,18 +74,18 @@ object KuiklyRouter {
 
         // 1. Disable browser automatic scroll restoration
         if (window.history.asDynamic().scrollRestoration != null) {
-            window.history.asDynamic().scrollRestoration = "manual"
+            window.history.asDynamic().scrollRestoration = SCROLL_RESTORATION_MANUAL
         }
 
         // 2. Initialize Current State Key
         val state = window.history.state?.unsafeCast<Json>()
-        if (state == null || state["key"] == null) {
+        if (state == null || state[STATE_KEY] == null) {
             val newKey = generateKey()
-            val newState = json("key" to newKey)
+            val newState = json(STATE_KEY to newKey)
             window.history.replaceState(newState, "", window.location.href)
             currentKey = newKey
         } else {
-            currentKey = state["key"] as String
+            currentKey = state[STATE_KEY] as String
         }
 
         // 3. Render Initial Page
@@ -74,7 +94,7 @@ object KuiklyRouter {
         // 4. Listen to History Changes (Back/Forward)
         window.onpopstate = { event ->
             val s = event.state?.unsafeCast<Json>()
-            val newKey = s?.get("key") as? String
+            val newKey = s?.get(STATE_KEY) as? String
             
             if (newKey != null) {
                 saveScrollPosition(currentKey)
@@ -109,7 +129,7 @@ object KuiklyRouter {
     fun push(url: String) {
         saveScrollPosition(currentKey)
         val newKey = generateKey()
-        val newState = json("key" to newKey)
+        val newState = json(STATE_KEY to newKey)
         window.history.pushState(newState, "", url)
         handlePageSwitch(newKey)
         currentKey = newKey
@@ -117,7 +137,7 @@ object KuiklyRouter {
     
     fun replace(url: String) {
         val newKey = generateKey()
-        val newState = json("key" to newKey)
+        val newState = json(STATE_KEY to newKey)
         window.history.replaceState(newState, "", url)
         pageCache.remove(currentKey)?.let { destroyPage(it) }
         handlePageSwitch(newKey)
@@ -146,7 +166,7 @@ object KuiklyRouter {
         
         window.setTimeout({
             restoreScrollPosition(targetKey)
-        }, 10)
+        }, SCROLL_RESTORATION_DELAY_MS)
     }
 
     private fun renderPage(key: String, url: String) {
@@ -169,7 +189,7 @@ object KuiklyRouter {
 
     private fun createPage(key: String, url: String): PageInfo? {
         val urlParams = URL.parseParams(url)
-        val pageName = urlParams["page_name"] ?: "router"
+        val pageName = urlParams[URL_PARAM_PAGE_NAME] ?: DEFAULT_PAGE_NAME
         
         val containerWidth = window.innerWidth
         val containerHeight = window.innerHeight
@@ -178,10 +198,10 @@ object KuiklyRouter {
         if (urlParams.isNotEmpty()) {
             urlParams.forEach { (k, v) -> params[k] = v }
         }
-        params["is_H5"] = "1"
+        params[PARAM_IS_H5] = VALUE_FLAG_ON
         
         val paramMap = mapOf(
-            "statusBarHeight" to 0f,
+            "statusBarHeight" to DEFAULT_STATUS_BAR_HEIGHT,
             "activityWidth" to containerWidth,
             "activityHeight" to containerHeight,
             "param" to params,
@@ -220,20 +240,20 @@ object KuiklyRouter {
         val scrollData = json()
         
         if (view.scrollHeight > view.clientHeight && view.scrollTop > 0.0) {
-            scrollData["y"] = view.scrollTop
-            scrollData["target"] = "root"
+            scrollData[SCROLL_DATA_Y] = view.scrollTop
+            scrollData[SCROLL_DATA_TARGET] = SCROLL_TARGET_ROOT
         } else {
             val firstChild = view.firstElementChild as? HTMLElement
             if (firstChild != null && firstChild.scrollHeight > firstChild.clientHeight && firstChild.scrollTop > 0.0) {
-                scrollData["y"] = firstChild.scrollTop
-                scrollData["target"] = "child"
+                scrollData[SCROLL_DATA_Y] = firstChild.scrollTop
+                scrollData[SCROLL_DATA_TARGET] = SCROLL_TARGET_CHILD
             } else if (window.scrollY > 0.0) {
-                scrollData["y"] = window.scrollY
-                scrollData["target"] = "window"
+                scrollData[SCROLL_DATA_Y] = window.scrollY
+                scrollData[SCROLL_DATA_TARGET] = SCROLL_TARGET_WINDOW
             }
         }
         
-        if (scrollData["y"] != null) {
+        if (scrollData[SCROLL_DATA_Y] != null) {
             sessionStorage.setItem(SCROLL_KEY_PREFIX + key, JSON.stringify(scrollData))
         }
     }
@@ -242,16 +262,16 @@ object KuiklyRouter {
         val dataStr = sessionStorage.getItem(SCROLL_KEY_PREFIX + key) ?: return
         try {
             val data = JSON.parse<Json>(dataStr).unsafeCast<dynamic>()
-            val y = data.y as Double
-            val target = data.target as String
+            val y = data[SCROLL_DATA_Y] as Double
+            val target = data[SCROLL_DATA_TARGET] as String
             
             val page = pageCache[key] ?: return
             val view = page.element
             
             when (target) {
-                "root" -> view.scrollTop = y
-                "child" -> (view.firstElementChild as? HTMLElement)?.scrollTop = y
-                "window" -> window.scrollTo(0.0, y)
+                SCROLL_TARGET_ROOT -> view.scrollTop = y
+                SCROLL_TARGET_CHILD -> (view.firstElementChild as? HTMLElement)?.scrollTop = y
+                SCROLL_TARGET_WINDOW -> window.scrollTo(0.0, y)
             }
         } catch (e: dynamic) {
             console.error("Error restoring scroll", e)
@@ -259,6 +279,6 @@ object KuiklyRouter {
     }
 
     private fun generateKey(): String {
-        return (Date.now().toLong()).toString(36) + floor(Random.nextDouble() * 10000).toString()
+        return (Date.now().toLong()).toString(KEY_GENERATION_RADIX) + floor(Random.nextDouble() * RANDOM_MULTIPLIER).toString()
     }
 }

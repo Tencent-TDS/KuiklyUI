@@ -113,6 +113,12 @@ UIKIT_EXTERN NSString *const KRPageDataSnapshotKey;
  */
 - (void)initRenderViewWithContextCode:(NSString *)contextCode;
 
+/*
+ * @brief 返回滑动手势拦截
+ * @return 是否接收到Kotlin侧的拦截信息，返回是否拦截成功
+ */
+- (BOOL)onBackPressed;
+
 @end
 
 @protocol KuiklyRenderViewControllerBaseDelegatorDelegate<NSObject>

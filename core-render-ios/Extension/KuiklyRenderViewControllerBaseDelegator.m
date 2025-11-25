@@ -27,6 +27,7 @@
 #import "KuiklyRenderCore.h"
 #import "KuiklyRenderFrameworkContextHandler.h"
 #import "KuiklyCoreDefine.h"
+#import "KRBackPressModule.h"
 #define KRWeakSelf __weak typeof(self) weakSelf = self;
 
 #define VIEW_DID_APPEAR @"viewDidAppear"
@@ -299,6 +300,40 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     return frameworkMode;
 }
 
+
+- (BOOL)onBackPressed {
+    NSTimeInterval sendTime = [[NSDate date] timeIntervalSince1970];
+    __block BOOL isBackPressedConsumed = NO;
+    // 触发 onBackPressed 逻辑（发送事件到 Kotlin 侧）
+    [_renderView sendWithEvent:@"onBackPressed" data:@{}];
+    // 等待 Kotlin 侧通过 BackPressModule 返回消费状态
+    [self waitForBackConsumedResultWithSendTime:sendTime consumeResult:&isBackPressedConsumed];
+    return isBackPressedConsumed;
+}
+
+- (void)waitForBackConsumedResultWithSendTime:(NSTimeInterval)sendTime
+                                 consumeResult:(BOOL *)consumeResult {
+    __block BOOL looping = YES;
+    __block NSInteger loopCount = 0;
+    
+    while (looping) {
+        // 休眠 10ms
+        [NSThread sleepForTimeInterval:0.01];
+        // 检查模块返回的消费状态
+        KRBackPressModule *module = (KRBackPressModule *)[_renderView moduleWithName:@"KRBackPressModule"];
+        
+        if (module && module.backConsumedTime > sendTime) {
+            *consumeResult = module.isBackConsumed;
+            looping = NO;   // 停止轮询监听
+        }
+        
+        // 超时退出（200ms）
+        NSTimeInterval elapsed = [[NSDate date] timeIntervalSince1970] - sendTime;
+        if (elapsed > 0.2) {
+            looping = NO;   // 停止轮询监听
+        }
+    }
+}
 
 #pragma mark - notifications
 

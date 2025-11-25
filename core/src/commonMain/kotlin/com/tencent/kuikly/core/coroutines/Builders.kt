@@ -21,7 +21,7 @@ fun CoroutineScope.launch(
     block: suspend CoroutineScope.() -> Unit
 ): Job {
     val job = StandaloneCoroutine(context)
-    job.start(start, this) {
+    job.start(start, job) {
         try {
             block.invoke(this)
         } catch (e: Throwable) {
@@ -37,7 +37,7 @@ fun <T> CoroutineScope.async(
     block: suspend CoroutineScope.() -> T
 ): Deferred<T> {
     val job = DeferredCoroutine<T>(context)
-    job.start(start, this) {
+    job.start(start, job) {
         try {
             block.invoke(this)
         } catch (e: Throwable) {
@@ -56,14 +56,21 @@ suspend fun CoroutineScope.delay(timeMs: Int) {
         @Suppress("DEPRECATION")
         BridgeManager.currentPageId.ifEmpty { return }
     }
-    suspendCoroutine<Unit> {
-        setTimeout(pagerId, timeMs) {
+    val job = this.coroutineContext[Job]
+    if (job != null && !job.isActive) {
+        return
+    }
+    suspendCoroutine<Unit> { cont ->
+        var ref: String? = null
+        ref = setTimeout(pagerId, timeMs) {
             try {
-                it.resume(Unit)
+                ref?.let { job?.unregisterTimeout(it) }
+                cont.resume(Unit)
             } catch (e: Throwable) {
                 throwCoroutineScopeException(e)
             }
         }
+        ref?.let { job?.registerTimeout(pagerId, it) }
     }
 }
 

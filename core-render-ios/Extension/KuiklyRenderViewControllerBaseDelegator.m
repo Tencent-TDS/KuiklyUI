@@ -301,42 +301,25 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
 }
 
 
-/// 返回键事件处理 (异步接口,完全不阻塞主线程)
-/// @param completion 回调 Block,返回是否被 Kotlin 侧消费
 - (void)onBackPressedWithCompletion:(KuiklyBackPressCompletion)completion {
-    NSTimeInterval sendTime = [[NSDate date] timeIntervalSince1970];
-    
-    // 发送事件到 Kotlin 侧 (异步)
+    // 1. 获取 Module 并设置 completion
+    KRBackPressModule *module = (KRBackPressModule *)[_renderView moduleWithName:@"KRBackPressModule"];
+    // 2. Module 不存在时立即回调（同步容错）
+    if (!module) {
+        // Module 不存在时立即回调
+        if (completion) {
+            completion(NO);
+        }
+        return;
+    }
+
+    // 3. 设置 completion 到 Module
+    [module setBackPressCompletion:completion];
+
+    // 4. 发送事件到 Kotlin 侧 (异步)
     [_renderView sendWithEvent:@"onBackPressed" data:@{}];
     
-    // GCD Timer 异步轮询检测结果
-    dispatch_source_t timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_main_queue());
-    dispatch_source_set_timer(timer, 
-                             DISPATCH_TIME_NOW, 
-                             10 * NSEC_PER_MSEC,  // 每 10ms 检测一次
-                             1 * NSEC_PER_MSEC);
     
-    __weak typeof(self) weakSelf = self;
-    dispatch_source_set_event_handler(timer, ^{
-        KRBackPressModule *module = (KRBackPressModule *)[weakSelf.renderView moduleWithName:@"KRBackPressModule"];
-        
-        // 检测到 Kotlin 侧返回结果
-        if (module && module.backConsumedTime > sendTime) {
-            if (completion) {
-                completion(module.isBackConsumed);
-            }
-            dispatch_source_cancel(timer);
-        } 
-        // 超时 200ms,默认未消费
-        else if ([[NSDate date] timeIntervalSince1970] - sendTime >= 0.2) {
-            if (completion) {
-                completion(NO);
-            }
-            dispatch_source_cancel(timer);
-        }
-    });
-    
-    dispatch_resume(timer);
 }
 
 #pragma mark - notifications

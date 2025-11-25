@@ -16,6 +16,7 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import "KuiklyRenderView.h"
+#import "KRBackPressModule.h"
 
 typedef void (^KuiklyContextCodeCallback)(NSString * _Nullable contextCode, NSError * _Nullable error);
 @protocol KRPerformanceDataProtocol;
@@ -113,16 +114,10 @@ UIKIT_EXTERN NSString *const KRPageDataSnapshotKey;
  */
 - (void)initRenderViewWithContextCode:(NSString *)contextCode;
 
-/*
- * @brief 返回键事件回调 Block
- * @param consumed 是否被 Kotlin 侧消费
- */
-typedef void (^KuiklyBackPressCompletion)(BOOL consumed);
 
 /*
  * @brief 返回手势处理，获取系统手势后发送至Koltin侧，获取当前是否要消费此手势
  * @param completion 回调 Block,在主线程执行,返回是否被 Kotlin 侧消费
- * @discussion 调用后立即返回,通过 completion 异步回调结果 (最多 200ms 超时)
  */
 - (void)onBackPressedWithCompletion:(nullable KuiklyBackPressCompletion)completion;
 

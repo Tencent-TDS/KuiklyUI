@@ -140,6 +140,10 @@ export class KRNativeRenderController {
   imeMode = false;
   private environmentCallbackId = -1;
   private densityPixels: number = 0;
+  /**
+   * 首次获取的densityPixels，用于密度不跟随系统时使用
+   */
+  private firstInitDensityPixels: number = 0;
   private uiContext: UIContext | null = null;
   private uiAbilityContext: common.UIAbilityContext | null = null;
   private didInit: Boolean = false;
@@ -162,7 +166,10 @@ export class KRNativeRenderController {
     if (this.imeMode) {
       return;
     }
-    const density = display.getDefaultDisplaySync().densityPixels;
+    let density = display.getDefaultDisplaySync().densityPixels;
+    if (!this.densityPixelsFollowSystem()) {
+      density = this.firstInitDensityPixels
+    }
     const w = params.width / density;
     const h = params.height / density;
 
@@ -218,6 +225,7 @@ export class KRNativeRenderController {
     this.instanceId = gGlobalInstanceId + '';
     render.OnLaunchStart(this.instanceId, executeMode.mode); //  页面启动事件通知到native层，用于Performance性能采集
     this.densityPixels = display.getDefaultDisplaySync().densityPixels;
+    this.firstInitDensityPixels = this.densityPixels;
     KRNativeManager.getInstance().createNativeInstance(this.instanceId, uiContext, this);
     const currentConfig = uiAbilityContext.config;
     this.fontSizeScale = currentConfig.fontSizeScale ? currentConfig.fontSizeScale : 1;
@@ -411,7 +419,10 @@ export class KRNativeRenderController {
     this.doOnPageShow();
 
     if (this.didInit && !this.destroyed) {
-      const newDensity = display.getDefaultDisplaySync().densityPixels;
+      let newDensity = display.getDefaultDisplaySync().densityPixels;
+      if (!this.densityPixelsFollowSystem()) {
+         newDensity = this.firstInitDensityPixels
+      }
       if (newDensity != this.densityPixels) {
         // density变化，原因是修改了系统的无障碍选项
         this.doOnDensityChanged(newDensity);
@@ -694,6 +705,15 @@ export class KRNativeRenderController {
     return true
   }
 
+  /**
+   * Density是否跟随系统
+   * @return boolean
+   *         true:跟随系统(默认)
+   *         false:不跟随系统(当窗口设置setDefaultDensityEnabled(true), 保持内容大小不变)
+   */
+  densityPixelsFollowSystem(): boolean {
+    return false
+  }
 }
 
 export abstract class IKuiklyViewDelegate extends KRNativeRenderController {

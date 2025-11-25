@@ -712,7 +712,7 @@ export class KRNativeRenderController {
    *         false:不跟随系统(当窗口设置setDefaultDensityEnabled(true), 保持内容大小不变)
    */
   densityPixelsFollowSystem(): boolean {
-    return false
+    return true
   }
 }
 

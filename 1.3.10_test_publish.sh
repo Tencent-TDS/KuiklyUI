@@ -13,6 +13,8 @@ core_render_android_dir=$current_dir/core-render-android/src/main/java
 core_convert_util_file=$current_dir/core/src/commonMain/kotlin/com/tencent/kuikly/core/utils/ConvertUtil.kt
 core_pager_manager=$current_dir/core/src/commonMain/kotlin/com/tencent/kuikly/core/manager/PagerManager.kt
 kuikly_kotlin_build_var=$current_dir/buildSrc/src/main/java/KuiklyKotlinBuildVar.kt
+core_abstract_coroutine=$current_dir/core/src/commonMain/kotlin/com/tencent/kuikly/core/coroutines/AbstractCoroutine.kt
+core_builders=$current_dir/core/src/commonMain/kotlin/com/tencent/kuikly/core/coroutines/Builders.kt
 
 # 关闭androidx开关、将androidx包名替换成support包包名
 if [ "$KUIKLY_ENABLE_ANDROID_SUPPORT_COMPATIBLE" -eq 1 ]; then
@@ -36,6 +38,15 @@ sed -i.bak -e 's/md5L16\.encodeToByteArray()/md5L16\.toByteArray(Charsets.UTF_8)
 # PagerManager的lowercase替换成toLowerCase
 echo "$core_pager_manager"
 sed -i.bak 's/lowercase/toLowerCase/g' "$core_pager_manager"
+
+# Kotlin 1.3 兼容：将 kotlin.coroutines.cancellation.CancellationException 替换为 java.util.concurrent.CancellationException
+echo "$core_abstract_coroutine"
+sed -i.bak -e 's/import kotlin\.coroutines\.cancellation\.CancellationException/import java.util.concurrent.CancellationException/g' \
+           -e 's/CancellationException("cancelled",[[:space:]]*cause)/CancellationException("cancelled").also { it.initCause(cause) }/g' \
+           "$core_abstract_coroutine"
+
+echo "$core_builders"
+sed -i.bak 's/import kotlin\.coroutines\.cancellation\.CancellationException/import java.util.concurrent.CancellationException/g' "$core_builders"
 
 # buildSrc替换useInMemoryPgpKeys方法
 sed -i.bak 's/useInMemoryPgpKeys(keyId, secretKey, password)/useInMemoryPgpKeys(secretKey, password)/g' "$kuikly_kotlin_build_var"
@@ -63,3 +74,5 @@ mv gradle/wrapper/gradle-wrapper.properties.bak gradle/wrapper/gradle-wrapper.pr
 mv "$core_convert_util_file.bak" $core_convert_util_file
 mv "$core_pager_manager.bak" "$core_pager_manager"
 mv "$kuikly_kotlin_build_var.bak" $kuikly_kotlin_build_var
+mv "$core_abstract_coroutine.bak" $core_abstract_coroutine
+mv "$core_builders.bak" "$core_builders"

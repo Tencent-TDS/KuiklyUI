@@ -3,8 +3,10 @@ package com.tencent.kuikly.core.coroutines
 import com.tencent.kuikly.core.base.PagerScope
 import com.tencent.kuikly.core.manager.BridgeManager
 import com.tencent.kuikly.core.timer.setTimeout
+import com.tencent.kuikly.core.timer.setTimeoutRef
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -21,7 +23,7 @@ fun CoroutineScope.launch(
     block: suspend CoroutineScope.() -> Unit
 ): Job {
     val job = StandaloneCoroutine(context)
-    job.start(start, this) {
+    job.start(start, job) {
         try {
             block.invoke(this)
         } catch (e: Throwable) {
@@ -37,7 +39,7 @@ fun <T> CoroutineScope.async(
     block: suspend CoroutineScope.() -> T
 ): Deferred<T> {
     val job = DeferredCoroutine<T>(context)
-    job.start(start, this) {
+    job.start(start, job) {
         try {
             block.invoke(this)
         } catch (e: Throwable) {
@@ -56,21 +58,50 @@ suspend fun CoroutineScope.delay(timeMs: Int) {
         @Suppress("DEPRECATION")
         BridgeManager.currentPageId.ifEmpty { return }
     }
-    suspendCoroutine<Unit> {
-        setTimeout(pagerId, timeMs) {
+    val job = this.coroutineContext[Job]
+    if (job != null && !job.isActive) {
+        return
+    }
+    suspendCoroutine<Unit> { cont ->
+        val aj = this.coroutineContext[Job] as? AbstractCoroutine<*>
+        aj?.registerCancellable(cont)
+        val ref = setTimeoutRef(pagerId, timeMs) { id ->
             try {
-                it.resume(Unit)
+                if (aj != null && !aj.isActive) return@setTimeoutRef
+                aj?.unregisterTimeout(id)
+                aj?.unregisterCancellable(cont)
+                cont.resume(Unit)
             } catch (e: Throwable) {
                 throwCoroutineScopeException(e)
             }
         }
+        aj?.registerTimeout(pagerId, ref)
     }
+}
+
+suspend fun <T> CoroutineScope.suspendCancellableCoroutine(block: (kotlin.coroutines.Continuation<T>, ((Throwable?) -> Unit) -> Unit) -> Unit): T = kotlin.coroutines.suspendCoroutine { cont ->
+    val aj = this.coroutineContext[Job] as? AbstractCoroutine<*>
+    aj?.registerCancellable(cont)
+    val safe = object : kotlin.coroutines.Continuation<T> {
+        override val context: kotlin.coroutines.CoroutineContext = cont.context
+        override fun resumeWith(result: Result<T>) {
+            val active = context[Job]?.isActive != false
+            if (!active) return
+            (cont.context[Job] as? AbstractCoroutine<*>)?.unregisterCancellable(cont)
+            cont.resumeWith(result)
+        }
+    }
+    val onCancelRegister: ((Throwable?) -> Unit) -> Unit = { h ->
+        aj?.addCompletionHandler(h)
+    }
+    block(safe, onCancelRegister)
 }
 
 /**
  * 协程内的异常统一使用该接口抛出，否则在协程内异常抛出无效。
  */
 private fun CoroutineScope.throwCoroutineScopeException(e: Throwable) {
+    if (e is CancellationException) return
     val pagerId = if (this is LifecycleScope) {
         pagerScope.pagerId
     } else {

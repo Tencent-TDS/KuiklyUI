@@ -301,38 +301,42 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
 }
 
 
-- (BOOL)onBackPressed {
+/// 返回键事件处理 (异步接口,完全不阻塞主线程)
+/// @param completion 回调 Block,返回是否被 Kotlin 侧消费
+- (void)onBackPressedWithCompletion:(KuiklyBackPressCompletion)completion {
     NSTimeInterval sendTime = [[NSDate date] timeIntervalSince1970];
-    __block BOOL isBackPressedConsumed = NO;
-    // 触发 onBackPressed 逻辑（发送事件到 Kotlin 侧）
-    [_renderView sendWithEvent:@"onBackPressed" data:@{}];
-    // 等待 Kotlin 侧通过 BackPressModule 返回消费状态
-    [self waitForBackConsumedResultWithSendTime:sendTime consumeResult:&isBackPressedConsumed];
-    return isBackPressedConsumed;
-}
-
-- (void)waitForBackConsumedResultWithSendTime:(NSTimeInterval)sendTime
-                                 consumeResult:(BOOL *)consumeResult {
-    __block BOOL looping = YES;
-    __block NSInteger loopCount = 0;
     
-    while (looping) {
-        // 休眠 10ms
-        [NSThread sleepForTimeInterval:0.01];
-        // 检查模块返回的消费状态
-        KRBackPressModule *module = (KRBackPressModule *)[_renderView moduleWithName:@"KRBackPressModule"];
+    // 发送事件到 Kotlin 侧 (异步)
+    [_renderView sendWithEvent:@"onBackPressed" data:@{}];
+    
+    // GCD Timer 异步轮询检测结果
+    dispatch_source_t timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_main_queue());
+    dispatch_source_set_timer(timer, 
+                             DISPATCH_TIME_NOW, 
+                             10 * NSEC_PER_MSEC,  // 每 10ms 检测一次
+                             1 * NSEC_PER_MSEC);
+    
+    __weak typeof(self) weakSelf = self;
+    dispatch_source_set_event_handler(timer, ^{
+        KRBackPressModule *module = (KRBackPressModule *)[weakSelf.renderView moduleWithName:@"KRBackPressModule"];
         
+        // 检测到 Kotlin 侧返回结果
         if (module && module.backConsumedTime > sendTime) {
-            *consumeResult = module.isBackConsumed;
-            looping = NO;   // 停止轮询监听
+            if (completion) {
+                completion(module.isBackConsumed);
+            }
+            dispatch_source_cancel(timer);
+        } 
+        // 超时 200ms,默认未消费
+        else if ([[NSDate date] timeIntervalSince1970] - sendTime >= 0.2) {
+            if (completion) {
+                completion(NO);
+            }
+            dispatch_source_cancel(timer);
         }
-        
-        // 超时退出（200ms）
-        NSTimeInterval elapsed = [[NSDate date] timeIntervalSince1970] - sendTime;
-        if (elapsed > 0.2) {
-            looping = NO;   // 停止轮询监听
-        }
-    }
+    });
+    
+    dispatch_resume(timer);
 }
 
 #pragma mark - notifications

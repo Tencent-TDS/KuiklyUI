@@ -9,6 +9,7 @@ import components.KRWebView
 import components.KuiklyPageView
 import module.KRBridgeModule
 import module.KRCacheModule
+import module.KRRouterModule
 
 
 class ViewPropExternalHandler : IKuiklyRenderViewPropExternalHandler {
@@ -101,7 +102,14 @@ class KuiklyWebRenderViewDelegator : KuiklyRenderViewDelegatorDelegate {
         kuiklyRenderExport.moduleExport(KRCacheModule.MODULE_NAME) {
             KRCacheModule()
         }
+
+        // rewrite KRRouterModule
+        kuiklyRenderExport.moduleExport(KRRouterModule.MODULE_NAME) {
+            KRRouterModule()
+        }
     }
+
+    fun getKuiklyRenderContext() = delegate.getKuiklyRenderContext()
 
     override fun registerViewExternalPropHandler(kuiklyRenderExport: IKuiklyRenderExport) {
         super.registerViewExternalPropHandler(kuiklyRenderExport)

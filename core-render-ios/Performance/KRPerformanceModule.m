@@ -28,33 +28,9 @@ NSString *const kKuiklyPageLoadTimeFromKotlinNotification = @"KuiklyPageLoadTime
 
 - (void)getPerformanceData:(NSDictionary *)args {
     KuiklyRenderCallback callback = args[KR_CALLBACK_KEY];
-    
     KuiklyRenderView *rootView = self.hr_rootView;
     id<KRPerformanceDataProtocol> performanceManager = rootView.delegate.performanceManager;
-    
-    NSArray *keysArray = @[@"initViewCost", @"fetchContextCodeCost", @"initRenderContextCost", @"pageBuildCost", @"pageLayoutCost", @"createPageCost", @"firstPaintCost", @"createInstanceCost", @"newPageCost", @"renderCost"];
-    NSMutableDictionary *timeMap = [NSMutableDictionary new];
-    NSAssert(keysArray.count == KRLoadStage_renderFP + 1, @"keys 与 枚举数量不匹配 ");
-    for (int i = KRLoadStage_initView; i <= KRLoadStage_renderFP; i++) {
-        int duration = [performanceManager durationForStage:i];
-        timeMap[keysArray[i]] = @(duration);
-    }
-    
-    NSDictionary *performData = @{
-        @"mode": @(rootView.contextParam.contextMode.modeId),
-        @"pageExistTime": @(performanceManager.pageExistTime),
-        @"isFirstLaunchOfProcess": @([performanceManager isFirstLaunchOfProcess]),
-        @"isFirstLaunchOfPage": @([performanceManager isFirstLaunchOfPage]),
-        @"pageLoadTime": timeMap,
-        @"mainFPS": @(performanceManager.mainFPS.avgFPS),
-        @"kotlinFPS": @(performanceManager.kotlinFPS.avgFPS),
-        @"memory": @{
-            @"avgIncrement": @(performanceManager.memoryMonitor.avgIncrementMemory),
-            @"peakIncrement": @(performanceManager.memoryMonitor.peakIncrementMemory),
-            @"appPeak": @(performanceManager.memoryMonitor.appPeakMemory),
-            @"appAvg": @(performanceManager.memoryMonitor.appAvgMemory),
-        },
-    };
+    NSDictionary *performData = [performanceManager performanceData];
     callback(performData);
 }
 

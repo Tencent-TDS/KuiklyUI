@@ -413,7 +413,7 @@ export class KRNativeRenderController {
     this.doOnPageShow();
 
     if (this.didInit && !this.destroyed) {
-      let newDensity = this.getWindowActiveDensity();
+      const newDensity = this.getWindowActiveDensity();
       if (newDensity != this.densityPixels) {
         // density变化，原因是修改了系统的无障碍选项
         this.doOnDensityChanged(newDensity);

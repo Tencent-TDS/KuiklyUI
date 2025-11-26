@@ -3,6 +3,10 @@ package com.tencent.kuikly.core.nvi.serialization
 import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 
+object SerializationUtilConfig {
+    var convertBool: Boolean = true
+}
+
 fun Map<String, Any?>.serialization(): JSONObject {
     val serializationObject = JSONObject()
     forEach { (key, value) ->
@@ -12,7 +16,13 @@ fun Map<String, Any?>.serialization(): JSONObject {
             is Double -> serializationObject.put(key, value)
             is Float -> serializationObject.put(key, value)
             is String -> serializationObject.put(key, value)
-            is Boolean -> serializationObject.put(key, if (value) 1 else 0)
+            is Boolean -> {
+                if (SerializationUtilConfig.convertBool){
+                    serializationObject.put(key, if (value) 1 else 0)
+                } else {
+                    serializationObject.put(key, value)
+                }
+            }
             is Map<*, *> -> {
                 val map = value as Map<String, Any>
                 serializationObject.put(key, map.serialization())

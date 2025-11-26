@@ -105,9 +105,18 @@ uint32_t KRTextFieldView::GetInputNodeSelectionStartPosition(){
 void KRTextFieldView::UpdateInputNodeSelectionStartPosition(uint32_t index){
     kuikly::util::UpdateInputNodeSelectionStartPosition(GetNode(), index);
 }
+
 void KRTextFieldView::UpdateInputNodePlaceholderFont(uint32_t font_size, ArkUI_FontWeight font_weight){
-    kuikly::util::UpdateInputNodePlaceholderFont(GetNode(), font_size, font_weight);
+    const auto &rootView = GetRootView().lock();
+    bool fontSizeScaleFollowSystem = true;
+    float font_size_px = 0;
+    if (rootView) {
+        fontSizeScaleFollowSystem = rootView->GetContext()->Config()->fontSizeScaleFollowSystem();
+        font_size_px = rootView->GetContext()->Config()->fp2px(font_size);
+    }
+    kuikly::util::UpdateInputNodePlaceholderFont(GetNode(), font_size, font_weight, fontSizeScaleFollowSystem, font_size_px);
 }
+
 void KRTextFieldView::UpdateInputNodeContentText(const std::string &text){
     kuikly::util::UpdateInputNodeContentText(GetNode(), text);
 }
@@ -134,7 +143,11 @@ bool KRTextFieldView::SetProp(const std::string &prop_key, const KRAnyValue &pro
         return true;
     }
     if (kuikly::util::isEqual(prop_key, kFontWeight)) {  // 字重
-        font_weight_ = kuikly::util::ConvertArkUIFontWeight(prop_value->toInt());
+        float scale = 1.0;
+        if (auto root = GetRootView().lock()) {
+            scale = root->GetContext()->Config()->GetFontWeightScale();
+        }
+        font_weight_ = kuikly::util::ConvertArkUIFontWeight(prop_value->toInt(), scale);
         SetFont(font_size_, font_weight_);
         return true;
     }

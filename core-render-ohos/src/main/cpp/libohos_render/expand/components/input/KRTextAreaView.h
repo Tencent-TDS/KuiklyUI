@@ -17,6 +17,7 @@
 #define CORE_RENDER_OHOS_KRTEXTAREAVIEW_H
 
 #include "libohos_render/expand/components/input/KRTextFieldView.h"
+#include "libohos_render/foundation/KRConfig.h"
 
 class KRTextAreaView : public KRTextFieldView {
  public:

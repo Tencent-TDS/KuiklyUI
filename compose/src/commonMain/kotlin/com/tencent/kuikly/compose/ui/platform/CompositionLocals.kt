@@ -18,18 +18,16 @@ package com.tencent.kuikly.compose.ui.platform
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import com.tencent.kuikly.compose.ComposeContainer
 import com.tencent.kuikly.compose.foundation.event.OnBackPressedDispatcherOwner
+import com.tencent.kuikly.compose.platform.Configuration
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.focus.FocusManager
 import com.tencent.kuikly.compose.ui.input.InputModeManager
 import com.tencent.kuikly.compose.ui.node.Owner
 import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
-import com.tencent.kuikly.compose.platform.Configuration
-import com.tencent.kuikly.core.manager.PagerManager
 
 /**
  * Provides the [Density] to be used to transform between [density-independent pixel
@@ -107,9 +105,6 @@ internal fun ProvideCommonCompositionLocals(
     owner: Owner,
     content: @Composable () -> Unit,
 ) {
-    val currentActivity = remember {
-        PagerManager.getCurrentPager() as ComposeContainer
-    }
     CompositionLocalProvider(
         LocalDensity provides owner.density,
         LocalFocusManager provides owner.focusOwner,
@@ -117,9 +112,6 @@ internal fun ProvideCommonCompositionLocals(
         LocalLayoutDirection provides owner.layoutDirection,
         LocalSoftwareKeyboardController provides owner.softwareKeyboardController,
         LocalViewConfiguration provides owner.viewConfiguration,
-        // Kuikly
-        LocalActivity provides currentActivity,
-        LocalOnBackPressedDispatcherOwner provides currentActivity,
         content = content,
     )
 }

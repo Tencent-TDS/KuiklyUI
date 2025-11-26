@@ -27,6 +27,7 @@
 #import "KuiklyRenderCore.h"
 #import "KuiklyRenderFrameworkContextHandler.h"
 #import "KuiklyCoreDefine.h"
+#import "KRBackPressModule.h"
 #define KRWeakSelf __weak typeof(self) weakSelf = self;
 
 #define VIEW_DID_APPEAR @"viewDidAppear"
@@ -299,6 +300,27 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     return frameworkMode;
 }
 
+
+- (void)onBackPressedWithCompletion:(KuiklyBackPressCompletion)completion {
+    // 1. 获取 Module 并设置 completion
+    KRBackPressModule *module = (KRBackPressModule *)[_renderView moduleWithName:@"KRBackPressModule"];
+    // 2. Module 不存在时立即回调（同步容错）
+    if (!module) {
+        // Module 不存在时立即回调
+        if (completion) {
+            completion(NO);
+        }
+        return;
+    }
+
+    // 3. 设置 completion 到 Module
+    [module setBackPressCompletion:completion];
+
+    // 4. 发送事件到 Kotlin 侧 (异步)
+    [_renderView sendWithEvent:@"onBackPressed" data:@{}];
+    
+    
+}
 
 #pragma mark - notifications
 

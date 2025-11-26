@@ -6,6 +6,9 @@ import manager.KuiklyRouter
  * WebApp entry, use renderView delegate method to initialize and create renderView
  */
 fun main() {
+    // modify image cdn
+    // KuiklyProcessor.imageProcessor = CustomImageProcessor
+
     // Takes over control if "use_spa=1" is present in URL or ENABLE_BY_DEFAULT is true
     if (KuiklyRouter.handleEntry()) {
         return

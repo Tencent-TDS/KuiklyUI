@@ -216,7 +216,11 @@ class Android11PlusKeyboardWatcher(private val activity: Activity) : ViewTreeObs
     override fun onGlobalLayout() {
         val rootView: View = activity.findViewById(android.R.id.content)
         val newKeyboardHeight = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            rootView.getRootWindowInsets().getInsets(WindowInsets.Type.ime()).bottom
+            val insets = rootView.rootWindowInsets
+            val imeHeight = insets.getInsets(WindowInsets.Type.ime()).bottom
+            val navHeight = insets.getInsets(WindowInsets.Type.navigationBars()).bottom
+            // 只有当键盘弹出时（imeHeight > 0），才尝试减去导航栏高度
+            if (imeHeight > 0) (imeHeight - navHeight).coerceAtLeast(0) else 0
         } else {
             0
         }

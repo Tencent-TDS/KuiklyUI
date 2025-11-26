@@ -58,9 +58,9 @@ std::string ConvertDoubleToString(double value);
 
 std::vector<std::string> ConvertSplit(const std::string &str, const std::string &delimiters);
 
-OH_Drawing_FontWeight ConvertFontWeight(int fontWeight);
+OH_Drawing_FontWeight ConvertFontWeight(int fontWeight, float scale);
 
-ArkUI_FontWeight ConvertArkUIFontWeight(int fontWeight);
+ArkUI_FontWeight ConvertArkUIFontWeight(int fontWeight, float scale);
 
 std::string ConvertSizeToString(const KRSize &size);
 

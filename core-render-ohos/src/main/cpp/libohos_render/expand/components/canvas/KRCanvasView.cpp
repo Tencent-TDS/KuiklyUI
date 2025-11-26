@@ -356,10 +356,15 @@ void KRCanvasView::SetFont(const std::string &params) {
     auto style = paramObj->GetString("style");
     auto weight = std::stoi(paramObj->GetString("weight"));
     auto family = paramObj->GetString("family");
+    
+    float scale = 1.0;
+    if (auto root = GetRootView().lock()) {
+        scale = root->GetContext()->Config()->GetFontWeightScale();
+    }
 
     text_feature_.fontSize = size;
     text_feature_.fontStyle = kuikly::util::ConvertToFontStyle(style);
-    text_feature_.fontWeight = kuikly::util::ConvertFontWeight(weight);
+    text_feature_.fontWeight = kuikly::util::ConvertFontWeight(weight, scale);
     text_feature_.fontFamily = family;
 }
 

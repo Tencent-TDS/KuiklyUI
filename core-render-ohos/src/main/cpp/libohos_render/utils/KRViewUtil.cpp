@@ -203,6 +203,13 @@ int32_t ArkUINativeNodeAPI::setAttribute(ArkUI_NodeHandle node, ArkUI_NodeAttrib
     KUIKLY_CHECK_NODE_OR_RETURN_ERROR(node);
     return impl_->setAttribute(node, attribute, item);
 }
+
+int32_t ArkUINativeNodeAPI::setLengthMetricUnit(ArkUI_NodeHandle node, ArkUI_LengthMetricUnit unit) {
+    KREnsureMainThread();
+    KUIKLY_CHECK_NODE_OR_RETURN_ERROR(node);
+    return impl_->setLengthMetricUnit(node, unit);
+}
+
 const ArkUI_AttributeItem *ArkUINativeNodeAPI::getAttribute(ArkUI_NodeHandle node, ArkUI_NodeAttributeType attribute) {
     KREnsureMainThread();
     KUIKLY_CHECK_NODE_OR_RETURN_NULL(node);
@@ -351,12 +358,20 @@ void UpdateNodeOverflow(ArkUI_NodeHandle node, int overflow) {
 void UpdateNodeBoxShadow(ArkUI_NodeHandle node, const std::string &css_box_shadow) {
     auto nodeAPI = GetNodeApi();
     auto splits = ConvertSplit(css_box_shadow, " ");
-    float x = ConvertToFloat(splits[0]);
-    float y = ConvertToFloat(splits[1]);
-    float radius = ConvertToFloat(splits[2]);
+    auto dpi = KRConfig::GetDpi();
+    float x = ConvertToFloat(splits[0]) * dpi;
+    float y = ConvertToFloat(splits[1]) * dpi;
+    float radius = ConvertToFloat(splits[2]) * dpi;
     uint32_t color = ConvertToHexColor(splits[3]);
-    ArkUI_NumberValue value[] = {radius,         {.i32 = 0}, x, y, {.i32 = ARKUI_SHADOW_TYPE_COLOR},
-                                 {.u32 = color}, {.i32 = 0}};
+    ArkUI_NumberValue value[] = {
+        {.f32 = radius},
+        {.i32 = 0},
+        {.f32 = x},
+        {.f32 = y},
+        {.i32 = ARKUI_SHADOW_TYPE_COLOR},
+        {.u32 = color},
+        {.i32 = 1}
+    };
     ArkUI_AttributeItem item = {value, sizeof(value) / sizeof(ArkUI_NumberValue)};
     nodeAPI->setAttribute(node, NODE_CUSTOM_SHADOW, &item);
 }
@@ -924,7 +939,7 @@ void UpdateInputNodeTextAlign(ArkUI_NodeHandle node, const std::string &text_ali
     GetNodeApi()->setAttribute(node, NODE_TEXT_ALIGN, &item);
 }
 
-void UpdateInputNodePlaceholderFont(ArkUI_NodeHandle node, uint32_t font_size, ArkUI_FontWeight font_weight) {
+void UpdateInputNodePlaceholderFont(ArkUI_NodeHandle node, uint32_t font_size, ArkUI_FontWeight font_weight, bool fontSizeScaleFollowSystem, float font_size_px) {
     ArkUI_NumberValue fontWeight = {.i32 = font_weight};
     ArkUI_NumberValue tempStyle = {.i32 = ARKUI_FONT_STYLE_NORMAL};
     std::array<ArkUI_NumberValue, 3> value = {{{.f32 = static_cast<float>(font_size)}, tempStyle, fontWeight}};
@@ -932,9 +947,18 @@ void UpdateInputNodePlaceholderFont(ArkUI_NodeHandle node, uint32_t font_size, A
     GetNodeApi()->setAttribute(node, NODE_TEXT_INPUT_PLACEHOLDER_FONT, &item);
     GetNodeApi()->setAttribute(node, NODE_FONT_SIZE, &item);
     {
-        ArkUI_NumberValue valueSize[] = {static_cast<float>(font_size)};
+        // 如果禁用输入框内字体缩放需要设置为px
+        float font_size_temp = font_size;
+        if (!fontSizeScaleFollowSystem) {
+            GetNodeApi()->setLengthMetricUnit(node, ARKUI_LENGTH_METRIC_UNIT_PX);
+            font_size_temp = font_size_px;
+        }
+        ArkUI_NumberValue valueSize[] = {static_cast<float>(font_size_temp)};
         ArkUI_AttributeItem itemSize = {valueSize, sizeof(valueSize) / sizeof(ArkUI_NumberValue)};
         GetNodeApi()->setAttribute(node, NODE_FONT_SIZE, &itemSize);
+        if (!fontSizeScaleFollowSystem) {
+            GetNodeApi()->setLengthMetricUnit(node, ARKUI_LENGTH_METRIC_UNIT_DEFAULT);
+        }
     }
     {
         ArkUI_NumberValue fontWeight = {.i32 = font_weight};

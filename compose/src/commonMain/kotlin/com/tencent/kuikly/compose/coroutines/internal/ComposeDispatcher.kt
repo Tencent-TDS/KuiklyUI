@@ -22,7 +22,11 @@ import kotlin.coroutines.CoroutineContext
 
 internal class ComposeDispatcher(
     private val pagerId: String,
+    private val invokeImmediately: Boolean = false
 ) : CoroutineDispatcher() {
+
+    override fun isDispatchNeeded(context: CoroutineContext): Boolean =
+        !invokeImmediately || !KuiklyContextScheduler.isOnKuiklyThread(pagerId)
 
     override fun dispatch(context: CoroutineContext, block: Runnable) {
         KuiklyContextScheduler.runOnKuiklyThread(pagerId) { cancel ->
@@ -33,13 +37,19 @@ internal class ComposeDispatcher(
         }
     }
 
-    override fun toString(): String = "ComposeDispatcher($pagerId)"
+    override fun toString(): String {
+        return if (invokeImmediately) {
+            "ComposeDispatcher($pagerId).immediate"
+        } else {
+            "ComposeDispatcher($pagerId)"
+        }
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        return other is ComposeDispatcher && pagerId == other.pagerId
+        return other is ComposeDispatcher && invokeImmediately == other.invokeImmediately && pagerId == other.pagerId
     }
 
-    override fun hashCode(): Int = pagerId.hashCode()
+    override fun hashCode(): Int = pagerId.hashCode() xor if (invokeImmediately) 1231 else 1237
 
 }

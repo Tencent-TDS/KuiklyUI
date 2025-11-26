@@ -210,58 +210,56 @@ std::vector<std::string> ConvertSplit(const std::string &str, const std::string 
     return result;
 }
 
-OH_Drawing_FontWeight ConvertFontWeight(int fontWeight) {
-    if (fontWeight == 200) {
-        return FONT_WEIGHT_200;
+static constexpr int ConvertFontWeightCommon(int fontWeight, float scale){
+    if(fontWeight == 0){
+        // font weight defaults to `regular` if not specified
+        fontWeight = 400;
     }
-    if (fontWeight == 300) {
-        return FONT_WEIGHT_300;
+
+    if(scale <= 0.00001){
+        // scale defaults to 1(no scale) 
+        scale = 1;
     }
-    if (fontWeight == 400) {
-        return FONT_WEIGHT_400;
-    }
-    if (fontWeight == 500) {
-        return FONT_WEIGHT_500;
-    }
-    if (fontWeight == 600) {
-        return FONT_WEIGHT_600;
-    }
-    if (fontWeight == 700) {
-        return FONT_WEIGHT_700;
-    }
-    if (fontWeight > 700) {
-        return FONT_WEIGHT_800;
-    }
-    return FONT_WEIGHT_400;
+    // apply scale
+    fontWeight = (int)(fontWeight * scale);
+    
+    int index = (fontWeight + 50) / 100 - 1;
+    index = (index < 0) ? 0 : (index > 8 ? 8 : index);
+    
+    return index;
 }
 
-ArkUI_FontWeight ConvertArkUIFontWeight(int fontWeight) {
-    if (fontWeight < 200) {
-        return ARKUI_FONT_WEIGHT_W100;
-    }
-    if (fontWeight < 300) {
-        return ARKUI_FONT_WEIGHT_W200;
-    }
-    if (fontWeight < 400) {
-        return ARKUI_FONT_WEIGHT_W300;
-    }
-    if (fontWeight < 500) {
-        return ARKUI_FONT_WEIGHT_W400;
-    }
-    if (fontWeight < 600) {
-        return ARKUI_FONT_WEIGHT_W500;
-    }
-    if (fontWeight < 700) {
-        return ARKUI_FONT_WEIGHT_W600;
-    }
-    if (fontWeight < 800) {
-        return ARKUI_FONT_WEIGHT_W700;
-    }
-    if (fontWeight < 900) {
-        return ARKUI_FONT_WEIGHT_W800;
-    }
-    return ARKUI_FONT_WEIGHT_W900;
+OH_Drawing_FontWeight ConvertFontWeight(int fontWeight, float scale) {
+    return (OH_Drawing_FontWeight)ConvertFontWeightCommon(fontWeight, scale);
 }
+
+ArkUI_FontWeight ConvertArkUIFontWeight(int fontWeight, float scale) {
+    return (ArkUI_FontWeight)ConvertFontWeightCommon(fontWeight, scale);
+}
+
+// compile time check
+static_assert(FONT_WEIGHT_100 == (int)ARKUI_FONT_WEIGHT_W100);
+static_assert(FONT_WEIGHT_100 == 0);
+static_assert(FONT_WEIGHT_200 == (int)ARKUI_FONT_WEIGHT_W200);
+static_assert(FONT_WEIGHT_200 == 1);
+static_assert(FONT_WEIGHT_300 == (int)ARKUI_FONT_WEIGHT_W300);
+static_assert(FONT_WEIGHT_300 == 2);
+static_assert(FONT_WEIGHT_400 == (int)ARKUI_FONT_WEIGHT_W400);
+static_assert(FONT_WEIGHT_400 == 3);
+static_assert(FONT_WEIGHT_500 == (int)ARKUI_FONT_WEIGHT_W500);
+static_assert(FONT_WEIGHT_500 == 4);
+static_assert(FONT_WEIGHT_600 == (int)ARKUI_FONT_WEIGHT_W600);
+static_assert(FONT_WEIGHT_600 == 5);
+static_assert(FONT_WEIGHT_700 == (int)ARKUI_FONT_WEIGHT_W700);
+static_assert(FONT_WEIGHT_700 == 6);
+static_assert(FONT_WEIGHT_800 == (int)ARKUI_FONT_WEIGHT_W800);
+static_assert(FONT_WEIGHT_800 == 7);
+static_assert(FONT_WEIGHT_900 == (int)ARKUI_FONT_WEIGHT_W900);
+static_assert(FONT_WEIGHT_900 == 8);
+static_assert(ConvertFontWeightCommon(400, 1) == 3);
+static_assert(ConvertFontWeightCommon(500, 1) == 4);
+static_assert(ConvertFontWeightCommon(600, 1) == 5);
+static_assert(ConvertFontWeightCommon(600, 1.5) == 8);
 
 std::string ConvertSizeToString(const KRSize &size) {
     std::array<char, 50> buffer;

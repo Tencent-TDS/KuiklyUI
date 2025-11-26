@@ -18,7 +18,7 @@ package com.tencent.kuikly.compose.foundation.lazy.layout
 
 import com.tencent.kuikly.compose.animation.core.AnimationState
 import com.tencent.kuikly.compose.animation.core.AnimationVector1D
-import com.tencent.kuikly.compose.animation.core.CubicBezierEasing
+import com.tencent.kuikly.compose.animation.core.LinearEasing
 import com.tencent.kuikly.compose.animation.core.animateTo
 import com.tencent.kuikly.compose.animation.core.copy
 import com.tencent.kuikly.compose.animation.core.tween
@@ -165,20 +165,40 @@ internal suspend fun LazyLayoutAnimateScrollScope.animateScrollToItem(
                     if (forward) targetDistancePx else -targetDistancePx
                 }
 
-//                debugLog {
-//                    "Scrolling to index=$index offset=$scrollOffset from " +
-//                        "index=$firstVisibleItemIndex offset=$firstVisibleItemScrollOffset with " +
-//                        "calculated target=$target"
-//                }
-
-                println("Scrolling to index=$index offset=$scrollOffset from " +
-                    "index=$firstVisibleItemIndex offset=$firstVisibleItemScrollOffset with " +
-                    "calculated target=$target")
+                debugLog {
+                    "Scrolling to index=$index offset=$scrollOffset from " +
+                        "index=$firstVisibleItemIndex offset=$firstVisibleItemScrollOffset with " +
+                        "calculated target=$target"
+                }
 
                 anim = anim.copy(value = 0f)
                 var prevValue = 0f
+                
+                // Calculate animation duration based on distance and loop count
+                val targetDistance = abs(target)
+                val isShortDistance = targetDistance < targetDistancePx
+                val isFirstLoop = loops == 1
+                val isLastLoop = abs(expectedDistance) < targetDistancePx
+                
+                val durationMillis = when {
+                    // Short distance scenario
+                    isShortDistance -> when {
+                        isFirstLoop -> 300  // Scenario 1: Single loop, directly 300ms
+                        isLastLoop -> 150   // Scenario 2: Last loop, limit to 150ms
+                        else -> 125         // Other short distance cases: fixed 125ms
+                    }
+                    // Long distance scenario 3: fixed 125ms to ensure total duration is controllable
+                    else -> 125
+                }
+                
+                val animationSpec = tween<Float>(
+                    durationMillis = durationMillis,
+                    easing = LinearEasing
+                )
+
                 anim.animateTo(
                     target,
+                    animationSpec = animationSpec,
                     sequentialAnimation = (anim.velocity != 0f)
                 ) {
                     // If we haven't found the item yet, check if it's visible.
@@ -278,8 +298,8 @@ internal suspend fun LazyLayoutAnimateScrollScope.animateScrollToItem(
             anim.animateTo(
                 target,
                 animationSpec = tween<Float>(
-                    durationMillis = 400,
-                    easing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1.0f)
+                    durationMillis = 50,
+                    easing = LinearEasing
                 ),
                 sequentialAnimation = (anim.velocity != 0f)
             ) {

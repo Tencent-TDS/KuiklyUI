@@ -221,6 +221,9 @@ export class KRNativeRenderController {
     KRNativeManager.getInstance().createNativeInstance(this.instanceId, uiContext, this);
     const currentConfig = uiAbilityContext.config;
     this.fontSizeScale = currentConfig.fontSizeScale ? currentConfig.fontSizeScale : 1;
+    if (!this.fontSizeScaleFollowSystem()) {
+      this.fontSizeScale = 1;
+    }
     this.fontWeightScale = currentConfig.fontWeightScale ? currentConfig.fontWeightScale : 1;
 
     const theInstanceId = this.instanceId;
@@ -242,7 +245,7 @@ export class KRNativeRenderController {
     }
 
     if (!imeMode) {
-      let windowData = window.findWindow(uiContext.getWindowName())
+      let windowData = window.findWindow(uiContext.getWindowName());
       this.windowClass = windowData;
       const winRect = windowData.getWindowProperties().windowRect;
       this.windowRect = new KRRect(0,0, px2vp(winRect.width), px2vp(winRect.height));
@@ -308,6 +311,11 @@ export class KRNativeRenderController {
     if (config.fontSizeScale) {
       data['fontSizeScale'] = config.fontSizeScale;
     }
+    let fontSizeScaleFollowSystem = this.fontSizeScaleFollowSystem();
+    if (!fontSizeScaleFollowSystem) {
+      data['fontSizeScale'] = 1
+    }
+    data['fontSizeScaleFollowSystem'] = this.fontSizeScaleFollowSystem();
     // update config to render core
     render.updateConfig(this.instanceId, JSON.stringify(data));
 
@@ -395,7 +403,7 @@ export class KRNativeRenderController {
     }
 
     this.doAboutToDisappear();
-    KRNativeManager.getInstance().removeWindowInfoIfNeed(this.windowId)
+    KRNativeManager.getInstance().removeWindowInfoIfNeed(this.windowId);
     KRNativeManager.getInstance().removeNativeInstance(this.instanceId);
   }
 
@@ -594,8 +602,8 @@ export class KRNativeRenderController {
     pageData[KRUrlKey] = this.pageName;
     if (!this.imeMode) {
       pageData[KRStatusBarHeightKey] = this.safeAreaRect!.y;
-      let windowInfo = KRNativeManager.getInstance().getWindowInfo(this.windowId)
-      if(windowInfo != undefined){
+      let windowInfo = KRNativeManager.getInstance().getWindowInfo(this.windowId);
+      if (windowInfo != undefined) {
         pageData[KRActivityWidthKey] = px2vp(windowInfo.getWindowRect().width);
         pageData[KRActivityHeightKey] = px2vp(windowInfo.getWindowRect().height);
       }
@@ -625,7 +633,8 @@ export class KRNativeRenderController {
       'fontWeightScale': this.fontWeightScale,
       'fontSizeScale': this.fontSizeScale,
       'imeMode': this.imeMode ? 1 : 0,
-      "windowId": this.windowId
+      "windowId": this.windowId,
+      'fontSizeScaleFollowSystem': this.fontSizeScaleFollowSystem() ? 1 : 0
     };
 
     return JSON.stringify(data);
@@ -676,6 +685,15 @@ export class KRNativeRenderController {
     console.log(`getSafeAreaRect safeAreaInsets: ${result.x}, ${result.y}, ${result.width}, ${result.height}`);
     return result;
   }
+
+  /**
+   * 字体缩放是否跟随系统
+   * @return boolean true:跟随系统(默认) false:不跟随系统(缩放比例为1)
+   */
+  fontSizeScaleFollowSystem(): boolean {
+    return true
+  }
+
 }
 
 export abstract class IKuiklyViewDelegate extends KRNativeRenderController {

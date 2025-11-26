@@ -60,6 +60,7 @@ class ArkUINativeNodeAPI {
     int32_t insertChildAt(ArkUI_NodeHandle parent, ArkUI_NodeHandle child, int32_t position);
     int32_t removeChild(ArkUI_NodeHandle parent, ArkUI_NodeHandle child);
     int32_t setAttribute(ArkUI_NodeHandle node, ArkUI_NodeAttributeType attribute, const ArkUI_AttributeItem *item);
+    int32_t setLengthMetricUnit(ArkUI_NodeHandle node, ArkUI_LengthMetricUnit unit);
     const ArkUI_AttributeItem *getAttribute(ArkUI_NodeHandle node, ArkUI_NodeAttributeType attribute);
     int32_t resetAttribute(ArkUI_NodeHandle node, ArkUI_NodeAttributeType attribute);
     int32_t registerNodeEvent(ArkUI_NodeHandle node, ArkUI_NodeEventType eventType, int32_t targetId, void *userData);
@@ -212,7 +213,7 @@ void UpdateInputNodeCaretrColor(ArkUI_NodeHandle node, uint32_t caret_color);
 // 文本对齐
 void UpdateInputNodeTextAlign(ArkUI_NodeHandle node, const std::string &text_align);
 
-void UpdateInputNodePlaceholderFont(ArkUI_NodeHandle node, uint32_t font_size, ArkUI_FontWeight font_weight);
+void UpdateInputNodePlaceholderFont(ArkUI_NodeHandle node, uint32_t font_size, ArkUI_FontWeight font_weight, bool fontSizeScaleFollowSystem, float font_size_px);
 
 void UpdateInputNodeColor(ArkUI_NodeHandle node, uint32_t color);
 

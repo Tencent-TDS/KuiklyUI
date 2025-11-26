@@ -57,7 +57,7 @@ object GlobalTapManager {
      * This helps in preventing accidental taps during scrolling or other gestures.
      * Default is false.
      */
-    var enableTouchSlopForTap: Boolean = false
+    var enableTouchSlopForTap: Boolean = true
 
     private val tapEventListeners = mutableListOf<(TapEvent) -> Unit>()
 

@@ -162,7 +162,7 @@ export class KRNativeRenderController {
     if (this.imeMode) {
       return;
     }
-    let density = this.getWindowActiveDensity();
+    const density = this.getWindowActiveDensity();
     const w = params.width / density;
     const h = params.height / density;
 
@@ -695,6 +695,8 @@ export class KRNativeRenderController {
    * 因此默认取customDensity作为活跃的density
    */
   private getWindowActiveDensity() {
+    console.log(`xxx 1 ${display.getDefaultDisplaySync().densityPixels}`);
+    console.log(`xxx 2 ${this.windowClass!.getWindowDensityInfo().customDensity}`);
     if (this.windowClass != null) {
       return this.windowClass.getWindowDensityInfo().customDensity;
     } else {

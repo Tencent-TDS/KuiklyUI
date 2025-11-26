@@ -162,7 +162,7 @@ export class KRNativeRenderController {
     if (this.imeMode) {
       return;
     }
-    const density = display.getDefaultDisplaySync().densityPixels;
+    const density = this.getWindowActiveDensity();
     const w = params.width / density;
     const h = params.height / density;
 
@@ -217,7 +217,12 @@ export class KRNativeRenderController {
     gGlobalInstanceId++;
     this.instanceId = gGlobalInstanceId + '';
     render.OnLaunchStart(this.instanceId, executeMode.mode); //  页面启动事件通知到native层，用于Performance性能采集
-    this.densityPixels = display.getDefaultDisplaySync().densityPixels;
+    try {
+      this.windowClass = window.findWindow(uiContext.getWindowName());
+    } catch (e) {
+      KRRenderLog.e(`window`, `findWindow, stack: ${e}`);
+    }
+    this.densityPixels = this.getWindowActiveDensity();
     KRNativeManager.getInstance().createNativeInstance(this.instanceId, uiContext, this);
     const currentConfig = uiAbilityContext.config;
     this.fontSizeScale = currentConfig.fontSizeScale ? currentConfig.fontSizeScale : 1;
@@ -245,15 +250,13 @@ export class KRNativeRenderController {
     }
 
     if (!imeMode) {
-      let windowData = window.findWindow(uiContext.getWindowName());
-      this.windowClass = windowData;
-      const winRect = windowData.getWindowProperties().windowRect;
+      const winRect = this.windowClass!.getWindowProperties().windowRect;
       this.windowRect = new KRRect(0,0, px2vp(winRect.width), px2vp(winRect.height));
-      this.windowId = windowData.getWindowProperties().id + "";
-      KRNativeManager.getInstance().onLastWindow(windowData);
-      this.onSafeAreaInsetsChanged(this.getSafeAreaRect(windowData));
-      windowData.on('avoidAreaChange', this.avoidAreaListener);
-      windowData.on('windowSizeChange', this.onWindowSizeChanged);
+      this.windowId = this.windowClass!.getWindowProperties().id + "";
+      KRNativeManager.getInstance().onLastWindow(this.windowClass!);
+      this.onSafeAreaInsetsChanged(this.getSafeAreaRect(this.windowClass!));
+      this.windowClass!.on('avoidAreaChange', this.avoidAreaListener);
+      this.windowClass!.on('windowSizeChange', this.onWindowSizeChanged);
     }
   }
 
@@ -297,7 +300,6 @@ export class KRNativeRenderController {
         this.viewRect != null; // view rect updated
     }
   }
-
   onConfigurationUpdate(config: Configuration) {
     if(!this.didInit){
       return
@@ -411,7 +413,7 @@ export class KRNativeRenderController {
     this.doOnPageShow();
 
     if (this.didInit && !this.destroyed) {
-      const newDensity = display.getDefaultDisplaySync().densityPixels;
+      const newDensity = this.getWindowActiveDensity();
       if (newDensity != this.densityPixels) {
         // density变化，原因是修改了系统的无障碍选项
         this.doOnDensityChanged(newDensity);
@@ -617,7 +619,7 @@ export class KRNativeRenderController {
     pageData[KRPlatformKey] = 'ohos';
     pageData[KRExecuteMode] = this.executeMode.mode;
     pageData[KRContextCode] = this.contextCode;
-    pageData[KRDensity] = display.getDefaultDisplaySync().densityPixels;
+    pageData[KRDensity] = this.getWindowActiveDensity();
 
     return JSON.stringify(pageData);
   }
@@ -684,6 +686,20 @@ export class KRNativeRenderController {
       px2vp(insets.bottom - insets.top));
     console.log(`getSafeAreaRect safeAreaInsets: ${result.x}, ${result.y}, ${result.width}, ${result.height}`);
     return result;
+  }
+
+  /**
+   * 获取窗口活跃的density
+   * customDensity的值默认为systemDensity
+   * 如果windowStage主动设置了DefaultDensityEnabled/CustomDensity,则分别是defaultDensity/customDensity
+   * 因此默认取customDensity作为活跃的density
+   */
+  private getWindowActiveDensity() {
+    if (this.windowClass != null) {
+      return this.windowClass.getWindowDensityInfo().customDensity;
+    } else {
+      return display.getDefaultDisplaySync().densityPixels
+    }
   }
 
   /**

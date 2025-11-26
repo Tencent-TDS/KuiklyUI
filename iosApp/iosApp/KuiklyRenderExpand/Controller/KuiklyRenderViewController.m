@@ -187,6 +187,13 @@
     // report to bugly
 }
 
+- (void)onGetPerformanceData{
+    id<KRPerformanceDataProtocol> performance = _delegator.performanceManager;
+    // 获取performance相关信息
+    NSDictionary *data = [performance performanceData];
+    NSLog(@"onGetPerformanceData performance data:%@", data);
+}
+
 - (void)onPageLoadComplete:(BOOL)isSucceed error:(NSError *)error mode:(KuiklyContextMode)mode {
     if (error) {
         
@@ -194,6 +201,8 @@
     
     id<KRPerformanceDataProtocol> performance = _delegator.performanceManager;
     // 获取performance相关信息
+    NSDictionary *data = [performance performanceData];
+    NSLog(@"onPageLoadComplete performance data:%@", data);
 }
 
 #pragma mark - private

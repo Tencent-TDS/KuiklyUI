@@ -31,8 +31,8 @@
     if (self = [super init]) {
         _pageName = pageName;
         _preLoadMemory = [self memoryUsage];
-        _appAvgMemory = 0;
-        _appPeakMemory = 0;
+        _appAvgMemory = _preLoadMemory;
+        _appPeakMemory = _preLoadMemory;
         _recordCount = 0;
     }
     return self;

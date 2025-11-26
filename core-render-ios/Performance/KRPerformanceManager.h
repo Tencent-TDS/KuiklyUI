@@ -28,6 +28,7 @@ typedef NS_OPTIONS(int, KRPageState) {
 
 @property (nonatomic, assign) KRPageState pageState;
 @property (nonatomic, assign) KRMonitorType monitorType;
+@property (nonatomic, assign) NSInteger modeId;
 
 /// key stage, value timespam（单位毫秒）
 @property (nonatomic, readonly) NSDictionary<NSNumber *, NSNumber *> *stageStartTimes;
@@ -45,6 +46,7 @@ typedef NS_OPTIONS(int, KRPageState) {
 
 - (void)mergeKotlinCreatePageTime:(NSDictionary *)params;
 
+- (NSDictionary*)performanceData;
 @end
 
 NS_ASSUME_NONNULL_END

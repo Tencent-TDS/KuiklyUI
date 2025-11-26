@@ -57,6 +57,7 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
 
 @implementation KuiklyRenderViewControllerBaseDelegator {
     KRPerformanceManager *_performanceManager;
+    BOOL _onGetPerformanceDataInvoked;
 }
 
 - (instancetype)initWithPageName:(NSString *)pageName pageData:(NSDictionary *)pageData {
@@ -68,6 +69,7 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
                    frameworkName:(NSString *)frameworkName {
     if (self = [super init]) {
         self.pageName = pageName;
+        _onGetPerformanceDataInvoked = NO;
         _pageData = pageData;
         _frameworkName = frameworkName;
         _performanceManager = [[KRPerformanceManager alloc] initWithPageName:pageName];
@@ -121,6 +123,7 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
 
 - (void)viewWillDisappear {
     [self p_disptachDelegatorLifeCycleWithSel:@selector(viewWillDisappear) object:nil];
+    [self onGetPerformanceData];
 }
 
 - (void)viewDidDisappear {
@@ -195,12 +198,15 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     KuiklyContextParam *contextParam = [KuiklyContextParam newWithPageName:self.pageName
                                                          resourceFolderUrl:resourceFolderUrl];
     contextParam.contextMode = self.contextMode;
+    _performanceManager.modeId = self.contextMode.modeId;
 
+    [self p_disptachDelegatorLifeCycleWithSel:@selector(willInitRenderCore) object:nil];
     _renderView = [[KuiklyRenderView alloc] initWithSize:self.view.bounds.size
                                              contextCode:contextCode
                                             contextParam:contextParam
                                                   params:[self contextPageData]
                                                 delegate:self];
+    [self p_disptachDelegatorLifeCycleWithSel:@selector(didInitRenderCore) object:nil];
     [self setExceptionBlock:_renderView];
     // 接收当前rootview传过来的通知
     [[NSNotificationCenter defaultCenter] addObserver:self
@@ -346,10 +352,10 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     if ([self.delegate respondsToSelector:@selector(contentViewDidLoad)]) {
         [self.delegate contentViewDidLoad];
     }
-    [self onPageLoadComplete:YES error:nil];
     [self p_disptachDelegatorLifeCycleWithSel:@selector(contentViewDidLoad) object:nil];
     [self sendWithEvent:PAGE_FIRST_FRAME_PAINT data:@{}];
     [self p_hideSnapshotView];
+    [self onPageLoadComplete:YES error:nil];
 }
 
 - (void)scrollViewDidLayout:(UIScrollView *)scrollView renderView:(KuiklyRenderView *)renderView {
@@ -392,6 +398,17 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     if ([self.delegate respondsToSelector:@selector(onPageLoadComplete:error:mode:)]) {
         [self.delegate onPageLoadComplete:isSucceed error:error mode:self.contextMode.modeId];
     }
+}
+
+- (void)onGetPerformanceData{
+    if (_onGetPerformanceDataInvoked){
+        // invoke only once
+        return;
+    }
+    if ([self.delegate respondsToSelector:@selector(onGetPerformanceData)]) {
+        [self.delegate onGetPerformanceData];
+    }
+    _onGetPerformanceDataInvoked = YES;
 }
 
 #pragma mark - private

@@ -187,6 +187,11 @@ UIKIT_EXTERN NSString *const KRPageDataSnapshotKey;
                       mode:(KuiklyContextMode)mode;
 
 /*
+ * @breif viewWillDisappear的时候回调，业务可在此回调中获取性能数据。
+ */
+- (void)onGetPerformanceData;
+
+/*
  * @brief 首屏是否同步渲染（默认framework模式为同步方式）
  * @return 是否同步渲染首屏
  */
@@ -222,6 +227,10 @@ UIKIT_EXTERN NSString *const KRPageDataSnapshotKey;
 - (void)willInitRenderView;
 /// kuiklyRenderView创建完成后调用
 - (void)didInitRenderView;
+/// kuiklyRenderCore将要初始化时调用
+- (void)willInitRenderCore;
+/// kuiklyRenderCore初始化完成调用
+- (void)didInitRenderCore;
 /// kuiklyRenderView被成功发送事件时调用
 - (void)didSendEvent:(NSString *)event;
 /// 对齐所在VC的viewWillAppear时机

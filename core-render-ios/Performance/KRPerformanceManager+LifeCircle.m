@@ -34,6 +34,14 @@
     [self startStage:KRLoadStage_fetchContextCode];
 }
 
+- (void)willInitRenderCore{
+    [self startStage:KRLoadStage_initRenderCore];
+}
+
+- (void)didInitRenderCore{
+    [self endStage:KRLoadStage_initRenderCore];
+}
+
 - (void)didFetchContextCode {
     [self endStage:KRLoadStage_fetchContextCode];
     [self startStage:KRLoadStage_fristPaint];

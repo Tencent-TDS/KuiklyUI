@@ -187,7 +187,12 @@ object KuiklyRouter {
         }
     }
 
-    private fun createPage(key: String, url: String): PageInfo? {
+    /**
+     * Create and initialize a KuiklyWebRenderViewDelegator for a given URL.
+     * This method encapsulates the common logic for initializing a page, used by both
+     * the SPA router and the standalone Main entry point.
+     */
+    fun createDelegator(url: String): KuiklyWebRenderViewDelegator {
         val urlParams = URL.parseParams(url)
         val pageName = urlParams[URL_PARAM_PAGE_NAME] ?: DEFAULT_PAGE_NAME
         
@@ -215,7 +220,11 @@ object KuiklyRouter {
             SizeI(containerWidth, containerHeight)
         )
         delegator.resume()
-        
+        return delegator
+    }
+
+    private fun createPage(key: String, url: String): PageInfo? {
+        val delegator = createDelegator(url)
         val element = delegator.getKuiklyRenderContext()?.kuiklyRenderRootView?.view as? HTMLElement
         
         return if (element != null) {

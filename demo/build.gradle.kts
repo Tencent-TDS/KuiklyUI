@@ -145,6 +145,17 @@ ksp {
     arg(Output.KEY_PACK_LOCAL_JS_BUNDLE, packLocalJsBundle())
 }
 
+// [macOS] 强制使用本地 core-ksp 项目，覆盖 Kuikly 插件的远程依赖配置
+configurations.all {
+    resolutionStrategy {
+        dependencySubstitution {
+            substitute(module("com.tencent.kuikly-open:core-ksp"))
+                .using(project(":core-ksp"))
+                .because("使用本地开发版本的 core-ksp")
+        }
+    }
+}
+
 dependencies {
     compileOnly(project(":core-ksp")) {
         add("kspIosArm64", this)

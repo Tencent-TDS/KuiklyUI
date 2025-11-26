@@ -116,6 +116,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
      */
     private var bouncesEnable = true
     internal var limitHeaderBounces = false
+    internal var limitFooterBounces = false
 
     /**
      * List上一次的滚动状态
@@ -342,6 +343,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             SCROLL_ENABLED, KRCssConst.TOUCH_ENABLE -> setScrollEnabled(propValue)
             VERTICAL_BOUNCES, BOUNCES_ENABLE, HORIZONTAL_BOUNCES -> setBouncesEnable(propValue)
             LIMIT_HEADER_BOUNCES -> limitHeaderBounces(propValue)
+            LIMIT_FOOTER_BOUNCES -> limitFooterBounces(propValue)
             FLING_ENABLE -> setFlingEnable(propValue)
             SCROLL_WITH_PARENT -> setScrollWithParent(propValue)
             KRCssConst.FRAME -> {
@@ -358,6 +360,11 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
 
     private fun limitHeaderBounces(propValue: Any): Boolean {
         limitHeaderBounces = (propValue as Int) == 1
+        return true
+    }
+
+    private fun limitFooterBounces(propValue: Any): Boolean {
+        limitFooterBounces = (propValue as Int) == 1
         return true
     }
 
@@ -1366,6 +1373,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         private const val HORIZONTAL_BOUNCES = "horizontalbounces"
         private const val BOUNCES_ENABLE = "bouncesEnable"
         private const val LIMIT_HEADER_BOUNCES = "limitHeaderBounces"
+        private const val LIMIT_FOOTER_BOUNCES = "limitFooterBounces"
         private const val FLING_ENABLE = "flingEnable"
         private const val SCROLL_WITH_PARENT = "scrollWithParent"
 

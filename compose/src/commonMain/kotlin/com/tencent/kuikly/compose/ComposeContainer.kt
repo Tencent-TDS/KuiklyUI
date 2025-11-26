@@ -60,12 +60,17 @@ fun ComposeContainer.setContent(content: @Composable () -> Unit) {
 
 open class ComposeContainer :
     Pager(),
-    OnBackPressedDispatcherOwner, LifecycleOwner, ViewModelStoreOwner {
+    OnBackPressedDispatcherOwner {
     override var ignoreLayout = true
     override var didCreateBody: Boolean = false
 
-    override val lifecycle = LifecycleRegistry(this)
-    override val viewModelStore = ViewModelStore()
+    private val lifecycleOwner: LifecycleOwner = object : LifecycleOwner {
+        override val lifecycle = LifecycleRegistry(this)
+        override val pagerId get() = this@ComposeContainer.pagerId
+    }
+    private val viewModelStoreOwner: ViewModelStoreOwner = object : ViewModelStoreOwner {
+        override val viewModelStore = ViewModelStore()
+    }
 
     var layoutDirection: LayoutDirection = LayoutDirection.Ltr
 
@@ -140,20 +145,20 @@ open class ComposeContainer :
 
     override fun created() {
         super.created()
-        lifecycle.currentState = Lifecycle.State.CREATED
+        updateLifecycleState(Lifecycle.State.CREATED)
     }
 
     override fun pageDidAppear() {
         super.pageDidAppear()
         GlobalSnapshotManager.resume()
         mediator?.updateAppState(true)
-        lifecycle.currentState = Lifecycle.State.RESUMED
+        updateLifecycleState(Lifecycle.State.RESUMED)
     }
 
     override fun pageDidDisappear() {
         super.pageDidDisappear()
         GlobalSnapshotManager.pause()
-        lifecycle.currentState = Lifecycle.State.CREATED
+        updateLifecycleState(Lifecycle.State.CREATED)
     }
 
     override fun pageWillDestroy() {
@@ -161,7 +166,11 @@ open class ComposeContainer :
         stopFrameDispatcher()
         mediator?.updateAppState(false)
         dispose()
-        lifecycle.currentState = Lifecycle.State.DESTROYED
+        updateLifecycleState(Lifecycle.State.DESTROYED)
+    }
+
+    private fun updateLifecycleState(state: Lifecycle.State) {
+        (lifecycleOwner.lifecycle as LifecycleRegistry).currentState = state
     }
 
     @OptIn(InternalComposeUiApi::class)
@@ -186,7 +195,7 @@ open class ComposeContainer :
     }
 
     private fun dispose() {
-        viewModelStore.clear()
+        viewModelStoreOwner.viewModelStore.clear()
         mediator?.dispose()
         mediator = null
     }
@@ -237,8 +246,8 @@ open class ComposeContainer :
     @Composable
     internal fun ProvideContainerCompositionLocals(content: @Composable () -> Unit) =
         CompositionLocalProvider(
-            LocalLifecycleOwner provides this,
-            LocalViewModelStoreOwner provides this,
+            LocalLifecycleOwner provides lifecycleOwner,
+            LocalViewModelStoreOwner provides viewModelStoreOwner,
             // Kuikly
             LocalActivity provides this,
             LocalOnBackPressedDispatcherOwner provides this,

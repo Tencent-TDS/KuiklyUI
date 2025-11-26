@@ -218,6 +218,9 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 }
     
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
+    self.skipNestScrollLock = NO;
+    self.lContentOffset = scrollView.contentOffset;
+
     _isCurrentlyDragging = YES;
     if (_css_dragBegin) {
        _css_dragBegin([self p_generateEventBaseParams]);
@@ -311,6 +314,7 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     if (!UIEdgeInsetsEqualToEdgeInsets(self.contentInset, newContentInsets)) {
         self.contentInset = newContentInsets;
     }
+    self.skipNestScrollLock = YES;
     [self setContentOffset:contentOffset animated:animated];
 }
 

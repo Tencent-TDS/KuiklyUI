@@ -69,8 +69,11 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
         if (onDestruct_) {
             onDestruct_(moduleInstance_);
         }
-        std::lock_guard<std::mutex> guard(callbacksMutex_);
-        std::for_each(callbacks_.begin(), callbacks_.end(), [this /* non-escaping lambda, safe*/](auto item) { FreeCallbackContext(item); });
+        std::lock_guard<std::mutex> guard(module_callback_mutex_);
+        std::for_each(module_callbacks_.begin(), module_callbacks_.end(), [this /* non-escaping lambda, safe*/](auto item) {
+            RemoveCallbackContext(item);
+            FreeCallbackContext(item); 
+        });
     }
 
     KRAnyValue CallMethod(bool sync, const std::string &method, KRAnyValue params,
@@ -79,6 +82,9 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
             std::string paramStr = params->toString();
             // create a callback context
             struct KRRenderModuleCallbackContextData *cbData = AllocCallbackContext(shared_from_this(), callback, callback_keep_alive);
+            std::lock_guard<std::mutex> guard(module_callback_mutex_);
+            module_callbacks_.insert(cbData);
+            
             struct KRAnyDataInternal anyDataInternal;
             anyDataInternal.anyValue = params;
             auto val = onCallMethodV2_(moduleInstance_, moduleName_.c_str(), sync, method.c_str(), &anyDataInternal, (KRRenderModuleCallbackContext)cbData);
@@ -95,6 +101,9 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
             std::string paramStr = params->toString();
             // create a callback context
             struct KRRenderModuleCallbackContextData *cbData = AllocCallbackContext(shared_from_this(), callback, callback_keep_alive);
+            std::lock_guard<std::mutex> guard(module_callback_mutex_);
+            module_callbacks_.insert(cbData);
+            
             struct KRAnyDataInternal anyDataInternal;
             anyDataInternal.anyValue = params;
             auto val = onCallMethod_(moduleInstance_, moduleName_.c_str(), sync, method.c_str(), &anyDataInternal, (KRRenderModuleCallbackContext)cbData);
@@ -121,6 +130,9 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
                 callbackContextData->cb_ = nullptr;
                 RemoveCallbackContext(context);
                 FreeCallbackContext(callbackContextData);
+                // erase from instance
+                std::lock_guard<std::mutex> guard(module_callback_mutex_);
+                module_callbacks_.erase(context);
             }
         }
     }
@@ -129,9 +141,9 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
         if (context == nullptr) {
             return nullptr;
         }
-        std::lock_guard<std::mutex> guard(callbacksMutex_);
-        auto it = callbacks_.find(context);
-        if (it != callbacks_.end()) {
+        std::lock_guard<std::mutex> guard(g_callback_mutex_);
+        auto it = g_callbacks_.find(context);
+        if (it != g_callbacks_.end()) {
             if(auto module = (*it)->module_.lock()){
                 return std::dynamic_pointer_cast<KRForwardRenderModule>(module);
             }
@@ -143,8 +155,8 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
                                                                    const KRRenderCallback &callback,
         bool keepCallbackAlive) {
         struct KRRenderModuleCallbackContextData *cbData = new KRRenderModuleCallbackContextData(module, callback, keepCallbackAlive);
-        std::lock_guard<std::mutex> guard(callbacksMutex_);
-        callbacks_.insert(cbData);
+        std::lock_guard<std::mutex> guard(g_callback_mutex_);
+        g_callbacks_.insert(cbData);
         return cbData;
     }
     static struct KRRenderModuleCallbackContextData *FindCallbackContext(KRRenderModuleCallbackContext context) {
@@ -152,9 +164,9 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
             return nullptr;
         }
         KRRenderModuleCallbackContextData *result = nullptr;
-        std::lock_guard<std::mutex> guard(callbacksMutex_);
-        auto it = callbacks_.find(context);
-        if (it != callbacks_.end()) {
+        std::lock_guard<std::mutex> guard(g_callback_mutex_);
+        auto it = g_callbacks_.find(context);
+        if (it != g_callbacks_.end()) {
             result = *it;
         }
         return result;
@@ -164,11 +176,11 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
             return nullptr;
         }
         KRRenderModuleCallbackContextData *result = nullptr;
-        std::lock_guard<std::mutex> guard(callbacksMutex_);
-        auto it = callbacks_.find(context);
-        if (it != callbacks_.end()) {
+        std::lock_guard<std::mutex> guard(g_callback_mutex_);
+        auto it = g_callbacks_.find(context);
+        if (it != g_callbacks_.end()) {
             result = *it;
-            callbacks_.erase(it);
+            g_callbacks_.erase(it);
         }
         return result;
     }
@@ -187,12 +199,15 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
     KRRenderModuleCallMethodV2 onCallMethodV2_;
     void *userData_;
     void *moduleInstance_;
-    static std::unordered_set<struct KRRenderModuleCallbackContextData *> callbacks_;
-    static std::mutex callbacksMutex_;
+    std::unordered_set<struct KRRenderModuleCallbackContextData *> module_callbacks_;
+    std::mutex module_callback_mutex_;
+    
+    static std::unordered_set<struct KRRenderModuleCallbackContextData *> g_callbacks_;
+    static std::mutex g_callback_mutex_;
 };
 
-std::unordered_set<struct KRRenderModuleCallbackContextData *> KRForwardRenderModule::callbacks_;
-std::mutex KRForwardRenderModule::callbacksMutex_;
+std::unordered_set<struct KRRenderModuleCallbackContextData *> KRForwardRenderModule::g_callbacks_;
+std::mutex KRForwardRenderModule::g_callback_mutex_;
 
 class BridgeLogAdapter : public IKRLogAdapter {
  public:

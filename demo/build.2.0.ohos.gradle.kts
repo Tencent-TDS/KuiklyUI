@@ -29,12 +29,7 @@ kotlin {
 
     ohosArm64 {
         binaries.sharedLib("shared"){
-            if(debuggable){
-                freeCompilerArgs += "-Xadd-light-debug=enable"
-                freeCompilerArgs += "-Xbinary=sourceInfoType=libbacktrace"
-            }else{
-                freeCompilerArgs += "-Xadd-light-debug=enable"
-            }
+            freeCompilerArgs += "-Xadd-light-debug=enable"
         }
     }
 
@@ -45,7 +40,7 @@ kotlin {
                 implementation(project(":core-annotations"))
                 implementation(project(":compose"))
                 // Chat Demo 相关依赖
-                // implementation("com.tencent.kuiklybase:markdown:0.1.0-ohos")
+//                 implementation("com.tencent.kuiklybase:markdown:0.2.0-ohos")
             }
         }
 

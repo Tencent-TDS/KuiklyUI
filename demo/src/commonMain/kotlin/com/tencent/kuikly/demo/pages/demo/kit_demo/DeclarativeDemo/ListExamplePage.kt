@@ -24,6 +24,7 @@ import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.reactive.handler.observableList
 import com.tencent.kuikly.core.timer.setTimeout
 import com.tencent.kuikly.core.views.*
+import com.tencent.kuikly.core.views.compose.Button
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 import kotlin.math.max
@@ -41,6 +42,9 @@ internal class ListExamplePage: BasePager() {
 
     private lateinit var footerRefreshView: FooterRefreshView
     private lateinit var headerRefreshView: RefreshView
+
+    private lateinit var scrollView: ListView<*, *>
+
     private var footerRefreshState by observable(FooterRefreshState.IDLE)
     private var headerRefreshText by observable("下拉刷新")
 
@@ -53,7 +57,24 @@ internal class ListExamplePage: BasePager() {
         return {
             attr { backgroundColor(Color.WHITE) }
             NavBar { attr { title = "List Example" } }
+
+            Button {
+                attr {
+                    titleAttr {
+                        text("点击滚动到具体位置")
+                    }
+
+                }
+                event {
+                    click {
+                        ctx.scrollView.setContentOffset(0f, 800f, true, SpringAnimation(300, 0.55f, 0f))   // 快速回弹手感)
+                    }
+                }
+
+            }
+
             List {
+                ctx.scrollView = this
                 attr {
                     flex(1f)
                 }

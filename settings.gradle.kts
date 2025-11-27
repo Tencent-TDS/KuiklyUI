@@ -6,7 +6,7 @@ pluginManagement {
     }
 }
 
-val buildFileName = "build.2.0.21.gradle.kts"
+val buildFileName = "build.2.1.21.gradle.kts"
 
 include(":androidApp")
 include(":demo")

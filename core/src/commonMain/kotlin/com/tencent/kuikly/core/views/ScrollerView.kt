@@ -238,7 +238,7 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
                 it.flexNode.flexWrap = flexNode.flexWrap
                 it.flexNode.setPadding(StyleSpace.Type.TOP, flexNode.getPadding(StyleSpace.Type.TOP))
                 it.flexNode.setPadding(StyleSpace.Type.LEFT, flexNode.getPadding(StyleSpace.Type.LEFT))
-                it.flexNode.setPadding(StyleSpace.Type.TOP, flexNode.getPadding(StyleSpace.Type.TOP))
+                it.flexNode.setPadding(StyleSpace.Type.RIGHT, flexNode.getPadding(StyleSpace.Type.RIGHT))
                 it.flexNode.setPadding(StyleSpace.Type.BOTTOM, flexNode.getPadding(StyleSpace.Type.BOTTOM))
             }
             if (flexNode.flexDirection == FlexDirection.ROW
@@ -257,6 +257,8 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
                 }, 0)
             }
             insertDomSubView(contentView!!, 0)
+            // 暂时的解决方案：清除ScrollerView的padding，保留ScollerContentView的padding
+            flexNode.setPadding(StyleSpace.Type.ALL, 0f)
         }
     }
 
@@ -276,6 +278,7 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
         contentView?.contentOffsetWillChanged(params.offsetX, params.offsetY)
         scrollerViewEventObserverSet.toFastMutableList().forEach {
             it.onScrollEnd(params)
+            it.scrollerScrollDidEnd(params)
         }
         contentView?.contentOffsetDidChanged(params.offsetX, params.offsetY, params)
     }
@@ -344,6 +347,15 @@ open class ScrollerAttr : ContainerAttr() {
     var visibleAreaIgnoreTopMargin = 0f
     var visibleAreaIgnoreBottomMargin = 0f
     internal var bouncesEnable = true
+
+    override fun padding(top: Float, left: Float, bottom: Float, right: Float): ContainerAttr {
+        val contentView = (view() as? ScrollerView)?.contentView
+        if(contentView != null) {
+            contentView.getViewAttr().padding(top, left, bottom, right)
+            return this
+        }
+        return super.padding(top, left, bottom, right)
+    }
 
     // 是否允许手势滚动
     fun scrollEnable(value: Boolean) {
@@ -510,6 +522,16 @@ open class ScrollerEvent : Event() {
     }
 
     /**
+     * Listen to native "scroll to top" event.
+     * Note: This is triggered by the iOS system (status bar tap) only.
+     */
+    open fun scrollToTop(handler: () -> Unit) {
+        register(ScrollerEventConst.SCROLL_TO_TOP, {
+            handler.invoke()
+        }, false)
+    }
+
+    /**
      * 设置内容尺寸变化事件的处理器。当内容尺寸发生变化时，会调用传入的处理器函数。
      * 一般使用该时机初始化initContentOffset位置
      * @param handler 一个接收宽度和高度参数的函数，当内容尺寸发生变化时被调用。
@@ -534,6 +556,7 @@ open class ScrollerEvent : Event() {
         const val DRAG_BEGIN = "dragBegin"
         const val DRAG_END = "dragEnd"
         const val WILL_DRAG_END = "willDragEnd"
+        const val SCROLL_TO_TOP = "scrollToTop"
     }
 }
 
@@ -593,8 +616,6 @@ open class ScrollerContentView : ViewContainer<ContainerAttr, GroupEvent>(), IPa
     }
 
     open fun contentOffsetDidChanged(offsetX: Float, offsetY: Float, params: ScrollParams) {
-        this.offsetX = offsetX
-        this.offsetY = offsetY
     }
 
     override fun onPagerWillCalculateLayoutFinish() {

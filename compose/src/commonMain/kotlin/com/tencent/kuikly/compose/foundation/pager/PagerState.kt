@@ -706,7 +706,7 @@ abstract class PagerState internal constructor(
             appleScrollViewOffsetJob?.cancel()
             appleScrollViewOffsetJob = scope?.launch {
                 delay(50)
-                if (!isScrollInProgress && scrollableState.kuiklyInfo.contentOffset < composeOffset.toInt()) {
+                if (!isScrollInProgress && scrollableState.kuiklyInfo.contentOffset != composeOffset.toInt()) {
                     // 先扩容
                     currentContentSize = max((maxScrollOffset + layoutSize).toInt(), currentContentSize)
                     updateContentSizeToRender()

@@ -18,6 +18,17 @@
             android:layout_height="wrap_content">
         </Button>
 
+        <TextView
+            android:id="@+id/nativeTouchView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="150dp"
+            android:background="#6200EE"
+            android:textColor="#FFFFFF"
+            android:text="我是Native触摸区域，请试试能否触摸"
+            android:padding="10dp"
+            android:visibility="gone" />
+
     </FrameLayout>
 
 

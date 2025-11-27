@@ -115,6 +115,19 @@ internal fun ScrollableState.isValidOffsetDelta(delta: Int): Boolean {
 }
 
 /**
+ * Animate scroll to the top (item index 0) for supported lazy containers.
+ * Keep the API style consistent with [isAtTop].
+ */
+internal suspend fun ScrollableState.animateScrollToTop() {
+    when (this) {
+        is LazyListState -> this.animateScrollToItem(0)
+        is LazyGridState -> this.animateScrollToItem(0)
+        is LazyStaggeredGridState -> this.animateScrollToItem(0)
+        else -> {}
+    }
+}
+
+/**
  * Apply scroll view offset delta
  */
 internal fun ScrollableState.applyScrollViewOffsetDelta(delta: Int) {
@@ -127,3 +140,17 @@ internal fun ScrollableState.applyScrollViewOffsetDelta(delta: Int) {
         newOffset.x.toFloat()
     }
 } 
+
+/**
+ * Request scroll to top in a non-suspending way. This defers the jump to when layout is ready,
+ * avoiding timing issues right after ScrollView recreation.
+ */
+internal fun ScrollableState.requestScrollToTop() {
+    when (this) {
+        is LazyListState -> requestScrollToItem(0)
+        is LazyGridState -> requestScrollToItem(0)
+        is LazyStaggeredGridState -> requestScrollToItem(0)
+        // ScrollState does not have request API; skip for now
+        else -> {}
+    }
+}

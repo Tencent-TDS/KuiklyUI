@@ -31,6 +31,7 @@ import com.tencent.kuikly.core.manager.TaskManager
 import com.tencent.kuikly.core.module.*
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.timer.setTimeout
+import com.tencent.kuikly.core.utils.verifyFailedHandler
 
 abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
     open var ignoreLayout: Boolean = false
@@ -43,7 +44,7 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         fastHashMapOf<String, IViewCreator>()
     }
     private val nativeRefViewMap = fastHashMapOf<Int, AbstractBaseView<*, *>>()
-    override var pageData = PageData()
+    override var pageData = PageData(this)
     override var pageName: String = ""
     override val lifecycleScope: LifecycleScope by lazy(LazyThreadSafetyMode.NONE) {
         LifecycleScope(this)
@@ -554,6 +555,21 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         const val SAFE_AREA_INSETS = "safeAreaInsets"
         const val DENSITY_INFO = "densityInfo"
         const val DENSITY_INFO_KEY_NEW_DENSITY = "newDensity"
+
+        var VERIFY_THREAD
+            get() = com.tencent.kuikly.core.utils.VERIFY_THREAD
+            set(value) {
+                com.tencent.kuikly.core.utils.VERIFY_THREAD = value
+            }
+        var VERIFY_REACTIVE_OBSERVER
+            get() = com.tencent.kuikly.core.utils.VERIFY_REACTIVE_OBSERVER
+            set(value) {
+                com.tencent.kuikly.core.utils.VERIFY_REACTIVE_OBSERVER = value
+            }
+        fun verifyFailed(handler: (RuntimeException) -> Unit) {
+            verifyFailedHandler = handler
+        }
+
     }
 }
 

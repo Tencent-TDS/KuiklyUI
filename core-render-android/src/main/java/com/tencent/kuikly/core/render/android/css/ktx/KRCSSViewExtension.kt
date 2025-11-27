@@ -194,6 +194,11 @@ fun View.setCommonProp(key: String, value: Any): Boolean {
             viewDecorator?.useOutline = value as Boolean
             true
         }
+
+        KRCssConst.CLIP_PATH -> {
+            viewDecorator?.clipPathData = value as String
+            true
+        }
         else -> false
     }
 }
@@ -203,9 +208,11 @@ fun View.drawCommonDecoration(canvas: Canvas) {
 }
 
 fun View.drawCommonForegroundDecoration(canvas: Canvas) {
-    if (isBeforeM) {
-        getViewData<KRViewDecoration>(KRCssConst.VIEW_DECORATOR)?.drawCommonForegroundDecoration(frameWidth, frameHeight, canvas)
-    }
+    getViewData<KRViewDecoration>(KRCssConst.VIEW_DECORATOR)?.drawCommonForegroundDecoration(frameWidth, frameHeight, canvas)
+}
+
+fun View.hasCustomClipPath(): Boolean {
+    return getViewData<KRViewDecoration>(KRCssConst.VIEW_DECORATOR)?.hasCustomClipPath() == true
 }
 
 /**
@@ -315,6 +322,10 @@ fun View.resetCommonProp(propKey: String): Boolean {
             removeViewData<Boolean>(KRCssConst.HAD_INIT_ACCESSIBILITY_DELEGATE)
             removeViewData<String>(KRCssConst.ACCESSIBILITY_ROLE)
             accessibilityDelegate = null
+        }
+        KRCssConst.CLIP_PATH -> {
+            viewDecorator = null
+            return true
         }
     }
     return false

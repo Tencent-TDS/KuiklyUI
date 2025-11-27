@@ -22,12 +22,30 @@ import com.tencent.kuikly.core.timer.setTimeout
 import kotlin.math.max
 import kotlin.math.min
 
+/**
+ * 滚动结束后选中item，回调中间的value和index
+ */
+internal typealias ScrollPickerScrollEndEvent = (centerValue: String, centerItemIndex: Int) -> Unit
+
+/**
+ * 滚动过程中选中item，回调中间的value和index
+ */
+internal typealias ScrollPickerScrollEvent = (centerValue: String, centerItemIndex: Int) -> Unit
+
+/**
+ * 拖拽结束后选中item，回调中间的value和index
+ */
 internal typealias ScrollPickerDragEndEvent = (centerValue: String, centerItemIndex: Int) -> Unit
 
 class ScrollPickerView(
     private val itemList : Array<String>,
     private val defaultIndex: Int? = null
 ): ComposeView<ScrollPickerAttr, ScrollPickerEvent>() {
+
+    /**
+     * 滚动过程中上一次回调的索引，用于避免重复触发相同的回调
+     */
+    private var lastScrollIndex = -1
 
     override fun createAttr() = ScrollPickerAttr()
 
@@ -62,6 +80,7 @@ class ScrollPickerView(
                 dataList.addAll(placeHolderArray)
                 val scroller = this@Scroller
                 var targetIndex = 0
+                var isSnapping = false
                 attr {
                     showScrollerIndicator(false)
                     width(itemWidth)
@@ -72,11 +91,12 @@ class ScrollPickerView(
                 }
                 event {
                     didAppear {
-                        ctx.event.dragEndEvent(dataList[offset], 0)
+                        (ctx.event.scrollEndEvent ?: ctx.event.dragEndEvent)?.invoke(dataList[offset], 0)
                         if (ctx.defaultIndex != null && ctx.defaultIndex > 0 && ctx.defaultIndex < ctx.itemList.size) {
                             setTimeout(200) {
+                                isSnapping = true
                                 scroller.setContentOffset(0f, ctx.attr.itemHeight * ctx.defaultIndex, true, SpringAnimation(200,1.0f, 1f))
-                                ctx.event.dragEndEvent(dataList[ctx.defaultIndex + offset], ctx.defaultIndex)
+                                (ctx.event.scrollEndEvent ?: ctx.event.dragEndEvent)?.invoke(dataList[ctx.defaultIndex + offset], ctx.defaultIndex)
                             }
                         }
                     }
@@ -88,24 +108,60 @@ class ScrollPickerView(
                             max(0f, offsetValue),
                             (dataList.size) * itemHeight - ctx.attr.countPerScreen * itemHeight
                         )
+                        isSnapping = true
                         scroller.setContentOffset(0f, finOffSet, true)
                         val centerIndex = (finOffSet / itemHeight).toInt()
-                        ctx.event.dragEndEvent(dataList[centerIndex + offset], centerIndex)
+                        (ctx.event.scrollEndEvent ?: ctx.event.dragEndEvent)?.invoke(dataList[centerIndex + offset], centerIndex)
                     }
 
-                    willDragEndBySync {
-                        val params = ScrollParams(offsetX = it.offsetX, offsetY = it.offsetY, contentHeight = it.contentHeight, contentWidth = it.contentWidth, viewHeight = it.viewHeight, viewWidth = it.viewWidth, isDragging = it.isDragging)
-                        val finOffSet = ctx.scrollOffset(params, dataList.size)
-                        scroller.setContentOffset(0f, finOffSet, true, SpringAnimation(200,1.0f, it.velocityY))
-                        targetIndex =
-                            (finOffSet / ctx.attr.itemHeight).toInt()
+                    scroll { params ->
+                        // 计算当前滚动位置对应的中心项索引
+                        val currentIndex = (params.offsetY / ctx.attr.itemHeight).toInt()
+
+                        // 确保索引在有效范围内
+                        if (currentIndex >= 0 && currentIndex < ctx.itemList.size) {
+                            // 只有当索引发生变化时才触发回调，避免重复触发
+                            if (currentIndex != ctx.lastScrollIndex) {
+                                ctx.lastScrollIndex = currentIndex
+                                // 触发滚动过程中的回调
+                                ctx.event.scrollEvent?.invoke(dataList[currentIndex + offset], currentIndex)
+                            }
+                        }
                     }
-                    dragEnd {
-                        val finOffSet = ctx.scrollOffset(it, dataList.size)
-                        scroller.setContentOffset(0f, finOffSet, true, SpringAnimation(200,1.0f,1f))
-                        targetIndex =
-                            (finOffSet / ctx.attr.itemHeight).toInt()
-                        ctx.event.dragEndEvent(dataList[targetIndex + offset], targetIndex)
+                    willDragEndBySync {
+                        ctx.event.dragEndEvent?.run {
+                            val params = ScrollParams(offsetX = it.offsetX, offsetY = it.offsetY, contentHeight = it.contentHeight, contentWidth = it.contentWidth, viewHeight = it.viewHeight, viewWidth = it.viewWidth, isDragging = it.isDragging)
+                            val finOffSet = ctx.scrollOffset(params, dataList.size)
+                            isSnapping = true
+                            scroller.setContentOffset(0f, finOffSet, true, SpringAnimation(200, 1.0f, it.velocityY))
+                            targetIndex =
+                                (finOffSet / ctx.attr.itemHeight).toInt()
+                        }
+                    }
+                    dragEnd { params->
+                        ctx.event.dragEndEvent?.let {
+                            val finOffSet = ctx.scrollOffset(params, dataList.size)
+                            isSnapping = true
+                            scroller.setContentOffset(0f, finOffSet, true, SpringAnimation(200,1.0f,1f))
+                            targetIndex =
+                                (finOffSet / ctx.attr.itemHeight).toInt()
+                            ctx.event.dragEndEvent?.invoke(dataList[targetIndex + offset], targetIndex)
+                        }
+                    }
+
+                    scrollEnd { params->
+                        ctx.event.scrollEndEvent?.let {
+                            val finOffSet = ctx.scrollOffset(params, dataList.size)
+                            if (isSnapping || params.offsetY == finOffSet) {
+                                isSnapping = false
+                                targetIndex =
+                                    (finOffSet / ctx.attr.itemHeight).toInt()
+                                ctx.event.scrollEndEvent?.invoke(dataList[targetIndex + offset], targetIndex)
+                            } else {
+                                isSnapping = true
+                                scroller.setContentOffset(0f, finOffSet, true, SpringAnimation(200, 1.0f, 1f))
+                            }
+                        }
                     }
                 }
                 dataList.forEach {
@@ -147,10 +203,30 @@ class ScrollPickerAttr: ComposeAttr() {
 }
 
 class ScrollPickerEvent: ComposeEvent() {
-    lateinit var dragEndEvent : ScrollPickerDragEndEvent
-    // 停止滚动后选中item，回调中间的value和index
+    @Deprecated(
+        message = "Deprecated: Use scrollEndEvent instead. Drag end events are now unified with scroll end events under scrollEndEvent.",
+        level = DeprecationLevel.WARNING
+    )
+    var dragEndEvent : ScrollPickerDragEndEvent? = null
+    var scrollEndEvent : ScrollPickerScrollEndEvent? = null
+    var scrollEvent : ScrollPickerScrollEvent? = null
+
+    // 停止推拽后选中item，回调中间的value和index
+    @Deprecated(
+        message = "Deprecated: Use scrollEndEvent() instead. Drag end events are now unified with scroll end events under scrollEndEvent.",
+        replaceWith = ReplaceWith("scrollEndEvent = event"),
+        level = DeprecationLevel.WARNING
+    )
     fun dragEndEvent(event: ScrollPickerDragEndEvent) {
         dragEndEvent = event
+    }
+    // 停止滚动后选中item，回调中间的value和index
+    fun scrollEndEvent(event: ScrollPickerScrollEndEvent) {
+        scrollEndEvent = event
+    }
+    // 滚动过程中选中item，回调中间的value和index
+    fun scrollEvent(event: ScrollPickerScrollEvent) {
+        scrollEvent = event
     }
 }
 fun ViewContainer<*, *>.ScrollPicker(itemList : Array<String>, defaultIndex: Int? = null, init: ScrollPickerView.() -> Unit) {

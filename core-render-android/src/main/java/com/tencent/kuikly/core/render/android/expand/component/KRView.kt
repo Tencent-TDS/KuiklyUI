@@ -241,8 +241,16 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
         }
     }
     override fun draw(canvas: Canvas) {
+        val checkpoint: Int = if (hasCustomClipPath()) {
+            canvas.save()
+        } else {
+            -1
+        }
         drawCommonDecoration(canvas)
         super.draw(canvas)
+        if (checkpoint != -1) {
+            canvas.restoreToCount(checkpoint)
+        }
         drawCommonForegroundDecoration(canvas)
     }
 

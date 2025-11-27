@@ -58,7 +58,6 @@
 //import com.tencent.kuiklybase.markdown.model.rememberMarkdownState
 //import kotlinx.coroutines.delay
 //
-//internal expect fun getPlatform(): String
 //internal expect object NetworkClient {
 //    val client: Any?
 //}
@@ -182,23 +181,25 @@
 //                            .padding(bottom = 10.dp),
 //                        verticalAlignment = Alignment.CenterVertically,
 //                    ) {
-//                        val width = if (getPlatform() == "Android") 320 else 300
-//                        TextField(
-//                            value = inputText,
-//                            onValueChange = { inputText = it },
-//                            modifier = Modifier
-//                                .width(width.dp)
-//                                .weight(1f)
-//                                .keyboardHeightChange {
-//                                    keyboardHeight = it.height
-//                                },
-//                            placeholder = { Text(PLACEHOLDER) },
-//                            shape = RoundedCornerShape(16.dp),
-//                            colors = TextFieldDefaults.colors(
-//                                unfocusedContainerColor = Color.White,
-//                                focusedContainerColor = Color.White
+//                        Box(modifier = Modifier.weight(1f)) {
+//                            TextField(
+//                                value = inputText,
+//                                onValueChange = { inputText = it },
+//                                modifier = Modifier
+//                                    .padding(end = 40.dp) // 给右侧按钮留出空间
+//                                    .fillMaxWidth()
+//                                    .keyboardHeightChange {
+//                                        keyboardHeight = it.height
+//                                    },
+//                                placeholder = { Text(PLACEHOLDER) },
+//                                shape = RoundedCornerShape(16.dp),
+//                                colors = TextFieldDefaults.colors(
+//                                    unfocusedContainerColor = Color.White,
+//                                    focusedContainerColor = Color.White
+//                                )
 //                            )
-//                        )
+//                        }
+//
 //
 //                        Spacer(modifier = Modifier.width(10.dp))
 //
@@ -210,7 +211,7 @@
 //                            painter = painterResource(sendDrawable),
 //                            contentDescription = "Send",
 //                            modifier = Modifier
-//                                .size(24.dp)
+//                                .size(30.dp)
 //                                .clickable(enabled = inputText.isNotBlank()) {
 //                                    val messageToSend = inputText
 //                                    inputText = ""

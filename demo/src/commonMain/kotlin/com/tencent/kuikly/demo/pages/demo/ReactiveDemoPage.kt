@@ -17,6 +17,7 @@ package com.tencent.kuikly.demo.pages.demo
 
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.base.PagerScope
 import com.tencent.kuikly.core.directives.vfor
 import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.reactive.collection.ObservableList
@@ -25,6 +26,7 @@ import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.core.reactive.handler.*
+import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.timer.setTimeout
 
 @Page("reactive")
@@ -36,7 +38,7 @@ internal class ReactiveDemoPage: BasePager() {
     override fun viewDidLoad() {
         super.viewDidLoad()
         for (i in 0..2) {
-            val item = ListItemExample()
+            val item = ListItemExample(this)
             item.title = "标题 index :" + i
             pageObservableList.add(item)
         }
@@ -46,7 +48,7 @@ internal class ReactiveDemoPage: BasePager() {
                 if (i > 0) {
                     isSelected = true
                 }
-                val item = ListItemExample()
+                val item = ListItemExample(this)
                 item.title = "标题 index :" + pageObservableList.count()
                 pageObservableList.add(item)
 
@@ -55,7 +57,7 @@ internal class ReactiveDemoPage: BasePager() {
                     for (i in 0..10) {
                         setTimeout(i * 1000) {
 
-                            val item = ListItemExample()
+                            val item = ListItemExample(this)
                             item.title = "标题 index :" + pageObservableList.count()
                             pageObservableList.add(item)
 
@@ -103,8 +105,8 @@ internal class ReactiveDemoPage: BasePager() {
 
 }
 
-internal class ListItemExample : BaseObject() {
-    var title by observable("")
+internal class ListItemExample(scope: PagerScope) : BaseObject() {
+    var title by scope.observable("")
 
 }
 

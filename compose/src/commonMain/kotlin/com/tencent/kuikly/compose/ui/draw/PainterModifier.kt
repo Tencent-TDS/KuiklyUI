@@ -443,16 +443,15 @@ private class PainterNode(
                 view.clip()
                 // 使用wrap时，ImageView设置为scaledSize宽高
                 resizeStretch()
-                with(requireDensity()) {
-                    imageView.updateFrame(
-                        Frame(
-                            dx.toDp().value,
-                            dy.toDp().value,
-                            scaledSize.width.toDp().value,
-                            scaledSize.height.toDp().value
-                        )
+                val densityValue = view.getPager().pagerDensity()
+                imageView.updateFrame(
+                    Frame(
+                        dx / densityValue,
+                        dy / densityValue,
+                        scaledSize.width / densityValue,
+                        scaledSize.height / densityValue
                     )
-                }
+                )
             } else if (scaledSize.width.approximatelyEqual(size.width) && scaledSize.height.approximatelyEqual(size.height)) {
                 // 非wrap时，如果图片宽高小于等于显示区域，使用contain模式
                 resizeContain()

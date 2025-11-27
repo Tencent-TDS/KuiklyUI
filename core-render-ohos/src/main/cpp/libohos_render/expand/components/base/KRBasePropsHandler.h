@@ -86,6 +86,7 @@ class KRBasePropsHandler : public std::enable_shared_from_this<KRBasePropsHandle
     int z_index_ = 0;
     bool force_overflow_ = false;
     bool did_set_animation_ = false;
+    bool has_clip_path_ = false;
 
     ArkUI_ContextHandle context_ = nullptr;
 

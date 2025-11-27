@@ -1,0 +1,21 @@
+{
+  "funtouchPlugVersion": "1.1",
+  "package": "com.tencent.kuikly.android.demo",
+  "elements": [
+    {
+      "fun": {
+        "name": "multi-landscape",
+        "enable": "true"
+      },
+      "config": {
+        "mode": 1,
+        "action": [
+          {
+            "from": "com.tencent.kuikly.android.demo.KuiklyRenderActivity",
+            "to": "*"
+          }
+        ]
+      }
+    }
+  ]
+}

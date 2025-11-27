@@ -149,7 +149,7 @@ const val CHANGE_LINE_SPACE = 3
 
 @Composable
 internal fun CoreTextField(
-    value: TextFieldValue = TextFieldValue("你好中国"),
+    value: TextFieldValue = TextFieldValue(""),
     onValueChange: (TextFieldValue) -> Unit,
     modifier: Modifier = Modifier.size(200.dp, 50.dp),
     enabled: Boolean = true,
@@ -335,6 +335,7 @@ internal fun CoreTextField(
                     val textView = autoHeightTextAreaView
                     KNode(textView) {
                         getViewAttr().autofocus(false)
+                        getViewAttr().enablePinyinCallback(true)
                         getViewEvent().inputFocus {
                             focusRequester.requestFocus()
                         }

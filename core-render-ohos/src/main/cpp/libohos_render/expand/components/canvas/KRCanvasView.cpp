@@ -280,18 +280,32 @@ void KRCanvasView::Arc(const std::string &params) {
         bool ccw = paramObj->GetNumber("counterclockwise");
         float sweepAngle = endAngle - startAngle;
         if (ccw) {
-            if (sweepAngle > 0) {
+            // Preprocessing for counter-clockwise drawing:
+            // 0. Angles in (-720, 0] require no processing
+            // 1. sweepAngle > 0, startAngle and endAngle represent absolute angles, convert to [-360, 0)
+            // 2. sweepAngle <= -720, drawing exceeds 2 turns, convert to (-720, -360]
+            // Rules 2 and 3 share the same formula; In summary, final sweepAngle is in (-720, 0]
+            if (sweepAngle > 0 || sweepAngle <= -720) {
                 sweepAngle = std::fmod(sweepAngle, 360) - 360;
             }
         } else {
-            if (sweepAngle < 0) {
+            // Preprocessing for clockwise drawing:
+            // 0. Angles in [0, 720) require no processing
+            // 1. sweepAngle < 0, startAngle and endAngle represent absolute angles, convert to (0, 360]
+            // 2. sweepAngle >= 720, drawing exceeds 2 turns, convert to [360, 720)
+            // Rules 2 and 3 share the same formula; In summary, final sweepAngle is in [0, 720)
+            if (sweepAngle < 0 || sweepAngle >= 720) {
                 sweepAngle = std::fmod(sweepAngle, 360) + 360;
             }
         }
         if (std::fabs(sweepAngle) < 360) {
+            // Deal with arc less than 2π
             OH_Drawing_PathArcTo(drawingPath_, x - r, y - r, x + r, y + r, startAngle, sweepAngle);
         } else {
-            // TODO(userName):
+            // Deal with arc greater than or equal to 2π
+            float halfSweepAngle = sweepAngle * 0.5;
+            OH_Drawing_PathArcTo(drawingPath_, x - r, y - r, x + r, y + r, startAngle, halfSweepAngle);
+            OH_Drawing_PathArcTo(drawingPath_, x - r, y - r, x + r, y + r, startAngle + halfSweepAngle, halfSweepAngle);
         }
     }
 }
@@ -342,10 +356,15 @@ void KRCanvasView::SetFont(const std::string &params) {
     auto style = paramObj->GetString("style");
     auto weight = std::stoi(paramObj->GetString("weight"));
     auto family = paramObj->GetString("family");
+    
+    float scale = 1.0;
+    if (auto root = GetRootView().lock()) {
+        scale = root->GetContext()->Config()->GetFontWeightScale();
+    }
 
     text_feature_.fontSize = size;
     text_feature_.fontStyle = kuikly::util::ConvertToFontStyle(style);
-    text_feature_.fontWeight = kuikly::util::ConvertFontWeight(weight);
+    text_feature_.fontWeight = kuikly::util::ConvertFontWeight(weight, scale);
     text_feature_.fontFamily = family;
 }
 

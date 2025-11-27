@@ -19,6 +19,7 @@ import com.tencent.kuikly.core.base.Attr
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.base.EdgeInsets
+import com.tencent.kuikly.core.base.PagerScope
 import com.tencent.kuikly.core.base.ScopeMarker
 import com.tencent.kuikly.core.base.Size
 import com.tencent.kuikly.core.base.ViewConst
@@ -37,6 +38,8 @@ import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.layout.MeasureFunction
 import com.tencent.kuikly.core.layout.MeasureOutput
 import com.tencent.kuikly.core.layout.isUndefined
+import com.tencent.kuikly.core.layout.undefined
+import com.tencent.kuikly.core.layout.valueEquals
 import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.nvi.serialization.serialization
@@ -511,6 +514,12 @@ open class PlaceholderSpan : ISpan {
  */
 open class ImageSpan: PlaceholderSpan(), IImageAttr {
 
+    private class MutablePagerScope : PagerScope {
+        override var pagerId: String = ""
+    }
+
+    private var scope = MutablePagerScope()
+
     private var size: Size = Size(0f, 0f)
 
     private var src: String = ""
@@ -525,9 +534,14 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
     private var capInsets: EdgeInsets = EdgeInsets.default
     private var imageParams: JSONObject? = null
     private var verticalAlignOffset = 0f
+    private var horizontalAlignOffset = 0f
+    private var marginTop = Float.undefined
+    private var marginLeft = Float.undefined
+    private var marginBottom = Float.undefined
+    private var marginRight = Float.undefined
 
-    private var richTextFrame by observable(Frame.zero)
-    private var placeholderFrame by observable(Frame.zero)
+    private var richTextFrame by scope.observable(Frame.zero)
+    private var placeholderFrame by scope.observable(Frame.zero)
     private var view : ImageView? = null
     private var clickHandlerFn: ((ClickParams) -> Unit)? = null
 
@@ -553,6 +567,13 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
      */
     fun verticalAlignOffset(offset: Float) {
         this.verticalAlignOffset = offset
+    }
+
+    /**
+     * 设置ImageSpan在水平方向对齐的偏移，默认居中对齐
+     */
+    fun horizontalAlignOffset(offset: Float) {
+        this.horizontalAlignOffset = offset
     }
 
     override fun src(src: String, isDotNineImage: Boolean): IImageAttr {
@@ -614,6 +635,44 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
         return this
     }
 
+    fun margin(
+        top: Float,
+        left: Float,
+        bottom: Float,
+        right: Float
+    ): IImageAttr {
+        marginTop = top
+        marginLeft = left
+        marginBottom = bottom
+        marginRight = right
+        return this
+    }
+
+    fun marginTop(top: Float): IImageAttr {
+        marginTop = top
+        return this
+    }
+
+    fun marginLeft(left: Float): IImageAttr {
+        marginLeft = left
+        return this
+    }
+
+    fun marginBottom(bottom: Float): IImageAttr {
+        marginBottom = bottom
+        return this
+    }
+
+    fun marginRight(right: Float): IImageAttr {
+        marginRight = right
+        return this
+    }
+
+    fun margin(all: Float): IImageAttr {
+        margin(all, all, all, all)
+        return this
+    }
+
     /**
      * 设置拉伸区域
      * @param top 距离上边偏移
@@ -640,14 +699,29 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
      * 构建 Placeholder + ImageView 组合
      */
     fun build(richTextView: RichTextView) {
+        val ctx = this
+        ctx.scope.pagerId = richTextView.pagerId
         // Placeholder
         apply {
-            placeholderSize(size.width, size.height)
+            var w = size.width
+            var h = size.height
+            if (!marginLeft.valueEquals(Float.undefined)){
+                w += marginLeft
+            }
+            if (!marginRight.valueEquals(Float.undefined)){
+                w += marginRight
+            }
+            if (!marginTop.valueEquals(Float.undefined)){
+                h += marginTop
+            }
+            if (!marginBottom.valueEquals(Float.undefined)){
+                h += marginBottom
+            }
+            placeholderSize(w, h)
             spanFrameDidChanged { frame ->
                 placeholderFrame = frame
             }
         }
-        val ctx = this
         richTextFrame = richTextView.flexNode.layoutFrame
         richTextView.event {
             addLayoutFrameDidChange { frame ->
@@ -667,7 +741,7 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
                     visibility(ctx.placeholderFrame.width != 0f && ctx.placeholderFrame.height != 0f)
                     absolutePosition(
                         top = ctx.richTextFrame.y + ctx.placeholderFrame.y + ctx.verticalAlignOffset,
-                        left = ctx.richTextFrame.x + ctx.placeholderFrame.x
+                        left = ctx.richTextFrame.x + ctx.placeholderFrame.x + ctx.horizontalAlignOffset
                     )
                     size(ctx.size.width, ctx.size.height)
                     if (ctx.uri != null) {
@@ -691,7 +765,7 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
                     }
                     borderRadius(ctx.borderRadius)
                     capInsets(ctx.capInsets.top, ctx.capInsets.left, ctx.capInsets.bottom, ctx.capInsets.right)
-
+                    margin(ctx.marginTop, ctx.marginLeft, ctx.marginBottom, ctx.marginRight)
                 }
                 ctx.clickHandlerFn?.also {
                     getViewEvent().click(it)

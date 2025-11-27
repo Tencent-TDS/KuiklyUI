@@ -64,10 +64,13 @@ kotlin {
     }
 
     targets.withType<KotlinNativeTarget> {
-        val mainSourceSets = this.compilations.getByName("main").defaultSourceSet
         when {
             konanTarget.family.isAppleFamily -> {
-                mainSourceSets.dependsOn(iosMain)
+                val main by compilations.getting
+                main.defaultSourceSet.dependsOn(iosMain)
+                val kuikly by main.cinterops.creating {
+                    defFile(project.file("src/iosMain/iosInterop/cinterop/ios.def"))
+                }
             }
         }
     }
@@ -87,6 +90,7 @@ kotlin {
 
 android {
     compileSdk = 30
+    namespace = "com.tencent.kuikly.core"
     sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
     defaultConfig {
         minSdk = 21

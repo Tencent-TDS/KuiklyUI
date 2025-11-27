@@ -16,6 +16,7 @@
 package com.tencent.kuikly.core.base
 
 import com.tencent.kuikly.core.base.attr.AccessibilityRole
+import com.tencent.kuikly.core.base.attr.ClipPathBuilder
 import com.tencent.kuikly.core.base.attr.ILayoutAttr
 import com.tencent.kuikly.core.base.attr.IStyleAttr
 import com.tencent.kuikly.core.collection.fastHashMapOf
@@ -41,9 +42,12 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
     private var animationMap: MutableMap<String, Animation>? = null
     internal var isBeginApplyAttrProperty = false
     internal var propSetByFrameTasks: MutableMap<String, FrameTask>? = null
+    private var clipPathHandler: ClipPathHandler? = null
 
     override fun viewDidRemove() {
         super.viewDidRemove()
+        clipPathHandler?.destroy()
+        clipPathHandler = null
         flexNode = null
         animationMap?.clear()
         propSetByFrameTasks?.clear()
@@ -429,6 +433,23 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
         StyleConst.TURBO_DISPLAY_AUTO_UPDATE_ENABLE with enable.toInt()
         return this
     }
+
+    override fun clipPath(builder: ClipPathBuilder?) {
+        if (builder == null) {
+            clipPathHandler?.destroy()
+            clipPathHandler = null
+            if (getProp(StyleConst.CLIP_PATH) != null) {
+                StyleConst.CLIP_PATH with ""
+            }
+        } else {
+            val handler = clipPathHandler ?: ClipPathHandler(this).also { clipPathHandler = it }
+            handler.setBuilder(builder)
+            if (getProp(StyleConst.CLIP_PATH) == null) {
+                // put empty string to pass the FlatLayer check
+                StyleConst.CLIP_PATH with ""
+            }
+        }
+    }
     // endregion
 
     override fun top(top: Float): Attr {
@@ -651,6 +672,7 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
         const val AUTO_DARK_ENABLE = "autoDarkEnable"
         const val INTERFACE_STYLE = "interfaceStyle"
         const val TURBO_DISPLAY_AUTO_UPDATE_ENABLE = "turboDisplayAutoUpdateEnable"
+        const val CLIP_PATH = "clipPath"
         // 设置属性用作 UI-Inspector 中的视图名称
         const val DEBUG_NAME = "debugName"
         const val PREVENT_TOUCH = "preventTouch"

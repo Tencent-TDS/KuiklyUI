@@ -33,7 +33,7 @@ typedef NS_ENUM(NSUInteger, KuiklyRenderContextMethod) {
     KuiklyRenderContextMethodUnknown = 0,
     KuiklyRenderContextMethodCreateInstance = 1, /// "createInstance" 方法
     KuiklyRenderContextMethodUpdateInstance = 2, /// "updateInstance" 方法
-    KuiklyRenderContextMethodDestroyInstance = 3, /// "updateInstance" 方法
+    KuiklyRenderContextMethodDestroyInstance = 3, /// "destroyInstance" 方法
     KuiklyRenderContextMethodFireCallback = 4, /// "fireCallback" 方法
     KuiklyRenderContextMethodFireViewEvent = 5, /// "fireViewEvent" 方法
     KuiklyRenderContextMethodLayoutView = 6, /// "layoutView" 方法

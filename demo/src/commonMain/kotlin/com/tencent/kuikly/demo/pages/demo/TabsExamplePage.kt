@@ -17,6 +17,7 @@ package com.tencent.kuikly.demo.pages.demo
 
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.PagerScope
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewRef
 import com.tencent.kuikly.core.directives.vfor
@@ -33,10 +34,10 @@ import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 import kotlin.random.Random
 
-internal class TabItemData {
-    var tabTitle by observable("")
-    var pageBgColor by observable(Color.WHITE)
-    var index by observable(0)
+internal class TabItemData(scope: PagerScope) {
+    var tabTitle by scope.observable("")
+    var pageBgColor by scope.observable(Color.WHITE)
+    var index by scope.observable(0)
 }
 
 @Page("TabsExamplePage")
@@ -52,7 +53,7 @@ internal class TabsExamplePage : BasePager() {
     override fun created() {
         super.created()
         for (i in 0..20) {
-            val tabItemData = TabItemData().apply {
+            val tabItemData = TabItemData(this).apply {
                 tabTitle = "tabName$i"
                 pageBgColor = generateRandomColor()
                 index = i

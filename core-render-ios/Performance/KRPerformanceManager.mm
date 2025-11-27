@@ -10,6 +10,7 @@
 #import "KRFPSMonitor.h"
 #import "KuiklyRenderThreadManager.h"
 #import "KRMemoryMonitor.h"
+#import "KuiklyContextParam.h"
 #import <UIKit/UIKit.h>
 #import <pthread.h>
 
@@ -102,9 +103,9 @@ static NSMutableDictionary<NSString *, NSNumber *> *gLaunchDic = nil;
 
         _kotlinTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, [KuiklyRenderThreadManager contextQueue]);
         dispatch_source_set_timer(_kotlinTimer, DISPATCH_TIME_NOW, NSEC_PER_SEC / 60.0, NSEC_PER_MSEC);
-        __weak typeof(self) wself = self;
+        __weak __typeof__(self) wself = self;
         dispatch_source_set_event_handler(_kotlinTimer, ^{
-            __strong typeof(self) sself = wself;
+            __strong __typeof__(self) sself = wself;
             NSTimeInterval now = CFAbsoluteTimeGetCurrent();
             [sself.kotlinFPS onTick:now];
         });
@@ -243,4 +244,29 @@ static NSMutableDictionary<NSString *, NSNumber *> *gLaunchDic = nil;
     [_mainFPS onTick:displayLink.timestamp];
 }
 
+- (NSDictionary*)performanceData{
+    NSArray *keysArray = @[@"initViewCost", @"fetchContextCodeCost", @"initRenderCoreCost", @"initRenderContextCost", @"pageBuildCost", @"pageLayoutCost", @"createPageCost", @"firstPaintCost", @"createInstanceCost", @"newPageCost", @"renderCost"];
+    NSMutableDictionary *timeMap = [NSMutableDictionary new];
+    NSAssert(keysArray.count == KRLoadStage_renderFP + 1, @"keys 与 枚举数量不匹配 ");
+    for (int i = KRLoadStage_initView; i <= KRLoadStage_renderFP; i++) {
+        int duration = [self durationForStage:(KRLoadStage)i];
+        timeMap[keysArray[i]] = @(duration);
+    }
+    
+    return @{
+        @"mode": @(self.modeId),
+        @"pageExistTime": @(self.pageExistTime),
+        @"isFirstLaunchOfProcess": @([self isFirstLaunchOfProcess]),
+        @"isFirstLaunchOfPage": @([self isFirstLaunchOfPage]),
+        @"pageLoadTime": timeMap,
+        @"mainFPS": @(self.mainFPS.avgFPS),
+        @"kotlinFPS": @(self.kotlinFPS.avgFPS),
+        @"memory": @{
+            @"avgIncrement": @(self.memoryMonitor.avgIncrementMemory),
+            @"peakIncrement": @(self.memoryMonitor.peakIncrementMemory),
+            @"appPeak": @(self.memoryMonitor.appPeakMemory),
+            @"appAvg": @(self.memoryMonitor.appAvgMemory),
+        },
+    };
+}
 @end

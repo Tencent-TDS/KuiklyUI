@@ -15,13 +15,19 @@
 
 #include "KRPerformanceManager.h"
 
+#include "libohos_render/expand/modules/performance/KRPerformanceModule.h"
+#include "libohos_render/manager/KRArkTSManager.h"
 #include "libohos_render/performance/KRPerformanceData.h"
+#include "libohos_render/scheduler/KRContextScheduler.h"
+
+static constexpr char ON_GET_LAUNCH_DATA_DATA[] = "onGetLaunchData";
+static constexpr char ON_GET_PERFORMANCE_DATA_DATA[] = "onGetPerformanceData";
 
 bool KRPerformanceManager::cold_launch_flag = true;
 std::list<std::string> KRPerformanceManager::page_record_;
 
-KRPerformanceManager::KRPerformanceManager(std::string page_name, const std::shared_ptr<KRRenderExecuteMode> &mode)
-    : page_name_(std::move(page_name)), mode_(mode) {
+KRPerformanceManager::KRPerformanceManager(std::string page_name, std::string instance_id, const std::shared_ptr<KRRenderExecuteMode> &mode)
+    : page_name_(std::move(page_name)), instance_id_(std::move(instance_id)), mode_(mode) {
     auto launch_monitor = std::make_shared<KRLaunchMonitor>();
     monitors_[KRLaunchMonitor::kMonitorName] = launch_monitor;
     auto it = std::find(page_record_.begin(), page_record_.end(), page_name_);
@@ -92,10 +98,29 @@ void KRPerformanceManager::OnPageCreateFinish(KRPageCreateTrace &trace) {  //  K
         auto launch_monitor = std::static_pointer_cast<KRLaunchMonitor>(monitor);
         launch_monitor->OnPageCreateFinish(trace);
     }
+    onLaunchResult();
 }
 void KRPerformanceManager::OnResume() {}
 void KRPerformanceManager::OnPause() {}
-void KRPerformanceManager::OnDestroy() {}
+
+void KRPerformanceManager::OnDestroy() {
+    for (auto &monitor: monitors_) {
+        monitor.second->OnDestroy();
+    }
+    onResult();
+}
+
+std::string KRPerformanceManager::GetInstanceId() {
+    return instance_id_;
+}
+
+std::string KRPerformanceManager::GetLaunchData() {  //  收集启动数据
+    auto monitor = GetMonitor(KRLaunchMonitor::kMonitorName);
+    if (monitor) {
+        return monitor->GetMonitorData();
+    }
+    return "{}";
+}
 
 std::string KRPerformanceManager::GetPerformanceData() {  //  收集所有性能数据
     auto monitor = GetMonitor(KRLaunchMonitor::kMonitorName);
@@ -118,4 +143,24 @@ std::shared_ptr<KRMonitor> KRPerformanceManager::GetMonitor(std::string monitor_
         return monitors_[monitor_name];
     }
     return nullptr;
+}
+
+void KRPerformanceManager::onLaunchResult() {
+    auto data = GetLaunchData();
+    auto instance_id = GetInstanceId();
+    KRContextScheduler::ScheduleTaskOnMainThread(false, [instance_id, data] {
+        KRArkTSManager::GetInstance().CallArkTSMethod(instance_id, KRNativeCallArkTSMethod::CallModuleMethod,
+            NewKRRenderValue(kuikly::module::kPerformanceModuleName), NewKRRenderValue(ON_GET_LAUNCH_DATA_DATA),
+            NewKRRenderValue(data), nullptr, nullptr, nullptr);
+    });
+}
+
+void KRPerformanceManager::onResult() {
+    auto data = GetPerformanceData();
+    auto instance_id = GetInstanceId();
+    KRContextScheduler::ScheduleTaskOnMainThread(false, [instance_id, data] {
+        KRArkTSManager::GetInstance().CallArkTSMethod(instance_id, KRNativeCallArkTSMethod::CallModuleMethod,
+            NewKRRenderValue(kuikly::module::kPerformanceModuleName), NewKRRenderValue(ON_GET_PERFORMANCE_DATA_DATA),
+            NewKRRenderValue(data), nullptr, nullptr, nullptr);
+    });
 }

@@ -5,10 +5,9 @@
 **社区组件市场网址**：https://raft-stack-6a4vnekl8.fue.woa.com/
 <br>社区提供了中心化收集``Kuikly``组件的方式，共享组件按照[Kuikly-third-party](https://github.com/Tencent-TDS/KuiklyUI-third-party)指引，上架到组件市场。
 
-## 有奖贡献活动
-
 ## 组件需求收集
 ``Kuikly``在Github Discussion增加了[社区生态](https://github.com/Tencent-TDS/KuiklyUI/discussions/categories/%E7%A4%BE%E5%8C%BA%E7%94%9F%E6%80%81)讨论区。关于组件的需求、组件的维护问题等在这里进行交流、讨论。
 
 ## 组件适配指引
-建设中
+[KMP组件鸿蒙适配指引](./kmp_ohos_adaptation_guide.md)
+[Kuikly扩展库创建指引](./kuikly_extension_lib_guide.md)

@@ -22,8 +22,9 @@ import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
 import android.util.Log
 import android.widget.Toast
-import com.squareup.picasso.Picasso
-import com.squareup.picasso.Target
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.target.CustomTarget
+import com.bumptech.glide.request.transition.Transition
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderBaseModule
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 import com.tencent.kuikly.android.demo.KRApplication
@@ -44,7 +45,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 
 /**
- * Created by kamlin on 2022/8/11.
+ * Created by kam on 2022/8/11.
  */
 class KRBridgeModule : KuiklyRenderBaseModule() {
 
@@ -220,37 +221,37 @@ class KRBridgeModule : KuiklyRenderBaseModule() {
         if (!cacheDir.exists()) {
             cacheDir.mkdirs()
         }
-        Picasso.get().load(imageUrl).into(object : Target {
-            override fun onBitmapLoaded(bitmap: Bitmap?, from: Picasso.LoadedFrom?) {
-                if (bitmap != null) {
-                    var outputStream: OutputStream? = null
+        Glide.with(context!!).asBitmap().load(imageUrl).into(object : CustomTarget<Bitmap>() {
+            override fun onResourceReady(bitmap: Bitmap, transition: Transition<in Bitmap>?) {
+                var outputStream: OutputStream? = null
+                try {
+                    imageFile.createNewFile()
+                    outputStream = FileOutputStream(imageFile)
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
+                    outputStream.flush()
+                    callback?.invoke(mapOf(
+                        "localPath" to imageFile.absolutePath
+                    ))
+                    Log.d(MODULE_NAME, "getLocalImagePath, localPath: ${imageFile.absolutePath}")
+                } catch (e: IOException) {
+                    e.printStackTrace()
+                } finally {
                     try {
-                        imageFile.createNewFile()
-                        outputStream = FileOutputStream(imageFile)
-                        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
-                        outputStream.flush()
-                        callback?.invoke(mapOf(
-                            "localPath" to imageFile.absolutePath
-                        ))
-                        Log.d(MODULE_NAME, "getLocalImagePath, localPath: ${imageFile.absolutePath}")
+                        outputStream?.close()
                     } catch (e: IOException) {
                         e.printStackTrace()
-                    } finally {
-                        try {
-                            outputStream?.close()
-                        } catch (e: IOException) {
-                            e.printStackTrace()
-                        }
                     }
                 }
             }
 
-            override fun onBitmapFailed(e: Exception?, errorDrawable: Drawable?) {
+            override fun onLoadCleared(placeholder: Drawable?) {
+                // 资源被清理时的回调
             }
 
-            override fun onPrepareLoad(placeHolderDrawable: Drawable?) {
+            override fun onLoadFailed(errorDrawable: Drawable?) {
+                super.onLoadFailed(errorDrawable)
+                Log.e(MODULE_NAME, "getLocalImagePath, load image failed")
             }
-
         })
     }
 

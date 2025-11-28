@@ -1,5 +1,9 @@
 # ChangeLog
 
+## 2.9.1
+### What's New
+https://github.com/Tencent-TDS/KuiklyUI/releases/tag/2.9.1
+
 ## 2.9.0
 ### What's New
 https://github.com/Tencent-TDS/KuiklyUI/releases/tag/2.9.0

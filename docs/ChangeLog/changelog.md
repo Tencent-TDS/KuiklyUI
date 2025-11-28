@@ -10,6 +10,10 @@ maven("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
 
 [ohpm](https://ohpm.openharmony.cn/#/cn/detail/@kuikly-open%2Frender)
 
+## [2025-11-28, Version 2.9.1](https://github.com/Tencent-TDS/KuiklyUI/tree/2.9.1)
+### What's Changed
+https://github.com/Tencent-TDS/KuiklyUI/releases/tag/2.9.1
+
 ## [2025-11-26, Version 2.9.0](https://github.com/Tencent-TDS/KuiklyUI/tree/2.9.0)
 ### What's Changed
 https://github.com/Tencent-TDS/KuiklyUI/releases/tag/2.9.0

@@ -710,6 +710,17 @@ export class KRNativeRenderController {
     return true
   }
 
+  /**
+   * 回调启动数据
+   */
+  onGetLaunchData(data: Record<string, number>): void {
+  }
+
+  /**
+   * 回调性能数据
+   */
+  onGetPerformanceData(data: Record<string, number>): void {
+  }
 }
 
 export abstract class IKuiklyViewDelegate extends KRNativeRenderController {

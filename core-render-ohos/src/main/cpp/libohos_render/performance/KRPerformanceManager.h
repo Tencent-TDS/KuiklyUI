@@ -26,7 +26,7 @@ enum class MonitorType { kLaunch = 0, KFrame = 1, KMemory = 2 };
 
 class KRPerformanceManager {
  public:
-    KRPerformanceManager(std::string page_name, const std::shared_ptr<KRRenderExecuteMode> &mode);
+    KRPerformanceManager(std::string page_name, std::string instance_id, const std::shared_ptr<KRRenderExecuteMode> &mode);
     ~KRPerformanceManager();
     void OnKRRenderViewInit();
     void OnInitCoreStart();
@@ -40,12 +40,24 @@ class KRPerformanceManager {
     void OnResume();
     void OnPause();
     void OnDestroy();
+    std::string GetInstanceId();
+    std::string GetLaunchData();
     std::string GetPerformanceData();
     std::shared_ptr<KRMonitor> GetMonitor(std::string monitor_name);
     void SetArkLaunchTime(int64_t launch_time);
 
+    /**
+     * 回调启动数据
+     */
+    void onLaunchResult();
+    /**
+     * 回调所有性能数据
+     */
+    void onResult();
+
  private:
     std::string page_name_ = "";
+    std::string instance_id_ = "";
     std::shared_ptr<KRRenderExecuteMode> mode_;
     int64_t init_time_stamps_ = 0;
     bool is_cold_launch = false;       //  是否是冷启动

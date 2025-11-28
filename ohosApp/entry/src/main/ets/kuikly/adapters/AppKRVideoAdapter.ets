@@ -32,7 +32,7 @@ struct MyVideoView {
   @State videoViewController: AppKRVideoViewController | null = null;
   @State muted: boolean = false;
   @State rate: number = 1;
-  @State imageFit: ImageFit = ImageFit.Cover;
+  @State imageFit: ImageFit = ImageFit.Contain;
   totalTime: number = 0;
 
   build() {
@@ -181,11 +181,15 @@ class AppKRVideoViewController implements IKRVideoViewController {
   }
 
   setVideoContentMode(videoViewContentMode: KRVideoViewContentMode): void {
+    // Contain: 保持视频原始宽高比，完整显示视频内容
+    // 对应Android的ScaleAspectFit和iOS的AVLayerVideoGravityResizeAspect
     if (videoViewContentMode == KRVideoViewContentMode.Contain) {
       this.myVideoViewController.setResizeMode(ImageFit.Contain);
-    } else if (videoViewContentMode == KRVideoViewContentMode.Cover) {
+    }
+    else if (videoViewContentMode == KRVideoViewContentMode.Cover) {
       this.myVideoViewController.setResizeMode(ImageFit.Cover);
-    } else if (videoViewContentMode == KRVideoViewContentMode.Stretch) {
+    }
+    else if (videoViewContentMode == KRVideoViewContentMode.Stretch) {
       this.myVideoViewController.setResizeMode(ImageFit.Fill);
     }
   }

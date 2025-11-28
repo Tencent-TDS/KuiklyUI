@@ -100,6 +100,8 @@ void UpdateNodeSize(ArkUI_NodeHandle node, float width, float height);
 
 void UpdateNodeFrame(ArkUI_NodeHandle node, const KRRect &frame);
 
+KRPoint GetNodePositionInWindow(ArkUI_NodeHandle node);
+
 void UpdateNodeBackgroundColor(ArkUI_NodeHandle node, uint32_t hexColorValue);
 
 void UpdateNodeBorderRadius(ArkUI_NodeHandle node, KRBorderRadiuses borderRadius);

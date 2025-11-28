@@ -2144,7 +2144,7 @@ BOOL RCTUIViewSetClipsToBounds(RCTPlatformView *view) {
 
 - (nonnull NSImage *)imageWithActions:(NS_NOESCAPE RCTUIGraphicsImageDrawingActions)actions {
     NSImage *image = [NSImage imageWithSize:_size
-                                    flipped:YES
+                                    flipped:NO
                              drawingHandler:^BOOL(NSRect dstRect) {
         RCTUIGraphicsImageRendererContext *context = [NSGraphicsContext currentContext];
         if (self->_format.opaque) {

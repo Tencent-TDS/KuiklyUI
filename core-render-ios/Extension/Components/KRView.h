@@ -21,7 +21,7 @@ NS_ASSUME_NONNULL_BEGIN
 /**
  * @brief This is a container view component exposed for Kotlin side to call
  */
-@interface KRView : UIView<KuiklyRenderViewExportProtocol>
+@interface KRView : RCTUIView<KuiklyRenderViewExportProtocol> // [macOS]
 
 // The touch down callback for the view
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_touchDown;

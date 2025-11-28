@@ -178,7 +178,7 @@ static const UIAccessibilityTraits UIAccessibilityTraitHeader = (1 << 15);
 #pragma mark - Type Aliases
 
 // View aliases
-#define UIView RCTUIView
+#define UIView NSView
 #define UIScreen NSScreen
 #define UIScrollView RCTUIScrollView
 #define UIImageView RCTUIImageView

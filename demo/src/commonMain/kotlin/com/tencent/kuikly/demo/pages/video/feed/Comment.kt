@@ -162,7 +162,7 @@ internal class CommentView: ComposeView<CommentViewAttr, CommentViewEvent>() {
         attr.dataList.add(Item().apply {
             title = "取消售后申请"
             detialInfo = "撤销售后申请\n进入开始流程"
-            avatarUrl = "https://pic2.zhimg.com/v2-2a0434dd4e4bb7a638b8df699a505ca1_b.jpg"
+            avatarUrl = "https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/c498f4b4.jpg"
             index = attr.dataList.count()
         })
         attr.dataList.add(Item().apply {
@@ -171,26 +171,26 @@ internal class CommentView: ComposeView<CommentViewAttr, CommentViewEvent>() {
                     "退货地址：江苏省扬州市仪征新集镇迎宾路3号花藤印染院内亿合帽业二楼"
 
             index = attr.dataList.count()
-            avatarUrl = "https://pic2.zhimg.com/v2-2a0434dd4e4bb7a638b8df699a505ca1_b.jpg"
+            avatarUrl = "https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/d852717b.jpg"
         })
 
         attr.dataList.add(Item().apply {
             title = "发起售后申请"
             detialInfo = "发起了退货退款售后申请\n售后类型：退货退款\n货物状态：已收到货\n退货原因：7天无理由退款\n退款金额：¥59\n退货方式：线下寄件"
             avatarUrl =
-                "https://p3.toutiaoimg.com/large/pgc-image/54b93ce31b2e47c3aa1224b8fbfe4ffa"
+                "https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/3ecf791d.png"
             index = attr.dataList.count()
-            pictures.add("https://pic2.zhimg.com/v2-2a0434dd4e4bb7a638b8df699a505ca1_b.jpg")
-            pictures.add("https://pic2.zhimg.com/v2-2a0434dd4e4bb7a638b8df699a505ca1_b.jpg")
-            pictures.add("https://pic2.zhimg.com/v2-2a0434dd4e4bb7a638b8df699a505ca1_b.jpg")
-            pictures.add("https://pic2.zhimg.com/v2-2a0434dd4e4bb7a638b8df699a505ca1_b.jpg")
+            pictures.add("https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/c498f4b4.jpg")
+            pictures.add("https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/d852717b.jpg")
+            pictures.add("https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/9bd34fff.png")
+            pictures.add("https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/8a01b17c.png")
         })
 
 
         attr.dataList.add(Item().apply {
             title = "取消售后申请"
             detialInfo = "撤销售后申请\n进入开始流程"
-            avatarUrl = "https://pic2.zhimg.com/v2-2a0434dd4e4bb7a638b8df699a505ca1_b.jpg"
+            avatarUrl = "https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/891fc305.png"
             index = attr.dataList.count()
         })
     }

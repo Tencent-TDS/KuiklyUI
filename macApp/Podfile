@@ -6,7 +6,8 @@ target 'macApp' do
 
   # Pods for macApp
   pod 'SDWebImage', '~> 5.20.1'
-  # pod 'libpag-macOS', '~> 4.5' pag-mac存在问题暂不可用
+  # pag官方mac版本存在问题不可用，使用定制修改版 '~> 4.5'
+  pod 'libpag-macOS', :git => 'https://github.com/wwwcg/pag-mac.git', :commit=> 'fee5879b'
   
   pod 'OpenKuiklyIOSRender', :path => '../'
   pod 'demo', :path => '../demo'

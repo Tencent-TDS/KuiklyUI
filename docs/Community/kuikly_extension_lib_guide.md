@@ -1,6 +1,6 @@
 # Kuikly扩展库创建指引
 在实际业务开发中, 如果你扩展的Kuikly View和Module是业务无关的，你可以把它们发布为独立的Kuikly扩展库,
-供自身或者其他业务使用。 下面我们以扩展一个自定义LottieView组件为例，来学习如何创建Kuikly扩展库。
+供自身或者其他业务共享使用。 下面我们以扩展一个自定义LottieView组件为例，来学习如何创建Kuikly扩展库。
 
 ## 实现思路
 通常情况，按照Kuikly扩展原生View和Module的文档步骤，我们会分别在Kuikly侧按照标准接口实现跨端层逻辑，在各宿主平台侧实现对应的平台侧标准接口，
@@ -76,7 +76,11 @@ Kuikly扩展库的实现，整体与Kuikly扩展View和Module一致，区别是�
    <br>本组件无androidMain依赖，可删除：api("com.tencent.kuikly-open:core-render-android:${Version.getKuiklyVersion()}")
    * 其他
    <br>无JS Target构建，以下闭包可删除
-   ksp{...}、dependencies {...}、configure<KuiklyConfig> {...}
+   ```shell
+   ksp{...}
+   dependencies {...}
+   configure<KuiklyConfig> {...}
+   ```
 
    <br>**build.ohos.gradle.kts**
    除上述build.gradle.kts修改外，build.ohos.gradle.kts需在kotlin闭包，额外增加ohos target配置：
@@ -106,7 +110,7 @@ Kuikly扩展库的实现，整体与Kuikly扩展View和Module一致，区别是�
     include(":kLottieView")
     ```
 
-3. 安卓平台侧：kLottieViewAndroid模块
+3. **安卓平台侧：kLottieViewAndroid模块**
 
     在Android Studio 创建安卓平台Module。File -> New -> New Module -> Android Library，模块命名为kLottieViewAndroid
 
@@ -114,7 +118,7 @@ Kuikly扩展库的实现，整体与Kuikly扩展View和Module一致，区别是�
     ```shell
     implementation(project(":kLottieViewAndroid"))
     ```
-4. iOS平台侧实现：kLottieViewIOS模块
+4. **iOS平台侧实现：kLottieViewIOS模块**
 
     iOS平台kLottieViewIOS模块，可直接通过创建一个kLottieViewIOS目录来添加iOS平台侧扩展View实现。
 
@@ -125,7 +129,7 @@ Kuikly扩展库的实现，整体与Kuikly扩展View和Module一致，区别是�
     pod 'kLottieViewIOS', :path => '../'
     ```
 
-5. Ohos平台侧实现kLottieViewOhos模块
+5. **Ohos平台侧实现kLottieViewOhos模块**
 
     在DevEco IDE，打开ohosApp工程 创建Static Library：kLottieViewOhos
 ![创建鸿蒙工程Module](./img/create_ohos_static_lib.png)

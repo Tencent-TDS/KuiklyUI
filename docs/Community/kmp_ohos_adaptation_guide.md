@@ -1,6 +1,6 @@
 # KMP组件鸿蒙适配指引
 在KuiklyBase基建文档中，提供了[KMP模块鸿蒙Kotlin/Native适配](https://kuikly.tds.qq.com/DevGuide/kuiklybase-ohos-kn.html)的核心思路。但在具体操作上，缺少相关的案例指引。
-<br>KuiklyMMKV是社区开发者在携程开源的[mmkv-kotlin](https://github.com/ctripcorp/mmkv-kotlin)组件基础上，增加了鸿蒙平台的适配。本文档将在上述KMP模块鸿蒙Kotlin/Native适配指引基础上，
+<br>[KuiklyMMKV](https://github.com/walkman707/KuiklyMMKV)是社区开发者在携程开源的[mmkv-kotlin](https://github.com/ctripcorp/mmkv-kotlin)组件基础上，增加了鸿蒙平台的适配。本文档将在上述KMP模块鸿蒙Kotlin/Native适配指引基础上，
 以此KMP组件作为适配案例，进一步介绍KMP组件的适配流程，以供参考。
 按照Kuikly文档介绍，KMP组件鸿蒙适配主要分为三个步骤：
 * 使用定制化Kotlin版本
@@ -11,7 +11,7 @@
 
 ## 适配前的准备
 在适配之前，我们先创建一个Kuikly模板工程，以更方便的进行Demo测试。如果其他KMP工程，不需要在Kuikly模板工程中调试，则可忽略当前步骤。
-使用Android Studio新建 Kuikly 模板工程。 File -> New -> New Project -> Kuikly Project Template
+<br>使用Android Studio新建 Kuikly 模板工程。 File -> New -> New Project -> Kuikly Project Template
 ![新建Kuikly工程](../QuickStart/img/new_kuikly_project.png)
 
 创建好模板工程后，可以将[mmkv-kotlin](https://github.com/ctripcorp/mmkv-kotlin)组件的mmkv-kotlin模块拷贝到模板工程，并改名为mmkvKotlin。具体拷贝过程，及拷贝后修改gradle模块配置，这里略过。
@@ -52,7 +52,7 @@ project(":mmkvKotlin").buildFileName = buildFileName
 ```
 
 ## ohosArm64Main实现
-mmkvKotlin 模块鸿蒙适配是基于cinterop，使用Kotlin语法与MMKV native so(libmmkv.so)进行交互。
+mmkvKotlin 模块鸿蒙适配是基于cinterop，使用Kotlin语法与MMKV Native So，即libmmkv.so进行交互。
 ### mmkv C接口封装
 在ohosApp下创建mmkv_c_wrapper模块：
 * 首先在该模块添加对@tencent/mmkv库依赖。

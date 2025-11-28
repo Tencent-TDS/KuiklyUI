@@ -30,6 +30,7 @@ interface IPager {
     var animationManager: AnimationManager?
     val isDebugUIInspector : Boolean
     var didCreateBody: Boolean
+    val isAppeared: Boolean
     fun onCreatePager(pagerId: String, pageData: JSONObject)
 
     fun onDestroyPager()

@@ -23,7 +23,6 @@ import com.tencent.kuikly.core.base.event.didAppear
 import com.tencent.kuikly.core.base.event.didDisappear
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.pager.IPagerEventObserver
-import com.tencent.kuikly.demo.pages.base.BasePager
 
 /*
  * @brief 页面组件，用于页面@Page("xxxxx")拆分实现，通过这个组件来组合拼凑出原来的页面，实现一个复杂页面分包目标
@@ -92,7 +91,7 @@ internal class KuiklyPageView : DeclarativeBaseView<KuiklyPageAttr, KuiklyPageEv
     override fun didMoveToParentView() {
         super.didMoveToParentView()
         getPager().addPagerEventObserver(this)
-        if ((getPager() as? BasePager)?.pagerAppear == true) {
+        if (getPager().isAppeared) {
             sendPagerEvent("viewDidAppear")
         }
     }
@@ -110,14 +109,6 @@ internal class KuiklyPageView : DeclarativeBaseView<KuiklyPageAttr, KuiklyPageEv
             put("data", (data ?: JSONObject()))
         }
         callRenderViewMethod("sendEvent", params.toString())
-    }
-
-    fun pageDidAppear() {
-        sendPagerEvent("viewDidAppear")
-    }
-
-    fun pageDidDisappear() {
-        sendPagerEvent("viewDidDisappear")
     }
 
     override fun onPagerEvent(pagerEvent: String, eventData: JSONObject) {

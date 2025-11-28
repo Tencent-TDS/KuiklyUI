@@ -277,3 +277,102 @@ override fun created() {
 ## 关于线程安全
 * KMP多线程需要开发者自行考虑线程安全问题，可以借助`kotlinx:atomicfu`库提供的原子操作和同步锁能力；
 * Kuikly UI的相关类（View、Attr、Event、ObservableProperties、GlobalFunctions等）非线程安全，且只能在Kuikly线程访问。
+
+## 使用Kuikly多线程与协程
+
+Kuikly基于Kotlin实现，可以使用Kotlin的协程（Coroutines）来进行多线程开发，关于协程的详细介绍可参见[官方文档](https://kotlinlang.org/docs/coroutines-overview.html)。要在Kuikly环境下使用Kotlin的协程来实现多线程编程，主要有两步：
+1. 接入Kotlin协程库kotlinx.coroutines，以使用协程相关API
+2. 接入Kuikly基于kotlinx.coroutines的扩展库kuiklyx.coroutines，用于从其他线程切换到Kuikly线程
+
+:::tip 注意
+如果编译成js产物执行（动态化场景），受限于JS引擎的单线程执行方式，无法实现真正的多线程并行执行。
+:::
+
+
+### Kotlin协程库接入
+Kotlin官方提供了kotlinx.coroutines协程库，支持多平台，它提供了丰富的API和工具来简化协程的使用。可以在gradle文件中配置依赖以接入kotlinx.coroutines。
+
+#### iOS & Android
+
+官方协程库支持在Android、iOS framework模式使用完备的多线程协程能力：
+
+```gradle
+dependencies {
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:VERSION")
+}
+```
+:::tip 注意
+结合[官方协程库](https://github.com/Kotlin/kotlinx.coroutines/releases)以及当前Koltin版本确定VERSION字段
+:::
+
+#### 鸿蒙
+
+如需在鸿蒙平台上使用协程，可使用基于官方协程库的鸿蒙支持版本：
+
+```gradle
+dependencies {
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0-KBA-002")
+}
+```
+
+该扩展协程库位于以下maven源
+```gradle
+maven("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
+```
+
+kotlinx.coroutines库的具体语法和使用方式可参考[官方文档](https://kotlinlang.org/docs/coroutines-guide.html)。
+
+
+### Kuikly扩展库接入
+需要注意的是，对Kuikly的操作必须在Kuikly的Context线程中执行。如果调用Kuikly的API时处于其它线程，需要切换回Kuikly线程再进行调用。为此提供了一个扩展库，封装了切换到Kuikly线程的功能：
+
+#### iOS & Android
+
+```gradle
+dependencies {
+    implementation("com.tencent.kuiklyx-open:coroutines:1.5.0-2.0.21")
+}
+```
+
+#### 鸿蒙
+
+如果需要在鸿蒙上使用该切换到Kuikly线程的协程库，需要使用特定版本：
+
+```gradle
+dependencies {
+    implementation("com.tencent.kuiklyx-open:coroutines:1.5.0-2.0.21-ohos")
+}
+```
+
+#### 使用方式
+
+该协程库可以和官方协程库配合使用，用于从其他线程切换到Kuikly线程，主要有以下两种使用方式。
+
+1. 协程方式
+```kotlin
+// 在其他线程执行代码
+doSomething()
+
+KuiklyContextScheduler // js模式使用前需要触发KuiklyContextScheduler初始化，其它模式可忽略
+
+// 使用withContext切换线程，ownerPager为pagerId的持有者，可以直接传入当前Pager类
+withContext(Dispatchers.Kuikly[ownerPager]) {
+    // 在 Kuikly 线程执行代码，如调用module方法、更新UI
+    KLog.i("LogModule", "call native log method in kuikly thread")
+}
+```
+
+2. 回调方式
+```kotlin
+// 在其他线程执行代码
+doSomething()
+
+KuiklyContextScheduler.runOnKuiklyThread(pagerId) { cancel ->
+    if (cancel) {
+        // pager is destroyed
+        return
+    }
+    // 在 Kuikly 线程执行代码，如调用module方法、更新UI
+    KLog.i("LogModule", "call native log method in kuikly thread")
+}
+```

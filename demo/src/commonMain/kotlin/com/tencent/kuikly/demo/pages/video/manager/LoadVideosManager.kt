@@ -32,44 +32,6 @@ object LoadVideosManager {
         return videoList
     }
 
-    internal fun requestFeedsWithMockedData(callback: (List<VideoItem>) -> Unit) {
-//        val temp = JSONObject(videoJson)
-//        val abc = temp.optString("common_rsp")
-//        val efg = JSONObject(abc)
-//        val arr = efg.optJSONArray("items")
-//        val codecModule = PagerManager.getCurrentPager().acquireModule<CodecModule>(CodecModule.MODULE_NAME)
-//        var videoList =  mutableListOf<VideoItem>()
-//        if (arr == null) {
-//            KLog.d("123","abc is null")
-//        } else {
-//            KLog.d("12345", arr.toString())
-//            for (i in 0..arr.length()) {
-//                val item = arr.optJSONObject(i)
-//                if (item != null) {
-//                    val title = item.optString("title")
-//                    val url = item.optString("url")
-//                    val shared_sub_info = item.optJSONObject("shared_sub_info")
-//                    val comment_num = shared_sub_info?.optString("comment_num") ?: ""
-//                    val share_num = shared_sub_info?.optString("share_num") ?: ""
-//                    val collect_num = shared_sub_info?.optString("collect_num")
-//                    val tempMap = parseQBUrlToMap(url)
-//                    val videoUrl = tempMap["videoUrl"]?.let { codecModule.urlDecode(it) } ?: ""
-//                    val currentId = tempMap["currentId"]
-//                    val userurl = tempMap["userurl"]?.let { codecModule.urlDecode(it) } ?:""
-//                    val imgUrl = tempMap["imgUrl"]?.let { codecModule.urlDecode(it) }?: ""
-//                    val iPraiseNum = tempMap["iPraiseNum"] ?: ""
-//                    val extinfo = tempMap["extinfo"]?.let { codecModule.urlDecode(it) }
-//                    val sFrom = tempMap["sFrom"]?.let{ codecModule.urlDecode(it) }
-//                    val sUserIcon = tempMap["sUserIcon"]?.let{ codecModule.urlDecode(it) } ?: ""
-//                    val duration = tempMap["duration"]?.toInt() ?: 0
-//                    // todo 解析数据填充
-//                    videoList.add(VideoItem(videoUrl = videoUrl, imgUrl = imgUrl, duration = duration))
-//                }
-//            }
-//        }
-//        isLoad = false
-//        callback(videoList)
-    }
     private fun requestFromModule(callback: (List<VideoItem>) -> Unit) {
         val fetcherModule = PagerManager.getCurrentPager().getModule<BridgeModule>(BridgeModule.MODULE_NAME)
         val pathName = getFileName()
@@ -81,58 +43,6 @@ object LoadVideosManager {
             }
             isLoad = false
         }
-//        val fetcherModule = PagerManager.getCurrentPager().getModule<KRMttVideoFeedFetcherModule>(KRMttVideoFeedFetcherModule.MODULE_NAME)
-//        if(fetcherModule != null){
-//            fetcherModule.fetchVideoFeeds(true){ temp ->
-//                val arr = temp?.optJSONObject("common_rsp")?.optJSONArray("items")
-//                val codecModule = PagerManager.getCurrentPager().acquireModule<CodecModule>(CodecModule.MODULE_NAME)
-//                var videoList =  mutableListOf<VideoItem>()
-//                if (arr == null) {
-//                    KLog.d("LoadVideosManager","items is null")
-//                } else {
-//                    KLog.d("LoadVideosManager", arr.toString())
-//                    for (i in 0..arr.length()) {
-//                        val item = arr.optJSONObject(i)
-//                        if (item != null) {
-//                            val title = item.optString("title")
-//                            val url = item.optString("url")
-//                            val shared_sub_info = item.optJSONObject("shared_sub_info")
-////                            val comment_num = shared_sub_info?.optString("comment_num") ?: ""
-////                            val share_num = shared_sub_info?.optString("share_num") ?: ""
-////                            val collect_num = shared_sub_info?.optString("collect_num")
-//                            val tempMap = parseQBUrlToMap(url)
-//                            val videoUrl = tempMap["videoUrl"]?.let { codecModule.urlDecode(it) } ?: ""
-//                            val currentId = tempMap["currentId"]
-//                            val userurl = tempMap["userurl"]?.let { codecModule.urlDecode(it) } ?: ""
-//                            val imgUrl = tempMap["imgUrl"]?.let { codecModule.urlDecode(it) }?: ""
-//                            val iPraiseNum = tempMap["iPraiseNum"]?.toInt() ?: 0
-//                            val extinfo = tempMap["extinfo"]?.let { codecModule.urlDecode(it) }
-//                            val sFrom = tempMap["sFrom"]?.let{ codecModule.urlDecode(it) } ?: ""
-//                            val sUserIcon = tempMap["sUserIcon"]?.let{ codecModule.urlDecode(it) } ?: ""
-//                            val duration = tempMap["duration"]?.toInt() ?: 0
-//                            val transferInfo = tempMap["transferInfo"]?.let { codecModule.urlDecode(it) } ?: ""
-//                            val (videoHeight, videoWidth) = parseVideoTransferInfo(transferInfo)
-//                            // todo 解析数据填充
-//                            val iCollectNum = tempMap["iCollectNum"]?.toInt() ?: 0
-//                            val iCommentNum = tempMap["iCommentNum"]?.toInt() ?: 0
-//                            val iShareNum = tempMap["iShareNum"]?.toInt() ?: 0
-//                            videoList.add(VideoItem(videoUrl = videoUrl, imgUrl = imgUrl,
-//                                duration = duration, nick = sFrom,
-//                                description = title, avatar = sUserIcon, likeNum = iPraiseNum,
-//                                retweetNum = iShareNum, commentNum = iCommentNum, collectNum = iCollectNum,
-//                                videoWidth = videoWidth, videoHeight = videoHeight
-//                            ))
-//
-//                        }
-//                    }
-//
-//                    isLoad = false
-//                    callback(videoList)
-//                }
-//            }
-//        }else{
-//            KLog.e("LoadVideosManager", "unable to get fetcher module")
-//        }
     }
 
     internal fun requestFeeds(callback: (List<VideoItem>) -> Unit) {
@@ -175,9 +85,6 @@ object LoadVideosManager {
                     val codecModule = PagerManager.getCurrentPager().acquireModule<CodecModule>(CodecModule.MODULE_NAME)
 
                     val sUserIcon = item.optString("avatar").let{ codecModule.urlDecode(it) }
-//                    val duration = tempMap["duration"]?.toInt() ?: 0
-//                    val transferInfo = tempMap["transferInfo"]?.let { codecModule.urlDecode(it) } ?: ""
-//                    val (videoHeight, videoWidth) = parseVideoTransferInfo(transferInfo)
 
                     val iCollectNum = item.optInt("iCollectNum")
                     val iCommentNum = item.optInt("iCommentNum")

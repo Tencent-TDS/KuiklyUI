@@ -2,6 +2,8 @@ package com.tencent.kuikly.core.render.web.ktx
 
 import com.tencent.kuikly.core.render.web.css.animation.KRCSSAnimation
 import com.tencent.kuikly.core.render.web.processor.IAnimation
+import com.tencent.kuikly.core.render.web.processor.IEvent
+import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
 import org.w3c.dom.Element
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.css.CSSStyleDeclaration
@@ -9,6 +11,7 @@ import org.w3c.dom.get
 import kotlin.js.Json
 import kotlin.js.Promise
 import kotlin.js.json
+import com.tencent.kuikly.core.render.web.processor.state
 
 object KRViewConst {
     const val WIDTH = "width"
@@ -907,31 +910,95 @@ private val propHandlers = mapOf<String, (CSSStyleDeclaration, Any, HTMLElement)
     },
     KRCssConst.CLICK to { _, value, ele ->
         ele.addEventListener("click", { event ->
+            // If a pan or long-press has been triggered, ignore the click.
+            val panOrLongPressTriggered = ele.asDynamic().panOrLongPressTriggered == true
+            if (panOrLongPressTriggered) {
+                return@addEventListener
+            }
+            // Check whether the current element is marked as having a double click handler registered
+            val hasBindDoubleClick = ele.asDynamic().hasDoubleClickListener == true
             val clickEvent = event.asDynamic()
             clickEvent.stopPropagation()
-            value.unsafeCast<KuiklyRenderCallback>().invoke(
-                mapOf(
-                    "x" to clickEvent.offsetX.unsafeCast<Double>().toFloat(),
-                    "y" to clickEvent.offsetY.unsafeCast<Double>().toFloat()
+            // If no double click handler is registered, invoke the click callback
+            if (!hasBindDoubleClick) {
+                value.unsafeCast<KuiklyRenderCallback>().invoke(
+                    mapOf(
+                        "x" to clickEvent.offsetX.unsafeCast<Double>().toFloat(),
+                        "y" to clickEvent.offsetY.unsafeCast<Double>().toFloat()
+                    )
                 )
-            )
+            } else {
+                // If a double click handler is registered
+                // If the timer exists , clear it (reset the timing)
+                val prevTimer = ele.asDynamic().clickTimer
+                if (prevTimer != null) kuiklyWindow.clearTimeout(prevTimer)
+                // Start a new timer and save it
+                ele.asDynamic().clickTimer = kuiklyWindow.setTimeout({
+                    // If the double click callback is not triggered within 200ms, invoke the click callback
+                    value.unsafeCast<KuiklyRenderCallback>().invoke(
+                        mapOf(
+                            "x" to clickEvent.offsetX.unsafeCast<Double>().toFloat(),
+                            "y" to clickEvent.offsetY.unsafeCast<Double>().toFloat()
+                        )
+                    )
+                    // clear the timer
+                    ele.asDynamic().clickTimer = null
+                },200)
+            }
+
         })
         true
     },
     KRCssConst.DOUBLE_CLICK to { _, value, ele ->
-        ele.addEventListener("dblclick", { event ->
-            val clickEvent = event.asDynamic()
-            clickEvent.stopPropagation()
-            value.unsafeCast<KuiklyRenderCallback>().invoke(
-                mapOf(
-                    "x" to clickEvent.offsetX.unsafeCast<Double>().toFloat(),
-                    "y" to clickEvent.offsetY.unsafeCast<Double>().toFloat()
+        // Mark the element as having a double click handler registered
+        ele.asDynamic().hasDoubleClickListener = true
+        // When the double click event is triggered, invoke the double click callback
+        KuiklyProcessor.eventProcessor.doubleClick(ele) { event: IEvent? ->
+            event?.let {
+                value.unsafeCast<KuiklyRenderCallback>().invoke(
+                    mapOf(
+                        "x" to it.offsetX.toFloat(),
+                        "y" to it.offsetY.toFloat()
+                    )
                 )
-            )
-        })
+                // Clear the timer to prevent the click callback from being invoked afterward
+                val timer = ele.asDynamic().clickTimer
+                if (timer != null) {
+                    kuiklyWindow.clearTimeout(timer)
+                    ele.asDynamic().clickTimer = null
+                }
+            }
+        }
         true
     },
-    KRCssConst.LONG_PRESS to { _, _, _ ->
+    KRCssConst.LONG_PRESS to { _, value, ele ->
+        KuiklyProcessor.eventProcessor.longPress(ele) { event ->
+            event?.let {
+                value.unsafeCast<KuiklyRenderCallback>().invoke(
+                    mapOf(
+                        "x" to it.clientX.toFloat(),
+                        "y" to it.clientY.toFloat(),
+                        "state" to it.state
+                    )
+                )
+            }
+        }
+        true
+    },
+    KRCssConst.PAN to { _, value, ele ->
+        KuiklyProcessor.eventProcessor.pan(ele) { event ->
+            event?.let {
+                value.unsafeCast<KuiklyRenderCallback>().invoke(
+                    mapOf(
+                        "x" to it.clientX.toFloat() - ele.getBoundingClientRect().left,
+                        "y" to it.clientY.toFloat() - ele.getBoundingClientRect().top,
+                        "state" to it.state,
+                        "pageX" to it.pageX.toFloat(),
+                        "pageY" to it.pageY.toFloat(),
+                    )
+                )
+            }
+        }
         true
     },
     KRCssConst.ANIMATION to { _, value, ele ->

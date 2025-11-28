@@ -276,7 +276,7 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
 
     override fun setShadow(shadow: IKuiklyRenderShadowExport) {
         super.setShadow(shadow)
-        if(!this.isRichTextValues()) {
+        if(!this.isRichTextValues() && ele.innerText != renderText) {
             // for compose , plain text, isRichText is true, but richTextSpanList.length is 0
             // for web, when set innerText, the span will be removed
             ele.innerText = renderText

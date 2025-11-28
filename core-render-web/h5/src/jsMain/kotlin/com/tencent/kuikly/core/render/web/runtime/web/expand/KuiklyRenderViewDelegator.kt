@@ -38,6 +38,7 @@ import com.tencent.kuikly.core.render.web.performance.KRPerformanceData
 import com.tencent.kuikly.core.render.web.performance.KRPerformanceManager
 import com.tencent.kuikly.core.render.web.performance.launch.KRLaunchData
 import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
+import com.tencent.kuikly.core.render.web.runtime.web.expand.module.H5WindowResizeModule
 import com.tencent.kuikly.core.render.web.runtime.web.expand.processor.AnimationProcessor
 import com.tencent.kuikly.core.render.web.runtime.web.expand.processor.EventProcessor
 import com.tencent.kuikly.core.render.web.runtime.web.expand.processor.ImageProcessor
@@ -373,6 +374,9 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
             }
             moduleExport(KRNetworkModule.MODULE_NAME) {
                 KRNetworkModule()
+            }
+            moduleExport(H5WindowResizeModule.MODULE_NAME) {
+                H5WindowResizeModule()
             }
             // Delegate to external, allowing host project to expose its own modules
             delegate.registerExternalModule(this)

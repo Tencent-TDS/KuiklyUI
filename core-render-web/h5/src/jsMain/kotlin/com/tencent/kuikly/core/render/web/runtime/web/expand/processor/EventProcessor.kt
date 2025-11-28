@@ -1,5 +1,11 @@
 package com.tencent.kuikly.core.render.web.runtime.web.expand.processor
 
+import com.tencent.kuikly.core.render.web.collection.array.JsArray
+import com.tencent.kuikly.core.render.web.collection.array.add
+import com.tencent.kuikly.core.render.web.collection.array.get
+import com.tencent.kuikly.core.render.web.collection.array.clear
+import com.tencent.kuikly.core.render.web.collection.array.isEmpty
+import com.tencent.kuikly.core.render.web.collection.array.remove
 import com.tencent.kuikly.core.render.web.processor.IEvent
 import com.tencent.kuikly.core.render.web.processor.IEventProcessor
 import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
@@ -10,6 +16,58 @@ import org.w3c.dom.events.MouseEvent
 import org.w3c.dom.get
 import kotlin.js.Date
 import kotlin.math.abs
+import com.tencent.kuikly.core.render.web.processor.state
+import com.tencent.kuikly.core.render.web.runtime.web.expand.components.list.isTouchEventOrNull
+
+
+/**
+ * Implement pan events across element boundaries
+ */
+object PCPanEventHandler {
+    // Save all elements that trigger mouseDown event
+    var mouseDownEleIds: JsArray<String> = JsArray()
+    // Save the elements of ListView
+    private var panHandler: TouchEventHandlers.PanHandler? = null
+
+    init {
+        kuiklyWindow.addEventListener("mousemove", {
+            if (mouseDownEleIds.isEmpty()) return@addEventListener
+            val id = mouseDownEleIds[0]
+            val ele = kuiklyWindow.document.getElementById(id)
+            panHandler = ele.asDynamic().panHandler.unsafeCast<TouchEventHandlers.PanHandler>()
+            panHandler?.handleMouseMove(it as MouseEvent)
+        })
+
+        kuiklyWindow.addEventListener("mouseup", {
+            panHandler?.handleMouseUp(it as MouseEvent)
+            mouseDownEleIds.clear()
+            panHandler = null
+        })
+    }
+}
+
+// 为 Event 增加 state 属性, 用于记录longpress/pan事件状态
+var Event.state: String?
+    get() = asDynamic().state as? String
+    set(value) {
+        asDynamic().state = value
+    }
+
+// Event 添加 touchOffsetX/touchOffsetY 属性, 供 H5Event 使用
+var Event.touchOffsetX: Int?
+    get() = asDynamic().touchOffsetX as? Int
+    set(value) {
+        asDynamic().touchOffsetX = value
+    }
+
+var Event.touchOffsetY: Int?
+    get() = asDynamic().touchOffsetY as? Int
+    set(value) {
+        asDynamic().touchOffsetY = value
+    }
+
+// 互斥 longPress 与 pan 标志
+var canPan: Boolean = false
 
 /**
  * Mobile touch event handler
@@ -40,13 +98,10 @@ class TouchEventHandlers {
                 event as TouchEvent
                 handleTap(event)
             })
-
-            // Use mouse events for desktop devices as a fallback
-            element.addEventListener("mousedown", { event ->
-                event as MouseEvent
-                if (event.button == 0.toShort()) { // Only handle left click
-                    handleMouseTap(event)
-                }
+            element.addEventListener("dblclick", { event ->
+                val clickEvent = event.asDynamic()
+                clickEvent.stopPropagation()
+                onDoubleTap(event)
             })
         }
 
@@ -61,12 +116,15 @@ class TouchEventHandlers {
                 val y = touch?.clientY
 
                 if (x != null && y != null) {
-                    if (currentTime - lastTapTime < doubleTapDelay &&
-                        abs(x - lastTapX) < moveTolerance &&
-                        abs(y - lastTapY) < moveTolerance
+                    if (currentTime - lastTapTime < doubleTapDelay
+                        && abs(x - lastTapX) < moveTolerance
+                        && abs(y - lastTapY) < moveTolerance
                     ) {
                         // Double tap triggered
                         event.preventDefault()
+                        event.stopPropagation()
+                        event.touchOffsetX = x - element.getBoundingClientRect().left.toInt() - element.clientLeft
+                        event.touchOffsetY = y - element.getBoundingClientRect().top.toInt() - element.clientTop
                         onDoubleTap(event)
                         // Reset timer to prevent continuous triggering
                         lastTapTime = 0.0
@@ -77,31 +135,6 @@ class TouchEventHandlers {
                         lastTapY = y
                     }
                 }
-            }
-        }
-
-        /**
-         * Handle non-mobile tap event
-         */
-        private fun handleMouseTap(event: MouseEvent) {
-            val currentTime = Date.now()
-            val x = event.clientX
-            val y = event.clientY
-
-            if (currentTime - lastTapTime < doubleTapDelay &&
-                abs(x - lastTapX) < moveTolerance &&
-                abs(y - lastTapY) < moveTolerance
-            ) {
-                // Double tap triggered
-                event.preventDefault()
-                onDoubleTap(event)
-                // Reset timer to prevent continuous triggering
-                lastTapTime = 0.0
-            } else {
-                // Record first click
-                lastTapTime = currentTime
-                lastTapX = x
-                lastTapY = y
             }
         }
     }
@@ -117,6 +150,7 @@ class TouchEventHandlers {
         private var startX: Int = 0
         private var startY: Int = 0
         private var isLongPressing: Boolean = false
+        private var isMouseDown: Boolean = false
 
         init {
             setupListeners()
@@ -152,10 +186,13 @@ class TouchEventHandlers {
                         val moveX = touch.clientX
                         val moveY = touch.clientY
                         // If movement exceeds tolerance, cancel long press
-                        if (abs(moveX - startX) > moveTolerance ||
-                            abs(moveY - startY) > moveTolerance
-                        ) {
+                        if ((abs(moveX - startX) > moveTolerance ||
+                                    abs(moveY - startY) > moveTolerance) && !isLongPressing) {
                             cancelTimer()
+                        }
+                        if (isLongPressing) {
+                            event.state = EVENT_STATE_MOVE
+                            onLongPress(event)
                         }
                     }
                 }
@@ -164,13 +201,21 @@ class TouchEventHandlers {
             /**
              * Cancel listener
              */
-            element.addEventListener("touchend", { _ ->
+            element.addEventListener("touchend", { event ->
+                if (isLongPressing) {
+                    event.state = EVENT_STATE_END
+                    onLongPress(event)
+                }
                 cancelTimer()
             })
             /**
              * Cancel listener
              */
-            element.addEventListener("touchcancel", { _ ->
+            element.addEventListener("touchcancel", { event ->
+                if (isLongPressing) {
+                    event.state = EVENT_STATE_END
+                    onLongPress(event)
+                }
                 cancelTimer()
             })
 
@@ -180,32 +225,47 @@ class TouchEventHandlers {
                 if (event.button == 0.toShort()) { // Only handle left click
                     startX = event.clientX
                     startY = event.clientY
+                    isMouseDown = true
+                    // Clears the pan/long-press triggered flag
+                    element.asDynamic().panOrLongPressTriggered = false
                     startTimer(event)
                 }
             })
 
             element.addEventListener("mousemove", { event ->
                 event as MouseEvent
+                if (!isMouseDown) return@addEventListener
                 val moveX = event.clientX
                 val moveY = event.clientY
 
                 // If movement exceeds tolerance, cancel long press
-                if (abs(moveX - startX) > moveTolerance ||
-                    abs(moveY - startY) > moveTolerance
-                ) {
+                if ((abs(moveX - startX) > moveTolerance ||
+                            abs(moveY - startY) > moveTolerance) && !isLongPressing) {
                     cancelTimer()
+                }
+                if (isLongPressing) {
+                    event.state = EVENT_STATE_MOVE
+                    onLongPress(event)
                 }
             })
             /**
              * Cancel listener
              */
-            element.addEventListener("mouseup", { _ ->
+            element.addEventListener("mouseup", { event ->
+                if (isLongPressing) {
+                    event.state = EVENT_STATE_END
+                    onLongPress(event)
+                    // Marks the current element as having triggered a pan or long-press event
+                    element.asDynamic().panOrLongPressTriggered = true
+                }
+                isMouseDown = false
                 cancelTimer()
             })
             /**
              * Cancel listener
              */
             element.addEventListener("mouseleave", { _ ->
+                isMouseDown = false
                 cancelTimer()
             })
         }
@@ -216,12 +276,14 @@ class TouchEventHandlers {
         private fun startTimer(event: Event) {
             cancelTimer() // Ensure no running timer
             isLongPressing = false
-
             pressTimer = kuiklyWindow.setTimeout({
                 isLongPressing = true
+                canPan = false // Disable pan event when longPress
                 // Prevent default event
-                event.preventDefault()
+                event.state = EVENT_STATE_START
                 onLongPress(event)
+                event.preventDefault()
+
             }, longPressDelay)
         }
 
@@ -233,6 +295,144 @@ class TouchEventHandlers {
                 kuiklyWindow.clearTimeout(it)
                 pressTimer = null
             }
+            isLongPressing = false
+        }
+    }
+
+    class PanHandler(
+        private val element: HTMLElement,
+        private val onPan: (Event) -> Unit,
+        private val moveTolerance: Int = DEFAULT_MOVE_TOLERANCE
+    ) {
+        private var startX: Int = 0
+        private var startY: Int = 0
+        private var isPaning: Boolean = false
+        private var isMouseDown: Boolean = false
+
+        init {
+            element.asDynamic().panHandler = this
+            setupListeners()
+            PCPanEventHandler
+        }
+
+        /**
+         * Set up event listeners
+         */
+        private fun setupListeners() {
+            // Prevent default context menu
+            element.addEventListener("contextmenu", { event ->
+                event.preventDefault()
+            })
+
+            // Touch events
+            element.addEventListener("touchstart", { event ->
+                event as TouchEvent
+                if (event.touches.length == 1) {
+                    val touch = event.touches[0]
+                    if (touch != null) {
+                        startX = touch.clientX
+                        startY = touch.clientY
+                        canPan = true
+                    }
+                }
+            })
+
+            element.addEventListener("touchmove", { event ->
+                event as TouchEvent
+                if (!canPan) return@addEventListener
+                if (event.touches.length == 1) {
+                    val touch = event.touches[0]
+                    if (touch != null) {
+                        val moveX = touch.clientX
+                        val moveY = touch.clientY
+                        // If movement exceeds tolerance, cancel long press
+                        if ((abs(moveX - startX) > moveTolerance || abs(moveY - startY) > moveTolerance) && !isPaning) {
+                            isPaning = true
+                            event.state = EVENT_STATE_START
+                            onPan(event)
+                            event.preventDefault()
+                        }
+                        if (isPaning) {
+                            event.state = EVENT_STATE_MOVE
+                            onPan(event)
+                        }
+                    }
+                }
+            })
+
+            /**
+             * Cancel listener
+             */
+            element.addEventListener("touchend", { event ->
+                if (isPaning) {
+                    event.state = EVENT_STATE_END
+                    onPan(event)
+                }
+                isPaning = false
+                canPan = false
+            })
+            /**
+             * Cancel listener
+             */
+            element.addEventListener("touchcancel", { _ ->
+                isPaning = false
+                canPan = false
+            })
+
+            // Mouse events as fallback
+            element.addEventListener("mousedown", { event ->
+                event as MouseEvent
+                if (event.button == 0.toShort()) { // Only handle left click
+                    startX = event.clientX
+                    startY = event.clientY
+                    canPan = true
+                    isMouseDown= true
+                    PCPanEventHandler.mouseDownEleIds.add(element.id)
+                    // Clears the pan/long-press triggered flag
+                    element.asDynamic().panOrLongPressTriggered = false
+                }
+            })
+
+            // Prevent text selection
+            element.addEventListener("selectstart", {
+                it.preventDefault();
+            },)
+            // Prevent image drag
+            element.addEventListener("dragstart", {
+                it.preventDefault();
+            })
+        }
+
+         fun handleMouseMove(event: MouseEvent) {
+            if (!canPan || !isMouseDown) {
+                PCPanEventHandler.mouseDownEleIds.remove(element.id)
+                return
+            }
+            val moveX = event.clientX
+            val moveY = event.clientY
+            // If movement exceeds tolerance, start pan
+            if ((abs(moveX - startX) > moveTolerance || abs(moveY - startY) > moveTolerance) && !isPaning) {
+                isPaning = true
+                event.state = EVENT_STATE_START
+                onPan(event)
+                event.preventDefault()
+            }
+            if (isPaning) {
+                event.state = EVENT_STATE_MOVE
+                onPan(event)
+            }
+        }
+
+        fun handleMouseUp(event: MouseEvent) {
+            if (isPaning) {
+                event.state = EVENT_STATE_END
+                onPan(event)
+                // Marks the current element as having triggered a pan or long-press event.
+                element.asDynamic().panOrLongPressTriggered = true
+            }
+            isPaning = false
+            canPan = false
+            isMouseDown = false
         }
     }
 
@@ -241,6 +441,11 @@ class TouchEventHandlers {
         private const val DEFAULT_DOUBLE_TAP_DELAY = 300 // Double tap interval time (milliseconds)
         private const val DEFAULT_LONG_PRESS_DELAY = 700 // Long press trigger time (milliseconds)
         private const val DEFAULT_MOVE_TOLERANCE = 10 // Movement tolerance (pixels)
+
+        // longPress/pan event state
+        private const val EVENT_STATE_START = "start"
+        private const val EVENT_STATE_MOVE = "move"
+        private const val EVENT_STATE_END = "end"
     }
 }
 
@@ -252,6 +457,8 @@ data class H5Event(
     override val screenY: Int,
     override val clientX: Int,
     override val clientY: Int,
+    override val offsetX: Int,
+    override val offsetY: Int,
     override val pageX: Int,
     override val pageY: Int
 ) : IEvent
@@ -264,31 +471,40 @@ object EventProcessor : IEventProcessor {
      * process event callback
      */
     private fun handleEventCallback(event: Event, callback: (event: IEvent?) -> Unit) {
-        if (event is TouchEvent) {
-            val touch = event.touches[0]
+        if (event.isTouchEventOrNull() != null) {
+            // touchend 时 touches 为空
+            val touch = if (event.type == "touchend") {
+                event.unsafeCast<TouchEvent>().changedTouches[0]
+            } else {
+                event.unsafeCast<TouchEvent>().touches[0]
+            }
             touch?.let {
-                callback(
-                    H5Event(
+                val touchEvent = H5Event(
                     screenX = touch.screenX,
                     screenY = touch.screenY,
                     clientX = touch.clientX,
                     clientY = touch.clientY,
+                    offsetX = event.touchOffsetX ?: touch.clientX,
+                    offsetY = event.touchOffsetY ?: touch.clientY,
                     pageX = touch.pageX,
                     pageY = touch.pageY
                 )
-                )
+                touchEvent.state = event.state
+                callback(touchEvent)
             }
         } else if (event is MouseEvent) {
-            callback(
-                H5Event(
+            val mouse = H5Event(
                 screenX = event.screenX,
                 screenY = event.screenY,
                 clientX = event.clientX,
                 clientY = event.clientY,
+                offsetX = event.offsetX.toInt(),
+                offsetY = event.offsetY.toInt(),
                 pageX = event.pageX.toInt(),
-                pageY = event.pageY.toInt()
+                pageY = event.pageY.toInt(),
             )
-            )
+            mouse.state = event.state
+            callback(mouse)
         }
     }
 
@@ -298,11 +514,9 @@ object EventProcessor : IEventProcessor {
     override fun doubleClick(ele: HTMLElement, callback: (event: IEvent?) -> Unit) {
         // Simulate double tap event for h5
         TouchEventHandlers.DoubleTapHandler(
-            element = ele,
-            onDoubleTap = { event: Event ->
+            element = ele, onDoubleTap = { event: Event ->
                 handleEventCallback(event, callback)
-            }
-        )
+            })
     }
 
     /**
@@ -311,10 +525,19 @@ object EventProcessor : IEventProcessor {
     override fun longPress(ele: HTMLElement, callback: (event: IEvent?) -> Unit) {
         // Simulate longPress tap event for h5
         TouchEventHandlers.LongPressHandler(
-            element = ele.unsafeCast<HTMLElement>(),
-            onLongPress = { event ->
+            element = ele.unsafeCast<HTMLElement>(), onLongPress = { event ->
                 handleEventCallback(event, callback)
-            }
-        )
+            })
+    }
+
+    /**
+     * simulate pan event for h5 touch event
+     */
+    override fun pan(ele: HTMLElement, callback: (event: IEvent?) -> Unit) {
+        // Simulate pan tap event for h5
+        TouchEventHandlers.PanHandler(
+            element = ele.unsafeCast<HTMLElement>(), onPan = { event ->
+                handleEventCallback(event, callback)
+            })
     }
 }

@@ -152,12 +152,14 @@ class VideoListCellView : ComposeView<VideoListCellAttr, VideoListCellEvent>() {
                         }
                     }
                     appearPercentage { percentage01->
-                        if (percentage01 > 0.95f && ctx.attr.onPage) {
-                            if (ctx.attr.onPage && ctx.isPlay != VideoPlayControl.PLAY) {
+                        // 当视频可见度超过95%时自动播放
+                        if (percentage01 > 0.95f) {
+                            if (ctx.isPlay != VideoPlayControl.PLAY) {
                                 ctx.isPlay = VideoPlayControl.PLAY
                                 ctx.event.playHandler?.invoke()
                             }
                         } else if (percentage01 < 0.005f) {
+                            // 当视频几乎不可见时自动暂停
                             if (ctx.isPlay != VideoPlayControl.PAUSE) {
                                 ctx.isPlay = VideoPlayControl.PAUSE
                             }

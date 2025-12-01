@@ -20,6 +20,7 @@ import com.tencent.kuikly.core.render.web.utils.DeviceUtils
 import org.w3c.dom.HTMLDivElement
 import org.w3c.dom.Touch
 import org.w3c.dom.TouchEvent
+import org.w3c.dom.events.Event
 import org.w3c.dom.events.MouseEvent
 import org.w3c.dom.get
 import kotlin.js.json
@@ -120,6 +121,8 @@ open class KRView : IKuiklyRenderViewExport {
     private val borderWithSizeRatio = BORDER_SIZE_RATIO
     private var superTouch: Boolean = false
     private var superTouchCanceled: Boolean = false
+    // Window mouse up event listener reference for cleanup
+    private var windowMouseUpListener: ((Event) -> Unit)? = null
 
     override val ele: HTMLDivElement
         get() = div.unsafeCast<HTMLDivElement>()
@@ -401,7 +404,8 @@ open class KRView : IKuiklyRenderViewExport {
         })
 
         // Add global mouse event listeners to handle mouse release outside of element
-        kuiklyWindow.addEventListener(KREventConst.MOUSE_UP, {
+        // Save reference for cleanup in onDestroy
+        windowMouseUpListener = { event: Event ->
             if (isMouseDown) {
                 isMouseDown = false
                 var params = fastMutableMapOf<String, Any>().apply {
@@ -411,11 +415,12 @@ open class KRView : IKuiklyRenderViewExport {
                     put(KRParamConst.PAGE_X, pageX)
                     put(KRParamConst.PAGE_Y, pageY)
                 }
-                params = setSuperTouchEventParams(params, it.timeStamp.toLong(), KRActionConst.TOUCH_UP)
+                params = setSuperTouchEventParams(params, event.timeStamp.toLong(), KRActionConst.TOUCH_UP)
                 panEventCallback?.invoke(params)
                 touchUpEventCallback?.invoke(params)
             }
-        })
+        }
+        kuiklyWindow.addEventListener(KREventConst.MOUSE_UP, windowMouseUpListener)
     }
 
     /**
@@ -492,6 +497,36 @@ open class KRView : IKuiklyRenderViewExport {
             // Execute frame rate change callback
             callback?.invoke(null)
         }, SCREEN_FRAME_REFRESH_TIME)
+    }
+
+    /**
+     * Clean up resources when view is destroyed to prevent memory leaks
+     */
+    override fun onDestroy() {
+        super.onDestroy()
+        
+        // 1. Remove global window event listener
+        windowMouseUpListener?.let {
+            kuiklyWindow.removeEventListener(KREventConst.MOUSE_UP, it)
+        }
+        windowMouseUpListener = null
+        
+        // 2. Clear screen frame timer
+        if (requestId != 0) {
+            kuiklyWindow.clearTimeout(requestId)
+            requestId = 0
+        }
+        
+        // 3. Clear all callback references
+        panEventCallback = null
+        touchDownEventCallback = null
+        touchMoveEventCallback = null
+        touchUpEventCallback = null
+        screenFrameCallback = null
+        
+        // 4. Reset state
+        isBindTouchEvent = false
+        isMouseDown = false
     }
 
     companion object {

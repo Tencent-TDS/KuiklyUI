@@ -380,27 +380,4 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         // HTTP success status code range
         private val HTTP_SUCCESS_RANGE = 200..299
     }
-
-    /**
-     * HTTP 请求参数数据类
-     */
-    private data class HttpRequestParams(
-        val url: String,
-        val method: String,
-        val param: JSONObject?,
-        val header: JSONObject?,
-        val cookie: String,
-        val timeout: Int
-    )
-
-    /**
-     * 流式 HTTP 请求参数数据类
-     */
-    private data class HttpStreamRequestParams(
-        val url: String,
-        val body: ByteArray,
-        val headerStr: String,
-        val cookie: String,
-        val timeout: Int
-    )
 }

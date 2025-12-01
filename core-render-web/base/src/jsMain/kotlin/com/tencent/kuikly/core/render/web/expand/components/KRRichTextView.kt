@@ -6,7 +6,7 @@ import com.tencent.kuikly.core.render.web.collection.array.JsArray
 import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderShadowExport
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewExport
-import com.tencent.kuikly.core.render.web.ktx.KRCssConst
+import com.tencent.kuikly.core.render.web.const.KRCssConst
 import com.tencent.kuikly.core.render.web.ktx.SizeF
 import com.tencent.kuikly.core.render.web.ktx.getCSSBackgroundImage
 import com.tencent.kuikly.core.render.web.ktx.kuiklyDocument
@@ -85,13 +85,15 @@ data class RichTextSpan(
     val value: String = "",
     val width: Float = 0f,
     val height: Float = 0f,
-    val fontWeight: Int = 400,
+    val fontWeight: Int = DEFAULT_FONT_WEIGHT,
     val fontSize: Float = 0f,
     val fontFamily: String = "",
     var offsetLeft: Float = 0f,
     var offsetTop: Float = 0f,
     val fontStyle: String = ""
 )
+
+private const val DEFAULT_FONT_WEIGHT = 400
 
 /**
  * KRRichTextView, corresponding to Kuikly's RichText
@@ -147,7 +149,7 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
     private var lineBreakMode = ""
     private var values: JSONArray? = null
     private var text = ""
-    private var lineSpacing = 1f
+    private var lineSpacing = DEFAULT_LINE_SPACING
     private var textDecoration = ""
     private var textAlign = ""
     private var lineBreakMargin = 0f
@@ -156,7 +158,7 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
     private var fontFamily = ""
     private var letterSpacing = 0f
     private var color = ""
-    private var fontSize = 13f
+    private var fontSize = DEFAULT_ELEMENT_FONT_SIZE
     private var renderText = ""
     private var strokeColor = ""
 
@@ -398,7 +400,7 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
     private fun setStokeWidth(value: Any) {
         val strokeWidth = value.unsafeCast<String>()
         if (strokeWidth != "0.0") {
-            val usedStrokeWidth = strokeWidth.toDouble() / 4
+            val usedStrokeWidth = strokeWidth.toDouble() / STROKE_WIDTH_DIVISOR
             ele.style.asDynamic().webkitTextStroke = "${usedStrokeWidth}px $strokeColor"
         }
     }
@@ -436,5 +438,10 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
         private const val GRAB_TEXT = "grabText"
 
         private const val LINE_BREAK_MODE_WORD_WRAP = "wordWrapping"
+        
+        // Default values
+        private const val DEFAULT_LINE_SPACING = 1f
+        private const val DEFAULT_ELEMENT_FONT_SIZE = 13f
+        private const val STROKE_WIDTH_DIVISOR = 4
     }
 }

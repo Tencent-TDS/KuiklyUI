@@ -3,6 +3,7 @@ import com.tencent.kuikly.core.render.web.ktx.SizeI
 import com.tencent.kuikly.core.render.web.runtime.miniapp.MiniDocument
 import com.tencent.kuikly.core.render.web.runtime.miniapp.core.App
 import com.tencent.kuikly.core.render.web.runtime.miniapp.core.NativeApi
+import com.tencent.kuikly.miniapp.KuiklyWebRenderViewDelegator
 
 const val TAG = "Main"
 
@@ -41,7 +42,7 @@ fun renderView(json: dynamic) {
         val params = paramsMap["param"].unsafeCast<FastMutableMap<String, Any>>()
         params["is_wx_mp"] = "true"
 
-//        paramsMap["platform"] = if (isAndroid) "android" else "iOS"
+        // paramsMap["platform"] = if (isAndroid) "android" else "iOS"
         paramsMap["platform"] = "miniprogram"
         paramsMap["isIOS"] = !isAndroid
         paramsMap["isIphoneX"] = !isAndroid && systemInfo.safeArea.top > 30

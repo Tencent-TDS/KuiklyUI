@@ -1,4 +1,4 @@
-package processor
+package com.tencent.kuikly.h5app.processor
 
 import com.tencent.kuikly.core.render.web.processor.IImageProcessor
 import com.tencent.kuikly.core.render.web.runtime.web.expand.processor.ImageProcessor as BaseImageProcessor

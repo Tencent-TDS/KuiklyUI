@@ -106,15 +106,37 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
                     fireErrorCallback(callback, "request error", httpCode)
                 }
             }
-            .catch {
-                val errorMsg = it.message
-                // Exception or error occurred, callback
+            .catch { error ->
+                val errorMsg = error.message ?: "Unknown error"
+                val errorType = determineErrorType(error, errorMsg)
+                Log.error("HTTP request failed: $errorType - $errorMsg")
+                
+                // Exception or error occurred, callback with detailed error info
                 fireErrorCallback(
                     callback,
-                    errorMsg ?: "io exception",
-                    if (httpCode != 0) httpCode else STATE_CODE_UNKNOWN
+                    "$errorType: $errorMsg",
+                    when {
+                        httpCode != 0 -> httpCode
+                        errorType == ERROR_TYPE_TIMEOUT -> STATE_CODE_TIMEOUT
+                        errorType == ERROR_TYPE_NETWORK -> STATE_CODE_NETWORK_ERROR
+                        else -> STATE_CODE_UNKNOWN
+                    }
                 )
             }
+    }
+    
+    /**
+     * Determine the type of error based on the error object and message
+     */
+    private fun determineErrorType(error: dynamic, errorMsg: String): String {
+        return when {
+            errorMsg.contains("timeout", ignoreCase = true) -> ERROR_TYPE_TIMEOUT
+            errorMsg.contains("network", ignoreCase = true) -> ERROR_TYPE_NETWORK
+            errorMsg.contains("abort", ignoreCase = true) -> ERROR_TYPE_ABORTED
+            error.name == "TypeError" -> ERROR_TYPE_NETWORK
+            error.name == "AbortError" -> ERROR_TYPE_ABORTED
+            else -> ERROR_TYPE_UNKNOWN
+        }
     }
 
     /**
@@ -201,16 +223,23 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
                     )
                 }
             }
-            .catch {
-                val errorMsg = it.message
-                it.message?.let { it1 -> Log.error(it1) }
-                // Exception or error occurred, callback
+            .catch { error ->
+                val errorMsg = error.message ?: "Unknown error"
+                val errorType = determineErrorType(error, errorMsg)
+                Log.error("HTTP stream request failed: $errorType - $errorMsg")
+                
+                // Exception or error occurred, callback with detailed error info
                 fireStreamRequestResultCallback(
                     callback,
                     ArrayBuffer(0),
-                    errorMsg ?: "io exception",
                     httpHeaders,
-                    if (httpCode != 0) httpCode else STATE_CODE_UNKNOWN
+                    "$errorType: $errorMsg",
+                    when {
+                        httpCode != 0 -> httpCode
+                        errorType == ERROR_TYPE_TIMEOUT -> STATE_CODE_TIMEOUT
+                        errorType == ERROR_TYPE_NETWORK -> STATE_CODE_NETWORK_ERROR
+                        else -> STATE_CODE_UNKNOWN
+                    }
                 )
             }
     }
@@ -377,30 +406,17 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         private const val HTTP_METHOD_POST = "POST"
         // Unknown status code
         private const val STATE_CODE_UNKNOWN = -1000
+        // Timeout status code
+        private const val STATE_CODE_TIMEOUT = -1001
+        // Network error status code
+        private const val STATE_CODE_NETWORK_ERROR = -1002
         // HTTP success status code range
         private val HTTP_SUCCESS_RANGE = 200..299
+        
+        // Error type constants
+        private const val ERROR_TYPE_TIMEOUT = "Timeout"
+        private const val ERROR_TYPE_NETWORK = "NetworkError"
+        private const val ERROR_TYPE_ABORTED = "Aborted"
+        private const val ERROR_TYPE_UNKNOWN = "UnknownError"
     }
-
-    /**
-     * HTTP 请求参数数据类
-     */
-    private data class HttpRequestParams(
-        val url: String,
-        val method: String,
-        val param: JSONObject?,
-        val header: JSONObject?,
-        val cookie: String,
-        val timeout: Int
-    )
-
-    /**
-     * 流式 HTTP 请求参数数据类
-     */
-    private data class HttpStreamRequestParams(
-        val url: String,
-        val body: ByteArray,
-        val headerStr: String,
-        val cookie: String,
-        val timeout: Int
-    )
 }

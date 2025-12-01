@@ -1,16 +1,17 @@
+package com.tencent.kuikly.h5app
+
 import com.tencent.kuikly.core.render.web.IKuiklyRenderExport
 import com.tencent.kuikly.core.render.web.expand.KuiklyRenderViewDelegatorDelegate
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewPropExternalHandler
 import com.tencent.kuikly.core.render.web.ktx.SizeI
 import com.tencent.kuikly.core.render.web.runtime.web.expand.KuiklyRenderViewDelegator
-import components.KRMyView
-import components.KRWebView
-import components.KuiklyPageView
-import module.KRBridgeModule
-import module.KRCacheModule
-import module.KRRouterModule
-
+import com.tencent.kuikly.h5app.components.KRMyView
+import com.tencent.kuikly.h5app.components.KRWebView
+import com.tencent.kuikly.h5app.components.KuiklyPageView
+import com.tencent.kuikly.h5app.module.KRBridgeModule
+import com.tencent.kuikly.h5app.module.KRCacheModule
+import com.tencent.kuikly.h5app.module.KRRouterModule
 
 class ViewPropExternalHandler : IKuiklyRenderViewPropExternalHandler {
     override fun setViewExternalProp(
@@ -23,6 +24,7 @@ class ViewPropExternalHandler : IKuiklyRenderViewPropExternalHandler {
                 renderViewExport.ele.setAttribute("data-needCustomWrapper", propValue.toString())
                 true
             }
+
             else -> false
         }
     }
@@ -36,10 +38,10 @@ class ViewPropExternalHandler : IKuiklyRenderViewPropExternalHandler {
                 renderViewExport.ele.setAttribute("data-needCustomWrapper", js("undefined"))
                 true
             }
+
             else -> false
         }
     }
-
 }
 
 /**

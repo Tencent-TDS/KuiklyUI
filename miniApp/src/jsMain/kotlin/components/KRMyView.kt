@@ -1,4 +1,4 @@
-package components
+package com.tencent.kuikly.miniapp.components
 
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.MiniDivElement
@@ -19,13 +19,14 @@ class KRMyView : IKuiklyRenderViewExport {
         return when (propKey) {
             MESSAGE -> {
                 innerText.textContent = propValue.unsafeCast<String>()
-                return true
+                true
             }
+
             MY_PROP -> {
                 innerText.textContent = propValue.unsafeCast<String>()
                 innerText.updateUiText()
                 console.log(MY_PROP, ": is ", propValue)
-                return true
+                true
             }
 
             else -> super.setProp(propKey, propValue)

@@ -1,5 +1,6 @@
 package com.tencent.kuikly.core.render.web.runtime.web.expand.components.list
 
+import com.tencent.kuikly.core.render.web.const.KRListConst
 import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
 import com.tencent.kuikly.core.render.web.nvi.serialization.json.JSONObject
 
@@ -42,7 +43,7 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
     private var nestScrollDistanceX = 0f
 
     // Scroll direction
-    var scrollDirection: String = H5ListView.SCROLL_DIRECTION_COLUMN
+    var scrollDirection: String = KRListConst.SCROLL_DIRECTION_COLUMN
 
     // Inertia scroll related properties
     private var lastTouchTime = 0L
@@ -199,7 +200,7 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
             touchX = currentX
         }
 
-        val delta = if (scrollDirection == H5ListView.SCROLL_DIRECTION_COLUMN) deltaY else deltaX
+        val delta = if (scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN) deltaY else deltaX
 
         if (delta == 0f) {
             return
@@ -213,9 +214,9 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
         val scrollMode = if (delta < 0) scrollForwardMode else scrollBackwardMode
         when (scrollMode) {
             KRNestedScrollMode.SELF_FIRST -> {
-                if (scrollDirection == H5ListView.SCROLL_DIRECTION_COLUMN) {
+                if (scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN) {
                     shouldHandleScroll = (deltaY < 0 && canScrollDown) || (deltaY > 0 && canScrollUp)
-                } else if (scrollDirection == H5ListView.SCROLL_DIRECTION_ROW) {
+                } else if (scrollDirection == KRListConst.SCROLL_DIRECTION_ROW) {
                     shouldHandleScroll = (deltaX < 0 && canScrollRight) || (deltaX > 0 && canScrollLeft)
                 }
                 parentScrollState = KRNestedScrollState.CAN_SCROLL
@@ -235,7 +236,7 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
             event.stopPropagation()
 
             // manually control scroll
-            if (scrollDirection == H5ListView.SCROLL_DIRECTION_COLUMN) {
+            if (scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN) {
                 ele.scrollTo(ele.scrollLeft, (lastScrollY - distanceY).toDouble())
             } else {
                 ele.scrollTo((lastScrollX - distanceX).toDouble(), ele.scrollTop)
@@ -368,7 +369,7 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
             }
 
             // Apply scroll
-            if (scrollDirection == H5ListView.SCROLL_DIRECTION_COLUMN) {
+            if (scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN) {
                 ele.scrollTo(ele.scrollLeft, currentY.toDouble())
             } else {
                 ele.scrollTo(currentX.toDouble(), ele.scrollTop)
@@ -386,6 +387,14 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
 
     private fun cancelInertiaScroll() {
         kuiklyWindow.cancelAnimationFrame(animationFrameId)
+    }
+
+    /**
+     * Clean up resources when helper is destroyed
+     */
+    fun destroy() {
+        // Cancel any ongoing inertia scroll animation
+        cancelInertiaScroll()
     }
 
     companion object {

@@ -1,4 +1,4 @@
-package components
+package com.tencent.kuikly.h5app.components
 
 import com.tencent.kuikly.core.render.web.expand.KuiklyRenderViewDelegatorDelegate
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewExport

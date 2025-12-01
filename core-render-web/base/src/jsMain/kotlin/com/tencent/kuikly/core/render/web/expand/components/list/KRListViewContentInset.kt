@@ -1,6 +1,6 @@
 package com.tencent.kuikly.core.render.web.expand.components.list
 
-import com.tencent.kuikly.core.render.web.ktx.KRCssConst
+import com.tencent.kuikly.core.render.web.const.KRCssConst
 
 /**
  * listView contentInset parameter formatting

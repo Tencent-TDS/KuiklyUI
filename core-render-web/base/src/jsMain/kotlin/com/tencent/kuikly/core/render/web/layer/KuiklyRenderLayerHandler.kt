@@ -12,7 +12,7 @@ import com.tencent.kuikly.core.render.web.export.IKuiklyRenderModuleExport
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderShadowExport
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.web.ktx.Frame
-import com.tencent.kuikly.core.render.web.ktx.KRCssConst
+import com.tencent.kuikly.core.render.web.const.KRCssConst
 import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.web.ktx.SizeF
 import org.w3c.dom.Element

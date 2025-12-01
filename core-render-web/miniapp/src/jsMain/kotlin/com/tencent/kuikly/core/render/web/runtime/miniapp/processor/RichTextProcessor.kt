@@ -7,7 +7,7 @@ import com.tencent.kuikly.core.render.web.collection.array.get
 import com.tencent.kuikly.core.render.web.expand.components.KRRichTextView
 import com.tencent.kuikly.core.render.web.expand.components.RichTextSpan
 import com.tencent.kuikly.core.render.web.ktx.SizeF
-import com.tencent.kuikly.core.render.web.ktx.KRCssConst.TEXT_SHADOW
+import com.tencent.kuikly.core.render.web.const.KRCssConst.TEXT_SHADOW
 import com.tencent.kuikly.core.render.web.ktx.height
 import com.tencent.kuikly.core.render.web.ktx.pxToFloat
 import com.tencent.kuikly.core.render.web.ktx.toNumberFloat

@@ -8,6 +8,8 @@ import com.tencent.kuikly.core.render.web.collection.array.isEmpty
 import com.tencent.kuikly.core.render.web.collection.map.JsMap
 import com.tencent.kuikly.core.render.web.collection.map.get
 import com.tencent.kuikly.core.render.web.collection.map.set
+import com.tencent.kuikly.core.render.web.const.KREventConst
+import com.tencent.kuikly.core.render.web.const.KRListConst
 import com.tencent.kuikly.core.render.web.expand.components.toPanEventParams
 import com.tencent.kuikly.core.render.web.ktx.kuiklyDocument
 import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
@@ -93,20 +95,20 @@ object PCListScrollHandler {
     internal const val PX_SUFFIX = "px"
 
     init {
-        kuiklyWindow.addEventListener(H5ListView.MOUSE_DOWN, {
+        kuiklyWindow.addEventListener(KREventConst.MOUSE_DOWN, {
             lastX = it.getEventParams()[EVENT_X_KEY].unsafeCast<Float>()
             lastY = it.getEventParams()[EVENT_Y_KEY].unsafeCast<Float>()
             isScrolling = ScrollingAxis.NONE
         })
 
-        kuiklyWindow.addEventListener(H5ListView.MOUSE_MOVE, {
+        kuiklyWindow.addEventListener(KREventConst.MOUSE_MOVE, {
             if (scrollEleIds.isEmpty()) return@addEventListener
             detectScrollDirection(it as MouseEvent)
             // Trigger the mouseMove event handler of listViews
             handleListViewsScroll(it)
         })
 
-        kuiklyWindow.addEventListener(H5ListView.MOUSE_UP, {
+        kuiklyWindow.addEventListener(KREventConst.MOUSE_UP, {
             // Prevent only clicking occurs, causing isMouseDown to not be reset to false
             filterScrollElementIds()
             if (scrollEleIds.isEmpty()) return@addEventListener
@@ -128,7 +130,7 @@ object PCListScrollHandler {
     fun filterScrollElementIds() {
         val validElementIds = mouseDownEleIds.filter { id ->
             val ele = kuiklyDocument.getElementById(id)
-            ele?.classList?.contains(H5ListView.IS_LIST) == true
+            ele?.classList?.contains(KRListConst.IS_LIST) == true
         }
         scrollEleIds = validElementIds
     }
@@ -249,11 +251,11 @@ object PCListScrollHandler {
                             break
                         } else { // 若父元素不是分页滚动元素，根据滚动方向修改父元素该方向上的可滚动状态
                             when (listPagingHelper.scrollDirection) {
-                                H5ListView.SCROLL_DIRECTION_COLUMN -> {
+                                KRListConst.SCROLL_DIRECTION_COLUMN -> {
                                     parentListView.pcScrollHelper.canScrollUp = false
                                     parentListView.pcScrollHelper.canScrollDown = false
                                 }
-                                H5ListView.SCROLL_DIRECTION_ROW -> {
+                                KRListConst.SCROLL_DIRECTION_ROW -> {
                                     parentListView.pcScrollHelper.canScrollLeft = false
                                     parentListView.pcScrollHelper.canScrollRight = false
                                 }

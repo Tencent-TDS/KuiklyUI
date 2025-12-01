@@ -2,7 +2,7 @@ package com.tencent.kuikly.core.render.web.export
 
 import com.tencent.kuikly.core.render.web.IKuiklyRenderContext
 import com.tencent.kuikly.core.render.web.ktx.Frame
-import com.tencent.kuikly.core.render.web.ktx.KRCssConst
+import com.tencent.kuikly.core.render.web.const.KRCssConst
 import com.tencent.kuikly.core.render.web.ktx.setCommonProp
 import org.w3c.dom.Element
 

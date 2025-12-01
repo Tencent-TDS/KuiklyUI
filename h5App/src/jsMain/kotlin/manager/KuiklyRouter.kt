@@ -1,12 +1,12 @@
-package manager
+package com.tencent.kuikly.h5app.manager
 
-import KuiklyWebRenderViewDelegator
+import com.tencent.kuikly.h5app.KuiklyWebRenderViewDelegator
 import com.tencent.kuikly.core.render.web.ktx.SizeI
 import kotlinx.browser.sessionStorage
 import kotlinx.browser.window
-import module.KRRouterModule
+import com.tencent.kuikly.h5app.module.KRRouterModule
 import org.w3c.dom.HTMLElement
-import utils.URL
+import com.tencent.kuikly.h5app.utils.URL
 import kotlin.js.Date
 import kotlin.js.Json
 import kotlin.js.json
@@ -170,15 +170,15 @@ object KuiklyRouter {
     }
 
     private fun renderPage(key: String, url: String) {
-        if (pageCache.containsKey(key)) {
-            val page = pageCache[key]!!
-            if (page.isDestroyed) {
+        val cachedPage = pageCache[key]
+        if (cachedPage != null) {
+            if (cachedPage.isDestroyed) {
                  pageCache.remove(key)
                  renderPage(key, url)
                  return
             }
-            page.element.style.display = "block"
-            page.delegator.resume()
+            cachedPage.element.style.display = "block"
+            cachedPage.delegator.resume()
         } else {
             val pageInfo = createPage(key, url)
             if (pageInfo != null) {
@@ -195,21 +195,18 @@ object KuiklyRouter {
     fun createDelegator(url: String): KuiklyWebRenderViewDelegator {
         val urlParams = URL.parseParams(url)
         val pageName = urlParams[URL_PARAM_PAGE_NAME] ?: DEFAULT_PAGE_NAME
-        
+
         val containerWidth = window.innerWidth
         val containerHeight = window.innerHeight
-        
-        val params: MutableMap<String, String> = mutableMapOf()
-        if (urlParams.isNotEmpty()) {
-            urlParams.forEach { (k, v) -> params[k] = v }
-        }
+
+        val params: MutableMap<String, String> = urlParams.toMutableMap()
         params[PARAM_IS_H5] = VALUE_FLAG_ON
-        
-        val paramMap = mapOf(
+
+        val paramMap: Map<String, Any> = mapOf(
             "statusBarHeight" to DEFAULT_STATUS_BAR_HEIGHT,
             "activityWidth" to containerWidth,
             "activityHeight" to containerHeight,
-            "param" to params,
+            "param" to params.toMap(),
         )
 
         val delegator = KuiklyWebRenderViewDelegator()

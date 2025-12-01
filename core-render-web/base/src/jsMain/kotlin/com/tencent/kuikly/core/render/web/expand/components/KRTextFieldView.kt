@@ -1,5 +1,10 @@
 package com.tencent.kuikly.core.render.web.expand.components
 
+import com.tencent.kuikly.core.render.web.const.KREventConst
+import com.tencent.kuikly.core.render.web.const.KRInputTypeConst
+import com.tencent.kuikly.core.render.web.const.KRKeyboardConst
+import com.tencent.kuikly.core.render.web.const.KRParamConst
+import com.tencent.kuikly.core.render.web.const.KRStyleConst
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.web.ktx.kuiklyDocument
@@ -36,8 +41,8 @@ class KRTextFieldView : IKuiklyRenderViewExport {
     // Input element
     private val input = kuiklyDocument.createElement(ElementType.INPUT).apply {
         val style = this.unsafeCast<HTMLTextAreaElement>().style
-        style.border = "none"
-        style.backgroundColor = "transparent"
+        style.border = CSS_BORDER_NONE
+        style.backgroundColor = CSS_BG_TRANSPARENT
     }
     // Current text length
     private var currentLength = 0
@@ -61,7 +66,7 @@ class KRTextFieldView : IKuiklyRenderViewExport {
                 // Text change callback event, web needs adaptation, initiate notification
                 textDidChangedEventCallback = propValue.unsafeCast<KuiklyRenderCallback>()
                 // Notify content change
-                ele.addEventListener("input", {
+                ele.addEventListener(EVENT_INPUT, {
                     notifyTextValueChanged(ele.value)
                 })
                 true
@@ -127,9 +132,9 @@ class KRTextFieldView : IKuiklyRenderViewExport {
             INPUT_FOCUS -> {
                 // Focus event callback
                 focusedEventCallback = propValue.unsafeCast<KuiklyRenderCallback>()
-                ele.addEventListener("focus", {
+                ele.addEventListener(EVENT_FOCUS, {
                     val map = mutableMapOf<String, Any>()
-                    map["text"] = ele.value
+                    map[MAP_KEY_TEXT] = ele.value
                     // Notify kotlin side
                     focusedEventCallback?.invoke(map)
                 })
@@ -139,9 +144,9 @@ class KRTextFieldView : IKuiklyRenderViewExport {
             INPUT_BLUR -> {
                 // Blur event callback
                 blurEventCallback = propValue.unsafeCast<KuiklyRenderCallback>()
-                ele.addEventListener("blur", {
+                ele.addEventListener(EVENT_BLUR, {
                     val map = mutableMapOf<String, Any>()
-                    map["text"] = ele.value
+                    map[MAP_KEY_TEXT] = ele.value
                     // Notify kotlin side
                     blurEventCallback?.invoke(map)
                 })
@@ -150,12 +155,12 @@ class KRTextFieldView : IKuiklyRenderViewExport {
 
             INPUT_RETURN -> {
                 clickReturnEventCallback = propValue.unsafeCast<KuiklyRenderCallback>()
-                ele.addEventListener("keydown", {
+                ele.addEventListener(EVENT_KEYDOWN, {
                     val event = it.unsafeCast<KeyboardEvent>()
                     // Keyboard event
-                    if (event.key === "Enter" || event.keyCode == 13) {
+                    if (event.key === KEY_ENTER || event.keyCode == ENTER_KEY_CODE) {
                         val map = mutableMapOf<String, Any>()
-                        map["text"] = ele.value
+                        map[MAP_KEY_TEXT] = ele.value
                         // Return key clicked
                         clickReturnEventCallback?.invoke(map)
                     }
@@ -168,25 +173,25 @@ class KRTextFieldView : IKuiklyRenderViewExport {
                 // Whether it is in text combination state
                 var isComposing = false
 
-                ele.addEventListener("compositionstart", { isComposing = true })
-                ele.addEventListener("compositionend", {
+                ele.addEventListener(EVENT_COMPOSITION_START, { isComposing = true })
+                ele.addEventListener(EVENT_COMPOSITION_END, {
                     currentLength = ele.value.length + 1
                     isComposing = false
                     if (ele.maxLength > 0 && currentLength > ele.maxLength) {
                         val map = mutableMapOf<String, Any>()
-                        map["text"] = ele.value
+                        map[MAP_KEY_TEXT] = ele.value
                         textLengthLimitEventCallback?.invoke(map)
                         ele.value = ele.value.substring(0, ele.maxLength)
                     }
                 })
-                ele.addEventListener("beforeinput", {
+                ele.addEventListener(EVENT_BEFORE_INPUT, {
                     // Input text exceeds maximum limit, callback notification
                     val event = it.unsafeCast<InputEvent>()
                     if (event.isComposing || isComposing) return@addEventListener
                     // 针对safari浏览器中，若输入超过最大长度时，inserted为空的情况，采用手动计数方式
-                    if (event.asDynamic().inputType == "insertText") {
+                    if (event.asDynamic().inputType == INPUT_TYPE_INSERT_TEXT) {
                         currentLength = ele.value.length + 1
-                    } else if (event.asDynamic().inputType == "deleteContentBackward") {
+                    } else if (event.asDynamic().inputType == INPUT_TYPE_DELETE_BACKWARD) {
                         currentLength = ele.value.length - 1
                     }
                     val inserted = it.unsafeCast<InputEvent>().data ?: ""
@@ -195,7 +200,7 @@ class KRTextFieldView : IKuiklyRenderViewExport {
                         // Cancel the default behavior of this input event
                         it.preventDefault()
                         val map = mutableMapOf<String, Any>()
-                        map["text"] = ele.value
+                        map[MAP_KEY_TEXT] = ele.value
                         textLengthLimitEventCallback?.invoke(map)
                     }
                 })
@@ -234,7 +239,7 @@ class KRTextFieldView : IKuiklyRenderViewExport {
                 // get input cursor index
                 KuiklyRenderCoreContextScheduler.scheduleTask {
                     callback?.invoke(mapOf(
-                        "cursorIndex" to ele.selectionStart
+                        MAP_KEY_CURSOR_INDEX to ele.selectionStart
                     ))
                 }
             }
@@ -255,7 +260,7 @@ class KRTextFieldView : IKuiklyRenderViewExport {
      */
     private fun notifyTextValueChanged(text: String) {
         val map = mutableMapOf<String, Any>()
-        map["text"] = text
+        map[MAP_KEY_TEXT] = text
         // Notify kotlin side
         textDidChangedEventCallback?.invoke(map)
     }
@@ -265,21 +270,10 @@ class KRTextFieldView : IKuiklyRenderViewExport {
      */
     private fun setKeyBoardType(keyboardType: String) {
         ele.type = when (keyboardType) {
-            "password" -> {
-                "password"
-            }
-
-            "number" -> {
-                "number"
-            }
-
-            "email" -> {
-                "email"
-            }
-
-            else -> {
-                "text"
-            }
+            KEYBOARD_PASSWORD -> KEYBOARD_PASSWORD
+            KEYBOARD_NUMBER -> KEYBOARD_NUMBER
+            KEYBOARD_EMAIL -> KEYBOARD_EMAIL
+            else -> KEYBOARD_TEXT
         }
     }
 
@@ -288,13 +282,13 @@ class KRTextFieldView : IKuiklyRenderViewExport {
      */
     private fun setReturnKeyType(returnKeyType: String) {
         // 支持的返回键类型集合
-        val supportedTypes = setOf("search", "send", "done", "go")
+        val supportedTypes = setOf(RETURN_KEY_SEARCH, RETURN_KEY_SEND, RETURN_KEY_DONE, RETURN_KEY_GO)
 
         val returnKey = if (returnKeyType in supportedTypes) {
             returnKeyType
         } else {
             // default
-            "next"
+            RETURN_KEY_NEXT
         }
         ele.asDynamic().enterKeyHint = returnKey
     }
@@ -330,5 +324,45 @@ class KRTextFieldView : IKuiklyRenderViewExport {
         private const val INPUT_BLUR = "inputBlur"
         private const val INPUT_RETURN = "inputReturn"
         private const val TEXT_LENGTH_BEYOND_LIMIT = "textLengthBeyondLimit"
+        
+        // Keyboard key codes - reuse from KRKeyboardConst
+        private val ENTER_KEY_CODE = KRKeyboardConst.ENTER_KEY_CODE
+
+        // DOM event names - reuse from KREventConst
+        private val EVENT_INPUT = KREventConst.INPUT
+        private val EVENT_FOCUS = KREventConst.FOCUS
+        private val EVENT_BLUR = KREventConst.BLUR
+        private val EVENT_KEYDOWN = KREventConst.KEYDOWN
+        private val EVENT_COMPOSITION_START = KREventConst.COMPOSITION_START
+        private val EVENT_COMPOSITION_END = KREventConst.COMPOSITION_END
+        private val EVENT_BEFORE_INPUT = KREventConst.BEFORE_INPUT
+
+        // Keyboard keys - reuse from KRKeyboardConst
+        private val KEY_ENTER = KRKeyboardConst.KEY_ENTER
+
+        // Input types - reuse from KRInputTypeConst
+        private val INPUT_TYPE_INSERT_TEXT = KRInputTypeConst.INSERT_TEXT
+        private val INPUT_TYPE_DELETE_BACKWARD = KRInputTypeConst.DELETE_BACKWARD
+
+        // Keyboard type values - reuse from KRInputTypeConst
+        private val KEYBOARD_PASSWORD = KRInputTypeConst.PASSWORD
+        private val KEYBOARD_NUMBER = KRInputTypeConst.NUMBER
+        private val KEYBOARD_EMAIL = KRInputTypeConst.EMAIL
+        private val KEYBOARD_TEXT = KRInputTypeConst.TEXT
+
+        // Return key type values - reuse from KRKeyboardConst
+        private val RETURN_KEY_SEARCH = KRKeyboardConst.RETURN_KEY_SEARCH
+        private val RETURN_KEY_SEND = KRKeyboardConst.RETURN_KEY_SEND
+        private val RETURN_KEY_DONE = KRKeyboardConst.RETURN_KEY_DONE
+        private val RETURN_KEY_GO = KRKeyboardConst.RETURN_KEY_GO
+        private val RETURN_KEY_NEXT = KRKeyboardConst.RETURN_KEY_NEXT
+
+        // Map keys - reuse from KRParamConst
+        private val MAP_KEY_TEXT = KRParamConst.TEXT
+        private val MAP_KEY_CURSOR_INDEX = KRParamConst.CURSOR_INDEX
+
+        // CSS values - reuse from KRStyleConst
+        private val CSS_BORDER_NONE = KRStyleConst.BORDER_NONE
+        private val CSS_BG_TRANSPARENT = KRStyleConst.BG_TRANSPARENT
     }
 }

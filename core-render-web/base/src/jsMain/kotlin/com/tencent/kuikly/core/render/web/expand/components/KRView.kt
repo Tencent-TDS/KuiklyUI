@@ -2,19 +2,25 @@ package com.tencent.kuikly.core.render.web.expand.components
 
 import com.tencent.kuikly.core.render.web.collection.FastMutableMap
 import com.tencent.kuikly.core.render.web.collection.fastMutableMapOf
-import com.tencent.kuikly.core.render.web.processor.IEvent
-import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
+import com.tencent.kuikly.core.render.web.const.KRActionConst
+import com.tencent.kuikly.core.render.web.const.KRAttrConst
+import com.tencent.kuikly.core.render.web.const.KRCssConst
+import com.tencent.kuikly.core.render.web.const.KREventConst
+import com.tencent.kuikly.core.render.web.const.KRParamConst
+import com.tencent.kuikly.core.render.web.const.KRStateConst
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewExport
-import com.tencent.kuikly.core.render.web.ktx.KRCssConst
 import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.web.ktx.kuiklyDocument
 import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
+import com.tencent.kuikly.core.render.web.processor.IEvent
+import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
 import com.tencent.kuikly.core.render.web.runtime.dom.element.ElementType
 import com.tencent.kuikly.core.render.web.utils.DeviceType
 import com.tencent.kuikly.core.render.web.utils.DeviceUtils
 import org.w3c.dom.HTMLDivElement
 import org.w3c.dom.Touch
 import org.w3c.dom.TouchEvent
+import org.w3c.dom.events.Event
 import org.w3c.dom.events.MouseEvent
 import org.w3c.dom.get
 import kotlin.js.json
@@ -30,10 +36,10 @@ fun getTouchParams(params: Touch?): MutableMap<String, Any> {
 
     return fastMutableMapOf<String, Any>().apply {
         fastMap = json(
-            "x" to touchX,
-            "y" to touchY,
-            "pageX" to pageX,
-            "pageY" to pageY,
+            KRParamConst.X to touchX,
+            KRParamConst.Y to touchY,
+            KRParamConst.PAGE_X to pageX,
+            KRParamConst.PAGE_Y to pageY,
         )
     }
 }
@@ -49,10 +55,10 @@ fun getMouseParams(event: MouseEvent): MutableMap<String, Any> {
 
     return fastMutableMapOf<String, Any>().apply {
         fastMap = json(
-            "x" to mouseX,
-            "y" to mouseY,
-            "pageX" to pageX,
-            "pageY" to pageY,
+            KRParamConst.X to mouseX,
+            KRParamConst.Y to mouseY,
+            KRParamConst.PAGE_X to pageX,
+            KRParamConst.PAGE_Y to pageY,
         )
     }
 }
@@ -112,9 +118,11 @@ open class KRView : IKuiklyRenderViewExport {
     // Slide distance from end position of page
     private var pageY = 0f
     // border width ratio with width and height, too close means used as border
-    private val borderWithSizeRatio = 5
+    private val borderWithSizeRatio = BORDER_SIZE_RATIO
     private var superTouch: Boolean = false
     private var superTouchCanceled: Boolean = false
+    // Window mouse up event listener reference for cleanup
+    private var windowMouseUpListener: ((Event) -> Unit)? = null
 
     override val ele: HTMLDivElement
         get() = div.unsafeCast<HTMLDivElement>()
@@ -163,8 +171,8 @@ open class KRView : IKuiklyRenderViewExport {
                     event?.let {
                         propValue.unsafeCast<KuiklyRenderCallback>().invoke(
                             mapOf(
-                                "x" to it.clientX.toFloat(),
-                                "y" to it.clientY.toFloat()
+                                KRParamConst.X to it.clientX.toFloat(),
+                                KRParamConst.Y to it.clientY.toFloat()
                             )
                         )
                     }
@@ -177,8 +185,8 @@ open class KRView : IKuiklyRenderViewExport {
                     event?.let {
                         propValue.unsafeCast<KuiklyRenderCallback>().invoke(
                             mapOf(
-                                "x" to it.clientX.toFloat(),
-                                "y" to it.clientY.toFloat()
+                                KRParamConst.X to it.clientX.toFloat(),
+                                KRParamConst.Y to it.clientY.toFloat()
                             )
                         )
                     }
@@ -201,23 +209,27 @@ open class KRView : IKuiklyRenderViewExport {
         }
     }
 
-    private fun setSuperTouchEventParams(params: FastMutableMap<String, Any>, timestamp: Long, action: String): FastMutableMap<String, Any> {
+    private fun setSuperTouchEventParams(
+        params: FastMutableMap<String, Any>,
+        timestamp: Long,
+        action: String
+    ): FastMutableMap<String, Any> {
         if (superTouch) {
             val touch = mapOf(
-                "x" to params["x"],
-                "y" to params["y"],
-                "pageX" to params["pageX"],
-                "pageY" to params["pageY"],
-                "pointerId" to 0,
-                "hash" to params["x"]
+                KRParamConst.X to params[KRParamConst.X],
+                KRParamConst.Y to params[KRParamConst.Y],
+                KRParamConst.PAGE_X to params[KRParamConst.PAGE_X],
+                KRParamConst.PAGE_Y to params[KRParamConst.PAGE_Y],
+                KRParamConst.POINTER_ID to 0,
+                KRParamConst.HASH to params[KRParamConst.X]
             )
             val touches = arrayListOf<Map<String, Any?>>()
             touches.add(touch)
-            params["pointerId"] = 0
-            params["timestamp"] = timestamp
-            params["action"] = action
-            params["touches"] = touches
-            params["consumed"] = 0
+            params[KRParamConst.POINTER_ID] = 0
+            params[KRParamConst.TIMESTAMP] = timestamp
+            params[KRParamConst.ACTION] = action
+            params[KRParamConst.TOUCHES] = touches
+            params[KRParamConst.CONSUMED] = 0
         }
         return params
     }
@@ -243,7 +255,7 @@ open class KRView : IKuiklyRenderViewExport {
      */
     private fun bindTouchEvents() {
         // Touch start
-        ele.addEventListener("touchstart", {
+        ele.addEventListener(KREventConst.TOUCH_START, {
             // Get event parameters
             val eventParams = it.unsafeCast<TouchEvent>().toPanEventParams()
             // Calculate and save element position
@@ -253,55 +265,61 @@ open class KRView : IKuiklyRenderViewExport {
             // Element distance from top of page
             eleY = position.top.toFloat()
 
-            var params = getPanEventParams(fastMutableMapOf<String, Any>().apply { putAll(eventParams) }, "start")
-            params = setSuperTouchEventParams(params, it.timeStamp.toLong(), "touchDown")
+            var params = getPanEventParams(
+                fastMutableMapOf<String, Any>().apply { putAll(eventParams) },
+                KRStateConst.START
+            )
+            params = setSuperTouchEventParams(params, it.timeStamp.toLong(), KRActionConst.TOUCH_DOWN)
             panEventCallback?.invoke(params)
             touchDownEventCallback?.invoke(params)
             // stop event propagation
             it.stopPropagation()
-        }, json("passive" to true))
-        
+        }, json(KRAttrConst.PASSIVE to true))
+
         // Touch move
-        ele.addEventListener("touchmove", {
+        ele.addEventListener(KREventConst.TOUCH_MOVE, {
             val eventParams = it.unsafeCast<TouchEvent>().toPanEventParams()
-            var params = getPanEventParams(fastMutableMapOf<String, Any>().apply { putAll(eventParams) }, "move")
-            params = setSuperTouchEventParams(params, it.timeStamp.toLong(), "touchMove")
+            var params = getPanEventParams(
+                fastMutableMapOf<String, Any>().apply { putAll(eventParams) },
+                KRStateConst.MOVE
+            )
+            params = setSuperTouchEventParams(params, it.timeStamp.toLong(), KRActionConst.TOUCH_MOVE)
             panEventCallback?.invoke(params)
             touchMoveEventCallback?.invoke(params)
             // stop event propagation
             it.stopPropagation()
-        }, json("passive" to true))
-        
+        }, json(KRAttrConst.PASSIVE to true))
+
         // Touch end
-        ele.addEventListener("touchend", {
+        ele.addEventListener(KREventConst.TOUCH_END, {
             var params = fastMutableMapOf<String, Any>().apply {
-                put("x", x)
-                put("y", y)
-                put("state", "end")
-                put("pageX", pageX)
-                put("pageY", pageY)
+                put(KRParamConst.X, x)
+                put(KRParamConst.Y, y)
+                put(KRParamConst.STATE, KRStateConst.END)
+                put(KRParamConst.PAGE_X, pageX)
+                put(KRParamConst.PAGE_Y, pageY)
             }
-            params = setSuperTouchEventParams(params, it.timeStamp.toLong(), "touchUp")
+            params = setSuperTouchEventParams(params, it.timeStamp.toLong(), KRActionConst.TOUCH_UP)
             // Touch end event has no position parameters, so use move recorded cache parameter value callback
             panEventCallback?.invoke(params)
             touchUpEventCallback?.invoke(params)
             // stop event propagation
             it.stopPropagation()
-        }, json("passive" to true))
-        
+        }, json(KRAttrConst.PASSIVE to true))
+
         // Touch cancel
-        ele.addEventListener("touchcancel", {
+        ele.addEventListener(KREventConst.TOUCH_CANCEL, {
             var params = fastMutableMapOf<String, Any>().apply {
-                put("x", x)
-                put("y", y)
-                put("pageX", pageX)
-                put("pageY", pageY)
-                put("state", "cancel")
+                put(KRParamConst.X, x)
+                put(KRParamConst.Y, y)
+                put(KRParamConst.PAGE_X, pageX)
+                put(KRParamConst.PAGE_Y, pageY)
+                put(KRParamConst.STATE, KRStateConst.CANCEL)
             }
-            params = setSuperTouchEventParams(params, it.timeStamp.toLong(), "touchCancel")
+            params = setSuperTouchEventParams(params, it.timeStamp.toLong(), KRActionConst.TOUCH_CANCEL)
             touchUpEventCallback?.invoke(params)
             it.stopPropagation()
-        }, json("passive" to true))
+        }, json(KRAttrConst.PASSIVE to true))
     }
 
     /**
@@ -309,7 +327,7 @@ open class KRView : IKuiklyRenderViewExport {
      */
     private fun bindMouseEvents() {
         // Mouse down
-        ele.addEventListener("mousedown", {
+        ele.addEventListener(KREventConst.MOUSE_DOWN, {
             isMouseDown = true
             // Get event parameters
             val eventParams = it.unsafeCast<MouseEvent>().toPanEventParams()
@@ -320,40 +338,46 @@ open class KRView : IKuiklyRenderViewExport {
             // Element distance from top of page
             eleY = position.top.toFloat()
 
-            var params = getPanEventParams(fastMutableMapOf<String, Any>().apply { putAll(eventParams) }, "start")
-            params = setSuperTouchEventParams(params, it.timeStamp.toLong(), "touchDown")
+            var params = getPanEventParams(
+                fastMutableMapOf<String, Any>().apply { putAll(eventParams) },
+                KRStateConst.START
+            )
+            params = setSuperTouchEventParams(params, it.timeStamp.toLong(), KRActionConst.TOUCH_DOWN)
             panEventCallback?.invoke(params)
             touchDownEventCallback?.invoke(params)
             // stop event propagation
             it.stopPropagation()
         })
-        
+
         // Mouse move
-        ele.addEventListener("mousemove", {
+        ele.addEventListener(KREventConst.MOUSE_MOVE, {
             // Only trigger if mouse is down (dragging)
             if (isMouseDown) {
                 val eventParams = it.unsafeCast<MouseEvent>().toPanEventParams()
-                var params = getPanEventParams(fastMutableMapOf<String, Any>().apply { putAll(eventParams) }, "move")
-                params = setSuperTouchEventParams(params, it.timeStamp.toLong(), "touchMove")
+                var params = getPanEventParams(
+                    fastMutableMapOf<String, Any>().apply { putAll(eventParams) },
+                    KRStateConst.MOVE
+                )
+                params = setSuperTouchEventParams(params, it.timeStamp.toLong(), KRActionConst.TOUCH_MOVE)
                 panEventCallback?.invoke(params)
                 touchMoveEventCallback?.invoke(params)
                 // stop event propagation
                 it.stopPropagation()
             }
         })
-        
+
         // Mouse up
-        ele.addEventListener("mouseup", {
+        ele.addEventListener(KREventConst.MOUSE_UP, {
             if (isMouseDown) {
                 isMouseDown = false
                 var params = fastMutableMapOf<String, Any>().apply {
-                    put("x", x)
-                    put("y", y)
-                    put("state", "end")
-                    put("pageX", pageX)
-                    put("pageY", pageY)
+                    put(KRParamConst.X, x)
+                    put(KRParamConst.Y, y)
+                    put(KRParamConst.STATE, KRStateConst.END)
+                    put(KRParamConst.PAGE_X, pageX)
+                    put(KRParamConst.PAGE_Y, pageY)
                 }
-                params = setSuperTouchEventParams(params, it.timeStamp.toLong(), "touchUp")
+                params = setSuperTouchEventParams(params, it.timeStamp.toLong(), KRActionConst.TOUCH_UP)
                 // Mouse up event has no position parameters, so use move recorded cache parameter value callback
                 panEventCallback?.invoke(params)
                 touchUpEventCallback?.invoke(params)
@@ -361,40 +385,42 @@ open class KRView : IKuiklyRenderViewExport {
                 it.stopPropagation()
             }
         })
-        
+
         // Mouse leave (equivalent to touchcancel for mouse)
-        ele.addEventListener("mouseleave", {
+        ele.addEventListener(KREventConst.MOUSE_LEAVE, {
             if (isMouseDown) {
                 isMouseDown = false
                 var params = fastMutableMapOf<String, Any>().apply {
-                    put("x", x)
-                    put("y", y)
-                    put("pageX", pageX)
-                    put("pageY", pageY)
-                    put("state", "cancel")
+                    put(KRParamConst.X, x)
+                    put(KRParamConst.Y, y)
+                    put(KRParamConst.PAGE_X, pageX)
+                    put(KRParamConst.PAGE_Y, pageY)
+                    put(KRParamConst.STATE, KRStateConst.CANCEL)
                 }
-                params = setSuperTouchEventParams(params, it.timeStamp.toLong(), "touchCancel")
+                params = setSuperTouchEventParams(params, it.timeStamp.toLong(), KRActionConst.TOUCH_CANCEL)
                 touchUpEventCallback?.invoke(params)
                 it.stopPropagation()
             }
         })
 
         // Add global mouse event listeners to handle mouse release outside of element
-        kuiklyWindow.addEventListener("mouseup", {
+        // Save reference for cleanup in onDestroy
+        windowMouseUpListener = { event: Event ->
             if (isMouseDown) {
                 isMouseDown = false
                 var params = fastMutableMapOf<String, Any>().apply {
-                    put("x", x)
-                    put("y", y)
-                    put("state", "end")
-                    put("pageX", pageX)
-                    put("pageY", pageY)
+                    put(KRParamConst.X, x)
+                    put(KRParamConst.Y, y)
+                    put(KRParamConst.STATE, KRStateConst.END)
+                    put(KRParamConst.PAGE_X, pageX)
+                    put(KRParamConst.PAGE_Y, pageY)
                 }
-                params = setSuperTouchEventParams(params, it.timeStamp.toLong(), "touchUp")
+                params = setSuperTouchEventParams(params, event.timeStamp.toLong(), KRActionConst.TOUCH_UP)
                 panEventCallback?.invoke(params)
                 touchUpEventCallback?.invoke(params)
             }
-        })
+        }
+        kuiklyWindow.addEventListener(KREventConst.MOUSE_UP, windowMouseUpListener)
     }
 
     /**
@@ -406,16 +432,16 @@ open class KRView : IKuiklyRenderViewExport {
     ): FastMutableMap<String, Any> {
         // Get the actual position of the element, the left and top distances need to be
         // subtracted from the element distance from the page top and left
-        eventParams["x"] = eventParams["x"].unsafeCast<Float>() - eleX
-        eventParams["y"] = eventParams["y"].unsafeCast<Float>() - eleY
+        eventParams[KRParamConst.X] = eventParams[KRParamConst.X].unsafeCast<Float>() - eleX
+        eventParams[KRParamConst.Y] = eventParams[KRParamConst.Y].unsafeCast<Float>() - eleY
         // Save current movement distance
-        x = eventParams["x"].unsafeCast<Float>()
-        y = eventParams["y"].unsafeCast<Float>()
+        x = eventParams[KRParamConst.X].unsafeCast<Float>()
+        y = eventParams[KRParamConst.Y].unsafeCast<Float>()
         // Save current Page position
-        pageX = eventParams["pageX"].unsafeCast<Float>()
-        pageY = eventParams["pageY"].unsafeCast<Float>()
+        pageX = eventParams[KRParamConst.PAGE_X].unsafeCast<Float>()
+        pageY = eventParams[KRParamConst.PAGE_Y].unsafeCast<Float>()
         // Current drag state
-        eventParams["state"] = state
+        eventParams[KRParamConst.STATE] = state
 
         return eventParams
     }
@@ -473,11 +499,32 @@ open class KRView : IKuiklyRenderViewExport {
         }, SCREEN_FRAME_REFRESH_TIME)
     }
 
+    /**
+     * Clean up resources when view is destroyed to prevent memory leaks
+     */
+    override fun onDestroy() {
+        super.onDestroy()
+        
+        // Remove global window event listener (must be removed to prevent memory leak)
+        windowMouseUpListener?.let {
+            kuiklyWindow.removeEventListener(KREventConst.MOUSE_UP, it)
+        }
+        windowMouseUpListener = null
+        
+        // Clear screen frame timer
+        if (requestId != 0) {
+            kuiklyWindow.clearTimeout(requestId)
+            requestId = 0
+        }
+    }
+
     companion object {
         const val VIEW_NAME = "KRView"
         private const val EVENT_SCREEN_FRAME = "screenFrame"
         private const val SCREEN_FRAME_PAUSE = "screenFramePause"
-        // Refresh rate interval, 16ms
+        // Refresh rate interval, 16ms (approximately 60fps)
         private const val SCREEN_FRAME_REFRESH_TIME = 16
+        // Border size ratio threshold
+        private const val BORDER_SIZE_RATIO = 5
     }
 }

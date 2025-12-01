@@ -204,7 +204,8 @@ export class KRNativeRenderController {
     pageParams: KRRecord,
     contextCode: string,
     imeMode: boolean,
-    assetsDir: string
+    assetsDir: string,
+    viewRect?: KRRect
   ) {
     this.uiContext = uiContext;
     this.uiAbilityContext = uiAbilityContext;
@@ -214,6 +215,9 @@ export class KRNativeRenderController {
     this.contextCode = contextCode;
     this.imeMode = imeMode;
     this.assetsDir = assetsDir;
+    if (viewRect) {
+      this.viewRect = viewRect;
+    }
     gGlobalInstanceId++;
     this.instanceId = gGlobalInstanceId + '';
     render.OnLaunchStart(this.instanceId, executeMode.mode); //  页面启动事件通知到native层，用于Performance性能采集
@@ -268,7 +272,7 @@ export class KRNativeRenderController {
     KRNativeManager.getInstance().getNativeInstance(this.instanceId)?.registerExceptionCallback(exceptionCallback);
   }
 
-  onViewSizeChanged(rect: KRRect, oldDensity: number, newDensity: number) {
+  onViewSizeChanged(rect: KRRect, oldDensity: number = this.densityPixels, newDensity: number = this.densityPixels) {
     this.viewRect = rect;
     if (this.didInit) {
       let densityInfo: KRRecord | null = null;

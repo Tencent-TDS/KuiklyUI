@@ -19,12 +19,14 @@ import { KRMyDemoCustomView } from './components/KRMyDemoCustomView';
 import { KRMyModule } from './modules/KRMyModule';
 import { KRBridgeModule } from './modules/KRBridgeModule';
 import { KROhosStreamRequestModule } from './modules/KROhosStreamRequestModule';
+import { KuiklyPageView } from './components/KuiklyPageView';
 
 
 export class KuiklyViewDelegate extends IKuiklyViewDelegate {
   getCustomRenderViewCreatorRegisterMap(): Map<string, KRRenderViewExportCreator>{
     const map: Map<string, KRRenderViewExportCreator> = new Map();
     map.set(KRMyView.VIEW_NAME, () => new KRMyView());
+    map.set(KuiklyPageView.VIEW_NAME, () => new KuiklyPageView());
     return map;
   }
 

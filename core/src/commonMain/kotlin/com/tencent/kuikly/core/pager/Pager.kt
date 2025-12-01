@@ -60,6 +60,8 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
     private var pageTrace : PageCreateTrace? = null
     override val isDebugUIInspector by lazy { debugUIInspector() } // debug ui
     override var didCreateBody: Boolean = false
+    final override var isAppeared: Boolean = false
+        private set
     private val innerBackPressHandler: BackPressHandler by lazy(LazyThreadSafetyMode.NONE) {
         BackPressHandler()
     }
@@ -215,8 +217,14 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
             observer.onPagerEvent(pagerEvent, eventData)
         }
         when (pagerEvent) {
-            PAGER_EVENT_DID_APPEAR -> pageDidAppear()
-            PAGER_EVENT_DID_DISAPPEAR -> pageDidDisappear()
+            PAGER_EVENT_DID_APPEAR -> {
+                isAppeared = true
+                pageDidAppear()
+            }
+            PAGER_EVENT_DID_DISAPPEAR -> {
+                isAppeared = false
+                pageDidDisappear()
+            }
             PAGER_EVENT_THEME_DID_CHANGED -> themeDidChanged(eventData)
             PAGER_EVENT_FIRST_FRAME_PAINT -> {
                 onFirstFramePaint()

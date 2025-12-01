@@ -320,7 +320,7 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
         if (text.length() == 0) {
             text = GetKRValue("text", spanMap, spanMap)->toString();
         }
-        auto fontWeight = kuikly::util::ConvertFontWeight(GetKRValue("fontWeight", spanMap, props_)->toInt() * fontWeightScale);
+        auto fontWeight = kuikly::util::ConvertFontWeight(GetKRValue("fontWeight", spanMap, props_)->toInt(), fontWeightScale);
         // 解析基于Span的多个渐变色属性
         auto colorStr = GetKRValue("color", spanMap, props_)->toString();
         auto backgroundImage = GetKRValue("backgroundImage", spanMap, props_)->toString();

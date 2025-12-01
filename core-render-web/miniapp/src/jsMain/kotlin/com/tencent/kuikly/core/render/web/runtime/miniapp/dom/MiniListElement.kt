@@ -47,6 +47,10 @@ class MiniListElement(
     // Scroll end callback
     override var scrollEndEventCallback: KuiklyRenderCallback? = null
 
+    // Click callback
+    override var clickEventCallback: KuiklyRenderCallback? = null
+    override var doubleClickEventCallback: KuiklyRenderCallback? = null
+
     // When manually set, record the scroll value. When the triggered scroll equals this value,
     // it can be considered as scroll ended
     private var tempScrollLeft: Float? = 0f

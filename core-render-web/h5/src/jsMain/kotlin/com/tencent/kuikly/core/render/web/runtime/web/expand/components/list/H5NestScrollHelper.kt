@@ -8,6 +8,8 @@ import org.w3c.dom.CustomEvent
 import org.w3c.dom.CustomEventInit
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.TouchEvent
+import org.w3c.dom.events.Event
+import org.w3c.dom.events.MouseEvent
 import org.w3c.dom.get
 import kotlin.js.Date
 import kotlin.js.json
@@ -30,12 +32,14 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
     // Current horizontal touch position
     private var touchX = 0f
     // Whether currently dragging
-    private var isDragging = 0
+    private var isDragging = DRAG_STATE_IDLE
+    // Whether the mouse is pressed
+    private var isMouseDown: Boolean = false
 
     private var lastScrollState: KRNestedScrollState = KRNestedScrollState.CAN_SCROLL
     private var parentScrollState: KRNestedScrollState = KRNestedScrollState.CAN_SCROLL
-    private var nestScrollDistanceY = 0f;
-    private var nestScrollDistanceX = 0f;
+    private var nestScrollDistanceY = 0f
+    private var nestScrollDistanceX = 0f
 
     // Scroll direction
     var scrollDirection: String = H5ListView.SCROLL_DIRECTION_COLUMN
@@ -47,16 +51,16 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
     private var lastTouchY = 0f
     private var lastTouchX = 0f
     private var animationFrameId: Int = 0
-    // Friction factor
-    private val friction = 0.97f
-    // Minimum velocity threshold
-    private val minVelocity = 0.1f
+    // Inertia friction coefficient (0-1, higher = less friction)
+    private val friction = INERTIA_FRICTION
+    // Minimum velocity threshold to continue inertia scroll
+    private val minVelocity = MIN_VELOCITY_THRESHOLD
     private var shouldHandleScroll = false
 
     init {
-        ele.setAttribute("data-nested-scroll", "true")
+        ele.setAttribute(DATA_NESTED_SCROLL_ATTR, ATTR_VALUE_TRUE)
 
-        ele.addEventListener("nestedScrollToParent", { event: dynamic ->
+        ele.addEventListener(EVENT_NESTED_SCROLL_TO_PARENT, { event: dynamic ->
             // don't handle the event if the target element is self
             if (event.target == ele) {
                 return@addEventListener
@@ -66,9 +70,9 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
             val deltaX = event.detail.deltaX.unsafeCast<Float>()
             nestScrollDistanceY = deltaY
             nestScrollDistanceX = deltaX
-        }, json("passive" to false))
+        }, json(PASSIVE_KEY to false))
 
-        ele.addEventListener("nestedScrollToChild", { event: dynamic ->
+        ele.addEventListener(EVENT_NESTED_SCROLL_TO_CHILD, { event: dynamic ->
             // don't handle the event if the target element is self
             if (event.target == ele) {
                 val deltaY = event.detail.deltaY.unsafeCast<Float>()
@@ -77,15 +81,15 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
                 nestScrollDistanceX = deltaX
                 parentScrollState = KRNestedScrollState.SCROLL_BOUNDARY
             }
-        }, json("passive" to false))
+        }, json(PASSIVE_KEY to false))
     }
 
     private fun dispatchScrollEventToParent(deltaX: Float, deltaY: Float) {
         val detail = json(
-            "deltaX" to deltaX,
-            "deltaY" to deltaY,
+            DETAIL_DELTA_X to deltaX,
+            DETAIL_DELTA_Y to deltaY,
         )
-        val scrollEvent = CustomEvent("nestedScrollToParent", CustomEventInit(
+        val scrollEvent = CustomEvent(EVENT_NESTED_SCROLL_TO_PARENT, CustomEventInit(
             cancelable = true,
             bubbles = true,
             detail = detail
@@ -97,10 +101,10 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
 
     private fun dispatchScrollEventToChild(deltaX: Float, deltaY: Float) {
         val detail = json(
-            "deltaX" to deltaX,
-            "deltaY" to deltaY,
+            DETAIL_DELTA_X to deltaX,
+            DETAIL_DELTA_Y to deltaY,
         )
-        val scrollEvent = CustomEvent("nestedScrollToChild", CustomEventInit(
+        val scrollEvent = CustomEvent(EVENT_NESTED_SCROLL_TO_CHILD, CustomEventInit(
             cancelable = true,
             bubbles = true,
             detail = detail
@@ -112,7 +116,7 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
 
     private fun dispatchToChildElements(event: CustomEvent) {
         // Find all child elements that need to receive nestedScroll events
-        val childElements = ele.querySelectorAll("[data-nested-scroll]")
+        val childElements = ele.querySelectorAll(NESTED_SCROLL_SELECTOR)
         for (i in 0 until childElements.length) {
             val childElement = childElements[i] as? HTMLElement
             childElement?.dispatchEvent(event)
@@ -121,7 +125,7 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
 
     private fun getNestScrollMode(rule: String): KRNestedScrollMode {
         return when (rule) {
-            "" -> KRNestedScrollMode.SELF_FIRST
+            EMPTY_STRING -> KRNestedScrollMode.SELF_FIRST
             else -> KRNestedScrollMode.valueOf(rule)
         }
     }
@@ -129,23 +133,26 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
     fun setNestedScroll(propValue: Any): Boolean {
         if (propValue is String) {
             JSONObject(propValue).apply {
-                scrollForwardMode = getNestScrollMode(optString("forward", ""))
-                scrollBackwardMode = getNestScrollMode(optString("backward", ""))
+                scrollForwardMode = getNestScrollMode(optString(JSON_KEY_FORWARD, EMPTY_STRING))
+                scrollBackwardMode = getNestScrollMode(optString(JSON_KEY_BACKWARD, EMPTY_STRING))
             }
         }
         return true
     }
 
-    fun handleNestScrollTouchStart(event: TouchEvent) {
-        isDragging = 1
-        val touch = (event as TouchEvent).touches[0]
-        if (touch != null) {
-            touchStartY = touch.clientY.toFloat()
-            touchStartX = touch.clientX.toFloat()
-            lastTouchY = touchStartY
-            lastTouchX = touchStartX
-            lastTouchTime = Date().getTime().toLong()
-        }
+    /**
+     * Handle common logic of touchStart and mouseDown in nested scrolling
+     */
+    private fun handleNestScrollStart(startX: Float, startY: Float, setMouseDown: Boolean = false) {
+        isDragging = DRAG_STATE_DRAGGING
+        if (setMouseDown) isMouseDown = true
+
+        touchStartY = startY
+        touchStartX = startX
+        lastTouchY = touchStartY
+        lastTouchX = touchStartX
+        lastTouchTime = Date().getTime().toLong()
+
         lastScrollY = ele.scrollTop.toFloat()
         lastScrollX = ele.scrollLeft.toFloat()
         parentScrollState = KRNestedScrollState.CAN_SCROLL
@@ -160,33 +167,42 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
         cancelInertiaScroll()
     }
 
-    fun handleNestScrollTouchMove(event: TouchEvent) {
-        val touch = (event as TouchEvent).touches[0]
+    /**
+     * Handle common logic of touchMove and mouseMove in nested scrolling
+     */
+    private fun handleNestedScrollMove(currentX: Float?, currentY: Float?, event: Event) {
         var deltaY = 0f
         var deltaX = 0f
         var distanceY = 0f
         var distanceX = 0f
-        if (touch != null) {
+
+        if (currentX != null && currentY != null) {
             val currentTime = Date().getTime()
             val timeDelta = currentTime - lastTouchTime
 
             if (timeDelta > 0) {
                 // Calculate velocity (pixels per millisecond)
-                velocityY = ((touch.clientY - lastTouchY) / timeDelta).toFloat()
-                velocityX = ((touch.clientX - lastTouchX) / timeDelta).toFloat()
+                velocityY = ((currentY - lastTouchY) / timeDelta).toFloat()
+                velocityX = ((currentX - lastTouchX) / timeDelta).toFloat()
             }
 
             lastTouchTime = currentTime.toLong()
-            lastTouchY = touch.clientY.toFloat()
-            lastTouchX = touch.clientX.toFloat()
+            lastTouchY = currentY
+            lastTouchX = currentX
 
-            distanceY = touch.clientY - touchStartY - nestScrollDistanceY
-            distanceX = touch.clientX - touchStartX - nestScrollDistanceX
+            distanceY = currentY - touchStartY - nestScrollDistanceY
+            distanceX = currentX - touchStartX - nestScrollDistanceX
 
-            deltaY = touch.clientY - touchY
-            deltaX = touch.clientX - touchX
-            touchY = touch.clientY.toFloat()
-            touchX = touch.clientX.toFloat()
+            deltaY = currentY - touchY
+            deltaX = currentX - touchX
+            touchY = currentY
+            touchX = currentX
+        }
+
+        val delta = if (scrollDirection == H5ListView.SCROLL_DIRECTION_COLUMN) deltaY else deltaX
+
+        if (delta == 0f) {
+            return
         }
 
         // judge whether to continue scrolling
@@ -194,8 +210,6 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
         val canScrollDown = ceil(ele.scrollTop + ele.offsetHeight).toInt() < ele.scrollHeight
         val canScrollLeft = ele.scrollLeft > 0
         val canScrollRight = ceil(ele.scrollLeft + ele.offsetWidth).toInt() < ele.scrollWidth
-
-        val delta = if (scrollDirection == H5ListView.SCROLL_DIRECTION_COLUMN) deltaY else deltaX
         val scrollMode = if (delta < 0) scrollForwardMode else scrollBackwardMode
         when (scrollMode) {
             KRNestedScrollMode.SELF_FIRST -> {
@@ -240,21 +254,27 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
 
         // update lastScrollState
         if (scrollMode == KRNestedScrollMode.SELF_FIRST) {
-            lastScrollState = if (shouldHandleScroll) KRNestedScrollState.CAN_SCROLL else KRNestedScrollState.SCROLL_BOUNDARY
+            lastScrollState = if (shouldHandleScroll)
+                KRNestedScrollState.CAN_SCROLL
+            else KRNestedScrollState.SCROLL_BOUNDARY
         }
     }
 
-    fun handleNestScrollTouchEnd(event: TouchEvent) {
-        isDragging = 0
+    /**
+     * Handle common logic of touchEnd and mouseUp in nested scrolling
+     */
+    private fun handleNestedScrollEnd(event: Event, clearMouseDown: Boolean = false) {
+        isDragging = DRAG_STATE_IDLE
+        if (clearMouseDown) isMouseDown = false
 
         if (!shouldHandleScroll) {
             return
         }
         // Start inertia scroll if velocity is significant
         if (abs(velocityX) > minVelocity || abs(velocityY) > minVelocity) {
-            // Convert velocity to pixels per frame (assuming 60fps)
-            val frameVelocityX = velocityX * 6.67f
-            val frameVelocityY = velocityY * 6.67f
+            // Convert velocity to pixels per frame (velocity is in px/ms, multiply by frame duration)
+            val frameVelocityX = velocityX * FRAME_DURATION_MS
+            val frameVelocityY = velocityY * FRAME_DURATION_MS
             startInertiaScroll(frameVelocityX, frameVelocityY)
         }
 
@@ -268,9 +288,43 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
         listElement.scrollEventCallback?.invoke(offsetMap)
     }
 
-    fun handleNestScrollTouchScroll(event: TouchEvent) {
+    fun handleNestScrollTouchStart(event: TouchEvent) {
+        val touch = event.touches[0]
+        if (touch != null) {
+            handleNestScrollStart(touch.clientX.toFloat(), touch.clientY.toFloat())
+        }
+    }
+
+    fun handleNestScrollTouchMove(event: TouchEvent) {
+        val touch = event.touches[0]
+        if (touch != null) {
+            handleNestedScrollMove(touch.clientX.toFloat(), touch.clientY.toFloat(), event)
+        } else {
+            handleNestedScrollMove(null, null, event)
+        }
+    }
+
+    fun handleNestScrollTouchEnd(event: TouchEvent) {
+        handleNestedScrollEnd(event)
+    }
+
+    fun handleNestScrollTouchScroll(event: Event) {
         val offsetMap = listElement.updateOffsetMap(ele.scrollLeft.toFloat(), ele.scrollTop.toFloat(), isDragging)
         listElement.scrollEventCallback?.invoke(offsetMap)
+
+    }
+
+    fun handleNestScrollMouseDown(event: MouseEvent) {
+        handleNestScrollStart(event.clientX.toFloat(), event.clientY.toFloat(), setMouseDown = true)
+    }
+
+    fun handleNestScrollMouseMove(event: MouseEvent) {
+        if (!isMouseDown) return
+        handleNestedScrollMove(event.clientX.toFloat(), event.clientY.toFloat(), event)
+    }
+
+    fun handleNestScrollMouseUp(event: MouseEvent) {
+        handleNestedScrollEnd(event, clearMouseDown = true)
     }
 
     private fun startInertiaScroll(initialVelocityX: Float, initialVelocityY: Float) {
@@ -297,20 +351,20 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
             val maxScrollX = ele.scrollWidth - ele.clientWidth
             val maxScrollY = ele.scrollHeight - ele.clientHeight
 
-            if (currentX < 0) {
-                currentX = 0f
-                currentVelocityX = 0f
+            if (currentX < MIN_SCROLL_POSITION) {
+                currentX = MIN_SCROLL_POSITION
+                currentVelocityX = VELOCITY_ZERO
             } else if (currentX > maxScrollX) {
                 currentX = maxScrollX.toFloat()
-                currentVelocityX = 0f
+                currentVelocityX = VELOCITY_ZERO
             }
 
-            if (currentY < 0) {
-                currentY = 0f
-                currentVelocityX = 0f
+            if (currentY < MIN_SCROLL_POSITION) {
+                currentY = MIN_SCROLL_POSITION
+                currentVelocityY = VELOCITY_ZERO  // Fixed: was incorrectly setting currentVelocityX
             } else if (currentY > maxScrollY) {
                 currentY = maxScrollY.toFloat()
-                currentVelocityY = 0f
+                currentVelocityY = VELOCITY_ZERO
             }
 
             // Apply scroll
@@ -334,5 +388,39 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
         kuiklyWindow.cancelAnimationFrame(animationFrameId)
     }
 
+    companion object {
+        // Drag state constants
+        private const val DRAG_STATE_IDLE = 0
+        private const val DRAG_STATE_DRAGGING = 1
+
+        // Inertia scroll constants
+        private const val INERTIA_FRICTION = 0.97f
+        private const val MIN_VELOCITY_THRESHOLD = 0.1f
+        // Frame duration in milliseconds (assuming ~60fps, 1000ms / 150fps ≈ 6.67ms for smooth scrolling)
+        private const val FRAME_DURATION_MS = 6.67f
+        private const val MIN_SCROLL_POSITION = 0f
+        private const val VELOCITY_ZERO = 0f
+
+        // DOM attribute constants
+        private const val DATA_NESTED_SCROLL_ATTR = "data-nested-scroll"
+        private const val ATTR_VALUE_TRUE = "true"
+        private const val NESTED_SCROLL_SELECTOR = "[data-nested-scroll]"
+
+        // Custom event names
+        private const val EVENT_NESTED_SCROLL_TO_PARENT = "nestedScrollToParent"
+        private const val EVENT_NESTED_SCROLL_TO_CHILD = "nestedScrollToChild"
+
+        // Event detail keys
+        private const val DETAIL_DELTA_X = "deltaX"
+        private const val DETAIL_DELTA_Y = "deltaY"
+
+        // JSON keys for nested scroll config
+        private const val JSON_KEY_FORWARD = "forward"
+        private const val JSON_KEY_BACKWARD = "backward"
+        private const val EMPTY_STRING = ""
+
+        // Event listener option key
+        private const val PASSIVE_KEY = "passive"
+    }
 }
 

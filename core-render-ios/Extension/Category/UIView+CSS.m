@@ -727,6 +727,7 @@
         @"y": @(location.y),
         @"pageX": @(pageLocation.x),
         @"pageY": @(pageLocation.y),
+        @"isCancel": @(sender.state == UIGestureRecognizerStateCancelled)   // 增加isCancel参数回传
     };
     if (self.css_longPress) {
         self.css_longPress(param);

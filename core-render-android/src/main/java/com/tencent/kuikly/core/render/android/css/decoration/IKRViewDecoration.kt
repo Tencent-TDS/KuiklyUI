@@ -46,4 +46,10 @@ interface IKRViewDecoration {
     @UiThread
     fun drawCommonForegroundDecoration(w: Int, h: Int, canvas: Canvas)
 
+    /**
+     * 判断是否包括自定义裁剪路径，为true时需要save/restore以及通过drawCommonForegroundDecoration绘制前景
+     */
+    @UiThread
+    fun hasCustomClipPath(): Boolean
+
 }

@@ -264,8 +264,17 @@ class InputAttr : Attr() {
      * 仅iOS支持
      * 当设置为true的时候，输入框中如果是空的，则软键盘的Return Key会自动置灰禁用，非空的时候自动启用。
      */
-    fun enablesReturnKeyAutomatically(flag: Boolean): InputAttr{
+    fun enablesReturnKeyAutomatically(flag: Boolean): InputAttr {
         ENABLES_RETURN_KEY_AUTOMATICALLY with if( flag ) 1 else 0
+        return this
+    }
+
+    /**
+     * 是否启用拼音输入回调
+     * @param enable 是否启用，默认为false
+     */
+    fun enablePinyinCallback(enable: Boolean = false): InputAttr {
+        "enablePinyinCallback" with (if (enable) 1 else 0)
         return this
     }
 

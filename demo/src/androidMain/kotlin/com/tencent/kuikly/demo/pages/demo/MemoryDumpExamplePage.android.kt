@@ -12,14 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.tencent.kuikly.demo.pages.demo
 
-@file:JvmName("ReactiveObserverJvm")
-package com.tencent.kuikly.core.reactive
-
-import com.tencent.kuikly.core.nvi.NativeBridge
-
-internal actual inline fun platformCheckThread(block: () -> Unit) {
-    if (!NativeBridge.isContextThread) {
-        block()
-    }
+actual fun dumpMemory() {
 }

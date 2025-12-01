@@ -61,6 +61,14 @@ private fun isInRoundedRect(
 ): Boolean {
     val rrect = outline.roundRect
 
+    return isInRoundedRect(rrect, x, y)
+}
+
+internal fun isInRoundedRect(
+    rrect: RoundRect,
+    x: Float,
+    y: Float
+): Boolean {
     // first, everything that is outside the rect
     if (x < rrect.left || x >= rrect.right || y < rrect.top || y >= rrect.bottom) {
         return false

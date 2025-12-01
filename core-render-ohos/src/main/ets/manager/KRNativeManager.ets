@@ -23,6 +23,7 @@ import { KRWindowInfo } from '../foundation/KRWindowInfo';
 import { KRConvertUtil } from '../utils/KRConvertUtil';
 import { ViewsRegisterEntry } from '../components/ViewsRegisterEntry';
 import { KRNativeRenderController } from '../KRNativeRenderController';
+import { KRRenderLog } from '../adapter/KRRenderLog';
 
 export enum KRCallNativeMethod {
   General = 0,
@@ -57,8 +58,8 @@ export class KRNativeManager {
   private instancesMap = new Map<string, KRNativeInstance>();
   // 是否初始化过
   private didInit: boolean = false;
-  // 窗口信息
-  private windowInfo: KRWindowInfo | null = null;
+  // 窗口信息Map管理
+  private windowInfoMap = new Map<string, KRWindowInfo>()
 
   // 私有构造函数，确保不能通过 new 关键字创建新实例
   private constructor() {
@@ -73,13 +74,36 @@ export class KRNativeManager {
   }
 
   public onLastWindow(win: window.Window): void {
-    if (this.windowInfo == null) {
-      this.windowInfo = new KRWindowInfo(win);
+    let windowId = win.getWindowProperties().id + "";
+    let window = this.getWindowInfo(windowId);
+    if (window != undefined) {
+      window.addInstanceCount();
+      return;
     }
+    this.windowInfoMap.set(windowId, new KRWindowInfo(win));
   }
 
-  public getWindowInfo(): KRWindowInfo | null {
-    return this.windowInfo;
+  public getWindowInfo(windowId: string): KRWindowInfo|undefined {
+    return this.windowInfoMap.get(windowId);
+  }
+
+  /**
+   * 移除窗口信息如果必要
+   * @param instanceId
+   * @param windowId
+   */
+  public removeWindowInfoIfNeed(windowId: string) {
+    let window = this.getWindowInfo(windowId);
+    if (window != undefined) {
+      window.subInstanceCount();
+      let instanceCount = window.getInstanceCount();
+      if (instanceCount == 0) {
+        window.offWindowCallback();
+        this.windowInfoMap.delete(windowId)
+      } else if (instanceCount < 0) {
+        KRRenderLog.e("KRNativeManager", `window instanceCount < 0`)
+      }
+    }
   }
 
   /**
@@ -88,7 +112,7 @@ export class KRNativeManager {
    */
   public createNativeInstance(instanceId: string, uiContext: UIContext, controller: KRNativeRenderController) {
     this.initIfNeed();
-    this.instancesMap[instanceId] = new KRNativeInstance(instanceId, uiContext, controller);
+    this.instancesMap.set(instanceId, new KRNativeInstance(instanceId, uiContext, controller));
   }
 
   /**
@@ -109,7 +133,8 @@ export class KRNativeManager {
    * @returns
    */
   public getNativeInstance(instanceId: string): KRNativeInstance | null {
-    return this.instancesMap[instanceId];
+    let instance = this.instancesMap.get(instanceId);
+    return instance ? instance : null
   }
 
 
@@ -216,10 +241,10 @@ export class KRNativeManager {
    * @param height 键盘高度（单位vp）
    * @param duration 键盘弹出时间（单位毫秒）
    */
-  public keyboardHeightChange(height: number, durationMs: number) {
+  public keyboardHeightChange(height: number, durationMs: number, windowId: string) {
     let globalId = '0';
-    this.arkTSCallNative(globalId, KRCallNativeMethod.KeyboardHeightChange.valueOf(), height, durationMs, null, null,
-      null, null);
+    this.arkTSCallNative(globalId, KRCallNativeMethod.KeyboardHeightChange.valueOf(), height, durationMs, windowId,
+      null, null, null);
   }
 
   private fireCallback(instanceId: string, callbackId: string, data: KRAny) {

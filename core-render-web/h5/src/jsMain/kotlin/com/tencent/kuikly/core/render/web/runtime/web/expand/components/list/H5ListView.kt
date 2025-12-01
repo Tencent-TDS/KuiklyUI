@@ -712,13 +712,33 @@ class H5ListView : IListElement {
 
 
     /**
-     * Clear existing timers when component is destroyed
+     * Clear existing timers and resources when component is destroyed
      */
     override fun destroy() {
-        // Clear existing timer
+        // Clear all timers
         if (scrollEndEventTimer > 0) {
             kuiklyWindow.clearTimeout(scrollEndEventTimer)
+            scrollEndEventTimer = 0
         }
+        
+        clickDetectionTimer?.let {
+            kuiklyWindow.clearTimeout(it)
+        }
+        clickDetectionTimer = null
+        
+        singleClickConfirmTimer?.let {
+            kuiklyWindow.clearTimeout(it)
+        }
+        singleClickConfirmTimer = null
+        
+        wheelStopTimer?.let {
+            kuiklyWindow.clearTimeout(it)
+        }
+        wheelStopTimer = null
+        
+        // Clear helper resources (timers and requestAnimationFrame)
+        listPagingHelper.destroy()
+        nestScrollHelper.destroy()
     }
 
     companion object {

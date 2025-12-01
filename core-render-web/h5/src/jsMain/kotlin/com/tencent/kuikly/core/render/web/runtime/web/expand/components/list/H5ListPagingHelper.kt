@@ -498,6 +498,17 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
         }
     }
 
+    /**
+     * Clean up resources when helper is destroyed
+     */
+    fun destroy() {
+        // Clear wheel reset timer
+        wheelResetTimer?.let {
+            kuiklyWindow.clearTimeout(it)
+        }
+        wheelResetTimer = null
+    }
+
     companion object {
         // Timing constants (in milliseconds)
         private const val PAGING_SCROLL_DELAY = 20

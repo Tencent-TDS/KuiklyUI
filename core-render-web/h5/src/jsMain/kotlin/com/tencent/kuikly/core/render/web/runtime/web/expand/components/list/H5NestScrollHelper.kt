@@ -389,6 +389,14 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
         kuiklyWindow.cancelAnimationFrame(animationFrameId)
     }
 
+    /**
+     * Clean up resources when helper is destroyed
+     */
+    fun destroy() {
+        // Cancel any ongoing inertia scroll animation
+        cancelInertiaScroll()
+    }
+
     companion object {
         // Drag state constants
         private const val DRAG_STATE_IDLE = 0

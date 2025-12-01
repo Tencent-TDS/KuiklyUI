@@ -505,28 +505,17 @@ open class KRView : IKuiklyRenderViewExport {
     override fun onDestroy() {
         super.onDestroy()
         
-        // 1. Remove global window event listener
+        // Remove global window event listener (must be removed to prevent memory leak)
         windowMouseUpListener?.let {
             kuiklyWindow.removeEventListener(KREventConst.MOUSE_UP, it)
         }
         windowMouseUpListener = null
         
-        // 2. Clear screen frame timer
+        // Clear screen frame timer
         if (requestId != 0) {
             kuiklyWindow.clearTimeout(requestId)
             requestId = 0
         }
-        
-        // 3. Clear all callback references
-        panEventCallback = null
-        touchDownEventCallback = null
-        touchMoveEventCallback = null
-        touchUpEventCallback = null
-        screenFrameCallback = null
-        
-        // 4. Reset state
-        isBindTouchEvent = false
-        isMouseDown = false
     }
 
     companion object {

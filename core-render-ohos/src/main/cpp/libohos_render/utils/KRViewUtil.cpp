@@ -314,6 +314,26 @@ void UpdateNodeFrame(ArkUI_NodeHandle node, const KRRect &frame) {
     nodeAPI->setAttribute(node, NODE_POSITION, &position_item);
 }
 
+KRPoint GetNodePositionInWindow(ArkUI_NodeHandle node) {
+    if (!node) {
+        return {};
+    }
+
+    ArkUI_IntOffset globalOffset;
+    int32_t ret = OH_ArkUI_NodeUtils_GetLayoutPositionInWindow(node, &globalOffset);
+    if (ret != ARKUI_ERROR_CODE_NO_ERROR) {
+        KR_LOG_ERROR << "Failed to get node position in window, error code: " << ret;
+        return {};
+    }
+
+    float px_x = static_cast<float>(globalOffset.x);
+    float px_y = static_cast<float>(globalOffset.y);
+
+    double dpi = KRConfig::GetDpi();
+
+    return KRPoint{static_cast<float>(px_x / dpi), static_cast<float>(px_y / dpi)};
+}
+
 void UpdateNodeBackgroundColor(ArkUI_NodeHandle node, uint32_t hexColorValue) {
     auto nodeAPI = GetNodeApi();
     ArkUI_NumberValue value[] = {{.u32 = hexColorValue}};

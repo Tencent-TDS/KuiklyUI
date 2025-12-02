@@ -102,8 +102,7 @@ maven("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
 kotlinx.coroutines库的具体语法和使用方式可参考[官方文档](https://kotlinlang.org/docs/coroutines-guide.html)。
 
 #### kuiklyx.coroutines库
-前面提到，Kuikly UI操作都只能在Kuikly线程调用。`kuiklyx.coroutines`库（以下简称**kuiklyx协程**）提供了切换到kuikly线程的能力，当我们在非Kuikly线程执行异步任务后，就可以通过`kuiklyx协程`切换到Kuikly线程进行UI操作。
-需要注意的是，对Kuikly的操作必须在Kuikly的Context线程中执行。如果调用Kuikly的API时处于其它线程，需要切换回Kuikly线程再进行调用。为此提供了一个扩展库，封装了切换到Kuikly线程的功能。
+前面提到，Kuikly UI操作都只能在Kuikly线程调用。`kuiklyx-open.coroutines`库（以下简称**kuiklyx协程**）提供了切换到kuikly线程的能力，当我们在非Kuikly线程执行异步任务后，就可以通过`kuiklyx协程`切换到Kuikly线程进行UI操作。
 
 ```kotlin
 private suspend fun fetchData() = withContext(Dispatchers.Main) {

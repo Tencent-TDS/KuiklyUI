@@ -66,11 +66,10 @@ GlobalScope.launch {
     }
 }
 ```
-* 接入方式
+##### 接入方式
 在`build.gradle.kts`引入Kotlinx协程库：
 
 - iOS & Android
-
 ```gradle
 dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:KOTLINX_COROUTINES_VERSION")
@@ -121,10 +120,11 @@ override fun created() {
     }
 }
 ```
-:::tip kuiklyx协程使用方法
 
-* 添加Kuiklyx协程
-  示例：
+
+##### kuiklyx协程使用方法
+
+- 添加Kuiklyx协程
 
 在`build.gradle.kts`添加依赖引入kuiklyx.coroutines库：
 
@@ -145,7 +145,7 @@ dependencies {
 :::
 
 
-* 协程方式API
+- 协程方式API
 ```kotlin
 // case 0: js模式使用前需要触发KuiklyContextScheduler初始化，其它模式可忽略
 KuiklyContextScheduler
@@ -154,7 +154,7 @@ GlobalScope.launch(Dispatchers.Kuikly[ctx]) { ... }
 // case 2: 在协程中切换上下文
 withContext(Dispatchers.Kuikly[ctx]) { ... }
 ```
-* 回调方式API
+- 回调方式API
 ```kotlin
 KuiklyContextScheduler.runOnKuiklyThread(pagerId) { cancel ->
     if (cancel) {

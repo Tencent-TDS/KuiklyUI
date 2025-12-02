@@ -688,7 +688,7 @@
 
 - (void)css_onClickTapWithSender:(UIGestureRecognizer *)sender {
     CGPoint location = [sender locationInView:self];
-    CGPoint pageLocation = [sender locationInView:self.window];
+    CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
     NSDictionary *param = @{
         @"x": @(location.x),
         @"y": @(location.y),
@@ -702,7 +702,7 @@
 
 - (void)css_onDoubleClickWithSender:(UIGestureRecognizer *)sender {
     CGPoint location = [sender locationInView:self];
-    CGPoint pageLocation = [sender locationInView:self.window];
+    CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
     NSDictionary *param = @{
         @"x": @(location.x),
         @"y": @(location.y),
@@ -720,7 +720,7 @@
         @(UIGestureRecognizerStateChanged): @"move",
     };
     CGPoint location = [sender locationInView:self];
-    CGPoint pageLocation = [sender locationInView:self.window];
+    CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
     NSDictionary *param = @{
         @"state": config[@(sender.state)] ? : @"end",
         @"x": @(location.x),
@@ -734,6 +734,17 @@
     }
 }
 
+- (CGPoint)kr_convertLocalPointToRenderRoot:(CGPoint)point{
+    UIView *root = nil;
+    if ([self respondsToSelector:@selector(hr_rootView)]){
+        root = [self performSelector:@selector(hr_rootView)];
+    } else if ([self.superview respondsToSelector:@selector(hr_rootView)]){
+        root = [self.superview performSelector:@selector(hr_rootView)];
+    }
+    
+    return [self convertPoint:point toView:root];
+}
+
 - (void)css_onPanWithSender:(UIPanGestureRecognizer *)sender {
     NSDictionary *config = @{
         @(UIGestureRecognizerStateBegan): @"start",
@@ -741,7 +752,7 @@
     };
     
     CGPoint location = [sender locationInView:self];
-    CGPoint pageLocation = [sender locationInView:self.window];
+    CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
     NSDictionary *param = @{
         @"state": config[@(sender.state)] ? : @"end",
         @"x": @(location.x),

@@ -98,6 +98,7 @@ maven("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
 :::tip 提示
 不同平台支持的调度器有所不同，例如，除了各平台共有的`Dispatchers.Default`和`Dispatchers.Unconfined`，Android平台还提供了`Dispatchers.Main`、`Dispatchers.IO`等。
 具体可以参考[kotlinx.coroutines的API文档](https://kotlinlang.org/api/kotlinx.coroutines/); kotlinx.coroutines库的具体语法和使用方式可参考[官方文档](https://kotlinlang.org/docs/coroutines-guide.html)。
+:::
 
 #### kuiklyx.coroutines库
 前面提到，Kuikly UI操作都只能在Kuikly线程调用。`kuiklyx.coroutines`库（以下简称**kuiklyx协程**）提供了切换到kuikly线程的能力，当我们在非Kuikly线程执行异步任务后，就可以通过`kuiklyx协程`切换到Kuikly线程进行UI操作。

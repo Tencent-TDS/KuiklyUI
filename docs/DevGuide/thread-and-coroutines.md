@@ -235,7 +235,7 @@ val commonMain by getting {
     }
 }
 ```
-:::tip 提示 KUIKLYX_COROUTINES_VERSION 可参考[kuiklyx:coroutines接入](#kuiklyx协程使用方法)
+:::tip 提示 KUIKLYX_COROUTINES_VERSION 可参考[kuiklyx:coroutines接入](#kuiklyx协程使用方法):::
 
 
 在Kuikly页面中使用：
@@ -278,10 +278,7 @@ val commonMain by getting {
 }
 ```
 
-
-:::
-tip 提示 KOTLINX_COROUTINES_VERSION和KUIKLYX_COROUTINES_VERSION 的设置可参考[kotlinx.coroutines库接入方式](#接入方式)
-:::
+:::tip 提示 KOTLINX_COROUTINES_VERSION和KUIKLYX_COROUTINES_VERSION 的设置可参考[kotlinx.coroutines库接入方式](#接入方式):::
 
 
 在Kuikly页面中使用：

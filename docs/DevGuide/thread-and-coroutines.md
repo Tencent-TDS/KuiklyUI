@@ -70,18 +70,10 @@ GlobalScope.launch {
 在`build.gradle.kts`引入Kotlinx协程库：
 
 - iOS & Android
-```gradle
-dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:KOTLINX_COROUTINES_VERSION")
-}
-```
-:::tip 注意
-KOTLINX_COROUTINES_VERSION 需要根据项目使用的kotlin版本，替换为对应的版本，具体的版本号可以在[官方协程库](https://github.com/Kotlin/kotlinx.coroutines/releases)进行查询
-:::
+建议直接参考 Kotlin [官方协程库](https://github.com/Kotlin/kotlinx.coroutines/releases)发布页面 获取最新版本与接入方式。
 
 - 鸿蒙
-
-如需在鸿蒙平台上使用协程，可使用基于官方协程库的鸿蒙支持版本：
+鸿蒙平台上使用官方协程库的鸿蒙支持版本：
 
 ```gradle
 dependencies {
@@ -95,9 +87,8 @@ maven("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
 ```
 
 
-:::tip 提示
-不同平台支持的调度器有所不同，例如，除了各平台共有的`Dispatchers.Default`和`Dispatchers.Unconfined`，Android平台还提供了`Dispatchers.Main`、`Dispatchers.IO`等。
-具体可以参考[kotlinx.coroutines的API文档](https://kotlinlang.org/api/kotlinx.coroutines/); kotlinx.coroutines库的具体语法和使用方式可参考[官方文档](https://kotlinlang.org/docs/coroutines-guide.html)。
+:::
+tip 提示 不同平台支持的调度器有所不同，例如，除了各平台共有的Dispatchers.Default和Dispatchers.Unconfined，Android平台还提供了Dispatchers.Main、Dispatchers.IO等。 具体可以参考kotlinx.coroutines的API文档。
 :::
 
 #### kuiklyx.coroutines库
@@ -139,7 +130,6 @@ dependencies {
     implementation("com.tencent.kuiklyx-open:coroutines:$KUIKLYX_COROUTINES_OHOS_VERSION")
 }
 ```
-
 :::tip 提示
 `KOTLINX_COROUTINES_VERSION`和`KUIKLYX_COROUTINES_OHOS_VERSION`可在此查看（[KUIKLYX_COROUTINES_VERSION最新版本号](https://repo1.maven.org/maven2/com/tencent/kuiklyx-open/coroutines/)）
 例如当前最新的版本号为1.5.0-2.0.21；鸿蒙侧则使用1.5.0-2.0.21-ohos
@@ -247,6 +237,18 @@ override fun created() {
 
 示例：
 
+先在build.gradle.kts添加依赖库：
+```gradle
+val commonMain by getting {
+    dependencies {
+        // kuiklyx协程库
+        implementation("com.tencent.kuiklyx:coroutines:$KUIKLYX_COROUTINES_VERSION")
+    }
+}
+```
+:::tip 提示 KUIKLYX_COROUTINES_VERSION 可参考[kuiklyx:coroutines接入](#kuiklyx协程使用方法)
+
+
 在Kuikly页面中使用：
 ```kotlin
 override fun created() {
@@ -273,6 +275,21 @@ override fun created() {
 **需要使用多线程能力，对通信开销要求较高，不考虑动态化，同时需要协程语法提升代码可读性**：建议使用kotlinx协程，再通过kuiklyx协程库（协程方式）回到Kuikly线程更新UI。
 
 示例：
+
+先在build.gradle.kts添加依赖库：
+```gradle
+val commonMain by getting {
+    dependencies {
+        // kotlinx协程库
+        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$KOTLINX_COROUTINES_VERSION")
+        // kuiklyx协程库
+        implementation("com.tencent.kuiklyx:coroutines:$KUIKLYX_COROUTINES_VERSION")
+    }
+}
+```
+:::
+tip 提示 KOTLINX_COROUTINES_VERSION和KUIKLYX_COROUTINES_VERSION 的设置可参考[kotlinx.coroutines库接入方式](#接入方式)
+:::
 
 在Kuikly页面中使用：
 ```kotlin

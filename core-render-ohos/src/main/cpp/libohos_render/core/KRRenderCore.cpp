@@ -94,10 +94,9 @@ bool KRRenderCore::IsCallbackKeepAlive(const KRAnyValue &params) {
 }
 
 void KRRenderCore::DidInit() {
-    auto strongSelf = shared_from_this();
     // createInstance to kotlin
     auto sync = context_->ExecuteMode()->IsContextSyncInit();
-    KRContextScheduler::DirectRunOnMainThread(sync, [strongSelf, sync] {
+    KRContextScheduler::DirectRunOnMainThread(sync, [strongSelf = shared_from_this(), sync] {
         auto page_name = std::make_shared<KRRenderValue>(strongSelf->context_->PageName());
         auto page_data = std::make_shared<KRRenderValue>(strongSelf->context_->PageData()->toString());
         auto null_arg = strongSelf->defaultNullValue_;
@@ -112,26 +111,31 @@ void KRRenderCore::DidInit() {
         strongSelf->uiScheduler_->PerformSyncMainQueueTasksBlockIfNeed(sync);
         strongSelf->notifyInitState(KRInitState::kStateCreateInstanceFinish);
     });
-    strongSelf->uiScheduler_->PerformMainThreadTaskWaitToSyncBlockIfNeed();
+    uiScheduler_->PerformMainThreadTaskWaitToSyncBlockIfNeed();
 }
 
 // kt通信
 void KRRenderCore::SendEvent(std::string event_name, const std::string &json_data) {
-    auto self = shared_from_this();
     bool needSync = false;
     if (auto rv = renderView_.lock()) {
         needSync = rv->syncSendEvent(event_name);
     }
 
-    auto task = [self, event_name, json_data] {
+    auto task = [self = shared_from_this(), needSync, event_name, json_data] {
         auto event = std::make_shared<KRRenderValue>(event_name);
         auto data = std::make_shared<KRRenderValue>(json_data);
         auto nullValue = self->defaultNullValue_;
         self->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodUpdateInstance, event, data, nullValue,
                                nullValue, nullValue);
+        if (needSync) {
+            self->uiScheduler_->PerformSyncMainQueueTasksBlockIfNeed(true);
+        }
     };
 
-    PerformTaskOnContextQueue(needSync, 0, task);
+    KRContextScheduler::DirectRunOnMainThread(needSync, task);
+    if (needSync) {
+        uiScheduler_->PerformMainThreadTaskWaitToSyncBlockIfNeed();
+    }
 }
 
 std::shared_ptr<IKRRenderViewExport> KRRenderCore::GetView(int tag) {
@@ -245,7 +249,7 @@ KRAnyValue KRRenderCore::PerformNativeCallback(const KuiklyRenderNativeMethod &m
             std::weak_ptr<KRRenderCore> weakSelf = shared_from_this();
             KRRenderCallback callback = [weakSelf, arg1, arg2, arg3, arg4, arg5, sync](KRAnyValue res) {
                 auto shouldSync = sync;
-                PerformTaskOnContextQueue(shouldSync, 0, [weakSelf, shouldSync, res, arg1, arg2, arg3, arg4, arg5] {
+                KRContextScheduler::DirectRunOnMainThread(shouldSync, [weakSelf, shouldSync, res, arg1, arg2, arg3, arg4, arg5] {
                     if (auto locked = weakSelf.lock()) {
                         locked->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodFireViewEvent, arg1, arg2,
                                                  res, locked->defaultNullValue_, locked->defaultNullValue_);

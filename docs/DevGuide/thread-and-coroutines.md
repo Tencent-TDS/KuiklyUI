@@ -69,23 +69,18 @@ GlobalScope.launch {
 ##### 接入方式
 在`build.gradle.kts`引入Kotlinx协程库：
 
-- iOS & Android
-建议直接参考 Kotlin [官方协程库](https://github.com/Kotlin/kotlinx.coroutines/releases)发布页面 获取最新版本与接入方式。
+- iOS & Android 建议参考 [Kotlin官方协程库](https://github.com/Kotlin/kotlinx.coroutines/releases) 获取最新版本与接入方式。
 
-- 鸿蒙
-鸿蒙平台上使用官方协程库的鸿蒙支持版本：
+- 鸿蒙平台上使用官方协程库的鸿蒙支持版本：
 
 ```gradle
 dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0-KBA-002")
 }
-```
 
-该扩展协程库位于以下maven源
-```gradle
+// 该扩展协程库位于以下maven源
 maven("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
 ```
-
 
 :::
 tip 提示 不同平台支持的调度器有所不同，例如，除了各平台共有的Dispatchers.Default和Dispatchers.Unconfined，Android平台还提供了Dispatchers.Main、Dispatchers.IO等。 具体可以参考kotlinx.coroutines的API文档。
@@ -155,12 +150,6 @@ KuiklyContextScheduler.runOnKuiklyThread(pagerId) { cancel ->
     // do something
 }
 ```
-
-:::tip 注意
-如果编译成js产物执行（动态化场景），受限于JS引擎的单线程执行方式，无法实现真正的多线程并行执行。
-:::
-
-
 ## Kuikly异步编程介绍
 
 **协程**和**多线程**是Kuikly异步编程的两个维度，它们可以组合出不同的异步编程方式，每种方式都有其适用的场景和优缺点。
@@ -269,6 +258,7 @@ override fun created() {
 }
 ```
 
+
 ### 方式3：Kotlinx协程库和Kuiklyx协程库（协程方式）
 
 #### 场景四
@@ -287,9 +277,12 @@ val commonMain by getting {
     }
 }
 ```
+
+
 :::
 tip 提示 KOTLINX_COROUTINES_VERSION和KUIKLYX_COROUTINES_VERSION 的设置可参考[kotlinx.coroutines库接入方式](#接入方式)
 :::
+
 
 在Kuikly页面中使用：
 ```kotlin

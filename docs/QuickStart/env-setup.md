@@ -10,24 +10,15 @@
     切换方式: Android Studio -> Settings -> Build,Execution,Deployment -> Build Tools -> Gradle -> Gradle JDK
 2. 在``Android Studio``中安装``Kotlin``和``Kotlin MultiPlatform``插件，路径为**Setting->Preferences->Plugins->Marketplace**
    ![安装kotlin和kmp插件](../DevGuide/img/kotlin_and_kmm_plugin.png)
-3. 在``Android Studio``中安装``Kuikly``插件
+3.  [点击查看并安装Kuikly Android Studio插件](../DevGuide/as-plugin.md#安装)
 
-   安装步骤：
-   
-   1. Android Studio -> Setting->Preferences -> Plugins->Marketplace
-   2. 在Marketplace页签，输入Kuikly回车搜索，点击Install，然后Restart IDE即可
-
-   <div align="center">
-      <img src="./img/plugin_load.png">
-   </div>
-
-注：若想通过插件生成Ohos工程，请更新插件至1.1.0版本以上。
+   注：若想通过插件生成Ohos工程，请更新插件至1.1.0版本以上。
    
    目前``Kuikly`` Android Studio插件提供了以下功能
 
-   1. 新建``Kuikly``业务工程: 一键生成``Kuikly``业务工程与 `Android/iOS/Ohos App` 宿主工程，自动集成``Kuikly``依赖等
-   2. 新建``Kuikly``的ComposeView类: 自动帮业务开发者生成组合组件的模板代码
-   3. 新建``Kuikly``的Pager类: 自动帮业务开发者生成Pager的模板代码
+   - 新建``Kuikly``业务工程: 一键生成``Kuikly``业务工程与 `Android/iOS/Ohos App` 宿主工程，自动集成``Kuikly``依赖等 
+   - 新建``Kuikly``的ComposeView类: 自动帮业务开发者生成组合组件的模板代码 
+   - 新建``Kuikly``的Pager类: 自动帮业务开发者生成Pager的模板代码
 
 4. 下载``jdk 17``并配置环境变量
 5. 如需运行iOS, 还需要安装[XCode](https://developer.apple.com/xcode/)和[cocoapods](https://cocoapods.org/)

@@ -18,6 +18,8 @@
 
 namespace kuikly {
 inline namespace model_util {
+void KRBinary2HexUpper(const unsigned char *buffer, size_t buffer_size, char *hex_string);
+
 std::string KREncodeURLComponent(const std::string &str);
 
 std::string KRDecodeURLComponent(const std::string &str);

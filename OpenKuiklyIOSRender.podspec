@@ -7,8 +7,8 @@ Pod::Spec.new do |spec|
                         DESC
   spec.homepage         = "https://github.com/Tencent-TDS/KuiklyUI"
   spec.license          = { :type => "KuiklyUI", :file => "LICENSE" }
-  spec.author           = { "Kuikly" => "ruifanyuan@tencent.com" }
-  spec.ios.deployment_target = '9.0'
+  spec.author           = "Kuikly Team"
+  spec.ios.deployment_target = '12.0'
   spec.source           = { :git => "https://github.com/Tencent-TDS/KuiklyUI.git", :tag => "#{spec.version}" }
   spec.user_target_xcconfig = { 'CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES' => 'YES' }
   spec.requires_arc     = true

@@ -79,16 +79,6 @@ NS_ASSUME_NONNULL_BEGIN
 - (UIImage *)kr_blurBlurRadius:(CGFloat)radius;
 
 /**
- * 转换为热力图图片
- */
-- (UIImage *)kr_applyHeatmapWithGridentRawData:(unsigned char *)gridentRawData gridentImage:(UIImage *)gridentImage;
-
-/**
- * 获取图片像素数组
- */
-- (unsigned char *)kr_getRawData;
-
-/**
  * 染色非透明像素为该颜色
  */
 - (UIImage *)kr_tintedImageWithColor:(UIColor *)color;

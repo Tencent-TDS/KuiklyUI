@@ -73,8 +73,6 @@
     NSMutableArray *aaray =  args[KR_PARAM_KEY];
     KuiklyRenderCallback callback = args[KR_CALLBACK_KEY];
     if ([aaray isKindOfClass:[NSArray class]]) {
-        int coud = aaray.count;
-        id dds = aaray[0];
         id dd = aaray[1];
         if ([dd isKindOfClass:[NSData class]]) {
             callback(@[@"343434", dd, @"33434"]);

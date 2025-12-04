@@ -9,7 +9,7 @@
 #
 
 # universal files
-* @Cyunong @iPel @hidawei @elixxli @ruifanyan @luoyibu @zenipchen
+* @wwwcg @iPel @hidawei @elixxli @ruifanyan @luoyibu @zenipchen
 /README.md @hidawei
 /buildSrc/ @elixxli
 /androidApp/ @hidawei @elixxli
@@ -18,21 +18,21 @@
 /core-kapt/ @elixxli
 /core-ksp/ @elixxli
 /core-render-android/ @iPel @hidawei
-/core-render-ios/ @Cyunong
+/core-render-ios/ @wwwcg
 /core-render-web/ @gguoyu @xyc-cn @zealotchen0 @elixxli
 /h5App/ @gguoyu @xyc-cn @zealotchen0 @elixxli
 /miniApp/ @gguoyu @xyc-cn @zealotchen0 @elixxli
 /demo/ @hidawei
 /gradle/ @elixxli
 /img/ @hidawei
-/iosApp/ @Cyunong
+/iosApp/ @wwwcg
 /*.sh @elixxli @iPel
 /*.gradle.kts @elixxli @iPel
 /CODE_OF_CONDUCT.md @hidawei
 /CONTRIBUTING.md @hidawei
 /LICENSE @hidawei
 /README* @hidawei
-/OpenKuiklyIOSRender.podspec @Cyunong
+/OpenKuiklyIOSRender.podspec @wwwcg
 /gradlew*  @elixxli @iPel
 /.gitignore @iPel @hidawei
 

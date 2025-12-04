@@ -81,6 +81,11 @@
     
 }
 
+- (void)krv_seekToTime:(NSUInteger)seekTotime { 
+    // ...
+}
+
+
 #pragma mark - WMPlayerDelegate
 
 //准备播放的代理方法

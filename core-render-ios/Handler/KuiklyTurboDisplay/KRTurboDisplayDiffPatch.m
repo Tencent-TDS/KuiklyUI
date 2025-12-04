@@ -274,8 +274,10 @@ static UIView *gBaseView = nil;
     [renderLayer setContextParamToShadow:realShadow];
     
     if (!realShadow) {
+#if !defined(NS_BLOCK_ASSERTIONS)
         NSString *assertMsg = [NSString stringWithFormat:@"create shadow failed:%@", shadow.viewName];
         NSAssert(NO, assertMsg);
+#endif
         return ;
     }
     for (KRTurboDisplayProp *prop in shadow.props) {

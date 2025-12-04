@@ -119,10 +119,10 @@
         NSString *exceptionString = noti.userInfo[@"exception"];
         NSArray *components = [exceptionString componentsSeparatedByString:@"\n"];
         NSString *exceptionName = [components firstObject];
-
         NSArray<NSString *> *callStackArray = [components subarrayWithRange:NSMakeRange(1, components.count - 1)];
         // bugly上报示例
-        //        [Bugly reportExceptionWithCategory:7 name:exceptionName reason:exceptionName callStack:callStackArray extraInfo:@{} terminateApp:YES];
+        // [Bugly reportExceptionWithCategory:7 name:exceptionName reason:exceptionName callStack:callStackArray extraInfo:@{} terminateApp:YES];
+        NSLog(@"report Kuikly Exception: %@, stacks:%@", exceptionName, callStackArray);
     }
 }
 

@@ -55,10 +55,10 @@ if ([self respondsToSelector:selector]) { \
 }
 
 #define KR_STRONG_SELF_RETURN_IF_NIL \
-if (!weakSelf) { \
-    return; \
-} \
 __strong typeof(&*weakSelf) strongSelf = weakSelf; \
+if (!strongSelf) { \
+return; \
+} \
 
 #define KR_WEAK_SELF __weak typeof(&*self) weakSelf = self;
 

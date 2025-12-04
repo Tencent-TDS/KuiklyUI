@@ -335,7 +335,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 - (void)p_setBase64Image:(NSString *)base64Str {
     __weak typeof(&*self) weakSelf = self;
     KuiklyRenderView *rootView =  self.hr_rootView;
-    KRMemoryCacheModule *module = [rootView moduleWithName:NSStringFromClass([KRMemoryCacheModule class])];
+    KRMemoryCacheModule *module = (KRMemoryCacheModule *)[rootView moduleWithName:NSStringFromClass([KRMemoryCacheModule class])];
     if (!module) {
         return;
     }

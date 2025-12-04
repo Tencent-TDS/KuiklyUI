@@ -193,7 +193,7 @@ internal class OverScrollHandler(
         !recyclerView.limitHeaderBounces && isInStart() && (offset > 0 || currentTranslation > 0)
 
     private fun needInEndTranslate(offset: Float, currentTranslation: Float): Boolean =
-        isInEnd() && (offset < 0 || currentTranslation < 0)
+        !recyclerView.limitFooterBounces && isInEnd() && (offset < 0 || currentTranslation < 0)
 
     private fun processPointerUpEVent(activeIndex: Int, event: MotionEvent): Boolean {
         pointerDataMap.remove(event.getPointerId(activeIndex))

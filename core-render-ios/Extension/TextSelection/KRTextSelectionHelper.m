@@ -22,28 +22,34 @@
 #define KR_ANCHOR_TAG_LEFT 1001
 #define KR_ANCHOR_TAG_RIGHT 1002
 
+
 /// KVO context for observing contentOffset changes
 static void *KRTextSelectionScrollObserverContext = &KRTextSelectionScrollObserverContext;
 
 @interface KRTextSelectionHelper () <UIGestureRecognizerDelegate, UIScrollViewDelegate>
 
+/// The labels that participate in the selection, ordered visually.
 @property (nonatomic, strong) NSArray<KRLabel *> *labels;
+/// The view that contains all labels (and where anchors will be added).
 @property (nonatomic, weak) UIView *containerView;
 
+/// The left anchor view.
 @property (nonatomic, strong) KRTextSelectionAnchorView *leftAnchor;
+/// The right anchor view.
 @property (nonatomic, strong) KRTextSelectionAnchorView *rightAnchor;
-
+/// The magnifier view.
 @property (nonatomic, strong) KRTextMagnifierView *magnifierView;
 
-// Selection state
+/// The start label.
 @property (nonatomic, weak) KRLabel *startLabel;
+/// The start index.
 @property (nonatomic, assign) NSInteger startIndex;
+/// The end label.
 @property (nonatomic, weak) KRLabel *endLabel;
+/// The end index.
 @property (nonatomic, assign) NSInteger endIndex;
 
-@property (nonatomic, strong) UIPanGestureRecognizer *panGesture;
-
-// Scroll observation for anchor position sync
+/// Scroll observation for anchor position sync
 @property (nonatomic, strong) NSHashTable<UIScrollView *> *observedScrollViews;
 
 @end

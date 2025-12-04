@@ -17,11 +17,15 @@
 #import "KRTextSelectionAnchorView.h"
 #import "KRLabel.h"
 #import "KRTextMagnifierView.h"
+#import "KRScrollView.h"
 
 #define KR_ANCHOR_TAG_LEFT 1001
 #define KR_ANCHOR_TAG_RIGHT 1002
 
-@interface KRTextSelectionHelper () <UIGestureRecognizerDelegate>
+/// KVO context for observing contentOffset changes
+static void *KRTextSelectionScrollObserverContext = &KRTextSelectionScrollObserverContext;
+
+@interface KRTextSelectionHelper () <UIGestureRecognizerDelegate, UIScrollViewDelegate>
 
 @property (nonatomic, strong) NSArray<KRLabel *> *labels;
 @property (nonatomic, weak) UIView *containerView;
@@ -38,6 +42,9 @@
 @property (nonatomic, assign) NSInteger endIndex;
 
 @property (nonatomic, strong) UIPanGestureRecognizer *panGesture;
+
+// Scroll observation for anchor position sync
+@property (nonatomic, strong) NSHashTable<UIScrollView *> *observedScrollViews;
 
 @end
 
@@ -90,6 +97,9 @@
     self.endLabel = nil;
     self.startIndex = -1;
     self.endIndex = -1;
+    
+    // Start observing scroll events to keep anchors in sync
+    [self collectAndObserveScrollViews];
 }
 
 - (void)selectWordAtPoint:(CGPoint)point {
@@ -137,6 +147,9 @@
 }
 
 - (void)endSelection {
+    // Remove scroll observers first
+    [self removeScrollViewObservers];
+    
     [self.leftAnchor removeFromSuperview];
     [self.rightAnchor removeFromSuperview];
     
@@ -474,7 +487,12 @@ static const CGFloat kMagnifierVerticalOffset = 60.0;
     // Simple whitespace based
     __block NSRange result = NSMakeRange(index, 1);
     
-    [string enumerateSubstringsInRange:NSMakeRange(0, string.length) options:NSStringEnumerationByWords usingBlock:^(NSString * _Nullable substring, NSRange substringRange, NSRange enclosingRange, BOOL * _Nonnull stop) {
+    [string enumerateSubstringsInRange:NSMakeRange(0, string.length)
+                               options:NSStringEnumerationByWords
+                            usingBlock:^(NSString * _Nullable substring,
+                                         NSRange substringRange,
+                                         NSRange enclosingRange,
+                                         BOOL * _Nonnull stop) {
         if (NSLocationInRange(index, substringRange)) {
             result = substringRange;
             *stop = YES;
@@ -482,6 +500,83 @@ static const CGFloat kMagnifierVerticalOffset = 60.0;
     }];
     
     return result;
+}
+
+#pragma mark - Scroll Observation
+
+/// Collect all UIScrollView ancestors of the labels and start observing their scroll events
+- (void)collectAndObserveScrollViews {
+    [self removeScrollViewObservers]; // Clear previous observers
+    
+    if (!self.labels || self.labels.count == 0) return;
+    
+    self.observedScrollViews = [NSHashTable weakObjectsHashTable];
+    
+    // Traverse view hierarchy for each label and collect all UIScrollView ancestors
+    for (KRLabel *label in self.labels) {
+        UIView *view = label.superview;
+        while (view) {
+            if ([view isKindOfClass:[UIScrollView class]]) {
+                UIScrollView *scrollView = (UIScrollView *)view;
+                
+                // Avoid duplicate observation
+                if (![self.observedScrollViews containsObject:scrollView]) {
+                    [self.observedScrollViews addObject:scrollView];
+                    
+                    // Use KRScrollView's delegate mechanism if available, otherwise use KVO
+                    if ([scrollView isKindOfClass:[KRScrollView class]]) {
+                        [(KRScrollView *)scrollView addScrollViewDelegate:self];
+                    } else {
+                        [scrollView addObserver:self
+                                     forKeyPath:@"contentOffset"
+                                        options:NSKeyValueObservingOptionNew
+                                        context:KRTextSelectionScrollObserverContext];
+                    }
+                }
+            }
+            view = view.superview;
+        }
+    }
+}
+
+/// Remove all scroll observers
+- (void)removeScrollViewObservers {
+    if (!self.observedScrollViews) return;
+    
+    for (UIScrollView *scrollView in self.observedScrollViews) {
+        if ([scrollView isKindOfClass:[KRScrollView class]]) {
+            [(KRScrollView *)scrollView removeScrollViewDelegate:self];
+        } else {
+            @try {
+                [scrollView removeObserver:self forKeyPath:@"contentOffset" context:KRTextSelectionScrollObserverContext];
+            } @catch (NSException *exception) {
+                // Observer was already removed or never added
+            }
+        }
+    }
+    
+    self.observedScrollViews = nil;
+}
+
+#pragma mark - UIScrollViewDelegate (for KRScrollView)
+
+- (void)scrollViewDidScroll:(UIScrollView *)scrollView {
+    // Update anchor positions when scroll content changes
+    [self updateUI];
+}
+
+#pragma mark - KVO (for generic UIScrollView)
+
+- (void)observeValueForKeyPath:(NSString *)keyPath
+                      ofObject:(id)object
+                        change:(NSDictionary<NSKeyValueChangeKey,id> *)change
+                       context:(void *)context {
+    if (context == KRTextSelectionScrollObserverContext) {
+        // Update anchor positions when scroll content changes
+        [self updateUI];
+    } else {
+        [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
+    }
 }
 
 @end

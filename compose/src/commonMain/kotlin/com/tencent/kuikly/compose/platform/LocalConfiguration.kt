@@ -20,15 +20,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import com.tencent.kuikly.core.base.EdgeInsets
 import com.tencent.kuikly.core.manager.PagerManager
+import com.tencent.kuikly.core.pager.IPager
 import com.tencent.kuikly.core.pager.PageData
 /**
  * 页面配置信息，如屏幕信息，页面宽度，设备，版本, 平台等信息
  */
-class Configuration {
+class Configuration(private val pager: IPager) {
     // 当前页面的数据
     val pageData: PageData
         get() {
-            return PagerManager.getCurrentPager().pageData
+            return pager.pageData
         }
 
     // 设备屏幕的宽度（以dp为单位）

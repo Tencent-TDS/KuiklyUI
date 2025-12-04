@@ -302,6 +302,14 @@ void KRRenderView::OnFirstFramePaint() {
     SendEvent(PAGER_EVENT_FIRST_FRAME_PAINT, "{}");
 }
 
+KRPoint KRRenderView::GetRootNodePositionInWindow() const {
+    if (root_node_ == nullptr) {
+        return KRPoint{0.0f, 0.0f};
+    }
+
+    return kuikly::util::GetNodePositionInWindow(root_node_);
+}
+
 void KRRenderView::DispatchInitState(KRInitState state) {
     switch (state) {
     case KRInitState::kStateKRRenderViewInit:

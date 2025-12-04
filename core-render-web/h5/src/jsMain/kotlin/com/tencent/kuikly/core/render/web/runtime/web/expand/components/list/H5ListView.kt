@@ -1,8 +1,13 @@
 package com.tencent.kuikly.core.render.web.runtime.web.expand.components.list
 
 import com.tencent.kuikly.core.render.web.collection.array.add
+import com.tencent.kuikly.core.render.web.const.KRAttrConst
+import com.tencent.kuikly.core.render.web.const.KRCssConst
+import com.tencent.kuikly.core.render.web.const.KREventConst
+import com.tencent.kuikly.core.render.web.const.KRListConst
+import com.tencent.kuikly.core.render.web.const.KRParamConst
+import com.tencent.kuikly.core.render.web.const.KRStyleConst
 import com.tencent.kuikly.core.render.web.expand.components.list.KRListViewContentInset
-import com.tencent.kuikly.core.render.web.ktx.KRCssConst
 import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.web.ktx.kuiklyDocument
 import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
@@ -34,10 +39,10 @@ class H5ListView : IListElement {
         // add 'list-no-scrollbar' class to the element
         this.unsafeCast<HTMLDivElement>().style.apply {
             // Due to bounce effect on iOS, non-scrolling direction should be set to "hidden"
-            overflowX = "hidden"
-            overflowY = "scroll"
+            overflowX = KRStyleConst.OVERFLOW_HIDDEN
+            overflowY = KRStyleConst.OVERFLOW_SCROLL
         }
-        this.classList.add(IS_LIST)
+        this.classList.add(KRListConst.IS_LIST)
     }
     // Scroll end event listener
     private var scrollEndEventTimer: Int = 0
@@ -60,9 +65,9 @@ class H5ListView : IListElement {
     // Whether to show scrollbar
     private var showScrollerBar = true
     // Scroll direction
-    private var scrollDirection = SCROLL_DIRECTION_COLUMN
+    private var scrollDirection = KRListConst.SCROLL_DIRECTION_COLUMN
     // Actual calculated scroll direction
-    private var calculateDirection = SCROLL_DIRECTION_NONE
+    private var calculateDirection = KRListConst.SCROLL_DIRECTION_NONE
     // Whether currently dragging
     private var isDragging = 0
     // Whether paging is enabled
@@ -80,7 +85,7 @@ class H5ListView : IListElement {
     // Whether it contains pull-to-refresh child node
     private var hasRefreshChild = false
     // Scroll distance threshold
-    private val scrollThreshold = SCROLL_THRESHOLD
+    private val scrollThreshold = KRListConst.SCROLL_THRESHOLD
     // Whether in scrolling state
     private var isScrolling = ScrollingAxis.NONE
     // Decide whether the interaction should be treated as a click
@@ -131,22 +136,22 @@ class H5ListView : IListElement {
      */
     override fun setScrollEnable(params: Any): Boolean {
         // Set the switch for whether scrolling is enabled
-        scrollEnabled = params.unsafeCast<Int>() == ENABLED_FLAG
+        scrollEnabled = params.unsafeCast<Int>() == KRListConst.ENABLED_FLAG
         // Set scrolling
         ele.style.apply {
-            if (scrollDirection == SCROLL_DIRECTION_COLUMN) {
-                overflowY = if (scrollEnabled) "scroll" else "hidden"
-                overflowX = "hidden"
+            if (scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN) {
+                overflowY = if (scrollEnabled) KRStyleConst.OVERFLOW_SCROLL else KRStyleConst.OVERFLOW_HIDDEN
+                overflowX = KRStyleConst.OVERFLOW_HIDDEN
             } else {
-                overflowX = if (scrollEnabled) "scroll" else "hidden"
-                overflowY = "hidden"
+                overflowX = if (scrollEnabled) KRStyleConst.OVERFLOW_SCROLL else KRStyleConst.OVERFLOW_HIDDEN
+                overflowY = KRStyleConst.OVERFLOW_HIDDEN
             }
         }
         return true
     }
 
     override fun setBounceEnable(params: Any): Boolean {
-        bounceEnabled = params.unsafeCast<Int>() == ENABLED_FLAG
+        bounceEnabled = params.unsafeCast<Int>() == KRListConst.ENABLED_FLAG
         listPagingHelper.bounceEnabled = bounceEnabled
         return true
     }
@@ -162,7 +167,7 @@ class H5ListView : IListElement {
      */
     override fun setPagingEnable(params: Any): Boolean {
         // Whether to enable paging
-        pagingEnabled = params.unsafeCast<Int>() == ENABLED_FLAG
+        pagingEnabled = params.unsafeCast<Int>() == KRListConst.ENABLED_FLAG
         return true
     }
 
@@ -170,15 +175,19 @@ class H5ListView : IListElement {
      * Set the scroll direction of listView, 1 for horizontal, 0 for vertical
      */
     override fun setScrollDirection(params: Any): Boolean {
-        val direction = if (params.unsafeCast<Int>() == ENABLED_FLAG) SCROLL_DIRECTION_ROW else SCROLL_DIRECTION_COLUMN
+        val direction = if (params.unsafeCast<Int>() == KRListConst.ENABLED_FLAG) {
+            KRListConst.SCROLL_DIRECTION_ROW
+        } else {
+            KRListConst.SCROLL_DIRECTION_COLUMN
+        }
         // Set scroll direction
         ele.style.apply {
-            if (direction == SCROLL_DIRECTION_COLUMN) {
-                overflowX = "hidden"
-                overflowY = "scroll"
+            if (direction == KRListConst.SCROLL_DIRECTION_COLUMN) {
+                overflowX = KRStyleConst.OVERFLOW_HIDDEN
+                overflowY = KRStyleConst.OVERFLOW_SCROLL
             } else {
-                overflowX = "scroll"
-                overflowY = "hidden"
+                overflowX = KRStyleConst.OVERFLOW_SCROLL
+                overflowY = KRStyleConst.OVERFLOW_HIDDEN
             }
         }
         scrollDirection = direction
@@ -199,24 +208,24 @@ class H5ListView : IListElement {
         if (firstChild !== null) {
             // Determine if the first child node is a pull-to-refresh node. This is a hardcoded way to check,
             // todo: optimize for a more reasonable approach
-            return firstChild.style.transform.contains(REFRESH_CHILD_TRANSFORM)
+            return firstChild.style.transform.contains(KRListConst.REFRESH_CHILD_TRANSFORM)
         }
         return false
     }
 
     override fun updateOffsetMap(offsetX: Float, offsetY: Float, isDragging: Int): MutableMap<String, Any> {
-        offsetMap["offsetX"] = offsetX
-        offsetMap["offsetY"] = offsetY
-        offsetMap["viewWidth"] = ele.offsetWidth
-        offsetMap["viewHeight"] = ele.offsetHeight
-        offsetMap["contentWidth"] = ele.scrollWidth
-        offsetMap["contentHeight"] = ele.scrollHeight
-        offsetMap["isDragging"] = isDragging
+        offsetMap[KRParamConst.OFFSET_X] = offsetX
+        offsetMap[KRParamConst.OFFSET_Y] = offsetY
+        offsetMap[KRParamConst.VIEW_WIDTH] = ele.offsetWidth
+        offsetMap[KRParamConst.VIEW_HEIGHT] = ele.offsetHeight
+        offsetMap[KRParamConst.CONTENT_WIDTH] = ele.scrollWidth
+        offsetMap[KRParamConst.CONTENT_HEIGHT] = ele.scrollHeight
+        offsetMap[KRParamConst.IS_DRAGGING] = isDragging
         return offsetMap
     }
 
     internal fun handleTouchStart(event: Event, isMouseEvent: Boolean = false) {
-        Log.trace("scroll direction event begin")
+        Log.trace(LOG_SCROLL_EVENT_BEGIN)
         // Set as dragging
         isDragging = 1
         // Clear pull-to-refresh height
@@ -235,13 +244,13 @@ class H5ListView : IListElement {
         // Starting drag position map
         val eventsParams = event.getEventParams()
         // Record starting vertical drag position
-        touchStartY = eventsParams["y"].unsafeCast<Float>()
+        touchStartY = eventsParams[KRParamConst.Y].unsafeCast<Float>()
         // Record starting horizontal drag position
-        touchStartX = eventsParams["x"].unsafeCast<Float>()
+        touchStartX = eventsParams[KRParamConst.X].unsafeCast<Float>()
         // Current vertical offset of the list
-        offsetMap["offsetX"] = offsetX
+        offsetMap[KRParamConst.OFFSET_X] = offsetX
         // Current horizontal offset of the list
-        offsetMap["offsetY"] = offsetY
+        offsetMap[KRParamConst.OFFSET_Y] = offsetY
         val offsetMap = updateOffsetMap(offsetX, offsetY, isDragging)
         // If current scroll distance is 0, and not a PageList paging component, enter pre-pull-down state
         isPrePullDown = offsetY == 0f && !pagingEnabled
@@ -253,8 +262,8 @@ class H5ListView : IListElement {
     private fun handleMoveCommon(event: Event) {
         // Need to check if it contains pull-to-refresh component, if not, don't process todo fixme
         val eventsParams = event.getEventParams()
-        var deltaY = eventsParams["y"] as Float - touchStartY
-        var deltaX = eventsParams["x"] as Float - touchStartX
+        var deltaY = eventsParams[KRParamConst.Y] as Float - touchStartY
+        var deltaX = eventsParams[KRParamConst.X] as Float - touchStartX
         var absDeltaY = abs(deltaY)
         var absDeltaX = abs(deltaX)
 
@@ -268,8 +277,8 @@ class H5ListView : IListElement {
                 isScrolling = ScrollingAxis.HORIZONTAL
             }
         }
-        if ((scrollDirection == SCROLL_DIRECTION_COLUMN && isScrolling == ScrollingAxis.VERTICAL) ||
-            (scrollDirection == SCROLL_DIRECTION_ROW && isScrolling == ScrollingAxis.HORIZONTAL)) {
+        if ((scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN && isScrolling == ScrollingAxis.VERTICAL) ||
+            (scrollDirection == KRListConst.SCROLL_DIRECTION_ROW && isScrolling == ScrollingAxis.HORIZONTAL)) {
             // Scroll direction matches set direction, prevent bubbling to avoid affecting parent node's scroll events
             event.stopPropagation()
         }
@@ -277,12 +286,12 @@ class H5ListView : IListElement {
         // and is vertical scrolling, handle pull-to-refresh logic, deltaY > 0 means pulling down
         if (isPrePullDown && deltaY > 0 && hasRefreshChild && isScrolling == ScrollingAxis.VERTICAL) {
             // Set end position before drag ends
-            touchEndY = eventsParams["y"].unsafeCast<Float>()
+            touchEndY = eventsParams[KRParamConst.Y].unsafeCast<Float>()
             // Set element's translate
-            ele.style.transform = "translate(0, ${deltaY}px)"
+            ele.style.transform = buildTranslateY(deltaY)
             // During pull-to-refresh, set overflow to visible, restore after pull-to-refresh completes
-            ele.style.overflowY = "visible"
-            ele.style.overflowX = "visible"
+            ele.style.overflowY = KRStyleConst.OVERFLOW_VISIBLE
+            ele.style.overflowX = KRStyleConst.OVERFLOW_VISIBLE
             val offsetMap = updateOffsetMap(ele.scrollLeft.toFloat(), -deltaY, isDragging)
             // Notify
             scrollEventCallback?.invoke(offsetMap)
@@ -304,25 +313,25 @@ class H5ListView : IListElement {
             if (canPullRefreshHeight == 0f) {
                 // If at pull-to-refresh release but not reaching pull-to-refresh position,
                 // need to restore contentInset and scrolling
-                ele.style.transform = "translate(0, 0)"
+                ele.style.transform = KRListConst.TRANSFORM_RESET
                 // Handle extreme sliding in static sliding scenarios
                 if (scrollEnabled) {
-                    if (scrollDirection == SCROLL_DIRECTION_COLUMN) {
-                        ele.style.overflowY = "scroll"
+                    if (scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN) {
+                        ele.style.overflowY = KRStyleConst.OVERFLOW_SCROLL
                     } else {
-                        ele.style.overflowX = "scroll"
+                        ele.style.overflowX = KRStyleConst.OVERFLOW_SCROLL
                     }
                 }
 
                 // remove transform attribute after transform end
                 kuiklyWindow.setTimeout({
-                    ele.style.transform = ""
-                }, IMMEDIATE_TIMEOUT)
+                    ele.style.transform = KRCssConst.EMPTY_STRING
+                }, KRListConst.IMMEDIATE_TIMEOUT)
             } else if (deltaY > canPullRefreshHeight) {
-                ele.style.transition = "transform ${BOUND_BACK_DURATION}ms $REFRESH_TIMING_FUNCTION"
+                ele.style.transition = buildTransition()
                 // If at pull-to-refresh release and exceeding pull-to-refresh height,
                 // need to bounce back to pull-to-refresh height before refreshing
-                ele.style.transform = "translate(0, ${canPullRefreshHeight}px)"
+                ele.style.transform = buildTranslateY(canPullRefreshHeight)
             }
             // If current scroll distance is 0 and starting to drag down, handle pull-to-refresh logic,
             // deltaY > 0 means pulling down
@@ -332,9 +341,9 @@ class H5ListView : IListElement {
             }
         }
         // Current vertical offset of the list
-        offsetMap["offsetX"] = offsetX
+        offsetMap[KRParamConst.OFFSET_X] = offsetX
         // Current horizontal offset of the list
-        offsetMap["offsetY"] = offsetY
+        offsetMap[KRParamConst.OFFSET_Y] = offsetY
         val offsetMap = updateOffsetMap(offsetX, offsetY, isDragging)
         // Event callback
         willDragEndEventCallback?.invoke(offsetMap)
@@ -366,9 +375,12 @@ class H5ListView : IListElement {
             // Calculate offset
             val offsetX = x.toDouble() - eleX
             val offsetY = y.toDouble() - eleY
-            mapOf("x" to offsetX, "y" to offsetY)
+            mapOf(KRParamConst.X to offsetX, KRParamConst.Y to offsetY)
         } else {
-            mapOf("x" to event.unsafeCast<MouseEvent>().offsetX, "y" to event.unsafeCast<MouseEvent>().offsetY)
+            mapOf(
+                KRParamConst.X to event.unsafeCast<MouseEvent>().offsetX,
+                KRParamConst.Y to event.unsafeCast<MouseEvent>().offsetY
+            )
         }
 
         if (isDoubleClick) {
@@ -394,7 +406,7 @@ class H5ListView : IListElement {
             return
         } else {
             // If a double click handler is registered
-            if (clickCount == DOUBLE_CLICK_COUNT) {
+            if (clickCount == KRListConst.DOUBLE_CLICK_COUNT) {
                 // Clear the timer to prevent the click callback from being invoked afterward
                 val timer = singleClickConfirmTimer
                 if (timer != null) {
@@ -417,7 +429,7 @@ class H5ListView : IListElement {
                     singleClickConfirmTimer = null
                     // Reset the click count
                     clickCount = 0
-                }, DOUBLE_CLICK_TIMEOUT)
+                }, KRListConst.DOUBLE_CLICK_TIMEOUT)
             }
         }
     }
@@ -437,14 +449,14 @@ class H5ListView : IListElement {
      */
     override fun setScrollEvent() {
         // If it is a pointing device with limited precision, listen for touch events.
-        if (kuiklyWindow.matchMedia("(pointer: coarse)").matches) {
+        if (kuiklyWindow.matchMedia(KRListConst.POINTER_COARSE_QUERY).matches) {
             // Start dragging
-            ele.addEventListener(DRAG_BEGIN_EVENT, {
+            ele.addEventListener(KREventConst.TOUCH_START, {
                 isClickEvent = true
                 // If the mousemove event is not triggered, it will be considered a click event
                 clickDetectionTimer = kuiklyWindow.setTimeout({
                     isClickEvent = true
-                }, CLICK_DETECTION_TIMEOUT_TOUCH)
+                }, KRListConst.CLICK_DETECTION_TIMEOUT_TOUCH)
                 if (pagingEnabled) {
                     listPagingHelper.handlePagerTouchStart(it as TouchEvent)
                     return@addEventListener
@@ -454,10 +466,10 @@ class H5ListView : IListElement {
                     return@addEventListener
                 }
                 handleTouchStart(it as TouchEvent)
-            }, json("passive" to true))
+            }, json(KRAttrConst.PASSIVE to true))
 
             // Move event
-            ele.addEventListener(DRAG_MOVE_EVENT, {
+            ele.addEventListener(KREventConst.TOUCH_MOVE, {
                 clickDetectionTimer?.let {
                     kuiklyWindow.clearTimeout(it)
                     clickDetectionTimer = null
@@ -472,10 +484,10 @@ class H5ListView : IListElement {
                     return@addEventListener
                 }
                 handleTouchMove(it as TouchEvent)
-            }, json("passive" to (!pagingEnabled && !nestScrollEnabled)))
+            }, json(KRAttrConst.PASSIVE to (!pagingEnabled && !nestScrollEnabled)))
 
             // End dragging
-            ele.addEventListener(DRAG_END_EVENT, {
+            ele.addEventListener(KREventConst.TOUCH_END, {
                 if (isClickEvent) {
                     handleClickEvent(it)
                     return@addEventListener
@@ -489,22 +501,22 @@ class H5ListView : IListElement {
                     return@addEventListener
                 }
                 handleTouchEnd()
-            }, json("passive" to true))
+            }, json(KRAttrConst.PASSIVE to true))
         }
 
         // If it is a precise pointing device, listen for mouse events.
-        if (kuiklyWindow.matchMedia("(pointer: fine)").matches) {
-            ele.addEventListener(MOUSE_DOWN, { event ->
+        if (kuiklyWindow.matchMedia(KRListConst.POINTER_FINE_QUERY).matches) {
+            ele.addEventListener(KREventConst.MOUSE_DOWN, { event ->
                 event as MouseEvent
                 // Only left button
-                if (event.button != LEFT_MOUSE_BUTTON) return@addEventListener
+                if (event.button != KRListConst.LEFT_MOUSE_BUTTON) return@addEventListener
                 pcScrollHelper.isMouseDown = true
                 // Reset click flag
                 isClickEvent = true
                 // If the mousemove event is not triggered, it will be considered a click event
                 clickDetectionTimer = kuiklyWindow.setTimeout({
                     isClickEvent = true
-                }, CLICK_DETECTION_TIMEOUT_MOUSE)
+                }, KRListConst.CLICK_DETECTION_TIMEOUT_MOUSE)
                 // Save the current element
                 PCListScrollHandler.mouseDownEleIds.add(ele.id)
                 // Filter elements belonging to ListView
@@ -520,18 +532,18 @@ class H5ListView : IListElement {
                     return@addEventListener
                 }
                 handleTouchStart(event, true)
-            }, json("passive" to true))
+            }, json(KRAttrConst.PASSIVE to true))
 
             // Prevent text selection
-            ele.addEventListener(SELECT_START_EVENT, {
+            ele.addEventListener(KREventConst.SELECT_START, {
                 it.preventDefault()
             })
             // Prevent image drag
-            ele.addEventListener(DRAG_START_EVENT, {
+            ele.addEventListener(KREventConst.DRAG_START, {
                 it.preventDefault()
             })
         }
-        ele.addEventListener(WHEEL_EVENT, { event ->
+        ele.addEventListener(KREventConst.WHEEL, { event ->
             // Handle paging mode with wheel event
             if (pagingEnabled) {
                 listPagingHelper.handlePagerWheel(event as WheelEvent)
@@ -552,10 +564,10 @@ class H5ListView : IListElement {
                 // The callback is executed when the timer expires.
                 isWheelRolling = false
                 handleTouchEnd()
-            }, WHEEL_STOP_TIMEOUT)
+            }, KRListConst.WHEEL_STOP_TIMEOUT)
         })
         // Scroll event
-        ele.addEventListener(SCROLL, {
+        ele.addEventListener(KREventConst.SCROLL, {
             if (pagingEnabled) {
                 // In paging mode, no need to trigger scroll
                 // Calculate offset through touchmove and touchend,
@@ -567,7 +579,7 @@ class H5ListView : IListElement {
                 return@addEventListener
             }
             handleTouchScroll()
-        }, json("passive" to false))
+        }, json(KRAttrConst.PASSIVE to false))
     }
 
     /**
@@ -575,7 +587,7 @@ class H5ListView : IListElement {
      */
     override fun setScrollEndEvent() {
         // scroll end event not available, simulate through other means
-        ele.addEventListener(SCROLL, {
+        ele.addEventListener(KREventConst.SCROLL, {
             // Clear existing timer first
             if (scrollEndEventTimer > 0) {
                 kuiklyWindow.clearTimeout(scrollEndEventTimer)
@@ -585,8 +597,8 @@ class H5ListView : IListElement {
                 // Get horizontal and vertical offset of the element during scroll event
                 var offsetMap = updateOffsetMap(ele.scrollLeft.toFloat(), ele.scrollTop.toFloat(), isDragging)
                 scrollEndEventCallback?.invoke(offsetMap)
-            }, SCROLL_END_OVERTIME)
-        }, json("passive" to true))
+            }, KRListConst.SCROLL_END_OVERTIME)
+        }, json(KRAttrConst.PASSIVE to true))
     }
 
     /**
@@ -602,7 +614,7 @@ class H5ListView : IListElement {
         val contentOffsetSplits = params.split(KRCssConst.BLANK_SEPARATOR)
         val offsetX = contentOffsetSplits[0].toFloat()
         val offsetY = contentOffsetSplits[1].toFloat()
-        val animate = contentOffsetSplits[2] == ANIMATE_FLAG
+        val animate = contentOffsetSplits[2] == KRListConst.ANIMATE_FLAG
 
         if (offsetX.isNaN() || offsetY.isNaN()) {
             // Position parameters abnormal, return
@@ -627,13 +639,13 @@ class H5ListView : IListElement {
      */
     override fun setShowScrollIndicator(params: Any): Boolean {
         // Whether to show scrollbars
-        showScrollerBar = params.unsafeCast<Int>() == ENABLED_FLAG
+        showScrollerBar = params.unsafeCast<Int>() == KRListConst.ENABLED_FLAG
         if (showScrollerBar) {
             // Remove the class that hides scrollbars
-            ele.classList.remove(NO_SCROLL_BAR_CLASS)
+            ele.classList.remove(KRListConst.NO_SCROLL_BAR_CLASS)
         } else {
             // Add the class that hides scrollbars
-            ele.classList.add(NO_SCROLL_BAR_CLASS)
+            ele.classList.add(KRListConst.NO_SCROLL_BAR_CLASS)
         }
         return true
     }
@@ -647,15 +659,15 @@ class H5ListView : IListElement {
         // Format inset value
         val contentInset = KRListViewContentInset(contentInsetString)
         // Complete setting asynchronously
-        KuiklyRenderCoreContextScheduler.scheduleTask(IMMEDIATE_TIMEOUT) {
+        KuiklyRenderCoreContextScheduler.scheduleTask(KRListConst.IMMEDIATE_TIMEOUT) {
             // Use animation to set inset value if needed
             ele.style.transition = if (contentInset.animate) {
-                "transform ${BOUND_BACK_DURATION}ms $REFRESH_TIMING_FUNCTION"
+                buildTransition()
             } else {
-                ""
+                KRCssConst.EMPTY_STRING
             }
             // Set the value to complete
-            ele.style.transform = "translate(${contentInset.left}px, ${contentInset.top}px)"
+            ele.style.transform = buildTranslate(contentInset.left, contentInset.top)
         }
     }
 
@@ -668,25 +680,28 @@ class H5ListView : IListElement {
         // Format inset value
         val contentInset = KRListViewContentInset(contentInsetString)
         // Transform content to set
-        val transform = "translate(${contentInset.left}px, ${contentInset.top}px)"
+        val transform = buildTranslate(contentInset.left, contentInset.top)
         if (contentInset.top == 0f) {
             // Restore listView to scrollable
-            if (scrollDirection == SCROLL_DIRECTION_COLUMN) {
-                ele.style.overflowY = "scroll"
-                ele.style.overflowX = "hidden"
+            if (scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN) {
+                ele.style.overflowY = KRStyleConst.OVERFLOW_SCROLL
+                ele.style.overflowX = KRStyleConst.OVERFLOW_HIDDEN
             } else {
-                ele.style.overflowX = "scroll"
-                ele.style.overflowY = "hidden"
+                ele.style.overflowX = KRStyleConst.OVERFLOW_SCROLL
+                ele.style.overflowY = KRStyleConst.OVERFLOW_HIDDEN
             }
             // When top > 0, it sets the terminal listView inset height when terminal pull-to-refresh,
             // web doesn't support pull bounce by default,
             // so this value is not processed, only handle the value when preparing for pull-to-refresh
-            KuiklyRenderCoreContextScheduler.scheduleTask(BOUND_BACK_DURATION.toInt()) {
+            KuiklyRenderCoreContextScheduler.scheduleTask(KRListConst.BOUND_BACK_DURATION.toInt()) {
                 // Clear animation
-                ele.style.transition = ""
+                ele.style.transition = KRCssConst.EMPTY_STRING
                 // Delay setting inset value until pull-down animation completes
-                ele.style.transform = if (contentInset.left == 0f && contentInset.top == 0f) "" else
+                ele.style.transform = if (contentInset.left == 0f && contentInset.top == 0f) {
+                    KRCssConst.EMPTY_STRING
+                } else {
                     transform
+                }
             }
         } else {
             // This indicates it has been pulled down to a position where it can refresh,
@@ -697,66 +712,48 @@ class H5ListView : IListElement {
 
 
     /**
-     * Clear existing timers when component is destroyed
+     * Clear existing timers and resources when component is destroyed
      */
     override fun destroy() {
-        // Clear existing timer
+        // Clear all timers
         if (scrollEndEventTimer > 0) {
             kuiklyWindow.clearTimeout(scrollEndEventTimer)
+            scrollEndEventTimer = 0
         }
+        
+        clickDetectionTimer?.let {
+            kuiklyWindow.clearTimeout(it)
+        }
+        clickDetectionTimer = null
+        
+        singleClickConfirmTimer?.let {
+            kuiklyWindow.clearTimeout(it)
+        }
+        singleClickConfirmTimer = null
+        
+        wheelStopTimer?.let {
+            kuiklyWindow.clearTimeout(it)
+        }
+        wheelStopTimer = null
+        
+        // Clear helper resources (timers and requestAnimationFrame)
+        listPagingHelper.destroy()
+        nestScrollHelper.destroy()
     }
 
     companion object {
-        // DOM Event names
-        const val DRAG_BEGIN_EVENT = "touchstart"
-        const val DRAG_END_EVENT = "touchend"
-        const val DRAG_MOVE_EVENT = "touchmove"
-        const val SCROLL = "scroll"
-        const val MOUSE_DOWN = "mousedown"
-        const val MOUSE_UP = "mouseup"
-        const val MOUSE_MOVE = "mousemove"
-        private const val SELECT_START_EVENT = "selectstart"
-        private const val DRAG_START_EVENT = "dragstart"
-        private const val WHEEL_EVENT = "wheel"
+        // Log messages
+        private const val LOG_SCROLL_EVENT_BEGIN = "scroll direction event begin"
 
-        // Timeout durations (in milliseconds)
-        private const val SCROLL_END_OVERTIME = 200
-        private const val BOUND_BACK_DURATION = 250L
-        private const val CLICK_DETECTION_TIMEOUT_TOUCH = 300
-        private const val CLICK_DETECTION_TIMEOUT_MOUSE = 200
-        private const val DOUBLE_CLICK_TIMEOUT = 200
-        private const val WHEEL_STOP_TIMEOUT = 300
-        private const val IMMEDIATE_TIMEOUT = 0
+        // CSS property names
+        private const val TRANSFORM_PROPERTY = "transform"
 
-        // Pull-to-refresh bounce timing function
-        private const val REFRESH_TIMING_FUNCTION = "ease-in"
-        // Delay duration for resuming scroll events
-        private const val RESUME_SCROLL_DELAY = 50
-        // Style name for no scrollbar
-        private const val NO_SCROLL_BAR_CLASS = "list-no-scrollbar"
-
-        // Scroll direction constants
-        const val SCROLL_DIRECTION_COLUMN = "column"
-        const val SCROLL_DIRECTION_ROW = "row"
-        const val SCROLL_DIRECTION_NONE = "none"
-
-        // Threshold and count constants
-        const val SCROLL_CAPTURE_THRESHOLD = 2
-        private const val SCROLL_THRESHOLD = 8
-        private const val DOUBLE_CLICK_COUNT = 2
-
-        // CSS class names
-        const val IS_LIST = "isList"
-
-        // Boolean flag values from params
-        private const val ENABLED_FLAG = 1
-        private const val ANIMATE_FLAG = "1"
-
-        // Mouse button constants
-        private const val LEFT_MOUSE_BUTTON: Short = 0
-
-        // Pull-to-refresh transform pattern
-        private const val REFRESH_CHILD_TRANSFORM = "translate(0%, -100%) rotate(0deg) scale(1, 1) skew(0deg, 0deg)"
+        // Helper functions for building CSS values
+        private fun buildTranslateY(y: Any) = "translate(0, $y${KRStyleConst.PX_SUFFIX})"
+        private fun buildTranslate(x: Any, y: Any) =
+            "translate($x${KRStyleConst.PX_SUFFIX}, $y${KRStyleConst.PX_SUFFIX})"
+        private fun buildTransition() =
+            "$TRANSFORM_PROPERTY ${KRListConst.BOUND_BACK_DURATION}${KRStyleConst.MS_SUFFIX} ${KRStyleConst.EASE_IN}"
     }
 }
 

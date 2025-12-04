@@ -1,5 +1,8 @@
 package com.tencent.kuikly.core.render.web.runtime.web.expand.components.list
 
+import com.tencent.kuikly.core.render.web.const.KRListConst
+import com.tencent.kuikly.core.render.web.const.KRParamConst
+import com.tencent.kuikly.core.render.web.const.KRStyleConst
 import com.tencent.kuikly.core.render.web.expand.components.toPanEventParams
 import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
 import com.tencent.kuikly.core.render.web.runtime.dom.element.IListElement
@@ -48,14 +51,12 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
     // Whether the mouse is pressed
     private var isMouseDown: Boolean = false
     // Scroll direction
-    var scrollDirection: String = H5ListView.SCROLL_DIRECTION_COLUMN
+    var scrollDirection: String = KRListConst.SCROLL_DIRECTION_COLUMN
     // Whether currently dragging
     private var isDragging = 0
     // Whether scrolling is possible
     var canScroll: Boolean = false
-       private set
-    // Add property to track iOS version
-    private val isIOS14OrLower: Boolean = checkIOSVersion()
+        private set
     // Whether wheel page switching is locked (prevent multiple page switches)
     private var isWheelPageLocked: Boolean = false
     // Accumulated wheel delta for determining scroll direction
@@ -63,27 +64,9 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
     // Wheel scroll reset timer
     private var wheelResetTimer: Int? = null
 
-    // Add function to check iOS version
-    private fun checkIOSVersion(): Boolean {
-        val userAgent = kuiklyWindow.navigator.userAgent
-        val match = Regex("OS (\\d+)_").find(userAgent)
-        if (match != null) {
-            val version = match.groupValues[1].toIntOrNull()
-            return version != null && version <= 14
-        }
-        return false
-    }
-
-    // Add function to set position based on iOS version
+    // Set element position using transform
     private fun setElementPosition(x: Float, y: Float) {
-        if (isIOS14OrLower) {
-            // Use absolute positioning for iOS 14 and lower
-            (ele.firstElementChild as HTMLElement).style.left = "${x}px"
-            (ele.firstElementChild as HTMLElement).style.top = "${y}px"
-        } else {
-            // Use transform for other versions
-            ele.style.transform = "translate(${x}px, ${y}px)"
-        }
+        ele.style.transform = "translate(${x}px, ${y}px)"
     }
 
     /**
@@ -154,7 +137,7 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
         initPagingStateIfNeeded()
 
         // Get delta based on scroll direction
-        val delta = if (scrollDirection == H5ListView.SCROLL_DIRECTION_COLUMN) {
+        val delta = if (scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN) {
             event.deltaY
         } else {
             event.deltaX
@@ -198,7 +181,7 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
             // Calculate scroll offset
             val scrollOffsetX: Float
             val scrollOffsetY: Float
-            if (scrollDirection == H5ListView.SCROLL_DIRECTION_COLUMN) {
+            if (scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN) {
                 scrollOffsetY = -ele.offsetHeight * pageIndex
                 scrollOffsetX = currentTranslateX
                 currentTranslateY = scrollOffsetY
@@ -225,18 +208,13 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
     private fun initPagingStateIfNeeded() {
         if (!ele.classList.contains(PAGE_LIST_CLASS)) {
             ele.classList.add(PAGE_LIST_CLASS)
-            ele.style.overflowX = "visible"
-            ele.style.overflowY = "visible"
+            ele.style.overflowX = KRStyleConst.OVERFLOW_VISIBLE
+            ele.style.overflowY = KRStyleConst.OVERFLOW_VISIBLE
             pageIndex = 0f
-
-            if (isIOS14OrLower) {
-                ele.style.position = "relative"
-                (ele.firstElementChild as HTMLElement).style.position = "absolute"
-            }
         }
 
         // Update page dimensions
-        if (scrollDirection == H5ListView.SCROLL_DIRECTION_COLUMN) {
+        if (scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN) {
             val containerHeight = (ele.firstElementChild as HTMLElement).offsetHeight.toFloat()
             val pageHeight = ele.offsetHeight.toFloat()
             if (pageHeight > 0) {
@@ -264,31 +242,26 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
         } else if (event is MouseEvent) {
             lastMouseEvent = event
         }
-        ele.style.overflowX = "visible"
-        ele.style.overflowY = "visible"
-        // Set position absolute for iOS 14 and lower
-        if (isIOS14OrLower) {
-            ele.style.position = "relative"
-            (ele.firstElementChild as HTMLElement).style.position = "absolute"
-        }
+        ele.style.overflowX = KRStyleConst.OVERFLOW_VISIBLE
+        ele.style.overflowY = KRStyleConst.OVERFLOW_VISIBLE
         if (!ele.classList.contains(PAGE_LIST_CLASS)) {
             ele.classList.add(PAGE_LIST_CLASS)
             pageIndex = 0f
         }
-        if (scrollDirection == H5ListView.SCROLL_DIRECTION_COLUMN) {
+        if (scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN) {
             ele.style.apply {
-                setProperty("overscroll-behavior-y", if(bounceEnabled) "auto" else "none")
+                setProperty(OVERSCROLL_BEHAVIOR_Y, if (bounceEnabled) OVERSCROLL_AUTO else OVERSCROLL_NONE)
             }
-            var containerHeight = (ele.firstElementChild as HTMLElement).offsetHeight.toFloat()
-            var pageHeight = ele.offsetHeight.toFloat()
+            val containerHeight = (ele.firstElementChild as HTMLElement).offsetHeight.toFloat()
+            val pageHeight = ele.offsetHeight.toFloat()
             pageMaxTranslateY = containerHeight - pageHeight
             pageCount = round(containerHeight / pageHeight)
         } else {
             ele.style.apply {
-                setProperty("overscroll-behavior-x", if(bounceEnabled) "auto" else "none")
+                setProperty(OVERSCROLL_BEHAVIOR_X, if (bounceEnabled) OVERSCROLL_AUTO else OVERSCROLL_NONE)
             }
-            var containerWidth = (ele.firstElementChild as HTMLElement).offsetWidth.toFloat()
-            var pageWidth = ele.offsetWidth.toFloat()
+            val containerWidth = (ele.firstElementChild as HTMLElement).offsetWidth.toFloat()
+            val pageWidth = ele.offsetWidth.toFloat()
             pageMaxTranslateX = containerWidth - pageWidth
             pageCount = round(containerWidth / pageWidth)
         }
@@ -298,11 +271,11 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
         // Starting drag position map
         val eventsParams = event.getEventParams()
         // Record starting vertical drag position
-        touchStartY = eventsParams["y"].unsafeCast<Float>()
+        touchStartY = eventsParams[KRParamConst.Y].unsafeCast<Float>()
         // Record starting horizontal drag position
-        touchStartX = eventsParams["x"].unsafeCast<Float>()
+        touchStartX = eventsParams[KRParamConst.X].unsafeCast<Float>()
 
-        var offsetMap = listElement.updateOffsetMap(offsetX, offsetY, isDragging)
+        val offsetMap = listElement.updateOffsetMap(offsetX, offsetY, isDragging)
         // Event callback
         listElement.dragBeginEventCallback?.invoke(offsetMap)
     }
@@ -312,20 +285,19 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
      */
     private fun handlePagerMoveCommon(event: Event, lastEvent: Event) {
         val eventsParams = event.getEventParams()
-        touchEndY = eventsParams["y"] as Float
-        touchEndX = eventsParams["x"] as Float
+        touchEndY = eventsParams[KRParamConst.Y] as Float
+        touchEndX = eventsParams[KRParamConst.X] as Float
         val lastEventsParams = lastEvent.getEventParams()
-        val lastEventY = lastEventsParams["y"] as Float
-        val lastEventX = lastEventsParams["x"] as Float
-        var deltaY = touchEndY - lastEventY
-        var deltaX = touchEndX - lastEventX
-        var absDeltaY = abs(deltaY)
-        var absDeltaX = abs(deltaX)
+        val lastEventY = lastEventsParams[KRParamConst.Y] as Float
+        val lastEventX = lastEventsParams[KRParamConst.X] as Float
+        val deltaY = touchEndY - lastEventY
+        val deltaX = touchEndX - lastEventX
+        val absDeltaY = abs(deltaY)
+        val absDeltaX = abs(deltaX)
         var delta = 0f
         canScroll = true
         var needParentNodeScroll = false
-        if (scrollDirection == H5ListView.SCROLL_DIRECTION_COLUMN
-            && absDeltaY > absDeltaX) {
+        if (scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN && absDeltaY > absDeltaX) {
             delta = deltaY
             currentTranslateY += deltaY
             if (deltaY > 0) {
@@ -343,9 +315,7 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
                     }
                 }
             }
-        } else if (
-            scrollDirection == H5ListView.SCROLL_DIRECTION_ROW
-            && absDeltaX > absDeltaY) {
+        } else if (scrollDirection == KRListConst.SCROLL_DIRECTION_ROW && absDeltaX > absDeltaY) {
             delta = deltaX
             currentTranslateX += deltaX
             if (deltaX > 0) {
@@ -387,11 +357,11 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
         }
         Log.trace("pagelist scroll")
         setElementPosition(currentTranslateX, currentTranslateY)
-        if (abs(delta) < H5ListView.SCROLL_CAPTURE_THRESHOLD) {
+        if (abs(delta) < KRListConst.SCROLL_CAPTURE_THRESHOLD) {
             return
         }
         isTouchMove = true
-        var offsetMap = listElement.updateOffsetMap(abs(currentTranslateX), abs(currentTranslateY), isDragging)
+        val offsetMap = listElement.updateOffsetMap(abs(currentTranslateX), abs(currentTranslateY), isDragging)
         listElement.scrollEventCallback?.invoke(offsetMap)
     }
 
@@ -406,18 +376,17 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
         isTouchMove = false
         val deltaY = touchEndY - touchStartY
         val deltaX = touchEndX - touchStartX
-        val offset = 50f
         var scrollOffsetX = 0f
         var scrollOffsetY = 0f
         var newPageIndex = pageIndex
-        if (scrollDirection == H5ListView.SCROLL_DIRECTION_COLUMN) {
+        if (scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN) {
             Log.trace("delta y: ", deltaY, " currentTranslateY: ", currentTranslateY)
-            newPageIndex = getNewPageIndex(deltaY, offset, newPageIndex)
+            newPageIndex = getNewPageIndex(deltaY, PAGE_SWITCH_THRESHOLD, newPageIndex)
             scrollOffsetY = -ele.offsetHeight * newPageIndex
             currentTranslateY = scrollOffsetY
         } else {
             Log.trace("delta x: ", deltaX, " currentTranslateX: ", currentTranslateX)
-            newPageIndex = getNewPageIndex(deltaX, offset, newPageIndex)
+            newPageIndex = getNewPageIndex(deltaX, PAGE_SWITCH_THRESHOLD, newPageIndex)
             scrollOffsetX = -ele.offsetWidth * newPageIndex
             currentTranslateX = scrollOffsetX
         }
@@ -457,21 +426,13 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
     fun handlePagerScrollTo(scrollOffsetX: Float, scrollOffsetY: Float, isAnimation: Boolean) {
         kuiklyWindow.setTimeout({
             if (isAnimation) {
-                if (isIOS14OrLower) {
-                    (ele.firstElementChild as HTMLElement).style.transition = "all ${PAGING_SCROLL_ANIMATION_TIME}ms"
-                } else {
-                    ele.style.transition = "transform ${PAGING_SCROLL_ANIMATION_TIME}ms"
-                }
+                ele.style.transition = "transform ${PAGING_SCROLL_ANIMATION_TIME}ms"
             }
             setElementPosition(scrollOffsetX, scrollOffsetY)
         }, PAGING_SCROLL_DELAY)
         if (isAnimation) {
             kuiklyWindow.setTimeout({
-                if (isIOS14OrLower) {
-                    (ele.firstElementChild as HTMLElement).style.transition = ""
-                } else {
-                    ele.style.transition = ""
-                }
+                ele.style.transition = ""
             }, PAGING_SCROLL_ANIMATION_TIME)
         }
     }
@@ -479,19 +440,19 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
     fun setContentOffset(offsetX: Float, offsetY: Float, animate: Boolean) {
         val elementHeight = ele.offsetHeight.toFloat()
         val elementWidth = ele.offsetWidth.toFloat()
-        if(scrollDirection == H5ListView.SCROLL_DIRECTION_COLUMN && elementHeight > 0) {
+        if (scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN && elementHeight > 0) {
             pageIndex = round(offsetY / elementHeight)
             currentTranslateY = -offsetY
-        } else if (scrollDirection == H5ListView.SCROLL_DIRECTION_ROW && elementWidth > 0){
+        } else if (scrollDirection == KRListConst.SCROLL_DIRECTION_ROW && elementWidth > 0) {
             pageIndex = round(offsetX / elementWidth)
             currentTranslateX = -offsetX
         } else {
             Log.trace("ele offset is invalid", elementWidth, elementHeight)
         }
-        ele.style.overflowX = "visible"
-        ele.style.overflowY = "visible"
+        ele.style.overflowX = KRStyleConst.OVERFLOW_VISIBLE
+        ele.style.overflowY = KRStyleConst.OVERFLOW_VISIBLE
         ele.classList.add(PAGE_LIST_CLASS)
-        var offsetMap = listElement.updateOffsetMap(offsetX, offsetY, isDragging)
+        val offsetMap = listElement.updateOffsetMap(offsetX, offsetY, isDragging)
         listElement.willDragEndEventCallback?.invoke(offsetMap)
         listElement.dragEndEventCallback?.invoke(offsetMap)
         listElement.scrollEventCallback?.invoke(offsetMap)
@@ -501,15 +462,15 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
             // wait index changed
             kuiklyWindow.setTimeout({
                 handlePagerScrollTo(-offsetX, -offsetY, animate)
-            }, 200)
+            }, CONTENT_OFFSET_DELAY)
         }
         // This is to handle nested PageLists. After sliding the inner PageList,
         // clicking the outer PageList needs to hide the overflow position of the inner node
         // Implementation is not very elegant, pending refactoring with reference to swiper logic
-        var length = ele.firstElementChild?.children?.length
-        if (length != null){
+        val length = ele.firstElementChild?.children?.length
+        if (length != null) {
             for (i in 0 until length) {
-                var element = ele.firstElementChild?.children?.get(i) as HTMLElement
+                val element = ele.firstElementChild?.children?.get(i) as HTMLElement
                 if (element.offsetLeft.toFloat() == offsetX) {
                     modifyOverflowIfPageList(element, true)
                 } else {
@@ -523,13 +484,12 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
         // Check if the current element's class contains page-list
         if (element.classList.contains(PAGE_LIST_CLASS)) {
             if (isVisible) {
-                element.style.overflowX = "visible"
-                element.style.overflowY = "visible"
+                element.style.overflowX = KRStyleConst.OVERFLOW_VISIBLE
+                element.style.overflowY = KRStyleConst.OVERFLOW_VISIBLE
             } else {
-                element.style.overflowX = "hidden"
-                element.style.overflowY = "hidden"
+                element.style.overflowX = KRStyleConst.OVERFLOW_HIDDEN
+                element.style.overflowY = KRStyleConst.OVERFLOW_HIDDEN
             }
-
         }
 
         // Recursively traverse all child nodes
@@ -538,14 +498,36 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
         }
     }
 
+    /**
+     * Clean up resources when helper is destroyed
+     */
+    fun destroy() {
+        // Clear wheel reset timer
+        wheelResetTimer?.let {
+            kuiklyWindow.clearTimeout(it)
+        }
+        wheelResetTimer = null
+    }
+
     companion object {
+        // Timing constants (in milliseconds)
         private const val PAGING_SCROLL_DELAY = 20
         private const val PAGING_SCROLL_ANIMATION_TIME = 200
+        private const val CONTENT_OFFSET_DELAY = 200
         // Timeout to reset wheel state after wheel events stop (ms)
         private const val WHEEL_RESET_TIMEOUT = 150
         // Minimum accumulated wheel delta to trigger page switch
         private const val WHEEL_DELTA_THRESHOLD = 30.0
+        // Minimum drag distance to trigger page switch (in pixels)
+        private const val PAGE_SWITCH_THRESHOLD = 50f
+
         // CSS class name for page list
         private const val PAGE_LIST_CLASS = "page-list"
+
+        // CSS overscroll-behavior property names and values
+        private const val OVERSCROLL_BEHAVIOR_X = "overscroll-behavior-x"
+        private const val OVERSCROLL_BEHAVIOR_Y = "overscroll-behavior-y"
+        private const val OVERSCROLL_AUTO = "auto"
+        private const val OVERSCROLL_NONE = "none"
     }
 }

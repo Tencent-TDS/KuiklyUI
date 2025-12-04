@@ -4,7 +4,7 @@ import com.tencent.kuikly.core.render.web.collection.map.JsMap
 import com.tencent.kuikly.core.render.web.collection.map.get
 import com.tencent.kuikly.core.render.web.collection.map.set
 import com.tencent.kuikly.core.render.web.ktx.Frame
-import com.tencent.kuikly.core.render.web.ktx.KRCssConst
+import com.tencent.kuikly.core.render.web.const.KRCssConst
 import com.tencent.kuikly.core.render.web.ktx.kuiklyAnimation
 import com.tencent.kuikly.core.render.web.ktx.toPercentage
 import com.tencent.kuikly.core.render.web.ktx.toRgbColor

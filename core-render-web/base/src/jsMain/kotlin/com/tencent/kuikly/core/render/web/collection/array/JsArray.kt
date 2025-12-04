@@ -1,6 +1,6 @@
 package com.tencent.kuikly.core.render.web.collection.array
 
-import com.tencent.kuikly.core.render.web.ktx.KRExtConst
+import com.tencent.kuikly.core.render.web.const.KRExtConst
 
 fun <T> emptyJsArrayOf() = JsArray<T>()
 

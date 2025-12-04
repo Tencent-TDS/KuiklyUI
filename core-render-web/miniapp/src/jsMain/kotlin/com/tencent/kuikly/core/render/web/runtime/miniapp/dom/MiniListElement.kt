@@ -3,7 +3,7 @@ package com.tencent.kuikly.core.render.web.runtime.miniapp.dom
 import com.tencent.kuikly.core.render.web.collection.fastMutableMapOf
 import com.tencent.kuikly.core.render.web.collection.map.set
 import com.tencent.kuikly.core.render.web.expand.components.list.KRListViewContentInset
-import com.tencent.kuikly.core.render.web.ktx.KRCssConst
+import com.tencent.kuikly.core.render.web.const.KRCssConst
 import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.web.runtime.dom.element.IListElement
 import com.tencent.kuikly.core.render.web.runtime.miniapp.MiniGlobal

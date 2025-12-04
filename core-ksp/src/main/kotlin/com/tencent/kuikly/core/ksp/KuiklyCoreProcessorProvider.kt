@@ -50,33 +50,38 @@ class CoreProcessor(
     private var isInitialInvocation = true
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
-        val newFiles = resolver.getNewFiles()
-        if (!isInitialInvocation || newFiles.firstOrNull() == null) {
-            // * A subsequent invocation is for processing generated files. We do not need to process these.
-            // * If there are no new files to process, we avoid generating an output file, as this would break
-            //   incremental compilation.
-            //   TODO: This could be omitted if file generation were not required to discover the output source set.
+        if (!isInitialInvocation) {
+            // A subsequent invocation is for processing generated files. We do not need to process these.
+            logger.warn("skip subsequent invocation")
             return emptyList()
         }
         isInitialInvocation = false
+
+        val pageAnnotationName = Page::class.qualifiedName!!
+        val pageClasses = resolver.getSymbolsWithAnnotation(pageAnnotationName)
+            .filterIsInstance<KSClassDeclaration>()
+        val pages = pageClasses.map {
+            logger.info("new file with @Page: $it")
+            it.containingFile!!
+        }
+            .toList()
+            .toTypedArray()
+
         codeGenerator.createNewFile(
-            dependencies = Dependencies(aggregating = true),
+            dependencies = Dependencies(aggregating = true, *pages),
             packageName = "",
             fileName = "KuiklyCoreEntry",
             extensionName = "kt"
         ).use { output ->
-            // TODO: This hack to discover the output source set should be replaced with a better solution.
-            getEntryBuilder().also {
-                buildEntryFile(resolver, it).forEach { fileSpec ->
-                    output.write(fileSpec.toString().toByteArray())
-                }
+            buildEntryFile(pageClasses, getEntryBuilder()).forEach { fileSpec ->
+                output.write(fileSpec.toString().toByteArray())
             }
         }
         return emptyList()
     }
 
     private fun buildEntryFile(
-        resolver: Resolver,
+        pageClasses: Sequence<KSClassDeclaration>,
         absEntryBuilder: KuiklyCoreAbsEntryBuilder,
     ): List<FileSpec> {
         val pageName = option["pageName"] ?: ""
@@ -84,26 +89,25 @@ class CoreProcessor(
         val packBundleByModuleId = option["packBundleByModuleId"] ?: ""
         val pageClassDeclarations = mutableListOf<PageInfo>()
         val moduleSet = packBundleByModuleId.split("&").toSet()
-        resolver.getSymbolsWithAnnotation(Page::class.qualifiedName!!)
-            .filterIsInstance<KSClassDeclaration>()
-            .forEach { classDeclaration ->
-                val pageInfo = classDeclaration.toPageInfo()
-                if (packLocalAarBundle == "1") {
-                    if (pageInfo.packLocal) { // 只打包支持内置的page
-                        pageClassDeclarations.add(pageInfo)
-                    }
-                } else if (pageName.isNotEmpty()) { // 全部page打成一个包
-                    if (pageName == pageInfo.pageName) {
-                        pageClassDeclarations.add(pageInfo)
-                    }
-                } else if (packBundleByModuleId.isNotEmpty()) { // 按照moduleId打包bundle
-                    if (moduleSet.contains(pageInfo.moduleId)) {
-                        pageClassDeclarations.add(pageInfo)
-                    }
-                } else {
+
+        pageClasses.forEach { classDeclaration ->
+            val pageInfo = classDeclaration.toPageInfo()
+            if (packLocalAarBundle == "1") {
+                if (pageInfo.packLocal) { // 只打包支持内置的page
                     pageClassDeclarations.add(pageInfo)
                 }
+            } else if (pageName.isNotEmpty()) { // 全部page打成一个包
+                if (pageName == pageInfo.pageName) {
+                    pageClassDeclarations.add(pageInfo)
+                }
+            } else if (packBundleByModuleId.isNotEmpty()) { // 按照moduleId打包bundle
+                if (moduleSet.contains(pageInfo.moduleId)) {
+                    pageClassDeclarations.add(pageInfo)
+                }
+            } else {
+                pageClassDeclarations.add(pageInfo)
             }
+        }
         return absEntryBuilder.build(pageClassDeclarations)
     }
 

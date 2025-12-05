@@ -77,6 +77,11 @@ class KuiklyRenderCore(
      */
     private var exceptionListener: IKuiklyRenderExceptionListener? = null
 
+    /**
+     * 正在销毁状态
+     */
+    private var isUIDestroying: Boolean = false
+
     override fun init(
         renderView: IKuiklyRenderView,
         contextCode: String,
@@ -134,7 +139,7 @@ class KuiklyRenderCore(
     override fun getView(tag: Int): View? = renderLayerHandler?.getView(tag)
 
     override fun destroy() {
-        renderLayerHandler?.onDestroy()
+        isUIDestroying = true
         performOnContextQueue {
             contextHandler?.call(
                 KuiklyRenderContextMethod.KuiklyRenderContextMethodDestroyInstance,
@@ -143,8 +148,11 @@ class KuiklyRenderCore(
                 )
             )
             contextHandler?.destroy()
+            uiScheduler?.scheduleTask {
+                renderLayerHandler?.onDestroy()
+                uiScheduler?.destroy()
+            }
         }
-        uiScheduler?.destroy()
     }
 
     override fun syncFlushAllRenderTasks() {
@@ -325,7 +333,7 @@ class KuiklyRenderCore(
             assert(!isMainThread())
             if (isSyncMethodCall(method, args)) { // 同步方法的话，直接调用，不调度到UI线程
                 return it(method, args)
-            } else {
+            } else if (!isUIDestroying) {
                 uiScheduler?.scheduleTask(isUpdateViewTree = isUpdateViewTreeMethodCall(method)) {
                     it(method, args)
                 }

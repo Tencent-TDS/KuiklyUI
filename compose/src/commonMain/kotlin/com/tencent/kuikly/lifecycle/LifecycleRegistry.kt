@@ -16,7 +16,6 @@
 package com.tencent.kuikly.lifecycle
 
 import com.tencent.kuikly.compose.coroutines.internal.KuiklyContextScheduler
-import com.tencent.kuikly.compose.ui.node.WeakReference
 import com.tencent.kuikly.core.manager.BridgeManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

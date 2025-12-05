@@ -312,10 +312,6 @@ object RichTextProcessor : IRichTextProcessor {
         }
 
         // If new properties are supported, use canvas measurement values for calculation
-        // Remove width
-        style.width = ""
-        // Remove height
-        style.height = ""
         if (constraintSize.width > 0) {
             // If constraint size exists, use the constraint size
             style.maxWidth = constraintSize.width.toPxF()

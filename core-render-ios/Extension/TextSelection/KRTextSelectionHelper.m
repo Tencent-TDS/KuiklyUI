@@ -52,6 +52,12 @@ static void *KRTextSelectionScrollObserverContext = &KRTextSelectionScrollObserv
 /// Scroll observation for anchor position sync
 @property (nonatomic, strong) NSHashTable<UIScrollView *> *observedScrollViews;
 
+/// Selection highlight color
+@property (nonatomic, strong) UIColor *selectionColor;
+
+/// Cursor/anchor color
+@property (nonatomic, strong) UIColor *cursorColor;
+
 @end
 
 @implementation KRTextSelectionHelper
@@ -109,6 +115,10 @@ static void *KRTextSelectionScrollObserverContext = &KRTextSelectionScrollObserv
 }
 
 - (void)selectWordAtPoint:(CGPoint)point {
+    [self selectAtPoint:point type:KRTextSelectionTypeWord];
+}
+
+- (void)selectAtPoint:(CGPoint)point type:(KRTextSelectionType)type {
     if (!self.labels || !self.containerView) return;
     
     // 1. Find touched label and index
@@ -127,16 +137,36 @@ static void *KRTextSelectionScrollObserverContext = &KRTextSelectionScrollObserv
     }
     
     if (touchedLabel) {
-        // 2. Expand to word (simple approximation)
         NSString *text = touchedLabel.textRender.textStorage.string;
-        NSRange wordRange = [self rangeOfWordAtIndex:charIndex inString:text];
+        NSRange selectionRange;
+        
+        switch (type) {
+            case KRTextSelectionTypeCharacter:
+                // Select single character
+                selectionRange = NSMakeRange(charIndex, 1);
+                break;
+            case KRTextSelectionTypeWord:
+                // Expand to word
+                selectionRange = [self rangeOfWordAtIndex:charIndex inString:text];
+                break;
+            case KRTextSelectionTypeParagraph:
+                // Expand to paragraph/line
+                selectionRange = [self rangeOfParagraphAtIndex:charIndex inString:text];
+                break;
+            default:
+                selectionRange = NSMakeRange(charIndex, 1);
+                break;
+        }
         
         self.startLabel = touchedLabel;
         self.endLabel = touchedLabel;
-        self.startIndex = wordRange.location;
-        self.endIndex = wordRange.location + wordRange.length;
+        self.startIndex = selectionRange.location;
+        self.endIndex = selectionRange.location + selectionRange.length;
         
         [self updateUI];
+        
+        // Notify delegate about selection start
+        [self notifyDelegateDidStartSelection];
     }
 }
 
@@ -150,9 +180,15 @@ static void *KRTextSelectionScrollObserverContext = &KRTextSelectionScrollObserv
     self.endIndex = self.endLabel.textRender.textStorage.length;
     
     [self updateUI];
+    
+    // Notify delegate about selection start
+    [self notifyDelegateDidStartSelection];
 }
 
 - (void)endSelection {
+    // Check if there was an active selection before clearing
+    BOOL hadSelection = (self.labels != nil && self.containerView != nil);
+    
     // Remove scroll observers first
     [self removeScrollViewObservers];
     
@@ -165,6 +201,11 @@ static void *KRTextSelectionScrollObserverContext = &KRTextSelectionScrollObserv
     
     self.labels = nil;
     self.containerView = nil;
+    
+    // Notify delegate about selection cancel
+    if (hadSelection) {
+        [self notifyDelegateDidCancelSelection];
+    }
 }
 
 /// 游标触摸区域的扩展边距（便于用户触摸）
@@ -382,12 +423,16 @@ static const CGFloat kAnchorHitTestPadding = 20.0;
             
             if (selectionChanged) {
                 [self updateUI];
+                // Notify delegate about selection change
+                [self notifyDelegateDidChangeSelection];
             }
         }
     }
     
     if (gesture.state == UIGestureRecognizerStateEnded || gesture.state == UIGestureRecognizerStateCancelled) {
         [self removeMagnifierView];
+        // Notify delegate about selection end
+        [self notifyDelegateDidEndSelection];
     }
 }
 
@@ -506,6 +551,162 @@ static const CGFloat kMagnifierVerticalOffset = 60.0;
     }];
     
     return result;
+}
+
+- (NSRange)rangeOfParagraphAtIndex:(NSInteger)index inString:(NSString *)string {
+    if (index < 0 || index >= string.length) return NSMakeRange(0, string.length);
+    
+    // Find paragraph boundaries (line breaks)
+    __block NSRange result = NSMakeRange(0, string.length);
+    
+    [string enumerateSubstringsInRange:NSMakeRange(0, string.length)
+                               options:NSStringEnumerationByParagraphs
+                            usingBlock:^(NSString * _Nullable substring,
+                                         NSRange substringRange,
+                                         NSRange enclosingRange,
+                                         BOOL * _Nonnull stop) {
+        if (NSLocationInRange(index, substringRange) || 
+            (index == substringRange.location + substringRange.length && index == string.length)) {
+            result = substringRange;
+            *stop = YES;
+        }
+    }];
+    
+    return result;
+}
+
+#pragma mark - Public Methods
+
+- (NSArray<NSString *> *)getSelectedTexts {
+    if (!self.startLabel || !self.endLabel || self.startIndex < 0 || self.endIndex < 0) {
+        return @[];
+    }
+    
+    NSMutableArray<NSString *> *texts = [NSMutableArray array];
+    BOOL collecting = NO;
+    
+    for (KRLabel *label in self.labels) {
+        if (label == self.startLabel && label == self.endLabel) {
+            // Single label selection
+            NSString *text = label.textRender.textStorage.string;
+            NSRange range = NSMakeRange(self.startIndex, self.endIndex - self.startIndex);
+            if (range.location + range.length <= text.length) {
+                [texts addObject:[text substringWithRange:range]];
+            }
+            break;
+        } else if (label == self.startLabel) {
+            // Start of multi-label selection
+            NSString *text = label.textRender.textStorage.string;
+            if (self.startIndex < text.length) {
+                [texts addObject:[text substringFromIndex:self.startIndex]];
+            }
+            collecting = YES;
+        } else if (label == self.endLabel) {
+            // End of multi-label selection
+            NSString *text = label.textRender.textStorage.string;
+            if (self.endIndex <= text.length) {
+                [texts addObject:[text substringToIndex:self.endIndex]];
+            }
+            collecting = NO;
+            break;
+        } else if (collecting) {
+            // Middle labels - select all text
+            NSString *text = label.textRender.textStorage.string;
+            if (text.length > 0) {
+                [texts addObject:text];
+            }
+        }
+    }
+    
+    return texts;
+}
+
+- (CGRect)getSelectionFrame {
+    if (!self.startLabel || !self.endLabel || !self.containerView) {
+        return CGRectZero;
+    }
+    
+    CGRect unionRect = CGRectZero;
+    BOOL firstRect = YES;
+    BOOL selecting = NO;
+    
+    for (KRLabel *label in self.labels) {
+        NSRange range = NSMakeRange(NSNotFound, 0);
+        
+        if (label == self.startLabel && label == self.endLabel) {
+            range = NSMakeRange(self.startIndex, self.endIndex - self.startIndex);
+        } else if (label == self.startLabel) {
+            range = NSMakeRange(self.startIndex, label.textRender.textStorage.length - self.startIndex);
+            selecting = YES;
+        } else if (label == self.endLabel) {
+            range = NSMakeRange(0, self.endIndex);
+            selecting = NO;
+        } else if (selecting) {
+            range = NSMakeRange(0, label.textRender.textStorage.length);
+        }
+        
+        if (range.location != NSNotFound && range.length > 0) {
+            CGRect labelRect = [label.textRender boundingRectForCharacterRange:range];
+            CGRect containerRect = [label convertRect:labelRect toView:self.containerView];
+            
+            if (firstRect) {
+                unionRect = containerRect;
+                firstRect = NO;
+            } else {
+                unionRect = CGRectUnion(unionRect, containerRect);
+            }
+        }
+        
+        if (label == self.endLabel) {
+            break;
+        }
+    }
+    
+    return unionRect;
+}
+
+- (void)setSelectionColor:(UIColor *)color {
+    _selectionColor = color;
+    // Apply to all labels
+    for (KRLabel *label in self.labels) {
+        label.selectionColor = color;
+    }
+}
+
+- (void)setCursorColor:(UIColor *)color {
+    _cursorColor = color;
+    // Apply to anchors
+    [self.leftAnchor setColor:color];
+    [self.rightAnchor setColor:color];
+}
+
+#pragma mark - Delegate Notifications
+
+- (void)notifyDelegateDidStartSelection {
+    if ([self.delegate respondsToSelector:@selector(textSelectionHelper:didStartWithFrame:)]) {
+        CGRect frame = [self getSelectionFrame];
+        [self.delegate textSelectionHelper:self didStartWithFrame:frame];
+    }
+}
+
+- (void)notifyDelegateDidChangeSelection {
+    if ([self.delegate respondsToSelector:@selector(textSelectionHelper:didChangeWithFrame:)]) {
+        CGRect frame = [self getSelectionFrame];
+        [self.delegate textSelectionHelper:self didChangeWithFrame:frame];
+    }
+}
+
+- (void)notifyDelegateDidEndSelection {
+    if ([self.delegate respondsToSelector:@selector(textSelectionHelper:didEndWithFrame:)]) {
+        CGRect frame = [self getSelectionFrame];
+        [self.delegate textSelectionHelper:self didEndWithFrame:frame];
+    }
+}
+
+- (void)notifyDelegateDidCancelSelection {
+    if ([self.delegate respondsToSelector:@selector(textSelectionHelperDidCancel:)]) {
+        [self.delegate textSelectionHelperDidCancel:self];
+    }
 }
 
 #pragma mark - Scroll Observation

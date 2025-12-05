@@ -19,11 +19,58 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+@class KRTextSelectionHelper;
+
+/// Selection type enum
+typedef NS_ENUM(NSInteger, KRTextSelectionType) {
+    KRTextSelectionTypeCharacter = 0,
+    KRTextSelectionTypeWord = 1,
+    KRTextSelectionTypeParagraph = 2
+};
+
+/// Delegate protocol for text selection events
+@protocol KRTextSelectionHelperDelegate <NSObject>
+@optional
+/**
+ * Called when text selection starts.
+ * @param helper The selection helper instance.
+ * @param frame The bounding frame of the selection in container coordinates.
+ */
+- (void)textSelectionHelper:(KRTextSelectionHelper *)helper didStartWithFrame:(CGRect)frame;
+
+/**
+ * Called when text selection changes (anchor dragging).
+ * @param helper The selection helper instance.
+ * @param frame The bounding frame of the selection in container coordinates.
+ */
+- (void)textSelectionHelper:(KRTextSelectionHelper *)helper didChangeWithFrame:(CGRect)frame;
+
+/**
+ * Called when text selection ends (anchor released).
+ * @param helper The selection helper instance.
+ * @param frame The bounding frame of the selection in container coordinates.
+ */
+- (void)textSelectionHelper:(KRTextSelectionHelper *)helper didEndWithFrame:(CGRect)frame;
+
+/**
+ * Called when text selection is cancelled.
+ * @param helper The selection helper instance.
+ */
+- (void)textSelectionHelperDidCancel:(KRTextSelectionHelper *)helper;
+
+@end
+
 /// The helper for text selection.
 @interface KRTextSelectionHelper : NSObject
 
+/// The delegate for selection events.
+@property (nonatomic, weak, nullable) id<KRTextSelectionHelperDelegate> delegate;
+
 /// The shared instance of the text selection helper.
 + (instancetype)sharedInstance;
+
+/// Create a new instance (for per-container use).
+- (instancetype)init;
 
 /**
  * Start selection session with a list of labels.
@@ -40,6 +87,13 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)selectWordAtPoint:(CGPoint)point;
 
 /**
+ * Select at specific point with selection type.
+ * @param point Point in containerView coordinates.
+ * @param type The selection type (character, word, paragraph).
+ */
+- (void)selectAtPoint:(CGPoint)point type:(KRTextSelectionType)type;
+
+/**
  * Select all text across all labels.
  */
 - (void)selectAll;
@@ -54,6 +108,30 @@ NS_ASSUME_NONNULL_BEGIN
  * @param point Point in containerView coordinates.
  */
 - (BOOL)isPointOnAnchor:(CGPoint)point;
+
+/**
+ * Get the selected text content from all selected labels.
+ * @return An array of selected text strings.
+ */
+- (NSArray<NSString *> *)getSelectedTexts;
+
+/**
+ * Get the bounding frame of the current selection.
+ * @return The bounding frame in container coordinates.
+ */
+- (CGRect)getSelectionFrame;
+
+/**
+ * Set the selection highlight color.
+ * @param color The background color for text selection.
+ */
+- (void)setSelectionColor:(UIColor * _Nullable)color;
+
+/**
+ * Set the cursor/anchor color.
+ * @param color The color for selection anchors.
+ */
+- (void)setCursorColor:(UIColor * _Nullable)color;
 
 @end
 

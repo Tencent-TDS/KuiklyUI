@@ -20,6 +20,7 @@
 #import "KuiklyRenderView.h"
 #import "KRDisplayLink.h"
 #import "KRView+Compose.h"
+#import "KRView+TextSelection.h"
 #import "NSObject+KR.h"
 #import "KRMemoryCacheModule.h"
 
@@ -79,9 +80,12 @@
         if (params && params.length > 0) {
             UIAccessibilityPostNotification(UIAccessibilityAnnouncementNotification, params);
         }
+	} else if ([self kr_handleTextSelectionMethod:method params:params callback:callback]) {
+        // Text selection methods handled by category
     } else if ([method isEqualToString:CSS_METHOD_TOIMAGE]) {
         [self kr_toImageWithParams:params callback:callback];
     }
+
 }
 
 #pragma mark - CSS Property
@@ -507,6 +511,7 @@
     if (self.css_screenFrame) {
         self.css_screenFrame = nil;
     }
+    [self kr_cleanupTextSelection];
 }
 
 @end

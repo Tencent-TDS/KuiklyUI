@@ -137,14 +137,14 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
 
     let options: http.HttpRequestOptions = {};
 
+    // 对于二进制请求,需要指定 expectDataType 为 ARRAY_BUFFER
+    if (bytes !== null) {
+      options.expectDataType = http.HttpDataType.ARRAY_BUFFER;
+    }
+
     // set request method, url query parameters, body
     if (params.method == 'GET') {
       options.method = http.RequestMethod.GET;
-      
-      // 对于二进制请求,需要指定 expectDataType 为 ARRAY_BUFFER
-      if (bytes !== null) {
-        options.expectDataType = http.HttpDataType.ARRAY_BUFFER;
-      }
 
       // append param to the url if there's any
       if (params.param) {

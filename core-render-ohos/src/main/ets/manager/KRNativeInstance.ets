@@ -63,6 +63,14 @@ export class KRNativeInstance {
     return this.controller;
   }
 
+  public getAssetsDir() {
+    return this.controller?.assetsDir;
+  }
+
+  public getControllerExecuteMode() {
+    return this.controller?.executeMode.getMode();
+  }
+
   public createView(tag: number, viewType: string) {
     let creator: KRViewCreator | undefined = KRNativeInstance.viewCreatorRegistry.get(viewType);
     if (creator) {

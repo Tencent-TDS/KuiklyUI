@@ -142,6 +142,13 @@ UIKIT_EXTERN NSString *const KRRootViewSizeDidChangedEventKey;
  */
 - (NSString * _Nullable)turboDisplayKey;
 
+
+/*
+ * @brief 获取业务承载KuiklyRenderViewController的window
+ * @return 业务承载KuiklyRenderViewController的window
+ */
+- (UIWindow * _Nullable)targetWindow;
+
 @end
 
 NS_ASSUME_NONNULL_END

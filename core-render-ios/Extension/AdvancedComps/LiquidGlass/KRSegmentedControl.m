@@ -16,6 +16,7 @@
 
 #import "KRSegmentedControl.h"
 #import "KRComponentDefine.h"
+#import "NSObject+KR.h"
 
 
 @interface KRSegmentedControl ()
@@ -50,7 +51,9 @@
 
 - (void)setCss_titles:(NSArray *)css_titles {
     [self.segmentedControl removeAllSegments];
-    [css_titles enumerateObjectsUsingBlock:^(NSString *title, NSUInteger idx, BOOL *stop) {
+    // Parse the JSON string parameter into an array
+    NSArray *titlesArray = [css_titles hr_stringToArray];
+    [titlesArray enumerateObjectsUsingBlock:^(NSString *title, NSUInteger idx, BOOL *stop) {
         [self.segmentedControl insertSegmentWithTitle:title atIndex:idx animated:NO];
     }];
 }

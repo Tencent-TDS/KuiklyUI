@@ -22,6 +22,7 @@ npm run serve
 # 构建 release 版本
 ```shell
 # 首先构建业务 Bundle
+# 需要用远程ksp源，KuiklyUI仓库加上 -Pkuikly.useLocalKsp=false 参数
 ./gradlew :demo:packLocalJSBundleRelease -Pkuikly.useLocalKsp=false
 
 # 然后构建 miniApp

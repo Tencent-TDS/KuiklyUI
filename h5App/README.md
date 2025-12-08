@@ -64,6 +64,7 @@ npm run serve
 ```shell
 # 构建业务 h5App 和 JSBundle
 # 首先构建业务 Bundle
+# 需要用远程ksp源，KuiklyUI仓库加上 -Pkuikly.useLocalKsp=false 参数
 ./gradlew :demo:packLocalJSBundleRelease -Pkuikly.useLocalKsp=false
 # 然后构建宿主 APP
 ./gradlew :h5App:publishLocalJSBundle

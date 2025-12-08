@@ -63,6 +63,42 @@ shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherG
 - (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer {
     if (gestureRecognizer == self.panGestureRecognizer) {
         UIPanGestureRecognizer *pan = (UIPanGestureRecognizer *)gestureRecognizer;
+        
+        BOOL consumeGestureBounces = self.consumeGestureBounces;
+        if (consumeGestureBounces) {
+            CGPoint velocity = [pan velocityInView:self];
+            CGPoint translation = [pan translationInView:self];
+            BOOL isHorizontalSwipe = fabs(velocity.x) > fabs(velocity.y) || fabs(translation.x) > fabs(translation.y);
+            BOOL isRightSwipe = velocity.x > 0 || translation.x > 0;
+            BOOL isLeftSwipe = velocity.x < 0 || translation.x < 0;
+            CGFloat tolerance = 0.1;
+            BOOL supportsOverscroll = self.bounces && self.alwaysBounceHorizontal;
+            
+            if (isHorizontalSwipe && self.contentSize.width > self.bounds.size.width) {
+                // 检查是否到达左边缘且向右滑动（考虑 contentInset 的影响，用于支持 contentPadding）
+                if (isRightSwipe) {
+                    CGFloat effectiveOffsetX = self.contentOffset.x + self.contentInset.left;
+                    if (effectiveOffsetX <= tolerance) {
+                        // 到达左边缘，如果不支持 overscroll，不识别向右的手势，让横滑退出手势能够识别
+                        if (!supportsOverscroll) {
+                            return NO;
+                        }
+                    }
+                }
+                // 检查是否到达右边缘且向左滑动
+                else if (isLeftSwipe) {
+                    CGFloat maxOffsetX = self.contentSize.width - self.bounds.size.width;
+                    CGFloat currentOffsetX = self.contentOffset.x;
+                    if (currentOffsetX >= maxOffsetX - tolerance) {
+                        // 到达右边缘，如果不支持 overscroll，不识别向左的手势
+                        if (!supportsOverscroll) {
+                            return NO;
+                        }
+                    }
+                }
+            }
+        }
+        
         // 获取手势起点
         CGPoint location = [gestureRecognizer locationInView:self];
         UIView *hitView = [self hitTest:location withEvent:nil];
@@ -120,6 +156,5 @@ shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherG
         [self addScrollViewDelegate:self.nestedScrollCoordinator];
     }
 }
-
 
 @end

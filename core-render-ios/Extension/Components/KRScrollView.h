@@ -29,6 +29,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign) BOOL autoAdjustContentOffsetDisable ;
 @property (nonatomic, assign) BOOL setContentSizeing ;
 @property (nonatomic, assign) BOOL skipNestScrollLock;
+/// Whether to consume gesture when bounces are enabled (for overscroll priority)
+@property (nonatomic, assign) BOOL consumeGestureBounces;
 
 /// Record the last content offset for scroll lock.
 @property (nonatomic, assign) CGPoint lastContentOffset;

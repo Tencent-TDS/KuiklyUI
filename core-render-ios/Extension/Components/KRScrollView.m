@@ -354,6 +354,10 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     }
 }
 
+- (void)setCss_consumeGestureBounces:(NSNumber *)css_consumeGestureBounces {
+    self.consumeGestureBounces = css_consumeGestureBounces ? [css_consumeGestureBounces boolValue] : YES;
+}
+
 - (void)setCss_pagingEnabled:(NSNumber *)css_pagingEnabled {
     if (self.css_pagingEnabled != css_pagingEnabled) {
         _css_pagingEnabled = css_pagingEnabled;

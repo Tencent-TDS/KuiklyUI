@@ -68,6 +68,7 @@ import kotlin.math.roundToInt
  * @param tonalElevation Elevation of the bottom sheet
  * @param scrimColor Color of the background scrim
  * @param dismissOnDrag Whether the bottom sheet can be dismissed by dragging down. Defaults to false.
+ * @param inWindow When true the dialog in single window, when false user current window. Defaults to true.
  * @param content Content of the bottom sheet
  * 
  * Example:
@@ -107,6 +108,7 @@ fun ModalBottomSheet(
     dismissOnDrag: Boolean = false,
     dismissThreshold: Float = 0.25f,
     animationDurationMillis: Int = 250,
+    inWindow: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
     var visibleState = remember { MutableTransitionState(false) }
@@ -159,7 +161,8 @@ fun ModalBottomSheet(
                 dismissOnClickOutside = true,
                 usePlatformDefaultWidth = false,
                 scrimColor = animatedScrimColor, // 使用动态计算的 scrim 颜色
-                contentAlignment = Alignment.BottomCenter
+                contentAlignment = Alignment.BottomCenter,
+                inWindow = inWindow
             )
         ) {
             AnimatedVisibility(

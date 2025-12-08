@@ -45,8 +45,13 @@ import com.tencent.kuikly.compose.setContent
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.Color
+import com.tencent.kuikly.compose.ui.input.pointer.PointerEventPass
+import com.tencent.kuikly.compose.ui.input.pointer.PointerEventType
+import com.tencent.kuikly.compose.ui.input.pointer.pointerInput
+import com.tencent.kuikly.compose.ui.input.pointer.positionChange
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.core.annotations.Page
+import kotlin.math.abs
 
 @Page("HorizontalPagerDemo1")
 class HorizontalPagerDemo1 : ComposeContainer() {
@@ -79,11 +84,30 @@ class HorizontalPagerDemo1 : ComposeContainer() {
                             .fillMaxHeight()
                             .width(150.dp)
                             .background(Color.Blue)
-                            .padding(4.dp),
+                            .padding(4.dp)
+                            .pointerInput(Unit) {                       // ← 关键
+                                awaitPointerEventScope {
+                                    while (true) {
+                                        val event =
+                                            awaitPointerEvent(pass = PointerEventPass.Initial)
+                                        event.changes.forEach {
+                                            val offset = it.positionChange()
+                                            val isHorizontal = abs(x = offset.x) > abs(x = offset.y)
+                                            if (isHorizontal) {
+                                                val isDraggingRight = offset.x > 0
+                                                val isDraggingLeft = offset.x < 0
+                                                if (isDraggingRight || isDraggingLeft) {
+                                                    it.consume()
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        "Page $page",
+                        "Page $page 不可滑动区域",
                         color = Color.White,
                     )
                 }
@@ -94,11 +118,13 @@ class HorizontalPagerDemo1 : ComposeContainer() {
             // 2. 测试 PageSize
             Text("2. PageSize.Fixed, pageSpacing 测试:")
             HorizontalPager(
-                state = rememberPagerState { 5 },
+                state = rememberPagerState { 20 },
                 modifier =
                     Modifier
                         .height(100.dp)
-                        .background(Color.LightGray),
+                        .background(Color.LightGray)
+                        .bouncesEnable(true, consumeGestureBounces = true)
+                ,
                 pageSize = PageSize.Fixed(200.dp),
                 pageSpacing = 5.dp,
             ) { page ->
@@ -130,6 +156,7 @@ class HorizontalPagerDemo1 : ComposeContainer() {
                 modifier =
                     Modifier
                         .height(100.dp)
+                        .bouncesEnable(false, consumeGestureBounces = true)
                         .background(Color.LightGray),
                 contentPadding = PaddingValues(horizontal = 32.dp, vertical = 5.dp),
             ) { page ->

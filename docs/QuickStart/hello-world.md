@@ -97,7 +97,8 @@ H5 是通过 gradle 启动 dev-server 来运行
 # 运行 demo 项目 dev server 服务器，没有安装 npm 包则先 npm install 安装一下依赖
 npm run serve
 #  构建 shared 项目 Debug 版
-./gradlew :shared:packLocalJsBundleDebug -Pkuikly.useLocalKsp=false
+#  如果 gradle.properties 有配置 kuikly.useLocalKsp=true, 这里加下 -Pkuikly.useLocalKsp=false
+./gradlew :shared:packLocalJsBundleDebug
 ```
 
 2. 编译h5App代码成js，然后启动调试服务
@@ -127,7 +128,8 @@ kotlin 2.0 以上运行: ./gradlew :h5App:jsBrowserDevelopmentRun -t
 # 运行 demo 项目 dev server 服务器，没有安装 npm 包则先 npm install 安装一下依赖
 npm run serve
 #  构建 demo 项目 Debug 版
-./gradlew :shared:packLocalJsBundleDebug -Pkuikly.useLocalKsp=false
+#  如果 gradle.properties 有配置 kuikly.useLocalKsp=true, 这里加下 -Pkuikly.useLocalKsp=false
+./gradlew :shared:packLocalJsBundleDebug
 ```
 
 2. 编译miniApp代码成js，然后启动调试服务
@@ -139,7 +141,8 @@ npm run serve
 构建 release 版本
 ```shell
 # 首先构建业务 Bundle
-./gradlew :demo:packLocalJSBundleRelease -Pkuikly.useLocalKsp=false
+# 如果 gradle.properties 有配置 kuikly.useLocalKsp=true, 这里加下 -Pkuikly.useLocalKsp=false
+./gradlew :demo:packLocalJSBundleRelease
 
 # 然后构建 miniApp
 ./gradlew :miniApp:jsMiniAppProductionWebpack

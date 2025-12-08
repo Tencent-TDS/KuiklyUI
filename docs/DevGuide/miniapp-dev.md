@@ -8,7 +8,8 @@
 # 运行 shared 项目 dev server 服务器，没有安装 npm 包则先 npm install 安装一下依赖
 npm run serve
 #  构建 shared 项目 Debug 版
-./gradlew :shared:packLocalJsBundleDebug -Pkuikly.useLocalKsp=false
+#  如果 gradle.properties 有配置 kuikly.useLocalKsp=true, 这里加下 -Pkuikly.useLocalKsp=false
+./gradlew :shared:packLocalJsBundleDebug
 ```
 
 然后构建 miniApp 项目
@@ -20,7 +21,8 @@ npm run serve
 构建 release 版本
 ```shell
 # 首先构建业务 Bundle
-./gradlew :demo:packLocalJSBundleRelease -Pkuikly.useLocalKsp=false
+# 如果 gradle.properties 有配置 kuikly.useLocalKsp=true, 这里加下 -Pkuikly.useLocalKsp=false
+./gradlew :demo:packLocalJSBundleRelease
 
 # 然后构建 miniApp
 ./gradlew :miniApp:jsMiniAppProductionWebpack

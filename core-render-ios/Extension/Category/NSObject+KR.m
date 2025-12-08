@@ -76,8 +76,9 @@
         string =  [((NSNumber *)self) stringValue];
     }
     if (string) {
-        return (NSString*)CFBridgingRelease(CFURLCreateStringByAddingPercentEscapes(nil,(CFStringRef)string,
-                                                                                    nil,(CFStringRef)@"!*'();:@&=+$,/?%#[]", kCFStringEncodingUTF8));
+        NSMutableCharacterSet *allowedCharacterSet = [[NSCharacterSet URLQueryAllowedCharacterSet] mutableCopy];
+        [allowedCharacterSet removeCharactersInString:@"!*'();:@&=+$,/?%#[]"];
+        return [string stringByAddingPercentEncodingWithAllowedCharacters:allowedCharacterSet] ?: @"";
     }
     return @"";
 }

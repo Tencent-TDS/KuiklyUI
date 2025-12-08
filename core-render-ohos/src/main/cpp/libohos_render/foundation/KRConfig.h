@@ -89,6 +89,11 @@ class KRConfig {
         if (fontSizeScaleFollowSystem != map.end()) {
             fontSizeScaleFollowSystem_ = fontSizeScaleFollowSystem->second->toBool();
         }
+        
+        auto performanceMonitorTypesMask = map.find("performanceMonitorTypesMask");
+        if (performanceMonitorTypesMask != map.end()) {
+            performanceMonitorTypesMask_ = performanceMonitorTypesMask->second->toInt();
+        }
     }
 
     /**
@@ -161,8 +166,12 @@ class KRConfig {
         return window_id_;
     }
 
-    const bool fontSizeScaleFollowSystem() {
+    const bool GetFontSizeScaleFollowSystem() {
         return fontSizeScaleFollowSystem_;
+    }
+
+    const int GetPerformanceMonitorTypesMask() {
+        return performanceMonitorTypesMask_;
     }
 
  private:
@@ -178,6 +187,7 @@ class KRConfig {
     std::string window_id_; // 页面所在的窗口ID，用于标识页面所在的窗口
     bool ime_mode_ = false;
     bool fontSizeScaleFollowSystem_ = true;
+    int performanceMonitorTypesMask_ = 0;
 };
 
 #endif  // CORE_RENDER_OHOS_KRCONFIG_H

@@ -111,7 +111,7 @@ void KRTextFieldView::UpdateInputNodePlaceholderFont(uint32_t font_size, ArkUI_F
     bool fontSizeScaleFollowSystem = true;
     float font_size_px = 0;
     if (rootView) {
-        fontSizeScaleFollowSystem = rootView->GetContext()->Config()->fontSizeScaleFollowSystem();
+        fontSizeScaleFollowSystem = rootView->GetContext()->Config()->GetFontSizeScaleFollowSystem();
         font_size_px = rootView->GetContext()->Config()->fp2px(font_size);
     }
     kuikly::util::UpdateInputNodePlaceholderFont(GetNode(), font_size, font_weight, fontSizeScaleFollowSystem, font_size_px);

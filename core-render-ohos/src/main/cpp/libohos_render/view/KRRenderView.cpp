@@ -101,6 +101,7 @@ void KRRenderView::RemoveRootViewFromContentHandle(bool immediate){
 }
 
 void KRRenderView::WillDestroy(const std::string &instanceId) {
+    DispatchInitState(KRInitState::kStateDestroy);
     core_->WillDealloc(instanceId);
     // send event to call
     // delay destroy for core
@@ -216,7 +217,8 @@ void KRRenderView::Init(std::shared_ptr<KRRenderContextParams> context, ArkUI_Co
     context_ = context;
     ui_context_handle_ = ui_context_handle;
     native_resources_manager_ = native_resources_manager;
-    performance_manager_ = std::make_shared<KRPerformanceManager>(context->PageName(), context->ExecuteMode());
+    int performanceMonitorTypesMask = context->Config()->GetPerformanceMonitorTypesMask();
+    performance_manager_ = std::make_shared<KRPerformanceManager>(performanceMonitorTypesMask, context->PageName(), context->InstanceId(), context->ExecuteMode());
     performance_manager_->SetArkLaunchTime(launch_time);
     root_view_width_ = width;
     root_view_height_ = height;
@@ -335,6 +337,15 @@ void KRRenderView::DispatchInitState(KRInitState state) {
         break;
     case KRInitState::kStateFirstFramePaint:
        performance_manager_->OnFirstFramePaint();
+    case KRInitState::kStateResume:
+        // todo
+        break;
+    case KRInitState::kStatePause:
+        // todo
+        break;
+    case KRInitState::kStateDestroy:
+        performance_manager_->OnDestroy();
+        break;
     default:
         break;
     }

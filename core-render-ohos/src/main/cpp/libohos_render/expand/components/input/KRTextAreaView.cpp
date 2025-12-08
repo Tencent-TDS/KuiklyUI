@@ -85,7 +85,7 @@ void KRTextAreaView::UpdateInputNodePlaceholderFont(uint32_t font_size, ArkUI_Fo
     bool fontSizeScaleFollowSystem = true;
     bool font_size_px = 0;
     if (rootView) {
-        fontSizeScaleFollowSystem = rootView->GetContext()->Config()->fontSizeScaleFollowSystem();
+        fontSizeScaleFollowSystem = rootView->GetContext()->Config()->GetFontSizeScaleFollowSystem();
         font_size_px = rootView->GetContext()->Config()->fp2px(font_size);
     }
     float font_size_temp = font_size;

@@ -8,7 +8,7 @@
 # 运行 shared 项目 dev server 服务器，没有安装 npm 包则先 npm install 安装一下依赖
 npm run serve
 #  构建 shared 项目 Debug 版
-./gradlew :shared:packLocalJsBundleDebug
+./gradlew :shared:packLocalJsBundleDebug -Pkuikly.useLocalKsp=false
 ```
 
 然后构建 h5App 项目
@@ -52,7 +52,7 @@ kotlin 2.0 以上运行: ./gradlew :h5App:jsBrowserDevelopmentRun -t
 ```shell
 # 构建业务 h5App 和 JSBundle
 # 首先构建业务 Bundle
-./gradlew :shared:packLocalJSBundleRelease
+./gradlew :shared:packLocalJSBundleRelease -Pkuikly.useLocalKsp=false
 # 然后构建宿主 APP
 ./gradlew :h5App:publishLocalJSBundle
 ```

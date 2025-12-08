@@ -26,7 +26,7 @@ enum class MonitorType { kLaunch = 0, KFrame = 1, KMemory = 2 };
 
 class KRPerformanceManager {
  public:
-    KRPerformanceManager(std::string page_name, std::string instance_id, const std::shared_ptr<KRRenderExecuteMode> &mode);
+    KRPerformanceManager(int performance_monitor_types_mask, std::string page_name, std::string instance_id, const std::shared_ptr<KRRenderExecuteMode> &mode);
     ~KRPerformanceManager();
     void OnKRRenderViewInit();
     void OnInitCoreStart();
@@ -49,13 +49,17 @@ class KRPerformanceManager {
     /**
      * 回调启动数据
      */
-    void onLaunchResult();
+    void OnLaunchResult();
     /**
      * 回调所有性能数据
      */
-    void onResult();
+    void OnResult();
 
+private:
+    void CallArkTsPerformanceModule(const char* module_name, std::string &data);
+    
  private:
+    int performance_monitor_types_mask_ = 0;
     std::string page_name_ = "";
     std::string instance_id_ = "";
     std::shared_ptr<KRRenderExecuteMode> mode_;
@@ -66,4 +70,9 @@ class KRPerformanceManager {
     static std::list<std::string> page_record_;  // 静态变量，全局记录页面是否曾经加载过
     static bool cold_launch_flag;                // 静态变量，用于标识进程是否首次启动
 };
+
+enum MonitorTypeMask {
+    kMonitorTypeLaunch = 1 << 0,  // 1 启动监控
+};
+
 #endif  // CORE_RENDER_OHOS_KRPERFORMANCEMANAGER_H

@@ -1,3 +1,4 @@
+import { KRMonitorType } from '../KRNativeRenderController'
 import { KRAny, KRRecord, KuiklyRenderCallback } from '../utils/KRDataTypes'
 import { KuiklyRenderBaseModule } from './export'
 
@@ -19,12 +20,16 @@ export class KRPerformanceModule extends KuiklyRenderBaseModule {
       }
       case KRPerformanceModule.METHOD_ON_GET_LAUNCH_DATA: {
         const data: Record<string, number> = JSON.parse(params as string);
-        this.controller?.onGetLaunchData(data);
+        if (this.controller?.performanceMonitorTypes().includes(KRMonitorType.LAUNCH)) {
+          this.controller?.onGetLaunchData(data);
+        }
         break;
       }
       case KRPerformanceModule.METHOD_ON_GET_PERFORMANCE_DATA: {
         const data: Record<string, number> = JSON.parse(params as string);
-        this.controller?.onGetPerformanceData(data);
+        if (this.controller?.performanceMonitorTypes().length != 0) {
+          this.controller?.onGetPerformanceData(data);
+        }
         break;
       }
       default:

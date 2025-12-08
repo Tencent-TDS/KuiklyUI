@@ -217,7 +217,8 @@ void KRRenderView::Init(std::shared_ptr<KRRenderContextParams> context, ArkUI_Co
     context_ = context;
     ui_context_handle_ = ui_context_handle;
     native_resources_manager_ = native_resources_manager;
-    performance_manager_ = std::make_shared<KRPerformanceManager>(context->PageName(), context->InstanceId(), context->ExecuteMode());
+    int performanceMonitorTypesMask = context->Config()->GetPerformanceMonitorTypesMask();
+    performance_manager_ = std::make_shared<KRPerformanceManager>(performanceMonitorTypesMask, context->PageName(), context->InstanceId(), context->ExecuteMode());
     performance_manager_->SetArkLaunchTime(launch_time);
     root_view_width_ = width;
     root_view_height_ = height;

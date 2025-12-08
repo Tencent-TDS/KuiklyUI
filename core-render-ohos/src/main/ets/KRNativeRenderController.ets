@@ -635,8 +635,9 @@ export class KRNativeRenderController {
       'fontWeightScale': this.fontWeightScale,
       'fontSizeScale': this.fontSizeScale,
       'imeMode': this.imeMode ? 1 : 0,
-      "windowId": this.windowId,
-      'fontSizeScaleFollowSystem': this.fontSizeScaleFollowSystem() ? 1 : 0
+      'windowId': this.windowId,
+      'fontSizeScaleFollowSystem': this.fontSizeScaleFollowSystem() ? 1 : 0,
+      'performanceMonitorTypesMask': this.getMonitorTypeMask(),
     };
 
     return JSON.stringify(data);
@@ -721,6 +722,20 @@ export class KRNativeRenderController {
    */
   onGetPerformanceData(data: Record<string, number>): void {
   }
+
+  /**
+   * Kuikly框架设置性能监控选项，默认只开启动监控
+   * @return Array<KRMonitorType>: 需要设置的性能监控选项列表(目前仅支持启动监控)
+   */
+  performanceMonitorTypes(): Array<KRMonitorType> {
+    return [KRMonitorType.LAUNCH];
+  }
+
+  private getMonitorTypeMask(): number {
+    const mask = this.performanceMonitorTypes().reduce((acc: KRMonitorType, cur: KRMonitorType) => acc | cur, 0);
+    return mask;
+  }
+
 }
 
 export abstract class IKuiklyViewDelegate extends KRNativeRenderController {
@@ -817,4 +832,11 @@ export interface IKuiklyRenderViewLifecycleCallback {
    */
   onFirstFramePaint(): void
 
+}
+
+/**
+ * 性能监控类型
+ */
+export enum KRMonitorType {
+  LAUNCH = 1 << 0,  // 1 启动监控
 }

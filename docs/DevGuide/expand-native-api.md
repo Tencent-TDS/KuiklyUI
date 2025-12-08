@@ -42,6 +42,28 @@ class MyLogModule : Module() {
 > - asyncToNativeMethod(methodName, params, callback) // 异步调用Native方法（native侧在主线程执行），传输JSONObject类型参数，回调JSON字符串
 > - asyncToNativeMethod(methodName, arrayOf(content), callback) // 异步调用Native方法（native侧在主线程执行），传输基本类型数组，回调基本类型
 
+**三端支持的数据类型：**
+- **Android侧**：String、Int、Long、Float、Double、Boolean、ByteArray、Map、List
+- **iOS侧**：NSString、NSNumber、NSData、NSDictionary、NSArray
+- **鸿蒙侧**：string、number、boolean、ArrayBuffer、Array
+
+**类型序列化规则（三端统一）：**
+- **基础类型**（String/Int/Float/Double/Boolean/NSNumber）：直接透传，无需序列化
+- **二进制数据**（ByteArray/NSData/ArrayBuffer）：直接透传，无需序列化
+- **集合类型**（Map/List/NSDictionary/NSArray/Array）：序列化为JSON字符串
+- **特殊规则**：Array中包含二进制元素（ByteArray/NSData/ArrayBuffer）时，整个Array直接透传，不序列化
+
+:::tip 注意
+- syncToNativeMethod和asyncToNativeMethod，传入参数params是JSONObject且序列化为jSON字符串传至Native侧，
+序列化过程不支持对ByteArray二进制数据进行处理。因此请选择params为Any的syncToNativeMethod/asyncToNativeMethod方法传输二进制参数
+- callback中解析回传至Koltin侧二进制数据，可参考示例：
+```koltin
+if (data is ByteArray) {
+   val byteData = data.decodeToString()
+   // ...
+}
+```
+ :::
 
 3. 接着我们新增``log``方法，让业务方能够打印日志。
 ```kotlin

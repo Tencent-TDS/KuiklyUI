@@ -141,9 +141,13 @@ All project participants are expected to adhere to our [Code of Conduct](CODE_OF
 [`Kuikly` Q&A](https://kuikly.tds.qq.com/QA/kuikly-qa.html)
 
 ## Contributors
-- Special thanks to the first batch of contributors tom(邱良雄), kam(林锦涛), and watson(金盎), who not only pioneered the incubation and exploration of the Kuikly cross-platform solutions in the frontend field, but also were the first to implement them in the QQ business.
+- Special thanks to the first batch of contributors tom(邱良雄), kam(林锦涛), and watson(金盎), who not only pioneered the incubation and exploration of the `Kuikly` cross-platform solutions in the frontend field, but also were the first to implement them in the QQ business.
 - Thanks to the following core contributors for the continuous construction, maintenance, development and optimization of `Kuikly`:
  <br>tom kam watson rocky jonas ruifan pel layen bird zealot zhenhua vinney xuanxi arnon alexa allens eason
+- We also extend our sincere gratitude to every community contributor who has participated in the development of `Kuikly`. It is your collective effort that drives the continuous growth and improvement of `Kuikly`.
+    <div id="list" style="display: flex; flex-wrap: wrap"><a href="https://github.com/Tencent-TDS/KuiklyUI/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Tencent-TDS/KuiklyUI" /></a><a href="https://github.com/Tencent-TDS/KuiklyUI-third-party/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Tencent-TDS/KuiklyUI-third-party" /></a></div>
 
 ## Application Cases
 ### Application Integration

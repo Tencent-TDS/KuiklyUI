@@ -80,7 +80,13 @@ internal class OverScrollHandler(
     private var scrollPointerId = -1
 
     fun onTouchEvent(event: MotionEvent): Boolean {
-        if (!isInStart() && !isInEnd()) {
+        val activeIndex = event.actionIndex
+        val isMoveEvent = event.actionMasked == MotionEvent.ACTION_MOVE
+        val isInEdge = isInStart() || isInEnd()
+        
+        // 对于 MOVE 事件，即使不在边缘，也允许处理，以便在滑动过程中检测是否到达边缘
+        // 对于其他事件，如果不在边缘且不是 forceOverScroll，则直接返回 false
+        if (!isMoveEvent && !isInEdge) {
             if (pointerDataMap.size() != 0) {
                 // 防止一开始是在start或者end, 然后pointerMap中存在down事件
                 // 最后滑到不是在start或者end时松手。此时不会走到clear,这里补一刀clear
@@ -91,7 +97,6 @@ internal class OverScrollHandler(
             }
         }
 
-        val activeIndex = event.actionIndex
         return when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> processDownEvent(activeIndex, event)
             MotionEvent.ACTION_POINTER_DOWN -> processPointerDownEvent(activeIndex, event)
@@ -146,6 +151,16 @@ internal class OverScrollHandler(
             return false
         }
 
+        // 即使不在边缘，也要更新 pointerDataMap，以便在到达边缘时能正确计算偏移
+        val isInEdge = isInStart() || isInEnd()
+        if (!isInEdge && !forceOverScroll) {
+            // 更新所有指针的数据，但不处理事件，等待到达边缘
+            for (i in 0 until event.pointerCount) {
+                updatePointerData(i, event)
+            }
+            return false
+        }
+
         val currentTranslation = getTranslation()
         val offset = getOverScrollOffset(event)
         if (offset == 0f) {
@@ -173,10 +188,10 @@ internal class OverScrollHandler(
         val dx = event.x - initX
         val dy = event.y - initY
         var startScroll = false
-        if (!isVertical && abs(dx) > touchSlop && abs(dx) > abs(dy)) {
+        if (!isVertical&& abs(dx) > abs(dy)) {
             startScroll = true
         }
-        if (isVertical && abs(dy) > touchSlop && abs(dy) > abs(dx)) {
+        if (isVertical && abs(dy) > abs(dx)) {
             startScroll = true
         }
 

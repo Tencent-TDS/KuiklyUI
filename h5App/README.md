@@ -15,6 +15,7 @@
 // 运行 demo serve 服务器，没有安装 npm包则先 npm install 安装一下依赖
 npm run serve
 // 构建 demo 项目 Debug 版产物(无混淆压缩)
+// H5需要用远程ksp源，KuiklyUI仓库加上 -Pkuikly.useLocalKsp=false 参数
 ./gradlew :demo:packLocalJsBundleDebug -Pkuikly.useLocalKsp=false
 // 或 Release 版产物(有混淆和压缩)
 ./gradlew :demo:packLocalJsBundleRelease -Pkuikly.useLocalKsp=false
@@ -64,7 +65,7 @@ npm run serve
 ```shell
 # 构建业务 h5App 和 JSBundle
 # 首先构建业务 Bundle
-# 需要用远程ksp源，KuiklyUI仓库加上 -Pkuikly.useLocalKsp=false 参数
+# H5需要用远程ksp源，KuiklyUI仓库加上 -Pkuikly.useLocalKsp=false 参数
 ./gradlew :demo:packLocalJSBundleRelease -Pkuikly.useLocalKsp=false
 # 然后构建宿主 APP
 ./gradlew :h5App:publishLocalJSBundle

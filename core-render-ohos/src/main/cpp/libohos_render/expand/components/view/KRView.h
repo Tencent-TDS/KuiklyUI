@@ -68,6 +68,7 @@ class KRView : public IKRRenderViewExport {
 	std::shared_ptr<SuperTouchHandler> super_touch_handler_ = nullptr;
     std::weak_ptr<SuperTouchHandler> parent_super_touch_handler_;
     SuperTouchType super_touch_type_ = UNKNOWN;
+    bool stop_propagation_ = false;
 };
 
 #endif  // CORE_RENDER_OHOS_KRVIEW_H

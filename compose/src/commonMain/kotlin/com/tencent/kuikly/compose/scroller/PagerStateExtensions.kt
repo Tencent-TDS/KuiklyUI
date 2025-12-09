@@ -15,6 +15,13 @@
 
 package com.tencent.kuikly.compose.scroller
 
+import com.tencent.kuikly.compose.animation.core.AnimationSpec
+import com.tencent.kuikly.compose.animation.core.AnimationVector1D
+import com.tencent.kuikly.compose.animation.core.SpringSpec
+import com.tencent.kuikly.compose.animation.core.TweenSpec
+import com.tencent.kuikly.compose.animation.core.VectorConverter
+import com.tencent.kuikly.compose.animation.core.VectorizedAnimationSpec
+import com.tencent.kuikly.compose.animation.core.getDurationMillis
 import com.tencent.kuikly.compose.foundation.gestures.Orientation
 import com.tencent.kuikly.compose.foundation.pager.PagerMeasureResult
 import com.tencent.kuikly.compose.foundation.pager.PagerSnapDistance
@@ -25,7 +32,7 @@ import com.tencent.kuikly.core.views.WillEndDragParams
 import kotlin.math.min
 
 /**
- * 处理拖拽结束事件
+ * Handle drag end event
  */
 internal fun PagerState.kuiklyWillDragEnd(params: WillEndDragParams, orientation: Orientation) {
     val effectivePageSizePx = pageSize + pageSpacing
@@ -96,6 +103,59 @@ private fun PagerState.handleTargetPageScroll(
                 true,
                 springAnimation
             )
+        }
+    }
+}
+
+/**
+ * Converts AnimationSpec<Float> to SpringAnimation
+ * This is a temporary solution that mainly supports animation duration and basic animation curves
+ * 
+ * @param animationSpec The animation spec to convert
+ * @param initialValue Initial value (used for calculating SpringSpec duration)
+ * @param targetValue Target value (used for calculating SpringSpec duration)
+ * @return The converted SpringAnimation, or null if the type is not supported
+ */
+internal fun convertAnimationSpecToSpringAnimation(
+    animationSpec: AnimationSpec<Float>,
+    initialValue: Float = 0f,
+    targetValue: Float = 0f
+): SpringAnimation? {
+    return when (animationSpec) {
+        is TweenSpec<*> -> {
+            // TweenSpec: Use durationMillis as durationMs
+            // Note: Easing curve (animationSpec.easing) is not supported yet,
+            // using default damping value instead
+            SpringAnimation(
+                durationMs = animationSpec.durationMillis,
+                damping = 0.8f, // Default damping value (easing curve not supported)
+                velocity = 0f
+            )
+        }
+        is SpringSpec<*> -> {
+            // SpringSpec: Use dampingRatio as damping, calculate duration via vectorize
+            // SpringSpec is physics-based, so duration needs to be calculated from spring parameters
+            // Note: getDurationMillis may involve complex calculations (Newton's method, etc.),
+            // but it's only called once per animateScrollToPage, not per frame
+            val vectorizedSpec: VectorizedAnimationSpec<AnimationVector1D> = 
+                animationSpec.vectorize<AnimationVector1D>(Float.VectorConverter)
+            val initialVector = AnimationVector1D(initialValue)
+            val targetVector = AnimationVector1D(targetValue)
+            val initialVelocityVector = AnimationVector1D(0f)
+            val durationMs = vectorizedSpec.getDurationMillis(
+                initialVector,
+                targetVector,
+                initialVelocityVector
+            ).toInt().coerceAtLeast(1)
+            SpringAnimation(
+                durationMs = durationMs,
+                damping = animationSpec.dampingRatio,
+                velocity = 0f
+            )
+        }
+        else -> {
+            // Unrecognized type, return null
+            null
         }
     }
 } 

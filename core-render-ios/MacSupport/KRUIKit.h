@@ -228,7 +228,7 @@ NS_INLINE void UIAccessibilityPostNotification(NSAccessibilityNotificationName n
 }
 
 // Activity indicator alias
-#define UIActivityIndicatorView RCTUIActivityIndicatorView
+#define UIActivityIndicatorView KRUIActivityIndicatorView
 
 #pragma mark - Notification Name Aliases
 
@@ -728,34 +728,21 @@ NS_INLINE CGRect CGRectValue(NSValue *value) {
     return rect;
 }
 
-// [macOS] NSValue category to provide CGPoint/CGSize/CGRect value selectors
-@interface NSValue (KUCGGeometryCompat)
-- (CGPoint)CGPointValue;
-- (CGSize)CGSizeValue;
-- (CGRect)CGRectValue;
-@end
-
-// [macOS] NSValue class methods to provide UIKit-like valueWithCGSize:/valueWithCGRect: APIs
+// NSValue class methods to provide UIKit-like valueWithCGSize:/valueWithCGRect: APIs
 @interface NSValue (KRUIKitCompatFactory)
+
 + (instancetype)valueWithCGSize:(CGSize)size;
 + (instancetype)valueWithCGRect:(CGRect)rect;
 + (instancetype)valueWithCGPoint:(CGPoint)point;
+
+- (CGPoint)CGPointValue;
+- (CGSize)CGSizeValue;
+- (CGRect)CGRectValue;
+
 @end
 
 
-#endif // ] TARGET_OS_OSX
-
-#pragma mark - Cross-Platform Type Aliases
-
-#if !TARGET_OS_OSX
-typedef UIApplication RCTUIApplication;
-typedef UIWindow RCTPlatformWindow;
-typedef UIViewController KRPlatformViewController;
-#else
-typedef NSApplication RCTUIApplication;
-typedef NSWindow RCTPlatformWindow;
-typedef NSViewController KRPlatformViewController;
-#endif
+#endif //
 
 
 #pragma mark - KRUISlider
@@ -831,12 +818,12 @@ typedef KRUISwitch UISwitch;
 
 #endif
 
-#pragma mark RCTUIActivityIndicatorView
+#pragma mark KRUIActivityIndicatorView
 
 #if !TARGET_OS_OSX
-typedef UIActivityIndicatorView RCTUIActivityIndicatorView;
+typedef UIActivityIndicatorView KRUIActivityIndicatorView;
 #else
-@interface RCTUIActivityIndicatorView : NSProgressIndicator
+@interface KRUIActivityIndicatorView : NSProgressIndicator
 
 @property (nonatomic, assign) UIActivityIndicatorViewStyle activityIndicatorViewStyle;
 @property (nonatomic, assign) BOOL hidesWhenStopped;
@@ -868,7 +855,7 @@ typedef UIImageView KRUIImageView;
 #if TARGET_OS_OSX
 
 typedef NSGraphicsContext KRUIGraphicsImageRendererContext;
-typedef void (^RCTUIGraphicsImageDrawingActions)(KRUIGraphicsImageRendererContext *rendererContext);
+typedef void (^KRUIGraphicsImageDrawingActions)(KRUIGraphicsImageRendererContext *rendererContext);
 
 @interface KRUIGraphicsImageRendererFormat : NSObject
 
@@ -883,7 +870,7 @@ typedef void (^RCTUIGraphicsImageDrawingActions)(KRUIGraphicsImageRendererContex
 
 - (instancetype)initWithSize:(CGSize)size;
 - (instancetype)initWithSize:(CGSize)size format:(KRUIGraphicsImageRendererFormat *)format;
-- (NSImage *)imageWithActions:(NS_NOESCAPE RCTUIGraphicsImageDrawingActions)actions;
+- (NSImage *)imageWithActions:(NS_NOESCAPE KRUIGraphicsImageDrawingActions)actions;
 
 @end
 

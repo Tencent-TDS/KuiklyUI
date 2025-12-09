@@ -253,8 +253,8 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 #pragma mark - KRUITextField
 
 @interface KRUITextField () <NSTextFieldDelegate>
-@property (nonatomic, strong) NSMutableArray<NSDictionary *> *rct_targets;
-@property (nonatomic, copy) NSString *rct_cachedPlaceholder; // Cache for placeholder text
+@property (nonatomic, strong) NSMutableArray<NSDictionary *> *kr_targets;
+@property (nonatomic, copy) NSString *kr_cachedPlaceholder; // Cache for placeholder text
 @end
 
 @implementation KRUITextField
@@ -273,7 +273,7 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
         self.usesSingleLineMode = YES;
         self.delegate = (id<NSTextFieldDelegate>)self;
         self.focusRingType = NSFocusRingTypeNone;
-        _rct_targets = [NSMutableArray array];
+        _kr_targets = [NSMutableArray array];
         
         // Ensure cell is also set to single line mode
         if ([self.cell isKindOfClass:[NSTextFieldCell class]]) {
@@ -306,11 +306,11 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 - (NSString *)placeholder {
     // Always return cached value on macOS, because placeholderString gets cleared
     // when placeholderAttributedString is set
-    return self.rct_cachedPlaceholder ?: self.placeholderString;
+    return self.kr_cachedPlaceholder ?: self.placeholderString;
 }
 
 - (void)setPlaceholder:(NSString *)placeholder {
-    self.rct_cachedPlaceholder = placeholder;
+    self.kr_cachedPlaceholder = placeholder;
     self.placeholderString = placeholder;
 }
 
@@ -336,13 +336,13 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
     return [UITextPosition positionWithIndex:0];
 }
 
-- (NSTextView *)rct_fieldEditorIfAvailable {
+- (NSTextView *)kr_fieldEditorIfAvailable {
     id editor = [self currentEditor];
     return [editor isKindOfClass:[NSTextView class]] ? (NSTextView *)editor : nil;
 }
 
 - (UITextRange *)selectedTextRange {
-    NSTextView *editor = [self rct_fieldEditorIfAvailable];
+    NSTextView *editor = [self kr_fieldEditorIfAvailable];
     if (editor) {
         NSRange r = editor.selectedRange;
         return [UITextRange rangeWithStart:[UITextPosition positionWithIndex:(NSInteger)r.location]
@@ -352,7 +352,7 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 }
 
 - (void)setSelectedTextRange:(UITextRange *)selectedTextRange {
-    NSTextView *editor = [self rct_fieldEditorIfAvailable];
+    NSTextView *editor = [self kr_fieldEditorIfAvailable];
     if (editor && selectedTextRange) {
         NSInteger loc = selectedTextRange.start.index;
         NSInteger end = selectedTextRange.end.index;
@@ -364,7 +364,7 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 }
 
 - (UITextRange *)markedTextRange {
-    NSTextView *editor = [self rct_fieldEditorIfAvailable];
+    NSTextView *editor = [self kr_fieldEditorIfAvailable];
     if (editor) {
         NSRange r = editor.markedRange;
         // Check both location and length to match iOS behavior
@@ -401,13 +401,13 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 - (void)addTarget:(id)target action:(SEL)action forControlEvents:(UIControlEvents)events {
     if (events & UIControlEventEditingChanged) {
         if (target && action) {
-            [_rct_targets addObject:@{ @"t": target, @"a": NSStringFromSelector(action) }];
+            [_kr_targets addObject:@{ @"t": target, @"a": NSStringFromSelector(action) }];
         }
     }
 }
 
-- (void)rct_dispatchEditingChanged {
-    for (NSDictionary *entry in _rct_targets) {
+- (void)kr_dispatchEditingChanged {
+    for (NSDictionary *entry in _kr_targets) {
         id t = entry[@"t"]; SEL a = NSSelectorFromString(entry[@"a"]);
         if (t && [t respondsToSelector:a]) {
             ((void (*)(id, SEL, id))objc_msgSend)(t, a, self);
@@ -432,7 +432,7 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 }
 
 - (void)controlTextDidChange:(NSNotification *)obj {
-    [self rct_dispatchEditingChanged];
+    [self kr_dispatchEditingChanged];
 }
 
 - (BOOL)control:(NSControl *)control textView:(NSTextView *)textView shouldChangeTextInRange:(NSRange)affectedCharRange replacementString:(NSString *)replacementString {
@@ -1162,12 +1162,12 @@ static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseIn
         self.drawsBackground = NO;
         self.contentView.postsBoundsChangedNotifications = YES;
         [[NSNotificationCenter defaultCenter] addObserver:self
-                                                 selector:@selector(rct_contentViewBoundsDidChange:)
+                                                 selector:@selector(kr_contentViewBoundsDidChange:)
                                                      name:NSViewBoundsDidChangeNotification
                                                    object:self.contentView];
         
         // Setup custom documentView after super init completes
-        [self rct_setupDocumentView];
+        [self kr_setupDocumentView];
     }
     
     _isInitializing = NO; // Init complete
@@ -1175,7 +1175,7 @@ static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseIn
 }
 
 // Setup the document view container
-- (void)rct_setupDocumentView {
+- (void)kr_setupDocumentView {
     // Create a flipped container view as documentView to hold subviews
     // Use a flipped view to match iOS coordinate system (origin at top-left)
     // Start with a minimal size - it will be resized when content is added
@@ -1424,19 +1424,19 @@ static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseIn
 #pragma mark Mouse Location Tracking
 
 // Store last scroll event for mouse location tracking
-- (NSEvent *)rct_lastScrollEvent {
+- (NSEvent *)kr_lastScrollEvent {
     static char kLastScrollEventKey;
     return objc_getAssociatedObject(self, &kLastScrollEventKey);
 }
 
-- (void)rct_setLastScrollEvent:(NSEvent *)event {
+- (void)kr_setLastScrollEvent:(NSEvent *)event {
     static char kLastScrollEventKey;
     objc_setAssociatedObject(self, &kLastScrollEventKey, event, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
 // Get current mouse location in given view (simulates touch location)
 - (CGPoint)kr_mouseLocationInView:(UIView *)view {
-    NSEvent *lastEvent = [self rct_lastScrollEvent];
+    NSEvent *lastEvent = [self kr_lastScrollEvent];
     NSPoint locationInWindow;
     
     if (lastEvent) {
@@ -1456,7 +1456,7 @@ static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseIn
 
 @end
 
-#pragma mark - RCTUIScrollView (DelegateBridge)
+#pragma mark - KRUIScrollView (DelegateBridge)
 
 @implementation KRUIScrollView (DelegateBridge)
 
@@ -1464,41 +1464,41 @@ static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseIn
 
 // Public readonly properties for UIScrollView compatibility
 - (BOOL)isDragging {
-    return [self rct_isDragging];
+    return [self kr_isDragging];
 }
 
 - (BOOL)isDecelerating {
-    return [self rct_isDecelerating];
+    return [self kr_isDecelerating];
 }
 
 #pragma mark Internal State Tracking
 
 // Internal state tracking using associated objects
-- (BOOL)rct_isDragging {
+- (BOOL)kr_isDragging {
     static char kDraggingKey;
     NSNumber *v = objc_getAssociatedObject(self, &kDraggingKey);
     return v.boolValue;
 }
 
-- (void)rct_setDragging:(BOOL)dragging {
+- (void)kr_setDragging:(BOOL)dragging {
     static char kDraggingKey;
     objc_setAssociatedObject(self, &kDraggingKey, @(dragging), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
-- (BOOL)rct_isDecelerating {
+- (BOOL)kr_isDecelerating {
     static char kDeceleratingKey;
     NSNumber *v = objc_getAssociatedObject(self, &kDeceleratingKey);
     return v.boolValue;
 }
 
-- (void)rct_setDecelerating:(BOOL)decelerating {
+- (void)kr_setDecelerating:(BOOL)decelerating {
     static char kDeceleratingKey;
     objc_setAssociatedObject(self, &kDeceleratingKey, @(decelerating), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
 #pragma mark Scroll Notifications
 
-- (void)rct_contentViewBoundsDidChange:(NSNotification *)__unused note {
+- (void)kr_contentViewBoundsDidChange:(NSNotification *)__unused note {
     if ([self.delegate respondsToSelector:@selector(scrollViewDidScroll:)]) {
         [self.delegate scrollViewDidScroll:(UIScrollView *)self];
     }
@@ -1507,7 +1507,7 @@ static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseIn
 #pragma mark Paging Support
 
 // Snap to nearest page boundary when pagingEnabled is YES
-- (void)rct_snapToNearestPage {
+- (void)kr_snapToNearestPage {
     CGRect bounds = self.bounds;
     CGPoint currentOffset = self.contentOffset;
     CGSize pageSize = bounds.size;
@@ -1549,11 +1549,11 @@ static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseIn
     }
     
     // Store event for mouse location tracking
-    [self rct_setLastScrollEvent:event];
+    [self kr_setLastScrollEvent:event];
     
     // Begin dragging
-    if (![self rct_isDragging] && event.phase != NSEventPhaseNone) {
-        [self rct_setDragging:YES];
+    if (![self kr_isDragging] && event.phase != NSEventPhaseNone) {
+        [self kr_setDragging:YES];
         if ([self.delegate respondsToSelector:@selector(scrollViewWillBeginDragging:)]) {
             [self.delegate scrollViewWillBeginDragging:(UIScrollView *)self];
         }
@@ -1576,37 +1576,37 @@ static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseIn
     [super scrollWheel:event];
     
     // Momentum begin: decelerate
-    if ([self rct_isDragging] && event.momentumPhase == NSEventPhaseBegan) {
+    if ([self kr_isDragging] && event.momentumPhase == NSEventPhaseBegan) {
         if ([self.delegate respondsToSelector:@selector(scrollViewDidEndDragging:willDecelerate:)]) {
             [self.delegate scrollViewDidEndDragging:(UIScrollView *)self willDecelerate:YES];
         }
-        [self rct_setDragging:NO];
-        [self rct_setDecelerating:YES];
+        [self kr_setDragging:NO];
+        [self kr_setDecelerating:YES];
     }
     
     // No momentum: end dragging without decelerate
-    if ([self rct_isDragging] && event.phase == NSEventPhaseEnded && event.momentumPhase == NSEventPhaseNone) {
+    if ([self kr_isDragging] && event.phase == NSEventPhaseEnded && event.momentumPhase == NSEventPhaseNone) {
         if ([self.delegate respondsToSelector:@selector(scrollViewDidEndDragging:willDecelerate:)]) {
             [self.delegate scrollViewDidEndDragging:(UIScrollView *)self willDecelerate:NO];
         }
-        [self rct_setDragging:NO];
+        [self kr_setDragging:NO];
         
         // Apply paging snap after drag ends without momentum
         if (self.pagingEnabled) {
-            [self rct_snapToNearestPage];
+            [self kr_snapToNearestPage];
         }
     }
     
     // Momentum end: deceleration done
-    if ([self rct_isDecelerating] && event.momentumPhase == NSEventPhaseEnded) {
+    if ([self kr_isDecelerating] && event.momentumPhase == NSEventPhaseEnded) {
         if ([self.delegate respondsToSelector:@selector(scrollViewDidEndDecelerating:)]) {
             [self.delegate scrollViewDidEndDecelerating:(UIScrollView *)self];
         }
-        [self rct_setDecelerating:NO];
+        [self kr_setDecelerating:NO];
         
         // Apply paging snap after momentum ends
         if (self.pagingEnabled) {
-            [self rct_snapToNearestPage];
+            [self kr_snapToNearestPage];
         }
     }
 }
@@ -1830,10 +1830,22 @@ BOOL KRUIViewSetClipsToBounds(KRPlatformView *view) {
 
 @end
 
-#pragma mark - NSValue (KUCGGeometryCompat)
+#pragma mark - NSValue (KRUIKitCompatFactory)
 
-// NSValue geometry compatibility - map iOS CGXxxValue to macOS native methods
-@implementation NSValue (KUCGGeometryCompat)
+// NSValue class methods to provide UIKit-like factory methods
+@implementation NSValue (KRUIKitCompatFactory)
+
++ (instancetype)valueWithCGSize:(CGSize)size {
+    return [NSValue valueWithBytes:&size objCType:@encode(CGSize)];
+}
+
++ (instancetype)valueWithCGRect:(CGRect)rect {
+    return [NSValue valueWithBytes:&rect objCType:@encode(CGRect)];
+}
+
++ (instancetype)valueWithCGPoint:(CGPoint)point {
+    return [NSValue valueWithBytes:&point objCType:@encode(CGPoint)];
+}
 
 - (CGPoint)CGPointValue {
     // On macOS, CGPoint is NSPoint, use native pointValue
@@ -1852,30 +1864,13 @@ BOOL KRUIViewSetClipsToBounds(KRPlatformView *view) {
 
 @end
 
-// NSValue class methods to provide UIKit-like factory methods
-@implementation NSValue (KRUIKitCompatFactory)
+#pragma mark - KRUIActivityIndicatorView
 
-+ (instancetype)valueWithCGSize:(CGSize)size {
-    return [NSValue valueWithBytes:&size objCType:@encode(CGSize)];
-}
-
-+ (instancetype)valueWithCGRect:(CGRect)rect {
-    return [NSValue valueWithBytes:&rect objCType:@encode(CGRect)];
-}
-
-+ (instancetype)valueWithCGPoint:(CGPoint)point {
-    return [NSValue valueWithBytes:&point objCType:@encode(CGPoint)];
-}
-
-@end
-
-#pragma mark - RCTUIActivityIndicatorView
-
-@interface RCTUIActivityIndicatorView ()
+@interface KRUIActivityIndicatorView ()
 @property (nonatomic, readwrite, getter=isAnimating) BOOL animating;
 @end
 
-@implementation RCTUIActivityIndicatorView
+@implementation KRUIActivityIndicatorView
 
 #pragma mark Initialization
 
@@ -2136,7 +2131,7 @@ BOOL KRUIViewSetClipsToBounds(KRPlatformView *view) {
     return self;
 }
 
-- (nonnull NSImage *)imageWithActions:(NS_NOESCAPE RCTUIGraphicsImageDrawingActions)actions {
+- (nonnull NSImage *)imageWithActions:(NS_NOESCAPE KRUIGraphicsImageDrawingActions)actions {
     NSImage *image = [NSImage imageWithSize:_size
                                     flipped:NO
                              drawingHandler:^BOOL(NSRect dstRect) {

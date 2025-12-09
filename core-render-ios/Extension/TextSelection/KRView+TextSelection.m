@@ -32,6 +32,13 @@ static const void *kSelectChangeCallbackKey = &kSelectChangeCallbackKey;
 static const void *kSelectEndCallbackKey = &kSelectEndCallbackKey;
 static const void *kSelectCancelCallbackKey = &kSelectCancelCallbackKey;
 
+/// Selectable option enum (matches DivView.kt SelectableOption)
+typedef NS_ENUM(NSInteger, KRSelectableOption) {
+    KRSelectableOptionInherit = 0,  // Inherit from parent
+    KRSelectableOptionEnable = 1,   // Enable text selection
+    KRSelectableOptionDisable = 2   // Disable text selection
+};
+
 #pragma mark - Internal Delegate Handler
 
 /// Internal class to handle KRTextSelectionHelperDelegate callbacks
@@ -211,22 +218,46 @@ static const void *kSelectCancelCallbackKey = &kSelectCancelCallbackKey;
 }
 
 - (BOOL)kr_isLabelSelectable:(KRLabel *)label {
-    // Check the selectable property of this view
-    // 0 = inherit (default), 1 = enable, 2 = disable
-    NSNumber *selectableNum = objc_getAssociatedObject(self, kSelectableKey);
-    NSInteger selectable = [selectableNum integerValue];
+    // Walk up the view hierarchy from the label to self (the SelectionContainer)
+    // Check each view's selectable setting
+    // INHERIT (0) = continue checking parent
+    // ENABLE (1) = allow selection
+    // DISABLE (2) = deny selection
     
-    // If this container has selectable enabled, allow all labels
-    if (selectable == 1) {
-        return YES;
+    UIView *currentView = label;
+    
+    while (currentView != nil && currentView != self.superview) {
+        NSNumber *selectableNum = objc_getAssociatedObject(currentView, kSelectableKey);
+        if (selectableNum != nil) {
+            KRSelectableOption selectable = (KRSelectableOption)[selectableNum integerValue];
+            
+            // ENABLE: allow selection for this subtree
+            if (selectable == KRSelectableOptionEnable) {
+                return YES;
+            }
+            
+            // DISABLE: deny selection for this subtree
+            if (selectable == KRSelectableOptionDisable) {
+                return NO;
+            }
+            
+            // INHERIT: continue checking parent
+        }
+        
+        currentView = currentView.superview;
     }
     
-    // If this container has selectable disabled, deny all labels
-    if (selectable == 2) {
-        return NO;
+    // If we reached the top without finding explicit ENABLE or DISABLE,
+    // check if self (the container) has selection enabled or not explicitly disabled.
+    // Since createSelection was called on this container, we treat INHERIT/ENABLE as allowing selection.
+    NSNumber *selfSelectableNum = objc_getAssociatedObject(self, kSelectableKey);
+    if (selfSelectableNum != nil) {
+        KRSelectableOption selfSelectable = (KRSelectableOption)[selfSelectableNum integerValue];
+        // Only deny if explicitly disabled
+        return selfSelectable != KRSelectableOptionDisable;
     }
     
-    // Inherit - check if parent has enabled it (default to YES for root selectable container)
+    // Default: allow selection when createSelection is called (implies intent to select)
     return YES;
 }
 

@@ -427,7 +427,7 @@
     }
     image = [self kr_resizeImageWithImage:image resolution:CGSizeMake(maxWidth, maxWidth * (image.size.height / image.size.width))];
     
-    CGImageRef cgImage = UIImageGetCGImageRef(image); // [macOS]
+    CGImageRef cgImage = image.CGImage;
     size_t width = CGImageGetWidth(cgImage);
     size_t height = CGImageGetHeight(cgImage);
     size_t bytesPerRow = CGImageGetBytesPerRow(cgImage);
@@ -516,7 +516,7 @@
     UIImage *tintedImage = [renderer imageWithActions:^(RCTUIGraphicsImageRendererContext *rendererContext) {
         CGContextRef ctx = [rendererContext CGContext];
         CGRect rect = CGRectMake(0, 0, size.width, size.height);
-        CGImageRef cgImage = UIImageGetCGImageRef(self);
+        CGImageRef cgImage = self.CGImage;
         CGContextSetFillColorWithColor(ctx, [color CGColor]);
         CGContextFillRect(ctx, rect);
         CGContextSetBlendMode(ctx, kCGBlendModeDestinationIn);
@@ -538,7 +538,7 @@
     }
     UIImage *image = self;
 #if TARGET_OS_OSX // [macOS]
-    CGImageRef cgImage = UIImageGetCGImageRef(image);
+    CGImageRef cgImage = image.CGImage;
     if (!cgImage) { return self; }
     CIImage *ciImage = [[CIImage alloc] initWithCGImage:cgImage];
 #else // [iOS]

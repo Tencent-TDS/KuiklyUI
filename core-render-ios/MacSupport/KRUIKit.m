@@ -75,28 +75,6 @@ NSImage *UIGraphicsGetImageFromCurrentImageContext(void) {
 
 #pragma mark - Image Functions
 
-CGFloat UIImageGetScale(NSImage *image) {
-    if (image == nil) {
-        return 0.0;
-    }
-    
-    KRMAssert(image.representations.count == 1, @"The scale can only be derived if the image has one representation.");
-    
-    NSImageRep *imageRep = image.representations.firstObject;
-    if (imageRep != nil) {
-        NSSize imageSize = image.size;
-        NSSize repSize = CGSizeMake(imageRep.pixelsWide, imageRep.pixelsHigh);
-        
-        return round(fmax(repSize.width / imageSize.width, repSize.height / imageSize.height));
-    }
-    
-    return 1.0;
-}
-
-CGImageRef __nullable UIImageGetCGImageRef(NSImage *image) {
-    return [image CGImageForProposedRect:NULL context:NULL hints:NULL];
-}
-
 static NSData *NSImageDataForFileType(NSImage *image, NSBitmapImageFileType fileType, NSDictionary<NSString *, id> *properties) {
     // Try to get existing NSBitmapImageRep if available
     NSBitmapImageRep *imageRep = nil;
@@ -158,8 +136,30 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
     return [[NSImage alloc] initWithContentsOfFile:filePath];
 }
 
-- (CGImageRef)CGImage {
-    return [self CGImageForProposedRect:NULL context:NULL hints:NULL];
+- (nullable CGImageRef)CGImage {
+    NSRect imageRect = NSMakeRect(0, 0, self.size.width, self.size.height);
+    CGImageRef cgImage = [self CGImageForProposedRect:&imageRect context:nil hints:nil];
+    return cgImage;
+}
+
+- (CGFloat)scale {
+    CGFloat scale = 1;
+    NSRect imageRect = NSMakeRect(0, 0, self.size.width, self.size.height);
+    NSImageRep *imageRep = [self bestRepresentationForRect:imageRect context:nil hints:nil];
+    CGFloat width = imageRep.size.width;
+    CGFloat height = imageRep.size.height;
+    CGFloat pixelWidth = (CGFloat)imageRep.pixelsWide;
+    CGFloat pixelHeight = (CGFloat)imageRep.pixelsHigh;
+    if (width > 0 && height > 0) {
+        CGFloat widthScale = pixelWidth / width;
+        CGFloat heightScale = pixelHeight / height;
+        if (widthScale == heightScale && widthScale >= 1) {
+            // Protect because there may be `NSImageRepMatchesDevice` (0)
+            scale = widthScale;
+        }
+    }
+    
+    return scale;
 }
 
 @end
@@ -194,14 +194,14 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 
 @end
 
-#pragma mark - RCTUITextFieldCell
+#pragma mark - KRUITextFieldCell
 
 // Custom cell to center text vertically like iOS
 // This is the standard approach in macOS to achieve vertical centering in NSTextField
-@interface RCTUITextFieldCell : NSTextFieldCell
+@interface KRUITextFieldCell : NSTextFieldCell
 @end
 
-@implementation RCTUITextFieldCell
+@implementation KRUITextFieldCell
 
 // Helper method to calculate vertically centered rect
 // Takes the cell's bounds and adjusts the origin.y to center the text vertically
@@ -250,17 +250,17 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 
 @end
 
-#pragma mark - RCTUITextField
+#pragma mark - KRUITextField
 
-@interface RCTUITextField () <NSTextFieldDelegate>
+@interface KRUITextField () <NSTextFieldDelegate>
 @property (nonatomic, strong) NSMutableArray<NSDictionary *> *rct_targets;
 @property (nonatomic, copy) NSString *rct_cachedPlaceholder; // Cache for placeholder text
 @end
 
-@implementation RCTUITextField
+@implementation KRUITextField
 
 + (Class)cellClass {
-    return [RCTUITextFieldCell class];
+    return [KRUITextFieldCell class];
 }
 
 - (instancetype)initWithFrame:(NSRect)frameRect {
@@ -460,13 +460,13 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 
 @end
 
-#pragma mark - RCTUITextView
+#pragma mark - KRUITextView
 
-@interface RCTUITextView () <NSTextViewDelegate>
+@interface KRUITextView () <NSTextViewDelegate>
 @property (nonatomic, weak) id<UITextViewDelegate> uiDelegate;
 @end
 
-@implementation RCTUITextView
+@implementation KRUITextView
 
 - (instancetype)initWithFrame:(NSRect)frameRect {
     if (self = [super initWithFrame:frameRect]) {
@@ -520,11 +520,11 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 #pragma mark - Override inherited properties
 
 // Override NSView backgroundColor to handle drawsBackground
-- (RCTUIColor *)backgroundColor {
+- (KRUIColor *)backgroundColor {
     return [self drawsBackground] ? [super backgroundColor] : [NSColor clearColor];
 }
 
-- (void)setBackgroundColor:(RCTUIColor *)backgroundColor {
+- (void)setBackgroundColor:(KRUIColor *)backgroundColor {
     if (backgroundColor && ![backgroundColor isEqual:[NSColor clearColor]]) {
         [self setDrawsBackground:YES];
         [super setBackgroundColor:backgroundColor];
@@ -693,7 +693,7 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath) {
 }
 @end
 
-#pragma mark - RCTUIView
+#pragma mark - KRUIView
 
 // KRUIView implementation - provides macOS-specific extensions
 // Note: Most UIKit compatibility is handled by NSView+KRCompat Category
@@ -706,7 +706,7 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath) {
 
 #pragma mark Initialization
 
-static KRUIView *RCTUIViewCommonInit(KRUIView *self) {
+static KRUIView *KRUIViewCommonInit(KRUIView *self) {
     if (self != nil) {
         self.wantsLayer = YES;
         self->_enableFocusRing = YES;
@@ -716,11 +716,11 @@ static KRUIView *RCTUIViewCommonInit(KRUIView *self) {
 }
 
 - (instancetype)initWithFrame:(NSRect)frameRect {
-    return RCTUIViewCommonInit([super initWithFrame:frameRect]);
+    return KRUIViewCommonInit([super initWithFrame:frameRect]);
 }
 
 - (instancetype)initWithCoder:(NSCoder *)coder {
-    return RCTUIViewCommonInit([super initWithCoder:coder]);
+    return KRUIViewCommonInit([super initWithCoder:coder]);
 }
 
 #pragma mark First Responder Handling
@@ -1613,7 +1613,7 @@ static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseIn
 
 #pragma mark - View Helper Functions
 
-BOOL RCTUIViewSetClipsToBounds(KRPlatformView *view) {
+BOOL KRUIViewSetClipsToBounds(KRPlatformView *view) {
     // NSViews are always clipped to bounds
     BOOL clipsToBounds = YES;
     
@@ -1648,9 +1648,9 @@ BOOL RCTUIViewSetClipsToBounds(KRPlatformView *view) {
 
 @end
 
-#pragma mark - RCTUISlider
+#pragma mark - KRUISlider
 
-@implementation RCTUISlider
+@implementation KRUISlider
 
 - (void)setValue:(float)value animated:(__unused BOOL)animated {
     self.animator.floatValue = value;
@@ -1658,9 +1658,9 @@ BOOL RCTUIViewSetClipsToBounds(KRPlatformView *view) {
 
 @end
 
-#pragma mark - RCTUILabel
+#pragma mark - KRUILabel
 
-@implementation RCTUILabel
+@implementation KRUILabel
 
 - (instancetype)initWithFrame:(NSRect)frameRect {
     if (self = [super initWithFrame:frameRect]) {
@@ -1691,7 +1691,7 @@ BOOL RCTUIViewSetClipsToBounds(KRPlatformView *view) {
 - (void)drawRect:(NSRect)dirtyRect {
     // Check if subclass overrides drawTextInRect: (compare method implementations)
     if ([self methodForSelector:@selector(drawTextInRect:)] != 
-        [RCTUILabel instanceMethodForSelector:@selector(drawTextInRect:)]) {
+        [KRUILabel instanceMethodForSelector:@selector(drawTextInRect:)]) {
         // Subclass has custom drawing, call it with full bounds to match iOS UILabel behavior
         [self drawTextInRect:self.bounds];
         return;
@@ -1735,7 +1735,7 @@ BOOL RCTUIViewSetClipsToBounds(KRPlatformView *view) {
 @synthesize thumbTintColor = _thumbTintColor;
 @synthesize tintColor = _tintColor;
 
-- (void)setOnTintColor:(RCTUIColor *)onTintColor {
+- (void)setOnTintColor:(KRUIColor *)onTintColor {
     _onTintColor = onTintColor;
     // Try to apply contentTintColor on macOS 10.14+
     // This has limited visual effect on NSButtonTypeSwitch
@@ -1746,7 +1746,7 @@ BOOL RCTUIViewSetClipsToBounds(KRPlatformView *view) {
     }
 }
 
-- (void)setTintColor:(RCTUIColor *)tintColor {
+- (void)setTintColor:(KRUIColor *)tintColor {
     _tintColor = tintColor;
     // contentTintColor affects the overall tint when available
     if (@available(macOS 10.14, *)) {
@@ -1929,7 +1929,7 @@ BOOL RCTUIViewSetClipsToBounds(KRPlatformView *view) {
     }
 }
 
-- (void)setColor:(RCTUIColor *)color {
+- (void)setColor:(KRUIColor *)color {
     if (_color != color) {
         _color = color;
         [self setNeedsDisplay:YES];
@@ -2006,9 +2006,9 @@ BOOL RCTUIViewSetClipsToBounds(KRPlatformView *view) {
 
 @end
 
-#pragma mark - RCTUIImageView
+#pragma mark - KRUIImageView
 
-@implementation RCTUIImageView {
+@implementation KRUIImageView {
     CALayer *_tintingLayer;
 }
 

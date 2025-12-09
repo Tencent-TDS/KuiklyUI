@@ -148,7 +148,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
     }
     // Remove "file://" prefix to get the actual file path
     NSString *actualPath = [localUrl substringFromIndex:[KRImageLocalPathPrefix length]];
-    UIImage *image = UIImageWithContentsOfFile(actualPath); // [macOS]
+    UIImage *image = [UIImage imageWithContentsOfFile:actualPath];
     self.image = image;
 }
 
@@ -397,8 +397,8 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 
 -(void)p_fireLoadResolutionEventWithImage:(UIImage *)image {
     if (_css_loadResolution) {
-        _css_loadResolution(@{ @"imageWidth" : @(image.size.width * UIImageGetScale(image)), // [macOS]
-                               @"imageHeight" : @(image.size.height * UIImageGetScale(image)) // [macOS]
+        _css_loadResolution(@{ @"imageWidth" : @(image.size.width * image.scale),
+                               @"imageHeight" : @(image.size.height * image.scale)
                             });
     }
 }

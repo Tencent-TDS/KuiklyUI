@@ -27,18 +27,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 #pragma mark - Image Helper Functions
 
-UIKIT_STATIC_INLINE CGFloat UIImageGetScale(UIImage *image) {
-    return image.scale;
-}
-
-UIKIT_STATIC_INLINE CGImageRef UIImageGetCGImageRef(UIImage *image) {
-    return image.CGImage;
-}
-
-UIKIT_STATIC_INLINE UIImage *UIImageWithContentsOfFile(NSString *filePath) {
-    return [UIImage imageWithContentsOfFile:filePath];
-}
-
 UIKIT_STATIC_INLINE UIImage *UIImageWithData(NSData *imageData) {
     return [UIImage imageWithData:imageData];
 }
@@ -56,25 +44,25 @@ UIKIT_STATIC_INLINE void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath
 #pragma mark - View Type Aliases
 
 #define KRPlatformView UIView
-#define RCTUIView UIView
+#define KRUIView UIView
 #define RCTUIScrollView UIScrollView
-#define RCTUIColor UIColor
+#define KRUIColor UIColor
 
 #pragma mark - View Helper Functions
 
-UIKIT_STATIC_INLINE KRPlatformView *RCTUIViewHitTestWithEvent(KRPlatformView *view, CGPoint point, __unused UIEvent *__nullable event) {
+UIKIT_STATIC_INLINE KRPlatformView *KRUIViewHitTestWithEvent(KRPlatformView *view, CGPoint point, __unused UIEvent *__nullable event) {
     return [view hitTest:point withEvent:event];
 }
 
-UIKIT_STATIC_INLINE BOOL RCTUIViewSetClipsToBounds(KRPlatformView *view) {
+UIKIT_STATIC_INLINE BOOL KRUIViewSetClipsToBounds(KRPlatformView *view) {
     return view.clipsToBounds;
 }
 
-UIKIT_STATIC_INLINE void RCTUIViewSetContentModeRedraw(UIView *view) {
+UIKIT_STATIC_INLINE void KRUIViewSetContentModeRedraw(UIView *view) {
     view.contentMode = UIViewContentModeRedraw;
 }
 
-UIKIT_STATIC_INLINE BOOL RCTUIViewIsDescendantOfView(KRPlatformView *view, KRPlatformView *parent) {
+UIKIT_STATIC_INLINE BOOL KRUIViewIsDescendantOfView(KRPlatformView *view, KRPlatformView *parent) {
     return [view isDescendantOfView:parent];
 }
 
@@ -181,13 +169,13 @@ static const UIAccessibilityTraits UIAccessibilityTraitHeader = (1 << 15);
 #define UIView NSView
 #define UIScreen NSScreen
 #define UIScrollView KRUIScrollView
-#define UIImageView RCTUIImageView
+#define UIImageView KRUIImageView
 #define UIVisualEffectView NSVisualEffectView
-#define UIColor RCTUIColor
-#define UITouch RCTUITouch
-#define UILabel RCTUILabel
-#define UITextField RCTUITextField
-#define UITextView RCTUITextView
+#define UIColor KRUIColor
+#define UITouch NSEvent
+#define UILabel KRUILabel
+#define UITextField KRUITextField
+#define UITextView KRUITextView
 
 // Application aliases
 #define UIApplication NSApplication
@@ -421,7 +409,7 @@ extern "C" {
 #endif
 
 CGContextRef UIGraphicsGetCurrentContext(void);
-CGImageRef UIImageGetCGImageRef(NSImage *image);
+//CGImageRef UIImageGetCGImageRef(NSImage *image);
 
 #ifdef __cplusplus
 }
@@ -429,7 +417,7 @@ CGImageRef UIImageGetCGImageRef(NSImage *image);
 
 #pragma mark - Color Alias
 
-#define RCTUIColor NSColor
+#define KRUIColor NSColor
 
 #pragma mark - Font Helper Functions
 
@@ -443,13 +431,12 @@ NS_INLINE CGFloat UIFontLineHeight(NSFont *font) {
 
 #pragma mark - NSFont UIKit Compatibility
 
-// Provide UIKit-like lineHeight on NSFont so call sites can use font.lineHeight
 @interface NSFont (KRUIKitCompatLineHeight)
 - (CGFloat)lineHeight;
 @end
 
 
-#pragma mark RCTUITextField
+#pragma mark - KRUITextField
 
 @class UITextRange, UITextPosition;
 
@@ -487,7 +474,7 @@ typedef NS_OPTIONS(NSUInteger, UIControlEvents) {
 + (instancetype)rangeWithStart:(UITextPosition *)start end:(UITextPosition *)end;
 @end
 
-@interface RCTUITextField : NSTextField
+@interface KRUITextField : NSTextField
 
 @property (nonatomic, copy, nullable) NSString *text;
 @property (nonatomic, copy, nullable) NSAttributedString *attributedText;
@@ -497,7 +484,7 @@ typedef NS_OPTIONS(NSUInteger, UIControlEvents) {
 @property (nonatomic, assign) BOOL enablesReturnKeyAutomatically;
 @property (nonatomic, assign) UIKeyboardType keyboardType;
 @property (nonatomic, assign) UIReturnKeyType returnKeyType;
-@property (nonatomic, strong, nullable) RCTUIColor *tintColor;
+@property (nonatomic, strong, nullable) KRUIColor *tintColor;
 @property (nonatomic, assign) BOOL secureTextEntry;
 
 // UITextInput-like compatibility
@@ -514,7 +501,7 @@ typedef NS_OPTIONS(NSUInteger, UIControlEvents) {
 @end
 
 
-#pragma mark - Edge Insets Type (forward declaration for RCTUITextView)
+#pragma mark - Edge Insets Type (forward declaration for KRUITextView)
 
 typedef NSEdgeInsets UIEdgeInsets;
 
@@ -522,9 +509,9 @@ NS_INLINE NSEdgeInsets UIEdgeInsetsMake(CGFloat top, CGFloat left, CGFloat botto
     return NSEdgeInsetsMake(top, left, bottom, right);
 }
 
-#pragma mark RCTUITextView
+#pragma mark KRUITextView
 
-@interface RCTUITextView : NSTextView
+@interface KRUITextView : NSTextView
 
 @property (nonatomic, copy, nullable) NSString *text;
 @property (nonatomic, copy, nullable) NSAttributedString *attributedText;
@@ -532,7 +519,7 @@ NS_INLINE NSEdgeInsets UIEdgeInsetsMake(CGFloat top, CGFloat left, CGFloat botto
 @property (nonatomic, assign) BOOL enablesReturnKeyAutomatically;
 @property (nonatomic, assign) UIKeyboardType keyboardType;
 @property (nonatomic, assign) UIReturnKeyType returnKeyType;
-@property (nonatomic, strong, nullable) RCTUIColor *tintColor;
+@property (nonatomic, strong, nullable) KRUIColor *tintColor;
 // Override textContainerInset to bridge NSSize -> UIEdgeInsets
 @property (nonatomic, assign) UIEdgeInsets textContainerInset;
 
@@ -549,13 +536,25 @@ NS_INLINE NSEdgeInsets UIEdgeInsetsMake(CGFloat top, CGFloat left, CGFloat botto
 
 #pragma mark - NSImage UIKit Compatibility
 
-// [macOS] NSImage category to provide UIImage-like class constructors
 @interface NSImage (KRUIImageCompat)
+
 + (instancetype)imageWithCGImage:(CGImageRef)cgImage;
 + (instancetype)imageWithData:(NSData *)data;
 + (instancetype)imageWithContentsOfFile:(NSString *)filePath;
-// Provide UIImage.CGImage-like getter
-- (CGImageRef)CGImage;
+
+/**
+ The underlying Core Graphics image object.
+ This will actually use `CGImageForProposedRect` with the image size.
+ */
+@property (nonatomic, readonly, nullable) CGImageRef CGImage;
+
+/**
+ The scale factor of the image. This wil actually use `bestRepresentationForRect`
+ with image size and pixel size to calculate the scale factor.
+ If failed, use the default value 1.0. Should be greater than or equal to 1.0.
+ */
+@property (nonatomic, readonly) CGFloat scale;
+
 @end
 
 typedef NS_ENUM(NSInteger, UIImageRenderingMode) {
@@ -563,32 +562,14 @@ typedef NS_ENUM(NSInteger, UIImageRenderingMode) {
     UIImageRenderingModeAlwaysTemplate,
 };
 
-// [macOS
 typedef NS_ENUM(NSInteger, UIImageResizingMode) {
     UIImageResizingModeStretch = NSImageResizingModeStretch,
     UIImageResizingModeTile = NSImageResizingModeTile,
 };
-// macOS]
 
 #pragma mark - Image Helper Functions
 
-#ifdef __cplusplus
-extern "C"
-#endif
-CGFloat UIImageGetScale(NSImage *image);
-
-CGImageRef UIImageGetCGImageRef(NSImage *image);
-
-// [macOS
-#ifdef __cplusplus
-extern "C"
-#endif
 NSImage *UIImageResizableImageWithCapInsets(NSImage *image, NSEdgeInsets capInsets, UIImageResizingMode resizingMode);
-// macOS]
-
-NS_INLINE UIImage *UIImageWithContentsOfFile(NSString *filePath) {
-    return [[NSImage alloc] initWithContentsOfFile:filePath];
-}
 
 NS_INLINE UIImage *UIImageWithData(NSData *imageData) {
     return [[NSImage alloc] initWithData:imageData];
@@ -602,7 +583,7 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality);
 UIBezierPath *UIBezierPathWithRoundedRect(CGRect rect, CGFloat cornerRadius);
 void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 
-#pragma mark - RCTUIView
+#pragma mark - KRUIView
 
 #define KRPlatformView NSView
 
@@ -753,20 +734,20 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 
 #pragma mark - View Helper Functions
 
-NS_INLINE KRPlatformView *RCTUIViewHitTestWithEvent(KRPlatformView *view, CGPoint point, __unused UIEvent *__nullable event) {
+NS_INLINE KRPlatformView *KRUIViewHitTestWithEvent(KRPlatformView *view, CGPoint point, __unused UIEvent *__nullable event) {
     // [macOS] IMPORTANT: point is in local coordinate space, but macOS expects superview coordinate space for hitTest
     NSView *superview = [view superview];
     NSPoint pointInSuperview = superview != nil ? [view convertPoint:point toView:superview] : point;
     return [view hitTest:pointInSuperview];
 }
 
-BOOL RCTUIViewSetClipsToBounds(KRPlatformView *view);
+BOOL KRUIViewSetClipsToBounds(KRPlatformView *view);
 
-NS_INLINE void RCTUIViewSetContentModeRedraw(KRPlatformView *view) {
+NS_INLINE void KRUIViewSetContentModeRedraw(KRPlatformView *view) {
     view.layerContentsRedrawPolicy = NSViewLayerContentsRedrawDuringViewResize;
 }
 
-NS_INLINE BOOL RCTUIViewIsDescendantOfView(KRPlatformView *view, KRPlatformView *parent) {
+NS_INLINE BOOL KRUIViewIsDescendantOfView(KRPlatformView *view, KRPlatformView *parent) {
     return [view isDescendantOf:parent];
 }
 
@@ -800,7 +781,6 @@ NS_INLINE CGRect CGRectValue(NSValue *value) {
 + (instancetype)valueWithCGPoint:(CGPoint)point;
 @end
 
-NS_ASSUME_NONNULL_END
 
 #endif // ] TARGET_OS_OSX
 
@@ -816,18 +796,16 @@ typedef NSWindow RCTPlatformWindow;
 typedef NSViewController KRPlatformViewController;
 #endif
 
-#pragma mark - Fabric Component Types
 
-#pragma mark RCTUISlider
+#pragma mark - KRUISlider
 
-#if !TARGET_OS_OSX
-typedef UISlider RCTUISlider;
-#else
-@protocol RCTUISliderDelegate;
+#if TARGET_OS_OSX
+#define UISlider KRUISlider;
+@protocol KRUISliderDelegate;
 
-@interface RCTUISlider : NSSlider
-NS_ASSUME_NONNULL_BEGIN
-@property (nonatomic, weak) id<RCTUISliderDelegate> delegate;
+@interface KRUISlider : NSSlider
+
+@property (nonatomic, weak) id<KRUISliderDelegate> delegate;
 @property (nonatomic, readonly) BOOL pressed;
 @property (nonatomic, assign) float value;
 @property (nonatomic, assign) float minimumValue;
@@ -836,24 +814,22 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong) NSColor *maximumTrackTintColor;
 
 - (void)setValue:(float)value animated:(BOOL)animated;
-NS_ASSUME_NONNULL_END
+
 @end
 #endif
 
 #if TARGET_OS_OSX // [macOS
 
-@protocol RCTUISliderDelegate <NSObject>
+@protocol KRUISliderDelegate <NSObject>
 @optional
-NS_ASSUME_NONNULL_BEGIN
-- (void)slider:(RCTUISlider *)slider didPress:(BOOL)press;
-NS_ASSUME_NONNULL_END
+- (void)slider:(KRUISlider *)slider didPress:(BOOL)press;
 @end
 
 
-#pragma mark - RCTUILabel
+#pragma mark - KRUILabel
 
-@interface RCTUILabel : NSTextField
-NS_ASSUME_NONNULL_BEGIN
+@interface KRUILabel : NSTextField
+
 @property (nonatomic, copy, nullable) NSString *text;
 @property (nonatomic, copy, nullable) NSAttributedString *attributedText;
 @property (nonatomic, assign) NSInteger numberOfLines;
@@ -863,7 +839,6 @@ NS_ASSUME_NONNULL_BEGIN
 // Subclasses (e.g. KRLabel) should override this method to perform custom text drawing
 - (void)drawTextInRect:(CGRect)rect;
 
-NS_ASSUME_NONNULL_END
 @end
 
 #endif // macOS]
@@ -875,21 +850,20 @@ NS_ASSUME_NONNULL_END
 
 // NSSwitch is only available on macOS 10.15+, use NSButton for compatibility
 @interface RCTUISwitch : NSButton
-NS_ASSUME_NONNULL_BEGIN
+
 @property (nonatomic, getter=isOn) BOOL on;
 
 // Color properties: LIMITED support on macOS
 // - onTintColor/tintColor: partial support via contentTintColor (macOS 10.14+), visual effect is subtle
 // - thumbTintColor: NO support, NSButton cannot customize thumb color
 // Visual appearance is controlled by system theme in most cases
-@property (nonatomic, strong, nullable) RCTUIColor *onTintColor;
-@property (nonatomic, strong, nullable) RCTUIColor *thumbTintColor;
-@property (nonatomic, strong, nullable) RCTUIColor *tintColor;
+@property (nonatomic, strong, nullable) KRUIColor *onTintColor;
+@property (nonatomic, strong, nullable) KRUIColor *thumbTintColor;
+@property (nonatomic, strong, nullable) KRUIColor *tintColor;
 
 - (void)setOn:(BOOL)on animated:(BOOL)animated;
 - (void)addTarget:(id)target action:(SEL)action forControlEvents:(UIControlEvents)events;
 
-NS_ASSUME_NONNULL_END
 @end
 
 typedef RCTUISwitch UISwitch;
@@ -902,47 +876,35 @@ typedef RCTUISwitch UISwitch;
 typedef UIActivityIndicatorView RCTUIActivityIndicatorView;
 #else
 @interface RCTUIActivityIndicatorView : NSProgressIndicator
-NS_ASSUME_NONNULL_BEGIN
+
 @property (nonatomic, assign) UIActivityIndicatorViewStyle activityIndicatorViewStyle;
 @property (nonatomic, assign) BOOL hidesWhenStopped;
-@property (nonatomic, strong, nullable) RCTUIColor *color;
+@property (nonatomic, strong, nullable) KRUIColor *color;
 @property (nonatomic, readonly, getter=isAnimating) BOOL animating;
 
 - (void)startAnimating;
 - (void)stopAnimating;
-NS_ASSUME_NONNULL_END
+
 @end
 #endif
 
-#pragma mark RCTUITouch
+
+#pragma mark KRUIImageView
 
 #if !TARGET_OS_OSX
-typedef UITouch RCTUITouch;
+typedef UIImageView KRUIImageView;
 #else
-@interface RCTUITouch : NSEvent
-@end
-#endif
-
-#pragma mark RCTUIImageView
-
-#if !TARGET_OS_OSX
-typedef UIImageView RCTUIImageView;
-#else
-@interface RCTUIImageView : NSImageView
-NS_ASSUME_NONNULL_BEGIN
-@property (nonatomic, strong) RCTUIColor *tintColor;
+@interface KRUIImageView : NSImageView
+@property (nonatomic, strong) KRUIColor *tintColor;
 @property (nonatomic, assign) UIViewContentMode contentMode;
 
 - (instancetype)initWithImage:(UIImage *)image;
-
-NS_ASSUME_NONNULL_END
 @end
 #endif
 
 #pragma mark RCTUIGraphicsImageRenderer
 
 #if TARGET_OS_OSX
-NS_ASSUME_NONNULL_BEGIN
 
 typedef NSGraphicsContext RCTUIGraphicsImageRendererContext;
 typedef void (^RCTUIGraphicsImageDrawingActions)(RCTUIGraphicsImageRendererContext *rendererContext);

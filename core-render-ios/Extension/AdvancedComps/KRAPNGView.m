@@ -59,8 +59,8 @@ static APNGViewCreator gAPNGViewCreator;
         _css_autoPlay = @(YES);
         _apngView = [[self class] createAPNGVIewWithFrame:frame];
         _apngView.delegate = self;
-        NSAssert([_apngView isKindOfClass:[RCTPlatformView class]], @"apngview 需要为UIView的子类"); // [macOS]
-        [self addSubview:(RCTPlatformView *)_apngView]; // [macOS]
+        NSAssert([_apngView isKindOfClass:[KRPlatformView class]], @"apngview 需要为UIView的子类"); // [macOS]
+        [self addSubview:(KRPlatformView *)_apngView]; // [macOS]
     }
     return self;
 }

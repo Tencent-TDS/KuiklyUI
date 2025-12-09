@@ -55,18 +55,18 @@ UIKIT_STATIC_INLINE void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath
 
 #pragma mark - View Type Aliases
 
-#define RCTPlatformView UIView
+#define KRPlatformView UIView
 #define RCTUIView UIView
 #define RCTUIScrollView UIScrollView
 #define RCTUIColor UIColor
 
 #pragma mark - View Helper Functions
 
-UIKIT_STATIC_INLINE RCTPlatformView *RCTUIViewHitTestWithEvent(RCTPlatformView *view, CGPoint point, __unused UIEvent *__nullable event) {
+UIKIT_STATIC_INLINE KRPlatformView *RCTUIViewHitTestWithEvent(KRPlatformView *view, CGPoint point, __unused UIEvent *__nullable event) {
     return [view hitTest:point withEvent:event];
 }
 
-UIKIT_STATIC_INLINE BOOL RCTUIViewSetClipsToBounds(RCTPlatformView *view) {
+UIKIT_STATIC_INLINE BOOL RCTUIViewSetClipsToBounds(KRPlatformView *view) {
     return view.clipsToBounds;
 }
 
@@ -74,7 +74,7 @@ UIKIT_STATIC_INLINE void RCTUIViewSetContentModeRedraw(UIView *view) {
     view.contentMode = UIViewContentModeRedraw;
 }
 
-UIKIT_STATIC_INLINE BOOL RCTUIViewIsDescendantOfView(RCTPlatformView *view, RCTPlatformView *parent) {
+UIKIT_STATIC_INLINE BOOL RCTUIViewIsDescendantOfView(KRPlatformView *view, KRPlatformView *parent) {
     return [view isDescendantOfView:parent];
 }
 
@@ -180,7 +180,7 @@ static const UIAccessibilityTraits UIAccessibilityTraitHeader = (1 << 15);
 // View aliases
 #define UIView NSView
 #define UIScreen NSScreen
-#define UIScrollView RCTUIScrollView
+#define UIScrollView KRUIScrollView
 #define UIImageView RCTUIImageView
 #define UIVisualEffectView NSVisualEffectView
 #define UIColor RCTUIColor
@@ -604,11 +604,11 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 
 #pragma mark - RCTUIView
 
-#define RCTPlatformView NSView
+#define KRPlatformView NSView
 
 // [macOS] KRUIView provides macOS-specific extensions beyond NSView+KRCompat
 // Note: Basic UIKit compatibility (layoutSubviews, didMoveToSuperview, etc.) is provided by NSView+KRCompat
-@interface KRUIView : RCTPlatformView
+@interface KRUIView : KRPlatformView
 
 #pragma mark Responder Chain
 
@@ -650,10 +650,10 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 
 @end
 
-#pragma mark - RCTPlatformView Animation Compatibility
+#pragma mark - KRPlatformView Animation Compatibility
 
 // [macOS] UIView animation API compatibility (minimal implementation)
-@interface RCTPlatformView (AnimationCompat)
+@interface KRPlatformView (AnimationCompat)
 
 + (void)animateWithDuration:(NSTimeInterval)duration
                       delay:(NSTimeInterval)delay
@@ -685,7 +685,7 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 
 #pragma mark - RCTUIScrollView
 
-@class RCTUIScrollView;
+@class KRUIScrollView;
 
 // [macOS] UIScrollViewDelegate protocol for compatibility
 @protocol UIScrollViewDelegate <NSObject>
@@ -700,7 +700,7 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 - (void)scrollViewDidEndScrollingAnimation:(UIScrollView *)scrollView;
 @end
 
-@interface RCTUIScrollView : NSScrollView
+@interface KRUIScrollView : NSScrollView
 
 #pragma mark UIScrollView Properties
 
@@ -753,20 +753,20 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 
 #pragma mark - View Helper Functions
 
-NS_INLINE RCTPlatformView *RCTUIViewHitTestWithEvent(RCTPlatformView *view, CGPoint point, __unused UIEvent *__nullable event) {
+NS_INLINE KRPlatformView *RCTUIViewHitTestWithEvent(KRPlatformView *view, CGPoint point, __unused UIEvent *__nullable event) {
     // [macOS] IMPORTANT: point is in local coordinate space, but macOS expects superview coordinate space for hitTest
     NSView *superview = [view superview];
     NSPoint pointInSuperview = superview != nil ? [view convertPoint:point toView:superview] : point;
     return [view hitTest:pointInSuperview];
 }
 
-BOOL RCTUIViewSetClipsToBounds(RCTPlatformView *view);
+BOOL RCTUIViewSetClipsToBounds(KRPlatformView *view);
 
-NS_INLINE void RCTUIViewSetContentModeRedraw(RCTPlatformView *view) {
+NS_INLINE void RCTUIViewSetContentModeRedraw(KRPlatformView *view) {
     view.layerContentsRedrawPolicy = NSViewLayerContentsRedrawDuringViewResize;
 }
 
-NS_INLINE BOOL RCTUIViewIsDescendantOfView(RCTPlatformView *view, RCTPlatformView *parent) {
+NS_INLINE BOOL RCTUIViewIsDescendantOfView(KRPlatformView *view, KRPlatformView *parent) {
     return [view isDescendantOf:parent];
 }
 
@@ -809,11 +809,11 @@ NS_ASSUME_NONNULL_END
 #if !TARGET_OS_OSX
 typedef UIApplication RCTUIApplication;
 typedef UIWindow RCTPlatformWindow;
-typedef UIViewController RCTPlatformViewController;
+typedef UIViewController KRPlatformViewController;
 #else
 typedef NSApplication RCTUIApplication;
 typedef NSWindow RCTPlatformWindow;
-typedef NSViewController RCTPlatformViewController;
+typedef NSViewController KRPlatformViewController;
 #endif
 
 #pragma mark - Fabric Component Types

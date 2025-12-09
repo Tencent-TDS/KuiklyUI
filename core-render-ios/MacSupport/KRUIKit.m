@@ -919,9 +919,9 @@ static KRUIView *RCTUIViewCommonInit(KRUIView *self) {
 
 @end
 
-#pragma mark - RCTPlatformView (AnimationCompat)
+#pragma mark - KRPlatformView (AnimationCompat)
 
-@implementation RCTPlatformView (AnimationCompat)
+@implementation KRPlatformView (AnimationCompat)
 
 + (void)animateWithDuration:(NSTimeInterval)duration
                       delay:(NSTimeInterval)delay
@@ -1119,13 +1119,13 @@ static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseIn
 
 @end
 
-#pragma mark - RCTUIDocumentView
+#pragma mark - KRUIDocumentView
 
 // Flipped container view for NSScrollView to match iOS coordinate system
-@interface RCTUIDocumentView : NSView
+@interface KRUIDocumentView : NSView
 @end
 
-@implementation RCTUIDocumentView
+@implementation KRUIDocumentView
 
 - (BOOL)isFlipped {
     // Return YES to use top-left origin coordinate system like iOS
@@ -1140,9 +1140,9 @@ static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseIn
 
 @end
 
-#pragma mark - RCTUIScrollView
+#pragma mark - KRUIScrollView
 
-@implementation RCTUIScrollView {
+@implementation KRUIScrollView {
     BOOL _isInitializing; // Flag to avoid intercepting internal subview additions during init
 }
 
@@ -1177,7 +1177,7 @@ static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseIn
     // Create a flipped container view as documentView to hold subviews
     // Use a flipped view to match iOS coordinate system (origin at top-left)
     // Start with a minimal size - it will be resized when content is added
-    RCTUIDocumentView *documentView = [[RCTUIDocumentView alloc] initWithFrame:CGRectMake(0, 0, 1, 1)];
+    KRUIDocumentView *documentView = [[KRUIDocumentView alloc] initWithFrame:CGRectMake(0, 0, 1, 1)];
     [documentView setWantsLayer:YES];
     // Ensure documentView accepts mouse events
     documentView.layerContentsRedrawPolicy = NSViewLayerContentsRedrawDuringViewResize;
@@ -1196,7 +1196,7 @@ static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseIn
     }
     
     // After initialization, add content views to documentView
-    if ([self.documentView isKindOfClass:[RCTUIDocumentView class]]) {
+    if ([self.documentView isKindOfClass:[KRUIDocumentView class]]) {
         [self.documentView addSubview:view];
     } else {
         [super addSubview:view];
@@ -1213,7 +1213,7 @@ static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseIn
     }
     
     // After initialization, add content views to documentView
-    if ([self.documentView isKindOfClass:[RCTUIDocumentView class]]) {
+    if ([self.documentView isKindOfClass:[KRUIDocumentView class]]) {
         NSArray<__kindof NSView *> *subviews = self.documentView.subviews;
         if (index < 0) { index = 0; }
         if ((NSUInteger)index >= subviews.count) {
@@ -1229,7 +1229,7 @@ static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseIn
 // Override subviews to return documentView's subviews for UIKit compatibility
 - (NSArray<__kindof NSView *> *)subviews {
     // After initialization, return documentView's subviews for UIKit compatibility
-    if (!_isInitializing && self.documentView && [self.documentView isKindOfClass:[RCTUIDocumentView class]]) {
+    if (!_isInitializing && self.documentView && [self.documentView isKindOfClass:[KRUIDocumentView class]]) {
         return self.documentView.subviews;
     }
     return [super subviews];
@@ -1245,7 +1245,7 @@ static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseIn
     }
     
     // Only do custom hit testing if we have our custom documentView
-    if ([self.documentView isKindOfClass:[RCTUIDocumentView class]]) {
+    if ([self.documentView isKindOfClass:[KRUIDocumentView class]]) {
         // Convert point to documentView's coordinate space and check subviews
         NSView *hitView = [self.documentView hitTest:[self.documentView convertPoint:point fromView:self]];
         
@@ -1456,7 +1456,7 @@ static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseIn
 
 #pragma mark - RCTUIScrollView (DelegateBridge)
 
-@implementation RCTUIScrollView (DelegateBridge)
+@implementation KRUIScrollView (DelegateBridge)
 
 #pragma mark State Properties
 
@@ -1613,7 +1613,7 @@ static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseIn
 
 #pragma mark - View Helper Functions
 
-BOOL RCTUIViewSetClipsToBounds(RCTPlatformView *view) {
+BOOL RCTUIViewSetClipsToBounds(KRPlatformView *view) {
     // NSViews are always clipped to bounds
     BOOL clipsToBounds = YES;
     

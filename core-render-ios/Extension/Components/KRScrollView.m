@@ -713,7 +713,7 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
         // On macOS, KRScrollContentView is added to documentView, not directly to KRScrollView
         // Need to traverse up the view hierarchy to find the scroll view
         KRScrollView *scrollView = nil;
-        RCTPlatformView *view = self.superview;
+        KRPlatformView *view = self.superview;
         while (view) {
             if ([view isKindOfClass:[KRScrollView class]]) {
                 scrollView = (KRScrollView *)view;

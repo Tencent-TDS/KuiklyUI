@@ -302,7 +302,7 @@
 
 /** ***** UIView (KR) ***** **/
 
-@implementation RCTPlatformView (KR) // [macOS]
+@implementation KRPlatformView (KR) // [macOS]
 
 + (UIImage *)kr_safeAsImageWithLayer:(CALayer *)layer bounds:(CGRect)bounds {
     @autoreleasepool {
@@ -336,7 +336,7 @@
 }
 
 - (UIViewController *)kr_viewController {
-    for (RCTPlatformView* next = self; next; next = next.superview) { // [macOS]
+    for (KRPlatformView* next = self; next; next = next.superview) { // [macOS]
         UIResponder *nextResponder = [next nextResponder];
         if ([nextResponder isKindOfClass:[UIViewController class]]) {
             return (UIViewController*)nextResponder;

@@ -22,6 +22,7 @@
 NSString *const KRTextSelectionMethodCreateSelection = @"createSelection";
 NSString *const KRTextSelectionMethodGetSelection = @"getSelection";
 NSString *const KRTextSelectionMethodClearSelection = @"clearSelection";
+NSString *const KRTextSelectionMethodCreateSelectionAll = @"createSelectionAll";
 
 /// Associated object keys
 static const void *kTextSelectionHelperKey = &kTextSelectionHelperKey;
@@ -126,6 +127,9 @@ typedef NS_ENUM(NSInteger, KRSelectableOption) {
     } else if ([method isEqualToString:KRTextSelectionMethodClearSelection]) {
         [self kr_handleClearSelection];
         return YES;
+    } else if ([method isEqualToString:KRTextSelectionMethodCreateSelectionAll]) {
+        [self kr_handleCreateSelectionAll];
+        return YES;
     }
     return NO;
 }
@@ -202,6 +206,37 @@ typedef NS_ENUM(NSInteger, KRSelectableOption) {
 - (void)kr_handleClearSelection {
     KRTextSelectionHelper *helper = [self kr_textSelectionHelper];
     [helper endSelection];
+}
+
+- (void)kr_handleCreateSelectionAll {
+    // Get or create helper
+    KRTextSelectionHelper *helper = [self kr_textSelectionHelper];
+    if (!helper) {
+        helper = [[KRTextSelectionHelper alloc] init];
+        [self kr_setTextSelectionHelper:helper];
+        
+        // Setup delegate handler
+        KRTextSelectionDelegateHandler *delegateHandler = [[KRTextSelectionDelegateHandler alloc] init];
+        delegateHandler.targetView = self;
+        helper.delegate = delegateHandler;
+        // Store delegate handler to prevent deallocation
+        objc_setAssociatedObject(helper, @selector(delegate), delegateHandler, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    
+    // Find all selectable labels
+    NSMutableArray<KRLabel *> *labels = [NSMutableArray array];
+    [self kr_findAllKRLabelsInView:self toArray:labels];
+    
+    if (labels.count == 0) return;
+    
+    // Apply selection color if set
+    [self kr_applySelectionColorToHelper:helper];
+    
+    // Start selection with labels
+    [helper startSelectionWithLabels:labels containerView:self];
+    
+    // Select all
+    [helper selectAll];
 }
 
 - (void)kr_findAllKRLabelsInView:(UIView *)view toArray:(NSMutableArray<KRLabel *> *)array {

@@ -20,6 +20,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Text selection method names
 extern NSString *const KRTextSelectionMethodCreateSelection;
+extern NSString *const KRTextSelectionMethodCreateSelectionAll;
 extern NSString *const KRTextSelectionMethodGetSelection;
 extern NSString *const KRTextSelectionMethodClearSelection;
 

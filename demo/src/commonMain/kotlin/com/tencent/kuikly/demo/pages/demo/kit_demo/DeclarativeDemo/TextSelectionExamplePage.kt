@@ -75,12 +75,12 @@ internal class TextSelectionExamplePage : BasePager() {
                     }
                 }
 
-                // Section: Control Buttons
+                // Section: Control Buttons Row 1
                 View {
                     attr {
                         flexDirectionRow()
                         justifyContentSpaceBetween()
-                        marginBottom(16f)
+                        marginBottom(8f)
                     }
 
                     // Select Word Button
@@ -108,6 +108,30 @@ internal class TextSelectionExamplePage : BasePager() {
                         }
                     }
 
+                    // Select Sentence Button
+                    View {
+                        attr {
+                            flex(1f)
+                            backgroundColor(Color(0xFFFF9800))
+                            padding(top = 10f, bottom = 10f)
+                            borderRadius(6f)
+                            marginRight(8f)
+                            alignItemsCenter()
+                        }
+                        event {
+                            click {
+                                this@TextSelectionExamplePage.selectableContainer?.view?.createSelection(150f, 80f, SelectionType.SENTENCE)
+                            }
+                        }
+                        Text {
+                            attr {
+                                fontSize(14f)
+                                color(Color.WHITE)
+                                text("选择句子")
+                            }
+                        }
+                    }
+
                     // Select Paragraph Button
                     View {
                         attr {
@@ -115,7 +139,6 @@ internal class TextSelectionExamplePage : BasePager() {
                             backgroundColor(Color(0xFF5AAF6A))
                             padding(top = 10f, bottom = 10f)
                             borderRadius(6f)
-                            marginRight(8f)
                             alignItemsCenter()
                         }
                         event {
@@ -128,6 +151,39 @@ internal class TextSelectionExamplePage : BasePager() {
                                 fontSize(14f)
                                 color(Color.WHITE)
                                 text("选择段落")
+                            }
+                        }
+                    }
+                }
+
+                // Section: Control Buttons Row 2
+                View {
+                    attr {
+                        flexDirectionRow()
+                        justifyContentSpaceBetween()
+                        marginBottom(16f)
+                    }
+
+                    // Select All Button
+                    View {
+                        attr {
+                            flex(1f)
+                            backgroundColor(Color(0xFF673AB7))
+                            padding(top = 10f, bottom = 10f)
+                            borderRadius(6f)
+                            marginRight(8f)
+                            alignItemsCenter()
+                        }
+                        event {
+                            click {
+                                this@TextSelectionExamplePage.selectableContainer?.view?.createSelectionAll()
+                            }
+                        }
+                        Text {
+                            attr {
+                                fontSize(14f)
+                                color(Color.WHITE)
+                                text("全选")
                             }
                         }
                     }
@@ -326,7 +382,7 @@ internal class TextSelectionExamplePage : BasePager() {
                             fontSize(13f)
                             color(Color(0xFF1976D2))
                             lineHeight(20f)
-                            text("1. 点击上方按钮可以程序化创建选区\n2. 拖动选区两端的游标可以调整选区范围\n3. 点击\"获取选中内容\"可以获取当前选中的文本\n4. 点击\"清除选择\"可以取消当前选区")
+                            text("1. 点击上方按钮可以程序化创建选区（单词/句子/段落/全选）\n2. 拖动选区两端的游标可以调整选区范围\n3. 点击\"获取选中内容\"可以获取当前选中的文本\n4. 点击\"清除选择\"可以取消当前选区")
                         }
                     }
                 }

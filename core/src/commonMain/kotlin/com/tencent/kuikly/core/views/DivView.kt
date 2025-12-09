@@ -84,6 +84,15 @@ open class DivView : GroupView<DivAttr, DivEvent>() {
         }
     }
 
+    /**
+     * 选中所有文本
+     */
+    fun createSelectionAll() {
+        performTaskWhenRenderViewDidLoad {
+            renderView?.callMethod("createSelectionAll")
+        }
+    }
+
 }
 
 enum class SelectionType(val value: Int) {

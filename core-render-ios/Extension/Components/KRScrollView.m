@@ -207,11 +207,8 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 #pragma mark - UIScrollViewDelegate
 
 - (BOOL)scrollViewShouldScrollToTop:(UIScrollView *)scrollView {
-    BOOL isCompose = self.hr_rootView.contextParam.isCompose;
-    if (isCompose) {
-        if (_css_scrollToTop) {
-            _css_scrollToTop(nil);
-        }
+    if (_css_scrollToTop) {
+        _css_scrollToTop(nil);
         return NO; // Handled by Kotlin side
     }
     return YES;

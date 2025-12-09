@@ -153,6 +153,10 @@ static void *KRTextSelectionScrollObserverContext = &KRTextSelectionScrollObserv
                 // Expand to paragraph/line
                 selectionRange = [self rangeOfParagraphAtIndex:charIndex inString:text];
                 break;
+            case KRTextSelectionTypeSentence:
+                // Expand to sentence
+                selectionRange = [self rangeOfSentenceAtIndex:charIndex inString:text];
+                break;
             default:
                 selectionRange = NSMakeRange(charIndex, 1);
                 break;
@@ -571,6 +575,35 @@ static const CGFloat kMagnifierVerticalOffset = 60.0;
             *stop = YES;
         }
     }];
+    
+    return result;
+}
+
+- (NSRange)rangeOfSentenceAtIndex:(NSInteger)index inString:(NSString *)string {
+    if (index < 0 || index >= string.length) return NSMakeRange(0, string.length);
+    
+    // Find sentence boundaries using NSStringEnumerationBySentences
+    __block NSRange result = NSMakeRange(0, string.length);
+    __block BOOL found = NO;
+    
+    [string enumerateSubstringsInRange:NSMakeRange(0, string.length)
+                               options:NSStringEnumerationBySentences
+                            usingBlock:^(NSString * _Nullable substring,
+                                         NSRange substringRange,
+                                         NSRange enclosingRange,
+                                         BOOL * _Nonnull stop) {
+        if (NSLocationInRange(index, substringRange) || 
+            (index == substringRange.location + substringRange.length && index == string.length)) {
+            result = substringRange;
+            found = YES;
+            *stop = YES;
+        }
+    }];
+    
+    // If no sentence boundary found (e.g., text without punctuation), return entire string
+    if (!found) {
+        result = NSMakeRange(0, string.length);
+    }
     
     return result;
 }

@@ -21,11 +21,12 @@ NS_ASSUME_NONNULL_BEGIN
 
 @class KRTextSelectionHelper;
 
-/// Selection type enum
+/// Selection type enum (matches DivView.kt SelectionType)
 typedef NS_ENUM(NSInteger, KRTextSelectionType) {
     KRTextSelectionTypeCharacter = 0,
     KRTextSelectionTypeWord = 1,
-    KRTextSelectionTypeParagraph = 2
+    KRTextSelectionTypeParagraph = 2,
+    KRTextSelectionTypeSentence = 3
 };
 
 /// Delegate protocol for text selection events

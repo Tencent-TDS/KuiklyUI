@@ -89,7 +89,8 @@ open class DivView : GroupView<DivAttr, DivEvent>() {
 enum class SelectionType(val value: Int) {
     CHARACTER(0),
     WORD(1),
-    PARAGRAPH(2)
+    PARAGRAPH(2),
+    SENTENCE(3),
 }
 
 open class DivAttr : GroupAttr() {

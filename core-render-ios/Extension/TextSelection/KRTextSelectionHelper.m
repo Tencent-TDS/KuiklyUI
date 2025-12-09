@@ -54,7 +54,6 @@ static void *KRTextSelectionScrollObserverContext = &KRTextSelectionScrollObserv
 
 /// Selection highlight color
 @property (nonatomic, strong) UIColor *selectionColor;
-
 /// Cursor/anchor color
 @property (nonatomic, strong) UIColor *cursorColor;
 
@@ -387,7 +386,7 @@ static const CGFloat kAnchorHitTestPadding = 20.0;
                         self.startIndex = idx;
                         selectionChanged = YES;
                     }
-                } else {
+                } else if (cmp == NSOrderedDescending) {
                     // Swap: 拖动起始游标超过了结束游标
                     self.startLabel = self.endLabel;
                     self.startIndex = self.endIndex;
@@ -399,7 +398,10 @@ static const CGFloat kAnchorHitTestPadding = 20.0;
                     self.leftAnchor = self.rightAnchor;
                     self.rightAnchor = temp;
                     selectionChanged = YES;
+                } else {
+                    // same, ignore
                 }
+                
             } else {
                 // Dragging End
                 NSComparisonResult cmp = [self comparePositionLabel:closestLabel index:idx withLabel:self.startLabel index:self.startIndex];
@@ -410,7 +412,7 @@ static const CGFloat kAnchorHitTestPadding = 20.0;
                         self.endIndex = idx;
                         selectionChanged = YES;
                     }
-                } else {
+                } else if (cmp == NSOrderedAscending) {
                     // Swap: 拖动结束游标超过了起始游标
                     self.endLabel = self.startLabel;
                     self.endIndex = self.startIndex;
@@ -422,6 +424,8 @@ static const CGFloat kAnchorHitTestPadding = 20.0;
                     self.leftAnchor = self.rightAnchor;
                     self.rightAnchor = temp;
                     selectionChanged = YES;
+                } else {
+                    // same, ignore
                 }
             }
             

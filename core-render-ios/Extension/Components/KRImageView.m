@@ -354,7 +354,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
             if (range.length) {
                 NSString * base64 = [base64Str substringFromIndex:NSMaxRange(range)];
                 NSData * imageData =[[NSData alloc] initWithBase64EncodedString:base64 options:NSDataBase64DecodingIgnoreUnknownCharacters];
-                UIImage *image = UIImageWithData(imageData);
+                UIImage *image = [UIImage imageWithData:imageData];
                 dispatch_async(dispatch_get_main_queue(), ^{
                     [module setMemoryObjectWithKey:md5Key value:image];
                     if (weakSelf.css_src == md5Key) {

@@ -307,11 +307,11 @@
 + (UIImage *)kr_safeAsImageWithLayer:(CALayer *)layer bounds:(CGRect)bounds {
     @autoreleasepool {
 #if TARGET_OS_OSX // [macOS]
-        RCTUIGraphicsImageRendererFormat *format = [RCTUIGraphicsImageRendererFormat defaultFormat];
+        KRUIGraphicsImageRendererFormat *format = [KRUIGraphicsImageRendererFormat defaultFormat];
         format.scale = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
         format.opaque = layer.isOpaque;
-        RCTUIGraphicsImageRenderer *renderer = [[RCTUIGraphicsImageRenderer alloc] initWithSize:bounds.size format:format];
-        return [renderer imageWithActions:^(RCTUIGraphicsImageRendererContext *rendererContext) {
+        KRUIGraphicsImageRenderer *renderer = [[KRUIGraphicsImageRenderer alloc] initWithSize:bounds.size format:format];
+        return [renderer imageWithActions:^(KRUIGraphicsImageRendererContext *rendererContext) {
             CGContextRef ctx = [rendererContext CGContext];
             [layer renderInContext:ctx];
         }];
@@ -487,11 +487,11 @@
     CGSize newSize = CGSizeMake(image.size.width * ratio, image.size.height * ratio);
     
 #if TARGET_OS_OSX // [macOS]
-    RCTUIGraphicsImageRendererFormat *format = [RCTUIGraphicsImageRendererFormat defaultFormat];
+    KRUIGraphicsImageRendererFormat *format = [KRUIGraphicsImageRendererFormat defaultFormat];
     format.scale = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
     format.opaque = YES;
-    RCTUIGraphicsImageRenderer *renderer = [[RCTUIGraphicsImageRenderer alloc] initWithSize:newSize format:format];
-    UIImage *resizedImage = [renderer imageWithActions:^(RCTUIGraphicsImageRendererContext *rendererContext) {
+    KRUIGraphicsImageRenderer *renderer = [[KRUIGraphicsImageRenderer alloc] initWithSize:newSize format:format];
+    UIImage *resizedImage = [renderer imageWithActions:^(KRUIGraphicsImageRendererContext *rendererContext) {
         [image drawInRect:CGRectMake(0, 0, newSize.width, newSize.height)];
     }];
     return resizedImage;
@@ -509,11 +509,11 @@
 #if TARGET_OS_OSX // [macOS]
     if (!color) { return self; }
     CGSize size = self.size;
-    RCTUIGraphicsImageRendererFormat *format = [RCTUIGraphicsImageRendererFormat defaultFormat];
+    KRUIGraphicsImageRendererFormat *format = [KRUIGraphicsImageRendererFormat defaultFormat];
     format.scale = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
     format.opaque = NO;
-    RCTUIGraphicsImageRenderer *renderer = [[RCTUIGraphicsImageRenderer alloc] initWithSize:size format:format];
-    UIImage *tintedImage = [renderer imageWithActions:^(RCTUIGraphicsImageRendererContext *rendererContext) {
+    KRUIGraphicsImageRenderer *renderer = [[KRUIGraphicsImageRenderer alloc] initWithSize:size format:format];
+    UIImage *tintedImage = [renderer imageWithActions:^(KRUIGraphicsImageRendererContext *rendererContext) {
         CGContextRef ctx = [rendererContext CGContext];
         CGRect rect = CGRectMake(0, 0, size.width, size.height);
         CGImageRef cgImage = self.CGImage;

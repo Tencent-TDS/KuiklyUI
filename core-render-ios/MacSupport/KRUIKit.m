@@ -686,11 +686,13 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath) {
 #pragma mark - NSFont UIKit Compatibility
 
 @implementation NSFont (KRUIKitCompatLineHeight)
+
 - (CGFloat)lineHeight {
     // NSFont doesn't expose lineHeight; synthesize via ascender/descender/leading
     CGFloat h = self.ascender + fabs(self.descender) + self.leading;
     return ceil(h);
 }
+
 @end
 
 #pragma mark - KRUIView
@@ -1433,7 +1435,7 @@ static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseIn
 }
 
 // Get current mouse location in given view (simulates touch location)
-- (CGPoint)rct_mouseLocationInView:(UIView *)view {
+- (CGPoint)kr_mouseLocationInView:(UIView *)view {
     NSEvent *lastEvent = [self rct_lastScrollEvent];
     NSPoint locationInWindow;
     
@@ -1625,9 +1627,9 @@ BOOL KRUIViewSetClipsToBounds(KRPlatformView *view) {
     return clipsToBounds;
 }
 
-#pragma mark - RCTClipView
+#pragma mark - KRClipView
 
-@implementation RCTClipView
+@implementation KRClipView
 
 - (instancetype)initWithFrame:(NSRect)frameRect {
     if (self = [super initWithFrame:frameRect]) {
@@ -1721,13 +1723,13 @@ BOOL KRUIViewSetClipsToBounds(KRPlatformView *view) {
 
 @end
 
-#pragma mark - RCTUISwitch
+#pragma mark - KRUISwitch
 
-@interface RCTUISwitch ()
+@interface KRUISwitch ()
 @property (nonatomic, strong) NSMutableDictionary<NSNumber *, NSMutableArray<NSDictionary *> *> *eventHandlers;
 @end
 
-@implementation RCTUISwitch
+@implementation KRUISwitch
 
 // Color properties: LIMITED support on NSButton-based switch
 // thumbTintColor has no visual effect (cannot customize thumb on NSButton)
@@ -2101,22 +2103,22 @@ BOOL KRUIViewSetClipsToBounds(KRPlatformView *view) {
 
 @end
 
-#pragma mark - RCTUIGraphicsImageRendererFormat
+#pragma mark - KRUIGraphicsImageRendererFormat
 
-@implementation RCTUIGraphicsImageRendererFormat
+@implementation KRUIGraphicsImageRendererFormat
 
 + (nonnull instancetype)defaultFormat {
-    RCTUIGraphicsImageRendererFormat *format = [RCTUIGraphicsImageRendererFormat new];
+    KRUIGraphicsImageRendererFormat *format = [KRUIGraphicsImageRendererFormat new];
     return format;
 }
 
 @end
 
-#pragma mark - RCTUIGraphicsImageRenderer
+#pragma mark - KRUIGraphicsImageRenderer
 
-@implementation RCTUIGraphicsImageRenderer {
+@implementation KRUIGraphicsImageRenderer {
     CGSize _size;
-    RCTUIGraphicsImageRendererFormat *_format;
+    KRUIGraphicsImageRendererFormat *_format;
 }
 
 - (nonnull instancetype)initWithSize:(CGSize)size {
@@ -2126,7 +2128,7 @@ BOOL KRUIViewSetClipsToBounds(KRPlatformView *view) {
     return self;
 }
 
-- (nonnull instancetype)initWithSize:(CGSize)size format:(nonnull RCTUIGraphicsImageRendererFormat *)format {
+- (nonnull instancetype)initWithSize:(CGSize)size format:(nonnull KRUIGraphicsImageRendererFormat *)format {
     if (self = [super init]) {
         self->_size = size;
         self->_format = format;
@@ -2138,7 +2140,7 @@ BOOL KRUIViewSetClipsToBounds(KRPlatformView *view) {
     NSImage *image = [NSImage imageWithSize:_size
                                     flipped:NO
                              drawingHandler:^BOOL(NSRect dstRect) {
-        RCTUIGraphicsImageRendererContext *context = [NSGraphicsContext currentContext];
+        KRUIGraphicsImageRendererContext *context = [NSGraphicsContext currentContext];
         if (self->_format.opaque) {
             CGContextSetAlpha([context CGContext], 1.0);
         }

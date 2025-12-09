@@ -120,11 +120,7 @@ static NSString *const kCacheStateInProgress = @"InProgress";
         NSRange range = [src rangeOfString:@";base64,"];
         NSString * base64 = [src substringFromIndex:NSMaxRange(range)];
         NSData * imageData = [[NSData alloc] initWithBase64EncodedString:base64 options:NSDataBase64DecodingIgnoreUnknownCharacters];
-#if TARGET_OS_OSX // [macOS]
-        UIImage *image = UIImageWithData(imageData);
-#else
         UIImage *image = [UIImage imageWithData:imageData];
-#endif
         
         return [self cacheImage:image withCachekey:cacheKey callback:callback];
     }
@@ -133,11 +129,7 @@ static NSString *const kCacheStateInProgress = @"InProgress";
 - (NSString*)cacheLocalImageWithURL:(NSURL*)url withCacheKey:cacheKey sync:(bool)sync callback:(KuiklyRenderCallback)callback{
     @autoreleasepool {
         NSData* data = [NSData dataWithContentsOfURL:url];
-#if TARGET_OS_OSX // [macOS]
-        UIImage *image = UIImageWithData(data);
-#else
         UIImage *image = [UIImage imageWithData:data];
-#endif
         
         return [self cacheImage:image withCachekey:cacheKey callback:callback];
     }

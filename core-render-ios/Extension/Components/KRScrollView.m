@@ -615,7 +615,7 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     }
     #else // [macOS
     // On macOS, get mouse location to simulate single touch point
-    CGPoint mousePoint = [self rct_mouseLocationInView:self.hr_rootView];
+    CGPoint mousePoint = [self kr_mouseLocationInView:self.hr_rootView];
     [touchesParam addObject:@{
         @"pageX" : @(mousePoint.x),
         @"pageY" : @(mousePoint.y)

@@ -25,12 +25,6 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-#pragma mark - Image Helper Functions
-
-UIKIT_STATIC_INLINE UIImage *UIImageWithData(NSData *imageData) {
-    return [UIImage imageWithData:imageData];
-}
-
 #pragma mark - UIBezierPath Helper Functions
 
 UIKIT_STATIC_INLINE UIBezierPath *UIBezierPathWithRoundedRect(CGRect rect, CGFloat cornerRadius) {
@@ -45,8 +39,6 @@ UIKIT_STATIC_INLINE void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath
 
 #define KRPlatformView UIView
 #define KRUIView UIView
-#define RCTUIScrollView UIScrollView
-#define KRUIColor UIColor
 
 #pragma mark - View Helper Functions
 
@@ -80,19 +72,10 @@ UIKIT_STATIC_INLINE CGRect CGRectValue(NSValue *value) {
     return [value CGRectValue];
 }
 
-#pragma mark - Font Helper Functions
-
-UIKIT_STATIC_INLINE UIFont *UIFontWithSize(UIFont *font, CGFloat pointSize) {
-    return [font fontWithSize:pointSize];
-}
-
-UIKIT_STATIC_INLINE CGFloat UIFontLineHeight(UIFont *font) {
-    return [font lineHeight];
-}
-
 NS_ASSUME_NONNULL_END
 
 #else // TARGET_OS_OSX [
+
 
 #pragma mark - macOS Platform
 
@@ -214,13 +197,14 @@ typedef NSFontWeight UIFontWeight;
 // Accessibility alias
 @compatibility_alias UIAccessibilityCustomAction NSAccessibilityCustomAction;
 
+
 #pragma mark - Accessibility Notifications
 
-// [macOS] Accessibility notification constants
+// Accessibility notification constants
 #define UIAccessibilityScreenChangedNotification NSAccessibilityLayoutChangedNotification
 #define UIAccessibilityAnnouncementNotification NSAccessibilityAnnouncementRequestedNotification
 
-// [macOS] Accessibility notification functions
+// Accessibility notification functions
 NS_INLINE void UIAccessibilityPostNotification(NSAccessibilityNotificationName notification, id _Nullable argument) {
     if ([notification isEqualToString:NSAccessibilityAnnouncementRequestedNotification]) {
         // For announcements, use NSAccessibilityPostNotificationWithUserInfo with the announcement key
@@ -419,20 +403,13 @@ CGContextRef UIGraphicsGetCurrentContext(void);
 
 #define KRUIColor NSColor
 
-#pragma mark - Font Helper Functions
-
-NS_INLINE NSFont *UIFontWithSize(NSFont *font, CGFloat pointSize) {
-    return [NSFont fontWithDescriptor:font.fontDescriptor size:pointSize];
-}
-
-NS_INLINE CGFloat UIFontLineHeight(NSFont *font) {
-    return ceilf(font.ascender + ABS(font.descender) + font.leading);
-}
 
 #pragma mark - NSFont UIKit Compatibility
 
 @interface NSFont (KRUIKitCompatLineHeight)
+
 - (CGFloat)lineHeight;
+
 @end
 
 
@@ -570,11 +547,6 @@ typedef NS_ENUM(NSInteger, UIImageResizingMode) {
 #pragma mark - Image Helper Functions
 
 NSImage *UIImageResizableImageWithCapInsets(NSImage *image, NSEdgeInsets capInsets, UIImageResizingMode resizingMode);
-
-NS_INLINE UIImage *UIImageWithData(NSData *imageData) {
-    return [[NSImage alloc] initWithData:imageData];
-}
-
 NSData *UIImagePNGRepresentation(NSImage *image);
 NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality);
 
@@ -664,11 +636,10 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 
 @end
 
-#pragma mark - RCTUIScrollView
+#pragma mark - KRUIScrollView
 
 @class KRUIScrollView;
 
-// [macOS] UIScrollViewDelegate protocol for compatibility
 @protocol UIScrollViewDelegate <NSObject>
 @optional
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView;
@@ -682,8 +653,6 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 @end
 
 @interface KRUIScrollView : NSScrollView
-
-#pragma mark UIScrollView Properties
 
 @property (nonatomic, assign) CGPoint contentOffset;
 @property (nonatomic, assign) UIEdgeInsets contentInset;
@@ -702,35 +671,27 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 @property (nonatomic, readonly, getter=isDecelerating) BOOL decelerating;
 @property (nonatomic, assign, getter=isScrollEnabled) BOOL scrollEnabled;
 
-#pragma mark Delegate
 
 @property (nonatomic, weak, nullable) id<UIScrollViewDelegate> delegate;
-
-#pragma mark macOS-Specific Properties
-
 @property (nonatomic, assign) BOOL enableFocusRing;
-
-#pragma mark Methods
 
 - (void)setContentOffset:(CGPoint)contentOffset animated:(BOOL)animated;
 
-
-#pragma mark Mouse Location Tracking
-
-// [macOS] Mouse location tracking for touch position queries
+// Mouse location tracking for touch position queries
 // Returns mouse location in the given view (simulates touch location on macOS)
-- (CGPoint)rct_mouseLocationInView:(nullable UIView *)view;
-// macOS]
+- (CGPoint)kr_mouseLocationInView:(nullable UIView *)view;
 
 @end
 
-#pragma mark - RCTClipView
 
-@interface RCTClipView : NSClipView
+#pragma mark - KRClipView
+
+@interface KRClipView : NSClipView
 
 @property (nonatomic, assign) BOOL constrainScrolling;
 
 @end
+
 
 #pragma mark - View Helper Functions
 
@@ -844,12 +805,12 @@ typedef NSViewController KRPlatformViewController;
 #endif // macOS]
 
 
-#pragma mark RCTUISwitch
+#pragma mark KRUISwitch
 
 #if TARGET_OS_OSX
 
 // NSSwitch is only available on macOS 10.15+, use NSButton for compatibility
-@interface RCTUISwitch : NSButton
+@interface KRUISwitch : NSButton
 
 @property (nonatomic, getter=isOn) BOOL on;
 
@@ -866,7 +827,7 @@ typedef NSViewController KRPlatformViewController;
 
 @end
 
-typedef RCTUISwitch UISwitch;
+typedef KRUISwitch UISwitch;
 
 #endif
 
@@ -902,14 +863,14 @@ typedef UIImageView KRUIImageView;
 @end
 #endif
 
-#pragma mark RCTUIGraphicsImageRenderer
+#pragma mark KRUIGraphicsImageRenderer
 
 #if TARGET_OS_OSX
 
-typedef NSGraphicsContext RCTUIGraphicsImageRendererContext;
-typedef void (^RCTUIGraphicsImageDrawingActions)(RCTUIGraphicsImageRendererContext *rendererContext);
+typedef NSGraphicsContext KRUIGraphicsImageRendererContext;
+typedef void (^RCTUIGraphicsImageDrawingActions)(KRUIGraphicsImageRendererContext *rendererContext);
 
-@interface RCTUIGraphicsImageRendererFormat : NSObject
+@interface KRUIGraphicsImageRendererFormat : NSObject
 
 + (instancetype)defaultFormat;
 
@@ -918,10 +879,10 @@ typedef void (^RCTUIGraphicsImageDrawingActions)(RCTUIGraphicsImageRendererConte
 
 @end
 
-@interface RCTUIGraphicsImageRenderer : NSObject
+@interface KRUIGraphicsImageRenderer : NSObject
 
 - (instancetype)initWithSize:(CGSize)size;
-- (instancetype)initWithSize:(CGSize)size format:(RCTUIGraphicsImageRendererFormat *)format;
+- (instancetype)initWithSize:(CGSize)size format:(KRUIGraphicsImageRendererFormat *)format;
 - (NSImage *)imageWithActions:(NS_NOESCAPE RCTUIGraphicsImageDrawingActions)actions;
 
 @end

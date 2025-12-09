@@ -581,8 +581,8 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
 // 创建渐变色信息类
 + (UIImage *)createGradientImageWithInfo:(CSSGradientInfo *)info size:(CGSize)size {
 #if TARGET_OS_OSX // [macOS
-    RCTUIGraphicsImageRenderer *renderer = [[RCTUIGraphicsImageRenderer alloc] initWithSize:size];
-    UIImage *image = [renderer imageWithActions:^(RCTUIGraphicsImageRendererContext *rendererContext) {
+    KRUIGraphicsImageRenderer *renderer = [[KRUIGraphicsImageRenderer alloc] initWithSize:size];
+    UIImage *image = [renderer imageWithActions:^(KRUIGraphicsImageRendererContext *rendererContext) {
         CGContextRef context = [rendererContext CGContext];
 #else
     UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:size];

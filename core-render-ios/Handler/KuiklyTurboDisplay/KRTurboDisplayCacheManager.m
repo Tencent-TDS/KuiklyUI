@@ -135,7 +135,7 @@
         @try {
             [self.fileLock lock];
             [self formatTagWithCacheTree:viewNode];
-            NSData *nodeData = [NSKeyedArchiver archivedDataWithRootObject:viewNode];
+            NSData *nodeData = [NSKeyedArchiver archivedDataWithRootObject:viewNode requiringSecureCoding:NO error:nil];
             // 将 NSData 存储到磁盘
            
             NSString *filePath = [[self cacheRootPath] stringByAppendingPathComponent:cacheKey];
@@ -200,7 +200,7 @@
             
             if (nodeData) {
                 cacheData = [KRTurboDisplayCacheData new];
-                cacheData.turboDisplayNode = [NSKeyedUnarchiver unarchiveObjectWithData:nodeData];
+                cacheData.turboDisplayNode = [NSKeyedUnarchiver unarchivedObjectOfClass:[KRTurboDisplayNode class] fromData:nodeData error:nil];
                 cacheData.turboDisplayNodeData = nodeData;
             }
            

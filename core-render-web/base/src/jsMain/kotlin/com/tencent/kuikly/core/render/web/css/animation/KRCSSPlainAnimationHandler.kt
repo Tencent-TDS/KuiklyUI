@@ -106,8 +106,8 @@ class KRCSSPlainAnimationHandler(
     private fun getCSSTransform(value: Any): JsMap<String, String> {
         val transformSpilt = value.unsafeCast<String>().split("|")
         // Get element's own width and height (if parameter is %, convert to px)
-        val width = target?.style?.width?.removeSuffix("px")?.toDouble() ?: 0.0
-        val height = target?.style?.height?.removeSuffix("px")?.toDouble() ?: 0.0
+        val width = target?.style?.width?.removeSuffix("px")?.toDoubleOrNull() ?: 0.0
+        val height = target?.style?.height?.removeSuffix("px")?.toDoubleOrNull() ?: 0.0
 
         val anchorSpilt = transformSpilt[3].split(" ")
         val anchorX = anchorSpilt[0].toPercentage()

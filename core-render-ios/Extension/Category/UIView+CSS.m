@@ -1288,7 +1288,7 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
         option |= UIViewAnimationOptionRepeat;
     }
     [UIView animateKeyframesWithDuration:_duration delay:_delay options:option | UIViewAnimationOptionAllowUserInteraction animations:^{
-    UIViewAnimationCurve animationCurve = _viewAnimationCurve;
+        UIViewAnimationCurve animationCurve = self->_viewAnimationCurve;
             [animations enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
                 dispatch_block_t block = obj;
                 [UIView setAnimationCurve:animationCurve]; // 设置动画曲线

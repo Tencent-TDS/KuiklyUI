@@ -606,9 +606,9 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 
 #define RCTPlatformView NSView
 
-// [macOS] RCTUIView provides macOS-specific extensions beyond NSView+KRCompat
+// [macOS] KRUIView provides macOS-specific extensions beyond NSView+KRCompat
 // Note: Basic UIKit compatibility (layoutSubviews, didMoveToSuperview, etc.) is provided by NSView+KRCompat
-@interface RCTUIView : RCTPlatformView
+@interface KRUIView : RCTPlatformView
 
 #pragma mark Responder Chain
 

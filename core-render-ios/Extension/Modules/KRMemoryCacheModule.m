@@ -16,7 +16,7 @@
 #import "KRMemoryCacheModule.h"
 #import "NSObject+KR.h"
 #import "KRImageView.h"
-#import "RCTUIKit.h" // [macOS]
+#import "KRUIKit.h" // [macOS]
 
 extern NSString *const KRImageBase64Prefix;
 extern NSString *const KRImageAssetsPrefix;

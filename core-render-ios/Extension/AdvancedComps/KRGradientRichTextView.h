@@ -13,11 +13,11 @@
  * limitations under the License.
  */
 
-#import "RCTUIKit.h" // [macOS]
+#import "KRUIKit.h" // [macOS]
 #import "KuiklyRenderViewExportProtocol.h"
 NS_ASSUME_NONNULL_BEGIN
 
-@interface KRGradientRichTextView : RCTUIView<KuiklyRenderViewExportProtocol> // [macOS]
+@interface KRGradientRichTextView : KRUIView<KuiklyRenderViewExportProtocol> // [macOS]
 
 @end
 

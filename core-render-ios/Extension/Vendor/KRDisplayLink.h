@@ -14,7 +14,7 @@
  */
 
 // KRDisplayLink.h
-#import "RCTUIKit.h" // [macOS]
+#import "KRUIKit.h" // [macOS]
 #import <QuartzCore/QuartzCore.h>
 
 typedef void (^DisplayLinkCallback)(CFTimeInterval timestamp);

@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#import "RCTUIKit.h" // [macOS]
+#import "KRUIKit.h" // [macOS]
 #import <Foundation/Foundation.h>
 
 NS_ASSUME_NONNULL_BEGIN

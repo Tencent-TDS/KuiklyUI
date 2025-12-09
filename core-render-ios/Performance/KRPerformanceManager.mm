@@ -10,7 +10,7 @@
 #import "KRFPSMonitor.h"
 #import "KuiklyRenderThreadManager.h"
 #import "KRMemoryMonitor.h"
-#import "RCTUIKit.h" // [macOS]
+#import "KRUIKit.h" // [macOS]
 #import "KRDisplayLink.h" // macOS 显示时钟垫片
 #include <TargetConditionals.h>
 #import <objc/message.h>

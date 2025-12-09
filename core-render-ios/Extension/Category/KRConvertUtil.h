@@ -14,7 +14,7 @@
  */
 
 #import <Foundation/Foundation.h>
-#import "RCTUIKit.h" // [macOS]
+#import "KRUIKit.h" // [macOS]
 #if TARGET_OS_OSX
 #import <QuartzCore/QuartzCore.h> // CAGradientLayer
 #endif

@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#import "RCTUIKit.h" // [macOS]
+#import "KRUIKit.h" // [macOS]
 #import "UIView+CSSDebug.h"
 #import "KuiklyRenderViewExportProtocol.h"
 #include <QuartzCore/QuartzCore.h>

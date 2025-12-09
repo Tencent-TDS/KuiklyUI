@@ -14,7 +14,7 @@
  */
 
 #import <Foundation/Foundation.h>
-#import "RCTUIKit.h" // [macOS]
+#import "KRUIKit.h" // [macOS]
 #import "NestedScrollProtocol.h"
 
 NS_ASSUME_NONNULL_BEGIN

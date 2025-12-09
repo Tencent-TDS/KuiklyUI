@@ -14,7 +14,7 @@
  */
 
 #import <Foundation/Foundation.h>
-#import "RCTUIKit.h"
+#import "KRUIKit.h"
 #import "KuiklyRenderView.h"
 
 typedef void (^KuiklyContextCodeCallback)(NSString * _Nullable contextCode, NSError * _Nullable error);

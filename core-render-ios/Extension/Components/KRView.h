@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#import "RCTUIKit.h" // [macOS]
+#import "KRUIKit.h" // [macOS]
 #import "KuiklyRenderViewExportProtocol.h"
 
 NS_ASSUME_NONNULL_BEGIN
@@ -21,7 +21,7 @@ NS_ASSUME_NONNULL_BEGIN
 /**
  * @brief This is a container view component exposed for Kotlin side to call
  */
-@interface KRView : RCTUIView<KuiklyRenderViewExportProtocol> // [macOS]
+@interface KRView : KRUIView<KuiklyRenderViewExportProtocol> // [macOS]
 
 // The touch down callback for the view
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_touchDown;

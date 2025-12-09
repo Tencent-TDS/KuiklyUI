@@ -17,7 +17,7 @@
 
 #if TARGET_OS_OSX
 
-#import "RCTUIKit.h"
+#import "KRUIKit.h"
 #import <QuartzCore/QuartzCore.h>
 #import <objc/runtime.h>
 #import <objc/message.h>
@@ -695,9 +695,9 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath) {
 
 #pragma mark - RCTUIView
 
-// RCTUIView implementation - provides macOS-specific extensions
+// KRUIView implementation - provides macOS-specific extensions
 // Note: Most UIKit compatibility is handled by NSView+KRCompat Category
-@implementation RCTUIView {
+@implementation KRUIView {
 @private
     BOOL _hasMouseOver;
     NSTrackingArea *_trackingArea;
@@ -706,7 +706,7 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath) {
 
 #pragma mark Initialization
 
-static RCTUIView *RCTUIViewCommonInit(RCTUIView *self) {
+static KRUIView *RCTUIViewCommonInit(KRUIView *self) {
     if (self != nil) {
         self.wantsLayer = YES;
         self->_enableFocusRing = YES;
@@ -730,10 +730,10 @@ static RCTUIView *RCTUIViewCommonInit(RCTUIView *self) {
         return YES;
     }
     
-    // If any RCTUIView above has acceptsFirstMouse set, then return YES here
+    // If any KRUIView above has acceptsFirstMouse set, then return YES here
     NSView *view = self;
     while ((view = view.superview)) {
-        if ([view isKindOfClass:[RCTUIView class]] && [(RCTUIView *)view acceptsFirstMouse]) {
+        if ([view isKindOfClass:[KRUIView class]] && [(KRUIView *)view acceptsFirstMouse]) {
             return YES;
         }
     }
@@ -915,14 +915,6 @@ static RCTUIView *RCTUIViewCommonInit(RCTUIView *self) {
 
 - (void)setNeedsDisplay {
     self.needsDisplay = YES;
-}
-
-#pragma mark Cursor
-
-// We purposely don't use RCTCursor for the parameter type here because it would introduce an import cycle:
-// RCTUIKit > RCTCursor > RCTConvert > RCTUIKit
-- (void)setCursor:(NSInteger)cursor {
-    // This method is required to be defined due to [RCTVirtualTextViewManager view] returning a RCTUIView.
 }
 
 @end

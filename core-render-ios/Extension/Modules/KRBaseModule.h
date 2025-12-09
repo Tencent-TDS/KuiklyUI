@@ -15,7 +15,7 @@
 
 #import <Foundation/Foundation.h>
 #import "KuiklyRenderModuleExportProtocol.h"
-#import "RCTUIKit.h" // [macOS]
+#import "KRUIKit.h" // [macOS]
 #import "NSObject+KR.h"
 #import "KuiklyRenderView.h"
 #import "TDFBaseModule.h"

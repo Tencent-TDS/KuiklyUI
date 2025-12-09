@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#import "RCTUIKit.h" // [macOS]
+#import "KRUIKit.h" // [macOS]
 #import "TDFModuleProtocol.h"
 #import "KuiklyRenderViewExportProtocol.h"
 #import "KuiklyContextParam.h"

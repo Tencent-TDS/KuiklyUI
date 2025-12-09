@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#import "RCTUIKit.h" // [macOS]
+#import "KRUIKit.h" // [macOS]
 #import "KuiklyRenderViewControllerBaseDelegator.h"
 
 NS_ASSUME_NONNULL_BEGIN
@@ -23,7 +23,7 @@ NS_ASSUME_NONNULL_BEGIN
 /*
  * @brief View粒度入口类（业务可以使用该类作为kuikly接入层入口类）
  */
-@interface KuiklyBaseView : RCTUIView // [macOS]
+@interface KuiklyBaseView : KRUIView // [macOS]
 /// 渲染根视图
 @property (nonatomic, strong, readonly, nullable) KuiklyRenderView *renderView;
 /// kuikly 标准的性能数据

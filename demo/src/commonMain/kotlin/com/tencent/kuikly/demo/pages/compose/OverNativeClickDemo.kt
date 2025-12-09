@@ -17,6 +17,7 @@ package com.tencent.kuikly.demo.pages.compose
 
 import com.tencent.kuikly.compose.ComposeContainer
 import com.tencent.kuikly.compose.extension.setEvent
+import com.tencent.kuikly.compose.extension.setProp
 import com.tencent.kuikly.compose.foundation.background
 import com.tencent.kuikly.compose.foundation.clickable
 import com.tencent.kuikly.compose.foundation.layout.Box
@@ -68,6 +69,7 @@ internal class OverNativeClickDemo : ComposeContainer() {
                                 .clickable {
                                     println("ComposeSceneMediator.result = ComposeClick ")
                                 }
+                                .setProp("stop-propagation-ohos", 1)
                                 .setEvent(EventName.TOUCH_DOWN.value) {}
                                 .setEvent(EventName.TOUCH_MOVE.value) {}
                                 .setEvent(EventName.TOUCH_UP.value) {}

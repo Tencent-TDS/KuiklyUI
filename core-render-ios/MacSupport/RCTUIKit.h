@@ -380,6 +380,18 @@ typedef NS_ENUM(NSInteger, UIActivityIndicatorViewStyle) {
     UIActivityIndicatorViewStyleMedium,
 };
 
+#pragma mark - Glass Effect Style Enum (macOS 26.0+)
+
+// [macOS] Map UIGlassEffectStyle to NSGlassEffectViewStyle for cross-platform compatibility
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 260000
+typedef NSGlassEffectViewStyle UIGlassEffectStyle API_AVAILABLE(macos(26.0));
+
+enum : NSInteger {
+    UIGlassEffectStyleRegular API_AVAILABLE(macos(26.0)) = NSGlassEffectViewStyleRegular,
+    UIGlassEffectStyleClear API_AVAILABLE(macos(26.0)) = NSGlassEffectViewStyleClear,
+};
+#endif
+
 #pragma mark - Geometry Helper Functions
 
 NS_INLINE CGRect UIEdgeInsetsInsetRect(CGRect rect, NSEdgeInsets insets) {

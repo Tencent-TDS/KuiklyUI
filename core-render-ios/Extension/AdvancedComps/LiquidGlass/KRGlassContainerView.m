@@ -55,3 +55,54 @@
 @end
 
 #endif
+
+// [macOS
+#if TARGET_OS_OSX
+
+@implementation KRGlassContainerView
+
+- (instancetype)initWithFrame:(CGRect)frame {
+    if (self = [super initWithFrame:frame]) {
+        // NSGlassEffectContainerView is initialized with default spacing (0)
+    }
+    return self;
+}
+
+- (void)hrv_setPropWithKey:(NSString * _Nonnull)propKey propValue:(id _Nonnull)propValue {
+    KUIKLY_SET_CSS_COMMON_PROP
+}
+
+- (void)hrv_insertSubview:(NSView *)subView atIndex:(NSInteger)index {
+    // NSGlassEffectContainerView uses contentView for embedding content
+    if (@available(macOS 26.0, *)) {
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 260000
+        if (self.contentView) {
+            NSArray<NSView *> *subviews = self.contentView.subviews;
+            if (index >= (NSInteger)subviews.count) {
+                [self.contentView addSubview:subView];
+            } else {
+                [self.contentView addSubview:subView positioned:NSWindowBelow relativeTo:subviews[index]];
+            }
+        } else {
+            self.contentView = subView;
+        }
+#endif
+    }
+}
+
+#pragma mark - CSS properties
+
+- (void)setCss_glassEffectSpacing:(NSNumber *)spacing {
+    if (@available(macOS 26.0, *)) {
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 260000
+        if (self.spacing != spacing.doubleValue) {
+            self.spacing = spacing.doubleValue;
+        }
+#endif
+    }
+}
+
+@end
+
+#endif
+// macOS]

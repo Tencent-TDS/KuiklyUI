@@ -186,9 +186,9 @@
     return UIUserInterfaceStyleUnspecified;
 }
 
-#if !TARGET_OS_OSX
-#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
-+ (UIGlassEffectStyle)KRGlassEffectStyle:(NSString *)style API_AVAILABLE(ios(26.0)) {
+// [macOS] Unified implementation using UIGlassEffectStyle (mapped to NSGlassEffectViewStyle on macOS via RCTUIKit.h)
+#if (__IPHONE_OS_VERSION_MAX_ALLOWED >= 260000) || (__MAC_OS_X_VERSION_MAX_ALLOWED >= 260000)
++ (UIGlassEffectStyle)KRGlassEffectStyle:(NSString *)style API_AVAILABLE(ios(26.0), macos(26.0)) {
     if (!style || [[UIView css_string:style] isEqualToString:@"regular"]) {
         return UIGlassEffectStyleRegular;
     }
@@ -197,7 +197,6 @@
     }
     return UIGlassEffectStyleRegular;
 }
-#endif
 #endif
 
 + (KRBorderStyle)KRBorderStyle:(NSString *)stringValue {

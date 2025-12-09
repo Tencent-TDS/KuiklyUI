@@ -31,3 +31,22 @@ NS_ASSUME_NONNULL_BEGIN
 NS_ASSUME_NONNULL_END
 
 #endif
+
+// [macOS
+#if TARGET_OS_OSX
+
+NS_ASSUME_NONNULL_BEGIN
+
+/**
+ * 液态玻璃视图组件（macOS版本）
+ * 提供macOS 26.0+的NSGlassEffectView支持
+ */
+API_AVAILABLE(macos(26.0))
+@interface KRLiquidGlassView : NSGlassEffectView <KuiklyRenderViewExportProtocol>
+
+@end
+
+NS_ASSUME_NONNULL_END
+
+#endif
+// macOS]

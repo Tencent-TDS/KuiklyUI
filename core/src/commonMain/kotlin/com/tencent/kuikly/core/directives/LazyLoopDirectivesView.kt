@@ -356,6 +356,9 @@ class LazyLoopDirectivesView<T>(
     private fun needConfirmScrollEnd() = isOhos
 
     override fun scrollerScrollDidEnd(params: ScrollParams) {
+        if (listView == null) {
+            return
+        }
         val offset = if (isRowDirection()) params.offsetX else params.offsetY
         if (listView!!.verifyScrollEventFilterRule(offset, FilterType.SCROLL_END)) {
             logInfo { "scrollDidEnd filtered offset=$offset" }
@@ -570,6 +573,10 @@ class LazyLoopDirectivesView<T>(
     }
 
     override fun onContentOffsetDidChanged(contentOffsetX: Float, contentOffsetY: Float, params: ScrollParams) {
+        // scrollerViewEventObserverSet 事件派发有先后顺序，可能存在其他回调触发listViewRemove，所以这里需要判断listView是否为空
+        if (listView == null) {
+            return
+        }
         val contentOffset = if (isRowDirection()) contentOffsetX else contentOffsetY
         if (listView!!.verifyScrollEventFilterRule(contentOffset, FilterType.SCROLL)) {
             logInfo { "scroll filtered offset=$contentOffset" }
@@ -740,7 +747,7 @@ class LazyLoopDirectivesView<T>(
                 scrollOffsetCorrectInfo = scrollOffsetCorrectInfoOf(
                     position = position,
                     offset = offset,
-                    reachEnd = newEnd == curListSize,
+                    reachEnd = newStart != 0 && newEnd == curListSize,
                     scrolling = scrolling
                 )
                 // 来自API的调用可能没有节点变动，主动markDirty确保触发Layout

@@ -50,7 +50,7 @@ uint32_t ConvertToHexColor(const std::string &colorStr);
 
 ArkUI_BorderStyle ConverToBorderStyle(const std::string &string);
 
-float ConvertToDouble(const std::string &string);
+float ConvertToFloat(const std::string &string);
 
 std::tuple<float, float, float, float> ToArgb(const std::string &color_str);
 
@@ -58,13 +58,15 @@ std::string ConvertDoubleToString(double value);
 
 std::vector<std::string> ConvertSplit(const std::string &str, const std::string &delimiters);
 
-OH_Drawing_FontWeight ConvertFontWeight(int fontWeight);
+OH_Drawing_FontWeight ConvertFontWeight(int fontWeight, float scale);
 
-ArkUI_FontWeight ConvertArkUIFontWeight(int fontWeight);
+ArkUI_FontWeight ConvertArkUIFontWeight(int fontWeight, float scale);
 
 std::string ConvertSizeToString(const KRSize &size);
 
 KRBorderRadiuses ConverToBorderRadiuses(const std::string &borderRadiusString);
+
+std::string ConvertToPathCommand(const std::string &pathProp);
 
 }  // namespace util
 }  // namespace kuikly

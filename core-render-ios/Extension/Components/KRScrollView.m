@@ -213,17 +213,17 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 #pragma mark - UIScrollViewDelegate
 
 - (BOOL)scrollViewShouldScrollToTop:(UIScrollView *)scrollView {
-    BOOL isCompose = self.hr_rootView.contextParam.isCompose;
-    if (isCompose) {
-        if (_css_scrollToTop) {
-            _css_scrollToTop(nil);
-        }
+    if (_css_scrollToTop) {
+        _css_scrollToTop(nil);
         return NO; // Handled by Kotlin side
     }
     return YES;
 }
     
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
+    self.skipNestScrollLock = NO;
+    self.lContentOffset = scrollView.contentOffset;
+
     _isCurrentlyDragging = YES;
     if (_css_dragBegin) {
        _css_dragBegin([self p_generateEventBaseParams]);
@@ -322,6 +322,7 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     if (!UIEdgeInsetsEqualToEdgeInsets(self.contentInset, newContentInsets)) {
         self.contentInset = newContentInsets;
     }
+    self.skipNestScrollLock = YES;
     [self setContentOffset:contentOffset animated:animated];
 }
 

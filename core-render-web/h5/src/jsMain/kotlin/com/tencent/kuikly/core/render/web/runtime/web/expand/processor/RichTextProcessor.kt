@@ -4,7 +4,7 @@ import com.tencent.kuikly.core.render.web.collection.array.JsArray
 import com.tencent.kuikly.core.render.web.expand.components.KRRichTextView
 import com.tencent.kuikly.core.render.web.processor.FontSizeToLineHeightMap
 import com.tencent.kuikly.core.render.web.processor.IRichTextProcessor
-import com.tencent.kuikly.core.render.web.ktx.KRCssConst
+import com.tencent.kuikly.core.render.web.const.KRCssConst
 import com.tencent.kuikly.core.render.web.ktx.SizeF
 import com.tencent.kuikly.core.render.web.ktx.indexOfChild
 import com.tencent.kuikly.core.render.web.ktx.kuiklyDocument
@@ -55,6 +55,8 @@ object RichTextProcessor : IRichTextProcessor {
     private const val FONT_VARIANT = "fontVariant"
     private const val HEAD_INDENT = "headIndent"
     private const val LINE_HEIGHT = "lineHeight"
+    // specify to use dom measure text size
+    private val useDomMeasure = kuiklyDocument.location?.href?.contains("use_dom_measure=1")
 
     private val measureElement: HTMLElement by lazy {
         kuiklyDocument.createElement(ElementType.P).unsafeCast<HTMLElement>().apply {
@@ -310,10 +312,6 @@ object RichTextProcessor : IRichTextProcessor {
         }
 
         // If new properties are supported, use canvas measurement values for calculation
-        // Remove width
-        style.width = ""
-        // Remove height
-        style.height = ""
         if (constraintSize.width > 0) {
             // If constraint size exists, use the constraint size
             style.maxWidth = constraintSize.width.toPxF()
@@ -445,7 +443,7 @@ object RichTextProcessor : IRichTextProcessor {
         // need to calculate width in segments, and consider height after line breaks. If there are
         // multiple child nodes, also need to calculate width in segments here, this will be
         // optimized later todo
-        return if (view.ele.children.length > 0) {
+        return if ((useDomMeasure == true) || view.ele.children.length > 0) {
             // There are child nodes, need to loop calculation, temporarily use Dom method for calculation
             calculateRenderViewSizeByDom(constraintSize, view, renderText)
         } else {

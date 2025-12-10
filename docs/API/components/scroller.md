@@ -134,6 +134,14 @@
 | viewHeight | 列表View高度 | Float   |
 | isDragging | 当前是否处于拖拽列表滚动中 | Boolean |
 
+### scrollToTop
+
+监听系统触发的“回到顶部”事件。仅 iOS 会在点击状态栏时触发，默认会拦截系统自动滚动到顶部的行为，需在回调中自行处理（如调用 `setContentOffset`）。
+
+| 参数 | 描述 | 类型 |
+|----|----|----|
+| _无_ | 回调无参数 | - |
+
 ### contentSizeChanged
 
 组件 Size 发生变化事件, 该方法接收一个闭包回调, 回调中的参数如下

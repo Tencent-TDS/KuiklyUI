@@ -31,6 +31,7 @@ import com.tencent.kuikly.core.manager.TaskManager
 import com.tencent.kuikly.core.module.*
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.timer.setTimeout
+import com.tencent.kuikly.core.utils.verifyFailedHandler
 
 abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
     open var ignoreLayout: Boolean = false
@@ -59,6 +60,8 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
     private var pageTrace : PageCreateTrace? = null
     override val isDebugUIInspector by lazy { debugUIInspector() } // debug ui
     override var didCreateBody: Boolean = false
+    final override var isAppeared: Boolean = false
+        private set
     private val innerBackPressHandler: BackPressHandler by lazy(LazyThreadSafetyMode.NONE) {
         BackPressHandler()
     }
@@ -214,8 +217,14 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
             observer.onPagerEvent(pagerEvent, eventData)
         }
         when (pagerEvent) {
-            PAGER_EVENT_DID_APPEAR -> pageDidAppear()
-            PAGER_EVENT_DID_DISAPPEAR -> pageDidDisappear()
+            PAGER_EVENT_DID_APPEAR -> {
+                isAppeared = true
+                pageDidAppear()
+            }
+            PAGER_EVENT_DID_DISAPPEAR -> {
+                isAppeared = false
+                pageDidDisappear()
+            }
             PAGER_EVENT_THEME_DID_CHANGED -> themeDidChanged(eventData)
             PAGER_EVENT_FIRST_FRAME_PAINT -> {
                 onFirstFramePaint()
@@ -554,6 +563,21 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         const val SAFE_AREA_INSETS = "safeAreaInsets"
         const val DENSITY_INFO = "densityInfo"
         const val DENSITY_INFO_KEY_NEW_DENSITY = "newDensity"
+
+        var VERIFY_THREAD
+            get() = com.tencent.kuikly.core.utils.VERIFY_THREAD
+            set(value) {
+                com.tencent.kuikly.core.utils.VERIFY_THREAD = value
+            }
+        var VERIFY_REACTIVE_OBSERVER
+            get() = com.tencent.kuikly.core.utils.VERIFY_REACTIVE_OBSERVER
+            set(value) {
+                com.tencent.kuikly.core.utils.VERIFY_REACTIVE_OBSERVER = value
+            }
+        fun verifyFailed(handler: (RuntimeException) -> Unit) {
+            verifyFailedHandler = handler
+        }
+
     }
 }
 

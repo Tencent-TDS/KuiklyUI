@@ -70,8 +70,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)css_onClickTapWithSender:(UIGestureRecognizer *)sender;
 - (void)css_onDoubleClickWithSender:(UIGestureRecognizer *)sender;
-// TODO
-// - (void)css_onLongPressWithSender:(UILongPressGestureRecognizer *)sender;
+- (void)css_onLongPressWithSender:(UILongPressGestureRecognizer *)sender;
+- (CGPoint)kr_convertLocalPointToRenderRoot:(CGPoint)point;
 @end
 
 // ***  CSSGrientLayer  ** //

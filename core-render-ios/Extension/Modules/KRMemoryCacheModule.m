@@ -95,7 +95,6 @@ static NSString *const kCacheStateInProgress = @"InProgress";
 }
 
 - (NSString*)cacheImage:(UIImage*)image withCachekey:(NSString*)cacheKey callback:(KuiklyRenderCallback)callback{
-    NSString* state = @"Complete";
     NSNumber* errorCode = @(0);
     NSString* errorMsg = @"";
     
@@ -106,7 +105,7 @@ static NSString *const kCacheStateInProgress = @"InProgress";
     errorMsg = @"";
     NSDictionary *result = @{
         @"state": kCacheStateComplete,
-        @"errorCode": @(0),
+        @"errorCode": errorCode,
         @"errorMsg": @"",
         @"cacheKey": cacheKey,
         @"width": @(image.size.width),

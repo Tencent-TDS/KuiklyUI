@@ -37,12 +37,12 @@ export * from './src/main/ets/modules/export';
 
 export { KRNativeRender as Kuikly } from './src/main/ets/KRNativeRender';
 
-export { IKuiklyViewDelegate, KRNativeRenderController, IKuiklyRenderViewLifecycleCallback } from './src/main/ets/KRNativeRenderController';
+export { IKuiklyViewDelegate, KRNativeRenderController, IKuiklyRenderViewLifecycleCallback, KRMonitorType } from './src/main/ets/KRNativeRenderController';
 
 // 兼容旧版本
 export { KRNativeRenderController as KTNativeRenderController } from './src/main/ets/KRNativeRenderController';
 
-export { KuiklyRenderBaseView, KRRenderViewExportCreator, KRPAGView } from './src/main/ets/components/export';
+export * from './src/main/ets/components/export';
 
 export { KuiklyRenderAdapterManager } from './src/main/ets/adapter/KRAdapterManager';
 

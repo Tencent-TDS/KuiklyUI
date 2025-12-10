@@ -20,9 +20,14 @@ package com.tencent.kuikly.compose
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.InternalComposeApi
+import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
+import com.tencent.kuikly.compose.container.LocalSlotProvider
+import com.tencent.kuikly.compose.container.SlotProvider
 import com.tencent.kuikly.compose.coroutines.internal.ComposeDispatcher
 import com.tencent.kuikly.compose.foundation.event.OnBackPressedDispatcher
 import com.tencent.kuikly.compose.foundation.event.OnBackPressedDispatcherOwner
+import com.tencent.kuikly.compose.platform.Configuration
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.GlobalSnapshotManager
 import com.tencent.kuikly.compose.ui.InternalComposeUiApi
@@ -35,6 +40,9 @@ import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
 import com.tencent.kuikly.compose.ui.util.fastRoundToInt
 import com.tencent.kuikly.compose.ui.KuiklyImageCacheManager
+import com.tencent.kuikly.compose.ui.platform.LocalActivity
+import com.tencent.kuikly.compose.ui.platform.LocalConfiguration
+import com.tencent.kuikly.compose.ui.platform.LocalOnBackPressedDispatcherOwner
 import com.tencent.kuikly.core.base.BackPressHandler
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.event.layoutFrameDidChange
@@ -43,6 +51,13 @@ import com.tencent.kuikly.core.module.VsyncModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.views.DivView
+import com.tencent.kuikly.lifecycle.Lifecycle
+import com.tencent.kuikly.lifecycle.LifecycleOwner
+import com.tencent.kuikly.lifecycle.LifecycleRegistry
+import com.tencent.kuikly.lifecycle.ViewModelStore
+import com.tencent.kuikly.lifecycle.ViewModelStoreOwner
+import com.tencent.kuikly.lifecycle.compose.LocalLifecycleOwner
+import com.tencent.kuikly.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import kotlin.coroutines.CoroutineContext
 
 fun ComposeContainer.setContent(content: @Composable () -> Unit) {
@@ -54,6 +69,14 @@ open class ComposeContainer :
     OnBackPressedDispatcherOwner {
     override var ignoreLayout = true
     override var didCreateBody: Boolean = false
+
+    private val lifecycleOwner: LifecycleOwner = object : LifecycleOwner {
+        override val lifecycle = LifecycleRegistry(this)
+        override val pagerId get() = this@ComposeContainer.pagerId
+    }
+    private val viewModelStoreOwner: ViewModelStoreOwner = object : ViewModelStoreOwner {
+        override val viewModelStore = ViewModelStore()
+    }
 
     var layoutDirection: LayoutDirection = LayoutDirection.Ltr
 
@@ -70,6 +93,8 @@ open class ComposeContainer :
     internal val imageCacheManager by lazy(LazyThreadSafetyMode.NONE) {
         KuiklyImageCacheManager(this)
     }
+
+    private var configuration: Configuration? = null
 
     override fun viewDidLoad() {
         super.viewDidLoad()
@@ -126,15 +151,22 @@ open class ComposeContainer :
         }
     }
 
+    override fun created() {
+        super.created()
+        updateLifecycleState(Lifecycle.State.CREATED)
+    }
+
     override fun pageDidAppear() {
         super.pageDidAppear()
         GlobalSnapshotManager.resume()
         mediator?.updateAppState(true)
+        updateLifecycleState(Lifecycle.State.RESUMED)
     }
 
     override fun pageDidDisappear() {
         super.pageDidDisappear()
         GlobalSnapshotManager.pause()
+        updateLifecycleState(Lifecycle.State.CREATED)
     }
 
     override fun pageWillDestroy() {
@@ -142,6 +174,11 @@ open class ComposeContainer :
         stopFrameDispatcher()
         mediator?.updateAppState(false)
         dispose()
+        updateLifecycleState(Lifecycle.State.DESTROYED)
+    }
+
+    private fun updateLifecycleState(state: Lifecycle.State) {
+        (lifecycleOwner.lifecycle as LifecycleRegistry).currentState = state
     }
 
     @OptIn(InternalComposeUiApi::class)
@@ -160,12 +197,16 @@ open class ComposeContainer :
         )
 
     private fun createMediatorIfNeeded() {
+        if (configuration == null) {
+            configuration = Configuration(this)
+        }
         if (mediator == null) {
             mediator = createMediator()
         }
     }
 
     private fun dispose() {
+        viewModelStoreOwner.viewModelStore.clear()
         mediator?.dispose()
         mediator = null
     }
@@ -195,7 +236,7 @@ open class ComposeContainer :
         } else if (pagerEvent == PAGER_EVENT_CONFIGURATION_DID_CHANGED) {
             val fontWeightScale = eventData.optDouble("fontWeightScale", 1.0)
             val fontSizeScale = eventData.optDouble("fontSizeScale", 1.0)
-            mediator?.configuration?.onFontConfigChange(fontSizeScale, fontWeightScale)
+            configuration?.onFontConfigChange(fontSizeScale, fontWeightScale)
         }
     }
 
@@ -204,7 +245,7 @@ open class ComposeContainer :
             (frame.width * pagerDensity()).fastRoundToInt(),
             (frame.height * pagerDensity()).fastRoundToInt()
         )
-        mediator?.configuration?.onRootViewSizeChanged(frame.width.toDouble(), frame.height.toDouble())
+        configuration?.onRootViewSizeChanged(frame.width.toDouble(), frame.height.toDouble())
         mediator?.viewWillLayoutSubviews()
     }
 
@@ -214,10 +255,25 @@ open class ComposeContainer :
 
     @OptIn(InternalComposeApi::class)
     @Composable
-    internal fun ProvideContainerCompositionLocals(content: @Composable () -> Unit) =
+    internal fun ProvideContainerCompositionLocals(content: @Composable () -> Unit) {
+        val slotProvider = remember { SlotProvider() }
         CompositionLocalProvider(
-            content = content,
-        )
+            LocalLifecycleOwner provides lifecycleOwner,
+            LocalViewModelStoreOwner provides viewModelStoreOwner,
+            // Kuikly
+            LocalActivity provides this,
+            LocalOnBackPressedDispatcherOwner provides this,
+            LocalSlotProvider provides slotProvider,
+            LocalConfiguration provides configuration!!
+        ) {
+            content()
+            LocalSlotProvider.current.slots.forEach { slotContent ->
+                key(slotContent.first) {
+                    slotContent.second?.invoke()
+                }
+            }
+        }
+    }
 
     private fun setComposeContent(content: @Composable () -> Unit) {
         mediator?.setContent {

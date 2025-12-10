@@ -4,7 +4,7 @@ import com.tencent.kuikly.core.render.web.IKuiklyRenderContext
 import com.tencent.kuikly.core.render.web.expand.module.KRMemoryCacheModule
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.web.ktx.Frame
-import com.tencent.kuikly.core.render.web.ktx.KRCssConst
+import com.tencent.kuikly.core.render.web.const.KRCssConst
 import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.web.ktx.kuiklyDocument
 import com.tencent.kuikly.core.render.web.ktx.setFrame
@@ -161,7 +161,7 @@ open class KRImageView(
      */
     private fun setSrc(src: String) {
         // Set when image src is not empty, otherwise use default transparent image
-        if (src != "") {
+        if (src.isNotEmpty()) {
             if (isAssetsSrc(src)) {
                 // If it's an assets resource image, remove assets prefix and replace with assets path
                 image.src = KuiklyProcessor.imageProcessor.getImageAssetsSource(src)

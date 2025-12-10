@@ -3,7 +3,7 @@ package com.tencent.kuikly.core.render.web.runtime.miniapp.dom
 import com.tencent.kuikly.core.render.web.collection.fastMutableMapOf
 import com.tencent.kuikly.core.render.web.collection.map.set
 import com.tencent.kuikly.core.render.web.expand.components.list.KRListViewContentInset
-import com.tencent.kuikly.core.render.web.ktx.KRCssConst
+import com.tencent.kuikly.core.render.web.const.KRCssConst
 import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.web.runtime.dom.element.IListElement
 import com.tencent.kuikly.core.render.web.runtime.miniapp.MiniGlobal
@@ -46,6 +46,10 @@ class MiniListElement(
 
     // Scroll end callback
     override var scrollEndEventCallback: KuiklyRenderCallback? = null
+
+    // Click callback
+    override var clickEventCallback: KuiklyRenderCallback? = null
+    override var doubleClickEventCallback: KuiklyRenderCallback? = null
 
     // When manually set, record the scroll value. When the triggered scroll equals this value,
     // it can be considered as scroll ended

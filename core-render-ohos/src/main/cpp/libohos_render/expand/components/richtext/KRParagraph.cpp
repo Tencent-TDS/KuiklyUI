@@ -247,7 +247,7 @@ void KRParagraph::AddSpanToStyledString(const KRRenderValue::Map &spanMap, ArkUI
     if (text.length() == 0) {
         text = GetKTValue("text", spanMap, spanMap)->toString();
     }
-    auto fontWeight = kuikly::util::ConvertFontWeight(GetKTValue("fontWeight", spanMap, props_)->toInt() * font_weight_scale_);
+    auto fontWeight = kuikly::util::ConvertFontWeight(GetKTValue("fontWeight", spanMap, props_)->toInt(), font_weight_scale_);
     auto colorStr = GetKTValue("color", spanMap, props_)->toString();
     auto fontFamily = GetKTValue("fontFamily", spanMap, props_)->toString();
     auto color = colorStr.length() ? kuikly::util::ConvertToHexColor(colorStr) : 0xff000000;                   // 默认黑色

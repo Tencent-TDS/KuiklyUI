@@ -1,16 +1,17 @@
+package com.tencent.kuikly.miniapp
+
 import com.tencent.kuikly.core.render.web.IKuiklyRenderExport
-import com.tencent.kuikly.core.render.web.runtime.miniapp.expand.KuiklyRenderViewDelegator
 import com.tencent.kuikly.core.render.web.expand.KuiklyRenderViewDelegatorDelegate
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewPropExternalHandler
 import com.tencent.kuikly.core.render.web.runtime.miniapp.core.Transform
 import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.MiniElement
-import components.KRMyView
-import components.KRWebView
-import dom.MiniWebViewElement
-import module.KRBridgeModule
-import module.KRCacheModule
-
+import com.tencent.kuikly.core.render.web.runtime.miniapp.expand.KuiklyRenderViewDelegator
+import com.tencent.kuikly.miniapp.components.KRMyView
+import com.tencent.kuikly.miniapp.components.KRWebView
+import com.tencent.kuikly.miniapp.dom.MiniWebViewElement
+import com.tencent.kuikly.miniapp.module.KRBridgeModule
+import com.tencent.kuikly.miniapp.module.KRCacheModule
 
 class ViewPropExternalHandler : IKuiklyRenderViewPropExternalHandler {
     override fun setViewExternalProp(
@@ -23,6 +24,7 @@ class ViewPropExternalHandler : IKuiklyRenderViewPropExternalHandler {
                 renderViewExport.ele.unsafeCast<MiniElement>().needCustomWrapper = propKey.toBoolean()
                 true
             }
+
             else -> false
         }
     }
@@ -32,21 +34,16 @@ class ViewPropExternalHandler : IKuiklyRenderViewPropExternalHandler {
         propKey: String
     ): Boolean {
         return when (propKey) {
-            "needCustomWrapper" -> {
-                true
-            }
+            "needCustomWrapper" -> true
             else -> false
         }
     }
-
 }
-
 
 /**
  * Implement the delegate interface provided by Web Render
  */
 class KuiklyWebRenderViewDelegator : KuiklyRenderViewDelegatorDelegate {
-
     // mini render delegate
     val delegate = KuiklyRenderViewDelegator(this)
 

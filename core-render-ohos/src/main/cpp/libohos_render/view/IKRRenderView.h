@@ -20,6 +20,7 @@
 #include <rawfile/raw_file_manager.h>
 #include <memory>
 #include "libohos_render/context/KRRenderContextParams.h"
+#include "libohos_render/foundation/KRPoint.h"
 #include "libohos_render/performance/KRPerformanceManager.h"
 #include "libohos_render/scheduler/IKRScheduler.h"
 
@@ -111,6 +112,12 @@ class IKRRenderView : public std::enable_shared_from_this<IKRRenderView> {
     virtual NativeResourceManager *GetNativeResourceManager() = 0;
 
     virtual std::shared_ptr<KRPerformanceManager> GetPerformanceManager() = 0;  //  性能采集管理类
+
+    /**
+     * 获取容器在视口中的位置
+     * @return 容器位置 (x, y)
+     */
+    virtual KRPoint GetRootNodePositionInWindow() const = 0;
 };
 
 #endif  // CORE_RENDER_OHOS_IKRRENDERVIEW_H

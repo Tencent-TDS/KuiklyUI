@@ -769,7 +769,7 @@
     #if TARGET_OS_OSX
     CGPoint pageLocation = [sender locationInView:nil]; // 窗口坐标
     #else
-    CGPoint pageLocation = [sender locationInView:self.window];
+    CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
     #endif
     NSDictionary *param = @{
         @"x": @(location.x),
@@ -787,7 +787,7 @@
     #if TARGET_OS_OSX
     CGPoint pageLocation = [sender locationInView:nil];
     #else
-    CGPoint pageLocation = [sender locationInView:self.window];
+    CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
     #endif
     NSDictionary *param = @{
         @"x": @(location.x),
@@ -809,7 +809,7 @@
     #if TARGET_OS_OSX
     CGPoint pageLocation = [sender locationInView:nil];
     #else
-    CGPoint pageLocation = [sender locationInView:self.window];
+    CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
     #endif
     NSDictionary *param = @{
         @"state": config[@(sender.state)] ? : @"end",
@@ -817,10 +817,22 @@
         @"y": @(location.y),
         @"pageX": @(pageLocation.x),
         @"pageY": @(pageLocation.y),
+        @"isCancel": @(sender.state == UIGestureRecognizerStateCancelled)   // 增加isCancel参数回传
     };
     if (self.css_longPress) {
         self.css_longPress(param);
     }
+}
+
+- (CGPoint)kr_convertLocalPointToRenderRoot:(CGPoint)point{
+    UIView *root = nil;
+    if ([self respondsToSelector:@selector(hr_rootView)]){
+        root = [self performSelector:@selector(hr_rootView)];
+    } else if ([self.superview respondsToSelector:@selector(hr_rootView)]){
+        root = [self.superview performSelector:@selector(hr_rootView)];
+    }
+    
+    return [self convertPoint:point toView:root];
 }
 
 - (void)css_onPanWithSender:(UIPanGestureRecognizer *)sender {
@@ -833,7 +845,7 @@
     #if TARGET_OS_OSX
     CGPoint pageLocation = [sender locationInView:nil];
     #else
-    CGPoint pageLocation = [sender locationInView:self.window];
+    CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
     #endif
     NSDictionary *param = @{
         @"state": config[@(sender.state)] ? : @"end",
@@ -1402,7 +1414,7 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
         option |= UIViewAnimationOptionRepeat;
     }
     [UIView animateKeyframesWithDuration:_duration delay:_delay options:option | UIViewAnimationOptionAllowUserInteraction animations:^{
-    UIViewAnimationCurve animationCurve = _viewAnimationCurve;
+        UIViewAnimationCurve animationCurve = self->_viewAnimationCurve;
             [animations enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
                 dispatch_block_t block = obj;
                 [UIView setAnimationCurve:animationCurve]; // 设置动画曲线

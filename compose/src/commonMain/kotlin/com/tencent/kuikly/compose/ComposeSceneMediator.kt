@@ -50,7 +50,6 @@ class ComposeSceneMediator(
 ) {
 
     private var hasStartRender = false
-    val configuration = Configuration()
     val superTouchManager = SuperTouchManager()
 
     fun updateAppState(isApplicationActive: Boolean) {
@@ -78,16 +77,7 @@ class ComposeSceneMediator(
         if (hasStartRender) {
             return
         }
-        scene.setContent {
-            ProvideComposeSceneMediatorCompositionLocals {
-                content()
-                LocalSlotProvider.current.slots.forEach { slotContent ->
-                    key(slotContent.first) {
-                        slotContent.second?.invoke()
-                    }
-                }
-            }
-        }
+        scene.setContent(content)
         hasStartRender = true
     }
 
@@ -121,16 +111,6 @@ class ComposeSceneMediator(
         scene.vsyncTickConditions.onDisplayLinkTick {
             scene.render(null, timestamp)
         }
-    }
-
-    @Composable
-    private fun ProvideComposeSceneMediatorCompositionLocals(content: @Composable () -> Unit) {
-        val slotProvider = remember { SlotProvider() }
-        CompositionLocalProvider(
-            LocalSlotProvider provides slotProvider,
-            LocalConfiguration provides configuration,
-            content = content
-        )
     }
 
     init {

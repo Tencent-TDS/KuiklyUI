@@ -69,8 +69,10 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
         if (onDestruct_) {
             onDestruct_(moduleInstance_);
         }
-        std::lock_guard<std::mutex> guard(callbacksMutex_);
-        std::for_each(callbacks_.begin(), callbacks_.end(), [this /* non-escaping lambda, safe*/](auto item) { FreeCallbackContext(item); });
+        std::for_each(module_callbacks_.begin(), module_callbacks_.end(), [this /* non-escaping lambda, safe*/](auto item) {
+            RemoveCallbackContext(item);
+            FreeCallbackContext(item); 
+        });
     }
 
     KRAnyValue CallMethod(bool sync, const std::string &method, KRAnyValue params,
@@ -79,6 +81,11 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
             std::string paramStr = params->toString();
             // create a callback context
             struct KRRenderModuleCallbackContextData *cbData = AllocCallbackContext(shared_from_this(), callback, callback_keep_alive);
+            {
+                std::lock_guard<std::mutex> guard(module_callback_mutex_);
+                module_callbacks_.insert(cbData);
+            }
+            
             struct KRAnyDataInternal anyDataInternal;
             anyDataInternal.anyValue = params;
             auto val = onCallMethodV2_(moduleInstance_, moduleName_.c_str(), sync, method.c_str(), &anyDataInternal, (KRRenderModuleCallbackContext)cbData);
@@ -95,6 +102,11 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
             std::string paramStr = params->toString();
             // create a callback context
             struct KRRenderModuleCallbackContextData *cbData = AllocCallbackContext(shared_from_this(), callback, callback_keep_alive);
+            {
+                std::lock_guard<std::mutex> guard(module_callback_mutex_);
+                module_callbacks_.insert(cbData);
+            }
+            
             struct KRAnyDataInternal anyDataInternal;
             anyDataInternal.anyValue = params;
             auto val = onCallMethod_(moduleInstance_, moduleName_.c_str(), sync, method.c_str(), &anyDataInternal, (KRRenderModuleCallbackContext)cbData);
@@ -121,45 +133,62 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
                 callbackContextData->cb_ = nullptr;
                 RemoveCallbackContext(context);
                 FreeCallbackContext(callbackContextData);
+                // erase from instance
+                std::lock_guard<std::mutex> guard(module_callback_mutex_);
+                module_callbacks_.erase(context);
             }
         }
     }
 
+    static std::shared_ptr<KRForwardRenderModule> GetModuleWithCallbackContext(KRRenderModuleCallbackContext context) {
+        if (context == nullptr) {
+            return nullptr;
+        }
+        std::lock_guard<std::mutex> guard(g_callback_mutex_);
+        auto it = g_callbacks_.find(context);
+        if (it != g_callbacks_.end()) {
+            if(auto module = (*it)->module_.lock()){
+                return std::dynamic_pointer_cast<KRForwardRenderModule>(module);
+            }
+        }
+        return nullptr;
+    }
  private:
-    struct KRRenderModuleCallbackContextData *AllocCallbackContext(std::weak_ptr<IKRRenderModuleExport> module,
+    static struct KRRenderModuleCallbackContextData *AllocCallbackContext(std::weak_ptr<IKRRenderModuleExport> module,
                                                                    const KRRenderCallback &callback,
         bool keepCallbackAlive) {
-        struct KRRenderModuleCallbackContextData *cbData = new KRRenderModuleCallbackContextData(shared_from_this(), callback, keepCallbackAlive);
-        std::lock_guard<std::mutex> guard(callbacksMutex_);
-        callbacks_.insert(cbData);
+        struct KRRenderModuleCallbackContextData *cbData = new KRRenderModuleCallbackContextData(module, callback, keepCallbackAlive);
+        std::lock_guard<std::mutex> guard(g_callback_mutex_);
+        g_callbacks_.insert(cbData);
         return cbData;
     }
-    struct KRRenderModuleCallbackContextData *FindCallbackContext(KRRenderModuleCallbackContext context) {
+    static struct KRRenderModuleCallbackContextData *FindCallbackContext(KRRenderModuleCallbackContext context) {
         if (context == nullptr) {
             return nullptr;
         }
         KRRenderModuleCallbackContextData *result = nullptr;
-        std::lock_guard<std::mutex> guard(callbacksMutex_);
-        auto it = callbacks_.find(context);
-        if (it != callbacks_.end()) {
+        std::lock_guard<std::mutex> guard(g_callback_mutex_);
+        auto it = g_callbacks_.find(context);
+        if (it != g_callbacks_.end()) {
             result = *it;
         }
         return result;
     }
-    struct KRRenderModuleCallbackContextData *RemoveCallbackContext(KRRenderModuleCallbackContext context) {
+    static struct KRRenderModuleCallbackContextData *RemoveCallbackContext(KRRenderModuleCallbackContext context) {
         if (context == nullptr) {
             return nullptr;
         }
         KRRenderModuleCallbackContextData *result = nullptr;
-        std::lock_guard<std::mutex> guard(callbacksMutex_);
-        auto it = callbacks_.find(context);
-        if (it != callbacks_.end()) {
+        std::lock_guard<std::mutex> guard(g_callback_mutex_);
+        auto it = g_callbacks_.find(context);
+        if (it != g_callbacks_.end()) {
             result = *it;
-            callbacks_.erase(it);
+            g_callbacks_.erase(it);
         }
         return result;
     }
-    void FreeCallbackContext(struct KRRenderModuleCallbackContextData *context) {
+    
+    static void FreeCallbackContext(struct KRRenderModuleCallbackContextData *context) {
         if (context == nullptr) {
             return;
         }
@@ -173,9 +202,15 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
     KRRenderModuleCallMethodV2 onCallMethodV2_;
     void *userData_;
     void *moduleInstance_;
-    std::unordered_set<struct KRRenderModuleCallbackContextData *> callbacks_;
-    std::mutex callbacksMutex_;
+    std::unordered_set<struct KRRenderModuleCallbackContextData *> module_callbacks_;
+    std::mutex module_callback_mutex_;
+    
+    static std::unordered_set<struct KRRenderModuleCallbackContextData *> g_callbacks_;
+    static std::mutex g_callback_mutex_;
 };
+
+std::unordered_set<struct KRRenderModuleCallbackContextData *> KRForwardRenderModule::g_callbacks_;
+std::mutex KRForwardRenderModule::g_callback_mutex_;
 
 class BridgeLogAdapter : public IKRLogAdapter {
  public:
@@ -209,20 +244,19 @@ extern "C" {
 #endif
 
 void KRRenderModuleDoCallback(KRRenderModuleCallbackContext context, const char *data) {
-    struct KRRenderModuleCallbackContextData *contextData = (struct KRRenderModuleCallbackContextData *)context;
-    if (auto renderModule = contextData->module_.lock()) {
-        std::shared_ptr<KRForwardRenderModule> forwardRenderModule =
-            std::dynamic_pointer_cast<KRForwardRenderModule>(renderModule);
+    if (!context) {
+        return;
+    }
+    if (auto forwardRenderModule = KRForwardRenderModule::GetModuleWithCallbackContext(context)) {
         forwardRenderModule->DoCallback(context, data);
     }
 }
 
 ArkUI_NodeHandle KRRenderModuleGetViewWithTag(KRRenderModuleCallbackContext context, int tag) {
-    struct KRRenderModuleCallbackContextData *contextData = (struct KRRenderModuleCallbackContextData *)context;
-    if (!contextData) {
+    if (!context) {
         return nullptr;
     }
-    if (auto renderModule = contextData->module_.lock()) {
+    if (auto renderModule = KRForwardRenderModule::GetModuleWithCallbackContext(context)) {
         if (auto rootView = renderModule->GetRootView().lock()) {
             if (std::shared_ptr<IKRRenderViewExport> view = rootView->GetView(tag)) {
                 return view->GetNode();
@@ -233,13 +267,10 @@ ArkUI_NodeHandle KRRenderModuleGetViewWithTag(KRRenderModuleCallbackContext cont
 }
 
 const char* KRRenderModuleGetInstanceID(KRRenderModuleCallbackContext context) {
-    struct KRRenderModuleCallbackContextData *contextData = (struct KRRenderModuleCallbackContextData *)context;
-    if (!contextData) {
+    if (!context) {
         return nullptr;
     }
-    if (auto renderModule = contextData->module_.lock()) {
-        std::shared_ptr<KRForwardRenderModule> forwardRenderModule =
-            std::dynamic_pointer_cast<KRForwardRenderModule>(renderModule);
+    if (auto forwardRenderModule = KRForwardRenderModule::GetModuleWithCallbackContext(context)) {
         return forwardRenderModule->GetInstanceId().c_str();
     }
     return nullptr;

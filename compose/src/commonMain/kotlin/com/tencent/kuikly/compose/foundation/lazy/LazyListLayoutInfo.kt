@@ -19,6 +19,7 @@ package com.tencent.kuikly.compose.foundation.lazy
 import com.tencent.kuikly.compose.foundation.gestures.Orientation
 import com.tencent.kuikly.compose.ui.internal.JvmDefaultWithCompatibility
 import com.tencent.kuikly.compose.ui.unit.IntSize
+import com.tencent.kuikly.compose.ui.util.fastSumBy
 
 /**
  * Contains useful information about the currently displayed layout state of lazy lists like
@@ -87,4 +88,16 @@ interface LazyListLayoutInfo {
      * The spacing between items in the direction of scrolling.
      */
     val mainAxisItemSpacing: Int get() = 0
+}
+
+/**
+ * Calculate the average size of visible items (including spacing).
+ * 
+ * @return Average item size, or 0 if visibleItemsInfo is empty
+ */
+internal fun LazyListLayoutInfo.calculateAverageItemSize(): Int {
+    val visibleItems = visibleItemsInfo
+    if (visibleItems.isEmpty()) return 0
+    val itemsSum = visibleItems.fastSumBy { it.size }
+    return itemsSum / visibleItems.size + mainAxisItemSpacing
 }

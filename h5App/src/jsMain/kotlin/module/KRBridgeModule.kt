@@ -1,11 +1,11 @@
-package module
+package com.tencent.kuikly.h5app.module
 
 import com.tencent.kuikly.core.render.web.export.KuiklyRenderBaseModule
 import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.web.nvi.serialization.json.JSONException
 import com.tencent.kuikly.core.render.web.nvi.serialization.json.JSONObject
 import kotlinx.browser.window
-import utils.Ui
+import com.tencent.kuikly.h5app.utils.Ui
 import kotlin.js.Date
 
 /**
@@ -16,10 +16,12 @@ class KRBridgeModule : KuiklyRenderBaseModule() {
         return when (method) {
             "toast" -> {
                 toast(params)
+                Unit
             }
 
             "log" -> {
                 console.log(params)
+                Unit
             }
 
             "currentTimestamp" -> {
@@ -40,6 +42,7 @@ class KRBridgeModule : KuiklyRenderBaseModule() {
                         )))
                     }
                 }
+                Unit
             }
 
             else -> {
@@ -49,6 +52,7 @@ class KRBridgeModule : KuiklyRenderBaseModule() {
                         "message" to "Method does not exist"
                     )
                 )
+                Unit
             }
         }
     }

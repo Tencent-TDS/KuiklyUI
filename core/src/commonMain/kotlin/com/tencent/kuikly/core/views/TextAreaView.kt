@@ -414,6 +414,15 @@ open class TextAreaAttr : Attr() {
         return this
     }
 
+    /**
+     * 是否启用拼音输入回调
+     * @param enable 是否启用，默认为false
+     */
+    fun enablePinyinCallback(enable: Boolean = false): TextAreaAttr {
+        "enablePinyinCallback" with (if (enable) 1 else 0)
+        return this
+    }
+
     companion object {
         const val RETURN_KEY_TYPE = "returnKeyType"
         const val KEYBOARD_TYPE = "keyboardType"

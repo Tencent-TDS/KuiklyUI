@@ -10,8 +10,9 @@
 #import "KRFPSMonitor.h"
 #import "KuiklyRenderThreadManager.h"
 #import "KRMemoryMonitor.h"
+#import "KuiklyContextParam.h"
 #import "KRUIKit.h" // [macOS]
-#import "KRDisplayLink.h" // macOS 显示时钟垫片
+#import "KRDisplayLink.h" // [macOS]
 #include <TargetConditionals.h>
 #import <objc/message.h>
 #import <pthread.h>
@@ -274,4 +275,29 @@ static NSMutableDictionary<NSString *, NSNumber *> *gLaunchDic = nil;
 }
 #endif
 
+- (NSDictionary*)performanceData{
+    NSArray *keysArray = @[@"initViewCost", @"fetchContextCodeCost", @"initRenderCoreCost", @"initRenderContextCost", @"pageBuildCost", @"pageLayoutCost", @"createPageCost", @"firstPaintCost", @"createInstanceCost", @"newPageCost", @"renderCost"];
+    NSMutableDictionary *timeMap = [NSMutableDictionary new];
+    NSAssert(keysArray.count == KRLoadStage_renderFP + 1, @"keys 与 枚举数量不匹配 ");
+    for (int i = KRLoadStage_initView; i <= KRLoadStage_renderFP; i++) {
+        int duration = [self durationForStage:(KRLoadStage)i];
+        timeMap[keysArray[i]] = @(duration);
+    }
+    
+    return @{
+        @"mode": @(self.modeId),
+        @"pageExistTime": @(self.pageExistTime),
+        @"isFirstLaunchOfProcess": @([self isFirstLaunchOfProcess]),
+        @"isFirstLaunchOfPage": @([self isFirstLaunchOfPage]),
+        @"pageLoadTime": timeMap,
+        @"mainFPS": @(self.mainFPS.avgFPS),
+        @"kotlinFPS": @(self.kotlinFPS.avgFPS),
+        @"memory": @{
+            @"avgIncrement": @(self.memoryMonitor.avgIncrementMemory),
+            @"peakIncrement": @(self.memoryMonitor.peakIncrementMemory),
+            @"appPeak": @(self.memoryMonitor.appPeakMemory),
+            @"appAvg": @(self.memoryMonitor.appAvgMemory),
+        },
+    };
+}
 @end

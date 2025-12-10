@@ -722,9 +722,9 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
         } else if (value->isInt()) {
             return cJSON_CreateNumber(static_cast<double>(value->toInt()));
         } else if (value->isLong()) {
-            return cJSON_CreateNumber(static_cast<double>(value->toInt()));
+            return cJSON_CreateNumber(static_cast<double>(value->toLong()));
         } else if (value->isFloat()) {
-            return cJSON_CreateNumber(static_cast<double>(value->toInt()));
+            return cJSON_CreateNumber(static_cast<double>(value->toFloat()));
         } else if (value->isDouble()) {
             return cJSON_CreateNumber(value->toDouble());
         } else if (value->isString()) {

@@ -79,6 +79,21 @@ class KRConfig {
         if (ime_mode != map.end()) {
             ime_mode_ = ime_mode->second->toBool();
         }
+
+        auto windowId = map.find("windowId");
+        if (windowId != map.end()) {
+            window_id_ = windowId->second->toString();
+        }
+        
+        auto fontSizeScaleFollowSystem = map.find("fontSizeScaleFollowSystem");
+        if (fontSizeScaleFollowSystem != map.end()) {
+            fontSizeScaleFollowSystem_ = fontSizeScaleFollowSystem->second->toBool();
+        }
+        
+        auto performanceMonitorTypesMask = map.find("performanceMonitorTypesMask");
+        if (performanceMonitorTypesMask != map.end()) {
+            performanceMonitorTypesMask_ = performanceMonitorTypesMask->second->toInt();
+        }
     }
 
     /**
@@ -99,6 +114,16 @@ class KRConfig {
 
     float vp2px(float vp) {
         return vp * vp2px_;
+    }
+
+    /**
+     * 将字体相关单位fp转换为像素值px
+     * 
+     * @param fp 输入的单位值（字体相关单位）
+     * @return 转换后的像素值
+     */
+    float fp2px(float fp) {
+        return fp * fontSizeScale_ * vp2px_;
     }
 
     float Px2Vp(float px) {
@@ -137,6 +162,18 @@ class KRConfig {
         return ime_mode_;
     }
 
+    const std::string &GetWindowId() {
+        return window_id_;
+    }
+
+    const bool GetFontSizeScaleFollowSystem() {
+        return fontSizeScaleFollowSystem_;
+    }
+
+    const int GetPerformanceMonitorTypesMask() {
+        return performanceMonitorTypesMask_;
+    }
+
  private:
     float vp2px_ = 0;
     float fontWeightScale_ = 1;
@@ -147,7 +184,10 @@ class KRConfig {
     std::string resfile_dir_;
     std::string files_dir_;
     std::string assets_dir_;
+    std::string window_id_; // 页面所在的窗口ID，用于标识页面所在的窗口
     bool ime_mode_ = false;
+    bool fontSizeScaleFollowSystem_ = true;
+    int performanceMonitorTypesMask_ = 0;
 };
 
 #endif  // CORE_RENDER_OHOS_KRCONFIG_H

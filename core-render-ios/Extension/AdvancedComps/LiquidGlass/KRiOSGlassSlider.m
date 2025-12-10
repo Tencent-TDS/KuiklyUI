@@ -137,8 +137,7 @@
 - (void)sliderTouchDown:(UISlider *)slider {
     // Send touch down event
     CGPoint relativePoint = slider.center;
-    CGPoint absolutePoint = [slider.superview convertPoint:slider.center toView:nil];
-    
+    CGPoint absolutePoint = [self kr_convertLocalPointToRenderRoot:relativePoint];
     NSDictionary *params = @{
         @"value": @(slider.value),
         @"x": @(relativePoint.x),
@@ -154,7 +153,7 @@
 - (void)sliderTouchUp:(UISlider *)slider {
     // 发送结束拖拽事件
     CGPoint relativePoint = slider.center;
-    CGPoint absolutePoint = [slider.superview convertPoint:slider.center toView:nil];
+    CGPoint absolutePoint = [self kr_convertLocalPointToRenderRoot:relativePoint];
     
     NSDictionary *params = @{
         @"value": @(slider.value),

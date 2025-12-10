@@ -56,6 +56,7 @@ import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.util.fastFirstOrNull
 import com.tencent.kuikly.compose.ui.util.fastRoundToInt
+import com.tencent.kuikly.compose.ui.util.fastSumBy
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.tryExpandStartSizeNoScroll
 import kotlinx.coroutines.CoroutineScope
@@ -451,10 +452,37 @@ class LazyListState
             scrollOffset: Int = 0,
         ) {
             kuiklyInfo.offsetDirty = true
+            
+            // Calculate teleport distance based on viewportSize and average item size
+            val layoutInfo = layoutInfoState.value
+            val numOfItemsToTeleport = if (layoutInfo.visibleItemsInfo.isNotEmpty()) {
+                // Calculate average item size
+                val averageItemSize = layoutInfo.calculateAverageItemSize()
+                
+                // Calculate the number of items that can fit in the viewport
+                val viewportSize = if (layoutInfo.orientation == Orientation.Vertical) {
+                    layoutInfo.viewportSize.height
+                } else {
+                    layoutInfo.viewportSize.width
+                }
+                
+                val itemsPerViewport = if (averageItemSize > 0) {
+                    viewportSize.toFloat() / averageItemSize.toFloat()
+                } else {
+                    10.0f // Default value to avoid division by zero
+                }
+                
+                // 6 times the viewport's item count, with a minimum of 10
+                maxOf((6 * itemsPerViewport).toInt(), 10)
+            } else {
+                // Use default value if visibleItemsInfo is empty
+                NumberOfItemsToTeleport
+            }
+            
             animateScrollScope.animateScrollToItem(
                 index,
                 scrollOffset,
-                NumberOfItemsToTeleport,
+                numOfItemsToTeleport,
                 density,
             )
         }

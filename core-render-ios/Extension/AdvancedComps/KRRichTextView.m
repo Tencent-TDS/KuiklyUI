@@ -86,7 +86,7 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
 #if TARGET_OS_OSX // [macOS NSWindow is not a subclass of NSView, use contentView
     CGPoint pageLocation = [sender locationInView:self.window.contentView];
 #else
-    CGPoint pageLocation = [sender locationInView:self.window];
+    CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
 #endif // macOS]
     KRTextRender * textRender = self.attributedText.hr_textRender;
     NSInteger index = [textRender characterIndexForPoint:location];
@@ -321,7 +321,7 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
     }
     
     // 强制使用LTR文本方向
-    [attributedString addAttribute:NSWritingDirectionAttributeName value:@[@(NSWritingDirectionLeftToRight | NSTextWritingDirectionOverride)] range:range];
+    [attributedString addAttribute:NSWritingDirectionAttributeName value:@[@(NSWritingDirectionLeftToRight | NSWritingDirectionOverride)] range:range];
     
     if(letterSpacing){
         [attributedString addAttribute:NSKernAttributeName value:@(letterSpacing) range:range];
@@ -381,7 +381,7 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
 
     NSAttributedString *attrString = [NSAttributedString attributedStringWithAttachment:attachment];
     NSMutableAttributedString *mutableAttrString = [[NSMutableAttributedString alloc] initWithAttributedString:attrString];
-    [mutableAttrString kr_addAttribute:NSWritingDirectionAttributeName value:@[@(NSWritingDirectionLeftToRight | NSTextWritingDirectionOverride)] range:NSMakeRange(0, mutableAttrString.length)];
+    [mutableAttrString kr_addAttribute:NSWritingDirectionAttributeName value:@[@(NSWritingDirectionLeftToRight | NSWritingDirectionOverride)] range:NSMakeRange(0, mutableAttrString.length)];
     return mutableAttrString;
 }
 

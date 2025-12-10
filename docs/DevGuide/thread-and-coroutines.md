@@ -55,7 +55,9 @@ GlobalScope.launch {
 #### kotlinx.coroutines库
 `kotlinx.coroutines`库是 Kotlin 官方提供的协程库（以下简称**kotlinx协程**），定义了协程的上下文（CoroutineScope）和调度器（Dispatchers）API，并在不同目标平台提供了不同的实现。应用也可以自定义自己的协程作用域和调度器。
 
-通过调度器指定协程运行的线程或线程池。示例：
+通过调度器指定协程运行的线程或线程池.
+
+
 ```kotlin
 GlobalScope.launch {
     println("running in default dispatcher")
@@ -64,13 +66,30 @@ GlobalScope.launch {
     }
 }
 ```
-:::tip 提示
-不同平台支持的调度器有所不同，例如，除了各平台共有的`Dispatchers.Default`和`Dispatchers.Unconfined`，Android平台还提供了`Dispatchers.Main`、`Dispatchers.IO`等。
-具体可以参考[kotlinx.coroutines的API文档](https://kotlinlang.org/api/kotlinx.coroutines/)。
+##### 接入方式
+在`build.gradle.kts`引入Kotlinx协程库：
+
+- iOS & Android 建议参考 [Kotlin官方协程库](https://github.com/Kotlin/kotlinx.coroutines/releases) 获取最新版本与接入方式。
+
+- 鸿蒙平台上使用官方协程库的鸿蒙支持版本：
+
+```gradle
+dependencies {
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0-KBA-002")
+}
+
+// 该扩展协程库位于以下maven源
+maven("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
+```
+
+:::
+tip 提示 不同平台支持的调度器有所不同，例如，除了各平台共有的Dispatchers.Default和Dispatchers.Unconfined，Android平台还提供了Dispatchers.Main、Dispatchers.IO等。 具体可以参考kotlinx.coroutines的API文档。
 :::
 
 #### kuiklyx.coroutines库
 前面提到，Kuikly UI操作都只能在Kuikly线程调用。`kuiklyx.coroutines`库（以下简称**kuiklyx协程**）提供了切换到kuikly线程的能力，当我们在非Kuikly线程执行异步任务后，就可以通过`kuiklyx协程`切换到Kuikly线程进行UI操作。
+
+
 ```kotlin
 private suspend fun fetchData() = withContext(Dispatchers.Main) {
     // 在Main线程执行异步任务
@@ -88,14 +107,31 @@ override fun created() {
     }
 }
 ```
-:::tip kuiklyx协程使用方法
-* 添加依赖（[查看KUIKLYX_COROUTINES_VERSION最新版本号](https://repo1.maven.org/maven2/com/tencent/kuiklyx-open/coroutines/)）
-```kotlin
+
+
+##### kuiklyx协程使用方法
+
+- 添加Kuiklyx协程
+
+在`build.gradle.kts`添加依赖引入kuiklyx.coroutines库：
+
+```gradle
+// iOS & Android
 dependencies {
     implementation("com.tencent.kuiklyx-open:coroutines:$KUIKLYX_COROUTINES_VERSION")
 }
+// 鸿蒙 需使用特定的版本号
+dependencies {
+    implementation("com.tencent.kuiklyx-open:coroutines:$KUIKLYX_COROUTINES_OHOS_VERSION")
+}
 ```
-* 协程方式API
+:::tip 提示
+`KOTLINX_COROUTINES_VERSION`和`KUIKLYX_COROUTINES_OHOS_VERSION`可在此查看（[KUIKLYX_COROUTINES_VERSION最新版本号](https://repo1.maven.org/maven2/com/tencent/kuiklyx-open/coroutines/)）
+例如当前最新的版本号为1.5.0-2.0.21；鸿蒙侧则使用1.5.0-2.0.21-ohos
+:::
+
+
+- 协程方式API
 ```kotlin
 // case 0: js模式使用前需要触发KuiklyContextScheduler初始化，其它模式可忽略
 KuiklyContextScheduler
@@ -104,7 +140,7 @@ GlobalScope.launch(Dispatchers.Kuikly[ctx]) { ... }
 // case 2: 在协程中切换上下文
 withContext(Dispatchers.Kuikly[ctx]) { ... }
 ```
-* 回调方式API
+- 回调方式API
 ```kotlin
 KuiklyContextScheduler.runOnKuiklyThread(pagerId) { cancel ->
     if (cancel) {
@@ -114,8 +150,6 @@ KuiklyContextScheduler.runOnKuiklyThread(pagerId) { cancel ->
     // do something
 }
 ```
-:::
-
 ## Kuikly异步编程介绍
 
 **协程**和**多线程**是Kuikly异步编程的两个维度，它们可以组合出不同的异步编程方式，每种方式都有其适用的场景和优缺点。
@@ -192,20 +226,21 @@ override fun created() {
 
 示例：
 
-先在`build.gradle.kts`添加依赖库：
-```kotlin
+先在build.gradle.kts添加依赖库：
+```gradle
 val commonMain by getting {
     dependencies {
         // kuiklyx协程库
-        implementation("com.tencent.kuiklyx-open:coroutines:$KUIKLYX_COROUTINES_VERSION")
+        implementation("com.tencent.kuiklyx:coroutines:$KUIKLYX_COROUTINES_VERSION")
     }
 }
 ```
-:::tip 提示
-`KUIKLYX_COROUTINES_VERSION`需要根据项目使用的kotlin版本，替换为对应的版本号
+:::tip 提示 
+KUIKLYX_COROUTINES_VERSION 可参考[kuiklyx:coroutines接入](#kuiklyx协程使用方法)
 :::
 
-然后在Kuikly页面中使用：
+
+在Kuikly页面中使用：
 ```kotlin
 override fun created() {
     super.created()
@@ -225,6 +260,7 @@ override fun created() {
 }
 ```
 
+
 ### 方式3：Kotlinx协程库和Kuiklyx协程库（协程方式）
 
 #### 场景四
@@ -232,22 +268,24 @@ override fun created() {
 
 示例：
 
-先在`build.gradle.kts`添加依赖库：
-```kotlin
+先在build.gradle.kts添加依赖库：
+```gradle
 val commonMain by getting {
     dependencies {
         // kotlinx协程库
         implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$KOTLINX_COROUTINES_VERSION")
         // kuiklyx协程库
-        implementation("com.tencent.kuiklyx-open:coroutines:$KUIKLYX_COROUTINES_VERSION")
+        implementation("com.tencent.kuiklyx:coroutines:$KUIKLYX_COROUTINES_VERSION")
     }
 }
 ```
-:::tip 提示
-`KOTLINX_COROUTINES_VERSION`和`KUIKLYX_COROUTINES_VERSION`需要根据项目使用的kotlin版本，替换为对应的版本号
+
+:::tip 提示 
+KOTLINX_COROUTINES_VERSION和KUIKLYX_COROUTINES_VERSION 的设置可参考[kotlinx.coroutines库接入方式](#接入方式)
 :::
 
-然后在Kuikly页面中使用：
+
+在Kuikly页面中使用：
 ```kotlin
 override fun created() {
     super.created()
@@ -277,3 +315,5 @@ override fun created() {
 ## 关于线程安全
 * KMP多线程需要开发者自行考虑线程安全问题，可以借助`kotlinx:atomicfu`库提供的原子操作和同步锁能力；
 * Kuikly UI的相关类（View、Attr、Event、ObservableProperties、GlobalFunctions等）非线程安全，且只能在Kuikly线程访问。
+
+

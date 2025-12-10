@@ -26,6 +26,7 @@ constexpr char kPropNameTouchCancel[] = "touchCancel";
 constexpr char kPropNamePreventTouch[] = "preventTouch";
 constexpr char kPropNameSuperTouch[] = "superTouch";
 constexpr char kPropNameHitTestModeOhos[] = "hit-test-ohos";
+constexpr char kPropNameStopPropagation[] = "stop-propagation-ohos";
 
 constexpr char kOhosHitTestModeDefault[] = "default";
 constexpr char kOhosHitTestModeBlock[] = "block";
@@ -68,6 +69,9 @@ bool KRView::SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
         didHand = true;
     } else if (kuikly::util::isEqual(prop_key, kPropNameHitTestModeOhos)) {
         didHand = SetTargetHitTestMode(prop_value->toString());
+    } else if (kuikly::util::isEqual(prop_key, kPropNameStopPropagation)) {
+        stop_propagation_ = prop_value->toBool();
+        didHand = true;
     }
     return didHand;
 }
@@ -108,6 +112,9 @@ bool KRView::ResetProp(const std::string &prop_key) {
         target_hit_test_mode = ARKUI_HIT_TEST_MODE_DEFAULT;
         UpdateHitTestMode(HasBaseEvent() || HasTouchEvent());
         didHande = true;
+    } else if (kuikly::util::isEqual(prop_key, kPropNameStopPropagation)) {
+        stop_propagation_ = false;
+        didHande = true;
     } else {
         didHande = IKRRenderViewExport::ResetProp(prop_key);
     }
@@ -141,13 +148,15 @@ void KRView::ProcessTouchEvent(ArkUI_NodeEvent *event) {
             super_touch_handler_->SetStopPropagation(action, false);
         }
     } else if (handled) {
-        if (super_touch_type_ == PARENT) {
-            auto parent_super_touch_handler = parent_super_touch_handler_.lock();
-            if (parent_super_touch_handler) {
-                parent_super_touch_handler->SetStopPropagation(action, true);
+        if (stop_propagation_) {
+            if (super_touch_type_ == PARENT) {
+                auto parent_super_touch_handler = parent_super_touch_handler_.lock();
+                if (parent_super_touch_handler) {
+                    parent_super_touch_handler->SetStopPropagation(action, true);
+                }
+            } else if (super_touch_type_ == NONE) {
+                kuikly::util::StopPropagation(event);
             }
-        } else if (super_touch_type_ == NONE) {
-            kuikly::util::StopPropagation(event);
         }
     }
 }
@@ -256,15 +265,25 @@ KRAnyValue KRView::GenerateBaseParamsWithTouch(ArkUI_UIInputEvent *input_event, 
         return KREmptyValue();
     }
 
+    KRPoint container_position{0.0f, 0.0f};
+
+    if (auto root_view = GetRootView().lock()) {
+        container_position = root_view->GetRootNodePositionInWindow();
+    }
+
     KRRenderValueArray touches;
     for (int i = 0; i < pointer_count; i++) {
         auto point = kuikly::util::GetArkUIInputEventPoint(input_event, i);
         auto window_point = kuikly::util::GetArkUIInputEventWindowPoint(input_event, i);
+
+        float container_relative_x = window_point.x - container_position.x;
+        float container_relative_y = window_point.y - container_position.y;
+
         KRRenderValueMap touch_map;
         touch_map["x"] = NewKRRenderValue(point.x);
         touch_map["y"] = NewKRRenderValue(point.y);
-        touch_map["pageX"] = NewKRRenderValue(window_point.x);
-        touch_map["pageY"] = NewKRRenderValue(window_point.y);
+        touch_map["pageX"] = NewKRRenderValue(container_relative_x);
+        touch_map["pageY"] = NewKRRenderValue(container_relative_y);
         touch_map["pointerId"] = NewKRRenderValue(OH_ArkUI_PointerEvent_GetPointerId(input_event, i));
         touches.push_back(NewKRRenderValue(touch_map));
     }

@@ -1,6 +1,6 @@
 package com.tencent.kuikly.core.render.web.collection.array
 
-import com.tencent.kuikly.core.render.web.ktx.KRExtConst
+import com.tencent.kuikly.core.render.web.const.KRExtConst
 
 fun <T> emptyJsArrayOf() = JsArray<T>()
 
@@ -22,6 +22,7 @@ external class JsArray<T> {
     fun splice(start: Int, deleteCount: Int, vararg items: T): JsArray<T>
     fun findIndex(callback: (item: T) -> Boolean): Int
     fun findIndex(callback: (item: T, index: Int) -> Boolean): Int
+    fun filter(callback: (item: T) -> Boolean): JsArray<T>
 }
 
 inline operator fun <T> JsArray<T>.get(index: Int): T = this.asDynamic()[index].unsafeCast<T>()

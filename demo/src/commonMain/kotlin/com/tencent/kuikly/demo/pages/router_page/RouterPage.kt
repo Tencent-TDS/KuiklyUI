@@ -24,6 +24,7 @@ import com.tencent.kuikly.core.base.ViewRef
 import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.module.SharedPreferencesModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.utils.urlParams
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.Input
@@ -39,6 +40,15 @@ import com.tencent.kuikly.demo.pages.demo.base.NavBar
 internal class RouterPage : BasePager() {
     var inputText: String = ""
     lateinit var inputRef: ViewRef<InputView>
+
+    override fun willInit() {
+        super.willInit()
+        if (pageData.params.optBoolean("debug")) {
+            Pager.VERIFY_THREAD = true // 开启线程校验
+            Pager.VERIFY_REACTIVE_OBSERVER = true // 开启observable校验
+        }
+    }
+
     override fun body(): ViewBuilder {
         val ctx = this
         return {

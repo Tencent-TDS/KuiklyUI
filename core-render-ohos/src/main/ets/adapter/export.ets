@@ -18,3 +18,5 @@ export * from './KRAdapterManager';
 export * from './IKRLogAdapter';
 
 export * from './IKRRouterAdapter';
+
+export * from './IKRVideoViewAdapter'

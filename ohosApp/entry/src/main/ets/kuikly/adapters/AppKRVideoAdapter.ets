@@ -20,12 +20,12 @@ import {
   IKRVideoViewAdapter,
   IKRVideoViewController,
   IKRVideoViewListener
-} from '@kuikly-open/render/src/main/ets/adapter/IKRVideoViewAdapter';
+} from '@kuikly-open/render';
 import {
   KRVideoPlayState,
   KRVideoView,
   KRVideoViewContentMode
-} from '@kuikly-open/render/src/main/ets/components/KRVideoView';
+} from '@kuikly-open/render';
 
 @Component
 struct MyVideoView {

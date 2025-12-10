@@ -42,7 +42,7 @@ export { IKuiklyViewDelegate, KRNativeRenderController, IKuiklyRenderViewLifecyc
 // 兼容旧版本
 export { KRNativeRenderController as KTNativeRenderController } from './src/main/ets/KRNativeRenderController';
 
-export { KuiklyRenderBaseView, KRRenderViewExportCreator, KRPAGView } from './src/main/ets/components/export';
+export * from './src/main/ets/components/export';
 
 export { KuiklyRenderAdapterManager } from './src/main/ets/adapter/KRAdapterManager';
 

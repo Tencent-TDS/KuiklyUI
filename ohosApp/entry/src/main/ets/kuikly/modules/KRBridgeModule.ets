@@ -19,7 +19,7 @@ import { KRAny, KuiklyRenderBaseModule, KuiklyRenderCallback } from '@kuikly-ope
 import util from '@ohos.util';
 import fs from '@ohos.file.fs';
 import { fileUri } from '@kit.CoreFileKit';
-import { KRNetworkCacheUtil } from '@kuikly-open/render/src/main/ets/utils/KRNetworkCacheUtil';
+// import { KRNetworkCacheUtil } from '@kuikly-open/render';
 
 export class KRBridgeModule extends KuiklyRenderBaseModule {
   static readonly MODULE_NAME = 'HRBridgeModule';
@@ -177,10 +177,11 @@ export class KRBridgeModule extends KuiklyRenderBaseModule {
     let records = JSON.parse(params as string) as Record<string, string>;
     let imageUrl = records['imageUrl'];
     let context = getContext(this) as common.UIAbilityContext;
-    KRNetworkCacheUtil.fetchFileByDownloadOrCache(context, imageUrl, (filePath: KRAny) => {
-      callback({
-        'localPath': filePath
-      });
-    });
+    // TODO
+    // KRNetworkCacheUtil.fetchFileByDownloadOrCache(context, imageUrl, (filePath: KRAny) => {
+    //   callback({
+    //     'localPath': filePath
+    //   });
+    // });
   }
 }

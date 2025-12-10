@@ -172,6 +172,21 @@ static char kKUIsInLayoutKey;
     self.alphaValue = alpha;
 }
 
+#pragma mark - Center Property
+
+// Bridge iOS UIView.center to NSView frame-based positioning
+- (CGPoint)center {
+    CGRect frame = self.frame;
+    return CGPointMake(CGRectGetMidX(frame), CGRectGetMidY(frame));
+}
+
+- (void)setCenter:(CGPoint)center {
+    CGRect frame = self.frame;
+    frame.origin.x = center.x - frame.size.width * 0.5;
+    frame.origin.y = center.y - frame.size.height * 0.5;
+    self.frame = frame;
+}
+
 - (NSColor *)backgroundColor {
     CGColorRef cg = self.layer ? self.layer.backgroundColor : NULL;
     return cg ? [NSColor colorWithCGColor:cg] : nil;

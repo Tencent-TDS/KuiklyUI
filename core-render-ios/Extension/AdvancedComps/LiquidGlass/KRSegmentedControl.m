@@ -17,7 +17,6 @@
 #import "KRSegmentedControl.h"
 #import "KRComponentDefine.h"
 
-#if TARGET_OS_IOS // [macOS]
 
 @interface KRSegmentedControl ()
 
@@ -83,5 +82,3 @@
 
 
 @end
-
-#endif

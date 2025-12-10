@@ -1652,10 +1652,190 @@ BOOL KRUIViewSetClipsToBounds(KRPlatformView *view) {
 
 #pragma mark - KRUISlider
 
+@interface KRUISlider ()
+@property (nonatomic, strong) NSMutableDictionary<NSNumber *, NSMutableArray<NSDictionary *> *> *eventHandlers;
+@property (nonatomic, readwrite) BOOL pressed;
+@end
+
 @implementation KRUISlider
 
+// Override synthesize to use NSSlider properties
+@dynamic value;
+@dynamic minimumValue;
+@dynamic maximumValue;
+@dynamic continuous;
+
+- (instancetype)initWithFrame:(NSRect)frameRect {
+    if (self = [super initWithFrame:frameRect]) {
+        _eventHandlers = [NSMutableDictionary new]; // [macOS]
+        _pressed = NO; // [macOS]
+        
+        // [macOS] Set up action to track value changes
+        [super setTarget:self];
+        [super setAction:@selector(kr_sliderValueChanged:)];
+    }
+    return self;
+}
+
+#pragma mark - Property Bridges
+
+// [macOS] Bridge float value to NSSlider's double value
+- (float)value {
+    return (float)self.doubleValue;
+}
+
+- (void)setValue:(float)value {
+    self.doubleValue = (double)value;
+}
+
 - (void)setValue:(float)value animated:(__unused BOOL)animated {
-    self.animator.floatValue = value;
+    // [macOS] Animate slider value change
+    if (animated) {
+        [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
+            context.duration = 0.3;
+            self.animator.doubleValue = (double)value;
+        } completionHandler:nil];
+    } else {
+        self.doubleValue = (double)value;
+    }
+}
+
+- (float)minimumValue {
+    return (float)self.minValue;
+}
+
+- (void)setMinimumValue:(float)minimumValue {
+    self.minValue = (double)minimumValue;
+}
+
+- (float)maximumValue {
+    return (float)self.maxValue;
+}
+
+- (void)setMaximumValue:(float)maximumValue {
+    self.maxValue = (double)maximumValue;
+}
+
+// [macOS] thumbTintColor - limited support on NSSlider
+- (void)setThumbTintColor:(NSColor *)thumbTintColor {
+    _thumbTintColor = thumbTintColor;
+    // Note: NSSlider doesn't directly support thumb tint color
+    // Subclasses may override rendering to use this property
+}
+
+#pragma mark - UIControl-like Target-Action Support
+
+// [macOS] Add target-action for UIControlEvents
+- (void)addTarget:(id)target action:(SEL)action forControlEvents:(UIControlEvents)events {
+    if (!target || !action) return;
+    
+    NSNumber *eventsKey = @(events);
+    NSMutableArray *handlers = self.eventHandlers[eventsKey];
+    if (!handlers) {
+        handlers = [NSMutableArray new];
+        self.eventHandlers[eventsKey] = handlers;
+    }
+    
+    [handlers addObject:@{
+        @"target": target,
+        @"action": NSStringFromSelector(action)
+    }];
+}
+
+// [macOS] Internal action handler for slider value changes
+- (void)kr_sliderValueChanged:(id)sender {
+    // Invoke all registered handlers for UIControlEventValueChanged
+    [self kr_invokeHandlersForEvent:UIControlEventValueChanged];
+}
+
+// [macOS] Helper to invoke event handlers
+- (void)kr_invokeHandlersForEvent:(UIControlEvents)event {
+    NSArray *handlers = self.eventHandlers[@(event)];
+    for (NSDictionary *handler in handlers) {
+        id target = handler[@"target"];
+        SEL action = NSSelectorFromString(handler[@"action"]);
+        
+        if (target && [target respondsToSelector:action]) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+            [target performSelector:action withObject:self];
+#pragma clang diagnostic pop
+        }
+    }
+}
+
+#pragma mark - Mouse Events for Touch Simulation
+
+// [macOS] Track mouse down/up to simulate iOS touch events
+- (void)mouseDown:(NSEvent *)event {
+    [super mouseDown:event];
+    self.pressed = YES;
+    [self kr_invokeHandlersForEvent:UIControlEventTouchDown];
+}
+
+- (void)mouseUp:(NSEvent *)event {
+    [super mouseUp:event];
+    
+    // [macOS] Check if mouse is inside or outside bounds
+    NSPoint locationInView = [self convertPoint:event.locationInWindow fromView:nil];
+    BOOL isInside = NSPointInRect(locationInView, self.bounds);
+    
+    self.pressed = NO;
+    
+    if (isInside) {
+        [self kr_invokeHandlersForEvent:UIControlEventTouchUpInside];
+    } else {
+        [self kr_invokeHandlersForEvent:UIControlEventTouchUpOutside];
+    }
+}
+
+#pragma mark - Track and Thumb Customization
+
+// Override points for subclasses to customize track rendering
+- (CGRect)trackRectForBounds:(CGRect)bounds {
+    // NSSlider doesn't expose public API for track rect
+    // Provide a reasonable approximation based on bounds and control size
+    CGRect trackRect = bounds;
+    
+    // Adjust for typical NSSlider track dimensions
+    if (self.vertical) {
+        // Vertical slider: track is typically narrower, centered horizontally
+        CGFloat trackWidth = 4.0; // Default track width
+        trackRect.origin.x = CGRectGetMidX(bounds) - trackWidth * 0.5;
+        trackRect.size.width = trackWidth;
+        // Height stays the same as bounds
+    } else {
+        // Horizontal slider: track is typically shorter in height, centered vertically
+        CGFloat trackHeight = 4.0; // Default track height
+        trackRect.origin.y = CGRectGetMidY(bounds) - trackHeight * 0.5;
+        trackRect.size.height = trackHeight;
+        // Width stays the same as bounds
+    }
+    
+    return trackRect;
+}
+
+// [macOS] Override points for subclasses to customize thumb rendering
+- (CGRect)thumbRectForBounds:(CGRect)bounds trackRect:(CGRect)rect value:(float)value {
+    // NSSlider doesn't directly expose thumb rect calculation
+    // Approximate thumb position based on value and track rect
+    
+    CGFloat range = self.maximumValue - self.minimumValue;
+    if (range <= 0) {
+        return CGRectZero;
+    }
+    
+    CGFloat normalizedValue = (value - self.minimumValue) / range;
+    
+    // Estimate thumb size (NSSlider default is approximately 15x15)
+    CGFloat thumbWidth = 15.0;
+    CGFloat thumbHeight = 15.0;
+    
+    // Calculate thumb position along track
+    CGFloat thumbX = rect.origin.x + (rect.size.width - thumbWidth) * normalizedValue;
+    CGFloat thumbY = rect.origin.y + (rect.size.height - thumbHeight) * 0.5;
+    
+    return CGRectMake(thumbX, thumbY, thumbWidth, thumbHeight);
 }
 
 @end
@@ -1722,6 +1902,128 @@ BOOL KRUIViewSetClipsToBounds(KRPlatformView *view) {
 }
 
 @end
+
+#pragma mark - KRUISegmentedControl
+
+@interface KRUISegmentedControl ()
+@property (nonatomic, strong) NSMutableDictionary<NSNumber *, NSMutableArray<NSDictionary *> *> *eventHandlers;
+@end
+
+@implementation KRUISegmentedControl
+
+- (instancetype)initWithFrame:(NSRect)frameRect {
+    if (self = [super initWithFrame:frameRect]) {
+        _eventHandlers = [NSMutableDictionary new];
+        
+        // Configure NSSegmentedControl
+        self.segmentStyle = NSSegmentStyleRounded;
+        self.trackingMode = NSSegmentSwitchTrackingSelectOne;
+        
+        // Set up action to track segment changes
+        [super setTarget:self];
+        [super setAction:@selector(kr_segmentedControlValueChanged:)];
+    }
+    return self;
+}
+
+- (instancetype)initWithItems:(NSArray *)items {
+    if (self = [self initWithFrame:NSZeroRect]) {
+        // Add segments for each item
+        for (NSUInteger i = 0; i < items.count; i++) {
+            id item = items[i];
+            if ([item isKindOfClass:[NSString class]]) {
+                [self insertSegmentWithTitle:item atIndex:i animated:NO];
+            } else if ([item isKindOfClass:[NSImage class]]) {
+                [self setImage:item forSegment:i];
+            }
+        }
+    }
+    return self;
+}
+
+#pragma mark - Property Bridges
+
+// Bridge iOS selectedSegmentIndex to NSSegmentedControl's selectedSegment
+- (NSInteger)selectedSegmentIndex {
+    return self.selectedSegment;
+}
+
+- (void)setSelectedSegmentIndex:(NSInteger)selectedSegmentIndex {
+    self.selectedSegment = selectedSegmentIndex;
+}
+
+// Bridge iOS numberOfSegments to NSSegmentedControl's segmentCount
+- (NSInteger)numberOfSegments {
+    return self.segmentCount;
+}
+
+#pragma mark - Segment Management
+
+// Bridge iOS insertSegmentWithTitle:atIndex:animated: to NSSegmentedControl
+- (void)insertSegmentWithTitle:(NSString *)title atIndex:(NSUInteger)segment animated:(BOOL)animated {
+    // NSSegmentedControl doesn't support animation, ignore the animated parameter
+    
+    // Ensure we have enough segments
+    if (segment > self.segmentCount) {
+        self.segmentCount = segment + 1;
+    } else if (segment == self.segmentCount) {
+        self.segmentCount = self.segmentCount + 1;
+    }
+    
+    [self setLabel:title forSegment:segment];
+    
+    // Auto-size the segment to fit its content
+    if (@available(macOS 10.13, *)) {
+        [self setWidth:0 forSegment:segment]; // 0 means auto-size
+    }
+}
+
+- (void)removeAllSegments {
+    self.segmentCount = 0;
+}
+
+#pragma mark - UIControl-like Target-Action Support
+
+- (void)addTarget:(id)target action:(SEL)action forControlEvents:(UIControlEvents)events {
+    if (!target || !action) return;
+    
+    NSNumber *eventsKey = @(events);
+    NSMutableArray *handlers = self.eventHandlers[eventsKey];
+    if (!handlers) {
+        handlers = [NSMutableArray new];
+        self.eventHandlers[eventsKey] = handlers;
+    }
+    
+    [handlers addObject:@{
+        @"target": target,
+        @"action": NSStringFromSelector(action)
+    }];
+}
+
+// Internal action handler for segment changes
+- (void)kr_segmentedControlValueChanged:(id)sender {
+    // Invoke all registered handlers for UIControlEventValueChanged
+    [self kr_invokeHandlersForEvent:UIControlEventValueChanged];
+}
+
+// Helper to invoke event handlers
+- (void)kr_invokeHandlersForEvent:(UIControlEvents)event {
+    NSArray *handlers = self.eventHandlers[@(event)];
+    for (NSDictionary *handler in handlers) {
+        id target = handler[@"target"];
+        SEL action = NSSelectorFromString(handler[@"action"]);
+        
+        if (target && [target respondsToSelector:action]) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+            [target performSelector:action withObject:self];
+#pragma clang diagnostic pop
+        }
+    }
+}
+
+@end
+
 
 #pragma mark - KRUISwitch
 

@@ -418,8 +418,11 @@ CGContextRef UIGraphicsGetCurrentContext(void);
 @class UITextRange, UITextPosition;
 
 typedef NS_OPTIONS(NSUInteger, UIControlEvents) {
-    UIControlEventEditingChanged = 1UL << 0,
-    UIControlEventValueChanged = 1UL << 12,
+    UIControlEventTouchDown           = 1UL << 0,
+    UIControlEventTouchUpInside       = 1UL << 6,
+    UIControlEventTouchUpOutside      = 1UL << 7,
+    UIControlEventValueChanged        = 1UL << 12,
+    UIControlEventEditingChanged      = 1UL << 13,
 };
 
 @protocol UITextFieldDelegate <NSObject>
@@ -748,7 +751,7 @@ NS_INLINE CGRect CGRectValue(NSValue *value) {
 #pragma mark - KRUISlider
 
 #if TARGET_OS_OSX
-#define UISlider KRUISlider;
+#define UISlider KRUISlider
 @protocol KRUISliderDelegate;
 
 @interface KRUISlider : NSSlider
@@ -760,8 +763,17 @@ NS_INLINE CGRect CGRectValue(NSValue *value) {
 @property (nonatomic, assign) float maximumValue;
 @property (nonatomic, strong) NSColor *minimumTrackTintColor;
 @property (nonatomic, strong) NSColor *maximumTrackTintColor;
+@property (nonatomic, strong) NSColor *thumbTintColor;
+@property (nonatomic, assign) BOOL continuous;
 
 - (void)setValue:(float)value animated:(BOOL)animated;
+
+// UIControl-like target-action support
+- (void)addTarget:(id)target action:(SEL)action forControlEvents:(UIControlEvents)events;
+
+// Override points for custom track/thumb rendering (subclass support)
+- (CGRect)trackRectForBounds:(CGRect)bounds;
+- (CGRect)thumbRectForBounds:(CGRect)bounds trackRect:(CGRect)rect value:(float)value;
 
 @end
 #endif
@@ -790,6 +802,30 @@ NS_INLINE CGRect CGRectValue(NSValue *value) {
 @end
 
 #endif // macOS]
+
+
+#pragma mark - KRUISegmentedControl
+
+#if TARGET_OS_OSX
+
+@interface KRUISegmentedControl : NSSegmentedControl
+
+@property (nonatomic, assign) NSInteger selectedSegmentIndex;
+
+- (instancetype)initWithItems:(NSArray *)items;
+
+- (void)insertSegmentWithTitle:(NSString *)title atIndex:(NSUInteger)segment animated:(BOOL)animated;
+- (void)removeAllSegments;
+- (NSInteger)numberOfSegments;
+
+// UIControl-like target-action support
+- (void)addTarget:(id)target action:(SEL)action forControlEvents:(UIControlEvents)events;
+
+@end
+
+#define UISegmentedControl KRUISegmentedControl
+
+#endif
 
 
 #pragma mark KRUISwitch

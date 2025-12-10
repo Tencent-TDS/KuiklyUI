@@ -45,7 +45,7 @@ object ConvertUtil {
         if (value.isNaN()) {
             return 0f
         }
-        if (PagerManager.getCurrentPager().pageData.isIOS) { // iOS 不存在精度转换问题
+        if (PagerManager.getCurrentPager().pageData.isIOS || PagerManager.getCurrentPager().pageData.isMacOS) { // iOS 不存在精度转换问题
             return value
         }
         val density = PagerManager.getCurrentPager().pagerDensity()

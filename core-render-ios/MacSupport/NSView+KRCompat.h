@@ -31,6 +31,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic) CGAffineTransform transform;
 @property (nonatomic, copy) NSColor *backgroundColor;
 @property (nonatomic, getter=isUserInteractionEnabled) BOOL userInteractionEnabled;
+@property (nonatomic, assign) CGPoint center;
 
 #pragma mark -
 

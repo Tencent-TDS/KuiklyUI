@@ -64,7 +64,7 @@ kotlin {
             implementation(project(":core-annotations"))
 //            compileOnly(project(":core-annotations"))
             // Chat Demo 相关依赖
-            implementation("com.tencent.kuiklybase:markdown:0.3.0")
+            // implementation("com.tencent.kuiklybase:markdown:0.3.0") // 临时屏蔽，未适配Mac
             implementation("io.ktor:ktor-client-core:2.3.10")
         }
     }

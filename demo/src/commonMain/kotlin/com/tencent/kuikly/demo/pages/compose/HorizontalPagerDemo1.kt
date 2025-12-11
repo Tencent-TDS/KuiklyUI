@@ -35,6 +35,7 @@ import com.tencent.kuikly.compose.foundation.layout.fillMaxWidth
 import com.tencent.kuikly.compose.foundation.layout.height
 import com.tencent.kuikly.compose.foundation.layout.padding
 import com.tencent.kuikly.compose.foundation.layout.width
+import com.tencent.kuikly.compose.foundation.lazy.LazyColumn
 import com.tencent.kuikly.compose.foundation.pager.HorizontalPager
 import com.tencent.kuikly.compose.foundation.pager.PageSize
 import com.tencent.kuikly.compose.foundation.pager.rememberPagerState
@@ -109,10 +110,14 @@ class HorizontalPagerDemo1 : ComposeContainer() {
                             .padding(4.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        "Fixed Width Page $page",
-                        color = Color.White,
-                    )
+                    LazyColumn {
+                        items(50) {
+                            Text(
+                                "Fixed Width Page $page",
+                                color = Color.White,
+                            )
+                        }
+                    }
                 }
             }
 

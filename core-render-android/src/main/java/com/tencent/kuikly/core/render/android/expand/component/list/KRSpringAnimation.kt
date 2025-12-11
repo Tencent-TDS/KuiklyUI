@@ -65,9 +65,22 @@ class KRSpringAnimation(
                 onUpdate(endValue)
             }
         }
+        addListener(object : android.animation.Animator.AnimatorListener {
+            override fun onAnimationCancel(animation: android.animation.Animator) {
+                onEnd()
+            }
+
+            override fun onAnimationEnd(animation: android.animation.Animator) {
+                onEnd()
+            }
+
+            override fun onAnimationRepeat(animation: android.animation.Animator) {}
+            override fun onAnimationStart(animation: android.animation.Animator) {}
+        })
     }
 
     var onUpdate: (Float) -> Unit = {}
+    var onEnd: () -> Unit = {}
 
     fun start() {
         lastTime = 0L

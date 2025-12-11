@@ -1,6 +1,6 @@
 # H5 SPA 实现指引
 
-Kuikly Web SDK提供的是一个单页渲染生命周期的管理，每打开一个新页面需要加载整个html，如果想把跨端层实现的多个页面通过hash路由来管理，实现SPA，H5App Demo中的Kuikly Router 组件提供了参考思路：
+Kuikly Web SDK提供的是一个单页渲染生命周期的管理，每打开一个新页面需要加载整个页面，如果想把跨端层实现的多个页面通过hash路由来管理，实现SPA，H5App Demo中的Kuikly Router 组件提供了参考思路：
 
 KuiklyRouter 组件基于浏览器的 History API 实现，支持页面导航、状态缓存、滚动位置恢复以及页面生命周期管理。
 

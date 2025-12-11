@@ -316,4 +316,70 @@ override fun created() {
 * KMP多线程需要开发者自行考虑线程安全问题，可以借助`kotlinx:atomicfu`库提供的原子操作和同步锁能力；
 * Kuikly UI的相关类（View、Attr、Event、ObservableProperties、GlobalFunctions等）非线程安全，且只能在Kuikly线程访问。
 
+### 线程安全验证机制
 
+为了帮助开发者及时发现线程安全问题，Kuikly提供了以下验证机制：
+
+#### Pager.VERIFY_THREAD
+用于开启线程验证，检查UI操作是否在Kuikly线程中执行。当开启后，如果在非Kuikly线程访问UI相关API，会触发验证失败。
+
+```kotlin
+override fun willInit() {
+    super.willInit()
+    Pager.VERIFY_THREAD = true // 开启线程校验
+}
+```
+
+#### Pager.VERIFY_REACTIVE_OBSERVER
+用于开启响应式观察者验证，检查响应式属性的访问是否在正确的上下文中。当开启后，如果响应式属性在错误的上下文中访问，会触发验证失败。
+
+```kotlin
+override fun willInit() {
+    super.willInit()
+    Pager.VERIFY_REACTIVE_OBSERVER = true // 开启observable校验
+}
+```
+
+#### Pager.verifyFailed
+用于自定义验证失败时的处理逻辑。默认情况下，验证失败会抛出异常，你可以通过此方法自定义处理方式。
+
+```kotlin
+// 自定义验证失败处理
+Pager.verifyFailed { exception ->
+    // 记录日志而不是抛出异常
+    println("ThreadSafety验证失败: ${exception.message}")
+    // 或者执行其他自定义逻辑
+}
+```
+
+#### 使用示例
+
+```kotlin
+@Page("DebugPage")
+internal class DebugPage : BasePager() {
+    
+    override fun willInit() {
+        super.willInit()
+        if (pageData.params.optBoolean("debug")) {
+            Pager.VERIFY_THREAD = true // 开启线程校验
+            Pager.VERIFY_REACTIVE_OBSERVER = true // 开启observable校验
+            
+            // 自定义验证失败处理
+            Pager.verifyFailed { exception ->
+                println("线程安全验证失败: ${exception.message}")
+                // 在调试模式下仍然抛出异常以便发现问题
+                throw exception
+            }
+        }
+    }
+    
+    // ... 其他代码
+}
+```
+
+:::warning 注意
+* 在开发和测试阶段建议开启这些验证机制，有助于及早发现线程安全问题
+* 在生产环境中可以关闭验证以避免性能开销
+* 验证机制主要用于开发阶段的问题排查，不应依赖它们来解决线程安全问题
+* 在 `verifyFailed` 回调中要注意不能调用仅限Kuikly线程的方法（如UI操作、响应式属性访问等），因为验证失败通常发生在非Kuikly线程中
+:::

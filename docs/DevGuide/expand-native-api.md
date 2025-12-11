@@ -37,21 +37,25 @@ class MyLogModule : Module() {
    5. ``syncCall``: 是否为同步调用。``Kuikly``的代码是运行在一条单独的线程，默认与Native Module是一个异步的通信。如果syncCall指定为true时，可强制``kuikly Module``与``Native Module``同步通信
 
 > 对于``callback``只回调一次的用法，框架提供了4个辅助方法：
-> - syncToNativeMethod(methodName, params, null): String // 同步调用Native方法（native侧在子线程执行），传输JSONObject类型参数，返回JSON字符串
-> - syncToNativeMethod(methodName, arrayOf(content), null): Any? // 同步调用Native方法（native侧在子线程执行），传输基本类型数组，返回基本类型
+> - syncToNativeMethod(methodName, params, null): String // 同步调用Native方法（native侧在子线程执行），传输JSONObject类型参数
+> - syncToNativeMethod(methodName, arrayOf(content), null): Any? // 同步调用Native方法（native侧在子线程执行），传输基本类型数组（仅支持String、Int、Float、ByteArray）
 > - asyncToNativeMethod(methodName, params, callback) // 异步调用Native方法（native侧在主线程执行），传输JSONObject类型参数，回调JSON字符串
 > - asyncToNativeMethod(methodName, arrayOf(content), callback) // 异步调用Native方法（native侧在主线程执行），传输基本类型数组，回调基本类型
 
-**三端支持的数据类型：**
-- **Android侧**：String、Int、Long、Float、Double、Boolean、ByteArray、Map、List
-- **iOS侧**：NSString、NSNumber、NSData、NSDictionary、NSArray
-- **鸿蒙侧**：string、number、boolean、ArrayBuffer、Array
+**Native侧支持的数据类型**
+Module方法在 Native侧的返回值类型 和 callback 参数在 Native 侧可以传入的类型：
+  - **Android侧**：String、Int、Long、Float、Double、Boolean、ByteArray、Map、List、JSONObject
+  - **iOS侧**：NSString、NSNumber、BOOL、NSData、NSDictionary、NSArray
+  - **鸿蒙侧**：String、Int、Long、Float、Double、Bool、Array、Map、ByteArray
+  - **H5侧**:String、Int、Long、Float、Double、Boolean、Array、Map、List、JSONObject、JSONArray
 
-**类型序列化规则（三端统一）：**
-- **基础类型**（String/Int/Float/Double/Boolean/NSNumber）：直接透传，无需序列化
-- **二进制数据**（ByteArray/NSData/ArrayBuffer）：直接透传，无需序列化
-- **集合类型**（Map/List/NSDictionary/NSArray/Array）：序列化为JSON字符串
-- **特殊规则**：Array中包含二进制元素（ByteArray/NSData/ArrayBuffer）时，整个Array直接透传，不序列化
+**Native侧类型序列化规则（三端统一）**
+当 Native 侧数据需要传递到 Kotlin 侧时，会按以下规则序列化：
+  - **基础类型**（String/Int/Float/Double/Boolean/NSNumber）: 直接透传，不序列化
+  - **二进制数据**（ByteArray/NSData）: 直接透传，不序列化
+  - **JSON数据**（JSONObject/JSONArray): 序列化为JSON字符串
+  - **集合类型**（Map/List/NSDictionary/NSArray/Array）: 序列化为JSON字符串
+  - **特殊规则**：Array中包含二进制元素（ByteArray/NSData）时，整个Array直接透传，不序列化
 
 :::tip 注意
 - syncToNativeMethod和asyncToNativeMethod，传入参数params是JSONObject且序列化为jSON字符串传至Native侧，

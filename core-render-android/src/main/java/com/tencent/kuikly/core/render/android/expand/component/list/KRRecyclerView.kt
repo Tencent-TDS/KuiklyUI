@@ -256,6 +256,23 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         springAnimationY?.cancel()
         springAnimationX = null
         springAnimationY = null
+        springAnimationConsumedX = 0f
+        springAnimationConsumedY = 0f
+    }
+
+    private fun checkAndStopScrollIfNeeded() {
+        // 当所有 spring 动画都结束时，修正滚动状态，对齐 smoothScrollBy 的行为
+        if (springAnimationX == null && springAnimationY == null) {
+            // 只在状态为 SETTLING 时才停止嵌套滚动和修正滚动状态，避免在用户拖拽时（状态为 DRAGGING）错误地重置状态
+            if (scrollState == SCROLL_STATE_SETTLING) {
+                // 停止嵌套滚动（如果存在）
+                if (isNestScrolling()) {
+                    stopNestedScroll(ViewCompat.TYPE_NON_TOUCH)
+                }
+                // 修正滚动状态
+                stopScroll()
+            }
+        }
     }
 
     init {
@@ -565,13 +582,13 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
 
     private fun forceSetScrollState(state: Int) {
         try {
-            val f = RecyclerView::class.java.getDeclaredField("mScrollState")
-            f.isAccessible = true
-            f.set(this, state)
+            val method = RecyclerView::class.java.getDeclaredMethod("setScrollState", Int::class.javaPrimitiveType)
+            method.isAccessible = true
+            method.invoke(this, state)
         } catch (e: Exception) {
-            // 由于不清楚系统mTouchSlop底层会抛出哪种类型的异常，因此这里使用顶层异常来处理
+            // 由于不清楚系统setScrollState底层会抛出哪种类型的异常，因此这里使用顶层异常来处理
             // 并且异常不影响主路径
-            KuiklyRenderLog.e(VIEW_NAME, "set mTouchSlop error, $e")
+            KuiklyRenderLog.e(VIEW_NAME, "setScrollState error, $e")
         }
     }
 
@@ -990,39 +1007,98 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
     ) {
         cancelSpringAnimations()
 
-        if (dx == 0 && dy == 0) return
-
-        // Stiffness calculation: (2 * PI / (duration / 1000))^2 * mass(1)
-        val durationSec = duration / 1000.0
-        val stiffness = (2 * PI / durationSec).pow(2).toFloat()
-
-        if (dx != 0) {
-            springAnimationConsumedX = 0f
-            springAnimationX = KRSpringAnimation(0f, dx.toFloat(), if (!isVertical) velocity else 0f, stiffness, damping).apply {
-                onUpdate = { value ->
-                    val consumed = value - springAnimationConsumedX
-                    val intConsumed = consumed.toInt()
-                    if (intConsumed != 0) {
-                        scrollBy(intConsumed, 0)
-                        springAnimationConsumedX += intConsumed
-                    }
-                }
-                start()
-            }
+        if (isLayoutSuppressed) {
+            return
         }
 
-        if (dy != 0) {
-            springAnimationConsumedY = 0f
-            springAnimationY = KRSpringAnimation(0f, dy.toFloat(), if (isVertical) velocity else 0f, stiffness, damping).apply {
-                onUpdate = { value ->
-                    val consumed = value - springAnimationConsumedY
-                    val intConsumed = consumed.toInt()
-                    if (intConsumed != 0) {
-                        scrollBy(0, intConsumed)
-                        springAnimationConsumedY += intConsumed
-                    }
+        if (dx == 0 && dy == 0) return
+
+        layoutManager?.apply {
+            var actualDx = dx
+            if (!canScrollHorizontally()) {
+                actualDx = 0
+            }
+            var actualDy = dy
+            if (!canScrollVertically()) {
+                actualDy = 0
+            }
+
+            if (actualDx == 0 && actualDy == 0) return
+
+            // 对齐 smoothScrollBy 和 fling 的行为：设置滚动状态为 SETTLING
+            if (scrollState != SCROLL_STATE_SETTLING) {
+                forceSetScrollState(SCROLL_STATE_SETTLING)
+            }
+
+            // 处理嵌套滚动，对齐 smoothScrollWithNestIfNeeded 的逻辑
+            val withNestedScrolling = isNestScrolling()
+            if (withNestedScrolling) {
+                var nestedScrollAxis = ViewCompat.SCROLL_AXIS_NONE
+                if (actualDx != 0) {
+                    nestedScrollAxis = nestedScrollAxis or ViewCompat.SCROLL_AXIS_HORIZONTAL
                 }
-                start()
+                if (actualDy != 0) {
+                    nestedScrollAxis = nestedScrollAxis or ViewCompat.SCROLL_AXIS_VERTICAL
+                }
+                startNestedScroll(nestedScrollAxis, ViewCompat.TYPE_NON_TOUCH)
+            }
+
+            // Stiffness calculation: (2 * PI / (duration / 1000))^2 * mass(1)
+            val durationSec = duration / 1000.0
+            val stiffness = (2 * PI / durationSec).pow(2).toFloat()
+
+            if (actualDx != 0) {
+                // 使用局部变量跟踪每个动画的 consumed 值，避免多个动画之间的状态干扰
+                var consumedX = 0f
+                val animationX = KRSpringAnimation(0f, actualDx.toFloat(), if (!isVertical) velocity else 0f, stiffness, damping)
+                springAnimationX = animationX
+                animationX.apply {
+                    onUpdate = { value ->
+                        // 检查动画是否仍然有效，避免被取消后继续执行导致计算错误
+                        if (springAnimationX === animationX) {
+                            val consumed = value - consumedX
+                            val intConsumed = consumed.toInt()
+                            if (intConsumed != 0) {
+                                scrollBy(intConsumed, 0)
+                                consumedX += intConsumed
+                            }
+                        }
+                    }
+                    onEnd = {
+                        if (springAnimationX === animationX) {
+                            springAnimationX = null
+                            checkAndStopScrollIfNeeded()
+                        }
+                    }
+                    start()
+                }
+            }
+
+            if (actualDy != 0) {
+                // 使用局部变量跟踪每个动画的 consumed 值，避免多个动画之间的状态干扰
+                var consumedY = 0f
+                val animationY = KRSpringAnimation(0f, actualDy.toFloat(), if (isVertical) velocity else 0f, stiffness, damping)
+                springAnimationY = animationY
+                animationY.apply {
+                    onUpdate = { value ->
+                        // 检查动画是否仍然有效，避免被取消后继续执行导致计算错误
+                        if (springAnimationY === animationY) {
+                            val consumed = value - consumedY
+                            val intConsumed = consumed.toInt()
+                            if (intConsumed != 0) {
+                                scrollBy(0, intConsumed)
+                                consumedY += intConsumed
+                            }
+                        }
+                    }
+                    onEnd = {
+                        if (springAnimationY === animationY) {
+                            springAnimationY = null
+                            checkAndStopScrollIfNeeded()
+                        }
+                    }
+                    start()
+                }
             }
         }
     }

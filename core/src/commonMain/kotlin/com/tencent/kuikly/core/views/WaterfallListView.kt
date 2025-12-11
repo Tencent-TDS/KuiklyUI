@@ -158,15 +158,15 @@ class WaterfallContentView : ListContentView() {
                 left(0f)
                 right(Float.undefined)
                 bottom(Float.undefined)
-                if (child.getViewAttr().flexNode!!.styleWidth.isNaN()
-                ) {
+                if (child.getViewAttr().flexNode!!.styleWidth.isNaN()) {
                     width(ctx.columnWidth())
                 } else {
                     child.getViewAttr().isStaticWidth = true
                 }
             }
+        } else {
+            child.getViewAttr().isStaticWidth = true
         }
-
     }
 
     override fun createFlexNode() {

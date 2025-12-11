@@ -42,20 +42,29 @@ class MyLogModule : Module() {
 > - asyncToNativeMethod(methodName, params, callback) // 异步调用Native方法（native侧在主线程执行），传输JSONObject类型参数，回调JSON字符串
 > - asyncToNativeMethod(methodName, arrayOf(content), callback) // 异步调用Native方法（native侧在主线程执行），传输基本类型数组，回调基本类型
 
-**Native侧支持的数据类型**
-Module方法在 Native侧的返回值类型 和 callback 参数在 Native 侧可以传入的类型：
-  - **Android侧**：String、Int、Long、Float、Double、Boolean、ByteArray、Map、List、JSONObject
-  - **iOS侧**：NSString、NSNumber、BOOL、NSData、NSDictionary、NSArray
-  - **鸿蒙侧**：String、Int、Long、Float、Double、Bool、Array、Map、ByteArray
-  - **H5侧**:String、Int、Long、Float、Double、Boolean、Array、Map、List、JSONObject、JSONArray
+#### Native侧支持的数据类型
 
-**Native侧类型序列化规则（三端统一）**
-当 Native 侧数据需要传递到 Kotlin 侧时，会按以下规则序列化：
-  - **基础类型**（String/Int/Float/Double/Boolean/NSNumber）: 直接透传，不序列化
-  - **二进制数据**（ByteArray/NSData）: 直接透传，不序列化
-  - **JSON数据**（JSONObject/JSONArray): 序列化为JSON字符串
-  - **集合类型**（Map/List/NSDictionary/NSArray/Array）: 序列化为JSON字符串
-  - **特殊规则**：Array中包含二进制元素（ByteArray/NSData）时，整个Array直接透传，不序列化
+Module 返回值和 callback 参数支持的类型：
+| 平台          | 支持的数据类型                                                                                        |
+|:------------|:-----------------------------------------------------------------------------------------------|
+| **Android** | `String` `Int` `Long` `Float` `Double` `Boolean` `ByteArray` `Map` `List` `JSONObject`         |
+| **iOS**     | `NSString` `NSNumber` `BOOL` `NSData` `NSDictionary` `NSArray`                                 |
+| **鸿蒙**      | `String` `Int` `Long` `Float` `Double` `Bool` `ByteArray` `Array` `Map`                        |
+| **H5**    | `String` `Int` `Long` `Float` `Double` `Boolean` `Array` `Map` `List` `JSONObject` `JSONArray` |
+
+---
+
+#### Native侧序列化规则
+
+数据从 Native 传递到 Kotlin 时的处理方式：
+
+| 类目         | 序列化方式 | 涉及类型                                                 |
+|:-----------|:---:|:-----------------------------------------------------|
+| **基础类型**   | ✅ 直接透传 | `String` `Int` `Float` `Double` `Boolean` `NSNumber` |
+| **二进制数据**  | ✅ 直接透传 | `ByteArray` `NSData`                                 |
+| **JSON数据** | 📦 JSON字符串 | `JSONObject` `JSONArray`                             |
+| **集合类型**   | 📦 JSON字符串 | `Map` `List` `NSDictionary` `NSArray` `Array`        |
+| **特殊规则**   | ✅ 直接透传 | Array 中包含二进制元素（`ByteArray`/`NSData`）时                |
 
 :::tip 注意
 - syncToNativeMethod和asyncToNativeMethod，传入参数params是JSONObject且序列化为jSON字符串传至Native侧，

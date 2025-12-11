@@ -132,6 +132,18 @@ export class KuiklyViewDelegate extends IKuiklyViewDelegate {
 ```
 ### 实现Kuikly承载容器
 在page页面容器中加入Kuikly组件（以 pages/Index 为例，也可以是新建的page），触发Kuikly页面加载。
+
+Kuikly组件参数说明
+
+- `pageName`: 页面名称，对应@Page注解中定义的名称
+- `pageData`: 页面数据，传递给Kuikly页面的参数
+- `delegate`: 委托者实现，用于注册自定义View和Module
+- `initialSize`: 初始尺寸设置，用于指定Kuikly容器的初始宽高（可选参数）
+  - 格式：`{ width: number, height: number }`
+  - 用途：初始化时传入正确的容器尺寸，可以提前跨端页面的创建（传入错误值会导致重复排版和布局跳变）
+- `onControllerReadyCallback`: 控制器就绪回调
+- `nativeManager`: 原生管理器实例
+
 <br>请参考源码工程 core-render-ohos/entry 模块的**Index.ets**类。
 ```ts
 // entry/src/main/ets/kuikly/pages/Index.ets
@@ -191,6 +203,8 @@ struct Index {
           delegate: this.kuiklyViewDelegate,
           contextCode: this.contextCode,
           executeMode: this.contextCodeHandler.getExecuteMode(this.contextCode),
+          // 可选：设置Kuikly容器的初始尺寸
+          // initialSize: { width: this.calculateWidth(), height: this.calculateHeight() },
           onControllerReadyCallback: (controller) => {
             this.kuiklyController = controller
             controller.registerExceptionCallback((executeMode, stack) => {

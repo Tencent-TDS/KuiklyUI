@@ -855,6 +855,18 @@ right方法是指将本组件的定位到距离**右边**的多少距离，而�
 bottom方法是指将本组件的定位到距离**下边**的多少距离，而下边的定义取决于**positionType**方法设置的值。如果设置了**FlexPositionType.RELATIVE**,
 那么bottom的作用相当于设置了marginBottom; 如果设置了**FlexPositionType.ABSOLUTE**, 那么bottom的作用是将元素的上边定位到距离父元素下边的bottom值。
 
+### autoDarkEnable方法
+是否自动暗黑模式
+
+**true(默认值):**
+- iOS: 对应overrideUserInterfaceStyle设置为UIUserInterfaceStyleUnspecified
+- Android: 对应setForceDarkAllowed设置为ture
+
+**false:**
+- iOS: 对应overrideUserInterfaceStyle设置为UIUserInterfaceStyleLight
+- Android: 对应setForceDarkAllowed设置为false
+
+
 ---
 
 ## 基础事件

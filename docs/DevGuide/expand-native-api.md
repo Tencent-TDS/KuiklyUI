@@ -58,13 +58,13 @@ Module 返回值和 callback 参数支持的类型：
 
 数据从 Native 传递到 Kotlin 时的处理方式：
 
-| 类目         | 序列化方式 | 涉及类型                                                 |
-|:-----------|:---:|:-----------------------------------------------------|
-| **基础类型**   | ✅ 直接透传 | `String` `Int` `Float` `Double` `Boolean` `NSNumber` |
-| **二进制数据**  | ✅ 直接透传 | `ByteArray` `NSData`                                 |
-| **JSON数据** | 📦 JSON字符串 | `JSONObject` `JSONArray`                             |
-| **集合类型**   | 📦 JSON字符串 | `Map` `List` `NSDictionary` `NSArray` `Array`        |
-| **特殊规则**   | ✅ 直接透传 | Array 中包含二进制元素（`ByteArray`/`NSData`）时                |
+| 类目         |   序列化方式   | 涉及类型                                                 |
+|:-----------|:---------:|:-----------------------------------------------------|
+| **基础类型**   |   直接透传    | `String` `Int` `Float` `Double` `Boolean` `NSNumber` |
+| **二进制数据**  |   直接透传    | `ByteArray` `NSData`                                 |
+| **JSON数据** |  JSON字符串  | `JSONObject` `JSONArray`                             |
+| **集合类型**   |  JSON字符串  | `Map` `List` `NSDictionary` `NSArray` `Array`        |
+| **特殊规则**   |    直接透传   | Array 中包含`ByteArray`/`NSData`时                       |
 
 :::tip 注意
 - syncToNativeMethod和asyncToNativeMethod，传入参数params是JSONObject且序列化为jSON字符串传至Native侧，

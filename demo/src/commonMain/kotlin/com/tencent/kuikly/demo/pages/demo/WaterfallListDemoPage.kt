@@ -18,6 +18,8 @@ package com.tencent.kuikly.demo.pages.demo
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.BaseObject
 import com.tencent.kuikly.core.base.Color
+import com.tencent.kuikly.core.base.ColorStop
+import com.tencent.kuikly.core.base.Direction
 import com.tencent.kuikly.core.base.PagerScope
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.directives.vforIndex
@@ -73,7 +75,28 @@ internal class WaterfallListDemoPage : BasePager() {
                 Refresh {
                     attr {
                         height(50f)
+                        width(pagerData.pageViewWidth)
                         backgroundColor(Color.RED)
+                    }
+                }
+
+                Hover {
+                    attr {
+                        absolutePosition(top = 0f, left =0f, right =0f)
+                        height(40f)
+//                        width(pagerData.pageViewWidth)
+                        backgroundLinearGradient(
+                            Direction.TO_LEFT,
+                            ColorStop(Color.RED, 0f),
+                            ColorStop(Color.YELLOW, 1f)
+                        )
+                    }
+                    Text {
+                        attr {
+                            alignSelfCenter()
+                            fontSize(30f)
+                            text("Hover View")
+                        }
                     }
                 }
 

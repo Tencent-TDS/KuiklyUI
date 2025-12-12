@@ -75,6 +75,8 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
      */
     private val renderViewReuseListMap = ArrayMap<String, MutableList<RenderViewHandler>>()
 
+    private var isDestroyed = false
+
     override fun init(renderView: IKuiklyRenderView) {
         renderViewWeakRef = WeakReference(renderView)
     }
@@ -255,6 +257,10 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
     override fun getView(tag: Int): View? = getRenderViewHandler(tag)?.viewExport?.view()
 
     override fun onDestroy() {
+        assert(isMainThread()) {
+            "must call on ui thread"
+        }
+
         moduleRegistryWRLock.withReadLock {
             for (module in moduleRegistry.values) {
                 module.onDestroy()
@@ -264,7 +270,19 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
         for (i in 0 until renderViewRegistry.size()) {
             renderViewRegistry.valueAt(i).viewExport.onDestroy()
         }
+        renderViewRegistry.clear()
+
+        for (i in 0 until renderViewReuseListMap.size) {
+            val queue = renderViewReuseListMap.valueAt(i)
+            for (j in 0 until queue.size) {
+                queue[j].viewExport.onDestroy()
+            }
+            queue.clear()
+        }
+
+        isDestroyed = true
     }
+
     private fun getRenderViewHandler(tag: Int): RenderViewHandler? {
         assert(isMainThread()) {
             "must call on ui thread"
@@ -318,12 +336,12 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
     private fun pushRenderViewHandlerToReuseQueue(
         viewName: String,
         renderViewHandler: RenderViewHandler
-    ) {
+    ): Boolean {
         assert(isMainThread()) {
             "must call on ui thread"
         }
         if (!renderViewHandler.viewExport.reusable) {
-            return
+            return false
         }
         var reuseQueue = renderViewReuseListMap[viewName]
         if (reuseQueue == null) {
@@ -331,23 +349,25 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
             renderViewReuseListMap[viewName] = reuseQueue
         }
         if (reuseQueue.size >= MAX_REUSE_COUNT) {
-            return
+            return false
         }
 
         prepareForReuse(renderViewHandler.viewExport) // 重置View的样式，防止复用的时候样式错乱
         reuseQueue.add(renderViewHandler)
+        return true
     }
 
     private fun innerRemoveRenderView(tag: Int) {
         val renderViewHandler = getRenderViewHandler(tag)
-        assert(renderViewHandler != null)
+        assert(renderViewHandler != null || isDestroyed)
 
-        renderViewHandler?.viewExport?.also {
-            pushRenderViewHandlerToReuseQueue(renderViewHandler.viewName, renderViewHandler)
-            it.removeFromParent()
-            it.onDestroy()
+        renderViewHandler?.also {
+            it.viewExport.removeFromParent()
+            if (!pushRenderViewHandlerToReuseQueue(it.viewName, it)) {
+                it.viewExport.onDestroy()
+            }
+            removeRenderViewHandler(tag)
         }
-        removeRenderViewHandler(tag)
     }
 
     private fun getShadowHandler(tag: Int): IKuiklyRenderShadowExport? {

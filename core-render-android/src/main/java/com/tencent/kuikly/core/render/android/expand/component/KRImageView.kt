@@ -646,18 +646,28 @@ class KRWrapperImageView(context: Context) : KRView(context) {
 
     override fun resetProp(propKey: String): Boolean {
         var result = super.resetProp(propKey)
-        result = imageView.resetProp(propKey)
+        if (!result) {
+            result = imageView.resetProp(propKey)
+        }
         if (propKey == PROP_PLACEHOLDER) {
-            removePlaceholder()
+            setPlaceholder("")
             result = true
         }
         return result
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        placeholderView?.onDestroy()
+        placeholderView = null
+        imageView.onDestroy()
     }
 
     private fun setPlaceholder(src: String) {
         if (placeholder != src) {
             placeholder = src
             placeholderView?.removeFromParent()
+            placeholderView?.onDestroy()
             if (placeholder.isNotEmpty()) {
                 placeholderView = KRImageView(context).apply {
                     val lp = LayoutParams(this@KRWrapperImageView.frameWidth,
@@ -668,15 +678,9 @@ class KRWrapperImageView(context: Context) : KRView(context) {
                     this@KRWrapperImageView.addView(this, 0)
                 }
             } else {
-                removePlaceholder()
+                placeholderView = null
             }
         }
-    }
-
-    private fun removePlaceholder() {
-        placeholderView?.removeFromParent()
-        placeholderView = null
-        placeholder = ""
     }
 
     companion object {

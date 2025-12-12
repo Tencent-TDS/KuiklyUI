@@ -28,6 +28,7 @@
 		FFBD31B829015A0200D555DE /* UINavigationController+FDFullscreenPopGesture.m in Sources */ = {isa = PBXBuildFile; fileRef = FFBD31B729015A0100D555DE /* UINavigationController+FDFullscreenPopGesture.m */; };
 		FFDEA045288C2DF3008534B5 /* KuiklyRenderViewPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFDEA044288C2DF3008534B5 /* KuiklyRenderViewPage.swift */; };
 		FFEDDC7A2AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = FFEDDC792AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.m */; };
+		FF05C64429C84FFF00C5E02B /* UIViewController+KRModalDismissGesture.m in Sources */ = {isa = PBXBuildFile; fileRef = FF05C64329C84FFF00C5E02B /* UIViewController+KRModalDismissGesture.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -71,6 +72,8 @@
 		FFDEA044288C2DF3008534B5 /* KuiklyRenderViewPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KuiklyRenderViewPage.swift; sourceTree = "<group>"; };
 		FFEDDC782AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = NativeMixKuiklyViewDemoViewController.h; sourceTree = "<group>"; };
 		FFEDDC792AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = NativeMixKuiklyViewDemoViewController.m; sourceTree = "<group>"; };
+		FF05C64229C84FFF00C5E02B /* UIViewController+KRModalDismissGesture.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "UIViewController+KRModalDismissGesture.h"; sourceTree = "<group>"; };
+		FF05C64329C84FFF00C5E02B /* UIViewController+KRModalDismissGesture.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "UIViewController+KRModalDismissGesture.m"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -194,6 +197,8 @@
 			children = (
 				FF05C63B29C84FFF00C5E02A /* KuiklyRenderViewController.h */,
 				FF05C63A29C84FFF00C5E02A /* KuiklyRenderViewController.m */,
+				FF05C64229C84FFF00C5E02B /* UIViewController+KRModalDismissGesture.h */,
+				FF05C64329C84FFF00C5E02B /* UIViewController+KRModalDismissGesture.m */,
 				3AF526702A9309C300A93682 /* RootViewController.h */,
 				3AF526712A9309C300A93682 /* RootViewController.m */,
 				FFEDDC782AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.h */,
@@ -383,6 +388,7 @@
 				3AF526722A9309C300A93682 /* RootViewController.m in Sources */,
 				FF05C64229C851A500C5E02A /* KRBridgeModule.m in Sources */,
 				FF05C63C29C84FFF00C5E02A /* KuiklyRenderViewController.m in Sources */,
+				FF05C64429C84FFF00C5E02B /* UIViewController+KRModalDismissGesture.m in Sources */,
 				FFEDDC7A2AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.m in Sources */,
 				3A622B9B2AB052B0002410B8 /* TDFTestModule.m in Sources */,
 				FF05C63F29C850BC00C5E02A /* KuiklyRenderComponentExpandHandler.m in Sources */,

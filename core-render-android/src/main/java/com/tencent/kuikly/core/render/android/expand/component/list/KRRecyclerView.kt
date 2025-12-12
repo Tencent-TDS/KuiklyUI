@@ -114,6 +114,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
      * 是否开启List滚动到边缘回弹效果
      */
     private var bouncesEnable = true
+    private var consumeGestureBounces = false
     internal var limitHeaderBounces = false
 
     /**
@@ -341,6 +342,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             SCROLL_ENABLED, KRCssConst.TOUCH_ENABLE -> setScrollEnabled(propValue)
             VERTICAL_BOUNCES, BOUNCES_ENABLE, HORIZONTAL_BOUNCES -> setBouncesEnable(propValue)
             LIMIT_HEADER_BOUNCES -> limitHeaderBounces(propValue)
+            CONSUME_GESTURE_BOUNCES -> setConsumeGestureBounces(propValue)
             FLING_ENABLE -> setFlingEnable(propValue)
             SCROLL_WITH_PARENT -> setScrollWithParent(propValue)
             KRCssConst.FRAME -> {
@@ -426,6 +428,12 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         } else {
             overScrollHandler = null
         }
+        return true
+    }
+
+    private fun setConsumeGestureBounces(propValue: Any): Boolean {
+        consumeGestureBounces = (propValue as Int) == 1
+        // 该属性用于控制手势识别逻辑，在需要时可以使用
         return true
     }
 
@@ -520,6 +528,10 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             return false
         }
 
+        if (bouncesEnable && consumeGestureBounces) {
+            parent.requestDisallowInterceptTouchEvent(true)
+        }
+
         if (directionRow && enableSmallTouchSlop) {
             val r = super.onInterceptTouchEvent(e)
             if (r) {
@@ -551,6 +563,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         if (!scrollEnabled) {
             return false
         }
+
         return if (overScrollHandler?.onTouchEvent(e) == true) {
             true
         } else {
@@ -1352,6 +1365,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         private const val HORIZONTAL_BOUNCES = "horizontalbounces"
         private const val BOUNCES_ENABLE = "bouncesEnable"
         private const val LIMIT_HEADER_BOUNCES = "limitHeaderBounces"
+        private const val CONSUME_GESTURE_BOUNCES = "consumeGestureBounces"
         private const val FLING_ENABLE = "flingEnable"
         private const val SCROLL_WITH_PARENT = "scrollWithParent"
 

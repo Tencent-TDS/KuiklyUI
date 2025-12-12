@@ -23,6 +23,7 @@
 
 #import "KRConvertUtil.h"
 #import "UINavigationController+FDFullscreenPopGesture.h"
+#import "UIViewController+KRModalDismissGesture.h"
 
 
 @interface Delegator  : NSObject<KRControllerDelegatorLifeCycleProtocol>
@@ -133,7 +134,9 @@
     self.view.backgroundColor = [UIColor whiteColor];
     [_delegator viewDidLoadWithView:self.view];
     [self.navigationController setNavigationBarHidden:YES animated:NO];
-
+    
+    // 添加全屏横滑退出手势
+    [self kr_setupModalDismissGesture];
 }
 
 
@@ -242,6 +245,7 @@
 
 - (void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
+    [self kr_removeModalDismissGesture];
 }
 
 

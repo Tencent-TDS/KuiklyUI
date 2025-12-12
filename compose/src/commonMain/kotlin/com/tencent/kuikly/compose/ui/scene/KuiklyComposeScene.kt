@@ -39,7 +39,6 @@ internal fun KuiklyComposeScene(
     boundsInWindow: IntRect? = null,
     coroutineContext: CoroutineContext,
     composeSceneContext: ComposeSceneContext = ComposeSceneContext.Empty,
-    enableConsumeSnapshotWhenPause: Boolean,
     invalidate: () -> Unit = {},
     ): ComposeScene = KuiklyComposeSceneImpl(
         boundsInWindow = boundsInWindow,
@@ -49,7 +48,6 @@ internal fun KuiklyComposeScene(
         composeSceneContext = composeSceneContext,
         invalidate = invalidate,
         rootKView = rootKView,
-        enableConsumeSnapshotWhenPause = enableConsumeSnapshotWhenPause,
     )
 
 
@@ -62,12 +60,10 @@ private class KuiklyComposeSceneImpl @InternalComposeUiApi constructor(
     composeSceneContext: ComposeSceneContext,
     private val invalidate: () -> Unit,
     private val rootKView: DeclarativeBaseView<*, *>,
-    enableConsumeSnapshotWhenPause: Boolean,
 ) : BaseComposeScene(
     coroutineContext = coroutineContext,
     composeSceneContext = composeSceneContext,
-    invalidate = invalidate,
-    enableConsumeSnapshotWhenPause = enableConsumeSnapshotWhenPause
+    invalidate = invalidate
 ) {
     private val mainOwner by lazy {
         RootNodeOwner(

@@ -27,6 +27,8 @@ import com.tencent.kuikly.compose.foundation.layout.Box
 import com.tencent.kuikly.compose.foundation.layout.BoxScope
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.Color
+import com.tencent.kuikly.compose.ui.platform.LocalDensity
+import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose_dsl.kuikly.extension.nativeRef
 import com.tencent.kuikly.compose_dsl.kuikly.extension.setEvent
 import com.tencent.kuikly.compose_dsl.kuikly.extension.setProp
@@ -47,7 +49,7 @@ enum class TextSelectionType {
 }
 
 /**
- * Frame data for selection events
+ * Frame data for selection events (in pixels for Compose DSL)
  */
 data class SelectionFrame(
     val x: Float,
@@ -58,13 +60,16 @@ data class SelectionFrame(
     companion object {
         val Zero = SelectionFrame(0f, 0f, 0f, 0f)
         
-        internal fun fromJson(json: Any?): SelectionFrame {
+        /**
+         * Parse from JSON and convert from dp to px (Compose DSL)
+         */
+        internal fun fromJson(json: Any?, density: Float): SelectionFrame {
             val jsonObj = json as? JSONObject ?: return Zero
             return SelectionFrame(
-                x = jsonObj.optDouble("x").toFloat(),
-                y = jsonObj.optDouble("y").toFloat(),
-                width = jsonObj.optDouble("width").toFloat(),
-                height = jsonObj.optDouble("height").toFloat()
+                x = jsonObj.optDouble("x").toFloat() * density,
+                y = jsonObj.optDouble("y").toFloat() * density,
+                width = jsonObj.optDouble("width").toFloat() * density,
+                height = jsonObj.optDouble("height").toFloat() * density
             )
         }
     }
@@ -107,6 +112,7 @@ fun SelectionContainer(
     content: @Composable BoxScope.() -> Unit
 ) {
     val selectionEnabled = LocalSelectionEnabled.current
+    val density = LocalDensity.current.density
     
     // Build modifier with selection properties
     var selectionModifier = modifier
@@ -122,20 +128,20 @@ fun SelectionContainer(
         selectionModifier = selectionModifier.setProp("selectionColor", colorJson)
     }
     
-    // Apply event handlers
+    // Apply event handlers (convert dp to px for Compose DSL)
     if (onSelectStart != null && selectionEnabled) {
         selectionModifier = selectionModifier.setEvent("selectStart") {
-            onSelectStart(SelectionFrame.fromJson(it))
+            onSelectStart(SelectionFrame.fromJson(it, density))
         }
     }
     if (onSelectChange != null && selectionEnabled) {
         selectionModifier = selectionModifier.setEvent("selectChange") {
-            onSelectChange(SelectionFrame.fromJson(it))
+            onSelectChange(SelectionFrame.fromJson(it, density))
         }
     }
     if (onSelectEnd != null && selectionEnabled) {
         selectionModifier = selectionModifier.setEvent("selectEnd") {
-            onSelectEnd(SelectionFrame.fromJson(it))
+            onSelectEnd(SelectionFrame.fromJson(it, density))
         }
     }
     if (onSelectCancel != null && selectionEnabled) {
@@ -248,9 +254,12 @@ fun DisableSelection(
 
 /**
  * State holder for SelectionContainer that enables programmatic control of text selection.
+ * Coordinates are in pixels (Compose DSL convention).
  */
 @Stable
-class SelectionContainerState internal constructor() {
+class SelectionContainerState internal constructor(
+    private val density: Float
+) {
     private var boundView: DivView? = null
     
     /**
@@ -260,7 +269,7 @@ class SelectionContainerState internal constructor() {
         private set
     
     /**
-     * The current selection frame.
+     * The current selection frame (in pixels).
      */
     var selectionFrame by mutableStateOf(SelectionFrame.Zero)
         private set
@@ -271,9 +280,10 @@ class SelectionContainerState internal constructor() {
     
     /**
      * Creates a text selection at the specified point.
+     * Coordinates should be in pixels (Compose DSL convention).
      *
-     * @param x The x coordinate relative to the container
-     * @param y The y coordinate relative to the container
+     * @param x The x coordinate in pixels relative to the container
+     * @param y The y coordinate in pixels relative to the container
      * @param type The type of selection (CHARACTER, WORD, PARAGRAPH, SENTENCE)
      */
     fun createSelection(x: Float, y: Float, type: TextSelectionType = TextSelectionType.WORD) {
@@ -284,7 +294,10 @@ class SelectionContainerState internal constructor() {
             TextSelectionType.PARAGRAPH -> SelectionType.PARAGRAPH
             TextSelectionType.SENTENCE -> SelectionType.SENTENCE
         }
-        view.createSelection(x, y, selectionType)
+        // Convert pixels to points for rendering layer
+        val pointX = x / density
+        val pointY = y / density
+        view.createSelection(pointX, pointY, selectionType)
     }
     
     /**
@@ -313,6 +326,13 @@ class SelectionContainerState internal constructor() {
         selectionFrame = SelectionFrame.Zero
     }
     
+    /**
+     * Selects all text content in the container.
+     */
+    fun createSelectionAll() {
+        boundView?.createSelectionAll()
+    }
+    
     internal fun updateFrame(frame: SelectionFrame) {
         selectionFrame = frame
     }
@@ -320,10 +340,12 @@ class SelectionContainerState internal constructor() {
 
 /**
  * Creates and remembers a SelectionContainerState.
+ * The state captures the current density for coordinate conversion.
  */
 @Composable
 fun rememberSelectionContainerState(): SelectionContainerState {
-    return remember { SelectionContainerState() }
+    val density = LocalDensity.current.density
+    return remember(density) { SelectionContainerState(density) }
 }
 
 // Extension to convert Color to ARGB int

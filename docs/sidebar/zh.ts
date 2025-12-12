@@ -97,11 +97,16 @@ export const zhSidebar = sidebar({
                                     collapsible: true,
                                     children: ["dynamic-guide.md"]
                                 },
+                                {
+                                    text: "性能优化",
+                                    collapsible: true,
+                                    children: ["kuikly-perf-guidelines.md"]
+
+                                }
                             ]
                         },
                         "view-external-prop.md",
                         "protobuf.md",
-                        "kuikly-perf-guidelines.md",
                         "thread-and-coroutines.md",
                         "multi-page.md"]
                 },

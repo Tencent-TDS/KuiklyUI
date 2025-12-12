@@ -210,6 +210,13 @@ NSString *const KRDensity = @"density";
     return nil;
 }
 
+- (UIWindow *)targetWindow {
+    if ([self.delegate respondsToSelector:@selector(targetWindow)]) {
+        return [self.delegate targetWindow];
+    }
+    return nil;
+}
+
 #pragma mark - private
 
 - (NSDictionary *)p_generateWithParams:(NSDictionary *)params size:(CGSize)size {
@@ -226,8 +233,15 @@ NSString *const KRDensity = @"density";
     mParmas[KRParamKey] = params? : @{};
 	mParmas[KRNativeBuild] = @(2);
     mParmas[KRAccessibilityRunning] = @(UIAccessibilityIsVoiceOverRunning() ? 1: 0); // 无障碍化是否开启
+    
     if (@available(iOS 11.0, *)) {
-        mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:[KRConvertUtil currentSafeAreaInsets]];
+        UIWindow *targetWindow = [self.delegate targetWindow];
+        if (targetWindow) {
+            // 业务自行传递来了Kuikly页面所设置在的目标window，则直接返回此window的安全区域值
+            mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:targetWindow.safeAreaInsets];
+        } else {
+            mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:[KRConvertUtil currentSafeAreaInsets]];
+        }
     } else {
         mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:UIEdgeInsetsMake([KRConvertUtil statusBarHeight], 0, 0, 0)];
         // Fallback on earlier versions

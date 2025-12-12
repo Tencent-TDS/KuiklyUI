@@ -36,6 +36,7 @@ constexpr char kPropNameVerticalBounces[] = "verticalbounces";
 constexpr char kPropNameHorizontalBounces[] = "horizontalbounces";
 constexpr char kPropNameBouncesEnable[] = "bouncesEnable";
 constexpr char kPropNameLimitHeaderBounces[] = "limitHeaderBounces";
+constexpr char kPropNameLimitFooterBounces[] = "limitFooterBounces";
 constexpr char kPropNameShowScrollerIndicator[] = "showScrollerIndicator";
 constexpr char kPropNameNestedScroll[] = "nestedScroll";
 constexpr char kPropNameFlingEnable[] = "flingEnable";
@@ -187,6 +188,8 @@ bool KRScrollerView::SetProp(const std::string &prop_key, const KRAnyValue &prop
         didHanded = RegisterWillDragEndEvent(event_call_back);
     } else if (kuikly::util::isEqual(prop_key, kPropNameLimitHeaderBounces)) {
         didHanded = SetLimitHeaderBounces(prop_value);
+    } else if (kuikly::util::isEqual(prop_key, kPropNameLimitFooterBounces)) {
+        didHanded = SetLimitFooterBounces(prop_value);
     } else if (kuikly::util::isEqual(prop_key, kPropNameNestedScroll)) {
         didHanded = SetNestedScroll(prop_value);
     } else if (kuikly::util::isEqual(prop_key, kPropNameFlingEnable)) {
@@ -361,6 +364,12 @@ bool KRScrollerView::SetLimitHeaderBounces(const KRAnyValue &value) {
     return true;
 }
 
+bool KRScrollerView::SetLimitFooterBounces(const KRAnyValue &value) {
+    limit_footer_bounces_ = value->toBool();
+    RegisterEvent(NODE_SCROLL_EVENT_ON_SCROLL_EDGE);
+    return true;
+}
+
 bool KRScrollerView::SetShowScrollerIndicator(const KRAnyValue &value) {
     auto enable = value->toBool();
     kuikly::util::SetArkUIShowScrollerIndicator(GetNode(), enable);
@@ -513,6 +522,7 @@ void KRScrollerView::OnScrollStop(ArkUI_NodeEvent *event) {
 
 void KRScrollerView::OnWillScroll(ArkUI_NodeEvent *event) {
     AdjustHeaderBouncesEnableWhenWillScroll(event);
+    AdjustFooterBouncesEnableWhenWillScroll(event);
 
     auto new_scroll_state = kuikly::util::GetArkUIScrollerState(event, 2);
     if (new_scroll_state == current_scroll_state_) {
@@ -610,10 +620,50 @@ void KRScrollerView::AdjustHeaderBouncesEnableWhenWillScroll(ArkUI_NodeEvent *ev
         return;
     }
     auto content_offset = kuikly::util::GetArkUIScrollContentOffset(GetNode());
+    // 只处理顶部的情况，底部的情况由 AdjustFooterBouncesEnableWhenWillScroll 处理
     if (content_offset.y <= 0) {
         InnerSetBouncesEnable(false);
+    } else if (!limit_footer_bounces_) {
+        // 如果底部没有限制，且不在顶部，则恢复回弹
+        InnerSetBouncesEnable(bounces_enabled_);
+    }
+    // 如果底部有限制，让 AdjustFooterBouncesEnableWhenWillScroll 来决定
+}
+
+void KRScrollerView::AdjustFooterBouncesEnableWhenWillScroll(ArkUI_NodeEvent *event) {
+    if (!limit_footer_bounces_) {
+        return;
+    }
+    if (!content_view_) {
+        return;
+    }
+    auto content_offset = kuikly::util::GetArkUIScrollContentOffset(GetNode());
+    auto frame = GetFrame();
+    auto content_view_frame = content_view_->GetFrame();
+    
+    // 计算是否到达底部
+    bool isReachEnd = false;
+    if (content_view_frame.height > frame.height) {
+        // 垂直滚动
+        float maxOffsetY = content_view_frame.height - frame.height;
+        isReachEnd = content_offset.y >= maxOffsetY;
+    } else if (content_view_frame.width > frame.width) {
+        // 横向滚动
+        float maxOffsetX = content_view_frame.width - frame.width;
+        isReachEnd = content_offset.x >= maxOffsetX;
+    }
+    
+    if (isReachEnd) {
+        InnerSetBouncesEnable(false);
     } else {
-        InnerSetBouncesEnable(true);
+        // 如果不在底部，检查是否在顶部（顶部限制优先）
+        if (limit_header_bounces_ && content_offset.y <= 0) {
+            // 顶部限制生效，保持禁用
+            InnerSetBouncesEnable(false);
+        } else {
+            // 既不在顶部也不在底部，恢复回弹
+            InnerSetBouncesEnable(bounces_enabled_);
+        }
     }
 }
 

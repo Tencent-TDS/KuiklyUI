@@ -31,8 +31,11 @@ import com.tencent.kuikly.compose.ui.draw.clip
 import com.tencent.kuikly.compose.ui.draw.shadow
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.input.pointer.pointerInput
+import com.tencent.kuikly.compose.ui.layout.onGloballyPositioned
+import com.tencent.kuikly.compose.ui.layout.positionInRoot
 import com.tencent.kuikly.compose.ui.text.font.FontStyle
 import com.tencent.kuikly.compose.ui.text.font.FontWeight
+import com.tencent.kuikly.compose.ui.geometry.Offset
 import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
@@ -72,6 +75,9 @@ private fun TextSelectionGestureDemoContent() {
     var menuPosition by remember { mutableStateOf(SelectionFrame.Zero) }
     var selectedText by remember { mutableStateOf("") }
     var isSelectionActive by remember { mutableStateOf(false) }
+    
+    // Track the SelectionContainer's position on screen (for menu positioning)
+    var containerPosition by remember { mutableStateOf(Offset.Zero) }
     
     Box(
         modifier = Modifier
@@ -138,13 +144,17 @@ private fun TextSelectionGestureDemoContent() {
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
                         .background(Color(0xFFFAFAFA))
+                        .onGloballyPositioned { coordinates ->
+                            // Track container's position on screen for menu positioning
+                            containerPosition = coordinates.positionInRoot()
+                        }
                         .pointerInput(Unit) {
                             detectTapGestures(
                                 onLongPress = { offset ->
                                     // Long press triggers word selection
                                     // Coordinates are in pixels, SelectionContainerState handles conversion
                                     KLog.i("TextSelectionGesture", "Long press at: $offset")
-                                    selectionState.createSelection(offset.x, offset.y, TextSelectionType.WORD)
+                                    selectionState.createSelection(offset.x, offset.y, TextSelectionType.SENTENCE)
                                 },
                                 onTap = { offset ->
                                     KLog.i("TextSelectionGesture", "Tap at: $offset")
@@ -278,6 +288,7 @@ private fun TextSelectionGestureDemoContent() {
         if (showMenu && isSelectionActive) {
             SelectionMenu(
                 selectionFrame = menuPosition,
+                containerOffset = containerPosition,
                 onCopy = {
                     selectionState.getSelection { texts ->
                         selectedText = texts.joinToString(" ")
@@ -307,13 +318,18 @@ private fun TextSelectionGestureDemoContent() {
 @Composable
 private fun SelectionMenu(
     selectionFrame: SelectionFrame,
+    containerOffset: Offset,
     onCopy: () -> Unit,
     onSelectAll: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    // Calculate menu position (above the selection)
-    val menuY = (selectionFrame.y - 50).coerceAtLeast(60f)
-    val menuX = (selectionFrame.x + selectionFrame.width / 2 - 70).coerceAtLeast(16f)
+    // Calculate menu position (above the selection, accounting for container's screen position)
+    // selectionFrame is relative to container, containerOffset is container's position on screen
+    val absoluteY = containerOffset.y + selectionFrame.y
+    val absoluteX = containerOffset.x + selectionFrame.x
+    
+    val menuY = (absoluteY - 180).coerceAtLeast(60f)
+    val menuX = (absoluteX + selectionFrame.width / 2 - 100).coerceAtLeast(16f)
     
     // Full screen overlay to detect outside clicks
     Box(

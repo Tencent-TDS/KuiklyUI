@@ -1055,6 +1055,42 @@ internal class TestPage : BasePager() {
 }
 ```
 
+### useDpFontSizeDim方法
+是否使用dp作为字体单位 
+
+android上，字体默认是映射到sp, 如果不想字体跟随系统的字体大小，
+
+可指定文本使用useDpFontSizeDim(true)来表示不跟随系统字体大小
+
+注：如果不希望每个文本使用该属性，可以扩展Float方法抵消安卓
+
+```kotlin
+internal class FontSizeDpPager : BasePager() {
+
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                allCenter()
+            }
+
+            Text {
+                attr {
+                    fontSize(20f)
+                    useDpFontSizeDim()
+                    text("使用dp作为单位")
+                }
+            }
+            Text {
+                attr {
+                    fontSize(20f)
+                    text("使用sp作为单位")
+                }
+            }
+        }
+    }
+}
+```
+
 @tab 效果
 
 <div align="center">

@@ -1062,7 +1062,7 @@ android上，字体默认是映射到sp, 如果不想字体跟随系统的字体
 
 可指定文本使用useDpFontSizeDim(true)来表示不跟随系统字体大小
 
-注：如果不希望每个文本使用该属性，可以扩展Float方法抵消安卓
+注：如果不希望每个文本使用该属性，可以自行扩展Float方法以抵消安卓相关缩放
 
 ```kotlin
 internal class FontSizeDpPager : BasePager() {

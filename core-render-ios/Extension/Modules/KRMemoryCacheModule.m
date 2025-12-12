@@ -16,6 +16,7 @@
 #import "KRMemoryCacheModule.h"
 #import "NSObject+KR.h"
 #import "KRImageView.h"
+#import "KuiklyRenderBridge.h"
 
 extern NSString *const KRImageBase64Prefix;
 extern NSString *const KRImageAssetsPrefix;
@@ -88,9 +89,13 @@ static NSString *const kCacheStateInProgress = @"InProgress";
     NSDictionary *param = [args[KR_PARAM_KEY] hr_stringToDictionary];
     NSString* src = param[@"src"];
     NSNumber* sync = param[@"sync"];
+    NSDictionary* imageParams = param[@"imageParams"];  //接收Kotlin侧传过来的新参数，此参数仅参与待缓存的图片的加载过程，不参与实际存储
     KuiklyRenderCallback callback = args[KR_CALLBACK_KEY];
     
-    return [self cacheImage:src sync:sync.intValue callback:callback];
+    return [self cacheImage:src
+                    imageParams:imageParams
+                           sync:sync.intValue
+                       callback:callback];
 }
 
 - (NSString*)cacheImage:(UIImage*)image withCachekey:(NSString*)cacheKey callback:(KuiklyRenderCallback)callback{
@@ -124,17 +129,46 @@ static NSString *const kCacheStateInProgress = @"InProgress";
     }
 }
 
-- (NSString*)cacheLocalImageWithURL:(NSURL*)url withCacheKey:cacheKey sync:(bool)sync callback:(KuiklyRenderCallback)callback{
+- (NSString*)cacheLocalImageWithURL:(NSURL*)url
+                        imageParams:(NSDictionary*)params
+                       withCacheKey:cacheKey
+                               sync:(bool)sync
+                           callback:(KuiklyRenderCallback)callback {
     @autoreleasepool {
-        NSData* data = [NSData dataWithContentsOfURL:url];
-        UIImage *image = [UIImage imageWithData:data];
-        
-        return [self cacheImage:image withCachekey:cacheKey callback:callback];
+        UIImageView *imageView = [[UIImageView alloc] init];
+        // 不考虑使用异步的hr_setImageWithUrl执行图片加载，原因是complete回调的返回类型是void，NSString
+        if (params){
+            if([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:imageParams:)]) {
+                [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url.absoluteString
+                                                                   forImageView:imageView
+                                                                    imageParams:params];
+            } else {
+                [KRLogModule logInfo:@"cacheImage 需实现KuiklyRenderBridge的componentExpandHandler 的 hr_setImageWithUrl:imageParams:forImageView:方法"];
+            }
+        } else {
+            NSData* data = [NSData dataWithContentsOfURL:url];
+            imageView.image = [UIImage imageWithData:data];
+        }
+        // 异常判断
+        if (imageView && imageView.image) {
+            return [self cacheImage:imageView.image withCachekey:cacheKey callback:callback];
+        } else {
+            NSDictionary *result = @{
+                @"state": kCacheStateComplete,
+                @"errorCode": @(0),
+                @"errorMsg": @"",
+                @"cacheKey": cacheKey
+            };
+            return [result hr_dictionaryToString];
+        }
     }
 }
 
 
-- (NSString*)cacheImage:(NSString*)src sync:(bool)sync callback:(KuiklyRenderCallback)callback{
+- (NSString*)cacheImage:(NSString*)src
+            imageParams:(NSDictionary*)imageParams
+                   sync:(bool)sync
+               callback:(KuiklyRenderCallback)callback {
     [_imageCacheLock lock];
     if(_imageCache == nil){
         _imageCache = [[NSMutableDictionary alloc] init];
@@ -162,7 +196,11 @@ static NSString *const kCacheStateInProgress = @"InProgress";
         }
         
         if(url){
-            return [self cacheLocalImageWithURL:url withCacheKey:cacheKey sync:sync callback:callback];
+            return [self cacheLocalImageWithURL:url
+                                                imageParams:imageParams
+                                               withCacheKey:cacheKey
+                                                       sync:sync
+                                                   callback:callback];
         }
     }
     

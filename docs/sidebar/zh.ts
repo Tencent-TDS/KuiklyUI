@@ -101,7 +101,6 @@ export const zhSidebar = sidebar({
                                     text: "性能优化",
                                     collapsible: true,
                                     children: ["kuikly-perf-guidelines.md"]
-
                                 }
                             ]
                         },

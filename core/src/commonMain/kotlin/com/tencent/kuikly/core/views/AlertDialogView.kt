@@ -20,8 +20,10 @@ import com.tencent.kuikly.core.base.event.ClickParams
 import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.base.event.EventName
 import com.tencent.kuikly.core.directives.velse
+import com.tencent.kuikly.core.directives.velseif
 import com.tencent.kuikly.core.directives.vfor
 import com.tencent.kuikly.core.directives.vif
+import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.reactive.handler.observableList
 import com.tencent.kuikly.core.views.compose.Button
@@ -155,6 +157,12 @@ class AlertDialogEvent : Event() {
 
 class AlertDialogView : VirtualView<AlertDialogAttr, AlertDialogEvent>() {
     private var showAlerting by observable(false)
+    private val backPressCallback  = object : BackPressCallback() {
+        override fun handleOnBackPressed() {
+            event.willDismissHandlerFn?.invoke(ModalDismissReason.BackPressed)
+        }
+    }
+
     override fun createAttr() = AlertDialogAttr()
     override fun createEvent() = AlertDialogEvent()
 
@@ -263,6 +271,9 @@ class AlertDialogView : VirtualView<AlertDialogAttr, AlertDialogEvent>() {
         val ctx = this
         return {
             vif({ctx.showAlerting || ctx.attr.showAlert}) {
+                if (ctx.event.willDismissHandlerFn != null) {
+                    getPager().getBackPressHandler()?.addCallback(ctx.backPressCallback)
+                }
                 Modal(ctx.attr.inWindow) {
                     attr {
                         allCenter() // center all content
@@ -319,7 +330,11 @@ class AlertDialogView : VirtualView<AlertDialogAttr, AlertDialogEvent>() {
                         }
 
                     }
-
+                }
+            }
+            velseif({true}) {
+                if (ctx.event.willDismissHandlerFn != null) {
+                    getPager().getBackPressHandler()?.removeCallback(ctx.backPressCallback)
                 }
             }
         }

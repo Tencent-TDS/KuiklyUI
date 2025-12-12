@@ -1065,6 +1065,7 @@ android上，字体默认是映射到sp, 如果不想字体跟随系统的字体
 注：如果不希望每个文本使用该属性，可以自行扩展Float方法以抵消安卓相关缩放
 
 ```kotlin
+@Page(FontSizeDpPager)
 internal class FontSizeDpPager : BasePager() {
 
     override fun body(): ViewBuilder {

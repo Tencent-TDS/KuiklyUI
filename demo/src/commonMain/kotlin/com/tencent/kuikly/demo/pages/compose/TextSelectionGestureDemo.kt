@@ -177,10 +177,12 @@ private fun TextSelectionGestureDemoContent() {
                     },
                     onSelectChange = { frame ->
                         menuPosition = frame
+                        showMenu = false
                         KLog.i("TextSelectionGesture", "Selection changed: $frame")
                     },
                     onSelectEnd = { frame ->
                         menuPosition = frame
+                        showMenu = true
                         KLog.i("TextSelectionGesture", "Selection ended: $frame")
                     },
                     onSelectCancel = {

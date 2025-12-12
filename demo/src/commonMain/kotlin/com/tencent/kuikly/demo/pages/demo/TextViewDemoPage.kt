@@ -54,18 +54,20 @@ internal class TextViewDemoPage : BasePager() {
                 View {
                     attr {
                         margin(10f)
-                        height(9f)
-                        width(38f)
+                        height(300f)
+                        width(300f)
                         borderRadius(4.5f)
                         backgroundColor(Color.BLACK)
                         allCenter()
                     }
                     Text {
                         attr {
-                            fontSize(8f)
+                            fontSize(60f)
+                            backgroundColor(Color.GRAY)
                             color(Color.WHITE)
-                            fontFamily("EurostileNextPro-SemiBold")
-                            text("39:40")
+                            lines(2)
+                            textOverFlowTail()
+                            text("奇变偶不变符号看象限\n受打击饭卡手机阿达")
                         }
                     }
                 }

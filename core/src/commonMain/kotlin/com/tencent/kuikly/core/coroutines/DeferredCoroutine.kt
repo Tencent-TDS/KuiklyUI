@@ -25,7 +25,9 @@ internal class DeferredCoroutine<T>(
                 callback.invoke(resumeResultValue as T)
             }
             suspendCoroutineResumeTasks.clear()
+            complete(null)
         } else {
+            complete(result.exceptionOrNull())
             throw RuntimeException("result failure:" + result.exceptionOrNull())
         }
     }

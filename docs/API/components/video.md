@@ -4,6 +4,9 @@
 
 [组件使用示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/VideoExamplePage.kt)
 
+> 注意：播放器依赖宿主的能力，需要在各端实现适配器，可参考：
+> [Android](https://github.com/Tencent-TDS/KuiklyUI/blob/main/androidApp/src/main/java/com/tencent/kuikly/android/demo/adapter/VideoViewAdapter.kt)、[iOS](https://github.com/Tencent-TDS/KuiklyUI/blob/main/iosApp/iosApp/KuiklyRenderExpand/Handlers/KRVideoViewHandler.m)、[鸿蒙](https://github.com/Tencent-TDS/KuiklyUI/blob/main/ohosApp/entry/src/main/ets/kuikly/adapters/AppKRVideoAdapter.ets)
+
 ## 属性
 
 支持所有[基础属性](basic-attr-event.md#基础属性)，此外还支持：

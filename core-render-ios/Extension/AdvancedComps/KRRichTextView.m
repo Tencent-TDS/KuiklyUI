@@ -83,7 +83,7 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
 
 - (void)css_onClickTapWithSender:(UIGestureRecognizer *)sender {
     CGPoint location = [sender locationInView:self];
-    CGPoint pageLocation = [sender locationInView:self.window];
+    CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
     KRTextRender * textRender = self.attributedText.hr_textRender;
     NSInteger index = [textRender characterIndexForPoint:location];
     NSNumber *spanIndex = nil;
@@ -317,7 +317,7 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
     }
     
     // 强制使用LTR文本方向
-    [attributedString addAttribute:NSWritingDirectionAttributeName value:@[@(NSWritingDirectionLeftToRight | NSTextWritingDirectionOverride)] range:range];
+    [attributedString addAttribute:NSWritingDirectionAttributeName value:@[@(NSWritingDirectionLeftToRight | NSWritingDirectionOverride)] range:range];
     
     if(letterSpacing){
         [attributedString addAttribute:NSKernAttributeName value:@(letterSpacing) range:range];
@@ -377,7 +377,7 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
 
     NSAttributedString *attrString = [NSAttributedString attributedStringWithAttachment:attachment];
     NSMutableAttributedString *mutableAttrString = [[NSMutableAttributedString alloc] initWithAttributedString:attrString];
-    [mutableAttrString kr_addAttribute:NSWritingDirectionAttributeName value:@[@(NSWritingDirectionLeftToRight | NSTextWritingDirectionOverride)] range:NSMakeRange(0, mutableAttrString.length)];
+    [mutableAttrString kr_addAttribute:NSWritingDirectionAttributeName value:@[@(NSWritingDirectionLeftToRight | NSWritingDirectionOverride)] range:NSMakeRange(0, mutableAttrString.length)];
     return mutableAttrString;
 }
 

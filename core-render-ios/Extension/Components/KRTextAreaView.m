@@ -495,9 +495,9 @@ NSString *const KRFontWeightKey = @"fontWeight";
             _ignoreTextDidChanged = NO;
 
             dispatch_async(dispatch_get_main_queue(), ^{
-                _ignoreTextDidChanged = YES;
+                self->_ignoreTextDidChanged = YES;
                 self.selectedTextRange = [self textRangeFromPosition:newPosition toPosition:newPosition];
-                _ignoreTextDidChanged = NO;
+                self->_ignoreTextDidChanged = NO;
             });
         }
        

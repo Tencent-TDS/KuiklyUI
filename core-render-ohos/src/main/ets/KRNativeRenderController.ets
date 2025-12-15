@@ -204,7 +204,8 @@ export class KRNativeRenderController {
     pageParams: KRRecord,
     contextCode: string,
     imeMode: boolean,
-    assetsDir: string
+    assetsDir: string,
+    viewRect?: KRRect
   ) {
     this.uiContext = uiContext;
     this.uiAbilityContext = uiAbilityContext;
@@ -214,6 +215,9 @@ export class KRNativeRenderController {
     this.contextCode = contextCode;
     this.imeMode = imeMode;
     this.assetsDir = assetsDir;
+    if (viewRect) {
+      this.viewRect = viewRect;
+    }
     gGlobalInstanceId++;
     this.instanceId = gGlobalInstanceId + '';
     render.OnLaunchStart(this.instanceId, executeMode.mode); //  页面启动事件通知到native层，用于Performance性能采集
@@ -268,7 +272,7 @@ export class KRNativeRenderController {
     KRNativeManager.getInstance().getNativeInstance(this.instanceId)?.registerExceptionCallback(exceptionCallback);
   }
 
-  onViewSizeChanged(rect: KRRect, oldDensity: number, newDensity: number) {
+  onViewSizeChanged(rect: KRRect, oldDensity: number = this.densityPixels, newDensity: number = this.densityPixels) {
     this.viewRect = rect;
     if (this.didInit) {
       let densityInfo: KRRecord | null = null;
@@ -635,8 +639,9 @@ export class KRNativeRenderController {
       'fontWeightScale': this.fontWeightScale,
       'fontSizeScale': this.fontSizeScale,
       'imeMode': this.imeMode ? 1 : 0,
-      "windowId": this.windowId,
-      'fontSizeScaleFollowSystem': this.fontSizeScaleFollowSystem() ? 1 : 0
+      'windowId': this.windowId,
+      'fontSizeScaleFollowSystem': this.fontSizeScaleFollowSystem() ? 1 : 0,
+      'performanceMonitorTypesMask': this.getMonitorTypeMask(),
     };
 
     return JSON.stringify(data);
@@ -708,6 +713,31 @@ export class KRNativeRenderController {
    */
   fontSizeScaleFollowSystem(): boolean {
     return true
+  }
+
+  /**
+   * 回调启动数据
+   */
+  onGetLaunchData(data: Record<string, number>): void {
+  }
+
+  /**
+   * 回调性能数据
+   */
+  onGetPerformanceData(data: Record<string, number>): void {
+  }
+
+  /**
+   * Kuikly框架设置性能监控选项，默认只开启动监控
+   * @return Array<KRMonitorType>: 需要设置的性能监控选项列表(目前仅支持启动监控)
+   */
+  performanceMonitorTypes(): Array<KRMonitorType> {
+    return [KRMonitorType.LAUNCH];
+  }
+
+  private getMonitorTypeMask(): number {
+    const mask = this.performanceMonitorTypes().reduce((acc: KRMonitorType, cur: KRMonitorType) => acc | cur, 0);
+    return mask;
   }
 
 }
@@ -806,4 +836,11 @@ export interface IKuiklyRenderViewLifecycleCallback {
    */
   onFirstFramePaint(): void
 
+}
+
+/**
+ * 性能监控类型
+ */
+export enum KRMonitorType {
+  LAUNCH = 1 << 0,  // 1 启动监控
 }

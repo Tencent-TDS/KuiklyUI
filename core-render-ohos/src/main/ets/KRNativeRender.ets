@@ -20,10 +20,11 @@ import common from '@ohos.app.ability.common';
 import { KuiklyNativeManager } from './native/KuiklyNativeManager';
 import { ErrorReason } from './exception/KuiklyRenderExportExceptions';
 import { KRNativeManager } from './manager/KRNativeManager';
-import { NodeContent } from '@kit.ArkUI';
+import { NodeContent, Size } from '@kit.ArkUI';
 import render from 'libkuikly.so';
 import { KRRenderExecuteModeBase } from './context/KRRenderExecuteModeBase';
 import { KRRenderNativeMode } from './context/KRRenderNativeMode';
+import { KRRect } from './foundation/KRRect';
 
 /**
  * @brief ArkUI C-Api Native渲染根节点
@@ -77,6 +78,7 @@ export struct KRNativeRender {
    * 普通app默认为false，输入法使用到的场景请置为true
    */
   imeMode = false;
+  initialSize?: Size;
   private controller?: KRNativeRenderController;
   private nodeContent: Content = new NodeContent();
   private loaded = false;
@@ -124,6 +126,9 @@ export struct KRNativeRender {
     this.onControllerReadyCallback?.(this.controller!);
     render.createNativeRoot(this.nodeContent, this.controller!.instanceId);
     this.loadNativeLibIfNeeded()
+    if (this.initialSize) {
+      this.controller!.onViewSizeChanged(new KRRect(0, 0, this.initialSize.width, this.initialSize.height));
+    }
   }
 
   aboutToDisappear(): void {

@@ -1,14 +1,14 @@
 Pod::Spec.new do |spec|
   spec.name             = "OpenKuiklyIOSRender"
-  spec.version          = "2.9.0"
+  spec.version          = "2.11.0"
   spec.summary          = "Kuikly"
   spec.description      = <<-DESC
                         -Kuikly iOS平台渲染依赖库
                         DESC
   spec.homepage         = "https://github.com/Tencent-TDS/KuiklyUI"
   spec.license          = { :type => "KuiklyUI", :file => "LICENSE" }
-  spec.author           = { "Kuikly" => "ruifanyuan@tencent.com" }
-  spec.ios.deployment_target = '9.0'
+  spec.author           = "Kuikly Team"
+  spec.ios.deployment_target = '12.0'
   spec.source           = { :git => "https://github.com/Tencent-TDS/KuiklyUI.git", :tag => "#{spec.version}" }
   spec.user_target_xcconfig = { 'CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES' => 'YES' }
   spec.requires_arc     = true

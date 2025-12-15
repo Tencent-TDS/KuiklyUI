@@ -20,9 +20,14 @@ package com.tencent.kuikly.compose
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.InternalComposeApi
+import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
+import com.tencent.kuikly.compose.container.LocalSlotProvider
+import com.tencent.kuikly.compose.container.SlotProvider
 import com.tencent.kuikly.compose.coroutines.internal.ComposeDispatcher
 import com.tencent.kuikly.compose.foundation.event.OnBackPressedDispatcher
 import com.tencent.kuikly.compose.foundation.event.OnBackPressedDispatcherOwner
+import com.tencent.kuikly.compose.platform.Configuration
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.GlobalSnapshotManager
 import com.tencent.kuikly.compose.ui.InternalComposeUiApi
@@ -36,6 +41,7 @@ import com.tencent.kuikly.compose.ui.unit.LayoutDirection
 import com.tencent.kuikly.compose.ui.util.fastRoundToInt
 import com.tencent.kuikly.compose.ui.KuiklyImageCacheManager
 import com.tencent.kuikly.compose.ui.platform.LocalActivity
+import com.tencent.kuikly.compose.ui.platform.LocalConfiguration
 import com.tencent.kuikly.compose.ui.platform.LocalOnBackPressedDispatcherOwner
 import com.tencent.kuikly.core.base.BackPressHandler
 import com.tencent.kuikly.core.base.ViewBuilder
@@ -61,6 +67,17 @@ fun ComposeContainer.setContent(content: @Composable () -> Unit) {
 open class ComposeContainer :
     Pager(),
     OnBackPressedDispatcherOwner {
+
+    companion object {
+        /**
+         * 当 Kuikly Compose 和原生 Compose 同时存在时，可以通过设置此配置为 `false` 来禁止Kuikly消费State变更，
+         * 从而解决原生 Compose 的重组状态偶现丢失和 ANR 死锁的问题。
+         *
+         * 建议在ComposeContainer.willInit方法内使用，在setContent之前设置
+         */
+        var enableConsumeSnapshot: Boolean = true
+    }
+
     override var ignoreLayout = true
     override var didCreateBody: Boolean = false
 
@@ -87,6 +104,8 @@ open class ComposeContainer :
     internal val imageCacheManager by lazy(LazyThreadSafetyMode.NONE) {
         KuiklyImageCacheManager(this)
     }
+
+    private var configuration: Configuration? = null
 
     override fun viewDidLoad() {
         super.viewDidLoad()
@@ -150,14 +169,12 @@ open class ComposeContainer :
 
     override fun pageDidAppear() {
         super.pageDidAppear()
-        GlobalSnapshotManager.resume()
         mediator?.updateAppState(true)
         updateLifecycleState(Lifecycle.State.RESUMED)
     }
 
     override fun pageDidDisappear() {
         super.pageDidDisappear()
-        GlobalSnapshotManager.pause()
         updateLifecycleState(Lifecycle.State.CREATED)
     }
 
@@ -185,10 +202,12 @@ open class ComposeContainer :
             boundsInWindow = IntRect(0, 0, windowInfo.containerSize.width, windowInfo.containerSize.height),
             invalidate = invalidate,
             coroutineContext = coroutineContext,
-            enableConsumeSnapshotWhenPause = enableConsumeSnapshotWhenPause(),
         )
 
     private fun createMediatorIfNeeded() {
+        if (configuration == null) {
+            configuration = Configuration(this)
+        }
         if (mediator == null) {
             mediator = createMediator()
         }
@@ -225,7 +244,7 @@ open class ComposeContainer :
         } else if (pagerEvent == PAGER_EVENT_CONFIGURATION_DID_CHANGED) {
             val fontWeightScale = eventData.optDouble("fontWeightScale", 1.0)
             val fontSizeScale = eventData.optDouble("fontSizeScale", 1.0)
-            mediator?.configuration?.onFontConfigChange(fontSizeScale, fontWeightScale)
+            configuration?.onFontConfigChange(fontSizeScale, fontWeightScale)
         }
     }
 
@@ -234,7 +253,7 @@ open class ComposeContainer :
             (frame.width * pagerDensity()).fastRoundToInt(),
             (frame.height * pagerDensity()).fastRoundToInt()
         )
-        mediator?.configuration?.onRootViewSizeChanged(frame.width.toDouble(), frame.height.toDouble())
+        configuration?.onRootViewSizeChanged(frame.width.toDouble(), frame.height.toDouble())
         mediator?.viewWillLayoutSubviews()
     }
 
@@ -244,15 +263,25 @@ open class ComposeContainer :
 
     @OptIn(InternalComposeApi::class)
     @Composable
-    internal fun ProvideContainerCompositionLocals(content: @Composable () -> Unit) =
+    internal fun ProvideContainerCompositionLocals(content: @Composable () -> Unit) {
+        val slotProvider = remember { SlotProvider() }
         CompositionLocalProvider(
             LocalLifecycleOwner provides lifecycleOwner,
             LocalViewModelStoreOwner provides viewModelStoreOwner,
             // Kuikly
             LocalActivity provides this,
             LocalOnBackPressedDispatcherOwner provides this,
-            content = content,
-        )
+            LocalSlotProvider provides slotProvider,
+            LocalConfiguration provides configuration!!
+        ) {
+            content()
+            LocalSlotProvider.current.slots.forEach { slotContent ->
+                key(slotContent.first) {
+                    slotContent.second?.invoke()
+                }
+            }
+        }
+    }
 
     private fun setComposeContent(content: @Composable () -> Unit) {
         mediator?.setContent {
@@ -276,16 +305,6 @@ open class ComposeContainer :
 
     override fun isAccessibilityRunning(): Boolean {
         return pageData.isAccessibilityRunning
-    }
-
-    /**
-     * 当KuiklyCompose和原生Compose同时存在时候，通过覆盖该方法禁止KuiklyCompose页面在后台时
-     * 会继续消费Compose Runtime 共享 Snapshot的变更。解决原生Compose的重组状态偶现丢失的问题。
-     *
-     * 如果业务仅仅在Android平台使用了原生Compose，可以单独在Android平台返回false来规避问题
-     */
-    open fun enableConsumeSnapshotWhenPause(): Boolean {
-        return true
     }
 
     /**

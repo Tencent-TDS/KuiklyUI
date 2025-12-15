@@ -4,7 +4,7 @@ import com.tencent.kuikly.core.render.web.collection.array.JsArray
 import com.tencent.kuikly.core.render.web.expand.components.KRRichTextView
 import com.tencent.kuikly.core.render.web.processor.FontSizeToLineHeightMap
 import com.tencent.kuikly.core.render.web.processor.IRichTextProcessor
-import com.tencent.kuikly.core.render.web.ktx.KRCssConst
+import com.tencent.kuikly.core.render.web.const.KRCssConst
 import com.tencent.kuikly.core.render.web.ktx.SizeF
 import com.tencent.kuikly.core.render.web.ktx.indexOfChild
 import com.tencent.kuikly.core.render.web.ktx.kuiklyDocument
@@ -312,10 +312,6 @@ object RichTextProcessor : IRichTextProcessor {
         }
 
         // If new properties are supported, use canvas measurement values for calculation
-        // Remove width
-        style.width = ""
-        // Remove height
-        style.height = ""
         if (constraintSize.width > 0) {
             // If constraint size exists, use the constraint size
             style.maxWidth = constraintSize.width.toPxF()

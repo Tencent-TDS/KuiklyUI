@@ -1,6 +1,8 @@
+package com.tencent.kuikly.h5app
+
 import kotlinx.browser.document
 import kotlinx.browser.window
-import manager.KuiklyRouter
+import com.tencent.kuikly.h5app.manager.KuiklyRouter
 
 /**
  * WebApp entry, use renderView delegate method to initialize and create renderView

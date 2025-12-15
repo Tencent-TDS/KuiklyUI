@@ -97,18 +97,96 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
         textRender.isBreakLine = !CGSizeEqualToSize(fitSize, newSize);
         textRender.maximumNumberOfLines = lines;//复原
     }
+    
+    // Fix the issue of missing ellipsis caused by hard line breaks (aligned with Android/HarmonyOS)
+    // Remove this logic if Apple fixes this issue in the future.
+    BOOL didModify = [self kr_fixEllipsisIfNeededForTextStorage:textStorage textRender:textRender lines:lines mode:mode fitSize:fitSize];
+    if (didModify) {
+        // Recalculate fitSize after modifying textStorage
+        fitSize = [textRender textSizeWithRenderWidth:size.width];
+    }
+    
     attString.hr_textRender = textRender;
     attString.hr_size = fitSize;
     
     return fitSize;
 }
 
-
-
-- (void)dealloc {
-   
+/// Fix the issue where iOS TextKit does not display ellipsis after hard line breaks
+/// When text is truncated by line count limit,
+/// but the last line ends with \n instead of width overflow, the system does not add ellipsis.
+/// This method detects this situation and manually adds ellipsis to align with Android/HarmonyOS behavior
+/// @return YES if textStorage was modified, NO otherwise
++ (BOOL)kr_fixEllipsisIfNeededForTextStorage:(NSTextStorage *)textStorage
+                                  textRender:(KRTextRender *)textRender
+                                       lines:(NSUInteger)lines
+                                        mode:(NSLineBreakMode)mode
+                                     fitSize:(CGSize)fitSize {
+    // Only handle the mode that requires truncation with ellipsis
+    if (mode != NSLineBreakByTruncatingTail || lines == 0) {
+        return NO;
+    }
+    
+    NSLayoutManager *layoutManager = textRender.layoutManager;
+    NSUInteger numberOfGlyphs = [layoutManager numberOfGlyphs];
+    if (numberOfGlyphs == 0) {
+        return NO;
+    }
+    
+    // Enumerate lines and use rect to determine which lines are actually visible
+    __block NSUInteger visibleLineCount = 0;
+    __block NSRange lastVisibleLineGlyphRange = NSMakeRange(0, 0);
+    __block BOOL hasMoreFragments = NO;
+    [layoutManager enumerateLineFragmentsForGlyphRange:NSMakeRange(0, numberOfGlyphs)
+                                            usingBlock:^(CGRect rect, CGRect usedRect,
+                                                         NSTextContainer *container, NSRange glyphRange, BOOL *stop) {
+        // Check if this line fragment is within the visible area
+        if (rect.origin.y + rect.size.height <= fitSize.height + 0.5) { // Add small tolerance for floating point
+            visibleLineCount++;
+            lastVisibleLineGlyphRange = glyphRange;
+            if (visibleLineCount >= lines) {
+                *stop = YES;
+            }
+        } else {
+            // This fragment is outside visible area
+            hasMoreFragments = YES;
+            *stop = YES;
+        }
+    }];
+    
+    // If no lines reached the limit and no more fragments, text is fully visible
+    if (!hasMoreFragments && (lastVisibleLineGlyphRange.location + lastVisibleLineGlyphRange.length >= numberOfGlyphs)) {
+        return NO;
+    }
+    
+    // Check if system has already added ellipsis
+    NSRange lastLineCharRange = [layoutManager characterRangeForGlyphRange:lastVisibleLineGlyphRange actualGlyphRange:nil];
+    NSUInteger lastVisibleCharIndex = lastLineCharRange.location + lastLineCharRange.length;
+    NSRange truncatedRange = [layoutManager truncatedGlyphRangeInLineFragmentForGlyphAtIndex:lastVisibleLineGlyphRange.location];
+    if (truncatedRange.location != NSNotFound) {
+        return NO;
+    }
+    
+    // Ellipsis need to be added manually
+    // Only remove the last newline character (not all trailing newlines)
+    // to preserve line structure and show ellipsis on the correct line
+    NSUInteger endIndex = lastVisibleCharIndex;
+    NSString *text = textStorage.string;
+    if (endIndex > 0 && ([text characterAtIndex:endIndex - 1] == '\n' || [text characterAtIndex:endIndex - 1] == '\r')) {
+        endIndex--;
+    }
+    
+    if (endIndex == 0) {
+        return NO;
+    }
+    
+    // Add ellipsis at the end of visible text
+    NSDictionary *attrs = [textStorage attributesAtIndex:endIndex - 1 effectiveRange:nil];
+    NSMutableAttributedString *newText = [[textStorage attributedSubstringFromRange:NSMakeRange(0, endIndex)] mutableCopy];
+    [newText appendAttributedString:[[NSAttributedString alloc] initWithString:@"…" attributes:attrs]];
+    [textStorage replaceCharactersInRange:NSMakeRange(0, textStorage.length) withAttributedString:newText];
+    return YES;
 }
-
 
 
 

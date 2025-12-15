@@ -57,7 +57,7 @@
     NSString *cacheFilePath = [self generateSnapshotFilePathWithCacheKey:cacheKey];
     NSError *error = nil;
     [[NSFileManager defaultManager] removeItemAtPath:cacheFilePath error:&error];
-    BOOL success = [imageData writeToFile:cacheFilePath atomically:YES];
+    __unused BOOL success = [imageData writeToFile:cacheFilePath atomically:YES];
 #if DEBUG
     assert(success);
 #endif

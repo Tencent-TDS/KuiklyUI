@@ -19,6 +19,7 @@ package com.tencent.kuikly.compose.foundation.lazy.layout
 import com.tencent.kuikly.compose.animation.core.AnimationState
 import com.tencent.kuikly.compose.animation.core.AnimationVector1D
 import com.tencent.kuikly.compose.animation.core.LinearEasing
+import com.tencent.kuikly.compose.animation.core.LinearOutSlowInEasing
 import com.tencent.kuikly.compose.animation.core.animateTo
 import com.tencent.kuikly.compose.animation.core.copy
 import com.tencent.kuikly.compose.animation.core.tween
@@ -298,8 +299,8 @@ internal suspend fun LazyLayoutAnimateScrollScope.animateScrollToItem(
             anim.animateTo(
                 target,
                 animationSpec = tween<Float>(
-                    durationMillis = 50,
-                    easing = LinearEasing
+                    durationMillis = 125,
+                    easing = LinearOutSlowInEasing
                 ),
                 sequentialAnimation = (anim.velocity != 0f)
             ) {

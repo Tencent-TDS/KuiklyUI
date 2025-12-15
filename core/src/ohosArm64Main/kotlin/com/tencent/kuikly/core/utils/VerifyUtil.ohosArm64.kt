@@ -20,7 +20,7 @@ import ohos.com_tencent_kuikly_IsCurrentOnContextThread
 internal actual inline fun platformCheckThread(failure: () -> Unit) {
     @Suppress("DEPRECATION")
     @OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
-    if (com_tencent_kuikly_IsCurrentOnContextThread(BridgeManager.currentPageId)) {
+    if (!com_tencent_kuikly_IsCurrentOnContextThread(BridgeManager.currentPageId)) {
         failure()
     }
 }

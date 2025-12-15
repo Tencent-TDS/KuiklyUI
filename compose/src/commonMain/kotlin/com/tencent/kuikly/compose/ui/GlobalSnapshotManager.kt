@@ -17,6 +17,7 @@
 package com.tencent.kuikly.compose.ui
 
 import androidx.compose.runtime.snapshots.Snapshot
+import com.tencent.kuikly.compose.ComposeContainer
 import com.tencent.kuikly.compose.coroutines.internal.KuiklyContextScheduler
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CoroutineScope
@@ -40,8 +41,6 @@ internal object GlobalSnapshotManager {
 
     private val sent = atomic(0)
 
-    private var resumed = false
-
     private fun runOnKuiklyThread(block: () -> Unit) {
         if (KuiklyContextScheduler.isOnKuiklyThread("")) {
             block()
@@ -52,8 +51,7 @@ internal object GlobalSnapshotManager {
         }
     }
 
-    fun ensureStarted(enableConsumeSnapshotWhenPause: Boolean) {
-        resumed = true
+    fun ensureStarted() {
         if (started.compareAndSet(0, 1)) {
             val channel = Channel<Unit>(1)
             CoroutineScope(Dispatchers.Unconfined).launch {
@@ -65,7 +63,7 @@ internal object GlobalSnapshotManager {
                 }
             }
             Snapshot.registerGlobalWriteObserver {
-                if (!enableConsumeSnapshotWhenPause && !resumed) {
+                if (!ComposeContainer.enableConsumeSnapshot) {
                     return@registerGlobalWriteObserver
                 }
                 if (sent.compareAndSet(0, 1)) {
@@ -73,13 +71,5 @@ internal object GlobalSnapshotManager {
                 }
             }
         }
-    }
-
-    fun resume() {
-        resumed = true
-    }
-
-    fun pause() {
-        resumed = false
     }
 }

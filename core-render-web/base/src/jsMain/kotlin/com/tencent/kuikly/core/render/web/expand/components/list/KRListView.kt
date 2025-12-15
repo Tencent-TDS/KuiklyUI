@@ -1,7 +1,7 @@
 package com.tencent.kuikly.core.render.web.expand.components.list
 
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewExport
-import com.tencent.kuikly.core.render.web.ktx.KRCssConst
+import com.tencent.kuikly.core.render.web.const.KRCssConst
 import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.web.ktx.toPxF
 import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor

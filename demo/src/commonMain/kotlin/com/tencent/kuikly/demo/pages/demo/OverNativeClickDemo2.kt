@@ -71,6 +71,7 @@ internal class OverNativeClickDemo2 : BasePager() {
                             size(100f, 100f)
                             backgroundColor(Color.BLUE)
                             allCenter()
+                            "stop-propagation-ohos" with 1
                         }
                         event {
                             touchDown {
@@ -84,6 +85,7 @@ internal class OverNativeClickDemo2 : BasePager() {
                             attr {
                                 size(50f, 50f)
                                 backgroundColor(Color.RED)
+                                "stop-propagation-ohos" with 1
                             }
                             event {
                                 touchDown {
@@ -108,6 +110,7 @@ internal class OverNativeClickDemo2 : BasePager() {
                             size(100f, 100f)
                             backgroundColor(Color.BLUE)
                             allCenter()
+                            "stop-propagation-ohos" with 1
                         }
                         event {
                             touchDown {
@@ -121,6 +124,7 @@ internal class OverNativeClickDemo2 : BasePager() {
                             attr {
                                 size(50f, 50f)
                                 backgroundColor(Color.RED)
+                                "stop-propagation-ohos" with 1
                             }
                             event {
                                 touchDown {

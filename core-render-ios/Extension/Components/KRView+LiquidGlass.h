@@ -33,7 +33,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///   - effect: visual effect
 ///   - wrappedView: wrapped view
 - (instancetype)initWithEffect:(UIVisualEffect *)effect wrappedView:(KRView *)wrappedView NS_DESIGNATED_INITIALIZER;
-- (instancetype)initWithEffect:(UIVisualEffect *)effect NS_UNAVAILABLE;
+- (instancetype)initWithEffect:(nullable UIVisualEffect *)effect NS_UNAVAILABLE;
 - (instancetype)initWithCoder:(NSCoder *)coder NS_UNAVAILABLE;
 
 @end

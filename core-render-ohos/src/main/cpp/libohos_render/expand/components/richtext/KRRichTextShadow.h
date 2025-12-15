@@ -19,6 +19,7 @@
 #include <arkui/styled_string.h>
 #include <native_drawing/drawing_text_declaration.h>
 #include <native_drawing/drawing_text_typography.h>
+#include <native_drawing/drawing_text_line.h>
 #include <native_drawing/drawing_types.h>
 #include <unordered_set>
 #include "libohos_render/expand/components/richtext/KRFontAdapterManager.h"
@@ -92,9 +93,16 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     const KRSize MainMeasureSize() {
         return main_measure_size_;
     }
-
+    
+    bool DidExceedMaxLines(){
+        return did_exceed_max_lines_;
+    }
+    
+    OH_Drawing_Array *GetTextLines();
+    
     void SetMainThreadTypography(OH_Drawing_Typography *typography) {
         main_thread_typography_ = typography;
+        DestroyCachedTextLines();
     }
 
     std::shared_ptr<KRParagraph> GetParagraph(){
@@ -104,12 +112,15 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     
     virtual bool StyledStringEnabled();
  private:
+    void DestroyCachedTextLines();
     std::string GetTextContent();
     KRSize CalculateRenderViewSizeWithStyledString(double constraint_width, double constraint_height);
 
  private:
     KRRenderValue::Map props_;
     KRRenderValue::Array values_;
+    OH_Drawing_Array *text_lines_ = nullptr;
+    bool did_exceed_max_lines_ = false;
     OH_Drawing_Typography *main_thread_typography_ = nullptr;
     OH_Drawing_Typography *context_thread_typography_ = nullptr;
     float context_thread_drawOffsetX_ = 0;

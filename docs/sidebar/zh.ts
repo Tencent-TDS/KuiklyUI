@@ -66,7 +66,7 @@ export const zhSidebar = sidebar({
                     collapsible: false,
                     children: ["dev-guide-overview.md", "pager.md", "page-data.md", "pager-lifecycle.md", "pager-event.md", "attr.md", "event.md", "reactive-update.md",
                             "directive.md", "view-ref.md", "compose-view.md", "compose-view-lifecycle.md", "set-timeout.md", "module.md", "open-and-close-page.md",
-                            "notify.md", "network.md", "assets-resource.md"
+                            "notify.md", "network.md", "assets-resource.md","back-press-handler.md"
                     ]
                 },
                 {
@@ -97,11 +97,15 @@ export const zhSidebar = sidebar({
                                     collapsible: true,
                                     children: ["dynamic-guide.md"]
                                 },
+                                {
+                                    text: "性能优化",
+                                    collapsible: true,
+                                    children: ["kuikly-perf-guidelines.md"]
+                                }
                             ]
                         },
                         "view-external-prop.md",
                         "protobuf.md",
-                        "kuikly-perf-guidelines.md",
                         "thread-and-coroutines.md",
                         "multi-page.md"]
                 },

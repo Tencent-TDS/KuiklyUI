@@ -217,6 +217,7 @@ class LazyLoopDirectivesView<T>(
     )
 
     private lateinit var curList: ObservableList<T>
+    private var lastProcessedSeq = -1
     private var startSize: Float = 0f
     private var endSize: Float = INVALID_DIMENSION
 
@@ -309,6 +310,7 @@ class LazyLoopDirectivesView<T>(
                     }
 
                     curList = list
+                    lastProcessedSeq = list.collectionOperation.lastOrNull()?.seq ?: -1
                     // 先根据原先的currentStart确定currentEnd
                     if (currentStart + maxLoadItem >= list.count()) {
                         currentEnd = list.count()
@@ -340,7 +342,10 @@ class LazyLoopDirectivesView<T>(
                 ReactiveObserver.addLazyTaskUtilEndCollectDependency {
                     if (collectionOperation.isNotEmpty()) {
                         collectionOperation.forEach { operation ->
-                            syncListOperationToDom(operation)
+                            if (operation.seq > lastProcessedSeq) {
+                                syncListOperationToDom(operation)
+                                lastProcessedSeq = operation.seq
+                            }
                         }
                     }
                 }

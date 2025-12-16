@@ -57,9 +57,7 @@
     return srcFileName.length && urlFileName.length && [srcFileName isEqualToString:urlFileName];
 }
 
-/**
- * 提取文件名（去除?和#参数，提取最后一个/之后的文件名称）
- */
+// 提取文件名
 - (NSString *)p_fileNameFromPath:(NSString *)path {
     if (!path.length)
         return @"";

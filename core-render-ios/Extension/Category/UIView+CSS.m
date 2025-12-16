@@ -92,7 +92,7 @@
 @end
 
 
-@interface KRPlatformView() <KuiklyRenderViewLifyCycleProtocol> // [macOS]
+@interface UIView() <KuiklyRenderViewLifyCycleProtocol>
 
 @property (nonatomic, strong) CSSAnimation *css_animationImp;
 @property (nonatomic, strong) CSSTransform *css_transformImp;
@@ -107,7 +107,7 @@
 
 @end
 
-@implementation KRPlatformView (CSS) // [macOS]
+@implementation UIView (CSS)
 
 - (BOOL)css_setPropWithKey:(NSString *)key value:(id)value {
     if ([self css_lazySetPropWithKey:key value:value]) {

@@ -46,30 +46,33 @@ kotlin {
     iosSimulatorArm64()
 
     // sourceSets
-    val commonMain by sourceSets.getting {
-        dependencies {
-            compileOnly("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.6.21")
+    sourceSets {
+        val commonMain by getting {
+            dependencies {
+                compileOnly("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.6.21")
+            }
         }
-    }
 
-    val androidMain by sourceSets.getting {
-        dependsOn(commonMain)
-        dependencies {
-            compileOnly("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.6.21")
+        val androidMain by getting {
+            dependsOn(commonMain)
+            dependencies {
+                compileOnly("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.6.21")
+            }
         }
-    }
 
-    val iosMain by sourceSets.getting {
-        dependsOn(commonMain)
+        val appleMain by sourceSets.creating {
+            dependsOn(commonMain)
+        }
     }
 
     targets.withType<KotlinNativeTarget> {
+        val appleMain by sourceSets.getting
         when {
             konanTarget.family.isAppleFamily -> {
                 val main by compilations.getting
-                main.defaultSourceSet.dependsOn(iosMain)
+                main.defaultSourceSet.dependsOn(appleMain)
                 val kuikly by main.cinterops.creating {
-                    defFile(project.file("src/iosMain/iosInterop/cinterop/ios.def"))
+                    defFile(project.file("src/appleMain/iosInterop/cinterop/ios.def"))
                 }
             }
         }

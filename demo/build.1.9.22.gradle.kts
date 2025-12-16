@@ -44,6 +44,8 @@ kotlin {
     iosX64()
     iosArm64()
     iosSimulatorArm64()
+    macosX64()
+    macosArm64()
 
     sourceSets {
         all {
@@ -82,7 +84,7 @@ kotlin {
 //        )
     }
 
-    sourceSets.iosMain {
+    sourceSets.appleMain {
         dependsOn(commonMain)
         dependencies {
             implementation("io.ktor:ktor-client-darwin:2.3.10")
@@ -92,9 +94,8 @@ kotlin {
     targets.withType<KotlinNativeTarget> {
         val mainSourceSets = this.compilations.getByName("main").defaultSourceSet
         when {
-
             konanTarget.family.isAppleFamily -> {
-                mainSourceSets.dependsOn(sourceSets.getByName("iosMain"))
+                mainSourceSets.dependsOn(sourceSets.getByName("appleMain"))
             }
 
             konanTarget.family == Family.ANDROID -> {

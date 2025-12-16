@@ -90,7 +90,7 @@ kotlin {
                 val main by compilations.getting
                 main.defaultSourceSet.dependsOn(iosMain)
                 val kuikly by main.cinterops.creating {
-                    defFile(project.file("src/iosMain/iosInterop/cinterop/ios.def"))
+                    defFile(project.file("src/appleMain/iosInterop/cinterop/ios.def"))
                 }
             }
         }

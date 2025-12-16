@@ -107,7 +107,7 @@ typedef void(^ImageCompletionBlock)(UIImage * _Nullable image, NSError * _Nullab
 
 
 /*
- * 自定义实现设置图片（带完成回调和src一致性验证，优先调用该方法）
+ * 自定义实现设置图片（带回调和src一致性验证，优先调用该方法）
  * @param url 设置的图片url，如果url为nil，则是取消图片设置，需要view.image = nil
  * @param placeholder 设置的占位图，默认设置为nil
  * @param options SDWebImage的图片加载参数，默认为SDWebImageAvoidAutoSetImage，阻断SDWebImage无感更新ImageView的image
@@ -117,9 +117,9 @@ typedef void(^ImageCompletionBlock)(UIImage * _Nullable image, NSError * _Nullab
 - (BOOL)hr_setImageWithUrl:(nonnull NSString *)url forImageView:(nonnull UIImageView *)imageView placeholderImage:(nullable UIImage *)placeholder options:(SDWebImageOptions)options complete:(ImageCompletionBlock)completeBlock;
 
 /*
- * 自定义资源src一致性判断
+ * 资源src一致性判断
  * @param src 设置的src属性
- * @param imageURL 资源的路径
+ * @param imageURL 资源路径
  * @return 是否满足一致性判断的条件
  */
 - (BOOL)hr_srcMatch:(NSString *)src imageURL:(NSURL *)imageURL;

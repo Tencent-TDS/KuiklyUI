@@ -486,7 +486,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 }
 
 
-// 抽取错误处理逻辑
+// 图片加载错误处理
 - (void)p_handleImageLoadError:(NSError *)error url:(NSString *)url imageURL:(NSURL *)imageURL {
     if (error && [imageURL.absoluteString isEqualToString:url]) {
         if (self.css_loadFailure) {

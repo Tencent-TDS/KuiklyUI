@@ -344,7 +344,7 @@ NS_ASSUME_NONNULL_END
     if (!url.length)
         return NO;
     
-    // 网络URL 走完全匹配
+    // 网络URL
     if ([url isEqualToString:src])
         return YES;
     

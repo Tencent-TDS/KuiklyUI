@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#include "libohos_render/performance/Memory/KRMemoryData.h"
+#include "libohos_render/performance/memory/KRMemoryData.h"
 #include "thirdparty/cJSON/cJSON.h"
 
 constexpr char kKeyAvgIncrement[] = "avgIncrement";

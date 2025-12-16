@@ -16,7 +16,7 @@
 #include "KRMemoryMonitor.h"
 #include "libohos_render/utils/KRRenderLoger.h"
 #include "libohos_render/foundation/thread/KRMonitorThread.h"
-#include "libohos_render/performance/Memory/KRMemoryData.h"
+#include "libohos_render/performance/memory/KRMemoryData.h"
 #include <atomic>
 #include <hidebug/hidebug.h>
 #include "libohos_render/foundation/type/KRRenderValue.h"

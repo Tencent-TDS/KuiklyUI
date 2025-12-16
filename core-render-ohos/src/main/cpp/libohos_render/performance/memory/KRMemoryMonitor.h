@@ -17,7 +17,7 @@
 #define CORE_RENDER_OHOS_KRMEMORYMONITOR_H
 
 #include "libohos_render/performance/KRMonitor.h"
-#include "libohos_render/performance/Memory/KRMemoryData.h"
+#include "libohos_render/performance/memory/KRMemoryData.h"
 #include <atomic>
 
 

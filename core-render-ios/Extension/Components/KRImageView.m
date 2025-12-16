@@ -232,19 +232,29 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 
 - (BOOL)setImageWithUrl:(NSString *)url {
     BOOL handled = false;
-    if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:complete:)]) {
+    
+    if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:placeholderImage:options:complete:)]) {
+        __weak typeof(self) wself = self;
+        handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url
+                                                                     forImageView:self
+                                                                 placeholderImage:nil
+                                                                          options:SDWebImageAvoidAutoSetImage
+                                                                         complete:^(UIImage * _Nullable image, NSError * _Nullable error, NSURL * _Nullable imageURL) {
+            // src 一致性验证
+            if (image && [[KuiklyRenderBridge componentExpandHandler] hr_srcMatch:url imageURL:imageURL]) {
+                wself.image = image;
+            }
+            // 错误处理
+            [wself p_handleImageLoadError:error url:url imageURL:imageURL];
+        }];
+    }
+    else if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:complete:)]) {
         __weak typeof(self) wself = self;
         handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url
                                                                      forImageView:self
                                                                          complete:^(UIImage * _Nullable image, NSError * _Nullable error, NSURL * _Nullable imageURL) {
-            if (error && [imageURL.absoluteString isEqualToString:url]) {
-                if (wself.css_loadFailure) {
-                    [self p_fireLoadFailureEventWithErrorCode:error.code];
-                } else {
-                    wself.pendingLoadFailure = true;
-                    wself.errorCode = error.code;
-                }
-            }
+            // 错误处理
+            [wself p_handleImageLoadError:error url:url imageURL:imageURL];
         }];
     } else if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:)]) {
         handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url forImageView:self];
@@ -465,6 +475,18 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
     }
 }
 
+
+// 抽取错误处理逻辑
+- (void)p_handleImageLoadError:(NSError *)error url:(NSString *)url imageURL:(NSURL *)imageURL {
+    if (error && [imageURL.absoluteString isEqualToString:url]) {
+        if (self.css_loadFailure) {
+            [self p_fireLoadFailureEventWithErrorCode:error.code];
+        } else {
+            self.pendingLoadFailure = true;
+            self.errorCode = error.code;
+        }
+    }
+}
 
 
 - (void)dealloc {

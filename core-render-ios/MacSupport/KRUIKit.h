@@ -558,6 +558,25 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality);
 UIBezierPath *UIBezierPathWithRoundedRect(CGRect rect, CGFloat cornerRadius);
 void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 
+#pragma mark - NSBezierPath UIKit Compatibility
+
+// [macOS] Category to provide UIBezierPath-compatible method names on NSBezierPath
+@interface NSBezierPath (KRUIKitCompat)
+
+// UIBezierPath-compatible methods that map to NSBezierPath equivalents
+- (void)addArcWithCenter:(CGPoint)center
+                  radius:(CGFloat)radius
+              startAngle:(CGFloat)startAngle
+                endAngle:(CGFloat)endAngle
+               clockwise:(BOOL)clockwise;
+
+- (void)addLineToPoint:(CGPoint)point;
+
+// moveToPoint: already exists on NSBezierPath with the same signature
+// closePath already exists on NSBezierPath with the same signature
+
+@end
+
 #pragma mark - KRUIView
 
 #define KRPlatformView NSView

@@ -381,9 +381,8 @@
                            topRightCornerRadius:(CGFloat)topRightCornerRadius
                            bottomLeftCornerRadius:(CGFloat)bottomLeftCornerRadius
                        bottomRightCornerRadius:(CGFloat)bottomRightCornerRadius {
-#if !TARGET_OS_OSX
     CGSize size = rect.size;
-    UIBezierPath * path = [UIBezierPath bezierPath];
+    UIBezierPath *path = [UIBezierPath bezierPath];
     CGFloat radius = topLeftCornerRadius;
     [path addArcWithCenter:CGPointMake(radius, radius) radius:radius startAngle:M_PI endAngle:M_PI * (3/2.0f) clockwise:true];
     radius = topRightCornerRadius;
@@ -397,16 +396,6 @@
     [path addArcWithCenter:CGPointMake(radius, size.height - radius) radius:radius startAngle:M_PI_2 endAngle:M_PI clockwise:YES];
     [path closePath];
     return path;
-#else
-    // macOS: 使用 NSBezierPath 近似（各角半径不一致时取最小半径）
-    CGFloat rx = topLeftCornerRadius;
-    if (!(topLeftCornerRadius == topRightCornerRadius && topLeftCornerRadius == bottomLeftCornerRadius && topLeftCornerRadius == bottomRightCornerRadius)) {
-        CGFloat minR = MIN(MIN(topLeftCornerRadius, topRightCornerRadius), MIN(bottomLeftCornerRadius, bottomRightCornerRadius));
-        rx = MAX(0, minR);
-    }
-    NSBezierPath *bp = [NSBezierPath bezierPathWithRoundedRect:rect xRadius:rx yRadius:rx];
-    return (UIBezierPath *)bp;
-#endif
 }
 
 

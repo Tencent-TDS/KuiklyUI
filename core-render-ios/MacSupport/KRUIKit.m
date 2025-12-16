@@ -683,6 +683,34 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath) {
     return [path appendBezierPath:appendPath];
 }
 
+#pragma mark - NSBezierPath (KRUIKitCompat)
+
+@implementation NSBezierPath (KRUIKitCompat)
+
+- (void)addArcWithCenter:(CGPoint)center
+                  radius:(CGFloat)radius
+              startAngle:(CGFloat)startAngle
+                endAngle:(CGFloat)endAngle
+               clockwise:(BOOL)clockwise {
+    // [macOS] NSBezierPath uses degrees, UIBezierPath uses radians
+    // Also NSBezierPath's angles are counter-clockwise from the positive x-axis
+    // Convert radians to degrees and adjust for coordinate system differences
+    CGFloat startDegrees = startAngle * 180.0 / M_PI;
+    CGFloat endDegrees = endAngle * 180.0 / M_PI;
+    
+    [self appendBezierPathWithArcWithCenter:center
+                                     radius:radius
+                                 startAngle:startDegrees
+                                   endAngle:endDegrees
+                                  clockwise:clockwise];
+}
+
+- (void)addLineToPoint:(CGPoint)point {
+    [self lineToPoint:point];
+}
+
+@end
+
 #pragma mark - NSFont UIKit Compatibility
 
 @implementation NSFont (KRUIKitCompatLineHeight)

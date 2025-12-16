@@ -30,8 +30,8 @@
 
 @implementation KRPerformanceManager {
     
-    #if TARGET_OS_OSX
-    id _uiDisplayLink; // KRDisplayLink on macOS
+    #if TARGET_OS_OSX // [macOS]
+    KRDisplayLink *_uiDisplayLink; // KRDisplayLink on macOS
     #else
     CADisplayLink *_uiDisplayLink;
     #endif
@@ -95,7 +95,7 @@ static NSMutableDictionary<NSString *, NSNumber *> *gLaunchDic = nil;
         if (!_mainFPS) {
             _mainFPS = [[KRFPSMonitor alloc] initWithThread:KRFPSThead_Main pageName:_pageName];
         }
-#if TARGET_OS_OSX
+#if TARGET_OS_OSX // [macOS]
         // macOS: 使用 KRDisplayLink 垫片（NSTimer）
         KRDisplayLink *link = [KRDisplayLink new];
         __weak typeof(self) weakSelf = self;
@@ -104,8 +104,7 @@ static NSMutableDictionary<NSString *, NSNumber *> *gLaunchDic = nil;
             if (!self_) return;
             [self_->_mainFPS onTick:timestamp];
         }];
-        // 保存到 ivar 以在 endMonitor 中统一停用
-        _uiDisplayLink = (id)link;
+        _uiDisplayLink = link;
 #else
         _uiDisplayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(mainFPSKick:)];
         if (@available(iOS 10.0, *)) {
@@ -143,12 +142,8 @@ static NSMutableDictionary<NSString *, NSNumber *> *gLaunchDic = nil;
 - (void)endMonitor {
     _isMoniting = NO;
     if ((_monitorType & KRMonitorType_MainFPS)) {
-        #if TARGET_OS_OSX
-        // macOS: KRDisplayLink 垫片
-        if ([_uiDisplayLink respondsToSelector:@selector(stop)]) {
-            void (*stopMsg)(id, SEL) = (void(*)(id, SEL))objc_msgSend;
-            stopMsg(_uiDisplayLink, @selector(stop));
-        }
+        #if TARGET_OS_OSX // [macOS]
+        [_uiDisplayLink stop];
         _uiDisplayLink = nil;
         #else
         [_uiDisplayLink invalidate];

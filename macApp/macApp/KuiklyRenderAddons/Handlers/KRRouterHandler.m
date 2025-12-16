@@ -153,7 +153,7 @@ static char kWindowSelfRetentionKey;
  */
 - (void)openInNewWindow:(NSViewController *)viewController {
     // 确保 view 已加载并设置合理尺寸
-    [viewController loadViewIfNeeded];
+    [viewController loadView];
     
     // 获取视图的建议尺寸，如果过小则使用默认值
     CGSize viewSize = viewController.view.frame.size;

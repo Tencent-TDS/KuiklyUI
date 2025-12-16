@@ -226,7 +226,7 @@ NSString *const KRDensity = @"density";
     mParmas[KRUrlKey] = _pageName ?: @"";
     mParmas[KRStatusBarHeightKey] = @([KRConvertUtil statusBarHeight]);
     // [macOS] 平台信息与屏幕尺寸/密度
-#if TARGET_OS_OSX
+#if TARGET_OS_OSX // [macOS]
     mParmas[KRPlatformKey] = @"macOS";
     NSScreen *mainScreen = [NSScreen mainScreen];
     CGSize deviceSize = mainScreen ? mainScreen.frame.size : CGSizeZero;
@@ -243,7 +243,7 @@ NSString *const KRDensity = @"density";
     mParmas[KRParamKey] = params? : @{};
 	mParmas[KRNativeBuild] = @(2);
     // 无障碍化开关与安全区域/密度
-#if TARGET_OS_OSX
+#if TARGET_OS_OSX // [macOS]
     mParmas[KRAccessibilityRunning] = @(0);
     mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:[KRConvertUtil currentSafeAreaInsets]];
     mParmas[KRDensity] = @([NSScreen mainScreen].backingScaleFactor ?: 1.0);

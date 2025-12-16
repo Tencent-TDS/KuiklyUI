@@ -273,7 +273,7 @@ Class _Nullable KRClassFromString(NSString *aClassName) {
     if (!renderViewHandler) {
         renderViewHandler = [[KRClassFromString(viewName) alloc] init];
     }
-    if ([renderViewHandler isKindOfClass:[KRPlatformView class]] && // [macOS]
+    if ([renderViewHandler isKindOfClass:[UIView class]] &&
         [renderViewHandler conformsToProtocol:@protocol(KuiklyRenderViewExportProtocol)]) {
         _renderViewRegistry[tag] = renderViewHandler;
         if ([renderViewHandler respondsToSelector:@selector(setHr_rootView:)]) {

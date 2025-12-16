@@ -19,14 +19,14 @@ export class KRPerformanceModule extends KuiklyRenderBaseModule {
         break;
       }
       case KRPerformanceModule.METHOD_ON_GET_LAUNCH_DATA: {
-        const data: Record<string, number> = JSON.parse(params as string);
+        const data: KRRecord = JSON.parse(params as string);
         if (this.controller?.performanceMonitorTypes().includes(KRMonitorType.LAUNCH)) {
           this.controller?.onGetLaunchData(data);
         }
         break;
       }
       case KRPerformanceModule.METHOD_ON_GET_PERFORMANCE_DATA: {
-        const data: Record<string, number> = JSON.parse(params as string);
+        const data: KRRecord = JSON.parse(params as string);
         if (this.controller?.performanceMonitorTypes().length != 0) {
           this.controller?.onGetPerformanceData(data);
         }

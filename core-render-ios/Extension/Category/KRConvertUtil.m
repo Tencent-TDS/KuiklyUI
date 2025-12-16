@@ -431,7 +431,6 @@
 }
 
 + (UIViewAnimationOptions)hr_viewAnimationOptions:(NSString *)value {
-#if !TARGET_OS_OSX // [macOS]
     if ([value intValue] == 1) {
         return UIViewAnimationOptionCurveEaseIn;
     }
@@ -442,19 +441,6 @@
         return UIViewAnimationOptionCurveEaseInOut;
     }
     return UIViewAnimationOptionCurveLinear;
-#else // [macOS
-    // macOS 平台使用简化的动画选项映射
-    if ([value intValue] == 1) {
-        return UIViewAnimationOptionCurveEaseIn;
-    }
-    if ([value intValue] == 2) {
-        return UIViewAnimationOptionCurveEaseOut;
-    }
-    if ([value intValue] == 3) {
-        return UIViewAnimationOptionCurveEaseInOut;
-    }
-    return UIViewAnimationOptionCurveLinear;
-#endif // macOS]
 }
 
 + (UIViewAnimationCurve)hr_viewAnimationCurve:(NSString *)value {
@@ -473,7 +459,7 @@
 
 + (UIKeyboardType)hr_keyBoardType:(id)value {
     NSString *keyboardType = [self hr_toString:value];
-    #if TARGET_OS_OSX
+    #if TARGET_OS_OSX // [macOS]
     (void)keyboardType; // 未使用
     return UIKeyboardTypeDefault;
     #else
@@ -487,7 +473,7 @@
         return UIKeyboardTypeEmailAddress;
     }
     return UIKeyboardTypeDefault;
-    #endif
+    #endif // [macOS]
 }
 
 + (NSString *)hr_toString:(id)value {
@@ -501,7 +487,7 @@
 
 + (UIReturnKeyType)hr_toReturnKeyType:(id)value {
     NSString *returnKeyType = [self hr_toString:value];
-    #if TARGET_OS_OSX
+    #if TARGET_OS_OSX // [macOS]
     (void)returnKeyType;
     return UIReturnKeyDefault;
     #else
@@ -531,7 +517,7 @@
         return UIReturnKeyEmergencyCall;
     }
     return UIReturnKeyDefault;
-    #endif
+    #endif // [macOS]
 }
 
 + (UIAccessibilityTraits)kr_accessibilityTraits:(id)value {
@@ -596,21 +582,25 @@
 }
 
 + (void)hr_alertWithTitle:(NSString *)title message:(NSString *)message {
-    #if TARGET_OS_OSX
-    (void)title; (void)message; return; // macOS M1：不弹窗
-    #else
-    if([UIApplication isAppExtension]){
-        return;
-    }
     dispatch_async(dispatch_get_main_queue(), ^{
+        if ([UIApplication isAppExtension]) {
+            return;
+        }
+#if TARGET_OS_OSX // [macOS]
+        NSAlert *alert = [[NSAlert alloc] init];
+        alert.messageText = title ?: @"";
+        alert.informativeText = message ?: @"";
+        [alert addButtonWithTitle:@"确定"];
+        [alert runModal];
+#else // [macOS]
         UIAlertController *alertController = [UIAlertController alertControllerWithTitle:title
                                                                                  message:message
                                                                           preferredStyle:UIAlertControllerStyleAlert];
-        UIAlertAction * action = [UIAlertAction actionWithTitle:@"确定" style:(UIAlertActionStyleDefault) handler:nil];
+        UIAlertAction *action = [UIAlertAction actionWithTitle:@"确定" style:(UIAlertActionStyleDefault) handler:nil];
         [alertController addAction:action];
         [[UIApplication sharedApplication].keyWindow.rootViewController presentViewController:alertController animated:YES completion:nil];
+#endif // [macOS]
     });
-    #endif
 }
 
 + (NSString *)hr_md5StringWithString:(NSString *)string {
@@ -627,7 +617,7 @@
 }
 
 + (CGFloat)statusBarHeight {
-    #if TARGET_OS_OSX
+    #if TARGET_OS_OSX // [macOS]
     return 0;
     #else
     CGFloat statusBarHeight = 0;
@@ -681,7 +671,7 @@
 
 
 + (UIEdgeInsets)currentSafeAreaInsets {
-    #if TARGET_OS_OSX
+    #if TARGET_OS_OSX // [macOS]
     return UIEdgeInsetsZero;
     #else
     if([UIApplication isAppExtension]){

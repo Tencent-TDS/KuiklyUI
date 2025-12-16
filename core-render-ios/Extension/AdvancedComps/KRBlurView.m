@@ -36,15 +36,9 @@
         self.blendingMode = NSVisualEffectBlendingModeBehindWindow;
         self.state = NSVisualEffectStateActive;
 #endif // macOS]
-#if !TARGET_OS_OSX // [macOS]
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(onReceiveApplicationDidBecomeActiveNotification:)
                                                      name:UIApplicationDidBecomeActiveNotification object:nil];
-#else // [macOS
-        [[NSNotificationCenter defaultCenter] addObserver:self
-                                                 selector:@selector(onReceiveApplicationDidBecomeActiveNotification:)
-                                                     name:NSApplicationDidBecomeActiveNotification object:nil];
-#endif // macOS]
     }
     return self;
 }

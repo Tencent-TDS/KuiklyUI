@@ -777,7 +777,6 @@ static KRUIView *KRUIViewCommonInit(KRUIView *self) {
                                                    object:[[self enclosingScrollView] contentView]];
     }
     
-    // TODO: Implement reactViewDidMoveToWindow if needed
     // didMoveToWindow is handled by NSView+KRCompat swizzling
     [super viewDidMoveToWindow];
 }

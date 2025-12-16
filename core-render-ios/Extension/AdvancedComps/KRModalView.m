@@ -33,20 +33,9 @@
 
 #pragma mark - override
 
-#if !TARGET_OS_OSX // [macOS]
 - (void)didMoveToSuperview {
     [super didMoveToSuperview];
-    [self handleMoveToSuperviewLogic];
-}
-#else // [macOS
-// macOS: override NSView's viewDidMoveToSuperview
-- (void)viewDidMoveToSuperview {
-    [super viewDidMoveToSuperview];
-    [self handleMoveToSuperviewLogic];
-}
-#endif // macOS]
-
-- (void)handleMoveToSuperviewLogic {
+    
     if([UIApplication isAppExtension]){
         return;
     }

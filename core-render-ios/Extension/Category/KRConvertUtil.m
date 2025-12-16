@@ -74,14 +74,12 @@
     
     if (fontFamily.length) {
         UIFont *font = nil;
-        #if !TARGET_OS_OSX
         if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_fontWithFontFamily:fontSize:fontWeight:)]) {
             font = [[KuiklyRenderBridge componentExpandHandler] hr_fontWithFontFamily:fontFamily fontSize:fontSize fontWeight:fontWeight];
         }
         if (font == nil && [[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_fontWithFontFamily:fontSize:)]) {
             font = [[KuiklyRenderBridge componentExpandHandler] hr_fontWithFontFamily:fontFamily fontSize:fontSize];
         }
-        #endif
         if (font == nil) {
             font = [UIFont fontWithName:fontFamily size:fontSize];
         }
@@ -94,19 +92,7 @@
         return [self italicFontWithSize:fontSize bold:fontWeight >=UIFontWeightBold itatic:YES weight:fontWeight];
     }
     
-    #if TARGET_OS_OSX
-    // [macOS] NSFont 无 iOS 权重 API，对齐为系统字体尺寸
-    return [UIFont systemFontOfSize:fontSize];
-    #else
-    if (@available(iOS 8.2, *)) {
-        return  [UIFont systemFontOfSize:fontSize weight:fontWeight];
-    } else {
-        if(fontWeight >= UIFontWeightBold){
-            return [UIFont boldSystemFontOfSize:fontSize];
-        }
-        return [UIFont systemFontOfSize:fontSize];
-    }
-    #endif
+    return [UIFont systemFontOfSize:fontSize weight:fontWeight];
 }
 
 + (UIFont *)italicFontWithSize:(CGFloat)fontSize
@@ -277,6 +263,7 @@
             @"scale-to-fill": @(UIViewContentModeScaleToFill),
             @"scale-aspect-fit": @(UIViewContentModeScaleAspectFit),
             @"scale-aspect-fill": @(UIViewContentModeScaleAspectFill),
+            @"redraw": @(UIViewContentModeRedraw),
             @"center": @(UIViewContentModeCenter),
             @"top": @(UIViewContentModeTop),
             @"bottom": @(UIViewContentModeBottom),

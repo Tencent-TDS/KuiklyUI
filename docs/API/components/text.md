@@ -537,6 +537,12 @@ internal class TestPage : BasePager() {
 
 文本超出最大行数时，"..."显示在尾部位置
 
+:::tip 关于换行符的兼容说明
+在 2.11.0 及以下版本中，当文本包含换行符（`\n`）且被行数限制截断时，由于系统差异，iOS 平台可能不显示省略号。
+
+2.11.0 以上版本已修复此问题，各端表现已对齐。
+:::
+
 :::tabs
 
 @tab:active 示例
@@ -1048,6 +1054,43 @@ internal class TestPage : BasePager() {
                     text("这是一个很长的文本这是一个很长的文本这是一个很长的文本")
                     fontSize(20f)
                     firstLineHeadIndent(10f)
+                }
+            }
+        }
+    }
+}
+```
+
+### useDpFontSizeDim方法
+是否使用dp作为字体单位 
+
+android上，字体默认是映射到sp, 如果不想字体跟随系统的字体大小，
+
+可指定文本使用useDpFontSizeDim(true)来表示不跟随系统字体大小
+
+注：如果不希望每个文本使用该属性，可以自行扩展Float方法以抵消安卓相关缩放
+
+```kotlin
+@Page(FontSizeDpPager)
+internal class FontSizeDpPager : BasePager() {
+
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                allCenter()
+            }
+
+            Text {
+                attr {
+                    fontSize(20f)
+                    useDpFontSizeDim()
+                    text("使用dp作为单位")
+                }
+            }
+            Text {
+                attr {
+                    fontSize(20f)
+                    text("使用sp作为单位")
                 }
             }
         }

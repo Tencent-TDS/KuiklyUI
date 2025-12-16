@@ -66,7 +66,7 @@ export const zhSidebar = sidebar({
                     collapsible: false,
                     children: ["dev-guide-overview.md", "pager.md", "page-data.md", "pager-lifecycle.md", "pager-event.md", "attr.md", "event.md", "reactive-update.md",
                             "directive.md", "view-ref.md", "compose-view.md", "compose-view-lifecycle.md", "set-timeout.md", "module.md", "open-and-close-page.md",
-                            "notify.md", "network.md", "assets-resource.md"
+                            "notify.md", "network.md", "assets-resource.md","back-press-handler.md"
                     ]
                 },
                 {
@@ -97,11 +97,15 @@ export const zhSidebar = sidebar({
                                     collapsible: true,
                                     children: ["dynamic-guide.md"]
                                 },
+                                {
+                                    text: "性能优化",
+                                    collapsible: true,
+                                    children: ["kuikly-perf-guidelines.md"]
+                                }
                             ]
                         },
                         "view-external-prop.md",
                         "protobuf.md",
-                        "kuikly-perf-guidelines.md",
                         "thread-and-coroutines.md",
                         "multi-page.md"]
                 },
@@ -158,7 +162,7 @@ export const zhSidebar = sidebar({
             text: "组件",
             prefix: "/API/components",
             children: [
-                "override.md", "basic-attr-event.md", "ios26-liquid-glass.md", "view.md", "text.md", "rich-text.md", "image.md", "input.md", "text-area.md",  "canvas.md",
+                "override.md", "basic-attr-event.md", "pager.md", "ios26-liquid-glass.md", "view.md", "text.md", "rich-text.md", "image.md", "input.md", "text-area.md",  "canvas.md",
                 "button.md", "scroller.md", "list.md", "waterfall-list.md", "slider-page.md", "page-list.md", "modal.md", "refresh.md",
                 "footer-refresh.md", "date-picker.md", "scroll-picker.md", "slider.md", "switch.md", "blur.md",
                 "activity-indicator.md", "hover.md", "mask.md", "checkbox.md", "pag.md","apng.md", "tabs.md","alert-dialog.md","action-sheet.md", "video.md",

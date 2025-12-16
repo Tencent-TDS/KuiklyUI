@@ -58,7 +58,6 @@ internal abstract class BaseComposeScene(
     coroutineContext: CoroutineContext,
     val composeSceneContext: ComposeSceneContext,
     private val invalidate: () -> Unit,
-    enableConsumeSnapshotWhenPause: Boolean,
 ) : ComposeScene {
     private var paused = false
 
@@ -129,7 +128,7 @@ internal abstract class BaseComposeScene(
 
     init {
         // 启动 GlobalSnapshotManager，增加引用计数
-        GlobalSnapshotManager.ensureStarted(enableConsumeSnapshotWhenPause)
+        GlobalSnapshotManager.ensureStarted()
     }
 
     override fun close() {

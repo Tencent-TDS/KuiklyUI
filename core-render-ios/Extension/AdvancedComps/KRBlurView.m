@@ -57,6 +57,15 @@
     }
 }
 
+- (void)didMoveToWindow {
+    [super didMoveToWindow];
+    if (self.window && self.css_blurRadius) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self setCss_blurRadius:self.css_blurRadius];
+        });
+    }
+}
+
 #pragma mark - KuiklyRenderViewExportProtocol
 
 - (void)hrv_setPropWithKey:(NSString * _Nonnull)propKey propValue:(id _Nonnull)propValue {
@@ -74,8 +83,9 @@
             [animator stopAnimation:false];
             [animator finishAnimationAtPosition:(UIViewAnimatingPositionCurrent)];
         }
+        __weak typeof(self) weakSelf = self;
         animator = [[UIViewPropertyAnimator alloc] initWithDuration:1 curve:(UIViewAnimationCurveLinear) animations:^{
-            self.effect = [UIBlurEffect effectWithStyle:(UIBlurEffectStyleLight)];
+            weakSelf.effect = [UIBlurEffect effectWithStyle:(UIBlurEffectStyleLight)];
         }];
         animator.fractionComplete = css_blurRadius.floatValue / 10;
         _animator = animator;

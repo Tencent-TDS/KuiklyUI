@@ -566,3 +566,50 @@ LazyColumn(
     // 列表内容
 }
 ```
+
+## 页面容器
+
+### ComposeContainer
+
+`ComposeContainer` 是 Kuikly Compose 的页面容器基类，用于创建 Compose 页面。
+
+#### enableConsumeSnapshot（全局配置）
+
+```kotlin
+companion object {
+    var enableConsumeSnapshot: Boolean = true
+}
+```
+
+- **功能**：全局控制是否消费 Compose Runtime 共享 Snapshot 的变更
+- **类型**：`Boolean` - `true` 表示消费 Snapshot 变更，`false` 表示不消费
+- **默认值**：`true`
+
+**使用场景**：
+
+当 Kuikly Compose 和原生 Compose 同时存在时，可以通过设置此配置为 `false` 来禁止 Kuikly 消费 State 变更，从而解决原生 Compose 的重组状态偶现丢失和 ANR 死锁的问题。
+
+**注意事项**：
+
+- 这是一个**全局配置**，会影响所有 `ComposeContainer` 实例
+- **建议在首个 `ComposeContainer.willInit()` 方法内使用，在 `setContent()` 之前设置**
+- 避免运行时动态修改，可能导致不可预期的行为
+
+**使用示例**：
+
+```kotlin
+@Page("myPage")
+internal class MyPage : ComposeContainer() {
+    override fun willInit() {
+        super.willInit()
+        
+        // 在 setContent 之前设置，禁止 Kuikly 消费 State 变更
+        // 适用于 Kuikly Compose 和原生 Compose 共存场景
+        ComposeContainer.enableConsumeSnapshot = false
+        
+        setContent {
+            // Compose UI 代码
+        }
+    }
+}
+```

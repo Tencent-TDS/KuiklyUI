@@ -57,7 +57,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
-@interface KRPlatformView (KR) // [macOS]
+@interface UIView (KR)
 
 + (UIImage *)kr_safeAsImageWithLayer:(CALayer *)layer bounds:(CGRect)bounds;
 - (UIViewController *)kr_viewController;

@@ -303,7 +303,7 @@
 
 /** ***** UIView (KR) ***** **/
 
-@implementation KRPlatformView (KR) // [macOS]
+@implementation UIView (KR)
 
 + (UIImage *)kr_safeAsImageWithLayer:(CALayer *)layer bounds:(CGRect)bounds {
     @autoreleasepool {
@@ -317,27 +317,19 @@
             [layer renderInContext:ctx];
         }];
 #else // [macOS]
-        if (@available(iOS 10.0, *)) {
-            UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat defaultFormat];
-            format.scale = [UIScreen mainScreen].scale;
-            format.opaque = layer.isOpaque;
-            UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:bounds.size format:format];
-            return [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
-                [layer renderInContext:rendererContext.CGContext];
-            }];
-        } else {
-            UIGraphicsBeginImageContextWithOptions(bounds.size, layer.isOpaque, [UIScreen mainScreen].scale);
-            [layer renderInContext:UIGraphicsGetCurrentContext()];
-            UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
-            UIGraphicsEndImageContext();
-            return image;
-        }
+        UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat defaultFormat];
+        format.scale = [UIScreen mainScreen].scale;
+        format.opaque = layer.isOpaque;
+        UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:bounds.size format:format];
+        return [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
+            [layer renderInContext:rendererContext.CGContext];
+        }];
 #endif // [macOS]
     }
 }
 
 - (UIViewController *)kr_viewController {
-    for (KRPlatformView* next = self; next; next = next.superview) { // [macOS]
+    for (UIView* next = self; next; next = next.superview) {
         UIResponder *nextResponder = [next nextResponder];
         if ([nextResponder isKindOfClass:[UIViewController class]]) {
             return (UIViewController*)nextResponder;

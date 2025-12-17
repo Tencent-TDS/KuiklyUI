@@ -230,7 +230,7 @@ open class PageListView<A : PageListAttr, E : PageListEvent> : ListView<A, E>() 
     )
     @Suppress("DEPRECATION")
     fun scrollToPageIndex(index: Int, animated: Boolean = false) : Boolean {
-        return scrollToPageIndex(index, animated)
+        return scrollToPageIndex(index, animated, null)
     }
 
     /*

@@ -243,7 +243,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
                                                                           options:1 << 10
                                                                          complete:^(UIImage * _Nullable image, NSError * _Nullable error, NSURL * _Nullable imageURL) {
             // src 一致性验证
-            if (image && [[KuiklyRenderBridge componentExpandHandler] hr_srcMatch:url imageURL:imageURL]) {
+            if (image && [wself p_srcMatch:url imageURL:imageURL]) {
                 wself.image = image;
             }
             // 错误处理
@@ -485,7 +485,6 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
     }
 }
 
-
 // 图片加载错误处理
 - (void)p_handleImageLoadError:(NSError *)error url:(NSString *)url imageURL:(NSURL *)imageURL {
     if (error && [imageURL.absoluteString isEqualToString:url]) {
@@ -496,6 +495,41 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
             self.errorCode = error.code;
         }
     }
+}
+
+// 图片 src 一致性判断
+- (BOOL)p_srcMatch:(NSString *)src imageURL:(NSURL *)imageURL {
+    if (!src.length || !imageURL)
+        return NO;
+    
+    NSString *url = imageURL.absoluteString;
+    if (!url.length)
+        return NO;
+    
+    // 网络URL 走完全匹配
+    if ([url isEqualToString:src])
+        return YES;
+    
+    // 本地资源 取src和url 最后一个"/"之后的内容
+    NSString *srcFileName = [self p_fileNameFromPath:src];
+    NSString *urlFileName = [self p_fileNameFromPath:url];
+    return srcFileName.length && urlFileName.length && [srcFileName isEqualToString:urlFileName];
+}
+
+// 提取src路径中的文件名
+- (NSString *)p_fileNameFromPath:(NSString *)path {
+    if (!path.length)
+        return @"";
+    
+    // 去除 URL 参数和锚点
+    NSRange range = [path rangeOfCharacterFromSet:[NSCharacterSet characterSetWithCharactersInString:@"?#"]];
+    if (range.location != NSNotFound) {
+        path = [path substringToIndex:range.location];
+    }
+    
+    // 使用系统 API 获取文件名
+    NSString *fileName = path.lastPathComponent;
+    return fileName.length > 0 ? fileName : @"";
 }
 
 

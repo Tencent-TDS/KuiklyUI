@@ -221,8 +221,22 @@ open class PageListView<A : PageListAttr, E : PageListEvent> : ListView<A, E>() 
 
     /*
      * 滚动到某一个pageIndex
+     *
      */
+    @Deprecated(
+        level = DeprecationLevel.HIDDEN,
+        replaceWith = ReplaceWith("scrollToPageIndex(index,animated, springAnimation)"),
+        message = "Use another scrollToPageIndex() method with springAnimation parameter instead"
+    )
+    @Suppress("DEPRECATION")
     fun scrollToPageIndex(index: Int, animated: Boolean = false) : Boolean {
+        return scrollToPageIndex(index, animated, null)
+    }
+
+    /*
+     * 自定义动画效果，滚动到某一个pageIndex。
+     */
+    fun scrollToPageIndex(index: Int, animated: Boolean = false, springAnimation: SpringAnimation? = null) : Boolean {
         if (contentView == null || attr.flexNode == null || contentView!!.flexNode.layoutFrame.isDefaultValue()) {
             return false
         }
@@ -252,7 +266,7 @@ open class PageListView<A : PageListAttr, E : PageListEvent> : ListView<A, E>() 
                     }
                 }
             }
-            setContentOffset(x, y, animated)
+            setContentOffset(x, y, animated, springAnimation)
             result = true
         }
         return result

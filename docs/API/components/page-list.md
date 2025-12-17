@@ -111,3 +111,15 @@
 
 </div>
 
+## 方法
+
+### scrollToPageIndex
+
+设置`PageList`滚动到某一个pageIndex。
+
+| 参数      | 描述            | 类型              |
+|---------|---------------|-----------------|
+| index | 滚动到的pageIndex | Int             |
+| animated | 是否使用动画切换index | Boolean         |
+| springAnimation | 动画效果配置        | SpringAnimation         |
+

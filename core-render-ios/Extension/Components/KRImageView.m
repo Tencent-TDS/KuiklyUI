@@ -240,7 +240,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
         handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url
                                                                      forImageView:self
                                                                  placeholderImage:nil
-                                                                          options:SDWebImageAvoidAutoSetImage
+                                                                          options:1 << 10
                                                                          complete:^(UIImage * _Nullable image, NSError * _Nullable error, NSURL * _Nullable imageURL) {
             // src 一致性验证
             if (image && [[KuiklyRenderBridge componentExpandHandler] hr_srcMatch:url imageURL:imageURL]) {

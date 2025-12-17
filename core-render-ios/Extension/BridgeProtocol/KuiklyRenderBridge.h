@@ -21,7 +21,6 @@
 #import "KRFontModule.h"
 #import "KRNotifyModule.h"
 #import "KRCacheManager.h"
-#import <SDWebImage/UIImageView+WebCache.h>
 NS_ASSUME_NONNULL_BEGIN
 
 @protocol KuiklyRenderBridgeProtocol;
@@ -105,16 +104,15 @@ typedef void(^ImageCompletionBlock)(UIImage * _Nullable image, NSError * _Nullab
  */
 - (BOOL)hr_setImageWithUrl:(nullable NSString *)url forImageView:(UIImageView *)imageView complete:(ImageCompletionBlock)completeBlock;
 
-
 /*
  * 自定义实现设置图片（带回调和src一致性验证，优先调用该方法）
  * @param url 设置的图片url，如果url为nil，则是取消图片设置，需要view.image = nil
  * @param placeholder 设置的占位图，默认设置为nil
- * @param options SDWebImage的图片加载参数，默认为SDWebImageAvoidAutoSetImage，阻断SDWebImage无感更新ImageView的image
+ * @param options 图片加载参数（对应SDWebImageOptions），默认传KRImageOptionAvoidAutoSetImage(1<<10，对应SDWebImageAvoidAutoSetImage)，阻断SDWebImage无感更新ImageView的image
  * @param complete 图片处理完成后的回调，内置src一致性验证
  * @return 是否处理该图片设置，返回值为YES，则交给该代理实现，否则sdk内部自己处理
  */
-- (BOOL)hr_setImageWithUrl:(nonnull NSString *)url forImageView:(nonnull UIImageView *)imageView placeholderImage:(nullable UIImage *)placeholder options:(SDWebImageOptions)options complete:(ImageCompletionBlock)completeBlock;
+- (BOOL)hr_setImageWithUrl:(nonnull NSString *)url forImageView:(nonnull UIImageView *)imageView placeholderImage:(nullable UIImage *)placeholder options:(NSUInteger)options complete:(ImageCompletionBlock)completeBlock;
 
 /*
  * 资源src一致性判断

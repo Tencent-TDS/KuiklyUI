@@ -648,6 +648,78 @@ internal class OverflowPage : BasePager() {
 
 无障碍化属性, 当应用处于TalkBack模式时, 元素获取焦点后, 元素会语音读出该值
 
+### capture方法<Badge text="实验性API，仅鸿蒙支持" type="warn"/>
+
+设置容器组件的事件捕获规则。当父容器设置了capture规则后，可以在特定区域内拦截特定类型的手势事件，阻止这些事件传递给子组件。该方法接收**CaptureRule**可变参数。
+
+> 注：该属性为容器组件特有，实验性API，仅鸿蒙支持
+
+<div class="table-01">
+
+**CaptureRule**
+
+| 参数        | 描述                     | 类型      |
+|:----------|:-----------------------|---------|
+| type    | 要捕获的事件类型               | CaptureRuleType |
+| area | 捕获区域，为null表示整个容器区域     | Frame? |
+| direction | 捕获方向（仅对pan事件有效），默认为ALL | Int |
+
+</div>
+
+**CaptureRuleType:**
+
+<div class="table-01">
+
+| 参数     | 描述                   |
+|:-------|:---------------------|
+| CLICK    | 单击事件 |
+| DOUBLE_CLICK   | 双击事件 |
+| LONG_PRESS | 长按事件 |
+| PAN  | 拖拽事件 |
+
+</div>
+
+**CaptureRuleDirection:**
+
+<div class="table-01">
+
+| 参数     | 描述                   |
+|:-------|:---------------------|
+| TO_LEFT    | 向左方向 |
+| TO_TOP   | 向上方向 |
+| TO_RIGHT | 向右方向 |
+| TO_BOTTOM  | 向下方向 |
+| HORIZONTAL | 水平方向（左+右） |
+| VERTICAL | 垂直方向（上+下） |
+| ALL | 所有方向（默认值） |
+
+</div>
+
+**CaptureRule快捷创建方法:**
+
+```kotlin
+// 创建点击捕获规则
+CaptureRule.click(area: Frame? = null)
+
+// 创建双击捕获规则
+CaptureRule.doubleClick(area: Frame? = null)
+
+// 创建长按捕获规则
+CaptureRule.longPress(area: Frame? = null)
+
+// 创建拖拽捕获规则
+CaptureRule.pan(direction: Int = CaptureRuleDirection.ALL, area: Frame? = null)
+```
+
+**示例代码:** [EventCapturePage.kt](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/EventCapturePage.kt)
+
+:::tip 使用场景
+capture属性常用于以下场景：
+1. **侧滑返回**: 在页面左侧边缘区域拦截向右的拖拽事件，实现侧滑返回功能
+2. **手势冲突处理**: 当父容器和子组件都监听同一手势时，通过capture控制事件的分发
+3. **区域性交互**: 只在特定区域内响应特定手势
+:::
+
 ---
 
 下面只描述布局相关属性方法的定义, 更详细的描述, 可查看[Kuikly的布局教程](../../DevGuide/layout.md)

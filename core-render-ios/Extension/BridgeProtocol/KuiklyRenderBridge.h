@@ -111,16 +111,10 @@ typedef void(^ImageCompletionBlock)(UIImage * _Nullable image, NSError * _Nullab
  * @param options 图片加载参数（对应SDWebImageOptions），默认传KRImageOptionAvoidAutoSetImage(1<<10，对应SDWebImageAvoidAutoSetImage)，阻断SDWebImage无感更新ImageView的image
  * @param complete 图片处理完成后的回调，内置src一致性验证
  * @return 是否处理该图片设置，返回值为YES，则交给该代理实现，否则sdk内部自己处理
+ *
+ * @warning 实现此方法时，必须在图片加载完成后调用completeBlock，SDK通过此回调完成ImageView.image的最终设置，若不调用将导致图片无法显示
  */
 - (BOOL)hr_setImageWithUrl:(nonnull NSString *)url forImageView:(nonnull UIImageView *)imageView placeholderImage:(nullable UIImage *)placeholder options:(NSUInteger)options complete:(ImageCompletionBlock)completeBlock;
-
-/*
- * 资源src一致性判断
- * @param src 设置的src属性
- * @param imageURL 资源路径
- * @return 是否满足一致性判断的条件
- */
-- (BOOL)hr_srcMatch:(NSString *)src imageURL:(NSURL *)imageURL;
 
 /*
  * 自定义实现设置颜值

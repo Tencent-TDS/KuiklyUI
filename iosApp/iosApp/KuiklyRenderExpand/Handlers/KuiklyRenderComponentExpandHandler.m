@@ -32,55 +32,6 @@
     return nil;
 }
 
-
-/*
- * 自定义图片src一致性判断
- * @param src 设置的src属性
- * @param imageURL 资源的路径
- * @return 是否满足一致性判断的条件
- */
-- (BOOL)hr_srcMatch:(NSString *)src imageURL:(NSURL *)imageURL {
-    if (!src.length || !imageURL)
-        return NO;
-    
-    NSString *url = imageURL.absoluteString;
-    if (!url.length)
-        return NO;
-    
-    // 网络URL 走完全匹配
-    if ([url isEqualToString:src])
-        return YES;
-    
-    // 本地资源 取src和url 最后一个“/"之后的内容
-    NSString *srcFileName = [self p_fileNameFromPath:src];
-    NSString *urlFileName = [self p_fileNameFromPath:url];
-    return srcFileName.length && urlFileName.length && [srcFileName isEqualToString:urlFileName];
-}
-
-// 提取文件名
-- (NSString *)p_fileNameFromPath:(NSString *)path {
-    if (!path.length)
-        return @"";
-    
-    // 去除 URL 参数和锚点
-    NSRange range = [path rangeOfCharacterFromSet:[NSCharacterSet characterSetWithCharactersInString:@"?#"]];
-    if (range.location != NSNotFound) {
-        path = [path substringToIndex:range.location];
-    }
-    
-    // 提取最后一个 / 之后的内容
-    NSRange slashRange = [path rangeOfString:@"/" options:NSBackwardsSearch];
-    if (slashRange.location != NSNotFound) {
-        // 如果 / 是最后一个字符，返回 ""
-        if (slashRange.location == path.length - 1) {
-            return @"";
-        }
-        return [path substringFromIndex:slashRange.location + 1];
-    }
-    return path;
-}
-
-
 /*
  * 自定义实现设置图片
  * @param url 设置的图片url，如果url为nil，则是取消图片设置，需要view.image = nil
@@ -112,7 +63,6 @@
     return YES;
 }
 
-
 /*
  * 自定义实现设置图片（带完成回调和src一致性验证，优先调用该方法）
  * @param url 设置的图片url，如果url为nil，则是取消图片设置，需要view.image = nil
@@ -134,5 +84,4 @@
 }
 
 
-    
 @end

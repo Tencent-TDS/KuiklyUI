@@ -91,7 +91,11 @@ NSString *const KRFontWeightKey = @"fontWeight";
 - (instancetype)init {
     if (self = [super init]) {
         self.delegate = self;
+#if TARGET_OS_OSX // [macOS]
+        self.textContainerInset = NSZeroSize;
+#else // [macOS]
         self.textContainerInset = UIEdgeInsetsZero;
+#endif // [macOS]
         self.textContainer.lineFragmentPadding = 0;
         self.backgroundColor = [UIColor clearColor];
         _props = [NSMutableDictionary new];

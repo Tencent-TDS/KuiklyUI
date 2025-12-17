@@ -533,18 +533,6 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
     }
 }
 
-// Override NSTextView textContainerInset to bridge UIEdgeInsets <-> NSSize
-- (UIEdgeInsets)textContainerInset {
-    // NSTextView uses NSSize textContainerInset: width = left/right, height = top/bottom
-    NSSize inset = [super textContainerInset];
-    return NSEdgeInsetsMake(inset.height, inset.width, inset.height, inset.width);
-}
-
-- (void)setTextContainerInset:(UIEdgeInsets)textContainerInset {
-    // Map iOS-style UIEdgeInsets to NSTextView's symmetric NSSize inset
-    [super setTextContainerInset:NSMakeSize(textContainerInset.left, textContainerInset.top)];
-}
-
 - (void)setDelegate:(id)delegate {
     // Store UI delegate separately to avoid conflict with NSTextView delegate
     if ([delegate conformsToProtocol:@protocol(UITextViewDelegate)]) {
@@ -1690,7 +1678,6 @@ BOOL KRUIViewSetClipsToBounds(KRPlatformView *view) {
 @dynamic value;
 @dynamic minimumValue;
 @dynamic maximumValue;
-@dynamic continuous;
 
 - (instancetype)initWithFrame:(NSRect)frameRect {
     if (self = [super initWithFrame:frameRect]) {

@@ -500,8 +500,6 @@ NS_INLINE NSEdgeInsets UIEdgeInsetsMake(CGFloat top, CGFloat left, CGFloat botto
 @property (nonatomic, assign) UIKeyboardType keyboardType;
 @property (nonatomic, assign) UIReturnKeyType returnKeyType;
 @property (nonatomic, strong, nullable) KRUIColor *tintColor;
-// Override textContainerInset to bridge NSSize -> UIEdgeInsets
-@property (nonatomic, assign) UIEdgeInsets textContainerInset;
 
 // UITextInput-like compatibility
 @property (nonatomic, strong, readonly) UITextPosition *beginningOfDocument;
@@ -783,7 +781,6 @@ NS_INLINE CGRect CGRectValue(NSValue *value) {
 @property (nonatomic, strong) NSColor *minimumTrackTintColor;
 @property (nonatomic, strong) NSColor *maximumTrackTintColor;
 @property (nonatomic, strong) NSColor *thumbTintColor;
-@property (nonatomic, assign) BOOL continuous;
 
 - (void)setValue:(float)value animated:(BOOL)animated;
 

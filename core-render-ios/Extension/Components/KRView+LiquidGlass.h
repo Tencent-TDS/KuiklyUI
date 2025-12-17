@@ -47,10 +47,14 @@ API_AVAILABLE(macos(26.0))
 
 /// The wrapped KRView
 @property (nonatomic, weak) KRView *wrappedView;
+
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 260000
 /// The glass effect view (NSGlassEffectView)
 @property (nonatomic, strong, nullable) NSGlassEffectView *glassEffectView;
 /// The glass container view (NSGlassEffectContainerView)
 @property (nonatomic, strong, nullable) NSGlassEffectContainerView *glassContainerView;
+#endif
+
 /// Whether this wrapper is for container effect
 @property (nonatomic, assign) BOOL isContainer;
 

@@ -635,6 +635,40 @@ internal class OverflowPage : BasePager() {
 
 :::
 
+### clipPath方法<Badge text="安卓2.8.0以上" type="warn"/><Badge text="鸿蒙2.8.0以上" type="warn"/>
+
+设置组件的裁剪路径，可以使用路径绑定的方式裁剪组件的显示区域为任意形状。
+
+<div class="table-01">
+
+| 参数        | 描述                                                          | 类型              |
+|:----------|:------------------------------------------------------------|:----------------|
+| builder   | 裁剪路径构建器函数，接收路径API、组件宽度和高度作为参数。传入 null 可清除裁剪路径 | ClipPathBuilder? |
+
+</div>
+
+**ClipPathBuilder** 是一个函数类型，定义为：`PathApi.(width: Float, height: Float) -> Unit`
+
+在构建器函数中，可以使用以下 **PathApi** 方法来构建裁剪路径（详细参数说明请参考 [Canvas 路径操作](canvas.md#路径操作)）：
+
+| 方法                | 描述                                    |
+|:------------------|:--------------------------------------|
+| beginPath()       | 新建一条路径                                |
+| moveTo(x, y)      | 将路径起点移动到指定坐标                          |
+| lineTo(x, y)      | 从当前点绘制直线到指定坐标                          |
+| arc(centerX, centerY, radius, startAngle, endAngle, counterclockwise) | 绘制圆弧 |
+| quadraticCurveTo(cpx, cpy, x, y) | 绘制二次贝塞尔曲线                             |
+| bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x, y) | 绘制三次贝塞尔曲线                             |
+| closePath()       | 闭合路径                                    |
+
+[组件使用示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/ClipPathExamplePage.kt)
+
+:::tip 注意
+- 裁剪路径会根据组件的布局尺寸动态计算
+- 裁剪路径支持响应式更新，当依赖的响应式变量变化时会自动重新计算
+- 传入 `null` 可以清除已设置的裁剪路径
+:::
+
 ### keepAlive方法
 
 设置组件是否常驻。常用于**有状态的组件**。如果一个组件被设置为true，并且这个组件是可滚动的容器的直接孩子的话(例如List, PageList, SlidePage), 当

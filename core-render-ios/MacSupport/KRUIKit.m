@@ -24,27 +24,6 @@
 #import <CoreImage/CIFilter.h>
 #import <CoreImage/CIVector.h>
 
-// KRMAssert implementation for macOS
-#define KRMAssert(condition, ...) _KRMAssert((condition), __FILE__, __LINE__, __func__, __VA_ARGS__)
-
-NS_INLINE void _KRMAssert(BOOL condition, const char *fileName, int lineNumber, const char *function, NSString *format, ...) {
-    if (!condition) {
-        va_list args;
-        va_start(args, format);
-        NSString *message = [[NSString alloc] initWithFormat:format arguments:args];
-        va_end(args);
-        
-        NSString *log = [NSString stringWithFormat:@"[KRMAssert] %s:%d (%s): %@", 
-                         fileName, lineNumber, function, message];
-        NSLog(@"%@", log);
-        
-#if DEBUG
-        // In DEBUG mode, trigger assertion to help catch issues during development
-        assert(condition);
-#endif
-    }
-}
-
 
 static char RCTGraphicsContextSizeKey;
 

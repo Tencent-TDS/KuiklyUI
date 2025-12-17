@@ -89,15 +89,14 @@
 
 // [macOS
 #if TARGET_OS_OSX
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 260000
 
 @implementation KRLiquidGlassView
 
 - (instancetype)initWithFrame:(CGRect)frame {
     if (self = [super initWithFrame:frame]) {
         if (@available(macOS 26.0, *)) {
-#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 260000
             self.style = NSGlassEffectViewStyleRegular;
-#endif
         }
     }
     return self;
@@ -110,7 +109,6 @@
 - (void)hrv_insertSubview:(NSView *)subView atIndex:(NSInteger)index {
     // NSGlassEffectView uses contentView for embedding content
     if (@available(macOS 26.0, *)) {
-#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 260000
         if (self.contentView) {
             NSArray<NSView *> *subviews = self.contentView.subviews;
             if (index >= (NSInteger)subviews.count) {
@@ -121,7 +119,6 @@
         } else {
             self.contentView = subView;
         }
-#endif
     }
 }
 
@@ -129,12 +126,10 @@
 
 - (void)setCss_glassEffectTintColor:(NSNumber *)color {
     if (@available(macOS 26.0, *)) {
-#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 260000
         NSColor *tintColor = [UIView css_color:color];
         if (![self.tintColor isEqual:tintColor]) {
             self.tintColor = tintColor;
         }
-#endif
     }
 }
 
@@ -145,16 +140,15 @@
 
 - (void)setCss_glassEffectStyle:(NSString *)style {
     if (@available(macOS 26.0, *)) {
-#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 260000
         NSGlassEffectViewStyle glassStyle = [KRConvertUtil KRGlassEffectStyle:style];
         if (self.style != glassStyle) {
             self.style = glassStyle;
         }
-#endif
     }
 }
 
 @end
 
+#endif
 #endif
 // macOS]

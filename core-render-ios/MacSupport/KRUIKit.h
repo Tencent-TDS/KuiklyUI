@@ -393,7 +393,6 @@ extern "C" {
 #endif
 
 CGContextRef UIGraphicsGetCurrentContext(void);
-//CGImageRef UIImageGetCGImageRef(NSImage *image);
 
 #ifdef __cplusplus
 }

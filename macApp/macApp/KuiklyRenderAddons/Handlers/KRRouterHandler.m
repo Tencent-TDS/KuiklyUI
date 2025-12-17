@@ -152,9 +152,6 @@ static char kWindowSelfRetentionKey;
  * @brief 在新窗口中打开视图控制器
  */
 - (void)openInNewWindow:(NSViewController *)viewController {
-    // 确保 view 已加载并设置合理尺寸
-    [viewController loadView];
-    
     // 获取视图的建议尺寸，如果过小则使用默认值
     CGSize viewSize = viewController.view.frame.size;
     CGFloat windowWidth = MAX(viewSize.width, 900.0);

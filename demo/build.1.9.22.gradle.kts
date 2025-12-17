@@ -118,6 +118,7 @@ kotlin {
         homepage = "Link to the Shared Module homepage"
         version = "1.0"
         ios.deploymentTarget = "14.1"
+        osx.deploymentTarget = "10.13"
 //        podfile = project.file("../iosApp/Podfile")
         framework {
             isStatic = true
@@ -138,6 +139,8 @@ dependencies {
         add("kspIosArm64", this)
         add("kspIosX64", this)
         add("kspIosSimulatorArm64", this)
+        add("kspMacosArm64", this)
+        add("kspMacosX64", this)
         add("kspAndroid", this)
         add("kspJs", this)
     }

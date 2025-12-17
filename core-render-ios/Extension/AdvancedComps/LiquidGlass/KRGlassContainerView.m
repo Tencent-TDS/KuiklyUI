@@ -58,6 +58,7 @@
 
 // [macOS
 #if TARGET_OS_OSX
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 260000
 
 @implementation KRGlassContainerView
 
@@ -75,7 +76,6 @@
 - (void)hrv_insertSubview:(NSView *)subView atIndex:(NSInteger)index {
     // NSGlassEffectContainerView uses contentView for embedding content
     if (@available(macOS 26.0, *)) {
-#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 260000
         if (self.contentView) {
             NSArray<NSView *> *subviews = self.contentView.subviews;
             if (index >= (NSInteger)subviews.count) {
@@ -86,7 +86,6 @@
         } else {
             self.contentView = subView;
         }
-#endif
     }
 }
 
@@ -94,15 +93,14 @@
 
 - (void)setCss_glassEffectSpacing:(NSNumber *)spacing {
     if (@available(macOS 26.0, *)) {
-#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 260000
         if (self.spacing != spacing.doubleValue) {
             self.spacing = spacing.doubleValue;
         }
-#endif
     }
 }
 
 @end
 
+#endif
 #endif
 // macOS]

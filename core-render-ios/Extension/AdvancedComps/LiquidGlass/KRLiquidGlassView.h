@@ -34,9 +34,9 @@ NS_ASSUME_NONNULL_END
 
 // [macOS
 #if TARGET_OS_OSX
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 260000
 
 NS_ASSUME_NONNULL_BEGIN
-#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 260000
 
 /**
  * 液态玻璃视图组件（macOS版本）
@@ -47,8 +47,8 @@ API_AVAILABLE(macos(26.0))
 
 @end
 
-#endif
 NS_ASSUME_NONNULL_END
 
+#endif
 #endif
 // macOS]

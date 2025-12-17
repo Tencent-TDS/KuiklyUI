@@ -952,8 +952,7 @@ internal class DoubleClickEventPage : BasePager() {
 
 ``longPress``事件为长按事件，当``Kuikly``组件有设置长按事件，并且``Kuikly``组件被长按时，会触发``longPress``闭包回调。
 ``longPress``回调闭包中含有``LongPressParams``类型参数，以此来描述长按事件的信息
-
-注：长按事件会在过程中持续回调，可以使用state参数判断状态。
+``longPress``有三种state: start move end，当长按过程中有手势变化，则``longPress``会多次触发回调。如果不关心state，只关心长按是否进入事件，只需监听对应的start状态即可。
 
 <div class="table-01">
 

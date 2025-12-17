@@ -39,6 +39,7 @@ class LoopDirectivesView<T>(
 ) :
     DirectivesView() {
     lateinit var curList: ObservableList<T>
+    internal var lastProcessedSeq = -1
     internal var lazySyncOperation: (LoopDirectivesView<*>.() -> Unit)? = null
     internal var didRemove = false
 
@@ -54,6 +55,7 @@ class LoopDirectivesView<T>(
                         val removeAllOperation = CollectionOperation(CollectionOperation.OPERATION_TYPE_REMOVE, 0, curList.count())
                         syncRemoveChildOperationToDom(removeAllOperation)
                         curList = list
+                        lastProcessedSeq = list.collectionOperation.lastOrNull()?.seq ?: -1
                         val addAllOperation = CollectionOperation(CollectionOperation.OPERATION_TYPE_ADD, 0, curList.count())
                         syncAddChildOperationToDom(addAllOperation, itemList())
                     }
@@ -62,7 +64,10 @@ class LoopDirectivesView<T>(
                     ReactiveObserver.addLazyTaskUtilEndCollectDependency {
                         if (collectionOperation.isNotEmpty()) {
                             collectionOperation.forEach { operation ->
-                                syncListOperationToDom(operation)
+                                if (operation.seq > lastProcessedSeq) {
+                                    syncListOperationToDom(operation)
+                                    lastProcessedSeq = operation.seq
+                                }
                             }
                         }
                     }
@@ -173,6 +178,7 @@ fun <T> ViewContainer<*, *>.vforIndex(
     val view = LoopDirectivesView<T>(itemList, itemCreator)
     addChild(view) {
         curList = itemList()
+        lastProcessedSeq = curList.collectionOperation.lastOrNull()?.seq ?: -1
         if (realParent is ListContentView) { // list首屏分帧加载
             val list = curList.toFastList()
             val contentView = realParent as ListContentView

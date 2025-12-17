@@ -167,6 +167,93 @@ internal class HelloWorldPage : Pager() {
 在上面的例子中，我们先通过by observableList<``T``>声明了一个响应式容器, 并在``List``组件下将容器绑定在``vfor``语句的闭包中, 让List的列表具有自动更新的能力。
 例如，一开始我们往数据list容器添加10个数据，因此当开始运行的时候，``List``组件下会有10个Item。当我们在运行时的某个时刻往数据list中再添加一个数据，此时你会发现List组件会自动创建第11个Item。
 
+## 常见错误
+
+### 错误1：在属性设置中未引用响应式字段
+
+如果属性设置中没有直接引用响应式字段，而是将值提前取出存储到普通变量中，则该属性不会响应数据变化。
+
+```kotlin
+// 错误示例
+private var textContent by observable("Hello")
+
+override fun body(): ViewBuilder {
+    val ctx = this
+    val content = ctx.textContent // 错误：提前取值，断开了响应式依赖
+    return {
+        Text {
+            attr {
+                text(content) // 错误：使用普通变量，不会响应ctx.textContent的变化
+            }
+        }
+    }
+}
+
+// 正确示例
+private var textContent by observable("Hello")
+
+override fun body(): ViewBuilder {
+    val ctx = this
+    return {
+        Text {
+            attr {
+                text(ctx.textContent) // ✅ 直接引用响应式字段
+            }
+        }
+    }
+}
+```
+
+### 错误2：修改拥有响应式字段的类实例而非响应式字段本身
+响应式系统只能监听响应式字段本身的赋值操作，如果你修改的是对象的内部属性（或者拥有响应式字段的类实例），UI不会自动更新。
+
+```kotlin
+class Obj1(field: String) {
+    var field: String = field
+}
+class Obj2(scope: PagerScope, field: String) {
+    var field by scope.observable(field)
+}
+internal class DebugPage : BasePager() {
+    var obj1 = Obj1("")
+    var obj2 = Obj2(this, "")
+    var observableObj1 by observable(Obj1(""))
+    var observableObj2 by observable(Obj2(this, ""))
+
+    override fun body(): ViewBuilder {
+        val ctx = this
+        return {
+            Text { attr { text(ctx.obj1.field) } }
+            Text { attr { text(ctx.obj2.field) } }
+            Text { attr { text(ctx.observableObj1.field) } }
+            Text { attr { text(ctx.observableObj2.field) } }
+            Button {
+                event {
+                    click {
+                        // ❌错误：field不是响应式字段，不会触发更新
+                        ctx.obj1.field = "change"
+                        // ❌错误：obj1不是响应式字段，不会触发更新
+                        ctx.obj1 = Obj1("change")
+                        // ✅正确：field是响应式字段，可以更新
+                        ctx.obj2.field = "change"
+                        // ❌错误：obj2不是响应式字段，不会触发更新
+                        ctx.obj2 = Obj2(ctx, "change")
+                        // ❌错误：改变响应式元素内部字段，不会触发更新
+                        ctx.observableObj1.field = "change"
+                        // ✅正确：observableObj1是响应式字段，可以更新
+                        ctx.observableObj1 = Obj1("change")
+                        // ⚠️正确：field是响应式字段，可以更新，但observableObj2声明为响应式元素是多余的
+                        ctx.observableObj2.field = "change"
+                        // ⚠️正确：observableObj2是响应式字段，可以更新，但内部字段声明为响应式是多余的
+                        ctx.observableObj2 = Obj2(ctx, "change")
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
 ## 下一步
 
 在这节中，我们学习了如何使用响应式字段和响应式容器来达到UI自动更新的目的。下一步，我们来学习``Kuikly``中的[语句指令](directive.md)

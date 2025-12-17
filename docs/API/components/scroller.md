@@ -64,7 +64,8 @@
 | SELF_ONLY | 仅当前控件处理滚动，不传递给父控件 |
 | SELF_FIRST | 当前控件优先处理滚动，未消费完的滚动量传递给父控件 |
 | PARENT_FIRST | 父控件优先处理滚动，未消费完的滚动量传递给当前控件 |
-
+用法参考：[竖向列表嵌套滚动用法示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/list/ListNestBounceFalse.kt)、
+[横向列表嵌套滚动示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/list/ListNestRow.kt)
 
 ## 事件
 

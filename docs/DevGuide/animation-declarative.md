@@ -3,7 +3,7 @@
 Kuikly的声明式动画通过状态变量来控制不同状态下视图的UI效果，并将由状态变量的改变引起的UI效果的变化用`Animation`描述的动画表现出来。在声明式动画的使用中有三大要素
 
 * 对动画过程的定义，比如动画的时间曲线、时长、是否repeat、是否delay启动等等
-  * 该动画过程，通过`Animation`对象来设置
+  * 该动画过程，通过`Animation`对象来设置，具体类型参见[动画基础](./animation-basic.md#动画类型)
 * 将状态变量与动画过程进行关联的声明
   * `attr`里面提供了`animate(animation: Animation, value: Any)`函数来进行绑定
 * 一个依赖于状态的可动画部件，通常不同状态有不同的表现
@@ -637,3 +637,5 @@ internal class TestPage : BasePager() {
 
 在上述代码中，我们先执行了``transform``动画, 然后在动画执行到300ms时，启动背景颜色动画。
 
+## 动画执行过程中取消动画
+在动画执行过程中，可以通过重置一个新动画，reset到初始状态来取消该动画。具体可参考[动画取消Demo](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/AnimationCancelDemo.kt)实现

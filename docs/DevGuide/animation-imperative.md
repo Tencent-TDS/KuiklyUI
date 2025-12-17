@@ -522,3 +522,5 @@ internal class TestPage : BasePager() {
 
 在上述代码中，我们先执行了``transform``动画, 然后在动画执行到300ms时，启动背景颜色动画。
 
+## 动画执行过程中取消动画
+在动画执行过程中，可以通过重置一个新动画，reset到初始状态来取消该动画。具体可参考[动画取消Demo](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/AnimationCancelDemo.kt)实现

@@ -18,6 +18,11 @@ Animation类默认提供了以下动画曲线类型
   * Animation.springEaseOut: 弹簧式先快后慢曲线
   * Animation.springEaseInOut: 弹簧式开始和结尾慢, 中间快曲线
 
+## 动画过程控制
+* delay: 动画是否delay启动
+* duration：动画持续时长
+* repeatForever：动画是否repeat执行
+
 ## 可动画属性
 
 在``Kuikly``支持对以下属性做动画

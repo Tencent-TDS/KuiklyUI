@@ -4,7 +4,7 @@
 
 [组件用法](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/PAGViewDemoPage.kt)
 
-:::tip 需要提前实现adapter
+:::tip 需要在宿主端实现adapter
 
 可参考：
 
@@ -15,7 +15,7 @@
 - **鸿蒙**：[AppKRPAGAdapter.ets](https://github.com/Tencent-TDS/KuiklyUI/blob/main/ohosApp/entry/src/main/ets/kuikly/adapters/AppKRPAGAdapter.ets)
 
 :::
-
+    
 ## 属性
 
 支持所有[基础属性](basic-attr-event.md#基础属性)，此外还支持：

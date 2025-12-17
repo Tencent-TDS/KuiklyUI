@@ -1106,6 +1106,53 @@ internal class FontSizeDpPager : BasePager() {
 
 :::
 
+### textStroke方法<Badge text="安卓实现中" type="warn"/>
+
+设置文字描边颜色和宽度
+
+<div class="table-01">
+
+**textStroke方法**
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| color | 文字描边颜色  | Color |
+| width | 文字描边宽度（默认值为2f）  | Float |
+
+</div>
+
+:::tabs
+
+@tab:active 示例
+
+```kotlin{14}
+@Page("demo_page")
+internal class TestPage : BasePager() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                allCenter()
+            }
+
+            Text {
+                attr {
+                    text("文字描边效果")
+                    fontSize(30f)
+                    color(Color.WHITE)
+                    textStroke(Color.RED, 2f)
+                }
+            }
+        }
+    }
+}
+```
+
+@tab 效果
+
+文字会显示红色的描边效果，描边宽度为2像素。
+
+:::
+
 ## 事件
 
 支持所有[基础事件](basic-attr-event.md#基础事件)

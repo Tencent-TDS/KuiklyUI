@@ -521,6 +521,19 @@ internal class TransformPage : BasePager() {
 
 设置组件的层级位置。组件的层级是按照书写顺序来叠放的，使用zIndex方法可更改组件的叠放顺序
 
+<div class="table-01">
+
+| 参数        | 描述                                               | 类型      |
+|:----------|:-------------------------------------------------|---------|
+| zIndex    | 层叠顺序值，值越大层级越高                                    | Int     |
+| useOutline | 默认为true，设为false可以解决Android同时设置zIndex和圆角出现非预期阴影问题 | Boolean |
+
+</div>
+
+:::tip 注意
+**useOutline参数仅在Android平台生效**，用于控制是否使用OutlineViewProvider。当遇到同时设置zIndex和圆角出现非预期阴影问题时，可以将此参数设为false来解决。
+:::
+
 :::tabs
 
 @tab:active 示例

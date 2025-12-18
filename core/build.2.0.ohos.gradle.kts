@@ -74,21 +74,25 @@ kotlin {
     }
 
     // sourceSets
-    val commonMain by sourceSets.getting
-
-    val ohosArm64Main by sourceSets.getting {
-        dependsOn(commonMain)
-    }
-
-    val iosMain by sourceSets.creating {
-        dependsOn(commonMain)
+    sourceSets {
+        val commonMain by getting
+        val appleMain by sourceSets.creating {
+            dependsOn(commonMain)
+        }
+        val iosMain by sourceSets.creating {
+            dependsOn(appleMain)
+        }
+        val ohosArm64Main by sourceSets.getting {
+            dependsOn(commonMain)
+        }
     }
 
     targets.withType<KotlinNativeTarget> {
+        val appleMain by sourceSets.getting
         when {
             konanTarget.family.isAppleFamily -> {
                 val main by compilations.getting
-                main.defaultSourceSet.dependsOn(iosMain)
+                main.defaultSourceSet.dependsOn(appleMain)
                 val kuikly by main.cinterops.creating {
                     defFile(project.file("src/appleMain/iosInterop/cinterop/ios.def"))
                 }

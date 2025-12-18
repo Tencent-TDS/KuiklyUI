@@ -98,7 +98,7 @@ Class _Nullable KRClassFromString(NSString *aClassName) {
 - (void)setRenderViewFrameWithTag:(NSNumber *)tag frame:(CGRect)frame {
     NSAssert([NSThread isMainThread], @"should call on main thread");
     id<KuiklyRenderViewExportProtocol> viewHandler = [self p_renderViewHandlerWithTag:tag];
-    [viewHandler hrv_setPropWithKey:@"frame" propValue:[NSValue valueWithCGRect:frame]];
+    [viewHandler hrv_setPropWithKey:@"frame" propValue:@(frame)];
 }
 
 - (void)removeRenderViewWithTag:(NSNumber *)tag {

@@ -163,8 +163,15 @@ NSString *const KRDensity = @"density";
     [super setFrame:frame];
     if (!CGSizeEqualToSize(_lastViewSize, self.bounds.size)) {
         _lastViewSize = self.bounds.size;
-        CGSize screenSize = [UIScreen mainScreen].bounds.size;
-        UIViewController *viewController = [self getViewController];
+        CGSize screenSize = ({
+#if TARGET_OS_OSX
+            NSScreen *screen = [NSScreen mainScreen];
+            screen ? screen.frame.size : CGSizeZero;
+#else
+            [UIScreen mainScreen].bounds.size;
+#endif
+        });
+		UIViewController *viewController = [self getViewController];
         NSDictionary *data = @{KRWidthKey: @(CGRectGetWidth(frame)),
                                KRHeightKey: @(CGRectGetHeight(frame)),
                                KRDeviceWidthKey:@(screenSize.width),
@@ -218,14 +225,30 @@ NSString *const KRDensity = @"density";
     mParmas[KRRootViewHeightKey] = @(size.height);
     mParmas[KRUrlKey] = _pageName ?: @"";
     mParmas[KRStatusBarHeightKey] = @([KRConvertUtil statusBarHeight]);
+    // [macOS] 平台信息与屏幕尺寸/密度
+#if TARGET_OS_OSX // [macOS]
+    mParmas[KRPlatformKey] = @"macOS";
+    NSScreen *mainScreen = [NSScreen mainScreen];
+    CGSize deviceSize = mainScreen ? mainScreen.frame.size : CGSizeZero;
+    mParmas[KRDeviceWidthKey] = @(deviceSize.width);
+    mParmas[KRDeviceHeightKey] = @(deviceSize.height);
+    mParmas[KROsVersionKey] = [[NSProcessInfo processInfo] operatingSystemVersionString] ?: @"";
+#else
     mParmas[KRPlatformKey] = @"iOS";
     mParmas[KRDeviceWidthKey] = @(CGRectGetWidth([UIScreen mainScreen].bounds));
     mParmas[KRDeviceHeightKey] = @(CGRectGetHeight([UIScreen mainScreen].bounds));
     mParmas[KROsVersionKey] = [[UIDevice currentDevice] systemVersion] ?: @"";
+#endif
     mParmas[KRAppVersionKey] = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleShortVersionString"] ? : @"1.0.0";
     mParmas[KRParamKey] = params? : @{};
 	mParmas[KRNativeBuild] = @(2);
-    mParmas[KRAccessibilityRunning] = @(UIAccessibilityIsVoiceOverRunning() ? 1: 0); // 无障碍化是否开启
+    // 无障碍化开关与安全区域/密度
+#if TARGET_OS_OSX // [macOS]
+    mParmas[KRAccessibilityRunning] = @(0);
+    mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:[KRConvertUtil currentSafeAreaInsets]];
+    mParmas[KRDensity] = @([NSScreen mainScreen].backingScaleFactor ?: 1.0);
+#else
+    mParmas[KRAccessibilityRunning] = @(UIAccessibilityIsVoiceOverRunning() ? 1: 0);
     if (@available(iOS 11.0, *)) {
         mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:[KRConvertUtil currentSafeAreaInsets]];
     } else {
@@ -233,6 +256,7 @@ NSString *const KRDensity = @"density";
         // Fallback on earlier versions
     }
     mParmas[KRDensity] = @([UIScreen mainScreen].scale);
+#endif
     return mParmas;
 }
 

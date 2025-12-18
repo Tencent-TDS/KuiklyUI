@@ -47,19 +47,21 @@ kotlin {
     iosX64()
 
     // sourceSets
-    val commonMain by sourceSets.getting
-
-    val iosMain by sourceSets.getting {
-        dependsOn(commonMain)
+    sourceSets {
+        val commonMain by getting
+        val appleMain by sourceSets.creating {
+            dependsOn(commonMain)
+        }
     }
 
     targets.withType<KotlinNativeTarget> {
+        val appleMain by sourceSets.getting
         when {
             konanTarget.family.isAppleFamily -> {
                 val main by compilations.getting
-                main.defaultSourceSet.dependsOn(iosMain)
+                main.defaultSourceSet.dependsOn(appleMain)
                 val kuikly by main.cinterops.creating {
-                    defFile(project.file("src/iosMain/iosInterop/cinterop/ios.def"))
+                    defFile(project.file("src/appleMain/iosInterop/cinterop/ios.def"))
                 }
             }
         }

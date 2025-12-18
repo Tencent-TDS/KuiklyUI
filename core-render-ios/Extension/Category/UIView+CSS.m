@@ -19,6 +19,7 @@
 #import "KRView.h"
 #import "KuiklyRenderBridge.h"
 #import "KuiklyRenderViewExportProtocol.h"
+
 #define LAZY_ANIMATION_KEY @"lazyAnimationKey"
 #define ANIMATION_KEY @"animation"
 
@@ -91,7 +92,7 @@
 @end
 
 
-@interface UIView()<KuiklyRenderViewLifyCycleProtocol>
+@interface UIView() <KuiklyRenderViewLifyCycleProtocol>
 
 @property (nonatomic, strong) CSSAnimation *css_animationImp;
 @property (nonatomic, strong) CSSTransform *css_transformImp;
@@ -292,7 +293,17 @@
         self.layer.shadowOffset = CGSizeMake(boxShadow.offsetX, boxShadow.offsetY);
         self.layer.shadowOpacity = css_boxShadow ? 1 : 0;
         if (self.css_useShadowPath) {
+            #if TARGET_OS_OSX // [macOS]
+            if (css_boxShadow) {
+                CGPathRef p = CGPathCreateWithRoundedRect(self.layer.bounds, self.layer.cornerRadius, self.layer.cornerRadius, NULL);
+                self.layer.shadowPath = p;
+                CGPathRelease(p);
+            } else {
+                self.layer.shadowPath = nil;
+            }
+            #else
             self.layer.shadowPath = css_boxShadow ? [[UIBezierPath bezierPathWithRoundedRect:self.layer.bounds cornerRadius:self.layer.cornerRadius] CGPath] : nil;
+            #endif // [macOS]
         }
     }
 }
@@ -404,7 +415,16 @@
 - (void)setCss_shouldRasterize:(NSNumber *)css_shouldRasterize {
     objc_setAssociatedObject(self, @selector(css_shouldRasterize), css_shouldRasterize, OBJC_ASSOCIATION_RETAIN);
     self.layer.shouldRasterize = [css_shouldRasterize intValue] == 1;
+    #if TARGET_OS_OSX // [macOS]
+    CGFloat scale = 1.0;
+    NSScreen *screen = [NSScreen mainScreen];
+    if (screen) {
+        scale = screen.backingScaleFactor > 0 ? screen.backingScaleFactor : 1.0;
+    }
+    self.layer.rasterizationScale = scale;
+    #else
     self.layer.rasterizationScale = [UIScreen mainScreen].scale;
+    #endif // [macOS]
 }
 
 - (NSNumber *)css_turboDisplayAutoUpdateEnable {
@@ -423,6 +443,17 @@
 - (void)setCss_autoDarkEnable:(NSNumber *)css_autoDarkEnable {
     if (self.css_autoDarkEnable != css_autoDarkEnable) {
         objc_setAssociatedObject(self, @selector(css_autoDarkEnable), css_autoDarkEnable, OBJC_ASSOCIATION_RETAIN);
+        #if TARGET_OS_OSX // [macOS]
+        if (@available(macos 10.14, *)) {
+            if ([css_autoDarkEnable boolValue]) {
+                // 跟随系统
+                self.appearance = nil;
+            } else {
+                // 强制浅色
+                self.appearance = [NSAppearance appearanceNamed:NSAppearanceNameAqua];
+            }
+        }
+        #else
         if (@available(iOS 13.0, *)) {
             if ([css_autoDarkEnable boolValue]) {
                 self.overrideUserInterfaceStyle = UIUserInterfaceStyleUnspecified;
@@ -430,13 +461,28 @@
                 self.overrideUserInterfaceStyle = UIUserInterfaceStyleLight;
             }
         }
+        #endif // [macOS]
     }
 }
 
 - (void)setCss_interfaceStyle:(NSString *)style {
+    #if TARGET_OS_OSX // [macOS]
+    if (@available(macos 10.14, *)) {
+        NSString *lower = style.lowercaseString;
+        if ([lower isEqualToString:@"dark"]) {
+            self.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
+        } else if ([lower isEqualToString:@"light"]) {
+            self.appearance = [NSAppearance appearanceNamed:NSAppearanceNameAqua];
+        } else {
+            // 未指定：跟随系统
+            self.appearance = nil;
+        }
+    }
+    #else
     if (@available(iOS 13.0, *)) {
         self.overrideUserInterfaceStyle = [KRConvertUtil KRUserInterfaceStyle:style];
     }
+    #endif // [macOS]
 }
 
 - (NSString *)css_animation {
@@ -508,9 +554,21 @@
     if (self.layer.animationKeys.count && !CGAffineTransformEqualToTransform(self.transform, CGAffineTransformIdentity)) {
         // 原子性设置frame，使得UIView动画可以生效的同时，也可以避免影响transform动画
         self.bounds = CGRectMake(0, 0, CGRectGetWidth(frame), CGRectGetHeight(frame));
+        #if TARGET_OS_OSX // [macOS]
+        // macOS 无 center，保持语义：将 frame 设为目标矩形
+        self.frame = frame;
+        #else
         self.center = CGPointMake(CGRectGetMidX(frame), CGRectGetMidY(frame));
+        #endif // [macOS]
         // 无动画设置最终的frame，避免影响transform动画
+        #if TARGET_OS_OSX // [macOS]
+        [CATransaction begin];
+        [CATransaction setDisableActions:YES];
+        setFrameBlock();
+        [CATransaction commit];
+        #else
         [UIView performWithoutAnimation:setFrameBlock];
+        #endif // [macOS]
     } else {
         setFrameBlock();
     }
@@ -520,7 +578,13 @@
 - (void)p_boundsDidChanged {
     [self.layer.mask setFrame:self.bounds];
     if (self.layer.shadowPath) {
+        #if TARGET_OS_OSX // [macOS]
+        CGPathRef path = CGPathCreateWithRoundedRect(self.layer.bounds, self.layer.cornerRadius, self.layer.cornerRadius, NULL);
+        self.layer.shadowPath = path;
+        CGPathRelease(path);
+        #else
         self.layer.shadowPath = [[UIBezierPath bezierPathWithRoundedRect:self.layer.bounds cornerRadius:self.layer.cornerRadius] CGPath];
+        #endif // [macOS]
     }
 }
 
@@ -581,9 +645,13 @@
         if (css_click != nil) {
             self.css_tapGR = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(css_onClickTapWithSender:)];
             [self addGestureRecognizer:self.css_tapGR];
+            #if TARGET_OS_OSX // [macOS]
+            // macOS NSGestureRecognizer 无 requireGestureRecognizerToFail 方法，使用 delegate 方式处理手势依赖
+            #else
             if (self.css_doubleTapGR) {
                 [self.css_tapGR requireGestureRecognizerToFail:self.css_doubleTapGR];
             }
+            #endif // [macOS]
             if (!self.css_touchEnable) {
                 self.userInteractionEnabled = YES;
             }
@@ -603,12 +671,22 @@
             self.css_doubleTapGR = nil;
         }
         if (css_doubleClick != nil) {
+            #if TARGET_OS_OSX // [macOS]
+            self.css_doubleTapGR = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(css_onDoubleClickWithSender:)];
+            // macOS 使用 NSClickGestureRecognizer，设置 numberOfClicksRequired 识别双击
+            ((NSClickGestureRecognizer *)self.css_doubleTapGR).numberOfClicksRequired = 2;
+            #else
             self.css_doubleTapGR = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(css_onDoubleClickWithSender:)];
             self.css_doubleTapGR.numberOfTapsRequired = 2;
+            #endif // [macOS]
             [self addGestureRecognizer:self.css_doubleTapGR];
+            #if TARGET_OS_OSX // [macOS]
+            // macOS NSGestureRecognizer 无 requireGestureRecognizerToFail 方法
+            #else
             if (self.css_tapGR) {
                 [self.css_tapGR requireGestureRecognizerToFail:self.css_doubleTapGR];
             }
+            #endif // [macOS]
             if (!self.css_touchEnable) {
                 self.userInteractionEnabled = YES;
             }
@@ -688,7 +766,11 @@
 
 - (void)css_onClickTapWithSender:(UIGestureRecognizer *)sender {
     CGPoint location = [sender locationInView:self];
+    #if TARGET_OS_OSX
+    CGPoint pageLocation = [sender locationInView:nil]; // 窗口坐标
+    #else
     CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
+    #endif
     NSDictionary *param = @{
         @"x": @(location.x),
         @"y": @(location.y),
@@ -702,7 +784,11 @@
 
 - (void)css_onDoubleClickWithSender:(UIGestureRecognizer *)sender {
     CGPoint location = [sender locationInView:self];
+    #if TARGET_OS_OSX
+    CGPoint pageLocation = [sender locationInView:nil];
+    #else
     CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
+    #endif
     NSDictionary *param = @{
         @"x": @(location.x),
         @"y": @(location.y),
@@ -720,7 +806,11 @@
         @(UIGestureRecognizerStateChanged): @"move",
     };
     CGPoint location = [sender locationInView:self];
+    #if TARGET_OS_OSX
+    CGPoint pageLocation = [sender locationInView:nil];
+    #else
     CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
+    #endif
     NSDictionary *param = @{
         @"state": config[@(sender.state)] ? : @"end",
         @"x": @(location.x),
@@ -752,7 +842,11 @@
     };
     
     CGPoint location = [sender locationInView:self];
+    #if TARGET_OS_OSX
+    CGPoint pageLocation = [sender locationInView:nil];
+    #else
     CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
+    #endif
     NSDictionary *param = @{
         @"state": config[@(sender.state)] ? : @"end",
         @"x": @(location.x),
@@ -998,8 +1092,23 @@
 
 - (void)setFrame:(CGRect)frame {
     [super setFrame:frame];
-    self.path = [KRConvertUtil hr_bezierPathWithRoundedRect:self.bounds
-                                       topLeftCornerRadius:_borderRadius.topLeftCornerRadius topRightCornerRadius:_borderRadius.topRightCornerRadius bottomLeftCornerRadius:_borderRadius.bottomLeftCornerRadius bottomRightCornerRadius:_borderRadius.bottomRightCornerRadius].CGPath;
+    {
+        UIBezierPath *path = [KRConvertUtil hr_bezierPathWithRoundedRect:self.bounds
+                                            topLeftCornerRadius:_borderRadius.topLeftCornerRadius topRightCornerRadius:_borderRadius.topRightCornerRadius bottomLeftCornerRadius:_borderRadius.bottomLeftCornerRadius bottomRightCornerRadius:_borderRadius.bottomRightCornerRadius];
+        #if TARGET_OS_OSX
+        if (@available(macos 14.0, *)) {
+            self.path = path.CGPath;
+        } else {
+            // 低于 14：退化为矩形
+            CGMutablePathRef p = CGPathCreateMutable();
+            CGPathAddRect(p, NULL, self.bounds);
+            self.path = p;
+            CGPathRelease(p);
+        }
+        #else
+        self.path = path.CGPath;
+        #endif
+    }
 }
 
 - (void)setContents:(id)contents {
@@ -1074,7 +1183,18 @@
     }else {
         self.lineDashPattern = nil;
     }
+    #if TARGET_OS_OSX
+    if (@available(macos 14.0, *)) {
+        self.path = path.CGPath;
+    } else {
+        CGMutablePathRef p = CGPathCreateMutable();
+        CGPathAddRect(p, NULL, self.bounds);
+        self.path = p;
+        CGPathRelease(p);
+    }
+    #else
     self.path = path.CGPath;
+    #endif
 }
 
 @end
@@ -1186,7 +1306,13 @@
             CSSShapeLayer *shapeLayer = (CSSShapeLayer *)_backgroundView.layer.mask;
             self.layer.shadowPath = shapeLayer.path;
         } else {
+            #if TARGET_OS_OSX // [macOS]
+            CGPathRef p = CGPathCreateWithRoundedRect(self.bounds, _backgroundView.layer.cornerRadius, _backgroundView.layer.cornerRadius, NULL);
+            self.layer.shadowPath = p;
+            CGPathRelease(p);
+            #else
             self.layer.shadowPath = [[UIBezierPath bezierPathWithRoundedRect:self.bounds cornerRadius:_backgroundView.layer.cornerRadius] CGPath];
+            #endif // [macOS]
         }
     }
 }

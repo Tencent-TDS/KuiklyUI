@@ -46,6 +46,8 @@ kotlin {
     iosX64()
     iosArm64()
     iosSimulatorArm64()
+    macosX64()
+    macosArm64()
 
     sourceSets {
         all {
@@ -61,7 +63,7 @@ kotlin {
             implementation(project(":core-annotations"))
 //            compileOnly(project(":core-annotations"))
             // Chat Demo 相关依赖
-            implementation("com.tencent.kuiklybase:markdown:0.3.0")
+            // implementation("com.tencent.kuiklybase:markdown:0.3.0") // 临时屏蔽，未适配Mac
             implementation("io.ktor:ktor-client-core:2.3.10")
         }
     }
@@ -91,12 +93,19 @@ kotlin {
         }
     }
 
+    sourceSets.appleMain {
+        dependsOn(commonMain)
+        dependencies {
+            implementation("io.ktor:ktor-client-darwin:2.3.10")
+        }
+    }
+
     targets.withType<KotlinNativeTarget> {
         val mainSourceSets = this.compilations.getByName("main").defaultSourceSet
         when {
 
             konanTarget.family.isAppleFamily -> {
-                mainSourceSets.dependsOn(sourceSets.getByName("iosMain"))
+                mainSourceSets.dependsOn(sourceSets.getByName("appleMain"))
             }
 
             konanTarget.family == Family.ANDROID -> {
@@ -119,6 +128,7 @@ kotlin {
         homepage = "Link to the Shared Module homepage"
         version = "1.0"
         ios.deploymentTarget = "14.1"
+        osx.deploymentTarget = "10.13"
 //        podfile = project.file("../iosApp/Podfile")
         framework {
             isStatic = true
@@ -139,6 +149,8 @@ dependencies {
         add("kspIosArm64", this)
         add("kspIosX64", this)
         add("kspIosSimulatorArm64", this)
+        add("kspMacosArm64", this)
+        add("kspMacosX64", this)
         add("kspAndroid", this)
         add("kspJs", this)
     }

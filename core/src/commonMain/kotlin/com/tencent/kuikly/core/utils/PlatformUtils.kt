@@ -42,6 +42,20 @@ object PlatformUtils {
     fun isIOS(): Boolean {
         return getCurrentPageData()?.isIOS ?: false
     }
+
+    /**
+     * 判断当前是否为macOS平台
+     */
+    fun isMacOS(): Boolean {
+        return getCurrentPageData()?.isMacOS ?: false
+    }
+
+    /**
+     * 判断当前是否为iOS或macOS平台
+     */
+    fun isIOSOrMacOS(): Boolean {
+        return isIOS() || isMacOS()
+    }
     
     /**
      * 判断当前是否为Android平台
@@ -73,17 +87,27 @@ object PlatformUtils {
     
     /**
      * 判断当前平台是否支持LiquidGlass功能
-     * 目前只有iOS 26.0+支持
+     * 目前只有iOS 26.0+和macOS 26.0+支持
      */
     fun isLiquidGlassSupported(): Boolean {
-        if (!isIOS()) {
+        if (!isIOSOrMacOS()) {
             return false
         }
         
         return try {
-            val osVersion = getOSVersion()
+            var osVersion = getOSVersion()
             if (osVersion.isEmpty()) {
                 return false
+            }
+            
+            // 适配Mac版本信息格式 "Version 26.1 (Build 25B5042k)"
+            if (osVersion.startsWith("Version ")) {
+                // 提取 "Version 26.1 (Build ...)" 中的版本号部分
+                val versionMatch = Regex("""Version\s+([\d.]+)""").find(osVersion)
+                osVersion = versionMatch?.groupValues?.getOrNull(1) ?: ""
+                if (osVersion.isEmpty()) {
+                    return false
+                }
             }
             
             // 解析版本号，支持格式如 "26.0", "26.1.2" 等

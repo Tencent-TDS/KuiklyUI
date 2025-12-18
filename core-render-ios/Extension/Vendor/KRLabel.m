@@ -314,6 +314,10 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
 - (CGSize)textSizeWithRenderWidth:(CGFloat)renderWidth{
     if (!_textStorageOnRender)  return CGSizeZero;
     _textContainer.size = CGSizeMake(renderWidth, MAXFLOAT);
+#if TARGET_OS_OSX // [macOS NSLayoutManager needs explicit layout trigger
+    // Force layout to ensure usedRectForTextContainer returns correct size
+    [_layoutManager ensureLayoutForTextContainer:_textContainer];
+#endif // macOS]
     CGSize textSize = [self textBound].size;
     CGSize res = CGSizeMake(ceil(textSize.width), ceil(textSize.height));
     return  res;

@@ -27,6 +27,9 @@
 }
 
 #pragma mark - gesture
+#if !TARGET_OS_OSX // [macOS]
+// macOS: NSScrollView 不使用 UIGestureRecognizer 系统，通过 scrollWheel: 事件处理滚动
+// 嵌套滚动由 AppKit 的事件响应链自动处理，无需手势协调
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer
 shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
     if (self.nestedGestureDelegate &&
@@ -36,7 +39,10 @@ shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherG
     }
     return NO;
 }
+#endif // macOS]
 
+#if !TARGET_OS_OSX // [macOS]
+// macOS: 手势优先级判断依赖 UIPanGestureRecognizer，在 macOS 不适用
 - (BOOL)isSelfOnlyPriorityForPan:(UIPanGestureRecognizer *)pan {
     if (!self.nestedScrollCoordinator) {
         return NO;
@@ -84,6 +90,7 @@ shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherG
     }
     return YES;
 }
+#endif // macOS]
 
 #pragma mark - Nested Scroll
 

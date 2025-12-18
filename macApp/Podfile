@@ -1,0 +1,16 @@
+source 'https://cdn.cocoapods.org/'
+
+target 'macApp' do
+  # use_frameworks!
+  platform :osx, '10.13'
+  
+  pod 'OpenKuiklyIOSRender', :path => '../'
+  pod 'demo', :path => '../demo'
+  
+  # Third-party Pods for macApp
+  pod 'SDWebImage', '~> 5.20.1'
+  # pag官方mac版本存在问题不可用，使用定制修改版 '~> 4.5'
+  pod 'libpag-macOS', :git => 'https://github.com/wwwcg/pag-mac.git', :commit=> 'fee5879b'
+  pod 'VLCKit', '~>3.3.0'
+
+end

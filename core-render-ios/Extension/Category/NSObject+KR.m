@@ -17,7 +17,7 @@
 #import <CommonCrypto/CommonDigest.h>
 #import "KRConvertUtil.h"
 #import "KRLogModule.h"
-#import <UIKit/UIKit.h>
+#import "KRUIKit.h" // [macOS]
 #import <objc/runtime.h>
 #import <Accelerate/Accelerate.h>
 #import <CoreImage/CoreImage.h>
@@ -307,20 +307,25 @@
 
 + (UIImage *)kr_safeAsImageWithLayer:(CALayer *)layer bounds:(CGRect)bounds {
     @autoreleasepool {
-        if (@available(iOS 10.0, *)) {
-            UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithBounds:bounds];
-            return [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
-                          [layer renderInContext:rendererContext.CGContext];
-                    }];
-        } else {
-            UIGraphicsBeginImageContext(bounds.size);
-            [layer renderInContext:UIGraphicsGetCurrentContext()];
-            UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
-            UIGraphicsEndImageContext();
-            return image;
-        }
+#if TARGET_OS_OSX // [macOS]
+        KRUIGraphicsImageRendererFormat *format = [KRUIGraphicsImageRendererFormat defaultFormat];
+        format.scale = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
+        format.opaque = layer.isOpaque;
+        KRUIGraphicsImageRenderer *renderer = [[KRUIGraphicsImageRenderer alloc] initWithSize:bounds.size format:format];
+        return [renderer imageWithActions:^(KRUIGraphicsImageRendererContext *rendererContext) {
+            CGContextRef ctx = [rendererContext CGContext];
+            [layer renderInContext:ctx];
+        }];
+#else // [macOS]
+        UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat defaultFormat];
+        format.scale = [UIScreen mainScreen].scale;
+        format.opaque = layer.isOpaque;
+        UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:bounds.size format:format];
+        return [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
+            [layer renderInContext:rendererContext.CGContext];
+        }];
+#endif // [macOS]
     }
-    
 }
 
 - (UIViewController *)kr_viewController {
@@ -474,20 +479,49 @@
     
     CGSize newSize = CGSizeMake(image.size.width * ratio, image.size.height * ratio);
     
+#if TARGET_OS_OSX // [macOS]
+    KRUIGraphicsImageRendererFormat *format = [KRUIGraphicsImageRendererFormat defaultFormat];
+    format.scale = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
+    format.opaque = YES;
+    KRUIGraphicsImageRenderer *renderer = [[KRUIGraphicsImageRenderer alloc] initWithSize:newSize format:format];
+    UIImage *resizedImage = [renderer imageWithActions:^(KRUIGraphicsImageRendererContext *rendererContext) {
+        [image drawInRect:CGRectMake(0, 0, newSize.width, newSize.height)];
+    }];
+    return resizedImage;
+#else // [macOS]
     UIGraphicsBeginImageContextWithOptions(newSize, YES, 0.0);
     [image drawInRect:CGRectMake(0, 0, newSize.width, newSize.height)];
     UIImage *resizedImage = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
     return resizedImage;
+#endif // [macOS]
 }
 
 
 - (UIImage *)kr_tintedImageWithColor:(UIColor *)color {
+#if TARGET_OS_OSX // [macOS]
+    if (!color) { return self; }
+    CGSize size = self.size;
+    KRUIGraphicsImageRendererFormat *format = [KRUIGraphicsImageRendererFormat defaultFormat];
+    format.scale = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
+    format.opaque = NO;
+    KRUIGraphicsImageRenderer *renderer = [[KRUIGraphicsImageRenderer alloc] initWithSize:size format:format];
+    UIImage *tintedImage = [renderer imageWithActions:^(KRUIGraphicsImageRendererContext *rendererContext) {
+        CGContextRef ctx = [rendererContext CGContext];
+        CGRect rect = CGRectMake(0, 0, size.width, size.height);
+        CGImageRef cgImage = self.CGImage;
+        CGContextSetFillColorWithColor(ctx, [color CGColor]);
+        CGContextFillRect(ctx, rect);
+        CGContextSetBlendMode(ctx, kCGBlendModeDestinationIn);
+        CGContextDrawImage(ctx, rect, cgImage);
+    }];
+    return tintedImage;
+#else // [iOS]
     if (@available(iOS 13.0, *)) {
         return [self imageWithTintColor:color];
     }
-   
     return [self imageWithRenderingMode:(UIImageRenderingModeAlwaysTemplate)];
+#endif // [macOS]
 }
 
 - (UIImage *)kr_applyColorFilterWithColorMatrix:(NSString *)colorFilterMatrix {
@@ -496,7 +530,13 @@
         return self;
     }
     UIImage *image = self;
+#if TARGET_OS_OSX // [macOS]
+    CGImageRef cgImage = image.CGImage;
+    if (!cgImage) { return self; }
+    CIImage *ciImage = [[CIImage alloc] initWithCGImage:cgImage];
+#else // [iOS]
     CIImage *ciImage = [[CIImage alloc] initWithImage:image];
+#endif // [macOS]
     CIFilter *filter = [CIFilter filterWithName:@"CIColorMatrix"];
     
     CIVector *vectorR = [CIVector vectorWithX:[colorMatrix[0] floatValue]
@@ -530,7 +570,11 @@
     CIContext *context = [CIContext contextWithOptions:nil];
     CIImage *outputCIImage = filter.outputImage;
     CGImageRef filteredImageRef = [context createCGImage:outputCIImage fromRect:outputCIImage.extent];
+#if TARGET_OS_OSX // [macOS]
+    UIImage *filteredImage = [UIImage imageWithCGImage:filteredImageRef];
+#else // [iOS]
     UIImage *filteredImage = [UIImage imageWithCGImage:filteredImageRef scale:image.scale orientation:image.imageOrientation];
+#endif // [macOS]
     CGImageRelease(filteredImageRef);
     
     return filteredImage;

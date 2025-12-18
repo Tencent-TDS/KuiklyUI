@@ -92,6 +92,7 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 
 - (instancetype)initWithFrame:(CGRect)frame {
     if (self = [super initWithFrame: frame]) {
+        #if !TARGET_OS_OSX // [macOS]
         if (@available(iOS 13.0, *)) {
             self.automaticallyAdjustsScrollIndicatorInsets = NO;
         } else {
@@ -102,11 +103,14 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
         } else {
             // Fallback on earlier versions
         }
+        #endif // [macOS]
         self.alwaysBounceVertical = YES;
         _delegateProxy = [KRMultiDelegateProxy alloc];
         [_delegateProxy addDelegate:self];
         self.delegate = (id<UIScrollViewDelegate>)_delegateProxy;
+        #if !TARGET_OS_OSX // [macOS]
         self.delaysContentTouches = NO;
+        #endif // [macOS]
     }
     return self;
     
@@ -195,6 +199,7 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     [_wrapperView setUserInteractionEnabled:userInteractionEnabled];
 }
 
+#if !TARGET_OS_OSX // [macOS]
 - (BOOL)touchesShouldCancelInContentView:(UIView *)view {
     BOOL cancel = [super touchesShouldCancelInContentView:view];
     if ([view isKindOfClass:[UIControl class]] || view.kr_canCancelInScrollView) {
@@ -202,6 +207,7 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     }
     return cancel;
 }
+#endif // [macOS]
 
 
 #pragma mark - UIScrollViewDelegate
@@ -250,7 +256,12 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 }
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
-    // need imp this method
+    #if !TARGET_OS_OSX // [macOS]
+    // iOS: 用户滚动会触发 setContentOffset:，已在那里分发事件，这里保持空实现避免重复
+    #else // [macOS]
+    // macOS: 用户滚动不会调用 setContentOffset:，必须通过此 delegate 回调分发事件
+    [self p_dispatchScrollEventIfNeed];
+    #endif // macOS]
 }
 
 - (void)scrollViewDidEndScrollingAnimation:(UIScrollView *)scrollView {
@@ -595,6 +606,7 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 - (NSDictionary *)p_generateEventBaseParams {
     
     NSMutableArray *touchesParam = [NSMutableArray new];
+    #if !TARGET_OS_OSX // [macOS]
     for (int i = 0; i < self.panGestureRecognizer.numberOfTouches; i++) {
         CGPoint pagePoint = [self.panGestureRecognizer locationOfTouch:i inView:self.hr_rootView];
         [touchesParam addObject:@{
@@ -602,6 +614,14 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
             @"pageY" : @(pagePoint.y)
         }];
     }
+    #else // [macOS
+    // On macOS, get mouse location to simulate single touch point
+    CGPoint mousePoint = [self kr_mouseLocationInView:self.hr_rootView];
+    [touchesParam addObject:@{
+        @"pageX" : @(mousePoint.x),
+        @"pageY" : @(mousePoint.y)
+    }];
+    #endif // macOS]
     
     return @{
         @"offsetX":@(_lastContentOffset.x),
@@ -690,7 +710,23 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 
 - (void)syncScrollViewContentSize {
     if (self.superview) {
+        #if TARGET_OS_OSX // [macOS]
+        // On macOS, KRScrollContentView is added to documentView, not directly to KRScrollView
+        // Need to traverse up the view hierarchy to find the scroll view
+        KRScrollView *scrollView = nil;
+        KRPlatformView *view = self.superview;
+        while (view) {
+            if ([view isKindOfClass:[KRScrollView class]]) {
+                scrollView = (KRScrollView *)view;
+                break;
+            }
+            view = view.superview;
+        }
+        #else // iOS
+        // On iOS, KRScrollContentView is directly added to KRScrollView
         KRScrollView *scrollView = (KRScrollView *)self.superview;
+        #endif // [macOS]
+        
         if ([scrollView isKindOfClass:[KRScrollView class]]) {
             if (scrollView.isDragging) {
                 scrollView.autoAdjustContentOffsetDisable = YES;

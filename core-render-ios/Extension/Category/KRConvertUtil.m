@@ -92,14 +92,7 @@
         return [self italicFontWithSize:fontSize bold:fontWeight >=UIFontWeightBold itatic:YES weight:fontWeight];
     }
     
-    if (@available(iOS 8.2, *)) {
-        return  [UIFont systemFontOfSize:fontSize weight:fontWeight];
-    } else {
-        if(fontWeight >= UIFontWeightBold){
-            return [UIFont boldSystemFontOfSize:fontSize];
-        }
-        return [UIFont systemFontOfSize:fontSize];
-    }
+    return [UIFont systemFontOfSize:fontSize weight:fontWeight];
 }
 
 + (UIFont *)italicFontWithSize:(CGFloat)fontSize
@@ -179,8 +172,9 @@
     return UIUserInterfaceStyleUnspecified;
 }
 
-#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
-+ (UIGlassEffectStyle)KRGlassEffectStyle:(NSString *)style API_AVAILABLE(ios(26.0)) {
+// [macOS] Unified implementation using UIGlassEffectStyle (mapped to NSGlassEffectViewStyle on macOS via KRUIKit.h)
+#if (__IPHONE_OS_VERSION_MAX_ALLOWED >= 260000) || (__MAC_OS_X_VERSION_MAX_ALLOWED >= 260000)
++ (UIGlassEffectStyle)KRGlassEffectStyle:(NSString *)style API_AVAILABLE(ios(26.0), macos(26.0)) {
     if (!style || [[UIView css_string:style] isEqualToString:@"regular"]) {
         return UIGlassEffectStyleRegular;
     }
@@ -388,7 +382,7 @@
                            bottomLeftCornerRadius:(CGFloat)bottomLeftCornerRadius
                        bottomRightCornerRadius:(CGFloat)bottomRightCornerRadius {
     CGSize size = rect.size;
-    UIBezierPath * path = [UIBezierPath bezierPath];
+    UIBezierPath *path = [UIBezierPath bezierPath];
     CGFloat radius = topLeftCornerRadius;
     [path addArcWithCenter:CGPointMake(radius, radius) radius:radius startAngle:M_PI endAngle:M_PI * (3/2.0f) clockwise:true];
     radius = topRightCornerRadius;
@@ -465,6 +459,10 @@
 
 + (UIKeyboardType)hr_keyBoardType:(id)value {
     NSString *keyboardType = [self hr_toString:value];
+    #if TARGET_OS_OSX // [macOS]
+    (void)keyboardType; // 未使用
+    return UIKeyboardTypeDefault;
+    #else
     if ([keyboardType isEqualToString:@"password"]) {
         return UIKeyboardTypeAlphabet;
     }
@@ -475,6 +473,7 @@
         return UIKeyboardTypeEmailAddress;
     }
     return UIKeyboardTypeDefault;
+    #endif // [macOS]
 }
 
 + (NSString *)hr_toString:(id)value {
@@ -488,6 +487,10 @@
 
 + (UIReturnKeyType)hr_toReturnKeyType:(id)value {
     NSString *returnKeyType = [self hr_toString:value];
+    #if TARGET_OS_OSX // [macOS]
+    (void)returnKeyType;
+    return UIReturnKeyDefault;
+    #else
     if ([returnKeyType isEqualToString:@"default"]) {
         return UIReturnKeyDefault;
     } else if ([returnKeyType isEqualToString:@"search"]) {
@@ -513,8 +516,8 @@
     } else if ([returnKeyType isEqualToString:@"emergencyCall"]) {
         return UIReturnKeyEmergencyCall;
     }
-    return UIReturnKeyDefault;;
-    
+    return UIReturnKeyDefault;
+    #endif // [macOS]
 }
 
 + (UIAccessibilityTraits)kr_accessibilityTraits:(id)value {
@@ -531,7 +534,6 @@
         return UIAccessibilityTraitButton | UIAccessibilityTraitSelected;
     }
     return UIAccessibilityTraitNone;
-    
 }
 
 + (NSString *)hr_base64Decode:(NSString *)string {
@@ -580,19 +582,25 @@
 }
 
 + (void)hr_alertWithTitle:(NSString *)title message:(NSString *)message {
-    if([UIApplication isAppExtension]){
-        return;
-    }
-    
     dispatch_async(dispatch_get_main_queue(), ^{
+        if ([UIApplication isAppExtension]) {
+            return;
+        }
+#if TARGET_OS_OSX // [macOS]
+        NSAlert *alert = [[NSAlert alloc] init];
+        alert.messageText = title ?: @"";
+        alert.informativeText = message ?: @"";
+        [alert addButtonWithTitle:@"确定"];
+        [alert runModal];
+#else // [macOS]
         UIAlertController *alertController = [UIAlertController alertControllerWithTitle:title
                                                                                  message:message
                                                                           preferredStyle:UIAlertControllerStyleAlert];
-        UIAlertAction * action = [UIAlertAction actionWithTitle:@"确定" style:(UIAlertActionStyleDefault) handler:nil];
+        UIAlertAction *action = [UIAlertAction actionWithTitle:@"确定" style:(UIAlertActionStyleDefault) handler:nil];
         [alertController addAction:action];
         [[UIApplication sharedApplication].keyWindow.rootViewController presentViewController:alertController animated:YES completion:nil];
+#endif // [macOS]
     });
-  
 }
 
 + (NSString *)hr_md5StringWithString:(NSString *)string {
@@ -609,6 +617,9 @@
 }
 
 + (CGFloat)statusBarHeight {
+    #if TARGET_OS_OSX // [macOS]
+    return 0;
+    #else
     CGFloat statusBarHeight = 0;
     if(![UIApplication isAppExtension]){
         if (@available(iOS 13.0, *)) {
@@ -621,7 +632,6 @@
             statusBarHeight = UIApplication.sharedApplication.statusBarFrame.size.height;
         }
     }
-    
     if (@available(iOS 16.0, *)) {
         BOOL needAdjust = (statusBarHeight == 44);
         if (needAdjust) {
@@ -638,18 +648,20 @@
             }
         }
     }
-   
     return statusBarHeight ?: [self defaultStatusBarHeight];
+    #endif
 }
 
 + (CGFloat)defaultStatusBarHeight {
     CGFloat statusBarHeight = 20;
+#if !TARGET_OS_OSX // [macOS]
     if (UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPhone) {
         CGSize screenSize = UIScreen.mainScreen.bounds.size;
         if (MAX(screenSize.width, screenSize.height) / MIN(screenSize.width, screenSize.height) >= 2.0) {
             statusBarHeight = 44;
         }
     }
+#endif
     return statusBarHeight;
 }
 
@@ -659,17 +671,19 @@
 
 
 + (UIEdgeInsets)currentSafeAreaInsets {
+    #if TARGET_OS_OSX // [macOS]
+    return UIEdgeInsetsZero;
+    #else
     if([UIApplication isAppExtension]){
         return UIEdgeInsetsZero;
     }
-    
     if (@available(iOS 11, *)) {
         UIWindow *window = UIApplication.sharedApplication.windows.firstObject;
         return window.safeAreaInsets;
     } else {
-        // 在 iOS 11 之前的版本中，您需要根据需要自己计算安全边距
         return UIEdgeInsetsZero;
     }
+    #endif
 }
 
 + (CGFloat)toSafeFloat:(CGFloat)value {

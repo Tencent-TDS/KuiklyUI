@@ -14,7 +14,7 @@
  */
 
 #import <Foundation/Foundation.h>
-#import <UIKit/UIKit.h>
+#import "KRUIKit.h" // [macOS]
 #import "NestedScrollProtocol.h"
 
 NS_ASSUME_NONNULL_BEGIN

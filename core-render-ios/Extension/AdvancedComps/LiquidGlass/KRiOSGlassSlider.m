@@ -15,7 +15,6 @@
 
 #import "KRiOSGlassSlider.h"
 
-
 @interface KRiOSGlassSlider ()
 
 /// Whether is a vertical slider.
@@ -47,6 +46,11 @@
         [self addTarget:self action:@selector(sliderTouchUp:) forControlEvents:UIControlEventTouchUpInside | UIControlEventTouchUpOutside];
         _krTrackThickness = 0.0;
         _krThumbSize = CGSizeZero;
+        
+#if TARGET_OS_OSX // [macOS
+        // [macOS] Set up slider for vertical orientation support
+        self.vertical = NO;
+#endif // macOS]
     }
     return self;
 }
@@ -110,6 +114,7 @@
     if (self.krIsVertical != ![horizontal boolValue]) {
         self.krIsVertical = ![horizontal boolValue];
         
+#if !TARGET_OS_OSX // [macOS]
         dispatch_async(dispatch_get_main_queue(), ^{
             if (![horizontal boolValue]) {
                 // Apply 90-degree rotation for vertical slider
@@ -118,6 +123,12 @@
                 self.transform = CGAffineTransformIdentity;
             }
         });
+#else // [macOS
+        // [macOS] NSSlider supports vertical orientation natively
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self.vertical = ![horizontal boolValue];
+        });
+#endif // macOS]
     }
 }
 
@@ -174,9 +185,24 @@
     CGRect track = [super trackRectForBounds:bounds];
     CGFloat customHeight = self.krTrackThickness;
     if (customHeight > 0.0) {
+#if !TARGET_OS_OSX // [macOS]
+        CGFloat centerY = CGRectGetMidY(track);
+        track.size.height = customHeight;
+        track.origin.y = centerY - customHeight * 0.5f;
+#else // [macOS
+        // [macOS] Adjust track thickness
+        // Note: NSSlider track customization is limited
+        // Subclasses may need custom rendering for full customization
+        if (self.vertical) {
+            CGFloat centerX = CGRectGetMidX(track);
+            track.size.width = customHeight;
+            track.origin.x = centerX - customHeight * 0.5f;
+        } else {
             CGFloat centerY = CGRectGetMidY(track);
             track.size.height = customHeight;
             track.origin.y = centerY - customHeight * 0.5f;
+        }
+#endif // macOS]
     }
     return track;
 }

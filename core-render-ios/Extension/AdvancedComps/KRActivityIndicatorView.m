@@ -28,7 +28,12 @@
 - (instancetype)initWithFrame:(CGRect)frame {
     if ([super initWithFrame:frame]) {
         self.backgroundColor = [UIColor clearColor];
+#if !TARGET_OS_OSX // [macOS]
         self.activityIndicatorViewStyle = UIActivityIndicatorViewStyleWhite;
+#else // [macOS
+        self.activityIndicatorViewStyle = UIActivityIndicatorViewStyleMedium;
+        self.color = [UIColor whiteColor];
+#endif // macOS]
         [self startAnimating];
     }
     return self;
@@ -46,11 +51,20 @@
 
 - (void)setCss_style:(NSString *)css_style {
     _css_style = css_style;
+#if !TARGET_OS_OSX // [macOS]
     if ([css_style isEqualToString:@"white"]) {
         self.activityIndicatorViewStyle = UIActivityIndicatorViewStyleWhite;
     } else {
         self.activityIndicatorViewStyle = UIActivityIndicatorViewStyleGray;
     }
+#else // [macOS
+    // macOS: Use color property instead of style to set white/gray appearance
+    if ([css_style isEqualToString:@"white"]) {
+        self.color = [UIColor whiteColor];
+    } else {
+        self.color = [UIColor grayColor];
+    }
+#endif // macOS]
 }
 
 @end

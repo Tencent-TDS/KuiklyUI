@@ -51,6 +51,9 @@ kotlin {
     iosX64()
     iosSimulatorArm64()
 
+    macosX64()
+    macosArm64()
+
 //    cocoapods {
 //        summary = "Some description for the Shared Module"
 //        homepage = "Link to the Shared Module homepage"

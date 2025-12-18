@@ -16,7 +16,7 @@
 #ifndef KuiklyRenderContextProtocol_h
 #define KuiklyRenderContextProtocol_h
 #import <Foundation/Foundation.h>
-#import <UIKit/UIKit.h>
+#import "KRUIKit.h" // [macOS]
 
 NS_ASSUME_NONNULL_BEGIN
 

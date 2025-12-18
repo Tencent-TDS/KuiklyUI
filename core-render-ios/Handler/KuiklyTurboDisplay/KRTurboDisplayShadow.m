@@ -47,7 +47,7 @@
 
 
 - (void)calculateWithConstraintSize:(CGSize)constraintSize {
-    _constraintSize = [NSValue valueWithCGSize:constraintSize];
+    _constraintSize = @(constraintSize);
 }
 
 - (void)setPropWithKey:(NSString *)propKey propValue:(id)propValue {

@@ -77,7 +77,6 @@ if [ "$KUIKLY_ENABLE_ANDROID_SUPPORT_COMPATIBLE" -eq 1 ]; then
   done
 fi
 
-echo $pwd
 # 还原其他文件
 mv gradle/wrapper/gradle-wrapper.properties.bak gradle/wrapper/gradle-wrapper.properties
 mv "$core_convert_util_file.bak" $core_convert_util_file

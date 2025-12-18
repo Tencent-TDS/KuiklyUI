@@ -82,8 +82,8 @@ dependencies {
 maven("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
 ```
 
-:::
-tip 提示 不同平台支持的调度器有所不同，例如，除了各平台共有的Dispatchers.Default和Dispatchers.Unconfined，Android平台还提供了Dispatchers.Main、Dispatchers.IO等。 具体可以参考kotlinx.coroutines的API文档。
+:::tip 提示
+不同平台支持的调度器有所不同，例如，除了各平台共有的Dispatchers.Default和Dispatchers.Unconfined，Android平台还提供了Dispatchers.Main、Dispatchers.IO等。 具体可以参考kotlinx.coroutines的API文档。
 :::
 
 #### kuiklyx.coroutines库

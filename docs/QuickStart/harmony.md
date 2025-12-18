@@ -314,6 +314,7 @@ export class AppKRRouterAdapter implements IKRRouterAdapter {
   }
 }
 ```
+
 ### 初始化适配器
 在 UIAbility 的 onWindowStageCreate 时机初始化 Kuikly（多ability场景可以把初始化时机提前到AbilityStage，避免相互覆盖）：
 <br>请参考源码工程 core-render-ohos/entry 模块的**EntryAbility.ets**类。
@@ -357,10 +358,7 @@ Kuikly业务代码，在鸿蒙平台上会被编译成 so 产物，下面以本�
 set(NATIVERENDER_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Kuikly SDK
-add_library(kuikly_render SHARED IMPORTED)
-set_target_properties(kuikly_render
-    PROPERTIES
-    IMPORTED_LOCATION ${NATIVERENDER_ROOT_PATH}/../../../oh_modules/@kuikly-open/render/libs/${OHOS_ARCH}/libkuikly.so)
+add_library(kuikly_render ALIAS render::kuikly)
 # 业务产物
 add_library(kuikly_shared SHARED IMPORTED)
 set_target_properties(kuikly_shared
@@ -448,6 +446,95 @@ class TestPage : Pager(){
 
 
 ## 实现适配器（按需实现部分）
+### 图片加载适配器示例
+该适配器用于给Kuikly的Image组件实现自定义图片加载能力，非必须实现, 业务可根据实际使用需求来决定是否实现。
+
+接口定义于 Kuikly.h：
+```c
+/**
+ * @brief 业务图片加载完成后，用于回调给kuikly的函数指针
+ * @param context 上下文
+ * @param src image组件设置的src属性
+ * @param image_descriptor 解码好的图片
+ * @param new_src 新的src地址，比如从原src映射到一个新的src路径
+ * @discuss 当image_descriptor非空时，kuikly优先用image_descriptor，其次再使用new_src
+ */
+typedef void (*KRSetImageCallback)(const void* context,
+                                   const char *src,
+                                   ArkUI_DrawableDescriptor *image_descriptor,
+                                   const char *new_src);
+/**
+ * @brief 自定义image adapter
+ * @param context 上下文
+ * @param src image组件设置的src属性
+ * @param callback 自定义加载图片完成后可通过callback指针回调给kuikly，并把context以及src参数回填
+ * @return 已处理则返回1，否则返回0
+ */
+typedef int32_t (*KRImageAdapterV2)(const void *context,
+                                 const char *src,
+                                 KRSetImageCallback callback);
+
+/**
+ * @brief 注册image adapter
+ * @param adapter adapter函数指针
+ */
+void KRRegisterImageAdapterV2(KRImageAdapterV2 adapter);
+```
+
+**使用方法**
+
+**1. 确认CMakeList已链接kuikly_render**
+
+如已配置可跳过，链接方法参考上文[链接Kuikly业务代码](harmony.md#链接kuikly业务代码)
+
+```cmake{3}
+target_link_libraries(
+  ……
+  kuikly_render
+)
+```
+
+**2. 头文件引入**
+
+在调用 KRRegisterImageAdapterV2 的源文件中增加 include。如在 C++ 目录下的 **napi_init.cpp** 文件中 include 如下头文件：
+
+`#include <Kuikly/Kuikly.h>`
+
+**3. Adapter实现**
+
+```c
+// entry/src/main/cpp/napi_init.cpp
+#include <Kuikly/Kuikly.h>
+
+static int32_t MyImageAdapter(const void *context, const char *src, KRSetImageCallback callback) {
+    // 自定义图片加载逻辑
+    // 例如：网络图片下载、本地图片加载等
+    
+    // 如果已处理该图片加载请求，返回1
+    // 否则返回0，让kuikly使用默认处理方式
+    return 0;
+}
+```
+
+**4. Adapter注册**
+
+可在使用 Kuikly 前进行 adapter 注册，作为示例，简单起见这里在 InitKuikly 中进行了注册，实际使用时可以在其他更早时机，也应该注意不要多次注册。
+
+```c
+// entry/src/main/cpp/napi_init.cpp
+static napi_value InitKuikly(napi_env env, napi_callback_info info) {
+    KRRegisterImageAdapterV2(MyImageAdapter);
+    
+    // ...
+}
+```
+
+完成后，可通过**模版工程**中的``ImageAdapter基准测试``页面来验证功能正常。
+
+:::tip 提示
+鸿蒙端暂不支持capInset能力，请忽略``ImageAdapter基准测试``中的capInset测试项。
+:::
+
 ### 自定义字体适配器示例
 该适配器非必须实现, 业务可根据实际使用需求来决定是否实现。
 
@@ -458,15 +545,15 @@ class TestPage : Pager(){
 
 **使用方法**
 
-**1. CMakeList头文件搜索目录添加**
-:::tip
-若无配置，可以可以参考下一章节[链接Kuikly业务代码](harmony.md#链接kuikly业务代码)
-:::
+**1. 确认CMakeList已链接kuikly_render**
 
-修改 entry 模块的 CMakeList.txt 添加 kuikly 头文件搜索路径
-```cmake
-include_directories(...
-                    ${NATIVERENDER_ROOT_PATH}/../../../oh_modules/@kuikly-open/render/include)
+如已配置可跳过，链接方法参考上文[链接Kuikly业务代码](harmony.md#链接kuikly业务代码)
+
+```cmake{3}
+target_link_libraries(
+  ……
+  kuikly_render
+)
 ```
 
 **2. 头文件引入**

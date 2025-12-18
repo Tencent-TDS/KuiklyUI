@@ -346,6 +346,8 @@ NS_ASSUME_NONNULL_END
 @end
 ```
 
+完成后，可通过**模版工程**中的``ImageAdapter基准测试``页面来验证功能正常。
+
 ### 实现页面路由适配器
 
 具体实现代码，请参考源码工程iOSApp模块的``KRRouterHandler``类。

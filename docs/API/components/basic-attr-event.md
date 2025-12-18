@@ -772,7 +772,20 @@ capture属性常用于以下场景：
 3. **区域性交互**: 只在特定区域内响应特定手势
 :::
 
+### autoDarkEnable方法
+是否自动暗黑模式
+
+**true(默认值):**
+- iOS: 对应overrideUserInterfaceStyle设置为UIUserInterfaceStyleUnspecified
+- Android: 对应setForceDarkAllowed设置为ture
+
+**false:**
+- iOS: 对应overrideUserInterfaceStyle设置为UIUserInterfaceStyleLight
+- Android: 对应setForceDarkAllowed设置为false
+
 ---
+
+## 布局属性
 
 下面只描述布局相关属性方法的定义, 更详细的描述, 可查看[Kuikly的布局教程](../../DevGuide/layout.md)
 
@@ -991,17 +1004,6 @@ right方法是指将本组件的定位到距离**右边**的多少距离，而�
 
 bottom方法是指将本组件的定位到距离**下边**的多少距离，而下边的定义取决于**positionType**方法设置的值。如果设置了**FlexPositionType.RELATIVE**,
 那么bottom的作用相当于设置了marginBottom; 如果设置了**FlexPositionType.ABSOLUTE**, 那么bottom的作用是将元素的上边定位到距离父元素下边的bottom值。
-
-### autoDarkEnable方法
-是否自动暗黑模式
-
-**true(默认值):**
-- iOS: 对应overrideUserInterfaceStyle设置为UIUserInterfaceStyleUnspecified
-- Android: 对应setForceDarkAllowed设置为ture
-
-**false:**
-- iOS: 对应overrideUserInterfaceStyle设置为UIUserInterfaceStyleLight
-- Android: 对应setForceDarkAllowed设置为false
 
 
 ---

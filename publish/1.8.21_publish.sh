@@ -1,3 +1,11 @@
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+echo "sh path: $SCRIPT_DIR"
+echo "project's root path: $PROJECT_ROOT"
+
+cd "$PROJECT_ROOT" || { echo "Can't cd project's root path: $PROJECT_ROOT"; exit 1; }
+
 # 1.记录原始url
 ORIGIN_DISTRIBUTION_URL=$(grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties | cut -d "=" -f 2)
 echo "origin gradle url: $ORIGIN_DISTRIBUTION_URL"
@@ -20,10 +28,22 @@ sed -i.bak \
 ios_verify_util="$ios_main_dir/core/utils/VerifyUtil.ios.kt"
 sed -i.bak '/@OptIn(kotlinx\.cinterop\.ExperimentalForeignApi::class)/d' "$ios_verify_util"
 
-KUIKLY_KOTLIN_VERSION="1.7.20" ./gradlew -c settings.1.7.20.gradle.kts :core:publishToMavenLocal
-KUIKLY_KOTLIN_VERSION="1.7.20" ./gradlew -c settings.1.7.20.gradle.kts :core-annotations:publishToMavenLocal
-KUIKLY_KOTLIN_VERSION="1.7.20" ./gradlew -c settings.1.7.20.gradle.kts :core-ksp:publishToMavenLocal
-KUIKLY_KOTLIN_VERSION="1.7.20" ./gradlew -c settings.1.7.20.gradle.kts :core-render-android:publishToMavenLocal
+# 4.开始发布
+MODULE=${1:-all}
+PUBLISH_TASK=${2:-publishToMavenLocal}
+if [ "$MODULE" = "all" ]; then
+  echo "编译所有模块 core-annotations、core-ksp、core、core-render-android"
+  echo "发布方式: $PUBLISH_TASK"
+  KUIKLY_KOTLIN_VERSION="1.8.21" ./gradlew -c settings.1.8.21.gradle.kts :core:$PUBLISH_TASK
+  KUIKLY_KOTLIN_VERSION="1.8.21" ./gradlew -c settings.1.8.21.gradle.kts :core-annotations:$PUBLISH_TASK
+  KUIKLY_KOTLIN_VERSION="1.8.21" ./gradlew -c settings.1.8.21.gradle.kts :core-ksp:$PUBLISH_TASK
+  KUIKLY_KOTLIN_VERSION="1.8.21" ./gradlew -c settings.1.8.21.gradle.kts :core-render-android:$PUBLISH_TASK
+
+else
+  echo "编译模块: $MODULE"
+  echo "发布方式: $PUBLISH_TASK"
+  KUIKLY_KOTLIN_VERSION="1.8.21" ./gradlew -c settings.1.8.21.gradle.kts :$MODULE:$PUBLISH_TASK --stacktrace
+fi
 
 # 5.还原文件
 mv gradle/wrapper/gradle-wrapper.properties.bak gradle/wrapper/gradle-wrapper.properties

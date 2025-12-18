@@ -104,7 +104,7 @@
 
 ### 运行Ohos APP
 在构建 Ohos App 之前，请确保完成了环境准备
-1. 在`KuiklyUI`根目录执行鸿蒙跨端产物编译脚本 `./2.0_ohos_test_publish.sh`
+1. 在`KuiklyUI`根目录执行鸿蒙跨端产物编译脚本 `./2.0_ohos_demo_build.sh`
 2. 使用 DevEco Studio 打开 `KuiklyUI/ohosApp` 项目目录，完成 `sync`
 3. 连接真机或启动鸿蒙模拟器，并执行签名操作 `File -> Project Structure -> Signing Configs`
 4. 使用DevEco Studio, Run `entry`, 运行Ohos App
@@ -115,9 +115,9 @@
 
 KuiklyUI目录下有各个`Kotlin`版本的gradle配置项
 
-命名规则为 `x.x.xx.gradle.kts`，其中默认使用的是`Kotlin: 2.0.21`
+命名规则为 `x.x.xx.gradle.kts`，其中默认使用的是`Kotlin: 2.1.21`
 
-同时，也提供各个版本的测试发布脚本，你可以`x.x.xx_test_publish.sh`构建`kuikly`的本地产物。
+同时，也提供各个版本的测试发布脚本，你可以运行`publish`目录下的`x.x.xx_publish.sh`构建`kuikly`的本地产物。
 
 > `Kotlin: 1.3.10/1.4.20` 需要切换 `jdk11`
 

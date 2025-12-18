@@ -6,7 +6,7 @@ NEW_DISTRIBUTION_URL="https\:\/\/services.gradle.org\/distributions\/gradle-7.5.
 sed -i.bak "s/distributionUrl=.*$/distributionUrl=$NEW_DISTRIBUTION_URL/" gradle/wrapper/gradle-wrapper.properties
 
 # 3.语法兼容修改
-ios_main_dir="core/src/iosMain/kotlin/com/tencent/kuikly"
+ios_main_dir="core/src/appleMain/kotlin/com/tencent/kuikly"
 
 ios_platform_impl="$ios_main_dir/core/module/PlatformImp.kt"
 sed -i.bak '/@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)/d' "$ios_platform_impl"

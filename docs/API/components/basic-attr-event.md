@@ -682,6 +682,24 @@ internal class OverflowPage : BasePager() {
 
 无障碍化属性, 当应用处于TalkBack模式时, 元素获取焦点后, 元素会语音读出该值
 
+### debugName方法
+
+设置组件的调试名称，用于在 UI-Inspector 中显示视图名称，方便开发调试时快速识别和定位组件。
+
+:::warning 注意
+- 与 [debugUIInspector](./pager.md#debuguiinspector) 方法互斥，二者只能选其一开启
+- 该功能仅建议在开发阶段启用，**请勿在生产环境中使用**
+- 启用后会关闭组件层级优化，可能影响性能
+  :::
+
+<div class="table-01">
+
+| 参数        | 描述                           | 类型     |
+|:----------|:-----------------------------|--------|
+| debugName | 调试名称，将在 UI-Inspector 中显示 | String |
+
+</div>
+
 ### capture方法<Badge text="实验性API，仅鸿蒙支持" type="warn"/>
 
 设置容器组件的事件捕获规则。当父容器设置了capture规则后，可以在特定区域内拦截特定类型的手势事件，阻止这些事件传递给子组件。该方法接收**CaptureRule**可变参数。
@@ -754,7 +772,20 @@ capture属性常用于以下场景：
 3. **区域性交互**: 只在特定区域内响应特定手势
 :::
 
+### autoDarkEnable方法
+是否自动暗黑模式
+
+**true(默认值):**
+- iOS: 对应overrideUserInterfaceStyle设置为UIUserInterfaceStyleUnspecified
+- Android: 对应setForceDarkAllowed设置为ture
+
+**false:**
+- iOS: 对应overrideUserInterfaceStyle设置为UIUserInterfaceStyleLight
+- Android: 对应setForceDarkAllowed设置为false
+
 ---
+
+## 布局属性
 
 下面只描述布局相关属性方法的定义, 更详细的描述, 可查看[Kuikly的布局教程](../../DevGuide/layout.md)
 
@@ -973,17 +1004,6 @@ right方法是指将本组件的定位到距离**右边**的多少距离，而�
 
 bottom方法是指将本组件的定位到距离**下边**的多少距离，而下边的定义取决于**positionType**方法设置的值。如果设置了**FlexPositionType.RELATIVE**,
 那么bottom的作用相当于设置了marginBottom; 如果设置了**FlexPositionType.ABSOLUTE**, 那么bottom的作用是将元素的上边定位到距离父元素下边的bottom值。
-
-### autoDarkEnable方法
-是否自动暗黑模式
-
-**true(默认值):**
-- iOS: 对应overrideUserInterfaceStyle设置为UIUserInterfaceStyleUnspecified
-- Android: 对应setForceDarkAllowed设置为ture
-
-**false:**
-- iOS: 对应overrideUserInterfaceStyle设置为UIUserInterfaceStyleLight
-- Android: 对应setForceDarkAllowed设置为false
 
 
 ---

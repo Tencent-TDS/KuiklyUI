@@ -105,6 +105,198 @@ addTaskWhenPagerDidCalculateLayout {
 | -- | -- | -- |
 | key | 缓存键 | String |
 
+## 可重载方法
+
+开发者可以通过重载以下方法来自定义页面行为和响应生命周期事件。
+
+### 生命周期方法
+
+详细的生命周期流程请参考 [Pager生命周期](../../DevGuide/pager-lifecycle.md)。
+
+#### body()
+**必须实现**。返回页面的 UI 构建器，定义页面的视图结构。
+
+```kotlin
+override fun body(): ViewBuilder {
+    return {
+        attr {
+            backgroundColor(Color.WHITE)
+        }
+        Text {
+            attr {
+                text("Hello Kuikly")
+            }
+        }
+    }
+}
+```
+
+#### created()
+body 创建前调用，可用于初始化页面状态和数据。
+
+```kotlin
+override fun created() {
+    super.created()
+    // 初始化数据
+    loadData()
+}
+```
+
+#### willInit()
+页面初始化前调用，早于 `created()`，可用于最早期的配置。
+
+```kotlin
+override fun willInit() {
+    super.willInit()
+    // 最早期的初始化配置
+}
+```
+
+#### pageDidAppear()
+页面可见时回调（类似 Android 的 `onResume` 或 iOS 的 `viewDidAppear`）。
+
+```kotlin
+override fun pageDidAppear() {
+    super.pageDidAppear()
+    // 页面可见时的逻辑，如开始动画、恢复播放等
+}
+```
+
+#### pageDidDisappear()
+页面不可见时回调（类似 Android 的 `onPause` 或 iOS 的 `viewDidDisappear`）。
+
+```kotlin
+override fun pageDidDisappear() {
+    super.pageDidDisappear()
+    // 页面不可见时的逻辑，如暂停动画、暂停播放等
+}
+```
+
+#### pageWillDestroy()
+页面将要销毁时回调，可用于清理资源。
+
+```kotlin
+override fun pageWillDestroy() {
+    super.pageWillDestroy()
+    // 清理资源、取消订阅等
+}
+```
+
+#### onFirstFramePaint()
+Native 首帧上屏后回调，可用于性能监控或首屏渲染完成后的操作。
+
+```kotlin
+override fun onFirstFramePaint() {
+    super.onFirstFramePaint()
+    // 首帧渲染完成后的逻辑
+}
+```
+
+### 配置方法
+
+#### createExternalModules()
+创建并注册外部扩展模块，返回模块名到模块实例的映射。
+
+```kotlin
+override fun createExternalModules(): Map<String, Module>? {
+    return mapOf(
+        CustomModule.MODULE_NAME to CustomModule()
+    )
+}
+```
+
+#### debugUIInspector()
+UI 视图调试开关，返回 `true` 时开启 UI 调试模式。
+
+:::warning 注意
+- 与 [debugName](./basic-attr-event.md#debugname方法) 属性互斥，二者只能选其一开启
+- 该功能仅建议在开发阶段启用，**请勿在生产环境中使用**
+- 启用后会关闭组件层级优化，可能影响性能
+:::
+
+| 返回值 | 描述 |
+| -- | -- |
+| Boolean | 是否开启 UI 调试 |
+
+```kotlin
+private var debugUIInspector: Boolean? = null
+override fun debugUIInspector(): Boolean {
+    if (debugUIInspector == null) {
+        // 仅调试版本开启
+        debugUIInspector = pageData.params.optBoolean(DEBUG_KEY)
+    }
+    return debugUIInspector!!
+}
+```
+
+#### isNightMode()
+返回当前是否为夜间模式。
+
+| 返回值 | 描述 |
+| -- | -- |
+| Boolean | 是否为夜间模式 |
+
+```kotlin
+private var nightModel: Boolean? by observable(null)
+override fun isNightMode(): Boolean {
+    if (nightModel == null) {
+        nightModel = pageData.params.optBoolean(IS_NIGHT_MODE_KEY)
+    }
+    return nightModel!!
+}
+```
+
+#### isAccessibilityRunning()
+返回当前是否有无障碍功能正在运行。
+
+| 返回值 | 描述 |
+| -- | -- |
+| Boolean | 是否有无障碍功能运行 |
+
+```kotlin
+private var accessibilityRunning: Boolean? = null
+override fun isAccessibilityRunning(): Boolean {
+    if (accessibilityRunning == null) {
+        accessibilityRunning = pageData.params.optBoolean(ACCESSIBILITY_KEY)
+    }
+    return accessibilityRunning!!
+}
+```
+
+### 事件回调方法
+
+#### themeDidChanged()
+主题改变时回调，可用于响应系统主题切换。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| data | 主题变化数据 | JSONObject |
+
+```kotlin
+override fun themeDidChanged(data: JSONObject) {
+    super.themeDidChanged(data)
+    // 响应主题变化，更新UI
+}
+```
+
+#### onReceivePagerEvent()
+接收原生侧发送的页面事件，可用于处理自定义的页面级事件。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| pagerEvent | 事件名称 | String |
+| eventData | 事件数据 | JSONObject |
+
+```kotlin
+override fun onReceivePagerEvent(pagerEvent: String, eventData: JSONObject) {
+    super.onReceivePagerEvent(pagerEvent, eventData)
+    // 处理自定义事件
+    if (pagerEvent == "customEvent") {
+        // 处理自定义事件逻辑
+    }
+}
+```
+
 ## 静态属性和方法
 
 ### VERIFY_THREAD

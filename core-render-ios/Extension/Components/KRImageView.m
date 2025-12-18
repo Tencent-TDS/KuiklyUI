@@ -244,7 +244,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
                                                                          complete:^(UIImage * _Nullable image, NSError * _Nullable error, NSURL * _Nullable imageURL) {
             // src 一致性验证
             if (image && [wself p_srcMatch:wself.css_src imageURL:imageURL]) {
-//                wself.image = image;
+                wself.image = image;
             }
             // 错误处理
             [wself p_handleImageLoadError:error url:url imageURL:imageURL];

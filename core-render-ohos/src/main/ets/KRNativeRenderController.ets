@@ -701,7 +701,7 @@ export class KRNativeRenderController {
    */
   private getWindowActiveDensity() {
     if (this.windowClass != null) {
-      return this.windowClass.getWindowDensityInfo().customDensity;
+      return this.windowClass.getWindowDensityInfo?.().customDensity ?? display.getDefaultDisplaySync().densityPixels;
     } else {
       return display.getDefaultDisplaySync().densityPixels
     }

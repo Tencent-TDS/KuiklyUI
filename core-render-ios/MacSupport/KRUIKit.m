@@ -231,7 +231,7 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 
 #pragma mark - KRUITextField
 
-@interface KRUITextField () <NSTextFieldDelegate>
+@interface KRUITextField ()
 @property (nonatomic, strong) NSMutableArray<NSDictionary *> *kr_targets;
 @property (nonatomic, copy) NSString *kr_cachedPlaceholder; // Cache for placeholder text
 @end
@@ -441,7 +441,7 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 
 #pragma mark - KRUITextView
 
-@interface KRUITextView () <NSTextViewDelegate>
+@interface KRUITextView ()
 @property (nonatomic, weak) id<UITextViewDelegate> uiDelegate;
 @end
 

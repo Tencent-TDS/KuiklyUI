@@ -453,7 +453,7 @@ typedef NS_OPTIONS(NSUInteger, UIControlEvents) {
 + (instancetype)rangeWithStart:(UITextPosition *)start end:(UITextPosition *)end;
 @end
 
-@interface KRUITextField : NSTextField
+@interface KRUITextField : NSTextField <NSTextFieldDelegate>
 
 @property (nonatomic, copy, nullable) NSString *text;
 @property (nonatomic, copy, nullable) NSAttributedString *attributedText;
@@ -490,7 +490,7 @@ NS_INLINE NSEdgeInsets UIEdgeInsetsMake(CGFloat top, CGFloat left, CGFloat botto
 
 #pragma mark KRUITextView
 
-@interface KRUITextView : NSTextView
+@interface KRUITextView : NSTextView <NSTextViewDelegate>
 
 @property (nonatomic, copy, nullable) NSString *text;
 @property (nonatomic, copy, nullable) NSAttributedString *attributedText;
@@ -671,6 +671,7 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 - (void)scrollViewDidEndScrollingAnimation:(UIScrollView *)scrollView;
 @end
 
+/// Mac version UIScrollView
 @interface KRUIScrollView : NSScrollView
 
 @property (nonatomic, assign) CGPoint contentOffset;

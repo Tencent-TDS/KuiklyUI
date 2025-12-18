@@ -415,7 +415,7 @@ internal class FontWeightPage : BasePager() {
 
 :::
 
-### lineBreakMargin<Badge text="鸿蒙实现中" type="warn"/>
+### lineBreakMargin<Badge text="鸿蒙上API18+支持此功能" type="warn"/>
 
 最后一行折叠"..." 距离最右边距离，常用于显示"更多"展开场景使用
 

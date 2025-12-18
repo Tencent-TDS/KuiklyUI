@@ -39,6 +39,8 @@ extern "C" {
 #endif
 // Remove this declaration if compatable api is raised to 14 and above
 extern OH_Drawing_FontCollection* OH_Drawing_GetFontCollectionGlobalInstance(void) __attribute__((weak));
+extern OH_Drawing_Array* OH_Drawing_TypographyGetTextLines(OH_Drawing_Typography* typography) __attribute__((weak));
+extern void OH_Drawing_DestroyTextLines(OH_Drawing_Array* lines) __attribute__((weak));
 
 void KREnableTextRenderV2(){
     KR_TEXT_RENDER_V2_ENABLED = true;
@@ -60,6 +62,7 @@ static bool isRawFilePath(const std::string &src) {
 }
 
 KRRichTextShadow::~KRRichTextShadow() {
+    DestroyCachedTextLines();
     if (context_thread_typography_ != nullptr) {
         OH_Drawing_DestroyTypography(context_thread_typography_);
     }
@@ -88,6 +91,8 @@ void KRRichTextShadow::SetProp(const std::string &prop_key, const KRAnyValue &pr
 KRAnyValue KRRichTextShadow::Call(const std::string &method_name, const std::string &params) {
     if (kuikly::util::isEqual(method_name, "spanRect")) {  // 调用获取placeholder span位置方法
         return SpanRect(NewKRRenderValue(params)->toInt());
+    } else if(method_name == "isLineBreakMargin"){
+        return NewKRRenderValue(did_exceed_max_lines_ && OH_Drawing_DestroyTextLines? "1" : "0");
     }
     return std::make_shared<KRRenderValue>(nullptr);
 }
@@ -516,6 +521,7 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
     }
     double maxWidth = constraint_width * dpi;
     OH_Drawing_TypographyLayout(context_thread_typography_, maxWidth);
+    did_exceed_max_lines_ = OH_Drawing_TypographyDidExceedMaxLines(context_thread_typography_);
     // 获取文本布局结果的宽高
     auto height = OH_Drawing_TypographyGetHeight(context_thread_typography_);
     auto ouput_measure_height_ = height / dpi;
@@ -623,4 +629,18 @@ int KRRichTextShadow::SpanIndexAt(float spanX, float spanY) {
         }
     }
     return resultIndex;
+}
+
+OH_Drawing_Array *KRRichTextShadow::GetTextLines(){
+    if(text_lines_ == nullptr && OH_Drawing_TypographyGetTextLines){
+        text_lines_ = OH_Drawing_TypographyGetTextLines(main_thread_typography_);
+    }
+    return text_lines_;
+}
+
+void KRRichTextShadow::DestroyCachedTextLines(){
+    if (text_lines_ && OH_Drawing_DestroyTextLines){
+        OH_Drawing_DestroyTextLines(text_lines_);
+        text_lines_ = nullptr;
+    }
 }

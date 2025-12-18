@@ -22,6 +22,23 @@
 #include "libohos_render/expand/components/base/KRCustomUserCallback.h"
 #include "libohos_render/expand/components/richtext/KRRichTextShadow.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+// Remove this declaration if compatable api is raised to 14 and above
+extern size_t OH_Drawing_GetDrawingArraySize(OH_Drawing_Array* drawingArray) __attribute__((weak));
+extern OH_Drawing_TextLine* OH_Drawing_TextLineCreateTruncatedLine(OH_Drawing_TextLine* line, double width, int mode,
+    const char* ellipsis) __attribute__((weak));
+extern void OH_Drawing_TextLinePaint(OH_Drawing_TextLine* line, OH_Drawing_Canvas* canvas, double x, double y) __attribute__((weak));
+extern OH_Drawing_TextLine* OH_Drawing_GetTextLineByIndex(OH_Drawing_Array* lines, size_t index) __attribute__((weak));
+extern void OH_Drawing_DestroyTextLine(OH_Drawing_TextLine* line) __attribute__((weak));
+#ifdef __cplusplus
+}
+#endif
+
+static const char * kPropNameLineBreakMargin = "lineBreakMargin";
+static const char * kPropNameClick = "click";
+
 ArkUI_NodeHandle KRRichTextView::CreateNode() {
     return kuikly::util::GetNodeApi()->createNode(ARKUI_NODE_TEXT);
 }
@@ -142,15 +159,32 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
             richTextShadow->ResetTextAlign();
         }
     }
-    // Note: turn this on only when absolutely needed in testing build
-    // KR_LOG_INFO<<"OnForegroundDraw, frameWidth:"<<frameWidth<<", shadow:"<<richTextShadow<<", node
-    // handle"<<this->GetNode();
+    
+    if(OH_Drawing_TextLinePaint && line_break_margin_ > 0 && richTextShadow->DidExceedMaxLines()){
+        auto text_lines = richTextShadow->GetTextLines();
+        size_t line_count = OH_Drawing_GetDrawingArraySize(text_lines);
+        for(int i = 0; i < line_count; ++i){
+            OH_Drawing_TextLine* line = OH_Drawing_GetTextLineByIndex(text_lines, i);
+
+            if(i + 1 == line_count && richTextShadow->DidExceedMaxLines()){
+                OH_Drawing_TextLine *truncated_text_line = OH_Drawing_TextLineCreateTruncatedLine(line, (frameWidth - line_break_margin_) * KRConfig::GetDpi(), ELLIPSIS_MODAL_TAIL, "...");
+                OH_Drawing_TextLinePaint( truncated_text_line, drawingHandle, 0, -drawOffsetY);
+                OH_Drawing_DestroyTextLine(truncated_text_line);
+            }else{
+                OH_Drawing_TextLinePaint( line, drawingHandle, 0, -drawOffsetY);
+            }
+        }
+        if(line_count > 0){
+            return;
+        }
+    }
+    // fallback
     OH_Drawing_TypographyPaint(textTypo, drawingHandle, 0, -drawOffsetY);
 }
 
 void KRRichTextView::ToSetProp(const std::string &prop_key, const KRAnyValue &prop_value,
                                const KRRenderCallback event_callback) {
-    if (kuikly::util::isEqual(prop_key, "click")) {
+    if (kuikly::util::isEqual(prop_key, kPropNameClick)) {
         std::weak_ptr<KRRichTextView> weakSelf = std::dynamic_pointer_cast<KRRichTextView>(shared_from_this());
         KRRenderCallback middleManCallback = [weakSelf, event_callback](KRAnyValue res) {
             auto strongSelf = weakSelf.lock();
@@ -193,7 +227,10 @@ void KRRichTextView::ToSetProp(const std::string &prop_key, const KRAnyValue &pr
             }
         };
         IKRRenderViewExport::ToSetProp(prop_key, prop_value, middleManCallback);
-    } else {
+    } else if(prop_key == kPropNameLineBreakMargin) {
+        line_break_margin_ = prop_value->toFloat();
+    }else {
         IKRRenderViewExport::ToSetProp(prop_key, prop_value, event_callback);
-    }
+    } 
 }
+

@@ -33,7 +33,7 @@ Since its launch, `Kuikly` has gained wide recognition from the business. It has
     ├──	commonMain            # Shared cross-platform code, defining cross-platform interfaces
     ├── androidMain           # Android platform implementation (outputs aar)
     ├── jvmMain               # Generic JVM platform code (no Android APIs, outputs jar)
-    ├── iosMain               # iOS platform implementation (outputs framework)
+    ├── appleMain             # apple platform (iOS & macOS) implementation (outputs framework)
     ├── ohosArm64Main         # Ohos platform implementation（outputs so）
     ├── jsMain                # H5 and MiniApp platform implementation（outputs js）
 ├── core-render-android    # Android platform renderer module

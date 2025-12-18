@@ -32,7 +32,7 @@
     ├──	commonMain            #	跨平台共享代码、定义跨平台接口 
     ├── androidMain           # Android 平台实现代码 （aar）
     ├── jvmMain               # 泛 JVM 平台代码（不涉及 Android API）（jar）
-    ├── iosMain               # iOS 平台实现代码（framework）
+    ├── appleMain             # Apple (iOS & macOS) 平台实现代码（framework）
     ├── ohosArm64Main         # Ohos 平台实现代码（so）
     ├── jsMain                # H5 和 微信小程序 平台实现代码（so）
 ├── core-render-android    # android 平台的渲染器模块

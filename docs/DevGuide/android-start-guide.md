@@ -79,14 +79,7 @@ debugStop()
 
 用例A：
 
-业务A在首屏加载过程中，发现其中会白屏阻塞一段时间，经过Trace分析发现，保存缓存的操作并没有按照预期在获取数据的下一个时间片执行，切缓存存储采用的是同步方法，数据量也比较大。
-
-原因：使用`performTaskWhenRenderViewDidLoad` 是在 `renderView` 还没创建的时候才有效，所以并没有按照预期在下个时间片执行。
-
-解决方案：
-
-- 使用 `addNextTickTask` 或者在数据使用完的 View 的相关回调在进行缓存存储
-
+业务部分代码块：
 ```
 val data = initHomeData()
 performTaskWhenRenderViewDidLoad {           
@@ -96,6 +89,15 @@ performTaskWhenRenderViewDidLoad {
 }
 ```
 
+背景：在首屏加载过程中，会请求数据，并在数据到来后，希望使用 `performTaskWhenRenderViewDidLoad` 异步缓存数据，但发现过程中会白屏阻塞一段时间。
+
+分析：页面对 `trace` 分析发现，发现缓存数据的操作并没有按照预期在下一个时间片执行， 并且缓存存储采用的是同步方法，数据量也比较大，缓存数据过程阻塞了相关UI的创建。
+
+原因：使用`performTaskWhenRenderViewDidLoad` 是在 `renderView` 还没创建的时候才有效，但在使用过程中`renderView`已经创建，所以并没有按照预期在下个时间片执行。
+
+解决方案：
+
+- 使用 `addNextTickTask` 或者在相关的 View 的回调在进行缓存存储，避免影响视图的创建和加载。
 
 
 用例B：
@@ -122,7 +124,7 @@ observableA = newValue
 debugStop()
 ```
 
-原因：发现过程更新`observable`会出发一个新的`View`创建，进一步的该`View`使用`Scroll`用于`PageList`的内容，所有`Item`都一并上屏渲染计算
+原因：发现过程更新`observable`会触发一个新的`View`创建，进一步的该`View`使用`Scroll`用于`PageList`的内容，所有`Item`都一并上屏渲染计算
 
 ![Trace5](./img/android_start_guide5.png)
 

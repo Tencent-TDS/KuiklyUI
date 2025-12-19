@@ -1,4 +1,4 @@
-# 安卓启动性能分析指引
+# Kuikly页面启动性能分析指引
 
 ## **1. 背景**
 
@@ -12,17 +12,17 @@
 
 ## **3. 排查工具**
 
-- Performance API  [启动耗时指标说明](https://kuikly.tds.qq.com/API/modules/performance.html#指标1-启动耗时)
+### Performance API  [启动耗时指标说明](https://kuikly.tds.qq.com/API/modules/performance.html#指标1-启动耗时)
 
 记录页面启动到首帧渲染完成，各个阶段的耗时，可以使用进行初步的耗时记录
 
-- 关键函数打点
+### 关键函数打点
 
 对于一些觉得耗时的操作，可以进行打点耗时记录影响。
 
 注：此处打点耗时建议 println(当前时间戳) ，避免相关Log异步后输出非实际的时间戳
 
-- Profile工具
+### Android Profile工具
 
 对于一些页面启动后或完整的流程记录，可以使用 `Profile` 工具进一步分析
 
@@ -74,6 +74,43 @@ debugStart("xxx")
 
 debugStop()
 ```
+
+### iOS Profile工具
+
+在iOS平台上，如果希望页面代码耗时有详细的了解，可以利用instrument工具进行分析。
+
+用Xcode打开iosApp.xcworkspace工程后，选中target（如iosApp）和设备后，通过`Command-I (⌘I) `快捷键或者`Product`-`Profile`菜单执行Profiling操作，并在随后的Instrument面板中选择`Time Profiler`；
+随即Profiler启动，页面启动完或执行完业务期望的操作后，可点击工具栏按钮停止Profiler。
+
+这时在Instruments中就记录好了callstack以及耗时信息，默认符号未还原，所以在开始分析前，还需要通过选中业务帧，点击右键，在出现的菜单中点击`Lcate dSYM...`关联符号。
+<div>
+<img src="./img/ios-time-profiler1.png" style="width: 50%; border: 1px gray solid">
+</div>
+
+关联符号后在函数耗时基础上可看到完整的符号,及其对应的文件、行号信息
+<div>
+<img src="./img/ios-time-profiler2.png" style="width: 50%; border: 1px gray solid">
+</div>
+
+
+
+### 鸿蒙 Profile工具
+
+在鸿蒙平台上，如果希望页面代码耗时有详细的了解，可以利用Profiler工具进行分析。
+
+用鸿蒙IDE加载工程跑起来后，点选底部的`Profiler`面板，选择设备、App进程，选中`Time`或者`Launch` Profiler，点击Create，然后点击小三角形启动Profiler。
+
+<div>
+<img src="./img/ohos-time-profiler1.png" style="width: 50%; border: 1px gray solid">
+</div>
+
+启动页面或者执行完预期中的操作后，点击停止按钮。
+这时选中Callstack泳道即可浏览堆栈调用以及耗时情况，并可以看到完整的符号信息。
+双击堆栈行可自动打开对应的Kotlin源文件。
+<div>
+<img src="./img/ios-time-profiler2.png" style="width: 50%; border: 1px gray solid">
+</div>
+
 
 ## **4. 实际业务用例**
 

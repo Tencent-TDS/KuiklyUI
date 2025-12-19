@@ -157,6 +157,7 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
     if (_pendingGradients.count > 0) {
         // 获取整个富文本的总布局尺寸（包含所有行）
         CGSize totalLayoutSize = _mAttributedString.hr_textRender.size;
+        // 异常检查
         if (totalLayoutSize.width <= 0 || totalLayoutSize.height <= 0) {
             totalLayoutSize = fitSize;
         }
@@ -175,11 +176,8 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
                                                         totalLayoutSize:totalLayoutSize];
         }
 
-        [_pendingGradients removeAllObjects];
-
-        // 重新创建 textRender：
-        // sizeThatFits 中创建的 textStorage 是 attributedString 的副本，
-        // 应用渐变后原始 attributedString 已修改，必须用最新内容重建 textRender
+        // 重建 TextRender：原 textStorage 是副本，需用渐变修改后的内容重建
+        // PatternColor 只改颜色不影响字形尺寸，fitSize 应保持不变
         NSTextStorage *textStorage = [[NSTextStorage alloc] initWithAttributedString:_mAttributedString];
         textStorage.hr_hasAttachmentViews = _mAttributedString.hr_hasAttachmentViews;
         KRTextRender *textRender = [[KRTextRender alloc] initWithTextStorage:textStorage lineHeight:lineHeight];
@@ -187,18 +185,27 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
         textRender.maximumNumberOfLines = numberOfLines;
         textRender.lineBreakMode = lineBreakMode;
         textRender.size = fitSize;
-
-        // 重新触发布局计算，更新内部 LayoutManager 状态
-        [textRender textSizeWithRenderWidth:constraintSize.width];
+        // 此次布局仅为构建 LayoutManager 字形位置，供 characterIndexForPoint 等方法使用
+        CGSize newFitSize = [textRender textSizeWithRenderWidth:constraintSize.width];
+        
+        // 防御性检查：若尺寸变化说明渐变图片尺寸不匹配，回退为黑色
+        if (!CGSizeEqualToSize(fitSize, newFitSize)) {
+            for (NSDictionary *gradientInfo in _pendingGradients) {
+                NSRange range = [gradientInfo[@"globalRange"] rangeValue];
+                [_mAttributedString addAttribute:NSForegroundColorAttributeName value:[UIColor blackColor] range:range];
+            }
+        }
+        
         if (lineBreakMargin > 0 && numberOfLines) {
             textRender.maximumNumberOfLines = 0;
             CGSize newSize = [textRender textSizeWithRenderWidth:constraintSize.width];
-            textRender.isBreakLine = !CGSizeEqualToSize(fitSize, newSize);
+            textRender.isBreakLine = !CGSizeEqualToSize(fitSize, newSize);        // 始终使用旧的fitsize，因为渐变色应用后尺寸发生变化，也是回退至使用纯色的时候
             textRender.maximumNumberOfLines = numberOfLines;
         }
 
         _mAttributedString.hr_textRender = textRender;
         _mAttributedString.hr_size = fitSize;
+        [_pendingGradients removeAllObjects];
     }
 
     return fitSize;
@@ -238,7 +245,7 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
     // 初始化待处理的渐变列表（用于延迟应用）
     _pendingGradients = [NSMutableArray new];
     NSString *textPostProcessor = nil;
-    NSMutableArray * richAttrArray = [NSMutableArray new];
+    NSMutableArray *richAttrArray = [NSMutableArray new];
     UIFont *mainFont = nil;
     for (NSMutableDictionary * span in spans) {
         if (span[@"placeholderWidth"]) { // 属于占位span
@@ -323,7 +330,7 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
         spanAttrs.strokeWidth = strokeWidth;
         spanAttrs.shadow = textShadow;
         spanAttrs.richAttrArray = richAttrArray;
-
+        // 组合属性，生成这段Span对应的富文本
         NSMutableAttributedString *spanAttrString = [self p_createSpanAttributedStringWithAttributes:spanAttrs];
         if (spanAttrString) {
             [richAttrArray addObject:spanAttrString];
@@ -456,7 +463,8 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
 }
 
 
-- (void)p_applyTextAttributeWithAttr:(NSMutableAttributedString *)attributedString textAliment:(NSTextAlignment)textAliment
+- (void)p_applyTextAttributeWithAttr:(NSMutableAttributedString *)attributedString
+                         textAliment:(NSTextAlignment)textAliment
                          lineSpacing:(NSNumber *)lineSpacing
                     paragraphSpacing: (NSNumber *)paragraphSpacing
                           lineHeight:(NSNumber *)lineHeight

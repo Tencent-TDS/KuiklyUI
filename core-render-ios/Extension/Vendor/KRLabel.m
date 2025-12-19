@@ -105,7 +105,7 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
         // Recalculate fitSize after modifying textStorage
         fitSize = [textRender textSizeWithRenderWidth:size.width];
     }
-    
+    textRender.size = fitSize;
     attString.hr_textRender = textRender;
     attString.hr_size = fitSize;
     

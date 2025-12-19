@@ -22,6 +22,7 @@
 #import "KRScrollViewOffsetAnimator.h"
 #import "KRScrollView+NestedScroll.h"
 #import "NSObject+KR.h"
+#import "KRContentOffsetAnimator.h"
 
 /*
  * @brief 暴露给Kotlin侧调用的Scoller组件
@@ -83,6 +84,7 @@
     KRScrollViewOffsetAnimator *_offsetAnimator;
     /**忽略分发ScrollEvent**/
     BOOL _ignoreDispatchScrollEvent;
+    KRContentOffsetAnimator *_ku_coreAnimator;
 }
 @synthesize hr_rootView;
 @synthesize lastContentOffset = _lastContentOffset;
@@ -194,6 +196,12 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     [self p_dispatchScrollEventIfNeed];
 }
 
+- (void)setContentOffset:(CGPoint)contentOffset animated:(BOOL)animated {
+    [_ku_coreAnimator stop];
+    _ku_coreAnimator = nil;
+    [super setContentOffset:contentOffset animated:animated];
+}
+
 - (void)setUserInteractionEnabled:(BOOL)userInteractionEnabled {
     [super setUserInteractionEnabled:userInteractionEnabled];
     [_wrapperView setUserInteractionEnabled:userInteractionEnabled];
@@ -212,6 +220,12 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 
 #pragma mark - UIScrollViewDelegate
 
+- (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
+    [super touchesBegan:touches withEvent:event];
+    [_ku_coreAnimator stop];
+    _ku_coreAnimator = nil;
+}
+
 - (BOOL)scrollViewShouldScrollToTop:(UIScrollView *)scrollView {
     if (_css_scrollToTop) {
         _css_scrollToTop(nil);
@@ -225,6 +239,8 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     self.lContentOffset = scrollView.contentOffset;
 
     _isCurrentlyDragging = YES;
+    [_ku_coreAnimator stop];
+    _ku_coreAnimator = nil;
     if (_css_dragBegin) {
        _css_dragBegin([self p_generateEventBaseParams]);
     }
@@ -233,7 +249,8 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 - (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate {
     _isCurrentlyDragging = NO;
     if (!decelerate) { // 滑动结束
-        if (_css_scrollEnd) {
+        BOOL animating = [_ku_coreAnimator isAnimating];
+        if (_css_scrollEnd && !animating) {
             _css_scrollEnd([self p_generateEventBaseParams]);
         }
     }
@@ -250,7 +267,8 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 }
 
 - (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
-    if (_css_scrollEnd) {
+    BOOL animating = [_ku_coreAnimator isAnimating];
+    if (_css_scrollEnd && !animating) {
         _css_scrollEnd([self p_generateEventBaseParams]);
     }
 }
@@ -275,6 +293,62 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 }
 
 - (void)scrollViewWillEndDragging:(UIScrollView *)scrollView withVelocity:(CGPoint)velocity targetContentOffset:(inout CGPoint *)targetContentOffset {
+
+    BOOL isCompose = self.hr_rootView.contextParam.isCompose;
+    if (isCompose && targetContentOffset && ![self.css_isComposePager boolValue]) {
+        CGPoint proposed = *targetContentOffset;
+        BOOL isHorizontal = [_css_directionRow boolValue];
+        CGFloat startPrimary = isHorizontal ? scrollView.contentOffset.x : scrollView.contentOffset.y;
+
+        // 计算边界，用于限制自定义动画（根据方向）
+        UIEdgeInsets insets = scrollView.contentInset;
+        CGFloat minPrimary = isHorizontal ? -insets.left : -insets.top;
+        CGFloat maxPrimary = 0;
+        if (isHorizontal) {
+            maxPrimary = MAX(-insets.left, scrollView.contentSize.width - scrollView.bounds.size.width + insets.right);
+        } else {
+            maxPrimary = MAX(-insets.top, scrollView.contentSize.height - scrollView.bounds.size.height + insets.bottom);
+        }
+        CGFloat proposedPrimary = isHorizontal ? proposed.x : proposed.y;
+        BOOL isCurrentlyBouncing = (startPrimary < minPrimary) || (startPrimary > maxPrimary);
+        BOOL willOvershootBounds = (proposedPrimary < minPrimary) || (proposedPrimary > maxPrimary);
+
+        CGFloat deltaPrimary = fabs(proposedPrimary - startPrimary);
+        if (deltaPrimary > KRMaxAllowedDistance && !isCurrentlyBouncing && !willOvershootBounds) {
+            CGFloat newPrimary = proposedPrimary;
+
+            // 限制最大单次动画距离，避免远跳
+            CGFloat distance = deltaPrimary;
+            CGFloat maxDistance = KRMaxAllowedDistance;
+            if (distance > maxDistance) {
+                newPrimary = (newPrimary > startPrimary) ? (startPrimary + maxDistance) : (startPrimary - maxDistance);
+            }
+
+            // 取消系统惯性
+            *targetContentOffset = isHorizontal ? CGPointMake(startPrimary, proposed.y) : CGPointMake(proposed.x, startPrimary);
+
+            if (_ku_coreAnimator == nil) {
+                _ku_coreAnimator = [[KRContentOffsetAnimator alloc] initWithScrollView:self];
+            }
+            CAMediaTimingFunction *tf = [[CAMediaTimingFunction alloc] initWithControlPoints:KRContentOffsetAnimatorP1x
+                    :KRContentOffsetAnimatorP1y
+                    :KRContentOffsetAnimatorP2x
+                    :KRContentOffsetAnimatorP2y];
+            __weak typeof(self) weakSelf = self;
+            CGPoint target = isHorizontal ? CGPointMake(newPrimary, self.contentOffset.y) : CGPointMake(self.contentOffset.x, newPrimary);
+            [_ku_coreAnimator animateToOffset:target
+                                     duration:3.2
+                               timingFunction:tf
+                                   onProgress:^(CGFloat progress) { } completion:^(BOOL finished){
+                        __strong typeof(weakSelf) strongSelf = weakSelf;
+                        if (!strongSelf) return;
+                        if (finished && strongSelf->_css_scrollEnd) {
+                            strongSelf->_css_scrollEnd([strongSelf p_generateEventBaseParams]);
+                        }
+                    }];
+        }
+    }
+
     if (_css_willDragEnd) {
         if ([_css_isComposePager boolValue]) {
             // 这里将惯性滑动最大距离限制为300

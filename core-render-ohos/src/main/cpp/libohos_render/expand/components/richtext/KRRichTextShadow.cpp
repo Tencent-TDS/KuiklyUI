@@ -474,7 +474,6 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
             SetCustomFontIfApplicable(nativeResMgr, font_collection_wrapper_, fontFamily, fontAdapters);
         }
         OH_Drawing_SetTextStyleFontStyle(txtStyle, FONT_STYLE_NORMAL);
-        OH_Drawing_SetTextStyleLocale(txtStyle, "en");
         // 将文本样式对象加入到handler中
         if (!isFirst) {
             OH_Drawing_TypographyHandlerPopTextStyle(handler);

@@ -187,6 +187,9 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
                     // Compose有节点被点击，消费事件
                     handle = true
                     touchDownConsumeOnce = false
+                } else {
+                    // 不需要消费，则补一条Cancel取消Compose的点击态
+                    tryFireCancelEvent(event)
                 }
             } else {
                 handle = true

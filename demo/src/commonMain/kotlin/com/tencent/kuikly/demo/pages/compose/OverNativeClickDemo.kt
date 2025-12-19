@@ -27,58 +27,92 @@ import com.tencent.kuikly.compose.foundation.layout.padding
 import com.tencent.kuikly.compose.foundation.layout.size
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.setContent
+import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.event.EventName
+import com.tencent.kuikly.core.module.Module
+import com.tencent.kuikly.demo.pages.base.BridgeModule
+import com.tencent.kuikly.demo.pages.base.TDFTestModule
 
 @Page("OverNativeClickDemo")
 internal class OverNativeClickDemo : ComposeContainer() {
+
+    fun toast(msg: String) {
+        getModule<BridgeModule>(BridgeModule.MODULE_NAME)?.toast(msg)
+    }
+
     override fun willInit() {
         super.willInit()
+
         setContent {
             ComposeNavigationBar {
-                Row(
-                    modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .background(
-                            Color.Green.copy(0.3f),
-                        ),
-                ) {
-                    Box(
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Row(
                         modifier =
-                        Modifier
-                            .padding(start = 20.dp)
-                            .size(50.dp, 150.dp)
-                            .background(Color.Red.copy(alpha = .75f))
-                            .clickable {
-                                println("ComposeSceneMediator.result = ComposeClick ")
-                            }
-                            .setEvent(EventName.CLICK.value) {},
+                            Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Color.Green.copy(0.3f),
+                                ),
                     ) {
-                        Text("Compose点击，原生不触发", color = Color.White)
+                        Box(
+                            modifier =
+                                Modifier
+                                    .padding(start = 20.dp)
+                                    .size(50.dp, 150.dp)
+                                    .background(Color.Red.copy(alpha = .75f))
+                                    .clickable {
+                                        toast("ComposeSceneMediator.result = ComposeClick ")
+                                    }
+                                    .setEvent(EventName.CLICK.value) {},
+                        ) {
+                            Text("Compose点击，原生不触发", color = Color.White)
+                        }
+
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(50.dp, 150.dp)
+                                    .background(Color.Blue.copy(alpha = .75f))
+                                    .clickable {
+                                        println("ComposeSceneMediator.result = ComposeClick ")
+                                    }
+                                    .setProp("stop-propagation-ohos", 1)
+                                    .setEvent(EventName.TOUCH_DOWN.value) {}
+                                    .setEvent(EventName.TOUCH_MOVE.value) {}
+                                    .setEvent(EventName.TOUCH_UP.value) {}
+                                    .setEvent(EventName.TOUCH_CANCEL.value) {},
+                        ) {
+                            Text("ComposeTouch，原生不触发", color = Color.White)
+                        }
+
                     }
 
                     Box(
                         modifier =
                             Modifier
+                                .padding(start = 20.dp)
+                                .align(Alignment.Center)
                                 .size(50.dp, 150.dp)
-                                .background(Color.Blue.copy(alpha = .75f))
+                                .background(Color.Red.copy(alpha = .75f))
                                 .clickable {
-                                    println("ComposeSceneMediator.result = ComposeClick ")
+                                    toast("ComposeSceneMediator.result = ComposeClick ")
                                 }
-                                .setProp("stop-propagation-ohos", 1)
-                                .setEvent(EventName.TOUCH_DOWN.value) {}
-                                .setEvent(EventName.TOUCH_MOVE.value) {}
-                                .setEvent(EventName.TOUCH_UP.value) {}
-                                .setEvent(EventName.TOUCH_CANCEL.value) {},
+//                                .setEvent(EventName.CLICK.value) {},
                     ) {
-                        Text("ComposeTouch，原生不触发", color = Color.White)
+                        Text("Compose点击，原生不触发", color = Color.White)
                     }
                 }
             }
         }
+    }
+
+    override fun createExternalModules(): Map<String, Module>? {
+        val externalModules = hashMapOf<String, Module>()
+        externalModules[BridgeModule.MODULE_NAME] = BridgeModule()
+        return externalModules
     }
 }

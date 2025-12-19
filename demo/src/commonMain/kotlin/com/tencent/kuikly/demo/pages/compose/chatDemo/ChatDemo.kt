@@ -54,8 +54,8 @@ import com.tencent.kuikly.core.coroutines.GlobalScope
 import com.tencent.kuikly.core.coroutines.launch
 import com.tencent.kuikly.core.module.RouterModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
-// import com.tencent.kuiklybase.markdown.compose.Markdown // 临时屏蔽，未适配Mac
-// import com.tencent.kuiklybase.markdown.model.rememberMarkdownState // 临时屏蔽，未适配Mac
+import com.tencent.kuiklybase.markdown.compose.Markdown
+import com.tencent.kuiklybase.markdown.model.rememberMarkdownState
 import kotlinx.coroutines.delay
 
 internal expect object NetworkClient {
@@ -402,18 +402,18 @@ internal class ChatDemo : ComposeContainer() {
                 }
             }
         } else {
-//            val markdownState = rememberMarkdownState()
-//            LaunchedEffect(message) {
-//                markdownState.parse(message, false)
-//            }
-//            Markdown(
-//                state = markdownState,
-//                colors = markdownColor(text = Color.Black),
-//                typography = markdownTypography(),
-//                modifier = Modifier
-//                    .widthIn(max = pagerData.pageViewWidth.dp)
-//                    .padding(horizontal = 24.dp)
-//            )
+            val markdownState = rememberMarkdownState()
+            LaunchedEffect(message) {
+                markdownState.parse(message, false)
+            }
+            Markdown(
+                state = markdownState,
+                colors = markdownColor(text = Color.Black),
+                typography = markdownTypography(),
+                modifier = Modifier
+                    .widthIn(max = pagerData.pageViewWidth.dp)
+                    .padding(horizontal = 24.dp)
+            )
         }
     }
 

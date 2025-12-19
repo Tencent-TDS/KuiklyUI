@@ -69,7 +69,7 @@ class VisibilityEvent : BaseEvent(), IScrollerViewEventObserver {
     /**
      * 当可见区域忽略的margin发生变化时回调该方法
      */
-    override fun scrollVisibleAreaIgnoreMarginDidChanged() {
+    override fun visibleAreaMarginChanged() {
         getView()?.let {
             if (it is DeclarativeBaseView<*, *>) {
                 onRelativeCoordinatesDidChanged(it)

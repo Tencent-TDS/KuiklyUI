@@ -54,7 +54,7 @@ interface IScrollerViewEventObserver {
 
     fun scrollFrameDidChanged(frame: Frame) {}
 
-    fun scrollVisibleAreaIgnoreMarginDidChanged() {}
+    fun visibleAreaMarginChanged() {}
 }
 
 open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
@@ -326,9 +326,9 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
         }
     }
 
-    internal fun notifyScrollVisibleAreaIgnoreMarginDidChanged() {
+    internal fun notifyVisibleAreaMarginChanged() {
         scrollerViewEventObserverSet.toFastMutableList().forEach {
-            it.scrollVisibleAreaIgnoreMarginDidChanged()
+            it.visibleAreaMarginChanged()
         }
     }
 
@@ -395,7 +395,7 @@ open class ScrollerAttr : ContainerAttr() {
     fun visibleAreaIgnoreTopMargin(margin: Float) {
         if (visibleAreaIgnoreTopMargin != margin) {
             visibleAreaIgnoreTopMargin = margin
-            (view() as? ScrollerView<*, *>)?.notifyScrollVisibleAreaIgnoreMarginDidChanged()
+            (view() as? ScrollerView<*, *>)?.notifyVisibleAreaMarginChanged()
         }
     }
 
@@ -406,7 +406,7 @@ open class ScrollerAttr : ContainerAttr() {
     fun visibleAreaIgnoreBottomMargin(margin: Float) {
         if (visibleAreaIgnoreBottomMargin != margin) {
             visibleAreaIgnoreBottomMargin = margin
-            (view() as? ScrollerView<*, *>)?.notifyScrollVisibleAreaIgnoreMarginDidChanged()
+            (view() as? ScrollerView<*, *>)?.notifyVisibleAreaMarginChanged()
         }
     }
 

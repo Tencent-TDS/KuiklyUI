@@ -68,6 +68,7 @@ class KRFrameMonitor : KRMonitor<KRFrameData>(), IKRFrameCallback {
         lastFrameTimeNanos = 0L
         isStarted = true
         isResumed = true
+        driveFrameDetector.start()
         KRFrameDetector.register(this)
     }
 
@@ -81,6 +82,7 @@ class KRFrameMonitor : KRMonitor<KRFrameData>(), IKRFrameCallback {
         }
         isResumed = false
         lastFrameTimeNanos = 0L
+        driveFrameDetector.pause()
         KRFrameDetector.unRegister(this)
     }
 
@@ -94,6 +96,7 @@ class KRFrameMonitor : KRMonitor<KRFrameData>(), IKRFrameCallback {
         }
         isResumed = true
         lastFrameTimeNanos = 0L
+        driveFrameDetector.resume()
         KRFrameDetector.register(this)
     }
 
@@ -108,6 +111,7 @@ class KRFrameMonitor : KRMonitor<KRFrameData>(), IKRFrameCallback {
         isStarted = false
         isResumed = false
         lastFrameTimeNanos = 0L
+        driveFrameDetector.stop()
         KRFrameDetector.unRegister(this)
     }
 

@@ -65,7 +65,7 @@ class LazyColumnJankDemo : ComposeContainer() {
 data class ListItemData(val type: Int, val id: Int)
 
 val listData = mutableListOf<ListItemData>().apply {
-    repeat(200) {
+    repeat(500) {
         // add(Pair(if (it < 40) 1 else 2, it))
         add(ListItemData(1, it))
     }

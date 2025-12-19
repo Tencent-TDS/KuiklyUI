@@ -130,6 +130,71 @@ export class KuiklyViewDelegate extends IKuiklyViewDelegate {
   }
 }
 ```
+
+### 委托类说明
+可以重写相关方法，实现自定义、扩展、配置 Kuikly 等功能。
+```ts
+export abstract class IKuiklyViewDelegate extends KRNativeRenderController {
+  /**
+   * 获取自定义扩展渲染视图创建注册Map
+   */
+  abstract getCustomRenderViewCreatorRegisterMap(): Map<string, KRRenderViewExportCreator>;
+
+  /**
+   * 获取自定义扩展渲染视图创建注册Map。
+   * 通过这个方式注册的creator，创建的自定义view将不会有影子节点处理基础事件，需要用户在arkts侧响应所有属性的设置。
+   * 当这个方式的好处是，由于不存在影子节点，其view曾经和DSL中定义的是保持一致的。
+   * 建议仅在有强一致层级需求的时候才采用。
+   */
+  getCustomRenderViewCreatorRegisterMapV2(): Map<string, KRRenderViewExportCreator>{
+    // by default
+    return new Map();
+  }
+  
+  /**
+   * 获取自定义扩展module创建注册Map
+   */
+  abstract getCustomRenderModuleCreatorRegisterMap(): Map<string, KRRenderModuleExportCreator>;
+
+  /**
+   * 获取自定义[KuiklyRenderView]生命周期回调
+   */
+  getKuiklyRenderViewLifecycleCallback(): IKuiklyRenderViewLifecycleCallback | null {
+    return null
+  }
+
+  /**
+   * Kuikly框架设置性能监控选项，默认只开启动监控
+   * @return Array<KRMonitorType>: 需要设置的性能监控选项列表(目前仅支持启动监控)
+   */
+  performanceMonitorTypes(): Array<KRMonitorType> {
+    return [KRMonitorType.LAUNCH];
+  }
+
+  /**
+   * 回调启动数据
+   */
+  onGetLaunchData(data: Record<string, number>): void {
+  }
+
+  /**
+   * 回调性能数据
+   */
+  onGetPerformanceData(data: Record<string, number>): void {
+  }
+
+  /**
+   * 字体缩放是否跟随系统
+   * @return boolean true:跟随系统(默认) false:不跟随系统(缩放比例为1)
+   */
+  fontSizeScaleFollowSystem(): boolean {
+    return true
+  }
+
+}
+
+```
+
 ### 实现Kuikly承载容器
 在page页面容器中加入Kuikly组件（以 pages/Index 为例，也可以是新建的page），触发Kuikly页面加载。
 

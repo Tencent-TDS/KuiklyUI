@@ -1,5 +1,8 @@
 # ChangeLog
 
+## Release
+https://github.com/Tencent-TDS/KuiklyUI/releases/
+
 ## 2.11.0
 ### What's New
 https://github.com/Tencent-TDS/KuiklyUI/releases/tag/2.11.0

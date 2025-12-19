@@ -15,10 +15,15 @@
 
 #include "libohos_render/expand/events/gesture/KRGestureEventHandler.h"
 
+#include "libohos_render/foundation/KRConfig.h"
 #include "libohos_render/scheduler/KRUIScheduler.h"
 #include "libohos_render/utils/KREventUtil.h"
 #include "libohos_render/utils/KRRenderLoger.h"
 #include "libohos_render/manager/KRWeakObjectManager.h"
+
+static float PanDistanceNumPx(){
+    return KRConfig::GetDpi() * 5;    
+}
 
 KRGestureEventHandler::KRGestureEventHandler(ArkUI_NodeHandle node_handle, ArkUI_GestureRecognizer *gesture_group,
                                              KRGestureEventCallback gesture_callback)
@@ -62,7 +67,7 @@ bool KRPanGestureEventHandler::RegisterEvent(const KRGestureEventType &event_typ
 
     event_type_ = KRGestureEventType::kPan;
     auto gesture_api = kuikly::util::GetGestureApi();
-    gesture_recognizer_ = gesture_api->createPanGesture(1, GESTURE_DIRECTION_ALL, 5);
+    gesture_recognizer_ = gesture_api->createPanGesture(1, GESTURE_DIRECTION_ALL, PanDistanceNumPx());
     void* userData = KRWeakObjectManagerRegisterWeakObject<>(shared_from_this());
     
     gesture_api->setGestureEventTarget(
@@ -115,7 +120,7 @@ bool KRLongPressGestureEventHandler::RegisterEvent(const KRGestureEventType &eve
         long_press_gesture, GESTURE_EVENT_ACTION_ACCEPT | GESTURE_EVENT_ACTION_UPDATE | GESTURE_EVENT_ACTION_END | GESTURE_EVENT_ACTION_CANCEL, userData,
         OnReceiveGestureEvent);
     gesture_api->addChildGesture(sequential_gesture_group, long_press_gesture);
-    auto pan_gesture = gesture_api->createPanGesture(1, GESTURE_DIRECTION_ALL, 1);
+    auto pan_gesture = gesture_api->createPanGesture(1, GESTURE_DIRECTION_ALL, PanDistanceNumPx());
     gesture_api->setGestureEventTarget(
         pan_gesture, GESTURE_EVENT_ACTION_ACCEPT | GESTURE_EVENT_ACTION_UPDATE | GESTURE_EVENT_ACTION_END | GESTURE_EVENT_ACTION_CANCEL, userData,
         OnReceiveGestureEvent);

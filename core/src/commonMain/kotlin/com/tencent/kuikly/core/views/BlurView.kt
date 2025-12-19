@@ -32,7 +32,7 @@ class BlurView : DeclarativeBaseView<BlurAttr, Event>() {
 
     override fun willInit() {
         super.willInit()
-        if (getPager().pageData.isIOS) {
+        if (getPager().pageData.isIOS || getPager().pageData.isMacOS) {
             getViewAttr().backgroundColor(Color(red255 = 0, green255 = 0, blue255 = 0, alpha01 = 0.1f))
         } else {
             getViewAttr().backgroundColor(Color(red255 = 255, green255 = 255, blue255 = 255, alpha01 = 0.1f))

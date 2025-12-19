@@ -13,8 +13,10 @@
  * limitations under the License.
  */
 
-#import <UIKit/UIKit.h>
+#import "KRUIKit.h" // [macOS]
 #import "KuiklyRenderViewExportProtocol.h"
+
+#if TARGET_OS_IOS // [macOS]
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -27,3 +29,26 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 NS_ASSUME_NONNULL_END
+
+#endif
+
+// [macOS
+#if TARGET_OS_OSX
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 260000
+
+NS_ASSUME_NONNULL_BEGIN
+
+/**
+ * 玻璃容器视图组件（macOS版本）
+ * 提供macOS 26.0+的NSGlassEffectContainerView支持
+ */
+API_AVAILABLE(macos(26.0))
+@interface KRGlassContainerView : NSGlassEffectContainerView <KuiklyRenderViewExportProtocol>
+
+@end
+
+NS_ASSUME_NONNULL_END
+
+#endif
+#endif
+// macOS]

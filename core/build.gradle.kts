@@ -56,17 +56,19 @@ kotlin {
     }
 
     // sourceSets
-    val commonMain by sourceSets.getting
-
-    val iosMain by sourceSets.getting {
-        dependsOn(commonMain)
+    sourceSets {
+        val commonMain by getting
+        val appleMain by sourceSets.creating {
+            dependsOn(commonMain)
+        }
     }
 
     targets.withType<KotlinNativeTarget> {
-        val mainSourceSets = this.compilations.getByName("main").defaultSourceSet
+        val appleMain by sourceSets.getting
         when {
             konanTarget.family.isAppleFamily -> {
-                mainSourceSets.dependsOn(iosMain)
+                val mainSourceSets = this.compilations.getByName("main").defaultSourceSet
+                mainSourceSets.dependsOn(appleMain)
             }
         }
     }

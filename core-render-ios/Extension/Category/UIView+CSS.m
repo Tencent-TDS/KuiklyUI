@@ -554,12 +554,7 @@
     if (self.layer.animationKeys.count && !CGAffineTransformEqualToTransform(self.transform, CGAffineTransformIdentity)) {
         // 原子性设置frame，使得UIView动画可以生效的同时，也可以避免影响transform动画
         self.bounds = CGRectMake(0, 0, CGRectGetWidth(frame), CGRectGetHeight(frame));
-        #if TARGET_OS_OSX // [macOS]
-        // macOS 无 center，保持语义：将 frame 设为目标矩形
-        self.frame = frame;
-        #else
         self.center = CGPointMake(CGRectGetMidX(frame), CGRectGetMidY(frame));
-        #endif // [macOS]
         // 无动画设置最终的frame，避免影响transform动画
         #if TARGET_OS_OSX // [macOS]
         [CATransaction begin];

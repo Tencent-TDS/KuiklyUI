@@ -79,7 +79,12 @@ fun LagPageView() {
         modifier = Modifier.fillMaxSize(),
         state = listState,
     ) {
-        itemsIndexed(listData, key = { index, item -> "${item.id}" }, contentType = { index, item -> "${item.type}" }) { cIndex, item ->
+        // 所有行使用相同的 contentType，方便命中复用池
+        itemsIndexed(
+            listData,
+            key = { _, item -> "${item.id}" },
+            contentType = { _, _ -> "RankingCard" }
+        ) { cIndex, item ->
             RankingCardView(cIndex)
         }
     }
@@ -96,11 +101,14 @@ val cardListData = mutableListOf<ListItemData>().apply {
 fun RankingCardView(carIndex: Int) {
     LazyRow(
         modifier = Modifier.fillMaxWidth(),
+        beyondBoundsItemCount = 0
     ) {
+        // 内层横向列表同样使用统一的 contentType
         itemsIndexed(
             items = cardListData,
-            key = { index, item -> "${item.id}" },
-            contentType = { index, item -> "${item.type}" }) { index, itemData ->
+            key = { _, item -> "${item.id}" },
+            contentType = { _, _ -> "RankingItem" }
+        ) { index, itemData ->
             RankingItemView2(carIndex, index)
         }
     }

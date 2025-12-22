@@ -606,8 +606,11 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 #pragma mark - iOS compatibility methods
 
 - (BOOL)becomeFirstResponder {
-    [[self window] makeFirstResponder:self];
-    return [super becomeFirstResponder];
+    // Do NOT call [super becomeFirstResponder] here.
+    // NSTextView's becomeFirstResponder throws an exception when called outside
+    // the responder chain context (e.g., from dispatch_async blocks).
+    // Using makeFirstResponder: is the correct way to become first responder on macOS.
+    return [[self window] makeFirstResponder:self];
 }
 
 - (BOOL)resignFirstResponder {
@@ -791,29 +794,6 @@ static KRUIView *KRUIViewCommonInit(KRUIView *self) {
     return NO;
 }
 
-- (NSDictionary *)locationInfoFromDraggingLocation:(NSPoint)locationInWindow {
-    NSPoint locationInView = [self convertPoint:locationInWindow fromView:nil];
-    
-    return @{
-        @"screenX": @(locationInWindow.x),
-        @"screenY": @(locationInWindow.y),
-        @"clientX": @(locationInView.x),
-        @"clientY": @(locationInView.y)
-    };
-}
-
-- (NSDictionary *)locationInfoFromEvent:(NSEvent *)event {
-    NSPoint locationInWindow = event.locationInWindow;
-    NSPoint locationInView = [self convertPoint:locationInWindow fromView:nil];
-    
-    return @{
-        @"screenX": @(locationInWindow.x),
-        @"screenY": @(locationInWindow.y),
-        @"clientX": @(locationInView.x),
-        @"clientY": @(locationInView.y)
-    };
-}
-
 - (void)mouseEntered:(NSEvent *)event {
     _hasMouseOver = YES;
     // TODO: Implement mouse enter event callback when needed
@@ -859,22 +839,6 @@ static KRUIView *KRUIViewCommonInit(KRUIView *self) {
     return YES;
 }
 
-- (CGFloat)alpha {
-    return self.alphaValue;
-}
-
-- (void)setAlpha:(CGFloat)alpha {
-    self.alphaValue = alpha;
-}
-
-- (CGAffineTransform)transform {
-    return self.layer.affineTransform;
-}
-
-- (void)setTransform:(CGAffineTransform)transform {
-    self.layer.affineTransform = transform;
-}
-
 #pragma mark Layer Backing
 
 - (BOOL)wantsUpdateLayer {
@@ -891,26 +855,6 @@ static KRUIView *KRUIViewCommonInit(KRUIView *self) {
         [layer setBackgroundColor:[self.backgroundColor CGColor]];
     }
     [(id<CALayerDelegate>)self displayLayer:layer];
-}
-
-- (void)drawRect:(CGRect)rect {
-    // backgroundColor is handled by NSView+KRCompat
-    [super drawRect:rect];
-}
-
-- (void)layout {
-    [super layout];
-    // layoutSubviews is handled by NSView+KRCompat
-}
-
-#pragma mark Layout Methods
-
-- (void)setNeedsLayout {
-    self.needsLayout = YES;
-}
-
-- (void)setNeedsDisplay {
-    self.needsDisplay = YES;
 }
 
 @end

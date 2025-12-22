@@ -254,7 +254,7 @@ static char kKUUserInteractionEnabledKey;
             method_exchangeImplementations(original, swizzled);
         }
         
-        // [macOS] Swizzle lifecycle methods to bridge UIView-style API
+        // Swizzle lifecycle methods to bridge UIView-style API
         Method originalMoveToSuperview = class_getInstanceMethod(cls, @selector(viewDidMoveToSuperview));
         Method swizzledMoveToSuperview = class_getInstanceMethod(cls, @selector(ku_viewDidMoveToSuperview));
         if (originalMoveToSuperview && swizzledMoveToSuperview) {
@@ -279,7 +279,6 @@ static char kKUUserInteractionEnabledKey;
         if (originalLayout && swizzledLayout) {
             method_exchangeImplementations(originalLayout, swizzledLayout);
         }
-        // macOS]
     });
 }
 

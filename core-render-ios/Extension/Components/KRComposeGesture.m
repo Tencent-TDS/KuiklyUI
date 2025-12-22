@@ -31,11 +31,11 @@
 - (instancetype)init {
     self = [super init];
     if (self) {
-#if !TARGET_OS_OSX // [macOS
+#if !TARGET_OS_OSX // [macOS]
         // 设置手势识别器属性，确保不会干扰其他触摸事件
         self.cancelsTouchesInView = YES;
         self.delaysTouchesBegan = YES;
-#endif // macOS]
+#endif // [macOS]
         
         // 初始化跟踪的触摸点集合
         self.trackedTouches = [NSMutableSet new];
@@ -64,12 +64,24 @@
 }
 
 - (void)stopTrackingTouches:(NSSet<UITouch *> *)touches {
+#if !TARGET_OS_OSX // [macOS]
     for (UITouch *touch in touches) {
         [self.trackedTouches removeObject:touch];
     }
+#else // [macOS]
+    NSMutableSet<NSEvent *> *touchesToRemove = [NSMutableSet setWithCapacity:touches.count];
+    for (UITouch *touch in touches) {
+        for (NSEvent *trackedEvent in self.trackedTouches) {
+            if (touch.eventNumber == trackedEvent.eventNumber) {
+                [touchesToRemove addObject:trackedEvent];
+            }
+        }
+    }
+    [self.trackedTouches minusSet:touchesToRemove];
+#endif // [macOS]
 }
 
-#if !TARGET_OS_OSX // [macOS
+#if !TARGET_OS_OSX // [macOS]
 
 // 重写触摸事件方法，直接传递所有触摸事件
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
@@ -186,6 +198,20 @@
     }
 }
 
+- (void)mouseCancelled:(NSEvent *)event {
+    NSSet<UITouch *> *touches = [NSSet setWithObject:(UITouch *)event];
+    [self onTouchesEvent:_trackedTouches event:event phase:TouchesEventKindCancel];
+    [self stopTrackingTouches:touches];
+    
+    if ([self isOngoing]) {
+        self.state = self.trackedTouches.count == 0 ? UIGestureRecognizerStateCancelled : UIGestureRecognizerStateEnded;
+    } else {
+        if (self.trackedTouches.count == 0) {
+            self.state = UIGestureRecognizerStateFailed;
+        }
+    }
+}
+
 #endif // macOS]
 
 // 重写 reset 方法，在手势识别结束后重置状态
@@ -249,7 +275,7 @@
 - (NSDictionary *)generateParamsWithTouches:(NSSet<UITouch *> *)touches event:(UIEvent *)event eventName:(NSString *)eventName {
     NSMutableArray *touchesParam = [NSMutableArray new];
     
-#if !TARGET_OS_OSX // [macOS
+#if !TARGET_OS_OSX // [macOS]
     // 处理所有触摸点
     for (UITouch *touch in touches) {
         CGPoint locationInSelf = [touch locationInView:self.containerView];
@@ -269,7 +295,12 @@
     for (UITouch *touch in touches) {
         NSEvent *mouseEvent = (NSEvent *)touch;
         CGPoint locationInSelf = [self.containerView convertPoint:mouseEvent.locationInWindow fromView:nil];
-        CGPoint locationInRootView = [(UIView *)[self.containerView hr_rootView] convertPoint:mouseEvent.locationInWindow fromView:nil];
+        UIView *rootView = (UIView *)[self.containerView hr_rootView];
+        CGPoint locationInRootView = [rootView convertPoint:mouseEvent.locationInWindow fromView:nil];
+        if (![rootView isFlipped]) {
+            // manually flipped the y-coordinate if rootView does not flip coordinate system.
+            locationInRootView.y = rootView.bounds.size.height - locationInRootView.y;
+        }
         
         [touchesParam addObject:@{
             @"x" : @(locationInSelf.x),

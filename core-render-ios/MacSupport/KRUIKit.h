@@ -578,7 +578,7 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 
 #define KRPlatformView NSView
 
-// [macOS] KRUIView provides macOS-specific extensions beyond NSView+KRCompat
+// KRUIView provides macOS-specific extensions beyond NSView+KRCompat
 // Note: Basic UIKit compatibility (layoutSubviews, didMoveToSuperview, etc.) is provided by NSView+KRCompat
 @interface KRUIView : KRPlatformView
 
@@ -588,16 +588,10 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 @property (nonatomic, readonly) BOOL isFirstResponder;
 - (BOOL)becomeFirstResponder;
 
-#pragma mark Layout
-
-- (void)setNeedsLayout;
-- (void)setNeedsDisplay;
 
 #pragma mark Mouse Events
 
 - (BOOL)hasMouseHoverEvent;
-- (NSDictionary *)locationInfoFromDraggingLocation:(NSPoint)locationInWindow;
-- (NSDictionary *)locationInfoFromEvent:(NSEvent *)event;
 
 #pragma mark macOS-Specific Properties
 
@@ -621,6 +615,7 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath);
 @property (nonatomic, assign) BOOL enableFocusRing;
 
 @end
+
 
 #pragma mark - KRPlatformView Animation Compatibility
 

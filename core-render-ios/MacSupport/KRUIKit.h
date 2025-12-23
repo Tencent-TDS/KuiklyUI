@@ -819,17 +819,25 @@ NS_INLINE CGRect CGRectValue(NSValue *value) {
 
 #if TARGET_OS_OSX
 
+/// Mac version UISegmentedControl
 @interface KRUISegmentedControl : NSSegmentedControl
 
+/// index of the selected segment
 @property (nonatomic, assign) NSInteger selectedSegmentIndex;
 
+/// initialize with items
 - (instancetype)initWithItems:(NSArray *)items;
 
+/// insert a segment with title at index
 - (void)insertSegmentWithTitle:(NSString *)title atIndex:(NSUInteger)segment animated:(BOOL)animated;
+
+/// remove all segments
 - (void)removeAllSegments;
+
+/// number of segments
 - (NSInteger)numberOfSegments;
 
-// UIControl-like target-action support
+/// UIControl-like target-action support
 - (void)addTarget:(id)target action:(SEL)action forControlEvents:(UIControlEvents)events;
 
 @end

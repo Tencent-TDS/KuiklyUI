@@ -316,7 +316,6 @@ static char kKUUserInteractionEnabledKey;
         return [self hitTest:cgPoint withEvent:nil];
     }
     
-    // 否则调用原始的 hitTest: 实现
     return [self ku_hitTest:point];
 }
 

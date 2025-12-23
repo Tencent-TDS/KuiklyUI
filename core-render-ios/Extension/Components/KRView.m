@@ -169,7 +169,7 @@
 
 #endif // [macOS]
 
-- (KRPlatformView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event { // [macOS]
+- (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
     if ([self p_hasZIndexInSubviews]) {
         _hitTesting = YES;
     }
@@ -189,7 +189,7 @@
         }
     }
     // 2. 没有动画：执行原有的穿透逻辑
-    KRPlatformView *hitView = [super hitTest:point withEvent:event]; // [macOS]
+    UIView *hitView = [super hitTest:point withEvent:event];
     _hitTesting = NO;
     if (hitView == self) {
         // 对齐安卓事件机制，无手势事件监听则将手势穿透

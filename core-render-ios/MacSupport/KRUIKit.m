@@ -1179,15 +1179,16 @@ static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseIn
 
 // Override hitTest to ensure proper event routing to subviews
 - (NSView *)hitTest:(NSPoint)point {
+    NSPoint pointInSelf = [self convertPoint:point fromView:self.superview];
     // First check if the point is within our bounds
-    if (![self mouse:point inRect:self.bounds]) {
+    if (![self mouse:pointInSelf inRect:self.bounds]) {
         return nil;
     }
     
     // Only do custom hit testing if we have our custom documentView
     if ([self.documentView isKindOfClass:[KRUIDocumentView class]]) {
         // Convert point to documentView's coordinate space and check subviews
-        NSView *hitView = [self.documentView hitTest:[self.documentView convertPoint:point fromView:self]];
+        NSView *hitView = [self.documentView hitTest:[self.documentView convertPoint:point fromView:self.superview]];
         
         // If a subview was hit, return it
         if (hitView && hitView != self.documentView) {

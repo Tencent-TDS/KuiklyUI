@@ -92,6 +92,10 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
     private var superTouch: Boolean = false
     private var superTouchCanceled: Boolean = false
 
+    private fun syncComposeRootTag() {
+        krRootView()?.setTag(COMPOSE_ROOT_TAG_ID, superTouch)
+    }
+
     override fun setProp(propKey: String, propValue: Any): Boolean {
         return when (propKey) {
             SCREEN_FRAME_PAUSE -> {
@@ -100,6 +104,7 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
             }
             SUPER_TOUCH -> {
                 superTouch = propValue as Boolean
+                syncComposeRootTag()
                 true
             }
             EVENT_TOUCH_DOWN -> {
@@ -360,6 +365,7 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
 
     companion object {
         const val VIEW_NAME = "KRView"
+        private const val COMPOSE_ROOT_TAG_ID = -0x7C03905E // random unique negative int
         private const val PAGE_X = "pageX"
         private const val PAGE_Y = "pageY"
         private const val TOUCHES = "touches"
@@ -375,6 +381,12 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
         private const val EVENT_TOUCH_UP = "touchUp"
         private const val EVENT_TOUCH_CANCEL = "touchCancel"
         private const val EVENT_SCREEN_FRAME = "screenFrame"
+
+        /**
+         * Whether the given View is marked as a compose root (SuperTouch enabled).
+         */
+        internal fun isComposeRoot(view: View?): Boolean =
+            view?.getTag(COMPOSE_ROOT_TAG_ID) == true
     }
 
 }

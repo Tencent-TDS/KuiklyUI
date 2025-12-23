@@ -33,6 +33,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.const.KRCssConst
+import com.tencent.kuikly.core.render.android.expand.component.KRView
 import com.tencent.kuikly.core.render.android.css.ktx.touchConsumeByNative
 import com.tencent.kuikly.core.render.android.css.ktx.drawCommonDecoration
 import com.tencent.kuikly.core.render.android.css.ktx.drawCommonForegroundDecoration
@@ -559,8 +560,21 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
     }
 
     override fun fling(velocityX: Int, velocityY: Int): Boolean {
+        // When used by Compose DSL, limit fling velocity
+        // to avoid excessive accumulated speed during rapid gestures.
+        val rootView = krRootView()
+        val isComposeView = KRView.isComposeRoot(rootView)
+
+        val (adjustedVelocityX, adjustedVelocityY) = if (isComposeView) {
+            val maxFlingVelocity = 12000 // Limit to 12000 for Compose; can be tuned based on UX
+            velocityX.coerceIn(-maxFlingVelocity, maxFlingVelocity) to
+                velocityY.coerceIn(-maxFlingVelocity, maxFlingVelocity)
+        } else {
+            velocityX to velocityY
+        }
+
         if (overScrollHandler?.overScrolling != true) { // over scroll 时, willDragEnd 由 over scroll handler 处理
-            fireWillDragEndEvent(velocityX, velocityY)
+            fireWillDragEndEvent(adjustedVelocityX, adjustedVelocityY)
         }
         if (!supportFling || skipFlingIfNestOverScroll) {
             // 由于没有调用super.fling(velocityX, velocityY)
@@ -571,7 +585,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             stopScroll()
             return true
         }
-        return super.fling(velocityX, velocityY)
+        return super.fling(adjustedVelocityX, adjustedVelocityY)
     }
 
     override fun onAttachedToWindow() {

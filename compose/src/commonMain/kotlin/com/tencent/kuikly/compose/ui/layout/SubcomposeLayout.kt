@@ -360,6 +360,7 @@ fun SubcomposeLayout(
                 attr {
                     flingEnable(!isPagerView)
                     setProp("isComposePager", if (isPagerView) 1 else 0)
+                    setProp("dynamicSyncScrollDisable", 1)
                     if (orientation == Orientation.Vertical) {
                         flexDirectionColumn()
                     } else {

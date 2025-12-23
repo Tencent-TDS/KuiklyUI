@@ -1090,7 +1090,7 @@
     {
         UIBezierPath *path = [KRConvertUtil hr_bezierPathWithRoundedRect:self.bounds
                                             topLeftCornerRadius:_borderRadius.topLeftCornerRadius topRightCornerRadius:_borderRadius.topRightCornerRadius bottomLeftCornerRadius:_borderRadius.bottomLeftCornerRadius bottomRightCornerRadius:_borderRadius.bottomRightCornerRadius];
-        #if TARGET_OS_OSX
+        #if TARGET_OS_OSX // [macOS]
         if (@available(macos 14.0, *)) {
             self.path = path.CGPath;
         } else {
@@ -1100,9 +1100,9 @@
             self.path = p;
             CGPathRelease(p);
         }
-        #else
+        #else // [macOS]
         self.path = path.CGPath;
-        #endif
+        #endif // [macOS]
     }
 }
 
@@ -1178,7 +1178,7 @@
     }else {
         self.lineDashPattern = nil;
     }
-    #if TARGET_OS_OSX
+    #if TARGET_OS_OSX // [macOS]
     if (@available(macos 14.0, *)) {
         self.path = path.CGPath;
     } else {

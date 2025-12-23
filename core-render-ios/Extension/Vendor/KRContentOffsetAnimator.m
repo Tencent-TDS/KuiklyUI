@@ -96,7 +96,6 @@
 
 #pragma mark - CAAnimationDelegate
 - (void)animationDidStop:(CAAnimation *)anim finished:(BOOL)flag {
-    printf("xxxx 动画停止 flag: %i stopByClient: %i \n", flag, self.stoppedByClient);
     [self invalidateDisplayLink];
     // 根据完成状态选择对齐位置：完成→终点；中断→当前视觉值
     if (flag && !self.stoppedByClient) {

@@ -36,6 +36,7 @@ import com.tencent.kuikly.compose.ui.util.fastAny
 import com.tencent.kuikly.compose.ui.util.fastForEach
 import com.tencent.kuikly.compose.platform.GlobalTapManager
 import com.tencent.kuikly.compose.platform.TapEventType
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -108,7 +109,7 @@ suspend fun PointerInputScope.detectTapGestures(
     awaitEachGesture {
         val down = awaitFirstDown()
         down.consume()
-        launch {
+        launch(start = CoroutineStart.UNDISPATCHED) {
             pressScope.reset()
         }
         if (onPress !== NoPressGesture) launch {
@@ -153,7 +154,7 @@ suspend fun PointerInputScope.detectTapGestures(
                     proxyOnTap?.invoke(upOrCancel.position) // no valid second tap started
                 } else {
                     // Second tap down detected
-                    launch {
+                    launch(start = CoroutineStart.UNDISPATCHED) {
                         pressScope.reset()
                     }
                     if (onPress !== NoPressGesture) {
@@ -244,7 +245,7 @@ internal suspend fun PointerInputScope.detectTapAndPress(
     val pressScope = PressGestureScopeImpl(this)
     coroutineScope {
         awaitEachGesture {
-            launch {
+            launch(start = CoroutineStart.UNDISPATCHED) {
                 pressScope.reset()
             }
 
@@ -377,7 +378,9 @@ internal class PressGestureScopeImpl(
      */
     fun cancel() {
         isCanceled = true
-        mutex.unlock()
+        if (mutex.isLocked) {
+            mutex.unlock()
+        }
     }
 
     /**
@@ -385,7 +388,9 @@ internal class PressGestureScopeImpl(
      */
     fun release() {
         isReleased = true
-        mutex.unlock()
+        if (mutex.isLocked) {
+            mutex.unlock()
+        }
     }
 
     /**

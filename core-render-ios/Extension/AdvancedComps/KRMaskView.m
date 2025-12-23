@@ -15,15 +15,11 @@
 
 #import "KRMaskView.h"
 #import "KRComponentDefine.h"
+
+
 @implementation KRMaskView
 
 @synthesize hr_rootView;
-- (instancetype)initWithFrame:(CGRect)frame {
-    if (self = [super initWithFrame:frame]) {
-        
-    }
-    return self;
-}
 
 #pragma mark - KuiklyRenderViewExportProtocol
 
@@ -40,9 +36,33 @@
     [super insertSubview:view atIndex:index];
     // 总共两个孩子，第一个孩子为生成遮罩的View ，第二个为被遮罩应用的View
     if (index == 1) {
+#if TARGET_OS_OSX // [macOS
+        UIView *maskSourceView = self.subviews.firstObject;
+        [maskSourceView setNeedsDisplay:YES];
+        [maskSourceView displayIfNeeded];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self p_updateMaskIfNeeded];
+        });
+#else // macOS]
         view.layer.mask = self.subviews[0].layer;
+#endif // [macOS]
     }
 }
 
+#if TARGET_OS_OSX // [macOS
+- (void)p_updateMaskIfNeeded {
+    UIView *maskSourceView = self.subviews.firstObject;
+    [maskSourceView removeFromSuperview];
+    UIView *targetView = self.subviews.firstObject;
+    targetView.wantsLayer = YES;
+
+    // Flip Y-axis for macOS coordinate system (bottom-left origin)
+    CALayer *maskLayer = maskSourceView.layer;
+    maskLayer.transform = CATransform3DMakeScale(1.0, -1.0, 1.0);
+    maskLayer.anchorPoint = CGPointMake(0.5, 0.5);
+    maskLayer.position = CGPointMake(CGRectGetMidX(maskLayer.bounds), CGRectGetMidY(maskLayer.bounds));
+    targetView.layer.mask = maskLayer;
+}
+#endif // macOS]
 
 @end

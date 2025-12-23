@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#import <UIKit/UIKit.h>
+#import "KRUIKit.h" // [macOS]
 #import "TDFModuleProtocol.h"
 #import "KuiklyRenderViewExportProtocol.h"
 #import "KuiklyContextParam.h"
@@ -25,7 +25,7 @@ NS_ASSUME_NONNULL_BEGIN
 @protocol KuiklyRenderViewDelegate;
 @protocol KuiklyRenderLayerProtocol;
 /** RootView尺寸变化事件名. */
-UIKIT_EXTERN NSString *const KRRootViewSizeDidChangedEventKey;
+FOUNDATION_EXTERN NSString *const KRRootViewSizeDidChangedEventKey;
 /**
  * Kuikly by kotlin 渲染视图类，业务用该类作为对KuiklyRender的使用.
  * 注：业务接入层建议对接KuiklyRenderViewControllerDelegator类，因其对KuiklyRenderView进行了封装，所以不建议直接使用KuiklyRenderView类

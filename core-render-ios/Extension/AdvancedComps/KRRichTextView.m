@@ -83,7 +83,11 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
 
 - (void)css_onClickTapWithSender:(UIGestureRecognizer *)sender {
     CGPoint location = [sender locationInView:self];
+#if TARGET_OS_OSX // [macOS NSWindow is not a subclass of NSView, use contentView
+    CGPoint pageLocation = [sender locationInView:self.window.contentView];
+#else
     CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
+#endif // macOS]
     KRTextRender * textRender = self.attributedText.hr_textRender;
     NSInteger index = [textRender characterIndexForPoint:location];
     NSNumber *spanIndex = nil;
@@ -519,7 +523,11 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
     // 使用 NSTextContainer 和 NSLayoutManager 计算
     NSTextStorage *textStorage = [[NSTextStorage alloc] initWithAttributedString:attributedString];
     NSLayoutManager *layoutManager = [[NSLayoutManager alloc] init];
+#if TARGET_OS_OSX // [macOS
+    CGFloat maxWidth = [NSScreen mainScreen].frame.size.width;
+#else
     CGFloat maxWidth = [UIScreen mainScreen].bounds.size.width;
+#endif // macOS]
     CGSize containerSize = CGSizeMake(maxWidth, CGFLOAT_MAX);
     NSTextContainer *textContainer = [[NSTextContainer alloc] initWithSize:containerSize];
     
@@ -572,35 +580,41 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
 
 // 创建渐变色信息类
 + (UIImage *)createGradientImageWithInfo:(CSSGradientInfo *)info size:(CGSize)size {
-    UIGraphicsBeginImageContextWithOptions(size, NO, [UIScreen mainScreen].scale);
-    CGContextRef context = UIGraphicsGetCurrentContext();
-    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-    
-    // 转换颜色为 CGColor
-    NSMutableArray *cgColors = [NSMutableArray array];
-    CGFloat locations[info.locations.count];
-    
-    for (int i = 0; i < info.locations.count; i++) {
-        [cgColors addObject:(__bridge id)(info.colors[i].CGColor)];
-        locations[i] = [info.locations[i] floatValue];
-    }
-    
-    CGGradientRef gradient = CGGradientCreateWithColors(colorSpace, (__bridge CFArrayRef)cgColors, locations);
-    
-    // 根据方向绘制渐变
-    CAGradientLayer *gradientLayer = [CAGradientLayer layer];
-    gradientLayer.bounds = CGRectMake(0, 0, size.width, size.height);
-    
-    [KRConvertUtil hr_setStartPointAndEndPointWithLayer:gradientLayer direction:info.direction];
-    CGPoint startPoint = CGPointMake(gradientLayer.startPoint.x * size.width, gradientLayer.startPoint.y * size.height);
-    CGPoint endPoint = CGPointMake(gradientLayer.endPoint.x * size.width, gradientLayer.endPoint.y * size.height);
-    
-    CGContextDrawLinearGradient(context, gradient, startPoint, endPoint, 0);
-    
-    CGGradientRelease(gradient);
-    CGColorSpaceRelease(colorSpace);
-    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
+#if TARGET_OS_OSX // [macOS
+    KRUIGraphicsImageRenderer *renderer = [[KRUIGraphicsImageRenderer alloc] initWithSize:size];
+    UIImage *image = [renderer imageWithActions:^(KRUIGraphicsImageRendererContext *rendererContext) {
+        CGContextRef context = [rendererContext CGContext];
+#else
+    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:size];
+    UIImage *image = [renderer imageWithActions:^(UIGraphicsImageRendererContext *rendererContext) {
+        CGContextRef context = rendererContext.CGContext;
+#endif // macOS]
+        CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+        
+        // 转换颜色为 CGColor
+        NSMutableArray *cgColors = [NSMutableArray array];
+        CGFloat locations[info.locations.count];
+        
+        for (int i = 0; i < info.locations.count; i++) {
+            [cgColors addObject:(__bridge id)(info.colors[i].CGColor)];
+            locations[i] = [info.locations[i] floatValue];
+        }
+        
+        CGGradientRef gradient = CGGradientCreateWithColors(colorSpace, (__bridge CFArrayRef)cgColors, locations);
+        
+        // 根据方向绘制渐变
+        CAGradientLayer *gradientLayer = [CAGradientLayer layer];
+        gradientLayer.bounds = CGRectMake(0, 0, size.width, size.height);
+        
+        [KRConvertUtil hr_setStartPointAndEndPointWithLayer:gradientLayer direction:info.direction];
+        CGPoint startPoint = CGPointMake(gradientLayer.startPoint.x * size.width, gradientLayer.startPoint.y * size.height);
+        CGPoint endPoint = CGPointMake(gradientLayer.endPoint.x * size.width, gradientLayer.endPoint.y * size.height);
+        
+        CGContextDrawLinearGradient(context, gradient, startPoint, endPoint, 0);
+        
+        CGGradientRelease(gradient);
+        CGColorSpaceRelease(colorSpace);
+    }];
     
     return image;
 }

@@ -189,7 +189,7 @@ internal class AppTabPage : MultiLingualPager() {
 
     override fun body(): ViewBuilder {
         val ctx = this
-        val isLiquidGlassSupported = PlatformUtils.isLiquidGlassSupported()
+        val isLiquidGlassSupported = PlatformUtils.isIOS() && PlatformUtils.isLiquidGlassSupported()
         val tabBottomHeight = if (isLiquidGlassSupported) 0f else TAB_BOTTOM_HEIGHT
 
         return {

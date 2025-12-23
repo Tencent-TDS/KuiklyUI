@@ -465,6 +465,9 @@ open class TextAttr : Attr() {
 
     /**
      * 设置文字描边颜色和宽度
+     *
+     * **注意：Android暂不支持**
+     *
      * @param color 文字描边颜色
      * @param color 文字描边宽度
      */

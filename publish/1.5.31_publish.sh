@@ -1,3 +1,11 @@
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+echo "sh path: $SCRIPT_DIR"
+echo "project's root path: $PROJECT_ROOT"
+
+cd "$PROJECT_ROOT" || { echo "Can't cd project's root path: $PROJECT_ROOT"; exit 1; }
+
 # 1.记录原始url
 ORIGIN_DISTRIBUTION_URL=$(grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties | cut -d "=" -f 2)
 echo "origin gradle url: $ORIGIN_DISTRIBUTION_URL"
@@ -17,10 +25,21 @@ echo "$core_pager_manager"
 sed -i.bak 's/lowercase/toLowerCase/g' "$core_pager_manager"
 
 # 4.开始发布
-KUIKLY_AGP_VERSION="4.2.1" KUIKLY_KOTLIN_VERSION="1.4.20" ./gradlew -c settings.1.4.20.gradle.kts :core-annotations:publishToMavenLocal --stacktrace
-KUIKLY_AGP_VERSION="4.2.1" KUIKLY_KOTLIN_VERSION="1.4.20" ./gradlew -c settings.1.4.20.gradle.kts :core-kapt:publishToMavenLocal --stacktrace
-KUIKLY_AGP_VERSION="4.2.1" KUIKLY_KOTLIN_VERSION="1.4.20" ./gradlew -c settings.1.4.20.gradle.kts :core:publishToMavenLocal --stacktrace
-KUIKLY_AGP_VERSION="4.2.1" KUIKLY_KOTLIN_VERSION="1.4.20" ./gradlew -c settings.1.4.20.gradle.kts :core-render-android:publishToMavenLocal --stacktrace
+MODULE=${1:-all}
+PUBLISH_TASK=${2:-publishToMavenLocal}
+if [ "$MODULE" = "all" ]; then
+  echo "编译所有模块 core-annotations、core-ksp、core、core-render-android"
+  echo "发布方式: $PUBLISH_TASK"
+  KUIKLY_KOTLIN_VERSION="1.5.31" ./gradlew -c settings.1.5.31.gradle.kts :core-annotations:$PUBLISH_TASK --stacktrace
+  KUIKLY_KOTLIN_VERSION="1.5.31" ./gradlew -c settings.1.5.31.gradle.kts :core-ksp:$PUBLISH_TASK --stacktrace
+  KUIKLY_KOTLIN_VERSION="1.5.31" ./gradlew -c settings.1.5.31.gradle.kts :core:$PUBLISH_TASK --stacktrace
+  KUIKLY_KOTLIN_VERSION="1.5.31" ./gradlew -c settings.1.5.31.gradle.kts :core-render-android:$PUBLISH_TASK --stacktrace
+
+else
+  echo "编译模块: $MODULE"
+  echo "发布方式: $PUBLISH_TASK"
+  KUIKLY_KOTLIN_VERSION="1.5.31" ./gradlew -c settings.1.5.31.gradle.kts :$MODULE:$PUBLISH_TASK --stacktrace
+fi
 
 ## 5.还原文件
 mv gradle/wrapper/gradle-wrapper.properties.bak gradle/wrapper/gradle-wrapper.properties

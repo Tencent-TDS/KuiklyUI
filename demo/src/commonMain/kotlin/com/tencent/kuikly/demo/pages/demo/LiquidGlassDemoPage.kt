@@ -485,14 +485,16 @@ internal class LiquidGlassDemoPage : BasePager() {
                     }
                 }()
 
-                vif({ PlatformUtils.isIOS() }) {
+                vif({ PlatformUtils.isIOSOrMacOS() }) {
                     // 组件方式写法演示分组 - 内置
                     ctx.createDemoSection("独立组件方式使用示例（内置组件）") {
                         ctx.liquidGlassComponentDemo()()
                         ctx.iOSSwitchAndSliderDemo()()
                         ctx.iOSSystemSegmentedControlDemo()()
                     }()
-                    
+                }
+
+                vif({ PlatformUtils.isIOS() }) {
                     // 组件方式写法演示分组 - 自定义
                     ctx.createDemoSection("独立组件方式使用示例（自定义组件）") {
                         ctx.iOSSystemTabbarDemo()()

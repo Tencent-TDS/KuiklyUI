@@ -662,17 +662,20 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath) {
               startAngle:(CGFloat)startAngle
                 endAngle:(CGFloat)endAngle
                clockwise:(BOOL)clockwise {
-    // [macOS] NSBezierPath uses degrees, UIBezierPath uses radians
-    // Also NSBezierPath's angles are counter-clockwise from the positive x-axis
-    // Convert radians to degrees and adjust for coordinate system differences
+    // NSBezierPath uses degrees, UIBezierPath uses radians
+    // Convert radians to degrees
     CGFloat startDegrees = startAngle * 180.0 / M_PI;
     CGFloat endDegrees = endAngle * 180.0 / M_PI;
     
+    // [macOS] IMPORTANT: iOS and macOS have different coordinate systems.
+    // iOS: origin at top-left, Y-axis points down → clockwise is visually clockwise
+    // macOS: origin at bottom-left, Y-axis points up → clockwise is visually counter-clockwise
+    // To maintain visual consistency with iOS, we need to invert the clockwise parameter.
     [self appendBezierPathWithArcWithCenter:center
                                      radius:radius
                                  startAngle:startDegrees
                                    endAngle:endDegrees
-                                  clockwise:clockwise];
+                                  clockwise:!clockwise];
 }
 
 - (void)addLineToPoint:(CGPoint)point {

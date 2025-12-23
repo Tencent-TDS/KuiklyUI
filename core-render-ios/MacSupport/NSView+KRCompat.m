@@ -55,7 +55,7 @@ static NSComparisonResult KuiklyBringToFrontCompare(__kindof NSView *a, __kindof
     [self layoutSubtreeIfNeeded];
 }
 
-// [macOS] iOS 兼容：无参 setNeedsLayout 与 setNeedsDisplay
+// iOS 兼容：无参 setNeedsLayout 与 setNeedsDisplay
 - (void)setNeedsLayout {
     self.needsLayout = YES;
 }
@@ -335,7 +335,7 @@ static char kKUUserInteractionEnabledKey;
     self.accessibilityElement = isAccessibilityElement;
 }
 
-// [macOS] Accessibility traits compatibility - map iOS traits to macOS roles
+// Accessibility traits compatibility - map iOS traits to macOS roles
 static const void *kAccessibilityTraitsKey = &kAccessibilityTraitsKey;
 
 - (UIAccessibilityTraits)accessibilityTraits {
@@ -375,7 +375,7 @@ static const void *kAccessibilityTraitsKey = &kAccessibilityTraitsKey;
     }
 }
 
-// [macOS] Accessibility hint compatibility - map to macOS accessibilityHelp
+// Accessibility hint compatibility - map to macOS accessibilityHelp
 - (NSString *)accessibilityHint {
     return self.accessibilityHelp;
 }

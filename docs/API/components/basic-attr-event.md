@@ -521,6 +521,19 @@ internal class TransformPage : BasePager() {
 
 设置组件的层级位置。组件的层级是按照书写顺序来叠放的，使用zIndex方法可更改组件的叠放顺序
 
+<div class="table-01">
+
+| 参数        | 描述                                               | 类型      |
+|:----------|:-------------------------------------------------|---------|
+| zIndex    | 层叠顺序值，值越大层级越高                                    | Int     |
+| useOutline | 默认为true，设为false可以解决Android同时设置zIndex和圆角出现非预期阴影问题 | Boolean |
+
+</div>
+
+:::tip 注意
+**useOutline参数仅在Android平台生效**，用于控制是否使用OutlineViewProvider。当遇到同时设置zIndex和圆角出现非预期阴影问题时，可以将此参数设为false来解决。
+:::
+
 :::tabs
 
 @tab:active 示例
@@ -622,6 +635,40 @@ internal class OverflowPage : BasePager() {
 
 :::
 
+### clipPath方法<Badge text="安卓2.8.0以上" type="warn"/><Badge text="鸿蒙2.8.0以上" type="warn"/>
+
+设置组件的裁剪路径，可以使用路径绑定的方式裁剪组件的显示区域为任意形状。
+
+<div class="table-01">
+
+| 参数        | 描述                                                          | 类型              |
+|:----------|:------------------------------------------------------------|:----------------|
+| builder   | 裁剪路径构建器函数，接收路径API、组件宽度和高度作为参数。传入 null 可清除裁剪路径 | ClipPathBuilder? |
+
+</div>
+
+**ClipPathBuilder** 是一个函数类型，定义为：`PathApi.(width: Float, height: Float) -> Unit`
+
+在构建器函数中，可以使用以下 **PathApi** 方法来构建裁剪路径（详细参数说明请参考 [Canvas 路径操作](canvas.md#路径操作)）：
+
+| 方法                | 描述                                    |
+|:------------------|:--------------------------------------|
+| beginPath()       | 新建一条路径                                |
+| moveTo(x, y)      | 将路径起点移动到指定坐标                          |
+| lineTo(x, y)      | 从当前点绘制直线到指定坐标                          |
+| arc(centerX, centerY, radius, startAngle, endAngle, counterclockwise) | 绘制圆弧 |
+| quadraticCurveTo(cpx, cpy, x, y) | 绘制二次贝塞尔曲线                             |
+| bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x, y) | 绘制三次贝塞尔曲线                             |
+| closePath()       | 闭合路径                                    |
+
+[组件使用示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/ClipPathExamplePage.kt)
+
+:::tip 注意
+- 裁剪路径会根据组件的布局尺寸动态计算
+- 裁剪路径支持响应式更新，当依赖的响应式变量变化时会自动重新计算
+- 传入 `null` 可以清除已设置的裁剪路径
+:::
+
 ### keepAlive方法
 
 设置组件是否常驻。常用于**有状态的组件**。如果一个组件被设置为true，并且这个组件是可滚动的容器的直接孩子的话(例如List, PageList, SlidePage), 当
@@ -635,7 +682,110 @@ internal class OverflowPage : BasePager() {
 
 无障碍化属性, 当应用处于TalkBack模式时, 元素获取焦点后, 元素会语音读出该值
 
+### debugName方法
+
+设置组件的调试名称，用于在 UI-Inspector 中显示视图名称，方便开发调试时快速识别和定位组件。
+
+:::warning 注意
+- 与 [debugUIInspector](./pager.md#debuguiinspector) 方法互斥，二者只能选其一开启
+- 该功能仅建议在开发阶段启用，**请勿在生产环境中使用**
+- 启用后会关闭组件层级优化，可能影响性能
+  :::
+
+<div class="table-01">
+
+| 参数        | 描述                           | 类型     |
+|:----------|:-----------------------------|--------|
+| debugName | 调试名称，将在 UI-Inspector 中显示 | String |
+
+</div>
+
+### capture方法<Badge text="实验性API，仅鸿蒙支持" type="warn"/>
+
+设置容器组件的事件捕获规则。当父容器设置了capture规则后，可以在特定区域内拦截特定类型的手势事件，阻止这些事件传递给子组件。该方法接收**CaptureRule**可变参数。
+
+> 注：该属性为容器组件特有，实验性API，仅鸿蒙支持
+
+<div class="table-01">
+
+**CaptureRule**
+
+| 参数        | 描述                     | 类型      |
+|:----------|:-----------------------|---------|
+| type    | 要捕获的事件类型               | CaptureRuleType |
+| area | 捕获区域，为null表示整个容器区域     | Frame? |
+| direction | 捕获方向（仅对pan事件有效），默认为ALL | Int |
+
+</div>
+
+**CaptureRuleType:**
+
+<div class="table-01">
+
+| 参数     | 描述                   |
+|:-------|:---------------------|
+| CLICK    | 单击事件 |
+| DOUBLE_CLICK   | 双击事件 |
+| LONG_PRESS | 长按事件 |
+| PAN  | 拖拽事件 |
+
+</div>
+
+**CaptureRuleDirection:**
+
+<div class="table-01">
+
+| 参数     | 描述                   |
+|:-------|:---------------------|
+| TO_LEFT    | 向左方向 |
+| TO_TOP   | 向上方向 |
+| TO_RIGHT | 向右方向 |
+| TO_BOTTOM  | 向下方向 |
+| HORIZONTAL | 水平方向（左+右） |
+| VERTICAL | 垂直方向（上+下） |
+| ALL | 所有方向（默认值） |
+
+</div>
+
+**CaptureRule快捷创建方法:**
+
+```kotlin
+// 创建点击捕获规则
+CaptureRule.click(area: Frame? = null)
+
+// 创建双击捕获规则
+CaptureRule.doubleClick(area: Frame? = null)
+
+// 创建长按捕获规则
+CaptureRule.longPress(area: Frame? = null)
+
+// 创建拖拽捕获规则
+CaptureRule.pan(direction: Int = CaptureRuleDirection.ALL, area: Frame? = null)
+```
+
+**示例代码:** [EventCapturePage.kt](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/EventCapturePage.kt)
+
+:::tip 使用场景
+capture属性常用于以下场景：
+1. **侧滑返回**: 在页面左侧边缘区域拦截向右的拖拽事件，实现侧滑返回功能
+2. **手势冲突处理**: 当父容器和子组件都监听同一手势时，通过capture控制事件的分发
+3. **区域性交互**: 只在特定区域内响应特定手势
+:::
+
+### autoDarkEnable方法
+是否自动暗黑模式
+
+**true(默认值):**
+- iOS: 对应overrideUserInterfaceStyle设置为UIUserInterfaceStyleUnspecified
+- Android: 对应setForceDarkAllowed设置为ture
+
+**false:**
+- iOS: 对应overrideUserInterfaceStyle设置为UIUserInterfaceStyleLight
+- Android: 对应setForceDarkAllowed设置为false
+
 ---
+
+## 布局属性
 
 下面只描述布局相关属性方法的定义, 更详细的描述, 可查看[Kuikly的布局教程](../../DevGuide/layout.md)
 
@@ -855,6 +1005,7 @@ right方法是指将本组件的定位到距离**右边**的多少距离，而�
 bottom方法是指将本组件的定位到距离**下边**的多少距离，而下边的定义取决于**positionType**方法设置的值。如果设置了**FlexPositionType.RELATIVE**,
 那么bottom的作用相当于设置了marginBottom; 如果设置了**FlexPositionType.ABSOLUTE**, 那么bottom的作用是将元素的上边定位到距离父元素下边的bottom值。
 
+
 ---
 
 ## 基础事件
@@ -940,6 +1091,7 @@ internal class DoubleClickEventPage : BasePager() {
 
 ``longPress``事件为长按事件，当``Kuikly``组件有设置长按事件，并且``Kuikly``组件被长按时，会触发``longPress``闭包回调。
 ``longPress``回调闭包中含有``LongPressParams``类型参数，以此来描述长按事件的信息
+``longPress``有三种state: start move end，当长按过程中有手势变化，则``longPress``会多次触发回调。如果不关心state，只关心长按是否进入事件，只需监听对应的start状态即可。
 
 <div class="table-01">
 

@@ -44,7 +44,7 @@ KuiklyUI/
 ├── core/                    # Core module: Reactive UI, Layout Algorithm, Bridge Communication
 │   ├── src/commonMain/      # Cross-platform common code
 │   ├── src/androidMain/     # Android platform implementation (outputs .aar)
-│   ├── src/iosMain/         # iOS platform implementation (outputs .framework)
+│   ├── src/appleMain/       # apple platform (iOS & macOS) implementation (outputs .framework)
 │   ├── src/ohosArm64Main/   # HarmonyOS platform implementation (outputs .so)
 │   └── src/jsMain/          # H5/Mini Program platform implementation (outputs .js)
 ├── compose/                 # Compose DSL module (based on Jetpack Compose 1.7.3)

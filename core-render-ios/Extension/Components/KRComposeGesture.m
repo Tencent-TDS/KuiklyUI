@@ -31,9 +31,11 @@
 - (instancetype)init {
     self = [super init];
     if (self) {
+#if !TARGET_OS_OSX // [macOS
         // 设置手势识别器属性，确保不会干扰其他触摸事件
         self.cancelsTouchesInView = YES;
         self.delaysTouchesBegan = YES;
+#endif // macOS]
         
         // 初始化跟踪的触摸点集合
         self.trackedTouches = [NSMutableSet new];
@@ -66,6 +68,8 @@
         [self.trackedTouches removeObject:touch];
     }
 }
+
+#if !TARGET_OS_OSX // [macOS
 
 // 重写触摸事件方法，直接传递所有触摸事件
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
@@ -129,6 +133,61 @@
     }
 }
 
+#else // [macOS
+
+// macOS: 使用鼠标事件替代触摸事件（NSGestureRecognizer 不支持 touches* 方法）
+- (void)mouseDown:(NSEvent *)event {
+    // 在 macOS 上创建模拟的触摸对象
+    NSSet<UITouch *> *touches = [NSSet setWithObject:(UITouch *)event];
+    BOOL areTouchesInitial = [self startTrackingTouches:touches];
+    
+    [self onTouchesEvent:self.trackedTouches event:(UIEvent *)event phase:TouchesEventKindBegin];
+    
+    if ([self isOngoing]) {
+        switch (self.state) {
+            case UIGestureRecognizerStatePossible:
+                self.state = UIGestureRecognizerStateBegan;
+                break;
+            case UIGestureRecognizerStateBegan:
+            case UIGestureRecognizerStateChanged:
+                self.state = UIGestureRecognizerStateChanged;
+                break;
+            default:
+                break;
+        }
+    } else {
+        if (!areTouchesInitial) {
+            [self checkPanIntent];
+        }
+    }
+}
+
+- (void)mouseDragged:(NSEvent *)event {
+    [self onTouchesEvent:_trackedTouches event:(UIEvent *)event phase:TouchesEventKindMoved];
+    
+    if ([self isOngoing]) {
+        self.state = UIGestureRecognizerStateChanged;
+    } else {
+        [self checkPanIntent];
+    }
+}
+
+- (void)mouseUp:(NSEvent *)event {
+    NSSet<UITouch *> *touches = [NSSet setWithObject:(UITouch *)event];
+    [self onTouchesEvent:_trackedTouches event:(UIEvent *)event phase:TouchesEventKindEnd];
+    [self stopTrackingTouches:touches];
+    
+    if ([self isOngoing]) {
+        self.state = self.trackedTouches.count == 0 ? UIGestureRecognizerStateEnded : UIGestureRecognizerStateChanged;
+    } else {
+        if (self.trackedTouches.count == 0) {
+            self.state = UIGestureRecognizerStateFailed;
+        }
+    }
+}
+
+#endif // macOS]
+
 // 重写 reset 方法，在手势识别结束后重置状态
 - (void)reset {
     [super reset];
@@ -190,6 +249,7 @@
 - (NSDictionary *)generateParamsWithTouches:(NSSet<UITouch *> *)touches event:(UIEvent *)event eventName:(NSString *)eventName {
     NSMutableArray *touchesParam = [NSMutableArray new];
     
+#if !TARGET_OS_OSX // [macOS
     // 处理所有触摸点
     for (UITouch *touch in touches) {
         CGPoint locationInSelf = [touch locationInView:self.containerView];
@@ -204,6 +264,23 @@
             @"pointerId" : @(touch.hash),  // 使用 touch.hash 作为唯一的 pointerId
         }];
     }
+#else // [macOS
+    // macOS: 从 NSEvent 提取鼠标位置信息
+    for (UITouch *touch in touches) {
+        NSEvent *mouseEvent = (NSEvent *)touch;
+        CGPoint locationInSelf = [self.containerView convertPoint:mouseEvent.locationInWindow fromView:nil];
+        CGPoint locationInRootView = [(UIView *)[self.containerView hr_rootView] convertPoint:mouseEvent.locationInWindow fromView:nil];
+        
+        [touchesParam addObject:@{
+            @"x" : @(locationInSelf.x),
+            @"y" : @(locationInSelf.y),
+            @"pageX" : @(locationInRootView.x),
+            @"pageY" : @(locationInRootView.y),
+            @"hash" : @(mouseEvent.hash),
+            @"pointerId" : @(mouseEvent.hash),  // 使用 event.hash 作为唯一的 pointerId
+        }];
+    }
+#endif // macOS]
     
     // 创建包含触摸点数组的完整参数
     NSMutableDictionary *result = touchesParam.count > 0 ? [touchesParam.firstObject mutableCopy] : [@{} mutableCopy];

@@ -64,7 +64,30 @@
 | SELF_ONLY | 仅当前控件处理滚动，不传递给父控件 |
 | SELF_FIRST | 当前控件优先处理滚动，未消费完的滚动量传递给父控件 |
 | PARENT_FIRST | 父控件优先处理滚动，未消费完的滚动量传递给当前控件 |
+用法参考：[竖向列表嵌套滚动用法示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/list/ListNestBounceFalse.kt)、
+[横向列表嵌套滚动示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/list/ListNestRow.kt)
 
+### visibleAreaIgnoreTopMargin
+
+设置计算子组件可见性面积时忽略的顶部距离。用于配合 `willAppear`、`didAppear`、`willDisappear`、`didDisappear`、`appearPercentage` 等可见性事件使用。
+
+| 参数   | 描述                                     | 类型  |
+|--------|------------------------------------------|-------|
+| margin | 计算可见性时忽略的顶部距离，单位为 dp | Float |
+
+### visibleAreaIgnoreBottomMargin
+
+设置计算子组件可见性面积时忽略的底部距离。用于配合 `willAppear`、`didAppear`、`willDisappear`、`didDisappear`、`appearPercentage` 等可见性事件使用。
+
+| 参数   | 描述                                     | 类型  |
+|--------|------------------------------------------|-------|
+| margin | 计算可见性时忽略的底部距离，单位为 dp | Float |
+
+:::tip 使用场景
+当滚动容器顶部或底部有固定的遮挡区域（如悬浮导航栏、底部工具栏等）时，可以使用这两个属性来调整可见性计算的有效区域，确保子组件的可见性事件触发更加准确。
+:::
+
+[visibleAreaIgnoreMargin 使用示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/VisibleAreaIgnoreMarginExamplePage.kt)
 
 ## 事件
 
@@ -133,6 +156,14 @@
 | viewWidth | 列表View宽度 | Float   |
 | viewHeight | 列表View高度 | Float   |
 | isDragging | 当前是否处于拖拽列表滚动中 | Boolean |
+
+### scrollToTop
+
+监听系统触发的“回到顶部”事件。仅 iOS 会在点击状态栏时触发，默认会拦截系统自动滚动到顶部的行为，需在回调中自行处理（如调用 `setContentOffset`）。
+
+| 参数 | 描述 | 类型 |
+|----|----|----|
+| _无_ | 回调无参数 | - |
 
 ### contentSizeChanged
 

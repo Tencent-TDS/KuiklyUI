@@ -25,6 +25,8 @@ import java.util.Collections
  */
 class KRDriveFrameDetector : IKuiklyRenderViewTreeUpdateListener, IKotlinBridgeStatusListener {
 
+    private var isStarted = false
+    private var isResumed = false
     private val updateViewTaskEnqueuedEvents = Collections.synchronizedList(mutableListOf<Long>())
     private val updateViewTaskFinishEvents = mutableListOf<Long>()
     private val transitionToIdleEvents = Collections.synchronizedList(mutableListOf<Long>())
@@ -36,7 +38,9 @@ class KRDriveFrameDetector : IKuiklyRenderViewTreeUpdateListener, IKotlinBridgeS
      * 有更新 View Tree 的任务加入队列时调用
      */
     override fun onUpdateViewTreeEnqueued() {
-        updateViewTaskEnqueuedEvents.add(System.nanoTime())
+        if (isOpen()) {
+            updateViewTaskEnqueuedEvents.add(System.nanoTime())
+        }
     }
 
     /**
@@ -44,21 +48,27 @@ class KRDriveFrameDetector : IKuiklyRenderViewTreeUpdateListener, IKotlinBridgeS
      */
     override fun onUpdateViewTreeFinish() {
         assert(isMainThread())
-        updateViewTaskFinishEvents.add(System.nanoTime())
+        if (isOpen()) {
+            updateViewTaskFinishEvents.add(System.nanoTime())
+        }
     }
 
     /**
      * native2kotlin bridge 处于空闲状态
      */
     override fun onTransitionBridgeIdle() {
-        transitionToIdleEvents.add(System.nanoTime())
+        if (isOpen()) {
+            transitionToIdleEvents.add(System.nanoTime())
+        }
     }
 
     /**
      * native2kotlin bridge 处理繁忙状态
      */
     override fun onTransitionBridgeBusy() {
-        transitionToBusyEvents.add(System.nanoTime())
+        if (isOpen()) {
+            transitionToBusyEvents.add(System.nanoTime())
+        }
     }
 
     /**
@@ -94,6 +104,28 @@ class KRDriveFrameDetector : IKuiklyRenderViewTreeUpdateListener, IKotlinBridgeS
         cleanEvents(transitionToBusyEvents, frameEndTimeNanos)
 
         return isCoreDriveFrame
+    }
+
+    fun start() {
+        isStarted = true
+        isResumed = true
+    }
+
+    fun resume() {
+        isResumed = true
+    }
+
+    fun pause() {
+        isResumed = false
+    }
+
+    fun stop() {
+        isResumed = false
+        isStarted = false
+    }
+
+    private fun isOpen(): Boolean {
+        return isStarted && isResumed
     }
 
     /**

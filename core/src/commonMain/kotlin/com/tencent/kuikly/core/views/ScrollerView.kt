@@ -53,6 +53,8 @@ interface IScrollerViewEventObserver {
     fun scrollerScrollDidEnd(params: ScrollParams) {}
 
     fun scrollFrameDidChanged(frame: Frame) {}
+
+    fun visibleAreaMarginChanged() {}
 }
 
 open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
@@ -324,6 +326,12 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
         }
     }
 
+    internal fun notifyVisibleAreaMarginChanged() {
+        scrollerViewEventObserverSet.toFastMutableList().forEach {
+            it.visibleAreaMarginChanged()
+        }
+    }
+
     /**
      * 是否为横向布局
      */
@@ -385,7 +393,10 @@ open class ScrollerAttr : ContainerAttr() {
      * @param margin 顶部距离。
      */
     fun visibleAreaIgnoreTopMargin(margin: Float) {
-        visibleAreaIgnoreTopMargin = margin
+        if (visibleAreaIgnoreTopMargin != margin) {
+            visibleAreaIgnoreTopMargin = margin
+            (view() as? ScrollerView<*, *>)?.notifyVisibleAreaMarginChanged()
+        }
     }
 
     /**
@@ -393,7 +404,10 @@ open class ScrollerAttr : ContainerAttr() {
      * @param margin 底部距离。
      */
     fun visibleAreaIgnoreBottomMargin(margin: Float) {
-        visibleAreaIgnoreBottomMargin = margin
+        if (visibleAreaIgnoreBottomMargin != margin) {
+            visibleAreaIgnoreBottomMargin = margin
+            (view() as? ScrollerView<*, *>)?.notifyVisibleAreaMarginChanged()
+        }
     }
 
     /**

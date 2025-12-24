@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#import <UIKIt/UIKit.h>
+#import "KRUIKit.h" // [macOS]
 #import "KuiklyRenderViewExportProtocol.h"
 
 NS_ASSUME_NONNULL_BEGIN

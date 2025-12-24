@@ -26,6 +26,7 @@ constexpr char kPropNameTouchCancel[] = "touchCancel";
 constexpr char kPropNamePreventTouch[] = "preventTouch";
 constexpr char kPropNameSuperTouch[] = "superTouch";
 constexpr char kPropNameHitTestModeOhos[] = "hit-test-ohos";
+constexpr char kPropNameStopPropagation[] = "stop-propagation-ohos";
 
 constexpr char kOhosHitTestModeDefault[] = "default";
 constexpr char kOhosHitTestModeBlock[] = "block";
@@ -68,6 +69,9 @@ bool KRView::SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
         didHand = true;
     } else if (kuikly::util::isEqual(prop_key, kPropNameHitTestModeOhos)) {
         didHand = SetTargetHitTestMode(prop_value->toString());
+    } else if (kuikly::util::isEqual(prop_key, kPropNameStopPropagation)) {
+        stop_propagation_ = prop_value->toBool();
+        didHand = true;
     }
     return didHand;
 }
@@ -108,6 +112,9 @@ bool KRView::ResetProp(const std::string &prop_key) {
         target_hit_test_mode = ARKUI_HIT_TEST_MODE_DEFAULT;
         UpdateHitTestMode(HasBaseEvent() || HasTouchEvent());
         didHande = true;
+    } else if (kuikly::util::isEqual(prop_key, kPropNameStopPropagation)) {
+        stop_propagation_ = false;
+        didHande = true;
     } else {
         didHande = IKRRenderViewExport::ResetProp(prop_key);
     }
@@ -141,13 +148,15 @@ void KRView::ProcessTouchEvent(ArkUI_NodeEvent *event) {
             super_touch_handler_->SetStopPropagation(action, false);
         }
     } else if (handled) {
-        if (super_touch_type_ == PARENT) {
-            auto parent_super_touch_handler = parent_super_touch_handler_.lock();
-            if (parent_super_touch_handler) {
-                parent_super_touch_handler->SetStopPropagation(action, true);
+        if (stop_propagation_) {
+            if (super_touch_type_ == PARENT) {
+                auto parent_super_touch_handler = parent_super_touch_handler_.lock();
+                if (parent_super_touch_handler) {
+                    parent_super_touch_handler->SetStopPropagation(action, true);
+                }
+            } else if (super_touch_type_ == NONE) {
+                kuikly::util::StopPropagation(event);
             }
-        } else if (super_touch_type_ == NONE) {
-            kuikly::util::StopPropagation(event);
         }
     }
 }

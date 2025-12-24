@@ -486,6 +486,113 @@ export class KuiklyViewDelegate extends IKuiklyViewDelegate {
 }
 ```
 
+### 鸿蒙CModule
+如果业务希望在鸿蒙C侧实现扩展原生API，可以通过以下方式进行扩展
+1. 接口定义
+
+- kuikly.h: module的构造和注册API
+- KRAnyData.h:  KRAnyData设置和读取API
+
+
+```c
+/**
+ * 注册自定义模块(V2)
+ * @param moduleName 模块名称
+ * @param onConstruct Module构造时调用的方法
+ * @param onDestruct Module析构时调用的方法
+ * @param onCallMethod 模块的call method实现
+ * @param reserved 保留字段
+ */
+void KRRenderModuleRegisterV2(const char *moduleName,
+                            KRRenderModuleOnConstruct onConstruct,
+                            KRRenderModuleOnDestruct  onDestruct,
+                            KRRenderModuleCallMethodV2  onCallMethod,
+                            void *reserved);
+
+/**
+ * Module的CallMethod调用(新)
+ * @param moduleInstance 模块实例，这是KRRenderModuleOnConstruct的返回值
+ * @param moduleName 模块实例，这是KRRenderModuleOnConstruct的返回值
+ * @param sync bool 是否同步
+ * @param method 调用的模块方法
+ * @param context 回调的上下文，可为nullptr，有值的时候业务可通过KRRenderModuleDoCallback回调数据给kotlin调用方
+ * @return KRAnyData
+ * @note 返回值KRAnyData由框架Destroy
+ */
+typedef KRAnyData (*KRRenderModuleCallMethodV2)(const void* moduleInstance, const char* moduleName, int sync, const char *method, KRAnyData param, KRRenderModuleCallbackContext context);
+
+```
+
+2. 使用方式
+- module实现
+```c
+static void* ExampleModuleOnConstruct(const char *moduleName){
+    return nullptr;
+}
+
+static ExampleModuleOnDestruct(const void* moduleInstance){
+    // since nullptr was returned in ExampleModuleOnConstruct,
+    // we don't need to do anything here
+}
+
+static KRAnyData ExampleModuleOnCallMethod(const void* moduleInstance,
+    const char* moduleName,
+    int sync,
+    const char *method,
+    KRAnyData param,
+    KRRenderModuleCallbackContext context){
+    
+    if(context){
+        // Do some work and callback later.
+        // For the sake of simplicity, a thread is used here to illustrate the async behavior,
+        // which might probably not be the best practice.
+        std::thread([context] { 
+            char* result = "{\"key\":\"value\"}";
+            KRRenderModuleDoCallback(context, result);
+        }).detach();
+    }
+    
+    // 传参的值可以根据使用 KRAnyDataIsXXX 和 KRAnyDataGetXXX 判断和取值。
+
+    std::string resultString(method ? method: "");
+    resultString.append(" handled.");
+    return KRAnyDataCreateString(resultString.c_str());
+}
+
+```
+
+- module注册
+
+推荐在`InitKuikly`过程中 实现`module`的注册
+```c
+KRRenderModuleRegisterV2("MyExampleCModule", &ExampleModuleOnConstruct, &ExampleModuleOnDestruct, &ExampleModuleOnCallMethod, nullptr);
+
+static int adapterRegistered = false;
+static napi_value InitKuikly(napi_env env, napi_callback_info info) {
+    if(!adapterRegistered){
+        registerExampleCModule();
+        
+        /*
+            。。。。
+        */ 
+        
+        adapterRegistered = true;
+    }
+    
+    auto api = libshared_symbols();
+    int handler = api->kotlin.root.initKuikly();
+    napi_value result;
+    napi_create_int32(env, handler, &result);
+    return result;
+}
+
+```
+
+- 使用注意事项
+1. 作为返回值的的 `KRAnyData` 由框架做释放 不需要 额外调用 `KRAnyDataDestroy`
+2. Ets Module和C Module同时存在时优先调用C Module
+
+
 ## H5侧
 1. 在接入``Kuikly``的H5宿主工程中新建``KRMyLogModule``类，然后继承``KuiklyRenderBaseModule``，并重写其``call``方法（``call``方法有两个实现，**根据Module传输的数据类型，选择重写其中之一**）
 

@@ -2,8 +2,8 @@ package com.tencent.kuikly.demo.pages.compose.chatDemo
 
 import androidx.compose.runtime.Composable
 import com.tencent.kuikly.compose.ui.graphics.Color
-import com.tencent.kuiklybase.markdown.model.DefaultMarkdownColors
-import com.tencent.kuiklybase.markdown.model.MarkdownColors
+ import com.tencent.kuiklybase.markdown.model.DefaultMarkdownColors
+ import com.tencent.kuiklybase.markdown.model.MarkdownColors
 
 @Composable
 internal fun markdownColor(

@@ -1,3 +1,11 @@
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+echo "sh path: $SCRIPT_DIR"
+echo "project's root path: $PROJECT_ROOT"
+
+cd "$PROJECT_ROOT" || { echo "Can't cd project's root path: $PROJECT_ROOT"; exit 1; }
+
 # 1.记录原始url
 ORIGIN_DISTRIBUTION_URL=$(grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties | cut -d "=" -f 2)
 echo "origin gradle url: $ORIGIN_DISTRIBUTION_URL"
@@ -40,12 +48,23 @@ sed -i.bak 's/lowercase/toLowerCase/g' "$core_pager_manager"
 # buildSrc替换useInMemoryPgpKeys方法
 sed -i.bak 's/useInMemoryPgpKeys(keyId, secretKey, password)/useInMemoryPgpKeys(secretKey, password)/g' "$kuikly_kotlin_build_var"
 
-# 构建
-KUIKLY_AGP_VERSION="3.5.4" KUIKLY_KOTLIN_VERSION="1.3.10" ./gradlew -c settings.1.3.10.gradle.kts :core-annotations:publishToMavenLocal --stacktrace
-KUIKLY_AGP_VERSION="3.5.4" KUIKLY_KOTLIN_VERSION="1.3.10" ./gradlew -c settings.1.3.10.gradle.kts :core-kapt:publishToMavenLocal --stacktrace
-KUIKLY_AGP_VERSION="3.5.4" KUIKLY_KOTLIN_VERSION="1.3.10" ./gradlew -c settings.1.3.10.gradle.kts :core:publishToMavenLocal --stacktrace
-KUIKLY_AGP_VERSION="3.5.4" KUIKLY_KOTLIN_VERSION="1.3.10" ./gradlew -c settings.1.3.10.gradle.kts :core-render-android:publishToMavenLocal --stacktrace
-KUIKLY_AGP_VERSION="3.5.4" KUIKLY_KOTLIN_VERSION="1.3.10" KUIKLY_RENDER_SUFFIX="androidx" ./gradlew -c settings.1.3.10.gradle.kts :core-render-android:publishToMavenLocal --stacktrace
+MODULE=${1:-all}
+PUBLISH_TASK=${2:-publishToMavenLocal}
+
+# 4.开始发布
+if [ "$MODULE" = "all" ]; then
+  echo "编译所有模块: core-annotations、core-kapt、core、core-render-android"
+  echo "发布方式: $PUBLISH_TASK"
+  KUIKLY_AGP_VERSION="3.5.4" KUIKLY_KOTLIN_VERSION="1.3.10" ./gradlew -c settings.1.3.10.gradle.kts :core-annotations:$PUBLISH_TASK --stacktrace
+  KUIKLY_AGP_VERSION="3.5.4" KUIKLY_KOTLIN_VERSION="1.3.10" ./gradlew -c settings.1.3.10.gradle.kts :core-kapt:$PUBLISH_TASK --stacktrace
+  KUIKLY_AGP_VERSION="3.5.4" KUIKLY_KOTLIN_VERSION="1.3.10" ./gradlew -c settings.1.3.10.gradle.kts :core:$PUBLISH_TASK --stacktrace
+  KUIKLY_AGP_VERSION="3.5.4" KUIKLY_KOTLIN_VERSION="1.3.10" ./gradlew -c settings.1.3.10.gradle.kts :core-render-android:$PUBLISH_TASK --stacktrace
+  KUIKLY_AGP_VERSION="3.5.4" KUIKLY_KOTLIN_VERSION="1.3.10" KUIKLY_RENDER_SUFFIX="androidx" ./gradlew -c settings.1.3.10.gradle.kts :core-render-android:$PUBLISH_TASK --stacktrace
+else
+  echo "编译模块: $MODULE"
+  echo "发布方式: $PUBLISH_TASK"
+  KUIKLY_AGP_VERSION="3.5.4" KUIKLY_KOTLIN_VERSION="1.3.10" ./gradlew -c settings.1.3.10.gradle.kts :$MODULE:$PUBLISH_TASK --stacktrace
+fi
 
 # 还原androidx
 if [ "$KUIKLY_ENABLE_ANDROID_SUPPORT_COMPATIBLE" -eq 1 ]; then

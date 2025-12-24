@@ -81,6 +81,20 @@
 | --------------------- |--| ------------- |
 | distance         | 列表视图预加载距离 | Float |
 
+### scrollToPosition
+
+列表滚动到指定位置
+
+| 参数                | 描述 | 类型      |
+| --------------------- |--|---------|
+| index         | item在List中的索引位置 | Int     |
+| offset         | item相对于List的偏移量，默认值为0f | Float   |
+| animate         | 是否需要动画，默认值为false | Boolean |
+
+### getFirstVisiblePosition
+
+获取第一个可见的item位置。返回(index: Int, offset: Float)， 第一个是可见item的索引位置，第二个是该item相对于List的偏移量
+
 ## 事件
 
 除了支持所有[基础事件](basic-attr-event.md#基础事件)，还支持以下事件：

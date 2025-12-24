@@ -67,6 +67,17 @@ fun ComposeContainer.setContent(content: @Composable () -> Unit) {
 open class ComposeContainer :
     Pager(),
     OnBackPressedDispatcherOwner {
+
+    companion object {
+        /**
+         * 当 Kuikly Compose 和原生 Compose 同时存在时，可以通过设置此配置为 `false` 来禁止Kuikly消费State变更，
+         * 从而解决原生 Compose 的重组状态偶现丢失和 ANR 死锁的问题。
+         *
+         * 建议在ComposeContainer.willInit方法内使用，在setContent之前设置
+         */
+        var enableConsumeSnapshot: Boolean = true
+    }
+
     override var ignoreLayout = true
     override var didCreateBody: Boolean = false
 
@@ -158,14 +169,12 @@ open class ComposeContainer :
 
     override fun pageDidAppear() {
         super.pageDidAppear()
-        GlobalSnapshotManager.resume()
         mediator?.updateAppState(true)
         updateLifecycleState(Lifecycle.State.RESUMED)
     }
 
     override fun pageDidDisappear() {
         super.pageDidDisappear()
-        GlobalSnapshotManager.pause()
         updateLifecycleState(Lifecycle.State.CREATED)
     }
 
@@ -193,7 +202,6 @@ open class ComposeContainer :
             boundsInWindow = IntRect(0, 0, windowInfo.containerSize.width, windowInfo.containerSize.height),
             invalidate = invalidate,
             coroutineContext = coroutineContext,
-            enableConsumeSnapshotWhenPause = enableConsumeSnapshotWhenPause(),
         )
 
     private fun createMediatorIfNeeded() {
@@ -297,16 +305,6 @@ open class ComposeContainer :
 
     override fun isAccessibilityRunning(): Boolean {
         return pageData.isAccessibilityRunning
-    }
-
-    /**
-     * 当KuiklyCompose和原生Compose同时存在时候，通过覆盖该方法禁止KuiklyCompose页面在后台时
-     * 会继续消费Compose Runtime 共享 Snapshot的变更。解决原生Compose的重组状态偶现丢失的问题。
-     *
-     * 如果业务仅仅在Android平台使用了原生Compose，可以单独在Android平台返回false来规避问题
-     */
-    open fun enableConsumeSnapshotWhenPause(): Boolean {
-        return true
     }
 
     /**

@@ -90,7 +90,9 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
     if (self = [super initWithFrame:frame]) {
         self.contentMode = UIViewContentModeScaleAspectFill;
         self.clipsToBounds = YES;
+#if !TARGET_OS_OSX // [macOS]
         self.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
+#endif // [macOS]
     }
     return self;
 }
@@ -422,7 +424,11 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
             
             if(top > 0 || left > 0 || bottom > 0 || right >0){
                 UIEdgeInsets insets = UIEdgeInsetsMake(top, left, bottom, right);
+#if !TARGET_OS_OSX // [macOS]
                 image = [image resizableImageWithCapInsets:insets resizingMode:(UIImageResizingModeStretch)];
+#else // [macOS
+                image = UIImageResizableImageWithCapInsets(image, insets, UIImageResizingModeStretch);
+#endif // macOS]
             }
         }
     }else if ([self.css_dotNineImage boolValue] && image) {
@@ -430,7 +436,11 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
         CGFloat imageHeight = image.size.height;
         UIEdgeInsets insets = UIEdgeInsetsMake(imageHeight * 0.5, imageWidth * 0.5,
                                                imageHeight * 0.5 - 1, imageWidth * 0.5 - 1);
+#if !TARGET_OS_OSX // [macOS]
         image = [image resizableImageWithCapInsets:insets resizingMode:(UIImageResizingModeStretch)];
+#else // [macOS
+        image = UIImageResizableImageWithCapInsets(image, insets, UIImageResizingModeStretch);
+#endif // macOS]
     }
     if (image && [self.css_tintColor length]) {
         UIColor *tintColor = [UIView css_color:self.css_tintColor];

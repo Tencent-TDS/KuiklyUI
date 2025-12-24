@@ -97,22 +97,14 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
         #if !TARGET_OS_OSX // [macOS]
         if (@available(iOS 13.0, *)) {
             self.automaticallyAdjustsScrollIndicatorInsets = NO;
-        } else {
-            // Fallback on earlier versions
         }
-        if (@available(iOS 11.0, *)) {
-            self.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
-        } else {
-            // Fallback on earlier versions
-        }
+        self.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
+        self.delaysContentTouches = NO;
         #endif // [macOS]
         self.alwaysBounceVertical = YES;
         _delegateProxy = [KRMultiDelegateProxy alloc];
         [_delegateProxy addDelegate:self];
         self.delegate = (id<UIScrollViewDelegate>)_delegateProxy;
-        #if !TARGET_OS_OSX // [macOS]
-        self.delaysContentTouches = NO;
-        #endif // [macOS]
     }
     return self;
     
@@ -220,11 +212,18 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 
 #pragma mark - UIScrollViewDelegate
 
+#if !TARGET_OS_OSX // [macOS]
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
     [super touchesBegan:touches withEvent:event];
     [_ku_coreAnimator stop];
     _ku_coreAnimator = nil;
 }
+#else
+- (void)mouseDown:(NSEvent *)event {
+    [_ku_coreAnimator stop];
+    _ku_coreAnimator = nil;
+}
+#endif // [macOS]
 
 - (BOOL)scrollViewShouldScrollToTop:(UIScrollView *)scrollView {
     if (_css_scrollToTop) {

@@ -14,10 +14,12 @@
  */
 
 #import "KRContentOffsetAnimator.h"
+#import "KRDisplayLink.h"
+#import <QuartzCore/QuartzCore.h>
 
 @interface KRContentOffsetAnimator()<CAAnimationDelegate>
 @property (nonatomic, weak) UIScrollView *scrollView;
-@property (nonatomic, strong) CADisplayLink *displayLink;
+@property (nonatomic, strong) KRDisplayLink *displayLink;
 @property (nonatomic, strong) CABasicAnimation *animation;
 @property (nonatomic, copy) void (^progressBlock)(CGFloat);
 @property (nonatomic, copy) void (^completionBlock)(BOOL finished);
@@ -118,13 +120,17 @@
 
 - (void)startDisplayLinkIfNeeded {
     if (self.displayLink) return;
-    self.displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(onDisplayLinkTick)];
-    [self.displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
+    KRDisplayLink *link = [KRDisplayLink new];
+    __weak typeof(self) weakSelf = self;
+    [link startWithCallback:^(__unused CFTimeInterval timestamp) {
+        [weakSelf onDisplayLinkTick];
+    }];
+    self.displayLink = link;
 }
 
 - (void)invalidateDisplayLink {
     if (!self.displayLink) return;
-    [self.displayLink invalidate];
+    [self.displayLink stop];
     self.displayLink = nil;
 }
 

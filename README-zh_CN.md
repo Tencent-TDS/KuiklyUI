@@ -144,8 +144,15 @@ KuiklyUI目录下有各个`Kotlin`版本的gradle配置项
 
 ## 贡献者
 - 特别感谢首批贡献者tom（邱良雄）kam（林锦涛）watson（金盎），不仅在大前端领域主导 `Kuikly` 跨端方案孵化探索，而且率先在QQ业务落地。
-- 感谢以下核心贡献者对Kuikly持续建设维护与发展优化：
+- 感谢以下核心贡献者对`Kuikly`持续建设维护与发展优化：
   <br>tom kam watson rocky jonas ruifan pel layen bird zealot zhenhua vinney xuanxi arnon alexa allens eason
+- 同时感谢每一位参与`Kuikly`建设的社区贡献者，正是大家的共同努力，让Kuikly得以不断成长。
+  <div id="list" style="display: flex; flex-wrap: wrap"><a href="https://github.com/Tencent-TDS/KuiklyUI/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Tencent-TDS/KuiklyUI" /></a><a href="https://github.com/Tencent-TDS/KuiklyUI-third-party/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Tencent-TDS/KuiklyUI-third-party" /></a></div>
+
+
+
 
 ## 应用案例
 ### 接入应用

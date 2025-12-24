@@ -23,11 +23,13 @@ import com.tencent.kuikly.core.annotations.Page
 import impl.AndroidTargetEntryBuilder
 import impl.KuiklyCoreAbsEntryBuilder
 import impl.IOSTargetEntryBuilder
+import impl.JSTargetEntryBuilder
 import impl.OhOsTargetEntryBuilder
 import impl.OhOsTargetMultiEntryBuilder
 import impl.PageInfo
 import impl.submodule.AndroidMultiEntryBuilder
 import impl.submodule.IOSMultiTargetEntryBuilder
+import impl.submodule.JSMultiTargetEntryBuilder
 
 /**
  * Created by kam on 2022/6/19.
@@ -73,8 +75,11 @@ class CoreProcessor(
             fileName = "KuiklyCoreEntry",
             extensionName = "kt"
         ).use { output ->
-            buildEntryFile(pageClasses, getEntryBuilder()).forEach { fileSpec ->
-                output.write(fileSpec.toString().toByteArray())
+            // Use ?.also to skip unsupported platforms (returns null)
+            getEntryBuilder()?.also { builder ->
+                buildEntryFile(pageClasses, builder).forEach { fileSpec ->
+                    output.write(fileSpec.toString().toByteArray())
+                }
             }
         }
         return emptyList()
@@ -111,7 +116,7 @@ class CoreProcessor(
         return absEntryBuilder.build(pageClassDeclarations)
     }
 
-    private fun getEntryBuilder(): KuiklyCoreAbsEntryBuilder{
+    private fun getEntryBuilder(): KuiklyCoreAbsEntryBuilder? {
         val enableMultiModule = option["enableMultiModule"]?.toBoolean() ?: false
         val isMainModule = option["isMainModule"]?.toBoolean() ?: false
         val subModules = option["subModules"] ?: ""
@@ -140,8 +145,16 @@ class CoreProcessor(
                     OhOsTargetEntryBuilder()
                 }
             }
+            outputSourceSet.jsFamily() -> {
+                if (enableMultiModule) {
+                    JSMultiTargetEntryBuilder(isMainModule, subModules, moduleId)
+                } else {
+                    JSTargetEntryBuilder()
+                }
+            }
             else -> {
-                AndroidTargetEntryBuilder()
+                logger.warn("Skipping KSP code generation for $outputSourceSet")
+                null
             }
         }
     }

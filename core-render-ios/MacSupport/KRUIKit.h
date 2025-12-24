@@ -154,7 +154,7 @@ static const UIAccessibilityTraits UIAccessibilityTraitHeader = (1 << 15);
 #define UIScrollView KRUIScrollView
 #define UIImageView KRUIImageView
 #define UIVisualEffectView NSVisualEffectView
-#define UIColor KRUIColor
+#define UIColor NSColor
 #define UITouch NSEvent
 #define UILabel KRUILabel
 #define UITextField KRUITextField
@@ -398,10 +398,6 @@ CGContextRef UIGraphicsGetCurrentContext(void);
 }
 #endif
 
-#pragma mark - Color Alias
-
-#define KRUIColor NSColor
-
 
 #pragma mark - NSFont UIKit Compatibility
 
@@ -463,7 +459,7 @@ typedef NS_OPTIONS(NSUInteger, UIControlEvents) {
 @property (nonatomic, assign) BOOL enablesReturnKeyAutomatically;
 @property (nonatomic, assign) UIKeyboardType keyboardType;
 @property (nonatomic, assign) UIReturnKeyType returnKeyType;
-@property (nonatomic, strong, nullable) KRUIColor *tintColor;
+@property (nonatomic, strong, nullable) NSColor *tintColor;
 @property (nonatomic, assign) BOOL secureTextEntry;
 
 // UITextInput-like compatibility
@@ -498,7 +494,7 @@ NS_INLINE NSEdgeInsets UIEdgeInsetsMake(CGFloat top, CGFloat left, CGFloat botto
 @property (nonatomic, assign) BOOL enablesReturnKeyAutomatically;
 @property (nonatomic, assign) UIKeyboardType keyboardType;
 @property (nonatomic, assign) UIReturnKeyType returnKeyType;
-@property (nonatomic, strong, nullable) KRUIColor *tintColor;
+@property (nonatomic, strong, nullable) NSColor *tintColor;
 
 // UITextInput-like compatibility
 @property (nonatomic, strong, readonly) UITextPosition *beginningOfDocument;
@@ -860,9 +856,9 @@ NS_INLINE CGRect CGRectValue(NSValue *value) {
 // - onTintColor/tintColor: partial support via contentTintColor (macOS 10.14+), visual effect is subtle
 // - thumbTintColor: NO support, NSButton cannot customize thumb color
 // Visual appearance is controlled by system theme in most cases
-@property (nonatomic, strong, nullable) KRUIColor *onTintColor;
-@property (nonatomic, strong, nullable) KRUIColor *thumbTintColor;
-@property (nonatomic, strong, nullable) KRUIColor *tintColor;
+@property (nonatomic, strong, nullable) NSColor *onTintColor;
+@property (nonatomic, strong, nullable) NSColor *thumbTintColor;
+@property (nonatomic, strong, nullable) NSColor *tintColor;
 
 - (void)setOn:(BOOL)on animated:(BOOL)animated;
 - (void)addTarget:(id)target action:(SEL)action forControlEvents:(UIControlEvents)events;
@@ -882,7 +878,7 @@ typedef UIActivityIndicatorView KRUIActivityIndicatorView;
 
 @property (nonatomic, assign) UIActivityIndicatorViewStyle activityIndicatorViewStyle;
 @property (nonatomic, assign) BOOL hidesWhenStopped;
-@property (nonatomic, strong, nullable) KRUIColor *color;
+@property (nonatomic, strong, nullable) NSColor *color;
 @property (nonatomic, readonly, getter=isAnimating) BOOL animating;
 
 - (void)startAnimating;
@@ -898,7 +894,7 @@ typedef UIActivityIndicatorView KRUIActivityIndicatorView;
 typedef UIImageView KRUIImageView;
 #else
 @interface KRUIImageView : NSImageView
-@property (nonatomic, strong) KRUIColor *tintColor;
+@property (nonatomic, strong) NSColor *tintColor;
 @property (nonatomic, assign) UIViewContentMode contentMode;
 
 - (instancetype)initWithImage:(UIImage *)image;

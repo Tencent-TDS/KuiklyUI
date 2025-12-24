@@ -135,8 +135,6 @@ static NSViewController *GetViewControllerFromView(NSView *view) {
     // 方案3：新窗口（适用于独立功能模块）
     NSWindow *window = GetWindowFromView((NSView *)self.hr_rootView);
     if (window) {
-        // 确保 view 已加载
-        [renderViewController loadViewIfNeeded];
         
         // 获取视图尺寸，使用较大值确保窗口不会太小
         CGSize viewSize = renderViewController.view.frame.size;

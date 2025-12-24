@@ -1,0 +1,56 @@
+module.exports = {
+  /**
+   * Get template name
+   * @param {number} level - Current nesting level
+   * @param {string} nodeType - Node type identifier
+   * @return {string} Template name
+   */
+  a: function getTemplateName(level, nodeType) {
+    // Components that may be nested, currently view, static-view, custom-wrapper
+    var nestComponents = ["7", "5", "custom-wrapper"];
+
+    // Non-nested components directly use level 0 template
+    if (nestComponents.indexOf(nodeType) === -1) {
+      level = 0;
+    }
+
+    // When nesting level reaches maximum, use container template to restart cycle
+    var MAX_LEVEL = 15;
+    if (level >= MAX_LEVEL) {
+      return "tmpl_15_container";
+    }
+
+    // Return template name for corresponding level
+    return "tmpl_" + level + "_" + nodeType;
+  },
+
+  /**
+   * Property default value handling
+   * @param {any} propValue - Component property value
+   * @param {any} defaultValue - Default value
+   * @return {any} Final value to be used
+   */
+  b: function getPropertyValue(propValue, defaultValue) {
+    return propValue === undefined ? defaultValue : propValue;
+  },
+
+  /**
+   * Handle focus state template name
+   * @param {Object} item - Node data
+   * @param {string} prefix - Template name prefix
+   * @return {string} Template name with focus state
+   */
+  c: function getFocusTemplate(item, prefix) {
+    var state = item.focus !== undefined ? "focus" : "blur";
+    return prefix + item.nn + "_" + state;
+  },
+
+  /**
+   * Get container template name
+   * @param {number} level - Level
+   * @return {string} Container template name
+   */
+  e: function getContainerTemplate(level) {
+    return "tmpl_" + level + "_container";
+  },
+};

@@ -1,0 +1,37 @@
+{
+  "name": "static_server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "serve": "node static_server/serve/index.js",
+    "server": "node static_server/serve/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "file-loader": "^3.0.1",
+    "gulp": "^4.0.2",
+    "gulp-zip": "^4.2.0",
+    "husky": "^3.1.0",
+    "querystring": "^0.2.0",
+    "shell": "^0.5.0",
+    "shelljs": "^0.8.3"
+  },
+  "dependencies": {
+    "big-integer": "^1.6.48",
+    "console-error": "0.0.4",
+    "console-info": "0.0.5",
+    "console-warn": "0.0.4",
+    "koa": "^2.14.1",
+    "koa-bodyparser": "^4.3.0",
+    "koa-router": "^7.4.0",
+    "koa-static": "^5.0.0",
+    "koa-whistle": "^1.1.5",
+    "md5": "^2.2.1",
+    "mime-types": "^2.1.35",
+    "uuid": "^3.4.0",
+    "yargs": "12.0.1"
+  }
+}

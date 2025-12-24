@@ -1,0 +1,4 @@
+<!--pages/list/list.wxml-->
+<view style="margin-top: 100px;width: 100%;">
+    <text>我是测试的原生小程序List页面</text>
+</view>

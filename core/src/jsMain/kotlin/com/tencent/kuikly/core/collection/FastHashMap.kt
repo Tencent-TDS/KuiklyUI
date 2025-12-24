@@ -7,12 +7,15 @@ class FastHashMap<K, V> : MutableMap<K, V> {
         fastMap = js("new Map()")
     }
 
-    constructor(original: Map<out K, V>) {
-        fastMap = js("new Map()")
-        original.forEach { (key, value) ->
-            fastMap.set(key, value).unsafeCast<Unit>()
-        }
+    override fun put(key: K, value: V): V? {
+        fastMap.set(key, value)
+        return value
     }
+
+    override fun get(key: K): V? {
+        return fastMap.get(key).unsafeCast<V?>()
+    }
+
 
    override val entries: MutableSet<MutableMap.MutableEntry<K, V>>
         get() = keys.map { key ->

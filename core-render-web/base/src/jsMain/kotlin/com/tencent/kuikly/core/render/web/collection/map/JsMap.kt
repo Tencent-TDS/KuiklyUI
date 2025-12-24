@@ -6,7 +6,6 @@ import com.tencent.kuikly.core.render.web.collection.fastMutableMapOf
 @JsName("Map")
 external class JsMap<K, V> {
     val size: Int
-
     fun has(key: K): Boolean
     fun delete(key: K): Boolean
     fun forEach(callback: (value: V, key: K) -> Unit)

@@ -21,11 +21,7 @@
 
 @property (nonatomic, weak) UIScrollView *scrollView;
 @property (nonatomic, weak) id<KRScrollViewOffsetAnimatorDelegate> delegate;
-#if !TARGET_OS_OSX // [macOS]
-@property (nonatomic, strong) CADisplayLink *displayLink;
-#else // [macOS]
-@property (nonatomic, strong) KRDisplayLink *displayLink; // [macOS]
-#endif // [macOS]
+@property (nonatomic, strong) KRDisplayLink *displayLink;
 @property (nonatomic, strong) NSDate *animationStartTime;
 @property (nonatomic, assign) CGPoint fromOffset;
 @property (nonatomic, assign) CGPoint toOffset;
@@ -49,29 +45,19 @@
 }
 
 - (void)cancel {
-#if TARGET_OS_OSX // [macOS]
     [self.displayLink stop];
     self.displayLink = nil;
-#else // [macOS]
-    [self.displayLink invalidate];
-    self.displayLink = nil;
-#endif // [macOS]
 }
 
 - (void)animateToOffset:(CGPoint)offset withVelocity:(CGPoint)velocity {
     [self cancel];
     self.lastOffset = [self getCurScrollContetOffset];
-#if TARGET_OS_OSX // [macOS]
     KRDisplayLink *link = [KRDisplayLink new];
     __weak typeof(self) weakSelf = self;
     [link startWithCallback:^(__unused CFTimeInterval timestamp) {
         [weakSelf updateScrollViewContentOffset:nil];
     }];
     self.displayLink = link;
-#else // [macOS]
-    self.displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(updateScrollViewContentOffset:)];
-    [self.displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
-#endif // [macOS]
 }
 
 - (void)updateScrollViewContentOffset:(__unused id)displayLink {

@@ -243,12 +243,19 @@
 #pragma mark - Private Methods
 
 - (NSDictionary *)p_generateBaseParamsWithEvent:(UIEvent *)event eventName:(NSString *)eventName {
+#if !TARGET_OS_OSX // [macOS]
     NSSet<UITouch *> *touches = [event allTouches];
     NSMutableArray *touchesParam = [NSMutableArray new];
     [touches enumerateObjectsUsingBlock:^(UITouch * _Nonnull touchObj, BOOL * _Nonnull stop) {
         [touchesParam addObject:[self p_generateTouchParamWithTouch:touchObj]];
     }];
     __block NSMutableDictionary *result = [([touchesParam firstObject] ?: @{}) mutableCopy];
+#else // [macOS
+    // macOS uses NSEvent (single mouse event) instead of multi-touch UITouch
+    NSDictionary *touchParam = [self p_generateTouchParamWithTouch:event];
+    NSArray *touchesParam = @[touchParam];
+    NSMutableDictionary *result = [touchParam mutableCopy];
+#endif // macOS]
     result[@"touches"] = touchesParam;
     result[@"action"] = eventName;
     result[@"timestamp"] = @(event.timestamp);
@@ -259,11 +266,12 @@
 #if !TARGET_OS_OSX // [macOS]
     CGPoint locationInSelf = [touch locationInView:self];
     CGPoint locationInRootView = [touch locationInView:self.hr_rootView];
-#else
-    // TODO
-    CGPoint locationInSelf = [touch locationInWindow];
-    CGPoint locationInRootView = [touch locationInWindow];
-#endif
+#else // [macOS
+    // Convert window coordinates to view-local coordinates
+    CGPoint locationInWindow = [touch locationInWindow];
+    CGPoint locationInSelf = [self convertPoint:locationInWindow fromView:nil];
+    CGPoint locationInRootView = self.hr_rootView ? [self.hr_rootView convertPoint:locationInWindow fromView:nil] : locationInWindow;
+#endif // macOS]
     return @{
         @"x" : @(locationInSelf.x),
         @"y" : @(locationInSelf.y),

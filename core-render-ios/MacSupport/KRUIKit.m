@@ -499,11 +499,11 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 #pragma mark - Override inherited properties
 
 // Override NSView backgroundColor to handle drawsBackground
-- (KRUIColor *)backgroundColor {
+- (NSColor *)backgroundColor {
     return [self drawsBackground] ? [super backgroundColor] : [NSColor clearColor];
 }
 
-- (void)setBackgroundColor:(KRUIColor *)backgroundColor {
+- (void)setBackgroundColor:(NSColor *)backgroundColor {
     if (backgroundColor && ![backgroundColor isEqual:[NSColor clearColor]]) {
         [self setDrawsBackground:YES];
         [super setBackgroundColor:backgroundColor];
@@ -1396,6 +1396,14 @@ static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseIn
     return CGPointZero;
 }
 
+#pragma mark Scroll Notifications
+
+- (void)kr_contentViewBoundsDidChange:(NSNotification *)__unused note {
+    if ([self.delegate respondsToSelector:@selector(scrollViewDidScroll:)]) {
+        [self.delegate scrollViewDidScroll:(UIScrollView *)self];
+    }
+}
+
 @end
 
 #pragma mark - KRUIScrollView (DelegateBridge)
@@ -1436,14 +1444,6 @@ static UIViewAnimationCurve g_currentAnimationCurve = UIViewAnimationCurveEaseIn
 - (void)kr_setDecelerating:(BOOL)decelerating {
     static char kDeceleratingKey;
     objc_setAssociatedObject(self, &kDeceleratingKey, @(decelerating), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-}
-
-#pragma mark Scroll Notifications
-
-- (void)kr_contentViewBoundsDidChange:(NSNotification *)__unused note {
-    if ([self.delegate respondsToSelector:@selector(scrollViewDidScroll:)]) {
-        [self.delegate scrollViewDidScroll:(UIScrollView *)self];
-    }
 }
 
 #pragma mark Paging Support
@@ -1980,7 +1980,7 @@ BOOL KRUIViewSetClipsToBounds(KRPlatformView *view) {
 @synthesize thumbTintColor = _thumbTintColor;
 @synthesize tintColor = _tintColor;
 
-- (void)setOnTintColor:(KRUIColor *)onTintColor {
+- (void)setOnTintColor:(NSColor *)onTintColor {
     _onTintColor = onTintColor;
     // Try to apply contentTintColor on macOS 10.14+
     // This has limited visual effect on NSButtonTypeSwitch
@@ -1991,7 +1991,7 @@ BOOL KRUIViewSetClipsToBounds(KRPlatformView *view) {
     }
 }
 
-- (void)setTintColor:(KRUIColor *)tintColor {
+- (void)setTintColor:(NSColor *)tintColor {
     _tintColor = tintColor;
     // contentTintColor affects the overall tint when available
     if (@available(macOS 10.14, *)) {
@@ -2169,7 +2169,7 @@ BOOL KRUIViewSetClipsToBounds(KRPlatformView *view) {
     }
 }
 
-- (void)setColor:(KRUIColor *)color {
+- (void)setColor:(NSColor *)color {
     if (_color != color) {
         _color = color;
         [self setNeedsDisplay:YES];

@@ -23,7 +23,6 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "KuiklyWorkWithMiniapp"
-include(":androidApp")
 include(":shared")
 include(":h5App")
 include(":miniApp")

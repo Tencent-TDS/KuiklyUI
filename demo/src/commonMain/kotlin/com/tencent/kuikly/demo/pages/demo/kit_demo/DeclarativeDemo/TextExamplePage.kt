@@ -759,6 +759,338 @@ internal fun ViewContainer<*, *>.TextExampleLineHeight(init: TextExampleLineHeig
     addChild(TextExampleLineHeight(), init)
 }
 
+internal class TextExampleLineBreak: ComposeView<ComposeAttr, ComposeEvent>() {
+    override fun body(): ViewBuilder {
+        return {
+            View {
+                attr {
+                    flexDirectionColumn()
+                    justifyContentFlexStart()
+                    positionRelative()
+                    padding(all = 16f)
+                }
+
+                // ========== 场景1: 原始测试场景 ==========
+                Text {
+                    attr {
+                        marginBottom(8f)
+                        fontSize(14f)
+                        color(Color(0xFF666666))
+                        text("场景1: 原始测试场景（PlaceholderSpan 10dp + 换行符）")
+                    }
+                }
+                View {
+                    attr {
+                        positionRelative()
+                        marginBottom(20f)
+                        backgroundColor(Color(0xFFF5F5F5))
+                    }
+                    Image {
+                        attr {
+                            positionAbsolute()
+                            top(2f)
+                            left(10f)
+                            size(40f, 40f)
+                            src("https://picsum.photos/200/200?random=1")
+                        }
+                    }
+                    RichText {
+                        PlaceholderSpan {
+                            placeholderSize(40f, height = 10f)
+                        }
+                        Span {
+                            fontSize(16f)
+                            text("\n问题点在这里一段富文本")
+                        }
+                    }
+                }
+
+                // ========== 场景2: 连续 PlaceholderSpan ==========
+                Text {
+                    attr {
+                        marginBottom(8f)
+                        fontSize(14f)
+                        color(Color(0xFF666666))
+                        text("场景2: 连续 PlaceholderSpan，最后一个后跟换行符")
+                    }
+                }
+                View {
+                    attr {
+                        positionRelative()
+                        marginBottom(20f)
+                        backgroundColor(Color(0xFFF5F5F5))
+                    }
+                    Image {
+                        attr {
+                            positionAbsolute()
+                            top(2f)
+                            left(10f)
+                            size(30f, 30f)
+                            src("https://picsum.photos/200/200?random=2")
+                        }
+                    }
+                    Image {
+                        attr {
+                            positionAbsolute()
+                            top(2f)
+                            left(45f)
+                            size(30f, 30f)
+                            src("https://picsum.photos/200/200?random=3")
+                        }
+                    }
+                    RichText {
+                        PlaceholderSpan {
+                            placeholderSize(35f, height = 8f)
+                        }
+                        PlaceholderSpan {
+                            placeholderSize(35f, height = 12f)
+                        }
+                        Span {
+                            fontSize(16f)
+                            text("\n连续占位符后的文本")
+                        }
+                    }
+                }
+
+                // ========== 场景3: 不同高度的 PlaceholderSpan ==========
+                Text {
+                    attr {
+                        marginBottom(8f)
+                        fontSize(14f)
+                        color(Color(0xFF666666))
+                        text("场景3: 不同高度的 PlaceholderSpan（5dp vs 15dp）")
+                    }
+                }
+                View {
+                    attr {
+                        flexDirectionRow()
+                        marginBottom(20f)
+                    }
+                    // 5dp 高度
+                    View {
+                        attr {
+                            flex(1f)
+                            positionRelative()
+                            backgroundColor(Color(0xFFF5F5F5))
+                            marginRight(10f)
+                        }
+                        Image {
+                            attr {
+                                positionAbsolute()
+                                top(2f)
+                                left(5f)
+                                size(30f, 30f)
+                                src("https://picsum.photos/200/200?random=4")
+                            }
+                        }
+                        RichText {
+                            PlaceholderSpan {
+                                placeholderSize(30f, height = 5f)
+                            }
+                            Span {
+                                fontSize(14f)
+                                text("\n高度5dp")
+                            }
+                        }
+                    }
+                    // 15dp 高度
+                    View {
+                        attr {
+                            flex(1f)
+                            positionRelative()
+                            backgroundColor(Color(0xFFF5F5F5))
+                        }
+                        Image {
+                            attr {
+                                positionAbsolute()
+                                top(2f)
+                                left(5f)
+                                size(30f, 30f)
+                                src("https://picsum.photos/200/200?random=5")
+                            }
+                        }
+                        RichText {
+                            PlaceholderSpan {
+                                placeholderSize(30f, height = 15f)
+                            }
+                            Span {
+                                fontSize(14f)
+                                text("\n高度15dp")
+                            }
+                        }
+                    }
+                }
+
+                // ========== 场景4: PlaceholderSpan 后无换行符 ==========
+                Text {
+                    attr {
+                        marginBottom(8f)
+                        fontSize(14f)
+                        color(Color(0xFF666666))
+                        text("场景4: PlaceholderSpan 后直接跟普通文本（无换行符）")
+                    }
+                }
+                View {
+                    attr {
+                        positionRelative()
+                        marginBottom(20f)
+                        backgroundColor(Color(0xFFF5F5F5))
+                    }
+                    Image {
+                        attr {
+                            positionAbsolute()
+                            top(2f)
+                            left(10f)
+                            size(40f, 40f)
+                            src("https://picsum.photos/200/200?random=6")
+                        }
+                    }
+                    RichText {
+                        PlaceholderSpan {
+                            placeholderSize(50f, height = 40f)
+                        }
+                        Span {
+                            fontSize(16f)
+                            text("直接跟文本，无换行符")
+                        }
+                    }
+                }
+
+                // ========== 场景5: 换行符不在开头 ==========
+                Text {
+                    attr {
+                        marginBottom(8f)
+                        fontSize(14f)
+                        color(Color(0xFF666666))
+                        text("场景5: 换行符不在 Span 开头（不应触发处理）")
+                    }
+                }
+                View {
+                    attr {
+                        positionRelative()
+                        marginBottom(20f)
+                        backgroundColor(Color(0xFFF5F5F5))
+                    }
+                    Image {
+                        attr {
+                            positionAbsolute()
+                            top(2f)
+                            left(10f)
+                            size(40f, 40f)
+                            src("https://picsum.photos/200/200?random=7")
+                        }
+                    }
+                    RichText {
+                        PlaceholderSpan {
+                            placeholderSize(50f, height = 10f)
+                        }
+                        Span {
+                            fontSize(16f)
+                            text("文字在前\n换行符在中间")
+                        }
+                    }
+                }
+
+                // ========== 场景6: PlaceholderSpan 高度大于文字 ==========
+                Text {
+                    attr {
+                        marginBottom(8f)
+                        fontSize(14f)
+                        color(Color(0xFF666666))
+                        text("场景6: PlaceholderSpan 高度(50dp) > 文字行高")
+                    }
+                }
+                View {
+                    attr {
+                        positionRelative()
+                        marginBottom(20f)
+                        backgroundColor(Color(0xFFF5F5F5))
+                    }
+                    Image {
+                        attr {
+                            positionAbsolute()
+                            top(2f)
+                            left(10f)
+                            size(60f, 60f)
+                            src("https://picsum.photos/200/200?random=8")
+                        }
+                    }
+                    RichText {
+                        PlaceholderSpan {
+                            placeholderSize(60f, height = 50f)
+                        }
+                        Span {
+                            fontSize(14f)
+                            text("\n占位符高度大于文字")
+                        }
+                    }
+                }
+
+                // ========== 场景7: 空 PlaceholderSpan ==========
+                Text {
+                    attr {
+                        marginBottom(8f)
+                        fontSize(14f)
+                        color(Color(0xFF666666))
+                        text("场景7: 空 PlaceholderSpan（width=0 或 height=0）")
+                    }
+                }
+                View {
+                    attr {
+                        flexDirectionRow()
+                        marginBottom(20f)
+                    }
+                    // width=0
+                    View {
+                        attr {
+                            flex(1f)
+                            backgroundColor(Color(0xFFF5F5F5))
+                            marginRight(10f)
+                        }
+                        RichText {
+                            PlaceholderSpan {
+                                placeholderSize(0f, height = 10f)
+                            }
+                            Span {
+                                fontSize(14f)
+                                text("\nwidth=0")
+                            }
+                        }
+                    }
+                    // height=0
+                    View {
+                        attr {
+                            flex(1f)
+                            backgroundColor(Color(0xFFF5F5F5))
+                        }
+                        RichText {
+                            PlaceholderSpan {
+                                placeholderSize(40f, height = 0f)
+                            }
+                            Span {
+                                fontSize(14f)
+                                text("\nheight=0")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    override fun createAttr(): ComposeAttr {
+        return ComposeAttr()
+    }
+
+    override fun createEvent(): ComposeEvent {
+        return ComposeEvent()
+    }
+}
+
+internal fun ViewContainer<*, *>.TextExampleLineBreak(init: TextExampleLineBreak.() -> Unit) {
+    addChild(TextExampleLineBreak(), init)
+}
+
 @Page("TextExamplePage")
 internal class TextExamplePage: BasePager() {
     override fun body(): ViewBuilder {
@@ -788,6 +1120,8 @@ internal class TextExamplePage: BasePager() {
                 TextExampleRichText {  }
                 ViewExampleSectionHeader { attr { title = "LineHeight" } }
                 TextExampleLineHeight {  }
+                ViewExampleSectionHeader { attr { title = "RichText & lineBreak" } }
+                TextExampleLineBreak {  }
             }
         }
     }

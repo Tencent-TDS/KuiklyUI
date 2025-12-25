@@ -307,7 +307,11 @@
         } else {
             // 采用CAShapeLayer + mask + UIBezierPath 支持圆角实现
             CSSShapeLayer *mask = [[CSSShapeLayer alloc] initWithBorderRadius:borderRadius];
+#if TARGET_OS_OSX // [macOS]
+            mask.contentsScale = [NSScreen mainScreen].backingScaleFactor ?: 1.0; // 防锯齿
+#else
             mask.contentsScale = [UIScreen mainScreen].scale; // 防锯齿
+#endif // [macOS]
             self.layer.mask = mask;
 
             // 立即把 mask 的 frame 同步到当前 bounds（防止首次 layout 前为 zero）

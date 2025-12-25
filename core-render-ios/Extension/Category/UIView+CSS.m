@@ -1662,9 +1662,11 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
     
     // Apply translation and scaling
     affine = CGAffineTransformTranslate(affine, translateX * frame.size.width, translateY * frame.size.height);
-    affine = CGAffineTransformScale(affine,
-                                    MAX(scaleX, 0.00001),  // Prevent zero scale
-                                    MAX(scaleY, 0.00001));
+    // Prevent zero scale but allow negative scale
+    if (fabs(scaleX) < 0.00001) scaleX = 0.00001;
+    if (fabs(scaleY) < 0.00001) scaleY = 0.00001;
+    
+    affine = CGAffineTransformScale(affine, scaleX, scaleY);
     
     // Apply skew if needed
     if (_skewX != 0 || _skewY != 0) {

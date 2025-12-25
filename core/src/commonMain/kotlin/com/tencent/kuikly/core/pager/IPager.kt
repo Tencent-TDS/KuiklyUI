@@ -17,6 +17,7 @@ package com.tencent.kuikly.core.pager
 
 import com.tencent.kuikly.core.base.AbstractBaseView
 import com.tencent.kuikly.core.base.AnimationManager
+import com.tencent.kuikly.core.base.BackPressHandler
 import com.tencent.kuikly.core.coroutines.LifecycleScope
 import com.tencent.kuikly.core.layout.FlexNode
 import com.tencent.kuikly.core.manager.Task
@@ -152,4 +153,8 @@ interface IPager {
     fun setPageTrace(pageTrace: PageCreateTrace) {}
 
     fun isAccessibilityRunning(): Boolean { return false }
+
+    fun getBackPressHandler(): BackPressHandler? {
+        return null
+    }
 }

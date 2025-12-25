@@ -206,7 +206,8 @@ export const zhSidebar = sidebar({
                 "modifier.md",
                 "animation-system.md",
                 "gesture-system.md",
-                "thread-and-coroutines.md"
+                "thread-and-coroutines.md",
+                "view-model.md"
             ]
         },
         {

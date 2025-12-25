@@ -18,7 +18,8 @@ package com.tencent.kuikly.core.reactive.collection
 class CollectionOperation(
     private val operationType: Int,
     val index: Int,
-    val count: Int
+    val count: Int,
+    val seq: Int = -1
 ) {
 
     fun isAddOperation(): Boolean {

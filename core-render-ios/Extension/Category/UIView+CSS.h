@@ -13,9 +13,10 @@
  * limitations under the License.
  */
 
-#import <UIKit/UIKit.h>
+#import "KRUIKit.h" // [macOS]
 #import "UIView+CSSDebug.h"
 #import "KuiklyRenderViewExportProtocol.h"
+#include <QuartzCore/QuartzCore.h>
 
 #define KR_SCROLL_INDEX  @"scrollIndex"
 

@@ -14,4 +14,4 @@
  */
 package com.tencent.kuikly.lifecycle
 
-internal actual typealias WeakReference<T> = java.lang.ref.WeakReference<T>
+actual typealias WeakReference<T> = java.lang.ref.WeakReference<T>

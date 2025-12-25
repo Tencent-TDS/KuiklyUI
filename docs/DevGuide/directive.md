@@ -63,9 +63,69 @@ list.add("11")
 此时``KuiklyCore``会监测到list容器内元素有新增, 会自动调用vfor语句下的闭包创建第11个item。值得一提的时，当数据``list``容器元素个数发生变化时，``KuiklyCore``只会
 进行增量的更新, 以达到最高的更新性能。
 
-:::tip 注意
+:::tip 提示
 * 在使用vfor语句指令时, 我们需要传递带有返回响应式容器的**闭包**, 如vfor({ list })
 * 如果需要获取item index，可以使用下文介绍的vforIndex语句指令
+:::
+
+:::warning 注意
+* 循环语句指令（包括vfor、vforIndex和vforLazy）要求在方法体闭包中创建且仅创建一个根结点。
+
+```kotlin
+// 错误：vfor闭包内没有生成子节点
+vfor({ ctx.list }) { item ->
+    // 空闭包，没有生成任何子节点
+}
+
+// 错误：vfor闭包内生成了多个子节点
+vfor({ ctx.list }) { item ->
+    Text { attr { text(item.title) } }
+    Text { attr { text(item.content) } } // 多了一个子节点
+}
+
+// 错误：index >= 10时，闭包内没有生成子节点
+vforIndex({ ctx.labels }) { label, index, _ ->
+    if (index < 10) {
+        Text { attr { text(label) } }
+    }
+}
+
+// 正确：vfor闭包内仅生成一个子节点
+vfor({ ctx.list }) { item ->
+    View {
+        Text { attr { text(item.title) } }
+        Text { attr { text(item.content) } }
+    }
+}
+
+// 正确：通过observableList控制节点数量
+this.labels.addAll(getLabels().take(10))
+……
+vfor({ ctx.labels }) { label ->
+    Text { attr { text(label) } }
+}
+```
+
+* 语句指令（包括vfor和后文提及的全部指令语句）不能直接作为循环语句指令（包括vfor、vforIndex、vforLazy）的子节点
+
+```kotlin
+// 错误：vfor闭包内直接使用vif作为子节点
+vfor({ ctx.list }) { item ->
+    vif({ item.isVisible }) {
+        Text { attr { text(item.title) } }
+    }
+}
+
+// 正确：用View包裹条件指令
+vfor({ ctx.list }) { item ->
+    View {
+        vif({ item.isVisible }) {
+            Text { attr { text(item.title) } }
+        }
+    }
+}
+```
+
 :::
 
 ### vforIndex

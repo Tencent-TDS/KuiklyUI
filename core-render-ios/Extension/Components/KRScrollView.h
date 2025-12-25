@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#import <UIKit/UIKit.h>
+#import "KRUIKit.h" // [macOS]
 #import "KuiklyRenderViewExportProtocol.h"
 #import "NestedScrollCoordinator.h"
 #import "NestedScrollProtocol.h"

@@ -13,6 +13,8 @@
  * limitations under the License.
  */
 
-export * from './base/KRBaseViewExport';
+export { IKuiklyRenderViewExport, KuiklyRenderBaseView, KRRenderViewExportCreator } from './base/KRBaseViewExport';
 
 export { KRPAGView } from './KRPAGView';
+
+export { KRVideoPlayState, KRVideoViewContentMode, KRVideoView } from './KRVideoView'

@@ -46,6 +46,8 @@ class PageData(scope: PagerScope) {
         private set
     var isIOS: Boolean = false
         private set
+    var isMacOS: Boolean = false
+        private set
     var isAndroid: Boolean = false
         private set
     var isOhOs: Boolean = false
@@ -92,6 +94,7 @@ class PageData(scope: PagerScope) {
         platform =  pageData.optString(PLATFORM, "")
         nativeBuild = pageData.optInt(NATIVE_BUILD, 0)
         isIOS = platform == PLATFORM_IOS
+        isMacOS = platform == PLATFORM_MACOS
         isAndroid = platform == PLATFORM_ANDROID
         isOhOs = platform == PLATFORM_OHOS
         isWeb = platform == PLATFORM_WEB
@@ -180,6 +183,7 @@ class PageData(scope: PagerScope) {
         private const val DENSITY = "density"
         const val PLATFORM_ANDROID = "android"
         const val PLATFORM_IOS = "iOS"
+        const val PLATFORM_MACOS = "macOS"
         const val PLATFORM_OHOS = "ohos"
         const val PLATFORM_WEB = "web"
         const val PLATFORM_MINIAPP = "miniprogram"

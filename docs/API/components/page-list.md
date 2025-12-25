@@ -1,6 +1,7 @@
 # PageList(分页列表)
 
-``PageList``组件是一种分页列表组件, 他的每一个Item的宽度和高度与``PageList``的宽高一样大，并且滑动是以分页进行滑动
+``PageList``组件是一种分页列表组件, 他的每一个Item的宽度和高度与``PageList``的宽高一样大，并且滑动是以分页进行滑动。
+``PageList``继承自``List``，间接继承自``Scroller``
 
 [组件使用范例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/kit_demo/DeclarativeDemo/PageListExamplePage.kt)
 
@@ -109,4 +110,16 @@
 | index | 当前分页的index  | Int |
 
 </div>
+
+## 方法
+
+### scrollToPageIndex
+
+设置`PageList`滚动到某一个pageIndex。
+
+| 参数      | 描述            | 类型              |
+|---------|---------------|-----------------|
+| index | 滚动到的pageIndex | Int             |
+| animated | 是否使用动画切换index | Boolean         |
+| springAnimation | 动画效果配置        | SpringAnimation         |
 

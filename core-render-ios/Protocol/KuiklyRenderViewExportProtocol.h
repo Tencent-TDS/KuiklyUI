@@ -16,7 +16,7 @@
 #ifndef KuiklyRenderViewExportProtocol_h
 #define KuiklyRenderViewExportProtocol_h
 #import <Foundation/Foundation.h>
-#import <UIKit/UIKit.h>
+#import "KRUIKit.h" // [macOS]
 #import "KuiklyRenderModuleExportProtocol.h"
 
 @protocol KuiklyRenderShadowProtocol;

@@ -425,7 +425,7 @@ internal class TestPage : BasePager() {
 
 :::
 
-### capInsets <Badge text="微信小程序实现中" type="warn"/>
+### capInsets <Badge text="鸿蒙实现中" type="warn"/> <Badge text="微信小程序实现中" type="warn"/>
 
 当图片需要拉伸时，设置图片拉伸区域，图像边缘不会被拉伸，中间的区域被拉伸
 

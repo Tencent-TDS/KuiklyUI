@@ -20,6 +20,6 @@ package com.tencent.kuikly.lifecycle
  * retrieve a strong reference to an object, or return null, if object was already destroyed by
  * the memory manager.
  */
-internal expect class WeakReference<T : Any>(reference: T) {
+expect class WeakReference<T : Any>(reference: T) {
     fun get(): T?
 }

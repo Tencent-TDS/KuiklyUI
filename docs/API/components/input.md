@@ -84,6 +84,10 @@
 
 自定根据内容禁用和启用iOS软件盘的Return Key
 
+### enablePinyinCallback方法<Badge text="仅iOS" type="warn"/>
+
+是否启用拼音输入回调。当设置为 `true` 时，在拼音输入过程中（未确认选择汉字时）也会触发 `textDidChange` 回调。
+
 ### imeNoFullscreen方法<Badge text="仅Android" type="warn"/>
 
 控制横屏状态下IME输入法是否进入全屏模式

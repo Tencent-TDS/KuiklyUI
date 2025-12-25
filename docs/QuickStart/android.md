@@ -190,7 +190,7 @@ object KRImageAdapter : IKRImageAdapter {
 
 }
 ```
-完成后，可通过示例中的``ImageAdapter基准测试``页面来验证功能正常，可能需要重载``IKRImageAdapter``的``getDrawableWidth``和``getDrawableHeight``方法调节渲染效果。
+完成后，可通过**模版工程**中的``ImageAdapter基准测试``页面来验证功能正常，可能需要重载``IKRImageAdapter``的``getDrawableWidth``和``getDrawableHeight``方法调节渲染效果。
 
 ### 实现日志适配器
 具体实现代码，请参考源码工程androidApp模块的``KRLogAdapter``类。
@@ -271,6 +271,38 @@ fun execOnSubThread(runnable: () -> Unit) {
     subThreadPoolExecutor.execute(runnable)
 }
 ```
+
+#### stackSize（线程栈大小配置）
+
+`IKRThreadAdapter` 接口还提供了 `stackSize()` 方法，用于配置 Kuikly 内部线程的栈大小，主要用于在 Compose 场景下避免 布局嵌套过深导致的`StackOverflowException`
+
+**实现示例**：
+
+基础实现（使用系统默认值）：
+```kotlin
+class KRThreadAdapter : IKRThreadAdapter {
+    // 使用系统默认线程大小（通常为1MB）（返回 0）
+    override fun stackSize(): Long = 0
+}
+```
+
+自定义栈大小（推荐用于 Compose 场景）：
+```kotlin
+class KRThreadAdapter : IKRThreadAdapter {
+    /**
+     * 在 Compose 场景下，建议使用 8MB 或更大的栈大小以避免 StackOverflowException
+     */
+    override fun stackSize(): Long {
+        return 8 * 1024 * 1024  // 8MB
+    }
+}
+```
+
+**使用建议**：
+- 大多数场景下，系统默认值（1MB）已经足够
+- 如果遇到 `StackOverflowException`，可以尝试设置为 `8 * 1024 * 1024`（8MB）
+- 在 Compose 场景下，建议使用 8MB 或更大的栈大小
+- 注意：过大的栈大小会占用更多内存，建议根据实际需求设置
 
 其他按需实现适配器示例参考[实现适配器（按需实现部分）](#实现适配器-按需实现部分)
 

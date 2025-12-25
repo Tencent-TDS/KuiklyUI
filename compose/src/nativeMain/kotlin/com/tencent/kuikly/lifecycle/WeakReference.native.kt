@@ -16,7 +16,7 @@
 
 package com.tencent.kuikly.lifecycle
 
-internal actual class WeakReference<T : Any> actual constructor(
+actual class WeakReference<T : Any> actual constructor(
     reference: T
 ) {
     private val kotlinNativeReference = kotlin.native.ref.WeakReference(reference)

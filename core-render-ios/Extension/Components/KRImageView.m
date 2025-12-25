@@ -234,6 +234,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 
 - (BOOL)setImageWithUrl:(NSString *)url {
     BOOL handled = false;
+    self.kr_reuseDisable = YES;     // 图片加载完成前 当前ImageView 不支持复用
     
     if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:placeholderImage:options:complete:)]) {
         __weak typeof(self) wself = self;
@@ -260,6 +261,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
         }];
     } else if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:)]) {
         handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url forImageView:self];
+        self.kr_reuseDisable = NO;      
     } else {
         NSAssert(0, @"should expand hr_setImageWithUrl:forImageView:");
     }
@@ -495,6 +497,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
             self.errorCode = error.code;
         }
     }
+    self.kr_reuseDisable = NO;
 }
 
 // 图片 src 一致性判断

@@ -182,6 +182,13 @@ export const zhSidebar = sidebar({
             children: [
                 "overview.md", 'memory-cache.md', "sp.md", "router.md", "network.md", "notify.md", "snapshot.md","codec.md","calendar.md", "performance.md"
             ]
+        },
+        {
+            text: "示例",
+            prefix: "/API/samples",
+            children: [
+                "demo.md"
+            ]
         }
     ],
     "/ComposeDSL": [

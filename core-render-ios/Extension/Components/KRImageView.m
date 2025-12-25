@@ -22,6 +22,7 @@
 #import "KuiklyContextParam.h"
 #import "NSObject+KR.h"
 #import "KRBlurView.h"
+#import "KuiklyRenderThreadManager.h"
 
 NSString *const KRImageAssetsPrefix = @"assets://";
 NSString *const KRImageLocalPathPrefix = @"file://";
@@ -243,10 +244,16 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
                                                                  placeholderImage:nil
                                                                           options:1 << 10
                                                                          complete:^(UIImage * _Nullable image, NSError * _Nullable error, NSURL * _Nullable imageURL) {
-            // src 一致性验证
-            if (image && [wself p_srcMatch:wself.css_src imageURL:imageURL]) {
-                wself.image = image;
-            }
+            // 确保在主线程执行
+            [KuiklyRenderThreadManager performOnMainQueueWithTask:^{
+                // src 一致性验证
+                if (image && [wself p_srcMatch:wself.css_src imageURL:imageURL]) {
+                    wself.image = image;
+                }
+                // 恢复复用能力
+                wself.kr_reuseDisable = NO;
+            } sync:YES];
+            
             // 错误处理
             [wself p_handleImageLoadError:error url:url imageURL:imageURL];
         }];
@@ -256,6 +263,11 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
         handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url
                                                                      forImageView:self
                                                                          complete:^(UIImage * _Nullable image, NSError * _Nullable error, NSURL * _Nullable imageURL) {
+            // 确保在主线程执行
+            [KuiklyRenderThreadManager performOnMainQueueWithTask:^{
+                wself.kr_reuseDisable = NO;
+            } sync:YES];
+            
             // 错误处理
             [wself p_handleImageLoadError:error url:url imageURL:imageURL];
         }];
@@ -497,7 +509,6 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
             self.errorCode = error.code;
         }
     }
-    self.kr_reuseDisable = NO;
 }
 
 // 图片 src 一致性判断

@@ -31,7 +31,6 @@
 @property(nonatomic, assign) CGFloat bottomRightCornerRadius;
 
 - (instancetype)initWithCSSBorderRadius:(NSString *)cssBorderRadius;
-- (BOOL)isSameBorderCornerRaidus;
 
 @end
 
@@ -317,18 +316,16 @@
     css_borderRadius = [UIView css_string:css_borderRadius];
     if (self.css_borderRadius != css_borderRadius) {
         objc_setAssociatedObject(self, @selector(css_borderRadius), css_borderRadius, OBJC_ASSOCIATION_RETAIN);
+
+        // 圆角的实现思想：在当前view上构建一层遮罩，将圆角的效果裁切出来
+        // 无论圆角的四个方向的值是否一致，都采用构建自定义的CSSShapeLayer，作为self.layer.mask来实现
         CSSBorderRadius * borderRadius = [[CSSBorderRadius alloc] initWithCSSBorderRadius:css_borderRadius];
-        if ([borderRadius isSameBorderCornerRaidus]) {
-            self.layer.cornerRadius = borderRadius.topLeftCornerRadius;
-            self.clipsToBounds = self.layer.cornerRadius ? YES : ([self.css_overflow boolValue] ? YES : NO);;
-            self.layer.mask = nil;
-        } else {
-            self.layer.cornerRadius = 0;
-            self.layer.mask = [[CSSShapeLayer alloc] initWithBorderRadius:borderRadius];
-            self.clipsToBounds = YES;
-            if (!CGSizeEqualToSize(self.bounds.size, CGSizeZero)) {
-                [self.layer.mask setFrame:self.bounds];
-            }
+
+        self.layer.mask = [[CSSShapeLayer alloc] initWithBorderRadius:borderRadius];
+        self.clipsToBounds = YES;
+        // 在布局完成之后，动态更新遮罩的frame，因此不用主动去执行[self.layer.mask setFrame:self.bounds]，否则可能会在view布局计算还没结束前拿到了错误的bounds
+        if (!CGSizeEqualToSize(self.bounds.size, CGSizeZero)) {
+            [self.layer.mask setFrame:self.bounds];
         }
     }
 }
@@ -1131,11 +1128,6 @@
     return self;
 }
 
-- (BOOL)isSameBorderCornerRaidus {
-    return self.topLeftCornerRadius == self.topRightCornerRadius
-    && self.bottomLeftCornerRadius == self.bottomRightCornerRadius
-    && self.topLeftCornerRadius == self.bottomLeftCornerRadius;
-}
 
 @end
 

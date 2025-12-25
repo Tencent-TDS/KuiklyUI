@@ -35,6 +35,9 @@ class KRRouterAdapter : IKRRouterAdapter {
         if (pageName == "NativeMixKuikly") {
             NativeMixKuiklyViewDemoActivity.start(context)
         } else {
+            if (pageName == "HorizontalPagerDemo1") {
+                pageData.put("openSlide", "true")
+            }
             KuiklyRenderActivity.start(context, pageName, pageData)
         }
     }

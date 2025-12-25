@@ -229,13 +229,12 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
         }
         [self p_syncMaskLinearGradientIfNeed];
     }
-   
-   
+
 }
 
 - (BOOL)setImageWithUrl:(NSString *)url {
     BOOL handled = false;
-    self.kr_reuseDisable = YES;     // 图片加载完成前 当前ImageView 不支持复用
+    self.kr_reuseDisable = YES;     // 默认关闭ImageView的复用能力
     
     if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:placeholderImage:options:complete:)]) {
         __weak typeof(self) wself = self;
@@ -250,7 +249,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
                 if (image && [wself p_srcMatch:wself.css_src imageURL:imageURL]) {
                     wself.image = image;
                 }
-                // 恢复复用能力
+                // 图片加载并设置完成，开放复用能力
                 wself.kr_reuseDisable = NO;
             } sync:YES];
             
@@ -263,17 +262,11 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
         handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url
                                                                      forImageView:self
                                                                          complete:^(UIImage * _Nullable image, NSError * _Nullable error, NSURL * _Nullable imageURL) {
-            // 确保在主线程执行
-            [KuiklyRenderThreadManager performOnMainQueueWithTask:^{
-                wself.kr_reuseDisable = NO;
-            } sync:YES];
-            
             // 错误处理
             [wself p_handleImageLoadError:error url:url imageURL:imageURL];
         }];
     } else if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:)]) {
         handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url forImageView:self];
-        self.kr_reuseDisable = NO;      
     } else {
         NSAssert(0, @"should expand hr_setImageWithUrl:forImageView:");
     }

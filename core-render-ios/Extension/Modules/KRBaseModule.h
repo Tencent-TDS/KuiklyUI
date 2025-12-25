@@ -15,14 +15,14 @@
 
 #import <Foundation/Foundation.h>
 #import "KuiklyRenderModuleExportProtocol.h"
-#import <UIKit/UIKit.h>
+#import "KRUIKit.h" // [macOS]
 #import "NSObject+KR.h"
 #import "KuiklyRenderView.h"
 #import "TDFBaseModule.h"
 NS_ASSUME_NONNULL_BEGIN
 
-UIKIT_EXTERN NSString *const KR_PARAM_KEY;
-UIKIT_EXTERN NSString *const KR_CALLBACK_KEY;
+FOUNDATION_EXTERN NSString *const KR_PARAM_KEY;
+FOUNDATION_EXTERN NSString *const KR_CALLBACK_KEY;
 
 @interface KRBaseModule : TDFBaseModule<KuiklyRenderModuleExportProtocol>
 

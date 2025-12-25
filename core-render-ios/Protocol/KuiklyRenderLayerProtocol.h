@@ -16,7 +16,7 @@
 #ifndef KuiklyRenderLayerProtocol_h
 #define KuiklyRenderLayerProtocol_h
 #import <Foundation/Foundation.h>
-#import <UIKit/UIKit.h>
+#import "KRUIKit.h" // [macOS]
 #import "KuiklyRenderViewExportProtocol.h"
 #import "TDFModuleProtocol.h"
 #import "KuiklyContextParam.h"

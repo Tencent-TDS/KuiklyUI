@@ -32,7 +32,7 @@
     ├──	commonMain            #	跨平台共享代码、定义跨平台接口 
     ├── androidMain           # Android 平台实现代码 （aar）
     ├── jvmMain               # 泛 JVM 平台代码（不涉及 Android API）（jar）
-    ├── iosMain               # iOS 平台实现代码（framework）
+    ├── appleMain             # Apple (iOS & macOS) 平台实现代码（framework）
     ├── ohosArm64Main         # Ohos 平台实现代码（so）
     ├── jsMain                # H5 和 微信小程序 平台实现代码（so）
 ├── core-render-android    # android 平台的渲染器模块
@@ -104,7 +104,7 @@
 
 ### 运行Ohos APP
 在构建 Ohos App 之前，请确保完成了环境准备
-1. 在`KuiklyUI`根目录执行鸿蒙跨端产物编译脚本 `./2.0_ohos_test_publish.sh`
+1. 在`KuiklyUI`根目录执行鸿蒙跨端产物编译脚本 `./2.0_ohos_demo_build.sh`
 2. 使用 DevEco Studio 打开 `KuiklyUI/ohosApp` 项目目录，完成 `sync`
 3. 连接真机或启动鸿蒙模拟器，并执行签名操作 `File -> Project Structure -> Signing Configs`
 4. 使用DevEco Studio, Run `entry`, 运行Ohos App
@@ -115,9 +115,9 @@
 
 KuiklyUI目录下有各个`Kotlin`版本的gradle配置项
 
-命名规则为 `x.x.xx.gradle.kts`，其中默认使用的是`Kotlin: 2.0.21`
+命名规则为 `x.x.xx.gradle.kts`，其中默认使用的是`Kotlin: 2.1.21`
 
-同时，也提供各个版本的测试发布脚本，你可以`x.x.xx_test_publish.sh`构建`kuikly`的本地产物。
+同时，也提供各个版本的测试发布脚本，你可以运行`publish`目录下的`x.x.xx_publish.sh`构建`kuikly`的本地产物。
 
 > `Kotlin: 1.3.10/1.4.20` 需要切换 `jdk11`
 
@@ -144,8 +144,15 @@ KuiklyUI目录下有各个`Kotlin`版本的gradle配置项
 
 ## 贡献者
 - 特别感谢首批贡献者tom（邱良雄）kam（林锦涛）watson（金盎），不仅在大前端领域主导 `Kuikly` 跨端方案孵化探索，而且率先在QQ业务落地。
-- 感谢以下核心贡献者对Kuikly持续建设维护与发展优化：
+- 感谢以下核心贡献者对`Kuikly`持续建设维护与发展优化：
   <br>tom kam watson rocky jonas ruifan pel layen bird zealot zhenhua vinney xuanxi arnon alexa allens eason
+- 同时感谢每一位参与`Kuikly`建设的社区贡献者，正是大家的共同努力，让Kuikly得以不断成长。
+  <div id="list" style="display: flex; flex-wrap: wrap"><a href="https://github.com/Tencent-TDS/KuiklyUI/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Tencent-TDS/KuiklyUI" /></a><a href="https://github.com/Tencent-TDS/KuiklyUI-third-party/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Tencent-TDS/KuiklyUI-third-party" /></a></div>
+
+
+
 
 ## 应用案例
 ### 接入应用

@@ -62,6 +62,7 @@ class TestComposeView : ComposeView<ComposeAttr, ComposeEvent>() {
 | deviceHeight    | 屏幕高度                                                 | Float |
 | appVersion      | app版本号                                               | String |
 | isIOS           | 是否为iOS平台                                             | Boolean |
+| isMacOS         | 是否为MacOS平台                                           | Boolean |
 | isIphoneX       | 是否为iphoneX机型                                         | Boolean |
 | params          | 存放业务扩展的数据                                            | JSONObject |
 | safeAreaInsets  | 安全区域: 被系统界面（如状态栏、导航栏、工具栏或底部 Home 指示器、刘海屏底部边距）遮挡的视图区域 | EdgeInsets |

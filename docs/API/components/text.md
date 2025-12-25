@@ -415,7 +415,7 @@ internal class FontWeightPage : BasePager() {
 
 :::
 
-### lineBreakMargin<Badge text="鸿蒙实现中" type="warn"/>
+### lineBreakMargin<Badge text="鸿蒙上API18+支持此功能" type="warn"/>
 
 最后一行折叠"..." 距离最右边距离，常用于显示"更多"展开场景使用
 
@@ -536,6 +536,12 @@ internal class TestPage : BasePager() {
 ### textOverFlowTail方法
 
 文本超出最大行数时，"..."显示在尾部位置
+
+:::tip 关于换行符的兼容说明
+在 2.11.0 及以下版本中，当文本包含换行符（`\n`）且被行数限制截断时，由于系统差异，iOS 平台可能不显示省略号。
+
+2.11.0 以上版本已修复此问题，各端表现已对齐。
+:::
 
 :::tabs
 
@@ -1055,11 +1061,95 @@ internal class TestPage : BasePager() {
 }
 ```
 
+### useDpFontSizeDim方法
+是否使用dp作为字体单位 
+
+android上，字体默认是映射到sp, 如果不想字体跟随系统的字体大小，
+
+可指定文本使用useDpFontSizeDim(true)来表示不跟随系统字体大小
+
+注：如果不希望每个文本使用该属性，可以自行扩展Float方法以抵消安卓相关缩放
+
+```kotlin
+@Page(FontSizeDpPager)
+internal class FontSizeDpPager : BasePager() {
+
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                allCenter()
+            }
+
+            Text {
+                attr {
+                    fontSize(20f)
+                    useDpFontSizeDim()
+                    text("使用dp作为单位")
+                }
+            }
+            Text {
+                attr {
+                    fontSize(20f)
+                    text("使用sp作为单位")
+                }
+            }
+        }
+    }
+}
+```
+
 @tab 效果
 
 <div align="center">
 <img src="./img/text_indent.png" style="width: 30%; border: 1px gray solid">
 </div>
+
+:::
+
+### textStroke方法<Badge text="安卓实现中" type="warn"/>
+
+设置文字描边颜色和宽度
+
+<div class="table-01">
+
+**textStroke方法**
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| color | 文字描边颜色  | Color |
+| width | 文字描边宽度（默认值为2f）  | Float |
+
+</div>
+
+:::tabs
+
+@tab:active 示例
+
+```kotlin{14}
+@Page("demo_page")
+internal class TestPage : BasePager() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                allCenter()
+            }
+
+            Text {
+                attr {
+                    text("文字描边效果")
+                    fontSize(30f)
+                    color(Color.WHITE)
+                    textStroke(Color.RED, 2f)
+                }
+            }
+        }
+    }
+}
+```
+
+@tab 效果
+
+文字会显示红色的描边效果，描边宽度为2像素。
 
 :::
 

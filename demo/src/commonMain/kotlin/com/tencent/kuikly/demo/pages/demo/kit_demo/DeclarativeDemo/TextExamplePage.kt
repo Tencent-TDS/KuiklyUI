@@ -299,7 +299,7 @@ internal class TextExampleTextStroke: ComposeView<ComposeAttr, ComposeEvent>() {
                 attr {
                     text("black text stroke")
                     fontSize(18f)
-                    color(Color.WHITE)
+                    color(Color.GRAY)
                     textStroke(Color.BLACK, 3f)
                 }
             }
@@ -308,9 +308,9 @@ internal class TextExampleTextStroke: ComposeView<ComposeAttr, ComposeEvent>() {
                     marginTop(20f)
                     text("blue text shadow")
                     fontSize(28f)
-                    color(Color.WHITE)
+                    fontWeightBold()
+                    color(Color.GRAY)
                     textStroke(Color.BLUE, 5f)
-                 //   strokeWidth(5f)
                 }
             }
         }

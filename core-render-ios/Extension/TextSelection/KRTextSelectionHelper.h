@@ -67,9 +67,6 @@ typedef NS_ENUM(NSInteger, KRTextSelectionType) {
 /// The delegate for selection events.
 @property (nonatomic, weak, nullable) id<KRTextSelectionHelperDelegate> delegate;
 
-/// The shared instance of the text selection helper.
-+ (instancetype)sharedInstance;
-
 /// Create a new instance (for per-container use).
 - (instancetype)init;
 

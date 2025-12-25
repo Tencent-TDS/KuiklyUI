@@ -511,7 +511,6 @@
     if (self.css_screenFrame) {
         self.css_screenFrame = nil;
     }
-    [self kr_cleanupTextSelection];
 }
 
 @end

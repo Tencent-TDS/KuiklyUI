@@ -16,6 +16,7 @@
 #import "KRView+TextSelection.h"
 #import "KRLabel.h"
 #import "NSObject+KR.h"
+#import "KRConvertUtil.h"
 #import <objc/runtime.h>
 
 /// Method name constants
@@ -26,6 +27,7 @@ NSString *const KRTextSelectionMethodCreateSelectionAll = @"createSelectionAll";
 
 /// Associated object keys
 static const void *kTextSelectionHelperKey = &kTextSelectionHelperKey;
+static const void *kSelectionDelegateHandlerKey = &kSelectionDelegateHandlerKey;
 static const void *kSelectableKey = &kSelectableKey;
 static const void *kSelectionColorKey = &kSelectionColorKey;
 static const void *kSelectStartCallbackKey = &kSelectStartCallbackKey;
@@ -44,6 +46,7 @@ typedef NS_ENUM(NSInteger, KRSelectableOption) {
 
 /// Internal class to handle KRTextSelectionHelperDelegate callbacks
 @interface KRTextSelectionDelegateHandler : NSObject <KRTextSelectionHelperDelegate>
+/// Target view
 @property (nonatomic, weak) KRView *targetView;
 @end
 
@@ -103,12 +106,11 @@ typedef NS_ENUM(NSInteger, KRSelectableOption) {
 }
 
 - (KRTextSelectionDelegateHandler *)kr_delegateHandler {
-    static const void *kDelegateHandlerKey = &kDelegateHandlerKey;
-    KRTextSelectionDelegateHandler *handler = objc_getAssociatedObject(self, kDelegateHandlerKey);
+    KRTextSelectionDelegateHandler *handler = objc_getAssociatedObject(self, kSelectionDelegateHandlerKey);
     if (!handler) {
         handler = [[KRTextSelectionDelegateHandler alloc] init];
         handler.targetView = self;
-        objc_setAssociatedObject(self, kDelegateHandlerKey, handler, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(self, kSelectionDelegateHandlerKey, handler, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
     return handler;
 }
@@ -140,6 +142,8 @@ typedef NS_ENUM(NSInteger, KRSelectableOption) {
         [helper endSelection];
         [self kr_setTextSelectionHelper:nil];
     }
+    // Clean up delegate handler
+    objc_setAssociatedObject(self, kSelectionDelegateHandlerKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
 #pragma mark - Property Handling (called via css_setPropWithKey)
@@ -204,23 +208,16 @@ typedef NS_ENUM(NSInteger, KRSelectableOption) {
 }
 
 - (void)kr_handleClearSelection {
-    KRTextSelectionHelper *helper = [self kr_textSelectionHelper];
-    [helper endSelection];
+    [self kr_cleanupTextSelection];
 }
 
 - (void)kr_handleCreateSelectionAll {
-    // Get or create helper
+    // Create selection helper if needed
     KRTextSelectionHelper *helper = [self kr_textSelectionHelper];
     if (!helper) {
         helper = [[KRTextSelectionHelper alloc] init];
+        helper.delegate = [self kr_delegateHandler];
         [self kr_setTextSelectionHelper:helper];
-        
-        // Setup delegate handler
-        KRTextSelectionDelegateHandler *delegateHandler = [[KRTextSelectionDelegateHandler alloc] init];
-        delegateHandler.targetView = self;
-        helper.delegate = delegateHandler;
-        // Store delegate handler to prevent deallocation
-        objc_setAssociatedObject(helper, @selector(delegate), delegateHandler, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
     
     // Find all selectable labels
@@ -306,22 +303,14 @@ typedef NS_ENUM(NSInteger, KRSelectableOption) {
     // Parse background color
     NSNumber *backgroundColorNum = colorConfig[@"background"];
     if (backgroundColorNum) {
-        unsigned long long colorValue = [backgroundColorNum unsignedLongLongValue];
-        UIColor *backgroundColor = [UIColor colorWithRed:((colorValue >> 16) & 0xFF) / 255.0
-                                                   green:((colorValue >> 8) & 0xFF) / 255.0
-                                                    blue:(colorValue & 0xFF) / 255.0
-                                                   alpha:((colorValue >> 24) & 0xFF) / 255.0];
+        UIColor *backgroundColor = [KRConvertUtil UIColor:backgroundColorNum];
         [helper setSelectionColor:backgroundColor];
     }
     
     // Parse cursor color
     NSNumber *cursorColorNum = colorConfig[@"cursor"];
     if (cursorColorNum) {
-        unsigned long long colorValue = [cursorColorNum unsignedLongLongValue];
-        UIColor *cursorColor = [UIColor colorWithRed:((colorValue >> 16) & 0xFF) / 255.0
-                                               green:((colorValue >> 8) & 0xFF) / 255.0
-                                                blue:(colorValue & 0xFF) / 255.0
-                                               alpha:((colorValue >> 24) & 0xFF) / 255.0];
+        UIColor *cursorColor = [KRConvertUtil UIColor:cursorColorNum];
         [helper setCursorColor:cursorColor];
     }
 }

@@ -25,6 +25,8 @@
 
 /// KVO context for observing contentOffset changes
 static void *KRTextSelectionScrollObserverContext = &KRTextSelectionScrollObserverContext;
+/// KVO context for observing containerView frame changes
+static void *KRTextSelectionContainerFrameObserverContext = &KRTextSelectionContainerFrameObserverContext;
 
 @interface KRTextSelectionHelper () <UIGestureRecognizerDelegate, UIScrollViewDelegate>
 
@@ -56,6 +58,9 @@ static void *KRTextSelectionScrollObserverContext = &KRTextSelectionScrollObserv
 @property (nonatomic, strong) UIColor *selectionColor;
 /// Cursor/anchor color
 @property (nonatomic, strong) UIColor *cursorColor;
+
+/// Flag to track if containerView frame observer is added
+@property (nonatomic, assign) BOOL isObservingContainerFrame;
 
 @end
 
@@ -111,6 +116,9 @@ static void *KRTextSelectionScrollObserverContext = &KRTextSelectionScrollObserv
     
     // Start observing scroll events to keep anchors in sync
     [self collectAndObserveScrollViews];
+    
+    // Start observing containerView frame changes (e.g., screen rotation)
+    [self observeContainerViewFrame];
 }
 
 - (void)selectWordAtPoint:(CGPoint)point {
@@ -194,6 +202,9 @@ static void *KRTextSelectionScrollObserverContext = &KRTextSelectionScrollObserv
     
     // Remove scroll observers first
     [self removeScrollViewObservers];
+    
+    // Remove containerView frame observer
+    [self removeContainerViewFrameObserver];
     
     [self.leftAnchor removeFromSuperview];
     [self.rightAnchor removeFromSuperview];
@@ -750,10 +761,9 @@ static const CGFloat kMagnifierVerticalOffset = 60.0;
 
 /// Collect all UIScrollView ancestors of the labels and start observing their scroll events
 - (void)collectAndObserveScrollViews {
-    [self removeScrollViewObservers]; // Clear previous observers
-    
     if (!self.labels || self.labels.count == 0) return;
     
+    [self removeScrollViewObservers]; // Clear previous observers
     self.observedScrollViews = [NSHashTable weakObjectsHashTable];
     
     // Traverse view hierarchy for each label and collect all UIScrollView ancestors
@@ -818,9 +828,36 @@ static const CGFloat kMagnifierVerticalOffset = 60.0;
     if (context == KRTextSelectionScrollObserverContext) {
         // Update anchor positions when scroll content changes
         [self updateUI];
+    } else if (context == KRTextSelectionContainerFrameObserverContext) {
+        // Update anchor positions when containerView frame changes (e.g., screen rotation)
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self updateUI];
+        });
     } else {
         [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
     }
+}
+
+#pragma mark - Container Frame Observation
+
+/// Start observing containerView frame changes
+- (void)observeContainerViewFrame {
+    if (!self.containerView) return;
+    if (self.isObservingContainerFrame) return; // Already observing
+    
+    [self.containerView addObserver:self
+                         forKeyPath:@"frame"
+                            options:NSKeyValueObservingOptionNew
+                            context:KRTextSelectionContainerFrameObserverContext];
+    self.isObservingContainerFrame = YES;
+}
+
+/// Remove containerView frame observer
+- (void)removeContainerViewFrameObserver {
+    if (!self.containerView || !self.isObservingContainerFrame) return;
+    
+    [self.containerView removeObserver:self forKeyPath:@"frame" context:KRTextSelectionContainerFrameObserverContext];
+    self.isObservingContainerFrame = NO;
 }
 
 @end

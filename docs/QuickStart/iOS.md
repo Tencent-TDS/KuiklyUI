@@ -299,6 +299,14 @@ NS_ASSUME_NONNULL_END
 ### 实现图片加载适配器
 
 具体实现代码，请参考源码工程iOSApp模块的``KuiklyRenderComponentExpandHandler``类。
+KuiklyRenderComponentExpandHandler 默认提供了三种图片加载方法：
+
+- (BOOL)hr_setImageWithUrl:(nonnull NSString *)url forImageView:(nonnull UIImageView *)imageView placeholderImage:(nullable UIImage *)placeholder options:(NSUInteger)options complete:(ImageCompletionBlock)completeBlock;
+  - 完整版图片加载方法，支持占位图、加载选项和完成回调，图片加载完成后会开放 ImageView 的复用的能力
+- (BOOL)hr_setImageWithUrl:(nullable NSString *)url forImageView:(UIImageView *)imageView complete:(ImageCompletionBlock)completeBlock;
+  - 支持完成回调用于错误处理，不开放复用能力
+- (BOOL)hr_setImageWithUrl:(nullable NSString *)url forImageView:(UIImageView *)imageView;
+  - 仅传入 URL 和 ImageView 进行加载，不开放复用能力
 
 ```objc
 // .h

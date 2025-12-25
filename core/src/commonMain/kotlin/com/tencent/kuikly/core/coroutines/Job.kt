@@ -22,4 +22,19 @@ interface Job : CoroutineContext.Element {
      */
     companion object Key : CoroutineContext.Key<Job>
 
+    /**
+     * Returns `true` if this Job is currently active (not cancelled or completed).
+     */
+    val isActive: Boolean
+
+    /**
+     * Cancels this Job. This operation is idempotent.
+     *
+     * Cancelling a Job prevents future resume of pending suspend points
+     * and triggers completion handlers with the provided [cause].
+     *
+     * @param cause optional cancellation/termination cause; `null` for normal cancel.
+     */
+    fun cancel(cause: Throwable? = null)
+
 }

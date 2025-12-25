@@ -6,5 +6,7 @@ internal class StandaloneCoroutine(
     parentContext: CoroutineContext
 ) : AbstractCoroutine<Unit>(parentContext) {
 
-    override fun resumeWith(result: Result<Unit>) {}
+    override fun resumeWith(result: Result<Unit>) {
+        complete(result.exceptionOrNull())
+    }
 }

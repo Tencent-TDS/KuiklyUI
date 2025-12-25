@@ -534,13 +534,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 - (NSString *)p_fileNameFromPath:(NSString *)path {
     if (!path.length)
         return @"";
-    
-    // 去除 URL 参数和锚点
-    NSRange range = [path rangeOfCharacterFromSet:[NSCharacterSet characterSetWithCharactersInString:@"?#"]];
-    if (range.location != NSNotFound) {
-        path = [path substringToIndex:range.location];
-    }
-    
+
     // 使用系统 API 获取文件名
     NSString *fileName = path.lastPathComponent;
     return fileName.length > 0 ? fileName : @"";

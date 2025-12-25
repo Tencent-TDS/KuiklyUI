@@ -329,31 +329,7 @@ NS_ASSUME_NONNULL_END
     // 注册自定义实现
     [KuiklyRenderBridge registerComponentExpandHandler:[self new]];
 }
-
-/*
- * 图片src与加载路径url 一致性判断
- * @param src 设置的src属性
- * @param imageURL 图片路径
- * @return 一致性判断结果
- */
-- (BOOL)hr_srcMatch:(NSString *)src imageURL:(NSURL *)imageURL {
-    if (!src.length || !imageURL)
-        return NO;
-    
-    NSString *url = imageURL.absoluteString;
-    if (!url.length)
-        return NO;
-    
-    // 网络URL
-    if ([url isEqualToString:src])
-        return YES;
-    
-    // 本地资源 取src和url 最后一个“/"之后的内容
-    NSString *srcFile = [self p_fileName:src];    // 自行实现p_fileName提取最后一个"/"之后的文件名
-    NSString *urlFile = [self p_fileName:url];
-    return srcFile.length && urlFile.length && [srcFile isEqualToString:urlFile];
-}
-
+ 
 /*
  * 自定义实现设置图片（带完成回调和src一致性验证，优先调用该方法）
  * @param url 设置的图片url，如果url为nil，则是取消图片设置，需要view.image = nil
@@ -362,12 +338,14 @@ NS_ASSUME_NONNULL_END
  * @param complete 图片处理完成后的回调，内置src一致性验证
  * @return 是否处理该图片设置，返回值为YES，则交给该代理实现，否则sdk内部自己处理
  */
-- (BOOL)hr_setImageWithUrl:(nonnull NSString *)url forImageView:(nonnull UIImageView *)imageView placeholderImage:(nullable UIImage *)placeholder options:(SDWebImageOptions)options complete:(ImageCompletionBlock)completeBlock {
+- (BOOL)hr_setImageWithUrl:(nonnull NSString *)url forImageView:(nonnull UIImageView *)imageView placeholderImage:(nullable UIImage *)placeholder options:(NSUInteger)options complete:(ImageCompletionBlock)completeBlock {
     [imageView sd_setImageWithURL:[NSURL URLWithString:url]
                  placeholderImage:placeholder
-                          options:SDWebImageAvoidAutoSetImage
+                          options:(SDWebImageOptions)options
                         completed:^(UIImage * _Nullable image, NSError * _Nullable error, SDImageCacheType cacheType, NSURL * _Nullable imageURL) {
+        // 注意：必须在图片加载完成后调用completeBlock，SDK通过此回调完成ImageView.image的最终设置，若不调用将导致图片无法显示
         if (completeBlock) {
+            // 注意：回调时传入的url必须是传入的url，而非SDWebImage所返回的ImageURL
             completeBlock(image, error, [NSURL URLWithString:url]);
         }
     }];

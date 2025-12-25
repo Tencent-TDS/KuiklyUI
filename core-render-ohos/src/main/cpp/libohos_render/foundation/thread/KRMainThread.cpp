@@ -65,7 +65,7 @@ void KRMainThread::Export(napi_env env, napi_value exports) {
     }
 }
 
-void KRMainThread::RunOnMainThread(const std::function<void()> &task, int delayMilliseconds) {
+void KRMainThread::RunOnMainThread(std::function<void()> task, int delayMilliseconds) {
     if (delayMilliseconds > 0) {
         DispatchAsync([task] { RunOnMainThread(task); }, delayMilliseconds);
     } else {
@@ -100,7 +100,7 @@ static bool NeedNextRunLoop(bool isGet, bool isSet, bool setValue) {
     return gSetNeedNextRunloop;
 }
 
-void KRMainThread::RunOnMainThreadForNextLoop(const std::function<void()> &task) {
+void KRMainThread::RunOnMainThreadForNextLoop(std::function<void()> task) {
     NextRunLoopTasks(false, task);
     if (!NeedNextRunLoop(true, false, false)) {
         NeedNextRunLoop(false, true, true);

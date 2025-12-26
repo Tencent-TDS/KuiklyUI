@@ -15,6 +15,7 @@
 
 #import "KRLabel.h"
 #import "KuiklyRenderViewExportProtocol.h"
+#import "KRConvertUtil.h"
 
 NS_ASSUME_NONNULL_BEGIN
 extern NSString *const KuiklyIndexAttributeName;
@@ -39,15 +40,37 @@ extern NSString *const KuiklyIndexAttributeName;
 
 @end
 
+// Span属性参数对象
+@interface KRSpanAttributes : NSObject
 
+@property (nonatomic, copy) NSString *text;
+@property (nonatomic, assign) NSUInteger spanIndex;
+@property (nonatomic, strong) UIFont *font;
+@property (nonatomic, strong) UIColor *color;
+@property (nonatomic, assign) BOOL hasGradient;
+@property (nonatomic, copy) NSString *cssGradient;
+@property (nonatomic, assign) CGFloat letterSpacing;
+@property (nonatomic, assign) KRTextDecorationLineType textDecoration;
+@property (nonatomic, assign) NSTextAlignment textAlign;
+@property (nonatomic, strong) NSNumber *lineSpacing;
+@property (nonatomic, strong) NSNumber *lineHeight;
+@property (nonatomic, strong) NSNumber *paragraphSpacing;
+@property (nonatomic, assign) CGFloat headIndent;
+@property (nonatomic, strong) UIColor *strokeColor;
+@property (nonatomic, assign) CGFloat strokeWidth;
+@property (nonatomic, strong) NSShadow *shadow;
+@property (nonatomic, strong) NSArray<NSAttributedString *> *richAttrArray;
+
+@end
 
 // 字体渐变色绘制实现类
 @interface TextGradientHandler : NSObject
 
-+ (void)applyGradientToAttributedString:(NSMutableAttributedString *)attributedString
-                                   range:(NSRange)range
-                             cssGradient:(NSString *)cssGradient
-                                    font:(UIFont *)font;
++ (void)applyGlobalGradientToAttributedString:(NSMutableAttributedString *)attributedString
+                                         range:(NSRange)range
+                                   cssGradient:(NSString *)cssGradient
+                                          font:(UIFont *)font
+                              totalLayoutSize:(CGSize)totalLayoutSize;
 
 @end
 

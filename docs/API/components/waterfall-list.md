@@ -58,11 +58,17 @@
 
 ### bouncesEnable <Badge text="H5实现中" type="warn"/> <Badge text="微信小程序实现中" type="warn"/>
 
-是否开启回弹效果，默认 `true`
+设置是否允许边界回弹效果，以及是否限制顶部或底部的回弹。
 
-| 参数           | 描述                                                         | 类型          |
-|--------------| ------------------------------------------------------------ | ------------- |
-| value | 是否开启回弹效果，默认`true`                                 | Boolean       |
+当 `bouncesEnable` 为 `false` 时，整个滚动视图将禁用回弹效果，此时 `limitHeaderBounces` 和 `limitFooterBounces` 参数将无效。
+当 `bouncesEnable` 为 `true` 时，可以通过 `limitHeaderBounces` 和 `limitFooterBounces` 参数分别控制顶部和底部的回弹行为。
+
+| 参数           | 描述                                                         | 类型          | 默认值 |
+|--------------| ------------------------------------------------------------ | ------------- | ------ |
+| bouncesEnable | 是否允许边界回弹效果                                         | Boolean       | `true` |
+| limitHeaderBounces | 是否禁止顶部回弹。当滚动到顶部时，如果此参数为 `true`，则禁止向上拖拽时的回弹效果。注意：如果 `bouncesEnable` 为 `false`，该参数将无效 | Boolean       | `false` |
+| limitFooterBounces | 是否禁止底部回弹。当滚动到底部时，如果此参数为 `true`，则禁止向下拖拽时的回弹效果。注意：如果 `bouncesEnable` 为 `false`，该参数将无效 | Boolean       | `false` |
+
 
 ### showScrollerIndicator
 

@@ -479,7 +479,7 @@ private class TextFieldMeasurePolicy(
         val effectiveTopOffset = topPaddingValue + heightOrZero(labelPlaceable)
         val textFieldConstraints =
             constraints
-                .copy(minHeight = 0)
+//                .copy(minHeight = 0)
                 .offset(
                     vertical = -effectiveTopOffset - bottomPaddingValue - supportingIntrinsicHeight,
                     horizontal = -occupiedSpaceHorizontally,

@@ -184,12 +184,12 @@ internal suspend fun LazyLayoutAnimateScrollScope.animateScrollToItem(
                 val durationMillis = when {
                     // Short distance scenario
                     isShortDistance -> when {
-                        isFirstLoop -> 300  // Scenario 1: Single loop, directly 300ms
-                        isLastLoop -> 150   // Scenario 2: Last loop, limit to 150ms
-                        else -> 125         // Other short distance cases: fixed 125ms
+                        isFirstLoop -> 400  // Scenario 1: Single loop, directly 400ms
+                        isLastLoop -> 200   // Scenario 2: Last loop
+                        else -> 160         // Other short distance cases: fixed 160ms
                     }
-                    // Long distance scenario 3: fixed 125ms to ensure total duration is controllable
-                    else -> 125
+                    // Long distance scenario: fixed 160ms
+                    else -> 160
                 }
                 
                 val animationSpec = tween<Float>(
@@ -240,27 +240,27 @@ internal suspend fun LazyLayoutAnimateScrollScope.animateScrollToItem(
 
                             if (forward) {
                                 if (
-                                    loops >= 2 &&
+                                    loops >= 3 &&
                                     index - lastVisibleItemIndex > numOfItemsForTeleport
                                 ) {
-                                    // Teleport
                                     debugLog { "Teleport forward" }
                                     snapToItem(
                                         index = index - numOfItemsForTeleport,
                                         scrollOffset = 0
                                     )
+                                    cancelAnimation()
                                 }
                             } else {
                                 if (
-                                    loops >= 2 &&
+                                    loops >= 3 &&
                                     firstVisibleItemIndex - index > numOfItemsForTeleport
                                 ) {
-                                    // Teleport
                                     debugLog { "Teleport backward" }
                                     snapToItem(
                                         index = index + numOfItemsForTeleport,
                                         scrollOffset = 0
                                     )
+                                    cancelAnimation()
                                 }
                             }
                         }
@@ -288,18 +288,19 @@ internal suspend fun LazyLayoutAnimateScrollScope.animateScrollToItem(
                 loops++
             }
         } catch (itemFound: ItemFoundInScroll) {
-            // We found it, animate to it
-            // Bring to the requested position - will be automatically stopped if not possible
             val anim = itemFound.previousAnimation.copy(value = 0f)
             val target = (itemFound.itemOffset + scrollOffset).toFloat()
             var prevValue = 0f
             debugLog {
                 "Seeking by $target at velocity ${itemFound.previousAnimation.velocity}"
             }
+            
+            val finalDuration = 160
+            
             anim.animateTo(
                 target,
                 animationSpec = tween<Float>(
-                    durationMillis = 125,
+                    durationMillis = finalDuration,
                     easing = LinearOutSlowInEasing
                 ),
                 sequentialAnimation = (anim.velocity != 0f)

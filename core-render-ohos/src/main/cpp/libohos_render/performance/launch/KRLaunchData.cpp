@@ -64,7 +64,9 @@ std::string KRLaunchData::ToJSONString() {
     cJSON_AddNumberToObject(launch_monitor, kKeyPageLayoutCost, page_layout_cost_);
     cJSON_AddNumberToObject(launch_monitor, kKeyOnCreatePageCost, page_create_cost_);
     cJSON_AddNumberToObject(launch_monitor, kKeyOnRenderCost, render_cost_);
-    std::string result = cJSON_Print(launch_monitor);
+    char* json_str = cJSON_Print(launch_monitor);
+    std::string result = json_str;
+    free(json_str);
     cJSON_Delete(launch_monitor);
     return result;
 }

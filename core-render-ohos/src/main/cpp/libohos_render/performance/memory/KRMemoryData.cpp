@@ -48,7 +48,8 @@ std::string KRMemoryData::ToJSONString() {
     cJSON_AddNumberToObject(memory_data, kKeyPeakIncrement, GetMaxPssIncrement());
     cJSON_AddNumberToObject(memory_data, kKeyAppPeak, GetMaxPss());
     cJSON_AddNumberToObject(memory_data, kKeyAppAvg, GetAvgPss());
-    std::string result = cJSON_Print(memory_data);
+    char* json_str = cJSON_Print(memory_data);
+    std::string result = json_str;
     cJSON_Delete(memory_data);
     return result;
 }

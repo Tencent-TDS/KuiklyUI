@@ -16,14 +16,14 @@
 #ifndef CORE_RENDER_OHOS_KRFFRT_H
 #define CORE_RENDER_OHOS_KRFFRT_H
 
-#include "ffrt/task.h"
-#include "ffrt/mutex.h"
-#include "ffrt/shared_mutex.h"
-#include "ffrt/condition_variable.h"
-#include "ffrt/sleep.h"
-#include "ffrt/queue.h"
-#include "ffrt/loop.h"
-#include "ffrt/timer.h"
+#include <ffrt/task.h>
+#include <ffrt/mutex.h>
+#include <ffrt/shared_mutex.h>
+#include <ffrt/condition_variable.h>
+#include <ffrt/sleep.h>
+#include <ffrt/queue.h>
+#include <ffrt/loop.h>
+#include <ffrt/timer.h>
 
 #ifdef __cplusplus
 extern "C" {

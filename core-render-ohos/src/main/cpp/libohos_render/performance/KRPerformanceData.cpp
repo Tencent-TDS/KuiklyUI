@@ -48,7 +48,9 @@ std::string KRPerformanceData::ToJsonString() {
         cJSON_AddStringToObject(performance_data, kKeyMemory, memory_data_.c_str());
     }
     cJSON_AddStringToObject(performance_data, kKeyPageLoadTime, launch_data_.c_str());
-    std::string result = cJSON_Print(performance_data);
+    char* jsonStr = cJSON_Print(performance_data);
+    std::string result = jsonStr;
+    free(jsonStr);
     cJSON_Delete(performance_data);
     return result;
 }

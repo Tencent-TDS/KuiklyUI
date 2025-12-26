@@ -20,8 +20,7 @@ const char KRFrameMonitor::kMonitorName[] = "KRFrameMonitor";
 constexpr char kTag[] = "KRFrameMonitor";
 
 KRFrameMonitor::KRFrameMonitor() {
-    char name[] = "KRFrameMonitor";
-    nativeVSync_ = OH_NativeVSync_Create(name, strlen(name));
+    nativeVSync_ = OH_NativeVSync_Create(kMonitorName, strlen(kMonitorName));
 }
 
 KRFrameMonitor::~KRFrameMonitor() {

@@ -20,6 +20,10 @@
 #import "NSObject+KR.h"
 
 NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
+NSString *const kGradientInfoKeyCSSGradient = @"cssGradient";
+NSString *const kGradientInfoKeyFont = @"font";
+NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
+
 @interface KRRichTextView()
 
 @property (nonatomic, strong) NSNumber *css_numberOfLines;
@@ -126,10 +130,10 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
 @end
 
 @implementation KRRichTextShadow {
-    NSMutableDictionary<NSString *, id> *_props; // context thread used
-    NSArray<NSDictionary *> * _spans; // context thread used
-    NSMutableAttributedString *_mAttributedString; // context thread used
-    NSMutableArray<NSDictionary *> *_pendingGradients; // 待应用的Richtext渐变信息
+    NSMutableDictionary<NSString *, id> *_props;
+    NSArray<NSDictionary *> * _spans;
+    NSMutableAttributedString *_mAttributedString;
+    NSMutableArray<NSDictionary *> *_pendingGradients; // 延迟应用的渐变信息（需等待布局完成后获取总尺寸）
 }
 
 #pragma mark - KuiklyRenderShadowProtocol
@@ -150,33 +154,23 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
     NSLineBreakMode lineBreakMode = [KRConvertUtil NSLineBreakMode:_props[@"lineBreakMode"]];
     CGFloat lineBreakMargin = [KRConvertUtil CGFloat:_props[@"lineBreakMargin"]];
     CGFloat lineHeight = [KRConvertUtil CGFloat:_props[@"lineHeight"]];
-    CGSize fitSize = [KRLabel sizeThatFits:CGSizeMake(constraintSize.width, height) attributedString:_mAttributedString numberOfLines:numberOfLines lineBreakMode:lineBreakMode lineBreakMarin:lineBreakMargin lineHeight:lineHeight];  // 获取到view在限制行数的情况下的真实size
+    CGSize fitSize = [KRLabel sizeThatFits:CGSizeMake(constraintSize.width, height) attributedString:_mAttributedString numberOfLines:numberOfLines lineBreakMode:lineBreakMode lineBreakMarin:lineBreakMargin lineHeight:lineHeight];
 
-    // 全局渐变延迟应用机制：
-    // 渐变色需要基于完整的文本布局尺寸绘制，必须在 sizeThatFits 完成后才能获取准确的总尺寸
+    // 渐变色延迟应用：需在布局完成后获取总尺寸，才能绘制跨行连续的渐变效果
     if (_pendingGradients.count > 0) {
-        // 获取整个富文本的总布局尺寸（包含所有行）
-        CGSize totalLayoutSize = _mAttributedString.hr_textRender.size;
-        // sizeThatFits 方法未更新attributedString的TextRender的size，则在此重新赋值
-        if (totalLayoutSize.width <= 0 || totalLayoutSize.height <= 0) {
-            totalLayoutSize = fitSize;
-        }
-
-        // 遍历所有待应用的渐变 span
         for (NSDictionary *gradientInfo in _pendingGradients) {
-            NSString *cssGradient = gradientInfo[@"cssGradient"];
-            UIFont *font = gradientInfo[@"font"];
-            NSRange globalRange = [gradientInfo[@"globalRange"] rangeValue];
+            NSString *cssGradient = gradientInfo[kGradientInfoKeyCSSGradient];
+            UIFont *font = gradientInfo[kGradientInfoKeyFont];
+            NSRange globalRange = [gradientInfo[kGradientInfoKeyGlobalRange] rangeValue];
 
-            // 应用全局渐变：使用总布局尺寸创建渐变图片，确保多行文本渐变连续
             [TextGradientHandler applyGlobalGradientToAttributedString:_mAttributedString
                                                                  range:globalRange
                                                            cssGradient:cssGradient
                                                                   font:font
-                                                        totalLayoutSize:totalLayoutSize];
+                                                        totalLayoutSize:fitSize];
         }
 
-        // 应用渐变色后基于新的attributeString 更新 TextRender
+        // 渐变应用后重建 TextRender
         NSTextStorage *textStorage = [[NSTextStorage alloc] initWithAttributedString:_mAttributedString];
         textStorage.hr_hasAttachmentViews = _mAttributedString.hr_hasAttachmentViews;
         KRTextRender *textRender = [[KRTextRender alloc] initWithTextStorage:textStorage lineHeight:lineHeight];
@@ -184,14 +178,12 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
         textRender.maximumNumberOfLines = numberOfLines;
         textRender.lineBreakMode = lineBreakMode;
         
-        // 更新是否存在截断状态
         if (lineBreakMargin > 0 && numberOfLines) {
             textRender.maximumNumberOfLines = 0;
             CGSize newSize = [textRender textSizeWithRenderWidth:constraintSize.width];
-            textRender.isBreakLine = !CGSizeEqualToSize(fitSize, newSize);        // 始终使用旧的fitsize，因为渐变色应用后尺寸发生变化，也是回退至使用纯色的时候
+            textRender.isBreakLine = !CGSizeEqualToSize(fitSize, newSize);
             textRender.maximumNumberOfLines = numberOfLines;
         }
-        textRender.size = fitSize;      // 更新新textRender的size
         _mAttributedString.hr_textRender = textRender;
         _mAttributedString.hr_size = fitSize;
         [_pendingGradients removeAllObjects];
@@ -231,7 +223,6 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
         spans = @[_props ? : @{}];
     }
     _spans = spans;
-    // 初始化待处理的渐变列表（用于延迟应用）
     _pendingGradients = [NSMutableArray new];
     NSString *textPostProcessor = nil;
     NSMutableArray *richAttrArray = [NSMutableArray new];
@@ -252,7 +243,6 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
 
         // 批量解析与字体相关的属性
         UIFont *font = [KRConvertUtil UIFont:propStyle];
-        // 解析颜色：支持渐变色（backgroundImage）和纯色（color）
         UIColor * color = [UIView css_color:propStyle[@"color"]] ?: [UIColor blackColor];
         NSString *cssGricent = propStyle[@"backgroundImage"];
         BOOL hasGradient = NO;
@@ -351,30 +341,26 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
     NSRange range = NSMakeRange(0, attributedString.length);
 
     // 设置字体
-    [attributedString addAttribute:NSFontAttributeName value:attrs.font ?: [NSNull null] range:range];
-
-    // 渐变色延迟应用机制：
-    // 1. 检测到渐变时，先使用临时颜色占位，避免黑色文字闪现
-    // 2. 记录渐变信息到 _pendingGradients，包含各段文字所在的位置（globalRange）
-    // 3. 等待布局完成后，在 hrv_calculateRenderViewSizeWithConstraintSize 中统一应用
-    if (attrs.hasGradient && attrs.cssGradient) {
+    if (attrs.font) {
+        [attributedString addAttribute:NSFontAttributeName value:attrs.font range:range];
+    }
+    
+    // 渐变色：先用纯色占位，记录渐变信息到 _pendingGradients，布局完成后统一应用
+    if (attrs.hasGradient && attrs.cssGradient && attrs.font) {
         [attributedString addAttribute:NSForegroundColorAttributeName value:attrs.color range:range];
 
-        // 计算当前 span 在整个富文本中的全局起始位置
         NSUInteger currentLength = 0;
         for (NSAttributedString *attr in attrs.richAttrArray) {
             currentLength += attr.length;
         }
 
-        // 记录渐变信息：CSS 字符串、字体、全局范围
         NSDictionary *gradientInfo = @{
-            @"cssGradient": attrs.cssGradient,
-            @"font": attrs.font,
-            @"globalRange": [NSValue valueWithRange:NSMakeRange(currentLength, attrs.text.length)]
+            kGradientInfoKeyCSSGradient: attrs.cssGradient,
+            kGradientInfoKeyFont: attrs.font,
+            kGradientInfoKeyGlobalRange: [NSValue valueWithRange:NSMakeRange(currentLength, attrs.text.length)]
         };
         [_pendingGradients addObject:gradientInfo];
     } else {
-        // 应用普通颜色
         [attributedString addAttribute:NSForegroundColorAttributeName value:attrs.color range:range];
     }
 
@@ -558,11 +544,10 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
 
 @end
 
-// 文本渐变色绘制实现类
+// 文本渐变色处理类
 @implementation TextGradientHandler
 
-// 全局渐变实现：用于多行文本的连续渐变效果
-// 渐变范围基于整个文本布局的总尺寸，确保跨行渐变的连续性
+/// 将渐变色应用到富文本指定范围，使用总布局尺寸确保多行渐变连续
 + (void)applyGlobalGradientToAttributedString:(NSMutableAttributedString *)attributedString
                                          range:(NSRange)range
                                    cssGradient:(NSString *)cssGradient
@@ -573,14 +558,11 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
         return;
     }
 
-    // 使用整个布局的总尺寸创建渐变图片
     UIImage *gradientImage = [self createGradientImageWithInfo:gradientInfo size:totalLayoutSize];
-
     if (!gradientImage) {
         return;
     }
 
-    // 将渐变图片设置为文字的填充颜色（PatternColor）
     UIColor *patternColor = [UIColor colorWithPatternImage:gradientImage];
     [attributedString addAttribute:NSForegroundColorAttributeName
                              value:patternColor
@@ -588,16 +570,18 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
 }
 
 
-// 解析 CSS 渐变字符串，提取方向、颜色、位置信息
+/// 解析 CSS 渐变字符串，格式：linear-gradient(180deg, #FF0000 0%, #0000FF 100%)
 + (CSSGradientInfo *)parseGradient:(NSString *)cssGradient {
     NSString *lineargradientPrefix = @"linear-gradient(";
     if (![cssGradient hasPrefix:lineargradientPrefix]) {
         return nil;
     }
-    // 解析格式：linear-gradient(180deg, #FF0000 0%, #0000FF 100%)
     NSString *content = [cssGradient substringWithRange:NSMakeRange(lineargradientPrefix.length, cssGradient.length - lineargradientPrefix.length - 1)];
     NSArray<NSString *>* splits = [content componentsSeparatedByString:@","];
-
+    
+    if (splits.count < 3) {
+        return nil;
+    }
 
     CSSGradientInfo *info = [CSSGradientInfo new];
     info.direction = [splits.firstObject intValue];
@@ -609,73 +593,78 @@ NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
         NSArray<NSString *> *colorAndStop = [colorStopStr componentsSeparatedByString:@" "];
         UIColor *color = [UIView css_color:colorAndStop.firstObject];
         if (!color) {
-            color = [UIColor blackColor];
+            continue;
         }
         [info.colors addObject:color];
         CGFloat location = [colorAndStop.lastObject doubleValue];
         [info.locations addObject:@(location)];
-
+    }
+    
+    if (info.colors.count < 2) {
+        return nil;
     }
 
     return info;
 }
 
-// 创建渐变图片
+// 根据渐变信息创建渐变图片
 + (UIImage *)createGradientImageWithInfo:(CSSGradientInfo *)info size:(CGSize)size {
     if (size.width <= 0 || size.height <= 0) {
         return nil;
     }
     
+    // 在 Block 外部准备所有数据，避免 Block 内部访问 UIKit 对象导致的线程问题
+    
+    NSMutableArray *cgColors = [NSMutableArray arrayWithCapacity:info.colors.count];
+    for (UIColor *color in info.colors) {
+        [cgColors addObject:(__bridge id)(color.CGColor)];
+    }
+    
+    NSUInteger locationsCount = info.locations.count;
+    CGFloat *locations = (CGFloat *)malloc(sizeof(CGFloat) * locationsCount);
+    if (!locations) {
+        return nil;
+    }
+    for (NSUInteger i = 0; i < locationsCount; i++) {
+        locations[i] = [info.locations[i] floatValue];
+    }
+    
+    // 通过 CAGradientLayer 计算渐变方向对应的起点和终点
+    CAGradientLayer *tempLayer = [CAGradientLayer layer];
+    tempLayer.bounds = CGRectMake(0, 0, size.width, size.height);
+    [KRConvertUtil hr_setStartPointAndEndPointWithLayer:tempLayer direction:info.direction];
+    CGPoint startPoint = CGPointMake(tempLayer.startPoint.x * size.width,
+                                     tempLayer.startPoint.y * size.height);
+    CGPoint endPoint = CGPointMake(tempLayer.endPoint.x * size.width,
+                                   tempLayer.endPoint.y * size.height);
+    
 #if TARGET_OS_OSX // [macOS
     KRUIGraphicsImageRenderer *renderer = [[KRUIGraphicsImageRenderer alloc] initWithSize:size];
     UIImage *image = [renderer imageWithActions:^(KRUIGraphicsImageRendererContext *rendererContext) {
         CGContextRef context = [rendererContext CGContext];
-        
-        // macOS 坐标系翻转：macOS 使用左下角为原点（Y轴向上），iOS 使用左上角为原点（Y轴向下）
-        // 翻转 Y 轴以确保垂直方向渐变与 iOS 保持一致
         CGContextTranslateCTM(context, 0, size.height);
         CGContextScaleCTM(context, 1.0, -1.0);
-    
 #else
     UIGraphicsImageRendererFormat *format = [[UIGraphicsImageRendererFormat alloc] init];
     format.scale = [UIScreen mainScreen].scale;
     format.opaque = NO;
-
+    
     UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:size format:format];
-        UIImage *image = [renderer imageWithActions:^(UIGraphicsImageRendererContext *rendererContext) {
-            CGContextRef context = rendererContext.CGContext;
+    UIImage *image = [renderer imageWithActions:^(UIGraphicsImageRendererContext *rendererContext) {
+        CGContextRef context = rendererContext.CGContext;
 #endif // macOS]
-            // 转换颜色为 CGColor
-            NSMutableArray *cgColors = [NSMutableArray array];
-            CGFloat locations[info.locations.count];
-            
-            for (int i = 0; i < info.locations.count; i++) {
-                [cgColors addObject:(__bridge id)(info.colors[i].CGColor)];
-                locations[i] = [info.locations[i] floatValue];
-            }
-            // 创建线性渐变
-            CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-            CGGradientRef gradient = CGGradientCreateWithColors(colorSpace, (__bridge CFArrayRef)cgColors, locations);
-            
-            // 根据方向计算起点和终点
-            CAGradientLayer *gradientLayer = [CAGradientLayer layer];
-            gradientLayer.bounds = CGRectMake(0, 0, size.width, size.height);
-            
-            [KRConvertUtil hr_setStartPointAndEndPointWithLayer:gradientLayer direction:info.direction];
-            CGPoint startPoint = CGPointMake(gradientLayer.startPoint.x * size.width,
-                                             gradientLayer.startPoint.y * size.height);
-            CGPoint endPoint = CGPointMake(gradientLayer.endPoint.x * size.width, gradientLayer.endPoint.y * size.height);
-            
-            // 绘制渐变到上下文
-            CGGradientDrawingOptions options = kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation;
-            CGContextDrawLinearGradient(context, gradient, startPoint, endPoint, options);
-            
-            CGGradientRelease(gradient);
-            CGColorSpaceRelease(colorSpace);
-        }];
+        CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+        CGGradientRef gradient = CGGradientCreateWithColors(colorSpace, (__bridge CFArrayRef)cgColors, locations);
+        CGGradientDrawingOptions options = kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation;
+        CGContextDrawLinearGradient(context, gradient, startPoint, endPoint, options);
+        CGGradientRelease(gradient);
+        CGColorSpaceRelease(colorSpace);
+    }];
 
+    free(locations);
     return image;
 }
+
 
 
 @end

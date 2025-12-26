@@ -1,3 +1,4 @@
+
 /*
  * Tencent is pleased to support the open source community by making KuiklyUI
  * available.
@@ -15,10 +16,10 @@
 
 #include "KRMemoryMonitor.h"
 #include "libohos_render/utils/KRRenderLoger.h"
-#include "libohos_render/foundation/thread/KRMonitorThread.h"
 #include "libohos_render/performance/memory/KRMemoryData.h"
 #include <atomic>
 #include <hidebug/hidebug.h>
+#include "libohos_render/foundation/ffrt/KRFfrt.h"
 #include "libohos_render/foundation/type/KRRenderValue.h"
 
 const char KRMemoryMonitor::kMonitorName[] = "KRMemoryMonitor";
@@ -32,16 +33,7 @@ void KRMemoryMonitor::OnFirstFramePaint() {
 }
 
 void KRMemoryMonitor::OnInit() {
-    std::weak_ptr<KRMemoryMonitor> weak_self = shared_from_this();
-    KRMonitorThread::GetInstance().PostTask([weak_self]() {
-        if (auto self = weak_self.lock()) {
-            // 获取初始数据
-            long initPss = self->GetPssSize();
-            long initEnvHeap = self->GetEnvHeapSize();
-            // 初始化 Data
-            self->memoryData_.OnInit(initPss, initEnvHeap);
-        }
-    });
+    SubmitMonitorTask(MemoryTaskType::INIT);
 }
 
 void KRMemoryMonitor::Start() {
@@ -49,12 +41,7 @@ void KRMemoryMonitor::Start() {
     KR_LOG_INFO_WITH_TAG(kTag) << "Start";
     isStarted_ = true;
     isResumed_ = true;
-    std::weak_ptr<KRMemoryMonitor> weak_self = shared_from_this();
-    KRMonitorThread::GetInstance().PostTask([weak_self]() {
-        if (auto self = weak_self.lock()) {
-            self->DoDumpMemory();
-        }
-    });
+    SubmitMonitorTask(MemoryTaskType::DUMP_MEMORY);
 }
 
 void KRMemoryMonitor::OnResume() {
@@ -97,12 +84,7 @@ void KRMemoryMonitor::DoDumpMemory() {
 }
 
 void KRMemoryMonitor::ScheduleNextDump() {
-    std::weak_ptr<KRMemoryMonitor> weak_self = shared_from_this();
-    KRMonitorThread::GetInstance().PostDelayedTask([weak_self]() {
-        if (auto self = weak_self.lock()) {
-            self->DoDumpMemory();
-        }
-    }, UPDATE_MEMORY_INTERVAL);
+    SubmitMonitorTask(MemoryTaskType::DUMP_MEMORY, UPDATE_MEMORY_INTERVAL);
 }
 
 std::string KRMemoryMonitor::GetMonitorData() {
@@ -121,4 +103,46 @@ long long KRMemoryMonitor::GetPssSize() {
 long long KRMemoryMonitor::GetEnvHeapSize() {
     // todo 需要根据运行环境区分
     return 0;
+}
+
+void KRMemoryMonitor::ExecuteMemoryTask(void* arg) {
+    auto* task_param = static_cast<MonitorTaskParam*>(arg);
+    if (!task_param) return;
+    try {
+        if (auto monitor = task_param->monitor_weak_ptr.lock()) {
+            switch (task_param->type) {
+                case MemoryTaskType::INIT: {
+                    long initPss = monitor->GetPssSize();
+                    long initEnvHeap = monitor->GetEnvHeapSize();
+                    monitor->memoryData_.OnInit(initPss, initEnvHeap);
+                    break;
+                }
+                case MemoryTaskType::DUMP_MEMORY: {
+                    monitor->DoDumpMemory();
+                    break;
+                }
+            }
+        }
+    } catch (...) {
+        KR_LOG_ERROR_WITH_TAG(kTag) << "ExecuteMonitorTask error ";
+    }
+}
+
+void KRMemoryMonitor::CleanupMemoryTask(void* arg) {
+    auto* task_param = static_cast<MonitorTaskParam*>(arg);
+    delete task_param;
+}
+
+void KRMemoryMonitor::SubmitMonitorTask(MemoryTaskType type, long delay_ms) {
+    std::weak_ptr<KRMemoryMonitor> weak_self = shared_from_this();
+    auto* param = new MonitorTaskParam(type, std::move(weak_self));
+    ffrt_task_attr_t attr;
+    ffrt_task_attr_init(&attr);
+    if (delay_ms > 0) {
+        ffrt_task_attr_set_delay(&attr, delay_ms * 1000); // 毫秒转纳秒
+    }
+    ffrt_submit_base(
+        ffrt_create_function_wrapper(ExecuteMemoryTask, CleanupMemoryTask, param, ffrt_function_kind_general), 
+        NULL, NULL, &attr);
+    ffrt_task_attr_destroy(&attr);
 }

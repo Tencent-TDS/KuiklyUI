@@ -12,9 +12,9 @@ set(SOURCE_SET
         napi_init.cpp
         libohos_render/api/src/Kuikly.cpp
         libohos_render/api/src/KRAnyData.cpp
+        libohos_render/foundation/ffrt/KRFfrt.cpp
         libohos_render/foundation/ark_ts.cpp
         libohos_render/foundation/thread/KRMainThread.cpp
-        libohos_render/foundation/thread/KRMonitorThread.cpp
         libohos_render/manager/KRRenderManager.cpp
         libohos_render/view/KRRenderView.cpp
         libohos_render/scheduler/KRUIScheduler.cpp
@@ -130,4 +130,5 @@ target_link_libraries(kuikly PUBLIC hilog_ndk.z.so
                                     libz.so
                                     libohhidebug.so
                                     libnative_vsync.so
+                                    libffrt.z.so
                                     )

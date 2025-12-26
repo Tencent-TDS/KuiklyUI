@@ -20,6 +20,10 @@
 #include "libohos_render/performance/memory/KRMemoryData.h"
 #include <atomic>
 
+enum class MemoryTaskType {
+    INIT = 0,
+    DUMP_MEMORY = 1
+};
 
 class KRMemoryMonitor: public KRMonitor, public std::enable_shared_from_this<KRMemoryMonitor> {
  public:
@@ -46,16 +50,26 @@ class KRMemoryMonitor: public KRMonitor, public std::enable_shared_from_this<KRM
      * 获取当前运行环境内存信息
      */
     long long GetEnvHeapSize();
+    static void ExecuteMemoryTask(void* arg);
+    static void CleanupMemoryTask(void* arg);
+    void SubmitMonitorTask(MemoryTaskType type, long delay_ms = 0);
     std::atomic<bool> isStarted_{false};
     std::atomic<bool> isResumed_{false};
     int dumpMemoryCount_ = 0;
     static const int MAX_DUMP_MEMORY_COUNT = 10;
-    static constexpr int UPDATE_MEMORY_INTERVAL = 10 * 1000;
+    static constexpr int UPDATE_MEMORY_INTERVAL = 10 * 1000; // ms
     static const int BYTES_PER_KILOBYTE = 1024;
     KRMemoryData memoryData_; 
     // 根据运行模式区分获取类型
     int mode_;
 };
 
+struct MonitorTaskParam {
+    MemoryTaskType type;
+    std::weak_ptr<KRMemoryMonitor> monitor_weak_ptr;
+    
+    MonitorTaskParam(MemoryTaskType t, std::weak_ptr<KRMemoryMonitor> ptr) 
+        : type(t), monitor_weak_ptr(std::move(ptr)) {}
+};
 
 #endif //CORE_RENDER_OHOS_KRMEMORYMONITOR_H

@@ -16,6 +16,7 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import "KRLabel.h"
+#import "KRView+TextSelection.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -76,7 +77,7 @@ typedef NS_ENUM(NSInteger, KRTextSelectionType) {
  * @param containerView The view that contains all labels (and where anchors will be added).
  */
 - (void)startSelectionWithLabels:(NSArray<KRLabel *> *)labels
-                   containerView:(UIView *)containerView;
+                   containerView:(KRView *)containerView;
 
 /**
  * Select word at specific point (e.g. from Long Press).

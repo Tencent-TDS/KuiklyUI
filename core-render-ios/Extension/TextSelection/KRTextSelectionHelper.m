@@ -33,7 +33,7 @@ static void *KRTextSelectionContainerFrameObserverContext = &KRTextSelectionCont
 /// The labels that participate in the selection, ordered visually.
 @property (nonatomic, strong) NSArray<KRLabel *> *labels;
 /// The view that contains all labels (and where anchors will be added).
-@property (nonatomic, weak) UIView *containerView;
+@property (nonatomic, weak) KRView *containerView;
 
 /// The left anchor view.
 @property (nonatomic, strong) KRTextSelectionAnchorView *leftAnchor;
@@ -102,7 +102,7 @@ static void *KRTextSelectionContainerFrameObserverContext = &KRTextSelectionCont
     anchor.userInteractionEnabled = YES;
 }
 
-- (void)startSelectionWithLabels:(NSArray<KRLabel *> *)labels containerView:(UIView *)containerView {
+- (void)startSelectionWithLabels:(NSArray<KRLabel *> *)labels containerView:(KRView *)containerView {
     [self endSelection]; // Clear previous
     
     self.labels = labels;
@@ -829,10 +829,8 @@ static const CGFloat kMagnifierVerticalOffset = 60.0;
         // Update anchor positions when scroll content changes
         [self updateUI];
     } else if (context == KRTextSelectionContainerFrameObserverContext) {
-        // Update anchor positions when containerView frame changes (e.g., screen rotation)
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [self updateUI];
-        });
+        // Clear selection when containerView frame changes (e.g., screen rotation)
+        [self.containerView kr_cleanupTextSelection];
     } else {
         [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
     }

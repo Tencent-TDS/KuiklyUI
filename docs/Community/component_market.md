@@ -2,7 +2,7 @@
 👏👏👏 欢迎来到Kuikly组件生态板块。“他山之石，可以攻玉。”，在这里，每一个组件都是一块精石，希望我们互相分享，互相借鉴，彼此成就。
 
 ## 组件市场
-**社区组件市场网址**：https://raft-stack-6a4vnekl8.fue.woa.com/
+**社区组件市场网址**：建设中
 
 ## 贡献组件
 社区提供了中心化收集``Kuikly``组件的方式，共享组件按照[Kuikly-third-party](https://github.com/Tencent-TDS/KuiklyUI-third-party)指引，上架到组件市场。

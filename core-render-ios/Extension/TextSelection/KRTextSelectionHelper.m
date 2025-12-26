@@ -829,7 +829,7 @@ static const CGFloat kMagnifierVerticalOffset = 60.0;
         // Update anchor positions when scroll content changes
         [self updateUI];
     } else if (context == KRTextSelectionContainerFrameObserverContext) {
-        // Clear selection when containerView frame changes (e.g., screen rotation)
+        // Clear selection when containerView bounds changes (e.g., screen rotation)
         [self.containerView kr_cleanupTextSelection];
     } else {
         [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
@@ -844,7 +844,7 @@ static const CGFloat kMagnifierVerticalOffset = 60.0;
     if (self.isObservingContainerFrame) return; // Already observing
     
     [self.containerView addObserver:self
-                         forKeyPath:@"frame"
+                         forKeyPath:@"layer.bounds"
                             options:NSKeyValueObservingOptionNew
                             context:KRTextSelectionContainerFrameObserverContext];
     self.isObservingContainerFrame = YES;
@@ -853,8 +853,13 @@ static const CGFloat kMagnifierVerticalOffset = 60.0;
 /// Remove containerView frame observer
 - (void)removeContainerViewFrameObserver {
     if (!self.containerView || !self.isObservingContainerFrame) return;
-    
-    [self.containerView removeObserver:self forKeyPath:@"frame" context:KRTextSelectionContainerFrameObserverContext];
+    @try {
+        [self.containerView removeObserver:self
+                                forKeyPath:@"layer.bounds"
+                                   context:KRTextSelectionContainerFrameObserverContext];
+    } @catch (NSException *exception) {
+        // Observer was already removed or never added
+    }
     self.isObservingContainerFrame = NO;
 }
 

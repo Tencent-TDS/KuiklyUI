@@ -105,7 +105,7 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
         // Recalculate fitSize after modifying textStorage
         fitSize = [textRender textSizeWithRenderWidth:size.width];
     }
-    textRender.size = fitSize;
+    textRender.size = fitSize;      // 增加textRender size的更新，使得绘制渐变色、css_onClickTapWithSender 中 所依赖的textRender.size 是精确的
     attString.hr_textRender = textRender;
     attString.hr_size = fitSize;
     

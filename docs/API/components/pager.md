@@ -263,6 +263,18 @@ override fun isAccessibilityRunning(): Boolean {
 }
 ```
 
+#### isDebugLogEnable()
+页面的Debug日志开关，返回 `true` 时开启页面的Debug日志。
+
+  :::warning 注意
+- 该功能仅建议在开发阶段/排查页面问题过程启用，**请勿在生产环境中常驻使用**
+- 启用后会记录页面五次layout的耗时和dump节点树，有助于排查页面是否正确建立
+  :::
+
+| 返回值 | 描述 |
+| -- | -- |
+| Boolean | 是否开启页面的Debug日志 |
+
 ### 事件回调方法
 
 #### themeDidChanged()

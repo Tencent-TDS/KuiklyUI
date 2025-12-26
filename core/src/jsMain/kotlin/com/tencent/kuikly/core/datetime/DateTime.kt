@@ -10,4 +10,9 @@ actual object DateTime {
     actual fun nanoTime(): Long {
         return Date.now().toLong() * 1_000_000
     }
+
+    internal actual fun threadLocalTimestamp(): Long {
+        return currentTimestamp()
+    }
+
 }

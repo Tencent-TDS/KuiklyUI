@@ -18,9 +18,12 @@ package com.tencent.kuikly.core.render.android.scheduler
 import android.os.Handler
 import android.os.Looper
 import com.tencent.kuikly.core.render.android.IKuiklyRenderViewTreeUpdateListener
+import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
+import com.tencent.kuikly.core.render.android.context.nativeMethodCallCounts
 import com.tencent.kuikly.core.render.android.css.ktx.isMainThread
 import com.tencent.kuikly.core.render.android.exception.ErrorReason
 import com.tencent.kuikly.core.render.android.exception.IKuiklyRenderExceptionListener
+import com.tencent.kuikly.core.render.android.expand.KuiklyRenderTracer
 
 /**
  * KTV页面UI线程调度器
@@ -71,6 +74,19 @@ class KuiklyRenderCoreUIScheduler(
      */
     private var exceptionListener: IKuiklyRenderExceptionListener? = null
 
+
+    /**
+     * 日志计数
+     */
+    private var debugLogEnable = false
+    private var setNeedSyncLogCount = 0
+    private var needSyncLogCount = 0
+    private var performFunLogCount = 0
+    private var logPerformIfNeedCount = 0
+    private var performCount = 0
+    private var logRunCount = 0
+    private var callNativeLogCount = 0
+
     override fun scheduleTask(delayMs: Long, task: KuiklyRenderCoreTask) {
         scheduleTask(delayMs, false, task)
     }
@@ -83,6 +99,7 @@ class KuiklyRenderCoreUIScheduler(
     }
 
     override fun destroy() {
+        KuiklyRenderLog.i("KuiklyRenderCoreUIScheduler", "--destroy uiScheduler--")
         uiHandler.removeCallbacksAndMessages(null)
     }
 
@@ -95,17 +112,29 @@ class KuiklyRenderCoreUIScheduler(
     }
 
     fun performSyncMainQueueTasksBlockIfNeed(sync: Boolean) {
+        var tracer: KuiklyRenderTracer? = null
+        if (debugLogEnable && logPerformIfNeedCount < UI_SCHEDULER_MAX_LOG_COUNT) {
+            tracer = KuiklyRenderTracer("invoke needSyncMainQueueTasksBlock $logPerformIfNeedCount isNull=${needSyncMainQueueTasksBlock == null} sync=$sync")
+            logPerformIfNeedCount++
+        }
         if (needSyncMainQueueTasksBlock != null) {
             needSyncMainQueueTasksBlock?.invoke(sync)
             needSyncMainQueueTasksBlock = null
         }
+        tracer?.end()
     }
 
     fun performMainThreadTaskWaitToSyncBlockIfNeed() {
+        var tracer: KuiklyRenderTracer? = null
+        if (debugLogEnable && logRunCount < UI_SCHEDULER_MAX_LOG_COUNT) {
+            tracer = KuiklyRenderTracer("invoke mainThreadTaskWaitToSyncBlock $logRunCount isNull=${mainThreadTaskWaitToSyncBlock == null}")
+            logRunCount++
+        }
         if (mainThreadTaskWaitToSyncBlock != null) {
             mainThreadTaskWaitToSyncBlock?.invoke()
             mainThreadTaskWaitToSyncBlock = null
         }
+        tracer?.end()
     }
 
     // 首屏完成在执行任务
@@ -135,8 +164,16 @@ class KuiklyRenderCoreUIScheduler(
         if (needSyncMainQueueTasksBlock != null) {
             return
         }
+        if (debugLogEnable && setNeedSyncLogCount < UI_SCHEDULER_MAX_LOG_COUNT) {
+            KuiklyRenderLog.d("KuiklyUIScheduler", "--setNeedSyncMainQueueTasks${setNeedSyncLogCount}--")
+            setNeedSyncLogCount++
+        }
         needSyncMainQueueTasksBlock = { sync ->
             assert(!isMainThread())
+            if (debugLogEnable && needSyncLogCount < UI_SCHEDULER_MAX_LOG_COUNT) {
+                KuiklyRenderLog.d("KuiklyUIScheduler", "--needSyncMainQueueTasksBlock${needSyncLogCount}--")
+                needSyncLogCount++
+            }
             preRunKuiklyRenderCoreUITask?.invoke()
             val performTasks = mainThreadTasksOnContextQueue
             mainThreadTasksOnContextQueue = null
@@ -144,6 +181,10 @@ class KuiklyRenderCoreUIScheduler(
                 mainThreadTasks.addAll(performTasks?.toList() ?: listOf())
             }
             performOnMainQueueWithTask(sync = sync) {
+                if (debugLogEnable && performFunLogCount < UI_SCHEDULER_MAX_LOG_COUNT) {
+                    KuiklyRenderLog.d("KuiklyUIScheduler", "--performOnMainQueueWithTask:${sync} ${performFunLogCount}--")
+                    performFunLogCount++
+                }
                 var tasks : List<KuiklyRenderCoreTaskExecutor>?
                 synchronized(this) {
                     tasks = mainThreadTasks.toList()
@@ -158,6 +199,11 @@ class KuiklyRenderCoreUIScheduler(
     }
 
     fun performOnMainQueueWithTask(sync : Boolean, task: ()-> Unit) {
+        var tracer: KuiklyRenderTracer? = null
+        if (debugLogEnable && performCount < UI_SCHEDULER_MAX_LOG_COUNT) {
+            tracer = KuiklyRenderTracer("performOnMainQueueWithTask $performCount sync=$sync isNull=${mainThreadTaskWaitToSyncBlock == null}")
+            performCount++
+        }
         if (sync) {
             if (isMainThread()) {
                 task()
@@ -170,6 +216,7 @@ class KuiklyRenderCoreUIScheduler(
                 task()
             }
         }
+        tracer?.end()
     }
 
     private fun runMainQueueTasks(tasks: List<KuiklyRenderCoreTaskExecutor>?) {
@@ -194,6 +241,13 @@ class KuiklyRenderCoreUIScheduler(
             viewDidLoad = true
             performViewDidLoadTasksIfNeed()
         }
+        if (debugLogEnable && callNativeLogCount < UI_SCHEDULER_MAX_LOG_COUNT) {
+            if (nativeMethodCallCounts.any { it != 0 }) {
+                KuiklyRenderLog.d("KuiklyRenderTracer", "runMainQueueTask ${tasks?.size.toString()} taskMap: ${nativeMethodCallCounts.mapIndexed { index, i -> "$index:$i" }.joinToString()}")
+                nativeMethodCallCounts.fill(0)
+                callNativeLogCount ++
+            }
+        }
     }
 
     // perform all wait to viewDidLoad tasks
@@ -205,7 +259,14 @@ class KuiklyRenderCoreUIScheduler(
             viewDidLoadMainThreadTasks.clear()
         }
     }
-    companion object
+
+    fun setDebugLogEnable(enable: Boolean) {
+        debugLogEnable = enable
+    }
+
+    companion object {
+        private const val UI_SCHEDULER_MAX_LOG_COUNT = 10
+    }
 
 }
 

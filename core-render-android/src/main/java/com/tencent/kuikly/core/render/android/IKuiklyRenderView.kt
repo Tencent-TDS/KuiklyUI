@@ -146,6 +146,12 @@ interface IKuiklyRenderView {
      * @param data
      */
     fun dispatchOnActivityResult(requestCode: Int, resultCode: Int, data: Intent?)
+
+    /**
+     * 是否开启debug日志
+     * @return 是否
+     */
+    fun isDebugLogEnable(): Boolean
 }
 
 /**

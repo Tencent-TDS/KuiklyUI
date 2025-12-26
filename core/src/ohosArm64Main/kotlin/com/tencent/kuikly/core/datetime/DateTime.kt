@@ -16,6 +16,7 @@
 package com.tencent.kuikly.core.datetime
 
 import ohos.com_tencent_kuikly_CurrentTimestamp
+import ohos.com_tencent_kuikly_GetThreadCPUTimeInNanoseconds
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlin.system.getTimeNanos
 
@@ -30,5 +31,12 @@ actual object DateTime {
     actual fun nanoTime(): Long {
         return getTimeNanos()
     }
+
+    @OptIn(ExperimentalForeignApi::class)
+    internal actual fun threadLocalTimestamp(): Long {
+        return com_tencent_kuikly_GetThreadCPUTimeInNanoseconds() / 1_000_000
+    }
+
+    internal actual fun logStack(): String = ""
 
 }

@@ -28,6 +28,12 @@ sed -i.bak \
 ios_verify_util="$ios_main_dir/core/utils/VerifyUtil.ios.kt"
 sed -i.bak '/@OptIn(kotlinx\.cinterop\.ExperimentalForeignApi::class)/d' "$ios_verify_util"
 
+ios_datetime="$ios_main_dir/core/datetime/DateTime.kt"
+sed -i.bak \
+    -e '/import kotlinx\.cinterop\.ExperimentalForeignApi/d' \
+    -e '/@OptIn(ExperimentalForeignApi::class)/d' \
+    "$ios_datetime"
+
 # 4.开始发布
 MODULE=${1:-all}
 PUBLISH_TASK=${2:-publishToMavenLocal}
@@ -50,3 +56,4 @@ mv gradle/wrapper/gradle-wrapper.properties.bak gradle/wrapper/gradle-wrapper.pr
 mv "$ios_platform_impl.bak" "$ios_platform_impl"
 mv "$ios_exception_tracker.bak" "$ios_exception_tracker"
 mv "$ios_verify_util.bak" "$ios_verify_util"
+mv "$ios_datetime.bak" "$ios_datetime"

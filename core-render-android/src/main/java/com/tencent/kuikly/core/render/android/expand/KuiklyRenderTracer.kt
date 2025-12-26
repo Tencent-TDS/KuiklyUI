@@ -13,15 +13,18 @@
  * limitations under the License.
  */
 
-package com.tencent.kuikly.core.datetime
+package com.tencent.kuikly.core.render.android.expand
 
-actual object DateTime {
+import android.os.SystemClock
+import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 
-    actual fun currentTimestamp(): Long = System.currentTimeMillis()
-    actual fun nanoTime(): Long {
-        return System.nanoTime()
+internal class KuiklyRenderTracer(private val name: String) {
+    private val wallTime = SystemClock.elapsedRealtime()
+    private val threadTime = SystemClock.currentThreadTimeMillis()
+    init {
+        KuiklyRenderLog.d("KuiklyRenderTracer", "--$name start-- ${System.currentTimeMillis()}")
     }
-
-    internal actual fun threadLocalTimestamp(): Long = 0L
-
+    fun end() {
+        KuiklyRenderLog.d("KuiklyRenderTracer", "--$name end-- wallCost: ${SystemClock.elapsedRealtime() - wallTime} ms, threadCost: ${SystemClock.currentThreadTimeMillis() - threadTime} ms")
+    }
 }

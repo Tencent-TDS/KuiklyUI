@@ -573,7 +573,7 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
 /// 解析 CSS 渐变字符串，格式：linear-gradient(180deg, #FF0000 0%, #0000FF 100%)
 + (CSSGradientInfo *)parseGradient:(NSString *)cssGradient {
     NSString *lineargradientPrefix = @"linear-gradient(";
-    if (![cssGradient hasPrefix:lineargradientPrefix]) {
+    if (![cssGradient hasPrefix:lineargradientPrefix] || cssGradient.length <= lineargradientPrefix.length) {
         return nil;
     }
     NSString *content = [cssGradient substringWithRange:NSMakeRange(lineargradientPrefix.length, cssGradient.length - lineargradientPrefix.length - 1)];

@@ -29,9 +29,6 @@
 extern "C" {
 #endif
 
-/**
- * @brief FFRT 函数包装器结构体
- */
 typedef struct {
     ffrt_function_header_t header;
     ffrt_function_t func;
@@ -39,15 +36,6 @@ typedef struct {
     void* arg;
 } ffrt_function_wrapper_t;
 
-/**
- * @brief 创建 FFRT 函数包装器
- * 
- * @param func 要执行的函数
- * @param after_func 清理函数（可以为 NULL）
- * @param arg 传递给函数的参数
- * @param kind 函数类型
- * @return ffrt_function_header_t* 函数包装器指针
- */
 ffrt_function_header_t* ffrt_create_function_wrapper(
     ffrt_function_t func,
     ffrt_function_t after_func, 
@@ -55,18 +43,8 @@ ffrt_function_header_t* ffrt_create_function_wrapper(
     ffrt_function_kind_t kind
 );
 
-/**
- * @brief 执行函数包装器（内部使用）
- * 
- * @param t 函数包装器指针
- */
 void ffrt_exec_function_wrapper(void* t);
 
-/**
- * @brief 销毁函数包装器（内部使用）
- * 
- * @param t 函数包装器指针
- */
 void ffrt_destroy_function_wrapper(void* t);
 
 #ifdef __cplusplus

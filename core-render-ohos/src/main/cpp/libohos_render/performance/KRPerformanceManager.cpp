@@ -130,7 +130,7 @@ void KRPerformanceManager::OnDestroy() {
     for (auto &monitor: monitors_) {
         monitor.second->OnDestroy();
     }
-    if (!monitors_.empty()) {  // 控制逻辑：如果monitors不为空，则上报性能数据
+    if (!monitors_.empty()) {
         OnResult();
     }
 }

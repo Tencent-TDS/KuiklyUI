@@ -38,10 +38,10 @@ class KRMemoryData {
     long long GetAvgPssIncrement();
     
  private:
-    uint32_t initPss_ = 0;
-    long long initEnvHeap_ = 0;
-    std::vector<long long> pasList_;
-    std::vector<long long> envHeapList_;
+    uint32_t init_pss_ = 0;
+    long long init_env_heap_ = 0;
+    std::vector<long long> pss_list_;
+    std::vector<long long> env_heap_list_;
     std::mutex mutex_;
 };
 

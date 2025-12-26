@@ -17,15 +17,15 @@
 #include "thirdparty/cJSON/cJSON.h"
 
 double KRFrameData::getFps() const {
-    if (totalDuration <= 0) return 0;
-    return ((float)(totalDuration - hitchesDuration) / totalDuration) * 60;
+    if (total_duration <= 0) return 0;
+    return ((float)(total_duration - hitches_duration) / total_duration) * 60;
 }
 
 std::string KRFrameData::ToJSONString() {
     cJSON *frame_data = cJSON_CreateObject();
-    cJSON_AddNumberToObject(frame_data, kKeyTotalDuration, totalDuration);
-    cJSON_AddNumberToObject(frame_data, kKeyHitchesDuration, totalDuration);
-    cJSON_AddNumberToObject(frame_data, kKeyFrameCount, totalDuration);
+    cJSON_AddNumberToObject(frame_data, kKeyTotalDuration, total_duration);
+    cJSON_AddNumberToObject(frame_data, kKeyHitchesDuration, total_duration);
+    cJSON_AddNumberToObject(frame_data, kKeyFrameCount, total_duration);
     cJSON_AddNumberToObject(frame_data, kKeyMainFPS, getFps());
     char* json_str = cJSON_Print(frame_data);
     std::string result = json_str;
@@ -35,7 +35,7 @@ std::string KRFrameData::ToJSONString() {
 }
 
 void KRFrameData::Reset() {
-    totalDuration = 0;
-    hitchesDuration = 0;
-    frameCount = 0;
+    total_duration = 0;
+    hitches_duration = 0;
+    frame_count = 0;
 }

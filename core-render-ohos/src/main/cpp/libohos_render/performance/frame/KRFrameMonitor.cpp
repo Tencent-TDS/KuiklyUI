@@ -20,14 +20,14 @@ const char KRFrameMonitor::kMonitorName[] = "KRFrameMonitor";
 constexpr char kTag[] = "KRFrameMonitor";
 
 KRFrameMonitor::KRFrameMonitor() {
-    nativeVSync_ = OH_NativeVSync_Create(kMonitorName, strlen(kMonitorName));
+    native_vsync_ = OH_NativeVSync_Create(kMonitorName, strlen(kMonitorName));
 }
 
 KRFrameMonitor::~KRFrameMonitor() {
     Stop();
-    if (nativeVSync_) {
-        OH_NativeVSync_Destroy(nativeVSync_);
-        nativeVSync_ = nullptr;
+    if (native_vsync_) {
+        OH_NativeVSync_Destroy(native_vsync_);
+        native_vsync_ = nullptr;
     }
 }
 
@@ -37,44 +37,44 @@ void KRFrameMonitor::OnFirstFramePaint() {
 
 void KRFrameMonitor::Start() {
     KR_LOG_INFO_WITH_TAG(kTag) << "Start";
-    if (isStarted_) {
+    if (is_started_) {
         KR_LOG_INFO_WITH_TAG(kTag) << "has start before.";
         return;
     }
-    isStarted_ = true;
-    isResumed_ = true;
-    lastFrameTimeNanos_ = 0;
-    frameData_.Reset();
+    is_started_ = true;
+    is_resumed_ = true;
+    last_frame_time_nanos_ = 0;
+    frame_data_.Reset();
     RequestNextVSync();
 }
 
 void KRFrameMonitor::Stop() {
-    if (!isStarted_) {
+    if (!is_started_) {
         KR_LOG_INFO_WITH_TAG(kTag) << "stop, not start yet.";
         return;
     }
-    isStarted_ = false;
-    isResumed_ = false;
-    lastFrameTimeNanos_ = 0;
+    is_started_ = false;
+    is_resumed_ = false;
+    last_frame_time_nanos_ = 0;
 }
 
 void KRFrameMonitor::OnResume() {
-    if (!isStarted_ || isResumed_) {
-        KR_LOG_INFO_WITH_TAG(kTag) << "resume, isStarted: " << isStarted_ << "isResumed: " << isResumed_;
+    if (!is_started_ || is_resumed_) {
+        KR_LOG_INFO_WITH_TAG(kTag) << "resume, isStarted: " << is_started_ << "isResumed: " << is_resumed_;
         return;
     }
-    isResumed_ = true;
-    lastFrameTimeNanos_ = 0;
+    is_resumed_ = true;
+    last_frame_time_nanos_ = 0;
     RequestNextVSync();
 }
 
 void KRFrameMonitor::OnPause() {
-    if (!isStarted_ || isResumed_) {
-        KR_LOG_INFO_WITH_TAG(kTag) << "pause, isStarted: " << isStarted_ << "isResumed: " << isResumed_;
+    if (!is_started_ || is_resumed_) {
+        KR_LOG_INFO_WITH_TAG(kTag) << "pause, isStarted: " << is_started_ << "isResumed: " << is_resumed_;
         return;   
     }
-    lastFrameTimeNanos_ = 0;
-    isResumed_ = false;
+    last_frame_time_nanos_ = 0;
+    is_resumed_ = false;
 }
 
 void KRFrameMonitor::OnDestroy() {
@@ -82,36 +82,36 @@ void KRFrameMonitor::OnDestroy() {
 }
 
 std::string KRFrameMonitor::GetMonitorData() {
-    return frameData_.ToJSONString();
+    return frame_data_.ToJSONString();
 }
 
 void KRFrameMonitor::RequestNextVSync() {
-    if (nativeVSync_ && isStarted_ && isResumed_) {
-        OH_NativeVSync_RequestFrame(nativeVSync_, &KRFrameMonitor::OnVSync, this);
+    if (native_vsync_ && is_started_ && is_resumed_) {
+        OH_NativeVSync_RequestFrame(native_vsync_, &KRFrameMonitor::OnVSync, this);
     }
 }
 
 void KRFrameMonitor::OnVSync(long long timestamp, void* data) {
     auto* monitor = static_cast<KRFrameMonitor*>(data);
-    if (!monitor || !monitor->isStarted_ || !monitor->isResumed_) {
+    if (!monitor || !monitor->is_started_ || !monitor->is_resumed_) {
         return;
     }
-    if (monitor->lastFrameTimeNanos_ > 0) {
-        long long frameDuration = timestamp - monitor->lastFrameTimeNanos_;
+    if (monitor->last_frame_time_nanos_ > 0) {
+        long long frameDuration = timestamp - monitor->last_frame_time_nanos_;
         // 1. 累计总耗时
         long long frameDurationMillis = frameDuration / ONE_MILLI_SECOND_IN_NANOS;
-        monitor->frameData_.totalDuration += frameDuration / ONE_MILLI_SECOND_IN_NANOS;
-        monitor->frameData_.frameCount++;
+        monitor->frame_data_.total_duration += frameDuration / ONE_MILLI_SECOND_IN_NANOS;
+        monitor->frame_data_.frame_count++;
         // 2. 计算掉帧/卡顿
         // 如果一帧超过 16.6ms，多出来的部分记为卡顿
         long long hitches = 0;
         if (frameDuration > FRAME_INTERVAL_NANOS) {
             hitches = (frameDuration - FRAME_INTERVAL_NANOS) / ONE_MILLI_SECOND_IN_NANOS;
-            monitor->frameData_.hitchesDuration += hitches;
+            monitor->frame_data_.hitches_duration += hitches;
         }
 
     }
-    monitor->lastFrameTimeNanos_ = timestamp;
+    monitor->last_frame_time_nanos_ = timestamp;
     // 请求下一帧
     monitor->RequestNextVSync();
 }

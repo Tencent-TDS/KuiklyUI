@@ -26,11 +26,11 @@ constexpr char kKeyKotlinFPS[] = "kotlinFPS";
 
 class KRFrameData {
 public:
-    long long totalDuration = 0;            // 总耗时 (ms)
-    long long hitchesDuration = 0;          // 卡顿耗时 (ms)
-    long long driveHitchesDuration = 0;     // 驱动卡顿耗时 (ms)
-    long long frameCount = 0;               // 总帧数
-    long long driveFrameCount = 0;          // 驱动帧数
+    long long total_duration = 0;            // 总耗时 (ms)
+    long long hitches_duration = 0;          // 卡顿耗时 (ms)
+    long long drive_hitches_duration = 0;     // 驱动卡顿耗时 (ms)
+    long long frame_count = 0;               // 总帧数
+    long long drive_frame_count = 0;          // 驱动帧数
 
     // 获取 FPS
     double getFps() const;

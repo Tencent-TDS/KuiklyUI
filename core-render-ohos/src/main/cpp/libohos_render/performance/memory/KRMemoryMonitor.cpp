@@ -25,7 +25,7 @@
 const char KRMemoryMonitor::kMonitorName[] = "KRMemoryMonitor";
 constexpr char kTag[] = "KRMemoryMonitor";
 
-KRMemoryMonitor::KRMemoryMonitor(int mode) : memoryData_(0, 0), mode_(mode) {
+KRMemoryMonitor::KRMemoryMonitor(int mode) : memory_data_(0, 0), mode_(mode) {
 }
 
 void KRMemoryMonitor::OnFirstFramePaint() {
@@ -37,46 +37,46 @@ void KRMemoryMonitor::OnInit() {
 }
 
 void KRMemoryMonitor::Start() {
-    if (isStarted_) return;
+    if (is_started_) return;
     KR_LOG_INFO_WITH_TAG(kTag) << "Start";
-    isStarted_ = true;
-    isResumed_ = true;
+    is_started_ = true;
+    is_resumed_ = true;
     SubmitMonitorTask(MemoryTaskType::DUMP_MEMORY);
 }
 
 void KRMemoryMonitor::OnResume() {
-    if (!isStarted_) return;
-    if (isResumed_) return;
+    if (!is_started_) return;
+    if (is_resumed_) return;
     KR_LOG_INFO_WITH_TAG(kTag) << "OnResume";
-    isResumed_ = true;
+    is_resumed_ = true;
 
-    if (dumpMemoryCount_ < MAX_DUMP_MEMORY_COUNT) {
+    if (dump_memory_count_ < MAX_DUMP_MEMORY_COUNT) {
         ScheduleNextDump(); 
     }
 }
 
 void KRMemoryMonitor::OnPause() {
-    if (!isStarted_) return;
+    if (!is_started_) return;
     KR_LOG_INFO_WITH_TAG(kTag) << "OnPause";
-    isResumed_ = false; 
+    is_resumed_ = false; 
 }
 
 void KRMemoryMonitor::OnDestroy() {
     KR_LOG_INFO_WITH_TAG(kTag) << "OnDestroy";
-    isStarted_ = false;
-    isResumed_ = false;
+    is_started_ = false;
+    is_resumed_ = false;
 }
 
 void KRMemoryMonitor::DoDumpMemory() {
-    if (!isStarted_ || !isResumed_) {
+    if (!is_started_ || !is_resumed_) {
         return;
     }
     long pss = GetPssSize();
     long heap = GetEnvHeapSize();
-    KR_LOG_INFO_WITH_TAG(kTag) << "dumpMemory["<< dumpMemoryCount_ <<"]pssSize: " << pss << ", EnvHeap: " << heap;
-    memoryData_.Record(pss, heap);
-    dumpMemoryCount_++;
-    if (dumpMemoryCount_ < MAX_DUMP_MEMORY_COUNT) {
+    KR_LOG_INFO_WITH_TAG(kTag) << "dumpMemory["<< dump_memory_count_ <<"]pssSize: " << pss << ", EnvHeap: " << heap;
+    memory_data_.Record(pss, heap);
+    dump_memory_count_++;
+    if (dump_memory_count_ < MAX_DUMP_MEMORY_COUNT) {
         ScheduleNextDump();
     } else {
         KR_LOG_INFO_WITH_TAG(kTag) << "Dump Memory finished.";
@@ -88,8 +88,8 @@ void KRMemoryMonitor::ScheduleNextDump() {
 }
 
 std::string KRMemoryMonitor::GetMonitorData() {
-    if (memoryData_.IsValid()) {
-        return memoryData_.ToJSONString();
+    if (memory_data_.IsValid()) {
+        return memory_data_.ToJSONString();
     }
     return "{}";
 }
@@ -114,7 +114,7 @@ void KRMemoryMonitor::ExecuteMemoryTask(void* arg) {
                 case MemoryTaskType::INIT: {
                     long initPss = monitor->GetPssSize();
                     long initEnvHeap = monitor->GetEnvHeapSize();
-                    monitor->memoryData_.OnInit(initPss, initEnvHeap);
+                    monitor->memory_data_.OnInit(initPss, initEnvHeap);
                     break;
                 }
                 case MemoryTaskType::DUMP_MEMORY: {

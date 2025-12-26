@@ -53,13 +53,13 @@ class KRMemoryMonitor: public KRMonitor, public std::enable_shared_from_this<KRM
     static void ExecuteMemoryTask(void* arg);
     static void CleanupMemoryTask(void* arg);
     void SubmitMonitorTask(MemoryTaskType type, long delay_ms = 0);
-    std::atomic<bool> isStarted_{false};
-    std::atomic<bool> isResumed_{false};
-    int dumpMemoryCount_ = 0;
+    std::atomic<bool> is_started_{false};
+    std::atomic<bool> is_resumed_{false};
+    int dump_memory_count_ = 0;
     static const int MAX_DUMP_MEMORY_COUNT = 10;
     static constexpr int UPDATE_MEMORY_INTERVAL = 10 * 1000; // ms
     static const int BYTES_PER_KILOBYTE = 1024;
-    KRMemoryData memoryData_; 
+    KRMemoryData memory_data_; 
     // 根据运行模式区分获取类型
     int mode_;
 };

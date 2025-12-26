@@ -21,25 +21,25 @@ constexpr char kKeyPeakIncrement[] = "peakIncrement";
 constexpr char kKeyAppPeak[] = "appPeak";
 constexpr char kKeyAppAvg[] = "appAvg";
 
-KRMemoryData::KRMemoryData(long long pss, long long env_heap): initPss_(pss), initEnvHeap_(env_heap) {}
+KRMemoryData::KRMemoryData(long long pss, long long env_heap): init_pss_(pss), init_env_heap_(env_heap) {}
 
 bool KRMemoryData::IsValid() {
     return true;
     std::lock_guard<std::mutex> lock(mutex_);
-    if (initPss_ <= 0 || pasList_.empty()) {
+    if (init_pss_ <= 0 || pss_list_.empty()) {
         return false;
     }
 }
 
 void KRMemoryData::Record(long long pss, long long env_heap) {
     std::lock_guard<std::mutex> lock(mutex_); 
-    pasList_.push_back(pss);
-    envHeapList_.push_back(env_heap);
+    pss_list_.push_back(pss);
+    env_heap_list_.push_back(env_heap);
 }
 
 void KRMemoryData::OnInit(long long pss, long long env_heap) {
-    initPss_ = pss;
-    initEnvHeap_ = env_heap;
+    init_pss_ = pss;
+    init_env_heap_ = env_heap;
 }
 
 std::string KRMemoryData::ToJSONString() {
@@ -57,7 +57,7 @@ std::string KRMemoryData::ToJSONString() {
 long long KRMemoryData::GetMaxPss() {
     std::lock_guard<std::mutex> lock(mutex_); 
     long long maxPss = 0;
-    for (auto &pss : pasList_) {
+    for (auto &pss : pss_list_) {
         if (pss > maxPss) {
             maxPss = pss;
         }
@@ -68,7 +68,7 @@ long long KRMemoryData::GetMaxPss() {
 long long KRMemoryData::GetMaxEnvHeap() {
     std::lock_guard<std::mutex> lock(mutex_); 
     long long maxKotlinHeap = 0;
-    for (auto &kotlinHeap : envHeapList_) {
+    for (auto &kotlinHeap : env_heap_list_) {
         if (kotlinHeap > maxKotlinHeap) {
             maxKotlinHeap = kotlinHeap;
         }
@@ -79,8 +79,8 @@ long long KRMemoryData::GetMaxEnvHeap() {
 long long KRMemoryData::GetMaxPssIncrement() {
     std::lock_guard<std::mutex> lock(mutex_); 
     long long maxPssIncrement = 0;
-    for (auto &pss : pasList_) {
-        long long pssIncrement = pss - initPss_;
+    for (auto &pss : pss_list_) {
+        long long pssIncrement = pss - init_pss_;
         if (pssIncrement > maxPssIncrement) {
             maxPssIncrement = pssIncrement;
         }
@@ -91,8 +91,8 @@ long long KRMemoryData::GetMaxPssIncrement() {
 long long KRMemoryData::GetMaxEnvHeapIncrement() {
     std::lock_guard<std::mutex> lock(mutex_); 
     long long maxKotlinHeapIncrement = 0;
-    for (auto &kotlinHeap : envHeapList_) {
-        long long kotlinHeapIncrement = kotlinHeap - initEnvHeap_;
+    for (auto &kotlinHeap : env_heap_list_) {
+        long long kotlinHeapIncrement = kotlinHeap - init_env_heap_;
         if (kotlinHeapIncrement > maxKotlinHeapIncrement) {
             maxKotlinHeapIncrement = kotlinHeapIncrement;
         }
@@ -102,45 +102,45 @@ long long KRMemoryData::GetMaxEnvHeapIncrement() {
 
 long long KRMemoryData::GetFirstPssIncrement() {
     std::lock_guard<std::mutex> lock(mutex_); 
-    if (pasList_.empty()) {
+    if (pss_list_.empty()) {
         return 0;
     }
-    return pasList_[0] - initPss_;
+    return pss_list_[0] - init_pss_;
 }
 
 long long KRMemoryData::GetFirstDeltaEnvHeap() {
     std::lock_guard<std::mutex> lock(mutex_); 
-    if (envHeapList_.empty()) {
+    if (env_heap_list_.empty()) {
         return 0;
     }
-    return envHeapList_[0] - initEnvHeap_;
+    return env_heap_list_[0] - init_env_heap_;
 }
 
 long long KRMemoryData::GetAvgPss() {
     std::lock_guard<std::mutex> lock(mutex_); 
-    if (pasList_.empty()) {
+    if (pss_list_.empty()) {
         return 0;
     }
     long long avgPss = 0;
-    for (auto &pss : pasList_) {
+    for (auto &pss : pss_list_) {
         avgPss += pss;
     }
 
-    return avgPss / pasList_.size();
+    return avgPss / pss_list_.size();
 }
 
 long long KRMemoryData::GetAvgPssIncrement() {
     std::lock_guard<std::mutex> lock(mutex_); 
-    if (pasList_.empty()) {
+    if (pss_list_.empty()) {
         return 0;
     }
     long avgPssIncrement = 0;
-    for (auto &pss : pasList_) {
-        long long pssIncrement = pss - initPss_;
+    for (auto &pss : pss_list_) {
+        long long pssIncrement = pss - init_pss_;
         avgPssIncrement += pssIncrement;
     }
-    if (pasList_.empty()) {
+    if (pss_list_.empty()) {
         return 0;
     }
-    return avgPssIncrement / pasList_.size();
+    return avgPssIncrement / pss_list_.size();
 }

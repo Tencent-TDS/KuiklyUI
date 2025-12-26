@@ -47,13 +47,13 @@ private:
     static constexpr long FRAME_INTERVAL_NANOS = 16666667L; // 60fps 的刷新间隔（ns）
     static constexpr long ONE_MILLI_SECOND_IN_NANOS = 1000000L; // 1毫秒的纳秒表示 1ms = 1000,000 ns
     
-    KRFrameData frameData_;
+    KRFrameData frame_data_;
     std::mutex mutex_;
-    bool isStarted_ = false;
-    bool isResumed_ = false;
-    long long lastFrameTimeNanos_ = 0;
-    long long pendingDurationNanos_ = 0;
-    OH_NativeVSync* nativeVSync_ = nullptr;
+    bool is_started_ = false;
+    bool is_resumed_ = false;
+    long long last_frame_time_nanos_ = 0;
+    long long pending_duration_nanos_ = 0;
+    OH_NativeVSync* native_vsync_ = nullptr;
 };
 
 #endif //CORE_RENDER_OHOS_KRFRAMEMONITOR_H

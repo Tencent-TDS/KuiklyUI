@@ -22,6 +22,7 @@
 #import "KuiklyContextParam.h"
 #import "NSObject+KR.h"
 #import "KRBlurView.h"
+#import "KuiklyRenderThreadManager.h"
 
 NSString *const KRImageAssetsPrefix = @"assets://";
 NSString *const KRImageLocalPathPrefix = @"file://";
@@ -228,25 +229,41 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
         }
         [self p_syncMaskLinearGradientIfNeed];
     }
-   
-   
+
 }
 
 - (BOOL)setImageWithUrl:(NSString *)url {
     BOOL handled = false;
-    if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:complete:)]) {
+    self.kr_reuseDisable = YES;     // 默认关闭ImageView的复用能力
+    
+    if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:placeholderImage:options:complete:)]) {
+        __weak typeof(self) wself = self;
+        handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url
+                                                                     forImageView:self
+                                                                 placeholderImage:nil
+                                                                          options:1 << 10
+                                                                         complete:^(UIImage * _Nullable image, NSError * _Nullable error, NSURL * _Nullable imageURL) {
+            // 确保在主线程执行
+            [KuiklyRenderThreadManager performOnMainQueueWithTask:^{
+                // src 一致性验证
+                if (image && [wself p_srcMatch:wself.css_src imageURL:imageURL]) {
+                    wself.image = image;
+                }
+                // 图片加载并设置完成，开放复用能力
+                wself.kr_reuseDisable = NO;
+            } sync:YES];
+            
+            // 错误处理
+            [wself p_handleImageLoadError:error url:url imageURL:imageURL];
+        }];
+    }
+    else if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:complete:)]) {
         __weak typeof(self) wself = self;
         handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url
                                                                      forImageView:self
                                                                          complete:^(UIImage * _Nullable image, NSError * _Nullable error, NSURL * _Nullable imageURL) {
-            if (error && [imageURL.absoluteString isEqualToString:url]) {
-                if (wself.css_loadFailure) {
-                    [self p_fireLoadFailureEventWithErrorCode:error.code];
-                } else {
-                    wself.pendingLoadFailure = true;
-                    wself.errorCode = error.code;
-                }
-            }
+            // 错误处理
+            [wself p_handleImageLoadError:error url:url imageURL:imageURL];
         }];
     } else if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:)]) {
         handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url forImageView:self];
@@ -475,6 +492,46 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
     }
 }
 
+// 图片加载错误处理
+- (void)p_handleImageLoadError:(NSError *)error url:(NSString *)url imageURL:(NSURL *)imageURL {
+    if (error && [imageURL.absoluteString isEqualToString:url]) {
+        if (self.css_loadFailure) {
+            [self p_fireLoadFailureEventWithErrorCode:error.code];
+        } else {
+            self.pendingLoadFailure = true;
+            self.errorCode = error.code;
+        }
+    }
+}
+
+// 图片 src 一致性判断
+- (BOOL)p_srcMatch:(NSString *)src imageURL:(NSURL *)imageURL {
+    if (!src.length || !imageURL)
+        return NO;
+    
+    NSString *url = imageURL.absoluteString;
+    if (!url.length)
+        return NO;
+    
+    // 网络URL 走完全匹配
+    if ([url isEqualToString:src])
+        return YES;
+    
+    // 本地资源 取src和url 最后一个"/"之后的内容
+    NSString *srcFileName = [self p_fileNameFromPath:src];
+    NSString *urlFileName = [self p_fileNameFromPath:url];
+    return srcFileName.length && urlFileName.length && [srcFileName isEqualToString:urlFileName];
+}
+
+// 提取src路径中的文件名
+- (NSString *)p_fileNameFromPath:(NSString *)path {
+    if (!path.length)
+        return @"";
+
+    // 使用系统 API 获取文件名
+    NSString *fileName = path.lastPathComponent;
+    return fileName.length > 0 ? fileName : @"";
+}
 
 
 - (void)dealloc {

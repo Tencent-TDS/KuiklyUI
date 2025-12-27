@@ -6,6 +6,7 @@ export const zhNavbar = navbar([
     {text: "开发文档", link: "/DevGuide/dev-guide-overview.md"},
     {text: "API", link: "/API/components/override.md"},
     {text: "Compose DSL支持", link: "/ComposeDSL/overview.md"},
+    {text: "社区", link: "/Community/component_market.md"},
     {text: "博客", link: "/Blog/roadmap2025.md"},
     {text: "QA", link: "/QA/kuikly-qa.md"},
     {text: "更新日志", link: "/ChangeLog/changelog.md"},

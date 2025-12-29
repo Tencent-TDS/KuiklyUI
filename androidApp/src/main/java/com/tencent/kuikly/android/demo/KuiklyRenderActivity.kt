@@ -70,7 +70,14 @@ class KuiklyRenderActivity : AppCompatActivity() {
         contextCodeHandler = ContextCodeHandler(this, pageName)
         // 2. 实例化Kuikly委托者类
         kuiklyRenderViewDelegator = contextCodeHandler.initContextHandler()
-        setContentView(R.layout.activity_hr)
+
+        val openSlide = argsToMap()["openSlide"]  // 是否打开横向滑动
+        if (openSlide != null) {
+            setContentView(R.layout.activity_hr_slide)
+        } else{
+            setContentView(R.layout.activity_hr)
+        }
+
         setupAdapterManager()
         setupImmersiveMode()
         // 3. 获取用于承载Kuikly的容器View

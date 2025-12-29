@@ -22,32 +22,37 @@ import com.tencent.kuikly.compose.ui.node.requireLayoutNode
 import com.tencent.kuikly.core.views.ScrollerView
 
 fun Modifier.bouncesEnable(
-    enable: Boolean
-): Modifier = this.then(BouncesEnableElement(enable))
+    enable: Boolean,
+    consumeGestureBounces: Boolean = false
+): Modifier = this.then(BouncesEnableElement(enable, consumeGestureBounces))
 
 private class BouncesEnableElement(
-    val bouncesEnable: Boolean
+    val bouncesEnable: Boolean,
+    val consumeGestureBounces: Boolean
 ) : ModifierNodeElement<BouncesEnableNode>() {
-    override fun create(): BouncesEnableNode = BouncesEnableNode(bouncesEnable)
+    override fun create(): BouncesEnableNode = BouncesEnableNode(bouncesEnable, consumeGestureBounces)
 
     override fun hashCode(): Int {
-        return bouncesEnable.hashCode()
+        return bouncesEnable.hashCode() * 31 + consumeGestureBounces.hashCode()
     }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is BouncesEnableElement) return false
-        return bouncesEnable == other.bouncesEnable
+        return bouncesEnable == other.bouncesEnable && 
+               consumeGestureBounces == other.consumeGestureBounces
     }
 
     override fun update(node: BouncesEnableNode) {
         node.bouncesEnable = bouncesEnable
+        node.consumeGestureBounces = consumeGestureBounces
         node.update()
     }
 }
 
 private class BouncesEnableNode(
-    var bouncesEnable: Boolean
+    var bouncesEnable: Boolean,
+    var consumeGestureBounces: Boolean
 ) : Modifier.Node() {
 
     override fun onAttach() {
@@ -60,7 +65,11 @@ private class BouncesEnableNode(
         val kNode = layoutNode as? KNode<*> ?: return
         val scrollerView = kNode.view as? ScrollerView<*, *> ?: return
         scrollerView.getViewAttr().run {
-            bouncesEnable(bouncesEnable)
+            bouncesEnable(
+                bouncesEnable = bouncesEnable,
+                limitHeaderBounces = false,
+                consumeGestureBounces = consumeGestureBounces
+            )
         }
     }
 }

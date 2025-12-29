@@ -373,11 +373,13 @@ open class ScrollerAttr : ContainerAttr() {
      * 是否允许边界回弹效果
      * @param bouncesEnable 是否允许边界回弹
      * @param limitHeaderBounces 是否禁止顶部回弹(如bouncesEnable为false，该值就无效)
+     * @param consumeGestureBounces 是否在支持 overscroll 时优先响应 overscroll 而不是全屏的横滑手势，默认 false
      */
-    fun bouncesEnable(bouncesEnable: Boolean, limitHeaderBounces: Boolean = false) {
+    fun bouncesEnable(bouncesEnable: Boolean, limitHeaderBounces: Boolean = false, consumeGestureBounces: Boolean = false) {
         this.bouncesEnable = bouncesEnable
         BOUNCES_ENABLE with bouncesEnable.toInt()
         LIMIT_BOUNCES_ENABLE with limitHeaderBounces.toInt()
+        CONSUME_GESTURE_BOUNCES with consumeGestureBounces.toInt()
     }
     // 是否显示滚动指示进度条（默认显示）
     fun showScrollerIndicator(value: Boolean) {
@@ -449,6 +451,7 @@ open class ScrollerAttr : ContainerAttr() {
         const val SCROLL_ENABLED = "scrollEnabled"
         const val BOUNCES_ENABLE = "bouncesEnable"
         const val LIMIT_BOUNCES_ENABLE = "limitHeaderBounces"
+        const val CONSUME_GESTURE_BOUNCES = "consumeGestureBounces"
         const val SHOW_SCROLLER_INDICATOR = "showScrollerIndicator"
         const val PAGING_ENABLED = "pagingEnabled"
         const val DIRECTION_ROW =  "directionRow"

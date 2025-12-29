@@ -350,6 +350,9 @@ internal var touchDownConsumeOnce = false
  */
 fun View.setPreventTouch(value: Boolean) {
     touchConsumeByKuikly = value
+    if (value) {
+        parent.requestDisallowInterceptTouchEvent(true)
+    }
 }
 
 fun View.setTouchDownConsumeOnce(value: Boolean) {

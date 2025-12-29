@@ -38,6 +38,7 @@ class KRMonitor {
     virtual void OnDestroy();
     virtual std::string GetMonitorData() = 0;
     virtual void SetArkLaunchTime(int64_t timestamp);
+    virtual void OnInit();
     //    virtual void OnRenderException();
 };
 #endif  // CORE_RENDER_OHOS_KRMONITOR_H

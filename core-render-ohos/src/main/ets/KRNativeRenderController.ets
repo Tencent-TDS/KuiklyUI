@@ -718,18 +718,18 @@ export class KRNativeRenderController {
   /**
    * 回调启动数据
    */
-  onGetLaunchData(data: Record<string, number>): void {
+  onGetLaunchData(data: KRRecord): void {
   }
 
   /**
    * 回调性能数据
    */
-  onGetPerformanceData(data: Record<string, number>): void {
+  onGetPerformanceData(data: KRRecord): void {
   }
 
   /**
    * Kuikly框架设置性能监控选项，默认只开启动监控
-   * @return Array<KRMonitorType>: 需要设置的性能监控选项列表(目前仅支持启动监控)
+   * @return Array<KRMonitorType>: 需要设置的性能监控选项列表
    */
   performanceMonitorTypes(): Array<KRMonitorType> {
     return [KRMonitorType.LAUNCH];
@@ -843,4 +843,6 @@ export interface IKuiklyRenderViewLifecycleCallback {
  */
 export enum KRMonitorType {
   LAUNCH = 1 << 0,  // 1 启动监控
+  FRAME = 1 << 1,  // 2 FPS监控
+  MEMORY = 1 << 2,  // 4 内存监控
 }

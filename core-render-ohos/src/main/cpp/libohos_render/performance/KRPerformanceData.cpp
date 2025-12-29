@@ -27,9 +27,9 @@ constexpr char kKeyMemory[] = "memory";
 constexpr char kKeyPageLoadTime[] = "pageLoadTime";
 
 KRPerformanceData::KRPerformanceData(std::string page_name, int excute_mode, int spent_time, bool is_cold_launch,
-                                     bool is_page_cold_launch, std::string launch_data)
+                                     bool is_page_cold_launch, std::string launch_data, std::string frame_data, std::string memory_data)
     : page_name_(page_name), excute_mode_(excute_mode), spent_time_(spent_time), is_cold_launch_(is_cold_launch),
-      is_page_cold_launch_(is_page_cold_launch), launch_data_(launch_data) {}
+      is_page_cold_launch_(is_page_cold_launch), launch_data_(launch_data), frame_data_(frame_data), memory_data_(memory_data) {}
 
 std::string KRPerformanceData::ToJsonString() {
     cJSON *performance_data = cJSON_CreateObject();
@@ -37,8 +37,20 @@ std::string KRPerformanceData::ToJsonString() {
     cJSON_AddNumberToObject(performance_data, kKeyPageExistTime, spent_time_);
     cJSON_AddBoolToObject(performance_data, kKeyIsFirstPageProcess, is_cold_launch_);
     cJSON_AddBoolToObject(performance_data, kKeyIsFirstPageLaunch, is_page_cold_launch_);
+    if (!frame_data_.empty()) {
+        auto frame_data_json = cJSON_Parse(frame_data_.c_str());
+        cJSON* main_fps_item = cJSON_GetObjectItem(frame_data_json, kKeyMainFPS);
+        double main_fps = cJSON_GetNumberValue(main_fps_item);
+        cJSON_AddNumberToObject(performance_data, kKeyMainFPS, main_fps);
+        cJSON_Delete(frame_data_json);
+    }
+    if (!memory_data_.empty()) {
+        cJSON_AddStringToObject(performance_data, kKeyMemory, memory_data_.c_str());
+    }
     cJSON_AddStringToObject(performance_data, kKeyPageLoadTime, launch_data_.c_str());
-    std::string result = cJSON_Print(performance_data);
+    char* jsonStr = cJSON_Print(performance_data);
+    std::string result = jsonStr;
+    free(jsonStr);
     cJSON_Delete(performance_data);
     return result;
 }

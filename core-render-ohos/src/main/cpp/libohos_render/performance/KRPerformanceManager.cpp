@@ -18,6 +18,8 @@
 #include "libohos_render/expand/modules/performance/KRPerformanceModule.h"
 #include "libohos_render/manager/KRArkTSManager.h"
 #include "libohos_render/performance/KRPerformanceData.h"
+#include "libohos_render/performance/frame/KRFrameMonitor.h"
+#include "libohos_render/performance/memory//KRMemoryMonitor.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"
 
 static constexpr char ON_GET_LAUNCH_DATA_DATA[] = "onGetLaunchData";
@@ -31,6 +33,15 @@ KRPerformanceManager::KRPerformanceManager(int performance_monitor_types_mask, s
     if (performance_monitor_types_mask_ & kMonitorTypeLaunch) {
         auto launch_monitor = std::make_shared<KRLaunchMonitor>();
         monitors_[KRLaunchMonitor::kMonitorName] = launch_monitor;
+    }
+    if (performance_monitor_types_mask_ & kMonitorTypeFrame) {
+        auto frame_monitor = std::make_shared<KRFrameMonitor>();
+        monitors_[KRFrameMonitor::kMonitorName] = frame_monitor;
+    }
+    if (performance_monitor_types_mask_ & kMonitorTypeMemory) {
+        auto memory_monitor = std::make_shared<KRMemoryMonitor>(mode->GetMode());
+        monitors_[KRMemoryMonitor::kMonitorName] = memory_monitor;
+        memory_monitor->OnInit(); // 内存初始化
     }
     auto it = std::find(page_record_.begin(), page_record_.end(), page_name_);
     if (it == page_record_.end()) {  //  页面未曾加载过
@@ -102,8 +113,18 @@ void KRPerformanceManager::OnPageCreateFinish(KRPageCreateTrace &trace) {  //  K
         OnLaunchResult();
     }
 }
-void KRPerformanceManager::OnResume() {}
-void KRPerformanceManager::OnPause() {}
+
+void KRPerformanceManager::OnResume() {
+    for (auto &monitor: monitors_) {
+        monitor.second->OnResume();
+    }
+}
+
+void KRPerformanceManager::OnPause() {
+    for (auto &monitor: monitors_) {
+        monitor.second->OnPause();
+    }
+}
 
 void KRPerformanceManager::OnDestroy() {
     for (auto &monitor: monitors_) {
@@ -126,24 +147,45 @@ std::string KRPerformanceManager::GetLaunchData() {  //  收集启动数据
     return "{}";
 }
 
-std::string KRPerformanceManager::GetPerformanceData() {  //  收集所有性能数据
-    auto monitor = GetMonitor(KRLaunchMonitor::kMonitorName);
+std::string KRPerformanceManager::GetFrameData() {  //  获取帧数据
+    auto monitor = GetMonitor(KRFrameMonitor::kMonitorName);
     if (monitor) {
-        auto now = std::chrono::system_clock::
-            now();  //  这里用system_clock。原因是KuiklyCore回调的页面创建事件都是epoch_time。
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
-        auto spent_time = duration.count() - init_time_stamps_;
-        int kuikly_core_mode_value = mode_->ModeToCoreValue();
-        KRPerformanceData performance =
-            KRPerformanceData(page_name_, kuikly_core_mode_value, spent_time, is_cold_launch, is_page_cold_launch,
-                              monitor->GetMonitorData());
-        return performance.ToJsonString();
+        auto temp = monitor->GetMonitorData();
+        return monitor->GetMonitorData();
     }
-    return "{}";
+    return "";
+}
+
+std::string KRPerformanceManager::GetMemoryData() {  //  获取内存数据
+    auto monitor = GetMonitor(KRMemoryMonitor::kMonitorName);
+    if (monitor) {
+        return monitor->GetMonitorData();
+    }
+    return "";
+}
+
+std::string KRPerformanceManager::GetPerformanceData() {  //  收集所有性能数据
+    if (performance_monitor_types_mask_ == 0) {
+        return "";
+    }
+    
+    auto now = std::chrono::system_clock::
+        now();  //  这里用system_clock。原因是KuiklyCore回调的页面创建事件都是epoch_time。
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
+    auto spent_time = duration.count() - init_time_stamps_;
+    int kuikly_core_mode_value = mode_->ModeToCoreValue();
+    auto launch_data = GetLaunchData();
+    auto frame_data = GetFrameData();
+    auto memory_data = GetMemoryData();
+    auto monitor = GetMonitor(KRLaunchMonitor::kMonitorName);
+    KRPerformanceData performance =
+        KRPerformanceData(page_name_, kuikly_core_mode_value, spent_time, is_cold_launch, is_page_cold_launch,
+                              launch_data, frame_data, memory_data);
+    return performance.ToJsonString();
 }
 
 std::shared_ptr<KRMonitor> KRPerformanceManager::GetMonitor(std::string monitor_name) {
-    if (monitors_.find(KRLaunchMonitor::kMonitorName) != monitors_.end()) {
+    if (monitors_.find(monitor_name) != monitors_.end()) {
         return monitors_[monitor_name];
     }
     return nullptr;

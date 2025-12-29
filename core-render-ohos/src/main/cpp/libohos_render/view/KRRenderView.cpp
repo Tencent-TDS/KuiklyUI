@@ -114,6 +114,11 @@ void KRRenderView::WillDestroy(const std::string &instanceId) {
  */
 void KRRenderView::SendEvent(std::string event_name, const std::string &json_data) {
     if (core_) {
+        if (event_name == "viewDidAppear") {
+            DispatchInitState(KRInitState::kStateResume);
+        } else if (event_name == "viewDidDisappear") {
+            DispatchInitState(KRInitState::kStatePause);
+        }
         return core_->SendEvent(event_name, json_data);
     }
 }
@@ -338,10 +343,10 @@ void KRRenderView::DispatchInitState(KRInitState state) {
     case KRInitState::kStateFirstFramePaint:
        performance_manager_->OnFirstFramePaint();
     case KRInitState::kStateResume:
-        // todo
+        performance_manager_->OnResume();
         break;
     case KRInitState::kStatePause:
-        // todo
+        performance_manager_->OnPause();
         break;
     case KRInitState::kStateDestroy:
         performance_manager_->OnDestroy();

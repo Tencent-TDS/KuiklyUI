@@ -25,6 +25,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.tencent.kuikly.compose.KuiklyApplier
+import com.tencent.kuikly.compose.extension.SetEventElement
+import com.tencent.kuikly.compose.extension.SetPropElement
 import com.tencent.kuikly.compose.foundation.interaction.Interaction
 import com.tencent.kuikly.compose.foundation.interaction.MutableInteractionSource
 import com.tencent.kuikly.compose.foundation.layout.Box
@@ -47,7 +49,6 @@ import com.tencent.kuikly.compose.ui.layout.Placeable
 import com.tencent.kuikly.compose.ui.node.ComposeUiNode
 import com.tencent.kuikly.compose.ui.node.KNode
 import com.tencent.kuikly.compose.ui.node.requireOwner
-import com.tencent.kuikly.compose.ui.platform.LocalActivity
 import com.tencent.kuikly.compose.ui.platform.LocalDensity
 import com.tencent.kuikly.compose.ui.platform.LocalFocusManager
 import com.tencent.kuikly.compose.ui.platform.LocalLayoutDirection
@@ -192,7 +193,6 @@ internal fun CoreTextField(
             measurables: List<Measurable>,
             constraints: Constraints
         ): MeasureResult {
-
             val pageDensity = autoHeightTextAreaView.getPager().pagerDensity()
 
             autoHeightTextAreaView.onTextChanged(" ")
@@ -203,7 +203,6 @@ internal fun CoreTextField(
                 // 通过空串计算出行高
                 lineHeight = this.height * pageDensity
             }
-
 
             val maxWidth = constraints.maxWidth - lineHeight / CHANGE_LINE_SPACE
             val size = if (value.text == "") {
@@ -223,12 +222,14 @@ internal fun CoreTextField(
                         constraints.maxHeight/ pageDensity)
                 }
             }
+
             // 高度变化，重新测量
             var intSize = IntSize(1001000)
             size?.also {
                 intSize = IntSize(
-                    ceil(it.width * pageDensity).toInt(),
-                    ceil(it.height * pageDensity).toInt()
+                    ceil(maxWidth).toInt(),
+                    (it.height * pageDensity).toInt()
+                        .coerceAtLeast(constraints.minHeight)
                 )
             }
             val layoutSize = constraints.constrain(
@@ -278,6 +279,7 @@ internal fun CoreTextField(
             )
         }
     }}
+
     val focusRequester = remember { FocusRequester() }
     var hasFocus by remember { mutableStateOf(false) }
     // Focus
@@ -326,9 +328,11 @@ internal fun CoreTextField(
 //        offsetMapping,
     )
 
-    val combinedModifier = modifier.then(focusModifier)
+    // 一次遍历拆分 Modifier，使用 remember 避免重复计算
+    val (propsAndEvents, others) = remember(modifier) { modifier.splitByPropOrEvent() }
+    val combinedModifier = others.then(focusModifier)
 
-    Box(modifier = pointerModifier) {
+    Box(modifier = pointerModifier.then(combinedModifier), propagateMinConstraints = true) {
         decorationBox {
             ComposeNode<ComposeUiNode, KuiklyApplier>(
                 factory = {
@@ -347,8 +351,9 @@ internal fun CoreTextField(
                     set(localMap, ComposeUiNode.SetResolvedCompositionLocals)
                     @OptIn(ExperimentalComposeUiApi::class)
                     set(compositeKeyHash, ComposeUiNode.SetCompositeKeyHash)
-                    set(combinedModifier) {
-                        this.modifier = combinedModifier
+                    set(propsAndEvents) {
+                        // 从父亲抽取 TextField 相关的Modifier
+                        this.modifier = propsAndEvents
                     }
                     set(hasFocus) {
                         withTextAreaView {
@@ -362,7 +367,6 @@ internal fun CoreTextField(
                         withTextAreaView {
                             getViewAttr().text(value.text)
                         }
-                        this.modifier = combinedModifier
                     }
                     set(editable) {
                         withTextAreaView {
@@ -432,6 +436,28 @@ internal fun CoreTextField(
             )
         }
     }
+}
+/**
+ * 将 Modifier 拆分为两部分：SetPropElement/SetEventElement 和其他 Element
+ * 使用 foldOut 从内到外遍历，保持原始顺序
+ */
+private data class SplitModifiers(
+    val propsAndEvents: Modifier,
+    val others: Modifier
+)
+
+private fun Modifier.splitByPropOrEvent(): SplitModifiers {
+    var propsAndEvents: Modifier = Modifier
+    var others: Modifier = Modifier
+    // 使用 foldOut 从内到外遍历，element.then(acc) 保持原始顺序
+    foldOut(Unit) { element, _ ->
+        if (element is SetPropElement || element is SetEventElement) {
+            propsAndEvents = element.then(propsAndEvents)
+        } else {
+            others = element.then(others)
+        }
+    }
+    return SplitModifiers(propsAndEvents, others)
 }
 
 private fun updateKeyboardOptions(

@@ -206,6 +206,6 @@ export const zhSidebar = sidebar({
         }
     ],
     "/QA": [
-        "kuikly-qa.md"
+        "kuikly-qa.md", "kuikly-example.md"
     ]
 });

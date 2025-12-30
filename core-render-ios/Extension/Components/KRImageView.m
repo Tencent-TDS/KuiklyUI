@@ -78,6 +78,8 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 @property (nonatomic, assign) BOOL pendingLoadFailure;
 /** loadFailure 回调还未设置时，图片加载失败的错误码 */
 @property (nonatomic, assign) NSInteger errorCode;
+/** 正在进行中的图片加载请求计数 */
+@property (nonatomic, assign) NSUInteger imageLoadingCount;
 
 @end
 
@@ -91,6 +93,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
     if (self = [super initWithFrame:frame]) {
         self.contentMode = UIViewContentModeScaleAspectFill;
         self.clipsToBounds = YES;
+        self.kr_reuseDisable = YES;
 #if !TARGET_OS_OSX // [macOS]
         self.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
 #endif // [macOS]
@@ -123,6 +126,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
     self.css_capInsets = nil;
     self.pendingLoadFailure = false;
     self.errorCode = 0;
+    self.imageLoadingCount = 0;
 }
 
 #pragma mark - setter
@@ -234,27 +238,28 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 
 - (BOOL)setImageWithUrl:(NSString *)url {
     BOOL handled = false;
-    self.kr_reuseDisable = YES;     // 默认关闭ImageView的复用能力
     
     if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:placeholderImage:options:complete:)]) {
+        self.kr_reuseDisable = YES;     // 先关闭ImageView的复用能力
+        self.imageLoadingCount++;
         __weak typeof(self) wself = self;
         handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url
                                                                      forImageView:self
                                                                  placeholderImage:nil
                                                                           options:1 << 10
                                                                          complete:^(UIImage * _Nullable image, NSError * _Nullable error, NSURL * _Nullable imageURL) {
-            // 确保在主线程执行
+            // 强弱共舞
+            __strong typeof(wself) sself = wself;
+            if (!sself) return;
+                        
             [KuiklyRenderThreadManager performOnMainQueueWithTask:^{
                 // src 一致性验证
-                if (image && [wself p_srcMatch:wself.css_src imageURL:imageURL]) {
-                    wself.image = image;
+                if (image && [sself p_srcMatch:sself.css_src imageURL:imageURL]) {
+                    sself.image = image;
                 }
-                // 图片加载并设置完成，开放复用能力
-                wself.kr_reuseDisable = NO;
-            } sync:YES];
-            
-            // 错误处理
-            [wself p_handleImageLoadError:error url:url imageURL:imageURL];
+                [sself p_handleImageLoadCompletion:error url:url imageURL:imageURL];
+                [sself p_decrementImageLoadingCount];       // 更新图片加载计数，判断是否开放复用能力
+            } sync:NO];
         }];
     }
     else if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:complete:)]) {
@@ -262,8 +267,11 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
         handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url
                                                                      forImageView:self
                                                                          complete:^(UIImage * _Nullable image, NSError * _Nullable error, NSURL * _Nullable imageURL) {
-            // 错误处理
-            [wself p_handleImageLoadError:error url:url imageURL:imageURL];
+            __strong typeof(wself) sself = wself;
+            if (!sself) return;
+            [KuiklyRenderThreadManager performOnMainQueueWithTask:^{
+                [sself p_handleImageLoadCompletion:error url:url imageURL:imageURL];
+            } sync:NO];
         }];
     } else if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:)]) {
         handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url forImageView:self];
@@ -493,7 +501,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 }
 
 // 图片加载错误处理
-- (void)p_handleImageLoadError:(NSError *)error url:(NSString *)url imageURL:(NSURL *)imageURL {
+- (void)p_handleImageLoadCompletion:(NSError *)error url:(NSString *)url imageURL:(NSURL *)imageURL {
     if (error && [imageURL.absoluteString isEqualToString:url]) {
         if (self.css_loadFailure) {
             [self p_fireLoadFailureEventWithErrorCode:error.code];
@@ -531,6 +539,16 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
     // 使用系统 API 获取文件名
     NSString *fileName = path.lastPathComponent;
     return fileName.length > 0 ? fileName : @"";
+}
+
+// 新增方法
+- (void)p_decrementImageLoadingCount {
+    if (self.imageLoadingCount > 0) {
+        self.imageLoadingCount--;
+    }
+    if (self.imageLoadingCount == 0) {
+        self.kr_reuseDisable = NO;
+    }
 }
 
 

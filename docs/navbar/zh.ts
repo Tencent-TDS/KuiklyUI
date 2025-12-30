@@ -5,7 +5,7 @@ export const zhNavbar = navbar([
     {text: "快速开始", link: "/QuickStart/env-setup.md"},
     {text: "开发文档", link: "/DevGuide/dev-guide-overview.md"},
     {text: "API", link: "/API/components/override.md"},
-    {text: "Compose DSL支持", link: "/ComposeDSL/overview.md"},
+    {text: "Compose DSL", link: "/Compose/overview.md"},
     {text: "社区", link: "/Community/component_market.md"},
     {text: "博客", link: "/Blog/roadmap2025.md"},
     {text: "QA", link: "/QA/kuikly-qa.md"},

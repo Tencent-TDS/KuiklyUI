@@ -492,8 +492,24 @@ class LazyGridState @ExperimentalFoundationApi constructor(
                 10.0f // Default value to avoid division by zero
             }
             
-            // 6 times the viewport's line count, multiplied by slotsPerLine, with a minimum of 10 * slotsPerLine
-            maxOf((6 * linesPerViewport * slotsPerLine).toInt(), 10 * slotsPerLine)
+            // Special handling for Grid waterfall layout: due to uneven row heights, use a more conservative Teleport distance
+            // Reserve 2.2 loops of animation space (more than List's 1.8 loops)
+            val targetDistancePx = 2500f * density.density  // 2500dp to px (≈8125px)
+            
+            // Calculate how many lines can be scrolled in one loop
+            val linesPerLoop = if (averageLineSize > 0) {
+                targetDistancePx / averageLineSize
+            } else {
+                linesPerViewport * 2.5f  // Fallback: approximately 2.5 times viewport lines
+            }
+            
+            // Convert to item count: lines × columns per line
+            val itemsPerLoop = linesPerLoop * slotsPerLine
+            
+            val reservedLoops = 2.2f  // Grid needs to be more conservative (larger than List's 1.8)
+            val teleportItems = maxOf((itemsPerLoop * reservedLoops).toInt(), 15 * slotsPerLine)
+            
+            teleportItems
         } else {
             // Use default value if visibleItemsInfo is empty
             100 * slotsPerLine

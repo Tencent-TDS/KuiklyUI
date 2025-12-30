@@ -29,7 +29,13 @@
 @synthesize hr_rootView;
 - (instancetype)initWithFrame:(CGRect)frame {
     if (self = [super initWithFrame: frame]) {
+#if !TARGET_OS_OSX // [macOS]
         self.effect = [UIBlurEffect effectWithStyle:(UIBlurEffectStyleLight)];
+#else // [macOS
+        self.material = NSVisualEffectMaterialLight;
+        self.blendingMode = NSVisualEffectBlendingModeBehindWindow;
+        self.state = NSVisualEffectStateActive;
+#endif // macOS]
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(onReceiveApplicationDidBecomeActiveNotification:)
                                                      name:UIApplicationDidBecomeActiveNotification object:nil];
@@ -62,6 +68,7 @@
 
 - (void)setCss_blurRadius:(NSNumber *)css_blurRadius {
     _css_blurRadius = css_blurRadius;
+#if !TARGET_OS_OSX // [macOS]
     if (@available(iOS 10.0, *)) {
         self.effect = nil;
         UIViewPropertyAnimator *animator;
@@ -79,6 +86,23 @@
     } else {
         // Fallback on earlier versions
     }
+#else // [macOS
+    // macOS: Map blur radius to NSVisualEffectMaterial
+    // Since NSVisualEffectView doesn't support fractional blur radius,
+    // we map the radius value to appropriate material types
+    CGFloat radius = css_blurRadius.floatValue;
+    if (radius < 3.0) {
+        self.material = NSVisualEffectMaterialLight;
+    } else if (radius < 6.0) {
+        self.material = NSVisualEffectMaterialMediumLight;
+    } else {
+        if (@available(macOS 10.14, *)) {
+            self.material = NSVisualEffectMaterialContentBackground;
+        } else {
+            self.material = NSVisualEffectMaterialLight;
+        }
+    }
+#endif // macOS]
 }
 
 #pragma mark - dealloc

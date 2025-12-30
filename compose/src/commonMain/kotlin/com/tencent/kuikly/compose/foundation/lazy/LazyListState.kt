@@ -472,8 +472,20 @@ class LazyListState
                     10.0f // Default value to avoid division by zero
                 }
                 
-                // 6 times the viewport's item count, with a minimum of 10
-                maxOf((6 * itemsPerViewport).toInt(), 10)
+                // Calculate how many items can be scrolled in one loop
+                // TargetDistance = 2500dp, one loop scrolls approximately 2500dp / averageItemSize items
+                // Reserve at least 1.5~2 loops of animation space after Teleport
+                val targetDistancePx = 2500f * density.density // 2500dp to px
+                val itemsPerLoop = if (averageItemSize > 0) {
+                    targetDistancePx / averageItemSize
+                } else {
+                    itemsPerViewport * 2.5f // Fallback: approximately 2.5 times viewport
+                }
+                
+                val reservedLoops = 1.8f
+                val teleportItems = maxOf((itemsPerLoop * reservedLoops).toInt(), 15)
+                
+                teleportItems
             } else {
                 // Use default value if visibleItemsInfo is empty
                 NumberOfItemsToTeleport

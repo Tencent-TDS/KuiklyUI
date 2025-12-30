@@ -16,6 +16,7 @@
 
 #import "KRTabbarView.h"
 #import "KRComponentDefine.h"
+#import "NSObject+KR.h"
 
 extern NSString *const KRImageAssetsPrefix;
 
@@ -60,10 +61,12 @@ extern NSString *const KRImageAssetsPrefix;
     KUIKLY_SET_CSS_COMMON_PROP;
 }
 
-- (void)setCss_items:(NSArray *)css_items {
+- (void)setCss_items:(NSString *)css_items {
     // css_items: [{title, icon, selectedIcon}]
     NSMutableArray *tabBarItems = [NSMutableArray array];
-    for (NSDictionary *item in css_items) {
+    // Parse the JSON string parameter into an array
+    NSArray *itemsArray = [css_items hr_stringToArray];
+    for (NSDictionary *item in itemsArray) {
         NSString *title = item[@"title"] ?: @"";
         NSString *iconCssPath = item[@"icon"] ?: @"";
         NSString *selectedIconCssPath = item[@"selectedIcon"] ?: @"";
@@ -75,7 +78,7 @@ extern NSString *const KRImageAssetsPrefix;
         [tabBarItems addObject:tabBarItem];
     }
     self.tabBar.items = tabBarItems;
-    self.items = css_items;
+    self.items = itemsArray;
 }
 
 - (void)setCss_selectedIndex:(NSNumber *)css_selectedIndex {

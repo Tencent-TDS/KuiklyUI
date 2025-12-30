@@ -42,6 +42,8 @@ class KRPerformanceManager {
     void OnDestroy();
     std::string GetInstanceId();
     std::string GetLaunchData();
+    std::string GetFrameData();
+    std::string GetMemoryData();
     std::string GetPerformanceData();
     std::shared_ptr<KRMonitor> GetMonitor(std::string monitor_name);
     void SetArkLaunchTime(int64_t launch_time);
@@ -73,6 +75,8 @@ private:
 
 enum MonitorTypeMask {
     kMonitorTypeLaunch = 1 << 0,  // 1 启动监控
+    kMonitorTypeFrame = 1 << 1,  // 2 FPS监控
+    kMonitorTypeMemory = 1 << 2,  // 4 内存监控
 };
 
 #endif  // CORE_RENDER_OHOS_KRPERFORMANCEMANAGER_H

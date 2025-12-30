@@ -254,6 +254,33 @@ internal class DebugPage : BasePager() {
 }
 ```
 
+## 高效更新列表：diffUpdate
+
+``observableList``提供了``diffUpdate``方法，用于高效地用新列表替换旧列表数据。相比``clear()``+``addAll()``会销毁所有Item后重建，``diffUpdate``基于diff算法只执行必要的增删操作，性能更优。
+
+### 方法签名
+
+```kotlin
+fun diffUpdate(newList: List<T>, areItemsTheSame: ((T, T) -> Boolean)? = null)
+```
+
+### 参数说明
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| newList | List\<T\> | 新的列表数据 |
+| areItemsTheSame | ((T, T) -> Boolean)? | 可选，判断两个元素是否相同的比较函数，默认使用 `==` |
+
+### 使用示例
+
+```kotlin
+// 基本用法
+list.diffUpdate(newData)
+
+// 自定义比较（适用于复杂对象，如通过id判断是否同一元素）
+userList.diffUpdate(newUsers) { old, new -> old.id == new.id }
+```
+
 ## 下一步
 
 在这节中，我们学习了如何使用响应式字段和响应式容器来达到UI自动更新的目的。下一步，我们来学习``Kuikly``中的[语句指令](directive.md)

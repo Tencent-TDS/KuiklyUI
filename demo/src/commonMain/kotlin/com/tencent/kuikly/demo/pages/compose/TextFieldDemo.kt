@@ -117,7 +117,7 @@ class TextFieldDemo : ComposeContainer() {
                                     color = Color.Blue,
                                 ),
                                 maxLines = 2,
-                                modifier = Modifier.width(150.dp),
+                                modifier = Modifier.weight(1f),
                                 onTextLayout = {},
                                 placeholderColor = Color.Red,
                                 autoFocus = false,
@@ -217,7 +217,7 @@ class TextFieldDemo : ComposeContainer() {
 //
                     Spacer(modifier = Modifier.height(16.dp))
                     var doneState by remember { mutableStateOf("") }
-                    Text(text = "4 密码输入无法换行，高度36dp，响应键盘高度 ${doneState}")
+                    Text(text = "4 密码输入无法换行，高度80dp，响应键盘高度 ${doneState}")
                     val keyboardController = LocalSoftwareKeyboardController.current
                     Box(modifier = Modifier.border(1.dp, Color.Black)) {
                         TextField(
@@ -236,7 +236,7 @@ class TextFieldDemo : ComposeContainer() {
                                     keyboardController?.hide()
                                 }
                             ),
-                            modifier = Modifier.fillMaxWidth().height(36.dp).onFocusChanged {
+                            modifier = Modifier.height(80.dp).onFocusChanged {
                                 awareKeyboardHeight = it.isFocused
                             }.keyboardHeightChange {
                                 if (awareKeyboardHeight) {

@@ -31,7 +31,9 @@
 - (instancetype)initWithFrame:(CGRect)frame {
     if (self = [super initWithFrame:frame]) {
         _contentTextView = [[KRRichTextView alloc] initWithFrame:self.bounds];
+#if !TARGET_OS_OSX // [macOS]
         [self addSubview:_contentTextView];
+#endif // [macOS]
     }
     return self;
 }
@@ -96,9 +98,28 @@
         }
     }
     if (gradientLayer) {
-        gradientLayer.mask = _contentTextView.layer;
-    } else {
+#if TARGET_OS_OSX // [macOS
+        // Force render once before using layer as mask
+        [_contentTextView setNeedsDisplay:YES];
+        [_contentTextView displayIfNeeded];
         
+        CALayer *maskLayer = _contentTextView.layer;
+        
+        // Flip Y-axis for macOS coordinate system (bottom-left origin)
+        maskLayer.transform = CATransform3DMakeScale(1.0, -1.0, 1.0);
+        maskLayer.anchorPoint = CGPointMake(0.5, 0.5);
+        maskLayer.position = CGPointMake(CGRectGetMidX(maskLayer.bounds), CGRectGetMidY(maskLayer.bounds));
+        
+        // Use layer as mask with rendered content
+        gradientLayer.mask = maskLayer;
+#else // macOS]
+        gradientLayer.mask = _contentTextView.layer;
+#endif // [macOS]
+        
+    } else {
+#if TARGET_OS_OSX // [macOS
+        [self addSubview:_contentTextView];
+#endif // macOS]
     }
 }
 

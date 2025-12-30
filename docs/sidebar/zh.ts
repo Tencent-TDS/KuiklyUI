@@ -49,7 +49,7 @@ export const zhSidebar = sidebar({
                 {
                     text: "Kuikly接入",
                     collapsible: false,
-                    children: ["overview.md", "privacy-policy.md", "common.md", "android.md", "iOS.md", "harmony.md", "Web.md", "Miniapp.md"]
+                    children: ["overview.md", "privacy-policy.md", "common.md", "android.md", "iOS.md", "harmony.md", "H5.md", "Miniapp.md"]
                 },
 
                 
@@ -100,7 +100,7 @@ export const zhSidebar = sidebar({
                                 {
                                     text: "性能优化",
                                     collapsible: true,
-                                    children: ["kuikly-perf-guidelines.md"]
+                                    children: ["kuikly-perf-guidelines.md", "android-start-guide.md"]
                                 }
                             ]
                         },
@@ -118,12 +118,12 @@ export const zhSidebar = sidebar({
                                 {
                                     text: "开发方式与集成",
                                     collapsible: true,
-                                    children : ["dev-overview.md", "android-dev.md", "ios-dev.md", "harmony-dev.md", "web-dev.md", "miniapp-dev.md"]
+                                    children : ["dev-overview.md", "android-dev.md", "ios-dev.md", "harmony-dev.md", "h5-dev.md", "miniapp-dev.md"]
                                 },
                                 {
                                     text: "调试与工具",
                                     collapsible: true,
-                                    children: ["android-debug.md", "iOS-debug.md", "ohos-debug.md", "web-debug.md", "miniapp-debug.md"]
+                                    children: ["android-debug.md", "iOS-debug.md", "ohos-debug.md", "h5-debug.md", "miniapp-debug.md"]
                                 },
                             ]
                         },
@@ -153,6 +153,13 @@ export const zhSidebar = sidebar({
                         "kuiklybase-ohos-kn.md", "kuiklybase-feat-remaining.md"
                     ]
                 },
+                {
+                    text: "Web教程",
+                    collapsible: false,
+                    children: [
+                        "web-import-jssdk.md", "h5-image-path.md", "h5-spa-demo.md"
+                    ]
+                }
             ],
         },
     ],
@@ -176,11 +183,6 @@ export const zhSidebar = sidebar({
                 "overview.md", 'memory-cache.md', "sp.md", "router.md", "network.md", "notify.md", "snapshot.md","codec.md","calendar.md", "performance.md"
             ]
         }
-    ],
-    "/ComposeDSL": [
-        "overview.md",
-        "quickStart.md",
-        "allApi.md"
     ],
     "/Compose": [
         {
@@ -239,6 +241,12 @@ export const zhSidebar = sidebar({
                 "faq.md"
             ]
         }
+    ],  
+    "/Community": [
+        "component_market.md",
+        "tech_sharing.md",
+        "contribute-guide.md",
+        "contributor_role.md",
     ],
     "/Blog": [
         "roadmap2025.md",
@@ -247,13 +255,6 @@ export const zhSidebar = sidebar({
             prefix: "/Blog/architecture",
             children: [
                 "kuikly-rendering.md", "architecture_and_advantages.md"
-                ]
-        },
-        {
-            text: "实践分享",
-            prefix: "/Blog/sharing",
-            children: [
-                "tech_practice_sharing_template.md"
                 ]
         }
     ],

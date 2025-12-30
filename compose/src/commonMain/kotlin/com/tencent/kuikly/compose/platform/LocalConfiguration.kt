@@ -60,6 +60,10 @@ class Configuration(private val pager: IPager) {
     val isIOS: Boolean
         get() = pageData.isIOS
 
+    // 是否是 macOS 设备
+    val isMacOS: Boolean
+        get() = pageData.isMacOS
+
     // 是否是 Android 设备
     val isAndroid: Boolean
         get() = pageData.isAndroid

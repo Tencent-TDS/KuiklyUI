@@ -616,28 +616,34 @@ class LazyLoopDirectivesView<T>(
             it.frame.let { frame -> frame.size > 0f && contentOffset <= frame.end }
         }
 
-        val itemPosition: Int = when {
+        val itemPosition: Int
+        val itemOffset: Float
+        when {
             firstVisibleChildIndex == -1 -> {
                 // offset greater than last child, result to position end
-                curList.size - 1
+                itemPosition = curList.size - 1
+                itemOffset = contentOffset
             }
 
             firstVisibleChildIndex < BEFORE_COUNT -> {
                 val offsetRatio = (contentOffset - itemStart.frame.start) / itemStart.frame.size
-                round(offsetRatio * currentStart).toInt()
+                itemPosition = round(offsetRatio * currentStart).toInt()
+                itemOffset = contentOffset
             }
 
             firstVisibleChildIndex < children.size - AFTER_COUNT -> {
-                currentStart + firstVisibleChildIndex - BEFORE_COUNT
+                itemPosition = currentStart + firstVisibleChildIndex - BEFORE_COUNT
+                itemOffset = children[firstVisibleChildIndex].frame.start
             }
 
             else -> {
                 val offsetRatio = (contentOffset - itemEnd.frame.start) / itemEnd.frame.size
-                round(offsetRatio * (curList.size - currentEnd)).toInt() + currentEnd
+                itemPosition = round(offsetRatio * (curList.size - currentEnd)).toInt() + currentEnd
+                itemOffset = contentOffset
             }
         }
 
-        createItemByPosition(itemPosition, contentOffset, scrolling)
+        createItemByPosition(itemPosition, itemOffset, scrolling)
     }
 
     /**

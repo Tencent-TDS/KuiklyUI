@@ -248,11 +248,11 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
                                                                  placeholderImage:nil
                                                                           options:1 << 10
                                                                          complete:^(UIImage * _Nullable image, NSError * _Nullable error, NSURL * _Nullable imageURL) {
-            // 强弱共舞
-            __strong typeof(wself) sself = wself;
-            if (!sself) return;
-                        
             [KuiklyRenderThreadManager performOnMainQueueWithTask:^{
+                __strong typeof(wself) sself = wself;
+                if (!sself) {
+                    return;
+                }
                 // src 一致性验证
                 if (image && [sself p_srcMatch:sself.css_src imageURL:imageURL]) {
                     sself.image = image;
@@ -267,9 +267,11 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
         handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url
                                                                      forImageView:self
                                                                          complete:^(UIImage * _Nullable image, NSError * _Nullable error, NSURL * _Nullable imageURL) {
-            __strong typeof(wself) sself = wself;
-            if (!sself) return;
             [KuiklyRenderThreadManager performOnMainQueueWithTask:^{
+                __strong typeof(wself) sself = wself;
+                if (!sself) {
+                    return;
+                }
                 [sself p_handleImageLoadCompletion:error url:url imageURL:imageURL];
             } sync:NO];
         }];

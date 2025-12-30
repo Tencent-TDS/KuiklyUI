@@ -23,6 +23,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
+import android.view.VelocityTracker
 import android.animation.ValueAnimator
 import android.view.animation.LinearInterpolator
 import android.view.accessibility.AccessibilityNodeInfo
@@ -163,6 +164,28 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
     private var lastScrollParentX = 0
 
     private var lastScrollParentY = 0
+
+    /**
+     * 用于计算嵌套滚动时的速度
+     * 在嵌套滚动过程中追踪触摸事件，计算出正确的 fling 速度
+     */
+    private var nestedScrollVelocityTracker: VelocityTracker? = null
+    
+    /**
+     * 嵌套滚动时计算出的 X 方向速度（像素/秒）
+     */
+    private var nestedScrollVelocityX = 0f
+    
+    /**
+     * 嵌套滚动时计算出的 Y 方向速度（像素/秒）
+     */
+    private var nestedScrollVelocityY = 0f
+    
+    /**
+     * 记录 fling 时的速度，用于在 fling 到边缘时触发弹簧效果
+     */
+    private var lastFlingVelocityX = 0
+    private var lastFlingVelocityY = 0
 
     private var pagerSnapHelper: KRPagerSnapHelper? = null
 
@@ -553,15 +576,66 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         accumulatedPositionOffsetY = 0
         lastLayoutLeft = -1
         lastLayoutTop = -1
+        
+        // 清理 VelocityTracker
+        nestedScrollVelocityTracker?.recycle()
+        nestedScrollVelocityTracker = null
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        // 追踪触摸事件，用于计算嵌套滚动时的速度
+        trackNestedScrollVelocity(ev)
+        
         return if (overScrollHandler?.forceOverScroll == true) {
             val r = super.dispatchTouchEvent(ev)
             touchDelegate?.dispatchHRRecyclerViewTouchEvent(ev)
             r
         } else {
             super.dispatchTouchEvent(ev)
+        }
+    }
+    
+    /**
+     * 追踪触摸事件以计算嵌套滚动时的速度
+     */
+    private fun trackNestedScrollVelocity(ev: MotionEvent) {
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                // 开始新的触摸序列，创建或重置 VelocityTracker
+                nestedScrollVelocityTracker?.recycle()
+                nestedScrollVelocityTracker = VelocityTracker.obtain()
+                nestedScrollVelocityTracker?.addMovement(ev)
+                nestedScrollVelocityX = 0f
+                nestedScrollVelocityY = 0f
+                // 新的触摸序列开始，重置 fling 速度
+                lastFlingVelocityX = 0
+                lastFlingVelocityY = 0
+            }
+            MotionEvent.ACTION_MOVE -> {
+                nestedScrollVelocityTracker?.addMovement(ev)
+            }
+            MotionEvent.ACTION_UP -> {
+                nestedScrollVelocityTracker?.let { tracker ->
+                    tracker.addMovement(ev)
+                    // 计算速度，单位：像素/秒
+                    tracker.computeCurrentVelocity(1000)
+                    nestedScrollVelocityX = tracker.xVelocity
+                    nestedScrollVelocityY = tracker.yVelocity
+                    // 回收 VelocityTracker，避免内存泄漏
+                    tracker.recycle()
+                }
+                nestedScrollVelocityTracker = null
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                // 触摸取消时，重置速度
+                nestedScrollVelocityX = 0f
+                nestedScrollVelocityY = 0f
+                nestedScrollVelocityTracker?.recycle()
+                nestedScrollVelocityTracker = null
+                // 触摸取消，重置 fling 速度
+                lastFlingVelocityX = 0
+                lastFlingVelocityY = 0
+            }
         }
     }
 
@@ -629,6 +703,10 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         } else {
             velocityX to velocityY
         }
+        
+        // 记录 fling 速度，用于在 fling 到边缘时触发弹簧效果
+        lastFlingVelocityX = adjustedVelocityX
+        lastFlingVelocityY = adjustedVelocityY
 
         if (overScrollHandler?.overScrolling != true) { // over scroll 时, willDragEnd 由 over scroll handler 处理
             fireWillDragEndEvent(adjustedVelocityX, adjustedVelocityY)
@@ -710,6 +788,8 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 }
 
                 if (isEndState(currentState)) {
+                    // 检测 fling 到边缘的情况，触发弹簧效果
+                    checkAndTriggerFlingBounce()
                     fireEndScrollEvent()
                 }
                 preScrollState = currentState
@@ -735,6 +815,76 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         }
         dispatchOnEndDrag(contentOffsetX, contentOffsetY)
         dragEndEventCallback?.invoke(getCommonScrollParams())
+    }
+    
+    /**
+     * 检测 fling 到边缘的情况，触发弹簧效果
+     * 当从 SETTLING 状态变为 IDLE 状态，且列表在边缘时触发
+     */
+    private fun checkAndTriggerFlingBounce() {
+        // 只有在 bounces 开启时才触发
+        if (!bouncesEnable) {
+            lastFlingVelocityX = 0
+            lastFlingVelocityY = 0
+            return
+        }
+        
+        val handler = overScrollHandler ?: run {
+            lastFlingVelocityX = 0
+            lastFlingVelocityY = 0
+            return
+        }
+        
+        // 如果已经在 overscroll 状态，不重复触发
+        if (handler.overScrolling) {
+            lastFlingVelocityX = 0
+            lastFlingVelocityY = 0
+            return
+        }
+        
+        // 只有从 SETTLING 状态（fling 状态）变为 IDLE 才触发
+        if (preScrollState != SCROLL_STATE_SETTLING) {
+            lastFlingVelocityX = 0
+            lastFlingVelocityY = 0
+            return
+        }
+        
+        // 获取 fling 速度
+        val velocity = if (directionRow) lastFlingVelocityX else lastFlingVelocityY
+        
+        // 速度太小不触发
+        if (kotlin.math.abs(velocity) < 500) {
+            lastFlingVelocityX = 0
+            lastFlingVelocityY = 0
+            return
+        }
+        
+        // 检测是否在边缘
+        val atStart = handler.isInStart()
+        val atEnd = if (directionRow) {
+            !canScrollHorizontally(1)
+        } else {
+            !canScrollVertically(1)
+        }
+        
+        // 根据速度方向和边缘位置判断是否触发弹簧
+        // velocity > 0 表示向下/向右滚动，会触发底部/右侧边缘的弹簧
+        // velocity < 0 表示向上/向左滚动，会触发顶部/左侧边缘的弹簧
+        val shouldTrigger = when {
+            velocity > 0 && atEnd -> true
+            // 检查 limitHeaderBounces，如果限制了头部弹簧则不触发
+            velocity < 0 && atStart && !limitHeaderBounces -> true
+            else -> false
+        }
+        
+        if (shouldTrigger) {
+            val isAtStart = velocity < 0 && atStart
+            handler.triggerFlingBounce(velocity.toFloat(), isAtStart)
+        }
+        
+        // 重置 fling 速度
+        lastFlingVelocityX = 0
+        lastFlingVelocityY = 0
     }
 
     internal fun automaticAdjustContentOffset() {
@@ -1545,8 +1695,17 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 if (pagerSnapHelper != null) {
                     pagerSnapHelper?.snapFromFling(lastScrollParentX, lastScrollParentY)
                 } else {
-                    // 用上次滚动父亲的距离作为WillDragEnd的速度，以驱动Pager选择滑动的方向
-                    fireWillDragEndEvent(lastScrollParentX, lastScrollParentY)
+                    // 使用 VelocityTracker 计算的真实速度，而不是滚动距离
+                    // 
+                    // 符号说明：
+                    // - VelocityTracker: velocityY > 0 表示手指向下移动
+                    // - 嵌套滚动 dy: dy > 0 表示手指向上移动（内容向下滚动）
+                    // - 所以需要取反：velocityY 取反后与 dy 的符号一致
+                    // 
+                    // 只有当对应方向有实际滚动时才传递速度
+                    val velocityX = if (lastScrollParentX != 0) -nestedScrollVelocityX.toInt() else 0
+                    val velocityY = if (lastScrollParentY != 0) -nestedScrollVelocityY.toInt() else 0
+                    fireWillDragEndEvent(velocityX, velocityY)
                 }
                 lastScrollParentX = 0
                 lastScrollParentY = 0
@@ -1567,6 +1726,10 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             target.accumulatedPositionOffsetX = 0
             target.accumulatedPositionOffsetY = 0
         }
+        
+        // 重置嵌套滚动速度
+        nestedScrollVelocityX = 0f
+        nestedScrollVelocityY = 0f
 
         overScrollHandler?.let { handler ->
             if ((target as? KRRecyclerView)?.skipFlingIfNestOverScroll == true) {
@@ -1839,6 +2002,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 lastScrollParentY = parentDy
                 didConsumeY = true
             } else {
+                // 父容器也无法滚动时，触发 overscroll
                 if (touchType == ViewCompat.TYPE_TOUCH) {
                     // 走Overscroll时，如果是ParentFirst模式，容易出现父亲有Overscroll可处理，导致子列表没法下拉查看数据的情况
                     val needChildFirstWhenOverscroll = parentDy > 0 && target.canScrollVertically(parentDy)
@@ -1871,16 +2035,35 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         }
 
         var didConsumeX = false  // 标记是否已经设置了 consumed[0]
-        if (shouldScrollParentX && canScrollHorizontally(parentDx)) {
-            // 记录滚动前的偏移量
-            val beforeScrollX = computeHorizontalScrollOffset()
-            scrollBy(parentDx, 0)
-            // 计算实际滚动的距离
-            val actualScrollX = computeHorizontalScrollOffset() - beforeScrollX
-            // 累加补偿消耗的值，避免覆盖
-            consumed[0] = compensationConsumedX + actualScrollX
-            lastScrollParentX = parentDx
-            didConsumeX = true
+        if (shouldScrollParentX) {
+            if (canScrollHorizontally(parentDx)) {
+                // 记录滚动前的偏移量
+                val beforeScrollX = computeHorizontalScrollOffset()
+                scrollBy(parentDx, 0)
+                // 计算实际滚动的距离
+                val actualScrollX = computeHorizontalScrollOffset() - beforeScrollX
+                // 累加补偿消耗的值，避免覆盖
+                consumed[0] = compensationConsumedX + actualScrollX
+                lastScrollParentX = parentDx
+                didConsumeX = true
+            } else {
+                // 父容器也无法滚动时，触发 overscroll（仅限横向列表）
+                if (touchType == ViewCompat.TYPE_TOUCH && directionRow) {
+                    // 走Overscroll时，如果是ParentFirst模式，容易出现父亲有Overscroll可处理，导致子列表没法左右滑查看数据的情况
+                    val needChildFirstWhenOverscroll = parentDx > 0 && target.canScrollHorizontally(parentDx)
+                    if (!needChildFirstWhenOverscroll) {
+                        // 只有触摸拖拽模式才处理OverScroll，避免fling直接触发了回弹
+                        overScrollHandler?.let {
+                            it.setTranslationByNestScrollTouch(parentDx.toFloat())
+                            target.skipFlingIfNestOverScroll = true
+                            // 累加补偿消耗的值，避免覆盖
+                            consumed[0] = compensationConsumedX + parentDx
+                            lastScrollParentX = parentDx
+                            didConsumeX = true
+                        }
+                    }
+                }
+            }
         }
         
         // 如果补偿消耗了值但没有实际滚动，也需要记录补偿值

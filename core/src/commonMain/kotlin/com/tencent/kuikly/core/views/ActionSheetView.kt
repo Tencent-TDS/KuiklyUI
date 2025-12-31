@@ -144,12 +144,15 @@ class ActionSheetEvent : Event() {
 }
 
 class ActionSheetView : VirtualView<ActionSheetAttr, ActionSheetEvent>() {
+    private var useBlur = false
     private var showActionSheeting by observable(false)
     override fun createAttr() = ActionSheetAttr()
     override fun createEvent() = ActionSheetEvent()
 
     override fun didInit() {
         super.didInit()
+        // blur may cause performance and stable issue on android, exclude it for now
+        useBlur = !this.getPager().pageData.isAndroid
         showActionSheeting = attr.showActionSheet
         initContentViewCreator()
         initBackgroundViewCreator()
@@ -166,16 +169,23 @@ class ActionSheetView : VirtualView<ActionSheetAttr, ActionSheetEvent>() {
                 attr {
                     borderRadius(14f)
                     margin(left = 8f, right = 8f, bottom = 8f)
+                    val colorHex: Long
+                    val alpha: Float
                     if (getPager().isNightMode()) {
-                        backgroundColor(Color(red255 = 0, blue255 = 0, green255 = 0, alpha01 = 0.85f))
+                        colorHex = 0x000000
+                        alpha = if (ctx.useBlur) 0.85f else 1f
                     } else {
-                        backgroundColor(Color(red255 = 255, blue255 = 255, green255 = 255, alpha01 = 0.75f))
+                        colorHex = 0xFFFFFF
+                        alpha = if (ctx.useBlur) 0.75f else 0.9f
                     }
+                    backgroundColor(Color(colorHex, alpha))
                 }
 
-                Blur {
-                    attr {
-                        absolutePositionAllZero()
+                if (ctx.useBlur) {
+                    Blur {
+                        attr {
+                            absolutePositionAllZero()
+                        }
                     }
                 }
                 vif({ctx.attr.descriptionOfActions.isNotEmpty()}) {

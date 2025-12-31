@@ -39,7 +39,7 @@ internal class BlurExamplePage : BasePager() {
             Image {
                 attr {
                     absolutePosition(0f, 0f, 0f, 0f)
-                    src("https://vfiles.gtimg.cn/wuji_dashboard/xy/componenthub/lQ8TO29r.gif")
+                    src("https://wfiles.gtimg.cn/wuji_dashboard/wupload/xy/starter/75bbac82.gif")
                 }
             }
             // navBar

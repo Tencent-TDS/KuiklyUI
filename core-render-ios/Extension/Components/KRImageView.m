@@ -251,7 +251,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
             [KuiklyRenderThreadManager performOnMainQueueWithTask:^{
                 __strong typeof(wself) sself = wself;
                 if (!sself) {
-                    return;
+                    return;     // 弱指针提前释放，拦截Image更新，复用能力不开放
                 }
                 // src 一致性验证
                 if (image && [sself p_srcMatch:sself.css_src imageURL:imageURL]) {

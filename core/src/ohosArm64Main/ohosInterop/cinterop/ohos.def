@@ -2,6 +2,8 @@ headers = ../include/KRRenderCValue.h
 ---
 #include <sys/time.h>
 #include <dlfcn.h>
+#include <time.h>
+#include <stdbool.h>
 
 int com_tencent_kuikly_GetAddress(long address) {
   Dl_info info;
@@ -24,3 +26,11 @@ extern const struct KRRenderCValue com_tencent_kuikly_CallNative(int methodId, K
                                            KRRenderCValue arg3, KRRenderCValue arg4, KRRenderCValue arg5);
 extern void com_tencent_kuikly_ScheduleContextTask(const char* pagerId, void (*onSchedule)(const char* pagerId));
 extern bool com_tencent_kuikly_IsCurrentOnContextThread(const char* pagerId);
+
+long long com_tencent_kuikly_GetThreadCPUTimeInNanoseconds() {
+    struct timespec ts;
+    if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts) == 0) {
+        return (long long)ts.tv_sec * 1000000000LL + ts.tv_nsec;
+    }
+    return 0;
+}

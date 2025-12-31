@@ -372,17 +372,19 @@ open class ListContentView : ScrollerContentView() {
         }
         val needRemoveViewViews = fastArrayListOf<DeclarativeBaseView<*, *>>()
         val needCreateViewViews = fastArrayListOf<DeclarativeBaseView<*, *>>()
+        val allChildren = renderChildren()
+        val layoutedChildren = allChildren.filterNot {
+            val default = it.flexNode.layoutFrame.isDefaultValue()
+            if (default) {
+                containUnLayoutNode = true
+            }
+            default
+        }
         if (isRowFlexDirection()) {
             val visibleOffset = visibleOffset(true)
             val visibleLeft = offsetX - visibleOffset
             val visibleRight = offsetX + parent!!.flexNode.layoutFrame.width + visibleOffset
-            renderChildren().filterNot {
-                val default = it.flexNode.layoutFrame.isDefaultValue()
-                if (default) {
-                    containUnLayoutNode = true
-                }
-                default
-            }.forEach {
+            layoutedChildren.forEach {
                 val frame = it.flexNode.layoutFrame
                 if (frame.maxX() < visibleLeft || frame.minX() > visibleRight) {
                     if (shouldRemoveRenderView(it)) {
@@ -398,13 +400,7 @@ open class ListContentView : ScrollerContentView() {
             val visibleOffset = visibleOffset(false)
             val visibleTop = offsetY - visibleOffset
             val visibleBottom = offsetY + parent!!.flexNode.layoutFrame.height + visibleOffset
-            renderChildren().filterNot {
-                val default = it.flexNode.layoutFrame.isDefaultValue()
-                if (default) {
-                    containUnLayoutNode = true
-                }
-                default
-            }.forEach {
+            layoutedChildren.forEach {
                 val frame = it.flexNode.layoutFrame
                 if (frame.maxY() < visibleTop || frame.minY() > visibleBottom) {
                     if (shouldRemoveRenderView(it)) {
@@ -420,9 +416,36 @@ open class ListContentView : ScrollerContentView() {
         needRemoveViewViews.forEach { component ->
             component.removeRenderView()
         }
+        var renderViewCount = 0
+        var traversalIndex = 0
         needCreateViewViews.forEach { component ->
-            component.createRenderView()
-            renderView!!.insertSubRenderView(component.nativeRef, -1)
+            if (component is HoverView) {
+                // render层会干预hoverView的排序，因此直接插到最后面
+                component.createRenderView()
+                renderView!!.insertSubRenderView(component.nativeRef, -1)
+                return@forEach
+            }
+            for (i in traversalIndex until allChildren.size) {
+                val child = allChildren[i]
+                if (child is HoverView) {
+                    // render层会干预hoverView的排序，因此统一插到最后面，不统计其renderViewCount
+                    continue
+                }
+                if (child === component) {
+                    // found component, insert renderView at index=renderViewCount
+                    component.createRenderView()
+                    renderView!!.insertSubRenderView(component.nativeRef, renderViewCount)
+                    traversalIndex = i + 1
+                    renderViewCount++
+                    return@forEach
+                }
+                if (child.renderView != null) {
+                    // traverse before component, counting renderView to get correct index
+                    renderViewCount++
+                }
+            }
+            // should not reach here, set traversalIndex to the end to avoid later creation
+            traversalIndex = allChildren.size
         }
         return !containUnLayoutNode
     }

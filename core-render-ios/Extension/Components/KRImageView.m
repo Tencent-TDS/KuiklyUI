@@ -254,7 +254,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
                     return;
                 }
                 // 回调处理
-                if (image && [sself p_handleImageLoadCompletion:error url:sself.css_src imageURL:imageURL]) {
+                if ([sself p_handleImageLoadCompletion:error url:sself.css_src imageURL:imageURL] && image) {
                     sself.image = image;
                 }
                 [sself p_decrementImageLoadingCount];       // 图片加载完成，不管是否成功，更新图片加载计数，判断是否开放复用能力

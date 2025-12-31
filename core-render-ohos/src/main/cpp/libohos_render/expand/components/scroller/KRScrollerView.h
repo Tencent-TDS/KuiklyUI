@@ -98,6 +98,7 @@ class KRScrollerView : public IKRRenderViewExport {
     bool SetPagingEnabled(const KRAnyValue &value);
     bool SetBouncesEnable(const KRAnyValue &value);
     bool SetLimitHeaderBounces(const KRAnyValue &value);
+    bool SetLimitFooterBounces(const KRAnyValue &value);
     bool SetShowScrollerIndicator(const KRAnyValue &value);
     bool RegisterOnScrollEvent(const KRRenderCallback event_call_back);
     bool RegisterOnDragBeginEvent(const KRRenderCallback event_callback);
@@ -127,6 +128,7 @@ class KRScrollerView : public IKRRenderViewExport {
     void ApplyContentInsetWhenDragEnd();
     void InnerSetBouncesEnable(bool enable);
     void AdjustHeaderBouncesEnableWhenWillScroll(ArkUI_NodeEvent *event);
+    void AdjustFooterBouncesEnableWhenWillScroll(ArkUI_NodeEvent *event);
     void DispatchDidScrollToObservers(KRPoint point);
     bool SetFlingEnable(bool enable);
 
@@ -139,6 +141,7 @@ class KRScrollerView : public IKRRenderViewExport {
     std::shared_ptr<KRScrollerContentView> content_view_;
     bool bounces_enabled_ = true;
     bool limit_header_bounces_ = false;
+    bool limit_footer_bounces_ = false;
     bool current_bounces_enabled_ = false;
     bool is_dragging_ = false;
     bool is_set_frame_ = false;

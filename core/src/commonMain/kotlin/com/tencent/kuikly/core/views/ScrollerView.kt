@@ -369,15 +369,38 @@ open class ScrollerAttr : ContainerAttr() {
     fun scrollEnable(value: Boolean) {
         SCROLL_ENABLED with value.toInt()
     }
-    /*
-     * 是否允许边界回弹效果
-     * @param bouncesEnable 是否允许边界回弹
-     * @param limitHeaderBounces 是否禁止顶部回弹(如bouncesEnable为false，该值就无效)
+    
+    /**
+     * 设置是否允许边界回弹效果，以及是否限制顶部或底部的回弹。
+     * 
+     * 当 [bouncesEnable] 为 `false` 时，整个滚动视图将禁用回弹效果，此时 [limitHeaderBounces] 和 [limitFooterBounces] 参数将无效。
+     * 当 [bouncesEnable] 为 `true` 时，可以通过 [limitHeaderBounces] 和 [limitFooterBounces] 参数分别控制顶部和底部的回弹行为。
+     * 
+     * @param bouncesEnable 是否允许边界回弹效果。默认为 `true`。
+     * @param limitHeaderBounces 是否禁止顶部回弹。当滚动到顶部时，如果此参数为 `true`，则禁止向上拖拽时的回弹效果。
+     *                          注意：如果 [bouncesEnable] 为 `false`，该参数将无效。默认为 `false`。
+     * @param limitFooterBounces 是否禁止底部回弹。当滚动到底部时，如果此参数为 `true`，则禁止向下拖拽时的回弹效果。
+     *                           注意：如果 [bouncesEnable] 为 `false`，该参数将无效。默认为 `false`。
+     * 
+     * @sample 示例：启用回弹但禁止顶部和底部回弹
+     * ```
+     * scrollerView.attr {
+     *     bouncesEnable(true, limitHeaderBounces = true, limitFooterBounces = true)
+     * }
+     * ```
+     * 
+     * @sample 示例：完全禁用回弹效果
+     * ```
+     * scrollerView.attr {
+     *     bouncesEnable(false)
+     * }
+     * ```
      */
-    fun bouncesEnable(bouncesEnable: Boolean, limitHeaderBounces: Boolean = false) {
+    fun bouncesEnable(bouncesEnable: Boolean, limitHeaderBounces: Boolean = false, limitFooterBounces: Boolean = false) {
         this.bouncesEnable = bouncesEnable
         BOUNCES_ENABLE with bouncesEnable.toInt()
         LIMIT_BOUNCES_ENABLE with limitHeaderBounces.toInt()
+        LIMIT_FOOTER_BOUNCES with limitFooterBounces.toInt()
     }
     // 是否显示滚动指示进度条（默认显示）
     fun showScrollerIndicator(value: Boolean) {
@@ -449,6 +472,7 @@ open class ScrollerAttr : ContainerAttr() {
         const val SCROLL_ENABLED = "scrollEnabled"
         const val BOUNCES_ENABLE = "bouncesEnable"
         const val LIMIT_BOUNCES_ENABLE = "limitHeaderBounces"
+        const val LIMIT_FOOTER_BOUNCES = "limitFooterBounces"
         const val SHOW_SCROLLER_INDICATOR = "showScrollerIndicator"
         const val PAGING_ENABLED = "pagingEnabled"
         const val DIRECTION_ROW =  "directionRow"

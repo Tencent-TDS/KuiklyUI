@@ -251,14 +251,13 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
             [KuiklyRenderThreadManager performOnMainQueueWithTask:^{
                 __strong typeof(wself) sself = wself;
                 if (!sself) {
-                    return;     // 弱指针提前释放，拦截Image更新，复用能力不开放
+                    return;
                 }
-                // src 一致性验证
-                if (image && [sself p_srcMatch:sself.css_src imageURL:imageURL]) {
+                // 回调处理
+                if (image && [sself p_handleImageLoadCompletion:error url:sself.css_src imageURL:imageURL]) {
                     sself.image = image;
                 }
-                [sself p_handleImageLoadCompletion:error url:url imageURL:imageURL];
-                [sself p_decrementImageLoadingCount];       // 更新图片加载计数，判断是否开放复用能力
+                [sself p_decrementImageLoadingCount];       // 图片加载完成，不管是否成功，更新图片加载计数，判断是否开放复用能力
             } sync:NO];
         }];
     }
@@ -272,7 +271,8 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
                 if (!sself) {
                     return;
                 }
-                [sself p_handleImageLoadCompletion:error url:url imageURL:imageURL];
+                // 回调处理
+                [sself p_handleImageLoadCompletion:error url:sself.css_src imageURL:imageURL];
             } sync:NO];
         }];
     } else if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:)]) {
@@ -502,31 +502,42 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
     }
 }
 
-// 图片加载错误处理
-- (void)p_handleImageLoadCompletion:(NSError *)error url:(NSString *)url imageURL:(NSURL *)imageURL {
-    if (error && [imageURL.absoluteString isEqualToString:url]) {
+// 图片加载结果回调处理
+- (BOOL)p_handleImageLoadCompletion:(NSError *)error url:(NSString *)url imageURL:(NSURL *)imageURL {
+    // src一致性判断
+    if (![self p_srcMatch:url imageURL:imageURL]) {
+        return NO;
+    }
+    // 错误处理
+    if (error) {
         if (self.css_loadFailure) {
             [self p_fireLoadFailureEventWithErrorCode:error.code];
         } else {
             self.pendingLoadFailure = true;
             self.errorCode = error.code;
         }
+        return NO;
     }
+    // 加载成功，允许设置图片
+    return YES;
 }
 
 // 图片 src 一致性判断
 - (BOOL)p_srcMatch:(NSString *)src imageURL:(NSURL *)imageURL {
-    if (!src.length || !imageURL)
+    if (!src.length || !imageURL) {
         return NO;
-    
+    }
+       
     NSString *url = imageURL.absoluteString;
-    if (!url.length)
+    if (!url.length) {
         return NO;
-    
+    }
+        
     // 网络URL 走完全匹配
-    if ([url isEqualToString:src])
+    if ([url isEqualToString:src]) {
         return YES;
-    
+    }
+        
     // 本地资源 取src和url 最后一个"/"之后的内容
     NSString *srcFileName = [self p_fileNameFromPath:src];
     NSString *urlFileName = [self p_fileNameFromPath:url];
@@ -535,9 +546,10 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 
 // 提取src路径中的文件名
 - (NSString *)p_fileNameFromPath:(NSString *)path {
-    if (!path.length)
+    if (!path.length) {
         return @"";
-
+    }
+        
     // 使用系统 API 获取文件名
     NSString *fileName = path.lastPathComponent;
     return fileName.length > 0 ? fileName : @"";

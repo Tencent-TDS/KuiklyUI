@@ -57,7 +57,7 @@
     [imageView sd_setImageWithURL:[NSURL URLWithString:url]
                         completed:^(UIImage * _Nullable image, NSError * _Nullable error, SDImageCacheType cacheType, NSURL * _Nullable imageURL) {
         if (completeBlock) {
-            completeBlock(image, error, imageURL);
+            completeBlock(image, error, [NSURL URLWithString:url]);
         }
     }];
     return YES;

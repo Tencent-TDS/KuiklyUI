@@ -293,7 +293,8 @@ data class InputParams(
 
 data class KeyboardParams(
     val height: Float,
-    val duration: Float
+    val duration: Float,
+    val curve: Int = 0
 )
 
 class InputEvent : Event() {
@@ -354,12 +355,15 @@ class InputEvent : Event() {
      * @param handler 处理键盘高度变化事件的回调函数
      */
     fun keyboardHeightChange(handler: (KeyboardParams) -> Unit) {
-        register(KEYBOARD_HEIGHT_CHANGE){
+        register(KEYBOARD_HEIGHT_CHANGE,{
             it as JSONObject
             val height = it.optDouble("height").toFloat()
             val duration = it.optDouble("duration").toFloat()
-            handler(KeyboardParams(height, duration))
-        }
+            val curve = it.optInt("curve")
+            handler(KeyboardParams(height, duration, curve))
+            // Force flush UI to native side immediately to ensure animation sync
+            getPager().syncFlushUI()
+        }, isSync = true)
     }
 
     /**

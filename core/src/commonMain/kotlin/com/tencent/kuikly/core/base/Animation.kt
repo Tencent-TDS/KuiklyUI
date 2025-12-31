@@ -23,6 +23,7 @@ class Animation internal constructor() {
     private var velocity: Float = 0f
     private var delay: Float = 0f
     private var repeatForever: Boolean = false
+    private var rawCurve: Int? = null
 
     var key: String = ""
 
@@ -37,7 +38,8 @@ class Animation internal constructor() {
     }
 
     override fun toString(): String {
-        return "${animationType.value} ${timingFuncType.value} $duration $damping $velocity $delay ${repeatForever.toInt()} $key"
+        val curveVal = rawCurve ?: timingFuncType.value
+        return "${animationType.value} $curveVal $duration $damping $velocity $delay ${repeatForever.toInt()} $key"
     }
 
     companion object {
@@ -108,6 +110,12 @@ class Animation internal constructor() {
             key: String = ""
         ): Animation {
             return createSpring(TimingFuncType.EASE_IN_OUT, durationS, damping, velocity, key = key)
+        }
+
+        fun keyboard(durationS: Float, curve: Int, key: String = ""): Animation {
+            return create(AnimationType.PLAIN, TimingFuncType.LINEAR/*ignored*/, durationS, key = key).apply {
+                rawCurve = curve
+            }
         }
 
         private fun create(

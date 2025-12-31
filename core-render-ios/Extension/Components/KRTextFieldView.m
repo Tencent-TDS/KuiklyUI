@@ -315,8 +315,9 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     NSDictionary *info = notify.userInfo;
     CGFloat keyboardHeight = [[info objectForKey:UIKeyboardFrameEndUserInfoKey] CGRectValue].size.height;
     CGFloat duration = [[info objectForKey:UIKeyboardAnimationDurationUserInfoKey] floatValue];
+    NSInteger curve = [[info objectForKey:UIKeyboardAnimationCurveUserInfoKey] integerValue];
     if (self.css_keyboardHeightChange) {
-        self.css_keyboardHeightChange(@{@"height": @(keyboardHeight), @"duration": @(duration)});
+        self.css_keyboardHeightChange(@{@"height": @(keyboardHeight), @"duration": @(duration), @"curve": @(curve)});
     }
 }
 
@@ -324,8 +325,9 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     // 键盘将要隐藏
     NSDictionary *info = notify.userInfo;
     CGFloat duration = [[info objectForKey:UIKeyboardAnimationDurationUserInfoKey] floatValue];
+    NSInteger curve = [[info objectForKey:UIKeyboardAnimationCurveUserInfoKey] integerValue];
     if (self.css_keyboardHeightChange) {
-        self.css_keyboardHeightChange(@{@"height": @(0), @"duration": @(duration)});
+        self.css_keyboardHeightChange(@{@"height": @(0), @"duration": @(duration), @"curve": @(curve)});
     }
 }
 

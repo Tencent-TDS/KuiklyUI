@@ -97,12 +97,24 @@ typedef void(^ImageCompletionBlock)(UIImage * _Nullable image, NSError * _Nullab
 - (NSURL *)hr_customBundleUrlForFileName:(NSString *)fileName extension:(NSString *)fileExtension;
 
 /*
- * 自定义实现设置图片（带完成回调，优先调用该方法）
+ * 自定义实现设置图片
  * @param url 设置的图片url，如果url为nil，则是取消图片设置，需要view.image = nil
  * @param complete 图片处理完成后的回调
  * @return 是否处理该图片设置，返回值为YES，则交给该代理实现，否则sdk内部自己处理
  */
 - (BOOL)hr_setImageWithUrl:(nullable NSString *)url forImageView:(UIImageView *)imageView complete:(ImageCompletionBlock)completeBlock;
+
+/*
+ * 自定义实现设置图片（带回调和src一致性验证，优先调用该方法）
+ * @param url 设置的图片url，如果url为nil，则是取消图片设置，需要view.image = nil
+ * @param placeholder 设置的占位图，默认设置为nil
+ * @param options 图片加载参数（对应SDWebImageOptions），默认传KRImageOptionAvoidAutoSetImage(1<<10，对应SDWebImageAvoidAutoSetImage)，阻断SDWebImage无感更新ImageView的image
+ * @param complete 图片处理完成后的回调，内置src一致性验证
+ * @return 是否处理该图片设置，返回值为YES，则交给该代理实现，否则sdk内部自己处理
+ *
+ * @warning 实现此方法时，必须在图片加载完成后调用completeBlock，SDK通过此回调完成ImageView.image的最终设置，若不调用将导致图片无法显示
+ */
+- (BOOL)hr_setImageWithUrl:(nonnull NSString *)url forImageView:(nonnull UIImageView *)imageView placeholderImage:(nullable UIImage *)placeholder options:(NSUInteger)options complete:(ImageCompletionBlock)completeBlock;
 
 /*
  * 自定义实现设置颜值

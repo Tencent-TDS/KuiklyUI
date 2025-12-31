@@ -79,21 +79,60 @@ internal class OverScrollHandler(
     private var velocityTracker =  VelocityTracker.obtain()
     private var scrollPointerId = -1
 
+    /**
+     * 标记上一次是否在边缘，用于检测从中间滑动到边缘的时刻
+     */
+    private var wasAtEdge = false
+    
     fun onTouchEvent(event: MotionEvent): Boolean {
-        if (!isInStart() && !isInEnd()) {
-            if (pointerDataMap.size() != 0) {
-                // 防止一开始是在start或者end, 然后pointerMap中存在down事件
-                // 最后滑到不是在start或者end时松手。此时不会走到clear,这里补一刀clear
+        val atEdge = isInStart() || isInEnd()
+        
+        // 处理 DOWN 事件时，无论是否在边缘都需要记录状态
+        // 这样当用户从中间滑动到边缘时，才能正确触发 overscroll
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+            wasAtEdge = atEdge
+            return processDownEvent(event.actionIndex, event)
+        }
+        
+        // 检测从中间滑动到边缘的时刻
+        val justReachedEdge = atEdge && !wasAtEdge
+        wasAtEdge = atEdge
+        
+        if (!atEdge) {
+            // 不在边缘时，需要持续更新 pointer 数据
+            // 这样当滑动到边缘时，才能正确计算 offset
+            if (event.actionMasked == MotionEvent.ACTION_MOVE && downing) {
+                // 更新所有 pointer 的位置，但不触发 overscroll
+                for (i in 0 until event.pointerCount) {
+                    val pointerId = event.getPointerId(i)
+                    val pointerData = pointerDataMap.get(pointerId)
+                    if (pointerData != null) {
+                        pointerData.offset = getCurrentOffset(i, event)
+                    }
+                }
+            } else if (event.actionMasked == MotionEvent.ACTION_UP || 
+                       event.actionMasked == MotionEvent.ACTION_CANCEL) {
+                // 只在 UP/CANCEL 时清空状态
                 pointerDataMap.clear()
+                downing = false
             }
             if (!forceOverScroll) {
                 return false // 没有到达边缘, fast fail
             }
         }
+        
+        // 刚滑到边缘时，设置 dragging = true
+        // 这样后续的小增量也会被处理（跳过 touchSlop 检查）
+        // 同时触发 beginOverScroll 回调
+        if (justReachedEdge && event.actionMasked == MotionEvent.ACTION_MOVE && downing) {
+            dragging = true
+            if (!hadBeginDrag) {
+                fireBeginOverScrollCallback()
+            }
+        }
 
         val activeIndex = event.actionIndex
         return when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> processDownEvent(activeIndex, event)
             MotionEvent.ACTION_POINTER_DOWN -> processPointerDownEvent(activeIndex, event)
             MotionEvent.ACTION_MOVE -> processMoveEvent(event)
             MotionEvent.ACTION_POINTER_UP -> processPointerUpEVent(activeIndex, event)
@@ -406,6 +445,65 @@ internal class OverScrollHandler(
         } else {
             fireOverScrollCallback(contentView.translationX, contentView.translationY)
         }
+    }
+    
+    /**
+     * 处理 fling 到边缘时的弹簧效果
+     * @param velocity fling 速度（像素/秒），正值表示向下/向右滚动
+     * @param atStart 是否在起始边缘
+     */
+    internal fun triggerFlingBounce(velocity: Float, atStart: Boolean) {
+        // 如果已经在 overscroll 状态，不重复触发
+        if (overScrolling) {
+            return
+        }
+        
+        // 根据速度计算弹簧位移
+        // 速度越大，弹簧位移越大，但有上限
+        val maxBounceOffset = recyclerView.kuiklyRenderContext.toPxF(80f) // 最大弹簧位移 80dp
+        val velocityFactor = 0.05f // 速度转换因子
+        val absVelocity = abs(velocity)
+        
+        // 计算弹簧位移，使用阻尼公式
+        var bounceOffset = (absVelocity * velocityFactor).coerceAtMost(maxBounceOffset)
+        
+        // 根据边缘位置确定方向
+        // 在起始边缘时，向正方向弹（translationY/X > 0）
+        // 在结束边缘时，向负方向弹（translationY/X < 0）
+        if (!atStart) {
+            bounceOffset = -bounceOffset
+        }
+        
+        // 如果弹簧位移太小，不触发
+        if (abs(bounceOffset) < 1f) {
+            return
+        }
+        
+        // 触发弹簧效果
+        overScrolling = true
+        dragging = false
+        fireBeginOverScrollCallback()
+        
+        // 设置弹簧位移
+        if (isVertical) {
+            contentView.translationY = bounceOffset
+        } else {
+            contentView.translationX = bounceOffset
+        }
+        fireOverScrollCallback(contentView.translationX, contentView.translationY)
+        
+        // 触发回弹动画
+        overScrollX = contentView.translationX
+        overScrollY = contentView.translationY
+        overScrollEventCallback.onEndDragOverScroll(
+            overScrollX,
+            overScrollY,
+            0f, // fling 回弹时速度为 0
+            0f,
+            atStart,
+            false
+        )
+        startBounceBack()
     }
 
     private data class PointerData(

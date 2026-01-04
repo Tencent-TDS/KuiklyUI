@@ -30,6 +30,8 @@ import { Configuration } from '@ohos.app.ability.Configuration';
 import { KRRenderExecuteModeBase } from './context/KRRenderExecuteModeBase';
 import { KRRenderNativeMode } from './context/KRRenderNativeMode';
 import { i18n } from '@kit.LocalizationKit';
+import { bundleManager } from '@kit.AbilityKit';
+import { deviceInfo } from '@kit.BasicServicesKit';
 
 /** window尺寸变化事件名 */
 export const KRWindowSizeDidChangedEventKey = 'windowSizeDidChanged';
@@ -615,11 +617,22 @@ export class KRNativeRenderController {
       }
       pageData[KRSafeAreaInsets] = this.encodeSafeAreaInsetsString();
     }
+
+    let versionName = "1.0.0"
+    let osFullName = ""
+    try {
+      const bundleInfo = bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION)
+      versionName = bundleInfo.versionName;
+      osFullName = deviceInfo.osFullName; // system version
+    }catch (e) {
+      // noop
+    }
+
     pageData[KRDeviceWidthKey] = screenSize.width;
     pageData[KRDeviceHeightKey] = screenSize.height;
-    pageData[KROsVersionKey] = ''; // 系统版本
+    pageData[KROsVersionKey] = osFullName; // 系统版本
     pageData[KRNativeBuild] = 2;
-    pageData[KRAppVersionKey] = '1.0.0';
+    pageData[KRAppVersionKey] = versionName;
     pageData[KRPlatformKey] = 'ohos';
     pageData[KRExecuteMode] = this.executeMode.mode;
     pageData[KRContextCode] = this.contextCode;

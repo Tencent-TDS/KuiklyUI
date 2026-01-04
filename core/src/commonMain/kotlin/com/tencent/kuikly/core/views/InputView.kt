@@ -360,7 +360,6 @@ class InputEvent : Event() {
             val duration = it.optDouble("duration").toFloat()
             handler(KeyboardParams(height, duration))
             // Force flush UI to native side immediately to ensure animation sync
-            // getPager().syncFlushUI()
         }, isSync = true)
     }
 

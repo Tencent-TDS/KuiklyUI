@@ -293,8 +293,7 @@ data class InputParams(
 
 data class KeyboardParams(
     val height: Float,
-    val duration: Float,
-    val curve: Int = 0
+    val duration: Float
 )
 
 class InputEvent : Event() {
@@ -359,10 +358,9 @@ class InputEvent : Event() {
             it as JSONObject
             val height = it.optDouble("height").toFloat()
             val duration = it.optDouble("duration").toFloat()
-            val curve = it.optInt("curve")
-            handler(KeyboardParams(height, duration, curve))
+            handler(KeyboardParams(height, duration))
             // Force flush UI to native side immediately to ensure animation sync
-            getPager().syncFlushUI()
+            // getPager().syncFlushUI()
         }, isSync = true)
     }
 

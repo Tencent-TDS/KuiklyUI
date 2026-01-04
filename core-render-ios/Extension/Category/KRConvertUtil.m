@@ -432,9 +432,6 @@
 
 + (UIViewAnimationOptions)hr_viewAnimationOptions:(NSString *)value {
     int v = [value intValue];
-    if (v == 0) {
-        return UIViewAnimationOptionCurveLinear;
-    }
     if (v == 1) {
         return UIViewAnimationOptionCurveEaseIn;
     }
@@ -444,7 +441,10 @@
     if (v == 3) {
         return UIViewAnimationOptionCurveEaseInOut;
     }
-    return (UIViewAnimationOptions)(v << 16);
+    if (v == 4) {
+        return (UIViewAnimationOptions)(v << 16);
+    }
+    return UIViewAnimationOptionCurveLinear;
 }
 
 + (UIViewAnimationCurve)hr_viewAnimationCurve:(NSString *)value {
@@ -456,6 +456,9 @@
     }
     if ([value intValue] == 3) {
         return UIViewAnimationCurveEaseInOut;
+    }
+    if ([value intValue] == 4) {
+        return (UIViewAnimationCurve)7;
     }
     return UIViewAnimationCurveLinear;
 }

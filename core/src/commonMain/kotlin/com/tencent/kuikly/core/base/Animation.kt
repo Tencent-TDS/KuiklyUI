@@ -112,10 +112,8 @@ class Animation internal constructor() {
             return createSpring(TimingFuncType.EASE_IN_OUT, durationS, damping, velocity, key = key)
         }
 
-        fun keyboard(durationS: Float, curve: Int, key: String = ""): Animation {
-            return create(AnimationType.PLAIN, TimingFuncType.LINEAR/*ignored*/, durationS, key = key).apply {
-                rawCurve = curve
-            }
+        fun keyboard(durationS: Float, key: String = ""): Animation {
+            return create(AnimationType.PLAIN, TimingFuncType.KEYBOARD, durationS, key = key)
         }
 
         private fun create(
@@ -163,7 +161,8 @@ internal enum class TimingFuncType(internal val value: Int) {
     LINEAR(0),
     EASE_IN(1),
     EASE_OUT(2),
-    EASE_IN_OUT(3);
+    EASE_IN_OUT(3),
+    KEYBOARD(4);
 }
 
 internal enum class AnimationType(internal val value: Int) {

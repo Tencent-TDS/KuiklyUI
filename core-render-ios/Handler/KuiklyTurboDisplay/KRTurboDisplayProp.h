@@ -26,11 +26,19 @@ typedef enum : NSUInteger {
     KRTurboDisplayPropTypeInsert
 } KRTurboDisplayPropType;
 
+/// 事件回放策略
+typedef enum : NSUInteger {
+    KREventReplayPolicyAll,     // 全量回放（click、touch、pan、longPress、doubleClick）
+    KREventReplayPolicyLast,    // 仅回放最后一次（scroll、dragBegin、dragEnd、scrollEnd）
+    KREventReplayPolicyNone,    // 不回放（animationCompletion、loadSuccess 等系统触发事件）
+} KREventReplayPolicy;
+
 @interface KRTurboDisplayProp : NSObject<NSCoding>
 
 @property (nonatomic, strong ) NSString *propKey;
 @property (nonatomic, strong) id propValue;
 @property (nonatomic, assign ) KRTurboDisplayPropType propType;
+@property (nonatomic, strong) NSMutableArray<id> *lazyEventCallbackResults;
 
 - (instancetype)initWithType:(KRTurboDisplayPropType)type propKey:(NSString *)propKey propValue:(id)propValue;
 
@@ -39,6 +47,13 @@ typedef enum : NSUInteger {
 - (void)performLazyEventToCallback:(KuiklyRenderCallback)callback;
 
 - (KRTurboDisplayProp *)deepCopy;
+
+/// 按策略回放事件到 callback
+- (void)performLazyEventToCallback:(KuiklyRenderCallback)callback withPolicy:(KREventReplayPolicy)policy;
+
+/// 获取事件回放策略（根据 propKey 判断）
++ (KREventReplayPolicy)replayPolicyForEventKey:(NSString *)eventKey;
+
 @end
 
 NS_ASSUME_NONNULL_END

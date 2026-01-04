@@ -19,6 +19,12 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+typedef enum : NSUInteger {
+    KRCacheFirstScreenDiff,              // TB 首屏diff-view，view创建 + 缓存Prop设置 + 设置临时事件callback
+    KRRealFirstScreenDiffEventReplay,    // 业务首屏优先执行事件回放
+    KRRealFirstScreenDiffPropUpdate,     // 业务首屏事件回放完成，执行真正的diff-view，更新页面首屏。
+} KRFirstScreenDiffPolicy;
+
 @interface KRTurboDisplayDiffPatch : NSObject
 /**
  * @brief diff 两棵树进行差量更新到渲染器
@@ -26,6 +32,13 @@ NS_ASSUME_NONNULL_BEGIN
 + (void)diffPatchToRenderingWithRenderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer
                                 oldNodeTree:(KRTurboDisplayNode * _Nullable)oldNodeTree
                                 newNodeTree:(KRTurboDisplayNode *)newNodeTree;
+
+/**
+ * @brief 延迟 Diff：当前帧执行 Tag 置换 + 事件回放，渲染指令延迟到跨端侧渲染指令全部到达后执行
+ */
++ (void)delayedDiffPatchToRenderingWithRenderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer
+                                       oldNodeTree:(KRTurboDisplayNode * _Nullable)oldNodeTree
+                                       newNodeTree:(KRTurboDisplayNode *)newNodeTree;
 
 /**
  * @brief 保留目标树结构，仅更新目标树属性信息

@@ -42,6 +42,22 @@ class TurboDisplayModule : Module() {
         return syncToNativeMethod(IS_TURBO_DISPLAY, null, null) == "1"
     }
 
+    /**
+     * 强制清除所有TurboDisplay缓存文件
+     * 用于测试时重置缓存状态
+     */
+    fun clearAllCache() {
+        asyncToNativeMethod(CLEAR_ALL_CACHE, null, null)
+    }
+
+    /**
+     * 强制清除当前页面的TurboDisplay缓存
+     * 用于测试时重置当前页面的缓存状态
+     */
+    fun clearCurrentPageCache() {
+        asyncToNativeMethod(CLEAR_CURRENT_PAGE_CACHE, null, null)
+    }
+
     override fun moduleName(): String {
         return MODULE_NAME
     }
@@ -51,5 +67,7 @@ class TurboDisplayModule : Module() {
         const val CURRENT_UI_AS_FIRST_SCREEN = "setCurrentUIAsFirstScreenForNextLaunch"
         const val CLOSE_TURBO_DISPLAY = "closeTurboDisplay"
         const val IS_TURBO_DISPLAY = "isTurboDisplay"
+        const val CLEAR_ALL_CACHE = "clearAllCache"
+        const val CLEAR_CURRENT_PAGE_CACHE = "clearCurrentPageCache"
     }
 }

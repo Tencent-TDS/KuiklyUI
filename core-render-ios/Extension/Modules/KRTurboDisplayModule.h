@@ -20,6 +20,8 @@ NS_ASSUME_NONNULL_BEGIN
 extern NSString *const kSetCurrentUIAsFirstScreenForNextLaunchNotificationName;
 /** 关闭TurboDisplay模式通知 */
 extern NSString *const kCloseTurboDisplayNotificationName;
+/** 清除当前页面TurboDisplay缓存通知 */
+extern NSString *const kClearCurrentPageCacheNotificationName;
 
 /*
  * @brief TurboDisplay首屏直出渲染模式（通过直接执行二进制产物渲染生成首屏，避免业务代码执行后再生成的首屏等待耗时）

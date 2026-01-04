@@ -22,8 +22,6 @@
 #define PROP_VALUE @"propValue"
 
 @interface KRTurboDisplayProp()
-
-@property (nonatomic, strong) NSMutableArray<id> *lazyEventCallbackResults;
 @end
 
 @implementation KRTurboDisplayProp
@@ -44,8 +42,12 @@
     }
     KR_WEAK_SELF;
     _propValue = ^( id result ) {
+        NSLog(@"[delayDiff-lazyEvent-captured] event:%@ resultKeys:%@", 
+              weakSelf.propKey, 
+              [result isKindOfClass:[NSDictionary class]] ? [result allKeys] : @"non-dict");
         [weakSelf.lazyEventCallbackResults addObject:result ?: @{}]; // 必须回调一次，添加记录一次
     };
+    NSLog(@"[delayDiff-lazyEvent-bindTemp] event:%@ 已绑定临时callback", _propKey);
 }
 
 - (void)performLazyEventToCallback:(KuiklyRenderCallback)callback {
@@ -98,6 +100,79 @@
         _lazyEventCallbackResults = [NSMutableArray new];
     }
     return _lazyEventCallbackResults;
+}
+
+
+# pragma mark - event upgrade
+
++ (KREventReplayPolicy)replayPolicyForEventKey:(NSString *)eventKey {
+    
+    /// 这里的队列会在每一次调用这个函数的时候都会创建下面的队列吗？
+    // 全量回放的事件
+    static NSSet *allReplayEvents = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        allReplayEvents = [NSSet setWithArray:@[
+            @"click", @"doubleClick", @"longPress", @"pan",
+            @"touchDown", @"touchMove", @"touchUp"
+        ]];
+    });
+    
+    // 仅回放最后一次的事件
+    static NSSet *lastReplayEvents = nil;
+    static dispatch_once_t onceToken2;
+    dispatch_once(&onceToken2, ^{
+        lastReplayEvents = [NSSet setWithArray:@[
+            @"scroll", @"dragBegin", @"dragEnd", @"willDragEnd", @"scrollEnd", @"scrollToTop"
+        ]];
+    });
+    
+    if ([allReplayEvents containsObject:eventKey]) {
+        return KREventReplayPolicyAll;
+    } else if ([lastReplayEvents containsObject:eventKey]) {
+        return KREventReplayPolicyLast;
+    }
+    return KREventReplayPolicyNone;
+}
+
+- (void)performLazyEventToCallback:(KuiklyRenderCallback)callback withPolicy:(KREventReplayPolicy)policy {
+    if (!callback || self.lazyEventCallbackResults.count == 0) {
+        return;
+    }
+    
+    NSString *policyName = @"unknown";
+    switch (policy) {
+        case KREventReplayPolicyAll: policyName = @"all"; break;
+        case KREventReplayPolicyLast: policyName = @"last"; break;
+        case KREventReplayPolicyNone: policyName = @"none"; break;
+    }
+    
+    NSLog(@"[delayDiff-eventReplay-start] event:%@ policy:%@ cachedCount:%lu", 
+          self.propKey, policyName, (unsigned long)self.lazyEventCallbackResults.count);
+    
+    switch (policy) {
+        case KREventReplayPolicyAll:
+            // 全量回放
+            for (NSUInteger i = 0; i < self.lazyEventCallbackResults.count; i++) {
+                id res = self.lazyEventCallbackResults[i];
+                NSLog(@"[delayDiff-eventReplay-exec] event:%@ index:%lu/%lu", 
+                      self.propKey, (unsigned long)(i+1), (unsigned long)self.lazyEventCallbackResults.count);
+                callback(res);
+            }
+            break;
+        case KREventReplayPolicyLast:
+            // 仅回放最后一次
+            NSLog(@"[delayDiff-eventReplay-exec] event:%@ lastOnly", self.propKey);
+            callback(self.lazyEventCallbackResults.lastObject);
+            break;
+            
+        default:
+            // 不回放
+            NSLog(@"[delayDiff-eventReplay-skip] event:%@ policy:none", self.propKey);
+            break;
+    }
+    
+    NSLog(@"[delayDiff-eventReplay-done] event:%@", self.propKey);
 }
 
 

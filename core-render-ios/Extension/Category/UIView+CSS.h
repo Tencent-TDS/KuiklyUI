@@ -92,6 +92,26 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
+// ***  CSSBorderRadius  ** //
+@interface CSSBorderRadius : NSObject
+
+@property(nonatomic, assign) CGFloat topLeftCornerRadius;
+@property(nonatomic, assign) CGFloat topRightCornerRadius;
+@property(nonatomic, assign) CGFloat bottomLeftCornerRadius;
+@property(nonatomic, assign) CGFloat bottomRightCornerRadius;
+
+- (instancetype)initWithCSSBorderRadius:(NSString *)cssBorderRadius;
+- (BOOL)isSameBorderCornerRaidus;
+
+@end
+
+// ***  CAShapeLayer  ** //
+@interface CSSShapeLayer : CAShapeLayer
+
+- (instancetype)initWithBorderRadius:(CSSBorderRadius *)borderRadius;
+
+@end
+
 
 @interface KRBoxShadowView : UIView
 

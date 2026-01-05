@@ -382,7 +382,17 @@
                            bottomLeftCornerRadius:(CGFloat)bottomLeftCornerRadius
                        bottomRightCornerRadius:(CGFloat)bottomRightCornerRadius {
     CGSize size = rect.size;
-    UIBezierPath *path = [UIBezierPath bezierPath];
+    CGRect bounds = rect;
+
+    // 防止半径超过宽/高的一半（UIBezierPath 会自动 clamp，手动 clamp 更安全）
+    CGFloat maxRadius = MIN(bounds.size.width, bounds.size.height) / 2.0;
+    topLeftCornerRadius = MIN(topLeftCornerRadius, maxRadius);
+    topRightCornerRadius = MIN(topRightCornerRadius, maxRadius);
+    bottomLeftCornerRadius = MIN(bottomLeftCornerRadius, maxRadius);
+    bottomRightCornerRadius = MIN(bottomRightCornerRadius, maxRadius);
+
+    // 绘制四个方向的线和圆弧
+    UIBezierPath * path = [UIBezierPath bezierPath];
     CGFloat radius = topLeftCornerRadius;
     [path addArcWithCenter:CGPointMake(radius, radius) radius:radius startAngle:M_PI endAngle:M_PI * (3/2.0f) clockwise:true];
     radius = topRightCornerRadius;

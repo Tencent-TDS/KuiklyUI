@@ -228,9 +228,6 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 - (void)setCss_maskLinearGradient:(NSString *)css_maskLinearGradient {
     if (_css_maskLinearGradient != css_maskLinearGradient) {
         _css_maskLinearGradient = css_maskLinearGradient;
-        if (_css_maskLinearGradient) {
-            self.layer.mask = nil;
-        }
         [self p_syncMaskLinearGradientIfNeed];
     }
 
@@ -396,23 +393,48 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 }
 
 // 同步渐变遮罩
+// 同步渐变遮罩
 - (void)p_syncMaskLinearGradientIfNeed {
     if (CGSizeEqualToSize(self.frame.size, CGSizeZero)) {
         return ;
     }
+    // 判断是否存在 圆角层
+    CSSShapeLayer *borderRadiusLayer = nil;
+    BOOL hasCornerMask = NO;
+    if (self.layer.mask && [self.layer.mask isKindOfClass:[CSSShapeLayer class]]) {
+        borderRadiusLayer = self.layer.mask;
+        hasCornerMask = [self.layer.mask path] != NULL;
+    }
+
     if (self.image && _css_maskLinearGradient.length) {
-        if (!self.layer.mask) {
-            CSSGradientLayer *maskLayer = [[CSSGradientLayer alloc] initWithLayer:nil cssGradient:_css_maskLinearGradient];
-            self.layer.mask = maskLayer;
+        // 置空mask
+        self.layer.mask = nil;
+        // 创建 CSSGradientLayer层 承载渐变色
+        CSSGradientLayer *gradientLayer = [[CSSGradientLayer alloc] initWithLayer:nil cssGradient:_css_maskLinearGradient];
+        // 更新Layer的布局信息。时机上能够走到这里，已经设置完了图片的圆角、渐变色属性，此时view的布局信息已经都有了
+        gradientLayer.frame = self.bounds;
+        // 判断是否ImageView上同时设置了圆角和渐变色，如果是的话则创建组合Layer
+        if (hasCornerMask) {
+            CALayer *combinedMaskLayer = [CALayer layer];
+            combinedMaskLayer.frame = self.bounds;
+            [combinedMaskLayer addSublayer:gradientLayer];  // 将渐变层作为子层添加
+            combinedMaskLayer.mask = borderRadiusLayer;     // 将圆角mask应用到组合层上
+            self.layer.mask = combinedMaskLayer;            // 设置ImageView.layer.mask为组合Layer
+        } else {
+            self.layer.mask = gradientLayer;                // 只有渐变，直接设置ImageView.layer.mask为组合Layer
         }
-        self.layer.mask.frame = self.bounds;
+
         [self.layer.mask layoutSublayers];
     } else {
         if (self.layer.mask) {
-            self.layer.mask = nil;
+            // 只有在没有圆角 mask 的情况下才清除
+            if (self.layer.mask && !hasCornerMask) {
+                self.layer.mask = nil;
+            }
         }
     }
 }
+
 
 
 -(void)p_fireLoadSuccessEventWithImage:(UIImage *)image {

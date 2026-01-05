@@ -23,18 +23,6 @@
 #define LAZY_ANIMATION_KEY @"lazyAnimationKey"
 #define ANIMATION_KEY @"animation"
 
-@interface CSSBorderRadius : NSObject
-
-@property(nonatomic, assign) CGFloat topLeftCornerRadius;
-@property(nonatomic, assign) CGFloat topRightCornerRadius;
-@property(nonatomic, assign) CGFloat bottomLeftCornerRadius;
-@property(nonatomic, assign) CGFloat bottomRightCornerRadius;
-
-- (instancetype)initWithCSSBorderRadius:(NSString *)cssBorderRadius;
-- (BOOL)isSameBorderCornerRaidus;
-
-@end
-
 @interface CSSBorder : NSObject
 
 @property (nonatomic, assign) KRBorderStyle borderStyle;
@@ -53,12 +41,6 @@
 
 @end
 
-// ***  CAShapeLayer  ** //
-@interface CSSShapeLayer : CAShapeLayer
-
-- (instancetype)initWithBorderRadius:(CSSBorderRadius *)borderRadius;
-
-@end
 
 @interface CSSAnimation : NSObject
 
@@ -317,15 +299,22 @@
     css_borderRadius = [UIView css_string:css_borderRadius];
     if (self.css_borderRadius != css_borderRadius) {
         objc_setAssociatedObject(self, @selector(css_borderRadius), css_borderRadius, OBJC_ASSOCIATION_RETAIN);
+        // 解析圆角值
         CSSBorderRadius * borderRadius = [[CSSBorderRadius alloc] initWithCSSBorderRadius:css_borderRadius];
-        if ([borderRadius isSameBorderCornerRaidus]) {
-            self.layer.cornerRadius = borderRadius.topLeftCornerRadius;
-            self.clipsToBounds = self.layer.cornerRadius ? YES : ([self.css_overflow boolValue] ? YES : NO);;
+        // 规避默认圆角值为零时，给view增加mask致使后续子view内容遭剪切
+        if ([borderRadius isSameBorderCornerRaidus] && borderRadius.topLeftCornerRadius < 0.0001) {
             self.layer.mask = nil;
         } else {
-            self.layer.cornerRadius = 0;
-            self.layer.mask = [[CSSShapeLayer alloc] initWithBorderRadius:borderRadius];
-            self.clipsToBounds = YES;
+            // 采用CAShapeLayer + mask + UIBezierPath 支持圆角实现
+            CSSShapeLayer *mask = [[CSSShapeLayer alloc] initWithBorderRadius:borderRadius];
+#if TARGET_OS_OSX // [macOS]
+            mask.contentsScale = [NSScreen mainScreen].backingScaleFactor ?: 1.0; // 防锯齿
+#else
+            mask.contentsScale = [UIScreen mainScreen].scale; // 防锯齿
+#endif // [macOS]
+            self.layer.mask = mask;
+
+            // 立即把 mask 的 frame 同步到当前 bounds（防止首次 layout 前为 zero）
             if (!CGSizeEqualToSize(self.bounds.size, CGSizeZero)) {
                 [self.layer.mask setFrame:self.bounds];
             }

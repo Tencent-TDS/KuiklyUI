@@ -48,6 +48,7 @@ import org.json.JSONObject
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.pow
 
 enum class KRNestedScrollMode(val value: String){
@@ -212,6 +213,10 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
 
     private val krRecyclerViewListeners by lazy {
         mutableListOf<IKRRecyclerViewListener>()
+    }
+
+    private val minimumFlingVelocity by lazy {
+        ViewConfiguration.get(context).scaledMinimumFlingVelocity
     }
 
     private val scrollConflictHandler by lazy {
@@ -631,7 +636,14 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         }
 
         if (overScrollHandler?.overScrolling != true) { // over scroll 时, willDragEnd 由 over scroll handler 处理
-            fireWillDragEndEvent(adjustedVelocityX, adjustedVelocityY)
+            // abs value is more than 450px can cause the pager to slide
+            // this fix the issue some times the velocity is negative because dragBigFrontAndSmallBack
+            if (abs(adjustedVelocityX) >  3 * minimumFlingVelocity
+                || abs(adjustedVelocityY) > 3 * minimumFlingVelocity) {
+                fireWillDragEndEvent(adjustedVelocityX, adjustedVelocityY)
+            } else {
+                fireWillDragEndEvent(0, 0)
+            }
         }
         if (!supportFling || skipFlingIfNestOverScroll) {
             // 由于没有调用super.fling(velocityX, velocityY)

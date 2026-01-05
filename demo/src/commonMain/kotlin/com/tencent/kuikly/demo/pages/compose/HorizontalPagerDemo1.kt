@@ -98,6 +98,7 @@ class HorizontalPagerDemo1 : ComposeContainer() {
                 modifier =
                     Modifier
                         .height(100.dp)
+                        .bouncesEnable(false)
                         .background(Color.LightGray),
                 pageSize = PageSize.Fixed(200.dp),
                 pageSpacing = 5.dp,

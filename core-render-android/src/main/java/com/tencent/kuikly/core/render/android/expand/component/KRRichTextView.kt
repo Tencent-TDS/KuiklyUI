@@ -560,8 +560,9 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
             KRTextProps.TEXT_DECORATION_LINE_THROUGH -> textPaint.isStrikeThruText = true
         }
         if (textProps.fontWeight.isNotEmpty()) {
-            textPaint.style = Paint.Style.FILL_AND_STROKE
-            textPaint.strokeWidth = FontWeightSpan.getFontWeight(textProps.fontWeight)
+            val strokeWidth = FontWeightSpan.getFontWeight(textProps.fontWeight)
+            textPaint.style = if (strokeWidth > 0) Paint.Style.FILL_AND_STROKE else Paint.Style.FILL
+            textPaint.strokeWidth = strokeWidth
         }
         textPaint.typeface = kuiklyRenderContext?.getTypeFaceLoader()?.getTypeface(textProps.fontFamily,
             textProps.fontStyle == Typeface.ITALIC)

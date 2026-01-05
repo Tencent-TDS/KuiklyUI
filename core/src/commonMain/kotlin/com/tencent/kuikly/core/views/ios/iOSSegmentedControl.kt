@@ -20,6 +20,7 @@ import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.ViewConst
 import com.tencent.kuikly.core.base.event.Event
+import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 
 /**
@@ -47,7 +48,9 @@ open class iOSSegmentedControlAttr : Attr() {
      * @param titles List of segment titles
      */
     fun titles(titles: List<String>): iOSSegmentedControlAttr {
-        "titles" with titles
+        val arr = JSONArray()
+        titles.forEach { arr.put(it) }
+        "titles" with arr.toString()
         return this
     }
 

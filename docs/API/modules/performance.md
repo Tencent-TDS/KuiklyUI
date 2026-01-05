@@ -96,12 +96,15 @@ typedef NS_OPTIONS(NSInteger, KRMonitorType) {
 ```
 
 ### **鸿蒙**
+
+>注意: 目前鸿蒙FPS监控仅支持mainFPS(以60Hz为基准的归一化值,越接近60越流畅)、内存监控仅支持PSS内存数据
+
 1. 注册需要的性能监控类型
 ```ts
   // Your delegate
   /**
    * Kuikly框架设置性能监控选项，默认只开启动监控
-   * @return Array<KRMonitorType>: 需要设置的性能监控选项列表(目前仅支持启动监控)
+   * @return Array<KRMonitorType>: 需要设置的性能监控选项列表
    */
   performanceMonitorTypes(): KRMonitorType[] {
     return [];
@@ -112,6 +115,8 @@ typedef NS_OPTIONS(NSInteger, KRMonitorType) {
    */
   export enum KRMonitorType {
     LAUNCH = 1 << 0,  // 1 启动监控
+    FRAME = 1 << 1,   // 2 FPS监控
+    MEMORY = 1 << 2,  // 4 内存监控
   }
 ```
 

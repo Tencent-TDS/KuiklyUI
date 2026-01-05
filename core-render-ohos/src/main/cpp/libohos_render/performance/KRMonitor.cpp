@@ -33,3 +33,4 @@ void KRMonitor::OnPause() {}
 
 void KRMonitor::OnDestroy() {}
 void KRMonitor::SetArkLaunchTime(int64_t timestamp) {}
+void KRMonitor::OnInit() {}

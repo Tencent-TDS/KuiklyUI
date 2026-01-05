@@ -252,6 +252,30 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
     private var springAnimationConsumedX = 0f
     private var springAnimationConsumedY = 0f
 
+    /**
+     * 用于补偿 RecyclerView 位置变化产生的触摸偏移
+     * 
+     * 问题背景：
+     * 当 RecyclerView 在父容器中的位置发生变化时（例如父容器滚动、布局变化等），
+     * 会导致触摸事件的坐标产生额外的偏移。如果不进行补偿，嵌套滚动时会出现抖动问题。
+     * 
+     * 解决方案：
+     * 1. 在 onLayout 中记录位置变化，累加到 accumulatedPositionOffsetX/Y
+     * 2. 在嵌套滚动时，优先消耗这些累积的偏移量，避免传递给父容器
+     * 3. 在滚动结束时重置，避免累积错误
+     */
+    /** X 方向累积的位置偏移量（像素），正值表示向右偏移，负值表示向左偏移 */
+    internal var accumulatedPositionOffsetX = 0
+    
+    /** Y 方向累积的位置偏移量（像素），正值表示向下偏移，负值表示向上偏移 */
+    internal var accumulatedPositionOffsetY = 0
+    
+    /** 上一次布局时的 left 坐标，使用 -1 作为初始值以区分首次布局 */
+    private var lastLayoutLeft = -1
+    
+    /** 上一次布局时的 top 坐标，使用 -1 作为初始值以区分首次布局 */
+    private var lastLayoutTop = -1
+
     private fun cancelSpringAnimations() {
         springAnimationX?.cancel()
         springAnimationY?.cancel()
@@ -484,6 +508,31 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         super.onLayout(changed, l, t, r, b)
+        
+        // 记录 RecyclerView 位置变化，用于补偿触摸事件
+        // 当 RecyclerView 在父容器中的位置发生变化时，需要记录这个变化量
+        // 以便在嵌套滚动时进行补偿，避免出现抖动
+        
+        // 处理 X 方向（left）的位置变化
+        if (lastLayoutLeft != -1) {  // -1 表示首次布局，跳过记录
+            val deltaX = l - lastLayoutLeft
+            if (deltaX != 0) {
+                // 累加位置变化量，正值表示向右移动，负值表示向左移动
+                accumulatedPositionOffsetX += deltaX
+            }
+        }
+        lastLayoutLeft = l
+        
+        // 处理 Y 方向（top）的位置变化
+        if (lastLayoutTop != -1) {  // -1 表示首次布局，跳过记录
+            val deltaY = t - lastLayoutTop
+            if (deltaY != 0) {
+                // 累加位置变化量，正值表示向下移动，负值表示向上移动
+                accumulatedPositionOffsetY += deltaY
+            }
+        }
+        lastLayoutTop = t
+        
         tryApplyPendingSetContentOffset()
         tryApplyPendingFireOnScroll()
     }
@@ -497,6 +546,13 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         nestedVerticalChildInterceptor?.also { interceptor ->
             closestVerticalRecyclerViewParent?.removeNestedChildInterceptEventListener(interceptor)
         }
+        
+        // 清理状态，避免内存泄漏
+        // 在 View 销毁时重置所有位置偏移相关的状态
+        accumulatedPositionOffsetX = 0
+        accumulatedPositionOffsetY = 0
+        lastLayoutLeft = -1
+        lastLayoutTop = -1
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
@@ -510,8 +566,8 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
     }
 
     override fun onInterceptTouchEvent(e: MotionEvent): Boolean {
-    	if (touchConsumeByKuikly) {
-            return true;
+        if (touchConsumeByKuikly) {
+            return true
         }
         if (!scrollEnabled || mNestedScrollAxesTouch != SCROLL_AXIS_NONE) {
             return false
@@ -546,12 +602,13 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
 
     override fun onTouchEvent(e: MotionEvent): Boolean {
         if (touchConsumeByKuikly) {
-            return true;
+            return true
         }
 
         if (!scrollEnabled) {
             return false
         }
+
         return if (overScrollHandler?.onTouchEvent(e) == true) {
             true
         } else {
@@ -1456,6 +1513,14 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         child: View, target: View, axes: Int,
         type: Int
     ) {
+        // 嵌套滚动开始时，重置子 RecyclerView 的累积偏移量
+        // 原因：只补偿本次嵌套滚动过程中产生的位置变化，
+        // 嵌套滚动开始前已经存在的偏移量不应该被用于补偿
+        if (target is KRRecyclerView) {
+            target.accumulatedPositionOffsetX = 0
+            target.accumulatedPositionOffsetY = 0
+        }
+        
         startNestedScroll(
             if (type == ViewCompat.TYPE_TOUCH) mNestedScrollAxesTouch else mNestedScrollAxesNonTouch,
             type
@@ -1487,10 +1552,25 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 lastScrollParentY = 0
             }
         }
+        
+        // 嵌套滚动结束时，无论是否处于 OverScroll 状态都需要重置累积偏移量
+        // 原因：
+        // 1. 滚动结束后，位置变化已经通过滚动补偿处理完毕
+        // 2. 如果不重置，下次滚动时会重复计算，导致累积错误
+        // 3. 即使处于 OverScroll 状态，当 OverScroll 回弹结束后也需要重置
+        //    将重置逻辑移到这里可以确保所有情况都被正确处理
+        accumulatedPositionOffsetX = 0
+        accumulatedPositionOffsetY = 0
+        
+        // 同时重置子 RecyclerView 的累积偏移量
+        if (target is KRRecyclerView) {
+            target.accumulatedPositionOffsetX = 0
+            target.accumulatedPositionOffsetY = 0
+        }
 
         overScrollHandler?.let { handler ->
-            if ((target as KRRecyclerView).skipFlingIfNestOverScroll) {
-                target.skipFlingIfNestOverScroll = false
+            if ((target as? KRRecyclerView)?.skipFlingIfNestOverScroll == true) {
+                (target as KRRecyclerView).skipFlingIfNestOverScroll = false
             }
             if (handler.overScrolling) {
                 handler.processBounceBack()
@@ -1566,18 +1646,25 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         type: Int
     ) {
         // Dispatch to the parent for processing first
-        val parentDx = dx
-        val parentDy = dy
-        if (parentDx != 0 || parentDy != 0) {
+        if (dx != 0 || dy != 0) {
             // Temporarily store `consumed` to reuse the Array
             val consumedX = consumed[0]
             val consumedY = consumed[1]
             consumed[0] = 0
             consumed[1] = 0
             if (target is KRRecyclerView) {
-                scrollParentIfNeeded(target ,parentDx, parentDy, consumed, type)
+                scrollParentIfNeeded(target, dx, dy, consumed, type)
             }
-            dispatchNestedPreScroll(parentDx, parentDy, consumed, null, type)
+            // 传递给父容器时，需要减去已经被补偿消耗的值
+            // 这样父容器收到的是实际需要处理的滚动距离
+            val remainingDx = dx - consumed[0]
+            val remainingDy = dy - consumed[1]
+            if (remainingDx != 0 || remainingDy != 0) {
+                val parentConsumed = intArrayOf(0, 0)
+                dispatchNestedPreScroll(remainingDx, remainingDy, parentConsumed, null, type)
+                consumed[0] += parentConsumed[0]
+                consumed[1] += parentConsumed[1]
+            }
             consumed[0] += consumedX
             consumed[1] += consumedY
         }
@@ -1593,14 +1680,141 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
      */
     private fun scrollParentIfNeeded(target: KRRecyclerView,
                                      parentDx: Int,
-                                     parentDy: Int,
+                                     parentDyInput: Int,
                                      consumed: IntArray,
                                      touchType: Int) {
+
+        // This solve the shake when target change position in parent
+        // 
+        // 补偿逻辑说明：
+        // 当子 RecyclerView 在父容器中的位置发生变化时，会产生额外的触摸偏移。
+        // 在嵌套滚动时，需要优先消耗这些累积的偏移量，而不是直接传递给父容器，
+        // 这样可以避免因为位置变化导致的滚动抖动问题。
+        
+        // ========== 处理 X 方向的偏移补偿 ==========
+        var parentDx = parentDx  // 使用局部变量，以便在补偿逻辑中修改
+        var compensationConsumedX = 0  // 记录补偿消耗的值，避免被后续滚动逻辑覆盖
+        if (parentDx != 0 && target.accumulatedPositionOffsetX != 0) {
+            val offsetX = target.accumulatedPositionOffsetX  // 子列表累积的 X 方向偏移
+            val dxInput = parentDx  // 父容器请求的 X 方向滚动距离
+            
+            // 根据符号关系决定补偿策略：
+            // - 符号相同：偏移方向一致，优先消耗累积偏移
+            // - 符号相反：偏移方向相反，先抵消累积偏移
+            
+            when {
+                // 情况1：符号相同（同向偏移）
+                // 例如：offsetX = +10（向右偏移10px），dxInput = +5（向右滚动5px）
+                // 策略：优先消耗 accumulatedPositionOffsetX，减少传递给父容器的滚动量
+                (offsetX > 0 && dxInput > 0) || (offsetX < 0 && dxInput < 0) -> {
+                    val absOffset = kotlin.math.abs(offsetX)
+                    val absDx = kotlin.math.abs(dxInput)
+                    if (absOffset >= absDx) {
+                        // 累积偏移足够大，完全消耗父容器的滚动请求
+                        compensationConsumedX = dxInput
+                        target.accumulatedPositionOffsetX = offsetX - dxInput  // 剩余偏移量
+                        parentDx = 0  // 不再需要传递给父容器
+                    } else {
+                        // 累积偏移不够大，部分消耗，剩余部分继续传递给父容器
+                        compensationConsumedX = if (offsetX > 0) absOffset else -absOffset
+                        target.accumulatedPositionOffsetX = 0  // 偏移已完全消耗
+                        parentDx = if (dxInput > 0) (absDx - absOffset) else -(absDx - absOffset)
+                    }
+                }
+                
+                // 情况2：符号相反（反向偏移）
+                // 例如：offsetX = +10（向右偏移10px），dxInput = -5（向左滚动5px）
+                // 策略：累积偏移和滚动方向相反，它们会相互抵消
+                // 消耗的值应该与滚动方向一致（即 dxInput 的符号）
+                (offsetX > 0 && dxInput < 0) || (offsetX < 0 && dxInput > 0) -> {
+                    val absOffset = kotlin.math.abs(offsetX)
+                    val absDx = kotlin.math.abs(dxInput)
+                    if (absOffset >= absDx) {
+                        // 累积偏移足够大，完全抵消父容器的滚动请求
+                        compensationConsumedX = dxInput
+                        target.accumulatedPositionOffsetX = offsetX + dxInput  // 符号相反时相加（实际是减少偏移量）
+                        parentDx = 0  // 不再需要传递给父容器
+                    } else {
+                        // 累积偏移不够大，完全消耗偏移，剩余的滚动量继续传递给父容器
+                        // 消耗的值与偏移量符号相反（因为是抵消）
+                        compensationConsumedX = if (offsetX > 0) -absOffset else absOffset
+                        target.accumulatedPositionOffsetX = 0  // 偏移已完全抵消
+                        // 剩余滚动量 = 原始滚动量 + 偏移量（因为符号相反，所以相加）
+                        parentDx = dxInput + offsetX
+                    }
+                }
+                
+                // 情况3：offsetX == 0（理论上不应该进入，但为了安全起见保留）
+                else -> {
+                    // 无累积偏移，parentDx 保持不变，正常传递给父容器
+                }
+            }
+        }
+        
+        // ========== 处理 Y 方向的偏移补偿 ==========
+        // 逻辑与 X 方向相同，详见上方 X 方向的注释说明
+        var parentDy = parentDyInput
+        var compensationConsumedY = 0  // 记录补偿消耗的值，避免被后续滚动逻辑覆盖
+        if (parentDyInput != 0 && target.accumulatedPositionOffsetY != 0) {
+            val offsetY = target.accumulatedPositionOffsetY  // 子列表累积的 Y 方向偏移
+            val dyInput = parentDyInput  // 父容器请求的 Y 方向滚动距离
+            
+            when {
+                // 符号相同：优先消耗累积偏移
+                (offsetY > 0 && dyInput > 0) || (offsetY < 0 && dyInput < 0) -> {
+                    val absOffset = kotlin.math.abs(offsetY)
+                    val absDy = kotlin.math.abs(dyInput)
+                    if (absOffset >= absDy) {
+                        // 累积偏移足够大，完全消耗父容器的滚动请求
+                        compensationConsumedY = dyInput
+                        target.accumulatedPositionOffsetY = offsetY - dyInput
+                        parentDy = 0
+                    } else {
+                        // 累积偏移不够大，部分消耗
+                        compensationConsumedY = if (offsetY > 0) absOffset else -absOffset
+                        target.accumulatedPositionOffsetY = 0
+                        parentDy = if (dyInput > 0) (absDy - absOffset) else -(absDy - absOffset)
+                    }
+                }
+                // 符号相反：累积偏移和滚动方向相反，它们会相互抵消
+                (offsetY > 0 && dyInput < 0) || (offsetY < 0 && dyInput > 0) -> {
+                    val absOffset = kotlin.math.abs(offsetY)
+                    val absDy = kotlin.math.abs(dyInput)
+                    if (absOffset >= absDy) {
+                        // 累积偏移足够大，完全抵消父容器的滚动请求
+                        compensationConsumedY = dyInput
+                        target.accumulatedPositionOffsetY = offsetY + dyInput  // 符号相反时相加（实际是减少偏移量）
+                        parentDy = 0
+                    } else {
+                        // 累积偏移不够大，完全消耗偏移，剩余的滚动量继续传递给父容器
+                        // 消耗的值与偏移量符号相反（因为是抵消）
+                        compensationConsumedY = if (offsetY > 0) -absOffset else absOffset
+                        target.accumulatedPositionOffsetY = 0
+                        // 剩余滚动量 = 原始滚动量 + 偏移量（因为符号相反，所以相加）
+                        parentDy = dyInput + offsetY
+                    }
+                }
+                // offsetY == 0 的情况不应该进入这个分支，但为了安全起见保留
+                else -> {
+                    parentDy = parentDyInput
+                }
+            }
+        }
+
+
         // 两种情况可以滚动父亲
         // 1、父亲支持fling情况下，无论是子列表传递过来fling和touch都可以消费
         // 2、父亲不支持fling的情况，需要时touch拖拽非fling才能消费
         val canScrollParent = (supportFling && !pageEnable) || touchType == ViewCompat.TYPE_TOUCH
         if (!canScrollParent) {
+            // 即使不能滚动父容器，也需要记录补偿消耗的值
+            // 否则这些补偿值会丢失，导致下次滚动时出现抖动
+            if (compensationConsumedX != 0) {
+                consumed[0] = compensationConsumedX
+            }
+            if (compensationConsumedY != 0) {
+                consumed[1] = compensationConsumedY
+            }
             return
         }
 
@@ -1612,6 +1826,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             else -> false
         }
 
+        var didConsumeY = false  // 标记是否已经设置了 consumed[1]
         if (shouldScrollParentY) {
             if (canScrollVertically(parentDy)) {
                 // 记录滚动前的偏移量
@@ -1619,8 +1834,10 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 scrollBy(0, parentDy)
                 // 计算实际滚动的距离
                 val actualScrollY = computeVerticalScrollOffset() - beforeScrollY
-                consumed[1] = actualScrollY
+                // 累加补偿消耗的值，避免覆盖
+                consumed[1] = compensationConsumedY + actualScrollY
                 lastScrollParentY = parentDy
+                didConsumeY = true
             } else {
                 if (touchType == ViewCompat.TYPE_TOUCH) {
                     // 走Overscroll时，如果是ParentFirst模式，容易出现父亲有Overscroll可处理，导致子列表没法下拉查看数据的情况
@@ -1630,12 +1847,19 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                         overScrollHandler?.let{
                             it.setTranslationByNestScrollTouch(parentDy.toFloat())
                             target.skipFlingIfNestOverScroll = true
-                            consumed[1] = parentDy
+                            // 累加补偿消耗的值，避免覆盖
+                            consumed[1] = compensationConsumedY + parentDy
                             lastScrollParentY = parentDy
+                            didConsumeY = true
                         }
                     }
                 }
             }
+        }
+        
+        // 如果补偿消耗了值但没有实际滚动，也需要记录补偿值
+        if (compensationConsumedY != 0 && !didConsumeY) {
+            consumed[1] = compensationConsumedY
         }
 
         val shouldScrollParentX = when {
@@ -1646,14 +1870,22 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             else -> false
         }
 
+        var didConsumeX = false  // 标记是否已经设置了 consumed[0]
         if (shouldScrollParentX && canScrollHorizontally(parentDx)) {
             // 记录滚动前的偏移量
             val beforeScrollX = computeHorizontalScrollOffset()
             scrollBy(parentDx, 0)
             // 计算实际滚动的距离
             val actualScrollX = computeHorizontalScrollOffset() - beforeScrollX
-            consumed[0] = actualScrollX
+            // 累加补偿消耗的值，避免覆盖
+            consumed[0] = compensationConsumedX + actualScrollX
             lastScrollParentX = parentDx
+            didConsumeX = true
+        }
+        
+        // 如果补偿消耗了值但没有实际滚动，也需要记录补偿值
+        if (compensationConsumedX != 0 && !didConsumeX) {
+            consumed[0] = compensationConsumedX
         }
     }
 

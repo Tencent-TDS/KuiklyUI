@@ -163,8 +163,8 @@ std::array<double, 16> KRTransformParser::GenerateTransformMatrix(double transla
     rotationMatrix[5] = cos_radian;
 
     // Apply skew
-    double skew_x_radian = -skewX * M_PI / 180.0;  // convert degree to radian (clockwise)
-    double skew_y_radian = -skewY * M_PI / 180.0;  // convert degree to radian (clockwise)
+    double skew_x_radian = skewX * M_PI / 180.0;  // convert degree to radian (clockwise)
+    double skew_y_radian = skewY * M_PI / 180.0;  // convert degree to radian (clockwise)
     skewMatrix[4] = tan(skew_x_radian);
     skewMatrix[1] = tan(skew_y_radian);
 

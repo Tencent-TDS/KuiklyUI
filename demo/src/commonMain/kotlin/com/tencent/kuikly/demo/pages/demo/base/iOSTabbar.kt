@@ -20,6 +20,7 @@ import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.ViewConst
 import com.tencent.kuikly.core.base.event.Event
+import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 
 /**
@@ -61,7 +62,9 @@ class TabbarIOSAttr : Attr() {
      * @param items List of tab items
      */
     fun items(items: List<TabbarIOSItem>): TabbarIOSAttr {
-        "items" with items.map { it.toMap() }
+        val arr = JSONArray()
+        items.forEach { arr.put(it.toJSONObject()) }
+        "items" with arr.toString()
         return this
     }
 
@@ -102,11 +105,11 @@ data class TabbarIOSItem(
     val icon: String,
     val selectedIcon: String
 ) {
-    fun toMap(): Map<String, Any> = mapOf(
-        "title" to title,
-        "icon" to icon,
-        "selectedIcon" to selectedIcon
-    )
+    fun toJSONObject(): JSONObject = JSONObject().apply {
+        put("title", title)
+        put("icon", icon)
+        put("selectedIcon", selectedIcon)
+    }
 }
 
 /**

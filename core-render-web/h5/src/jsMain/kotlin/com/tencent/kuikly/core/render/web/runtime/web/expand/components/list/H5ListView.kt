@@ -28,6 +28,7 @@ import org.w3c.dom.events.WheelEvent
 import org.w3c.dom.get
 import kotlin.js.json
 import kotlin.math.abs
+import kotlin.math.absoluteValue
 
 /**
  * Web host abstract List element implementation
@@ -545,8 +546,16 @@ class H5ListView : IListElement {
         }
         ele.addEventListener(KREventConst.WHEEL, { event ->
             // Handle paging mode with wheel event
+            event as WheelEvent
             if (pagingEnabled) {
-                listPagingHelper.handlePagerWheel(event as WheelEvent)
+                var eps = 1.0; // depending on device sensitivity
+                val isVerticalScroll = event.deltaY.absoluteValue > event.deltaX.absoluteValue + eps
+                val isHorizontalScroll = event.deltaX.absoluteValue > event.deltaY.absoluteValue + eps
+                val isWheelMatchDirection = (isVerticalScroll && scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN)
+                        || (isHorizontalScroll && scrollDirection == KRListConst.SCROLL_DIRECTION_ROW)
+                if (isWheelMatchDirection) {
+                    listPagingHelper.handlePagerWheel(event)
+                }
                 return@addEventListener
             }
 

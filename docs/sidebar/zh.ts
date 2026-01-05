@@ -184,10 +184,69 @@ export const zhSidebar = sidebar({
             ]
         }
     ],
-    "/ComposeDSL": [
-        "overview.md",
-        "quickStart.md",
-        "allApi.md"
+    "/Compose": [
+        {
+            text: "入门",
+            prefix: "/Compose",
+            collapsible: false,
+            children: [
+                "overview.md",
+                "getting-started.md",
+                "how-to-read.md",
+                "status.md"
+            ]
+        },
+        {
+            text: "开发指南",
+            prefix: "/Compose",
+            collapsible: false,
+            children: [
+                "status-management.md",
+                "layout.md",
+                "list-and-scroll.md",
+                "core-components.md",
+                "modifier.md",
+                "animation-system.md",
+                "gesture-system.md",
+                "thread-and-coroutines.md",
+                "view-model.md"
+            ]
+        },
+        {
+            text: "集成与扩展",
+            prefix: "/Compose",
+            collapsible: false,
+            children: [
+                "extend-kuikly-dsl-ui.md",
+                "extend-native-ui.md",
+                "extend-native-api.md"
+            ]
+        },
+        {
+            text: "工具链",
+            prefix: "/Compose",
+            collapsible: false,
+            children: [
+                "resource-management.md",
+                "preview.md",
+                "ui-inspector.md",
+                "recomposition-performance.md"
+            ]
+        },
+        {
+            text: "FAQ",
+            prefix: "/Compose",
+            collapsible: false,
+            children: [
+                "faq.md"
+            ]
+        }
+    ],  
+    "/Community": [
+        "component_market.md",
+        "tech_sharing.md",
+        "contribute-guide.md",
+        "contributor_role.md",
     ],
     "/Blog": [
         "roadmap2025.md",
@@ -197,16 +256,9 @@ export const zhSidebar = sidebar({
             children: [
                 "kuikly-rendering.md", "architecture_and_advantages.md"
                 ]
-        },
-        {
-            text: "实践分享",
-            prefix: "/Blog/sharing",
-            children: [
-                "tech_practice_sharing_template.md"
-                ]
         }
     ],
     "/QA": [
-        "kuikly-qa.md"
+        "kuikly-qa.md", "kuikly-example.md"
     ]
 });

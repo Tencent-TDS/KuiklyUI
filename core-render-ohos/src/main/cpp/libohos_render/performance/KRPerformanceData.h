@@ -24,7 +24,7 @@
 class KRPerformanceData {
  public:
     KRPerformanceData(std::string page_name, int excute_mode, int spent_time, bool is_cold_launch,
-                      bool is_page_cold_launch, std::string lanch_data);
+                      bool is_page_cold_launch, std::string launch_data, std::string frame_data, std::string memory_data);
     std::string ToJsonString();
 
  private:
@@ -34,5 +34,7 @@ class KRPerformanceData {
     bool is_page_cold_launch_;
     int excute_mode_;
     std::string launch_data_ = "{}";
+    std::string frame_data_ = "";
+    std::string memory_data_ = "";
 };
 #endif  // CORE_RENDER_OHOS_KRPERFORMANCEDATA_H

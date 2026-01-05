@@ -404,8 +404,9 @@ NSString *const KRFontWeightKey = @"fontWeight";
     NSDictionary *info = notify.userInfo;
     CGFloat keyboardHeight = [[info objectForKey:UIKeyboardFrameEndUserInfoKey] CGRectValue].size.height;
     CGFloat duration = [[info objectForKey:UIKeyboardAnimationDurationUserInfoKey] floatValue];
+    NSInteger curve = [[info objectForKey:UIKeyboardAnimationCurveUserInfoKey] integerValue];
     if (self.css_keyboardHeightChange) {
-        self.css_keyboardHeightChange(@{@"height": @(keyboardHeight), @"duration": @(duration)});
+        self.css_keyboardHeightChange(@{@"height": @(keyboardHeight), @"duration": @(duration), @"curve": @(curve)});
     }
 }
 

@@ -1340,8 +1340,9 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
         NSArray *splits = [cssAnimation componentsSeparatedByString:@" "];
         if (splits.count >= 3) {
             _animationType = [splits[0] intValue];
-            _viewAnimationOption = [KRConvertUtil hr_viewAnimationOptions:splits[1]];
-            _viewAnimationCurve = [KRConvertUtil hr_viewAnimationCurve:splits[1]];
+            NSString *rawCurve = splits.count >= 9 ? splits[8] : @"7";
+            _viewAnimationOption = [KRConvertUtil hr_viewAnimationOptions:splits[1] rawCurve:rawCurve];
+            _viewAnimationCurve = [KRConvertUtil hr_viewAnimationCurve:splits[1] rawCurve:rawCurve];
             _duration = [splits[2] doubleValue];
             if (_animationType == CSSAnimationTypeSpring && splits.count >= 5) { // spring动画
                 _damping = [splits[3] floatValue];

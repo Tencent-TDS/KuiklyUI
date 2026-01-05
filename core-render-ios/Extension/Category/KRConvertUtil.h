@@ -79,8 +79,8 @@ typedef NS_ENUM(NSInteger, KRTextDecorationLineType) {
 
 + (NSArray *)hr_arrayWithJSONString:(NSString *)JSONString;
 
-+ (UIViewAnimationOptions)hr_viewAnimationOptions:(NSString *)value;
-+ (UIViewAnimationCurve)hr_viewAnimationCurve:(NSString *)value;
++ (UIViewAnimationOptions)hr_viewAnimationOptions:(NSString *)value rawCurve:(nullable NSString *)rawCurve;
++ (UIViewAnimationCurve)hr_viewAnimationCurve:(NSString *)value rawCurve:(nullable NSString *)rawCurve;
 + (UIKeyboardType)hr_keyBoardType:(id)value ;
 + (UIReturnKeyType)hr_toReturnKeyType:(id)value ;
 + (NSString *)hr_base64Decode:(NSString *)string;

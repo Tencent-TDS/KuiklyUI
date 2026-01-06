@@ -28,39 +28,11 @@ static UIView *gBaseView = nil;
 + (void)diffPatchToRenderingWithRenderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer
                                 oldNodeTree:(KRTurboDisplayNode *)oldNodeTree
                                 newNodeTree:(KRTurboDisplayNode *)newNodeTree {
-    // 逐层比较，属性和事件key不一样，就删除该节点，如果仅属性值变化就update该属性
-    // 能否复用
-//    if ([self canReuseNode:oldNodeTree newNode:newNodeTree fromUpdateNode:NO]) {
-//        // 更新渲染视图
-//        [self updateRenderViewWithCurNode:oldNodeTree newNode:newNodeTree renderLayer:renderLayer hasParent:YES];
-//        
-//        NSArray *aChilden = oldNodeTree.children;
-//        NSArray *bChilden = newNodeTree.children;
-//        
-//        if ([oldNodeTree.viewName isEqualToString:SCROLL_VIEW]) { // 可滚动容器节点孩子需要排序
-//            aChilden = [self sortScrollIndexWithList:aChilden];
-//            bChilden = [self sortScrollIndexWithList:bChilden];
-//         }
-//        
-//        for (int i = 0; i < MAX(aChilden.count, bChilden.count); i++) {
-//            KRTurboDisplayNode *oldNode = aChilden.count > i ? aChilden[i] : nil;
-//            KRTurboDisplayNode *newNode = bChilden.count > i ? bChilden[i] : nil;
-//            [self diffPatchToRenderingWithRenderLayer:renderLayer oldNodeTree:oldNode newNodeTree:newNode];
-//        }
-//    } else {
-//        [KRLogModule logInfo:[NSString stringWithFormat:@"turbo_display un used with old node:%@ new node:%@", oldNodeTree.viewName, newNodeTree.viewName]];
-//        // 删除渲染视图
-//        [self removeRenderViewWithNode:oldNodeTree renderLayer:renderLayer];
-//        // 新建渲染视图
-//        [self createRenderViewWithNode:newNodeTree renderLayer:renderLayer];
-//    }
-    
-    // 默认不启用延迟 Diff，直接执行完整 diff
+    // TB首屏diff，不启用延迟diff，使用默认的全量diff
     [self diffPatchToRenderingWithRenderLayer:renderLayer
                                   oldNodeTree:oldNodeTree
                                   newNodeTree:newNodeTree
                               diffPolicy:KRCacheFirstScreenDiff];
-    
 }
 
 
@@ -162,7 +134,7 @@ static UIView *gBaseView = nil;
 }
 
 // 生成渲染视图
-+ (void)createRenderViewWithNode:(KRTurboDisplayNode *)node renderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer {
++ (void)createRenderViewWithNode:(KRTurboDisplayNode *)node renderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer diffPolicy:(KRFirstScreenDiffPolicy)diffPolicy {
     if (!node) {
         return ;
     }
@@ -176,11 +148,12 @@ static UIView *gBaseView = nil;
     } else {
         [renderLayer createRenderViewWithTag:node.tag viewName:node.viewName];
     }
-    [self updateRenderViewWithCurNode:nil newNode:node renderLayer:renderLayer hasParent:NO diffPolicy:KRCacheFirstScreenDiff];
+    // TB首屏时
+    [self updateRenderViewWithCurNode:nil newNode:node renderLayer:renderLayer hasParent:NO diffPolicy:diffPolicy];
     // 递归给子孩子创建渲染
     if (node.hasChild) {
         for (KRTurboDisplayNode *subNode in node.children) {
-            [self createRenderViewWithNode:subNode renderLayer:renderLayer];
+            [self createRenderViewWithNode:subNode renderLayer:renderLayer diffPolicy:diffPolicy];
         }
     }
 }
@@ -505,82 +478,22 @@ static UIView *gBaseView = nil;
 + (void)delayedDiffPatchToRenderingWithRenderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer
                                        oldNodeTree:(KRTurboDisplayNode *)oldNodeTree
                                        newNodeTree:(KRTurboDisplayNode *)newNodeTree {
-    NSLog(@"[delayDiff-start] ========== 延迟Diff开始 ==========");
-    NSLog(@"[delayDiff-start] oldNodeCount:%lu newNodeCount:%lu",
-          (unsigned long)[self countNodesInTree:oldNodeTree],
-          (unsigned long)[self countNodesInTree:newNodeTree]);
-    NSLog(@"[delayDiff-start] 当前线程:%@ 是否主线程:%d", 
-          [NSThread currentThread], [NSThread isMainThread]);
-    
-    // 重置计数器
-    [self resetDelayDiffCounters];
-    
-    double phase1StartTime = CFAbsoluteTimeGetCurrent();
-    NSLog(@"[delayDiff-phase1-start] ===== Phase1: 事件回放+Tag置换+事件绑定 =====");
-    
-    // 阶段1：当前帧执行 Tag 置换 + 事件回放
+    // 阶段1：当前帧执行 Tag 置换 + 事件回放 + 事件绑定
     [self diffPatchToRenderingWithRenderLayer:renderLayer
                                   oldNodeTree:oldNodeTree
                                   newNodeTree:newNodeTree
                               diffPolicy:KRRealFirstScreenDiffEventReplay];
     
-    double phase1CostTime = (CFAbsoluteTimeGetCurrent() - phase1StartTime) * 1000.0;
-    NSLog(@"[delayDiff-phase1-done] Phase1完成 耗时:%.2fms", phase1CostTime);
-    [self logDelayDiffCountersWithPhase:@"phase1"];
-    
     // 阶段2：在 Kuikly 线程队列末尾添加任务，等待跨端侧渲染指令全部到达后执行延迟渲染
-    NSLog(@"[delayDiff-phase2-start] ===== Phase2: 等待contextQueue =====");
-    NSLog(@"[delayDiff-phase2-start] 将任务添加到contextQueue末尾，等待跨端侧所有渲染指令执行完成...");
-    
-    double waitStartTime = CFAbsoluteTimeGetCurrent();
     [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
-        double waitCostTime = (CFAbsoluteTimeGetCurrent() - waitStartTime) * 1000.0;
-        NSLog(@"[delayDiff-phase2-ready] contextQueue任务开始执行");
-        NSLog(@"[delayDiff-phase2-ready] 当前线程:%@ 是否主线程:%d", 
-              [NSThread currentThread], [NSThread isMainThread]);
-        NSLog(@"[delayDiff-phase2-ready] 等待耗时:%.2fms (此时间=跨端侧渲染指令执行总时间)", waitCostTime);
-        NSLog(@"[delayDiff-phase2-ready] 跨端侧渲染指令已全部到达，准备回主线程执行Phase3");
-        
         // 阶段3：回到主线程执行延迟的渲染指令
-        double phase3DispatchTime = CFAbsoluteTimeGetCurrent();
         dispatch_async(dispatch_get_main_queue(), ^{
-            double mainQueueWaitTime = (CFAbsoluteTimeGetCurrent() - phase3DispatchTime) * 1000.0;
-            
-            // 重置计数器用于 phase3 统计
-            [self resetDelayDiffCounters];
-            
-            double phase3StartTime = CFAbsoluteTimeGetCurrent();
-            NSLog(@"[delayDiff-phase3-start] ===== Phase3: 属性更新 =====");
-            NSLog(@"[delayDiff-phase3-start] 当前线程:%@ 是否主线程:%d", 
-                  [NSThread currentThread], [NSThread isMainThread]);
-            NSLog(@"[delayDiff-phase3-start] 从contextQueue到主线程等待耗时:%.2fms", mainQueueWaitTime);
-            
             [self diffPatchToRenderingWithRenderLayer:renderLayer
                                           oldNodeTree:oldNodeTree
                                           newNodeTree:newNodeTree
                                            diffPolicy:KRRealFirstScreenDiffPropUpdate];
-            
-            double phase3CostTime = (CFAbsoluteTimeGetCurrent() - phase3StartTime) * 1000.0;
-            double totalCostTime = (CFAbsoluteTimeGetCurrent() - phase1StartTime) * 1000.0;
-            NSLog(@"[delayDiff-phase3-done] Phase3完成 耗时:%.2fms", phase3CostTime);
-            [self logDelayDiffCountersWithPhase:@"phase3"];
-            NSLog(@"[delayDiff-complete] ========== 延迟Diff全部完成 ==========");
-            NSLog(@"[delayDiff-complete] 总耗时:%.2fms (Phase1:%.2fms + 等待:%.2fms + Phase3:%.2fms)", 
-                  totalCostTime, phase1CostTime, waitCostTime + mainQueueWaitTime, phase3CostTime);
         });
     }];
-    
-    NSLog(@"[delayDiff-phase2-queued] Phase2任务已加入contextQueue，Phase1主线程继续执行其他任务");
-}
-
-/// 统计节点树中的节点数量
-+ (NSUInteger)countNodesInTree:(KRTurboDisplayNode *)node {
-    if (!node) return 0;
-    NSUInteger count = 1;
-    for (KRTurboDisplayNode *child in node.children) {
-        count += [self countNodesInTree:child];
-    }
-    return count;
 }
 
 
@@ -618,49 +531,24 @@ static UIView *gBaseView = nil;
         // 删除渲染视图
         [self removeRenderViewWithNode:oldNodeTree renderLayer:renderLayer];
         // 新建渲染视图
-        [self createRenderViewWithNode:newNodeTree renderLayer:renderLayer];
+        [self createRenderViewWithNode:newNodeTree renderLayer:renderLayer diffPolicy:diffPolicy];
     }
 }
 
-// 用于统计延迟Diff各阶段操作数量
-static NSUInteger sDelayDiffTagSwapCount = 0;
-static NSUInteger sDelayDiffEventReplayCount = 0;
-static NSUInteger sDelayDiffEventBindCount = 0;
-static NSUInteger sDelayDiffPropUpdateCount = 0;
-
-+ (void)resetDelayDiffCounters {
-    sDelayDiffTagSwapCount = 0;
-    sDelayDiffEventReplayCount = 0;
-    sDelayDiffEventBindCount = 0;
-    sDelayDiffPropUpdateCount = 0;
-}
-
-+ (void)logDelayDiffCountersWithPhase:(NSString *)phase {
-    NSLog(@"[delayDiff-%@-stats] tagSwap:%lu eventReplay:%lu eventBind:%lu propUpdate:%lu",
-          phase,
-          (unsigned long)sDelayDiffTagSwapCount,
-          (unsigned long)sDelayDiffEventReplayCount,
-          (unsigned long)sDelayDiffEventBindCount,
-          (unsigned long)sDelayDiffPropUpdateCount);
-}
-
-// 更新渲染视图（核心修改：新增 onlyEventReplay 参数）
+// 更新渲染视图（核心修改：新增 diffPolicy 参数）
 + (void)updateRenderViewWithCurNode:(KRTurboDisplayNode *)curNode
                             newNode:(KRTurboDisplayNode *)newNode
                         renderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer
                           hasParent:(BOOL)hasParent
                     diffPolicy:(KRFirstScreenDiffPolicy)diffPolicy {
     
-    // ========== 阶段1：Tag 置换（必须最先执行，无论是否 onlyEventReplay）==========
+    // ========== 阶段1：Tag 置换（必须最先执行）==========
     if (curNode.tag && newNode.tag && ![newNode.tag isEqual:curNode.tag]) {
         [renderLayer updateViewTagWithCurTag:curNode.tag newTag:newNode.tag];
         curNode.tag = newNode.tag;
-        if (diffPolicy == KRRealFirstScreenDiffEventReplay) {
-            sDelayDiffTagSwapCount++;
-        }
     }
     
-    // ========== 阶段2：遍历属性，根据 onlyEventReplay 决定执行内容 ==========
+    // ========== 阶段2：遍历属性，根据 diffPolicy 决定执行内容 ==========
     for (int i = 0; i < MAX(curNode.props.count, newNode.props.count) ; i++) {
         KRTurboDisplayProp *curProp = curNode.props.count > i ? curNode.props[i] : nil;
         KRTurboDisplayProp *newProp = newNode.props.count > i ? newNode.props[i] : nil;
@@ -679,24 +567,14 @@ static NSUInteger sDelayDiffPropUpdateCount = 0;
                     if (curProp && curProp.lazyEventCallbackResults.count > 0) {
                         KREventReplayPolicy policy = [KRTurboDisplayProp replayPolicyForEventKey:newProp.propKey];
                         [curProp performLazyEventToCallback:newProp.propValue withPolicy:policy];
-                        sDelayDiffEventReplayCount++;
-                        NSLog(@"[delayDiff-eventReplay] tag:%@ event:%@ replayCount:%lu policy:%lu",
-                              newNode.tag, newProp.propKey,
-                              (unsigned long)curProp.lazyEventCallbackResults.count,
-                              (unsigned long)policy);
                     }
                     [renderLayer setPropWithTag:newNode.tag propKey:newProp.propKey propValue:newProp.propValue];
-                    sDelayDiffEventBindCount++;
                     break;
                 case KRRealFirstScreenDiffPropUpdate:
                     break;
             }
         } else if (diffPolicy == KRCacheFirstScreenDiff || diffPolicy == KRRealFirstScreenDiffPropUpdate) {
-            if (diffPolicy == KRRealFirstScreenDiffPropUpdate) {
-                sDelayDiffPropUpdateCount++;
-            }
-            // 非事件类型的属性：仅在非 onlyEventReplay 模式下执行
-            // TB首屏 + 业务首屏都会走
+            // 非事件类型的属性：仅在 TB首屏 或 属性更新阶段 执行
             if (newProp.propType == KRTurboDisplayPropTypeAttr) {
                 if (![self isEqualPropValueWithOldValue:curProp.propValue newValue:newProp.propValue]) {
                     [renderLayer setPropWithTag:newNode.tag propKey:newProp.propKey propValue:newProp.propValue];
@@ -722,12 +600,12 @@ static NSUInteger sDelayDiffPropUpdateCount = 0;
         }
     }
     
-    // ========== 阶段3：View 方法调用（仅在非 onlyEventReplay 模式下执行）==========
+    // ========== 阶段3：View 方法调用（仅在非事件回放模式下执行）==========
     if (diffPolicy == KRRealFirstScreenDiffEventReplay) {
         return;
     }
     
-    // 同步View方法调用（保持原有逻辑不变）
+    // 同步View方法调用
     NSMutableArray *newNodeCallViewMethods = [NSMutableArray new];
     for (int i = 0; i < newNode.callMethods.count; i++) {
         if (newNode.callMethods[i].type == KRTurboDisplayNodeMethodTypeView) {

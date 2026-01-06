@@ -42,12 +42,8 @@
     }
     KR_WEAK_SELF;
     _propValue = ^( id result ) {
-        NSLog(@"[delayDiff-lazyEvent-captured] event:%@ resultKeys:%@", 
-              weakSelf.propKey, 
-              [result isKindOfClass:[NSDictionary class]] ? [result allKeys] : @"non-dict");
         [weakSelf.lazyEventCallbackResults addObject:result ?: @{}]; // 必须回调一次，添加记录一次
     };
-    NSLog(@"[delayDiff-lazyEvent-bindTemp] event:%@ 已绑定临时callback", _propKey);
 }
 
 - (void)performLazyEventToCallback:(KuiklyRenderCallback)callback {
@@ -103,7 +99,7 @@
 }
 
 
-# pragma mark - event upgrade
+# pragma mark - event replay
 
 + (KREventReplayPolicy)replayPolicyForEventKey:(NSString *)eventKey {
     
@@ -140,39 +136,23 @@
         return;
     }
     
-    NSString *policyName = @"unknown";
-    switch (policy) {
-        case KREventReplayPolicyAll: policyName = @"all"; break;
-        case KREventReplayPolicyLast: policyName = @"last"; break;
-        case KREventReplayPolicyNone: policyName = @"none"; break;
-    }
-    
-    NSLog(@"[delayDiff-eventReplay-start] event:%@ policy:%@ cachedCount:%lu", 
-          self.propKey, policyName, (unsigned long)self.lazyEventCallbackResults.count);
-    
     switch (policy) {
         case KREventReplayPolicyAll:
             // 全量回放
             for (NSUInteger i = 0; i < self.lazyEventCallbackResults.count; i++) {
                 id res = self.lazyEventCallbackResults[i];
-                NSLog(@"[delayDiff-eventReplay-exec] event:%@ index:%lu/%lu", 
-                      self.propKey, (unsigned long)(i+1), (unsigned long)self.lazyEventCallbackResults.count);
                 callback(res);
             }
             break;
         case KREventReplayPolicyLast:
             // 仅回放最后一次
-            NSLog(@"[delayDiff-eventReplay-exec] event:%@ lastOnly", self.propKey);
             callback(self.lazyEventCallbackResults.lastObject);
             break;
             
         default:
             // 不回放
-            NSLog(@"[delayDiff-eventReplay-skip] event:%@ policy:none", self.propKey);
             break;
     }
-    
-    NSLog(@"[delayDiff-eventReplay-done] event:%@", self.propKey);
 }
 
 

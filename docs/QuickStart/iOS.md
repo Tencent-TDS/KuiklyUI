@@ -301,15 +301,18 @@ NS_ASSUME_NONNULL_END
 具体实现代码，请参考源码工程iOSApp模块的``KuiklyRenderComponentExpandHandler``类。
 KuiklyRenderComponentExpandHandler 默认提供了三种图片加载方法：
 
-| 方法 | 功能简述 | 占位图支持 | 加载策略配置 | 完成回调 | ImageView复用 |
-|------|----------|-----------|-------------|----------|--------------|
-| **🌟推荐**<br>`hr_setImageWithUrl:forImageView:`<br>`placeholderImage:options:complete:` | 完整功能实现，适合生产环境 | ✓ | ✓ | ✓ | ✓ |
-| `hr_setImageWithUrl:forImageView:complete:` | 支持完成回调的简化实现 | ✗ | ✗ | ✓ | ✗ |
-| `hr_setImageWithUrl:forImageView:` | 最简化实现，仅触发加载 | ✗ | ✗ | ✗ | ✗ |
+- `hr_setImageWithUrl:forImageView:placeholderImage:options:complete:` <Badge text="推荐" type="warn"/>
+  - 完整功能实现；支持：`占位图` ✓ | `加载策略配置` ✓ | `完成回调` ✓ | `ImageView复用` ✓
+
+- `hr_setImageWithUrl:forImageView:complete:`
+  - 支持完成回调的简化实现，仅支持：`完成回调` ✓
+
+- `hr_setImageWithUrl:forImageView:`
+  - 最简化实现，仅触发加载，无其他功能支支持
 
 :::tip 提示
 - **加载策略配置**：指通过 `options` 参数（`SDWebImageOptions`）控制图片的缓存策略、解码方式、失败重试等行为。
-- **第一种** hr_setImageWithUrl 方法可配置SDK内置的src验证提供准确的图片加载结果。并向业务开放占位图、加载策略、回调等**控制能力**。
+- **第一种** hr_setImageWithUrl 方法 会调用SDK内置的 src验证 提供准确的图片加载结果。并向业务开放占位图、加载策略、回调等**控制能力**。
 :::
 
 ```objc

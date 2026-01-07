@@ -60,6 +60,7 @@ constexpr char kEventKeyVelocityY[] = "velocityY";
 constexpr char kMethodNameContentOffset[] = "contentOffset";
 constexpr char kMethodNameContentInset[] = "contentInset";
 constexpr char kMethodNameContentInsetWhenDragEnd[] = "contentInsetWhenEndDrag";
+constexpr char kMethodNameAbortContentOffsetAnimate[] = "abortContentOffsetAnimate";
 
 ArkUI_NodeHandle KRScrollerContentView::CreateNode() {
     return kuikly::util::GetNodeApi()->createNode(ARKUI_NODE_STACK);
@@ -221,6 +222,8 @@ void KRScrollerView::CallMethod(const std::string &method, const KRAnyValue &par
         SetContentInset(params);
     } else if (kuikly::util::isEqual(method, kMethodNameContentInsetWhenDragEnd)) {
         SetContentInsetWhenDragEnd(params);
+    } else if (kuikly::util::isEqual(method, kMethodNameAbortContentOffsetAnimate)) {
+        AbortContentOffsetAnimate();
     } else {
         IKRRenderViewExport::CallMethod(method, params, callback);
     }
@@ -680,4 +683,16 @@ bool KRScrollerView::SetFlingEnable(bool enable) {
 
 void KRScrollerView::TryApplyPendingFireOnScroll() {
     FireOnScrollEvent(nullptr);
+}
+
+void KRScrollerView::AbortContentOffsetAnimate() {
+    // 停止 ContentInset 动画（释放动画对象）
+    if (content_inset_animate_) {
+        content_inset_animate_ = nullptr;
+    }
+    
+    // 停止滚动：通过 scrollBy(0, 0) 来停止当前的滚动/Fling 动画
+    ArkUI_NumberValue values[] = {{.f32 = 0}, {.f32 = 0}};
+    ArkUI_AttributeItem item = {values, 2};
+    kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_SCROLL_BY, &item);
 }

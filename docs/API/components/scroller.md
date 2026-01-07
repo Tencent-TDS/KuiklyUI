@@ -209,3 +209,11 @@
 | left | 左边距                 | Float   |
 | bottom | 下边距                 | Float   |
 | right | 右边距                 | Float   |
+
+### abortContentOffsetAnimate
+
+立即停止当前正在进行的滚动动画（包括 `setContentOffset` 触发的动画、惯性滚动、Spring 弹性动画等）。调用后滚动会立即停止在当前位置。
+
+| 参数 | 描述 | 类型 |
+|------|------|------|
+| _无_ | 无参数 | - |

@@ -18,7 +18,6 @@ package com.tencent.kuikly.core.render.android.expand.component
 import android.content.Context
 import android.graphics.Canvas
 import android.view.Choreographer
-import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -28,6 +27,7 @@ import com.tencent.kuikly.core.render.android.const.KRViewConst
 import com.tencent.kuikly.core.render.android.css.ktx.touchConsumeByNative
 import com.tencent.kuikly.core.render.android.css.ktx.drawCommonDecoration
 import com.tencent.kuikly.core.render.android.css.ktx.drawCommonForegroundDecoration
+import com.tencent.kuikly.core.render.android.css.ktx.nativeGestureViewHashCodeSet
 import com.tencent.kuikly.core.render.android.css.ktx.toDpF
 import com.tencent.kuikly.core.render.android.css.ktx.touchDownConsumeOnce
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderViewExport
@@ -219,7 +219,7 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
         val action = event.actionMasked
         if (action == MotionEvent.ACTION_DOWN) {
             superTouchCanceled = false
-            touchConsumeByNative = false
+            nativeGestureViewHashCodeSet.clear()
             return false
         }
         var canceled = false
@@ -231,6 +231,7 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
         }
         if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
             superTouchCanceled = false
+            nativeGestureViewHashCodeSet.clear()
         }
         return canceled
     }

@@ -12,11 +12,12 @@
 - [X] 鸿蒙
 - [X] Web（beta）
 - [X] 小程序（beta）
+- [X] macOS（Alpha）
 
 `Kuikly` 推出后受到业务广泛认可，已应用于 QQ、QQ 音乐、QQ 浏览器、腾讯新闻、搜狗输入法、应用宝、全民K歌、酷狗音乐、酷我音乐、自选股、ima.copilot、微视等多款产品。
 ## 特点
 
-- 跨平台：基于 Kotlin 跨平台实现多平台一致运行，一码五端
+- 跨平台：基于 Kotlin 跨平台实现多平台一致运行，一码六端
 - 原生性能：运行平台原生编译产物(.aar/.framework/.so)
 - 原生开发体验：原生 UI 渲染、原生开发工具链、Kotlin 原生开发语言
 - 轻量：SDK 增量小（AOT模式下，Android：约 300 KB，iOS：约 1.2 MB）
@@ -45,6 +46,7 @@
 ├── demo                   # DSL 示例代码 
 ├── androidApp             # Android 宿主壳工程
 ├── iosApp                 # iOS 宿主壳工程
+├── macApp                 # macOS 宿主壳工程
 ├── miniApp                # 微信小程序 宿主壳工程
 ├── h5App                  # H5 宿主壳工程
 ├── ohosApp                # Ohos 宿主壳工程
@@ -59,6 +61,7 @@
 
 ## 系统要求
 - iOS 12.0版本及以上
+- macOS 10.13版本及以上
 - Android 5.0版本及以上
 - HarmonyOS Next 5.0.0(12) 版本及以上
 - Kotlin版本 1.3.10 版本及以上
@@ -145,7 +148,7 @@ KuiklyUI目录下有各个`Kotlin`版本的gradle配置项
 ## 贡献者
 - 特别感谢首批贡献者tom（邱良雄）kam（林锦涛）watson（金盎），不仅在大前端领域主导 `Kuikly` 跨端方案孵化探索，而且率先在QQ业务落地。
 - 感谢以下核心贡献者对`Kuikly`持续建设维护与发展优化：
-  <br>tom kam watson rocky jonas ruifan pel layen bird zealot zhenhua vinney xuanxi arnon alexa allens eason
+  <br>tom kam watson rocky jonas ruifan pel layen bird zealot zhenhua vinney xuanxi ray arnon alexa allens eason
 - 同时感谢每一位参与`Kuikly`建设的社区贡献者，正是大家的共同努力，让Kuikly得以不断成长。
   <div id="list" style="display: flex; flex-wrap: wrap"><a href="https://github.com/Tencent-TDS/KuiklyUI/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=Tencent-TDS/KuiklyUI" /></a><a href="https://github.com/Tencent-TDS/KuiklyUI-third-party/graphs/contributors">

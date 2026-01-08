@@ -49,7 +49,7 @@ export const zhSidebar = sidebar({
                 {
                     text: "Kuikly接入",
                     collapsible: false,
-                    children: ["overview.md", "privacy-policy.md", "common.md", "android.md", "iOS.md", "harmony.md", "H5.md", "Miniapp.md"]
+                    children: ["overview.md", "privacy-policy.md", "common.md", "android.md", "iOS.md", "harmony.md", "H5.md", "Miniapp.md", "Mac.md"]
                 },
 
                 

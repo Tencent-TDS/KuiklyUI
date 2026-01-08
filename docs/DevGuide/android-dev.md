@@ -106,15 +106,45 @@ dependencies {
 
 :::
 
-3. sync工程，此时可能报错，按需把Kuikly业务工程根目录`build.gradle.kts`的部分配置拷贝到宿主工程的`build.gradle.kts`中，
-再使用`kuiklyEmbed`标识按需屏蔽Kuikly业务工程的配置，例如：
+3. sync工程，此时可能报错，使用`kuiklyEmbed`标识按需屏蔽非 Android 相关的的配置，例如：
 ```kotlin
+
     val kuiklyEmbed = rootProject.extra.has("kuiklyEmbed")
+
+    if (!kuiklyEmbed) {
+        apply(plugin = "org.jetbrains.kotlin.native.cocoapods")
+    }
+
     if (!kuiklyEmbed) {
         cocoapods {
             ...
         }
     }
+
+    sourceSets {
+        ...
+        if (!kuiklyEmbed) {
+            val iosX64Main by getting
+            ...
+        }
+    }
+    dependencies {
+        if (!kuiklyEmbed) {
+            compileOnly("com.tencent.kuikly-open:core-ksp:${Version.getKuiklyVersion()}") {
+                add("kspAndroid", this)
+                add("kspIosArm64", this)
+                add("kspIosX64", this)
+                add("kspIosSimulatorArm64", this)
+            }
+        } else {
+            compileOnly("com.tencent.kuikly-open:core-ksp:${Version.getKuiklyVersion()}") {
+                add("kspAndroid", this)
+                ...
+            }
+        }
+
+    }
+
 ```
 
 4. 将步骤1、2、3的配置分别push到宿主仓库和kuikly业务仓库，供其他人使用

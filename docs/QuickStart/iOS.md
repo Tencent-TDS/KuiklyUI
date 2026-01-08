@@ -299,16 +299,21 @@ NS_ASSUME_NONNULL_END
 ### 实现图片加载适配器
 
 具体实现代码，请参考源码工程iOSApp模块的``KuiklyRenderComponentExpandHandler``类。
-KuiklyRenderComponentExpandHandler 默认提供了三种图片加载方法：
+KuiklyRenderComponentExpandHandler 提供了以下图片加载方法供业务实现：
 
 - `hr_setImageWithUrl:forImageView:placeholderImage:options:complete:` <Badge text="推荐" type="warn"/>
-  - 完整功能实现；支持：`src一致性验证` ✓ | `完成回调` ✓ | `ImageView复用` ✓
+  - 完整功能实现；支持：`src一致性验证` ✓ | `加载完成回调更新Image` ✓ | `加载失败结果回调` ✓
 
-- `hr_setImageWithUrl:forImageView:complete:`__
-  - 支持完成回调的简化实现，无`src一致性验证`，仅支持：`完成回调` ✓
+- `hr_setImageWithUrl:forImageView:complete:`<Badge text="已废弃" type="danger"/>
+  - 支持完成回调的简化实现，无`src一致性验证`，仅支持：`加载失败结果回调` ✓
 
-- `hr_setImageWithUrl:forImageView:`
+- `hr_setImageWithUrl:forImageView:`<Badge text="已废弃" type="danger"/>
   - 最简化实现，仅触发加载，无`src一致性验证`，无其他功能支持
+
+:::tip 注意
+- 仅方法 1 通过设置 `options` 为 `SDWebImageAvoidAutoSetImage`，阻断 SDWebImage 自动更新 ImageView.image，由 SDK 在 completeBlock 中完成 src 一致性验证后再设置 image。
+- 后两个方法由 SDWebImage 自动更新 image，无法保证 src 一致性，易存在图片加载错乱的风险，因此已废弃。
+:::
 
 ```objc
 // .h

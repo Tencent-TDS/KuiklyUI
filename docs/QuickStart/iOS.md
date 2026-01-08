@@ -301,19 +301,13 @@ NS_ASSUME_NONNULL_END
 具体实现代码，请参考源码工程iOSApp模块的``KuiklyRenderComponentExpandHandler``类。
 KuiklyRenderComponentExpandHandler 提供了以下图片加载方法供业务实现：
 
-- `hr_setImageWithUrl:forImageView:placeholderImage:options:complete:` <Badge text="推荐" type="warn"/>
-  - 完整功能实现；支持：`src一致性验证` ✓ | `加载完成回调更新Image` ✓ | `加载失败结果回调` ✓
+- `hr_setImageWithUrT:forImageView:placeholderImage:options:complete:` <Badge text="推荐" type="warn" />
+  - 业务需设置`completeBLock`，回传图片 URL 交由SDK 更新`imageview.image`，无需手动更新 
 
-- `hr_setImageWithUrl:forImageView:complete:`<Badge text="已废弃" type="danger"/>
-  - 支持完成回调的简化实现，无`src一致性验证`，仅支持：`加载失败结果回调` ✓
+- `hr_setImageWithUrl:forImageView:complete`: <Badge text="已废弃" type="danger"/>
 
-- `hr_setImageWithUrl:forImageView:`<Badge text="已废弃" type="danger"/>
-  - 最简化实现，仅触发加载，无`src一致性验证`，无其他功能支持
+- `hr_setImageWithUrl:forImageView`: <Badge text="已废弃" type="danger"/>
 
-:::tip 注意
-- 仅方法 1 通过设置 `options` 为 `SDWebImageAvoidAutoSetImage`，阻断 SDWebImage 自动更新 ImageView.image，由 SDK 在 completeBlock 中完成 src 一致性验证后再设置 image。
-- 后两个方法由 SDWebImage 自动更新 image，无法保证 src 一致性，易存在图片加载错乱的风险，因此已废弃。
-:::
 
 ```objc
 // .h
@@ -348,25 +342,28 @@ NS_ASSUME_NONNULL_END
 /*
  * 自定义实现设置图片（带完成回调和src一致性验证，优先调用该方法）
  * @param url 设置的图片url，如果url为nil，则是取消图片设置，需要view.image = nil
- * @param placeholder 设置的占位图，默认设置为nil
- * @param options SDWebImage的图片加载参数，默认为SDWebImageAvoidAutoSetImage，阻断SDWebImage无感更新ImageView的image
  * @param complete 图片处理完成后的回调，内置src一致性验证
  * @return 是否处理该图片设置，返回值为YES，则交给该代理实现，否则sdk内部自己处理
+ *
+ * @warning 实现此方法时，必须在图片加载完成后调用completeBlock，SDK通过此回调完成ImageView.image的最终设置，若不调用将导致图片无法显示
+ * @warning 注意回调时所传入的imageURL是 hr_setImageWithUrl的参数url，而非SDWebImage Block中返回的imageURL参数
  */
-- (BOOL)hr_setImageWithUrl:(nonnull NSString *)url forImageView:(nonnull UIImageView *)imageView placeholderImage:(nullable UIImage *)placeholder options:(NSUInteger)options complete:(ImageCompletionBlock)completeBlock {
+- (BOOL)hr_safelySetImageWithUrl:(nonnull NSString *)url forImageView:(nonnull UIImageView *)imageView complete:(ImageCompletionBlock)completeBlock {
+
+    // @warning 若使用SDWebImage加载图片，此处 placeholderImage 需设置为nil，避免影响Kuikly image所设置的placeHoldersrc属性
+    // @warning 若使用SDWebImage加载图片，options 需设置为 SDWebImageAvoidAutoSetImage = 1 << 10 ，避免自动设置图片导致图片错乱问题
+    
     [imageView sd_setImageWithURL:[NSURL URLWithString:url]
-                 placeholderImage:placeholder
-                          options:(SDWebImageOptions)options
+                 placeholderImage:nil
+                          options:1 << 10
                         completed:^(UIImage * _Nullable image, NSError * _Nullable error, SDImageCacheType cacheType, NSURL * _Nullable imageURL) {
-        // 注意：必须在图片加载完成后调用completeBlock，SDK通过此回调完成ImageView.image的最终设置，若不调用将导致图片无法显示
         if (completeBlock) {
-            // 注意：回调时传入的url必须是传入的url，而非SDWebImage所返回的ImageURL
             completeBlock(image, error, [NSURL URLWithString:url]);
         }
     }];
     return YES;
 }
-/*
+
 ...
 
 @end

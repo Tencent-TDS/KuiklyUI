@@ -236,14 +236,12 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 - (BOOL)setImageWithUrl:(NSString *)url {
     BOOL handled = false;
     
-    if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:placeholderImage:options:complete:)]) {
+    if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_safelySetImageWithUrl:forImageView:complete:)]) {
         self.kr_reuseDisable = YES;     // 先关闭ImageView的复用能力
         self.imageLoadingCount++;
         __weak typeof(self) wself = self;
-        handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url
+        handled = [[KuiklyRenderBridge componentExpandHandler] hr_safelySetImageWithUrl:url
                                                                      forImageView:self
-                                                                 placeholderImage:nil
-                                                                          options:1 << 10
                                                                          complete:^(UIImage * _Nullable image, NSError * _Nullable error, NSURL * _Nullable imageURL) {
             [KuiklyRenderThreadManager performOnMainQueueWithTask:^{
                 __strong typeof(wself) sself = wself;

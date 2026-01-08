@@ -49,8 +49,9 @@ Module 返回值和 callback 参数支持的类型：
 |:------------|:-----------------------------------------------------------------------------------------------|
 | **Android** | `String` `Int` `Long` `Float` `Double` `Boolean` `ByteArray` `Map` `List` `JSONObject`         |
 | **iOS**     | `NSString` `NSNumber` `BOOL` `NSData` `NSDictionary` `NSArray`                                 |
-| **鸿蒙**      | `String` `Int` `Long` `Float` `Double` `Bool` `ByteArray` `Array` `Map`                        |
-| **H5**    | `String` `Int` `Long` `Float` `Double` `Boolean` `Array` `Map` `List` `JSONObject` `JSONArray` |
+| **鸿蒙**      | `String` `Int` `Long` `Float` `Double` `Bool` `ByteArray` `Array` `Map/Record`                        |
+| **H5**    | `String` `Int` `Long` `Float` `Double` `Boolean` `ByteArray` `Array` `Map` `List` `JSONObject` `JSONArray` |
+| **小程序**    | `String` `Int` `Long` `Float` `Double` `Boolean` `ByteArray` `Array` `Map` `List` `JSONObject` `JSONArray` |
 
 ---
 
@@ -63,7 +64,7 @@ Module 返回值和 callback 参数支持的类型：
 | **基础类型**   |   直接透传    | `String` `Int` `Float` `Double` `Boolean` `NSNumber` |
 | **二进制数据**  |   直接透传    | `ByteArray` `NSData`                                 |
 | **JSON数据** |  JSON字符串  | `JSONObject` `JSONArray`                             |
-| **集合类型**   |  JSON字符串  | `Map` `List` `NSDictionary` `NSArray` `Array`        |
+| **集合类型**   |  JSON字符串  | `Map/Record` `List` `NSDictionary` `NSArray` `Array` |
 | **特殊规则**   |    直接透传   | Array 中包含`ByteArray`/`NSData`时                       |
 
 :::tip 注意

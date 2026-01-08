@@ -17,12 +17,14 @@ package com.tencent.kuikly.core.render.android.expand.component
 
 import android.content.Context
 import android.graphics.Canvas
+import android.util.Log
 import android.view.Choreographer
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import com.tencent.kuikly.core.render.android.KuiklyRenderView
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.const.KRViewConst
 import com.tencent.kuikly.core.render.android.css.ktx.touchConsumeByNative
@@ -46,6 +48,12 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
 
     override val reusable: Boolean
         get() = true
+
+    /**
+     * layout日志相关
+     */
+    private var requestLayoutLogCount = 0
+    private var onLayoutLogCount = 0
 
     /**
      * 嵌套滚动相关
@@ -363,6 +371,58 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
         }
     }
 
+    override fun requestLayout() {
+        super.requestLayout()
+        logLayoutRequestIfNeeded()
+    }
+
+
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        super.onLayout(changed, left, top, right, bottom)
+        logOnLayoutIfNeeded(changed)
+    }
+
+
+    private fun logLayoutRequestIfNeeded() {
+        val parentView = parent as? KuiklyRenderView
+        if (parentView != null && parentView.isDebugLogEnable() && requestLayoutLogCount < LAYOUT_MAX_LOG_COUNT && !parentView.requestedLayout) {
+            var sb = "$this req=$isLayoutRequested\n"
+            var viewParent = parent
+            /**
+             * flag 取值说明:
+             * 0: 默认状态
+             * 1: 存在不需要重新布局的View，且该View为根视图
+             * 2: 存在不需要重新布局的View，且该View为子视图
+             */
+            var flag = 0
+            while (viewParent != null) {
+                val req = viewParent.isLayoutRequested
+                if (req) {
+                    sb += "${viewParent::class.simpleName} req=true\n"
+                } else {
+                    sb += "$viewParent req=false\n"
+                    flag = if (viewParent.parent == null) 1 else 2
+                }
+                viewParent = viewParent.parent
+            }
+            KuiklyRenderLog.d("KuiklyRenderTracer", "root requestLayout $requestLayoutLogCount result=$sb flag=$flag ${Log.getStackTraceString(Throwable())}")
+            requestLayoutLogCount++
+            if (flag != 2) {
+                parentView.requestedLayout = true
+            }
+        }
+    }
+
+
+    private fun logOnLayoutIfNeeded(changed: Boolean) {
+        val parentView = parent as? KuiklyRenderView
+        if (parentView != null && parentView.isDebugLogEnable() && onLayoutLogCount < LAYOUT_MAX_LOG_COUNT) {
+            KuiklyRenderLog.d("KuiklyRenderTracer", "root onLayout $onLayoutLogCount, changed:$changed, left:$left, top:$top, right:$right, bottom:$bottom")
+            onLayoutLogCount++
+        }
+        parentView?.requestedLayout = false
+    }
+
     companion object {
         const val VIEW_NAME = "KRView"
         private const val COMPOSE_ROOT_TAG_ID = -0x7C03905E // random unique negative int
@@ -381,6 +441,7 @@ open class KRView(context: Context) : FrameLayout(context), IKuiklyRenderViewExp
         private const val EVENT_TOUCH_UP = "touchUp"
         private const val EVENT_TOUCH_CANCEL = "touchCancel"
         private const val EVENT_SCREEN_FRAME = "screenFrame"
+        private const val LAYOUT_MAX_LOG_COUNT = 10
 
         /**
          * Whether the given View is marked as a compose root (SuperTouch enabled).

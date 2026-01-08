@@ -23,14 +23,17 @@ import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.SpannedString
 import android.util.DisplayMetrics
+import android.util.Log
 import android.util.SizeF
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
+import com.tencent.kuikly.core.render.android.KuiklyRenderView
 import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
 import com.tencent.kuikly.core.render.android.const.KRExtConst
 import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
+import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.exception.KRKotlinBizException
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderViewExport
 import com.tencent.tdf.utils.TDFListUtils
@@ -186,6 +189,15 @@ var View.frame: Rect
             lp.width = value.right
             lp.height = value.bottom
             layoutParams = lp
+        }
+        val parentView = this.parent
+        if (parentView is KuiklyRenderView) {
+            KuiklyRenderLog.d(
+                "KuiklyRenderTracer",
+                "--set root frame: [${value.left}, ${value.top}, ${value.right}, ${value.bottom}] " +
+                        "lp: ${layoutParams.let { "$it ${it.width}x${it.height}" }}" +
+                        if (parentView.isDebugLogEnable()) " ${Log.getStackTraceString(Throwable())}" else "" + "--"
+            )
         }
     }
 

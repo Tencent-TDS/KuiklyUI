@@ -17,6 +17,8 @@ package com.tencent.kuikly.core.base
 
 import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.manager.BridgeManager
+import com.tencent.kuikly.core.manager.PagerManager
+import com.tencent.kuikly.core.pager.Pager
 
 class Size(val width: Float, val height: Float) {
 
@@ -36,12 +38,23 @@ open class Shadow(private val pagerId: String, private val viewRef: Int, viewNam
     }
 
     open fun calculateRenderViewSize(width: Float, height: Float): Size {
+        val pager = PagerManager.getPager(pagerId) as Pager
+        val debugLogEnable = pager.isDebugLogEnable()
+        if (debugLogEnable) {
+            pager.pageLayoutTracer.shadowCalculateStart()
+        }
         val sizeStr = BridgeManager.calculateRenderViewSize(pagerId, viewRef, width, height)
         if (sizeStr.isEmpty()) {
             KLog.e("Shadow", "calculateRenderViewSize sizeStr is empty")
+            if (debugLogEnable) {
+                pager.pageLayoutTracer.shadowCalculateFinish()
+            }
             return Size(0f, 0f)
         }
         val parts = sizeStr.split("|")
+        if (debugLogEnable) {
+            pager.pageLayoutTracer.shadowCalculateFinish()
+        }
         return Size(parts[0].toFloat(), parts[1].toFloat())
     }
 

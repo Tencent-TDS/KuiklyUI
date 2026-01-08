@@ -21,4 +21,7 @@ actual object DateTime {
     actual fun nanoTime(): Long {
         return System.nanoTime()
     }
+
+    internal actual fun threadLocalTimestamp(): Long = 0L
+
 }

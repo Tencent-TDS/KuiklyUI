@@ -105,3 +105,6 @@ enum class KuiklyRenderNativeMethod(val value: Int) {
 }
 
 typealias KuiklyRenderNativeMethodCallback = (methodId: KuiklyRenderNativeMethod, args: List<Any?>) -> Any?
+
+// 用于记录各个callNative的task的次数
+internal var nativeMethodCallCounts = IntArray(KuiklyRenderNativeMethod.values().size + 1)

@@ -31,6 +31,8 @@ interface IPager {
     val isDebugUIInspector : Boolean
     var didCreateBody: Boolean
     val isAppeared: Boolean
+    var pageLayoutTracer: PageLayoutTracer
+
     fun onCreatePager(pagerId: String, pageData: JSONObject)
 
     fun onDestroyPager()
@@ -152,4 +154,13 @@ interface IPager {
     fun setPageTrace(pageTrace: PageCreateTrace) {}
 
     fun isAccessibilityRunning(): Boolean { return false }
+
+    /**
+     * 是否开启页面的Debug日志
+     * @return 是否开启，默认为false
+     */
+    fun isDebugLogEnable(): Boolean {
+        return false
+    }
+
 }

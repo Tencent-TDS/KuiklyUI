@@ -1667,6 +1667,11 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             if (target is KRRecyclerView) {
                 scrollParentIfNeeded(target, dx, dy, consumed, type)
             }
+            val dxUnconsumed = dx - consumed[0]
+            val dyUnconsumed = dy - consumed[1]
+            if (dxUnconsumed != 0 || dyUnconsumed != 0) {
+                dispatchNestedPreScroll(dxUnconsumed, dyUnconsumed, consumed, null, type)
+            }
             // 传递给父容器时，需要减去已经被补偿消耗的值
             // 这样父容器收到的是实际需要处理的滚动距离
             val remainingDx = dx - consumed[0]

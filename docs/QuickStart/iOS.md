@@ -301,7 +301,7 @@ NS_ASSUME_NONNULL_END
 具体实现代码，请参考源码工程iOSApp模块的``KuiklyRenderComponentExpandHandler``类。
 KuiklyRenderComponentExpandHandler 提供了以下图片加载方法供业务实现：
 
-- `hr_setImageWithUrT:forImageView:placeholderImage:options:complete:` <Badge text="推荐" type="warn" />
+- `hr_safelySetImageWithUrl:forImageView:placeholderImage:options:complete:` <Badge text="推荐" type="warn" />
   - 业务需设置`completeBLock`，回传图片 URL 交由SDK 更新`imageview.image`，无需手动更新 
 
 - `hr_setImageWithUrl:forImageView:complete`: <Badge text="已废弃" type="danger"/>

@@ -50,10 +50,15 @@ Module 返回值和 callback 参数支持的类型：
 | **Android** | `String` `Int` `Long` `Float` `Double` `Boolean` `ByteArray` `Map` `List` `JSONObject`         |
 | **iOS**     | `NSString` `NSNumber` `BOOL` `NSData` `NSDictionary` `NSArray`                                 |
 | **鸿蒙**      | `String` `Int` `Long` `Float` `Double` `Bool` `ByteArray` `Array` `Map/Record`                        |
-| **H5**    | `String` `Int` `Long` `Float` `Double` `Boolean` `ByteArray` `Array` `Map` `List` `JSONObject` `JSONArray` |
-| **小程序**    | `String` `Int` `Long` `Float` `Double` `Boolean` `ByteArray` `Array` `Map` `List` `JSONObject` `JSONArray` |
+| **H5**    | `String` `Int` `Long` `Float` `Double` `Boolean` `Array` `Map` `List` `JSONObject` `JSONArray` |
+| **小程序**    | `String` `Int` `Long` `Float` `Double` `Boolean` `Array` `Map` `List` `JSONObject` `JSONArray` |
 
 ---
+
+::: 注意
+- H5 和小程序端的二进制数据需要先转换为 String 后再进行传输，不支持直传；
+- Android、鸿蒙、iOS 支持二进制数据、二进制数组直传，无需类型转换
+:::
 
 #### Native侧序列化规则
 
@@ -62,7 +67,7 @@ Module 返回值和 callback 参数支持的类型：
 | 类目         |   序列化方式   | 涉及类型                                                 |
 |:-----------|:---------:|:-----------------------------------------------------|
 | **基础类型**   |   直接透传    | `String` `Int` `Float` `Double` `Boolean` `NSNumber` |
-| **二进制数据**  |   直接透传    | `ByteArray` `NSData`                                 |
+| **二进制数据**  |   直接透传    | `ByteArray` `NSData` `ArrayBuffer`                   |
 | **JSON数据** |  JSON字符串  | `JSONObject` `JSONArray`                             |
 | **集合类型**   |  JSON字符串  | `Map/Record` `List` `NSDictionary` `NSArray` `Array` |
 | **特殊规则**   |    直接透传   | Array 中包含`ByteArray`/`NSData`时                       |

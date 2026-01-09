@@ -45,6 +45,8 @@
 @property (nonatomic, strong) NSNumber *KUIKLY_PROP(dynamicSyncScrollDisable);
 /** attr is minContentOffset */
 @property (nonatomic, strong) NSNumber *KUIKLY_PROP(limitHeaderBounces);
+/** attr is limitFooterBounces */
+@property (nonatomic, strong) NSNumber *KUIKLY_PROP(limitFooterBounces);
 /** attr nestedScroll */
 @property (nonatomic, strong) NSString *KUIKLY_PROP(nestedScroll);
 /** event is scroll  */
@@ -182,6 +184,15 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
             contentOffset = CGPointMake(MAX(contentOffset.x, 0), contentOffset.y);
         } else {
             contentOffset = CGPointMake(contentOffset.x, MAX(contentOffset.y, 0));
+        }
+    }
+    if ([_css_limitFooterBounces boolValue]) { // 禁止底部回弹
+        if ([_css_directionRow boolValue]) {
+            CGFloat maxOffsetX = MAX(0, self.contentSize.width - CGRectGetWidth(self.frame));
+            contentOffset = CGPointMake(MIN(contentOffset.x, maxOffsetX), contentOffset.y);
+        } else {
+            CGFloat maxOffsetY = MAX(0, self.contentSize.height - CGRectGetHeight(self.frame));
+            contentOffset = CGPointMake(contentOffset.x, MIN(contentOffset.y, maxOffsetY));
         }
     }
     [super setContentOffset:contentOffset];

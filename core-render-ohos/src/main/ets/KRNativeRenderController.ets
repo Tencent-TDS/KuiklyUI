@@ -88,6 +88,8 @@ export const KRDensity = 'density';
 
 export const KRSystemLanguageKey = 'sysLang';
 
+export const KRFeature = 'feature';
+
 const KROnBackPressedKey = 'onBackPressed';
 
 enum KRBackPressConsumedState {
@@ -624,7 +626,9 @@ export class KRNativeRenderController {
     pageData[KRExecuteMode] = this.executeMode.mode;
     pageData[KRContextCode] = this.contextCode;
     pageData[KRDensity] = this.getWindowActiveDensity();
-
+    pageData[KRFeature] = {
+      "box_shadow_fill" : 1
+    };
     return JSON.stringify(pageData);
   }
 

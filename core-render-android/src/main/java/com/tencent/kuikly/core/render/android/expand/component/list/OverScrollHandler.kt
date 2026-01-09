@@ -80,7 +80,7 @@ internal class OverScrollHandler(
     private var scrollPointerId = -1
 
     fun onTouchEvent(event: MotionEvent): Boolean {
-        if (!isInStart() && !isInEnd()) {
+        if (!isInStart() && !isInEnd() && !dragging) {
             if (pointerDataMap.size() != 0) {
                 // 防止一开始是在start或者end, 然后pointerMap中存在down事件
                 // 最后滑到不是在start或者end时松手。此时不会走到clear,这里补一刀clear

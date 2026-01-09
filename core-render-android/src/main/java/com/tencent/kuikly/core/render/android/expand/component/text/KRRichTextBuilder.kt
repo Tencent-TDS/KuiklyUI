@@ -313,7 +313,7 @@ class FontWeightSpan(fontWeight: String, val index: Int = -1) : CharacterStyle()
     override fun updateDrawState(tp: TextPaint) {
         if (strokeWidth != 0f) {
             tp.style = Paint.Style.FILL_AND_STROKE
-            tp.strokeWidth = strokeWidth
+            tp.strokeWidth = strokeWidth * tp.textSize
         }
     }
 
@@ -322,11 +322,16 @@ class FontWeightSpan(fontWeight: String, val index: Int = -1) : CharacterStyle()
         private const val FONT_WEIGHT_MEDIUM = "500"
         private const val FONT_WEIGHT_MEDIUM_BOLD = "600"
         private const val FONT_WEIGHT_BOLD = "700"
+        private const val FONT_WEIGHT_EXTRA_BOLD = "800"
+        private const val FONT_WEIGHT_BLACK = "900"
 
+        private const val SCALE = 50f
         private const val FONT_WEIGHT_NORMAL_VALUE = 0f
-        private const val FONT_WEIGHT_MEDIUM_VALUE = 0.75f
-        private const val FONT_WEIGHT_MEDIUM_BOLD_VALUE = 1f
-        private const val FONT_WEIGHT_BOLD_VALUE = 1.5f
+        private const val FONT_WEIGHT_MEDIUM_VALUE = 0.5f / SCALE
+        private const val FONT_WEIGHT_MEDIUM_BOLD_VALUE = 1f / SCALE
+        private const val FONT_WEIGHT_BOLD_VALUE = 1.5f / SCALE
+        private const val FONT_WEIGHT_EXTRA_BOLD_VALUE = 2f / SCALE
+        private const val FONT_WEIGHT_BLACK_VALUE = 2.5f / SCALE
 
         fun getFontWeight(fontWeight: String): Float {
             return when (fontWeight) {
@@ -334,6 +339,8 @@ class FontWeightSpan(fontWeight: String, val index: Int = -1) : CharacterStyle()
                 FONT_WEIGHT_MEDIUM -> FONT_WEIGHT_MEDIUM_VALUE
                 FONT_WEIGHT_MEDIUM_BOLD -> FONT_WEIGHT_MEDIUM_BOLD_VALUE
                 FONT_WEIGHT_BOLD -> FONT_WEIGHT_BOLD_VALUE
+                FONT_WEIGHT_EXTRA_BOLD -> FONT_WEIGHT_EXTRA_BOLD_VALUE
+                FONT_WEIGHT_BLACK -> FONT_WEIGHT_BLACK_VALUE
                 else -> FONT_WEIGHT_NORMAL_VALUE
             }
         }

@@ -25,6 +25,12 @@ open class IOSTargetEntryBuilder : KuiklyCoreAbsEntryBuilder() {
     override fun build(builder: FileSpec.Builder, pagesAnnotations: List<PageInfo>) {
         builder.addType(
             TypeSpec.classBuilder(entryFileName())
+                .apply {
+                    if (KotlinVersion.CURRENT.isAtLeast(1, 8, 0)) {
+                        addAnnotation(optInExperimentalObjCName())
+                        addAnnotation(objCName("KuiklyCoreEntry"))
+                    }
+                }
                 .addProperty(createDelegateProperty())
                 .addProperty(createHadRegisterNativeBridgeProperty())
                 .addFunction(createCallKtMethodFuncSpec(pagesAnnotations))
@@ -143,6 +149,16 @@ open class IOSTargetEntryBuilder : KuiklyCoreAbsEntryBuilder() {
             )
             .build()
     }
+
+    private fun optInExperimentalObjCName() =
+        AnnotationSpec.builder(ClassName("", "OptIn"))
+            .addMember("kotlin.experimental.ExperimentalObjCName::class")
+            .build()
+
+    private fun objCName(name: String) =
+        AnnotationSpec.builder(ClassName("", "ObjCName"))
+            .addMember("%S", name)
+            .build()
 
     companion object {
         private const val HR_CORE_ENTRY_DELEGATE = "Delegate"

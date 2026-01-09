@@ -229,6 +229,20 @@ typedef void (*KRSetImageCallback)(const void* context,
 typedef int32_t (*KRImageAdapterV2)(const void *context,
                                  const char *src,
                                  KRSetImageCallback callback);
+
+/**
+ * @brief 自定义image adapter V3，支持传递图片加载参数
+ * @param context 上下文
+ * @param src image组件设置的src属性
+ * @param imageParams 图片加载参数，JSON格式字符串，可为nullptr
+ * @param callback 自定义加载图片完成后可通过callback指针回调给kuikly，并把context以及src参数回填
+ * @return 已处理则返回1，否则返回0
+ */
+typedef int32_t (*KRImageAdapterV3)(const void *context,
+                                 const char *src,
+                                 const char *imageParams,
+                                 KRSetImageCallback callback);
+
 /**
  * @brief 注册image adapter
  * @param adapter adapter函数指针
@@ -237,17 +251,17 @@ typedef int32_t (*KRImageAdapterV2)(const void *context,
 void KRRegisterImageAdapter(KRImageAdapter adapter);
 
 /**
- * @brief 注册image adapter
+ * @brief 注册image adapter V2
  * @param adapter adapter函数指针
  */
 void KRRegisterImageAdapterV2(KRImageAdapterV2 adapter);
 
 /**
- * @brief 获取图片加载参数
- * @param context 视图上下文指针
- * @return 图片参数 map 的指针，如果不存在返回 nullptr
+ * @brief 注册image adapter V3
+ * @param adapter adapter函数指针
+ * @note V3版本支持传递图片加载参数(imageParams)
  */
-const std::unordered_map<std::string, std::string>* KRGetImageParams(const void *context);
+void KRRegisterImageAdapterV3(KRImageAdapterV3 adapter);
 
 /**
  * Log level定义

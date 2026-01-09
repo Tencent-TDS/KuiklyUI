@@ -26,7 +26,6 @@
 #include "libohos_render/utils/KRURIHelper.h"
 #include "libohos_render/utils/KRStringUtil.h"
 #include "libohos_render/utils/KRViewContext.h"
-#include <sstream>
 
 constexpr char kPropNameSrc[] = "src";
 constexpr char kBase64Prefix[] = "data:image";
@@ -167,7 +166,7 @@ bool KRImageView::ResetProp(const std::string &prop_key) {
         had_register_on_error_event_ = false;
         load_failure_callback_ = nullptr;
     } else if (kuikly::util::isEqual(prop_key, kPropNameImageParams)) {
-        image_params_.clear();
+        image_params_ = nullptr;
         didHanded = true;
     } else {
         didHanded = IKRRenderViewExport::ResetProp(prop_key);
@@ -216,13 +215,26 @@ bool KRImageView::SetImageSrc(const KRAnyValue &value) {
 
     kuikly::util::ResetArkUIImageSrc(GetNode());
     image_src_ = src;
-    if (auto imageAdapterV2 = KRImageAdapterManager::GetInstance()->GetAdapterV2()) {
+    
+    // 优先使用 V3 adapter（支持 imageParams）
+    if (auto imageAdapterV3 = KRImageAdapterManager::GetInstance()->GetAdapterV3()) {
         KRViewContext ctx(GetInstanceId(), GetViewTag());
-        if(imageAdapterV2((const void*)ctx.Context(), (const char*)src.c_str(), &KRImageView::AdapterSetImageCallback)){
-            // handled by the adapter, return immediately
+        // 将 image_params_ 转换为 JSON 字符串
+        std::string imageParamsJson = ImageParamsToJson();
+        const char* paramsPtr = imageParamsJson.empty() ? nullptr : imageParamsJson.c_str();
+        if (imageAdapterV3((const void*)ctx.Context(), src.c_str(), paramsPtr, &KRImageView::AdapterSetImageCallback)) {
             return true;
         }
-    }else if (auto imageAdapter = KRImageAdapterManager::GetInstance()->GetAdapter()) {
+    }
+    // 兼容 V2 adapter
+    else if (auto imageAdapterV2 = KRImageAdapterManager::GetInstance()->GetAdapterV2()) {
+        KRViewContext ctx(GetInstanceId(), GetViewTag());
+        if (imageAdapterV2((const void*)ctx.Context(), src.c_str(), &KRImageView::AdapterSetImageCallback)) {
+            return true;
+        }
+    }
+    // 兼容 V1 adapter
+    else if (auto imageAdapter = KRImageAdapterManager::GetInstance()->GetAdapter()) {
         ArkUI_DrawableDescriptor *imageDescriptor = nullptr;
         KRImageDataDeallocator deallocator = nullptr;
         char *imageSrc = imageAdapter(src.c_str(), &imageDescriptor, &deallocator);
@@ -245,38 +257,16 @@ bool KRImageView::SetImageSrc(const KRAnyValue &value) {
 }
 
 bool KRImageView::SetImageParams(const KRAnyValue &value) {
-    image_params_.clear();
-    if (value) {
-        // toMap() 支持两种情况：
-        // 1. value 本身是 Map 类型 -> 直接返回
-        // 2. value 是 JSON 字符串 -> 自动解析为 Map
-        auto map = value->toMap();
-        for (const auto &pair : map) {
-            if (pair.second) {
-                image_params_[pair.first] = pair.second->toString();
-            }
-        }
-    }
-    // 日志输出 ImageParams，用于验证跨端传递的参数
-    if (!image_params_.empty()) {
-        std::ostringstream oss;
-        oss << "[KRImageView] SetImageParams received, count=" << image_params_.size() << ", params: {";
-        bool first = true;
-        for (const auto &pair : image_params_) {
-            if (!first) oss << ", ";
-            oss << "\"" << pair.first << "\": \"" << pair.second << "\"";
-            first = false;
-        }
-        oss << "}";
-        KR_LOG_INFO << oss.str();
-    } else {
-        // 调试日志：如果解析失败，输出原始值
-        if (value) {
-            KR_LOG_INFO << "[KRImageView] SetImageParams: empty after parse, raw value type isString=" 
-                        << value->isString() << ", isMap=" << value->isMap();
-        }
-    }
+    image_params_ = value;
     return true;
+}
+
+std::string KRImageView::ImageParamsToJson() const {
+    if (!image_params_) {
+        return "";
+    }
+    // 直接返回原始字符串，不做转换
+    return image_params_->toString();
 }
 
 bool KRImageView::SetResizeMode(const KRAnyValue &value) {

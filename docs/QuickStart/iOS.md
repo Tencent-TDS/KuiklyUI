@@ -299,16 +299,20 @@ NS_ASSUME_NONNULL_END
 ### 实现图片加载适配器
 
 具体实现代码，请参考源码工程iOSApp模块的``KuiklyRenderComponentExpandHandler``类。
-KuiklyRenderComponentExpandHandler 提供了以下图片加载方法供业务实现：
 
-- `hr_setImageWithUrl:imageParams:complete:` <Badge text="推荐" type="warn" />
-  - 业务需设置`completeBLock`，回传图片 URL 交由SDK 更新`imageview.image`，无需手动更新；
-  - 业务在src设置时支持传入额外参数 imageParams，此处可使用 imageParams 组成确切的 图片URL；
+KuiklyRenderComponentExpandHandler 提供了以下三种图片加载方法：
 
-- `hr_setImageWithUrl:forImageView:complete`: <Badge text="已废弃" type="danger"/>
+| 方法 | 状态 | src一致性验证 | 图片加载错误回调 | imageParams支持 |
+|------|------|:-------------:|:----------------:|:---------------:|
+| `hr_setImageWithUrl:imageParams:complete:` | 推荐 | ✅ | ✅ | ✅ |
+| `hr_setImageWithUrl:forImageView:complete:` | 已废弃 | ❌ | ✅ | ❌ |
+| `hr_setImageWithUrl:forImageView:` | 已废弃 | ❌ | ❌ | ❌ |
 
-- `hr_setImageWithUrl:forImageView`: <Badge text="已废弃" type="danger"/>
+:::tip 关于 src一致性验证
+`src一致性验证` 是保证图片准确加载的必要能力。后两种方法因不具备此能力，在`页面多图片`、`图片src变更频繁` 场景下易发生`图片错乱`现象，因此已废弃。
+:::
 
+下面给出推荐方法的具体使用示例：
 
 ```objectivec
 // .h

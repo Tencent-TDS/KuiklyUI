@@ -24,10 +24,6 @@
 #include "libohos_render/expand/components/richtext/KRFontAdapterManager.h"
 #include "libohos_render/export/IKRRenderModuleExport.h"
 #include "libohos_render/export/IKRRenderViewExport.h"
-#include "libohos_render/utils/KRViewContext.h"
-#include "libohos_render/manager/KRRenderManager.h"
-#include "libohos_render/expand/components/image/KRImageView.h"
-#include <sstream>
 
 #ifdef __cplusplus
 extern "C" {
@@ -312,19 +308,11 @@ void KRRegisterImageAdapter(KRImageAdapter adapter) {
 void KRRegisterImageAdapterV2(KRImageAdapterV2 adapter) {
     KRImageAdapterManager::GetInstance()->RegisterImageAdapterV2(adapter);
 }
-    
-// 新增 KRGetImageParams 实现
-const std::unordered_map<std::string, std::string>* KRGetImageParams(const void *context) {
-    if (!context) return nullptr;
-    KRViewContext ctx(context);
-    auto render_view = KRRenderManager::GetInstance().GetRenderView(ctx.InstanceString());
-    if (!render_view) return nullptr;
-    auto view = render_view->GetView(ctx.Tag());
-    auto image_view = std::dynamic_pointer_cast<KRImageView>(view);
-    if (!image_view) return nullptr;
-    const auto& params = image_view->GetImageParams();
-    return params.empty() ? nullptr : &params;
+// 新增适配器 ImageAdapterV3
+void KRRegisterImageAdapterV3(KRImageAdapterV3 adapter) {
+    KRImageAdapterManager::GetInstance()->RegisterImageAdapterV3(adapter);
 }
+
 
 int KRLogLevelInfo = LogLevel::LOG_INFO;
 int KRLogLevelDebug = LogLevel::LOG_DEBUG;

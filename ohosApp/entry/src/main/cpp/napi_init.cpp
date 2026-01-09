@@ -23,6 +23,7 @@
 #include <memory>
 #include <string>
 #include "libohos_render/api/include/Kuikly/Kuikly.h"
+#include "libohos_render/utils/KRRenderLoger.h"
 #include "napi/native_api.h"
 #include "thirdparty/biz_entry/libshared_api.h"
 
@@ -129,6 +130,8 @@ int32_t MyImageAdapterV2(const void *context,
                                  const char *src,
                                  KRSetImageCallback callback){
     // 获取图片加载参数ImageParams
+    KR_LOG_INFO << "[MyImageAdapterV2===] received context=" << context << ", src=" << src;
+    
     const auto* imageParams = KRGetImageParams(context);
     // 日志输出 ImageParams，验证业务方可以获取到跨端传递的参数
     if (imageParams && !imageParams->empty()) {

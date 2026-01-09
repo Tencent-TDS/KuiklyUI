@@ -55,6 +55,11 @@ Module 返回值和 callback 参数支持的类型：
 
 ---
 
+::: 提示
+- Android、鸿蒙、iOS 支持二进制数据、二进制集合直传至Koltin
+- 若想以JSON字符串形式传输，则需要先转为字符串格式再进行JSON序列化为JSON字符串
+:::
+
 #### Native侧序列化规则
 
 数据从 Native 传递到 Kotlin 时的处理方式：

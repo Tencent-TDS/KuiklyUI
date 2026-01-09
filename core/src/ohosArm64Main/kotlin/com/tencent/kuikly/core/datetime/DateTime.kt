@@ -37,6 +37,5 @@ actual object DateTime {
         return com_tencent_kuikly_GetThreadCPUTimeInNanoseconds() / 1_000_000
     }
 
-    internal actual fun logStack(): String = ""
 
 }

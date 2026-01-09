@@ -20,6 +20,7 @@
 #include <stddef.h>
 #include <arkui/drawable_descriptor.h>
 #include <arkui/native_type.h>
+#include <unordered_map>
 
 #include "KRAnyData.h"
 
@@ -240,6 +241,13 @@ void KRRegisterImageAdapter(KRImageAdapter adapter);
  * @param adapter adapter函数指针
  */
 void KRRegisterImageAdapterV2(KRImageAdapterV2 adapter);
+
+/**
+ * @brief 获取图片加载参数
+ * @param context 视图上下文指针
+ * @return 图片参数 map 的指针，如果不存在返回 nullptr
+ */
+const std::unordered_map<std::string, std::string>* KRGetImageParams(const void *context);
 
 /**
  * Log level定义

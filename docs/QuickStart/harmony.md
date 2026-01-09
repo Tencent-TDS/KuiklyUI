@@ -575,6 +575,11 @@ static int32_t MyImageAdapter(const void *context, const char *src, KRSetImageCa
     // 自定义图片加载逻辑
     // 例如：网络图片下载、本地图片加载等
     
+    // 获取图片加载参数ImageParams
+    // const auto* imageParams = KRGetImageParams(context);
+    
+    // ...
+    
     // 如果已处理该图片加载请求，返回1
     // 否则返回0，让kuikly使用默认处理方式
     return 0;

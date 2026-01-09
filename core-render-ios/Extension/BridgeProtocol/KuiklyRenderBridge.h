@@ -112,7 +112,7 @@ typedef void(^ImageCompletionBlock)(UIImage * _Nullable image, NSError * _Nullab
  *
  * @warning 实现此方法时，必须在图片加载完成后调用completeBlock，SDK通过此回调完成ImageView.image的最终设置，若不调用将导致图片无法显示
  */
-- (BOOL)hr_safelySetImageWithUrl:(nonnull NSString *)url forImageView:(nonnull UIImageView *)imageView complete:(ImageCompletionBlock)completeBlock;
+- (BOOL)hr_setImageWithUrl:(nonnull NSString *)loadURL imageParams:(NSDictionary* _Nullable)imageParams complete:(ImageCompletionBlock)completeBlock;
 
 /*
  * 自定义实现设置颜值

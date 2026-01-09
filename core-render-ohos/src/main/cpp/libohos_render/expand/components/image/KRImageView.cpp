@@ -26,6 +26,7 @@
 #include "libohos_render/utils/KRURIHelper.h"
 #include "libohos_render/utils/KRStringUtil.h"
 #include "libohos_render/utils/KRViewContext.h"
+#include <sstream>
 
 constexpr char kPropNameSrc[] = "src";
 constexpr char kBase64Prefix[] = "data:image";
@@ -45,6 +46,7 @@ constexpr char kPropNameBlurRadius[] = "blurRadius";
 constexpr char kPropNameTintColor[] = "tintColor";
 constexpr char kPropNameCapInsets[] = "capInsets";
 constexpr char kPropNameDotNineImage[] = "dotNineImage";
+constexpr char kPropNameImageParams[] = "imageParams";
 
 constexpr char kEventNameLoadSuccess[] = "loadSuccess";
 constexpr char kEventNameLoadResolution[] = "loadResolution";
@@ -121,6 +123,8 @@ bool KRImageView::SetProp(const std::string &prop_key, const KRAnyValue &prop_va
         didHanded = RegisterLoadFailureCallback(event_call_back);
     } else if (kuikly::util::isEqual(prop_key, kPropNameDragEnable)) {
         didHanded = SetDragEnable(prop_value);
+    } else if (kuikly::util::isEqual(prop_key, kPropNameImageParams)) {
+        didHanded = SetImageParams(prop_value);
     }
     return didHanded;
 }
@@ -162,6 +166,9 @@ bool KRImageView::ResetProp(const std::string &prop_key) {
         didHanded = true;
         had_register_on_error_event_ = false;
         load_failure_callback_ = nullptr;
+    } else if (kuikly::util::isEqual(prop_key, kPropNameImageParams)) {
+        image_params_.clear();
+        didHanded = true;
     } else {
         didHanded = IKRRenderViewExport::ResetProp(prop_key);
     }
@@ -234,6 +241,41 @@ bool KRImageView::SetImageSrc(const KRAnyValue &value) {
     }
 
     LoadFromSrc(src);
+    return true;
+}
+
+bool KRImageView::SetImageParams(const KRAnyValue &value) {
+    image_params_.clear();
+    if (value) {
+        // toMap() 支持两种情况：
+        // 1. value 本身是 Map 类型 -> 直接返回
+        // 2. value 是 JSON 字符串 -> 自动解析为 Map
+        auto map = value->toMap();
+        for (const auto &pair : map) {
+            if (pair.second) {
+                image_params_[pair.first] = pair.second->toString();
+            }
+        }
+    }
+    // 日志输出 ImageParams，用于验证跨端传递的参数
+    if (!image_params_.empty()) {
+        std::ostringstream oss;
+        oss << "[KRImageView] SetImageParams received, count=" << image_params_.size() << ", params: {";
+        bool first = true;
+        for (const auto &pair : image_params_) {
+            if (!first) oss << ", ";
+            oss << "\"" << pair.first << "\": \"" << pair.second << "\"";
+            first = false;
+        }
+        oss << "}";
+        KR_LOG_INFO << oss.str();
+    } else {
+        // 调试日志：如果解析失败，输出原始值
+        if (value) {
+            KR_LOG_INFO << "[KRImageView] SetImageParams: empty after parse, raw value type isString=" 
+                        << value->isString() << ", isMap=" << value->isMap();
+        }
+    }
     return true;
 }
 

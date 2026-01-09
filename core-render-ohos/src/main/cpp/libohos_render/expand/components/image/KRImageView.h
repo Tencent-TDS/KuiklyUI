@@ -18,6 +18,7 @@
 
 #include "libohos_render/expand/components/image/KRImageLoadOption.h"
 #include "libohos_render/export/IKRRenderViewExport.h"
+#include <unordered_map>
 
 using namespace std::string_view_literals;
 constexpr std::string_view KR_ASSET_PREFIX = "assets://"sv;
@@ -38,6 +39,7 @@ class KRImageView : public IKRRenderViewExport {
     bool ResetProp(const std::string &prop_key) override;
     void OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEventType &event_type) override;
     void OnDestroy() override;
+    const std::unordered_map<std::string, std::string>& GetImageParams() const {return image_params_;}
 
  private:
     bool SetImageSrc(const KRAnyValue &value);
@@ -46,6 +48,7 @@ class KRImageView : public IKRRenderViewExport {
     bool SetBlurRadius(const KRAnyValue &value);
     bool SetTintColor(const KRAnyValue &value);
     bool SetCapInsets(const KRAnyValue &value);
+    bool SetImageParams(const KRAnyValue &value);
     bool SetDotNineImage(const KRAnyValue &value);
     bool SetMaskLinearGradient(const KRAnyValue &value);
     void ResetMaskLinearGradientNode();
@@ -72,6 +75,7 @@ class KRImageView : public IKRRenderViewExport {
     bool had_register_on_error_event_ = false;
     bool is_dot_nine_image_ = false;
     ArkUI_NodeHandle mask_linear_gradient_node_ = nullptr;
+    std::unordered_map<std::string, std::string> image_params_;
     
     static void AdapterSetImageCallback(const void* context,
                                    const char *src,

@@ -128,6 +128,29 @@ static char *MyFontAdapter(const char *fontFamily, char **fontBuffer, size_t *le
 int32_t MyImageAdapterV2(const void *context,
                                  const char *src,
                                  KRSetImageCallback callback){
+    // 获取图片加载参数ImageParams
+    const auto* imageParams = KRGetImageParams(context);
+    // 日志输出 ImageParams，验证业务方可以获取到跨端传递的参数
+    if (imageParams && !imageParams->empty()) {
+        std::string logMsg = "[MyImageAdapterV2] ImageParams received, src=";
+        logMsg += (src ? src : "null");
+        logMsg += ", count=";
+        logMsg += std::to_string(imageParams->size());
+        logMsg += ", params: {";
+        bool first = true;
+        for (const auto& pair : *imageParams) {
+            if (!first) logMsg += ", ";
+            logMsg += "\"" + pair.first + "\": \"" + pair.second + "\"";
+            first = false;
+        }
+        logMsg += "}";
+        OH_LOG_Print(LOG_APP, LOG_INFO, 0x1234, "KuiklyDemo", "%{public}s", logMsg.c_str());
+    } else {
+        std::string logMsg = "[MyImageAdapterV2] No ImageParams, src=";
+        logMsg += (src ? src : "null");
+        OH_LOG_Print(LOG_APP, LOG_INFO, 0x1234, "KuiklyDemo", "%{public}s", logMsg.c_str());
+    }
+    
     static int counter = 0;
     if(counter++ % 2 == 0){
         return 0;

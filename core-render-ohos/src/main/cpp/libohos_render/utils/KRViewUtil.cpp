@@ -383,6 +383,7 @@ void UpdateNodeBoxShadow(ArkUI_NodeHandle node, const std::string &css_box_shado
     float y = ConvertToFloat(splits[1]) * dpi;
     float radius = ConvertToFloat(splits[2]) * dpi;
     uint32_t color = ConvertToHexColor(splits[3]);
+    int fill = splits.size() > 4 && splits[4] == "0" ? 0 : 1;
     ArkUI_NumberValue value[] = {
         {.f32 = radius},
         {.i32 = 0},
@@ -390,7 +391,7 @@ void UpdateNodeBoxShadow(ArkUI_NodeHandle node, const std::string &css_box_shado
         {.f32 = y},
         {.i32 = ARKUI_SHADOW_TYPE_COLOR},
         {.u32 = color},
-        {.i32 = 1}
+        {.i32 = fill}
     };
     ArkUI_AttributeItem item = {value, sizeof(value) / sizeof(ArkUI_NumberValue)};
     nodeAPI->setAttribute(node, NODE_CUSTOM_SHADOW, &item);

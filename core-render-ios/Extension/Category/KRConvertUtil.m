@@ -440,28 +440,38 @@
     return array;
 }
 
-+ (UIViewAnimationOptions)hr_viewAnimationOptions:(NSString *)value {
-    if ([value intValue] == 1) {
++ (UIViewAnimationOptions)hr_viewAnimationOptions:(NSString *)value rawCurve:(NSString *)rawCurve {
+    int v = [value intValue];
+    if (v == 1) {
         return UIViewAnimationOptionCurveEaseIn;
     }
-    if ([value intValue] == 2) {
+    if (v == 2) {
         return UIViewAnimationOptionCurveEaseOut;
     }
-    if ([value intValue] == 3) {
+    if (v == 3) {
         return UIViewAnimationOptionCurveEaseInOut;
+    }
+    if (v == 4) {
+        int rawCurveValue = [rawCurve intValue];
+        return (UIViewAnimationOptions)(rawCurveValue << 16);
     }
     return UIViewAnimationOptionCurveLinear;
 }
 
-+ (UIViewAnimationCurve)hr_viewAnimationCurve:(NSString *)value {
-    if ([value intValue] == 1) {
++ (UIViewAnimationCurve)hr_viewAnimationCurve:(NSString *)value rawCurve:(NSString *)rawCurve {
+    int v = [value intValue];
+    if (v == 1) {
         return UIViewAnimationCurveEaseIn;
     }
-    if ([value intValue] == 2) {
+    if (v == 2) {
         return UIViewAnimationCurveEaseOut;
     }
-    if ([value intValue] == 3) {
+    if (v == 3) {
         return UIViewAnimationCurveEaseInOut;
+    }
+    if (v == 4) {
+        int rawCurveValue = [rawCurve intValue];
+        return (UIViewAnimationCurve)rawCurveValue;
     }
     return UIViewAnimationCurveLinear;
 }

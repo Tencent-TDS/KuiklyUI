@@ -274,6 +274,12 @@ export abstract class KuiklyRenderBaseView implements IKuiklyRenderViewExport {
     this.sizeDidChanged(width, height);
     this.updateArkUI();
   }
+
+  onConfigurationUpdate(){
+    if( this.arkUINode){
+      this.arkUINode.updateConfiguration()
+    }
+  }
 }
 
 export type KRRenderViewExportCreator = () => KuiklyRenderBaseView;

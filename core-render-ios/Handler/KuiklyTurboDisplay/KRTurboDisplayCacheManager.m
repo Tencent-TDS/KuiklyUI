@@ -200,7 +200,13 @@
             
             if (nodeData) {
                 cacheData = [KRTurboDisplayCacheData new];
-                cacheData.turboDisplayNode = [NSKeyedUnarchiver unarchivedObjectOfClass:[KRTurboDisplayNode class] fromData:nodeData error:nil];
+//                cacheData.turboDisplayNode = [NSKeyedUnarchiver unarchivedObjectOfClass:[KRTurboDisplayNode class] fromData:nodeData error:nil];
+                NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingFromData:nodeData error:nil];
+                if (unarchiver) {
+                    unarchiver.requiresSecureCoding = NO;
+                    cacheData.turboDisplayNode = [unarchiver decodeObjectForKey:NSKeyedArchiveRootObjectKey];
+                    [unarchiver finishDecoding];
+                }
                 cacheData.turboDisplayNodeData = nodeData;
             }
            

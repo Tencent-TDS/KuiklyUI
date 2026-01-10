@@ -22,8 +22,6 @@
 #define PROP_VALUE @"propValue"
 
 @interface KRTurboDisplayProp()
-
-@property (nonatomic, strong) NSMutableArray<id> *lazyEventCallbackResults;
 @end
 
 @implementation KRTurboDisplayProp
@@ -98,6 +96,63 @@
         _lazyEventCallbackResults = [NSMutableArray new];
     }
     return _lazyEventCallbackResults;
+}
+
+
+# pragma mark - event replay
+
++ (KREventReplayPolicy)replayPolicyForEventKey:(NSString *)eventKey {
+    
+    /// 这里的队列会在每一次调用这个函数的时候都会创建下面的队列吗？
+    // 全量回放的事件
+    static NSSet *allReplayEvents = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        allReplayEvents = [NSSet setWithArray:@[
+            @"click", @"doubleClick", @"longPress", @"pan",
+            @"touchDown", @"touchMove", @"touchUp"
+        ]];
+    });
+    
+    // 仅回放最后一次的事件
+    static NSSet *lastReplayEvents = nil;
+    static dispatch_once_t onceToken2;
+    dispatch_once(&onceToken2, ^{
+        lastReplayEvents = [NSSet setWithArray:@[
+            @"scroll", @"dragBegin", @"dragEnd", @"willDragEnd", @"scrollEnd", @"scrollToTop"
+        ]];
+    });
+    
+    if ([allReplayEvents containsObject:eventKey]) {
+        return KREventReplayPolicyAll;
+    } else if ([lastReplayEvents containsObject:eventKey]) {
+        return KREventReplayPolicyLast;
+    }
+    return KREventReplayPolicyNone;
+}
+
+- (void)performLazyEventToCallback:(KuiklyRenderCallback)callback withPolicy:(KREventReplayPolicy)policy {
+    if (!callback || self.lazyEventCallbackResults.count == 0) {
+        return;
+    }
+    
+    switch (policy) {
+        case KREventReplayPolicyAll:
+            // 全量回放
+            for (NSUInteger i = 0; i < self.lazyEventCallbackResults.count; i++) {
+                id res = self.lazyEventCallbackResults[i];
+                callback(res);
+            }
+            break;
+        case KREventReplayPolicyLast:
+            // 仅回放最后一次
+            callback(self.lazyEventCallbackResults.lastObject);
+            break;
+            
+        default:
+            // 不回放
+            break;
+    }
 }
 
 

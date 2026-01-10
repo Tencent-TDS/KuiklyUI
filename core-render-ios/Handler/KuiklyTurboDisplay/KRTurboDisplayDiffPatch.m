@@ -17,6 +17,7 @@
 #import "KRTurboDisplayShadow.h"
 #import "KRLogModule.h"
 #import "UIView+CSS.h"
+#import "KuiklyRenderThreadManager.h"
 
 #define SCROLL_VIEW @"KRScrollContentView"
 
@@ -27,32 +28,11 @@ static UIView *gBaseView = nil;
 + (void)diffPatchToRenderingWithRenderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer
                                 oldNodeTree:(KRTurboDisplayNode *)oldNodeTree
                                 newNodeTree:(KRTurboDisplayNode *)newNodeTree {
-    // 逐层比较，属性和事件key不一样，就删除该节点，如果仅属性值变化就update该属性
-    // 能否复用
-    if ([self canReuseNode:oldNodeTree newNode:newNodeTree fromUpdateNode:NO]) {
-        // 更新渲染视图
-        [self updateRenderViewWithCurNode:oldNodeTree newNode:newNodeTree renderLayer:renderLayer hasParent:YES];
-        
-        NSArray *aChilden = oldNodeTree.children;
-        NSArray *bChilden = newNodeTree.children;
-        
-        if ([oldNodeTree.viewName isEqualToString:SCROLL_VIEW]) { // 可滚动容器节点孩子需要排序
-            aChilden = [self sortScrollIndexWithList:aChilden];
-            bChilden = [self sortScrollIndexWithList:bChilden];
-         }
-        
-        for (int i = 0; i < MAX(aChilden.count, bChilden.count); i++) {
-            KRTurboDisplayNode *oldNode = aChilden.count > i ? aChilden[i] : nil;
-            KRTurboDisplayNode *newNode = bChilden.count > i ? bChilden[i] : nil;
-            [self diffPatchToRenderingWithRenderLayer:renderLayer oldNodeTree:oldNode newNodeTree:newNode];
-        }
-    } else {
-        [KRLogModule logInfo:[NSString stringWithFormat:@"turbo_display un used with old node:%@ new node:%@", oldNodeTree.viewName, newNodeTree.viewName]];
-        // 删除渲染视图
-        [self removeRenderViewWithNode:oldNodeTree renderLayer:renderLayer];
-        // 新建渲染视图
-        [self createRenderViewWithNode:newNodeTree renderLayer:renderLayer];
-    }
+    // TB首屏diff，不启用延迟diff，使用默认的全量diff
+    [self diffPatchToRenderingWithRenderLayer:renderLayer
+                                  oldNodeTree:oldNodeTree
+                                  newNodeTree:newNodeTree
+                              diffPolicy:KRCacheFirstScreenDiff];
 }
 
 
@@ -154,7 +134,7 @@ static UIView *gBaseView = nil;
 }
 
 // 生成渲染视图
-+ (void)createRenderViewWithNode:(KRTurboDisplayNode *)node renderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer {
++ (void)createRenderViewWithNode:(KRTurboDisplayNode *)node renderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer diffPolicy:(KRFirstScreenDiffPolicy)diffPolicy {
     if (!node) {
         return ;
     }
@@ -168,14 +148,16 @@ static UIView *gBaseView = nil;
     } else {
         [renderLayer createRenderViewWithTag:node.tag viewName:node.viewName];
     }
-    [self updateRenderViewWithCurNode:nil newNode:node renderLayer:renderLayer hasParent:NO];
+    // TB首屏时
+    [self updateRenderViewWithCurNode:nil newNode:node renderLayer:renderLayer hasParent:NO diffPolicy:diffPolicy];
     // 递归给子孩子创建渲染
     if (node.hasChild) {
         for (KRTurboDisplayNode *subNode in node.children) {
-            [self createRenderViewWithNode:subNode renderLayer:renderLayer];
+            [self createRenderViewWithNode:subNode renderLayer:renderLayer diffPolicy:diffPolicy];
         }
     }
 }
+
 // 删除渲染视图
 + (void)removeRenderViewWithNode:(KRTurboDisplayNode *)node renderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer {
     if (!node) {
@@ -194,6 +176,7 @@ static UIView *gBaseView = nil;
                             newNode:(KRTurboDisplayNode *)newNode
                         renderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer
                           hasParent:(BOOL)hasParent {
+    // 无论是否 onlyEventReplay，都需要执行 tag 置换
     if (curNode.tag && newNode.tag && ![newNode.tag isEqual:curNode.tag]) {
         [renderLayer updateViewTagWithCurTag:curNode.tag newTag:newNode.tag];
         curNode.tag = newNode.tag;
@@ -320,36 +303,14 @@ static UIView *gBaseView = nil;
         if ([self updateNodeWithTargetNode:targetNodeTree fromNode:fromNodeTree]) {
             hasUpdate = YES;
         }
-        if (targetNodeTree.hasChild && fromNodeTree.hasChild) {
-            
-            NSArray *aChilden = targetNodeTree.children;
-            NSArray *bChilden = fromNodeTree.children;
-            if ([targetNodeTree.viewName isEqualToString:SCROLL_VIEW]) { // 可滚动容器节点孩子需要排序
-                aChilden = [self sortScrollIndexWithList:aChilden];
-                bChilden = [self sortScrollIndexWithList:bChilden];
-                if (aChilden.count && bChilden.count >= aChilden.count
-                                    && fromNodeTree.renderFrame.size.height > fromNodeTree.renderFrame.size.width) { // 纵向列表 可滚动容器直接替换内容（keep原有节点个数）
-                    NSMutableArray *targetChildren = [[[bChilden mutableCopy] subarrayWithRange:NSMakeRange(0, aChilden.count)] mutableCopy];;
-                    for (KRTurboDisplayNode *node in targetChildren) {
-                         node.parentTag = targetNodeTree.tag;
-                    }
-                    targetNodeTree.children = targetChildren;
-                    return YES;
-                }
-            }
-            
-            int fromIndex = 0;
-            for (int i = 0; i < aChilden.count; i++) {
-                KRTurboDisplayNode *nextTargetNode = aChilden[i];
-                KRTurboDisplayNode *nextFromNode = [self nextNodeForUpdateWithChildern:bChilden fromIndex:&fromIndex targetNode:nextTargetNode];
-                if (nextFromNode) {
-                    if ([self onlyUpdateWithTargetNodeTree:nextTargetNode fromNodeTree:nextFromNode]) {
-                         hasUpdate = YES;
-                     }
-                }
-                fromIndex++;
-             }
+        if ([self updateChildrenWithTargetNode:targetNodeTree fromNode:fromNodeTree]) {
+            hasUpdate = YES;
         }
+    } else {
+        // 结构不同，全量替换「快照树」此位置节点的内容
+        // 过去是这里没有额外的操作，如果不可复用，则此位置的值就不更新了
+        [self replaceNodeContentWithTargetNode:targetNodeTree fromNode:fromNodeTree];
+        hasUpdate = YES;
     }
     return hasUpdate;
 }
@@ -402,6 +363,277 @@ static UIView *gBaseView = nil;
         hasUpdate = YES;
     }
     return hasUpdate;
+}
+
+
+/**
+ * @brief 递归更新子节点（支持结构变化）
+ * @param targetNode 目标节点（快照树）
+ * @param fromNode 来源节点（真实树）
+ * @return 是否有发生更新
+ */
++ (BOOL)updateChildrenWithTargetNode:(KRTurboDisplayNode *)targetNode fromNode:(KRTurboDisplayNode *)fromNode {
+    BOOL hasUpdate = NO;
+    
+    NSMutableArray *targetChildren = targetNode.children;   // 快照树当前节点的子节点数组
+    NSArray *fromChildren = fromNode.children;              // 真实树当前节点的子节点数组
+    
+    // 可滚动容器的操作和原来保持不变
+    BOOL isScrollView = [targetNode.viewName isEqualToString:SCROLL_VIEW];
+    if (isScrollView) {
+        targetChildren = [[self sortScrollIndexWithList:targetChildren] mutableCopy];
+        fromChildren = [self sortScrollIndexWithList:fromChildren];
+        
+        // 纵向列表可滚动容器直接替换内容（保持原有节点个数）这里的逻辑还存在问题 需要复核
+        if (targetChildren.count && fromChildren.count >= targetChildren.count
+            && fromNode.renderFrame.size.height > fromNode.renderFrame.size.width) {
+            NSMutableArray *newChildren = [[[fromChildren mutableCopy] subarrayWithRange:NSMakeRange(0, targetChildren.count)] mutableCopy];;
+            for (KRTurboDisplayNode *node in newChildren) {
+                 node.parentTag = targetNode.tag;
+            }
+            targetNode.children = newChildren;
+            return YES;
+        }
+    }
+    
+    /// 阶段2 基于真实树（新树）更新快照树（旧树）当前节点的子树
+    // 构建快照树子节点的tag索引
+    NSMutableDictionary<NSNumber *, KRTurboDisplayNode *> *targetChildrenMap = [NSMutableDictionary new];
+    for (KRTurboDisplayNode *child in targetChildren) {
+        if (child.tag) {
+            targetChildrenMap[child.tag] = child;
+        }
+    }
+    
+    // 按照真实树的顺序重建快照树的children数组
+    NSMutableArray *newTargetChildren = [NSMutableArray new];
+    
+    for (KRTurboDisplayNode *fromChild in fromChildren) {
+        if (!fromChild.tag) {
+            continue;
+        }
+        
+        KRTurboDisplayNode *existingTargetChild = targetChildrenMap[fromChild.tag];
+        if (existingTargetChild) {
+            // 情况1：有新有旧 - 递归更新匹配的节点
+            if ([self onlyUpdateWithTargetNodeTree:existingTargetChild fromNodeTree:fromChild]) {
+                hasUpdate = YES;
+            }
+            [newTargetChildren addObject:existingTargetChild];  // 按照位置依次的加入
+            [targetChildrenMap removeObjectForKey:fromChild.tag];
+        } else {
+            // 情况2：有新无旧 - 从真实树deepCopy节点，插入到对应位置
+            KRTurboDisplayNode *newNode = [fromChild deepCopy];
+            newNode.parentTag = targetNode.tag;
+            [newTargetChildren addObject:newNode];
+            hasUpdate = YES;
+        }
+    }
+    
+    // 处理情况3：无新有旧 - 删除快照树中存在但真实树中不存在的节点
+    // targetChildrenMap中剩余的节点就是需要删除的,这些节点不会被加入newTargetChildren
+    if (targetChildrenMap.count > 0) {
+        hasUpdate = YES;
+    }
+    
+    targetNode.children = newTargetChildren;
+    return hasUpdate;
+}
+
+/**
+ * @brief 全量替换节点内容（节点不可复用时，执行此操作）
+ * @param targetNode 目标节点（快照树）
+ * @param fromNode 来源节点（真实树）
+ */
++ (void)replaceNodeContentWithTargetNode:(KRTurboDisplayNode *)targetNode fromNode:(KRTurboDisplayNode *)fromNode {
+    NSNumber *originParentTag = targetNode.parentTag;
+    
+//    targetNode.tag = [fromNode.tag copy];   // 这个我觉得暂时是没有必要的，因为快照树和真实树在比对节点时tag一定是一致的
+    targetNode.viewName = [fromNode.viewName copy];
+    targetNode.parentTag = originParentTag;     // 保持原有的父子关系
+    
+    // 复制props
+    [targetNode.props removeAllObjects];
+    for (KRTurboDisplayProp *prop in fromNode.props) {
+        [targetNode.props addObject:[prop deepCopy]];
+    }
+    
+    // 复制callMethods
+    [targetNode.callMethods removeAllObjects];
+    for (KRTurboDisplayNodeMethod *method in fromNode.callMethods) {
+        [targetNode.callMethods addObject:[method deepCopy]];
+    }
+    
+    // 复制children
+    [targetNode.children removeAllObjects];
+    for (KRTurboDisplayNode *child in fromNode.children) {
+        KRTurboDisplayNode *copyChild = [child deepCopy];
+        copyChild.parentTag = targetNode.tag;
+        [targetNode.children addObject:copyChild];
+    }
+    
+}
+
+/// 延迟diff实现，仅仅只是针对第二次的diff-view
++ (void)delayedDiffPatchToRenderingWithRenderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer
+                                       oldNodeTree:(KRTurboDisplayNode *)oldNodeTree
+                                       newNodeTree:(KRTurboDisplayNode *)newNodeTree {
+    // 阶段1：当前帧执行 Tag 置换 + 事件回放 + 事件绑定
+    [self diffPatchToRenderingWithRenderLayer:renderLayer
+                                  oldNodeTree:oldNodeTree
+                                  newNodeTree:newNodeTree
+                              diffPolicy:KRRealFirstScreenDiffEventReplay];
+    
+    // 阶段2：在 Kuikly 线程队列末尾添加任务，等待跨端侧渲染指令全部到达后执行延迟渲染
+    [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
+        // 阶段3：回到主线程执行延迟的渲染指令
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self diffPatchToRenderingWithRenderLayer:renderLayer
+                                          oldNodeTree:oldNodeTree
+                                          newNodeTree:newNodeTree
+                                           diffPolicy:KRRealFirstScreenDiffPropUpdate];
+        });
+    }];
+}
+
+
+#pragma mark - Internal Diff Implementation
+
++ (void)diffPatchToRenderingWithRenderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer
+                                oldNodeTree:(KRTurboDisplayNode *)oldNodeTree
+                                newNodeTree:(KRTurboDisplayNode *)newNodeTree
+                                 diffPolicy:(KRFirstScreenDiffPolicy)diffPolicy {
+    // 逐层比较，属性和事件key不一样，就删除该节点，如果仅属性值变化就update该属性
+    // 能否复用
+    if ([self canReuseNode:oldNodeTree newNode:newNodeTree fromUpdateNode:NO]) {
+        // 更新渲染视图
+        [self updateRenderViewWithCurNode:oldNodeTree newNode:newNodeTree renderLayer:renderLayer hasParent:YES diffPolicy:diffPolicy];
+        
+        NSArray *aChilden = oldNodeTree.children;
+        NSArray *bChilden = newNodeTree.children;
+        
+        if ([oldNodeTree.viewName isEqualToString:SCROLL_VIEW]) { // 可滚动容器节点孩子需要排序
+            aChilden = [self sortScrollIndexWithList:aChilden];
+            bChilden = [self sortScrollIndexWithList:bChilden];
+         }
+        
+        for (int i = 0; i < MAX(aChilden.count, bChilden.count); i++) {
+            KRTurboDisplayNode *oldNode = aChilden.count > i ? aChilden[i] : nil;
+            KRTurboDisplayNode *newNode = bChilden.count > i ? bChilden[i] : nil;
+            [self diffPatchToRenderingWithRenderLayer:renderLayer oldNodeTree:oldNode newNodeTree:newNode diffPolicy:diffPolicy];
+        }
+    } else {
+        // 仅事件回放模式下，不执行删除和创建操作
+        if (diffPolicy == KRRealFirstScreenDiffEventReplay) {
+            return;
+        }
+        [KRLogModule logInfo:[NSString stringWithFormat:@"turbo_display un used with old node:%@ new node:%@", oldNodeTree.viewName, newNodeTree.viewName]];
+        // 删除渲染视图
+        [self removeRenderViewWithNode:oldNodeTree renderLayer:renderLayer];
+        // 新建渲染视图
+        [self createRenderViewWithNode:newNodeTree renderLayer:renderLayer diffPolicy:diffPolicy];
+    }
+}
+
+// 更新渲染视图（核心修改：新增 diffPolicy 参数）
++ (void)updateRenderViewWithCurNode:(KRTurboDisplayNode *)curNode
+                            newNode:(KRTurboDisplayNode *)newNode
+                        renderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer
+                          hasParent:(BOOL)hasParent
+                    diffPolicy:(KRFirstScreenDiffPolicy)diffPolicy {
+    
+    // ========== 阶段1：Tag 置换（必须最先执行）==========
+    if (curNode.tag && newNode.tag && ![newNode.tag isEqual:curNode.tag]) {
+        [renderLayer updateViewTagWithCurTag:curNode.tag newTag:newNode.tag];
+        curNode.tag = newNode.tag;
+    }
+    
+    // ========== 阶段2：遍历属性，根据 diffPolicy 决定执行内容 ==========
+    for (int i = 0; i < MAX(curNode.props.count, newNode.props.count) ; i++) {
+        KRTurboDisplayProp *curProp = curNode.props.count > i ? curNode.props[i] : nil;
+        KRTurboDisplayProp *newProp = newNode.props.count > i ? newNode.props[i] : nil;
+        
+        if (newProp.propType == KRTurboDisplayPropTypeEvent) {
+            // 事件处理：分为事件回放和事件绑定两部分
+            switch (diffPolicy) {
+                case KRCacheFirstScreenDiff:
+                    // 构建临时callback
+                    if (curProp == nil) {
+                        [newProp lazyEventIfNeed];
+                    }
+                    [renderLayer setPropWithTag:newNode.tag propKey:newProp.propKey propValue:newProp.propValue];
+                    break;
+                case KRRealFirstScreenDiffEventReplay:
+                    if (curProp && curProp.lazyEventCallbackResults.count > 0) {
+                        KREventReplayPolicy policy = [KRTurboDisplayProp replayPolicyForEventKey:newProp.propKey];
+                        [curProp performLazyEventToCallback:newProp.propValue withPolicy:policy];
+                    }
+                    [renderLayer setPropWithTag:newNode.tag propKey:newProp.propKey propValue:newProp.propValue];
+                    break;
+                case KRRealFirstScreenDiffPropUpdate:
+                    break;
+            }
+        } else if (diffPolicy == KRCacheFirstScreenDiff || diffPolicy == KRRealFirstScreenDiffPropUpdate) {
+            // 非事件类型的属性：仅在 TB首屏 或 属性更新阶段 执行
+            if (newProp.propType == KRTurboDisplayPropTypeAttr) {
+                if (![self isEqualPropValueWithOldValue:curProp.propValue newValue:newProp.propValue]) {
+                    [renderLayer setPropWithTag:newNode.tag propKey:newProp.propKey propValue:newProp.propValue];
+                }
+            } else if (newProp.propType == KRTurboDisplayPropTypeFrame) {
+                if (curProp.propValue && CGRectEqualToRect([((NSValue *)curProp.propValue) CGRectValue],
+                                                           [((NSValue *)newProp.propValue) CGRectValue])) {
+                    // nothing to do
+                } else {
+                   [renderLayer setRenderViewFrameWithTag:newNode.tag frame:[((NSValue *)newProp.propValue) CGRectValue]];
+                }
+            } else if (newProp.propType == KRTurboDisplayPropTypeShadow) {
+                if (newNode.renderShadow) {
+                    [renderLayer setShadowWithTag:newNode.tag shadow:newNode.renderShadow];
+                } else {
+                    [self setShadowForViewToRenderLayerWithShadow:(KRTurboDisplayShadow *)newProp.propValue node:newNode renderLayer:renderLayer];
+                }
+            } else if (newProp.propType == KRTurboDisplayPropTypeInsert) {
+                if (!hasParent) {
+                    [renderLayer insertSubRenderViewWithParentTag:newNode.parentTag childTag:newNode.tag atIndex:[newProp.propValue intValue]];
+                }
+            }
+        }
+    }
+    
+    // ========== 阶段3：View 方法调用（仅在非事件回放模式下执行）==========
+    if (diffPolicy == KRRealFirstScreenDiffEventReplay) {
+        return;
+    }
+    
+    // 同步View方法调用
+    NSMutableArray *newNodeCallViewMethods = [NSMutableArray new];
+    for (int i = 0; i < newNode.callMethods.count; i++) {
+        if (newNode.callMethods[i].type == KRTurboDisplayNodeMethodTypeView) {
+            [newNodeCallViewMethods addObject:newNode.callMethods[i]];
+        }
+    }
+    NSMutableArray *curNodecallViewMethods = [NSMutableArray new];
+    for (int i = 0; i < curNode.callMethods.count; i++) {
+        if (curNode.callMethods[i].type == KRTurboDisplayNodeMethodTypeView) {
+            [curNodecallViewMethods addObject:curNode.callMethods[i]];
+        }
+    }
+    int fromIndex = 0;
+    for (fromIndex = 0; fromIndex < newNodeCallViewMethods.count; fromIndex++) {
+        KRTurboDisplayNodeMethod *method = newNodeCallViewMethods[fromIndex];
+        KRTurboDisplayNodeMethod *curNodeMethod = curNodecallViewMethods.count > fromIndex ? curNodecallViewMethods[fromIndex] : nil;
+        if (!curNodeMethod) {
+            break;
+        }
+        if (![curNodeMethod.method isEqualToString:method.method]
+            || ![self isEqualPropValueWithOldValue:curNodeMethod.params newValue:method.params]) {
+            break;
+        }
+    }
+    for (; fromIndex < newNodeCallViewMethods.count; fromIndex++) {
+        KRTurboDisplayNodeMethod *method = newNodeCallViewMethods[fromIndex];
+        [renderLayer callViewMethodWithTag:newNode.tag method:method.method params:method.params callback:method.callback];
+    }
 }
 
 

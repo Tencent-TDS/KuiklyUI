@@ -557,7 +557,17 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             }
         }
 
-        private fun Float.toDegrees(): Float = (this * 180_000 / PI).roundToInt() / 1000f
+        private fun Float.toDegrees(): Float {
+            return if (this.isNaN()) {
+                /**
+                 * 1. When the scale is 0 in applyTransform, it generates NaN, which causes roundToInt to throw an exception
+                 * 2. When the scale is 0, the value of degree does not affect rendering, so 0 is returned here
+                 */
+                0f
+            } else {
+                (this * 180_000 / PI).roundToInt() / 1000f
+            }
+        }
 
         private fun Attr.applyTransform(size: IntSize, matrix: Matrix) {
             val translateX = matrix[3, 0]

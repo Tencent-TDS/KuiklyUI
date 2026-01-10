@@ -174,6 +174,33 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
             std::string str;
             kuikly::util::GetNApiArgsStdString(napi_env, nvalue, str);
             value_ = std::move(str);
+        } else if (napi_value_type == napi_object) {
+            // 获取 Object 的所有属性名
+            napi_value property_names;
+            napi_status status = napi_get_property_names(napi_env, nvalue, &property_names);
+            if (status == napi_ok) {
+                 // 获取 Object 中的属性的数量
+                uint32_t property_count = 0;   
+                napi_get_array_length(napi_env, property_names, &property_count);
+                
+                // 将 Object 转为Map表述
+                Map map;
+                for (uint32_t i = 0; i < property_count; i++) {
+                    // 获取单个属性名
+                    napi_value key_value;
+                    napi_get_element(napi_env, property_names, i, &key_value);
+                    std::string key;
+                    kuikly::util::GetNApiArgsStdString(napi_env, key_value, key);
+                    
+                    // 获取单个属性值
+                    napi_value prop_value;
+                    napi_get_property(napi_env, nvalue, key_value, &prop_value);
+                    
+                    // 递归构造 KRRenderValue
+                    map[key] = std::make_shared<KRRenderValue>(napi_env, prop_value);     // 疑问为什么这里不使用key，而是使用 napi_env ？？？
+                }
+                value_ = map;
+            }
         } else {
             bool is_byte_array = false;
             napi_is_arraybuffer(napi_env, nvalue, &is_byte_array);

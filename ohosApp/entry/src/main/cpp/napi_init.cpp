@@ -125,35 +125,65 @@ static char *MyFontAdapter(const char *fontFamily, char **fontBuffer, size_t *le
 }
 
 #define MyImageAdapterV2_SYNC_CALLBACK 1
+    
+int32_t MyImageAdapterV3(const void *context,
+                                 const char *src,
+                                 KRAnyValue imageParams,
+                                 KRSetImageCallback callback){
+    // 使用imageParams
+    KR_LOG_INFO << "KRImageView::SetImageSrc calling V3 adapter, src=" << src 
+                    << ", imageParams=" << (imageParams ? "not null" : "null");
+    
+    static int counter = 0;
+    if(counter++ % 2 == 0){
+        return 0;
+    }
+    std::string_view src_view(src);
+    if(src_view.find("panda2") != std::string_view::npos){
+        if(RawFile *raw_file = OH_ResourceManager_OpenRawFile(g_resource_manager, "panda2.png")){
+            RawFileDescriptor descriptor;
+            if(OH_ResourceManager_GetRawFileDescriptor(raw_file, descriptor)){
+                OH_ImageSourceNative *image_source = nullptr;
+                Image_ErrorCode errCode = OH_ImageSourceNative_CreateFromRawFile(&descriptor, &image_source);
+                if(image_source){
+                    OH_DecodingOptions *ops = nullptr;
+                    OH_DecodingOptions_Create(&ops);
+                    // 设置为AUTO会根据图片资源格式解码，如果图片资源为HDR资源则会解码为HDR的pixelmap。
+                    OH_DecodingOptions_SetDesiredDynamicRange(ops, IMAGE_DYNAMIC_RANGE_AUTO);
+                    OH_PixelmapNative *resPixMap = nullptr;
+            
+                    // ops参数支持传入nullptr, 当不需要设置解码参数时，不用创建
+                    errCode = OH_ImageSourceNative_CreatePixelmap(image_source, ops, &resPixMap);
+                    OH_DecodingOptions_Release(ops);
+                    if (errCode != IMAGE_SUCCESS) {
+                        return 0;
+                    }
+                    OH_ImageSourceNative_Release(image_source);
+            
+                    // 通过PixelMap创建DrawableDescriptor
+                    ArkUI_DrawableDescriptor *imageDescriptor = OH_ArkUI_DrawableDescriptor_CreateFromPixelMap(resPixMap);
+#if MyImageAdapterV2_SYNC_CALLBACK
+                    // call back immediate ly
+                    callback(context, src, imageDescriptor, nullptr);
+                    OH_ArkUI_DrawableDescriptor_Dispose(imageDescriptor);
+#else
+                    // use thread safe function to simulate an async callback
+                    ImageCallbackTask *mainTask = new ImageCallbackTask(context, src, imageDescriptor, callback);
+                    napi_call_threadsafe_function(g_threadsafe_func, static_cast<void *>(mainTask), napi_tsfn_blocking);
+#endif
+                    OH_PixelmapNative_Release(resPixMap);
+                    return 1;
+                }
+                OH_ResourceManager_ReleaseRawFileDescriptor(descriptor);
+            }
+        }
+    }
+    return 0;
+}
 
 int32_t MyImageAdapterV2(const void *context,
                                  const char *src,
                                  KRSetImageCallback callback){
-    // 获取图片加载参数ImageParams
-    KR_LOG_INFO << "[MyImageAdapterV2===] received context=" << context << ", src=" << src;
-    
-    const auto* imageParams = KRGetImageParams(context);
-    // 日志输出 ImageParams，验证业务方可以获取到跨端传递的参数
-    if (imageParams && !imageParams->empty()) {
-        std::string logMsg = "[MyImageAdapterV2] ImageParams received, src=";
-        logMsg += (src ? src : "null");
-        logMsg += ", count=";
-        logMsg += std::to_string(imageParams->size());
-        logMsg += ", params: {";
-        bool first = true;
-        for (const auto& pair : *imageParams) {
-            if (!first) logMsg += ", ";
-            logMsg += "\"" + pair.first + "\": \"" + pair.second + "\"";
-            first = false;
-        }
-        logMsg += "}";
-        OH_LOG_Print(LOG_APP, LOG_INFO, 0x1234, "KuiklyDemo", "%{public}s", logMsg.c_str());
-    } else {
-        std::string logMsg = "[MyImageAdapterV2] No ImageParams, src=";
-        logMsg += (src ? src : "null");
-        OH_LOG_Print(LOG_APP, LOG_INFO, 0x1234, "KuiklyDemo", "%{public}s", logMsg.c_str());
-    }
-    
     static int counter = 0;
     if(counter++ % 2 == 0){
         return 0;
@@ -299,6 +329,7 @@ static napi_value InitKuikly(napi_env env, napi_callback_info info) {
         KRRegisterFontAdapter(MyFontAdapter, "Satisfy-Regular");
         KRRegisterImageAdapter(MyImageAdapter);
         KRRegisterImageAdapterV2(MyImageAdapterV2);
+        KRRegisterImageAdapterV3(MyImageAdapterV3);
         adapterRegistered = true;
     }
 

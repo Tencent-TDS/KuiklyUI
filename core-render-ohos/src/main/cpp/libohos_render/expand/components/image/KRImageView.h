@@ -18,7 +18,6 @@
 
 #include "libohos_render/expand/components/image/KRImageLoadOption.h"
 #include "libohos_render/export/IKRRenderViewExport.h"
-#include <unordered_map>
 
 using namespace std::string_view_literals;
 constexpr std::string_view KR_ASSET_PREFIX = "assets://"sv;
@@ -63,7 +62,6 @@ class KRImageView : public IKRRenderViewExport {
     void LoadFromFile(const std::shared_ptr<KRImageLoadOption> image_option);
     void LoadFromResourceMedia(const std::shared_ptr<KRImageLoadOption> image_option);
     void LoadFromAssets(const std::shared_ptr<KRImageLoadOption> image_option);
-    std::string ImageParamsToJson() const;
 
  private:
     std::string image_src_;

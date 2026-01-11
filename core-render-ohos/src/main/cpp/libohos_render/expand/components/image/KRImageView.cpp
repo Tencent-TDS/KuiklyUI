@@ -219,10 +219,7 @@ bool KRImageView::SetImageSrc(const KRAnyValue &value) {
     // 优先使用 V3 adapter（支持 imageParams）
     if (auto imageAdapterV3 = KRImageAdapterManager::GetInstance()->GetAdapterV3()) {
         KRViewContext ctx(GetInstanceId(), GetViewTag());
-        // 将 image_params_ 转换为 JSON 字符串
-        std::string imageParamsJson = ImageParamsToJson();
-        const char* paramsPtr = imageParamsJson.empty() ? nullptr : imageParamsJson.c_str();
-        if (imageAdapterV3((const void*)ctx.Context(), src.c_str(), paramsPtr, &KRImageView::AdapterSetImageCallback)) {
+        if (imageAdapterV3((const void*)ctx.Context(), src.c_str(), image_params_, &KRImageView::AdapterSetImageCallback)) {
             return true;
         }
     }
@@ -257,16 +254,18 @@ bool KRImageView::SetImageSrc(const KRAnyValue &value) {
 }
 
 bool KRImageView::SetImageParams(const KRAnyValue &value) {
-    image_params_ = value;
-    return true;
-}
-
-std::string KRImageView::ImageParamsToJson() const {
-    if (!image_params_) {
-        return "";
+    if (!value) {
+        image_params_ = nullptr;
+        return true;
     }
-    // 直接返回原始字符串，不做转换
-    return image_params_->toString();
+    // 直接使用 toMap() 解析 JSON 字符串为 Map，并存储
+    auto& map = value->toMap();
+    if (map.empty()) {
+        image_params_ = nullptr;
+    } else {
+        image_params_ = NewKRRenderValue(map);
+    }
+    return true;
 }
 
 bool KRImageView::SetResizeMode(const KRAnyValue &value) {
@@ -449,6 +448,7 @@ std::shared_ptr<KRImageLoadOption> KRImageView::ToImageLoadOption(const std::str
         option->native_resource_manager_ = root_view->GetNativeResourceManager();
     }
     option->src_ = src;
+    option->image_params_ = image_params_;  // 设置图片加载参数（Map 类型）
     if (isBase64(src)) {
         option->src_type_ = KRImageSrcType::kImageSrcTypeBase64;
     } else if (isNetwork(src)) {

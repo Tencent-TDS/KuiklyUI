@@ -45,6 +45,7 @@ constexpr char kPropNameBlurRadius[] = "blurRadius";
 constexpr char kPropNameTintColor[] = "tintColor";
 constexpr char kPropNameCapInsets[] = "capInsets";
 constexpr char kPropNameDotNineImage[] = "dotNineImage";
+constexpr char kPropNameImageParams[] = "imageParams";
 
 constexpr char kEventNameLoadSuccess[] = "loadSuccess";
 constexpr char kEventNameLoadResolution[] = "loadResolution";
@@ -121,6 +122,8 @@ bool KRImageView::SetProp(const std::string &prop_key, const KRAnyValue &prop_va
         didHanded = RegisterLoadFailureCallback(event_call_back);
     } else if (kuikly::util::isEqual(prop_key, kPropNameDragEnable)) {
         didHanded = SetDragEnable(prop_value);
+    } else if (kuikly::util::isEqual(prop_key, kPropNameImageParams)) {
+        didHanded = SetImageParams(prop_value);
     }
     return didHanded;
 }
@@ -162,6 +165,9 @@ bool KRImageView::ResetProp(const std::string &prop_key) {
         didHanded = true;
         had_register_on_error_event_ = false;
         load_failure_callback_ = nullptr;
+    } else if (kuikly::util::isEqual(prop_key, kPropNameImageParams)) {
+        image_params_ = nullptr;
+        didHanded = true;
     } else {
         didHanded = IKRRenderViewExport::ResetProp(prop_key);
     }
@@ -209,13 +215,23 @@ bool KRImageView::SetImageSrc(const KRAnyValue &value) {
 
     kuikly::util::ResetArkUIImageSrc(GetNode());
     image_src_ = src;
-    if (auto imageAdapterV2 = KRImageAdapterManager::GetInstance()->GetAdapterV2()) {
+    
+    // 优先使用 V3 adapter（支持 imageParams）
+    if (auto imageAdapterV3 = KRImageAdapterManager::GetInstance()->GetAdapterV3()) {
         KRViewContext ctx(GetInstanceId(), GetViewTag());
-        if(imageAdapterV2((const void*)ctx.Context(), (const char*)src.c_str(), &KRImageView::AdapterSetImageCallback)){
-            // handled by the adapter, return immediately
+        if (imageAdapterV3((const void*)ctx.Context(), src.c_str(), image_params_, &KRImageView::AdapterSetImageCallback)) {
             return true;
         }
-    }else if (auto imageAdapter = KRImageAdapterManager::GetInstance()->GetAdapter()) {
+    }
+    // 兼容 V2 adapter
+    else if (auto imageAdapterV2 = KRImageAdapterManager::GetInstance()->GetAdapterV2()) {
+        KRViewContext ctx(GetInstanceId(), GetViewTag());
+        if (imageAdapterV2((const void*)ctx.Context(), src.c_str(), &KRImageView::AdapterSetImageCallback)) {
+            return true;
+        }
+    }
+    // 兼容 V1 adapter
+    else if (auto imageAdapter = KRImageAdapterManager::GetInstance()->GetAdapter()) {
         ArkUI_DrawableDescriptor *imageDescriptor = nullptr;
         KRImageDataDeallocator deallocator = nullptr;
         char *imageSrc = imageAdapter(src.c_str(), &imageDescriptor, &deallocator);
@@ -234,6 +250,21 @@ bool KRImageView::SetImageSrc(const KRAnyValue &value) {
     }
 
     LoadFromSrc(src);
+    return true;
+}
+
+bool KRImageView::SetImageParams(const KRAnyValue &value) {
+    if (!value) {
+        image_params_ = nullptr;
+        return true;
+    }
+    // 直接使用 toMap() 解析 JSON 字符串为 Map，并存储
+    auto& map = value->toMap();
+    if (map.empty()) {
+        image_params_ = nullptr;
+    } else {
+        image_params_ = NewKRRenderValue(map);
+    }
     return true;
 }
 
@@ -417,6 +448,7 @@ std::shared_ptr<KRImageLoadOption> KRImageView::ToImageLoadOption(const std::str
         option->native_resource_manager_ = root_view->GetNativeResourceManager();
     }
     option->src_ = src;
+    option->image_params_ = image_params_;  // 设置图片加载参数（Map 类型）
     if (isBase64(src)) {
         option->src_type_ = KRImageSrcType::kImageSrcTypeBase64;
     } else if (isNetwork(src)) {

@@ -20,7 +20,7 @@
 #include <stddef.h>
 #include <arkui/drawable_descriptor.h>
 #include <arkui/native_type.h>
-#include <unordered_map>
+#include "libohos_render/foundation/KRCommon.h"
 
 #include "KRAnyData.h"
 
@@ -231,19 +231,6 @@ typedef int32_t (*KRImageAdapterV2)(const void *context,
                                  KRSetImageCallback callback);
 
 /**
- * @brief 自定义image adapter V3，支持传递图片加载参数
- * @param context 上下文
- * @param src image组件设置的src属性
- * @param imageParams 图片加载参数，JSON格式字符串，可为nullptr
- * @param callback 自定义加载图片完成后可通过callback指针回调给kuikly，并把context以及src参数回填
- * @return 已处理则返回1，否则返回0
- */
-typedef int32_t (*KRImageAdapterV3)(const void *context,
-                                 const char *src,
-                                 const char *imageParams,
-                                 KRSetImageCallback callback);
-
-/**
  * @brief 注册image adapter
  * @param adapter adapter函数指针
  */
@@ -257,11 +244,25 @@ void KRRegisterImageAdapter(KRImageAdapter adapter);
 void KRRegisterImageAdapterV2(KRImageAdapterV2 adapter);
 
 /**
+ * @brief 自定义image adapter V3，支持传递图片加载参数
+ * @param context 上下文
+ * @param src image组件设置的src属性
+ * @param imageParams 图片加载参数（Map类型），可通过 KRAnyData 系列API获取内容，可能为 nullptr
+ * @param callback 自定义加载图片完成后可通过callback指针回调给kuikly，并把context以及src参数回填
+ * @return 已处理则返回1，否则返回0
+ */
+typedef int32_t (*KRImageAdapterV3)(const void *context,
+                                    const char *src,
+                                    KRAnyValue imageParams,
+                                    KRSetImageCallback callback);
+
+/**
  * @brief 注册image adapter V3
  * @param adapter adapter函数指针
- * @note V3版本支持传递图片加载参数(imageParams)
+ * @note V3版本支持传递图片加载参数 imageParams（Map类型）
  */
 void KRRegisterImageAdapterV3(KRImageAdapterV3 adapter);
+
 
 /**
  * Log level定义

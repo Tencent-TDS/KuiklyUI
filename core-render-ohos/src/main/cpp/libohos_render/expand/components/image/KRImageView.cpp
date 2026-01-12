@@ -195,12 +195,12 @@ void KRImageView::AdapterSetImageCallback(const void* context,
                 KR_LOG_ERROR << "Image src mismatch, src in callback:" << src <<", current src of image view:"<<image_view->image_src_;
                 return;
             }
-            
-            if(imageDescriptor){
+
+            if (imageDescriptor) {
                 kuikly::util::SetArkUIImageSrc(image_view->GetNode(), imageDescriptor);
-            }else if(new_src){
+            } else if (new_src) {
                 image_view->LoadFromSrc(std::string(new_src));
-            }else{
+            } else {
                 KR_LOG_INFO << "Neither image descriptor nor new_src is returned";
             }
         }

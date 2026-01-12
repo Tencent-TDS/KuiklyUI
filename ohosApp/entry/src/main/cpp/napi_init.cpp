@@ -132,7 +132,7 @@ int32_t MyImageAdapterV3(const void *context,
                                  KRSetImageCallback callback){
     // 使用imageParams
     KR_LOG_INFO << "KRImageView::SetImageSrc calling V3 adapter, src=" << src 
-                    << ", imageParams=" << (imageParams ? "not null" : "null");
+                    << ", imageParams=" << (imageParams ? imageParams->toString() : "null");
     
     static int counter = 0;
     if(counter++ % 2 == 0){

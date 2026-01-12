@@ -20,6 +20,7 @@ import com.tencent.kuikly.compose.animation.core.AnimationSpec
 import com.tencent.kuikly.compose.animation.core.animate
 import com.tencent.kuikly.compose.animation.core.spring
 import com.tencent.kuikly.compose.foundation.MutatePriority
+import com.tencent.kuikly.compose.scroller.kuiklyInfo
 
 /**
  * Scroll by [value] pixels with animation.
@@ -71,6 +72,7 @@ suspend fun ScrollableState.scrollBy(value: Float): Float {
  * @param scrollPriority scrolls that run with this priority or lower will be stopped
  */
 suspend fun ScrollableState.stopScroll(scrollPriority: MutatePriority = MutatePriority.Default) {
+    kuiklyInfo.scrollView?.abortContentOffsetAnimate()
     scroll(scrollPriority) {
         // do nothing, just lock the mutex so other scroll actors are cancelled
     }

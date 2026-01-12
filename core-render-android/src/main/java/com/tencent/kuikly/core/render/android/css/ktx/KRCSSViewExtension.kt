@@ -48,8 +48,6 @@ import com.tencent.kuikly.core.render.android.css.gesture.KRCSSGestureDetector
 import com.tencent.kuikly.core.render.android.css.gesture.KRCSSGestureListener
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 import org.json.JSONObject
-import java.util.Locale
-import kotlin.math.min
 
 /**
  * 设置通用的css样式，支持的属性列表可以查看[KRCssConst]定义的属性
@@ -342,8 +340,14 @@ private var View.opacity: Float
     }
 
 internal var touchConsumeByKuikly = false
-internal var touchConsumeByNative = false
+internal val touchConsumeByNative
+    get() = nativeGestureViewHashCodeSet.isNotEmpty()
 internal var touchDownConsumeOnce = false
+
+/**
+ * 用于记录当前正在消费Native手势的View的集合，如果不为空则表现当前已经被Native消费了手势
+ */
+internal var nativeGestureViewHashCodeSet = mutableSetOf<Int>()
 
 /**
  * 阻止父亲View处理Touch事件

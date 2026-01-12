@@ -37,11 +37,52 @@ class MyLogModule : Module() {
    5. ``syncCall``: 是否为同步调用。``Kuikly``的代码是运行在一条单独的线程，默认与Native Module是一个异步的通信。如果syncCall指定为true时，可强制``kuikly Module``与``Native Module``同步通信
 
 > 对于``callback``只回调一次的用法，框架提供了4个辅助方法：
-> - syncToNativeMethod(methodName, params, null): String // 同步调用Native方法（native侧在子线程执行），传输JSONObject类型参数，返回JSON字符串
-> - syncToNativeMethod(methodName, arrayOf(content), null): Any? // 同步调用Native方法（native侧在子线程执行），传输基本类型数组，返回基本类型
+> - syncToNativeMethod(methodName, params, null): String // 同步调用Native方法（native侧在子线程执行），传输JSONObject类型参数
+> - syncToNativeMethod(methodName, arrayOf(content), null): Any? // 同步调用Native方法（native侧在子线程执行），传输基本类型数组（仅支持String、Int、Float、ByteArray）
 > - asyncToNativeMethod(methodName, params, callback) // 异步调用Native方法（native侧在主线程执行），传输JSONObject类型参数，回调JSON字符串
 > - asyncToNativeMethod(methodName, arrayOf(content), callback) // 异步调用Native方法（native侧在主线程执行），传输基本类型数组，回调基本类型
 
+#### Native侧支持的数据类型
+
+Module 返回值和 callback 参数支持的类型：
+| 平台          | 支持的数据类型                                                                                        |
+|:------------|:-----------------------------------------------------------------------------------------------|
+| **Android** | `String` `Int` `Long` `Float` `Double` `Boolean` `ByteArray` `Map` `List` `JSONObject`         |
+| **iOS**     | `NSString` `NSNumber` `BOOL` `NSData` `NSDictionary` `NSArray`                                 |
+| **鸿蒙**      | `String` `Int` `Long` `Float` `Double` `Bool` `ByteArray` `Array` `Map/Record`                        |
+| **H5**    | `String` `Int` `Long` `Float` `Double` `Boolean` `Array` `Map` `List` `JSONObject` `JSONArray` |
+| **小程序**    | `String` `Int` `Long` `Float` `Double` `Boolean` `Array` `Map` `List` `JSONObject` `JSONArray` |
+
+---
+
+::: 提示
+- Android、鸿蒙、iOS 支持二进制数据、二进制集合直传至Koltin
+- 若想以JSON字符串形式传输，则需要先转为字符串格式再进行JSON序列化
+:::
+
+#### Native侧序列化规则
+
+数据从 Native 传递到 Kotlin 时的处理方式：
+
+| 类目         |   序列化方式   | 涉及类型                                                 |
+|:-----------|:---------:|:-----------------------------------------------------|
+| **基础类型**   |   直接透传    | `String` `Int` `Float` `Double` `Boolean` `NSNumber` |
+| **二进制数据**  |   直接透传    | `ByteArray` `NSData` `ArrayBuffer`                   |
+| **JSON数据** |  JSON字符串  | `JSONObject` `JSONArray`                             |
+| **集合类型**   |  JSON字符串  | `Map/Record` `List` `NSDictionary` `NSArray` `Array` |
+| **特殊规则**   |    直接透传   | Array 中包含`ByteArray`/`NSData`时                       |
+
+:::tip 注意
+- syncToNativeMethod和asyncToNativeMethod，传入参数params是JSONObject且序列化为jSON字符串传至Native侧，
+序列化过程不支持对ByteArray二进制数据进行处理。因此请选择params为Any的syncToNativeMethod/asyncToNativeMethod方法传输二进制参数
+- callback中解析回传至Koltin侧二进制数据，可参考示例：
+```koltin
+if (data is ByteArray) {
+   val byteData = data.decodeToString()
+   // ...
+}
+```
+ :::
 
 3. 接着我们新增``log``方法，让业务方能够打印日志。
 ```kotlin

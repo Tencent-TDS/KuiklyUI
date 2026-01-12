@@ -119,7 +119,8 @@ class MyImageView : DeclarativeBaseView<MyImageAttr, MyImageEvent>() {
 **test**为组件自身暴露出去的方法，这种方法真正的实现在原生侧实现的，在这个例子中，如果MyImageView对应到原生的组件为HRImageView，那这个test方法会调用到HRImageView的call("test", "params")方法中
 
 :::tip 注意
-View的方法支持异步回调结果，即调用方法时传入回调函数`renderView?.callMethod("test", "params", callback)`，但不支持同步返回结果。
+- View的方法支持异步回调结果，即调用方法时传入回调函数`renderView?.callMethod("test", "params", callback)`，但不支持同步返回结果。
+- View方法不支持传递二进制数据，如需传输图片等二进制内容，请通过Base64编码后以JSON形式传递，或使用Module方法实现
 :::
 
 8. 最后我们编写``MyImageView``组件声明式的api方法，供业务侧调用

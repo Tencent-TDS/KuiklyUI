@@ -426,6 +426,10 @@ class KuiklyRenderView(
             put(ACTIVITY_HEIGHT, kuiklyRenderContext.toDpF((contentView?.height ?: 0).toFloat()))
             put(DENSITY, Resources.getSystem().displayMetrics.density)
             put(ACCESSIBILITY_RUNNING, if (isAccessibilityRunning()) 1 else 0)
+            val feature = mapOf(
+                "box_shadow_fill" to 1
+            )
+            put(FEATURE, feature)
         }
     }
 
@@ -632,6 +636,7 @@ class KuiklyRenderView(
         private const val VIEW_DID_APPEAR = "viewDidAppear"
         private const val VIEW_DID_APPEAR_VALUE = "1"
         private const val DENSITY = "density"
+        private const val FEATURE = "feature"
 
         const val PAGER_EVENT_FIRST_FRAME_PAINT = "pageFirstFramePaint"
         private const val ACCESSIBILITY_RUNNING = "isAccessibilityRunning" // 无障碍化是否开启

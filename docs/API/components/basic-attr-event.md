@@ -143,6 +143,7 @@ internal class TestPage : BasePager() {
 | offsetY | 阴影效果相对于组件的Y坐标偏移量 | Float |
 | shadowRadius | 阴影效果扩散半径 | Float |
 | shadowColor | 阴影颜色 | Color |
+| fill<Badge text="仅Android、鸿蒙支持" type="warn"/> | 是否填充阴影区域，默认值true | Boolean |
 
 </div>
 

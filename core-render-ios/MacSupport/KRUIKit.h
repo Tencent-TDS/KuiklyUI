@@ -244,6 +244,7 @@ NS_INLINE void UIAccessibilityPostNotification(NSAccessibilityNotificationName n
 #define UIKeyboardWillHideNotification @"UIKeyboardWillHideNotification"
 #define UIKeyboardFrameEndUserInfoKey @"UIKeyboardFrameEndUserInfoKey"
 #define UIKeyboardAnimationDurationUserInfoKey @"UIKeyboardAnimationDurationUserInfoKey"
+#define UIKeyboardAnimationCurveUserInfoKey @"UIKeyboardAnimationCurveUserInfoKey"
 
 #pragma mark - Font Descriptor Attribute Aliases
 

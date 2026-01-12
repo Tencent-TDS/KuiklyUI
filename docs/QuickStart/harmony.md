@@ -549,7 +549,7 @@ typedef int32_t (*KRImageAdapterV2)(const void *context,
  */
 typedef int32_t (*KRImageAdapterV3)(const void *context,
                                  const char *src,
-                                 const char *imageParams,
+                                 KRAnyValue *imageParams,
                                  KRSetImageCallback callback);
 
 void KRRegisterImageAdapterV2(KRImageAdapterV2 adapter);
@@ -557,7 +557,7 @@ void KRRegisterImageAdapterV3(KRImageAdapterV3 adapter);
 ```
 
 :::tip V3 新增能力
-`KRImageAdapterV3` 相比 V2 新增了 `imageParams` 参数，用于接收 Kotlin 侧通过 `Image` 组件 `imageParams` 属性传递的自定义参数（如鉴权信息、加载策略等）。参数以 JSON 字符串格式传递，业务可按需解析使用。
+`KRImageAdapterV3` 相比 V2 新增了 `imageParams` 参数，用于接收 Kotlin 侧通过在src中所增加的自定义参数（如鉴权信息、加载策略等）。参数以 JSONObject 格式传入，在 KRImageAdapterV3 传入为Map类型
 :::
 
 **使用方法**
@@ -593,10 +593,17 @@ static int32_t MyImageAdapterV2(const void *context, const char *src, KRSetImage
 }
 
 // V3 实现（需要 imageParams）
-static int32_t MyImageAdapterV3(const void *context, const char *src, const char *imageParams, KRSetImageCallback callback) {
-    // imageParams 为 JSON 格式字符串，如 {"key":"value"}，可为 nullptr
+static int32_t MyImageAdapterV3(const void *context, const char *src, KRAnyValue *imageParams, KRSetImageCallback callback) {
+    // imageParams 为 KRRenderValue，存储JSON字符串，可以调用toMap方法转为 {"key":"value"} 格式；imageParams 可为 nullptr
     if (imageParams) {
-        // 解析并使用 imageParams
+        auto &map = imageParams->toMap();
+
+        // 遍历所有键值对
+        for (auto &pair : map) {
+            std::string key = pair.first;
+            auto &value = pair.second;
+            KR_LOG_INFO << "KRImageParams:: keyr =" << key << " value=" << value->toString();
+        }
     }
     // 自定义图片加载逻辑
     // ...

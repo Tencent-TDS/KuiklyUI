@@ -128,11 +128,20 @@ static char *MyFontAdapter(const char *fontFamily, char **fontBuffer, size_t *le
     
 int32_t MyImageAdapterV3(const void *context,
                                  const char *src,
-                                 KRAnyValue imageParams,
+                                 KRAnyData imageParams,
                                  KRSetImageCallback callback){
-    // 使用imageParams
-    KR_LOG_INFO << "KRImageView::SetImageSrc calling V3 adapter, src=" << src 
-                    << ", imageParams=" << (imageParams ? imageParams->toString() : "null");
+    // 获取imageParams,跨端侧传入的是：{"test":"abc"}
+    if (imageParams != nullptr && KRAnyDataIsMap(imageParams)) {
+        KRAnyData testValue = nullptr;
+        // "test" 为 key
+        if (KRAnyDataGetMapValue(imageParams, "test", &testValue) == KRANYDATA_SUCCESS) {
+            if (KRAnyDataIsString(testValue)) {
+                const char *str = KRAnyDataGetString(testValue);
+                // str = "abc"
+                KR_LOG_INFO << "imageParams test value: " << str;
+            }
+        }
+    }
     
     static int counter = 0;
     if(counter++ % 2 == 0){

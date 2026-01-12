@@ -253,7 +253,7 @@ void KRRegisterImageAdapterV2(KRImageAdapterV2 adapter);
  */
 typedef int32_t (*KRImageAdapterV3)(const void *context,
                                     const char *src,
-                                    KRAnyValue imageParams,
+                                    KRAnyData imageParams,
                                     KRSetImageCallback callback);
 
 /**

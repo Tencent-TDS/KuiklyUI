@@ -549,7 +549,7 @@ typedef int32_t (*KRImageAdapterV2)(const void *context,
  */
 typedef int32_t (*KRImageAdapterV3)(const void *context,
                                  const char *src,
-                                 KRAnyValue *imageParams,
+                                 KRAnyData *imageParams,
                                  KRSetImageCallback callback);
 
 void KRRegisterImageAdapterV2(KRImageAdapterV2 adapter);
@@ -593,18 +593,20 @@ static int32_t MyImageAdapterV2(const void *context, const char *src, KRSetImage
 }
 
 // V3 实现（需要 imageParams）
-static int32_t MyImageAdapterV3(const void *context, const char *src, KRAnyValue *imageParams, KRSetImageCallback callback) {
-    // imageParams 为 KRRenderValue，存储JSON字符串，可以调用toMap方法转为 {"key":"value"} 格式；imageParams 可为 nullptr
-    if (imageParams) {
-        auto &map = imageParams->toMap();
-
-        // 遍历所有键值对
-        for (auto &pair : map) {
-            std::string key = pair.first;
-            auto &value = pair.second;
-            KR_LOG_INFO << "KRImageParams:: keyr =" << key << " value=" << value->toString();
+static int32_t MyImageAdapterV3(const void *context, const char *src, KRAnyData *imageParams, KRSetImageCallback callback) {
+    
+    // 获取imageParams,跨端侧传入的是：{"test":"abc"}
+    if (imageParams != nullptr && KRAnyDataIsMap(imageParams)) {
+        KRAnyData testValue = nullptr;
+        // "test" 为 key
+        if (KRAnyDataGetMapValue(imageParams, "test", &testValue) == KRANYDATA_SUCCESS) {
+            if (KRAnyDataIsString(testValue)) {
+                const char *str = KRAnyDataGetString(testValue);
+                // str = "abc"
+            }
         }
     }
+    
     // 自定义图片加载逻辑
     // ...
     return 0;

@@ -18,6 +18,7 @@
 #include <deviceinfo.h>
 #include <resourcemanager/ohresmgr.h>
 #include <string_view>
+#include "libohos_render/api/src/KRAnyDataInternal.h"
 #include "libohos_render/expand/components/image/KRImageAdapterManager.h"
 #include "libohos_render/expand/modules/cache/KRMemoryCacheModule.h"
 #include "libohos_render/manager/KRRenderManager.h"
@@ -219,7 +220,15 @@ bool KRImageView::SetImageSrc(const KRAnyValue &value) {
     // 优先使用 V3 adapter（支持 imageParams）
     if (auto imageAdapterV3 = KRImageAdapterManager::GetInstance()->GetAdapterV3()) {
         KRViewContext ctx(GetInstanceId(), GetViewTag());
-        if (imageAdapterV3((const void*)ctx.Context(), src.c_str(), image_params_, &KRImageView::AdapterSetImageCallback)) {
+        
+        // 将KRAnyValue 转换为KRAnyData
+        KRAnyData imageParamsData = nullptr;
+        KRAnyDataInternal imageParamsInternal;
+        if (image_params_) {
+            imageParamsInternal.anyValue = image_params_;
+            imageParamsData = &imageParamsInternal;
+        }
+        if (imageAdapterV3((const void*)ctx.Context(), src.c_str(), imageParamsData, &KRImageView::AdapterSetImageCallback)) {
             return true;
         }
     }

@@ -76,6 +76,73 @@ bool KRAnyDataIsArray(KRAnyData data) {
     return internal->anyValue->isArray();
 }
 
+// 判断一个 KRAnyData 是否是 Map（字典/对象）类型
+bool KRAnyDataIsMap(KRAnyData data) {
+    struct KRAnyDataInternal *internal = (struct KRAnyDataInternal *)data;
+    if (internal == nullptr || internal->anyValue == nullptr) {
+        return false;
+    }
+    return internal->anyValue->isMap();
+}
+// 获取 Map 中所有的 key（键数组)
+int KRAnyDataGetMapKeys(KRAnyData data, const char*** keys, int* count) {
+    if (keys == nullptr || count == nullptr) {
+        return KRANYDATA_NULL_OUTPUT;
+    }
+    struct KRAnyDataInternal *internal = (struct KRAnyDataInternal *)data;
+    if (internal == nullptr || internal->anyValue == nullptr) {
+        return KRANYDATA_NULL_INPUT;
+    }
+    if (!internal->anyValue->isMap()) {
+        return KRANYDATA_TYPE_MISMATCH;
+    }
+    
+    auto& map = internal->anyValue->toMap();
+    *count = map.size();
+    if (*count == 0) {
+        *keys = nullptr;
+        return KRANYDATA_SUCCESS;
+    }
+    
+    *keys = new const char*[*count];
+    int i = 0;
+    for (auto& pair : map) {
+        (*keys)[i] = pair.first.c_str();
+        i++;
+    }
+    return KRANYDATA_SUCCESS;
+}
+// 释放 KRAnyDataGetMapKeys 返回的 keys 数组内存
+void KRAnyDataFreeMapKeys(const char** keys, int count) {
+    if (keys != nullptr) {
+        delete[] keys;
+    }
+}
+// 根据 key 获取 Map 中对应的 value
+int KRAnyDataGetMapValue(KRAnyData data, const char* key, KRAnyData* value) {
+    if (value == nullptr || key == nullptr) {
+        return KRANYDATA_NULL_OUTPUT;
+    }
+    struct KRAnyDataInternal *internal = (struct KRAnyDataInternal *)data;
+    if (internal == nullptr || internal->anyValue == nullptr) {
+        return KRANYDATA_NULL_INPUT;
+    }
+    if (!internal->anyValue->isMap()) {
+        return KRANYDATA_TYPE_MISMATCH;
+    }
+    
+    auto& map = internal->anyValue->toMap();
+    auto it = map.find(key);
+    if (it == map.end()) {
+        *value = nullptr;
+        return KRANYDATA_NULL_INPUT;
+    }
+    // 返回指向内部 KRRenderValue 的指针，仅当前 scope 有效
+    *value = it->second.get();
+    return KRANYDATA_SUCCESS;
+}
+
+
 const char *KRAnyDataGetString(KRAnyData data) {
     struct KRAnyDataInternal *internal = (struct KRAnyDataInternal *)data;
     if (internal == nullptr || internal->anyValue == nullptr) {

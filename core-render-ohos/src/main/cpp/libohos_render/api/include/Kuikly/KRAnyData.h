@@ -71,6 +71,39 @@ bool KRAnyDataIsBytes(KRAnyData data);
 bool KRAnyDataIsArray(KRAnyData data);
 
 /**
+ * 检测是否是一个 Map
+ * @param data 输入的对象
+ * @return 如果是 Map 类型返回 true，否则返回 false
+ */
+bool KRAnyDataIsMap(KRAnyData data);
+
+/**
+ * @brief 从 KRAnyData 中获取 Map 的所有 key
+ * @param data 输入数据句柄，类型为 KRAnyData（必须是Map类型）
+ * @param keys 输出参数，存储所有 key 的数组
+ * @param count 输出参数，存储 key 的数量
+ * @return KRAnDataErrorCode
+ * @note 返回的 keys 数组内存由调用方负责释放（使用 KRAnyDataFreeMapKeys）
+ */
+int KRAnyDataGetMapKeys(KRAnyData data, const char*** keys, int* count);
+
+/**
+ * @brief 释放 KRAnyDataGetMapKeys 返回的 keys 数组
+ * @param keys 要释放的 keys 数组
+ * @param count key 的数量
+ */
+void KRAnyDataFreeMapKeys(const char** keys, int count);
+
+/**
+ * @brief 从 KRAnyData Map 中获取指定 key 的值
+ * @param data 输入数据句柄，类型为 KRAnyData（必须是Map类型）
+ * @param key 要获取的 key
+ * @param value 输出参数，存储获取的值句柄，仅当前scope有效
+ * @return KRAnDataErrorCode
+ */
+int KRAnyDataGetMapValue(KRAnyData data, const char* key, KRAnyData* value);
+
+/**
  * 返回字符串内容
  * @param data
  * @return 字符串指针，仅当前scope有效，请勿转移指针，如有需要请拷贝字符串内容。

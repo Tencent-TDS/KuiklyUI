@@ -430,6 +430,7 @@
     return array;
 }
 
+/// Convert timing function to UIViewAnimationOptions. rawCurve is only used when value=4 (Keyboard).
 + (UIViewAnimationOptions)hr_viewAnimationOptions:(NSString *)value rawCurve:(NSString *)rawCurve {
     int v = [value intValue];
     if (v == 1) {
@@ -442,12 +443,14 @@
         return UIViewAnimationOptionCurveEaseInOut;
     }
     if (v == 4) {
+        // Keyboard: shift left 16 bits to convert to UIViewAnimationOptions format
         int rawCurveValue = [rawCurve intValue];
         return (UIViewAnimationOptions)(rawCurveValue << 16);
     }
     return UIViewAnimationOptionCurveLinear;
 }
 
+/// Convert timing function to UIViewAnimationCurve. rawCurve is only used when value=4 (Keyboard).
 + (UIViewAnimationCurve)hr_viewAnimationCurve:(NSString *)value rawCurve:(NSString *)rawCurve {
     int v = [value intValue];
     if (v == 1) {

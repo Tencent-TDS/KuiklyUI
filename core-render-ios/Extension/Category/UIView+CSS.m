@@ -23,6 +23,9 @@
 #define LAZY_ANIMATION_KEY @"lazyAnimationKey"
 #define ANIMATION_KEY @"animation"
 
+/// Default iOS keyboard animation curve value from UIKeyboardAnimationCurveUserInfoKey
+static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
+
 @interface CSSBorderRadius : NSObject
 
 @property(nonatomic, assign) CGFloat topLeftCornerRadius;
@@ -1337,10 +1340,11 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
 
 - (instancetype)initWithCSSAnimation:(NSString *)cssAnimation {
     if (self = [super init]) {
+        // Format: "animationType timingFunc duration damping velocity delay repeatForever key [rawCurve]"
         NSArray *splits = [cssAnimation componentsSeparatedByString:@" "];
         if (splits.count >= 3) {
             _animationType = [splits[0] intValue];
-            NSString *rawCurve = splits.count >= 9 ? splits[8] : @"7";
+            NSString *rawCurve = splits.count >= 9 ? splits[8] : [@(KRDefaultKeyboardAnimationCurve) stringValue];
             _viewAnimationOption = [KRConvertUtil hr_viewAnimationOptions:splits[1] rawCurve:rawCurve];
             _viewAnimationCurve = [KRConvertUtil hr_viewAnimationCurve:splits[1] rawCurve:rawCurve];
             _duration = [splits[2] doubleValue];

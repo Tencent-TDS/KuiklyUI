@@ -572,11 +572,17 @@ internal class TestPage : BasePager() {
 | 参数  | 描述     | 类型 |
 |:----|:-------|:--|
 | height | 软键盘高度  | Float |
-| duration | 软键盘高度变化动画时长  | Float |
+| duration | 软键盘高度变化动画时长（秒）  | Float |
+| curve | iOS键盘动画曲线值，可用于`Animation.keyboard()`实现与键盘动画同步<Badge text="仅iOS" type="warn"/> | Int |
 
 </div>
 
-**示例**
+::: tip 平台说明
+- `curve` 参数仅在 iOS 平台有效，其他平台该值为默认值 0
+- 在非 iOS 平台使用 `Animation.keyboard()` 时，动画效果等同于 `Animation.linear()`
+:::
+
+**基础示例**
 
 ```kotlin{16-18}
 @Page("demo_page")
@@ -595,10 +601,58 @@ internal class TestPage : BasePager() {
 
                 event {
                     keyboardHeightChange { keyboardParams -> 
-                        
+                        val height = keyboardParams.height
+                        val duration = keyboardParams.duration
+                        val curve = keyboardParams.curve
                     }
                 }
             }
+        }
+    }
+}
+```
+
+**跨平台键盘动画最佳实践**
+
+推荐根据平台选择合适的动画：
+- **iOS**：使用`Animation.keyboard()`配合`curve`参数实现与系统键盘动画完美同步
+- **其他平台**：使用`Animation.easeInOut()`等通用动画
+
+```kotlin
+@Page("demo_page")
+internal class TestPage : BasePager() {
+    var keyboardHeight: Float by observable(0f)
+    var keyboardAnimation: Animation by observable(Animation.easeInOut(0.25f))
+    
+    override fun body(): ViewBuilder {
+        val ctx = this
+        return {
+            Input {
+                attr {
+                    size(200f, 40f)
+                    placeholder("输入框提示")
+                    transform(Translate(0f, -ctx.keyboardHeight))
+                    animation(ctx.keyboardAnimation, ctx.keyboardHeight)
+                }
+
+                event {
+                    keyboardHeightChange { params ->
+                        ctx.keyboardAnimation = createKeyboardAnimation(params)
+                        ctx.keyboardHeight = params.height
+                    }
+                }
+            }
+        }
+    }
+    
+    // Create keyboard animation based on platform
+    private fun createKeyboardAnimation(params: KeyboardParams): Animation {
+        return if (PlatformUtils.isIOS()) {
+            // iOS: Use native keyboard curve for perfect sync
+            Animation.keyboard(params.duration, params.curve)
+        } else {
+            // Other platforms: Use easeInOut as fallback
+            Animation.easeInOut(params.duration)
         }
     }
 }

@@ -299,6 +299,14 @@ NS_ASSUME_NONNULL_END
 ### 实现图片加载适配器
 
 具体实现代码，请参考源码工程iOSApp模块的``KuiklyRenderComponentExpandHandler``类。
+KuiklyRenderComponentExpandHandler 默认提供了三种图片加载方法：
+
+- (BOOL)hr_setImageWithUrl:(nonnull NSString *)url forImageView:(nonnull UIImageView *)imageView placeholderImage:(nullable UIImage *)placeholder options:(NSUInteger)options complete:(ImageCompletionBlock)completeBlock;
+  - 完整版图片加载方法，支持占位图、加载选项和完成回调，图片加载完成后会开放 ImageView 的复用的能力
+- (BOOL)hr_setImageWithUrl:(nullable NSString *)url forImageView:(UIImageView *)imageView complete:(ImageCompletionBlock)completeBlock;
+  - 支持完成回调用于错误处理，不开放复用能力
+- (BOOL)hr_setImageWithUrl:(nullable NSString *)url forImageView:(UIImageView *)imageView;
+  - 仅传入 URL 和 ImageView 进行加载，不开放复用能力
 
 ```objc
 // .h
@@ -329,15 +337,26 @@ NS_ASSUME_NONNULL_END
     // 注册自定义实现
     [KuiklyRenderBridge registerComponentExpandHandler:[self new]];
 }
-
+ 
 /*
- * 自定义实现设置图片
+ * 自定义实现设置图片（带完成回调和src一致性验证，优先调用该方法）
  * @param url 设置的图片url，如果url为nil，则是取消图片设置，需要view.image = nil
+ * @param placeholder 设置的占位图，默认设置为nil
+ * @param options SDWebImage的图片加载参数，默认为SDWebImageAvoidAutoSetImage，阻断SDWebImage无感更新ImageView的image
+ * @param complete 图片处理完成后的回调，内置src一致性验证
  * @return 是否处理该图片设置，返回值为YES，则交给该代理实现，否则sdk内部自己处理
  */
-- (BOOL)hr_setImageWithUrl:(NSString *)url forImageView:(UIImageView *)imageView {
-    // 图片下载我们使用
-    [imageView sd_setImageWithURL:[NSURL URLWithString:url]];
+- (BOOL)hr_setImageWithUrl:(nonnull NSString *)url forImageView:(nonnull UIImageView *)imageView placeholderImage:(nullable UIImage *)placeholder options:(NSUInteger)options complete:(ImageCompletionBlock)completeBlock {
+    [imageView sd_setImageWithURL:[NSURL URLWithString:url]
+                 placeholderImage:placeholder
+                          options:(SDWebImageOptions)options
+                        completed:^(UIImage * _Nullable image, NSError * _Nullable error, SDImageCacheType cacheType, NSURL * _Nullable imageURL) {
+        // 注意：必须在图片加载完成后调用completeBlock，SDK通过此回调完成ImageView.image的最终设置，若不调用将导致图片无法显示
+        if (completeBlock) {
+            // 注意：回调时传入的url必须是传入的url，而非SDWebImage所返回的ImageURL
+            completeBlock(image, error, [NSURL URLWithString:url]);
+        }
+    }];
     return YES;
 }
 /*

@@ -23,9 +23,6 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
-import android.animation.ValueAnimator
-import android.view.animation.LinearInterpolator
-import android.view.accessibility.AccessibilityNodeInfo
 import androidx.core.view.NestedScrollingChild2
 import androidx.core.view.NestedScrollingParent2
 import androidx.core.view.ViewCompat
@@ -34,11 +31,11 @@ import androidx.recyclerview.widget.RecyclerView
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.expand.component.KRView
-import com.tencent.kuikly.core.render.android.css.ktx.touchConsumeByNative
 import com.tencent.kuikly.core.render.android.css.ktx.drawCommonDecoration
 import com.tencent.kuikly.core.render.android.css.ktx.drawCommonForegroundDecoration
 import com.tencent.kuikly.core.render.android.css.ktx.frameHeight
 import com.tencent.kuikly.core.render.android.css.ktx.frameWidth
+import com.tencent.kuikly.core.render.android.css.ktx.nativeGestureViewHashCodeSet
 import com.tencent.kuikly.core.render.android.css.ktx.touchConsumeByKuikly
 import com.tencent.kuikly.core.render.android.css.ktx.toDpF
 import com.tencent.kuikly.core.render.android.css.ktx.toPxI
@@ -48,6 +45,7 @@ import org.json.JSONObject
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.pow
 
 enum class KRNestedScrollMode(val value: String){
@@ -212,6 +210,10 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
 
     private val krRecyclerViewListeners by lazy {
         mutableListOf<IKRRecyclerViewListener>()
+    }
+
+    private val minimumFlingVelocity by lazy {
+        ViewConfiguration.get(context).scaledMinimumFlingVelocity
     }
 
     private val scrollConflictHandler by lazy {
@@ -631,7 +633,14 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         }
 
         if (overScrollHandler?.overScrolling != true) { // over scroll 时, willDragEnd 由 over scroll handler 处理
-            fireWillDragEndEvent(adjustedVelocityX, adjustedVelocityY)
+            // abs value is more than 450px can cause the pager to slide
+            // this fix the issue some times the velocity is negative because dragBigFrontAndSmallBack
+            if (abs(adjustedVelocityX) >  3 * minimumFlingVelocity
+                || abs(adjustedVelocityY) > 3 * minimumFlingVelocity) {
+                fireWillDragEndEvent(adjustedVelocityX, adjustedVelocityY)
+            } else {
+                fireWillDragEndEvent(0, 0)
+            }
         }
         if (!supportFling || skipFlingIfNestOverScroll) {
             // 由于没有调用super.fling(velocityX, velocityY)
@@ -690,10 +699,12 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 // 由于setScrollState内部在dispatchOnScrollStateChanged之前可能会再次调用setScrollState，
                 // 导致dispatchOnScrollStateChanged逆序回调，因此newState的值不可靠，需要从getScrollState重新获取
                 val currentState = recyclerView.scrollState
-
-                if (!touchConsumeByNative) {
-                    touchConsumeByNative = newState != SCROLL_STATE_IDLE
+                when(newState) {
+                    SCROLL_STATE_IDLE -> nativeGestureViewHashCodeSet.remove(this.hashCode())
+                    SCROLL_STATE_DRAGGING -> nativeGestureViewHashCodeSet.add(this.hashCode())
+                    SCROLL_STATE_SETTLING -> nativeGestureViewHashCodeSet.remove(this.hashCode())
                 }
+
                 if (overScrollHandler?.forceOverScroll == true) {
                     return
                 }
@@ -833,7 +844,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                     isDragging: Boolean
                 ) {
                     if (isContentViewAttached) {
-                        touchConsumeByNative = true
+                        nativeGestureViewHashCodeSet.add(this.hashCode())
                         fireOverScrollBeginDragEvent(offsetX, offsetY, overScrollStart)
                     }
                 }
@@ -858,6 +869,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                     isDragging: Boolean
                 ) {
                     if (isContentViewAttached) {
+                        nativeGestureViewHashCodeSet.remove(this.hashCode())
                         fireOverScrollEndDragEvent(
                             offsetX,
                             offsetY,

@@ -347,7 +347,7 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
             if (currentDrawStyle.drawStyle == Paint.Style.FILL) {
                 fillColor = currentDrawStyle.fillColor
                 fillGradient = currentDrawStyle.fillGradient
-                lineWidth = FontWeightSpan.getFontWeight(currentDrawStyle.fontWeight)
+                lineWidth = FontWeightSpan.getFontWeight(currentDrawStyle.fontWeight) * currentDrawStyle.textSize
                 if (lineWidth > 0) {
                     strokeColor = currentDrawStyle.fillColor
                     strokeGradient = currentDrawStyle.fillGradient
@@ -633,7 +633,7 @@ private class DrawStyle(private val kuiklyContext: IKuiklyRenderContext?) {
     var strokeGradient: LinearGradient? = null
     var textAlign = Paint.Align.LEFT
     var typeface: Typeface? = null
-    var textSize: Float = 15f
+    var textSize: Float = kuiklyContext.toPxF(15f)
     var fontStyle: String = KRCssConst.EMPTY_STRING
     var fontWeight: String = KRCssConst.EMPTY_STRING
     var fontFamily: String = KRCssConst.EMPTY_STRING

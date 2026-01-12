@@ -123,7 +123,28 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
         [self css_contentInsetWithParams:params];
     } else if ([method isEqualToString:@"contentInsetWhenEndDrag"]) {
         [self css_contentInsetWhenEndDragWithParams:params];
+    } else if ([method isEqualToString:@"abortContentOffsetAnimate"]) {
+        [self css_abortContentOffsetAnimate];
     }
+}
+
+#pragma mark - abort animate
+
+- (void)css_abortContentOffsetAnimate {
+    // 停止 KRContentOffsetAnimator 动画
+    [_ku_coreAnimator stop];
+    _ku_coreAnimator = nil;
+
+    // 停止 KRScrollViewOffsetAnimator 动画
+    [_offsetAnimator cancel];
+    _offsetAnimator = nil;
+
+    _ignoreDispatchScrollEvent = NO;
+    
+    CGPoint currentOffset = self.contentOffset;
+    [self setContentOffset:currentOffset animated:NO];
+    
+    _nextEndScrollingAnimationCallback = nil;
 }
 
 #pragma mark - pubilc

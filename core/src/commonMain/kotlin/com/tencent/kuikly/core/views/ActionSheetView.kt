@@ -198,7 +198,7 @@ class ActionSheetView : VirtualView<ActionSheetAttr, ActionSheetEvent>() {
                             attr {
                                 fontSize(13f)
                                 lineHeight(18f)
-                                fontWeightSemisolid()
+                                fontWeightSemiBold()
                                 text(ctx.attr.descriptionOfActions)
                                 if (getPager().isNightMode()) { color(0xFF89848a) } else { color(0xFF89848a) }
                                 textAlignCenter()
@@ -308,7 +308,7 @@ class ActionSheetView : VirtualView<ActionSheetAttr, ActionSheetEvent>() {
                     titleAttr {
                         fontSize(20f)
                         height(24f)
-                        if (isBold) fontWeightSemisolid() else fontWeight400()
+                        if (isBold) fontWeightSemiBold() else fontWeight400()
                         color(Color(0xFF007AFF))
                         buttonTitleAttr.invoke(this)
                     }

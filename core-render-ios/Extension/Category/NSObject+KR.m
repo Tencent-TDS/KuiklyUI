@@ -91,12 +91,15 @@
     }
     [invocation setSelector:selector];
     [invocation invokeWithTarget:self];
-    if (strcmp(methodSignature.methodReturnType, @encode(void)) != 0) {
-        void *returnValue;
-        [invocation getReturnValue:&returnValue];
-        return (__bridge  id)returnValue;
+    // 增加值类型返回的支持：仅返回对象类型 -> 返回对象类型 + 包装对象的指针（kr_objectWithBuffer对值类型装箱）
+    if (!methodSignature.methodReturnLength) {
+        return nil;
+    } else {
+        void *valueLoc = alloca(methodSignature.methodReturnLength);
+        [invocation getReturnValue:valueLoc];
+        return [NSObject kr_objectWithBuffer:valueLoc type:methodSignature.methodReturnType];
     }
-    return nil;
+    
 }
 
 + (id)kr_performWithTarget:(id)target selector:(SEL)aSelector  withObjects:(NSArray *)objects {

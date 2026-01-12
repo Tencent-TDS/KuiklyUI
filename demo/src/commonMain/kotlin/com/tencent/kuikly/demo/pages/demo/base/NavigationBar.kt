@@ -57,7 +57,7 @@ internal class NavigationBar: ComposeView<NavigationBarAttr, ComposeEvent>() {
                             text(ctx.attr.title)
                             color(Color.BLACK)
                             fontSize(17f)
-                            fontWeightSemisolid()
+                            fontWeightSemiBold()
                         }
                     }
 

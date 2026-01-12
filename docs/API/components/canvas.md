@@ -250,8 +250,10 @@
 |:----|:-------|
 | NORMAL | 正常（400） |
 | MEDIUM | 中等（500） |
-| SEMISOLID | 半粗（600） |
+| SEMIBOLD | 半粗（600） |
 | BOLD | 粗体（700） |
+| EXTRABOLD | 超粗（800） |
+| BLACK | 极粗（900） |
 
 ### measureText
 

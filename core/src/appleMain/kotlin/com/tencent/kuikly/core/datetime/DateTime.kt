@@ -19,6 +19,8 @@ import platform.Foundation.NSDate
 import platform.Foundation.NSProcessInfo
 import platform.Foundation.date
 import platform.Foundation.timeIntervalSince1970
+import com.tencent.kuikly.com_tencent_kuikly_GetThreadCPUTimeInNanoseconds
+import kotlinx.cinterop.ExperimentalForeignApi
 
 actual object DateTime {
     actual fun currentTimestamp(): Long {
@@ -28,4 +30,10 @@ actual object DateTime {
     actual fun nanoTime(): Long {
         return (NSProcessInfo.processInfo.systemUptime() * 1_000_000_000).toLong()
     }
+
+    @OptIn(ExperimentalForeignApi::class)
+    internal actual fun threadLocalTimestamp(): Long {
+        return com_tencent_kuikly_GetThreadCPUTimeInNanoseconds() / 1_000_000
+    }
+
 }

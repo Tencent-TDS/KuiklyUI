@@ -209,6 +209,7 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
     }
 
     override fun boxShadow(boxShadow: BoxShadow): Attr {
+        BoxShadow.ensureSupportFill(this)
         StyleConst.BOX_SHADOW with boxShadow.toString()
         return this
     }
@@ -220,6 +221,7 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
      * @return 当前 {@link Attr} 实例。
      * */
     fun boxShadow(boxShadow: BoxShadow, useShadowPath: Boolean = false): Attr {
+        BoxShadow.ensureSupportFill(this)
         if (useShadowPath) {
             StyleConst.USE_SHADOW_PATH with useShadowPath.toInt()
         }
@@ -736,10 +738,35 @@ class BoxShadow(
     private val offsetX: Float,
     private val offsetY: Float,
     private val shadowRadius: Float,
-    private val shadowColor: Color
+    private val shadowColor: Color,
+    private val fill: Boolean = true
 ) {
+    @Deprecated("deprecated", level = DeprecationLevel.HIDDEN)
+    constructor(offsetX: Float, offsetY: Float, shadowRadius: Float, shadowColor: Color) : this(
+        offsetX,
+        offsetY,
+        shadowRadius,
+        shadowColor,
+        true
+    )
+
     override fun toString(): String {
-        return "$offsetX $offsetY $shadowRadius $shadowColor"
+        // earlier render-android requires fixed params length,
+        // check supportFill for backward compatibility
+        return if (supportFill == true) {
+            "$offsetX $offsetY $shadowRadius $shadowColor ${if (fill) 1 else 0}"
+        } else {
+            "$offsetX $offsetY $shadowRadius $shadowColor"
+        }
+    }
+
+    internal companion object {
+        private var supportFill: Boolean? = null
+        fun ensureSupportFill(scope: PagerScope) {
+            if (supportFill == null) {
+                supportFill = scope.getPager().pageData.hasFeature("box_shadow_fill")
+            }
+        }
     }
 }
 

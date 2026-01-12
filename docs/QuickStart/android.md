@@ -421,3 +421,48 @@ object KRFontAdapter : IKRFontAdapter {
     }
 }
 ```
+
+## 配置混淆规则（ProGuard/R8）
+
+如果您的 Android 项目开启了代码混淆（ProGuard/R8），需要确保 Kuikly 相关的类不被混淆，以保证框架正常运行。
+
+### 自动应用混淆规则
+
+`core-render-android` 库已经通过 `consumer-rules.pro` 自动提供了必要的混淆规则，这些规则会在您引入依赖时自动应用。规则包括：
+
+- 保留 Kuikly 核心入口类和方法
+- 保留日志相关类
+- 保留 RecyclerView 的反射访问方法
+
+### 手动配置（可选）
+
+如果您需要额外的混淆规则，或者想要查看库提供的规则内容，可以在您的 `app/build.gradle.kts` 或 `app/build.gradle` 中配置：
+
+```gradle
+android {
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
+}
+```
+
+然后在 `app/proguard-rules.pro` 文件中添加以下规则（库已自动提供，此处仅作参考）：
+
+```proguard
+# Kuikly 核心类保留规则
+-keep class com.tencent.kuikly.core.android.KuiklyCoreEntry { *; }
+-keep class com.tencent.kuikly.core.IKuiklyCoreEntry { *; }
+-keep class com.tencent.kuikly.core.IKuiklyCoreEntry$Delegate { *; }
+-keep class com.tencent.kuikly.core.log.KLog { *; }
+
+# RecyclerView 反射方法保留
+-keepclassmembers class androidx.recyclerview.widget.RecyclerView {
+    void setScrollState(int);
+}
+```

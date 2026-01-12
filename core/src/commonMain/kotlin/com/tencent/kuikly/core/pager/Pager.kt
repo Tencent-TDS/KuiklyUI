@@ -21,6 +21,7 @@ import com.tencent.kuikly.core.collection.fastHashMapOf
 import com.tencent.kuikly.core.collection.fastHashSetOf
 import com.tencent.kuikly.core.collection.toFastList
 import com.tencent.kuikly.core.coroutines.LifecycleScope
+import com.tencent.kuikly.core.datetime.DateTime
 import com.tencent.kuikly.core.exception.throwRuntimeError
 import com.tencent.kuikly.core.global.GlobalFunctions
 import com.tencent.kuikly.core.log.KLog
@@ -32,6 +33,7 @@ import com.tencent.kuikly.core.module.*
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.timer.setTimeout
 import com.tencent.kuikly.core.utils.verifyFailedHandler
+import kotlin.math.roundToInt
 
 abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
     open var ignoreLayout: Boolean = false
@@ -65,6 +67,7 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
     private val innerBackPressHandler: BackPressHandler by lazy(LazyThreadSafetyMode.NONE) {
         BackPressHandler()
     }
+    override var pageLayoutTracer = PageLayoutTracer()
 
     override fun createAttr(): ComposeAttr = ComposeAttr()
 
@@ -410,6 +413,10 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         if (ignoreLayout) {
             return
         }
+        val shouldTraceLayout = isDebugLogEnable() && pageLayoutTracer.needLogLayout() && flexNode.isDirty
+        if (shouldTraceLayout) {
+            pageLayoutTracer.layoutStart()
+        }
         var maxLoopTimes = 3
         while (flexNode.isDirty && (--maxLoopTimes) >= 0) {
             notifyPagerWillCalculateLayoutObservers()
@@ -423,6 +430,11 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
             performTask(true) {
                 layoutIfNeed()
             }
+        }
+
+        if (shouldTraceLayout) {
+            pageLayoutTracer.layoutFinish(flexNode.isDirty)
+            dump(this)
         }
     }
 
@@ -578,6 +590,36 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
             verifyFailedHandler = handler
         }
 
+
+        private fun dump(root: Pager) {
+            val startTime = DateTime.currentTimestamp()
+            val dumpInfo = root.toDumpInfo()
+            KLog.d("KuiklyCoreTracer", "dump pager ${root.pagerId} ${root.pageName} at ${DateTime.currentTimestamp()} cost=${DateTime.currentTimestamp() - startTime}\n$dumpInfo")
+        }
+
+        private fun DeclarativeBaseView<*, *>.toDumpInfo(indent: String = "", depth: Int = 0): String {
+            val childCount = if (this is ViewContainer) this.childrenSize() else null
+            return "$indent${this::class.simpleName}[${this.nativeRef} " +
+                    frame.let { "${it.x.roundToInt()},${it.y.roundToInt()}-${it.maxX().roundToInt()},${it.maxY().roundToInt()} " } +
+                    (if (this.isVirtualView()) "v" else if (this.isRenderView()) (if (this.renderView == null) "r" else "R") else "-") +
+                    (childCount ?: "-") +
+                    getViewAttr().let {
+                        "|${it.getProp(Attr.StyleConst.OPACITY) ?: "-"}|${it.getProp(Attr.StyleConst.VISIBILITY) ?: "-"}|${it.getProp(Attr.StyleConst.BACKGROUND_COLOR) ?: "-"}"
+                    } +
+                    if (childCount != null && childCount > 0) {
+                        if (depth < 4) {
+                            (this as ViewContainer).childrenToDump()
+                                .joinToString("", prefix = "]{\n", postfix = "$indent}\n") {
+                                    it.toDumpInfo("$indent  ", depth + 1)
+                                }
+                        } else {
+                            "]{…}\n"
+                        }
+                    } else {
+                        "]\n"
+                    }
+        }
+
     }
 }
 
@@ -588,4 +630,63 @@ interface IModuleCreator {
 // 定义一个视图创建器接口
 interface IViewCreator {
     fun createView(): DeclarativeBaseView<*, *>
+}
+
+/**
+ * 用于跟踪页面布局信息的工具类
+ */
+class PageLayoutTracer {
+    private var isLayout = false
+    private var shadowCount = 0
+    private var layoutCount = 0
+    private var wallTime = 0L
+    private var threadTime = 0L
+    private var shadowWallTime = 0L
+    private var shadowThreadTime = 0L
+    private var totalShadowWallTime = 0L
+    private var totalShadowThreadTime = 0L
+
+    fun layoutStart() {
+        wallTime = DateTime.currentTimestamp()
+        threadTime = DateTime.threadLocalTimestamp()
+        isLayout = true
+    }
+
+    fun layoutFinish(isDirty: Boolean = false) {
+        KLog.d("KuiklyCoreTracer", "layout[${layoutCount}]: wallCost=${DateTime.currentTimestamp() - wallTime}, threadCost=${DateTime.threadLocalTimestamp() - threadTime}, textWallTime=${totalShadowWallTime}, textThreadTime=${totalShadowThreadTime}, textCount=${shadowCount}, isDirty=${isDirty}")
+        wallTime = 0L
+        threadTime = 0L
+        totalShadowWallTime = 0L
+        totalShadowThreadTime = 0L
+        shadowCount = 0
+        layoutCount++
+        isLayout = false
+    }
+
+    fun shadowCalculateStart() {
+        if (!isLayout || !needLogLayout()) {
+            return
+        }
+        shadowWallTime = DateTime.currentTimestamp()
+        shadowThreadTime = DateTime.threadLocalTimestamp()
+        shadowCount++
+    }
+
+    fun shadowCalculateFinish() {
+        if (!isLayout || !needLogLayout()) {
+            return
+        }
+        totalShadowWallTime += DateTime.currentTimestamp() - shadowWallTime
+        totalShadowThreadTime = DateTime.threadLocalTimestamp() - shadowThreadTime
+        shadowWallTime = 0L
+        shadowThreadTime = 0L
+    }
+
+    fun needLogLayout(): Boolean {
+        return layoutCount < LAYOUT_MAX_LOG_COUNT
+    }
+
+    companion object {
+        private const val LAYOUT_MAX_LOG_COUNT = 5
+    }
 }

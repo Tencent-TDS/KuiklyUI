@@ -210,7 +210,7 @@ class AlertDialogView : VirtualView<AlertDialogAttr, AlertDialogEvent>() {
                                 text(ctx.attr.title)
                                 if (getPager().isNightMode()) { color(Color.WHITE) } else { color(Color.BLACK) }
                                 textAlignCenter()
-                                fontWeightSemisolid()
+                                fontWeightSemiBold()
                             }
                         }
                     }

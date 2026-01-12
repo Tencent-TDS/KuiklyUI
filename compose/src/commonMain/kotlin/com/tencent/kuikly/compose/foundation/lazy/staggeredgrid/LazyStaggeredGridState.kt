@@ -329,9 +329,9 @@ class LazyStaggeredGridState internal constructor(
         scrollOffset: Int = 0
     ) {
         kuiklyInfo.offsetDirty = true
-        val layoutInfo = layoutInfoState.value
         
         // Calculate teleport distance based on viewportSize and average item size
+        val layoutInfo = layoutInfoState.value
         val numOfItemsToTeleport = if (layoutInfo.visibleItemsInfo.isNotEmpty()) {
             val averageItemSize = layoutInfo.calculateAverageItemSize()
             
@@ -348,9 +348,22 @@ class LazyStaggeredGridState internal constructor(
                 10.0f // Default value to avoid division by zero
             }
             
-            // 6 times the viewport's item count, with a minimum of 10 * laneCount
+            // Special handling for StaggeredGrid waterfall layout: due to uneven item heights, use a more conservative Teleport distance
+            // Reserve 2.2 loops of animation space (same as Grid)
+            val targetDistancePx = 2500f * layoutInfo.density.density  // 2500dp to px (≈8125px)
+            
+            // Calculate how many items can be scrolled in one loop
+            val itemsPerLoop = if (averageItemSize > 0) {
+                targetDistancePx / averageItemSize
+            } else {
+                itemsPerViewport * 2.2f  // Fallback: approximately 2.2 times viewport items
+            }
+            
             val laneCount = layoutInfo.slots.sizes.size
-            maxOf((6 * itemsPerViewport).toInt(), 10 * laneCount)
+            val reservedLoops = 2.2f  // Same as Grid's 2.2
+            val teleportItems = maxOf((itemsPerLoop * reservedLoops).toInt(), 15 * laneCount)
+            
+            teleportItems
         } else {
             // Use default value if visibleItemsInfo is empty
             100 * layoutInfo.slots.sizes.size

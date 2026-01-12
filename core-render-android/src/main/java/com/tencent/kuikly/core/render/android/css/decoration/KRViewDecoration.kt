@@ -23,6 +23,7 @@ import android.graphics.Outline
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
+import android.graphics.Region
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.LayerDrawable
 import android.os.Build
@@ -133,6 +134,7 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
     private var shadowOffsetY = 0f
     private var shadowColor = 0x0
     private var shadowRadius = 0f
+    private var shadowFill = true
     var boxShadow: String = KRCssConst.EMPTY_STRING
         set(value) {
             if (field == value) {
@@ -251,25 +253,59 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
             return
         }
 
-        rectF.set(shadowOffsetX, shadowOffsetY, w + shadowOffsetX, h + shadowOffsetY)
+        val checkpoint = if (!shadowFill) {
+            canvas.save()
+        } else {
+            -1
+        }
+
+        rectF.set(0f, 0f, w.toFloat(), h.toFloat())
         paint.color = shadowColor
         paint.maskFilter = BlurMaskFilter(shadowRadius, BlurMaskFilter.Blur.NORMAL)
         when {
             clipPathData.isNotEmpty() -> {
+                if (!shadowFill) {
+                    canvas.clipPath(path, Region.Op.DIFFERENCE)
+                }
                 canvas.translate(shadowOffsetX, shadowOffsetY)
                 // path 已经在 setClipPathData 里解析好了，这里直接用就行
                 canvas.drawPath(path, paint)
                 canvas.translate(-shadowOffsetX, -shadowOffsetY)
             }
             borderRadiusF != BORDER_RADIUS_UNSET_VALUE -> {
+                if (!shadowFill) {
+                    path.rewind()
+                    path.addRoundRect(rectF, borderRadiusF, borderRadiusF, Path.Direction.CW)
+                    canvas.clipPath(path, Region.Op.DIFFERENCE)
+                }
+                canvas.translate(shadowOffsetX, shadowOffsetY)
                 canvas.drawRoundRect(rectF, borderRadiusF, borderRadiusF, paint) // 四个角都是圆角的阴影
+                canvas.translate(-shadowOffsetX, -shadowOffsetY)
             }
             borderRadii != null -> { // 非四个角都是圆角的阴影
-                path.reset()
+                if (!shadowFill) {
+                    path.rewind()
+                    path.addRoundRect(rectF, borderRadii!!, Path.Direction.CW)
+                    canvas.clipPath(path, Region.Op.DIFFERENCE)
+                }
+                path.rewind()
                 path.addRoundRect(rectF, borderRadii!!, Path.Direction.CW)
+                canvas.translate(shadowOffsetX, shadowOffsetY)
                 canvas.drawPath(path, paint)
+                canvas.translate(-shadowOffsetX, -shadowOffsetY)
             }
-            else -> canvas.drawRect(rectF, paint)
+            else -> {
+                if (!shadowFill) {
+                    canvas.clipRect(rectF, Region.Op.DIFFERENCE)
+                }
+                canvas.translate(shadowOffsetX, shadowOffsetY)
+                canvas.drawRect(rectF, paint)
+                canvas.translate(-shadowOffsetX, -shadowOffsetY)
+            }
+        }
+
+        if (checkpoint != -1) {
+            canvas.restoreToCount(checkpoint)
         }
     }
 
@@ -282,6 +318,7 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
                 shadowOffsetY = it.shadowOffsetY
                 shadowRadius = it.shadowRadius
                 shadowColor = it.shadowColor
+                shadowFill = it.shadowFill
             }
         }
     }
@@ -611,25 +648,29 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
 class BoxShadow(shadowValue: String, private val context: IKuiklyRenderContext?) {
 
     companion object {
-        private const val SHADOW_ELEMENT_SIZE = 4
         private const val SHADOW_OFFSET_X = 0
         private const val SHADOW_OFFSET_Y = 1
         private const val SHADOW_RADIUS = 2
         private const val SHADOW_COLOR = 3
+        private const val SHADOW_FILL = 4
     }
 
     var shadowOffsetX = 0.0f
     var shadowOffsetY = 0.0f
     var shadowRadius = 0.0f
     var shadowColor = Color.TRANSPARENT
+    var shadowFill = true
 
     init {
         val boxShadows = shadowValue.split(KRCssConst.BLANK_SEPARATOR)
-        if (boxShadows.size == SHADOW_ELEMENT_SIZE) {
+        if (boxShadows.size > SHADOW_COLOR) {
             shadowOffsetX = context.toPxF(boxShadows[SHADOW_OFFSET_X].toFloat())
             shadowOffsetY = context.toPxF(boxShadows[SHADOW_OFFSET_Y].toFloat())
             shadowRadius = context.toPxF(boxShadows[SHADOW_RADIUS].toFloat())
             shadowColor = boxShadows[SHADOW_COLOR].toColor()
+        }
+        if (boxShadows.size > SHADOW_FILL) {
+            shadowFill = boxShadows[SHADOW_FILL] == "1"
         }
     }
 

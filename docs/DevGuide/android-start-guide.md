@@ -213,8 +213,11 @@ Kuikly内置模式性能接近原生性能，如果业务逻辑实现合理，�
     * 解决方案
 
       上述片段在JS动态化中低效的原因是，JSONObject默认使用Kotlin自行实现的，而在JS引擎中，内置的JS解析能力才是最高效的，因此可以通过标志位让Kuikly优先使用JS引擎内置的JS解析能力。
+      :::tip 注意
+      **2.7.0以及更新版本中本选项默认为true，无需手动设置，使用低版本的业务建议升级至最新版本**
+      :::
         ```kotlin
-        // 在解析前将标志位设置为true，可尽早统一设置，至少要在解析前进行设置
+        // 在解析前将标志位设置为true，可尽早统一设置，至少要在解析前进行设置。
         JSON.useNativeMethod = true
         val jsonStr = ... // a valid json string
         val jsonObj = JSONObject(jsonStr)

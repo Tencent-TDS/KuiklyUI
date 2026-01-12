@@ -33,13 +33,13 @@ class KRMainThread {
      * @param task 需要在主线程上执行的任务
      * @param delayMilliseconds 延迟执行任务的毫秒数，默认为0，表示立即执行
      */
-    static void RunOnMainThread(const std::function<void()> &task, int delayMilliseconds = 0);
+    static void RunOnMainThread(std::function<void()> task, int delayMilliseconds = 0);
 
     /**
      * @brief 在主线程的下一个事件循环中执行任务
      * @param task 需要在主线程上执行的任务
      */
-    static void RunOnMainThreadForNextLoop(const std::function<void()> &task);
+    static void RunOnMainThreadForNextLoop(std::function<void()> task);
 
  private:
     KRMainThread();

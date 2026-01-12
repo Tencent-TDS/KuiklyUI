@@ -122,9 +122,7 @@ void KRCanvasView::SetLineCap(const std::string &params) {
     } else if (str == "square") {
         style = LINE_SQUARE_CAP;
     }
-    if (pen_ == nullptr) {
-        pen_ = OH_Drawing_PenCreate();
-    }
+    CreatePenIfNeeded();
     OH_Drawing_PenSetCap(pen_, style);
 }
 
@@ -132,9 +130,7 @@ void KRCanvasView::SetLineWidth(const std::string &params) {
     auto obj = kuikly::util::JSONObject::Parse(params);
     float width = obj->GetNumber("width");
 
-    if (pen_ == nullptr) {
-        pen_ = OH_Drawing_PenCreate();
-    }
+    CreatePenIfNeeded();
     OH_Drawing_PenSetWidth(pen_, width);
 }
 
@@ -142,9 +138,7 @@ void KRCanvasView::SetLineDash(const std::string &params) {
     auto obj = kuikly::util::JSONObject::Parse(params);
     auto intervalsVector = obj->GetNumberArray("intervals");
     int count = intervalsVector.size();
-    if (pen_ == nullptr) {
-        pen_ = OH_Drawing_PenCreate();
-    }
+    CreatePenIfNeeded();
     if (count == 0) {
         OH_Drawing_PenSetPathEffect(pen_, nullptr);
         return;
@@ -202,16 +196,11 @@ void KRCanvasView::SetStrokeStyle(const std::string &params) {
     auto paramObj = kuikly::util::JSONObject::Parse(params);
     if (paramObj) {
         const std::string style = paramObj->GetString("style");
+        CreatePenIfNeeded();
         if (style.substr(0, LINEAR_GRADIENT.size()) == LINEAR_GRADIENT) {
             OH_Drawing_ShaderEffect *colorShaderEffect = parseGradientStyle(style);
-            if (pen_ == nullptr) {
-                pen_ = OH_Drawing_PenCreate();
-            }
             OH_Drawing_PenSetShaderEffect(pen_, colorShaderEffect);
         } else {
-            if (pen_ == nullptr) {
-                pen_ = OH_Drawing_PenCreate();
-            }
             OH_Drawing_PenSetShaderEffect(pen_, nullptr);
             OH_Drawing_PenSetColor(pen_, kuikly::util::ConvertToHexColor(style));
         }
@@ -221,16 +210,11 @@ void KRCanvasView::SetFillStyle(const std::string &params) {
     auto paramObj = kuikly::util::JSONObject::Parse(params);
     if (paramObj) {
         const std::string style = paramObj->GetString("style");
+        CreateBrushIfNeeded();
         if (style.substr(0, LINEAR_GRADIENT.size()) == LINEAR_GRADIENT) {
             OH_Drawing_ShaderEffect *colorShaderEffect = parseGradientStyle(style);
-            if (brush_ == nullptr) {
-                brush_ = OH_Drawing_BrushCreate();
-            }
             OH_Drawing_BrushSetShaderEffect(brush_, colorShaderEffect);
         } else {
-            if (brush_ == nullptr) {
-                brush_ = OH_Drawing_BrushCreate();
-            }
             OH_Drawing_BrushSetShaderEffect(brush_, nullptr);
             kuikly::graphics::Color color = kuikly::graphics::Color::FromString(style);
             OH_Drawing_BrushSetColor(brush_, color.value);
@@ -421,14 +405,10 @@ void KRCanvasView::DrawText(std::string params, std::shared_ptr<struct KRFontCol
     OH_Drawing_SetTypographyTextAlign(typoStyle, TEXT_ALIGN_LEFT);
 
     if (type == FILL_TEXT) {
-        if (brush_ == nullptr) {
-            brush_ = OH_Drawing_BrushCreate();
-        }
+        CreateBrushIfNeeded();
         OH_Drawing_SetTextStyleForegroundBrush(txtStyle, brush_);
     } else if (type == STROKE_TEXT) {
-        if (pen_ == nullptr) {
-            pen_ = OH_Drawing_PenCreate();
-        }
+        CreatePenIfNeeded();
         OH_Drawing_SetTextStyleForegroundPen(txtStyle, pen_);
     }
 
@@ -621,6 +601,20 @@ void KRCanvasView::DrawImage(const std::string &params) {
         OH_Drawing_CanvasDrawPixelMapRect(canvas_, drawingPixelMap, srcRect, dstRect, nullptr);
         OH_Drawing_RectDestroy(srcRect);
         OH_Drawing_RectDestroy(dstRect);
+    }
+}
+
+void KRCanvasView::CreatePenIfNeeded() {
+    if (pen_ == nullptr) {
+        pen_ = OH_Drawing_PenCreate();
+        OH_Drawing_PenSetAntiAlias(pen_, true);
+    }
+}
+
+void KRCanvasView::CreateBrushIfNeeded() {
+    if (brush_ == nullptr) {
+        brush_ = OH_Drawing_BrushCreate();
+        OH_Drawing_BrushSetAntiAlias(brush_, true);
     }
 }
 

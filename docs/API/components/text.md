@@ -174,6 +174,10 @@ internal class FontSizePage : BasePager() {
 
 </div>
 
+:::warning 兼容性提示
+在个别小米机型的 MiSans（系统默认）字体中，设置 `normal` 以外的字重会导致韩文字符中的圆圈显示为实心圆形。
+:::
+
 :::tabs
 
 @tab:active 示例

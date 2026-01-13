@@ -16,6 +16,7 @@
 #include "libohos_render/api/include/Kuikly/KRAnyData.h"
 #include "KRAnyDataInternal.h"
 
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -84,11 +85,12 @@ bool KRAnyDataIsMap(KRAnyData data) {
     }
     return internal->anyValue->isMap();
 }
-// 获取 Map 中所有的 key（键数组)
-int KRAnyDataGetMapKeys(KRAnyData data, const char*** keys, int* count) {
-    if (keys == nullptr || count == nullptr) {
+
+int KRAnyDataVisitMap(KRAnyData data, KRAnyDataMapVisitor visitor, void *userData) {
+    if (visitor == nullptr) {
         return KRANYDATA_NULL_OUTPUT;
     }
+    
     struct KRAnyDataInternal *internal = (struct KRAnyDataInternal *)data;
     if (internal == nullptr || internal->anyValue == nullptr) {
         return KRANYDATA_NULL_INPUT;
@@ -98,26 +100,14 @@ int KRAnyDataGetMapKeys(KRAnyData data, const char*** keys, int* count) {
     }
     
     auto& map = internal->anyValue->toMap();
-    *count = map.size();
-    if (*count == 0) {
-        *keys = nullptr;
-        return KRANYDATA_SUCCESS;
-    }
-    
-    *keys = new const char*[*count];
-    int i = 0;
     for (auto& pair : map) {
-        (*keys)[i] = pair.first.c_str();
-        i++;
+        KRAnyDataInternal tempValue;
+        tempValue.anyValue = pair.second;
+        visitor(pair.first.c_str(), &tempValue, userData);
     }
     return KRANYDATA_SUCCESS;
 }
-// 释放 KRAnyDataGetMapKeys 返回的 keys 数组内存
-void KRAnyDataFreeMapKeys(const char** keys, int count) {
-    if (keys != nullptr) {
-        delete[] keys;
-    }
-}
+
 // 根据 key 获取 Map 中对应的 value
 int KRAnyDataGetMapValue(KRAnyData data, const char* key, KRAnyData* value) {
     if (value == nullptr || key == nullptr) {
@@ -137,8 +127,9 @@ int KRAnyDataGetMapValue(KRAnyData data, const char* key, KRAnyData* value) {
         *value = nullptr;
         return KRANYDATA_NULL_INPUT;
     }
-    // 返回指向内部 KRRenderValue 的指针，仅当前 scope 有效
-    *value = it->second.get();
+    static thread_local KRAnyDataInternal tempInternal;
+    tempInternal.anyValue = it->second;
+    *value = &tempInternal;
     return KRANYDATA_SUCCESS;
 }
 
@@ -250,7 +241,9 @@ int KRAnyDataGetArrayElement(KRAnyData data, KRAnyData* value, int index) {
     if (index >= array.size()) {
         return KRANYDATA_OUT_OF_INDEX;
     }
-    *value = array[index].get();
+    static thread_local KRAnyDataInternal temInternal;
+    temInternal.anyValue = array[index];
+    *value = &temInternal;
     return KRANYDATA_SUCCESS;
 }
 

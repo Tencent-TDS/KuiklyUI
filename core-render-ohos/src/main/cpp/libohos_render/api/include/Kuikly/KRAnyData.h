@@ -78,21 +78,23 @@ bool KRAnyDataIsArray(KRAnyData data);
 bool KRAnyDataIsMap(KRAnyData data);
 
 /**
- * @brief 从 KRAnyData 中获取 Map 的所有 key
- * @param data 输入数据句柄，类型为 KRAnyData（必须是Map类型）
- * @param keys 输出参数，存储所有 key 的数组
- * @param count 输出参数，存储 key 的数量
- * @return KRAnDataErrorCode
- * @note 返回的 keys 数组内存由调用方负责释放（使用 KRAnyDataFreeMapKeys）
+ * @brief Map 遍历回调函数类型
+ * @param key Map 中的键（字符串）
+ * @param value Map 中对应的值（KRAnyData 类型），仅在回调函数内有效
+ * @param userData 用户自定义数据指针
  */
-int KRAnyDataGetMapKeys(KRAnyData data, const char*** keys, int* count);
+typedef void (*KRAnyDataMapVisitor)(const char* key, KRAnyData value, void* userData);
 
 /**
- * @brief 释放 KRAnyDataGetMapKeys 返回的 keys 数组
- * @param keys 要释放的 keys 数组
- * @param count key 的数量
+ * @brief 遍历 Map 中的所有键值对（推荐使用）
+ * @param data 输入数据句柄，类型为 KRAnyData（必须是Map类型）
+ * @param visitor 访问回调函数，每个键值对会调用一次
+ * @param userData 用户自定义数据，会原样传递给 visitor
+ * @return KRAnDataErrorCode
+ * @note 这是遍历 Map 的推荐方式，无需手动管理内存
  */
-void KRAnyDataFreeMapKeys(const char** keys, int count);
+int KRAnyDataVisitMap(KRAnyData data, KRAnyDataMapVisitor visitor, void* userData);
+
 
 /**
  * @brief 从 KRAnyData Map 中获取指定 key 的值

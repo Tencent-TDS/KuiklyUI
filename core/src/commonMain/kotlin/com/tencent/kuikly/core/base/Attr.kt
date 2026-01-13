@@ -838,8 +838,8 @@ class Translate(
   请注意，当您将元素倾斜 90 度时，元素将会变得无法看见，因为它的宽度或高度将会变为 0。
  */
 class Skew(
-    private val horizontalSkewAngle: Float = 0f,  // 水平方向倾斜角度(deg) range of [-360,360]，单位角度
-    private val verticalSkewAngle: Float = 0f  // 垂直方向倾斜角度(deg) range of [-360,360]，单位角度
+    private val horizontalSkewAngle: Float = 0f,  // 水平方向倾斜角度(deg) range of (-90, 90)，单位角度
+    private val verticalSkewAngle: Float = 0f  // 垂直方向倾斜角度(deg) range of (-90, 90)，单位角度
 ) {
 
     companion object {

@@ -33,7 +33,11 @@ interface IKRImageAdapter {
      * @param callback 回调
      *
      * @return 是否加载此图片类型
+     *
+     * 注意: 此方法可能在非UI线程调用，例如在[MemoryCacheModule.cacheImage]中。
+     * 实现时需要注意线程安全，如果需要在UI线程操作，请使用Handler或runOnUiThread等方式切换到UI线程。
      */
+    @Deprecated("请使用带有 imageParams 参数的新方法，override 新方法后，本方法将不再被调用")
     fun fetchDrawable(imageLoadOption: HRImageLoadOption, callback: (drawable: Drawable?) -> Unit)
 
     /**
@@ -44,6 +48,9 @@ interface IKRImageAdapter {
      * @param callback 回调
      *
      * @return 是否加载此图片类型
+     *
+     * 注意: 此方法可能在非UI线程调用，例如在[MemoryCacheModule.cacheImage]中。
+     * 实现时需要注意线程安全，如果需要在UI线程操作，请使用Handler或runOnUiThread等方式切换到UI线程。
      */
     fun fetchDrawable(imageLoadOption: HRImageLoadOption, imageParams: JSONObject?, callback: (drawable: Drawable?) -> Unit) {
         fetchDrawable(imageLoadOption, callback)

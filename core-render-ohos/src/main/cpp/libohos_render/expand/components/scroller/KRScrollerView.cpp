@@ -136,7 +136,7 @@ void KRScrollerView::SetRenderViewFrame(const KRRect &frame) {
     if (!is_set_frame_) {
         is_set_frame_ = true;
         if (is_need_set_content_offset_) {
-            kuikly::util::SetArkUIContentOffset(GetNode(), first_offset_x_, first_offset_y_, first_animate_, first_duration_);
+            kuikly::util::SetArkUIContentOffset(GetNode(), first_offset_x_, first_offset_y_, first_animate_, first_duration_, first_curve_);
             is_need_set_content_offset_ = false;
         }
     }
@@ -410,16 +410,18 @@ void KRScrollerView::SetContentOffset(const KRAnyValue &value) {
     auto offset_y = content_offset_splits[1]->toFloat();
     auto animate = content_offset_splits[2]->toBool();
     auto duration = content_offset_splits.size() > 3 ? content_offset_splits[3]->toInt() : 0;
+    auto curve = content_offset_splits.size() > 6 ? content_offset_splits[6]->toInt() : 0;
 
     if (!is_set_frame_) {
         first_offset_x_ = offset_x;
         first_offset_y_ = offset_y;
         first_animate_ = animate;
         first_duration_ = duration;
+        first_curve_ = curve;
         is_need_set_content_offset_ = true;
         return;
     }
-    kuikly::util::SetArkUIContentOffset(GetNode(), offset_x, offset_y, animate, duration);
+    kuikly::util::SetArkUIContentOffset(GetNode(), offset_x, offset_y, animate, duration, curve);
 }
 
 void KRScrollerView::SetContentInset(const KRAnyValue &value) {

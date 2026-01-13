@@ -828,7 +828,7 @@ KRPoint GetArkUIScrollContentOffset(ArkUI_NodeHandle handle) {
     return item ? KRPoint{item->value[0].f32, item->value[1].f32} : KRPoint();
 }
 
-void SetArkUIContentOffset(ArkUI_NodeHandle handle, float offset_x, float offset_y, bool animate, int duration) {
+void SetArkUIContentOffset(ArkUI_NodeHandle handle, float offset_x, float offset_y, bool animate, int duration, int curve) {
     if (!handle) {
         return;
     }
@@ -846,7 +846,7 @@ void SetArkUIContentOffset(ArkUI_NodeHandle handle, float offset_x, float offset
         {.f32 = offset_x},
         {.f32 = offset_y},
         {.i32 = duration},
-        {.i32 = ARKUI_CURVE_EASE},
+        {.i32 = curve == 0 ? ARKUI_CURVE_EASE : ARKUI_CURVE_LINEAR},
         {.i32 = enableDefaultSpringAnimation},  // whether to enable the default spring animation
         {.i32 = 1}                              // whether scrolling can cross the boundary
     };

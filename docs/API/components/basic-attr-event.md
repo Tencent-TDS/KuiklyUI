@@ -365,7 +365,7 @@ internal class AlphaPage : BasePager() {
 
 ### transform方法
 
-设置组件的缩放scale，旋转rotate，位移translate和transform动作的中心点anchor。transform方法参数对象为:
+设置组件的缩放scale，旋转rotate，位移translate，倾斜skew和transform动作的中心点anchor。transform方法参数对象为:
 
 * Rotate
 
@@ -373,9 +373,11 @@ internal class AlphaPage : BasePager() {
 
 <div class="table-01">
 
-| 参数        | 描述      | 类型
-|:----------|:--------|:----------------| 
-| angle | 顺时针旋转角度 | Float           |
+| 参数     | 描述                                              | 类型  |
+|:-------|:------------------------------------------------|:----|
+| angle  | 围绕z轴旋转角度，属于2D平面旋转，取值范围[-360, 360]                | Float |
+| xAngle | 围绕x轴旋转角度，属于3D旋转，取值范围[-360, 360]                  | Float |
+| yAngle | 围绕y轴旋转角度，属于3D旋转，取值范围[-360, 360]                  | Float |
 
 </div>
 
@@ -392,7 +394,7 @@ internal class RotatePage : BasePager() {
                 allCenter()
             }
 
-            View { // 默认可见
+            View {
                 attr {
                     size(100f, 100f)
                     backgroundColor(Color.GREEN)
@@ -418,10 +420,10 @@ internal class RotatePage : BasePager() {
 
 <div class="table-01">
 
-| 参数  | 描述     | 类型
-|:----|:-------|:----------------| 
-| x   | x轴缩放系数 | Float           |
-| y   | y轴缩放系数 | Float           |
+| 参数 | 描述                   | 类型    |
+|:---|:---------------------|:------|
+| x  | x轴缩放系数，取值范围[0, max]  | Float |
+| y  | y轴缩放系数，取值范围[0, max]  | Float |
 
 </div>
 
@@ -438,7 +440,7 @@ internal class ScalePage : BasePager() {
                 allCenter()
             }
 
-            View { // 默认可见
+            View {
                 attr {
                     size(100f, 100f)
                     backgroundColor(Color.GREEN)
@@ -464,10 +466,12 @@ internal class ScalePage : BasePager() {
 
 <div class="table-01">
 
-| 参数  | 描述                              | 类型
-|:----|:--------------------------------|:----------------| 
-| percentageX   | 在X轴上, 相对自身宽度位移的百分比. 取值范围[-1, 1] | Float           |
-| percentageY   | 在Y轴上, 相对自身高度位移百分比，取值范围[-1, 1]   | Float           |
+| 参数         | 描述                                                                   | 类型    |
+|:-----------|:---------------------------------------------------------------------|:------|
+| percentageX | 在X轴上，相对自身宽度位移的百分比（例如-0.5f表示向左偏移50%，2表示向右偏移200%）        | Float |
+| percentageY | 在Y轴上，相对自身高度位移的百分比（例如-0.5f表示向上偏移50%，2表示向下偏移200%）        | Float |
+| offsetX | （可选）在percentageX的结果上增加的偏移量，单位dp                           | Float |
+| offsetY | （可选）在percentageY的结果上增加的偏移量，单位dp                           | Float |
 
 </div>
 
@@ -484,11 +488,11 @@ internal class TransformPage : BasePager() {
                 allCenter()
             }
 
-            View { // 默认可见
+            View {
                 attr {
                     size(100f, 100f)
                     backgroundColor(Color.GREEN)
-                    // 往右移动100f, 往下移动100f
+                    // 往右移动自身宽度的100%, 往下移动自身高度的100%
                     transform(translate = Translate(1f, 1f))
                 }
             }
@@ -505,18 +509,74 @@ internal class TransformPage : BasePager() {
 
 :::
 
-* Anchor
+* Skew
 
-设置组件做Transform时, 中心点的位置
+设置组件的倾斜变换
+
+:::warning 注意
+- 正数表示逆时针倾斜，负数表示顺时针倾斜
+- 当倾斜角度达到90度时，元素将变得无法看见，因为其宽度或高度将变为0
+:::
 
 <div class="table-01">
 
-| 参数  | 描述                                     | 类型
-|:----|:---------------------------------------|:----------------| 
-| x   | 在X轴上的中心位置, 相对自身组件的宽度的百分比位置 取值范围[-1, 1] | Float           |
-| y   | 在Y轴上的中心位置, 相对自身组件高度的百分比位置，取值范围[-1, 1]  | Float           |
+| 参数                  | 描述                              | 类型    |
+|:--------------------|:--------------------------------|:------|
+| horizontalSkewAngle | 水平方向倾斜角度，取值范围(-90, 90)，单位为角度 | Float |
+| verticalSkewAngle   | 垂直方向倾斜角度，取值范围(-90, 90)，单位为角度 | Float |
 
 </div>
+
+:::tabs
+
+@tab:active 示例
+
+```kotlin{13}
+@Page("demo_page")
+internal class SkewPage : BasePager() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                allCenter()
+            }
+
+            View {
+                attr {
+                    size(100f, 100f)
+                    backgroundColor(Color.GREEN)
+                    transform(skew = Skew(15f, 0f)) // 水平方向倾斜15度
+                }
+            }
+        }
+    }
+}
+```
+
+:::
+
+* Anchor
+
+设置组件做Transform时的中心点位置，默认值为(0.5f, 0.5f)，即组件中心
+
+<div class="table-01">
+
+| 参数 | 描述                                    | 类型    |
+|:---|:--------------------------------------|:------|
+| x  | 在X轴上的中心位置，相对自身组件宽度的百分比位置，取值范围[0, 1]  | Float |
+| y  | 在Y轴上的中心位置，相对自身组件高度的百分比位置，取值范围[0, 1]  | Float |
+
+</div>
+
+* 组合使用
+
+transform方法支持同时设置多个变换属性：
+
+```kotlin
+transform(
+    scale = Scale(1.5f, 1.5f),     // 放大1.5倍
+    translate = Translate(0.5f, 0.5f)  // 位移
+)
+```
 
 ### zIndex方法
 

@@ -213,6 +213,18 @@
             // 删除原来文件
             [[NSFileManager defaultManager] removeItemAtPath:filePath error:nil];
         }
+        
+        // 同时读取并删除额外缓存内容文件
+        NSString *extraCacheKey = [self extraCacheKeyFromMainCacheKey:cacheKey];
+        NSString *extraFilePath = [[self cacheRootPath] stringByAppendingPathComponent:extraCacheKey];
+        if ([[NSFileManager defaultManager] fileExistsAtPath:extraFilePath]) {
+            NSData *extraData = [NSData dataWithContentsOfFile:extraFilePath];
+            if (extraData) {
+                cacheData.extraCacheContent = [[NSString alloc] initWithData:extraData encoding:NSUTF8StringEncoding];
+            }
+            // 删除额外缓存文件
+            [[NSFileManager defaultManager] removeItemAtPath:extraFilePath error:nil];
+        }
        
     } @catch (NSException *exception) {
         [KRLogModule logError:[NSString stringWithFormat:@"An exception occurred when unarchived Node Data:%@ key:%@", exception, cacheKey]];
@@ -238,6 +250,58 @@
         }
     }
     return turboDisplayDirectory;
+}
+
+#pragma mark - Extra Cache Content
+
+- (NSString *)extraCacheKeyFromMainCacheKey:(NSString *)mainCacheKey {
+    // kuikly_turbo_display_9xxx.data -> kuikly_turbo_display_extra_xxx.json
+    NSString *hash = [mainCacheKey stringByReplacingOccurrencesOfString:@"kuikly_turbo_display_9" withString:@""];
+    hash = [hash stringByReplacingOccurrencesOfString:@".data" withString:@""];
+    return [NSString stringWithFormat:@"kuikly_turbo_display_extra_%@.json", hash];
+}
+
+- (void)cacheWithViewNode:(KRTurboDisplayNode *)viewNode cacheKey:(NSString *)cacheKey extraCacheContent:(NSString *)extraCacheContent {
+    // 1. 缓存节点树（复用现有逻辑）
+    [self cacheWithViewNode:viewNode cacheKey:cacheKey];
+    
+    // 2. 缓存额外内容到独立文件
+    if (extraCacheContent.length > 0) {
+        [KuiklyRenderThreadManager performOnLogQueueWithBlock:^{
+            @try {
+                [self.fileLock lock];
+                NSString *extraKey = [self extraCacheKeyFromMainCacheKey:cacheKey];
+                NSString *filePath = [[self cacheRootPath] stringByAppendingPathComponent:extraKey];
+                NSData *data = [extraCacheContent dataUsingEncoding:NSUTF8StringEncoding];
+                BOOL success = [data writeToFile:filePath atomically:YES];
+            } @catch (NSException *exception) {
+                [KRLogModule logError:[NSString stringWithFormat:@"An exception occurred when caching extra content:%@ key:%@", exception, cacheKey]];
+            } @finally {
+                [self.fileLock unlock];
+            }
+        }];
+    }
+}
+
+- (NSString *)extraCacheContentWithCacheKey:(NSString *)cacheKey {
+    NSString *extraContent = nil;
+    @try {
+        [self.fileLock lock];
+        NSString *extraCacheKey = [self extraCacheKeyFromMainCacheKey:cacheKey];
+        NSString *extraFilePath = [[self cacheRootPath] stringByAppendingPathComponent:extraCacheKey];
+        
+        if ([[NSFileManager defaultManager] fileExistsAtPath:extraFilePath]) {
+            NSData *extraData = [NSData dataWithContentsOfFile:extraFilePath];
+            if (extraData) {
+                extraContent = [[NSString alloc] initWithData:extraData encoding:NSUTF8StringEncoding];
+            }
+        }
+    } @catch (NSException *exception) {
+        [KRLogModule logError:[NSString stringWithFormat:@"An exception occurred when reading extra cache content:%@ key:%@", exception, cacheKey]];
+    } @finally {
+        [self.fileLock unlock];
+    }
+    return extraContent;
 }
 
 @end

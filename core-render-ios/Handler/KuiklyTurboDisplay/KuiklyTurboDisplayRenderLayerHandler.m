@@ -27,6 +27,7 @@
 #import "KRTurboDisplayDiffPatch.h"
 #import "KuiklyRenderThreadManager.h"
 #import "KRTurboDisplayModule.h"
+#import "KRTurboDisplayStateRestorableProtocol.h"
 
 #define ROOT_VIEW_NAME @"RootView"
 
@@ -63,8 +64,8 @@
 @implementation KuiklyTurboDisplayRenderLayerHandler {
     BOOL _didCloseTurboDisplayRenderingMode;
     NSString *_turboDisplayKey;
-    // 关闭自动更新TurboDisplay, 由业务来主动设置首屏更新时机
-    BOOL _closeAutoUpdateTurboDisplay;
+    BOOL _closeAutoUpdateTurboDisplay;      // 关闭自动更新TurboDisplay, 由业务来主动设置首屏更新时机
+    NSString *_extraCacheContent;           // 额外缓存内容（JSON字符串）
 }
 
 #pragma mark - KuiklyRenderLayerProtocol
@@ -83,50 +84,56 @@
         _realRootNode = [[KRTurboDisplayNode alloc] initWithTag:KRV_ROOT_VIEW_TAG viewName:ROOT_VIEW_NAME];
         _realNodeMap[KRV_ROOT_VIEW_TAG] = _realRootNode;
         
-        // TurboDisplayModule驱动 - 强制刷新TB缓存
+        // 新增：在init时机，读取业务自定义的缓存内容
+        _extraCacheContent = [[KRTurboDisplayCacheManager sharedInstance] extraCacheContentWithCacheKey:self.turboDisplayCacheKey];
+        
+        // 更新 TurboDisplayModuleMethod 强制刷新TurboDispla缓存
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(onReceiveSetCurrentUINotification:)
                                                      name:kSetCurrentUIAsFirstScreenForNextLaunchNotificationName object:rootView];
+        // TurboDisplayModuleMethod 强制关闭本地TurboDispla缓存
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(onReceiveCloseTurboDisplayNotification:)
                                                      name:kCloseTurboDisplayNotificationName object:rootView];
-        // 新增：TurboDisplayModule驱动 - 强制清除TB缓存
+        // 新增：TurboDisplayModuleMethod 强制清除当前已有的TurboDispla缓存
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(onReceiveClearCurrentPageCacheNotification:)
                                                      name:kClearCurrentPageCacheNotificationName object:rootView];
-        
-        NSLog(@"【TurboDisplay-init】初始化完成 pageName:%@ turboDisplayKey:%@", contextParam.pageName, turboDisplayKey);
-        
     }
     return self;
 }
 
 #pragma mark - public
 
+/// TurboDisplay机制 入口函数
 - (void)didInit {
-    // 1 TB缓存读取 + 自定义Tag读取
+    // TB缓存读取
     double readBeginTime = CFAbsoluteTimeGetCurrent();
     _turboDisplayCacheData = [[KRTurboDisplayCacheManager sharedInstance] nodeWithCachKey:self.turboDisplayCacheKey];
     if ([_turboDisplayCacheData.turboDisplayNode isKindOfClass:[KRTurboDisplayNode class]]) {
-        _lazyRendering = YES; // 有TurboDisplay才会进行懒渲染
+        _lazyRendering = YES;       // 存在TB缓存，更新懒渲染标志
         KRTurboDisplayModule *module = (KRTurboDisplayModule *)[_renderLayerHandler moduleWithName:NSStringFromClass([KRTurboDisplayModule class])];
         module.firstScreenTurboDisplay = YES;
     }
     double readTurboFileCostTime = (CFAbsoluteTimeGetCurrent() - readBeginTime) * 1000.0;
-    // 2 业务真实首屏上屏触发（执行第二次diff-view，采用延迟diff后会分为「回放事件」和「属性更新」两次diff-view）
+    
+    // 注入业务真实首屏diff任务，执行第二次Diff-view
     KR_WEAK_SELF
     [_uiScheduler performWhenViewDidLoadWithTask:^{
-        // 首帧之后去diff两棵树patch差量渲染指令更新到渲染器
-        [weakSelf diffPatchToRenderLayer];
+        [weakSelf diffPatchToRenderLayer];  // 首帧之后去diff两棵树patch差量渲染指令更新到渲染器
     }];
-    // 3 懒加载业务首屏，优先渲染TB首屏（执行第一次diff-view，不采用延迟diff）
+    
+    // 懒加载TB首屏，执行第一次Diff-view
     if (_lazyRendering) {
         [_uiScheduler markViewDidLoad];
-        // 渲染TurboDisplay首屏
         double renderBeginTime = CFAbsoluteTimeGetCurrent();
-        [self renderTurboDisplayNodeToRenderLayerWithNode:self.turboDisplayCacheData.turboDisplayNode];
+        
+        [self renderTurboDisplayNodeToRenderLayerWithNode:self.turboDisplayCacheData.turboDisplayNode];     // 加载TB首屏
+        [self applyExtraCacheContentToViews];       // 应用额外缓存内容到对应View（如ListView的offset）
+        
         UIView *view = (UIView *)[_renderLayerHandler viewWithTag:self.turboDisplayCacheData.turboDisplayNode.children.firstObject.tag];
         [view.superview layoutIfNeeded]; // 为了触发contentViewDidLoad首屏渲染完成
+        
         double renderCostTime = (CFAbsoluteTimeGetCurrent() - renderBeginTime) * 1000.0f;
         NSString *log = [NSString stringWithFormat:@"page_name:%@ turbo_display render cost_time %.2lfms readTurboFileCostTime: %.2lfms :%d", _contextParam.pageName, renderCostTime, readTurboFileCostTime, _lazyRendering];
         [KRLogModule logInfo:log];
@@ -147,7 +154,7 @@
         _realNodeMap[tag] = node;
         [self setNeedUpdateNextTurboDisplayRootNode];
         [self addTaskOnNextLoopMainQueueWihTask:^{
-            node.addViewMethodDisable = YES;  // only save one frame   这里是否需要调整？？？
+            node.addViewMethodDisable = YES;  // only save one frame
         }];
     }
     if (!_lazyRendering) {
@@ -184,7 +191,7 @@
 
 - (void)setPropWithTag:(NSNumber *)tag propKey:(NSString *)propKey propValue:(id)propValue {
     
-    /// valo view粒度的结构变化捕捉的开关，要在这里就先给识别出来，然后在这里就直接设置给TurboDisplayNode
+    /// toDo：valo view粒度的结构变化捕捉的开关，要在这里就先给识别出来，然后在这里就直接设置给TurboDisplayNode
     if (_realNodeMap) {
         KRTurboDisplayNode *node = _realNodeMap[tag];
         [node setPropWithKey:propKey propValue:propValue];
@@ -339,29 +346,48 @@
  * @brief 收到手势响应时调用
  */
 - (void)didHitTest {
-    // 收到手势，不在自动更新
-//    if (_nextTurboDisplayRootNode) {
-//        [self updateNextTurboDisplayRootNodeIfNeed];
-//        _closeAutoUpdateTurboDisplay = YES;
-//        _nextTurboDisplayRootNode = nil;
-//    }
+    // 收到手势，关闭自动更新
+    if (_nextTurboDisplayRootNode) {
+        [self updateNextTurboDisplayRootNodeIfNeed];
+        _closeAutoUpdateTurboDisplay = YES;
+        _nextTurboDisplayRootNode = nil;
+    }
 }
 
 #pragma mark - notification
-/// valo强制刷新缓存，暂时替换了写法，使用 diff-DOM
+// 强制刷新TB缓存
 - (void)onReceiveSetCurrentUINotification:(NSNotification *)notification {
     if (!_realRootNode) {
-        return ;
+        return;
     }
-    _closeAutoUpdateTurboDisplay = YES;// 已经被主动更新了，所以关闭
+    _closeAutoUpdateTurboDisplay = YES; // 已经被主动更新了，所以关闭
     
+    // 获取额外缓存内容
+    NSString *extraCacheContent = nil;
+    if (notification.userInfo && [notification.userInfo isKindOfClass:[NSDictionary class]]) {
+        NSString *paramStr = notification.userInfo[@"param"];
+        NSDictionary *dict = [paramStr hr_stringToDictionary];
+        id content = dict[@"extraCacheContent"];
+        
+        if ([content isKindOfClass:[NSString class]] && [(NSString *)content length] > 0) {
+            extraCacheContent = (NSString *)content;
+        }
+    }
+    
+    // 优化强刷缓存的逻辑：从直接全量deepcopy真树树 到 基于diff-DOM 对比当前的「真实树」捕捉结构变化更新「快照树」
+    KRTurboDisplayNode *nodeToCache = nil;
     if (_nextTurboDisplayRootNode) {
         [KRTurboDisplayDiffPatch onlyUpdateWithTargetNodeTree:_nextTurboDisplayRootNode fromNodeTree:_realRootNode];
-        [[KRTurboDisplayCacheManager sharedInstance] cacheWithViewNode:[_nextTurboDisplayRootNode deepCopy] cacheKey:self.turboDisplayCacheKey];
+        nodeToCache = [_nextTurboDisplayRootNode deepCopy];
     } else {
         // 如果快照树不存在，则直接deepCopy真实树
-        [[KRTurboDisplayCacheManager sharedInstance] cacheWithViewNode:[_realRootNode deepCopy] cacheKey:self.turboDisplayCacheKey];
+        nodeToCache = [_realRootNode deepCopy];
     }
+    
+    // 写入TB缓存 + extraCacheContent
+    [[KRTurboDisplayCacheManager sharedInstance] cacheWithViewNode:nodeToCache
+                                                          cacheKey:self.turboDisplayCacheKey
+                                                 extraCacheContent:extraCacheContent];
 }
 
 - (void)onReceiveCloseTurboDisplayNotification:(NSNotification *)notification {
@@ -377,6 +403,7 @@
 }
 
 
+
 #pragma mark - TurboDisplay rendering
 // TurboDisplay首屏渲染到渲染器
 - (void)renderTurboDisplayNodeToRenderLayerWithNode:(KRTurboDisplayNode *)node {
@@ -387,28 +414,96 @@
     [KRTurboDisplayDiffPatch diffPatchToRenderingWithRenderLayer:_renderLayerHandler oldNodeTree:nil newNodeTree:node];
 }
 
+/**
+ * @brief 应用额外缓存内容到对应的View（恢复状态）
+ * extraCacheContent 格式：{ "tag": { "viewName": "xxx", "propKey": propValue, ... } }
+ * 注意：extraCacheContent 中的 tag 是业务原始 tag（正数），需要格式化为负数才能匹配 TB 首屏的 View
+ */
+- (void)applyExtraCacheContentToViews {
+    if (!_extraCacheContent.length) {
+        return;
+    }
+    
+    @try {
+        NSDictionary *extraDict = [_extraCacheContent hr_stringToDictionary];
+        if (![extraDict isKindOfClass:[NSDictionary class]]) {
+            return;
+        }
+        
+        for (NSString *tagStr in extraDict.allKeys) {
+            NSDictionary *viewProps = extraDict[tagStr];
+            if (![viewProps isKindOfClass:[NSDictionary class]]) {
+                continue;
+            }
+            
+            // 业务原始 tag（正数）需要格式化为负数，与 TB 缓存的 tag 格式保持一致
+            NSInteger originalTag = [tagStr integerValue];
+            NSNumber *formattedTag;
+            if (originalTag >= 0) {
+                formattedTag = @(-(originalTag + 2));
+            } else {
+                formattedTag = @(originalTag);
+            }
+            
+            UIView *view = (UIView *)[_renderLayerHandler viewWithTag:formattedTag];
+            if (!view) {
+                continue;
+            }
+            
+            if ([view conformsToProtocol:@protocol(KRTurboDisplayStateRestorableProtocol)]) {
+                NSMutableDictionary *props = [viewProps mutableCopy];
+                [props removeObjectForKey:@"viewName"];
+                [(id<KRTurboDisplayStateRestorableProtocol>)view applyTurboDisplayExtraCacheContent:props];
+            } else {
+                [KRLogModule logInfo:[NSString stringWithFormat:@"【TurboDisplay-恢复状态】view 未实现 KRTurboDisplayStateRestorableProtocol 协议"]];
+            }
+        }
+    } @catch (NSException *exception) {
+        [KRLogModule logError:[NSString stringWithFormat:@"applyExtraCacheContentToViews error: %@", exception]];
+    }
+}
+
 
 #pragma mark - diff to rendering
-
-// diff两棵树patch差量渲染指令更新到渲染器
+// diff两棵树patch差量渲染指令更新到渲染器 （第二次diff-view执行）
 - (void)diffPatchToRenderLayer {
-    // 操作1：开启后续的diff-DOM
+    // 自动刷新任务注册，开启后续的diff-DOM
     if (_realRootNode && !_nextTurboDisplayRootNode) {
-        // 真首屏节点保持一份原型作为更新目标树,该树作为下次启动首屏
         _nextTurboDisplayRootNode = [_realRootNode deepCopy];
         [self setNeedUpdateNextTurboDisplayRootNode];
     }
     
-    // 操作2：执行业务首屏的 diff-view（延迟 Diff 模式）
+    // 执行业务首屏的 diff-view，根据开关选择模式
     if (self.turboDisplayCacheData.turboDisplayNode && _realRootNode) {
-        [KRTurboDisplayDiffPatch delayedDiffPatchToRenderingWithRenderLayer:_renderLayerHandler
-                                                                oldNodeTree:self.turboDisplayCacheData.turboDisplayNode
-                                                                newNodeTree:_realRootNode];
+        KRSecondDiffMode mode = [KRTurboDisplayDiffPatch secondDiffMode];
+        
+        if (mode == KRSecondDiffModeDelayed) {
+            // 延迟模式（新机制）
+            [KRTurboDisplayDiffPatch delayedDiffPatchToRenderingWithRenderLayer:_renderLayerHandler
+                                                                    oldNodeTree:self.turboDisplayCacheData.turboDisplayNode
+                                                                    newNodeTree:_realRootNode
+                                                                     completion:^{
+                // 回调关闭懒加载标志
+                self->_lazyRendering = NO;
+                [self rewriteTurboDisplayRootNodeIfNeed];
+                self.turboDisplayCacheData = nil;
+            }];
+        } else {
+            // 经典模式（旧机制）：使用带 diffPolicy 的方法，传入 KRCacheFirstScreenDiff 表示全量 diff
+            [KRTurboDisplayDiffPatch diffPatchToRenderingWithRenderLayer:_renderLayerHandler
+                                                             oldNodeTree:self.turboDisplayCacheData.turboDisplayNode
+                                                             newNodeTree:_realRootNode
+                                                              diffPolicy:KRCacheFirstScreenDiff];
+            // 同步关闭懒加载标志
+            _lazyRendering = NO;
+            [self rewriteTurboDisplayRootNodeIfNeed];
+            self.turboDisplayCacheData = nil;
+        }
+    } else {
+        _lazyRendering = NO;
+        [self rewriteTurboDisplayRootNodeIfNeed];
+        self.turboDisplayCacheData = nil;
     }
-    _lazyRendering = NO;
-    // 证明成功可以回写，如果文件不存在的话
-    [self rewriteTurboDisplayRootNodeIfNeed];
-    self.turboDisplayCacheData = nil;
 }
 
 - (void)rewriteTurboDisplayRootNodeIfNeed {
@@ -481,6 +576,10 @@
 
 
 #pragma mark - getter
+
+- (NSString *)extraCacheContent {
+    return _extraCacheContent;
+}
 
 - (NSString *)turboDisplayCacheKey {
     if (!_turboDisplayCacheKey) {

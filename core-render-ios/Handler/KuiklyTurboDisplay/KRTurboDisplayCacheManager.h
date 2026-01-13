@@ -55,12 +55,33 @@ NS_ASSUME_NONNULL_BEGIN
  */
 - (void)cacheWithViewNodeData:(NSData *)nodeData cacheKey:(NSString *)cacheKey;
 
+/*
+ * @brief 缓存node + 额外缓存内容
+ * @param extraCacheContent 额外缓存内容（JSON字符串），格式为 { "tag": { "viewName": "xxx", ... } }
+ */
+- (void)cacheWithViewNode:(KRTurboDisplayNode *)viewNode cacheKey:(NSString *)cacheKey extraCacheContent:(NSString * _Nullable)extraCacheContent;
+
+/*
+ * @brief 获取额外缓存内容的cacheKey（基于主缓存key派生额外属性缓存时用的key）
+ */
+- (NSString *)extraCacheKeyFromMainCacheKey:(NSString *)mainCacheKey;
+
+/**
+ * @brief 仅读取额外缓存内容（轻量级，用于initView时机）
+ * @param cacheKey 缓存key
+ * @return 额外缓存内容JSON字符串，不存在则返回nil
+ * @note 此方法不会删除缓存文件，删除操作在nodeWithCachKey:中统一处理
+ */
+- (nullable NSString *)extraCacheContentWithCacheKey:(NSString *)cacheKey;
+
 @end
 
 @interface KRTurboDisplayCacheData : NSObject
 
 @property (nonatomic, strong, nullable) KRTurboDisplayNode *turboDisplayNode;
 @property (nonatomic, strong, nullable) NSData *turboDisplayNodeData;
+/** 额外缓存内容（JSON字符串），用于存储业务自定义的View属性（如ListView的offset） */
+@property (nonatomic, strong, nullable) NSString *extraCacheContent;
 
 @end
 

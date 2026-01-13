@@ -24,14 +24,13 @@ NSString *const kClearCurrentPageCacheNotificationName = @"kClearCurrentPageCach
 
 /**
  * 下次启动设置当前 UI 作为首屏(call by kotlin)
+ * @param args 参数字典，可包含 extraCacheContent 用于传递额外缓存内容（如 ListView 的 offset）
  */
 - (void)setCurrentUIAsFirstScreenForNextLaunch:(NSDictionary *)args {
-    NSLog(@"【TurboDisplay-setCurrentUIAsFirstScreenForNextLaunch】开始设置当前UI为下次首屏");
     dispatch_async(dispatch_get_main_queue(), ^{
         [[NSNotificationCenter defaultCenter] postNotificationName:kSetCurrentUIAsFirstScreenForNextLaunchNotificationName
                                                             object:self.hr_rootView
-                                                          userInfo:nil];
-        NSLog(@"【TurboDisplay-setCurrentUIAsFirstScreenForNextLaunch】通知已发送");
+                                                          userInfo:args];
     });
 }
 
@@ -39,10 +38,8 @@ NSString *const kClearCurrentPageCacheNotificationName = @"kClearCurrentPageCach
  * 关闭TurboDisplay模式
  */
 - (void)closeTurboDisplay:(NSDictionary *)args {
-    NSLog(@"【TurboDisplay-closeTurboDisplay】关闭TurboDisplay模式");
     dispatch_async(dispatch_get_main_queue(), ^{
         [[NSNotificationCenter defaultCenter] postNotificationName:kCloseTurboDisplayNotificationName object:self.hr_rootView userInfo:nil];
-        NSLog(@"【TurboDisplay-closeTurboDisplay】通知已发送");
     });
 }
 
@@ -51,7 +48,6 @@ NSString *const kClearCurrentPageCacheNotificationName = @"kClearCurrentPageCach
  */
 - (NSString *)isTurboDisplay:(NSDictionary *)args {
     NSString *result = self.firstScreenTurboDisplay ? @"1" : @"0";
-    NSLog(@"【TurboDisplay-isTurboDisplay】查询结果: %@", result);
     return result;
 }
 
@@ -59,19 +55,15 @@ NSString *const kClearCurrentPageCacheNotificationName = @"kClearCurrentPageCach
  * 强制清除所有TurboDisplay缓存文件
  */
 - (void)clearAllCache:(NSDictionary *)args {
-    NSLog(@"【TurboDisplay-clearAllCache】开始清除所有缓存");
     [[KRTurboDisplayCacheManager sharedInstance] removeAllTurboDisplayCacheFiles];
-    NSLog(@"【TurboDisplay-clearAllCache】所有缓存已清除");
 }
 
 /**
  * 强制清除当前页面的TurboDisplay缓存
  */
 - (void)clearCurrentPageCache:(NSDictionary *)args {
-    NSLog(@"【TurboDisplay-clearCurrentPageCache】开始清除当前页面缓存");
     dispatch_async(dispatch_get_main_queue(), ^{
         [[NSNotificationCenter defaultCenter] postNotificationName:kClearCurrentPageCacheNotificationName object:self.hr_rootView userInfo:nil];
-        NSLog(@"【TurboDisplay-clearCurrentPageCache】通知已发送");
     });
 }
 

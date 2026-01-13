@@ -18,12 +18,34 @@
 #import "KRLogModule.h"
 #import "UIView+CSS.h"
 #import "KuiklyRenderThreadManager.h"
+#import "KRTurboDisplayConfig.h"
 
 #define SCROLL_VIEW @"KRScrollContentView"
 
 @implementation KRTurboDisplayDiffPatch
 
 static UIView *gBaseView = nil;
+static KRSecondDiffMode gSecondDiffMode = KRSecondDiffModeClassic; // 默认使用经典模式（保留兼容）
+
+#pragma mark - 全局开关（兼容旧 API，内部同步到 KRTurboDisplayConfig）
+
++ (void)setSecondDiffMode:(KRSecondDiffMode)mode {
+    gSecondDiffMode = mode;
+    // 同步到新的配置类
+    if (mode == KRSecondDiffModeDelayed) {
+        [KRTurboDisplayConfig sharedConfig].delayedDiffMode = KRDelayedDiffModeEnabled;
+    } else {
+        [KRTurboDisplayConfig sharedConfig].delayedDiffMode = KRDelayedDiffModeDisabled;
+    }
+}
+
++ (KRSecondDiffMode)secondDiffMode {
+    // 优先从新的配置类读取
+    if ([KRTurboDisplayConfig sharedConfig].isDelayedDiffEnabled) {
+        return KRSecondDiffModeDelayed;
+    }
+    return gSecondDiffMode;
+}
 
 + (void)diffPatchToRenderingWithRenderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer
                                 oldNodeTree:(KRTurboDisplayNode *)oldNodeTree
@@ -138,7 +160,7 @@ static UIView *gBaseView = nil;
     if (!node) {
         return ;
     }
-    if ([node.tag  isEqual: KRV_ROOT_VIEW_TAG]) { // 根节点不需要创建渲染视图
+    if ([node.tag isEqual: KRV_ROOT_VIEW_TAG]) { // 根节点不需要创建渲染视图
         // 根节点需要同步Module方法调用（因为仅有根节点用来缓存记录module方法调用）
         for (KRTurboDisplayNodeMethod *method in node.callMethods) {
             if (method.type == KRTurboDisplayNodeMethodTypeModule) { // 仅有rootNode才会有这个module调用记录，这里为了统一
@@ -148,7 +170,6 @@ static UIView *gBaseView = nil;
     } else {
         [renderLayer createRenderViewWithTag:node.tag viewName:node.viewName];
     }
-    // TB首屏时
     [self updateRenderViewWithCurNode:nil newNode:node renderLayer:renderLayer hasParent:NO diffPolicy:diffPolicy];
     // 递归给子孩子创建渲染
     if (node.hasChild) {
@@ -292,26 +313,72 @@ static UIView *gBaseView = nil;
 
 
 /**
- * @brief 保留目标树结构，仅更新目标树属性信息
- * @param targetNodeTree 被更新的目标树
- * @param fromNodeTree 更新的来源树
+ * @brief 基于真实树，更新快照树节点属性的同时，将结构变化也更新至快照树
+ * @param targetNodeTree 被更新的快照树
+ * @param fromNodeTree 真实树
  * @return 是否有发生更新
+ * @note 根据 KRTurboDisplayConfig.diffDOMMode 决定是否支持结构变化
  */
 + (BOOL)onlyUpdateWithTargetNodeTree:(KRTurboDisplayNode *)targetNodeTree fromNodeTree:(KRTurboDisplayNode *)fromNodeTree {
     BOOL hasUpdate = NO;
-    if ([self canReuseNode:targetNodeTree newNode:fromNodeTree fromUpdateNode:YES]) { // 是否同结构节点，才进行更新
+    BOOL isStructureAwareEnabled = [KRTurboDisplayConfig sharedConfig].isDiffDOMStructureAwareEnabled;
+    
+    // 快照树 与 真实树
+    if ([self canReuseNode:targetNodeTree newNode:fromNodeTree fromUpdateNode:YES]) {
+        // 保持旧的动作：更新当前节点的属性
         if ([self updateNodeWithTargetNode:targetNodeTree fromNode:fromNodeTree]) {
             hasUpdate = YES;
         }
-        if ([self updateChildrenWithTargetNode:targetNodeTree fromNode:fromNodeTree]) {
-            hasUpdate = YES;
+        
+        if (isStructureAwareEnabled) {
+            // 新模式：更新节点children数量是否发生变化（支持结构变化）
+            if ([self structUpdateChildrenWithTargetNode:targetNodeTree fromNode:fromNodeTree]) {
+                hasUpdate = YES;
+            }
+        } else {
+            // 旧模式：仅递归更新已有的子节点属性，不处理结构变化
+            if ([self legacyUpdateChildrenWithTargetNode:targetNodeTree fromNode:fromNodeTree]) {
+                hasUpdate = YES;
+            }
         }
     } else {
-        // 结构不同，全量替换「快照树」此位置节点的内容
-        // 过去是这里没有额外的操作，如果不可复用，则此位置的值就不更新了
-        [self replaceNodeContentWithTargetNode:targetNodeTree fromNode:fromNodeTree];
-        hasUpdate = YES;
+        if (isStructureAwareEnabled) {
+            // 新模式：结构不同，全量替换「快照树」此位置节点的内容
+            [self structReplaceNodeContentWithTargetNode:targetNodeTree fromNode:fromNodeTree];
+            hasUpdate = YES;
+        }
+        // 旧模式：不可复用则不更新（保持原有行为）
     }
+    return hasUpdate;
+}
+
+/**
+ * @brief 旧模式：仅递归更新已有的子节点属性，不处理结构变化
+ */
++ (BOOL)legacyUpdateChildrenWithTargetNode:(KRTurboDisplayNode *)targetNode fromNode:(KRTurboDisplayNode *)fromNode {
+    BOOL hasUpdate = NO;
+    
+    NSMutableArray *targetChildren = targetNode.children;
+    NSArray *fromChildren = fromNode.children;
+    
+    // 可滚动容器的操作和原来保持不变
+    BOOL isScrollView = [targetNode.viewName isEqualToString:SCROLL_VIEW];
+    if (isScrollView) {
+        targetChildren = [[self sortScrollIndexWithList:targetChildren] mutableCopy];
+        fromChildren = [self sortScrollIndexWithList:fromChildren];
+    }
+    
+    // 按照旧逻辑：只更新已有的子节点，不处理增删
+    int fromIndex = 0;
+    for (int i = 0; i < targetChildren.count; i++) {
+        KRTurboDisplayNode *targetChild = targetChildren[i];
+        KRTurboDisplayNode *fromChild = [self nextNodeForUpdateWithChildern:fromChildren fromIndex:&fromIndex targetNode:targetChild];
+        if (fromChild && [self onlyUpdateWithTargetNodeTree:targetChild fromNodeTree:fromChild]) {
+            hasUpdate = YES;
+        }
+        fromIndex++;
+    }
+    
     return hasUpdate;
 }
 
@@ -367,12 +434,13 @@ static UIView *gBaseView = nil;
 
 
 /**
- * @brief 递归更新子节点（支持结构变化）
+ * @brief 结构感知更新子节点（支持增删改）
  * @param targetNode 目标节点（快照树）
  * @param fromNode 来源节点（真实树）
  * @return 是否有发生更新
+ * @note 新模式方法，在旧方法名前加 struct 前缀
  */
-+ (BOOL)updateChildrenWithTargetNode:(KRTurboDisplayNode *)targetNode fromNode:(KRTurboDisplayNode *)fromNode {
++ (BOOL)structUpdateChildrenWithTargetNode:(KRTurboDisplayNode *)targetNode fromNode:(KRTurboDisplayNode *)fromNode {
     BOOL hasUpdate = NO;
     
     NSMutableArray *targetChildren = targetNode.children;   // 快照树当前节点的子节点数组
@@ -441,11 +509,12 @@ static UIView *gBaseView = nil;
 }
 
 /**
- * @brief 全量替换节点内容（节点不可复用时，执行此操作）
+ * @brief 结构感知全量替换节点内容（节点不可复用时执行）
  * @param targetNode 目标节点（快照树）
  * @param fromNode 来源节点（真实树）
+ * @note 新模式方法，在旧方法名前加 struct 前缀
  */
-+ (void)replaceNodeContentWithTargetNode:(KRTurboDisplayNode *)targetNode fromNode:(KRTurboDisplayNode *)fromNode {
++ (void)structReplaceNodeContentWithTargetNode:(KRTurboDisplayNode *)targetNode fromNode:(KRTurboDisplayNode *)fromNode {
     NSNumber *originParentTag = targetNode.parentTag;
     
 //    targetNode.tag = [fromNode.tag copy];   // 这个我觉得暂时是没有必要的，因为快照树和真实树在比对节点时tag一定是一致的
@@ -474,31 +543,49 @@ static UIView *gBaseView = nil;
     
 }
 
-/// 延迟diff实现，仅仅只是针对第二次的diff-view
+
+
+#pragma mark - Delayed Diff Implementation (延迟模式 - 新机制)
+
+/// 延迟 Diff：分阶段执行，当前帧执行事件回放，渲染指令延迟到跨端侧渲染指令全部到达后执行
 + (void)delayedDiffPatchToRenderingWithRenderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer
                                        oldNodeTree:(KRTurboDisplayNode *)oldNodeTree
-                                       newNodeTree:(KRTurboDisplayNode *)newNodeTree {
-    // 阶段1：当前帧执行 Tag 置换 + 事件回放 + 事件绑定
+                                       newNodeTree:(KRTurboDisplayNode *)newNodeTree
+                                        completion:(dispatch_block_t)completion {
+    // 阶段1：当前帧执行事件回放 + 事件绑定（不执行 Tag 置换）
+    NSLog(@"【TurboDisplay-tree】phase1-before 缓存树:\n%@", [oldNodeTree treeDescription]);
+    NSLog(@"【TurboDisplay-tree】phase1-before 真实树:\n%@", [newNodeTree treeDescription]);
+    
     [self diffPatchToRenderingWithRenderLayer:renderLayer
                                   oldNodeTree:oldNodeTree
                                   newNodeTree:newNodeTree
                               diffPolicy:KRRealFirstScreenDiffEventReplay];
     
+    NSLog(@"【TurboDisplay-tree】phase1-after 缓存树:\n%@", [oldNodeTree treeDescription]);
+    
     // 阶段2：在 Kuikly 线程队列末尾添加任务，等待跨端侧渲染指令全部到达后执行延迟渲染
     [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
-        // 阶段3：回到主线程执行延迟的渲染指令
-        dispatch_async(dispatch_get_main_queue(), ^{
+        // 阶段3：回到主线程执行 Tag 置换 + 属性更新
+        [KuiklyRenderThreadManager performOnMainQueueWithTask:^{
+            NSLog(@"【TurboDisplay-tree】phase3-before 缓存树:\n%@", [oldNodeTree treeDescription]);
+            NSLog(@"【TurboDisplay-tree】phase3-before 真实树:\n%@", [newNodeTree treeDescription]);
+            
             [self diffPatchToRenderingWithRenderLayer:renderLayer
                                           oldNodeTree:oldNodeTree
                                           newNodeTree:newNodeTree
                                            diffPolicy:KRRealFirstScreenDiffPropUpdate];
-        });
+            
+            NSLog(@"【TurboDisplay-tree】phase3-after 缓存树:\n%@", [oldNodeTree treeDescription]);
+            
+            if (completion) {
+                completion();
+            }
+        } sync:YES];
     }];
 }
 
 
-#pragma mark - Internal Diff Implementation
-
+// 带有不同策略的diff-view
 + (void)diffPatchToRenderingWithRenderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer
                                 oldNodeTree:(KRTurboDisplayNode *)oldNodeTree
                                 newNodeTree:(KRTurboDisplayNode *)newNodeTree
@@ -527,7 +614,6 @@ static UIView *gBaseView = nil;
         if (diffPolicy == KRRealFirstScreenDiffEventReplay) {
             return;
         }
-        [KRLogModule logInfo:[NSString stringWithFormat:@"turbo_display un used with old node:%@ new node:%@", oldNodeTree.viewName, newNodeTree.viewName]];
         // 删除渲染视图
         [self removeRenderViewWithNode:oldNodeTree renderLayer:renderLayer];
         // 新建渲染视图
@@ -542,10 +628,13 @@ static UIView *gBaseView = nil;
                           hasParent:(BOOL)hasParent
                     diffPolicy:(KRFirstScreenDiffPolicy)diffPolicy {
     
-    // ========== 阶段1：Tag 置换（必须最先执行）==========
-    if (curNode.tag && newNode.tag && ![newNode.tag isEqual:curNode.tag]) {
-        [renderLayer updateViewTagWithCurTag:curNode.tag newTag:newNode.tag];
-        curNode.tag = newNode.tag;
+    // ========== Tag 置换（仅在非事件回放模式下执行）==========
+    // 核心修复：阶段1（事件回放）不执行 tag 置换，避免真实树变化后状态不一致
+    if (diffPolicy != KRRealFirstScreenDiffEventReplay) {
+        if (curNode.tag && newNode.tag && ![newNode.tag isEqual:curNode.tag]) {
+            [renderLayer updateViewTagWithCurTag:curNode.tag newTag:newNode.tag];
+            curNode.tag = newNode.tag;
+        }
     }
     
     // ========== 阶段2：遍历属性，根据 diffPolicy 决定执行内容 ==========
@@ -553,24 +642,31 @@ static UIView *gBaseView = nil;
         KRTurboDisplayProp *curProp = curNode.props.count > i ? curNode.props[i] : nil;
         KRTurboDisplayProp *newProp = newNode.props.count > i ? newNode.props[i] : nil;
         
+        // 优先执行事件的回放，把原本的diff-view的工作延后到事件回放执行结束之后再执行
         if (newProp.propType == KRTurboDisplayPropTypeEvent) {
             // 事件处理：分为事件回放和事件绑定两部分
             switch (diffPolicy) {
                 case KRCacheFirstScreenDiff:
-                    // 构建临时callback
-                    if (curProp == nil) {
+                    // 经典模式：执行事件回放 + 绑定新事件
+                    if (curProp) {
+                        // 回放缓存的事件到业务真实的 callback
+                        [curProp performLazyEventToCallback:newProp.propValue];
+                    } else {
+                        // 构建临时 callback（用于延迟回放）
                         [newProp lazyEventIfNeed];
                     }
                     [renderLayer setPropWithTag:newNode.tag propKey:newProp.propKey propValue:newProp.propValue];
                     break;
                 case KRRealFirstScreenDiffEventReplay:
-                    if (curProp && curProp.lazyEventCallbackResults.count > 0) {
-                        KREventReplayPolicy policy = [KRTurboDisplayProp replayPolicyForEventKey:newProp.propKey];
-                        [curProp performLazyEventToCallback:newProp.propValue withPolicy:policy];
+                    // 延迟模式阶段1：仅执行事件回放
+                    if (curProp) {
+                        [curProp performLazyEventToCallback:newProp.propValue];
                     }
                     [renderLayer setPropWithTag:newNode.tag propKey:newProp.propKey propValue:newProp.propValue];
                     break;
                 case KRRealFirstScreenDiffPropUpdate:
+                    // 延迟模式阶段3：绑定业务真实的 Event
+                    [renderLayer setPropWithTag:newNode.tag propKey:newProp.propKey propValue:newProp.propValue];
                     break;
             }
         } else if (diffPolicy == KRCacheFirstScreenDiff || diffPolicy == KRRealFirstScreenDiffPropUpdate) {

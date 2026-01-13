@@ -15,6 +15,8 @@
 
 package com.tencent.kuikly.core.module
 
+import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+
 /**
  * @brief TurboDisplay首屏直出渲染模式（通过直接执行二进制产物渲染生成首屏，避免业务代码执行后再生成的首屏等待耗时）
  *        用于首屏直接上屏，彻底告别白屏，极大提升用户体验
@@ -23,9 +25,34 @@ package com.tencent.kuikly.core.module
 class TurboDisplayModule : Module() {
     /**
      * 设置当前UI作为下次页面启动的首屏（该首屏可交互)
+     * @param extraCacheContent 额外缓存内容，格式为 JSON 字符串（可选）
+     *
+     * 格式规范：
+     * {
+     *   "<viewTag>": {
+     *     "viewName": "<组件名称>",  // 必须，用于端侧校验
+     *     "<propKey1>": <propValue1>,
+     *     ...
+     *   }
+     * }
+     *
+     * 示例：
+     * {
+     *   "100": {
+     *     "viewName": "KRListView",
+     *     "contentOffsetX": 0,
+     *     "contentOffsetY": 350.5
+     *   }
+     * }
      */
-    fun setCurrentUIAsFirstScreenForNextLaunch() {
-        asyncToNativeMethod(CURRENT_UI_AS_FIRST_SCREEN, null, null)
+    fun setCurrentUIAsFirstScreenForNextLaunch(extraCacheContent: String? = null) {
+        if (extraCacheContent.isNullOrEmpty()) {
+            asyncToNativeMethod(CURRENT_UI_AS_FIRST_SCREEN, null, null)
+        } else {
+            val params = JSONObject()
+            params.put("extraCacheContent", extraCacheContent)
+            asyncToNativeMethod(CURRENT_UI_AS_FIRST_SCREEN, params, null)
+        }
     }
 
     /**

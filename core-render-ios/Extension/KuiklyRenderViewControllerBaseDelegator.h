@@ -20,6 +20,7 @@
 
 typedef void (^KuiklyContextCodeCallback)(NSString * _Nullable contextCode, NSError * _Nullable error);
 @protocol KRPerformanceDataProtocol;
+@class KRTurboDisplayConfig;
 
 NS_ASSUME_NONNULL_BEGIN
 /** Snapshot页面快照Key. */
@@ -205,6 +206,22 @@ FOUNDATION_EXTERN NSString *const KRPageDataSnapshotKey;
  * @return 返回该页面的TurboDisplayKey（一般可为PageName，若为nil，则为关闭TurboDisplay渲染模式）
  */
 - (NSString * _Nullable)turboDisplayKey;
+
+/*
+ * @brief 配置 TurboDisplay 的全局参数
+ * @discussion 在此方法中可以配置 Diff-DOM 模式、延迟 Diff 模式等
+ *             该方法会在 TurboDisplay 初始化前调用
+ * @param config TurboDisplay 全局配置对象
+ *
+ * 示例用法：
+ * - (void)configureTurboDisplay:(KRTurboDisplayConfig *)config {
+ *     // 启用 Diff-DOM 结构变化支持（默认已启用）
+ *     [config enableDiffDOMStructureAware];
+ *     // 启用延迟 Diff（默认禁用）
+ *     [config enableDelayedDiff];
+ * }
+ */
+- (void)configureTurboDisplay:(KRTurboDisplayConfig *)config;
 
 @end
 

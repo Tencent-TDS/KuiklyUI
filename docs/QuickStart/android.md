@@ -471,3 +471,58 @@ android {
     void setScrollState(int);
 }
 ```
+
+## 附：以View方式接入
+
+除了使用Activity方式接入外，Kuikly还支持以View方式接入，这种方式可以将Kuikly页面嵌入到现有的Activity或Fragment中，更加灵活。
+
+### 与Activity方式的主要不同点
+
+1. **实现Kuikly承载容器**
+   - 创建 `KuiklyRenderViewBaseDelegatorDelegate` 而非 `KuiklyRenderViewBaseDelegator`
+   - 使用 `KuiklyBaseView(Context, KuiklyRenderViewBaseDelegatorDelegate)` 创建实例
+   - 打开Kuikly页面 `kuiklyView.onAttach("", YOUR_PAGE_NAME, YOUR_PAGE_DATA)`
+
+2. **生命周期管理**
+   调用`KuiklyBaseView`的`onResume()`、`onPause()`、`onDetach()`方法
+
+### 代码示例
+
+```kotlin
+class NativeMixKuiklyViewDemoActivity : AppCompatActivity() {
+
+    private var kuiklyView: KuiklyBaseView? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_native_mix_kuikly_view)
+        val rootView = findViewById<ViewGroup>(R.id.root_view)
+        // 实例化Kuikly委托者类
+        val delegate = object : KuiklyRenderViewBaseDelegatorDelegate {
+            // any implement……
+        }
+        // 创建KuiklyBaseView并附加到容器
+        kuiklyView = KuiklyBaseView(this, delegate)
+        // 加载Kuikly页面：contextCode传空字符串，pageName为页面名称，pageData为页面参数
+        kuiklyView?.onAttach("", "router", mapOf())
+        rootView.addView(kuiklyView)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        kuiklyView?.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        kuiklyView?.onResume()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        kuiklyView?.onDetach()
+    }
+}
+```
+
+[完整代码](https://github.com/Tencent-TDS/KuiklyUI/blob/main/androidApp/src/main/java/com/tencent/kuikly/android/demo/NativeMixKuiklyViewDemoActivity.kt)

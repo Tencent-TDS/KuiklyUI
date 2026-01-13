@@ -22,7 +22,7 @@ import kotlin.math.abs
 import kotlin.math.pow
 
 /**
- * 动画配置密封类
+ * 动画配置
  */
 internal sealed class AnimationConfig {
     data class Spring(
@@ -48,13 +48,7 @@ internal sealed class AnimationConfig {
 }
 
 /**
- * 滚动动画管理器（简化版）
- *
- * 设计说明：
- * - RecyclerView 要么垂直滚动，要么水平滚动，不会同时双向滚动
- * - 因此只需要管理一个动画实例，而不是 Map<方向, 动画>
- * - 使用布尔值记录滚动方向即可
- * 
+ * 滚动动画管理器
  * 支持的动画类型：
  * - Spring 弹簧动画：基于物理模拟的弹性动画
  * - Linear 线性动画：匀速滚动动画
@@ -164,11 +158,6 @@ internal class KRScrollAnimationManager(
 
     /**
      * 创建 Spring 动画实例
-     * 
-     * 根据当前滚动方向和用户滑动方向决定是否使用 velocity：
-     * - 如果当前是水平滚动且用户也是水平滑动，使用 velocity
-     * - 如果当前是垂直滚动且用户也是垂直滑动，使用 velocity
-     * - 否则不使用 velocity（避免方向错乱）
      */
     private fun createSpringAnimation(
         distance: Int,
@@ -203,13 +192,7 @@ internal class KRScrollAnimationManager(
     }
 
     /**
-     * 统一的动画设置和启动逻辑
-     * 
-     * 使用增量滚动方式：
-     * 1. 记录已消费的滚动量（consumed）
-     * 2. 每次更新计算增量（delta）
-     * 3. 只滚动整数增量部分
-     * 4. 累加已消费量，避免精度丢失
+     * 动画设置和启动逻辑
      */
     private fun setupAndStartAnimation(animation: KRScrollAnimation) {
         var consumed = 0f
@@ -251,10 +234,6 @@ internal class KRScrollAnimationManager(
 
     /**
      * 启动嵌套滚动（如果需要）
-     * 
-     * 嵌套滚动用于：
-     * - 通知父 View 滚动事件
-     * - 实现协调滚动效果
      */
     private fun startNestedScrollIfNeeded(dx: Int, dy: Int) {
         if (recyclerView !is KRRecyclerView || !recyclerView.isNestScrolling()) {

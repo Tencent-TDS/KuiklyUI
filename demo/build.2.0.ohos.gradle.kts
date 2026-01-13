@@ -23,6 +23,11 @@ kotlin {
                     "-P", "plugin:androidx.compose.compiler.plugins.kotlin:suppressKotlinVersionCompatibilityCheck=true",
                     "-Xcontext-receivers"
                 )
+
+                // 安装包优化
+                val CLANG_OPT_FLAGS = "-Os -mllvm -enable-machine-outliner=always -ffunction-sections"
+                val CLANG_FLAGS = "clangOptFlags.ios_arm64=$CLANG_OPT_FLAGS;clangDebugFlags.ios_arm64=$CLANG_OPT_FLAGS;clangOptFlags.ohos_arm64=$CLANG_OPT_FLAGS;clangDebugFlags.ohos_arm64=$CLANG_OPT_FLAGS"
+                freeCompilerArgs += "-Xoverride-konan-properties=$CLANG_FLAGS"
             }
         }
     }
@@ -30,6 +35,9 @@ kotlin {
     ohosArm64 {
         binaries.sharedLib("shared"){
             freeCompilerArgs += "-Xadd-light-debug=enable"
+            // 安装包优化
+            linkerOpts += "--pack-dyn-relocs=relr"
+            linkerOpts += "--gc-sections"
         }
     }
 

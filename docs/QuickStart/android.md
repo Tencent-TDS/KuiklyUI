@@ -190,7 +190,12 @@ object KRImageAdapter : IKRImageAdapter {
 
 }
 ```
+
 完成后，可通过**模版工程**中的``ImageAdapter基准测试``页面来验证功能正常，可能需要重载``IKRImageAdapter``的``getDrawableWidth``和``getDrawableHeight``方法调节渲染效果。
+
+:::warning 注意
+`fetchDrawable` 方法可能在非UI线程调用，例如在 `MemoryCacheModule.cacheImage` 中（可参考[示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/CanvasTestPage.kt)）。实现时需要注意线程安全，如果需要在UI线程操作（如更新UI组件），请使用 `Handler` 或 `runOnUiThread` 等方式切换到UI线程。
+:::
 
 ### 实现日志适配器
 具体实现代码，请参考源码工程androidApp模块的``KRLogAdapter``类。

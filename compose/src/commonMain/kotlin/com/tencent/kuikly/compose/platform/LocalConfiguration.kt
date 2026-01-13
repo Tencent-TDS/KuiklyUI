@@ -119,6 +119,11 @@ class Configuration(private val pager: IPager) {
         _activityHeight.value = height.toFloat()
     }
 
+    fun onWindowSizeChanged(width: Double, height: Double) {
+        _activityWidth.value = width.toFloat()
+        _activityHeight.value = height.toFloat()
+    }
+
     fun onFontConfigChange(
         fontSizeScale: Double, fontWeightScale: Double
     ) {

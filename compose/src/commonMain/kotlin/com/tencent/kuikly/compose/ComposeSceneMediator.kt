@@ -34,6 +34,7 @@ import com.tencent.kuikly.compose.container.LocalSlotProvider
 import com.tencent.kuikly.compose.container.SlotProvider
 import com.tencent.kuikly.compose.container.SuperTouchManager
 import com.tencent.kuikly.compose.platform.Configuration
+import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.core.datetime.DateTime
 import com.tencent.kuikly.core.timer.Timer
 import com.tencent.kuikly.core.views.DivView
@@ -111,6 +112,10 @@ class ComposeSceneMediator(
         scene.vsyncTickConditions.onDisplayLinkTick {
             scene.render(null, timestamp)
         }
+    }
+
+    fun updateDensity(toFloat: Float) {
+        scene.density = Density(toFloat)
     }
 
     init {

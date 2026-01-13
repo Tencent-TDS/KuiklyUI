@@ -26,6 +26,8 @@ import com.tencent.kuikly.core.render.android.css.ktx.removeHRAnimation
 import com.tencent.kuikly.core.render.android.css.ktx.toPxF
 import com.tencent.kuikly.core.render.android.css.ktx.viewDecorator
 import java.lang.ref.WeakReference
+import kotlin.math.sqrt
+import kotlin.math.tan
 
 /**
  * KTV页面动画模块实现类
@@ -310,8 +312,8 @@ class KRCSSTransform(transform: String?, private val target: View) {
     var pivotX = DEFAULT_PIVOT_X
     var pivotY = DEFAULT_PIVOT_Y
 
-    var skewX: Float? = DEFAULT_SKEW_X
-    var skewY: Float? = DEFAULT_SKEW_Y
+    var skewX: Float = DEFAULT_SKEW_X
+    var skewY: Float = DEFAULT_SKEW_Y
 
     init {
         initTransform(transform)
@@ -330,6 +332,16 @@ class KRCSSTransform(transform: String?, private val target: View) {
         target.translationY = translateY
         target.pivotX = pivotX
         target.pivotY = pivotY
+        if (rotateX != DEFAULT_ROTATE || rotateY != DEFAULT_ROTATE) {
+            val density = 1f.toPxF()
+            // The following converts the matrix's perspective to a camera distance
+            // such that the camera perspective looks the same on Android and iOS.
+            // The native Android implementation removed the screen density from the
+            // calculation, so squaring and a normalization value of
+            // sqrt(5) produces an exact replica with iOS.
+            // For more information, see https://github.com/facebook/react-native/pull/18302
+            target.cameraDistance = density * density * DEFAULT_PERSPECTIVE * sqrt(5f)
+        }
         applySkewTransform()
     }
 
@@ -438,13 +450,20 @@ class KRCSSTransform(transform: String?, private val target: View) {
     }
 
     private fun applySkewTransform() {
-        skewX?.let { sx -> skewY?.let { sy -> /* 在这里执行您需要的操作 */
-            val horizontalSkewAngleInRadians = Math.toRadians(sx.toDouble()).toFloat()
-            val verticalSkewAngleInRadians = Math.toRadians(sy.toDouble()).toFloat()
+        if (skewX == DEFAULT_SKEW_X && skewY == DEFAULT_SKEW_Y) {
+            target.viewDecorator?.matrix = null
+        } else {
+            val horizontalSkewAngleInRadians = Math.toRadians(skewX.toDouble())
+            val verticalSkewAngleInRadians = Math.toRadians(skewY.toDouble())
             target.viewDecorator?.matrix = Matrix().apply {
-                setSkew(horizontalSkewAngleInRadians, verticalSkewAngleInRadians)
+                setSkew(
+                    tan(horizontalSkewAngleInRadians).toFloat(),
+                    tan(verticalSkewAngleInRadians).toFloat(),
+                    pivotX,
+                    pivotY
+                )
             }
-        } }
+        }
     }
 
     private fun resetSkewTransform() {
@@ -488,7 +507,8 @@ class KRCSSTransform(transform: String?, private val target: View) {
         private const val DEFAULT_TRANSLATE_Y = 0f
         private const val DEFAULT_PIVOT_X = 0f
         private const val DEFAULT_PIVOT_Y = 0f
-        private val DEFAULT_SKEW_X = null
-        private val DEFAULT_SKEW_Y = null
+        private const val DEFAULT_SKEW_X = 0f
+        private const val DEFAULT_SKEW_Y = 0f
+        private const val DEFAULT_PERSPECTIVE = 1280f
     }
 }

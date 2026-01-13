@@ -596,13 +596,54 @@ static int32_t MyImageAdapterV2(const void *context, const char *src, KRSetImage
 static int32_t MyImageAdapterV3(const void *context, const char *src, KRAnyData *imageParams, KRSetImageCallback callback) {
     
     // 获取imageParams,跨端侧传入的是：{"test":"abc"}
+    std::map<std::string, std::string> paramsMap;
+    // 方式1：使用 KRAnyDataVisitMap 遍历所有参数（推荐）
+    if (imageParams != nullptr && KRAnyDataIsMap(imageParams)) {
+        // 定义 lambda 作为访问器
+        auto visitor = [](const char* key, KRAnyData value, void* userData) {
+            auto* map = static_cast<std::map<std::string, std::string>*>(userData);
+            // 根据类型转换成字符串存储
+            if (KRAnyDataIsString(value)) {
+                const char* str = KRAnyDataGetString(value);
+                if (str) {
+                    (*map)[key] = str;
+                }
+            } else if (KRAnyDataIsInt(value)) {
+                int32_t intVal;
+                KRAnyDataGetInt(value, &intVal);
+                (*map)[key] = std::to_string(intVal);
+            } else if (KRAnyDataIsLong(value)) {
+                int64_t longVal;
+                KRAnyDataGetLong(value, &longVal);
+                (*map)[key] = std::to_string(longVal);
+            } else if (KRAnyDataIsFloat(value)) {
+                float floatVal;
+                KRAnyDataGetFloat(value, &floatVal);
+                (*map)[key] = std::to_string(floatVal);
+            } else if (KRAnyDataIsBool(value)) {
+                bool boolVal;
+                KRAnyDataGetBool(value, &boolVal);
+                (*map)[key] = boolVal ? "true" : "false";
+            }
+        };
+        
+        // 遍历所有键值对
+        KRAnyDataVisitMap(imageParams, visitor, &paramsMap);
+    }
+    
+    // 业务逻辑...
+    if (paramsMap.count("test") > 0) {
+        auto value = paramsMap["test"];
+        KR_LOG_INFO << "imageParams testxxx value: " << value;
+    }
+    
+    // 方式2：获取特定的参数值（如果只需要某个字段）
     if (imageParams != nullptr && KRAnyDataIsMap(imageParams)) {
         KRAnyData testValue = nullptr;
-        // "test" 为 key
-        if (KRAnyDataGetMapValue(imageParams, "test", &testValue) == KRANYDATA_SUCCESS) {
+        if (KRAnyDataGetMapValue(imageParams, "test", &testValue) == KRANYDATA_SUCCESS && testValue != nullptr) {
             if (KRAnyDataIsString(testValue)) {
                 const char *str = KRAnyDataGetString(testValue);
-                // str = "abc"
+                KR_LOG_INFO << "imageParams test value: " << str;
             }
         }
     }

@@ -24,6 +24,11 @@
 #import "NSObject+KR.h"
 #import "KRContentOffsetAnimator.h"
 
+typedef NS_ENUM(NSUInteger, KRSetContentOffsetAnimation) {
+    KRSetContentOffsetAnimationSpring = 0,
+    KRSetContentOffsetAnimationLinear = 1,
+};
+
 /*
  * @brief 暴露给Kotlin侧调用的Scoller组件
  */
@@ -406,10 +411,12 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     CGFloat duration = [points count] > 3 ? [points[3] floatValue] : 0;
     CGFloat damping = [points count] > 4 ? [points[4] floatValue] : 0;
     CGFloat velocity = [points count] > 5 ? [points[5] floatValue] : 0;
+    BOOL curveSpecified = [points count] > 6;
+    int curve = curveSpecified ? [points[6] intValue] : 0;
     CGPoint contentOffset = CGPointMake([points.firstObject doubleValue], [points[1] doubleValue]);
     [self p_setTargetContentOffsetIfNeed:contentOffset];
-    if (damping) {
-        [self p_springAnimationWithContentOffset:contentOffset duration:duration damping:damping velocity:velocity];
+    if (damping || curveSpecified) {
+        [self p_springAnimationWithContentOffset:contentOffset duration:duration damping:damping velocity:velocity curve:curve];
         return ;
     }
     UIEdgeInsets newContentInsets = [self maxEdgeInsetsWithContentOffset:contentOffset];
@@ -735,26 +742,50 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     }
 }
 
-- (void)p_springAnimationWithContentOffset:(CGPoint)contentOffset duration:(CGFloat)duration damping:(CGFloat)damping velocity:(CGFloat)velocity {
+- (void)p_springAnimationWithContentOffset:(CGPoint)contentOffset duration:(CGFloat)duration damping:(CGFloat)damping velocity:(CGFloat)velocity curve:(int)curve{
     [self setContentOffset:self.contentOffset animated:NO];
     [_offsetAnimator cancel];
     _offsetAnimator = [[KRScrollViewOffsetAnimator alloc] initWithScrollView:self delegate:self];
     [_offsetAnimator animateToOffset:contentOffset withVelocity:CGPointZero];
     KRScrollViewOffsetAnimator *animator = _offsetAnimator;
     _ignoreDispatchScrollEvent = YES;
+    
+    switch (curve) {
+        // linear animation curve
+        case KRSetContentOffsetAnimationLinear:{
+            [UIView animateWithDuration:duration / 1000.0
+                                  delay:0 options:(UIViewAnimationOptionCurveLinear | UIViewAnimationOptionAllowUserInteraction)
+                             animations:^{
+                                            if (contentOffset.y < 0 || contentOffset.x < 0) {
+                                               self.contentInset = UIEdgeInsetsMake(-contentOffset.y,  -contentOffset.x , 0, 0);
+                                            }
+                                            [self setContentOffset:contentOffset];
+                                        }
+                             completion:^(BOOL finished) {
+                                            [animator cancel];
+                                        }];
+        }
+            break;
+        
+        // defaults to spring animation
+        case KRSetContentOffsetAnimationSpring:
+        default: {
+            [UIView animateWithDuration:duration / 1000.0 delay:0
+                 usingSpringWithDamping:damping
+                  initialSpringVelocity:velocity
+                                options:(UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionAllowUserInteraction)
+                             animations:^{
+                    if (contentOffset.y < 0 || contentOffset.x < 0) {
+                       self.contentInset = UIEdgeInsetsMake(-contentOffset.y,  -contentOffset.x , 0, 0);
+                    }
+                    [self setContentOffset:contentOffset];
+            } completion:^(BOOL finished) {
+                [animator cancel];
+            }];
+        }
+            break;
+    }
 
-    [UIView animateWithDuration:duration / 1000.0 delay:0
-         usingSpringWithDamping:damping
-          initialSpringVelocity:velocity
-                        options:(UIViewAnimationOptionCurveEaseOut|UIViewAnimationOptionAllowUserInteraction)
-                     animations:^{
-            if (contentOffset.y < 0 || contentOffset.x < 0) {
-               self.contentInset = UIEdgeInsetsMake(-contentOffset.y,  -contentOffset.x , 0, 0);
-            }
-            [self setContentOffset:contentOffset];
-    } completion:^(BOOL finished) {
-        [animator cancel];
-    }];
     _ignoreDispatchScrollEvent = NO;
 }
 

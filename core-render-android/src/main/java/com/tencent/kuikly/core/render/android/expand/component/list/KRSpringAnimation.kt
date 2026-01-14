@@ -18,13 +18,13 @@ package com.tencent.kuikly.core.render.android.expand.component.list
 import android.animation.ValueAnimator
 import android.view.animation.LinearInterpolator
 
-class KRSpringAnimation(
+internal class KRSpringAnimation(
     startValue: Float,
     val endValue: Float,
     velocity: Float,
     val stiffness: Float,
     dampingRatio: Float
-) {
+): KRScrollAnimation() {
     private var currentValue = startValue
     private var currentVelocity = velocity
     private var lastTime = 0L
@@ -79,15 +79,15 @@ class KRSpringAnimation(
         })
     }
 
-    var onUpdate: (Float) -> Unit = {}
-    var onEnd: () -> Unit = {}
+    override var onUpdate: (Float) -> Unit = {}
+    override var onEnd: () -> Unit = {}
 
-    fun start() {
+    override fun start() {
         lastTime = 0L
         animator.start()
     }
 
-    fun cancel() {
+    override fun cancel() {
         animator.cancel()
     }
 }

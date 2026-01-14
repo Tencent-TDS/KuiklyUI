@@ -114,6 +114,23 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
         }
     }
 
+    /**
+     * 设置内容的偏移量。
+     *
+     * @param offsetX X轴的偏移量。
+     * @param offsetY Y轴的偏移量。
+     * @param animation 动画参数，可为空。
+     */
+    fun setContentOffset(offsetX: Float, offsetY: Float, animation: SetContentOffsetAnimation?) {
+        performTaskWhenRenderViewDidLoad {
+            var animationString = ""
+            animation?.also {
+                animationString = it.toString()
+            }
+            renderView?.callMethod("contentOffset", "$offsetX $offsetY ${if (animation != null) 1 else 0}${animationString}")
+        }
+    }
+
     fun abortContentOffsetAnimate() {
         performTaskWhenRenderViewDidLoad {
             renderView?.callMethod("abortContentOffsetAnimate")
@@ -752,7 +769,32 @@ class WillEndDragParams(
 data class SpringAnimation(val durationMs: Int, val damping: Float, val velocity: Float) {
 
     override fun toString(): String {
-        return " $durationMs $damping $velocity"
+        return " $durationMs $damping $velocity 0"
     }
 
+}
+
+data class SetContentOffsetAnimation(private val durationMs: Int, val damping: Float, val velocity: Float, val animationCurve: Int) {
+    enum class AnimationCurve(val value: Int){
+        Spring(0), Linear(1)
+    }
+
+    override fun toString(): String {
+        return " $durationMs $damping $velocity $animationCurve"
+    }
+
+    // spring
+    private constructor(durationMs: Int, damping: Float, velocity: Float) : this(durationMs, damping, velocity, AnimationCurve.Spring.value)
+
+    // linear
+    private constructor(durationMs: Int) : this(durationMs, 0f, 0f, AnimationCurve.Linear.value)
+
+    companion object{
+        fun linear(durationMs: Int) : SetContentOffsetAnimation {
+            return SetContentOffsetAnimation(durationMs)
+        }
+        fun spring(durationMs: Int, damping: Float, velocity: Float) : SetContentOffsetAnimation {
+            return SetContentOffsetAnimation(durationMs, damping, velocity);
+        }
+    }
 }

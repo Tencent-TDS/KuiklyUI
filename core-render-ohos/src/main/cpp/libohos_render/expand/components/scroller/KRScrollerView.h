@@ -148,6 +148,7 @@ class KRScrollerView : public IKRRenderViewExport {
     float first_offset_y_ = 0;
     bool first_animate_ = false;
     int first_duration_ = 0;
+    int first_curve_ = 0;
     ArkUI_ScrollState current_scroll_state_;
 
     std::shared_ptr<KRAnimation> content_inset_animate_;

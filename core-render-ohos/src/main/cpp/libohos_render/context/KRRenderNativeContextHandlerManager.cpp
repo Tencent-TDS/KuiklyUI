@@ -51,11 +51,11 @@ std::shared_ptr<IKRRenderNativeContextHandler> KRRenderNativeContextHandlerManag
 
 void KRRenderNativeContextHandlerManager::RegisterContextHandler(
     const std::string &instanceId, const std::shared_ptr<IKRRenderNativeContextHandler> &contextHandler) {
-    context_handler_map_[instanceId] = contextHandler;
+    context_handler_map_.Set(instanceId, contextHandler);
 }
 
 void KRRenderNativeContextHandlerManager::UnregisterContextHandler(const std::string &instanceId) {
-    context_handler_map_.erase(instanceId);
+    context_handler_map_.Erase(instanceId);
 }
 
 void KRRenderNativeContextHandlerManager::ScheduleDeallocRenderValues(
@@ -82,7 +82,7 @@ void KRRenderNativeContextHandlerManager::ScheduleDeallocRenderValues(
 KRRenderCValue KRRenderNativeContextHandlerManager::DispatchCallNative(
     const std::string &instanceId, int methodId, const KRRenderCValue &arg0, const KRRenderCValue &arg1,
     const KRRenderCValue &arg2, const KRRenderCValue &arg3, const KRRenderCValue &arg4, const KRRenderCValue &arg5) {
-    auto handler = context_handler_map_[instanceId];
+    auto handler = context_handler_map_.Get(instanceId);
     if (!handler || nullptr == KRRenderManager::GetInstance().GetRenderView(instanceId)) {
         auto cv = KRRenderCValue();
         cv.type = KRRenderCValue::NULL_VALUE;

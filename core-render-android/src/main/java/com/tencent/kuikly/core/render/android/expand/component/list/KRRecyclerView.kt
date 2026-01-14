@@ -978,6 +978,8 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             animationDuration = contentOffsetSplits[3].toInt()
             animationDamping = contentOffsetSplits[4].toFloat()
             animationVelocity = contentOffsetSplits[5].toFloat()
+        }
+        if (contentOffsetSplits.size >= 7) {
             animationCurve = contentOffsetSplits[6].toInt()
         }
 

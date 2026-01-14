@@ -95,3 +95,4 @@ android {
         targetSdk = 30
     }
 }
+

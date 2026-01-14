@@ -9,7 +9,10 @@ class MyLogModule : Module() {
     }
 
     fun test() : String {
-        // 调用端侧方法获取返回值（返回Map类型）
+        // 鸿蒙侧 CallModuleMethod 返回值传输规则：
+        // 基本数据类型 -> 基本数据类型(Bool -> 0 or 1) ; Array、Map、Record -> JSON字符串 ; ByteArray -> ByteArray
+        // 当前测试Module返回值为 Map ( Module 在Arkts层）
+
         val jsonData = syncToNativeMethod(
             methodName = "test",
             arrayOf(1, 2, 3),

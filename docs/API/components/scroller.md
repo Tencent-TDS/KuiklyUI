@@ -178,6 +178,17 @@
 
 ### setContentOffset
 
+### setContentOffset(Float, Float, SetContentOffsetAnimation?) <Badge text="2.14.0" type="warn"/>
+
+设置`Scroller`滚动到某个具体坐标偏移值(offset)的位置，本方法支持线性动画曲线。
+
+| 参数              | 描述                      | 类型                         |
+|-----------------|-------------------------|----------------------------|
+| offsetX         | 滚动到x轴的偏移量               | Float                      |
+| offsetY         | 滚动到y轴的偏移量               | Float                      |
+| animation       | 动画参数。                   | SetContentOffsetAnimation？ |
+
+
 设置`Scroller`滚动到某个具体坐标偏移值(offset)的位置。
 
 | 参数      | 描述                      | 类型   |
@@ -186,6 +197,7 @@
 | offsetY | 滚动到y轴的偏移量               | Float|
 | animated | 滚动到y轴的偏移量, 默认为false     | Boolean|
 | springAnimation | 是否使用spring动画滚动, 默认为null | SpringAnimation|
+
 
 ### setContentInset
 

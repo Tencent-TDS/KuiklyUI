@@ -174,7 +174,9 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
             std::string str;
             kuikly::util::GetNApiArgsStdString(napi_env, nvalue, str);
             value_ = std::move(str);
-        } else {
+        } else if (napi_value_type == napi_object) {
+            // napi_object 支持识别 Array, ArrayBuffer, TypedArray, Array, Object(Record) 类型; 需要依次判断具体类型
+            // 1. 检查是否是 ArrayBuffer
             bool is_byte_array = false;
             napi_is_arraybuffer(napi_env, nvalue, &is_byte_array);
             if (is_byte_array) {
@@ -183,13 +185,14 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
                 napi_get_arraybuffer_info(napi_env, nvalue, &byte_array, &byte_length);
                 auto bytes = std::make_shared<std::vector<uint8_t>>();
                 auto byte_buffer = reinterpret_cast<uint8_t *>(byte_array);
-                for (int i = 0; i < byte_length; i++) {
+                for (size_t i = 0; i < byte_length; i++) {
                     bytes->push_back(*(byte_buffer + i));
                 }
                 value_ = bytes;
                 return;
             }
 
+            // 2. 检查是否是 TypedArray
             ArkTS arkTs(napi_env);
             if (arkTs.IsTypedArray(nvalue)) {
                 napi_typedarray_type typedArrayType;
@@ -211,13 +214,14 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
                 }
             }
 
+            // 3. 检查是否是 Array
             bool is_array = false;
             napi_is_array(napi_env, nvalue, &is_array);
             if (is_array) {
                 uint32_t array_length;
                 napi_get_array_length(napi_env, nvalue, &array_length);
                 Array array;
-                for (int i = 0; i < array_length; i++) {
+                for (uint32_t i = 0; i < array_length; i++) {
                     napi_value value;
                     napi_get_element(napi_env, nvalue, i, &value);
                     array.push_back(std::make_shared<KRRenderValue>(napi_env, value));
@@ -226,6 +230,30 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
                 return;
             }
 
+            // 4. 普通 Object (Record)，转为 Map
+            napi_value property_names;
+            napi_status status = napi_get_property_names(napi_env, nvalue, &property_names);
+            if (status == napi_ok) {
+                uint32_t property_count = 0;   
+                napi_get_array_length(napi_env, property_names, &property_count);
+
+                Map map;
+                for (uint32_t i = 0; i < property_count; i++) {
+                    napi_value key_value;
+                    napi_get_element(napi_env, property_names, i, &key_value);
+                    std::string key;
+                    kuikly::util::GetNApiArgsStdString(napi_env, key_value, key);
+
+                    napi_value prop_value;
+                    napi_get_property(napi_env, nvalue, key_value, &prop_value);
+
+                    // 递归构造 KRRenderValue
+                    map[key] = std::make_shared<KRRenderValue>(napi_env, prop_value);
+                }
+                value_ = map;
+            }
+        } else {
+            // 不支持的类型: napi_undefined, napi_null, napi_symbol, napi_function, napi_external, napi_bigint
             value_ = std::monostate();
         }
     }

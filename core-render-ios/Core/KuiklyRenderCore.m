@@ -204,9 +204,6 @@ NSString *const kCustomFirstScreenTag = @"customFirstScreenTag";
         NSString *extraContent = [_renderLayerHandler extraCacheContent];
         if (extraContent.length > 0) {
             finalParams[kCustomFirstScreenTag] = extraContent;
-            // 日志：输出传递给 Kotlin 侧的 extraCacheContent（注意：这里的 tag 是业务原始 tag，未格式化）
-            NSLog(@"【TurboDisplay-PageData】pageName=%@ 传递 extraCacheContent 给 Kotlin 侧:", pageName);
-            NSLog(@"【TurboDisplay-PageData】extraCacheContent=%@", extraContent);
         }
     }
     

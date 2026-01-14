@@ -59,7 +59,7 @@ NS_ASSUME_NONNULL_BEGIN
  * @brief 缓存node + 额外缓存内容
  * @param extraCacheContent 额外缓存内容（JSON字符串），格式为 { "tag": { "viewName": "xxx", ... } }
  */
-- (void)cacheWithViewNode:(KRTurboDisplayNode *)viewNode cacheKey:(NSString *)cacheKey extraCacheContent:(NSString * _Nullable)extraCacheContent;
+- (void)cacheWithExtraCacheContent:(NSString * _Nullable)extraCacheContent cacheKey:(NSString *)cacheKey;
 
 /*
  * @brief 获取额外缓存内容的cacheKey（基于主缓存key派生额外属性缓存时用的key）

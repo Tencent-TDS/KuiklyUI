@@ -384,10 +384,12 @@
         nodeToCache = [_realRootNode deepCopy];
     }
     
-    // 写入TB缓存 + extraCacheContent
-    [[KRTurboDisplayCacheManager sharedInstance] cacheWithViewNode:nodeToCache
-                                                          cacheKey:self.turboDisplayCacheKey
-                                                 extraCacheContent:extraCacheContent];
+    // 写入TB缓存
+    [[KRTurboDisplayCacheManager sharedInstance] cacheWithViewNode:nodeToCache cacheKey:self.turboDisplayCacheKey];
+    // 写入业务自定义缓存
+    [[KRTurboDisplayCacheManager sharedInstance] cacheWithExtraCacheContent:extraCacheContent
+                                                          cacheKey:self.turboDisplayCacheKey];
+    
 }
 
 - (void)onReceiveCloseTurboDisplayNotification:(NSNotification *)notification {

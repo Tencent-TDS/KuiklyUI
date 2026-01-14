@@ -552,31 +552,20 @@ static KRSecondDiffMode gSecondDiffMode = KRSecondDiffModeClassic; // 默认使�
                                        oldNodeTree:(KRTurboDisplayNode *)oldNodeTree
                                        newNodeTree:(KRTurboDisplayNode *)newNodeTree
                                         completion:(dispatch_block_t)completion {
-    // 阶段1：当前帧执行事件回放 + 事件绑定（不执行 Tag 置换）
-    NSLog(@"【TurboDisplay-tree】phase1-before 缓存树:\n%@", [oldNodeTree treeDescription]);
-    NSLog(@"【TurboDisplay-tree】phase1-before 真实树:\n%@", [newNodeTree treeDescription]);
-    
+    // 第二次diff-view - 阶段1：当前帧执行事件回放 + 事件绑定（不执行 Tag 置换）
     [self diffPatchToRenderingWithRenderLayer:renderLayer
                                   oldNodeTree:oldNodeTree
                                   newNodeTree:newNodeTree
                               diffPolicy:KRRealFirstScreenDiffEventReplay];
-    
-    NSLog(@"【TurboDisplay-tree】phase1-after 缓存树:\n%@", [oldNodeTree treeDescription]);
-    
-    // 阶段2：在 Kuikly 线程队列末尾添加任务，等待跨端侧渲染指令全部到达后执行延迟渲染
+        
+    // 第二次diff-view - 阶段2：在 Kuikly 线程队列末尾添加任务，等待跨端侧渲染指令全部到达后执行延迟渲染
     [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
-        // 阶段3：回到主线程执行 Tag 置换 + 属性更新
+        // 第二次diff-view - 阶段3：回到主线程执行 Tag 置换 + 属性更新
         [KuiklyRenderThreadManager performOnMainQueueWithTask:^{
-            NSLog(@"【TurboDisplay-tree】phase3-before 缓存树:\n%@", [oldNodeTree treeDescription]);
-            NSLog(@"【TurboDisplay-tree】phase3-before 真实树:\n%@", [newNodeTree treeDescription]);
-            
             [self diffPatchToRenderingWithRenderLayer:renderLayer
                                           oldNodeTree:oldNodeTree
                                           newNodeTree:newNodeTree
                                            diffPolicy:KRRealFirstScreenDiffPropUpdate];
-            
-            NSLog(@"【TurboDisplay-tree】phase3-after 缓存树:\n%@", [oldNodeTree treeDescription]);
-            
             if (completion) {
                 completion();
             }

@@ -75,8 +75,6 @@
         node.parentTag = @(-([node.parentTag intValue] + 2));
     }
     
-  
-   
     if ([node hasChild]) {
         for (KRTurboDisplayNode *subNode in node.children) {
             [self formatTagWithCacheTree:subNode];
@@ -128,7 +126,7 @@
         [self.fileLock unlock];
     }
 }
-
+// TB缓存写入 - TurboDisplayNode格式写入【独立写入】
 - (void)cacheWithViewNode:(KRTurboDisplayNode *)viewNode cacheKey:(NSString *)cacheKey {
     
     [KuiklyRenderThreadManager performOnLogQueueWithBlock:^{
@@ -149,7 +147,7 @@
     }];
    
 }
-
+// TB缓存写入 - NSData格式写入【独立写入】
 - (void)cacheWithViewNodeData:(NSData *)nodeData cacheKey:(NSString *)cacheKey {
     if (!nodeData) {
         return ;
@@ -188,44 +186,36 @@
     }
     return res;
 }
-
+// TB缓存读取【独立删除】
 - (KRTurboDisplayCacheData *)nodeWithCachKey:(NSString *)cacheKey {
-   
     KRTurboDisplayCacheData *cacheData = nil;
     @try {
         [self.fileLock lock];
         NSString *filePath = [[self cacheRootPath] stringByAppendingPathComponent:cacheKey];
-        if ([[NSFileManager defaultManager] fileExistsAtPath:filePath]) {
-            NSData *nodeData = [NSData dataWithContentsOfFile:filePath];
-            
-            if (nodeData) {
-                cacheData = [KRTurboDisplayCacheData new];
-//                cacheData.turboDisplayNode = [NSKeyedUnarchiver unarchivedObjectOfClass:[KRTurboDisplayNode class] fromData:nodeData error:nil];
-                NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingFromData:nodeData error:nil];
-                if (unarchiver) {
-                    unarchiver.requiresSecureCoding = NO;
-                    cacheData.turboDisplayNode = [unarchiver decodeObjectForKey:NSKeyedArchiveRootObjectKey];
-                    [unarchiver finishDecoding];
-                }
-                cacheData.turboDisplayNodeData = nodeData;
-            }
-           
-            // 删除原来文件
-            [[NSFileManager defaultManager] removeItemAtPath:filePath error:nil];
-        }
         
-        // 同时读取并删除额外缓存内容文件
-        NSString *extraCacheKey = [self extraCacheKeyFromMainCacheKey:cacheKey];
-        NSString *extraFilePath = [[self cacheRootPath] stringByAppendingPathComponent:extraCacheKey];
-        if ([[NSFileManager defaultManager] fileExistsAtPath:extraFilePath]) {
-            NSData *extraData = [NSData dataWithContentsOfFile:extraFilePath];
-            if (extraData) {
-                cacheData.extraCacheContent = [[NSString alloc] initWithData:extraData encoding:NSUTF8StringEncoding];
+        // 使用 alloc init 而非 autorelease 方式读取数据，避免 mmap 后立即删除文件的潜在问题
+        NSData *nodeData = [[NSData alloc] initWithContentsOfFile:filePath];
+        
+        if (nodeData && nodeData.length > 0) {
+            cacheData = [KRTurboDisplayCacheData new];
+            
+            NSError *unarchiverError = nil;
+            NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingFromData:nodeData error:&unarchiverError];
+            if (unarchiverError) {
+                [KRLogModule logError:[NSString stringWithFormat:@"NSKeyedUnarchiver init error:%@ key:%@", unarchiverError.localizedDescription, cacheKey]];
+                return nil;
             }
-            // 删除额外缓存文件
-            [[NSFileManager defaultManager] removeItemAtPath:extraFilePath error:nil];
+            
+            if (unarchiver) {
+                unarchiver.requiresSecureCoding = NO;    // 关闭 Secure Coding，允许使用 decodeObjectForKey:
+                cacheData.turboDisplayNode = [unarchiver decodeObjectForKey:NSKeyedArchiveRootObjectKey];
+                [unarchiver finishDecoding];
+            }
+            cacheData.turboDisplayNodeData = nodeData;
         }
-       
+        nodeData = nil;
+        [[NSFileManager defaultManager] removeItemAtPath:filePath error:nil];
+        
     } @catch (NSException *exception) {
         [KRLogModule logError:[NSString stringWithFormat:@"An exception occurred when unarchived Node Data:%@ key:%@", exception, cacheKey]];
         cacheData = nil;
@@ -261,11 +251,8 @@
     return [NSString stringWithFormat:@"kuikly_turbo_display_extra_%@.json", hash];
 }
 
-- (void)cacheWithViewNode:(KRTurboDisplayNode *)viewNode cacheKey:(NSString *)cacheKey extraCacheContent:(NSString *)extraCacheContent {
-    // 1. 缓存节点树（复用现有逻辑）
-    [self cacheWithViewNode:viewNode cacheKey:cacheKey];
-    
-    // 2. 缓存额外内容到独立文件
+// 缓存「业务自定义内容」到独立文件【独立写入】
+- (void)cacheWithExtraCacheContent:(NSString *)extraCacheContent cacheKey:(NSString *)cacheKey {
     if (extraCacheContent.length > 0) {
         [KuiklyRenderThreadManager performOnLogQueueWithBlock:^{
             @try {
@@ -273,7 +260,7 @@
                 NSString *extraKey = [self extraCacheKeyFromMainCacheKey:cacheKey];
                 NSString *filePath = [[self cacheRootPath] stringByAppendingPathComponent:extraKey];
                 NSData *data = [extraCacheContent dataUsingEncoding:NSUTF8StringEncoding];
-                BOOL success = [data writeToFile:filePath atomically:YES];
+                [data writeToFile:filePath atomically:YES];
             } @catch (NSException *exception) {
                 [KRLogModule logError:[NSString stringWithFormat:@"An exception occurred when caching extra content:%@ key:%@", exception, cacheKey]];
             } @finally {
@@ -282,7 +269,7 @@
         }];
     }
 }
-
+// 缓存「业务自定义内容」到独立文件【独立删除】
 - (NSString *)extraCacheContentWithCacheKey:(NSString *)cacheKey {
     NSString *extraContent = nil;
     @try {
@@ -290,12 +277,15 @@
         NSString *extraCacheKey = [self extraCacheKeyFromMainCacheKey:cacheKey];
         NSString *extraFilePath = [[self cacheRootPath] stringByAppendingPathComponent:extraCacheKey];
         
-        if ([[NSFileManager defaultManager] fileExistsAtPath:extraFilePath]) {
-            NSData *extraData = [NSData dataWithContentsOfFile:extraFilePath];
-            if (extraData) {
-                extraContent = [[NSString alloc] initWithData:extraData encoding:NSUTF8StringEncoding];
-            }
+        NSData *extraData = [NSData dataWithContentsOfFile:extraFilePath];
+        if (extraData && extraData.length > 0) {
+            extraContent = [[NSString alloc] initWithData:extraData encoding:NSUTF8StringEncoding];
         }
+        // 显式置空
+        extraData = nil;
+        // 删除额外缓存文件
+        [[NSFileManager defaultManager] removeItemAtPath:extraFilePath error:nil];
+        
     } @catch (NSException *exception) {
         [KRLogModule logError:[NSString stringWithFormat:@"An exception occurred when reading extra cache content:%@ key:%@", exception, cacheKey]];
     } @finally {

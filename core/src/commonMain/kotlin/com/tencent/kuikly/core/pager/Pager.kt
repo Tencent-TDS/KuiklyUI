@@ -34,8 +34,10 @@ import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.timer.setTimeout
 import com.tencent.kuikly.core.utils.verifyFailedHandler
 import kotlin.math.roundToInt
+import kotlin.coroutines.cancellation.CancellationException
 
 abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
+    val a = CancellationException()
     open var ignoreLayout: Boolean = false
     private var fontWeightScale = -1.0
     private var fontSizeScale = -1.0

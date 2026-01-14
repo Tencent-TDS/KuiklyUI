@@ -326,6 +326,12 @@ export class KRNativeRenderController {
       data['fontSizeScale'] = 1
     }
     data['fontSizeScaleFollowSystem'] = this.fontSizeScaleFollowSystem();
+
+    const instance = KRNativeManager.getInstance().getNativeInstance(this.instanceId)
+    if (instance){
+      instance.onConfigurationUpdate()
+    }
+
     // update config to render core
     render.updateConfig(this.instanceId, JSON.stringify(data));
 

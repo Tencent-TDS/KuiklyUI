@@ -234,4 +234,10 @@ export class KRNativeInstance {
     });
     this.modules.clear();
   }
+
+  public onConfigurationUpdate(){
+    this.viewRegistry.forEach((value)=>{
+      value.onConfigurationUpdate()
+    })
+  }
 }

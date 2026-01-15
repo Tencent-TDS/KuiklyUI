@@ -43,9 +43,7 @@ public class FileReplacer {
         System.out.println("Usage:");
         System.out.println("  java FileReplacer.java replace [config.yaml]   - Apply replacements and backup files");
         System.out.println("  java FileReplacer.java restore [config.yaml]   - Restore files from backup");
-        System.out.println();
         System.out.println("Default config file: " + DEFAULT_CONFIG_FILE);
-        System.out.println();
         System.out.println("Config format:");
         System.out.println("  files:");
         System.out.println("    - path: path/to/file.kt");
@@ -68,7 +66,6 @@ public class FileReplacer {
         }
 
         System.out.println("=== Applying Replacements ===");
-        System.out.println();
 
         int totalFiles = 0;
         int totalChanges = 0;
@@ -76,14 +73,12 @@ public class FileReplacer {
         for (FileOperation operation : fileOperations) {
             // 安全校验
             if (!isPathSafe(operation.path)) {
-                System.out.println();
                 continue;
             }
             Path path = Paths.get(operation.path);
 
             if (!Files.exists(path)) {
                 System.err.println("  File not found: " + operation.path);
-                System.out.println();
                 continue;
             }
 
@@ -148,8 +143,6 @@ public class FileReplacer {
             } else {
                 System.out.println("    No changes applied");
             }
-
-            System.out.println();
         }
 
         System.out.println("=== Complete ===");
@@ -169,14 +162,12 @@ public class FileReplacer {
         }
 
         System.out.println("=== Restoring Backups ===");
-        System.out.println();
 
         int restoredCount = 0;
 
         for (FileOperation operation : fileOperations) {
             // 安全校验
             if (!isPathSafe(operation.path)) {
-                System.out.println();
                 continue;
             }
 
@@ -194,7 +185,6 @@ public class FileReplacer {
             restoredCount++;
         }
 
-        System.out.println();
         System.out.println("=== Restore Complete ===");
         System.out.println("Files restored: " + restoredCount);
     }
@@ -245,22 +235,22 @@ public class FileReplacer {
                 // 匹配 "    prepend: xxx"
                 else if (trimmed.startsWith("prepend:")) {
                     if (currentOp != null) {
-                        currentOp.prepend = unescapeString(extractYamlValue(trimmed.substring(8)));
+                        currentOp.prepend = extractYamlValue(trimmed.substring(8));
                     }
                 }
                 // 匹配 "    append: xxx"
                 else if (trimmed.startsWith("append:")) {
                     if (currentOp != null) {
-                        currentOp.append = unescapeString(extractYamlValue(trimmed.substring(7)));
+                        currentOp.append = extractYamlValue(trimmed.substring(7));
                     }
                 }
                 // 匹配 "      - from: xxx"
                 else if (trimmed.startsWith("- from:")) {
-                    pendingFrom = unescapeString(extractYamlValue(trimmed.substring(7)));
+                    pendingFrom = extractYamlValue(trimmed.substring(7));
                 }
                 // 匹配 "        to: xxx"
                 else if (trimmed.startsWith("to:")) {
-                    String to = unescapeString(extractYamlValue(trimmed.substring(3)));
+                    String to = extractYamlValue(trimmed.substring(3));
                     if (pendingFrom != null && currentOp != null) {
                         currentOp.replacements.add(new ReplacementPair(pendingFrom, to));
                     }
@@ -286,7 +276,6 @@ public class FileReplacer {
                         (op.append != null ? 1 : 0))
                 .sum();
         System.out.println("Loaded " + fileOperations.size() + " file(s) with " + totalOps + " operation(s) from " + configFile);
-        System.out.println();
 
         return fileOperations;
     }
@@ -318,23 +307,19 @@ public class FileReplacer {
             return false;
         }
 
-        // 4. 规范化并验证路径
+        // 4. 文件扩展名
+        Set<String> allowedExtensions = Set.of(".kt", ".kts", ".properties");
+        boolean hasValidExtension = allowedExtensions.stream().anyMatch(path::endsWith);
+
+        if (!hasValidExtension) {
+            System.err.println("Security: Only " + String.join(", ", allowedExtensions) + " files are allowed: " + path);
+            return false;
+        }
+
         try {
-            Path normalized = Paths.get(path).normalize();
-
-            if (normalized.isAbsolute()) {
-                System.err.println("Security: Path normalizes to absolute: " + path);
-                return false;
-            }
-
-            String normalizedStr = normalized.toString();
-            if (normalizedStr.startsWith("..")) {
-                System.err.println("Security: Path escapes working directory: " + path);
-                return false;
-            }
-
+            Paths.get(path);  // 只验证路径语法，不需要 normalize
         } catch (InvalidPathException e) {
-            System.err.println("Security: Invalid path syntax: " + path);
+            System.err.println(" Invalid path syntax: " + path);
             return false;
         }
 
@@ -346,16 +331,6 @@ public class FileReplacer {
      */
     private static String extractYamlValue(String str) {
         return str.trim();
-    }
-
-    /**
-     * 反转义字符串中的 \n, \t 等
-     */
-    private static String unescapeString(String str) {
-        return str.replace("\\n", "\n")
-                .replace("\\t", "\t")
-                .replace("\\r", "\r")
-                .replace("\\\\", "\\");
     }
 
     /**

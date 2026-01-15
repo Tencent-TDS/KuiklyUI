@@ -7,9 +7,3 @@ files:
     replacements:
       - from: distributionUrl=https://services.gradle.org/distributions/gradle-7.6.3-bin.zip
         to: distributionUrl=https://services.gradle.org/distributions/gradle-8.0-bin.zip
-
-  # 2. OpenHarmony 构建文件版本号更新
-  - path: build.2.0.ohos.gradle.kts
-    replacements:
-      - from: 2.0.21-mini-009
-        to: 2.0.21-mini-060

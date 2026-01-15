@@ -88,7 +88,7 @@ bool KRAnyDataIsMap(KRAnyData data) {
 
 int KRAnyDataVisitMap(KRAnyData data, KRAnyDataMapVisitor visitor, void *userData) {
     if (visitor == nullptr) {
-        return KRANYDATA_NULL_OUTPUT;
+        return KRANYDATA_INVALID_PARAM;
     }
     
     struct KRAnyDataInternal *internal = (struct KRAnyDataInternal *)data;
@@ -125,11 +125,9 @@ int KRAnyDataGetMapValue(KRAnyData data, const char* key, KRAnyData* value) {
     auto it = map.find(key);
     if (it == map.end()) {
         *value = nullptr;
-        return KRANYDATA_NULL_INPUT;
+        return KRANYDATA_KEY_NOT_FOUND;
     }
-    static thread_local KRAnyDataInternal tempInternal;
-    tempInternal.anyValue = it->second;
-    *value = &tempInternal;
+    *value = it->second.get();
     return KRANYDATA_SUCCESS;
 }
 
@@ -238,12 +236,10 @@ int KRAnyDataGetArrayElement(KRAnyData data, KRAnyData* value, int index) {
         return KRANYDATA_NULL_INPUT;
     }
     auto array = internal->anyValue->toArray();
-    if (index >= array.size()) {
+    if (index < 0 || index >= array.size()) {
         return KRANYDATA_OUT_OF_INDEX;
     }
-    static thread_local KRAnyDataInternal temInternal;
-    temInternal.anyValue = array[index];
-    *value = &temInternal;
+    *value = array[index].get();
     return KRANYDATA_SUCCESS;
 }
 
@@ -313,7 +309,7 @@ int KRAnyDataSetArrayElement(KRAnyData data, KRAnyData value, int index) {
         return KRANYDATA_NULL_INPUT;
     }
     struct KRAnyDataInternal *valueInternal = (struct KRAnyDataInternal *)value;
-    if (internal == nullptr) {
+    if (valueInternal == nullptr) {
         return KRANYDATA_NULL_INPUT;
     }
     if (!internal->anyValue) {
@@ -341,7 +337,7 @@ int KRAnyDataAddArrayElement(KRAnyData data, KRAnyData value) {
         return KRANYDATA_NULL_INPUT;
     }
     struct KRAnyDataInternal *valueInternal = (struct KRAnyDataInternal *)value;
-    if (internal == nullptr) {
+    if (valueInternal == nullptr) {
         return KRANYDATA_NULL_INPUT;
     }
     if (!internal->anyValue) {

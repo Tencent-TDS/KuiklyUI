@@ -121,6 +121,8 @@ typedef enum {
     KRANYDATA_NULL_OUTPUT = 2,    // 接收参数为 nullptr
     KRANYDATA_OUT_OF_INDEX = 3,   // 索引越界
     KRANYDATA_TYPE_MISMATCH = 4,  // 类型不匹配
+    KRANYDATA_INVALID_PARAM = 5,  // 无效参数（新增) 
+    KRANYDATA_KEY_NOT_FOUND = 6,  // Key不存在（新增）
 } KRAnDataErrorCode;
 
 /**

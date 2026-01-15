@@ -250,34 +250,4 @@
     return _children.count > 0;
 }
 
-#pragma mark - Debug
-
-- (NSString *)treeDescription {
-    NSMutableString *result = [NSMutableString string];
-    [self appendDescriptionToString:result depth:0];
-    return result;
-}
-
-- (void)appendDescriptionToString:(NSMutableString *)str depth:(NSInteger)depth {
-    // 缩进
-    NSMutableString *indent = [NSMutableString string];
-    for (NSInteger i = 0; i < depth; i++) {
-        [indent appendString:@"  "];
-    }
-    
-    // 简化viewName：去掉KR前缀
-    NSString *shortName = _viewName;
-    if ([shortName hasPrefix:@"KR"]) {
-        shortName = [shortName substringFromIndex:2];
-    }
-    
-    // 输出当前节点：tag:viewName(childCount)
-    [str appendFormat:@"%@%@:%@(%lu)\n", indent, _tag, shortName, (unsigned long)_children.count];
-    
-    // 递归所有子节点（全量显示）
-    for (NSInteger i = 0; i < _children.count; i++) {
-        [_children[i] appendDescriptionToString:str depth:depth + 1];
-    }
-}
-
 @end

@@ -68,9 +68,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (KRTurboDisplayNode *)deepCopy;
 
-/// 输出树结构的简洁描述（用于调试）
-- (NSString *)treeDescription;
-
 @end
 
 NS_ASSUME_NONNULL_END

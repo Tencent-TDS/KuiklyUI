@@ -1,8 +1,5 @@
-# compatibility_1_9_22.yaml
-# Kotlin 1.9.22 版本兼容性修改配置
-
 files:
-  # 1. Gradle Wrapper 版本切换
+  # Gradle Wrapper 版本切换
   - path: gradle/wrapper/gradle-wrapper.properties
     replacements:
       - from: distributionUrl=https://services.gradle.org/distributions/gradle-7.6.3-bin.zip

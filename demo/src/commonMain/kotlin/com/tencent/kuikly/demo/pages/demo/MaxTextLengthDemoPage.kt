@@ -23,7 +23,7 @@ import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Input
 import com.tencent.kuikly.core.views.LengthLimitType
-import com.tencent.kuikly.core.views.List
+import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.TextArea
 import com.tencent.kuikly.core.views.View
@@ -55,7 +55,7 @@ internal class MaxTextLengthDemoPage : BasePager() {
                 }
             }
 
-            List {
+            Scroller {
                 attr {
                     flex(1f)
                 }
@@ -114,6 +114,33 @@ internal class MaxTextLengthDemoPage : BasePager() {
                             color(Color.BLACK)
                             fontSize(14f)
                             text("Input 组件示例")
+                        }
+                    }
+                }
+
+                // 未指定限制类型
+                View {
+                    attr {
+                        padding(16f)
+                    }
+                    Text {
+                        attr {
+                            fontSize(14f)
+                            fontWeightBold()
+                            text("0. 未指定限制类型 maxTextLength(10)")
+                            marginBottom(10f)
+                        }
+                    }
+                    Input {
+                        attr {
+                            flex(1f)
+                            height(50f)
+                            fontSize(16f)
+                            margin(10f)
+                            borderRadius(4f)
+                            border(Border(1f, BorderStyle.SOLID, Color.GRAY))
+                            placeholder("请输入文本")
+                            maxTextLength(10)
                         }
                     }
                 }
@@ -300,6 +327,33 @@ internal class MaxTextLengthDemoPage : BasePager() {
                             color(Color.BLACK)
                             fontSize(14f)
                             text("TextArea 组件示例")
+                        }
+                    }
+                }
+
+                // 未指定限制类型 TextArea
+                View {
+                    attr {
+                        padding(16f)
+                    }
+                    Text {
+                        attr {
+                            fontSize(14f)
+                            fontWeightBold()
+                            text("0. 未指定限制类型 maxTextLength(20)")
+                            marginBottom(10f)
+                        }
+                    }
+                    TextArea {
+                        attr {
+                            flex(1f)
+                            height(100f)
+                            fontSize(16f)
+                            margin(10f)
+                            borderRadius(4f)
+                            border(Border(1f, BorderStyle.SOLID, Color.GRAY))
+                            placeholder("请输入多行文本")
+                            maxTextLength(20)
                         }
                     }
                 }

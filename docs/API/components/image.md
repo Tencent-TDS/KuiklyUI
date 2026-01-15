@@ -21,10 +21,11 @@ Kuikly约定用“**assets://**”前缀标识资源图片路径，用“**file:
 
 **src**
 
-| 参数  | 描述     | 类型 |
-|:----|:-------|:--|
-| src | 图片数据源  | String or ImageUri |
-| isDotNineImage | 是否为.9图 | Boolean |
+| 参数             | 描述     | 类型                 |
+|:---------------|:-------|:-------------------|
+| src            | 图片数据源  | String or ImageUri |
+| imageParams    | 图片加载参数 | JSONObject         |
+| isDotNineImage | 是否为.9图 | Boolean            |
 
 </div>
 
@@ -55,7 +56,7 @@ internal class TestPage : BasePager() {
             Image {
                 attr {
                     size(240f, 180f)
-                    src("https://vfiles.gtimg.cn/wupload/xy/componenthub/5mml0yzf.jpeg") // cdn url
+                    src("https://vfiles.gtimg.cn/wupload/xy/componenthub/5mml0yzf.jpeg", JSONObject().put("test","imageParam")) // cdn url
                 }
             }
 
@@ -65,7 +66,7 @@ internal class TestPage : BasePager() {
                     marginTop(30f)
                     size(10f, 17f)
                     // base64 字符串
-                    src("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAASBAMAAAB/WzlGAAAAElBMVEUAAAAAAAAAAAAAAAAAAAAAAADgKxmiAAAABXRSTlMAIN/PELVZAGcAAAAkSURBVAjXYwABQTDJqCQAooSCHUAcVROCHBiFECTMhVoEtRYA6UMHzQlOjQIAAAAASUVORK5CYII=")
+                    src("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAASBAMAAAB/WzlGAAAAElBMVEUAAAAAAAAAAAAAAAAAAAAAAADgKxmiAAAABXRSTlMAIN/PELVZAGcAAAAkSURBVAjXYwABQTDJqCQAooSCHUAcVROCHBiFECTMhVoEtRYA6UMHzQlOjQIAAAAASUVORK5CYII=", JSONObject().put("test","imageParam"))
                 }
             }
             
@@ -73,7 +74,7 @@ internal class TestPage : BasePager() {
             Image {
                 attr {
                     size(240f, 180f)
-                    src(ImageUri.pageAssets("panda.png"))
+                    src(ImageUri.pageAssets("panda.png"), JSONObject().put("test","imageParam"))
                 }
             }
             
@@ -81,7 +82,7 @@ internal class TestPage : BasePager() {
             Image {
                 attr {
                     // 本地图片路径
-                    src(ImageUri.file(ctx.localImagePath))
+                    src(ImageUri.file(ctx.localImagePath), JSONObject().put("test","imageParam"))
                 }
             }
         }

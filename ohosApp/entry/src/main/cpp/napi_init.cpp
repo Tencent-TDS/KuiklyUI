@@ -23,6 +23,7 @@
 #include <memory>
 #include <string>
 #include "libohos_render/api/include/Kuikly/Kuikly.h"
+#include "libohos_render/utils/KRRenderLoger.h"
 #include "napi/native_api.h"
 #include "thirdparty/biz_entry/libshared_api.h"
 
@@ -124,6 +125,110 @@ static char *MyFontAdapter(const char *fontFamily, char **fontBuffer, size_t *le
 }
 
 #define MyImageAdapterV2_SYNC_CALLBACK 1
+    
+int32_t MyImageAdapterV3(const void *context,
+                                 const char *src,
+                                 KRAnyData imageParams,
+                                 KRSetImageCallback callback){
+    // 获取imageParams,跨端侧传入的是：{"test":"abc"}
+    std::map<std::string, std::string> paramsMap;
+    // 方式1：使用 KRAnyDataVisitMap 遍历所有参数（推荐）
+    if (imageParams != nullptr && KRAnyDataIsMap(imageParams)) {
+        // 定义 lambda 作为访问器
+        auto visitor = [](const char* key, KRAnyData value, void* userData) {
+            auto* map = static_cast<std::map<std::string, std::string>*>(userData);
+            // 根据类型转换成字符串存储
+            if (KRAnyDataIsString(value)) {
+                const char* str = KRAnyDataGetString(value);
+                if (str) {
+                    (*map)[key] = str;
+                }
+            } else if (KRAnyDataIsInt(value)) {
+                int32_t intVal;
+                KRAnyDataGetInt(value, &intVal);
+                (*map)[key] = std::to_string(intVal);
+            } else if (KRAnyDataIsLong(value)) {
+                int64_t longVal;
+                KRAnyDataGetLong(value, &longVal);
+                (*map)[key] = std::to_string(longVal);
+            } else if (KRAnyDataIsFloat(value)) {
+                float floatVal;
+                KRAnyDataGetFloat(value, &floatVal);
+                (*map)[key] = std::to_string(floatVal);
+            } else if (KRAnyDataIsBool(value)) {
+                bool boolVal;
+                KRAnyDataGetBool(value, &boolVal);
+                (*map)[key] = boolVal ? "true" : "false";
+            }
+        };
+        
+        // 遍历所有键值对
+        KRAnyDataVisitMap(imageParams, visitor, &paramsMap);
+    }
+    
+    // 业务逻辑...
+    if (paramsMap.count("test") > 0) {
+        auto value = paramsMap["test"];
+        KR_LOG_INFO << "imageParams testxxx value: " << value;
+    }
+    
+    // 方式2：获取特定的参数值（如果只需要某个字段）
+    if (imageParams != nullptr && KRAnyDataIsMap(imageParams)) {
+        KRAnyData testValue = nullptr;
+        if (KRAnyDataGetMapValue(imageParams, "test", &testValue) == KRANYDATA_SUCCESS && testValue != nullptr) {
+            if (KRAnyDataIsString(testValue)) {
+                const char *str = KRAnyDataGetString(testValue);
+                KR_LOG_INFO << "imageParams test value: " << str;
+            }
+        }
+    }
+    
+    static int counter = 0;
+    if(counter++ % 2 == 0){
+        return 0;
+    }
+    std::string_view src_view(src);
+    if(src_view.find("panda2") != std::string_view::npos){
+        if(RawFile *raw_file = OH_ResourceManager_OpenRawFile(g_resource_manager, "panda2.png")){
+            RawFileDescriptor descriptor;
+            if(OH_ResourceManager_GetRawFileDescriptor(raw_file, descriptor)){
+                OH_ImageSourceNative *image_source = nullptr;
+                Image_ErrorCode errCode = OH_ImageSourceNative_CreateFromRawFile(&descriptor, &image_source);
+                if(image_source){
+                    OH_DecodingOptions *ops = nullptr;
+                    OH_DecodingOptions_Create(&ops);
+                    // 设置为AUTO会根据图片资源格式解码，如果图片资源为HDR资源则会解码为HDR的pixelmap。
+                    OH_DecodingOptions_SetDesiredDynamicRange(ops, IMAGE_DYNAMIC_RANGE_AUTO);
+                    OH_PixelmapNative *resPixMap = nullptr;
+            
+                    // ops参数支持传入nullptr, 当不需要设置解码参数时，不用创建
+                    errCode = OH_ImageSourceNative_CreatePixelmap(image_source, ops, &resPixMap);
+                    OH_DecodingOptions_Release(ops);
+                    if (errCode != IMAGE_SUCCESS) {
+                        return 0;
+                    }
+                    OH_ImageSourceNative_Release(image_source);
+            
+                    // 通过PixelMap创建DrawableDescriptor
+                    ArkUI_DrawableDescriptor *imageDescriptor = OH_ArkUI_DrawableDescriptor_CreateFromPixelMap(resPixMap);
+#if MyImageAdapterV2_SYNC_CALLBACK
+                    // call back immediate ly
+                    callback(context, src, imageDescriptor, nullptr);
+                    OH_ArkUI_DrawableDescriptor_Dispose(imageDescriptor);
+#else
+                    // use thread safe function to simulate an async callback
+                    ImageCallbackTask *mainTask = new ImageCallbackTask(context, src, imageDescriptor, callback);
+                    napi_call_threadsafe_function(g_threadsafe_func, static_cast<void *>(mainTask), napi_tsfn_blocking);
+#endif
+                    OH_PixelmapNative_Release(resPixMap);
+                    return 1;
+                }
+                OH_ResourceManager_ReleaseRawFileDescriptor(descriptor);
+            }
+        }
+    }
+    return 0;
+}
 
 int32_t MyImageAdapterV2(const void *context,
                                  const char *src,
@@ -145,7 +250,7 @@ int32_t MyImageAdapterV2(const void *context,
                     // 设置为AUTO会根据图片资源格式解码，如果图片资源为HDR资源则会解码为HDR的pixelmap。
                     OH_DecodingOptions_SetDesiredDynamicRange(ops, IMAGE_DYNAMIC_RANGE_AUTO);
                     OH_PixelmapNative *resPixMap = nullptr;
-            
+                    
                     // ops参数支持传入nullptr, 当不需要设置解码参数时，不用创建
                     errCode = OH_ImageSourceNative_CreatePixelmap(image_source, ops, &resPixMap);
                     OH_DecodingOptions_Release(ops);
@@ -273,6 +378,7 @@ static napi_value InitKuikly(napi_env env, napi_callback_info info) {
         KRRegisterFontAdapter(MyFontAdapter, "Satisfy-Regular");
         KRRegisterImageAdapter(MyImageAdapter);
         KRRegisterImageAdapterV2(MyImageAdapterV2);
+        KRRegisterImageAdapterV3(MyImageAdapterV3);
         adapterRegistered = true;
     }
 

@@ -16,6 +16,7 @@
 #include "libohos_render/api/include/Kuikly/KRAnyData.h"
 #include "KRAnyDataInternal.h"
 
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -75,6 +76,61 @@ bool KRAnyDataIsArray(KRAnyData data) {
     }
     return internal->anyValue->isArray();
 }
+
+// 判断一个 KRAnyData 是否是 Map（字典/对象）类型
+bool KRAnyDataIsMap(KRAnyData data) {
+    struct KRAnyDataInternal *internal = (struct KRAnyDataInternal *)data;
+    if (internal == nullptr || internal->anyValue == nullptr) {
+        return false;
+    }
+    return internal->anyValue->isMap();
+}
+
+int KRAnyDataVisitMap(KRAnyData data, KRAnyDataMapVisitor visitor, void *userData) {
+    if (visitor == nullptr) {
+        return KRANYDATA_INVALID_PARAM;
+    }
+    
+    struct KRAnyDataInternal *internal = (struct KRAnyDataInternal *)data;
+    if (internal == nullptr || internal->anyValue == nullptr) {
+        return KRANYDATA_NULL_INPUT;
+    }
+    if (!internal->anyValue->isMap()) {
+        return KRANYDATA_TYPE_MISMATCH;
+    }
+    
+    auto& map = internal->anyValue->toMap();
+    for (auto& pair : map) {
+        KRAnyDataInternal tempValue;
+        tempValue.anyValue = pair.second;
+        visitor(pair.first.c_str(), &tempValue, userData);
+    }
+    return KRANYDATA_SUCCESS;
+}
+
+// 根据 key 获取 Map 中对应的 value
+int KRAnyDataGetMapValue(KRAnyData data, const char* key, KRAnyData* value) {
+    if (value == nullptr || key == nullptr) {
+        return KRANYDATA_NULL_OUTPUT;
+    }
+    struct KRAnyDataInternal *internal = (struct KRAnyDataInternal *)data;
+    if (internal == nullptr || internal->anyValue == nullptr) {
+        return KRANYDATA_NULL_INPUT;
+    }
+    if (!internal->anyValue->isMap()) {
+        return KRANYDATA_TYPE_MISMATCH;
+    }
+    
+    auto& map = internal->anyValue->toMap();
+    auto it = map.find(key);
+    if (it == map.end()) {
+        *value = nullptr;
+        return KRANYDATA_KEY_NOT_FOUND;
+    }
+    *value = it->second.get();
+    return KRANYDATA_SUCCESS;
+}
+
 
 const char *KRAnyDataGetString(KRAnyData data) {
     struct KRAnyDataInternal *internal = (struct KRAnyDataInternal *)data;
@@ -180,7 +236,7 @@ int KRAnyDataGetArrayElement(KRAnyData data, KRAnyData* value, int index) {
         return KRANYDATA_NULL_INPUT;
     }
     auto array = internal->anyValue->toArray();
-    if (index >= array.size()) {
+    if (index < 0 || index >= array.size()) {
         return KRANYDATA_OUT_OF_INDEX;
     }
     *value = array[index].get();
@@ -253,7 +309,7 @@ int KRAnyDataSetArrayElement(KRAnyData data, KRAnyData value, int index) {
         return KRANYDATA_NULL_INPUT;
     }
     struct KRAnyDataInternal *valueInternal = (struct KRAnyDataInternal *)value;
-    if (internal == nullptr) {
+    if (valueInternal == nullptr) {
         return KRANYDATA_NULL_INPUT;
     }
     if (!internal->anyValue) {
@@ -281,7 +337,7 @@ int KRAnyDataAddArrayElement(KRAnyData data, KRAnyData value) {
         return KRANYDATA_NULL_INPUT;
     }
     struct KRAnyDataInternal *valueInternal = (struct KRAnyDataInternal *)value;
-    if (internal == nullptr) {
+    if (valueInternal == nullptr) {
         return KRANYDATA_NULL_INPUT;
     }
     if (!internal->anyValue) {

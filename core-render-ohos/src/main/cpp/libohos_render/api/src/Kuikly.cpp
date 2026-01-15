@@ -308,6 +308,11 @@ void KRRegisterImageAdapter(KRImageAdapter adapter) {
 void KRRegisterImageAdapterV2(KRImageAdapterV2 adapter) {
     KRImageAdapterManager::GetInstance()->RegisterImageAdapterV2(adapter);
 }
+// 新增适配器 ImageAdapterV3
+void KRRegisterImageAdapterV3(KRImageAdapterV3 adapter) {
+    KRImageAdapterManager::GetInstance()->RegisterImageAdapterV3(adapter);
+}
+
 
 int KRLogLevelInfo = LogLevel::LOG_INFO;
 int KRLogLevelDebug = LogLevel::LOG_DEBUG;

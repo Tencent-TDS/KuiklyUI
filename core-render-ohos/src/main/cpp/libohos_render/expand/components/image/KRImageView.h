@@ -46,6 +46,7 @@ class KRImageView : public IKRRenderViewExport {
     bool SetBlurRadius(const KRAnyValue &value);
     bool SetTintColor(const KRAnyValue &value);
     bool SetCapInsets(const KRAnyValue &value);
+    bool SetImageParams(const KRAnyValue &value);
     bool SetDotNineImage(const KRAnyValue &value);
     bool SetMaskLinearGradient(const KRAnyValue &value);
     void ResetMaskLinearGradientNode();
@@ -72,6 +73,7 @@ class KRImageView : public IKRRenderViewExport {
     bool had_register_on_error_event_ = false;
     bool is_dot_nine_image_ = false;
     ArkUI_NodeHandle mask_linear_gradient_node_ = nullptr;
+    KRAnyValue image_params_ = nullptr;
     
     static void AdapterSetImageCallback(const void* context,
                                    const char *src,

@@ -39,3 +39,11 @@ void KRImageAdapterManager::RegisterImageAdapterV2(KRImageAdapterV2 imageAdapter
 KRImageAdapterV2 KRImageAdapterManager::GetAdapterV2() {
     return adapter_v2;
 }
+
+void KRImageAdapterManager::RegisterImageAdapterV3(KRImageAdapterV3 imageAdapter) {
+    adapter_v3 = imageAdapter;
+}
+
+KRImageAdapterV3 KRImageAdapterManager::GetAdapterV3() {
+    return adapter_v3;
+}

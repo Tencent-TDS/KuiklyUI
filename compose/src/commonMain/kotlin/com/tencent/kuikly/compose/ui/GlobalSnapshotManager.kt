@@ -17,7 +17,8 @@
 package com.tencent.kuikly.compose.ui
 
 import androidx.compose.runtime.snapshots.Snapshot
-import com.tencent.kuiklyx.coroutines.KuiklyContextScheduler
+import com.tencent.kuikly.compose.ComposeContainer
+import com.tencent.kuikly.compose.coroutines.internal.KuiklyContextScheduler
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +36,9 @@ import kotlinx.coroutines.launch
  * [ensureStarted] during setup to initialize periodic global snapshot notifications.
  */
 internal object GlobalSnapshotManager {
+
     private val started = atomic(0)
+
     private val sent = atomic(0)
 
     private fun runOnKuiklyThread(block: () -> Unit) {
@@ -60,6 +63,9 @@ internal object GlobalSnapshotManager {
                 }
             }
             Snapshot.registerGlobalWriteObserver {
+                if (!ComposeContainer.enableConsumeSnapshot) {
+                    return@registerGlobalWriteObserver
+                }
                 if (sent.compareAndSet(0, 1)) {
                     channel.trySend(Unit)
                 }

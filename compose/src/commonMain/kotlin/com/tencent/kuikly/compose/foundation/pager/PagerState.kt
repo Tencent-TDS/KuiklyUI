@@ -57,6 +57,7 @@ import com.tencent.kuikly.compose.ui.unit.Constraints
 import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.scroller.applyScrollViewOffsetDelta
+import com.tencent.kuikly.compose.scroller.convertAnimationSpecToSpringAnimation
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.math.abs
@@ -613,13 +614,25 @@ abstract class PagerState internal constructor(
         } else if (targetOffset + kuiklyInfo.viewportSize > kuiklyInfo.currentContentSize) {
             targetOffset = maxScrollOffset.toFloat()
         }
+        
+        // Calculate initial and target offsets (for SpringSpec duration calculation)
+        val initialOffset = kuiklyInfo.contentOffset.toFloat()
+        val finalTargetOffset = targetOffset
+        
+        // Convert AnimationSpec to SpringAnimation
+        val springAnimation = convertAnimationSpecToSpringAnimation(
+            animationSpec = animationSpec,
+            initialValue = initialOffset,
+            targetValue = finalTargetOffset
+        )
+        
         kuiklyInfo.run {
             val targetOffsetDp = if (isVertical()) {
                 Offset(scrollView?.curOffsetX ?: 0f, max(0f, targetOffset / getDensity() - 0.01f))
             } else {
                 Offset(max(0f, targetOffset / getDensity() - 0.01f), scrollView?.curOffsetY ?: 0f)
             }
-            scrollView?.setContentOffset(targetOffsetDp.x, targetOffsetDp.y, true)
+            scrollView?.setContentOffset(targetOffsetDp.x, targetOffsetDp.y, true, springAnimation)
         }
 //
 //        animatedScrollScope.animateScrollToPage(
@@ -706,7 +719,7 @@ abstract class PagerState internal constructor(
             appleScrollViewOffsetJob?.cancel()
             appleScrollViewOffsetJob = scope?.launch {
                 delay(50)
-                if (!isScrollInProgress && scrollableState.kuiklyInfo.contentOffset < composeOffset.toInt()) {
+                if (!isScrollInProgress && scrollableState.kuiklyInfo.contentOffset != composeOffset.toInt()) {
                     // 先扩容
                     currentContentSize = max((maxScrollOffset + layoutSize).toInt(), currentContentSize)
                     updateContentSizeToRender()

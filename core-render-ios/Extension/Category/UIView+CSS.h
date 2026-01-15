@@ -13,9 +13,10 @@
  * limitations under the License.
  */
 
-#import <UIKit/UIKit.h>
+#import "KRUIKit.h" // [macOS]
 #import "UIView+CSSDebug.h"
 #import "KuiklyRenderViewExportProtocol.h"
+#include <QuartzCore/QuartzCore.h>
 
 #define KR_SCROLL_INDEX  @"scrollIndex"
 
@@ -70,6 +71,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)css_onClickTapWithSender:(UIGestureRecognizer *)sender;
 - (void)css_onDoubleClickWithSender:(UIGestureRecognizer *)sender;
 - (void)css_onLongPressWithSender:(UILongPressGestureRecognizer *)sender;
+- (CGPoint)kr_convertLocalPointToRenderRoot:(CGPoint)point;
 @end
 
 // ***  CSSGrientLayer  ** //
@@ -87,6 +89,26 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, strong) UIColor *shadowColor;
 
 - (instancetype)initWithCSSBoxShadow:(NSString *)boxShadow;
+
+@end
+
+// ***  CSSBorderRadius  ** //
+@interface CSSBorderRadius : NSObject
+
+@property(nonatomic, assign) CGFloat topLeftCornerRadius;
+@property(nonatomic, assign) CGFloat topRightCornerRadius;
+@property(nonatomic, assign) CGFloat bottomLeftCornerRadius;
+@property(nonatomic, assign) CGFloat bottomRightCornerRadius;
+
+- (instancetype)initWithCSSBorderRadius:(NSString *)cssBorderRadius;
+- (BOOL)isSameBorderCornerRaidus;
+
+@end
+
+// ***  CAShapeLayer  ** //
+@interface CSSShapeLayer : CAShapeLayer
+
+- (instancetype)initWithBorderRadius:(CSSBorderRadius *)borderRadius;
 
 @end
 

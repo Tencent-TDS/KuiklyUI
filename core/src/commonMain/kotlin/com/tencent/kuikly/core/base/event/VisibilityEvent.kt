@@ -22,6 +22,7 @@ import com.tencent.kuikly.core.layout.MutableFrame
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.pager.Pager
 import com.tencent.kuikly.core.views.IScrollerViewEventObserver
+import com.tencent.kuikly.core.views.ModalView
 import com.tencent.kuikly.core.views.ScrollParams
 import com.tencent.kuikly.core.views.ScrollerView
 import kotlin.math.max
@@ -65,6 +66,17 @@ class VisibilityEvent : BaseEvent(), IScrollerViewEventObserver {
         }
     }
 
+    /**
+     * 当可见区域忽略的margin发生变化时回调该方法
+     */
+    override fun visibleAreaMarginChanged() {
+        getView()?.let {
+            if (it is DeclarativeBaseView<*, *>) {
+                onRelativeCoordinatesDidChanged(it)
+            }
+        }
+    }
+
     override fun onRenderViewDidRemoved() {
         if (listViewNativeRef > 0) {
             getPager().getViewWithNativeRef(listViewNativeRef)?.let {
@@ -99,7 +111,7 @@ class VisibilityEvent : BaseEvent(), IScrollerViewEventObserver {
         val viewFrame = view.flexNode.layoutFrame
         val frameInWindow = MutableFrame(viewFrame.x, viewFrame.y, viewFrame.width, viewFrame.height)
         while (targetVisibleWindow != null
-            && !(targetVisibleWindow is ScrollerView<*, *> || targetVisibleWindow is Pager)
+            && !(targetVisibleWindow is ScrollerView<*, *> || targetVisibleWindow is ModalView || targetVisibleWindow is Pager)
         ) {
             frameInWindow.x += targetVisibleWindow.flexNode.layoutFrame.x
             frameInWindow.y += targetVisibleWindow.flexNode.layoutFrame.y

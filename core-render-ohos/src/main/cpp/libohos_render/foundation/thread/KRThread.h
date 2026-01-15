@@ -50,7 +50,7 @@ class KRThread {
         m_workerThread.join();
     }
 
-    void DispatchAsync(const std::function<void()> &task, int delayMilliseconds = 0) {
+    void DispatchAsync(const std::function<void()> task, int delayMilliseconds = 0) {
         if (delayMilliseconds > 0) {
             m_delayThread->DispatchAsync([task, this] { this->DispatchAsync(task, 0); }, delayMilliseconds);
             return;

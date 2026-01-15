@@ -16,11 +16,12 @@
 package com.tencent.kuikly.core.views
 
 import com.tencent.kuikly.core.base.*
-import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.layout.MutableFrame
 import com.tencent.kuikly.core.manager.PagerManager
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+import com.tencent.kuikly.core.views.ModalView.Companion.ON_WILL_DISMISS
+import com.tencent.kuikly.core.views.internal.GroupView
 
 const val MIN_BUILD_VERSION = 2
 /**
@@ -38,7 +39,7 @@ fun ViewContainer<*, *>.Modal(inWindow: Boolean = false, init: ModalView.() -> U
     }
 }
 
-class ModalView : ViewContainer<ContainerAttr, Event>() {
+class ModalView : ViewContainer<ContainerAttr, ModalEvent>() {
     /* 层级是否顶层，和屏幕等大 */
     var inWindow: Boolean = false
         set(value) {
@@ -47,13 +48,13 @@ class ModalView : ViewContainer<ContainerAttr, Event>() {
                 field = value
             }
         }
-    private var contentView: ViewContainer<*, *>? = null
+    private var contentView: ModalContentView? = null
     override fun createAttr(): ContainerAttr {
         return ContainerAttr()
     }
 
-    override fun createEvent(): Event {
-        return Event()
+    override fun createEvent(): ModalEvent {
+        return ModalEvent()
     }
 
     override fun frameInParentRenderComponentCoordinate(frame: Frame): MutableFrame {
@@ -75,7 +76,7 @@ class ModalView : ViewContainer<ContainerAttr, Event>() {
                 click {  } // 避免手势穿透
             }
         } else {
-            contentView = DivView()
+            contentView = ModalContentView()
             contentView?.also {
                 currentWindow().addChild(it) {
                     attr {
@@ -106,7 +107,7 @@ class ModalView : ViewContainer<ContainerAttr, Event>() {
         }
     }
 
-    override fun event(init: Event.() -> Unit) {
+    override fun event(init: ModalEvent.() -> Unit) {
         if (inWindow) {
             super.event(init)
         } else {
@@ -177,13 +178,34 @@ enum class ModalDismissReason(val value: Int) {
 
 typealias DismissEventHandlerFn = (ModalDismissReason) -> Unit
 
+class ModalEvent: DivEvent()
+
 /**
  * 设置一个用于监听系统back按钮事件的回调
  */
-fun Event.willDismiss(handler: DismissEventHandlerFn) {
-    register(ModalView.ON_WILL_DISMISS){
+fun ModalEvent.willDismiss(handler: DismissEventHandlerFn) {
+    register(ON_WILL_DISMISS){
         it as JSONObject
         val reason = it.optInt("reason", 0)
         handler(ModalDismissReason.from(reason))
+    }
+}
+
+open class ModalContentView : GroupView<DivAttr, ModalEvent>() {
+
+    override fun createAttr(): DivAttr {
+        return DivAttr()
+    }
+
+    override fun createEvent(): ModalEvent {
+        return ModalEvent()
+    }
+
+    override fun viewName(): String {
+        return ViewConst.TYPE_VIEW
+    }
+
+    override fun isRenderView(): Boolean {
+        return isRenderViewForFlatLayer()
     }
 }

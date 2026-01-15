@@ -48,7 +48,11 @@ internal abstract class AbstractCoroutine<in T>(
             GlobalFunctions.destroyGlobalFunction(pair.first, pair.second)
         }
         timeoutRefs.clear()
-        val ex = if (cause is CancellationException) cause else CancellationException("cancelled", cause)
+        val ex = if (cause is CancellationException) {
+            cause
+        } else {
+            CancellationException("cancelled", cause)
+        }
         cancellables.forEach { c ->
             try {
                 c.resumeWith(Result.failure(ex))

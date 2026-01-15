@@ -1,4 +1,4 @@
-package module
+package com.tencent.kuikly.h5app.module
 
 import com.tencent.kuikly.core.render.web.export.KuiklyRenderBaseModule
 import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback

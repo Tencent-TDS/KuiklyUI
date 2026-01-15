@@ -92,8 +92,7 @@ class TextMetrics(
     val actualBoundingBoxDescent: Float
 )
 
-// api 对齐 h5 canvas 标准
-interface ContextApi {
+interface PathApi {
     fun beginPath()
     fun moveTo(x: Float, y: Float)
     fun lineTo(x: Float, y: Float)
@@ -106,17 +105,6 @@ interface ContextApi {
         counterclockwise: Boolean
     )
     fun closePath()
-    fun stroke()
-    fun fill()
-    fun strokeStyle(color: Color)
-    fun strokeStyle(linearGradient: CanvasLinearGradient)
-    fun fillStyle(color: Color)
-    fun fillStyle(linearGradient: CanvasLinearGradient)
-    fun lineWidth(width: Float)
-    fun setLineDash(intervals: List<Float>)
-    fun lineCapRound()
-    fun lineCapButt()
-    fun lineCapSquare()
     fun quadraticCurveTo(
         controlPointX: Float,
         controlPointY: Float,
@@ -131,6 +119,21 @@ interface ContextApi {
         pointX: Float,
         pointY: Float
     )
+}
+
+// api 对齐 h5 canvas 标准
+interface ContextApi : PathApi {
+    fun stroke()
+    fun fill()
+    fun strokeStyle(color: Color)
+    fun strokeStyle(linearGradient: CanvasLinearGradient)
+    fun fillStyle(color: Color)
+    fun fillStyle(linearGradient: CanvasLinearGradient)
+    fun lineWidth(width: Float)
+    fun setLineDash(intervals: List<Float>)
+    fun lineCapRound()
+    fun lineCapButt()
+    fun lineCapSquare()
 
     fun save()
     fun saveLayer(x: Float, y: Float, width: Float, height: Float)

@@ -74,6 +74,9 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
   private static readonly PROP_METHOD_PLAY = 'play';
   private static readonly PROP_METHOD_STOP = 'stop';
 
+  private static readonly SCHEME_ASSETS = "assets://";
+  private static readonly SCHEME_FILE = "files://";
+
   setProp(propKey: string, propValue: KRValue | KuiklyRenderCallback): boolean {
     console.log(`KRPAGView setProp propKey:${propKey}, propValue:${propValue}`);
     if (propKey == KRPAGView.EVENT_LOAD_FAIL) {
@@ -87,6 +90,9 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
     } else if (propKey == KRPAGView.EVENT_ANIMATION_REPEAT) {
       this.animationRepeatEvent = propValue as KuiklyRenderCallback;
     } else {
+      if (propKey == KRPAGView.PROP_SRC) {
+        propValue = this.convertAssetsPathIfNeed(propValue as string)
+      }
       if (this.controller) {
         return this.controller?.setProp(propKey, propValue);
       } else {
@@ -113,4 +119,16 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
     }
     return new ComponentContent<KuiklyRenderBaseView>(uiContext, wrapBuilder<[KuiklyRenderBaseView]>(createEmptyView), this)
   }
+
+  convertAssetsPathIfNeed(path: string): string {
+    const executeMode = this.getInstance()?.getControllerExecuteMode()
+    const assetsDir = this.getInstance()?.getAssetsDir()
+    if (!path.startsWith(KRPAGView.SCHEME_ASSETS) || executeMode == 0 || assetsDir == '') {
+      return path
+    }
+    const relativePath = path.replace(KRPAGView.SCHEME_ASSETS, '')
+    const convertPath = `${KRPAGView.SCHEME_FILE}${assetsDir}/${relativePath}`;
+    return convertPath
+  }
+
 }

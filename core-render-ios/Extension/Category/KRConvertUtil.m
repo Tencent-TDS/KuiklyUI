@@ -92,14 +92,7 @@
         return [self italicFontWithSize:fontSize bold:fontWeight >=UIFontWeightBold itatic:YES weight:fontWeight];
     }
     
-    if (@available(iOS 8.2, *)) {
-        return  [UIFont systemFontOfSize:fontSize weight:fontWeight];
-    } else {
-        if(fontWeight >= UIFontWeightBold){
-            return [UIFont boldSystemFontOfSize:fontSize];
-        }
-        return [UIFont systemFontOfSize:fontSize];
-    }
+    return [UIFont systemFontOfSize:fontSize weight:fontWeight];
 }
 
 + (UIFont *)italicFontWithSize:(CGFloat)fontSize
@@ -179,8 +172,9 @@
     return UIUserInterfaceStyleUnspecified;
 }
 
-#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
-+ (UIGlassEffectStyle)KRGlassEffectStyle:(NSString *)style API_AVAILABLE(ios(26.0)) {
+// [macOS] Unified implementation using UIGlassEffectStyle (mapped to NSGlassEffectViewStyle on macOS via KRUIKit.h)
+#if (__IPHONE_OS_VERSION_MAX_ALLOWED >= 260000) || (__MAC_OS_X_VERSION_MAX_ALLOWED >= 260000)
++ (UIGlassEffectStyle)KRGlassEffectStyle:(NSString *)style API_AVAILABLE(ios(26.0), macos(26.0)) {
     if (!style || [[UIView css_string:style] isEqualToString:@"regular"]) {
         return UIGlassEffectStyleRegular;
     }
@@ -388,6 +382,16 @@
                            bottomLeftCornerRadius:(CGFloat)bottomLeftCornerRadius
                        bottomRightCornerRadius:(CGFloat)bottomRightCornerRadius {
     CGSize size = rect.size;
+    CGRect bounds = rect;
+
+    // 防止半径超过宽/高的一半（UIBezierPath 会自动 clamp，手动 clamp 更安全）
+    CGFloat maxRadius = MIN(bounds.size.width, bounds.size.height) / 2.0;
+    topLeftCornerRadius = MIN(topLeftCornerRadius, maxRadius);
+    topRightCornerRadius = MIN(topRightCornerRadius, maxRadius);
+    bottomLeftCornerRadius = MIN(bottomLeftCornerRadius, maxRadius);
+    bottomRightCornerRadius = MIN(bottomRightCornerRadius, maxRadius);
+
+    // 绘制四个方向的线和圆弧
     UIBezierPath * path = [UIBezierPath bezierPath];
     CGFloat radius = topLeftCornerRadius;
     [path addArcWithCenter:CGPointMake(radius, radius) radius:radius startAngle:M_PI endAngle:M_PI * (3/2.0f) clockwise:true];
@@ -436,28 +440,41 @@
     return array;
 }
 
-+ (UIViewAnimationOptions)hr_viewAnimationOptions:(NSString *)value {
-    if ([value intValue] == 1) {
+/// Convert timing function to UIViewAnimationOptions. rawCurve is only used when value=4 (Keyboard).
++ (UIViewAnimationOptions)hr_viewAnimationOptions:(NSString *)value rawCurve:(NSString *)rawCurve {
+    int v = [value intValue];
+    if (v == 1) {
         return UIViewAnimationOptionCurveEaseIn;
     }
-    if ([value intValue] == 2) {
+    if (v == 2) {
         return UIViewAnimationOptionCurveEaseOut;
     }
-    if ([value intValue] == 3) {
+    if (v == 3) {
         return UIViewAnimationOptionCurveEaseInOut;
+    }
+    if (v == 4) {
+        // Keyboard: shift left 16 bits to convert to UIViewAnimationOptions format
+        int rawCurveValue = [rawCurve intValue];
+        return (UIViewAnimationOptions)(rawCurveValue << 16);
     }
     return UIViewAnimationOptionCurveLinear;
 }
 
-+ (UIViewAnimationCurve)hr_viewAnimationCurve:(NSString *)value {
-    if ([value intValue] == 1) {
+/// Convert timing function to UIViewAnimationCurve. rawCurve is only used when value=4 (Keyboard).
++ (UIViewAnimationCurve)hr_viewAnimationCurve:(NSString *)value rawCurve:(NSString *)rawCurve {
+    int v = [value intValue];
+    if (v == 1) {
         return UIViewAnimationCurveEaseIn;
     }
-    if ([value intValue] == 2) {
+    if (v == 2) {
         return UIViewAnimationCurveEaseOut;
     }
-    if ([value intValue] == 3) {
+    if (v == 3) {
         return UIViewAnimationCurveEaseInOut;
+    }
+    if (v == 4) {
+        int rawCurveValue = [rawCurve intValue];
+        return (UIViewAnimationCurve)rawCurveValue;
     }
     return UIViewAnimationCurveLinear;
 }
@@ -465,6 +482,10 @@
 
 + (UIKeyboardType)hr_keyBoardType:(id)value {
     NSString *keyboardType = [self hr_toString:value];
+    #if TARGET_OS_OSX // [macOS]
+    (void)keyboardType; // 未使用
+    return UIKeyboardTypeDefault;
+    #else
     if ([keyboardType isEqualToString:@"password"]) {
         return UIKeyboardTypeAlphabet;
     }
@@ -475,6 +496,7 @@
         return UIKeyboardTypeEmailAddress;
     }
     return UIKeyboardTypeDefault;
+    #endif // [macOS]
 }
 
 + (NSString *)hr_toString:(id)value {
@@ -488,6 +510,10 @@
 
 + (UIReturnKeyType)hr_toReturnKeyType:(id)value {
     NSString *returnKeyType = [self hr_toString:value];
+    #if TARGET_OS_OSX // [macOS]
+    (void)returnKeyType;
+    return UIReturnKeyDefault;
+    #else
     if ([returnKeyType isEqualToString:@"default"]) {
         return UIReturnKeyDefault;
     } else if ([returnKeyType isEqualToString:@"search"]) {
@@ -513,8 +539,8 @@
     } else if ([returnKeyType isEqualToString:@"emergencyCall"]) {
         return UIReturnKeyEmergencyCall;
     }
-    return UIReturnKeyDefault;;
-    
+    return UIReturnKeyDefault;
+    #endif // [macOS]
 }
 
 + (UIAccessibilityTraits)kr_accessibilityTraits:(id)value {
@@ -531,7 +557,6 @@
         return UIAccessibilityTraitButton | UIAccessibilityTraitSelected;
     }
     return UIAccessibilityTraitNone;
-    
 }
 
 + (NSString *)hr_base64Decode:(NSString *)string {
@@ -580,19 +605,25 @@
 }
 
 + (void)hr_alertWithTitle:(NSString *)title message:(NSString *)message {
-    if([UIApplication isAppExtension]){
-        return;
-    }
-    
     dispatch_async(dispatch_get_main_queue(), ^{
+        if ([UIApplication isAppExtension]) {
+            return;
+        }
+#if TARGET_OS_OSX // [macOS]
+        NSAlert *alert = [[NSAlert alloc] init];
+        alert.messageText = title ?: @"";
+        alert.informativeText = message ?: @"";
+        [alert addButtonWithTitle:@"确定"];
+        [alert runModal];
+#else // [macOS]
         UIAlertController *alertController = [UIAlertController alertControllerWithTitle:title
                                                                                  message:message
                                                                           preferredStyle:UIAlertControllerStyleAlert];
-        UIAlertAction * action = [UIAlertAction actionWithTitle:@"确定" style:(UIAlertActionStyleDefault) handler:nil];
+        UIAlertAction *action = [UIAlertAction actionWithTitle:@"确定" style:(UIAlertActionStyleDefault) handler:nil];
         [alertController addAction:action];
         [[UIApplication sharedApplication].keyWindow.rootViewController presentViewController:alertController animated:YES completion:nil];
+#endif // [macOS]
     });
-  
 }
 
 + (NSString *)hr_md5StringWithString:(NSString *)string {
@@ -609,6 +640,9 @@
 }
 
 + (CGFloat)statusBarHeight {
+    #if TARGET_OS_OSX // [macOS]
+    return 0;
+    #else
     CGFloat statusBarHeight = 0;
     if(![UIApplication isAppExtension]){
         if (@available(iOS 13.0, *)) {
@@ -621,7 +655,6 @@
             statusBarHeight = UIApplication.sharedApplication.statusBarFrame.size.height;
         }
     }
-    
     if (@available(iOS 16.0, *)) {
         BOOL needAdjust = (statusBarHeight == 44);
         if (needAdjust) {
@@ -638,18 +671,20 @@
             }
         }
     }
-   
     return statusBarHeight ?: [self defaultStatusBarHeight];
+    #endif
 }
 
 + (CGFloat)defaultStatusBarHeight {
     CGFloat statusBarHeight = 20;
+#if !TARGET_OS_OSX // [macOS]
     if (UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPhone) {
         CGSize screenSize = UIScreen.mainScreen.bounds.size;
         if (MAX(screenSize.width, screenSize.height) / MIN(screenSize.width, screenSize.height) >= 2.0) {
             statusBarHeight = 44;
         }
     }
+#endif
     return statusBarHeight;
 }
 
@@ -659,17 +694,19 @@
 
 
 + (UIEdgeInsets)currentSafeAreaInsets {
+    #if TARGET_OS_OSX // [macOS]
+    return UIEdgeInsetsZero;
+    #else
     if([UIApplication isAppExtension]){
         return UIEdgeInsetsZero;
     }
-    
     if (@available(iOS 11, *)) {
         UIWindow *window = UIApplication.sharedApplication.windows.firstObject;
         return window.safeAreaInsets;
     } else {
-        // 在 iOS 11 之前的版本中，您需要根据需要自己计算安全边距
         return UIEdgeInsetsZero;
     }
+    #endif
 }
 
 + (CGFloat)toSafeFloat:(CGFloat)value {

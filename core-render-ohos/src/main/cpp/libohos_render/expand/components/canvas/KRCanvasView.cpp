@@ -122,9 +122,7 @@ void KRCanvasView::SetLineCap(const std::string &params) {
     } else if (str == "square") {
         style = LINE_SQUARE_CAP;
     }
-    if (pen_ == nullptr) {
-        pen_ = OH_Drawing_PenCreate();
-    }
+    CreatePenIfNeeded();
     OH_Drawing_PenSetCap(pen_, style);
 }
 
@@ -132,9 +130,7 @@ void KRCanvasView::SetLineWidth(const std::string &params) {
     auto obj = kuikly::util::JSONObject::Parse(params);
     float width = obj->GetNumber("width");
 
-    if (pen_ == nullptr) {
-        pen_ = OH_Drawing_PenCreate();
-    }
+    CreatePenIfNeeded();
     OH_Drawing_PenSetWidth(pen_, width);
 }
 
@@ -142,9 +138,7 @@ void KRCanvasView::SetLineDash(const std::string &params) {
     auto obj = kuikly::util::JSONObject::Parse(params);
     auto intervalsVector = obj->GetNumberArray("intervals");
     int count = intervalsVector.size();
-    if (pen_ == nullptr) {
-        pen_ = OH_Drawing_PenCreate();
-    }
+    CreatePenIfNeeded();
     if (count == 0) {
         OH_Drawing_PenSetPathEffect(pen_, nullptr);
         return;
@@ -202,16 +196,11 @@ void KRCanvasView::SetStrokeStyle(const std::string &params) {
     auto paramObj = kuikly::util::JSONObject::Parse(params);
     if (paramObj) {
         const std::string style = paramObj->GetString("style");
+        CreatePenIfNeeded();
         if (style.substr(0, LINEAR_GRADIENT.size()) == LINEAR_GRADIENT) {
             OH_Drawing_ShaderEffect *colorShaderEffect = parseGradientStyle(style);
-            if (pen_ == nullptr) {
-                pen_ = OH_Drawing_PenCreate();
-            }
             OH_Drawing_PenSetShaderEffect(pen_, colorShaderEffect);
         } else {
-            if (pen_ == nullptr) {
-                pen_ = OH_Drawing_PenCreate();
-            }
             OH_Drawing_PenSetShaderEffect(pen_, nullptr);
             OH_Drawing_PenSetColor(pen_, kuikly::util::ConvertToHexColor(style));
         }
@@ -221,16 +210,11 @@ void KRCanvasView::SetFillStyle(const std::string &params) {
     auto paramObj = kuikly::util::JSONObject::Parse(params);
     if (paramObj) {
         const std::string style = paramObj->GetString("style");
+        CreateBrushIfNeeded();
         if (style.substr(0, LINEAR_GRADIENT.size()) == LINEAR_GRADIENT) {
             OH_Drawing_ShaderEffect *colorShaderEffect = parseGradientStyle(style);
-            if (brush_ == nullptr) {
-                brush_ = OH_Drawing_BrushCreate();
-            }
             OH_Drawing_BrushSetShaderEffect(brush_, colorShaderEffect);
         } else {
-            if (brush_ == nullptr) {
-                brush_ = OH_Drawing_BrushCreate();
-            }
             OH_Drawing_BrushSetShaderEffect(brush_, nullptr);
             kuikly::graphics::Color color = kuikly::graphics::Color::FromString(style);
             OH_Drawing_BrushSetColor(brush_, color.value);
@@ -280,18 +264,32 @@ void KRCanvasView::Arc(const std::string &params) {
         bool ccw = paramObj->GetNumber("counterclockwise");
         float sweepAngle = endAngle - startAngle;
         if (ccw) {
-            if (sweepAngle > 0) {
+            // Preprocessing for counter-clockwise drawing:
+            // 0. Angles in (-720, 0] require no processing
+            // 1. sweepAngle > 0, startAngle and endAngle represent absolute angles, convert to [-360, 0)
+            // 2. sweepAngle <= -720, drawing exceeds 2 turns, convert to (-720, -360]
+            // Rules 2 and 3 share the same formula; In summary, final sweepAngle is in (-720, 0]
+            if (sweepAngle > 0 || sweepAngle <= -720) {
                 sweepAngle = std::fmod(sweepAngle, 360) - 360;
             }
         } else {
-            if (sweepAngle < 0) {
+            // Preprocessing for clockwise drawing:
+            // 0. Angles in [0, 720) require no processing
+            // 1. sweepAngle < 0, startAngle and endAngle represent absolute angles, convert to (0, 360]
+            // 2. sweepAngle >= 720, drawing exceeds 2 turns, convert to [360, 720)
+            // Rules 2 and 3 share the same formula; In summary, final sweepAngle is in [0, 720)
+            if (sweepAngle < 0 || sweepAngle >= 720) {
                 sweepAngle = std::fmod(sweepAngle, 360) + 360;
             }
         }
         if (std::fabs(sweepAngle) < 360) {
+            // Deal with arc less than 2π
             OH_Drawing_PathArcTo(drawingPath_, x - r, y - r, x + r, y + r, startAngle, sweepAngle);
         } else {
-            // TODO(userName):
+            // Deal with arc greater than or equal to 2π
+            float halfSweepAngle = sweepAngle * 0.5;
+            OH_Drawing_PathArcTo(drawingPath_, x - r, y - r, x + r, y + r, startAngle, halfSweepAngle);
+            OH_Drawing_PathArcTo(drawingPath_, x - r, y - r, x + r, y + r, startAngle + halfSweepAngle, halfSweepAngle);
         }
     }
 }
@@ -342,10 +340,15 @@ void KRCanvasView::SetFont(const std::string &params) {
     auto style = paramObj->GetString("style");
     auto weight = std::stoi(paramObj->GetString("weight"));
     auto family = paramObj->GetString("family");
+    
+    float scale = 1.0;
+    if (auto root = GetRootView().lock()) {
+        scale = root->GetContext()->Config()->GetFontWeightScale();
+    }
 
     text_feature_.fontSize = size;
     text_feature_.fontStyle = kuikly::util::ConvertToFontStyle(style);
-    text_feature_.fontWeight = kuikly::util::ConvertFontWeight(weight);
+    text_feature_.fontWeight = kuikly::util::ConvertFontWeight(weight, scale);
     text_feature_.fontFamily = family;
 }
 
@@ -402,14 +405,10 @@ void KRCanvasView::DrawText(std::string params, std::shared_ptr<struct KRFontCol
     OH_Drawing_SetTypographyTextAlign(typoStyle, TEXT_ALIGN_LEFT);
 
     if (type == FILL_TEXT) {
-        if (brush_ == nullptr) {
-            brush_ = OH_Drawing_BrushCreate();
-        }
+        CreateBrushIfNeeded();
         OH_Drawing_SetTextStyleForegroundBrush(txtStyle, brush_);
     } else if (type == STROKE_TEXT) {
-        if (pen_ == nullptr) {
-            pen_ = OH_Drawing_PenCreate();
-        }
+        CreatePenIfNeeded();
         OH_Drawing_SetTextStyleForegroundPen(txtStyle, pen_);
     }
 
@@ -602,6 +601,20 @@ void KRCanvasView::DrawImage(const std::string &params) {
         OH_Drawing_CanvasDrawPixelMapRect(canvas_, drawingPixelMap, srcRect, dstRect, nullptr);
         OH_Drawing_RectDestroy(srcRect);
         OH_Drawing_RectDestroy(dstRect);
+    }
+}
+
+void KRCanvasView::CreatePenIfNeeded() {
+    if (pen_ == nullptr) {
+        pen_ = OH_Drawing_PenCreate();
+        OH_Drawing_PenSetAntiAlias(pen_, true);
+    }
+}
+
+void KRCanvasView::CreateBrushIfNeeded() {
+    if (brush_ == nullptr) {
+        brush_ = OH_Drawing_BrushCreate();
+        OH_Drawing_BrushSetAntiAlias(brush_, true);
     }
 }
 

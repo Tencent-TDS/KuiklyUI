@@ -14,15 +14,16 @@
  */
 
 #import <Foundation/Foundation.h>
-#import <UIKit/UIKit.h>
+#import "KRUIKit.h"
 #import "KuiklyRenderView.h"
+#import "KRBackPressModule.h"
 
 typedef void (^KuiklyContextCodeCallback)(NSString * _Nullable contextCode, NSError * _Nullable error);
 @protocol KRPerformanceDataProtocol;
 
 NS_ASSUME_NONNULL_BEGIN
 /** Snapshot页面快照Key. */
-UIKIT_EXTERN NSString *const KRPageDataSnapshotKey;
+FOUNDATION_EXTERN NSString *const KRPageDataSnapshotKey;
 @protocol KuiklyRenderViewControllerBaseDelegatorDelegate;
 @protocol KRControllerDelegatorLifeCycleProtocol;
 /*
@@ -98,7 +99,7 @@ UIKIT_EXTERN NSString *const KRPageDataSnapshotKey;
 + (BOOL)isPageExistWithPageName:(NSString *)pageName frameworkName:(NSString *)frameworkName;
 
 /*
- * @brief 获取kmm工程打包的framework名字，并将获取到的名字传入callback处理
+ * @brief 获取kmm工程打包的framework名字,并将获取到的名字传入callback处理
  * @param callback 处理获取到的framework名字的回调函数
  */
 - (void)fetchContextCodeWithResultCallback:(KuiklyContextCodeCallback)callback;
@@ -112,6 +113,13 @@ UIKIT_EXTERN NSString *const KRPageDataSnapshotKey;
  * @param contextCode kmm工程打包的framework名字
  */
 - (void)initRenderViewWithContextCode:(NSString *)contextCode;
+
+
+/*
+ * @brief 返回手势处理，获取系统手势后发送至Koltin侧，获取当前是否要消费此手势
+ * @param completion 回调 Block,在主线程执行,返回是否被 Kotlin 侧消费
+ */
+- (void)onBackPressedWithCompletion:(nullable KuiklyBackPressCompletion)completion;
 
 @end
 
@@ -179,6 +187,11 @@ UIKIT_EXTERN NSString *const KRPageDataSnapshotKey;
                       mode:(KuiklyContextMode)mode;
 
 /*
+ * @breif viewWillDisappear的时候回调，业务可在此回调中获取性能数据。
+ */
+- (void)onGetPerformanceData;
+
+/*
  * @brief 首屏是否同步渲染（默认framework模式为同步方式）
  * @return 是否同步渲染首屏
  */
@@ -214,6 +227,10 @@ UIKIT_EXTERN NSString *const KRPageDataSnapshotKey;
 - (void)willInitRenderView;
 /// kuiklyRenderView创建完成后调用
 - (void)didInitRenderView;
+/// kuiklyRenderCore将要初始化时调用
+- (void)willInitRenderCore;
+/// kuiklyRenderCore初始化完成调用
+- (void)didInitRenderCore;
 /// kuiklyRenderView被成功发送事件时调用
 - (void)didSendEvent:(NSString *)event;
 /// 对齐所在VC的viewWillAppear时机

@@ -153,177 +153,73 @@ internal class FontSizePage : BasePager() {
 
 :::
 
-### fontWeight400方法
+### fontWeight方法
 
-设置字重为400.
+设置文本字重（字体粗细）
+
+<div class="table-01">
+
+**fontWeight方法列表**
+
+| 字重名 | 字重值 | 说明 |
+|:----|:-------|:--|
+| `fontWeightExtraLight()` |   | 超细<Badge text="仅iOS、鸿蒙支持" type="warn"/> |
+| `fontWeightLight()` |   | 细<Badge text="仅iOS、鸿蒙支持" type="warn"/> |
+| `fontWeightNormal()` | `fontWeight400()` | 正常（默认） |
+| `fontWeightMedium()` | `fontWeight500()` | 中等 |
+| `fontWeightSemiBold()` | `fontWeight600()` | 半粗 |
+| `fontWeightBold()` | `fontWeight700()` | 粗体 |
+| `fontWeightExtraBold()` | `fontWeight800()` | 超粗 |
+| `fontWeightBlack()` | `fontWeight900()` | 极粗 |
+
+</div>
+
+:::warning 兼容性提示
+在个别小米机型的 MiSans（系统默认）字体中，设置 `normal` 以外的字重会导致韩文字符中的圆圈显示为实心圆形。
+:::
 
 :::tabs
 
 @tab:active 示例
 
-```kotlin{15}
-@Page("demo_page")
-internal class FontWeightPage : BasePager() {
-    override fun body(): ViewBuilder {
-        return {
-            attr {
-                allCenter()
-            }
-
-            Text {
-                attr {
-                    marginBottom(20f)
-                    text("第一个文本")
-                    color(Color.RED) // 传递Color对象
-                    fontSize(20f)
-                    fontWeight400()
-                }
-            }
+```kotlin
+    Text {
+        attr {
+            text("Hello, 你好, こんにちは, 안녕하세요!")
+            fontSize(20f)
+            fontWeightNormal()
         }
     }
-}
+    Text {
+        attr {
+            text("Hello, 你好, こんにちは, 안녕하세요!")
+            fontSize(20f)
+            fontWeightMedium()
+        }
+    }
+    Text {
+        attr {
+            text("Hello, 你好, こんにちは, 안녕하세요!")
+            fontSize(20f)
+            fontWeightSemiBold()
+        }
+    }
+    Text {
+        attr {
+            text("Hello, 你好, こんにちは, 안녕하세요!")
+            fontSize(20f)
+            fontWeightBold()
+        }
+    }
 ```
 
 @tab 效果
 
 <div align="center">
-<img src="./img/font_weight_400.png" style="width: 30%; border: 1px gray solid">
+<img src="./img/font_weight.png" style="width: 30%; border: 1px gray solid">
 </div>
 
 :::
-
-### fontWeight500方法
-
-设置字重为500
-
-::: tabs
-
-@tab:active 示例
-
-```kotlin{15}
-@Page("demo_page")
-internal class FontWeightPage : BasePager() {
-    override fun body(): ViewBuilder {
-        return {
-            attr {
-                allCenter()
-            }
-
-            Text {
-                attr {
-                    marginBottom(20f)
-                    text("第一个文本")
-                    color(Color.RED) // 传递Color对象
-                    fontSize(20f)
-                    fontWeight500()
-                }
-            }
-        }
-    }
-}
-```
-
-@tab 效果
-
-<div align="center">
-<img src="./img/font_weight_500.png" style="width: 30%; border: 1px gray solid">
-</div>
-
-:::
-
-### fontWeight600方法
-
-设置字重为600
-
-:::tabs
-
-@tab:active 示例
-
-```kotlin{15}
-@Page("demo_page")
-internal class FontWeightPage : BasePager() {
-    override fun body(): ViewBuilder {
-        return {
-            attr {
-                allCenter()
-            }
-
-            Text {
-                attr {
-                    marginBottom(20f)
-                    text("第一个文本")
-                    color(Color.RED) // 传递Color对象
-                    fontSize(20f)
-                    fontWeight600()
-                }
-            }
-        }
-    }
-}
-```
-
-@tab 效果
-
-<div align="center">
-<img src="./img/font_weight_600.png" style="width: 30%; border: 1px gray solid">
-</div>
-
-:::
-
-### fontWeight700方法
-
-设置字重为700
-
-:::tabs
-
-@tab:active 示例
-
-```kotlin{15}
-@Page("demo_page")
-internal class FontWeightPage : BasePager() {
-    override fun body(): ViewBuilder {
-        return {
-            attr {
-                allCenter()
-            }
-
-            Text {
-                attr {
-                    marginBottom(20f)
-                    text("第一个文本")
-                    color(Color.RED) // 传递Color对象
-                    fontSize(20f)
-                    fontWeight700()
-                }
-            }
-        }
-    }
-}
-```
-
-@tab 效果
-
-<div align="center">
-<img src="./img/font_weight_700.png" style="width: 30%; border: 1px gray solid">
-</div>
-
-:::
-
-### fontWeightNormal方法
-
-效果与[fontWeight400方法](#fontWeight400方法)一致
-
-### fontWeightMedium方法
-
-效果与[fontWeight500方法](#fontWeight500方法)一致
-
-### fontWeightSemisolid方法
-
-效果与[fontWeight600方法](#fontWeight600方法)一致
-
-### fontWeightBold方法
-
-效果与[fontWeight700方法](#fontWeight700方法)一致
 
 ### fontFamily方法
 
@@ -415,7 +311,7 @@ internal class FontWeightPage : BasePager() {
 
 :::
 
-### lineBreakMargin<Badge text="鸿蒙实现中" type="warn"/>
+### lineBreakMargin<Badge text="鸿蒙上API18+支持此功能" type="warn"/>
 
 最后一行折叠"..." 距离最右边距离，常用于显示"更多"展开场景使用
 
@@ -536,6 +432,12 @@ internal class TestPage : BasePager() {
 ### textOverFlowTail方法
 
 文本超出最大行数时，"..."显示在尾部位置
+
+:::tip 关于换行符的兼容说明
+在 2.11.0 及以下版本中，当文本包含换行符（`\n`）且被行数限制截断时，由于系统差异，iOS 平台可能不显示省略号。
+
+2.11.0 以上版本已修复此问题，各端表现已对齐。
+:::
 
 :::tabs
 
@@ -1055,11 +957,95 @@ internal class TestPage : BasePager() {
 }
 ```
 
+### useDpFontSizeDim方法
+是否使用dp作为字体单位 
+
+android上，字体默认是映射到sp, 如果不想字体跟随系统的字体大小，
+
+可指定文本使用useDpFontSizeDim(true)来表示不跟随系统字体大小
+
+注：如果不希望每个文本使用该属性，可以自行扩展Float方法以抵消安卓相关缩放
+
+```kotlin
+@Page(FontSizeDpPager)
+internal class FontSizeDpPager : BasePager() {
+
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                allCenter()
+            }
+
+            Text {
+                attr {
+                    fontSize(20f)
+                    useDpFontSizeDim()
+                    text("使用dp作为单位")
+                }
+            }
+            Text {
+                attr {
+                    fontSize(20f)
+                    text("使用sp作为单位")
+                }
+            }
+        }
+    }
+}
+```
+
 @tab 效果
 
 <div align="center">
 <img src="./img/text_indent.png" style="width: 30%; border: 1px gray solid">
 </div>
+
+:::
+
+### textStroke方法<Badge text="安卓实现中" type="warn"/>
+
+设置文字描边颜色和宽度
+
+<div class="table-01">
+
+**textStroke方法**
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| color | 文字描边颜色  | Color |
+| width | 文字描边宽度（默认值为2f）  | Float |
+
+</div>
+
+:::tabs
+
+@tab:active 示例
+
+```kotlin{14}
+@Page("demo_page")
+internal class TestPage : BasePager() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                allCenter()
+            }
+
+            Text {
+                attr {
+                    text("文字描边效果")
+                    fontSize(30f)
+                    color(Color.WHITE)
+                    textStroke(Color.RED, 2f)
+                }
+            }
+        }
+    }
+}
+```
+
+@tab 效果
+
+文字会显示红色的描边效果，描边宽度为2像素。
 
 :::
 

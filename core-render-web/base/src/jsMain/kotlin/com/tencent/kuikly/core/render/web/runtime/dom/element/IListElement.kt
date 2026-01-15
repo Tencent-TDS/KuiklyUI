@@ -24,6 +24,12 @@ interface IListElement {
     // Scroll end drag
     var scrollEndEventCallback: KuiklyRenderCallback?
 
+    // Click callback
+    var clickEventCallback: KuiklyRenderCallback?
+
+    // Double click callback
+    var doubleClickEventCallback: KuiklyRenderCallback?
+
     /**
      * Scroll element to specified position
      */

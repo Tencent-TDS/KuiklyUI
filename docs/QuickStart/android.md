@@ -190,7 +190,12 @@ object KRImageAdapter : IKRImageAdapter {
 
 }
 ```
-完成后，可通过示例中的``ImageAdapter基准测试``页面来验证功能正常，可能需要重载``IKRImageAdapter``的``getDrawableWidth``和``getDrawableHeight``方法调节渲染效果。
+
+完成后，可通过**模版工程**中的``ImageAdapter基准测试``页面来验证功能正常，可能需要重载``IKRImageAdapter``的``getDrawableWidth``和``getDrawableHeight``方法调节渲染效果。
+
+:::warning 注意
+`fetchDrawable` 方法可能在非UI线程调用，例如在 `MemoryCacheModule.cacheImage` 中（可参考[示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/CanvasTestPage.kt)）。实现时需要注意线程安全，如果需要在UI线程操作（如更新UI组件），请使用 `Handler` 或 `runOnUiThread` 等方式切换到UI线程。
+:::
 
 ### 实现日志适配器
 具体实现代码，请参考源码工程androidApp模块的``KRLogAdapter``类。
@@ -271,6 +276,38 @@ fun execOnSubThread(runnable: () -> Unit) {
     subThreadPoolExecutor.execute(runnable)
 }
 ```
+
+#### stackSize（线程栈大小配置）
+
+`IKRThreadAdapter` 接口还提供了 `stackSize()` 方法，用于配置 Kuikly 内部线程的栈大小，主要用于在 Compose 场景下避免 布局嵌套过深导致的`StackOverflowException`
+
+**实现示例**：
+
+基础实现（使用系统默认值）：
+```kotlin
+class KRThreadAdapter : IKRThreadAdapter {
+    // 使用系统默认线程大小（通常为1MB）（返回 0）
+    override fun stackSize(): Long = 0
+}
+```
+
+自定义栈大小（推荐用于 Compose 场景）：
+```kotlin
+class KRThreadAdapter : IKRThreadAdapter {
+    /**
+     * 在 Compose 场景下，建议使用 8MB 或更大的栈大小以避免 StackOverflowException
+     */
+    override fun stackSize(): Long {
+        return 8 * 1024 * 1024  // 8MB
+    }
+}
+```
+
+**使用建议**：
+- 大多数场景下，系统默认值（1MB）已经足够
+- 如果遇到 `StackOverflowException`，可以尝试设置为 `8 * 1024 * 1024`（8MB）
+- 在 Compose 场景下，建议使用 8MB 或更大的栈大小
+- 注意：过大的栈大小会占用更多内存，建议根据实际需求设置
 
 其他按需实现适配器示例参考[实现适配器（按需实现部分）](#实现适配器-按需实现部分)
 
@@ -389,3 +426,103 @@ object KRFontAdapter : IKRFontAdapter {
     }
 }
 ```
+
+## 配置混淆规则（ProGuard/R8）
+
+如果您的 Android 项目开启了代码混淆（ProGuard/R8），需要确保 Kuikly 相关的类不被混淆，以保证框架正常运行。
+
+### 自动应用混淆规则
+
+`core-render-android` 库已经通过 `consumer-rules.pro` 自动提供了必要的混淆规则，这些规则会在您引入依赖时自动应用。规则包括：
+
+- 保留 Kuikly 核心入口类和方法
+- 保留日志相关类
+- 保留 RecyclerView 的反射访问方法
+
+### 手动配置（可选）
+
+如果您需要额外的混淆规则，或者想要查看库提供的规则内容，可以在您的 `app/build.gradle.kts` 或 `app/build.gradle` 中配置：
+
+```gradle
+android {
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
+}
+```
+
+然后在 `app/proguard-rules.pro` 文件中添加以下规则（库已自动提供，此处仅作参考）：
+
+```proguard
+# Kuikly 核心类保留规则
+-keep class com.tencent.kuikly.core.android.KuiklyCoreEntry { *; }
+-keep class com.tencent.kuikly.core.IKuiklyCoreEntry { *; }
+-keep class com.tencent.kuikly.core.IKuiklyCoreEntry$Delegate { *; }
+-keep class com.tencent.kuikly.core.log.KLog { *; }
+
+# RecyclerView 反射方法保留
+-keepclassmembers class androidx.recyclerview.widget.RecyclerView {
+    void setScrollState(int);
+}
+```
+
+## 附：以View方式接入
+
+除了使用Activity方式接入外，Kuikly还支持以View方式接入，这种方式可以将Kuikly页面嵌入到现有的Activity或Fragment中，更加灵活。
+
+### 与Activity方式的主要不同点
+
+1. **实现Kuikly承载容器**
+   - 创建 `KuiklyRenderViewBaseDelegatorDelegate` 而非 `KuiklyRenderViewBaseDelegator`
+   - 使用 `KuiklyBaseView(Context, KuiklyRenderViewBaseDelegatorDelegate)` 创建实例
+   - 打开Kuikly页面 `kuiklyView.onAttach("", YOUR_PAGE_NAME, YOUR_PAGE_DATA)`
+
+2. **生命周期管理**
+   调用`KuiklyBaseView`的`onResume()`、`onPause()`、`onDetach()`方法
+
+### 代码示例
+
+```kotlin
+class NativeMixKuiklyViewDemoActivity : AppCompatActivity() {
+
+    private var kuiklyView: KuiklyBaseView? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_native_mix_kuikly_view)
+        val rootView = findViewById<ViewGroup>(R.id.root_view)
+        // 实例化Kuikly委托者类
+        val delegate = object : KuiklyRenderViewBaseDelegatorDelegate {
+            // any implement……
+        }
+        // 创建KuiklyBaseView并附加到容器
+        kuiklyView = KuiklyBaseView(this, delegate)
+        // 加载Kuikly页面：contextCode传空字符串，pageName为页面名称，pageData为页面参数
+        kuiklyView?.onAttach("", "router", mapOf())
+        rootView.addView(kuiklyView)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        kuiklyView?.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        kuiklyView?.onResume()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        kuiklyView?.onDetach()
+    }
+}
+```
+
+[完整代码](https://github.com/Tencent-TDS/KuiklyUI/blob/main/androidApp/src/main/java/com/tencent/kuikly/android/demo/NativeMixKuiklyViewDemoActivity.kt)

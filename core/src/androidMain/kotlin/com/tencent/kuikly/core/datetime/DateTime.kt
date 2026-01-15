@@ -14,10 +14,16 @@
  */
 
 package com.tencent.kuikly.core.datetime
+import android.os.SystemClock
+import android.util.Log
 
 actual object DateTime {
 
     actual fun currentTimestamp(): Long = System.currentTimeMillis()
     actual fun nanoTime(): Long = System.nanoTime()
+
+    internal actual fun threadLocalTimestamp(): Long {
+        return SystemClock.currentThreadTimeMillis()
+    }
 
 }

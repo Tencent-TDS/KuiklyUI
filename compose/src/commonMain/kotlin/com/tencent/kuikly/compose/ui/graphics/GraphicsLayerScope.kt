@@ -17,6 +17,7 @@
 package com.tencent.kuikly.compose.ui.graphics
 
 import androidx.annotation.VisibleForTesting
+import com.tencent.kuikly.compose.ui.geometry.RoundRect
 import com.tencent.kuikly.compose.ui.geometry.Size
 import com.tencent.kuikly.compose.ui.internal.JvmDefaultWithCompatibility
 import com.tencent.kuikly.compose.ui.graphics.RenderEffect
@@ -397,6 +398,9 @@ internal class ReusableGraphicsLayerScope : GraphicsLayerScope {
     internal var outline: Outline? = null
         @VisibleForTesting
         internal set
+    internal var roundRect: RoundRect? = null
+        @VisibleForTesting
+        internal set
 
     fun reset() {
         scaleX = 1f
@@ -418,11 +422,15 @@ internal class ReusableGraphicsLayerScope : GraphicsLayerScope {
         compositingStrategy = CompositingStrategy.Auto
         size = Size.Unspecified
         outline = null
+        roundRect = null
         // mutatedFields should be reset last as all the setters above modify it.
         mutatedFields = 0
     }
 
     internal fun updateOutline() {
-        outline = shape.createOutline(size, layoutDirection, graphicsDensity)
+        shape.parseOutline(size, layoutDirection, graphicsDensity).apply {
+            outline = first
+            roundRect = second
+        }
     }
 }

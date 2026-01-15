@@ -84,6 +84,8 @@ class KRCanvasView : public KRView {
 
     bool ShouldCacheOp(const std::string &method);
     bool MarkDirtyIfNeeded(const std::string &method);
+    void CreatePenIfNeeded();
+    void CreateBrushIfNeeded();
 
  private:
     OH_Drawing_Canvas *canvas_ = nullptr;

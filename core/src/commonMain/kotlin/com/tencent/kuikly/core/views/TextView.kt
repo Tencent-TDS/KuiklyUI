@@ -297,7 +297,17 @@ open class TextAttr : Attr() {
     }
 
     open fun fontWeightSemiBold(): TextAttr {
-        TextConst.FONT_WEIGHT with FontWeight.SEMISOLID.value
+        TextConst.FONT_WEIGHT with FontWeight.SEMIBOLD.value
+        return this
+    }
+
+    open fun fontWeightExtraBold(): TextAttr {
+        TextConst.FONT_WEIGHT with FontWeight.EXTRABOLD.value
+        return this
+    }
+
+    open fun fontWeightBlack(): TextAttr {
+        TextConst.FONT_WEIGHT with FontWeight.BLACK.value
         return this
     }
 
@@ -315,11 +325,19 @@ open class TextAttr : Attr() {
     }
 
     open fun fontWeight600(): TextAttr {
-        return fontWeightSemisolid()
+        return fontWeightSemiBold()
     }
 
     open fun fontWeight700(): TextAttr {
         return fontWeightBold()
+    }
+
+    open fun fontWeight800(): TextAttr {
+        return fontWeightExtraBold()
+    }
+
+    open fun fontWeight900(): TextAttr {
+        return fontWeightBlack()
     }
 
     open fun fontFamily(fontFamily: String): TextAttr {
@@ -465,6 +483,9 @@ open class TextAttr : Attr() {
 
     /**
      * 设置文字描边颜色和宽度
+     *
+     * **注意：Android暂不支持**
+     *
      * @param color 文字描边颜色
      * @param color 文字描边宽度
      */
@@ -547,8 +568,12 @@ enum class FontStyle(val value: String) {
 enum class FontWeight(val value: String) {
     NORMAL("400"),
     MEDIUM("500"),
+    @Deprecated("use SEMIBOLD instead", replaceWith = ReplaceWith("SEMIBOLD"))
     SEMISOLID("600"),
-    BOLD("700")
+    SEMIBOLD("600"),
+    BOLD("700"),
+    EXTRABOLD("800"),
+    BLACK("900")
 }
 
 fun ViewContainer<*, *>.Text(init: TextView.() -> Unit) {

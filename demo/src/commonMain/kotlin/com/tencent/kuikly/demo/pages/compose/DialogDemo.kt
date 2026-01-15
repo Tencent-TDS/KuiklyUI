@@ -82,7 +82,7 @@ internal fun DialogDemo() {
         if (openDialog) {
             Dialog(
                 onDismissRequest = { openDialog = false },
-                properties = DialogProperties(usePlatformDefaultWidth = usePlatformDefaultWidth),
+                properties = DialogProperties(usePlatformDefaultWidth = usePlatformDefaultWidth, inWindow = true),
             ) {
                 val width =
                     if (expandedWidth) {

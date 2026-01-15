@@ -14,7 +14,11 @@
  */
 
 #import <Foundation/Foundation.h>
-#import <UIKit/UIKit.h>
+#import "KRUIKit.h" // [macOS]
+#if TARGET_OS_OSX
+#import <QuartzCore/QuartzCore.h> // CAGradientLayer
+#endif
+@class CAGradientLayer; // forward decl to satisfy header
 
 
 NS_ASSUME_NONNULL_BEGIN
@@ -55,8 +59,8 @@ typedef NS_ENUM(NSInteger, KRTextDecorationLineType) {
 + (UIFont *)UIFont:(id)json;
 + (UIColor *)UIColor:(id)json;
 + (UIUserInterfaceStyle)KRUserInterfaceStyle:(NSString *)style API_AVAILABLE(ios(12.0));
-#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 260000
-+ (UIGlassEffectStyle)KRGlassEffectStyle:(nullable NSString *)style API_AVAILABLE(ios(26.0));
+#if (__IPHONE_OS_VERSION_MAX_ALLOWED >= 260000) || (__MAC_OS_X_VERSION_MAX_ALLOWED >= 260000)
++ (UIGlassEffectStyle)KRGlassEffectStyle:(nullable NSString *)style API_AVAILABLE(ios(26.0), macos(26.0));
 #endif
 + (KRBorderStyle)KRBorderStyle:(NSString *)stringValue;
 + (NSTextAlignment)NSTextAlignment:(NSString *)stringValue;
@@ -75,8 +79,8 @@ typedef NS_ENUM(NSInteger, KRTextDecorationLineType) {
 
 + (NSArray *)hr_arrayWithJSONString:(NSString *)JSONString;
 
-+ (UIViewAnimationOptions)hr_viewAnimationOptions:(NSString *)value;
-+ (UIViewAnimationCurve)hr_viewAnimationCurve:(NSString *)value;
++ (UIViewAnimationOptions)hr_viewAnimationOptions:(NSString *)value rawCurve:(nullable NSString *)rawCurve;
++ (UIViewAnimationCurve)hr_viewAnimationCurve:(NSString *)value rawCurve:(nullable NSString *)rawCurve;
 + (UIKeyboardType)hr_keyBoardType:(id)value ;
 + (UIReturnKeyType)hr_toReturnKeyType:(id)value ;
 + (NSString *)hr_base64Decode:(NSString *)string;

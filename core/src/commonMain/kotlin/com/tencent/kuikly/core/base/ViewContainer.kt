@@ -75,6 +75,8 @@ abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView
         return children.toFastList()
     }
 
+    internal fun childrenToDump() = children
+
     open fun removeChildren() {
         forEachChild { child ->
             removeChild(child)

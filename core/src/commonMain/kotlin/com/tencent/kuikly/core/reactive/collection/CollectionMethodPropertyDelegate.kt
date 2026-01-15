@@ -23,6 +23,7 @@ class CollectionMethodPropertyDelegate<T>(
 ) : IObservableCollection {
 
     private val collectionOperations = fastArrayListOf<CollectionOperation>()
+    private var operationSeq = 0
 
     override val collectionOperation: List<CollectionOperation>
         get() = this.collectionOperations
@@ -138,7 +139,8 @@ class CollectionMethodPropertyDelegate<T>(
         collectionOperations.add(
             CollectionOperation(
                 CollectionOperation.OPERATION_TYPE_ADD,
-                index, count
+                index, count,
+                operationSeq++
             )
         )
     }
@@ -147,7 +149,8 @@ class CollectionMethodPropertyDelegate<T>(
         collectionOperations.add(
             CollectionOperation(
                 CollectionOperation.OPERATION_TYPE_REMOVE,
-                index, count
+                index, count,
+                operationSeq++
             )
         )
     }

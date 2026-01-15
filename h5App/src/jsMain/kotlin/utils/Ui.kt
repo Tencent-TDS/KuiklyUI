@@ -1,4 +1,4 @@
-package utils
+package com.tencent.kuikly.h5app.utils
 
 import com.tencent.kuikly.core.render.web.nvi.serialization.json.JSONObject
 import kotlinx.browser.document
@@ -51,11 +51,19 @@ object URL {
         if (url.contains("?")) {
             val query = url.substringAfter("?")
 
-            if (query != "") {
+            if (query.isNotEmpty()) {
                 // Only process if there are query parameters
                 query.split("&").forEach { param ->
-                    val (name, value) = param.split("=")
-                    params[name] = decodeURIComponent(value)
+                    val parts = param.split("=", limit = 2)
+                    if (parts.size == 2) {
+                        val (name, value) = parts
+                        params[name] = try {
+                            decodeURIComponent(value)
+                        } catch (e: dynamic) {
+                            // decodeURIComponent may throw on malformed input
+                            value
+                        }
+                    }
                 }
             }
         }

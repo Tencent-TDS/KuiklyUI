@@ -1,7 +1,7 @@
 package com.tencent.kuikly.core.render.web.css.animation
 
 import com.tencent.kuikly.core.render.web.ktx.Frame
-import com.tencent.kuikly.core.render.web.ktx.KRCssConst
+import com.tencent.kuikly.core.render.web.const.KRCssConst
 import com.tencent.kuikly.core.render.web.ktx.getViewData
 import com.tencent.kuikly.core.render.web.ktx.kuiklyAnimation
 import com.tencent.kuikly.core.render.web.ktx.removeViewData

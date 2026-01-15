@@ -21,8 +21,6 @@ import com.tencent.kuikly.compose.ui.node.KNode
 import com.tencent.kuikly.compose.ui.node.ModifierNodeElement
 import com.tencent.kuikly.compose.ui.node.requireLayoutNode
 import com.tencent.kuikly.compose.ui.unit.Dp
-import com.tencent.kuikly.core.base.Attr
-import com.tencent.kuikly.core.base.BoxShadow
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 
 /**

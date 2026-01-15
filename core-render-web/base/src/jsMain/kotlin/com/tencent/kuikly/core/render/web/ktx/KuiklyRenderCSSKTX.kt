@@ -1,7 +1,21 @@
 package com.tencent.kuikly.core.render.web.ktx
 
+import com.tencent.kuikly.core.render.web.const.KRAnimationConst
+import com.tencent.kuikly.core.render.web.const.KRAttrConst
+import com.tencent.kuikly.core.render.web.const.KRCssConst
+import com.tencent.kuikly.core.render.web.const.KREventConst
+import com.tencent.kuikly.core.render.web.const.KRExtConst
+import com.tencent.kuikly.core.render.web.const.KRJsTypeConst
+import com.tencent.kuikly.core.render.web.const.KRParamConst
+import com.tencent.kuikly.core.render.web.const.KRPlaceholderConst
+import com.tencent.kuikly.core.render.web.const.KRStyleConst
+import com.tencent.kuikly.core.render.web.const.KRTagConst
+import com.tencent.kuikly.core.render.web.const.KRViewConst
 import com.tencent.kuikly.core.render.web.css.animation.KRCSSAnimation
 import com.tencent.kuikly.core.render.web.processor.IAnimation
+import com.tencent.kuikly.core.render.web.processor.IEvent
+import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
+import com.tencent.kuikly.core.render.web.processor.state
 import org.w3c.dom.Element
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.css.CSSStyleDeclaration
@@ -9,74 +23,6 @@ import org.w3c.dom.get
 import kotlin.js.Json
 import kotlin.js.Promise
 import kotlin.js.json
-
-object KRViewConst {
-    const val WIDTH = "width"
-    const val X = "x"
-    const val Y = "y"
-}
-
-object KRExtConst {
-
-    const val FIRST_ARG_INDEX = 0
-    const val SECOND_ARG_INDEX = 1
-    const val THIRD_ARG_INDEX = 2
-    const val FOURTH_ARG_INDEX = 3
-    const val FIFTH_ARG_INDEX = 4
-    const val SIXTH_ARG_INDEX = 5
-}
-
-/**
- * Kuikly CSS related constants
- */
-object KRCssConst {
-    const val OPACITY = "opacity"
-    const val VISIBILITY = "visibility"
-    const val OVERFLOW = "overflow"
-    const val BACKGROUND_COLOR = "backgroundColor"
-    const val BACKGROUND_COLOR_ATTR = "background-color"
-    const val TOUCH_ENABLE = "touchEnable"
-    const val TRANSFORM = "transform"
-    const val BACKGROUND_IMAGE = "backgroundImage"
-    const val BOX_SHADOW = "boxShadow"
-    const val TEXT_SHADOW = "textShadow"
-    const val BORDER_RADIUS = "borderRadius"
-    const val STROKE_WIDTH = "strokeWidth"
-    const val STROKE_COLOR = "strokeColor"
-    const val BORDER = "border"
-    const val CLICK = "click"
-    const val MASK_LINEAR_GRADIENT = "maskLinearGradient"
-    const val DOUBLE_CLICK = "doubleClick"
-    const val LONG_PRESS = "longPress"
-    const val FRAME = "frame"
-    const val COLOR = "color"
-    const val Z_INDEX = "zIndex"
-    const val ACCESSIBILITY = "accessibility"
-    const val PAN = "pan"
-
-
-    const val SUPER_TOUCH = "superTouch"
-
-    const val ANIMATION = "animation"
-    const val ANIMATION_QUEUE = "animationQueue"
-    const val ANIMATION_COMPLETION_BLOCK = "animationCompletion"
-    const val KUIKLY_ANIMATION = "kuiklyAnimation"
-
-    const val BLANK_SEPARATOR = " "
-
-    const val EMPTY_STRING = ""
-
-    // Touch down event
-    const val TOUCH_DOWN = "touchDown"
-
-    // Touch up event
-    const val TOUCH_UP = "touchUp"
-
-    // Touch move event
-    const val TOUCH_MOVE = "touchMove"
-
-    val FRAME_ATTRS = listOf("width", "height", "left", "top")
-}
 
 fun String.toPercentage(): String = (toFloat() * 100).toString() + "%"
 
@@ -241,9 +187,9 @@ var Element.animationCompletionBlock: KuiklyRenderCallback?
  */
 private fun Element.checkAndUpdatePositionForH5(frame: Frame, style: CSSStyleDeclaration) {
     // update style for h5
-    if (style.borderWidth.endsWith("px")) {
+    if (style.borderWidth.endsWith(KRStyleConst.PX_SUFFIX)) {
+        val borderWidth = style.borderWidth.pxToDouble()
         Promise.resolve(null).then {
-            val borderWidth = style.borderWidth.pxToDouble()
             // if element has border, then element is border-box, then adjust the children's offset
             for (i in 0 until this.children.length) {
                 val child = this.children[i].unsafeCast<HTMLElement>()
@@ -254,12 +200,21 @@ private fun Element.checkAndUpdatePositionForH5(frame: Frame, style: CSSStyleDec
                 dynamicChild.isAdujustedOffset = true
             }
         }
+        
+        // Only apply border adjustment for span or p elements
+        val tagName = this.tagName.lowercase()
+        if (tagName == KRTagConst.SPAN || tagName == KRTagConst.P) {
+            frame.width += 2 * borderWidth
+            frame.height += 2 * borderWidth
+            frame.x -= borderWidth
+            frame.y -= borderWidth
+        }
     }
 
     // handle offset for dynamic child
     parentElement.unsafeCast<HTMLElement?>()?.let { parent ->
         val dynamicChild = this.asDynamic()
-        if (parent.style.borderWidth.endsWith("px") && jsTypeOf(dynamicChild.isAdujustedOffset) == "undefined") {
+        if (parent.style.borderWidth.endsWith(KRStyleConst.PX_SUFFIX) && jsTypeOf(dynamicChild.isAdujustedOffset) == KRJsTypeConst.UNDEFINED) {
             // adjust offset for non adjusted child
             val borderWidth = parent.style.borderWidth.pxToDouble()
             style.left = (frame.x - borderWidth).toPxF()
@@ -276,7 +231,7 @@ fun Element.setFrame(frame: Frame, style: CSSStyleDeclaration) {
     val dynamicElement = this.asDynamic()
     // Because terminal position data is relative to parent element, web sets element position to absolute, then
     // Exactly relative to parent element position offset
-    style.position = "absolute"
+    style.position = KRStyleConst.POSITION_ABSOLUTE
     // Left offset
     val left = frame.x
     // Top offset
@@ -285,12 +240,6 @@ fun Element.setFrame(frame: Frame, style: CSSStyleDeclaration) {
     dynamicElement.rawLeft = left
     dynamicElement.rawTop = top
 
-    // set element frame
-    style.left = left.toPxF()
-    style.top = top.toPxF()
-    style.width = frame.width.toPxF()
-    style.height = frame.height.toPxF()
-
     // adjust element offset for border element
     if (style.asDynamic().checkAndUpdatePosition != null) {
         // update style for miniapp
@@ -298,6 +247,12 @@ fun Element.setFrame(frame: Frame, style: CSSStyleDeclaration) {
     } else {
         checkAndUpdatePositionForH5(frame, style)
     }
+
+    // set element frame
+    style.left = frame.x.toPxF()
+    style.top = frame.y.toPxF()
+    style.width = frame.width.toPxF()
+    style.height = frame.height.toPxF()
 }
 
 /**
@@ -379,9 +334,9 @@ fun Element.tryAddAnimationOperation(key: String, value: Any): Boolean {
  * Represents the animation queue created after wxAnimation.export
  */
 var Element.kuiklyAnimationGroup: dynamic
-    get() = getViewData("kuiklyAnimationGroup")
+    get() = getViewData(KRAnimationConst.KUIKLY_ANIMATION_GROUP)
     set(value) {
-        putViewData("kuiklyAnimationGroup", value as Any)
+        putViewData(KRAnimationConst.KUIKLY_ANIMATION_GROUP, value as Any)
     }
 
 /**
@@ -389,7 +344,7 @@ var Element.kuiklyAnimationGroup: dynamic
  */
 var Element.isBindAnimationEndEvent: Boolean
     get() {
-        val isBindEvent = getViewData<dynamic>("isBindAnimationEndEvent") ?: return false
+        val isBindEvent = getViewData<dynamic>(KRAnimationConst.IS_BIND_ANIMATION_END_EVENT) ?: return false
         return isBindEvent.unsafeCast<Boolean>()
     }
     set(value) {
@@ -401,7 +356,7 @@ var Element.isBindAnimationEndEvent: Boolean
  */
 var Element.isRepeatAnimation: Boolean
     get() {
-        val isRepeatAnimation = getViewData<dynamic>("isRepeatAnimation") ?: return false
+        val isRepeatAnimation = getViewData<dynamic>(KRAnimationConst.IS_REPEAT_ANIMATION) ?: return false
         return isRepeatAnimation.unsafeCast<Boolean>()
     }
     set(value) {
@@ -413,7 +368,7 @@ var Element.isRepeatAnimation: Boolean
  */
 var Element.frameAnimationEndCount: Int
     get() {
-        return getViewData<dynamic>("frameAnimationEndCount") ?: 0
+        return getViewData<dynamic>(KRAnimationConst.FRAME_ANIMATION_END_COUNT) ?: 0
     }
     set(value) {
         this.asDynamic().frameAnimationEndCount = value
@@ -424,7 +379,7 @@ var Element.frameAnimationEndCount: Int
  */
 var Element.frameAnimationRemainCount: Int
     get() {
-        return getViewData<dynamic>("frameAnimationRemainCount") ?: 0
+        return getViewData<dynamic>(KRAnimationConst.FRAME_ANIMATION_REMAIN_COUNT) ?: 0
     }
     set(value) {
         this.asDynamic().frameAnimationRemainCount = value
@@ -435,7 +390,7 @@ var Element.frameAnimationRemainCount: Int
  */
 var Element.exportAnimationTimeoutId: Int
     get() {
-        return getViewData<dynamic>("exportAnimationTimeoutId") ?: 0
+        return getViewData<dynamic>(KRAnimationConst.EXPORT_ANIMATION_TIMEOUT_ID) ?: 0
     }
     set(value) {
         this.asDynamic().exportAnimationTimeoutId = value
@@ -460,7 +415,7 @@ fun Element.setCommonProp(key: String, value: Any): Boolean {
     if (ele.style.borderWidth.isNotEmpty()) {
         Promise.resolve(null).then{
             // re calculate element size for mini app
-            if (jsTypeOf(dynamicElement.forceUpdateChildrenStyle) == "function") {
+            if (jsTypeOf(dynamicElement.forceUpdateChildrenStyle) == KRJsTypeConst.FUNCTION) {
                 dynamicElement.forceUpdateChildrenStyle()
             }
         }
@@ -493,7 +448,7 @@ private fun Element.addKRAnimation(hrAnimation: KRCSSAnimation) {
  * @param group Animation group to export, string for h5 and object for mini app
  */
 fun Element.exportAnimation(group: dynamic) {
-    this.setAttribute("animation", group)
+    this.setAttribute(KRAttrConst.ANIMATION, group)
 }
 
 /**
@@ -501,10 +456,10 @@ fun Element.exportAnimation(group: dynamic) {
  */
 fun Element.getAnimationStepOption(animation: KRCSSAnimation?): Json {
     return json(
-        "duration" to animation?.duration,
-        "delay" to animation?.delay,
-        "timingFunction" to animation?.getCssTimeFuncType(),
-        "transformOrigin" to this.unsafeCast<HTMLElement>().style.transformOrigin
+        KRAnimationConst.DURATION to animation?.duration,
+        KRAnimationConst.DELAY to animation?.delay,
+        KRAnimationConst.TIMING_FUNCTION to animation?.getCssTimeFuncType(),
+        KRAnimationConst.TRANSFORM_ORIGIN to this.unsafeCast<HTMLElement>().style.transformOrigin
     )
 }
 
@@ -516,32 +471,32 @@ fun Element.repeatStyleAnimation() {
     val ele = this.unsafeCast<HTMLElement>()
     val dynamicStyle = ele.style.asDynamic()
     val hasAnimationData = jsTypeOf(dynamicElement.animationData)
-    if (hasAnimationData == "object") {
+    if (hasAnimationData == KRJsTypeConst.OBJECT) {
         // 处理 json 动画数据
         val data = dynamicElement.animationData.unsafeCast<Json>()
         // 首先移除已有 transition
-        ele.style.transition = ""
+        ele.style.transition = KRCssConst.EMPTY_STRING
         // 然后还原属性旧值
-        val rules = data["rules"].unsafeCast<Json?>()
+        val rules = data[KRAnimationConst.RULES].unsafeCast<Json?>()
         rules?.let {
             val ruleList = js("Object.keys(rules)") as Array<String>
             for (key in ruleList) {
                 val value = rules[key].unsafeCast<Json>()
                 // 还原旧值
-                dynamicStyle[key] = value["oldValue"]
+                dynamicStyle[key] = value[KRAnimationConst.OLD_VALUE]
             }
 
             // 然后再设置新值
             kuiklyWindow.setTimeout({
                 // 先设置 transition
-                ele.style.transition = data["transition"].unsafeCast<String>()
+                ele.style.transition = data[KRAnimationConst.TRANSITION].unsafeCast<String>()
                 // 然后再设置新值
                 for (key in ruleList) {
                     val value = rules[key].unsafeCast<Json>()
                     // 还原旧值
-                    dynamicStyle[key] = value["newValue"]
+                    dynamicStyle[key] = value[KRAnimationConst.NEW_VALUE]
                 }
-            }, 50)
+            }, AnimationTimingConst.STYLE_ANIMATION_RESTART_DELAY_MS)
         }
     }
 }
@@ -601,7 +556,7 @@ fun Element.handlePropTransitionEnd(name: String) {
         // execute animation again
         kuiklyWindow.setTimeout({
             exportAnimation(kuiklyAnimationGroup)
-        }, 10)
+        }, AnimationTimingConst.REPEAT_ANIMATION_DELAY_MS)
     } else if (getAnimationQueue() == null) {
         // remove animation attribute
         exportAnimation("")
@@ -662,9 +617,9 @@ fun Element.bindAnimationEndEvent() {
         // bind animation end event, only once
         isBindAnimationEndEvent = true
         // bind animation end event
-        this.addEventListener("transitionend", { event: dynamic ->
+        this.addEventListener(KREventConst.TRANSITION_END, { event: dynamic ->
             val propertyName = event.propertyName.unsafeCast<String>()
-            if (jsTypeOf(propertyName) == "string") {
+            if (jsTypeOf(propertyName) == KRJsTypeConst.STRING) {
                 handlePropTransitionEnd(propertyName)
             } else {
                 handleStyleTransitionEnd()
@@ -741,7 +696,7 @@ fun Element.setKRAnimation(animation: String?) {
                     // execute animation
                     exportAnimationTimeoutId = kuiklyWindow.setTimeout({
                         exportAnimation(kuiklyAnimationGroup)
-                    }, 10)
+                    }, AnimationTimingConst.ANIMATION_EXPORT_DELAY_MS)
                 }
             }
         }
@@ -768,9 +723,9 @@ fun Element.setKRAnimation(animation: String?) {
                 { hrAnimation: KRCSSAnimation, finished, propKey, animationKey ->
                     animationCompletionBlock?.invoke(
                         mapOf(
-                            "finish" to if (finished) 1 else 0,
-                            "attr" to propKey,
-                            "animationKey" to animationKey
+                            KRAnimationConst.FINISH to if (finished) 1 else 0,
+                            KRAnimationConst.ATTR to propKey,
+                            KRAnimationConst.ANIMATION_KEY to animationKey
                         )
                     )
                     hrAnimation.removeFromAnimationQueue()
@@ -898,31 +853,95 @@ private val propHandlers = mapOf<String, (CSSStyleDeclaration, Any, HTMLElement)
     },
     KRCssConst.CLICK to { _, value, ele ->
         ele.addEventListener("click", { event ->
+            // If a pan or long-press has been triggered, ignore the click.
+            val panOrLongPressTriggered = ele.asDynamic().panOrLongPressTriggered == true
+            if (panOrLongPressTriggered) {
+                return@addEventListener
+            }
+            // Check whether the current element is marked as having a double click handler registered
+            val hasBindDoubleClick = ele.asDynamic().hasDoubleClickListener == true
             val clickEvent = event.asDynamic()
             clickEvent.stopPropagation()
-            value.unsafeCast<KuiklyRenderCallback>().invoke(
-                mapOf(
-                    "x" to clickEvent.offsetX.unsafeCast<Double>().toFloat(),
-                    "y" to clickEvent.offsetY.unsafeCast<Double>().toFloat()
+            // If no double click handler is registered, invoke the click callback
+            if (!hasBindDoubleClick) {
+                value.unsafeCast<KuiklyRenderCallback>().invoke(
+                    mapOf(
+                        "x" to clickEvent.offsetX.unsafeCast<Double>().toFloat(),
+                        "y" to clickEvent.offsetY.unsafeCast<Double>().toFloat()
+                    )
                 )
-            )
+            } else {
+                // If a double click handler is registered
+                // If the timer exists , clear it (reset the timing)
+                val prevTimer = ele.asDynamic().clickTimer
+                if (prevTimer != null) kuiklyWindow.clearTimeout(prevTimer)
+                // Start a new timer and save it
+                ele.asDynamic().clickTimer = kuiklyWindow.setTimeout({
+                    // If the double click callback is not triggered within 200ms, invoke the click callback
+                    value.unsafeCast<KuiklyRenderCallback>().invoke(
+                        mapOf(
+                            "x" to clickEvent.offsetX.unsafeCast<Double>().toFloat(),
+                            "y" to clickEvent.offsetY.unsafeCast<Double>().toFloat()
+                        )
+                    )
+                    // clear the timer
+                    ele.asDynamic().clickTimer = null
+                }, AnimationTimingConst.DOUBLE_CLICK_TIMEOUT_MS)
+            }
+
         })
         true
     },
     KRCssConst.DOUBLE_CLICK to { _, value, ele ->
-        ele.addEventListener("dblclick", { event ->
-            val clickEvent = event.asDynamic()
-            clickEvent.stopPropagation()
-            value.unsafeCast<KuiklyRenderCallback>().invoke(
-                mapOf(
-                    "x" to clickEvent.offsetX.unsafeCast<Double>().toFloat(),
-                    "y" to clickEvent.offsetY.unsafeCast<Double>().toFloat()
+        // Mark the element as having a double click handler registered
+        ele.asDynamic().hasDoubleClickListener = true
+        // When the double click event is triggered, invoke the double click callback
+        KuiklyProcessor.eventProcessor.doubleClick(ele) { event: IEvent? ->
+            event?.let {
+                value.unsafeCast<KuiklyRenderCallback>().invoke(
+                    mapOf(
+                        "x" to it.offsetX.toFloat(),
+                        "y" to it.offsetY.toFloat()
+                    )
                 )
-            )
-        })
+                // Clear the timer to prevent the click callback from being invoked afterward
+                val timer = ele.asDynamic().clickTimer
+                if (timer != null) {
+                    kuiklyWindow.clearTimeout(timer)
+                    ele.asDynamic().clickTimer = null
+                }
+            }
+        }
         true
     },
-    KRCssConst.LONG_PRESS to { _, _, _ ->
+    KRCssConst.LONG_PRESS to { _, value, ele ->
+        KuiklyProcessor.eventProcessor.longPress(ele) { event ->
+            event?.let {
+                value.unsafeCast<KuiklyRenderCallback>().invoke(
+                    mapOf(
+                        "x" to it.clientX.toFloat(),
+                        "y" to it.clientY.toFloat(),
+                        "state" to it.state
+                    )
+                )
+            }
+        }
+        true
+    },
+    KRCssConst.PAN to { _, value, ele ->
+        KuiklyProcessor.eventProcessor.pan(ele) { event ->
+            event?.let {
+                value.unsafeCast<KuiklyRenderCallback>().invoke(
+                    mapOf(
+                        "x" to it.clientX.toFloat() - ele.getBoundingClientRect().left,
+                        "y" to it.clientY.toFloat() - ele.getBoundingClientRect().top,
+                        "state" to it.state,
+                        "pageX" to it.pageX.toFloat(),
+                        "pageY" to it.pageY.toFloat(),
+                    )
+                )
+            }
+        }
         true
     },
     KRCssConst.ANIMATION to { _, value, ele ->
@@ -975,4 +994,18 @@ fun setPlaceholderColor(el: HTMLElement, color: String) {
     style.setAttribute("type", "text/css")
     style.appendChild(kuiklyDocument.createTextNode(css))
     kuiklyDocument.head?.appendChild(style)
+}
+
+/**
+ * Animation timing constants
+ */
+private object AnimationTimingConst {
+    /** Delay for style animation restart in milliseconds */
+    const val STYLE_ANIMATION_RESTART_DELAY_MS = 50
+    /** Delay for animation export in milliseconds */
+    const val ANIMATION_EXPORT_DELAY_MS = 10
+    /** Delay for repeat animation in milliseconds */
+    const val REPEAT_ANIMATION_DELAY_MS = 10
+    /** Double click detection timeout in milliseconds */
+    const val DOUBLE_CLICK_TIMEOUT_MS = 200
 }

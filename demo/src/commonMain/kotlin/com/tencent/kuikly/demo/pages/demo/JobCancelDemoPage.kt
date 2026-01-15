@@ -147,7 +147,9 @@ internal class JobCancelDemoPage : BasePager() {
                         }
                         event {
                             click {
-                                if (ctx.countDownJob?.isActive == true) return@click
+                                if (ctx.countDownJob?.isActive == true) {
+                                    return@click
+                                }
                                 ctx.remaining = 10
                                 ctx.statusText = "运行中"
                                 ctx.countDownJob = getPager().lifecycleScope.launch {
@@ -209,7 +211,9 @@ internal class JobCancelDemoPage : BasePager() {
                         }
                         event {
                             click {
-                                if (ctx.suspendJob?.isActive == true) return@click
+                                if (ctx.suspendJob?.isActive == true) {
+                                    return@click
+                                }
                                 ctx.suspendStatusText = "延时挂起任务：运行中"
                                 ctx.suspendJob = getPager().lifecycleScope.launch {
                                     suspendCancellableCoroutine<Unit> { continuation, onCompletion ->

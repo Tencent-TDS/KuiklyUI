@@ -414,6 +414,15 @@ open class TextAreaAttr : Attr() {
         return this
     }
 
+    /**
+     * 是否启用拼音输入回调
+     * @param enable 是否启用，默认为false
+     */
+    fun enablePinyinCallback(enable: Boolean = false): TextAreaAttr {
+        "enablePinyinCallback" with (if (enable) 1 else 0)
+        return this
+    }
+
     companion object {
         const val RETURN_KEY_TYPE = "returnKeyType"
         const val KEYBOARD_TYPE = "keyboardType"
@@ -591,16 +600,18 @@ open class TextAreaEvent : Event() {
     }
 
     /**
-     * 当键盘高度发生变化时调用的方法
-     * @param handler 处理键盘高度变化事件的回调函数
+     * Called when keyboard height changes.
+     * @param isSync Sync callback to ensure UI animation syncs with keyboard, default true
+     * @param handler Callback handler with keyboard params
      */
-    fun keyboardHeightChange(handler: (KeyboardParams) -> Unit ) {
-        this.register(KEYBOARD_HEIGHT_CHANGE){
+    fun keyboardHeightChange(isSync: Boolean = true, handler: (KeyboardParams) -> Unit) {
+        this.register(KEYBOARD_HEIGHT_CHANGE, {
             it as JSONObject
             val height = it.optDouble("height").toFloat()
             val duration = it.optDouble("duration").toFloat()
-            handler(KeyboardParams(height, duration))
-        }
+            val curve = it.optInt("curve")
+            handler(KeyboardParams(height, duration, curve))
+        }, isSync = isSync)
     }
     /**
      * 当文本长度超过限制时调用的方法(即输入长度超过attr.maxTextLength属性设置的长度)

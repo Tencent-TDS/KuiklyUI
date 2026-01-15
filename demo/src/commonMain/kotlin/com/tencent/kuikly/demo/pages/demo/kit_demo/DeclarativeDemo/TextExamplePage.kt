@@ -299,7 +299,7 @@ internal class TextExampleTextStroke: ComposeView<ComposeAttr, ComposeEvent>() {
                 attr {
                     text("black text stroke")
                     fontSize(18f)
-                    color(Color.WHITE)
+                    color(Color.GRAY)
                     textStroke(Color.BLACK, 3f)
                 }
             }
@@ -308,9 +308,9 @@ internal class TextExampleTextStroke: ComposeView<ComposeAttr, ComposeEvent>() {
                     marginTop(20f)
                     text("blue text shadow")
                     fontSize(28f)
-                    color(Color.WHITE)
+                    fontWeightBold()
+                    color(Color.GRAY)
                     textStroke(Color.BLUE, 5f)
-                 //   strokeWidth(5f)
                 }
             }
         }
@@ -552,10 +552,12 @@ internal class TextExampleRichText: ComposeView<ComposeAttr, ComposeEvent>() {
                     fontSize(18f).textDecorationUnderLine().text("风格。")
                 }
                 Span {
-                    fontSize(18f).text("嵌入图片1 ")
+                    fontSize(18f).text("嵌入图片1(margin 20) ")
                 }
                 ImageSpan {
                     size(40f, 40f)
+                    marginLeft(20f)
+                    marginRight(20f)
                     src("https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/59ef6918.gif")
                     borderRadius(5f)
                 }

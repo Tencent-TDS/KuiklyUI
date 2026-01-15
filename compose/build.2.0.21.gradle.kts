@@ -23,7 +23,8 @@ kotlin {
     iosX64()
     iosArm64()
     iosSimulatorArm64()
-
+    macosX64()
+    macosArm64()
 
     js(IR) {
         browser()
@@ -95,6 +96,9 @@ kotlin {
     }
 }
 
+group = MavenConfig.GROUP
+version = Version.getCoreVersion()
+
 // 配置Maven发布
 publishing {
 //    publications.withType<MavenPublication> {
@@ -122,9 +126,6 @@ publishing {
         }
     }
 }
-
-group = MavenConfig.GROUP
-version = Version.getCoreVersion()
 
 android {
     namespace = "com.tencent.kuikly.compose"

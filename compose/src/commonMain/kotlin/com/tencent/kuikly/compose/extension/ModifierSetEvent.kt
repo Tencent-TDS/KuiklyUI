@@ -35,7 +35,7 @@ fun Modifier.setEvent(
 ): Modifier = this.then(SetEventElement(key, value))
 
 // region ------------------------------ 修饰符节点实现 ------------------------------
-private class SetEventElement(
+internal class SetEventElement(
     private val key: String,
     private val value: EventHandlerFn,
 ) : ModifierNodeElement<SetEventNode>() {
@@ -53,7 +53,7 @@ private class SetEventElement(
     override fun hashCode(): Int = 31 * key.hashCode() + value.hashCode()
 }
 
-private class SetEventNode(
+internal class SetEventNode(
     initialKey: String,
     initialValue: EventHandlerFn,
 ) : Modifier.Node() {

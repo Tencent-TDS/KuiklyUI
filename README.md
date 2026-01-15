@@ -13,11 +13,12 @@ English | [简体中文](./README-zh_CN.md) | [Homepage](https://framework.tds.q
 - [X] HarmonyOS
 - [X] Web (Beta)
 - [X] Mini Programs (Beta)
+- [X] macOS (Alpha)
 
 Since its launch, `Kuikly` has gained wide recognition from the business. It has been used by many products such as QQ, QQ Music, QQ Browser, Tencent News, Sogou Input Method, MyApp Hub(Tencent's app store), WeSing, Kugou Music, Kuwo Music, Tencent Self-selected Stock, ima.copilot, Weishi, etc.
 ## Key Features
 
-- **Cross-platform:** Kotlin-based implementation ensuring consistent operation across multiple platforms - one codebase, five platforms
+- **Cross-platform:** Kotlin-based implementation ensuring consistent operation across multiple platforms - one codebase, six platforms
 - **Native performance:** Generates platform-native binaries (.aar/.framework/.so)
 - **Native development experience:** Native UI rendering, native toolchain support, Kotlin as primary language
 - **Lightweight:** Minimal SDK footprint (AOT mode: ~300KB for Android, ~1.2MB for iOS)
@@ -33,7 +34,7 @@ Since its launch, `Kuikly` has gained wide recognition from the business. It has
     ├──	commonMain            # Shared cross-platform code, defining cross-platform interfaces
     ├── androidMain           # Android platform implementation (outputs aar)
     ├── jvmMain               # Generic JVM platform code (no Android APIs, outputs jar)
-    ├── iosMain               # iOS platform implementation (outputs framework)
+    ├── appleMain             # apple platform (iOS & macOS) implementation (outputs framework)
     ├── ohosArm64Main         # Ohos platform implementation（outputs so）
     ├── jsMain                # H5 and MiniApp platform implementation（outputs js）
 ├── core-render-android    # Android platform renderer module
@@ -46,6 +47,7 @@ Since its launch, `Kuikly` has gained wide recognition from the business. It has
 ├── demo                   # DSL example code
 ├── androidApp             # Android host shell project
 ├── iosApp                 # iOS host shell project
+├── macApp                 # macOS host shell project
 ├── ohosApp                # Ohos host shell project
 ├── miniApp                # miniApp host shell project
 ├── h5App                  # h5App host shell project
@@ -61,6 +63,7 @@ Since its launch, `Kuikly` has gained wide recognition from the business. It has
 
 ## System Requirements
 - iOS 12.0+
+- macOS 10.13+
 - Android 5.0+
 - HarmonyOS Next 5.0.0(12)+
 - Kotlin 1.3.10+
@@ -141,9 +144,13 @@ All project participants are expected to adhere to our [Code of Conduct](CODE_OF
 [`Kuikly` Q&A](https://kuikly.tds.qq.com/QA/kuikly-qa.html)
 
 ## Contributors
-- Special thanks to the first batch of contributors tom(邱良雄), kam(林锦涛), and watson(金盎), who not only pioneered the incubation and exploration of the Kuikly cross-platform solutions in the frontend field, but also were the first to implement them in the QQ business.
+- Special thanks to the first batch of contributors tom(邱良雄), kam(林锦涛), and watson(金盎), who not only pioneered the incubation and exploration of the `Kuikly` cross-platform solutions in the frontend field, but also were the first to implement them in the QQ business.
 - Thanks to the following core contributors for the continuous construction, maintenance, development and optimization of `Kuikly`:
- <br>tom kam watson rocky jonas ruifan pel layen bird zealot zhenhua vinney xuanxi arnon alexa allens eason
+ <br>tom kam watson rocky jonas ruifan pel layen bird zealot zhenhua vinney xuanxi ray arnon alexa allens eason
+- We also extend our sincere gratitude to every community contributor who has participated in the development of `Kuikly`. It is your collective effort that drives the continuous growth and improvement of `Kuikly`.
+    <div id="list" style="display: flex; flex-wrap: wrap"><a href="https://github.com/Tencent-TDS/KuiklyUI/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Tencent-TDS/KuiklyUI" /></a><a href="https://github.com/Tencent-TDS/KuiklyUI-third-party/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Tencent-TDS/KuiklyUI-third-party" /></a></div>
 
 ## Application Cases
 ### Application Integration

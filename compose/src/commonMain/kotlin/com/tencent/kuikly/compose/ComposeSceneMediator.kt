@@ -34,6 +34,7 @@ import com.tencent.kuikly.compose.container.LocalSlotProvider
 import com.tencent.kuikly.compose.container.SlotProvider
 import com.tencent.kuikly.compose.container.SuperTouchManager
 import com.tencent.kuikly.compose.platform.Configuration
+import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.core.datetime.DateTime
 import com.tencent.kuikly.core.timer.Timer
 import com.tencent.kuikly.core.views.DivView
@@ -50,7 +51,6 @@ class ComposeSceneMediator(
 ) {
 
     private var hasStartRender = false
-    val configuration = Configuration()
     val superTouchManager = SuperTouchManager()
 
     fun updateAppState(isApplicationActive: Boolean) {
@@ -78,16 +78,7 @@ class ComposeSceneMediator(
         if (hasStartRender) {
             return
         }
-        scene.setContent {
-            ProvideComposeSceneMediatorCompositionLocals {
-                content()
-                LocalSlotProvider.current.slots.forEach { slotContent ->
-                    key(slotContent.first) {
-                        slotContent.second?.invoke()
-                    }
-                }
-            }
-        }
+        scene.setContent(content)
         hasStartRender = true
     }
 
@@ -123,14 +114,8 @@ class ComposeSceneMediator(
         }
     }
 
-    @Composable
-    private fun ProvideComposeSceneMediatorCompositionLocals(content: @Composable () -> Unit) {
-        val slotProvider = remember { SlotProvider() }
-        CompositionLocalProvider(
-            LocalSlotProvider provides slotProvider,
-            LocalConfiguration provides configuration,
-            content = content
-        )
+    fun updateDensity(toFloat: Float) {
+        scene.density = Density(toFloat)
     }
 
     init {

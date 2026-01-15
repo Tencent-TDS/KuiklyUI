@@ -10,7 +10,11 @@
 #import "KRFPSMonitor.h"
 #import "KuiklyRenderThreadManager.h"
 #import "KRMemoryMonitor.h"
-#import <UIKit/UIKit.h>
+#import "KuiklyContextParam.h"
+#import "KRUIKit.h" // [macOS]
+#import "KRDisplayLink.h" // [macOS]
+#include <TargetConditionals.h>
+#import <objc/message.h>
 #import <pthread.h>
 
 @interface KRPerformanceManager ()
@@ -26,7 +30,11 @@
 
 @implementation KRPerformanceManager {
     
+    #if TARGET_OS_OSX // [macOS]
+    KRDisplayLink *_uiDisplayLink; // KRDisplayLink on macOS
+    #else
     CADisplayLink *_uiDisplayLink;
+    #endif
     dispatch_source_t _kotlinTimer;
     
     NSString *_pageName;
@@ -87,11 +95,23 @@ static NSMutableDictionary<NSString *, NSNumber *> *gLaunchDic = nil;
         if (!_mainFPS) {
             _mainFPS = [[KRFPSMonitor alloc] initWithThread:KRFPSThead_Main pageName:_pageName];
         }
+#if TARGET_OS_OSX // [macOS]
+        // macOS: 使用 KRDisplayLink 垫片（NSTimer）
+        KRDisplayLink *link = [KRDisplayLink new];
+        __weak typeof(self) weakSelf = self;
+        [link startWithCallback:^(CFTimeInterval timestamp) {
+            __strong typeof(self) self_ = weakSelf;
+            if (!self_) return;
+            [self_->_mainFPS onTick:timestamp];
+        }];
+        _uiDisplayLink = link;
+#else
         _uiDisplayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(mainFPSKick:)];
         if (@available(iOS 10.0, *)) {
             _uiDisplayLink.preferredFramesPerSecond = 60;
         }
         [_uiDisplayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
+#endif
     }
 
     // kotlin fps
@@ -122,8 +142,13 @@ static NSMutableDictionary<NSString *, NSNumber *> *gLaunchDic = nil;
 - (void)endMonitor {
     _isMoniting = NO;
     if ((_monitorType & KRMonitorType_MainFPS)) {
+        #if TARGET_OS_OSX // [macOS]
+        [_uiDisplayLink stop];
+        _uiDisplayLink = nil;
+        #else
         [_uiDisplayLink invalidate];
         _uiDisplayLink = nil;
+        #endif
         [_mainFPS endMonitor];
     }
 
@@ -238,9 +263,36 @@ static NSMutableDictionary<NSString *, NSNumber *> *gLaunchDic = nil;
 
 #pragma mark load time end
 
+#if !TARGET_OS_OSX
 - (void)mainFPSKick:(CADisplayLink *)displayLink
 {
     [_mainFPS onTick:displayLink.timestamp];
 }
+#endif
 
+- (NSDictionary*)performanceData{
+    NSArray *keysArray = @[@"initViewCost", @"fetchContextCodeCost", @"initRenderCoreCost", @"initRenderContextCost", @"pageBuildCost", @"pageLayoutCost", @"createPageCost", @"firstPaintCost", @"createInstanceCost", @"newPageCost", @"renderCost"];
+    NSMutableDictionary *timeMap = [NSMutableDictionary new];
+    NSAssert(keysArray.count == KRLoadStage_renderFP + 1, @"keys 与 枚举数量不匹配 ");
+    for (int i = KRLoadStage_initView; i <= KRLoadStage_renderFP; i++) {
+        int duration = [self durationForStage:(KRLoadStage)i];
+        timeMap[keysArray[i]] = @(duration);
+    }
+    
+    return @{
+        @"mode": @(self.modeId),
+        @"pageExistTime": @(self.pageExistTime),
+        @"isFirstLaunchOfProcess": @([self isFirstLaunchOfProcess]),
+        @"isFirstLaunchOfPage": @([self isFirstLaunchOfPage]),
+        @"pageLoadTime": timeMap,
+        @"mainFPS": @(self.mainFPS.avgFPS),
+        @"kotlinFPS": @(self.kotlinFPS.avgFPS),
+        @"memory": @{
+            @"avgIncrement": @(self.memoryMonitor.avgIncrementMemory),
+            @"peakIncrement": @(self.memoryMonitor.peakIncrementMemory),
+            @"appPeak": @(self.memoryMonitor.appPeakMemory),
+            @"appAvg": @(self.memoryMonitor.appAvgMemory),
+        },
+    };
+}
 @end

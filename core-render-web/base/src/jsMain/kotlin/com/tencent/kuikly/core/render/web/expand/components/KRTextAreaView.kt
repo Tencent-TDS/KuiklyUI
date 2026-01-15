@@ -10,6 +10,7 @@ import com.tencent.kuikly.core.render.web.ktx.toRgbColor
 import com.tencent.kuikly.core.render.web.runtime.dom.element.ElementType
 import com.tencent.kuikly.core.render.web.scheduler.KuiklyRenderCoreContextScheduler
 import org.w3c.dom.HTMLTextAreaElement
+import org.w3c.dom.events.InputEvent
 import org.w3c.dom.events.KeyboardEvent
 
 /**
@@ -37,6 +38,8 @@ class KRTextAreaView : IKuiklyRenderViewExport {
         style.border = "none"
         style.backgroundColor = "transparent"
     }
+
+    private var currentLength = 0
 
     override val ele: HTMLTextAreaElement
         get() = textarea.unsafeCast<HTMLTextAreaElement>()
@@ -133,7 +136,7 @@ class KRTextAreaView : IKuiklyRenderViewExport {
             INPUT_BLUR -> {
                 // Blur event callback
                 blurEventCallback = propValue.unsafeCast<KuiklyRenderCallback>()
-                ele.addEventListener("input", {
+                ele.addEventListener("blur", {
                     val map = mutableMapOf<String, Any>()
                     map["text"] = ele.value
                     // Notify kotlin side
@@ -159,9 +162,35 @@ class KRTextAreaView : IKuiklyRenderViewExport {
 
             TEXT_LENGTH_BEYOND_LIMIT -> {
                 textLengthLimitEventCallback = propValue.unsafeCast<KuiklyRenderCallback>()
-                ele.addEventListener("input", {
+                // Whether it is in text combination state
+                var isComposing = false
+
+                ele.addEventListener("compositionstart", { isComposing = true })
+                ele.addEventListener("compositionend", {
+                    currentLength = ele.value.length + 1
+                    isComposing = false
+                    if (ele.maxLength > 0 && currentLength > ele.maxLength) {
+                        val map = mutableMapOf<String, Any>()
+                        map["text"] = ele.value
+                        textLengthLimitEventCallback?.invoke(map)
+                        ele.value = ele.value.substring(0, ele.maxLength)
+                    }
+                })
+                ele.addEventListener("beforeinput", {
                     // Input text exceeds maximum limit, callback notification
-                    if (ele.maxLength > 0 && ele.value.length > ele.maxLength) {
+                    val event = it.unsafeCast<InputEvent>()
+                    if (event.isComposing || isComposing) return@addEventListener
+                    // 针对safari浏览器中，若输入超过最大长度时，inserted为空的情况，采用手动计数方式
+                    if (event.asDynamic().inputType == "insertText") {
+                        currentLength = ele.value.length + 1
+                    } else if (event.asDynamic().inputType == "deleteContentBackward") {
+                        currentLength = ele.value.length - 1
+                    }
+                    val inserted = it.unsafeCast<InputEvent>().data ?: ""
+                    val newLength = ele.value.length + inserted.length
+                    if (ele.maxLength > 0 && (newLength > ele.maxLength || currentLength > ele.maxLength)) {
+                        // Cancel the default behavior of this input event
+                        it.preventDefault()
                         val map = mutableMapOf<String, Any>()
                         map["text"] = ele.value
                         textLengthLimitEventCallback?.invoke(map)

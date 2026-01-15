@@ -68,12 +68,10 @@ bool KRForwardArkTSView::SetProp(const std::string &prop_key, const KRAnyValue &
 }
 
 void KRForwardArkTSView::SetRenderViewFrame(const KRRect &frame) {
-    if (ark_node_ != nullptr) {
-        KRArkTSManager::GetInstance().CallArkTSMethod(
-            GetInstanceId(), KRNativeCallArkTSMethod::SetViewSize,
-            std::make_shared<KRRenderValue>(GetViewTag()), std::make_shared<KRRenderValue>(frame.width),
-            std::make_shared<KRRenderValue>(frame.height), nullptr, nullptr, nullptr);
-    }
+    KRArkTSManager::GetInstance().CallArkTSMethod(
+        GetInstanceId(), KRNativeCallArkTSMethod::SetViewSize,
+        std::make_shared<KRRenderValue>(GetViewTag()), std::make_shared<KRRenderValue>(frame.width),
+        std::make_shared<KRRenderValue>(frame.height), nullptr, nullptr, nullptr);
 }
 
 /**

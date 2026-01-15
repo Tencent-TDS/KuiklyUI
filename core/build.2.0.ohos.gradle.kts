@@ -40,6 +40,11 @@ kotlin {
     androidTarget {
         publishLibraryVariantsGroupedByFlavor = true
         publishLibraryVariants("release")
+        compilations.all {
+            kotlinOptions {
+                jvmTarget = "1.8"
+            }
+        }
     }
 
     ohosArm64 {
@@ -54,29 +59,44 @@ kotlin {
     iosX64()
     iosArm64()
 
-
-    // sourceSets
-    val commonMain by sourceSets.getting
-
-    val ohosArm64Main by sourceSets.getting {
-        dependsOn(commonMain)
-    }
-
-    sourceSets.iosMain {
-        dependsOn(commonMain)
-    }
-
-//    val iosMain by sourceSets.creating {
-//        dependsOn(commonMain)
-//    }
-
-    targets.withType<KotlinNativeTarget> {
-        val mainSourceSets = this.compilations.getByName("main").defaultSourceSet
-        when {
-            konanTarget.family.isAppleFamily -> {
-                mainSourceSets.dependsOn(sourceSets.getByName("iosMain"))
+    js(IR) {
+        moduleName = "KuiklyCore-core"
+        browser {
+            webpackTask {
+                outputFileName = "${moduleName}.js" // 最后输出的名字
             }
 
+            commonWebpackConfig {
+                output?.library = null // 不导出全局对象，只导出必要的入口函数
+            }
+        }
+        binaries.executable() //将kotlin.js与kotlin代码打包成一份可直接运行的js文件
+    }
+
+    // sourceSets
+    sourceSets {
+        val commonMain by getting
+        val appleMain by sourceSets.creating {
+            dependsOn(commonMain)
+        }
+        val iosMain by sourceSets.creating {
+            dependsOn(appleMain)
+        }
+        val ohosArm64Main by sourceSets.getting {
+            dependsOn(commonMain)
+        }
+    }
+
+    targets.withType<KotlinNativeTarget> {
+        val appleMain by sourceSets.getting
+        when {
+            konanTarget.family.isAppleFamily -> {
+                val main by compilations.getting
+                main.defaultSourceSet.dependsOn(appleMain)
+                val kuikly by main.cinterops.creating {
+                    defFile(project.file("src/appleMain/iosInterop/cinterop/ios.def"))
+                }
+            }
         }
     }
 
@@ -95,9 +115,14 @@ kotlin {
 
 android {
     compileSdk = 30
+    namespace = "com.tencent.kuikly.core"
     sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
     defaultConfig {
         minSdk = 21
         targetSdk = 30
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
 }

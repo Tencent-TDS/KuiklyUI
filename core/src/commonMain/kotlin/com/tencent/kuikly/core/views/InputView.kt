@@ -264,8 +264,17 @@ class InputAttr : Attr() {
      * 仅iOS支持
      * 当设置为true的时候，输入框中如果是空的，则软键盘的Return Key会自动置灰禁用，非空的时候自动启用。
      */
-    fun enablesReturnKeyAutomatically(flag: Boolean): InputAttr{
+    fun enablesReturnKeyAutomatically(flag: Boolean): InputAttr {
         ENABLES_RETURN_KEY_AUTOMATICALLY with if( flag ) 1 else 0
+        return this
+    }
+
+    /**
+     * 是否启用拼音输入回调
+     * @param enable 是否启用，默认为false
+     */
+    fun enablePinyinCallback(enable: Boolean = false): InputAttr {
+        "enablePinyinCallback" with (if (enable) 1 else 0)
         return this
     }
 
@@ -284,7 +293,8 @@ data class InputParams(
 
 data class KeyboardParams(
     val height: Float,
-    val duration: Float
+    val duration: Float,
+    val curve: Int = 0
 )
 
 class InputEvent : Event() {
@@ -341,16 +351,18 @@ class InputEvent : Event() {
     }
 
     /**
-     * 当键盘高度发生变化时调用的方法
-     * @param handler 处理键盘高度变化事件的回调函数
+     * Called when keyboard height changes.
+     * @param isSync Sync callback to ensure UI animation syncs with keyboard, default true
+     * @param handler Callback handler with keyboard params
      */
-    fun keyboardHeightChange(handler: (KeyboardParams) -> Unit) {
-        register(KEYBOARD_HEIGHT_CHANGE){
+    fun keyboardHeightChange(isSync: Boolean = true, handler: (KeyboardParams) -> Unit) {
+        register(KEYBOARD_HEIGHT_CHANGE, {
             it as JSONObject
             val height = it.optDouble("height").toFloat()
             val duration = it.optDouble("duration").toFloat()
-            handler(KeyboardParams(height, duration))
-        }
+            val curve = it.optInt("curve")
+            handler(KeyboardParams(height, duration, curve))
+        }, isSync = isSync)
     }
 
     /**

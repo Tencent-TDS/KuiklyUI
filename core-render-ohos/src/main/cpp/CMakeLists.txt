@@ -12,6 +12,7 @@ set(SOURCE_SET
         napi_init.cpp
         libohos_render/api/src/Kuikly.cpp
         libohos_render/api/src/KRAnyData.cpp
+        libohos_render/foundation/ffrt/KRFfrt.cpp
         libohos_render/foundation/ark_ts.cpp
         libohos_render/foundation/thread/KRMainThread.cpp
         libohos_render/manager/KRRenderManager.cpp
@@ -96,8 +97,13 @@ set(SOURCE_SET
         libohos_render/performance/KRMonitor.cpp
         libohos_render/performance/launch/KRLaunchMonitor.cpp
         libohos_render/performance/launch/KRLaunchData.cpp
+        libohos_render/performance/frame/KRFrameData.cpp
+        libohos_render/performance/frame/KRFrameMonitor.cpp
+        libohos_render/performance/memory/KRMemoryData.cpp
+        libohos_render/performance/memory/KRMemoryMonitor.cpp
         libohos_render/expand/modules/performance/KRPageCreateTrace.cpp
         libohos_render/expand/modules/performance/KRPerformanceModule.cpp
+        libohos_render/expand/modules/log/KRLogTestModule.cpp
 )
 
 add_library(kuikly SHARED ${SOURCE_SET})
@@ -105,4 +111,25 @@ target_include_directories(kuikly PUBLIC ${HMOS_SDK_NATIVE}/sysroot/usr/include)
 target_link_directories(kuikly PUBLIC ${HMOS_SDK_NATIVE}/sysroot/usr/lib/aarch64-linux-ohos)
 target_include_directories(kuikly PRIVATE ${NATIVERENDER_ROOT_PATH}
                     ${NATIVERENDER_ROOT_PATH}/include)
-target_link_libraries(kuikly PUBLIC libace_napi.z.so libace_ndk.z.so hilog_ndk.z.so libnative_drawing.so libjsvm.so libohfileuri.so libpixelmap_ndk.z.so libimage_source.so libpixelmap.so libimage_packer_ndk.z.so librcp_c.so librawfile.z.so libohresmgr.so libdeviceinfo_ndk.z.so)
+target_link_libraries(kuikly PUBLIC hilog_ndk.z.so
+                                    libability_runtime.so
+                                    libace_napi.z.so
+                                    libace_ndk.z.so
+                                    libdeviceinfo_ndk.z.so
+                                    libimage_packer_ndk.z.so
+                                    libimage_source.so
+                                    libjsvm.so
+                                    libnative_drawing.so
+                                    libohcrypto.so
+                                    libohfileuri.so
+                                    libohresmgr.so
+                                    libpixelmap.so
+                                    libpixelmap_ndk.z.so
+                                    librawfile.z.so
+                                    librcp_c.so
+                                    libuv.so
+                                    libz.so
+                                    libohhidebug.so
+                                    libnative_vsync.so
+                                    libffrt.z.so
+                                    )

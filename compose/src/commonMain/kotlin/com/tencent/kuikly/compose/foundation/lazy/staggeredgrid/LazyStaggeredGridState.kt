@@ -47,9 +47,11 @@ import com.tencent.kuikly.compose.ui.layout.Remeasurement
 import com.tencent.kuikly.compose.ui.layout.RemeasurementModifier
 import com.tencent.kuikly.compose.ui.unit.Constraints
 import com.tencent.kuikly.compose.ui.unit.dp
+import com.tencent.kuikly.compose.ui.util.fastSumBy
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.tryExpandStartSizeNoScroll
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
@@ -327,8 +329,46 @@ class LazyStaggeredGridState internal constructor(
         scrollOffset: Int = 0
     ) {
         kuiklyInfo.offsetDirty = true
+        
+        // Calculate teleport distance based on viewportSize and average item size
         val layoutInfo = layoutInfoState.value
-        val numOfItemsToTeleport = 100 * layoutInfo.slots.sizes.size
+        val numOfItemsToTeleport = if (layoutInfo.visibleItemsInfo.isNotEmpty()) {
+            val averageItemSize = layoutInfo.calculateAverageItemSize()
+            
+            // Calculate the number of items that can fit in the viewport
+            val viewportSize = if (layoutInfo.orientation == Orientation.Vertical) {
+                layoutInfo.viewportSize.height
+            } else {
+                layoutInfo.viewportSize.width
+            }
+            
+            val itemsPerViewport = if (averageItemSize > 0) {
+                viewportSize.toFloat() / averageItemSize.toFloat()
+            } else {
+                10.0f // Default value to avoid division by zero
+            }
+            
+            // Special handling for StaggeredGrid waterfall layout: due to uneven item heights, use a more conservative Teleport distance
+            // Reserve 2.2 loops of animation space (same as Grid)
+            val targetDistancePx = 2500f * layoutInfo.density.density  // 2500dp to px (≈8125px)
+            
+            // Calculate how many items can be scrolled in one loop
+            val itemsPerLoop = if (averageItemSize > 0) {
+                targetDistancePx / averageItemSize
+            } else {
+                itemsPerViewport * 2.2f  // Fallback: approximately 2.2 times viewport items
+            }
+            
+            val laneCount = layoutInfo.slots.sizes.size
+            val reservedLoops = 2.2f  // Same as Grid's 2.2
+            val teleportItems = maxOf((itemsPerLoop * reservedLoops).toInt(), 15 * laneCount)
+            
+            teleportItems
+        } else {
+            // Use default value if visibleItemsInfo is empty
+            100 * layoutInfo.slots.sizes.size
+        }
+        
         animateScrollScope.animateScrollToItem(
             index,
             scrollOffset,

@@ -41,15 +41,12 @@ class SuperTouchManager {
 
     private var layoutNode: KNode<*>? = null
 
-    private var density = 3f
-
     private var _useSyncMove: Boolean? = null
     private val DivEvent.useSyncMove
         get() = _useSyncMove ?: (!getPager().pageData.isOhOs).also { _useSyncMove = it }
 
     internal fun manage(container: DivView, scene: ComposeScene, layoutNode: KNode<*>? = null) {
         this.layoutNode = layoutNode
-        this.density = container.getPager().pagerDensity()
         this.container = container
         this.scene = scene
         this.container.getViewAttr().superTouch(true)
@@ -115,10 +112,13 @@ class SuperTouchManager {
             override fun pointInside(x: Float, y: Float): Boolean = true
             override fun onTouchesEvent(touches: List<Touch>, type: PointerEventType, timestamp: Long,
                                         isConsumeByNative: Boolean): ProcessResult {
+                // because density may change by sizeChange Event on ohos
+                // here need to fetch the density realtime
+                val pageDensity = container.getPager().pagerDensity()
                 return scene.sendPointerEvent(
                     eventType = type,
                     pointers = touches.map { touch ->
-                        val position = Offset(touch.x * density, touch.y * density)
+                        val position = Offset(touch.x * pageDensity, touch.y * pageDensity)
                         ComposeScenePointer(
                             id = PointerId(touch.pointerId),
                             position = position,

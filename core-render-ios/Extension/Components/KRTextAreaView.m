@@ -69,6 +69,8 @@ NSString *const KRFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(imeAction);
 /** event is 用户按下键盘IME动作按键时回调，例如 Send / Go / Search 等 */
 @property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(inputReturn);
+/** attr is enablePinyinCallback 是否启用拼音输入回调 */
+@property (nonatomic, strong)  NSNumber *KUIKLY_PROP(enablePinyinCallback);
 
 /** placeholderTextView property */
 @property (nullable, nonatomic, strong) UITextView *placeholderTextView;
@@ -89,7 +91,11 @@ NSString *const KRFontWeightKey = @"fontWeight";
 - (instancetype)init {
     if (self = [super init]) {
         self.delegate = self;
+#if TARGET_OS_OSX // [macOS]
+        self.textContainerInset = NSZeroSize;
+#else // [macOS]
         self.textContainerInset = UIEdgeInsetsZero;
+#endif // [macOS]
         self.textContainer.lineFragmentPadding = 0;
         self.backgroundColor = [UIColor clearColor];
         _props = [NSMutableDictionary new];
@@ -248,6 +254,10 @@ NSString *const KRFontWeightKey = @"fontWeight";
     [self p_addKeyboardNotificationIfNeed];
 }
 
+- (void)setCss_enablePinyinCallback:(NSNumber *)css_enablePinyinCallback {
+    _css_enablePinyinCallback = css_enablePinyinCallback;
+}
+
 #pragma mark - css method
 
 - (void)css_focus:(NSDictionary *)args  {
@@ -292,7 +302,15 @@ NSString *const KRFontWeightKey = @"fontWeight";
 - (void)css_getInnerContentHeight:(NSDictionary *)args {
     KuiklyRenderCallback callback = args[KRC_CALLBACK_KEY];
     if (callback) {
+#if !TARGET_OS_OSX // [macOS]
         CGFloat contentHeight = self.contentSize.height;
+#else // [macOS
+        // On macOS, calculate content height from layout manager
+        NSLayoutManager *layoutManager = self.layoutManager;
+        NSTextContainer *textContainer = self.textContainer;
+        [layoutManager ensureLayoutForTextContainer:textContainer];
+        CGFloat contentHeight = [layoutManager usedRectForTextContainer:textContainer].size.height;
+#endif // macOS]
         callback(@{@"height": @(contentHeight)});
     }
 }
@@ -312,8 +330,16 @@ NSString *const KRFontWeightKey = @"fontWeight";
         return ;
     }
     [self p_updatePlaceholder];
+    // 如果有拼音输入，根据配置决定是否触发回调
     if (textView.markedTextRange) {
-        return ;
+        BOOL enablePinyinCallback = [self.css_enablePinyinCallback boolValue];
+        if (enablePinyinCallback) {
+            if (self.css_textDidChange) {
+                NSString *text = [self p_outputText].copy ?: @"";
+                self.css_textDidChange(@{@"text": text, @"length": @([text kr_length])});
+            }
+        }
+        return;
     }
     [self p_limitTextInput];
    
@@ -372,24 +398,26 @@ NSString *const KRFontWeightKey = @"fontWeight";
 
 #pragma mark - notication
 
+#if !TARGET_OS_OSX // [macOS]
 - (void)onReceivekeyboardWillShowNotification:(NSNotification *)notify {
-    // 键盘将要弹出
     NSDictionary *info = notify.userInfo;
     CGFloat keyboardHeight = [[info objectForKey:UIKeyboardFrameEndUserInfoKey] CGRectValue].size.height;
     CGFloat duration = [[info objectForKey:UIKeyboardAnimationDurationUserInfoKey] floatValue];
+    NSInteger curve = [[info objectForKey:UIKeyboardAnimationCurveUserInfoKey] integerValue];
     if (self.css_keyboardHeightChange) {
-        self.css_keyboardHeightChange(@{@"height": @(keyboardHeight), @"duration": @(duration)});
+        self.css_keyboardHeightChange(@{@"height": @(keyboardHeight), @"duration": @(duration), @"curve": @(curve)});
     }
 }
 
 - (void)onReceivekeyboardWillHideNotification:(NSNotification *)notify {
-    // 键盘将要隐藏
     NSDictionary *info = notify.userInfo;
     CGFloat duration = [[info objectForKey:UIKeyboardAnimationDurationUserInfoKey] floatValue];
+    NSInteger curve = [[info objectForKey:UIKeyboardAnimationCurveUserInfoKey] integerValue];
     if (self.css_keyboardHeightChange) {
-        self.css_keyboardHeightChange(@{@"height": @(0), @"duration": @(duration)});
+        self.css_keyboardHeightChange(@{@"height": @(0), @"duration": @(duration), @"curve": @(curve)});
     }
 }
+#endif // [macOS]
 
 #pragma mark - override
 
@@ -416,6 +444,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
     if (_didAddKeyboardNotification) {
         return ;
     }
+#if !TARGET_OS_OSX // [macOS]
     _didAddKeyboardNotification = YES;
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(onReceivekeyboardWillShowNotification:)
@@ -425,6 +454,10 @@ NSString *const KRFontWeightKey = @"fontWeight";
                                              selector:@selector(onReceivekeyboardWillHideNotification:)
                                                  name:UIKeyboardWillHideNotification
                                                object:nil];
+#else // [macOS
+    // macOS doesn't have software keyboard, so no notification needed
+    _didAddKeyboardNotification = YES;
+#endif // macOS]
 }
 
 - (void)p_updatePlaceholder {
@@ -481,9 +514,9 @@ NSString *const KRFontWeightKey = @"fontWeight";
             _ignoreTextDidChanged = NO;
 
             dispatch_async(dispatch_get_main_queue(), ^{
-                _ignoreTextDidChanged = YES;
+                self->_ignoreTextDidChanged = YES;
                 self.selectedTextRange = [self textRangeFromPosition:newPosition toPosition:newPosition];
-                _ignoreTextDidChanged = NO;
+                self->_ignoreTextDidChanged = NO;
             });
         }
        
@@ -599,11 +632,13 @@ NSString *const KRFontWeightKey = @"fontWeight";
         _placeholderTextView = [[UITextView alloc] initWithFrame:self.bounds];
         _placeholderTextView.editable = NO;
         _placeholderTextView.userInteractionEnabled = NO;
+#if TARGET_OS_OSX // [macOS
+        _placeholderTextView.selectable = NO; // NSTextView specific: disable text selection
+#endif // macOS]
         _placeholderTextView.textContainerInset = self.textContainerInset;
-        _placeholderTextView.backgroundColor = [UIColor clearColor];
         _placeholderTextView.textContainer.lineFragmentPadding = self.textContainer.lineFragmentPadding;
         _placeholderTextView.backgroundColor = [UIColor clearColor];
-        if (@available(iOS 13.0, *)) {
+        if (@available(iOS 13.0, macOS 10.10, *)) { // [macOS]
             _placeholderTextView.textColor = UIColor.placeholderTextColor;
         } else {
             _placeholderTextView.textColor = UIColor.lightGrayColor;

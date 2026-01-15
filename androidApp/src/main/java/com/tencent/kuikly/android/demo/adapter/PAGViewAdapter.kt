@@ -59,6 +59,10 @@ class KRPagView(context: Context) : PAGView(context), IPAGView {
         setRepeatCount(count)
     }
 
+    override fun setPAGViewScaleMode(scaleMode: Int) {
+        setScaleMode(scaleMode)
+    }
+
     override fun playPAGView() {
         play()
     }

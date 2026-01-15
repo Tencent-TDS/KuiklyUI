@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#import <UIKit/UIKit.h>
+#import "KRUIKit.h" // [macOS]
 #import <Foundation/Foundation.h>
 
 NS_ASSUME_NONNULL_BEGIN
@@ -77,16 +77,6 @@ NS_ASSUME_NONNULL_BEGIN
  @return 返回已经模糊过的图片
  */
 - (UIImage *)kr_blurBlurRadius:(CGFloat)radius;
-
-/**
- * 转换为热力图图片
- */
-- (UIImage *)kr_applyHeatmapWithGridentRawData:(unsigned char *)gridentRawData gridentImage:(UIImage *)gridentImage;
-
-/**
- * 获取图片像素数组
- */
-- (unsigned char *)kr_getRawData;
 
 /**
  * 染色非透明像素为该颜色

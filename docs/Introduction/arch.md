@@ -16,7 +16,7 @@
   - API模块:提供统一的API接口
   - DSL驱动:支持标准Compose DSL (Beta版）和自研DSL
 - Render模块
-  - 支持Android、iOS、HarmonyOS和H5/微信小程序等多个平台
+  - 支持Android、iOS、macOS、HarmonyOS和H5/微信小程序等多个平台
 
 2. **KuiklyBase**
 

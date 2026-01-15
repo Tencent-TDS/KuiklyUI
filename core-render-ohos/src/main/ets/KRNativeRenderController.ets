@@ -30,6 +30,8 @@ import { Configuration } from '@ohos.app.ability.Configuration';
 import { KRRenderExecuteModeBase } from './context/KRRenderExecuteModeBase';
 import { KRRenderNativeMode } from './context/KRRenderNativeMode';
 import { i18n } from '@kit.LocalizationKit';
+import { bundleManager } from '@kit.AbilityKit';
+import { deviceInfo } from '@kit.BasicServicesKit';
 
 /** window尺寸变化事件名 */
 export const KRWindowSizeDidChangedEventKey = 'windowSizeDidChanged';
@@ -88,6 +90,8 @@ export const KRDensity = 'density';
 
 export const KRSystemLanguageKey = 'sysLang';
 
+export const KRFeature = 'feature';
+
 const KROnBackPressedKey = 'onBackPressed';
 
 enum KRBackPressConsumedState {
@@ -124,6 +128,10 @@ export class KRNativeRenderController {
    * 透传给KR侧的页面数据
    */
   pageParams: KRRecord = {};
+  /**
+   * 所在的窗口Id
+   */
+  windowId: string = ""
 
   private lifecycleCallbacks: Array<IKuiklyRenderViewLifecycleCallback> = [];
 
@@ -158,7 +166,7 @@ export class KRNativeRenderController {
     if (this.imeMode) {
       return;
     }
-    const density = display.getDefaultDisplaySync().densityPixels;
+    const density = this.getWindowActiveDensity();
     const w = params.width / density;
     const h = params.height / density;
 
@@ -200,7 +208,8 @@ export class KRNativeRenderController {
     pageParams: KRRecord,
     contextCode: string,
     imeMode: boolean,
-    assetsDir: string
+    assetsDir: string,
+    viewRect?: KRRect
   ) {
     this.uiContext = uiContext;
     this.uiAbilityContext = uiAbilityContext;
@@ -210,13 +219,24 @@ export class KRNativeRenderController {
     this.contextCode = contextCode;
     this.imeMode = imeMode;
     this.assetsDir = assetsDir;
+    if (viewRect) {
+      this.viewRect = viewRect;
+    }
     gGlobalInstanceId++;
     this.instanceId = gGlobalInstanceId + '';
     render.OnLaunchStart(this.instanceId, executeMode.mode); //  页面启动事件通知到native层，用于Performance性能采集
-    this.densityPixels = display.getDefaultDisplaySync().densityPixels;
+    try {
+      this.windowClass = window.findWindow(uiContext.getWindowName());
+    } catch (e) {
+      KRRenderLog.e(`window`, `findWindow, stack: ${e}`);
+    }
+    this.densityPixels = this.getWindowActiveDensity();
     KRNativeManager.getInstance().createNativeInstance(this.instanceId, uiContext, this);
     const currentConfig = uiAbilityContext.config;
     this.fontSizeScale = currentConfig.fontSizeScale ? currentConfig.fontSizeScale : 1;
+    if (!this.fontSizeScaleFollowSystem()) {
+      this.fontSizeScale = 1;
+    }
     this.fontWeightScale = currentConfig.fontWeightScale ? currentConfig.fontWeightScale : 1;
 
     const theInstanceId = this.instanceId;
@@ -238,23 +258,13 @@ export class KRNativeRenderController {
     }
 
     if (!imeMode) {
-      // window api not available in ime according to hw representative, which is not documented anywhere though :(
-      window.getLastWindow(getContext(this)).then((data) => {
-        if (this.destroyed) {
-          return;
-        }
-        try {
-          this.windowClass = data;
-          const winRect = data.getWindowProperties().windowRect;
-          this.windowRect = new KRRect(0, 0, px2vp(winRect.width), px2vp(winRect.height));
-          KRNativeManager.getInstance().onLastWindow(data);
-          this.onSafeAreaInsetsChanged(this.getSafeAreaRect(data));
-          data.on('avoidAreaChange', this.avoidAreaListener);
-          data.on('windowSizeChange', this.onWindowSizeChanged);
-        } catch (e) {
-          KRRenderLog.e('Window', `getLastWindow callback error code:${e.code}`);
-        }
-      });
+      const winRect = this.windowClass!.getWindowProperties().windowRect;
+      this.windowRect = new KRRect(0,0, px2vp(winRect.width), px2vp(winRect.height));
+      this.windowId = this.windowClass!.getWindowProperties().id + "";
+      KRNativeManager.getInstance().onLastWindow(this.windowClass!);
+      this.onSafeAreaInsetsChanged(this.getSafeAreaRect(this.windowClass!));
+      this.windowClass!.on('avoidAreaChange', this.avoidAreaListener);
+      this.windowClass!.on('windowSizeChange', this.onWindowSizeChanged);
     }
   }
 
@@ -266,7 +276,7 @@ export class KRNativeRenderController {
     KRNativeManager.getInstance().getNativeInstance(this.instanceId)?.registerExceptionCallback(exceptionCallback);
   }
 
-  onViewSizeChanged(rect: KRRect, oldDensity: number, newDensity: number) {
+  onViewSizeChanged(rect: KRRect, oldDensity: number = this.densityPixels, newDensity: number = this.densityPixels) {
     this.viewRect = rect;
     if (this.didInit) {
       let densityInfo: KRRecord | null = null;
@@ -294,11 +304,10 @@ export class KRNativeRenderController {
       return this.viewRect != null;
     } else {
       return this.safeAreaRect != null && // safearea updated
-        KRNativeManager.getInstance().getWindowInfo() != null && // window info updated
+        KRNativeManager.getInstance().getWindowInfo(this.windowId) != undefined && // window info updated
         this.viewRect != null; // view rect updated
     }
   }
-
   onConfigurationUpdate(config: Configuration) {
     if(!this.didInit){
       return
@@ -312,6 +321,17 @@ export class KRNativeRenderController {
     if (config.fontSizeScale) {
       data['fontSizeScale'] = config.fontSizeScale;
     }
+    let fontSizeScaleFollowSystem = this.fontSizeScaleFollowSystem();
+    if (!fontSizeScaleFollowSystem) {
+      data['fontSizeScale'] = 1
+    }
+    data['fontSizeScaleFollowSystem'] = this.fontSizeScaleFollowSystem();
+
+    const instance = KRNativeManager.getInstance().getNativeInstance(this.instanceId)
+    if (instance){
+      instance.onConfigurationUpdate()
+    }
+
     // update config to render core
     render.updateConfig(this.instanceId, JSON.stringify(data));
 
@@ -399,6 +419,7 @@ export class KRNativeRenderController {
     }
 
     this.doAboutToDisappear();
+    KRNativeManager.getInstance().removeWindowInfoIfNeed(this.windowId);
     KRNativeManager.getInstance().removeNativeInstance(this.instanceId);
   }
 
@@ -406,7 +427,7 @@ export class KRNativeRenderController {
     this.doOnPageShow();
 
     if (this.didInit && !this.destroyed) {
-      const newDensity = display.getDefaultDisplaySync().densityPixels;
+      const newDensity = this.getWindowActiveDensity();
       if (newDensity != this.densityPixels) {
         // density变化，原因是修改了系统的无障碍选项
         this.doOnDensityChanged(newDensity);
@@ -597,23 +618,36 @@ export class KRNativeRenderController {
     pageData[KRUrlKey] = this.pageName;
     if (!this.imeMode) {
       pageData[KRStatusBarHeightKey] = this.safeAreaRect!.y;
-      let windowInfo = KRNativeManager.getInstance().getWindowInfo();
-      if (windowInfo) {
+      let windowInfo = KRNativeManager.getInstance().getWindowInfo(this.windowId);
+      if (windowInfo != undefined) {
         pageData[KRActivityWidthKey] = px2vp(windowInfo.getWindowRect().width);
         pageData[KRActivityHeightKey] = px2vp(windowInfo.getWindowRect().height);
       }
       pageData[KRSafeAreaInsets] = this.encodeSafeAreaInsetsString();
     }
+
+    let versionName = "1.0.0"
+    let osFullName = ""
+    try {
+      const bundleInfo = bundleManager.getBundleInfoForSelfSync(bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION)
+      versionName = bundleInfo.versionName;
+      osFullName = deviceInfo.osFullName; // system version
+    }catch (e) {
+      // noop
+    }
+
     pageData[KRDeviceWidthKey] = screenSize.width;
     pageData[KRDeviceHeightKey] = screenSize.height;
-    pageData[KROsVersionKey] = ''; // 系统版本
+    pageData[KROsVersionKey] = osFullName; // 系统版本
     pageData[KRNativeBuild] = 2;
-    pageData[KRAppVersionKey] = '1.0.0';
+    pageData[KRAppVersionKey] = versionName;
     pageData[KRPlatformKey] = 'ohos';
     pageData[KRExecuteMode] = this.executeMode.mode;
     pageData[KRContextCode] = this.contextCode;
-    pageData[KRDensity] = display.getDefaultDisplaySync().densityPixels;
-
+    pageData[KRDensity] = this.getWindowActiveDensity();
+    pageData[KRFeature] = {
+      "box_shadow_fill" : 1
+    };
     return JSON.stringify(pageData);
   }
 
@@ -628,6 +662,9 @@ export class KRNativeRenderController {
       'fontWeightScale': this.fontWeightScale,
       'fontSizeScale': this.fontSizeScale,
       'imeMode': this.imeMode ? 1 : 0,
+      'windowId': this.windowId,
+      'fontSizeScaleFollowSystem': this.fontSizeScaleFollowSystem() ? 1 : 0,
+      'performanceMonitorTypesMask': this.getMonitorTypeMask(),
     };
 
     return JSON.stringify(data);
@@ -678,6 +715,54 @@ export class KRNativeRenderController {
     console.log(`getSafeAreaRect safeAreaInsets: ${result.x}, ${result.y}, ${result.width}, ${result.height}`);
     return result;
   }
+
+  /**
+   * 获取窗口活跃的density
+   * customDensity的值默认为systemDensity
+   * 如果windowStage主动设置了DefaultDensityEnabled/CustomDensity,则分别是defaultDensity/customDensity
+   * 因此默认取customDensity作为活跃的density
+   */
+  private getWindowActiveDensity() {
+    if (this.windowClass != null) {
+      return this.windowClass.getWindowDensityInfo?.().customDensity ?? display.getDefaultDisplaySync().densityPixels;
+    } else {
+      return display.getDefaultDisplaySync().densityPixels
+    }
+  }
+
+  /**
+   * 字体缩放是否跟随系统
+   * @return boolean true:跟随系统(默认) false:不跟随系统(缩放比例为1)
+   */
+  fontSizeScaleFollowSystem(): boolean {
+    return true
+  }
+
+  /**
+   * 回调启动数据
+   */
+  onGetLaunchData(data: KRRecord): void {
+  }
+
+  /**
+   * 回调性能数据
+   */
+  onGetPerformanceData(data: KRRecord): void {
+  }
+
+  /**
+   * Kuikly框架设置性能监控选项，默认只开启动监控
+   * @return Array<KRMonitorType>: 需要设置的性能监控选项列表
+   */
+  performanceMonitorTypes(): Array<KRMonitorType> {
+    return [KRMonitorType.LAUNCH];
+  }
+
+  private getMonitorTypeMask(): number {
+    const mask = this.performanceMonitorTypes().reduce((acc: KRMonitorType, cur: KRMonitorType) => acc | cur, 0);
+    return mask;
+  }
+
 }
 
 export abstract class IKuiklyViewDelegate extends KRNativeRenderController {
@@ -774,4 +859,13 @@ export interface IKuiklyRenderViewLifecycleCallback {
    */
   onFirstFramePaint(): void
 
+}
+
+/**
+ * 性能监控类型
+ */
+export enum KRMonitorType {
+  LAUNCH = 1 << 0,  // 1 启动监控
+  FRAME = 1 << 1,  // 2 FPS监控
+  MEMORY = 1 << 2,  // 4 内存监控
 }

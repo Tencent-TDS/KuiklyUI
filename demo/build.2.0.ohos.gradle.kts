@@ -23,18 +23,21 @@ kotlin {
                     "-P", "plugin:androidx.compose.compiler.plugins.kotlin:suppressKotlinVersionCompatibilityCheck=true",
                     "-Xcontext-receivers"
                 )
+
+                // 安装包优化
+                val CLANG_OPT_FLAGS = "-Os -mllvm -enable-machine-outliner=always -ffunction-sections"
+                val CLANG_FLAGS = "clangOptFlags.ios_arm64=$CLANG_OPT_FLAGS;clangDebugFlags.ios_arm64=$CLANG_OPT_FLAGS;clangOptFlags.ohos_arm64=$CLANG_OPT_FLAGS;clangDebugFlags.ohos_arm64=$CLANG_OPT_FLAGS"
+                freeCompilerArgs += "-Xoverride-konan-properties=$CLANG_FLAGS"
             }
         }
     }
 
     ohosArm64 {
         binaries.sharedLib("shared"){
-            if(debuggable){
-                freeCompilerArgs += "-Xadd-light-debug=enable"
-                freeCompilerArgs += "-Xbinary=sourceInfoType=libbacktrace"
-            }else{
-                freeCompilerArgs += "-Xadd-light-debug=enable"
-            }
+            freeCompilerArgs += "-Xadd-light-debug=enable"
+            // 安装包优化
+            linkerOpts += "--pack-dyn-relocs=relr"
+            linkerOpts += "--gc-sections"
         }
     }
 
@@ -45,7 +48,7 @@ kotlin {
                 implementation(project(":core-annotations"))
                 implementation(project(":compose"))
                 // Chat Demo 相关依赖
-                // implementation("com.tencent.kuiklybase:markdown:0.1.0-ohos")
+                implementation("com.tencent.kuiklybase:markdown:0.3.0-ohos")
             }
         }
 

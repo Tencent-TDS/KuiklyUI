@@ -40,6 +40,8 @@ class KuiklyPageView(context: Context) : FrameLayout(context), IKuiklyRenderView
     private var pageData = "{}"
     private var loadSuccessCallback: KuiklyRenderCallback? = null
     private var loadFailureCallback: KuiklyRenderCallback? = null
+    private var viewDidAppear = false
+    private var pageDidAppear = false
 
     private val lazyEvents by lazy(LazyThreadSafetyMode.NONE) { mutableListOf<() -> Unit>() }
 
@@ -119,8 +121,49 @@ class KuiklyPageView(context: Context) : FrameLayout(context), IKuiklyRenderView
         val json = params.toJSONObjectSafely()
         val event = json.optString("event")
         val data = json.optJSONObject("data") ?: JSONObject()
-        performTaskWhenKuiklyViewDidLoad {
-            kuiklyRenderView?.sendEvent(event, data.toMap())
+        when (event) {
+            "didAppear" -> {
+                this.viewDidAppear = true
+                if (this.pageDidAppear) {
+                    performTaskWhenKuiklyViewDidLoad {
+                        this.kuiklyRenderView?.onResume()
+                    }
+                }
+            }
+            "didDisappear" -> {
+                this.viewDidAppear = false
+                if (this.pageDidAppear) {
+                    performTaskWhenKuiklyViewDidLoad {
+                        this.kuiklyRenderView?.onPause()
+                    }
+                }
+            }
+            "viewDidAppear" -> {
+                this.pageDidAppear = true
+                if (this.viewDidAppear) {
+                    performTaskWhenKuiklyViewDidLoad {
+                        this.kuiklyRenderView?.onResume()
+                    }
+                }
+            }
+            "viewDidDisappear" -> {
+                this.pageDidAppear = false
+                if (this.viewDidAppear) {
+                    performTaskWhenKuiklyViewDidLoad {
+                        this.kuiklyRenderView?.onPause()
+                    }
+                }
+            }
+            "windowSizeDidChanged", "rootViewSizeDidChanged",
+            "pageFirstFramePaint", "pageWillDestroy",
+            "setNeedLayout", "onBackPressed" -> {
+                // do nothing
+            }
+            else -> {
+                performTaskWhenKuiklyViewDidLoad {
+                    kuiklyRenderView?.sendEvent(event, data.toMap())
+                }
+            }
         }
     }
 
@@ -150,10 +193,6 @@ class KuiklyPageView(context: Context) : FrameLayout(context), IKuiklyRenderView
     }
 
     private fun getHostPageData(): Map<String, Any> {
-        val act = activity
-//        if (act is PublicFragmentActivity) {
-//            return (act.fragment as? KuiklyFragment)?.pageData ?: mapOf()
-//        }
         return mapOf()
     }
 

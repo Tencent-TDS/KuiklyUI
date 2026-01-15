@@ -96,7 +96,49 @@ typedef NS_OPTIONS(NSInteger, KRMonitorType) {
 ```
 
 ### **鸿蒙**
-鸿蒙端目前仅有启动耗时(默认开启)，暂不支持在宿主侧获取数据。
+
+>注意: 目前鸿蒙FPS监控仅支持mainFPS(以60Hz为基准的归一化值,越接近60越流畅)、内存监控仅支持PSS内存数据
+
+1. 注册需要的性能监控类型
+```ts
+  // Your delegate
+  /**
+   * Kuikly框架设置性能监控选项，默认只开启动监控
+   * @return Array<KRMonitorType>: 需要设置的性能监控选项列表
+   */
+  performanceMonitorTypes(): KRMonitorType[] {
+    return [];
+  }
+    
+  /**
+   * 性能监控类型
+   */
+  export enum KRMonitorType {
+    LAUNCH = 1 << 0,  // 1 启动监控
+    FRAME = 1 << 1,   // 2 FPS监控
+    MEMORY = 1 << 2,  // 4 内存监控
+  }
+```
+
+2. 页面退出时，进行回调
+```ts
+  //Your delegate
+  /**
+   * 回调启动数据
+   */
+  onGetLaunchData(data: Record<string, number>): void {
+    console.log("-- KuiklyRenderView onGetLaunchData--")
+      ...
+  }
+
+  /**
+   * 回调性能数据
+   */
+  onGetPerformanceData(data: Record<string, number>): void {
+    console.log("-- KuiklyRenderView onGetPerformanceData--")
+      ...
+  }
+```
 <br>
 <br>
 

@@ -94,19 +94,6 @@ fun setTimeout(pagerId: String, timeout: Int = 0, callback: () -> Unit): String 
     return callbackRef
 }
 
-fun setTimeoutRef(pagerId: String, timeout: Int = 0, callback: (String) -> Unit): String {
-    var callbackRef: String? = null
-    callbackRef = GlobalFunctions.createFunction(pagerId) { _ ->
-        val id = callbackRef
-        if (id != null) {
-            callback(id)
-        }
-        false
-    }
-    BridgeManager.setTimeout(pagerId, timeout.toFloat(), callbackRef)
-    return callbackRef
-}
-
 @Deprecated("Use PagerScope.setTimeout(timeout, callback) instead")
 inline fun setTimeout(noinline callback: () -> Unit, timeout: Int = 0): String =
     setTimeout(BridgeManager.currentPageId, timeout, callback)

@@ -23,7 +23,7 @@ object ScrollableStateConstants {
     const val DEFAULT_EXPAND_SIZE = 1500
     const val SCROLL_THRESHOLD = 100
     const val CONTENT_SIZE_BUFFER = 2000
-    const val SPRING_ANIMATION_DURATION = 400
+    const val SPRING_ANIMATION_DURATION = 300
     const val SPRING_ANIMATION_DAMPING = 1f
     const val OFFSET_CORRECTION = 0.1f
 } 

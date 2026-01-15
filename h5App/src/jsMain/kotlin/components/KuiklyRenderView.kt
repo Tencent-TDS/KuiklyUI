@@ -1,10 +1,10 @@
-package components
+package com.tencent.kuikly.h5app.components
 
 import com.tencent.kuikly.core.render.web.IKuiklyRenderExport
 import com.tencent.kuikly.core.render.web.expand.KuiklyRenderViewDelegatorDelegate
 import com.tencent.kuikly.core.render.web.runtime.web.expand.KuiklyView
-import module.KRBridgeModule
-import module.KRCacheModule
+import com.tencent.kuikly.h5app.module.KRBridgeModule
+import com.tencent.kuikly.h5app.module.KRCacheModule
 
 /**
  * Kuikly page-level view

@@ -20,9 +20,7 @@ import org.w3c.fetch.Response
 import kotlin.js.Promise
 import kotlin.js.json
 
-/**
- * Kuikly network request module
- */
+/** Kuikly network request module */
 class KRNetworkModule : KuiklyRenderBaseModule() {
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
@@ -108,15 +106,37 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
                     fireErrorCallback(callback, "request error", httpCode)
                 }
             }
-            .catch {
-                val errorMsg = it.message
-                // Exception or error occurred, callback
+            .catch { error ->
+                val errorMsg = error.message ?: "Unknown error"
+                val errorType = determineErrorType(error, errorMsg)
+                Log.error("HTTP request failed: $errorType - $errorMsg")
+                
+                // Exception or error occurred, callback with detailed error info
                 fireErrorCallback(
                     callback,
-                    errorMsg ?: "io exception",
-                    if (httpCode != 0) httpCode else STATE_CODE_UNKNOWN
+                    "$errorType: $errorMsg",
+                    when {
+                        httpCode != 0 -> httpCode
+                        errorType == ERROR_TYPE_TIMEOUT -> STATE_CODE_TIMEOUT
+                        errorType == ERROR_TYPE_NETWORK -> STATE_CODE_NETWORK_ERROR
+                        else -> STATE_CODE_UNKNOWN
+                    }
                 )
             }
+    }
+    
+    /**
+     * Determine the type of error based on the error object and message
+     */
+    private fun determineErrorType(error: dynamic, errorMsg: String): String {
+        return when {
+            errorMsg.contains("timeout", ignoreCase = true) -> ERROR_TYPE_TIMEOUT
+            errorMsg.contains("network", ignoreCase = true) -> ERROR_TYPE_NETWORK
+            errorMsg.contains("abort", ignoreCase = true) -> ERROR_TYPE_ABORTED
+            error.name == "TypeError" -> ERROR_TYPE_NETWORK
+            error.name == "AbortError" -> ERROR_TYPE_ABORTED
+            else -> ERROR_TYPE_UNKNOWN
+        }
     }
 
     /**
@@ -125,13 +145,16 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
     private fun httpStreamRequest(params: Any?, callback: KuiklyRenderCallback?) {
         // Get http request related parameters
         val dataArray = params.unsafeCast<Array<*>>()
-        val url = dataArray[0]
+
         val body = dataArray[1].unsafeCast<ByteArray>()
-        val headerStr = dataArray[2].unsafeCast<String>()
-        // Web does not support custom cookie settings, can be handled in the host app
-        val cookie = dataArray[3].unsafeCast<String>()
-        // Request timeout duration, original unit is seconds
-        val timeout = (dataArray[4].unsafeCast<Number>()).toInt() * 1000
+        val paramsString = dataArray[0].unsafeCast<String>()
+        val paramsArray = JSONObject(paramsString)
+        val url = paramsArray.optString("url")
+        val headerStr = paramsArray.optString("headers")
+        val cookie = paramsArray.optString("cookie")
+        var method = paramsArray.optString("method")
+        val timeout = paramsArray.optInt("timeout") * 1000
+
         Log.trace("httpStreamRequest", url ?: "", body, headerStr, cookie, timeout)
 
         // HTTP response status code
@@ -150,11 +173,11 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         val fetchPromise = kuiklyWindow.fetch(
             url, RequestInit(
                 // Request method
-                method = "POST",
+                method = method,
                 // Include all cookies
                 credentials = RequestCredentials.INCLUDE,
                 // Request header information
-                headers = getRequestHeaders(JSONObject(headerStr), cookie),
+                headers = getRequestHeaders(if (headerStr.isNullOrEmpty()) null else JSONObject(headerStr), cookie),
                 // Request data, non-POST request passes null
                 body = body.toBlob(),
                 // Request mode is cross-domain mode
@@ -169,6 +192,7 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
 
                 // Save the status code of this response
                 httpCode = response.status.toInt()
+
                 // Save headers
                 httpHeaders = JSON.stringify(response.headers)
                 if (!response.ok) {
@@ -199,15 +223,23 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
                     )
                 }
             }
-            .catch {
-                val errorMsg = it.message
-                // Exception or error occurred, callback
+            .catch { error ->
+                val errorMsg = error.message ?: "Unknown error"
+                val errorType = determineErrorType(error, errorMsg)
+                Log.error("HTTP stream request failed: $errorType - $errorMsg")
+                
+                // Exception or error occurred, callback with detailed error info
                 fireStreamRequestResultCallback(
                     callback,
                     ArrayBuffer(0),
-                    errorMsg ?: "io exception",
                     httpHeaders,
-                    if (httpCode != 0) httpCode else STATE_CODE_UNKNOWN
+                    "$errorType: $errorMsg",
+                    when {
+                        httpCode != 0 -> httpCode
+                        errorType == ERROR_TYPE_TIMEOUT -> STATE_CODE_TIMEOUT
+                        errorType == ERROR_TYPE_NETWORK -> STATE_CODE_NETWORK_ERROR
+                        else -> STATE_CODE_UNKNOWN
+                    }
                 )
             }
     }
@@ -228,12 +260,16 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         errorMsg: String,
         statusCode: Int,
     ) {
+        val info = JSONObject().apply {
+            put("headers", headers)
+            put("errorMsg", errorMsg)
+            put("statusCode", statusCode)
+            put("success", 1)
+        }
         callback?.invoke(
             arrayOf(
+                info.toString(),
                 arrayBuffer.toByteArray(),
-                headers,
-                errorMsg,
-                statusCode
             )
         )
     }
@@ -348,14 +384,14 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         if (cookie != null) {
             headers["Cookie"] = cookie
         }
-
+        headers["Content-Type"] = "application/json"
         return Headers(headers)
     }
 
     companion object {
         const val MODULE_NAME = "KRNetworkModule"
         private const val METHOD_HTTP_REQUEST = "httpRequest"
-        private const val METHOD_HTTP_STREAM_REQUEST = "httpStreamRequest"
+        private const val METHOD_HTTP_STREAM_REQUEST = "httpRequestBinary"
         // Network request success
         private const val KEY_SUCCESS = "success"
         // Network request failure
@@ -370,6 +406,17 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         private const val HTTP_METHOD_POST = "POST"
         // Unknown status code
         private const val STATE_CODE_UNKNOWN = -1000
-
+        // Timeout status code
+        private const val STATE_CODE_TIMEOUT = -1001
+        // Network error status code
+        private const val STATE_CODE_NETWORK_ERROR = -1002
+        // HTTP success status code range
+        private val HTTP_SUCCESS_RANGE = 200..299
+        
+        // Error type constants
+        private const val ERROR_TYPE_TIMEOUT = "Timeout"
+        private const val ERROR_TYPE_NETWORK = "NetworkError"
+        private const val ERROR_TYPE_ABORTED = "Aborted"
+        private const val ERROR_TYPE_UNKNOWN = "UnknownError"
     }
 }

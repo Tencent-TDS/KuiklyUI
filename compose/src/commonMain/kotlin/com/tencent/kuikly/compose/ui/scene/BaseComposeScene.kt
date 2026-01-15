@@ -127,6 +127,7 @@ internal abstract class BaseComposeScene(
     val lastKnownPointerPosition by inputHandler::lastKnownPointerPosition
 
     init {
+        // 启动 GlobalSnapshotManager，增加引用计数
         GlobalSnapshotManager.ensureStarted()
     }
 

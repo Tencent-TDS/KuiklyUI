@@ -20,6 +20,7 @@ import com.tencent.kuikly.core.collection.toFastMap
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.pager.PageData
 import com.tencent.kuikly.core.reactive.ReactiveObserver
+import com.tencent.kuikly.core.utils.checkThread
 
 internal typealias FrameTask = (frame: Frame) -> Unit
 
@@ -67,6 +68,7 @@ abstract class Props : BaseObject(), IPagerId {
     }
 
     fun setProp(propKey: String, propValue: Any) {
+        checkThread("attr", "access")
         if (propsMap[propKey] == propValue && !forceUpdate) {
             return
         }
@@ -85,7 +87,7 @@ abstract class Props : BaseObject(), IPagerId {
     fun setPropsToRenderView() {
         view()?.also {
             // 当有圆角和阴影同时存在时 或 有背景渐变的叶子节点时，需要wrapperBoxShadowView兼容对齐安卓表现
-            if (getPager().pageData.isIOS
+            if ((getPager().pageData.isIOS || getPager().pageData.isMacOS)
                 && ((propsMap.containsKey(Attr.StyleConst.BOX_SHADOW)
                 && propsMap.containsKey(Attr.StyleConst.BORDER_RADIUS))
                 || (propsMap.containsKey(Attr.StyleConst.BACKGROUND_IMAGE) && (it !is ViewContainer<*, *>)))) {

@@ -54,6 +54,7 @@ import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.tryExpandStartSizeNoScroll
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -458,8 +459,6 @@ class LazyGridState @ExperimentalFoundationApi constructor(
         }
     }
 
-    private val numOfItemsToTeleport: Int get() = 100 * slotsPerLine
-
     /**
      * Animate (smooth scroll) to the given item.
      *
@@ -474,6 +473,48 @@ class LazyGridState @ExperimentalFoundationApi constructor(
         scrollOffset: Int = 0
     ) {
         kuiklyInfo.offsetDirty = true
+        
+        // Calculate teleport distance based on viewportSize and average line size
+        val layoutInfo = layoutInfoState.value
+        val numOfItemsToTeleport = if (layoutInfo.visibleItemsInfo.isNotEmpty()) {
+            val averageLineSize = layoutInfo.calculateAverageLineSize()
+            
+            // Calculate the number of lines that can fit in the viewport
+            val viewportSize = if (layoutInfo.orientation == Orientation.Vertical) {
+                layoutInfo.viewportSize.height
+            } else {
+                layoutInfo.viewportSize.width
+            }
+            
+            val linesPerViewport = if (averageLineSize > 0) {
+                viewportSize.toFloat() / averageLineSize.toFloat()
+            } else {
+                10.0f // Default value to avoid division by zero
+            }
+            
+            // Special handling for Grid waterfall layout: due to uneven row heights, use a more conservative Teleport distance
+            // Reserve 2.2 loops of animation space (more than List's 1.8 loops)
+            val targetDistancePx = 2500f * density.density  // 2500dp to px (≈8125px)
+            
+            // Calculate how many lines can be scrolled in one loop
+            val linesPerLoop = if (averageLineSize > 0) {
+                targetDistancePx / averageLineSize
+            } else {
+                linesPerViewport * 2.5f  // Fallback: approximately 2.5 times viewport lines
+            }
+            
+            // Convert to item count: lines × columns per line
+            val itemsPerLoop = linesPerLoop * slotsPerLine
+            
+            val reservedLoops = 2.2f  // Grid needs to be more conservative (larger than List's 1.8)
+            val teleportItems = maxOf((itemsPerLoop * reservedLoops).toInt(), 15 * slotsPerLine)
+            
+            teleportItems
+        } else {
+            // Use default value if visibleItemsInfo is empty
+            100 * slotsPerLine
+        }
+        
         animateScrollScope.animateScrollToItem(index, scrollOffset, numOfItemsToTeleport, density)
     }
 

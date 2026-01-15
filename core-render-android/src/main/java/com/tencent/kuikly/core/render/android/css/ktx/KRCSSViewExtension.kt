@@ -48,8 +48,6 @@ import com.tencent.kuikly.core.render.android.css.gesture.KRCSSGestureDetector
 import com.tencent.kuikly.core.render.android.css.gesture.KRCSSGestureListener
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 import org.json.JSONObject
-import java.util.Locale
-import kotlin.math.min
 
 /**
  * 设置通用的css样式，支持的属性列表可以查看[KRCssConst]定义的属性
@@ -161,12 +159,9 @@ fun View.setCommonProp(key: String, value: Any): Boolean {
         }
         KRCssConst.ACCESSIBILITY -> {
             val msg = value as String
+            putViewData(KRCssConst.ACCESSIBILITY, msg)
             contentDescription = msg
-            importantForAccessibility = if (msg.isEmpty()) {
-                View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
-            } else {
-                View.IMPORTANT_FOR_ACCESSIBILITY_YES
-            }
+            setAccessibilityImportance(msg, getViewData(KRCssConst.ACCESSIBILITY_ROLE) ?: "")
             initAccessibilityDelegate()
             setFocusable(true)
             true
@@ -194,6 +189,11 @@ fun View.setCommonProp(key: String, value: Any): Boolean {
             viewDecorator?.useOutline = value as Boolean
             true
         }
+
+        KRCssConst.CLIP_PATH -> {
+            viewDecorator?.clipPathData = value as String
+            true
+        }
         else -> false
     }
 }
@@ -203,9 +203,11 @@ fun View.drawCommonDecoration(canvas: Canvas) {
 }
 
 fun View.drawCommonForegroundDecoration(canvas: Canvas) {
-    if (isBeforeM) {
-        getViewData<KRViewDecoration>(KRCssConst.VIEW_DECORATOR)?.drawCommonForegroundDecoration(frameWidth, frameHeight, canvas)
-    }
+    getViewData<KRViewDecoration>(KRCssConst.VIEW_DECORATOR)?.drawCommonForegroundDecoration(frameWidth, frameHeight, canvas)
+}
+
+fun View.hasCustomClipPath(): Boolean {
+    return getViewData<KRViewDecoration>(KRCssConst.VIEW_DECORATOR)?.hasCustomClipPath() == true
 }
 
 /**
@@ -298,9 +300,10 @@ fun View.resetCommonProp(propKey: String): Boolean {
         }
         KRCssConst.ACCESSIBILITY -> {
             removeViewData<String>(KRCssConst.HAD_INIT_ACCESSIBILITY_DELEGATE)
+            removeViewData<String>(KRCssConst.ACCESSIBILITY)
             accessibilityDelegate = null
             contentDescription = null
-            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
+            resetAccessibilityImportance()
             return true
         }
         KRCssConst.DEBUG_NAME -> {
@@ -315,6 +318,11 @@ fun View.resetCommonProp(propKey: String): Boolean {
             removeViewData<Boolean>(KRCssConst.HAD_INIT_ACCESSIBILITY_DELEGATE)
             removeViewData<String>(KRCssConst.ACCESSIBILITY_ROLE)
             accessibilityDelegate = null
+            resetAccessibilityImportance()
+        }
+        KRCssConst.CLIP_PATH -> {
+            viewDecorator = null
+            return true
         }
     }
     return false
@@ -332,8 +340,14 @@ private var View.opacity: Float
     }
 
 internal var touchConsumeByKuikly = false
-internal var touchConsumeByNative = false
+internal val touchConsumeByNative
+    get() = nativeGestureViewHashCodeSet.isNotEmpty()
 internal var touchDownConsumeOnce = false
+
+/**
+ * 用于记录当前正在消费Native手势的View的集合，如果不为空则表现当前已经被Native消费了手势
+ */
+internal var nativeGestureViewHashCodeSet = mutableSetOf<Int>()
 
 /**
  * 阻止父亲View处理Touch事件
@@ -758,6 +772,7 @@ fun View.clearViewData() {
  */
 fun String?.toJSONObjectSafely(): JSONObject = JSONObject(this ?: "{}")
 
+private const val ROLE_NONE = "none"
 private fun View.setAccessibilityRole(propValue: Any) {
     val value = when (propValue as String) {
         "button" -> Button::class.java.name
@@ -765,15 +780,31 @@ private fun View.setAccessibilityRole(propValue: Any) {
         "text" -> TextView::class.java.name
         "image" -> ImageView::class.java.name
         "checkbox" -> CheckBox::class.java.name
+        "none" -> ROLE_NONE
         else -> ""
     }
     putViewData(KRCssConst.ACCESSIBILITY_ROLE, value)
+    setAccessibilityImportance(getViewData(KRCssConst.ACCESSIBILITY) ?: "", value)
     initAccessibilityDelegate()
 }
 
 private fun View.setAccessibilityInfo(propValue: Any) {
     putViewData(KRCssConst.ACCESSIBILITY_INFO, propValue)
     initAccessibilityDelegate()
+}
+
+private fun View.setAccessibilityImportance(description: String, role: String) {
+    importantForAccessibility = if (role == ROLE_NONE) {
+        View.IMPORTANT_FOR_ACCESSIBILITY_NO
+    } else if (description.isEmpty()) {
+        View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
+    } else {
+        View.IMPORTANT_FOR_ACCESSIBILITY_YES
+    }
+}
+
+private fun View.resetAccessibilityImportance() {
+    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
 }
 
 internal fun View.hasInitAccessibilityDelegate(): Boolean {

@@ -4,7 +4,7 @@ import com.tencent.kuikly.core.render.web.collection.array.JsArray
 import com.tencent.kuikly.core.render.web.expand.components.KRRichTextView
 import com.tencent.kuikly.core.render.web.processor.FontSizeToLineHeightMap
 import com.tencent.kuikly.core.render.web.processor.IRichTextProcessor
-import com.tencent.kuikly.core.render.web.ktx.KRCssConst
+import com.tencent.kuikly.core.render.web.const.KRCssConst
 import com.tencent.kuikly.core.render.web.ktx.SizeF
 import com.tencent.kuikly.core.render.web.ktx.indexOfChild
 import com.tencent.kuikly.core.render.web.ktx.kuiklyDocument
@@ -18,6 +18,7 @@ import com.tencent.kuikly.core.render.web.nvi.serialization.json.JSONArray
 import com.tencent.kuikly.core.render.web.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.render.web.runtime.dom.element.ElementType
 import com.tencent.kuikly.core.render.web.utils.Log
+import kotlinx.dom.clear
 import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.Element
 import org.w3c.dom.HTMLCanvasElement
@@ -54,15 +55,20 @@ object RichTextProcessor : IRichTextProcessor {
     private const val FONT_VARIANT = "fontVariant"
     private const val HEAD_INDENT = "headIndent"
     private const val LINE_HEIGHT = "lineHeight"
+    // specify to use dom measure text size
+    private val useDomMeasure = kuiklyDocument.location?.href?.contains("use_dom_measure=1")
 
     private val measureElement: HTMLElement by lazy {
         kuiklyDocument.createElement(ElementType.P).unsafeCast<HTMLElement>().apply {
             // 初始化基础样式
+            id = "measure_iframe"
             style.display = "inline-block"
             style.asDynamic().webkitLineClamp = ""
             style.asDynamic().webkitBoxOrient = ""
             style.whiteSpace = "pre-wrap"
             style.overflowY = "auto"
+            style.top = "-5000px"
+            style.position = "absolute"
         }
     }
 
@@ -80,6 +86,10 @@ object RichTextProcessor : IRichTextProcessor {
             // if exceeds one line, then need to set to multi-line wrapping
             ele.style.whiteSpace = "pre-wrap"
             ele.style.overflowY = "hidden"
+        } else if (lines == 1) {
+            // Single line with ellipsis
+            ele.style.whiteSpace = "nowrap"
+            ele.style.textOverflow = "ellipsis"
         } else {
             // Clear multi-line style
             ele.style.display = "inline-block"
@@ -121,12 +131,15 @@ object RichTextProcessor : IRichTextProcessor {
         val originParent = ele.parentElement
         val index = indexOfChild(ele)
         var newEle = measureElement
-        if(view.isRichTextValues()) {
-            newEle = ele
-        } else {
-            // save necessary styles
+        var useMeasureElement = !view.isRichTextValues()
+        if (useMeasureElement) {
+            // Copy all styles at once using cssText for better performance
             newEle.style.cssText = ele.style.cssText
+            // Set content after style copying to avoid potential style interference
             newEle.innerText = renderText.ifEmpty { ele.innerText }
+        } else {
+            // can not measure for RichTextValues
+            newEle = ele
         }
 
         // Remove width
@@ -140,9 +153,10 @@ object RichTextProcessor : IRichTextProcessor {
         // No truncation or ellipsis when calculating actual size
         newEle.style.whiteSpace = "pre-wrap"
         // If lines are set, also need to limit maximum number of lines
-        if (view.numberOfLines > 0) {
-            setMultiLineStyle(view.numberOfLines, ele)
+        if (useMeasureElement) {
+            setMultiLineStyle(view.numberOfLines, newEle)
         }
+        setMultiLineStyle(view.numberOfLines, ele)
         // Insert the node into the page to complete rendering, used to get the actual size of the node
         kuiklyDocument.body?.appendChild(newEle)
         // Element width
@@ -166,6 +180,7 @@ object RichTextProcessor : IRichTextProcessor {
             if (expectHeight - h > singleLineHeight / 2) {
                 // Need to remove multi-line style
                 setMultiLineStyle(0, ele)
+                setMultiLineStyle(0, newEle)
                 // And get height and width again
                 w = newEle.offsetWidth
                 h = newEle.offsetHeight.toFloat()
@@ -180,10 +195,11 @@ object RichTextProcessor : IRichTextProcessor {
         // Actual height
         val realHeight = h
 
-        if (index != -1 && originParent != null) {
+        if (index != -1 && originParent != null && view.isRichTextValues()) {
             // After recalculating element size, the old element has been removed, if the node
             // itself was already inserted into the page, need to reinsert it into the original
             // parent node
+            // measureElement is removed so don't need insert newEle
             insertChild(originParent, newEle, index)
         }
         Log.trace("real size by dom, size:", realWidth, realHeight)
@@ -218,6 +234,10 @@ object RichTextProcessor : IRichTextProcessor {
         return defaultFontFamily
     }
 
+    private fun isSupportLetterSpacing(view: KRRichTextView): Boolean {
+        return view.ele.style.letterSpacing.isNotEmpty() || view.ele.style.letterSpacing == "0px"
+    }
+
     /**
      * Calculate the actual space size occupied by the element using Canvas method
      *
@@ -228,7 +248,7 @@ object RichTextProcessor : IRichTextProcessor {
         view: KRRichTextView,
         renderText: String
     ): SizeF {
-        if (!isSupportFontBoundingBox) {
+        if (!isSupportFontBoundingBox || isSupportLetterSpacing(view)) {
             // If this property is not supported, use the DOM method
             return calculateRenderViewSizeByDom(constraintSize, view, renderText)
         }
@@ -292,10 +312,6 @@ object RichTextProcessor : IRichTextProcessor {
         }
 
         // If new properties are supported, use canvas measurement values for calculation
-        // Remove width
-        style.width = ""
-        // Remove height
-        style.height = ""
         if (constraintSize.width > 0) {
             // If constraint size exists, use the constraint size
             style.maxWidth = constraintSize.width.toPxF()
@@ -427,7 +443,7 @@ object RichTextProcessor : IRichTextProcessor {
         // need to calculate width in segments, and consider height after line breaks. If there are
         // multiple child nodes, also need to calculate width in segments here, this will be
         // optimized later todo
-        return if (view.ele.children.length > 0) {
+        return if ((useDomMeasure == true) || view.ele.children.length > 0) {
             // There are child nodes, need to loop calculation, temporarily use Dom method for calculation
             calculateRenderViewSizeByDom(constraintSize, view, renderText)
         } else {
@@ -440,6 +456,8 @@ object RichTextProcessor : IRichTextProcessor {
      * create rich text spans
      */
     override fun setRichTextValues(richTextValues: JSONArray, view: KRRichTextView) {
+        // fix repeat node when change richText styles
+        view.ele.clear();
         for (i in 0 until richTextValues.length()) {
             view.ele.appendChild(createSpan(richTextValues.optJSONObject(i) ?: JSONObject(), view))
         }

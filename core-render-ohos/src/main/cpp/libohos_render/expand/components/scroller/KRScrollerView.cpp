@@ -60,6 +60,7 @@ constexpr char kEventKeyVelocityY[] = "velocityY";
 constexpr char kMethodNameContentOffset[] = "contentOffset";
 constexpr char kMethodNameContentInset[] = "contentInset";
 constexpr char kMethodNameContentInsetWhenDragEnd[] = "contentInsetWhenEndDrag";
+constexpr char kMethodNameAbortContentOffsetAnimate[] = "abortContentOffsetAnimate";
 
 ArkUI_NodeHandle KRScrollerContentView::CreateNode() {
     return kuikly::util::GetNodeApi()->createNode(ARKUI_NODE_STACK);
@@ -135,7 +136,7 @@ void KRScrollerView::SetRenderViewFrame(const KRRect &frame) {
     if (!is_set_frame_) {
         is_set_frame_ = true;
         if (is_need_set_content_offset_) {
-            kuikly::util::SetArkUIContentOffset(GetNode(), first_offset_x_, first_offset_y_, first_animate_, first_duration_);
+            kuikly::util::SetArkUIContentOffset(GetNode(), first_offset_x_, first_offset_y_, first_animate_, first_duration_, first_curve_);
             is_need_set_content_offset_ = false;
         }
     }
@@ -221,6 +222,8 @@ void KRScrollerView::CallMethod(const std::string &method, const KRAnyValue &par
         SetContentInset(params);
     } else if (kuikly::util::isEqual(method, kMethodNameContentInsetWhenDragEnd)) {
         SetContentInsetWhenDragEnd(params);
+    } else if (kuikly::util::isEqual(method, kMethodNameAbortContentOffsetAnimate)) {
+        AbortContentOffsetAnimate();
     } else {
         IKRRenderViewExport::CallMethod(method, params, callback);
     }
@@ -407,16 +410,18 @@ void KRScrollerView::SetContentOffset(const KRAnyValue &value) {
     auto offset_y = content_offset_splits[1]->toFloat();
     auto animate = content_offset_splits[2]->toBool();
     auto duration = content_offset_splits.size() > 3 ? content_offset_splits[3]->toInt() : 0;
+    auto curve = content_offset_splits.size() > 6 ? content_offset_splits[6]->toInt() : 0;
 
     if (!is_set_frame_) {
         first_offset_x_ = offset_x;
         first_offset_y_ = offset_y;
         first_animate_ = animate;
         first_duration_ = duration;
+        first_curve_ = curve;
         is_need_set_content_offset_ = true;
         return;
     }
-    kuikly::util::SetArkUIContentOffset(GetNode(), offset_x, offset_y, animate, duration);
+    kuikly::util::SetArkUIContentOffset(GetNode(), offset_x, offset_y, animate, duration, curve);
 }
 
 void KRScrollerView::SetContentInset(const KRAnyValue &value) {
@@ -680,4 +685,16 @@ bool KRScrollerView::SetFlingEnable(bool enable) {
 
 void KRScrollerView::TryApplyPendingFireOnScroll() {
     FireOnScrollEvent(nullptr);
+}
+
+void KRScrollerView::AbortContentOffsetAnimate() {
+    // 停止 ContentInset 动画（释放动画对象）
+    if (content_inset_animate_) {
+        content_inset_animate_ = nullptr;
+    }
+    
+    // 停止滚动：通过 scrollBy(0, 0) 来停止当前的滚动/Fling 动画
+    ArkUI_NumberValue values[] = {{.f32 = 0}, {.f32 = 0}};
+    ArkUI_AttributeItem item = {values, 2};
+    kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_SCROLL_BY, &item);
 }

@@ -113,6 +113,7 @@ class KRScrollerView : public IKRRenderViewExport {
     void SetContentInset(const KRAnyValue &value);
     void SetContentInset(const std::shared_ptr<KRScrollerContentInset> &content_inset);
     void SetContentInsetWhenDragEnd(const KRAnyValue &value);
+    void AbortContentOffsetAnimate();
     void OnScrollFrameBegin(ArkUI_NodeEvent *event);
     void OnScrollStop(ArkUI_NodeEvent *event);
     void OnWillScroll(ArkUI_NodeEvent *event);
@@ -147,6 +148,7 @@ class KRScrollerView : public IKRRenderViewExport {
     float first_offset_y_ = 0;
     bool first_animate_ = false;
     int first_duration_ = 0;
+    int first_curve_ = 0;
     ArkUI_ScrollState current_scroll_state_;
 
     std::shared_ptr<KRAnimation> content_inset_animate_;

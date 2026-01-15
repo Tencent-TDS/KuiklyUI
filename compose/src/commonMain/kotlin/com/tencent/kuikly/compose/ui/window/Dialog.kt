@@ -77,13 +77,15 @@ fun DialogProperties(
     dismissOnBackPress: Boolean = true,
     dismissOnClickOutside: Boolean = true,
     usePlatformDefaultWidth: Boolean = true,
-    scrimColor: Color = DefaultScrimColor
+    scrimColor: Color = DefaultScrimColor,
+    inWindow: Boolean = true
 ): DialogProperties {
     return KuiklyDialogProperties(
         dismissOnBackPress,
         dismissOnClickOutside,
         usePlatformDefaultWidth,
-        scrimColor = scrimColor
+        scrimColor = scrimColor,
+        inWindow = inWindow
     )
 }
 
@@ -98,12 +100,14 @@ fun DialogProperties(
  * @property usePlatformDefaultWidth Whether the width of the dialog's content should be limited to
  * the platform default, which is smaller than the screen width.
  * **Might be used only as named argument**.
+ * @property inWindow when true the dialog in single window, when false user current window
  */
 @Immutable
 interface DialogProperties {
     val dismissOnBackPress: Boolean get() = true
     val dismissOnClickOutside: Boolean get() = true
     val usePlatformDefaultWidth: Boolean get() = true
+    val inWindow: Boolean get() = true
 }
 
 /**
@@ -129,10 +133,11 @@ internal val DefaultScrimColor = Color.Black.copy(alpha = DefaultScrimOpacity)
  * @property scrimColor Color of background fill.
  */
 @Immutable
-internal class KuiklyDialogProperties(
+class KuiklyDialogProperties(
     override val dismissOnBackPress: Boolean = true,
     override val dismissOnClickOutside: Boolean = true,
     override val usePlatformDefaultWidth: Boolean = true,
+    override val inWindow: Boolean = true,
     val usePlatformInsets: Boolean = true,
     val useSoftwareKeyboardInset: Boolean = true,
     val scrimColor: Color = Color.Transparent,
@@ -169,7 +174,8 @@ private fun DialogProperties.asKuiklyDialogProperties(): KuiklyDialogProperties 
     return this as? KuiklyDialogProperties ?: KuiklyDialogProperties(
         dismissOnBackPress,
         dismissOnClickOutside,
-        usePlatformDefaultWidth
+        usePlatformDefaultWidth,
+        inWindow
     )
 }
 
@@ -292,6 +298,7 @@ private fun DialogLayout(
     content: @Composable () -> Unit
 ) {
     val currentContent by rememberUpdatedState(content)
+    val currentProperties by rememberUpdatedState(properties)
     val compositeKeyHash = currentCompositeKeyHash
     val localMap = currentComposer.currentCompositionLocalMap
     val slotProvider = LocalSlotProvider.current
@@ -307,7 +314,7 @@ private fun DialogLayout(
             ReusableComposeNode<ComposeUiNode, KuiklyApplier>(
                 factory = {
                     KNode(ModalView().also {
-                        it.inWindow = true
+                        it.inWindow = currentProperties.inWindow
                     }) {
                         getViewEvent().willDismiss {
                             backPressedDispatcher.onBackPressedDispatcher.dispatchOnBackEvent()
@@ -323,7 +330,7 @@ private fun DialogLayout(
                 },
                 content = {
                     DialogContent(
-                        properties = properties,
+                        properties = currentProperties,
                         onDismissRequest = {
                             onDismissRequest()
                         },
@@ -383,6 +390,11 @@ private fun DialogContent(
             set(compositeKeyHash, ComposeUiNode.SetCompositeKeyHash)
             set(measurePolicy, ComposeUiNode.SetMeasurePolicy)
             set(modifier, ComposeUiNode.SetModifier)
+            set(properties.scrimColor) {
+                if (this is KNode<*>) {
+                    (this.view as DialogContentView).scrimColor = it
+                }
+            }
         },
         content = wrappedContent
     )
@@ -391,8 +403,14 @@ private fun DialogContent(
 @OptIn(InternalComposeUiApi::class, ExperimentalComposeUiApi::class)
 private class DialogContentView(
     private val scene: ComposeScene?,
-    private val scrimColor: Color
+    scrimColor: Color
 ) : DivView() {
+    var scrimColor: Color = scrimColor
+        set(value) {
+            field = value
+            getViewAttr().backgroundColor(value.toKuiklyColor())
+        }
+
     lateinit var layoutNode: KNode<DialogContentView>
 
     val superTouchManager = SuperTouchManager()

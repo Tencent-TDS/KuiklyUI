@@ -23,7 +23,7 @@ import impl.PageInfo
  */
 
 fun String.iosFamily(): Boolean {
-    return contains("ios")
+    return contains("ios") || contains("macos") // [macOS] 支持 macOS 平台
 }
 
 fun String.androidJVMFamily(): Boolean {

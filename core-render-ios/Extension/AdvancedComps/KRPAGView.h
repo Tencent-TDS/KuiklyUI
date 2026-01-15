@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#import <UIKit/UIKit.h>
+#import "KRUIKit.h" // [macOS]
 #import "KuiklyRenderViewExportProtocol.h"
 #import "KRHttpRequestTool.h"
 NS_ASSUME_NONNULL_BEGIN
@@ -95,6 +95,12 @@ typedef id<KRPagViewProtocol> _Nonnull (^PAGViewCreator)(CGRect frame);
  * will play only once. 0 means the animation will play infinity times.
  */
 - (void)setRepeatCount:(int)repeatCount;
+
+/**
+ * Set the scale mode for the PAG content.
+ * 0: NONE, 1: STRETCH, 2: LETTER_BOX, 3: ZOOM.
+ */
+- (void)setScaleMode:(int)scaleMode;
 
 /**
  * Returns the current PAGComposition for PAGView to render as content.

@@ -101,6 +101,7 @@ void KRRenderView::RemoveRootViewFromContentHandle(bool immediate){
 }
 
 void KRRenderView::WillDestroy(const std::string &instanceId) {
+    DispatchInitState(KRInitState::kStateDestroy);
     core_->WillDealloc(instanceId);
     // send event to call
     // delay destroy for core
@@ -113,6 +114,11 @@ void KRRenderView::WillDestroy(const std::string &instanceId) {
  */
 void KRRenderView::SendEvent(std::string event_name, const std::string &json_data) {
     if (core_) {
+        if (event_name == "viewDidAppear") {
+            DispatchInitState(KRInitState::kStateResume);
+        } else if (event_name == "viewDidDisappear") {
+            DispatchInitState(KRInitState::kStatePause);
+        }
         return core_->SendEvent(event_name, json_data);
     }
 }
@@ -216,7 +222,8 @@ void KRRenderView::Init(std::shared_ptr<KRRenderContextParams> context, ArkUI_Co
     context_ = context;
     ui_context_handle_ = ui_context_handle;
     native_resources_manager_ = native_resources_manager;
-    performance_manager_ = std::make_shared<KRPerformanceManager>(context->PageName(), context->ExecuteMode());
+    int performanceMonitorTypesMask = context->Config()->GetPerformanceMonitorTypesMask();
+    performance_manager_ = std::make_shared<KRPerformanceManager>(performanceMonitorTypesMask, context->PageName(), context->InstanceId(), context->ExecuteMode());
     performance_manager_->SetArkLaunchTime(launch_time);
     root_view_width_ = width;
     root_view_height_ = height;
@@ -302,6 +309,14 @@ void KRRenderView::OnFirstFramePaint() {
     SendEvent(PAGER_EVENT_FIRST_FRAME_PAINT, "{}");
 }
 
+KRPoint KRRenderView::GetRootNodePositionInWindow() const {
+    if (root_node_ == nullptr) {
+        return KRPoint{0.0f, 0.0f};
+    }
+
+    return kuikly::util::GetNodePositionInWindow(root_node_);
+}
+
 void KRRenderView::DispatchInitState(KRInitState state) {
     switch (state) {
     case KRInitState::kStateKRRenderViewInit:
@@ -327,6 +342,15 @@ void KRRenderView::DispatchInitState(KRInitState state) {
         break;
     case KRInitState::kStateFirstFramePaint:
        performance_manager_->OnFirstFramePaint();
+    case KRInitState::kStateResume:
+        performance_manager_->OnResume();
+        break;
+    case KRInitState::kStatePause:
+        performance_manager_->OnPause();
+        break;
+    case KRInitState::kStateDestroy:
+        performance_manager_->OnDestroy();
+        break;
     default:
         break;
     }

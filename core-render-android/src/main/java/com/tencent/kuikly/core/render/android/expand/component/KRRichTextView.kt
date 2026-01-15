@@ -559,18 +559,19 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
             KRTextProps.TEXT_DECORATION_UNDERLINE -> textPaint.isUnderlineText = true
             KRTextProps.TEXT_DECORATION_LINE_THROUGH -> textPaint.isStrikeThruText = true
         }
-        if (textProps.fontWeight.isNotEmpty()) {
-            textPaint.style = Paint.Style.FILL_AND_STROKE
-            textPaint.strokeWidth = FontWeightSpan.getFontWeight(textProps.fontWeight)
-        }
-        textPaint.typeface = kuiklyRenderContext?.getTypeFaceLoader()?.getTypeface(textProps.fontFamily,
-            textProps.fontStyle == Typeface.ITALIC)
-        textPaint.textSize = if (textProps.useDpFontSizeDim) {
-
+        val fontSize = if (textProps.useDpFontSizeDim) {
             kuiklyRenderContext.toPxI(textProps.fontSize).toFloat()
         } else {
             kuiklyRenderContext.spToPxI(textProps.fontSize).toFloat()
         }
+        if (textProps.fontWeight.isNotEmpty()) {
+            val strokeWidth = FontWeightSpan.getFontWeight(textProps.fontWeight) * fontSize
+            textPaint.style = if (strokeWidth > 0) Paint.Style.FILL_AND_STROKE else Paint.Style.FILL
+            textPaint.strokeWidth = strokeWidth
+        }
+        textPaint.typeface = kuiklyRenderContext?.getTypeFaceLoader()?.getTypeface(textProps.fontFamily,
+            textProps.fontStyle == Typeface.ITALIC)
+        textPaint.textSize = fontSize
         textPaint.color = textProps.color
         textPaint.letterSpacing = kuiklyRenderContext.toPxF(textProps.letterSpacing) / max(textPaint.textSize, 1f)
         val simpleText = SpannableStringBuilder(textProps.text)

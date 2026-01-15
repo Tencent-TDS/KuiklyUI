@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#import <UIKit/UIKit.h>
+#import "KRUIKit.h" // [macOS]
 #import "KuiklyRenderViewExportProtocol.h"
 #import "NestedScrollCoordinator.h"
 #import "NestedScrollProtocol.h"
@@ -28,6 +28,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (nonatomic, assign) BOOL autoAdjustContentOffsetDisable ;
 @property (nonatomic, assign) BOOL setContentSizeing ;
+@property (nonatomic, assign) BOOL skipNestScrollLock;
 
 /// Record the last content offset for scroll lock.
 @property (nonatomic, assign) CGPoint lastContentOffset;

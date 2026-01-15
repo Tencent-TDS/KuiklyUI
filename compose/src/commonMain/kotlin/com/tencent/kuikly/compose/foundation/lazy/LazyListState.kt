@@ -56,6 +56,7 @@ import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.util.fastFirstOrNull
 import com.tencent.kuikly.compose.ui.util.fastRoundToInt
+import com.tencent.kuikly.compose.ui.util.fastSumBy
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.tryExpandStartSizeNoScroll
 import kotlinx.coroutines.CoroutineScope
@@ -451,10 +452,49 @@ class LazyListState
             scrollOffset: Int = 0,
         ) {
             kuiklyInfo.offsetDirty = true
+            
+            // Calculate teleport distance based on viewportSize and average item size
+            val layoutInfo = layoutInfoState.value
+            val numOfItemsToTeleport = if (layoutInfo.visibleItemsInfo.isNotEmpty()) {
+                // Calculate average item size
+                val averageItemSize = layoutInfo.calculateAverageItemSize()
+                
+                // Calculate the number of items that can fit in the viewport
+                val viewportSize = if (layoutInfo.orientation == Orientation.Vertical) {
+                    layoutInfo.viewportSize.height
+                } else {
+                    layoutInfo.viewportSize.width
+                }
+                
+                val itemsPerViewport = if (averageItemSize > 0) {
+                    viewportSize.toFloat() / averageItemSize.toFloat()
+                } else {
+                    10.0f // Default value to avoid division by zero
+                }
+                
+                // Calculate how many items can be scrolled in one loop
+                // TargetDistance = 2500dp, one loop scrolls approximately 2500dp / averageItemSize items
+                // Reserve at least 1.5~2 loops of animation space after Teleport
+                val targetDistancePx = 2500f * density.density // 2500dp to px
+                val itemsPerLoop = if (averageItemSize > 0) {
+                    targetDistancePx / averageItemSize
+                } else {
+                    itemsPerViewport * 2.5f // Fallback: approximately 2.5 times viewport
+                }
+                
+                val reservedLoops = 1.8f
+                val teleportItems = maxOf((itemsPerLoop * reservedLoops).toInt(), 15)
+                
+                teleportItems
+            } else {
+                // Use default value if visibleItemsInfo is empty
+                NumberOfItemsToTeleport
+            }
+            
             animateScrollScope.animateScrollToItem(
                 index,
                 scrollOffset,
-                NumberOfItemsToTeleport,
+                numOfItemsToTeleport,
                 density,
             )
         }

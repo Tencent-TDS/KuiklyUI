@@ -22,6 +22,12 @@
 #import "KRScrollViewOffsetAnimator.h"
 #import "KRScrollView+NestedScroll.h"
 #import "NSObject+KR.h"
+#import "KRContentOffsetAnimator.h"
+
+typedef NS_ENUM(NSUInteger, KRSetContentOffsetAnimation) {
+    KRSetContentOffsetAnimationSpring = 0,
+    KRSetContentOffsetAnimationLinear = 1,
+};
 
 /*
  * @brief 暴露给Kotlin侧调用的Scoller组件
@@ -32,6 +38,8 @@
 @property (nonatomic, strong) NSNumber *KUIKLY_PROP(bouncesEnable);
 /** attr is pagingEnabled  */
 @property (nonatomic, strong) NSNumber *KUIKLY_PROP(pagingEnabled);
+/** attr is isComposePager  */
+@property (nonatomic, strong) NSNumber *KUIKLY_PROP(isComposePager);
 /** attr is scrollEnabled  */
 @property (nonatomic, strong) NSNumber *KUIKLY_PROP(scrollEnabled);
 /** attr is showScrollerIndicator  */
@@ -54,6 +62,8 @@
 @property (nonatomic, strong) KuiklyRenderCallback KUIKLY_PROP(willDragEnd);
 /** event is scrollEnd  */
 @property (nonatomic, strong) KuiklyRenderCallback KUIKLY_PROP(scrollEnd);
+/** event is scrollToTop  */
+@property (nonatomic, strong) KuiklyRenderCallback KUIKLY_PROP(scrollToTop);
 
 
 @end
@@ -79,6 +89,7 @@
     KRScrollViewOffsetAnimator *_offsetAnimator;
     /**忽略分发ScrollEvent**/
     BOOL _ignoreDispatchScrollEvent;
+    KRContentOffsetAnimator *_ku_coreAnimator;
 }
 @synthesize hr_rootView;
 @synthesize lastContentOffset = _lastContentOffset;
@@ -88,21 +99,17 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 
 - (instancetype)initWithFrame:(CGRect)frame {
     if (self = [super initWithFrame: frame]) {
+        #if !TARGET_OS_OSX // [macOS]
         if (@available(iOS 13.0, *)) {
             self.automaticallyAdjustsScrollIndicatorInsets = NO;
-        } else {
-            // Fallback on earlier versions
         }
-        if (@available(iOS 11.0, *)) {
-            self.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
-        } else {
-            // Fallback on earlier versions
-        }
+        self.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
+        self.delaysContentTouches = NO;
+        #endif // [macOS]
         self.alwaysBounceVertical = YES;
         _delegateProxy = [KRMultiDelegateProxy alloc];
         [_delegateProxy addDelegate:self];
         self.delegate = (id<UIScrollViewDelegate>)_delegateProxy;
-        self.delaysContentTouches = NO;
     }
     return self;
     
@@ -121,7 +128,28 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
         [self css_contentInsetWithParams:params];
     } else if ([method isEqualToString:@"contentInsetWhenEndDrag"]) {
         [self css_contentInsetWhenEndDragWithParams:params];
+    } else if ([method isEqualToString:@"abortContentOffsetAnimate"]) {
+        [self css_abortContentOffsetAnimate];
     }
+}
+
+#pragma mark - abort animate
+
+- (void)css_abortContentOffsetAnimate {
+    // 停止 KRContentOffsetAnimator 动画
+    [_ku_coreAnimator stop];
+    _ku_coreAnimator = nil;
+
+    // 停止 KRScrollViewOffsetAnimator 动画
+    [_offsetAnimator cancel];
+    _offsetAnimator = nil;
+
+    _ignoreDispatchScrollEvent = NO;
+    
+    CGPoint currentOffset = self.contentOffset;
+    [self setContentOffset:currentOffset animated:NO];
+    
+    _nextEndScrollingAnimationCallback = nil;
 }
 
 #pragma mark - pubilc
@@ -186,11 +214,18 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     [self p_dispatchScrollEventIfNeed];
 }
 
+- (void)setContentOffset:(CGPoint)contentOffset animated:(BOOL)animated {
+    [_ku_coreAnimator stop];
+    _ku_coreAnimator = nil;
+    [super setContentOffset:contentOffset animated:animated];
+}
+
 - (void)setUserInteractionEnabled:(BOOL)userInteractionEnabled {
     [super setUserInteractionEnabled:userInteractionEnabled];
     [_wrapperView setUserInteractionEnabled:userInteractionEnabled];
 }
 
+#if !TARGET_OS_OSX // [macOS]
 - (BOOL)touchesShouldCancelInContentView:(UIView *)view {
     BOOL cancel = [super touchesShouldCancelInContentView:view];
     if ([view isKindOfClass:[UIControl class]] || view.kr_canCancelInScrollView) {
@@ -198,12 +233,39 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     }
     return cancel;
 }
+#endif // [macOS]
 
 
 #pragma mark - UIScrollViewDelegate
 
+#if !TARGET_OS_OSX // [macOS]
+- (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
+    [super touchesBegan:touches withEvent:event];
+    [_ku_coreAnimator stop];
+    _ku_coreAnimator = nil;
+}
+#else
+- (void)mouseDown:(NSEvent *)event {
+    [_ku_coreAnimator stop];
+    _ku_coreAnimator = nil;
+}
+#endif // [macOS]
+
+- (BOOL)scrollViewShouldScrollToTop:(UIScrollView *)scrollView {
+    if (_css_scrollToTop) {
+        _css_scrollToTop(nil);
+        return NO; // Handled by Kotlin side
+    }
+    return YES;
+}
+    
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
+    self.skipNestScrollLock = NO;
+    self.lContentOffset = scrollView.contentOffset;
+
     _isCurrentlyDragging = YES;
+    [_ku_coreAnimator stop];
+    _ku_coreAnimator = nil;
     if (_css_dragBegin) {
        _css_dragBegin([self p_generateEventBaseParams]);
     }
@@ -212,7 +274,8 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 - (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate {
     _isCurrentlyDragging = NO;
     if (!decelerate) { // 滑动结束
-        if (_css_scrollEnd) {
+        BOOL animating = [_ku_coreAnimator isAnimating];
+        if (_css_scrollEnd && !animating) {
             _css_scrollEnd([self p_generateEventBaseParams]);
         }
     }
@@ -229,13 +292,19 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 }
 
 - (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
-    if (_css_scrollEnd) {
+    BOOL animating = [_ku_coreAnimator isAnimating];
+    if (_css_scrollEnd && !animating) {
         _css_scrollEnd([self p_generateEventBaseParams]);
     }
 }
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
-    // need imp this method
+    #if !TARGET_OS_OSX // [macOS]
+    // iOS: 用户滚动会触发 setContentOffset:，已在那里分发事件，这里保持空实现避免重复
+    #else // [macOS]
+    // macOS: 用户滚动不会调用 setContentOffset:，必须通过此 delegate 回调分发事件
+    [self p_dispatchScrollEventIfNeed];
+    #endif // macOS]
 }
 
 - (void)scrollViewDidEndScrollingAnimation:(UIScrollView *)scrollView {
@@ -249,7 +318,79 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 }
 
 - (void)scrollViewWillEndDragging:(UIScrollView *)scrollView withVelocity:(CGPoint)velocity targetContentOffset:(inout CGPoint *)targetContentOffset {
+
+    BOOL isCompose = self.hr_rootView.contextParam.isCompose;
+    if (isCompose && targetContentOffset && ![self.css_isComposePager boolValue]) {
+        CGPoint proposed = *targetContentOffset;
+        BOOL isHorizontal = [_css_directionRow boolValue];
+        CGFloat startPrimary = isHorizontal ? scrollView.contentOffset.x : scrollView.contentOffset.y;
+
+        // 计算边界，用于限制自定义动画（根据方向）
+        UIEdgeInsets insets = scrollView.contentInset;
+        CGFloat minPrimary = isHorizontal ? -insets.left : -insets.top;
+        CGFloat maxPrimary = 0;
+        if (isHorizontal) {
+            maxPrimary = MAX(-insets.left, scrollView.contentSize.width - scrollView.bounds.size.width + insets.right);
+        } else {
+            maxPrimary = MAX(-insets.top, scrollView.contentSize.height - scrollView.bounds.size.height + insets.bottom);
+        }
+        CGFloat proposedPrimary = isHorizontal ? proposed.x : proposed.y;
+        BOOL isCurrentlyBouncing = (startPrimary < minPrimary) || (startPrimary > maxPrimary);
+        BOOL willOvershootBounds = (proposedPrimary < minPrimary) || (proposedPrimary > maxPrimary);
+
+        CGFloat deltaPrimary = fabs(proposedPrimary - startPrimary);
+        if (deltaPrimary > KRMaxAllowedDistance && !isCurrentlyBouncing && !willOvershootBounds) {
+            CGFloat newPrimary = proposedPrimary;
+
+            // 限制最大单次动画距离，避免远跳
+            CGFloat distance = deltaPrimary;
+            CGFloat maxDistance = KRMaxAllowedDistance;
+            if (distance > maxDistance) {
+                newPrimary = (newPrimary > startPrimary) ? (startPrimary + maxDistance) : (startPrimary - maxDistance);
+            }
+
+            // 取消系统惯性
+            *targetContentOffset = isHorizontal ? CGPointMake(startPrimary, proposed.y) : CGPointMake(proposed.x, startPrimary);
+
+            if (_ku_coreAnimator == nil) {
+                _ku_coreAnimator = [[KRContentOffsetAnimator alloc] initWithScrollView:self];
+            }
+            CAMediaTimingFunction *tf = [[CAMediaTimingFunction alloc] initWithControlPoints:KRContentOffsetAnimatorP1x
+                    :KRContentOffsetAnimatorP1y
+                    :KRContentOffsetAnimatorP2x
+                    :KRContentOffsetAnimatorP2y];
+            __weak typeof(self) weakSelf = self;
+            CGPoint target = isHorizontal ? CGPointMake(newPrimary, self.contentOffset.y) : CGPointMake(self.contentOffset.x, newPrimary);
+            [_ku_coreAnimator animateToOffset:target
+                                     duration:3.2
+                               timingFunction:tf
+                                   onProgress:^(CGFloat progress) { } completion:^(BOOL finished){
+                        __strong typeof(weakSelf) strongSelf = weakSelf;
+                        if (!strongSelf) return;
+                        if (finished && strongSelf->_css_scrollEnd) {
+                            strongSelf->_css_scrollEnd([strongSelf p_generateEventBaseParams]);
+                        }
+                    }];
+        }
+    }
+
     if (_css_willDragEnd) {
+        if ([_css_isComposePager boolValue]) {
+            // 这里将惯性滑动最大距离限制为300
+            CGPoint currentOffset = scrollView.contentOffset;
+            CGPoint proposedOffset = *targetContentOffset;
+            CGFloat maxDistance = 300.0;
+            CGFloat dx = proposedOffset.x - currentOffset.x;
+            CGFloat dy = proposedOffset.y - currentOffset.y;
+            if (fabs(dx) > maxDistance) {
+                proposedOffset.x = currentOffset.x + (dx > 0 ? maxDistance : -maxDistance);
+            } else if (fabs(dy) > maxDistance) {
+                proposedOffset.y = currentOffset.y + (dy > 0 ? maxDistance : -maxDistance);
+            }
+            // iOS 18会偶现出现大距离跳变，限制下最大的距离
+            *targetContentOffset = proposedOffset;
+        }
+
         _targetContentOffset = targetContentOffset;
         NSMutableDictionary *params = [[self p_generateEventBaseParams] mutableCopy];
         params[@"velocityX"] = @(velocity.x);
@@ -270,16 +411,19 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     CGFloat duration = [points count] > 3 ? [points[3] floatValue] : 0;
     CGFloat damping = [points count] > 4 ? [points[4] floatValue] : 0;
     CGFloat velocity = [points count] > 5 ? [points[5] floatValue] : 0;
+    BOOL curveSpecified = [points count] > 6;
+    int curve = curveSpecified ? [points[6] intValue] : 0;
     CGPoint contentOffset = CGPointMake([points.firstObject doubleValue], [points[1] doubleValue]);
     [self p_setTargetContentOffsetIfNeed:contentOffset];
-    if (damping) {
-        [self p_springAnimationWithContentOffset:contentOffset duration:duration damping:damping velocity:velocity];
+    if (damping || curveSpecified) {
+        [self p_springAnimationWithContentOffset:contentOffset duration:duration damping:damping velocity:velocity curve:curve];
         return ;
     }
     UIEdgeInsets newContentInsets = [self maxEdgeInsetsWithContentOffset:contentOffset];
     if (!UIEdgeInsetsEqualToEdgeInsets(self.contentInset, newContentInsets)) {
         self.contentInset = newContentInsets;
     }
+    self.skipNestScrollLock = YES;
     [self setContentOffset:contentOffset animated:animated];
 }
 
@@ -336,6 +480,11 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     }
 }
 
+- (void)setCss_isComposePager:(NSNumber *)css_isComposePager {
+    if (self.css_isComposePager != css_isComposePager) {
+        _css_isComposePager = css_isComposePager;
+    }
+}
 
 - (void)setCss_showScrollerIndicator:(NSNumber *)css_showScrollerIndicator {
     if (self.css_showScrollerIndicator != css_showScrollerIndicator) {
@@ -392,7 +541,9 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 }
 
 - (void)setCss_frame:(NSValue *)css_frame {
+    self.skipNestScrollLock = YES;
     [super setCss_frame:css_frame];
+    self.skipNestScrollLock = NO;
     _wrapperView.frame = self.frame;
 }
 
@@ -556,6 +707,7 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 - (NSDictionary *)p_generateEventBaseParams {
     
     NSMutableArray *touchesParam = [NSMutableArray new];
+    #if !TARGET_OS_OSX // [macOS]
     for (int i = 0; i < self.panGestureRecognizer.numberOfTouches; i++) {
         CGPoint pagePoint = [self.panGestureRecognizer locationOfTouch:i inView:self.hr_rootView];
         [touchesParam addObject:@{
@@ -563,6 +715,14 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
             @"pageY" : @(pagePoint.y)
         }];
     }
+    #else // [macOS
+    // On macOS, get mouse location to simulate single touch point
+    CGPoint mousePoint = [self kr_mouseLocationInView:self.hr_rootView];
+    [touchesParam addObject:@{
+        @"pageX" : @(mousePoint.x),
+        @"pageY" : @(mousePoint.y)
+    }];
+    #endif // macOS]
     
     return @{
         @"offsetX":@(_lastContentOffset.x),
@@ -582,25 +742,50 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     }
 }
 
-- (void)p_springAnimationWithContentOffset:(CGPoint)contentOffset duration:(CGFloat)duration damping:(CGFloat)damping velocity:(CGFloat)velocity {
+- (void)p_springAnimationWithContentOffset:(CGPoint)contentOffset duration:(CGFloat)duration damping:(CGFloat)damping velocity:(CGFloat)velocity curve:(int)curve{
+    [self setContentOffset:self.contentOffset animated:NO];
     [_offsetAnimator cancel];
     _offsetAnimator = [[KRScrollViewOffsetAnimator alloc] initWithScrollView:self delegate:self];
     [_offsetAnimator animateToOffset:contentOffset withVelocity:CGPointZero];
     KRScrollViewOffsetAnimator *animator = _offsetAnimator;
     _ignoreDispatchScrollEvent = YES;
+    
+    switch (curve) {
+        // linear animation curve
+        case KRSetContentOffsetAnimationLinear:{
+            [UIView animateWithDuration:duration / 1000.0
+                                  delay:0 options:(UIViewAnimationOptionCurveLinear | UIViewAnimationOptionAllowUserInteraction)
+                             animations:^{
+                                            if (contentOffset.y < 0 || contentOffset.x < 0) {
+                                               self.contentInset = UIEdgeInsetsMake(-contentOffset.y,  -contentOffset.x , 0, 0);
+                                            }
+                                            [self setContentOffset:contentOffset];
+                                        }
+                             completion:^(BOOL finished) {
+                                            [animator cancel];
+                                        }];
+        }
+            break;
+        
+        // defaults to spring animation
+        case KRSetContentOffsetAnimationSpring:
+        default: {
+            [UIView animateWithDuration:duration / 1000.0 delay:0
+                 usingSpringWithDamping:damping
+                  initialSpringVelocity:velocity
+                                options:(UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionAllowUserInteraction)
+                             animations:^{
+                    if (contentOffset.y < 0 || contentOffset.x < 0) {
+                       self.contentInset = UIEdgeInsetsMake(-contentOffset.y,  -contentOffset.x , 0, 0);
+                    }
+                    [self setContentOffset:contentOffset];
+            } completion:^(BOOL finished) {
+                [animator cancel];
+            }];
+        }
+            break;
+    }
 
-    [UIView animateWithDuration:duration / 1000.0 delay:0
-         usingSpringWithDamping:damping
-          initialSpringVelocity:velocity
-                        options:(UIViewAnimationOptionCurveEaseOut|UIViewAnimationOptionAllowUserInteraction)
-                     animations:^{
-            if (contentOffset.y < 0 || contentOffset.x < 0) {
-               self.contentInset = UIEdgeInsetsMake(-contentOffset.y,  -contentOffset.x , 0, 0);
-            }
-            [self setContentOffset:contentOffset];
-    } completion:^(BOOL finished) {
-        [animator cancel];
-    }];
     _ignoreDispatchScrollEvent = NO;
 }
 
@@ -650,7 +835,23 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 
 - (void)syncScrollViewContentSize {
     if (self.superview) {
+        #if TARGET_OS_OSX // [macOS]
+        // On macOS, KRScrollContentView is added to documentView, not directly to KRScrollView
+        // Need to traverse up the view hierarchy to find the scroll view
+        KRScrollView *scrollView = nil;
+        KRPlatformView *view = self.superview;
+        while (view) {
+            if ([view isKindOfClass:[KRScrollView class]]) {
+                scrollView = (KRScrollView *)view;
+                break;
+            }
+            view = view.superview;
+        }
+        #else // iOS
+        // On iOS, KRScrollContentView is directly added to KRScrollView
         KRScrollView *scrollView = (KRScrollView *)self.superview;
+        #endif // [macOS]
+        
         if ([scrollView isKindOfClass:[KRScrollView class]]) {
             if (scrollView.isDragging) {
                 scrollView.autoAdjustContentOffsetDisable = YES;

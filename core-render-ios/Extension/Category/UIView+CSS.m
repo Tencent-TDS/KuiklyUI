@@ -19,20 +19,12 @@
 #import "KRView.h"
 #import "KuiklyRenderBridge.h"
 #import "KuiklyRenderViewExportProtocol.h"
+
 #define LAZY_ANIMATION_KEY @"lazyAnimationKey"
 #define ANIMATION_KEY @"animation"
 
-@interface CSSBorderRadius : NSObject
-
-@property(nonatomic, assign) CGFloat topLeftCornerRadius;
-@property(nonatomic, assign) CGFloat topRightCornerRadius;
-@property(nonatomic, assign) CGFloat bottomLeftCornerRadius;
-@property(nonatomic, assign) CGFloat bottomRightCornerRadius;
-
-- (instancetype)initWithCSSBorderRadius:(NSString *)cssBorderRadius;
-- (BOOL)isSameBorderCornerRaidus;
-
-@end
+/// Default iOS keyboard animation curve value from UIKeyboardAnimationCurveUserInfoKey
+static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 
 @interface CSSBorder : NSObject
 
@@ -52,12 +44,6 @@
 
 @end
 
-// ***  CAShapeLayer  ** //
-@interface CSSShapeLayer : CAShapeLayer
-
-- (instancetype)initWithBorderRadius:(CSSBorderRadius *)borderRadius;
-
-@end
 
 @interface CSSAnimation : NSObject
 
@@ -91,7 +77,7 @@
 @end
 
 
-@interface UIView()<KuiklyRenderViewLifyCycleProtocol>
+@interface UIView() <KuiklyRenderViewLifyCycleProtocol>
 
 @property (nonatomic, strong) CSSAnimation *css_animationImp;
 @property (nonatomic, strong) CSSTransform *css_transformImp;
@@ -292,7 +278,17 @@
         self.layer.shadowOffset = CGSizeMake(boxShadow.offsetX, boxShadow.offsetY);
         self.layer.shadowOpacity = css_boxShadow ? 1 : 0;
         if (self.css_useShadowPath) {
+            #if TARGET_OS_OSX // [macOS]
+            if (css_boxShadow) {
+                CGPathRef p = CGPathCreateWithRoundedRect(self.layer.bounds, self.layer.cornerRadius, self.layer.cornerRadius, NULL);
+                self.layer.shadowPath = p;
+                CGPathRelease(p);
+            } else {
+                self.layer.shadowPath = nil;
+            }
+            #else
             self.layer.shadowPath = css_boxShadow ? [[UIBezierPath bezierPathWithRoundedRect:self.layer.bounds cornerRadius:self.layer.cornerRadius] CGPath] : nil;
+            #endif // [macOS]
         }
     }
 }
@@ -306,15 +302,22 @@
     css_borderRadius = [UIView css_string:css_borderRadius];
     if (self.css_borderRadius != css_borderRadius) {
         objc_setAssociatedObject(self, @selector(css_borderRadius), css_borderRadius, OBJC_ASSOCIATION_RETAIN);
+        // 解析圆角值
         CSSBorderRadius * borderRadius = [[CSSBorderRadius alloc] initWithCSSBorderRadius:css_borderRadius];
-        if ([borderRadius isSameBorderCornerRaidus]) {
-            self.layer.cornerRadius = borderRadius.topLeftCornerRadius;
-            self.clipsToBounds = self.layer.cornerRadius ? YES : ([self.css_overflow boolValue] ? YES : NO);;
+        // 规避默认圆角值为零时，给view增加mask致使后续子view内容遭剪切
+        if ([borderRadius isSameBorderCornerRaidus] && borderRadius.topLeftCornerRadius < 0.0001) {
             self.layer.mask = nil;
         } else {
-            self.layer.cornerRadius = 0;
-            self.layer.mask = [[CSSShapeLayer alloc] initWithBorderRadius:borderRadius];
-            self.clipsToBounds = YES;
+            // 采用CAShapeLayer + mask + UIBezierPath 支持圆角实现
+            CSSShapeLayer *mask = [[CSSShapeLayer alloc] initWithBorderRadius:borderRadius];
+#if TARGET_OS_OSX // [macOS]
+            mask.contentsScale = [NSScreen mainScreen].backingScaleFactor ?: 1.0; // 防锯齿
+#else
+            mask.contentsScale = [UIScreen mainScreen].scale; // 防锯齿
+#endif // [macOS]
+            self.layer.mask = mask;
+
+            // 立即把 mask 的 frame 同步到当前 bounds（防止首次 layout 前为 zero）
             if (!CGSizeEqualToSize(self.bounds.size, CGSizeZero)) {
                 [self.layer.mask setFrame:self.bounds];
             }
@@ -404,7 +407,16 @@
 - (void)setCss_shouldRasterize:(NSNumber *)css_shouldRasterize {
     objc_setAssociatedObject(self, @selector(css_shouldRasterize), css_shouldRasterize, OBJC_ASSOCIATION_RETAIN);
     self.layer.shouldRasterize = [css_shouldRasterize intValue] == 1;
+    #if TARGET_OS_OSX // [macOS]
+    CGFloat scale = 1.0;
+    NSScreen *screen = [NSScreen mainScreen];
+    if (screen) {
+        scale = screen.backingScaleFactor > 0 ? screen.backingScaleFactor : 1.0;
+    }
+    self.layer.rasterizationScale = scale;
+    #else
     self.layer.rasterizationScale = [UIScreen mainScreen].scale;
+    #endif // [macOS]
 }
 
 - (NSNumber *)css_turboDisplayAutoUpdateEnable {
@@ -423,6 +435,17 @@
 - (void)setCss_autoDarkEnable:(NSNumber *)css_autoDarkEnable {
     if (self.css_autoDarkEnable != css_autoDarkEnable) {
         objc_setAssociatedObject(self, @selector(css_autoDarkEnable), css_autoDarkEnable, OBJC_ASSOCIATION_RETAIN);
+        #if TARGET_OS_OSX // [macOS]
+        if (@available(macos 10.14, *)) {
+            if ([css_autoDarkEnable boolValue]) {
+                // 跟随系统
+                self.appearance = nil;
+            } else {
+                // 强制浅色
+                self.appearance = [NSAppearance appearanceNamed:NSAppearanceNameAqua];
+            }
+        }
+        #else
         if (@available(iOS 13.0, *)) {
             if ([css_autoDarkEnable boolValue]) {
                 self.overrideUserInterfaceStyle = UIUserInterfaceStyleUnspecified;
@@ -430,13 +453,28 @@
                 self.overrideUserInterfaceStyle = UIUserInterfaceStyleLight;
             }
         }
+        #endif // [macOS]
     }
 }
 
 - (void)setCss_interfaceStyle:(NSString *)style {
+    #if TARGET_OS_OSX // [macOS]
+    if (@available(macos 10.14, *)) {
+        NSString *lower = style.lowercaseString;
+        if ([lower isEqualToString:@"dark"]) {
+            self.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
+        } else if ([lower isEqualToString:@"light"]) {
+            self.appearance = [NSAppearance appearanceNamed:NSAppearanceNameAqua];
+        } else {
+            // 未指定：跟随系统
+            self.appearance = nil;
+        }
+    }
+    #else
     if (@available(iOS 13.0, *)) {
         self.overrideUserInterfaceStyle = [KRConvertUtil KRUserInterfaceStyle:style];
     }
+    #endif // [macOS]
 }
 
 - (NSString *)css_animation {
@@ -510,7 +548,14 @@
         self.bounds = CGRectMake(0, 0, CGRectGetWidth(frame), CGRectGetHeight(frame));
         self.center = CGPointMake(CGRectGetMidX(frame), CGRectGetMidY(frame));
         // 无动画设置最终的frame，避免影响transform动画
+        #if TARGET_OS_OSX // [macOS]
+        [CATransaction begin];
+        [CATransaction setDisableActions:YES];
+        setFrameBlock();
+        [CATransaction commit];
+        #else
         [UIView performWithoutAnimation:setFrameBlock];
+        #endif // [macOS]
     } else {
         setFrameBlock();
     }
@@ -520,7 +565,13 @@
 - (void)p_boundsDidChanged {
     [self.layer.mask setFrame:self.bounds];
     if (self.layer.shadowPath) {
+        #if TARGET_OS_OSX // [macOS]
+        CGPathRef path = CGPathCreateWithRoundedRect(self.layer.bounds, self.layer.cornerRadius, self.layer.cornerRadius, NULL);
+        self.layer.shadowPath = path;
+        CGPathRelease(path);
+        #else
         self.layer.shadowPath = [[UIBezierPath bezierPathWithRoundedRect:self.layer.bounds cornerRadius:self.layer.cornerRadius] CGPath];
+        #endif // [macOS]
     }
 }
 
@@ -581,9 +632,13 @@
         if (css_click != nil) {
             self.css_tapGR = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(css_onClickTapWithSender:)];
             [self addGestureRecognizer:self.css_tapGR];
+            #if TARGET_OS_OSX // [macOS]
+            // macOS NSGestureRecognizer 无 requireGestureRecognizerToFail 方法，使用 delegate 方式处理手势依赖
+            #else
             if (self.css_doubleTapGR) {
                 [self.css_tapGR requireGestureRecognizerToFail:self.css_doubleTapGR];
             }
+            #endif // [macOS]
             if (!self.css_touchEnable) {
                 self.userInteractionEnabled = YES;
             }
@@ -603,12 +658,22 @@
             self.css_doubleTapGR = nil;
         }
         if (css_doubleClick != nil) {
+            #if TARGET_OS_OSX // [macOS]
+            self.css_doubleTapGR = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(css_onDoubleClickWithSender:)];
+            // macOS 使用 NSClickGestureRecognizer，设置 numberOfClicksRequired 识别双击
+            ((NSClickGestureRecognizer *)self.css_doubleTapGR).numberOfClicksRequired = 2;
+            #else
             self.css_doubleTapGR = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(css_onDoubleClickWithSender:)];
             self.css_doubleTapGR.numberOfTapsRequired = 2;
+            #endif // [macOS]
             [self addGestureRecognizer:self.css_doubleTapGR];
+            #if TARGET_OS_OSX // [macOS]
+            // macOS NSGestureRecognizer 无 requireGestureRecognizerToFail 方法
+            #else
             if (self.css_tapGR) {
                 [self.css_tapGR requireGestureRecognizerToFail:self.css_doubleTapGR];
             }
+            #endif // [macOS]
             if (!self.css_touchEnable) {
                 self.userInteractionEnabled = YES;
             }
@@ -688,7 +753,11 @@
 
 - (void)css_onClickTapWithSender:(UIGestureRecognizer *)sender {
     CGPoint location = [sender locationInView:self];
-    CGPoint pageLocation = [sender locationInView:self.window];
+    #if TARGET_OS_OSX
+    CGPoint pageLocation = [sender locationInView:nil]; // 窗口坐标
+    #else
+    CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
+    #endif
     NSDictionary *param = @{
         @"x": @(location.x),
         @"y": @(location.y),
@@ -702,7 +771,11 @@
 
 - (void)css_onDoubleClickWithSender:(UIGestureRecognizer *)sender {
     CGPoint location = [sender locationInView:self];
-    CGPoint pageLocation = [sender locationInView:self.window];
+    #if TARGET_OS_OSX
+    CGPoint pageLocation = [sender locationInView:nil];
+    #else
+    CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
+    #endif
     NSDictionary *param = @{
         @"x": @(location.x),
         @"y": @(location.y),
@@ -720,17 +793,33 @@
         @(UIGestureRecognizerStateChanged): @"move",
     };
     CGPoint location = [sender locationInView:self];
-    CGPoint pageLocation = [sender locationInView:self.window];
+    #if TARGET_OS_OSX
+    CGPoint pageLocation = [sender locationInView:nil];
+    #else
+    CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
+    #endif
     NSDictionary *param = @{
         @"state": config[@(sender.state)] ? : @"end",
         @"x": @(location.x),
         @"y": @(location.y),
         @"pageX": @(pageLocation.x),
         @"pageY": @(pageLocation.y),
+        @"isCancel": @(sender.state == UIGestureRecognizerStateCancelled)   // 增加isCancel参数回传
     };
     if (self.css_longPress) {
         self.css_longPress(param);
     }
+}
+
+- (CGPoint)kr_convertLocalPointToRenderRoot:(CGPoint)point{
+    UIView *root = nil;
+    if ([self respondsToSelector:@selector(hr_rootView)]){
+        root = [self performSelector:@selector(hr_rootView)];
+    } else if ([self.superview respondsToSelector:@selector(hr_rootView)]){
+        root = [self.superview performSelector:@selector(hr_rootView)];
+    }
+    
+    return [self convertPoint:point toView:root];
 }
 
 - (void)css_onPanWithSender:(UIPanGestureRecognizer *)sender {
@@ -740,7 +829,11 @@
     };
     
     CGPoint location = [sender locationInView:self];
-    CGPoint pageLocation = [sender locationInView:self.window];
+    #if TARGET_OS_OSX
+    CGPoint pageLocation = [sender locationInView:nil];
+    #else
+    CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
+    #endif
     NSDictionary *param = @{
         @"state": config[@(sender.state)] ? : @"end",
         @"x": @(location.x),
@@ -986,8 +1079,23 @@
 
 - (void)setFrame:(CGRect)frame {
     [super setFrame:frame];
-    self.path = [KRConvertUtil hr_bezierPathWithRoundedRect:self.bounds
-                                       topLeftCornerRadius:_borderRadius.topLeftCornerRadius topRightCornerRadius:_borderRadius.topRightCornerRadius bottomLeftCornerRadius:_borderRadius.bottomLeftCornerRadius bottomRightCornerRadius:_borderRadius.bottomRightCornerRadius].CGPath;
+    {
+        UIBezierPath *path = [KRConvertUtil hr_bezierPathWithRoundedRect:self.bounds
+                                            topLeftCornerRadius:_borderRadius.topLeftCornerRadius topRightCornerRadius:_borderRadius.topRightCornerRadius bottomLeftCornerRadius:_borderRadius.bottomLeftCornerRadius bottomRightCornerRadius:_borderRadius.bottomRightCornerRadius];
+        #if TARGET_OS_OSX // [macOS]
+        if (@available(macos 14.0, *)) {
+            self.path = path.CGPath;
+        } else {
+            // 低于 14：退化为矩形
+            CGMutablePathRef p = CGPathCreateMutable();
+            CGPathAddRect(p, NULL, self.bounds);
+            self.path = p;
+            CGPathRelease(p);
+        }
+        #else // [macOS]
+        self.path = path.CGPath;
+        #endif // [macOS]
+    }
 }
 
 - (void)setContents:(id)contents {
@@ -1062,7 +1170,18 @@
     }else {
         self.lineDashPattern = nil;
     }
+    #if TARGET_OS_OSX // [macOS]
+    if (@available(macos 14.0, *)) {
+        self.path = path.CGPath;
+    } else {
+        CGMutablePathRef p = CGPathCreateMutable();
+        CGPathAddRect(p, NULL, self.bounds);
+        self.path = p;
+        CGPathRelease(p);
+    }
+    #else
     self.path = path.CGPath;
+    #endif
 }
 
 @end
@@ -1174,7 +1293,13 @@
             CSSShapeLayer *shapeLayer = (CSSShapeLayer *)_backgroundView.layer.mask;
             self.layer.shadowPath = shapeLayer.path;
         } else {
+            #if TARGET_OS_OSX // [macOS]
+            CGPathRef p = CGPathCreateWithRoundedRect(self.bounds, _backgroundView.layer.cornerRadius, _backgroundView.layer.cornerRadius, NULL);
+            self.layer.shadowPath = p;
+            CGPathRelease(p);
+            #else
             self.layer.shadowPath = [[UIBezierPath bezierPathWithRoundedRect:self.bounds cornerRadius:_backgroundView.layer.cornerRadius] CGPath];
+            #endif // [macOS]
         }
     }
 }
@@ -1204,11 +1329,13 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
 
 - (instancetype)initWithCSSAnimation:(NSString *)cssAnimation {
     if (self = [super init]) {
+        // Format: "animationType timingFunc duration damping velocity delay repeatForever key [rawCurve]"
         NSArray *splits = [cssAnimation componentsSeparatedByString:@" "];
         if (splits.count >= 3) {
             _animationType = [splits[0] intValue];
-            _viewAnimationOption = [KRConvertUtil hr_viewAnimationOptions:splits[1]];
-            _viewAnimationCurve = [KRConvertUtil hr_viewAnimationCurve:splits[1]];
+            NSString *rawCurve = splits.count >= 9 ? splits[8] : [@(KRDefaultKeyboardAnimationCurve) stringValue];
+            _viewAnimationOption = [KRConvertUtil hr_viewAnimationOptions:splits[1] rawCurve:rawCurve];
+            _viewAnimationCurve = [KRConvertUtil hr_viewAnimationCurve:splits[1] rawCurve:rawCurve];
             _duration = [splits[2] doubleValue];
             if (_animationType == CSSAnimationTypeSpring && splits.count >= 5) { // spring动画
                 _damping = [splits[3] floatValue];
@@ -1276,7 +1403,7 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
         option |= UIViewAnimationOptionRepeat;
     }
     [UIView animateKeyframesWithDuration:_duration delay:_delay options:option | UIViewAnimationOptionAllowUserInteraction animations:^{
-    UIViewAnimationCurve animationCurve = _viewAnimationCurve;
+        UIViewAnimationCurve animationCurve = self->_viewAnimationCurve;
             [animations enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
                 dispatch_block_t block = obj;
                 [UIView setAnimationCurve:animationCurve]; // 设置动画曲线
@@ -1530,8 +1657,8 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
     // Apply translation and scaling
     affine = CGAffineTransformTranslate(affine, translateX * frame.size.width, translateY * frame.size.height);
     affine = CGAffineTransformScale(affine,
-                                    MAX(scaleX, 0.00001),  // Prevent zero scale
-                                    MAX(scaleY, 0.00001));
+                                    scaleX < 0 ? MIN(-0.00001, scaleX) : MAX(scaleX, 0.00001) ,  // Prevent zero scale
+                                    scaleY < 0 ? MIN(-0.00001, scaleY) : MAX(scaleY, 0.00001));
     
     // Apply skew if needed
     if (_skewX != 0 || _skewY != 0) {

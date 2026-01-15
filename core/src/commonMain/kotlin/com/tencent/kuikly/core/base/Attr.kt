@@ -16,6 +16,7 @@
 package com.tencent.kuikly.core.base
 
 import com.tencent.kuikly.core.base.attr.AccessibilityRole
+import com.tencent.kuikly.core.base.attr.ClipPathBuilder
 import com.tencent.kuikly.core.base.attr.ILayoutAttr
 import com.tencent.kuikly.core.base.attr.IStyleAttr
 import com.tencent.kuikly.core.collection.fastHashMapOf
@@ -41,9 +42,12 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
     private var animationMap: MutableMap<String, Animation>? = null
     internal var isBeginApplyAttrProperty = false
     internal var propSetByFrameTasks: MutableMap<String, FrameTask>? = null
+    private var clipPathHandler: ClipPathHandler? = null
 
     override fun viewDidRemove() {
         super.viewDidRemove()
+        clipPathHandler?.destroy()
+        clipPathHandler = null
         flexNode = null
         animationMap?.clear()
         propSetByFrameTasks?.clear()
@@ -205,6 +209,7 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
     }
 
     override fun boxShadow(boxShadow: BoxShadow): Attr {
+        BoxShadow.ensureSupportFill(this)
         StyleConst.BOX_SHADOW with boxShadow.toString()
         return this
     }
@@ -216,6 +221,7 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
      * @return 当前 {@link Attr} 实例。
      * */
     fun boxShadow(boxShadow: BoxShadow, useShadowPath: Boolean = false): Attr {
+        BoxShadow.ensureSupportFill(this)
         if (useShadowPath) {
             StyleConst.USE_SHADOW_PATH with useShadowPath.toInt()
         }
@@ -428,6 +434,23 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
     override fun turboDisplayAutoUpdateEnable(enable: Boolean): IStyleAttr {
         StyleConst.TURBO_DISPLAY_AUTO_UPDATE_ENABLE with enable.toInt()
         return this
+    }
+
+    override fun clipPath(builder: ClipPathBuilder?) {
+        if (builder == null) {
+            clipPathHandler?.destroy()
+            clipPathHandler = null
+            if (getProp(StyleConst.CLIP_PATH) != null) {
+                StyleConst.CLIP_PATH with ""
+            }
+        } else {
+            val handler = clipPathHandler ?: ClipPathHandler(this).also { clipPathHandler = it }
+            handler.setBuilder(builder)
+            if (getProp(StyleConst.CLIP_PATH) == null) {
+                // put empty string to pass the FlatLayer check
+                StyleConst.CLIP_PATH with ""
+            }
+        }
     }
     // endregion
 
@@ -651,6 +674,7 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
         const val AUTO_DARK_ENABLE = "autoDarkEnable"
         const val INTERFACE_STYLE = "interfaceStyle"
         const val TURBO_DISPLAY_AUTO_UPDATE_ENABLE = "turboDisplayAutoUpdateEnable"
+        const val CLIP_PATH = "clipPath"
         // 设置属性用作 UI-Inspector 中的视图名称
         const val DEBUG_NAME = "debugName"
         const val PREVENT_TOUCH = "preventTouch"
@@ -714,10 +738,35 @@ class BoxShadow(
     private val offsetX: Float,
     private val offsetY: Float,
     private val shadowRadius: Float,
-    private val shadowColor: Color
+    private val shadowColor: Color,
+    private val fill: Boolean = true
 ) {
+    @Deprecated("deprecated", level = DeprecationLevel.HIDDEN)
+    constructor(offsetX: Float, offsetY: Float, shadowRadius: Float, shadowColor: Color) : this(
+        offsetX,
+        offsetY,
+        shadowRadius,
+        shadowColor,
+        true
+    )
+
     override fun toString(): String {
-        return "$offsetX $offsetY $shadowRadius $shadowColor"
+        // earlier render-android requires fixed params length,
+        // check supportFill for backward compatibility
+        return if (supportFill == true) {
+            "$offsetX $offsetY $shadowRadius $shadowColor ${if (fill) 1 else 0}"
+        } else {
+            "$offsetX $offsetY $shadowRadius $shadowColor"
+        }
+    }
+
+    internal companion object {
+        private var supportFill: Boolean? = null
+        fun ensureSupportFill(scope: PagerScope) {
+            if (supportFill == null) {
+                supportFill = scope.getPager().pageData.hasFeature("box_shadow_fill")
+            }
+        }
     }
 }
 
@@ -789,8 +838,8 @@ class Translate(
   请注意，当您将元素倾斜 90 度时，元素将会变得无法看见，因为它的宽度或高度将会变为 0。
  */
 class Skew(
-    private val horizontalSkewAngle: Float = 0f,  // 水平方向倾斜角度(deg) range of [-360,360]，单位角度
-    private val verticalSkewAngle: Float = 0f  // 垂直方向倾斜角度(deg) range of [-360,360]，单位角度
+    private val horizontalSkewAngle: Float = 0f,  // 水平方向倾斜角度(deg) range of (-90, 90)，单位角度
+    private val verticalSkewAngle: Float = 0f  // 垂直方向倾斜角度(deg) range of (-90, 90)，单位角度
 ) {
 
     companion object {

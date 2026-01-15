@@ -60,6 +60,7 @@ class ArkUINativeNodeAPI {
     int32_t insertChildAt(ArkUI_NodeHandle parent, ArkUI_NodeHandle child, int32_t position);
     int32_t removeChild(ArkUI_NodeHandle parent, ArkUI_NodeHandle child);
     int32_t setAttribute(ArkUI_NodeHandle node, ArkUI_NodeAttributeType attribute, const ArkUI_AttributeItem *item);
+    int32_t setLengthMetricUnit(ArkUI_NodeHandle node, ArkUI_LengthMetricUnit unit);
     const ArkUI_AttributeItem *getAttribute(ArkUI_NodeHandle node, ArkUI_NodeAttributeType attribute);
     int32_t resetAttribute(ArkUI_NodeHandle node, ArkUI_NodeAttributeType attribute);
     int32_t registerNodeEvent(ArkUI_NodeHandle node, ArkUI_NodeEventType eventType, int32_t targetId, void *userData);
@@ -98,6 +99,8 @@ const ArkUI_NativeDialogAPI_1 *GetDialogNodeApi();
 void UpdateNodeSize(ArkUI_NodeHandle node, float width, float height);
 
 void UpdateNodeFrame(ArkUI_NodeHandle node, const KRRect &frame);
+
+KRPoint GetNodePositionInWindow(ArkUI_NodeHandle node);
 
 void UpdateNodeBackgroundColor(ArkUI_NodeHandle node, uint32_t hexColorValue);
 
@@ -176,7 +179,7 @@ void SetArkUIScrollEnabled(ArkUI_NodeHandle handle, bool enable);
 
 KRPoint GetArkUIScrollContentOffset(ArkUI_NodeHandle handle);
 
-void SetArkUIContentOffset(ArkUI_NodeHandle handle, float offset_x, float offset_y, bool animate, int duration);
+void SetArkUIContentOffset(ArkUI_NodeHandle handle, float offset_x, float offset_y, bool animate, int duration, int curve);
 
 ArkUI_ScrollState GetArkUIScrollerState(ArkUI_NodeEvent *event, int scroll_state_index);
 
@@ -212,7 +215,7 @@ void UpdateInputNodeCaretrColor(ArkUI_NodeHandle node, uint32_t caret_color);
 // 文本对齐
 void UpdateInputNodeTextAlign(ArkUI_NodeHandle node, const std::string &text_align);
 
-void UpdateInputNodePlaceholderFont(ArkUI_NodeHandle node, uint32_t font_size, ArkUI_FontWeight font_weight);
+void UpdateInputNodePlaceholderFont(ArkUI_NodeHandle node, uint32_t font_size, ArkUI_FontWeight font_weight, bool fontSizeScaleFollowSystem, float font_size_px);
 
 void UpdateInputNodeColor(ArkUI_NodeHandle node, uint32_t color);
 
@@ -258,6 +261,8 @@ void SetNodeAnimation(std::weak_ptr<IKRRenderViewExport> view, std::string *anim
 }
 #endif
 void UpdateLoadingProgressNodeColor(ArkUI_NodeHandle node, uint32_t hexColorValue);
+
+void UpdateNodeClipPath(ArkUI_NodeHandle node, float width, float height, const std::string &pathCommand);
 
 }  // namespace util
 }  // namespace kuikly

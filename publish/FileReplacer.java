@@ -82,7 +82,7 @@ public class FileReplacer {
             Path path = Paths.get(operation.path);
 
             if (!Files.exists(path)) {
-                System.err.println("⚠️  File not found: " + operation.path);
+                System.err.println("  File not found: " + operation.path);
                 System.out.println();
                 continue;
             }
@@ -90,7 +90,7 @@ public class FileReplacer {
             // 备份原文件
             Path backupPath = Paths.get(operation.path + BACKUP_SUFFIX);
             Files.copy(path, backupPath, StandardCopyOption.REPLACE_EXISTING);
-            System.out.println("📁 " + operation.path);
+            System.out.println(operation.path);
             System.out.println("   Backup: " + backupPath.getFileName());
 
             // 读取并替换内容

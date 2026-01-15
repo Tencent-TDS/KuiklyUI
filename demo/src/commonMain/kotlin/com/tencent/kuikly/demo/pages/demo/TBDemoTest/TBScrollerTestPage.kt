@@ -70,11 +70,8 @@ internal class TBScrollerTestPage : BasePager() {
 
     private fun restoreFromPageData() {
         val extraCacheContent = getPager().pageData.customFirstScreenTag
-        if (extraCacheContent.isNullOrEmpty()) {
-            KLog.i(TAG, "【PageData恢复】无 extraCacheContent")
-            return
-        }
-        KLog.i(TAG, "【PageData恢复】extraCacheContent=$extraCacheContent")
+        if (extraCacheContent.isNullOrEmpty()) return
+        KLog.i(TAG, "【PageData恢复】$extraCacheContent")
         try {
             this.extraCacheContent = JSONObject(extraCacheContent)
         } catch (e: Exception) {
@@ -126,7 +123,7 @@ internal class TBScrollerTestPage : BasePager() {
                     event {
                         click {
                             val extraContent = ctx.buildExtraCacheContent()
-                            KLog.i(TAG, "【手动刷新缓存】$extraContent")
+                            KLog.i(TAG, "【手动缓存】$extraContent")
                             ctx.acquireModule<TurboDisplayModule>(TurboDisplayModule.MODULE_NAME)
                                 .setCurrentUIAsFirstScreenForNextLaunch(extraContent)
                         }
@@ -174,9 +171,9 @@ internal class TBScrollerTestPage : BasePager() {
                             val props = JSONObject(scrollerPropsValue.toString()).toMap()
                             ctx.restoredOffsetX = (props["contentOffsetX"] as? Number)?.toFloat() ?: 0f
                             ctx.restoredOffsetY = (props["contentOffsetY"] as? Number)?.toFloat() ?: 0f
-                            KLog.i(TAG, "【PageData恢复】offset: (${ctx.restoredOffsetX}, ${ctx.restoredOffsetY})")
+                            KLog.i(TAG, "【恢复】offset=(${ctx.restoredOffsetX}, ${ctx.restoredOffsetY})")
                         } catch (e: Exception) {
-                            KLog.e(TAG, "【PageData恢复】解析失败: ${e.message}")
+                            KLog.e(TAG, "【恢复】解析失败: ${e.message}")
                         }
                     }
                     ctx.addTaskWhenPagerUpdateLayoutFinish {
@@ -195,7 +192,7 @@ internal class TBScrollerTestPage : BasePager() {
                         ctx.currentOffsetX = it.offsetX
                         ctx.currentOffsetY = it.offsetY
                         val extraContent = ctx.buildExtraCacheContent()
-                        KLog.i(TAG, "【ScrollEnd自动缓存】$extraContent")
+                        KLog.i(TAG, "【ScrollEnd缓存】$extraContent")
                         getPager().acquireModule<TurboDisplayModule>(TurboDisplayModule.MODULE_NAME)
                             .setCurrentUIAsFirstScreenForNextLaunch(extraContent)
                     }

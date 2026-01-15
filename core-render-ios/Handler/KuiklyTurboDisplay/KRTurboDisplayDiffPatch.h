@@ -39,13 +39,11 @@ typedef enum : NSUInteger {
 @interface KRTurboDisplayDiffPatch : NSObject
 
 #pragma mark - 全局开关
-
 /**
  * @brief 全局开关：控制第二次 diff 使用经典模式还是延迟模式
  * @note 默认为 KRSecondDiffModeClassic（经典模式）
  */
-+ (void)setSecondDiffMode:(KRSecondDiffMode)mode;
-+ (KRSecondDiffMode)secondDiffMode;
+@property (class, nonatomic, assign) KRSecondDiffMode secondDiffMode;
 
 #pragma mark - TB首屏 Diff（经典模式，保持旧名称）
 

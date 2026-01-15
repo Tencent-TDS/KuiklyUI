@@ -51,7 +51,7 @@ typedef NS_ENUM(NSUInteger, KRDelayedDiffMode) {
  */
 + (instancetype)sharedConfig;
 
-#pragma mark - Diff-DOM 配置
+#pragma mark - 支持结构变化缓存配置 <=> Diff-DOM是否启动 StructureAware
 
 /**
  * @brief Diff-DOM 模式
@@ -79,6 +79,19 @@ typedef NS_ENUM(NSUInteger, KRDelayedDiffMode) {
  */
 @property (nonatomic, readonly) BOOL isDelayedDiffEnabled;
 
+#pragma mark - 自动刷新配置 <=> 是否允许执行 diff-DOM
+/**
+ * @brief 自动刷新
+ * @note 默认为 true（启用，使用经典模式）
+ */
+@property (nonatomic, assign) BOOL closeAutoUpdateTurboDisplay;
+
+/**
+ * @brief 是否启用延迟 Diff
+ * @note 便捷属性，等价于 delayedDiffMode == KRDelayedDiffModeEnabled
+ */
+@property (nonatomic, readonly) BOOL isCloseAutoUpdateTurboDisplay;
+
 #pragma mark - 便捷配置方法
 
 /**
@@ -100,6 +113,16 @@ typedef NS_ENUM(NSUInteger, KRDelayedDiffMode) {
  * @brief 禁用延迟 Diff（使用经典模式）
  */
 - (void)disableDelayedDiff;
+
+/**
+ * @brief 启用自动更新
+ */
+- (void)enableCloseAutoUpdateTurboDisplay;
+
+/**
+ * @brief 禁用自动更新
+ */
+- (void)disableCloseAutoUpdateTurboDisplay;
 
 /**
  * @brief 重置为默认配置

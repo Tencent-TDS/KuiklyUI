@@ -78,26 +78,20 @@ internal class TBWaterfallListTestPage : BasePager() {
 
     private fun restoreFromPageData() {
         val extraCacheContent = getPager().pageData.customFirstScreenTag
-        if (extraCacheContent.isNullOrEmpty()) {
-            KLog.i(TAG, "【PageData恢复】无 extraCacheContent")
-            return
-        }
-        KLog.i(TAG, "【PageData恢复】extraCacheContent=$extraCacheContent")
+        if (extraCacheContent.isNullOrEmpty()) return
+        KLog.i(TAG, "【PageData恢复】$extraCacheContent")
         try {
             this.extraCacheContent = JSONObject(extraCacheContent)
-            // 方案4：锚点法只需要解析 firstVisibleIndex
-            restoredFirstVisibleIndex = this.extraCacheContent.optInt("firstVisibleIndex", -1)
         } catch (e: Exception) {
             KLog.e(TAG, "【PageData恢复】解析失败: ${e.message}")
         }
     }
 
     private fun buildExtraCacheContent(): String {
-        // 关键：使用 firstVisibleIndex 而非 contentOffset 来恢复位置
         val (index, offset) = waterfallListRef?.view?.getFirstVisiblePosition() ?: Pair(0, 0f)
         currentFirstVisibleIndex = index
         currentFirstVisibleOffset = offset
-        return """{"${waterfallListRef?.nativeRef}":{"viewName":"KRScrollView","contentOffsetX":$currentOffsetX,"contentOffsetY":$currentOffsetY},"firstVisibleIndex":$currentFirstVisibleIndex,"firstVisibleOffset":$currentFirstVisibleOffset}"""
+        return """{"${waterfallListRef?.nativeRef}":{"viewName":"KRScrollView","contentOffsetX":$currentOffsetX,"contentOffsetY":$currentOffsetY,"firstVisibleIndex":$currentFirstVisibleIndex,"firstVisibleOffset":$currentFirstVisibleOffset}}"""
     }
 
     private fun randomColor(): Color {
@@ -140,7 +134,7 @@ internal class TBWaterfallListTestPage : BasePager() {
                     event {
                         click {
                             val extraContent = ctx.buildExtraCacheContent()
-                            KLog.i(TAG, "【手动刷新缓存】$extraContent")
+                            KLog.i(TAG, "【手动缓存】$extraContent")
                             ctx.acquireModule<TurboDisplayModule>(TurboDisplayModule.MODULE_NAME)
                                 .setCurrentUIAsFirstScreenForNextLaunch(extraContent)
                         }
@@ -181,18 +175,21 @@ internal class TBWaterfallListTestPage : BasePager() {
             WaterfallList {
                 ref {
                     ctx.waterfallListRef = it
-                    // 方案4：锚点法恢复 - 只依赖 firstVisibleIndex，不依赖 offset
+                    val cacheProps = ctx.extraCacheContent.toMap()
+                    val listPropsValue = cacheProps[this.nativeRef.toString()]
+                    if (listPropsValue != null && listPropsValue.toString() != "null") {
+                        try {
+                            val listProps = JSONObject(listPropsValue.toString()).toMap()
+                            ctx.restoredFirstVisibleIndex = (listProps["firstVisibleIndex"] as? Number)?.toInt() ?: -1
+                            KLog.i(TAG, "【恢复】index=${ctx.restoredFirstVisibleIndex}")
+                        } catch (e: Exception) {
+                            KLog.e(TAG, "【恢复】解析失败: ${e.message}")
+                        }
+                    }
                     ctx.addTaskWhenPagerUpdateLayoutFinish {
                         if (ctx.restoredFirstVisibleIndex >= 0) {
-                            KLog.i(TAG, "【恢复】锚点法 scrollToPosition: index=${ctx.restoredFirstVisibleIndex}, offset=0")
                             it.view?.scrollToPosition(ctx.restoredFirstVisibleIndex, 0f)
-                            // 关键修复：恢复后立即更新 currentFirstVisibleIndex，避免直接退出时缓存丢失
                             ctx.currentFirstVisibleIndex = ctx.restoredFirstVisibleIndex
-                            // 恢复后重新缓存当前状态
-                            val extraContent = ctx.buildExtraCacheContent()
-                            KLog.i(TAG, "【恢复后立即缓存】$extraContent")
-                            ctx.acquireModule<TurboDisplayModule>(TurboDisplayModule.MODULE_NAME)
-                                .setCurrentUIAsFirstScreenForNextLaunch(extraContent)
                         }
                     }
                 }
@@ -211,7 +208,7 @@ internal class TBWaterfallListTestPage : BasePager() {
                         ctx.currentOffsetX = it.offsetX
                         ctx.currentOffsetY = it.offsetY
                         val extraContent = ctx.buildExtraCacheContent()
-                        KLog.i(TAG, "【ScrollEnd自动缓存】$extraContent")
+                        KLog.i(TAG, "【ScrollEnd缓存】$extraContent")
                         getPager().acquireModule<TurboDisplayModule>(TurboDisplayModule.MODULE_NAME)
                             .setCurrentUIAsFirstScreenForNextLaunch(extraContent)
                     }

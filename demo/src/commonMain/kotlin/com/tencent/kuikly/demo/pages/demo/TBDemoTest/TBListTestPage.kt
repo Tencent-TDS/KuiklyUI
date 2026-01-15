@@ -85,39 +85,26 @@ internal class TBListTestPage : BasePager() {
         getPager().acquireModule<TurboDisplayModule>(TurboDisplayModule.MODULE_NAME).clearCurrentPageCache()
     }
     
-    /**
-     * 从 pageData 中恢复 extraCacheContent
-     * 注意：pageData 中的 tag 是业务原始 tag（未格式化）
-     */
     private fun restoreFromPageData() {
-        // 获取PageData中的额外缓存信息
         val extraCacheContent = getPager().pageData.customFirstScreenTag
-        if (extraCacheContent.isNullOrEmpty()) {
-            KLog.i("TBListTestPage", "【PageData恢复】无 extraCacheContent")
-            return
-        }
-
-        KLog.i("TBListTestPage", "【PageData恢复】extraCacheContent=$extraCacheContent")
-
+        if (extraCacheContent.isNullOrEmpty()) return
+        KLog.i(TAG, "【PageData恢复】$extraCacheContent")
         try {
-            // 解析 JSON
-            // 格式：{ "100": { "viewName": "KRScrollView", "contentOffsetX": 0, "contentOffsetY": 350.5 } }
             this.extraCacheContent = JSONObject(extraCacheContent)
         } catch (e: Exception) {
-            KLog.e("TBListTestPage", "【PageData恢复】解析失败: ${e.message}")
+            KLog.e(TAG, "【PageData恢复】解析失败: ${e.message}")
         }
     }
 
     /**
      * 构建 extraCacheContent JSON
+     * 格式：{ "tag": { "viewName": "xxx", "contentOffsetX": x, "contentOffsetY": y, "firstVisibleIndex": i, "firstVisibleOffset": o } }
      */
     private fun buildExtraCacheContent(): String {
         val (index, offset) = listViewRef?.view?.getFirstVisiblePosition() ?: Pair(0, 0f)
         currentFirstVisibleIndex = index
         currentFirstVisibleOffset = offset
-        // 格式：{ "tag": { "viewName": "xxx", "propKey": propValue } }
-        return """{"${this.listViewRef?.nativeRef}":{"viewName":"KRScrollView","contentOffsetX":$currentOffsetX,"contentOffsetY":$currentOffsetY},"firstVisibleIndex":$currentFirstVisibleIndex,"firstVisibleOffset":$currentFirstVisibleOffset}"""
-//        return ""
+        return """{"${listViewRef?.nativeRef}":{"viewName":"KRScrollView","contentOffsetX":$currentOffsetX,"contentOffsetY":$currentOffsetY,"firstVisibleIndex":$currentFirstVisibleIndex,"firstVisibleOffset":$currentFirstVisibleOffset}}"""
     }
 
     override fun body(): ViewBuilder {
@@ -174,7 +161,6 @@ internal class TBListTestPage : BasePager() {
                     }
                 }
 
-                // 按钮2：强制刷新TurboDisplay缓存（带 offset）
                 Button {
                     attr {
                         size(100f, 44f)
@@ -190,7 +176,7 @@ internal class TBListTestPage : BasePager() {
                     event {
                         click {
                             val extraContent = ctx.buildExtraCacheContent()
-                            KLog.i("TBListTestPage", "【手动刷新缓存】extraCacheContent=$extraContent")
+                            KLog.i(TAG, "【手动缓存】$extraContent")
                             ctx.acquireModule<TurboDisplayModule>(TurboDisplayModule.MODULE_NAME)
                                 .setCurrentUIAsFirstScreenForNextLaunch(extraContent)
                         }
@@ -267,11 +253,8 @@ internal class TBListTestPage : BasePager() {
             List {
                 ref {
                     ctx.listViewRef = it
-                    // 如果有恢复的 offset，在 List 加载后设置
                     val cacheProps = ctx.extraCacheContent.toMap()
                     val listPropsValue = cacheProps[this.nativeRef.toString()]
-
-                    // 增加空值判断
                     if (listPropsValue != null && listPropsValue.toString() != "null") {
                         try {
                             val listProps = JSONObject(listPropsValue.toString()).toMap()
@@ -279,40 +262,31 @@ internal class TBListTestPage : BasePager() {
                             ctx.restoredOffsetY = (listProps["contentOffsetY"] as? Number)?.toFloat() ?: 0f
                             ctx.restoredFirstVisibleIndex = (listProps["firstVisibleIndex"] as? Number)?.toInt() ?: -1
                             ctx.restoredFirstVisibleOffset = (listProps["firstVisibleOffset"] as? Number)?.toFloat() ?: 0f
-                            KLog.i("TBListTestPage", "【PageData恢复】恢复 offset: x=${ctx.restoredOffsetX}, y=${ctx.restoredOffsetY}")
+                            KLog.i(TAG, "【恢复】index=${ ctx.restoredFirstVisibleIndex}, offset=(${ctx.restoredOffsetX}, ${ctx.restoredOffsetY})")
                         } catch (e: Exception) {
-                            KLog.e("TBListTestPage", "【PageData恢复】解析 listProps 失败: ${e.message}")
+                            KLog.e(TAG, "【恢复】解析失败: ${e.message}")
                         }
                     }
-
                     ctx.addTaskWhenPagerUpdateLayoutFinish {
-                        if (ctx.restoredOffsetY > 0 || ctx.restoredOffsetX > 0) {
+                        if (ctx.restoredFirstVisibleIndex >= 0) {
                             it.view?.scrollToPosition(ctx.restoredFirstVisibleIndex, ctx.restoredFirstVisibleOffset)
-                            it.view?.setContentOffset(ctx.restoredOffsetX, ctx.restoredOffsetY, animated = false)
                         }
                     }
                 }
-
 
                 attr {
                     flex(1f)
                 }
                 
                 event {
-                    // 滚动结束时缓存 offset
                     scrollEnd {
                         ctx.currentOffsetX = it.offsetX
                         ctx.currentOffsetY = it.offsetY
-                        
-                        // 自动缓存（在 ScrollEnd 时调用 Module）
                         val extraContent = ctx.buildExtraCacheContent()
-                        KLog.i("TBListTestPage", "【ScrollEnd自动缓存】offsetX=${it.offsetX}, offsetY=${it.offsetY}")
-                        KLog.i("TBListTestPage", "【ScrollEnd自动缓存】extraCacheContent=$extraContent")
+                        KLog.i(TAG, "【ScrollEnd缓存】$extraContent")
                         getPager().acquireModule<TurboDisplayModule>(TurboDisplayModule.MODULE_NAME)
                             .setCurrentUIAsFirstScreenForNextLaunch(extraContent)
                     }
-                    
-                    // 滚动时更新当前 offset（用于显示）
                     scroll {
                         ctx.currentOffsetX = it.offsetX
                         ctx.currentOffsetY = it.offsetY

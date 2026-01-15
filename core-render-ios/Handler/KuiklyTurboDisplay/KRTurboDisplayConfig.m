@@ -45,6 +45,10 @@
     return _delayedDiffMode == KRDelayedDiffModeEnabled;
 }
 
+- (BOOL)isCloseAutoUpdateTurboDisplay {
+    return _closeAutoUpdateTurboDisplay;
+}
+
 #pragma mark - 便捷配置方法
 
 - (void)enableDiffDOMStructureAware {
@@ -63,12 +67,21 @@
     _delayedDiffMode = KRDelayedDiffModeDisabled;
 }
 
+- (void)enableCloseAutoUpdateTurboDisplay {
+    _closeAutoUpdateTurboDisplay = YES;
+}
+
+- (void)disableCloseAutoUpdateTurboDisplay {
+    _closeAutoUpdateTurboDisplay = NO;
+}
+
 - (void)resetToDefault {
     // 默认配置：
     // - Diff-DOM：启用结构变化支持（新模式）
     // - 延迟 Diff：禁用（经典模式）
     _diffDOMMode = KRDiffDOMModeStructureAware;
     _delayedDiffMode = KRDelayedDiffModeDisabled;
+    _closeAutoUpdateTurboDisplay = YES;
 }
 
 @end

@@ -102,55 +102,36 @@ internal class TBPageListTestPage : BasePager() {
 
     private fun restoreFromPageData() {
         val extraCacheContent = getPager().pageData.customFirstScreenTag
-        if (extraCacheContent.isNullOrEmpty()) {
-            KLog.i(TAG, "【PageData恢复】无 extraCacheContent")
-            return
-        }
-        KLog.i(TAG, "【PageData恢复】extraCacheContent=$extraCacheContent")
+        if (extraCacheContent.isNullOrEmpty()) return
+        KLog.i(TAG, "【PageData恢复】$extraCacheContent")
         try {
             this.extraCacheContent = JSONObject(extraCacheContent)
-            // 解析 pageIndex
-            restoredPageIndex = this.extraCacheContent.optInt("currentPageIndex", 0)
-            
-            // 解析嵌套 List 状态
-            val nestedListsJson = this.extraCacheContent.optJSONObject("nestedLists")
-            if (nestedListsJson != null) {
-                for (key in nestedListsJson.keys()) {
-                    val pageIndex = key.toIntOrNull() ?: continue
-                    val stateJson = nestedListsJson.optJSONObject(key) ?: continue
-                    restoredNestedListStates[pageIndex] = NestedListState(
-                        nativeRef = stateJson.optInt("nativeRef", 0),
-                        offsetX = stateJson.optDouble("offsetX", 0.0).toFloat(),
-                        offsetY = stateJson.optDouble("offsetY", 0.0).toFloat(),
-                        firstVisibleIndex = stateJson.optInt("firstVisibleIndex", 0),
-                        firstVisibleOffset = stateJson.optDouble("firstVisibleOffset", 0.0).toFloat()
-                    )
-                }
-                KLog.i(TAG, "【PageData恢复】嵌套List状态: $restoredNestedListStates")
-            }
         } catch (e: Exception) {
             KLog.e(TAG, "【PageData恢复】解析失败: ${e.message}")
         }
     }
 
+    /**
+     * 构建 extraCacheContent JSON
+     * 格式：{ "pageListTag": {..., "pageIndex": x}, "nestedListTag1": {...}, "nestedListTag2": {...} }
+     */
     private fun buildExtraCacheContent(): String {
-        // 构建嵌套 List 状态 JSON（包含 nativeRef 作为 tag）
-        val nestedListsBuilder = StringBuilder()
-        nestedListStates.entries.forEachIndexed { index, (pageIndex, state) ->
-            if (index > 0) nestedListsBuilder.append(",")
-            nestedListsBuilder.append(""""$pageIndex":{"nativeRef":${state.nativeRef},"offsetX":${state.offsetX},"offsetY":${state.offsetY},"firstVisibleIndex":${state.firstVisibleIndex},"firstVisibleOffset":${state.firstVisibleOffset}}""")
+        val builder = StringBuilder("{")
+        
+        // PageList 的缓存（包含 pageIndex）
+        pageListRef?.nativeRef?.let { tag ->
+            builder.append(""""$tag":{"viewName":"KRScrollView","contentOffsetX":$currentOffsetX,"contentOffsetY":$currentOffsetY,"pageIndex":$currentPageIndex}""")
         }
         
-        // 同时构建 nativeRef -> offset 的映射（用于原生层恢复）
-        val nativeRefTagsBuilder = StringBuilder()
-        nestedListStates.entries.forEachIndexed { index, (_, state) ->
+        // 嵌套 List 的缓存
+        nestedListStates.forEach { (_, state) ->
             if (state.nativeRef > 0) {
-                if (nativeRefTagsBuilder.isNotEmpty()) nativeRefTagsBuilder.append(",")
-                nativeRefTagsBuilder.append(""""${state.nativeRef}":{"viewName":"KRScrollView","contentOffsetX":${state.offsetX},"contentOffsetY":${state.offsetY}}""")
+                builder.append(""","${state.nativeRef}":{"viewName":"KRScrollView","contentOffsetX":${state.offsetX},"contentOffsetY":${state.offsetY},"firstVisibleIndex":${state.firstVisibleIndex},"firstVisibleOffset":${state.firstVisibleOffset},"pageIndex":${nestedListStates.entries.find { it.value.nativeRef == state.nativeRef }?.key ?: 0}}""")
             }
         }
         
-        return """{"${pageListRef?.nativeRef}":{"viewName":"KRScrollView","contentOffsetX":$currentOffsetX,"contentOffsetY":$currentOffsetY},$nativeRefTagsBuilder,"currentPageIndex":$currentPageIndex,"nestedLists":{$nestedListsBuilder}}"""
+        builder.append("}")
+        return builder.toString()
     }
     
     /**
@@ -205,7 +186,7 @@ internal class TBPageListTestPage : BasePager() {
                     event {
                         click {
                             val extraContent = ctx.buildExtraCacheContent()
-                            KLog.i(TAG, "【手动刷新缓存】$extraContent")
+                            KLog.i(TAG, "【手动缓存】$extraContent")
                             ctx.acquireModule<TurboDisplayModule>(TurboDisplayModule.MODULE_NAME)
                                 .setCurrentUIAsFirstScreenForNextLaunch(extraContent)
                         }
@@ -288,11 +269,32 @@ internal class TBPageListTestPage : BasePager() {
                             val props = JSONObject(pageListPropsValue.toString()).toMap()
                             ctx.restoredOffsetX = (props["contentOffsetX"] as? Number)?.toFloat() ?: 0f
                             ctx.restoredOffsetY = (props["contentOffsetY"] as? Number)?.toFloat() ?: 0f
-                            KLog.i(TAG, "【PageData恢复】offset: (${ctx.restoredOffsetX}, ${ctx.restoredOffsetY}), pageIndex: ${ctx.restoredPageIndex}")
+                            ctx.restoredPageIndex = (props["pageIndex"] as? Number)?.toInt() ?: 0
+                            KLog.i(TAG, "【恢复PageList】pageIndex=${ctx.restoredPageIndex}")
                         } catch (e: Exception) {
-                            KLog.e(TAG, "【PageData恢复】解析失败: ${e.message}")
+                            KLog.e(TAG, "【恢复PageList】解析失败: ${e.message}")
                         }
                     }
+                    
+                    // 解析嵌套 List 的恢复状态（通过遍历所有 tag 找到带 pageIndex 的嵌套 List）
+                    cacheProps.forEach { (tag, value) ->
+                        if (tag != this.nativeRef.toString() && value != null && value.toString() != "null") {
+                            try {
+                                val props = JSONObject(value.toString()).toMap()
+                                val pageIndex = (props["pageIndex"] as? Number)?.toInt()
+                                if (pageIndex != null) {
+                                    ctx.restoredNestedListStates[pageIndex] = NestedListState(
+                                        nativeRef = tag.toIntOrNull() ?: 0,
+                                        offsetX = (props["contentOffsetX"] as? Number)?.toFloat() ?: 0f,
+                                        offsetY = (props["contentOffsetY"] as? Number)?.toFloat() ?: 0f,
+                                        firstVisibleIndex = (props["firstVisibleIndex"] as? Number)?.toInt() ?: 0,
+                                        firstVisibleOffset = (props["firstVisibleOffset"] as? Number)?.toFloat() ?: 0f
+                                    )
+                                }
+                            } catch (_: Exception) {}
+                        }
+                    }
+                    
                     ctx.addTaskWhenPagerUpdateLayoutFinish {
                         if (ctx.restoredPageIndex > 0) {
                             it.view?.scrollToPageIndex(ctx.restoredPageIndex, animated = false)
@@ -313,7 +315,7 @@ internal class TBPageListTestPage : BasePager() {
                     pageIndexDidChanged {
                         ctx.currentPageIndex = (it as JSONObject).optInt("index")
                         val extraContent = ctx.buildExtraCacheContent()
-                        KLog.i(TAG, "【PageIndexChanged自动缓存】$extraContent")
+                        KLog.i(TAG, "【PageIndex缓存】index=${ctx.currentPageIndex}")
                         getPager().acquireModule<TurboDisplayModule>(TurboDisplayModule.MODULE_NAME)
                             .setCurrentUIAsFirstScreenForNextLaunch(extraContent)
                     }
@@ -327,16 +329,12 @@ internal class TBPageListTestPage : BasePager() {
                     List {
                         ref {
                             ctx.nestedListRefs[pageIndex] = it
-                            // 恢复嵌套 List 的状态
                             val restoredState = ctx.restoredNestedListStates[pageIndex]
                             if (restoredState != null) {
                                 ctx.addTaskWhenPagerUpdateLayoutFinish {
                                     if (restoredState.firstVisibleIndex > 0) {
-                                        KLog.i(TAG, "【恢复嵌套List】page=$pageIndex, scrollToPosition: index=${restoredState.firstVisibleIndex}")
+                                        KLog.i(TAG, "【恢复嵌套List】page=$pageIndex, index=${restoredState.firstVisibleIndex}")
                                         it.view?.scrollToPosition(restoredState.firstVisibleIndex, restoredState.firstVisibleOffset)
-                                    } else if (restoredState.offsetY > 0) {
-                                        KLog.i(TAG, "【恢复嵌套List】page=$pageIndex, setContentOffset: ${restoredState.offsetY}")
-                                        it.view?.setContentOffset(restoredState.offsetX, restoredState.offsetY, animated = false)
                                     }
                                 }
                             }
@@ -344,12 +342,9 @@ internal class TBPageListTestPage : BasePager() {
                         
                         event {
                             scrollEnd {
-                                // 更新嵌套 List 状态（包含 nativeRef、offset、index）
                                 ctx.updateNestedListState(pageIndex, it.offsetX, it.offsetY)
-                                
-                                // 自动缓存
                                 val extraContent = ctx.buildExtraCacheContent()
-                                KLog.i(TAG, "【嵌套List ScrollEnd】page=$pageIndex, $extraContent")
+                                KLog.i(TAG, "【嵌套List缓存】page=$pageIndex")
                                 getPager().acquireModule<TurboDisplayModule>(TurboDisplayModule.MODULE_NAME)
                                     .setCurrentUIAsFirstScreenForNextLaunch(extraContent)
                             }

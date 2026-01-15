@@ -30,7 +30,6 @@ typedef enum : NSUInteger {
 typedef enum : NSUInteger {
     KREventReplayPolicyAll,     // 全量回放（click、touch、pan、longPress、doubleClick）
     KREventReplayPolicyLast,    // 仅回放最后一次（scroll、dragBegin、dragEnd、scrollEnd）
-    KREventReplayPolicyNone,    // 不回放（animationCompletion、loadSuccess 等系统触发事件）
 } KREventReplayPolicy;
 
 @interface KRTurboDisplayProp : NSObject<NSCoding>

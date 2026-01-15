@@ -115,10 +115,16 @@
 }
 
 - (void)removeCacheWithKey:(NSString *)cacheKey {
+    [self.fileLock lock];
     @try {
-        [self.fileLock lock];
+        // 删除 TB 缓存文件
         NSString *filePath = [[self cacheRootPath] stringByAppendingPathComponent:cacheKey];
         [[NSFileManager defaultManager] removeItemAtPath:filePath error:nil];
+        
+        // 删除额外缓存文件
+        NSString *extraCacheKey = [self extraCacheKeyFromMainCacheKey:cacheKey];
+        NSString *extraFilePath = [[self cacheRootPath] stringByAppendingPathComponent:extraCacheKey];
+        [[NSFileManager defaultManager] removeItemAtPath:extraFilePath error:nil];
        
     } @catch (NSException *exception) {
         [KRLogModule logError:[NSString stringWithFormat:@"An exception occurred when removeCacheWithKey:%@ key:%@", exception, cacheKey]];
@@ -126,6 +132,7 @@
         [self.fileLock unlock];
     }
 }
+
 // TB缓存写入 - TurboDisplayNode格式写入【独立写入】
 - (void)cacheWithViewNode:(KRTurboDisplayNode *)viewNode cacheKey:(NSString *)cacheKey {
     
@@ -133,9 +140,18 @@
         @try {
             [self.fileLock lock];
             [self formatTagWithCacheTree:viewNode];
-            NSData *nodeData = [NSKeyedArchiver archivedDataWithRootObject:viewNode requiringSecureCoding:NO error:nil];
-            // 将 NSData 存储到磁盘
-           
+            
+            NSError *archiveError = nil;
+            NSData *nodeData = [NSKeyedArchiver archivedDataWithRootObject:viewNode requiringSecureCoding:NO error:&archiveError];
+            if (archiveError) {
+                [KRLogModule logError:[NSString stringWithFormat:@"Archive node error:%@ key:%@", archiveError.localizedDescription, cacheKey]];
+                return;
+            }
+            if (!nodeData) {
+                [KRLogModule logError:[NSString stringWithFormat:@"Archive node returned nil data, key:%@", cacheKey]];
+                return;
+            }
+            
             NSString *filePath = [[self cacheRootPath] stringByAppendingPathComponent:cacheKey];
             [nodeData writeToFile:filePath atomically:YES];
            
@@ -146,6 +162,52 @@
         }
     }];
    
+}
+
+// TB缓存写入 - 原子性写入TB缓存+额外缓存【推荐使用】
+- (void)cacheWithViewNode:(KRTurboDisplayNode *)viewNode cacheKey:(NSString *)cacheKey extraCacheContent:(NSString *)extraCacheContent {
+    
+    [KuiklyRenderThreadManager performOnLogQueueWithBlock:^{
+        [self.fileLock lock];
+        @try {
+            // 1. TB 首屏缓存
+            // 树tag 格式化
+            [self formatTagWithCacheTree:viewNode];
+            NSError *archiveError = nil;
+            NSData *nodeData = [NSKeyedArchiver archivedDataWithRootObject:viewNode requiringSecureCoding:NO error:&archiveError];
+            if (archiveError) {
+                [KRLogModule logError:[NSString stringWithFormat:@"Archive node error:%@ key:%@", archiveError.localizedDescription, cacheKey]];
+                return; // TB 序列化失败，不写 extra
+            }
+            if (!nodeData) {
+                [KRLogModule logError:[NSString stringWithFormat:@"Archive node returned nil data, key:%@", cacheKey]];
+                return; // TB 序列化失败，不写 extra
+            }
+            
+            NSString *filePath = [[self cacheRootPath] stringByAppendingPathComponent:cacheKey];
+            BOOL tbWriteSuccess = [nodeData writeToFile:filePath atomically:YES];
+            if (!tbWriteSuccess) {
+                [KRLogModule logError:[NSString stringWithFormat:@"Write TB cache file failed, key:%@", cacheKey]];
+                return; // TB 写入失败，不写 extra
+            }
+            
+            // 2. 写入额外缓存（在同一个异步任务中，确保原子性）
+            if (extraCacheContent.length > 0) {
+                NSString *extraKey = [self extraCacheKeyFromMainCacheKey:cacheKey];
+                NSString *extraFilePath = [[self cacheRootPath] stringByAppendingPathComponent:extraKey];
+                NSData *extraData = [extraCacheContent dataUsingEncoding:NSUTF8StringEncoding];
+                BOOL extraWriteSuccess = [extraData writeToFile:extraFilePath atomically:YES];
+                if (!extraWriteSuccess) {
+                    [KRLogModule logError:[NSString stringWithFormat:@"Write extra cache file failed, key:%@", cacheKey]];
+                }
+            }
+           
+        } @catch (NSException *exception) {
+            [KRLogModule logError:[NSString stringWithFormat:@"An exception occurred when caching Node Data:%@ key:%@", exception, cacheKey]];
+        } @finally {
+            [self.fileLock unlock];
+        }
+    }];
 }
 // TB缓存写入 - NSData格式写入【独立写入】
 - (void)cacheWithViewNodeData:(NSData *)nodeData cacheKey:(NSString *)cacheKey {
@@ -158,8 +220,11 @@
             // 将 NSData 存储到磁盘
             [self.fileLock lock];
             NSString *filePath = [[self cacheRootPath] stringByAppendingPathComponent:cacheKey];
-            [nodeData writeToFile:filePath atomically:YES];
-           
+            BOOL success = [nodeData writeToFile:filePath atomically:YES];
+            if (!success) {
+                [KRLogModule logError:[NSString stringWithFormat:@"Write TB cache NSData file failed, key:%@", cacheKey]];
+            }
+            
         } @catch (NSException *exception) {
             [KRLogModule logError:[NSString stringWithFormat:@"An exception occurred when archived Node NSData:%@ key:%@", exception, cacheKey]];
         } @finally {
@@ -186,7 +251,7 @@
     }
     return res;
 }
-// TB缓存读取【独立删除】
+// TB缓存读取【读取后删除TB缓存和额外缓存】
 - (KRTurboDisplayCacheData *)nodeWithCachKey:(NSString *)cacheKey {
     KRTurboDisplayCacheData *cacheData = nil;
     @try {
@@ -196,14 +261,16 @@
         // 使用 alloc init 而非 autorelease 方式读取数据，避免 mmap 后立即删除文件的潜在问题
         NSData *nodeData = [[NSData alloc] initWithContentsOfFile:filePath];
         
+        // 1 读取并删除TB首屏缓存
         if (nodeData && nodeData.length > 0) {
             cacheData = [KRTurboDisplayCacheData new];
             
             NSError *unarchiverError = nil;
             NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingFromData:nodeData error:&unarchiverError];
+            
             if (unarchiverError) {
                 [KRLogModule logError:[NSString stringWithFormat:@"NSKeyedUnarchiver init error:%@ key:%@", unarchiverError.localizedDescription, cacheKey]];
-                return nil;
+                cacheData = nil;
             }
             
             if (unarchiver) {
@@ -213,8 +280,17 @@
             }
             cacheData.turboDisplayNodeData = nodeData;
         }
+        
+        // 显式置空 nodeData，确保在删除文件前释放对文件的引用
         nodeData = nil;
+        
+        // 2 仅删除 TB 缓存文件，读取的操作在 extraCacheContentWithCachKey 方法中调用
         [[NSFileManager defaultManager] removeItemAtPath:filePath error:nil];
+        
+        // 删除额外存储业务自定义缓存
+        NSString *extraCacheKey = [self extraCacheKeyFromMainCacheKey:cacheKey];
+        NSString *extraFilePath = [[self cacheRootPath] stringByAppendingPathComponent:extraCacheKey];
+        [[NSFileManager defaultManager] removeItemAtPath:extraFilePath error:nil];
         
     } @catch (NSException *exception) {
         [KRLogModule logError:[NSString stringWithFormat:@"An exception occurred when unarchived Node Data:%@ key:%@", exception, cacheKey]];
@@ -269,7 +345,7 @@
         }];
     }
 }
-// 缓存「业务自定义内容」到独立文件【独立删除】
+// 缓存「业务自定义内容」到独立文件【只读取，不删除，由 nodeWithCachKey: 统一删除】
 - (NSString *)extraCacheContentWithCacheKey:(NSString *)cacheKey {
     NSString *extraContent = nil;
     @try {
@@ -277,14 +353,17 @@
         NSString *extraCacheKey = [self extraCacheKeyFromMainCacheKey:cacheKey];
         NSString *extraFilePath = [[self cacheRootPath] stringByAppendingPathComponent:extraCacheKey];
         
-        NSData *extraData = [NSData dataWithContentsOfFile:extraFilePath];
+        // 直接读取，无需先判断文件是否存在
+        // 使用 alloc init 而非 autorelease 方式，避免 mmap + 提前删除的潜在问题
+        NSData *extraData = [[NSData alloc] initWithContentsOfFile:extraFilePath];
         if (extraData && extraData.length > 0) {
             extraContent = [[NSString alloc] initWithData:extraData encoding:NSUTF8StringEncoding];
         }
         // 显式置空
         extraData = nil;
-        // 删除额外缓存文件
-        [[NSFileManager defaultManager] removeItemAtPath:extraFilePath error:nil];
+        
+        // 注意：这里只读取，不删除文件，删除操作在 nodeWithCachKey: 中统一进行
+        // 原因：如果在此处删除，而业务首屏还未到达就异常退出，下次启动将无法恢复额外缓存
         
     } @catch (NSException *exception) {
         [KRLogModule logError:[NSString stringWithFormat:@"An exception occurred when reading extra cache content:%@ key:%@", exception, cacheKey]];

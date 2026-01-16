@@ -18,6 +18,7 @@
 #import "KRLabel.h"
 #import "KRTextMagnifierView.h"
 #import "KRScrollView.h"
+#import "KRLogModule.h"
 
 #define KR_ANCHOR_TAG_LEFT 1001
 #define KR_ANCHOR_TAG_RIGHT 1002
@@ -119,6 +120,9 @@ static void *KRTextSelectionContainerFrameObserverContext = &KRTextSelectionCont
     
     // Start observing containerView frame changes (e.g., screen rotation)
     [self observeContainerViewFrame];
+    
+    [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] startSelection labels:%lu container:%@",
+                          (unsigned long)labels.count, NSStringFromClass([containerView class])]];
 }
 
 - (void)selectWordAtPoint:(CGPoint)point {
@@ -126,7 +130,11 @@ static void *KRTextSelectionContainerFrameObserverContext = &KRTextSelectionCont
 }
 
 - (void)selectAtPoint:(CGPoint)point type:(KRTextSelectionType)type {
-    if (!self.labels || !self.containerView) return;
+    if (!self.labels || !self.containerView) {
+        [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] selectAtPoint failed - labels:%@ container:%@",
+                              self.labels ? @"exists" : @"nil", self.containerView ? @"exists" : @"nil"]];
+        return;
+    }
     
     // 1. Find touched label and index
     KRLabel *touchedLabel = nil;
@@ -178,11 +186,17 @@ static void *KRTextSelectionContainerFrameObserverContext = &KRTextSelectionCont
         
         // Notify delegate about selection start
         [self notifyDelegateDidStartSelection];
+        
+        [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] selectAtPoint:(%.1f,%.1f) type:%ld range:(%ld,%ld)",
+                              point.x, point.y, (long)type, (long)selectionRange.location, (long)selectionRange.length]];
     }
 }
 
 - (void)selectAll {
-    if (self.labels.count == 0) return;
+    if (self.labels.count == 0) {
+        [KRLogModule logInfo:@"[TextSelection] selectAll failed - no labels"];
+        return;
+    }
     
     self.startLabel = self.labels.firstObject;
     self.startIndex = 0;
@@ -194,11 +208,17 @@ static void *KRTextSelectionContainerFrameObserverContext = &KRTextSelectionCont
     
     // Notify delegate about selection start
     [self notifyDelegateDidStartSelection];
+    
+    [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] selectAll labels:%lu endIndex:%ld",
+                          (unsigned long)self.labels.count, (long)self.endIndex]];
 }
 
 - (void)endSelection {
     // Check if there was an active selection before clearing
     BOOL hadSelection = (self.labels != nil && self.containerView != nil);
+    if (hadSelection) {
+        [KRLogModule logInfo:@"[TextSelection] endSelection"];
+    }
     
     // Remove scroll observers first
     [self removeScrollViewObservers];
@@ -452,6 +472,9 @@ static const CGFloat kAnchorHitTestPadding = 20.0;
         [self removeMagnifierView];
         // Notify delegate about selection end
         [self notifyDelegateDidEndSelection];
+        
+        [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] panGesture ended startIdx:%ld endIdx:%ld",
+                              (long)self.startIndex, (long)self.endIndex]];
     }
 }
 

@@ -17,6 +17,7 @@
 #import "KRLabel.h"
 #import "NSObject+KR.h"
 #import "KRConvertUtil.h"
+#import "KRLogModule.h"
 #import <objc/runtime.h>
 
 /// Method name constants
@@ -120,6 +121,8 @@ typedef NS_ENUM(NSInteger, KRSelectableOption) {
 - (BOOL)kr_handleTextSelectionMethod:(NSString *)method
                               params:(NSString *)params
                             callback:(KuiklyRenderCallback)callback {
+    [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] handleMethod:%@", method]];
+    
     if ([method isEqualToString:KRTextSelectionMethodCreateSelection]) {
         [self kr_handleCreateSelectionWithParams:params];
         return YES;
@@ -139,6 +142,7 @@ typedef NS_ENUM(NSInteger, KRSelectableOption) {
 - (void)kr_cleanupTextSelection {
     KRTextSelectionHelper *helper = [self kr_textSelectionHelper];
     if (helper) {
+        [KRLogModule logInfo:@"[TextSelection] cleanupTextSelection"];
         [helper endSelection];
         [self kr_setTextSelectionHelper:nil];
     }
@@ -156,7 +160,10 @@ typedef NS_ENUM(NSInteger, KRSelectableOption) {
 
 - (void)kr_handleCreateSelectionWithParams:(NSString *)params {
     NSDictionary *paramsDict = [params hr_stringToDictionary];
-    if (!paramsDict) return;
+    if (!paramsDict) {
+        [KRLogModule logInfo:@"[TextSelection] createSelection failed - invalid params"];
+        return;
+    }
     
     CGFloat x = [paramsDict[@"x"] floatValue];
     CGFloat y = [paramsDict[@"y"] floatValue];
@@ -174,7 +181,10 @@ typedef NS_ENUM(NSInteger, KRSelectableOption) {
     NSMutableArray<KRLabel *> *labels = [NSMutableArray array];
     [self kr_findAllKRLabelsInView:self toArray:labels];
     
-    if (labels.count == 0) return;
+    if (labels.count == 0) {
+        [KRLogModule logInfo:@"[TextSelection] createSelection failed - no selectable labels found"];
+        return;
+    }
     
     // Sort labels by position (y then x)
     [labels sortUsingComparator:^NSComparisonResult(KRLabel *obj1, KRLabel *obj2) {
@@ -204,6 +214,8 @@ typedef NS_ENUM(NSInteger, KRSelectableOption) {
     NSDictionary *result = @{
         @"content": texts ?: @[]
     };
+    
+    [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] getSelection count:%lu", (unsigned long)texts.count]];
     callback(result);
 }
 

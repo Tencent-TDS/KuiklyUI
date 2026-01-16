@@ -34,7 +34,7 @@ import kotlin.math.max
 /**
  * 计算内容大小
  */
-internal fun ScrollableState.calculateContentSize(): Int {
+private fun ScrollableState.calculateContentSize(): Int {
     kuiklyInfo.realContentSize = null
     val density = kuiklyInfo.getDensity()
     val minSize = (ScrollableStateConstants.DEFAULT_CONTENT_SIZE * density).toInt()
@@ -66,7 +66,26 @@ internal fun ScrollableState.calculateContentSize(): Int {
     return contentSize.toInt()
 }
 
+internal fun ScrollableState.updateContentSizeToRender() {
+    // 更新当前的contentSize大小
+    val oldContentSize = kuiklyInfo.currentContentSize
+    val newContentSize = calculateContentSize()
 
+    // 如果contentSize变小了，需要确保composeOffset不会超出边界
+    if (newContentSize < oldContentSize) {
+        val newMaxScrollOffset = maxOf(0, newContentSize - kuiklyInfo.viewportSize)
+        if (kuiklyInfo.composeOffset > newMaxScrollOffset) {
+            // 如果composeOffset超出新的边界，增加contentSize来保持composeOffset不变
+            val requiredContentSize = kuiklyInfo.composeOffset.toInt() + kuiklyInfo.viewportSize
+            kuiklyInfo.currentContentSize = maxOf(newContentSize, requiredContentSize)
+        } else {
+            kuiklyInfo.currentContentSize = newContentSize
+        }
+    } else {
+        kuiklyInfo.currentContentSize = newContentSize
+    }
+    kuiklyInfo.updateContentSizeToRender()
+}
 internal fun PaddingValues.totalPadding(orientation: Orientation): Dp {
     return if (orientation == Orientation.Vertical) {
         calculateTopPadding() + calculateBottomPadding()

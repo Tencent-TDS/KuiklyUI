@@ -67,7 +67,6 @@ import com.tencent.kuikly.compose.ui.util.fastForEach
 import com.tencent.kuikly.compose.views.KuiklyInfoKey
 import com.tencent.kuikly.compose.views.VirtualNodeView
 import com.tencent.kuikly.compose.layout.checkOffScreenNode
-import com.tencent.kuikly.compose.scroller.calculateContentSize
 import com.tencent.kuikly.compose.scroller.isAtTop
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.kuiklyOnScroll
@@ -83,6 +82,7 @@ import com.tencent.kuikly.core.views.ScrollerAttr
 import com.tencent.kuikly.core.views.ScrollerEvent
 import com.tencent.kuikly.core.views.ScrollerView
 import com.tencent.kuikly.compose.scroller.animateScrollToTop
+import com.tencent.kuikly.compose.scroller.updateContentSizeToRender
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
@@ -225,7 +225,7 @@ fun SubcomposeLayout(
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(scrollViewSize) {
-        scrollableState.kuiklyInfo.updateContentSizeToRender()
+        scrollableState.updateContentSizeToRender()
     }
 
     // 更新kuiklyInfo和scrollview
@@ -296,23 +296,7 @@ fun SubcomposeLayout(
                 }
 
                 // 更新当前的contentSize大小
-                val oldContentSize = kuiklyInfo.currentContentSize
-                val newContentSize = scrollableState.calculateContentSize()
-
-                // 如果contentSize变小了，需要确保composeOffset不会超出边界
-                if (newContentSize < oldContentSize) {
-                    val newMaxScrollOffset = maxOf(0, newContentSize - kuiklyInfo.viewportSize)
-                    if (kuiklyInfo.composeOffset > newMaxScrollOffset) {
-                        // 如果composeOffset超出新的边界，增加contentSize来保持composeOffset不变
-                        val requiredContentSize = kuiklyInfo.composeOffset.toInt() + kuiklyInfo.viewportSize
-                        kuiklyInfo.currentContentSize = maxOf(newContentSize, requiredContentSize)
-                    } else {
-                        kuiklyInfo.currentContentSize = newContentSize
-                    }
-                } else {
-                    kuiklyInfo.currentContentSize = newContentSize
-                }
-                kuiklyInfo.updateContentSizeToRender()
+                scrollableState.updateContentSizeToRender()
 
                 val toButtomDelta = if (kuiklyInfo.realContentSize == null) {
                     null

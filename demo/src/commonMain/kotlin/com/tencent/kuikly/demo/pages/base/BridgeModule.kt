@@ -124,6 +124,15 @@ internal class BridgeModule : Module() {
         syncCallNativeMethod(READ_ASSET_FILE, params, callback)
     }
 
+    /**
+     * 读取视频内容
+     */
+    fun readAssetVideo(assetPath: String, callback: CallbackFn?) {
+        val params = JSONObject()
+        params.put("assetPath", assetPath)
+        syncCallNativeMethod(READ_ASSET_VIDEO, params, callback)
+    }
+
     private fun callNativeMethod(methodName: String, data: JSONObject?, callbackFn: CallbackFn?) {
         toNative(
             false,
@@ -179,6 +188,8 @@ internal class BridgeModule : Module() {
         const val DOWNLOAD_PAG_SO = "downloadPagSo"
         const val GET_LOCAL_IMAGE_PATH = "getLocalImagePath"
         const val READ_ASSET_FILE = "readAssetFile"
+        const val READ_ASSET_VIDEO = "readAssetVideo"
+
     }
 
 }

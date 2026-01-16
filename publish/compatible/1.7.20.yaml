@@ -1,0 +1,34 @@
+files:
+  # Gradle Wrapper 版本切换
+  - path: gradle/wrapper/gradle-wrapper.properties
+    replacements:
+      - from: distributionUrl=https://services.gradle.org/distributions/gradle-7.6.3-bin.zip
+        to: distributionUrl=https://services.gradle.org/distributions/gradle-7.5.1-bin.zip
+
+  # iOS PlatformImp.kt 文件
+  - path: core/src/appleMain/kotlin/com/tencent/kuikly/core/module/PlatformImp.kt
+    replacements:
+      - from: @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+        to:
+
+  # iOS ExceptionTracker.kt 文件
+  - path: core/src/appleMain/kotlin/com/tencent/kuikly/core/exception/ExceptionTracker.kt
+    replacements:
+      - from: @file:OptIn(kotlin.experimental.ExperimentalNativeApi::class)
+        to:
+      - from: import kotlin.concurrent.AtomicReference
+        to: import kotlin.native.concurrent.AtomicReference
+
+  # iOS VerifyUtil.ios.kt 文件
+  - path: core/src/appleMain/kotlin/com/tencent/kuikly/core/utils/VerifyUtil.ios.kt
+    replacements:
+      - from: @OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+        to:
+
+  # iOS DateTime.kt 文件
+  - path: core/src/appleMain/kotlin/com/tencent/kuikly/core/datetime/DateTime.kt
+    replacements:
+      - from: import kotlinx.cinterop.ExperimentalForeignApi
+        to:
+      - from: @OptIn(ExperimentalForeignApi::class)
+        to:

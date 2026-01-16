@@ -6,37 +6,17 @@ echo "project's root path: $PROJECT_ROOT"
 
 cd "$PROJECT_ROOT" || { echo "Can't cd project's root path: $PROJECT_ROOT"; exit 1; }
 
-# 1.记录原始url
-ORIGIN_DISTRIBUTION_URL=$(grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties | cut -d "=" -f 2)
-echo "origin gradle url: $ORIGIN_DISTRIBUTION_URL"
-# 2.切换gradle版本
-NEW_DISTRIBUTION_URL="https\:\/\/services.gradle.org\/distributions\/gradle-7.5.1-bin.zip"
-sed -i.bak "s/distributionUrl=.*$/distributionUrl=$NEW_DISTRIBUTION_URL/" gradle/wrapper/gradle-wrapper.properties
+java -version
 
-# 3.语法兼容修改
-ios_main_dir="core/src/appleMain/kotlin/com/tencent/kuikly"
+CONFIG_FILE="publish/compatible/1.7.20.yaml"
 
-ios_platform_impl="$ios_main_dir/core/module/PlatformImp.kt"
-sed -i.bak '/@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)/d' "$ios_platform_impl"
+# 兼容性替换
+java publish/FileReplacer.java replace "$CONFIG_FILE"
 
-ios_exception_tracker="$ios_main_dir/core/exception/ExceptionTracker.kt"
-sed -i.bak \
-    -e '/@file:OptIn(kotlin\.experimental\.ExperimentalNativeApi::class)/d' \
-    -e 's/import kotlin\.concurrent\.AtomicReference/import kotlin.native.concurrent.AtomicReference/g' \
-    "$ios_exception_tracker"
-
-ios_verify_util="$ios_main_dir/core/utils/VerifyUtil.ios.kt"
-sed -i.bak '/@OptIn(kotlinx\.cinterop\.ExperimentalForeignApi::class)/d' "$ios_verify_util"
-
-ios_datetime="$ios_main_dir/core/datetime/DateTime.kt"
-sed -i.bak \
-    -e '/import kotlinx\.cinterop\.ExperimentalForeignApi/d' \
-    -e '/@OptIn(ExperimentalForeignApi::class)/d' \
-    "$ios_datetime"
-
-# 4.开始发布
 MODULE=${1:-all}
 PUBLISH_TASK=${2:-publishToMavenLocal}
+GRADLE_RUN_STATUS=0
+
 if [ "$MODULE" = "all" ]; then
   echo "编译所有模块 core-annotations、core-ksp、core、core-render-android"
   echo "发布方式: $PUBLISH_TASK"
@@ -49,11 +29,14 @@ else
   echo "编译模块: $MODULE"
   echo "发布方式: $PUBLISH_TASK"
   KUIKLY_KOTLIN_VERSION="1.7.20" ./gradlew -c settings.1.7.20.gradle.kts :$MODULE:$PUBLISH_TASK --stacktrace
+  GRADLE_RUN_STATUS=$?
 fi
 
-# 5.还原文件
-mv gradle/wrapper/gradle-wrapper.properties.bak gradle/wrapper/gradle-wrapper.properties
-mv "$ios_platform_impl.bak" "$ios_platform_impl"
-mv "$ios_exception_tracker.bak" "$ios_exception_tracker"
-mv "$ios_verify_util.bak" "$ios_verify_util"
-mv "$ios_datetime.bak" "$ios_datetime"
+# 兼容性还原
+java publish/FileReplacer.java restore "$CONFIG_FILE"
+
+if [ $GRADLE_RUN_STATUS -eq 0 ]; then
+  exit 0
+else
+  exit 1
+fi

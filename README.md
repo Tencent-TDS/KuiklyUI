@@ -111,7 +111,34 @@ Ensure environment preparation is complete before building:
 3. Connect to Ohos Phone or start the Ohos Emulator, and perform a signature operation `File -> Project Structure -> Signing Configs`
 4. Use DevEco Studio Run `entry`, Run OhosApp  
 
-Notes: kuikly Ohos product only supports Mac compilation, Windows can use the compiled ohos product to run Ohos APP.
+#### Windows
+1. Configure environment variables pointing to HarmonyOS SDK path:
+   ```
+   Variable: OHOS_SDK_HOME
+   Path: %TOOL_HOME%\sdk
+   Variable: TOOL_HOME
+   Path: D:\DevEcoStudio
+   ```
+   Note: "D:\DevEcoStudio" uses D drive as an example. Any drive except C drive can be used.
+
+2. In `KuiklyUI` root directory, run the Windows build script:
+   ```cmd
+   2.0_ohos_demo_build.bat
+   ```
+   Or run manually:
+   ```cmd
+   set KUIKLY_AGP_VERSION=7.4.2
+   set KUIKLY_KOTLIN_VERSION=2.0.21-KBA-010
+   gradlew.bat -c settings.2.0.ohos.gradle.kts :demo:linkSharedDebugSharedOhosArm64
+   ```
+3. Copy artifacts to ohosApp (automatically done by bat script):
+   - `demo\build\bin\ohosArm64\sharedDebugShared\libshared.so` → `ohosApp\entry\libs\arm64-v8a\`
+   - `demo\build\bin\ohosArm64\sharedDebugShared\libshared_api.h` → `ohosApp\entry\src\main\cpp\thirdparty\biz_entry\`
+4. Open `KuiklyUI/ohosApp` in DevEco Studio and sync project
+5. Connect to Ohos Phone or start the Ohos Emulator, and perform a signature operation `File -> Project Structure -> Signing Configs`
+6. Use DevEco Studio Run `entry`, Run OhosApp
+
+> Note: Windows compilation requires Kotlin toolchain version `2.0.21-KBA-010` which supports Windows/Linux platforms.
 
 ### Kotlin Version Support
 The KuiklyUI directory contains Gradle configurations for various `Kotlin versions`:

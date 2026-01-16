@@ -1,6 +1,6 @@
-# 基础属性和事件
+# 基础属性、事件和方法
 
-基础属性和事件，是每一个``Kuikly``组件都包含的属性和事件。
+基础属性、事件和方法，是每一个``Kuikly``组件都包含的属性、事件和方法。
 
 ## 基础属性
 
@@ -1494,4 +1494,120 @@ internal class AppearPercentageEventPage : BasePager() {
 }
 ```
 
+---
 
+## 基础方法
+
+### toImage方法<Badge text="仅鸿蒙支持" type="warn"/>
+
+获取View截图。该方法用于将当前View转换为图片，支持多种输出格式。
+
+<div class="table-01">
+
+| 参数        | 描述 | 类型    |
+|:----------|:-------------------------|:------| 
+| type        | 截图类型 | ImageType |
+| sampleSize | 采样率，取值大于或等于1，默认1 | Int |
+| callback | 回调函数，格式：{ code: Int, data: String?, message: String? } | CallbackFn |
+
+</div>
+
+**ImageType枚举值:**
+
+<div class="table-01">
+
+| 枚举值        | 描述 | 返回值 |
+|:----------|:-------------------------|:------| 
+| CACHE_KEY        | 返回缓存Key，可用于Image的src | String |
+| DATA_URI | 返回base64字符串 | String |
+| FILE | 返回文件path | String |
+
+</div>
+
+**回调参数说明:**
+
+<div class="table-01">
+
+| 参数        | 描述 | 类型    |
+|:----------|:-------------------------|:------| 
+| code        | 0表示成功，非0表示失败 | Int |
+| data | 缓存key（可用于Image的src）或base64串或文件path，仅成功时有该字段 | String? |
+| message | 错误信息，仅失败时有该字段 | String? |
+
+</div>
+
+:::warning 重要提醒
+**CACHE_KEY模式缓存管理：**
+- 当使用 `CACHE_KEY` 模式时，缓存的生命周期跟随页面
+- 多次调用 `toImage` 会产生多个缓存，建议在不再需要时清理以避免内存泄漏 
+:::
+
+::: tabs
+
+@tab:active 示例
+
+```kotlin {50,76-85}
+@Page("ToImageExamplePage")
+internal class ToImageExamplePage : BasePager() {
+    
+    private var viewRef : ViewRef<DivView>? = null
+    private var src by observable("")
+    private var alternating by observable(false)
+
+    override fun body(): ViewBuilder {
+        val ctx = this
+        return {
+            View {
+                ref {
+                    ctx.viewRef = it
+                }
+                attr {
+                    padding(5.0f)
+                    margin(10.0f)
+                    borderRadius(12.0f)
+                    border(Border(lineWidth = 0.5f, lineStyle = BorderStyle.SOLID, color = Color(0xFFFB8C00)))
+                    allCenter()
+                    height(150.0f)
+                    backgroundColor(if(ctx.alternating) Color.BLUE else Color.YELLOW)
+                }
+                Text {
+                    attr {
+                        fontSize(18.0f)
+                        color(Color(0xFFFB8C00))
+                        text("Some Text")
+                    }
+                }
+                Image {
+                    attr {
+                        size(100f, 100f)
+                        src(ctx.src)
+                    }
+                }
+                event {
+                    click {
+                        ctx.alternating = !ctx.alternating
+                        // 将View转换为图片，返回缓存Key
+                        ctx.viewRef?.view?.toImage(DeclarativeBaseView.ImageType.CACHE_KEY, 1) {
+                            val success = it?.optInt("code") == 0
+                            val imageSrc = it?.optString("data")
+                            if (success && imageSrc != null) {
+                                ctx.src = imageSrc
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+@tab 说明
+
+- 使用 `ref` 获取View引用，然后调用 `toImage` 方法
+- `sampleSize` 参数用于控制图片质量，值越大图片越小但处理更快
+- 回调函数中需要检查 `code` 字段判断是否成功
+- 成功时，`data` 字段包含图片数据（根据 `type` 参数不同，可能是缓存key、base64字符串或文件路径）
+- **重要：** 使用 `CACHE_KEY` 模式时，缓存生命周期跟随页面，多次调用 `toImage` 会产生多个缓存，建议在不再需要时清理以避免内存泄漏 
+
+:::

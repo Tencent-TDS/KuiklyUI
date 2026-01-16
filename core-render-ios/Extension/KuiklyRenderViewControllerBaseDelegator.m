@@ -376,7 +376,7 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
 - (KRTurboDisplayConfig *)turboDisplayConfig {
     if ([self.delegate respondsToSelector:@selector(configureTurboDisplay)]) {
         KRTurboDisplayConfig *config = [self.delegate configureTurboDisplay];
-        return [config copy];
+        return config ? [config copy] : nil;
     }
     return nil;
 }

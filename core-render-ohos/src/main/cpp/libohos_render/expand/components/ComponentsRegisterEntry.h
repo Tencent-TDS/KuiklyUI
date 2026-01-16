@@ -26,6 +26,7 @@
 #include "libohos_render/expand/components/image/KRImageViewWrapper.h"
 #include "libohos_render/expand/components/input/KRTextAreaView.h"
 #include "libohos_render/expand/components/input/KRTextFieldView.h"
+#include "libohos_render/expand/components/mask/KRMaskView.h"
 #include "libohos_render/expand/components/modal/KRModalView.h"
 #include "libohos_render/expand/components/richtext/KRRichTextShadow.h"
 #include "libohos_render/expand/components/richtext/KRRichTextView.h"
@@ -87,6 +88,9 @@ static void ComponentsRegisterEntry() {
 
     // canvas
     IKRRenderViewExport::RegisterViewCreator("KRCanvasView", [] { return std::make_shared<KRCanvasView>(); });
+    
+    // Mask
+    IKRRenderViewExport::RegisterViewCreator("KRMaskView", [] { return std::make_shared<KRMaskView>(); });
 }
 
 #endif  // CORE_RENDER_OHOS_COMPONENTSREGISTERENTRY_H

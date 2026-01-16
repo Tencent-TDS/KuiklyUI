@@ -131,7 +131,7 @@ internal class LazyListMeasureResult(
         }
         return if (canApply) {
             firstVisibleItemScrollOffset -= delta
-            visibleItemsInfo.fastForEach {
+            positionedItems.fastForEach {
                 it.applyScrollDelta(delta, updateAnimations)
             }
             consumedScroll = delta.toFloat()

@@ -66,6 +66,8 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 @property (nonatomic, copy) NSString *KUIKLY_PROP(capInsets);
 /** 图片颜色滤镜 */
 @property (nonatomic, copy) NSString *KUIKLY_PROP(colorFilter);
+/** 图片加载参数 */
+@property (nonatomic, copy) NSString *KUIKLY_PROP(imageParams);
 
 
 /** 图片加载成功回调事件 */
@@ -127,6 +129,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
     self.pendingLoadFailure = false;
     self.errorCode = 0;
     self.imageLoadingCount = 0;
+    self.css_imageParams = nil;
 }
 
 #pragma mark - setter
@@ -193,6 +196,17 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
     }
 }
 
+
+/*
+ * 新增图片加载参数Image_parmas的set方法
+ * @css_imageParmas 图片加载参数
+ */
+- (void)setCss_imageParams:(NSString *)css_imageParmas {
+    if (self.css_imageParams != css_imageParmas) {
+        _css_imageParams = css_imageParmas;
+    }
+}
+
 - (void)setCss_blurRadius:(NSNumber *)css_blurRadius {
     if (_css_blurRadius != css_blurRadius) {
         _css_blurRadius = css_blurRadius;
@@ -236,14 +250,12 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 - (BOOL)setImageWithUrl:(NSString *)url {
     BOOL handled = false;
     
-    if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:forImageView:placeholderImage:options:complete:)]) {
+    if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_setImageWithUrl:imageParams:complete:)]) {
         self.kr_reuseDisable = YES;     // 先关闭ImageView的复用能力
         self.imageLoadingCount++;
         __weak typeof(self) wself = self;
         handled = [[KuiklyRenderBridge componentExpandHandler] hr_setImageWithUrl:url
-                                                                     forImageView:self
-                                                                 placeholderImage:nil
-                                                                          options:1 << 10
+                                                                     imageParams:[self.css_imageParams hr_stringToDictionary]
                                                                          complete:^(UIImage * _Nullable image, NSError * _Nullable error, NSURL * _Nullable imageURL) {
             [KuiklyRenderThreadManager performOnMainQueueWithTask:^{
                 __strong typeof(wself) sself = wself;

@@ -71,6 +71,41 @@ bool KRAnyDataIsBytes(KRAnyData data);
 bool KRAnyDataIsArray(KRAnyData data);
 
 /**
+ * 检测是否是一个 Map
+ * @param data 输入的对象
+ * @return 如果是 Map 类型返回 true，否则返回 false
+ */
+bool KRAnyDataIsMap(KRAnyData data);
+
+/**
+ * @brief Map 遍历回调函数类型
+ * @param key Map 中的键（字符串）
+ * @param value Map 中对应的值（KRAnyData 类型），仅在回调函数内有效
+ * @param userData 用户自定义数据指针
+ */
+typedef void (*KRAnyDataMapVisitor)(const char* key, KRAnyData value, void* userData);
+
+/**
+ * @brief 遍历 Map 中的所有键值对（推荐使用）
+ * @param data 输入数据句柄，类型为 KRAnyData（必须是Map类型）
+ * @param visitor 访问回调函数，每个键值对会调用一次
+ * @param userData 用户自定义数据，会原样传递给 visitor
+ * @return KRAnDataErrorCode
+ * @note 这是遍历 Map 的推荐方式，无需手动管理内存
+ */
+int KRAnyDataVisitMap(KRAnyData data, KRAnyDataMapVisitor visitor, void* userData);
+
+
+/**
+ * @brief 从 KRAnyData Map 中获取指定 key 的值
+ * @param data 输入数据句柄，类型为 KRAnyData（必须是Map类型）
+ * @param key 要获取的 key
+ * @param value 输出参数，存储获取的值句柄，仅当前scope有效
+ * @return KRAnDataErrorCode
+ */
+int KRAnyDataGetMapValue(KRAnyData data, const char* key, KRAnyData* value);
+
+/**
  * 返回字符串内容
  * @param data
  * @return 字符串指针，仅当前scope有效，请勿转移指针，如有需要请拷贝字符串内容。
@@ -86,6 +121,8 @@ typedef enum {
     KRANYDATA_NULL_OUTPUT = 2,    // 接收参数为 nullptr
     KRANYDATA_OUT_OF_INDEX = 3,   // 索引越界
     KRANYDATA_TYPE_MISMATCH = 4,  // 类型不匹配
+    KRANYDATA_INVALID_PARAM = 5,  // 无效参数（新增) 
+    KRANYDATA_KEY_NOT_FOUND = 6,  // Key不存在（新增）
 } KRAnDataErrorCode;
 
 /**

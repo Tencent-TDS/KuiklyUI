@@ -13,24 +13,21 @@
  * limitations under the License.
  */
 
-#pragma once
+#ifndef CORE_RENDER_OHOS_KRMASKVIEW_H
+#define CORE_RENDER_OHOS_KRMASKVIEW_H
 
-#include "libohos_render/api/include/Kuikly/Kuikly.h"
+#include "libohos_render/expand/components/view/KRView.h"
+#include "libohos_render/export/IKRRenderViewExport.h"
 
-class KRImageAdapterManager final {
- public:
-    static KRImageAdapterManager *GetInstance();
-    void RegisterImageAdapter(KRImageAdapter adapter);
-    KRImageAdapter GetAdapter();
-    void RegisterImageAdapterV2(KRImageAdapterV2 adapter);
-    KRImageAdapterV2 GetAdapterV2();
-    void RegisterImageAdapterV3(KRImageAdapterV3 adapter);
-    KRImageAdapterV3 GetAdapterV3();
- private:
-    KRImageAdapterManager() = default;
-    ~KRImageAdapterManager() = delete;
-
-    KRImageAdapter adapter = nullptr;
-    KRImageAdapterV2 adapter_v2 = nullptr;
-    KRImageAdapterV3 adapter_v3 = nullptr;
+/// 遮罩视图：使用 BlendMode SRC_IN 实现，目标内容只在遮罩 alpha > 0 的区域显示
+class KRMaskView : public KRView {
+    
+public:
+    void DidInit() override;
+    void DidInsertSubRenderView(const std::shared_ptr<IKRRenderViewExport> &sub_render_view, int index) override;
+    
+private:
+    void SetNodeBlendMode(ArkUI_NodeHandle node, ArkUI_BlendMode blendMode, ArkUI_BlendApplyType applyType);
 };
+
+#endif // CORE_RENDER_OHOS_KRMASKVIEW_H

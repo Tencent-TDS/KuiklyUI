@@ -529,7 +529,7 @@ typedef void (*KRSetImageCallback)(const void* context,
                                    ArkUI_DrawableDescriptor *image_descriptor,
                                    const char *new_src);
 /**
- * @brief 自定义image adapter
+ * @brief 自定义image adapter V2
  * @param context 上下文
  * @param src image组件设置的src属性
  * @param callback 自定义加载图片完成后可通过callback指针回调给kuikly，并把context以及src参数回填
@@ -540,11 +540,25 @@ typedef int32_t (*KRImageAdapterV2)(const void *context,
                                  KRSetImageCallback callback);
 
 /**
- * @brief 注册image adapter
- * @param adapter adapter函数指针
+ * @brief 自定义image adapter V3，新增 imageParams 参数
+ * @param context 上下文
+ * @param src image组件设置的src属性
+ * @param imageParams 图片加载参数，JSON格式字符串，可为nullptr
+ * @param callback 自定义加载图片完成后可通过callback指针回调给kuikly，并把context以及src参数回填
+ * @return 已处理则返回1，否则返回0
  */
+typedef int32_t (*KRImageAdapterV3)(const void *context,
+                                 const char *src,
+                                 KRAnyData *imageParams,
+                                 KRSetImageCallback callback);
+
 void KRRegisterImageAdapterV2(KRImageAdapterV2 adapter);
+void KRRegisterImageAdapterV3(KRImageAdapterV3 adapter);
 ```
+
+:::tip V3 新增能力
+`KRImageAdapterV3` 相比 V2 新增了 `imageParams` 参数，用于接收 Kotlin 侧通过在src中所增加的自定义参数（如鉴权信息、加载策略等）。参数以 JSONObject 格式传入，在 KRImageAdapterV3 传入为Map类型
+:::
 
 **使用方法**
 
@@ -561,7 +575,7 @@ target_link_libraries(
 
 **2. 头文件引入**
 
-在调用 KRRegisterImageAdapterV2 的源文件中增加 include。如在 C++ 目录下的 **napi_init.cpp** 文件中 include 如下头文件：
+在调用 KRRegisterImageAdapterV2 或 KRRegisterImageAdapterV3 的源文件中增加 include。如在 C++ 目录下的 **napi_init.cpp** 文件中 include 如下头文件：
 
 `#include <Kuikly/Kuikly.h>`
 
@@ -571,12 +585,71 @@ target_link_libraries(
 // entry/src/main/cpp/napi_init.cpp
 #include <Kuikly/Kuikly.h>
 
-static int32_t MyImageAdapter(const void *context, const char *src, KRSetImageCallback callback) {
+// V2 实现（不需要 imageParams）
+static int32_t MyImageAdapterV2(const void *context, const char *src, KRSetImageCallback callback) {
     // 自定义图片加载逻辑
-    // 例如：网络图片下载、本地图片加载等
+    // ...
+    return 0;
+}
+
+// V3 实现（需要 imageParams）
+static int32_t MyImageAdapterV3(const void *context, const char *src, KRAnyData *imageParams, KRSetImageCallback callback) {
     
-    // 如果已处理该图片加载请求，返回1
-    // 否则返回0，让kuikly使用默认处理方式
+    // 获取imageParams,跨端侧传入的是：{"test":"abc"}
+    std::map<std::string, std::string> paramsMap;
+    // 方式1：使用 KRAnyDataVisitMap 遍历所有参数（推荐）
+    if (imageParams != nullptr && KRAnyDataIsMap(imageParams)) {
+        // 定义 lambda 作为访问器
+        auto visitor = [](const char* key, KRAnyData value, void* userData) {
+            auto* map = static_cast<std::map<std::string, std::string>*>(userData);
+            // 根据类型转换成字符串存储
+            if (KRAnyDataIsString(value)) {
+                const char* str = KRAnyDataGetString(value);
+                if (str) {
+                    (*map)[key] = str;
+                }
+            } else if (KRAnyDataIsInt(value)) {
+                int32_t intVal;
+                KRAnyDataGetInt(value, &intVal);
+                (*map)[key] = std::to_string(intVal);
+            } else if (KRAnyDataIsLong(value)) {
+                int64_t longVal;
+                KRAnyDataGetLong(value, &longVal);
+                (*map)[key] = std::to_string(longVal);
+            } else if (KRAnyDataIsFloat(value)) {
+                float floatVal;
+                KRAnyDataGetFloat(value, &floatVal);
+                (*map)[key] = std::to_string(floatVal);
+            } else if (KRAnyDataIsBool(value)) {
+                bool boolVal;
+                KRAnyDataGetBool(value, &boolVal);
+                (*map)[key] = boolVal ? "true" : "false";
+            }
+        };
+        
+        // 遍历所有键值对
+        KRAnyDataVisitMap(imageParams, visitor, &paramsMap);
+    }
+    
+    // 业务逻辑...
+    if (paramsMap.count("test") > 0) {
+        auto value = paramsMap["test"];
+        KR_LOG_INFO << "imageParams testxxx value: " << value;
+    }
+    
+    // 方式2：获取特定的参数值（如果只需要某个字段）
+    if (imageParams != nullptr && KRAnyDataIsMap(imageParams)) {
+        KRAnyData testValue = nullptr;
+        if (KRAnyDataGetMapValue(imageParams, "test", &testValue) == KRANYDATA_SUCCESS && testValue != nullptr) {
+            if (KRAnyDataIsString(testValue)) {
+                const char *str = KRAnyDataGetString(testValue);
+                KR_LOG_INFO << "imageParams test value: " << str;
+            }
+        }
+    }
+    
+    // 自定义图片加载逻辑
+    // ...
     return 0;
 }
 ```
@@ -588,7 +661,10 @@ static int32_t MyImageAdapter(const void *context, const char *src, KRSetImageCa
 ```c
 // entry/src/main/cpp/napi_init.cpp
 static napi_value InitKuikly(napi_env env, napi_callback_info info) {
-    KRRegisterImageAdapterV2(MyImageAdapter);
+    // 二选一注册，V3 优先级高于 V2
+    KRRegisterImageAdapterV2(MyImageAdapterV2);
+    // 或
+    KRRegisterImageAdapterV3(MyImageAdapterV3);
     
     // ...
 }

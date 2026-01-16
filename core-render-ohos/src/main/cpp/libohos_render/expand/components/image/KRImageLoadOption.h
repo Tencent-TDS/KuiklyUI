@@ -21,6 +21,9 @@
 #include <resourcemanager/ohresmgr.h>
 #include <string>
 
+class KRRenderValue;
+using KRAnyValue = std::shared_ptr<KRRenderValue>;
+
 enum class KRImageSrcType {
     kImageSrcTypeUnknown = 0,
     kImageSrcTypeNetwork = 1,
@@ -33,7 +36,8 @@ enum class KRImageSrcType {
 class KRImageLoadOption {
  public:
     KRImageLoadOption()
-        : src_type_(KRImageSrcType::kImageSrcTypeUnknown), src_(""), tint_color_(""), resource_drawable_(nullptr),
+        : src_type_(KRImageSrcType::kImageSrcTypeUnknown), src_(""), tint_color_(""), 
+          image_params_(nullptr), resource_drawable_(nullptr),
           native_resource_manager_(nullptr) {}
 
     ArkUI_DrawableDescriptor *GetNativeMediaResourceDrawable(const std::string &media_resource_name) {
@@ -55,6 +59,7 @@ class KRImageLoadOption {
     KRImageSrcType src_type_;
     std::string src_;
     std::string tint_color_;
+    KRAnyValue image_params_;  // 图片加载参数，Map 类型
     ArkUI_DrawableDescriptor *resource_drawable_;
     NativeResourceManager *native_resource_manager_;
 };

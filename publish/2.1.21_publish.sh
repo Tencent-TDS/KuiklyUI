@@ -7,7 +7,7 @@ cd "$PROJECT_ROOT" || { echo "Can't cd project's root path: $PROJECT_ROOT"; exit
 
 java -version
 
-CONFIG_FILE="publish/compatible/2.0.21.yaml"
+CONFIG_FILE="publish/compatible/2.1.21.yaml"
 
 # 兼容性替换
 java publish/FileReplacer.java replace "$CONFIG_FILE"

@@ -42,7 +42,7 @@ kotlin {
         val jvmMain by getting {
             dependencies {
                 implementation(Dependencies.kotlinpoet)
-                implementation("com.google.devtools.ksp:symbol-processing-api:2.1.21-1.0.27")
+                implementation("com.google.devtools.ksp:symbol-processing-api:2.2.20-2.0.4")
                 implementation(project(":core-annotations"))
             }
             kotlin.srcDir("src/main/kotlin")

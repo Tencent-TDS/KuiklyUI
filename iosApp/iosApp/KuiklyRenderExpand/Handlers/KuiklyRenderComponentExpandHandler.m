@@ -16,7 +16,7 @@
 #import "KuiklyRenderComponentExpandHandler.h"
 #import <SDWebImage/UIImageView+WebCache.h>
 #import <SDWebImage/SDWebImageManager.h>
-#import <YYWebImage/YYWebImageManager.h>
+//#import <YYWebImage/YYWebImageManager.h>
 
 
 @implementation KuiklyRenderComponentExpandHandler

@@ -21,3 +21,15 @@ files:
     replacements:
       - from: useInMemoryPgpKeys(keyId, secretKey, password)
         to: useInMemoryPgpKeys(secretKey, password)
+  # AbstractCoroutine 1.3 兼容：CancellationException 导入与构造
+  - path: core/src/commonMain/kotlin/com/tencent/kuikly/core/coroutines/AbstractCoroutine.kt
+    replacements:
+      - from: import kotlin.coroutines.cancellation.CancellationException
+        to: import java.util.concurrent.CancellationException
+      - from: CancellationException("cancelled", cause)
+        to: CancellationException("cancelled").also { it.initCause(cause) }
+  # Builders 1.3 兼容：CancellationException 导入
+  - path: core/src/commonMain/kotlin/com/tencent/kuikly/core/coroutines/Builders.kt
+    replacements:
+      - from: import kotlin.coroutines.cancellation.CancellationException
+        to: import java.util.concurrent.CancellationException

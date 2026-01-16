@@ -17,17 +17,6 @@
 
 @implementation KRTurboDisplayConfig
 
-#pragma mark - 单例
-
-+ (instancetype)sharedConfig {
-    static KRTurboDisplayConfig *instance = nil;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        instance = [[KRTurboDisplayConfig alloc] init];
-    });
-    return instance;
-}
-
 - (instancetype)init {
     if (self = [super init]) {
         [self resetToDefault];
@@ -35,53 +24,51 @@
     return self;
 }
 
-#pragma mark - 便捷属性
+- (void)resetToDefault {
+    _diffDOMMode = KRNormalDiffDOM;       // 使用 非结构捕捉的 diff-DOM
+    _diffViewMode = KRNormalDiffView;     // 使用 普通diff（View），非延迟diff（View）
+    _autoUpdateTurboDisplay = YES;        // 开启自动刷新，会自动执行 diff-DOM
+}
 
-- (BOOL)isDiffDOMStructureAwareEnabled {
-    return _diffDOMMode == KRDiffDOMModeStructureAware;
+#pragma mark - 开关状态读取
+
+- (BOOL)isStructureAwareDiffDOMEnabled {
+    return _diffDOMMode == KRStructureAwareDiffDOM;
 }
 
 - (BOOL)isDelayedDiffEnabled {
-    return _delayedDiffMode == KRDelayedDiffModeEnabled;
+    return _diffViewMode == KRDelayedDiffView;
 }
 
 - (BOOL)isCloseAutoUpdateTurboDisplay {
-    return _closeAutoUpdateTurboDisplay;
+    return _autoUpdateTurboDisplay == NO;
 }
 
-#pragma mark - 便捷配置方法
+#pragma mark - 开关 getter/setter
 
-- (void)enableDiffDOMStructureAware {
-    _diffDOMMode = KRDiffDOMModeStructureAware;
+- (void)enableStructureAwareDiffDOM {
+    _diffDOMMode = KRStructureAwareDiffDOM;
 }
 
-- (void)disableDiffDOMStructureAware {
-    _diffDOMMode = KRDiffDOMModeLegacy;
+- (void)disableStructureAwareDiffDOM {
+    _diffDOMMode = KRNormalDiffDOM;
 }
 
 - (void)enableDelayedDiff {
-    _delayedDiffMode = KRDelayedDiffModeEnabled;
+    _diffViewMode = KRDelayedDiffView;
 }
 
 - (void)disableDelayedDiff {
-    _delayedDiffMode = KRDelayedDiffModeDisabled;
+    _diffViewMode = KRNormalDiffView;
 }
 
-- (void)enableCloseAutoUpdateTurboDisplay {
-    _closeAutoUpdateTurboDisplay = YES;
+- (void)enableAutoUpdateTurboDisplay {
+    _autoUpdateTurboDisplay = YES;
 }
 
-- (void)disableCloseAutoUpdateTurboDisplay {
-    _closeAutoUpdateTurboDisplay = NO;
+- (void)closeAutoUpdateTurboDisplay {
+    _autoUpdateTurboDisplay = NO;
 }
 
-- (void)resetToDefault {
-    // 默认配置：
-    // - Diff-DOM：启用结构变化支持（新模式）
-    // - 延迟 Diff：禁用（经典模式）
-    _diffDOMMode = KRDiffDOMModeStructureAware;
-    _delayedDiffMode = KRDelayedDiffModeDisabled;
-    _closeAutoUpdateTurboDisplay = YES;
-}
 
 @end

@@ -25,29 +25,8 @@
 @implementation KRTurboDisplayDiffPatch
 
 static UIView *gBaseView = nil;
-static KRSecondDiffMode gSecondDiffMode = KRSecondDiffModeDelayed; // 默认使用经典模式（保留兼容）
 
-#pragma mark - 全局开关（兼容旧 API，内部同步到 KRTurboDisplayConfig）
-
-+ (void)setSecondDiffMode:(KRSecondDiffMode)mode {
-    gSecondDiffMode = mode;
-    // 同步到新的配置类
-    if (mode == KRSecondDiffModeDelayed) {
-        [KRTurboDisplayConfig sharedConfig].delayedDiffMode = KRDelayedDiffModeEnabled;
-    } else {
-        [KRTurboDisplayConfig sharedConfig].delayedDiffMode = KRDelayedDiffModeDisabled;
-    }
-}
-
-+ (KRSecondDiffMode)secondDiffMode {
-    // 优先从新的配置类读取
-    if ([KRTurboDisplayConfig sharedConfig].isDelayedDiffEnabled) {
-        return KRSecondDiffModeDelayed;
-    }
-    return gSecondDiffMode;
-}
-
-#pragma mark - Diff-View 执行 缓存树与真实树 比对，更新view树
+#pragma mark - TB 首屏Diff
 + (void)diffPatchToRenderingWithRenderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer
                                 oldNodeTree:(KRTurboDisplayNode *)oldNodeTree
                                 newNodeTree:(KRTurboDisplayNode *)newNodeTree {
@@ -248,10 +227,12 @@ static KRSecondDiffMode gSecondDiffMode = KRSecondDiffModeDelayed; // 默认使�
  * @note 根据 KRTurboDisplayConfig.diffDOMMode 决定是否支持结构变化
  * @note 每执行一次 onlyUpdateWithTargetNodeTree 都可以保证当前「快照树」节点及其子树 与 「真实树」同tag（同位置）的节点及其子树一致，因此无需再递归其子树
  */
-+ (BOOL)onlyUpdateWithTargetNodeTree:(KRTurboDisplayNode *)targetNodeTree fromNodeTree:(KRTurboDisplayNode *)fromNodeTree {
++ (BOOL)onlyUpdateWithTargetNodeTree:(KRTurboDisplayNode *)targetNodeTree
+                        fromNodeTree:(KRTurboDisplayNode *)fromNodeTree
+                              config:(nonnull KRTurboDisplayConfig *)config {
     BOOL hasUpdate = NO;
     // 业务开启是否捕捉 首屏的DOM结构变化
-    BOOL isStructureAwareEnabled = [KRTurboDisplayConfig sharedConfig].isDiffDOMStructureAwareEnabled;
+    BOOL isStructureAwareEnabled = [config isStructureAwareDiffDOMEnabled];
     
     // 默认条件：targetNodeTree 和 fromNodeTree 都不会为nil
     if ([self canReuseNode:targetNodeTree newNode:fromNodeTree fromUpdateNode:YES]) {
@@ -266,12 +247,12 @@ static KRSecondDiffMode gSecondDiffMode = KRSecondDiffModeDelayed; // 默认使�
         if (targetNodeHasChild && fromNodeHasChild) {
             if (isStructureAwareEnabled) {
                 // 新增：更新「快照树」当前节点的children（支持结构变化），目的在于确保 「快照树」从根节点开始每层都和「真实树」结构一致，节点的tag也全部一致 => 直接扭正「快照树」的异常节点
-                if ([self structUpdateChildrenWithTargetNode:targetNodeTree fromNode:fromNodeTree]) {
+                if ([self structUpdateChildrenWithTargetNode:targetNodeTree fromNode:fromNodeTree config:config]) {
                     hasUpdate = YES;
                 }
             } else {
                 // 仅递归更新已有的子节点属性，不处理结构变化，使用的原始逻辑
-                if ([self legacyUpdateChildrenWithTargetNode:targetNodeTree fromNode:fromNodeTree]) {
+                if ([self legacyUpdateChildrenWithTargetNode:targetNodeTree fromNode:fromNodeTree config:config]) {
                     hasUpdate = YES;
                 }
             }
@@ -306,7 +287,9 @@ static KRSecondDiffMode gSecondDiffMode = KRSecondDiffModeDelayed; // 默认使�
 /**
  * @brief 旧模式：仅递归更新已有的子节点属性，不处理结构变化
  */
-+ (BOOL)legacyUpdateChildrenWithTargetNode:(KRTurboDisplayNode *)targetNode fromNode:(KRTurboDisplayNode *)fromNode {
++ (BOOL)legacyUpdateChildrenWithTargetNode:(KRTurboDisplayNode *)targetNode
+                                  fromNode:(KRTurboDisplayNode *)fromNode
+                                    config:(nonnull KRTurboDisplayConfig *)config {
     BOOL hasUpdate = NO;
     
     NSArray *targetChildren = targetNode.children;
@@ -331,7 +314,7 @@ static KRSecondDiffMode gSecondDiffMode = KRSecondDiffModeDelayed; // 默认使�
     for (int i = 0; i < targetChildren.count; i++) {
         KRTurboDisplayNode *targetChild = targetChildren[i];
         KRTurboDisplayNode *fromChild = [self nextNodeForUpdateWithChildern:fromChildren fromIndex:&fromIndex targetNode:targetChild];
-        if (fromChild && [self onlyUpdateWithTargetNodeTree:targetChild fromNodeTree:fromChild]) {
+        if (fromChild && [self onlyUpdateWithTargetNodeTree:targetChild fromNodeTree:fromChild config:config]) {
             hasUpdate = YES;
         }
         fromIndex++;
@@ -398,7 +381,9 @@ static KRSecondDiffMode gSecondDiffMode = KRSecondDiffModeDelayed; // 默认使�
  * @return 是否有发生更新
  * @note 新模式方法，在旧方法名前加 struct 前缀
  */
-+ (BOOL)structUpdateChildrenWithTargetNode:(KRTurboDisplayNode *)targetNode fromNode:(KRTurboDisplayNode *)fromNode {
++ (BOOL)structUpdateChildrenWithTargetNode:(KRTurboDisplayNode *)targetNode
+                                  fromNode:(KRTurboDisplayNode *)fromNode
+                                    config:(nonnull KRTurboDisplayConfig *)config {
     BOOL hasUpdate = NO;
     
     NSMutableArray *targetChildren = targetNode.children;   // 快照树当前节点的子节点数组
@@ -430,7 +415,7 @@ static KRSecondDiffMode gSecondDiffMode = KRSecondDiffModeDelayed; // 默认使�
         KRTurboDisplayNode *existingTargetChild = targetChildrenMap[fromChild.tag];
         if (existingTargetChild) {
             // 情况1：有新有旧 - 递归更新匹配的节点
-            if ([self onlyUpdateWithTargetNodeTree:existingTargetChild fromNodeTree:fromChild]) {
+            if ([self onlyUpdateWithTargetNodeTree:existingTargetChild fromNodeTree:fromChild config:config]) {
                 hasUpdate = YES;
             }
             [newTargetChildren addObject:existingTargetChild];  // 按照位置依次的加入
@@ -502,8 +487,8 @@ static KRSecondDiffMode gSecondDiffMode = KRSecondDiffModeDelayed; // 默认使�
     [self diffPatchToRenderingWithRenderLayer:renderLayer
                                   oldNodeTree:oldNodeTree
                                   newNodeTree:newNodeTree
-                              diffPolicy:KRRealFirstScreenDiffEventReplay];
-        
+                                   diffPolicy:KRRealFirstScreenDiffEventReplay];
+    
     // 第二次diff-view - 阶段2：在 Kuikly 线程队列末尾添加任务，等待跨端侧渲染指令全部到达后执行延迟渲染
     [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
         // 第二次diff-view - 阶段3：回到主线程执行 Tag 置换 + 属性更新

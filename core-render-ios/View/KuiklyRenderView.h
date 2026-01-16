@@ -18,6 +18,7 @@
 #import "KuiklyRenderViewExportProtocol.h"
 #import "KuiklyContextParam.h"
 #import "KuiklyRenderContextProtocol.h"
+#import "KRTurboDisplayConfig.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -141,6 +142,11 @@ FOUNDATION_EXTERN NSString *const KRRootViewSizeDidChangedEventKey;
  * @return 返回该页面的TurboDisplayKey（一般可为PageName，若为nil，则为关闭TurboDisplay渲染模式）
  */
 - (NSString * _Nullable)turboDisplayKey;
+
+/*
+ * @brief 返回 TurboDisplay 页面级配置（新增）
+ */
+- (KRTurboDisplayConfig * _Nullable)turboDisplayConfig;
 
 @end
 

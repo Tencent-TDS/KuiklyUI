@@ -217,6 +217,14 @@ NSString *const KRDensity = @"density";
     return nil;
 }
 
+// KuiklyRenderView.m - 实现传递
+- (KRTurboDisplayConfig *)turboDisplayConfig {
+    if ([self.delegate respondsToSelector:@selector(turboDisplayConfig)]) {
+        return [self.delegate turboDisplayConfig];
+    }
+    return nil;
+}
+
 #pragma mark - private
 
 - (NSDictionary *)p_generateWithParams:(NSDictionary *)params size:(CGSize)size {

@@ -496,14 +496,22 @@ NSString *const kCustomFirstScreenTag = @"customFirstScreenTag";
 
 - (id<KuiklyRenderLayerProtocol>)p_createRenderLayerWithRootView:(UIView *)rootView {
     NSString * turboDisplayKey = nil; // 是否为TurboDisplay AOT渲染模式
+    KRTurboDisplayConfig *turboDisplayConfig = nil;
+    
     if ([_delegate respondsToSelector:@selector(turboDisplayKey)]) {
         turboDisplayKey = [_delegate turboDisplayKey];
     }
+    // 新增：获取页面级配置
+    if ([_delegate respondsToSelector:@selector(turboDisplayConfig)]) {
+        turboDisplayConfig = [_delegate turboDisplayConfig];
+    }
+    
     if (turboDisplayKey.length) {
         KuiklyTurboDisplayRenderLayerHandler *handler = [[KuiklyTurboDisplayRenderLayerHandler alloc] 
                                                          initWithRootView:rootView
                                                          contextParam:_contextParam
-                                                         turboDisplayKey:turboDisplayKey];
+                                                         turboDisplayKey:turboDisplayKey
+                                                         turboDisplayConfig:turboDisplayConfig];
         handler.uiScheduler = _uiScheduler;
         return handler;
     }

@@ -209,19 +209,23 @@ FOUNDATION_EXTERN NSString *const KRPageDataSnapshotKey;
 
 /*
  * @brief 配置 TurboDisplay 的全局参数
- * @discussion 在此方法中可以配置 Diff-DOM 模式、延迟 Diff 模式等
- *             该方法会在 TurboDisplay 初始化前调用
- * @param config TurboDisplay 全局配置对象
+ * @param config 可调用方法中配置 Diff-DOM 模式、延迟 Diff 模式、自动刷新首屏
+ * @warning configureTurboDisplay 方法不可单独实现，需同时声明 TurboDisplayKey 方法
  *
  * 示例用法：
  * - (void)configureTurboDisplay:(KRTurboDisplayConfig *)config {
+ *     // 1. 定义 TurboDisplayConfig 实例
+ *     KRTurboDisplayConfig *config = [[KRTurboDisplayConfig alloc] init];
+ *     // 2. 配置功能项
  *     // 启用 Diff-DOM 结构变化支持（默认已启用）
  *     [config enableDiffDOMStructureAware];
  *     // 启用延迟 Diff（默认禁用）
  *     [config enableDelayedDiff];
+ *     // 启用自动刷新（默认已启用）
+ *     [config disableCloseAutoUpdateTurboDisplay];
  * }
  */
-- (void)configureTurboDisplay:(KRTurboDisplayConfig *)config;
+- (KRTurboDisplayConfig*)configureTurboDisplay;
 
 @end
 

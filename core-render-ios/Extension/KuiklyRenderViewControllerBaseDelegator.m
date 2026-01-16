@@ -367,15 +367,18 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
 
 - (NSString *)turboDisplayKey {
     if ([self.delegate respondsToSelector:@selector(turboDisplayKey)]) {
-        // 在获取 turboDisplayKey 之前，先调用配置方法
-        if ([self.delegate respondsToSelector:@selector(configureTurboDisplay:)]) {
-            [self.delegate configureTurboDisplay:[KRTurboDisplayConfig sharedConfig]];
-        }
         return [self.delegate turboDisplayKey];
     }
     return nil;
 }
 
+// 新增：返回 TurboDisplay 配置实例
+- (KRTurboDisplayConfig *)turboDisplayConfig {
+    if ([self.delegate respondsToSelector:@selector(configureTurboDisplay)]) {
+        return [self.delegate configureTurboDisplay];
+    }
+    return nil;
+}
 #pragma mark - exception handle
 
 - (void)setExceptionBlock:(KuiklyRenderView *)view {

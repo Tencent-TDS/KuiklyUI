@@ -68,15 +68,16 @@
     NSString *_turboDisplayKey;
     BOOL _closeAutoUpdateTurboDisplay;      // 关闭自动更新TurboDisplay, 由业务来主动设置首屏更新时机
     NSString *_extraCacheContent;           // 额外缓存内容（JSON字符串）
+    KRTurboDisplayConfig *_config;
 }
 
 #pragma mark - KuiklyRenderLayerProtocol
 
 - (instancetype)initWithRootView:(UIView *)rootView contextParam:(KuiklyContextParam *)contextParam {
-    return [self initWithRootView:rootView contextParam:contextParam turboDisplayKey:@""];
+    return [self initWithRootView:rootView contextParam:contextParam turboDisplayKey:@"" turboDisplayConfig:nil];
 }
 
-- (instancetype)initWithRootView:(UIView *)rootView contextParam:(KuiklyContextParam *)contextParam turboDisplayKey:(nonnull NSString *)turboDisplayKey {
+- (instancetype)initWithRootView:(UIView *)rootView contextParam:(KuiklyContextParam *)contextParam turboDisplayKey:(nonnull NSString *)turboDisplayKey turboDisplayConfig:(KRTurboDisplayConfig * _Nullable)turboDisplayConfig{
     if (self = [super init]) {
         _turboDisplayKey = turboDisplayKey;
         _contextParam = contextParam;
@@ -86,7 +87,11 @@
         _realShadowMap = [NSMutableDictionary new];
         _realRootNode = [[KRTurboDisplayNode alloc] initWithTag:KRV_ROOT_VIEW_TAG viewName:ROOT_VIEW_NAME];
         _realNodeMap[KRV_ROOT_VIEW_TAG] = _realRootNode;
-        _closeAutoUpdateTurboDisplay = [[KRTurboDisplayConfig sharedConfig] isCloseAutoUpdateTurboDisplay];
+        
+        // 如果未传入配置，创建默认配置
+        _config = turboDisplayConfig ?: [[KRTurboDisplayConfig alloc] init];
+        _closeAutoUpdateTurboDisplay = [_config isCloseAutoUpdateTurboDisplay];
+        
         
         // 新增：在init时机，读取业务自定义的缓存内容；只读取不执行删除
         _extraCacheContent = [[KRTurboDisplayCacheManager sharedInstance] extraCacheContentWithCacheKey:self.turboDisplayCacheKey];
@@ -358,7 +363,7 @@
         [self updateNextTurboDisplayRootNodeIfNeed];
         
         _closeAutoUpdateTurboDisplay = YES;
-        [[KRTurboDisplayConfig sharedConfig] enableCloseAutoUpdateTurboDisplay];
+        [_config closeAutoUpdateTurboDisplay];
         
         _nextTurboDisplayRootNode = nil;
     }
@@ -378,7 +383,7 @@
     }
     // 业务手动强制刷新，与自动刷新相斥，因此默认执行自动刷新关闭
     _closeAutoUpdateTurboDisplay = YES;
-    [[KRTurboDisplayConfig sharedConfig] enableCloseAutoUpdateTurboDisplay];
+    [_config closeAutoUpdateTurboDisplay];
     
     
     // 获取额外缓存内容
@@ -396,7 +401,7 @@
     // 优化强刷缓存的逻辑：从直接全量deepcopy真实树 优化为 使用diff-DOM 基于「真实树」捕捉结构变化更新「快照树」
     KRTurboDisplayNode *nodeToCache = nil;
     if (_nextTurboDisplayRootNode) {
-        [KRTurboDisplayDiffPatch onlyUpdateWithTargetNodeTree:_nextTurboDisplayRootNode fromNodeTree:_realRootNode];
+        [KRTurboDisplayDiffPatch onlyUpdateWithTargetNodeTree:_nextTurboDisplayRootNode fromNodeTree:_realRootNode config:_config];
         nodeToCache = [_nextTurboDisplayRootNode deepCopy];
     } else {
         // 如果快照树不存在，则直接deepCopy真实树
@@ -430,9 +435,9 @@
     self.turboDisplayCacheData = nil;
     _nextTurboDisplayRootNode = nil;
     
-    // 关闭自动更新
-    _closeAutoUpdateTurboDisplay = NO;
-    [[KRTurboDisplayConfig sharedConfig] disableCloseAutoUpdateTurboDisplay];
+    // 缓存清除后，可开启自动更新
+    _closeAutoUpdateTurboDisplay = YES;
+    [_config closeAutoUpdateTurboDisplay];
 }
 
 #pragma mark - TurboDisplay rendering
@@ -506,9 +511,8 @@
     
     // 执行业务首屏的 diff-view，根据开关选择模式
     if (self.turboDisplayCacheData.turboDisplayNode && _realRootNode) {
-        KRSecondDiffMode mode = [KRTurboDisplayDiffPatch secondDiffMode];
-                
-        if (mode == KRSecondDiffModeDelayed) {
+         
+        if ([_config isDelayedDiffEnabled]) {
             // 延迟diff
             [KRTurboDisplayDiffPatch delayedDiffPatchToRenderingWithRenderLayer:_renderLayerHandler
                                                                     oldNodeTree:self.turboDisplayCacheData.turboDisplayNode
@@ -590,7 +594,7 @@
     if (_realRootNode && _nextTurboDisplayRootNode) {
         // 限制更新频率，0.5s一次&&delloc兜底更新
         double beginTime = CFAbsoluteTimeGetCurrent();
-        BOOL didUpdated =  [KRTurboDisplayDiffPatch onlyUpdateWithTargetNodeTree:_nextTurboDisplayRootNode fromNodeTree:_realRootNode];
+        BOOL didUpdated =  [KRTurboDisplayDiffPatch onlyUpdateWithTargetNodeTree:_nextTurboDisplayRootNode fromNodeTree:_realRootNode config:_config];
         double deepCopyCostTime = 0;
         if (didUpdated) {
             // copy后异步线程缓存到磁盘持久化

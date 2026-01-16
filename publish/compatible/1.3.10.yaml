@@ -21,3 +21,7 @@ files:
     replacements:
       - from: useInMemoryPgpKeys(keyId, secretKey, password)
         to: useInMemoryPgpKeys(secretKey, password)
+  - path: core-render-android/src/main/java/com/tencent/kuikly/core/render/android/context/IKuiklyRenderContextHandler.kt
+    replacements:
+      - from: import kotlin.coroutines.cancellation.CancellationException
+        to: import java.util.concurrent.CancellationException

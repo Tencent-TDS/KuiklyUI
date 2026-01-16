@@ -16,6 +16,7 @@
 package com.tencent.kuikly.core.render.android.context
 
 import com.tencent.kuikly.core.render.android.exception.IKuiklyRenderExceptionListener
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * 渲染流程执行环境

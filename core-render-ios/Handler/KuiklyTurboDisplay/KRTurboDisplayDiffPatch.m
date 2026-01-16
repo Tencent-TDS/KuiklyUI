@@ -358,7 +358,7 @@ static UIView *gBaseView = nil;
         hasUpdate = YES;
     }
     
-    if (prop.propKey != prop.propKey && ![prop.propKey isEqualToString:fromProp.propKey]) {
+    if (prop.propKey != fromProp.propKey && ![prop.propKey isEqualToString:fromProp.propKey]) {
         prop.propKey = fromProp.propKey;
         hasUpdate = YES;
     }

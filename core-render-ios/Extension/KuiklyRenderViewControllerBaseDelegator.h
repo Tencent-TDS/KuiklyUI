@@ -213,7 +213,7 @@ FOUNDATION_EXTERN NSString *const KRPageDataSnapshotKey;
  * @warning configureTurboDisplay 方法不可单独实现，需同时声明 TurboDisplayKey 方法
  *
  * 示例用法：
- * - (void)configureTurboDisplay:(KRTurboDisplayConfig *)config {
+ * - (KRTurboDisplayConfig*)configureTurboDisplay {
  *     // 1. 定义 TurboDisplayConfig 实例
  *     KRTurboDisplayConfig *config = [[KRTurboDisplayConfig alloc] init];
  *     // 2. 配置功能项
@@ -223,6 +223,7 @@ FOUNDATION_EXTERN NSString *const KRPageDataSnapshotKey;
  *     [config enableDelayedDiff];
  *     // 启用自动刷新（默认已启用）
  *     [config disableCloseAutoUpdateTurboDisplay];
+ *     return config;
  * }
  */
 - (KRTurboDisplayConfig*)configureTurboDisplay;

@@ -82,7 +82,6 @@ internal class TBListTestPage : BasePager() {
         
         // 从 pageData 中恢复 extraCacheContent
         restoreFromPageData()
-        getPager().acquireModule<TurboDisplayModule>(TurboDisplayModule.MODULE_NAME).clearCurrentPageCache()
     }
     
     private fun restoreFromPageData() {

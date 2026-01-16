@@ -30,6 +30,14 @@
     _autoUpdateTurboDisplay = YES;        // 开启自动刷新，会自动执行 diff-DOM
 }
 
+- (id)copyWithZone:(NSZone *)zone {
+    KRTurboDisplayConfig *copy = [[KRTurboDisplayConfig allocWithZone:zone] init];
+    copy.diffDOMMode = self.diffDOMMode;
+    copy.diffViewMode = self.diffViewMode;
+    copy.autoUpdateTurboDisplay = self.autoUpdateTurboDisplay;
+    return copy;
+}
+
 #pragma mark - 开关状态读取
 
 - (BOOL)isStructureAwareDiffDOMEnabled {

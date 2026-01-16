@@ -97,7 +97,6 @@ internal class TBPageListTestPage : BasePager() {
         }
         // 恢复缓存
         restoreFromPageData()
-        getPager().acquireModule<TurboDisplayModule>(TurboDisplayModule.MODULE_NAME).clearCurrentPageCache()
     }
 
     private fun restoreFromPageData() {
@@ -113,21 +112,27 @@ internal class TBPageListTestPage : BasePager() {
 
     /**
      * 构建 extraCacheContent JSON
-     * 格式：{ "pageListTag": {..., "pageIndex": x}, "nestedListTag1": {...}, "nestedListTag2": {...} }
+     * 格式：{ "pageListTag": {..., "pageIndex": x}, "nestedListTag": {...} }
+     * 
+     * 配合 clearCurrentPageCache() 使用：
+     * - TB 首屏缓存被清除后，Kotlin 侧重新渲染
+     * - List 懒加载机制正常工作，scrollToPosition 能正确创建 item
+     * - extraCacheContent 中的 firstVisibleIndex 用于 Kotlin 侧恢复滚动位置
      */
     private fun buildExtraCacheContent(): String {
         val builder = StringBuilder("{")
         
         // PageList 的缓存（包含 pageIndex）
         pageListRef?.nativeRef?.let { tag ->
-            builder.append(""""$tag":{"viewName":"KRScrollView","contentOffsetX":$currentOffsetX,"contentOffsetY":$currentOffsetY,"pageIndex":$currentPageIndex}""")
+            val pageItemWidth = pagerData.pageViewWidth
+            val preciseOffsetX = currentPageIndex * pageItemWidth
+            builder.append(""""$tag":{"viewName":"KRScrollView","contentOffsetX":$preciseOffsetX,"contentOffsetY":0,"pageIndex":$currentPageIndex}""")
         }
         
-        // 嵌套 List 的缓存
-        nestedListStates.forEach { (_, state) ->
-            if (state.nativeRef > 0) {
-                builder.append(""","${state.nativeRef}":{"viewName":"KRScrollView","contentOffsetX":${state.offsetX},"contentOffsetY":${state.offsetY},"firstVisibleIndex":${state.firstVisibleIndex},"firstVisibleOffset":${state.firstVisibleOffset},"pageIndex":${nestedListStates.entries.find { it.value.nativeRef == state.nativeRef }?.key ?: 0}}""")
-            }
+        // 只缓存当前页面的嵌套 List（当前屏幕上的 List）
+        val currentListState = nestedListStates[currentPageIndex]
+        if (currentListState != null && currentListState.nativeRef > 0) {
+            builder.append(""","${currentListState.nativeRef}":{"viewName":"KRScrollView","contentOffsetX":${currentListState.offsetX},"contentOffsetY":${currentListState.offsetY},"firstVisibleIndex":${currentListState.firstVisibleIndex},"firstVisibleOffset":${currentListState.firstVisibleOffset},"pageIndex":$currentPageIndex}""")
         }
         
         builder.append("}")
@@ -247,11 +252,18 @@ internal class TBPageListTestPage : BasePager() {
                         }
                         event {
                             click {
+                                // 点击 tab 时更新 currentPageIndex 并触发缓存
+                                ctx.currentPageIndex = tabItem.index
                                 ctx.pageListRef?.view?.setContentOffset(
                                     tabItem.index * getPager().pageData.pageViewWidth,
                                     0f,
                                     true
                                 )
+                                // 手动触发缓存（因为点击 tab 不会触发 pageIndexDidChanged）
+                                val extraContent = ctx.buildExtraCacheContent()
+                                KLog.i(TAG, "【Tab点击缓存】index=${tabItem.index}")
+                                getPager().acquireModule<TurboDisplayModule>(TurboDisplayModule.MODULE_NAME)
+                                    .setCurrentUIAsFirstScreenForNextLaunch(extraContent)
                             }
                         }
                     }

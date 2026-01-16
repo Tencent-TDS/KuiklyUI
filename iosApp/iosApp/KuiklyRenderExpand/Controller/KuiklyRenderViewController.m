@@ -256,5 +256,12 @@
     return _pageName;
 }
 
+- (KRTurboDisplayConfig *)configureTurboDisplay {
+    KRTurboDisplayConfig *config = [[KRTurboDisplayConfig alloc] init];
+    [config enableDelayedDiff];
+    [config enableStructureAwareDiffDOM];
+    
+    return config;
+}
 
 @end

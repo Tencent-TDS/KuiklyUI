@@ -19,10 +19,9 @@
 #import "KuiklyRenderLayerHandler.h"
 #import "KuiklyRenderThreadManager.h"
 
+static NSString * const kTurboDisplayCacheKeyPrefix = @"kuikly_turbo_display_9";
+
 @implementation KRTurboDisplayCacheData
-
-
-
 @end
 
 @interface KRTurboDisplayCacheManager()
@@ -32,6 +31,7 @@
 @end
 
 @implementation KRTurboDisplayCacheManager
+
 
 - (instancetype)init {
     if (self = [super init]) {
@@ -85,7 +85,7 @@
 
 - (NSString *)cacheKeyWithTurboDisplayKey:(NSString *)turboDisplayKey pageName:(NSString *)pageName {
     NSString *key = [[NSString stringWithFormat:@"%@_%@",pageName, turboDisplayKey] kr_md5String];
-    return [NSString stringWithFormat:@"kuikly_turbo_display_9%@.data", key];
+    return [NSString stringWithFormat:@"%@%@.data", kTurboDisplayCacheKeyPrefix, key];
 }
 
 - (void)removeAllTurboDisplayCacheFiles {
@@ -322,7 +322,7 @@
 
 - (NSString *)extraCacheKeyFromMainCacheKey:(NSString *)mainCacheKey {
     // kuikly_turbo_display_9xxx.data -> kuikly_turbo_display_extra_xxx.json
-    NSString *hash = [mainCacheKey stringByReplacingOccurrencesOfString:@"kuikly_turbo_display_9" withString:@""];
+    NSString *hash = [mainCacheKey stringByReplacingOccurrencesOfString:kTurboDisplayCacheKeyPrefix withString:@""];
     hash = [hash stringByReplacingOccurrencesOfString:@".data" withString:@""];
     return [NSString stringWithFormat:@"kuikly_turbo_display_extra_%@.json", hash];
 }

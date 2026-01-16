@@ -34,7 +34,7 @@ typedef NS_ENUM(NSUInteger, KRDiffViewMode) {
  * 用于配置 TurboDisplay 的各种开关和参数
  * 业务可在 KuiklyRenderViewController 初始化时配置
  */
-@interface KRTurboDisplayConfig : NSObject
+@interface KRTurboDisplayConfig : NSObject <NSCopying>
 
 /** @brief Diff-DOM 模式 默认为 KRDiffDOMModeStructureAware（新模式，支持结构变化）*/
 @property (nonatomic, assign) KRDiffDOMMode diffDOMMode;

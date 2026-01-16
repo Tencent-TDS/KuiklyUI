@@ -112,7 +112,34 @@
 3. 连接真机或启动鸿蒙模拟器，并执行签名操作 `File -> Project Structure -> Signing Configs`
 4. 使用DevEco Studio, Run `entry`, 运行Ohos App
 
-注: kuikly鸿蒙跨端产物仅支持Mac编译，Windows可以使用编译好的跨端产物运行Ohos APP
+#### Windows
+1. 配置环境变量 `OHOS_SDK_HOME`，指向鸿蒙 SDK 路径：
+   ```
+   变量名: OHOS_SDK_HOME
+   路径: %TOOL_HOME%\sdk
+   变量名: TOOL_HOME
+   路径: D:\DevEcoStudio
+   ```
+   注意：“D:\DevEcoStudio”中D盘为示例演示，实则除C盘以外任何盘都可以
+   
+2. 在`KuiklyUI`根目录执行 Windows 编译脚本：
+   ```cmd
+   2.0_ohos_demo_build.bat
+   ```
+   或手动执行：
+   ```cmd
+   set KUIKLY_AGP_VERSION=7.4.2
+   set KUIKLY_KOTLIN_VERSION=2.0.21-KBA-010
+   gradlew.bat -c settings.2.0.ohos.gradle.kts :demo:linkSharedDebugSharedOhosArm64
+   ```
+3. 拷贝产物到 ohosApp（bat 脚本会自动完成）：
+   - `demo\build\bin\ohosArm64\sharedDebugShared\libshared.so` → `ohosApp\entry\libs\arm64-v8a\`
+   - `demo\build\bin\ohosArm64\sharedDebugShared\libshared_api.h` → `ohosApp\entry\src\main\cpp\thirdparty\biz_entry\`
+4. 使用 DevEco Studio 打开 `KuiklyUI/ohosApp` 项目目录，完成 `sync`
+5. 连接真机或启动鸿蒙模拟器，并执行签名操作 `File -> Project Structure -> Signing Configs`
+6. 使用DevEco Studio, Run `entry`, 运行Ohos App
+
+> 注: Windows 编译需要使用 Kotlin 工具链版本 `2.0.21-KBA-010`，该版本支持 Windows/Linux 平台。
 
 ### Kotlin多版本支持
 

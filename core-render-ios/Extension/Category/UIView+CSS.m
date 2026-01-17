@@ -242,6 +242,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         self.css_gradientLayer = nil;
         if (css_backgroundImage.length) {
             self.css_gradientLayer = [[CSSGradientLayer alloc] initWithLayer:nil cssGradient:css_backgroundImage];
+            self.css_gradientLayer.compositingFilter = @"screenBlendMode";
             [self.layer insertSublayer:self.css_gradientLayer atIndex:0];
             [self.css_gradientLayer setNeedsLayout];
         }

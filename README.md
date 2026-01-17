@@ -104,12 +104,16 @@ Alternatively, open KuiklyUI/iosApp in Xcode and Run
 > Note: The iosApp project will execute the KMP script when compiling. If you encounter an error with the script read and write file permissions, you need to set `User Script Sandboxing` to `No` in `Xcode -> Build Setting`.
 
 ### Running Ohos APP
-
 Ensure environment preparation is complete before building:
-1. In `KuiklyUI` root director Run kuikly Ohos product compile script, `./2.0_ohos_test_publish.sh`
+
+#### Mac
+1. In `KuiklyUI` root directory, run the HarmonyOS cross-platform product compile script:
+   ```bash
+   ./2.0_ohos_demo_build.sh
+   ```
 2. Open `KuiklyUI/ohosApp` in DevEco Studio and sync project
 3. Connect to Ohos Phone or start the Ohos Emulator, and perform a signature operation `File -> Project Structure -> Signing Configs`
-4. Use DevEco Studio Run `entry`, Run OhosApp  
+4. Use DevEco Studio Run `entry`, Run OhosApp
 
 #### Windows
 1. Configure environment variables pointing to HarmonyOS SDK path:
@@ -138,7 +142,7 @@ Ensure environment preparation is complete before building:
 5. Connect to Ohos Phone or start the Ohos Emulator, and perform a signature operation `File -> Project Structure -> Signing Configs`
 6. Use DevEco Studio Run `entry`, Run OhosApp
 
-> Note: Windows compilation requires Kotlin toolchain version `2.0.21-KBA-010` which supports Windows/Linux platforms.
+> Note: Windows compilation requires Kotlin toolchain version `2.0.21-KBA-010` which supports Windows platform.
 
 ### Kotlin Version Support
 The KuiklyUI directory contains Gradle configurations for various `Kotlin versions`:

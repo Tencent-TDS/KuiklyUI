@@ -13,12 +13,11 @@
  * limitations under the License.
  */
 
+#include <CryptoArchitectureKit/crypto_common.h>
+#include <CryptoArchitectureKit/crypto_digest.h>
+
 #include "KRCodec.h"
 
-#include <iomanip>
-#include <sstream>
-#include "md5.h"
-#include "sha256.h"
 
 #define MD5_DIGEST_LENGTH 16
 static const char *TAG = __FILE_NAME__;
@@ -30,6 +29,23 @@ const char HEX_DIGITS[] = "0123456789abcdef";
 const char HEX_DIGITS_URI[] = "0123456789ABCDEF";
 // RFC 3986 section 2.1 says "For consistency, URI producers and normalizers should use uppercase
 // hexadecimal digits for all percent-encodings.
+
+static constexpr inline void KRBinary2Hex(const unsigned char *buffer, size_t buffer_size, char *hex_string, const char *hex_chars) {
+    for (size_t i = 0; i < buffer_size; i++) {
+        unsigned char byte = buffer[i];
+        hex_string[i * 2] = hex_chars[byte >> 4];
+        hex_string[i * 2 + 1] = hex_chars[byte & 0x0F];
+    }
+}
+
+void KRBinary2HexUpper(const unsigned char *buffer, size_t buffer_size, char *hex_string) {
+    KRBinary2Hex(buffer, buffer_size, hex_string, HEX_DIGITS_URI);
+}
+
+void KRBinary2HexLower(const unsigned char *buffer, size_t buffer_size, char *hex_string) {
+    KRBinary2Hex(buffer, buffer_size, hex_string, HEX_DIGITS);
+}
+
 
 const char base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                             "abcdefghijklmnopqrstuvwxyz"
@@ -127,27 +143,40 @@ std::string KRBase64Decode(const std::string &in) {
     return out;
 }
 
-std::string KRMd5(const std::string &in) {
-    unsigned char md[MD5_DIGEST_LENGTH];
-    MD5_CTX md5c;
-    MD5_Init(&md5c);
-    MD5_Update(&md5c, in.data(), in.size());
-    MD5_Final(md, &md5c);
-    std::ostringstream out;
-    for (int i = 0; i < MD5_DIGEST_LENGTH; ++i) {
-        out << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(md[i]);
+static std::string message_digest(const std::string &s, const char *algorithm){
+    OH_Crypto_ErrCode ret;
+    OH_CryptoDigest *ctx = nullptr;
+    Crypto_DataBlob in = {.data = (uint8_t *)(s.data()), .len = s.size()};
+    Crypto_DataBlob out = {.data = nullptr, .len = 0};
+    int mdLen = 0;
+    ret = OH_CryptoDigest_Create(algorithm, &ctx);
+    if (ret != CRYPTO_SUCCESS) {
+        return "";
     }
-    return out.str().substr(8, 16);
-}
+    do {
+        ret = OH_CryptoDigest_Update(ctx, &in);
+        if (ret != CRYPTO_SUCCESS) {
+            break;
+        }
+        ret = OH_CryptoDigest_Final(ctx, &out);
+        if (ret != CRYPTO_SUCCESS) {
+            break;
+        }
+        mdLen = OH_CryptoDigest_GetLength(ctx);
+    } while (0);
+    std::string result_checksum(out.len * 2, 0);
+    KRBinary2HexUpper(out.data, out.len, result_checksum.data());
 
+    OH_Crypto_FreeDataBlob(&out);
+    OH_DigestCrypto_Destroy(ctx);
+    return result_checksum;
+} 
+
+std::string KRMd5(const std::string &in) {
+    return message_digest(in, "MD5");
+}
 std::string KRSha256(const std::string &in) {
-    uint8_t digest[SHA256_DIGEST_SIZE];
-    SHA256_hash(in.data(), in.size(), digest);
-    std::ostringstream out;
-    for (int i = 0; i < SHA256_DIGEST_SIZE; ++i) {
-        out << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(digest[i]);
-    }
-    return out.str();
+    return message_digest(in, "SHA256");
 }
 }  //  namespace util
 }  //  namespace kuikly

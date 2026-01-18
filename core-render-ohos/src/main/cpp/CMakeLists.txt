@@ -105,6 +105,14 @@ set(SOURCE_SET
         libohos_render/expand/modules/performance/KRPerformanceModule.cpp
         libohos_render/expand/modules/log/KRLogTestModule.cpp
         libohos_render/expand/components/mask/KRMaskView.cpp
+        libohos_render/layer/KRTurboDisplayRenderLayerHandler.cpp
+        libohos_render/turbo/KRTurboDisplayNode.cpp
+        libohos_render/turbo/KRTurboDisplayProp.cpp
+        libohos_render/turbo/KRTurboDisplayShadow.cpp
+        libohos_render/turbo/KRTurboDisplayNodeMethod.cpp
+        libohos_render/turbo/KRTurboDisplayCacheData.cpp
+        libohos_render/turbo/KRTurboDisplayCacheManager.cpp
+        libohos_render/turbo/KRTurboDisplayDiffPatch.cpp
 )
 
 add_library(kuikly SHARED ${SOURCE_SET})

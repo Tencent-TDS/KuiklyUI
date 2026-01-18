@@ -47,6 +47,12 @@ class KRRenderContextParams {
             }
         }
         context_code_ = page_data_map["contextCode"]->toString();
+        
+        // 获取 turboDisplayKey
+        auto turbo_key_it = page_data_map.find("turboDisplayKey");
+        if (turbo_key_it != page_data_map.end() && turbo_key_it->second) {
+            turbo_display_key_ = turbo_key_it->second->toString();
+        }
     }
     const std::string &PageName() const {
         return page_name_;
@@ -73,6 +79,10 @@ class KRRenderContextParams {
         return config_->GetWindowId();
     }
 
+    const std::string &TurboDisplayKey() const {
+        return turbo_display_key_;
+    }
+
     KRRenderContextParams(const KRRenderContextParams &) = delete;
     KRRenderContextParams &operator=(const KRRenderContextParams &) = delete;
 
@@ -91,5 +101,7 @@ class KRRenderContextParams {
     std::shared_ptr<KRRenderValue> page_data_;
     /** 配置数据 */
     std::shared_ptr<KRConfig> config_;
+    /** TurboDisplay 缓存键（可选） */
+    std::string turbo_display_key_;
 };
 #endif  // CORE_RENDER_OHOS_KRRENDERCONTEXTPARAMS_H

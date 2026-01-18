@@ -379,3 +379,10 @@ std::shared_ptr<IKRRenderModuleExport> KRRenderLayerHandler::GetModuleOrCreate(c
     }
     return module;
 }
+
+void KRRenderLayerHandler::updateViewTagWithCurTag(int oldTag, int newTag) {
+    auto renderView = this->GetRenderView(oldTag);
+    if (renderView) {
+        view_registry_[newTag] = renderView;
+    }
+}

@@ -35,7 +35,13 @@ class IKRRenderLayer {
      * @param rootView 渲染根容器view
      */
     virtual void Init(std::weak_ptr<IKRRenderView> root_view, std::shared_ptr<KRRenderContextParams> &context) = 0;
-
+    
+    /**
+     * 初始化完成后调用（对齐 Android/iOS 的 didInit）
+     * 用于读取缓存、注册 UIScheduler 回调等操作
+     */
+    virtual void DidInit() = 0;
+    
     /**
      * 创建渲染视图
      * @param tag 视图 ID
@@ -194,5 +200,10 @@ class IKRRenderLayer {
      * 销毁时调用，用于清理资源
      */
     virtual void OnDestroy() = 0;
+    
+    /** 
+     * 更新View Tag
+     */
+    virtual void updateViewTagWithCurTag(int oldTag, int newTag) = 0;
 };
 #endif  // CORE_RENDER_OHOS_IKRRENDERLAYER_H

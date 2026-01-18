@@ -92,6 +92,8 @@ export const KRSystemLanguageKey = 'sysLang';
 
 export const KRFeature = 'feature';
 
+export const KRTurboDisplayKey = 'turboDisplayKey';
+
 const KROnBackPressedKey = 'onBackPressed';
 
 enum KRBackPressConsumedState {
@@ -132,6 +134,11 @@ export class KRNativeRenderController {
    * 所在的窗口Id
    */
   windowId: string = ""
+  /**
+   * TurboDisplay Key，页面启用TurboDisplay加载标识 / TurboDisplay缓存Key来源
+   * 如果设置了此值且不为空，将启用 TurboDisplay 首屏优化
+   */
+  turboDisplayKey: string = '';
 
   private lifecycleCallbacks: Array<IKuiklyRenderViewLifecycleCallback> = [];
 
@@ -648,6 +655,10 @@ export class KRNativeRenderController {
     pageData[KRFeature] = {
       "box_shadow_fill" : 1
     };
+    // pageData 添加 TurboDisplay Key
+    if (this.turboDisplayKey && this.turboDisplayKey.length > 0) {
+      pageData[KRTurboDisplayKey] = this.turboDisplayKey;
+    }
     return JSON.stringify(pageData);
   }
 

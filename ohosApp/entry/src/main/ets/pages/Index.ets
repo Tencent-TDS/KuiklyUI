@@ -79,6 +79,7 @@ struct Index {
         Kuikly({
           pageName: this.pageName ?? 'router',
           pageData: this.pageData ?? {},
+          turboDisplayKey: this.pageName ?? 'router',   // 设置PageName启用TurboDisplay加载页面
           delegate: this.kuiklyViewDelegate,
           contextCode: this.contextCode,
           executeMode: this.contextCodeHandler.getExecuteMode(this.contextCode),

@@ -30,6 +30,17 @@ NS_ASSUME_NONNULL_BEGIN
  * @brief 缓存node
  */
 - (void)cacheWithViewNode:(KRTurboDisplayNode *)viewNode cacheKey:(NSString *)key;
+
+/*
+ * @brief 原子性缓存：同时写入 TB 缓存和额外缓存（强烈推荐使用此方法）
+ * @param viewNode TB 节点树
+ * @param cacheKey 缓存key
+ * @param extraCacheContent 额外缓存内容（JSON字符串）
+ * @note 此方法确保 TB 缓存和 extra 缓存在同一个异步任务中顺序写入，避免竞态条件
+ * 场景：用户在 ScrollEnd 后立即杀死 App，如果分开写入可能导致只写入了 extra 而 TB 未写入
+ */
+- (void)cacheWithViewNode:(KRTurboDisplayNode *)viewNode cacheKey:(NSString *)cacheKey extraCacheContent:(NSString * _Nullable)extraCacheContent;
+
 /*
  * @brief 获取缓存node（注：获取之后内部自动删除，避免缓存文件有问题时一直处于问题）
  */
@@ -55,12 +66,33 @@ NS_ASSUME_NONNULL_BEGIN
  */
 - (void)cacheWithViewNodeData:(NSData *)nodeData cacheKey:(NSString *)cacheKey;
 
+/*
+ * @brief 缓存node + 额外缓存内容
+ * @param extraCacheContent 额外缓存内容（JSON字符串），格式为 { "tag": { "viewName": "xxx", ... } }
+ */
+- (void)cacheWithExtraCacheContent:(NSString * _Nullable)extraCacheContent cacheKey:(NSString *)cacheKey;
+
+/*
+ * @brief 获取额外缓存内容的cacheKey（基于主缓存key派生额外属性缓存时用的key）
+ */
+- (NSString *)extraCacheKeyFromMainCacheKey:(NSString *)mainCacheKey;
+
+/**
+ * @brief 仅读取额外缓存内容（轻量级，用于initView时机）
+ * @param cacheKey 缓存key
+ * @return 额外缓存内容JSON字符串，不存在则返回nil
+ * @note 此方法不会删除缓存文件，删除操作在nodeWithCachKey:中统一处理
+ */
+- (nullable NSString *)extraCacheContentWithCacheKey:(NSString *)cacheKey;
+
 @end
 
 @interface KRTurboDisplayCacheData : NSObject
 
 @property (nonatomic, strong, nullable) KRTurboDisplayNode *turboDisplayNode;
 @property (nonatomic, strong, nullable) NSData *turboDisplayNodeData;
+/** 额外缓存内容（JSON字符串），用于存储业务自定义的View属性（如ListView的offset） */
+@property (nonatomic, strong, nullable) NSString *extraCacheContent;
 
 @end
 

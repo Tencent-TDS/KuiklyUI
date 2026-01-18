@@ -14,21 +14,22 @@
  */
 
 #import <Foundation/Foundation.h>
-#import "KRBaseModule.h"
-NS_ASSUME_NONNULL_BEGIN
-/** 设置当前UI作为TurboDisplay首屏通知（可携带额外缓存内容） */
-extern NSString *const kSetCurrentUIAsFirstScreenForNextLaunchNotificationName;
-/** 关闭TurboDisplay模式通知 */
-extern NSString *const kCloseTurboDisplayNotificationName;
-/** 清除当前页面TurboDisplay缓存通知 */
-extern NSString *const kClearCurrentPageCacheNotificationName;
 
-/*
- * @brief TurboDisplay首屏直出渲染模式（通过直接执行二进制产物渲染生成首屏，避免业务代码执行后再生成的首屏等待耗时）
+NS_ASSUME_NONNULL_BEGIN
+
+/**
+ * @brief TurboDisplay状态恢复协议
+ * 用于在TB首屏渲染后恢复View的状态（如offset等非属性的状态量）
  */
-@interface KRTurboDisplayModule : KRBaseModule
-/// 首屏使用了TurboDisplay
-@property (nonatomic, assign) BOOL firstScreenTurboDisplay;
+@protocol KRTurboDisplayStateRestorableProtocol <NSObject>
+
+@required
+/**
+ * @brief 应用额外缓存内容（恢复状态）
+ * @param extraCacheProps 该View对应的缓存属性字典（不含viewName）
+ *        例如：{ "contentOffsetX": 0, "contentOffsetY": 350.5 }
+ */
+- (void)applyTurboDisplayExtraCacheContent:(NSDictionary *)extraCacheProps;
 
 @end
 

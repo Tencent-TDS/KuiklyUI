@@ -28,6 +28,7 @@
 #import "KuiklyRenderFrameworkContextHandler.h"
 #import "KuiklyCoreDefine.h"
 #import "KRBackPressModule.h"
+#import "KRTurboDisplayConfig.h"
 #define KRWeakSelf __weak typeof(self) weakSelf = self;
 
 #define VIEW_DID_APPEAR @"viewDidAppear"
@@ -371,6 +372,14 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     return nil;
 }
 
+// 新增：返回 TurboDisplay 配置实例
+- (KRTurboDisplayConfig *)turboDisplayConfig {
+    if ([self.delegate respondsToSelector:@selector(configureTurboDisplay)]) {
+        KRTurboDisplayConfig *config = [self.delegate configureTurboDisplay];
+        return config ? [config copy] : nil;
+    }
+    return nil;
+}
 #pragma mark - exception handle
 
 - (void)setExceptionBlock:(KuiklyRenderView *)view {

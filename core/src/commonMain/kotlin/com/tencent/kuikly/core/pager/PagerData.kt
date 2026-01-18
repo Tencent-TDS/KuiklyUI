@@ -85,6 +85,10 @@ class PageData(scope: PagerScope) {
 
     private var feature: JSONObject? = null
 
+    var customFirstScreenTag: String = ""
+        private set
+
+
     fun init(pageData: JSONObject) {
         this.rawPageData = pageData
         pageViewWidth = pageData.optDouble(ROOT_VIEW_WIDTH).toFloat()
@@ -106,6 +110,7 @@ class PageData(scope: PagerScope) {
         activityWidth = pageData.optDouble(ACTIVITY_WIDTH, if (isMoreThan8()) deviceWidth.toDouble() else 0.0).toFloat()
         activityHeight = pageData.optDouble(ACTIVITY_HEIGHT, if (isMoreThan8()) deviceHeight.toDouble() else 0.0).toFloat()
         isAccessibilityRunning = pageData.optInt(ACCESSIBILITY_RUNNING, 0).toBoolean()
+        customFirstScreenTag = pageData.optString(CUSTOM_FIRSTSCREEN_TAG, "")
 
         val safeAreaInsetsString = pageData.optString(SAFE_AREA_INSETS, "")
         if (safeAreaInsetsString.isNotEmpty()) {
@@ -195,5 +200,6 @@ class PageData(scope: PagerScope) {
         const val PLATFORM_OHOS = "ohos"
         const val PLATFORM_WEB = "web"
         const val PLATFORM_MINIAPP = "miniprogram"
+        const val CUSTOM_FIRSTSCREEN_TAG = "customFirstScreenTag"
     }
 }

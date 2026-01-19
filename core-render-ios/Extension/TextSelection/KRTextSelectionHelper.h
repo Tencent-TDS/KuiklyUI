@@ -115,6 +115,26 @@ typedef NS_ENUM(NSInteger, KRTextSelectionType) {
 - (NSArray<NSString *> *)getSelectedTexts;
 
 /**
+ * Get the pre-selection content for context.
+ * Returns text before the selection in the start node, plus the previous Text node's text.
+ * @return An array where:
+ *         - First element: previous Text node's full text (if exists)
+ *         - Last element: text before selection in start label (could be "" if selection starts at beginning)
+ *         Special: If there are not enough previous Text nodes, returns all available nodes.
+ */
+- (NSArray<NSString *> *)getPreSelectionContent;
+
+/**
+ * Get the post-selection content for context.
+ * Returns text after the selection in the end node, plus the next Text node's text.
+ * @return An array where:
+ *         - First element: text after selection in end label (could be "" if selection ends at end)
+ *         - Last element: next Text node's full text (if exists)
+ *         Special: If there are not enough following Text nodes, returns all available nodes.
+ */
+- (NSArray<NSString *> *)getPostSelectionContent;
+
+/**
  * Get the bounding frame of the current selection.
  * @return The bounding frame in container coordinates.
  */

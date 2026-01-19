@@ -211,11 +211,19 @@ typedef NS_ENUM(NSInteger, KRSelectableOption) {
     
     KRTextSelectionHelper *helper = [self kr_textSelectionHelper];
     NSArray<NSString *> *texts = [helper getSelectedTexts];
+    NSArray<NSString *> *preContent = [helper getPreSelectionContent];
+    NSArray<NSString *> *postContent = [helper getPostSelectionContent];
+    
     NSDictionary *result = @{
-        @"content": texts ?: @[]
+        @"content": texts ?: @[],
+        @"preContent": preContent ?: @[],
+        @"postContent": postContent ?: @[]
     };
     
-    [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] getSelection count:%lu", (unsigned long)texts.count]];
+    [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] getSelection content:%lu pre:%lu post:%lu",
+                          (unsigned long)texts.count,
+                          (unsigned long)preContent.count,
+                          (unsigned long)postContent.count]];
     callback(result);
 }
 

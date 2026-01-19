@@ -692,6 +692,72 @@ static const CGFloat kMagnifierVerticalOffset = 60.0;
     return texts;
 }
 
+- (NSArray<NSString *> *)getPreSelectionContent {
+    if (!self.startLabel || self.startIndex < 0) {
+        return @[];
+    }
+    
+    NSMutableArray<NSString *> *preContent = [NSMutableArray array];
+    
+    // Find index of startLabel
+    NSInteger startLabelIndex = [self.labels indexOfObject:self.startLabel];
+    if (startLabelIndex == NSNotFound) {
+        return @[];
+    }
+    
+    // Add previous label's text if exists
+    if (startLabelIndex > 0) {
+        KRLabel *previousLabel = self.labels[startLabelIndex - 1];
+        NSString *previousText = previousLabel.textRender.textStorage.string;
+        [preContent addObject:previousText ?: @""];
+    }
+    
+    // Add text before selection in start label
+    // According to requirement b): if selection starts at index 0 (covers from beginning), this should be ""
+    NSString *startLabelText = self.startLabel.textRender.textStorage.string;
+    if (self.startIndex > 0 && self.startIndex <= startLabelText.length) {
+        [preContent addObject:[startLabelText substringToIndex:self.startIndex]];
+    } else {
+        // Selection starts at beginning, so preContent's last element is ""
+        [preContent addObject:@""];
+    }
+    
+    return preContent;
+}
+
+- (NSArray<NSString *> *)getPostSelectionContent {
+    if (!self.endLabel || self.endIndex < 0) {
+        return @[];
+    }
+    
+    NSMutableArray<NSString *> *postContent = [NSMutableArray array];
+    
+    // Find index of endLabel
+    NSInteger endLabelIndex = [self.labels indexOfObject:self.endLabel];
+    if (endLabelIndex == NSNotFound) {
+        return @[];
+    }
+    
+    // Add text after selection in end label
+    // According to requirement b): if selection ends at end of text (covers to end), this should be ""
+    NSString *endLabelText = self.endLabel.textRender.textStorage.string;
+    if (self.endIndex < endLabelText.length) {
+        [postContent addObject:[endLabelText substringFromIndex:self.endIndex]];
+    } else {
+        // Selection ends at end, so postContent's first element is ""
+        [postContent addObject:@""];
+    }
+    
+    // Add next label's text if exists
+    if (endLabelIndex < self.labels.count - 1) {
+        KRLabel *nextLabel = self.labels[endLabelIndex + 1];
+        NSString *nextText = nextLabel.textRender.textStorage.string;
+        [postContent addObject:nextText ?: @""];
+    }
+    
+    return postContent;
+}
+
 - (CGRect)getSelectionFrame {
     if (!self.startLabel || !self.endLabel || !self.containerView) {
         return CGRectZero;

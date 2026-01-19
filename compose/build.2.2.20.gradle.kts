@@ -53,32 +53,6 @@ kotlin {
             "plugin:androidx.compose.compiler.plugins.kotlin:experimentalStrongSkipping=true"
         )
     }
-//        freeCompilerArgs.addAll(listOf(
-//            "-Xinline-classes",
-//            "-opt-in=kotlin.ExperimentalStdlibApi",
-//            "-opt-in=kotlinx.cinterop.ExperimentalForeignApi",
-//            "-opt-in=kotlin.experimental.ExperimentalNativeApi",
-//            "-opt-in=kotlin.contracts.ExperimentalContracts",
-//            "-P", "plugin:androidx.compose.compiler.plugins.kotlin:experimentalStrongSkipping=true",
-//            "-Xcontext-receivers"
-//        ))
-//    targets.all {
-//        compilations.all {
-//            kotlinOptions {
-//                // 设置部分优化标志
-//                freeCompilerArgs += listOf(
-//                    "-Xinline-classes",
-//                    "-opt-in=kotlin.ExperimentalStdlibApi",
-//                    "-opt-in=kotlinx.cinterop.ExperimentalForeignApi",
-//                    "-opt-in=kotlin.experimental.ExperimentalNativeApi",
-//                    "-opt-in=kotlin.contracts.ExperimentalContracts",
-////                    "-P", "plugin:androidx.compose.compiler.plugins.kotlin:nonSkippingGroupOptimization=true",
-//                    "-P", "plugin:androidx.compose.compiler.plugins.kotlin:experimentalStrongSkipping=true",
-//                    "-Xcontext-receivers"
-//                )
-//            }
-//        }
-//    }
 
     sourceSets {
         all {

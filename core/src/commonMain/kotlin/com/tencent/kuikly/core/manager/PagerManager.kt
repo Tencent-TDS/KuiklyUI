@@ -23,6 +23,7 @@ import com.tencent.kuikly.core.global.GlobalFunctions
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.pager.IPager
 import com.tencent.kuikly.core.pager.PageCreateTrace
+import com.tencent.kuikly.core.pager.PageEventTrace
 import com.tencent.kuikly.core.reactive.ReactiveObserver
 import com.tencent.kuikly.core.utils.getParamFromUrl
 
@@ -34,6 +35,15 @@ object PagerManager {
 
     fun getPager(pagerId: String): IPager {
         return pagerMap[pagerId] ?: throw PagerNotFoundException("pager not found: $pagerId")
+    }
+
+    fun getPagerEventTrace(pagerId: String) : PageEventTrace? {
+        try {
+            return getPager(pagerId).getPageTrace()?.pageEventTrace
+        }catch (e: Throwable){
+            // noop
+        }
+        return null
     }
 
     fun isPagerCreatorExist(pageName: String): Boolean {
@@ -56,6 +66,8 @@ object PagerManager {
     ) {
         val pageTrace = PageCreateTrace()
         val pagerName = pageNameFromUrl(url)
+        pageTrace.pageName = pagerName
+        pageTrace.pageId = pagerId
         reactiveObserverMap[pagerId] = ReactiveObserver()
 
         pageTrace.onNewPageStart()

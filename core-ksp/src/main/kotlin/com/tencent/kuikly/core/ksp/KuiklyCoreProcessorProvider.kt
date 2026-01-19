@@ -116,32 +116,33 @@ class CoreProcessor(
         val isMainModule = option["isMainModule"]?.toBoolean() ?: false
         val subModules = option["subModules"] ?: ""
         val moduleId = option["moduleId"] ?: ""
+        val caughtException = option["caughtException"]?.toBoolean() ?: (option["catchException"]?.toBoolean() ?: true)
         val outputSourceSet =
             codeGenerator.generatedFile.first().toString().sourceSetBelow("ksp")
         return when {
             outputSourceSet.androidJVMFamily() -> {
                 if (enableMultiModule) {
-                    AndroidMultiEntryBuilder(isMainModule, subModules, moduleId)
+                    AndroidMultiEntryBuilder(caughtException, isMainModule, subModules, moduleId)
                 } else {
-                    AndroidTargetEntryBuilder()
+                    AndroidTargetEntryBuilder(caughtException)
                 }
             }
             outputSourceSet.iosFamily() -> {
                 if (enableMultiModule) {
-                    IOSMultiTargetEntryBuilder(isMainModule, subModules, moduleId)
+                    IOSMultiTargetEntryBuilder(caughtException, isMainModule, subModules, moduleId)
                 } else {
-                    IOSTargetEntryBuilder()
+                    IOSTargetEntryBuilder(caughtException)
                 }
             }
             outputSourceSet.ohosFamily() -> {
                 if (enableMultiModule) {
-                    OhOsTargetMultiEntryBuilder(isMainModule, subModules, moduleId)
+                    OhOsTargetMultiEntryBuilder(caughtException, isMainModule, subModules, moduleId)
                 }else{
-                    OhOsTargetEntryBuilder()
+                    OhOsTargetEntryBuilder(caughtException)
                 }
             }
             else -> {
-                AndroidTargetEntryBuilder()
+                AndroidTargetEntryBuilder(caughtException)
             }
         }
     }

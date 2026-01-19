@@ -25,7 +25,7 @@ import com.squareup.kotlinpoet.asTypeName
 /**
  * Created by kamlin on 2024/6/5.
  */
-class OhOsTargetMultiEntryBuilder(private val isMainModule: Boolean, private val subModules: String, private val moduleId: String) : KuiklyCoreAbsEntryBuilder() {
+class OhOsTargetMultiEntryBuilder(private val catchException: Boolean, private val isMainModule: Boolean, private val subModules: String, private val moduleId: String) : KuiklyCoreAbsEntryBuilder() {
     override fun build(builder: FileSpec.Builder, pagesAnnotations: List<PageInfo>) {
         with(builder) {
             if(!isMainModule){
@@ -61,14 +61,14 @@ class OhOsTargetMultiEntryBuilder(private val isMainModule: Boolean, private val
             .returns(Int::class)
             .addStatement(
                 "if (!BridgeManager.isDidInit()) {\n" +
-                        "BridgeManager.init()\n"
+                        "BridgeManager.init(${catchException})\n"
             )
             .addRegisterPageRouteStatement(pagesAnnotations)
             .addSubModuleStatement()
             .addStatement("}\n")
             .addStatement("""
                 return com_tencent_kuikly_SetCallKotlin(staticCFunction { methodId, arg0, arg1, arg2, arg3, arg4, arg5 ->
-                            try {
+                            val callKotlinClosure = {
                                 if (methodId == KotlinMethod.CREATE_INSTANCE) {
                                     val nativeBridge = NativeBridge()
                                     nativeBridge.callNativeCallback = { methodId, arg0, arg1, arg2, arg3, arg4, arg5 ->
@@ -85,8 +85,15 @@ class OhOsTargetMultiEntryBuilder(private val isMainModule: Boolean, private val
                                      arg4.toAny(),
                                      arg5.toAny()
                                 )
-                            } catch(t: Throwable){
-                                ExceptionTracker.notifyKuiklyException(t)
+                            }
+                            if(BridgeManager.catchException){
+                                try {
+                                    callKotlinClosure()
+                                } catch(t: Throwable){
+                                    ExceptionTracker.notifyKuiklyException(t)
+                                }
+                            }else{
+                                callKotlinClosure()
                             }
                 })
             """.trimIndent())

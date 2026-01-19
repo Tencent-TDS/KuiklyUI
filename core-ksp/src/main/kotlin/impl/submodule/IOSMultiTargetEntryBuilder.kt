@@ -22,7 +22,7 @@ import impl.PageInfo
 /**
  * Created by kam on 2022/6/25.
  */
-class IOSMultiTargetEntryBuilder(private val isMainModule: Boolean, private val subModules: String, private val moduleId: String) : IOSTargetEntryBuilder() {
+class IOSMultiTargetEntryBuilder(private val catchException: Boolean, private val isMainModule: Boolean, private val subModules: String, private val moduleId: String) : IOSTargetEntryBuilder(catchException) {
 
     override fun build(builder: FileSpec.Builder, pagesAnnotations: List<PageInfo>) {
         if (!isMainModule) {

@@ -23,10 +23,14 @@ fun CoroutineScope.launch(
 ): Job {
     val job = StandaloneCoroutine(context)
     job.start(start, job) {
-        try {
+        if (BridgeManager.catchException) {
+            try {
+                block.invoke(this)
+            } catch (e: Throwable) {
+                throwCoroutineScopeException(e)
+            }
+        }else{
             block.invoke(this)
-        } catch (e: Throwable) {
-            throwCoroutineScopeException(e)
         }
     }
     return job
@@ -39,12 +43,16 @@ fun <T> CoroutineScope.async(
 ): Deferred<T> {
     val job = DeferredCoroutine<T>(context)
     job.start(start, job) {
-        try {
+        if (BridgeManager.catchException) {
+            try {
+                block.invoke(this)
+            } catch (e: Throwable) {
+                throwCoroutineScopeException(e)
+                val res: T? = null
+                res!!// 解决编译返回，不影响报错结果
+            }
+        }else{
             block.invoke(this)
-        } catch (e: Throwable) {
-            throwCoroutineScopeException(e)
-            val res: T? = null
-            res!!// 解决编译返回，不影响报错结果
         }
     }
     return job
@@ -66,7 +74,20 @@ suspend fun CoroutineScope.delay(timeMs: Int) {
         aj?.registerCancellable(cont)
         var ref: String? = null
         ref = setTimeout(pagerId, timeMs) {
-            try {
+            if (BridgeManager.catchException) {
+                try {
+                    if (aj != null && !aj.isActive) {
+                        return@setTimeout
+                    }
+                    ref?.let {
+                        aj?.unregisterTimeout(it)
+                    }
+                    aj?.unregisterCancellable(cont)
+                    cont.resume(Unit)
+                } catch (e: Throwable) {
+                    throwCoroutineScopeException(e)
+                }
+            } else {
                 if (aj != null && !aj.isActive) {
                     return@setTimeout
                 }
@@ -75,8 +96,6 @@ suspend fun CoroutineScope.delay(timeMs: Int) {
                 }
                 aj?.unregisterCancellable(cont)
                 cont.resume(Unit)
-            } catch (e: Throwable) {
-                throwCoroutineScopeException(e)
             }
         }
         ref?.let {

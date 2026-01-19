@@ -86,6 +86,7 @@ abstract class KuiklyCoreAbsEntryBuilder {
         const val PACKAGE_NAME_NVI = "com.tencent.kuikly.core.nvi"
 
         const val FUNC_NAME_CALL_KT_METHOD = "callKotlinMethod"
+        const val FUNC_NAME_CATCH_EXCEPTION_METHOD = "catchException"
     }
 
 }

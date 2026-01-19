@@ -22,9 +22,11 @@ import kotlin.concurrent.AtomicReference
 object ExceptionTracker {
 
     init {
-        wrapUnhandledExceptionHook { throwable ->
-            val info = throwable.stackTraceToString()
-            BridgeManager.callExceptionMethod(info)
+        if (BridgeManager.catchException) {
+            wrapUnhandledExceptionHook { throwable ->
+                val info = throwable.stackTraceToString()
+                BridgeManager.callExceptionMethod(info)
+            }
         }
     }
 

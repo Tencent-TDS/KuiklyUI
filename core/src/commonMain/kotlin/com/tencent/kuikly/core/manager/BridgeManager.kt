@@ -61,12 +61,24 @@ object BridgeManager {
     private val nativeBridgeMap = fastMutableMapOf<String, NativeBridge>()
     private val callObserverMap = fastMutableMapOf<String, IBridgeCallObserver>()
 
+    var catchException = true
+        private set
+
     fun isDidInit(): Boolean {
         return didInit
     }
 
-    fun init() {
+    fun init(catchException: Boolean) {
         didInit = true
+        this.catchException = catchException
+    }
+
+    @Deprecated(
+        "Use BridgeManager.init(Boolean) instead",
+        level = DeprecationLevel.HIDDEN
+    )
+    fun init() {
+        init(true)
     }
 
     fun registerNativeBridge(instanceId: String, nativeBridge: NativeBridge) {

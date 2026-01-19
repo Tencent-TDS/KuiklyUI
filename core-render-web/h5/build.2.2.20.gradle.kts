@@ -39,12 +39,10 @@ publishing {
 kotlin {
     js(IR) {
         outputModuleName.set("KuiklyCore-render-web-h5")
-//        moduleName = "KuiklyCore-render-web-h5"
         // Output build products that support browser execution
         browser {
             webpackTask {
                 mainOutputFileName.set("${outputModuleName}.js") // Final output name
-//                outputFileName = "${moduleName}.js" // Final output name
             }
 
             commonWebpackConfig {

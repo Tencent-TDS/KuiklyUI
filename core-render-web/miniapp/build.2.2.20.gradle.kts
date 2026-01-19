@@ -37,12 +37,10 @@ publishing {
 kotlin {
     js(IR) {
         outputModuleName.set("KuiklyCore-render-web-miniapp")
-//        moduleName = "KuiklyCore-render-web-miniapp"
         // Output build products that support browser execution
         browser {
             webpackTask {
                 mainOutputFileName.set("${outputModuleName}.js") // Final output name
-//                outputFileName = "${moduleName}.js" // Final output name
             }
 
             commonWebpackConfig {

@@ -25,7 +25,7 @@ import com.squareup.kotlinpoet.asTypeName
 /**
  * Created by kamlin on 2024/6/5.
  */
-class OhOsTargetEntryBuilder : KuiklyCoreAbsEntryBuilder() {
+class OhOsTargetEntryBuilder(private val catchException: Boolean) : KuiklyCoreAbsEntryBuilder() {
     override fun build(builder: FileSpec.Builder, pagesAnnotations: List<PageInfo>) {
         with(builder) {
             builder.addImport("com.tencent.kuikly.core.exception", "ExceptionTracker")
@@ -57,13 +57,13 @@ class OhOsTargetEntryBuilder : KuiklyCoreAbsEntryBuilder() {
             .returns(Int::class)
             .addStatement(
                 "if (!BridgeManager.isDidInit()) {\n" +
-                        "BridgeManager.init()\n"
+                        "BridgeManager.init(${catchException})\n"
             )
             .addRegisterPageRouteStatement(pagesAnnotations)
             .addStatement("}\n")
             .addStatement("""
                 return com_tencent_kuikly_SetCallKotlin(staticCFunction { methodId, arg0, arg1, arg2, arg3, arg4, arg5 ->
-                            try {
+                            val callKotlinClosure = {
                                 if (methodId == KotlinMethod.CREATE_INSTANCE) {
                                     val nativeBridge = NativeBridge()
                                     nativeBridge.callNativeCallback = { methodId, arg0, arg1, arg2, arg3, arg4, arg5 ->
@@ -80,8 +80,16 @@ class OhOsTargetEntryBuilder : KuiklyCoreAbsEntryBuilder() {
                                      arg4.toAny(),
                                      arg5.toAny()
                                 )
-                            } catch(t: Throwable){
-                                ExceptionTracker.notifyKuiklyException(t)
+                            }
+                             
+                            if (BridgeManager.catchException){
+                                try {
+                                    callKotlinClosure()
+                                } catch(t: Throwable){
+                                    ExceptionTracker.notifyKuiklyException(t)
+                                }
+                            }else{
+                                callKotlinClosure()
                             }
                 })
             """.trimIndent())

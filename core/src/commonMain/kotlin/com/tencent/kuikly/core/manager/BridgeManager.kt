@@ -61,12 +61,16 @@ object BridgeManager {
     private val nativeBridgeMap = fastMutableMapOf<String, NativeBridge>()
     private val callObserverMap = fastMutableMapOf<String, IBridgeCallObserver>()
 
+    var catchException = true
+        private set
+
     fun isDidInit(): Boolean {
         return didInit
     }
 
-    fun init() {
+    fun init(catchException: Boolean) {
         didInit = true
+        this.catchException = catchException
     }
 
     fun registerNativeBridge(instanceId: String, nativeBridge: NativeBridge) {

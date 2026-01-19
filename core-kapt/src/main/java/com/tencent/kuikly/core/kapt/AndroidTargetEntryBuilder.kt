@@ -117,7 +117,7 @@ open class AndroidTargetEntryBuilder : KuiklyCoreAbsEntryBuilder() {
                 FunSpec.builder("registerAllPages")
                     .addStatement(
                         "if (!BridgeManager.isDidInit()) {\n" +
-                                "BridgeManager.init()\n"
+                                "BridgeManager.init(true)\n"
                     )
                     .addRegisterPageRouteStatement(pagesAnnotations)
                     .addStatement("}\n")

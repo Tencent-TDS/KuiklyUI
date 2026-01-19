@@ -73,6 +73,14 @@ object BridgeManager {
         this.catchException = catchException
     }
 
+    @Deprecated(
+        "Use BridgeManager.init(Boolean) instead",
+        level = DeprecationLevel.HIDDEN
+    )
+    fun init() {
+        init(true)
+    }
+
     fun registerNativeBridge(instanceId: String, nativeBridge: NativeBridge) {
         nativeBridgeMap[instanceId] = nativeBridge
     }

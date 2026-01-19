@@ -20,7 +20,6 @@
 #include <stddef.h>
 #include <arkui/drawable_descriptor.h>
 #include <arkui/native_type.h>
-#include "libohos_render/foundation/KRCommon.h"
 
 #include "KRAnyData.h"
 

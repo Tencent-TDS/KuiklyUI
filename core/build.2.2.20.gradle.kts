@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.konan.target.Family
 
@@ -40,6 +42,9 @@ kotlin {
     androidTarget {
         publishLibraryVariantsGroupedByFlavor = true
         publishLibraryVariants("release")
+        compilerOptions {
+            jvmDefault.set(JvmDefaultMode.DISABLE)
+        }
     }
 
     iosSimulatorArm64()

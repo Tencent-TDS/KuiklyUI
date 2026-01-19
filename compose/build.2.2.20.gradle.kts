@@ -15,14 +15,8 @@ kotlin {
     androidTarget {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_1_8)
-            jvmDefault.set(JvmDefaultMode.ENABLE)
+            jvmDefault.set(JvmDefaultMode.NO_COMPATIBILITY)
         }
-//        compilations.all {
-//            kotlinOptions {
-//                jvmTarget = "1.8"
-//                freeCompilerArgs += "-Xjvm-default=all"
-//            }
-//        }
         publishLibraryVariantsGroupedByFlavor = true
         publishLibraryVariants("release")
     }

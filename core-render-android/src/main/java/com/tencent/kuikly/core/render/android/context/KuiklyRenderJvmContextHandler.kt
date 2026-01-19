@@ -42,7 +42,12 @@ class KuiklyRenderJvmContextHandler : KuiklyRenderCommonContextHandler(), IKuikl
         arg4: Any?,
         arg5: Any?
     ) {
-        if (kuiklyCoreEntry.catchException()){
+        val catch = try {
+            kuiklyCoreEntry.catchException()
+        } catch (t: Throwable) {
+            true
+        }
+        if (catch){
             try {
                 kuiklyCoreEntry.callKotlinMethod(methodId, arg0, arg1, arg2, arg3, arg4, arg5)
             } catch (t: Throwable) {

@@ -27,6 +27,7 @@ import android.text.Editable
 import android.text.InputFilter
 import android.text.InputType
 import android.text.Spannable
+import android.text.SpannableString
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.TextWatcher
@@ -266,8 +267,14 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
 
     private fun setInputText(params: String?) {
         val text = params ?: KRCssConst.EMPTY_STRING
-        super.setText(text)
-        setSelection(text.length)
+        lineHeightSpan?.let { span ->
+            val spannable = SpannableString(text)
+            if (text.isNotEmpty()) {
+                spannable.setSpan(span, 0, text.length, Spanned.SPAN_EXCLUSIVE_INCLUSIVE)
+            }
+            super.setText(spannable, BufferType.EDITABLE)
+        } ?: super.setText(text, BufferType.EDITABLE)
+        setSelection(getText()?.length ?: 0)
     }
 
     private fun setEditable(value: Any): Boolean {

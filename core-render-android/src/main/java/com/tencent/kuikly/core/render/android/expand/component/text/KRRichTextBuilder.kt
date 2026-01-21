@@ -76,14 +76,19 @@ class KRRichTextBuilder(private val kuiklyContext: IKuiklyRenderContext?) {
         if (spanValues == null || spanValues.length() == 0) {
             return null
         }
+        
         val spannedBuilder = SpannableStringBuilder()
+        // 记录上一个 Span 的属性，用于处理换行符行高问题
+        var lastSpanProps: SpanProps? = null
+        
         for (index in 0 until spanValues.length()) {
             val spanValue = spanValues.optJSONObject(index) ?: JSONObject()
             val spanProps = parseSpanProps(spanValue, textProps)
             val spans = createSpans(spanProps, index, layoutSizeGetter)
+            
             if (spans.isNotEmpty()) {
+                val startPos = spannedBuilder.length
                 spannedBuilder.append(buildSpannedString {
-                    // 记录 Span 对应的文字范围
                     spanTextRanges.add(
                         SpanTextRange(
                             index,
@@ -95,8 +100,20 @@ class KRRichTextBuilder(private val kuiklyContext: IKuiklyRenderContext?) {
                         append(spanProps.text)
                     }
                 })
-
+                
+                // 换行符属于下一个 Span，但位于上一行末尾，会把当前 Span 的行高带到上一行
+                // 给换行符设置 LineBreakSpan，让它继承上一个 Span 的行高特性
+                if (lastSpanProps != null && spanProps.text.startsWith("\n")) {
+                    spannedBuilder.setSpan(
+                        LineBreakSpan(lastSpanProps),
+                        startPos,
+                        startPos + 1,
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                }
             }
+            // 更新lastSpanProps参与下一个span内容的判断
+            lastSpanProps = spanProps
         }
         if (textProps.richTextHeadIndent != 0) {
             spannedBuilder.setSpan(
@@ -529,6 +546,7 @@ class TextShadowSpan(
 
 /**
  * PlaceHolderSpan，用于实现空白区域占位
+ * 通过设置 FontMetrics 让文本垂直中心与占位符垂直中心对齐，与 iOS/OHOS 行为一致
  */
 class KRPlaceholderSpan(private val spanProps: PlaceholderSpanProps): ReplacementSpan() {
 
@@ -539,17 +557,16 @@ class KRPlaceholderSpan(private val spanProps: PlaceholderSpanProps): Replacemen
         end: Int,
         fm: Paint.FontMetricsInt?
     ): Int {
-        val fontMetrics = paint.getFontMetricsInt(null)
-        // 如果 placeholder 高度比字体大，调整 FontMetrics 进行占位
-        if (spanProps.height > fontMetrics) {
-            if (fm != null) {
-                // 使用 bottom 作为 lineSpace
-                val lineSpace = fm.bottom
-                fm.top = -(fontMetrics + spanProps.height) / 2
-                fm.ascent = fm.top
-                fm.bottom = spanProps.height + fm.top + lineSpace
-                fm.descent = fm.bottom
-            }
+        if (fm != null) {
+            // 计算文本垂直中心位置，让占位符的垂直中心与之对齐
+            val paintFm = paint.fontMetricsInt
+            val textCenter = (paintFm.ascent + paintFm.descent) / 2
+            val halfHeight = spanProps.height / 2
+            
+            fm.ascent = textCenter - halfHeight
+            fm.top = fm.ascent
+            fm.descent = textCenter + (spanProps.height - halfHeight)
+            fm.bottom = fm.descent
         }
         return spanProps.width
     }
@@ -574,4 +591,54 @@ class KRPlaceholderSpan(private val spanProps: PlaceholderSpanProps): Replacemen
         return spanProps.height
     }
 
+}
+
+/**
+ * 换行符高度控制 Span，让换行符继承上一个 Span 的行高特性
+ * 防止换行符把当前 Span 的 FontMetrics 带到上一行，与 iOS/OHOS 行为一致
+ */
+class LineBreakSpan(private val previousSpanProps: SpanProps) : ReplacementSpan() {
+    
+    override fun getSize(
+        paint: Paint,
+        text: CharSequence?,
+        start: Int,
+        end: Int,
+        fm: Paint.FontMetricsInt?
+    ): Int {
+        if (fm != null) {
+            when (previousSpanProps) {
+                is PlaceholderSpanProps -> {
+                    // 让换行符的 FontMetrics 与上一个 PlaceholderSpan 一致
+                    val paintFm = paint.fontMetricsInt
+                    val textCenter = (paintFm.ascent + paintFm.descent) / 2
+                    val height = previousSpanProps.height
+                    val halfHeight = height / 2
+                    
+                    fm.ascent = textCenter - halfHeight
+                    fm.top = fm.ascent
+                    fm.descent = textCenter + (height - halfHeight)
+                    fm.bottom = fm.descent
+                }
+                is TextSpanProps -> {
+                    // TextSpan 情况保持默认行为，后续可按需扩展
+                }
+            }
+        }
+        return 0
+    }
+    
+    override fun draw(
+        canvas: Canvas,
+        text: CharSequence?,
+        start: Int,
+        end: Int,
+        x: Float,
+        top: Int,
+        y: Int,
+        bottom: Int,
+        paint: Paint
+    ) {
+        // 换行符是控制字符，不需要绘制任何内容
+    }
 }

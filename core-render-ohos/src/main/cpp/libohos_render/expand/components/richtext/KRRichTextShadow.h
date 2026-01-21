@@ -101,6 +101,9 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     OH_Drawing_Array *GetTextLines();
     
     void SetMainThreadTypography(OH_Drawing_Typography *typography) {
+        if(main_thread_typography_ == typography){
+            return;
+        }
         main_thread_typography_ = typography;
         DestroyCachedTextLines();
     }

@@ -21,6 +21,7 @@
 #include <rawfile/raw_file_manager.h>
 #include <thread>
 #include <memory>
+#include <map>
 #include <string>
 #include "libohos_render/api/include/Kuikly/Kuikly.h"
 #include "libohos_render/utils/KRRenderLoger.h"

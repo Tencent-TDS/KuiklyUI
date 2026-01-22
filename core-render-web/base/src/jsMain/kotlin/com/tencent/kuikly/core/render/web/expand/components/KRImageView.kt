@@ -30,6 +30,7 @@ open class KRImageView(
         imageElement.src = DEFAULT_SRC
         // Set load success callback, bind only once
         imageElement.addEventListener("load", {
+            imageElement.style.display = "block"
             // When loading succeeds, callback the actual image source content
             loadSuccessCallback?.invoke(
                 mapOf(

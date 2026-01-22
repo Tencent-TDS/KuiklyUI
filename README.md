@@ -142,7 +142,7 @@ Ensure environment preparation is complete before building:
 5. Connect to Ohos Phone or start the Ohos Emulator, and perform a signature operation `File -> Project Structure -> Signing Configs`
 6. Use DevEco Studio Run `entry`, Run OhosApp
 
-> Note: Windows compilation requires Kotlin toolchain version `2.0.21-KBA-010` which supports Windows platform.
+> Note: Windows compilation requires Kotlin toolchain version `2.0.21-KBA-010` which supports Windows/Linux platforms.
 
 ### Kotlin Version Support
 The KuiklyUI directory contains Gradle configurations for various `Kotlin versions`:

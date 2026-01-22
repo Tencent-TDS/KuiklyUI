@@ -6,7 +6,64 @@
 
 ## 属性
 
-支持所有[基础属性](basic-attr-event.md#基础属性)
+支持所有[基础属性](basic-attr-event.md#基础属性)，此外还支持：
+
+### initialDate
+
+设置日期选择器的初始选中日期。如果不设置，默认为当前日期。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| year | 年份 | Int |
+| month | 月份 (1-12) | Int |
+| day | 日 (1-31) | Int |
+
+也可以直接传入 `Date` 对象：
+
+```kotlin
+attr {
+    initialDate(2025, 1, 21) // 方式1：直接传入年月日
+    // 或者
+    initialDate(Date(2025, 1, 21)) // 方式2：传入Date对象
+}
+```
+
+### initialScrollAnimated
+
+设置初始滚动到指定日期时是否使用动画。
+
+| 值 | 描述 |
+| -- | -- |
+| `true` | 默认值，首次显示时有弹簧动画滚动到目标日期 |
+| `false` | 首次显示时直接定位到目标日期，无动画 |
+
+```kotlin
+attr {
+    initialDate(2025, 1, 21)
+    initialScrollAnimated = false  // 禁用初始滚动动画
+}
+```
+
+:::tip 动态刷新日期
+如需在运行时动态切换日期（如点击"近一月"按钮），可配合 `vbind` 使用：
+
+```kotlin
+private var selectedDate: Date by observable(Date(2025, 1, 22))
+
+// 在 body 中
+vbind({ selectedDate }) {
+    DatePicker {
+        attr {
+            initialDate(selectedDate)
+            // initialScrollAnimated 默认为 true，切换时会有动画效果
+        }
+    }
+}
+
+// 点击按钮时更新日期
+selectedDate = Date(2024, 12, 22)  // 触发 DatePicker 重新创建
+```
+:::
 
 ## 事件
 

@@ -47,7 +47,7 @@ class DatePickerDate(
 )
 
 /*
- * 日期选择器组件
+ * Date picker component
  */
 class DatePickerView: ComposeView<DatePickerAttr, DatePickerEvent>() {
     override fun createAttr() = DatePickerAttr()
@@ -123,6 +123,16 @@ class DatePickerView: ComposeView<DatePickerAttr, DatePickerEvent>() {
         if (nowYear < 1970) {
             return {}
         }
+        
+        // Use initialDate or current date as default
+        val initialDate = ctx.attr.initialDate ?: Date(
+            calendar.get(ICalendar.Field.YEAR),
+            calendar.get(ICalendar.Field.MONTH) + 1,
+            calendar.get(ICalendar.Field.DAY_OF_MONTH)
+        )
+        ctx.date = initialDate
+        ctx.chooseDate = initialDate
+        
         return {
             View {
                 attr {
@@ -137,13 +147,19 @@ class DatePickerView: ComposeView<DatePickerAttr, DatePickerEvent>() {
                 }
                 val yearListForShow = arrayListOf<String>()
                 yearListForShow.addAll(dataList.map { "${it}年" })
+                
+                // Calculate default index for year
+                val yearDefaultIndex = dataList.indexOf(initialDate.year.toString()).takeIf { it >= 0 }
+                
                 ScrollPicker(
-                    yearListForShow.toTypedArray()
+                    yearListForShow.toTypedArray(),
+                    yearDefaultIndex
                 ){
                     attr {
                         itemWidth = ctx.attr.width() / 3f
                         itemHeight = ITEM_HEIGHT
                         countPerScreen = 5
+                        initialScrollAnimated = ctx.attr.initialScrollAnimated
                     }
                     event {
                         dragEndEvent { centerValue, centerItemIndex ->
@@ -155,13 +171,19 @@ class DatePickerView: ComposeView<DatePickerAttr, DatePickerEvent>() {
                 val monthList = arrayListOf<Int>(1,2,3,4,5,6,7,8,9,10,11,12)
                 val monthListForShow = arrayListOf<String>()
                 monthListForShow.addAll(monthList.map { "${it}月" })
+                
+                // Calculate default index for month (month starts from 1, index starts from 0)
+                val monthDefaultIndex = (initialDate.month - 1).takeIf { it in 0..11 }
+                
                 ScrollPicker(
-                    monthListForShow.toTypedArray()
+                    monthListForShow.toTypedArray(),
+                    monthDefaultIndex
                 ){
                     attr {
                         itemWidth = ctx.attr.width() / 3f
                         itemHeight = ITEM_HEIGHT
                         countPerScreen = 5
+                        initialScrollAnimated = ctx.attr.initialScrollAnimated
                     }
                     event {
                         dragEndEvent { centerValue, centerItemIndex ->
@@ -177,13 +199,19 @@ class DatePickerView: ComposeView<DatePickerAttr, DatePickerEvent>() {
                     }
                     val dayListForShow = arrayListOf<String>()
                     dayListForShow.addAll(daysList.map { "${it}日" })
+                    
+                    // Calculate default index for day (day starts from 1, index starts from 0)
+                    val dayDefaultIndex = (initialDate.day - 1).takeIf { it >= 0 && it < daysList.size }
+                    
                     ScrollPicker(
-                        dayListForShow.toTypedArray()
+                        dayListForShow.toTypedArray(),
+                        dayDefaultIndex
                     ){
                         attr {
                             itemWidth = ctx.attr.width() / 3f
                             itemHeight = ITEM_HEIGHT
                             countPerScreen = 5
+                            initialScrollAnimated = ctx.attr.initialScrollAnimated
                         }
                         event {
                             dragEndEvent { centerValue, centerItemIndex ->
@@ -211,21 +239,49 @@ class DatePickerView: ComposeView<DatePickerAttr, DatePickerEvent>() {
 class DatePickerAttr: ComposeAttr() {
     fun width(): Float = flexNode?.styleWidth ?: 0.0f
     fun height(): Float = flexNode?.styleHeight ?: 0.0f
+
+    /**
+     * Initial date for setting the default selected date
+     */
+    internal var initialDate: Date? = null
+    
+    /**
+     * Whether to animate initial scroll, default true
+     */
+    var initialScrollAnimated: Boolean = true
+
+    /**
+     * Set the initial date of the date picker
+     * @param year Year
+     * @param month Month (1-12)
+     * @param day Day (1-31)
+     */
+    fun initialDate(year: Int, month: Int, day: Int) {
+        initialDate = Date(year, month, day)
+    }
+
+    /**
+     * Set the initial date of the date picker
+     * @param date Initial date
+     */
+    fun initialDate(date: Date) {
+        initialDate = date
+    }
 }
 
 class DatePickerEvent : ComposeEvent() {
     var chooseEvent: DatePickerChooseEvent? = null
 
     /**
-     * 设置日期选择器的选择事件。
-     * @param event 一个 DatePickerChooseEvent，当用户选择日期时触发。
+     * Set the date picker's selection event.
+     * @param event A DatePickerChooseEvent, triggered when user selects a date.
      */
     fun chooseEvent(event: DatePickerChooseEvent) {
         chooseEvent = event
     }
 }
 /*
- * 日期选择器组件
+ * Date picker component
  */
 fun ViewContainer<*, *>.DatePicker(init: DatePickerView.() -> Unit) {
     addChild(DatePickerView(), init)

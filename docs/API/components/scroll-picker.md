@@ -35,6 +35,15 @@
 
 每个item的文字色，`Color`类型
 
+### initialScrollAnimated
+
+初始滚动到 `defaultIndex` 时是否使用动画，`Boolean`类型，默认为 `true`
+
+| 值 | 描述 |
+| -- | -- |
+| `true` | 默认值，首次显示时有弹簧动画滚动到目标位置 |
+| `false` | 首次显示时直接定位到目标位置，无动画 |
+
 ## 事件
 
 支持所有[基础事件](basic-attr-event.md#基础事件)，此外还支持：

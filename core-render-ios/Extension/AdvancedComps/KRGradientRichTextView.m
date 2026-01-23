@@ -93,7 +93,10 @@
 - (void)p_setTextGradient {
     CAGradientLayer *gradientLayer = nil;
     for (CALayer *subLayer in self.layer.sublayers) {
-        if ([subLayer isKindOfClass:[CAGradientLayer class]]) {
+        // Exclude the layer of _contentTextView, 
+        // only look for layers specifically used for gradient background.
+        // Prevents misjudgment in case the host project globally sets layerClass to CAGradientLayer.
+        if ([subLayer isKindOfClass:[CAGradientLayer class]] && subLayer != _contentTextView.layer) {
             gradientLayer = (CAGradientLayer *)subLayer;
         }
     }

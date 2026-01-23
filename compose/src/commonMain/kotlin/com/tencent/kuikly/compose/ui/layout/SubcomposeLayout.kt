@@ -334,7 +334,7 @@ fun SubcomposeLayout(
         scrollViewRef?.listenScrollEvent()
     }
 
-    ComposeNode<KNode<*>, KuiklyApplier>(
+    ReusableComposeNode<KNode<*>, KuiklyApplier>(
         factory = {
             val newView = ScrollerView<ScrollerAttr, ScrollerEvent>()
             newScrollViewDetected = scrollViewRef !== newView

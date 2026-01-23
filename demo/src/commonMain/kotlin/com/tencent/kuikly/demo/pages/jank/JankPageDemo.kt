@@ -146,13 +146,12 @@ val cardListData = mutableListOf<ListItemData>().apply {
 @Stable
 @Composable
 fun RankingCardView(carIndex: Int) {
-    LazyRow(
+    // 使用普通 Row 代替 LazyRow，验证 LazyColumn 的复用是否生效
+    Row(
         modifier = Modifier.fillMaxWidth(),
     ) {
-        itemsIndexed(
-            items = cardListData,
-            key = { index, item -> "${item.id}" },
-            contentType = { index, item -> "RankingItem" }) { index, itemData ->
+        // 只显示前 5 个 item，避免 Row 过长
+        cardListData.take(5).forEachIndexed { index, itemData ->
             RankingItemView2(carIndex, index)
         }
     }

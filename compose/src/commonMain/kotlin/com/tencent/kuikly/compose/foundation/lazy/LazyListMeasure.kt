@@ -134,6 +134,12 @@ internal fun measureLazyList(
 
         // represents the real amount of scroll we applied as a result of this measure pass.
         var scrollDelta = scrollToBeConsumed.fastRoundToInt()
+        
+        // [TextPerfDebug] 记录当前滑动偏移量
+        if (scrollDelta != 0) {
+            val scrollDeltaDp = with(density) { scrollDelta.toDp() }
+            println("[TextPerfDebug][Scroll] scrollDelta=${scrollDelta}px (${scrollDeltaDp}) firstVisibleItemIndex=$currentFirstItemIndex")
+        }
 
         // applying the whole requested scroll offset. we will figure out if we can't consume
         // all of it later

@@ -714,8 +714,14 @@ internal class LayoutNodeSubcompositionsState(
                     precomposedCount--
                     precomposed
                 } else {
-                    takeNodeFromReusables(slotId)
-                        ?: createNodeAt(currentIndex)
+                    val reusedNode = takeNodeFromReusables(slotId)
+                    if (reusedNode != null) {
+                        println("[TextPerfDebug][Reuse] slotId=$slotId reused from pool, reusableCount=$reusableCount")
+                        reusedNode
+                    } else {
+                        println("[TextPerfDebug][NewSlot] slotId=$slotId created new, reusableCount=$reusableCount")
+                        createNodeAt(currentIndex)
+                    }
                 }
             }
 
@@ -826,6 +832,9 @@ internal class LayoutNodeSubcompositionsState(
             }
             slotReusePolicy.getSlotsToRetain(reusableSlotIdsSet)
 
+            val slotsToReuse = mutableListOf<Any?>()
+            val slotsToDispose = mutableListOf<Any?>()
+            
             // iterating backwards so it is easier to remove items
             var i = lastReusableIndex
             while (i >= startIndex) {
@@ -834,14 +843,18 @@ internal class LayoutNodeSubcompositionsState(
                 val slotId = nodeState.slotId
                 if (reusableSlotIdsSet.contains(slotId)) {
                     reusableCount++
+                    slotsToReuse.add(slotId)
                 } else {
                     nodeToNodeState.remove(node)
                     nodeState.composition?.dispose()
                     root.removeAt(i, 1)
+                    slotsToDispose.add(slotId)
                 }
                 slotIdToNode.remove(slotId)
                 i--
             }
+            
+            println("[TextPerfDebug][ToPool] startIndex=$startIndex lastReusableIndex=$lastReusableIndex slotsToReuse=${slotsToReuse.size}:$slotsToReuse disposed=${slotsToDispose.size}")
         }
     }
 

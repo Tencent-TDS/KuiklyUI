@@ -43,9 +43,12 @@ open class Shadow(private val pagerId: String, private val viewRef: Int, viewNam
         if (debugLogEnable) {
             pager.pageLayoutTracer.shadowCalculateStart()
         }
+        // [TextPerfDebug] 日志：记录 native 测量开始
+        println("[TextPerfDebug][NativeMeasure-Start] viewRef=$viewRef constraint=(w:$width, h:$height)")
         val sizeStr = BridgeManager.calculateRenderViewSize(pagerId, viewRef, width, height)
         if (sizeStr.isEmpty()) {
             KLog.e("Shadow", "calculateRenderViewSize sizeStr is empty")
+            println("[TextPerfDebug][NativeMeasure-End] viewRef=$viewRef result=EMPTY")
             if (debugLogEnable) {
                 pager.pageLayoutTracer.shadowCalculateFinish()
             }
@@ -55,6 +58,8 @@ open class Shadow(private val pagerId: String, private val viewRef: Int, viewNam
         if (debugLogEnable) {
             pager.pageLayoutTracer.shadowCalculateFinish()
         }
+        // [TextPerfDebug] 日志：记录 native 测量结束
+        println("[TextPerfDebug][NativeMeasure-End] viewRef=$viewRef result=(w:${parts[0]}, h:${parts[1]})")
         return Size(parts[0].toFloat(), parts[1].toFloat())
     }
 

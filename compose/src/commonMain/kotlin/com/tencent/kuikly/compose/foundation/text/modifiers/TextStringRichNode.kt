@@ -259,6 +259,10 @@ internal class TextStringRichNode(
         }
 
         val density = textView?.getPager()?.pagerDensity() ?: 3f
+        
+        // [TextPerfDebug] 日志：记录 Compose 层发起的测量，打印 viewRef 和文本内容
+        val viewRef = textView?.nativeRef ?: -1
+        println("[TextPerfDebug][ComposeMeasure] viewRef=$viewRef text=\"${text.text.take(20)}\" constraint=(w:${maxWidth.toFloat() / density}, h:${maxHeight.toFloat() / density})")
 
         val size = textView?.shadow?.calculateRenderViewSize(
             maxWidth.toFloat() / density,

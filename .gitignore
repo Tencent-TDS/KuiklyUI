@@ -45,3 +45,8 @@ proto/**/*.kt
 .kotlin
 /compose/compose.podspec
 /core/core.podspec
+/CLAUDE.md
+/AGENTS.md
+/.cursorignore
+/.claude
+/.build

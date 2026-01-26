@@ -97,6 +97,7 @@ typedef NS_ENUM(NSInteger, KRTextDecorationLineType) {
 + (UIAccessibilityTraits)kr_accessibilityTraits:(id)value;
 + (BOOL)hr_isJsonArray:(id)value;
 + (id)nativeObjectToKotlinObject:(id)ocObject;
++ (UIBezierPath *)parseClipPath:(NSString *)pathData density:(CGFloat)density;
 
 @end
 

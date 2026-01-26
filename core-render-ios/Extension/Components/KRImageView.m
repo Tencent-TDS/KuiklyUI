@@ -417,6 +417,12 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
         borderRadiusLayer = self.layer.mask;
         hasCornerMask = [self.layer.mask path] != NULL;
     }
+    
+    // 判断是否存在 clipPath 层
+    BOOL hasClipPathMask = NO;
+    if (self.layer.mask && [self.layer.mask isKindOfClass:[CSSClipPathLayer class]]) {
+        hasClipPathMask = YES;
+    }
 
     if (self.image && _css_maskLinearGradient.length) {
         // 置空mask
@@ -426,11 +432,21 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
         // 更新Layer的布局信息。时机上能够走到这里，已经设置完了图片的圆角、渐变色属性，此时view的布局信息已经都有了
         gradientLayer.frame = self.bounds;
         // 判断是否ImageView上同时设置了圆角和渐变色，如果是的话则创建组合Layer
-        if (hasCornerMask) {
+        if (hasClipPathMask || hasCornerMask) {
             CALayer *combinedMaskLayer = [CALayer layer];
             combinedMaskLayer.frame = self.bounds;
             [combinedMaskLayer addSublayer:gradientLayer];  // 将渐变层作为子层添加
-            combinedMaskLayer.mask = borderRadiusLayer;     // 将圆角mask应用到组合层上
+            
+            if (hasClipPathMask) {
+                CSSClipPathLayer *clipPathLayer = [[CSSClipPathLayer alloc] initWithClipPath:self.css_clipPath hostView:self];
+                // 必须设置 frame，否则 CSSClipPathLayer 的 path 不会被计算
+                // CSSClipPathLayer.updatePath 是在 setFrame: 中触发的
+                clipPathLayer.frame = self.bounds;
+                combinedMaskLayer.mask = clipPathLayer;
+            } else {
+                combinedMaskLayer.mask = borderRadiusLayer;     // 将圆角mask应用到组合层上
+            }
+            
             self.layer.mask = combinedMaskLayer;            // 设置ImageView.layer.mask为组合Layer
         } else {
             self.layer.mask = gradientLayer;                // 只有渐变，直接设置ImageView.layer.mask为组合Layer
@@ -439,8 +455,9 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
         [self.layer.mask layoutSublayers];
     } else {
         if (self.layer.mask) {
-            // 只有在没有圆角 mask 的情况下才清除
-            if (self.layer.mask && !hasCornerMask) {
+            // 只有在没有圆角 mask 和 clipPath mask 的情况下才清除
+            // clipPath 用于自定义形状裁剪（如星形），需要保留
+            if (self.layer.mask && !hasCornerMask && !hasClipPathMask) {
                 self.layer.mask = nil;
             }
         }

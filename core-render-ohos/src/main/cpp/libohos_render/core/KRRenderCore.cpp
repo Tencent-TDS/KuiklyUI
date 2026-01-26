@@ -19,6 +19,7 @@
 #include <memory>
 #include "libohos_render/foundation/KRRect.h"
 #include "libohos_render/layer/KRRenderLayerHandler.h"
+#include "libohos_render/layer/KRTurboDisplayRenderLayerHandler.h"
 #include "libohos_render/manager/KRArkTSManager.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"
 #include "libohos_render/utils/KRRenderLoger.h"
@@ -73,7 +74,23 @@ KRRenderCore::KRRenderCore(std::weak_ptr<IKRRenderView> renderView, std::shared_
     // 注册kotlin call native回调（走onCallNative接口）
     contextHandler_->RegisterCallNative(this);
     contextHandler_->Init(context_);
-    renderLayerHandler_ = std::make_shared<KRRenderLayerHandler>();
+
+    // 根据 turboDisplayKey 决定创建哪种 LayerHandler
+    std::string turboDisplayKey = context_->TurboDisplayKey();
+
+    if (!turboDisplayKey.empty()) {
+        KR_LOG_INFO << "[TurboDisplay-Init] ✅ TurboDisplay 模式启用，turboDisplayKey=" << turboDisplayKey;
+        auto turboHandler = std::make_shared<KRTurboDisplayRenderLayerHandler>();
+        
+        // ✅ 注入 UIScheduler（对齐 Android/iOS 的 uiScheduler?.performWhenViewDidLoad）
+        turboHandler->SetUIScheduler(uiScheduler_);
+        
+        renderLayerHandler_ = turboHandler;
+    } else {
+        KR_LOG_INFO << "[TurboDisplay-Init] ⚠️ TurboDisplay 模式未启用（turboDisplayKey 为空），使用普通渲染";
+        renderLayerHandler_ = std::make_shared<KRRenderLayerHandler>();
+    }
+
     renderLayerHandler_->Init(renderView, context);
 }
 
@@ -110,6 +127,11 @@ void KRRenderCore::DidInit() {
         auto end = std::chrono::steady_clock::now();
         strongSelf->uiScheduler_->PerformSyncMainQueueTasksBlockIfNeed(sync);
         strongSelf->notifyInitState(KRInitState::kStateCreateInstanceFinish);
+        
+        // ✅ 调用 renderLayerHandler_->DidInit()（对齐 Android/iOS）
+        KR_LOG_INFO << "[TurboDisplay-Init] 🚀 开始调用 renderLayerHandler_->DidInit()";
+        strongSelf->renderLayerHandler_->DidInit();
+        KR_LOG_INFO << "[TurboDisplay-Init] ✅ renderLayerHandler_->DidInit() 调用完成";
     });
     uiScheduler_->PerformMainThreadTaskWaitToSyncBlockIfNeed();
 }

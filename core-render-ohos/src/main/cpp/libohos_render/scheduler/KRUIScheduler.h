@@ -45,6 +45,9 @@ class KRUIScheduler : public IKRScheduler {
     void PerformWhenViewDidLoad(const KRSchedulerTask &task);
 
     void PerformTaskWhenDidEnd(const KRSchedulerTask &task);
+    
+    // 新增：立即标记首屏加载完成
+    void MarkViewDidLoad();
 
     void Destroy();
     void PerformMainThreadTaskWaitToSyncBlockIfNeed();
@@ -62,6 +65,9 @@ class KRUIScheduler : public IKRScheduler {
     void PerformOnMainQueueWithTask(bool sync, const std::function<void()> &task);
 
     void RunMainQueueTasks(const std::vector<KRSchedulerTask> &tasks);
+    
+    // 执行首屏加载后的待执行任务
+    void PerformViewDidLoadTasks();
 
     bool m_is_destroyed_ = false;
     KRSyncSchedulerTask m_need_sync_main_queue_tasks_block_ = nullptr;
@@ -74,6 +80,7 @@ class KRUIScheduler : public IKRScheduler {
     std::function<void()> m_main_thread_task_wait_to_sync_block_ = nullptr;
     std::mutex m_mutex_;
     bool m_view_did_load_ = false;
+    bool m_is_mark_view_did_load_ = false;      // 标记是否已调用 markViewDidLoad
 };
 
 #endif  // CORE_RENDER_OHOS_KRUISCHEDULER_H

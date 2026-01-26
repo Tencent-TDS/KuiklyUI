@@ -574,9 +574,17 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             // Calculate X-axis scaling
             var scaleX = sqrt(v00 * v00 + v01 * v01 + v02 * v02)
             // Normalize X-axis
-            v00 /= scaleX
-            v01 /= scaleX
-            v02 /= scaleX
+            if (!scaleX.approximatelyEqual(0f)) {
+                v00 /= scaleX
+                v01 /= scaleX
+                v02 /= scaleX
+            } else {
+                // When scaleX is zero, use default unit vector [1, 0, 0]
+                scaleX = 0f
+                v00 = 1f
+                v01 = 0f
+                v02 = 0f
+            }
             // Calculate XY shear
             val xy = v00 * v10 + v01 * v11 + v02 * v12
             // Calculate XY orthogonal component
@@ -586,9 +594,17 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             // Calculate Y-axis scaling
             var scaleY = sqrt(v10 * v10 + v11 * v11 + v12 * v12)
             // Normalize Y-axis
-            v10 /= scaleY
-            v11 /= scaleY
-            v12 /= scaleY
+            if (!scaleY.approximatelyEqual(0f)) {
+                v10 /= scaleY
+                v11 /= scaleY
+                v12 /= scaleY
+            } else {
+                // When scaleY is zero, use default unit vector [0, 1, 0]
+                scaleY = 0f
+                v10 = 0f
+                v11 = 1f
+                v12 = 0f
+            }
             // Calculate XZ shear
             val xz = v00 * v20 + v01 * v21 + v02 * v22
             // Calculate XZ orthogonal component
@@ -604,9 +620,17 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             // Calculate Z-axis scaling
             var scaleZ = sqrt(v20 * v20 + v21 * v21 + v22 * v22)
             // Normalize Z-axis
-            v20 /= scaleZ
-            v21 /= scaleZ
-            v22 /= scaleZ
+            if (!scaleZ.approximatelyEqual(0f)) {
+                v20 /= scaleZ
+                v21 /= scaleZ
+                v22 /= scaleZ
+            } else {
+                // When scaleZ is zero, use default unit vector [0, 1, 0]
+                scaleZ = 0f
+                v20 = 0f
+                v21 = 0f
+                v22 = 1f
+            }
 
             // Calculate rotation angles
             val rotateX = -atan2(v21, v22).toDegrees()

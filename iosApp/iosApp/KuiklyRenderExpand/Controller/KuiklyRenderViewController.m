@@ -23,6 +23,12 @@
 
 #import "KRConvertUtil.h"
 #import "UINavigationController+FDFullscreenPopGesture.h"
+#import <os/signpost.h>
+#import <sys/kdebug_signpost.h>
+
+// 外部声明，使用 RootViewController 中定义的性能分析日志
+extern os_log_t textPerfLog;
+extern os_signpost_id_t textPerfSignpostId;
 
 
 @interface Delegator  : NSObject<KRControllerDelegatorLifeCycleProtocol>
@@ -195,6 +201,23 @@
 }
 
 - (void)onPageLoadComplete:(BOOL)isSucceed error:(NSError *)error mode:(KuiklyContextMode)mode {
+    // Instruments 性能分析终点标识
+    if ([_pageName hasPrefix:@"TextPerf"]) {
+        if ([_pageName isEqualToString:@"TextPerfComposeDemo"]) {
+            os_signpost_interval_end(textPerfLog, textPerfSignpostId, "ComposeTextPerf", "End Compose DSL Text Performance Test");
+            // 发送终点 Point of Interest 事件
+            os_signpost_event_emit(textPerfLog, textPerfSignpostId, "ComposeTextEnd", ">>> Compose DSL Text End <<<");
+            kdebug_signpost_end(1, 0, 0, 0, 1); // code=1 表示 Compose DSL
+            NSLog(@"[TextPerf] End Compose DSL Text Performance Test");
+        } else if ([_pageName isEqualToString:@"TextPerfKuiklyDemo"]) {
+            os_signpost_interval_end(textPerfLog, textPerfSignpostId, "KuiklyTextPerf", "End Kuikly DSL Text Performance Test");
+            // 发送终点 Point of Interest 事件
+            os_signpost_event_emit(textPerfLog, textPerfSignpostId, "KuiklyTextEnd", ">>> Kuikly DSL Text End <<<");
+            kdebug_signpost_end(2, 0, 0, 0, 2); // code=2 表示 Kuikly DSL
+            NSLog(@"[TextPerf] End Kuikly DSL Text Performance Test");
+        }
+    }
+    
     if (error) {
         
     }

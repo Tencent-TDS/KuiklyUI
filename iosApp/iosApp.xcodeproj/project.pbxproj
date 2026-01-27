@@ -526,7 +526,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
-				DEVELOPMENT_TEAM = "${TEAM_ID}";
+				DEVELOPMENT_TEAM = W87D9D2E4L;
 				ENABLE_PREVIEWS = YES;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "";
 				INFOPLIST_FILE = iosApp/Info.plist;
@@ -536,7 +536,7 @@
 					"@executable_path/Frameworks",
 				);
 				OTHER_CODE_SIGN_FLAGS = "--generate-entitlement-der";
-				PRODUCT_BUNDLE_IDENTIFIER = com.tencent.kuiklycore.demo.luoyibu;
+				PRODUCT_BUNDLE_IDENTIFIER = com.tencent.kuiklycore.demo.db.luoyibu;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;

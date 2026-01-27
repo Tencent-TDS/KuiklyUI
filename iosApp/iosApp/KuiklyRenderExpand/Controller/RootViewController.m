@@ -15,6 +15,12 @@
 
 #import "RootViewController.h"
 #import "KuiklyRenderViewController.h"
+#import <os/signpost.h>
+#import <sys/kdebug_signpost.h>
+
+// Instruments 性能分析标识
+os_log_t textPerfLog;
+os_signpost_id_t textPerfSignpostId;
 
 @interface RootViewController ()
 
@@ -26,6 +32,10 @@
     [super viewDidLoad];
     // Do any additional setup after loading the view.
     
+    // 初始化 Instruments 性能分析日志
+    textPerfLog = os_log_create("com.kuikly.textperf", "TextPerformance");
+    textPerfSignpostId = os_signpost_id_generate(textPerfLog);
+    
     UIButton *button = [[UIButton alloc] initWithFrame:CGRectMake(100, 100, 100, 50)];
     [button setTitle:@"normal" forState:UIControlStateNormal];
     [button setTitle:@"highlight" forState:UIControlStateHighlighted];
@@ -33,6 +43,21 @@
     [button addTarget:self action:@selector(gotoxx) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:button];
     
+    // Compose DSL Text 性能测试按钮
+    UIButton *composeDslBtn = [[UIButton alloc] initWithFrame:CGRectMake(100, 200, 180, 50)];
+    [composeDslBtn setTitle:@"Compose DSL Text" forState:UIControlStateNormal];
+    composeDslBtn.backgroundColor = [UIColor systemBlueColor];
+    composeDslBtn.layer.cornerRadius = 8;
+    [composeDslBtn addTarget:self action:@selector(gotoComposeTextPerf) forControlEvents:UIControlEventTouchDown];
+    [self.view addSubview:composeDslBtn];
+    
+    // Kuikly DSL Text 性能测试按钮
+    UIButton *kuiklyDslBtn = [[UIButton alloc] initWithFrame:CGRectMake(100, 270, 180, 50)];
+    [kuiklyDslBtn setTitle:@"Kuikly DSL Text" forState:UIControlStateNormal];
+    kuiklyDslBtn.backgroundColor = [UIColor systemGreenColor];
+    kuiklyDslBtn.layer.cornerRadius = 8;
+    [kuiklyDslBtn addTarget:self action:@selector(gotoKuiklyTextPerf) forControlEvents:UIControlEventTouchDown];
+    [self.view addSubview:kuiklyDslBtn];
 }
 
 - (void)gotoxx {
@@ -59,6 +84,45 @@
     [rootVC dismissViewControllerAnimated:YES completion:nil];
 }
 
+#pragma mark - Text Performance Test
+
+- (void)gotoComposeTextPerf {
+    // Instruments 性能分析起点标识 - 使用 kdebug_signpost 在时间线上标记
+    kdebug_signpost_start(1, 0, 0, 0, 1); // code=1 表示 Compose DSL
+    os_signpost_interval_begin(textPerfLog, textPerfSignpostId, "ComposeTextPerf", "Start Compose DSL Text Performance Test");
+    // 同时发送一个 Point of Interest 事件
+    os_signpost_event_emit(textPerfLog, textPerfSignpostId, "ComposeTextStart", ">>> Compose DSL Text Start <<<");
+    NSLog(@"[TextPerf] Begin Compose DSL Text Performance Test");
+    
+    KuiklyRenderViewController *kuiklyVc = [[KuiklyRenderViewController alloc] initWithPageName:@"TextPerfComposeDemo" pageData:@{}];
+    kuiklyVc.modalPresentationStyle = UIModalPresentationFullScreen;
+    [self presentViewController:kuiklyVc animated:NO completion:nil];
+    
+    [self addDismissButtonToVC:kuiklyVc];
+}
+
+- (void)gotoKuiklyTextPerf {
+    // Instruments 性能分析起点标识 - 使用 kdebug_signpost 在时间线上标记
+    kdebug_signpost_start(2, 0, 0, 0, 2); // code=2 表示 Kuikly DSL
+    os_signpost_interval_begin(textPerfLog, textPerfSignpostId, "KuiklyTextPerf", "Start Kuikly DSL Text Performance Test");
+    // 同时发送一个 Point of Interest 事件
+    os_signpost_event_emit(textPerfLog, textPerfSignpostId, "KuiklyTextStart", ">>> Kuikly DSL Text Start <<<");
+    NSLog(@"[TextPerf] Begin Kuikly DSL Text Performance Test");
+    
+    KuiklyRenderViewController *kuiklyVc = [[KuiklyRenderViewController alloc] initWithPageName:@"TextPerfKuiklyDemo" pageData:@{}];
+    kuiklyVc.modalPresentationStyle = UIModalPresentationFullScreen;
+    [self presentViewController:kuiklyVc animated:NO completion:nil];
+    
+    [self addDismissButtonToVC:kuiklyVc];
+}
+
+- (void)addDismissButtonToVC:(UIViewController *)vc {
+    UIButton *dismissbtn = [[UIButton alloc] initWithFrame:CGRectMake(50, 300, 50, 50)];
+    dismissbtn.backgroundColor = [UIColor redColor];
+    dismissbtn.layer.cornerRadius = 25;
+    [vc.view addSubview:dismissbtn];
+    [dismissbtn addTarget:self action:@selector(dismiss) forControlEvents:UIControlEventTouchUpInside];
+}
 
 /*
 #pragma mark - Navigation

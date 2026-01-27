@@ -21,7 +21,7 @@ struct KuiklyRenderViewPage : UIViewControllerRepresentable {
     var data: Dictionary<String, Any>
 
     func makeUIViewController(context: Context) -> UINavigationController {
-        let hrVC = kuiklyPage()
+        let hrVC = nativePage()
         return UINavigationController.init(rootViewController: hrVC)
     }
     

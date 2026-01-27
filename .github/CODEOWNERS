@@ -14,6 +14,7 @@
 /buildSrc/ @elixxli
 /androidApp/ @hidawei @elixxli
 /core/ @iPel @hidawei
+/compose/ @luoyibu @iPel @zenipchen
 /core-annotations/ @elixxli
 /core-kapt/ @elixxli
 /core-ksp/ @elixxli
@@ -25,14 +26,14 @@
 /demo/ @hidawei
 /gradle/ @elixxli
 /img/ @hidawei
-/iosApp/ @wwwcg
+/iosApp/ @wwwcg @luoyibu
 /*.sh @elixxli @iPel
 /*.gradle.kts @elixxli @iPel
 /CODE_OF_CONDUCT.md @hidawei
 /CONTRIBUTING.md @hidawei
 /LICENSE @hidawei
 /README* @hidawei
-/OpenKuiklyIOSRender.podspec @wwwcg
+/OpenKuiklyIOSRender.podspec @wwwcg @luoyibu
 /gradlew*  @elixxli @iPel
 /.gitignore @iPel @hidawei
 

@@ -823,9 +823,10 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 }
 
 - (void)setFrame:(CGRect)frame {
+    KRScrollView *scrollView = (KRScrollView *)self.superview;
+    scrollView.skipNestScrollLock = YES;
     [super setFrame:frame];
     [self syncScrollViewContentSize];
-    
 }
 
 - (void)didMoveToSuperview {

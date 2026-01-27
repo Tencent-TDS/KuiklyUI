@@ -24,7 +24,7 @@
 @property (nonatomic, strong) KRDisplayLink *displayLink;
 @property (nonatomic, strong) NSDate *animationStartTime;
 @property (nonatomic, assign) CGPoint fromOffset;
-@property (nonatomic, assign) CGPoint toOffset;
+@property (nonatomic, assign, readwrite) CGPoint toOffset;  // readwrite for internal use
 @property (nonatomic, assign) CGPoint lastOffset;
 
 @end
@@ -51,6 +51,7 @@
 
 - (void)animateToOffset:(CGPoint)offset withVelocity:(CGPoint)velocity {
     [self cancel];
+    self.toOffset = offset;  // Store the target offset
     self.lastOffset = [self getCurScrollContetOffset];
     KRDisplayLink *link = [KRDisplayLink new];
     __weak typeof(self) weakSelf = self;

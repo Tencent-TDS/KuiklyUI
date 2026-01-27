@@ -4,6 +4,7 @@ import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.web.ktx.kuiklyDocument
 import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
+import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
 import com.tencent.kuikly.core.render.web.runtime.dom.element.ElementType
 import org.khronos.webgl.ArrayBuffer
 import org.w3c.dom.HTMLCanvasElement
@@ -261,12 +262,19 @@ class KRPagView : IKuiklyRenderViewExport {
         }
     }
 
+    private fun isAssetsSrc(src: String): Boolean = src.startsWith(ASSETS_IMAGE_PREFIX) ||
+            src.startsWith(FILE_IMAGE_PREFIX)
+
     /**
      * Set source file
      */
     private fun setSrc(params: Any) {
         // Network links and direct file content need to be loaded first
-        val newSrc = params.unsafeCast<String>()
+        var newSrc = params.unsafeCast<String>()
+        if (isAssetsSrc(newSrc)) {
+            // If it's an assets resource image, remove assets prefix and replace with assets path
+            newSrc = KuiklyProcessor.imageProcessor.getImageAssetsSource(newSrc)
+        }
         if (src == newSrc || !newSrc.startsWith("https")) {
             // Source file unchanged, or non-https source file, skip processing
             return
@@ -289,5 +297,9 @@ class KRPagView : IKuiklyRenderViewExport {
         private const val METHOD_STOP = "stop"
 
         const val VIEW_NAME = "KRPAGView"
+
+        // Assets image resource prefix, identifies assets resource images
+        private const val ASSETS_IMAGE_PREFIX = "assets://"
+        private const val FILE_IMAGE_PREFIX = "file://"
     }
 }

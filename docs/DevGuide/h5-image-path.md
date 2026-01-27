@@ -53,7 +53,7 @@ object CustomImageProcessor : IImageProcessor {
 ### 2. 在入口处注册 Processor
 
 在 H5 应用的入口文件 `Main.kt` 中，将你的自定义 Processor 赋值给 `KuiklyProcessor.imageProcessor`。
-**注意：必须在应用启动渲染前完成赋值。**
+**注意：必须在应用启动后完成替换。**
 
 ```kotlin
 // h5App/src/jsMain/kotlin/Main.kt
@@ -62,13 +62,12 @@ import com.tencent.kuikly.h5app.processor.CustomImageProcessor
 import com.tencent.kuikly.core.render.web.KuiklyProcessor
 
 fun main() {
-    // 1. 注册自定义图片处理器 (配置 CDN 域名)
-    KuiklyProcessor.imageProcessor = CustomImageProcessor
-
-    // 2. 正常的应用启动逻辑
+    // 1. 正常的应用启动逻辑
     if (KuiklyRouter.handleEntry()) {
         return
     }
+    // 2. 注册自定义图片处理器 (配置 CDN 域名)
+    KuiklyProcessor.imageProcessor = CustomImageProcessor
     // ...
 }
 ```

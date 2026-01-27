@@ -1,16 +1,15 @@
 package com.tencent.kuikly.h5app
 
+import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
 import kotlinx.browser.document
 import kotlinx.browser.window
 import com.tencent.kuikly.h5app.manager.KuiklyRouter
+import com.tencent.kuikly.h5app.processor.CustomImageProcessor
 
 /**
  * WebApp entry, use renderView delegate method to initialize and create renderView
  */
 fun main() {
-    // modify image cdn
-    // KuiklyProcessor.imageProcessor = CustomImageProcessor
-
     // Takes over control if "use_spa=1" is present in URL or ENABLE_BY_DEFAULT is true
     if (KuiklyRouter.handleEntry()) {
         return
@@ -20,6 +19,9 @@ fun main() {
 
     // Create and initialize the page delegator using shared logic
     val delegator = KuiklyRouter.createDelegator(window.location.href)
+
+    // modify image cdn
+//    KuiklyProcessor.imageProcessor = CustomImageProcessor
 
     // Register visibility event
     document.addEventListener("visibilitychange", {

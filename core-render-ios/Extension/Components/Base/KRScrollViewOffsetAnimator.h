@@ -27,6 +27,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface KRScrollViewOffsetAnimator : NSObject
 
+/// Animation target offset
+@property (nonatomic, assign, readonly) CGPoint toOffset;
+
 - (instancetype)initWithScrollView:(UIScrollView *)scrollView delegate:(id<KRScrollViewOffsetAnimatorDelegate>)delegate;
 
 - (void)animateToOffset:(CGPoint)offset withVelocity:(CGPoint)velocity;

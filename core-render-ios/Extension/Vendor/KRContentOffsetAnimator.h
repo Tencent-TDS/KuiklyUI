@@ -26,6 +26,9 @@ static const float KRContentOffsetAnimatorP2y = 1.0f;
 
 @interface KRContentOffsetAnimator : NSObject
 
+/// Animation target offset
+@property (nonatomic, assign, readonly) CGPoint targetOffset;
+
 // 使用 CABasicAnimation + CADisplayLink 驱动滚动，可选逐帧进度回调
 - (instancetype)initWithScrollView:(UIScrollView *)scrollView;
 

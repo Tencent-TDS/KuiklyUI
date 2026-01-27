@@ -639,7 +639,45 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     if (_ignoreDispatchScrollEvent) {
         return ;
     }
+    
+    if ([self p_shouldIgnoreScrollEventDuringAnimation]) {
+        return;
+    }
+    
     [self dispatchScrollEventWithCurOffset:self.contentOffset];
+}
+
+/// Check if scroll event should be ignored during animation when setContentSize is called.
+/// When setContentSize triggers UIKit to internally set offset directly to animation target position,
+/// we should ignore this erroneous callback to prevent page flashing back.
+- (BOOL)p_shouldIgnoreScrollEventDuringAnimation {
+    if (!self.setContentSizeing) {
+        return NO;
+    }
+    
+    CGPoint animationTargetOffset;
+    BOOL hasActiveAnimation = NO;
+    
+    // Check KRScrollViewOffsetAnimator (spring/damping animation from Kotlin side, e.g. animateScrollToPage)
+    if (_offsetAnimator != nil) {
+        animationTargetOffset = _offsetAnimator.toOffset;
+        hasActiveAnimation = YES;
+    }
+    // Check KRContentOffsetAnimator (inertia animation after user gesture)
+    else if ([_ku_coreAnimator isAnimating]) {
+        animationTargetOffset = _ku_coreAnimator.targetOffset;
+        hasActiveAnimation = YES;
+    }
+    
+    if (!hasActiveAnimation) {
+        return NO;
+    }
+    
+    // Only ignore when current offset equals animation target position (allow 1px tolerance)
+    CGFloat currentOffset = [_css_directionRow boolValue] ? self.contentOffset.x : self.contentOffset.y;
+    CGFloat targetOffset = [_css_directionRow boolValue] ? animationTargetOffset.x : animationTargetOffset.y;
+    
+    return fabs(currentOffset - targetOffset) < 1.0;
 }
 
 - (void)dispatchScrollEventWithCurOffset:(CGPoint)curOffset {

@@ -388,6 +388,8 @@ class LazyGridState @ExperimentalFoundationApi constructor(
     override val isScrollInProgress: Boolean
         get() = scrollableState.isScrollInProgress
 
+    var shouldUpdateContentSize: Boolean by mutableStateOf(false)
+
     override var canScrollForward: Boolean by mutableStateOf(false)
         private set
     override var canScrollBackward: Boolean by mutableStateOf(false)

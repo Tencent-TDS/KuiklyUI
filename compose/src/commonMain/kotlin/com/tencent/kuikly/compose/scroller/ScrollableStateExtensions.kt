@@ -63,7 +63,14 @@ internal fun ScrollableState.kuiklyOnScrollEnd(params: ScrollParams) {
     when (this) {
         is LazyListState -> scrollableState.kuiklyOnScrollEnd(params)
         is PagerState -> scrollableState.kuiklyOnScrollEnd(params)
-        is LazyGridState -> scrollableState.kuiklyOnScrollEnd(params)
+        is LazyGridState -> {
+            if (shouldUpdateContentSize) {
+                shouldUpdateContentSize = false
+                kuiklyInfo.realContentSize = null
+                tryExpandStartSizeNoScroll()
+            }
+            scrollableState.kuiklyOnScrollEnd(params)
+        }
         is LazyStaggeredGridState -> scrollableState.kuiklyOnScrollEnd(params)
         is ScrollState -> scrollableState.kuiklyOnScrollEnd(params)
         is KuiklyScrollableState -> kuiklyOnScrollEnd(params)

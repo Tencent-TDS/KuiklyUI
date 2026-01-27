@@ -25,8 +25,5 @@ allprojects {
         google()
         mavenCentral()
         mavenLocal()
-        maven {
-            url = uri("https://mirrors.tencent.com/repository/maven/kuikly-open")
-        }
     }
 }

@@ -106,6 +106,10 @@ kotlin {
 
             konanTarget.family.isAppleFamily -> {
                 mainSourceSets.dependsOn(sourceSets.getByName("appleMain"))
+                // Release 模式下保留符号信息，方便 Instruments Profile 分析
+                binaries.all {
+                    freeCompilerArgs += listOf("-Xadd-light-debug=enable")
+                }
             }
 
             konanTarget.family == Family.ANDROID -> {

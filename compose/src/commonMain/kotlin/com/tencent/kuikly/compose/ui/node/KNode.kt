@@ -63,6 +63,9 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
+// 节点插入计数器，用于调试
+private var insertTopDownCounter = 0
+
 internal class KNode<T : DeclarativeBaseView<*, *>>(
     val view: T,
     override var isVirtual: Boolean = false,
@@ -158,9 +161,21 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
 
     // Construct Kuikly node tree
     fun insertTopDown(index: Int, instance: KNode<DeclarativeBaseView<*, *>>) {
+        insertTopDownCounter++
+        val startTime = kotlin.time.TimeSource.Monotonic.markNow()
+        
         val childView = instance.view
+        
+        val addChildStart = kotlin.time.TimeSource.Monotonic.markNow()
         currentView.addChild(childView, instance.init, index)
+        val addChildTime = addChildStart.elapsedNow()
+        
+        val insertDomStart = kotlin.time.TimeSource.Monotonic.markNow()
         currentView.insertDomSubView(childView, index)
+        val insertDomTime = insertDomStart.elapsedNow()
+        
+        val totalTime = startTime.elapsedNow()
+        println("[Compose insertTopDown] count=$insertTopDownCounter, total=${totalTime}, addChild=${addChildTime}, insertDom=${insertDomTime}, view=${childView::class.simpleName}")
     }
 
     override fun move(from: Int, to: Int, count: Int) {

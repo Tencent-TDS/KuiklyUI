@@ -145,7 +145,7 @@ open class ComposeContainer :
 
     private fun startFrameDispatcher() {
         mediator?.renderFrame()
-        if (!getPager().pageData.isAndroid) {
+        if (!getPager().pageData.isOhOs) {
             mediator?.startFrameDispatcher()
         } else {
             getModule<VsyncModule>(VsyncModule.MODULE_NAME)?.registerVsync {

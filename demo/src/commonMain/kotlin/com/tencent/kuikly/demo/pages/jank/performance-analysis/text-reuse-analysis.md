@@ -18,6 +18,7 @@
 | ✅ 嵌套 Lazy 复用已修复 | SubcomposeLayout 改用 ReusableComposeNode 后，LazyRow 支持复用 |
 | ✅ Node 和 Native View 均被复用 | 复用时 viewRef 值不变，证明 KNode 和 Text Native View 是同一实例 |
 | ✅ 滑动复用率 76.2% | 滑动初期复用池为空（24 个 NewSlot），之后 100% 复用（96 个 Reuse） |
+| ✅ 布局测量耗时一致 | Compose DSL 与 Kuikly DSL 文本布局测量耗时基本一致（98ms vs 95ms） |
 | ⚠️ contentType 易误用 | 动态值（如 `"${item.type}"`）导致复用完全失效 |
 
 **当前状态**：LazyRow 复用优化已生效，Node 和 Text Native View 均被完整复用
@@ -47,7 +48,7 @@
 ### ✅ 结论 4：滑动复用率符合预期
 
 | 场景 | 复用率 | 说明 |
-|------|--------|------|
+|------|--------|---------|
 | 首屏 | **0%** | 复用池为空，全部新建（符合预期） |
 | 滑动初期 | **0%** | 首屏节点未滚出，复用池仍为空 |
 | 稳定滑动 | **100%** | 首屏节点入池后，后续节点全部复用 |
@@ -55,6 +56,18 @@
 
 - **原因**：滑动初期（slotId=12~15）时，首屏节点还在屏幕上，复用池为空；第一次 ToPool 后（slotId=16 开始）全部复用
 - **结论**：LazyRow 复用优化生效，复用机制正常
+
+### ✅ 结论 5：Compose DSL 与 Kuikly DSL 布局测量耗时一致
+
+**测试场景**：900 个 Text 组件，iOS Release 版本
+
+| 指标 | Compose DSL | Kuikly DSL | 差异 |
+|------|-------------|------------|------|
+| **布局测量** | 98 ms | 95 ms | +3 ms (基本一致) |
+
+- **原因**：两种 DSL 最终都调用相同的 OC 原生方法 `-[KRRichTextShadow hrv_calculateRenderViewSizeWithConstraintSize:]` 进行文本尺寸计算
+- **结论**：Text 组件的测量性能，compose dsl和kuikly dsl基本一致
+- **详细分析**：参见 [compose-vs-kuikly-text.md](./compose-vs-kuikly-text.md)
 
 ---
 
@@ -73,6 +86,7 @@
 
 - [快滑动复用率低的详细代码分析](./text-reuse-detail.md)
 - [嵌套 Lazy 复用机制技术分析](./nested-lazy-reuse.md)
+- [Compose DSL vs Kuikly DSL 纯文本性能对比](./compose-vs-kuikly-text.md)
 
 ---
 

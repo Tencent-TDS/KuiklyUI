@@ -553,11 +553,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_IDENTITY = "iPhone Distribution: Tencent Technology (Shenzhen) Co., Ltd";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
-				DEVELOPMENT_TEAM = "";
-				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = HKB8WPFBR9;
+				DEVELOPMENT_TEAM = W87D9D2E4L;
 				ENABLE_PREVIEWS = YES;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "";
 				INFOPLIST_FILE = iosApp/Info.plist;
@@ -567,10 +566,9 @@
 					"@executable_path/Frameworks",
 				);
 				OTHER_CODE_SIGN_FLAGS = "--generate-entitlement-der";
-				PRODUCT_BUNDLE_IDENTIFIER = com.tencent.kuiklycore.demo.db;
+				PRODUCT_BUNDLE_IDENTIFIER = com.tencent.kuiklycore.demo.db.luoyibu;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "com.tencent.kuiklycore.demo.db InHouse";
 				SDKROOT = iphoneos;
 				SWIFT_OBJC_BRIDGING_HEADER = "iosApp/iosApp-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;

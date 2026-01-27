@@ -41,6 +41,10 @@ interface IChildInit<T> {
     fun childInit(child: T)
 }
 
+// Kuikly DSL 节点插入计数器，用于调试
+private var kuiklyAddChildCounter = 0
+private var kuiklyInsertDomCounter = 0
+
 abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView<A, E>() {
 
     protected val children = fastArrayListOf<DeclarativeBaseView<*, *>>()
@@ -57,10 +61,21 @@ abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView
     }
 
     open fun <T : DeclarativeBaseView<*, *>> addChild(child: T, init: T.() -> Unit, index: Int) {
+        kuiklyAddChildCounter++
+        val startTime = kotlin.time.TimeSource.Monotonic.markNow()
+        
+        val internalAddStart = kotlin.time.TimeSource.Monotonic.markNow()
         internalAddChild(child, index)
+        val internalAddTime = internalAddStart.elapsedNow()
+        
+        val initStart = kotlin.time.TimeSource.Monotonic.markNow()
         child.willInit()
         child.init()
         child.didInit()
+        val initTime = initStart.elapsedNow()
+        
+        val totalTime = startTime.elapsedNow()
+        println("[Kuikly addChild] count=$kuiklyAddChildCounter, total=${totalTime}, internalAdd=${internalAddTime}, init=${initTime}, view=${child::class.simpleName}")
     }
 
     open fun removeChild(child: DeclarativeBaseView<*, *>) {
@@ -204,9 +219,22 @@ abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView
         didCreateFlexNode = true
         var index = 0
         domChildren().forEach { child ->
+            val insertStart = kotlin.time.TimeSource.Monotonic.markNow()
+            
+            val createFlexStart = kotlin.time.TimeSource.Monotonic.markNow()
             child.createFlexNode()
+            val createFlexTime = createFlexStart.elapsedNow()
+            
+            val addChildAtStart = kotlin.time.TimeSource.Monotonic.markNow()
             flexNode.addChildAt(child.flexNode, index)
+            val addChildAtTime = addChildAtStart.elapsedNow()
+            
             didInsertDomChild(child, index)
+            
+            val totalInsertTime = insertStart.elapsedNow()
+            kuiklyInsertDomCounter++
+            println("[Kuikly insertDom] count=$kuiklyInsertDomCounter, total=${totalInsertTime}, createFlexNode=${createFlexTime}, addChildAt=${addChildAtTime}, view=${child::class.simpleName}")
+            
             index++
         }
     }

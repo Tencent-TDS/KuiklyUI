@@ -201,23 +201,6 @@ extern os_signpost_id_t textPerfSignpostId;
 }
 
 - (void)onPageLoadComplete:(BOOL)isSucceed error:(NSError *)error mode:(KuiklyContextMode)mode {
-    // Instruments 性能分析终点标识
-    if ([_pageName hasPrefix:@"TextPerf"]) {
-        if ([_pageName isEqualToString:@"TextPerfComposeDemo"]) {
-            os_signpost_interval_end(textPerfLog, textPerfSignpostId, "ComposeTextPerf", "End Compose DSL Text Performance Test");
-            // 发送终点 Point of Interest 事件
-            os_signpost_event_emit(textPerfLog, textPerfSignpostId, "ComposeTextEnd", ">>> Compose DSL Text End <<<");
-            kdebug_signpost_end(1, 0, 0, 0, 1); // code=1 表示 Compose DSL
-            NSLog(@"[TextPerf] End Compose DSL Text Performance Test");
-        } else if ([_pageName isEqualToString:@"TextPerfKuiklyDemo"]) {
-            os_signpost_interval_end(textPerfLog, textPerfSignpostId, "KuiklyTextPerf", "End Kuikly DSL Text Performance Test");
-            // 发送终点 Point of Interest 事件
-            os_signpost_event_emit(textPerfLog, textPerfSignpostId, "KuiklyTextEnd", ">>> Kuikly DSL Text End <<<");
-            kdebug_signpost_end(2, 0, 0, 0, 2); // code=2 表示 Kuikly DSL
-            NSLog(@"[TextPerf] End Kuikly DSL Text Performance Test");
-        }
-    }
-    
     if (error) {
         
     }
@@ -261,6 +244,8 @@ extern os_signpost_id_t textPerfSignpostId;
 
 - (void)contentViewDidLoad {
     NSLog(@"pageCostTime:%.2lf", (CFAbsoluteTimeGetCurrent() - _beginTime) * 1000.0);
+    // 注意：性能分析终点已移至 KRBridgeModule.log 中，
+    // 当 Kotlin 层所有 Text 完成布局后会通过 NVIManager.nvi?.log 触发 [TextPerf][AllTextLayoutComplete] 标记
 }
 
 - (void)dealloc {
@@ -276,7 +261,7 @@ extern os_signpost_id_t textPerfSignpostId;
 }
 
 - (NSString *)turboDisplayKey {
-    return _pageName;
+    return nil;
 }
 
 

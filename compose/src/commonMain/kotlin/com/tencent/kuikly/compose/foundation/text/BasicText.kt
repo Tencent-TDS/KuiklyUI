@@ -323,6 +323,9 @@ private class TextWithInlineContentPolicy(
     }
 }
 
+// 重组计数器，用于调试
+private var recomposeCounter = 0
+
 @Composable
 private fun BasicTextWithNoInlinContent(
     annoText: AnnotatedString?,
@@ -336,6 +339,10 @@ private fun BasicTextWithNoInlinContent(
     modifier: Modifier,
     color: ColorProducer?
 ) {
+    // 重组计数日志
+    recomposeCounter++
+    println("[BasicText Recompose] count=$recomposeCounter, text=${text?.take(20) ?: annoText?.text?.take(20)}")
+    
     val compositeKeyHash = currentCompositeKeyHash
     val localMap = currentComposer.currentCompositionLocalMap
     val materializedModifier = currentComposer.materialize(modifier)

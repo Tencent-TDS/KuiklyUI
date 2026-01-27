@@ -36,6 +36,12 @@ os_signpost_id_t textPerfSignpostId;
     textPerfLog = os_log_create("com.kuikly.textperf", "TextPerformance");
     textPerfSignpostId = os_signpost_id_generate(textPerfLog);
     
+    // 监听 Text 性能测试完成通知
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(onTextPerfAllLayoutComplete:)
+                                                 name:@"TextPerfAllLayoutComplete"
+                                               object:nil];
+    
     UIButton *button = [[UIButton alloc] initWithFrame:CGRectMake(100, 100, 100, 50)];
     [button setTitle:@"normal" forState:UIControlStateNormal];
     [button setTitle:@"highlight" forState:UIControlStateHighlighted];
@@ -122,6 +128,32 @@ os_signpost_id_t textPerfSignpostId;
     dismissbtn.layer.cornerRadius = 25;
     [vc.view addSubview:dismissbtn];
     [dismissbtn addTarget:self action:@selector(dismiss) forControlEvents:UIControlEventTouchUpInside];
+}
+
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+#pragma mark - Text Performance Notification
+
+- (void)onTextPerfAllLayoutComplete:(NSNotification *)notification {
+    NSDictionary *userInfo = notification.userInfo;
+    NSString *type = userInfo[@"type"] ?: @"Unknown";
+    NSNumber *total = userInfo[@"total"] ?: @0;
+    
+    if ([type isEqualToString:@"Compose"]) {
+        // Compose DSL 性能测试结束标识
+        kdebug_signpost_end(1, 0, 0, 0, 1);
+        os_signpost_interval_end(textPerfLog, textPerfSignpostId, "ComposeTextPerf", "End Compose DSL - All %d Text Layout Complete", total.intValue);
+        os_signpost_event_emit(textPerfLog, textPerfSignpostId, "ComposeTextEnd", "<<< Compose DSL Text End <<<");
+        NSLog(@"[TextPerf] End Compose DSL - All %@ Text Layout Complete", total);
+    } else if ([type isEqualToString:@"Kuikly"]) {
+        // Kuikly DSL 性能测试结束标识
+        kdebug_signpost_end(2, 0, 0, 0, 2);
+        os_signpost_interval_end(textPerfLog, textPerfSignpostId, "KuiklyTextPerf", "End Kuikly DSL - All %d Text Layout Complete", total.intValue);
+        os_signpost_event_emit(textPerfLog, textPerfSignpostId, "KuiklyTextEnd", "<<< Kuikly DSL Text End <<<");
+        NSLog(@"[TextPerf] End Kuikly DSL - All %@ Text Layout Complete", total);
+    }
 }
 
 /*

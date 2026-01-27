@@ -8,6 +8,9 @@ buildscript {
         google()
         mavenCentral()
         mavenLocal()
+        maven {
+            url = uri("https://mirrors.tencent.com/repository/maven/kuikly-open")
+        }
     }
 
     dependencies {
@@ -22,5 +25,8 @@ allprojects {
         google()
         mavenCentral()
         mavenLocal()
+        maven {
+            url = uri("https://mirrors.tencent.com/repository/maven/kuikly-open")
+        }
     }
 }

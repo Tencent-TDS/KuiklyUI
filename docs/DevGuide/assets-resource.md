@@ -61,7 +61,7 @@ android {
 
 #### iOS
 
-在模块的修改`build.gradle.kts`
+修改`shared/build.gradle.kts`
 
 ```kotlin
 ...

@@ -37,6 +37,7 @@ class KRImageViewWrapper : public IKRRenderViewExport {
 
  private:
     void InitImageView(std::shared_ptr<KRImageView> image_view);
+    void SetupImageLoadCallback();
 
  private:
     std::string place_holder_src_;

@@ -22,6 +22,8 @@ NS_ASSUME_NONNULL_BEGIN
  */
 @interface KRImageView : UIImageView<KuiklyRenderViewExportProtocol>
 
+@property (nonatomic, copy, nullable) void (^imageDidLoadCallback)(void);   // 设置图片加载Block，用于在iOS端侧优先隐藏placeHolder ImageView
+- (void)clearImageDidLoadCallback;  // 新增
 
 @end
 

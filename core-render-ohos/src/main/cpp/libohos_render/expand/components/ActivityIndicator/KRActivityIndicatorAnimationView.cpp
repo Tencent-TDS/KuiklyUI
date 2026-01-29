@@ -33,6 +33,7 @@ ArkUI_NodeHandle KRActivityIndicatorAnimationView::CreateNode() {
 
 void KRActivityIndicatorAnimationView::DidInit() {
     RegisterEvent(NODE_IMAGE_ON_COMPLETE);
+    SetStyle(kWhiteStyle);
 }
 
 bool KRActivityIndicatorAnimationView::SetProp(const std::string &prop_key, const KRAnyValue &prop_value,

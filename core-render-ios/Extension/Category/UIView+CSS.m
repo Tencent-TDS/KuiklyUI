@@ -273,47 +273,68 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     if (self.css_boxShadow != css_boxShadow) {
         objc_setAssociatedObject(self, @selector(css_boxShadow), css_boxShadow, OBJC_ASSOCIATION_RETAIN);
         CSSBoxShadow *boxShadow = [[CSSBoxShadow alloc] initWithCSSBoxShadow:css_boxShadow];
+        
+        // iOS 和 macOS 都使用 CALayer.shadow* 属性
         self.layer.shadowColor = boxShadow.shadowColor.CGColor;
         self.layer.shadowRadius = boxShadow.shadowRadius;
-        self.layer.shadowOffset = CGSizeMake(boxShadow.offsetX, boxShadow.offsetY);
-        self.layer.shadowOpacity = css_boxShadow ? 1 : 0;
-        if (self.css_useShadowPath) {
-            if (css_boxShadow) {
-                // 如果存在 clipPath，shadowPath 应该使用 clipPath 的路径
-                // 这样阴影形状才会和裁剪形状一致（如星形阴影）
-                if (self.css_clipPath.length > 0) {
 #if TARGET_OS_OSX
-                    CGFloat density = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
+        // macOS: Y 轴需要翻转，因为 CALayer 的坐标系和 flipped NSView 不同
+        self.layer.shadowOffset = CGSizeMake(boxShadow.offsetX, -boxShadow.offsetY);
 #else
-                    CGFloat density = [UIScreen mainScreen].scale;
+        self.layer.shadowOffset = CGSizeMake(boxShadow.offsetX, boxShadow.offsetY);
 #endif
-                    UIBezierPath *clipPath = [KRConvertUtil parseClipPath:self.css_clipPath density:density];
-                    if (clipPath) {
-                        self.layer.shadowPath = clipPath.CGPath;
-                    } else {
-#if TARGET_OS_OSX // [macOS]
-                        CGPathRef p = CGPathCreateWithRoundedRect(self.layer.bounds, self.layer.cornerRadius, self.layer.cornerRadius, NULL);
-                        self.layer.shadowPath = p;
-                        CGPathRelease(p);
-#else
-                        self.layer.shadowPath = [[UIBezierPath bezierPathWithRoundedRect:self.layer.bounds cornerRadius:self.layer.cornerRadius] CGPath];
-#endif // [macOS]
-                    }
-                } else {
-#if TARGET_OS_OSX // [macOS]
-                    CGPathRef p = CGPathCreateWithRoundedRect(self.layer.bounds, self.layer.cornerRadius, self.layer.cornerRadius, NULL);
-                    self.layer.shadowPath = p;
-                    CGPathRelease(p);
-#else
-                    self.layer.shadowPath = [[UIBezierPath bezierPathWithRoundedRect:self.layer.bounds cornerRadius:self.layer.cornerRadius] CGPath];
-#endif // [macOS]
-                }
-            } else {
-                self.layer.shadowPath = nil;
-            }
+        self.layer.shadowOpacity = css_boxShadow ? 1 : 0;
+        
+#if TARGET_OS_OSX
+        // macOS: 同时设置 NSShadow 作为备用（用于没有 shadowPath 的普通阴影）
+        // 注意：如果 KRBoxShadowView 使用了 shadowPath，NSShadow 的效果会被覆盖
+        if (css_boxShadow) {
+            NSShadow *shadow = [[NSShadow alloc] init];
+            shadow.shadowColor = boxShadow.shadowColor;
+            shadow.shadowOffset = NSMakeSize(boxShadow.offsetX, boxShadow.offsetY);
+            shadow.shadowBlurRadius = boxShadow.shadowRadius;
+            self.shadow = shadow;
+        } else {
+            self.shadow = nil;
         }
+#endif
+        
+#if !TARGET_OS_OSX
+        if (self.css_useShadowPath) {
+            [self p_updateShadowPathForBoxShadow:css_boxShadow];
+        }
+#endif
     }
 }
+
+#if !TARGET_OS_OSX
+// iOS 专用：更新 shadowPath
+- (void)p_updateShadowPathForBoxShadow:(NSString *)css_boxShadow {
+    if (css_boxShadow) {
+        CGPathRef shadowPath = NULL;
+        
+        // 如果存在 clipPath，使用 clipPath 的路径作为阴影形状
+        if (self.css_clipPath.length > 0) {
+            CGFloat density = [UIScreen mainScreen].scale;
+            UIBezierPath *clipPath = [KRConvertUtil hr_parseClipPath:self.css_clipPath density:density];
+            if (clipPath) {
+                shadowPath = clipPath.CGPath;
+            }
+        }
+        
+        // 如果没有 clipPath 或解析失败，使用圆角矩形
+        if (!shadowPath) {
+            shadowPath = [UIBezierPath bezierPathWithRoundedRect:self.layer.bounds
+                                                    cornerRadius:self.layer.cornerRadius].CGPath;
+        }
+        
+        self.layer.shadowPath = shadowPath;
+    } else {
+        self.layer.shadowPath = nil;
+    }
+}
+#endif
+
 
 /**
  * css_borderRadius getter
@@ -645,7 +666,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         // 4.2 检查是否需要恢复 borderRadius 的 mask
         if (self.css_borderRadius.length > 0) {
             // 重新触发 borderRadius 设置，恢复圆角 mask
-            // 技巧：先清空再设置，强制触发 setter 逻辑
+            // 先清空再设置，强制触发 setter 逻辑
             NSString *borderRadius = self.css_borderRadius;
             objc_setAssociatedObject(self, @selector(css_borderRadius), nil, OBJC_ASSOCIATION_RETAIN);
             self.css_borderRadius = borderRadius;
@@ -656,15 +677,26 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         
         // 4.3 如果有 shadowPath，恢复为圆角矩形
         if (self.layer.shadowPath && self.css_useShadowPath) {
+            
 #if TARGET_OS_OSX
-            CGPathRef p = CGPathCreateWithRoundedRect(self.layer.bounds, self.layer.cornerRadius, self.layer.cornerRadius, NULL);
-            self.layer.shadowPath = p;
-            CGPathRelease(p);
+            CGFloat density = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
 #else
-            self.layer.shadowPath = [[UIBezierPath bezierPathWithRoundedRect:self.layer.bounds cornerRadius:self.layer.cornerRadius] CGPath];
+            CGFloat density = [UIScreen mainScreen].scale;
 #endif
+            UIBezierPath *clipPath = [KRConvertUtil hr_parseClipPath:self.css_clipPath density:density];
+            if (clipPath) {
+                self.layer.shadowPath = clipPath.CGPath;
+            } else {
+#if TARGET_OS_OSX
+                CGPathRef p = CGPathCreateWithRoundedRect(self.layer.bounds, self.layer.cornerRadius, self.layer.cornerRadius, NULL);
+                self.layer.shadowPath = p;
+                CGPathRelease(p);
+#else
+                self.layer.shadowPath = [[UIBezierPath bezierPathWithRoundedRect:self.layer.bounds cornerRadius:self.layer.cornerRadius] CGPath];
+#endif
+            }
         }
-        
+                    
         // 4.4 刷新 border，使其使用 borderRadius 路径
         [self.css_borderLayer setNeedsLayout];
         return;
@@ -701,7 +733,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 #else
         CGFloat density = [UIScreen mainScreen].scale;
 #endif
-        UIBezierPath *clipPathBezier = [KRConvertUtil parseClipPath:css_clipPath density:density];
+        UIBezierPath *clipPathBezier = [KRConvertUtil hr_parseClipPath:css_clipPath density:density];
         if (clipPathBezier) {
             self.layer.shadowPath = clipPathBezier.CGPath;
         }
@@ -767,7 +799,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 #else
             CGFloat density = [UIScreen mainScreen].scale;
 #endif
-            UIBezierPath *clipPath = [KRConvertUtil parseClipPath:self.css_clipPath density:density];
+            UIBezierPath *clipPath = [KRConvertUtil hr_parseClipPath:self.css_clipPath density:density];
             if (clipPath) {
                 self.layer.shadowPath = clipPath.CGPath;
             }
@@ -1269,7 +1301,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 #endif
     
     // 3. 解析路径字符串为 UIBezierPath
-    UIBezierPath *path = [KRConvertUtil parseClipPath:_clipPathData density:density];
+    UIBezierPath *path = [KRConvertUtil hr_parseClipPath:_clipPathData density:density];
     
     if (path) {
         // 4. 设置 CAShapeLayer 的 path 属性
@@ -1504,7 +1536,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         CGFloat density = [UIScreen mainScreen].scale;
 #endif
         // 解析 clipPath 字符串为 UIBezierPath
-        path = [KRConvertUtil parseClipPath:clipPath density:density];
+        path = [KRConvertUtil hr_parseClipPath:clipPath density:density];
     }
         
     // 4. 没有 clipPath 时，使用 borderRadius 构建圆角矩形路径
@@ -1609,7 +1641,15 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     if (self = [super init]) {
         self.frame = contentView.frame;
         _contentView = contentView;
+//        _backgroundView = [UIView new];
+#if TARGET_OS_OSX
+        _backgroundView = [[KRUIView alloc] init];  // macOS 使用 KRUIView
+//        self.shadow = nil;
+        // 确保阴影不被裁剪
+//        self.layer.masksToBounds = NO;
+#else
         _backgroundView = [UIView new];
+#endif
         _backgroundView.userInteractionEnabled = NO;
         [self addSubview:_backgroundView];
         [self addSubview:contentView];
@@ -1647,6 +1687,15 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         }
         return !([key isEqualToString:@"borderRadius"] || [key isEqualToString:@"border"] || [key isEqualToString:@"clipPath"]); // return NO 抛给contentView设置
     }
+    
+#if TARGET_OS_OSX
+    // macOS: boxShadow 设置后需要更新 shadowPath
+    if ([key isEqualToString:@"boxShadow"]) {
+        BOOL result = [super css_setPropWithKey:key value:value];
+        [self p_updateShadowPathIfNeed];
+        return result;
+    }
+#endif
     return [super css_setPropWithKey:key value:value];
 }
 
@@ -1657,23 +1706,43 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 #pragma mark - private
 // 更新阴影路径
 - (void)p_updateShadowPathIfNeed {
+    
+#if TARGET_OS_OSX // [macOS]
+    if (self.layer.shadowOpacity > 0) {
+#else
     if (self.layer.shadowPath) {
+#endif
+        CGPathRef originalPath = NULL;
         // 优先使用 clipPath 的路径（星形、心形等自定义形状）
         if ([_backgroundView.layer.mask isKindOfClass:[CSSClipPathLayer class]]) {
             CSSClipPathLayer *clipPathLayer = (CSSClipPathLayer *)_backgroundView.layer.mask;
-            self.layer.shadowPath = clipPathLayer.path;
+            originalPath = clipPathLayer.path;
+//            self.layer.shadowPath = clipPathLayer.path;
         } else if ([_backgroundView.layer.mask isKindOfClass:[CSSShapeLayer class]]) {
             // 其次使用 borderRadius 的路径（圆角矩形）
             CSSShapeLayer *shapeLayer = (CSSShapeLayer *)_backgroundView.layer.mask;
-            self.layer.shadowPath = shapeLayer.path;
+            originalPath = shapeLayer.path;
+//            self.layer.shadowPath = shapeLayer.path;
+        }
+        
+        if (originalPath) {
+#if TARGET_OS_OSX
+            // macOS: NSShadow 使用原始坐标系（Y轴向上），需要翻转路径
+            CGAffineTransform flipTransform = CGAffineTransformMake(1, 0, 0, -1, 0, self.bounds.size.height);
+            CGPathRef flippedPath = CGPathCreateCopyByTransformingPath(originalPath, &flipTransform);
+            self.layer.shadowPath = flippedPath;
+            CGPathRelease(flippedPath);
+#else
+            self.layer.shadowPath = originalPath;
+#endif
         } else {
             #if TARGET_OS_OSX // [macOS]
             CGPathRef p = CGPathCreateWithRoundedRect(self.bounds, _backgroundView.layer.cornerRadius, _backgroundView.layer.cornerRadius, NULL);
             self.layer.shadowPath = p;
             CGPathRelease(p);
-            #else
+#else
             self.layer.shadowPath = [[UIBezierPath bezierPathWithRoundedRect:self.bounds cornerRadius:_backgroundView.layer.cornerRadius] CGPath];
-            #endif // [macOS]
+#endif // [macOS]
         }
     }
 }

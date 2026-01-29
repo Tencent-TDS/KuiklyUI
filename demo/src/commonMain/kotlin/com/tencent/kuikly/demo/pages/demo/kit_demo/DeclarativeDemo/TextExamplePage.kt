@@ -645,6 +645,138 @@ internal class TextExampleRichText: ComposeView<ComposeAttr, ComposeEvent>() {
                     fontSize(14f)
                 }
             }
+            RichText {
+                attr {
+                    marginTop(10f)
+                    backgroundColor(BG_A)
+                    fontSize(SIZE_M)
+                }
+                ImageSpan {
+                    size(SIZE_L, SIZE_S)
+                    src(LOGO)
+                    resizeStretch()
+                }
+                Span {
+                    fontSize(SIZE_L)
+                    text("\n图片加换行")
+                }
+            }
+            RichText {
+                attr {
+                    backgroundColor(BG_B)
+                    fontSize(SIZE_M)
+                }
+                Span {
+                    fontSize(SIZE_L)
+                    text("\n开头换行")
+                }
+            }
+            RichText {
+                attr {
+                    backgroundColor(BG_A)
+                    fontSize(SIZE_M)
+                }
+                Span {
+                    fontSize(SIZE_S)
+                    text("小字")
+                }
+                Span {
+                    fontSize(SIZE_L)
+                    text("\n小字加换行")
+                }
+            }
+            RichText {
+                attr {
+                    backgroundColor(BG_B)
+                }
+                ImageSpan {
+                    size(SIZE_XL, SIZE_XL)
+                    src(LOGO)
+                    resizeStretch()
+                }
+                ImageSpan {
+                    size(SIZE_L, SIZE_L)
+                    src(LOGO)
+                    resizeStretch()
+                }
+                Span {
+                    fontSize(SIZE_M)
+                    text("图文")
+                }
+                Span {
+                    fontSize(SIZE_S)
+                    text("递减")
+                }
+            }
+            RichText {
+                attr {
+                    backgroundColor(BG_A)
+                }
+                Span {
+                    fontSize(SIZE_XL)
+                    text("文图")
+                }
+                Span {
+                    fontSize(SIZE_L)
+                    text("递减")
+                }
+                ImageSpan {
+                    size(SIZE_M, SIZE_M)
+                    src(LOGO)
+                    resizeStretch()
+                }
+                ImageSpan {
+                    size(SIZE_S, SIZE_S)
+                    src(LOGO)
+                    resizeStretch()
+                }
+            }
+            RichText {
+                attr {
+                    backgroundColor(BG_B)
+                }
+                ImageSpan {
+                    size(SIZE_S, SIZE_S)
+                    src(LOGO)
+                    resizeStretch()
+                }
+                ImageSpan {
+                    size(SIZE_M, SIZE_M)
+                    src(LOGO)
+                    resizeStretch()
+                }
+                Span {
+                    fontSize(SIZE_L)
+                    text("图文")
+                }
+                Span {
+                    fontSize(SIZE_XL)
+                    text("递增")
+                }
+            }
+            RichText {
+                attr {
+                    backgroundColor(BG_A)
+                }
+                Span {
+                    fontSize(SIZE_S)
+                    text("文图")
+                }
+                Span {
+                    fontSize(SIZE_M)
+                    text("递增")
+                }
+                ImageSpan {
+                    size(SIZE_L, SIZE_L)
+                    src(LOGO)
+                    resizeStretch()
+                }
+                ImageSpan {
+                    size(SIZE_XL, SIZE_XL)
+                    src(LOGO)
+                    resizeStretch()
+                }
+            }
         }
     }
 
@@ -668,6 +800,13 @@ internal class TextExampleRichText: ComposeView<ComposeAttr, ComposeEvent>() {
                     "处理您的相关必要个人信息，基于地理位置信息等提供拓展功能收集的个人信息将在您使用具体功能时单独征求您的同意。"
         private const val DIALOG_INFO_PART6 = "、"
 
+        private const val LOGO = "https://wfiles.gtimg.cn/wuji_dashboard/xy/starter/be8ff284.png"
+        private const val SIZE_S = 10f
+        private const val SIZE_M = 16f
+        private const val SIZE_L = 25.6f
+        private const val SIZE_XL = 40.96f
+        private val BG_A = Color.GRAY
+        private val BG_B = Color(0xFFEEEEEE)
     }
 }
 

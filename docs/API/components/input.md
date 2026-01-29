@@ -561,6 +561,7 @@ internal class TestPage : BasePager() {
 | 参数  | 描述     | 类型 |
 |:----|:-------|:--|
 | text | 当前输入的文本  | String |
+| length | 当前文本长度（与 ``maxTextLength`` 的 ``LengthLimitType`` 一致，按字节/字符/视觉宽度计算）。仅当设置 ``maxTextLength`` 后有效，否则为空<Badge text="2.15+" type="info"/> | Int? |
 
 </div>
 

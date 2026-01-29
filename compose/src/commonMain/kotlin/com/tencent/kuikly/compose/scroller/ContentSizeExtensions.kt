@@ -125,6 +125,7 @@ private fun PagerState.calculatePagerContentSize(curOffset: Float): Int? {
 }
 
 private fun LazyGridState.calculateLazyGridContentSize(curOffset: Float): Int? {
+    shouldUpdateContentSize = false
     val lastItem = layoutInfo.visibleItemsInfo.lastOrNull()
     return if (lastItem != null && lastItem.index == layoutInfo.totalItemsCount - 1) {
         if (layoutInfo.orientation == Orientation.Vertical) {

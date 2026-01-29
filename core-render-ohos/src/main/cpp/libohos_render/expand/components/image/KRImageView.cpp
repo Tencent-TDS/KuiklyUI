@@ -435,6 +435,10 @@ void KRImageView::FireOnImageCompleteEvent(ArkUI_NodeEvent *event) {
         float right = (image_size.width * 0.5 - 1) / dpi;
         kuikly::util::SetArkUIImageCapInsets(GetNode(), top, left, bottom, right);
     }
+    // src 对应的 ImageView 加载图片成功触发 回调
+    if (image_did_load_callback) {
+        image_did_load_callback();
+    }
 
     if (load_success_callback_) {
         KRRenderValueMap map;
@@ -555,5 +559,11 @@ void KRImageView::LoadFromAssets(const std::shared_ptr<KRImageLoadOption> image_
             kuikly::util::SetArkUIImageSrc(GetNode(), uri);
             return;
         }
+    }
+}
+
+void KRImageView::ClearImageDidLoadCallback() {
+    if (image_did_load_callback) {
+        image_did_load_callback = nullptr;  // std::function 置空
     }
 }

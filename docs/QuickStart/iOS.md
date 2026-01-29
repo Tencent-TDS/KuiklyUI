@@ -174,6 +174,7 @@ NS_ASSUME_NONNULL_BEGIN
 NS_ASSUME_NONNULL_END
 ```
 
+
 ```objc
 #import "KuiklyRenderViewController.h"
 #import <OpenKuiklyIOSRender/KuiklyRenderViewControllerBaseDelegator.h>
@@ -195,8 +196,12 @@ NS_ASSUME_NONNULL_END
         // 存储页面数据
         pageData = [self p_mergeExtParamsWithOriditalParam:pageData];
         _pageData = pageData;
+        
         // 实例化Kuikly委托者类
+        // ⚠️ 注意：必须使用 KuiklyRenderViewControllerDelegator
+        //    不要使用 KuiklyRenderViewControllerBaseDelegator
         _delegator = [[KuiklyRenderViewControllerDelegator alloc] initWithPageName:pageName pageData:pageData];
+        
         _delegator.delegate = self;
     }
     return self;
@@ -282,6 +287,11 @@ NS_ASSUME_NONNULL_END
 
 @end
 ```
+::: warning 重要提示
+必须使用 **KuiklyRenderViewControllerDelegator** 类，  
+<span style="color: #d32f2f;">不要使用 KuiklyRenderViewControllerBaseDelegator</span>，否则会导致功能异常。
+:::
+
 
 ## 实现Kuikly适配器（必须实现部分）
 

@@ -86,12 +86,22 @@ internal class TextExampleFontSize: ComposeView<ComposeAttr, ComposeEvent>() {
                 }
             }
             Text {
+                event {
+                    click {
+                        KLog.i("TextExamplePage", "fontSize(24)     click")
+                    }
+                }
                 attr {
                     fontSize(24f)
                     text("attr { fontSize(24) }")
                 }
             }
             Text {
+                event {
+                    click {
+                        KLog.i("TextExamplePage", "fontSize(28)     click")
+                    }
+                }
                 attr {
                     fontSize(28f)
                     text("attr { fontSize(28) }")
@@ -488,6 +498,9 @@ internal class TextExampleRichText: ComposeView<ComposeAttr, ComposeEvent>() {
                 padding(all = 16f)
             }
             RichText {
+                attr {
+                    maxWidth(100f)
+                }
                 Span {
                     fontSize(16f)
                     text("这是")

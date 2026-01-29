@@ -55,6 +55,16 @@ NS_ASSUME_NONNULL_BEGIN
 - (NSString *)kr_subStringWithIndex:(NSUInteger)index;
 - (NSUInteger)kr_length; // emoji/中文算一个1个长度来统计字符串长度
 
+/**
+ * 按UTF-8字节计算长度
+ */
+- (NSUInteger)kr_byteLength;
+
+/**
+ * 按视觉宽度计算长度（ASCII字符占1，中文/emoji等占2）
+ */
+- (NSUInteger)kr_visualWidth;
+
 @end
 
 @interface UIView (KR)

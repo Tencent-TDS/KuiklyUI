@@ -224,8 +224,17 @@ class InputAttr : Attr() {
         return this
     }
 
+    @Deprecated(
+        "Use maxTextLength(length: Int, type: LengthLimitType) instead",
+        ReplaceWith("maxTextLength(maxLength, LengthLimitType)")
+    )
     fun maxTextLength(maxLength: Int) {
         "maxTextLength" with maxLength
+    }
+
+    fun maxTextLength(length: Int, type: LengthLimitType) {
+        "lengthLimitType" with type.value
+        "maxTextLength" with length
     }
 
     fun autofocus(focus: Boolean) {
@@ -288,7 +297,8 @@ class InputAttr : Attr() {
 
 data class InputParams(
     val text: String,
-    val imeAction: String? = null
+    val imeAction: String? = null,
+    val length: Int? = null
 )
 
 data class KeyboardParams(
@@ -307,7 +317,8 @@ class InputEvent : Event() {
         register(TEXT_DID_CHANGE, {
             it as JSONObject
             val text = it.optString("text")
-            handler(InputParams(text))
+            val length = if (it.has("length")) it.optInt("length") else null
+            handler(InputParams(text, length = length))
         }, isSync = isSyncEdit)
     }
 
@@ -400,3 +411,26 @@ fun ViewContainer<*, *>.Input(init: InputView.() -> Unit) {
 }
 
 typealias InputEventHandlerFn = (InputParams) -> Unit
+
+/**
+ * 输入长度限制类型
+ *
+ * | 示例       | BYTE | CHARACTER | VISUAL_WIDTH | 说明                                  |
+ * |----------|------|-----------|--------------|-------------------------------------|
+ * | `""`       | 0    | 0         | 0            | 空字符串：0                              |
+ * | `"a"`      | 1    | 1         | 1            | 英文：UTF8字节数1，字符个数1，视觉宽度1             |
+ * | `"中"`      | 3    | 1         | 2            | 中文：UTF8字节数3，字符个数1，视觉宽度2             |
+ * | `"😂"`     | 4    | 1         | 2            | Emoji：UTF8字节数4，字符个数1，视觉宽度2          |
+ * | `"[img]"` | 5    | 1         | 2            | ImageSpan：描述文本的UTF8字节数5，字符个数1，视觉宽度2 |
+ * | `"\u200B"` | 3    | 1         | 1            | 不可见字符：UTF8字节数3，字符个数1，视觉宽度按1计算       |
+ *
+ * > 注：VISUAL_WIDTH模式下，未识别出来的不可见字符可能会被统计为2
+ */
+enum class LengthLimitType(val value: Int) {
+    /** 限制输入的长度按字节计算 */
+    BYTE(0),
+    /** 限制输入的长度按字符计算 */
+    CHARACTER(1),
+    /** 限制输入的长度按视觉宽度计算 */
+    VISUAL_WIDTH(2)
+}

@@ -246,19 +246,45 @@ internal class TestPage : BasePager() {
 
 ### maxTextLength
 
-限制输入框的输入字符长度
+限制输入框的输入长度。支持三种长度限制类型：按字节计算、按字符计算、按视觉宽度计算。
 
 <div class="table-01">
 
-**tintColor方法**
+**maxTextLength方法**
 
 | 参数  | 描述     | 类型 |
 |:----|:-------|:--|
-| color | 输入框光标颜色  | Long `|` Color |
+| length | 最大输入长度  | Int |
+| type | 长度限制类型  | LengthLimitType |
 
 </div>
 
+**LengthLimitType 枚举类型**
+
+| 类型  | 值 | 说明     |
+|:----|:--|:-------|
+| BYTE | 0 | 限制输入的长度按字节计算 |
+| CHARACTER | 1 | 限制输入的长度按字符计算 |
+| VISUAL_WIDTH | 2 | 限制输入的长度按视觉宽度计算 |
+
+**长度计算示例**
+
+| 示例       | BYTE | CHARACTER | VISUAL_WIDTH | 说明                                  |
+|----------|------|-----------|--------------|-------------------------------------|
+| `""`       | 0    | 0         | 0            | 空字符串：0                              |
+| `"a"`      | 1    | 1         | 1            | 英文：UTF8字节数1，字符个数1，视觉宽度1             |
+| `"中"`      | 3    | 1         | 2            | 中文：UTF8字节数3，字符个数1，视觉宽度2             |
+| `"😂"`     | 4    | 1         | 2            | Emoji：UTF8字节数4，字符个数1，视觉宽度2          |
+| `"[img]"` | 5    | 1         | 2            | ImageSpan：描述文本的UTF8字节数5，字符个数1，视觉宽度2 |
+| `"\u200B"` | 3    | 1         | 1            | 不可见字符：UTF8字节数3，字符个数1，视觉宽度按1计算       |
+
+> 注：VISUAL_WIDTH模式下，未识别出来的不可见字符可能会被统计为2
+
 **示例**
+
+:::tabs
+
+@tab:active 按字符限制（推荐）
 
 ```kotlin{13}
 @Page("demo_page")
@@ -273,13 +299,85 @@ internal class TestPage : BasePager() {
                 attr {
                     size(200f, 40f)
                     placeholder("输入框提示")
-                    maxTextLength(20) // 限制最多输入20个字符
+                    maxTextLength(20, LengthLimitType.CHARACTER) // 限制最多输入20个字符
                 }
             }
         }
     }
 }
 ```
+
+@tab 按字节限制
+
+```kotlin{13}
+@Page("demo_page")
+internal class TestPage : BasePager() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                allCenter()
+            }
+
+            Input {
+                attr {
+                    size(200f, 40f)
+                    placeholder("输入框提示")
+                    maxTextLength(20, LengthLimitType.BYTE) // 限制最多输入20个字节
+                }
+            }
+        }
+    }
+}
+```
+
+@tab 按视觉宽度限制
+
+```kotlin{13}
+@Page("demo_page")
+internal class TestPage : BasePager() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                allCenter()
+            }
+
+            Input {
+                attr {
+                    size(200f, 40f)
+                    placeholder("输入框提示")
+                    maxTextLength(20, LengthLimitType.VISUAL_WIDTH) // 限制最多输入视觉宽度为20
+                }
+            }
+        }
+    }
+}
+```
+
+@tab 已废弃的单参数用法
+
+```kotlin{13}
+@Page("demo_page")
+internal class TestPage : BasePager() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                allCenter()
+            }
+
+            Input {
+                attr {
+                    size(200f, 40f)
+                    placeholder("输入框提示")
+                    @Suppress("DEPRECATION")
+                    maxTextLength(20) // 已废弃，建议使用 maxTextLength(20, LengthLimitType.CHARACTER)
+                }
+            }
+        }
+    }
+}
+```
+
+:::
 
 ### autofocus方法
 
@@ -463,6 +561,7 @@ internal class TestPage : BasePager() {
 | 参数  | 描述     | 类型 |
 |:----|:-------|:--|
 | text | 当前输入的文本  | String |
+| length | 当前文本长度（与 ``maxTextLength`` 的 ``LengthLimitType`` 一致，按字节/字符/视觉宽度计算）。仅当设置 ``maxTextLength`` 后有效，否则为空<Badge text="2.15+" type="info"/> | Int? |
 
 </div>
 

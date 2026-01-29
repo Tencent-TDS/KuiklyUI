@@ -302,15 +302,17 @@ NS_ASSUME_NONNULL_END
 
 KuiklyRenderComponentExpandHandler 提供了以下三种图片加载方法：
 
-| 方法 | 状态 | src一致性验证 | 图片加载错误回调 | imageParams支持 |
-|------|------|:-------------:|:----------------:|:---------------:|
-| `hr_setImageWithUrl:imageParams:complete:` | 推荐 | ✅ | ✅ | ✅ |
-| `hr_setImageWithUrl:forImageView:complete:` | 已废弃 | ❌ | ✅ | ❌ |
-| `hr_setImageWithUrl:forImageView:` | 已废弃 | ❌ | ❌ | ❌ |
+<span style="background-color: #d4edda; color: #155724; padding: 2px 8px; border-radius: 4px; font-weight: bold;">推荐</span>
+- `hr_setImageWithUrl:imageParams:complete:` — 完整支持（src一致性验证、错误回调、imageParams）
 
-:::tip 关于 src一致性验证
-`src一致性验证` 是保证图片准确加载的必要能力。后两种方法因不具备此能力，在`页面多图片`、`图片src变更频繁` 场景下易发生`图片错乱`现象，因此已废弃。
-:::
+<span style="background-color: #f8d7da; color: #721c24; padding: 2px 8px; border-radius: 4px; font-weight: bold;">已废弃</span>（存在图片错乱风险，请勿使用）
+- `hr_setImageWithUrl:forImageView:complete:` — 缺少 src 一致性验证、imageParams
+- `hr_setImageWithUrl:forImageView:` — 仅支持基础加载
+
+:::tip 废弃原因说明
+- `src一致性验证`是保证图片准确加载的必要能力。后两种方法因不具备此能力，在`页面多图片`、`图片src变更频繁` 场景下易发生`图片错乱`现象，因此已废弃。
+- `imageParams` 是src的补充参数，具体作用可见 [imageParams](/API/components/image.md#src)
+  :::
 
 下面给出推荐方法的具体使用示例：
 

@@ -78,10 +78,20 @@ class KRRichTextBuilder(private val kuiklyContext: IKuiklyRenderContext?) {
         }
         val spannedBuilder = SpannableStringBuilder()
         for (index in 0 until spanValues.length()) {
+            val isStart =
+                spannedBuilder.isEmpty() || spannedBuilder[spannedBuilder.lastIndex] == '\n'
             val spanValue = spanValues.optJSONObject(index) ?: JSONObject()
-            val spanProps = parseSpanProps(spanValue, textProps)
+            val spanProps = parseSpanProps(spanValue, textProps, isStart)
             val spans = createSpans(spanProps, index, layoutSizeGetter)
             if (spans.isNotEmpty()) {
+                if (spanProps is TextSpanProps && spanProps.adjustNewline) {
+                    // 对齐iOS、鸿蒙端表现，非空行的换行符不撑开行高
+                    spannedBuilder.append(
+                        "\n",
+                        AbsoluteSizeSpan(1),
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                }
                 spannedBuilder.append(buildSpannedString {
                     // 记录 Span 对应的文字范围
                     spanTextRanges.add(
@@ -112,11 +122,15 @@ class KRRichTextBuilder(private val kuiklyContext: IKuiklyRenderContext?) {
     /**
      * 解析 Span 参数
      */
-    private fun parseSpanProps(spanValue: JSONObject, defaultTextProps: KRTextProps) : SpanProps {
+    private fun parseSpanProps(
+        spanValue: JSONObject,
+        defaultTextProps: KRTextProps,
+        isStart: Boolean
+    ): SpanProps {
         if (isPlaceHolderSpan(spanValue)) {
             return PlaceholderSpanProps(spanValue, kuiklyContext)
         }
-        return TextSpanProps(spanValue, defaultTextProps, kuiklyContext)
+        return TextSpanProps(spanValue, defaultTextProps, isStart, kuiklyContext)
     }
 
     /**
@@ -217,13 +231,16 @@ class KRRichTextBuilder(private val kuiklyContext: IKuiklyRenderContext?) {
 }
 
 abstract class SpanProps(spanValue: JSONObject) {
-    val text: String
-    init {
-        text = spanValue.optString(KRTextProps.PROP_KEY_TEXT, "")
-    }
+    protected val _text: String = spanValue.optString(KRTextProps.PROP_KEY_TEXT, "")
+    open val text: String get() = _text
 }
 
-class TextSpanProps(spanValue: JSONObject, defaultProps: KRTextProps, private val kuiklyContext: IKuiklyRenderContext?) : SpanProps(spanValue) {
+class TextSpanProps(
+    spanValue: JSONObject,
+    defaultProps: KRTextProps,
+    isStart: Boolean,
+    kuiklyContext: IKuiklyRenderContext?
+) : SpanProps(spanValue) {
 
     val color: Int
     val fontSize: Float
@@ -237,6 +254,19 @@ class TextSpanProps(spanValue: JSONObject, defaultProps: KRTextProps, private va
     val backgroundImage: String
     var textShadow: BoxShadow? = null
     var useDpFontSizeDim = false
+
+    val adjustNewline by lazy(LazyThreadSafetyMode.NONE) {
+        !isStart && _text.isNotEmpty() && _text[0] == '\n'
+    }
+    private val _trimText by lazy(LazyThreadSafetyMode.NONE) {
+        if (adjustNewline) {
+            _text.substring(1)
+        } else {
+            _text
+        }
+    }
+
+    override val text: String get() = _trimText
 
     init {
         color = spanValue.optString(KRTextProps.PROP_KEY_COLOR).let { colorStr ->
@@ -539,17 +569,12 @@ class KRPlaceholderSpan(private val spanProps: PlaceholderSpanProps): Replacemen
         end: Int,
         fm: Paint.FontMetricsInt?
     ): Int {
-        val fontMetrics = paint.getFontMetricsInt(null)
-        // 如果 placeholder 高度比字体大，调整 FontMetrics 进行占位
-        if (spanProps.height > fontMetrics) {
-            if (fm != null) {
-                // 使用 bottom 作为 lineSpace
-                val lineSpace = fm.bottom
-                fm.top = -(fontMetrics + spanProps.height) / 2
-                fm.ascent = fm.top
-                fm.bottom = spanProps.height + fm.top + lineSpace
-                fm.descent = fm.bottom
-            }
+        if (fm != null) {
+            val diff = spanProps.height - (fm.bottom - fm.top)
+            fm.bottom = maxOf(0, fm.bottom + diff / 2)
+            fm.top = fm.bottom - spanProps.height
+            fm.ascent = fm.top
+            fm.descent = fm.bottom
         }
         return spanProps.width
     }

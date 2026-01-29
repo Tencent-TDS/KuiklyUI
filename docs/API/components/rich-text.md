@@ -4,6 +4,11 @@
 
 [组件使用示例](https://github.com/Tencent-TDS/KuiklyUI/tree/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/kit_demo/DeclarativeDemo/TextExamplePage.kt)
 
+:::warning 换行符与版本兼容性（Android）
+**2.14 及以下版本**：换行符（如 `\n`）在各平台表现不一致——**iOS/鸿蒙**上换行符不撑开行高，**Android** 上换行符与其它字符等高，导致多行富文本在 Android 上可能整体更高。
+
+**最新版本**：对换行符的处理已与 iOS/鸿蒙对齐（换行符不撑开高度）。因此从旧版本升级后，含换行的富文本在 Android 上的高度可能变矮，请注意验证。
+:::
 
 ## 属性
 

@@ -97,7 +97,26 @@ typedef NS_ENUM(NSInteger, KRTextDecorationLineType) {
 + (UIAccessibilityTraits)kr_accessibilityTraits:(id)value;
 + (BOOL)hr_isJsonArray:(id)value;
 + (id)nativeObjectToKotlinObject:(id)ocObject;
-+ (UIBezierPath *)parseClipPath:(NSString *)pathData density:(CGFloat)density;
++ (UIBezierPath *)hr_parseClipPath:(NSString *)pathData density:(CGFloat)density;
++ (CGPathRef)hr_convertNSBezierPathToCGPath:(NSBezierPath *)bezierPath;
+
+
+#if TARGET_OS_OSX
+
+/// 在 CGContext 中绘制线性渐变
+/// @param ctx 目标绘制上下文
+/// @param gradientStr 渐变字符串（如 "linear-gradient(180,#ffffff00 0,#ffffffff 1)"）
+/// @param size 绘制区域大小（point 单位）
++ (void)hr_drawLinearGradientInContext:(CGContextRef)ctx withGradientStr:(NSString *)gradientStr size:(CGSize)size;
+
+/// 计算渐变的起点和终点（归一化坐标 0-1）
+/// @param startPoint 输出参数，渐变起点
+/// @param endPoint 输出参数，渐变终点
+/// @param direction 渐变方向
+/// @param size 绘制区域大小
++ (void)hr_calculateGradientStartPoint:(CGPoint *)startPoint endPoint:(CGPoint *)endPoint direction:(CSSGradientDirection)direction size:(CGSize)size;
+
+#endif
 
 @end
 

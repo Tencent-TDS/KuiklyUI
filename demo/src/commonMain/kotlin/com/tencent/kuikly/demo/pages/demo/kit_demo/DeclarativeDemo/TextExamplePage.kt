@@ -498,9 +498,6 @@ internal class TextExampleRichText: ComposeView<ComposeAttr, ComposeEvent>() {
                 padding(all = 16f)
             }
             RichText {
-                attr {
-                    maxWidth(100f)
-                }
                 Span {
                     fontSize(16f)
                     text("这是")

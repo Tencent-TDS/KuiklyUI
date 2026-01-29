@@ -854,12 +854,17 @@ private val propHandlers = mapOf<String, (CSSStyleDeclaration, Any, HTMLElement)
         true
     },
     KRCssConst.CLICK to { _, value, ele ->
-        // Record mousedown position for PC drag/selection detection
-        ele.addEventListener("mousedown", { event ->
-            val mouseEvent = event.unsafeCast<MouseEvent>()
-            ele.asDynamic().clickStartX = mouseEvent.clientX
-            ele.asDynamic().clickStartY = mouseEvent.clientY
-        })
+        // Check if it is a PC device (precise pointing device like mouse)
+        val isPCDevice = kuiklyWindow.matchMedia(ClickDetectionConst.POINTER_FINE_QUERY).matches
+
+        // Record mousedown position for PC drag/selection detection (only for PC)
+        if (isPCDevice) {
+            ele.addEventListener("mousedown", { event ->
+                val mouseEvent = event.unsafeCast<MouseEvent>()
+                ele.asDynamic().clickStartX = mouseEvent.clientX
+                ele.asDynamic().clickStartY = mouseEvent.clientY
+            })
+        }
 
         ele.addEventListener("click", { event ->
             // If a pan or long-press has been triggered, ignore the click.
@@ -868,22 +873,25 @@ private val propHandlers = mapOf<String, (CSSStyleDeclaration, Any, HTMLElement)
                 return@addEventListener
             }
 
-            // PC optimization: Check if text is selected (user is selecting text, not clicking)
-            val selection = kuiklyWindow.asDynamic().getSelection()
-            val selectedText = selection?.toString() ?: ""
-            if (selectedText.unsafeCast<String>().isNotEmpty()) {
-                return@addEventListener
-            }
-
-            // PC optimization: Check if mouse moved significantly (drag operation, not click)
-            val startX = ele.asDynamic().clickStartX
-            val startY = ele.asDynamic().clickStartY
-            if (startX != null && startY != null) {
-                val mouseEvent = event.unsafeCast<MouseEvent>()
-                val deltaX = abs(mouseEvent.clientX - startX.unsafeCast<Int>())
-                val deltaY = abs(mouseEvent.clientY - startY.unsafeCast<Int>())
-                if (deltaX > ClickDetectionConst.MOVE_TOLERANCE || deltaY > ClickDetectionConst.MOVE_TOLERANCE) {
+            // PC optimization: filter out drag/selection operations (only for PC)
+            if (isPCDevice) {
+                // Check if text is selected (user is selecting text, not clicking)
+                val selection = kuiklyWindow.asDynamic().getSelection()
+                val selectedText = selection?.toString() ?: ""
+                if (selectedText.unsafeCast<String>().isNotEmpty()) {
                     return@addEventListener
+                }
+
+                // Check if mouse moved significantly (drag operation, not click)
+                val startX = ele.asDynamic().clickStartX
+                val startY = ele.asDynamic().clickStartY
+                if (startX != null && startY != null) {
+                    val mouseEvent = event.unsafeCast<MouseEvent>()
+                    val deltaX = abs(mouseEvent.clientX - startX.unsafeCast<Int>())
+                    val deltaY = abs(mouseEvent.clientY - startY.unsafeCast<Int>())
+                    if (deltaX > ClickDetectionConst.MOVE_TOLERANCE || deltaY > ClickDetectionConst.MOVE_TOLERANCE) {
+                        return@addEventListener
+                    }
                 }
             }
 
@@ -1044,5 +1052,7 @@ private object AnimationTimingConst {
  */
 private object ClickDetectionConst {
     /** Movement tolerance in pixels - if mouse moves more than this, it's considered a drag, not a click */
-    const val MOVE_TOLERANCE = 10
+    const val MOVE_TOLERANCE = 5
+    /** Media query for precise pointing device (PC mouse) */
+    const val POINTER_FINE_QUERY = "(pointer: fine)"
 }

@@ -19,10 +19,12 @@ import com.tencent.kuikly.core.render.web.processor.state
 import org.w3c.dom.Element
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.css.CSSStyleDeclaration
+import org.w3c.dom.events.MouseEvent
 import org.w3c.dom.get
 import kotlin.js.Json
 import kotlin.js.Promise
 import kotlin.js.json
+import kotlin.math.abs
 
 fun String.toPercentage(): String = (toFloat() * 100).toString() + "%"
 
@@ -852,12 +854,47 @@ private val propHandlers = mapOf<String, (CSSStyleDeclaration, Any, HTMLElement)
         true
     },
     KRCssConst.CLICK to { _, value, ele ->
+        // Check if it is a PC device (precise pointing device like mouse)
+        val isPCDevice = kuiklyWindow.matchMedia(ClickDetectionConst.POINTER_FINE_QUERY).matches
+
+        // Record mousedown position for PC drag/selection detection (only for PC)
+        if (isPCDevice) {
+            ele.addEventListener("mousedown", { event ->
+                val mouseEvent = event.unsafeCast<MouseEvent>()
+                ele.asDynamic().clickStartX = mouseEvent.clientX
+                ele.asDynamic().clickStartY = mouseEvent.clientY
+            })
+        }
+
         ele.addEventListener("click", { event ->
             // If a pan or long-press has been triggered, ignore the click.
             val panOrLongPressTriggered = ele.asDynamic().panOrLongPressTriggered == true
             if (panOrLongPressTriggered) {
                 return@addEventListener
             }
+
+            // PC optimization: filter out drag/selection operations (only for PC)
+            if (isPCDevice) {
+                // Check if text is selected (user is selecting text, not clicking)
+                val selection = kuiklyWindow.asDynamic().getSelection()
+                val selectedText = selection?.toString() ?: ""
+                if (selectedText.unsafeCast<String>().isNotEmpty()) {
+                    return@addEventListener
+                }
+
+                // Check if mouse moved significantly (drag operation, not click)
+                val startX = ele.asDynamic().clickStartX
+                val startY = ele.asDynamic().clickStartY
+                if (startX != null && startY != null) {
+                    val mouseEvent = event.unsafeCast<MouseEvent>()
+                    val deltaX = abs(mouseEvent.clientX - startX.unsafeCast<Int>())
+                    val deltaY = abs(mouseEvent.clientY - startY.unsafeCast<Int>())
+                    if (deltaX > ClickDetectionConst.MOVE_TOLERANCE || deltaY > ClickDetectionConst.MOVE_TOLERANCE) {
+                        return@addEventListener
+                    }
+                }
+            }
+
             // Check whether the current element is marked as having a double click handler registered
             val hasBindDoubleClick = ele.asDynamic().hasDoubleClickListener == true
             val clickEvent = event.asDynamic()
@@ -1008,4 +1045,14 @@ private object AnimationTimingConst {
     const val REPEAT_ANIMATION_DELAY_MS = 10
     /** Double click detection timeout in milliseconds */
     const val DOUBLE_CLICK_TIMEOUT_MS = 200
+}
+
+/**
+ * Click detection constants for PC optimization
+ */
+private object ClickDetectionConst {
+    /** Movement tolerance in pixels - if mouse moves more than this, it's considered a drag, not a click */
+    const val MOVE_TOLERANCE = 5
+    /** Media query for precise pointing device (PC mouse) */
+    const val POINTER_FINE_QUERY = "(pointer: fine)"
 }

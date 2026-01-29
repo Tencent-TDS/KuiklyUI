@@ -17,6 +17,7 @@
 #import "KRConvertUtil.h"
 #import "KRRichTextView.h"
 #import "KuiklyRenderBridge.h"
+#import "NSObject+KR.h"
 // 字典key常量
 NSString *const KRVFontSizeKey = @"fontSize";
 NSString *const KRVFontWeightKey = @"fontWeight";
@@ -40,7 +41,9 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 /** attr is placeholderColor */
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(placeholderColor);
 /** attr is maxTextLength */
-@property (nonatomic, strong)  NSString *KUIKLY_PROP(maxTextLength);
+@property (nonatomic, strong)  NSNumber *KUIKLY_PROP(maxTextLength);
+/** attr is lengthLimitType */
+@property (nonatomic, strong)  NSNumber *KUIKLY_PROP(lengthLimitType);
 /** attr is tint color */
 @property (nonatomic, strong, readwrite) NSString *KUIKLY_PROP(tintColor);
 /** attr is color */
@@ -272,7 +275,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
         if (enablePinyinCallback) {
             if (self.css_textDidChange) {
                 NSString *text = textField.text.copy ?: @"";
-                self.css_textDidChange(@{@"text": text, @"length": @([text kr_length])});
+                self.css_textDidChange(@{@"text": text, @"length": @([self p_calculateLengthForText:text])});
             }
         }
         return;
@@ -280,7 +283,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     [self p_limitTextInput];
     if (self.css_textDidChange) {
         NSString *text = textField.text.copy ?: @"";
-        self.css_textDidChange(@{@"text": text, @"length": @([text kr_length])});
+        self.css_textDidChange(@{@"text": text, @"length": @([self p_calculateLengthForText:text])});
     }
 }
 
@@ -369,11 +372,17 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     if (position) {
         return;
     }
-    NSInteger maxLength = [self maxInputLengthWithString:textView.attributedText.string];
-    if (maxLength == 0) {
+    NSInteger maxLength;
+    if (self.css_lengthLimitType == nil) { // 兼容旧版本行为
+        maxLength = [self p_legacyMaxInputLengthWithString:textView.attributedText.string];
+    } else {
+        maxLength = [self.css_maxTextLength integerValue];
+    }
+
+    if (maxLength <= 0) {
         return;
     }
-    if (textView.attributedText.length > maxLength) {
+    if ([self p_shouldTruncate:textView.attributedText maxLength:maxLength]) {
         if (textView.attributedText) {
             
            // NSUInteger location = self.selectedTextRange.start.location;
@@ -382,7 +391,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
             NSUInteger atIndex = MAX(location - 1, 0);
             NSUInteger deleteLength = 0;
              
-            while (truncatedAttributedString.length > maxLength && (atIndex < truncatedAttributedString.length && atIndex >= 0)) {
+            while ([self p_shouldTruncate:truncatedAttributedString maxLength:maxLength] && (atIndex < truncatedAttributedString.length && atIndex >= 0)) {
                 NSRange composedRange = [truncatedAttributedString.string rangeOfComposedCharacterSequenceAtIndex:atIndex]; // 避免切割emoji
                 if (composedRange.length == 0) {
                     break;
@@ -392,9 +401,16 @@ NSString *const KRVFontWeightKey = @"fontWeight";
                 atIndex = composedRange.location -1;
                 deleteLength += composedRange.length;
             }
-            if (truncatedAttributedString.length > maxLength) {
-                NSRange range = [truncatedAttributedString.string rangeOfComposedCharacterSequenceAtIndex:maxLength];
-                truncatedAttributedString = [[NSMutableAttributedString alloc] initWithAttributedString:[truncatedAttributedString attributedSubstringFromRange:NSMakeRange(0, range.location)]];
+            BOOL truncatedTail = NO;
+            while (truncatedAttributedString.length > 0 && [self p_shouldTruncate:truncatedAttributedString maxLength:maxLength]) {
+                NSRange range = [truncatedAttributedString.string rangeOfComposedCharacterSequenceAtIndex:truncatedAttributedString.length - 1];
+                if (range.length == 0) {
+                    break;
+                }
+                [truncatedAttributedString deleteCharactersInRange:range];
+                truncatedTail = YES;
+            }
+            if (truncatedTail) {
                 location = maxLength;
                 deleteLength = 0;
             }
@@ -416,7 +432,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     }
 }
 
-- (NSUInteger)maxInputLengthWithString:(NSString *)string {
+- (NSUInteger)p_legacyMaxInputLengthWithString:(NSString *)string {
     NSInteger maxLength = [self.css_maxTextLength intValue];
     if (maxLength <= 0) {
         return 0;
@@ -434,6 +450,38 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     }
     
     return MAX(i, maxLength);
+}
+
+- (NSUInteger)p_calculateLengthForText:(NSString *)text {
+    if (self.css_lengthLimitType == nil) {
+        // 兼容旧版本行为
+        return [text kr_length];
+    }
+    switch ([self.css_lengthLimitType integerValue]) {
+        case 0: // BYTE
+            return [text kr_byteLength];
+        case 2: // VIRSUAL_WIDTH
+            return [text kr_visualWidth];
+        case 1: // CHARACTER
+        default:
+            return [text kr_length];
+    }
+}
+
+- (BOOL)p_shouldTruncate:(NSAttributedString *)attributedText maxLength:(NSInteger)maxLength {
+    if (self.css_lengthLimitType == nil) {
+        // 兼容旧版本行为
+        return attributedText.length > maxLength;
+    }
+    switch ([self.css_lengthLimitType integerValue]) {
+        case 0: // BYTE
+            return [attributedText.string kr_byteLength] > maxLength;
+        case 2: // VIRSUAL_WIDTH
+            return [attributedText.string kr_visualWidth] > maxLength;
+        case 1: // CHARACTER
+        default:
+            return [attributedText.string kr_length] > maxLength;
+    }
 }
 
 

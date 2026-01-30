@@ -50,7 +50,11 @@ import com.tencent.kuikly.core.render.android.css.ktx.toColor
 import com.tencent.kuikly.core.render.android.css.ktx.toDpF
 import com.tencent.kuikly.core.render.android.css.ktx.toPxF
 import com.tencent.kuikly.core.render.android.css.ktx.toPxI
+import com.tencent.kuikly.core.render.android.expand.component.input.KRBaseLengthFilter
+import com.tencent.kuikly.core.render.android.expand.component.input.KRByteLengthFilter
+import com.tencent.kuikly.core.render.android.expand.component.input.KRCharacterLengthFilter
 import com.tencent.kuikly.core.render.android.expand.component.input.KRTextLengthLimitInputFilter
+import com.tencent.kuikly.core.render.android.expand.component.input.KRVisualWidthLengthFilter
 import com.tencent.kuikly.core.render.android.expand.component.list.KRRecyclerView
 import com.tencent.kuikly.core.render.android.expand.component.text.FontWeightSpan
 import com.tencent.kuikly.core.render.android.expand.component.text.HRLineHeightSpan
@@ -125,6 +129,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     private var pendingFocus = false
 
     private var currentKeyboardHeight = 0
+    private var lengthLimitType: Int = -1
     private var maxTextLength: Int? = null
 
     init {
@@ -168,6 +173,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
             KEYBOARD_TYPE -> setKeyboardType(propValue)
             RETURN_KEY_TYPE -> setReturnKeyType(propValue)
             TEXT_ALIGN -> setTextAlign(propValue)
+            LENGTH_LIMIT_TYPE -> setLengthLimitType(propValue)
             MAX_TEXT_LENGTH -> setMaxTextLength(propValue)
             EDITABLE -> setEditable(propValue)
             TEXT_DID_CHANGE -> observeTextChanged(propValue)
@@ -284,17 +290,78 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         return true
     }
 
-    private fun setMaxTextLength(value: Any): Boolean {
-        maxTextLength = value as Int
-        filters = arrayOf<InputFilter>(
-            KRTextLengthLimitInputFilter(
-                value,
-                kuiklyRenderContext,
-                { fontSize },
-                { textLengthBeyondLimitCallback?.invoke(null) }
-            )
-        )
+    private fun setLengthLimitType(value: Any): Boolean {
+        if (lengthLimitType != value) {
+            lengthLimitType = value as Int
+            if (maxTextLength != null) {
+                filters = arrayOf(createInputFilter(lengthLimitType))
+            }
+        }
         return true
+    }
+
+    private fun setMaxTextLength(value: Any): Boolean {
+        if (maxTextLength != value) {
+            maxTextLength = value as Int
+            filters = arrayOf(createInputFilter(lengthLimitType))
+        }
+        return true
+    }
+
+    private fun createInputFilter(type: Int): InputFilter {
+        val length = maxTextLength!!
+        val beyondLimitCallback: () -> Unit = { textLengthBeyondLimitCallback?.invoke(null) }
+        return when (type) {
+            LENGTH_LIMIT_TYPE_BYTE -> {
+                KRByteLengthFilter(
+                    length,
+                    kuiklyRenderContext,
+                    { fontSize },
+                    beyondLimitCallback
+                )
+            }
+
+            LENGTH_LIMIT_TYPE_CHARACTER -> {
+                KRCharacterLengthFilter(
+                    length,
+                    kuiklyRenderContext,
+                    { fontSize },
+                    beyondLimitCallback
+                )
+            }
+
+            LENGTH_LIMIT_TYPE_VISUAL_WIDTH -> {
+                KRVisualWidthLengthFilter(
+                    length,
+                    kuiklyRenderContext,
+                    { fontSize },
+                    beyondLimitCallback
+                )
+            }
+
+            else -> {
+                // otherwise, use the deprecated filter for backward compatibility
+                @Suppress("DEPRECATION")
+                KRTextLengthLimitInputFilter(
+                    length,
+                    kuiklyRenderContext,
+                    { fontSize },
+                    beyondLimitCallback
+                )
+            }
+        }
+    }
+
+    private fun getLengthLimitInputFilter(): KRBaseLengthFilter? {
+        if (lengthLimitType == LENGTH_LIMIT_TYPE_UNSET) {
+            return null
+        }
+        filters.forEach { filter ->
+            if (filter is KRBaseLengthFilter) {
+                return filter
+            }
+        }
+        return null
     }
 
     private fun setTextAlign(value: Any): Boolean {
@@ -623,9 +690,22 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     }
 
     private fun createCallbackParamMap(): Map<String, Any> {
-        return mapOf(
-            "text" to text.toString()
-        )
+        val text = text
+        val length = if (lengthLimitType != LENGTH_LIMIT_TYPE_UNSET) {
+            getLengthLimitInputFilter()?.calculateLength(text)
+        } else {
+            null
+        }
+        return if (length == null) {
+            mapOf(
+                "text" to text.toString()
+            )
+        } else {
+            mapOf(
+                "text" to text.toString(),
+                "length" to length!!
+            )
+        }
     }
 
     private fun resetDefaultStyle() {
@@ -745,6 +825,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         private const val KEYBOARD_TYPE = "keyboardType"
         private const val RETURN_KEY_TYPE = "returnKeyType"
         private const val TEXT_ALIGN = "textAlign"
+        private const val LENGTH_LIMIT_TYPE = "lengthLimitType"
         private const val MAX_TEXT_LENGTH = "maxTextLength"
         private const val EDITABLE = "editable"
         private const val TEXT_DID_CHANGE = "textDidChange"
@@ -766,41 +847,10 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
 
         private const val KEY_KEYBOARD_CHANGED_DURATION = "duration"
         private const val DEFAULT_KEYBOARD_CHANGED_ANIMATION_DURATION = 0.2
-    }
-}
 
-private class TextLengthLimitInputFilter(
-    private val maxLength: Int,
-    private val textLengthBeyondLimitCallback: () -> Unit
-) :
-    InputFilter {
-    override fun filter(
-        source: CharSequence?,
-        start: Int,
-        end: Int,
-        dest: Spanned,
-        dstart: Int,
-        dend: Int
-    ): CharSequence? {
-        var keep: Int = maxLength - (Character.codePointCount(dest, 0, dest.length) - (dend - dstart))
-        return when {
-            keep <= 0 -> {
-                textLengthBeyondLimitCallback.invoke()
-                KRCssConst.EMPTY_STRING
-            }
-            keep >= Character.codePointCount(source ?: "", start, end) -> {
-                null // keep original
-            }
-            else -> {
-                keep += start
-                if (Character.isHighSurrogate(source!![keep - 1])) {
-                    --keep
-                    if (keep == start) {
-                        return KRCssConst.EMPTY_STRING
-                    }
-                }
-                source.subSequence(start, keep)
-            }
-        }
+        private const val LENGTH_LIMIT_TYPE_UNSET = -1
+        private const val LENGTH_LIMIT_TYPE_BYTE = 0
+        private const val LENGTH_LIMIT_TYPE_CHARACTER = 1
+        private const val LENGTH_LIMIT_TYPE_VISUAL_WIDTH = 2
     }
 }

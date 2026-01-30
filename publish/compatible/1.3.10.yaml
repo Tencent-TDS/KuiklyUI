@@ -33,3 +33,8 @@ files:
     replacements:
       - from: import kotlin.coroutines.cancellation.CancellationException
         to: import java.util.concurrent.CancellationException
+  # KRBaseLengthFilter 兼容：Char.code -> Char.toInt()
+  - path: core-render-android/src/main/java/com/tencent/kuikly/core/render/android/expand/component/input/KRBaseLengthFilter.kt
+    replacements:
+      - from: this[index].code
+        to: this[index].toInt()

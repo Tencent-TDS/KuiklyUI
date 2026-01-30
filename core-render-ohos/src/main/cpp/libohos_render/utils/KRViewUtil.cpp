@@ -927,6 +927,10 @@ void UpdateInputNodeMaxLength(ArkUI_NodeHandle node, int32_t max_length) {
     GetNodeApi()->setAttribute(node, NODE_TEXT_INPUT_MAX_LENGTH, &item);
 }
 
+void ResetInputNodeMaxLength(ArkUI_NodeHandle node) {
+    GetNodeApi()->resetAttribute(node, NODE_TEXT_INPUT_MAX_LENGTH);
+}
+
 void UpdateInputNodeContentText(ArkUI_NodeHandle node, const std::string &text) {
     ArkUI_AttributeItem item = {.string = text.c_str()};
     GetNodeApi()->setAttribute(node, NODE_TEXT_INPUT_TEXT, &item);
@@ -1006,6 +1010,14 @@ void UpdateInputNodeSelectionStartPosition(ArkUI_NodeHandle node, int32_t index)
     std::array<ArkUI_NumberValue, 2> value = {{{.i32 = index}, {.i32 = index}}};
     ArkUI_AttributeItem item = {value.data(), value.size()};
     GetNodeApi()->setAttribute(node, NODE_TEXT_INPUT_TEXT_SELECTION, &item);
+}
+
+std::pair<uint32_t, uint32_t> GetInputNodeSelectionRange(ArkUI_NodeHandle node) {
+    auto item = GetNodeApi()->getAttribute(node, NODE_TEXT_INPUT_TEXT_SELECTION);
+    if (item && item->size >= 2) {
+        return {item->value[0].i32, item->value[1].i32};
+    }
+    return {0, 0};
 }
 
 void UpdateTextAreaNodeLineHeight(ArkUI_NodeHandle node, float lineHeight) {

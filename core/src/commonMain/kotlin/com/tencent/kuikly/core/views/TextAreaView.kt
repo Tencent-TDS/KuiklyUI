@@ -327,8 +327,17 @@ open class TextAreaAttr : Attr() {
         return this
     }
 
+    @Deprecated(
+        "Use maxTextLength(length: Int, type: LengthLimitType) instead",
+        ReplaceWith("maxTextLength(maxLength, LengthLimitType)")
+    )
     fun maxTextLength(maxLength: Int) {
         "maxTextLength" with maxLength
+    }
+
+    fun maxTextLength(length: Int, type: LengthLimitType) {
+        "lengthLimitType" with type.value
+        "maxTextLength" with length
     }
 
     fun keyboardTypePassword(): TextAreaAttr {
@@ -541,8 +550,10 @@ open class TextAreaEvent : Event() {
             super.unRegister(TEXT_DID_CHANGE)
         } else {
             super.register(TEXT_DID_CHANGE, {
-                val text = (it as JSONObject).optString("text")
-                val params = InputParams(text)
+                it as JSONObject
+                val text = it.optString("text")
+                val length = if (it.has("length")) it.optInt("length") else null
+                val params = InputParams(text, length = length)
                 syncTextDidChangeObservers.forEach { observer -> observer.invoke(params) }
                 textDidChangeHandler?.invoke(params)
             }, isSync = isSyncEdit || syncTextDidChangeObservers.isNotEmpty())

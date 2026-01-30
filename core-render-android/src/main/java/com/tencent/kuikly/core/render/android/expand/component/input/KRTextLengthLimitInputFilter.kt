@@ -32,6 +32,7 @@ import kotlin.math.max
 /**
  * Created by kamlin on 2024/10/18.
  */
+@Deprecated("keep for compatibility, use subclasses of KRBaseLengthFilter instead")
 class KRTextLengthLimitInputFilter(
     private val maxLength: Int,
     private val kuiklyRenderContext: IKuiklyRenderContext?,

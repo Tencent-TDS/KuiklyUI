@@ -200,6 +200,7 @@ void UpdateInputNodeEnterKeyType(ArkUI_NodeHandle node, ArkUI_EnterKeyType enter
 ArkUI_EnterKeyType GetInputNodeEnterKeyType(ArkUI_NodeHandle node);
 
 void UpdateInputNodeMaxLength(ArkUI_NodeHandle node, int32_t max_length);
+void ResetInputNodeMaxLength(ArkUI_NodeHandle node);
 
 void UpdateInputNodeContentText(ArkUI_NodeHandle node, const std::string &text);
 
@@ -222,6 +223,8 @@ void UpdateInputNodeColor(ArkUI_NodeHandle node, uint32_t color);
 uint32_t GetInputNodeSelectionStartPosition(ArkUI_NodeHandle node);
 
 void UpdateInputNodeSelectionStartPosition(ArkUI_NodeHandle node, int32_t index);
+
+std::pair<uint32_t, uint32_t> GetInputNodeSelectionRange(ArkUI_NodeHandle node);
 
 void UpdateTextAreaNodeLineHeight(ArkUI_NodeHandle node, float lineHeight);
 

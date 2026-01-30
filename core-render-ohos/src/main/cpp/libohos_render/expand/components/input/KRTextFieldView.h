@@ -17,6 +17,8 @@
 #define CORE_RENDER_OHOS_KRTEXTFIELDVIEW_H
 
 #include "libohos_render/export/IKRRenderViewExport.h"
+#include <cstddef>
+#include <cstdint>
 
 class KRTextFieldView : public IKRRenderViewExport {
  public:
@@ -36,11 +38,29 @@ class KRTextFieldView : public IKRRenderViewExport {
 
     //     void OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEventType &event_type) override;
  protected:
+    /**
+     * 输入内容过滤
+     * @param source 输入的内容字符串（UTF-8编码），当返回true时，source将更新为截断后的内容
+     * @param dest 当前已有的内容字符串（UTF-8编码）
+     * @param dStart 已有内容被替换的起始位置（按UTF-16算）
+     * @param dEnd 已有内容被替换的结束位置（按UTF-16算）
+     * @return 是否截断输入
+     */
+    bool filter(char source[], const std::string &dest, const size_t dStart, const size_t dEnd);
     virtual ArkUI_NodeEventType GetOnSubmitEventType() {
         return ArkUI_NodeEventType::NODE_TEXT_INPUT_ON_SUBMIT;
     }
     virtual ArkUI_NodeEventType GetOnChangeEventType() {
         return ArkUI_NodeEventType::NODE_TEXT_INPUT_ON_CHANGE;
+    }
+    virtual ArkUI_NodeEventType GetOnWillInsertEventType() {
+        return ArkUI_NodeEventType::NODE_TEXT_INPUT_ON_WILL_INSERT;
+    }
+    virtual ArkUI_NodeEventType GetOnPasteEventType() {
+        return ArkUI_NodeEventType::NODE_TEXT_INPUT_ON_PASTE;
+    }
+    virtual ArkUI_NodeEventType GetOnWillChangeEventType() {
+        return ArkUI_NodeEventType::NODE_TEXT_INPUT_ON_WILL_CHANGE;
     }
     
     virtual void UpdateInputNodePlaceholder(const std::string &propValue);
@@ -63,7 +83,10 @@ class KRTextFieldView : public IKRRenderViewExport {
     float font_size_ = 15;  // default 15
     ArkUI_FontWeight font_weight_ = ARKUI_FONT_WEIGHT_NORMAL;
     bool focusable_ = true;
-    uint32_t max_length_ = -1;
+    int32_t max_length_ = -1;
+    int length_limit_type_ = -1;  // -1: unset, 0: BYTE, 1: CHARACTER, 2: VISUAL_WIDTH
+    bool length_input_filter_ = false;
+    bool drag_entered_ = false;
     KRRenderCallback text_did_change_callback_;           // 文本变化callback
     KRRenderCallback input_focus_callback_;               // 输入框获焦
     KRRenderCallback input_blur_callback_;                // 输入框失焦
@@ -119,13 +142,84 @@ class KRTextFieldView : public IKRRenderViewExport {
      */
     std::string GetContentText();
     /***
-     * 获取输入的文本内容
+     * 设置输入的文本内容
      */
     void SetContentText(const std::string &text);
     /**
      * 限制输入文本到最大长度
      */
     bool LimitInputContentTextInMaxLength();
+    /**
+     * 通知文本长度超过限制
+     */
+    void NotifyTextLengthBeyondLimit();
+    /**
+     * 初始化文本长度过滤
+     */
+    void SetupLengthInputFilter();
+    /**
+     * 即将插入文本回调
+     */
+    void OnWillInsertText(ArkUI_NodeEvent *event);
+    /**
+     * 粘贴文本回调
+     */
+    void OnPasteText(ArkUI_NodeEvent *event);
+    /**
+     * 文本即将变化回调
+     */
+    void OnWillChangeText(ArkUI_NodeEvent *event);
+    /**
+     * 重置最大长度
+     */
+    void DoResetMaxLength();
+    /**
+     * 异步重置最大长度
+     */
+    void DelayResetMaxLength();
+    
+    /**
+     * 计算文本长度（根据不同的限制类型）
+     * @param text 要计算的文本
+     * @param rmStart 要移除计算的起始位置（按UTF-16算）
+     * @param rmEnd 要移除计算的结束位置（按UTF-16算）
+     * @return 文本的长度值
+     */
+    int CalculateTextLength(const std::string &text, size_t rmStart = 0, size_t rmEnd = 0);
+
+    /**
+     * 截取文本到指定的长度限制
+     * @param text 要截取的文本（UTF-8编码）
+     * @param keep 最大长度限制
+     * @return 截断的索引位置
+     */
+    int CalculateTruncateIndex(const std::string &text, size_t keep);
+
+    /**
+     * 根据UTF-8首字节获取对应字符的字节数
+     */
+    int GetUTF8ByteLengthOfFirstCharacter(unsigned char c);
+    
+    /**
+     * 获取指定code point对应的UTF-8字节数
+     */
+    int GetUTF8ByteLengthOfCodePoint(char32_t codePoint);
+    
+    /**
+     * 获取指定code point对应的可视宽度
+     */
+    int GetVisualWidthOfCodePoint(char32_t codePoint);
+    
+    /**
+     * 获取text从u8Start到u16Count的UTF-8字节数
+     * @param text 输入文本
+     * @param u8Start UTF-8起始字节索引
+     * @param u16Count UTF-16字符数量
+     * @return 对应的UTF-8字节数
+     */
+    int GetUTF8ByteCount(const std::string &text, size_t u8Start, size_t u16Count);
+    
+    int GetUTF16Length(const std::string &text);
 };
 
 #endif  // CORE_RENDER_OHOS_KRTEXTFIELDVIEW_H

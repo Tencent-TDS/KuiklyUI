@@ -302,6 +302,35 @@
     return count;
 }
 
+- (NSUInteger)kr_byteLength {
+    return [self lengthOfBytesUsingEncoding:NSUTF8StringEncoding];
+}
+
+- (NSUInteger)kr_visualWidth {
+    NSUInteger visualWidth = 0;
+    NSUInteger length = self.length;
+    for (NSUInteger i = 0; i < length; ) {
+        NSRange range = [self rangeOfComposedCharacterSequenceAtIndex:i];
+        unichar firstChar = [self characterAtIndex:i];
+        
+        // 检查是否是ASCII字符（0-127）
+        if (range.length == 1 && firstChar < 128) {
+            visualWidth += 1;
+        } else if (range.length == 1 && firstChar >= 0x200B && firstChar <= 0x200D) {
+            // 零宽字符
+            visualWidth += 1;
+        } else if (range.length == 1 && firstChar == 0xFEFF) {
+            // 零宽不换行空格
+            visualWidth += 1;
+        } else {
+            // 其他字符（中文、emoji等）占2个视觉宽度
+            visualWidth += 2;
+        }
+        i += range.length;
+    }
+    return visualWidth;
+}
+
 @end
 
 /** ***** UIView (KR) ***** **/

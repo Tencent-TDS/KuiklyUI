@@ -22,7 +22,6 @@
 #include <native_drawing/drawing_text_declaration.h>
 #include <native_drawing/drawing_text_typography.h>
 
-#include <cassert>
 #include <codecvt>
 #include <unordered_set>
 
@@ -195,13 +194,16 @@ static KRAnyValue GetKRValue(const char *key, const KRRenderValue::Map &map0, co
     return std::make_shared<KRRenderValue>(nullptr);
 }
 
-KRFontCollectionWrapper::KRFontCollectionWrapper() : fontCollection(OH_Drawing_CreateSharedFontCollection()) {
+KRFontCollectionWrapper::KRFontCollectionWrapper() : fontCollection(nullptr), fontCollectionSystem(nullptr) {
     // blank
 }
 KRFontCollectionWrapper::~KRFontCollectionWrapper() {
     if (fontCollection) {
         OH_Drawing_DestroyFontCollection(fontCollection);
         fontCollection = nullptr;
+    }
+    if (fontCollectionSystem) {
+        fontCollectionSystem = nullptr;
     }
 }
 
@@ -224,8 +226,14 @@ void SetCustomFontIfApplicable(NativeResourceManager *resMgr, std::shared_ptr<st
                 std::unique_ptr<uint8_t[]> data = std::make_unique<uint8_t[]>(len);
                 int res = OH_ResourceManager_ReadRawFile(rawFile, data.get(), len);
                 OH_ResourceManager_CloseRawFile(rawFile);
+                if (!wrapper->fontCollection) {
+                    wrapper->fontCollection = OH_Drawing_CreateSharedFontCollection();
+                }
                 error = OH_Drawing_RegisterFontBuffer(wrapper->fontCollection, fontFamily.c_str(), data.get(), len);
             } else {
+                if (!wrapper->fontCollection) {
+                    wrapper->fontCollection = OH_Drawing_CreateSharedFontCollection();
+                }
                 error = OH_Drawing_RegisterFont(wrapper->fontCollection, fontFamily.c_str(), fontSrc);
             }
             if (error == 0) {
@@ -236,6 +244,9 @@ void SetCustomFontIfApplicable(NativeResourceManager *resMgr, std::shared_ptr<st
                 deallocator(fontSrc);
             }
         } else if (fontBuffer != nullptr && len > 0) {
+            if (!wrapper->fontCollection) {
+                wrapper->fontCollection = OH_Drawing_CreateSharedFontCollection();
+            }
             uint32_t error =
                 OH_Drawing_RegisterFontBuffer(wrapper->fontCollection, fontFamily.c_str(),
                                               reinterpret_cast<uint8_t *>(fontBuffer), len);
@@ -246,7 +257,33 @@ void SetCustomFontIfApplicable(NativeResourceManager *resMgr, std::shared_ptr<st
                 deallocator(fontBuffer);
             }
         }
+    } else {
+        if (OH_Drawing_GetFontCollectionGlobalInstance) {
+            // new api available (systems with api version >= 14)
+            wrapper->fontCollectionSystem = OH_Drawing_GetFontCollectionGlobalInstance();
+        } else {
+            if (!wrapper->fontCollection) {
+                wrapper->fontCollection = OH_Drawing_CreateSharedFontCollection();
+            }
+        }
     }
+}
+
+OH_Drawing_TypographyCreate* CreateTypographyHandler(OH_Drawing_TypographyStyle* typoStyle, 
+    std::shared_ptr<struct KRFontCollectionWrapper> wrapper) {
+    if (wrapper->fontCollection) {
+        return OH_Drawing_CreateTypographyHandler(typoStyle, wrapper->fontCollection);
+    }
+    if (!wrapper->fontCollectionSystem) {
+        if (OH_Drawing_GetFontCollectionGlobalInstance) {
+            // new api available (systems with api version >= 14)
+            wrapper->fontCollectionSystem = OH_Drawing_GetFontCollectionGlobalInstance();
+        } else {
+            wrapper->fontCollection = OH_Drawing_CreateSharedFontCollection();
+            return OH_Drawing_CreateTypographyHandler(typoStyle, wrapper->fontCollection);
+        }
+    }
+    return OH_Drawing_CreateTypographyHandler(typoStyle, wrapper->fontCollectionSystem);
 }
 
 std::string KRRichTextShadow::GetTextContent() {
@@ -345,41 +382,6 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
         auto strokeWidth = GetKRValue("strokeWidth", spanMap, props_)->toFloat();
         auto strokeColorStr = GetKRValue("strokeColor", spanMap, props_)->toString();
         auto strokeColor = strokeColorStr.length() ? kuikly::util::ConvertToHexColor(strokeColorStr) : 0xff000000;
-
-        if (typoStyle == nullptr) {
-            typoStyle = OH_Drawing_CreateTypographyStyle();
-            OH_Drawing_SetTypographyTextMaxLines(typoStyle, numberOfLines);
-            // 选择从左到右/左对齐、行数限制排版属性设置到排版样式对象中
-            OH_Drawing_SetTypographyTextDirection(typoStyle, TEXT_DIRECTION_LTR);
-            OH_Drawing_SetTypographyTextAlign(typoStyle, textAlign);
-            text_align = textAlign;
-            OH_Drawing_SetTypographyTextEllipsisModal(typoStyle, lineBreakMode);
-            const char *ellipsis = "…";
-            if (lineBreakModeStr == "clip") {
-                ellipsis = "";
-            }
-            OH_Drawing_SetTypographyTextEllipsis(typoStyle, ellipsis);
-
-            OH_Drawing_WordBreakType workBreak = WORD_BREAK_TYPE_BREAK_WORD;
-            if (numberOfLines == 1) {
-                workBreak = WORD_BREAK_TYPE_BREAK_ALL;
-            }
-            OH_Drawing_SetTypographyTextWordBreakType(typoStyle, workBreak);
-
-            if (lineSpacing) {
-                /* Drawing自带的设置SpacingScale的接口段落前后仍有间距
-                 * OH_Drawing_SetTypographyTextUseLineStyle(typoStyle, true);
-                 * OH_Drawing_SetTypographyTextLineStyleSpacingScale(typoStyle, lineSpacing);
-                 * 等待修复，目前使用设置行高+禁用首尾行间距实现，注意同时设置lineHeight和lineSpacing首尾间距也会失效
-                 */
-                OH_Drawing_TypographyTextSetHeightBehavior(typoStyle, TEXT_HEIGHT_DISABLE_ALL);
-            }
-
-            handler = OH_Drawing_CreateTypographyHandler(typoStyle, font_collection_wrapper_->fontCollection);
-        } else {
-            isFirst = false;
-        }
-
         
         auto placeholderWidth = GetKRValue("placeholderWidth", spanMap, spanMap)->toDouble();
         // 创建文本样式对象txtStyle
@@ -472,7 +474,51 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
             auto rootViewLock = rootView.lock();
             auto nativeResMgr = rootViewLock->GetNativeResourceManager();
             SetCustomFontIfApplicable(nativeResMgr, font_collection_wrapper_, fontFamily, fontAdapters);
+        } else {
+            if (OH_Drawing_GetFontCollectionGlobalInstance) {
+                // new api available (systems with api version >= 14)
+                font_collection_wrapper_->fontCollectionSystem = OH_Drawing_GetFontCollectionGlobalInstance();
+            } else {
+                if (!font_collection_wrapper_->fontCollection) {
+                    font_collection_wrapper_->fontCollection = OH_Drawing_CreateSharedFontCollection();
+                }
+            }
         }
+
+        // 需要在fontFamily设置后设置
+        if (typoStyle == nullptr) {
+            typoStyle = OH_Drawing_CreateTypographyStyle();
+            OH_Drawing_SetTypographyTextMaxLines(typoStyle, numberOfLines);
+            // 选择从左到右/左对齐、行数限制排版属性设置到排版样式对象中
+            OH_Drawing_SetTypographyTextDirection(typoStyle, TEXT_DIRECTION_LTR);
+            OH_Drawing_SetTypographyTextAlign(typoStyle, textAlign);
+            text_align = textAlign;
+            OH_Drawing_SetTypographyTextEllipsisModal(typoStyle, lineBreakMode);
+            const char *ellipsis = "…";
+            if (lineBreakModeStr == "clip") {
+                ellipsis = "";
+            }
+            OH_Drawing_SetTypographyTextEllipsis(typoStyle, ellipsis);
+
+            OH_Drawing_WordBreakType workBreak = WORD_BREAK_TYPE_BREAK_WORD;
+            if (numberOfLines == 1) {
+                workBreak = WORD_BREAK_TYPE_BREAK_ALL;
+            }
+            OH_Drawing_SetTypographyTextWordBreakType(typoStyle, workBreak);
+
+            if (lineSpacing) {
+                /* Drawing自带的设置SpacingScale的接口段落前后仍有间距
+                 * OH_Drawing_SetTypographyTextUseLineStyle(typoStyle, true);
+                 * OH_Drawing_SetTypographyTextLineStyleSpacingScale(typoStyle, lineSpacing);
+                 * 等待修复，目前使用设置行高+禁用首尾行间距实现，注意同时设置lineHeight和lineSpacing首尾间距也会失效
+                 */
+                OH_Drawing_TypographyTextSetHeightBehavior(typoStyle, TEXT_HEIGHT_DISABLE_ALL);
+            }
+            handler = CreateTypographyHandler(typoStyle, font_collection_wrapper_);
+        } else {
+            isFirst = false;
+        }
+
         OH_Drawing_SetTextStyleFontStyle(txtStyle, FONT_STYLE_NORMAL);
         // 将文本样式对象加入到handler中
         if (!isFirst) {

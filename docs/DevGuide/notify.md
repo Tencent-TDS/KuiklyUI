@@ -192,8 +192,18 @@ let callback = (event: emitter.EventData) => {
 emitter.on("test", callback)
 ```
 
-##### web侧注册监听
-web上会在 NotifyModule构造时自动监听，destroy时解除监听，无需业务处理
+##### h5侧注册监听
+使用浏览器``window.addEventListener``提供的方法来注册监听
+```ts
+window.addEventListener("kuikly_to_host_event", { event: Event ->
+    val detail = event.asDynamic().detail
+    val eventName = detail.eventName as? String ?: ""
+    val data = detail.data as? String ?: "{}"
+        
+    console.log("[Web Host] Received Kuikly event: $eventName")
+    console.log("[Web Host] Event data: $data")
+})
+```
 
 #### Kuikly发送事件
 

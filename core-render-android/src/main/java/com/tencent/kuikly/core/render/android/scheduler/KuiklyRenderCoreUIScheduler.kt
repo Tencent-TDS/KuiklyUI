@@ -195,7 +195,7 @@ class KuiklyRenderCoreUIScheduler(
         }
         KuiklyRenderCoreContextScheduler.scheduleTask {
             performSyncMainQueueTasksBlockIfNeed(false)
-        }
+        } // end task
     }
 
     fun performOnMainQueueWithTask(sync : Boolean, task: ()-> Unit) {

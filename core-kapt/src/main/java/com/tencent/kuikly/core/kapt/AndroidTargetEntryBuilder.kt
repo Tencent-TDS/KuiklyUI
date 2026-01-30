@@ -66,6 +66,7 @@ open class AndroidTargetEntryBuilder : KuiklyCoreAbsEntryBuilder() {
             .addStatement("if (!hadRegisterNativeBridge) {\n")
             .addStatement("triggerRegisterPages()")
             .addStatement("          hadRegisterNativeBridge = true\n" +
+                    "          NativeBridge.isContextThread = true\n" +
                     "          val nativeBridge = NativeBridge()\n" +
                     "          nativeBridge.delegate = object : NativeBridge.NativeBridgeDelegate {\n" +
                     "              override fun callNative(\n" +

@@ -72,7 +72,7 @@ class KRLogModule : KuiklyRenderBaseModule() {
                         it()
                     }
                 }
-            }
+            } // end task
         }
     }
 

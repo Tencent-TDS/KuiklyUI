@@ -87,14 +87,14 @@ class KuiklyRenderCoreUIScheduler(
     private var logRunCount = 0
     private var callNativeLogCount = 0
 
-    override fun scheduleTask(delayMs: Long, task: KuiklyRenderCoreTask) {
+    override fun scheduleTask(delayMs: Long, task: Runnable) {
         scheduleTask(delayMs, false, task)
     }
 
     /**
      * 添加 UI 更新任务
      */
-    fun scheduleTask(delayMs: Long = 0, isUpdateViewTree: Boolean = false, task: KuiklyRenderCoreTask) {
+    fun scheduleTask(delayMs: Long = 0, isUpdateViewTree: Boolean = false, task: Runnable) {
         addTaskToMainQueue(KuiklyRenderCoreTaskExecutor(task, isUpdateViewTree))
     }
 
@@ -195,7 +195,7 @@ class KuiklyRenderCoreUIScheduler(
         }
         KuiklyRenderCoreContextScheduler.scheduleTask {
             performSyncMainQueueTasksBlockIfNeed(false)
-        }
+        } // end task
     }
 
     fun performOnMainQueueWithTask(sync : Boolean, task: ()-> Unit) {
@@ -274,11 +274,11 @@ class KuiklyRenderCoreUIScheduler(
  * 执行任务包装类，用于区分是否为更新 UI 的任务
  */
 class KuiklyRenderCoreTaskExecutor(
-    private val task: KuiklyRenderCoreTask,
+    private val task: Runnable,
     val isUpdateViewTree: Boolean) {
 
     fun execute() {
-        task.invoke()
+        task.run()
     }
 
 }

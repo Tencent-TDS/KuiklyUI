@@ -33,17 +33,13 @@ object KuiklyRenderCoreContextScheduler : IKuiklyRenderCoreScheduler {
     private val handler by lazy {
         val stackSize = KuiklyRenderAdapterManager.krThreadAdapter?.stackSize() ?: -1L
         Handler(if (stackSize <= 0L) {
-            object : HandlerThread(THREAD_NAME, Process.THREAD_PRIORITY_FOREGROUND) {
-                override fun onLooperPrepared() { NativeBridge.isContextThread = true }
-            }.apply { start() }.looper
+            HandlerThread(THREAD_NAME, Process.THREAD_PRIORITY_FOREGROUND).apply { start() }.looper
         } else {
-            object : KRHandlerThread(THREAD_NAME, Process.THREAD_PRIORITY_FOREGROUND, stackSize) {
-                override fun onLooperPrepared() { NativeBridge.isContextThread = true }
-            }.apply { start() }.looper
+            KRHandlerThread(THREAD_NAME, Process.THREAD_PRIORITY_FOREGROUND, stackSize).apply { start() }.looper
         })
     }
 
-    override fun scheduleTask(delayMs: Long, task: KuiklyRenderCoreTask) {
+    override fun scheduleTask(delayMs: Long, task: Runnable) {
         handler.postDelayed(task, delayMs)
     }
 

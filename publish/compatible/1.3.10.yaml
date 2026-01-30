@@ -38,3 +38,41 @@ files:
     replacements:
       - from: this[index].code
         to: this[index].toInt()
+
+  # KuiklyRenderCore 1.3 兼容：
+  - path: core-render-android/src/main/java/com/tencent/kuikly/core/render/android/core/KuiklyRenderCore.kt
+    replacements:
+      - from: uiScheduler?.scheduleTask(isUpdateViewTree = isUpdateViewTreeMethodCall(method)) {
+        to: uiScheduler?.scheduleTask(isUpdateViewTree = isUpdateViewTreeMethodCall(method), task = Runnable {
+      - from: uiScheduler?.scheduleTask {
+        to: uiScheduler?.scheduleTask(task = Runnable {
+      - from: } // end task
+        to: }) // end task
+      - from: KuiklyRenderCoreContextScheduler.scheduleTask(delayMs.toLong(), task)
+        to: KuiklyRenderCoreContextScheduler.scheduleTask(delayMs.toLong(), task = Runnable { task() })
+  # KRLogModule 1.3 兼容：
+  - path: core-render-android/src/main/java/com/tencent/kuikly/core/render/android/expand/module/KRLogModule.kt
+    replacements:
+      - from: KuiklyRenderCoreContextScheduler.scheduleTask(1) {
+        to: KuiklyRenderCoreContextScheduler.scheduleTask(1, task = Runnable {
+      - from: } // end task
+        to: }) // end task
+  # KRReflectionModule 1.3 兼容：
+  - path: core-render-android/src/main/java/com/tencent/kuikly/core/render/android/expand/module/KRReflectionModule.kt
+    replacements:
+      - from: KuiklyRenderCoreContextScheduler.scheduleTask(16) {
+        to: KuiklyRenderCoreContextScheduler.scheduleTask(16, task = Runnable {
+      - from: } // end task
+        to: }) // end task
+  # IKuiklyRenderCoreScheduler 1.3 兼容：
+  - path: core-render-android/src/main/java/com/tencent/kuikly/core/render/android/scheduler/IKuiklyRenderCoreScheduler.kt
+    replacements:
+      - from: scheduleTask(delayMs) { task() }
+        to: scheduleTask(delayMs, task = Runnable { task() })
+  # KuiklyRenderCoreUIScheduler 1.3 兼容：
+  - path: core-render-android/src/main/java/com/tencent/kuikly/core/render/android/scheduler/KuiklyRenderCoreUIScheduler.kt
+    replacements:
+      - from: KuiklyRenderCoreContextScheduler.scheduleTask {
+        to: KuiklyRenderCoreContextScheduler.scheduleTask(task = Runnable {
+      - from: } // end task
+        to: }) // end task

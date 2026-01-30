@@ -32,6 +32,15 @@
 #include "libohos_render/utils/KRColor.h"
 #include "libohos_render/utils/KRJSONObject.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+// Remove this declaration if compatable api is raised to 14 and above
+extern OH_Drawing_FontCollection* OH_Drawing_GetFontCollectionGlobalInstance(void) __attribute__((weak));
+#ifdef __cplusplus
+};
+#endif
+
 static constexpr std::string_view LINE_CAP = "lineCap";
 static constexpr std::string_view LINE_WIDTH = "lineWidth";
 static constexpr std::string_view LINE_DASH = "lineDash";
@@ -397,6 +406,15 @@ void KRCanvasView::DrawText(std::string params, std::shared_ptr<struct KRFontCol
         OH_Drawing_SetTextStyleFontFamilies(txtStyle, 1, fontFamilies);
         auto nativeResMgr = rootView->GetNativeResourceManager();
         SetCustomFontIfApplicable(nativeResMgr, wrapper, text_feature_.fontFamily, fontAdapters);
+    } else {
+        if (OH_Drawing_GetFontCollectionGlobalInstance) {
+            // new api available (systems with api version >= 14)
+            wrapper->fontCollectionSystem = OH_Drawing_GetFontCollectionGlobalInstance();
+        } else {
+            if (!wrapper->fontCollection) {
+                wrapper->fontCollection = OH_Drawing_CreateSharedFontCollection();
+            }
+        }
     }
 
     OH_Drawing_TypographyStyle *typoStyle = OH_Drawing_CreateTypographyStyle();
@@ -417,7 +435,7 @@ void KRCanvasView::DrawText(std::string params, std::shared_ptr<struct KRFontCol
     auto x = paramObj->GetNumber("x");
     auto y = paramObj->GetNumber("y");
 
-    OH_Drawing_TypographyCreate *handler = OH_Drawing_CreateTypographyHandler(typoStyle, wrapper->fontCollection);
+    OH_Drawing_TypographyCreate *handler = CreateTypographyHandler(typoStyle, wrapper);
     OH_Drawing_TypographyHandlerPushTextStyle(handler, txtStyle);
     // 设置文字内容
     OH_Drawing_TypographyHandlerAddText(handler, text.c_str());

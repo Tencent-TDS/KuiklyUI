@@ -31,6 +31,7 @@ struct KRFontCollectionWrapper {
     KRFontCollectionWrapper();
     ~KRFontCollectionWrapper();
     OH_Drawing_FontCollection *fontCollection;
+    OH_Drawing_FontCollection *fontCollectionSystem;
     std::unordered_set<std::string> registered;
 };
 
@@ -163,5 +164,8 @@ class KRRichTextShadow : public IKRRenderShadowExport {
 void SetCustomFontIfApplicable(NativeResourceManager *resMgr, std::shared_ptr<struct KRFontCollectionWrapper> wrapper,
                                const std::string &fontFamily,
                                const std::unordered_map<std::string, KRFontAdapter> &fontAdapters);
+
+OH_Drawing_TypographyCreate* CreateTypographyHandler(OH_Drawing_TypographyStyle* typoStyle, 
+    std::shared_ptr<struct KRFontCollectionWrapper> wrapper);
 
 #endif  // CORE_RENDER_OHOS_KRRICHTEXTSHADOW_H

@@ -127,12 +127,9 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
      * Handle paging calculation for Wheel event
      * Uses accumulated delta and lock mechanism to ensure only one page switch per wheel gesture
      * @param event WheelEvent from wheel listener
-     * @return true if the event was handled, false otherwise
+     * @return true if the event was handled and should stop propagation, false if parent should handle
      */
     fun handlePagerWheel(event: WheelEvent): Boolean {
-        event.preventDefault()
-        event.stopPropagation()
-
         // Initialize paging state if not already done
         initPagingStateIfNeeded()
 
@@ -155,25 +152,42 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
 
         // If page is locked or accumulated delta is too small, skip
         if (isWheelPageLocked || abs(accumulatedWheelDelta) < WHEEL_DELTA_THRESHOLD) {
+            event.preventDefault()
+            event.stopPropagation()
             return true
         }
 
         // Calculate new page index based on accumulated delta direction
         var newPageIndex = pageIndex
+        var atBoundary = false
         if (accumulatedWheelDelta > 0) {
             // Scroll down/right -> next page
             if (pageIndex < pageCount - 1) {
                 newPageIndex = pageIndex + 1
+            } else {
+                // Already at the last page (right/bottom boundary)
+                atBoundary = true
             }
         } else {
             // Scroll up/left -> previous page
             if (pageIndex > 0) {
                 newPageIndex = pageIndex - 1
+            } else {
+                // Already at the first page (left/top boundary)
+                atBoundary = true
             }
+        }
+
+        // If at boundary, don't block propagation so parent can handle
+        if (atBoundary) {
+            Log.trace("pagelist wheel at boundary, let parent handle")
+            return false
         }
 
         // If page index changed, perform page switch
         if (newPageIndex != pageIndex) {
+            event.preventDefault()
+            event.stopPropagation()
             // Lock page switching until wheel gesture ends
             isWheelPageLocked = true
             pageIndex = newPageIndex
@@ -246,7 +260,6 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
         ele.style.overflowY = KRStyleConst.OVERFLOW_VISIBLE
         if (!ele.classList.contains(PAGE_LIST_CLASS)) {
             ele.classList.add(PAGE_LIST_CLASS)
-            pageIndex = 0f
         }
         if (scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN) {
             ele.style.apply {
@@ -256,6 +269,10 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
             val pageHeight = ele.offsetHeight.toFloat()
             pageMaxTranslateY = containerHeight - pageHeight
             pageCount = round(containerHeight / pageHeight)
+            // Sync pageIndex with current transform state
+            if (pageHeight > 0) {
+                pageIndex = round(abs(currentTranslateY) / pageHeight)
+            }
         } else {
             ele.style.apply {
                 setProperty(OVERSCROLL_BEHAVIOR_X, if (bounceEnabled) OVERSCROLL_AUTO else OVERSCROLL_NONE)
@@ -264,6 +281,10 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
             val pageWidth = ele.offsetWidth.toFloat()
             pageMaxTranslateX = containerWidth - pageWidth
             pageCount = round(containerWidth / pageWidth)
+            // Sync pageIndex with current transform state
+            if (pageWidth > 0) {
+                pageIndex = round(abs(currentTranslateX) / pageWidth)
+            }
         }
         // Get horizontal and vertical offset of the element during scroll event
         val offsetX = ele.scrollLeft.toFloat()
@@ -342,18 +363,20 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
             // 不处理时不更新 lastEvent，避免下一帧的 delta 计算错误
             return
         } else {
-            event.preventDefault()
-            event.stopPropagation()
             // 只有确定要处理时才更新 lastEvent
             if (event.isTouchEventOrNull() != null) {
                 lastTouchEvent = event as TouchEvent
             } else if (event is MouseEvent) {
                 lastMouseEvent = event
             }
+            // 当到达边界（canScroll = false）时，不阻止事件传播，让外层 PageList 可以接收事件
             if (!canScroll) {
-                Log.trace("pagelist can't scroll")
+                Log.trace("pagelist can't scroll, let parent handle")
                 return
             }
+            // 只有在可以滚动时才阻止事件传播
+            event.preventDefault()
+            event.stopPropagation()
         }
         Log.trace("pagelist scroll")
         setElementPosition(currentTranslateX, currentTranslateY)
@@ -399,6 +422,35 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
         listElement.willDragEndEventCallback?.invoke(offsetMap)
         listElement.dragEndEventCallback?.invoke(offsetMap)
         listElement.scrollEventCallback?.invoke(offsetMap)
+        
+        // Update nested PageList overflow visibility based on current page position
+        updateNestedPageListVisibility()
+    }
+    
+    /**
+     * Update nested PageList overflow visibility based on current page position.
+     * The current page's nested PageList should be visible, others should be hidden.
+     */
+    private fun updateNestedPageListVisibility() {
+        val length = ele.firstElementChild?.children?.length ?: return
+        val currentOffset = if (scrollDirection == KRListConst.SCROLL_DIRECTION_ROW) {
+            abs(currentTranslateX)
+        } else {
+            abs(currentTranslateY)
+        }
+        for (i in 0 until length) {
+            val element = ele.firstElementChild?.children?.get(i) as HTMLElement
+            val elementOffset = if (scrollDirection == KRListConst.SCROLL_DIRECTION_ROW) {
+                element.offsetLeft.toFloat()
+            } else {
+                element.offsetTop.toFloat()
+            }
+            if (elementOffset == currentOffset) {
+                modifyOverflowIfPageList(element, true)
+            } else {
+                modifyOverflowIfPageList(element, false)
+            }
+        }
     }
 
     /**
@@ -486,9 +538,17 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
             if (isVisible) {
                 element.style.overflowX = KRStyleConst.OVERFLOW_VISIBLE
                 element.style.overflowY = KRStyleConst.OVERFLOW_VISIBLE
+                // Restore visibility when the page becomes visible
+                element.style.visibility = ""
             } else {
                 element.style.overflowX = KRStyleConst.OVERFLOW_HIDDEN
                 element.style.overflowY = KRStyleConst.OVERFLOW_HIDDEN
+                // Hide the nested PageList completely when not on current page.
+                // This prevents showing incorrect content (e.g., itemB1 showing
+                // when PageListB is at itemB2 and outer PageList switches to itemA).
+                // Using visibility:hidden instead of resetting transform preserves
+                // the scroll position for when user returns to this page.
+                element.style.visibility = "hidden"
             }
         }
 

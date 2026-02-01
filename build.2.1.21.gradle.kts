@@ -14,7 +14,7 @@ buildscript {
         mavenCentral()
         mavenLocal()
         maven {
-            url = uri("https://mirrors.tencent.com/repository/maven/kuikly-open")
+            url = uri("https://mirrors.tencent.com/repository/maven-tencent/")
         }
     }
     dependencies {
@@ -30,7 +30,7 @@ allprojects {
         mavenCentral()
         mavenLocal()
         maven {
-            url = uri("https://mirrors.tencent.com/repository/maven/kuikly-open")
+            url = uri("https://mirrors.tencent.com/repository/maven-tencent/")
         }
     }
     configurations.all {

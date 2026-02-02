@@ -285,6 +285,75 @@ Kuikly内置模式性能接近原生性能，如果业务逻辑实现合理，�
 
 注：此处打点耗时建议 println(当前时间戳) ，避免相关Log异步后输出非实际的时间戳
 
+另外，也可以在页面中`override` `isDebugLogEnable`以启用排版和关键事件日志的记录。
+
+#### Kuikly事件记录和输出
+
+```kotlin
+@Pager
+internal class ExamplePage : BasePager {
+    // enable后会持续记录事件，因此注意尽量不要提交到发布版本
+    override fun isDebugLogEnable(): Boolean = true
+
+    override fun created(){
+        // 这里简单作为示例，在页面创建2000ms后输出事件日志
+        setTimeout(2000) {
+            println(getPageTrace()?.pageEventTrace?.dump(true))
+        }
+    }
+}
+
+```
+
+#### 事件记录格式示例
+
+Dump出来的Log格式如下：
+
+```log
+--- begin of kuikly page event report ---
+pageName:ExamplePage pageId:1
+timestamp:1769763596937 CreateStart
+    timestamp:1769763596937 ViewWillInit viewName:KRView viewClassName:AppTabPage ref:24
+        timestamp:1769763596937 BuildStart
+        timestamp:1769763596938 ViewDidInit viewName:KRView viewClassName:AppTabPage ref:24
+        timestamp:1769763596938 CallModuleStart moduleName:KRSharedPreferencesModule method:getItem sync:true callbackRef:0
+        timestamp:1769763596938 CallModuleEnd moduleName:KRSharedPreferencesModule method:getItem sync:true callbackRef:0
+        timestamp:1769763596941 ViewWillInit viewName:KRView viewClassName:DivView ref:25
+        timestamp:1769763596941 ViewDidInit viewName:KRView viewClassName:DivView ref:25
+        timestamp:1769763596943 ViewWillInit viewName:KRListView viewClassName:PageListView ref:26
+            timestamp:1769763596947 ViewWillInit viewName:KRScrollContentView viewClassName:PageListContentView ref:28
+            timestamp:1769763596947 ViewDidInit viewName:KRScrollContentView viewClassName:PageListContentView ref:28
+        timestamp:1769763596971 ViewDidInit viewName:KRListView viewClassName:PageListView ref:26
+    timestamp:1769763596974 BuildEnd numNodes:0
+    timestamp:1769763596975 LayoutStart
+        timestamp:1769763596980 FireObserverFnStart propertyKey:25_tabHeaderWidth observerCount:1
+        timestamp:1769763596980 FireObserverFnEnd propertyKey:25_tabHeaderWidth observerCount:1
+    timestamp:1769763596986 LayoutEnd numNodes:30
+timestamp:1769763596986 CreateEnd
+timestamp:1769763596986 LayoutStart
+timestamp:1769763596986 LayoutEnd numNodes:30
+--- end of kuikly page event report ---
+```
+
+#### 日志分析思路
+
+1. 整体分析大的区间耗时，找出问题区间
+    - CreateStart-CreateEnd：页面初始化耗时
+    - BuildStart-BuildEnd：页面body函数的执行耗时
+    - LayoutStart-LayoutEnd：布局耗时
+    - CallModuleStart-CallModuleEnd：module方法调用耗时
+    - ModuleCallbackStart-ModuleCallbackEnd：module回调耗时
+    - FireObserverFnStart-FireObserverFnEnd：observable修改后，observer调用耗时
+    - ViewWillInit-ViewDidInit：View初始化耗时
+2. 通过事件次数判断是否高频
+    - 高频日志：观察是否存在LogModule的高频调用或者耗时调用
+    - 其他高频函数：注意频率和耗时，是否超出预期
+3. 通过Layout后节点数量判断首页是否过于复杂
+    - 观察首屏的UI元素的量，并对比layout后节点数量，评估差异是否在合理范围内
+4. 通过observer的数量判断是否存在一个observable被过多observer监听的不合理使用情况
+    - 如果存在大量observer关联一个observable的情况，请考虑进行observable拆分
+
+
 ### Android Profile工具
 
 对于一些页面启动后或完整的流程记录，可以使用 `Profile` 工具进一步分析

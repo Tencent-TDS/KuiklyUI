@@ -18,6 +18,7 @@ package com.tencent.kuikly.core.base
 import com.tencent.kuikly.core.global.GlobalFunctions
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.manager.BridgeManager
+import com.tencent.kuikly.core.manager.PagerManager
 import com.tencent.kuikly.core.module.CallbackFn
 import com.tencent.kuikly.core.module.CallbackRef
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
@@ -52,17 +53,24 @@ class RenderView(private val pagerId: String, private val viewRef: Int, private 
 
     fun callMethod(methodName: String, params: String? = null, callback: CallbackFn? = null) {
         var callbackRef: CallbackRef? = null
+        val peekedCallbackRef = GlobalFunctions.peekNextRef()
         callback?.also { cb ->
             callbackRef = GlobalFunctions.createFunction(pagerId) { data ->
+                val trace = PagerManager.getPagerEventTrace(pagerId)
+                trace?.onViewCallbackStart(viewName, viewRef, methodName, peekedCallbackRef)
                 var res : JSONObject? = null
                 if (data != null && data is String) {
                     res = JSONObject(data)
                 }
                 cb(res)
+                trace?.onViewCallbackEnd(viewName, viewRef, methodName, peekedCallbackRef)
                 false
             }
         }
+        val trace = PagerManager.getPagerEventTrace(pagerId)
+        trace?.onViewCallMethodStart(viewName, viewRef, methodName, peekedCallbackRef)
         BridgeManager.callViewMethod(pagerId, viewRef, methodName, params, callbackRef)
+        trace?.onViewCallMethodEnd(viewName, viewRef, methodName, peekedCallbackRef)
     }
 
     fun insertSubRenderView(subViewRef: Int, index: Int) {

@@ -304,7 +304,7 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
     }
 
     private fun injectVarToModule(module: Module) {
-        module.injectVar(pagerId, pageData)
+        module.injectVar(pagerId, pageData, pageTrace)
     }
 
     private fun createModuleIfNeed(name: String) {
@@ -413,6 +413,7 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         if (ignoreLayout) {
             return
         }
+        pageTrace?.pageEventTrace?.onLayoutStart()
         val shouldTraceLayout = isDebugLogEnable() && pageLayoutTracer.needLogLayout() && flexNode.isDirty
         if (shouldTraceLayout) {
             pageLayoutTracer.layoutStart()
@@ -436,6 +437,7 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
             pageLayoutTracer.layoutFinish(flexNode.isDirty)
             dump(this)
         }
+        pageTrace?.pageEventTrace?.onLayoutEnd(flexNode.nodeCount())
     }
 
     private fun performTask(async: Boolean, task: () -> Unit) {
@@ -484,7 +486,7 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         pageTrace?.onBuildStart()
         super<ComposeView>.didInit()
         setupRootViewSizeStyle()
-        pageTrace?.onBuildEnd()
+        pageTrace?.onBuildEnd(flexNode.nodeCount())
     }
 
     override fun isWillDestroy(): Boolean {
@@ -492,7 +494,13 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
     }
 
     override fun setPageTrace(pageTrace: PageCreateTrace) {
+        if (isDebugLogEnable()){
+            pageTrace.createPageEventTraceIfNeeded()
+        }
         this.pageTrace = pageTrace
+    }
+    override fun getPageTrace() : PageCreateTrace?{
+        return this.pageTrace
     }
 
     private fun setupRootViewSizeStyle() {

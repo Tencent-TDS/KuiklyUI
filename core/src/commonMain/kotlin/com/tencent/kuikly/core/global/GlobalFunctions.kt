@@ -27,6 +27,8 @@ object GlobalFunctions {
 
     private val functionMap = fastHashMapOf<String, MutableMap<String, GlobalFunction>>()
 
+    fun peekNextRef() = globalFunctionProducer
+
     fun createFunction(pagerId: String, func: GlobalFunction): GlobalFunctionRef {
         val funcRef = globalFunctionProducer++.toString()
         if (!functionMap.containsKey(pagerId)) {

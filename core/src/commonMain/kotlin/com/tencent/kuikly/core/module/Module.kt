@@ -24,6 +24,7 @@ import com.tencent.kuikly.core.manager.BridgeManager
 import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.nvi.serialization.serialization
+import com.tencent.kuikly.core.pager.PageCreateTrace
 import com.tencent.kuikly.core.pager.PageData
 
 /*
@@ -32,6 +33,7 @@ import com.tencent.kuikly.core.pager.PageData
 abstract class Module {
     var pagerId: String = ""
     var pageData: PageData? = null
+    var pageTrace: PageCreateTrace? = null
 
     abstract fun moduleName(): String
     class ReturnValue(val callbackRef: CallbackRef?, val returnValue: Any? = null, errorCallbackRef: CallbackRef? = null) {
@@ -45,9 +47,10 @@ abstract class Module {
         }
     }
 
-    internal fun injectVar(pagerId: String, pageData: PageData) {
+    internal fun injectVar(pagerId: String, pageData: PageData, pageTrace: PageCreateTrace?) {
         this.pagerId = pagerId
         this.pageData = pageData
+        this.pageTrace = pageTrace
     }
 
     /*
@@ -239,13 +242,18 @@ abstract class Module {
         callback: AnyCallbackFn? = null,
         syncCall: Boolean = false
     ): ReturnValue {
+        var peekedCallbackRef  = 0
         var callbackRef: CallbackRef? = null
         callback?.also { cb ->
+            peekedCallbackRef = GlobalFunctions.peekNextRef()
             callbackRef = GlobalFunctions.createFunction(pagerId) { res ->
+                pageTrace?.pageEventTrace?.onModuleCallbackStart(moduleName(), methodName, syncCall, peekedCallbackRef)
                 cb(res?.toKotlinObject())
+                pageTrace?.pageEventTrace?.onModuleCallbackEnd(moduleName(), methodName, syncCall, peekedCallbackRef)
                 keepCallbackAlive
             }
         }
+        pageTrace?.pageEventTrace?.onCallModuleStart(moduleName(), methodName, syncCall, peekedCallbackRef)
         val returnValue = BridgeManager.callModuleMethod(
             pagerId,
             moduleName(),
@@ -254,6 +262,7 @@ abstract class Module {
             callbackRef,
             convertSyncCall(syncCall, keepCallbackAlive)
         )
+        pageTrace?.pageEventTrace?.onCallModuleEnd(moduleName(), methodName, syncCall, peekedCallbackRef)
         return ReturnValue(callbackRef, returnValue)
     }
 

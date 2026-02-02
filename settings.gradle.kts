@@ -4,7 +4,7 @@ pluginManagement {
         gradlePluginPortal()
         mavenCentral()
         maven {
-            url = uri("https://mirrors.tencent.com/repository/maven/kuikly-open")
+            url = uri("https://mirrors.tencent.com/repository/maven-tencent/")
         }
     }
 }

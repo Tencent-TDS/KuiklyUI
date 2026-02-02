@@ -26,6 +26,7 @@ import com.tencent.kuikly.core.collection.toFastSet
 import com.tencent.kuikly.core.exception.ReactiveObserverNotFoundException
 import com.tencent.kuikly.core.manager.BridgeManager
 import com.tencent.kuikly.core.manager.PagerManager
+import com.tencent.kuikly.core.pager.PageEventTrace
 import com.tencent.kuikly.core.reactive.collection.ObservableList
 import com.tencent.kuikly.core.reactive.collection.ObservableSet
 import com.tencent.kuikly.core.reactive.handler.PropertyAccessHandler
@@ -207,6 +208,9 @@ class ReactiveObserver {
 
     // set value callback
     internal fun notifyPropertyObserver(propertyOwner: PropertyOwner, propertyName: String) {
+        notifyPropertyObserver(propertyOwner, propertyName, null)
+    }
+    internal fun notifyPropertyObserver(propertyOwner: PropertyOwner, propertyName: String, pageId: String?) {
         checkThreadLegacy()
         val propertyKey = buildPropertyKey(
             propertyOwner,
@@ -223,21 +227,30 @@ class ReactiveObserver {
                 val fromObserverFnSet = it.toFastSet()
                 addLazyTaskUtilEndCollectDependency {
                     currentChangingPropertyKey = propertyKey
-                    fireObserverFn(propertyKey, fromObserverFnSet)
+                    fireObserverFn(propertyKey, fromObserverFnSet, pageId)
                     currentObservablePropertyKey = ""
                     currentChangingPropertyKey = null
                 }
             }
         } else {
             currentChangingPropertyKey = propertyKey
-            fireObserverFn(propertyKey, propertyObserverFnMap[propertyKey])
+            fireObserverFn(propertyKey, propertyObserverFnMap[propertyKey], pageId)
             currentObservablePropertyKey = ""
             currentChangingPropertyKey = null
         }
     }
 
+
     private fun fireObserverFn(propertyKey: String, fromObserverFnSet: Set<ObserverFn>?) {
+        fireObserverFn(propertyKey, fromObserverFnSet, null)
+    }
+    private fun fireObserverFn(propertyKey: String, fromObserverFnSet: Set<ObserverFn>?, pageId: String?) {
         fromObserverFnSet?.also {
+            var trace : PageEventTrace? = null
+            if (pageId != null){
+                trace = PagerManager.getPagerEventTrace(pageId)
+            }
+            trace?.onFireObserverFnStart(propertyKey, it.size)
             it.toFastList().forEach { observerFn ->
                 if (it.contains(observerFn)) {
                     observerFnCollectionPropertiesMap[observerFn]?.also {
@@ -251,6 +264,7 @@ class ReactiveObserver {
                     }
                 }
             }
+            trace?.onFireObserverFnEnd(propertyKey, it.size)
         }
 
     }
@@ -408,7 +422,7 @@ internal class UnsafePropertyAccessHandlerImpl(
             val lastPageId = BridgeManager.currentPageId
             BridgeManager.currentPageId = scope.pagerId
             try {
-                observer.notifyPropertyObserver(propertyOwner, propertyName)
+                observer.notifyPropertyObserver(propertyOwner, propertyName, scope.pagerId)
             } finally {
                 BridgeManager.currentPageId = lastPageId
             }

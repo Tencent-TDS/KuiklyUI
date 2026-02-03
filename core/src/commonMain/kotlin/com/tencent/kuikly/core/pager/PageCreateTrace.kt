@@ -251,17 +251,16 @@ class PageEventTrace {
                 for (event in events) {
                     val kind = event.kind
                     if (kind.isEndEvent()) indent = (indent - 1).coerceAtLeast(0)
-                    appendLine(formatEventLine(event, indentUnit.repeat(indent)))
+                    append(formatEventLine(event, indentUnit.repeat(indent))).append('\n')
                     if (kind.isStartEvent()) indent++
                 }
             }.trimEnd()
         }
         return buildString {
-            appendLine(REPORT_BEGIN)
-            appendLine(header)
-            appendLine(body)
-            appendLine(REPORT_END)
-            appendLine()
+            append(REPORT_BEGIN).append('\n')
+            append(header).append('\n')
+            append(body).append('\n')
+            append(REPORT_END).append("\n\n")
         }
     }
 }

@@ -42,7 +42,7 @@ class KRTextAreaView : public KRTextFieldView {
         return ArkUI_NodeEventType::NODE_TEXT_AREA_ON_PASTE;
     }
     ArkUI_NodeEventType GetOnWillChangeEventType() override {
-        return ArkUI_NodeEventType::NODE_TEXT_AREA_ON_WILL_CHANGE;
+        return ArkUI_NodeEventType::NODE_TEXT_AREA_ON_EDIT_CHANGE;;
     }
 
     void UpdateInputNodePlaceholder(const std::string &propValue) override;

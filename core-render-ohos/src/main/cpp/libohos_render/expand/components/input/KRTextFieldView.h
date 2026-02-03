@@ -60,7 +60,7 @@ class KRTextFieldView : public IKRRenderViewExport {
         return ArkUI_NodeEventType::NODE_TEXT_INPUT_ON_PASTE;
     }
     virtual ArkUI_NodeEventType GetOnWillChangeEventType() {
-        return ArkUI_NodeEventType::NODE_TEXT_INPUT_ON_WILL_CHANGE;
+        return ArkUI_NodeEventType::NODE_TEXT_INPUT_ON_EDIT_CHANGE;
     }
     
     virtual void UpdateInputNodePlaceholder(const std::string &propValue);

@@ -32,6 +32,7 @@ import { KRRenderNativeMode } from './context/KRRenderNativeMode';
 import { i18n } from '@kit.LocalizationKit';
 import { bundleManager } from '@kit.AbilityKit';
 import { deviceInfo } from '@kit.BasicServicesKit';
+import { KRTurboDisplayOptions } from './utils/KRTurboDisplayOptions';
 
 /** window尺寸变化事件名 */
 export const KRWindowSizeDidChangedEventKey = 'windowSizeDidChanged';
@@ -92,6 +93,10 @@ export const KRSystemLanguageKey = 'sysLang';
 
 export const KRFeature = 'feature';
 
+export const KRTurboDisplayKey = 'turboDisplayKey';
+
+export const KRTurboDisplayConfigKey = 'turboDisplayConfig';
+
 const KROnBackPressedKey = 'onBackPressed';
 
 enum KRBackPressConsumedState {
@@ -132,6 +137,10 @@ export class KRNativeRenderController {
    * 所在的窗口Id
    */
   windowId: string = ""
+
+  turboDisplayKey: string = '';
+
+  turboDisplayConfig?: KRTurboDisplayOptions;
 
   private lifecycleCallbacks: Array<IKuiklyRenderViewLifecycleCallback> = [];
 
@@ -648,6 +657,15 @@ export class KRNativeRenderController {
     pageData[KRFeature] = {
       "box_shadow_fill" : 1
     };
+    // pageData 添加 TurboDisplay Key
+    if (this.turboDisplayKey && this.turboDisplayKey.length > 0) {
+      pageData[KRTurboDisplayKey] = this.turboDisplayKey;
+    }
+    // pageData 添加 TurboDisplay Config
+    if (this.turboDisplayConfig) {
+      pageData[KRTurboDisplayConfigKey] = this.turboDisplayConfig as KRRecord;
+    }
+
     return JSON.stringify(pageData);
   }
 

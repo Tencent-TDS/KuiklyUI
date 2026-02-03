@@ -35,6 +35,11 @@ class IKRRenderLayer {
      * @param rootView 渲染根容器view
      */
     virtual void Init(std::weak_ptr<IKRRenderView> root_view, std::shared_ptr<KRRenderContextParams> &context) = 0;
+    
+    /**
+     * 获取额外缓存内容, TurboDisplay 用于传递给 Kotlin 侧的业务自定义缓存内容
+     */
+    virtual std::string GetExtraCacheContent() const { return ""; }
 
     /**
      * 创建渲染视图

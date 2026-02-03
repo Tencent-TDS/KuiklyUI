@@ -25,6 +25,7 @@ import render from 'libkuikly.so';
 import { KRRenderExecuteModeBase } from './context/KRRenderExecuteModeBase';
 import { KRRenderNativeMode } from './context/KRRenderNativeMode';
 import { KRRect } from './foundation/KRRect';
+import { KRTurboDisplayOptions } from './utils/KRTurboDisplayOptions';
 
 /**
  * @brief ArkUI C-Api Native渲染根节点
@@ -78,6 +79,17 @@ export struct KRNativeRender {
    * 普通app默认为false，输入法使用到的场景请置为true
    */
   imeMode = false;
+
+  /**
+   * @warning 外网不开放此能力，请勿设置
+   */
+  turboDisplayKey: string = '';
+
+  /**
+   * @warning 外网不开放此能力，请勿设置
+   */
+  turboDisplayConfig?: KRTurboDisplayOptions;
+
   initialSize?: Size;
   private controller?: KRNativeRenderController;
   private nodeContent: Content = new NodeContent();
@@ -117,6 +129,16 @@ export struct KRNativeRender {
       this.imeMode,
       this.assetsDir
     );
+
+    // @warning 外网不开放此能力，请勿设置
+    if (this.turboDisplayKey && this.turboDisplayKey.length > 0) {
+      this.controller.turboDisplayKey = this.turboDisplayKey;
+    }
+
+    // @warning 外网不开放此能力，请勿设置
+    if (this.turboDisplayConfig) {
+      this.controller.turboDisplayConfig = this.turboDisplayConfig;
+    }
 
     if (this.onRenderException) {
       this.controller!.registerExceptionCallback((executeMode, stack) => {

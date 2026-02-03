@@ -79,6 +79,13 @@ struct Index {
         Kuikly({
           pageName: this.pageName ?? 'router',
           pageData: this.pageData ?? {},
+          turboDisplayKey: this.pageName ?? 'router',
+          turboDisplayConfig: {
+            diffDOMMode: 0,      // 0 = 旧模式（不支持结构变化），1 = 新模式（支持结构变化，默认）
+            diffViewMode: 0,     // 0 = 延迟 diff 模式，1 = 禁用延迟 diff（默认）
+            autoUpdateTurboDisplay: true,
+            enableRealTreePersistentUpdate: false
+          },
           delegate: this.kuiklyViewDelegate,
           contextCode: this.contextCode,
           executeMode: this.contextCodeHandler.getExecuteMode(this.contextCode),

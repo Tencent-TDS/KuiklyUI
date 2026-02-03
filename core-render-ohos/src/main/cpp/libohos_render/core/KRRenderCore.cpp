@@ -24,6 +24,14 @@
 #include "libohos_render/utils/KRRenderLoger.h"
 #include "libohos_render/view/KRRenderView.h"
 #include "libohos_render/manager/KRRenderManager.h"
+#include "libohos_render/layer/KRRenderLayerHandlerFactory.h"
+
+#if __has_include("libohos_render/layer/KRTurboDisplayRenderLayerHandler.h")
+  #include "libohos_render/layer/KRTurboDisplayRenderLayerHandler.h"
+  #define TURBO_DISPLAY_AVAILABLE 1
+#else
+  #define TURBO_DISPLAY_AVAILABLE 0
+#endif
 
 EXTERN_C_START
 const KRRenderCValue com_tencent_kuikly_CallNative(int methodId, KRRenderCValue arg0, KRRenderCValue arg1,
@@ -73,7 +81,9 @@ KRRenderCore::KRRenderCore(std::weak_ptr<IKRRenderView> renderView, std::shared_
     // 注册kotlin call native回调（走onCallNative接口）
     contextHandler_->RegisterCallNative(this);
     contextHandler_->Init(context_);
-    renderLayerHandler_ = std::make_shared<KRRenderLayerHandler>();
+    
+    // 【修改】使用工厂创建 Handler，自动处理 TurboDisplay 可用性
+    renderLayerHandler_ = KRRenderLayerHandlerFactory::CreateHandler(renderView, context, uiScheduler_);
     renderLayerHandler_->Init(renderView, context);
 }
 
@@ -98,7 +108,18 @@ void KRRenderCore::DidInit() {
     auto sync = context_->ExecuteMode()->IsContextSyncInit();
     KRContextScheduler::DirectRunOnMainThread(sync, [strongSelf = shared_from_this(), sync] {
         auto page_name = std::make_shared<KRRenderValue>(strongSelf->context_->PageName());
-        auto page_data = std::make_shared<KRRenderValue>(strongSelf->context_->PageData()->toString());
+        
+        std::string extra_cache_content = strongSelf->renderLayerHandler_->GetExtraCacheContent();
+        std::shared_ptr<KRRenderValue> page_data;
+        if (!extra_cache_content.empty()) {
+            // 将 extraCacheContent 合并到 page_data 中
+            auto page_data_map = strongSelf->context_->PageData()->toMap();
+            page_data_map["customFirstScreenTag"] = std::make_shared<KRRenderValue>(extra_cache_content);
+            page_data = std::make_shared<KRRenderValue>(page_data_map);
+        } else {
+            page_data = strongSelf->context_->PageData();
+        }
+        
         auto null_arg = strongSelf->defaultNullValue_;
         strongSelf->notifyInitState(KRInitState::kStateInitContextStart);
         strongSelf->contextHandler_->InitContext();

@@ -472,6 +472,26 @@ android {
 }
 ```
 
+## 配置AndroidManifest.xml
+
+在 AndroidManifest.xml 中为您的 Activity（如 `KuiklyRenderActivity`）添加以下配置：
+
+```xml
+<activity
+    android:name=".KuiklyRenderActivity"
+    android:windowSoftInputMode="stateUnspecified|adjustNothing"
+    ... />
+```
+
+### 配置说明
+
+- **`stateUnspecified`**：避免输入框默认获得焦点，让 Kuikly 页面可以更好地控制输入框的焦点状态
+- **`adjustNothing`**：避免键盘弹起时调整 Activity 的 View 大小，从而防止影响 KuiklyView 的布局和尺寸。这样可以确保 KuiklyView 的大小保持稳定，不受键盘影响
+
+### 与 keyboardHeightChange 结合使用
+
+配置 `adjustNothing` 后，Kuikly 框架可以通过 `keyboardHeightChange` 事件来监听键盘高度变化，并实现更精确的键盘规避逻辑。这种方式比系统自动调整布局更加可控，能够提供更好的用户体验。
+
 ## 附：以View方式接入
 
 除了使用Activity方式接入外，Kuikly还支持以View方式接入，这种方式可以将Kuikly页面嵌入到现有的Activity或Fragment中，更加灵活。

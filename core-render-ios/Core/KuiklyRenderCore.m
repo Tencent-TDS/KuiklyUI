@@ -22,7 +22,10 @@
 #import "KuiklyRenderThreadManager.h"
 #import "KuiklyRenderUIScheduler.h"
 #import "NSObject+KR.h"
+
+#if __has_include("KuiklyTurboDisplayRenderLayerHandler.h")
 #import "KuiklyTurboDisplayRenderLayerHandler.h"
+#endif
 
 // 注：args固定参数个数，不会存在数组访问越界
 #define FISRT_ARG args[0]
@@ -484,18 +487,28 @@ NSString *const kKuiklyFatalExceptionNotification = @"KuiklyFatalExceptionNotifi
 }
 
 - (id<KuiklyRenderLayerProtocol>)p_createRenderLayerWithRootView:(UIView *)rootView {
+#if __has_include("KuiklyTurboDisplayRenderLayerHandler.h")
     NSString * turboDisplayKey = nil; // 是否为TurboDisplay AOT渲染模式
+    KRTurboDisplayConfig *turboDisplayConfig = nil;
+
     if ([_delegate respondsToSelector:@selector(turboDisplayKey)]) {
         turboDisplayKey = [_delegate turboDisplayKey];
     }
+    // 新增：获取页面级配置
+    if ([_delegate respondsToSelector:@selector(turboDisplayConfig)]) {
+        turboDisplayConfig = [_delegate turboDisplayConfig];
+    }
+    
     if (turboDisplayKey.length) {
-        KuiklyTurboDisplayRenderLayerHandler *handler = [[KuiklyTurboDisplayRenderLayerHandler alloc] 
+        KuiklyTurboDisplayRenderLayerHandler *handler = [[KuiklyTurboDisplayRenderLayerHandler alloc]
                                                          initWithRootView:rootView
                                                          contextParam:_contextParam
-                                                         turboDisplayKey:turboDisplayKey];
+                                                         turboDisplayKey:turboDisplayKey
+                                                         turboDisplayConfig:turboDisplayConfig];
         handler.uiScheduler = _uiScheduler;
         return handler;
     }
+#endif
     return [[KuiklyRenderLayerHandler alloc] initWithRootView:rootView contextParam:_contextParam];
 }
 

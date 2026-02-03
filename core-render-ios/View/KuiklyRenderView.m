@@ -210,12 +210,22 @@ NSString *const KRDensity = @"density";
 
 #pragma mark - KuiklyRenderCoreDelegate
 
+#if __has_include("KRTurboDisplayConfig.h")
 - (NSString *)turboDisplayKey {
     if ([self.delegate respondsToSelector:@selector(turboDisplayKey)]) {
         return [self.delegate turboDisplayKey];
     }
     return nil;
 }
+
+// KuiklyRenderView.m - 实现传递
+- (KRTurboDisplayConfig *)turboDisplayConfig {
+    if ([self.delegate respondsToSelector:@selector(turboDisplayConfig)]) {
+        return [self.delegate turboDisplayConfig];
+    }
+    return nil;
+}
+#endif
 
 #pragma mark - private
 

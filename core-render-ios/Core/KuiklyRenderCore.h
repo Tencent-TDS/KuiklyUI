@@ -18,6 +18,10 @@
 #import "KuiklyRenderContextProtocol.h"
 #import "KuiklyRenderViewExportProtocol.h"
 
+#if __has_include("KRTurboDisplayConfig.h")
+#import "KRTurboDisplayConfig.h"  // 不存在时，这行被忽略
+#endif
+
 extern NSString *_Nonnull const kKuiklyFatalExceptionNotification;
 
 NS_ASSUME_NONNULL_BEGIN
@@ -109,6 +113,8 @@ NS_ASSUME_NONNULL_BEGIN
 @protocol KuiklyRenderCoreDelegate <NSObject>
 
 @optional
+
+#if __has_include("KRTurboDisplayConfig.h")
 /*
  * @brief 打开TurboDisplay渲染模式技术，实现超原生首屏性能
         （通过直接执行dai二进制产物渲染生成首屏，避免业务代码执行后再生成的首屏等待耗时）
@@ -117,6 +123,12 @@ NS_ASSUME_NONNULL_BEGIN
  * @return 返回该页面的TurboDisplayKey（一般可为PageName，若为nil，则为关闭TurboDisplay渲染模式）
  */
 - (NSString * _Nullable)turboDisplayKey;
+
+/*
+ * @brief 返回 TurboDisplay 页面级配置（新增）
+ */
+- (KRTurboDisplayConfig * _Nullable)turboDisplayConfig;
+#endif
 
 @end
 

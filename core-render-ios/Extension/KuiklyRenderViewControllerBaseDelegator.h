@@ -17,6 +17,9 @@
 #import "KRUIKit.h"
 #import "KuiklyRenderView.h"
 #import "KRBackPressModule.h"
+#if __has_include("KRTurboDisplayConfig.h")
+#import "KRTurboDisplayConfig.h"  // 不存在时，这行被忽略
+#endif
 
 typedef void (^KuiklyContextCodeCallback)(NSString * _Nullable contextCode, NSError * _Nullable error);
 @protocol KRPerformanceDataProtocol;
@@ -197,6 +200,8 @@ FOUNDATION_EXTERN NSString *const KRPageDataSnapshotKey;
  */
 - (BOOL)syncRenderingWhenPageAppear;
 
+
+#if __has_include("KRTurboDisplayConfig.h")
 /*
  * @brief 打开TurboDisplay渲染模式技术，实现超原生首屏性能
         （通过直接执行dai二进制产物渲染生成首屏，避免业务代码执行后再生成的首屏等待耗时）
@@ -205,6 +210,28 @@ FOUNDATION_EXTERN NSString *const KRPageDataSnapshotKey;
  * @return 返回该页面的TurboDisplayKey（一般可为PageName，若为nil，则为关闭TurboDisplay渲染模式）
  */
 - (NSString * _Nullable)turboDisplayKey;
+
+/*
+ * @brief 配置 TurboDisplay 的全局参数
+ * @param config 可调用方法中配置 Diff-DOM 模式、延迟 Diff 模式、自动刷新首屏
+ * @warning configureTurboDisplay 方法不可单独实现，需同时声明 TurboDisplayKey 方法
+ *
+ * 示例用法：
+ * - (KRTurboDisplayConfig*)configureTurboDisplay {
+ *     // 1. 定义 TurboDisplayConfig 实例
+ *     KRTurboDisplayConfig *config = [[KRTurboDisplayConfig alloc] init];
+ *     // 2. 配置功能项
+ *     // 启用 Diff-DOM 结构变化支持（默认已启用）
+ *     [config enableDiffDOMStructureAware];
+ *     // 启用延迟 Diff（默认禁用）
+ *     [config enableDelayedDiff];
+ *     // 启用自动刷新（默认已启用）
+ *     [config disableCloseAutoUpdateTurboDisplay];
+ *     return config;
+ * }
+ */
+- (KRTurboDisplayConfig*)configureTurboDisplay;
+#endif
 
 @end
 

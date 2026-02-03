@@ -173,7 +173,9 @@ class KRPagView : IKuiklyRenderViewExport {
         // Remove event callbacks
         removeAllEventListener()
         // Remove instance
-        pagView?.destroy()
+        kuiklyWindow.setTimeout({
+            pagView?.destroy()
+        })
     }
 
 

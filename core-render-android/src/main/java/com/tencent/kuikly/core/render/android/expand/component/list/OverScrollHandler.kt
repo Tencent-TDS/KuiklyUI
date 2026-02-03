@@ -80,15 +80,15 @@ internal class OverScrollHandler(
     private var scrollPointerId = -1
 
     fun onTouchEvent(event: MotionEvent): Boolean {
-        if (!isInStart() && !isInEnd() && !dragging) {
+        val isAtEdge = isInStart() || isInEnd()
+        
+        // 非边缘且未在拖拽状态时，fast fail
+        if (!isAtEdge && !dragging && !forceOverScroll) {
             if (pointerDataMap.size() != 0) {
-                // 防止一开始是在start或者end, 然后pointerMap中存在down事件
-                // 最后滑到不是在start或者end时松手。此时不会走到clear,这里补一刀clear
+                // 清空 pointerDataMap，标记从中间滑动
                 pointerDataMap.clear()
             }
-            if (!forceOverScroll) {
-                return false // 没有到达边缘, fast fail
-            }
+            return false
         }
 
         val activeIndex = event.actionIndex
@@ -138,10 +138,20 @@ internal class OverScrollHandler(
     }
 
     private fun processMoveEvent(event: MotionEvent): Boolean {
+        // 从中间滑到边缘时，pointerDataMap 已被清空，需要从当前位置重新初始化
+        if (pointerDataMap.size() == 0) {
+            for (i in 0 until event.pointerCount) {
+                updatePointerData(i, event)
+            }
+            initX = event.x
+            initY = event.y
+            dragging = true // 用户已在滑动，跳过 touchSlop 检查
+        }
         if (!downing) { // 收到move事件时，没收到down事件的话，补发down事件
             processDownEvent(event.actionIndex, event)
         }
-        if (!acceptEvent(event)) {
+        // 已在拖拽状态时跳过 acceptEvent 检查，让从中间滑到边缘可以立即响应
+        if (!dragging && !acceptEvent(event)) {
             velocityTracker.clear()
             return false
         }

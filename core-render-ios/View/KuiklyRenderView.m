@@ -217,6 +217,17 @@ NSString *const KRDensity = @"density";
     return nil;
 }
 
+#if TARGET_OS_OSX // [macOS]
+- (NSWindow *)targetWindow {
+#else
+- (UIWindow *)targetWindow {
+#endif
+    if ([self.delegate respondsToSelector:@selector(targetWindow)]) {
+        return [self.delegate targetWindow];
+    }
+    return nil;
+}
+
 #pragma mark - private
 
 - (NSDictionary *)p_generateWithParams:(NSDictionary *)params size:(CGSize)size {
@@ -245,12 +256,26 @@ NSString *const KRDensity = @"density";
     // 无障碍化开关与安全区域/密度
 #if TARGET_OS_OSX // [macOS]
     mParmas[KRAccessibilityRunning] = @(0);
-    mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:[KRConvertUtil currentSafeAreaInsets]];
+    NSWindow *targetWindow = [self.delegate targetWindow];
+    if (targetWindow) {
+        if (@available(macOS 11.0, *)) {
+            mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:targetWindow.contentView.safeAreaInsets];
+        } else {
+            mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:[KRConvertUtil currentSafeAreaInsets]];
+        }
+    } else {
+        mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:[KRConvertUtil currentSafeAreaInsets]];
+    }
     mParmas[KRDensity] = @([NSScreen mainScreen].backingScaleFactor ?: 1.0);
 #else
     mParmas[KRAccessibilityRunning] = @(UIAccessibilityIsVoiceOverRunning() ? 1: 0);
     if (@available(iOS 11.0, *)) {
-        mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:[KRConvertUtil currentSafeAreaInsets]];
+        UIWindow *targetWindow = [self.delegate targetWindow];
+        if (targetWindow) {
+            mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:targetWindow.safeAreaInsets];
+        } else {
+            mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:[KRConvertUtil currentSafeAreaInsets]];
+        }
     } else {
         mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:UIEdgeInsetsMake([KRConvertUtil statusBarHeight], 0, 0, 0)];
         // Fallback on earlier versions

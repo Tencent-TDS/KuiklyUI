@@ -142,6 +142,17 @@ FOUNDATION_EXTERN NSString *const KRRootViewSizeDidChangedEventKey;
  */
 - (NSString * _Nullable)turboDisplayKey;
 
+/*
+ * @brief 获取业务承载KuiklyRenderViewController的window
+ * @return 业务承载KuiklyRenderViewController的window
+ */
+#if TARGET_OS_OSX // [macOS]
+- (NSWindow * _Nullable)targetWindow;
+#else
+- (UIWindow * _Nullable)targetWindow;
+#endif
+
+
 @end
 
 NS_ASSUME_NONNULL_END

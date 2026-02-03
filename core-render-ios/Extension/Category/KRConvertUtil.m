@@ -701,7 +701,7 @@
         return UIEdgeInsetsZero;
     }
     if (@available(iOS 11, *)) {
-        UIWindow *window = UIApplication.sharedApplication.windows.firstObject;
+        UIWindow *window = UIApplication.sharedApplication.keyWindow;
         return window.safeAreaInsets;
     } else {
         return UIEdgeInsetsZero;

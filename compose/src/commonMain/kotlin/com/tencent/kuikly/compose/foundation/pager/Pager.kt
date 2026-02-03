@@ -41,7 +41,6 @@ import com.tencent.kuikly.compose.ui.unit.Dp
 import com.tencent.kuikly.compose.ui.unit.Velocity
 import com.tencent.kuikly.compose.ui.unit.dp
 import kotlin.math.abs
-import kotlin.math.roundToInt
 import kotlin.math.sign
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -271,7 +270,8 @@ internal fun SnapPosition.currentPageOffset(
         pageCount
     )
 
-    return (snapOffset - currentPageOffsetFraction * (pageSize + spaceBetweenPages)).roundToInt()
+    // 使用向下取整与 Placeable.apparentToRealOffset 一致，避免滑动时与点击时舍入不一致导致 1px 偏差
+    return (snapOffset - currentPageOffsetFraction * (pageSize + spaceBetweenPages)).toInt()
 }
 
 //private class DefaultPagerNestedScrollConnection(

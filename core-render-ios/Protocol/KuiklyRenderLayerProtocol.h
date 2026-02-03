@@ -199,6 +199,10 @@ NS_ASSUME_NONNULL_BEGIN
  * @brief 收到手势响应时调用
  */
 - (void)didHitTest;
+/**
+ * @brief 额外缓存内容（用于TurboDisplay传递给Kotlin侧pageData）
+ */
+- (NSString * _Nullable)extraCacheContent;
 
 @end
 

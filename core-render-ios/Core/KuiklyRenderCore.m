@@ -38,6 +38,7 @@
 static NSInteger gInstanceId = 0;
 
 NSString *const kKuiklyFatalExceptionNotification = @"KuiklyFatalExceptionNotification";
+NSString *const kCustomFirstScreenTag = @"customFirstScreenTag";
 
 @interface KuiklyRenderCore () <KuiklyRenderUISchedulerDelegate>
 /** 渲染层协议的实现者 */
@@ -199,8 +200,18 @@ NSString *const kKuiklyFatalExceptionNotification = @"KuiklyFatalExceptionNotifi
         // 执行KuiklyKotlin侧调用Native侧的事件
         return [strongSelf p_performNativeMethodWithMethod:method args:args];
     }];
+    
+    // 补充到外网
+    NSMutableDictionary *finalParams = params ? [params mutableCopy] : [NSMutableDictionary new];
+    if ([_renderLayerHandler respondsToSelector:@selector(extraCacheContent)]) {
+        NSString *extraContent = [_renderLayerHandler extraCacheContent];
+        if (extraContent.length > 0) {
+            finalParams[kCustomFirstScreenTag] = extraContent;
+        }
+    }
+    
     // Native侧调用Kotlin侧事件：CreateInstance, 让Kotlin侧开始创建页面实例
-    [_contextHandler callWithMethod:(KuiklyRenderContextMethodCreateInstance) args:@[_instanceId, pageName, (params ?: @{})]];
+    [_contextHandler callWithMethod:(KuiklyRenderContextMethodCreateInstance) args:@[_instanceId, pageName, finalParams]];
 }
 
 /**

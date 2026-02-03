@@ -515,7 +515,7 @@ private fun TextAttr.applyTextStyle(style: TextStyle, density: Density) {
         val linearGradient = style.brush as LinearGradient
         backgroundLinearGradient(
             linearGradient.direction,
-            *linearGradient.colorStops.toTypedArray()
+            *linearGradient.resolveForText().colorStops.toTypedArray()
         )
     } else {
         if (style.color.isSpecified) {
@@ -803,7 +803,7 @@ private fun TextSpan.applySpanStyle(spanStyle: SpanStyle, density: Density) {
         val linearGradient = spanStyle.brush as LinearGradient
         backgroundLinearGradient(
             linearGradient.direction,
-            *linearGradient.colorStops.toTypedArray()
+            *linearGradient.resolveForText().colorStops.toTypedArray()
         )
     } else {
         if (spanStyle.color.isSpecified) {

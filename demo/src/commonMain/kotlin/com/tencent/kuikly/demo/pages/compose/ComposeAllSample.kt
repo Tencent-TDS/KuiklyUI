@@ -158,6 +158,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("AccessibilityDemo(Android&iOS)", "无障碍", "AccessibilityDemo"),
             DemoItem("InteractionSourceDemo", "交互源Demo", "InteractionSourceDemo"),
             DemoItem("ViewModel示例", "Lifecycle和ViewModel", "ViewModelDemo"),
+            DemoItem("GradientAnimationDemo", "Offset or color animate ", "GradientAnimationDemo"),
         )
 
     @Composable

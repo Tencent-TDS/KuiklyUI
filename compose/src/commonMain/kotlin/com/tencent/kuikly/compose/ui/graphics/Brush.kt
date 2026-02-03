@@ -334,6 +334,16 @@ class LinearGradient internal constructor(
                 if (start.y.isFinite() && end.y.isFinite() && start.x != end.x) abs(start.y - end.y) else Float.NaN
             )
 
+    val colorStops: ArrayList<ColorStop> by lazy {
+        val tStops = stops ?: computeEvenlyDistributedStops(colors.size)
+        val res = arrayListOf<ColorStop>()
+        colors.forEachIndexed { index, color ->
+            val stop = tStops.getOrNull(index) ?: 1f
+            res.add(ColorStop(color.toKuiklyColor(), stop))
+        }
+        res
+    }
+
     override fun applyTo(size: Size, p: Paint, alpha: Float) {
         p.alpha = DefaultAlpha
         p.shader = if (isFinite && alpha == DefaultAlpha) {
@@ -356,7 +366,7 @@ class LinearGradient internal constructor(
     }
 
     override fun applyTo(view: DeclarativeBaseView<*, *>, alpha: Float) {
-        val brush = if (alpha.isNaN() || alpha >= 1f) this else copy(alpha)
+        val brush = withAlpha(alpha).resolveForView(view)
         view.getViewAttr().backgroundLinearGradient(
             brush.direction,
             *brush.colorStops.toTypedArray()
@@ -373,21 +383,200 @@ class LinearGradient internal constructor(
         )
     }
 
+    /**
+     * 应用 alpha 值，如果不需要修改则返回 this
+     * @param alpha 透明度值
+     * @return 如果 alpha >= 1 或 NaN 则返回 this，否则返回应用了 alpha 的新对象
+     */
+    fun withAlpha(alpha: Float): LinearGradient {
+        return if (alpha.isNaN() || alpha >= 1f) this else copy(alpha)
+    }
+
+    /**
+     * 根据 View 的实际尺寸解析渐变
+     * 将像素坐标的渐变转换为归一化坐标的渐变
+     * @param view 目标 View，用于获取实际尺寸
+     * @return 如果无需转换则返回 this，否则返回转换后的新对象
+     */
+    fun resolveForView(view: DeclarativeBaseView<*, *>?): LinearGradient {
+        // 相对模式（start/end 不是有限值），无需转换
+        if (!isFinite) return this
+        
+        // 优先使用 view 的实际尺寸
+        view?.renderView?.currentFrame?.let { frame ->
+            return resolveForSize(frame.width, frame.height)
+        }
+        
+        // 使用坐标中的最大值作为参考尺寸
+        return resolveForText()
+    }
+
+    /**
+     * 根据指定尺寸解析渐变
+     * 将像素坐标的渐变转换为归一化坐标的渐变
+     * @param width 参考宽度
+     * @param height 参考高度
+     * @return 如果无需转换则返回 this，否则返回转换后的新对象
+     */
+    fun resolveForSize(width: Float, height: Float): LinearGradient {
+        // 相对模式，无需转换
+        if (!isFinite) return this
+        
+        val (startPos, endPos) = computePixelPositions(width, height)
+        
+        // 如果映射后与原始一致（0~1 范围），复用原对象
+        if (startPos == 0f && endPos == 1f) return this
+        
+        return createMappedGradient(startPos, endPos)
+    }
+
+    /**
+     * 使用坐标中的最大值作为参考尺寸来解析渐变
+     * 主要用于 Text 渐变动画等没有 View 尺寸的场景
+     * @return 如果无需转换则返回 this，否则返回转换后的新对象
+     */
+    fun resolveForText(): LinearGradient {
+        val maxCoord = maxOf(
+            abs(start.x),
+            abs(start.y),
+            abs(end.x),
+            abs(end.y)
+        )
+        return if (maxCoord > 0f) resolveForSize(maxCoord, maxCoord) else this
+    }
+
+    /**
+     * 创建映射后的 LinearGradient
+     * 将原始 stops (0~1) 映射到 startPos~endPos 范围，并处理边界情况
+     */
+    private fun createMappedGradient(startPos: Float, endPos: Float): LinearGradient {
+        val tStops = stops ?: computeEvenlyDistributedStops(colors.size)
+        val (mappedColors, mappedStops) = mapColorsAndStopsToRange(tStops, startPos, endPos)
+        
+        return LinearGradient(
+            colors = mappedColors,
+            stops = mappedStops,
+            start = Offset.Zero,
+            end = Offset.Infinite,
+            tileMode = tileMode
+        )
+    }
+
+    /**
+     * 将 colors 和 stops 映射到指定范围，处理边界情况
+     * 确保输出的 stops 始终覆盖 0~1 范围
+     * 
+     * @param tStops 原始的 stops 列表 (0~1)
+     * @param startPos 渐变起点在 view 中的归一化位置
+     * @param endPos 渐变终点在 view 中的归一化位置
+     * @return 映射后的 (colors, stops) 对
+     */
+    private fun mapColorsAndStopsToRange(
+        tStops: List<Float>,
+        startPos: Float,
+        endPos: Float
+    ): Pair<List<Color>, List<Float>> {
+        val firstColor = colors.firstOrNull() ?: return Pair(emptyList(), emptyList())
+        val lastColor = colors.lastOrNull() ?: firstColor
+        
+        // 处理反向渐变的情况
+        val actualStartPos = minOf(startPos, endPos)
+        val actualEndPos = maxOf(startPos, endPos)
+        val isReversed = startPos > endPos
+        
+        // 情况1：渐变完全在 view 左侧 (endPos <= 0)
+        if (actualEndPos <= 0f) {
+            val solidColor = if (isReversed) firstColor else lastColor
+            return Pair(listOf(solidColor, solidColor), listOf(0f, 1f))
+        }
+        
+        // 情况2：渐变完全在 view 右侧 (startPos >= 1)
+        if (actualStartPos >= 1f) {
+            val solidColor = if (isReversed) lastColor else firstColor
+            return Pair(listOf(solidColor, solidColor), listOf(0f, 1f))
+        }
+        
+        // 情况3：渐变与 view 有交集
+        val resultColors = mutableListOf<Color>()
+        val resultStops = mutableListOf<Float>()
+        
+        // 添加起始边界颜色
+        resultColors.add(firstColor)
+        resultStops.add(0f)
+        if (startPos > 0f && startPos < 1f) {
+            resultColors.add(firstColor)
+            resultStops.add(startPos)
+        }
+        
+        // 添加中间颜色（跳过与边界重复的颜色）
+        colors.forEachIndexed { index, color ->
+            val originalStop = tStops.getOrNull(index) ?: 1f
+            // 跳过首尾颜色，避免重复
+            if (originalStop > 0f && originalStop < 1f) {
+                val mappedStop = startPos + originalStop * (endPos - startPos)
+                // 只添加在 view 范围内的颜色
+                if (mappedStop > 0f && mappedStop < 1f) {
+                    resultColors.add(color)
+                    resultStops.add(mappedStop)
+                }
+            }
+        }
+        
+        // 添加结束边界颜色
+        if (endPos > 0f && endPos < 1f) {
+            resultColors.add(lastColor)
+            resultStops.add(endPos)
+        }
+        resultColors.add(lastColor)
+        resultStops.add(1f)
+        
+        // 按位置排序
+        val sortedPairs = resultColors.zip(resultStops).sortedBy { it.second }
+        return Pair(sortedPairs.map { it.first }, sortedPairs.map { it.second })
+    }
+
     val direction: Direction by lazy {
         getDirection(start, end)
     }
 
-    val colorStops: ArrayList<ColorStop> by lazy {
-        val res = arrayListOf<ColorStop>()
-        var tStops = stops
-        if (stops == null) {
-            tStops = computeEvenlyDistributedStops(colors.size)
+    /**
+     * 计算 start 和 end 在参考尺寸中的归一化位置
+     *
+     * @param refWidth 参考宽度
+     * @param refHeight 参考高度
+     * @return (startPos, endPos) 归一化后的位置，范围通常在 0~1，但可以超出
+     */
+    private fun computePixelPositions(refWidth: Float, refHeight: Float): Pair<Float, Float> {
+        return when {
+            // 水平方向渐变
+            start.y == end.y -> Pair(start.x / refWidth, end.x / refWidth)
+            // 垂直方向渐变
+            start.x == end.x -> Pair(start.y / refHeight, end.y / refHeight)
+            // 对角线方向渐变
+            else -> {
+                // 计算参考对角线长度
+                val refDiagonal = kotlin.math.sqrt(refWidth * refWidth + refHeight * refHeight)
+                // 计算渐变方向上的投影距离
+                // 使用渐变向量的方向来计算每个点在该方向上的投影
+                val gradientDx = end.x - start.x
+                val gradientDy = end.y - start.y
+                val gradientLength = kotlin.math.sqrt(gradientDx * gradientDx + gradientDy * gradientDy)
+                
+                if (gradientLength > 0f) {
+                    // 归一化渐变方向向量
+                    val dirX = gradientDx / gradientLength
+                    val dirY = gradientDy / gradientLength
+                    // 计算 start 和 end 在渐变方向上的投影
+                    val startProj = (start.x * dirX + start.y * dirY) / refDiagonal
+                    val endProj = (end.x * dirX + end.y * dirY) / refDiagonal
+                    Pair(startProj, endProj)
+                } else {
+                    // 如果渐变长度为 0，返回相同位置
+                    val pos = start.x / refWidth
+                    Pair(pos, pos)
+                }
+            }
         }
-        colors.forEachIndexed { index, color ->
-            val stop = tStops?.getOrNull(index) ?: 1f
-            res.add(ColorStop(color.toKuiklyColor(), stop))
-        }
-        res
     }
 
     private fun computeEvenlyDistributedStops(colorCount: Int): List<Float> {
@@ -416,10 +605,6 @@ class LinearGradient internal constructor(
             else -> throw IllegalArgumentException("Invalid start and end offsets")
         }
     }
-//    override fun toString(): String {
-//
-//        return ""
-//    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

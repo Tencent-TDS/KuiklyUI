@@ -93,7 +93,7 @@ KRAnyValue KRRichTextShadow::Call(const std::string &method_name, const std::str
     } else if(method_name == "isLineBreakMargin"){
         return NewKRRenderValue(did_exceed_max_lines_ && OH_Drawing_DestroyTextLines? "1" : "0");
     }
-    return std::make_shared<KRRenderValue>(nullptr);
+    return KRRenderValue::Make(nullptr);
 }
 
 /**
@@ -146,7 +146,7 @@ KRSize KRRichTextShadow::CalculateRenderViewSizeWithStyledString(double constrai
     placeholder_index_map_.clear();
     KRRenderValue::Array spans = values_;
     if (spans.empty()) {
-        spans.push_back(std::make_shared<KRRenderValue>(props_));
+        spans.push_back(KRRenderValue::Make(props_));
     }
     
     auto nativeResMgr = rootView->GetNativeResourceManager();
@@ -191,7 +191,7 @@ static KRAnyValue GetKRValue(const char *key, const KRRenderValue::Map &map0, co
     if (it2 != map1.end()) {
         return it2->second;
     }
-    return std::make_shared<KRRenderValue>(nullptr);
+    return KRRenderValue::Make(nullptr);
 }
 
 KRFontCollectionWrapper::KRFontCollectionWrapper() : fontCollection(nullptr), fontCollectionSystem(nullptr) {
@@ -336,7 +336,7 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
     placeholder_index_map_.clear();
     KRRenderValue::Array spans = values_;
     if (spans.empty()) {
-        spans.push_back(std::make_shared<KRRenderValue>(props_));
+        spans.push_back(KRRenderValue::Make(props_));
     }
     auto numberOfLines = GetKRValue("numberOfLines", props_, props_)->toInt();
     const std::string lineBreakModeStr = GetKRValue("lineBreakMode", props_, props_)->toString();

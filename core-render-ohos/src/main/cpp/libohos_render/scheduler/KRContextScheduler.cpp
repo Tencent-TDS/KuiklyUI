@@ -15,6 +15,9 @@
 
 #include "libohos_render/scheduler/KRContextScheduler.h"
 
+#include <atomic>
+#include <condition_variable>
+#include <mutex>
 #include "libohos_render/foundation/thread/KRMainThread.h"
 
 class KRContextSchedulerInternal {
@@ -72,13 +75,15 @@ void KRContextSchedulerMultiThreaded::ScheduleTaskOnMainThread(bool sync, const 
         if (GetContextThread()->IsCurrentThreadWorkerThread()) {
             GetContextThread()->SyncMainTaskMutex(true, false, false);
             std::mutex mtx;
-            mtx.lock();  // 同步
-            KRMainThread::RunOnMainThread([task, &mtx] {
+            std::condition_variable cv;
+            std::atomic<bool> taskCompleted(false);
+            std::unique_lock<std::mutex> lock(mtx);
+            KRMainThread::RunOnMainThread([task, &cv, &taskCompleted] {
                 task();
-                mtx.unlock();
+                taskCompleted.store(true);
+                cv.notify_one();
             });
-            mtx.lock();
-            mtx.unlock();
+            cv.wait(lock, [&taskCompleted] { return taskCompleted.load(); });
             GetContextThread()->SyncMainTaskMutex(false, true, false);
         } else {
             // 说明在主线程, 直接同步

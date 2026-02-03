@@ -48,31 +48,31 @@ KRAnyValue KRCodecModule::CallMethod(bool sync, const std::string &method, KRAny
     } else if (method == METHOD_SHA256) {
         return this->Sha256(str);
     }
-    return std::make_shared<KRRenderValue>();
+    return KRRenderValue::Make();
 }
 
 KRAnyValue KRCodecModule::UrlEncode(const std::string str) {
-    return std::make_shared<KRRenderValue>(KREncodeURLComponent(str));
+    return KRRenderValue::Make(KREncodeURLComponent(str));
 }
 
 KRAnyValue KRCodecModule::UrlDecode(const std::string str) {
-    return std::make_shared<KRRenderValue>(KRDecodeURLComponent(str));
+    return KRRenderValue::Make(KRDecodeURLComponent(str));
 }
 
 KRAnyValue KRCodecModule::Base64Encode(const std::string str) {
-    return std::make_shared<KRRenderValue>(KRBase64Encode(str));
+    return KRRenderValue::Make(KRBase64Encode(str));
 }
 
 KRAnyValue KRCodecModule::Base64Decode(const std::string str) {
-    return std::make_shared<KRRenderValue>(KRBase64Decode(str));
+    return KRRenderValue::Make(KRBase64Decode(str));
 }
 
 KRAnyValue KRCodecModule::Md5(const std::string str) {
-    return std::make_shared<KRRenderValue>(KRMd5(str));
+    return KRRenderValue::Make(KRMd5(str));
 }
 
 KRAnyValue KRCodecModule::Sha256(const std::string str) {
-    return std::make_shared<KRRenderValue>(KRSha256(str));
+    return KRRenderValue::Make(KRSha256(str));
 }
 }  // namespace module
 }  // namespace kuikly

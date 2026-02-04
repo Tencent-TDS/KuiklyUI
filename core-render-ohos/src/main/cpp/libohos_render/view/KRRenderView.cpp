@@ -58,19 +58,15 @@ KRRenderView::KRRenderView(ArkUI_NodeContentHandle handle, std::string instance_
 
 KRRenderView::~KRRenderView() {
     RemoveRootViewFromContentHandle(false);
-//    if (node_content_handle_ && root_node_){
-//        ArkUI_NodeContentHandle content_handle = node_content_handle_;
-//        ArkUI_NodeHandle root_node = root_node_;
-//
-//        KRMainThread::RunOnMainThread([content_handle, root_node] {
-//            OH_ArkUI_NodeContent_RemoveNode(content_handle, root_node);
-//        });
-//    }
     if(root_node_ != nullptr){
         ArkUI_NodeHandle root_node = root_node_;
-        KRMainThread::RunOnMainThread([root_node] {
+        if (kuikly::util::isMainThread()){
             kuikly::util::GetNodeApi()->disposeNode(root_node);
-        });
+        } else {
+            KRMainThread::RunOnMainThread([root_node] {
+                kuikly::util::GetNodeApi()->disposeNode(root_node);
+            });
+        }
         root_node_ = nullptr;
     }
     node_content_handle_ = nullptr;
@@ -83,16 +79,11 @@ void KRRenderView::RemoveRootViewFromContentHandle(bool immediate){
         ArkUI_NodeContentHandle content_handle = node_content_handle_;
         ArkUI_NodeHandle root_node = root_node_;
         
-        auto unregister_and_remove = [content_handle, root_node](){
-            OH_ArkUI_NodeContent_RegisterCallback(content_handle, [](ArkUI_NodeContentEvent*){}); // set callback to noop
+        if(immediate || kuikly::util::isMainThread()){
             OH_ArkUI_NodeContent_RemoveNode(content_handle, root_node);
-        };
-        
-        if(immediate){
-            unregister_and_remove();
         }else{
-            KRMainThread::RunOnMainThread([unregister_and_remove] {
-                unregister_and_remove();
+            KRMainThread::RunOnMainThread([content_handle, root_node] {
+                OH_ArkUI_NodeContent_RemoveNode(content_handle, root_node);
             });
         }
         
@@ -105,6 +96,8 @@ void KRRenderView::WillDestroy(const std::string &instanceId) {
     core_->WillDealloc(instanceId);
     // send event to call
     // delay destroy for core
+    KR_LOG_INFO_WITH_TAG("RemoveRootView")<<"KTRenderView WillDestroy";
+    RemoveRootViewFromContentHandle(true);
 }
 
 /**

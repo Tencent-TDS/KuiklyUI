@@ -138,7 +138,6 @@ class KRRenderView : public IKRRenderView {
     };
 
  private:
-    friend void NodeContentCallback(ArkUI_NodeContentEvent* event);
     void RemoveRootViewFromContentHandle(bool immediate);
     ArkUI_NodeContentHandle node_content_handle_ = nullptr;
     ArkUI_NodeHandle root_node_ = nullptr;

@@ -105,8 +105,7 @@ set(SOURCE_SET
         libohos_render/expand/modules/performance/KRPerformanceModule.cpp
         libohos_render/expand/modules/log/KRLogTestModule.cpp
         libohos_render/expand/components/mask/KRMaskView.cpp
-        libohos_render/context/KRRenderContextParamsExt.cpp
-        libohos_render/layer/KRRenderLayerHandlerFactory.cpp
+        libohos_render/layer/KRRenderLayerHandlerBaseFactory.cpp
 )
 
 add_library(kuikly SHARED ${SOURCE_SET})

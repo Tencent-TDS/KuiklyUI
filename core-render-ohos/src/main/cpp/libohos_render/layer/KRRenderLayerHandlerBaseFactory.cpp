@@ -13,34 +13,13 @@
  * limitations under the License.
  */
 
-#include "libohos_render/layer/KRRenderLayerHandlerFactory.h"
+#include "libohos_render/layer/KRRenderLayerHandlerBaseFactory.h"
 #include "libohos_render/layer/KRRenderLayerHandler.h"
 
-// 编译期自动检测 TurboDisplay 是否可用
-#if __has_include("libohos_render/layer/KRTurboDisplayRenderLayerHandler.h")
-  #include "libohos_render/layer/KRTurboDisplayRenderLayerHandler.h"
-  #include "libohos_render/context/KRRenderContextParamsExt.h"
-  #define TURBO_DISPLAY_AVAILABLE 1
-#else
-  #define TURBO_DISPLAY_AVAILABLE 0
-#endif
-
-std::shared_ptr<IKRRenderLayer> KRRenderLayerHandlerFactory::CreateHandler(
+std::shared_ptr<IKRRenderLayer> KRRenderLayerHandlerBaseFactory::CreateHandler(
     std::weak_ptr<IKRRenderView> renderView,
     std::shared_ptr<KRRenderContextParams> context,
     std::shared_ptr<KRUIScheduler> uiScheduler) {
-    
-#if TURBO_DISPLAY_AVAILABLE
-    // 尝试获取 TurboDisplayKey
-    std::string turboKey = GetTurboDisplayKeyFromContext(context);
-    
-    if (!turboKey.empty()) {
-        auto turboHandler = std::make_shared<KRTurboDisplayRenderLayerHandler>();
-        turboHandler->SetUIScheduler(uiScheduler);
-        turboHandler->Init(renderView, context);
-        return turboHandler;
-    }
-#endif
     
     // 默认创建普通Handler
     auto handler = std::make_shared<KRRenderLayerHandler>();

@@ -24,13 +24,13 @@
 #include "libohos_render/utils/KRRenderLoger.h"
 #include "libohos_render/view/KRRenderView.h"
 #include "libohos_render/manager/KRRenderManager.h"
-#include "libohos_render/layer/KRRenderLayerHandlerFactory.h"
 
-#if __has_include("libohos_render/layer/KRTurboDisplayRenderLayerHandler.h")
-  #include "libohos_render/layer/KRTurboDisplayRenderLayerHandler.h"
-  #define TURBO_DISPLAY_AVAILABLE 1
+#if __has_include("libohos_render/turbo//KRRenderLayerHandlerFactory.h")
+  #include "libohos_render/turbo/KRRenderLayerHandlerFactory.h"
+  using RenderLayerFactory = KRRenderLayerHandlerFactory;
 #else
-  #define TURBO_DISPLAY_AVAILABLE 0
+  #include "libohos_render/layer/KRRenderLayerHandlerBaseFactory.h"
+  using RenderLayerFactory = KRRenderLayerHandlerBaseFactory;
 #endif
 
 EXTERN_C_START
@@ -83,7 +83,7 @@ KRRenderCore::KRRenderCore(std::weak_ptr<IKRRenderView> renderView, std::shared_
     contextHandler_->Init(context_);
     
     // 【修改】使用工厂创建 Handler，自动处理 TurboDisplay 可用性
-    renderLayerHandler_ = KRRenderLayerHandlerFactory::CreateHandler(renderView, context, uiScheduler_);
+    renderLayerHandler_ = RenderLayerFactory::CreateHandler(renderView, context, uiScheduler_);
     renderLayerHandler_->Init(renderView, context);
 }
 

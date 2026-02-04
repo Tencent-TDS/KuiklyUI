@@ -26,8 +26,10 @@ class KRUIScheduler;
  * 渲染层处理器工厂
  * 根据配置自动选择创建普通Handler或TurboDisplayHandler
  */
-class KRRenderLayerHandlerFactory {
+class KRRenderLayerHandlerBaseFactory {
 public:
+    virtual ~KRRenderLayerHandlerBaseFactory() = default;
+    
     /**
      * 创建渲染层处理器
      * @param renderView 根渲染视图
@@ -39,6 +41,10 @@ public:
         std::weak_ptr<IKRRenderView> renderView,
         std::shared_ptr<KRRenderContextParams> context,
         std::shared_ptr<KRUIScheduler> uiScheduler);
+    
+    
+private:
+    std::shared_ptr<KRRenderLayerHandlerBaseFactory> instance;
 };
 
 #endif //OHOSAPP_KRRENDERLAYERHANDLERFACTORY_H

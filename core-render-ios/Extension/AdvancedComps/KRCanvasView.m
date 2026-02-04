@@ -646,7 +646,8 @@ typedef void (^KRPathRenderAction)(CGContextRef context, CGMutablePathRef path);
             // 将上下文裁剪为路径
             CGContextClip(context);
             // 绘制渐变
-            CGContextDrawLinearGradient(context, gradient, CGPointMake(x0, y0), CGPointMake(x1, y1), 0);
+            // 最后一个参数是设置绘制选项：渐变色在"起点之前继续延伸 + 在终点之后继续延伸"。如果设置为0，则是渐变色仅在起点和终点之间绘制
+            CGContextDrawLinearGradient(context, gradient, CGPointMake(x0, y0), CGPointMake(x1, y1), kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation);
             // 恢复先前的图形状态（包括裁剪状态）
             CGContextRestoreGState(context);
             
@@ -677,7 +678,8 @@ typedef void (^KRPathRenderAction)(CGContextRef context, CGMutablePathRef path);
             // 将上下文裁剪为路径
             CGContextClip(context);
             // 绘制渐变
-            CGContextDrawLinearGradient(context, gradient, CGPointMake(x0, y0), CGPointMake(x1, y1), 0);
+            // 最后一个参数是设置绘制选项：渐变色在"起点之前继续延伸 + 在终点之后继续延伸"。如果设置为0，则是渐变色仅在起点和终点之间绘制
+            CGContextDrawLinearGradient(context, gradient, CGPointMake(x0, y0), CGPointMake(x1, y1), kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation);
             // 恢复先前的图形状态（包括裁剪状态）
             CGContextRestoreGState(context);
             CGContextSetFillColorWithColor(context, [UIColor clearColor].CGColor);

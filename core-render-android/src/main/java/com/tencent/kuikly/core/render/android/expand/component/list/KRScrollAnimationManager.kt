@@ -20,6 +20,7 @@ import androidx.recyclerview.widget.RecyclerView
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.pow
+import kotlin.math.roundToInt
 
 /**
  * 动画配置
@@ -153,7 +154,7 @@ internal class KRScrollAnimationManager(
             is AnimationConfig.Linear -> createLinearAnimation(distance, config)
         }
         
-        setupAndStartAnimation(animation)
+        setupAndStartAnimation(animation, distance.toFloat())
     }
 
     /**
@@ -193,8 +194,10 @@ internal class KRScrollAnimationManager(
 
     /**
      * 动画设置和启动逻辑
+     * @param animation 动画实例
+     * @param targetDistance 目标滚动距离（用于动画结束时修正偏差）
      */
-    private fun setupAndStartAnimation(animation: KRScrollAnimation) {
+    private fun setupAndStartAnimation(animation: KRScrollAnimation, targetDistance: Float) {
         var consumed = 0f
 
         animation.onUpdate = { value ->
@@ -211,6 +214,17 @@ internal class KRScrollAnimationManager(
 
         animation.onEnd = {
             if (currentAnimation === animation) {
+                // 动画结束时，检查是否还有剩余的小数部分需要滚动
+                // 由于 delta.toInt() 会截断小数部分，可能导致最后有 0.x px 的偏差
+                // 计算剩余距离：目标距离 - 已消费的整数部分
+                val remaining = targetDistance - consumed
+                if (kotlin.math.abs(remaining) >= 0.5f) {
+                    // 如果剩余部分 >= 0.5px，就补上（四舍五入）
+                    val finalDelta = remaining.roundToInt()
+                    if (finalDelta != 0) {
+                        scrollRecyclerView(finalDelta)
+                    }
+                }
                 currentAnimation = null
                 onAnimationEnd?.invoke()
             }

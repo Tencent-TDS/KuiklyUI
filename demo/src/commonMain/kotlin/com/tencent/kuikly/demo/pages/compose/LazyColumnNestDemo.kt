@@ -37,6 +37,7 @@ import com.tencent.kuikly.compose.foundation.lazy.LazyColumn
 import com.tencent.kuikly.compose.foundation.lazy.items
 import com.tencent.kuikly.compose.foundation.shape.RoundedCornerShape
 import com.tencent.kuikly.compose.extension.NestedScrollMode
+import com.tencent.kuikly.compose.extension.bouncesEnable
 import com.tencent.kuikly.compose.extension.nestedScroll
 import com.tencent.kuikly.compose.material3.Card
 import com.tencent.kuikly.compose.material3.Text
@@ -172,6 +173,8 @@ fun ScrollContent(title: String, scrollUp: NestedScrollMode, scrollDown: NestedS
                         .fillMaxWidth()
                         .height(300.dp)
                         .padding(8.dp)
+                        // 嵌套滚动模式时，子列表应该禁止bounce
+                        .bouncesEnable(false)
                         .graphicsLayer {  }
                         .nestedScroll(
                             scrollUp = scrollUp,

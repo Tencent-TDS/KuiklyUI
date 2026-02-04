@@ -452,7 +452,7 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
         }
         OH_Drawing_SetTextStyleFontSize(txtStyle, fontSize);
         OH_Drawing_SetTextStyleFontWeight(txtStyle, fontWeight);
-        OH_Drawing_SetTextStyleBaseLine(txtStyle, TEXT_BASELINE_ALPHABETIC);
+        OH_Drawing_SetTextStyleBaseLine(txtStyle, TEXT_BASELINE_IDEOGRAPHIC);
         OH_Drawing_SetTextStyleDecoration(txtStyle, textDecoration);
         OH_Drawing_SetTextStyleFontStyle(txtStyle, fontStyle);
         if (letterSpacing > 0) {
@@ -463,7 +463,6 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
         } else if (lineHeight > 0) {
             lineHeight = std::max(lineHeight, 1.0);
             OH_Drawing_SetTextStyleFontHeight(txtStyle, lineHeight);
-            context_thread_drawOffsetY_ = (fontSize * lineHeight - fontSize) / 4;  // cai系统绘制存在偏移问题，手动校准
         }
         // fontFamily
         if (!fontFamily.empty()) {

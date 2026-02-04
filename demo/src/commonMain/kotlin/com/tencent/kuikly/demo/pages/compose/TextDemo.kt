@@ -44,6 +44,7 @@ import com.tencent.kuikly.compose.foundation.text.InlineTextContent
 import com.tencent.kuikly.compose.foundation.text.appendInlineContent
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.setContent
+import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.draw.alpha
 import com.tencent.kuikly.compose.ui.geometry.Offset
@@ -370,6 +371,58 @@ class TextDemo : ComposeContainer() {
             modifier = Modifier.fillMaxSize().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
+            // vertical alignment verification
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(20.dp)
+                    .background(Color.LightGray),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
+                Image(
+                    rememberAsyncImagePainter("https://pic2.zhimg.com/v2-2a0434dd4e4bb7a638b8df699a505ca1_b.jpg"),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp, 20.dp),
+                    contentScale = ContentScale.Crop
+                )
+
+
+                // 用户名
+                Text(
+                    modifier = Modifier
+                        .background(Color.Gray),
+                    text = "小棠",
+                    fontSize = 16.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.W400,
+                    color = Color.Blue
+                )
+
+                // 时间
+                Text(
+                    modifier = Modifier
+                        .background(Color.Yellow),
+                    text = "00:00",
+                    fontSize = 16.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.W400,
+                    color = Color.Red
+                )
+
+                // 时间
+                Text(
+                    modifier = Modifier
+                        .background(Color.Yellow),
+                    text = "00：00",
+                    fontSize = 16.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.W400,
+                    color = Color.Red
+                )
+            }
+
             // 1. 默认情况：softWrap = true, overflow = Clip
             Text(
                 "默认情况（softWrap = true, overflow = Clip）：这是一段很长的文本，用来测试文本的自动换行和截断功能。这是一段很长的文本，用来测试文本的自动换行和截断功能。",

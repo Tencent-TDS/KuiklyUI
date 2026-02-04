@@ -239,18 +239,18 @@ void KRSnapshotManager::TakeSnapshot(const std::string &instance_id, const std::
                     }
                 }
                 KRRenderValue::Map resultMap;
-                resultMap["code"] = std::make_shared<KRRenderValue>(resultData.code);
+                resultMap["code"] = KRRenderValue::Make(resultData.code);
                 if (resultData.code == 0) {
-                    resultMap["data"] = std::make_shared<KRRenderValue>(resultData.data);
+                    resultMap["data"] = KRRenderValue::Make(resultData.data);
                 } else {
-                    resultMap["message"] = std::make_shared<KRRenderValue>(resultData.message);
+                    resultMap["message"] = KRRenderValue::Make(resultData.message);
                 }
-                callback(std::make_shared<KRRenderValue>(resultMap));
+                callback(KRRenderValue::Make(resultMap));
             } else {
                 KRRenderValue::Map resultMap;
-                resultMap["code"] = std::make_shared<KRRenderValue>(-1);
-                resultMap["message"] = std::make_shared<KRRenderValue>("invalid result from arkts");
-                callback(std::make_shared<KRRenderValue>(resultMap));
+                resultMap["code"] = KRRenderValue::Make(-1);
+                resultMap["message"] = KRRenderValue::Make("invalid result from arkts");
+                callback(KRRenderValue::Make(resultMap));
             }
         };
         KRArkTSManager::GetInstance().CallArkTSMethod(

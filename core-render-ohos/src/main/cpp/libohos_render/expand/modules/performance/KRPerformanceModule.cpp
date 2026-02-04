@@ -35,9 +35,9 @@ KRAnyValue KRPerformanceModule::CallMethod(bool sync, const std::string &method,
             std::string data = performance_manager->GetPerformanceData();
             std::shared_ptr<KRRenderValue> callback_param;
             if (data.empty()) {
-                callback_param = std::make_shared<KRRenderValue>(nullptr);
+                callback_param = KRRenderValue::Make(nullptr);
             } else {
-                callback_param = std::make_shared<KRRenderValue>(data);
+                callback_param = KRRenderValue::Make(data);
             }
             callback(callback_param);
         }

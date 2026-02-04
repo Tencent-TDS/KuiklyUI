@@ -27,7 +27,7 @@ class KRConfig {
     }
 
     void Update(const std::string &configJson) {
-        auto configValue = std::make_shared<KRRenderValue>(configJson);
+        auto configValue = KRRenderValue::Make(configJson);
         auto map = configValue->toMap();
         auto vp2px = map.find("vp2px");
         if (vp2px != map.end()) {

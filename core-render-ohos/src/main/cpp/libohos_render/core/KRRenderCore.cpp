@@ -67,7 +67,7 @@ KRRenderCore::KRRenderCore(std::weak_ptr<IKRRenderView> renderView, std::shared_
     : ICallNativeCallback() {
     renderView_ = renderView;
     context_ = context;
-    defaultNullValue_ = std::make_shared<KRRenderValue>();
+    defaultNullValue_ = KRRenderValue::Make();
     uiScheduler_ = std::make_shared<KRUIScheduler>(this);
     contextHandler_ = IKRRenderNativeContextHandler::CreateContextHandler(context);
     // 注册kotlin call native回调（走onCallNative接口）
@@ -97,8 +97,8 @@ void KRRenderCore::DidInit() {
     // createInstance to kotlin
     auto sync = context_->ExecuteMode()->IsContextSyncInit();
     KRContextScheduler::DirectRunOnMainThread(sync, [strongSelf = shared_from_this(), sync] {
-        auto page_name = std::make_shared<KRRenderValue>(strongSelf->context_->PageName());
-        auto page_data = std::make_shared<KRRenderValue>(strongSelf->context_->PageData()->toString());
+        auto page_name = KRRenderValue::Make(strongSelf->context_->PageName());
+        auto page_data = KRRenderValue::Make(strongSelf->context_->PageData()->toString());
         auto null_arg = strongSelf->defaultNullValue_;
         strongSelf->notifyInitState(KRInitState::kStateInitContextStart);
         strongSelf->contextHandler_->InitContext();
@@ -122,8 +122,8 @@ void KRRenderCore::SendEvent(std::string event_name, const std::string &json_dat
     }
 
     auto task = [self = shared_from_this(), needSync, event_name, json_data] {
-        auto event = std::make_shared<KRRenderValue>(event_name);
-        auto data = std::make_shared<KRRenderValue>(json_data);
+        auto event = KRRenderValue::Make(event_name);
+        auto data = KRRenderValue::Make(json_data);
         auto nullValue = self->defaultNullValue_;
         self->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodUpdateInstance, event, data, nullValue,
                                nullValue, nullValue);
@@ -274,13 +274,13 @@ KRAnyValue KRRenderCore::PerformNativeCallback(const KuiklyRenderNativeMethod &m
     case KuiklyRenderNativeMethod::KuiklyRenderNativeMethodSetRenderViewFrame: {
         auto rect = KRRect(arg2->toFloat(), arg3->toFloat(), arg4->toFloat(), arg5->toFloat());
         std::string rectData((const char *)&rect, sizeof(KRRect));
-        auto value = std::make_shared<KRRenderValue>(rectData);
+        auto value = KRRenderValue::Make(rectData);
         renderLayerHandler_->SetProp(arg1->toInt(), "frame", value);
         break;
     }
     case KuiklyRenderNativeMethod::KuiklyRenderNativeMethodCalculateRenderViewSize: {
         auto sizeStr = renderLayerHandler_->CalculateRenderViewSize(arg1->toInt(), arg2->toDouble(), arg3->toDouble());
-        return std::make_shared<KRRenderValue>(sizeStr);
+        return KRRenderValue::Make(sizeStr);
     }
     case KuiklyRenderNativeMethod::KuiklyRenderNativeMethodCallViewMethod: {
         auto callbackId = arg4->toString();
@@ -400,7 +400,7 @@ void KRRenderCore::WillPerformUITasksWithScheduler() {  // 运行在 context 线
 
 void KRRenderCore::CallKotlinMethod(const KuiklyRenderContextMethod &method, const KRAnyValue &arg1, const KRAnyValue &arg2,
                                     const KRAnyValue &arg3, const KRAnyValue &arg4, const KRAnyValue &arg5) {
-    auto arg0 = std::make_shared<KRRenderValue>(context_->InstanceId());
+    auto arg0 = KRRenderValue::Make(context_->InstanceId());
     contextHandler_->Call(method, arg0, arg1, arg2, arg3, arg4, arg5);
 }
 

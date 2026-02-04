@@ -37,7 +37,7 @@ IKRRenderNativeContextHandler::OnCallNative(const KuiklyRenderNativeMethod &meth
                                             std::shared_ptr<KRRenderValue> &arg3, std::shared_ptr<KRRenderValue> &arg4,
                                             std::shared_ptr<KRRenderValue> &arg5) {
     return call_native_callback_ ? call_native_callback_->OnCallNative(method, arg0, arg1, arg2, arg3, arg4, arg5)
-                              : std::make_shared<KRRenderValue>();
+                              : KRRenderValue::Make();
 }
 
 KRRenderCValue IKRRenderNativeContextHandler::DispatchCallNative(const std::string &instanceId, int methodId,

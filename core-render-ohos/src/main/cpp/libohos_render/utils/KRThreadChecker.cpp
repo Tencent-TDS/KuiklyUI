@@ -18,12 +18,16 @@
 #include <unistd.h>
 #include "libohos_render/scheduler/KRContextScheduler.h"
 
-static __attribute__((always_inline)) bool isMainThread() {
+namespace kuikly::util {
+
+inline bool isMainThread() {
     return getpid() == gettid();
 }
 
+}
+
 void KREnsureMainThreadChecker(const char *file, unsigned int line, const char *function) {
-    if (!isMainThread()) {
+    if (!kuikly::util::isMainThread()) {
         // threading state is abnormal, KR_LOG_ERROR is not guaranteed to work correctly,
         // so we first write a log with OH_LOG_Print and then KR_LOG_ERROR.
         OH_LOG_Print(LOG_APP, LOG_ERROR, 0x7, "ThreadChecker",

@@ -41,10 +41,12 @@ import com.tencent.kuikly.compose.ui.unit.Dp
 import com.tencent.kuikly.compose.ui.unit.Velocity
 import com.tencent.kuikly.compose.ui.unit.dp
 import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.sign
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /**
  * A Pager that scrolls horizontally. Pages are lazily placed in accordance to the available
@@ -270,8 +272,7 @@ internal fun SnapPosition.currentPageOffset(
         pageCount
     )
 
-    // 使用向下取整与 Placeable.apparentToRealOffset 一致，避免滑动时与点击时舍入不一致导致 1px 偏差
-    return (snapOffset - currentPageOffsetFraction * (pageSize + spaceBetweenPages)).toInt()
+    return (snapOffset - currentPageOffsetFraction * (pageSize + spaceBetweenPages)).roundToInt()
 }
 
 //private class DefaultPagerNestedScrollConnection(

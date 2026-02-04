@@ -19,9 +19,6 @@
 #import "KuiklyContextParam.h"
 #import "KuiklyRenderContextProtocol.h"
 
-#if __has_include("KRTurboDisplayConfig.h")
-#import "KRTurboDisplayConfig.h"  // 不存在时，这行被忽略
-#endif
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -137,21 +134,7 @@ FOUNDATION_EXTERN NSString *const KRRootViewSizeDidChangedEventKey;
  */
 - (void)scrollViewDidLayout:(UIScrollView *)scrollView renderView:(KuiklyRenderView *)kuiklyRenderView;
 
-#if __has_include("KRTurboDisplayConfig.h")
-/*
- * @brief 打开TurboDisplay渲染模式技术，实现超原生首屏性能
-        （通过直接执行dai二进制产物渲染生成首屏，避免业务代码执行后再生成的首屏等待耗时）
- *
- *注意：如果首屏不精准，可在kotin侧需要通过调用TurboDisplayModule.setCurrentUIAsFirstScreenForNextLaunch()方法生成指定帧二进制产物作为下次首屏
- * @return 返回该页面的TurboDisplayKey（一般可为PageName，若为nil，则为关闭TurboDisplay渲染模式）
- */
-- (NSString * _Nullable)turboDisplayKey;
 
-/*
- * @brief 返回 TurboDisplay 页面级配置（新增）
- */
-- (KRTurboDisplayConfig * _Nullable)turboDisplayConfig;
-#endif
 
 @end
 

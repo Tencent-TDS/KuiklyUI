@@ -364,25 +364,6 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     }
 }
 
-#if __has_include("KRTurboDisplayConfig.h")
-- (NSString *)turboDisplayKey {
-    if ([self.delegate respondsToSelector:@selector(turboDisplayKey)]) {
-        return [self.delegate turboDisplayKey];
-    }
-    return nil;
-}
-#endif
-
-#if __has_include("KRTurboDisplayConfig.h")
-// 新增：返回 TurboDisplay 配置实例
-- (KRTurboDisplayConfig *)turboDisplayConfig {
-    if ([self.delegate respondsToSelector:@selector(configureTurboDisplay)]) {
-        KRTurboDisplayConfig *config = [self.delegate configureTurboDisplay];
-        return config ? [config copy] : nil;
-    }
-    return nil;
-}
-#endif
 
 #pragma mark - exception handle
 

@@ -22,10 +22,7 @@
 #import "KuiklyRenderThreadManager.h"
 #import "KuiklyRenderUIScheduler.h"
 #import "NSObject+KR.h"
-
-#if __has_include("KuiklyTurboDisplayRenderLayerHandler.h")
-#import "KuiklyTurboDisplayRenderLayerHandler.h"
-#endif
+#import "KRRenderLayerHandlerBaseFactory.h"
 
 // 注：args固定参数个数，不会存在数组访问越界
 #define FISRT_ARG args[0]
@@ -72,7 +69,10 @@ NSString *const kCustomFirstScreenTag = @"customFirstScreenTag";
         _delegate = delegate;
         _contextParam = contextParam;
         _uiScheduler = [[KuiklyRenderUIScheduler alloc] initWithDelegate:self];
-        _renderLayerHandler = [self p_createRenderLayerWithRootView:rootView];
+        _renderLayerHandler = [KRRenderLayerHandlerBaseFactory createHandlerWithRootView:rootView
+                                                                                delegate:_delegate
+                                                                            contextParam:_contextParam
+                                                                             uiScheduler:_uiScheduler];
         // 初始化注册Native事件给KuiklyKotlin侧调用
         [self p_initNativeMethodRegisters];
         [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
@@ -201,7 +201,6 @@ NSString *const kCustomFirstScreenTag = @"customFirstScreenTag";
         return [strongSelf p_performNativeMethodWithMethod:method args:args];
     }];
     
-    // 补充到外网
     NSMutableDictionary *finalParams = params ? [params mutableCopy] : [NSMutableDictionary new];
     if ([_renderLayerHandler respondsToSelector:@selector(extraCacheContent)]) {
         NSString *extraContent = [_renderLayerHandler extraCacheContent];
@@ -495,32 +494,6 @@ NSString *const kCustomFirstScreenTag = @"customFirstScreenTag";
                                        }
                                        return nil;
                                   }];
-}
-
-- (id<KuiklyRenderLayerProtocol>)p_createRenderLayerWithRootView:(UIView *)rootView {
-#if __has_include("KuiklyTurboDisplayRenderLayerHandler.h")
-    NSString * turboDisplayKey = nil; // 是否为TurboDisplay AOT渲染模式
-    KRTurboDisplayConfig *turboDisplayConfig = nil;
-
-    if ([_delegate respondsToSelector:@selector(turboDisplayKey)]) {
-        turboDisplayKey = [_delegate turboDisplayKey];
-    }
-    // 新增：获取页面级配置
-    if ([_delegate respondsToSelector:@selector(turboDisplayConfig)]) {
-        turboDisplayConfig = [_delegate turboDisplayConfig];
-    }
-    
-    if (turboDisplayKey.length) {
-        KuiklyTurboDisplayRenderLayerHandler *handler = [[KuiklyTurboDisplayRenderLayerHandler alloc]
-                                                         initWithRootView:rootView
-                                                         contextParam:_contextParam
-                                                         turboDisplayKey:turboDisplayKey
-                                                         turboDisplayConfig:turboDisplayConfig];
-        handler.uiScheduler = _uiScheduler;
-        return handler;
-    }
-#endif
-    return [[KuiklyRenderLayerHandler alloc] initWithRootView:rootView contextParam:_contextParam];
 }
 
 

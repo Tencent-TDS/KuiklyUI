@@ -182,7 +182,7 @@ KRAnyValue KRRenderLayerHandler::CallModuleMethod(bool sync, const std::string &
     if (module != nullptr) {
         return module->CallMethod(sync, method, params, callback, callback_keep_alive);
     }
-    return std::make_shared<KRRenderValue>(nullptr);
+    return KRRenderValue::Make(nullptr);
 }
 
 /**
@@ -198,7 +198,7 @@ KRAnyValue KRRenderLayerHandler::CallTDFModuleMethod(const std::string &module_n
                                                      const std::string &params, const std::string &call_id,
                                                      const KRRenderCallback &success_callback,
                                                      KRRenderCallback &error_callback) {
-    return std::make_shared<KRRenderValue>();
+    return KRRenderValue::Make();
 }
 
 /**
@@ -262,7 +262,7 @@ KRAnyValue KRRenderLayerHandler::CallShadowMethod(int tag, const std::string &me
     if (shadow != nullptr) {
         return shadow->Call(method_name, params);
     }
-    return std::make_shared<KRRenderValue>(nullptr);
+    return KRRenderValue::Make(nullptr);
 }
 
 /**

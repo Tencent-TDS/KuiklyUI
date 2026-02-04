@@ -42,11 +42,11 @@ void KRSharedPreferencesModule::InitIfNeeded() {
 KRAnyValue KRSharedPreferencesModule::CallMethod(bool sync, const std::string &method, KRAnyValue params,
                                                  const KRRenderCallback &callback) {
     if (method == this->GET_ITEM) {
-        return std::make_shared<KRRenderValue>(this->GetItem(params));
+        return KRRenderValue::Make(this->GetItem(params));
     } else if (method == this->SET_ITEM) {
-        return std::make_shared<KRRenderValue>(this->SetItem(params));
+        return KRRenderValue::Make(this->SetItem(params));
     }
-    return std::make_shared<KRRenderValue>("");
+    return KRRenderValue::Make("");
 }
 
 std::string KRSharedPreferencesModule::GetItem(const KRAnyValue &params) {

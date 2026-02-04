@@ -109,8 +109,8 @@ class IKRRenderModuleExport : public std::enable_shared_from_this<IKRRenderModul
         auto result = new KRResult();
         KRContextScheduler::ScheduleTaskOnMainThread(
             isSync, [isSync, result, module_name, method, instnce_id, params, callback, callback_keep_alive] {
-                auto module_name_value = std::make_shared<KRRenderValue>(module_name);
-                auto method_name = std::make_shared<KRRenderValue>(method);
+                auto module_name_value = KRRenderValue::Make(module_name);
+                auto method_name = KRRenderValue::Make(method);
                 auto arktsResult = KRArkTSManager::GetInstance().CallArkTSMethod(
                     instnce_id, KRNativeCallArkTSMethod::CallModuleMethod, module_name_value, method_name, params,
                     nullptr, nullptr, callback, callback_keep_alive);

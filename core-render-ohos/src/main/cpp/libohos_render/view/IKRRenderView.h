@@ -38,9 +38,9 @@ class IKRRenderView : public std::enable_shared_from_this<IKRRenderView> {
      * @param json_data json数据字符串）,该data可参考以下代码：
      *  参考代码：
      *    KRRenderValue::Map data;
-     *    data["width"] = std::make_shared<KRRenderValue>(width);
-     *    data["height"] = std::make_shared<KRRenderValue>(height);
-     *    auto json_data = std::make_shared<KRRenderValue>(data)->toString();
+     *    data["width"] = KRRenderValue::Make(width);
+     *    data["height"] = KRRenderValue::Make(height);
+     *    auto json_data = KRRenderValue::Make(data)->toString();
      */
     virtual void SendEvent(std::string event_name, const std::string &json_data) = 0;
     

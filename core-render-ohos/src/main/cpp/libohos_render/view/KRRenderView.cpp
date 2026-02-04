@@ -242,9 +242,9 @@ void KRRenderView::OnRenderViewSizeChanged(float width, float height) {
         kuikly::util::UpdateNodeSize(root_node_, width, height);
         // 尺寸变化更新到Kotlin
         KRRenderValue::Map data;
-        data["width"] = std::make_shared<KRRenderValue>(width);
-        data["height"] = std::make_shared<KRRenderValue>(height);
-        auto json_data = std::make_shared<KRRenderValue>(data)->toString();
+        data["width"] = KRRenderValue::Make(width);
+        data["height"] = KRRenderValue::Make(height);
+        auto json_data = KRRenderValue::Make(data)->toString();
         SendEvent("rootViewSizeDidChanged", json_data);
     }
 }

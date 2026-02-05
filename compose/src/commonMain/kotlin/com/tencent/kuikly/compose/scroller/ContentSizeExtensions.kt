@@ -66,7 +66,7 @@ private fun ScrollableState.calculateContentSize(): Int {
     return contentSize.toInt()
 }
 
-internal fun ScrollableState.updateContentSizeToRender() {
+internal fun ScrollableState.calculateAndUpdateContentSize() {
     // 更新当前的contentSize大小
     val oldContentSize = kuiklyInfo.currentContentSize
     val newContentSize = calculateContentSize()

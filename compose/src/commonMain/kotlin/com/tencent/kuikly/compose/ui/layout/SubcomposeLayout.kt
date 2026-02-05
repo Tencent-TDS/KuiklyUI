@@ -225,12 +225,7 @@ fun SubcomposeLayout(
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(scrollViewSize) {
-        // If it's the first time (scrollViewSize is zero), use the default value instead of calculating a new value
-        if (scrollViewSize == Size.Zero) {
-            scrollableState.kuiklyInfo.updateContentSizeToRender()
-        } else {
-            scrollableState.calculateAndUpdateContentSize()
-        }
+        scrollableState.calculateAndUpdateContentSize()
     }
 
     // 更新kuiklyInfo和scrollview

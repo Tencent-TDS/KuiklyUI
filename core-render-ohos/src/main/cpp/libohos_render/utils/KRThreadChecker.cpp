@@ -20,7 +20,7 @@
 
 namespace kuikly::util {
 
-inline bool isMainThread() {
+bool isMainThread() {
     return getpid() == gettid();
 }
 

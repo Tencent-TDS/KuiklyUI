@@ -73,9 +73,6 @@ set(SOURCE_SET
         libohos_render/expand/components/hover/KRHoverView.cpp
         libohos_render/expand/components/canvas/KRCanvasView.cpp
         libohos_render/export/IKRRenderViewExport.cpp
-        libohos_render/expand/modules/codec/codec.c
-        libohos_render/expand/modules/codec/md5.c
-        libohos_render/expand/modules/codec/sha256.c
         libohos_render/expand/modules/codec/KRCodec.cpp
         libohos_render/expand/modules/codec/KRCodecModule.cpp
         libohos_render/expand/modules/calendar/KRDate.cpp

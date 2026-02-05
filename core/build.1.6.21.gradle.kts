@@ -55,9 +55,6 @@ kotlin {
 
         val androidMain by getting {
             dependsOn(commonMain)
-            dependencies {
-                compileOnly("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.6.21")
-            }
         }
 
         val appleMain by sourceSets.creating {

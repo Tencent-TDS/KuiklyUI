@@ -67,10 +67,8 @@ android {
 }
 
 dependencies {
-    compileOnly("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.6.21")
     implementation("androidx.recyclerview:recyclerview:1.2.1")
     compileOnly(project(":core"))
-    implementation("androidx.core:core-ktx:1.7.0")
     implementation("androidx.appcompat:appcompat:1.4.2")
     implementation("androidx.dynamicanimation:dynamicanimation:1.0.0")
 }

@@ -73,7 +73,6 @@ kotlin {
             api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.0")
             api("org.jetbrains.kotlinx:atomicfu:0.21.0")
             api("org.jetbrains.compose.collection-internal:collection:1.6.0")
-            implementation("com.tencent.kuiklyx-open:coroutines:1.0.1")
         }
     }
 

@@ -32,9 +32,15 @@ void KRUIScheduler::PerformSyncMainQueueTasksBlockIfNeed(bool sync) {
 }
 // should call on main thread
 void KRUIScheduler::PerformWhenViewDidLoad(const KRSchedulerTask &task) {
-    if (m_view_did_load_) {
+    if (!task) {
+        return;
+    }
+    
+    if (m_view_did_load_ || m_is_mark_view_did_load_) {
+        // 已标记首屏完成，立即执行任务
         task();
     } else {
+        // 等待首屏完成后再执行
         m_view_did_load_main_thread_tasks_.push_back(task);
     }
 }
@@ -46,6 +52,13 @@ bool KRUIScheduler::IsPerformMainTasking() {
 void KRUIScheduler::PerformTaskWhenDidEnd(const KRSchedulerTask &task) {
     m_did_end_main_thread_tasks_.push_back(task);
 }
+
+void KRUIScheduler::MarkViewDidLoad() {
+    m_is_mark_view_did_load_ = true;
+    // 只设置标志，不立即执行任务
+    // 任务会在 RunMainQueueTasks() 中的 PerformViewDidLoadTasks() 执行
+}
+
 
 void KRUIScheduler::Destroy() {
     std::lock_guard<std::mutex> lock(m_mutex_);
@@ -147,6 +160,28 @@ void KRUIScheduler::RunMainQueueTasks(const std::vector<KRSchedulerTask> &tasks)
         m_did_end_main_thread_tasks_ = {};
         for (size_t i = 0; i < tasks.size(); i++) {
             tasks[i]();
+        }
+    }
+}
+
+// 执行首屏加载后的待执行任务
+void KRUIScheduler::PerformViewDidLoadTasks() {
+    if (m_view_did_load_main_thread_tasks_.size() > 0) {
+        auto block = [this]() {
+            auto viewDidLoadTasks = m_view_did_load_main_thread_tasks_;
+            m_view_did_load_main_thread_tasks_ = {};
+            for (size_t i = 0; i < viewDidLoadTasks.size(); i++) {
+                viewDidLoadTasks[i]();
+            }
+        };
+        
+        // 根据 isMarkViewDidLoad 决定执行时机
+        if (m_is_mark_view_did_load_) {
+            // 已经标记，当前帧直接处理
+            block();
+        } else {
+            // 下一帧处理
+            KRMainThread::RunOnMainThread(block);
         }
     }
 }

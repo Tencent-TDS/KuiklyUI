@@ -30,6 +30,11 @@ class KRRenderLayerHandler : public IKRRenderLayer {
     void Init(std::weak_ptr<IKRRenderView> root_view, std::shared_ptr<KRRenderContextParams> &context) override;
 
     /**
+     * 初始化完成后调用（对齐 Android/iOS）
+     */
+    void DidInit() override {};
+
+    /**
      * 创建渲染视图
      * @param tag 视图 ID
      * @param viewName 视图标签名字
@@ -179,7 +184,12 @@ class KRRenderLayerHandler : public IKRRenderLayer {
      */
     void OnDestroy() override;
 
-    std::shared_ptr<IKRRenderModuleExport> GetModuleOrCreate(const std::string &name);
+    std::shared_ptr<IKRRenderModuleExport> GetModuleOrCreate(const std::string &name) override;
+    
+    /** 
+     * 更新View Tag
+     */
+    void updateViewTagWithCurTag(int oldTag, int newTag) override;
 
  private:
     std::shared_ptr<KRRenderContextParams> context_;

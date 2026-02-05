@@ -78,6 +78,11 @@ export struct KRNativeRender {
    * 普通app默认为false，输入法使用到的场景请置为true
    */
   imeMode = false;
+  /**
+   * TurboDisplay Key，页面启用TurboDisplay加载标识 / TurboDisplay缓存Key来源
+   * 如果设置了此值且不为空，将启用 TurboDisplay 首屏优化
+   */
+  turboDisplayKey: string = '';
   initialSize?: Size;
   private controller?: KRNativeRenderController;
   private nodeContent: Content = new NodeContent();
@@ -117,6 +122,10 @@ export struct KRNativeRender {
       this.imeMode,
       this.assetsDir
     );
+    // 接收 KRNativeRender 的参数 设置 TurboDisplay Key
+    if (this.turboDisplayKey && this.turboDisplayKey.length > 0) {
+      this.controller.turboDisplayKey = this.turboDisplayKey;
+    }
 
     if (this.onRenderException) {
       this.controller!.registerExceptionCallback((executeMode, stack) => {

@@ -19,6 +19,8 @@ class MiniTextAreaElement(
     @JsName("maxLength")
     var maxLength: Int = -1
         set(value) {
+            // Note: WeChat mini program textarea uses 'maxlength' (lowercase) attribute
+            // But Transform.kt maps it as 'maxLength', so we use the mapped name
             this.setAttribute("maxLength", value)
             field = value
         }

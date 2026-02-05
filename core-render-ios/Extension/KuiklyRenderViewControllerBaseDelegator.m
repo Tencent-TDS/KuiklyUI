@@ -364,12 +364,6 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     }
 }
 
-- (NSString *)turboDisplayKey {
-    if ([self.delegate respondsToSelector:@selector(turboDisplayKey)]) {
-        return [self.delegate turboDisplayKey];
-    }
-    return nil;
-}
 
 #pragma mark - exception handle
 

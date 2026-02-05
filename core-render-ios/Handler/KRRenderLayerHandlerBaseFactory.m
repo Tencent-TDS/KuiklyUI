@@ -14,21 +14,20 @@
  */
 
 #import <Foundation/Foundation.h>
-#import "KuiklyRenderLayerProtocol.h"
-NS_ASSUME_NONNULL_BEGIN
-@class KuiklyRenderUIScheduler;
-@class KuiklyRenderCore;
+#import "KRRenderLayerHandlerBaseFactory.h"
+#import "KuiklyRenderLayerHandler.h"
+#import "KuiklyContextParam.h"
+#import "KRLogModule.h"
 
-/**
- * @brief TurboDisply直出渲染模式实现器
- */
-@interface KuiklyTurboDisplayRenderLayerHandler : NSObject<KuiklyRenderLayerProtocol>
-/** ui调度器 */
-@property (nonatomic, weak) KuiklyRenderUIScheduler *uiScheduler;
+@implementation KRRenderLayerHandlerBaseFactory
 
-- (instancetype)initWithRootView:(UIView *)rootView contextParam:(KuiklyContextParam *)contextParam turboDisplayKey:(NSString *)turboDisplayKey;
++ (id<KuiklyRenderLayerProtocol>)createHandlerWithRootView:(UIView *)rootView
+                                                  delegate:(id<KuiklyRenderCoreDelegate>)delegate
+                                              contextParam:(KuiklyContextParam *)contextParam
+                                               uiScheduler:(KuiklyRenderUIScheduler *)uiScheduler {
+    
+    return [[KuiklyRenderLayerHandler alloc] initWithRootView:rootView contextParam:contextParam];;
 
+}
 
 @end
-
-NS_ASSUME_NONNULL_END

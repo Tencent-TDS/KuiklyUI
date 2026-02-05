@@ -252,9 +252,4 @@
     return pageData;
 }
 
-- (NSString *)turboDisplayKey {
-    return _pageName;
-}
-
-
 @end

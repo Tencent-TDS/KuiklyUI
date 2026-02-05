@@ -208,15 +208,6 @@ NSString *const KRDensity = @"density";
     return view;
 }
 
-#pragma mark - KuiklyRenderCoreDelegate
-
-- (NSString *)turboDisplayKey {
-    if ([self.delegate respondsToSelector:@selector(turboDisplayKey)]) {
-        return [self.delegate turboDisplayKey];
-    }
-    return nil;
-}
-
 #pragma mark - private
 
 - (NSDictionary *)p_generateWithParams:(NSDictionary *)params size:(CGSize)size {

@@ -14,25 +14,21 @@
  */
 
 #import <Foundation/Foundation.h>
-#import "KRComponentDefine.h"
+#import <UIKit/UIKit.h>
+#import "KuiklyRenderLayerProtocol.h"
+#import "KuiklyRenderUIScheduler.h"
+#import "KuiklyRenderCore.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
-typedef enum : NSUInteger {
-    KRTurboDisplayNodeMethodTypeView,
-    KRTurboDisplayNodeMethodTypeModule
-} KRTurboDisplayNodeMethodType;
+@interface KRRenderLayerHandlerBaseFactory : NSObject
 
-@interface KRTurboDisplayNodeMethod : NSObject<NSCoding>
-
-@property (nonatomic, assign) KRTurboDisplayNodeMethodType type;
-@property (nonatomic, copy) NSString *name;
-@property (nonatomic, copy) NSString *method;
-@property (nonatomic, copy) NSString *params;
-@property (nonatomic, copy) KuiklyRenderCallback callback;
-
-- (KRTurboDisplayNodeMethod *)deepCopy;
++ (id<KuiklyRenderLayerProtocol>)createHandlerWithRootView:(UIView *)rootView
+                                                  delegate:(id<KuiklyRenderCoreDelegate>)delegate
+                                              contextParam:(KuiklyContextParam *)contextParam
+                                               uiScheduler:(KuiklyRenderUIScheduler *)uiScheduler;
 
 @end
+
 
 NS_ASSUME_NONNULL_END

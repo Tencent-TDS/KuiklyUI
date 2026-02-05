@@ -82,7 +82,7 @@ import com.tencent.kuikly.core.views.ScrollerAttr
 import com.tencent.kuikly.core.views.ScrollerEvent
 import com.tencent.kuikly.core.views.ScrollerView
 import com.tencent.kuikly.compose.scroller.animateScrollToTop
-import com.tencent.kuikly.compose.scroller.updateContentSizeToRender
+import com.tencent.kuikly.compose.scroller.calculateAndUpdateContentSize
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
@@ -225,7 +225,12 @@ fun SubcomposeLayout(
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(scrollViewSize) {
-        scrollableState.updateContentSizeToRender()
+        // If it's the first time (scrollViewSize is zero), use the default value instead of calculating a new value
+        if (scrollViewSize == Size.Zero) {
+            scrollableState.kuiklyInfo.updateContentSizeToRender()
+        } else {
+            scrollableState.calculateAndUpdateContentSize()
+        }
     }
 
     // 更新kuiklyInfo和scrollview
@@ -296,7 +301,7 @@ fun SubcomposeLayout(
                 }
 
                 // 更新当前的contentSize大小
-                scrollableState.updateContentSizeToRender()
+                scrollableState.calculateAndUpdateContentSize()
 
                 val toButtomDelta = if (kuiklyInfo.realContentSize == null) {
                     null

@@ -708,6 +708,15 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 
 // 在该contentInset下的列表最大可滚动偏移
 - (CGPoint)p_maxContentOffsetInContentInset:(UIEdgeInsets)contentInset {
+    // Check if content is smaller than frame (non-scrollable case)
+    CGFloat frameSize = [_css_directionRow boolValue] ? CGRectGetWidth(self.frame) : CGRectGetHeight(self.frame);
+    CGFloat contentSizeValue = [_css_directionRow boolValue] ? self.contentSize.width : self.contentSize.height;
+    
+    // If content is smaller than frame, no need to adjust offset
+    if (contentSizeValue <= frameSize) {
+        return CGPointZero;
+    }
+    
     CGFloat offsetTop = [_css_directionRow boolValue] ? self.contentOffset.x + contentInset.left : self.contentOffset.y + contentInset.top;
     CGFloat offsetBottom = [_css_directionRow boolValue]
         ? self.contentOffset.x + CGRectGetWidth(self.frame) - (self.contentSize.width + contentInset.right)

@@ -187,21 +187,25 @@ class MiniListElement(
         val contentInsetString = params ?: return
         // Format inset value
         val contentInset = KRListViewContentInset(contentInsetString)
+        // Get the scroll content view (first child) to apply transform
+        // This ensures only the content moves, not the entire scroll-view (which would move the border)
+        val contentView = firstElementChild ?: return
+        
         // If needed, set inset value with animation
-        style.transition =
+        contentView.style.transition =
             if (contentInset.animate) {
                 "transform ${BOUND_BACK_DURATION}ms $REFRESH_TIMING_FUNCTION"
             } else {
                 ""
             }
         // Set the value to complete
-        style.transform = "translate(${contentInset.left}px, ${contentInset.top}px)"
+        contentView.style.transform = "translate(${contentInset.left}px, ${contentInset.top}px)"
 
         if (contentInset.top == 0f && contentInset.left == 0f) {
             // remove transform value
             MiniGlobal.setTimeout({
-                style.transition = ""
-                style.transform = ""
+                contentView.style.transition = ""
+                contentView.style.transform = ""
             }, BOUND_BACK_DURATION.toInt() + 100)
         }
     }
@@ -689,8 +693,23 @@ class MiniListElement(
         val firstChild = firstElementChild?.firstElementChild
 
         if (firstChild != null) {
-            // Judge whether the first child node is a pull-to-refresh node, todo more elegant method
-            return firstChild.style.transform == "translate(0%, -100%) rotate(0deg) scale(1, 1) skew(0deg, 0deg)"
+            // Check if the first child node is a pull-to-refresh node
+            // Method 1: Check by transform style (DSL RefreshView uses translate(0%, -100%))
+            val transform = firstChild.style.transform
+            if (transform == "translate(0%, -100%) rotate(0deg) scale(1, 1) skew(0deg, 0deg)") {
+                return true
+            }
+            // Method 2: Check if the element is positioned above the viewport (Compose pullToRefreshItem)
+            // The element has negative top position or offset to position it above visible area
+            val top = firstChild.style.top
+            if (top.isNotEmpty() && top != "0px" && top.startsWith("-")) {
+                return true
+            }
+            // Method 3: Check if marginTop or transform translateY is negative (indicating positioned above)
+            val marginTop = firstChild.style.marginTop
+            if (marginTop.isNotEmpty() && marginTop.startsWith("-")) {
+                return true
+            }
         }
         return false
     }
@@ -711,9 +730,11 @@ class MiniListElement(
             touchStartY = eventsParams["y"].unsafeCast<Float>()
             // Record starting drag horizontal axis position
             touchStartX = eventsParams["x"].unsafeCast<Float>()
+            // Check if has refresh child (for Compose pullToRefreshItem)
+            hasRefreshChild = checkHasRefreshChild()
             // If current scroll distance is 0 and not PageList paging component,
             // enter waiting state for pull-to-refresh
-            isPrePullDown = scrollTop.toFloat() == 0f && !pagingEnabled
+            isPrePullDown = scrollTop.toFloat() == 0f && !pagingEnabled && hasRefreshChild
             // Event callback
             fireBeginDragEvent()
         })

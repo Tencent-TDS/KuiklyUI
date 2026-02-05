@@ -17,7 +17,7 @@
 #define CORE_RENDER_OHOS_KRTHREADCHECKER_H
 
 namespace kuikly::util {
-inline bool isMainThread();
+bool isMainThread();
 }
 
 void KREnsureMainThreadChecker(const char *file, unsigned int line, const char *function);

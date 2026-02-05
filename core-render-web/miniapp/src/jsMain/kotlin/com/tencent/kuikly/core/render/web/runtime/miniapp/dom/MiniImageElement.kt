@@ -11,6 +11,9 @@ class MiniImageElement(
 ) : MiniElement(nodeName, nodeType) {
     // Original set src, temporarily stored for later conversion and value setting
     private var rawSrc = ""
+    
+    // Current image mode
+    private var currentMode = ""
 
     init {
         style.onStyleSet = ::resetStyleSet
@@ -24,6 +27,8 @@ class MiniImageElement(
             return when (mode) {
                 MODE_SCALE_FILL -> "stretch"
                 MODE_ASPECT_FIT -> "contain"
+                MODE_WIDTH_FIX -> "widthFix"
+                MODE_HEIGHT_FIX -> "heightFix"
                 else -> "cover"
             }
         }
@@ -45,11 +50,41 @@ class MiniImageElement(
                 "cover" -> {
                     MODE_ASPECT_FILL
                 }
+
+                "widthFix" -> {
+                    MODE_WIDTH_FIX
+                }
+
+                "heightFix" -> {
+                    MODE_HEIGHT_FIX
+                }
+
                 else -> MODE_ASPECT_FILL
             }
+            currentMode = mode
             setAttribute(MODE_ATTR, mode)
+            
+            // For widthFix mode, remove height to allow mini program to auto calculate
+            // For heightFix mode, remove width to allow mini program to auto calculate
+            if (mode == MODE_WIDTH_FIX) {
+                style.setProperty("height", null)
+            } else if (mode == MODE_HEIGHT_FIX) {
+                style.setProperty("width", null)
+            }
+            
             return false
         }
+        
+        // For widthFix mode, skip setting height to allow auto calculation
+        if (styleName == "height" && currentMode == MODE_WIDTH_FIX) {
+            return false
+        }
+        
+        // For heightFix mode, skip setting width to allow auto calculation
+        if (styleName == "width" && currentMode == MODE_HEIGHT_FIX) {
+            return false
+        }
+        
         return true
     }
 
@@ -91,5 +126,7 @@ class MiniImageElement(
         private const val MODE_SCALE_FILL = "scaleToFill"
         private const val MODE_ASPECT_FIT = "aspectFit"
         private const val MODE_ASPECT_FILL = "aspectFill"
+        private const val MODE_WIDTH_FIX = "widthFix"
+        private const val MODE_HEIGHT_FIX = "heightFix"
     }
 }

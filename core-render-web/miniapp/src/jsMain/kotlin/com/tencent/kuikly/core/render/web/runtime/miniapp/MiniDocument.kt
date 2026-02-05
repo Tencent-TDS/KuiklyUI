@@ -157,7 +157,12 @@ object MiniDocument {
         val miniPage = Page.initMiniPage()
         // Execute renderView initialization logic after mini program onLoad
         miniPage.lifeCycle.onLoad { miniPageName, params ->
-            usedPageName = renderParams[PAGE_NAME].unsafeCast<String?>() ?: miniPageName
+            // Priority: 1. page_name from URL params, 2. pageName from renderParams
+            usedPageName = if (miniPageName.isNotEmpty()) {
+                miniPageName
+            } else {
+                renderParams[PAGE_NAME].unsafeCast<String?>() ?: ""
+            }
             if (usedPageName == "") {
                 throw IllegalArgumentException("pageName is empty")
             }

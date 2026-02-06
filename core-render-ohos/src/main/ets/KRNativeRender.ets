@@ -51,6 +51,14 @@ export struct KRNativeRender {
    * assets资源的实际路径，如未设置，默认在resfile中找assets资源
    */
   assetsDir: string = '';
+
+  /**
+   * 鸿蒙侧对KRSharedPreferencesModule实现方式的选择
+   * 默认使用基于XML持久化的PreferencesModule
+   * 如果为true，则调用KROhSharedPreferencesModule
+   */
+  useOhSharedPreferences: boolean = false
+
   /**
    * 控制器ready 回调
    */
@@ -115,7 +123,8 @@ export struct KRNativeRender {
       this.pagerData ?? this.pageParams ?? this.pageData,
       this.contextCode,
       this.imeMode,
-      this.assetsDir
+      this.assetsDir,
+      this.useOhSharedPreferences
     );
 
     if (this.onRenderException) {

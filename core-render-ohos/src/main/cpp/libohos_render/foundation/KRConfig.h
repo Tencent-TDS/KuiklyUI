@@ -59,6 +59,12 @@ class KRConfig {
         if (assets_dir != map.end()) {
             assets_dir_ = assets_dir->second->toString();
         }
+        
+        auto useOhSharedPreferences = map.find("useOhSharedPreferences");
+        if (useOhSharedPreferences != map.end()) {
+            std::string value = useOhSharedPreferences->second->toString();
+            useOhSharedPreferences_ = (value.compare("1") == 0);
+        }
 
         auto screenDensity = map.find("screenDensity");
         if (screenDensity != map.end()) {
@@ -158,6 +164,10 @@ class KRConfig {
         return screenDensity_;
     }
     
+    const bool GetUseOhSharedPreferences() {
+        return useOhSharedPreferences_;
+    }
+    
     const bool ImeMode() {
         return ime_mode_;
     }
@@ -188,6 +198,7 @@ class KRConfig {
     bool ime_mode_ = false;
     bool fontSizeScaleFollowSystem_ = true;
     int performanceMonitorTypesMask_ = 0;
+    bool useOhSharedPreferences_ = true;    // 默认使用新的SharedPreferencesModule
 };
 
 #endif  // CORE_RENDER_OHOS_KRCONFIG_H

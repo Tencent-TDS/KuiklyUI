@@ -568,7 +568,7 @@ private fun TextAttr.applyFontFamily(fontFamily: FontFamily?) {
 }
 
 private fun TextAttr.applyShadow(shadow: Shadow?) {
-    if (shadow == null) {
+    if (shadow == null || (shadow.offset == Offset.Zero && shadow.blurRadius == 0f)) {
         // 当shadow为空时，重置阴影设置
         textShadow(0f, 0f, 0f, Color.Transparent.toKuiklyColor())
     } else if (shadow.color != Color.Unspecified || shadow.offset != Offset.Zero || shadow.blurRadius > 0) {

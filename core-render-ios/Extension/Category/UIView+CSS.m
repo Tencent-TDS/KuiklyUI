@@ -273,56 +273,138 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     if (self.css_boxShadow != css_boxShadow) {
         objc_setAssociatedObject(self, @selector(css_boxShadow), css_boxShadow, OBJC_ASSOCIATION_RETAIN);
         CSSBoxShadow *boxShadow = [[CSSBoxShadow alloc] initWithCSSBoxShadow:css_boxShadow];
+        
+        // iOS 和 macOS 都使用 CALayer.shadow* 属性
         self.layer.shadowColor = boxShadow.shadowColor.CGColor;
         self.layer.shadowRadius = boxShadow.shadowRadius;
+#if TARGET_OS_OSX
+        // macOS: Y 轴需要翻转，因为 CALayer 的坐标系和 flipped NSView 不同
+        self.layer.shadowOffset = CGSizeMake(boxShadow.offsetX, -boxShadow.offsetY);
+#else
         self.layer.shadowOffset = CGSizeMake(boxShadow.offsetX, boxShadow.offsetY);
+#endif
         self.layer.shadowOpacity = css_boxShadow ? 1 : 0;
-        if (self.css_useShadowPath) {
-            #if TARGET_OS_OSX // [macOS]
-            if (css_boxShadow) {
-                CGPathRef p = CGPathCreateWithRoundedRect(self.layer.bounds, self.layer.cornerRadius, self.layer.cornerRadius, NULL);
-                self.layer.shadowPath = p;
-                CGPathRelease(p);
-            } else {
-                self.layer.shadowPath = nil;
-            }
-            #else
-            self.layer.shadowPath = css_boxShadow ? [[UIBezierPath bezierPathWithRoundedRect:self.layer.bounds cornerRadius:self.layer.cornerRadius] CGPath] : nil;
-            #endif // [macOS]
+        
+#if TARGET_OS_OSX
+        // macOS: 同时设置 NSShadow 作为备用（用于没有 shadowPath 的普通阴影）
+        // 注意：如果 KRBoxShadowView 使用了 shadowPath，NSShadow 的效果会被覆盖
+        if (css_boxShadow) {
+            NSShadow *shadow = [[NSShadow alloc] init];
+            shadow.shadowColor = boxShadow.shadowColor;
+            shadow.shadowOffset = NSMakeSize(boxShadow.offsetX, boxShadow.offsetY);
+            shadow.shadowBlurRadius = boxShadow.shadowRadius;
+            self.shadow = shadow;
+        } else {
+            self.shadow = nil;
         }
+#endif
+        
+#if !TARGET_OS_OSX
+        if (self.css_useShadowPath) {
+            [self p_updateShadowPathForBoxShadow:css_boxShadow];
+        }
+#endif
     }
 }
 
+#if !TARGET_OS_OSX
+// iOS 专用：更新 shadowPath
+- (void)p_updateShadowPathForBoxShadow:(NSString *)css_boxShadow {
+    if (css_boxShadow) {
+        CGPathRef shadowPath = NULL;
+        
+        // 如果存在 clipPath，使用 clipPath 的路径作为阴影形状
+        if (self.css_clipPath.length > 0) {
+            CGFloat density = [UIScreen mainScreen].scale;
+            UIBezierPath *clipPath = [KRConvertUtil hr_parseClipPath:self.css_clipPath density:density];
+            if (clipPath) {
+                shadowPath = clipPath.CGPath;
+            }
+        }
+        
+        // 如果没有 clipPath 或解析失败，使用圆角矩形
+        if (!shadowPath) {
+            shadowPath = [UIBezierPath bezierPathWithRoundedRect:self.layer.bounds
+                                                    cornerRadius:self.layer.cornerRadius].CGPath;
+        }
+        
+        self.layer.shadowPath = shadowPath;
+    } else {
+        self.layer.shadowPath = nil;
+    }
+}
+#endif
+
+
+/**
+ * css_borderRadius getter
+ * 获取当前设置的圆角半径字符串（格式："topLeft,topRight,bottomLeft,bottomRight"）
+ */
 - (NSString *)css_borderRadius {
     return objc_getAssociatedObject(self, @selector(css_borderRadius));
 }
 
-
+/**
+ * css_borderRadius setter - 设置圆角
+ *
+ * 原理说明：
+ * 1. 使用 CAShapeLayer 作为 layer.mask 实现四个角不同半径的圆角
+ * 2. 圆角路径通过 hr_bezierPathWithRoundedRect: 构建
+ *
+ * 与 clipPath 的关系：
+ * - clipPath 优先级高于 borderRadius
+ * - 如果已有 clipPath，则不设置 borderRadius 的 mask（clipPath 决定裁剪形状）
+ * - borderRadius 值仍然保存，供后续 clipPath 清空时恢复使用
+ * - border 会根据有无 clipPath 选择使用哪个路径
+ *
+ * @param css_borderRadius 圆角字符串，格式 "topLeft,topRight,bottomLeft,bottomRight"
+ */
 - (void)setCss_borderRadius:(NSString *)css_borderRadius {
+    // 1. 规范化字符串
     css_borderRadius = [UIView css_string:css_borderRadius];
+    
+    // 2. 避免重复设置
     if (self.css_borderRadius != css_borderRadius) {
+        // 3. 存储新值
         objc_setAssociatedObject(self, @selector(css_borderRadius), css_borderRadius, OBJC_ASSOCIATION_RETAIN);
-        // 解析圆角值
+        
+        // 4. 如果已有 clipPath，clipPath 优先，不设置 borderRadius 的 mask
+        //    但仍需保存 borderRadius 值，因为：
+        //    - border 在没有 clipPath 时需要用 borderRadius 绘制
+        //    - clipPath 清空时需要恢复 borderRadius 的 mask
+        if (self.css_clipPath.length > 0) {
+            // clipPath 优先，刷新 border 即可
+            [self.css_borderLayer setNeedsLayout];
+            return;
+        }
+        
+        // 5. 解析圆角值
         CSSBorderRadius * borderRadius = [[CSSBorderRadius alloc] initWithCSSBorderRadius:css_borderRadius];
-        // 规避默认圆角值为零时，给view增加mask致使后续子view内容遭剪切
+        
+        // 6. 规避默认圆角值为零时，给 view 增加 mask 致使后续子 view 内容遭剪切
         if ([borderRadius isSameBorderCornerRaidus] && borderRadius.topLeftCornerRadius < 0.0001) {
             self.layer.mask = nil;
         } else {
-            // 采用CAShapeLayer + mask + UIBezierPath 支持圆角实现
+            // 7. 采用 CAShapeLayer + mask + UIBezierPath 支持圆角实现
             CSSShapeLayer *mask = [[CSSShapeLayer alloc] initWithBorderRadius:borderRadius];
+            
+            // 8. 设置 contentsScale 防锯齿
 #if TARGET_OS_OSX // [macOS]
-            mask.contentsScale = [NSScreen mainScreen].backingScaleFactor ?: 1.0; // 防锯齿
+            mask.contentsScale = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
 #else
-            mask.contentsScale = [UIScreen mainScreen].scale; // 防锯齿
+            mask.contentsScale = [UIScreen mainScreen].scale;
 #endif // [macOS]
             self.layer.mask = mask;
-
-            // 立即把 mask 的 frame 同步到当前 bounds（防止首次 layout 前为 zero）
+            
+            // 9. 立即把 mask 的 frame 同步到当前 bounds（防止首次 layout 前为 zero）
             if (!CGSizeEqualToSize(self.bounds.size, CGSizeZero)) {
                 [self.layer.mask setFrame:self.bounds];
             }
         }
     }
+    
+    // 10. 刷新 border（不管 borderRadius 值是否变化都要刷新）
+    [self.css_borderLayer setNeedsLayout];
 }
 
 - (CSSBorderLayer *)css_borderLayer {
@@ -520,6 +602,150 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     objc_setAssociatedObject(self, @selector(css_lazyAnimationImp), css_lazyAnimationImp, OBJC_ASSOCIATION_RETAIN);
 }
 
+/**
+ * css_clipPath getter
+ * 获取当前设置的裁剪路径字符串
+ */
+- (NSString *)css_clipPath {
+    return objc_getAssociatedObject(self, @selector(css_clipPath));
+}
+
+/**
+ * css_clipPathLayer getter
+ * 获取当前的裁剪路径图层（CSSClipPathLayer 实例）
+ * 此属性用于 CSSBorderLayer 判断是否需要使用 clipPath 绘制边框
+ */
+- (CAShapeLayer *)css_clipPathLayer {
+    return objc_getAssociatedObject(self, @selector(css_clipPathLayer));
+}
+
+/**
+ * css_clipPathLayer setter
+ * 保存裁剪路径图层的引用，供 border 等其他属性使用
+ */
+- (void)setCss_clipPathLayer:(CAShapeLayer *)css_clipPathLayer {
+    objc_setAssociatedObject(self, @selector(css_clipPathLayer), css_clipPathLayer, OBJC_ASSOCIATION_RETAIN);
+}
+
+/**
+ * css_clipPath setter - 设置自定义裁剪路径
+ *
+ * 原理说明：
+ * 1. clipPath 使用 CAShapeLayer 作为 layer.mask 实现任意形状裁剪
+ * 2. clipPath 优先级高于 borderRadius：
+ *    - 当 clipPath 存在时，clipPath 决定裁剪形状
+ *    - borderRadius 的 mask 效果被 clipPath 取代
+ * 3. 当 clipPath 清空时，需要恢复 borderRadius 的 mask（如果有）
+ *
+ * 与其他属性的关系：
+ * - layer.mask 只能有一个，clipPath 和 borderRadius 互斥
+ * - border 需要感知 clipPath：边框应该沿着裁剪路径绘制
+ * - boxShadow 需要更新 shadowPath：阴影应该沿着裁剪路径绘制
+ * - backgroundImage 不冲突：使用 sublayer
+ *
+ * @param css_clipPath 路径字符串，如 "M 0 40 L 40 0 L 80 40 L 40 80 Z"
+ */
+- (void)setCss_clipPath:(NSString *)css_clipPath {
+    // 1. 规范化字符串（处理 NSNumber 等类型）
+    css_clipPath = [UIView css_string:css_clipPath];
+    
+    // 2. 避免重复设置相同的值
+    NSString *oldClipPath = self.css_clipPath;
+    if ([oldClipPath isEqualToString:css_clipPath]) {
+        return;
+    }
+    
+    // 3. 存储新的 clipPath 值
+    objc_setAssociatedObject(self, @selector(css_clipPath), css_clipPath, OBJC_ASSOCIATION_COPY_NONATOMIC);
+    
+    // 4. 处理 clipPath 清空的情况
+    if (!css_clipPath || css_clipPath.length == 0) {
+        // 4.1 清空 clipPathLayer 引用
+        self.css_clipPathLayer = nil;
+        
+        // 4.2 检查是否需要恢复 borderRadius 的 mask
+        if (self.css_borderRadius.length > 0) {
+            // 重新触发 borderRadius 设置，恢复圆角 mask
+            // 先清空再设置，强制触发 setter 逻辑
+            NSString *borderRadius = self.css_borderRadius;
+            objc_setAssociatedObject(self, @selector(css_borderRadius), nil, OBJC_ASSOCIATION_RETAIN);
+            self.css_borderRadius = borderRadius;
+        } else {
+            // 没有 borderRadius，直接清除 mask
+            self.layer.mask = nil;
+        }
+        
+        // 4.3 如果有 shadowPath，恢复为圆角矩形
+        if (self.layer.shadowPath && self.css_useShadowPath) {
+            
+#if TARGET_OS_OSX
+            CGFloat density = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
+#else
+            CGFloat density = [UIScreen mainScreen].scale;
+#endif
+            UIBezierPath *clipPath = [KRConvertUtil hr_parseClipPath:self.css_clipPath density:density];
+            if (clipPath) {
+                self.layer.shadowPath = clipPath.CGPath;
+            } else {
+#if TARGET_OS_OSX
+                CGPathRef p = CGPathCreateWithRoundedRect(self.layer.bounds, self.layer.cornerRadius, self.layer.cornerRadius, NULL);
+                self.layer.shadowPath = p;
+                CGPathRelease(p);
+#else
+                self.layer.shadowPath = [[UIBezierPath bezierPathWithRoundedRect:self.layer.bounds cornerRadius:self.layer.cornerRadius] CGPath];
+#endif
+            }
+        }
+                    
+        // 4.4 刷新 border，使其使用 borderRadius 路径
+        [self.css_borderLayer setNeedsLayout];
+        return;
+    }
+    
+    // 5. 创建 clipPath 的 mask 图层
+    CSSClipPathLayer *mask = [[CSSClipPathLayer alloc] initWithClipPath:css_clipPath hostView:self];
+    
+    // 6. 设置 contentsScale 防止锯齿
+#if TARGET_OS_OSX
+    mask.contentsScale = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
+#else
+    mask.contentsScale = [UIScreen mainScreen].scale;
+#endif
+    
+    // 7. 设置为 layer 的 mask
+    //    这会覆盖 borderRadius 设置的 CSSShapeLayer mask
+    self.layer.mask = mask;
+    
+    // 8. 保存引用，供 CSSBorderLayer 使用
+    self.css_clipPathLayer = mask;
+    
+    // 9. 如果 View 已有尺寸，立即同步 mask 的 frame
+    //    确保首次设置时裁剪效果立即生效
+    if (!CGSizeEqualToSize(self.bounds.size, CGSizeZero)) {
+        [self.layer.mask setFrame:self.bounds];
+    }
+    
+    // 10. 如果有 shadowPath，更新为 clipPath 的形状
+    //     这样阴影形状才会和裁剪形状一致（如星形阴影）
+    if (self.layer.shadowPath && self.css_useShadowPath) {
+#if TARGET_OS_OSX
+        CGFloat density = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
+#else
+        CGFloat density = [UIScreen mainScreen].scale;
+#endif
+        UIBezierPath *clipPathBezier = [KRConvertUtil hr_parseClipPath:css_clipPath density:density];
+        if (clipPathBezier) {
+            self.layer.shadowPath = clipPathBezier.CGPath;
+        }
+    }
+    
+    // 11. 刷新 border，使其使用新的 clipPath 路径
+    [self.css_borderLayer setNeedsLayout];
+}
+
+
+
+
 - (NSValue *)css_frame {
     return objc_getAssociatedObject(self, @selector(css_frame));
 }
@@ -565,13 +791,27 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 - (void)p_boundsDidChanged {
     [self.layer.mask setFrame:self.bounds];
     if (self.layer.shadowPath) {
-        #if TARGET_OS_OSX // [macOS]
-        CGPathRef path = CGPathCreateWithRoundedRect(self.layer.bounds, self.layer.cornerRadius, self.layer.cornerRadius, NULL);
-        self.layer.shadowPath = path;
-        CGPathRelease(path);
-        #else
-        self.layer.shadowPath = [[UIBezierPath bezierPathWithRoundedRect:self.layer.bounds cornerRadius:self.layer.cornerRadius] CGPath];
-        #endif // [macOS]
+        // 如果存在 clipPath，shadowPath 应该使用 clipPath 的路径
+        // 这样阴影形状才会和裁剪形状一致
+        if (self.css_clipPath.length > 0) {
+#if TARGET_OS_OSX
+            CGFloat density = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
+#else
+            CGFloat density = [UIScreen mainScreen].scale;
+#endif
+            UIBezierPath *clipPath = [KRConvertUtil hr_parseClipPath:self.css_clipPath density:density];
+            if (clipPath) {
+                self.layer.shadowPath = clipPath.CGPath;
+            }
+        } else {
+            #if TARGET_OS_OSX // [macOS]
+            CGPathRef path = CGPathCreateWithRoundedRect(self.layer.bounds, self.layer.cornerRadius, self.layer.cornerRadius, NULL);
+            self.layer.shadowPath = path;
+            CGPathRelease(path);
+            #else
+            self.layer.shadowPath = [[UIBezierPath bezierPathWithRoundedRect:self.layer.bounds cornerRadius:self.layer.cornerRadius] CGPath];
+            #endif // [macOS]
+        }
     }
 }
 
@@ -996,6 +1236,106 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 
 
 
+/**
+ * CSSClipPathLayer - 自定义裁剪路径图层
+ *
+ * 原理说明：
+ * 1. 继承自 CAShapeLayer，用作 UIView.layer.mask 实现自定义形状裁剪
+ * 2. 当 frame 变化时自动重新计算路径（响应 View 尺寸变化）
+ * 3. 与 CSSShapeLayer（圆角裁剪）互斥：同一时刻只能有一个 mask
+ *
+ * 使用场景：
+ * - 实现星形、心形、多边形等自定义形状的裁剪
+ * - 配合 css_clipPath 属性使用
+ *
+ * 优先级规则：
+ * - clipPath 优先级高于 borderRadius
+ * - 当 clipPath 存在时，忽略 borderRadius 的 mask 效果
+ */
+@implementation CSSClipPathLayer
+
+/**
+ * 初始化裁剪路径图层
+ * @param clipPath 路径字符串（如 "M 0 40 L 40 0 L 80 40 L 40 80 Z"）
+ * @param hostView 宿主视图，用于在 frame 变化时获取新的尺寸
+ */
+- (instancetype)initWithClipPath:(NSString *)clipPath hostView:(UIView *)hostView {
+    if (self = [super init]) {
+        _clipPathData = [clipPath copy];
+        _hostView = hostView;
+        // 设置 fillColor 为不透明颜色，这是 CAShapeLayer 作为 mask 正确工作的关键
+        // mask 的工作原理：mask 的 alpha 通道决定哪些区域可见
+        // fillColor 不透明的区域会显示内容，透明的区域会被裁剪掉
+        self.fillColor = [UIColor blackColor].CGColor;
+    }
+    return self;
+}
+
+/**
+ * 重写 setFrame: 方法
+ * 当 mask 的 frame 变化时（通常是宿主 View 尺寸变化），重新计算路径
+ * 这是响应式更新的关键：确保裁剪路径始终匹配 View 的尺寸
+ */
+- (void)setFrame:(CGRect)frame {
+    [super setFrame:frame];
+    [self updatePath];
+}
+
+/**
+ * 更新裁剪路径
+ * 将路径字符串解析为 UIBezierPath，并设置为 CAShapeLayer 的 path
+ */
+- (void)updatePath {
+    // 1. 路径数据为空时清除 path
+    if (!_clipPathData || _clipPathData.length == 0) {
+        self.path = nil;
+        return;
+    }
+    
+    // 2. 获取屏幕 density（iOS 上实际不使用，但为了 API 兼容性保留）
+    //    注意：传入的坐标已经是 dp/point 值，不需要再乘以 scale
+#if TARGET_OS_OSX
+    CGFloat density = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
+#else
+    CGFloat density = [UIScreen mainScreen].scale;
+#endif
+    
+    // 3. 解析路径字符串为 UIBezierPath
+    UIBezierPath *path = [KRConvertUtil hr_parseClipPath:_clipPathData density:density];
+    
+    if (path) {
+        // 4. 设置 CAShapeLayer 的 path 属性
+#if TARGET_OS_OSX
+        if (@available(macos 14.0, *)) {
+            self.path = path.CGPath;
+        } else {
+            // macOS 14.0 以下版本退化为矩形裁剪
+            CGMutablePathRef p = CGPathCreateMutable();
+            CGPathAddRect(p, NULL, self.bounds);
+            self.path = p;
+            CGPathRelease(p);
+        }
+#else
+        self.path = path.CGPath;
+#endif
+    }
+}
+
+/**
+ * 重写 setContents: 方法
+ * 禁用隐式动画，避免 mask 变化时出现闪烁
+ */
+- (void)setContents:(id)contents {
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+    [super setContents:contents];
+    [CATransaction commit];
+}
+
+@end
+
+
+
 @implementation CSSGradientLayer {
     CSSGradientDirection _diretion;
     NSMutableArray<UIColor *> *_colors;
@@ -1131,10 +1471,22 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 
 @end
 
-/// CSSBorderLayer
+/// CSSBorderLayer - 边框绘制图层
+///
+/// 原理说明：
+/// 1. 继承自 CAShapeLayer，通过 strokeColor 和 path 绘制边框
+/// 2. 支持 solid（实线）、dashed（虚线）、dotted（点线）三种样式
+/// 3. 边框路径需要与裁剪路径保持一致：
+///    - 如果有 clipPath，使用 clipPath 作为边框路径
+///    - 如果没有 clipPath，使用 borderRadius 作为边框路径
+///
+/// 与 clipPath 的配合：
+/// - CSSBorderLayer 在 layoutSublayers 时检查 hostView.css_clipPath
+/// - 如果存在 clipPath，则沿着 clipPath 绘制边框（如星形边框）
+/// - 这确保了裁剪形状和边框形状的一致性
 @implementation CSSBorderLayer {
-    CSSBorder *_border;
-    CGSize _lastSize;
+    CSSBorder *_border;      // 边框样式（宽度、颜色、样式）
+    CGSize _lastSize;        // 上次布局的尺寸，用于避免重复计算
 }
 
 - (instancetype)initWithCSSBorder:(CSSBorder *)border {
@@ -1144,36 +1496,84 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     return self;
 }
 
+/**
+ * 布局子图层时重新计算边框路径
+ *
+ * 调用时机：
+ * - View 尺寸变化时
+ * - clipPath 或 borderRadius 变化后手动调用 setNeedsLayout
+ *
+ * 路径选择策略：
+ * 1. 优先使用 clipPath（如果存在）
+ * 2. 没有 clipPath 时，使用 borderRadius
+ * 3. 两者都没有时，绘制矩形边框
+ */
 - (void)layoutSublayers {
     [super layoutSublayers];
+    
+    // 1. 同步 frame 到父图层的 bounds
     if (!CGSizeEqualToSize(self.bounds.size, self.superlayer.bounds.size)) {
         self.frame = self.superlayer.bounds;
     }
+    
+    // 2. 尺寸未变化时跳过重绘（性能优化）
     if (CGSizeEqualToSize(self.bounds.size, _lastSize)) {
         return ;
     }
     _lastSize = self.bounds.size;
     
-    CSSBorderRadius *borderRadius = [[CSSBorderRadius alloc] initWithCSSBorderRadius:self.hostView.css_borderRadius];
+    UIBezierPath *path = nil;
     
-    UIBezierPath *path = [KRConvertUtil hr_bezierPathWithRoundedRect:self.bounds
-                                                 topLeftCornerRadius:borderRadius.topLeftCornerRadius topRightCornerRadius:borderRadius.topRightCornerRadius bottomLeftCornerRadius:borderRadius.bottomLeftCornerRadius bottomRightCornerRadius:borderRadius.bottomRightCornerRadius];
-    self.fillColor = [UIColor clearColor].CGColor;
-    self.strokeColor = _border.borderColor.CGColor;
-    self.lineWidth = 2 *_border.borderWidth;
-    self.masksToBounds = YES;
+    // 3. 优先检查 clipPath
+    //    如果存在 clipPath，边框应该沿着 clipPath 绘制
+    //    这样星形裁剪就能有星形边框
+    NSString *clipPath = self.hostView.css_clipPath;
+    if (clipPath.length > 0) {
+        // 获取 density（iOS 上实际不使用，但为了 API 兼容性保留）
+#if TARGET_OS_OSX
+        CGFloat density = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
+#else
+        CGFloat density = [UIScreen mainScreen].scale;
+#endif
+        // 解析 clipPath 字符串为 UIBezierPath
+        path = [KRConvertUtil hr_parseClipPath:clipPath density:density];
+    }
+        
+    // 4. 没有 clipPath 时，使用 borderRadius 构建圆角矩形路径
+    if (!path) {
+        CSSBorderRadius *borderRadius = [[CSSBorderRadius alloc] initWithCSSBorderRadius:self.hostView.css_borderRadius];
+        path = [KRConvertUtil hr_bezierPathWithRoundedRect:self.bounds
+                                       topLeftCornerRadius:borderRadius.topLeftCornerRadius
+                                      topRightCornerRadius:borderRadius.topRightCornerRadius
+                                    bottomLeftCornerRadius:borderRadius.bottomLeftCornerRadius
+                                   bottomRightCornerRadius:borderRadius.bottomRightCornerRadius];
+    }
+    
+    // 5. 设置边框样式
+    self.fillColor = [UIColor clearColor].CGColor;    // 不填充，只描边
+    self.strokeColor = _border.borderColor.CGColor;   // 边框颜色
+    self.lineWidth = 2 *_border.borderWidth;          // 边框宽度（*2 是因为 stroke 会画在路径两侧）
+    self.masksToBounds = YES;                         // 裁剪超出部分
+    
+    // 6. 根据边框样式设置虚线模式
     CGFloat borderWidth = _border.borderWidth;
     if(_border.borderStyle == KRBorderStyleDashed){
-        self.lineDashPattern = @[@(3 * borderWidth), @(3 * borderWidth)];//画虚线
+        // 虚线：线段长度 = 间隔长度 = 3 * borderWidth
+        self.lineDashPattern = @[@(3 * borderWidth), @(3 * borderWidth)];
     }else if(_border.borderStyle == KRBorderStyleDotted){
-        self.lineDashPattern = @[@(borderWidth), @(borderWidth)];//画点
+        // 点线：线段长度 = 间隔长度 = borderWidth
+        self.lineDashPattern = @[@(borderWidth), @(borderWidth)];
     }else {
+        // 实线：无虚线模式
         self.lineDashPattern = nil;
     }
+    
+    // 7. 设置边框路径
     #if TARGET_OS_OSX // [macOS]
     if (@available(macos 14.0, *)) {
         self.path = path.CGPath;
     } else {
+        // macOS 14.0 以下退化为矩形边框
         CGMutablePathRef p = CGPathCreateMutable();
         CGPathAddRect(p, NULL, self.bounds);
         self.path = p;
@@ -1241,7 +1641,15 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     if (self = [super init]) {
         self.frame = contentView.frame;
         _contentView = contentView;
+//        _backgroundView = [UIView new];
+#if TARGET_OS_OSX
+        _backgroundView = [[KRUIView alloc] init];  // macOS 使用 KRUIView
+//        self.shadow = nil;
+        // 确保阴影不被裁剪
+//        self.layer.masksToBounds = NO;
+#else
         _backgroundView = [UIView new];
+#endif
         _backgroundView.userInteractionEnabled = NO;
         [self addSubview:_backgroundView];
         [self addSubview:contentView];
@@ -1271,13 +1679,23 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     if ([key isEqualToString:@"borderRadius"]
         || [key isEqualToString:@"backgroundColor"]
         || [key isEqualToString:@"backgroundImage"]
+        || [key isEqualToString:@"clipPath"]
         || [key isEqualToString:@"border"]) {
-        if ([key isEqualToString:@"borderRadius"] || [key isEqualToString:@"backgroundColor"] || [key isEqualToString:@"backgroundImage"] ) {
+        if ([key isEqualToString:@"borderRadius"] || [key isEqualToString:@"backgroundColor"] || [key isEqualToString:@"backgroundImage"] || [key isEqualToString:@"clipPath"]) {
             [_backgroundView css_setPropWithKey:key value:value];
             [self p_updateShadowPathIfNeed];
         }
-        return !([key isEqualToString:@"borderRadius"] || [key isEqualToString:@"border"]); // return NO 抛给contentView设置
+        return !([key isEqualToString:@"borderRadius"] || [key isEqualToString:@"border"] || [key isEqualToString:@"clipPath"]); // return NO 抛给contentView设置
     }
+    
+#if TARGET_OS_OSX
+    // macOS: boxShadow 设置后需要更新 shadowPath
+    if ([key isEqualToString:@"boxShadow"]) {
+        BOOL result = [super css_setPropWithKey:key value:value];
+        [self p_updateShadowPathIfNeed];
+        return result;
+    }
+#endif
     return [super css_setPropWithKey:key value:value];
 }
 
@@ -1288,18 +1706,43 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 #pragma mark - private
 // 更新阴影路径
 - (void)p_updateShadowPathIfNeed {
+    
+#if TARGET_OS_OSX // [macOS]
+    if (self.layer.shadowOpacity > 0) {
+#else
     if (self.layer.shadowPath) {
-        if ([_backgroundView.layer.mask isKindOfClass:[CSSShapeLayer class]]) {
+#endif
+        CGPathRef originalPath = NULL;
+        // 优先使用 clipPath 的路径（星形、心形等自定义形状）
+        if ([_backgroundView.layer.mask isKindOfClass:[CSSClipPathLayer class]]) {
+            CSSClipPathLayer *clipPathLayer = (CSSClipPathLayer *)_backgroundView.layer.mask;
+            originalPath = clipPathLayer.path;
+//            self.layer.shadowPath = clipPathLayer.path;
+        } else if ([_backgroundView.layer.mask isKindOfClass:[CSSShapeLayer class]]) {
+            // 其次使用 borderRadius 的路径（圆角矩形）
             CSSShapeLayer *shapeLayer = (CSSShapeLayer *)_backgroundView.layer.mask;
-            self.layer.shadowPath = shapeLayer.path;
+            originalPath = shapeLayer.path;
+//            self.layer.shadowPath = shapeLayer.path;
+        }
+        
+        if (originalPath) {
+#if TARGET_OS_OSX
+            // macOS: NSShadow 使用原始坐标系（Y轴向上），需要翻转路径
+            CGAffineTransform flipTransform = CGAffineTransformMake(1, 0, 0, -1, 0, self.bounds.size.height);
+            CGPathRef flippedPath = CGPathCreateCopyByTransformingPath(originalPath, &flipTransform);
+            self.layer.shadowPath = flippedPath;
+            CGPathRelease(flippedPath);
+#else
+            self.layer.shadowPath = originalPath;
+#endif
         } else {
             #if TARGET_OS_OSX // [macOS]
             CGPathRef p = CGPathCreateWithRoundedRect(self.bounds, _backgroundView.layer.cornerRadius, _backgroundView.layer.cornerRadius, NULL);
             self.layer.shadowPath = p;
             CGPathRelease(p);
-            #else
+#else
             self.layer.shadowPath = [[UIBezierPath bezierPathWithRoundedRect:self.bounds cornerRadius:_backgroundView.layer.cornerRadius] CGPath];
-            #endif // [macOS]
+#endif // [macOS]
         }
     }
 }
@@ -1757,4 +2200,7 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
 }
 
 @end
+
+
+
 

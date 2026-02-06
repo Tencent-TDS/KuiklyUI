@@ -624,10 +624,7 @@
         UIWindow *keyWindow = [self keyWindow];
         if (keyWindow && keyWindow.rootViewController) {
             [keyWindow.rootViewController presentViewController:alertController animated:YES completion:nil];
-        } else {
-            // 兜底，但是效果上大概是和if分支的作用是重复的
-            [[UIApplication sharedApplication].keyWindow.rootViewController presentViewController:alertController animated:YES completion:nil];
-        }
+        } 
 #endif // [macOS]
     });
 }
@@ -746,7 +743,8 @@
  */
 + (UIWindow *)keyWindow {
 #if TARGET_OS_OSX
-    return nil;
+    // macOS: 获取当前激活的窗口, 并由调用方判断是否为nil作处理
+    return NSApplication.sharedApplication.mainWindow;
 #else
     if ([UIApplication isAppExtension]) {
         return nil;

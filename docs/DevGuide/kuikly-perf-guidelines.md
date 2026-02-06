@@ -48,3 +48,15 @@ kotlin {
 }
 ```
 
+## Kotlin减包特性
+
+Kuikly iOS也支持了Kotlin 2.2.20版本，如果你有使用此版本，也可以使用smallBinary特性来进行减包。
+
+修改`gradle.properties`增加如下设置
+```groovy
+kotlin.native.binary.smallBinary=true
+```
+
+:::tip 注意
+**根据Kotlin Release Note，本质上这个特性在内部设置了Oz选项，对性能有影响，当前还是实验性功能，使用的时候请注意做好验证。**
+:::

@@ -371,13 +371,10 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     return nil;
 }
 
-#if TARGET_OS_OSX // [macOS]
-- (NSWindow *)targetWindow {
-#else
-- (UIWindow *)targetWindow {
-#endif
-    if ([self.delegate respondsToSelector:@selector(targetWindow)]) {
-        return [self.delegate targetWindow];
+
+- (UIWindow *)viewControllerHostWindow {
+    if ([self.delegate respondsToSelector:@selector(viewControllerHostWindow)]) {
+        return [self.delegate viewControllerHostWindow];
     }
     return nil;
 }

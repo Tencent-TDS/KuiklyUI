@@ -217,13 +217,9 @@ NSString *const KRDensity = @"density";
     return nil;
 }
 
-#if TARGET_OS_OSX // [macOS]
-- (NSWindow *)targetWindow {
-#else
-- (UIWindow *)targetWindow {
-#endif
-    if ([self.delegate respondsToSelector:@selector(targetWindow)]) {
-        return [self.delegate targetWindow];
+- (UIWindow *)viewControllerHostWindow {
+    if ([self.delegate respondsToSelector:@selector(viewControllerHostWindow)]) {
+        return [self.delegate viewControllerHostWindow];
     }
     return nil;
 }
@@ -256,10 +252,10 @@ NSString *const KRDensity = @"density";
     // 无障碍化开关与安全区域/密度
 #if TARGET_OS_OSX // [macOS]
     mParmas[KRAccessibilityRunning] = @(0);
-    NSWindow *targetWindow = [self.delegate targetWindow];
-    if (targetWindow) {
+    NSWindow *hostWindow = [self.delegate viewControllerHostWindow];
+    if (hostWindow) {
         if (@available(macOS 11.0, *)) {
-            mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:targetWindow.contentView.safeAreaInsets];
+            mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:hostWindow.contentView.safeAreaInsets];
         } else {
             mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:[KRConvertUtil currentSafeAreaInsets]];
         }
@@ -270,9 +266,9 @@ NSString *const KRDensity = @"density";
 #else
     mParmas[KRAccessibilityRunning] = @(UIAccessibilityIsVoiceOverRunning() ? 1: 0);
     if (@available(iOS 11.0, *)) {
-        UIWindow *targetWindow = [self.delegate targetWindow];
-        if (targetWindow) {
-            mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:targetWindow.safeAreaInsets];
+        UIWindow *hostWindow = [self.delegate viewControllerHostWindow];
+        if (hostWindow) {
+            mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:hostWindow.safeAreaInsets];
         } else {
             mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:[KRConvertUtil currentSafeAreaInsets]];
         }

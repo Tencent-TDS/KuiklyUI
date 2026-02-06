@@ -208,14 +208,9 @@ FOUNDATION_EXTERN NSString *const KRPageDataSnapshotKey;
 
 
 /*
- * @brief 获取业务承载KuiklyRenderViewController的window
- * @return 业务承载KuiklyRenderViewController的window
+ * @brief 设置 当前页面获取信息来源的window 为 业务在 vc 中指定window
  */
-#if TARGET_OS_OSX // [macOS]
-- (NSWindow * _Nullable)targetWindow;
-#else
-- (UIWindow * _Nullable)targetWindow;
-#endif
+- (UIWindow * _Nullable) viewControllerHostWindow;
 
 @end
 

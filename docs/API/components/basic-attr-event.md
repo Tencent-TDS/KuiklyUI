@@ -696,7 +696,7 @@ internal class OverflowPage : BasePager() {
 
 :::
 
-### clipPath方法<Badge text="安卓2.8.0以上" type="warn"/><Badge text="鸿蒙2.8.0以上" type="warn"/>
+### clipPath方法<Badge text="安卓2.8.0以上" type="warn"/><Badge text="鸿蒙2.8.0以上" type="warn"/><Badge text="iOS 将在2.16.0中支持" type="warn"/>
 
 设置组件的裁剪路径，可以使用路径绑定的方式裁剪组件的显示区域为任意形状。
 

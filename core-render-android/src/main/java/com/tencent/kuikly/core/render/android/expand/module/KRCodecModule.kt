@@ -37,6 +37,7 @@ class KRCodecModule : KuiklyRenderBaseModule() {
             METHOD_BASE64_ENCODE -> base64Encode(params)
             METHOD_BASE64_DECODE -> base64Decode(params)
             METHOD_MD5 -> md5(params)
+            METHOD_MD5_32 -> md5With32(params)
             METHOD_SHA256 -> sha256(params as? String ?: "")
             else -> super.call(method, params, callback)
         }
@@ -49,6 +50,14 @@ class KRCodecModule : KuiklyRenderBaseModule() {
         val bigInt = BigInteger(1, digest)
         val md5Hash32 = bigInt.toString(16).padStart(32, '0')
         return md5Hash32.substring(8, 24) // 截取中间的16位
+    }
+
+    fun md5With32(params: String?): String {
+        val string = params ?: return ""
+        val md = MessageDigest.getInstance("MD5")
+        val digest = md.digest(string.toByteArray())
+        val bigInt = BigInteger(1, digest)
+        return bigInt.toString(16).padStart(32, '0') // 返回完整的32位
     }
 
     fun sha256(input: String): String {
@@ -98,6 +107,7 @@ class KRCodecModule : KuiklyRenderBaseModule() {
         private const val METHOD_BASE64_ENCODE = "base64Encode"
         private const val METHOD_BASE64_DECODE = "base64Decode"
         private const val METHOD_MD5 = "md5"
+        private const val METHOD_MD5_32 = "md5With32"
         private const val METHOD_SHA256 = "sha256"
 
         fun base64Encode(params: String?): String {

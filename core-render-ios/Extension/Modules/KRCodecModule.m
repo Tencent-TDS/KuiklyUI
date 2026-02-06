@@ -44,6 +44,11 @@
     return [string kr_md5String];
 }
 
+- (NSString *)md5With32:(NSDictionary *)args {
+    NSString *string = args[KR_PARAM_KEY];
+    return [string kr_md5String32];
+}
+
 - (NSString *)sha256:(NSDictionary *)args {
     NSString *string = args[KR_PARAM_KEY];
     return [string kr_sha256String];

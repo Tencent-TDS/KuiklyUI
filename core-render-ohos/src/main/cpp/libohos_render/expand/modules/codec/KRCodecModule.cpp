@@ -26,6 +26,7 @@ const char KRCodecModule::METHOD_URL_ENCODE[] = "urlEncode";
 const char KRCodecModule::METHOD_BASE64_ENCODE[] = "base64Encode";
 const char KRCodecModule::METHOD_BASE64_DECODE[] = "base64Decode";
 const char KRCodecModule::METHOD_MD5[] = "md5";
+const char KRCodecModule::METHOD_MD5_32[] = "md5With32";
 const char KRCodecModule::METHOD_SHA256[] = "sha256";
 
 bool KRCodecModule::SyncMode() {
@@ -45,6 +46,8 @@ KRAnyValue KRCodecModule::CallMethod(bool sync, const std::string &method, KRAny
         return this->Base64Decode(str);
     } else if (method == METHOD_MD5) {
         return this->Md5(str);
+    } else if (method == METHOD_MD5_32) {
+        return this->Md5With32(str);
     } else if (method == METHOD_SHA256) {
         return this->Sha256(str);
     }
@@ -69,6 +72,10 @@ KRAnyValue KRCodecModule::Base64Decode(const std::string str) {
 
 KRAnyValue KRCodecModule::Md5(const std::string str) {
     return KRRenderValue::Make(KRMd5(str));
+}
+
+KRAnyValue KRCodecModule::Md5With32(const std::string str) {
+    return KRRenderValue::Make(KRMd5With32(str));
 }
 
 KRAnyValue KRCodecModule::Sha256(const std::string str) {

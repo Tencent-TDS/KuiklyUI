@@ -3,6 +3,7 @@ package com.tencent.kuikly.core.render.web.runtime.miniapp.page
 import com.tencent.kuikly.core.render.web.KuiklyRenderView
 import com.tencent.kuikly.core.render.web.collection.array.JsArray
 import com.tencent.kuikly.core.render.web.collection.array.add
+import com.tencent.kuikly.core.render.web.collection.array.clear
 import com.tencent.kuikly.core.render.web.runtime.miniapp.core.MpInstance
 import com.tencent.kuikly.core.render.web.runtime.miniapp.core.Page.ON_HIDE
 import com.tencent.kuikly.core.render.web.runtime.miniapp.core.Page.ON_LOAD
@@ -10,7 +11,9 @@ import com.tencent.kuikly.core.render.web.runtime.miniapp.core.Page.ON_READY
 import com.tencent.kuikly.core.render.web.runtime.miniapp.core.Page.ON_SHOW
 import com.tencent.kuikly.core.render.web.runtime.miniapp.core.Page.ON_UNLOAD
 import com.tencent.kuikly.core.render.web.runtime.miniapp.core.PageLifeCycleEvent
+import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.MiniElementManage
 import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.MiniListElement
+import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.MiniRootElement
 import com.tencent.kuikly.core.render.web.runtime.miniapp.event.EventHook
 import com.tencent.kuikly.core.render.web.utils.Log
 import kotlin.js.Promise
@@ -69,9 +72,25 @@ class MiniPage {
      * Trigger unload event, need to delete self from MiniPageManage
      */
     fun emitUnLoad() {
+        if (MiniPageManage.currentPage == this) {
+            MiniPageManage.currentPage = null
+        }
+        // Destroy the root element first to prevent async tasks from running after page is destroyed
+        val rootElement = MiniElementManage.getElement(pageId.toString())
+        if (rootElement is MiniRootElement) {
+            rootElement.destroy()
+        }
+        // Destroy the render view
         renderView?.destroy()
+        renderView = null
+        // Clear the movable list to release references
+        movableList.clear()
+        // Call unload hooks
         EventHook.callWithPageId(ON_UNLOAD, pageId)
+        // Remove page from manager
         MiniPageManage.removeMiniPageByPageId(pageId)
+        // Clear mpInstance reference
+        mpInstance = null
     }
 
     /**
@@ -87,9 +106,9 @@ class MiniPage {
      * Trigger onShow event, must be triggered after onLoad, needs to change MiniPageManage.currentPage
      */
     fun emitShow() {
+        MiniPageManage.currentPage = this
+        renderView?.resume()
         hasLoaded.then {
-            MiniPageManage.currentPage = this
-            renderView?.resume()
             EventHook.callWithPageId(ON_SHOW, pageId)
         }
     }

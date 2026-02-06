@@ -30,6 +30,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityManager
 import android.widget.FrameLayout
+import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.const.KRViewConst
 import com.tencent.kuikly.core.render.android.context.IKotlinBridgeStatusListener
@@ -410,6 +411,9 @@ class KuiklyRenderView(
 
     private fun generateWithParams(params: Map<String, Any>, size: SizeF): Map<String, Any> {
         val contentView = context.activity?.findViewById<View>(android.R.id.content)
+        val usingDisplayMetrics = KuiklyRenderAdapterManager.krFontAdapter
+            ?.getDisplayMetrics(useHostDisplayMetrics = kuiklyRenderContext.useHostDisplayMetrics())
+            ?: Resources.getSystem().displayMetrics
         return mutableMapOf<String, Any>().apply {
             put(ROOT_VIEW_WIDTH, kuiklyRenderViewContext.toDpF(size.width))
             put(ROOT_VIEW_HEIGHT, kuiklyRenderViewContext.toDpF(size.height))
@@ -424,7 +428,7 @@ class KuiklyRenderView(
             put(SAFE_AREA_INSETS, "${kuiklyRenderContext.toDpF(context.statusBarHeight.toFloat())} 0 0 0")
             put(ACTIVITY_WIDTH, kuiklyRenderContext.toDpF((contentView?.width ?: 0).toFloat()))
             put(ACTIVITY_HEIGHT, kuiklyRenderContext.toDpF((contentView?.height ?: 0).toFloat()))
-            put(DENSITY, Resources.getSystem().displayMetrics.density)
+            put(DENSITY, usingDisplayMetrics.density)
             put(ACCESSIBILITY_RUNNING, if (isAccessibilityRunning()) 1 else 0)
             val feature = mapOf(
                 "box_shadow_fill" to 1

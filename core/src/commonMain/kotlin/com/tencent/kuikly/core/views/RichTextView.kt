@@ -635,6 +635,16 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
         return this
     }
 
+    override fun resizeWidthFix(): IImageAttr {
+        resizeMode = ImageConst.RESIZE_MODE_WIDTH_FIX
+        return this
+    }
+
+    override fun resizeHeightFix(): IImageAttr {
+        resizeMode = ImageConst.RESIZE_MODE_HEIGHT_FIX
+        return this
+    }
+
     fun margin(
         top: Float,
         left: Float,

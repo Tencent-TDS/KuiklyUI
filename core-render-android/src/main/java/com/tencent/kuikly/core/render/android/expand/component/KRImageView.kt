@@ -202,13 +202,14 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
         }
         drawCommonDecoration(frameWidth, frameHeight, canvas)
         if (capInsetsValid()) {
-            drawable?.also {
+            drawable?.also { originDr ->
+                val dr = copyDrawable(originDr) ?: return@also
                 val loader = kuiklyRenderContext?.getImageLoader()
                 val density = kuiklyRenderContext.getDisplayMetrics().density
-                val drawableWidth = loader?.getImageWidth(it)?.roundToInt()?.takeIf { w -> w > 0 } ?: frameWidth
-                val drawableHeight = loader?.getImageHeight(it)?.roundToInt()?.takeIf { h -> h > 0 } ?: frameHeight
-                it.setBounds(0, 0, drawableWidth, drawableHeight)
-                NinePatchHelper.draw(canvas, { c, dr -> dr.draw(c) }, it, drawableWidth, drawableHeight, density,
+                val drawableWidth = loader?.getImageWidth(dr)?.roundToInt()?.takeIf { w -> w > 0 } ?: frameWidth
+                val drawableHeight = loader?.getImageHeight(dr)?.roundToInt()?.takeIf { h -> h > 0 } ?: frameHeight
+                dr.setBounds(0, 0, drawableWidth, drawableHeight)
+                NinePatchHelper.draw(canvas, { c, d -> d.draw(c) }, dr, drawableWidth, drawableHeight, density,
                     frameWidth, frameHeight, capInsets!!)
             }
         } else {
@@ -235,7 +236,7 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
 
     private fun updateDrawableImage(drawable: Drawable?) {
         if (drawable != null && tintColor != null) {
-            val tintDrawable = drawable.mutate()
+            val tintDrawable = copyDrawable(drawable)!!
             tintDrawable.setTint(tintColor as Int)
             superSetImage(tintDrawable)
         } else if (drawable != null && blurRadius > 0f) {
@@ -246,7 +247,6 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
                 // 高斯模糊
                 val blurDrawable = RenderScriptBlur.blurImage(drawable, context, tBlurRadius)
                 runOnUiThread {
-                    drawable.setTintList(null)
                     // 记录结束时间并计算耗时
                     if (this.src == tScr && tBlurRadius == this.blurRadius) {
                         superSetImage(blurDrawable)
@@ -254,9 +254,16 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
                 }
             }
         } else {
-            drawable?.setTintList(null)
             superSetImage(drawable)
         }
+    }
+
+    /**
+     * 拷贝 drawable 副本，避免修改 adapter 缓存中的原始 drawable
+     */
+    private fun copyDrawable(drawable: Drawable?): Drawable? {
+        if (drawable == null) return null
+        return drawable.constantState?.newDrawable()?.mutate() ?: drawable
     }
 
     private fun superSetImage(drawable: Drawable?) {

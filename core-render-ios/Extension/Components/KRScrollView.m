@@ -870,12 +870,27 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 }
 
 - (void)setFrame:(CGRect)frame {
+#if TARGET_OS_OSX // [macOS]
+    KRScrollView *scrollView = nil;
+    // macOS: documentView.superview is NSClipView, need to find KRScrollView
+    NSView *currentView = self.superview;
+    while (currentView) {
+        if ([currentView isKindOfClass:[KRScrollView class]]) {
+            scrollView = (KRScrollView *)currentView;
+            break;
+        }
+        currentView = currentView.superview;
+    }
+#else
     KRScrollView *scrollView = (KRScrollView *)self.superview;
-    scrollView.skipNestScrollLock = YES;
+#endif
+    
+    if (scrollView) {
+        scrollView.skipNestScrollLock = YES;
+    }
     [super setFrame:frame];
     [self syncScrollViewContentSize];
 }
-
 - (void)didMoveToSuperview {
     [super didMoveToSuperview];
     [self syncScrollViewContentSize];

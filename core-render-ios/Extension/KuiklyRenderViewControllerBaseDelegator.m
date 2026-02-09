@@ -371,6 +371,14 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     return nil;
 }
 
+
+- (UIWindow *)viewControllerHostWindow {
+    if ([self.delegate respondsToSelector:@selector(viewControllerHostWindow)]) {
+        return [self.delegate viewControllerHostWindow];
+    }
+    return nil;
+}
+
 #pragma mark - exception handle
 
 - (void)setExceptionBlock:(KuiklyRenderView *)view {

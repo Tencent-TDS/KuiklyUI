@@ -275,3 +275,42 @@ export default {
 
 #### 方式2：自行注册Gradle Task拷贝编译产物
 若你的工程结构较为复杂，可以自定义相关Gradle Task实现编译联动的功能
+
+### 拷贝资源至鸿蒙宿主工程
+#### 方式1: 手动拷贝
+鸿蒙会将业务代码编译为so文件，不支持`assets`资源内置打包，需要将资源拷贝到鸿蒙工程的`resfile`目录中，例如：
+```
+shared/src/commonMain/assets/common/* -> entry/src/main/resources/resfile/common/*
+```
+#### 方式2: Kuikly Hvigor插件
+
+Kuikly简单封装了一个鸿蒙hvigor插件
+插件可以实现在鸿蒙工程运行的时候拷贝至对应build目录，实现编译拷贝
+
+使用方式:
+
+步骤1.2  参考上一章节 **同步so产物和头文件至鸿蒙宿主工程** 配置
+
+3. ohosProject根目录中local.properties补充配置相应信息
+
+```
+# kuiklyCopyAssetsPlugin
+# REQUIRED Parameters
+kuikly.assetsPath=`Your assets absolute path`
+```
+
+4. ohosProject -> entry/hvigorfile.ts 启用插件
+```text
+import { kuiklyCompilePlugin, kuiklyCopyAssetsPlugin } from 'kuikly-ohos-compile-plugin';
+
+export default {
+    ...
+
+    plugins:[kuiklyCompilePlugin(), kuiklyCopyAssetsPlugin()]
+
+    ...
+}
+
+```
+
+> 注意：如果需要自定义更复杂逻辑可以参考[编译插件源码](https://www.npmjs.com/package/kuikly-ohos-compile-plugin)进行修改

@@ -73,6 +73,7 @@ import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.isSpecified
 import com.tencent.kuikly.compose.ui.util.fastRoundToInt
 import com.tencent.kuikly.core.views.AutoHeightTextAreaView
+import com.tencent.kuikly.core.views.LengthLimitType
 import com.tencent.kuikly.core.views.TextAreaAttr
 import com.tencent.kuikly.core.views.TextAreaEvent
 import com.tencent.kuikly.core.views.TextConst
@@ -168,6 +169,9 @@ internal fun CoreTextField(
     cursorBrush: Brush = SolidColor(Color.Unspecified),
     extraHeight: TextUnit = TextUnit.Unspecified,
     extraHeightScale: Float? = null,
+    maxLength: Int? = null,
+    lengthLimitType: LengthLimitType? = null,
+    onLimitChange: ((length: Int, limit: Boolean) -> Unit)? = null,
 ) {
     val compositeKeyHash = currentCompositeKeyHash
     val localMap = currentComposer.currentCompositionLocalMap
@@ -186,6 +190,9 @@ internal fun CoreTextField(
     var lineHeight by remember { mutableStateOf(0f) }
     var oldSize by remember { mutableStateOf(IntSize.Zero) }
     var editable = enabled && !readOnly
+    // 共享的文本长度和是否超限状态，供 textDidChange 和 textLengthBeyondLimit 回调共享
+    var currentTextLength by remember { mutableStateOf(-1) }
+    var currentLimitExceeded by remember { mutableStateOf(false) }
 
     val measurePolicy = remember(value) { object : MeasurePolicy {
         private val placementBlock: Placeable.PlacementScope.() -> Unit = {}
@@ -416,12 +423,18 @@ internal fun CoreTextField(
                             updateKeyboardActions(getViewEvent(), state)
                         }
                     }
-                    set(onValueChange) {
+                    set(onValueChange to onLimitChange) {
                         withTextAreaView {
                             getViewEvent().textDidChange {
                                 autoHeightTextAreaView.getViewAttr()
                                     .updatePropCache(TextConst.VALUE, it.text)
                                 onValueChange(TextFieldValue(it.text))
+                                val newLength = it.length ?: -1
+                                if (newLength != currentTextLength || currentLimitExceeded) {
+                                    currentTextLength = newLength
+                                    currentLimitExceeded = false
+                                    onLimitChange?.invoke(currentTextLength, currentLimitExceeded)
+                                }
                             }
                         }
                     }
@@ -429,6 +442,24 @@ internal fun CoreTextField(
                         withTextAreaView {
                             if (cursorBrush is SolidColor) {
                                 getViewAttr().tintColor(cursorBrush.value.toKuiklyColor())
+                            }
+                        }
+                    }
+                    set(maxLength to lengthLimitType) {
+                        if (maxLength != null && maxLength > 0) {
+                            withTextAreaView {
+                                val type = lengthLimitType ?: LengthLimitType.CHARACTER
+                                getViewAttr().maxTextLength(maxLength, type)
+                            }
+                        }
+                    }
+                    set(onLimitChange) {
+                        if (onLimitChange != null) {
+                            withTextAreaView {
+                                getViewEvent().textLengthBeyondLimit {
+                                    currentLimitExceeded = true
+                                    onLimitChange.invoke(currentTextLength, currentLimitExceeded)
+                                }
                             }
                         }
                     }

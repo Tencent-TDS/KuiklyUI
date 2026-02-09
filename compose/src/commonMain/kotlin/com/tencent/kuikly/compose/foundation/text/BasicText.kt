@@ -70,7 +70,6 @@ import com.tencent.kuikly.compose.ui.unit.isSpecified
 import com.tencent.kuikly.compose.ui.util.fastRoundToInt
 import com.tencent.kuikly.compose.extension.scaleToDensity
 import com.tencent.kuikly.compose.ui.platform.LocalConfiguration
-import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.views.ISpan
 import com.tencent.kuikly.core.views.PlaceholderSpan
 import com.tencent.kuikly.core.views.RichTextAttr

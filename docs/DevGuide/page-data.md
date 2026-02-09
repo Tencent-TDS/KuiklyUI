@@ -67,6 +67,11 @@ class TestComposeView : ComposeView<ComposeAttr, ComposeEvent>() {
 | params          | 存放业务扩展的数据                                            | JSONObject |
 | safeAreaInsets  | 安全区域: 被系统界面（如状态栏、导航栏、工具栏或底部 Home 指示器、刘海屏底部边距）遮挡的视图区域 | EdgeInsets |
 
+
+:::tip 提示
+iOS 端可通过实现 `viewControllerHostWindow` 方法，指定当前页面获取 safeAreaInsets 的参考窗口。这在多 Window 场景（如悬浮窗、分屏模式）确保获取到正确的安全区域。[参考示例](../QuickStart/iOS.md#实现kuikly承载容器)
+:::
+
 ## PagerData业务扩展参数
 
 ``PagerData``的业务扩展参数，是``Native``侧在打开``Kuikly``页面时，传递给``Kuikly``页面的参数，这些扩展参数会被统一存放在``PagerData.params``字段中。

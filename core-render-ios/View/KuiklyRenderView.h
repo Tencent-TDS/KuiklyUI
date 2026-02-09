@@ -142,6 +142,12 @@ FOUNDATION_EXTERN NSString *const KRRootViewSizeDidChangedEventKey;
  */
 - (NSString * _Nullable)turboDisplayKey;
 
+/*
+ * @brief 设置 当前页面获取信息来源的window 为 业务在 vc 中指定window
+ */
+- (UIWindow * _Nullable)viewControllerHostWindow;
+
+
 @end
 
 NS_ASSUME_NONNULL_END

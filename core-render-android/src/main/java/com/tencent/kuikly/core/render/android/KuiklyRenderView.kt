@@ -351,7 +351,8 @@ class KuiklyRenderView(
                     ACTIVITY_WIDTH to kuiklyRenderContext.toDpF(activitySize.width.toFloat()),
                     ACTIVITY_HEIGHT to kuiklyRenderContext.toDpF(activitySize.height.toFloat()),
                     DEVICE_WIDTH to kuiklyRenderContext.toDpF(deviceSize.width.toFloat()),
-                    DEVICE_HEIGHT to kuiklyRenderContext.toDpF(deviceSize.height.toFloat())
+                    DEVICE_HEIGHT to kuiklyRenderContext.toDpF(deviceSize.height.toFloat()),
+                    SAFE_AREA_INSETS to "${kuiklyRenderContext.toDpF(context.statusBarHeight.toFloat())} 0 ${getNavigationBarHeight(view)} 0"
                 )
             )
             lastSize = sizeF

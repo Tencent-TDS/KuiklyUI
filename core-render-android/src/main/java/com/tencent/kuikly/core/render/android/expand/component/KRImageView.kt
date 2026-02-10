@@ -235,7 +235,7 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
 
     private fun updateDrawableImage(drawable: Drawable?) {
         if (drawable != null && tintColor != null) {
-            val tintDrawable = drawable.mutate()
+            val tintDrawable = drawable.copyDrawable()
             tintDrawable.setTint(tintColor as Int)
             superSetImage(tintDrawable)
         } else if (drawable != null && blurRadius > 0f) {
@@ -246,7 +246,6 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
                 // 高斯模糊
                 val blurDrawable = RenderScriptBlur.blurImage(drawable, context, tBlurRadius)
                 runOnUiThread {
-                    drawable.setTintList(null)
                     // 记录结束时间并计算耗时
                     if (this.src == tScr && tBlurRadius == this.blurRadius) {
                         superSetImage(blurDrawable)
@@ -254,7 +253,6 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
                 }
             }
         } else {
-            drawable?.setTintList(null)
             superSetImage(drawable)
         }
     }
@@ -603,6 +601,13 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
         private const val BASE64_IMAGE_PREFIX = "data:image"
         private const val IMAGE_WIDTH = "imageWidth"
         private const val IMAGE_HEIGHT = "imageHeight"
+
+        /**
+         * 拷贝 drawable 副本，避免修改 adapter 缓存中的原始 drawable
+         */
+        private fun Drawable.copyDrawable(): Drawable {
+            return constantState?.newDrawable()?.mutate() ?: this
+        }
     }
 }
 

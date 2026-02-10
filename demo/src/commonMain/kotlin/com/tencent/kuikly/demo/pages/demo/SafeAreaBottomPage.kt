@@ -5,6 +5,7 @@ import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.layout.FlexDirection
+import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
 
@@ -23,7 +24,7 @@ internal class SafeAreaBottomPage : BasePager() {
                 attr {
                     allCenter()
                     backgroundColor(Color.RED)
-                    ctx.pageData.navigationBarHeight
+                    KLog.d("bottom", "${ctx.pageData.safeAreaInsets.bottom}")
                     marginBottom(ctx.pageData.safeAreaInsets.bottom)
                 }
                 Text {

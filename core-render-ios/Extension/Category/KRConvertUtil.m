@@ -621,7 +621,10 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
                                                                           preferredStyle:UIAlertControllerStyleAlert];
         UIAlertAction *action = [UIAlertAction actionWithTitle:@"确定" style:(UIAlertActionStyleDefault) handler:nil];
         [alertController addAction:action];
-        [[UIApplication sharedApplication].keyWindow.rootViewController presentViewController:alertController animated:YES completion:nil];
+        UIWindow *keyWindow = [self keyWindow];
+        if (keyWindow && keyWindow.rootViewController) {
+            [keyWindow.rootViewController presentViewController:alertController animated:YES completion:nil];
+        }
 #endif // [macOS]
     });
 }
@@ -640,9 +643,9 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
 }
 
 + (CGFloat)statusBarHeight {
-    #if TARGET_OS_OSX // [macOS]
+#if TARGET_OS_OSX // [macOS]
     return 0;
-    #else
+#else
     CGFloat statusBarHeight = 0;
     if(![UIApplication isAppExtension]){
         if (@available(iOS 13.0, *)) {
@@ -658,17 +661,11 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
     if (@available(iOS 16.0, *)) {
         BOOL needAdjust = (statusBarHeight == 44);
         if (needAdjust) {
-            UIWindow* mainWindow = nil;
-            for (UIScene* scene in [UIApplication sharedApplication].connectedScenes) {
-                if (scene.activationState == UISceneActivationStateForegroundActive && [scene isKindOfClass:[UIWindowScene class]]) {
-                    UIWindowScene *windowScene = (UIWindowScene *)scene;
-                    mainWindow = windowScene.windows.firstObject;
-                    break;
-                }
-            }
+            UIWindow* mainWindow = [self keyWindow];
             if (mainWindow && mainWindow.safeAreaInsets.top >= 59) { // 兼容部分场景高度获取不正确
                 statusBarHeight = 54;
             }
+            // 如果没有找到当前交互scene的Keywindow，则statusBarHeight = 0，后续将返回 [self defaultStatusBarHeight]
         }
     }
     return statusBarHeight ?: [self defaultStatusBarHeight];
@@ -694,15 +691,19 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
 
 
 + (UIEdgeInsets)currentSafeAreaInsets {
-    #if TARGET_OS_OSX // [macOS]
+#if TARGET_OS_OSX // [macOS]
     return UIEdgeInsetsZero;
-    #else
+#else
     if([UIApplication isAppExtension]){
         return UIEdgeInsetsZero;
     }
     if (@available(iOS 11, *)) {
-        UIWindow *window = UIApplication.sharedApplication.windows.firstObject;
-        return window.safeAreaInsets;
+        UIWindow *window = [self keyWindow];
+        if (window) {
+            return window.safeAreaInsets;
+        } else {
+            return UIEdgeInsetsZero;
+        }
     } else {
         return UIEdgeInsetsZero;
     }
@@ -736,27 +737,90 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
 }
 
 
+/**
+ * 获取当前 KeyWindow
+ * 兼容 iOS 13+ 的 Scene 架构，替代废弃的 UIApplication.sharedApplication.keyWindow
+ */
++ (UIWindow *)keyWindow {
+#if TARGET_OS_OSX
+    // macOS: 获取当前激活的窗口, 并由调用方判断是否为nil作处理
+    return NSApplication.sharedApplication.mainWindow;
+#else
+    if ([UIApplication isAppExtension]) {
+        return nil;
+    }
+
+    UIWindow *keyWindow = nil;
+    // 判断当前应用是否和用户交互过，避免vc初始化时UISceneActivationStateForegroundInactive导致拿到的safeAreaInsets是全零
+    UIApplicationState appState = UIApplication.sharedApplication.applicationState;
+
+    if (@available(iOS 13.0, *)) {
+        // 方式1：优先找用户当前正在交互的 foregroundActive 的 scene 中的 keyWindow
+        for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+            BOOL isForegroundActive = (scene.activationState == UISceneActivationStateForegroundActive);
+            BOOL isForegroundInactive = (scene.activationState == UISceneActivationStateForegroundInactive);
+            BOOL isValidState = isForegroundActive || (appState != UIApplicationStateActive && isForegroundInactive);
+
+            if (isValidState && [scene isKindOfClass:[UIWindowScene class]]) {
+                UIWindowScene *windowScene = (UIWindowScene *)scene;
+                keyWindow = [self keyWindowFromWindowScene:windowScene];
+                if (keyWindow) {
+                    return keyWindow;
+                }
+            }
+        }
+
+    } else {
+        // iOS 13 以下使用旧的 API
+        keyWindow = UIApplication.sharedApplication.keyWindow;
+    }
+    // 未获取到交互scene 或者 未找到Keywindow，则直接返回nil，准备使用全零的safeAreaInsets
+    return keyWindow;
+#endif
+}
+
+/**
+ * 从 WindowScene 中获取 KeyWindow
+ */
+#if !TARGET_OS_OSX
++ (UIWindow *)keyWindowFromWindowScene:(UIWindowScene *)windowScene  API_AVAILABLE(ios(13.0)){
+    if (!windowScene) {
+        return nil;
+    }
+
+    // 找 isKeyWindow 的 window
+    for (UIWindow *window in windowScene.windows) {
+        if (window.isKeyWindow) {
+            return window;
+        }
+    }
+
+    return nil;
+}
+#endif
+
+
 + (UIBezierPath *)hr_parseClipPath:(NSString *)pathData density:(CGFloat)density {
-    
+
     // 1. 参数校验：pathData 为空时直接返回 nil
     if (!pathData || pathData.length == 0) {
         return nil;
     }
-    
+
     // 2. 创建空的贝塞尔路径对象
     UIBezierPath *path = [UIBezierPath bezierPath];
-    
+
     // 3. 将路径字符串按空格分割成数组
     //    例如 "M 0 40 L 40 0 Z" -> ["M", "0", "40", "L", "40", "0", "Z"]
     NSArray *values = [pathData componentsSeparatedByString:@" "];
     NSInteger index = 0;
     NSInteger commandCount = 0;
-    
+
     @try {
         // 4. 遍历解析每个命令
         while (index < values.count) {
             NSString *command = values[index];
-            
+
             if ([command isEqualToString:@"M"]) {
                 // M (MoveTo): 移动画笔到指定点，不绘制任何线条
                 // 格式：M x y
@@ -769,7 +833,7 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
                 [path moveToPoint:CGPointMake(x, y)];
                 index += 3;
                 commandCount++;
-                
+
             } else if ([command isEqualToString:@"L"]) {
                 // L (LineTo): 从当前点画直线到指定点
                 // 格式：L x y
@@ -779,7 +843,7 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
                 [path addLineToPoint:CGPointMake(x, y)];
                 index += 3;
                 commandCount++;
-                
+
             } else if ([command isEqualToString:@"R"]) {
                 // R (aRc): 画圆弧
                 // 格式：R centerX centerY radius startAngle endAngle counterclockwise
@@ -803,13 +867,13 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
                              clockwise:!counterclockwise];
                 index += 7;
                 commandCount++;
-                
+
             } else if ([command isEqualToString:@"Z"]) {
                 // Z (closePath): 闭合路径，从当前点画直线回到起点
                 [path closePath];
                 index += 1;
                 commandCount++;
-                
+
             } else if ([command isEqualToString:@"Q"]) {
                 // Q (Quadratic): 二次贝塞尔曲线
                 // 格式：Q controlX controlY endX endY
@@ -834,7 +898,7 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
 #endif
                 index += 5;
                 commandCount++;
-                
+
             } else if ([command isEqualToString:@"C"]) {
                 // C (Cubic): 三次贝塞尔曲线
                 // 格式：C control1X control1Y control2X control2Y endX endY
@@ -858,7 +922,7 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
 #endif
                 index += 7;
                 commandCount++;
-                
+
             } else {
                 // 未知命令，跳过
                 index += 1;
@@ -868,7 +932,7 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
         // 解析异常时返回 nil，避免崩溃
         return nil;
     }
-    
+
     return path;
 }
 
@@ -882,7 +946,7 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
     if (!bezierPath) {
         return NULL;
     }
-    
+
     // macOS 14.0+ 可以直接使用 CGPath 属性
     if (@available(macOS 14.0, *)) {
         CGPathRef cgPath = [bezierPath CGPath];
@@ -891,40 +955,40 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
         }
         return cgPath;
     }
-    
+
     // macOS 14.0 以下：手动转换
     CGMutablePathRef cgPath = CGPathCreateMutable();
     NSInteger elementCount = [bezierPath elementCount];
-    
+
     for (NSInteger i = 0; i < elementCount; i++) {
         NSPoint points[3];
         NSBezierPathElement element = [bezierPath elementAtIndex:i associatedPoints:points];
-        
+
         switch (element) {
             case NSBezierPathElementMoveTo:
                 CGPathMoveToPoint(cgPath, NULL, points[0].x, points[0].y);
                 break;
-                
+
             case NSBezierPathElementLineTo:
                 CGPathAddLineToPoint(cgPath, NULL, points[0].x, points[0].y);
                 break;
-                
+
             case NSBezierPathElementCurveTo:
                 CGPathAddCurveToPoint(cgPath, NULL,
                                       points[0].x, points[0].y,  // control point 1
                                       points[1].x, points[1].y,  // control point 2
                                       points[2].x, points[2].y); // end point
                 break;
-                
+
             case NSBezierPathElementClosePath:
                 CGPathCloseSubpath(cgPath);
                 break;
-                
+
             default:
                 break;
         }
     }
-    
+
     return cgPath;
 }
 
@@ -942,10 +1006,10 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
         *endPoint = CGPointMake(0.5, 0);
         return;
     }
-    
+
     CGFloat deg = 0;
     CGFloat tanDeg = (atan((size.width / size.height)) / (M_PI * 2)) * 360;
-    
+
     switch (direction) {
         case CSSGradientDirectionToTop:
             deg = 0;
@@ -975,14 +1039,14 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
             deg = 180;
             break;
     }
-    
+
     CGFloat radians = deg * M_PI / 180.0;
     CGFloat centerX = 0.5;
     CGFloat centerY = 0.5;
     CGFloat dx = sin(radians);
     CGFloat dy = -cos(radians);
     CGFloat diagonalFactor = sqrt(2.0) / 2.0;
-    
+
     *startPoint = CGPointMake(centerX - dx * diagonalFactor, centerY - dy * diagonalFactor);
     *endPoint = CGPointMake(centerX + dx * diagonalFactor, centerY + dy * diagonalFactor);
 }
@@ -1001,20 +1065,20 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
     if (![gradientStr hasPrefix:lineargradientPrefix]) {
         return;
     }
-    
+
     NSString *content = [gradientStr substringWithRange:NSMakeRange(lineargradientPrefix.length,
                                                                     gradientStr.length - lineargradientPrefix.length - 1)];
     NSArray<NSString *> *splits = [content componentsSeparatedByString:@","];
     if (splits.count < 2) {
         return;
     }
-    
+
     CSSGradientDirection direction = [splits.firstObject intValue];
-    
+
     // 2. 解析颜色和位置
     NSMutableArray *colors = [NSMutableArray array];
     NSMutableArray *locations = [NSMutableArray array];
-    
+
     for (NSInteger i = 1; i < splits.count; i++) {
         NSString *colorStopStr = splits[i];
         NSArray<NSString *> *colorAndStop = [colorStopStr componentsSeparatedByString:@" "];
@@ -1026,11 +1090,11 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
             }
         }
     }
-    
+
     if (colors.count == 0) {
         return;
     }
-    
+
     // 3. 计算渐变起点和终点
     CGPoint startPoint = CGPointZero;
     CGPoint endPoint = CGPointZero;
@@ -1038,31 +1102,31 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
                                 endPoint:&endPoint
                                direction:direction
                                     size:size];
-    
+
     // 4. 创建 CGGradient
     CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
     CGFloat *locationValues = malloc(sizeof(CGFloat) * locations.count);
     for (NSInteger i = 0; i < locations.count; i++) {
         locationValues[i] = [locations[i] floatValue];
     }
-    
+
     CGGradientRef gradient = CGGradientCreateWithColors(colorSpace,
                                                          (__bridge CFArrayRef)colors,
                                                          locationValues);
     free(locationValues);
     CGColorSpaceRelease(colorSpace);
-    
+
     if (!gradient) {
         return;
     }
-    
+
     // 5. 绘制渐变
     CGContextDrawLinearGradient(ctx,
                                  gradient,
                                  CGPointMake(startPoint.x * size.width, startPoint.y * size.height),
                                  CGPointMake(endPoint.x * size.width, endPoint.y * size.height),
                                  kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation);
-    
+
     CGGradientRelease(gradient);
 }
 

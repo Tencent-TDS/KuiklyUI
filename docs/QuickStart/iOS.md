@@ -284,6 +284,15 @@ NS_ASSUME_NONNULL_END
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
+// 指定当前页面获取 safeAreaInsets 的参考窗口
+// 适用场景：当业务存在多 Window、悬浮窗、分屏等复杂场景，且框架默认获取的 safeAreaInsets 不正确时，
+// 业务可以通过重写此方法，返回当前 Kuikly 页面所在的 window，以确保获取正确的安全区域
+- (UIWindow *)viewControllerHostWindow {
+    return self.view.window;
+}
+
+
+
 
 @end
 ```

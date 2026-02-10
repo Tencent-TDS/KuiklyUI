@@ -30,6 +30,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityManager
 import android.widget.FrameLayout
+import androidx.core.view.ViewCompat
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.const.KRViewConst
 import com.tencent.kuikly.core.render.android.context.IKotlinBridgeStatusListener
@@ -350,7 +351,8 @@ class KuiklyRenderView(
                     ACTIVITY_WIDTH to kuiklyRenderContext.toDpF(activitySize.width.toFloat()),
                     ACTIVITY_HEIGHT to kuiklyRenderContext.toDpF(activitySize.height.toFloat()),
                     DEVICE_WIDTH to kuiklyRenderContext.toDpF(deviceSize.width.toFloat()),
-                    DEVICE_HEIGHT to kuiklyRenderContext.toDpF(deviceSize.height.toFloat())
+                    DEVICE_HEIGHT to kuiklyRenderContext.toDpF(deviceSize.height.toFloat()),
+                    SAFE_AREA_INSETS to "${kuiklyRenderContext.toDpF(context.statusBarHeight.toFloat())} 0 ${getNavigationBarHeight(view)} 0"
                 )
             )
             lastSize = sizeF
@@ -421,7 +423,7 @@ class KuiklyRenderView(
             put(APP_VERSION, context.versionName)
             put(PARAMS, params)
             put(NATIVE_BUILD, 8)
-            put(SAFE_AREA_INSETS, "${kuiklyRenderContext.toDpF(context.statusBarHeight.toFloat())} 0 0 0")
+            put(SAFE_AREA_INSETS, "${kuiklyRenderContext.toDpF(context.statusBarHeight.toFloat())} 0 ${getNavigationBarHeight(view)} 0")
             put(ACTIVITY_WIDTH, kuiklyRenderContext.toDpF((contentView?.width ?: 0).toFloat()))
             put(ACTIVITY_HEIGHT, kuiklyRenderContext.toDpF((contentView?.height ?: 0).toFloat()))
             put(DENSITY, Resources.getSystem().displayMetrics.density)
@@ -657,6 +659,18 @@ class KuiklyRenderView(
         private const val STATE_PAUSE = STATE_RESUME + 1
         private const val STATE_DESTROY = STATE_PAUSE + 1
 
+        //WindowInsetsCompat.Type.navigationBars
+        private const val NAVIGATION_BARS: Int = 1 shl 1
+
+        @SuppressLint("WrongConstant")
+        internal fun getNavigationBarHeight(view: View): Float {
+            val insets = ViewCompat.getRootWindowInsets(view) ?: return 0f
+            return if (!insets.isVisible(NAVIGATION_BARS)) {
+                0f
+            } else {
+                toDpF(false, insets.getInsets(NAVIGATION_BARS).bottom.toFloat())
+            }
+        }
     }
 }
 

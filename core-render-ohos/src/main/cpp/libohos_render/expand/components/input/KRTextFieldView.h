@@ -93,6 +93,7 @@ class KRTextFieldView : public IKRRenderViewExport {
     KRRenderCallback input_return_callback_;              // 完成键按下回调
     KRRenderCallback text_length_beyond_limit_callback_;  // 输入超过MaxLength限制
     KRRenderCallback keyboard_height_changed_callback_;   // 键盘高度变化
+    bool auto_hide_keyboard_on_ime_action_ = false;       // 是否自动收起键盘
 
     /**
      * 输入框获焦（弹起键盘）

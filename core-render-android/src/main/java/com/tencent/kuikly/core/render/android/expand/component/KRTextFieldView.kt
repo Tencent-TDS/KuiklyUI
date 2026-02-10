@@ -132,6 +132,12 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     private var lengthLimitType: Int = -1
     private var maxTextLength: Int? = null
 
+    /**
+     * 是否在点击 IME 动作按钮时自动收起键盘
+     * 默认值为 false，即不自动收起，由业务自己控制
+     */
+    private var autoHideKeyboardOnImeAction: Boolean = false
+
     init {
         resetDefaultStyle()
         enableFocusInTouchMode()
@@ -193,6 +199,10 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
             KRTextProps.PROP_KEY_NUMBER_OF_LINES -> setNumberLines(propValue)
             IME_NO_FULLSCREEN -> setImeNoFullscreen(propValue)
             KRTextProps.PROP_KEY_LINE_HEIGHT -> setLineHeight(propValue)
+            AUTO_HIDE_KEYBOARD_ON_IME_ACTION -> {
+                autoHideKeyboardOnImeAction = (propValue as? Int == 1) || (propValue as? Boolean == true)
+                true
+            }
             else -> super.setProp(propKey, propValue)
         }
     }
@@ -629,6 +639,12 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
                 "ime_action" to imeAction,
                 "text" to text.toString()
             ))
+
+            // 根据 autoHideKeyboardOnImeAction 属性决定是否收起键盘
+            // 默认值为 false（不自动收起），只有显式设置为 true 才自动收起
+            if (autoHideKeyboardOnImeAction) {
+                setBlur()
+            }
             true
         }
         return true
@@ -852,5 +868,6 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         private const val LENGTH_LIMIT_TYPE_BYTE = 0
         private const val LENGTH_LIMIT_TYPE_CHARACTER = 1
         private const val LENGTH_LIMIT_TYPE_VISUAL_WIDTH = 2
+        private const val AUTO_HIDE_KEYBOARD_ON_IME_ACTION = "autoHideKeyboardOnImeAction"
     }
 }

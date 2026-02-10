@@ -552,6 +552,8 @@ object TextConst {
     const val SHADOW_METHOD_IS_LINE_BREAK_MARGIN = "isLineBreakMargin"
     const val PLACEHOLDER = "placeholder"
     const val PLACEHOLDER_COLOR = "placeholderColor"
+    // 控制点击 IME 动作按钮时是否自动收起键盘
+    const val AUTO_HIDE_KEYBOARD_ON_IME_ACTION = "autoHideKeyboardOnImeAction"
 }
 
 enum class TextAlign(val value: String) {

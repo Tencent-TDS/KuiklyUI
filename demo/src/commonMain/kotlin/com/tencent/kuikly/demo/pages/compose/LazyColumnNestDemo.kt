@@ -173,8 +173,6 @@ fun ScrollContent(title: String, scrollUp: NestedScrollMode, scrollDown: NestedS
                         .fillMaxWidth()
                         .height(300.dp)
                         .padding(8.dp)
-                        // 嵌套滚动模式时，子列表应该禁止bounce
-                        .bouncesEnable(false)
                         .graphicsLayer {  }
                         .nestedScroll(
                             scrollUp = scrollUp,

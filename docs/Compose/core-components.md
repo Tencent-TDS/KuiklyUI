@@ -148,7 +148,7 @@ TextField(
 )
 ```
 
-**相关 API**：详见下方 [TextField 组件扩展 - 最大长度限制](#最大长度限制modifiermaxlength) 章节。
+**相关 API**：详见下方 [TextField 组件扩展 - 最大长度限制](#最大长度限制-modifier-maxlength) 章节。
 
 #### 6. Modifier.horizontalScroll 和 Modifier.verticalScroll
 

@@ -568,10 +568,12 @@ private fun TextAttr.applyFontFamily(fontFamily: FontFamily?) {
 }
 
 private fun TextAttr.applyShadow(shadow: Shadow?) {
-    if (shadow == null) {
-        // 当shadow为空时，重置阴影设置
+    if (shadow == null || (shadow.offset == Offset.Zero && shadow.blurRadius <= 0) ) {
+        // 当 shadow 为空时， 设置空白 shadow
+        // 当 shadow 的offset和Radius全部为零时，shadow无意义，则创建透明shadow
         textShadow(0f, 0f, 0f, Color.Transparent.toKuiklyColor())
     } else if (shadow.color != Color.Unspecified || shadow.offset != Offset.Zero || shadow.blurRadius > 0) {
+        // shadow color 默认的颜色是 黑色，这在iOS侧会引起颜色黯淡
         textShadow(
             offsetX = shadow.offset.x,
             offsetY = shadow.offset.y,

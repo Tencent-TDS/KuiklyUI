@@ -235,7 +235,7 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
 
     private fun updateDrawableImage(drawable: Drawable?) {
         if (drawable != null && tintColor != null) {
-            val tintDrawable = copyDrawable(drawable)
+            val tintDrawable = drawable.copyDrawable()
             tintDrawable.setTint(tintColor as Int)
             superSetImage(tintDrawable)
         } else if (drawable != null && blurRadius > 0f) {
@@ -605,8 +605,8 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
         /**
          * 拷贝 drawable 副本，避免修改 adapter 缓存中的原始 drawable
          */
-        private fun copyDrawable(drawable: Drawable): Drawable {
-            return drawable.constantState?.newDrawable()?.mutate() ?: drawable
+        private fun Drawable.copyDrawable(): Drawable {
+            return constantState?.newDrawable()?.mutate() ?: this
         }
     }
 }

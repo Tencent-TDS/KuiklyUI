@@ -605,7 +605,7 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
         /**
          * 拷贝 drawable 副本，避免修改 adapter 缓存中的原始 drawable
          */
-        fun copyDrawable(drawable: Drawable): Drawable {
+        private fun copyDrawable(drawable: Drawable): Drawable {
             return drawable.constantState?.newDrawable()?.mutate() ?: drawable
         }
     }

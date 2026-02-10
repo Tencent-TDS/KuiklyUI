@@ -110,7 +110,7 @@ class TextStyle internal constructor(
         textDecoration: TextDecoration? = null,
         shadow: Shadow? = null,
 //        drawStyle: DrawStyle? = null,
-        textAlign: TextAlign = TextAlign.Left,
+        textAlign: TextAlign = TextAlign.Unspecified,
 //        textDirection: TextDirection = TextDirection.Ltr,
         lineHeight: TextUnit = TextUnit.Unspecified,
         textIndent: TextIndent? = null,

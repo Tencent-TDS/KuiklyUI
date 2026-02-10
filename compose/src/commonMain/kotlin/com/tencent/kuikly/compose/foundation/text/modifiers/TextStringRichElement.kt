@@ -26,6 +26,7 @@ import com.tencent.kuikly.compose.ui.text.AnnotatedString
 import com.tencent.kuikly.compose.ui.text.TextLayoutResult
 import com.tencent.kuikly.compose.ui.text.TextStyle
 import com.tencent.kuikly.compose.ui.text.style.TextOverflow
+import com.tencent.kuikly.compose.ui.unit.Density
 
 /**
  * Modifier element for any Text with [AnnotatedString] or [onTextLayout] parameters
@@ -33,15 +34,16 @@ import com.tencent.kuikly.compose.ui.text.style.TextOverflow
  * This is slower than [TextAnnotatedStringElement]
  */
 internal class TextStringRichElement(
-    private val text: AnnotatedString,
+    private val text: String?,
+    private val annotatedText: AnnotatedString?,
     private val style: TextStyle,
+    private val density: Density,
 //    private val fontFamilyResolver: FontFamily.Resolver,
     private val onTextLayout: ((TextLayoutResult) -> Unit)? = null,
     private val overflow: TextOverflow = TextOverflow.Clip,
     private val softWrap: Boolean = true,
     private val maxLines: Int = Int.MAX_VALUE,
     private val minLines: Int = DefaultMinLines,
-    private val color: ColorProducer? = null,
     private val inlineContent: Map<String, InlineTextContent> = EmptyInlineContent,
     private val fontSizeScale: Float = 1.0f,
     private val fontWeightScale: Float = 1.0f
@@ -49,70 +51,104 @@ internal class TextStringRichElement(
 
     override fun create(): TextStringRichNode = TextStringRichNode(
         text,
+        annotatedText,
         style,
+        density,
 //        fontFamilyResolver,
         onTextLayout,
         overflow,
         softWrap,
         maxLines,
         minLines,
-        color,
         inlineContent,
         fontSizeScale,
         fontWeightScale
     )
 
     override fun update(node: TextStringRichNode) {
-        node.doInvalidations(
-            textChanged = node.updateText(
-                text = text
-            ),
-            layoutChanged = node.updateLayoutRelatedArgs(
-                style = style,
-                minLines = minLines,
-                maxLines = maxLines,
-                softWrap = softWrap,
-                inlineContent = inlineContent,
+        val textChanged = node.updateText(
+            text = text,
+            annotatedText = annotatedText
+        )
+        val layoutChanged = node.updateLayoutRelatedArgs(
+            style = style,
+            minLines = minLines,
+            maxLines = maxLines,
+            softWrap = softWrap,
+            inlineContent = inlineContent,
+            fontSizeScale = fontSizeScale,
+            fontWeightScale = fontWeightScale,
+            density = density,
 //                fontFamilyResolver = fontFamilyResolver,
-                overflow = overflow
-            ),
-            callbacksChanged = node.updateCallbacks(
-                onTextLayout = onTextLayout,
-            ),
-            configChanged = node.updateConfiguration(
-                fontSizeScale = fontSizeScale,
-                fontWeightScale = fontWeightScale
-            )
+            overflow = overflow
+        )
+        val callbacksChanged = node.updateCallbacks(
+            onTextLayout = onTextLayout,
+        )
+        node.doInvalidations(
+            textChanged = textChanged,
+            layoutChanged = layoutChanged,
+            callbacksChanged = callbacksChanged,
         )
     }
 
     override fun equals(other: Any?): Boolean {
-        if (this === other) return true
+        if (this === other) {
+            return true
+        }
 
-        if (other !is TextStringRichElement) return false
+        if (other !is TextStringRichElement) {
+            return false
+        }
 
-        // these three are most likely to actually change
-        if (color != other.color) return false
-        if (text != other.text) return false /* expensive to check, do it after color */
-        if (style != other.style) return false
+        // these are most likely to actually change
+        if (text != other.text) {
+            return false /* expensive to check, do it after color */
+        }
+        if (annotatedText != other.annotatedText) {
+            return false
+        }
+        if (style != other.style) {
+            return false
+        }
 //        if (placeholders != other.placeholders) return false
 
         // these are equally unlikely to change
 //        if (fontFamilyResolver != other.fontFamilyResolver) return false
-        if (inlineContent != other.inlineContent) return false
-        if (onTextLayout != other.onTextLayout) return false
-        if (overflow != other.overflow) return false
-        if (softWrap != other.softWrap) return false
-        if (maxLines != other.maxLines) return false
-        if (minLines != other.minLines) return false
-        if (fontSizeScale != other.fontSizeScale) return false
-        if (fontWeightScale != other.fontWeightScale) return false
+        if (inlineContent != other.inlineContent) {
+            return false
+        }
+        if (onTextLayout != other.onTextLayout) {
+            return false
+        }
+        if (overflow != other.overflow) {
+            return false
+        }
+        if (softWrap != other.softWrap) {
+            return false
+        }
+        if (maxLines != other.maxLines) {
+            return false
+        }
+        if (minLines != other.minLines) {
+            return false
+        }
+        if (fontSizeScale != other.fontSizeScale) {
+            return false
+        }
+        if (fontWeightScale != other.fontWeightScale) {
+            return false
+        }
+        if (density != other.density) {
+            return false
+        }
 
         return true
     }
 
     override fun hashCode(): Int {
-        var result = text.hashCode()
+        var result = (text?.hashCode() ?: 0)
+        result = 31 * result + (annotatedText?.hashCode() ?: 0)
         result = 31 * result + style.hashCode()
 //        result = 31 * result + fontFamilyResolver.hashCode()
         result = 31 * result + (onTextLayout?.hashCode() ?: 0)
@@ -122,9 +158,9 @@ internal class TextStringRichElement(
         result = 31 * result + minLines
         result = 31 * result + inlineContent.hashCode()
 //        result = 31 * result + (placeholders?.hashCode() ?: 0)
-        result = 31 * result + (color?.hashCode() ?: 0)
         result = 31 * result + fontSizeScale.hashCode()
         result = 31 * result + fontWeightScale.hashCode()
+        result = 31 * result + density.hashCode()
         return result
     }
 

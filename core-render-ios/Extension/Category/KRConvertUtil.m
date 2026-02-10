@@ -873,6 +873,7 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
 }
 
 
+#if TARGET_OS_OSX
 /**
  * 将 NSBezierPath 转换为 CGPath
  * 兼容 macOS 14.0 以下版本
@@ -928,7 +929,6 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
 }
 
 
-#if TARGET_OS_OSX
 /// 在 CGContext 中绘制线性渐变
 /// @param ctx 目标绘制上下文
 /// @param gradientStr 渐变字符串（如 "linear-gradient(180,#ffffff00 0,#ffffffff 1)"）

@@ -98,10 +98,11 @@ typedef NS_ENUM(NSInteger, KRTextDecorationLineType) {
 + (BOOL)hr_isJsonArray:(id)value;
 + (id)nativeObjectToKotlinObject:(id)ocObject;
 + (UIBezierPath *)hr_parseClipPath:(NSString *)pathData density:(CGFloat)density;
-+ (CGPathRef)hr_convertNSBezierPathToCGPath:(NSBezierPath *)bezierPath;
-
 
 #if TARGET_OS_OSX
+
+/// 手动转换 BezierPath 为CGPath 作为  macOS 14.0 之下ClipPath的实现
++ (CGPathRef)hr_convertNSBezierPathToCGPath:(NSBezierPath *)bezierPath;
 
 /// 在 CGContext 中绘制线性渐变
 /// @param ctx 目标绘制上下文

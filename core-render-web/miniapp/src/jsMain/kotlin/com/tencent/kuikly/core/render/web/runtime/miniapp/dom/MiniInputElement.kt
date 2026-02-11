@@ -50,6 +50,11 @@ class MiniInputElement(
                 "email" -> "text"     // Mini program doesn't have email type, use text
                 "text" -> "text"      // Default text keyboard
                 PASSWORD -> "text"    // Password uses text type with password attribute
+                // New extended types for mini program
+                "idcard" -> "idcard"
+                "digit" -> "digit"
+                "safe-password" -> "safe-password"
+                "nickname" -> "nickname"
                 else -> "text"
             }
             this.setAttribute("type", miniType)
@@ -102,6 +107,9 @@ class MiniInputElement(
                 }
                 callback(event)
             }
+        } else if (type == "change") {
+            // Mini program's change event (triggered on blur or confirm)
+            callback
         } else {
             callback
         }

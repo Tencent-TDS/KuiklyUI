@@ -287,6 +287,76 @@ class InputAttr : Attr() {
         return this
     }
 
+    /**
+     * 键盘弹起时，自动滚动页面，使输入框可见
+     * 小程序属性，其他平台忽略
+     * @param adjust 是否自动调整，默认 true
+     */
+    fun adjustPosition(adjust: Boolean = true): InputAttr {
+        "adjustPosition" with adjust.toInt()
+        return this
+    }
+
+    /**
+     * 光标与键盘的距离，单位 px
+     * 小程序属性，其他平台忽略
+     * @param spacing 距离值，默认 0
+     */
+    fun cursorSpacing(spacing: Int): InputAttr {
+        "cursorSpacing" with spacing
+        return this
+    }
+
+    /**
+     * 点击键盘确认键时保持键盘不收起
+     * 小程序属性，其他平台忽略
+     * @param hold 是否保持键盘，默认 false
+     */
+    fun confirmHold(hold: Boolean = false): InputAttr {
+        "confirmHold" with hold.toInt()
+        return this
+    }
+
+    /**
+     * 点击页面时保持键盘不收起
+     * 小程序属性，其他平台忽略
+     * @param hold 是否保持键盘，默认 false
+     */
+    fun holdKeyboard(hold: Boolean = false): InputAttr {
+        "holdKeyboard" with hold.toInt()
+        return this
+    }
+
+    /**
+     * 设置 placeholder 的完整样式
+     * 小程序属性，其他平台忽略
+     * @param style 样式字符串，如 "color: red; font-size: 14px"
+     */
+    fun placeholderStyle(style: String): InputAttr {
+        "placeholderStyle" with style
+        return this
+    }
+
+    fun keyboardTypeIdcard(): InputAttr {
+        KEYBOARD_TYPE with "idcard"
+        return this
+    }
+
+    fun keyboardTypeDigit(): InputAttr {
+        KEYBOARD_TYPE with "digit"
+        return this
+    }
+
+    fun keyboardTypeSafePassword(): InputAttr {
+        KEYBOARD_TYPE with "safe-password"
+        return this
+    }
+
+    fun keyboardTypeNickname(): InputAttr {
+        KEYBOARD_TYPE with "nickname"
+        return this
+    }
+
     companion object {
         const val RETURN_KEY_TYPE = "returnKeyType"
         const val KEYBOARD_TYPE = "keyboardType"
@@ -396,6 +466,20 @@ class InputEvent : Event() {
         register(TEXT_LENGTH_BEYOND_LIMIT, handler)
     }
 
+    /**
+     * 当输入框值改变时调用（失去焦点或按下确认键时触发）
+     * 不同于 textDidChange，这个事件只在完成输入时触发
+     * 小程序属性，其他平台忽略
+     * @param handler 值改变事件的回调函数
+     */
+    fun inputChange(handler: InputEventHandlerFn) {
+        register(INPUT_CHANGE) {
+            it as JSONObject
+            val value = it.optString("value")
+            handler(InputParams(value))
+        }
+    }
+
     companion object {
         const val TEXT_DID_CHANGE = "textDidChange"
         const val INPUT_FOCUS = "inputFocus"
@@ -403,6 +487,7 @@ class InputEvent : Event() {
         const val KEYBOARD_HEIGHT_CHANGE = "keyboardHeightChange"
         const val TEXT_LENGTH_BEYOND_LIMIT = "textLengthBeyondLimit"
         const val INPUT_RETURN = "inputReturn"
+        const val INPUT_CHANGE = "change"
     }
 }
 

@@ -82,6 +82,9 @@ class MiniTextAreaElement(
                 }
                 callback(event)
             }
+        } else if (type == "linechange") {
+            // Mini program's linechange event (triggered when line count changes)
+            callback
         } else {
             callback
         }

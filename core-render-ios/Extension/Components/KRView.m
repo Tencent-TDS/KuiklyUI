@@ -174,28 +174,31 @@
         _hitTesting = YES;
     }
     
-    CALayer *presentationLayer = self.layer.presentationLayer;      // 获取父view 渲染视图
-    CALayer *modelLayer = self.layer.modelLayer;                    // 获取父view model视图
-    BOOL hasAnimation = !CGRectEqualToRect(presentationLayer.frame, modelLayer.frame);
-    if (hasAnimation) {
-        // 1.有动画：检查点击是否在动画的当前位置
-        if (self.superview) {
-            CGPoint pointInSuperView = [self convertPoint:point toView:self.superview];     // 找到point在父视图中的位置
-            // 点击位置位于此动画中，返回当前视图
-            if (CGRectContainsPoint(presentationLayer.frame, pointInSuperView)) {
-                _hitTesting = NO;
-                return self;
-            }
+    // 检查触摸点是否命中了正在执行动画的视图（presentationLayer 位置）
+    BOOL hitAnimating = NO;
+    if (self.superview) {
+        CALayer *presentationLayer = self.layer.presentationLayer;
+        CALayer *modelLayer = self.layer.modelLayer;
+        if (!CGRectEqualToRect(presentationLayer.frame, modelLayer.frame)) {
+            CGPoint pointInSuper = [self convertPoint:point toView:self.superview];
+            hitAnimating = CGRectContainsPoint(presentationLayer.frame, pointInSuper);
         }
     }
-    // 2. 没有动画：执行原有的穿透逻辑
+    
     UIView *hitView = [super hitTest:point withEvent:event];
     _hitTesting = NO;
-    if (hitView == self) {
+    
+    // 子视图命中，优先返回
+    if (hitView && hitView != self) {
+        return hitView;
+    }
+    // 自身命中（正常 hitTest 或动画位置补偿），统一走穿透判断
+    if (hitView == self || hitAnimating) {
         // 对齐安卓事件机制，无手势事件监听则将手势穿透
         if (!(self.gestureRecognizers.count > 0 || _css_touchUp || _css_touchMove || _css_touchDown)) {
             return nil;
         }
+        return self;
     }
     return hitView;
 }

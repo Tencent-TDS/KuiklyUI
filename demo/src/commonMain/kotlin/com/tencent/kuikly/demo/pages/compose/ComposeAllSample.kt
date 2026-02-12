@@ -139,7 +139,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("BlockingGraphicsLayer", "BlockingGraphicsLayer示例", "graphicslayer2"),
             DemoItem("GraphicsLayerSettings", "GraphicsLayerSettings示例", "graphicslayer3"),
             DemoItem("Shadow示例", "Shadow示例", "shadowdemo"),
-            DemoItem("Brush", "Brush示例", "BrushDemo"),
+            DemoItem("Brush", "Brush示例（渐变色案例）", "BrushDemo"),
             // Coroutines
             DemoItem("Coroutines", "协程示例", "coroutines"),
             // 在这里添加更多的demo

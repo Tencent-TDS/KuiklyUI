@@ -18,22 +18,27 @@ package com.tencent.kuikly.android.demo.module
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
 import android.util.Log
 import android.widget.Toast
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
-import com.tencent.kuikly.android.demo.KRApplication
-import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderBaseModule
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
+import com.tencent.kuikly.android.demo.KRApplication
+import com.tencent.kuikly.core.log.KLog
+import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStreamReader
+import java.io.OutputStream
+import java.lang.Exception
 import java.math.BigInteger
 import java.security.MessageDigest
 import java.text.SimpleDateFormat
@@ -97,6 +102,9 @@ class KRBridgeModule : KuiklyRenderBaseModule() {
             }
             "readAssetFile" -> {
                 readAssetPath(params, callback)
+            }
+            "readAssetVideo" -> {
+                readAssetVideo(params, callback)
             }
             else -> callback?.invoke(mapOf(
                 "code" to -1,
@@ -200,28 +208,78 @@ class KRBridgeModule : KuiklyRenderBaseModule() {
     private fun getLocalImagePath(params: String?, callback: KuiklyRenderCallback?) {
         val paramJSONObject = JSONObject(params ?: "{}")
         val imageUrl = paramJSONObject.optString("imageUrl")
-        Glide.with(context!!)
-            .downloadOnly()
-            .load(imageUrl)
-            .into(object : CustomTarget<File>() {
-                override fun onResourceReady(
-                    resource: File,
-                    transition: Transition<in File>?
-                ) {
-                    val localFilePath = resource.absolutePath
+        val filename = getMD5Hash(imageUrl)
+        val cacheDir = File(context?.filesDir, "kuikly-demo")
+        val imageFile = File(cacheDir, filename)
+        if (imageFile.exists()) {
+            callback?.invoke(mapOf(
+                "localPath" to imageFile.absolutePath
+            ))
+            Log.d(MODULE_NAME, "getLocalImagePath, local is exist: ${imageFile.absolutePath}")
+            return
+        }
+        if (!cacheDir.exists()) {
+            cacheDir.mkdirs()
+        }
+        Glide.with(context!!).asBitmap().load(imageUrl).into(object : CustomTarget<Bitmap>() {
+            override fun onResourceReady(bitmap: Bitmap, transition: Transition<in Bitmap>?) {
+                var outputStream: OutputStream? = null
+                try {
+                    imageFile.createNewFile()
+                    outputStream = FileOutputStream(imageFile)
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
+                    outputStream.flush()
                     callback?.invoke(mapOf(
-                        "localPath" to localFilePath
+                        "localPath" to imageFile.absolutePath
                     ))
+                    Log.d(MODULE_NAME, "getLocalImagePath, localPath: ${imageFile.absolutePath}")
+                } catch (e: IOException) {
+                    e.printStackTrace()
+                } finally {
+                    try {
+                        outputStream?.close()
+                    } catch (e: IOException) {
+                        e.printStackTrace()
+                    }
                 }
+            }
 
-                override fun onLoadCleared(placeholder: Drawable?) {
-                    callback?.invoke(mapOf<String, String>())
-                }
+            override fun onLoadCleared(placeholder: Drawable?) {
+                // 资源被清理时的回调
+            }
 
-                override fun onLoadFailed(placeholder: Drawable?) {
-                    callback?.invoke(mapOf<String, String>())
+            override fun onLoadFailed(errorDrawable: Drawable?) {
+                super.onLoadFailed(errorDrawable)
+                Log.e(MODULE_NAME, "getLocalImagePath, load image failed")
+            }
+        })
+    }
+
+    private fun readAssetVideo(params: String?, callback: KuiklyRenderCallback?) {
+        Thread{
+            try {
+                val paramJSONObject = JSONObject(params ?: "{}")
+                val assetPath = paramJSONObject.optString("assetPath")
+                val inputStream = context?.assets?.open(assetPath)
+                val reader = BufferedReader(InputStreamReader(inputStream))
+                val stringBuilder = StringBuilder()
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    stringBuilder.append(line)
                 }
-            })
+                reader.close()
+                val content = stringBuilder.toString()
+
+                callback?.invoke(mapOf(
+                    "result" to content
+                ))
+            } catch (e: IOException) {
+                e.printStackTrace()
+                callback?.invoke(mapOf(
+                    "error" to e.message
+                ))
+            }
+        }.start()
     }
 
     private fun readAssetPath(params: String?, callback: KuiklyRenderCallback?) {

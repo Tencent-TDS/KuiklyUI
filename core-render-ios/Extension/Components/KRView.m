@@ -179,9 +179,10 @@
     if (self.superview) {
         CALayer *presentationLayer = self.layer.presentationLayer;
         CALayer *modelLayer = self.layer.modelLayer;
-        if (!CGRectEqualToRect(presentationLayer.frame, modelLayer.frame)) {
-            CGPoint pointInSuper = [self convertPoint:point toView:self.superview];
-            hitAnimating = CGRectContainsPoint(presentationLayer.frame, pointInSuper);
+        if (presentationLayer && !CGRectEqualToRect(presentationLayer.frame, modelLayer.frame)) {
+            // 将触摸点从 modelLayer 坐标系转换到 presentationLayer 坐标系，再进行命中测试
+            CGPoint pointInPresentation = [presentationLayer convertPoint:point fromLayer:self.layer];
+            hitAnimating = [presentationLayer containsPoint:pointInPresentation];
         }
     }
     

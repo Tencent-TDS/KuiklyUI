@@ -161,6 +161,8 @@ static napi_value ArkTSOnSendEvent(napi_env env, napi_callback_info info) {
     return 0;
 }
 static napi_value CreateNativeRoot(napi_env env, napi_callback_info info) {
+    // The API OH_ArkUI_NodeContent_RegisterCallback depends on it
+    auto nodeApi = kuikly::util::GetNodeApi();
     KRRenderManager::GetInstance().CreateRenderViewIfNeeded(env, info);
     return nullptr;
 }

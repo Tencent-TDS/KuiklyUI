@@ -19,7 +19,7 @@ class RichTextShadow(pagerId: String, viewRef: Int, viewName: String) : TextShad
     pagerId, viewRef,
     viewName
 ) {
-    private var lastValues : String? = null
+    var lastValues : String? = null
     fun setValuesProp(values: String) {
         if (lastValues == values) {
             return

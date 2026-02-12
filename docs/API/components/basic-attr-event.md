@@ -82,8 +82,7 @@ enum class Direction(value: Int) {
 ```
 
 :::tip 注意
-- **渐变颜色终止位置，在Android平台，只有API >= 29才生效**
-- iOS 端若**同时设置** background 与 backgroundLinearGradient，将**只显示渐变背景**。如需显示纯色背景，需清除backgroundLinearGradient的值。
+**渐变颜色终止位置，在Android平台，只有API >= 29才生效**
 :::
 
 ::: tabs
@@ -697,7 +696,7 @@ internal class OverflowPage : BasePager() {
 
 :::
 
-### clipPath方法<Badge text="安卓2.8.0以上" type="warn"/><Badge text="鸿蒙2.8.0以上" type="warn"/>
+### clipPath方法<Badge text="安卓2.8.0以上" type="warn"/><Badge text="鸿蒙2.8.0以上" type="warn"/><Badge text="iOS 2.16.0 以上" type="warn"/>
 
 设置组件的裁剪路径，可以使用路径绑定的方式裁剪组件的显示区域为任意形状。
 

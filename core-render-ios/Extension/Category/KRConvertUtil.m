@@ -24,7 +24,7 @@
 
 #define hr_tan(deg)   tan(((deg)/360.f) * (2 * M_PI))
 
-
+const NSString *lineargradientPrefix = @"linear-gradient(";
 
 @implementation KRConvertUtil
 
@@ -624,7 +624,7 @@
         UIWindow *keyWindow = [self keyWindow];
         if (keyWindow && keyWindow.rootViewController) {
             [keyWindow.rootViewController presentViewController:alertController animated:YES completion:nil];
-        } 
+        }
 #endif // [macOS]
     });
 }
@@ -749,18 +749,18 @@
     if ([UIApplication isAppExtension]) {
         return nil;
     }
-    
+
     UIWindow *keyWindow = nil;
     // 判断当前应用是否和用户交互过，避免vc初始化时UISceneActivationStateForegroundInactive导致拿到的safeAreaInsets是全零
     UIApplicationState appState = UIApplication.sharedApplication.applicationState;
-    
+
     if (@available(iOS 13.0, *)) {
         // 方式1：优先找用户当前正在交互的 foregroundActive 的 scene 中的 keyWindow
         for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
             BOOL isForegroundActive = (scene.activationState == UISceneActivationStateForegroundActive);
             BOOL isForegroundInactive = (scene.activationState == UISceneActivationStateForegroundInactive);
             BOOL isValidState = isForegroundActive || (appState != UIApplicationStateActive && isForegroundInactive);
-            
+
             if (isValidState && [scene isKindOfClass:[UIWindowScene class]]) {
                 UIWindowScene *windowScene = (UIWindowScene *)scene;
                 keyWindow = [self keyWindowFromWindowScene:windowScene];
@@ -769,7 +769,7 @@
                 }
             }
         }
-        
+
     } else {
         // iOS 13 以下使用旧的 API
         keyWindow = UIApplication.sharedApplication.keyWindow;
@@ -787,16 +787,351 @@
     if (!windowScene) {
         return nil;
     }
-    
+
     // 找 isKeyWindow 的 window
     for (UIWindow *window in windowScene.windows) {
         if (window.isKeyWindow) {
             return window;
         }
     }
-    
+
     return nil;
 }
 #endif
+
+
++ (UIBezierPath *)hr_parseClipPath:(NSString *)pathData density:(CGFloat)density {
+
+    // 1. 参数校验：pathData 为空时直接返回 nil
+    if (!pathData || pathData.length == 0) {
+        return nil;
+    }
+
+    // 2. 创建空的贝塞尔路径对象
+    UIBezierPath *path = [UIBezierPath bezierPath];
+
+    // 3. 将路径字符串按空格分割成数组
+    //    例如 "M 0 40 L 40 0 Z" -> ["M", "0", "40", "L", "40", "0", "Z"]
+    NSArray *values = [pathData componentsSeparatedByString:@" "];
+    NSInteger index = 0;
+    NSInteger commandCount = 0;
+
+    @try {
+        // 4. 遍历解析每个命令
+        while (index < values.count) {
+            NSString *command = values[index];
+
+            if ([command isEqualToString:@"M"]) {
+                // M (MoveTo): 移动画笔到指定点，不绘制任何线条
+                // 格式：M x y
+                // 参数检查：需要 2 个参数
+                if (index + 2 >= values.count) {
+                    break;
+                }
+                CGFloat x = [values[index + 1] floatValue];
+                CGFloat y = [values[index + 2] floatValue];
+                [path moveToPoint:CGPointMake(x, y)];
+                index += 3;
+                commandCount++;
+
+            } else if ([command isEqualToString:@"L"]) {
+                // L (LineTo): 从当前点画直线到指定点
+                // 格式：L x y
+                if (index + 2 >= values.count) break;
+                CGFloat x = [values[index + 1] floatValue];
+                CGFloat y = [values[index + 2] floatValue];
+                [path addLineToPoint:CGPointMake(x, y)];
+                index += 3;
+                commandCount++;
+
+            } else if ([command isEqualToString:@"R"]) {
+                // R (aRc): 画圆弧
+                // 格式：R centerX centerY radius startAngle endAngle counterclockwise
+                // 参数说明：
+                //   - centerX, centerY: 圆心坐标
+                //   - radius: 半径
+                //   - startAngle, endAngle: 起始和结束角度（弧度制）
+                //   - counterclockwise: 是否逆时针绘制（1=逆时针，0=顺时针）
+                if (index + 6 >= values.count) break;
+                CGFloat cx = [values[index + 1] floatValue];
+                CGFloat cy = [values[index + 2] floatValue];
+                CGFloat radius = [values[index + 3] floatValue];
+                CGFloat startAngle = [values[index + 4] floatValue];
+                CGFloat endAngle = [values[index + 5] floatValue];
+                BOOL counterclockwise = [values[index + 6] isEqualToString:@"1"];
+                // iOS 的 clockwise 参数与标准定义相反，所以取反
+                [path addArcWithCenter:CGPointMake(cx, cy)
+                                radius:radius
+                            startAngle:startAngle
+                              endAngle:endAngle
+                             clockwise:!counterclockwise];
+                index += 7;
+                commandCount++;
+
+            } else if ([command isEqualToString:@"Z"]) {
+                // Z (closePath): 闭合路径，从当前点画直线回到起点
+                [path closePath];
+                index += 1;
+                commandCount++;
+
+            } else if ([command isEqualToString:@"Q"]) {
+                // Q (Quadratic): 二次贝塞尔曲线
+                // 格式：Q controlX controlY endX endY
+                // 曲线从当前点开始，经过控制点弯曲，到达终点
+                if (index + 4 >= values.count) break;
+                CGFloat cx = [values[index + 1] floatValue];
+                CGFloat cy = [values[index + 2] floatValue];
+                CGFloat x = [values[index + 3] floatValue];
+                CGFloat y = [values[index + 4] floatValue];
+#if TARGET_OS_OSX
+                // macOS NSBezierPath 没有 addQuadCurveToPoint:controlPoint: 方法
+                // 需要将二次贝塞尔曲线转换为三次贝塞尔曲线
+                // 公式：CP1 = P0 + 2/3 * (CP - P0), CP2 = P + 2/3 * (CP - P)
+                CGPoint currentPoint = path.currentPoint;
+                CGPoint cp1 = CGPointMake(currentPoint.x + 2.0/3.0 * (cx - currentPoint.x),
+                                          currentPoint.y + 2.0/3.0 * (cy - currentPoint.y));
+                CGPoint cp2 = CGPointMake(x + 2.0/3.0 * (cx - x),
+                                          y + 2.0/3.0 * (cy - y));
+                [path curveToPoint:CGPointMake(x, y) controlPoint1:cp1 controlPoint2:cp2];
+#else
+                [path addQuadCurveToPoint:CGPointMake(x, y) controlPoint:CGPointMake(cx, cy)];
+#endif
+                index += 5;
+                commandCount++;
+
+            } else if ([command isEqualToString:@"C"]) {
+                // C (Cubic): 三次贝塞尔曲线
+                // 格式：C control1X control1Y control2X control2Y endX endY
+                // 曲线从当前点开始，经过两个控制点弯曲，到达终点
+                if (index + 6 >= values.count) break;
+                CGFloat cx1 = [values[index + 1] floatValue];
+                CGFloat cy1 = [values[index + 2] floatValue];
+                CGFloat cx2 = [values[index + 3] floatValue];
+                CGFloat cy2 = [values[index + 4] floatValue];
+                CGFloat x = [values[index + 5] floatValue];
+                CGFloat y = [values[index + 6] floatValue];
+#if TARGET_OS_OSX
+                // macOS 使用 curveToPoint:controlPoint1:controlPoint2:
+                [path curveToPoint:CGPointMake(x, y)
+                     controlPoint1:CGPointMake(cx1, cy1)
+                     controlPoint2:CGPointMake(cx2, cy2)];
+#else
+                [path addCurveToPoint:CGPointMake(x, y)
+                        controlPoint1:CGPointMake(cx1, cy1)
+                        controlPoint2:CGPointMake(cx2, cy2)];
+#endif
+                index += 7;
+                commandCount++;
+
+            } else {
+                // 未知命令，跳过
+                index += 1;
+            }
+        }
+    } @catch (NSException *exception) {
+        // 解析异常时返回 nil，避免崩溃
+        return nil;
+    }
+
+    return path;
+}
+
+
+#if TARGET_OS_OSX
+/**
+ * 将 NSBezierPath 转换为 CGPath
+ * 兼容 macOS 14.0 以下版本
+ */
++ (CGPathRef)hr_convertNSBezierPathToCGPath:(NSBezierPath *)bezierPath {
+    if (!bezierPath) {
+        return NULL;
+    }
+
+    // macOS 14.0+ 可以直接使用 CGPath 属性
+    if (@available(macOS 14.0, *)) {
+        CGPathRef cgPath = [bezierPath CGPath];
+        if (cgPath) {
+            CGPathRetain(cgPath); // 调用者需要 release
+        }
+        return cgPath;
+    }
+
+    // macOS 14.0 以下：手动转换
+    CGMutablePathRef cgPath = CGPathCreateMutable();
+    NSInteger elementCount = [bezierPath elementCount];
+
+    for (NSInteger i = 0; i < elementCount; i++) {
+        NSPoint points[3];
+        NSBezierPathElement element = [bezierPath elementAtIndex:i associatedPoints:points];
+
+        switch (element) {
+            case NSBezierPathElementMoveTo:
+                CGPathMoveToPoint(cgPath, NULL, points[0].x, points[0].y);
+                break;
+
+            case NSBezierPathElementLineTo:
+                CGPathAddLineToPoint(cgPath, NULL, points[0].x, points[0].y);
+                break;
+
+            case NSBezierPathElementCurveTo:
+                CGPathAddCurveToPoint(cgPath, NULL,
+                                      points[0].x, points[0].y,  // control point 1
+                                      points[1].x, points[1].y,  // control point 2
+                                      points[2].x, points[2].y); // end point
+                break;
+
+            case NSBezierPathElementClosePath:
+                CGPathCloseSubpath(cgPath);
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    return cgPath;
+}
+
+
+/// 在 CGContext 中绘制线性渐变
+/// @param ctx 目标绘制上下文
+/// @param gradientStr 渐变字符串（如 "linear-gradient(180,#ffffff00 0,#ffffffff 1)"）
+/// @param size 绘制区域大小（point 单位）
++ (void)hr_calculateGradientStartPoint:(CGPoint *)startPoint
+                              endPoint:(CGPoint *)endPoint
+                             direction:(CSSGradientDirection)direction
+                                  size:(CGSize)size {
+    if (size.width == 0 || size.height == 0) {
+        *startPoint = CGPointMake(0.5, 1);
+        *endPoint = CGPointMake(0.5, 0);
+        return;
+    }
+
+    CGFloat deg = 0;
+    CGFloat tanDeg = (atan((size.width / size.height)) / (M_PI * 2)) * 360;
+
+    switch (direction) {
+        case CSSGradientDirectionToTop:
+            deg = 0;
+            break;
+        case CSSGradientDirectionToBottom:
+            deg = 180;
+            break;
+        case CSSGradientDirectionToLeft:
+            deg = 270;
+            break;
+        case CSSGradientDirectionToRight:
+            deg = 90;
+            break;
+        case CSSGradientDirectionToTopRight:
+            deg = tanDeg;
+            break;
+        case CSSGradientDirectionToTopLeft:
+            deg = (360 - tanDeg);
+            break;
+        case CSSGradientDirectionToBottomLeft:
+            deg = (180 + tanDeg);
+            break;
+        case CSSGradientDirectionToBottomRight:
+            deg = (180 - tanDeg);
+            break;
+        default:
+            deg = 180;
+            break;
+    }
+
+    CGFloat radians = deg * M_PI / 180.0;
+    CGFloat centerX = 0.5;
+    CGFloat centerY = 0.5;
+    CGFloat dx = sin(radians);
+    CGFloat dy = -cos(radians);
+    CGFloat diagonalFactor = sqrt(2.0) / 2.0;
+
+    *startPoint = CGPointMake(centerX - dx * diagonalFactor, centerY - dy * diagonalFactor);
+    *endPoint = CGPointMake(centerX + dx * diagonalFactor, centerY + dy * diagonalFactor);
+}
+
+/// 计算渐变的起点和终点（归一化坐标 0-1）
+/// @param startPoint 输出参数，渐变起点
+/// @param endPoint 输出参数，渐变终点
+/// @param direction 渐变方向
+/// @param size 绘制区域大小
++ (void)hr_drawLinearGradientInContext:(CGContextRef)ctx
+                       withGradientStr:(NSString *)gradientStr
+                                  size:(CGSize)size {
+    // 这里暂时不考虑合并UIVIew+CSS中解析渐变色的方法p_tryToParseWithLinearGradient，原因在于p_tryToParseWithLinearGradient 内部调用UIView+CSS 的css_color方法，会出现循环依赖问题。如果调整css_color设置在KRConvertUtil中，会修改非常的多的地方，成本太大。
+    // 1. 解析渐变字符串
+    NSString *lineargradientPrefix = @"linear-gradient(";
+    if (![gradientStr hasPrefix:lineargradientPrefix]) {
+        return;
+    }
+
+    NSString *content = [gradientStr substringWithRange:NSMakeRange(lineargradientPrefix.length,
+                                                                    gradientStr.length - lineargradientPrefix.length - 1)];
+    NSArray<NSString *> *splits = [content componentsSeparatedByString:@","];
+    if (splits.count < 2) {
+        return;
+    }
+
+    CSSGradientDirection direction = [splits.firstObject intValue];
+
+    // 2. 解析颜色和位置
+    NSMutableArray *colors = [NSMutableArray array];
+    NSMutableArray *locations = [NSMutableArray array];
+
+    for (NSInteger i = 1; i < splits.count; i++) {
+        NSString *colorStopStr = splits[i];
+        NSArray<NSString *> *colorAndStop = [colorStopStr componentsSeparatedByString:@" "];
+        if (colorAndStop.count >= 2) {
+            UIColor *color = [UIView css_color:colorAndStop.firstObject];
+            if (color) {
+                [colors addObject:(__bridge id)color.CGColor];
+                [locations addObject:@([colorAndStop.lastObject floatValue])];
+            }
+        }
+    }
+
+    if (colors.count == 0) {
+        return;
+    }
+
+    // 3. 计算渐变起点和终点
+    CGPoint startPoint = CGPointZero;
+    CGPoint endPoint = CGPointZero;
+    [self hr_calculateGradientStartPoint:&startPoint
+                                endPoint:&endPoint
+                               direction:direction
+                                    size:size];
+
+    // 4. 创建 CGGradient
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    CGFloat *locationValues = malloc(sizeof(CGFloat) * locations.count);
+    for (NSInteger i = 0; i < locations.count; i++) {
+        locationValues[i] = [locations[i] floatValue];
+    }
+
+    CGGradientRef gradient = CGGradientCreateWithColors(colorSpace,
+                                                         (__bridge CFArrayRef)colors,
+                                                         locationValues);
+    free(locationValues);
+    CGColorSpaceRelease(colorSpace);
+
+    if (!gradient) {
+        return;
+    }
+
+    // 5. 绘制渐变
+    CGContextDrawLinearGradient(ctx,
+                                 gradient,
+                                 CGPointMake(startPoint.x * size.width, startPoint.y * size.height),
+                                 CGPointMake(endPoint.x * size.width, endPoint.y * size.height),
+                                 kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation);
+
+    CGGradientRelease(gradient);
+}
+
+#endif
+
+
 
 @end

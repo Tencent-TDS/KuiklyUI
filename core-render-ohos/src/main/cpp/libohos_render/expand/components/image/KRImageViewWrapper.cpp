@@ -24,6 +24,7 @@ void KRImageViewWrapper::DidInit() {
     InitImageView(place_holder_image_view_);
     image_view_ = std::make_shared<KRImageView>();
     InitImageView(image_view_);
+    SetupImageLoadCallback();
 }
 
 void KRImageViewWrapper::InitImageView(std::shared_ptr<KRImageView> image_view) {
@@ -50,6 +51,7 @@ void KRImageViewWrapper::DidMoveToParentView() {
 
 void KRImageViewWrapper::OnDestroy() {
     IKRRenderViewExport::OnDestroy();
+    image_view_->ClearImageDidLoadCallback();
     place_holder_image_view_->ToDestroy();
     image_view_->ToDestroy();
 }
@@ -83,4 +85,23 @@ void KRImageViewWrapper::SetRenderViewFrame(const KRRect &frame) {
     IKRRenderViewExport::SetRenderViewFrame(frame);
     kuikly::util::UpdateNodeFrame(image_view_->GetNode(), KRRect(0, 0, frame.width, frame.height));
     kuikly::util::UpdateNodeFrame(place_holder_image_view_->GetNode(), KRRect(0, 0, frame.width, frame.height));
+}
+
+void KRImageViewWrapper::SetupImageLoadCallback() {
+    if (image_view_) {
+        // 将基类 shared_ptr 转换为派生类 weak_ptr 避免 this 悬空
+        std::weak_ptr<KRImageViewWrapper> weak_this = std::static_pointer_cast<KRImageViewWrapper>(shared_from_this());
+        image_view_->SetImageDidLoadCallback([weak_this]() {
+            // 图片加载完成执行隐藏placeHolderView
+            if (auto strong_this = weak_this.lock()) {
+                if (strong_this) {
+                    return;
+                }
+                if (strong_this->place_holder_image_view_ && strong_this->place_holder_image_view_->GetNode()) {
+                    kuikly::util::UpdateNodeVisibility(strong_this->place_holder_image_view_->GetNode(),
+                                                       ARKUI_VISIBILITY_HIDDEN);
+                }
+            }
+        });
+    }
 }

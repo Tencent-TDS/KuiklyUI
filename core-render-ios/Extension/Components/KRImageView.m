@@ -130,6 +130,9 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
     self.errorCode = 0;
     self.imageLoadingCount = 0;
     self.css_imageParams = nil;
+    
+    // 置空旧的图片加载成功callback
+    [self clearImageDidLoadCallback];
 }
 
 #pragma mark - setter
@@ -358,6 +361,10 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
     [super setImage:image];
     [self p_syncMaskLinearGradientIfNeed];
     if (image) {
+        // 新增逻辑：src 对应ImageView加载时隐藏 placeHolder ImageView
+        if (self.imageDidLoadCallback) {
+            self.imageDidLoadCallback();
+        }
         [self p_fireLoadSuccessEventWithImage:image];
         [self p_fireLoadResolutionEventWithImage:image];
     }
@@ -599,9 +606,15 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
     }
 }
 
+- (void)clearImageDidLoadCallback {
+    if (self.imageDidLoadCallback) {
+        self.imageDidLoadCallback = nil;  // Block 被释放
+    }
+}
+
 
 - (void)dealloc {
-    
+    [self clearImageDidLoadCallback];
 }
 
 
@@ -621,6 +634,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 @implementation KRWrapperImageView {
     KRImageView *_placeholderView;
     KRImageView *_imageView;
+//    BOOL _observingImage;  // 标记是否已添加监听
 }
 
 #pragma mark - init
@@ -632,6 +646,13 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
         _imageView = [[KRImageView alloc] initWithFrame:frame];
         [self addSubview:_imageView];
     }
+    
+    // 添加KVO监听
+//    [_imageView addObserver:self
+//                 forKeyPath:@"image"
+//                    options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionInitial
+//                    context:nil];
+//    _observingImage = YES;
     return self;
 }
 
@@ -676,20 +697,35 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
     if (_css_placeholder != css_placeholder) {
         _css_placeholder = css_placeholder;
         [_placeholderView removeFromSuperview];
+        
         if (_css_placeholder.length) {
             _placeholderView = [[KRImageView alloc] initWithFrame:self.bounds];
             _placeholderView.contentMode = _imageView.contentMode;
             _placeholderView.hr_rootView = _imageView.hr_rootView;
             _placeholderView.css_src = css_placeholder;
+            
+        
+            // 注册监听ImageView的加载成功callback
+            __weak __typeof(self) weakself = self;
+            [_imageView setImageDidLoadCallback:^{
+                __strong __typeof(weakself) strongSelf = weakself;
+                if (strongSelf) {
+                    strongSelf->_placeholderView.hidden = YES;
+                }
+            }];
+            
             [self insertSubview:_placeholderView atIndex:0];
         } else {
             _placeholderView = nil;
+            // 清除所注册的src imageView load callback
+            [_imageView clearImageDidLoadCallback];
         }
     }
 }
 
+
+
 - (void)dealloc {
-    
 }
 
 @end

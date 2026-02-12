@@ -29,6 +29,7 @@ class KRImageView : public IKRRenderViewExport {
     KRImageView(KRImageView &&) = delete;
     KRImageView &operator=(const KRImageView &) = delete;
     KRImageView &operator=(KRImageView &&) = delete;
+    using ImageDidLoadCallback = std::function<void()>;     // 声明callback
 
     ArkUI_NodeHandle CreateNode() override;
     void DidInit() override;
@@ -38,6 +39,10 @@ class KRImageView : public IKRRenderViewExport {
     bool ResetProp(const std::string &prop_key) override;
     void OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEventType &event_type) override;
     void OnDestroy() override;
+    void SetImageDidLoadCallback(const ImageDidLoadCallback &callback){
+        image_did_load_callback = callback;
+    }
+    void ClearImageDidLoadCallback();  // 新增
 
  private:
     bool SetImageSrc(const KRAnyValue &value);
@@ -74,6 +79,7 @@ class KRImageView : public IKRRenderViewExport {
     bool is_dot_nine_image_ = false;
     ArkUI_NodeHandle mask_linear_gradient_node_ = nullptr;
     KRAnyValue image_params_ = nullptr;
+    ImageDidLoadCallback image_did_load_callback = nullptr;     // 新增 callback 加载成功待触发回调
     
     static void AdapterSetImageCallback(const void* context,
                                    const char *src,

@@ -115,6 +115,11 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
      */
     private var loadFailureCallback: KuiklyRenderCallback? = null
 
+    /**
+     * 图片加载完成回调，用于在存在placeHolderview时，基于此回调隐藏placeHolderView
+     */
+    var imageDidLoadCallback: (() -> Unit)? = null
+
     /*
      * 源图片
      */
@@ -261,6 +266,10 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
         super.setImageDrawable(drawable)
         if (drawable is Animatable) {
             drawable.start()
+        }
+        // 图片设置成功后，立即触发同步回调,在loadSuccess回调前优先隐藏掉placeHolderView
+        if (drawable != null && imageDidLoadCallback != null){
+            imageDidLoadCallback?.invoke()
         }
         fireLoadSuccessCallback(drawable)
         fireLoadResolutionCallback(drawable)
@@ -672,6 +681,13 @@ class KRWrapperImageView(context: Context) : KRView(context) {
                     setProp(KRImageView.PROP_SRC, placeholder)
                     this@KRWrapperImageView.addView(this, 0)
                 }
+                if (imageView?.imageDidLoadCallback == null) {
+                    // 注册图片加载callback
+                    imageView.imageDidLoadCallback =  {
+                        // 主图片加载完成，隐藏 placeholder（同步执行）
+                        placeholderView?.visibility = INVISIBLE
+                    }
+                }
             } else {
                 removePlaceholder()
             }
@@ -682,6 +698,7 @@ class KRWrapperImageView(context: Context) : KRView(context) {
         placeholderView?.removeFromParent()
         placeholderView = null
         placeholder = ""
+        imageView?.imageDidLoadCallback = null  // 置空callback
     }
 
     companion object {

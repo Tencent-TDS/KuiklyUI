@@ -8,6 +8,7 @@ import com.tencent.kuikly.core.render.web.collection.array.isEmpty
 import com.tencent.kuikly.core.render.web.collection.array.remove
 import com.tencent.kuikly.core.render.web.processor.IEvent
 import com.tencent.kuikly.core.render.web.processor.IEventProcessor
+import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
 import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.TouchEvent
@@ -394,13 +395,17 @@ class TouchEventHandlers {
             })
 
             // Prevent text selection
-            element.addEventListener("selectstart", {
-                it.preventDefault();
-            },)
+            if (KuiklyProcessor.preventDefaultDragAndSelect) {
+                element.addEventListener("selectstart", {
+                    it.preventDefault();
+                })
+            }
             // Prevent image drag
-            element.addEventListener("dragstart", {
-                it.preventDefault();
-            })
+            if (KuiklyProcessor.preventDefaultDragAndSelect) {
+                element.addEventListener("dragstart", {
+                    it.preventDefault();
+                })
+            }
         }
 
          fun handleMouseMove(event: MouseEvent) {

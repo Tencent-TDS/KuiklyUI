@@ -153,12 +153,13 @@ override fun willInit() {
 ```
 
 #### pageDidAppear()
-页面可见时回调（类似 Android 的 `onResume` 或 iOS 的 `viewDidAppear`）。
+页面可见时回调（类似 Android 的 `onResume` 或 iOS、鸿蒙 的 `viewDidAppear`）。
 
 ```kotlin
 override fun pageDidAppear() {
     super.pageDidAppear()
     // 页面可见时的逻辑，如开始动画、恢复播放等
+    // 应用前后台切换时也会触发此回调（iOS 监听 `UIApplicationDidBecomeActiveNotification`、Android 可见 `KuiklyRenderActivity` 的 `onResume()`、鸿蒙可见 `KRNativeRenderController.ets` 的 `onPageShow()`）。
 }
 ```
 
@@ -169,8 +170,13 @@ override fun pageDidAppear() {
 override fun pageDidDisappear() {
     super.pageDidDisappear()
     // 页面不可见时的逻辑，如暂停动画、暂停播放等
+    // 应用前后台切换时也会触发此回调（iOS 监听 `UIApplicationWillResignActiveNotification`、Android 可见 `KuiklyRenderActivity` 的 `onPause()`、鸿蒙可见 `KRNativeRenderController.ets` 的 `onPageHide()`）。
 }
 ```
+
+::: 注意
+pageDidAppear() 以及 pageDidDisappear() 仅可由 Native 侧通过 sendEvent 触发，跨端侧无法主动调用。
+:::
 
 #### pageWillDestroy()
 页面将要销毁时回调，可用于清理资源。

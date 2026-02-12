@@ -1,0 +1,129 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+plugins {
+    kotlin("multiplatform")
+    kotlin("native.cocoapods")
+    kotlin("plugin.compose")
+    id("com.android.library")
+    id("org.jetbrains.compose")
+    id("maven-publish")
+    signing
+}
+
+kotlin {
+    androidTarget {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_1_8)
+            jvmDefault.set(JvmDefaultMode.NO_COMPATIBILITY)
+        }
+        publishLibraryVariantsGroupedByFlavor = true
+        publishLibraryVariants("release")
+    }
+
+    iosX64()
+    iosArm64()
+    iosSimulatorArm64()
+    macosX64()
+    macosArm64()
+
+    js(IR) {
+        browser()
+    }
+
+    cocoapods {
+        summary = "Some description for the Shared Module"
+        homepage = "Link to the Shared Module homepage"
+        version = "1.0"
+        ios.deploymentTarget = "16.0"
+        framework {
+            baseName = "compose"
+            isStatic = true
+        }
+    }
+
+    compilerOptions {
+        optIn.add("kotlin.ExperimentalStdlibApi")
+        optIn.add("kotlinx.cinterop.ExperimentalForeignApi")
+        optIn.add("kotlin.experimental.ExperimentalNativeApi")
+        optIn.add("kotlin.contracts.ExperimentalContracts")
+        freeCompilerArgs.addAll(listOf("-Xinline-classes", "-Xcontext-receivers"))
+        freeCompilerArgs.addAll(
+            "-P",
+            "plugin:androidx.compose.compiler.plugins.kotlin:experimentalStrongSkipping=true"
+        )
+    }
+
+    sourceSets {
+        all {
+            languageSettings.optIn("kotlinx.cinterop.ExperimentalForeignApi")
+        }
+        commonMain.dependencies {
+            //put your multiplatform dependencies here
+            api(project(":core"))
+            api(compose.runtime)
+            api(compose.runtimeSaveable)
+            api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+            api("androidx.annotation:annotation:1.9.1")
+            api("org.jetbrains.kotlinx:atomicfu:0.25.0")
+            api("org.jetbrains.compose.collection-internal:collection:1.7.3")
+            implementation(project(":core-annotations"))
+        }
+
+        commonTest.dependencies {
+//            implementation(libs.kotlin.test)
+        }
+
+        // Android 特有源集中添加 ProfileInstaller 依赖
+        val androidMain by getting {
+            dependencies {
+                compileOnly(project(":core-render-android"))
+                implementation("androidx.profileinstaller:profileinstaller:1.3.1")
+                // 保留现有依赖...
+            }
+        }
+    }
+}
+
+group = MavenConfig.GROUP
+version = Version.getCoreVersion()
+
+// 配置Maven发布
+publishing {
+//    publications.withType<MavenPublication> {
+//        artifactId = "compose"
+//    }
+
+    repositories {
+        val username = MavenConfig.getUsername(project)
+        val password = MavenConfig.getPassword(project)
+        if (username.isNotEmpty() && password.isNotEmpty()) {
+            maven {
+                credentials {
+                    setUsername(username)
+                    setPassword(password)
+                }
+                url = uri(MavenConfig.getRepoUrl(version as String))
+            }
+        } else {
+            mavenLocal()
+        }
+
+        publications.withType<MavenPublication>().configureEach {
+            pom.configureMavenCentralMetadata()
+            signPublicationIfKeyPresent(project)
+        }
+    }
+}
+
+android {
+    namespace = "com.tencent.kuikly.compose"
+    compileSdk = 30
+    defaultConfig {
+        minSdk = 21
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+}

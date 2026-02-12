@@ -259,6 +259,11 @@ bool KRTextFieldView::SetProp(const std::string &prop_key, const KRAnyValue &pro
         }
         return true;
     }
+    if (kuikly::util::isEqual(prop_key, "autoHideKeyboardOnImeAction")) { // 业务自定义是否在点击发送按钮后收起键盘
+        auto_hide_keyboard_on_ime_action_ = prop_value->toBool();
+        return true;
+    }
+
 
     return IKRRenderViewExport::SetProp(prop_key, prop_value, event_call_back);
 }
@@ -397,6 +402,10 @@ void KRTextFieldView::OnInputReturn(ArkUI_NodeEvent *event) {
         map["ime_action"] = NewKRRenderValue(kuikly::util::ConvertEnterKeyTypeToString(returnKeyType));
         input_return_callback_(NewKRRenderValue(map));
     }
+     // 根据配置决定是否收起键盘
+    if (auto_hide_keyboard_on_ime_action_) {
+        // 鸿蒙没有可以强制在send 的状态下拦截键盘收起的能力，后续支持
+    } 
 }
 /***
  * 获取输入的文本内容

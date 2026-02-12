@@ -62,7 +62,7 @@ private val DefaultLineHeight = TextUnit.Unspecified
  */
 @Immutable
 class ParagraphStyle(
-    val textAlign: TextAlign = TextAlign.Left,
+    val textAlign: TextAlign = TextAlign.Unspecified,
 //    val textDirection: TextDirection = TextDirection.Unspecified,
     val lineHeight: TextUnit = TextUnit.Unspecified,
     val textIndent: TextIndent? = null,

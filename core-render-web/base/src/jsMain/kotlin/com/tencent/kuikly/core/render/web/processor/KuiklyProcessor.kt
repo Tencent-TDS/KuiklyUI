@@ -25,4 +25,9 @@ object KuiklyProcessor {
 
     // isDev mode
     var isDev: Boolean = false
+
+    // Whether to prevent default text selection and image drag behavior.
+    // When set to true, text selection (selectstart) and image drag (dragstart) events
+    // will be prevented. Default is true to maintain backward compatibility.
+    var preventDefaultDragAndSelect: Boolean = true
 }

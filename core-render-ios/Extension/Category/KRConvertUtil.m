@@ -376,23 +376,52 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
     }
 }
 
+
+// 采用 CSS corner-overlap 算法（W3C CSS Backgrounds Level 3 §5.5）等比缩放圆角半径，替代旧的 MIN(radius, min(w,h)/2) 独立 clamp，以保持四角比例关系并与 Android 侧行为对齐
 + (UIBezierPath *)hr_bezierPathWithRoundedRect:(CGRect)rect
                            topLeftCornerRadius:(CGFloat)topLeftCornerRadius
                            topRightCornerRadius:(CGFloat)topRightCornerRadius
                            bottomLeftCornerRadius:(CGFloat)bottomLeftCornerRadius
                        bottomRightCornerRadius:(CGFloat)bottomRightCornerRadius {
     CGSize size = rect.size;
-    CGRect bounds = rect;
 
-    // 防止半径超过宽/高的一半（UIBezierPath 会自动 clamp，手动 clamp 更安全）
-    CGFloat maxRadius = MIN(bounds.size.width, bounds.size.height) / 2.0;
-    topLeftCornerRadius = MIN(topLeftCornerRadius, maxRadius);
-    topRightCornerRadius = MIN(topRightCornerRadius, maxRadius);
-    bottomLeftCornerRadius = MIN(bottomLeftCornerRadius, maxRadius);
-    bottomRightCornerRadius = MIN(bottomRightCornerRadius, maxRadius);
+    // CSS corner-overlap 算法（W3C CSS Backgrounds Level 3 §5.5）
+    // 当相邻两角半径之和超过对应边长时，按比例等比缩小所有角的半径
+    // 参考：https://www.w3.org/TR/css-backgrounds-3/#corner-overlap
+    CGFloat f = 1.0;
+    if (size.width > 0) {
+        // 上边：topLeft + topRight <= width
+        CGFloat topSum = topLeftCornerRadius + topRightCornerRadius;
+        if (topSum > 0) {
+            f = MIN(f, size.width / topSum);
+        }
+        // 下边：bottomLeft + bottomRight <= width
+        CGFloat bottomSum = bottomLeftCornerRadius + bottomRightCornerRadius;
+        if (bottomSum > 0) {
+            f = MIN(f, size.width / bottomSum);
+        }
+    }
+    if (size.height > 0) {
+        // 左边：topLeft + bottomLeft <= height
+        CGFloat leftSum = topLeftCornerRadius + bottomLeftCornerRadius;
+        if (leftSum > 0) {
+            f = MIN(f, size.height / leftSum);
+        }
+        // 右边：topRight + bottomRight <= height
+        CGFloat rightSum = topRightCornerRadius + bottomRightCornerRadius;
+        if (rightSum > 0) {
+            f = MIN(f, size.height / rightSum);
+        }
+    }
+    // f = min(1, ...)，不放大
+    f = MIN(f, 1.0);
+    topLeftCornerRadius *= f;
+    topRightCornerRadius *= f;
+    bottomLeftCornerRadius *= f;
+    bottomRightCornerRadius *= f;
 
     // 绘制四个方向的线和圆弧
-    UIBezierPath * path = [UIBezierPath bezierPath];
+    UIBezierPath *path = [UIBezierPath bezierPath];
     CGFloat radius = topLeftCornerRadius;
     [path addArcWithCenter:CGPointMake(radius, radius) radius:radius startAngle:M_PI endAngle:M_PI * (3/2.0f) clockwise:true];
     radius = topRightCornerRadius;
@@ -407,6 +436,7 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
     [path closePath];
     return path;
 }
+
 
 
 + (NSArray *)hr_arrayWithJSONString:(NSString *)JSONString {

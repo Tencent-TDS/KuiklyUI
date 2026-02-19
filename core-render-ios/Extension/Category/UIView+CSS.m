@@ -41,6 +41,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 @property (nonatomic, weak) UIView *hostView;
 
 - (instancetype)initWithCSSBorder:(CSSBorder *)border;
+- (void)setNeedsRedraw;
 
 @end
 
@@ -276,7 +277,12 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         
         // iOS 和 macOS 都使用 CALayer.shadow* 属性
         self.layer.shadowColor = boxShadow.shadowColor.CGColor;
-        self.layer.shadowRadius = boxShadow.shadowRadius;
+        //        self.layer.shadowRadius = boxShadow.shadowRadius;
+
+        // iOS CALayer.shadowRadius 的高斯模糊效果比 Android BlurMaskFilter 更分散
+        // 乘以 0.65 系数使视觉效果更接近 Android
+        self.layer.shadowRadius = boxShadow.shadowRadius * 0.65;
+        
 #if TARGET_OS_OSX
         // macOS: Y 轴需要翻转，因为 CALayer 的坐标系和 flipped NSView 不同
         self.layer.shadowOffset = CGSizeMake(boxShadow.offsetX, -boxShadow.offsetY);
@@ -383,7 +389,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         
         // 6. 规避默认圆角值为零时，给 view 增加 mask 致使后续子 view 内容遭剪切
         if ([borderRadius isSameBorderCornerRaidus] && borderRadius.topLeftCornerRadius < 0.0001) {
-            self.layer.mask = nil;
+//            self.layer.mask = nil;
         } else {
             // 7. 采用 CAShapeLayer + mask + UIBezierPath 支持圆角实现
             CSSShapeLayer *mask = [[CSSShapeLayer alloc] initWithBorderRadius:borderRadius];
@@ -649,9 +655,17 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     // 1. 规范化字符串（处理 NSNumber 等类型）
     css_clipPath = [UIView css_string:css_clipPath];
     
+    NSLog(@"[UIView+CSS Debug] setCss_clipPath called");
+    NSLog(@"[UIView+CSS Debug]   - new value: %@", css_clipPath ?: @"(nil)");
+    NSLog(@"[UIView+CSS Debug]   - view class: %@", NSStringFromClass([self class]));
+    NSLog(@"[UIView+CSS Debug]   - view frame: %@", NSStringFromCGRect(self.frame));
+    NSLog(@"[UIView+CSS Debug]   - view bounds: %@", NSStringFromCGRect(self.bounds));
+    NSLog(@"[UIView+CSS Debug]   - wantsLayer: %@", self.wantsLayer ? @"YES" : @"NO");
+    
     // 2. 避免重复设置相同的值
     NSString *oldClipPath = self.css_clipPath;
     if ([oldClipPath isEqualToString:css_clipPath]) {
+        NSLog(@"[UIView+CSS Debug]   - skipped: same value");
         return;
     }
     
@@ -660,17 +674,23 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     
     // 4. 处理 clipPath 清空的情况
     if (!css_clipPath || css_clipPath.length == 0) {
+        NSLog(@"[UIView+CSS Debug]   - clearing clipPath");
+        NSLog(@"[UIView+CSS Debug]   - existing mask before clear: %@", self.layer.mask ?: @"(nil)");
+        NSLog(@"[UIView+CSS Debug]   - borderRadius: %@", self.css_borderRadius ?: @"(nil)");
+        
         // 4.1 清空 clipPathLayer 引用
         self.css_clipPathLayer = nil;
         
         // 4.2 检查是否需要恢复 borderRadius 的 mask
         if (self.css_borderRadius.length > 0) {
+            NSLog(@"[UIView+CSS Debug]   - restoring borderRadius mask");
             // 重新触发 borderRadius 设置，恢复圆角 mask
             // 先清空再设置，强制触发 setter 逻辑
             NSString *borderRadius = self.css_borderRadius;
             objc_setAssociatedObject(self, @selector(css_borderRadius), nil, OBJC_ASSOCIATION_RETAIN);
             self.css_borderRadius = borderRadius;
         } else {
+            NSLog(@"[UIView+CSS Debug]   - clearing mask (no borderRadius)");
             // 没有 borderRadius，直接清除 mask
             self.layer.mask = nil;
         }
@@ -698,11 +718,14 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         }
                     
         // 4.4 刷新 border，使其使用 borderRadius 路径
-        [self.css_borderLayer setNeedsLayout];
+//        [self.css_borderLayer invalidateLastSize];
+//        [self.css_borderLayer setNeedsLayout];
+        [self.css_borderLayer setNeedsRedraw];
         return;
     }
     
     // 5. 创建 clipPath 的 mask 图层
+    NSLog(@"[UIView+CSS Debug]   - creating CSSClipPathLayer");
     CSSClipPathLayer *mask = [[CSSClipPathLayer alloc] initWithClipPath:css_clipPath hostView:self];
     
     // 6. 设置 contentsScale 防止锯齿
@@ -714,7 +737,13 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     
     // 7. 设置为 layer 的 mask
     //    这会覆盖 borderRadius 设置的 CSSShapeLayer mask
+    NSLog(@"[UIView+CSS Debug]   - setting layer.mask to: %@", mask);
+    NSLog(@"[UIView+CSS Debug]   - window: %@", self.window ?: @"(nil)");
+    NSLog(@"[UIView+CSS Debug]   - superview: %@", self.superview ?: @"(nil)");
+    NSLog(@"[UIView+CSS Debug]   - mask frame before set: %@", NSStringFromCGRect(mask.frame));
     self.layer.mask = mask;
+    NSLog(@"[UIView+CSS Debug]   - after set, layer.mask: %@", self.layer.mask ?: @"(nil)");
+    NSLog(@"[UIView+CSS Debug]   - after set, layer.mask.frame: %@", self.layer.mask ? NSStringFromCGRect(self.layer.mask.frame) : @"(nil)");
     
     // 8. 保存引用，供 CSSBorderLayer 使用
     self.css_clipPathLayer = mask;
@@ -740,7 +769,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     }
     
     // 11. 刷新 border，使其使用新的 clipPath 路径
-    [self.css_borderLayer setNeedsLayout];
+    [self.css_borderLayer setNeedsRedraw];
 }
 
 
@@ -1303,21 +1332,32 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     // 3. 解析路径字符串为 UIBezierPath
     UIBezierPath *path = [KRConvertUtil hr_parseClipPath:_clipPathData density:density];
     
+    NSLog(@"[CSSClipPathLayer Debug] updatePath called");
+    NSLog(@"[CSSClipPathLayer Debug]   - frame: %@", NSStringFromCGRect(self.frame));
+    NSLog(@"[CSSClipPathLayer Debug]   - bounds: %@", NSStringFromCGRect(self.bounds));
+    NSLog(@"[CSSClipPathLayer Debug]   - clipPathData: %@", _clipPathData ?: @"(nil)");
+    NSLog(@"[CSSClipPathLayer Debug]   - path is nil: %@", path ? @"NO" : @"YES");
+    
     if (path) {
         // 4. 设置 CAShapeLayer 的 path 属性
 #if TARGET_OS_OSX
         if (@available(macos 14.0, *)) {
             self.path = path.CGPath;
+            NSLog(@"[CSSClipPathLayer Debug]   - path set (macOS 14.0+), path.bounds: %@", NSStringFromCGRect(path.bounds));
         } else {
             // macOS 14.0 以下版本退化为矩形裁剪
             CGMutablePathRef p = CGPathCreateMutable();
             CGPathAddRect(p, NULL, self.bounds);
             self.path = p;
             CGPathRelease(p);
+            NSLog(@"[CSSClipPathLayer Debug]   - fallback rect path set (macOS <14.0)");
         }
 #else
         self.path = path.CGPath;
+        NSLog(@"[CSSClipPathLayer Debug]   - path set (iOS), path.bounds: %@", NSStringFromCGRect(path.bounds));
 #endif
+    } else {
+        NSLog(@"[CSSClipPathLayer Debug]   - path is nil, setting empty path");
     }
 }
 
@@ -1487,6 +1527,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 @implementation CSSBorderLayer {
     CSSBorder *_border;      // 边框样式（宽度、颜色、样式）
     CGSize _lastSize;        // 上次布局的尺寸，用于避免重复计算
+    BOOL _needsRedraw;       // 新增：强制重绘标志，用于ClipPath发生变化时，但是Border的bounds没有发生改变，但是还是要重新绘制
 }
 
 - (instancetype)initWithCSSBorder:(CSSBorder *)border {
@@ -1494,6 +1535,13 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         _border = border;
     }
     return self;
+}
+
+// 标记路径内容变更（如 clipPath 变化），强制下次 layoutSublayers 重绘边框（不依赖尺寸变化）
+- (void)setNeedsRedraw {
+    // 仅由 setCss_clipPath: 调用，确保 clipPath 变化时边框路径同步更新
+    _needsRedraw = YES;
+    [self setNeedsLayout];
 }
 
 /**
@@ -1511,16 +1559,33 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 - (void)layoutSublayers {
     [super layoutSublayers];
     
+    // 0. macOS: 确保边框在最顶层（NSScrollView/NSTextView 内部 sublayer 可能覆盖边框）
+#if TARGET_OS_OSX
+    if (self.superlayer && [[self.superlayer sublayers] lastObject] != self) {
+        NSLog(@"[CSSBorderLayer] Moving to top for %@", NSStringFromClass([self.hostView class]));
+        [CATransaction begin];
+        [CATransaction setDisableActions:YES];
+        CALayer *superlayer = self.superlayer;
+        [self removeFromSuperlayer];
+        [superlayer addSublayer:self];
+        [CATransaction commit];
+    }
+    NSLog(@"[CSSBorderLayer] layoutSublayers for %@, lineWidth: %f", 
+          NSStringFromClass([self.hostView class]), self.lineWidth);
+#endif
+    
     // 1. 同步 frame 到父图层的 bounds
     if (!CGSizeEqualToSize(self.bounds.size, self.superlayer.bounds.size)) {
         self.frame = self.superlayer.bounds;
     }
     
-    // 2. 尺寸未变化时跳过重绘（性能优化）
-    if (CGSizeEqualToSize(self.bounds.size, _lastSize)) {
+    // 2. 尺寸未变化时跳过重绘（性能优化）或者重绘标志位为false
+    // 仅在 clipPath 变化时为 YES）
+    if (CGSizeEqualToSize(self.bounds.size, _lastSize) && !_needsRedraw) {
         return ;
     }
     _lastSize = self.bounds.size;
+    _needsRedraw = NO;  // 准备开始执行重绘，「重绘标志位」恢复为无需重绘
     
     UIBezierPath *path = nil;
     
@@ -1552,7 +1617,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     // 5. 设置边框样式
     self.fillColor = [UIColor clearColor].CGColor;    // 不填充，只描边
     self.strokeColor = _border.borderColor.CGColor;   // 边框颜色
-    self.lineWidth = 2 *_border.borderWidth;          // 边框宽度（*2 是因为 stroke 会画在路径两侧）
+    self.lineWidth =  2 * _border.borderWidth;          // 边框宽度（*2 是因为 stroke 会画在路径两侧）
     self.masksToBounds = YES;                         // 裁剪超出部分
     
     // 6. 根据边框样式设置虚线模式
@@ -1688,14 +1753,12 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         return !([key isEqualToString:@"borderRadius"] || [key isEqualToString:@"border"] || [key isEqualToString:@"clipPath"]); // return NO 抛给contentView设置
     }
     
-#if TARGET_OS_OSX
     // macOS: boxShadow 设置后需要更新 shadowPath
     if ([key isEqualToString:@"boxShadow"]) {
         BOOL result = [super css_setPropWithKey:key value:value];
         [self p_updateShadowPathIfNeed];
         return result;
     }
-#endif
     return [super css_setPropWithKey:key value:value];
 }
 
@@ -1710,7 +1773,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 #if TARGET_OS_OSX // [macOS]
     if (self.layer.shadowOpacity > 0) {
 #else
-    if (self.layer.shadowPath) {
+    if (self.layer.shadowOpacity > 0) {
 #endif
         CGPathRef originalPath = NULL;
         // 优先使用 clipPath 的路径（星形、心形等自定义形状）

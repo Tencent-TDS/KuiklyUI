@@ -23,6 +23,7 @@
 #import "NSObject+KR.h"
 #import "KRRichTextView.h"
 #import "KRMemoryCacheModule.h"
+#import "UIView+CSS.h"
 
 #define HOT_HEAP_GRIDENT_WIDTH 100
 
@@ -56,10 +57,20 @@ typedef void (^KRPathRenderAction)(CGContextRef context, CGMutablePathRef path);
         self.backgroundColor = [UIColor clearColor];
         _path = CGPathCreateMutable();
         _saveStack = [NSMutableArray array];
+#if TARGET_OS_OSX
+        // macOS: 必须启用 layer-backed 才能使用 layer.mask
+        self.wantsLayer = YES;
+#endif
     }
     return self;
 }
 
+#if TARGET_OS_OSX // [macOS]
+- (BOOL)isFlipped {
+    // macOS 上使用 iOS 风格坐标系（左上角为原点），确保 clipPath/border 路径方向正确
+    return YES;
+}
+#endif // [macOS]
 
 - (void)hrv_callWithMethod:(NSString *)method params:(NSString *)params callback:(KuiklyRenderCallback)callback {
     KUIKLY_CALL_CSS_METHOD;
@@ -69,6 +80,56 @@ typedef void (^KRPathRenderAction)(CGContextRef context, CGMutablePathRef path);
 - (void)hrv_setPropWithKey:(NSString * _Nonnull)propKey propValue:(id _Nonnull)propValue {
     KUIKLY_SET_CSS_COMMON_PROP;
 }
+
+#if TARGET_OS_OSX // [macOS]
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    [self p_syncClipPathMaskIfNeed_macOS];
+}
+
+/**
+ * macOS: layer-backed 视图在使用 drawRect: 时，系统可能在绘制周期中重置 layer.mask
+ * 参照 KRImageView 的做法，在每次 layoutSubviews 中重新创建并设置 CSSClipPathLayer
+ */
+- (void)p_syncClipPathMaskIfNeed_macOS {
+    NSLog(@"[Canvas Debug] p_syncClipPathMaskIfNeed_macOS called");
+    NSLog(@"[Canvas Debug]   - frame: %@", NSStringFromCGRect(self.frame));
+    NSLog(@"[Canvas Debug]   - bounds: %@", NSStringFromCGRect(self.bounds));
+    NSLog(@"[Canvas Debug]   - css_clipPath: %@", self.css_clipPath ?: @"(nil)");
+    NSLog(@"[Canvas Debug]   - existing mask: %@", self.layer.mask ?: @"(nil)");
+    NSLog(@"[Canvas Debug]   - mask class: %@", NSStringFromClass([self.layer.mask class]));
+    NSLog(@"[Canvas Debug]   - window: %@", self.window ?: @"(nil)");
+    NSLog(@"[Canvas Debug]   - superview: %@", self.superview ?: @"(nil)");
+    
+    if (CGSizeEqualToSize(self.frame.size, CGSizeZero)) {
+        NSLog(@"[Canvas Debug]   - skipped: frame is zero");
+        return;
+    }
+    
+    // 检查是否已经有正确的 mask 类型
+    if (self.layer.mask && [self.layer.mask isKindOfClass:NSClassFromString(@"CSSClipPathLayer")]) {
+        NSLog(@"[Canvas Debug]   - CSSClipPathLayer already exists, checking frame...");
+        if (CGRectEqualToRect(self.layer.mask.frame, self.bounds)) {
+            NSLog(@"[Canvas Debug]   - frame is correct, reusing existing mask");
+            return;
+        }
+        NSLog(@"[Canvas Debug]   - frame changed, updating...");
+    }
+    
+    if (self.css_clipPath.length > 0) {
+        NSLog(@"[Canvas Debug]   - creating CSSClipPathLayer...");
+        CSSClipPathLayer *clipLayer = [[CSSClipPathLayer alloc] initWithClipPath:self.css_clipPath hostView:self];
+        clipLayer.frame = self.bounds;
+        clipLayer.contentsScale = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
+        self.layer.mask = clipLayer;
+        NSLog(@"[Canvas Debug]   - mask set: %@, frame: %@", clipLayer, NSStringFromCGRect(clipLayer.frame));
+        NSLog(@"[Canvas Debug]   - after set, layer.mask: %@", self.layer.mask ?: @"(nil)");
+    } else {
+        NSLog(@"[Canvas Debug]   - css_clipPath is empty, clearing mask");
+        self.layer.mask = nil;
+    }
+}
+#endif // [macOS]
 
 - (void)addRenderAction:(KRPathRenderAction)action {
     [self.renderActions addObject:action];
@@ -566,8 +627,27 @@ typedef void (^KRPathRenderAction)(CGContextRef context, CGMutablePathRef path);
 
 - (void)drawRect:(CGRect)rect {
     [super drawRect:rect];
+    
+    // DEBUG: 打印 mask 状态
+    NSLog(@"[Canvas Debug] drawRect: %@", NSStringFromCGRect(rect));
+    NSLog(@"[Canvas Debug]   - css_clipPath: %@", self.css_clipPath ?: @"(nil)");
+    NSLog(@"[Canvas Debug]   - layer.mask: %@", self.layer.mask ?: @"(nil)");
+    NSLog(@"[Canvas Debug]   - layer.mask class: %@", self.layer.mask ? NSStringFromClass([self.layer.mask class]) : @"(N/A)");
+    NSLog(@"[Canvas Debug]   - layer.mask.frame: %@", self.layer.mask ? NSStringFromCGRect(self.layer.mask.frame) : @"(N/A)");
+    NSLog(@"[Canvas Debug]   - layer.bounds: %@", NSStringFromCGRect(self.layer.bounds));
+    NSLog(@"[Canvas Debug]   - self.frame: %@", NSStringFromCGRect(self.frame));
+    NSLog(@"[Canvas Debug]   - self.bounds: %@", NSStringFromCGRect(self.bounds));
+    NSLog(@"[Canvas Debug]   - window: %@", self.window ?: @"(nil)");
+    NSLog(@"[Canvas Debug]   - superview: %@", self.superview ?: @"(nil)");
+    if ([self.layer.mask isKindOfClass:[CAShapeLayer class]]) {
+        CAShapeLayer *maskLayer = (CAShapeLayer *)self.layer.mask;
+        NSLog(@"[Canvas Debug]   - mask.path is nil: %@", maskLayer.path ? @"NO" : @"YES");
+        NSLog(@"[Canvas Debug]   - mask.path.bounds: %@", maskLayer.path ? NSStringFromCGRect(CGPathGetBoundingBox(maskLayer.path)) : @"(N/A)");
+    }
+    
     CGContextRef context = UIGraphicsGetCurrentContext();
     if (!context) {
+        NSLog(@"[Canvas Debug]   - context is nil!");
         return;
     }
     for (KRPathRenderAction action in self.renderActions) {

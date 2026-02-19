@@ -105,6 +105,9 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
         }
         self.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
         self.delaysContentTouches = NO;
+        #else // [macOS]
+        // macOS: 启用 layer-backed 支持 clipPath
+        self.wantsLayer = YES;
         #endif // [macOS]
         self.alwaysBounceVertical = YES;
         _delegateProxy = [KRMultiDelegateProxy alloc];

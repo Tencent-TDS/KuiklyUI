@@ -19,7 +19,7 @@
 #import "KRRichTextView.h"
 #import "KuiklyRenderBridge.h"
 #import "NSObject+KR.h"
-#import "UIView+CSS.h"
+
 // 字典key常量
 NSString *const KRFontSizeKey = @"fontSize";
 NSString *const KRFontWeightKey = @"fontWeight";
@@ -38,8 +38,11 @@ NSString *const KRFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  NSNumber *KUIKLY_PROP(fontSize);
 /** attr is fontWeight */
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(fontWeight);
-/** clipPath for macOS */
-@property (nonatomic, copy) NSString *kr_clipPathString;
+#if TARGET_OS_OSX
+/** clipPath for macOS - 使用 KUIKLY_PROP 命名规范，仅在 macOS 声明避免覆盖 iOS 上 UIView+CSS category */
+@property (nonatomic, copy) NSString *KUIKLY_PROP(clipPath);
+#endif
+
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(placeholder);
 /** attr is placeholderColor */
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(placeholderColor);
@@ -89,6 +92,9 @@ NSString *const KRFontWeightKey = @"fontWeight";
 }
 
 @synthesize hr_rootView;
+#if TARGET_OS_OSX
+@synthesize css_clipPath = _css_clipPath;
+#endif
 
 #pragma mark - init
 
@@ -346,14 +352,14 @@ NSString *const KRFontWeightKey = @"fontWeight";
 }
 
 - (void)setCss_clipPath:(NSString *)css_clipPath {
-    self.kr_clipPathString = css_clipPath;
+    _css_clipPath = [css_clipPath copy];
     // 禁用默认 mask，使用 drawRect 裁剪
     self.layer.mask = nil;
     [self setNeedsDisplay:YES];
 }
 
 - (NSString *)css_clipPath {
-    return self.kr_clipPathString;
+    return _css_clipPath;
 }
 
 - (void)drawRect:(NSRect)dirtyRect {
@@ -369,12 +375,12 @@ NSString *const KRFontWeightKey = @"fontWeight";
         }
     }
     
-    if (self.kr_clipPathString.length > 0) {
+    if (_css_clipPath.length > 0) {
         // 先保存图形状态
         [NSGraphicsContext saveGraphicsState];
         
         // 解析 clipPath
-        NSBezierPath *clipPath = [self kr_bezierPathFromClipPathString:self.kr_clipPathString];
+        NSBezierPath *clipPath = [self kr_bezierPathFromClipPathString:_css_clipPath];
         if (clipPath) {
             // 应用 clipPath 裁剪内容
             [clipPath addClip];

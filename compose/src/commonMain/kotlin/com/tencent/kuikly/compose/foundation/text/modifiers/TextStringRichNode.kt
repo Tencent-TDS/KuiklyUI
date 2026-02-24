@@ -18,12 +18,22 @@ package com.tencent.kuikly.compose.foundation.text.modifiers
 
 import com.tencent.kuikly.compose.foundation.text.DefaultMinLines
 import com.tencent.kuikly.compose.foundation.text.InlineTextContent
+import com.tencent.kuikly.compose.foundation.text.applyAnnotatedString
+import com.tencent.kuikly.compose.foundation.text.applyMaxLines
+import com.tencent.kuikly.compose.foundation.text.applyOverflow
+import com.tencent.kuikly.compose.foundation.text.applyShadow
+import com.tencent.kuikly.compose.foundation.text.applySoftWrap
+import com.tencent.kuikly.compose.foundation.text.applyStyleColor
+import com.tencent.kuikly.compose.foundation.text.applyTextDecoration
+import com.tencent.kuikly.compose.foundation.text.applyTextStyle
 import com.tencent.kuikly.compose.material3.EmptyInlineContent
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.geometry.Offset
 import com.tencent.kuikly.compose.ui.geometry.Rect
 import com.tencent.kuikly.compose.ui.geometry.Size
+import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.ColorProducer
+import com.tencent.kuikly.compose.ui.graphics.isSpecified
 import com.tencent.kuikly.compose.ui.layout.IntrinsicMeasurable
 import com.tencent.kuikly.compose.ui.layout.IntrinsicMeasureScope
 import com.tencent.kuikly.compose.ui.layout.Measurable
@@ -46,11 +56,15 @@ import com.tencent.kuikly.compose.ui.text.TextStyle
 import com.tencent.kuikly.compose.ui.text.style.TextOverflow
 import com.tencent.kuikly.compose.ui.unit.Constraints
 import com.tencent.kuikly.compose.ui.unit.Constraints.Companion.fitPrioritizingWidth
+import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.ui.unit.constrain
 import com.tencent.kuikly.core.layout.Frame
+import com.tencent.kuikly.core.manager.BridgeManager
 import com.tencent.kuikly.core.views.PlaceholderSpan
+import com.tencent.kuikly.core.views.RichTextAttr
 import com.tencent.kuikly.core.views.RichTextView
+import com.tencent.kuikly.core.views.TextConst
 import kotlin.math.ceil
 
 /**
@@ -61,15 +75,16 @@ import kotlin.math.ceil
  * Note that this Node never calculates [TextLayoutResult] unless needed by semantics.
  */
 internal class TextStringRichNode(
-    private var text: AnnotatedString,
+    private var plainText: String?,
+    private var annotatedText: AnnotatedString?,
     private var style: TextStyle,
+    private var density: Density,
 //    private var fontFamilyResolver: FontFamily.Resolver,
     private var onTextLayout: ((TextLayoutResult) -> Unit)? = null,
     private var overflow: TextOverflow = TextOverflow.Clip,
     private var softWrap: Boolean = true,
     private var maxLines: Int = Int.MAX_VALUE,
     private var minLines: Int = DefaultMinLines,
-    private var overrideColor: ColorProducer? = null,
     private var inlineContent: Map<String, InlineTextContent> = EmptyInlineContent,
     private var fontSizeScale: Float = 1.0f,
     private var fontWeightScale: Float = 1.0f
@@ -80,10 +95,17 @@ internal class TextStringRichNode(
     /**
      * Element has text params to update
      */
-    fun updateText(text: AnnotatedString): Boolean {
-        if (this.text == text) return false
-        this.text = text
-        return true
+    fun updateText(text: String?, annotatedText: AnnotatedString?): Boolean {
+        var changed = false
+        if (this.plainText != text) {
+            this.plainText = text
+            changed = true
+        }
+        if (this.annotatedText != annotatedText) {
+            this.annotatedText = annotatedText
+            changed = true
+        }
+        return changed
     }
 
     /**
@@ -94,6 +116,9 @@ internal class TextStringRichNode(
         minLines: Int,
         maxLines: Int,
         softWrap: Boolean,
+        fontSizeScale: Float,
+        fontWeightScale: Float,
+        density: Density,
 //        fontFamilyResolver: FontFamily.Resolver,
         overflow: TextOverflow,
         inlineContent: Map<String, InlineTextContent>,
@@ -120,6 +145,21 @@ internal class TextStringRichNode(
 
         if (this.inlineContent != inlineContent) {
             this.inlineContent = inlineContent
+            changed = true
+        }
+
+        if (this.density != density) {
+            this.density = density
+            changed = true
+        }
+
+        if (this.fontWeightScale != fontWeightScale) {
+            this.fontWeightScale = fontWeightScale
+            changed = true
+        }
+
+        if (this.fontSizeScale != fontSizeScale) {
+            this.fontSizeScale = fontSizeScale
             changed = true
         }
 
@@ -152,28 +192,6 @@ internal class TextStringRichNode(
     }
 
     /**
-     * Element has configuration parameters to update
-     */
-    fun updateConfiguration(
-        fontSizeScale: Float,
-        fontWeightScale: Float
-    ): Boolean {
-        var changed = false
-
-        if (this.fontSizeScale != fontSizeScale) {
-            this.fontSizeScale = fontSizeScale
-            changed = true
-        }
-
-        if (this.fontWeightScale != fontWeightScale) {
-            this.fontWeightScale = fontWeightScale
-            changed = true
-        }
-
-        return changed
-    }
-
-    /**
      * request invalidate based on the results of [updateText] and [updateLayoutRelatedArgs]
      */
     fun doInvalidations(
@@ -181,22 +199,29 @@ internal class TextStringRichNode(
         textChanged: Boolean,
         layoutChanged: Boolean,
         callbacksChanged: Boolean,
-        configChanged: Boolean = false
     ) {
+
         if (!isAttached) {
-            // no-up for !isAttached. The node will invalidate when attaching again.
             return
         }
 
-        if (textChanged || layoutChanged || callbacksChanged || configChanged) {
+        if (textChanged || layoutChanged || callbacksChanged) {
+            // 更新布局属性
+            updateLayoutProperties()
             invalidateMeasurement()
             invalidateSemantics()
         }
+        updateNoLayoutProperties()
     }
 
-    override fun onReset() {
-        super.onReset()
-        // todo: jonas 清理状态
+    override fun onAttach() {
+        super.onAttach()
+        updateLayoutProperties()
+        updateNoLayoutProperties()
+    }
+
+    override fun onDetach() {
+        super.onDetach()
     }
 
     fun genTextLayoutResult(size: IntSize): TextLayoutResult {
@@ -232,9 +257,10 @@ internal class TextStringRichNode(
             )
         }
 
+        val effectiveAnnotated = annotatedText ?: AnnotatedString(plainText ?: "")
         return TextLayoutResult(
             TextLayoutInput(
-                text,
+                effectiveAnnotated,
                 style,
 //                placeholders.orEmpty(),
                 maxLines,
@@ -255,11 +281,15 @@ internal class TextStringRichNode(
 
         textView?.apply {
             val value = buildValuesPropValue()
-            shadow?.setValuesProp(value)
+            if (value == "[]" && shadow?.lastValues == null) {
+                // Skip, keep native default
+            } else {
+                shadow?.setValuesProp(value)
+            }
         }
 
         val density = textView?.getPager()?.pagerDensity() ?: 3f
-
+        
         val size = textView?.shadow?.calculateRenderViewSize(
             maxWidth.toFloat() / density,
             maxHeight.toFloat() / density
@@ -292,7 +322,7 @@ internal class TextStringRichNode(
         val result = genTextLayoutResult(layoutSize)
 
         // 布局变化了
-        if (cacheResult !== result) {
+        if (cacheResult != result) {
             onTextLayout?.invoke(result)
             cacheResult = result
         }
@@ -349,6 +379,46 @@ internal class TextStringRichNode(
     }
 
     override fun SemanticsPropertyReceiver.applySemantics() {
-        text = this@TextStringRichNode.text
+        text = this@TextStringRichNode.annotatedText ?: AnnotatedString(this@TextStringRichNode.plainText ?: "")
+    }
+
+    private inline fun withTextView(action: (RichTextAttr) -> Unit) {
+        val textView = (requireLayoutNode() as? KNode<RichTextView>)?.view
+        textView?.getViewAttr()?.let { attr ->
+            action(attr)
+        }
+    }
+
+    /**
+     * update RichTextView layout properties
+     */
+    private fun updateLayoutProperties() {
+
+        withTextView { attr ->
+            if (annotatedText != null) {
+                attr.applyAnnotatedString(annotatedText!!, inlineContent, density)
+            } else {
+                attr.setProp(TextConst.VALUE, plainText ?: "")
+            }
+
+            // 应用文本样式
+            attr.applyTextStyle(style, density)
+
+            // 应用布局属性
+            attr.applyOverflow(overflow)
+            attr.applyMaxLines(maxLines)
+            attr.applySoftWrap(softWrap)
+        }
+    }
+
+    /**
+     * update RichTextView layout properties
+     */
+    private fun updateNoLayoutProperties() {
+        withTextView { attr ->
+            attr.applyStyleColor(style.spanStyle)
+            attr.applyShadow(style.shadow)
+            attr.applyTextDecoration(style.textDecoration)
+        }
     }
 }

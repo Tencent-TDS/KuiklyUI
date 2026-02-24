@@ -37,6 +37,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong) NSNumber* scrollIndex; // computed property
 @property (nonatomic, assign) CGRect renderFrame; // computed property
 @property (nonatomic, assign) BOOL addViewMethodDisable;
+@property (nonatomic, assign) BOOL nodePersistentChangedEnable;  // 禁用结构变化标记（View级别TurboDisplay控制）
 
 
 - (instancetype)initWithTag:(NSNumber *)tag viewName:(NSString *)viewName;

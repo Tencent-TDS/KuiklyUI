@@ -20,6 +20,8 @@
 #import "KuiklyRenderView.h"
 #import "KRDisplayLink.h"
 #import "KRView+Compose.h"
+#import "NSObject+KR.h"
+#import "KRMemoryCacheModule.h"
 
 /// 层级置顶方法
 #define CSS_METHOD_BRING_TO_FRONT @"bringToFront"
@@ -27,6 +29,8 @@
 #define CSS_METHOD_ACCESSIBILITY_FOCUS @"accessibilityFocus"
 /// 无障碍朗读语音
 #define CSS_METHOD_ACCESSIBILITY_ANNOUNCE @"accessibilityAnnounce"
+/// view 截图
+#define CSS_METHOD_TOIMAGE @"toImage"
 
 
 #pragma mark - KRView Private Interface
@@ -75,6 +79,8 @@
         if (params && params.length > 0) {
             UIAccessibilityPostNotification(UIAccessibilityAnnouncementNotification, params);
         }
+    } else if ([method isEqualToString:CSS_METHOD_TOIMAGE]) {
+        [self kr_toImageWithParams:params callback:callback];
     }
 }
 
@@ -290,6 +296,112 @@
         }
     }
     return NO;
+}
+
+#pragma mark - ToImage
+
+- (void)kr_toImageWithParams:(NSString *)params callback:(KuiklyRenderCallback)callback {
+    if (!callback) {
+        return;
+    }
+    
+    NSDictionary *paramsDict = [params hr_stringToDictionary];
+    NSString *type = paramsDict[@"type"] ?: @"cacheKey";
+    NSInteger sampleSize = MAX(1, [paramsDict[@"sampleSize"] integerValue]);
+    
+    // 截图（主线程同步完成）
+    CGFloat scale = [UIScreen mainScreen].scale / (CGFloat)sampleSize;
+    UIImage *image = [self kr_safeSnapshotWithLayer:self.layer bounds:self.bounds scale:scale];
+    
+    if (!image || image.size.width == 0) {
+        callback(@{
+            @"code": @(-1),
+            @"message": @"snapshot failed: image is nil or empty"
+        });
+        return;
+    }
+    
+    if ([type isEqualToString:@"dataUri"]) {
+        // base64 编码（异步）
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            NSData *pngData = UIImagePNGRepresentation(image);
+            NSString *base64 = [pngData base64EncodedStringWithOptions:0];
+            NSString *dataUri = [NSString stringWithFormat:@"data:image/png;base64,%@", base64];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                callback(@{
+                    @"code": @(0),
+                    @"data": dataUri ?: @""
+                });
+            });
+        });
+    } else if ([type isEqualToString:@"file"]) {
+        // 保存到临时文件（异步）
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            NSString *filePath = [self kr_saveSnapshotToTempFile:image];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if (filePath) {
+                    callback(@{
+                        @"code": @(0),
+                        @"data": [NSString stringWithFormat:@"file://%@", filePath]
+                    });
+                } else {
+                    callback(@{
+                        @"code": @(-1),
+                        @"message": @"failed to save snapshot to file"
+                    });
+                }
+            });
+        });
+    } else if ([type isEqualToString:@"cacheKey"]) {
+        // cacheKey 模式：生成 data:image 前缀的 key，存入 KRMemoryCacheModule
+        // 对齐鸿蒙侧: 先返回 cacheKey 给 Kotlin，同时异步写文件
+        KuiklyRenderView *rootView = self.hr_rootView;
+        KRMemoryCacheModule *module = (KRMemoryCacheModule *)[rootView moduleWithName:NSStringFromClass([KRMemoryCacheModule class])];
+        
+        NSString *cacheKey = [NSString stringWithFormat:@"data:image_Md5_snapshot_%lu_%u",
+            (unsigned long)(NSUInteger)CFAbsoluteTimeGetCurrent() * 1000,
+            arc4random_uniform(0xFFFFFF)];
+        
+        // 将 UIImage 直接存入内存缓存，KRImageView 的 p_setBase64Image 会识别 UIImage 类型直接使用
+        [module setMemoryObjectWithKey:cacheKey value:image];
+        
+        callback(@{
+            @"code": @(0),
+            @"data": cacheKey
+        });
+        
+        // 异步写入磁盘文件备份
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            [self kr_saveSnapshotToTempFile:image];
+        });
+    } else {
+        callback(@{
+            @"code": @(-1),
+            @"message": [NSString stringWithFormat:@"unsupported type: %@", type]
+        });
+    }
+}
+
+- (UIImage *)kr_safeSnapshotWithLayer:(CALayer *)layer bounds:(CGRect)bounds scale:(CGFloat)scale {
+    @autoreleasepool {
+        UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat defaultFormat];
+        format.scale = scale;
+        format.opaque = layer.isOpaque;
+        UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:bounds.size format:format];
+        return [renderer imageWithActions:^(UIGraphicsImageRendererContext *rendererContext) {
+            [layer renderInContext:rendererContext.CGContext];
+        }];
+    }
+}
+
+- (NSString *)kr_saveSnapshotToTempFile:(UIImage *)image {
+    NSString *fileName = [NSString stringWithFormat:@"kr_snapshot_%lu_%u.png",
+        (unsigned long)((NSUInteger)(CFAbsoluteTimeGetCurrent() * 1000)),
+        arc4random_uniform(0xFFFFFF)];
+    NSString *filePath = [NSTemporaryDirectory() stringByAppendingPathComponent:fileName];
+    NSData *pngData = UIImagePNGRepresentation(image);
+    BOOL success = [pngData writeToFile:filePath atomically:YES];
+    return success ? filePath : nil;
 }
 
 #pragma mark - Dealloc

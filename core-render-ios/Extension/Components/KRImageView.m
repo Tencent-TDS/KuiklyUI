@@ -699,6 +699,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 
 
 - (void)dealloc {
+    
 }
 
 @end

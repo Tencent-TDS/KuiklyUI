@@ -309,13 +309,23 @@
     NSString *type = paramsDict[@"type"] ?: @"cacheKey";
     NSInteger sampleSize = MAX(1, [paramsDict[@"sampleSize"] integerValue]);
     
+    CGRect bounds = self.bounds;
+    if (CGRectIsEmpty(bounds) || bounds.size.width <= 0 || bounds.size.height <= 0) {
+        callback(@{
+            @"code": @(-1),
+            @"message": @"snapshot failed: view bounds is empty"
+        });
+        return;
+    }
+    
     // 截图（主线程同步完成）
 #if TARGET_OS_OSX // [macOS]
-    CGFloat scale = ([NSScreen mainScreen].backingScaleFactor ?: 1.0) / (CGFloat)sampleSize;
+    CGFloat screenScale = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
 #else
-    CGFloat scale = [UIScreen mainScreen].scale / (CGFloat)sampleSize;
+    CGFloat screenScale = [UIScreen mainScreen].scale;
 #endif // [macOS]
-    UIImage *image = [self kr_safeSnapshotWithLayer:self.layer bounds:self.bounds scale:scale];
+    CGFloat scale = MAX(screenScale / (CGFloat)sampleSize, 0.01);
+    UIImage *image = [self kr_safeSnapshotWithLayer:self.layer bounds:bounds scale:scale];
     
     if (!image || image.size.width == 0) {
         callback(@{
@@ -327,21 +337,33 @@
     
     if ([type isEqualToString:@"dataUri"]) {
         // base64 编码（异步）
+        __weak typeof(self) weakSelf = self;
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            __strong typeof(weakSelf) strongSelf = weakSelf;
+            (void)strongSelf;
             NSData *pngData = UIImagePNGRepresentation(image);
+            if (!pngData) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    callback(@{
+                        @"code": @(-1),
+                        @"message": @"snapshot failed: PNG encoding failed"
+                    });
+                });
+                return;
+            }
             NSString *base64 = [pngData base64EncodedStringWithOptions:0];
-            NSString *dataUri = [NSString stringWithFormat:@"data:image/png;base64,%@", base64];
+            NSString *dataUri = [NSString stringWithFormat:@"data:image/png;base64,%@", base64 ?: @""];
             dispatch_async(dispatch_get_main_queue(), ^{
                 callback(@{
                     @"code": @(0),
-                    @"data": dataUri ?: @""
+                    @"data": dataUri
                 });
             });
         });
     } else if ([type isEqualToString:@"file"]) {
         // 保存到临时文件（异步）
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-            NSString *filePath = [self kr_saveSnapshotToTempFile:image];
+            NSString *filePath = [KRView kr_saveSnapshotToTempFile:image];
             dispatch_async(dispatch_get_main_queue(), ^{
                 if (filePath) {
                     callback(@{
@@ -358,15 +380,27 @@
         });
     } else if ([type isEqualToString:@"cacheKey"]) {
         // cacheKey 模式：生成 data:image 前缀的 key，存入 KRMemoryCacheModule
-        // 对齐鸿蒙侧: 先返回 cacheKey 给 Kotlin，同时异步写文件
         KuiklyRenderView *rootView = self.hr_rootView;
+        if (!rootView) {
+            callback(@{
+                @"code": @(-1),
+                @"message": @"snapshot failed: rootView is nil"
+            });
+            return;
+        }
         KRMemoryCacheModule *module = (KRMemoryCacheModule *)[rootView moduleWithName:NSStringFromClass([KRMemoryCacheModule class])];
+        if (!module) {
+            callback(@{
+                @"code": @(-1),
+                @"message": @"snapshot failed: KRMemoryCacheModule not found"
+            });
+            return;
+        }
         
-        NSString *cacheKey = [NSString stringWithFormat:@"data:image_Md5_snapshot_%lu_%u",
-            (unsigned long)(NSUInteger)CFAbsoluteTimeGetCurrent() * 1000,
+        NSString *cacheKey = [NSString stringWithFormat:@"data:image_Md5_snapshot_%llu_%u",
+            (unsigned long long)(CFAbsoluteTimeGetCurrent() * 1000),
             arc4random_uniform(0xFFFFFF)];
         
-        // 将 UIImage 直接存入内存缓存，KRImageView 的 p_setBase64Image 会识别 UIImage 类型直接使用
         [module setMemoryObjectWithKey:cacheKey value:image];
         
         callback(@{
@@ -376,7 +410,7 @@
         
         // 异步写入磁盘文件备份
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-            [self kr_saveSnapshotToTempFile:image];
+            [KRView kr_saveSnapshotToTempFile:image];
         });
     } else {
         callback(@{
@@ -426,14 +460,24 @@
     }
 }
 
-- (NSString *)kr_saveSnapshotToTempFile:(UIImage *)image {
-    NSString *fileName = [NSString stringWithFormat:@"kr_snapshot_%lu_%u.png",
-        (unsigned long)((NSUInteger)(CFAbsoluteTimeGetCurrent() * 1000)),
-        arc4random_uniform(0xFFFFFF)];
-    NSString *filePath = [NSTemporaryDirectory() stringByAppendingPathComponent:fileName];
-    NSData *pngData = UIImagePNGRepresentation(image);
-    BOOL success = [pngData writeToFile:filePath atomically:YES];
-    return success ? filePath : nil;
++ (NSString *)kr_saveSnapshotToTempFile:(UIImage *)image {
+    if (!image) {
+        return nil;
+    }
+    @try {
+        NSString *fileName = [NSString stringWithFormat:@"kr_snapshot_%llu_%u.png",
+            (unsigned long long)(CFAbsoluteTimeGetCurrent() * 1000),
+            arc4random_uniform(0xFFFFFF)];
+        NSString *filePath = [NSTemporaryDirectory() stringByAppendingPathComponent:fileName];
+        NSData *pngData = UIImagePNGRepresentation(image);
+        if (!pngData || pngData.length == 0) {
+            return nil;
+        }
+        BOOL success = [pngData writeToFile:filePath atomically:YES];
+        return success ? filePath : nil;
+    } @catch (NSException *exception) {
+        return nil;
+    }
 }
 
 #pragma mark - Dealloc

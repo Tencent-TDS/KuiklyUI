@@ -3,6 +3,8 @@ package com.tencent.kuikly.core.render.web.expand.module
 import com.tencent.kuikly.core.render.web.export.KuiklyRenderBaseModule
 import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.web.nvi.serialization.json.JSONObject
+import kotlinx.browser.window
+import org.w3c.dom.events.Event
 
 /**
  * Event callback wrapper type
@@ -99,8 +101,22 @@ open class KRNotifyModule : KuiklyRenderBaseModule() {
         val data = jsonObject.optString(KEY_DATA)
         // Execute callbacks if event name exists
         if (eventName != "") {
+            // 1. Notify other Kuikly pages (existing logic)
             dispatchEvent(eventName, data)
+            // 2. Notify Web host (new feature - like iOS/Android/Ohos)
+            dispatchToHost(eventName, data)
         }
+    }
+
+    /**
+     * Dispatch event to Web host using CustomEvent
+     * Web host can listen via: window.addEventListener('kuikly_notify', (e) => { ... })
+     */
+    private fun dispatchToHost(eventName: String, data: String) {
+        val detail = js("{ eventName: eventName, data: data }")
+        val eventInit = js("{ detail: detail, bubbles: true, cancelable: true }")
+        val customEvent = js("new CustomEvent('kuikly_notify', eventInit)")
+        window.dispatchEvent(customEvent.unsafeCast<Event>())
     }
 
     /**
@@ -129,6 +145,15 @@ open class KRNotifyModule : KuiklyRenderBaseModule() {
         const val KEY_EVENT_NAME = "eventName"
         const val KEY_DATA = "data"
         private const val KEY_ID = "id"
+
+        /**
+         * Event name for Web host to listen Kuikly events
+         * Usage: window.addEventListener('kuikly_notify', (e) => {
+         *     const { eventName, data } = e.detail;
+         *     console.log('Received Kuikly event:', eventName, data);
+         * });
+         */
+        const val HOST_EVENT_NAME = "kuikly_notify"
 
         // track all KRNotifyModule instances for global notifications
         private val moduleInstances = mutableSetOf<KRNotifyModule>()

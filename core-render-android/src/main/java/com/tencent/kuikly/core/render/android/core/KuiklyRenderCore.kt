@@ -367,7 +367,7 @@ class KuiklyRenderCore(
             } else {
                 uiScheduler?.scheduleTask(isUpdateViewTree = isUpdateViewTreeMethodCall(method)) {
                     it(method, args)
-                }
+                } // end task
             }
         }
         return null
@@ -567,7 +567,7 @@ class KuiklyRenderCore(
         val shadow = renderLayerHandler?.shadow(args.secondArg()) ?: return null
         uiScheduler?.scheduleTask {
             renderLayerHandler?.setShadow(args.secondArg(), shadow)
-        }
+        } // end task
         return null
     }
 

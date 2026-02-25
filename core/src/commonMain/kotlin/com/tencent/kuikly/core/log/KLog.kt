@@ -16,6 +16,7 @@
 package com.tencent.kuikly.core.log
 
 import com.tencent.kuikly.core.manager.BridgeManager
+import com.tencent.kuikly.core.manager.PagerManager
 
 /*
  * @brief 日志模块，支持宿主自定义实现具体打印接口
@@ -40,7 +41,10 @@ object KLog {
         logToNative(METHOD_LOG_ERROR, "[KLog][$tag]:$msg")
     }
     private fun logToNative(method: String, msg: String) {
+        val trace = PagerManager.getPagerEventTrace(BridgeManager.currentPageId)
+        trace?.onCallModuleStart(MODULE_NAME, method, true, 0)
         BridgeManager.callModuleMethod(BridgeManager.currentPageId, MODULE_NAME, method, msg, null, 1)
+        trace?.onCallModuleEnd(MODULE_NAME, method, true, 0)
     }
 
     private const val MODULE_NAME = "KRLogModule"

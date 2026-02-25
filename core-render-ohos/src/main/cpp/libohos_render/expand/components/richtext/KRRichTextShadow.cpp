@@ -22,7 +22,6 @@
 #include <native_drawing/drawing_text_declaration.h>
 #include <native_drawing/drawing_text_typography.h>
 
-#include <cassert>
 #include <codecvt>
 #include <unordered_set>
 
@@ -94,7 +93,7 @@ KRAnyValue KRRichTextShadow::Call(const std::string &method_name, const std::str
     } else if(method_name == "isLineBreakMargin"){
         return NewKRRenderValue(did_exceed_max_lines_ && OH_Drawing_DestroyTextLines? "1" : "0");
     }
-    return std::make_shared<KRRenderValue>(nullptr);
+    return KRRenderValue::Make(nullptr);
 }
 
 /**
@@ -147,7 +146,7 @@ KRSize KRRichTextShadow::CalculateRenderViewSizeWithStyledString(double constrai
     placeholder_index_map_.clear();
     KRRenderValue::Array spans = values_;
     if (spans.empty()) {
-        spans.push_back(std::make_shared<KRRenderValue>(props_));
+        spans.push_back(KRRenderValue::Make(props_));
     }
     
     auto nativeResMgr = rootView->GetNativeResourceManager();
@@ -192,24 +191,45 @@ static KRAnyValue GetKRValue(const char *key, const KRRenderValue::Map &map0, co
     if (it2 != map1.end()) {
         return it2->second;
     }
-    return std::make_shared<KRRenderValue>(nullptr);
+    return KRRenderValue::Make(nullptr);
 }
 
-KRFontCollectionWrapper::KRFontCollectionWrapper() : fontCollection(OH_Drawing_CreateSharedFontCollection()) {
-    // blank
-}
-KRFontCollectionWrapper::~KRFontCollectionWrapper() {
-    if (fontCollection) {
-        OH_Drawing_DestroyFontCollection(fontCollection);
-        fontCollection = nullptr;
+KRFontCollectionWrapper::KRFontCollectionWrapper() {
+    // 优先使用全局实例（API >= 14），否则创建共享实例
+    if (OH_Drawing_GetFontCollectionGlobalInstance) {
+        fontCollection_ = OH_Drawing_GetFontCollectionGlobalInstance();
+        isGlobalInstance_ = true;
+    } else {
+        fontCollection_ = OH_Drawing_CreateSharedFontCollection();
+        isGlobalInstance_ = false;
     }
 }
 
-void SetCustomFontIfApplicable(NativeResourceManager *resMgr, std::shared_ptr<struct KRFontCollectionWrapper> wrapper,
-                               const std::string &fontFamily,
-                               const std::unordered_map<std::string, KRFontAdapter> &fontAdapters) {
+KRFontCollectionWrapper::~KRFontCollectionWrapper() {
+    // 只有非全局实例需要销毁
+    if (fontCollection_ && !isGlobalInstance_) {
+        OH_Drawing_DestroyFontCollection(fontCollection_);
+    }
+    fontCollection_ = nullptr;
+}
+
+OH_Drawing_FontCollection* KRFontCollectionWrapper::GetFontCollection() {
+    return fontCollection_;
+}
+
+bool KRFontCollectionWrapper::IsFontRegistered(const std::string& fontFamily) const {
+    return registered_.find(fontFamily) != registered_.end();
+}
+
+void KRFontCollectionWrapper::MarkFontRegistered(const std::string& fontFamily) {
+    registered_.emplace(fontFamily);
+}
+
+void KRFontCollectionWrapper::RegisterCustomFont(NativeResourceManager *resMgr,
+                                                  const std::string &fontFamily) {
+    auto fontAdapters = KRFontAdapterManager::GetInstance()->AllAdapters();
     auto adapter = fontAdapters.find(fontFamily);
-    if (adapter != fontAdapters.end() && wrapper->registered.find(fontFamily) == wrapper->registered.end()) {
+    if (adapter != fontAdapters.end() && !IsFontRegistered(fontFamily)) {
         char *fontBuffer = nullptr;
         size_t len = 0;
         KRFontDataDeallocator deallocator = nullptr;
@@ -224,12 +244,12 @@ void SetCustomFontIfApplicable(NativeResourceManager *resMgr, std::shared_ptr<st
                 std::unique_ptr<uint8_t[]> data = std::make_unique<uint8_t[]>(len);
                 int res = OH_ResourceManager_ReadRawFile(rawFile, data.get(), len);
                 OH_ResourceManager_CloseRawFile(rawFile);
-                error = OH_Drawing_RegisterFontBuffer(wrapper->fontCollection, fontFamily.c_str(), data.get(), len);
+                error = OH_Drawing_RegisterFontBuffer(fontCollection_, fontFamily.c_str(), data.get(), len);
             } else {
-                error = OH_Drawing_RegisterFont(wrapper->fontCollection, fontFamily.c_str(), fontSrc);
+                error = OH_Drawing_RegisterFont(fontCollection_, fontFamily.c_str(), fontSrc);
             }
             if (error == 0) {
-                wrapper->registered.emplace(fontFamily);
+                MarkFontRegistered(fontFamily);
             }
 
             if (deallocator) {
@@ -237,16 +257,21 @@ void SetCustomFontIfApplicable(NativeResourceManager *resMgr, std::shared_ptr<st
             }
         } else if (fontBuffer != nullptr && len > 0) {
             uint32_t error =
-                OH_Drawing_RegisterFontBuffer(wrapper->fontCollection, fontFamily.c_str(),
+                OH_Drawing_RegisterFontBuffer(fontCollection_, fontFamily.c_str(),
                                               reinterpret_cast<uint8_t *>(fontBuffer), len);
             if (error == 0) {
-                wrapper->registered.emplace(fontFamily);
+                MarkFontRegistered(fontFamily);
             }
             if (deallocator) {
                 deallocator(fontBuffer);
             }
         }
     }
+}
+
+OH_Drawing_TypographyCreate* CreateTypographyHandler(OH_Drawing_TypographyStyle* typoStyle) {
+    auto &wrapper = KRFontCollectionWrapper::GetInstance();
+    return OH_Drawing_CreateTypographyHandler(typoStyle, wrapper.GetFontCollection());
 }
 
 std::string KRRichTextShadow::GetTextContent() {
@@ -299,7 +324,7 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
     placeholder_index_map_.clear();
     KRRenderValue::Array spans = values_;
     if (spans.empty()) {
-        spans.push_back(std::make_shared<KRRenderValue>(props_));
+        spans.push_back(KRRenderValue::Make(props_));
     }
     auto numberOfLines = GetKRValue("numberOfLines", props_, props_)->toInt();
     const std::string lineBreakModeStr = GetKRValue("lineBreakMode", props_, props_)->toString();
@@ -316,8 +341,6 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
     int placeholder_count = 0;
     OH_Drawing_TextAlign text_align = TEXT_ALIGN_LEFT;
     int charOffset = 0;
-    font_collection_wrapper_ = std::make_shared<KRFontCollectionWrapper>();
-    auto fontAdapters = KRFontAdapterManager::GetInstance()->AllAdapters();
     for (auto span : spans) {
         auto spanMap = span->toMap();
         auto fontSize = (GetKRValue("fontSize", spanMap, props_)->toFloat() ?: 15.0) * dpi * fontSizeScale;
@@ -345,41 +368,6 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
         auto strokeWidth = GetKRValue("strokeWidth", spanMap, props_)->toFloat();
         auto strokeColorStr = GetKRValue("strokeColor", spanMap, props_)->toString();
         auto strokeColor = strokeColorStr.length() ? kuikly::util::ConvertToHexColor(strokeColorStr) : 0xff000000;
-
-        if (typoStyle == nullptr) {
-            typoStyle = OH_Drawing_CreateTypographyStyle();
-            OH_Drawing_SetTypographyTextMaxLines(typoStyle, numberOfLines);
-            // 选择从左到右/左对齐、行数限制排版属性设置到排版样式对象中
-            OH_Drawing_SetTypographyTextDirection(typoStyle, TEXT_DIRECTION_LTR);
-            OH_Drawing_SetTypographyTextAlign(typoStyle, textAlign);
-            text_align = textAlign;
-            OH_Drawing_SetTypographyTextEllipsisModal(typoStyle, lineBreakMode);
-            const char *ellipsis = "…";
-            if (lineBreakModeStr == "clip") {
-                ellipsis = "";
-            }
-            OH_Drawing_SetTypographyTextEllipsis(typoStyle, ellipsis);
-
-            OH_Drawing_WordBreakType workBreak = WORD_BREAK_TYPE_BREAK_WORD;
-            if (numberOfLines == 1) {
-                workBreak = WORD_BREAK_TYPE_BREAK_ALL;
-            }
-            OH_Drawing_SetTypographyTextWordBreakType(typoStyle, workBreak);
-
-            if (lineSpacing) {
-                /* Drawing自带的设置SpacingScale的接口段落前后仍有间距
-                 * OH_Drawing_SetTypographyTextUseLineStyle(typoStyle, true);
-                 * OH_Drawing_SetTypographyTextLineStyleSpacingScale(typoStyle, lineSpacing);
-                 * 等待修复，目前使用设置行高+禁用首尾行间距实现，注意同时设置lineHeight和lineSpacing首尾间距也会失效
-                 */
-                OH_Drawing_TypographyTextSetHeightBehavior(typoStyle, TEXT_HEIGHT_DISABLE_ALL);
-            }
-
-            handler = OH_Drawing_CreateTypographyHandler(typoStyle, font_collection_wrapper_->fontCollection);
-        } else {
-            isFirst = false;
-        }
-
         
         auto placeholderWidth = GetKRValue("placeholderWidth", spanMap, spanMap)->toDouble();
         // 创建文本样式对象txtStyle
@@ -450,7 +438,7 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
         }
         OH_Drawing_SetTextStyleFontSize(txtStyle, fontSize);
         OH_Drawing_SetTextStyleFontWeight(txtStyle, fontWeight);
-        OH_Drawing_SetTextStyleBaseLine(txtStyle, TEXT_BASELINE_ALPHABETIC);
+        OH_Drawing_SetTextStyleBaseLine(txtStyle, TEXT_BASELINE_IDEOGRAPHIC);
         OH_Drawing_SetTextStyleDecoration(txtStyle, textDecoration);
         OH_Drawing_SetTextStyleFontStyle(txtStyle, fontStyle);
         if (letterSpacing > 0) {
@@ -461,7 +449,6 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
         } else if (lineHeight > 0) {
             lineHeight = std::max(lineHeight, 1.0);
             OH_Drawing_SetTextStyleFontHeight(txtStyle, lineHeight);
-            context_thread_drawOffsetY_ = (fontSize * lineHeight - fontSize) / 4;  // cai系统绘制存在偏移问题，手动校准
         }
         // fontFamily
         if (!fontFamily.empty()) {
@@ -471,8 +458,43 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
             auto rootView = GetRootView();
             auto rootViewLock = rootView.lock();
             auto nativeResMgr = rootViewLock->GetNativeResourceManager();
-            SetCustomFontIfApplicable(nativeResMgr, font_collection_wrapper_, fontFamily, fontAdapters);
+            KRFontCollectionWrapper::GetInstance().RegisterCustomFont(nativeResMgr, fontFamily);
         }
+
+        // 需要在fontFamily设置后设置
+        if (typoStyle == nullptr) {
+            typoStyle = OH_Drawing_CreateTypographyStyle();
+            OH_Drawing_SetTypographyTextMaxLines(typoStyle, numberOfLines);
+            // 选择从左到右/左对齐、行数限制排版属性设置到排版样式对象中
+            OH_Drawing_SetTypographyTextDirection(typoStyle, TEXT_DIRECTION_LTR);
+            OH_Drawing_SetTypographyTextAlign(typoStyle, textAlign);
+            text_align = textAlign;
+            OH_Drawing_SetTypographyTextEllipsisModal(typoStyle, lineBreakMode);
+            const char *ellipsis = "…";
+            if (lineBreakModeStr == "clip") {
+                ellipsis = "";
+            }
+            OH_Drawing_SetTypographyTextEllipsis(typoStyle, ellipsis);
+
+            OH_Drawing_WordBreakType workBreak = WORD_BREAK_TYPE_BREAK_WORD;
+            if (numberOfLines == 1) {
+                workBreak = WORD_BREAK_TYPE_BREAK_ALL;
+            }
+            OH_Drawing_SetTypographyTextWordBreakType(typoStyle, workBreak);
+
+            if (lineSpacing) {
+                /* Drawing自带的设置SpacingScale的接口段落前后仍有间距
+                 * OH_Drawing_SetTypographyTextUseLineStyle(typoStyle, true);
+                 * OH_Drawing_SetTypographyTextLineStyleSpacingScale(typoStyle, lineSpacing);
+                 * 等待修复，目前使用设置行高+禁用首尾行间距实现，注意同时设置lineHeight和lineSpacing首尾间距也会失效
+                 */
+                OH_Drawing_TypographyTextSetHeightBehavior(typoStyle, TEXT_HEIGHT_DISABLE_ALL);
+            }
+            handler = CreateTypographyHandler(typoStyle);
+        } else {
+            isFirst = false;
+        }
+
         OH_Drawing_SetTextStyleFontStyle(txtStyle, FONT_STYLE_NORMAL);
         // 将文本样式对象加入到handler中
         if (!isFirst) {
@@ -552,11 +574,10 @@ void KRRichTextShadow::ReleaseLastTypography() {
     context_thread_drawOffsetX_ = 0;
     context_thread_text_align_ = TEXT_ALIGN_LEFT;
     context_measure_size_ = KRSize(0, 0);
-    std::shared_ptr<struct KRFontCollectionWrapper> collection = std::move(font_collection_wrapper_);
     if (typography != nullptr) {
         if (auto lock = GetRootView().lock()) {
             std::shared_ptr<IKRRenderShadowExport> self = shared_from_this();
-            lock->AddTaskToMainQueueWithTask([self, typography, drawOffsetY, drawOffsetX, collection] {
+            lock->AddTaskToMainQueueWithTask([self, typography, drawOffsetY, drawOffsetX] {
                 KRRichTextShadow *shadow = static_cast<KRRichTextShadow *>(self.get());
                 if (shadow && shadow->MainThreadTypography() == typography) {
                     shadow->SetMainThreadTypography(nullptr);

@@ -18,12 +18,14 @@
 
 #include <ark_runtime/jsvm.h>
 #include <ark_runtime/jsvm_types.h>
+#include <atomic>
 #include <charconv>
 #include <js_native_api.h>
 #include <js_native_api_types.h>
 #include <cmath>
 #include <cstdint>
 #include <iostream>
+#include <mutex>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -67,16 +69,42 @@ struct NapiValue {
  * kotlin 侧与 Render 侧数据通信类型转换类
  * 设计上是一个 AnyValue to AnyValue 类的思想
  * 通过使用 toXX api, 可把值转换为对应的 value
+ * 
+ * 创建实例：
+ * - 使用 KRRenderValue::Make() 或 KRRenderValue::Make(value)
+ * - 或使用宏 KREmptyValue() 和 NewKRRenderValue(value)
+ * 
+ * 线程安全说明：
+ * - toString(), toMap(), toArray() 返回值类型（线程安全，无共享状态）
+ * - toCValue() 使用双重检查锁定优化（初始化后无锁访问）
+ * - 禁止拷贝和移动以防止意外的数据共享
  */
 class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
+ private:
+    // Forward declaration - defined after class is complete
+    struct Accessor;
+    friend struct Accessor;
+
  public:
     using Map = std::unordered_map<std::string, std::shared_ptr<KRRenderValue>>;
     using Array = std::vector<std::shared_ptr<KRRenderValue>>;
     using ByteArray = std::shared_ptr<std::vector<uint8_t>>;
+    
+    KRRenderValue(const KRRenderValue&) = delete;
+    KRRenderValue& operator=(const KRRenderValue&) = delete;
+    KRRenderValue(KRRenderValue&&) = delete;
+    KRRenderValue& operator=(KRRenderValue&&) = delete;
 
+    /**
+     * 统一的工厂方法，确保所有实例都通过 shared_ptr 管理
+     * 用法: KRRenderValue::Make(), KRRenderValue::Make(42), KRRenderValue::Make("hello")
+     */
+    template<typename... Args>
+    static std::shared_ptr<KRRenderValue> Make(Args&&... args);
+
+ protected:
     KRRenderValue() {
         value_ = std::monostate();
-        json_to_map_or_array_value_ = std::monostate();
         c_value_.type = KRRenderCValue::Type::NULL_VALUE;
     }
 
@@ -147,7 +175,7 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
             auto array_size = cValue.size;
             Array array;
             for (int i = 0; i < array_size; i++) {
-                array.push_back(std::make_shared<KRRenderValue>(cValue.value.arrayValue[i]));
+                array.push_back(Make(cValue.value.arrayValue[i]));
             }
             value_ = array;
         } else {
@@ -224,7 +252,7 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
                 for (uint32_t i = 0; i < array_length; i++) {
                     napi_value value;
                     napi_get_element(napi_env, nvalue, i, &value);
-                    array.push_back(std::make_shared<KRRenderValue>(napi_env, value));
+                    array.push_back(Make(napi_env, value));
                 }
                 value_ = array;
                 return;
@@ -248,7 +276,7 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
                     napi_get_property(napi_env, nvalue, key_value, &prop_value);
 
                     // 递归构造 KRRenderValue
-                    map[key] = std::make_shared<KRRenderValue>(napi_env, prop_value);
+                    map[key] = Make(napi_env, prop_value);
                 }
                 value_ = map;
             }
@@ -315,7 +343,7 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
                 for (int i = 0; i < array_length; i++) {
                     JSVM_Value value;
                     OH_JSVM_GetElement(js_env, js_value, i, &value);
-                    array.push_back(std::make_shared<KRRenderValue>(js_env, value));
+                    array.push_back(Make(js_env, value));
                 }
                 value_ = array;
                 return;
@@ -324,6 +352,7 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
         }
     }
 
+ public:
     bool isNull() const {
         return std::holds_alternative<std::monostate>(value_);
     }
@@ -435,77 +464,67 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
         }
     }
 
-    const std::string &toString() const {
+    std::string toString() const {
         if (isString()) {
             return std::get<std::string>(value_);
         }
         if (isBool() || isInt() || isDouble() || isFloat() || isLong()) {  // number to string
             auto numberString = DoubleToString(toDouble());
             if (numberString == "0") {
-                outputToStringResult_ = std::string("");
-                return outputToStringResult_;
+                return std::string("");
             }
-            outputToStringResult_ = numberString;
-            return outputToStringResult_;
+            return numberString;
         }
         if (isMap() || isArray()) {  // map or array to string
-            cJSON* cjson = toJson( shared_from_this());
+            cJSON* cjson = toJson(this);
+            std::string result;
             if(char* p = cJSON_Print(cjson)){
-                outputToStringResult_ = p;
+                result = p;
                 cJSON_free(p);
             }
             cJSON_Delete(cjson);
-            return outputToStringResult_;
+            return result;
         }
-        outputToStringResult_ = "";
-        return outputToStringResult_;
+        return std::string("");
     }
 
-    const Map &toMap() const {
+    Map toMap() const {
         if (isMap()) {
             return std::get<Map>(value_);
-        } else if (std::holds_alternative<Map>(json_to_map_or_array_value_)) {
-            return std::get<Map>(json_to_map_or_array_value_);
         } else if (isString()) {
-            cJSON *cjson = cJSON_Parse(toString().c_str());
+            std::string str = toString();
+            cJSON *cjson = cJSON_Parse(str.c_str());
             if(cjson == nullptr){
-                json_to_map_or_array_value_ = Map();
-                return std::get<Map>(json_to_map_or_array_value_);
+                return Map();
             }
             Map map;
             for (cJSON *item = cjson->child; item != NULL; item = item->next) {
                 map[item->string] = fromJsonValue(item);
             }
-            json_to_map_or_array_value_ = map;
             cJSON_Delete(cjson);
-            return std::get<Map>(json_to_map_or_array_value_);
+            return map;
         } else {
-            json_to_map_or_array_value_ = Map();
-            return std::get<Map>(json_to_map_or_array_value_);
+            return Map();
         }
     }
 
-    const Array &toArray() const {
+    Array toArray() const {
         if (isArray()) {
             return std::get<Array>(value_);
-        } else if (std::holds_alternative<Array>(json_to_map_or_array_value_)) {
-            return std::get<Array>(json_to_map_or_array_value_);
         } else if (isString()) {
-            cJSON *cjson = cJSON_Parse(toString().c_str());
+            std::string str = toString();
+            cJSON *cjson = cJSON_Parse(str.c_str());
             if(cjson == nullptr){
-                json_to_map_or_array_value_ = Array();
-                return std::get<Array>(json_to_map_or_array_value_);
+                return Array();
             }
             Array json_vec;
             for(int i = 0; i < cJSON_GetArraySize(cjson); ++i){
                 json_vec.push_back(fromJsonValue(cJSON_GetArrayItem(cjson, i)));
             }
-            json_to_map_or_array_value_ = json_vec;
             cJSON_Delete(cjson);
-            return std::get<Array>(json_to_map_or_array_value_);
+            return json_vec;
         } else {
-            json_to_map_or_array_value_ = Array();
-            return std::get<Array>(json_to_map_or_array_value_);
+            return Array();
         }
     }
 
@@ -518,7 +537,12 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
     }
 
     const KRRenderCValue &toCValue() const {
-        if (c_value_.type != KRRenderCValue::Type::NULL_VALUE) {
+        if (c_value_initialized_.load(std::memory_order_acquire)) {
+            return c_value_;
+        }
+        
+        std::lock_guard<std::mutex> lock(c_value_mutex_);
+        if (c_value_initialized_.load(std::memory_order_relaxed)) {
             return c_value_;
         }
 
@@ -539,32 +563,37 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
             c_value_.value.doubleValue = toDouble();
         } else if (isString()) {
             c_value_.type = KRRenderCValue::Type::STRING;
-            c_value_.value.stringValue = const_cast<char *>(toString().c_str());
+            cached_string_for_c_value_ = std::get<std::string>(value_);
+            c_value_.value.stringValue = const_cast<char *>(cached_string_for_c_value_.c_str());
         } else if (isByteArray()) {
             c_value_.type = KRRenderCValue::Type::BYTES;
             auto byte_array = std::get<ByteArray>(value_).get();
             c_value_.size = byte_array->size();
             c_value_.value.bytesValue = reinterpret_cast<char *>(byte_array->data());
         } else if (isMap()) {
-            ToJsonMapOrArray();
+            ToJsonMapOrArrayLocked();
         } else if (isArray()) {
-            auto &array = toArray();
+            auto array = toArray();
             if (HadByteArrayElement(array)) {  // 有二进制元素的话, 不进行 json 序列化，直接传递数组
                 c_value_.type = KRRenderCValue::Type::ARRAY;
                 c_value_.size = array.size();
+                if (array_ptr_ != nullptr) {
+                    delete[] array_ptr_;
+                }
                 array_ptr_ = new KRRenderCValue[c_value_.size];
-                for (int i = 0; i < c_value_.size; i++) {
-                    auto &item = array[i];
+                for (size_t i = 0; i < c_value_.size; i++) {
+                    const auto &item = array[i];
                     array_ptr_[i] = item->toCValue();
                 }
                 c_value_.value.arrayValue = array_ptr_;
             } else {
-                ToJsonMapOrArray();
+                ToJsonMapOrArrayLocked();
             }
         } else {
             c_value_.type = KRRenderCValue::Type::NULL_VALUE;
         }
-
+        
+        c_value_initialized_.store(true, std::memory_order_release);
         return c_value_;
     }
 
@@ -598,12 +627,12 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
         } else if (isMap()) {
             js_status = ToJsonMapOrArray(js_env, js_value);
         } else if (isArray()) {
-            auto &array = toArray();
+            auto array = toArray();
             if (HadByteArrayElement(array)) {  // 有二进制元素的话, 不进行 json 序列化，直接传递数组
                 auto size = array.size();
                 js_status = OH_JSVM_CreateArrayWithLength(js_env, size, js_value);
                 if (js_status == JSVM_Status::JSVM_OK) {
-                    for (int i = 0; i < size; i++) {
+                    for (size_t i = 0; i < size; i++) {
                         JSVM_Status status;
                         JSVM_Value value;
                         array[i]->ToJsVmValue(js_env, &value, status);
@@ -647,14 +676,14 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
         } else if (isMap()) {
             nstatus = ToJsonMapOrArray(env, nvalue);
         } else if (isArray()) {
-            auto &array = toArray();
+            auto array = toArray();
 #if 0
             if (HadByteArrayElement(array)) {
 #endif
             auto size = array.size();
             nstatus = napi_create_array_with_length(env, size, nvalue);
             if (nstatus == napi_ok) {
-                for (int i = 0; i < size; i++) {
+                for (size_t i = 0; i < size; i++) {
                     napi_status status;
                     napi_value napi_value;
                     array[i]->ToNapiValue(env, &napi_value, status);
@@ -682,14 +711,17 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
     std::variant<std::monostate, bool, int32_t, int64_t, float, double, std::string, Map, Array, void *, ByteArray,
                  NapiValue>
         value_;
+    
+    mutable std::mutex c_value_mutex_;
+    mutable std::atomic<bool> c_value_initialized_{false};
     mutable std::string map_or_array_json_value_;  // 缓存经过序列化的 map或者 array, 用于缓存经过序列化的std::string
+    mutable std::string cached_string_for_c_value_;
     mutable KRRenderCValue c_value_;
-    mutable std::variant<std::monostate, Map, Array> json_to_map_or_array_value_;
-    mutable std::string outputToStringResult_;
     mutable KRRenderCValue *array_ptr_ = nullptr;  // 指向数组的指针, 用于防止数组元素copy
 
-    const void ToJsonMapOrArray() const {
-        cJSON* cjson = toJson( shared_from_this());
+    // 用于 toCValue() 内部调用，调用时已持有锁
+    void ToJsonMapOrArrayLocked() const {
+        cJSON* cjson = toJson(this);
         char* p = cJSON_PrintUnformatted(cjson);
         map_or_array_json_value_ = p;
         c_value_.type = KRRenderCValue::Type::STRING;
@@ -698,50 +730,52 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
         cJSON_Delete(cjson);
     }
 
-    const JSVM_Status ToJsonMapOrArray(JSVM_Env js_env, JSVM_Value *js_value) const {
-        cJSON* cjson = toJson( shared_from_this());
+    JSVM_Status ToJsonMapOrArray(JSVM_Env js_env, JSVM_Value *js_value) const {
+        cJSON* cjson = toJson(this);
+        std::string json_str;
         if(char* p = cJSON_PrintUnformatted(cjson)){
-            map_or_array_json_value_ = p;
+            json_str = p;
             cJSON_free(p);
         }
         cJSON_Delete(cjson);
-        return OH_JSVM_CreateStringUtf8(js_env, map_or_array_json_value_.c_str(), map_or_array_json_value_.length(),
-                                        js_value);
+        return OH_JSVM_CreateStringUtf8(js_env, json_str.c_str(), json_str.length(), js_value);
     }
 
-    const napi_status ToJsonMapOrArray(const napi_env &env, napi_value *nvalue) const {
-        cJSON* cjson = toJson( shared_from_this());
+    napi_status ToJsonMapOrArray(const napi_env &env, napi_value *nvalue) const {
+        cJSON* cjson = toJson(this);
+        std::string json_str;
         if(char* p = cJSON_PrintUnformatted(cjson)){
-            map_or_array_json_value_ = p;
+            json_str = p;
             cJSON_free(p);
         }
         cJSON_Delete(cjson);
-        return napi_create_string_utf8(env, map_or_array_json_value_.c_str(), map_or_array_json_value_.length(),
-                                       nvalue);
+        return napi_create_string_utf8(env, json_str.c_str(), json_str.length(), nvalue);
     }
 
-    const bool HadByteArrayElement(const Array &array) const {
-        for (auto &item : array) {
+    static bool HadByteArrayElement(const Array &array) {
+        for (const auto &item : array) {
             if (item->isByteArray()) {
                 return true;
             }
         }
         return false;
     }
-    static cJSON *toJson(const std::shared_ptr<const KRRenderValue> &value) {
+
+    // 使用原始指针避免 shared_from_this() 的线程安全问题
+    static cJSON *toJson(const KRRenderValue *value) {
         if (value->isMap()) {
             cJSON* obj = cJSON_CreateObject();
-            const auto &map = value->toMap();
+            auto map = value->toMap();
             for (const auto &entry : map) {
-                cJSON* child = toJson(entry.second);
+                cJSON* child = toJson(entry.second.get());
                 cJSON_AddItemToObject(obj, entry.first.c_str(), child);
             }
             return obj;
         } else if (value->isArray()) {
             cJSON* arr = cJSON_CreateArray();
-            const auto &array = value->toArray();
+            auto array = value->toArray();
             for (const auto &element : array) {
-                cJSON* child = toJson( element);
+                cJSON* child = toJson(element.get());
                 cJSON_AddItemToArray(arr, child);
             }
             return arr;
@@ -764,30 +798,40 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
 
     static std::shared_ptr<KRRenderValue> fromJsonValue(const cJSON *cjson) {
         if(cjson == nullptr){
-            return std::make_shared<KRRenderValue>();;
+            return Make();
         }
         if (cJSON_IsBool(cjson)) {
-            return std::make_shared<KRRenderValue>(cJSON_IsTrue(cjson));
+            return Make(cJSON_IsTrue(cjson));
         } else if (cJSON_IsNumber(cjson)) {
-            return std::make_shared<KRRenderValue>(cJSON_GetNumberValue(cjson));
+            return Make(cJSON_GetNumberValue(cjson));
         } else if (cJSON_IsString(cjson)) {
-            return std::make_shared<KRRenderValue>(cJSON_GetStringValue(cjson));
+            return Make(cJSON_GetStringValue(cjson));
         } else if (cJSON_IsObject(cjson)) {
             Map map_obj;
             for (cJSON *item = cjson->child; item != NULL; item = item->next) {
                 map_obj[item->string] = fromJsonValue(item);
             }
-            return std::make_shared<KRRenderValue>(map_obj);
+            return Make(map_obj);
         } else if (cJSON_IsArray(cjson)) {
             Array vec_obj;
             for(int i = 0; i < cJSON_GetArraySize(cjson); ++i){
                 vec_obj.push_back(fromJsonValue(cJSON_GetArrayItem(cjson, i)));
             }
-            return std::make_shared<KRRenderValue>(vec_obj);
+            return Make(vec_obj);
         } else {
-            return std::make_shared<KRRenderValue>();  // Null JSValue
+            return Make();  // Null JSValue
         }
     }
 };
+
+struct KRRenderValue::Accessor : KRRenderValue {
+    template<typename... Args>
+    explicit Accessor(Args&&... args) : KRRenderValue(std::forward<Args>(args)...) {}
+};
+
+template<typename... Args>
+std::shared_ptr<KRRenderValue> KRRenderValue::Make(Args&&... args) {
+    return std::make_shared<Accessor>(std::forward<Args>(args)...);
+}
 
 #endif  // CORE_RENDER_OHOS_KRRENDERVALUE_H

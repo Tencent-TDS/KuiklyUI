@@ -779,6 +779,9 @@ class Rotate(
     private val xAngle: Float = 0f, //  围绕x轴旋转xAngle角度 属于3d旋转 （range of [-360, 360]）
     private val yAngle: Float = 0f // 围绕y轴旋转yAngle角度 属于3d旋转 （range of [-360, 360]）
 ) {
+    @Deprecated("Deprecated", level = DeprecationLevel.HIDDEN)
+    constructor(angle: Float) : this(angle, 0f, 0f)
+
     // 是否为3d旋转
     val is3d: Boolean get() = xAngle != 0f || yAngle != 0f
 

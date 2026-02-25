@@ -331,6 +331,14 @@ class FlexNode {
             return children?.size ?: 0
         }
 
+    internal fun nodeCount() : Int{
+        var count = children?.size ?: 0
+        children?.forEach {
+            count += it.nodeCount()
+        }
+        return count
+    }
+
     fun getChildAt(index: Int): FlexNode? {
         return children?.getOrNull(index)
     }

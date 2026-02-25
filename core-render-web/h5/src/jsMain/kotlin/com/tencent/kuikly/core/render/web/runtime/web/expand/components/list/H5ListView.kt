@@ -1,6 +1,7 @@
 package com.tencent.kuikly.core.render.web.runtime.web.expand.components.list
 
 import com.tencent.kuikly.core.render.web.collection.array.add
+import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
 import com.tencent.kuikly.core.render.web.const.KRAttrConst
 import com.tencent.kuikly.core.render.web.const.KRCssConst
 import com.tencent.kuikly.core.render.web.const.KREventConst
@@ -536,13 +537,17 @@ class H5ListView : IListElement {
             }, json(KRAttrConst.PASSIVE to true))
 
             // Prevent text selection
-            ele.addEventListener(KREventConst.SELECT_START, {
-                it.preventDefault()
-            })
+            if (KuiklyProcessor.preventDefaultDragAndSelect) {
+                ele.addEventListener(KREventConst.SELECT_START, {
+                    it.preventDefault()
+                })
+            }
             // Prevent image drag
-            ele.addEventListener(KREventConst.DRAG_START, {
-                it.preventDefault()
-            })
+            if (KuiklyProcessor.preventDefaultDragAndSelect) {
+                ele.addEventListener(KREventConst.DRAG_START, {
+                    it.preventDefault()
+                })
+            }
         }
         ele.addEventListener(KREventConst.WHEEL, { event ->
             // Handle paging mode with wheel event

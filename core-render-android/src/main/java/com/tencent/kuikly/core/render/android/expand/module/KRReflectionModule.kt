@@ -159,7 +159,7 @@ class KRReflectionModule : KuiklyRenderBaseModule() {
                     }
                 }
                 needAutoReleaseNextLoop = false
-            }
+            } // end task
         }
     }
 

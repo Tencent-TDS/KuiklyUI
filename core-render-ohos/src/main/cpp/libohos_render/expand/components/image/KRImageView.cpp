@@ -268,7 +268,7 @@ bool KRImageView::SetImageParams(const KRAnyValue &value) {
         return true;
     }
     // 直接使用 toMap() 解析 JSON 字符串为 Map，并存储
-    auto& map = value->toMap();
+    auto map = value->toMap();
     if (map.empty()) {
         image_params_ = nullptr;
     } else {

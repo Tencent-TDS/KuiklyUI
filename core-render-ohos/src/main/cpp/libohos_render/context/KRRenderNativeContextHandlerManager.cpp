@@ -88,12 +88,12 @@ KRRenderCValue KRRenderNativeContextHandlerManager::DispatchCallNative(
         cv.type = KRRenderCValue::NULL_VALUE;
         return cv;
     }
-    auto cv0 = std::make_shared<KRRenderValue>(arg0);
-    auto cv1 = std::make_shared<KRRenderValue>(arg1);
-    auto cv2 = std::make_shared<KRRenderValue>(arg2);
-    auto cv3 = std::make_shared<KRRenderValue>(arg3);
-    auto cv4 = std::make_shared<KRRenderValue>(arg4);
-    auto cv5 = std::make_shared<KRRenderValue>(arg5);
+    auto cv0 = KRRenderValue::Make(arg0);
+    auto cv1 = KRRenderValue::Make(arg1);
+    auto cv2 = KRRenderValue::Make(arg2);
+    auto cv3 = KRRenderValue::Make(arg3);
+    auto cv4 = KRRenderValue::Make(arg4);
+    auto cv5 = KRRenderValue::Make(arg5);
 
     auto return_value =
         handler->OnCallNative(static_cast<KuiklyRenderNativeMethod>(methodId), cv0, cv1, cv2, cv3, cv4, cv5);

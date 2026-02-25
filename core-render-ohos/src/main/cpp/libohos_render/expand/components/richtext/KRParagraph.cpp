@@ -133,7 +133,7 @@ static KRAnyValue GetKTValue(const char *key, const KRRenderValue::Map &map0, co
     if (it2 != map1.end()) {
         return it2->second;
     }
-    return std::make_shared<KRRenderValue>(nullptr);
+    return KRRenderValue::Make(nullptr);
 }
 
 template <class Facet> struct deletable_facet : Facet {

@@ -16,6 +16,7 @@ class KRCodecModule : KuiklyRenderBaseModule() {
             METHOD_BASE64_ENCODE -> base64Encode(params)
             METHOD_BASE64_DECODE -> base64Decode(params)
             METHOD_MD5 -> md5(params)
+            METHOD_MD5_32 -> md5With32(params)
             METHOD_SHA256 -> sha256(params)
             else -> super.call(method, params, callback)
         }
@@ -24,6 +25,11 @@ class KRCodecModule : KuiklyRenderBaseModule() {
     private fun md5(params: String?): String {
         val string = params ?: return ""
         return CALCULATE_MD5_FUN(string, 16).unsafeCast<String>()
+    }
+
+    private fun md5With32(params: String?): String {
+        val string = params ?: return ""
+        return CALCULATE_MD5_FUN(string, 32).unsafeCast<String>()
     }
 
     private fun sha256(params: String?): String {
@@ -409,6 +415,7 @@ class KRCodecModule : KuiklyRenderBaseModule() {
         private const val METHOD_BASE64_ENCODE = "base64Encode"
         private const val METHOD_BASE64_DECODE = "base64Decode"
         private const val METHOD_MD5 = "md5"
+        private const val METHOD_MD5_32 = "md5With32"
         private const val METHOD_SHA256 = "sha256"
     }
 }

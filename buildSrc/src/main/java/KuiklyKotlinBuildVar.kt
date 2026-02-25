@@ -64,7 +64,7 @@ object BuildPlugin {
     }
 
     val kuikly by lazy {
-        "com.tencent.kuikly-open:core-gradle-plugin:2.14.0-2.0.21"
+        "com.tencent.kuikly-open:core-gradle-plugin:2.14.1-2.0.21"
     }
 }
 

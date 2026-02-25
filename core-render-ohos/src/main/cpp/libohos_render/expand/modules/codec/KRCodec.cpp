@@ -140,6 +140,19 @@ std::string KRMd5(const std::string &in) {
     return out.str().substr(8, 16);
 }
 
+std::string KRMd5With32(const std::string &in) {
+    unsigned char md[MD5_DIGEST_LENGTH];
+    MD5_CTX md5c;
+    MD5_Init(&md5c);
+    MD5_Update(&md5c, in.data(), in.size());
+    MD5_Final(md, &md5c);
+    std::ostringstream out;
+    for (int i = 0; i < MD5_DIGEST_LENGTH; ++i) {
+        out << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(md[i]);
+    }
+    return out.str();
+}
+
 std::string KRSha256(const std::string &in) {
     uint8_t digest[SHA256_DIGEST_SIZE];
     SHA256_hash(in.data(), in.size(), digest);

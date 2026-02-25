@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import com.tencent.kuikly.compose.ComposeContainer
 import com.tencent.kuikly.compose.coil3.rememberAsyncImagePainter
@@ -42,6 +43,8 @@ import com.tencent.kuikly.compose.foundation.shape.RoundedCornerShape
 import com.tencent.kuikly.compose.foundation.text.BasicTextField
 import com.tencent.kuikly.compose.foundation.text.KeyboardActions
 import com.tencent.kuikly.compose.foundation.text.KeyboardOptions
+import com.tencent.kuikly.compose.foundation.text.maxLength
+import com.tencent.kuikly.compose.foundation.text.onLimitChange
 import com.tencent.kuikly.compose.extension.nativeRef
 import com.tencent.kuikly.compose.foundation.gestures.scrollBy
 import com.tencent.kuikly.compose.foundation.layout.wrapContentWidth
@@ -63,13 +66,12 @@ import com.tencent.kuikly.compose.ui.platform.LocalSoftwareKeyboardController
 import com.tencent.kuikly.compose.ui.text.TextStyle
 import com.tencent.kuikly.compose.ui.text.input.ImeAction
 import com.tencent.kuikly.compose.ui.text.input.KeyboardType
-import com.tencent.kuikly.compose.ui.text.input.PasswordVisualTransformation
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
 import com.tencent.kuikly.core.annotations.Page
-import com.tencent.kuikly.core.coroutines.GlobalScope
-import com.tencent.kuikly.core.coroutines.delay
-import com.tencent.kuikly.core.coroutines.launch
+import com.tencent.kuikly.core.views.LengthLimitType
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun OneItemLazyColumn(
@@ -102,6 +104,7 @@ class TextFieldDemo : ComposeContainer() {
                             focusManager.clearFocus()
                         },
                 ) {
+                    val scope = rememberCoroutineScope()
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(text = "0 推荐使用输入框 响应键盘高度 自动聚焦")
                     var text7 by remember { mutableStateOf("") }
@@ -241,7 +244,7 @@ class TextFieldDemo : ComposeContainer() {
                             }.keyboardHeightChange {
                                 if (awareKeyboardHeight) {
                                     keyboardHeight = it.height
-                                    GlobalScope.launch {
+                                    scope.launch {
                                         delay(500)
                                         listState.scrollBy(keyboardHeight * 2)
                                     }
@@ -285,7 +288,39 @@ class TextFieldDemo : ComposeContainer() {
                         modifier = Modifier.fillMaxWidth(),
                     )
 
-                    // 5. 禁用状态的输入框
+                    // 6. 最大长度限制与超限回调
+                    Spacer(modifier = Modifier.height(16.dp))
+                    var textMaxLength by remember { mutableStateOf("") }
+                    val maxLength = 10
+                    var currentLength by remember { mutableStateOf(0) }
+                    var notify by remember { mutableStateOf(false) }
+                    TextField(
+                        value = textMaxLength,
+                        onValueChange = { textMaxLength = it },
+                        modifier = Modifier.fillMaxWidth()
+                            .maxLength(length = 10, type = LengthLimitType.CHARACTER)
+                            .onLimitChange { length, limit ->
+                                currentLength = length
+                                if (limit) {
+                                    notify = true
+                                    scope.launch {
+                                        delay(250)
+                                        notify = false
+                                        delay(250)
+                                        notify = true
+                                        delay(250)
+                                        notify = false
+                                    }
+                                }
+                            },
+                        label = { Text(
+                            "最多10个字符($currentLength/$maxLength)",
+                            color = if (notify) Color.Red else Color.Black
+                        ) },
+                        placeholder = { Text("请输入，超过10字将无法继续输入") },
+                    )
+
+                    // 7. 禁用状态的输入框
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(text = " 禁用状态的输入框:")
                     TextField(
@@ -300,7 +335,7 @@ class TextFieldDemo : ComposeContainer() {
                         modifier = Modifier.fillMaxWidth(),
                     )
 
-                    // 6. KeyboardActions
+                    // 8. KeyboardActions
                     Spacer(modifier = Modifier.height(16.dp))
                     var singleLine by remember { mutableStateOf(true) }
                     key(singleLine) {

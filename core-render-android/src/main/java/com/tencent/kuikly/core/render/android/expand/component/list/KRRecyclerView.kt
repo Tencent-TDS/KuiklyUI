@@ -297,7 +297,6 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         isFocusable = false
         overScrollMode = OVER_SCROLL_NEVER
         isFocusableInTouchMode = false
-        isNestedScrollingEnabled = true
     }
 
     fun setContentInsert(contentInset: KRRecyclerContentViewContentInset?, immediately: Boolean = false) {
@@ -437,14 +436,20 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
 
     private fun setBouncesEnable(propValue: Any): Boolean {
         bouncesEnable = (propValue as Int) == 1
-        if (bouncesEnable) {
+        updateOverscrollHandler()
+        return true
+    }
+
+    private fun updateOverscrollHandler() {
+        val isBouncesEnable =
+            bouncesEnable && !isNestedScrollingEnabled
+        if (isBouncesEnable) {
             if (childCount > 0) {
                 setupOverscrollHandler(contentView)
             }
         } else {
             overScrollHandler = null
         }
-        return true
     }
 
     private fun setFlingEnable(propValue: Any): Boolean {
@@ -1009,6 +1014,10 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             JSONObject(propValue).apply {
                 scrollForwardMode = getNestScrollMode(optString("forward", ""))
                 scrollBackwardMode = getNestScrollMode(optString("backward", ""))
+                if (!isNestedScrollingEnabled) {
+                    isNestedScrollingEnabled = true
+                }
+                updateOverscrollHandler()
             }
         }
         return true

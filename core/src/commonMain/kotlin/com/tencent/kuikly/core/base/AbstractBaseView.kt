@@ -19,6 +19,7 @@ import com.tencent.kuikly.core.base.event.Event
 import com.tencent.kuikly.core.collection.fastArrayListOf
 import com.tencent.kuikly.core.layout.FlexNode
 import com.tencent.kuikly.core.layout.Frame
+import com.tencent.kuikly.core.manager.PagerManager
 import com.tencent.kuikly.core.module.CallbackFn
 import com.tencent.kuikly.core.module.IModuleAccessor
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
@@ -119,9 +120,11 @@ abstract class AbstractBaseView<A : Attr, E : Event> : BaseObject(), IViewPublic
     }
 
     open fun willInit() {
+        PagerManager.getPagerEventTrace(pagerId)?.onViewWillInit(viewName(), this::class.simpleName, nativeRef)
     }
 
     open fun didInit() {
+        PagerManager.getPagerEventTrace(pagerId)?.onViewDidInit(viewName(), this::class.simpleName, nativeRef)
         if (getPager().debugUIInspector()) {
             injectDebugName()
         }

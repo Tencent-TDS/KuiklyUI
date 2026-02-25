@@ -77,7 +77,7 @@ class KRCanvasView : public KRView {
     void Transform(const std::string &params);
     void DrawImage(const std::string &params);
     void Reset();
-    void DrawText(std::string params, std::shared_ptr<struct KRFontCollectionWrapper> wrapper, std::string_view type);
+    void DrawText(std::string params, std::string_view type);
 
     void AddOp(const std::string &method, const KRAnyValue &params);
     void OnDraw(ArkUI_NodeCustomEvent *event);

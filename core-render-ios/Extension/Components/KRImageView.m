@@ -601,7 +601,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 
 
 - (void)dealloc {
-
+    
 }
 
 
@@ -632,7 +632,6 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
         _imageView = [[KRImageView alloc] initWithFrame:frame];
         [self addSubview:_imageView];       // _imageview index层次为 0
     }
-    
     return self;
 }
 
@@ -695,8 +694,6 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
         }
     }
 }
-
-
 
 - (void)dealloc {
     

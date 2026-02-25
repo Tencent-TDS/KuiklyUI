@@ -435,7 +435,7 @@ void KRImageView::FireOnImageCompleteEvent(ArkUI_NodeEvent *event) {
         float right = (image_size.width * 0.5 - 1) / dpi;
         kuikly::util::SetArkUIImageCapInsets(GetNode(), top, left, bottom, right);
     }
-    
+
     if (load_success_callback_) {
         KRRenderValueMap map;
         map[kPropNameSrc] = NewKRRenderValue(image_src_);

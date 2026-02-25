@@ -24,7 +24,6 @@ void KRImageViewWrapper::DidInit() {
     InitImageView(place_holder_image_view_);
     image_view_ = std::make_shared<KRImageView>();
     InitImageView(image_view_);
-    SetupImageLoadCallback();
 }
 
 void KRImageViewWrapper::InitImageView(std::shared_ptr<KRImageView> image_view) {
@@ -42,8 +41,9 @@ void KRImageViewWrapper::DidMoveToParentView() {
     IKRRenderViewExport::DidMoveToParentView();
     if (!did_insert_image_view_) {
         did_insert_image_view_ = true;
-        ToInsertSubRenderView(place_holder_image_view_, -1);
+        // 调整插入顺序，imageView 先插入（底层），placeholderView 后插入（上层遮挡）
         ToInsertSubRenderView(image_view_, -1);
+        ToInsertSubRenderView(place_holder_image_view_, -1);
     }
     image_view_->SetViewTag(GetViewTag());
     place_holder_image_view_->SetViewTag(GetViewTag());
@@ -51,7 +51,6 @@ void KRImageViewWrapper::DidMoveToParentView() {
 
 void KRImageViewWrapper::OnDestroy() {
     IKRRenderViewExport::OnDestroy();
-    image_view_->ClearImageDidLoadCallback();
     place_holder_image_view_->ToDestroy();
     image_view_->ToDestroy();
 }
@@ -64,6 +63,14 @@ bool KRImageViewWrapper::SetProp(const std::string &prop_key, const KRAnyValue &
         place_holder_image_view_->SetProp(prop_key, prop_value, event_call_back);
     } else if (std::strcmp(prop_key.c_str(), kPropNamePlaceHolder) == 0) {
         place_holder_image_view_->SetProp(kPropNameSrc, prop_value, event_call_back);
+        auto src_str = prop_value->toString();
+        if (!src_str.empty()) {
+            // 有 placeholder: 设置 placeholder src，隐藏 image_view_
+            kuikly::util::UpdateNodeVisibility(image_view_->GetNode(), ARKUI_VISIBILITY_HIDDEN);
+        } else {
+            // clearPlaceholder: 清空 placeholder，恢复 image_view_ 显示
+            kuikly::util::UpdateNodeVisibility(image_view_->GetNode(), ARKUI_VISIBILITY_VISIBLE);
+        }
         didHanded = true;
     }
     return didHanded;
@@ -76,6 +83,8 @@ bool KRImageViewWrapper::ResetProp(const std::string &prop_key) {
         place_holder_image_view_->ResetProp(kPropNameResize);
     } else if (std::strcmp(prop_key.c_str(), kPropNamePlaceHolder) == 0) {
         place_holder_image_view_->ResetProp(kPropNameSrc);
+        // 重置placeholdersrc时，确保 image_view_ 的可见性
+        kuikly::util::UpdateNodeVisibility(image_view_->GetNode(), ARKUI_VISIBILITY_VISIBLE);
         didHanded = true;
     }
     return didHanded;
@@ -87,21 +96,3 @@ void KRImageViewWrapper::SetRenderViewFrame(const KRRect &frame) {
     kuikly::util::UpdateNodeFrame(place_holder_image_view_->GetNode(), KRRect(0, 0, frame.width, frame.height));
 }
 
-void KRImageViewWrapper::SetupImageLoadCallback() {
-    if (image_view_) {
-        // 将基类 shared_ptr 转换为派生类 weak_ptr 避免 this 悬空
-        std::weak_ptr<KRImageViewWrapper> weak_this = std::static_pointer_cast<KRImageViewWrapper>(shared_from_this());
-        image_view_->SetImageDidLoadCallback([weak_this]() {
-            // 图片加载完成执行隐藏placeHolderView
-            if (auto strong_this = weak_this.lock()) {
-                if (strong_this) {
-                    return;
-                }
-                if (strong_this->place_holder_image_view_ && strong_this->place_holder_image_view_->GetNode()) {
-                    kuikly::util::UpdateNodeVisibility(strong_this->place_holder_image_view_->GetNode(),
-                                                       ARKUI_VISIBILITY_HIDDEN);
-                }
-            }
-        });
-    }
-}

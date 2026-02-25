@@ -310,7 +310,11 @@
     NSInteger sampleSize = MAX(1, [paramsDict[@"sampleSize"] integerValue]);
     
     // 截图（主线程同步完成）
+#if TARGET_OS_OSX // [macOS]
+    CGFloat scale = ([NSScreen mainScreen].backingScaleFactor ?: 1.0) / (CGFloat)sampleSize;
+#else
     CGFloat scale = [UIScreen mainScreen].scale / (CGFloat)sampleSize;
+#endif // [macOS]
     UIImage *image = [self kr_safeSnapshotWithLayer:self.layer bounds:self.bounds scale:scale];
     
     if (!image || image.size.width == 0) {
@@ -384,6 +388,33 @@
 
 - (UIImage *)kr_safeSnapshotWithLayer:(CALayer *)layer bounds:(CGRect)bounds scale:(CGFloat)scale {
     @autoreleasepool {
+#if TARGET_OS_OSX // [macOS]
+        // macOS: 使用 CGBitmapContext 同步渲染，避免 NSImage drawingHandler 延迟绘制导致子线程 crash
+        size_t width = (size_t)ceil(bounds.size.width * scale);
+        size_t height = (size_t)ceil(bounds.size.height * scale);
+        if (width == 0 || height == 0) {
+            return nil;
+        }
+        CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+        CGContextRef ctx = CGBitmapContextCreate(NULL, width, height, 8, width * 4, colorSpace,
+                                                  kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Host);
+        CGColorSpaceRelease(colorSpace);
+        if (!ctx) {
+            return nil;
+        }
+        // CGBitmapContext 坐标系原点在左下角，CALayer 绘制基于左上角，需翻转 y 轴
+        CGContextTranslateCTM(ctx, 0, (CGFloat)height);
+        CGContextScaleCTM(ctx, scale, -scale);
+        [layer renderInContext:ctx];
+        CGImageRef cgImage = CGBitmapContextCreateImage(ctx);
+        CGContextRelease(ctx);
+        if (!cgImage) {
+            return nil;
+        }
+        NSImage *image = [[NSImage alloc] initWithCGImage:cgImage size:bounds.size];
+        CGImageRelease(cgImage);
+        return image;
+#else
         UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat defaultFormat];
         format.scale = scale;
         format.opaque = layer.isOpaque;
@@ -391,6 +422,7 @@
         return [renderer imageWithActions:^(UIGraphicsImageRendererContext *rendererContext) {
             [layer renderInContext:rendererContext.CGContext];
         }];
+#endif // [macOS]
     }
 }
 

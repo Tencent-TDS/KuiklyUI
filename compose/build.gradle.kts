@@ -8,12 +8,16 @@ plugins {
     signing
 }
 
+group = MavenConfig.GROUP
+version = Version.getCoreVersion()
+
 kotlin {
     androidTarget {
         compilations.all {
             kotlinOptions {
                 jvmTarget = "1.8"
                 freeCompilerArgs += "-Xjvm-default=all"
+                moduleName = "${project.group}.${project.name}"
             }
         }
         publishLibraryVariantsGroupedByFlavor = true
@@ -119,9 +123,6 @@ publishing {
         signPublicationIfKeyPresent(project)
     }
 }
-
-group = MavenConfig.GROUP
-version = Version.getCoreVersion()
 
 android {
     namespace = "com.tencent.kuikly.compose"

@@ -30,9 +30,20 @@ publishing {
 
 kotlin {
     // targets
-    jvm()
+    jvm {
+        compilations.all {
+            kotlinOptions {
+                moduleName = "${project.group}.${project.name}"
+            }
+        }
+    }
 
     androidTarget {
+        compilations.all {
+            kotlinOptions {
+                moduleName = "${project.group}.${project.name}"
+            }
+        }
         publishLibraryVariantsGroupedByFlavor = true
         publishLibraryVariants("release")
     }

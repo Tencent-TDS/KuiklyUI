@@ -8,12 +8,16 @@ plugins {
     signing
 }
 
+group = MavenConfig.GROUP
+version = Version.getCoreVersion()
+
 kotlin {
     androidTarget {
         compilations.all {
             kotlinOptions {
                 jvmTarget = "1.8"
                 freeCompilerArgs += "-Xjvm-default=all"
+                moduleName = "${project.group}.${project.name}"
             }
         }
         publishLibraryVariantsGroupedByFlavor = true
@@ -91,9 +95,6 @@ kotlin {
         }
     }
 }
-
-group = MavenConfig.GROUP
-version = Version.getCoreVersion()
 
 // 配置Maven发布
 publishing {

@@ -465,6 +465,10 @@ android {
 -keep class com.tencent.kuikly.core.IKuiklyCoreEntry { *; }
 -keep class com.tencent.kuikly.core.IKuiklyCoreEntry$Delegate { *; }
 -keep class com.tencent.kuikly.core.log.KLog { *; }
+-keep class com.tencent.kuikly.core.render.android.scheduler.KuiklyRenderCoreContextScheduler {
+    com.tencent.kuikly.core.render.android.scheduler.KuiklyRenderCoreContextScheduler INSTANCE;
+    void scheduleTask(long,java.lang.Runnable);
+}
 
 # RecyclerView 反射方法保留
 -keepclassmembers class androidx.recyclerview.widget.RecyclerView {

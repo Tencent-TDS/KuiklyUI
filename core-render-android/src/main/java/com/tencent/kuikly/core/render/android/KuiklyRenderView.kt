@@ -142,7 +142,9 @@ class KuiklyRenderView(
     private var isInOnSizeChanged = false
 
     init {
-        clipChildren = false // 不裁剪, 防止孩子做scale或者translation动画时, 显示不全
+        if (!lazyClipChildren) {
+            clipChildren = false // 不裁剪, 防止孩子做scale或者translation动画时, 显示不全
+        }
     }
 
     private var pageName = ""
@@ -617,6 +619,14 @@ class KuiklyRenderView(
     }
 
     companion object {
+        private var _lazyClipChildren: Boolean = false
+        internal val lazyClipChildren: Boolean get() = _lazyClipChildren
+        /**
+         * 按需禁用clipChildren的开关
+         */
+        fun enableLazyClipChildren() {
+            _lazyClipChildren = true
+        }
         private const val TAG = "KuiklyRenderView"
         private const val EVENT_ROOT_VIEW_SIZE_CHANGED = "rootViewSizeDidChanged"
         private const val ROOT_VIEW_WIDTH = "rootViewWidth"

@@ -29,6 +29,7 @@ import android.util.Size
 import android.view.View
 import android.view.View.AccessibilityDelegate
 import android.view.ViewGroup
+import android.view.ViewParent
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -39,6 +40,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
 import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
+import com.tencent.kuikly.core.render.android.KuiklyRenderView
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.css.animation.KRCSSAnimation
@@ -71,6 +73,7 @@ fun View.setCommonProp(key: String, value: Any): Boolean {
     return when (key) {
         KRCssConst.OPACITY -> {
             opacity = (value as Number).toFloat()
+            tryPropagatePendingOverBounds()
             true
         }
         KRCssConst.PREVENT_TOUCH -> {
@@ -83,10 +86,12 @@ fun View.setCommonProp(key: String, value: Any): Boolean {
         }
         KRCssConst.VISIBILITY -> {
             visibility = if ((value as Int) == 0) View.GONE else View.VISIBLE
+            tryPropagatePendingOverBounds()
             true
         }
         KRCssConst.OVERFLOW -> {
             overflow = (value as Int) == 1
+            tryPropagatePendingOverBounds()
             true
         }
         KRCssConst.BACKGROUND_COLOR -> {
@@ -111,6 +116,7 @@ fun View.setCommonProp(key: String, value: Any): Boolean {
         }
         KRCssConst.BORDER_RADIUS -> {
             borderRadius = value as String
+            tryPropagatePendingOverBounds()
             true
         }
         KRCssConst.BORDER -> {
@@ -143,6 +149,9 @@ fun View.setCommonProp(key: String, value: Any): Boolean {
             frame = value as Rect
             hadSetFrame = true
             dispatchOnSetFrame(value)
+            if (KuiklyRenderView.lazyClipChildren) {
+                updateClipChildrenWithFrameBounds(value)
+            }
             true
         }
         KRCssConst.Z_INDEX -> {
@@ -186,12 +195,13 @@ fun View.setCommonProp(key: String, value: Any): Boolean {
             true
         }
         KRCssConst.USE_OUTLINE -> {
-            viewDecorator?.useOutline = value as Boolean
+            obtainViewDecorator().useOutline = value as Boolean
             true
         }
 
         KRCssConst.CLIP_PATH -> {
-            viewDecorator?.clipPathData = value as String
+            obtainViewDecorator().clipPathData = value as String
+            tryPropagatePendingOverBounds()
             true
         }
         else -> false
@@ -199,15 +209,15 @@ fun View.setCommonProp(key: String, value: Any): Boolean {
 }
 
 fun View.drawCommonDecoration(canvas: Canvas) {
-    getViewData<KRViewDecoration>(KRCssConst.VIEW_DECORATOR)?.drawCommonDecoration(frameWidth, frameHeight, canvas)
+    optViewDecorator()?.drawCommonDecoration(frameWidth, frameHeight, canvas)
 }
 
 fun View.drawCommonForegroundDecoration(canvas: Canvas) {
-    getViewData<KRViewDecoration>(KRCssConst.VIEW_DECORATOR)?.drawCommonForegroundDecoration(frameWidth, frameHeight, canvas)
+    optViewDecorator()?.drawCommonForegroundDecoration(frameWidth, frameHeight, canvas)
 }
 
 fun View.hasCustomClipPath(): Boolean {
-    return getViewData<KRViewDecoration>(KRCssConst.VIEW_DECORATOR)?.hasCustomClipPath() == true
+    return optViewDecorator()?.hasCustomClipPath() == true
 }
 
 /**
@@ -311,7 +321,7 @@ fun View.resetCommonProp(propKey: String): Boolean {
             return true
         }
         KRCssConst.USE_OUTLINE -> {
-            viewDecorator = null
+            destroyViewDecorator()
             return true
         }
         KRCssConst.ACCESSIBILITY_ROLE -> {
@@ -321,7 +331,7 @@ fun View.resetCommonProp(propKey: String): Boolean {
             resetAccessibilityImportance()
         }
         KRCssConst.CLIP_PATH -> {
-            viewDecorator = null
+            destroyViewDecorator()
             return true
         }
     }
@@ -461,39 +471,43 @@ typealias OnSetFrameBlock = (frame: Rect) -> Unit
 /**
  * 为View扩展背景颜色
  */
-internal var View.hrBackgroundColor: Int?
+internal var View.hrBackgroundColor: Int
     get() {
-        return viewDecorator?.backgroundColor
+        return optViewDecorator()?.backgroundColor ?: 0
     }
     set(value) {
-        viewDecorator?.backgroundColor = value ?: 0
+        obtainViewDecorator().backgroundColor = value
     }
 
 /**
  * 为View扩展渐变属性
  */
 private var View.backgroundLinearGradient: String?
-    get() = viewDecorator?.backgroundImage
+    get() = optViewDecorator()?.backgroundImage
     set(value) {
-        viewDecorator?.backgroundImage = value ?: KRCssConst.EMPTY_STRING
+        obtainViewDecorator().backgroundImage = value ?: KRCssConst.EMPTY_STRING
     }
 
 /**
  * 为View扩展阴影属性
  */
 private var View.boxShadow: String?
-    get() = viewDecorator?.boxShadow
+    get() = optViewDecorator()?.boxShadow
     set(value) {
-        viewDecorator?.boxShadow = value ?: KRCssConst.EMPTY_STRING
+        val viewDecorator = obtainViewDecorator()
+        viewDecorator.boxShadow = value ?: KRCssConst.EMPTY_STRING
+        if (KuiklyRenderView.lazyClipChildren && viewDecorator.hasBoxShadow) {
+            parent?.setContentOverBounds()
+        }
     }
 
 /**
  * 为View扩展borderRadius属性
  */
 private var View.borderRadius: String?
-    get() = viewDecorator?.borderRadius
+    get() = optViewDecorator()?.borderRadius
     set(value) {
-        viewDecorator?.borderRadius = value ?: KRCssConst.EMPTY_STRING
+        obtainViewDecorator().borderRadius = value ?: KRCssConst.EMPTY_STRING
         invalidate()
     }
 
@@ -501,9 +515,9 @@ private var View.borderRadius: String?
  * 为View扩展borderStyle属性
  */
 private var View.borderStyle: String?
-    get() = viewDecorator?.borderStyle
+    get() = optViewDecorator()?.borderStyle
     set(value) {
-        viewDecorator?.borderStyle = value ?: KRCssConst.EMPTY_STRING
+        obtainViewDecorator().borderStyle = value ?: KRCssConst.EMPTY_STRING
     }
 
 /**
@@ -511,33 +525,42 @@ private var View.borderStyle: String?
  */
 private fun View.resetHRBackground() {
     background = null
-    viewDecorator = null
+    destroyViewDecorator()
 }
 
 private fun View.resetBorder() {
-    viewDecorator = null
+    destroyViewDecorator()
     if (!isBeforeM) {
         foreground = null
     }
 }
 
-internal var View.viewDecorator: KRViewDecoration?
-    get() {
-        return getViewData(KRCssConst.VIEW_DECORATOR) ?: KRViewDecoration(this).apply {
-            putViewData(KRCssConst.VIEW_DECORATOR, this)
-        }
+/**
+ * 获取或创建View的装饰器（始终返回非空实例）
+ */
+internal fun View.obtainViewDecorator(): KRViewDecoration {
+    return getViewData(KRCssConst.VIEW_DECORATOR) ?: KRViewDecoration(this).also {
+        putViewData(KRCssConst.VIEW_DECORATOR, it)
     }
-    set(value) {
-        if (value == null) {
-            removeViewData<KRViewDecoration>(KRCssConst.VIEW_DECORATOR)
-            if (outlineProvider != null) {
-                outlineProvider = null
-                clipToOutline = false
-            }
-        } else {
-            putViewData(KRCssConst.VIEW_DECORATOR, value)
-        }
+}
+
+/**
+ * 获取View的装饰器（可能为空，不会自动创建）
+ */
+internal fun View.optViewDecorator(): KRViewDecoration? {
+    return getViewData(KRCssConst.VIEW_DECORATOR)
+}
+
+/**
+ * 销毁View的装饰器
+ */
+internal fun View.destroyViewDecorator() {
+    removeViewData<KRViewDecoration>(KRCssConst.VIEW_DECORATOR) ?: return
+    if (outlineProvider != null) {
+        outlineProvider = null
+        clipToOutline = false
     }
+}
 
 /**
  * 添加事件监听
@@ -946,3 +969,90 @@ internal fun View.setFrameForAndroidM(frame: Rect) {
     lp.height = frame.bottom
     layoutParams = lp
 }
+
+// ====================== 以下 Clip Children 相关 ===================
+// should clip content
+internal val ViewGroup.shouldClipContent: Boolean get() = opacity == 0f ||
+        visibility == View.GONE ||
+        overflow ||
+        optViewDecorator()?.needClip == true
+
+// handle shouldClipContent change from true to false
+private fun View.tryPropagatePendingOverBounds() {
+    if (KuiklyRenderView.lazyClipChildren) {
+        val viewGroup = this as? ViewGroup ?: return
+        val parent = parent as? ViewGroup ?: return
+        if (parent.clipChildren && viewGroup.contentOverBounds() && !viewGroup.shouldClipContent) {
+            parent.clipChildren = false
+            parent.setContentOverBounds()
+        }
+    }
+}
+
+// transform over bounds
+internal fun View.setTransformOverBounds() {
+    parent?.setContentOverBounds() ?: putViewData(KRCssConst.TRANSFORM_OVER_BOUNDS, true)
+}
+internal fun View.transformOverBounds(): Boolean {
+    return getViewData<Boolean>(KRCssConst.TRANSFORM_OVER_BOUNDS) == true
+}
+
+// frame over bounds
+/**
+ * 判断frame是否超出bounds，Rect内部字段的含义：left/top表示相对位置，right/bottom表示宽高
+ */
+private fun Rect.overBounds(bounds: Rect): Boolean {
+    return left < 0 || top < 0 || left + right > bounds.right || top + bottom > bounds.bottom
+}
+internal fun View.frameOverBounds(): Boolean {
+    val currentFrame = if (hadSetFrame) this.frame else return false
+    val parent = parent as? ViewGroup ?: return false
+    val parentFrame = if (parent.hadSetFrame) parent.frame else return false
+    return currentFrame.overBounds(parentFrame)
+}
+
+// content over bounds
+internal fun ViewParent.setContentOverBounds() {
+    var view = this as? ViewGroup ?: return
+    while (view !is KuiklyRenderView) {
+        val parent = view.parent
+        if (parent is ViewGroup && !parent.clipChildren) {
+            // already not clip
+            break
+        }
+        if (parent !is ViewGroup || view.shouldClipContent) {
+            view.putViewData(KRCssConst.CONTENT_OVER_BOUNDS, true)
+            break
+        }
+        parent.clipChildren = false
+        view = parent
+    }
+}
+internal fun ViewGroup.contentOverBounds(): Boolean {
+    return getViewData<Boolean>(KRCssConst.CONTENT_OVER_BOUNDS) == true
+}
+
+internal fun View.updateClipChildrenWithFrameBounds(frame: Rect) {
+    if (this is ViewGroup) {
+        // check children first
+        val parentClipChildren = (parent as? ViewGroup)?.clipChildren ?: true
+        if (parentClipChildren && !this.contentOverBounds()) {
+            for (i in 0 until childCount) {
+                val child = getChildAt(i)
+                if (child.hadSetFrame && child.frame.overBounds(frame)) {
+                    this.setContentOverBounds()
+                    return
+                }
+            }
+        }
+    }
+    val parent = parent as? ViewGroup ?: return
+    if ((parent.parent as? ViewGroup)?.clipChildren == false || parent.contentOverBounds()) {
+        return
+    }
+    val parentFrame = if (parent.hadSetFrame) parent.frame else return
+    if (frame.overBounds(parentFrame)) {
+        parent.setContentOverBounds()
+    }
+}
+// ====================== 以上 Clip Children 相关 ===================

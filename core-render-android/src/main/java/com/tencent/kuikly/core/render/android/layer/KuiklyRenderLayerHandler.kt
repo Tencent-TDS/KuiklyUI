@@ -24,7 +24,7 @@ import android.view.View
 import android.view.View.OnLayoutChangeListener
 import android.view.ViewGroup
 import com.tencent.kuikly.core.render.android.IKuiklyRenderView
-import com.tencent.kuikly.core.render.android.KuiklyContextParams
+import com.tencent.kuikly.core.render.android.KuiklyRenderView
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.css.ktx.isMainThread
@@ -416,6 +416,7 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
                 }
             }
         }
+        viewExport.resetClipChildren()
         viewExport.resetShadow()
     }
 
@@ -450,24 +451,26 @@ data class RenderViewHandler(
                 layoutParams.height = 0
             }
         }
-        viewExport.viewGroup?.also {
-            it.addOnLayoutChangeListener(object : OnLayoutChangeListener {
-                override fun onLayoutChange(
-                    v: View?,
-                    left: Int,
-                    top: Int,
-                    right: Int,
-                    bottom: Int,
-                    oldLeft: Int,
-                    oldTop: Int,
-                    oldRight: Int,
-                    oldBottom: Int
-                ) {
-                    it.clipChildren = false // 全部View不裁剪
-                    it.removeOnLayoutChangeListener(this)
-                }
+        if (!KuiklyRenderView.lazyClipChildren) {
+            viewExport.viewGroup?.also {
+                it.addOnLayoutChangeListener(object : OnLayoutChangeListener {
+                    override fun onLayoutChange(
+                        v: View?,
+                        left: Int,
+                        top: Int,
+                        right: Int,
+                        bottom: Int,
+                        oldLeft: Int,
+                        oldTop: Int,
+                        oldRight: Int,
+                        oldBottom: Int
+                    ) {
+                        it.clipChildren = false // 全部View不裁剪
+                        it.removeOnLayoutChangeListener(this)
+                    }
 
-            })
+                })
+            }
         }
     }
 }

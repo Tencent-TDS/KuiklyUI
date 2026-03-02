@@ -188,7 +188,6 @@ fun Any.toNumberFloat(): Float = (this as Number).toFloat()
  */
 fun String?.toJSONObjectSafely(): JSONObject = JSONObject(this ?: "{}")
 
-
 fun String.pxToFloat(): Float {
     val result = this.replace("px", "")
 

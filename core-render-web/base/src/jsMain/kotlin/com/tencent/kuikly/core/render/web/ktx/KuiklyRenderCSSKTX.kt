@@ -855,7 +855,7 @@ private val propHandlers = mapOf<String, (CSSStyleDeclaration, Any, HTMLElement)
     },
     KRCssConst.CLICK to { _, value, ele ->
         // Check if it is a PC device (precise pointing device like mouse)
-        val isPCDevice = kuiklyWindow.matchMedia(ClickDetectionConst.POINTER_FINE_QUERY).matches
+        val isPCDevice = safeMatchMedia(ClickDetectionConst.POINTER_FINE_QUERY)
 
         // Record mousedown position for PC drag/selection detection (only for PC)
         if (isPCDevice) {

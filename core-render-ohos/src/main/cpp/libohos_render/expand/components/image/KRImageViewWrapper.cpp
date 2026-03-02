@@ -24,6 +24,8 @@ void KRImageViewWrapper::DidInit() {
     InitImageView(place_holder_image_view_);
     image_view_ = std::make_shared<KRImageView>();
     InitImageView(image_view_);
+    // 设置 wrapper 弱引用
+    image_view_->wrapper_ = std::static_pointer_cast<KRImageViewWrapper>(shared_from_this());
 }
 
 void KRImageViewWrapper::InitImageView(std::shared_ptr<KRImageView> image_view) {
@@ -50,9 +52,45 @@ void KRImageViewWrapper::DidMoveToParentView() {
 }
 
 void KRImageViewWrapper::OnDestroy() {
+    // 先清理 callback，避免销毁后回调被触发
+    if (image_view_) {
+        image_view_->ClearOnDecodedCallback();
+    }
     IKRRenderViewExport::OnDestroy();
     place_holder_image_view_->ToDestroy();
     image_view_->ToDestroy();
+}
+
+void KRImageViewWrapper::DoClearPlaceholder() {
+    if (placeholder_cleared_) {
+        return;
+    }
+    placeholder_cleared_ = true;
+    pending_clear_placeholder_ = false;
+    // 清除 placeholder 的 src
+    place_holder_image_view_->ResetProp(kPropNameSrc);
+}
+
+void KRImageViewWrapper::CheckAndClearPlaceholder() {
+    if (placeholder_cleared_ || pending_clear_placeholder_) {
+        return;
+    }
+    
+    // 检查 image_view_ 是否已经解码完成（status=1）
+    if (image_view_->IsDecoded()) {
+        // 已经解码完成，立即清除
+        DoClearPlaceholder();
+    } else {
+        // 图片未解码完成，注册回调等待解码完成
+        pending_clear_placeholder_ = true;
+        auto weak_wrapper = std::weak_ptr<KRImageViewWrapper>(
+            std::static_pointer_cast<KRImageViewWrapper>(shared_from_this()));
+        image_view_->SetOnDecodedCallback([weak_wrapper]() {
+            if (auto wrapper = weak_wrapper.lock()) {
+                wrapper->DoClearPlaceholder();
+            } 
+        });
+    }
 }
 
 bool KRImageViewWrapper::SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
@@ -62,16 +100,23 @@ bool KRImageViewWrapper::SetProp(const std::string &prop_key, const KRAnyValue &
     if (std::strcmp(prop_key.c_str(), kPropNameResize) == 0) {
         place_holder_image_view_->SetProp(prop_key, prop_value, event_call_back);
     } else if (std::strcmp(prop_key.c_str(), kPropNamePlaceHolder) == 0) {
-        place_holder_image_view_->SetProp(kPropNameSrc, prop_value, event_call_back);
         auto src_str = prop_value->toString();
         if (!src_str.empty()) {
-            // 有 placeholder: 设置 placeholder src，隐藏 image_view_
-            kuikly::util::UpdateNodeVisibility(image_view_->GetNode(), ARKUI_VISIBILITY_VISIBLE);
+            // 设置新的 placeholder，重置清除状态
+            placeholder_cleared_ = false;
+            pending_clear_placeholder_ = false;
+            place_holder_image_view_->SetProp(kPropNameSrc, prop_value, event_call_back);
         } else {
-            // clearPlaceholder: 清空 placeholder，恢复 image_view_ 显示
-            kuikly::util::UpdateNodeVisibility(image_view_->GetNode(), ARKUI_VISIBILITY_HIDDEN);
+            // clearPlaceholder 被调用（来自 Kotlin）
+            // 使用延迟清除策略：等待图片解码完成后再清除
+            CheckAndClearPlaceholder();
         }
         didHanded = true;
+    } else if (std::strcmp(prop_key.c_str(), kPropNameSrc) == 0) {
+        // 重置 placeholder 清除状态，因为设置了新的 src
+        placeholder_cleared_ = false;
+        pending_clear_placeholder_ = false;
+        image_view_->ClearOnDecodedCallback();
     }
     return didHanded;
 }
@@ -83,8 +128,8 @@ bool KRImageViewWrapper::ResetProp(const std::string &prop_key) {
         place_holder_image_view_->ResetProp(kPropNameResize);
     } else if (std::strcmp(prop_key.c_str(), kPropNamePlaceHolder) == 0) {
         place_holder_image_view_->ResetProp(kPropNameSrc);
-        // 重置placeholdersrc时，确保 image_view_ 的可见性
-        kuikly::util::UpdateNodeVisibility(image_view_->GetNode(), ARKUI_VISIBILITY_VISIBLE);
+        placeholder_cleared_ = false;
+        pending_clear_placeholder_ = false;
         didHanded = true;
     }
     return didHanded;

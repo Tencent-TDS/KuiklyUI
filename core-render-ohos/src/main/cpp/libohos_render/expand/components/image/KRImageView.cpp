@@ -133,6 +133,7 @@ bool KRImageView::ResetProp(const std::string &prop_key) {
     auto didHanded = false;
     if (kuikly::util::isEqual(prop_key, kPropNameSrc)) {
         image_src_ = "";
+        had_decoded_ = false;
         kuikly::util::ResetArkUIImageSrc(GetNode());
         didHanded = true;
     } else if (kuikly::util::isEqual(prop_key, kPropNameResize)) {
@@ -216,6 +217,7 @@ bool KRImageView::SetImageSrc(const KRAnyValue &value) {
 
     kuikly::util::ResetArkUIImageSrc(GetNode());
     image_src_ = src;
+    had_decoded_ = false;  // 重置解码状态
     
     // 优先使用 V3 adapter（支持 imageParams）
     if (auto imageAdapterV3 = KRImageAdapterManager::GetInstance()->GetAdapterV3()) {
@@ -420,7 +422,34 @@ void KRImageView::FireOnImageErrorEvent(ArkUI_NodeEvent *event) {
     }
 }
 
+void KRImageView::SetOnDecodedCallback(std::function<void()> callback) {
+    std::lock_guard<std::mutex> lock(decoded_callback_mutex_);
+    on_decoded_callback_ = callback;
+}
+
+void KRImageView::ClearOnDecodedCallback() {
+    std::lock_guard<std::mutex> lock(decoded_callback_mutex_);
+    on_decoded_callback_ = nullptr;
+}
+
 void KRImageView::FireOnImageCompleteEvent(ArkUI_NodeEvent *event) {
+    auto component_event = OH_ArkUI_NodeEvent_GetNodeComponentEvent(event);
+    int32_t status = component_event ? component_event->data[0].i32 : -1;
+    
+    // status=1: 解码完成，触发解码回调（用于延迟清除 placeholder）
+    if (status == 1) {
+        had_decoded_ = true;
+        std::function<void()> callback;
+        {
+            std::lock_guard<std::mutex> lock(decoded_callback_mutex_);
+            callback = std::move(on_decoded_callback_);
+        }
+        if (callback) {
+            callback();
+        }
+    }
+    
+    // status=0: 数据加载成功，执行原有逻辑
     if (!kuikly::util::IsImageLoadSuccessStatus(event)) {
         return;
     }

@@ -22,6 +22,8 @@
 using namespace std::string_view_literals;
 constexpr std::string_view KR_ASSET_PREFIX = "assets://"sv;
 
+class KRImageViewWrapper;
+
 class KRImageView : public IKRRenderViewExport {
  public:
     KRImageView() = default;
@@ -38,6 +40,11 @@ class KRImageView : public IKRRenderViewExport {
     bool ResetProp(const std::string &prop_key) override;
     void OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEventType &event_type) override;
     void OnDestroy() override;
+    
+    // 解码完成回调支持（status=1 时触发）
+    bool IsDecoded() const { return had_decoded_; }
+    void SetOnDecodedCallback(std::function<void()> callback);
+    void ClearOnDecodedCallback();
 
  private:
     bool SetImageSrc(const KRAnyValue &value);
@@ -74,11 +81,19 @@ class KRImageView : public IKRRenderViewExport {
     bool is_dot_nine_image_ = false;
     ArkUI_NodeHandle mask_linear_gradient_node_ = nullptr;
     KRAnyValue image_params_ = nullptr;
+    // 解码完成状态（status=1）
+    bool had_decoded_ = false;
+    std::function<void()> on_decoded_callback_ = nullptr;
+    std::weak_ptr<KRImageViewWrapper> wrapper_;
+    // 线程安全保护（如果需要在多线程环境使用）
+    std::mutex decoded_callback_mutex_;
     
     static void AdapterSetImageCallback(const void* context,
                                    const char *src,
                                    ArkUI_DrawableDescriptor *imageDescriptor,
                                    const char *new_src);
+    
+    friend class KRImageViewWrapper;
 };
 
 #endif  // CORE_RENDER_OHOS_KRIMAGEVIEW_H

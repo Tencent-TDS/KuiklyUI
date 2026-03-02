@@ -56,6 +56,32 @@
  */
 - (void)hrv_prepareForeReuse {
     
+    // 1. 遍历 sublayers，找到 CSSGradientLayer（承载实际渐变色的 layer），解除 mask 并移除
+    //    - mask = nil：解除 _contentTextView.layer 与 gradientLayer 的 mask 绑定，
+    //      避免 gradientLayer 释放时 _contentTextView.layer 的 superlayer 变成野指针（EXC_BAD_ACCESS）
+    //    - removeFromSuperlayer：移除 gradientLayer 本身，因为它承载了上一次的渐变色，
+    //      若不移除，复用后即使新内容无渐变，残留的渐变色块仍会被渲染（渐变色"扩散"问题的根因）
+    for (CALayer *subLayer in [self.layer.sublayers copy]) {
+        if ([subLayer isKindOfClass:[CAGradientLayer class]] && subLayer != _contentTextView.layer) {
+            // 先解除 mask，否则 _contentTextView.layer 会随 gradientLayer 释放而变成野指针
+            subLayer.mask = nil;
+            [subLayer removeFromSuperlayer];
+        }
+    }
+    
+    // 2. 将 _contentTextView 重新添加回 self，恢复 layer 树至初始状态
+    //    因为 p_setTextGradient 中 gradientLayer.mask = _contentTextView.layer 会导致
+    //    Core Animation 将 _contentTextView.layer 从 self.layer.sublayers 中摘走，
+    //    此时需要通过 addSubview 让 UIKit 重新将 _contentTextView.layer 插回 self.layer
+    if (_contentTextView.layer.superlayer != self.layer) {
+        [_contentTextView removeFromSuperview];
+        [self addSubview:_contentTextView];
+    }
+    
+    // 3. 清除 css_backgroundImage 关联属性，避免残留状态影响下一次复用
+    self.css_backgroundImage = nil;
+    
+    // 4. 转发给 _contentTextView 做其自身的复用重置
     [_contentTextView hrv_prepareForeReuse];
 }
 /*

@@ -197,6 +197,11 @@ internal class TestPage : BasePager() {
 
 ****
 
+:::tip 注意
+- 设置圆角后，将对子组件进行裁剪，子组件超出父组件圆角范围的部分将不可见，此行为无法通过overflow属性调整
+- **跨平台一致性提示**：Android平台2.15.x及以下版本设置`borderRadius(0f)`仍然会裁剪子组件，最新版本已修复该问题，与iOS平台保持一致（设置`borderRadius(0f)`将不再裁剪子组件）
+:::
+
 ::: tabs
 
 @tab:active 示例
@@ -639,8 +644,8 @@ internal class ZIndexPage : BasePager() {
 子组件超出父组件部分能让能够显示
 
 :::tip 注意
-overflow的默认表现在iOS开发者看来是很正常的，因此iOS默认对子View超出父View的区域是不会裁剪的。
-但是对于Android开发者来说会有不同，因此Android系统默认会不显示子View超出父View的区域
+overflow的默认表现在iOS开发者看来是很正常的，因为iOS默认对子View超出父View的区域是不会裁剪的，
+但是对于Android开发者来说会有不同，因为Android系统默认会不显示子View超出父View的区域。
 :::
 
 :::tabs

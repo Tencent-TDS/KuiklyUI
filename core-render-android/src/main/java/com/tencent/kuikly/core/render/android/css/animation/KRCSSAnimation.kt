@@ -19,13 +19,17 @@ import android.graphics.Matrix
 import android.util.ArrayMap
 import android.view.View
 import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
+import com.tencent.kuikly.core.render.android.KuiklyRenderView
 import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.css.ktx.frameHeight
 import com.tencent.kuikly.core.render.android.css.ktx.frameWidth
 import com.tencent.kuikly.core.render.android.css.ktx.removeHRAnimation
 import com.tencent.kuikly.core.render.android.css.ktx.toPxF
-import com.tencent.kuikly.core.render.android.css.ktx.viewDecorator
+import com.tencent.kuikly.core.render.android.css.ktx.obtainViewDecorator
+import com.tencent.kuikly.core.render.android.css.ktx.optViewDecorator
+import com.tencent.kuikly.core.render.android.css.ktx.setTransformOverBounds
 import java.lang.ref.WeakReference
+import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.math.tan
 
@@ -343,6 +347,7 @@ class KRCSSTransform(transform: String?, private val target: View) {
             target.cameraDistance = density * density * DEFAULT_PERSPECTIVE * sqrt(5f)
         }
         applySkewTransform()
+        handleOverflowBounds()
     }
 
     /**
@@ -451,11 +456,11 @@ class KRCSSTransform(transform: String?, private val target: View) {
 
     private fun applySkewTransform() {
         if (skewX == DEFAULT_SKEW_X && skewY == DEFAULT_SKEW_Y) {
-            target.viewDecorator?.matrix = null
+            target.optViewDecorator()?.matrix = null
         } else {
             val horizontalSkewAngleInRadians = Math.toRadians(skewX.toDouble())
             val verticalSkewAngleInRadians = Math.toRadians(skewY.toDouble())
-            target.viewDecorator?.matrix = Matrix().apply {
+            target.obtainViewDecorator().matrix = Matrix().apply {
                 setSkew(
                     tan(horizontalSkewAngleInRadians).toFloat(),
                     tan(verticalSkewAngleInRadians).toFloat(),
@@ -470,9 +475,34 @@ class KRCSSTransform(transform: String?, private val target: View) {
         if (skewX != DEFAULT_SKEW_X || skewY != DEFAULT_SKEW_Y) {
             skewX = DEFAULT_SKEW_X
             skewY = DEFAULT_SKEW_Y
-            target.viewDecorator?.matrix = null
+            target.optViewDecorator()?.matrix = null
         }
     }
+
+    private fun handleOverflowBounds() {
+        if (!KuiklyRenderView.lazyClipChildren || isZero()) {
+            return
+        }
+        if (hasRotate() || hasZoom() || hasTranslate() || hasSkew() || hasPivotOut()) {
+            target.setTransformOverBounds()
+        }
+    }
+
+    private inline fun isZero() = scaleX == 0f || scaleY == 0f
+
+    private inline fun hasRotate() = rotate != DEFAULT_ROTATE || rotateX != DEFAULT_ROTATE_X ||
+            rotateY != DEFAULT_ROTATE_Y
+
+    // 是否放大
+    private inline fun hasZoom() = abs(scaleX) > DEFAULT_SCALE_X || abs(scaleY) > DEFAULT_SCALE_Y
+
+    private inline fun hasTranslate() = translateX != DEFAULT_TRANSLATE_X ||
+            translateY != DEFAULT_TRANSLATE_Y
+
+    private inline fun hasSkew() = skewX != DEFAULT_SKEW_X || skewY != DEFAULT_SKEW_Y
+
+    private inline fun hasPivotOut() = (scaleX != DEFAULT_SCALE_X || scaleY != DEFAULT_SCALE_Y) &&
+            (pivotX < 0f || pivotY < 0f || pivotX > target.frameWidth || pivotY > target.frameHeight)
 
     companion object {
         private const val ROTATE_INDEX = 0

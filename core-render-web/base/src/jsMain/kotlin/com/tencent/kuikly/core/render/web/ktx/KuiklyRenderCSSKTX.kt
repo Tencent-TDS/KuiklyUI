@@ -16,6 +16,7 @@ import com.tencent.kuikly.core.render.web.processor.IAnimation
 import com.tencent.kuikly.core.render.web.processor.IEvent
 import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
 import com.tencent.kuikly.core.render.web.processor.state
+import com.tencent.kuikly.core.render.web.utils.safeMatchMedia
 import org.w3c.dom.Element
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.css.CSSStyleDeclaration

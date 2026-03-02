@@ -66,10 +66,10 @@ bool KRImageViewWrapper::SetProp(const std::string &prop_key, const KRAnyValue &
         auto src_str = prop_value->toString();
         if (!src_str.empty()) {
             // 有 placeholder: 设置 placeholder src，隐藏 image_view_
-            kuikly::util::UpdateNodeVisibility(image_view_->GetNode(), ARKUI_VISIBILITY_HIDDEN);
+            kuikly::util::UpdateNodeVisibility(image_view_->GetNode(), ARKUI_VISIBILITY_VISIBLE);
         } else {
             // clearPlaceholder: 清空 placeholder，恢复 image_view_ 显示
-            kuikly::util::UpdateNodeVisibility(image_view_->GetNode(), ARKUI_VISIBILITY_VISIBLE);
+            kuikly::util::UpdateNodeVisibility(image_view_->GetNode(), ARKUI_VISIBILITY_HIDDEN);
         }
         didHanded = true;
     }

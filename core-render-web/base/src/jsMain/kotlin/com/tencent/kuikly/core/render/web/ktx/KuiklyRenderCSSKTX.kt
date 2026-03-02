@@ -16,6 +16,7 @@ import com.tencent.kuikly.core.render.web.processor.IAnimation
 import com.tencent.kuikly.core.render.web.processor.IEvent
 import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
 import com.tencent.kuikly.core.render.web.processor.state
+import com.tencent.kuikly.core.render.web.utils.safeMatchMedia
 import org.w3c.dom.Element
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.css.CSSStyleDeclaration
@@ -855,7 +856,7 @@ private val propHandlers = mapOf<String, (CSSStyleDeclaration, Any, HTMLElement)
     },
     KRCssConst.CLICK to { _, value, ele ->
         // Check if it is a PC device (precise pointing device like mouse)
-        val isPCDevice = kuiklyWindow.matchMedia(ClickDetectionConst.POINTER_FINE_QUERY).matches
+        val isPCDevice = safeMatchMedia(ClickDetectionConst.POINTER_FINE_QUERY)
 
         // Record mousedown position for PC drag/selection detection (only for PC)
         if (isPCDevice) {

@@ -17,6 +17,9 @@
 
 @interface KRVideoViewHandler()<WMPlayerDelegate>
 
+@property (nonatomic, assign) BOOL isPlaying;
+@property (nonatomic, strong) NSTimer *progressTimer;
+
 @end
 
 @implementation KRVideoViewHandler
@@ -27,8 +30,30 @@
         playerModel.videoURL = [NSURL URLWithString:src];
         KRVideoViewHandler *videoView = [[KRVideoViewHandler alloc] initPlayerModel:playerModel];
         videoView.delegate = videoView;
+        UIView *topView = [videoView valueForKey:@"topView"];
+        UIView *bottomView = [videoView valueForKey:@"bottomView"];
+        topView.hidden = YES;
+        bottomView.hidden = YES;
         return videoView;
     }];
+}
+
+- (void)play {
+    [super play];
+    self.isPlaying = YES;
+    [self startProgressTimer];
+}
+
+- (void)pause {
+    [super pause];
+    self.isPlaying = NO;
+    [self stopProgressTimer];
+}
+
+- (void)resetWMPlayer {
+    [super resetWMPlayer];
+    self.isPlaying = NO;
+    [self stopProgressTimer];
 }
 
 #pragma mark - KRVideoViewProtocol
@@ -72,13 +97,38 @@
  * kuikly侧设置的属性，一般用于业务扩展使用
  */
 - (void)krv_setPropWithKey:(NSString *)propKey propValue:(id)propValue {
-    
+
 }
 /*
  * kuikly侧调用方法，一般用于业务扩展使用
  */
 - (void)krv_callWithMethod:(NSString *)method params:(NSString *)params {
-    
+
+}
+
+#pragma mark - ProgressTimer
+
+- (void)startProgressTimer {
+    if (self.progressTimer) {
+        [self.progressTimer invalidate];
+        self.progressTimer = nil;
+    }
+    self.progressTimer = [NSTimer scheduledTimerWithTimeInterval:1.0
+                                                          target:self
+                                                        selector:@selector(updatePlayerProgress)
+                                                        userInfo:nil
+                                                         repeats:YES];
+}
+
+- (void)stopProgressTimer {
+    if (self.progressTimer) {
+        [self.progressTimer invalidate];
+        self.progressTimer = nil;
+    }
+}
+
+- (void)updatePlayerProgress {
+    [self.krv_delegate playTimeDidChangedWithCurrentTime:[self currentTime] totalTime:[self duration]];
 }
 
 - (void)krv_seekToTime:(NSUInteger)seekTotime { 
@@ -99,12 +149,23 @@
 
 //播放器已经拿到视频的尺寸大小
 -(void)wmplayerGotVideoSize:(WMPlayer *)wmplayer videoSize:(CGSize )presentationSize {
-    
+    // 通知首帧已显示，用于隐藏封面图片
+    [self.krv_delegate videoFirstFrameDidDisplay];
 }
 
 //播放完毕的代理方法
 -(void)wmplayerFinishedPlay:(WMPlayer *)wmplayer {
     [self.krv_delegate videoPlayStateDidChangedWithState:(KRVideoPlayStatePlayEnd) extInfo:@{}];
+}
+
+-(void)wmplayer:(WMPlayer *)wmplayer singleTaped:(UITapGestureRecognizer *)singleTap {
+    if (self.isPlaying) {
+        [wmplayer pause];
+        self.isPlaying = NO;
+    } else {
+        [wmplayer play];
+        self.isPlaying = YES;
+    }
 }
 
 +(BOOL)IsiPhoneX {
@@ -113,3 +174,4 @@
 
 
 @end
+

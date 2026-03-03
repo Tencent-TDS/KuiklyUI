@@ -22,17 +22,26 @@ import android.view.ViewGroup
 import android.view.accessibility.AccessibilityEvent
 import androidx.annotation.UiThread
 import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
+import com.tencent.kuikly.core.render.android.KuiklyRenderView
+import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.css.decoration.IKRViewDecoration
 import com.tencent.kuikly.core.render.android.css.ktx.activity
 import com.tencent.kuikly.core.render.android.css.ktx.clearViewData
+import com.tencent.kuikly.core.render.android.css.ktx.contentOverBounds
 import com.tencent.kuikly.core.render.android.css.ktx.hasInitAccessibilityDelegate
 import com.tencent.kuikly.core.render.android.css.ktx.drawCommonDecoration
 import com.tencent.kuikly.core.render.android.css.ktx.drawCommonForegroundDecoration
+import com.tencent.kuikly.core.render.android.css.ktx.frameOverBounds
 import com.tencent.kuikly.core.render.android.css.ktx.hasCustomClipPath
+import com.tencent.kuikly.core.render.android.css.ktx.optViewDecorator
 import com.tencent.kuikly.core.render.android.css.ktx.removeOnSetFrameObservers
+import com.tencent.kuikly.core.render.android.css.ktx.removeViewData
 import com.tencent.kuikly.core.render.android.css.ktx.resetCommonProp
 import com.tencent.kuikly.core.render.android.css.ktx.setCommonProp
+import com.tencent.kuikly.core.render.android.css.ktx.setContentOverBounds
+import com.tencent.kuikly.core.render.android.css.ktx.shouldClipContent
 import com.tencent.kuikly.core.render.android.css.ktx.stopAnimations
+import com.tencent.kuikly.core.render.android.css.ktx.transformOverBounds
 
 /**
  * 渲染视图组件协议, 组件通过实现[IKuiklyRenderViewExport]协议 完成一个kuikly ui组件暴露
@@ -156,11 +165,30 @@ interface IKuiklyRenderViewExport : IKuiklyRenderModuleExport, IKRViewDecoration
      * 当[View]被add到父亲时，会回调该方法
      * @param parent [View]的父亲
      */
-    fun onAddToParent(parent: ViewGroup) {}
+    fun onAddToParent(parent: ViewGroup) {
+        if (KuiklyRenderView.lazyClipChildren) {
+            val view = view()
+            if (parent.clipChildren) {
+                if (view.optViewDecorator()?.hasBoxShadow == true ||
+                    (view is ViewGroup && view.contentOverBounds() && !view.shouldClipContent)) {
+                    parent.clipChildren = false
+                    parent.setContentOverBounds()
+                } else if (view.transformOverBounds() || view.frameOverBounds()) {
+                    parent.setContentOverBounds()
+                }
+            }
+        }
+    }
 
     /**
      * 当[View]被父亲remove时，会回调该方法
      * @param parent [View]的父亲
      */
     fun onRemoveFromParent(parent: ViewGroup) {}
+
+    fun resetClipChildren() {
+        if (KuiklyRenderView.lazyClipChildren) {
+            (view() as? ViewGroup)?.clipChildren = true
+        }
+    }
 }

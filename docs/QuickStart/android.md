@@ -465,6 +465,10 @@ android {
 -keep class com.tencent.kuikly.core.IKuiklyCoreEntry { *; }
 -keep class com.tencent.kuikly.core.IKuiklyCoreEntry$Delegate { *; }
 -keep class com.tencent.kuikly.core.log.KLog { *; }
+-keep class com.tencent.kuikly.core.render.android.scheduler.KuiklyRenderCoreContextScheduler {
+    com.tencent.kuikly.core.render.android.scheduler.KuiklyRenderCoreContextScheduler INSTANCE;
+    void scheduleTask(long,java.lang.Runnable);
+}
 
 # RecyclerView 反射方法保留
 -keepclassmembers class androidx.recyclerview.widget.RecyclerView {
@@ -491,6 +495,18 @@ android {
 ### 与 keyboardHeightChange 结合使用
 
 配置 `adjustNothing` 后，Kuikly 框架可以通过 `keyboardHeightChange` 事件来监听键盘高度变化，并实现更精确的键盘规避逻辑。这种方式比系统自动调整布局更加可控，能够提供更好的用户体验。
+
+## 实验性开关
+
+Kuikly提供了一些实验性功能开关，供业务按需开启以体验新功能或优化性能。
+
+1. **KuiklyRenderView.enableLazyClipChildren()**
+   - 功能描述：优化重绘范围的实验性开关，可以提升小区域动画的渲染性能，进程级开关，影响所有 Kuikly 页面，**2.16.0**版本引入
+   - 可能存在的缺陷：子组件超出父组件边界的部分被裁剪掉，没有正确显示
+
+:::warning 注意
+实验性功能可能存在不稳定因素，务必充分测试后再在生产环境中使用。
+:::
 
 ## 附：以View方式接入
 

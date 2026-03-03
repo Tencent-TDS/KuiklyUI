@@ -630,7 +630,7 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 - (instancetype)initWithFrame:(CGRect)frame {
     if (self = [super initWithFrame:frame]) {
         _imageView = [[KRImageView alloc] initWithFrame:frame];
-        [self addSubview:_imageView];
+        [self addSubview:_imageView];       // _imageview index层次为 0
     }
     return self;
 }
@@ -676,14 +676,21 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
     if (_css_placeholder != css_placeholder) {
         _css_placeholder = css_placeholder;
         [_placeholderView removeFromSuperview];
+        
         if (_css_placeholder.length) {
             _placeholderView = [[KRImageView alloc] initWithFrame:self.bounds];
             _placeholderView.contentMode = _imageView.contentMode;
             _placeholderView.hr_rootView = _imageView.hr_rootView;
             _placeholderView.css_src = css_placeholder;
-            [self insertSubview:_placeholderView atIndex:0];
+            
+            // placeholderView 在上层遮挡 imageView，imageView 隐藏等待 src 加载完成
+            _imageView.hidden = YES;
+            [self addSubview:_placeholderView];     // placeholderView 的 index层次为 1，在ImageView的上层
         } else {
+            // Kotlin clearPlaceholder 触发：移除 placeholder，恢复 imageView 显示
+            // 两个操作在同一个 UIScheduler 批量任务中执行，保证同帧渲染
             _placeholderView = nil;
+            _imageView.hidden = NO;
         }
     }
 }

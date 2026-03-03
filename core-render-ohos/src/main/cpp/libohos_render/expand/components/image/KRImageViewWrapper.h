@@ -37,6 +37,8 @@ class KRImageViewWrapper : public IKRRenderViewExport {
 
  private:
     void InitImageView(std::shared_ptr<KRImageView> image_view);
+    void DoClearPlaceholder();
+    void CheckAndClearPlaceholder();
 
  private:
     std::string place_holder_src_;
@@ -44,6 +46,9 @@ class KRImageViewWrapper : public IKRRenderViewExport {
     std::shared_ptr<KRImageView> place_holder_image_view_;
     std::shared_ptr<KRImageView> image_view_;
     bool did_insert_image_view_ = false;
+    // placeholder 清除状态管理
+    bool placeholder_cleared_ = false;
+    bool pending_clear_placeholder_ = false;
 };
 
 #endif  // CORE_RENDER_OHOS_KRImageViewWrapper_H

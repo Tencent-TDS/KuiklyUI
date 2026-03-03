@@ -670,9 +670,13 @@ class KRWrapperImageView(context: Context) : KRView(context) {
                     this.layoutParams = lp
                     scaleType = imageView.scaleType
                     setProp(KRImageView.PROP_SRC, placeholder)
-                    this@KRWrapperImageView.addView(this, 0)
+                    // addView 不带 index，placeholderView 在上层遮挡 imageView
+                    this@KRWrapperImageView.addView(this)
                 }
+                // imageView 隐藏，等待 clearPlaceholder 时恢复
+                imageView.visibility = INVISIBLE
             } else {
+                // Kotlin clearPlaceholder 触发，移除 placeholder 并恢复 imageView
                 removePlaceholder()
             }
         }
@@ -682,6 +686,7 @@ class KRWrapperImageView(context: Context) : KRView(context) {
         placeholderView?.removeFromParent()
         placeholderView = null
         placeholder = ""
+        imageView.visibility = VISIBLE
     }
 
     companion object {

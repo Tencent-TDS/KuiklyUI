@@ -1,5 +1,5 @@
 plugins {
-    kotlin("multiplatform")
+    kotlin("jvm")
     id("maven-publish")
     signing
 }
@@ -24,32 +24,31 @@ publishing {
         }
     }
 
+    publications {
+        create<MavenPublication>("maven") {
+            from(components["java"])
+        }
+    }
+
     afterEvaluate {
         publications.withType<MavenPublication>().configureEach {
             pom.configureMavenCentralMetadata()
             signPublicationIfKeyPresent(project)
-        }
-        publications.named<MavenPublication>("jvm") {
             artifact(emptyJavadocJar)
         }
     }
 }
 
-kotlin {
-    jvm()
-
-    sourceSets {
-        val jvmMain by getting {
-            dependencies {
-                implementation(Dependencies.kotlinpoet)
-                implementation("com.google.devtools.ksp:symbol-processing-api:1.9.22-1.0.16")
-                implementation(project(":core-annotations"))
-            }
-            kotlin.srcDir("src/main/kotlin")
-            kotlin.srcDir("src/main/kotlin/impl")
-            resources.srcDir("src/main/resources")
-        }
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    kotlinOptions {
+        moduleName = "${project.group}.${project.name}"
     }
+}
+
+dependencies {
+    implementation(Dependencies.kotlinpoet)
+    implementation("com.google.devtools.ksp:symbol-processing-api:1.9.22-1.0.16")
+    implementation(project(":core-annotations"))
 }
 
 val emptyJavadocJar by tasks.registering(Jar::class) {

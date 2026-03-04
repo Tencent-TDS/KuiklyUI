@@ -41,6 +41,7 @@ import com.tencent.kuikly.android.demo.adapter.KRThreadAdapter
 import com.tencent.kuikly.android.demo.adapter.KRUncaughtExceptionHandlerAdapter
 import com.tencent.kuikly.android.demo.adapter.PAGViewAdapter
 import com.tencent.kuikly.android.demo.adapter.VideoViewAdapter
+import com.tencent.kuikly.core.render.android.KuiklyRenderView
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
 import com.tencent.kuikly.core.render.android.css.ktx.toMap
 import com.tencent.kuikly.core.render.android.expand.KuiklyRenderViewBaseDelegator
@@ -66,6 +67,8 @@ class KuiklyRenderActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // 优化重绘范围的实验性开关，谨慎开启
+        KuiklyRenderView.enableLazyClipChildren()
         // 1. 创建一个Kuikly页面打开的封装处理器
         contextCodeHandler = ContextCodeHandler(this, pageName)
         // 2. 实例化Kuikly委托者类

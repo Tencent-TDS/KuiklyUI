@@ -91,4 +91,6 @@ object KRCssConst {
     const val HAD_INIT_ACCESSIBILITY_DELEGATE = "hadInitAccessibilityDelegate"
 
     const val CLIP_PATH = "clipPath"
+    const val TRANSFORM_OVER_BOUNDS = "transformOverBounds"
+    const val CONTENT_OVER_BOUNDS = "contentOverBounds"
 }

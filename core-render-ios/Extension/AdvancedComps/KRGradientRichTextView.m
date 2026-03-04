@@ -43,7 +43,7 @@
 #pragma mark - KuiklyRenderViewExportProtocol
 
 - (void)hrv_setPropWithKey:(NSString * _Nonnull)propKey propValue:(id _Nonnull)propValue {
-    if ([propKey isEqualToString:@"backgroundImage"] || [propKey isEqualToString:@"frame"]) {
+    if ([propKey isEqualToString:@"backgroundImage"] || [propKey isEqualToString:@"frame"]) { // 背景渐变.mask = 文本.layer 实现文本渐变
         [self css_setPropWithKey:propKey value:propValue];
         [self p_setTextGradient];
     } else {
@@ -64,7 +64,7 @@
             [subLayer removeFromSuperlayer];
         }
     }
-    
+
     // 2. 重置 _contentTextView.layer 的 transform / anchorPoint / position
     CALayer *contentLayer = _contentTextView.layer;
     if (!CATransform3DEqualToTransform(contentLayer.transform, CATransform3DIdentity)) {
@@ -83,7 +83,7 @@
     }
     contentLayer.position = CGPointMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds));
 #endif
-    
+
     // 3. 恢复 _contentTextView 的 subview 层级
 #if TARGET_OS_OSX // [macOS
     if (_isGradientMode || _contentTextView.superview != self) {
@@ -96,11 +96,11 @@
         [self addSubview:_contentTextView];
     }
 #endif // [macOS]
-    
+
     // 4. 重置状态
     _isGradientMode = NO;
     self.css_backgroundImage = nil;
-    
+
     // 5. 转发给 _contentTextView 做其自身的复用重置
     [_contentTextView hrv_prepareForeReuse];
 }
@@ -143,10 +143,9 @@
             gradientLayer = (CAGradientLayer *)subLayer;
         }
     }
-    
     if (gradientLayer) {
         _isGradientMode = YES;
-        
+
 #if TARGET_OS_OSX // macOS
         // macOS 需要先强制渲染一次，才能将 layer 用作 mask
         [_contentTextView setNeedsDisplay:YES];
@@ -156,21 +155,21 @@
         if (_contentTextView.superview == self) {
             [_contentTextView removeFromSuperview];
         }
-        
+
         CALayer *maskLayer = _contentTextView.layer;
         // 重置为 Identity 再设置 Y 轴翻转（macOS 坐标系原点在左下角）
         maskLayer.transform = CATransform3DIdentity;
         maskLayer.transform = CATransform3DMakeScale(1.0, -1.0, 1.0);
         maskLayer.anchorPoint = CGPointMake(0.5, 0.5);
         maskLayer.position = CGPointMake(CGRectGetMidX(maskLayer.bounds), CGRectGetMidY(maskLayer.bounds));
-        
+
         gradientLayer.mask = maskLayer;
 #else // macOS]
         gradientLayer.mask = _contentTextView.layer;
 #endif // [macOS]
     } else {
         _isGradientMode = NO;
-        
+
 #if TARGET_OS_OSX // [macOS
         // 非渐变模式：确保 _contentTextView 作为 subview 存在
         if (_contentTextView.superview != self) {

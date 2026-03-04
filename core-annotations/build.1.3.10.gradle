@@ -81,4 +81,8 @@ android {
         )
         main.manifest.srcFile("src/androidMain/AndroidManifest.xml")
     }
+
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+        kotlinOptions.freeCompilerArgs += ["-module-name", "${project.group}.${project.name}"]
+    }
 }

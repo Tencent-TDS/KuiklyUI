@@ -253,7 +253,9 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
                 }
             }
         } else {
-            superSetImage(drawable)
+            // 对 GIF 等动画 Drawable 创建独立副本，避免多个 ImageView 共享同一 Drawable 实例
+            // 导致 stop()/start() 互相影响
+            superSetImage(if (drawable is Animatable) drawable.copyDrawable() else drawable)
         }
     }
 

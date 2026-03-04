@@ -24,6 +24,7 @@
 
 @implementation KRGradientRichTextView {
     KRRichTextView *_contentTextView;
+    BOOL _isGradientMode;
 }
 @synthesize hr_rootView;
 #pragma mark - init
@@ -31,9 +32,10 @@
 - (instancetype)initWithFrame:(CGRect)frame {
     if (self = [super initWithFrame:frame]) {
         _contentTextView = [[KRRichTextView alloc] initWithFrame:self.bounds];
+        _isGradientMode = NO;
 #if !TARGET_OS_OSX // [macOS]
         [self addSubview:_contentTextView];
-#endif // [macOS]
+#endif
     }
     return self;
 }
@@ -41,7 +43,7 @@
 #pragma mark - KuiklyRenderViewExportProtocol
 
 - (void)hrv_setPropWithKey:(NSString * _Nonnull)propKey propValue:(id _Nonnull)propValue {
-    if ([propKey isEqualToString:@"backgroundImage"] || [propKey isEqualToString:@"frame"]) { // 背景渐变.mask = 文本.layer 实现文本渐变
+    if ([propKey isEqualToString:@"backgroundImage"] || [propKey isEqualToString:@"frame"]) {
         [self css_setPropWithKey:propKey value:propValue];
         [self p_setTextGradient];
     } else {
@@ -55,33 +57,51 @@
  * 注：主线程调用，若实现该方法则意味着能被复用
  */
 - (void)hrv_prepareForeReuse {
-    
-    // 1. 遍历 sublayers，找到 CSSGradientLayer（承载实际渐变色的 layer），解除 mask 并移除
-    //    - mask = nil：解除 _contentTextView.layer 与 gradientLayer 的 mask 绑定，
-    //      避免 gradientLayer 释放时 _contentTextView.layer 的 superlayer 变成野指针（EXC_BAD_ACCESS）
-    //    - removeFromSuperlayer：移除 gradientLayer 本身，因为它承载了上一次的渐变色，
-    //      若不移除，复用后即使新内容无渐变，残留的渐变色块仍会被渲染（渐变色"扩散"问题的根因）
+    // 1. 移除渐变 layer，解除 mask
     for (CALayer *subLayer in [self.layer.sublayers copy]) {
         if ([subLayer isKindOfClass:[CAGradientLayer class]] && subLayer != _contentTextView.layer) {
-            // 先解除 mask，否则 _contentTextView.layer 会随 gradientLayer 释放而变成野指针
             subLayer.mask = nil;
             [subLayer removeFromSuperlayer];
         }
     }
     
-    // 2. 将 _contentTextView 重新添加回 self，恢复 layer 树至初始状态
-    //    因为 p_setTextGradient 中 gradientLayer.mask = _contentTextView.layer 会导致
-    //    Core Animation 将 _contentTextView.layer 从 self.layer.sublayers 中摘走，
-    //    此时需要通过 addSubview 让 UIKit 重新将 _contentTextView.layer 插回 self.layer
+    // 2. 重置 _contentTextView.layer 的 transform / anchorPoint / position
+    CALayer *contentLayer = _contentTextView.layer;
+    if (!CATransform3DEqualToTransform(contentLayer.transform, CATransform3DIdentity)) {
+        contentLayer.transform = CATransform3DIdentity;
+    }
+#if TARGET_OS_OSX // [macOS
+    // macOS 默认 anchorPoint=(0,0)，必须恢复，否则布局偏移导致文字显示不全
+    if (!CGPointEqualToPoint(contentLayer.anchorPoint, CGPointMake(0.0, 0.0))) {
+        contentLayer.anchorPoint = CGPointMake(0.0, 0.0);
+    }
+    contentLayer.position = CGPointMake(0, 0);
+#else // macOS]
+    // iOS 默认 anchorPoint=(0.5,0.5)
+    if (!CGPointEqualToPoint(contentLayer.anchorPoint, CGPointMake(0.5, 0.5))) {
+        contentLayer.anchorPoint = CGPointMake(0.5, 0.5);
+    }
+    contentLayer.position = CGPointMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds));
+#endif
+    
+    // 3. 恢复 _contentTextView 的 subview 层级
+#if TARGET_OS_OSX // [macOS
+    if (_isGradientMode || _contentTextView.superview != self) {
+        [_contentTextView removeFromSuperview];
+        [self addSubview:_contentTextView];
+    }
+#else // macOS]
     if (_contentTextView.layer.superlayer != self.layer) {
         [_contentTextView removeFromSuperview];
         [self addSubview:_contentTextView];
     }
+#endif // [macOS]
     
-    // 3. 清除 css_backgroundImage 关联属性，避免残留状态影响下一次复用
+    // 4. 重置状态
+    _isGradientMode = NO;
     self.css_backgroundImage = nil;
     
-    // 4. 转发给 _contentTextView 做其自身的复用重置
+    // 5. 转发给 _contentTextView 做其自身的复用重置
     [_contentTextView hrv_prepareForeReuse];
 }
 /*
@@ -119,35 +139,52 @@
 - (void)p_setTextGradient {
     CAGradientLayer *gradientLayer = nil;
     for (CALayer *subLayer in self.layer.sublayers) {
-        // Exclude the layer of _contentTextView, 
-        // only look for layers specifically used for gradient background.
-        // Prevents misjudgment in case the host project globally sets layerClass to CAGradientLayer.
         if ([subLayer isKindOfClass:[CAGradientLayer class]] && subLayer != _contentTextView.layer) {
             gradientLayer = (CAGradientLayer *)subLayer;
         }
     }
+    
     if (gradientLayer) {
-#if TARGET_OS_OSX // [macOS
-        // Force render once before using layer as mask
+        _isGradientMode = YES;
+        
+#if TARGET_OS_OSX // macOS
+        // macOS 需要先强制渲染一次，才能将 layer 用作 mask
         [_contentTextView setNeedsDisplay:YES];
         [_contentTextView displayIfNeeded];
         
-        CALayer *maskLayer = _contentTextView.layer;
+        // 先将 _contentTextView 从 superview 移除，避免 view/layer 层级不一致
+        if (_contentTextView.superview == self) {
+            [_contentTextView removeFromSuperview];
+        }
         
-        // Flip Y-axis for macOS coordinate system (bottom-left origin)
+        CALayer *maskLayer = _contentTextView.layer;
+        // 重置为 Identity 再设置 Y 轴翻转（macOS 坐标系原点在左下角）
+        maskLayer.transform = CATransform3DIdentity;
         maskLayer.transform = CATransform3DMakeScale(1.0, -1.0, 1.0);
         maskLayer.anchorPoint = CGPointMake(0.5, 0.5);
         maskLayer.position = CGPointMake(CGRectGetMidX(maskLayer.bounds), CGRectGetMidY(maskLayer.bounds));
         
-        // Use layer as mask with rendered content
         gradientLayer.mask = maskLayer;
 #else // macOS]
         gradientLayer.mask = _contentTextView.layer;
 #endif // [macOS]
-        
     } else {
+        _isGradientMode = NO;
+        
 #if TARGET_OS_OSX // [macOS
-        [self addSubview:_contentTextView];
+        // 非渐变模式：确保 _contentTextView 作为 subview 存在
+        if (_contentTextView.superview != self) {
+            [self addSubview:_contentTextView];
+        }
+        // 防止从渐变模式切换过来时残留翻转 transform
+        if (!CATransform3DEqualToTransform(_contentTextView.layer.transform, CATransform3DIdentity)) {
+            _contentTextView.layer.transform = CATransform3DIdentity;
+        }
+        // 恢复 anchorPoint 到 macOS 默认值 (0,0)，否则布局偏移导致文字显示不全
+        if (!CGPointEqualToPoint(_contentTextView.layer.anchorPoint, CGPointMake(0.0, 0.0))) {
+            _contentTextView.layer.anchorPoint = CGPointMake(0.0, 0.0);
+            _contentTextView.layer.position = CGPointMake(0, 0);
+        }
 #endif // macOS]
     }
 }

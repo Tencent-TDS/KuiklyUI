@@ -86,7 +86,7 @@ internal class GifSwitchDemoPage : BasePager() {
                 // Manual switch button
                 View {
                     attr {
-                        backgroundColor(Color(0xFF007AFF.toInt()))
+                        backgroundColor(Color(0xFF007AFF))
                         borderRadius(8f)
                         margin(15f)
                         padding(10f, 20f, 10f, 20f)
@@ -109,7 +109,7 @@ internal class GifSwitchDemoPage : BasePager() {
                 // Auto switch button (simulates the scroll handler scenario from the issue)
                 View {
                     attr {
-                        backgroundColor(if (ctx.isAutoSwitching) Color(0xFFFF3B30.toInt()) else Color(0xFF34C759.toInt()))
+                        backgroundColor(if (ctx.isAutoSwitching) Color(0xFFFF3B30) else Color(0xFF34C759))
                         borderRadius(8f)
                         margin(5f)
                         padding(10f, 20f, 10f, 20f)
@@ -138,7 +138,7 @@ internal class GifSwitchDemoPage : BasePager() {
                 Text {
                     attr {
                         fontSize(13f)
-                        color(Color(0xFF888888.toInt()))
+                        color(Color(0xFF888888))
                         margin(20f)
                         text(
                             "This demo verifies the GIF switching fix:\n" +

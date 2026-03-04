@@ -127,7 +127,9 @@ export const zhSidebar = sidebar({
                                 },
                             ]
                         },
-                        "multi_module.md"
+                        "multi_module.md",
+                        "version_skills.md",
+                        "compile_skills.md"
                     ]
                 },
 

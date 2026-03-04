@@ -49,7 +49,7 @@ internal class GifSwitchDemoPage : BasePager() {
         private const val GIF_URL_1 =
             "https://upload.wikimedia.org/wikipedia/commons/2/2c/Rotating_earth_%28large%29.gif"
         private const val GIF_URL_2 =
-            "https://upload.wikimedia.org/wikipedia/commons/a/a0/Sunflower_from_Silesia2.jpg"
+            "https://upload.wikimedia.org/wikipedia/commons/d/d3/Newtons_cradle_animation_book_2.gif"
     }
 
     override fun body(): ViewBuilder {

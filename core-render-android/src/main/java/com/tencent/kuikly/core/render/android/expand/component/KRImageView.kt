@@ -260,6 +260,9 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
     private fun superSetImage(drawable: Drawable?) {
         super.setImageDrawable(drawable)
         if (drawable is Animatable) {
+            if (drawable.isRunning) {
+                drawable.stop() // 先停止再启动，确保GIF从第一帧开始播放
+            }
             drawable.start()
         }
         fireLoadSuccessCallback(drawable)
@@ -376,6 +379,7 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
         if (src == url) {
             return true
         }
+        stopAnimatable() // 停止当前动画，防止GIF切换时卡住
         src = url
         setImageDrawable(null) // 重置drawable，防止动态更新src时, Drawable错乱
 

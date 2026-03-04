@@ -234,32 +234,45 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
     }
 
     private fun updateDrawableImage(drawable: Drawable?) {
-        if (drawable != null && tintColor != null) {
-            val tintDrawable = drawable.copyDrawable()
-            tintDrawable.setTint(tintColor as Int)
-            superSetImage(tintDrawable)
-        } else if (drawable != null && blurRadius > 0f) {
-            val tBlurRadius = this.blurRadius
-            val tScr = this.src
-            // drawable
+        if (drawable == null) {
+            superSetImage(null)
+            return
+        }
+        // 创建独立副本，避免修改 adapter 缓存中的共享 drawable：
+        // - Animatable (GIF): 隔离 stop()/start() 动画状态
+        // - tintColor: 隔离 setTint() 染色状态
+        val safeDrawable = if (drawable is Animatable || tintColor != null) {
+            drawable.copyDrawable()
+        } else {
+            drawable
+        }
+        // 应用染色
+        if (tintColor != null) {
+            safeDrawable.setTint(tintColor as Int)
+        }
+        // 应用高斯模糊（异步处理，blur 完成后再 superSetImage）
+        if (blurRadius > 0f) {
+            val tBlurRadius = blurRadius
+            val tSrc = src
             KRSubThreadScheduler.scheduleTask(0) {
-                // 高斯模糊
-                val blurDrawable = RenderScriptBlur.blurImage(drawable, context, tBlurRadius)
+                val blurDrawable = RenderScriptBlur.blurImage(safeDrawable, context, tBlurRadius)
                 runOnUiThread {
-                    // 记录结束时间并计算耗时
-                    if (this.src == tScr && tBlurRadius == this.blurRadius) {
+                    if (src == tSrc && blurRadius == tBlurRadius) {
                         superSetImage(blurDrawable)
                     }
                 }
             }
-        } else {
-            superSetImage(drawable)
+            return
         }
+        superSetImage(safeDrawable)
     }
 
     private fun superSetImage(drawable: Drawable?) {
         super.setImageDrawable(drawable)
         if (drawable is Animatable) {
+            if (drawable.isRunning) {
+                drawable.stop() // 先停止再启动，确保GIF从第一帧开始播放
+            }
             drawable.start()
         }
         fireLoadSuccessCallback(drawable)
@@ -376,6 +389,7 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
         if (src == url) {
             return true
         }
+        stopAnimatable() // 停止当前动画，防止GIF切换时卡住
         src = url
         setImageDrawable(null) // 重置drawable，防止动态更新src时, Drawable错乱
 

@@ -1,7 +1,6 @@
 package com.tencent.kuikly.core.render.web.runtime.miniapp
 
 import com.tencent.kuikly.core.render.web.runtime.miniapp.core.NativeApi
-import com.tencent.kuikly.core.render.web.runtime.miniapp.core.global
 import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.MiniElement
 import org.khronos.webgl.ArrayBuffer
 import org.khronos.webgl.Uint8Array

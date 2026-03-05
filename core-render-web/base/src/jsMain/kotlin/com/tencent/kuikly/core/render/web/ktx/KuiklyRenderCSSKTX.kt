@@ -4,13 +4,9 @@ import com.tencent.kuikly.core.render.web.const.KRAnimationConst
 import com.tencent.kuikly.core.render.web.const.KRAttrConst
 import com.tencent.kuikly.core.render.web.const.KRCssConst
 import com.tencent.kuikly.core.render.web.const.KREventConst
-import com.tencent.kuikly.core.render.web.const.KRExtConst
 import com.tencent.kuikly.core.render.web.const.KRJsTypeConst
-import com.tencent.kuikly.core.render.web.const.KRParamConst
-import com.tencent.kuikly.core.render.web.const.KRPlaceholderConst
 import com.tencent.kuikly.core.render.web.const.KRStyleConst
 import com.tencent.kuikly.core.render.web.const.KRTagConst
-import com.tencent.kuikly.core.render.web.const.KRViewConst
 import com.tencent.kuikly.core.render.web.css.animation.KRCSSAnimation
 import com.tencent.kuikly.core.render.web.processor.IAnimation
 import com.tencent.kuikly.core.render.web.processor.IEvent
@@ -159,16 +155,28 @@ fun convertGradientStringToCssMask(gradientStr: String): String {
 
     // Improved color stop parsing
     val colorStopPattern = """rgba\((\d+),(\d+),(\d+),([\d.]+)\)\s*([\d.]+)?""".toRegex()
+    val numericColorPattern = """(\d+)\s*([\d.]+)?""".toRegex()
+
     val processedStops = stops.split(",(?![^()]*\\))".toRegex()).joinToString(", ") { stop ->
+        // Try rgba format first
         colorStopPattern.find(stop)?.let { mr ->
             val (r, g, b, a, pos) = mr.destructured
             val position = pos.takeIf { it.isNotEmpty() }?.let {
                 "${(it.toFloat() * 100).toInt()}%"
             } ?: ""
             "rgba($r,$g,$b,${a.toFloat()})${if (position.isNotEmpty()) " $position" else ""}"
-        } ?: stop
+        } ?:
+        // Try numeric color format
+        numericColorPattern.find(stop)?.let { mr ->
+            val (color, pos) = mr.destructured
+            val position = pos.takeIf { it.isNotEmpty() }?.let {
+                "${(it.toFloat() * 100).toInt()}%"
+            } ?: ""
+            val rgbColor = color.toRgbColor()
+            "$rgbColor${if (position.isNotEmpty()) " $position" else ""}"
+        } ?:
+        stop
     }
-
     return "linear-gradient($direction, $processedStops)"
 }
 
@@ -870,7 +878,9 @@ private val propHandlers = mapOf<String, (CSSStyleDeclaration, Any, HTMLElement)
         ele.addEventListener("click", { event ->
             // If a pan or long-press has been triggered, ignore the click.
             val panOrLongPressTriggered = ele.asDynamic().panOrLongPressTriggered == true
-            if (panOrLongPressTriggered) {
+            // If a scroll has been triggered, ignore the click.
+            val hasScrolled = GlobalState.hasScrolled
+            if (panOrLongPressTriggered || hasScrolled) {
                 return@addEventListener
             }
 
@@ -1013,6 +1023,13 @@ private val propHandlers = mapOf<String, (CSSStyleDeclaration, Any, HTMLElement)
         ele.setAttribute("aria-label", value.unsafeCast<String>())
         true
     },
+    KRCssConst.ACCESSIBILITY_ROLE to { _, value, ele ->
+        // Set accessibility role
+        ele.setAttribute("aria-roledescription", value.unsafeCast<String>())
+        // Set cursor
+        ele.style.cursor = "pointer"
+        true
+    }
 )
 
 /**

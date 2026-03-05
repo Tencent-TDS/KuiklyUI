@@ -1,6 +1,7 @@
 package com.tencent.kuikly.core.render.web.expand.components
 
 import com.tencent.kuikly.core.render.web.collection.FastMutableMap
+import com.tencent.kuikly.core.render.web.collection.array.JsArray
 import com.tencent.kuikly.core.render.web.collection.fastMutableMapOf
 import com.tencent.kuikly.core.render.web.const.KRActionConst
 import com.tencent.kuikly.core.render.web.const.KRAttrConst
@@ -17,6 +18,7 @@ import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
 import com.tencent.kuikly.core.render.web.runtime.dom.element.ElementType
 import com.tencent.kuikly.core.render.web.utils.DeviceType
 import com.tencent.kuikly.core.render.web.utils.DeviceUtils
+import org.w3c.dom.Element
 import org.w3c.dom.HTMLDivElement
 import org.w3c.dom.Touch
 import org.w3c.dom.TouchEvent
@@ -123,6 +125,8 @@ open class KRView : IKuiklyRenderViewExport {
     private var superTouchCanceled: Boolean = false
     // Window mouse up event listener reference for cleanup
     private var windowMouseUpListener: ((Event) -> Unit)? = null
+    // 从当前元素到根节点路径上所有包含 isList 类(为ListView)的祖先元素（包含自身）
+    private var listViewEles: JsArray<Element>? = null
 
     override val ele: HTMLDivElement
         get() = div.unsafeCast<HTMLDivElement>()
@@ -345,6 +349,16 @@ open class KRView : IKuiklyRenderViewExport {
             params = setSuperTouchEventParams(params, it.timeStamp.toLong(), KRActionConst.TOUCH_DOWN)
             panEventCallback?.invoke(params)
             touchDownEventCallback?.invoke(params)
+
+            // 获取所有listView的父元素
+            findParentListViewEles(ele)
+            // 在阻止冒泡之前，手动向所有为 listView 的父元素及 window 分发自定义事件，携带原始 MouseEvent
+            // 分发事件的顺序需与冒泡顺序一致
+            val mouseEvent = it.unsafeCast<MouseEvent>()
+            listViewEles?.forEach { listViewEle  ->
+                KuiklyProcessor.eventProcessor.dispatchMouseEvent("mousedown", mouseEvent, listViewEle)
+            }
+            KuiklyProcessor.eventProcessor.dispatchMouseEvent("mousedown", mouseEvent)
             // stop event propagation
             it.stopPropagation()
         })
@@ -361,6 +375,14 @@ open class KRView : IKuiklyRenderViewExport {
                 params = setSuperTouchEventParams(params, it.timeStamp.toLong(), KRActionConst.TOUCH_MOVE)
                 panEventCallback?.invoke(params)
                 touchMoveEventCallback?.invoke(params)
+
+                // 在阻止冒泡之前，手动向所有为 listView 的父元素及 window 分发自定义事件，携带原始 MouseEvent
+                // 分发事件的顺序需与冒泡顺序一致
+                val mouseEvent = it.unsafeCast<MouseEvent>()
+                listViewEles?.forEach { listViewEle  ->
+                    KuiklyProcessor.eventProcessor.dispatchMouseEvent("mousemove", mouseEvent, listViewEle)
+                }
+                KuiklyProcessor.eventProcessor.dispatchMouseEvent("mousemove", mouseEvent)
                 // stop event propagation
                 it.stopPropagation()
             }
@@ -381,6 +403,15 @@ open class KRView : IKuiklyRenderViewExport {
                 // Mouse up event has no position parameters, so use move recorded cache parameter value callback
                 panEventCallback?.invoke(params)
                 touchUpEventCallback?.invoke(params)
+
+                // 在阻止冒泡之前，手动向所有为 listView 的父元素及 window 分发自定义事件，携带原始 MouseEvent
+                // 分发事件的顺序需与冒泡顺序一致
+                val mouseEvent = it.unsafeCast<MouseEvent>()
+                listViewEles?.forEach { listViewEle  ->
+                    KuiklyProcessor.eventProcessor.dispatchMouseEvent("mouseup", mouseEvent, listViewEle)
+                }
+                KuiklyProcessor.eventProcessor.dispatchMouseEvent("mouseup", mouseEvent)
+
                 // stop event propagation
                 it.stopPropagation()
             }
@@ -499,18 +530,41 @@ open class KRView : IKuiklyRenderViewExport {
         }, SCREEN_FRAME_REFRESH_TIME)
     }
 
+
+
+    /**
+     * 查找当前元素所有的 ListView 父元素
+     */
+    private fun findParentListViewEles(ele: Element){
+        val pageListElements = JsArray<Element>()
+        var currentElement: Element? = ele
+
+        while (currentElement != null) {
+            val findEle = currentElement.closest(".isList")
+
+            if (findEle != null) {
+                pageListElements.push(findEle)
+                // closest 会包含自身，从父元素再次开始查找，避免死循环
+                currentElement = findEle.parentElement
+            } else {
+                break
+            }
+        }
+        listViewEles = pageListElements
+    }
+
     /**
      * Clean up resources when view is destroyed to prevent memory leaks
      */
     override fun onDestroy() {
         super.onDestroy()
-        
+
         // Remove global window event listener (must be removed to prevent memory leak)
         windowMouseUpListener?.let {
             kuiklyWindow.removeEventListener(KREventConst.MOUSE_UP, it)
         }
         windowMouseUpListener = null
-        
+
         // Clear screen frame timer
         if (requestId != 0) {
             kuiklyWindow.clearTimeout(requestId)

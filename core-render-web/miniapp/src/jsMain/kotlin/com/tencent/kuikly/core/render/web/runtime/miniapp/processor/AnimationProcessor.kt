@@ -63,6 +63,7 @@ class MiniAppAnimation(options: AnimationOption) : IAnimation {
         val transforms: JsArray<String> = JsArray()
         // generate transform list to execute
         this.transforms.forEach { transform ->
+            // find same type animation in history and
             // insert to transform list
             transforms.push(transform.second)
         }
@@ -72,7 +73,9 @@ class MiniAppAnimation(options: AnimationOption) : IAnimation {
         else ""
 
         if (transformSequence != "") {
+            // has transform animation
             this.steps.push(Pair("transform", transformSequence))
+            // transform origin
             this.steps.push(Pair("transformOrigin", "$transformOrigin"))
             // insert transition
             this.transitionSteps.push("transform ${duration}s $timingFunction ${delay}s")
@@ -80,7 +83,9 @@ class MiniAppAnimation(options: AnimationOption) : IAnimation {
 
         // generate all rule animation
         this.rules.forEach { rule ->
+            // insert animation property of rule animation
             this.steps.push(rule)
+            // insert animation type
             this.transitionSteps.push("${rule.first} ${duration}s $timingFunction ${delay}s")
         }
 
@@ -226,6 +231,7 @@ class MiniAppAnimation(options: AnimationOption) : IAnimation {
             }
             // should execute rules list
             val execAnimationRules: JsArray<Pair<String, String>> = if (jsTypeOf(dynamicElement.execAnimationRules) != "undefined") {
+                // use exist rules
                 dynamicElement.execAnimationRules.unsafeCast<JsArray<Pair<String, String>>>()
             } else {
                 JsArray()

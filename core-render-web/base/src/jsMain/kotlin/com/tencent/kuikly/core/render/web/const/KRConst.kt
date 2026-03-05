@@ -68,7 +68,9 @@ object KRCssConst {
     const val AUTO_DARK_ENABLE = "autoDarkEnable"
     const val TURBO_DISPLAY_AUTO_UPDATE_ENABLE = "turboDisplayAutoUpdateEnable"
     const val SCROLL_INDEX = "scrollIndex"
-    
+
+    const val WEB_CONTAINER_PREFIX = "kuikly_web_container_"
+
     // Frame related attributes
     val FRAME_ATTRS = listOf("width", "height", "left", "top")
 }

@@ -20,7 +20,9 @@ import org.w3c.fetch.Response
 import kotlin.js.Promise
 import kotlin.js.json
 
-/** Kuikly network request module */
+/**
+ * Kuikly network request module
+ */
 class KRNetworkModule : KuiklyRenderBaseModule() {
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
@@ -384,7 +386,7 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         if (cookie != null) {
             headers["Cookie"] = cookie
         }
-        headers["Content-Type"] = "application/json"
+
         return Headers(headers)
     }
 

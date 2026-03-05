@@ -1,7 +1,5 @@
 package com.tencent.kuikly.core.render.web.utils
 
-import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
-
 /**
  * Device type enumeration
  */

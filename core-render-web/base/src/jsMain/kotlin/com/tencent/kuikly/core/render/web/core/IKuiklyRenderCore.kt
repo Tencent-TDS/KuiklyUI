@@ -46,6 +46,11 @@ interface IKuiklyRenderCore {
      * @param tag Tag corresponding to [Element]
      */
     fun getView(tag: Int): Element?
+
+    /**
+     * Get instance id
+     */
+    fun getInstanceId(): String
 }
 
 /**

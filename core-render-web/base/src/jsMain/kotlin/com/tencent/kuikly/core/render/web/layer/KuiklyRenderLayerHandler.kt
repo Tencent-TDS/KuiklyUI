@@ -48,8 +48,8 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
     /**
      * Create rendering View
      */
-    override fun createRenderView(tag: Int, viewName: String) {
-        createRenderViewHandler(tag, viewName)
+    override fun createRenderView(tag: Int, viewName: String, instanceId: String) {
+        createRenderViewHandler(tag, viewName, instanceId)
     }
 
     /**
@@ -334,7 +334,7 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
     /**
      * Create renderView handler logic
      */
-    private fun createRenderViewHandler(tag: Int, viewName: String) {
+    private fun createRenderViewHandler(tag: Int, viewName: String, instanceId: String) {
         // Return directly if rootView not initialized
         val renderView: IKuiklyRenderView = this.renderView ?: return
 
@@ -366,7 +366,8 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
         }
         // Set id for all elements to facilitate problem investigation
         if (renderViewHandler.viewExport.ele.id == "") {
-            renderViewHandler.viewExport.ele.id = tag.toString()
+            // If element id is empty, set id to instanceId_tag, e.g. 1_1, unique for different instance
+            renderViewHandler.viewExport.ele.id = "${instanceId}_${tag}"
         }
         // Save render context
         renderViewHandler.viewExport.kuiklyRenderContext = renderView.kuiklyRenderContext

@@ -7,6 +7,7 @@ import com.tencent.kuikly.core.render.web.collection.map.JsMap
 import com.tencent.kuikly.core.render.web.collection.map.get
 import com.tencent.kuikly.core.render.web.collection.map.remove
 import com.tencent.kuikly.core.render.web.collection.map.set
+import com.tencent.kuikly.core.render.web.const.KRCssConst
 import com.tencent.kuikly.core.render.web.context.KuiklyRenderCoreExecuteMode
 import com.tencent.kuikly.core.render.web.core.IKuiklyRenderContextInitCallback
 import com.tencent.kuikly.core.render.web.core.IKuiklyRenderCore
@@ -288,6 +289,8 @@ class KuiklyRenderView(
                     }
                 }
             )
+            // set container element id
+            setContainerElementId(getInstanceId())
         }
         dispatchLifecycleStateChanged(STATE_INIT_CORE_FINISH)
     }
@@ -387,6 +390,14 @@ class KuiklyRenderView(
                 }
             }
         }
+    }
+
+    /**
+     * Set container element ID with prefix
+     */
+    private fun setContainerElementId(containerElementId: String) {
+        // Add prefix,eg "kuikly_web_container_0"
+        this._container.id = "${KRCssConst.WEB_CONTAINER_PREFIX}${containerElementId}"
     }
 
     companion object {

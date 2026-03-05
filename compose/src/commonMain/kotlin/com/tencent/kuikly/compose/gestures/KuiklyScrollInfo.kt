@@ -123,6 +123,13 @@ class KuiklyScrollInfo {
     val stickyHeaderCacheManager = StickyHeaderCacheManager()
 
     /**
+     * Scroll to top event callback.
+     * If set, the callback will be invoked instead of the default scroll to top behavior.
+     * This aligns with iOS behavior where scrollToTop event can be intercepted.
+     */
+    var scrollToTopCallback: (() -> Unit)? = null
+
+    /**
      * Update content size to render view
      */
     fun updateContentSizeToRender() {

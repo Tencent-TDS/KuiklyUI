@@ -32,6 +32,7 @@ import com.tencent.kuikly.compose.ui.unit.TextUnitType
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.isSpecified
 import com.tencent.kuikly.compose.ui.unit.sp
+import com.tencent.kuikly.core.collection.fastHashMapOf
 
 /**
  * The receiver scope of a [LazyLayout]'s measure lambda. The return value of the
@@ -112,7 +113,7 @@ internal class LazyLayoutMeasureScopeImpl internal constructor(
      * A cache of the previously composed items. It allows us to support [get]
      * re-executions with the same index during the same measure pass.
      */
-    private val placeablesCache = hashMapOf<Int, List<Placeable>>()
+    private val placeablesCache = fastHashMapOf<Int, List<Placeable>>()
 
     override fun measure(index: Int, constraints: Constraints): List<Placeable> {
         val cachedPlaceable = placeablesCache[index]

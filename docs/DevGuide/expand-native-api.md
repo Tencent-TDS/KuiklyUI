@@ -230,6 +230,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 
 在``call``方法中，我们通过``method``参数来识别``log``方法，然后调用我们定义的私有方法``log``，并将``Kuikly``侧传递过来的``content``参数传递给``log``方法
 
+:::tip 注意
+`log` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+:::
+
 ### logWithCallback方法
 
 ```kotlin
@@ -253,6 +257,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 }
 ```
 
+:::tip 注意
+`logWithCallback` 方法通过 `asyncToNativeMethod` 异步调用，运行在 **主线程(UI线程)** 中。应避免在方法中执行耗时操作，以免阻塞UI线程导致卡顿。
+:::
+
 ### syncLog方法
 
 ```kotlin
@@ -274,6 +282,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
     ...
 }
 ```
+
+::::tip 注意
+`syncLog` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
 
 2. 原生侧实现完API后，我们将``KRMyLogModule``注册暴露到``Kuikly``中，与``Kuikly``侧的``MyLogModule``对应起来。在实现了``KuiklyRenderViewDelegatorDelegate``接口
 类中重写``registerExternalModule``方法，注册``KRMyLogModule``
@@ -340,6 +352,10 @@ NS_ASSUME_NONNULL_END
 @end
 ```
 
+::::tip 注意
+`log` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
+
 方法名字保持与``Kuikly``侧的log方法名字一致，并且参数固定为``NSDictionary``类型。
 
 ``Kuikly``侧传递过来的参数从``args``字典中提取, 例如
@@ -369,6 +385,10 @@ iOS侧的Module中的方法名字必须与kuikly侧toNative方法传递的方法
 
 ``Kuikly``侧的``CallbackFn``我们可以从args字典中拿到
 
+::::tip 注意
+`logWithCallback` 方法通过 `asyncToNativeMethod` 异步调用，运行在 **主线程(UI线程)** 中。应避免在方法中执行耗时操作，以免阻塞UI线程导致卡顿。
+::::
+
 ```kotlin
 KuiklyRenderCallback callback = args[KR_CALLBACK_KEY];
 ```
@@ -384,6 +404,10 @@ KuiklyRenderCallback callback = args[KR_CALLBACK_KEY];
 }
 ```
 ## 鸿蒙侧
+
+::::tip 注意
+`syncLog` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
 
 1. 在接入``Kuikly``的鸿蒙宿主工程（ArkTS）中新建``KRMyLogModule``类，继承``KuiklyRenderBaseModule``，并重写其``call``方法
 
@@ -437,6 +461,10 @@ export class KRMyLogModule extends KuiklyRenderBaseModule {
 
 在``call``方法中，我们通过``method``参数来识别``log``方法，然后调用我们定义的私有方法``log``，并将``Kuikly``侧传递过来的``content``参数传递给``log``方法
 
+::::tip 注意
+`log` 方法通过 `syncToNativeMethod` 同步调用，由于 `syncMode()` 返回 `true`，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
+
 ### logWithCallback方法
 
 ```ts
@@ -475,6 +503,10 @@ export class KRMyLogModule extends KuiklyRenderBaseModule {
 
 ### syncLog方法
 
+::::tip 注意
+`logWithCallback` 方法通过 `asyncToNativeMethod` 异步调用，由于 `syncMode()` 返回 `true`，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
+
 ```ts
 export class KRMyLogModule extends KuiklyRenderBaseModule {
     static readonly MODULE_NAME = "KRMyLogModule";
@@ -510,6 +542,10 @@ export class KRMyLogModule extends KuiklyRenderBaseModule {
 
 2. 原生侧实现完API后，我们将``KRMyLogModule``注册暴露到``Kuikly``中，与``Kuikly``侧的``MyLogModule``对应起来。在实现了``IKuiklyViewDelegate``接口
 类中重写``getCustomRenderModuleCreatorRegisterMap``方法，注册``KRMyLogModule``
+
+::::tip 注意
+`syncLog` 方法通过 `syncToNativeMethod` 同步调用，由于 `syncMode()` 返回 `true`，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
 
 :::tip 注意
 注册的名字必须与``Kuikly moudle``侧注册的名字一样
@@ -676,6 +712,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 
 在``call``方法中，我们通过``method``参数来识别``log``方法，然后调用我们定义的私有方法``log``，并将``Kuikly``侧传递过来的``content``参数传递给``log``方法
 
+::::tip 注意
+`log` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
+
 ### logWithCallback方法
 
 ```kotlin
@@ -708,6 +748,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
+
+::::tip 注意
+`logWithCallback` 方法通过 `asyncToNativeMethod` 异步调用，运行在 **主线程(UI线程)** 中。应避免在方法中执行耗时操作，以免阻塞UI线程导致卡顿。
+::::
             "log" -> log(params ?: "")
             "logWithCallback" -> logWithCallback(params ?: "", callback)
             "syncLog" -> syncLog(params ?: "")
@@ -730,6 +774,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 注册的名字必须与``Kuikly moudle``侧注册的名字一样
 ::::
 
+
+::::tip 注意
+`syncLog` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
 ```kotlin
     override fun registerExternalModule(kuiklyRenderExport: IKuiklyRenderExport) {
         super.registerExternalModule(kuiklyRenderExport)
@@ -787,6 +835,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 
 在``call``方法中，我们通过``method``参数来识别``log``方法，然后调用我们定义的私有方法``log``，并将``Kuikly``侧传递过来的``content``参数传递给``log``方法
 
+::::tip 注意
+`log` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
+
 ### logWithCallback方法
 
 ```kotlin
@@ -819,6 +871,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
             "log" -> log(params ?: "")
+
+::::tip 注意
+`logWithCallback` 方法通过 `asyncToNativeMethod` 异步调用，运行在 **主线程(UI线程)** 中。应避免在方法中执行耗时操作，以免阻塞UI线程导致卡顿。
+::::
             "logWithCallback" -> logWithCallback(params ?: "", callback)
             "syncLog" -> syncLog(params ?: "")
             else -> super.call(method, params, callback)
@@ -841,6 +897,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 ::::
 
 ```kotlin
+
+::::tip 注意
+`syncLog` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
     override fun registerExternalModule(kuiklyRenderExport: IKuiklyRenderExport) {
         super.registerExternalModule(kuiklyRenderExport)
         with(kuiklyRenderExport) {

@@ -67,6 +67,7 @@ import com.tencent.kuikly.compose.ui.util.fastForEach
 import com.tencent.kuikly.compose.views.KuiklyInfoKey
 import com.tencent.kuikly.compose.views.VirtualNodeView
 import com.tencent.kuikly.compose.layout.checkOffScreenNode
+import com.tencent.kuikly.compose.scroller.handleScrollToTopCallback
 import com.tencent.kuikly.compose.scroller.isAtTop
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.kuiklyOnScroll
@@ -325,8 +326,13 @@ fun SubcomposeLayout(
 
             // Listen to native "scroll to top" event and scroll to index 0
             scrollToTop {
-                coroutineScope.launch {
-                    scrollableState.animateScrollToTop()
+                // If scrollToTop callback is set, invoke it instead of default behavior
+                // This aligns with iOS behavior where scrollToTop event can be intercepted
+                val handled = scrollableState.handleScrollToTopCallback()
+                if (!handled) {
+                    coroutineScope.launch {
+                        scrollableState.animateScrollToTop()
+                    }
                 }
             }
         }

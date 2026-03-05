@@ -54,6 +54,9 @@ abstract class DeclarativeBaseView<A : Attr, E : Event> : AbstractBaseView<A, E>
 
     internal var absoluteFlexNode : Boolean = false
 
+    // 渲染属性对象,延迟初始化
+    public var renderProperties: Any? = null
+
     override fun <T : DeclarativeBaseView<*, *>> T.ref(ref: (viewRef: ViewRef<T>) -> Unit) {
         ref(ViewRef<T>(pagerId, nativeRef))
     }

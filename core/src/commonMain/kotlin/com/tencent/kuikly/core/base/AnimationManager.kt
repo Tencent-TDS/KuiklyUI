@@ -67,8 +67,8 @@ class AnimationState {
 }
 
 class AnimationManager {
-    private val animationsHashMap: HashMap<Pair<String, Int>, AnimationState> by lazy(LazyThreadSafetyMode.NONE) { HashMap<Pair<String, Int>, AnimationState>() }
-    private val viewRefToKeys by lazy(LazyThreadSafetyMode.NONE) { fastHashMapOf<Int, MutableSet<Pair<String, Int>>>() }
+    private val animationsHashMap by lazy(LazyThreadSafetyMode.NONE) { hashMapOf<Pair<String, Int>, AnimationState>() }
+    private val viewRefToKeys by lazy(LazyThreadSafetyMode.NONE) { hashMapOf<Int, MutableSet<Pair<String, Int>>>() }
     private val currentChangingProperty: String?
         get() {
             return PagerManager.getCurrentReactiveObserver().currentChangingPropertyKey

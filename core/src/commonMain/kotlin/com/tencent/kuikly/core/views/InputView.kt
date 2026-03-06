@@ -287,6 +287,18 @@ class InputAttr : Attr() {
         return this
     }
 
+    /**
+     * 设置是否在点击 IME 动作按钮（如 Send/Go/Search）时自动收起键盘
+     *
+     * @param autoHide 是否自动收起键盘，默认为 false
+     *                 - true: 点击 Send 等按钮后自动收起键盘
+     *                 - false: 点击 Send 等按钮后保持键盘打开，由业务自己控制
+     */
+    fun autoHideKeyboardOnImeAction(enable: Boolean): InputAttr {
+        TextConst.AUTO_HIDE_KEYBOARD_ON_IME_ACTION with (if (enable) 1 else 0)
+        return this
+    }
+
     companion object {
         const val RETURN_KEY_TYPE = "returnKeyType"
         const val KEYBOARD_TYPE = "keyboardType"

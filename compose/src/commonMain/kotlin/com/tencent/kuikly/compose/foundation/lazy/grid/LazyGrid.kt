@@ -317,12 +317,8 @@ private fun rememberLazyGridMeasurePolicy(
                 val oldLineHeight = state.kuiklyInfo.itemMainSpaceCache[lineKey]
                 // 行高度扩大了
                 if ((oldLineHeight ?: 0) < lineResult.mainAxisSizeWithSpacings && !state.isScrollInProgress) {
-                    if (!state.isScrollInProgress) {
-                        state.kuiklyInfo.realContentSize = null
-                        state.tryExpandStartSizeNoScroll()
-                    } else {
-                        state.shouldUpdateContentSize = true
-                    }
+                    state.kuiklyInfo.realContentSize = null
+                    state.tryExpandStartSizeNoScroll()
                 }
                 state.kuiklyInfo.itemMainSpaceCache[lineKey] = lineResult.mainAxisSizeWithSpacings
 

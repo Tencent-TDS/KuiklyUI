@@ -63,19 +63,17 @@ internal fun ScrollableState.kuiklyOnScrollEnd(params: ScrollParams) {
     when (this) {
         is LazyListState -> scrollableState.kuiklyOnScrollEnd(params)
         is PagerState -> scrollableState.kuiklyOnScrollEnd(params)
-        is LazyGridState -> {
-            if (shouldUpdateContentSize) {
-                shouldUpdateContentSize = false
-                kuiklyInfo.realContentSize = null
-                tryExpandStartSizeNoScroll()
-            }
-            scrollableState.kuiklyOnScrollEnd(params)
-        }
+        is LazyGridState -> scrollableState.kuiklyOnScrollEnd(params)
         is LazyStaggeredGridState -> scrollableState.kuiklyOnScrollEnd(params)
         is ScrollState -> scrollableState.kuiklyOnScrollEnd(params)
         is KuiklyScrollableState -> kuiklyOnScrollEnd(params)
         else -> { /* No need to handle */ }
     }
+    // During scrolling, tryExpandStartSizeNoScroll in createLine/item layout is skipped
+    // because isScrollInProgress is true. Compensate after scrollEnd to ensure contentSize
+    // is updated correctly. tryExpandStartSizeNoScroll has internal guards (reachBtm,
+    // canScrollForward, etc.) so it is safe to call unconditionally.
+    tryExpandStartSizeNoScroll()
 }
 
 /**

@@ -3,7 +3,6 @@ package com.tencent.kuikly.core.render.web.runtime.web.expand.components.list
 import com.tencent.kuikly.core.render.web.const.KRListConst
 import com.tencent.kuikly.core.render.web.const.KRParamConst
 import com.tencent.kuikly.core.render.web.const.KRStyleConst
-import com.tencent.kuikly.core.render.web.expand.components.toPanEventParams
 import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
 import com.tencent.kuikly.core.render.web.runtime.dom.element.IListElement
 import com.tencent.kuikly.core.render.web.utils.Log
@@ -206,11 +205,11 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
             }
 
             // Perform scroll animation
-            handlePagerScrollTo(scrollOffsetX, scrollOffsetY, true)
-
-            // Notify callbacks
-            val offsetMap = listElement.updateOffsetMap(abs(currentTranslateX), abs(currentTranslateY), isDragging)
-            listElement.scrollEventCallback?.invoke(offsetMap)
+            handlePagerScrollTo(scrollOffsetX, scrollOffsetY, true) {
+                // Notify callbacks
+                val offsetMap = listElement.updateOffsetMap(abs(currentTranslateX), abs(currentTranslateY), isDragging)
+                listElement.scrollEventCallback?.invoke(offsetMap)
+            }
         }
 
         return true
@@ -417,11 +416,12 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
             pageIndex = newPageIndex
             event.stopPropagation()
         }
-        handlePagerScrollTo(scrollOffsetX, scrollOffsetY, true)
-        val offsetMap = listElement.updateOffsetMap(abs(currentTranslateX), abs(currentTranslateY), isDragging)
-        listElement.willDragEndEventCallback?.invoke(offsetMap)
-        listElement.dragEndEventCallback?.invoke(offsetMap)
-        listElement.scrollEventCallback?.invoke(offsetMap)
+        handlePagerScrollTo(scrollOffsetX, scrollOffsetY, true) {
+            val offsetMap = listElement.updateOffsetMap(abs(currentTranslateX), abs(currentTranslateY), isDragging)
+            listElement.willDragEndEventCallback?.invoke(offsetMap)
+            listElement.dragEndEventCallback?.invoke(offsetMap)
+            listElement.scrollEventCallback?.invoke(offsetMap)
+        }
         
         // Update nested PageList overflow visibility based on current page position
         updateNestedPageListVisibility()
@@ -475,7 +475,7 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
     /**
      * Handle paging scroll to specified position
      */
-    fun handlePagerScrollTo(scrollOffsetX: Float, scrollOffsetY: Float, isAnimation: Boolean) {
+    fun handlePagerScrollTo(scrollOffsetX: Float, scrollOffsetY: Float, isAnimation: Boolean, endCallback: () -> Unit) {
         kuiklyWindow.setTimeout({
             if (isAnimation) {
                 ele.style.transition = "transform ${PAGING_SCROLL_ANIMATION_TIME}ms"
@@ -485,7 +485,10 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
         if (isAnimation) {
             kuiklyWindow.setTimeout({
                 ele.style.transition = ""
+                endCallback()
             }, PAGING_SCROLL_ANIMATION_TIME)
+        } else {
+            endCallback()
         }
     }
 
@@ -504,16 +507,22 @@ class H5ListPagingHelper(private val ele: HTMLElement, private var listElement: 
         ele.style.overflowX = KRStyleConst.OVERFLOW_VISIBLE
         ele.style.overflowY = KRStyleConst.OVERFLOW_VISIBLE
         ele.classList.add(PAGE_LIST_CLASS)
-        val offsetMap = listElement.updateOffsetMap(offsetX, offsetY, isDragging)
-        listElement.willDragEndEventCallback?.invoke(offsetMap)
-        listElement.dragEndEventCallback?.invoke(offsetMap)
-        listElement.scrollEventCallback?.invoke(offsetMap)
         if (animate) {
-            handlePagerScrollTo(-offsetX, -offsetY, animate)
+            handlePagerScrollTo(-offsetX, -offsetY, animate) {
+                val offsetMap = listElement.updateOffsetMap(offsetX, offsetY, isDragging)
+                listElement.willDragEndEventCallback?.invoke(offsetMap)
+                listElement.dragEndEventCallback?.invoke(offsetMap)
+                listElement.scrollEventCallback?.invoke(offsetMap)
+            }
         } else {
             // wait index changed
             kuiklyWindow.setTimeout({
-                handlePagerScrollTo(-offsetX, -offsetY, animate)
+                handlePagerScrollTo(-offsetX, -offsetY, animate) {
+                    val offsetMap = listElement.updateOffsetMap(offsetX, offsetY, isDragging)
+                    listElement.willDragEndEventCallback?.invoke(offsetMap)
+                    listElement.dragEndEventCallback?.invoke(offsetMap)
+                    listElement.scrollEventCallback?.invoke(offsetMap)
+                }
             }, CONTENT_OFFSET_DELAY)
         }
         // This is to handle nested PageLists. After sliding the inner PageList,

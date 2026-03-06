@@ -22,6 +22,7 @@ import org.w3c.dom.HTMLElement
 import org.w3c.dom.SMOOTH
 import org.w3c.dom.ScrollBehavior
 import org.w3c.dom.ScrollToOptions
+import org.w3c.dom.CustomEvent
 import org.w3c.dom.TouchEvent
 import org.w3c.dom.events.Event
 import org.w3c.dom.events.MouseEvent
@@ -508,8 +509,13 @@ class H5ListView : IListElement {
 
         // If it is a precise pointing device, listen for mouse events.
         if (kuiklyWindow.matchMedia(KRListConst.POINTER_FINE_QUERY).matches) {
-            ele.addEventListener(KREventConst.MOUSE_DOWN, { event ->
-                event as MouseEvent
+            ele.addEventListener(KREventConst.MOUSE_DOWN, {
+                val event = if (it is CustomEvent) {
+                    // 从自定义事件的 detail 中提取原始 MouseEvent
+                    it.detail.unsafeCast<MouseEvent>()
+                } else {
+                    it.unsafeCast<MouseEvent>()
+                }
                 // Only left button
                 if (event.button != KRListConst.LEFT_MOUSE_BUTTON) return@addEventListener
                 pcScrollHelper.isMouseDown = true

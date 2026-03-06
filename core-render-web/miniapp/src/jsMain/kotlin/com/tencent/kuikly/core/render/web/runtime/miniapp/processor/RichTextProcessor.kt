@@ -24,7 +24,6 @@ import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.MiniElement
 import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.MiniImageElement
 import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.MiniSpanElement
 import com.tencent.kuikly.core.render.web.utils.Log
-import kotlinx.dom.clear
 import org.w3c.dom.HTMLElement
 import kotlin.js.json
 import kotlin.math.ceil
@@ -613,13 +612,10 @@ object RichTextProcessor : IRichTextProcessor {
         }
 
         val strokeColor = value.optString(STROKE_COLOR).toRgbColor()
-        if (strokeColor.isNotEmpty()) {
-            style.webkitTextStroke = strokeColor
-        }
-
         val strokeWidth = value.optDouble(STROKE_WIDTH, 0.0)
         if (strokeWidth != 0.0) {
-            style.webkitTextStroke = "$strokeColor ${strokeWidth / 4}px"
+            val usedStrokeWidth = strokeWidth / 4
+            style.webkitTextStroke = "${usedStrokeWidth}px $strokeColor"
         }
 
         val lineHeight = value.optDouble(LINE_HEIGHT, -1.0)

@@ -501,6 +501,7 @@ internal class TextExampleRichText: ComposeView<ComposeAttr, ComposeEvent>() {
                 Span {
                     fontSize(16f)
                     text("这是")
+                    textStroke(Color.RED, 1f)
                     click {
                         KLog.i("TextExamplePage", "First text span clicked, content: '这是'")
                     }

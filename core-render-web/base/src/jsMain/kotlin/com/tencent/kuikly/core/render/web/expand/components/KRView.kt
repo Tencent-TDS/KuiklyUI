@@ -1,6 +1,7 @@
 package com.tencent.kuikly.core.render.web.expand.components
 
 import com.tencent.kuikly.core.render.web.collection.FastMutableMap
+import com.tencent.kuikly.core.render.web.collection.array.JsArray
 import com.tencent.kuikly.core.render.web.collection.fastMutableMapOf
 import com.tencent.kuikly.core.render.web.const.KRActionConst
 import com.tencent.kuikly.core.render.web.const.KRAttrConst
@@ -17,6 +18,7 @@ import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
 import com.tencent.kuikly.core.render.web.runtime.dom.element.ElementType
 import com.tencent.kuikly.core.render.web.utils.DeviceType
 import com.tencent.kuikly.core.render.web.utils.DeviceUtils
+import org.w3c.dom.Element
 import org.w3c.dom.HTMLDivElement
 import org.w3c.dom.Touch
 import org.w3c.dom.TouchEvent
@@ -123,6 +125,8 @@ open class KRView : IKuiklyRenderViewExport {
     private var superTouchCanceled: Boolean = false
     // Window mouse up event listener reference for cleanup
     private var windowMouseUpListener: ((Event) -> Unit)? = null
+    // All ancestor elements containing isList class (for ListView) from current element to root node path (including self)
+    private var listViewEles: JsArray<Element>? = null
 
     override val ele: HTMLDivElement
         get() = div.unsafeCast<HTMLDivElement>()
@@ -345,6 +349,16 @@ open class KRView : IKuiklyRenderViewExport {
             params = setSuperTouchEventParams(params, it.timeStamp.toLong(), KRActionConst.TOUCH_DOWN)
             panEventCallback?.invoke(params)
             touchDownEventCallback?.invoke(params)
+
+            // Get all parent elements of listView
+            findParentListViewEles(ele)
+            // Before stopping event propagation, manually dispatch custom events to all listView parent elements and window, carrying the original MouseEvent
+            // The order of event dispatch should match the bubbling order
+            val mouseEvent = it.unsafeCast<MouseEvent>()
+            listViewEles?.forEach { listViewEle  ->
+                KuiklyProcessor.eventProcessor.dispatchMouseEvent("mousedown", mouseEvent, listViewEle)
+            }
+            KuiklyProcessor.eventProcessor.dispatchMouseEvent("mousedown", mouseEvent)
             // stop event propagation
             it.stopPropagation()
         })
@@ -361,6 +375,14 @@ open class KRView : IKuiklyRenderViewExport {
                 params = setSuperTouchEventParams(params, it.timeStamp.toLong(), KRActionConst.TOUCH_MOVE)
                 panEventCallback?.invoke(params)
                 touchMoveEventCallback?.invoke(params)
+
+                // Before stopping event propagation, manually dispatch custom events to all listView parent elements and window, carrying the original MouseEvent
+                // The order of event dispatch should match the bubbling order
+                val mouseEvent = it.unsafeCast<MouseEvent>()
+                listViewEles?.forEach { listViewEle  ->
+                    KuiklyProcessor.eventProcessor.dispatchMouseEvent("mousemove", mouseEvent, listViewEle)
+                }
+                KuiklyProcessor.eventProcessor.dispatchMouseEvent("mousemove", mouseEvent)
                 // stop event propagation
                 it.stopPropagation()
             }
@@ -381,6 +403,15 @@ open class KRView : IKuiklyRenderViewExport {
                 // Mouse up event has no position parameters, so use move recorded cache parameter value callback
                 panEventCallback?.invoke(params)
                 touchUpEventCallback?.invoke(params)
+
+                // Before stopping event propagation, manually dispatch custom events to all listView parent elements and window, carrying the original MouseEvent
+                // The order of event dispatch should match the bubbling order
+                val mouseEvent = it.unsafeCast<MouseEvent>()
+                listViewEles?.forEach { listViewEle  ->
+                    KuiklyProcessor.eventProcessor.dispatchMouseEvent("mouseup", mouseEvent, listViewEle)
+                }
+                KuiklyProcessor.eventProcessor.dispatchMouseEvent("mouseup", mouseEvent)
+
                 // stop event propagation
                 it.stopPropagation()
             }
@@ -499,18 +530,41 @@ open class KRView : IKuiklyRenderViewExport {
         }, SCREEN_FRAME_REFRESH_TIME)
     }
 
+
+
+    /**
+     * Find all ListView parent elements of the current element
+     */
+    private fun findParentListViewEles(ele: Element){
+        val pageListElements = JsArray<Element>()
+        var currentElement: Element? = ele
+
+        while (currentElement != null) {
+            val findEle = currentElement.closest(".isList")
+
+            if (findEle != null) {
+                pageListElements.push(findEle)
+                // closest includes itself, start searching again from parent element to avoid infinite loop
+                currentElement = findEle.parentElement
+            } else {
+                break
+            }
+        }
+        listViewEles = pageListElements
+    }
+
     /**
      * Clean up resources when view is destroyed to prevent memory leaks
      */
     override fun onDestroy() {
         super.onDestroy()
-        
+
         // Remove global window event listener (must be removed to prevent memory leak)
         windowMouseUpListener?.let {
             kuiklyWindow.removeEventListener(KREventConst.MOUSE_UP, it)
         }
         windowMouseUpListener = null
-        
+
         // Clear screen frame timer
         if (requestId != 0) {
             kuiklyWindow.clearTimeout(requestId)

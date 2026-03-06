@@ -1,6 +1,8 @@
 package com.tencent.kuikly.core.render.web.processor
 
+import org.w3c.dom.Element
 import org.w3c.dom.HTMLElement
+import org.w3c.dom.events.Event
 
 /**
  * common event, should implement in different host
@@ -40,4 +42,12 @@ interface IEventProcessor {
      * process pan event
      */
     fun pan(ele: HTMLElement, callback: (event: IEvent?) -> Unit)
+
+    /**
+     * Dispatch mouse event (for the case where event bubbling is prevented in ListView, causing window and ListView elements unable to listen to mouse events)
+     * @param type event type
+     * @param event event
+     * @param ele element, if null, defaults to dispatch to window
+     */
+    fun dispatchMouseEvent(type:String, event: Event, ele: Element? = null)
 }

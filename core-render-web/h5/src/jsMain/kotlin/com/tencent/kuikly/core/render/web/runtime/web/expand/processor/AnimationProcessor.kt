@@ -110,7 +110,6 @@ class H5Animation(options: AnimationOption) : IAnimation {
         val duration = options["duration"] ?: "0"
         val timingFunction = options["timingFunction"] ?: "linear"
 
-
         val transforms: JsArray<String> = JsArray()
         // insert transform animation properties list
         this.transforms.forEach { transform ->

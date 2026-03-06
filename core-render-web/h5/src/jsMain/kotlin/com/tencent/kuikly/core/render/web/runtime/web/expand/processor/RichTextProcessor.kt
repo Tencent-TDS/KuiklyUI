@@ -55,8 +55,24 @@ object RichTextProcessor : IRichTextProcessor {
     private const val FONT_VARIANT = "fontVariant"
     private const val HEAD_INDENT = "headIndent"
     private const val LINE_HEIGHT = "lineHeight"
-    // specify to use dom measure text size
-    private val useDomMeasure = kuiklyDocument.location?.href?.contains("use_dom_measure=1")
+    // specify to use canvas measure text size
+    private val useCanvasMeasure = kuiklyDocument.location?.href?.contains("use_canvas_measure=1")
+
+
+    init {
+        // Set default font family for Apple platform during initialization
+        val ua = kuiklyWindow.navigator.userAgent
+        val platform = kuiklyWindow.navigator.platform
+
+        // Determine whether it is an Apple platform
+        val isApplePlatform = Regex("(Mac|iPhone|iPad|iPod)", RegexOption.IGNORE_CASE).containsMatchIn(ua)
+                || Regex("(Mac|iPhone|iPad|iPod)", RegexOption.IGNORE_CASE).containsMatchIn(platform)
+                || (platform == "MacIntel" && (kuiklyWindow.navigator.maxTouchPoints) > 1)
+
+        if (isApplePlatform) {
+            defaultFontFamily = "'San Francisco', 'PingFang SC', 'Helvetica Neue', sans-serif"
+        }
+    }
 
     private val measureElement: HTMLElement by lazy {
         kuiklyDocument.createElement(ElementType.P).unsafeCast<HTMLElement>().apply {
@@ -131,15 +147,14 @@ object RichTextProcessor : IRichTextProcessor {
         val originParent = ele.parentElement
         val index = indexOfChild(ele)
         var newEle = measureElement
-        var useMeasureElement = !view.isRichTextValues()
-        if (useMeasureElement) {
-            // Copy all styles at once using cssText for better performance
-            newEle.style.cssText = ele.style.cssText
-            // Set content after style copying to avoid potential style interference
-            newEle.innerText = renderText.ifEmpty { ele.innerText }
-        } else {
-            // can not measure for RichTextValues
+        val useMine = view.isRichTextValues()
+
+        if(useMine) {
             newEle = ele
+        } else {
+            // save necessary styles
+            newEle.style.cssText = ele.style.cssText
+            newEle.innerText = renderText.ifEmpty { ele.innerText }
         }
 
         // Remove width
@@ -152,11 +167,6 @@ object RichTextProcessor : IRichTextProcessor {
         }
         // No truncation or ellipsis when calculating actual size
         newEle.style.whiteSpace = "pre-wrap"
-        // If lines are set, also need to limit maximum number of lines
-        if (useMeasureElement) {
-            setMultiLineStyle(view.numberOfLines, newEle)
-        }
-        setMultiLineStyle(view.numberOfLines, ele)
         // Insert the node into the page to complete rendering, used to get the actual size of the node
         kuiklyDocument.body?.appendChild(newEle)
         // Element width
@@ -166,6 +176,13 @@ object RichTextProcessor : IRichTextProcessor {
         // Special case handling, if line height is set but the actual height is much smaller than
         // the expected value, need to remove multi-line style
         if (view.numberOfLines > 0) {
+            // If lines are set, also need to limit maximum number of lines
+            setMultiLineStyle(view.numberOfLines, ele)
+            if (!view.isRichTextValues()) {
+                // measureElement is a new element, need to set multi-line style
+                setMultiLineStyle(view.numberOfLines, newEle)
+            }
+
             // Single line height, if lineHeight is specified, use the specified one
             val singleLineHeight = if (newEle.style.lineHeight != "") {
                 newEle.style.lineHeight.pxToFloat()
@@ -179,12 +196,10 @@ object RichTextProcessor : IRichTextProcessor {
             // that many lines
             if (expectHeight - h > singleLineHeight / 2) {
                 // Need to remove multi-line style
-                setMultiLineStyle(0, ele)
                 setMultiLineStyle(0, newEle)
-                // And get height and width again
-                w = newEle.offsetWidth
-                h = newEle.offsetHeight.toFloat()
             }
+            // multi lines height should get again
+            h = newEle.offsetHeight.toFloat()
         }
 
         // After getting the size, remove the node from the page
@@ -195,11 +210,10 @@ object RichTextProcessor : IRichTextProcessor {
         // Actual height
         val realHeight = h
 
-        if (index != -1 && originParent != null && view.isRichTextValues()) {
+        if (useMine && index != -1 && originParent != null) {
             // After recalculating element size, the old element has been removed, if the node
             // itself was already inserted into the page, need to reinsert it into the original
             // parent node
-            // measureElement is removed so don't need insert newEle
             insertChild(originParent, newEle, index)
         }
         Log.trace("real size by dom, size:", realWidth, realHeight)
@@ -271,6 +285,8 @@ object RichTextProcessor : IRichTextProcessor {
         if (fontFamily == "") {
             fontFamily = defaultFont
         }
+        // Change the font to the calculated font
+        ele.style.fontFamily = fontFamily
         // Canvas font style to set
         val font = "$fontWeight $fontSize $fontFamily"
         // Set canvas font style
@@ -312,6 +328,10 @@ object RichTextProcessor : IRichTextProcessor {
         }
 
         // If new properties are supported, use canvas measurement values for calculation
+        // Remove width
+        style.width = ""
+        // Remove height
+        style.height = ""
         if (constraintSize.width > 0) {
             // If constraint size exists, use the constraint size
             style.maxWidth = constraintSize.width.toPxF()
@@ -443,12 +463,12 @@ object RichTextProcessor : IRichTextProcessor {
         // need to calculate width in segments, and consider height after line breaks. If there are
         // multiple child nodes, also need to calculate width in segments here, this will be
         // optimized later todo
-        return if ((useDomMeasure == true) || view.ele.children.length > 0) {
-            // There are child nodes, need to loop calculation, temporarily use Dom method for calculation
-            calculateRenderViewSizeByDom(constraintSize, view, renderText)
-        } else {
+        return if ((useCanvasMeasure == true) && view.ele.children.length == 0) {
             // No child nodes, single line calculation
             calculateRenderViewSizeByCanvas(constraintSize, view, renderText)
+        } else {
+            // There are child nodes, need to loop calculation, temporarily use Dom method for calculation
+            calculateRenderViewSizeByDom(constraintSize, view, renderText)
         }
     }
 

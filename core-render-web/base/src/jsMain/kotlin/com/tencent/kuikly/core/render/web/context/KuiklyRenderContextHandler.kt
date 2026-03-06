@@ -38,6 +38,8 @@ class KuiklyRenderContextHandler : IKuiklyRenderContextHandler {
             // Call error
             Log.error("registerCallNative error, reason is: $e")
         }
+        // handle multiple instances
+        handleMultiInstanceCallKotlinMethod()
     }
 
     /**
@@ -140,9 +142,73 @@ class KuiklyRenderContextHandler : IKuiklyRenderContextHandler {
         )
     }
 
+    /**
+     * handle multi-instance callKotlinMethod
+     *
+     * use Object.defineProperty to listen callKotlinMethod set,
+     * then save new callKotlinMethod to callKotlinMethod_id(auto increment id).
+     * then create dispatch method to dispatch callKotlinMethod
+     */
+    fun handleMultiInstanceCallKotlinMethod() {
+        if (instanceId > 0) {
+            // execute once, when re init context handle. do not handle multi-instance callKotlinMethod
+            return
+        }
+
+        val win = kuiklyWindow.asDynamic()
+        val methodName = METHOD_NAME_CALL_KOTLIN
+        val currentValue = win[methodName]
+        // no callKotlinMethod, return
+        if (currentValue == null || jsTypeOf(currentValue) == "undefined") {
+            return
+        }
+
+        // save old callKotlinMethod to callKotlinMethod_0
+        win[methodName + "_" + instanceId] = currentValue
+        instanceId++
+
+        // create dispatch method：use second arg（instanceId）to call special callKotlinMethod_id
+        val dispatch: (Int, dynamic, dynamic, dynamic, dynamic, dynamic, dynamic) -> dynamic =
+            { methodOrdinal, arg0, arg1, arg2, arg3, arg4, arg5 ->
+                // second arg for instance id
+                val instanceId = arg0
+                val targetKey = methodName + "_" + instanceId
+                val targetMethod = win[targetKey]
+                val defaultMethod = win[methodName + "_0"]
+                if (jsTypeOf(targetMethod) == "function") {
+                    targetMethod(methodOrdinal, arg0, arg1, arg2, arg3, arg4, arg5)
+                } else if (jsTypeOf(defaultMethod) == "function") {
+                    // use default callKotlinMethod for single instance or single page multi-instance
+                    defaultMethod(methodOrdinal, arg0, arg1, arg2, arg3, arg4, arg5)
+                } else {
+                    undefined
+                }
+
+            }
+
+        // property descriptor
+        val descriptor = js("{}")
+        descriptor.get = { dispatch }
+        descriptor.set = { newValue: dynamic ->
+            if (jsTypeOf(newValue) == "function") {
+                val id = instanceId
+                win[methodName + "_" + id] = newValue
+                instanceId++
+            }
+        }
+        descriptor.configurable = true
+        descriptor.enumerable = true
+
+        // Use Object.defineProperty interception the property
+        val jsObject = js("Object")
+        jsObject.defineProperty(win, methodName, descriptor)
+    }
+
     companion object {
         private const val CALL_ARGS_COUNT = 6
         private const val METHOD_NAME_CALL_NATIVE = "callNative"
         private const val METHOD_NAME_CALL_KOTLIN = "callKotlinMethod"
+        // multi instance auto increment id
+        private var instanceId = 0
     }
 }

@@ -334,6 +334,28 @@ fun TextFieldWithMaxLength() {
 
 > **提示**：以上为当前已支持的扩展能力，更多扩展能力将持续更新补充。
 
+#### 自动回收软键盘：`Modifier.autoHideKeyboardOnImeAction` <Badge text="版本2.16.0及以上" type="warn"/>
+
+用于控制点击`发送`按钮之后软键盘是否回收，默认为不回收软键盘。
+
+```kotlin
+@Composable
+fun TextFieldWithMaxLength() {
+    var text by remember { mutableStateOf("") }
+    
+    TextField(
+        value = text,
+        onValueChange = { text = it },
+        modifier = Modifier
+          .autoHideKeyboardOnImeAction(true), // 设置true，点击Send自动收起键盘
+    )
+}
+```
+
+:::tip 注意
+从 2.16.0 版本开始，iOS侧软键盘从默认关闭切换wield默认不关闭
+:::
+
 ### 可滚动组件扩展
 
 #### 点击状态栏返回顶部：`Modifier.scrollToTop`

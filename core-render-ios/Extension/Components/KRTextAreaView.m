@@ -57,6 +57,8 @@ NSString *const KRFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(keyboardType);
 /** attr is returnKeyType */
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(returnKeyType);
+/** 是否在点击 IME 动作按钮（如 Send/Go/Search）时自动收起键盘，默认值为 NO，即不自动收起，由业务自己控制 */
+@property (nonatomic, strong)  NSNumber *KUIKLY_PROP(autoHideKeyboardOnImeAction);
 /** event is textDidChange 文本变化 */
 @property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(textDidChange);
 /** event is inputFocus 获焦 触发 */
@@ -260,6 +262,10 @@ NSString *const KRFontWeightKey = @"fontWeight";
     _css_enablePinyinCallback = css_enablePinyinCallback;
 }
 
+- (void)setCss_autoHideKeyboardOnImeAction:(NSNumber *)css_autoHideKeyboardOnImeAction {
+    _css_autoHideKeyboardOnImeAction = css_autoHideKeyboardOnImeAction;
+}
+
 #pragma mark - css method
 
 - (void)css_focus:(NSDictionary *)args  {
@@ -370,18 +376,22 @@ NSString *const KRFontWeightKey = @"fontWeight";
     }
     if (self.css_inputReturn && self.css_returnKeyType && [text isEqualToString:@"\n"]) {
         self.css_inputReturn(@{@"text": textView.text.copy ?: @"", @"ime_action": self.css_returnKeyType ?: @""});
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [textView resignFirstResponder];
-        });
+        if ([self.css_autoHideKeyboardOnImeAction boolValue]) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [textView resignFirstResponder];
+            });
+        }
         return NO;
     }
     if(self.css_imeAction && [text isEqualToString:@"\n"]) {
         self.css_imeAction(@{@"ime_action": self.css_returnKeyType ?: @""});
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [textView resignFirstResponder];
-        });
+        if ([self.css_autoHideKeyboardOnImeAction boolValue]) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [textView resignFirstResponder];
+            });
+        }
         return NO;
-      }
+    }
     return YES;
 }
 

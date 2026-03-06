@@ -830,7 +830,12 @@ private val propHandlers = mapOf<String, (CSSStyleDeclaration, Any, HTMLElement)
     KRCssConst.STROKE_WIDTH to { cssStyle, value, _ ->
         val usedWidth = value.asDynamic() / 4
         val dynamicCssStyle = cssStyle.asDynamic()
-        dynamicCssStyle.webkitTextStroke = "${usedWidth}px ${dynamicCssStyle.webkitTextStroke}"
+        val strokeColor = if (dynamicCssStyle.webkitTextStroke.indexOf("rgb") != -1) {
+            dynamicCssStyle.webkitTextStroke
+        } else {
+            dynamicCssStyle.webkitTextStroke.unsafeCast<String>().toRgbColor()
+        }
+        dynamicCssStyle.webkitTextStroke = "${usedWidth}px $strokeColor"
         true
     },
     KRCssConst.STROKE_COLOR to { cssStyle, value, _ ->

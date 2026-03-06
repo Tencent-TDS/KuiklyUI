@@ -18,20 +18,24 @@ pod install --repo-update
 
 3. 最后先在Android Studio编写业务代码, 然后切换到Xcode中点击运行即可
 
-## Swift 兼容性说明
 
-Kuikly 的 iOS 侧是基于 Objective-C 运行时的，但可以兼容 Swift 类文件。只需要在 Swift 类上添加 `@objc` 和 `@objcMembers` 注解向 Objective-C 运行时披露该类即可。
+
+## 开发语言选择
+Kuikly iOS 支持业务使用 Objective-C 或 Swift 开发，例如开发自定义 Module 和 View。
+
+若使用 Swift，需在类上添加 @objc 和 @objcMembers 注解，供 Kuikly iOS Render 识别并调用。
+
 
 ### 示例代码
 
 ```swift
-import UIKit
+import Foundation
 
 @objc
 @objcMembers
-class MySwiftViewController: NSObject {
-    
-    // ...
+class KRMyLogModule: KRBaseModule {
+    func log(_ content: String) {
+        print("Log: \(content)")
+    }
 }
 ```
-。

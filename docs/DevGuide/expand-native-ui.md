@@ -355,7 +355,8 @@ open class HRImageView(context: Context) : ImageView(context), IKuiklyRenderView
 我们首先新建``HRImageView``并继承原生的``UIImageView``, 然后实现``KuiklyRenderViewExportProtocol``协议
 
 :::tip 注意
-类名必须与Kuikly侧的ImageView.viewName()返回的值一样
+- 类名必须与Kuikly侧的ImageView.viewName()返回的值一样
+- 使用 **Swift** 实现 View，需使用 `@objc` 或 `@objcMembers` 修饰 Swift 类，以供kuikly识别并调用。
 :::
 
 ```objc

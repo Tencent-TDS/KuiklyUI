@@ -311,7 +311,8 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 1. 在接入``Kuikly``的iOS宿主工程中新建``KRMyLogModule``类，然后继承``KRBaseModule``
 
 :::tip 注意
-iOS原生侧的Module创建是在运行时根据``Kuikly``注册``module``的名字来动态创建的，因此类名必须与``Kuikly``侧注册``module``的名字保持一致
+- iOS原生侧的Module创建是在运行时根据``Kuikly``注册``module``的名字来动态创建的，因此类名必须与``Kuikly``侧注册``module``的名字保持一致
+- 如果使用 **Swift** 实现 Module，需要使用 `@objc` 或 `@objcMembers` 注解修饰 Swift 类，以供kuikly识别并调用。
 :::
 
 ```objc

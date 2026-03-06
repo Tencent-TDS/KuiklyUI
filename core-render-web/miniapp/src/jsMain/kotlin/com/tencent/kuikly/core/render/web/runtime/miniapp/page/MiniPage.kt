@@ -115,6 +115,13 @@ class MiniPage {
     }
 
     /**
+     * Trigger onShareAppMessage event and return result
+     */
+    fun emitShareAppMessage(vararg args: Any): Any? {
+        return EventHook.callWithPageIdAndReturn(PageLifeCycleEvent.ON_SHARE_APP_MESSAGE.toString(), pageId, args)
+    }
+
+    /**
      * Add movable element to the list
      */
     fun addMovableViewToList(listElement: MiniListElement) {

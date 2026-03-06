@@ -67,6 +67,20 @@ interface IImageAttr {
     fun resizeStretch(): IImageAttr
 
     /**
+     * 设置图片拉伸模式：widthFix
+     * 保持宽高比，宽度固定，高度自适应
+     * 适用于需要图片宽度与容器宽度一致的场景
+     */
+    fun resizeWidthFix(): IImageAttr
+
+    /**
+     * 设置图片拉伸模式：heightFix
+     * 保持宽高比，高度固定，宽度自适应
+     * 适用于需要图片高度与容器高度一致的场景
+     */
+    fun resizeHeightFix(): IImageAttr
+
+    /**
      * 设置拉伸区域
      * @param top 距离上边偏移
      * @param left 距离左边偏移

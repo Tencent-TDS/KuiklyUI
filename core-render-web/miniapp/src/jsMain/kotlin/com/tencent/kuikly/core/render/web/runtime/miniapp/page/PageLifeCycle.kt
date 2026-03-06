@@ -65,6 +65,15 @@ class PageLifeCycle(private val pageInstance: MiniPage) {
     }
 
     /**
+     * Page onShareAppMessage callback
+     */
+    fun onShareAppMessage(callback: (Any?) -> Any?) {
+        EventHook.tapWithPageId(PageLifeCycleEvent.ON_SHARE_APP_MESSAGE.toString(), pageInstance.pageId) {
+            callback(it[0])
+        }
+    }
+
+    /**
      * Other mini program page event callbacks, requires passing in the event enum PageLifeCycleEvent
      */
     fun onPageLifeEvent(event: PageLifeCycleEvent, callback: PageLifeCallback) {

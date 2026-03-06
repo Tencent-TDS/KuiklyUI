@@ -29,8 +29,8 @@ import com.tencent.kuikly.core.render.web.expand.module.KRMemoryCacheModule
 import com.tencent.kuikly.core.render.web.expand.module.KRNetworkModule
 import com.tencent.kuikly.core.render.web.expand.module.KRNotifyModule
 import com.tencent.kuikly.core.render.web.expand.module.KRPerformanceModule
-import com.tencent.kuikly.core.render.web.expand.module.KRRouterModule
 import com.tencent.kuikly.core.render.web.expand.module.KRSharedPreferencesModule
+import com.tencent.kuikly.core.render.web.runtime.miniapp.module.MiniRouterModule
 import com.tencent.kuikly.core.render.web.expand.module.KRSnapshotModule
 import com.tencent.kuikly.core.render.web.ktx.SizeI
 import com.tencent.kuikly.core.render.web.performance.IKRMonitorCallback
@@ -335,8 +335,8 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
             moduleExport(KRSharedPreferencesModule.MODULE_NAME) {
                 KRSharedPreferencesModule()
             }
-            moduleExport(KRRouterModule.MODULE_NAME) {
-                KRRouterModule()
+            moduleExport(MiniRouterModule.MODULE_NAME) {
+                MiniRouterModule()
             }
             moduleExport(KRPerformanceModule.MODULE_NAME) {
                 KRPerformanceModule(performanceManager)

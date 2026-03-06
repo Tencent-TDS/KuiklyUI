@@ -3,6 +3,7 @@ package com.tencent.kuikly.core.render.web.expand.components
 import com.tencent.kuikly.core.render.web.adapter.KuiklyRenderAdapterManager
 import com.tencent.kuikly.core.render.web.adapter.TextPostProcessorInput
 import com.tencent.kuikly.core.render.web.collection.array.JsArray
+import com.tencent.kuikly.core.render.web.collection.array.get
 import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderShadowExport
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewExport
@@ -356,13 +357,24 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
         var rectInfo = "0.0 0.0 0.0 0.0"
 
         if (index != null) {
+            // Prefer using richTextSpanList calculated position info (miniapp)
+            // index is the span index in the full list, use it directly to get from richTextSpanList
+            if (index < richTextSpanList.length) {
+                val span = richTextSpanList[index]
+                // Check if it's a PlaceholderSpan (width and height are not 0)
+                if (span.width != 0f && span.height != 0f) {
+                    rectInfo = "${span.offsetLeft} ${span.offsetTop} ${span.width} ${span.height}"
+                    return rectInfo
+                }
+            }
+
+            // Fallback to DOM method (H5 and other platforms)
             val placeholderSpan = ele.childNodes[index].unsafeCast<HTMLElement?>()
             if (
                 placeholderSpan != null &&
                 placeholderSpan.style.width != "" &&
                 placeholderSpan.style.height != ""
             ) {
-                // Determine that it is a placeholder span, get size information
                 with(placeholderSpan) {
                     rectInfo = "$offsetLeft $offsetTop $offsetWidth $offsetHeight"
                 }

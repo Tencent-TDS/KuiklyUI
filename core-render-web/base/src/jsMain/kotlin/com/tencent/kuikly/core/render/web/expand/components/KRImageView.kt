@@ -184,9 +184,34 @@ open class KRImageView(
      */
     private fun setResize(propValue: Any) {
         // Adapt image stretch mode, no stretch in DOM, set to fill
-        image.style.objectFit = when (propValue.unsafeCast<String>()) {
-            "stretch" -> "fill"
-            else -> propValue.unsafeCast<String>()
+        val mode = propValue.unsafeCast<String>()
+        when (mode) {
+            "stretch" -> {
+                image.style.objectFit = "fill"
+            }
+            "widthFix" -> {
+                // Width fixed, height auto-adjust while maintaining aspect ratio
+                // Set objectFit to "widthFix" so mini program can recognize it
+                image.style.objectFit = "widthFix"
+                image.style.width = "100%"
+                // Note: Don't set height for widthFix mode - let mini program auto calculate
+                // For mini program: also need to adjust container to allow height to grow
+                div.style.height = "auto"
+                div.style.overflowY = "visible"
+            }
+            "heightFix" -> {
+                // Height fixed, width auto-adjust while maintaining aspect ratio
+                // Set objectFit to "heightFix" so mini program can recognize it
+                image.style.objectFit = "heightFix"
+                // Note: Don't set width for heightFix mode - let mini program auto calculate
+                image.style.height = "100%"
+                // For mini program: also need to adjust container to allow width to grow
+                div.style.width = "auto"
+                div.style.overflowX = "visible"
+            }
+            else -> {
+                image.style.objectFit = mode
+            }
         }
     }
 

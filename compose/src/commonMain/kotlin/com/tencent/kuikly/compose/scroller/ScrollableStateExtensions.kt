@@ -69,6 +69,11 @@ internal fun ScrollableState.kuiklyOnScrollEnd(params: ScrollParams) {
         is KuiklyScrollableState -> kuiklyOnScrollEnd(params)
         else -> { /* No need to handle */ }
     }
+    // During scrolling, tryExpandStartSizeNoScroll in createLine/item layout is skipped
+    // because isScrollInProgress is true. Compensate after scrollEnd to ensure contentSize
+    // is updated correctly. tryExpandStartSizeNoScroll has internal guards (reachBtm,
+    // canScrollForward, etc.) so it is safe to call unconditionally.
+    tryExpandStartSizeNoScroll()
 }
 
 /**

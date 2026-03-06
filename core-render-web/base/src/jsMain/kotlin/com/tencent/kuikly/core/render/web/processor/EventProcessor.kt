@@ -44,10 +44,10 @@ interface IEventProcessor {
     fun pan(ele: HTMLElement, callback: (event: IEvent?) -> Unit)
 
     /**
-     * 派发鼠标事件(针对ListView中由于阻止冒泡导致window、ListView元素 无法监听到鼠标事件的情况)
-     * @param type 事件类型
-     * @param event 事件
-     * @param ele 元素 若为空则默认派发给 window
+     * Dispatch mouse event (for the case where event bubbling is prevented in ListView, causing window and ListView elements unable to listen to mouse events)
+     * @param type event type
+     * @param event event
+     * @param ele element, if null, defaults to dispatch to window
      */
     fun dispatchMouseEvent(type:String, event: Event, ele: Element? = null)
 }

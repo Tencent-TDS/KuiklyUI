@@ -125,7 +125,7 @@ open class KRView : IKuiklyRenderViewExport {
     private var superTouchCanceled: Boolean = false
     // Window mouse up event listener reference for cleanup
     private var windowMouseUpListener: ((Event) -> Unit)? = null
-    // 从当前元素到根节点路径上所有包含 isList 类(为ListView)的祖先元素（包含自身）
+    // All ancestor elements containing isList class (for ListView) from current element to root node path (including self)
     private var listViewEles: JsArray<Element>? = null
 
     override val ele: HTMLDivElement
@@ -350,10 +350,10 @@ open class KRView : IKuiklyRenderViewExport {
             panEventCallback?.invoke(params)
             touchDownEventCallback?.invoke(params)
 
-            // 获取所有listView的父元素
+            // Get all parent elements of listView
             findParentListViewEles(ele)
-            // 在阻止冒泡之前，手动向所有为 listView 的父元素及 window 分发自定义事件，携带原始 MouseEvent
-            // 分发事件的顺序需与冒泡顺序一致
+            // Before stopping event propagation, manually dispatch custom events to all listView parent elements and window, carrying the original MouseEvent
+            // The order of event dispatch should match the bubbling order
             val mouseEvent = it.unsafeCast<MouseEvent>()
             listViewEles?.forEach { listViewEle  ->
                 KuiklyProcessor.eventProcessor.dispatchMouseEvent("mousedown", mouseEvent, listViewEle)
@@ -376,8 +376,8 @@ open class KRView : IKuiklyRenderViewExport {
                 panEventCallback?.invoke(params)
                 touchMoveEventCallback?.invoke(params)
 
-                // 在阻止冒泡之前，手动向所有为 listView 的父元素及 window 分发自定义事件，携带原始 MouseEvent
-                // 分发事件的顺序需与冒泡顺序一致
+                // Before stopping event propagation, manually dispatch custom events to all listView parent elements and window, carrying the original MouseEvent
+                // The order of event dispatch should match the bubbling order
                 val mouseEvent = it.unsafeCast<MouseEvent>()
                 listViewEles?.forEach { listViewEle  ->
                     KuiklyProcessor.eventProcessor.dispatchMouseEvent("mousemove", mouseEvent, listViewEle)
@@ -404,8 +404,8 @@ open class KRView : IKuiklyRenderViewExport {
                 panEventCallback?.invoke(params)
                 touchUpEventCallback?.invoke(params)
 
-                // 在阻止冒泡之前，手动向所有为 listView 的父元素及 window 分发自定义事件，携带原始 MouseEvent
-                // 分发事件的顺序需与冒泡顺序一致
+                // Before stopping event propagation, manually dispatch custom events to all listView parent elements and window, carrying the original MouseEvent
+                // The order of event dispatch should match the bubbling order
                 val mouseEvent = it.unsafeCast<MouseEvent>()
                 listViewEles?.forEach { listViewEle  ->
                     KuiklyProcessor.eventProcessor.dispatchMouseEvent("mouseup", mouseEvent, listViewEle)
@@ -533,7 +533,7 @@ open class KRView : IKuiklyRenderViewExport {
 
 
     /**
-     * 查找当前元素所有的 ListView 父元素
+     * Find all ListView parent elements of the current element
      */
     private fun findParentListViewEles(ele: Element){
         val pageListElements = JsArray<Element>()
@@ -544,7 +544,7 @@ open class KRView : IKuiklyRenderViewExport {
 
             if (findEle != null) {
                 pageListElements.push(findEle)
-                // closest 会包含自身，从父元素再次开始查找，避免死循环
+                // closest includes itself, start searching again from parent element to avoid infinite loop
                 currentElement = findEle.parentElement
             } else {
                 break

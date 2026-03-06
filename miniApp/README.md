@@ -11,7 +11,7 @@
 npm run serve
 #  构建 shared 项目 Debug 版
 #  miniApp需要用远程ksp源，KuiklyUI仓库加上 -Pkuikly.useLocalKsp=false 参数
-./gradlew :demo:packLocalJsBundleDebug -Pkuikly.useLocalKsp=false
+./gradlew :demo:packLocalJsBundleDebug "-Pkuikly.useLocalKsp=false"
 ```
 
 然后构建 miniApp 项目
@@ -24,7 +24,7 @@ npm run serve
 ```shell
 # 首先构建业务 Bundle
 # miniApp需要用远程ksp源，KuiklyUI仓库加上 -Pkuikly.useLocalKsp=false 参数
-./gradlew :demo:packLocalJSBundleRelease -Pkuikly.useLocalKsp=false
+./gradlew :demo:packLocalJSBundleRelease "-Pkuikly.useLocalKsp=false"
 
 # 然后构建 miniApp
 ./gradlew :miniApp:jsMiniAppProductionWebpack

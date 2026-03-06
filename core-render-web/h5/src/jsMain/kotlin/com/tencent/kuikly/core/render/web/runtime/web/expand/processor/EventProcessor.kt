@@ -208,7 +208,6 @@ class TouchEventHandlers {
             element.addEventListener("touchend", { event ->
                 if (isLongPressing) {
                     event.state = EVENT_STATE_END
-                    onLongPress(event)
                 }
                 cancelTimer()
             })
@@ -218,7 +217,6 @@ class TouchEventHandlers {
             element.addEventListener("touchcancel", { event ->
                 if (isLongPressing) {
                     event.state = EVENT_STATE_END
-                    onLongPress(event)
                 }
                 cancelTimer()
             })
@@ -257,7 +255,6 @@ class TouchEventHandlers {
             element.addEventListener("mouseup", { event ->
                 if (isLongPressing) {
                     event.state = EVENT_STATE_END
-                    onLongPress(event)
                     // Marks the current element as having triggered a pan or long-press event
                     element.asDynamic().panOrLongPressTriggered = true
                 }

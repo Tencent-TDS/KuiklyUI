@@ -78,7 +78,7 @@ kotlin {
 
 **安卓：**
 ```bash
-/gradlew :shared:assembleRelease
+./gradlew :shared:assembleRelease
 ```
 **iOS:**
 

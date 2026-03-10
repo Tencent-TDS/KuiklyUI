@@ -1,4 +1,4 @@
-package com.tencent.kuikly.demo.pages
+package com.tencent.kuikly.demo.pages.demo
 
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.BaseObject
@@ -12,7 +12,6 @@ import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.base.ComposeEvent
 import com.tencent.kuikly.core.base.ViewRef
 import com.tencent.kuikly.core.directives.velse
-import com.tencent.kuikly.core.directives.vfor
 import com.tencent.kuikly.core.directives.vif
 import com.tencent.kuikly.core.reactive.collection.ObservableList
 import com.tencent.kuikly.core.reactive.handler.observable
@@ -26,8 +25,9 @@ import com.tencent.kuikly.core.views.List
 import com.tencent.kuikly.core.views.Modal
 import com.tencent.kuikly.core.views.Scroller
 import com.tencent.kuikly.core.views.compose.Button
+import com.tencent.kuikly.demo.pages.TMLog
+import com.tencent.kuikly.demo.pages.TMNestStageCardView
 import com.tencent.kuikly.demo.pages.base.BasePager
-import io.ktor.client.request.forms.formData
 
 
 @Page("w1")
@@ -312,7 +312,7 @@ internal class TMNestStageCardViewDemo : BasePager() {
                                             KRNestedScrollMode.PARENT_FIRST,
                                             KRNestedScrollMode.SELF_FIRST
                                         )
-                                        height(600f)
+                                        height(700f)
                                         backgroundColor(Color.RED)
                                         bouncesEnable(false)
                                     }
@@ -324,7 +324,7 @@ internal class TMNestStageCardViewDemo : BasePager() {
                                             }
                                             Text {
                                                 attr {
-                                                    text("WS-$i")
+                                                    text("list-$i")
                                                 }
                                             }
                                         }
@@ -353,7 +353,7 @@ internal class TMNestStageCardViewDemo : BasePager() {
                                                 }
                                                 Text {
                                                     attr {
-                                                        text("TONY-$i")
+                                                        text("list-$i")
                                                     }
                                                 }
                                             }

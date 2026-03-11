@@ -621,7 +621,10 @@
                                                                           preferredStyle:UIAlertControllerStyleAlert];
         UIAlertAction *action = [UIAlertAction actionWithTitle:@"确定" style:(UIAlertActionStyleDefault) handler:nil];
         [alertController addAction:action];
-        [[UIApplication sharedApplication].keyWindow.rootViewController presentViewController:alertController animated:YES completion:nil];
+        UIWindow *keyWindow = [self keyWindow];
+        if (keyWindow && keyWindow.rootViewController) {
+            [keyWindow.rootViewController presentViewController:alertController animated:YES completion:nil];
+        } 
 #endif // [macOS]
     });
 }
@@ -640,9 +643,9 @@
 }
 
 + (CGFloat)statusBarHeight {
-    #if TARGET_OS_OSX // [macOS]
+#if TARGET_OS_OSX // [macOS]
     return 0;
-    #else
+#else
     CGFloat statusBarHeight = 0;
     if(![UIApplication isAppExtension]){
         if (@available(iOS 13.0, *)) {
@@ -658,17 +661,11 @@
     if (@available(iOS 16.0, *)) {
         BOOL needAdjust = (statusBarHeight == 44);
         if (needAdjust) {
-            UIWindow* mainWindow = nil;
-            for (UIScene* scene in [UIApplication sharedApplication].connectedScenes) {
-                if (scene.activationState == UISceneActivationStateForegroundActive && [scene isKindOfClass:[UIWindowScene class]]) {
-                    UIWindowScene *windowScene = (UIWindowScene *)scene;
-                    mainWindow = windowScene.windows.firstObject;
-                    break;
-                }
-            }
+            UIWindow* mainWindow = [self keyWindow];
             if (mainWindow && mainWindow.safeAreaInsets.top >= 59) { // 兼容部分场景高度获取不正确
                 statusBarHeight = 54;
             }
+            // 如果没有找到当前交互scene的Keywindow，则statusBarHeight = 0，后续将返回 [self defaultStatusBarHeight]
         }
     }
     return statusBarHeight ?: [self defaultStatusBarHeight];
@@ -694,15 +691,19 @@
 
 
 + (UIEdgeInsets)currentSafeAreaInsets {
-    #if TARGET_OS_OSX // [macOS]
+#if TARGET_OS_OSX // [macOS]
     return UIEdgeInsetsZero;
-    #else
+#else
     if([UIApplication isAppExtension]){
         return UIEdgeInsetsZero;
     }
     if (@available(iOS 11, *)) {
-        UIWindow *window = UIApplication.sharedApplication.windows.firstObject;
-        return window.safeAreaInsets;
+        UIWindow *window = [self keyWindow];
+        if (window) {
+            return window.safeAreaInsets;
+        } else {
+            return UIEdgeInsetsZero;
+        }
     } else {
         return UIEdgeInsetsZero;
     }
@@ -734,5 +735,68 @@
     }
     return ocObject;
 }
+
+
+/**
+ * 获取当前 KeyWindow
+ * 兼容 iOS 13+ 的 Scene 架构，替代废弃的 UIApplication.sharedApplication.keyWindow
+ */
++ (UIWindow *)keyWindow {
+#if TARGET_OS_OSX
+    // macOS: 获取当前激活的窗口, 并由调用方判断是否为nil作处理
+    return NSApplication.sharedApplication.mainWindow;
+#else
+    if ([UIApplication isAppExtension]) {
+        return nil;
+    }
+    
+    UIWindow *keyWindow = nil;
+    // 判断当前应用是否和用户交互过，避免vc初始化时UISceneActivationStateForegroundInactive导致拿到的safeAreaInsets是全零
+    UIApplicationState appState = UIApplication.sharedApplication.applicationState;
+    
+    if (@available(iOS 13.0, *)) {
+        // 方式1：优先找用户当前正在交互的 foregroundActive 的 scene 中的 keyWindow
+        for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+            BOOL isForegroundActive = (scene.activationState == UISceneActivationStateForegroundActive);
+            BOOL isForegroundInactive = (scene.activationState == UISceneActivationStateForegroundInactive);
+            BOOL isValidState = isForegroundActive || (appState != UIApplicationStateActive && isForegroundInactive);
+            
+            if (isValidState && [scene isKindOfClass:[UIWindowScene class]]) {
+                UIWindowScene *windowScene = (UIWindowScene *)scene;
+                keyWindow = [self keyWindowFromWindowScene:windowScene];
+                if (keyWindow) {
+                    return keyWindow;
+                }
+            }
+        }
+        
+    } else {
+        // iOS 13 以下使用旧的 API
+        keyWindow = UIApplication.sharedApplication.keyWindow;
+    }
+    // 未获取到交互scene 或者 未找到Keywindow，则直接返回nil，准备使用全零的safeAreaInsets
+    return keyWindow;
+#endif
+}
+
+/**
+ * 从 WindowScene 中获取 KeyWindow
+ */
+#if !TARGET_OS_OSX
++ (UIWindow *)keyWindowFromWindowScene:(UIWindowScene *)windowScene  API_AVAILABLE(ios(13.0)){
+    if (!windowScene) {
+        return nil;
+    }
+    
+    // 找 isKeyWindow 的 window
+    for (UIWindow *window in windowScene.windows) {
+        if (window.isKeyWindow) {
+            return window;
+        }
+    }
+    
+    return nil;
+}
+#endif
 
 @end

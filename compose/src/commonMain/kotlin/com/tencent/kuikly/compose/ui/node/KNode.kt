@@ -28,16 +28,10 @@ import com.tencent.kuikly.compose.ui.graphics.Matrix
 import com.tencent.kuikly.compose.ui.graphics.isIdentity
 import com.tencent.kuikly.compose.ui.layout.LayoutCoordinates
 import com.tencent.kuikly.compose.ui.platform.LocalDensity
-import com.tencent.kuikly.compose.ui.text.style.modulate
-import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.IntSize
-import com.tencent.kuikly.compose.views.KuiklyInfoKey
 import com.tencent.kuikly.compose.views.VirtualNodeView
-import com.tencent.kuikly.compose.gestures.KuiklyScrollInfo
 import com.tencent.kuikly.compose.layout.resetViewVisible
-import com.tencent.kuikly.compose.node.extPropsVar
 import com.tencent.kuikly.compose.ui.KuiklyPath
-import com.tencent.kuikly.compose.ui.graphics.Path
 import com.tencent.kuikly.compose.ui.layout.LookaheadLayoutCoordinates
 import com.tencent.kuikly.compose.ui.unit.plus
 import com.tencent.kuikly.core.base.Attr
@@ -98,7 +92,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
      */
     private fun getCacheManager(): StickyHeaderCacheManager? {
         val scrollNode = parent as? KNode<*>
-        val kuiklyInfo = scrollNode?.view?.extProps?.get(KuiklyInfoKey) as? KuiklyScrollInfo
+        val kuiklyInfo = (scrollNode?.view?.renderProperties as? RenderProperties)?.kuiklyScrollInfo
 
         return kuiklyInfo?.stickyHeaderCacheManager
     }
@@ -233,7 +227,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         // Child nodes on scrollview, parent is virtual node
         if (ksScrollSubView && needFixScrollOffset) {
             val scrollerView = (parent as KNode<*>).view
-            (scrollerView.extProps[KuiklyInfoKey] as? KuiklyScrollInfo)?.apply {
+            ((scrollerView.renderProperties as? RenderProperties)?.kuiklyScrollInfo)?.apply {
                 val deltaOffset = composeOffset
                 pos = if (orientation == Orientation.Vertical) {
                     Offset(pos.x, pos.y + deltaOffset)
@@ -283,7 +277,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         }
 
         val scrollerView = view as ScrollerView<*, *>
-        val kuiklyInfo = scrollerView.extProps[KuiklyInfoKey] as? KuiklyScrollInfo ?: return
+        val kuiklyInfo = (scrollerView.renderProperties as? RenderProperties)?.kuiklyScrollInfo ?: return
 
         if (curFrame != newFrame) {
             kuiklyInfo.offsetDirty = true
@@ -377,13 +371,11 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
                 val view = DivView()
                 KNode(view) {
                     attr {
-                        flexDirectionColumn()
-                        justifyContentCenter()
-                        alignItemsCenter()
-                        // Disable DivView optimization to ensure normal layout
-                        setProp("flatLayer", false)
                         if (hasShadow) {
                             setProp(Attr.StyleConst.WRAPPER_BOX_SHADOW_VIEW, 1)
+                        } else {
+                            // 禁用DivView优化 保证布局正常
+                            setProp("flatLayer", false)
                         }
                     }
                 }
@@ -402,23 +394,66 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             }
         }
 
-        private fun DeclarativeBaseView<*, *>.getMatrix(): Matrix? = extProps["matrix"] as? Matrix
-        private fun DeclarativeBaseView<*, *>.obtainMatrix(): Matrix = extProps.getOrPut("matrix") { Matrix() } as Matrix
-
-        private var DeclarativeBaseView<*, *>.matrixChanged by extPropsVar("matrixChanged") { false }
-        private var DeclarativeBaseView<*, *>.alpha by extPropsVar("alpha") { 1f }
-        private var DeclarativeBaseView<*, *>.measuredSize by extPropsVar("measuredSize") {
-            IntSize(
-                0,
-                0
-            )
+        // 获取或创建 RenderProperties 对象
+        internal fun DeclarativeBaseView<*, *>.obtainRenderProps(): RenderProperties {
+            var props = renderProperties as? RenderProperties
+            if (props == null) {
+                props = RenderProperties()
+                renderProperties = props
+            }
+            return props
         }
-        private var DeclarativeBaseView<*, *>.clipPath by extPropsVar("clipPath") { "" }
-        private var DeclarativeBaseView<*, *>.borderRadius by extPropsVar("borderRadius") { FloatArray(4) }
-        private var DeclarativeBaseView<*, *>.clip by extPropsVar("clip") { false }
-        private var DeclarativeBaseView<*, *>.shadowElevation by extPropsVar("shadowElevation") { 0f }
-        private var DeclarativeBaseView<*, *>.shadowColor by extPropsVar("shadowColor") { Color.Transparent }
-        private var DeclarativeBaseView<*, *>.shadowHasSet by extPropsVar("shadowHasSet") { false }
+
+        // Matrix 相关
+        private fun DeclarativeBaseView<*, *>.getMatrix(): Matrix? =
+            (renderProperties as? RenderProperties)?.matrix
+
+        private fun DeclarativeBaseView<*, *>.obtainMatrix(): Matrix {
+            val props = obtainRenderProps()
+            var matrix = props.matrix
+            if (matrix == null) {
+                matrix = Matrix()
+                props.matrix = matrix
+            }
+            return matrix
+        }
+
+        // 属性访问器
+        private var DeclarativeBaseView<*, *>.matrixChanged: Boolean
+            get() = (renderProperties as? RenderProperties)?.matrixChanged ?: false
+            set(value) { obtainRenderProps().matrixChanged = value }
+
+        private var DeclarativeBaseView<*, *>.alpha: Float
+            get() = (renderProperties as? RenderProperties)?.alpha ?: 1f
+            set(value) { obtainRenderProps().alpha = value }
+
+        private var DeclarativeBaseView<*, *>.measuredSize: IntSize
+            get() = (renderProperties as? RenderProperties)?.measuredSize ?: IntSize(0, 0)
+            set(value) { obtainRenderProps().measuredSize = value }
+
+        private var DeclarativeBaseView<*, *>.borderRadius: FloatArray
+            get() = obtainRenderProps().borderRadius
+            set(value) { obtainRenderProps().borderRadius = value }
+
+        private var DeclarativeBaseView<*, *>.clipPath: String
+            get() = (renderProperties as? RenderProperties)?.clipPath ?: ""
+            set(value) { obtainRenderProps().clipPath = value }
+
+        private var DeclarativeBaseView<*, *>.clip: Boolean
+            get() = (renderProperties as? RenderProperties)?.clip ?: false
+            set(value) { obtainRenderProps().clip = value }
+
+        private var DeclarativeBaseView<*, *>.shadowElevation: Float
+            get() = (renderProperties as? RenderProperties)?.shadowElevation ?: 0f
+            set(value) { obtainRenderProps().shadowElevation = value }
+
+        private var DeclarativeBaseView<*, *>.shadowColor: Color
+            get() = (renderProperties as? RenderProperties)?.shadowColor ?: Color.Transparent
+            set(value) { obtainRenderProps().shadowColor = value }
+
+        private var DeclarativeBaseView<*, *>.shadowHasSet: Boolean
+            get() = (renderProperties as? RenderProperties)?.shadowHasSet ?: false
+            set(value) { obtainRenderProps().shadowHasSet = value }
 
         fun DeclarativeBaseView<*, *>.measuredSize(width: Int, height: Int) {
             measuredSize = IntSize(width, height)

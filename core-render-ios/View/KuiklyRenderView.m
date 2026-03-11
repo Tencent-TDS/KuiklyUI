@@ -217,6 +217,13 @@ NSString *const KRDensity = @"density";
     return nil;
 }
 
+- (UIWindow *)viewControllerHostWindow {
+    if ([self.delegate respondsToSelector:@selector(viewControllerHostWindow)]) {
+        return [self.delegate viewControllerHostWindow];
+    }
+    return nil;
+}
+
 #pragma mark - private
 
 - (NSDictionary *)p_generateWithParams:(NSDictionary *)params size:(CGSize)size {
@@ -245,12 +252,26 @@ NSString *const KRDensity = @"density";
     // 无障碍化开关与安全区域/密度
 #if TARGET_OS_OSX // [macOS]
     mParmas[KRAccessibilityRunning] = @(0);
-    mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:[KRConvertUtil currentSafeAreaInsets]];
+    NSWindow *hostWindow = [self.delegate viewControllerHostWindow];
+    if (hostWindow) {
+        if (@available(macOS 11.0, *)) {
+            mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:hostWindow.contentView.safeAreaInsets];
+        } else {
+            mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:[KRConvertUtil currentSafeAreaInsets]];
+        }
+    } else {
+        mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:[KRConvertUtil currentSafeAreaInsets]];
+    }
     mParmas[KRDensity] = @([NSScreen mainScreen].backingScaleFactor ?: 1.0);
 #else
     mParmas[KRAccessibilityRunning] = @(UIAccessibilityIsVoiceOverRunning() ? 1: 0);
     if (@available(iOS 11.0, *)) {
-        mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:[KRConvertUtil currentSafeAreaInsets]];
+        UIWindow *hostWindow = [self.delegate viewControllerHostWindow];
+        if (hostWindow) {
+            mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:hostWindow.safeAreaInsets];
+        } else {
+            mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:[KRConvertUtil currentSafeAreaInsets]];
+        }
     } else {
         mParmas[KRSafeAreaInsets] = [KRConvertUtil stringWithInsets:UIEdgeInsetsMake([KRConvertUtil statusBarHeight], 0, 0, 0)];
         // Fallback on earlier versions

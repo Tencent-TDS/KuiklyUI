@@ -88,6 +88,11 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
     private var willEndDragEventCallback: KuiklyRenderCallback? = null
 
     /**
+     * 点击状态栏滚动到顶部回调
+     */
+    private var scrollToTopEventCallback: KuiklyRenderCallback? = null
+
+    /**
      * RecyclerView滚动监听器
      */
     private var scrollListener: OnScrollListener? = null
@@ -297,7 +302,6 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         isFocusable = false
         overScrollMode = OVER_SCROLL_NEVER
         isFocusableInTouchMode = false
-        isNestedScrollingEnabled = true
     }
 
     fun setContentInsert(contentInset: KRRecyclerContentViewContentInset?, immediately: Boolean = false) {
@@ -353,6 +357,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             SCROLL -> observeScroll(propValue)
             SCROLL_END -> observeScrollEnd(propValue)
             WILL_DRAG_END -> observeWillEndDrag(propValue)
+            SCROLL_TO_TOP -> observeScrollToTop(propValue)
             DIRECTION_ROW -> setDirectionRow(propValue)
             PAGING_ENABLED -> setPagingEnable(propValue)
             SHOW_SCROLLER_INDICATOR -> showScrollerIndicator(propValue)
@@ -411,6 +416,13 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         willEndDragEventCallback = propValue as KuiklyRenderCallback /* = (result: kotlin.Any?) -> kotlin.Unit */
         return true
     }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun observeScrollToTop(propValue: Any): Boolean {
+        scrollToTopEventCallback = propValue as KuiklyRenderCallback
+        return true
+    }
+
     private fun setDirectionRow(propValue: Any): Boolean {
         directionRow = (propValue as Int) == 1
         return true
@@ -437,14 +449,20 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
 
     private fun setBouncesEnable(propValue: Any): Boolean {
         bouncesEnable = (propValue as Int) == 1
-        if (bouncesEnable) {
+        updateOverscrollHandler()
+        return true
+    }
+
+    private fun updateOverscrollHandler() {
+        val isBouncesEnable =
+            bouncesEnable && !isNestedScrollingEnabled
+        if (isBouncesEnable) {
             if (childCount > 0) {
                 setupOverscrollHandler(contentView)
             }
         } else {
             overScrollHandler = null
         }
-        return true
     }
 
     private fun setFlingEnable(propValue: Any): Boolean {
@@ -1009,6 +1027,10 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             JSONObject(propValue).apply {
                 scrollForwardMode = getNestScrollMode(optString("forward", ""))
                 scrollBackwardMode = getNestScrollMode(optString("backward", ""))
+                if (!isNestedScrollingEnabled) {
+                    isNestedScrollingEnabled = true
+                }
+                updateOverscrollHandler()
             }
         }
         return true
@@ -1056,7 +1078,13 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                     when (animationCurve) {
                         0 -> {
                             // Spring 动画
-                            startSpringScroll(dx, dy, animationDuration, animationDamping, animationVelocity, isVertical)
+                            if (animationDamping == 1f) {
+                                // 无需弹簧效果时使用默认方案，目前startSpringScroll会存在快速滑动无法准确停靠问题
+                                // 待后续优化后移除这段代码
+                                smoothScrollBy(dx, dy)
+                            } else {
+                                startSpringScroll(dx, dy, animationDuration, animationDamping, animationVelocity, isVertical)
+                            }
                         }
                         1 -> {
                             // Linear 动画
@@ -1083,6 +1111,15 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                     animate)
             }
         }
+    }
+
+    override fun smoothScrollToPosition(position: Int) {
+        // 拦截滚动到顶部的操作，对齐 iOS 行为
+        if (position == 0 && scrollToTopEventCallback != null) {
+            scrollToTopEventCallback?.invoke(getCommonScrollParams())
+            return
+        }
+        super.smoothScrollToPosition(position)
     }
 
     private fun startSpringScroll(
@@ -1363,6 +1400,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         private const val SCROLL = "scroll"
         private const val SCROLL_END = "scrollEnd"
         private const val WILL_DRAG_END = "willDragEnd"
+        private const val SCROLL_TO_TOP = "scrollToTop"
         private const val DIRECTION_ROW = "directionRow"
         private const val PAGING_ENABLED = "pagingEnabled"
         private const val SHOW_SCROLLER_INDICATOR = "showScrollerIndicator"

@@ -186,6 +186,11 @@ fun BasicTextField(
     decorationBox: @Composable (innerTextField: @Composable () -> Unit) -> Unit =
         @Composable { innerTextField -> innerTextField() }
 ) {
+    // 从 modifier 中拆分出 maxLength 和 onLimitChange 相关的 Element
+    val (textFieldModifier, maxLengthElement, onLimitChangeElement) = remember(modifier) {
+        modifier.extractTextFieldMaxLengthElements()
+    }
+
     // Holds the latest internal TextFieldValue state. We need to keep it to have the correct value
     // of the composition.
     var textFieldValueState by remember { mutableStateOf(TextFieldValue(text = value)) }
@@ -218,7 +223,7 @@ fun BasicTextField(
                 onValueChange(newTextFieldValueState.text)
             }
         },
-        modifier = modifier,
+        modifier = textFieldModifier,
         textStyle = textStyle,
         onTextLayout = onTextLayout,
         interactionSource = interactionSource,
@@ -231,6 +236,9 @@ fun BasicTextField(
         decorationBox = decorationBox,
         enabled = enabled,
         readOnly = readOnly,
+        maxLength = maxLengthElement?.maxLength,
+        lengthLimitType = maxLengthElement?.lengthLimitType,
+        onLimitChange = onLimitChangeElement?.onLimitChange,
     )
 }
 
@@ -338,6 +346,11 @@ fun BasicTextField(
     decorationBox: @Composable (innerTextField: @Composable () -> Unit) -> Unit =
         @Composable { innerTextField -> innerTextField() },
 ) {
+    // 从 modifier 中拆分出 maxLength 和 onLimitChange 相关的 Element
+    val (textFieldModifier, maxLengthElement, onLimitChangeElement) = remember(modifier) {
+        modifier.extractTextFieldMaxLengthElements()
+    }
+
     CoreTextField(
         value = value,
         onValueChange = {
@@ -345,7 +358,7 @@ fun BasicTextField(
                 onValueChange(it)
             }
         },
-        modifier = modifier,
+        modifier = textFieldModifier,
         textStyle = textStyle,
         onTextLayout = onTextLayout,
         interactionSource = interactionSource,
@@ -358,6 +371,9 @@ fun BasicTextField(
         decorationBox = decorationBox,
         enabled = enabled,
         readOnly = readOnly,
+        maxLength = maxLengthElement?.maxLength,
+        lengthLimitType = maxLengthElement?.lengthLimitType,
+        onLimitChange = onLimitChangeElement?.onLimitChange,
     )
 }
 

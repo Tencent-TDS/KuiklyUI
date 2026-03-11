@@ -105,6 +105,8 @@ set(SOURCE_SET
         libohos_render/expand/modules/performance/KRPerformanceModule.cpp
         libohos_render/expand/modules/log/KRLogTestModule.cpp
         libohos_render/expand/components/mask/KRMaskView.cpp
+        libohos_render/expand/modules/preferences/KROhSharedPreferencesModule.cpp
+        libohos_render/expand/modules/preferences/KROhPreferences.cpp
 )
 
 add_library(kuikly SHARED ${SOURCE_SET})
@@ -133,4 +135,6 @@ target_link_libraries(kuikly PUBLIC hilog_ndk.z.so
                                     libohhidebug.so
                                     libnative_vsync.so
                                     libffrt.z.so
+                                    libohpreferences.so
+                                    libhilog_ndk.z.so
                                     )

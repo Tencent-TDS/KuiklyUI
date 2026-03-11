@@ -145,7 +145,8 @@ open class ComposeContainer :
 
     private fun startFrameDispatcher() {
         mediator?.renderFrame()
-        if (!getPager().pageData.isAndroid) {
+        val pageData = getPager().pageData
+        if (pageData.isOhOs || pageData.isMiniApp || pageData.isWeb) {
             mediator?.startFrameDispatcher()
         } else {
             getModule<VsyncModule>(VsyncModule.MODULE_NAME)?.registerVsync {
@@ -155,7 +156,8 @@ open class ComposeContainer :
     }
 
     private fun stopFrameDispatcher() {
-        if (!getPager().pageData.isAndroid) {
+        if (getPager().pageData.isOhOs) {
+
         } else {
             getModule<VsyncModule>(VsyncModule.MODULE_NAME)?.unRegisterVsync()
         }

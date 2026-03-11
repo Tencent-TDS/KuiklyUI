@@ -39,9 +39,21 @@ publishing {
 }
 
 kotlin {
-    jvm()
+    jvm {
+        compilations.all {
+            kotlinOptions {
+                moduleName = "${project.group}.${project.name}"
+            }
+        }
+    }
 
-    android()
+    android {
+        compilations.all {
+            kotlinOptions {
+                moduleName = "${project.group}.${project.name}"
+            }
+        }
+    }
 
     iosArm64()
     iosX64()

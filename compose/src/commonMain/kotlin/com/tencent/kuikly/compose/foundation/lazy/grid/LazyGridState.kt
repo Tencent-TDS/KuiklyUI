@@ -52,6 +52,7 @@ import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.util.fastForEach
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.tryExpandStartSizeNoScroll
+import com.tencent.kuikly.core.collection.fastMutableMapOf
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.math.abs
 import kotlin.math.max
@@ -598,7 +599,7 @@ private val EmptyLazyGridLayoutInfo = LazyGridMeasureResult(
         override val height: Int = 0
 
         @Suppress("PrimitiveInCollection")
-        override val alignmentLines: Map<AlignmentLine, Int> = emptyMap()
+        override val alignmentLines: Map<AlignmentLine, Int> = fastMutableMapOf()
         override fun placeChildren() {}
     },
     visibleItemsInfo = emptyList(),

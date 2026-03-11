@@ -244,6 +244,7 @@ export const zhSidebar = sidebar({
     ],  
     "/Community": [
         "contribute-guide.md",
+        "honor_wall.md",
         "contributor_role.md",
         "contributor_role_details.md",
         {

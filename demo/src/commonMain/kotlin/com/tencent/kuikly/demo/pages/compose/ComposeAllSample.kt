@@ -151,6 +151,8 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("Dialog弹出菜单PopMenu", "基于Dialog实现的弹出菜单PopMenu示例", "PopMenuDialogDemo"),
             DemoItem("AnchoredDraggableDemo", "AnchoredDraggable使用案例", "AnchoredDraggableDemo"),
             DemoItem("ScaffoldDemo", "Scaffold使用案例", "ScaffoldDemo"),
+            DemoItem("NavigationBarDemo", "Material3 NavigationBar底部导航栏", "NavigationBarDemo"),
+            DemoItem("NavHostDemo", "跨平台NavHost导航组件", "NavHostDemo"),
             DemoItem("AI对话Demo", "支持Markdown渲染的AI对话示例", "ChatDemo"),
             DemoItem("DensityScaleDemo", "基于Density实现跨端缩放", "DensityScaleDemo"),
             DemoItem("BackHandlerDemo", "监听并拦截返回键", "BackHandlerDemo"),

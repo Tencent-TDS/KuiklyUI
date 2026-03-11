@@ -247,6 +247,7 @@ export const zhSidebar = sidebar({
         "tech_sharing.md",
         "contribute-guide.md",
         "contributor_role.md",
+        "contributor_role_details.md",
     ],
     "/Blog": [
         "roadmap2025.md",

@@ -17,6 +17,22 @@ class MiniImageElement(
         style.onStyleGet = ::resetStyleGet
     }
 
+    override fun addEventListener(type: String, callback: EventHandler, options: dynamic) {
+        if (type.lowercase() == "load") {
+            val wrappedCallback: EventHandler = { event ->
+                val detail = event.unsafeCast<dynamic>().detail
+                val w = detail?.width?.unsafeCast<Int?>()
+                val h = detail?.height?.unsafeCast<Int?>()
+                if (w != null && w > 0) setAttribute("naturalWidth", w.toString())
+                if (h != null && h > 0) setAttribute("naturalHeight", h.toString())
+                callback(event)
+            }
+            super.addEventListener(type, wrappedCallback, options)
+        } else {
+            super.addEventListener(type, callback, options)
+        }
+    }
+
     private fun resetStyleGet(styleName: String, defaultValue: Any): Any {
         if (styleName == OBJECT_FIT) {
             val mode = getAttribute(MODE_ATTR).unsafeCast<String>()

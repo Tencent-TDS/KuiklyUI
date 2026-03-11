@@ -57,16 +57,25 @@
  * 注：主线程调用，若实现该方法则意味着能被复用
  */
 - (void)hrv_prepareForeReuse {
+    
+    // 0. 强引用保活 _contentTextView 和及其 layer
+    // 提前强引用保活：渐变模式下的复用清除 mask置nil 会release layer，
+    // 导致_contentTextView被释放。通过局部变量强引用，防止提前释放。
+    KRRichTextView *contentTextView = _contentTextView;
+    if (!contentTextView) {
+        return;
+    }
+    CALayer *contentLayer = _contentTextView.layer;
+
     // 1. 移除渐变 layer，解除 mask
     for (CALayer *subLayer in [self.layer.sublayers copy]) {
-        if ([subLayer isKindOfClass:[CAGradientLayer class]] && subLayer != _contentTextView.layer) {
+        if ([subLayer isKindOfClass:[CAGradientLayer class]] && subLayer.mask == _contentTextView.layer) {
             subLayer.mask = nil;
             [subLayer removeFromSuperlayer];
         }
     }
 
     // 2. 重置 _contentTextView.layer 的 transform / anchorPoint / position
-    CALayer *contentLayer = _contentTextView.layer;
     if (!CATransform3DEqualToTransform(contentLayer.transform, CATransform3DIdentity)) {
         contentLayer.transform = CATransform3DIdentity;
     }

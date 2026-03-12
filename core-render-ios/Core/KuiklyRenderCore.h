@@ -118,6 +118,11 @@ NS_ASSUME_NONNULL_BEGIN
  */
 - (NSString * _Nullable)turboDisplayKey;
 
+/*
+ * @brief 返回 TurboDisplay 页面级配置（新增）
+ */
+- (KRTurboDisplayConfig * _Nullable)turboDisplayConfig;
+
 @end
 
 NS_ASSUME_NONNULL_END

@@ -59,6 +59,7 @@ import com.tencent.kuikly.compose.ui.util.fastRoundToInt
 import com.tencent.kuikly.compose.ui.util.fastSumBy
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.tryExpandStartSizeNoScroll
+import com.tencent.kuikly.core.collection.fastMutableMapOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.coroutines.EmptyCoroutineContext
@@ -624,7 +625,7 @@ private val EmptyLazyListMeasureResult =
                 override val height: Int = 0
 
                 @Suppress("PrimitiveInCollection")
-                override val alignmentLines: Map<AlignmentLine, Int> = emptyMap()
+                override val alignmentLines: Map<AlignmentLine, Int> = fastMutableMapOf()
 
                 override fun placeChildren() {}
             },

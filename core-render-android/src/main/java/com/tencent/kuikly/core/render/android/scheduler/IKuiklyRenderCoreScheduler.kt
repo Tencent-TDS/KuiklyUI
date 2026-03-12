@@ -21,7 +21,7 @@ package com.tencent.kuikly.core.render.android.scheduler
 interface IKuiklyRenderCoreScheduler {
 
     @Deprecated("Deprecated", level = DeprecationLevel.HIDDEN)
-    fun scheduleTask(delayMs: Long, task: () -> Unit) = scheduleTask(delayMs) { task() }
+    fun scheduleTask(delayMs: Long = 0, task: () -> Unit) = scheduleTask(delayMs) { task() }
 
     /**
      * 调度任务, 不管当前是否与目标线程在同一个线程，都会post到下一个runLoop执行

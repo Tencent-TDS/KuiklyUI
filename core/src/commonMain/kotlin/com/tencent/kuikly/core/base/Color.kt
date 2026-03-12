@@ -20,17 +20,27 @@ import com.tencent.kuikly.core.utils.ConvertUtil
 class Color {
 
     private var colorString: String = ""
-    var hexColor: Long = 0
-        private set
+    private var _hexColor: Int = 0
+
+    val hexColor: Long
+        get() = _hexColor.toLong() and 0xFFFFFFFFL
 
     constructor()
 
     /**
+     * 直接使用 ARGB Int 构造，避免 Long，兼容 JS 平台。
+     */
+    constructor(argbInt: Int) {
+        this._hexColor = argbInt
+    }
+
+    /**
+     *
      * 十六进制颜色值构造方法，如 0xFFFFFFFFL。
      * 注: 最左边 2 位为 alpha，剩余六位为 rgb。
      */
     constructor(hexColor: Long) {
-        this.hexColor = hexColor
+        this._hexColor = hexColor.toInt()
     }
 
     /**
@@ -39,11 +49,15 @@ class Color {
      * @param alpha01 透明度值，范围 0.0 到 1.0。
      */
     constructor(hexColor: Long, alpha01: Float) {
-        val red255: Long = hexColor and 0xFF0000 shr 16
-        val green255: Long = hexColor and 0xFF00 shr 8
-        val blue255: Long = hexColor and 0xFF
-        val hexString = (alpha01 * 255).toInt().toColorHexString() + red255.toColorHexString() + green255.toColorHexString() + blue255.toColorHexString()
-        this.hexColor = hexString.toLong(16)
+        val hexInt = hexColor.toInt()
+        val red = (hexInt and 0xFF0000) shr 16
+        val green = (hexInt and 0xFF00) shr 8
+        val blue = hexInt and 0xFF
+
+        this._hexColor = (((alpha01 * 255).toInt() and 0xFF) shl 24) or
+                (red shl 16) or
+                (green shl 8) or
+                blue
     }
 
     /**
@@ -63,13 +77,15 @@ class Color {
      * @param alpha01 透明度值，范围 0.0 到 1.0。
      */
     constructor(red255: Int, green255: Int, blue255: Int, alpha01: Float) {
-        val hexString = (alpha01 * 255).toInt().toColorHexString() + red255.toColorHexString() + green255.toColorHexString() + blue255.toColorHexString()
-        this.hexColor = hexString.toLong(16)
+        this._hexColor = (((alpha01 * 255).toInt() and 0xFF) shl 24) or
+                ((red255 and 0xFF) shl 16) or
+                ((green255 and 0xFF) shl 8) or
+                (blue255 and 0xFF)
     }
 
     override fun toString(): String {
         return colorString.ifEmpty {
-            hexColor.toString()
+            _hexColor.toString()
         }
     }
 
@@ -78,7 +94,7 @@ class Color {
      * 通过 Color 对象生成指定 alpha 通道的颜
      */
     fun opacity(opacity: Float): Color {
-        return Color(hexColor and 0x00FFFFFF, opacity)
+        return Color((_hexColor and 0x00FFFFFF).toLong(), opacity)
     }
 
     companion object {

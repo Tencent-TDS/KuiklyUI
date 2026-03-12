@@ -554,7 +554,7 @@ open class ScrollerEvent : Event() {
 
     /**
      * Listen to native "scroll to top" event.
-     * Note: This is triggered by the iOS system (status bar tap) only.
+     * Note: This is triggered by the status bar tap on iOS or Android(Oppo)
      */
     open fun scrollToTop(handler: () -> Unit) {
         register(ScrollerEventConst.SCROLL_TO_TOP, {

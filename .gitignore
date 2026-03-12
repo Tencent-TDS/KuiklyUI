@@ -45,3 +45,4 @@ proto/**/*.kt
 .kotlin
 /compose/compose.podspec
 /core/core.podspec
+/core-ksp/bin/

@@ -95,6 +95,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
 - (instancetype)init {
     if (self = [super init]) {
         self.delegate = self;
+        self.css_autoHideKeyboardOnImeAction = [NSNumber numberWithInt: 1];     // 保持原有能力，默认是关闭关闭软键盘
 #if TARGET_OS_OSX // [macOS]
         self.textContainerInset = NSZeroSize;
 #else // [macOS]

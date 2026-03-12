@@ -90,6 +90,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     if (self = [super init]) {
         self.delegate = self;
         _props = [NSMutableDictionary new];
+        self.css_autoHideKeyboardOnImeAction = [NSNumber numberWithInt: 1];     // 保持原有能力，默认是关闭关闭软键盘
         [self addTarget:self action:@selector(onTextFeildTextChanged:) forControlEvents:UIControlEventEditingChanged];
     }
     return self;

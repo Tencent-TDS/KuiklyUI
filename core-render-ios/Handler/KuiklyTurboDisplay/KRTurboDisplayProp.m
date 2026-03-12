@@ -137,6 +137,8 @@
             }
             break;
     }
+    // 回放完成后清空队列，避免阶段3兜底回放时重复触发已回放的事件
+    [self.lazyEventCallbackResults removeAllObjects];
 }
 
 

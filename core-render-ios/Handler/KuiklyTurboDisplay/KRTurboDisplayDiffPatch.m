@@ -93,6 +93,9 @@ static UIView *gBaseView = nil;
             return NO;
         }
         if (![self isEqualPropValueWithOldValue:oldMethod.params newValue:newMethod.params]) {
+            if ([oldMethod.method isEqualToString:@"contentOffset"]) {
+                continue;
+            }
             return NO;
         }
     }
@@ -585,6 +588,11 @@ static UIView *gBaseView = nil;
                     }
                     break;
                 case KRRealFirstScreenDiffPropUpdate:
+                    // 兜底事件回放：回放阶段1~阶段3之间临时Block新捕获的事件（阶段1已回放的事件已从队列清除，不会重复）
+                    if (curProp) {
+                        KREventReplayPolicy policy = [KRTurboDisplayProp replayPolicyForEventKey:newProp.propKey];
+                        [curProp performLazyEventToCallback:newProp.propValue withPolicy:policy];
+                    }
                     // 延迟模式阶段3：绑定业务真实的 Event
                     [renderLayer setPropWithTag:newNode.tag propKey:newProp.propKey propValue:newProp.propValue];
                     break;

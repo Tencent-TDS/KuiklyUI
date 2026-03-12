@@ -623,6 +623,11 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
         return this
     }
 
+    fun cssClass(cssClass: String): Attr {
+        StyleConst.CSS_CLASS with cssClass
+        return this
+    }
+
     fun debugName(debugName: String): Attr {
         StyleConst.DEBUG_NAME with debugName
         return this
@@ -675,6 +680,7 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
         const val INTERFACE_STYLE = "interfaceStyle"
         const val TURBO_DISPLAY_AUTO_UPDATE_ENABLE = "turboDisplayAutoUpdateEnable"
         const val CLIP_PATH = "clipPath"
+        const val CSS_CLASS = "cssClass"
         // 设置属性用作 UI-Inspector 中的视图名称
         const val DEBUG_NAME = "debugName"
         const val PREVENT_TOUCH = "preventTouch"

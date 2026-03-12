@@ -1013,6 +1013,17 @@ private val propHandlers = mapOf<String, (CSSStyleDeclaration, Any, HTMLElement)
         ele.setAttribute("aria-label", value.unsafeCast<String>())
         true
     },
+    KRCssConst.CSS_CLASS to { _, value, ele ->
+        // classList.add() is safe to call multiple times with the same class
+        val names = value.unsafeCast<String>().trim().split("\\s+".toRegex())
+        names.filter { it.isNotEmpty() }.forEach { className ->
+            // Guard for environments that may not have classList
+            if (jsTypeOf(ele.asDynamic().classList) != KRJsTypeConst.UNDEFINED) {
+                ele.classList.add(className)
+            }
+        }
+        true
+    },
 )
 
 /**

@@ -59,6 +59,7 @@ import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.scroller.applyScrollViewOffsetDelta
 import com.tencent.kuikly.compose.scroller.convertAnimationSpecToSpringAnimation
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
+import com.tencent.kuikly.core.collection.fastMutableMapOf
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.math.abs
 import kotlin.math.absoluteValue
@@ -899,7 +900,7 @@ internal val EmptyLayoutInfo = PagerMeasureResult(
         override val height: Int = 0
 
         @Suppress("PrimitiveInCollection")
-        override val alignmentLines: Map<AlignmentLine, Int> = mapOf()
+        override val alignmentLines: Map<AlignmentLine, Int> = fastMutableMapOf()
 
         override fun placeChildren() {}
     },

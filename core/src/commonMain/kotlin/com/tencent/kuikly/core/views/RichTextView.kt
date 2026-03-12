@@ -30,6 +30,7 @@ import com.tencent.kuikly.core.base.domChildren
 import com.tencent.kuikly.core.base.event.ClickParams
 import com.tencent.kuikly.core.base.event.addLayoutFrameDidChange
 import com.tencent.kuikly.core.base.isVirtualView
+import com.tencent.kuikly.core.collection.fastArrayListOf
 import com.tencent.kuikly.core.collection.fastHashMapOf
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexNode
@@ -342,7 +343,7 @@ open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
 }
 
 open class RichTextAttr : TextAttr() {
-    internal var spans: ArrayList<ISpan> = arrayListOf()
+    var spans = fastArrayListOf<ISpan>()
     fun spans(spans: ArrayList<ISpan>) {
         this.spans = spans
         spans.forEach {

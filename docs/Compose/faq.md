@@ -144,3 +144,69 @@ Box(
 | Lambda 回调中读取 | `pointerInput(Unit) { tap { use(state) } }` | Lambda 捕获旧 state | `pointerInput(state) { tap { use(state) } }` |
 | LazyColumn 列表项 | `pointerInput(Unit) { tap { use(item) } }` | 复用后 item 是旧值 | `pointerInput(item) { tap { use(item) } }` |
 | 只修改偏移量 | `pointerInput(offset) { offset += x }` | 过度重启 | `pointerInput(Unit) { offset += x }` ✅ |
+
+---
+
+## 2. 【Android】关闭 BottomSheet 后页面 TextField 自动获取焦点并弹出键盘
+
+**关键词：** 输入框、键盘自动弹出、TextField、BottomSheet、焦点、软键盘、Android
+
+**适用平台：** Android
+
+### 问题描述
+
+当页面包含 TextField 且弹出包含 TextField 的 BottomSheet 时，在 BottomSheet 完成交互（隐藏键盘）并关闭后，**页面上的 TextField 会自动获取焦点并弹出键盘**，不符合预期。
+
+> **注意：** 此问题为 Android 平台特有，与 Android 系统的焦点管理机制有关。
+
+**典型场景：**
+```kotlin
+// 页面包含 TextField
+Column {
+    TextField(value = text, onValueChange = { text = it })
+    Button(onClick = { showBottomSheet = true }) {
+        Text("打开 BottomSheet")
+    }
+}
+
+// BottomSheet 中也包含 TextField
+if (showBottomSheet) {
+    ModalBottomSheet(
+        onDismissRequest = { showBottomSheet = false }
+    ) {
+        TextField(value = sheetText, onValueChange = { sheetText = it })
+    }
+}
+```
+
+**现象**：关闭 BottomSheet 后，页面底部的 TextField 自动获取焦点，软键盘弹出。
+
+### 原因分析
+
+当 BottomSheet 关闭时，焦点会从 BottomSheet 中的 TextField 移除。由于页面上的 TextField 是可聚焦的，系统会自动将焦点传递给页面上的 TextField，从而触发软键盘弹出。
+
+### 解决方案
+
+在 Activity 的根布局 XML 文件中，添加 `focusable` 和 `focusableInTouchMode` 属性：
+
+```xml
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    android:background="@android:color/white">
+    
+    <!-- Kuikly 渲染内容 -->
+
+</FrameLayout>
+```
+
+**关键属性说明：**
+- `android:focusable="true"`：使根布局可以获取焦点
+- `android:focusableInTouchMode="true"`：使根布局在触摸模式下可以获取焦点
+
+通过让根布局具备获取焦点的能力，当 BottomSheet 关闭时，焦点会传递给根布局而不是页面上的 TextField，从而避免键盘自动弹出。
+
+**参考 Issue：** [#957](https://github.com/Tencent-TDS/KuiklyUI/issues/957)

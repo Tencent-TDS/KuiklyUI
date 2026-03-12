@@ -68,8 +68,8 @@
 [横向列表嵌套滚动示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/list/ListNestRow.kt)
 
 :::tip 注意
-- Android 侧默认支持嵌套滚动，iOS 与 鸿蒙 侧需手动设置 nestedScroll 才会生效。
-- 若 Android 侧嵌套滚动正常，而 iOS/HarmonyOS 侧异常，请检查 Scroller 是否已显式配置 nestedScroll 属性。
+ - Android 侧默认支持嵌套滚动，iOS 与 鸿蒙 侧需手动设置 nestedScroll 才会生效。
+ - 若 Android 侧嵌套滚动正常，而 iOS/HarmonyOS 侧异常，请检查 Scroller 是否已显式配置 nestedScroll 属性。
 :::
 
 ### visibleAreaIgnoreTopMargin

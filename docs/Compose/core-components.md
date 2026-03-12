@@ -334,6 +334,39 @@ fun TextFieldWithMaxLength() {
 
 > **提示**：以上为当前已支持的扩展能力，更多扩展能力将持续更新补充。
 
+### 可滚动组件扩展
+
+#### 点击状态栏返回顶部：`Modifier.scrollToTop`
+
+用于拦截系统触发的"回到顶部"事件（iOS 和 Android ColorOS 等厂商系统点击状态栏时触发），默认会拦截系统自动滚动到顶部的行为，需在回调中自行处理。
+
+```kotlin
+@Composable
+fun ScrollableWithScrollToTop() {
+    LazyColumn(
+        modifier = Modifier.scrollToTop {
+            // 自定义处理逻辑
+            coroutineScope.launch {
+                listState.animateScrollToItem(0)
+            }
+        }
+    ) {
+        // items
+    }
+}
+```
+
+**适用组件**：
+- `LazyColumn` / `LazyRow`
+- `LazyVerticalGrid` / `LazyHorizontalGrid`
+- `LazyVerticalStaggeredGrid` / `LazyHorizontalStaggeredGrid`
+- `HorizontalPager` / `VerticalPager`
+
+**相关 API**：
+- `Modifier.scrollToTop(onScrollToTop: () -> Unit)` - 设置 scrollToTop 事件回调，拦截系统默认行为
+
+> **说明**：如果配置了 `scrollToTop` 回调，系统默认的滚动到顶部行为将被拦截，改由回调处理。这与 iOS 原生行为保持一致。
+
 ## 更多代码示例
 
 以下 Demo 展示了核心组件的典型用法，可在开源仓库中查看完整代码：

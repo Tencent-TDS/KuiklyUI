@@ -74,6 +74,9 @@ android {
 //    kotlinOptions {
 //        jvmTarget = '1.8'
 //    }
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+        kotlinOptions.freeCompilerArgs += ["-module-name", "${project.group}.${project.name}"]
+    }
 
     sourceSets {
         main.java.srcDirs(

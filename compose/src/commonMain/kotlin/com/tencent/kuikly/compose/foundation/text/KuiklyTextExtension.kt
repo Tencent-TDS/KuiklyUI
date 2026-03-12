@@ -362,7 +362,7 @@ internal fun RichTextAttr.applyAnnotatedString(
 
         if (isPlaceholder) {
             // Create PlaceholderSpan
-            placeholders.find { it.start == start }?.let { placeholder ->
+            placeholders!!.find { it.start == start }?.let { placeholder ->
                 spans.add(PlaceholderSpan().apply {
                     placeholderSize(
                         this@applyAnnotatedString.scaleToDensity(density, placeholder.item.width.value),

@@ -217,6 +217,14 @@ NSString *const KRDensity = @"density";
     return nil;
 }
 
+// KuiklyRenderView.m - 实现传递
+- (KRTurboDisplayConfig *)turboDisplayConfig {
+    if ([self.delegate respondsToSelector:@selector(turboDisplayConfig)]) {
+        return [self.delegate turboDisplayConfig];
+    }
+    return nil;
+}
+
 - (UIWindow *)viewControllerHostWindow {
     if ([self.delegate respondsToSelector:@selector(viewControllerHostWindow)]) {
         return [self.delegate viewControllerHostWindow];

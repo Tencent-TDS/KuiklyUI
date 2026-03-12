@@ -22,8 +22,6 @@
 #define PROP_VALUE @"propValue"
 
 @interface KRTurboDisplayProp()
-
-@property (nonatomic, strong) NSMutableArray<id> *lazyEventCallbackResults;
 @end
 
 @implementation KRTurboDisplayProp
@@ -98,6 +96,49 @@
         _lazyEventCallbackResults = [NSMutableArray new];
     }
     return _lazyEventCallbackResults;
+}
+
+
+# pragma mark - event replay
+
++ (KREventReplayPolicy)replayPolicyForEventKey:(NSString *)eventKey {
+    static NSSet *lastReplayEvents = nil;       // 仅回放最后一次的事件
+    
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        lastReplayEvents = [NSSet setWithArray:@[
+            @"scroll", @"dragBegin", @"dragEnd", @"willDragEnd", @"scrollEnd", @"scrollToTop", @"textDidChange"
+        ]];
+    });
+    
+    if ([lastReplayEvents containsObject:eventKey]) {
+        return KREventReplayPolicyLast;
+    }
+    return KREventReplayPolicyAll;
+}
+
+- (void)performLazyEventToCallback:(KuiklyRenderCallback)callback withPolicy:(KREventReplayPolicy)policy {
+    if (!callback || self.lazyEventCallbackResults.count == 0) {
+        return;
+    }
+    
+    switch (policy) {
+        case KREventReplayPolicyLast:
+            // 仅回放最后一次
+            callback(self.lazyEventCallbackResults.lastObject);
+            break;
+            
+        default:
+            // 包括 policy = KREventReplayPolicyAll 也会走此case
+            // 全量回放
+            for (NSUInteger i = 0; i < self.lazyEventCallbackResults.count; i++) {
+                id res = self.lazyEventCallbackResults[i];
+                callback(res);
+            }
+            break;
+    }
+    // 回放完成后清空队列，避免阶段3兜底回放时重复触发已回放的事件
+    [self.lazyEventCallbackResults removeAllObjects];
 }
 
 

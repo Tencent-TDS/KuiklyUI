@@ -200,7 +200,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
             IME_NO_FULLSCREEN -> setImeNoFullscreen(propValue)
             KRTextProps.PROP_KEY_LINE_HEIGHT -> setLineHeight(propValue)
             AUTO_HIDE_KEYBOARD_ON_IME_ACTION -> {
-                autoHideKeyboardOnImeAction = (propValue as? Int == 1) || (propValue as? Boolean == true)
+                autoHideKeyboardOnImeAction = (propValue as Int == TYPE_ENABLE_HIDE_KEYBOARD)
                 true
             }
             else -> super.setProp(propKey, propValue)
@@ -862,6 +862,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         private const val METHOD_SET_CURSOR_INDEX = "setCursorIndex"
 
         private const val TYPE_ENABLE_EDIT = 1
+        private const val TYPE_ENABLE_HIDE_KEYBOARD = 1
 
         private const val KEY_KEYBOARD_CHANGED_DURATION = "duration"
         private const val DEFAULT_KEYBOARD_CHANGED_ANIMATION_DURATION = 0.2

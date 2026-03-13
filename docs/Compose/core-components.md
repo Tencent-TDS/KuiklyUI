@@ -185,6 +185,12 @@ fun ScrollAlternatives() {
 }
 ```
 
+#### 7. TextField 未沿用Compose默认的点击功能按钮后的软键盘处理方式 <Badge text="版本2.16.0及以上" type="warn"/>
+   差异说明：在标准 Compose 中，默认在点击各IMEAction后，软件不收回，且可调用FocusManager手动设置关闭键盘。
+   由于 KuiKlyUI 各平台默认处理软键盘的方式相异，因此新增有 `Modifier.autoHideKeyboardOnImeAction` 来控制 `IMEAction`发生后软键盘是否收回。
+   业务可通过设置该开关值统一 KuiKly 各端软键盘的表现。
+
+
 > **提示**：以上为当前已知的差异化点，更多差异化内容将持续更新补充。
 
 ## 扩展能力

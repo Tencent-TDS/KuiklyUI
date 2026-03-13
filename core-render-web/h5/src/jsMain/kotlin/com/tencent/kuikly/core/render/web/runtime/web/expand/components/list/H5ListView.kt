@@ -290,7 +290,8 @@ class H5ListView : IListElement {
             // Set end position before drag ends
             touchEndY = eventsParams[KRParamConst.Y].unsafeCast<Float>()
             // Set element's translate
-            ele.style.transform = buildTranslateY(deltaY)
+            val contentEle = ele.firstElementChild.unsafeCast<HTMLElement?>()
+            contentEle?.style?.transform = buildTranslateY(deltaY)
             // During pull-to-refresh, set overflow to visible, restore after pull-to-refresh completes
             ele.style.overflowY = KRStyleConst.OVERFLOW_VISIBLE
             ele.style.overflowX = KRStyleConst.OVERFLOW_VISIBLE
@@ -315,7 +316,8 @@ class H5ListView : IListElement {
             if (canPullRefreshHeight == 0f) {
                 // If at pull-to-refresh release but not reaching pull-to-refresh position,
                 // need to restore contentInset and scrolling
-                ele.style.transform = KRListConst.TRANSFORM_RESET
+                val contentEle = ele.firstElementChild.unsafeCast<HTMLElement?>()
+                contentEle?.style?.transform = KRListConst.TRANSFORM_RESET
                 // Handle extreme sliding in static sliding scenarios
                 if (scrollEnabled) {
                     if (scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN) {
@@ -327,13 +329,14 @@ class H5ListView : IListElement {
 
                 // remove transform attribute after transform end
                 kuiklyWindow.setTimeout({
-                    ele.style.transform = KRCssConst.EMPTY_STRING
+                    contentEle?.style?.transform = KRCssConst.EMPTY_STRING
                 }, KRListConst.IMMEDIATE_TIMEOUT)
             } else if (deltaY > canPullRefreshHeight) {
-                ele.style.transition = buildTransition()
+                val contentEle = ele.firstElementChild.unsafeCast<HTMLElement?>()
+                contentEle?.style?.transition = buildTransition()
                 // If at pull-to-refresh release and exceeding pull-to-refresh height,
                 // need to bounce back to pull-to-refresh height before refreshing
-                ele.style.transform = buildTranslateY(canPullRefreshHeight)
+                contentEle?.style?.transform = buildTranslateY(canPullRefreshHeight)
             }
             // If current scroll distance is 0 and starting to drag down, handle pull-to-refresh logic,
             // deltaY > 0 means pulling down
@@ -675,13 +678,14 @@ class H5ListView : IListElement {
         // Complete setting asynchronously
         KuiklyRenderCoreContextScheduler.scheduleTask(KRListConst.IMMEDIATE_TIMEOUT) {
             // Use animation to set inset value if needed
-            ele.style.transition = if (contentInset.animate) {
+            val contentEle = ele.firstElementChild.unsafeCast<HTMLElement?>()
+            contentEle?.style?.transition = if (contentInset.animate) {
                 buildTransition()
             } else {
                 KRCssConst.EMPTY_STRING
             }
             // Set the value to complete
-            ele.style.transform = buildTranslate(contentInset.left, contentInset.top)
+            contentEle?.style?.transform = buildTranslate(contentInset.left, contentInset.top)
         }
     }
 
@@ -709,9 +713,10 @@ class H5ListView : IListElement {
             // so this value is not processed, only handle the value when preparing for pull-to-refresh
             KuiklyRenderCoreContextScheduler.scheduleTask(KRListConst.BOUND_BACK_DURATION.toInt()) {
                 // Clear animation
-                ele.style.transition = KRCssConst.EMPTY_STRING
+                val contentEle = ele.firstElementChild.unsafeCast<HTMLElement?>()
+                contentEle?.style?.transition = KRCssConst.EMPTY_STRING
                 // Delay setting inset value until pull-down animation completes
-                ele.style.transform = if (contentInset.left == 0f && contentInset.top == 0f) {
+                contentEle?.style?.transform = if (contentInset.left == 0f && contentInset.top == 0f) {
                     KRCssConst.EMPTY_STRING
                 } else {
                     transform

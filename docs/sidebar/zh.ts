@@ -248,6 +248,7 @@ export const zhSidebar = sidebar({
         "contribute-guide.md",
         "contributor_role.md",
     ],
+    "/AI/": false,
     "/Blog": [
         "roadmap2025.md",
         {

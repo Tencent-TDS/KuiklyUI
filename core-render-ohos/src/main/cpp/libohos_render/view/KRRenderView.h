@@ -56,6 +56,13 @@ class KRRenderView : public IKRRenderView {
     std::shared_ptr<IKRRenderViewExport> GetView(int tag) override;
 
     /**
+     * 通过节点句柄获取渲染节点视图（要求在主线程调用）
+     * @param handle 节点句柄
+     * @return 对应节点view
+     */
+    std::shared_ptr<IKRRenderViewExport> GetView(ArkUI_NodeHandle handle);
+
+    /**
      * 获取渲染节点视图（要求在主线程调用）
      * @param tag 所在tag
      * @return 对应节点view

@@ -32,6 +32,7 @@
 #include "libohos_render/manager/KRArkTSManager.h"
 #include "libohos_render/utils/KRThreadChecker.h"
 #include "libohos_render/utils/KRStringUtil.h"
+#include "libohos_render/foundation/KRPoint.h"
 #include "libohos_render/utils/KRViewUtil.h"
 #include "libohos_render/view/IKRRenderView.h"
 
@@ -378,6 +379,11 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
     void ToRemoveFromSuperView() {
         KREnsureMainThread();
 
+        if (auto parent_view = GetParentView()) {
+            auto shared = shared_from_this();
+            parent_view->sub_render_views_.erase(shared);
+        }
+
         WillRemoveFromParentView();
         if (parent_node_ != nullptr) {
             RemoveChildNode(parent_node_, GetNode());
@@ -403,11 +409,13 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
         if (index < 0 || index > childrenCount) {
             index = childrenCount;
         }
+        sub_render_view->parent_ = shared_from_this();
         sub_render_view->parent_node_ = GetNode();
         sub_render_view->parent_tag_ = this->GetViewTag();
 
         InsertChildNode(GetNode(), sub_render_view->GetNode(), index, sub_render_view);
         sub_render_view->DidMoveToParentView();
+        sub_render_views_.insert(sub_render_view);
         DidInsertSubRenderView(sub_render_view, index);
     }
 
@@ -502,7 +510,42 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
         return interrupt_y_;
     }
 
+    KRPoint ConvertPointToChildCoordinate(KRPoint point, ArkUI_NodeHandle node, ArkUI_NodeHandle child_node);
+    KRRect GetSubnodeFrame(ArkUI_NodeHandle subnode);
+    KRRect GetBounds();
+    void SetNeedsDisplay();
+    virtual bool IsTextView() {
+        return false;
+    }
+    virtual bool IsScrollView() {
+        return false;
+    }
+    std::tuple<KRRect, KRRect> GetSelectionFrameInAncestorCoordinate(std::shared_ptr<IKRRenderViewExport> ancestor_view,
+                                                                     KRPoint ancestor_point1, KRPoint ancestor_point2,
+                                                                     int type);
+    virtual bool UpdateSelection(std::shared_ptr<IKRRenderViewExport> ancestor_view, KRPoint ancestor_point1,
+                                 KRPoint ancestor_point2, int type);
+    std::tuple<std::vector<std::shared_ptr<IKRRenderViewExport>>, std::vector<std::shared_ptr<IKRRenderViewExport>>>
+    GetSelectedTextAndScrollViews();
+    void GetSelectedTextAndScrollViews(std::vector<std::shared_ptr<IKRRenderViewExport>> &text_views,
+                                       std::vector<std::shared_ptr<IKRRenderViewExport>> &scroll_views);
+    bool IsSelected() {
+        return selected_;
+    }
+    virtual void ClearSelection() {
+        SetSelected(false);
+    }
+
  protected:
+    virtual bool IsSelectable() {
+        return true;
+    }
+    void SetSelected(bool selected) {
+        selected_ = selected;
+    }
+    std::set<std::shared_ptr<IKRRenderViewExport>> GetInternalScrollViews();
+    void GetInternalScrollViews(std::set<std::shared_ptr<IKRRenderViewExport>> &scroll_views);
+
     virtual std::shared_ptr<KRBaseEventHandler>  CreateBaseEventHandler(std::shared_ptr<IKRRenderView> rootView){
         if(rootView){
             return std::make_shared<KRBaseEventHandler>(rootView->GetContext()->Config());
@@ -552,6 +595,12 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
     bool is_leaf_node_ = true;
  public:
     ArkUI_NodeContentHandle parent_node_content_handle_ = nullptr;
+
+    std::weak_ptr<IKRRenderViewExport> parent_;
+    std::set<std::shared_ptr<IKRRenderViewExport>> sub_render_views_;
+    bool selected_ = false;
 };
+
+KRPoint ConvertPointToAncestorCoordinate(KRPoint point, ArkUI_NodeHandle node, ArkUI_NodeHandle parent_node);
 
 #endif  // CORE_RENDER_OHOS_IKRRENDERVIEWEXPORT_H

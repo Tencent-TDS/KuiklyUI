@@ -191,20 +191,20 @@ class MiniListElement(
         // Format inset value
         val contentInset = KRListViewContentInset(contentInsetString)
         // If needed, set inset value with animation
-        style.transition =
+        firstElementChild?.style?.transition =
             if (contentInset.animate) {
                 "transform ${BOUND_BACK_DURATION}ms $REFRESH_TIMING_FUNCTION"
             } else {
                 ""
             }
         // Set the value to complete
-        style.transform = "translate(${contentInset.left}px, ${contentInset.top}px)"
+        firstElementChild?.style?.transform = "translate(${contentInset.left}px, ${contentInset.top}px)"
 
         if (contentInset.top == 0f && contentInset.left == 0f) {
             // remove transform value
             MiniGlobal.setTimeout({
-                style.transition = ""
-                style.transform = ""
+                firstElementChild?.style?.transition = ""
+                firstElementChild?.style?.transform = ""
             }, BOUND_BACK_DURATION.toInt() + 100)
         }
     }

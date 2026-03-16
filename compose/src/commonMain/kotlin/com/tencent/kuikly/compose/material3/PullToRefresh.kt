@@ -224,7 +224,7 @@ internal fun PullToRefreshItem(
             val kuiklyInfo = scrollState.kuiklyInfo
             val isAtTop = scrollState.isAtTop()
             val contentOffset = if (isAtTop) kuiklyInfo.contentOffset else 0
-            val isDragging = scrollState.kuiklyInfo.scrollView?.isDragging ?: false
+            val isDragging = scrollState.kuiklyInfo.isDragging
             Quad(contentOffset, isAtTop, isDragging, state.isRefreshing)
         }
         .distinctUntilChanged()

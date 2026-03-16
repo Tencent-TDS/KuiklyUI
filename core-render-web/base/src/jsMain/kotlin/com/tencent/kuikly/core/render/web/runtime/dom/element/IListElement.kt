@@ -31,6 +31,12 @@ interface IListElement {
     var doubleClickEventCallback: KuiklyRenderCallback?
 
     /**
+     * Whether this list has a pull-to-refresh child.
+     * Set by upper layers (ScrollerView / Compose / DSL RefreshView).
+     */
+    var hasPullToRefresh: Boolean
+
+    /**
      * Scroll element to specified position
      */
     fun setContentOffset(params: String?)

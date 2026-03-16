@@ -285,9 +285,6 @@ class H5ListView : IListElement {
             // Set element's translate
             val contentEle = ele.firstElementChild.unsafeCast<HTMLElement?>()
             contentEle?.style?.transform = buildTranslateY(deltaY)
-            // During pull-to-refresh, set overflow to visible, restore after pull-to-refresh completes
-            ele.style.overflowY = KRStyleConst.OVERFLOW_VISIBLE
-            ele.style.overflowX = KRStyleConst.OVERFLOW_VISIBLE
             val offsetMap = updateOffsetMap(ele.scrollLeft.toFloat(), -deltaY, isDragging)
             // Notify
             scrollEventCallback?.invoke(offsetMap)

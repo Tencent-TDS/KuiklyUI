@@ -57,16 +57,25 @@
  * 注：主线程调用，若实现该方法则意味着能被复用
  */
 - (void)hrv_prepareForeReuse {
+    
+    // 0. 强引用保活 _contentTextView 和及其 layer
+    // 提前强引用保活：渐变模式下的复用清除 mask置nil 会release layer，
+    // 导致_contentTextView被释放。通过局部变量强引用，防止提前释放。
+    KRRichTextView *contentTextView = _contentTextView;
+    if (!contentTextView) {
+        return;
+    }
+    CALayer *contentLayer = contentTextView.layer;
+
     // 1. 移除渐变 layer，解除 mask
     for (CALayer *subLayer in [self.layer.sublayers copy]) {
-        if ([subLayer isKindOfClass:[CAGradientLayer class]] && subLayer != _contentTextView.layer) {
+        if ([subLayer isKindOfClass:[CAGradientLayer class]] && subLayer.mask == contentTextView.layer) {
             subLayer.mask = nil;
             [subLayer removeFromSuperlayer];
         }
     }
 
     // 2. 重置 _contentTextView.layer 的 transform / anchorPoint / position
-    CALayer *contentLayer = _contentTextView.layer;
     if (!CATransform3DEqualToTransform(contentLayer.transform, CATransform3DIdentity)) {
         contentLayer.transform = CATransform3DIdentity;
     }
@@ -86,14 +95,14 @@
 
     // 3. 恢复 _contentTextView 的 subview 层级
 #if TARGET_OS_OSX // [macOS
-    if (_isGradientMode || _contentTextView.superview != self) {
-        [_contentTextView removeFromSuperview];
-        [self addSubview:_contentTextView];
+    if (_isGradientMode || contentTextView.superview != self) {
+        [contentTextView removeFromSuperview];
+        [self addSubview:contentTextView];
     }
 #else // macOS]
-    if (_contentTextView.layer.superlayer != self.layer) {
-        [_contentTextView removeFromSuperview];
-        [self addSubview:_contentTextView];
+    if (contentTextView.layer.superlayer != self.layer) {
+        [contentTextView removeFromSuperview];
+        [self addSubview:contentTextView];
     }
 #endif // [macOS]
 
@@ -102,7 +111,7 @@
     self.css_backgroundImage = nil;
 
     // 5. 转发给 _contentTextView 做其自身的复用重置
-    [_contentTextView hrv_prepareForeReuse];
+    [contentTextView hrv_prepareForeReuse];
 }
 /*
  * @brief 创建shdow对象(可选实现)

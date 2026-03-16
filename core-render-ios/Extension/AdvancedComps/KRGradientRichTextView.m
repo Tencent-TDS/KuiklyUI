@@ -65,11 +65,11 @@
     if (!contentTextView) {
         return;
     }
-    CALayer *contentLayer = _contentTextView.layer;
+    CALayer *contentLayer = contentTextView.layer;
 
     // 1. 移除渐变 layer，解除 mask
     for (CALayer *subLayer in [self.layer.sublayers copy]) {
-        if ([subLayer isKindOfClass:[CAGradientLayer class]] && subLayer.mask == _contentTextView.layer) {
+        if ([subLayer isKindOfClass:[CAGradientLayer class]] && subLayer.mask == contentTextView.layer) {
             subLayer.mask = nil;
             [subLayer removeFromSuperlayer];
         }
@@ -95,14 +95,14 @@
 
     // 3. 恢复 _contentTextView 的 subview 层级
 #if TARGET_OS_OSX // [macOS
-    if (_isGradientMode || _contentTextView.superview != self) {
-        [_contentTextView removeFromSuperview];
-        [self addSubview:_contentTextView];
+    if (_isGradientMode || contentTextView.superview != self) {
+        [contentTextView removeFromSuperview];
+        [self addSubview:contentTextView];
     }
 #else // macOS]
-    if (_contentTextView.layer.superlayer != self.layer) {
-        [_contentTextView removeFromSuperview];
-        [self addSubview:_contentTextView];
+    if (contentTextView.layer.superlayer != self.layer) {
+        [contentTextView removeFromSuperview];
+        [self addSubview:contentTextView];
     }
 #endif // [macOS]
 
@@ -111,7 +111,7 @@
     self.css_backgroundImage = nil;
 
     // 5. 转发给 _contentTextView 做其自身的复用重置
-    [_contentTextView hrv_prepareForeReuse];
+    [contentTextView hrv_prepareForeReuse];
 }
 /*
  * @brief 创建shdow对象(可选实现)

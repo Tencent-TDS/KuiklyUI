@@ -23,6 +23,9 @@ import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.base.event.EventHandlerFn
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.views.KeyboardParams
+import com.tencent.kuikly.core.views.ScrollParams
+import com.tencent.kuikly.core.views.ScrollerEvent
+import com.tencent.kuikly.core.views.ScrollerView
 
 /**
  * 动态设置视图属性修饰符
@@ -73,9 +76,27 @@ internal class SetEventNode(
         val layoutNode = requireLayoutNode()
         val kNode = layoutNode as? KNode<*> ?: return
         val view = kNode.view as? DeclarativeBaseView<*, *> ?: return
+        val scrollerView = view as? ScrollerView<*, *>
         props.forEach { (key, value) ->
-            view.getViewEvent().register(key, value)
+            if (scrollerView != null && SCROLLER_EVENT_NAMES.contains(key)) {
+                // 走 external handler 通道，避免覆盖 listenScrollEvent() 的 wrapper chain
+                scrollerView.setExternalScrollEventHandler(key) { params ->
+                    value.invoke(params)
+                }
+            } else {
+                view.getViewEvent().register(key, value)
+            }
         }
+    }
+
+    companion object {
+        /** listenScrollEvent() 管理的事件名，不能直接 register 到 eventMap */
+        private val SCROLLER_EVENT_NAMES = setOf(
+            ScrollerEvent.ScrollerEventConst.SCROLL,
+            ScrollerEvent.ScrollerEventConst.SCROLL_END,
+            ScrollerEvent.ScrollerEventConst.DRAG_BEGIN,
+            ScrollerEvent.ScrollerEventConst.DRAG_END,
+        )
     }
 
     override fun onAttach() {

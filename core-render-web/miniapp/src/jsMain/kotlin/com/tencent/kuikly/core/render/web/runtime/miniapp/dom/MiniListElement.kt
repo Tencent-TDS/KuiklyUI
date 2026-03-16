@@ -51,6 +51,9 @@ class MiniListElement(
     override var clickEventCallback: KuiklyRenderCallback? = null
     override var doubleClickEventCallback: KuiklyRenderCallback? = null
 
+    // Whether this list has a pull-to-refresh child
+    override var hasPullToRefresh: Boolean = false
+
     // When manually set, record the scroll value. When the triggered scroll equals this value,
     // it can be considered as scroll ended
     private var tempScrollLeft: Float? = 0f
@@ -683,16 +686,7 @@ class MiniListElement(
      * Check whether there is a pull-to-refresh child node
      */
     private fun checkHasRefreshChild(): Boolean {
-        // Check first child node of the first element, whether it is a pull-to-refresh node,
-        // here because listView implementation is to wrap a ScrollContentView, then
-        // Wrap the specific scrollable content, so take child node to ScrollContentView's child node
-        val firstChild = firstElementChild?.firstElementChild
-
-        if (firstChild != null) {
-            // Judge whether the first child node is a pull-to-refresh node, todo more elegant method
-            return firstChild.style.transform == "translate(0%, -100%) rotate(0deg) scale(1, 1) skew(0deg, 0deg)"
-        }
-        return false
+        return hasPullToRefresh
     }
 
     /**

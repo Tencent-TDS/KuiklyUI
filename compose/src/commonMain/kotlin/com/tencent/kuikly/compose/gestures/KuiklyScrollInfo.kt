@@ -48,6 +48,12 @@ class KuiklyScrollInfo {
      * Scroll view instance
      */
     var scrollView: ScrollerView<ScrollerAttr, ScrollerEvent>? = null
+        set(value) {
+            field = value
+            if (hasPullToRefresh && value != null) {
+                value.setHasPullToRefresh(true)
+            }
+        }
 
     /**
      * Scroll orientation
@@ -78,6 +84,11 @@ class KuiklyScrollInfo {
      * ScrollView's scroll offset
      */
     var contentOffset: Int by mutableStateOf(0)
+
+    /**
+     * ScrollView is dragging
+     */
+    var isDragging: Boolean by mutableStateOf(false)
 
     /**
      * List height cache
@@ -111,6 +122,14 @@ class KuiklyScrollInfo {
      * When PullToRefresh is used, the isAtTop judgment logic needs to be adjusted
      */
     var hasPullToRefresh: Boolean = false
+        set(value) {
+            field = value
+            if (value) {
+                scrollView?.setHasPullToRefresh(true)
+            } else {
+                scrollView?.setHasPullToRefresh(false)
+            }
+        }
 
     /**
      * Cached total number of items, used to detect changes in item count
@@ -150,6 +169,7 @@ class KuiklyScrollInfo {
         ignoreScrollOffset = null
         composeOffset = 0f
         contentOffset = 0
+        isDragging = false
         offsetDirty = false
 
         // Reset content size related (reinitialize based on current density)
@@ -160,9 +180,6 @@ class KuiklyScrollInfo {
         itemMainSpaceCache.clear()
         stickyItemKey = null
         cachedTotalItems = 0
-
-        // Reset business flags
-        hasPullToRefresh = false
     }
 
     /**

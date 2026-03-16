@@ -426,6 +426,12 @@ static inline void lockScrollView(const UIScrollView<NestedScrollProtocol> *scro
     }
 }
 
+- (void)prepareForComposeReuse {
+    self.shouldUnlockOuterScrollView = NO;
+    self.shouldUnlockInnerScrollView = NO;
+    self.dragType = NestedScrollDragTypeUndefined;
+}
+
 
 #pragma mark - NestedScrollGestureDelegate
 

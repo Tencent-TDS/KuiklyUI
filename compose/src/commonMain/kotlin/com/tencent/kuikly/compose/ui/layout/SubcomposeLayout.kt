@@ -285,6 +285,8 @@ fun SubcomposeLayout(
                 val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
 
                 kuiklyInfo.contentOffset = offset
+                kuiklyInfo.isDragging = kuiklyInfo.scrollView?.isDragging ?: false
+
                 if (kuiklyInfo.ignoreScrollOffset != null) {
                     val ignoreOffset = kuiklyInfo.ignoreScrollOffset!!
                     val epsilon = 0.5 * kuiklyInfo.getDensity()  // 使用 0.5dp 作为误差值

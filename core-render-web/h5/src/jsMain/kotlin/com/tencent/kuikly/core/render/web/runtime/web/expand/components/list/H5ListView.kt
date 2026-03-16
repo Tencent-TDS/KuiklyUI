@@ -125,6 +125,9 @@ class H5ListView : IListElement {
     override var clickEventCallback: KuiklyRenderCallback? = null
 
     override var doubleClickEventCallback: KuiklyRenderCallback? = null
+    
+    // Whether this list has a pull-to-refresh child
+    override var hasPullToRefresh: Boolean = false
 
     var listPagingHelper: H5ListPagingHelper = H5ListPagingHelper(ele, this)
         private set
@@ -202,17 +205,7 @@ class H5ListView : IListElement {
      * Check if it contains pull-to-refresh child node
      */
     private fun checkHasRefreshChild(): Boolean {
-        // Check the first child element to see if it's a pull-to-refresh node. Since the listView
-        // implementation wraps a ScrollContentView,
-        // which then wraps the actual scrollable content, we need to get the child node of ScrollContentView
-        val firstChild = ele.firstElementChild?.firstElementChild.unsafeCast<HTMLElement?>()
-
-        if (firstChild !== null) {
-            // Determine if the first child node is a pull-to-refresh node. This is a hardcoded way to check,
-            // todo: optimize for a more reasonable approach
-            return firstChild.style.transform.contains(KRListConst.REFRESH_CHILD_TRANSFORM)
-        }
-        return false
+        return hasPullToRefresh
     }
 
     override fun updateOffsetMap(offsetX: Float, offsetY: Float, isDragging: Int): MutableMap<String, Any> {

@@ -787,3 +787,72 @@ static char *MyFontAdapter(const char *fontFamily, char **fontBuffer, size_t *le
     return (char *)customFontPath.c_str();
 }
 ```
+
+### 颜色值转换适配器
+该适配器非必须实现, 业务可根据实际使用需求来决定是否实现。
+
+接口是KRRegisterColorAdapter，定义于Kuikly.h
+
+```C++
+/**
+* Color Adapter回调
+  */
+  typedef int64_t (*KRColorAdapterParseColor)(const char* str);
+
+/**
+* 注册c实现的颜色解析adapter，进程声明周期中，只应调用一次，建议在初始化阶段（如调用initKuikly前）进行调用。
+* example:
+* 1. Implement the adapter
+* static uint32_t MyColorParser(const char* str){
+*     uint32_t val = 0;
+*     ... parse from str ...
+*     return val;
+* }
+*
+* 2. Register before calling initKuikly
+* if(!registerd){// e.g. register could a static variable
+*     KRRegisterColorAdapter(&MyColorParser);
+* }
+*
+*/
+void KRRegisterColorAdapter(KRColorAdapterParseColor adapter);
+```
+
+**使用方法**
+使用方法和自定义字体适配器类似
+```cmake{3}
+target_link_libraries(
+  ……
+  kuikly_render
+)
+```
+
+**2. 头文件引入**
+
+在调用KRRegisterFontAdapter的源文件中增加include。如在上述C++目录下的**napi_init.cpp**文件 include 如下头文件。
+
+`#include <Kuikly/Kuikly.h>`
+
+**3. Adapter实现**
+<br>具体实现代码，请参考源码工程 core-render-ohos/entry 模块的**napi_init.cpp**类。
+
+```C++
+* 1. Implement the adapter
+static int64_t MyColorAdapter(const char* str){
+    // Add custom parsing and return actual color value.
+    // Demo only returns -1 to allow kuikly automatically convert the color string
+    return -1;
+}
+```
+
+**4. Adapter注册**
+可在使用Kuikly前进行adapter注册，作为示例，简单起见这里在 InitKuikly 中进行了注册，实际使用的时候可以在其他更早实际，也应该注意不要多次注册。
+```c
+// entry/src/main/cpp/napi_init.cpp
+...
+static napi_value InitKuikly(napi_env env, napi_callback_info info) {
+    KRRegisterColorAdapter(MyColorAdapter);
+    // ...
+ }
+ ...
+```

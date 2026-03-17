@@ -77,10 +77,8 @@ private fun PagerState.handleTargetPageScroll(
 
         val maxOffset = kuiklyInfo.currentContentSize - kuiklyInfo.viewportSize
         var targetOffset = nextPage?.let { offset + it.offset }
-            ?: (pageSizeWithSpacing * (targetPage - 1))
+            ?: (pageSizeWithSpacing * targetPage)
         targetOffset = min(targetOffset, maxOffset)
-
-        if (targetOffset == offset) return
 
         val density = kuiklyInfo.getDensity()
         val springAnimation = SpringAnimation(

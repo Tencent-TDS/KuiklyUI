@@ -1379,6 +1379,12 @@ internal class WillAppearEventtPage : BasePager() {
 
 **注:** 根节点请使用页面事件 pageDidAppear
 
+:::tip 注意
+如果是Scroller、List这类滚动容器，节点的didAppear是相对于**列表位置**可见，并非**屏幕**位置的可见。
+
+若需要**屏幕**位置上可见，可以使用滚动容器的scroll事件回调，使用列表偏移计算节点的真实位置。
+:::
+
 **示例**
 
 ```kotlin {14-18}

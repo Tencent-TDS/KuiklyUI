@@ -428,7 +428,7 @@ open class ScrollerAttr : ContainerAttr() {
     }
 
     /**
-     * 是否允许fling（近for安卓，默认值为true，若设置false，则列表松手时则停止惯性滚动）
+     * 是否允许fling（支持Android/iOS/OHOS，默认值为true，若设置false，则列表松手时则停止惯性滚动）
      */
     fun flingEnable(enable: Boolean) {
         FLING_ENABLE with enable.toInt()

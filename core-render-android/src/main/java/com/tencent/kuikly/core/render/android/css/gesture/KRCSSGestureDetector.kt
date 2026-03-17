@@ -38,13 +38,13 @@ class KRCSSGestureDetector(
     private val targetViewWeakRef = WeakReference(targetView)
 
     override fun onTouchEvent(ev: MotionEvent): Boolean {
-        if (containPanEvent() && ev.action == MotionEvent.ACTION_DOWN) { // 对齐原来逻辑，有pan事件时, 要求父亲不拦截
-            disallowParentInterceptEvent(true)
-        }
-
         val handle = super.onTouchEvent(ev)
 
-        if (listener.isPanEventHappening) { // 触发onScroll时，系统不会在KRCSSGestureListener中回调up和cancel，这里手动补
+        if (listener.isPanEventHappening) { // 仅在识别到pan后再禁止父级拦截，避免纵向滚动冲突
+            if (ev.action == MotionEvent.ACTION_MOVE) {
+                disallowParentInterceptEvent(true)
+            }
+            // 触发onScroll时，系统不会在KRCSSGestureListener中回调up和cancel，这里手动补
             if (ev.action == MotionEvent.ACTION_UP) {
                 listener.onUp(ev)
                 disallowParentInterceptEvent(false)

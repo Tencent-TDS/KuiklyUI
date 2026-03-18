@@ -15,14 +15,22 @@
 
 package com.tencent.kuikly.core.exception
 
+import java.io.PrintWriter
+import java.io.StringWriter
+
+
 actual fun Throwable.printStacks() {
     this.printStackTrace(System.err)
 }
 
 actual fun Throwable.stacksToString(): String {
-    return this.stackTraceToString()
+    val sw = StringWriter()
+    val pw = PrintWriter(sw)
+    printStackTrace(pw)
+    pw.flush()
+    return sw.toString()
 }
 
 actual fun Throwable.getStackTraceForBuglyReport(): String {
-    return this.stackTraceToString()
+    return this.stacksToString()
 }

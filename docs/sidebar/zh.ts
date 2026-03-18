@@ -258,6 +258,7 @@ export const zhSidebar = sidebar({
             ]
         },
     ],
+    "/AI/": false,
     "/Blog": [
         "roadmap2025.md",
         {

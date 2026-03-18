@@ -16,10 +16,13 @@
 package com.tencent.kuikly.compose.material3.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 
@@ -50,6 +53,22 @@ class NavHostController internal constructor() {
      */
     val currentBackStackEntry: NavBackStackEntry?
         get() = backStack.lastOrNull()
+
+    /**
+     * The previous back stack entry (second from the top).
+     *
+     * This is commonly used for passing results back to the previous screen:
+     * ```kotlin
+     * // In detail screen: set result before navigating back
+     * navController.previousBackStackEntry?.savedState?.set("result", "some_value")
+     * navController.popBackStack()
+     *
+     * // In home screen: read the result
+     * val result = entry.savedState?.get("result")
+     * ```
+     */
+    val previousBackStackEntry: NavBackStackEntry?
+        get() = if (backStack.size >= 2) backStack[backStack.size - 2] else null
 
     /**
      * The current destination route.
@@ -262,5 +281,36 @@ internal data class NavOptions(
  */
 @Composable
 fun rememberNavHostController(): NavHostController {
-    return androidx.compose.runtime.remember { NavHostController() }
+    return remember { NavHostController() }
+}
+
+/**
+ * Gets the current navigation back stack entry as a [State].
+ *
+ * This function is commonly used with BottomNavigation / NavigationBar to
+ * observe the current destination and highlight the active tab:
+ *
+ * ```kotlin
+ * val navBackStackEntry by navController.currentBackStackEntryAsState()
+ * val currentRoute = navBackStackEntry?.destination?.route
+ *
+ * NavigationBar {
+ *     items.forEach { screen ->
+ *         NavigationBarItem(
+ *             selected = currentRoute == screen.route,
+ *             onClick = { navController.navigate(screen.route) },
+ *             icon = { Icon(screen.icon, contentDescription = screen.title) },
+ *             label = { Text(screen.title) }
+ *         )
+ *     }
+ * }
+ * ```
+ *
+ * @return A [State] containing the current [NavBackStackEntry], or null if the back stack is empty.
+ */
+@Composable
+fun NavHostController.currentBackStackEntryAsState(): State<NavBackStackEntry?> {
+    return remember(this) {
+        derivedStateOf { this.currentBackStackEntry }
+    }
 }

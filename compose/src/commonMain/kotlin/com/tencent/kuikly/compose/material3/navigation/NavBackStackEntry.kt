@@ -32,6 +32,24 @@ class NavBackStackEntry internal constructor(
     internal val id: String = generateId()
 ) {
     /**
+     * A simple cross-page state holder for passing data between screens.
+     *
+     * This is a lightweight alternative to the official `SavedStateHandle`.
+     * Use it together with [NavHostController.previousBackStackEntry] to pass
+     * results back to the previous screen:
+     *
+     * ```kotlin
+     * // In detail screen: set result before navigating back
+     * navController.previousBackStackEntry?.savedState?.set("result", "some_value")
+     * navController.popBackStack()
+     *
+     * // In home screen: read the result
+     * val result = entry.savedState?.get("result") as? String
+     * ```
+     */
+    val savedState: MutableMap<String, Any?> = mutableMapOf()
+
+    /**
      * Get a string argument by key.
      */
     fun getStringArgument(key: String): String? = arguments[key]

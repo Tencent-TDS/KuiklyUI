@@ -8,6 +8,8 @@
   "dependencies": {
     "@kuikly-open/render": "file:../../core-render-ohos",
     "libkuikly_entry.so": "file:./src/main/cpp/types/kuikly_entry",
-    "@tencent/libpag": "4.4.25"
+    "@tencent/libpag": "4.4.25",
+    "bugly": "0.5.1",
+    "@kuiklybase/knoi": "0.0.4"
   }
 }

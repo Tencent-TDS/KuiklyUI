@@ -141,7 +141,7 @@ export const zhSidebar = sidebar({
                                 {
                                     text: "堆栈捕获和还原",
                                     collapsible: true,
-                                    children: ["kuiklybase-feat-stack-symbolication.md", "symbol-iOS.md", "ohos-kn-stack-symbolication.md"]
+                                    children: ["kuiklybase-feat-stack-symbolication.md", "symbol-iOS.md", "ohos-kn-stack-symbolication.md", "ohos-kn-stack-symbolication-report.md", ]
                                 },
                                 {
                                     text: "脚手架和插件",

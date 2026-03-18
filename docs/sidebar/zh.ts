@@ -243,10 +243,20 @@ export const zhSidebar = sidebar({
         }
     ],  
     "/Community": [
-        "component_market.md",
-        "tech_sharing.md",
         "contribute-guide.md",
+        "honor_wall.md",
         "contributor_role.md",
+        "contributor_role_details.md",
+        {
+            text: "社区生态",
+            collapsible: false,
+            children: [
+                "component_market.md",
+                "tech_sharing.md",
+                "kmp_ohos_adaptation_guide.md",
+                "kuikly_extension_lib_guide.md",
+            ]
+        },
     ],
     "/AI/": false,
     "/Blog": [

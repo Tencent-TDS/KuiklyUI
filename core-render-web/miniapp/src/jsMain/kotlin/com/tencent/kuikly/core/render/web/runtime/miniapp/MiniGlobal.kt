@@ -160,6 +160,14 @@ object LocalStorage {
         NativeApi.plat["setStorageSync"](key, value)
     }
 
+    /**
+     * Remove LocalStorage cached content
+     */
+    @JsName("removeItem")
+    fun removeItem(key: String) {
+        NativeApi.plat["removeStorageSync"](key)
+    }
+
 }
 
 /**
@@ -319,6 +327,27 @@ object MiniGlobal {
 
     @JsName("localStorage")
     val localStorage = LocalStorage
+
+    /**
+     * Simulates the window.matchMedia API for mini program environment.
+     * Mini programs run on mobile devices, so we return false for PC-related queries
+     * and true for touch/coarse pointer queries.
+     * 
+     * @param query The media query string (e.g., "(pointer: fine)" for PC, "(pointer: coarse)" for mobile)
+     * @return A MediaQueryResult object with matches property
+     */
+    @JsName("matchMedia")
+    fun matchMedia(query: String): MediaQueryResult {
+        // Mini programs always run on mobile devices (touch screen)
+        // "(pointer: fine)" = PC/mouse device -> false for mini program
+        // "(pointer: coarse)" = touch device -> true for mini program
+        val matches = when {
+            query.contains("pointer: fine") || query.contains("pointer:fine") -> false
+            query.contains("pointer: coarse") || query.contains("pointer:coarse") -> true
+            else -> false  // Default to false for unknown queries
+        }
+        return MediaQueryResult(matches)
+    }
 
     /**
      * Whether the current device is iPhone X(has notch)
@@ -618,3 +647,12 @@ external interface MiniRequestInit {
     var success: (Any) -> Unit
     var fail: (Any) -> Unit
 }
+
+/**
+ * Result object for matchMedia query, simulating the browser's MediaQueryList interface.
+ * Used to provide compatibility for code that checks device type via media queries.
+ */
+class MediaQueryResult(
+    @JsName("matches")
+    val matches: Boolean
+)

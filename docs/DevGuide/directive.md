@@ -172,9 +172,19 @@ ctx.list.notifyUpdate(ctx.lastCount - 1) // 触发最后一个元素的更新
 
 ``vforLazy``用于解决上述问题，它与``vfor``的区别是，``vforLazy``会动态增删可见范围外的虚拟节点，而不是全量创建虚拟节点。
 
+**参数说明**
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| itemList | ``() -> ObservableList<T>`` | 是 | - | 返回数据列表的 lambda |
+| maxLoadItem | ``Int`` | 否 | ``30`` | 同时保留在内存中的最大虚拟节点数量 |
+| itemCreator | ``(item: T, index: Int, count: Int) -> Unit`` | 是 | - | 列表项的构建闭包 |
+
+> **关于 maxLoadItem**：如果``maxLoadItem``设置过小（小于一屏实际可见的 item 数量），会出现**列表项显示不全**或**快速滚动时出现空白区域**的现象。遇到这种情况时，请根据一屏实际可见的 item 数量估算，将``maxLoadItem``适当调大（一般建议设为一屏可见数量的 2~3 倍）。
+
 :::warning 注意
 * 与``vfor``和``vforIndex``不同，``vforLazy``仅可在List组件中使用（且**不包括**List的子类PageList、WaterfallList等）
-* 由于``vforLayz``动态增删虚拟节点的特性，会带来额外的性能开销，因此建议仅在符合上述条件的场景下使用。
+* 由于``vforLazy``动态增删虚拟节点的特性，会带来额外的性能开销，因此建议仅在符合上述条件的场景下使用。
 :::
 
 示例代码：
@@ -200,6 +210,11 @@ override fun body(): ViewBuilder {
             }
 
             vforLazy({ ctx.list }) { item, index, count ->
+                ...
+            }
+
+            // 如需调大 maxLoadItem
+            vforLazy({ ctx.list }, maxLoadItem = 50) { item, index, count ->
                 ...
             }
         }

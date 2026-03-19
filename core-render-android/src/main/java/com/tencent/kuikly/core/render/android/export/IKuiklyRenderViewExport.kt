@@ -16,11 +16,17 @@
 package com.tencent.kuikly.core.render.android.export
 
 import android.app.Activity
+import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.drawable.BitmapDrawable
+import android.os.Handler
+import android.os.Looper
+import android.util.Base64
 import android.view.View
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityEvent
 import androidx.annotation.UiThread
+import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
 import com.tencent.kuikly.core.render.android.KuiklyRenderView
 import com.tencent.kuikly.core.render.android.const.KRCssConst
@@ -42,6 +48,12 @@ import com.tencent.kuikly.core.render.android.css.ktx.setContentOverBounds
 import com.tencent.kuikly.core.render.android.css.ktx.shouldClipContent
 import com.tencent.kuikly.core.render.android.css.ktx.stopAnimations
 import com.tencent.kuikly.core.render.android.css.ktx.transformOverBounds
+import com.tencent.kuikly.core.render.android.expand.module.KRMemoryCacheModule
+import org.json.JSONObject
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.util.concurrent.Executors
 
 /**
  * 渲染视图组件协议, 组件通过实现[IKuiklyRenderViewExport]协议 完成一个kuikly ui组件暴露
@@ -151,6 +163,10 @@ interface IKuiklyRenderViewExport : IKuiklyRenderModuleExport, IKRViewDecoration
                 }
                 ""
             }
+            "toImage" -> {
+                toImage(params, callback)
+                ""
+            }
             else -> super.call(method, params, callback)
         }
     }
@@ -189,6 +205,130 @@ interface IKuiklyRenderViewExport : IKuiklyRenderModuleExport, IKRViewDecoration
     fun resetClipChildren() {
         if (KuiklyRenderView.lazyClipChildren) {
             (view() as? ViewGroup)?.clipChildren = true
+        }
+    }
+
+    /**
+     * View截图能力，对齐iOS/鸿蒙侧实现
+     * @param params JSON参数：{ type: "cacheKey"|"dataUri"|"file", sampleSize: Int }
+     * @param callback 回调格式：{ code: Int, data: String?, message: String? }
+     */
+    private fun toImage(params: String?, callback: KuiklyRenderCallback?) {
+        if (callback == null) {
+            return
+        }
+
+        val json = try { JSONObject(params ?: "{}") } catch (e: Exception) { JSONObject() }
+        val type = json.optString("type", "cacheKey")
+        val sampleSize = maxOf(1, json.optInt("sampleSize", 1))
+        val v = view()
+
+        // 主线程同步截图
+        val bitmap = safeSnapshot(v, sampleSize)
+        if (bitmap == null) {
+            callback.invoke(mapOf("code" to -1, "message" to "snapshot failed: bitmap is null"))
+            return
+        }
+
+        when (type) {
+            "dataUri" -> {
+                // 异步编码 base64
+                toImageExecutor.execute {
+                    val base64 = bitmapToBase64(bitmap)
+                    bitmap.recycle()
+                    val dataUri = "data:image/png;base64,$base64"
+                    Handler(Looper.getMainLooper()).post {
+                        callback.invoke(mapOf("code" to 0, "data" to dataUri))
+                    }
+                }
+            }
+            "file" -> {
+                // 异步保存到缓存目录
+                toImageExecutor.execute {
+                    val filePath = saveBitmapToTempFile(v, bitmap)
+                    bitmap.recycle()
+                    Handler(Looper.getMainLooper()).post {
+                        if (filePath != null) {
+                            callback.invoke(mapOf("code" to 0, "data" to "file://$filePath"))
+                        } else {
+                            callback.invoke(mapOf("code" to -1, "message" to "failed to save snapshot to file"))
+                        }
+                    }
+                }
+            }
+            "cacheKey" -> {
+                // 生成 data:image 前缀的 key，存入 KRMemoryCacheModule
+                val cacheKey = "data:image_Md5_snapshot_${System.currentTimeMillis()}_${(Math.random() * 0xFFFFFF).toInt()}"
+                val drawable = BitmapDrawable(v.resources, bitmap)
+                val module = kuiklyRenderContext?.module<KRMemoryCacheModule>(KRMemoryCacheModule.MODULE_NAME)
+                module?.set(cacheKey, drawable)
+                callback.invoke(mapOf("code" to 0, "data" to cacheKey))
+                // 异步备份到磁盘
+                toImageExecutor.execute {
+                    saveBitmapToTempFile(v, bitmap)
+                }
+            }
+            else -> {
+                bitmap.recycle()
+                callback.invoke(mapOf("code" to -1, "message" to "unsupported type: $type"))
+            }
+        }
+    }
+
+    companion object {
+        private const val TAG = "KRView"
+        private val toImageExecutor = Executors.newSingleThreadExecutor()
+
+        /**
+         * 安全截图：通过 View.draw(Canvas) 将 View 绘制到 Bitmap 上
+         */
+        private fun safeSnapshot(view: View, sampleSize: Int): Bitmap? {
+            val width = view.width
+            val height = view.height
+            if (width <= 0 || height <= 0) return null
+            return try {
+                val scaledWidth = maxOf(1, width / sampleSize)
+                val scaledHeight = maxOf(1, height / sampleSize)
+                val bitmap = Bitmap.createBitmap(scaledWidth, scaledHeight, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(bitmap)
+                if (sampleSize > 1) {
+                    val scale = 1f / sampleSize
+                    canvas.scale(scale, scale)
+                }
+                view.draw(canvas)
+                bitmap
+            } catch (e: Exception) {
+                KLog.e(TAG, "[toImage] snapshot exception: ${e.message}")
+                null
+            }
+        }
+
+        /**
+         * Bitmap 编码为 PNG base64 字符串
+         */
+        private fun bitmapToBase64(bitmap: Bitmap): String {
+            val baos = ByteArrayOutputStream()
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, baos)
+            return Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
+        }
+
+        /**
+         * 保存 Bitmap 到应用缓存目录的临时文件
+         */
+        private fun saveBitmapToTempFile(view: View, bitmap: Bitmap): String? {
+            return try {
+                val cacheDir = view.context.cacheDir
+                val fileName = "kr_snapshot_${System.currentTimeMillis()}_${(Math.random() * 0xFFFFFF).toInt()}.png"
+                val file = File(cacheDir, fileName)
+                FileOutputStream(file).use { fos ->
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos)
+                    fos.flush()
+                }
+                file.absolutePath
+            } catch (e: Exception) {
+                KLog.e(TAG, "[toImage] save file exception: ${e.message}")
+                null
+            }
         }
     }
 }

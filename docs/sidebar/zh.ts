@@ -105,6 +105,7 @@ export const zhSidebar = sidebar({
                             ]
                         },
                         "view-external-prop.md",
+                        "text-measure.md",
                         "protobuf.md",
                         "thread-and-coroutines.md",
                         "multi-page.md"]

@@ -191,17 +191,29 @@ object RichTextProcessor : IRichTextProcessor {
     }
 
     /**
+     * Data class to store placeholder position info during calculation
+     */
+    private data class PlaceholderLineInfo(
+        val span: RichTextSpan,
+        val lineIndex: Int,
+        val offsetLeft: Float
+    )
+    
+    /**
      * Process the size data of placeholder spans
+     * First pass: record line index and offsetLeft, linesSizeList will be updated later
      *
      * @param childSpan Child span node
      * @param constraintSize Parent container constraint size
      * @param linesSizeList Line size list
+     * @param placeholderInfoList List to store placeholder line info for second pass
      */
     private fun processPlaceHolderSpan(
         view: KRRichTextView,
         childSpan: RichTextSpan,
         constraintSize: SizeF,
         linesSizeList: JsArray<SizeF>,
+        placeholderInfoList: MutableList<PlaceholderLineInfo>? = null,
     ) {
         // Use placeholder height as current line height, need to consider
         // multiple placeholder situations, use the highest as height
@@ -216,6 +228,8 @@ object RichTextProcessor : IRichTextProcessor {
             // calculation has been multiplied by the ratio value, so the actual placeholder
             // offset needs to be divided by the offset ratio
             childSpan.offsetLeft = view.currentLineWidth / WIDTH_RATIO_MAGIC
+            // Record line index for second pass (current line is linesSizeList.length)
+            placeholderInfoList?.add(PlaceholderLineInfo(childSpan, linesSizeList.length, childSpan.offsetLeft))
             // Then just add width to current line
             view.currentLineWidth = sumWidth
         } else {
@@ -229,6 +243,36 @@ object RichTextProcessor : IRichTextProcessor {
             view.currentLineWidth = childSpan.width
             // Record offsetLeft
             childSpan.offsetLeft = 0f
+            // Record line index for second pass (after adding new line, it's at linesSizeList.length)
+            placeholderInfoList?.add(PlaceholderLineInfo(childSpan, linesSizeList.length, 0f))
+        }
+    }
+    
+    /**
+     * Calculate offsetTop for all placeholders after line sizes are finalized
+     * Similar to Android: lineMid - phHeight / 2
+     */
+    private fun calculatePlaceholderOffsetTop(
+        linesSizeList: JsArray<SizeF>,
+        placeholderInfoList: List<PlaceholderLineInfo>
+    ) {
+        placeholderInfoList.forEach { info ->
+            // Calculate accumulated height of all lines before this line
+            var lineTop = 0f
+            for (i in 0 until info.lineIndex) {
+                if (i < linesSizeList.length) {
+                    lineTop += linesSizeList[i].height
+                }
+            }
+            // Get the height of the line containing this placeholder
+            val lineHeight = if (info.lineIndex < linesSizeList.length) {
+                linesSizeList[info.lineIndex].height
+            } else {
+                info.span.height // fallback to placeholder height
+            }
+            // Calculate vertical center offset (like Android: lineMid - phHeight/2)
+            val lineMid = lineTop + lineHeight / 2
+            info.span.offsetTop = lineMid - info.span.height / 2
         }
     }
 
@@ -239,12 +283,15 @@ object RichTextProcessor : IRichTextProcessor {
         val linesSizeList: JsArray<SizeF> = JsArray()
         val lineHeight = view.ele.style.lineHeight
         val realLineHeight = if (lineHeight.isNotEmpty()) lineHeight.pxToFloat() else 0f
+        
+        // List to store placeholder info for second pass calculation
+        val placeholderInfoList = mutableListOf<PlaceholderLineInfo>()
 
-        // Process child text nodes in a loop to calculate actual line size of each line
+        // First pass: Process child text nodes in a loop to calculate actual line size of each line
         view.richTextSpanList.forEach { childSpan ->
             if (childSpan.width != 0f) {
-                // Placeholder Span processing
-                processPlaceHolderSpan(view, childSpan, constraintSize, linesSizeList)
+                // Placeholder Span processing - pass placeholderInfoList to record line info
+                processPlaceHolderSpan(view, childSpan, constraintSize, linesSizeList, placeholderInfoList)
             } else {
                 // Plain span processing
                 processTextSpan(view, childSpan, constraintSize, linesSizeList, realLineHeight)
@@ -254,6 +301,12 @@ object RichTextProcessor : IRichTextProcessor {
         processRemainingLine(constraintSize, linesSizeList, view)
         // Reset current line data
         resetCurrentLineSize(view)
+        
+        // Second pass: Calculate offsetTop for all placeholders now that line sizes are finalized
+        if (placeholderInfoList.isNotEmpty()) {
+            calculatePlaceholderOffsetTop(linesSizeList, placeholderInfoList)
+        }
+        
         // Return line size data list
         return linesSizeList
     }

@@ -432,6 +432,66 @@ open class TextAreaAttr : Attr() {
         return this
     }
 
+    /**
+     * 键盘弹起时，自动滚动页面，使输入框可见
+     * 小程序属性，其他平台忽略
+     * @param adjust 是否自动调整，默认 true
+     */
+    fun adjustPosition(adjust: Boolean = true): TextAreaAttr {
+        "adjustPosition" with adjust.toInt()
+        return this
+    }
+
+    /**
+     * 是否自动增长高度
+     * 小程序属性，其他平台忽略
+     * @param auto 是否自动增长，默认 false
+     */
+    fun autoHeight(auto: Boolean = false): TextAreaAttr {
+        "autoHeight" with auto.toInt()
+        return this
+    }
+
+    /**
+     * 光标与键盘的距离，单位 px
+     * 小程序属性，其他平台忽略
+     * @param spacing 距离值，默认 0
+     */
+    fun cursorSpacing(spacing: Int): TextAreaAttr {
+        "cursorSpacing" with spacing
+        return this
+    }
+
+    /**
+     * 点击键盘确认键时保持键盘不收起
+     * 小程序属性，其他平台忽略
+     * @param hold 是否保持键盘，默认 false
+     */
+    fun confirmHold(hold: Boolean = false): TextAreaAttr {
+        "confirmHold" with hold.toInt()
+        return this
+    }
+
+    /**
+     * 点击页面时保持键盘不收起
+     * 小程序属性，其他平台忽略
+     * @param hold 是否保持键盘，默认 false
+     */
+    fun holdKeyboard(hold: Boolean = false): TextAreaAttr {
+        "holdKeyboard" with hold.toInt()
+        return this
+    }
+
+    /**
+     * 设置 placeholder 的完整样式
+     * 小程序属性，其他平台忽略
+     * @param style 样式字符串，如 "color: red; font-size: 14px"
+     */
+    fun placeholderStyle(style: String): TextAreaAttr {
+        "placeholderStyle" with style
+        return this
+    }
+
     companion object {
         const val RETURN_KEY_TYPE = "returnKeyType"
         const val KEYBOARD_TYPE = "keyboardType"
@@ -517,6 +577,14 @@ class InputSpan {
         return propMap
     }
 }
+
+data class LineChangeParams(
+    val height: Float,
+    val heightRpx: Float,
+    val lineCount: Int
+)
+
+typealias LineChangeEventHandlerFn = (LineChangeParams) -> Unit
 
 open class TextAreaEvent : Event() {
 
@@ -648,6 +716,21 @@ open class TextAreaEvent : Event() {
     }
 
     /**
+     * 当 textarea 行数变化时调用
+     * 小程序属性，其他平台忽略
+     * @param handler 行数变化事件的回调函数
+     */
+    fun lineChange(handler: LineChangeEventHandlerFn) {
+        register(LINE_CHANGE) {
+            it as JSONObject
+            val height = it.optDouble("height").toFloat()
+            val heightRpx = it.optDouble("heightRpx").toFloat()
+            val lineCount = it.optInt("lineCount")
+            handler(LineChangeParams(height, heightRpx, lineCount))
+        }
+    }
+
+    /**
      * 当用户按下键盘IME动作按键是回调，例如 Send / Go / Search 等
      * @param handler 用户按下对应按键时的回调函数
      */
@@ -674,6 +757,8 @@ open class TextAreaEvent : Event() {
         const val KEYBOARD_HEIGHT_CHANGE = "keyboardHeightChange"
         const val TEXT_LENGTH_BEYOND_LIMIT = "textLengthBeyondLimit"
         const val IME_ACTION = "imeAction"
+        const val INPUT_RETURN = "inputReturn"
+        const val LINE_CHANGE = "linechange"
     }
 }
 

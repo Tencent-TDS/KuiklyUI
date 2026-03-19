@@ -70,6 +70,9 @@ kotlin {
 
     val jsMain by sourceSets.getting {
         dependsOn(commonMain)
+        dependencies {
+            implementation(project(":core-render-web:miniapp"))
+        }
 //        kotlin.srcDir(
 //            "build/generated/ksp/js/jsMain/kotlin"
 //        )

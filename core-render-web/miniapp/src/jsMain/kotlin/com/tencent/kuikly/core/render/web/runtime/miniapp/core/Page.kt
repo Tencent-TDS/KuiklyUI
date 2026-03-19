@@ -18,7 +18,8 @@ enum class PageLifeCycleEvent(private val eventName: String) {
     ON_OPTION_MENU_CLICK("onOptionMenuClick"),
     ON_POP_MENU_CLICK("onPopMenuClick"),
     ON_PULL_INTERCEPT("onPullIntercept"),
-    ON_ADD_TO_FAVORITES("onAddToFavorites");
+    ON_ADD_TO_FAVORITES("onAddToFavorites"),
+    ON_SHARE_APP_MESSAGE("onShareAppMessage");
 
     fun getValue(): String = eventName
 }
@@ -97,6 +98,9 @@ object Page {
                     PageLifeCycleEvent.ON_ADD_TO_FAVORITES,
                     args
                 )
+            },
+            PageLifeCycleEvent.ON_SHARE_APP_MESSAGE.toString() to { args: Any ->
+                pageInstance.emitShareAppMessage(args)
             },
             GLOBAL_EVENT_HANDLER to EventManage.eventHandler
         )

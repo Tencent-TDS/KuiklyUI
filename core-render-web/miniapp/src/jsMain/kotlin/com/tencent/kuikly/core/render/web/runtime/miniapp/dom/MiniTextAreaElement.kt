@@ -19,6 +19,8 @@ class MiniTextAreaElement(
     @JsName("maxLength")
     var maxLength: Int = -1
         set(value) {
+            // Note: WeChat mini program textarea uses 'maxlength' (lowercase) attribute
+            // But Transform.kt maps it as 'maxLength', so we use the mapped name
             this.setAttribute("maxLength", value)
             field = value
         }
@@ -80,6 +82,9 @@ class MiniTextAreaElement(
                 }
                 callback(event)
             }
+        } else if (type == "linechange") {
+            // Mini program's linechange event (triggered when line count changes)
+            callback
         } else {
             callback
         }

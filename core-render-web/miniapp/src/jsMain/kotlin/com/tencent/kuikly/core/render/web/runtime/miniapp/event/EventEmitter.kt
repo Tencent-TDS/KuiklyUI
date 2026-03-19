@@ -7,7 +7,7 @@ import com.tencent.kuikly.core.render.web.collection.map.JsMap
 import com.tencent.kuikly.core.render.web.collection.map.get
 import com.tencent.kuikly.core.render.web.collection.map.getOrPut
 
-typealias CallBack = (params: Array<out Any>) -> Unit
+typealias CallBack = (params: Array<out Any>) -> Any?
 
 /**
  * Generic EventEmitter implementation
@@ -57,5 +57,18 @@ class EventEmitter {
             }
         }
         return this
+    }
+
+    /**
+     * Trigger event and return the result of the last callback
+     */
+    fun triggerAndReturn(eventName: String, vararg args: Any): Any? {
+        var result: Any? = null
+        callbacks[eventName]?.let {
+            it.forEach { callback ->
+                result = callback.invoke(args)
+            }
+        }
+        return result
     }
 }

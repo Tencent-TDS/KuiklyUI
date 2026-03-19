@@ -21,6 +21,7 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.squareup.kotlinpoet.FileSpec
 import com.tencent.kuikly.core.annotations.Page
 import impl.AndroidTargetEntryBuilder
+import impl.JsTargetEntryBuilder
 import impl.KuiklyCoreAbsEntryBuilder
 import impl.IOSTargetEntryBuilder
 import impl.OhOsTargetEntryBuilder
@@ -140,6 +141,9 @@ class CoreProcessor(
                 }else{
                     OhOsTargetEntryBuilder(caughtException)
                 }
+            }
+            outputSourceSet.contains("js", ignoreCase = true) -> {
+                JsTargetEntryBuilder(caughtException)
             }
             else -> {
                 AndroidTargetEntryBuilder(caughtException)

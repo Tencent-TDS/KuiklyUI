@@ -23,6 +23,7 @@ extern NSString *_Nonnull const kKuiklyFatalExceptionNotification;
 NS_ASSUME_NONNULL_BEGIN
 
 @class KuiklyContextParam;
+@class KRTurboDisplayConfig;
 @protocol KuiklyRenderCoreDelegate;
 @protocol KuiklyRenderLayerProtocol;
 

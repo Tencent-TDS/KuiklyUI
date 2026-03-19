@@ -42,6 +42,26 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager
 | isAccessibilityRunning | 是否处于无障碍化模式 | Boolean |
 | androidBottomBavBarHeight | Android 底部导航栏高度 | Float |
 
+::: tip 注意
+**iOS 平台特殊说明**：`activityHeight` 在 Native 侧布局完成后才计算，初始值为 0。在 `created()` 等早期生命周期获取的值需要通过监听 `PAGER_EVENT_ROOT_VIEW_SIZE_CHANGED` 事件进行更新：
+
+```kotlin
+var height by observable(0f)
+override fun created() {
+    super.created()
+    height = getPager().pageData.activityHeight
+}
+override fun onReceivePagerEvent(pagerEvent: String, eventData: JSONObject) {
+    super.onReceivePagerEvent(pagerEvent, eventData)
+    if (pagerEvent == PAGER_EVENT_ROOT_VIEW_SIZE_CHANGED) {
+        // activityHeight 已更新，可获取正确值
+        val height = pageData.activityHeight
+    }
+}
+```
+:::
+
+
 ### pageName
 页面名称，用于页面标识和路由
 

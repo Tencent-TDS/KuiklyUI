@@ -76,14 +76,17 @@ void KRContextSchedulerMultiThreaded::ScheduleTaskOnMainThread(bool sync, const 
             GetContextThread()->SyncMainTaskMutex(true, false, false);
             std::mutex mtx;
             std::condition_variable cv;
-            std::atomic<bool> taskCompleted(false);
+            bool task_completed = false;
             std::unique_lock<std::mutex> lock(mtx);
-            KRMainThread::RunOnMainThread([task, &cv, &taskCompleted] {
+            KRMainThread::RunOnMainThread([task, &mtx, &cv, &task_completed] {
                 task();
-                taskCompleted.store(true);
+                {
+                    std::lock_guard<std::mutex> lk(mtx);
+                    task_completed = true;
+                }
                 cv.notify_one();
             });
-            cv.wait(lock, [&taskCompleted] { return taskCompleted.load(); });
+            cv.wait(lock, [&task_completed] { return task_completed; });
             GetContextThread()->SyncMainTaskMutex(false, true, false);
         } else {
             // 说明在主线程, 直接同步

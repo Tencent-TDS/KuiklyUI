@@ -19,7 +19,7 @@
 #include "KRDelayThread.h"
 
 
-napi_threadsafe_function g_threadsafe_func_handle = NULL;
+static  napi_threadsafe_function g_threadsafe_func_handle = NULL;
 // 延时Api
 static void DispatchAsync(std::function<void()> task, int delayMilliseconds = 0) {
     static KRDelayThread *gDelayThread = new KRDelayThread("kuiklyasync");

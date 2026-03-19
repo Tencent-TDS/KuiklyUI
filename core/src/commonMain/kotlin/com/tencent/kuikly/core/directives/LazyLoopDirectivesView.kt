@@ -912,6 +912,7 @@ class LazyLoopDirectivesView<T>(
             logInfo { "correctScrollOffset $index $offset $size diff=$diff newSize=$correctSize layout" }
             if (isRow) {
                 itemStart.flexNode.also { node ->
+                    node.styleWidth = correctSize
                     node.updateLayoutFrame(node.layoutFrame.toMutableFrame().let { it.width = correctSize; it.toFrame() })
                 }
                 val startOffset = itemStart.frame.x
@@ -929,6 +930,7 @@ class LazyLoopDirectivesView<T>(
                 }
             } else {
                 itemStart.flexNode.also { node ->
+                    node.styleHeight = correctSize
                     node.updateLayoutFrame(node.layoutFrame.toMutableFrame().let { it.height = correctSize; it.toFrame() })
                 }
                 val startOffset = itemStart.frame.y

@@ -15,6 +15,8 @@
 
 package com.tencent.kuikly.core.module
 
+import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+
 /**
  * @brief TurboDisplay首屏直出渲染模式（通过直接执行二进制产物渲染生成首屏，避免业务代码执行后再生成的首屏等待耗时）
  *        用于首屏直接上屏，彻底告别白屏，极大提升用户体验
@@ -23,9 +25,34 @@ package com.tencent.kuikly.core.module
 class TurboDisplayModule : Module() {
     /**
      * 设置当前UI作为下次页面启动的首屏（该首屏可交互)
+     * @param extraCacheContent 额外缓存内容，格式为 JSON 字符串（可选）
+     *
+     * 格式规范：
+     * {
+     *   "<viewTag>": {
+     *     "viewName": "<组件名称>",  // 必须，用于端侧校验
+     *     "<propKey1>": <propValue1>,
+     *     ...
+     *   }
+     * }
+     *
+     * 示例：
+     * {
+     *   "100": {
+     *     "viewName": "KRListView",
+     *     "contentOffsetX": 0,
+     *     "contentOffsetY": 350.5
+     *   }
+     * }
      */
-    fun setCurrentUIAsFirstScreenForNextLaunch() {
-        asyncToNativeMethod(CURRENT_UI_AS_FIRST_SCREEN, null, null)
+    fun setCurrentUIAsFirstScreenForNextLaunch(extraCacheContent: String? = null) {
+        if (extraCacheContent.isNullOrEmpty()) {
+            asyncToNativeMethod(CURRENT_UI_AS_FIRST_SCREEN, null, null)
+        } else {
+            val params = JSONObject()
+            params.put("extraCacheContent", extraCacheContent)
+            asyncToNativeMethod(CURRENT_UI_AS_FIRST_SCREEN, params, null)
+        }
     }
 
     /**
@@ -42,6 +69,22 @@ class TurboDisplayModule : Module() {
         return syncToNativeMethod(IS_TURBO_DISPLAY, null, null) == "1"
     }
 
+    /**
+     * 强制清除所有TurboDisplay缓存文件
+     * 用于测试时重置缓存状态
+     */
+    fun clearAllCache() {
+        asyncToNativeMethod(CLEAR_ALL_CACHE, null, null)
+    }
+
+    /**
+     * 强制清除当前页面的TurboDisplay缓存
+     * 用于测试时重置当前页面的缓存状态
+     */
+    fun clearCurrentPageCache() {
+        asyncToNativeMethod(CLEAR_CURRENT_PAGE_CACHE, null, null)
+    }
+
     override fun moduleName(): String {
         return MODULE_NAME
     }
@@ -51,5 +94,7 @@ class TurboDisplayModule : Module() {
         const val CURRENT_UI_AS_FIRST_SCREEN = "setCurrentUIAsFirstScreenForNextLaunch"
         const val CLOSE_TURBO_DISPLAY = "closeTurboDisplay"
         const val IS_TURBO_DISPLAY = "isTurboDisplay"
+        const val CLEAR_ALL_CACHE = "clearAllCache"
+        const val CLEAR_CURRENT_PAGE_CACHE = "clearCurrentPageCache"
     }
 }

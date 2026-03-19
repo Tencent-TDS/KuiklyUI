@@ -1,4 +1,6 @@
-# TurboDisplay 首屏加速机制 <Badge text="版本2.16.0及以上" type="warn"/>
+# TurboDisplay 首屏加速机制
+
+<Badge text="版本 2.16.0 及以上支持" type="warn"/>  <Badge text="iOS 支持" type="warn"/>
 
 ## 介绍
 
@@ -22,14 +24,6 @@ TurboDisplay 运行于 Render 侧，仅需在 Native 侧配置启动开关，无
 - (NSString *)turboDisplayKey {
     return pageName;  // 返回 nil 或空字符串则关闭 TurboDisplay
 }
-```
-
-**鸿蒙配置：**
-```typescript
-// index.ets
-Kuikly({
-    turboDisplayKey: pageName  // 空字符串则关闭 TurboDisplay
-});
 ```
 
 
@@ -68,7 +62,7 @@ val isFromCache = acquireModule<TurboDisplayModule>(TurboDisplayModule.MODULE_NA
 
 diffDOMMode — 控制缓存采集时的算法
 - Normal（默认）：只采集已有节点的属性变化
-- StructureChange：同时采集节点的新增、删除和替换等结构变更
+- StructureAware：同时采集节点的新增、删除和替换等结构变更
 
 diffViewMode — 控制首屏增量更新的执行策略
 - Normal（默认）：同步一次性完成差异对比和更新
@@ -85,7 +79,7 @@ persistentRealTree — 控制是否持续跟踪业务首屏节点状态
 ::: tip 配置项彼此关系
 - `持续记录（persistentRealTree）` → `自动采集（autoUpdateTurboDisplay）` → `结构变化采集（diffDOMMode）` 呈链式依赖，前者是后者的前提。持续记录关闭后，纵使自动采集开启，缓存内容也不再变化；自动采集关闭，缓存内容同样不再变化。
 - `首屏增量更新模式（diffViewMode）` 独立于以上三项，单独控制首屏增量更新的执行策略。
-:::
+  :::
 
 
 #### 配置示例
@@ -110,23 +104,6 @@ persistentRealTree — 控制是否持续跟踪业务首屏节点状态
 }
 ```
 
-**鸿蒙配置：**
-```typescript
-
-Kuikly({
-  pageName: this.pageName ?? 'router',
-  pageData: this.pageData ?? {},
-  turboDisplayKey: this.pageName ?? 'router',
-  turboDisplayConfig: {
-    diffDOMMode: TB_DIFF_DOM_STRUCTUREAWARE,       // TB_DIFF_DOM_NORMAL 不支持结构变化  TB_DIFF_DOM_STRUCTUREAWARE 支持结构变化
-    diffViewMode: TB_DIFF_VIEW_DELAYED,            // TB_DIFF_VIEW_DELAYED 延迟diff  TB_DIFF_VIEW_NORAML 正常节奏执行diff
-    autoUpdateTurboDisplay: true,
-    enableRealTreePersistentUpdate: true
-  },
-  ...
-});
-```
-
 
 #### `View粒度采集控制`
 
@@ -140,7 +117,7 @@ Kuikly({
 ::: tip
 - 业务首屏和TurboDisplay缓存首屏进行差异更新时，为了可以将显示当前最新且正确的首屏效果，此时属于首屏阶段的组件所对应的 Native 节点，其结构变化与属性变化不受 `turboDisplayAutoUpdateEnable` 属性影响。
 - turboDisplayAutoUpdateEnable 属性会控制「首屏-完全渲染」期间的属性变更，关闭后本次写入的缓存首屏与所读取的一致。
-:::
+  :::
 
 ---
 
@@ -191,16 +168,7 @@ override fun created() {
 ::: tip 注意事项
 - 复杂页面恢复时，尽量避免每次启动页面时都执行异步拉取数据，造成首屏跳变；
 - 执行页面时，增量更新策略需调整为延迟模式，确保业务实际首屏的内容与缓存首屏内容保持一致，避免发生跳变现象。
-- 鸿蒙侧若出现首屏闪烁的现象，可通过在Kuikly组件中配置 initialSize 予以解决
-```typescript
-  Kuikly({
-    initialSize: {
-        width: px2vp(display.getDefaultDisplaySync().width),
-        height: px2vp(display.getDefaultDisplaySync().height)
-    }
-  });
-```
-:::
+  :::
 
 > **完整示例参考：** `demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/TBDemoTest/` 此目录提供有 `List`, `LazyList`, `PageList`, `Scroller`, `WaterFallList`, `Banner` 组件在首屏实现恢复的实例
 

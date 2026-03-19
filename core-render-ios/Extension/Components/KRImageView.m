@@ -405,11 +405,18 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
 }
 
 // 同步渐变遮罩
-// 同步渐变遮罩
 - (void)p_syncMaskLinearGradientIfNeed {
+    
+#if TARGET_OS_OSX
+    // macOS：使用位图合成方案，避免嵌套 mask 问题
+    [self p_syncMaskLinearGradientIfNeed_macOS];
+    return;
+#endif
+
     if (CGSizeEqualToSize(self.frame.size, CGSizeZero)) {
-        return ;
+        return;
     }
+        
     // 判断是否存在 圆角层
     CSSShapeLayer *borderRadiusLayer = nil;
     BOOL hasCornerMask = NO;
@@ -417,35 +424,210 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
         borderRadiusLayer = self.layer.mask;
         hasCornerMask = [self.layer.mask path] != NULL;
     }
-
+    
+    // 判断是否存在 clipPath 层
+    BOOL hasClipPathMask = NO;
+    if (self.layer.mask && [self.layer.mask isKindOfClass:[CSSClipPathLayer class]]) {
+        hasClipPathMask = YES;
+    }
+    
     if (self.image && _css_maskLinearGradient.length) {
-        // 置空mask
+        // 清空 mask
         self.layer.mask = nil;
+        
         // 创建 CSSGradientLayer层 承载渐变色
         CSSGradientLayer *gradientLayer = [[CSSGradientLayer alloc] initWithLayer:nil cssGradient:_css_maskLinearGradient];
-        // 更新Layer的布局信息。时机上能够走到这里，已经设置完了图片的圆角、渐变色属性，此时view的布局信息已经都有了
         gradientLayer.frame = self.bounds;
-        // 判断是否ImageView上同时设置了圆角和渐变色，如果是的话则创建组合Layer
-        if (hasCornerMask) {
+        
+                
+        // 组合 渐变色层 + Borderradius/clipPath 对应的Layer
+        if (hasClipPathMask || hasCornerMask) {
             CALayer *combinedMaskLayer = [CALayer layer];
             combinedMaskLayer.frame = self.bounds;
-            [combinedMaskLayer addSublayer:gradientLayer];  // 将渐变层作为子层添加
-            combinedMaskLayer.mask = borderRadiusLayer;     // 将圆角mask应用到组合层上
-            self.layer.mask = combinedMaskLayer;            // 设置ImageView.layer.mask为组合Layer
+            [combinedMaskLayer addSublayer:gradientLayer];
+            
+            if (hasClipPathMask) {
+                CSSClipPathLayer *clipPathLayer = [[CSSClipPathLayer alloc] initWithClipPath:self.css_clipPath hostView:self];
+                clipPathLayer.frame = self.bounds;
+                combinedMaskLayer.mask = clipPathLayer;
+            } else {
+                combinedMaskLayer.mask = borderRadiusLayer;
+            }
+            
+            self.layer.mask = combinedMaskLayer;
         } else {
-            self.layer.mask = gradientLayer;                // 只有渐变，直接设置ImageView.layer.mask为组合Layer
+            self.layer.mask = gradientLayer;
         }
-
+        
         [self.layer.mask layoutSublayers];
     } else {
         if (self.layer.mask) {
-            // 只有在没有圆角 mask 的情况下才清除
-            if (self.layer.mask && !hasCornerMask) {
+            if (self.layer.mask && !hasCornerMask && !hasClipPathMask) {
                 self.layer.mask = nil;
             }
         }
     }
+
 }
+
+#if TARGET_OS_OSX
+
+/// macOS 专用：将渐变遮罩与形状裁剪（borderRadius/clipPath）合成为单一位图 mask
+/// 解决 macOS 上 layer.mask 不支持嵌套的问题
+- (void)p_syncMaskLinearGradientIfNeed_macOS {
+    // 1. 尺寸为零时直接返回
+    if (CGSizeEqualToSize(self.frame.size, CGSizeZero)) {
+        return;
+    }
+    
+    // 2. 获取当前的形状路径（clipPath 优先，否则 borderRadius）
+    CGPathRef shapePath = NULL;
+    BOOL hasShapeMask = NO;
+    
+    if (self.css_clipPath.length > 0) {
+        // 使用 clipPath
+        CGFloat density = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
+        NSBezierPath *clipBezierPath = [KRConvertUtil hr_parseClipPath:self.css_clipPath density:density];
+        if (clipBezierPath) {
+            shapePath = [KRConvertUtil hr_convertNSBezierPathToCGPath:clipBezierPath];
+            hasShapeMask = (shapePath != nil);
+        }
+    } else if (self.css_borderRadius.length > 0) {
+        // 使用 borderRadius
+        CSSBorderRadius *borderRadius = [[CSSBorderRadius alloc] initWithCSSBorderRadius:self.css_borderRadius];
+        // 检查是否有有效圆角
+        if (!(borderRadius.topLeftCornerRadius < 0.0001 &&
+              borderRadius.topRightCornerRadius < 0.0001 &&
+              borderRadius.bottomLeftCornerRadius < 0.0001 &&
+              borderRadius.bottomRightCornerRadius < 0.0001)) {
+            NSBezierPath *radiusPath = [KRConvertUtil hr_bezierPathWithRoundedRect:self.bounds
+                                                               topLeftCornerRadius:borderRadius.topLeftCornerRadius
+                                                              topRightCornerRadius:borderRadius.topRightCornerRadius
+                                                            bottomLeftCornerRadius:borderRadius.bottomLeftCornerRadius
+                                                           bottomRightCornerRadius:borderRadius.bottomRightCornerRadius];
+            if (radiusPath) {
+                shapePath = [KRConvertUtil hr_convertNSBezierPathToCGPath:radiusPath];
+                hasShapeMask = (shapePath != nil);
+            }
+        }
+    }
+    
+    // 3. 判断是否需要渐变遮罩
+    BOOL hasGradientMask = (self.image && _css_maskLinearGradient.length > 0);
+    
+    // 4. 根据组合情况处理
+    if (hasGradientMask) {
+        // 需要渐变遮罩
+        if (hasShapeMask && shapePath) {
+            // 情况 A：同时有渐变 + 形状 -> 合成位图 mask
+            CALayer *bitmapMask = [self p_createCombinedMaskLayerWithGradient:_css_maskLinearGradient
+                                                                    shapePath:shapePath];
+            self.layer.mask = bitmapMask;
+        } else {
+            // 情况 B：只有渐变，无形状 -> 直接用 CSSGradientLayer
+            CSSGradientLayer *gradientLayer = [[CSSGradientLayer alloc] initWithLayer:nil cssGradient:_css_maskLinearGradient];
+            gradientLayer.frame = self.bounds;
+            self.layer.mask = gradientLayer;
+            [gradientLayer setNeedsLayout];
+        }
+    } else {
+        // 无渐变遮罩
+        if (hasShapeMask) {
+            // 情况 C：只有形状 -> 用 CAShapeLayer
+            if (self.css_clipPath.length > 0) {
+                CSSClipPathLayer *clipLayer = [[CSSClipPathLayer alloc] initWithClipPath:self.css_clipPath hostView:self];
+                clipLayer.frame = self.bounds;
+                self.layer.mask = clipLayer;
+            } else {
+                CSSBorderRadius *borderRadius = [[CSSBorderRadius alloc] initWithCSSBorderRadius:self.css_borderRadius];
+                CSSShapeLayer *shapeLayer = [[CSSShapeLayer alloc] initWithBorderRadius:borderRadius];
+                shapeLayer.frame = self.bounds;
+                shapeLayer.contentsScale = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
+                self.layer.mask = shapeLayer;
+            }
+        } else {
+            // 情况 D：无任何 mask
+            self.layer.mask = nil;
+        }
+    }
+    
+    // 5. 清理
+    if (shapePath) {
+        CFRelease(shapePath);
+    }
+    
+    [self.layer.mask layoutSublayers];
+}
+
+/// 创建合成的位图 mask（渐变 alpha × 形状裁剪）
+/// @param gradientStr 渐变字符串（如 "linear-gradient(180,#ffffff00 0,#ffffffff 1)"）
+/// @param shapePath 形状路径（borderRadius 或 clipPath 对应的 CGPath）
+/// @return 设置了位图 contents 的 CALayer，可直接作为 layer.mask
+- (CALayer *)p_createCombinedMaskLayerWithGradient:(NSString *)gradientStr shapePath:(CGPathRef)shapePath {
+    CGSize size = self.bounds.size;
+    CGFloat scale = self.window.backingScaleFactor;
+    if (scale < 1.0) {
+        scale = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
+    }
+    
+    NSInteger widthPx = (NSInteger)ceil(size.width * scale);
+    NSInteger heightPx = (NSInteger)ceil(size.height * scale);
+    
+    if (widthPx <= 0 || heightPx <= 0) {
+        return nil;
+    }
+    
+    // 1. 创建位图上下文（带 alpha 通道）
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    CGContextRef ctx = CGBitmapContextCreate(NULL,
+                                             widthPx,
+                                             heightPx,
+                                             8,
+                                             widthPx * 4,
+                                             colorSpace,
+                                             kCGImageAlphaPremultipliedLast);
+    CGColorSpaceRelease(colorSpace);
+    
+    if (!ctx) {
+        return nil;
+    }
+    
+    // 2. 调整坐标系：从左下角原点 Y 向上 → 左上角原点 Y 向下（与 CALayer 一致）
+    //    同时缩放到 point 单位
+    CGContextTranslateCTM(ctx, 0, heightPx);
+    CGContextScaleCTM(ctx, scale, -scale);
+    
+    // 3. 用形状路径作为剪切区域
+    if (shapePath) {
+        CGContextAddPath(ctx, shapePath);
+        CGContextClip(ctx);
+    }
+    
+    // 4. 手动绘制渐变（不依赖 CSSGradientLayer.layoutSublayers，因为离屏时 superlayer 为 nil）
+    [KRConvertUtil hr_drawLinearGradientInContext:ctx withGradientStr:gradientStr size:size];
+    
+    // 5. 生成 CGImage
+    CGImageRef maskImage = CGBitmapContextCreateImage(ctx);
+    CGContextRelease(ctx);
+    
+    if (!maskImage) {
+        return nil;
+    }
+    
+    // 6. 创建 CALayer 作为 mask
+    CALayer *maskLayer = [CALayer layer];
+    maskLayer.frame = self.bounds;
+    maskLayer.contentsScale = scale;
+    maskLayer.contents = (__bridge id)maskImage;
+    
+    CGImageRelease(maskImage);
+    
+    return maskLayer;
+    
+}
+
+#endif // TARGET_OS_OSX
+
 
 
 
@@ -598,6 +780,16 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
         self.kr_reuseDisable = NO;
     }
 }
+
+#pragma mark Coordinate System
+// 新增方法
+// Match iOS UIImageView coordinate system (Y-axis pointing down, origin at top-left)
+// This ensures clipPath and other mask operations work correctly with the iOS-style path data
+#if TARGET_OS_OSX
+- (BOOL)isFlipped {
+    return YES;
+}
+#endif
 
 
 - (void)dealloc {

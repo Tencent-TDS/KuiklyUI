@@ -77,7 +77,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 @end
 
 
-@interface UIView() <KuiklyRenderViewLifyCycleProtocol>
+@interface UIView() <KuiklyRenderViewLifyCycleProtocol, UIGestureRecognizerDelegate>
 
 @property (nonatomic, strong) CSSAnimation *css_animationImp;
 @property (nonatomic, strong) CSSTransform *css_transformImp;
@@ -716,6 +716,11 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         }
         if (css_pan != nil) {
             self.css_panGR = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(css_onPanWithSender:)];
+            self.css_panGR.delegate = self;
+            self.css_panGR.cancelsTouchesInView = NO;
+            self.css_panGR.delaysTouchesBegan = NO;
+            self.css_panGR.delaysTouchesEnded = NO;
+            self.css_panGR.maximumNumberOfTouches = 1;
             [self addGestureRecognizer:self.css_panGR];
             if (!self.css_touchEnable) {
                 self.userInteractionEnabled = YES;
@@ -820,6 +825,36 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     }
     
     return [self convertPoint:point toView:root];
+}
+
+- (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer {
+    if (gestureRecognizer == self.css_panGR) {
+        UIView *view = self.superview;
+        BOOL insideScrollView = NO;
+        while (view != nil) {
+            if ([view isKindOfClass:[UIScrollView class]]) {
+                insideScrollView = YES;
+                break;
+            }
+            view = view.superview;
+        }
+        if (insideScrollView) {
+            UIPanGestureRecognizer *pan = (UIPanGestureRecognizer *)gestureRecognizer;
+            CGPoint velocity = [pan velocityInView:self];
+            if (ABS(velocity.x) <= ABS(velocity.y)) {
+                return NO;
+            }
+        }
+    }
+    return YES;
+}
+
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer
+shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
+    if (gestureRecognizer == self.css_panGR && [otherGestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
+        return YES;
+    }
+    return NO;
 }
 
 - (void)css_onPanWithSender:(UIPanGestureRecognizer *)sender {

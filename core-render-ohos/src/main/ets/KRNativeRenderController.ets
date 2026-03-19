@@ -489,7 +489,7 @@ export class KRNativeRenderController {
   onBackPress() {
     const sendTime = Date.now();
     this.doSendEvent(KROnBackPressedKey, {});
-    const result = render.isBackPressConsumed(this.instanceId, sendTime);
+    const result: number = render.isBackPressConsumed(this.instanceId, sendTime);
     if (result === KRBackPressConsumedState.Consumed) {
       return true;
     } else if (result === KRBackPressConsumedState.NotConsumed) {

@@ -359,6 +359,12 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
         return false
     }
 
+    // 通知 render 层列表有下拉刷新
+    fun setHasPullToRefresh(enabled: Boolean) {
+        performTaskWhenRenderViewDidLoad {
+            renderView?.callMethod("setHasPullToRefresh", if (enabled) "1" else "0", null)
+        }
+    }
 }
 
 enum class KRNestedScrollMode(val value: String){

@@ -19,6 +19,7 @@
 #import "KRRichTextView.h"
 #import "KuiklyRenderBridge.h"
 #import "NSObject+KR.h"
+
 // 字典key常量
 NSString *const KRFontSizeKey = @"fontSize";
 NSString *const KRFontWeightKey = @"fontWeight";
@@ -37,7 +38,11 @@ NSString *const KRFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  NSNumber *KUIKLY_PROP(fontSize);
 /** attr is fontWeight */
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(fontWeight);
-/** attr is placeholder */
+#if TARGET_OS_OSX
+/** clipPath for macOS - 使用 KUIKLY_PROP 命名规范，仅在 macOS 声明避免覆盖 iOS 上 UIView+CSS category */
+@property (nonatomic, copy) NSString *KUIKLY_PROP(clipPath);
+#endif
+
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(placeholder);
 /** attr is placeholderColor */
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(placeholderColor);
@@ -87,6 +92,9 @@ NSString *const KRFontWeightKey = @"fontWeight";
 }
 
 @synthesize hr_rootView;
+#if TARGET_OS_OSX
+@synthesize css_clipPath = _css_clipPath;
+#endif
 
 #pragma mark - init
 
@@ -95,6 +103,16 @@ NSString *const KRFontWeightKey = @"fontWeight";
         self.delegate = self;
 #if TARGET_OS_OSX // [macOS]
         self.textContainerInset = NSZeroSize;
+        // macOS: 启用 layer-backed 支持 clipPath
+        self.wantsLayer = YES;
+        // 禁用自动调整
+        [self setAutoresizingMask:NSViewNotSizable];
+        [self setTranslatesAutoresizingMaskIntoConstraints:NO];
+        [self setMinSize:NSZeroSize];
+        [self setMaxSize:NSMakeSize(CGFLOAT_MAX, CGFLOAT_MAX)];
+        // 禁用默认背景和 focus ring
+        [self setDrawsBackground:NO];
+        [self setFocusRingType:NSFocusRingTypeNone];
 #else // [macOS]
         self.textContainerInset = UIEdgeInsetsZero;
 #endif // [macOS]
@@ -324,6 +342,133 @@ NSString *const KRFontWeightKey = @"fontWeight";
     }
 }
 
+#if TARGET_OS_OSX
+- (void)layout {
+    CGRect savedFrame = self.frame;
+    [super layout];
+    if (!CGRectEqualToRect(self.frame, savedFrame)) {
+        [super setFrame:savedFrame];
+    }
+}
+
+- (void)setCss_clipPath:(NSString *)css_clipPath {
+    _css_clipPath = [css_clipPath copy];
+    // 禁用默认 mask，使用 drawRect 裁剪
+    self.layer.mask = nil;
+    [self setNeedsDisplay:YES];
+}
+
+- (NSString *)css_clipPath {
+    return _css_clipPath;
+}
+
+- (void)drawRect:(NSRect)dirtyRect {
+    // 隐藏 placeholder 避免干扰
+    if (_placeholderTextView) {
+        _placeholderTextView.hidden = YES;
+    }
+    
+    // 隐藏 CSSBorderLayer，我们将在下面自己绘制边框
+    for (CALayer *layer in self.layer.sublayers) {
+        if ([NSStringFromClass([layer class]) isEqualToString:@"CSSBorderLayer"]) {
+            layer.hidden = YES;
+        }
+    }
+    
+    if (_css_clipPath.length > 0) {
+        // 先保存图形状态
+        [NSGraphicsContext saveGraphicsState];
+        
+        // 解析 clipPath
+        NSBezierPath *clipPath = [self kr_bezierPathFromClipPathString:_css_clipPath];
+        if (clipPath) {
+            // 应用 clipPath 裁剪内容
+            [clipPath addClip];
+            // 绘制边框（在 clipPath 之前，这样不会被裁剪）
+            [self drawBorderWithClipPath:clipPath];
+        }
+        
+        // 调用父类绘制（在裁剪区域内）
+        [super drawRect:dirtyRect];
+        
+        // 恢复图形状态
+        [NSGraphicsContext restoreGraphicsState];
+    } else {
+        [super drawRect:dirtyRect];
+    }
+}
+
+- (void)drawBorderWithClipPath:(NSBezierPath *)clipPath {
+    // 解析 border 属性
+    if (self.css_border.length > 0) {
+        NSArray *borderParts = [self.css_border componentsSeparatedByString:@" "];
+        if (borderParts.count >= 3) {
+            CGFloat borderWidth = [borderParts[0] floatValue];
+            NSString *borderColorStr = borderParts[2];
+            UIColor *borderColor = [UIView css_color:borderColorStr];
+            
+            // 绘制边框（stroke）
+            [borderColor setStroke];
+            // 对于 NSBezierPath stroke，使用实际的 borderWidth
+            [clipPath setLineWidth:2 * borderWidth];
+            [clipPath stroke];
+        }
+    }
+}
+
+- (NSBezierPath *)kr_bezierPathFromClipPathString:(NSString *)pathString {
+    NSBezierPath *path = [NSBezierPath bezierPath];
+    NSArray *tokens = [pathString componentsSeparatedByCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    NSMutableArray *cleanTokens = [NSMutableArray array];
+    for (NSString *token in tokens) {
+        if (token.length > 0) {
+            [cleanTokens addObject:token];
+        }
+    }
+    
+    NSInteger i = 0;
+    while (i < cleanTokens.count) {
+        NSString *token = cleanTokens[i];
+        
+        if ([token isEqualToString:@"M"]) {
+            if (i + 2 < cleanTokens.count) {
+                CGFloat x = [cleanTokens[i + 1] floatValue];
+                CGFloat y = [cleanTokens[i + 2] floatValue];
+                [path moveToPoint:NSMakePoint(x, y)];
+                i += 3;
+            } else {
+                i++;
+            }
+        } else if ([token isEqualToString:@"L"]) {
+            if (i + 2 < cleanTokens.count) {
+                CGFloat x = [cleanTokens[i + 1] floatValue];
+                CGFloat y = [cleanTokens[i + 2] floatValue];
+                [path lineToPoint:NSMakePoint(x, y)];
+                i += 3;
+            } else {
+                i++;
+            }
+        } else if ([token isEqualToString:@"Z"] || [token isEqualToString:@"z"]) {
+            [path closePath];
+            i++;
+        } else {
+            if (i + 1 < cleanTokens.count) {
+                unichar firstChar = [token characterAtIndex:0];
+                if ((firstChar >= '0' && firstChar <= '9') || firstChar == '-' || firstChar == '+') {
+                    CGFloat x = [token floatValue];
+                    CGFloat y = [cleanTokens[i + 1] floatValue];
+                    [path lineToPoint:NSMakePoint(x, y)];
+                    i += 2;
+                    continue;
+                }
+            }
+            i++;
+        }
+    }
+    return path;
+}
+#endif
+
 
 #pragma mark - UITextViewDelegate
 
@@ -427,6 +572,15 @@ NSString *const KRFontWeightKey = @"fontWeight";
     [super setFrame:frame];
     [self setNeedsLayout];
     _placeholderTextView.frame = self.bounds;
+#if TARGET_OS_OSX
+    // 设置 textContainer 防止自动调整
+    if (self.textContainer) {
+        self.textContainer.containerSize = NSSizeFromCGSize(frame.size);
+        self.textContainer.widthTracksTextView = NO;
+        self.textContainer.heightTracksTextView = NO;
+    }
+    [self setNeedsDisplay:YES];
+#endif
 }
 
 - (void)setFont:(UIFont *)font {

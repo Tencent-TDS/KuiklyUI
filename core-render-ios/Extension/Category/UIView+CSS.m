@@ -389,7 +389,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         
         // 6. 规避默认圆角值为零时，给 view 增加 mask 致使后续子 view 内容遭剪切
         if ([borderRadius isSameBorderCornerRaidus] && borderRadius.topLeftCornerRadius < 0.0001) {
-//            self.layer.mask = nil;
+            self.layer.mask = nil;
         } else {
             // 7. 采用 CAShapeLayer + mask + UIBezierPath 支持圆角实现
             CSSShapeLayer *mask = [[CSSShapeLayer alloc] initWithBorderRadius:borderRadius];

@@ -255,6 +255,11 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
                     getBackPressHandler().dispatchOnBackEvent()
                 }
             }
+            PAGER_EVENT_ON_FONT_LOADED -> {
+                flexNode.markDirty()
+                markChildTextViewsDirty()
+                layoutIfNeed()
+            }
         }
     }
 
@@ -577,6 +582,7 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         const val PAGER_EVENT_CONFIGURATION_DID_CHANGED = "configurationDidChanged"
 
         const val PAGER_EVENT_ON_BACK_PRESSED = "onBackPressed"
+        const val PAGER_EVENT_ON_FONT_LOADED = "onFontLoaded"
 
         const val WIDTH = "width"
         const val HEIGHT = "height"

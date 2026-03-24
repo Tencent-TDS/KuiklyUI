@@ -97,7 +97,7 @@ struct KuiklyListItem {
   build() {
     Column() {
       Kuikly({
-        pageName: 'ButtonExamplePage',
+        pageName: 'EmbeddedItemPage',
         pageData: {},
         delegate: this.delegate,
         contextCode: '',

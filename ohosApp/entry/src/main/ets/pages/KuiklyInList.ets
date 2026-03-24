@@ -85,14 +85,6 @@ struct KuiklyListItem {
   private kuiklyController: KRNativeRenderController | null = null;
   private delegate = new KuiklyViewDelegate()
 
-  aboutToReuse(params: Record<string, Object>): void {
-    this.index = params.index as number;
-    this.delegate.pageDidAppear()
-  }
-
-  aboutToRecycle(): void {
-    this.delegate.pageDidDisappear()
-  }
 
   build() {
     Column() {

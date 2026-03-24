@@ -50,6 +50,8 @@ typedef NS_ENUM(NSUInteger, KRSetContentOffsetAnimation) {
 @property (nonatomic, strong) NSNumber *KUIKLY_PROP(dynamicSyncScrollDisable);
 /** attr is minContentOffset */
 @property (nonatomic, strong) NSNumber *KUIKLY_PROP(limitHeaderBounces);
+/** attr is flingEnable */
+@property (nonatomic, strong) NSNumber *KUIKLY_PROP(flingEnable);
 /** attr nestedScroll */
 @property (nonatomic, strong) NSString *KUIKLY_PROP(nestedScroll);
 /** event is scroll  */
@@ -105,6 +107,9 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
         }
         self.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
         self.delaysContentTouches = NO;
+        #else // [macOS]
+        // macOS: 启用 layer-backed 支持 clipPath
+        self.wantsLayer = YES;
         #endif // [macOS]
         self.alwaysBounceVertical = YES;
         _delegateProxy = [KRMultiDelegateProxy alloc];
@@ -319,6 +324,11 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 
 - (void)scrollViewWillEndDragging:(UIScrollView *)scrollView withVelocity:(CGPoint)velocity targetContentOffset:(inout CGPoint *)targetContentOffset {
 
+    // flingEnable: cancel system deceleration when disabled (default is YES)
+    if (_css_flingEnable && ![_css_flingEnable boolValue] && targetContentOffset) {
+        *targetContentOffset = scrollView.contentOffset;
+    }
+
     BOOL isCompose = self.hr_rootView.contextParam.isCompose;
     if (isCompose && targetContentOffset && ![self.css_isComposePager boolValue]) {
         CGPoint proposed = *targetContentOffset;
@@ -483,6 +493,12 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 - (void)setCss_isComposePager:(NSNumber *)css_isComposePager {
     if (self.css_isComposePager != css_isComposePager) {
         _css_isComposePager = css_isComposePager;
+    }
+}
+
+- (void)setCss_flingEnable:(NSNumber *)css_flingEnable {
+    if (self.css_flingEnable != css_flingEnable) {
+        _css_flingEnable = css_flingEnable;
     }
 }
 
@@ -840,6 +856,16 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     [_offsetAnimator cancel];
 }
 
+#pragma mark - KRTurboDisplayStateRestorableProtocol
+
+- (void)applyTurboDisplayExtraCacheContent:(NSDictionary *)extraCacheProps {
+    // 恢复 contentOffset
+    if (extraCacheProps[@"contentOffsetX"] || extraCacheProps[@"contentOffsetY"]) {
+        CGFloat offsetX = [extraCacheProps[@"contentOffsetX"] doubleValue];
+        CGFloat offsetY = [extraCacheProps[@"contentOffsetY"] doubleValue];
+        [self setContentOffset:CGPointMake(offsetX, offsetY) animated:NO];
+    }
+}
 
 @end
 

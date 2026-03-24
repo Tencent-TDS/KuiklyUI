@@ -14,21 +14,26 @@
  */
 
 #import "KRTurboDisplayModule.h"
+#import "KRTurboDisplayCacheManager.h"
+
 NSString *const kSetCurrentUIAsFirstScreenForNextLaunchNotificationName = @"kSetCurrentUIAsFirstScreenForNextLaunchNotificationName";
 NSString *const kCloseTurboDisplayNotificationName = @"kCloseTurboDisplayNotificationName";
+NSString *const kClearCurrentPageCacheNotificationName = @"kClearCurrentPageCacheNotificationName";
 
 @implementation KRTurboDisplayModule
 
 /**
  * 下次启动设置当前 UI 作为首屏(call by kotlin)
+ * @param args 参数字典，可包含 extraCacheContent 用于传递额外缓存内容（如 ListView 的 offset）
  */
 - (void)setCurrentUIAsFirstScreenForNextLaunch:(NSDictionary *)args {
     dispatch_async(dispatch_get_main_queue(), ^{
         [[NSNotificationCenter defaultCenter] postNotificationName:kSetCurrentUIAsFirstScreenForNextLaunchNotificationName
                                                             object:self.hr_rootView
-                                                          userInfo:nil];
+                                                          userInfo:args];
     });
 }
+
 /**
  * 关闭TurboDisplay模式
  */
@@ -42,6 +47,24 @@ NSString *const kCloseTurboDisplayNotificationName = @"kCloseTurboDisplayNotific
  * 首屏是否为TurboDisplay模式
  */
 - (NSString *)isTurboDisplay:(NSDictionary *)args {
-    return self.firstScreenTurboDisplay ? @"1" : @"0";
+    NSString *result = self.firstScreenTurboDisplay ? @"1" : @"0";
+    return result;
 }
+
+/**
+ * 强制清除所有TurboDisplay缓存文件
+ */
+- (void)clearAllCache:(NSDictionary *)args {
+    [[KRTurboDisplayCacheManager sharedInstance] removeAllTurboDisplayCacheFiles];
+}
+
+/**
+ * 强制清除当前页面的TurboDisplay缓存
+ */
+- (void)clearCurrentPageCache:(NSDictionary *)args {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [[NSNotificationCenter defaultCenter] postNotificationName:kClearCurrentPageCacheNotificationName object:self.hr_rootView userInfo:nil];
+    });
+}
+
 @end

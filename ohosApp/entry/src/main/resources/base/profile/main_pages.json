@@ -1,6 +1,7 @@
 {
   "src": [
     "pages/Index",
-    "pages/GestureThrough"
+    "pages/GestureThrough",
+    "pages/KuiklyInList"
   ]
 }

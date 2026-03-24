@@ -40,15 +40,22 @@ KRRenderView::KRRenderView(ArkUI_NodeContentHandle handle, std::string instance_
     OH_ArkUI_NodeContent_SetUserData(handle, (void*)id_value);
     auto cb = [](ArkUI_NodeContentEvent* event){
         auto event_type = OH_ArkUI_NodeContentEvent_GetEventType(event);
+        auto handle = OH_ArkUI_NodeContentEvent_GetNodeContentHandle(event);
+        void *user_data = OH_ArkUI_NodeContent_GetUserData(handle);
+        unsigned long long id_value = (unsigned long long)user_data;
+        std::string instance_id = std::to_string(id_value);
         if(event_type == NODE_CONTENT_EVENT_ON_DETACH_FROM_WINDOW){
-            auto handle = OH_ArkUI_NodeContentEvent_GetNodeContentHandle(event);
-            void *user_data = OH_ArkUI_NodeContent_GetUserData(handle);
-            unsigned long long id_value = (unsigned long long)user_data;
-            std::string instance_id = std::to_string(id_value);
             if (auto instance = KRRenderManager::GetInstance().GetRenderView(instance_id)) {
                 std::shared_ptr<KRRenderView> render_view = std::dynamic_pointer_cast<KRRenderView>(instance);
                 if(render_view){
-                    render_view->RemoveRootViewFromContentHandle(true);
+                    render_view->OnDetachFromWindow();
+                }
+            }
+        } else if(event_type == NODE_CONTENT_EVENT_ON_ATTACH_TO_WINDOW){
+            if (auto instance = KRRenderManager::GetInstance().GetRenderView(instance_id)) {
+                std::shared_ptr<KRRenderView> render_view = std::dynamic_pointer_cast<KRRenderView>(instance);
+                if(render_view){
+                    render_view->OnAttachToWindow(handle);
                 }
             }
         }
@@ -88,6 +95,22 @@ void KRRenderView::RemoveRootViewFromContentHandle(bool immediate){
         }
         
         node_content_handle_ = nullptr;
+    }
+}
+
+void KRRenderView::OnDetachFromWindow(){
+    if (is_detached_) {
+        return;
+    }
+    is_detached_ = true;
+    RemoveRootViewFromContentHandle(true);
+}
+
+void KRRenderView::OnAttachToWindow(ArkUI_NodeContentHandle handle){
+    if(is_detached_ && root_node_ != nullptr){
+        is_detached_ = false;
+        node_content_handle_ = handle;
+        OH_ArkUI_NodeContent_AddNode(node_content_handle_, root_node_);
     }
 }
 

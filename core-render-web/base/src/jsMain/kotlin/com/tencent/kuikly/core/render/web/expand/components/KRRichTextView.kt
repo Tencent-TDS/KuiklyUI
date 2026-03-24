@@ -416,15 +416,28 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
         var rectInfo = "0.0 0.0 0.0 0.0"
 
         if (index != null) {
-            val placeholderSpan = ele.childNodes[index].unsafeCast<HTMLElement?>()
+            // Account for float spans prepended when lineBreakMargin is set
+            val adjustedIndex = if (getHasAppendFloatSpans()) index + 2 else index
+            val placeholderSpan = ele.childNodes[adjustedIndex].unsafeCast<HTMLElement?>()
             if (
                 placeholderSpan != null &&
                 placeholderSpan.style.width != "" &&
                 placeholderSpan.style.height != ""
             ) {
+                // ele may be detached because insertSubRenderView is async;
+                // temporarily attach to body to force a synchronous reflow
+                val isConnected = ele.asDynamic().isConnected.unsafeCast<Boolean>()
+                if (!isConnected) {
+                    kuiklyDocument.body?.appendChild(ele)
+                }
+
                 // Determine that it is a placeholder span, get size information
                 with(placeholderSpan) {
                     rectInfo = "$offsetLeft $offsetTop $offsetWidth $offsetHeight"
+                }
+
+                if (!isConnected) {
+                   kuiklyDocument.body?.removeChild(ele)
                 }
             }
         }

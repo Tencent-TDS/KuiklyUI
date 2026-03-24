@@ -215,9 +215,14 @@ object RichTextProcessor : IRichTextProcessor {
             // then directly add current line Record offsetLeft, because the current text width
             // calculation has been multiplied by the ratio value, so the actual placeholder
             // offset needs to be divided by the offset ratio
-            childSpan.offsetLeft = view.currentLineWidth / WIDTH_RATIO_MAGIC
+            childSpan.offsetLeft = view.currentLineWidth
+            if (MiniGlobal.isAndroid) {
+                childSpan.offsetLeft /= WIDTH_RATIO_MAGIC
+            }
             // Then just add width to current line
             view.currentLineWidth = sumWidth
+            // Record line index
+            childSpan.lineIndex = linesSizeList.length.toInt()
         } else {
             // If it exceeds one line, it needs to be changed, because placeholder span cannot be
             // folded, so placeholder span needs to start from new line head Here, it needs to be
@@ -229,6 +234,8 @@ object RichTextProcessor : IRichTextProcessor {
             view.currentLineWidth = childSpan.width
             // Record offsetLeft
             childSpan.offsetLeft = 0f
+            // Record line index
+            childSpan.lineIndex = linesSizeList.length.toInt()
         }
     }
 
@@ -516,6 +523,34 @@ object RichTextProcessor : IRichTextProcessor {
     }
 
     /**
+     * Calculate the offset top of placeholder spans
+     */
+    private fun calculateSpanOffsetTop(linesSizeList: JsArray<SizeF>, view: KRRichTextView) {
+        // Pre-compute the top Y coordinate of each line to avoid repeated accumulation
+        val lineTopPositions: JsArray<Float> = JsArray()
+        var accumulated = 0f
+        linesSizeList.forEach { line ->
+            lineTopPositions.add(accumulated)
+            accumulated += line.height
+        }
+        lineTopPositions.add(accumulated)
+        // Iterate all placeholder spans and restore the vertically-centered offsetTop using the stored line index
+        view.richTextSpanList.forEach { span ->
+            if (span.width != 0f) {
+                val lineIndex = span.lineIndex  // Retrieve the line index stored earlier
+                if (lineIndex < linesSizeList.length) {  // Skip spans in truncated lines (not visible)
+                    val lineTop    = lineTopPositions[lineIndex]
+                    val lineHeight = linesSizeList[lineIndex].height
+                    // Vertically center: line top + (line height - placeholder height) / 2
+                    span.offsetTop = lineTop + (lineHeight - span.height).coerceAtLeast(0f) / 2f
+                } else {
+                    span.offsetTop = lineTopPositions[lineTopPositions.length - 1]
+                }
+            }
+        }
+    }
+
+    /**
      * Calculate the size data of rich text element occupied
      */
     private fun calculateRichTextSize(constraintSize: SizeF, view: KRRichTextView): SizeF {
@@ -535,6 +570,9 @@ object RichTextProcessor : IRichTextProcessor {
         // Here style changed, need to re-set divHtml, considering update queue problem,
         // whether need to delay setting, only rich text needs setting
         view.ele.setAttribute("nodes", view.divHtml)
+
+        // Calculate span offset top
+        calculateSpanOffsetTop(linesSizeList, view)
 
         // Get occupied size position information based on the final size list
         return calculateTotalSize(linesSizeList)
@@ -772,6 +810,18 @@ object RichTextProcessor : IRichTextProcessor {
         view.spanHtml = getChildSpanHtml(view)
         // Set rich text content
         view.ele.setAttribute("nodes", view.divHtml)
+    }
+
+    /**
+     * Return "offsetLeft offsetTop width height" for a placeholder span at [index].
+     * Return "" to let the caller fall back to the default DOM-based measurement (H5).
+     */
+    override fun getPlaceholderSpanRect(index: Int, view: KRRichTextView): String {
+        if (index < 0 || index >= view.richTextSpanList.length) return ""
+        val span = view.richTextSpanList[index]
+        // Only placeholder spans have width != 0
+        if (span.width == 0f) return ""
+        return "${span.offsetLeft} ${span.offsetTop} ${span.width} ${span.height}"
     }
 
     /**

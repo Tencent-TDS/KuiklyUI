@@ -39,6 +39,11 @@ kotlin {
         browser()
     }
     
+    // ohos，仅ohos版本kotlin支持
+    ohosArm64 {
+    
+    }
+    
     // 源代码集依赖配置
     sourceSets {
         val commonMain by getting {
@@ -61,6 +66,14 @@ kotlin {
                 // js 特定依赖
             }
         }
+        
+        // ohos，仅ohos版本kotlin支持
+        val ohosArm64Main by getting {
+            dependencies {
+                // ohos 特定依赖
+            }
+        }
+        
         ...
     }
 }
@@ -69,10 +82,10 @@ kotlin {
 ## 编译指引
 产物有两种形式：第一种是各平台的最终产物(Android上是.aar，iOS上是.framework，鸿蒙上是 .so)，第二种是KLib(Kotlin 跨平台的库格式)
 
-- 最终产物：每个项目只能有一个，因为只能存在一个Kuikly入口类。
-- KLib：每个项目可以依赖多个，如果被使用，会被统一编译在最终产物内。
+- 平台产物：每个项目只能有一个，因为只能存在一个Kuikly入口类。
+- Kotlin library(KLib)：每个项目可以依赖多个，如果被使用，会被统一编译在最终产物内。
 
-### 最终产物
+### 平台产物
 
 >注：shared是打包最终产物的模块名
 
@@ -80,6 +93,9 @@ kotlin {
 ```bash
 ./gradlew :shared:assembleRelease
 ```
+
+> 一个模块对应一个aar
+
 **iOS:**
 
 需要引入 cocoapods 插件
@@ -92,6 +108,8 @@ plugins {
 ./gradlew :shared:podPublishReleaseXCFramework
 ```
 
+> 所有模块统一编译成一个framework
+
 **鸿蒙:**
 
 需要使用定制化特定的Kotlin版本，参考【KMP模块鸿蒙Kotlin/Native适配】 章节
@@ -102,9 +120,10 @@ plugins {
 ```bash
 ./gradlew -c settings.ohos.gradle.kts :shared:linkOhosArm64
 ```
+> 所有模块统一编译成一个so
 
 ### KLib
-KLib是Kotlin 跨平台的库格式，包含内容：1(commonMain) + N(otherMain)，其中N取决于你所声明的目标平台
+KLib是Kotlin 跨平台的库格式，包含内容：1(commonMain) + N(targetMain)，其中N取决于你所声明的目标平台
 
 如：Kuikly的core制品就是一个KLib
 

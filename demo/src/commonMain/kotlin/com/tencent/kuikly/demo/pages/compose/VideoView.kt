@@ -25,7 +25,6 @@ import com.tencent.kuikly.core.views.VideoView
 fun Video(
     src: String,
     playControl: VideoPlayControl,
-    playTimeDidChanged: (curTime: Int, totalTime: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     MakeKuiklyComposeNode<VideoView>(
@@ -43,11 +42,6 @@ fun Video(
             it.getViewAttr().run {
                 src(src)
                 playControl(playControl)
-            }
-            it.getViewEvent().run {
-                playTimeDidChanged(handlerFn = playTimeDidChanged)
-                playStateDidChanged(handlerFn = { state, b ->
-                })
             }
         }
     )

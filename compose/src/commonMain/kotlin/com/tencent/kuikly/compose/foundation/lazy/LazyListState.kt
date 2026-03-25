@@ -597,15 +597,34 @@ class LazyListState
         companion object {
             /**
              * The default [Saver] implementation for [LazyListState].
+             * Saves bridge-layer state (composeOffset, currentContentSize, contentOffset, offsetDirty)
+             * in addition to Compose-layer state, to support ScrollerView reuse in nested LazyList scenarios.
              */
             val Saver: Saver<LazyListState, *> =
                 listSaver(
-                    save = { listOf(it.firstVisibleItemIndex, it.firstVisibleItemScrollOffset) },
+                    save = {
+                        val saved = listOf(
+                            it.firstVisibleItemIndex,           // [0]
+                            it.firstVisibleItemScrollOffset,    // [1]
+                            it.kuiklyInfo.composeOffset.toInt(),// [2] bridge: Compose scroll offset
+                            it.kuiklyInfo.currentContentSize,   // [3] bridge: virtual content size
+                            it.kuiklyInfo.contentOffset,        // [4] bridge: native scrollView offset
+                            if (it.kuiklyInfo.offsetDirty) 1 else 0, // [5] bridge: offset dirty flag
+                        )
+                        saved
+                    },
                     restore = {
                         LazyListState(
                             firstVisibleItemIndex = it[0],
                             firstVisibleItemScrollOffset = it[1],
-                        )
+                        ).also { state ->
+                            if (it.size > 2) { // backward compatibility with old saved data
+                                state.kuiklyInfo.composeOffset = it[2].toFloat()
+                                state.kuiklyInfo.currentContentSize = it[3]
+                                state.kuiklyInfo.contentOffset = it[4]
+                                state.kuiklyInfo.offsetDirty = it[5] == 1
+                            }
+                        }
                     },
                 )
         }

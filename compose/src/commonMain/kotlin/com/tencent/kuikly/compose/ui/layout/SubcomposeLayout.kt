@@ -64,16 +64,20 @@ import com.tencent.kuikly.compose.ui.platform.createSubcomposition
 import com.tencent.kuikly.compose.ui.unit.Constraints
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
 import com.tencent.kuikly.compose.ui.util.fastForEach
+import com.tencent.kuikly.compose.gestures.KuiklyScrollInfo
 import com.tencent.kuikly.compose.views.KuiklyInfoKey
 import com.tencent.kuikly.compose.views.VirtualNodeView
+import com.tencent.kuikly.compose.layout.bindKuiklyInfo
 import com.tencent.kuikly.compose.layout.checkOffScreenNode
+import com.tencent.kuikly.compose.layout.hideOffsetScreenView
+import com.tencent.kuikly.compose.layout.restoreScrollerViewOnReuse
+import com.tencent.kuikly.compose.layout.transferScrollToTopCallback
 import com.tencent.kuikly.compose.scroller.handleScrollToTopCallback
 import com.tencent.kuikly.compose.scroller.isAtTop
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.kuiklyOnScroll
 import com.tencent.kuikly.compose.scroller.kuiklyOnScrollEnd
 import com.tencent.kuikly.compose.scroller.kuiklyWillDragEnd
-import com.tencent.kuikly.compose.scroller.requestScrollToTop
 import com.tencent.kuikly.compose.scroller.tryExpandStartSize
 import com.tencent.kuikly.compose.ui.node.ComposeUiNode.Companion.ShadowLayoutConstructor
 import com.tencent.kuikly.compose.ui.node.KNode.Companion.obtainRenderProps
@@ -217,7 +221,6 @@ fun SubcomposeLayout(
     val compositionContext = rememberCompositionContext()
     val localMap = currentComposer.currentCompositionLocalMap
     var scrollViewRef: ScrollerView<ScrollerAttr, ScrollerEvent>? by remember { mutableStateOf(null) }
-    var newScrollViewDetected by remember { mutableStateOf(false) }
     val isVertical = orientation == Orientation.Vertical
     var scrollViewSize by remember { mutableStateOf(Size.Zero) } // dp值
     val materialized = currentComposer.materialize(modifier)
@@ -244,11 +247,6 @@ fun SubcomposeLayout(
 
         // Bind the new scrollView after computing reset flags so density is available for reset
         kuiklyInfo.scrollView = scrollViewRef
-        if (newScrollViewDetected) {
-            kuiklyInfo.resetForNewScrollView()
-            scrollableState.requestScrollToTop()
-            newScrollViewDetected = false
-        }
 
         // Set other properties after reset to ensure they are correctly set
         kuiklyInfo.orientation = orientation
@@ -284,12 +282,14 @@ fun SubcomposeLayout(
                 val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
                 val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
 
+                val prevOffset = kuiklyInfo.contentOffset
                 kuiklyInfo.contentOffset = offset
                 if (kuiklyInfo.ignoreScrollOffset != null) {
                     val ignoreOffset = kuiklyInfo.ignoreScrollOffset!!
                     val epsilon = 0.5 * kuiklyInfo.getDensity()  // 使用 0.5dp 作为误差值
-                    if (abs(ignoreOffset.x.minus(scaleParams.offsetX)) <= epsilon
-                        && abs(ignoreOffset.y.minus(scaleParams.offsetY)) <= epsilon) {
+                    val matched = abs(ignoreOffset.x.minus(scaleParams.offsetX)) <= epsilon
+                        && abs(ignoreOffset.y.minus(scaleParams.offsetY)) <= epsilon
+                    if (matched) {
                         kuiklyInfo.ignoreScrollOffset = null
                     }
                     return@scroll
@@ -345,10 +345,9 @@ fun SubcomposeLayout(
         scrollViewRef?.listenScrollEvent()
     }
 
-    ComposeNode<KNode<*>, KuiklyApplier>(
+    ReusableComposeNode<KNode<*>, KuiklyApplier>(
         factory = {
             val newView = ScrollerView<ScrollerAttr, ScrollerEvent>()
-            newScrollViewDetected = scrollViewRef !== newView
             scrollViewRef = newView
 
             KNode(newView) {
@@ -381,16 +380,18 @@ fun SubcomposeLayout(
             @OptIn(ExperimentalComposeUiApi::class)
             set(compositeKeyHash, SetCompositeKeyHash)
             set(scrollableState) {
-                scrollViewRef = this.view as? ScrollerView<ScrollerAttr, ScrollerEvent>
-                scrollableState.kuiklyInfo.scrollView = scrollViewRef
-                scrollableState.kuiklyInfo.orientation = orientation
-                val rp = scrollViewRef?.obtainRenderProps()
-                rp?.kuiklyScrollInfo = scrollableState.kuiklyInfo
-                scrollViewSize =
-                    Size(
-                        width = scrollViewRef?.renderView?.currentFrame?.width ?: 0f,
-                        height = scrollViewRef?.renderView?.currentFrame?.width ?: 0f,
-                    )
+                val sv = this.view as? ScrollerView<ScrollerAttr, ScrollerEvent> ?: return@set
+                scrollViewRef = sv
+
+                val oldKuiklyInfo = sv.extProps[KuiklyInfoKey] as? KuiklyScrollInfo
+                val kuiklyInfo = bindKuiklyInfo(sv, scrollableState, orientation)
+                transferScrollToTopCallback(oldKuiklyInfo, kuiklyInfo)
+                restoreScrollerViewOnReuse(sv, kuiklyInfo, isPagerView, orientation, oldKuiklyInfo?.contentOffset)
+
+                scrollViewSize = Size(
+                    width = sv.renderView?.currentFrame?.width ?: 0f,
+                    height = sv.renderView?.currentFrame?.height ?: 0f,
+                )
             }
         },
     )
@@ -828,6 +829,7 @@ internal class LayoutNodeSubcompositionsState(
     fun disposeOrReuseStartingFromIndex(startIndex: Int) {
         reusableCount = 0
         val lastReusableIndex = root.foldedChildren.size - precomposedCount - 1
+        var needApplyNotification = false
 
         if (startIndex <= lastReusableIndex) {
             // construct the set of available slot ids
@@ -840,21 +842,48 @@ internal class LayoutNodeSubcompositionsState(
 
             // iterating backwards so it is easier to remove items
             var i = lastReusableIndex
-            while (i >= startIndex) {
-                val node = root.foldedChildren[i]
-                val nodeState = nodeToNodeState[node]!!
-                val slotId = nodeState.slotId
-                if (reusableSlotIdsSet.contains(slotId)) {
-                    reusableCount++
-                } else {
-                    nodeToNodeState.remove(node)
-                    nodeState.composition?.dispose()
-                    root.removeAt(i, 1)
+            Snapshot.withoutReadObservation {
+                while (i >= startIndex) {
+                    val node = root.foldedChildren[i]
+                    val nodeState = nodeToNodeState[node]!!
+                    val slotId = nodeState.slotId
+                    if (reusableSlotIdsSet.contains(slotId)) {
+                        reusableCount++
+                        if (nodeState.active) {
+                            node.resetLayoutState()
+                            nodeState.active = false
+                            needApplyNotification = true
+                        }
+                    } else {
+                        ignoreRemeasureRequests {
+                            nodeToNodeState.remove(node)
+                            nodeState.composition?.dispose()
+                            root.removeAt(i, 1)
+                        }
+                    }
+                    slotIdToNode.remove(slotId)
+                    i--
                 }
-                slotIdToNode.remove(slotId)
-                i--
             }
         }
+
+        if (needApplyNotification) {
+            Snapshot.sendApplyNotifications()
+        }
+
+        // Hide native views of reusable nodes to prevent visual overlap.
+        // When nodes are later taken from reusables and placed,
+        // updateKuiklyViewFrame() -> resetViewVisible() will restore visibility.
+        // setProp has dedup check, so repeated calls on already-hidden nodes are no-ops.
+        if (reusableCount > 0) {
+            val totalChildren = root.foldedChildren.size
+            val reusableStart = totalChildren - precomposedCount - reusableCount
+            for (i in reusableStart until reusableStart + reusableCount) {
+                (root.foldedChildren[i] as? KNode<*>)?.hideOffsetScreenView()
+            }
+        }
+
+        makeSureStateIsConsistent()
     }
 
     private fun markActiveNodesAsReused(deactivate: Boolean) {
@@ -950,7 +979,7 @@ internal class LayoutNodeSubcompositionsState(
             }
         }
         if (chosenIndex == -1) {
-            // try to find a first compatible slotId from the end of the section
+
             index = reusableNodesSectionEnd - 1
             while (index >= reusableNodesSectionStart) {
                 val node = root.foldedChildren[index]
@@ -977,6 +1006,7 @@ internal class LayoutNodeSubcompositionsState(
             reusableCount--
             val node = root.foldedChildren[reusableNodesSectionStart]
             val nodeState = nodeToNodeState[node]!!
+
             // create a new instance to avoid change notifications
             nodeState.activeState = mutableStateOf(true)
             nodeState.forceReuse = true
@@ -1169,20 +1199,20 @@ internal class LayoutNodeSubcompositionsState(
 
     private inline fun ignoreRemeasureRequests(block: () -> Unit) = root.ignoreRemeasureRequests(block)
 
-    private class NodeState(
-        var slotId: Any?,
-        var content: @Composable () -> Unit,
-        var composition: ReusableComposition? = null,
-    ) {
-        var forceRecompose = false
-        var forceReuse = false
-        var activeState = mutableStateOf(true)
-        var active: Boolean
-            get() = activeState.value
-            set(value) {
-                activeState.value = value
-            }
-    }
+     private class NodeState(
+         var slotId: Any?,
+         var content: @Composable () -> Unit,
+         var composition: ReusableComposition? = null,
+     ) {
+         var forceRecompose = false
+         var forceReuse = false
+         var activeState = mutableStateOf(true)
+         var active: Boolean
+             get() = activeState.value
+             set(value) {
+                 activeState.value = value
+             }
+     }
 
     private inner class Scope : SubcomposeMeasureScope {
         // MeasureScope delegation

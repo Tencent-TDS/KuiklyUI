@@ -114,6 +114,7 @@ class KRScrollerView : public IKRRenderViewExport {
     void SetContentInset(const std::shared_ptr<KRScrollerContentInset> &content_inset);
     void SetContentInsetWhenDragEnd(const KRAnyValue &value);
     void AbortContentOffsetAnimate();
+    void PrepareForComposeReuse();
     void OnScrollFrameBegin(ArkUI_NodeEvent *event);
     void OnScrollStop(ArkUI_NodeEvent *event);
     void OnWillScroll(ArkUI_NodeEvent *event);

@@ -38,6 +38,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// The outer scrollable view
 @property (nonatomic, weak) UIScrollView<NestedScrollProtocol> *outerScrollView;
 
+/// Reset transient drag/lock state for Compose reuse.
+- (void)prepareForComposeReuse;
+
 @end
 
 NS_ASSUME_NONNULL_END

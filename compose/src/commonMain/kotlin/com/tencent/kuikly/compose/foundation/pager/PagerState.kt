@@ -129,22 +129,36 @@ private class DefaultPagerState(
 
     companion object {
         /**
-         * To keep current page and current page offset saved
+         * To keep current page and current page offset saved.
+         * Also saves bridge-layer state (composeOffset, currentContentSize, contentOffset, offsetDirty)
+         * to support ScrollerView reuse in nested Pager scenarios.
          */
         val Saver: Saver<DefaultPagerState, *> = listSaver(
             save = {
-                listOf(
-                    it.currentPage,
-                    (it.currentPageOffsetFraction).coerceIn(MinPageOffset, MaxPageOffset),
-                    it.pageCount
+                val saved = listOf(
+                    it.currentPage,                             // [0] Int
+                    (it.currentPageOffsetFraction).coerceIn(MinPageOffset, MaxPageOffset), // [1] Float
+                    it.pageCount,                               // [2] Int
+                    it.kuiklyInfo.composeOffset.toInt(),        // [3] bridge: Compose scroll offset
+                    it.kuiklyInfo.currentContentSize,           // [4] bridge: virtual content size
+                    it.kuiklyInfo.contentOffset,                // [5] bridge: native scrollView offset
+                    if (it.kuiklyInfo.offsetDirty) 1 else 0,   // [6] bridge: offset dirty flag
                 )
+                saved
             },
             restore = {
                 DefaultPagerState(
                     currentPage = it[0] as Int,
                     currentPageOffsetFraction = it[1] as Float,
                     updatedPageCount = { it[2] as Int }
-                )
+                ).also { state ->
+                    if (it.size > 3) { // backward compatibility with old saved data
+                        state.kuiklyInfo.composeOffset = (it[3] as Int).toFloat()
+                        state.kuiklyInfo.currentContentSize = it[4] as Int
+                        state.kuiklyInfo.contentOffset = it[5] as Int
+                        state.kuiklyInfo.offsetDirty = (it[6] as Int) == 1
+                    }
+                }
             }
         )
     }

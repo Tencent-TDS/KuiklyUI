@@ -137,6 +137,13 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
         }
     }
 
+    /** Clear transient native state for Compose DSL reuse (not the native reuse pool). */
+    fun prepareForComposeReuse() {
+        performTaskWhenRenderViewDidLoad {
+            renderView?.callMethod("prepareForComposeReuse")
+        }
+    }
+
     open fun callContentOffset(offsetX: Float, offsetY: Float, animated: Boolean = false, springAnimation: SpringAnimation? = null) {
         var springAnimationString = ""
         springAnimation?.also {
@@ -317,24 +324,51 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
                     ctx.handleListDidScroll(it.offsetX, it.offsetY, it)
                 }
                 scrollHandler?.invoke(it)
+                ctx.getExternalScrollEventHandler(ScrollerEvent.ScrollerEventConst.SCROLL)?.invoke(it)
             }
             dragBegin { scrollParam ->
                 this@ScrollerView.scrollerViewEventObserverSet.toFastMutableList().forEach {
                     it.scrollerDragBegin(scrollParam)
                 }
                 dragBeginHandler?.invoke(scrollParam)
+                ctx.getExternalScrollEventHandler(ScrollerEvent.ScrollerEventConst.DRAG_BEGIN)?.invoke(scrollParam)
             }
             dragEnd { scrollParam ->
                 this@ScrollerView.scrollerViewEventObserverSet.toFastMutableList().forEach {
                     it.scrollerDragEnd(scrollParam)
                 }
                 dragEndHandler?.invoke(scrollParam)
+                ctx.getExternalScrollEventHandler(ScrollerEvent.ScrollerEventConst.DRAG_END)?.invoke(scrollParam)
             }
             scrollEnd {
                 ctx.handleListDidScrollEnd(it)
                 scrollEndHandler?.invoke(it)
+                ctx.getExternalScrollEventHandler(ScrollerEvent.ScrollerEventConst.SCROLL_END)?.invoke(it)
             }
         }
+    }
+
+    /**
+     * 获取通过 [extProps] 注册的外部滚动事件 handler，避免直接 Event.register 覆盖 [listenScrollEvent] 的 wrapper chain。
+     */
+    @Suppress("UNCHECKED_CAST")
+    fun getExternalScrollEventHandler(eventName: String): ((ScrollParams) -> Unit)? {
+        return extProps[EXTERNAL_SCROLL_EVENT_PREFIX + eventName] as? ((ScrollParams) -> Unit)
+    }
+
+    /**
+     * 设置外部滚动事件 handler 到 [extProps]，供 [listenScrollEvent] 的 wrapper 运行时读取。
+     */
+    fun setExternalScrollEventHandler(eventName: String, handler: ((ScrollParams) -> Unit)?) {
+        if (handler != null) {
+            extProps[EXTERNAL_SCROLL_EVENT_PREFIX + eventName] = handler as Any
+        } else {
+            extProps.remove(EXTERNAL_SCROLL_EVENT_PREFIX + eventName)
+        }
+    }
+
+    companion object {
+        private const val EXTERNAL_SCROLL_EVENT_PREFIX = "_ext_scroll_event_"
     }
 
     internal fun contentSizeDidChanged(width: Float, height: Float) {

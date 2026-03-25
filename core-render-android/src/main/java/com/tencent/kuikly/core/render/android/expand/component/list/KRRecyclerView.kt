@@ -486,6 +486,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 scrollAnimationManager.cancel()
                 stopScroll()
             }
+            METHOD_PREPARE_FOR_COMPOSE_REUSE -> prepareForComposeReuse()
             else -> super.call(method, params, callback)
         }
     }
@@ -1270,6 +1271,33 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         overScrollHandler?.bounceWithContentInset(KRRecyclerContentViewContentInset(kuiklyRenderContext, ci))
     }
 
+    /**
+     * Clear transient native state for Compose DSL reuse (not the native reuse pool).
+     */
+    private fun prepareForComposeReuse() {
+        // Reset scroll event dedup cache so restored offset fires a scroll event
+        contentOffsetX = -Float.MAX_VALUE
+        contentOffsetY = -Float.MAX_VALUE
+        // Reset drag state
+        isDragging = false
+        needFireWillEndDragEvent = true
+        // Reset nested scroll axes
+        mNestedScrollAxesTouch = SCROLL_AXIS_NONE
+        mNestedScrollAxesNonTouch = SCROLL_AXIS_NONE
+        // Reset nested scroll transient state
+        skipFlingIfNestOverScroll = false
+        lastScrollParentX = 0
+        lastScrollParentY = 0
+        // Reset position offset compensation
+        accumulatedPositionOffsetX = 0
+        accumulatedPositionOffsetY = 0
+        lastLayoutLeft = -1
+        lastLayoutTop = -1
+        // Reset OverScrollHandler transient state
+        overScrollHandler?.prepareForComposeReuse()
+    }
+
+
     private fun dispatchOnScroll(offsetX: Float, offsetY: Float) {
         for (listener in krRecyclerViewListeners) {
             listener.onScroll(offsetX, offsetY)
@@ -1417,6 +1445,8 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             "contentInsetWhenEndDrag" // 结束拖拽时，设置的ContentInset
         private const val METHOD_CONTENT_INSET = "contentInset" // 设置内容边距
         private const val METHOD_ABORT_CONTENT_OFFSET_ANIMATE = "abortContentOffsetAnimate" // 停止滚动动画
+        private const val METHOD_PREPARE_FOR_COMPOSE_REUSE = "prepareForComposeReuse" // Compose DSL 复用前重置瞬态
+
         private const val NESTED_SCROLL = "nestedScroll"
 
         private const val OFFSET_X = "offsetX"

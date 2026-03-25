@@ -1510,7 +1510,7 @@ internal class AppearPercentageEventPage : BasePager() {
 
 ## 基础方法
 
-### toImage方法<Badge text="支持鸿蒙/iOS/Android" type="warn"/>
+### toImage方法<Badge text="2.17.0 版本及以上 支持鸿蒙/iOS/Android" type="warn"/>
 
 获取View截图。该方法用于将当前View转换为图片，支持多种输出格式。
 

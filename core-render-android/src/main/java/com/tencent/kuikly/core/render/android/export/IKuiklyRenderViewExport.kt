@@ -261,12 +261,12 @@ interface IKuiklyRenderViewExport : IKuiklyRenderModuleExport, IKRViewDecoration
                 val cacheKey = "data:image_Md5_snapshot_${System.currentTimeMillis()}_${(Math.random() * 0xFFFFFF).toInt()}"
                 val drawable = BitmapDrawable(v.resources, bitmap)
                 val module = kuiklyRenderContext?.module<KRMemoryCacheModule>(KRMemoryCacheModule.MODULE_NAME)
+                if (module == null) {
+                    callback.invoke(mapOf("code" to -1, "message" to "snapshot failed: KRMemoryCacheModule is null"))
+                    return
+                }
                 module?.set(cacheKey, drawable)
                 callback.invoke(mapOf("code" to 0, "data" to cacheKey))
-                // 异步备份到磁盘
-                toImageExecutor.execute {
-                    saveBitmapToTempFile(v, bitmap)
-                }
             }
             else -> {
                 bitmap.recycle()

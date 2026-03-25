@@ -304,6 +304,13 @@
     if (!callback) {
         return;
     }
+    // 主线程保护
+    if (![NSThread isMainThread]) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self kr_toImageWithParams:params callback:callback];
+        });
+        return;
+    }
     
     NSDictionary *paramsDict = [params hr_stringToDictionary];
     NSString *type = paramsDict[@"type"] ?: @"cacheKey";
@@ -336,11 +343,8 @@
     }
     
     if ([type isEqualToString:@"dataUri"]) {
-        // base64 编码（异步）
-        __weak typeof(self) weakSelf = self;
+        // dataUri 模式：base64 编码，采用异步写入
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-            __strong typeof(weakSelf) strongSelf = weakSelf;
-            (void)strongSelf;
             NSData *pngData = UIImagePNGRepresentation(image);
             if (!pngData) {
                 dispatch_async(dispatch_get_main_queue(), ^{
@@ -361,7 +365,7 @@
             });
         });
     } else if ([type isEqualToString:@"file"]) {
-        // 保存到临时文件（异步）
+        // file 模式：磁盘存储，采用异步写入
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
             NSString *filePath = [KRView kr_saveSnapshotToTempFile:image];
             dispatch_async(dispatch_get_main_queue(), ^{
@@ -379,7 +383,7 @@
             });
         });
     } else if ([type isEqualToString:@"cacheKey"]) {
-        // cacheKey 模式：生成 data:image 前缀的 key，存入 KRMemoryCacheModule
+        // cacheKey 模式：内存缓存，主线程同步执行，存入 KRMemoryCacheModule
         KuiklyRenderView *rootView = self.hr_rootView;
         if (!rootView) {
             callback(@{
@@ -408,10 +412,6 @@
             @"data": cacheKey
         });
         
-        // 异步写入磁盘文件备份
-        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-            [KRView kr_saveSnapshotToTempFile:image];
-        });
     } else {
         callback(@{
             @"code": @(-1),

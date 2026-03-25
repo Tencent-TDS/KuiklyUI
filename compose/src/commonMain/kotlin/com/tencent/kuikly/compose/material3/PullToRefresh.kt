@@ -248,7 +248,14 @@ internal fun PullToRefreshItem(
 
             when (state.pullState) {
                 PullState.REFRESHING -> {
-                    // Do nothing during refresh, just update progress
+                    // Failsafe for StateFlow conflation: when isRefreshing round-trips
+                    // (true -> false) within a single frame interval, Compose may never
+                    // observe the intermediate true value. This leaves pullState stuck
+                    // in REFRESHING. Detect and force reset to IDLE.
+                    if (!state.isRefreshing) {
+                        state.updatePullState(PullState.IDLE)
+                        state.updateProgress(0f)
+                    }
                 }
                 PullState.IDLE -> {
                     if (isDragging && pullDistance >= refreshThresholdPx) {

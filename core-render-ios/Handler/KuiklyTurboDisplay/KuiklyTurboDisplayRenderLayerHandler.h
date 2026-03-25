@@ -15,6 +15,7 @@
 
 #import <Foundation/Foundation.h>
 #import "KuiklyRenderLayerProtocol.h"
+#import "KRTurboDisplayConfig.h"
 NS_ASSUME_NONNULL_BEGIN
 @class KuiklyRenderUIScheduler;
 @class KuiklyRenderCore;
@@ -25,8 +26,10 @@ NS_ASSUME_NONNULL_BEGIN
 @interface KuiklyTurboDisplayRenderLayerHandler : NSObject<KuiklyRenderLayerProtocol>
 /** ui调度器 */
 @property (nonatomic, weak) KuiklyRenderUIScheduler *uiScheduler;
+/** 额外缓存内容（JSON字符串），在init时从缓存读取，用于传递给Kotlin侧pageData */
+@property (nonatomic, copy, readonly, nullable) NSString *extraCacheContent;
 
-- (instancetype)initWithRootView:(UIView *)rootView contextParam:(KuiklyContextParam *)contextParam turboDisplayKey:(NSString *)turboDisplayKey;
+- (instancetype)initWithRootView:(UIView *)rootView contextParam:(KuiklyContextParam *)contextParam turboDisplayKey:(NSString *)turboDisplayKey turboDisplayConfig:( KRTurboDisplayConfig* _Nullable )turboDisplayConfig;
 
 
 @end

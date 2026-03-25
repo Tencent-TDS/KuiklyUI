@@ -14,6 +14,14 @@ maven("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
 ### What's Changed
 https://github.com/Tencent-TDS/KuiklyUI/releases/tag/2.16.0
 
+## [2026-03-04 Version 2.15.3](https://github.com/Tencent-TDS/KuiklyUI/tree/2.15.3)
+### What's Changed
+https://github.com/Tencent-TDS/KuiklyUI/releases/tag/2.15.3
+
+## [2026-02-05 Version 2.15.2](https://github.com/Tencent-TDS/KuiklyUI/tree/2.15.2)
+### What's Changed
+https://github.com/Tencent-TDS/KuiklyUI/releases/tag/2.15.2
+
 ## [2026-02-03 Version 2.15.1](https://github.com/Tencent-TDS/KuiklyUI/tree/2.15.1)
 ### What's Changed
 https://github.com/Tencent-TDS/KuiklyUI/releases/tag/2.15.1

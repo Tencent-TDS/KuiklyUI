@@ -282,7 +282,7 @@ fun String.toRgbColor(): String {
     }
     if (color == null) {
         // default by black
-        color = 0L
+        color = 0xFF000000L
     }
 
     // alpha channel, web platform should divide 255 to get the actual alpha

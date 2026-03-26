@@ -61,6 +61,8 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
   src: string = '';
   autoPlay: boolean = true;
   repeatCount = 0;
+  private hadSrcSet: boolean = false;
+  private hadStop: boolean = false;
   controller: IKRPAGViewController | undefined;
   static readonly VIEW_NAME = 'KRPAGView';
   private static readonly PROP_SRC = 'src';
@@ -73,6 +75,7 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
   private static readonly EVENT_ANIMATION_REPEAT = 'animationRepeat';
   private static readonly PROP_METHOD_PLAY = 'play';
   private static readonly PROP_METHOD_STOP = 'stop';
+  private static readonly PROP_METHOD_SET_PROGRESS = 'setProgress';
 
   private static readonly SCHEME_ASSETS = "assets://";
   private static readonly SCHEME_FILE = "files://";
@@ -89,10 +92,20 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
       this.animationCancelEvent = propValue as KuiklyRenderCallback;
     } else if (propKey == KRPAGView.EVENT_ANIMATION_REPEAT) {
       this.animationRepeatEvent = propValue as KuiklyRenderCallback;
-    } else {
-      if (propKey == KRPAGView.PROP_SRC) {
-        propValue = this.convertAssetsPathIfNeed(propValue as string)
+    } else if (propKey == KRPAGView.PROP_AUTO_PLAY) {
+      this.autoPlay = (propValue as number) == 1;
+      if (this.autoPlay) {
+        this.tryAutoPlay();
       }
+    } else if (propKey == KRPAGView.PROP_SRC) {
+      propValue = this.convertAssetsPathIfNeed(propValue as string);
+      this.src = propValue as string;
+      this.hadSrcSet = true;
+      if (this.controller) {
+        this.controller.setProp(propKey, propValue);
+      }
+      setTimeout(() => { this.tryAutoPlay(); });
+    } else {
       if (this.controller) {
         return this.controller?.setProp(propKey, propValue);
       } else {
@@ -106,9 +119,29 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
   call(method: string, params: KRAny, callback: KuiklyRenderCallback | null): void {
     console.log(`KRPAGView call method :${method}`);
     if (method == KRPAGView.PROP_METHOD_PLAY) {
+      this.autoPlay = true;
+      this.hadStop = false;
       this.controller?.play();
     } else if (method == KRPAGView.PROP_METHOD_STOP) {
-      this.controller?.stop();
+      this.autoPlay = false;
+      if (!this.hadStop) {
+        this.hadStop = true;
+        this.controller?.stop();
+      }
+    } else if (method == KRPAGView.PROP_METHOD_SET_PROGRESS) {
+      if (typeof params === 'string') {
+        const json: Record<string, Object> = JSON.parse(params as string) as Record<string, Object>;
+        const value = json['value'] as number;
+        if (value !== undefined) {
+          this.controller?.setProgress(value);
+        }
+      }
+    }
+  }
+
+  private tryAutoPlay(): void {
+    if (this.autoPlay && this.hadSrcSet && !this.hadStop) {
+      this.controller?.play();
     }
   }
 

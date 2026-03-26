@@ -246,7 +246,7 @@ Android Studio -> Build → Clean Project
 
 **场景2: 某个平台无法正常编译**
 
-**安卓**
+1. **安卓**
 
 Demo工程编译apk时提示mergeExtDexDebug错误
 
@@ -272,7 +272,7 @@ android {
 解决方案2：配置multidex https://developer.android.com/build/multidex
 
 
-**iOS**
+2. **iOS**
 
 对于iOS编译失败的问题，需要先看到对应的堆栈，判断是kotlin侧的问题还是iOS的问题
 
@@ -281,29 +281,29 @@ android {
 PhaseScriptExecution [CP-User]\ Build\ demo xxxx/build/ios/Pods.build/Debug-iphonesimulator/demo.build/Script-73397992185B075B068478632301D997.sh (in target 'demo' from project 'Pods')
 	Building workspace iosApp with scheme iosApp and configuration Debug
 ```
-KMP侧的问题：
+- KMP侧的问题：
+    - 往上查找具体的错误（大概率是语法错误/缓存问题）
 
-往上查找具体的错误（大概率是语法错误/缓存问题）
+- iOS侧的问题：
+    - 可能是产物没能正确集成，可以尝试删掉`podfile` 重新 `pod install --repo-update`，检查一下Podfile有没有引入shared产物
+    - 或者使用Xcode打开iOSApp，借助编译器提示修改具体的问题
 
-&nbsp;
 
-iOS侧的问题：
-- 可能是产物没能正确集成，可以尝试删掉`podfile` 重新 `pod install --repo-update`
-- 或者使用Xcode打开iOSApp，借助编译器提示修改具体的问题
+3. **鸿蒙**
 
-&nbsp;
+- 常见于没有使用支持鸿蒙的Kotlin版本，导致任务找不到
+    ```text
+    FAILURE: Build failed with an exception.
+    
+    * What went wrong:
+    Cannot locate tasks that match 'xxx:linkOhosArm64' as task 'linkOhosArm64' not found in project ':xxx'.
+    ```
 
-**鸿蒙**
+  另外，如果区分了鸿蒙的gradle配置，要注意添加了依赖要在两份配置都做对应的添加以及在鸿蒙配置上添加支持鸿蒙的版本
+    - 确认是否使用了支持鸿蒙的Koltin版本
+- 鸿蒙编译Kuikly Compose报错IR lowering failed
+    - 通常是有KMP依赖冲突导致的，建议通过`./gradlew xxx:dependencies`查看KMP模块是否存在依赖被篡改的情况，需要修正为正确的版本。
 
-常见于没有使用支持鸿蒙的Kotlin版本，导致任务找不到
-```text
-FAILURE: Build failed with an exception.
-
-* What went wrong:
-Cannot locate tasks that match 'xxx:linkOhosArm64' as task 'linkOhosArm64' not found in project ':xxx'.
-```
-
-另外，如果区分了鸿蒙的gradle配置，要注意添加了依赖要在两份配置都做对应的添加以及在鸿蒙配置上添加支持鸿蒙的版本
 
 ### kuiklyCoreEntry类/页面找不到
 Kuikly在启动编译各平台产物过程前，会通过ksp任务，生成对应端的`KuiklyCoreEntry`入口文件，文件在 `模块名/generared/ksp/架构/xxx/KuiklyCoreEntry.kt`

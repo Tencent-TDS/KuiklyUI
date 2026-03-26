@@ -200,6 +200,9 @@ void KRSnapshotManager::TakeSnapshot(const std::string &instance_id, const std::
             if (isNapiValue && strongView) {
                 auto paramsMap = params->toMap();
                 std::string type = paramsMap["type"]->toString();
+                if (type.empty()) {
+                    type = "cacheKey";
+                }
                 NapiValue napiValue = result->toNapiValue();
                 auto env = napiValue.env;
                 ArkTS arkTs(napiValue.env);

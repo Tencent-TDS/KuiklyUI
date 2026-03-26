@@ -213,6 +213,56 @@ class ViewPropExternalHandler : IKuiklyRenderViewPropExternalHandler {
     }
 ```
 
+### 内置示例：`cssClass`
+
+`cssClass` 是一个 H5 平台内置的自定义属性。它的实现方式与本页介绍的外部属性处理器一致：Kuikly 侧通过自定义属性把 class 名传给宿主，H5 宿主再将这些 class 添加到对应 DOM 元素的 `classList` 上。
+
+Kuikly 侧可以先定义一个扩展属性：
+
+```kotlin
+fun Attr.cssClass(value: String) {
+    "cssClass" with value
+}
+```
+
+然后在组件中使用：
+
+```kotlin
+View {
+    attr {
+        size(pagerData.pageViewWidth, 100f)
+        backgroundColor(Color.WHITE)
+        cssClass("test-single-class")
+    }
+}
+
+Text {
+    attr {
+        text("Single CSS Class: .test-single-class")
+        fontSize(16f)
+        cssClass("test-text-class")
+    }
+}
+```
+
+`cssClass` 支持以下用法：
+
+```kotlin
+cssClass("test-single-class")
+cssClass("test-multi-class-1 test-multi-class-2")
+cssClass("  test-padded-class  ")
+```
+
+说明：
+
+* `cssClass` 仅用于 H5 渲染，为最终 DOM 节点附加 CSS class。
+* 多个 class 使用空格分隔，前后空白会自动忽略。
+* 这个能力适合补充 H5 特有样式，或接入宿主已有的 CSS 样式体系。
+
+完整示例可参考：
+
+* `demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/CssClassTestPage.kt`
+
 
 ## 微信小程序
 宿主端实现自定义属性Handler，可以处理自定义属性

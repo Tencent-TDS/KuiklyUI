@@ -45,6 +45,56 @@ kotlin 2.0 以上运行: ./gradlew :h5App:jsBrowserDevelopmentRun -t
 项目构建完成之后会生成 h5App.js，我们在 resources/index.html 中对其进行引入。并且在 h5App.js 之前进行 demo 项目 js 的引入。在 main 方法中处理 URL 参数、路由参数及宿主的相关参数。
 然后通过 ``KuiklyRenderView.init`` 方法完成 ``KuiklyRenderView`` 的初始化，并在初始化完成后创建 kuikly view
 
+## 使用 `cssClass` 为 DOM 节点附加 CSS 类名
+
+H5 平台支持通过自定义属性 `cssClass` 给 Kuikly 渲染出来的 DOM 节点附加 CSS class，方便复用宿主侧样式体系，或补充 H5 特有样式。
+
+先在 Kuikly 侧定义扩展属性：
+
+```kotlin
+fun Attr.cssClass(value: String) {
+    "cssClass" with value
+}
+```
+
+然后在组件中使用：
+
+```kotlin
+View {
+    attr {
+        size(pagerData.pageViewWidth, 100f)
+        backgroundColor(Color.WHITE)
+        cssClass("test-single-class")
+    }
+}
+
+Text {
+    attr {
+        text("Single CSS Class: .test-single-class")
+        fontSize(16f)
+        cssClass("test-text-class")
+    }
+}
+```
+
+也支持一次传多个 class：
+
+```kotlin
+cssClass("test-multi-class-1 test-multi-class-2")
+cssClass("  test-padded-class  ")
+```
+
+说明：
+
+* `cssClass` 仅在 H5 渲染生效。
+* 多个 class 使用空格分隔，前后空白会被自动忽略。
+* 该属性最终会映射到 DOM 元素的 `classList`。
+
+完整示例可参考：
+
+* `demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/CssClassTestPage.kt`
+* [组件自定义属性](./view-external-prop.md)
+
 ## 项目发布
 
 当我们在开发环境验证完成之后，需要构建生产环境的产物来进行项目发布

@@ -33,7 +33,7 @@ import com.tencent.kuikly.core.annotations.Page
 import kotlinx.coroutines.launch
 
 @Page("NavigationDrawerDemo")
-class NavigationDrawerDemo : ComposeContainer() {
+class ModalNavigationDrawerDemo : ComposeContainer() {
 
     companion object {
         private const val TAG = "NavigationDrawerDemo"
@@ -66,6 +66,7 @@ class NavigationDrawerDemo : ComposeContainer() {
         ModalNavigationDrawer(
             drawerState = drawerState,
             drawerWidth = drawerWidth,
+            gesturesEnabled = true,
             drawerContent = {
                 ModalDrawerSheet(
                     drawerWidth = drawerWidth
@@ -86,18 +87,18 @@ class NavigationDrawerDemo : ComposeContainer() {
                                 Column(
                                     modifier = Modifier.padding(16.dp)
                                 ) {
-                                    Text(
-                                        text = "Native Style Drawer",
-                                        fontSize = 24.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "anchoredDraggable on Root Box",
-                                        fontSize = 14.sp,
-                                        color = Color.White.copy(alpha = 0.7f)
-                                    )
+                            Text(
+                                text = "Modal Navigation Drawer",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "anchoredDraggable on Root Box",
+                                fontSize = 14.sp,
+                                color = Color.White.copy(alpha = 0.7f)
+                            )
                                 }
                             }
                         }
@@ -243,11 +244,12 @@ class NavigationDrawerDemo : ComposeContainer() {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
+                        .height(72.dp)
                         .background(Color(0xFF1565C0)),
-                    contentAlignment = Alignment.CenterStart
+                    contentAlignment = Alignment.BottomStart
                 ) {
                     Row(
+                        modifier = Modifier.padding(bottom = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Menu button
@@ -266,7 +268,7 @@ class NavigationDrawerDemo : ComposeContainer() {
                             )
                         }
                         Text(
-                            text = "Native Style Drawer",
+                            text = "ModalNavigationDrawer Demo",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -336,7 +338,7 @@ class NavigationDrawerDemo : ComposeContainer() {
                             Text("isClosed: ${drawerState.isClosed}")
                             Text("isAnimating: ${drawerState.isAnimationRunning}")
                             Text("progress: ${drawerState.progress}")
-                            Text("offsetX: ${if (drawerState.offset.isNaN()) -1f else drawerState.offset}")
+                            Text("offsetX: ${if (drawerState.currentOffset.isNaN()) -1f else drawerState.currentOffset}")
                             Text("currentValue: ${drawerState.currentValue}")
                             Text("targetValue: ${drawerState.targetValue}")
                         }
@@ -361,7 +363,7 @@ class NavigationDrawerDemo : ComposeContainer() {
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "本页面使用 NativeStyleModalNavigationDrawer",
+                                text = "本页面使用 ModalNavigationDrawer",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF1565C0)
@@ -373,7 +375,7 @@ class NavigationDrawerDemo : ComposeContainer() {
                             Text("❌ 不支持 backPressBoundary 边界排除", fontSize = 13.sp)
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "对比: DrawerDemo 使用 ModalNavigationDrawer",
+                                text = "对比: DrawerLegacyDemo 使用 ModalNavigationDrawerLegacy",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFE65100)

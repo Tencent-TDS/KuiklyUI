@@ -20,7 +20,7 @@ import com.tencent.kuikly.core.annotations.Page
 import kotlinx.coroutines.launch
 
 @Page("DrawerPagerTestDemo")
-class DrawerPagerTestDemo : ComposeContainer() {
+class ModalNavigationDrawerPagerTestDemo : ComposeContainer() {
 
     override fun willInit() {
         super.willInit()
@@ -191,7 +191,7 @@ class DrawerPagerTestDemo : ComposeContainer() {
                             Text("isOpen: ${drawerState.isOpen}")
                             Text("isClosed: ${drawerState.isClosed}")
                             Text("progress: ${drawerState.progress}")
-                            Text("offsetX: ${if (drawerState.offset.isNaN()) -1f else drawerState.offset}")
+                            Text("offsetX: ${if (drawerState.currentOffset.isNaN()) -1f else drawerState.currentOffset}")
                         }
                     }
 

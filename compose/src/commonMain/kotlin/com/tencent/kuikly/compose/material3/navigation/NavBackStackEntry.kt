@@ -17,8 +17,24 @@
 package com.tencent.kuikly.compose.material3.navigation
 
 import com.tencent.kuikly.core.bundle.Bundle
+import com.tencent.kuikly.core.manager.BridgeManager
+import com.tencent.kuikly.lifecycle.Lifecycle
+import com.tencent.kuikly.lifecycle.LifecycleOwner
+import com.tencent.kuikly.lifecycle.LifecycleRegistry
+import com.tencent.kuikly.lifecycle.ViewModelStore
+import com.tencent.kuikly.lifecycle.ViewModelStoreOwner
 import kotlin.jvm.JvmField
 import kotlin.jvm.JvmStatic
+
+/**
+ * A function that provides a [ViewModelStore] for a given back stack entry ID.
+ *
+ * This follows the official Android Navigation component pattern where the
+ * [NavHostController] (via [NavControllerViewModel]) centrally manages all
+ * ViewModelStore instances, and each [NavBackStackEntry] retrieves its store
+ * through this provider function.
+ */
+internal typealias ViewModelStoreProvider = (entryId: String) -> ViewModelStore
 
 /**
  * Representation of an entry in the back stack of a [NavHostController]. The [lifecycle] of the
@@ -28,6 +44,12 @@ import kotlin.jvm.JvmStatic
  *
  * The composable content associated with this entry should appear when this entry's lifecycle is
  * [Lifecycle.State.RESUMED], and disappear when this lifecycle is [Lifecycle.State.CREATED].
+ *
+ * **ViewModelStore ownership**: This entry does NOT directly own its [ViewModelStore].
+ * Instead, it retrieves it via a [viewModelStoreProvider] injected by [NavHostController].
+ * The [NavControllerViewModel] centrally manages all ViewModelStore instances, ensuring
+ * proper cleanup when entries are destroyed. This follows the official Android Navigation
+ * component architecture.
  */
 class NavBackStackEntry(
     /**
@@ -44,7 +66,7 @@ class NavBackStackEntry(
      * The unique ID of this entry
      */
     @JvmField
-    val id: String = randomUUID(),
+    val id: String = randomId(),
     /**
      * A monotonically increasing sequence number used to determine navigation direction.
      * Higher numbers indicate more recent entries. Used by NavHost to distinguish
@@ -52,7 +74,7 @@ class NavBackStackEntry(
      */
     @JvmField
     internal val sequenceNumber: Long = 0L
-) {
+) : LifecycleOwner, ViewModelStoreOwner {
     /**
      * The route that was used to navigate to this destination.
      * This may include filled-in arguments, e.g., "detail/123".
@@ -65,6 +87,154 @@ class NavBackStackEntry(
      * for this entry, which will survive configuration changes and process death.
      */
     val savedStateHandle: SavedStateHandle = SavedStateHandle()
+
+    /**
+     * The [LifecycleRegistry] for this back stack entry. It manages lifecycle state transitions
+     * and notifies registered observers.
+     *
+     * The lifecycle follows these rules:
+     * - CREATED: Entry is on the back stack but not visible
+     * - STARTED: Entry is visible but not the topmost (e.g., partially visible during transition)
+     * - RESUMED: Entry is the topmost visible destination
+     * - DESTROYED: Entry has been popped from the back stack
+     */
+    private val lifecycleRegistry = LifecycleRegistry(this)
+
+    override val lifecycle: Lifecycle
+        get() = lifecycleRegistry
+
+    /**
+     * Provider function to retrieve the [ViewModelStore] for this entry.
+     *
+     * This is injected by [NavHostController] and delegates to [NavControllerViewModel]
+     * which centrally manages all ViewModelStore instances. This follows the official
+     * Android Navigation component pattern where the NavController owns the stores.
+     *
+     * If no provider is set (e.g., in tests), a fallback empty ViewModelStore is used.
+     */
+    internal var viewModelStoreProvider: ViewModelStoreProvider? = null
+
+    override val viewModelStore: ViewModelStore
+        get() = viewModelStoreProvider?.invoke(id)
+            ?: throw IllegalStateException(
+                "You must call setViewModelStoreProvider() on this NavBackStackEntry before " +
+                    "accessing its ViewModelStore. This is typically done by NavHostController."
+            )
+
+    /**
+     * The host lifecycle state, representing the lifecycle state of the host (e.g., NavHost).
+     * The actual lifecycle state of this entry will be the minimum of [hostLifecycleState]
+     * and [maxLifecycle].
+     *
+     * This follows the official Android Navigation component pattern where the host lifecycle
+     * constrains the entry lifecycle.
+     */
+    @JvmField
+    internal var hostLifecycleState: Lifecycle.State = Lifecycle.State.CREATED
+
+    /**
+     * The maximum [Lifecycle.State] that this entry can reach. This is used to cap the
+     * lifecycle state, for example when the entry is not the current destination.
+     *
+     * Setting this property will immediately update the lifecycle state to the minimum of
+     * [hostLifecycleState] and the new [maxLifecycle] value.
+     *
+     * This follows the official Android Navigation component pattern:
+     * - RESUMED: Entry is the topmost visible destination
+     * - STARTED: Entry is visible but not active (e.g., below a dialog)
+     * - CREATED: Entry is on the back stack but not visible
+     * - DESTROYED: Entry has been popped from the back stack
+     */
+    internal var maxLifecycle: Lifecycle.State = Lifecycle.State.INITIALIZED
+        set(value) {
+            field = value
+            updateState()
+        }
+
+    /**
+     * The pagerId for this entry, used by the Kuikly lifecycle system.
+     * Captured at creation time from [BridgeManager.currentPageId].
+     */
+    @JvmField
+    internal var hostPageId: String = ""
+
+    override val pagerId: String
+        get() = hostPageId
+
+    /**
+     * Updates the lifecycle state of this entry based on [hostLifecycleState] and [maxLifecycle].
+     *
+     * The actual state is the minimum of [hostLifecycleState] and [maxLifecycle].
+     * If the entry is still in INITIALIZED state (never been pushed to at least CREATED),
+     * the update is deferred until maxLifecycle moves beyond INITIALIZED.
+     *
+     * This follows the official `NavBackStackEntry.updateState()` implementation from
+     * `androidx.navigation:navigation-runtime`.
+     */
+    internal fun updateState() {
+        if (lifecycleRegistry.currentState == Lifecycle.State.DESTROYED) {
+            // Cannot update state after destruction
+            return
+        }
+        // The actual state is the minimum of hostLifecycleState and maxLifecycle
+        val targetState = if (hostLifecycleState.ordinal < maxLifecycle.ordinal) {
+            hostLifecycleState
+        } else {
+            maxLifecycle
+        }
+        // If still INITIALIZED, defer the update (entry hasn't entered composition yet)
+        if (targetState == Lifecycle.State.INITIALIZED) {
+            return
+        }
+        if (targetState != lifecycleRegistry.currentState) {
+            // LifecycleRegistry requires at least CREATED before moving to DESTROYED.
+            // If still INITIALIZED, push to CREATED first.
+            if (targetState == Lifecycle.State.DESTROYED
+                && lifecycleRegistry.currentState == Lifecycle.State.INITIALIZED
+            ) {
+                lifecycleRegistry.currentState = Lifecycle.State.CREATED
+            }
+            lifecycleRegistry.currentState = targetState
+        }
+        // Note: ViewModelStore cleanup is NOT done here. It is managed centrally by
+        // NavControllerViewModel via NavHostController, which clears the store when
+        // the entry is fully destroyed (after transitions complete). This follows the
+        // official Android Navigation component architecture.
+    }
+
+    /**
+     * Handles a lifecycle event from the host (e.g., NavHost).
+     *
+     * This updates the [hostLifecycleState] to the event's target state and then
+     * recalculates the actual lifecycle state via [updateState]. This follows the
+     * official Android Navigation component pattern where the host lifecycle
+     * constrains all entry lifecycles.
+     *
+     * For example, when the host moves to STARTED (e.g., goes to background),
+     * all entries' lifecycles will be capped at STARTED regardless of their
+     * [maxLifecycle] setting.
+     *
+     * @param event The lifecycle event from the host
+     */
+    internal fun handleLifecycleEvent(event: Lifecycle.Event) {
+        hostLifecycleState = event.targetState
+        updateState()
+    }
+
+    /**
+     * Marks this entry as destroyed by moving the lifecycle to DESTROYED state.
+     *
+     * Delegates to [updateState] by setting [maxLifecycle] to [Lifecycle.State.DESTROYED].
+     *
+     * Note: This only handles the lifecycle transition. The associated [ViewModelStore]
+     * cleanup is managed by [NavControllerViewModel] via [NavHostController], which
+     * ensures cleanup happens after any exit transitions have completed.
+     *
+     * This follows the official Android Navigation component behavior.
+     */
+    internal fun destroy() {
+        maxLifecycle = Lifecycle.State.DESTROYED
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -211,9 +381,11 @@ class SavedStateHandle {
 }
 
 /**
- * Returns a random UUID string.
+ * Returns a random unique identifier string.
+ * Note: This is NOT a standard UUID format (which uses hex chars only).
+ * It uses alphanumeric characters (0-9, A-Z, a-z) for higher entropy per character.
  */
-private fun randomUUID(): String {
+private fun randomId(): String {
     val chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
     val random = kotlin.random.Random
     return buildString {

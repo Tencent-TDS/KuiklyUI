@@ -10,11 +10,24 @@
 
 ### refreshEnable
 
-是否启用下拉刷新，默认为 `false`
+是否启用下拉刷新，默认为 `true`
 
 | 属性名           | 描述                          | 类型    |
 |---------------| ----------------------------- | ------- |
 | refreshEnable | 是否启用下拉刷新 | Boolean |
+
+
+```kotlin
+    Refresh {
+    ...
+    attr {
+        ...
+        refreshEnable = true
+        ...
+    }
+}
+
+```
 
 ## 事件
 

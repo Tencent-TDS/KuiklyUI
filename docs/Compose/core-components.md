@@ -11,7 +11,7 @@ Kuikly 基于 Compose 1.7 的能力做了对齐，下列为当前支持的常用
 
 ### 文本与输入
 - **Text** - 文本显示（支持 `style` / `color` / `maxLines` 等）
-- **TextField** / **OutlinedTextField** - 文本输入框（支持 label / placeholder / leadingIcon / trailingIcon 等）
+- **TextField** - 文本输入框（支持 label / placeholder / leadingIcon / trailingIcon 等）
 
 ### 图片展示
 - **Image** - 图片组件，支持：  
@@ -372,7 +372,7 @@ fun ScrollableWithScrollToTop() {
 以下 Demo 展示了核心组件的典型用法，可在开源仓库中查看完整代码：
 
 - [`MaterialDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/MaterialDemo.kt)：Material3 组件综合示例（包含 Checkbox、Switch、Slider、ProgressIndicator、Snackbar 等）
-- [`TextFieldDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/TextFieldDemo.kt)：`TextField` / `OutlinedTextField` 组件示例
+- [`TextFieldDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/TextFieldDemo.kt)：`TextField` 组件示例
 - [`TextDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/TextDemo.kt)：`Text` 组件示例
 - [`ImageDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/ImageDemo.kt)：`Image` 组件示例（包含本地图片和网络图片加载）
 - [`AppBarDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/AppBarDemo.kt)：`TopAppBar` / `CenterAlignedTopAppBar` 组件示例

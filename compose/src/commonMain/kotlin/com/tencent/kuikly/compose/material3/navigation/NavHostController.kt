@@ -23,6 +23,9 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import com.tencent.kuikly.core.bundle.Bundle
+import com.tencent.kuikly.lifecycle.Lifecycle
+import com.tencent.kuikly.lifecycle.LifecycleEventObserver
+import com.tencent.kuikly.lifecycle.LifecycleOwner
 
 /**
  * Controller for the [NavHost] composable. It manages a back stack of [NavBackStackEntry]
@@ -34,12 +37,18 @@ import com.tencent.kuikly.core.bundle.Bundle
  * It also manages the [NavigatorProvider] which holds all registered [Navigator]s,
  * and supports [NavGraph] hierarchies, deep link navigation, and state save/restore.
  *
+ * **ViewModelStore management**: This controller uses [NavControllerViewModel] to centrally
+ * manage all [ViewModelStore] instances for each [NavBackStackEntry]. Each entry retrieves
+ * its ViewModelStore via a provider function injected by this controller, following the
+ * official Android Navigation component architecture.
+ *
  * This implementation does not depend on any Android-specific APIs and can run in commonMain.
  *
  * @see NavHost
  * @see NavGraphBuilder
  * @see rememberNavController
  * @see NavigatorProvider
+ * @see NavControllerViewModel
  */
 @Stable
 class NavHostController internal constructor() {
@@ -74,13 +83,103 @@ class NavHostController internal constructor() {
      */
     private fun initializeNavigatorStates() {
         // Initialize DialogNavigator state
-        runCatching {
-            val dialogNavigator = navigatorProvider.getNavigator<DialogNavigator>(DialogNavigator.NAME)
-            if (dialogNavigator._state == null) {
-                dialogNavigator._state = NavigatorState()
+        val dialogNavigator = navigatorProvider.navigators[DialogNavigator.NAME] as? DialogNavigator
+        if (dialogNavigator != null && dialogNavigator._state == null) {
+            dialogNavigator._state = NavigatorState()
+        }
+    }
+
+    /**
+     * Centralized manager for [ViewModelStore] instances associated with [NavBackStackEntry]s.
+     *
+     * This follows the official Android Navigation component pattern where
+     * `NavControllerViewModel` holds all ViewModelStore instances keyed by entry ID.
+     * Each [NavBackStackEntry] retrieves its ViewModelStore through a provider function
+     * that delegates to this manager.
+     *
+     * @see NavControllerViewModel
+     * @see NavBackStackEntry.viewModelStoreProvider
+     */
+    internal val viewModelStoreManager = NavControllerViewModel()
+
+    /**
+     * The current host lifecycle state. Updated via [setLifecycleOwner].
+     *
+     * This constrains all entry lifecycles: each entry's actual lifecycle state is
+     * `min(hostLifecycleState, maxLifecycle)`. When the host goes to background
+     * (STARTED), all entries are capped at STARTED.
+     *
+     * This follows the official Android Navigation component pattern.
+     */
+    internal var hostLifecycleState: Lifecycle.State = Lifecycle.State.CREATED
+        private set
+
+    /**
+     * The pagerId of the host page, obtained from the host [LifecycleOwner.pagerId]
+     * (provided by ComposeContainer/Pager via CompositionLocalProvider).
+     * Automatically set in [setLifecycleOwner] and stamped onto every [NavBackStackEntry].
+     */
+    internal var hostPageId: String = ""
+        private set
+
+    /**
+     * The lifecycle owner of the host (e.g., NavHost's LocalLifecycleOwner).
+     */
+    private var lifecycleOwner: LifecycleOwner? = null
+
+    /**
+     * Observer that syncs the host lifecycle state to all back stack entries.
+     *
+     * When the host lifecycle changes (e.g., goes to background), this observer
+     * updates [hostLifecycleState] and propagates the event to all entries.
+     *
+     * This follows the official `NavController.lifecycleObserver` implementation.
+     */
+    private val lifecycleObserver = LifecycleEventObserver { _, event ->
+        hostLifecycleState = event.targetState
+        if (graph != null) {
+            for (entry in backStack) {
+                entry.handleLifecycleEvent(event)
+            }
+            // Also propagate lifecycle events to entries in exit transitions,
+            // so they are properly constrained when the host goes to background.
+            for (entry in transitionsInProgress) {
+                entry.handleLifecycleEvent(event)
             }
         }
     }
+
+    /**
+     * Sets the [LifecycleOwner] for this controller.
+     *
+     * The controller will observe the owner's lifecycle and sync the host lifecycle
+     * state to all back stack entries. This ensures entries are properly paused/resumed
+     * when the host goes to background/foreground.
+     *
+     * This follows the official `NavController.setLifecycleOwner()` implementation.
+     *
+     * @param owner The lifecycle owner of the host (typically from `LocalLifecycleOwner`)
+     */
+    fun setLifecycleOwner(owner: LifecycleOwner) {
+        if (owner == lifecycleOwner) {
+            return
+        }
+        lifecycleOwner?.lifecycle?.removeObserver(lifecycleObserver)
+        lifecycleOwner = owner
+        hostPageId = owner.pagerId
+        owner.lifecycle.addObserver(lifecycleObserver)
+    }
+
+    /**
+     * Entries that are currently in a transition (exit animation).
+     *
+     * When an entry is popped, if it's still visible during an exit animation,
+     * it's added here instead of being immediately destroyed. Once the transition
+     * completes, [markTransitionComplete] is called to finalize the destruction.
+     *
+     * This follows the official `NavigatorState.transitionsInProgress` pattern.
+     */
+    internal val transitionsInProgress = mutableSetOf<NavBackStackEntry>()
 
     /**
      * Saved state for destinations that were popped with saveState = true.
@@ -165,36 +264,47 @@ class NavHostController internal constructor() {
         if (options.restoreState) {
             val restored = savedStates.remove(destination.route)
             if (restored != null) {
+                // Re-inject viewModelStoreProvider and sync hostLifecycleState for restored entries
+                restored.forEach { restoredEntry ->
+                    if (restoredEntry.viewModelStoreProvider == null) {
+                        restoredEntry.viewModelStoreProvider = { entryId ->
+                            viewModelStoreManager.getViewModelStore(entryId)
+                        }
+                    }
+                    // Sync the host lifecycle state so restored entries are properly constrained
+                    restoredEntry.hostLifecycleState = hostLifecycleState
+                }
                 backStack.addAll(restored)
+                // Update lifecycle states for restored entries (official pattern:
+                // dispatchOnDestinationChanged() is always called after restoreState)
+                updateBackStackLifecycles()
                 return
             }
         }
 
-        val entry = NavBackStackEntry.create(
-            destination = destination,
-            arguments = args
-        )
+        val entry = createEntry(destination, args)
         entry.route = resolvedRoute
 
         // Handle launchSingleTop: only deduplicate if the current top is the same destination
         if (options.launchSingleTop) {
             val topEntry = backStack.lastOrNull()
             if (topEntry != null && topEntry.destination.route == destination.route) {
-                // Replace the top entry with new arguments (but keep the same sequence number for consistency)
-                backStack.removeAt(backStack.size - 1)
+                // Destroy the old entry before replacing
+                val oldEntry = backStack.removeAt(backStack.size - 1)
+                destroyEntry(oldEntry)
                 backStack.add(entry)
+                updateBackStackLifecycles()
                 return
             }
         }
 
         backStack.add(entry)
+        updateBackStackLifecycles()
         
         // If this is a dialog destination, also push to DialogNavigator's backStack
         if (destination.navigatorName == DialogNavigator.NAME) {
-            runCatching {
-                val dialogNavigator = navigatorProvider.getNavigator<DialogNavigator>(DialogNavigator.NAME)
-                dialogNavigator.dialogState.push(entry)
-            }
+            val dialogNavigator = navigatorProvider.navigators[DialogNavigator.NAME] as? DialogNavigator
+            dialogNavigator?.dialogState?.push(entry)
         }
     }
 
@@ -214,14 +324,27 @@ class NavHostController internal constructor() {
     fun popBackStack(): Boolean {
         if (backStack.size <= 1) return false
         val poppedEntry = backStack.removeAt(backStack.size - 1)
+        val isDialog = poppedEntry.destination.navigatorName == DialogNavigator.NAME
         
-        // If popped entry was a dialog, also pop from DialogNavigator's backStack
-        if (poppedEntry.destination.navigatorName == DialogNavigator.NAME) {
-            runCatching {
-                val dialogNavigator = navigatorProvider.getNavigator<DialogNavigator>(DialogNavigator.NAME)
-                dialogNavigator.dialogState.pop(poppedEntry, false)
+        if (isDialog) {
+            // Dialog entries don't have exit animations via AnimatedContent,
+            // so destroy them immediately instead of preparing for transition.
+            destroyEntry(poppedEntry)
+            // Also pop from DialogNavigator's backStack
+            val dialogNavigator = navigatorProvider.navigators[DialogNavigator.NAME] as? DialogNavigator
+            dialogNavigator?.dialogState?.pop(poppedEntry, false)
+        } else {
+            // Non-dialog entries: move to CREATED and prepare for exit transition.
+            // The entry will be fully destroyed when markTransitionComplete() is called
+            // after the exit animation finishes. This follows the official pattern.
+            if (poppedEntry.lifecycle.currentState.isAtLeast(Lifecycle.State.CREATED)) {
+                poppedEntry.maxLifecycle = Lifecycle.State.CREATED
             }
+            prepareForTransition(poppedEntry)
         }
+        
+        // Update lifecycle states for remaining entries
+        updateBackStackLifecycles()
         
         return true
     }
@@ -285,25 +408,21 @@ class NavHostController internal constructor() {
         for (dest in rootGraph) {
             val args = dest.matchDeepLink(uri)
             if (args != null) {
-                val entry = NavBackStackEntry.create(
-                    destination = dest,
-                    arguments = args
-                )
+                val entry = createEntry(dest, args)
                 entry.route = dest.route
                 backStack.add(entry)
+                updateBackStackLifecycles()
                 return true
             }
             // Also check nested graphs
             if (dest is NavGraph) {
                 for (nestedDest in dest) {
-                val nestedArgs = nestedDest.matchDeepLink(uri)
+                    val nestedArgs = nestedDest.matchDeepLink(uri)
                     if (nestedArgs != null) {
-                        val nestedEntry = NavBackStackEntry.create(
-                            destination = nestedDest,
-                            arguments = nestedArgs
-                        )
+                        val nestedEntry = createEntry(nestedDest, nestedArgs)
                         nestedEntry.route = nestedDest.route
                         backStack.add(nestedEntry)
+                        updateBackStackLifecycles()
                         return true
                     }
                 }
@@ -344,6 +463,26 @@ class NavHostController internal constructor() {
                     val currentDest = backStack.last().destination.route ?: ""
                     savedStates[currentDest] = backStack.toList()
                 }
+                if (saveState) {
+                    // Cap lifecycle at CREATED for saved entries
+                    backStack.forEach {
+                        if (it.lifecycle.currentState.isAtLeast(Lifecycle.State.CREATED)) {
+                            it.maxLifecycle = Lifecycle.State.CREATED
+                        }
+                    }
+                } else {
+                    backStack.forEach {
+                        val isDialog = it.destination.navigatorName == DialogNavigator.NAME
+                        if (isDialog) {
+                            destroyEntry(it)
+                        } else {
+                            if (it.lifecycle.currentState.isAtLeast(Lifecycle.State.CREATED)) {
+                                it.maxLifecycle = Lifecycle.State.CREATED
+                            }
+                            prepareForTransition(it)
+                        }
+                    }
+                }
                 backStack.clear()
             } else if (backStack.size > 1) {
                 if (saveState) {
@@ -351,9 +490,24 @@ class NavHostController internal constructor() {
                     savedStates[currentDest] = backStack.drop(1).toList()
                 }
                 while (backStack.size > 1) {
-                    backStack.removeAt(backStack.size - 1)
+                    val poppedEntry = backStack.removeAt(backStack.size - 1)
+                    val isDialog = poppedEntry.destination.navigatorName == DialogNavigator.NAME
+                    if (saveState) {
+                        // Cap lifecycle at CREATED for saved entries
+                        if (poppedEntry.lifecycle.currentState.isAtLeast(Lifecycle.State.CREATED)) {
+                            poppedEntry.maxLifecycle = Lifecycle.State.CREATED
+                        }
+                    } else if (isDialog) {
+                        destroyEntry(poppedEntry)
+                    } else {
+                        if (poppedEntry.lifecycle.currentState.isAtLeast(Lifecycle.State.CREATED)) {
+                            poppedEntry.maxLifecycle = Lifecycle.State.CREATED
+                        }
+                        prepareForTransition(poppedEntry)
+                    }
                 }
             }
+            updateBackStackLifecycles()
             return true
         }
 
@@ -373,14 +527,189 @@ class NavHostController internal constructor() {
         // Pop entries and update DialogNavigator's backStack
         while (backStack.size > removeFrom) {
             val poppedEntry = backStack.removeAt(backStack.size - 1)
-            if (poppedEntry.destination.navigatorName == DialogNavigator.NAME) {
-                runCatching {
-                    val dialogNavigator = navigatorProvider.getNavigator<DialogNavigator>(DialogNavigator.NAME)
-                    dialogNavigator.dialogState.pop(poppedEntry, false)
+            val isDialog = poppedEntry.destination.navigatorName == DialogNavigator.NAME
+            if (saveState) {
+                // When saving state, cap lifecycle at CREATED so the entry is no longer active,
+                // but don't destroy it since it may be restored later.
+                if (poppedEntry.lifecycle.currentState.isAtLeast(Lifecycle.State.CREATED)) {
+                    poppedEntry.maxLifecycle = Lifecycle.State.CREATED
+                }
+            } else if (isDialog) {
+                // Dialog entries don't have exit animations, destroy immediately
+                destroyEntry(poppedEntry)
+            } else {
+                // Non-dialog entries: move to CREATED and prepare for exit transition
+                if (poppedEntry.lifecycle.currentState.isAtLeast(Lifecycle.State.CREATED)) {
+                    poppedEntry.maxLifecycle = Lifecycle.State.CREATED
+                }
+                prepareForTransition(poppedEntry)
+            }
+            if (isDialog) {
+                val dialogNavigator = navigatorProvider.navigators[DialogNavigator.NAME] as? DialogNavigator
+                dialogNavigator?.dialogState?.pop(poppedEntry, false)
+            }
+        }
+        // Update lifecycle states for remaining entries
+        updateBackStackLifecycles()
+        return true
+    }
+
+    /**
+     * Updates the lifecycle states of all entries in the back stack by setting their
+     * [NavBackStackEntry.maxLifecycle] property.
+     *
+     * The rules follow the official Android Navigation component behavior:
+     * - The topmost non-dialog entry: RESUMED if no dialog above it, STARTED otherwise
+     * - Dialog entries: RESUMED for the topmost, STARTED for others
+     * - All other non-dialog entries below the top: CREATED (not visible)
+     *
+     * Setting [NavBackStackEntry.maxLifecycle] will automatically trigger
+     * [NavBackStackEntry.updateState] to compute the actual lifecycle state as
+     * `min(hostLifecycleState, maxLifecycle)`.
+     */
+    internal fun updateBackStackLifecycles() {
+        if (backStack.isEmpty()) return
+
+        // Find the topmost non-dialog entry
+        val topNonDialogIndex = backStack.indexOfLast { entry ->
+            entry.destination.navigatorName != DialogNavigator.NAME
+        }
+
+        for (i in backStack.indices) {
+            val entry = backStack[i]
+            val isDialog = entry.destination.navigatorName == DialogNavigator.NAME
+
+            when {
+                // The topmost non-dialog entry: RESUMED if no dialog above it, STARTED otherwise
+                i == topNonDialogIndex -> {
+                    val hasDialogAbove = backStack.subList(i + 1, backStack.size).any {
+                        it.destination.navigatorName == DialogNavigator.NAME
+                    }
+                    entry.maxLifecycle = if (hasDialogAbove) {
+                        Lifecycle.State.STARTED
+                    } else {
+                        Lifecycle.State.RESUMED
+                    }
+                }
+                // Dialog entries on top: RESUMED for the topmost, STARTED for others
+                isDialog && i == backStack.size - 1 -> {
+                    entry.maxLifecycle = Lifecycle.State.RESUMED
+                }
+                isDialog -> {
+                    entry.maxLifecycle = Lifecycle.State.STARTED
+                }
+                // All other non-dialog entries below the top: CREATED (not visible)
+                else -> {
+                    entry.maxLifecycle = Lifecycle.State.CREATED
                 }
             }
         }
-        return true
+    }
+
+    /**
+     * Creates a new [NavBackStackEntry] with the [viewModelStoreProvider] injected.
+     *
+     * This is the single factory method for creating entries, ensuring that every entry
+     * has access to the centralized [NavControllerViewModel] for ViewModelStore management.
+     * This follows the official Android Navigation component pattern.
+     *
+     * @param destination The destination for this entry
+     * @param arguments The arguments for this entry
+     * @return A new [NavBackStackEntry] with the provider injected
+     */
+    private fun createEntry(
+        destination: NavDestination,
+        arguments: Bundle? = null
+    ): NavBackStackEntry {
+        val entry = NavBackStackEntry.create(
+            destination = destination,
+            arguments = arguments
+        )
+        entry.viewModelStoreProvider = { entryId -> viewModelStoreManager.getViewModelStore(entryId) }
+        // Sync the host lifecycle state so the entry starts with the correct constraint.
+        // If the host is already RESUMED, the entry will be able to reach RESUMED;
+        // if the host is only STARTED (e.g., in background), the entry will be capped at STARTED.
+        entry.hostLifecycleState = hostLifecycleState
+        // Use the controller's captured hostPageId (from Pager via LocalLifecycleOwner.pagerId).
+        entry.hostPageId = hostPageId
+        return entry
+    }
+
+    /**
+     * Destroys a [NavBackStackEntry] by moving its lifecycle to DESTROYED and cleaning up
+     * its associated [ViewModelStore] via [NavControllerViewModel].
+     *
+     * This is the single destruction method for entries, ensuring that both lifecycle
+     * and ViewModelStore cleanup happen together. This follows the official Android
+     * Navigation component pattern where cleanup is centralized in the controller.
+     *
+     * @param entry The entry to destroy
+     */
+    internal fun destroyEntry(entry: NavBackStackEntry) {
+        if (entry.lifecycle.currentState.isAtLeast(Lifecycle.State.CREATED)) {
+            entry.maxLifecycle = Lifecycle.State.DESTROYED
+        }
+        viewModelStoreManager.clear(entry.id)
+    }
+
+    /**
+     * Prepares an entry for a transition (exit animation).
+     *
+     * Instead of immediately destroying the entry, it's moved to CREATED state
+     * and added to [transitionsInProgress]. The entry will be fully destroyed
+     * when [markTransitionComplete] is called after the animation finishes.
+     *
+     * This follows the official `NavigatorState.prepareForTransition()` pattern.
+     *
+     * @param entry The entry that is about to start an exit transition
+     */
+    internal fun prepareForTransition(entry: NavBackStackEntry) {
+        transitionsInProgress.add(entry)
+    }
+
+    /**
+     * Marks a transition as complete for the given entry.
+     *
+     * If the entry is no longer in the back stack (i.e., it was popped), this will
+     * finalize its destruction by moving its lifecycle to DESTROYED and clearing
+     * its ViewModelStore.
+     *
+     * This follows the official `NavController.markTransitionComplete()` implementation.
+     *
+     * @param entry The entry whose transition has completed
+     */
+    internal fun markTransitionComplete(entry: NavBackStackEntry) {
+        transitionsInProgress.remove(entry)
+        if (!backStack.contains(entry)) {
+            // Entry was popped; finalize destruction
+            destroyEntry(entry)
+        }
+        updateBackStackLifecycles()
+    }
+
+    /**
+     * Clears all [ViewModelStore] instances and destroys all entries.
+     *
+     * This should be called when the NavHostController itself is being disposed,
+     * to ensure all ViewModels are properly cleaned up and prevent memory leaks.
+     *
+     * This follows the official Android Navigation component pattern where
+     * `NavControllerViewModel.onCleared()` cleans up all stores.
+     */
+    fun clear() {
+        // Remove lifecycle observer from host
+        lifecycleOwner?.lifecycle?.removeObserver(lifecycleObserver)
+        lifecycleOwner = null
+        // Destroy all entries in transitions
+        transitionsInProgress.forEach { destroyEntry(it) }
+        transitionsInProgress.clear()
+        // Destroy all entries in back stack
+        backStack.forEach { destroyEntry(it) }
+        backStack.clear()
+        // Destroy all saved state entries to prevent memory leaks
+        savedStates.values.flatten().forEach { destroyEntry(it) }
+        savedStates.clear()
+        viewModelStoreManager.clearAll()
     }
 }
 
@@ -513,8 +842,8 @@ data class NavOptions(
 fun rememberNavController(vararg navigators: Navigator<out NavDestination>): NavHostController {
     return remember { 
         NavHostController().apply {
-            // Always register default navigators
-            navigatorProvider.addNavigator(ComposeNavigator())
+            // Register DialogNavigator (ComposeNavigator and NavGraphNavigator are already
+            // registered in the NavHostController constructor, so we don't re-register them)
             navigatorProvider.addNavigator(DialogNavigator())
             // Add any additional navigators passed by the user
             navigators.forEach { navigator ->

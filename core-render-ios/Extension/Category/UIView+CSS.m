@@ -77,6 +77,42 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 
 @end
 
+#if !TARGET_OS_OSX
+
+#pragma mark - KRCSSLongPressGestureDelegate
+
+static char kCSSLongPressGestureDelegateKey;
+
+/// Delegate for long press gesture recognizer that prevents it from receiving touches
+/// from child views that have their own touch event handlers (css_touchDown/css_touchMove/css_touchUp).
+/// This aligns iOS behavior with Android and HarmonyOS where child view touch events
+/// take priority over parent view long press gestures.
+@interface KRCSSLongPressGestureDelegate : NSObject <UIGestureRecognizerDelegate>
+@end
+
+@implementation KRCSSLongPressGestureDelegate
+
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
+    UIView *touchedView = touch.view;
+    UIView *gestureView = gestureRecognizer.view;
+    
+    UIView *currentView = touchedView;
+    while (currentView != nil && currentView != gestureView) {
+        if ([currentView isKindOfClass:[KRView class]]) {
+            KRView *krView = (KRView *)currentView;
+            if (krView.css_touchDown || krView.css_touchMove || krView.css_touchUp) {
+                return NO;
+            }
+        }
+        currentView = currentView.superview;
+    }
+    return YES;
+}
+
+@end
+
+#endif
+
 
 @interface UIView() <KuiklyRenderViewLifyCycleProtocol>
 
@@ -942,7 +978,11 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         }
         if (css_longPress != nil) {
             self.css_longPressGR = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(css_onLongPressWithSender:)];
-           
+#if !TARGET_OS_OSX
+            KRCSSLongPressGestureDelegate *delegate = [[KRCSSLongPressGestureDelegate alloc] init];
+            objc_setAssociatedObject(self.css_longPressGR, &kCSSLongPressGestureDelegateKey, delegate, OBJC_ASSOCIATION_RETAIN);
+            self.css_longPressGR.delegate = delegate;
+#endif
             [self addGestureRecognizer:self.css_longPressGR];
             if (!self.css_touchEnable) {
                 self.userInteractionEnabled = YES;

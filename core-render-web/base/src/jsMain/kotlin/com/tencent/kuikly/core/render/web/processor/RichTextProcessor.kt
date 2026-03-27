@@ -70,4 +70,10 @@ interface IRichTextProcessor {
      * set rich text values
      */
     fun setRichTextValues(richTextValues: JSONArray, view: KRRichTextView)
+
+    /**
+     * Return "offsetLeft offsetTop width height" for a placeholder span at [index].
+     * Return "" to let the caller fall back to the default DOM-based measurement (H5).
+     */
+    fun getPlaceholderSpanRect(index: Int, view: KRRichTextView): String = ""
 }

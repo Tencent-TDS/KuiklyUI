@@ -20,6 +20,7 @@ import com.tencent.kuikly.core.base.event.EventHandlerFn
 import com.tencent.kuikly.core.global.GlobalFunctionRef
 import com.tencent.kuikly.core.global.GlobalFunctions
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.timer.setTimeout
 import com.tencent.kuikly.core.views.PageList
 import com.tencent.kuikly.core.views.PageListEvent
@@ -201,13 +202,13 @@ class SliderPageView : ComposeView<SliderPageAttr, SliderPageEvent>() {
 }
 
 class SliderPageAttr: ComposeAttr() {
-    var defaultPageIndex: Int = 0
-    var isHorizontal: Boolean = true
-    var pageItemWidth = 0f
-    var pageItemHeight = 0f
-    var scrollEnable: Boolean = true
-    // 轮播时间间隔（ms单位），若 == 0 则不轮播
-    var loopPlayIntervalTimeMs :Int = 3000
+    var defaultPageIndex: Int by observable(0)
+    var isHorizontal: Boolean by observable(true)
+    var pageItemWidth: Float by observable(0f)
+    var pageItemHeight: Float by observable(0f)
+    var scrollEnable: Boolean by observable(true)
+    // 轮播时间间隔（ms 单位），若 == 0 则不轮播
+    var loopPlayIntervalTimeMs: Int = 3000
         set(value) {
             if (value != field) {
                 field = value

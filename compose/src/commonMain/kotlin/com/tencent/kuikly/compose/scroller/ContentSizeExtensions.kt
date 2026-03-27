@@ -32,9 +32,9 @@ import kotlinx.coroutines.launch
 import kotlin.math.max
 
 /**
- * 计算内容大小
+ * Calculate content size
  */
-internal fun ScrollableState.calculateContentSize(): Int {
+private fun ScrollableState.calculateContentSize(): Int {
     kuiklyInfo.realContentSize = null
     val density = kuiklyInfo.getDensity()
     val minSize = (ScrollableStateConstants.DEFAULT_CONTENT_SIZE * density).toInt()
@@ -49,16 +49,20 @@ internal fun ScrollableState.calculateContentSize(): Int {
 
     val viewportSize = kuiklyInfo.viewportSize
 
-    // 如果可以算出来总的compose容器高度了，就返回精确的容器高度
+    // Return exact content height if total compose container height can be calculated
     val realContentSize = totalContentSize()
     if (realContentSize != null) {
-        kuiklyInfo.realContentSize =
-            realContentSize + (contentPadding.totalPadding(kuiklyInfo.orientation).value * density).toInt()
+        // Compensate for Modifier padding shrinking Compose internal viewport relative to native viewport
+        val composeViewport = composeViewportMainAxisSize() ?: viewportSize
+        val viewportDelta = viewportSize - composeViewport
+        // Compensate for contentPadding which does not affect viewportSize but is excluded from totalContentSize
+        val contentPaddingCompensation = (contentPadding.totalPadding(kuiklyInfo.orientation).value * density).toInt()
+        kuiklyInfo.realContentSize = realContentSize + viewportDelta + contentPaddingCompensation
         return kuiklyInfo.realContentSize!!
     }
 
     val bottomOffset = kuiklyInfo.composeOffset.toInt() + viewportSize
-    // 如果当前的底部距离容器高度较近了，就扩大缓冲区
+    // Expand buffer if bottom offset is close to content size
     if (contentSize - bottomOffset < ScrollableStateConstants.CONTENT_SIZE_BUFFER * density) {
         return (contentSize + ScrollableStateConstants.DEFAULT_EXPAND_SIZE* density).toInt()
     }
@@ -66,6 +70,26 @@ internal fun ScrollableState.calculateContentSize(): Int {
     return contentSize.toInt()
 }
 
+internal fun ScrollableState.calculateAndUpdateContentSize() {
+    // 更新当前的contentSize大小
+    val oldContentSize = kuiklyInfo.currentContentSize
+    val newContentSize = calculateContentSize()
+
+    // 如果contentSize变小了，需要确保composeOffset不会超出边界
+    if (newContentSize < oldContentSize) {
+        val newMaxScrollOffset = maxOf(0, newContentSize - kuiklyInfo.viewportSize)
+        if (kuiklyInfo.composeOffset > newMaxScrollOffset) {
+            // 如果composeOffset超出新的边界，增加contentSize来保持composeOffset不变
+            val requiredContentSize = kuiklyInfo.composeOffset.toInt() + kuiklyInfo.viewportSize
+            kuiklyInfo.currentContentSize = maxOf(newContentSize, requiredContentSize)
+        } else {
+            kuiklyInfo.currentContentSize = newContentSize
+        }
+    } else {
+        kuiklyInfo.currentContentSize = newContentSize
+    }
+    kuiklyInfo.updateContentSizeToRender()
+}
 
 internal fun PaddingValues.totalPadding(orientation: Orientation): Dp {
     return if (orientation == Orientation.Vertical) {
@@ -77,7 +101,7 @@ internal fun PaddingValues.totalPadding(orientation: Orientation): Dp {
 }
 
 /**
- * 计算总内容大小
+ * Calculate total content size
  */
 internal fun ScrollableState.totalContentSize(): Int? {
     val curOffset = kuiklyInfo.composeOffset
@@ -87,6 +111,29 @@ internal fun ScrollableState.totalContentSize(): Int? {
         is LazyGridState -> calculateLazyGridContentSize(curOffset)
         is LazyStaggeredGridState -> calculateLazyStaggeredGridContentSize(curOffset)
         is ScrollState -> calculateScrollStateContentSize()
+        else -> null
+    }
+}
+
+/**
+ * Get the main axis size (in pixels) of the Compose internal viewport.
+ * Modifier padding shrinks the Compose internal viewport, causing a delta with the native ScrollView viewport.
+ */
+private fun ScrollableState.composeViewportMainAxisSize(): Int? {
+    return when(this) {
+        is LazyListState -> {
+            if (layoutInfo.orientation == Orientation.Vertical) layoutInfo.viewportSize.height
+            else layoutInfo.viewportSize.width
+        }
+        is LazyGridState -> {
+            if (layoutInfo.orientation == Orientation.Vertical) layoutInfo.viewportSize.height
+            else layoutInfo.viewportSize.width
+        }
+        is LazyStaggeredGridState -> {
+            if (layoutInfo.orientation == Orientation.Vertical) layoutInfo.viewportSize.height
+            else layoutInfo.viewportSize.width
+        }
+        is ScrollState -> viewportSize
         else -> null
     }
 }

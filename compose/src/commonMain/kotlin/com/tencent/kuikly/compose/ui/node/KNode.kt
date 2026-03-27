@@ -28,16 +28,10 @@ import com.tencent.kuikly.compose.ui.graphics.Matrix
 import com.tencent.kuikly.compose.ui.graphics.isIdentity
 import com.tencent.kuikly.compose.ui.layout.LayoutCoordinates
 import com.tencent.kuikly.compose.ui.platform.LocalDensity
-import com.tencent.kuikly.compose.ui.text.style.modulate
-import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.IntSize
-import com.tencent.kuikly.compose.views.KuiklyInfoKey
 import com.tencent.kuikly.compose.views.VirtualNodeView
-import com.tencent.kuikly.compose.gestures.KuiklyScrollInfo
 import com.tencent.kuikly.compose.layout.resetViewVisible
-import com.tencent.kuikly.compose.node.extPropsVar
 import com.tencent.kuikly.compose.ui.KuiklyPath
-import com.tencent.kuikly.compose.ui.graphics.Path
 import com.tencent.kuikly.compose.ui.layout.LookaheadLayoutCoordinates
 import com.tencent.kuikly.compose.ui.unit.plus
 import com.tencent.kuikly.core.base.Attr
@@ -98,7 +92,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
      */
     private fun getCacheManager(): StickyHeaderCacheManager? {
         val scrollNode = parent as? KNode<*>
-        val kuiklyInfo = scrollNode?.view?.extProps?.get(KuiklyInfoKey) as? KuiklyScrollInfo
+        val kuiklyInfo = (scrollNode?.view?.renderProperties as? RenderProperties)?.kuiklyScrollInfo
 
         return kuiklyInfo?.stickyHeaderCacheManager
     }
@@ -233,7 +227,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         // Child nodes on scrollview, parent is virtual node
         if (ksScrollSubView && needFixScrollOffset) {
             val scrollerView = (parent as KNode<*>).view
-            (scrollerView.extProps[KuiklyInfoKey] as? KuiklyScrollInfo)?.apply {
+            ((scrollerView.renderProperties as? RenderProperties)?.kuiklyScrollInfo)?.apply {
                 val deltaOffset = composeOffset
                 pos = if (orientation == Orientation.Vertical) {
                     Offset(pos.x, pos.y + deltaOffset)
@@ -283,7 +277,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         }
 
         val scrollerView = view as ScrollerView<*, *>
-        val kuiklyInfo = scrollerView.extProps[KuiklyInfoKey] as? KuiklyScrollInfo ?: return
+        val kuiklyInfo = (scrollerView.renderProperties as? RenderProperties)?.kuiklyScrollInfo ?: return
 
         if (curFrame != newFrame) {
             kuiklyInfo.offsetDirty = true
@@ -377,13 +371,11 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
                 val view = DivView()
                 KNode(view) {
                     attr {
-                        flexDirectionColumn()
-                        justifyContentCenter()
-                        alignItemsCenter()
-                        // Disable DivView optimization to ensure normal layout
-                        setProp("flatLayer", false)
                         if (hasShadow) {
                             setProp(Attr.StyleConst.WRAPPER_BOX_SHADOW_VIEW, 1)
+                        } else {
+                            // 禁用DivView优化 保证布局正常
+                            setProp("flatLayer", false)
                         }
                     }
                 }
@@ -402,23 +394,66 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             }
         }
 
-        private fun DeclarativeBaseView<*, *>.getMatrix(): Matrix? = extProps["matrix"] as? Matrix
-        private fun DeclarativeBaseView<*, *>.obtainMatrix(): Matrix = extProps.getOrPut("matrix") { Matrix() } as Matrix
-
-        private var DeclarativeBaseView<*, *>.matrixChanged by extPropsVar("matrixChanged") { false }
-        private var DeclarativeBaseView<*, *>.alpha by extPropsVar("alpha") { 1f }
-        private var DeclarativeBaseView<*, *>.measuredSize by extPropsVar("measuredSize") {
-            IntSize(
-                0,
-                0
-            )
+        // 获取或创建 RenderProperties 对象
+        internal fun DeclarativeBaseView<*, *>.obtainRenderProps(): RenderProperties {
+            var props = renderProperties as? RenderProperties
+            if (props == null) {
+                props = RenderProperties()
+                renderProperties = props
+            }
+            return props
         }
-        private var DeclarativeBaseView<*, *>.clipPath by extPropsVar("clipPath") { "" }
-        private var DeclarativeBaseView<*, *>.borderRadius by extPropsVar("borderRadius") { FloatArray(4) }
-        private var DeclarativeBaseView<*, *>.clip by extPropsVar("clip") { false }
-        private var DeclarativeBaseView<*, *>.shadowElevation by extPropsVar("shadowElevation") { 0f }
-        private var DeclarativeBaseView<*, *>.shadowColor by extPropsVar("shadowColor") { Color.Transparent }
-        private var DeclarativeBaseView<*, *>.shadowHasSet by extPropsVar("shadowHasSet") { false }
+
+        // Matrix 相关
+        private fun DeclarativeBaseView<*, *>.getMatrix(): Matrix? =
+            (renderProperties as? RenderProperties)?.matrix
+
+        private fun DeclarativeBaseView<*, *>.obtainMatrix(): Matrix {
+            val props = obtainRenderProps()
+            var matrix = props.matrix
+            if (matrix == null) {
+                matrix = Matrix()
+                props.matrix = matrix
+            }
+            return matrix
+        }
+
+        // 属性访问器
+        private var DeclarativeBaseView<*, *>.matrixChanged: Boolean
+            get() = (renderProperties as? RenderProperties)?.matrixChanged ?: false
+            set(value) { obtainRenderProps().matrixChanged = value }
+
+        private var DeclarativeBaseView<*, *>.alpha: Float
+            get() = (renderProperties as? RenderProperties)?.alpha ?: 1f
+            set(value) { obtainRenderProps().alpha = value }
+
+        private var DeclarativeBaseView<*, *>.measuredSize: IntSize
+            get() = (renderProperties as? RenderProperties)?.measuredSize ?: IntSize(0, 0)
+            set(value) { obtainRenderProps().measuredSize = value }
+
+        private var DeclarativeBaseView<*, *>.borderRadius: FloatArray
+            get() = obtainRenderProps().borderRadius
+            set(value) { obtainRenderProps().borderRadius = value }
+
+        private var DeclarativeBaseView<*, *>.clipPath: String
+            get() = (renderProperties as? RenderProperties)?.clipPath ?: ""
+            set(value) { obtainRenderProps().clipPath = value }
+
+        private var DeclarativeBaseView<*, *>.clip: Boolean
+            get() = (renderProperties as? RenderProperties)?.clip ?: false
+            set(value) { obtainRenderProps().clip = value }
+
+        private var DeclarativeBaseView<*, *>.shadowElevation: Float
+            get() = (renderProperties as? RenderProperties)?.shadowElevation ?: 0f
+            set(value) { obtainRenderProps().shadowElevation = value }
+
+        private var DeclarativeBaseView<*, *>.shadowColor: Color
+            get() = (renderProperties as? RenderProperties)?.shadowColor ?: Color.Transparent
+            set(value) { obtainRenderProps().shadowColor = value }
+
+        private var DeclarativeBaseView<*, *>.shadowHasSet: Boolean
+            get() = (renderProperties as? RenderProperties)?.shadowHasSet ?: false
+            set(value) { obtainRenderProps().shadowHasSet = value }
 
         fun DeclarativeBaseView<*, *>.measuredSize(width: Int, height: Int) {
             measuredSize = IntSize(width, height)
@@ -574,9 +609,17 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             // Calculate X-axis scaling
             var scaleX = sqrt(v00 * v00 + v01 * v01 + v02 * v02)
             // Normalize X-axis
-            v00 /= scaleX
-            v01 /= scaleX
-            v02 /= scaleX
+            if (!scaleX.approximatelyEqual(0f)) {
+                v00 /= scaleX
+                v01 /= scaleX
+                v02 /= scaleX
+            } else {
+                // When scaleX is zero, use default unit vector [1, 0, 0]
+                scaleX = 0f
+                v00 = 1f
+                v01 = 0f
+                v02 = 0f
+            }
             // Calculate XY shear
             val xy = v00 * v10 + v01 * v11 + v02 * v12
             // Calculate XY orthogonal component
@@ -586,9 +629,17 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             // Calculate Y-axis scaling
             var scaleY = sqrt(v10 * v10 + v11 * v11 + v12 * v12)
             // Normalize Y-axis
-            v10 /= scaleY
-            v11 /= scaleY
-            v12 /= scaleY
+            if (!scaleY.approximatelyEqual(0f)) {
+                v10 /= scaleY
+                v11 /= scaleY
+                v12 /= scaleY
+            } else {
+                // When scaleY is zero, use default unit vector [0, 1, 0]
+                scaleY = 0f
+                v10 = 0f
+                v11 = 1f
+                v12 = 0f
+            }
             // Calculate XZ shear
             val xz = v00 * v20 + v01 * v21 + v02 * v22
             // Calculate XZ orthogonal component
@@ -604,9 +655,17 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             // Calculate Z-axis scaling
             var scaleZ = sqrt(v20 * v20 + v21 * v21 + v22 * v22)
             // Normalize Z-axis
-            v20 /= scaleZ
-            v21 /= scaleZ
-            v22 /= scaleZ
+            if (!scaleZ.approximatelyEqual(0f)) {
+                v20 /= scaleZ
+                v21 /= scaleZ
+                v22 /= scaleZ
+            } else {
+                // When scaleZ is zero, use default unit vector [0, 1, 0]
+                scaleZ = 0f
+                v20 = 0f
+                v21 = 0f
+                v22 = 1f
+            }
 
             // Calculate rotation angles
             val rotateX = -atan2(v21, v22).toDegrees()

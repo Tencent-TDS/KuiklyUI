@@ -11,10 +11,14 @@ buildscript {
         google()
         mavenCentral()
         mavenLocal()
+        maven {
+            url = uri("https://mirrors.tencent.com/repository/maven-tencent/")
+        }
     }
     dependencies {
         classpath(BuildPlugin.kotlin)
         classpath(BuildPlugin.android)
+        classpath(BuildPlugin.kuikly)
     }
 }
 
@@ -23,6 +27,9 @@ allprojects {
         google()
         mavenCentral()
         mavenLocal()
+        maven {
+            url = uri("https://mirrors.tencent.com/repository/maven-tencent/")
+        }
     }
 }
 

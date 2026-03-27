@@ -32,6 +32,15 @@
 #include "libohos_render/utils/KRColor.h"
 #include "libohos_render/utils/KRJSONObject.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+// Remove this declaration if compatable api is raised to 14 and above
+extern OH_Drawing_FontCollection* OH_Drawing_GetFontCollectionGlobalInstance(void) __attribute__((weak));
+#ifdef __cplusplus
+};
+#endif
+
 static constexpr std::string_view LINE_CAP = "lineCap";
 static constexpr std::string_view LINE_WIDTH = "lineWidth";
 static constexpr std::string_view LINE_DASH = "lineDash";
@@ -122,9 +131,7 @@ void KRCanvasView::SetLineCap(const std::string &params) {
     } else if (str == "square") {
         style = LINE_SQUARE_CAP;
     }
-    if (pen_ == nullptr) {
-        pen_ = OH_Drawing_PenCreate();
-    }
+    CreatePenIfNeeded();
     OH_Drawing_PenSetCap(pen_, style);
 }
 
@@ -132,9 +139,7 @@ void KRCanvasView::SetLineWidth(const std::string &params) {
     auto obj = kuikly::util::JSONObject::Parse(params);
     float width = obj->GetNumber("width");
 
-    if (pen_ == nullptr) {
-        pen_ = OH_Drawing_PenCreate();
-    }
+    CreatePenIfNeeded();
     OH_Drawing_PenSetWidth(pen_, width);
 }
 
@@ -142,9 +147,7 @@ void KRCanvasView::SetLineDash(const std::string &params) {
     auto obj = kuikly::util::JSONObject::Parse(params);
     auto intervalsVector = obj->GetNumberArray("intervals");
     int count = intervalsVector.size();
-    if (pen_ == nullptr) {
-        pen_ = OH_Drawing_PenCreate();
-    }
+    CreatePenIfNeeded();
     if (count == 0) {
         OH_Drawing_PenSetPathEffect(pen_, nullptr);
         return;
@@ -202,16 +205,11 @@ void KRCanvasView::SetStrokeStyle(const std::string &params) {
     auto paramObj = kuikly::util::JSONObject::Parse(params);
     if (paramObj) {
         const std::string style = paramObj->GetString("style");
+        CreatePenIfNeeded();
         if (style.substr(0, LINEAR_GRADIENT.size()) == LINEAR_GRADIENT) {
             OH_Drawing_ShaderEffect *colorShaderEffect = parseGradientStyle(style);
-            if (pen_ == nullptr) {
-                pen_ = OH_Drawing_PenCreate();
-            }
             OH_Drawing_PenSetShaderEffect(pen_, colorShaderEffect);
         } else {
-            if (pen_ == nullptr) {
-                pen_ = OH_Drawing_PenCreate();
-            }
             OH_Drawing_PenSetShaderEffect(pen_, nullptr);
             OH_Drawing_PenSetColor(pen_, kuikly::util::ConvertToHexColor(style));
         }
@@ -221,16 +219,11 @@ void KRCanvasView::SetFillStyle(const std::string &params) {
     auto paramObj = kuikly::util::JSONObject::Parse(params);
     if (paramObj) {
         const std::string style = paramObj->GetString("style");
+        CreateBrushIfNeeded();
         if (style.substr(0, LINEAR_GRADIENT.size()) == LINEAR_GRADIENT) {
             OH_Drawing_ShaderEffect *colorShaderEffect = parseGradientStyle(style);
-            if (brush_ == nullptr) {
-                brush_ = OH_Drawing_BrushCreate();
-            }
             OH_Drawing_BrushSetShaderEffect(brush_, colorShaderEffect);
         } else {
-            if (brush_ == nullptr) {
-                brush_ = OH_Drawing_BrushCreate();
-            }
             OH_Drawing_BrushSetShaderEffect(brush_, nullptr);
             kuikly::graphics::Color color = kuikly::graphics::Color::FromString(style);
             OH_Drawing_BrushSetColor(brush_, color.value);
@@ -370,22 +363,17 @@ void KRCanvasView::SetFont(const std::string &params) {
 
 void KRCanvasView::FillText(const std::string &params) {
     if (canvas_) {
-        std::shared_ptr<struct KRFontCollectionWrapper> font_collection_wrapper =
-            std::make_shared<KRFontCollectionWrapper>();
-        DrawText(params, font_collection_wrapper, FILL_TEXT);
+        DrawText(params, FILL_TEXT);
     }
 }
 
 void KRCanvasView::StrokeText(const std::string &params) {
     if (canvas_) {
-        std::shared_ptr<struct KRFontCollectionWrapper> font_collection_wrapper =
-            std::make_shared<KRFontCollectionWrapper>();
-        DrawText(params, font_collection_wrapper, STROKE_TEXT);
+        DrawText(params, STROKE_TEXT);
     }
 }
 
-void KRCanvasView::DrawText(std::string params, std::shared_ptr<struct KRFontCollectionWrapper> wrapper,
-                            std::string_view type) {
+void KRCanvasView::DrawText(std::string params, std::string_view type) {
     OH_Drawing_TextStyle *txtStyle = OH_Drawing_CreateTextStyle();
     // 设置文字大小、字重等属性
     float fontSizeScale = 1;
@@ -406,13 +394,12 @@ void KRCanvasView::DrawText(std::string params, std::shared_ptr<struct KRFontCol
     OH_Drawing_SetTextStyleLocale(txtStyle, "en");
 
     // 自定义字体
-    auto fontAdapters = KRFontAdapterManager::GetInstance()->AllAdapters();
     if (!text_feature_.fontFamily.empty()) {
         const char *fontFamilyPtr = text_feature_.fontFamily.c_str();
         const char *fontFamilies[] = {fontFamilyPtr};
         OH_Drawing_SetTextStyleFontFamilies(txtStyle, 1, fontFamilies);
         auto nativeResMgr = rootView->GetNativeResourceManager();
-        SetCustomFontIfApplicable(nativeResMgr, wrapper, text_feature_.fontFamily, fontAdapters);
+        KRFontCollectionWrapper::GetInstance().RegisterCustomFont(nativeResMgr, text_feature_.fontFamily);
     }
 
     OH_Drawing_TypographyStyle *typoStyle = OH_Drawing_CreateTypographyStyle();
@@ -421,14 +408,10 @@ void KRCanvasView::DrawText(std::string params, std::shared_ptr<struct KRFontCol
     OH_Drawing_SetTypographyTextAlign(typoStyle, TEXT_ALIGN_LEFT);
 
     if (type == FILL_TEXT) {
-        if (brush_ == nullptr) {
-            brush_ = OH_Drawing_BrushCreate();
-        }
+        CreateBrushIfNeeded();
         OH_Drawing_SetTextStyleForegroundBrush(txtStyle, brush_);
     } else if (type == STROKE_TEXT) {
-        if (pen_ == nullptr) {
-            pen_ = OH_Drawing_PenCreate();
-        }
+        CreatePenIfNeeded();
         OH_Drawing_SetTextStyleForegroundPen(txtStyle, pen_);
     }
 
@@ -437,7 +420,7 @@ void KRCanvasView::DrawText(std::string params, std::shared_ptr<struct KRFontCol
     auto x = paramObj->GetNumber("x");
     auto y = paramObj->GetNumber("y");
 
-    OH_Drawing_TypographyCreate *handler = OH_Drawing_CreateTypographyHandler(typoStyle, wrapper->fontCollection);
+    OH_Drawing_TypographyCreate *handler = CreateTypographyHandler(typoStyle);
     OH_Drawing_TypographyHandlerPushTextStyle(handler, txtStyle);
     // 设置文字内容
     OH_Drawing_TypographyHandlerAddText(handler, text.c_str());
@@ -621,6 +604,20 @@ void KRCanvasView::DrawImage(const std::string &params) {
         OH_Drawing_CanvasDrawPixelMapRect(canvas_, drawingPixelMap, srcRect, dstRect, nullptr);
         OH_Drawing_RectDestroy(srcRect);
         OH_Drawing_RectDestroy(dstRect);
+    }
+}
+
+void KRCanvasView::CreatePenIfNeeded() {
+    if (pen_ == nullptr) {
+        pen_ = OH_Drawing_PenCreate();
+        OH_Drawing_PenSetAntiAlias(pen_, true);
+    }
+}
+
+void KRCanvasView::CreateBrushIfNeeded() {
+    if (brush_ == nullptr) {
+        brush_ = OH_Drawing_BrushCreate();
+        OH_Drawing_BrushSetAntiAlias(brush_, true);
     }
 }
 

@@ -22,6 +22,8 @@ interface IKuiklyCoreEntry {
 
     var delegate: Delegate?
 
+    fun catchException(): Boolean
+
     fun callKotlinMethod(
         methodId: Int,
         arg0: Any?,

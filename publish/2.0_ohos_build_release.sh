@@ -6,18 +6,21 @@ echo "project's root path: $PROJECT_ROOT"
 
 cd "$PROJECT_ROOT" || { echo "Can't cd project's root path: $PROJECT_ROOT"; exit 1; }
 
-# 1.记录原始url
-ORIGIN_DISTRIBUTION_URL=$(grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties | cut -d "=" -f 2)
-echo "origin gradle url: $ORIGIN_DISTRIBUTION_URL"
-# 2.切换gradle版本
-NEW_DISTRIBUTION_URL="https\:\/\/services.gradle.org\/distributions\/gradle-8.0-bin.zip"
-sed -i.bak "s/distributionUrl=.*$/distributionUrl=$NEW_DISTRIBUTION_URL/" gradle/wrapper/gradle-wrapper.properties
-echo "new gradle url: " $(grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties | cut -d "=" -f 2)
+java -version
+
+CONFIG_FILE="publish/compatible/2.0_ohos.yaml"
+
+# 兼容性替换
+java publish/FileReplacer.java replace "$CONFIG_FILE"
+
+MODULE=${1:-all}
+PUBLISH_TASK=${2:-publishToMavenLocal}
+GRADLE_RUN_STATUS=0
 
 KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="2.0.21-KBA-010" ./gradlew -c settings.2.0.ohos.gradle.kts :demo:linkSharedReleaseSharedOhosArm64  --stacktrace
 
-# 4.还原文件
-mv gradle/wrapper/gradle-wrapper.properties.bak gradle/wrapper/gradle-wrapper.properties
+# 兼容性还原
+java publish/FileReplacer.java restore "$CONFIG_FILE"
 
 # 5.拷贝so
 echo "Copying artifact files:"

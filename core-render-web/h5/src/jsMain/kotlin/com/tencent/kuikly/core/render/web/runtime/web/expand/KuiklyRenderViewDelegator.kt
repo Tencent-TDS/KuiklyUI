@@ -197,6 +197,18 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
     }
 
     /**
+     * Called when page onFontLoaded
+     */
+    fun onFontLoaded() {
+        runKuiklyRenderViewTask {
+            it.sendEvent(
+                KuiklyRenderView.PAGER_EVENT_ON_FONT_LOADED,
+                mapOf()
+            )
+        }
+    }
+
+    /**
      * Send events to Kuikly page
      */
     fun sendEvent(event: String, data: Map<String, Any>) {

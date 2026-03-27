@@ -23,6 +23,32 @@
 #include "libohos_render/foundation/type/KRRenderValue.h"
 #include "libohos_render/utils/KRScopedSpinLock.h"
 
+template<typename KeyType, typename ValueType>
+class KRThreadSafeMap{
+public:
+    void Set(KeyType key, ValueType value){
+        KRScopedSpinLock lock(&lock_);
+        map_[key] = value;
+    }
+    ValueType Get(KeyType key){
+        {
+            KRScopedSpinLock lock(&lock_);
+            if(auto it = map_.find(key); it != map_.end()){
+                return it->second;
+            }
+        }
+        
+        return ValueType();
+    }
+    void Erase(KeyType key){
+        KRScopedSpinLock lock(&lock_);
+        map_.erase(key);
+    }
+private:
+    KRSpinLock lock_;
+    std::unordered_map<KeyType, ValueType> map_;
+};
+
 class KRRenderNativeContextHandlerManager {
  public:
     KRRenderNativeContextHandlerManager(const KRRenderNativeContextHandlerManager &) = delete;
@@ -58,7 +84,7 @@ class KRRenderNativeContextHandlerManager {
     void ScheduleDeallocRenderValues(std::shared_ptr<KRRenderValue> will_dealloc_render_value);
 
  private:
-    std::unordered_map<std::string, std::shared_ptr<IKRRenderNativeContextHandler>> context_handler_map_;
+    KRThreadSafeMap<std::string, std::shared_ptr<IKRRenderNativeContextHandler>> context_handler_map_;
     KRRenderContextHandlerCreator creator_;
     bool scheduling_dealloc_render_values_ = false;
     std::vector<std::shared_ptr<KRRenderValue>> pending_dealloc_render_values_;

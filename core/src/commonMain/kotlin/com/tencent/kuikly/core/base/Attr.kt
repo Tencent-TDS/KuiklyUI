@@ -209,6 +209,7 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
     }
 
     override fun boxShadow(boxShadow: BoxShadow): Attr {
+        BoxShadow.ensureSupportFill(this)
         StyleConst.BOX_SHADOW with boxShadow.toString()
         return this
     }
@@ -220,6 +221,7 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
      * @return 当前 {@link Attr} 实例。
      * */
     fun boxShadow(boxShadow: BoxShadow, useShadowPath: Boolean = false): Attr {
+        BoxShadow.ensureSupportFill(this)
         if (useShadowPath) {
             StyleConst.USE_SHADOW_PATH with useShadowPath.toInt()
         }
@@ -736,10 +738,35 @@ class BoxShadow(
     private val offsetX: Float,
     private val offsetY: Float,
     private val shadowRadius: Float,
-    private val shadowColor: Color
+    private val shadowColor: Color,
+    private val fill: Boolean = true
 ) {
+    @Deprecated("deprecated", level = DeprecationLevel.HIDDEN)
+    constructor(offsetX: Float, offsetY: Float, shadowRadius: Float, shadowColor: Color) : this(
+        offsetX,
+        offsetY,
+        shadowRadius,
+        shadowColor,
+        true
+    )
+
     override fun toString(): String {
-        return "$offsetX $offsetY $shadowRadius $shadowColor"
+        // earlier render-android requires fixed params length,
+        // check supportFill for backward compatibility
+        return if (supportFill == true) {
+            "$offsetX $offsetY $shadowRadius $shadowColor ${if (fill) 1 else 0}"
+        } else {
+            "$offsetX $offsetY $shadowRadius $shadowColor"
+        }
+    }
+
+    internal companion object {
+        private var supportFill: Boolean? = null
+        fun ensureSupportFill(scope: PagerScope) {
+            if (supportFill == null) {
+                supportFill = scope.getPager().pageData.hasFeature("box_shadow_fill")
+            }
+        }
     }
 }
 
@@ -752,6 +779,9 @@ class Rotate(
     private val xAngle: Float = 0f, //  围绕x轴旋转xAngle角度 属于3d旋转 （range of [-360, 360]）
     private val yAngle: Float = 0f // 围绕y轴旋转yAngle角度 属于3d旋转 （range of [-360, 360]）
 ) {
+    @Deprecated("Deprecated", level = DeprecationLevel.HIDDEN)
+    constructor(angle: Float) : this(angle, 0f, 0f)
+
     // 是否为3d旋转
     val is3d: Boolean get() = xAngle != 0f || yAngle != 0f
 
@@ -811,8 +841,8 @@ class Translate(
   请注意，当您将元素倾斜 90 度时，元素将会变得无法看见，因为它的宽度或高度将会变为 0。
  */
 class Skew(
-    private val horizontalSkewAngle: Float = 0f,  // 水平方向倾斜角度(deg) range of [-360,360]，单位角度
-    private val verticalSkewAngle: Float = 0f  // 垂直方向倾斜角度(deg) range of [-360,360]，单位角度
+    private val horizontalSkewAngle: Float = 0f,  // 水平方向倾斜角度(deg) range of (-90, 90)，单位角度
+    private val verticalSkewAngle: Float = 0f  // 垂直方向倾斜角度(deg) range of (-90, 90)，单位角度
 ) {
 
     companion object {

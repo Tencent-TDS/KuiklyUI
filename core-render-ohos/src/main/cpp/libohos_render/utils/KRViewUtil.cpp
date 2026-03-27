@@ -383,6 +383,7 @@ void UpdateNodeBoxShadow(ArkUI_NodeHandle node, const std::string &css_box_shado
     float y = ConvertToFloat(splits[1]) * dpi;
     float radius = ConvertToFloat(splits[2]) * dpi;
     uint32_t color = ConvertToHexColor(splits[3]);
+    int fill = splits.size() > 4 && splits[4] == "0" ? 0 : 1;
     ArkUI_NumberValue value[] = {
         {.f32 = radius},
         {.i32 = 0},
@@ -390,7 +391,7 @@ void UpdateNodeBoxShadow(ArkUI_NodeHandle node, const std::string &css_box_shado
         {.f32 = y},
         {.i32 = ARKUI_SHADOW_TYPE_COLOR},
         {.u32 = color},
-        {.i32 = 1}
+        {.i32 = fill}
     };
     ArkUI_AttributeItem item = {value, sizeof(value) / sizeof(ArkUI_NumberValue)};
     nodeAPI->setAttribute(node, NODE_CUSTOM_SHADOW, &item);
@@ -827,7 +828,7 @@ KRPoint GetArkUIScrollContentOffset(ArkUI_NodeHandle handle) {
     return item ? KRPoint{item->value[0].f32, item->value[1].f32} : KRPoint();
 }
 
-void SetArkUIContentOffset(ArkUI_NodeHandle handle, float offset_x, float offset_y, bool animate, int duration) {
+void SetArkUIContentOffset(ArkUI_NodeHandle handle, float offset_x, float offset_y, bool animate, int duration, int curve) {
     if (!handle) {
         return;
     }
@@ -845,7 +846,7 @@ void SetArkUIContentOffset(ArkUI_NodeHandle handle, float offset_x, float offset
         {.f32 = offset_x},
         {.f32 = offset_y},
         {.i32 = duration},
-        {.i32 = ARKUI_CURVE_EASE},
+        {.i32 = curve == 0 ? ARKUI_CURVE_EASE : ARKUI_CURVE_LINEAR},
         {.i32 = enableDefaultSpringAnimation},  // whether to enable the default spring animation
         {.i32 = 1}                              // whether scrolling can cross the boundary
     };
@@ -924,6 +925,10 @@ void UpdateInputNodeMaxLength(ArkUI_NodeHandle node, int32_t max_length) {
     ArkUI_NumberValue value[] = {{.i32 = max_length}};
     ArkUI_AttributeItem item = {value, sizeof(value) / sizeof(ArkUI_NumberValue)};
     GetNodeApi()->setAttribute(node, NODE_TEXT_INPUT_MAX_LENGTH, &item);
+}
+
+void ResetInputNodeMaxLength(ArkUI_NodeHandle node) {
+    GetNodeApi()->resetAttribute(node, NODE_TEXT_INPUT_MAX_LENGTH);
 }
 
 void UpdateInputNodeContentText(ArkUI_NodeHandle node, const std::string &text) {
@@ -1005,6 +1010,14 @@ void UpdateInputNodeSelectionStartPosition(ArkUI_NodeHandle node, int32_t index)
     std::array<ArkUI_NumberValue, 2> value = {{{.i32 = index}, {.i32 = index}}};
     ArkUI_AttributeItem item = {value.data(), value.size()};
     GetNodeApi()->setAttribute(node, NODE_TEXT_INPUT_TEXT_SELECTION, &item);
+}
+
+std::pair<uint32_t, uint32_t> GetInputNodeSelectionRange(ArkUI_NodeHandle node) {
+    auto item = GetNodeApi()->getAttribute(node, NODE_TEXT_INPUT_TEXT_SELECTION);
+    if (item && item->size >= 2) {
+        return {item->value[0].i32, item->value[1].i32};
+    }
+    return {0, 0};
 }
 
 void UpdateTextAreaNodeLineHeight(ArkUI_NodeHandle node, float lineHeight) {

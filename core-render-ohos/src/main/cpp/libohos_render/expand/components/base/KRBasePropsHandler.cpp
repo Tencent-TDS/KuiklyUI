@@ -253,7 +253,7 @@ bool KRBasePropsHandler::ResetProp(const std::string &prop_key) {
     }
 
     if (strcmp(prop_key.c_str(), kBoxShadow) == 0) {  // 阴影
-        kuikly::util::UpdateNodeBoxShadow(node_, "0 0 0 0");
+        kuikly::util::UpdateNodeBoxShadow(node_, "0 0 0 0 1");
         kuikly::util::GetNodeApi()->resetAttribute(node_, NODE_CUSTOM_SHADOW);
     }
 

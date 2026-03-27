@@ -23,6 +23,8 @@ class Animation internal constructor() {
     private var velocity: Float = 0f
     private var delay: Float = 0f
     private var repeatForever: Boolean = false
+    /// Raw animation curve value, only used for KEYBOARD type animation.
+    private var rawCurve: Int? = null
 
     var key: String = ""
 
@@ -37,10 +39,18 @@ class Animation internal constructor() {
     }
 
     override fun toString(): String {
-        return "${animationType.value} ${timingFuncType.value} $duration $damping $velocity $delay ${repeatForever.toInt()} $key"
+        val baseString = "${animationType.value} ${timingFuncType.value} $duration $damping $velocity $delay ${repeatForever.toInt()} $key"
+        // Only append rawCurve for KEYBOARD type to maintain backward compatibility
+        return if (timingFuncType == TimingFuncType.KEYBOARD && rawCurve != null) {
+            "$baseString $rawCurve"
+        } else {
+            baseString
+        }
     }
 
     companion object {
+        /// Default iOS keyboard animation curve from UIKeyboardAnimationCurveUserInfoKey
+        const val DEFAULT_KEYBOARD_CURVE = 7
 
         /*
          * @param durationS 动画持续时间，单位秒
@@ -110,6 +120,19 @@ class Animation internal constructor() {
             return createSpring(TimingFuncType.EASE_IN_OUT, durationS, damping, velocity, key = key)
         }
 
+
+        /**
+         * Create keyboard animation with native iOS keyboard animation curve.
+         * @param durationS Animation duration in seconds
+         * @param curve Keyboard animation curve from UIKeyboardAnimationCurveUserInfoKey
+         * @param key Optional key for animation completion callback
+         */
+        fun keyboard(durationS: Float, curve: Int = DEFAULT_KEYBOARD_CURVE, key: String = ""): Animation {
+            return create(AnimationType.PLAIN, TimingFuncType.KEYBOARD, durationS, key = key).apply {
+                rawCurve = curve
+            }
+        }
+
         private fun create(
             animationType: AnimationType,
             timingFuncType: TimingFuncType,
@@ -155,7 +178,8 @@ internal enum class TimingFuncType(internal val value: Int) {
     LINEAR(0),
     EASE_IN(1),
     EASE_OUT(2),
-    EASE_IN_OUT(3);
+    EASE_IN_OUT(3),
+    KEYBOARD(4);
 }
 
 internal enum class AnimationType(internal val value: Int) {

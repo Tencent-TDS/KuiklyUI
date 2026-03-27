@@ -92,6 +92,21 @@ internal class GraphicsLayerDemo2 : ComposeContainer() {
                             )
                         }
 
+                        // scale(0) 缩放为0
+                        Text("Scale(0) 缩放为0")
+                        Box(
+                            Modifier.size(50.dp).background(Color.LightGray),
+                        ) {
+                            Box(
+                                Modifier
+                                    .size(50.dp)
+                                    .graphicsLayer {
+                                        scaleX = 0f
+                                        scaleY = 0f
+                                    }.background(Color.Red),
+                            )
+                        }
+
                         // rotationX/Y/Z 旋转
                         Text("Rotation 3D旋转")
                         Box(

@@ -48,6 +48,14 @@
 | --------------------- |--| ------------- |
 | pagingEnable         | 是否开启分页 | Boolean |
 
+### flingEnable
+
+是否允许惯性滚动（fling）。设置为 `false` 时，用户松手后列表立即停止滚动，不会有惯性滑动效果。
+
+| 参数                | 描述                                                         | 类型          |
+| --------------------- | ------------------------------------------------------------ | ------------- |
+| flingEnable         | 是否允许惯性滚动，默认 `true`                                | Boolean       |
+
 ### nestedScroll
 
 设置子滚动容器的嵌套滚动模式，用于控制父子滚动容器之间的滚动行为
@@ -66,6 +74,11 @@
 | PARENT_FIRST | 父控件优先处理滚动，未消费完的滚动量传递给当前控件 |
 用法参考：[竖向列表嵌套滚动用法示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/list/ListNestBounceFalse.kt)、
 [横向列表嵌套滚动示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/list/ListNestRow.kt)
+
+:::tip 注意
+ - Android 侧默认支持嵌套滚动，iOS 与 鸿蒙 侧需手动设置 nestedScroll 才会生效。
+ - 若 Android 侧嵌套滚动正常，而 iOS/HarmonyOS 侧异常，请检查 Scroller 是否已显式配置 nestedScroll 属性。
+:::
 
 ### visibleAreaIgnoreTopMargin
 
@@ -159,7 +172,7 @@
 
 ### scrollToTop
 
-监听系统触发的“回到顶部”事件。仅 iOS 会在点击状态栏时触发，默认会拦截系统自动滚动到顶部的行为，需在回调中自行处理（如调用 `setContentOffset`）。
+监听系统触发的"回到顶部"事件。iOS和Android部分厂商，点击状态栏时会触发，默认会拦截系统自动滚动到顶部的行为，需在回调中自行处理（如调用 `setContentOffset`）。
 
 | 参数 | 描述 | 类型 |
 |----|----|----|
@@ -178,6 +191,17 @@
 
 ### setContentOffset
 
+### setContentOffset(Float, Float, SetContentOffsetAnimation?) <Badge text="2.14.0" type="warn"/>
+
+设置`Scroller`滚动到某个具体坐标偏移值(offset)的位置，本方法支持线性动画曲线。
+
+| 参数              | 描述                      | 类型                         |
+|-----------------|-------------------------|----------------------------|
+| offsetX         | 滚动到x轴的偏移量               | Float                      |
+| offsetY         | 滚动到y轴的偏移量               | Float                      |
+| animation       | 动画参数。                   | SetContentOffsetAnimation？ |
+
+
 设置`Scroller`滚动到某个具体坐标偏移值(offset)的位置。
 
 | 参数      | 描述                      | 类型   |
@@ -186,6 +210,7 @@
 | offsetY | 滚动到y轴的偏移量               | Float|
 | animated | 滚动到y轴的偏移量, 默认为false     | Boolean|
 | springAnimation | 是否使用spring动画滚动, 默认为null | SpringAnimation|
+
 
 ### setContentInset
 
@@ -209,3 +234,11 @@
 | left | 左边距                 | Float   |
 | bottom | 下边距                 | Float   |
 | right | 右边距                 | Float   |
+
+### abortContentOffsetAnimate
+
+立即停止当前正在进行的滚动动画（包括 `setContentOffset` 触发的动画、惯性滚动、Spring 弹性动画等）。调用后滚动会立即停止在当前位置。
+
+| 参数 | 描述 | 类型 |
+|------|------|------|
+| _无_ | 无参数 | - |

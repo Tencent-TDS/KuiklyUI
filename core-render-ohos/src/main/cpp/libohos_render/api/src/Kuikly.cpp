@@ -97,7 +97,7 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
                 return v;
             }
 
-            return std::make_shared<KRRenderValue>();
+            return KRRenderValue::Make();
         } else if (onCallMethod_) {
             std::string paramStr = params->toString();
             // create a callback context
@@ -112,14 +112,14 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
             auto val = onCallMethod_(moduleInstance_, moduleName_.c_str(), sync, method.c_str(), &anyDataInternal, (KRRenderModuleCallbackContext)cbData);
             
             if(val.res){
-                auto value = std::make_shared<KRRenderValue>(val.res);
+                auto value = KRRenderValue::Make(val.res);
                 if(val.free){
                     val.free((void*)val.res);
                 }
                 
                 return value;
             }
-            return std::make_shared<KRRenderValue>();
+            return KRRenderValue::Make();
         }
         return nullptr;
     }
@@ -308,6 +308,11 @@ void KRRegisterImageAdapter(KRImageAdapter adapter) {
 void KRRegisterImageAdapterV2(KRImageAdapterV2 adapter) {
     KRImageAdapterManager::GetInstance()->RegisterImageAdapterV2(adapter);
 }
+// 新增适配器 ImageAdapterV3
+void KRRegisterImageAdapterV3(KRImageAdapterV3 adapter) {
+    KRImageAdapterManager::GetInstance()->RegisterImageAdapterV3(adapter);
+}
+
 
 int KRLogLevelInfo = LogLevel::LOG_INFO;
 int KRLogLevelDebug = LogLevel::LOG_DEBUG;

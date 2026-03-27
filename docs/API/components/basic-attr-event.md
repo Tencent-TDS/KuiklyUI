@@ -1,6 +1,6 @@
-# 基础属性和事件
+# 基础属性、事件和方法
 
-基础属性和事件，是每一个``Kuikly``组件都包含的属性和事件。
+基础属性、事件和方法，是每一个``Kuikly``组件都包含的属性、事件和方法。
 
 ## 基础属性
 
@@ -82,7 +82,8 @@ enum class Direction(value: Int) {
 ```
 
 :::tip 注意
-**渐变颜色终止位置，在Android平台，只有API >= 29才生效**
+- **渐变颜色终止位置，在Android平台，只有API >= 29才生效**
+- iOS 端若**同时设置** background 与 backgroundLinearGradient，将**只显示渐变背景**。如需显示纯色背景，需清除backgroundLinearGradient的值。
 :::
 
 ::: tabs
@@ -143,6 +144,7 @@ internal class TestPage : BasePager() {
 | offsetY | 阴影效果相对于组件的Y坐标偏移量 | Float |
 | shadowRadius | 阴影效果扩散半径 | Float |
 | shadowColor | 阴影颜色 | Color |
+| fill<Badge text="仅Android、鸿蒙支持" type="warn"/> | 是否填充阴影区域，默认值true | Boolean |
 
 </div>
 
@@ -194,6 +196,11 @@ internal class TestPage : BasePager() {
 </div>
 
 ****
+
+:::tip 注意
+- 设置圆角后，将对子组件进行裁剪，子组件超出父组件圆角范围的部分将不可见，此行为无法通过overflow属性调整
+- **跨平台一致性提示**：Android平台2.15.x及以下版本设置`borderRadius(0f)`仍然会裁剪子组件，最新版本已修复该问题，与iOS平台保持一致（设置`borderRadius(0f)`将不再裁剪子组件）
+:::
 
 ::: tabs
 
@@ -364,7 +371,7 @@ internal class AlphaPage : BasePager() {
 
 ### transform方法
 
-设置组件的缩放scale，旋转rotate，位移translate和transform动作的中心点anchor。transform方法参数对象为:
+设置组件的缩放scale，旋转rotate，位移translate，倾斜skew和transform动作的中心点anchor。transform方法参数对象为:
 
 * Rotate
 
@@ -372,9 +379,11 @@ internal class AlphaPage : BasePager() {
 
 <div class="table-01">
 
-| 参数        | 描述      | 类型
-|:----------|:--------|:----------------| 
-| angle | 顺时针旋转角度 | Float           |
+| 参数     | 描述                                              | 类型  |
+|:-------|:------------------------------------------------|:----|
+| angle  | 围绕z轴旋转角度，属于2D平面旋转，取值范围[-360, 360]                | Float |
+| xAngle | 围绕x轴旋转角度，属于3D旋转，取值范围[-360, 360]                  | Float |
+| yAngle | 围绕y轴旋转角度，属于3D旋转，取值范围[-360, 360]                  | Float |
 
 </div>
 
@@ -391,7 +400,7 @@ internal class RotatePage : BasePager() {
                 allCenter()
             }
 
-            View { // 默认可见
+            View {
                 attr {
                     size(100f, 100f)
                     backgroundColor(Color.GREEN)
@@ -417,10 +426,10 @@ internal class RotatePage : BasePager() {
 
 <div class="table-01">
 
-| 参数  | 描述     | 类型
-|:----|:-------|:----------------| 
-| x   | x轴缩放系数 | Float           |
-| y   | y轴缩放系数 | Float           |
+| 参数 | 描述                   | 类型    |
+|:---|:---------------------|:------|
+| x  | x轴缩放系数，取值范围[0, max]  | Float |
+| y  | y轴缩放系数，取值范围[0, max]  | Float |
 
 </div>
 
@@ -437,7 +446,7 @@ internal class ScalePage : BasePager() {
                 allCenter()
             }
 
-            View { // 默认可见
+            View {
                 attr {
                     size(100f, 100f)
                     backgroundColor(Color.GREEN)
@@ -463,10 +472,12 @@ internal class ScalePage : BasePager() {
 
 <div class="table-01">
 
-| 参数  | 描述                              | 类型
-|:----|:--------------------------------|:----------------| 
-| percentageX   | 在X轴上, 相对自身宽度位移的百分比. 取值范围[-1, 1] | Float           |
-| percentageY   | 在Y轴上, 相对自身高度位移百分比，取值范围[-1, 1]   | Float           |
+| 参数         | 描述                                                                   | 类型    |
+|:-----------|:---------------------------------------------------------------------|:------|
+| percentageX | 在X轴上，相对自身宽度位移的百分比（例如-0.5f表示向左偏移50%，2表示向右偏移200%）        | Float |
+| percentageY | 在Y轴上，相对自身高度位移的百分比（例如-0.5f表示向上偏移50%，2表示向下偏移200%）        | Float |
+| offsetX | （可选）在percentageX的结果上增加的偏移量，单位dp                           | Float |
+| offsetY | （可选）在percentageY的结果上增加的偏移量，单位dp                           | Float |
 
 </div>
 
@@ -483,11 +494,11 @@ internal class TransformPage : BasePager() {
                 allCenter()
             }
 
-            View { // 默认可见
+            View {
                 attr {
                     size(100f, 100f)
                     backgroundColor(Color.GREEN)
-                    // 往右移动100f, 往下移动100f
+                    // 往右移动自身宽度的100%, 往下移动自身高度的100%
                     transform(translate = Translate(1f, 1f))
                 }
             }
@@ -504,18 +515,74 @@ internal class TransformPage : BasePager() {
 
 :::
 
-* Anchor
+* Skew
 
-设置组件做Transform时, 中心点的位置
+设置组件的倾斜变换
+
+:::warning 注意
+- 正数表示逆时针倾斜，负数表示顺时针倾斜
+- 当倾斜角度达到90度时，元素将变得无法看见，因为其宽度或高度将变为0
+:::
 
 <div class="table-01">
 
-| 参数  | 描述                                     | 类型
-|:----|:---------------------------------------|:----------------| 
-| x   | 在X轴上的中心位置, 相对自身组件的宽度的百分比位置 取值范围[-1, 1] | Float           |
-| y   | 在Y轴上的中心位置, 相对自身组件高度的百分比位置，取值范围[-1, 1]  | Float           |
+| 参数                  | 描述                              | 类型    |
+|:--------------------|:--------------------------------|:------|
+| horizontalSkewAngle | 水平方向倾斜角度，取值范围(-90, 90)，单位为角度 | Float |
+| verticalSkewAngle   | 垂直方向倾斜角度，取值范围(-90, 90)，单位为角度 | Float |
 
 </div>
+
+:::tabs
+
+@tab:active 示例
+
+```kotlin{13}
+@Page("demo_page")
+internal class SkewPage : BasePager() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                allCenter()
+            }
+
+            View {
+                attr {
+                    size(100f, 100f)
+                    backgroundColor(Color.GREEN)
+                    transform(skew = Skew(15f, 0f)) // 水平方向倾斜15度
+                }
+            }
+        }
+    }
+}
+```
+
+:::
+
+* Anchor
+
+设置组件做Transform时的中心点位置，默认值为(0.5f, 0.5f)，即组件中心
+
+<div class="table-01">
+
+| 参数 | 描述                                    | 类型    |
+|:---|:--------------------------------------|:------|
+| x  | 在X轴上的中心位置，相对自身组件宽度的百分比位置，取值范围[0, 1]  | Float |
+| y  | 在Y轴上的中心位置，相对自身组件高度的百分比位置，取值范围[0, 1]  | Float |
+
+</div>
+
+* 组合使用
+
+transform方法支持同时设置多个变换属性：
+
+```kotlin
+transform(
+    scale = Scale(1.5f, 1.5f),     // 放大1.5倍
+    translate = Translate(0.5f, 0.5f)  // 位移
+)
+```
 
 ### zIndex方法
 
@@ -577,8 +644,8 @@ internal class ZIndexPage : BasePager() {
 子组件超出父组件部分能让能够显示
 
 :::tip 注意
-overflow的默认表现在iOS开发者看来是很正常的，因此iOS默认对子View超出父View的区域是不会裁剪的。
-但是对于Android开发者来说会有不同，因此Android系统默认会不显示子View超出父View的区域
+overflow的默认表现在iOS开发者看来是很正常的，因为iOS默认对子View超出父View的区域是不会裁剪的，
+但是对于Android开发者来说会有不同，因为Android系统默认会不显示子View超出父View的区域。
 :::
 
 :::tabs
@@ -635,7 +702,7 @@ internal class OverflowPage : BasePager() {
 
 :::
 
-### clipPath方法<Badge text="安卓2.8.0以上" type="warn"/><Badge text="鸿蒙2.8.0以上" type="warn"/>
+### clipPath方法<Badge text="安卓2.8.0以上" type="warn"/><Badge text="鸿蒙2.8.0以上" type="warn"/><Badge text="iOS 2.16.0 以上" type="warn"/>
 
 设置组件的裁剪路径，可以使用路径绑定的方式裁剪组件的显示区域为任意形状。
 
@@ -1312,6 +1379,12 @@ internal class WillAppearEventtPage : BasePager() {
 
 **注:** 根节点请使用页面事件 pageDidAppear
 
+:::tip 注意
+如果是Scroller、List这类滚动容器，节点的didAppear是相对于**列表位置**可见，并非**屏幕**位置的可见。
+
+若需要**屏幕**位置上可见，可以使用滚动容器的scroll事件回调，使用列表偏移计算节点的真实位置。
+:::
+
 **示例**
 
 ```kotlin {14-18}
@@ -1433,4 +1506,120 @@ internal class AppearPercentageEventPage : BasePager() {
 }
 ```
 
+---
 
+## 基础方法
+
+### toImage方法<Badge text="仅鸿蒙支持" type="warn"/>
+
+获取View截图。该方法用于将当前View转换为图片，支持多种输出格式。
+
+<div class="table-01">
+
+| 参数        | 描述 | 类型    |
+|:----------|:-------------------------|:------| 
+| type        | 截图类型 | ImageType |
+| sampleSize | 采样率，取值大于或等于1，默认1 | Int |
+| callback | 回调函数，格式：{ code: Int, data: String?, message: String? } | CallbackFn |
+
+</div>
+
+**ImageType枚举值:**
+
+<div class="table-01">
+
+| 枚举值        | 描述 | 返回值 |
+|:----------|:-------------------------|:------| 
+| CACHE_KEY        | 返回缓存Key，可用于Image的src | String |
+| DATA_URI | 返回base64字符串 | String |
+| FILE | 返回文件path | String |
+
+</div>
+
+**回调参数说明:**
+
+<div class="table-01">
+
+| 参数        | 描述 | 类型    |
+|:----------|:-------------------------|:------| 
+| code        | 0表示成功，非0表示失败 | Int |
+| data | 缓存key（可用于Image的src）或base64串或文件path，仅成功时有该字段 | String? |
+| message | 错误信息，仅失败时有该字段 | String? |
+
+</div>
+
+:::warning 重要提醒
+**CACHE_KEY模式缓存管理：**
+- 当使用 `CACHE_KEY` 模式时，缓存的生命周期跟随页面
+- 多次调用 `toImage` 会产生多个缓存，建议在不再需要时清理以避免内存泄漏 
+:::
+
+::: tabs
+
+@tab:active 示例
+
+```kotlin {50,76-85}
+@Page("ToImageExamplePage")
+internal class ToImageExamplePage : BasePager() {
+    
+    private var viewRef : ViewRef<DivView>? = null
+    private var src by observable("")
+    private var alternating by observable(false)
+
+    override fun body(): ViewBuilder {
+        val ctx = this
+        return {
+            View {
+                ref {
+                    ctx.viewRef = it
+                }
+                attr {
+                    padding(5.0f)
+                    margin(10.0f)
+                    borderRadius(12.0f)
+                    border(Border(lineWidth = 0.5f, lineStyle = BorderStyle.SOLID, color = Color(0xFFFB8C00)))
+                    allCenter()
+                    height(150.0f)
+                    backgroundColor(if(ctx.alternating) Color.BLUE else Color.YELLOW)
+                }
+                Text {
+                    attr {
+                        fontSize(18.0f)
+                        color(Color(0xFFFB8C00))
+                        text("Some Text")
+                    }
+                }
+                Image {
+                    attr {
+                        size(100f, 100f)
+                        src(ctx.src)
+                    }
+                }
+                event {
+                    click {
+                        ctx.alternating = !ctx.alternating
+                        // 将View转换为图片，返回缓存Key
+                        ctx.viewRef?.view?.toImage(DeclarativeBaseView.ImageType.CACHE_KEY, 1) {
+                            val success = it?.optInt("code") == 0
+                            val imageSrc = it?.optString("data")
+                            if (success && imageSrc != null) {
+                                ctx.src = imageSrc
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+@tab 说明
+
+- 使用 `ref` 获取View引用，然后调用 `toImage` 方法
+- `sampleSize` 参数用于控制图片质量，值越大图片越小但处理更快
+- 回调函数中需要检查 `code` 字段判断是否成功
+- 成功时，`data` 字段包含图片数据（根据 `type` 参数不同，可能是缓存key、base64字符串或文件路径）
+- **重要：** 使用 `CACHE_KEY` 模式时，缓存生命周期跟随页面，多次调用 `toImage` 会产生多个缓存，建议在不再需要时清理以避免内存泄漏 
+
+:::

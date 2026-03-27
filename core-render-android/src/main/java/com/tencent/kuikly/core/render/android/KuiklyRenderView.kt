@@ -22,6 +22,7 @@ import android.content.Intent
 import android.content.res.Resources
 import android.os.Build
 import android.util.ArrayMap
+import android.util.Log
 import android.util.Size
 import android.util.SizeF
 import android.util.SparseArray
@@ -29,6 +30,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityManager
 import android.widget.FrameLayout
+import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.const.KRViewConst
 import com.tencent.kuikly.core.render.android.context.IKotlinBridgeStatusListener
@@ -49,6 +51,7 @@ import com.tencent.kuikly.core.render.android.exception.IKuiklyRenderExceptionLi
 import com.tencent.kuikly.core.render.android.exception.KuiklyRenderModuleExportException
 import com.tencent.kuikly.core.render.android.exception.KuiklyRenderShadowExportException
 import com.tencent.kuikly.core.render.android.exception.KuiklyRenderViewExportException
+import com.tencent.kuikly.core.render.android.expand.KuiklyRenderTracer
 import com.tencent.kuikly.core.render.android.expand.KuiklyRenderViewBaseDelegatorDelegate
 import com.tencent.kuikly.core.render.android.expand.component.image.KRImageLoader
 import com.tencent.kuikly.core.render.android.expand.component.text.TypeFaceLoader
@@ -139,8 +142,14 @@ class KuiklyRenderView(
     private var isInOnSizeChanged = false
 
     init {
-        clipChildren = false // 不裁剪, 防止孩子做scale或者translation动画时, 显示不全
+        if (!lazyClipChildren) {
+            clipChildren = false // 不裁剪, 防止孩子做scale或者translation动画时, 显示不全
+        }
     }
+
+    private var pageName = ""
+
+    internal var requestedLayout = false
 
     /**
      * 替换 Context
@@ -157,6 +166,8 @@ class KuiklyRenderView(
         size: Size?,
         assetsPath: String?
     ) {
+        val tracer = KuiklyRenderTracer("KuiklyRenderView.init")
+        this.pageName = pageName
         dispatchLifecycleStateChanged(STATE_INIT)
         assert(isMainThread()) // init方法必须在主线程调用
         initKuiklyClassLoaderIfNeed(contextCode)
@@ -182,6 +193,7 @@ class KuiklyRenderView(
                 initRenderCoreTask.invoke(sizeF) // 已经系统回调了onSizeChange, 直接运行初始化任务
             }
         }
+        tracer.end()
     }
 
     override fun sendEvent(event: String, data: Map<String, Any>) {
@@ -210,6 +222,43 @@ class KuiklyRenderView(
         dispatchLifecycleStateChanged(STATE_FIRST_FRAME_PAINT)
     }
 
+    override fun onViewAdded(child: View?) {
+        if (delegate?.debugLogEnable() == true) {
+            KuiklyRenderLog.d("KuiklyRenderView", "--onViewAdded-- ${Log.getStackTraceString(Throwable())}")
+        }
+        super.onViewAdded(child)
+    }
+
+    override fun onViewRemoved(child: View?) {
+        if (delegate?.debugLogEnable() == true) {
+            KuiklyRenderLog.d("KuiklyRenderView", "--onViewRemoved-- ${Log.getStackTraceString(Throwable())}")
+        }
+        super.onViewRemoved(child)
+    }
+
+    override fun onDetachedFromWindow() {
+        if (delegate?.debugLogEnable() == true) {
+            KuiklyRenderLog.d("KuiklyRenderView", "--onDetachedFromWindow-- ${Log.getStackTraceString(Throwable())}")
+        }
+        super.onDetachedFromWindow()
+    }
+
+    override fun onAttachedToWindow() {
+        if (delegate?.debugLogEnable() == true) {
+            KuiklyRenderLog.d("KuiklyRenderView", "--onAttachedToWindow-- ${Log.getStackTraceString(Throwable())}")
+        }
+        super.onAttachedToWindow()
+    }
+
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        if (delegate?.debugLogEnable() == true) {
+            if (visibility != VISIBLE) {
+                KuiklyRenderLog.d("KuiklyRenderView", "--onVisibilityChanged view:$view, value:$visibility-- ${Log.getStackTraceString(Throwable())}")
+            }
+        }
+        super.onVisibilityChanged(changedView, visibility)
+    }
+
     override fun resume() {
         sendEvent(VIEW_DID_APPEAR,
             mapOf(VIEW_DID_APPEAR to VIEW_DID_APPEAR_VALUE))
@@ -229,6 +278,7 @@ class KuiklyRenderView(
     }
 
     override fun syncFlushAllRenderTasks() {
+        KuiklyRenderLog.d("KuiklyRenderView", "--syncFlushAllRenderTasks--")
         addTaskWhenCoreDidInit {
             it.syncFlushAllRenderTasks()
             remeasureIfNeeded()
@@ -273,6 +323,7 @@ class KuiklyRenderView(
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         isInOnSizeChanged = true
         super.onSizeChanged(w, h, oldw, oldh)
+        KuiklyRenderLog.d("KuiklyRenderTracer", "--onSizeChanged: w:${w}, h:${h}, oldw:${oldw}, oldh:${oldh}--")
         performInitRenderCoreLazyTaskOnce(w, h)
         sendSizeChangeIfNeed(w, h)
         isInOnSizeChanged = false
@@ -283,6 +334,7 @@ class KuiklyRenderView(
         if (initRenderCoreLazyTask == null) {
             return
         }
+        KuiklyRenderLog.d("KuiklyRenderTracer", "--performInitRenderCoreLazyTaskOnce: ${System.currentTimeMillis()}")
         initRenderCoreLazyTask?.invoke(SizeF(w.toFloat(), h.toFloat()))
         initRenderCoreLazyTask = null
     }
@@ -315,6 +367,7 @@ class KuiklyRenderView(
         size: SizeF,
         assetsPath: String?
     ) {
+        val tracer = KuiklyRenderTracer("initRenderCore")
         dispatchLifecycleStateChanged(STATE_INIT_CORE_START)
         val contextParams = KuiklyContextParams(executeMode, url, params, assetsPath)
         kuiklyRenderViewContext.initContextParams(contextParams)
@@ -350,6 +403,7 @@ class KuiklyRenderView(
         dispatchLifecycleStateChanged(STATE_INIT_CORE_FINISH)
         trySendCoreEventList() // 尝试发送lazy事件，如果有的话
         performCoreLazyTaskList()
+        tracer.end()
     }
 
     private fun createRenderCore(): IKuiklyRenderCore =
@@ -359,6 +413,9 @@ class KuiklyRenderView(
 
     private fun generateWithParams(params: Map<String, Any>, size: SizeF): Map<String, Any> {
         val contentView = context.activity?.findViewById<View>(android.R.id.content)
+        val usingDisplayMetrics = KuiklyRenderAdapterManager.krFontAdapter
+            ?.getDisplayMetrics(useHostDisplayMetrics = kuiklyRenderContext.useHostDisplayMetrics())
+            ?: Resources.getSystem().displayMetrics
         return mutableMapOf<String, Any>().apply {
             put(ROOT_VIEW_WIDTH, kuiklyRenderViewContext.toDpF(size.width))
             put(ROOT_VIEW_HEIGHT, kuiklyRenderViewContext.toDpF(size.height))
@@ -373,17 +430,23 @@ class KuiklyRenderView(
             put(SAFE_AREA_INSETS, "${kuiklyRenderContext.toDpF(context.statusBarHeight.toFloat())} 0 0 0")
             put(ACTIVITY_WIDTH, kuiklyRenderContext.toDpF((contentView?.width ?: 0).toFloat()))
             put(ACTIVITY_HEIGHT, kuiklyRenderContext.toDpF((contentView?.height ?: 0).toFloat()))
-            put(DENSITY, Resources.getSystem().displayMetrics.density)
+            put(DENSITY, usingDisplayMetrics.density)
             put(ACCESSIBILITY_RUNNING, if (isAccessibilityRunning()) 1 else 0)
+            val feature = mapOf(
+                "box_shadow_fill" to 1
+            )
+            put(FEATURE, feature)
         }
     }
 
     private fun trySendCoreEventList() {
+        val tracer = KuiklyRenderTracer("trySendCoreEventList ${coreEventLazyEventList == null}")
         val lazyEventList = coreEventLazyEventList ?: return
         for (event in lazyEventList) {
             renderCore?.sendEvent(event.first, event.second)
         }
         coreEventLazyEventList = null // 及时释放掉无用的内存
+        tracer.end()
     }
 
     private fun addTaskWhenCoreDidInit(task: RenderCoreLazyTask) {
@@ -395,12 +458,14 @@ class KuiklyRenderView(
     }
 
     private fun performCoreLazyTaskList() {
+        KuiklyRenderLog.d("KuiklyRenderView", "--performCoreLazyTaskList start--")
         renderCore?.also {
             for (task in coreLazyTaskList) {
                 task(it)
             }
             coreLazyTaskList.clear()
         }
+        KuiklyRenderLog.d("KuiklyRenderView", "--performCoreLazyTaskList finish--")
     }
 
     fun registerCallback(callback: IKuiklyRenderViewLifecycleCallback) {
@@ -517,6 +582,27 @@ class KuiklyRenderView(
         sendEvent(ON_BACK_PRESSED, mapOf())
     }
 
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        if (delegate?.debugLogEnable() == true) {
+            if (requestedLayout) {
+                var sb = ""
+                for (i in 0 until childCount) {
+                    val child = getChildAt(i)
+                    var s = "${child::class.simpleName} ${child.isLayoutRequested}"
+                    if (child is ViewGroup) {
+                        val suppress =
+                            if (Build.VERSION.SDK_INT >= 29) child.isLayoutSuppressed else false
+                        val changing = child.layoutTransition?.isChangingLayout ?: false
+                        s += " suppress=$suppress changing=$changing"
+                    }
+                    sb += "$s\n"
+                }
+                KuiklyRenderLog.d("KuiklyRenderTracer", "KuiklyRenderView onLayout: changed=$changed, left=$left, top=$top, right=$right, bottom=$bottom\n$sb")
+            }
+        }
+        super.onLayout(changed, left, top, right, bottom)
+    }
+
     private fun remeasureIfNeeded() {
         // KuiklyRenderView's onSizeChanged triggers between onMeasure and onLayout,
         // set frame here may cause a wrong measure state, so we manually call measure again.
@@ -528,7 +614,19 @@ class KuiklyRenderView(
         }
     }
 
+    override fun isDebugLogEnable(): Boolean {
+        return delegate?.debugLogEnable() == true
+    }
+
     companion object {
+        private var _lazyClipChildren: Boolean = false
+        internal val lazyClipChildren: Boolean get() = _lazyClipChildren
+        /**
+         * 按需禁用clipChildren的开关
+         */
+        fun enableLazyClipChildren() {
+            _lazyClipChildren = true
+        }
         private const val TAG = "KuiklyRenderView"
         private const val EVENT_ROOT_VIEW_SIZE_CHANGED = "rootViewSizeDidChanged"
         private const val ROOT_VIEW_WIDTH = "rootViewWidth"
@@ -552,6 +650,7 @@ class KuiklyRenderView(
         private const val VIEW_DID_APPEAR = "viewDidAppear"
         private const val VIEW_DID_APPEAR_VALUE = "1"
         private const val DENSITY = "density"
+        private const val FEATURE = "feature"
 
         const val PAGER_EVENT_FIRST_FRAME_PAINT = "pageFirstFramePaint"
         private const val ACCESSIBILITY_RUNNING = "isAccessibilityRunning" // 无障碍化是否开启

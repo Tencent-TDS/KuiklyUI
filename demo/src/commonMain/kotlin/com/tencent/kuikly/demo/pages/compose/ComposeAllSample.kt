@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import com.tencent.kuikly.compose.ComposeContainer
+import com.tencent.kuikly.compose.extension.scrollToTop
 import com.tencent.kuikly.compose.foundation.background
 import com.tencent.kuikly.compose.foundation.clickable
 import com.tencent.kuikly.compose.foundation.layout.Arrangement
@@ -150,6 +151,10 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("Dialog弹出菜单PopMenu", "基于Dialog实现的弹出菜单PopMenu示例", "PopMenuDialogDemo"),
             DemoItem("AnchoredDraggableDemo", "AnchoredDraggable使用案例", "AnchoredDraggableDemo"),
             DemoItem("ScaffoldDemo", "Scaffold使用案例", "ScaffoldDemo"),
+            DemoItem("NavigationBarDemo", "Material3 NavigationBar底部导航栏", "NavigationBarDemo"),
+            DemoItem("NavHostDemo", "跨平台NavHost导航组件", "NavHostDemo"),
+            DemoItem("NavHostTestDemo", "NavHost测试页面-验证与官方原生表现对齐", "NavHostTestDemo"),
+            DemoItem("NavHostNewAPIDemo", "NavHost新增API演示-自定义Navigator等", "NavHostNewAPIDemo"),
             DemoItem("AI对话Demo", "支持Markdown渲染的AI对话示例", "ChatDemo"),
             DemoItem("DensityScaleDemo", "基于Density实现跨端缩放", "DensityScaleDemo"),
             DemoItem("BackHandlerDemo", "监听并拦截返回键", "BackHandlerDemo"),
@@ -158,6 +163,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("AccessibilityDemo(Android&iOS)", "无障碍", "AccessibilityDemo"),
             DemoItem("InteractionSourceDemo", "交互源Demo", "InteractionSourceDemo"),
             DemoItem("ViewModel示例", "Lifecycle和ViewModel", "ViewModelDemo"),
+            DemoItem("GradientAnimationDemo", "Offset or color animate ", "GradientAnimationDemo"),
         )
 
     @Composable

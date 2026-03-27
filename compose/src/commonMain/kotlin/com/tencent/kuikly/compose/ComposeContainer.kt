@@ -29,7 +29,6 @@ import com.tencent.kuikly.compose.foundation.event.OnBackPressedDispatcher
 import com.tencent.kuikly.compose.foundation.event.OnBackPressedDispatcherOwner
 import com.tencent.kuikly.compose.platform.Configuration
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
-import com.tencent.kuikly.compose.ui.GlobalSnapshotManager
 import com.tencent.kuikly.compose.ui.InternalComposeUiApi
 import com.tencent.kuikly.compose.ui.platform.WindowInfoImpl
 import com.tencent.kuikly.compose.ui.scene.ComposeScene
@@ -146,7 +145,8 @@ open class ComposeContainer :
 
     private fun startFrameDispatcher() {
         mediator?.renderFrame()
-        if (!getPager().pageData.isAndroid) {
+        val pageData = getPager().pageData
+        if (pageData.isOhOs || pageData.isMiniApp || pageData.isWeb) {
             mediator?.startFrameDispatcher()
         } else {
             getModule<VsyncModule>(VsyncModule.MODULE_NAME)?.registerVsync {
@@ -156,7 +156,8 @@ open class ComposeContainer :
     }
 
     private fun stopFrameDispatcher() {
-        if (!getPager().pageData.isAndroid) {
+        if (getPager().pageData.isOhOs) {
+
         } else {
             getModule<VsyncModule>(VsyncModule.MODULE_NAME)?.unRegisterVsync()
         }
@@ -235,12 +236,21 @@ open class ComposeContainer :
     override fun onReceivePagerEvent(pagerEvent: String, eventData: JSONObject) {
         super.onReceivePagerEvent(pagerEvent, eventData)
         if (pagerEvent == PAGER_EVENT_ROOT_VIEW_SIZE_CHANGED) {
+            val densityInfo = eventData.optString(DENSITY_INFO, "")
+            if(densityInfo.isNotEmpty()) {
+                val info = JSONObject(densityInfo)
+                val newDensity = info.optDouble(DENSITY_INFO_KEY_NEW_DENSITY)
+                mediator?.updateDensity(newDensity.toFloat())
+            }
             val width = eventData.optDouble(WIDTH)
             val height = eventData.optDouble(HEIGHT)
             val newFrame = Frame(0f, 0f, width.toFloat(), height.toFloat())
             setFrameToRenderView(newFrame)
             rootKView.setFrameToRenderView(newFrame)
             updateWindowContainer(newFrame)
+        } else if (pagerEvent == PAGER_EVENT_WINDOW_SIZE_CHANGED) {
+            configuration?.onWindowSizeChanged(eventData.optDouble(WIDTH),eventData.optDouble(
+                HEIGHT))
         } else if (pagerEvent == PAGER_EVENT_CONFIGURATION_DID_CHANGED) {
             val fontWeightScale = eventData.optDouble("fontWeightScale", 1.0)
             val fontSizeScale = eventData.optDouble("fontSizeScale", 1.0)

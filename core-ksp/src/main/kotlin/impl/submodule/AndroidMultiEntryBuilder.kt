@@ -23,7 +23,7 @@ import com.squareup.kotlinpoet.TypeSpec
 import impl.AndroidTargetEntryBuilder
 import impl.PageInfo
 
-class AndroidMultiEntryBuilder(private val isMainModule: Boolean, private val subModules: String, private val moduleId: String) : AndroidTargetEntryBuilder() {
+class AndroidMultiEntryBuilder(catchException: Boolean, private val isMainModule: Boolean, private val subModules: String, private val moduleId: String) : AndroidTargetEntryBuilder(catchException) {
     override fun build(builder: FileSpec.Builder, pagesAnnotations: List<PageInfo>) {
         if (!isMainModule) {
             builder.addType(
@@ -37,6 +37,7 @@ class AndroidMultiEntryBuilder(private val isMainModule: Boolean, private val su
                         .addSuperinterface(ClassName("com.tencent.kuikly.core", "IKuiklyCoreEntry"))
                         .addProperty(createHadRegisterNativeBridgeProperty())
                         .addProperty(createDelegateProperty())
+                        .addFunction(createCatchExceptionFuncSpec())
                         .addFunction(createCallKtMethodFuncSpec())
                         .addFunction(createPagesFuncSpec(pagesAnnotations))
                         .build()

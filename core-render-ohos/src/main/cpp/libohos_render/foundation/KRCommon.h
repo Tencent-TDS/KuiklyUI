@@ -21,8 +21,8 @@
 #include <string>
 #include "libohos_render/foundation/type/KRRenderValue.h"
 
-#define KREmptyValue() std::make_shared<KRRenderValue>()
-#define NewKRRenderValue(value) std::make_shared<KRRenderValue>(value)
+#define KREmptyValue() KRRenderValue::Make()
+#define NewKRRenderValue(value) KRRenderValue::Make(value)
 
 using KRAnyValue = std::shared_ptr<KRRenderValue>;
 using KRRenderCallback = std::function<void(KRAnyValue)>;

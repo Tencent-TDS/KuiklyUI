@@ -12,11 +12,12 @@
 - [X] 鸿蒙
 - [X] Web（beta）
 - [X] 小程序（beta）
+- [X] macOS（Alpha）
 
 `Kuikly` 推出后受到业务广泛认可，已应用于 QQ、QQ 音乐、QQ 浏览器、腾讯新闻、搜狗输入法、应用宝、全民K歌、酷狗音乐、酷我音乐、自选股、ima.copilot、微视等多款产品。
 ## 特点
 
-- 跨平台：基于 Kotlin 跨平台实现多平台一致运行，一码五端
+- 跨平台：基于 Kotlin 跨平台实现多平台一致运行，一码六端
 - 原生性能：运行平台原生编译产物(.aar/.framework/.so)
 - 原生开发体验：原生 UI 渲染、原生开发工具链、Kotlin 原生开发语言
 - 轻量：SDK 增量小（AOT模式下，Android：约 300 KB，iOS：约 1.2 MB）
@@ -45,6 +46,7 @@
 ├── demo                   # DSL 示例代码 
 ├── androidApp             # Android 宿主壳工程
 ├── iosApp                 # iOS 宿主壳工程
+├── macApp                 # macOS 宿主壳工程
 ├── miniApp                # 微信小程序 宿主壳工程
 ├── h5App                  # H5 宿主壳工程
 ├── ohosApp                # Ohos 宿主壳工程
@@ -59,6 +61,7 @@
 
 ## 系统要求
 - iOS 12.0版本及以上
+- macOS 10.13版本及以上
 - Android 5.0版本及以上
 - HarmonyOS Next 5.0.0(12) 版本及以上
 - Kotlin版本 1.3.10 版本及以上
@@ -104,12 +107,44 @@
 
 ### 运行Ohos APP
 在构建 Ohos App 之前，请确保完成了环境准备
-1. 在`KuiklyUI`根目录执行鸿蒙跨端产物编译脚本 `./2.0_ohos_demo_build.sh`
+
+#### Mac
+1. 在`KuiklyUI`根目录执行鸿蒙跨端产物编译脚本：
+   ```bash
+   ./2.0_ohos_demo_build.sh
+   ```
 2. 使用 DevEco Studio 打开 `KuiklyUI/ohosApp` 项目目录，完成 `sync`
 3. 连接真机或启动鸿蒙模拟器，并执行签名操作 `File -> Project Structure -> Signing Configs`
 4. 使用DevEco Studio, Run `entry`, 运行Ohos App
 
-注: kuikly鸿蒙跨端产物仅支持Mac编译，Windows可以使用编译好的跨端产物运行Ohos APP
+#### Windows
+1. 配置环境变量 `OHOS_SDK_HOME`，指向鸿蒙 SDK 路径：
+   ```
+   变量名: OHOS_SDK_HOME
+   路径: %TOOL_HOME%\sdk
+   变量名: TOOL_HOME
+   路径: D:\DevEcoStudio
+   ```
+   注意：“D:\DevEcoStudio”中D盘为示例演示，实则除C盘以外任何盘都可以
+   
+2. 在`KuiklyUI`根目录执行 Windows 编译脚本：
+   ```cmd
+   2.0_ohos_demo_build.bat
+   ```
+   或手动执行：
+   ```cmd
+   set KUIKLY_AGP_VERSION=7.4.2
+   set KUIKLY_KOTLIN_VERSION=2.0.21-KBA-010
+   gradlew.bat -c settings.2.0.ohos.gradle.kts :demo:linkSharedDebugSharedOhosArm64
+   ```
+3. 拷贝产物到 ohosApp（bat 脚本会自动完成）：
+   - `demo\build\bin\ohosArm64\sharedDebugShared\libshared.so` → `ohosApp\entry\libs\arm64-v8a\`
+   - `demo\build\bin\ohosArm64\sharedDebugShared\libshared_api.h` → `ohosApp\entry\src\main\cpp\thirdparty\biz_entry\`
+4. 使用 DevEco Studio 打开 `KuiklyUI/ohosApp` 项目目录，完成 `sync`
+5. 连接真机或启动鸿蒙模拟器，并执行签名操作 `File -> Project Structure -> Signing Configs`
+6. 使用DevEco Studio, Run `entry`, 运行Ohos App
+
+> 注: Windows 编译需要使用 Kotlin 工具链版本 `2.0.21-KBA-010`，该版本支持 Windows/Linux 平台。
 
 ### Kotlin多版本支持
 
@@ -145,7 +180,7 @@ KuiklyUI目录下有各个`Kotlin`版本的gradle配置项
 ## 贡献者
 - 特别感谢首批贡献者tom（邱良雄）kam（林锦涛）watson（金盎），不仅在大前端领域主导 `Kuikly` 跨端方案孵化探索，而且率先在QQ业务落地。
 - 感谢以下核心贡献者对`Kuikly`持续建设维护与发展优化：
-  <br>tom kam watson rocky jonas ruifan pel layen bird zealot zhenhua vinney xuanxi arnon alexa allens eason
+  <br>tom kam watson rocky jonas ruifan pel layen bird zealot zhenhua vinney xuanxi ray arnon alexa allens eason
 - 同时感谢每一位参与`Kuikly`建设的社区贡献者，正是大家的共同努力，让Kuikly得以不断成长。
   <div id="list" style="display: flex; flex-wrap: wrap"><a href="https://github.com/Tencent-TDS/KuiklyUI/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=Tencent-TDS/KuiklyUI" /></a><a href="https://github.com/Tencent-TDS/KuiklyUI-third-party/graphs/contributors">

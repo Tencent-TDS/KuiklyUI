@@ -86,10 +86,11 @@ abstract class Props : BaseObject(), IPagerId {
 
     fun setPropsToRenderView() {
         view()?.also {
-            // 当有圆角和阴影同时存在时 或 有背景渐变的叶子节点时，需要wrapperBoxShadowView兼容对齐安卓表现
+            // 当有圆角和阴影同时存在时 或 有clipPath和阴影同时存在时 或 有背景渐变的叶子节点时，需要wrapperBoxShadowView兼容对齐安卓表现
+            // iOS 上 layer.mask 会裁剪 layer.shadow，所以需要 wrapper view 来分离阴影和裁剪
             if ((getPager().pageData.isIOS || getPager().pageData.isMacOS)
                 && ((propsMap.containsKey(Attr.StyleConst.BOX_SHADOW)
-                && propsMap.containsKey(Attr.StyleConst.BORDER_RADIUS))
+                && (propsMap.containsKey(Attr.StyleConst.BORDER_RADIUS) || propsMap.containsKey(Attr.StyleConst.CLIP_PATH)))
                 || (propsMap.containsKey(Attr.StyleConst.BACKGROUND_IMAGE) && (it !is ViewContainer<*, *>)))) {
                 it.syncProp(Attr.StyleConst.WRAPPER_BOX_SHADOW_VIEW, 1)
             }

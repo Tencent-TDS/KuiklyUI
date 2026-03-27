@@ -19,9 +19,9 @@
 2. **平台侧KuiklyRender**:
    1. 添加``Kuikly``在平台的渲染器依赖
    2. 实现``Kuikly``在各个平台的适配器
-   3. 将``Kuikly``视图嵌入到平台的页面容器(Android为Fragment或者Activity, iOS为ViewController, 鸿蒙为ArkTS组件)
+   3. 将``Kuikly``视图嵌入到平台的页面容器(Android为Fragment或者Activity, iOS/macOS为ViewController, 鸿蒙为ArkTS组件)
 
 ## 下一步
 
 * 如果你是负责**KMP侧**跨平台``KuiklyCore``的接入的话，您可以移步[KMP跨端工程接入](common.md)查看如何接入``KuiklyCore``
-* 如果你是负责平台侧``KuiklyRender``接入, 您可以移步[Android KuiklyRender接入](android.md), [iOS KuiklyRender接入](iOS.md), [鸿蒙 KuiklyRender接入](harmony.md)
+* 如果你是负责平台侧``KuiklyRender``接入, 您可以移步[Android KuiklyRender接入](android.md), [iOS KuiklyRender接入](iOS.md), [macOS KuiklyRender接入](Mac.md), [鸿蒙 KuiklyRender接入](harmony.md)

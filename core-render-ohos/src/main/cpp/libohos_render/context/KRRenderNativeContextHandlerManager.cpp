@@ -51,11 +51,11 @@ std::shared_ptr<IKRRenderNativeContextHandler> KRRenderNativeContextHandlerManag
 
 void KRRenderNativeContextHandlerManager::RegisterContextHandler(
     const std::string &instanceId, const std::shared_ptr<IKRRenderNativeContextHandler> &contextHandler) {
-    context_handler_map_[instanceId] = contextHandler;
+    context_handler_map_.Set(instanceId, contextHandler);
 }
 
 void KRRenderNativeContextHandlerManager::UnregisterContextHandler(const std::string &instanceId) {
-    context_handler_map_.erase(instanceId);
+    context_handler_map_.Erase(instanceId);
 }
 
 void KRRenderNativeContextHandlerManager::ScheduleDeallocRenderValues(
@@ -82,18 +82,18 @@ void KRRenderNativeContextHandlerManager::ScheduleDeallocRenderValues(
 KRRenderCValue KRRenderNativeContextHandlerManager::DispatchCallNative(
     const std::string &instanceId, int methodId, const KRRenderCValue &arg0, const KRRenderCValue &arg1,
     const KRRenderCValue &arg2, const KRRenderCValue &arg3, const KRRenderCValue &arg4, const KRRenderCValue &arg5) {
-    auto handler = context_handler_map_[instanceId];
+    auto handler = context_handler_map_.Get(instanceId);
     if (!handler || nullptr == KRRenderManager::GetInstance().GetRenderView(instanceId)) {
         auto cv = KRRenderCValue();
         cv.type = KRRenderCValue::NULL_VALUE;
         return cv;
     }
-    auto cv0 = std::make_shared<KRRenderValue>(arg0);
-    auto cv1 = std::make_shared<KRRenderValue>(arg1);
-    auto cv2 = std::make_shared<KRRenderValue>(arg2);
-    auto cv3 = std::make_shared<KRRenderValue>(arg3);
-    auto cv4 = std::make_shared<KRRenderValue>(arg4);
-    auto cv5 = std::make_shared<KRRenderValue>(arg5);
+    auto cv0 = KRRenderValue::Make(arg0);
+    auto cv1 = KRRenderValue::Make(arg1);
+    auto cv2 = KRRenderValue::Make(arg2);
+    auto cv3 = KRRenderValue::Make(arg3);
+    auto cv4 = KRRenderValue::Make(arg4);
+    auto cv5 = KRRenderValue::Make(arg5);
 
     auto return_value =
         handler->OnCallNative(static_cast<KuiklyRenderNativeMethod>(methodId), cv0, cv1, cv2, cv3, cv4, cv5);

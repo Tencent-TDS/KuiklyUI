@@ -40,6 +40,7 @@ kotlin {
             kotlinOptions {
                 jvmTarget = "1.8"
                 freeCompilerArgs += "-Xjvm-default=all"
+                moduleName = "${project.group}.${project.name}"
             }
         }
         publishLibraryVariantsGroupedByFlavor = true

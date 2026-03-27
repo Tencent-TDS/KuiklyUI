@@ -22,13 +22,3 @@ internal interface ExtPropsVar<R> {
     operator fun getValue(thisRef: BaseObject, property: KProperty<*>): R
     operator fun setValue(thisRef: BaseObject, property: KProperty<*>, value: R)
 }
-
-internal fun <T : Any> extPropsVar(key: String, initVal: () -> T) = object : ExtPropsVar<T> {
-    override fun getValue(thisRef: BaseObject, property: KProperty<*>): T {
-        return thisRef.extProps.getOrPut(key, initVal) as T
-    }
-
-    override fun setValue(thisRef: BaseObject, property: KProperty<*>, value: T) {
-        thisRef.extProps[key] = value
-    }
-}

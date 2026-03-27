@@ -190,7 +190,18 @@ object KRImageAdapter : IKRImageAdapter {
 
 }
 ```
+
 完成后，可通过**模版工程**中的``ImageAdapter基准测试``页面来验证功能正常，可能需要重载``IKRImageAdapter``的``getDrawableWidth``和``getDrawableHeight``方法调节渲染效果。
+
+:::warning 注意
+`fetchDrawable` 方法可能在非UI线程调用，例如在 `MemoryCacheModule.cacheImage` 中（可参考[示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/CanvasTestPage.kt)）。实现时需要注意线程安全，如果需要在UI线程操作（如更新UI组件），请使用 `Handler` 或 `runOnUiThread` 等方式切换到UI线程。
+:::
+
+:::tip 注意
+框架默认会把图片在首屏完成后在进行加载(优化首屏性能)，若不希望框架对此做异步
+
+可以在 `KRImageAdapter` 重写 `shouldWaitViewDidLoad` 字段为 `false` 以实现
+:::
 
 ### 实现日志适配器
 具体实现代码，请参考源码工程androidApp模块的``KRLogAdapter``类。
@@ -398,15 +409,18 @@ object KRColorAdapter : IKRColorParserAdapter {
 
 ### 自定义字体适配器
 
-通过该适配器扩展自定义字体, 业务可根据实际使用需求来决定是否实现
+通过该适配器扩展自定义字体，以及控制系统显示大小缩放行为。
 
-具体实现代码，请参考源码工程androidApp模块的``KRFontAdapter``类。
+#### 加载自定义字体
+
+从 assets 加载自定义字体文件：
+
 ```kotlin
 object KRFontAdapter : IKRFontAdapter {
     override fun getTypeface(fontFamily: String, result: (Typeface?) -> Unit) {
-        // 加载自定义字体, 结果通过result回调给Kuikly侧
-        
-        // 例：assets/font/ 存放Satisfy-Regular.ttf 自定义字体文件
+        // 加载自定义字体，结果通过 result 回调给 Kuikly 侧
+
+        // 例：assets/fonts/ 存放 Satisfy-Regular.ttf 自定义字体文件
         if (fontFamily.isEmpty()) {
             result(null)
         } else {
@@ -419,6 +433,31 @@ object KRFontAdapter : IKRFontAdapter {
             result(tfe)
         }
     }
+}
+```
+
+#### 实现不跟随系统显示大小变化
+
+通过固定 density 值，使 Kuikly 页面布局不受系统"显示大小"设置影响。
+
+**步骤 1：在 FontAdapter 中实现固定 density**
+
+```kotlin
+object KRFontAdapter : IKRFontAdapter {
+    override fun getDisplayMetrics(useHostDisplayMetrics: Boolean?): DisplayMetrics {
+        return DisplayMetrics().apply {
+            density = 2f
+            scaledDensity = 2f
+        }
+    }
+}
+```
+
+**步骤 2：在 Delegate 中启用 useHostDisplayMetrics**
+
+```kotlin
+val delegate = object : KuiklyRenderViewBaseDelegatorDelegate {
+    override fun useHostDisplayMetrics(): Boolean = true
 }
 ```
 
@@ -460,9 +499,103 @@ android {
 -keep class com.tencent.kuikly.core.IKuiklyCoreEntry { *; }
 -keep class com.tencent.kuikly.core.IKuiklyCoreEntry$Delegate { *; }
 -keep class com.tencent.kuikly.core.log.KLog { *; }
+-keepnames class com.tencent.kuikly.core.render.android.scheduler.IKuiklyRenderCoreScheduler$* {
+    public *;
+}
+-keep class com.tencent.kuikly.core.render.android.scheduler.KuiklyRenderCoreContextScheduler {
+    com.tencent.kuikly.core.render.android.scheduler.KuiklyRenderCoreContextScheduler INSTANCE;
+    void scheduleTask(long,java.lang.Runnable);
+}
 
 # RecyclerView 反射方法保留
 -keepclassmembers class androidx.recyclerview.widget.RecyclerView {
     void setScrollState(int);
 }
 ```
+
+## 配置AndroidManifest.xml
+
+在 AndroidManifest.xml 中为您的 Activity（如 `KuiklyRenderActivity`）添加以下配置：
+
+```xml
+<activity
+    android:name=".KuiklyRenderActivity"
+    android:windowSoftInputMode="stateUnspecified|adjustNothing"
+    ... />
+```
+
+### 配置说明
+
+- **`stateUnspecified`**：避免输入框默认获得焦点，让 Kuikly 页面可以更好地控制输入框的焦点状态
+- **`adjustNothing`**：避免键盘弹起时调整 Activity 的 View 大小，从而防止影响 KuiklyView 的布局和尺寸。这样可以确保 KuiklyView 的大小保持稳定，不受键盘影响
+
+### 与 keyboardHeightChange 结合使用
+
+配置 `adjustNothing` 后，Kuikly 框架可以通过 `keyboardHeightChange` 事件来监听键盘高度变化，并实现更精确的键盘规避逻辑。这种方式比系统自动调整布局更加可控，能够提供更好的用户体验。
+
+## 实验性开关
+
+Kuikly提供了一些实验性功能开关，供业务按需开启以体验新功能或优化性能。
+
+1. **KuiklyRenderView.enableLazyClipChildren()**
+   - 功能描述：优化重绘范围的实验性开关，可以提升小区域动画的渲染性能，进程级开关，影响所有 Kuikly 页面，**2.16.0**版本引入
+   - 可能存在的缺陷：子组件超出父组件边界的部分被裁剪掉，没有正确显示
+
+:::warning 注意
+实验性功能可能存在不稳定因素，务必充分测试后再在生产环境中使用。
+:::
+
+## 附：以View方式接入
+
+除了使用Activity方式接入外，Kuikly还支持以View方式接入，这种方式可以将Kuikly页面嵌入到现有的Activity或Fragment中，更加灵活。
+
+### 与Activity方式的主要不同点
+
+1. **实现Kuikly承载容器**
+   - 创建 `KuiklyRenderViewBaseDelegatorDelegate` 而非 `KuiklyRenderViewBaseDelegator`
+   - 使用 `KuiklyBaseView(Context, KuiklyRenderViewBaseDelegatorDelegate)` 创建实例
+   - 打开Kuikly页面 `kuiklyView.onAttach("", YOUR_PAGE_NAME, YOUR_PAGE_DATA)`
+
+2. **生命周期管理**
+   调用`KuiklyBaseView`的`onResume()`、`onPause()`、`onDetach()`方法
+
+### 代码示例
+
+```kotlin
+class NativeMixKuiklyViewDemoActivity : AppCompatActivity() {
+
+    private var kuiklyView: KuiklyBaseView? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_native_mix_kuikly_view)
+        val rootView = findViewById<ViewGroup>(R.id.root_view)
+        // 实例化Kuikly委托者类
+        val delegate = object : KuiklyRenderViewBaseDelegatorDelegate {
+            // any implement……
+        }
+        // 创建KuiklyBaseView并附加到容器
+        kuiklyView = KuiklyBaseView(this, delegate)
+        // 加载Kuikly页面：contextCode传空字符串，pageName为页面名称，pageData为页面参数
+        kuiklyView?.onAttach("", "router", mapOf())
+        rootView.addView(kuiklyView)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        kuiklyView?.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        kuiklyView?.onResume()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        kuiklyView?.onDetach()
+    }
+}
+```
+
+[完整代码](https://github.com/Tencent-TDS/KuiklyUI/blob/main/androidApp/src/main/java/com/tencent/kuikly/android/demo/NativeMixKuiklyViewDemoActivity.kt)

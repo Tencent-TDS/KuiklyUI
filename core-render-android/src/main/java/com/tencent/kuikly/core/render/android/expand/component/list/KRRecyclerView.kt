@@ -23,9 +23,6 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
-import android.animation.ValueAnimator
-import android.view.animation.LinearInterpolator
-import android.view.accessibility.AccessibilityNodeInfo
 import androidx.core.view.NestedScrollingChild2
 import androidx.core.view.NestedScrollingParent2
 import androidx.core.view.ViewCompat
@@ -34,11 +31,11 @@ import androidx.recyclerview.widget.RecyclerView
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.expand.component.KRView
-import com.tencent.kuikly.core.render.android.css.ktx.touchConsumeByNative
 import com.tencent.kuikly.core.render.android.css.ktx.drawCommonDecoration
 import com.tencent.kuikly.core.render.android.css.ktx.drawCommonForegroundDecoration
 import com.tencent.kuikly.core.render.android.css.ktx.frameHeight
 import com.tencent.kuikly.core.render.android.css.ktx.frameWidth
+import com.tencent.kuikly.core.render.android.css.ktx.nativeGestureViewHashCodeSet
 import com.tencent.kuikly.core.render.android.css.ktx.touchConsumeByKuikly
 import com.tencent.kuikly.core.render.android.css.ktx.toDpF
 import com.tencent.kuikly.core.render.android.css.ktx.toPxI
@@ -47,8 +44,7 @@ import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 import org.json.JSONObject
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.PI
-import kotlin.math.pow
+import kotlin.math.abs
 
 enum class KRNestedScrollMode(val value: String){
     SELF_ONLY("SELF_ONLY"),
@@ -90,6 +86,11 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
      * 开始fling回调
      */
     private var willEndDragEventCallback: KuiklyRenderCallback? = null
+
+    /**
+     * 点击状态栏滚动到顶部回调
+     */
+    private var scrollToTopEventCallback: KuiklyRenderCallback? = null
 
     /**
      * RecyclerView滚动监听器
@@ -214,6 +215,10 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         mutableListOf<IKRRecyclerViewListener>()
     }
 
+    private val minimumFlingVelocity by lazy {
+        ViewConfiguration.get(context).scaledMinimumFlingVelocity
+    }
+
     private val scrollConflictHandler by lazy {
         RVScrollConflictHandler(context)
     }
@@ -247,18 +252,20 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             overScrollHandler?.forceOverScroll = value
         }
 
-    private var springAnimationX: KRSpringAnimation? = null
-    private var springAnimationY: KRSpringAnimation? = null
-    private var springAnimationConsumedX = 0f
-    private var springAnimationConsumedY = 0f
+    // 动画管理器
+    private val scrollAnimationManager = KRScrollAnimationManager(this).apply {
+        onAnimationEnd = {
+            checkAndStopScrollIfNeeded()
+        }
+    }
 
     /**
      * 用于补偿 RecyclerView 位置变化产生的触摸偏移
-     * 
+     *
      * 问题背景：
      * 当 RecyclerView 在父容器中的位置发生变化时（例如父容器滚动、布局变化等），
      * 会导致触摸事件的坐标产生额外的偏移。如果不进行补偿，嵌套滚动时会出现抖动问题。
-     * 
+     *
      * 解决方案：
      * 1. 在 onLayout 中记录位置变化，累加到 accumulatedPositionOffsetX/Y
      * 2. 在嵌套滚动时，优先消耗这些累积的偏移量，避免传递给父容器
@@ -266,28 +273,19 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
      */
     /** X 方向累积的位置偏移量（像素），正值表示向右偏移，负值表示向左偏移 */
     internal var accumulatedPositionOffsetX = 0
-    
+
     /** Y 方向累积的位置偏移量（像素），正值表示向下偏移，负值表示向上偏移 */
     internal var accumulatedPositionOffsetY = 0
-    
+
     /** 上一次布局时的 left 坐标，使用 -1 作为初始值以区分首次布局 */
     private var lastLayoutLeft = -1
-    
+
     /** 上一次布局时的 top 坐标，使用 -1 作为初始值以区分首次布局 */
     private var lastLayoutTop = -1
 
-    private fun cancelSpringAnimations() {
-        springAnimationX?.cancel()
-        springAnimationY?.cancel()
-        springAnimationX = null
-        springAnimationY = null
-        springAnimationConsumedX = 0f
-        springAnimationConsumedY = 0f
-    }
-
     private fun checkAndStopScrollIfNeeded() {
-        // 当所有 spring 动画都结束时，修正滚动状态，对齐 smoothScrollBy 的行为
-        if (springAnimationX == null && springAnimationY == null) {
+        // 当所有动画都结束时，修正滚动状态，对齐 smoothScrollBy 的行为
+        if (!scrollAnimationManager.hasRunningAnimation()) {
             // 只在状态为 SETTLING 时才停止嵌套滚动和修正滚动状态，避免在用户拖拽时（状态为 DRAGGING）错误地重置状态
             if (scrollState == SCROLL_STATE_SETTLING) {
                 // 停止嵌套滚动（如果存在）
@@ -304,7 +302,6 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         isFocusable = false
         overScrollMode = OVER_SCROLL_NEVER
         isFocusableInTouchMode = false
-        isNestedScrollingEnabled = true
     }
 
     fun setContentInsert(contentInset: KRRecyclerContentViewContentInset?, immediately: Boolean = false) {
@@ -360,6 +357,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             SCROLL -> observeScroll(propValue)
             SCROLL_END -> observeScrollEnd(propValue)
             WILL_DRAG_END -> observeWillEndDrag(propValue)
+            SCROLL_TO_TOP -> observeScrollToTop(propValue)
             DIRECTION_ROW -> setDirectionRow(propValue)
             PAGING_ENABLED -> setPagingEnable(propValue)
             SHOW_SCROLLER_INDICATOR -> showScrollerIndicator(propValue)
@@ -418,6 +416,13 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         willEndDragEventCallback = propValue as KuiklyRenderCallback /* = (result: kotlin.Any?) -> kotlin.Unit */
         return true
     }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun observeScrollToTop(propValue: Any): Boolean {
+        scrollToTopEventCallback = propValue as KuiklyRenderCallback
+        return true
+    }
+
     private fun setDirectionRow(propValue: Any): Boolean {
         directionRow = (propValue as Int) == 1
         return true
@@ -444,14 +449,20 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
 
     private fun setBouncesEnable(propValue: Any): Boolean {
         bouncesEnable = (propValue as Int) == 1
-        if (bouncesEnable) {
+        updateOverscrollHandler()
+        return true
+    }
+
+    private fun updateOverscrollHandler() {
+        val isBouncesEnable =
+            bouncesEnable && !isNestedScrollingEnabled
+        if (isBouncesEnable) {
             if (childCount > 0) {
                 setupOverscrollHandler(contentView)
             }
         } else {
             overScrollHandler = null
         }
-        return true
     }
 
     private fun setFlingEnable(propValue: Any): Boolean {
@@ -472,9 +483,10 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             METHOD_CONTENT_INSET_WHEN_END_DRAG -> contentInsetWhenEndDrag(params)
             METHOD_CONTENT_INSET -> contentInset(params)
             METHOD_ABORT_CONTENT_OFFSET_ANIMATE -> {
-                cancelSpringAnimations()
+                scrollAnimationManager.cancel()
                 stopScroll()
             }
+            METHOD_PREPARE_FOR_COMPOSE_REUSE -> prepareForComposeReuse()
             else -> super.call(method, params, callback)
         }
     }
@@ -508,11 +520,11 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         super.onLayout(changed, l, t, r, b)
-        
+
         // 记录 RecyclerView 位置变化，用于补偿触摸事件
         // 当 RecyclerView 在父容器中的位置发生变化时，需要记录这个变化量
         // 以便在嵌套滚动时进行补偿，避免出现抖动
-        
+
         // 处理 X 方向（left）的位置变化
         if (lastLayoutLeft != -1) {  // -1 表示首次布局，跳过记录
             val deltaX = l - lastLayoutLeft
@@ -522,7 +534,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             }
         }
         lastLayoutLeft = l
-        
+
         // 处理 Y 方向（top）的位置变化
         if (lastLayoutTop != -1) {  // -1 表示首次布局，跳过记录
             val deltaY = t - lastLayoutTop
@@ -532,7 +544,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             }
         }
         lastLayoutTop = t
-        
+
         tryApplyPendingSetContentOffset()
         tryApplyPendingFireOnScroll()
     }
@@ -546,7 +558,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         nestedVerticalChildInterceptor?.also { interceptor ->
             closestVerticalRecyclerViewParent?.removeNestedChildInterceptEventListener(interceptor)
         }
-        
+
         // 清理状态，避免内存泄漏
         // 在 View 销毁时重置所有位置偏移相关的状态
         accumulatedPositionOffsetX = 0
@@ -631,14 +643,21 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         }
 
         if (overScrollHandler?.overScrolling != true) { // over scroll 时, willDragEnd 由 over scroll handler 处理
-            fireWillDragEndEvent(adjustedVelocityX, adjustedVelocityY)
+            // abs value is more than 450px can cause the pager to slide
+            // this fix the issue some times the velocity is negative because dragBigFrontAndSmallBack
+            if (abs(adjustedVelocityX) >  3 * minimumFlingVelocity
+                || abs(adjustedVelocityY) > 3 * minimumFlingVelocity) {
+                fireWillDragEndEvent(adjustedVelocityX, adjustedVelocityY)
+            } else {
+                fireWillDragEndEvent(0, 0)
+            }
         }
         if (!supportFling || skipFlingIfNestOverScroll) {
             // 由于没有调用super.fling(velocityX, velocityY)
             // 导致 RV 内部的状态一直都 DRAGGING，因此在 onInterceptEvent的时候，RV 内部一直拦截事件
             // 导致 RV 内部的横向子 List 无法滑动
             // 触发条件：先在横向子 List 滑动然后触发 cancel
-            cancelSpringAnimations()
+            scrollAnimationManager.cancel()
             stopScroll()
             return true
         }
@@ -690,16 +709,18 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 // 由于setScrollState内部在dispatchOnScrollStateChanged之前可能会再次调用setScrollState，
                 // 导致dispatchOnScrollStateChanged逆序回调，因此newState的值不可靠，需要从getScrollState重新获取
                 val currentState = recyclerView.scrollState
-
-                if (!touchConsumeByNative) {
-                    touchConsumeByNative = newState != SCROLL_STATE_IDLE
+                when(newState) {
+                    SCROLL_STATE_IDLE -> nativeGestureViewHashCodeSet.remove(this.hashCode())
+                    SCROLL_STATE_DRAGGING -> nativeGestureViewHashCodeSet.add(this.hashCode())
+                    SCROLL_STATE_SETTLING -> nativeGestureViewHashCodeSet.remove(this.hashCode())
                 }
+
                 if (overScrollHandler?.forceOverScroll == true) {
                     return
                 }
                 if (isIdeaStateToDraggingState(currentState) || isSettlingStateToDraggingState(currentState)) {
                     isDragging = true
-                    cancelSpringAnimations()
+                    scrollAnimationManager.cancel()
                     fireBeginDragEvent()
                 }
 
@@ -833,7 +854,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                     isDragging: Boolean
                 ) {
                     if (isContentViewAttached) {
-                        touchConsumeByNative = true
+                        nativeGestureViewHashCodeSet.add(this.hashCode())
                         fireOverScrollBeginDragEvent(offsetX, offsetY, overScrollStart)
                     }
                 }
@@ -858,6 +879,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                     isDragging: Boolean
                 ) {
                     if (isContentViewAttached) {
+                        nativeGestureViewHashCodeSet.remove(this.hashCode())
                         fireOverScrollEndDragEvent(
                             offsetX,
                             offsetY,
@@ -967,14 +989,17 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         var offsetX = kuiklyRenderContext.toPxI(contentOffsetSplits[0].toFloat())
         var offsetY = kuiklyRenderContext.toPxI(contentOffsetSplits[1].toFloat())
         val animate = contentOffsetSplits[2] == "1" // "1"为以动画的形式滚动
-        var springDuration = 0
-        var springDamping = 0f
-        var springVelocity = 0f
-
+        var animationDuration = 0
+        var animationDamping = 0f
+        var animationVelocity = 0f
+        var animationCurve = 0
         if (contentOffsetSplits.size >= 6) {
-            springDuration = contentOffsetSplits[3].toInt()
-            springDamping = contentOffsetSplits[4].toFloat()
-            springVelocity = contentOffsetSplits[5].toFloat()
+            animationDuration = contentOffsetSplits[3].toInt()
+            animationDamping = contentOffsetSplits[4].toFloat()
+            animationVelocity = contentOffsetSplits[5].toFloat()
+        }
+        if (contentOffsetSplits.size >= 7) {
+            animationCurve = contentOffsetSplits[6].toInt()
         }
 
         val originOffsetY = offsetY
@@ -987,9 +1012,10 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 offsetY,
                 isVertical,
                 animate,
-                springDuration,
-                springDamping,
-                springVelocity)
+                animationDuration,
+                animationDamping,
+                animationVelocity,
+                animationCurve)
             KRCssConst.EMPTY_STRING
         } else {
             // KTV侧有可能先更改了contentView的高度或者宽度后, setContentOffset. 此时应该等Layout完后才设置offset
@@ -1002,6 +1028,10 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             JSONObject(propValue).apply {
                 scrollForwardMode = getNestScrollMode(optString("forward", ""))
                 scrollBackwardMode = getNestScrollMode(optString("backward", ""))
+                if (!isNestedScrollingEnabled) {
+                    isNestedScrollingEnabled = true
+                }
+                updateOverscrollHandler()
             }
         }
         return true
@@ -1021,9 +1051,10 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         offsetY: Int,
         isVertical: Boolean,
         animate: Boolean,
-        springDuration: Int = 0,
-        springDamping: Float = 0f,
-        springVelocity: Float = 0f
+        animationDuration: Int = 0,
+        animationDamping: Float = 0f,
+        animationVelocity: Float = 0f,
+        animationCurve: Int = 0
     ) {
         if (isContentViewAttached) {
             var dx = 0
@@ -1044,8 +1075,23 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 dx = ox - (-contentView.left)
             }
             if (animate) {
-                if (springDuration > 0) {
-                    startSpringScroll(dx, dy, springDuration, springDamping, springVelocity, isVertical)
+                if (animationDuration > 0) {
+                    when (animationCurve) {
+                        0 -> {
+                            // Spring 动画
+                            if (animationDamping == 1f) {
+                                // 无需弹簧效果时使用默认方案，目前startSpringScroll会存在快速滑动无法准确停靠问题
+                                // 待后续优化后移除这段代码
+                                smoothScrollBy(dx, dy)
+                            } else {
+                                startSpringScroll(dx, dy, animationDuration, animationDamping, animationVelocity, isVertical)
+                            }
+                        }
+                        1 -> {
+                            // Linear 动画
+                            startLinearScroll(dx, dy, animationDuration)
+                        }
+                    }
                 } else {
                     smoothScrollBy(dx, dy)
                 }
@@ -1068,6 +1114,15 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         }
     }
 
+    override fun smoothScrollToPosition(position: Int) {
+        // 拦截滚动到顶部的操作，对齐 iOS 行为
+        if (position == 0 && scrollToTopEventCallback != null) {
+            scrollToTopEventCallback?.invoke(getCommonScrollParams())
+            return
+        }
+        super.smoothScrollToPosition(position)
+    }
+
     private fun startSpringScroll(
         dx: Int,
         dy: Int,
@@ -1076,100 +1131,31 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         velocity: Float,
         isVertical: Boolean
     ) {
-        cancelSpringAnimations()
-
         if (isLayoutSuppressed) {
             return
         }
-
-        if (dx == 0 && dy == 0) return
-
-        layoutManager?.apply {
-            var actualDx = dx
-            if (!canScrollHorizontally()) {
-                actualDx = 0
+        scrollAnimationManager.startSpringAnimation(
+            dx, dy, duration, damping, velocity, isVertical
+        ) { newState ->
+            if (scrollState != newState) {
+                forceSetScrollState(newState)
             }
-            var actualDy = dy
-            if (!canScrollVertically()) {
-                actualDy = 0
-            }
+        }
+    }
 
-            if (actualDx == 0 && actualDy == 0) return
-
-            // 对齐 smoothScrollBy 和 fling 的行为：设置滚动状态为 SETTLING
-            if (scrollState != SCROLL_STATE_SETTLING) {
-                forceSetScrollState(SCROLL_STATE_SETTLING)
-            }
-
-            // 处理嵌套滚动，对齐 smoothScrollWithNestIfNeeded 的逻辑
-            val withNestedScrolling = isNestScrolling()
-            if (withNestedScrolling) {
-                var nestedScrollAxis = ViewCompat.SCROLL_AXIS_NONE
-                if (actualDx != 0) {
-                    nestedScrollAxis = nestedScrollAxis or ViewCompat.SCROLL_AXIS_HORIZONTAL
-                }
-                if (actualDy != 0) {
-                    nestedScrollAxis = nestedScrollAxis or ViewCompat.SCROLL_AXIS_VERTICAL
-                }
-                startNestedScroll(nestedScrollAxis, ViewCompat.TYPE_NON_TOUCH)
-            }
-
-            // Stiffness calculation: (2 * PI / (duration / 1000))^2 * mass(1)
-            val durationSec = duration / 1000.0
-            val stiffness = (2 * PI / durationSec).pow(2).toFloat()
-
-            if (actualDx != 0) {
-                // 使用局部变量跟踪每个动画的 consumed 值，避免多个动画之间的状态干扰
-                var consumedX = 0f
-                val animationX = KRSpringAnimation(0f, actualDx.toFloat(), if (!isVertical) velocity else 0f, stiffness, damping)
-                springAnimationX = animationX
-                animationX.apply {
-                    onUpdate = { value ->
-                        // 检查动画是否仍然有效，避免被取消后继续执行导致计算错误
-                        if (springAnimationX === animationX) {
-                            val consumed = value - consumedX
-                            val intConsumed = consumed.toInt()
-                            if (intConsumed != 0) {
-                                scrollBy(intConsumed, 0)
-                                consumedX += intConsumed
-                            }
-                        }
-                    }
-                    onEnd = {
-                        if (springAnimationX === animationX) {
-                            springAnimationX = null
-                            checkAndStopScrollIfNeeded()
-                        }
-                    }
-                    start()
-                }
-            }
-
-            if (actualDy != 0) {
-                // 使用局部变量跟踪每个动画的 consumed 值，避免多个动画之间的状态干扰
-                var consumedY = 0f
-                val animationY = KRSpringAnimation(0f, actualDy.toFloat(), if (isVertical) velocity else 0f, stiffness, damping)
-                springAnimationY = animationY
-                animationY.apply {
-                    onUpdate = { value ->
-                        // 检查动画是否仍然有效，避免被取消后继续执行导致计算错误
-                        if (springAnimationY === animationY) {
-                            val consumed = value - consumedY
-                            val intConsumed = consumed.toInt()
-                            if (intConsumed != 0) {
-                                scrollBy(0, intConsumed)
-                                consumedY += intConsumed
-                            }
-                        }
-                    }
-                    onEnd = {
-                        if (springAnimationY === animationY) {
-                            springAnimationY = null
-                            checkAndStopScrollIfNeeded()
-                        }
-                    }
-                    start()
-                }
+    private fun startLinearScroll(
+        dx: Int,
+        dy: Int,
+        duration: Int
+    ) {
+        if (isLayoutSuppressed) {
+            return
+        }
+        scrollAnimationManager.startLinearAnimation(
+            dx, dy, duration
+        ) { newState ->
+            if (scrollState != newState) {
+                forceSetScrollState(newState)
             }
         }
     }
@@ -1284,6 +1270,33 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         val ci = contentInset ?: return
         overScrollHandler?.bounceWithContentInset(KRRecyclerContentViewContentInset(kuiklyRenderContext, ci))
     }
+
+    /**
+     * Clear transient native state for Compose DSL reuse (not the native reuse pool).
+     */
+    private fun prepareForComposeReuse() {
+        // Reset scroll event dedup cache so restored offset fires a scroll event
+        contentOffsetX = -Float.MAX_VALUE
+        contentOffsetY = -Float.MAX_VALUE
+        // Reset drag state
+        isDragging = false
+        needFireWillEndDragEvent = true
+        // Reset nested scroll axes
+        mNestedScrollAxesTouch = SCROLL_AXIS_NONE
+        mNestedScrollAxesNonTouch = SCROLL_AXIS_NONE
+        // Reset nested scroll transient state
+        skipFlingIfNestOverScroll = false
+        lastScrollParentX = 0
+        lastScrollParentY = 0
+        // Reset position offset compensation
+        accumulatedPositionOffsetX = 0
+        accumulatedPositionOffsetY = 0
+        lastLayoutLeft = -1
+        lastLayoutTop = -1
+        // Reset OverScrollHandler transient state
+        overScrollHandler?.prepareForComposeReuse()
+    }
+
 
     private fun dispatchOnScroll(offsetX: Float, offsetY: Float) {
         for (listener in krRecyclerViewListeners) {
@@ -1415,6 +1428,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         private const val SCROLL = "scroll"
         private const val SCROLL_END = "scrollEnd"
         private const val WILL_DRAG_END = "willDragEnd"
+        private const val SCROLL_TO_TOP = "scrollToTop"
         private const val DIRECTION_ROW = "directionRow"
         private const val PAGING_ENABLED = "pagingEnabled"
         private const val SHOW_SCROLLER_INDICATOR = "showScrollerIndicator"
@@ -1431,6 +1445,8 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             "contentInsetWhenEndDrag" // 结束拖拽时，设置的ContentInset
         private const val METHOD_CONTENT_INSET = "contentInset" // 设置内容边距
         private const val METHOD_ABORT_CONTENT_OFFSET_ANIMATE = "abortContentOffsetAnimate" // 停止滚动动画
+        private const val METHOD_PREPARE_FOR_COMPOSE_REUSE = "prepareForComposeReuse" // Compose DSL 复用前重置瞬态
+
         private const val NESTED_SCROLL = "nestedScroll"
 
         private const val OFFSET_X = "offsetX"
@@ -1520,7 +1536,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             target.accumulatedPositionOffsetX = 0
             target.accumulatedPositionOffsetY = 0
         }
-        
+
         startNestedScroll(
             if (type == ViewCompat.TYPE_TOUCH) mNestedScrollAxesTouch else mNestedScrollAxesNonTouch,
             type
@@ -1552,7 +1568,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 lastScrollParentY = 0
             }
         }
-        
+
         // 嵌套滚动结束时，无论是否处于 OverScroll 状态都需要重置累积偏移量
         // 原因：
         // 1. 滚动结束后，位置变化已经通过滚动补偿处理完毕
@@ -1561,7 +1577,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         //    将重置逻辑移到这里可以确保所有情况都被正确处理
         accumulatedPositionOffsetX = 0
         accumulatedPositionOffsetY = 0
-        
+
         // 同时重置子 RecyclerView 的累积偏移量
         if (target is KRRecyclerView) {
             target.accumulatedPositionOffsetX = 0
@@ -1690,18 +1706,18 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         // 当子 RecyclerView 在父容器中的位置发生变化时，会产生额外的触摸偏移。
         // 在嵌套滚动时，需要优先消耗这些累积的偏移量，而不是直接传递给父容器，
         // 这样可以避免因为位置变化导致的滚动抖动问题。
-        
+
         // ========== 处理 X 方向的偏移补偿 ==========
         var parentDx = parentDx  // 使用局部变量，以便在补偿逻辑中修改
         var compensationConsumedX = 0  // 记录补偿消耗的值，避免被后续滚动逻辑覆盖
         if (parentDx != 0 && target.accumulatedPositionOffsetX != 0) {
             val offsetX = target.accumulatedPositionOffsetX  // 子列表累积的 X 方向偏移
             val dxInput = parentDx  // 父容器请求的 X 方向滚动距离
-            
+
             // 根据符号关系决定补偿策略：
             // - 符号相同：偏移方向一致，优先消耗累积偏移
             // - 符号相反：偏移方向相反，先抵消累积偏移
-            
+
             when {
                 // 情况1：符号相同（同向偏移）
                 // 例如：offsetX = +10（向右偏移10px），dxInput = +5（向右滚动5px）
@@ -1721,7 +1737,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                         parentDx = if (dxInput > 0) (absDx - absOffset) else -(absDx - absOffset)
                     }
                 }
-                
+
                 // 情况2：符号相反（反向偏移）
                 // 例如：offsetX = +10（向右偏移10px），dxInput = -5（向左滚动5px）
                 // 策略：累积偏移和滚动方向相反，它们会相互抵消
@@ -1743,14 +1759,14 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                         parentDx = dxInput + offsetX
                     }
                 }
-                
+
                 // 情况3：offsetX == 0（理论上不应该进入，但为了安全起见保留）
                 else -> {
                     // 无累积偏移，parentDx 保持不变，正常传递给父容器
                 }
             }
         }
-        
+
         // ========== 处理 Y 方向的偏移补偿 ==========
         // 逻辑与 X 方向相同，详见上方 X 方向的注释说明
         var parentDy = parentDyInput
@@ -1758,7 +1774,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         if (parentDyInput != 0 && target.accumulatedPositionOffsetY != 0) {
             val offsetY = target.accumulatedPositionOffsetY  // 子列表累积的 Y 方向偏移
             val dyInput = parentDyInput  // 父容器请求的 Y 方向滚动距离
-            
+
             when {
                 // 符号相同：优先消耗累积偏移
                 (offsetY > 0 && dyInput > 0) || (offsetY < 0 && dyInput < 0) -> {
@@ -1856,7 +1872,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 }
             }
         }
-        
+
         // 如果补偿消耗了值但没有实际滚动，也需要记录补偿值
         if (compensationConsumedY != 0 && !didConsumeY) {
             consumed[1] = compensationConsumedY
@@ -1882,7 +1898,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             lastScrollParentX = parentDx
             didConsumeX = true
         }
-        
+
         // 如果补偿消耗了值但没有实际滚动，也需要记录补偿值
         if (compensationConsumedX != 0 && !didConsumeX) {
             consumed[0] = compensationConsumedX
@@ -1923,5 +1939,5 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         }
     }
 
-    private fun isNestScrolling() = nestedScrollAxes != SCROLL_AXIS_NONE
+    fun isNestScrolling() = nestedScrollAxes != SCROLL_AXIS_NONE
 }

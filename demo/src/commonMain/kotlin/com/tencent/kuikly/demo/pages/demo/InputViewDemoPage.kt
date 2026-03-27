@@ -25,9 +25,11 @@ import com.tencent.kuikly.core.base.ViewRef
 import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.timer.setTimeout
+import com.tencent.kuikly.core.utils.PlatformUtils
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.Input
 import com.tencent.kuikly.core.views.InputView
+import com.tencent.kuikly.core.views.KeyboardParams
 import com.tencent.kuikly.core.views.List
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.base.BasePager
@@ -37,12 +39,13 @@ import com.tencent.kuikly.demo.pages.demo.base.NavBar
 internal class InputViewDemoPage : BasePager() {
     lateinit var inputRef: ViewRef<InputView>
     var keyboardHeight: Float by observable(0f)
+    var keyboardAnimation: Animation by observable(Animation.easeInOut(0.25f))
+
     override fun body(): ViewBuilder {
         val ctx = this
         return {
             attr {
                 backgroundColor(Color(0xFF3c6cbdL))
-
             }
             // 背景图
             Image {
@@ -74,12 +77,18 @@ internal class InputViewDemoPage : BasePager() {
                             height(200f)
                             backgroundColor(Color.BLACK)
                         }
+                        event {
+                            click { ctx.inputRef.view?.blur() }
+                        }
                     }
 
                     View {
                         attr {
                             height(200f)
                             backgroundColor(Color.GREEN)
+                        }
+                        event {
+                            click { ctx.inputRef.view?.blur() }
                         }
                     }
 
@@ -107,7 +116,7 @@ internal class InputViewDemoPage : BasePager() {
                             backgroundColor(Color.RED)
 
                             transform(Translate(0f, -ctx.keyboardHeight / 200f))
-                            animation(Animation.easeIn(0.3f), ctx.keyboardHeight)
+                            animation(ctx.keyboardAnimation, ctx.keyboardHeight)
                         }
 
                         event {
@@ -124,9 +133,9 @@ internal class InputViewDemoPage : BasePager() {
                             }
 
                             keyboardHeightChange {
-                                val height = it.height
-                                KLog.i("InputViewDemoPage", "keyboardHeightChange$it")
-                                ctx.keyboardHeight = height
+                                KLog.i("InputViewDemoPage", "keyboardHeightChange: height=${it.height}, duration=${it.duration}, curve=${it.curve}")
+                                ctx.keyboardAnimation = this@InputViewDemoPage.createKeyboardAnimation(it)
+                                ctx.keyboardHeight = it.height
                             }
                         }
                     }
@@ -135,8 +144,10 @@ internal class InputViewDemoPage : BasePager() {
                         attr {
                             height(200f)
                             backgroundColor(Color.BLACK)
-
                             allCenter()
+                        }
+                        event {
+                            click { ctx.inputRef.view?.blur() }
                         }
                     }
 
@@ -144,6 +155,9 @@ internal class InputViewDemoPage : BasePager() {
                         attr {
                             height(200f)
                             backgroundColor(Color.GREEN)
+                        }
+                        event {
+                            click { ctx.inputRef.view?.blur() }
                         }
                     }
 
@@ -164,6 +178,19 @@ internal class InputViewDemoPage : BasePager() {
             val inputView = inputRef.view!!
             inputView.setText("")
             inputView.blur()
+        }
+    }
+
+    /**
+     * Create keyboard animation based on platform.
+     * iOS: Use native keyboard animation curve for perfect sync
+     * Other platforms: Use easeInOut animation as fallback
+     */
+    private fun createKeyboardAnimation(params: KeyboardParams): Animation {
+        return if (PlatformUtils.isIOS()) {
+            Animation.keyboard(params.duration, params.curve)
+        } else {
+            Animation.easeInOut(params.duration)
         }
     }
 }

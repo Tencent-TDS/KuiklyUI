@@ -153,177 +153,73 @@ internal class FontSizePage : BasePager() {
 
 :::
 
-### fontWeight400方法
+### fontWeight方法
 
-设置字重为400.
+设置文本字重（字体粗细）
+
+<div class="table-01">
+
+**fontWeight方法列表**
+
+| 字重名 | 字重值 | 说明 |
+|:----|:-------|:--|
+| `fontWeightExtraLight()` |   | 超细<Badge text="仅iOS、鸿蒙支持" type="warn"/> |
+| `fontWeightLight()` |   | 细<Badge text="仅iOS、鸿蒙支持" type="warn"/> |
+| `fontWeightNormal()` | `fontWeight400()` | 正常（默认） |
+| `fontWeightMedium()` | `fontWeight500()` | 中等 |
+| `fontWeightSemiBold()` | `fontWeight600()` | 半粗 |
+| `fontWeightBold()` | `fontWeight700()` | 粗体 |
+| `fontWeightExtraBold()` | `fontWeight800()` | 超粗 |
+| `fontWeightBlack()` | `fontWeight900()` | 极粗 |
+
+</div>
+
+:::warning 兼容性提示
+在个别小米机型的 MiSans（系统默认）字体中，设置 `normal` 以外的字重会导致韩文字符中的圆圈显示为实心圆形。
+:::
 
 :::tabs
 
 @tab:active 示例
 
-```kotlin{15}
-@Page("demo_page")
-internal class FontWeightPage : BasePager() {
-    override fun body(): ViewBuilder {
-        return {
-            attr {
-                allCenter()
-            }
-
-            Text {
-                attr {
-                    marginBottom(20f)
-                    text("第一个文本")
-                    color(Color.RED) // 传递Color对象
-                    fontSize(20f)
-                    fontWeight400()
-                }
-            }
+```kotlin
+    Text {
+        attr {
+            text("Hello, 你好, こんにちは, 안녕하세요!")
+            fontSize(20f)
+            fontWeightNormal()
         }
     }
-}
+    Text {
+        attr {
+            text("Hello, 你好, こんにちは, 안녕하세요!")
+            fontSize(20f)
+            fontWeightMedium()
+        }
+    }
+    Text {
+        attr {
+            text("Hello, 你好, こんにちは, 안녕하세요!")
+            fontSize(20f)
+            fontWeightSemiBold()
+        }
+    }
+    Text {
+        attr {
+            text("Hello, 你好, こんにちは, 안녕하세요!")
+            fontSize(20f)
+            fontWeightBold()
+        }
+    }
 ```
 
 @tab 效果
 
 <div align="center">
-<img src="./img/font_weight_400.png" style="width: 30%; border: 1px gray solid">
+<img src="./img/font_weight.png" style="width: 30%; border: 1px gray solid">
 </div>
 
 :::
-
-### fontWeight500方法
-
-设置字重为500
-
-::: tabs
-
-@tab:active 示例
-
-```kotlin{15}
-@Page("demo_page")
-internal class FontWeightPage : BasePager() {
-    override fun body(): ViewBuilder {
-        return {
-            attr {
-                allCenter()
-            }
-
-            Text {
-                attr {
-                    marginBottom(20f)
-                    text("第一个文本")
-                    color(Color.RED) // 传递Color对象
-                    fontSize(20f)
-                    fontWeight500()
-                }
-            }
-        }
-    }
-}
-```
-
-@tab 效果
-
-<div align="center">
-<img src="./img/font_weight_500.png" style="width: 30%; border: 1px gray solid">
-</div>
-
-:::
-
-### fontWeight600方法
-
-设置字重为600
-
-:::tabs
-
-@tab:active 示例
-
-```kotlin{15}
-@Page("demo_page")
-internal class FontWeightPage : BasePager() {
-    override fun body(): ViewBuilder {
-        return {
-            attr {
-                allCenter()
-            }
-
-            Text {
-                attr {
-                    marginBottom(20f)
-                    text("第一个文本")
-                    color(Color.RED) // 传递Color对象
-                    fontSize(20f)
-                    fontWeight600()
-                }
-            }
-        }
-    }
-}
-```
-
-@tab 效果
-
-<div align="center">
-<img src="./img/font_weight_600.png" style="width: 30%; border: 1px gray solid">
-</div>
-
-:::
-
-### fontWeight700方法
-
-设置字重为700
-
-:::tabs
-
-@tab:active 示例
-
-```kotlin{15}
-@Page("demo_page")
-internal class FontWeightPage : BasePager() {
-    override fun body(): ViewBuilder {
-        return {
-            attr {
-                allCenter()
-            }
-
-            Text {
-                attr {
-                    marginBottom(20f)
-                    text("第一个文本")
-                    color(Color.RED) // 传递Color对象
-                    fontSize(20f)
-                    fontWeight700()
-                }
-            }
-        }
-    }
-}
-```
-
-@tab 效果
-
-<div align="center">
-<img src="./img/font_weight_700.png" style="width: 30%; border: 1px gray solid">
-</div>
-
-:::
-
-### fontWeightNormal方法
-
-效果与[fontWeight400方法](#fontWeight400方法)一致
-
-### fontWeightMedium方法
-
-效果与[fontWeight500方法](#fontWeight500方法)一致
-
-### fontWeightSemisolid方法
-
-效果与[fontWeight600方法](#fontWeight600方法)一致
-
-### fontWeightBold方法
-
-效果与[fontWeight700方法](#fontWeight700方法)一致
 
 ### fontFamily方法
 
@@ -338,7 +234,7 @@ internal class FontWeightPage : BasePager() {
 | fontFamily | 字体名称  | String |
 
 :::tip 注意
-如果需要使用自定义字体，安卓和鸿蒙端需要实现[自定义字体适配器](../../QuickStart/android.md#自定义字体适配器)，iOS端需要在系统中[注册字体](https://developer.apple.com/documentation/uikit/adding-a-custom-font-to-your-app?language=objc)。
+如果需要使用自定义字体，安卓和鸿蒙端需要实现[自定义字体适配器](../../QuickStart/android.md#自定义字体适配器)，iOS端需要在系统中[注册字体](https://developer.apple.com/documentation/uikit/adding-a-custom-font-to-your-app?language=objc)，H5端需要判断字体加载完成后[重新测量](../../DevGuide/h5-custom-font.md)。
 :::
 示例：
 ```kotlin

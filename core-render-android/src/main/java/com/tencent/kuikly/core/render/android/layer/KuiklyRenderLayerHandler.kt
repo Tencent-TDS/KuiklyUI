@@ -24,7 +24,8 @@ import android.view.View
 import android.view.View.OnLayoutChangeListener
 import android.view.ViewGroup
 import com.tencent.kuikly.core.render.android.IKuiklyRenderView
-import com.tencent.kuikly.core.render.android.KuiklyContextParams
+import com.tencent.kuikly.core.render.android.KuiklyRenderView
+import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.css.ktx.isMainThread
 import com.tencent.kuikly.core.render.android.css.ktx.removeFromParent
@@ -75,8 +76,15 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
      */
     private val renderViewReuseListMap = ArrayMap<String, MutableList<RenderViewHandler>>()
 
+
+    /**
+     * 是否开启debug日志
+     */
+    private var debugLogEnable = false
+
     override fun init(renderView: IKuiklyRenderView) {
         renderViewWeakRef = WeakReference(renderView)
+        debugLogEnable = renderViewWeakRef?.get()?.isDebugLogEnable() ?: false
     }
 
     override fun createRenderView(tag: Int, viewName: String) {
@@ -135,6 +143,8 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
             if (it.reusable && process) {
                 recordSetPropOperation(it.view(), propKey)
             }
+        } ?: run {
+            KuiklyRenderLog.d("KuiklyRenderTracer", "setProp viewHandler is null, tag=$tag")
         }
     }
 
@@ -145,7 +155,13 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
         getRenderViewHandler(tag)?.viewExport?.setShadow(shadow)
     }
 
+    private var logSetFrameCount = 0
+
     override fun setRenderViewFrame(tag: Int, frame: RectF) {
+        if (debugLogEnable && logSetFrameCount < SET_RENDER_VIEW_FRAME_MAX_LOG_COUNT) {
+            KuiklyRenderLog.d("KuiklyRenderTracer", "setRenderViewFrame $logSetFrameCount tag=$tag frame=[${frame.left}, ${frame.top}, ${frame.right}, ${frame.bottom}]")
+            logSetFrameCount++
+        }
         assert(isMainThread()) {
             "must call on ui thread"
         }
@@ -400,6 +416,7 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
                 }
             }
         }
+        viewExport.resetClipChildren()
         viewExport.resetShadow()
     }
 
@@ -414,6 +431,7 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
         internal const val HR_SET_PROP_OPERATION = "hr_set_prop_operation"
         private const val MAX_REUSE_COUNT = 50
         private const val TDF_METHOD_PARAMS_KEY = "result"
+        private const val SET_RENDER_VIEW_FRAME_MAX_LOG_COUNT = 10
     }
 }
 
@@ -433,24 +451,26 @@ data class RenderViewHandler(
                 layoutParams.height = 0
             }
         }
-        viewExport.viewGroup?.also {
-            it.addOnLayoutChangeListener(object : OnLayoutChangeListener {
-                override fun onLayoutChange(
-                    v: View?,
-                    left: Int,
-                    top: Int,
-                    right: Int,
-                    bottom: Int,
-                    oldLeft: Int,
-                    oldTop: Int,
-                    oldRight: Int,
-                    oldBottom: Int
-                ) {
-                    it.clipChildren = false // 全部View不裁剪
-                    it.removeOnLayoutChangeListener(this)
-                }
+        if (!KuiklyRenderView.lazyClipChildren) {
+            viewExport.viewGroup?.also {
+                it.addOnLayoutChangeListener(object : OnLayoutChangeListener {
+                    override fun onLayoutChange(
+                        v: View?,
+                        left: Int,
+                        top: Int,
+                        right: Int,
+                        bottom: Int,
+                        oldLeft: Int,
+                        oldTop: Int,
+                        oldRight: Int,
+                        oldBottom: Int
+                    ) {
+                        it.clipChildren = false // 全部View不裁剪
+                        it.removeOnLayoutChangeListener(this)
+                    }
 
-            })
+                })
+            }
         }
     }
 }

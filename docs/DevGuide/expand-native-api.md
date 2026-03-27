@@ -37,11 +37,52 @@ class MyLogModule : Module() {
    5. ``syncCall``: 是否为同步调用。``Kuikly``的代码是运行在一条单独的线程，默认与Native Module是一个异步的通信。如果syncCall指定为true时，可强制``kuikly Module``与``Native Module``同步通信
 
 > 对于``callback``只回调一次的用法，框架提供了4个辅助方法：
-> - syncToNativeMethod(methodName, params, null): String // 同步调用Native方法（native侧在子线程执行），传输JSONObject类型参数，返回JSON字符串
-> - syncToNativeMethod(methodName, arrayOf(content), null): Any? // 同步调用Native方法（native侧在子线程执行），传输基本类型数组，返回基本类型
+> - syncToNativeMethod(methodName, params, null): String // 同步调用Native方法（native侧在子线程执行），传输JSONObject类型参数
+> - syncToNativeMethod(methodName, arrayOf(content), null): Any? // 同步调用Native方法（native侧在子线程执行），传输基本类型数组（仅支持String、Int、Float、ByteArray）
 > - asyncToNativeMethod(methodName, params, callback) // 异步调用Native方法（native侧在主线程执行），传输JSONObject类型参数，回调JSON字符串
 > - asyncToNativeMethod(methodName, arrayOf(content), callback) // 异步调用Native方法（native侧在主线程执行），传输基本类型数组，回调基本类型
 
+#### Native侧支持的数据类型
+
+Module 返回值和 callback 参数支持的类型：
+| 平台          | 支持的数据类型                                                                                        |
+|:------------|:-----------------------------------------------------------------------------------------------|
+| **Android** | `String` `Int` `Long` `Float` `Double` `Boolean` `ByteArray` `Map` `List` `JSONObject`         |
+| **iOS**     | `NSString` `NSNumber` `BOOL` `NSData` `NSDictionary` `NSArray`                                 |
+| **鸿蒙**      | `String` `Int` `Long` `Float` `Double` `Bool` `ByteArray` `Array` `Map/Record`                        |
+| **H5**    | `String` `Int` `Long` `Float` `Double` `Boolean` `Array` `Map` `List` `JSONObject` `JSONArray` |
+| **小程序**    | `String` `Int` `Long` `Float` `Double` `Boolean` `Array` `Map` `List` `JSONObject` `JSONArray` |
+
+---
+
+::: 提示
+- Android、鸿蒙、iOS 支持二进制数据、二进制集合直传至Koltin
+- 若想以JSON字符串形式传输，则需要先转为字符串格式再进行JSON序列化
+:::
+
+#### Native侧序列化规则
+
+数据从 Native 传递到 Kotlin 时的处理方式：
+
+| 类目         |   序列化方式   | 涉及类型                                                 |
+|:-----------|:---------:|:-----------------------------------------------------|
+| **基础类型**   |   直接透传    | `String` `Int` `Float` `Double` `Boolean` `NSNumber` |
+| **二进制数据**  |   直接透传    | `ByteArray` `NSData` `ArrayBuffer`                   |
+| **JSON数据** |  JSON字符串  | `JSONObject` `JSONArray`                             |
+| **集合类型**   |  JSON字符串  | `Map/Record` `List` `NSDictionary` `NSArray` `Array` |
+| **特殊规则**   |    直接透传   | Array 中包含`ByteArray`/`NSData`时                       |
+
+:::tip 注意
+- syncToNativeMethod和asyncToNativeMethod，传入参数params是JSONObject且序列化为jSON字符串传至Native侧，
+序列化过程不支持对ByteArray二进制数据进行处理。因此请选择params为Any的syncToNativeMethod/asyncToNativeMethod方法传输二进制参数
+- callback中解析回传至Koltin侧二进制数据，可参考示例：
+```koltin
+if (data is ByteArray) {
+   val byteData = data.decodeToString()
+   // ...
+}
+```
+ :::
 
 3. 接着我们新增``log``方法，让业务方能够打印日志。
 ```kotlin
@@ -189,6 +230,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 
 在``call``方法中，我们通过``method``参数来识别``log``方法，然后调用我们定义的私有方法``log``，并将``Kuikly``侧传递过来的``content``参数传递给``log``方法
 
+:::tip 注意
+`log` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+:::
+
 ### logWithCallback方法
 
 ```kotlin
@@ -212,6 +257,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 }
 ```
 
+:::tip 注意
+`logWithCallback` 方法通过 `asyncToNativeMethod` 异步调用，运行在 **主线程(UI线程)** 中。应避免在方法中执行耗时操作，以免阻塞UI线程导致卡顿。
+:::
+
 ### syncLog方法
 
 ```kotlin
@@ -233,6 +282,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
     ...
 }
 ```
+
+::::tip 注意
+`syncLog` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
 
 2. 原生侧实现完API后，我们将``KRMyLogModule``注册暴露到``Kuikly``中，与``Kuikly``侧的``MyLogModule``对应起来。在实现了``KuiklyRenderViewDelegatorDelegate``接口
 类中重写``registerExternalModule``方法，注册``KRMyLogModule``
@@ -258,7 +311,8 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 1. 在接入``Kuikly``的iOS宿主工程中新建``KRMyLogModule``类，然后继承``KRBaseModule``
 
 :::tip 注意
-iOS原生侧的Module创建是在运行时根据``Kuikly``注册``module``的名字来动态创建的，因此类名必须与``Kuikly``侧注册``module``的名字保持一致
+- iOS原生侧的Module创建是在运行时根据``Kuikly``注册``module``的名字来动态创建的，因此类名必须与``Kuikly``侧注册``module``的名字保持一致
+- 如果使用 **Swift** 实现 Module，需要使用 `@objc` 或 `@objcMembers` 注解修饰 Swift 类，以供kuikly识别并调用。
 :::
 
 ```objc
@@ -299,6 +353,10 @@ NS_ASSUME_NONNULL_END
 @end
 ```
 
+::::tip 注意
+`log` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
+
 方法名字保持与``Kuikly``侧的log方法名字一致，并且参数固定为``NSDictionary``类型。
 
 ``Kuikly``侧传递过来的参数从``args``字典中提取, 例如
@@ -328,6 +386,10 @@ iOS侧的Module中的方法名字必须与kuikly侧toNative方法传递的方法
 
 ``Kuikly``侧的``CallbackFn``我们可以从args字典中拿到
 
+::::tip 注意
+`logWithCallback` 方法通过 `asyncToNativeMethod` 异步调用，运行在 **主线程(UI线程)** 中。应避免在方法中执行耗时操作，以免阻塞UI线程导致卡顿。
+::::
+
 ```kotlin
 KuiklyRenderCallback callback = args[KR_CALLBACK_KEY];
 ```
@@ -343,6 +405,10 @@ KuiklyRenderCallback callback = args[KR_CALLBACK_KEY];
 }
 ```
 ## 鸿蒙侧
+
+::::tip 注意
+`syncLog` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
 
 1. 在接入``Kuikly``的鸿蒙宿主工程（ArkTS）中新建``KRMyLogModule``类，继承``KuiklyRenderBaseModule``，并重写其``call``方法
 
@@ -396,6 +462,10 @@ export class KRMyLogModule extends KuiklyRenderBaseModule {
 
 在``call``方法中，我们通过``method``参数来识别``log``方法，然后调用我们定义的私有方法``log``，并将``Kuikly``侧传递过来的``content``参数传递给``log``方法
 
+::::tip 注意
+`log` 方法通过 `syncToNativeMethod` 同步调用，由于 `syncMode()` 返回 `true`，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
+
 ### logWithCallback方法
 
 ```ts
@@ -434,6 +504,10 @@ export class KRMyLogModule extends KuiklyRenderBaseModule {
 
 ### syncLog方法
 
+::::tip 注意
+`logWithCallback` 方法通过 `asyncToNativeMethod` 异步调用，由于 `syncMode()` 返回 `true`，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
+
 ```ts
 export class KRMyLogModule extends KuiklyRenderBaseModule {
     static readonly MODULE_NAME = "KRMyLogModule";
@@ -469,6 +543,10 @@ export class KRMyLogModule extends KuiklyRenderBaseModule {
 
 2. 原生侧实现完API后，我们将``KRMyLogModule``注册暴露到``Kuikly``中，与``Kuikly``侧的``MyLogModule``对应起来。在实现了``IKuiklyViewDelegate``接口
 类中重写``getCustomRenderModuleCreatorRegisterMap``方法，注册``KRMyLogModule``
+
+::::tip 注意
+`syncLog` 方法通过 `syncToNativeMethod` 同步调用，由于 `syncMode()` 返回 `true`，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
 
 :::tip 注意
 注册的名字必须与``Kuikly moudle``侧注册的名字一样
@@ -635,6 +713,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 
 在``call``方法中，我们通过``method``参数来识别``log``方法，然后调用我们定义的私有方法``log``，并将``Kuikly``侧传递过来的``content``参数传递给``log``方法
 
+::::tip 注意
+`log` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
+
 ### logWithCallback方法
 
 ```kotlin
@@ -667,6 +749,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
+
+::::tip 注意
+`logWithCallback` 方法通过 `asyncToNativeMethod` 异步调用，运行在 **主线程(UI线程)** 中。应避免在方法中执行耗时操作，以免阻塞UI线程导致卡顿。
+::::
             "log" -> log(params ?: "")
             "logWithCallback" -> logWithCallback(params ?: "", callback)
             "syncLog" -> syncLog(params ?: "")
@@ -689,6 +775,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 注册的名字必须与``Kuikly moudle``侧注册的名字一样
 ::::
 
+
+::::tip 注意
+`syncLog` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
 ```kotlin
     override fun registerExternalModule(kuiklyRenderExport: IKuiklyRenderExport) {
         super.registerExternalModule(kuiklyRenderExport)
@@ -746,6 +836,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 
 在``call``方法中，我们通过``method``参数来识别``log``方法，然后调用我们定义的私有方法``log``，并将``Kuikly``侧传递过来的``content``参数传递给``log``方法
 
+::::tip 注意
+`log` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
+
 ### logWithCallback方法
 
 ```kotlin
@@ -778,6 +872,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
             "log" -> log(params ?: "")
+
+::::tip 注意
+`logWithCallback` 方法通过 `asyncToNativeMethod` 异步调用，运行在 **主线程(UI线程)** 中。应避免在方法中执行耗时操作，以免阻塞UI线程导致卡顿。
+::::
             "logWithCallback" -> logWithCallback(params ?: "", callback)
             "syncLog" -> syncLog(params ?: "")
             else -> super.call(method, params, callback)
@@ -800,6 +898,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 ::::
 
 ```kotlin
+
+::::tip 注意
+`syncLog` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
     override fun registerExternalModule(kuiklyRenderExport: IKuiklyRenderExport) {
         super.registerExternalModule(kuiklyRenderExport)
         with(kuiklyRenderExport) {

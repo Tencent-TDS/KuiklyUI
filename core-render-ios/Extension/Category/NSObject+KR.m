@@ -91,12 +91,15 @@
     }
     [invocation setSelector:selector];
     [invocation invokeWithTarget:self];
-    if (strcmp(methodSignature.methodReturnType, @encode(void)) != 0) {
-        void *returnValue;
-        [invocation getReturnValue:&returnValue];
-        return (__bridge  id)returnValue;
+    // 增加值类型返回的支持：仅返回对象类型 -> 返回对象类型 + 包装对象的指针（kr_objectWithBuffer对值类型装箱）
+    if (!methodSignature.methodReturnLength) {
+        return nil;
+    } else {
+        void *valueLoc = alloca(methodSignature.methodReturnLength);
+        [invocation getReturnValue:valueLoc];
+        return [NSObject kr_objectWithBuffer:valueLoc type:methodSignature.methodReturnType];
     }
-    return nil;
+    
 }
 
 + (id)kr_performWithTarget:(id)target selector:(SEL)aSelector  withObjects:(NSArray *)objects {
@@ -255,6 +258,19 @@
             ];
 }
 
+- (NSString *)kr_md5String32 {
+    const char *cstr = [self UTF8String];
+    unsigned char result[16];
+    CC_MD5(cstr, (CC_LONG)strlen(cstr), result);
+    
+    return [NSString stringWithFormat:@"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+            result[0], result[1], result[2], result[3],
+            result[4], result[5], result[6], result[7],
+            result[8], result[9], result[10], result[11],
+            result[12], result[13], result[14], result[15]
+            ];
+}
+
 
 - (NSString *)kr_base64Encode {
     NSData *data = [self dataUsingEncoding: NSUTF8StringEncoding];
@@ -297,6 +313,35 @@
         i += range.length;
     }
     return count;
+}
+
+- (NSUInteger)kr_byteLength {
+    return [self lengthOfBytesUsingEncoding:NSUTF8StringEncoding];
+}
+
+- (NSUInteger)kr_visualWidth {
+    NSUInteger visualWidth = 0;
+    NSUInteger length = self.length;
+    for (NSUInteger i = 0; i < length; ) {
+        NSRange range = [self rangeOfComposedCharacterSequenceAtIndex:i];
+        unichar firstChar = [self characterAtIndex:i];
+        
+        // 检查是否是ASCII字符（0-127）
+        if (range.length == 1 && firstChar < 128) {
+            visualWidth += 1;
+        } else if (range.length == 1 && firstChar >= 0x200B && firstChar <= 0x200D) {
+            // 零宽字符
+            visualWidth += 1;
+        } else if (range.length == 1 && firstChar == 0xFEFF) {
+            // 零宽不换行空格
+            visualWidth += 1;
+        } else {
+            // 其他字符（中文、emoji等）占2个视觉宽度
+            visualWidth += 2;
+        }
+        i += range.length;
+    }
+    return visualWidth;
 }
 
 @end

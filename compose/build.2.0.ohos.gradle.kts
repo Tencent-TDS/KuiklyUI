@@ -7,12 +7,16 @@ plugins {
     signing
 }
 
+group = MavenConfig.GROUP
+version = Version.getCoreVersion()
+
 kotlin {
     androidTarget {
         compilations.all {
             kotlinOptions {
                 jvmTarget = "1.8"
                 freeCompilerArgs += "-Xjvm-default=all"
+                moduleName = "${project.group}.${project.name}"
             }
         }
         publishLibraryVariants("release")
@@ -71,9 +75,6 @@ kotlin {
         }
     }
 }
-
-group = MavenConfig.GROUP
-version = Version.getCoreVersion()
 
 publishing {
     repositories {

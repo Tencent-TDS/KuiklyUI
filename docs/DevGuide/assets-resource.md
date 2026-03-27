@@ -61,17 +61,21 @@ android {
 
 #### iOS
 
-修改`shared/shared.podspec`
+修改`shared/build.gradle.kts`
 
 ```kotlin
 ...
-cocoapods {
-    ...
-    // 添加 ios assets 资源路径
-    extraSpecAttributes["resources"] = "['src/commonMain/assets/**']"
+kotlin {
+    cocoapods {
+        ...
+        // 添加 ios assets 资源路径
+        extraSpecAttributes["resources"] = "['src/commonMain/assets/**']"
+    }
 }
 ...
 ```
+
+> 注意：在kotlin2.x版本，使用了compose的模块需要添加compose plugin，但插件会默认修改spec.resources，导致在`build.gradle.kts`设置的不生效，需要在 `gradle.properties` 添加 `compose.ios.resources.sync=false`
 
 #### 鸿蒙
 鸿蒙会将业务代码编译为so文件，不支持`assets`资源内置打包，需要将资源拷贝到鸿蒙工程的`resfile`目录中，例如：

@@ -43,6 +43,7 @@ kotlin {
         compilations.all {
             kotlinOptions {
                 jvmTarget = "1.8"
+                moduleName = "${project.group}.${project.name}"
             }
         }
     }
@@ -52,6 +53,17 @@ kotlin {
         val ohos by main.cinterops.creating {
             defFile = file("src/ohosArm64Main/ohosInterop/cinterop/ohos.def")
             includeDirs(file("src/ohosArm64Main/ohosInterop/include"))
+
+            // Add HarmonyOS SDK include paths (Windows only)
+            if (System.getProperty("os.name").lowercase().contains("windows")) {
+                val ohosSdkHome = System.getenv("OHOS_SDK_HOME")
+                if (!ohosSdkHome.isNullOrEmpty()) {
+                    includeDirs(
+                        "$ohosSdkHome/native/sysroot/usr/include",
+                        "$ohosSdkHome/native/sysroot/usr/include/aarch64-linux-ohos"
+                    )
+                }
+            }
         }
     }
 

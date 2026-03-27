@@ -224,8 +224,17 @@ class InputAttr : Attr() {
         return this
     }
 
+    @Deprecated(
+        "Use maxTextLength(length: Int, type: LengthLimitType) instead",
+        ReplaceWith("maxTextLength(maxLength, LengthLimitType)")
+    )
     fun maxTextLength(maxLength: Int) {
         "maxTextLength" with maxLength
+    }
+
+    fun maxTextLength(length: Int, type: LengthLimitType) {
+        "lengthLimitType" with type.value
+        "maxTextLength" with length
     }
 
     fun autofocus(focus: Boolean) {
@@ -288,12 +297,14 @@ class InputAttr : Attr() {
 
 data class InputParams(
     val text: String,
-    val imeAction: String? = null
+    val imeAction: String? = null,
+    val length: Int? = null
 )
 
 data class KeyboardParams(
     val height: Float,
-    val duration: Float
+    val duration: Float,
+    val curve: Int = 0
 )
 
 class InputEvent : Event() {
@@ -306,7 +317,8 @@ class InputEvent : Event() {
         register(TEXT_DID_CHANGE, {
             it as JSONObject
             val text = it.optString("text")
-            handler(InputParams(text))
+            val length = if (it.has("length")) it.optInt("length") else null
+            handler(InputParams(text, length = length))
         }, isSync = isSyncEdit)
     }
 
@@ -350,16 +362,18 @@ class InputEvent : Event() {
     }
 
     /**
-     * 当键盘高度发生变化时调用的方法
-     * @param handler 处理键盘高度变化事件的回调函数
+     * Called when keyboard height changes.
+     * @param isSync Sync callback to ensure UI animation syncs with keyboard, default true
+     * @param handler Callback handler with keyboard params
      */
-    fun keyboardHeightChange(handler: (KeyboardParams) -> Unit) {
-        register(KEYBOARD_HEIGHT_CHANGE){
+    fun keyboardHeightChange(isSync: Boolean = true, handler: (KeyboardParams) -> Unit) {
+        register(KEYBOARD_HEIGHT_CHANGE, {
             it as JSONObject
             val height = it.optDouble("height").toFloat()
             val duration = it.optDouble("duration").toFloat()
-            handler(KeyboardParams(height, duration))
-        }
+            val curve = it.optInt("curve")
+            handler(KeyboardParams(height, duration, curve))
+        }, isSync = isSync)
     }
 
     /**
@@ -397,3 +411,26 @@ fun ViewContainer<*, *>.Input(init: InputView.() -> Unit) {
 }
 
 typealias InputEventHandlerFn = (InputParams) -> Unit
+
+/**
+ * 输入长度限制类型
+ *
+ * | 示例       | BYTE | CHARACTER | VISUAL_WIDTH | 说明                                  |
+ * |----------|------|-----------|--------------|-------------------------------------|
+ * | `""`       | 0    | 0         | 0            | 空字符串：0                              |
+ * | `"a"`      | 1    | 1         | 1            | 英文：UTF8字节数1，字符个数1，视觉宽度1             |
+ * | `"中"`      | 3    | 1         | 2            | 中文：UTF8字节数3，字符个数1，视觉宽度2             |
+ * | `"😂"`     | 4    | 1         | 2            | Emoji：UTF8字节数4，字符个数1，视觉宽度2          |
+ * | `"[img]"` | 5    | 1         | 2            | ImageSpan：描述文本的UTF8字节数5，字符个数1，视觉宽度2 |
+ * | `"\u200B"` | 3    | 1         | 1            | 不可见字符：UTF8字节数3，字符个数1，视觉宽度按1计算       |
+ *
+ * > 注：VISUAL_WIDTH模式下，未识别出来的不可见字符可能会被统计为2
+ */
+enum class LengthLimitType(val value: Int) {
+    /** 限制输入的长度按字节计算 */
+    BYTE(0),
+    /** 限制输入的长度按字符计算 */
+    CHARACTER(1),
+    /** 限制输入的长度按视觉宽度计算 */
+    VISUAL_WIDTH(2)
+}

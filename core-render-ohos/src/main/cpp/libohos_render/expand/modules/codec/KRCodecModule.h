@@ -33,6 +33,7 @@ class KRCodecModule : public IKRRenderModuleExport {
     static const char METHOD_BASE64_ENCODE[];
     static const char METHOD_BASE64_DECODE[];
     static const char METHOD_MD5[];
+    static const char METHOD_MD5_32[];
     static const char METHOD_SHA256[];
 
     KRAnyValue UrlEncode(std::string);
@@ -40,6 +41,7 @@ class KRCodecModule : public IKRRenderModuleExport {
     KRAnyValue Base64Encode(std::string);
     KRAnyValue Base64Decode(std::string);
     KRAnyValue Md5(std::string);
+    KRAnyValue Md5With32(std::string);
     KRAnyValue Sha256(std::string);
 };
 }  // namespace module

@@ -1,9 +1,16 @@
 package = com.tencent.kuikly
 ---
 #include <stdbool.h>
+#include <mach/mach_time.h>
+#include <pthread.h>
 
 /// Schedule a task on the Kuikly context queue for the given pagerId.
 extern void com_tencent_kuikly_ScheduleContextTask(const char* pagerId, void (*onSchedule)(const char* pagerId));
 
 /// Return true if the current thread is the context thread.
 extern bool com_tencent_kuikly_IsCurrentOnContextThread(const char* pagerId);
+
+long long com_tencent_kuikly_GetThreadCPUTimeInNanoseconds() {
+    // 获取当前线程的 CPU 时间，返回纳秒
+    return clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID);
+}

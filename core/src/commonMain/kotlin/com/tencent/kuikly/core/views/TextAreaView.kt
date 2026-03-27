@@ -327,8 +327,17 @@ open class TextAreaAttr : Attr() {
         return this
     }
 
+    @Deprecated(
+        "Use maxTextLength(length: Int, type: LengthLimitType) instead",
+        ReplaceWith("maxTextLength(maxLength, LengthLimitType)")
+    )
     fun maxTextLength(maxLength: Int) {
         "maxTextLength" with maxLength
+    }
+
+    fun maxTextLength(length: Int, type: LengthLimitType) {
+        "lengthLimitType" with type.value
+        "maxTextLength" with length
     }
 
     fun keyboardTypePassword(): TextAreaAttr {
@@ -541,8 +550,10 @@ open class TextAreaEvent : Event() {
             super.unRegister(TEXT_DID_CHANGE)
         } else {
             super.register(TEXT_DID_CHANGE, {
-                val text = (it as JSONObject).optString("text")
-                val params = InputParams(text)
+                it as JSONObject
+                val text = it.optString("text")
+                val length = if (it.has("length")) it.optInt("length") else null
+                val params = InputParams(text, length = length)
                 syncTextDidChangeObservers.forEach { observer -> observer.invoke(params) }
                 textDidChangeHandler?.invoke(params)
             }, isSync = isSyncEdit || syncTextDidChangeObservers.isNotEmpty())
@@ -600,16 +611,18 @@ open class TextAreaEvent : Event() {
     }
 
     /**
-     * 当键盘高度发生变化时调用的方法
-     * @param handler 处理键盘高度变化事件的回调函数
+     * Called when keyboard height changes.
+     * @param isSync Sync callback to ensure UI animation syncs with keyboard, default true
+     * @param handler Callback handler with keyboard params
      */
-    fun keyboardHeightChange(handler: (KeyboardParams) -> Unit ) {
-        this.register(KEYBOARD_HEIGHT_CHANGE){
+    fun keyboardHeightChange(isSync: Boolean = true, handler: (KeyboardParams) -> Unit) {
+        this.register(KEYBOARD_HEIGHT_CHANGE, {
             it as JSONObject
             val height = it.optDouble("height").toFloat()
             val duration = it.optDouble("duration").toFloat()
-            handler(KeyboardParams(height, duration))
-        }
+            val curve = it.optInt("curve")
+            handler(KeyboardParams(height, duration, curve))
+        }, isSync = isSync)
     }
     /**
      * 当文本长度超过限制时调用的方法(即输入长度超过attr.maxTextLength属性设置的长度)

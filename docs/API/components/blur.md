@@ -22,7 +22,7 @@
 
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |
-| refs | 想要模糊的View的nativeRef列表 | List<Int> |
+| refs | 想要模糊的View的nativeRef列表 | `List<Int>` |
 
 ```kotlin
 @Page("demo_page")

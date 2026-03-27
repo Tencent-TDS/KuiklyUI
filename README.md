@@ -13,11 +13,12 @@ English | [简体中文](./README-zh_CN.md) | [Homepage](https://framework.tds.q
 - [X] HarmonyOS
 - [X] Web (Beta)
 - [X] Mini Programs (Beta)
+- [X] macOS (Alpha)
 
 Since its launch, `Kuikly` has gained wide recognition from the business. It has been used by many products such as QQ, QQ Music, QQ Browser, Tencent News, Sogou Input Method, MyApp Hub(Tencent's app store), WeSing, Kugou Music, Kuwo Music, Tencent Self-selected Stock, ima.copilot, Weishi, etc.
 ## Key Features
 
-- **Cross-platform:** Kotlin-based implementation ensuring consistent operation across multiple platforms - one codebase, five platforms
+- **Cross-platform:** Kotlin-based implementation ensuring consistent operation across multiple platforms - one codebase, six platforms
 - **Native performance:** Generates platform-native binaries (.aar/.framework/.so)
 - **Native development experience:** Native UI rendering, native toolchain support, Kotlin as primary language
 - **Lightweight:** Minimal SDK footprint (AOT mode: ~300KB for Android, ~1.2MB for iOS)
@@ -46,6 +47,7 @@ Since its launch, `Kuikly` has gained wide recognition from the business. It has
 ├── demo                   # DSL example code
 ├── androidApp             # Android host shell project
 ├── iosApp                 # iOS host shell project
+├── macApp                 # macOS host shell project
 ├── ohosApp                # Ohos host shell project
 ├── miniApp                # miniApp host shell project
 ├── h5App                  # h5App host shell project
@@ -61,6 +63,7 @@ Since its launch, `Kuikly` has gained wide recognition from the business. It has
 
 ## System Requirements
 - iOS 12.0+
+- macOS 10.13+
 - Android 5.0+
 - HarmonyOS Next 5.0.0(12)+
 - Kotlin 1.3.10+
@@ -101,14 +104,45 @@ Alternatively, open KuiklyUI/iosApp in Xcode and Run
 > Note: The iosApp project will execute the KMP script when compiling. If you encounter an error with the script read and write file permissions, you need to set `User Script Sandboxing` to `No` in `Xcode -> Build Setting`.
 
 ### Running Ohos APP
-
 Ensure environment preparation is complete before building:
-1. In `KuiklyUI` root director Run kuikly Ohos product compile script, `./2.0_ohos_test_publish.sh`
+
+#### Mac
+1. In `KuiklyUI` root directory, run the HarmonyOS cross-platform product compile script:
+   ```bash
+   ./2.0_ohos_demo_build.sh
+   ```
 2. Open `KuiklyUI/ohosApp` in DevEco Studio and sync project
 3. Connect to Ohos Phone or start the Ohos Emulator, and perform a signature operation `File -> Project Structure -> Signing Configs`
-4. Use DevEco Studio Run `entry`, Run OhosApp  
+4. Use DevEco Studio Run `entry`, Run OhosApp
 
-Notes: kuikly Ohos product only supports Mac compilation, Windows can use the compiled ohos product to run Ohos APP.
+#### Windows
+1. Configure environment variables pointing to HarmonyOS SDK path:
+   ```
+   Variable: OHOS_SDK_HOME
+   Path: %TOOL_HOME%\sdk
+   Variable: TOOL_HOME
+   Path: D:\DevEcoStudio
+   ```
+   Note: "D:\DevEcoStudio" uses D drive as an example. Any drive except C drive can be used.
+
+2. In `KuiklyUI` root directory, run the Windows build script:
+   ```cmd
+   2.0_ohos_demo_build.bat
+   ```
+   Or run manually:
+   ```cmd
+   set KUIKLY_AGP_VERSION=7.4.2
+   set KUIKLY_KOTLIN_VERSION=2.0.21-KBA-010
+   gradlew.bat -c settings.2.0.ohos.gradle.kts :demo:linkSharedDebugSharedOhosArm64
+   ```
+3. Copy artifacts to ohosApp (automatically done by bat script):
+   - `demo\build\bin\ohosArm64\sharedDebugShared\libshared.so` → `ohosApp\entry\libs\arm64-v8a\`
+   - `demo\build\bin\ohosArm64\sharedDebugShared\libshared_api.h` → `ohosApp\entry\src\main\cpp\thirdparty\biz_entry\`
+4. Open `KuiklyUI/ohosApp` in DevEco Studio and sync project
+5. Connect to Ohos Phone or start the Ohos Emulator, and perform a signature operation `File -> Project Structure -> Signing Configs`
+6. Use DevEco Studio Run `entry`, Run OhosApp
+
+> Note: Windows compilation requires Kotlin toolchain version `2.0.21-KBA-010` which supports Windows/Linux platforms.
 
 ### Kotlin Version Support
 The KuiklyUI directory contains Gradle configurations for various `Kotlin versions`:
@@ -143,7 +177,7 @@ All project participants are expected to adhere to our [Code of Conduct](CODE_OF
 ## Contributors
 - Special thanks to the first batch of contributors tom(邱良雄), kam(林锦涛), and watson(金盎), who not only pioneered the incubation and exploration of the `Kuikly` cross-platform solutions in the frontend field, but also were the first to implement them in the QQ business.
 - Thanks to the following core contributors for the continuous construction, maintenance, development and optimization of `Kuikly`:
- <br>tom kam watson rocky jonas ruifan pel layen bird zealot zhenhua vinney xuanxi arnon alexa allens eason
+ <br>tom kam watson rocky jonas ruifan pel layen bird zealot zhenhua vinney xuanxi ray arnon alexa allens eason
 - We also extend our sincere gratitude to every community contributor who has participated in the development of `Kuikly`. It is your collective effort that drives the continuous growth and improvement of `Kuikly`.
     <div id="list" style="display: flex; flex-wrap: wrap"><a href="https://github.com/Tencent-TDS/KuiklyUI/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=Tencent-TDS/KuiklyUI" /></a><a href="https://github.com/Tencent-TDS/KuiklyUI-third-party/graphs/contributors">

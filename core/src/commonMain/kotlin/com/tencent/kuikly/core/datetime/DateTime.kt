@@ -19,4 +19,7 @@ expect object DateTime {
 
     fun currentTimestamp() : Long
     fun nanoTime() : Long
+
+    internal fun threadLocalTimestamp(): Long
+
 }

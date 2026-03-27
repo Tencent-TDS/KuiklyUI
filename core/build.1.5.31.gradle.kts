@@ -38,6 +38,11 @@ publishing {
 kotlin {
 
     android {
+        compilations.all {
+            kotlinOptions {
+                moduleName = "${project.group}.${project.name}"
+            }
+        }
         publishLibraryVariantsGroupedByFlavor = true
         publishLibraryVariants("release")
     }
@@ -54,9 +59,6 @@ kotlin {
 
     val androidMain by sourceSets.getting {
         dependsOn(commonMain)
-        dependencies {
-            compileOnly("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.5.31")
-        }
     }
 
 

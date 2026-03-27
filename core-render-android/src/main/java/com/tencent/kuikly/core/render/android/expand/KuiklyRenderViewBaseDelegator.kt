@@ -199,7 +199,9 @@ open class KuiklyRenderViewBaseDelegator(private val delegate: KuiklyRenderViewB
         size: Size? = null,
         assetsPath: String? = null
     ) {
+        val tracer = KuiklyRenderTracer("$TAG onAttach")
         executeMode = delegate.coreExecuteModeX()
+        KuiklyRenderLog.d(TAG, "onAttach, pageName: $pageName, mode: $executeMode, size: $size container: $container")
         containerViewWeakRef = WeakReference(container)
         performanceManager = initPerformanceManager(pageName)
         this.pageName = pageName
@@ -207,6 +209,7 @@ open class KuiklyRenderViewBaseDelegator(private val delegate: KuiklyRenderViewB
         this.pageData = pageData
         this.assetsPath = assetsPath
         loadingKuiklyRenderView(size)
+        tracer.end()
     }
 
     /**
@@ -291,12 +294,14 @@ open class KuiklyRenderViewBaseDelegator(private val delegate: KuiklyRenderViewB
     }
 
     private fun tryRunKuiklyRenderViewPendingTask(kuiklyRenderView: KuiklyRenderView?) {
+        val tracer = KuiklyRenderTracer("$TAG tryRunKuiklyRenderViewPendingTask")
         kuiklyRenderView?.also { hrv ->
             pendingTaskList.forEach { task ->
                 task.invoke(hrv)
             }
             pendingTaskList.clear()
         }
+        tracer.end()
     }
 
     private fun initPerformanceManager(pageName: String): KRPerformanceManager? {
@@ -325,8 +330,12 @@ open class KuiklyRenderViewBaseDelegator(private val delegate: KuiklyRenderViewB
     }
 
     private fun initRenderView(size: Size?) {
+        val tracer = KuiklyRenderTracer("$TAG initRenderView")
         KuiklyRenderLog.d(TAG, "initRenderView, executeMode: $executeMode, pageName: $pageName")
-        val containerView = containerViewWeakRef?.get() ?: return
+        val containerView = containerViewWeakRef?.get() ?: run {
+            KuiklyRenderLog.e(TAG, "initRenderView, containerView is null")
+            return
+        }
         renderView = KuiklyRenderView(containerView.context, executeMode, delegate.enablePreloadClass(), delegate).apply {
             registerCallback(renderViewCallback)
             registerKuiklyRenderExport(this)
@@ -347,6 +356,7 @@ open class KuiklyRenderViewBaseDelegator(private val delegate: KuiklyRenderViewB
             }
         }
         containerView.addView(renderView)
+        KuiklyRenderLog.d(TAG, "--initRenderView addView--")
         delegate.onKuiklyRenderViewCreated()
         if (delegate.syncRenderingWhenPageAppear()) {
             renderView?.syncFlushAllRenderTasks()
@@ -355,7 +365,7 @@ open class KuiklyRenderViewBaseDelegator(private val delegate: KuiklyRenderViewB
         pageData = null
         contextCode = null
         tryRunKuiklyRenderViewPendingTask(renderView)
-
+        tracer.end()
     }
 
     private fun handleException(throwable: Throwable, errorReason: ErrorReason) {
@@ -662,4 +672,11 @@ interface KuiklyRenderViewBaseDelegatorDelegate {
         return false
     }
 
+    /**
+     * 是否开启debug日志
+     * return Boolean,默认为false
+     */
+    fun debugLogEnable(): Boolean {
+        return false
+    }
 }

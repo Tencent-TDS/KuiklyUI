@@ -5,6 +5,7 @@ import com.tencent.kuikly.core.manager.BridgeManager
 import com.tencent.kuikly.core.timer.setTimeout
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -21,11 +22,15 @@ fun CoroutineScope.launch(
     block: suspend CoroutineScope.() -> Unit
 ): Job {
     val job = StandaloneCoroutine(context)
-    job.start(start, this) {
-        try {
+    job.start(start, job) {
+        if (BridgeManager.catchException) {
+            try {
+                block.invoke(this)
+            } catch (e: Throwable) {
+                throwCoroutineScopeException(e)
+            }
+        }else{
             block.invoke(this)
-        } catch (e: Throwable) {
-            throwCoroutineScopeException(e)
         }
     }
     return job
@@ -37,13 +42,17 @@ fun <T> CoroutineScope.async(
     block: suspend CoroutineScope.() -> T
 ): Deferred<T> {
     val job = DeferredCoroutine<T>(context)
-    job.start(start, this) {
-        try {
+    job.start(start, job) {
+        if (BridgeManager.catchException) {
+            try {
+                block.invoke(this)
+            } catch (e: Throwable) {
+                throwCoroutineScopeException(e)
+                val res: T? = null
+                res!!// 解决编译返回，不影响报错结果
+            }
+        }else{
             block.invoke(this)
-        } catch (e: Throwable) {
-            throwCoroutineScopeException(e)
-            val res: T? = null
-            res!!// 解决编译返回，不影响报错结果
         }
     }
     return job
@@ -56,21 +65,72 @@ suspend fun CoroutineScope.delay(timeMs: Int) {
         @Suppress("DEPRECATION")
         BridgeManager.currentPageId.ifEmpty { return }
     }
-    suspendCoroutine<Unit> {
-        setTimeout(pagerId, timeMs) {
-            try {
-                it.resume(Unit)
-            } catch (e: Throwable) {
-                throwCoroutineScopeException(e)
+    val job = this.coroutineContext[Job]
+    if (job != null && !job.isActive) {
+        return
+    }
+    suspendCoroutine<Unit> { cont ->
+        val aj = this.coroutineContext[Job] as? AbstractCoroutine<*>
+        aj?.registerCancellable(cont)
+        var ref: String? = null
+        ref = setTimeout(pagerId, timeMs) {
+            if (BridgeManager.catchException) {
+                try {
+                    if (aj != null && !aj.isActive) {
+                        return@setTimeout
+                    }
+                    ref?.let {
+                        aj?.unregisterTimeout(it)
+                    }
+                    aj?.unregisterCancellable(cont)
+                    cont.resume(Unit)
+                } catch (e: Throwable) {
+                    throwCoroutineScopeException(e)
+                }
+            } else {
+                if (aj != null && !aj.isActive) {
+                    return@setTimeout
+                }
+                ref?.let {
+                    aj?.unregisterTimeout(it)
+                }
+                aj?.unregisterCancellable(cont)
+                cont.resume(Unit)
             }
         }
+        ref?.let {
+            aj?.registerTimeout(pagerId, it)
+        }
     }
+}
+
+suspend fun <T> CoroutineScope.suspendCancellableCoroutine(block: (kotlin.coroutines.Continuation<T>, ((Throwable?) -> Unit) -> Unit) -> Unit): T = kotlin.coroutines.suspendCoroutine { cont ->
+    val aj = this.coroutineContext[Job] as? AbstractCoroutine<*>
+    aj?.registerCancellable(cont)
+    val safe = object : kotlin.coroutines.Continuation<T> {
+        override val context: kotlin.coroutines.CoroutineContext = cont.context
+        override fun resumeWith(result: Result<T>) {
+            val active = context[Job]?.isActive != false
+            if (!active) {
+                return
+            }
+            (cont.context[Job] as? AbstractCoroutine<*>)?.unregisterCancellable(cont)
+            cont.resumeWith(result)
+        }
+    }
+    val onCancelRegister: ((Throwable?) -> Unit) -> Unit = { h ->
+        aj?.addCompletionHandler(h)
+    }
+    block(safe, onCancelRegister)
 }
 
 /**
  * 协程内的异常统一使用该接口抛出，否则在协程内异常抛出无效。
  */
 private fun CoroutineScope.throwCoroutineScopeException(e: Throwable) {
+    if (e is CancellationException) {
+        return
+    }
     val pagerId = if (this is LifecycleScope) {
         pagerScope.pagerId
     } else {

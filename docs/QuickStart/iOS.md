@@ -174,6 +174,7 @@ NS_ASSUME_NONNULL_BEGIN
 NS_ASSUME_NONNULL_END
 ```
 
+
 ```objc
 #import "KuiklyRenderViewController.h"
 #import <OpenKuiklyIOSRender/KuiklyRenderViewControllerBaseDelegator.h>
@@ -195,8 +196,12 @@ NS_ASSUME_NONNULL_END
         // 存储页面数据
         pageData = [self p_mergeExtParamsWithOriditalParam:pageData];
         _pageData = pageData;
+        
         // 实例化Kuikly委托者类
+        // ⚠️ 注意：必须使用 KuiklyRenderViewControllerDelegator
+        //    不要使用 KuiklyRenderViewControllerBaseDelegator
         _delegator = [[KuiklyRenderViewControllerDelegator alloc] initWithPageName:pageName pageData:pageData];
+        
         _delegator.delegate = self;
     }
     return self;
@@ -279,9 +284,23 @@ NS_ASSUME_NONNULL_END
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
+// 指定当前页面获取 safeAreaInsets 的参考窗口
+// 适用场景：当业务存在多 Window、悬浮窗、分屏等复杂场景，且框架默认获取的 safeAreaInsets 不正确时，
+// 业务可以通过重写此方法，返回当前 Kuikly 页面所在的 window，以确保获取正确的安全区域
+- (UIWindow *)viewControllerHostWindow {
+    return self.view.window;
+}
+
+
+
 
 @end
 ```
+::: warning 重要提示
+必须使用 **KuiklyRenderViewControllerDelegator** 类，  
+<span style="color: #d32f2f;">不要使用 KuiklyRenderViewControllerBaseDelegator</span>，否则会导致功能异常。
+:::
+
 
 ## 实现Kuikly适配器（必须实现部分）
 
@@ -299,16 +318,24 @@ NS_ASSUME_NONNULL_END
 ### 实现图片加载适配器
 
 具体实现代码，请参考源码工程iOSApp模块的``KuiklyRenderComponentExpandHandler``类。
-KuiklyRenderComponentExpandHandler 默认提供了三种图片加载方法：
 
-- (BOOL)hr_setImageWithUrl:(nonnull NSString *)url forImageView:(nonnull UIImageView *)imageView placeholderImage:(nullable UIImage *)placeholder options:(NSUInteger)options complete:(ImageCompletionBlock)completeBlock;
-  - 完整版图片加载方法，支持占位图、加载选项和完成回调，图片加载完成后会开放 ImageView 的复用的能力
-- (BOOL)hr_setImageWithUrl:(nullable NSString *)url forImageView:(UIImageView *)imageView complete:(ImageCompletionBlock)completeBlock;
-  - 支持完成回调用于错误处理，不开放复用能力
-- (BOOL)hr_setImageWithUrl:(nullable NSString *)url forImageView:(UIImageView *)imageView;
-  - 仅传入 URL 和 ImageView 进行加载，不开放复用能力
+KuiklyRenderComponentExpandHandler 提供了以下三种图片加载方法：
 
-```objc
+<span style="background-color: #d4edda; color: #155724; padding: 2px 8px; border-radius: 4px; font-weight: bold;">推荐</span>
+- `hr_setImageWithUrl:imageParams:complete:` — 完整支持（src一致性验证、错误回调、imageParams）
+
+<span style="background-color: #f8d7da; color: #721c24; padding: 2px 8px; border-radius: 4px; font-weight: bold;">已废弃</span>（存在图片错乱风险，请勿使用）
+- `hr_setImageWithUrl:forImageView:complete:` — 缺少 src 一致性验证、imageParams
+- `hr_setImageWithUrl:forImageView:` — 仅支持基础加载
+
+:::tip 废弃原因说明
+- `src一致性验证`是保证图片准确加载的必要能力。后两种方法因不具备此能力，在`页面多图片`、`图片src变更频繁` 场景下易发生`图片错乱`现象，因此已废弃。
+- `imageParams` 是src的补充参数，具体作用可见 [imageParams](/API/components/image.md#src)
+  :::
+
+下面给出推荐方法的具体使用示例：
+
+```objectivec
 // .h
 #import <Foundation/Foundation.h>
 #import <OpenKuiklyIOSRender/KuiklyRenderBridge.h>
@@ -326,7 +353,7 @@ NS_ASSUME_NONNULL_END
 @end
 ```
 
-```objc
+```objectivec
 // .m
 #import "KuiklyRenderComponentExpandHandler.h"
 #import <SDWebImage/UIImageView+WebCache.h>
@@ -339,30 +366,47 @@ NS_ASSUME_NONNULL_END
 }
  
 /*
- * 自定义实现设置图片（带完成回调和src一致性验证，优先调用该方法）
- * @param url 设置的图片url，如果url为nil，则是取消图片设置，需要view.image = nil
- * @param placeholder 设置的占位图，默认设置为nil
- * @param options SDWebImage的图片加载参数，默认为SDWebImageAvoidAutoSetImage，阻断SDWebImage无感更新ImageView的image
+ * 自定义实现设置图片（带完成回调和src一致性验证）
+ * @param loadURL 待加载图片的 url
+ * @param imageParams 自定义的图片参数
  * @param complete 图片处理完成后的回调，内置src一致性验证
  * @return 是否处理该图片设置，返回值为YES，则交给该代理实现，否则sdk内部自己处理
  */
-- (BOOL)hr_setImageWithUrl:(nonnull NSString *)url forImageView:(nonnull UIImageView *)imageView placeholderImage:(nullable UIImage *)placeholder options:(NSUInteger)options complete:(ImageCompletionBlock)completeBlock {
-    [imageView sd_setImageWithURL:[NSURL URLWithString:url]
-                 placeholderImage:placeholder
-                          options:(SDWebImageOptions)options
-                        completed:^(UIImage * _Nullable image, NSError * _Nullable error, SDImageCacheType cacheType, NSURL * _Nullable imageURL) {
-        // 注意：必须在图片加载完成后调用completeBlock，SDK通过此回调完成ImageView.image的最终设置，若不调用将导致图片无法显示
+- (BOOL)hr_setImageWithUrl:(nonnull NSString *)loadURL imageParams:(NSDictionary* _Nullable)imageParams complete:(ImageCompletionBlock)completeBlock;{
+    // @warning 若使用SDWebImage加载图片，options 需设置为 SDWebImageAvoidAutoSetImage = 1 << 10 ，避免自动设置图片导致图片错乱问题
+    
+    // 使用SDWebImage 实现图片加载
+    [[SDWebImageManager sharedManager] loadImageWithURL:[NSURL URLWithString:loadURL]
+                                                options:SDWebImageAvoidAutoSetImage
+                                               progress:nil
+                                              completed:^(UIImage * _Nullable image, NSData * _Nullable data, NSError * _Nullable error, SDImageCacheType cacheType, BOOL finished, NSURL * _Nullable imageURL) {
+        // @warning 实现此方法时，必须在图片加载完成后调用completeBlock，SDK通过此回调完成ImageView.image的最终设置，若不调用将导致图片无法显示
         if (completeBlock) {
-            // 注意：回调时传入的url必须是传入的url，而非SDWebImage所返回的ImageURL
-            completeBlock(image, error, [NSURL URLWithString:url]);
+            // * @warning 注意回调时所传入的imageURL是 hr_setImageWithUrl的参数url，而非SDWebImage Block中返回的imageURL参数
+            completeBlock(image, error, [NSURL URLWithString:loadURL]);
         }
     }];
     return YES;
 }
-/*
+
 ...
 
 @end
+```
+使用YYImage加载图片可参考：
+```objectivec
+    // 使用YYImage 实现图片加载
+    [[YYWebImageManager sharedManager] requestImageWithURL:[NSURL URLWithString:loadURL]
+                                                   options:YYWebImageOptionAvoidSetImage
+                                                  progress:nil
+                                                 transform:nil
+                                                completion:^(UIImage * _Nullable image, NSURL * _Nonnull url, YYWebImageFromType from, YYWebImageStage stage, NSError * _Nullable error) {
+        // @warning 实现此方法时，必须在图片加载完成后调用completeBlock，SDK通过此回调完成ImageView.image的最终设置，若不调用将导致图片无法显示
+        if (completeBlock) {
+            // * @warning 注意回调时所传入的imageURL是 hr_setImageWithUrl的参数url，而非SDWebImage Block中返回的imageURL参数
+            completeBlock(image, error, [NSURL URLWithString:loadURL]);
+        }
+    }];
 ```
 
 完成后，可通过**模版工程**中的``ImageAdapter基准测试``页面来验证功能正常。

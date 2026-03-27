@@ -90,6 +90,8 @@ export const KRDensity = 'density';
 
 export const KRSystemLanguageKey = 'sysLang';
 
+export const KRFeature = 'feature';
+
 const KROnBackPressedKey = 'onBackPressed';
 
 enum KRBackPressConsumedState {
@@ -126,6 +128,10 @@ export class KRNativeRenderController {
    * 透传给KR侧的页面数据
    */
   pageParams: KRRecord = {};
+  /**
+   * 鸿蒙侧，向用户提供新旧两种KRSharedPreferencesMoudle使用的控制开关（变量）
+   */
+  useOhSharedPreferences: boolean = false;
   /**
    * 所在的窗口Id
    */
@@ -207,7 +213,8 @@ export class KRNativeRenderController {
     contextCode: string,
     imeMode: boolean,
     assetsDir: string,
-    viewRect?: KRRect
+    useOhSharedPreferences: boolean,
+    viewRect?: KRRect,
   ) {
     this.uiContext = uiContext;
     this.uiAbilityContext = uiAbilityContext;
@@ -220,6 +227,7 @@ export class KRNativeRenderController {
     if (viewRect) {
       this.viewRect = viewRect;
     }
+    this.useOhSharedPreferences = useOhSharedPreferences;
     gGlobalInstanceId++;
     this.instanceId = gGlobalInstanceId + '';
     render.OnLaunchStart(this.instanceId, executeMode.mode); //  页面启动事件通知到native层，用于Performance性能采集
@@ -324,6 +332,12 @@ export class KRNativeRenderController {
       data['fontSizeScale'] = 1
     }
     data['fontSizeScaleFollowSystem'] = this.fontSizeScaleFollowSystem();
+
+    const instance = KRNativeManager.getInstance().getNativeInstance(this.instanceId)
+    if (instance){
+      instance.onConfigurationUpdate()
+    }
+
     // update config to render core
     render.updateConfig(this.instanceId, JSON.stringify(data));
 
@@ -637,12 +651,14 @@ export class KRNativeRenderController {
     pageData[KRExecuteMode] = this.executeMode.mode;
     pageData[KRContextCode] = this.contextCode;
     pageData[KRDensity] = this.getWindowActiveDensity();
-
+    pageData[KRFeature] = {
+      "box_shadow_fill" : 1
+    };
     return JSON.stringify(pageData);
   }
 
   private createConfigJson(screenSize: KRSize): string {
-    let data: Record<string, string | number> = {
+    let data: Record<string, string | number | boolean> = {
       'vp2px': vp2px(1.0),
       'screen_width': screenSize.width,
       'screen_height': screenSize.height,
@@ -655,6 +671,7 @@ export class KRNativeRenderController {
       'windowId': this.windowId,
       'fontSizeScaleFollowSystem': this.fontSizeScaleFollowSystem() ? 1 : 0,
       'performanceMonitorTypesMask': this.getMonitorTypeMask(),
+      "useOhSharedPreferences": this.useOhSharedPreferences
     };
 
     return JSON.stringify(data);

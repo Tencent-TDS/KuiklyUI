@@ -20,7 +20,7 @@ import com.squareup.kotlinpoet.*
 /**
  * Created by kam on 2022/6/26.
  */
-open class AndroidTargetEntryBuilder : KuiklyCoreAbsEntryBuilder() {
+open class AndroidTargetEntryBuilder(val catchException: Boolean) : KuiklyCoreAbsEntryBuilder() {
 
     override fun build(
         builder: FileSpec.Builder,
@@ -31,6 +31,7 @@ open class AndroidTargetEntryBuilder : KuiklyCoreAbsEntryBuilder() {
                 .addSuperinterface(ClassName("com.tencent.kuikly.core", "IKuiklyCoreEntry"))
                 .addProperty(createHadRegisterNativeBridgeProperty())
                 .addProperty(createDelegateProperty())
+                .addFunction(createCatchExceptionFuncSpec())
                 .addFunction(createCallKtMethodFuncSpec())
                 .addFunction(createTriggerRegisterPagesFuncSpec(pagesAnnotations))
                 .build()
@@ -59,6 +60,13 @@ open class AndroidTargetEntryBuilder : KuiklyCoreAbsEntryBuilder() {
             .build()
     }
 
+    internal fun createCatchExceptionFuncSpec(): FunSpec {
+        return FunSpec.builder(FUNC_NAME_CATCH_EXCEPTION_METHOD)
+            .addModifiers(KModifier.OVERRIDE)
+            .addStatement("return BridgeManager.catchException")
+            .returns(BOOLEAN)
+            .build()
+    }
     internal fun createCallKtMethodFuncSpec(): FunSpec {
         return FunSpec.builder(FUNC_NAME_CALL_KT_METHOD)
             .addParameters(createKtMethodParameters())
@@ -66,6 +74,7 @@ open class AndroidTargetEntryBuilder : KuiklyCoreAbsEntryBuilder() {
             .addStatement("if (!hadRegisterNativeBridge) {\n")
                     .addStatement("triggerRegisterPages()\n")
             .addStatement("          hadRegisterNativeBridge = true\n" +
+                    "          NativeBridge.isContextThread = true\n" +
                     "          val nativeBridge = NativeBridge()\n" +
                     "          nativeBridge.delegate = object : NativeBridge.NativeBridgeDelegate {\n" +
                     "              override fun callNative(\n" +
@@ -117,7 +126,7 @@ open class AndroidTargetEntryBuilder : KuiklyCoreAbsEntryBuilder() {
                 FunSpec.builder("registerAllPages")
                     .addStatement(
                         "if (!BridgeManager.isDidInit()) {\n" +
-                                "BridgeManager.init()\n"
+                                "BridgeManager.init(${catchException})\n"
                     )
                     .addRegisterPageRouteStatement(pagesAnnotations)
                     .addStatement("}\n")

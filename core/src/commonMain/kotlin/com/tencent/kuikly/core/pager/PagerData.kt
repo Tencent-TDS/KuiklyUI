@@ -83,6 +83,8 @@ class PageData(scope: PagerScope) {
     var androidBottomBavBarHeight: Float = 0f
         private set
 
+    private var feature: JSONObject? = null
+
     fun init(pageData: JSONObject) {
         this.rawPageData = pageData
         pageViewWidth = pageData.optDouble(ROOT_VIEW_WIDTH).toFloat()
@@ -104,6 +106,7 @@ class PageData(scope: PagerScope) {
         activityWidth = pageData.optDouble(ACTIVITY_WIDTH, if (isMoreThan8()) deviceWidth.toDouble() else 0.0).toFloat()
         activityHeight = pageData.optDouble(ACTIVITY_HEIGHT, if (isMoreThan8()) deviceHeight.toDouble() else 0.0).toFloat()
         isAccessibilityRunning = pageData.optInt(ACCESSIBILITY_RUNNING, 0).toBoolean()
+        customFirstScreenTag = pageData.optString(CUSTOM_FIRSTSCREEN_TAG, "")
 
         val safeAreaInsetsString = pageData.optString(SAFE_AREA_INSETS, "")
         if (safeAreaInsetsString.isNotEmpty()) {
@@ -112,6 +115,7 @@ class PageData(scope: PagerScope) {
         osVersion = pageData.optString(OS_VERSION)
         androidBottomBavBarHeight = pageData.optDouble(ANDROID_BOTTOM_NAV_BAR_HEIGHT, 0.0).toFloat()
         density = pageData.optDouble(DENSITY, 3.0).toFloat() // use 3(xxhdpi) for backwards compatibility
+        feature = pageData.optJSONObject(FEATURE)
         mergeUrlParamsToPageParams()
     }
 
@@ -163,6 +167,13 @@ class PageData(scope: PagerScope) {
         return nativeBuild >= 8
     }
 
+    fun hasFeature(key: String): Boolean {
+        return feature?.has(key) == true
+    }
+
+    var customFirstScreenTag: String = ""
+        private set
+
     companion object {
         private const val KEY_PARAM = "param"
         private const val URL = "url"
@@ -181,11 +192,13 @@ class PageData(scope: PagerScope) {
         private const val OS_VERSION = "osVersion"
         private const val ANDROID_BOTTOM_NAV_BAR_HEIGHT = "androidBottomNavBarHeight"
         private const val DENSITY = "density"
+        private const val FEATURE = "feature"
         const val PLATFORM_ANDROID = "android"
         const val PLATFORM_IOS = "iOS"
         const val PLATFORM_MACOS = "macOS"
         const val PLATFORM_OHOS = "ohos"
         const val PLATFORM_WEB = "web"
         const val PLATFORM_MINIAPP = "miniprogram"
+        const val CUSTOM_FIRSTSCREEN_TAG = "customFirstScreenTag"
     }
 }

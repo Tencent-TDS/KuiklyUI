@@ -159,6 +159,7 @@ static const UIAccessibilityTraits UIAccessibilityTraitHeader = (1 << 15);
 #define UILabel KRUILabel
 #define UITextField KRUITextField
 #define UITextView KRUITextView
+#define UIWindow NSWindow
 
 // Application aliases
 #define UIApplication NSApplication
@@ -244,6 +245,7 @@ NS_INLINE void UIAccessibilityPostNotification(NSAccessibilityNotificationName n
 #define UIKeyboardWillHideNotification @"UIKeyboardWillHideNotification"
 #define UIKeyboardFrameEndUserInfoKey @"UIKeyboardFrameEndUserInfoKey"
 #define UIKeyboardAnimationDurationUserInfoKey @"UIKeyboardAnimationDurationUserInfoKey"
+#define UIKeyboardAnimationCurveUserInfoKey @"UIKeyboardAnimationCurveUserInfoKey"
 
 #pragma mark - Font Descriptor Attribute Aliases
 

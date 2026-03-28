@@ -1082,7 +1082,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                             if (animationDamping == 1f) {
                                 // 无需弹簧效果时使用默认方案，目前startSpringScroll会存在快速滑动无法准确停靠问题
                                 // 待后续优化后移除这段代码
-                                smoothScrollBy(dx, dy)
+                                smoothScrollBy(dx, dy, null, animationDuration)
                             } else {
                                 startSpringScroll(dx, dy, animationDuration, animationDamping, animationVelocity, isVertical)
                             }

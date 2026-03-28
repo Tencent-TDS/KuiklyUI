@@ -36,6 +36,20 @@ object EventHook {
     }
 
     /**
+     * Trigger page-level events and return result
+     */
+    fun callWithPageIdAndReturn(hookName: String, pageId: Int, vararg args: Any): Any? {
+        val pageInstance = MiniPageManage.getMiniPageByPageId(pageId)
+        pageInstance?.let {
+            if (MiniPageManage.currentPage == it) {
+                val usedHookName = (pageId.asDynamic() + hookName).unsafeCast<String>()
+                return runTimeHooks.triggerAndReturn(usedHookName, *args)
+            }
+        }
+        return null
+    }
+
+    /**
      * Listen for page-level events
      */
     fun tapWithPageId(hookName: String, pageId: Int, callBack: CallBack) {

@@ -189,6 +189,26 @@ open class ImageAttr : Attr(), IImageAttr {
         return this
     }
 
+    /**
+     * 设置图片拉伸模式：widthFix。
+     * 保持宽高比，宽度固定，高度自适应。
+     * @return 返回 ImageAttr 以支持链式调用。
+     */
+    override fun resizeWidthFix(): ImageAttr {
+        ImageConst.RESIZE with "widthFix"
+        return this
+    }
+
+    /**
+     * 设置图片拉伸模式：heightFix。
+     * 保持宽高比，高度固定，宽度自适应。
+     * @return 返回 ImageAttr 以支持链式调用。
+     */
+    override fun resizeHeightFix(): ImageAttr {
+        ImageConst.RESIZE with "heightFix"
+        return this
+    }
+
     private fun generateCacheKey(base64Src: String): String {
         return ImageConst.BASE64_CACHE_KEY_PREFIX + base64Src.hashCode().toString()
     }
@@ -342,6 +362,8 @@ object ImageConst {
     const val RESIZE_MODE_COVER = "cover"
     const val RESIZE_MODE_CONTAIN = "contain"
     const val RESIZE_MODE_STRETCH = "stretch"
+    const val RESIZE_MODE_WIDTH_FIX = "widthFix"
+    const val RESIZE_MODE_HEIGHT_FIX = "heightFix"
 
     const val DRAG_ENABLE = "dragEnable"
 }

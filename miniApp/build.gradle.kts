@@ -57,8 +57,11 @@ fun copyLocalJSBundle(buildSubPath: String) {
     val sourceDir = Paths.get(
         project.rootDir.absolutePath,
         businessPathName,
-        "build/dist/js", buildSubPath
+        "build/kotlin-webpack/js", buildSubPath
     ).toFile()
+
+    println("Copying from: ${sourceDir.absolutePath}")
+    println("Copying to: ${destDir.absolutePath}")
 
     // Copy files
     project.copy {
@@ -144,7 +147,9 @@ project.afterEvaluate {
         dependsOn("jsBrowserProductionWebpack")
         // Then copy corresponding nativevue2.zip from business build result and copy nativevue2.js
         // to miniprogramApp's release directory
-        copyLocalJSBundle("productionExecutable")
+        doLast {
+            copyLocalJSBundle("productionExecutable")
+        }
     }
 
     tasks.register("jsMiniAppDevelopmentWebpack") {
@@ -153,6 +158,8 @@ project.afterEvaluate {
         dependsOn("jsBrowserDevelopmentWebpack")
         // Then copy corresponding nativevue2.zip from business build result and copy nativevue2.js
         // to miniprogramApp's release directory
-        copyLocalJSBundle("developmentExecutable")
+        doLast {
+            copyLocalJSBundle("developmentExecutable")
+        }
     }
 }

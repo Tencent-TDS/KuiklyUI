@@ -57,8 +57,6 @@ Kuikly 基于 Compose 1.7 的能力做了对齐，下列为当前支持的常用
 - 某些平台上受限于原生控件实现，可能在细节上与 Android 官方实现略有差异
 - 若有明显行为差异或暂不支持的属性，会在「差异化说明」中明确标注
 
-**ModalNavigationDrawer 待建设能力**：Semantics 无障碍支持、ModalDrawerSheet 的 shape / windowInsets 参数、RTL 布局支持、PermanentNavigationDrawer、DismissibleDrawerSheet / PermanentDrawerSheet 等能力正在建设中。
-
 ## 差异化说明
 
 Kuikly Compose 基于原生组件实现，部分功能与官方 Compose 存在差异。这些差异主要分为两类：
@@ -192,6 +190,10 @@ fun ScrollAlternatives() {
 ```
 
 > **提示**：以上为当前已知的差异化点，更多差异化内容将持续更新补充。
+
+#### 7. ModalNavigationDrawer / DismissibleNavigationDrawer 部分能力待建设
+
+**差异说明**：当前已实现核心的抽屉交互功能，但 Semantics 无障碍支持、NavigationDrawerItemColors 颜色系统、ModalDrawerSheet 的 shape / windowInsets 参数、RTL 布局支持、PermanentNavigationDrawer、DismissibleDrawerSheet / PermanentDrawerSheet 等能力正在建设中。
 
 ## 扩展能力
 

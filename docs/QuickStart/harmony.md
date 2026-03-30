@@ -1,7 +1,9 @@
 # 鸿蒙工程接入
 
 :::tip 注意
-在此之前请确保已经完成**KMP侧 Kuikly**的接入，如还未完成，请移步[Kuikly KMP侧接入](./common.md)
+1. 在此之前请确保已经完成**KMP侧 Kuikly**的接入，如还未完成，请移步[Kuikly KMP侧接入](./common.md)
+2. 鸿蒙模拟器不支持X86版的Mac，推荐使用Apple Silicon(Arm)版的Mac进行鸿蒙的开发
+ 
 :::
 
 完成**Kuikly KMP**侧的配置后, 我们还需要将**Kuikly**渲染器和适配器接入到宿主平台中，此文档适用于您想把Kuikly渲染器接入到您现有的鸿蒙工程中。下面我们来看下，如何在现有鸿蒙工程中接入Kuikl渲染器。

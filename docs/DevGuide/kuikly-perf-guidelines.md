@@ -10,9 +10,6 @@
 1. 通常可以通过脚本对非internal的类和文件进行统一的修改
 2. 腾讯内部项目也可以使用[Kuikly Shrinker插件](https://raftx.woa.com/kuikly/detail/717)自动对项目符号进行可见性调整。
 
-    :::tip 注意
-    **Kuikly Shrinker插件当前仅仅支持iOS平台，鸿蒙平台支持中。**
-    :::
 
 ## 编译选项优化
 

@@ -65,6 +65,7 @@
 :::tip 注意
 1. Kuikly鸿蒙跨端产物已支持Windows平台编译，请参考[鸿蒙平台开发方式](../DevGuide/harmony-dev.md/#windows平台编译配置)进行配置 
 2. 若想通过插件生成Ohos工程，需要更新插件至1.1.0版本以上
+3. 鸿蒙模拟器不支持X86版的Mac，推荐使用Apple Silicon(Arm)版的Mac进行鸿蒙的开发
 
 :::
 1. 如果是首次运行Ohos的话，需要用鸿蒙DevEco-Studio打开ohosApp目录

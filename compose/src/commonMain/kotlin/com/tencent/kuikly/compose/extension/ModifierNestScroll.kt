@@ -52,7 +52,7 @@ private fun NestedScrollMode.toFrameworkMode(): KRNestedScrollMode = when (this)
  *
  * 这是Compose修饰符的核心桥接类，负责创建和更新滚动控制节点
  */
-private class NestedScrollElement(
+internal class NestedScrollElement(
     private val scrollUp: NestedScrollMode,
     private val scrollDown: NestedScrollMode
 ) : ModifierNodeElement<NestedScrollNode>() {
@@ -81,7 +81,7 @@ private class NestedScrollElement(
  *
  * 这是实际控制滚动行为的节点，在UI树附加/更新时生效
  */
-private class NestedScrollNode(
+internal class NestedScrollNode(
     initialScrollUp: NestedScrollMode,
     initialScrollDown: NestedScrollMode
 ) : Modifier.Node() {

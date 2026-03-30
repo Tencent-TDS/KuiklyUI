@@ -78,6 +78,7 @@ import com.tencent.kuikly.compose.ui.util.fastForEach
 import com.tencent.kuikly.compose.ui.util.fastForEachIndexed
 import com.tencent.kuikly.compose.ui.util.fastMap
 import com.tencent.kuikly.compose.extension.setProp
+import com.tencent.kuikly.compose.extension.NestedScrollElement
 import com.tencent.kuikly.compose.gestures.KuiklyScrollableState
 import com.tencent.kuikly.compose.scroller.fixScrollOffset
 import kotlin.math.max
@@ -1026,14 +1027,18 @@ private fun ScrollableTabRowWithSubcomposeImpl(
     tabs: @Composable () -> Unit,
     scrollState: ScrollState,
 ) {
-    Surface(modifier = modifier, color = containerColor, contentColor = contentColor) {
+    // 从 modifier 链中提取 NestedScrollElement，将其传给 SubcomposeLayout（底层为 ScrollerView），
+    // 其余 modifier 仍然留给 Surface（底层为 DivView），确保 nestedScroll 能正确生效
+    val (surfaceModifier, scrollModifier) = modifier.extractNestedScrollModifier()
+
+    Surface(modifier = surfaceModifier, color = containerColor, contentColor = contentColor) {
         val coroutineScope = rememberCoroutineScope()
         val scrollableTabData =
             remember(scrollState, coroutineScope) {
                 ScrollableTabData(scrollState = scrollState, coroutineScope = coroutineScope)
             }
         SubcomposeLayout(
-            Modifier.wrapContentSize(align = Alignment.CenterStart)
+            scrollModifier.wrapContentSize(align = Alignment.CenterStart)
                 .selectableGroup()
                 .clipToBounds(),
             scrollableState = scrollState,
@@ -1370,3 +1375,24 @@ private val ScrollableTabRowScrollSpec: AnimationSpec<Float> =
 /** [AnimationSpec] used when an indicator is updating width and/or offset. */
 private val TabRowIndicatorSpec: AnimationSpec<Dp> =
     tween(durationMillis = 250, easing = FastOutSlowInEasing)
+
+/**
+ * 从 Modifier 链中提取 NestedScrollElement，返回一个 Pair：
+ * - first: 不包含 NestedScrollElement 的 Modifier（用于 Surface）
+ * - second: 仅包含 NestedScrollElement 的 Modifier（用于 SubcomposeLayout/ScrollerView）
+ *
+ * 这样可以确保 nestedScroll modifier 直接作用在 ScrollerView 对应的节点上，
+ * 而其余 modifier（如 padding、background 等）仍然作用在外层 Surface 上。
+ */
+private fun Modifier.extractNestedScrollModifier(): Pair<Modifier, Modifier> {
+    var surfaceModifier: Modifier = Modifier
+    var scrollModifier: Modifier = Modifier
+    foldIn(Unit) { _, element ->
+        if (element is NestedScrollElement) {
+            scrollModifier = scrollModifier.then(element)
+        } else {
+            surfaceModifier = surfaceModifier.then(element)
+        }
+    }
+    return surfaceModifier to scrollModifier
+}

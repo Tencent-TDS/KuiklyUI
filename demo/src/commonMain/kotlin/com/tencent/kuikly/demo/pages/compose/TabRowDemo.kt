@@ -34,6 +34,8 @@ import com.tencent.kuikly.compose.foundation.layout.padding
 import com.tencent.kuikly.compose.foundation.layout.size
 import com.tencent.kuikly.compose.foundation.lazy.LazyColumn
 import com.tencent.kuikly.compose.foundation.shape.RoundedCornerShape
+import com.tencent.kuikly.compose.extension.NestedScrollMode
+import com.tencent.kuikly.compose.extension.nestedScroll
 import com.tencent.kuikly.compose.material3.ExperimentalMaterial3Api
 import com.tencent.kuikly.compose.material3.LeadingIconTab
 import com.tencent.kuikly.compose.material3.PrimaryTabRow
@@ -105,6 +107,11 @@ class TabRowDemo : ComposeContainer() {
             item {
                 // ScrollableTabRow示例
                 ScrollableTabRowExample()
+            }
+
+            item {
+                // ScrollableTabRow + NestedScroll示例
+                ScrollableTabRowNestedScrollExample()
             }
 
             item {
@@ -500,6 +507,110 @@ class TabRowDemo : ComposeContainer() {
                 "1. 可横向滚动的标签页\n" +
                 "2. 适用于标签数量较多的场景\n" +
                 "3. 支持长文本标签",
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+    }
+
+    @Composable
+    private fun ScrollableTabRowNestedScrollExample() {
+        var tabIndex by remember { mutableStateOf(0) }
+        val tabs = List(10) { "Tab ${it + 1}" }
+
+        Text("7. ScrollableTabRow + NestedScroll示例:")
+        Text(
+            "外层LazyColumn > Header + ScrollableTabRow + 子LazyColumn，" +
+                "子列表通过nestedScroll与外层联动滚动",
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        )
+
+        // 嵌套滚动容器：外层LazyColumn
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(350.dp)
+                .background(Color(0xFFE3F2FD)),
+        ) {
+            // Header区域
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp)
+                        .background(Color(0xFF1976D2)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("Header (向上滚动可折叠)", color = Color.White)
+                }
+            }
+
+            // ScrollableTabRow with nestedScroll
+            item {
+                ScrollableTabRow(
+                    selectedTabIndex = tabIndex,
+                    modifier = Modifier
+                        .nestedScroll(
+                            scrollUp = NestedScrollMode.SELF_FIRST,
+                            scrollDown = NestedScrollMode.SELF_FIRST,
+                        ),
+                    edgePadding = 8.dp,
+                    containerColor = Color(0xFF1565C0),
+                    contentColor = Color.White,
+                ) {
+                    tabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = tabIndex == index,
+                            onClick = { tabIndex = index },
+                            text = { Text(title) },
+                        )
+                    }
+                }
+            }
+
+            // 子列表：通过nestedScroll与外层LazyColumn联动
+            item {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(250.dp)
+                        .nestedScroll(
+                            scrollUp = NestedScrollMode.PARENT_FIRST,
+                            scrollDown = NestedScrollMode.SELF_FIRST,
+                        ),
+                ) {
+                    items(20) { index ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 4.dp)
+                                .background(Color.White, RoundedCornerShape(8.dp))
+                                .padding(16.dp),
+                        ) {
+                            Text("Tab ${tabIndex + 1} - 列表项 ${index + 1}")
+                        }
+                    }
+                }
+            }
+
+            // Footer区域
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(80.dp)
+                        .background(Color(0xFF1976D2)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("Footer (向下滚动可见)", color = Color.White)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            "嵌套滚动说明：\n" +
+                "1. ScrollableTabRow 横向滚动通过 nestedScroll 与外层联动\n" +
+                "2. 子列表向上滚动时优先滚动父容器(折叠Header)\n" +
+                "3. 子列表向下滚动时优先滚动自己",
             modifier = Modifier.padding(horizontal = 16.dp),
         )
     }

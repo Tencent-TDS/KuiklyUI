@@ -36,6 +36,10 @@ Kuikly 基于 Compose 1.7 的能力做了对齐，下列为当前支持的常用
 - **TabRow** / **ScrollableTabRow** - 标签栏
 - **Tab** - 标签页内容
 
+### 导航抽屉
+- **ModalNavigationDrawer** - 模态侧滑抽屉导航，支持 `DrawerState` 状态管理、基于 `anchoredDraggable` 的手势拖拽、Scrim 遮罩点击关闭、`gesturesEnabled` 手势开关，以及 `ModalDrawerSheet` / `NavigationDrawerItem` 子组件
+- **DismissibleNavigationDrawer** - 推开内容式侧滑抽屉，与 `ModalNavigationDrawer` 共享 `DrawerState`，支持内容区域随抽屉推开的动画效果
+
 ### 状态与反馈
 - **Dialog** - 对话框（支持自定义内容、背景遮罩、点击外部关闭等配置）
 - **Snackbar** / **SnackbarHost** - 底部消息提示
@@ -186,6 +190,10 @@ fun ScrollAlternatives() {
 ```
 
 > **提示**：以上为当前已知的差异化点，更多差异化内容将持续更新补充。
+
+#### 7. ModalNavigationDrawer / DismissibleNavigationDrawer 部分能力待建设
+
+**差异说明**：当前已实现核心的抽屉交互功能，但 Semantics 无障碍支持、NavigationDrawerItemColors 颜色系统、ModalDrawerSheet 的 shape / windowInsets 参数、RTL 布局支持、PermanentNavigationDrawer、DismissibleDrawerSheet / PermanentDrawerSheet 等能力正在建设中。
 
 ## 扩展能力
 

@@ -15,7 +15,7 @@ Kuikly 完全对齐 Jetpack Compose Navigation 的核心组件：
 - **NavHostController** - 导航控制器，处理导航操作
 - **rememberNavController()** - 创建并记住 NavController 实例
 - **NavGraphBuilder** - DSL 构建导航图
-- **NavBackStackEntry** - 导航返回栈条目，包含目的地信息和参数
+- **NavBackStackEntry** - 导航返回栈条目，包含目的地信息和参数，同时实现了 `LifecycleOwner` 和 `ViewModelStoreOwner` 接口
 
 ### 导航 DSL 函数
 
@@ -231,12 +231,129 @@ fun StateExampleScreen() {
 }
 ```
 
+## 生命周期与 ViewModel
+
+`NavBackStackEntry` 实现了 `LifecycleOwner` 和 `ViewModelStoreOwner` 接口，支持页面级的生命周期管理和 ViewModel 状态管理。
+
+### 生命周期观察
+
+每个 `NavBackStackEntry` 拥有独立的 `Lifecycle`，可以通过添加 `LifecycleObserver` 来监听页面的生命周期变化：
+
+```kotlin
+composable("detail") { entry ->
+    DisposableEffect(entry) {
+        val observer = object : DefaultLifecycleObserver {
+            override fun onResume(owner: LifecycleOwner) {
+                // 页面进入前台
+            }
+            override fun onPause(owner: LifecycleOwner) {
+                // 页面进入后台
+            }
+        }
+        entry.lifecycle.addObserver(observer)
+        onDispose {
+            entry.lifecycle.removeObserver(observer)
+        }
+    }
+    DetailScreen()
+}
+```
+
+### 页面级 ViewModel
+
+通过 `NavBackStackEntry` 的 `viewModelStore`，可以为每个导航页面创建独立的 ViewModel，实现页面级状态管理：
+
+```kotlin
+// 定义 ViewModel
+class DetailViewModel : ViewModel() {
+    var data = mutableStateOf<String?>(null)
+        private set
+
+    fun loadData(id: String) {
+        data.value = "Loaded: $id"
+    }
+
+    override fun onCleared() {
+        // 页面从导航栈弹出时自动调用，清理资源
+    }
+}
+
+// 定义 Factory
+private val DetailViewModelFactory = object : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(
+        modelClass: KClass<T>,
+        extras: CreationExtras,
+    ): T {
+        @Suppress("UNCHECKED_CAST")
+        return DetailViewModel() as T
+    }
+}
+
+// 在 Composable 中使用
+composable("detail/{id}") { entry ->
+    val viewModel = ViewModelProvider.create(
+        entry.viewModelStore,
+        DetailViewModelFactory
+    )[DetailViewModel::class]
+
+    val id = entry.arguments?.getString("id") ?: ""
+    LaunchedEffect(id) { viewModel.loadData(id) }
+
+    Text(viewModel.data.value ?: "Loading...")
+}
+```
+
+**关键特性：**
+- 每个 `NavBackStackEntry` 拥有独立的 `ViewModelStore`，不同页面实例之间数据完全隔离
+- 页面从导航栈弹出时，ViewModel 的 `onCleared()` 会自动调用，无需手动管理
+- 由 `NavControllerViewModel` 集中管理所有 Entry 的 ViewModelStore
+
+### 页面内多组件共享 ViewModel
+
+同一个页面内的多个 Composable 组件，可以通过同一个 `NavBackStackEntry` 获取**同一个 ViewModel 实例**，实现数据共享：
+
+```kotlin
+composable("profile") { entry ->
+    Column {
+        // 组件 A 和 B 通过同一个 entry 获取同一个 ViewModel
+        ProfileHeader(entry)
+        ProfileContent(entry)
+    }
+}
+
+@Composable
+fun ProfileHeader(entry: NavBackStackEntry) {
+    val vm = ViewModelProvider.create(
+        entry.viewModelStore, ProfileViewModelFactory
+    )[ProfileViewModel::class]
+    Text("Hello, ${vm.userName.value}!")
+}
+
+@Composable
+fun ProfileContent(entry: NavBackStackEntry) {
+    val vm = ViewModelProvider.create(
+        entry.viewModelStore, ProfileViewModelFactory
+    )[ProfileViewModel::class]
+    // 与 ProfileHeader 拿到的是同一个 ViewModel 实例
+    Text("Counter: ${vm.counter.value}")
+    Button(onClick = { vm.increment() }) { Text("+1") }
+}
+```
+
+这种模式适用于：
+- 页面内多个独立组件需要共享状态
+- 避免通过层层传参来共享数据
+- 需要统一管理页面级业务逻辑
+
 ## 更多代码示例
 
 以下 Demo 展示了导航组件的典型用法，可在开源仓库中查看完整代码：
 
-- [`NavHostDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/NavHostDemo.kt)：完整的导航示例，包含参数传递、嵌套导航图、动画等
-- [`NavHostTestDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/NavHostDemo.kt)：导航测试套件，验证动画方向、深层栈、参数传递等
+- [`NavHostDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/NavHostDemo.kt)：完整的导航示例，包含：
+  - 基础导航：参数传递、嵌套导航图、页面切换动画
+  - 导航测试套件：验证动画方向、深层栈、参数传递等
+  - Lifecycle & ViewModelStore 测试：验证 NavBackStackEntry 的生命周期和 ViewModel 管理
+  - 页面内多组件共享 ViewModel 演示
 
 ## 注意事项
 
@@ -245,3 +362,5 @@ fun StateExampleScreen() {
 3. **状态管理**：使用 `rememberSaveable` 保存页面状态，确保导航切换后状态不丢失
 4. **返回键处理**：`NavHost` 自动处理系统返回键，无需手动处理
 5. **参数类型**：推荐使用 `navArgument` 定义参数类型，确保类型安全
+6. **ViewModel 生命周期**：通过 `NavBackStackEntry.viewModelStore` 创建的 ViewModel，会在页面从导航栈弹出时自动清理（调用 `onCleared()`），无需手动管理
+7. **ViewModel 共享范围**：同一个 `NavBackStackEntry` 下的多个组件共享同一个 ViewModel 实例；不同 Entry（即使是同一路由的不同实例）之间的 ViewModel 完全隔离

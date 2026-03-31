@@ -19,6 +19,7 @@ package com.tencent.kuikly.compose.ui.platform
 import com.tencent.kuikly.compose.ui.createSynchronizedObject
 import com.tencent.kuikly.compose.ui.synchronized
 import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Delay
@@ -91,6 +92,37 @@ internal class FlushCoroutineDispatcher(
             }
 
             immediateTasksSwap.forEach(Runnable::run)
+            immediateTasksSwap.clear()
+        }
+    }
+
+    /**
+     * Drain all pending tasks, safely ignoring [CancellationException] from each task.
+     *
+     * Used during shutdown when the Pager's dispatcher may no longer schedule new work,
+     * so tasks must be consumed synchronously. Unlike [flush], this method tolerates
+     * cancelled [kotlinx.coroutines.DispatchedTask]s whose coroutines have already been
+     * cancelled (e.g. by [androidx.compose.runtime.Composition.dispose] or
+     * [kotlinx.coroutines.Job.cancel]).
+     */
+    fun drainSafely() = performRun {
+        while (true) {
+            synchronized(tasksLock) {
+                if (immediateTasks.isEmpty())
+                    return@performRun
+
+                val tmp = immediateTasksSwap
+                immediateTasksSwap = immediateTasks
+                immediateTasks = tmp
+            }
+
+            immediateTasksSwap.forEach { task ->
+                try {
+                    task.run()
+                } catch (_: CancellationException) {
+                    // Expected during shutdown — the task's coroutine was already cancelled.
+                }
+            }
             immediateTasksSwap.clear()
         }
     }

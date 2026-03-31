@@ -254,6 +254,8 @@ NSString *const KRDensity = @"density";
     mParmas[KRDeviceHeightKey] = @(CGRectGetHeight([UIScreen mainScreen].bounds));
     mParmas[KROsVersionKey] = [[UIDevice currentDevice] systemVersion] ?: @"";
 #endif
+    mParmas[KRActivityWidthKey] = @(size.width);
+    mParmas[KRActivityHeightKey] = @(size.height);
     mParmas[KRAppVersionKey] = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleShortVersionString"] ? : @"1.0.0";
     mParmas[KRParamKey] = params? : @{};
 	mParmas[KRNativeBuild] = @(2);

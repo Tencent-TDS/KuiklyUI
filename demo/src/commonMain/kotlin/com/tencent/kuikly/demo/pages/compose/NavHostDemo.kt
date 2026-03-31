@@ -16,8 +16,10 @@
 package com.tencent.kuikly.demo.pages.compose
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -67,7 +69,13 @@ import com.tencent.kuikly.compose.material3.navigation.navArgument
 import com.tencent.kuikly.compose.material3.navigation.navDeepLink
 import com.tencent.kuikly.compose.material3.navigation.navigation
 import com.tencent.kuikly.compose.material3.navigation.rememberNavController
+import com.tencent.kuikly.compose.foundation.lazy.LazyColumn
+import com.tencent.kuikly.compose.foundation.lazy.items
 import com.tencent.kuikly.core.bundle.bundleOf
+import com.tencent.kuikly.lifecycle.DefaultLifecycleObserver
+import com.tencent.kuikly.lifecycle.Lifecycle
+import com.tencent.kuikly.lifecycle.LifecycleEventObserver
+import com.tencent.kuikly.lifecycle.LifecycleOwner
 import com.tencent.kuikly.compose.setContent
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
@@ -184,6 +192,16 @@ val navController = rememberNavController()
                 RegisterScreen(navController)
             }
         }
+
+        // Sub-demo: NavHost Test (lifecycle, ViewModelStore, NavBackStackEntry)
+        composable("navhost_test") {
+            NavHostTestContent()
+        }
+
+        // Sub-demo: NavHost New APIs (custom Navigator, deep link, etc.)
+        composable("navhost_new_api") {
+            NavHostNewAPIContent()
+        }
     }
 }
 
@@ -259,6 +277,30 @@ private fun HomeScreen(navController: NavHostController) {
             text = "Go to Auth Flow (nested graph)",
             color = Color(0xFF00BCD4),
             onClick = { navController.navigate("auth") }
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            text = "More Demos",
+            fontSize = 14.sp,
+            color = Color(0xFF666666)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        NavButton(
+            text = "NavHost Test (Lifecycle & ViewModelStore)",
+            color = Color(0xFF607D8B),
+            onClick = { navController.navigate("navhost_test") }
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        NavButton(
+            text = "NavHost New APIs (DeepLink, Custom Navigator)",
+            color = Color(0xFF795548),
+            onClick = { navController.navigate("navhost_new_api") }
         )
     }
 }
@@ -584,26 +626,1223 @@ internal class NavHostTestDemo : ComposeContainer() {
 
 @Composable
 private fun NavHostTestContent() {
-    // 简单的测试页面占位
+    val navController = rememberNavController()
+    // Global lifecycle event log shared across all test screens
+    val lifecycleLog = remember { mutableStateListOf<String>() }
+    NavHost(
+        navController = navController,
+        startDestination = "lifecycle_home",
+        enterTransition = {
+            slideInHorizontally(
+                initialOffsetX = { it },
+                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
+            )
+        },
+        exitTransition = {
+            slideOutHorizontally(
+                targetOffsetX = { -it / 3 },
+                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
+            )
+        },
+        popEnterTransition = {
+            slideInHorizontally(
+                initialOffsetX = { -it / 3 },
+                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
+            )
+        },
+        popExitTransition = {
+            slideOutHorizontally(
+                targetOffsetX = { it },
+                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
+            )
+        }
+    ) {
+        composable("lifecycle_home") { entry ->
+            LifecycleTestHomeScreen(navController, entry, lifecycleLog)
+        }
+        composable("lifecycle_page_a") { entry ->
+            LifecycleTestPageScreen(
+                navController = navController,
+                entry = entry,
+                lifecycleLog = lifecycleLog,
+                pageName = "Page A",
+                color = Color(0xFF4CAF50),
+                nextRoute = "lifecycle_page_b"
+            )
+        }
+        composable("lifecycle_page_b") { entry ->
+            LifecycleTestPageScreen(
+                navController = navController,
+                entry = entry,
+                lifecycleLog = lifecycleLog,
+                pageName = "Page B",
+                color = Color(0xFFFF9800),
+                nextRoute = "lifecycle_page_c"
+            )
+        }
+        composable("lifecycle_page_c") { entry ->
+            LifecycleTestPageScreen(
+                navController = navController,
+                entry = entry,
+                lifecycleLog = lifecycleLog,
+                pageName = "Page C",
+                color = Color(0xFF9C27B0),
+                nextRoute = null
+            )
+        }
+        dialog("lifecycle_dialog") { entry ->
+            LifecycleTestDialogScreen(navController, entry, lifecycleLog)
+        }
+        composable("lifecycle_observer") { entry ->
+            LifecycleObserverTestScreen(navController, entry, lifecycleLog)
+        }
+        composable("lifecycle_viewmodel") { entry ->
+            ViewModelStoreTestScreen(navController, entry, lifecycleLog)
+        }
+        composable("lifecycle_shared_viewmodel") { entry ->
+            SharedViewModelDemoScreen(navController, entry, lifecycleLog)
+        }
+    }
+}
+
+// ===== Lifecycle Test Screens =====
+
+/**
+ * Lifecycle Test Home - Entry point for all lifecycle test scenarios
+ */
+@Composable
+private fun LifecycleTestHomeScreen(
+    navController: NavHostController,
+    entry: NavBackStackEntry,
+    lifecycleLog: MutableList<String>
+) {
+    // Observe lifecycle of this entry
+    ObserveLifecycle(entry, "Home", lifecycleLog)
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF1A1A2E))
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .padding(16.dp)
     ) {
         Text(
-            text = "NavHost Test Content",
+            text = "Lifecycle Test",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             color = Color.White
         )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Current entry lifecycle state display
+        LifecycleStateCard(
+            title = "Home Entry Lifecycle",
+            entry = entry
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Back stack info
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A3E))
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    text = "Back Stack Size: ${navController.backStackSize}",
+                    fontSize = 14.sp,
+                    color = Color.White
+                )
+                Text(
+                    text = "Current Route: ${navController.currentRoute}",
+                    fontSize = 12.sp,
+                    color = Color(0xFF888888)
+                )
+            }
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
+
         Text(
-            text = "用于验证与官方原生表现对齐的测试页面",
+            text = "Test Scenarios",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Test 1: Push/Pop lifecycle transitions
+        APIButton(
+            text = "1. Push/Pop Lifecycle",
+            description = "Navigate A→B→C, verify RESUMED/CREATED/DESTROYED states",
+            color = Color(0xFF4CAF50),
+            onClick = { navController.navigate("lifecycle_page_a") }
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Test 2: Dialog lifecycle (entry below stays STARTED)
+        APIButton(
+            text = "2. Dialog Lifecycle",
+            description = "Open dialog, verify Home stays STARTED",
+            color = Color(0xFF2196F3),
+            onClick = { navController.navigate("lifecycle_dialog") }
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Test 3: LifecycleObserver callbacks
+        APIButton(
+            text = "3. LifecycleObserver Callbacks",
+            description = "Verify DefaultLifecycleObserver & LifecycleEventObserver",
+            color = Color(0xFFFF9800),
+            onClick = { navController.navigate("lifecycle_observer") }
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Test 4: ViewModelStore
+        APIButton(
+            text = "4. ViewModelStore",
+            description = "Verify ViewModelStoreOwner on NavBackStackEntry",
+            color = Color(0xFF9C27B0),
+            onClick = { navController.navigate("lifecycle_viewmodel") }
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Test 5: Shared ViewModel across components
+        APIButton(
+            text = "5. Shared ViewModel (Multi-Component)",
+            description = "Multiple components share the same ViewModel via NavBackStackEntry",
+            color = Color(0xFFE91E63),
+            onClick = { navController.navigate("lifecycle_shared_viewmodel") }
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Clear log button
+        Button(
+            onClick = { lifecycleLog.clear() },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF333344))
+        ) {
+            Text("Clear Log", color = Color(0xFFFF5555), fontSize = 14.sp)
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Lifecycle event log
+        Text(
+            text = "Event Log (${lifecycleLog.size} events)",
             fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF00FF88)
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF0D0D1A))
+        ) {
+            LazyColumn(
+                modifier = Modifier.padding(8.dp)
+            ) {
+                items(lifecycleLog.reversed()) { log ->
+                    Text(
+                        text = log,
+                        fontSize = 10.sp,
+                        color = when {
+                            "RESUMED" in log -> Color(0xFF00FF88)
+                            "STARTED" in log -> Color(0xFFFFFF00)
+                            "CREATED" in log -> Color(0xFFFF9800)
+                            "DESTROYED" in log -> Color(0xFFFF5555)
+                            else -> Color(0xFF888888)
+                        },
+                        fontFamily = com.tencent.kuikly.compose.ui.text.font.FontFamily.Monospace
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Generic test page for push/pop lifecycle verification.
+ * Shows current lifecycle state and allows navigating deeper or popping back.
+ */
+@Composable
+private fun LifecycleTestPageScreen(
+    navController: NavHostController,
+    entry: NavBackStackEntry,
+    lifecycleLog: MutableList<String>,
+    pageName: String,
+    color: Color,
+    nextRoute: String?
+) {
+    // Observe lifecycle of this entry
+    ObserveLifecycle(entry, pageName, lifecycleLog)
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(color.copy(alpha = 0.15f))
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = pageName,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Current lifecycle state
+        LifecycleStateCard(title = "$pageName Lifecycle", entry = entry)
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Back stack info
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A3E))
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    text = "Back Stack Size: ${navController.backStackSize}",
+                    fontSize = 14.sp,
+                    color = Color.White
+                )
+                Text(
+                    text = "Entry ID: ${entry.id.take(8)}...",
+                    fontSize = 12.sp,
+                    color = Color(0xFF888888)
+                )
+                Text(
+                    text = "Route: ${entry.route}",
+                    fontSize = 12.sp,
+                    color = Color(0xFF888888)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Navigate to next page
+        if (nextRoute != null) {
+            NavButton(
+                text = "Push Next Page",
+                color = color,
+                onClick = { navController.navigate(nextRoute) }
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        // Open dialog overlay
+        NavButton(
+            text = "Open Dialog",
+            color = Color(0xFF2196F3),
+            onClick = { navController.navigate("lifecycle_dialog") }
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Pop back
+        NavButton(
+            text = "Pop Back",
+            color = Color(0xFF607D8B),
+            onClick = { navController.popBackStack() }
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Pop to home
+        NavButton(
+            text = "Pop to Home (inclusive=false)",
+            color = Color(0xFFF44336),
+            onClick = { navController.popBackStack("lifecycle_home", inclusive = false) }
+        )
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        // Mini event log
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(120.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF0D0D1A))
+        ) {
+            LazyColumn(modifier = Modifier.padding(8.dp)) {
+                items(lifecycleLog.reversed().take(10)) { log ->
+                    Text(
+                        text = log,
+                        fontSize = 9.sp,
+                        color = when {
+                            "RESUMED" in log -> Color(0xFF00FF88)
+                            "STARTED" in log -> Color(0xFFFFFF00)
+                            "CREATED" in log -> Color(0xFFFF9800)
+                            "DESTROYED" in log -> Color(0xFFFF5555)
+                            else -> Color(0xFF888888)
+                        },
+                        fontFamily = com.tencent.kuikly.compose.ui.text.font.FontFamily.Monospace
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Dialog test screen - verifies that the entry below a dialog stays STARTED.
+ */
+@Composable
+private fun LifecycleTestDialogScreen(
+    navController: NavHostController,
+    entry: NavBackStackEntry,
+    lifecycleLog: MutableList<String>
+) {
+    ObserveLifecycle(entry, "Dialog", lifecycleLog)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.5f))
+            .clickable { navController.popBackStack() },
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.85f)
+                .clickable(enabled = false) { },
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A3E)),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Dialog Lifecycle Test",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Dialog entry lifecycle
+                LifecycleStateCard(title = "Dialog Entry", entry = entry)
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Show the previous entry's lifecycle state
+                val prevEntry = navController.previousBackStackEntry
+                if (prevEntry != null) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1A2E))
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = "Previous Entry (below dialog)",
+                                fontSize = 12.sp,
+                                color = Color(0xFF888888)
+                            )
+                            Text(
+                                text = "Route: ${prevEntry.route}",
+                                fontSize = 14.sp,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "State: ${prevEntry.lifecycle.currentState}",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = when (prevEntry.lifecycle.currentState) {
+                                    Lifecycle.State.RESUMED -> Color(0xFF00FF88)
+                                    Lifecycle.State.STARTED -> Color(0xFFFFFF00)
+                                    Lifecycle.State.CREATED -> Color(0xFFFF9800)
+                                    else -> Color(0xFFFF5555)
+                                }
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Expected: STARTED (visible but not active)",
+                                fontSize = 11.sp,
+                                color = Color(0xFF666666)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = { navController.popBackStack() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Close Dialog", color = Color.White)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * LifecycleObserver test screen - demonstrates both DefaultLifecycleObserver
+ * and LifecycleEventObserver usage on NavBackStackEntry.
+ */
+@Composable
+private fun LifecycleObserverTestScreen(
+    navController: NavHostController,
+    entry: NavBackStackEntry,
+    lifecycleLog: MutableList<String>
+) {
+    // Track observer callbacks
+    val observerEvents = remember { mutableStateListOf<String>() }
+
+    // Test 1: DefaultLifecycleObserver
+    DisposableEffect(entry) {
+        val observer = object : DefaultLifecycleObserver {
+            override fun onCreate(owner: LifecycleOwner) {
+                observerEvents.add("DefaultObserver: onCreate")
+            }
+            override fun onStart(owner: LifecycleOwner) {
+                observerEvents.add("DefaultObserver: onStart")
+            }
+            override fun onResume(owner: LifecycleOwner) {
+                observerEvents.add("DefaultObserver: onResume")
+            }
+            override fun onPause(owner: LifecycleOwner) {
+                observerEvents.add("DefaultObserver: onPause")
+            }
+            override fun onStop(owner: LifecycleOwner) {
+                observerEvents.add("DefaultObserver: onStop")
+            }
+            override fun onDestroy(owner: LifecycleOwner) {
+                observerEvents.add("DefaultObserver: onDestroy")
+            }
+        }
+        entry.lifecycle.addObserver(observer)
+        onDispose {
+            entry.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // Test 2: LifecycleEventObserver
+    DisposableEffect(entry) {
+        val observer = LifecycleEventObserver { _, event ->
+            observerEvents.add("EventObserver: ${event.name}")
+        }
+        entry.lifecycle.addObserver(observer)
+        onDispose {
+            entry.lifecycle.removeObserver(observer)
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF1A1A2E))
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "LifecycleObserver Test",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        LifecycleStateCard(title = "Current Entry", entry = entry)
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // API usage examples
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A3E))
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    text = "API Usage",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFFF9800)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = """// NavBackStackEntry implements LifecycleOwner
+val lifecycle = entry.lifecycle
+
+// DefaultLifecycleObserver
+val observer = object : DefaultLifecycleObserver {
+    override fun onResume(owner: LifecycleOwner) {
+        // Entry is now the active destination
+    }
+    override fun onPause(owner: LifecycleOwner) {
+        // Entry is no longer active
+    }
+}
+entry.lifecycle.addObserver(observer)
+
+// LifecycleEventObserver
+val eventObserver = LifecycleEventObserver { _, event ->
+    when (event) {
+        Lifecycle.Event.ON_RESUME -> { /* active */ }
+        Lifecycle.Event.ON_DESTROY -> { /* cleanup */ }
+        else -> {}
+    }
+}
+entry.lifecycle.addObserver(eventObserver)""",
+                    fontSize = 9.sp,
+                    color = Color(0xFF666666),
+                    fontFamily = com.tencent.kuikly.compose.ui.text.font.FontFamily.Monospace
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Navigate to trigger lifecycle changes
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                onClick = { navController.navigate("lifecycle_page_a") },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+            ) {
+                Text("Push A", fontSize = 12.sp)
+            }
+            Button(
+                onClick = { navController.navigate("lifecycle_dialog") },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
+            ) {
+                Text("Dialog", fontSize = 12.sp)
+            }
+            Button(
+                onClick = { observerEvents.clear() },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF333344))
+            ) {
+                Text("Clear", fontSize = 12.sp, color = Color(0xFFFF5555))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(
+            onClick = { navController.popBackStack() },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF607D8B))
+        ) {
+            Text("Pop Back", color = Color.White)
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Observer callback log
+        Text(
+            text = "Observer Callbacks (${observerEvents.size})",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF00FF88)
+        )
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF0D0D1A))
+        ) {
+            LazyColumn(modifier = Modifier.padding(8.dp)) {
+                items(observerEvents.reversed()) { event ->
+                    Text(
+                        text = event,
+                        fontSize = 10.sp,
+                        color = when {
+                            "onResume" in event || "ON_RESUME" in event -> Color(0xFF00FF88)
+                            "onStart" in event || "ON_START" in event -> Color(0xFFFFFF00)
+                            "onCreate" in event || "ON_CREATE" in event -> Color(0xFFFF9800)
+                            "onPause" in event || "ON_PAUSE" in event -> Color(0xFF42A5F5)
+                            "onStop" in event || "ON_STOP" in event -> Color(0xFFFF9800)
+                            "onDestroy" in event || "ON_DESTROY" in event -> Color(0xFFFF5555)
+                            else -> Color(0xFF888888)
+                        },
+                        fontFamily = com.tencent.kuikly.compose.ui.text.font.FontFamily.Monospace
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * ViewModelStore test screen - demonstrates ViewModelStoreOwner on NavBackStackEntry.
+ */
+@Composable
+private fun ViewModelStoreTestScreen(
+    navController: NavHostController,
+    entry: NavBackStackEntry,
+    lifecycleLog: MutableList<String>
+) {
+    ObserveLifecycle(entry, "ViewModelTest", lifecycleLog)
+
+    // Verify ViewModelStoreOwner interface
+    val hasViewModelStore = remember { entry.viewModelStore != null }
+    val isLifecycleOwner = remember { entry is LifecycleOwner }
+    val isViewModelStoreOwner = remember {
+        entry is com.tencent.kuikly.lifecycle.ViewModelStoreOwner
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF1A1A2E))
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "ViewModelStore Test",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        LifecycleStateCard(title = "Current Entry", entry = entry)
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Interface verification
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A3E))
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Interface Verification",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                VerificationRow("LifecycleOwner", isLifecycleOwner)
+                VerificationRow("ViewModelStoreOwner", isViewModelStoreOwner)
+                VerificationRow("Has ViewModelStore", hasViewModelStore)
+                VerificationRow(
+                    "Lifecycle State != DESTROYED",
+                    entry.lifecycle.currentState != Lifecycle.State.DESTROYED
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // API usage
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A3E))
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    text = "ViewModelStoreOwner API",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF9C27B0)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = """// NavBackStackEntry implements ViewModelStoreOwner
+val store = entry.viewModelStore
+
+// ViewModelStore is scoped to this entry
+// It will be cleared when the entry is destroyed
+// (i.e., popped from the back stack)
+
+// Lifecycle states:
+// CREATED  → entry on back stack, not visible
+// STARTED  → visible but not active (e.g. below dialog)
+// RESUMED  → active, topmost destination
+// DESTROYED → popped, ViewModelStore cleared""",
+                    fontSize = 9.sp,
+                    color = Color(0xFF666666),
+                    fontFamily = com.tencent.kuikly.compose.ui.text.font.FontFamily.Monospace
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Button(
+            onClick = { navController.popBackStack() },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF607D8B))
+        ) {
+            Text("Pop Back", color = Color.White)
+        }
+    }
+}
+
+// ===== Shared ViewModel Demo =====
+
+/**
+ * A simple ViewModel that holds shared state (counter + user name).
+ * Multiple components on the same page can access the same instance
+ * via the NavBackStackEntry's ViewModelStore.
+ */
+private class SharedCounterViewModel : com.tencent.kuikly.lifecycle.ViewModel() {
+    var counter = mutableStateOf(0)
+        private set
+    var userName = mutableStateOf("Guest")
+        private set
+    var operationLog = mutableStateListOf<String>()
+        private set
+
+    fun increment() {
+        counter.value++
+        operationLog.add("[Counter] incremented to ${counter.value}")
+    }
+
+    fun decrement() {
+        if (counter.value > 0) {
+            counter.value--
+            operationLog.add("[Counter] decremented to ${counter.value}")
+        }
+    }
+
+    fun updateName(name: String) {
+        userName.value = name
+        operationLog.add("[Name] changed to '$name'")
+    }
+
+    override fun onCleared() {
+        operationLog.add("[ViewModel] onCleared called!")
+    }
+}
+
+/**
+ * Factory for creating SharedCounterViewModel instances.
+ */
+private val SharedCounterViewModelFactory = object : com.tencent.kuikly.lifecycle.ViewModelProvider.Factory {
+    override fun <T : com.tencent.kuikly.lifecycle.ViewModel> create(
+        modelClass: kotlin.reflect.KClass<T>,
+        extras: com.tencent.kuikly.lifecycle.viewmodel.CreationExtras,
+    ): T {
+        @Suppress("UNCHECKED_CAST")
+        return SharedCounterViewModel() as T
+    }
+}
+
+/**
+ * Demo screen showing multiple components sharing the same ViewModel
+ * through a single NavBackStackEntry.
+ */
+@Composable
+private fun SharedViewModelDemoScreen(
+    navController: NavHostController,
+    entry: NavBackStackEntry,
+    lifecycleLog: MutableList<String>
+) {
+    ObserveLifecycle(entry, "SharedVM", lifecycleLog)
+
+    // All sub-components below will get the SAME ViewModel instance from this entry
+    val viewModel = com.tencent.kuikly.lifecycle.ViewModelProvider.create(
+        entry.viewModelStore,
+        SharedCounterViewModelFactory
+    )[SharedCounterViewModel::class]
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF1A1A2E))
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "Shared ViewModel Demo",
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+        )
+        Text(
+            text = "Multiple components share one ViewModel via NavBackStackEntry",
+            fontSize = 11.sp,
             color = Color(0xFF888888)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Component A: Header - displays user name and counter
+        SharedVMHeaderComponent(entry)
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Component B: Counter controls
+        SharedVMCounterComponent(entry)
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Component C: Name editor
+        SharedVMNameEditorComponent(entry)
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Component D: Operation log (proves all components write to the same ViewModel)
+        SharedVMLogComponent(entry, modifier = Modifier.weight(1f))
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Identity verification: prove all components use the same ViewModel instance
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A3E))
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    text = "Instance Identity",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFE91E63)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "ViewModel hashCode: ${viewModel.hashCode()}",
+                    fontSize = 11.sp,
+                    color = Color(0xFF00FF88),
+                    fontFamily = com.tencent.kuikly.compose.ui.text.font.FontFamily.Monospace
+                )
+                Text(
+                    text = "All sub-components above access the same instance.",
+                    fontSize = 10.sp,
+                    color = Color(0xFF666666)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(
+            onClick = { navController.popBackStack() },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF607D8B))
+        ) {
+            Text("Pop Back", color = Color.White)
+        }
+    }
+}
+
+/**
+ * Component A: Header that displays the shared user name and counter value.
+ * Gets the ViewModel from the same NavBackStackEntry.
+ */
+@Composable
+private fun SharedVMHeaderComponent(entry: NavBackStackEntry) {
+    val viewModel = com.tencent.kuikly.lifecycle.ViewModelProvider.create(
+        entry.viewModelStore,
+        SharedCounterViewModelFactory
+    )[SharedCounterViewModel::class]
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A3E))
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "👤",
+                    fontSize = 20.sp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = "Component A: Header",
+                        fontSize = 12.sp,
+                        color = Color(0xFF4CAF50)
+                    )
+                    Text(
+                        text = "Hello, ${viewModel.userName.value}!",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = "Count: ${viewModel.counter.value}",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFFFEB3B)
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "VM#${viewModel.hashCode()}",
+                fontSize = 9.sp,
+                color = Color(0xFF555555),
+                fontFamily = com.tencent.kuikly.compose.ui.text.font.FontFamily.Monospace
+            )
+        }
+    }
+}
+
+/**
+ * Component B: Counter controls that modify the shared counter.
+ * Gets the ViewModel from the same NavBackStackEntry.
+ */
+@Composable
+private fun SharedVMCounterComponent(entry: NavBackStackEntry) {
+    val viewModel = com.tencent.kuikly.lifecycle.ViewModelProvider.create(
+        entry.viewModelStore,
+        SharedCounterViewModelFactory
+    )[SharedCounterViewModel::class]
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A3E))
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = "Component B: Counter Controls",
+                fontSize = 12.sp,
+                color = Color(0xFF2196F3)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                Button(
+                    onClick = { viewModel.decrement() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5722))
+                ) {
+                    Text(" − ", fontSize = 18.sp, color = Color.White)
+                }
+                Text(
+                    text = "${viewModel.counter.value}",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    modifier = Modifier.padding(horizontal = 24.dp)
+                )
+                Button(
+                    onClick = { viewModel.increment() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                ) {
+                    Text(" + ", fontSize = 18.sp, color = Color.White)
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "VM#${viewModel.hashCode()}",
+                fontSize = 9.sp,
+                color = Color(0xFF555555),
+                fontFamily = com.tencent.kuikly.compose.ui.text.font.FontFamily.Monospace
+            )
+        }
+    }
+}
+
+/**
+ * Component C: Name editor that modifies the shared user name.
+ * Gets the ViewModel from the same NavBackStackEntry.
+ */
+@Composable
+private fun SharedVMNameEditorComponent(entry: NavBackStackEntry) {
+    val viewModel = com.tencent.kuikly.lifecycle.ViewModelProvider.create(
+        entry.viewModelStore,
+        SharedCounterViewModelFactory
+    )[SharedCounterViewModel::class]
+
+    val names = listOf("Guest", "Alice", "Bob", "Charlie", "Kuikly")
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A3E))
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = "Component C: Name Editor",
+                fontSize = 12.sp,
+                color = Color(0xFFFF9800)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                names.forEach { name ->
+                    val isSelected = viewModel.userName.value == name
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(
+                                if (isSelected) Color(0xFFE91E63) else Color(0xFF444466)
+                            )
+                            .clickable { viewModel.updateName(name) }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = name,
+                            fontSize = 11.sp,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "VM#${viewModel.hashCode()}",
+                fontSize = 9.sp,
+                color = Color(0xFF555555),
+                fontFamily = com.tencent.kuikly.compose.ui.text.font.FontFamily.Monospace
+            )
+        }
+    }
+}
+
+/**
+ * Component D: Operation log showing all operations from all components.
+ * Proves that all components write to the same ViewModel.
+ */
+@Composable
+private fun SharedVMLogComponent(entry: NavBackStackEntry, modifier: Modifier = Modifier) {
+    val viewModel = com.tencent.kuikly.lifecycle.ViewModelProvider.create(
+        entry.viewModelStore,
+        SharedCounterViewModelFactory
+    )[SharedCounterViewModel::class]
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0D0D1A))
+    ) {
+        Column(modifier = Modifier.padding(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Component D: Shared Operation Log (${viewModel.operationLog.size})",
+                    fontSize = 12.sp,
+                    color = Color(0xFF00FF88)
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = "VM#${viewModel.hashCode()}",
+                    fontSize = 9.sp,
+                    color = Color(0xFF555555),
+                    fontFamily = com.tencent.kuikly.compose.ui.text.font.FontFamily.Monospace
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            LazyColumn {
+                items(viewModel.operationLog.reversed()) { log ->
+                    Text(
+                        text = log,
+                        fontSize = 10.sp,
+                        color = when {
+                            "[Counter]" in log -> Color(0xFF2196F3)
+                            "[Name]" in log -> Color(0xFFFF9800)
+                            "[ViewModel]" in log -> Color(0xFFFF5555)
+                            else -> Color(0xFF888888)
+                        },
+                        fontFamily = com.tencent.kuikly.compose.ui.text.font.FontFamily.Monospace
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ===== Lifecycle Helper Components =====
+
+/**
+ * Composable that observes a NavBackStackEntry's lifecycle and logs state changes.
+ */
+@Composable
+private fun ObserveLifecycle(
+    entry: NavBackStackEntry,
+    tag: String,
+    log: MutableList<String>
+) {
+    DisposableEffect(entry) {
+        val observer = LifecycleEventObserver { _, event ->
+            log.add("[$tag] ${event.name} → ${event.targetState}")
+        }
+        entry.lifecycle.addObserver(observer)
+        onDispose {
+            entry.lifecycle.removeObserver(observer)
+        }
+    }
+}
+
+/**
+ * Card displaying the current lifecycle state of a NavBackStackEntry.
+ */
+@Composable
+private fun LifecycleStateCard(title: String, entry: NavBackStackEntry) {
+    val state = entry.lifecycle.currentState
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = when (state) {
+                Lifecycle.State.RESUMED -> Color(0xFF1B5E20)
+                Lifecycle.State.STARTED -> Color(0xFF827717)
+                Lifecycle.State.CREATED -> Color(0xFFE65100)
+                Lifecycle.State.DESTROYED -> Color(0xFFB71C1C)
+                else -> Color(0xFF333344)
+            }
+        )
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = title,
+                fontSize = 12.sp,
+                color = Color.White.copy(alpha = 0.7f)
+            )
+            Text(
+                text = state.name,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Text(
+                text = "Route: ${entry.route ?: "(none)"}",
+                fontSize = 11.sp,
+                color = Color.White.copy(alpha = 0.6f)
+            )
+        }
+    }
+}
+
+/**
+ * Row showing a verification check result.
+ */
+@Composable
+private fun VerificationRow(label: String, passed: Boolean) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            color = Color.White
+        )
+        Text(
+            text = if (passed) "✅ PASS" else "❌ FAIL",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (passed) Color(0xFF00FF88) else Color(0xFFFF5555)
         )
     }
 }

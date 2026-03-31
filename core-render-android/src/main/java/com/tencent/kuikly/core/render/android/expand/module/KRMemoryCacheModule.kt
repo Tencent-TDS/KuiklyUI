@@ -37,6 +37,10 @@ class KRMemoryCacheModule : KuiklyRenderBaseModule() {
 
     private val cacheMap = ConcurrentHashMap<String, Any>()
 
+    override fun onDestroy() {
+        cacheMap.clear()
+    }
+
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
             METHOD_SET_OBJECT -> setObject(params)

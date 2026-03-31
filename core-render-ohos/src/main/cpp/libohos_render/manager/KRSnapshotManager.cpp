@@ -201,7 +201,11 @@ void KRSnapshotManager::TakeSnapshot(const std::string &instance_id, const std::
                 auto paramsMap = params->toMap();
                 std::string type = paramsMap["type"]->toString();
                 if (type.empty()) {
-                    type = "cacheKey";
+                    KRRenderValue::Map resultMap;
+                    resultMap["code"] = KRRenderValue::Make(-1);
+                    resultMap["message"] = KRRenderValue::Make("type is required");
+                    callback(KRRenderValue::Make(resultMap));
+                    return;
                 }
                 NapiValue napiValue = result->toNapiValue();
                 auto env = napiValue.env;

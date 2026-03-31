@@ -219,7 +219,11 @@ interface IKuiklyRenderViewExport : IKuiklyRenderModuleExport, IKRViewDecoration
         }
 
         val json = try { JSONObject(params ?: "{}") } catch (e: Exception) { JSONObject() }
-        val type = json.optString("type", "cacheKey")
+        val type = json.optString("type")
+        if (type.isEmpty()) {
+            callback.invoke(mapOf("code" to -1, "message" to "type is required"))
+            return
+        }
         val sampleSize = maxOf(1, json.optInt("sampleSize", 1))
         val v = view()
 

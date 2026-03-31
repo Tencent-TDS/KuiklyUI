@@ -313,7 +313,14 @@
     }
     
     NSDictionary *paramsDict = [params hr_stringToDictionary];
-    NSString *type = paramsDict[@"type"] ?: @"cacheKey";
+    NSString *type = paramsDict[@"type"];
+    if (!type || type.length == 0) {
+        callback(@{
+            @"code": @(-1),
+            @"message": @"type is required"
+        });
+        return;
+    }
     NSInteger sampleSize = MAX(1, [paramsDict[@"sampleSize"] integerValue]);
     
     CGRect bounds = self.bounds;

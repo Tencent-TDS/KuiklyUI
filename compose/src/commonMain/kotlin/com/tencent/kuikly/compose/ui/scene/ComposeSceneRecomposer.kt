@@ -91,23 +91,24 @@ internal class ComposeSceneRecomposer(
     }
 
     /**
-     * 执行与官方实现不同的 KuiklyUI 特殊销毁逻辑.
+     * Permanently shut down this [ComposeSceneRecomposer].
      *
-     * Kuikly 的每个 Pager 绑定独立 [CoroutineDispatcher]，需在销毁时彻底清空任务队列，
-     * 避免因残留任务导致内存泄漏或意外行为。
+     * Kuikly 的每个 Pager 绑定独立的 [kotlinx.coroutines.CoroutineDispatcher]，
+     * Pager 销毁后该 dispatcher 不再调度新任务，因此必须同步清空队列，
+     * 否则残留的 [Runnable] 引用将无法被 GC 回收，导致内存泄漏。
      *
-     * 实现要点：
-     * 1. 强制清空调度器队列中的待执行任务
-     * 2. 终止关联的协程作用域
-     *
-     * @see performScheduledTasks()  清空计划任务队列
-     * @see performScheduledEffects() 清理副作用调度
-     * @receiver UiController 生命周期控制器
+     * 使用 [FlushCoroutineDispatcher.drainSafely] 而非 [FlushCoroutineDispatcher.flush]：
+     * [BaseComposeScene.close] 在调用 cancel() 之前已执行 composition.dispose()，
+     * 该操作会取消 LaunchedEffect 协程，产生已取消的 DispatchedTask 进入队列。
+     * flush() 同步执行这些 task 时，DispatchedTask.run() 内的 callOnCancellation
+     * 会抛出 CancellationException 导致 crash。drainSafely() 对每个 task 单独
+     * 捕获 CancellationException，确保队列被完整清空且不会崩溃。
      */
     fun cancel() {
-        recomposer.cancel()       // 终止 Compose 重组器
-        job.cancel()              // 取消关联协程作业
-        performScheduledTasks()   // 清空调度器任务
-        performScheduledEffects() // 清理副作用
+        recomposer.cancel()
+        job.cancel()
+        recomposeDispatcher.drainSafely()
+        effectDispatcher.drainSafely()
     }
 }
+

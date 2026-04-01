@@ -51,6 +51,11 @@ class KRTextProps {
     var textPostProcessorDone = false
 
     /**
+     * LineBreakMargin属性是否触发
+     */
+    var isLineBreakMargin = false
+
+    /**
      * Set text properties
      */
     fun setProp(propKey: String, propValue: Any) {
@@ -326,7 +331,9 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
                 // Return placeholder span position and size data
                 getPlaceholderSpanRect(params.toInt())
             }
-
+            METHOD_IS_LINE_BREAK_MARGIN -> {
+                return if (textProps.isLineBreakMargin) "1" else "0"
+            }
             else -> super<IKuiklyRenderShadowExport>.call(methodName, params)
         }
     }
@@ -369,6 +376,10 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
 
     fun getHasAppendFloatSpans(): Boolean {
         return hasAppendFloatSpans
+    }
+
+    fun setIsLineBreakMargin(value: Boolean) {
+        textProps.isLineBreakMargin = value
     }
 
     fun createFloatSpan(width: Float, height: Float): HTMLSpanElement {
@@ -494,6 +505,7 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
         private const val FONT_VARIANT = "fontVariant"
         // Rich text placeholder setting method
         private const val METHOD_GET_PLACEHOLDER_SPAN_RECT = "spanRect"
+        private const val METHOD_IS_LINE_BREAK_MARGIN = "isLineBreakMargin"
         private const val HEAD_INDENT = "headIndent"
         private const val GRAB_TEXT = "grabText"
 

@@ -281,7 +281,7 @@ class NetworkModule : Module() {
                     eventCallback(event, data, networkResponse)
                 }
             },
-            false
+            syncCall = false
         )
         return StreamRequestHandle(this, returnValue.callbackRef, requestId)
     }

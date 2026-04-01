@@ -912,3 +912,108 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
         }
     }
 ```
+
+## 在 Native 侧获取 Kuikly 渲染的 View —— viewWithTag 方法
+
+### 方法说明
+
+`viewWithTag` 是 Module 基类（iOS `KRBaseModule` / Android `KuiklyRenderBaseModule` / 鸿蒙 `KuiklyRenderBaseModule`）提供的实例方法，允许在 **Native 侧的自定义 Module 中**，通过 Kuikly DSL 中设置的 `tag` 值来获取对应的**平台原生 View 实例**。
+
+该方法适用于需要在 Native 侧直接获取 Kuikly 渲染出的某个具体 View 。
+
+### 各平台 API 签名与返回值
+
+| 平台 | API 签名 | 返回值 |
+|:---|:---|:---|
+| **Android** | `fun viewWithTag(tag: Int): View?` | `android.view.View?`，未找到时返回 `null` |
+| **iOS** | `- (UIView * _Nullable)viewWithTag:(NSNumber *)tag` | `UIView *`，未找到时返回 `nil` |
+| **鸿蒙** | `viewWithTag(tag: number): KuiklyRenderBaseView \| null` | `KuiklyRenderBaseView`，未找到时返回 `null` |
+
+:::tip 注意
+- 由于鸿蒙侧 `KRNativeManager` 和 `KRNativeInstance` 为框架内部类，业务层无法直接获取 Module 实例并调用 `viewWithTag` 方法。
+  因此鸿蒙侧暂未支持基于 viewWithTag 获取Native的Kuikly view。
+- 以下将给出 iOS 侧和 Android 侧的 Native Kuikly view 获取的操作指引
+  :::
+
+### 示例代码
+
+#### 第一步：自定义 Module 并定义使用 `viewWithTag` 的方法
+
+自定义 Module **必须继承平台对应的 BaseModule**，才能使用 `viewWithTag` 方法。
+
+**Android侧**
+
+```kotlin
+// 自定义 Module 必须继承 KuiklyRenderBaseModule
+class KRBridgeModule : KuiklyRenderBaseModule() {
+
+    // 定义一个方法，内部通过 viewWithTag 获取 View
+    fun getSnapshotView(): View? {
+        return viewWithTag(3) // 通过 tag 获取对应的 Android View
+    }
+
+    companion object {
+        const val MODULE_NAME = "KRBridgeModule"
+    }
+}
+```
+
+**iOS侧**
+
+```objc
+// 自定义 Module 必须继承 KRBaseModule
+@interface KRBridgeModule : KRBaseModule
+- (UIView *)getSnapshotView;
+@end
+
+@implementation KRBridgeModule
+
+- (UIView *)getSnapshotView {
+    return [self viewWithTag:@(3)]; // 通过 tag 获取对应的 UIView
+}
+
+@end
+```
+
+
+
+#### 第二步：在 Native 侧获取 Module 实例并调用方法
+
+`viewWithTag` 获取到的 View 只能在 Native 侧使用，因此需要在 Native 侧获取 Module 实例，再调用上面定义的方法。
+
+**Android侧** — 通过 `KuiklyRenderView.module<T>(name)` 获取 Module 实例：
+
+```kotlin
+// 在合适的时机（如页面内容加载完成后），获取 Module 实例并调用
+val bridgeModule = kuiklyRenderView.module<KRBridgeModule>(KRBridgeModule.MODULE_NAME)
+val view = bridgeModule?.getSnapshotView()
+if (view != null) {
+    // ...
+}
+```
+
+**iOS侧** — 通过 `KuiklyRenderView` 的 `moduleWithName:` 获取 Module 实例：
+
+```objc
+// 在合适的时机（如KuiklyRenderViewController.m 的 viewDidAppear 方法中 ），获取 Module 实例并调用
+KRBridgeModule *bridgeModule = (KRBridgeModule *)[renderView moduleWithName:@"KRBridgeModule"];
+if (bridgeModule) {
+    // 由于 getSnapshotView 为 Module 内部方法，通过 performSelector 安全调用
+    SEL sel = NSSelectorFromString(@"getSnapshotView");
+    if ([bridgeModule respondsToSelector:sel]) {
+        UIView *view = [bridgeModule performSelector:sel];
+        if (view) {
+            // 在 Native 侧使用获取到的 UIView，例如截图、传递给原生 SDK 等
+        }
+    }
+}
+```
+
+### 注意事项
+
+::: tip 注意
+1. **必须在主线程调用**：`viewWithTag` 方法需要在**主线程（UI 线程）**中调用，不可在子线程或 Kuikly 线程中直接调用，否则可能导致线程安全问题或返回异常结果。
+
+2. **仅适用于 Native 侧使用**：Module 的 `call` 方法返回值和 `callback` 回调参数仅支持基本数据类型（String、Int、Map 等），**不支持返回 View 对象或在 Callback 中回传 View 实例**给 Kuikly 侧。因此 `viewWithTag` 获取到的 View 只能在 **Native 侧的 Module 内部**直接使用（例如进行截图、传递给原生 SDK 等），无法将 View 传递回 Kuikly（Kotlin）侧。
+:::
+

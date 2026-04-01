@@ -98,6 +98,7 @@ typedef NS_ENUM(NSInteger, KRTextDecorationLineType) {
 + (BOOL)hr_isJsonArray:(id)value;
 + (id)nativeObjectToKotlinObject:(id)ocObject;
 + (UIBezierPath *)hr_parseClipPath:(NSString *)pathData density:(CGFloat)density;
++ (UIWindow *)keyWindow;
 
 #if TARGET_OS_OSX
 

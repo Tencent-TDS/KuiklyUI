@@ -778,15 +778,17 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 }
 
 - (UIEdgeInsets)maxEdgeInsetsWithContentOffset:(CGPoint)contentOffset {
-    if ([_css_directionRow boolValue]) {
-        CGFloat curLeftEdge = MAX(-contentOffset.x, 0);
-        if (curLeftEdge != self.contentInset.left) {
-            return UIEdgeInsetsMake(self.contentInset.top, curLeftEdge, self.contentInset.bottom, self.contentInset.right);
-        }
-    } else {
-        CGFloat curTopEdge = MAX(-contentOffset.y, 0);
-        if (curTopEdge != self.contentInset.top) {
-            return UIEdgeInsetsMake(curTopEdge, self.contentInset.left, self.contentInset.bottom, self.contentInset.right);
+    // 只有是业务主动的拖拽，才会出现边界变化的情况；
+    // 如果是滑动的话，那么是不会超越边界的
+    if (_isCurrentlyDragging) {
+        if ([_css_directionRow boolValue]) {
+            if (contentOffset.x < -self.contentInset.left) {
+                return UIEdgeInsetsMake(self.contentInset.top, -contentOffset.x, self.contentInset.bottom, self.contentInset.right);
+            }
+        } else {
+            if (contentOffset.y < -self.contentInset.top) {
+                return UIEdgeInsetsMake(-contentOffset.y, self.contentInset.left, self.contentInset.bottom, self.contentInset.right);
+            }
         }
     }
     return self.contentInset;

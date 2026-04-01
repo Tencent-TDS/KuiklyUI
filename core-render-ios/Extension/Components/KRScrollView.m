@@ -779,12 +779,14 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 
 - (UIEdgeInsets)maxEdgeInsetsWithContentOffset:(CGPoint)contentOffset {
     if ([_css_directionRow boolValue]) {
-        if (contentOffset.x < -self.contentInset.left) {
-            return UIEdgeInsetsMake(self.contentInset.top, -contentOffset.x, self.contentInset.bottom, self.contentInset.right);
+        CGFloat curLeftEdge = MAX(-contentOffset.x, 0);
+        if (curLeftEdge != self.contentInset.left) {
+            return UIEdgeInsetsMake(self.contentInset.top, curLeftEdge, self.contentInset.bottom, self.contentInset.right);
         }
     } else {
-        if (contentOffset.y < -self.contentInset.top) {
-            return UIEdgeInsetsMake(-contentOffset.y, self.contentInset.left, self.contentInset.bottom, self.contentInset.right);
+        CGFloat curTopEdge = MAX(-contentOffset.y, 0);
+        if (curTopEdge != self.contentInset.top) {
+            return UIEdgeInsetsMake(curTopEdge, self.contentInset.left, self.contentInset.bottom, self.contentInset.right);
         }
     }
     return self.contentInset;

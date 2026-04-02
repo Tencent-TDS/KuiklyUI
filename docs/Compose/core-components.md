@@ -191,7 +191,7 @@ fun ScrollAlternatives() {
 
 #### 7. TextField 未沿用Compose默认的点击功能按钮后的软键盘处理方式 <Badge text="版本2.17.0及以上" type="warn"/>
    差异说明：在标准 Compose 中，点击键盘操作按钮（如“发送”、“搜索”等 IME Action）后，软键盘默认不收回，开发者可通过 FocusManager 手动控制键盘收起。 
-   由于 KuiklyUI 三端对键盘回收的默认行为存在差异，我们新增了 `Modifier.autoHideKeyboardOnImeAction` 修饰符，用于统一控制点击 IME Action 后是否自动收回键盘。该设计与 Compose 默认“不回收+手动控制”的策略不同，
+   由于 KuiklyUI 三端对键盘回收的默认行为存在差异（iOS 默认按键触发后关闭软键盘，Android和鸿蒙反之），我们新增了 `Modifier.autoHideKeyboardOnImeAction` 修饰符，用于统一控制点击 IME Action 后是否自动收回键盘。该设计与 Compose 默认“不回收+手动控制”的策略不同，
 
 > **提示**：以上为当前已知的差异化点，更多差异化内容将持续更新补充。
 
@@ -348,7 +348,7 @@ fun TextFieldWithMaxLength() {
 
 #### 自动回收软键盘：`Modifier.autoHideKeyboardOnImeAction` <Badge text="版本2.17.0及以上" type="warn"/>
 
-用于统一控制三端在 IME Action 执行后是否收回软键盘。默认状态，iOS 会收回、鸿蒙与安卓不收回。
+用于统一控制三端在 IME Action 执行后是否收回软键盘。未设置前各端默认状态为：iOS 按键点击后收回、鸿蒙与安卓不收回。
 
 ```kotlin
 @Composable

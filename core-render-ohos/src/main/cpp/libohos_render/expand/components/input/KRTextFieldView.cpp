@@ -44,7 +44,7 @@ constexpr char *kKeyboardType = "keyboardType";    // 键盘类型
 constexpr char *kReturnKeyType = "returnKeyType";  // return类型
 constexpr char *kMaxTextLength = "maxTextLength";  // 最大长度
 constexpr char *kLengthLimitType = "lengthLimitType"; // 长度限制类型
-constexpr char *kAutoHideKeyBoardOnIMEAction = "autoHideKeyboardOnImeAction"; // 长度限制类型
+constexpr char *kAutoHideKeyBoardOnIMEAction = "autoHideKeyboardOnImeAction"; // 是否自动隐藏键盘
 
 constexpr char kMethodFocus[] = "focus";
 constexpr char kMethodBlur[] = "blur";

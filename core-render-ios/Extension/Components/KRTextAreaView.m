@@ -62,7 +62,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(keyboardType);
 /** attr is returnKeyType */
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(returnKeyType);
-/** 是否在点击 IME 动作按钮（如 Send/Go/Search）时自动收起键盘，默认值为 NO，即不自动收起，由业务自己控制 */
+/** 是否在点击 IME 动作按钮（如 Send/Go/Search）时自动收起键盘，默认值为 YES，即自动收起，可由业务设置autoHideKeyboardOnImeAction来关闭 */
 @property (nonatomic, strong)  NSNumber *KUIKLY_PROP(autoHideKeyboardOnImeAction);
 /** event is textDidChange 文本变化 */
 @property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(textDidChange);

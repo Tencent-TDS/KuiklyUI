@@ -20,6 +20,15 @@
 
 constexpr char kLineHeight[] = "lineHeight";
 
+void KRTextAreaView::DidInit() {
+    // 调用父类的 DidInit 来设置默认样式（透明背景、无圆角、无padding）
+    KRTextFieldView::DidInit();
+    // 设置弹起软键盘之后默认不收回
+    ArkUI_NumberValue value = {.i32 = 0};
+    ArkUI_AttributeItem item = {&value, sizeof(ArkUI_NumberValue)};
+    kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_AREA_BLUR_ON_SUBMIT, &item);
+}
+
 bool KRTextAreaView::SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
                              const KRRenderCallback event_call_back) {
     if (kuikly::util::isEqual(prop_key, kLineHeight)) {

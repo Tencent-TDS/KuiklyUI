@@ -132,6 +132,12 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     private var lengthLimitType: Int = -1
     private var maxTextLength: Int? = null
 
+    /**
+     * 是否在点击 IME 动作按钮时自动收起键盘
+     * 默认值为 false，即不自动收起，由业务自己控制
+     */
+    private var autoHideKeyboardOnImeAction: Boolean = false
+
     init {
         resetDefaultStyle()
         enableFocusInTouchMode()
@@ -193,6 +199,10 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
             KRTextProps.PROP_KEY_NUMBER_OF_LINES -> setNumberLines(propValue)
             IME_NO_FULLSCREEN -> setImeNoFullscreen(propValue)
             KRTextProps.PROP_KEY_LINE_HEIGHT -> setLineHeight(propValue)
+            AUTO_HIDE_KEYBOARD_ON_IME_ACTION -> {
+                autoHideKeyboardOnImeAction = (propValue as Int == TYPE_ENABLE_HIDE_KEYBOARD)
+                true
+            }
             else -> super.setProp(propKey, propValue)
         }
     }
@@ -629,6 +639,13 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
                 "ime_action" to imeAction,
                 "text" to text.toString()
             ))
+
+            // 根据 autoHideKeyboardOnImeAction 属性决定是否收起键盘
+            // 默认值为 false（不自动收起），只有显式设置为 true 才自动收起
+            if (autoHideKeyboardOnImeAction) {
+                setBlur()
+            }
+
             true
         }
         return true
@@ -836,6 +853,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         private const val TEXT_LENGTH_BEYOND_LIMIT = "textLengthBeyondLimit"
         private const val KEYBOARD_HEIGHT_CHANGE = "keyboardHeightChange"
         private const val IME_NO_FULLSCREEN = "imeNoFullscreen"
+        private const val AUTO_HIDE_KEYBOARD_ON_IME_ACTION = "autoHideKeyboardOnImeAction"
 
         private const val METHOD_SET_TEXT = "setText"
         private const val METHOD_FOCUS = "focus"
@@ -844,6 +862,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         private const val METHOD_SET_CURSOR_INDEX = "setCursorIndex"
 
         private const val TYPE_ENABLE_EDIT = 1
+        private const val TYPE_ENABLE_HIDE_KEYBOARD = 1
 
         private const val KEY_KEYBOARD_CHANGED_DURATION = "duration"
         private const val DEFAULT_KEYBOARD_CHANGED_ANIMATION_DURATION = 0.2

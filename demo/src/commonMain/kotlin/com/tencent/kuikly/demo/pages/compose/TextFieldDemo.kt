@@ -50,6 +50,7 @@ import com.tencent.kuikly.compose.foundation.gestures.scrollBy
 import com.tencent.kuikly.compose.foundation.layout.wrapContentWidth
 import com.tencent.kuikly.compose.foundation.lazy.LazyListState
 import com.tencent.kuikly.compose.foundation.lazy.rememberLazyListState
+import com.tencent.kuikly.compose.foundation.text.autoHideKeyboardOnImeAction
 import com.tencent.kuikly.compose.material3.Button
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.material3.TextField
@@ -345,10 +346,13 @@ class TextFieldDemo : ComposeContainer() {
                             Text(if (singleLine) "切换为多行输入" else "切换为单行输入")
                         }
                         var actionsEvent by remember { mutableStateOf("") }
-                        val modifier = Modifier.onFocusChanged {
+                        val modifier = Modifier
+                            .autoHideKeyboardOnImeAction(true)
+                            .onFocusChanged {
                             if (it.isFocused) {
                                 actionsEvent = ""
                             }
+
                         }
                         val keyboardActions = remember {
                             KeyboardActions(
@@ -485,6 +489,7 @@ class TextFieldDemo : ComposeContainer() {
                                 imeAction = ImeAction.Next
                             ),
                             keyboardActions = keyboardActions,
+
                         )
                         Spacer(modifier = Modifier.height(5.dp))
                         var textDone by remember { mutableStateOf("") }
@@ -498,6 +503,253 @@ class TextFieldDemo : ComposeContainer() {
                                 imeAction = ImeAction.Done
                             ),
                             keyboardActions = keyboardActions,
+                        )
+                    }
+
+                    // 9. 多行文本框 KeyboardActions 测试
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(text = "9. 多行文本框 KeyboardActions 测试 (numLines > 1)")
+                    var multiLineNumLines by remember { mutableStateOf(3) }
+                    var multiLineActionsEvent by remember { mutableStateOf("") }
+                    val multiLineModifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, Color.Blue)
+                        .padding(8.dp)
+                        .autoHideKeyboardOnImeAction(true)
+                        .onFocusChanged {
+                            if (it.isFocused) {
+                                multiLineActionsEvent = ""
+                            }
+                        }
+
+                    val multiLineKeyboardActions = remember {
+                        KeyboardActions(
+                            onDone = {
+                                multiLineActionsEvent = "onDone"
+                            },
+                            onGo = {
+                                multiLineActionsEvent = "onGo"
+                            },
+                            onNext = {
+                                multiLineActionsEvent = "onNext"
+                            },
+                            onPrevious = {
+                                multiLineActionsEvent = "onPrevious"
+                            },
+                            onSearch = {
+                                multiLineActionsEvent = "onSearch"
+                            },
+                            onSend = {
+                                multiLineActionsEvent = "onSend"
+                            }
+                        )
+                    }
+
+                    // 切换行数按钮
+                    Button(
+                        onClick = { multiLineNumLines = if (multiLineNumLines == 3) 5 else 3 }
+                    ) {
+                        Text("切换行数: 当前 $multiLineNumLines 行")
+                    }
+                    Text("多行文本框 KeyboardActions 事件：$multiLineActionsEvent")
+
+                    // 使用 BasicTextField 测试各种 imeAction
+                    key(multiLineNumLines) {
+                        var textMLDefault by remember { mutableStateOf("") }
+                        BasicTextField(
+                            value = textMLDefault,
+                            onValueChange = { textMLDefault = it },
+                            modifier = multiLineModifier,
+                            textStyle = TextStyle(fontSize = 16.sp),
+                            keyboardOptions = KeyboardOptions(
+                                imeAction = ImeAction.Default
+                            ),
+                            keyboardActions = multiLineKeyboardActions,
+                            maxLines = multiLineNumLines,
+                            decorationBox = { innerTextField ->
+                                Box {
+                                    if (textMLDefault.isEmpty()) {
+                                        Text("Default (多行)", color = Color.Gray, fontSize = 14.sp)
+                                    }
+                                    innerTextField()
+                                }
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        var textMLGo by remember { mutableStateOf("") }
+                        BasicTextField(
+                            value = textMLGo,
+                            onValueChange = { textMLGo = it },
+                            modifier = multiLineModifier,
+                            textStyle = TextStyle(fontSize = 16.sp),
+                            keyboardOptions = KeyboardOptions(
+                                imeAction = ImeAction.Go
+                            ),
+                            keyboardActions = multiLineKeyboardActions,
+                            maxLines = multiLineNumLines,
+                            decorationBox = { innerTextField ->
+                                Box {
+                                    if (textMLGo.isEmpty()) {
+                                        Text("Go (多行)", color = Color.Gray, fontSize = 14.sp)
+                                    }
+                                    innerTextField()
+                                }
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        var textMLSearch by remember { mutableStateOf("") }
+                        BasicTextField(
+                            value = textMLSearch,
+                            onValueChange = { textMLSearch = it },
+                            modifier = multiLineModifier,
+                            textStyle = TextStyle(fontSize = 16.sp),
+                            keyboardOptions = KeyboardOptions(
+                                imeAction = ImeAction.Search
+                            ),
+                            keyboardActions = multiLineKeyboardActions,
+                            maxLines = multiLineNumLines,
+                            decorationBox = { innerTextField ->
+                                Box {
+                                    if (textMLSearch.isEmpty()) {
+                                        Text("Search (多行)", color = Color.Gray, fontSize = 14.sp)
+                                    }
+                                    innerTextField()
+                                }
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        var textMLSend by remember { mutableStateOf("") }
+                        BasicTextField(
+                            value = textMLSend,
+                            onValueChange = { textMLSend = it },
+                            modifier = multiLineModifier,
+                            textStyle = TextStyle(fontSize = 16.sp),
+                            keyboardOptions = KeyboardOptions(
+                                imeAction = ImeAction.Send
+                            ),
+                            keyboardActions = multiLineKeyboardActions,
+                            maxLines = multiLineNumLines,
+                            decorationBox = { innerTextField ->
+                                Box {
+                                    if (textMLSend.isEmpty()) {
+                                        Text("Send (多行)", color = Color.Gray, fontSize = 14.sp)
+                                    }
+                                    innerTextField()
+                                }
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        var textMLNext by remember { mutableStateOf("") }
+                        BasicTextField(
+                            value = textMLNext,
+                            onValueChange = { textMLNext = it },
+                            modifier = multiLineModifier,
+                            textStyle = TextStyle(fontSize = 16.sp),
+                            keyboardOptions = KeyboardOptions(
+                                imeAction = ImeAction.Next
+                            ),
+                            keyboardActions = multiLineKeyboardActions,
+                            maxLines = multiLineNumLines,
+                            decorationBox = { innerTextField ->
+                                Box {
+                                    if (textMLNext.isEmpty()) {
+                                        Text("Next (多行)", color = Color.Gray, fontSize = 14.sp)
+                                    }
+                                    innerTextField()
+                                }
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        var textMLDone by remember { mutableStateOf("") }
+                        BasicTextField(
+                            value = textMLDone,
+                            onValueChange = { textMLDone = it },
+                            modifier = multiLineModifier,
+                            textStyle = TextStyle(fontSize = 16.sp),
+                            keyboardOptions = KeyboardOptions(
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = multiLineKeyboardActions,
+                            maxLines = multiLineNumLines,
+                            decorationBox = { innerTextField ->
+                                Box {
+                                    if (textMLDone.isEmpty()) {
+                                        Text("Done (多行)", color = Color.Gray, fontSize = 14.sp)
+                                    }
+                                    innerTextField()
+                                }
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        var textMLPrevious by remember { mutableStateOf("") }
+                        BasicTextField(
+                            value = textMLPrevious,
+                            onValueChange = { textMLPrevious = it },
+                            modifier = multiLineModifier,
+                            textStyle = TextStyle(fontSize = 16.sp),
+                            keyboardOptions = KeyboardOptions(
+                                imeAction = ImeAction.Previous
+                            ),
+                            keyboardActions = multiLineKeyboardActions,
+                            maxLines = multiLineNumLines,
+                            decorationBox = { innerTextField ->
+                                Box {
+                                    if (textMLPrevious.isEmpty()) {
+                                        Text("Previous (多行)", color = Color.Gray, fontSize = 14.sp)
+                                    }
+                                    innerTextField()
+                                }
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        var textMLNone by remember { mutableStateOf("") }
+                        BasicTextField(
+                            value = textMLNone,
+                            onValueChange = { textMLNone = it },
+                            modifier = multiLineModifier,
+                            textStyle = TextStyle(fontSize = 16.sp),
+                            keyboardOptions = KeyboardOptions(
+                                imeAction = ImeAction.None
+                            ),
+                            keyboardActions = multiLineKeyboardActions,
+                            maxLines = multiLineNumLines,
+                            decorationBox = { innerTextField ->
+                                Box {
+                                    if (textMLNone.isEmpty()) {
+                                        Text("None (多行)", color = Color.Gray, fontSize = 14.sp)
+                                    }
+                                    innerTextField()
+                                }
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        var textMLUnspecified by remember { mutableStateOf("") }
+                        BasicTextField(
+                            value = textMLUnspecified,
+                            onValueChange = { textMLUnspecified = it },
+                            modifier = multiLineModifier,
+                            textStyle = TextStyle(fontSize = 16.sp),
+                            keyboardOptions = KeyboardOptions(
+                                imeAction = ImeAction.Unspecified
+                            ),
+                            keyboardActions = multiLineKeyboardActions,
+                            maxLines = multiLineNumLines,
+                            decorationBox = { innerTextField ->
+                                Box {
+                                    if (textMLUnspecified.isEmpty()) {
+                                        Text("Unspecified (多行)", color = Color.Gray, fontSize = 14.sp)
+                                    }
+                                    innerTextField()
+                                }
+                            }
                         )
                     }
 

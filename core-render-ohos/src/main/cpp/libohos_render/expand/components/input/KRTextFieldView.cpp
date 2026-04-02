@@ -44,6 +44,7 @@ constexpr char *kKeyboardType = "keyboardType";    // 键盘类型
 constexpr char *kReturnKeyType = "returnKeyType";  // return类型
 constexpr char *kMaxTextLength = "maxTextLength";  // 最大长度
 constexpr char *kLengthLimitType = "lengthLimitType"; // 长度限制类型
+constexpr char *kAutoHideKeyBoardOnIMEAction = "autoHideKeyboardOnImeAction"; // 是否自动隐藏键盘
 
 constexpr char kMethodFocus[] = "focus";
 constexpr char kMethodBlur[] = "blur";
@@ -68,6 +69,13 @@ void KRTextFieldView::DidInit() {
     kuikly::util::SetArkUIPadding(GetNode(), 0, 0, 0, 0);                           // 系统默认有padding，此处应默认无padding
     SetFont(font_size_, font_weight_);
     RegisterEvent(GetOnChangeEventType());
+    
+    // 默认软键盘不关闭
+    ArkUI_NumberValue value = {.i32 = 0};
+    ArkUI_AttributeItem item = {&value, sizeof(ArkUI_NumberValue)};
+    kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_INPUT_BLUR_ON_SUBMIT, &item);
+    
+    
 }
 
 void KRTextFieldView::OnDestroy() {
@@ -212,6 +220,11 @@ bool KRTextFieldView::SetProp(const std::string &prop_key, const KRAnyValue &pro
         DoResetMaxLength();
         LimitInputContentTextInMaxLength();
         SetupLengthInputFilter();
+        return true;
+    }
+    
+    if (kuikly::util::isEqual(prop_key, kAutoHideKeyBoardOnIMEAction)) {  // 输入长度限制
+        auto_hide_KeyBoard_on_ImeAction_ = prop_value->toBool();
         return true;
     }
 
@@ -396,6 +409,11 @@ void KRTextFieldView::OnInputReturn(ArkUI_NodeEvent *event) {
         auto returnKeyType = kuikly::util::GetInputNodeEnterKeyType(GetNode());
         map["ime_action"] = NewKRRenderValue(kuikly::util::ConvertEnterKeyTypeToString(returnKeyType));
         input_return_callback_(NewKRRenderValue(map));
+        
+        // 强制关闭软键盘
+        if (auto_hide_KeyBoard_on_ImeAction_) {
+            UpdateInputNodeFocusStatus(0);
+        } 
     }
 }
 /***

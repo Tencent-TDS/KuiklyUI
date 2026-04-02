@@ -286,7 +286,7 @@ abstract class DeclarativeBaseView<A : Attr, E : Event> : AbstractBaseView<A, E>
 
     /**
      * 获取View截图
-     * 注：暂时仅支持鸿蒙平台（1.1.71版本）
+     * 注：支持鸿蒙平台（1.1.71版本）、iOS平台、Android平台
      *
      * @param type 截图类型
      * @param sampleSize 采样率，取值大于或等于1，默认1

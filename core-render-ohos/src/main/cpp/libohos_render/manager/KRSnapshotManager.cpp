@@ -200,6 +200,13 @@ void KRSnapshotManager::TakeSnapshot(const std::string &instance_id, const std::
             if (isNapiValue && strongView) {
                 auto paramsMap = params->toMap();
                 std::string type = paramsMap["type"]->toString();
+                if (type.empty()) {
+                    KRRenderValue::Map resultMap;
+                    resultMap["code"] = KRRenderValue::Make(-1);
+                    resultMap["message"] = KRRenderValue::Make("type is required");
+                    callback(KRRenderValue::Make(resultMap));
+                    return;
+                }
                 NapiValue napiValue = result->toNapiValue();
                 auto env = napiValue.env;
                 ArkTS arkTs(napiValue.env);

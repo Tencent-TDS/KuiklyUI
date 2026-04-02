@@ -15,6 +15,7 @@
 
 package com.tencent.kuikly.core.render.android.expand.module
 
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.widget.ImageView
 import com.tencent.kuikly.core.render.android.adapter.HRImageLoadOption
@@ -38,6 +39,15 @@ class KRMemoryCacheModule : KuiklyRenderBaseModule() {
     private val cacheMap = ConcurrentHashMap<String, Any>()
 
     override fun onDestroy() {
+        // 释放未回收的bitmap对象
+        for (value in cacheMap.values) {
+            if (value is BitmapDrawable) {
+                val bitmap = value.bitmap
+                if (bitmap != null && !bitmap.isRecycled) {
+                    bitmap.recycle()
+                }
+            }
+        }
         cacheMap.clear()
     }
 

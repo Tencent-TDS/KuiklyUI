@@ -266,6 +266,7 @@ interface IKuiklyRenderViewExport : IKuiklyRenderModuleExport, IKRViewDecoration
                 val drawable = BitmapDrawable(v.resources, bitmap)
                 val module = kuiklyRenderContext?.module<KRMemoryCacheModule>(KRMemoryCacheModule.MODULE_NAME)
                 if (module == null) {
+                    bitmap.recycle()
                     callback.invoke(mapOf("code" to -1, "message" to "snapshot failed: KRMemoryCacheModule is null"))
                     return
                 }

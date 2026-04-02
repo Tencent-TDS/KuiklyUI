@@ -88,7 +88,6 @@ data class RecycleItem(
  * 日志条目
  */
 data class LogEntry(
-    val timestamp: Long,
     val message: String,
     val type: LogType
 )
@@ -109,7 +108,7 @@ fun VerticalPagerRecyclingTest() {
     
     // 添加日志的辅助函数
     fun addLog(message: String, type: LogType = LogType.INFO) {
-        logs = logs + LogEntry(getTimeMillis(), "[${logCounter++}] $message", type)
+        logs = logs + LogEntry("[${logCounter++}] $message", type)
     }
     
     // 初始数据：5条数据
@@ -530,9 +529,3 @@ private fun ResetButton(
     }
 }
 
-/**
- * 获取当前时间戳（跨平台兼容）
- */
-private fun getTimeMillis(): Long {
-    return java.lang.System.currentTimeMillis()
-}

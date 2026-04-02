@@ -37,10 +37,6 @@
 /gradlew*  @elixxli @iPel
 /.gitignore @iPel @hidawei
 
-# AI knowledge base
-/.ai/ @luoyibu
-/AGENTS.md @luoyibu
-/CLAUDE.md @luoyibu
 
 
 

@@ -17,6 +17,7 @@
 package com.tencent.kuikly.compose.material3.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -36,6 +37,8 @@ import com.tencent.kuikly.compose.animation.fadeOut
 import com.tencent.kuikly.compose.animation.togetherWith
 import com.tencent.kuikly.compose.foundation.layout.Box
 import com.tencent.kuikly.compose.ui.Modifier
+import com.tencent.kuikly.lifecycle.Lifecycle
+import com.tencent.kuikly.lifecycle.compose.LocalLifecycleOwner
 
 /**
  * Provides a place in the Compose hierarchy for self-contained navigation to occur.
@@ -129,6 +132,23 @@ fun NavHost(
     // Set the graph on the controller
     navController.graph = graph
 
+    // Sync the host lifecycle & pagerId to the NavController via LocalLifecycleOwner,
+    // which is provided by ComposeContainer (Pager) through CompositionLocalProvider.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        navController.setLifecycleOwner(lifecycleOwner)
+        onDispose { }
+    }
+
+    // Clean up all ViewModelStores when NavHost leaves composition.
+    // This follows the official Android Navigation component pattern where
+    // NavControllerViewModel.onCleared() is called when the Activity is destroyed.
+    DisposableEffect(navController) {
+        onDispose {
+            navController.clear()
+        }
+    }
+
     // Navigate to the start destination if back stack is empty
     LaunchedEffect(navController, graph) {
         if (navController.backStack.isEmpty()) {
@@ -185,6 +205,26 @@ fun NavHost(
                     },
                     contentKey = { it.id }
                 ) { entry ->
+                    // Manage lifecycle for this entry when it enters/leaves composition.
+                    // When the exit animation finishes, markTransitionComplete is called
+                    // to finalize destruction of popped entries.
+                    DisposableEffect(entry.id) {
+                        onDispose {
+                            // Animation finished for this entry.
+                            // If it's in transitionsInProgress, finalize its destruction.
+                            if (navController.transitionsInProgress.contains(entry)) {
+                                navController.markTransitionComplete(entry)
+                            } else if (navController.backStack.contains(entry)) {
+                                // Entry is still on the back stack but left composition
+                                // (e.g., replaced by a new entry). Move to CREATED.
+                                entry.maxLifecycle = Lifecycle.State.CREATED
+                            }
+                        }
+                    }
+                    // When this entry is the current target, update all lifecycle states
+                    LaunchedEffect(navController.currentBackStackEntry?.id) {
+                        navController.updateBackStackLifecycles()
+                    }
                     saveableStateHolder.SaveableStateProvider(entry.id) {
                         val destination = entry.destination
                         if (destination is ComposeNavigator.Destination) {
@@ -198,6 +238,16 @@ fun NavHost(
             // Each dialog in the backStack is rendered on top of previous ones
             dialogBackStack.forEach { dialogEntry ->
                 key(dialogEntry.id) {
+                    // Manage lifecycle for dialog entries.
+                    // Unlike non-dialog entries, dialogs don't go through AnimatedContent
+                    // exit animations, so we handle their lifecycle cleanup here.
+                    DisposableEffect(dialogEntry.id) {
+                        onDispose {
+                            if (navController.transitionsInProgress.contains(dialogEntry)) {
+                                navController.markTransitionComplete(dialogEntry)
+                            }
+                        }
+                    }
                     saveableStateHolder.SaveableStateProvider(dialogEntry.id) {
                         val destination = dialogEntry.destination
                         if (destination is DialogNavigator.Destination) {
@@ -212,7 +262,7 @@ fun NavHost(
         // Track all entry IDs we have ever provided state for, and clean up removed ones
         val previousEntryIds = remember { mutableStateOf(emptySet<String>()) }
         val currentEntryIds = navController.backStack.map { it.id }.toSet()
-        // Remove saved state for entries that are no longer in the back stack
+        // Remove saved state and destroy lifecycle for entries that are no longer in the back stack
         val removedIds = previousEntryIds.value - currentEntryIds
         removedIds.forEach { id ->
             saveableStateHolder.removeState(id)

@@ -11,7 +11,7 @@ Kuikly 基于 Compose 1.7 的能力做了对齐，下列为当前支持的常用
 
 ### 文本与输入
 - **Text** - 文本显示（支持 `style` / `color` / `maxLines` 等）
-- **TextField** / **OutlinedTextField** - 文本输入框（支持 label / placeholder / leadingIcon / trailingIcon 等）
+- **TextField** - 文本输入框（支持 label / placeholder / leadingIcon / trailingIcon 等）
 
 ### 图片展示
 - **Image** - 图片组件，支持：  
@@ -35,6 +35,10 @@ Kuikly 基于 Compose 1.7 的能力做了对齐，下列为当前支持的常用
 - **TopAppBar** / **CenterAlignedTopAppBar** - 顶部应用栏
 - **TabRow** / **ScrollableTabRow** - 标签栏
 - **Tab** - 标签页内容
+
+### 导航抽屉
+- **ModalNavigationDrawer** - 模态侧滑抽屉导航，支持 `DrawerState` 状态管理、基于 `anchoredDraggable` 的手势拖拽、Scrim 遮罩点击关闭、`gesturesEnabled` 手势开关，以及 `ModalDrawerSheet` / `NavigationDrawerItem` 子组件
+- **DismissibleNavigationDrawer** - 推开内容式侧滑抽屉，与 `ModalNavigationDrawer` 共享 `DrawerState`，支持内容区域随抽屉推开的动画效果
 
 ### 状态与反馈
 - **Dialog** - 对话框（支持自定义内容、背景遮罩、点击外部关闭等配置）
@@ -190,6 +194,10 @@ fun ScrollAlternatives() {
    由于 KuiklyUI 三端对键盘回收的默认行为存在差异，我们新增了 `Modifier.autoHideKeyboardOnImeAction` 修饰符，用于统一控制点击 IME Action 后是否自动收回键盘。该设计与 Compose 默认“不回收+手动控制”的策略不同，
 
 > **提示**：以上为当前已知的差异化点，更多差异化内容将持续更新补充。
+
+#### 7. ModalNavigationDrawer / DismissibleNavigationDrawer 部分能力待建设
+
+**差异说明**：当前已实现核心的抽屉交互功能，但 Semantics 无障碍支持、NavigationDrawerItemColors 颜色系统、ModalDrawerSheet 的 shape / windowInsets 参数、RTL 布局支持、PermanentNavigationDrawer、DismissibleDrawerSheet / PermanentDrawerSheet 等能力正在建设中。
 
 ## 扩展能力
 
@@ -394,7 +402,7 @@ fun ScrollableWithScrollToTop() {
 以下 Demo 展示了核心组件的典型用法，可在开源仓库中查看完整代码：
 
 - [`MaterialDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/MaterialDemo.kt)：Material3 组件综合示例（包含 Checkbox、Switch、Slider、ProgressIndicator、Snackbar 等）
-- [`TextFieldDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/TextFieldDemo.kt)：`TextField` / `OutlinedTextField` 组件示例
+- [`TextFieldDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/TextFieldDemo.kt)：`TextField` 组件示例
 - [`TextDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/TextDemo.kt)：`Text` 组件示例
 - [`ImageDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/ImageDemo.kt)：`Image` 组件示例（包含本地图片和网络图片加载）
 - [`AppBarDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/AppBarDemo.kt)：`TopAppBar` / `CenterAlignedTopAppBar` 组件示例

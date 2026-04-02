@@ -17,12 +17,15 @@ package com.tencent.kuikly.compose.extension
 
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.draw.ShadowGraphicsLayerElement
+import com.tencent.kuikly.compose.ui.node.KNode
+import com.tencent.kuikly.compose.ui.node.LayoutNode
 import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.compose.ui.unit.IntRect
 import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.core.base.Attr
 import com.tencent.kuikly.core.layout.Frame
+import com.tencent.kuikly.core.views.ScrollerView
 import kotlin.math.abs
 
 private const val FRAME_FLOAT_PRECISION = 1e-6f
@@ -68,4 +71,25 @@ fun shouldWrapShadowView(modifier: Modifier): Boolean {
 
 fun Attr.scaleToDensity(density: Density, value: Float): Float {
     return value * density.density / getPager().pagerDensity()
+}
+
+private const val MAX_FIND_SCROLLER_VIEW_DEPTH = 2
+
+/**
+ * Find the first child node whose view is a ScrollerView, searching up to
+ * [MAX_FIND_SCROLLER_VIEW_DEPTH] levels deep in the layout tree.
+ *
+ * This is useful when a Modifier.Node is attached to a non-scrollable container
+ * (e.g. Surface / DivView) but needs to configure the underlying ScrollerView
+ * that lives as a descendant in the layout tree.
+ */
+internal fun LayoutNode.findFirstChildScrollerView(depth: Int = MAX_FIND_SCROLLER_VIEW_DEPTH): ScrollerView<*, *>? {
+    if (depth <= 0) return null
+    for (child in children) {
+        val view = (child as? KNode<*>)?.view as? ScrollerView<*, *>
+        if (view != null) return view
+        val found = child.findFirstChildScrollerView(depth - 1)
+        if (found != null) return found
+    }
+    return null
 }

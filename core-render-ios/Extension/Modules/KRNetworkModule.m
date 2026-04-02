@@ -18,11 +18,71 @@
 
 @implementation KRNetworkModule
 
+/**
+ * Extracts the raw JSON substring for a given key from a JSON string,
+ * preserving the original key ordering.
+ *
+ * When the Kotlin side serializes the network params via JSONObject.toString(),
+ * it produces a JSON string with keys in insertion order. If we parse this
+ * string into an NSDictionary and then re-serialize the nested "param" object,
+ * the key order may change because NSDictionary is a hash table that does not
+ * preserve insertion order. Using the raw substring avoids this problem.
+ */
+- (NSString *)kr_extractJsonObjectForKey:(NSString *)key fromString:(NSString *)jsonStr {
+    if (!jsonStr.length || !key.length) return nil;
+
+    NSString *keyPattern = [NSString stringWithFormat:@"\"%@\":", key];
+    NSRange keyRange = [jsonStr rangeOfString:keyPattern];
+    if (keyRange.location == NSNotFound) return nil;
+
+    NSInteger pos = NSMaxRange(keyRange);
+    NSInteger len = (NSInteger)jsonStr.length;
+
+    // Skip whitespace
+    while (pos < len) {
+        unichar c = [jsonStr characterAtIndex:pos];
+        if (c != ' ' && c != '\t' && c != '\n' && c != '\r') break;
+        pos++;
+    }
+    if (pos >= len) return nil;
+
+    unichar firstChar = [jsonStr characterAtIndex:pos];
+    if (firstChar != '{' && firstChar != '[') return nil;
+
+    // Match brackets, handling nested objects/arrays and escape sequences in strings
+    NSInteger depth = 0;
+    NSInteger startPos = pos;
+    BOOL inString = NO;
+    BOOL escaped = NO;
+
+    while (pos < len) {
+        unichar c = [jsonStr characterAtIndex:pos];
+        if (escaped) {
+            escaped = NO;
+        } else if (c == '\\') {
+            escaped = YES;
+        } else if (c == '"') {
+            inString = !inString;
+        } else if (!inString) {
+            if (c == '{' || c == '[') depth++;
+            else if (c == '}' || c == ']') {
+                depth--;
+                if (depth == 0) {
+                    return [jsonStr substringWithRange:NSMakeRange(startPos, pos - startPos + 1)];
+                }
+            }
+        }
+        pos++;
+    }
+    return nil;
+}
+
 /*
  * 通用Http请求接口， call by kotlin
  */
 - (void)httpRequest:(NSDictionary *)args {
-    NSDictionary *param = [args[KR_PARAM_KEY] hr_stringToDictionary];
+    NSString *argsJsonStr = args[KR_PARAM_KEY];
+    NSDictionary *param = [argsJsonStr hr_stringToDictionary];
     KuiklyRenderCallback callback = args[KR_CALLBACK_KEY];
     NSString *url = param[@"url"];
     NSString *method = param[@"method"];
@@ -30,10 +90,19 @@
     NSDictionary *headers = param[@"headers"];
     NSString *cookie = param[@"cookie"];
     NSInteger timeout = [param[@"timeout"] intValue];
-    
+
+    // Extract the raw "param" JSON substring from the original bridge string to
+    // preserve key ordering. The Kotlin side computes the request signature using
+    // JSONObject.toString() which maintains insertion order. Parsing argsJsonStr
+    // into an NSDictionary loses that order (NSDictionary is a hash map), so
+    // re-serializing requestParam via hr_dictionaryToString would produce a body
+    // with different key ordering, causing server-side signature verification to fail.
+    NSString *rawParamStr = [self kr_extractJsonObjectForKey:@"param" fromString:argsJsonStr];
+
     [KRHttpRequestTool requestWithMethod:method
                                      url:url
                                    param:requestParam
+                           rawBodyString:rawParamStr
                               binaryData:nil
                                  headers:headers
                                  timeout:timeout

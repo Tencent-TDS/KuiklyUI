@@ -152,4 +152,4 @@ grep "RCProfiler" logs/kuikly_ohos.log
 - **数据范围**：`RecompositionProfiler` 是全局单例，`start()` 后所有页面的重组都会被采集，多页面跳转时数据累积在一起。如需按页面分析，建议在进入目标页面时 `reset()`。
 - **Overlay 开关**：`enableOverlay` 需要在 `start()` 之前通过 `configure { }` 设置。
 - **采样率**：高频重组场景（如 60fps 动画）可设置 `sampleRate = 0.3` 降低日志量。
-- **文件位置**：写入 App Caches 目录（`Library/Caches/KuiklyProfiler/`），系统磁盘紧张时可能被清理；分析完建议及时备份。
+- **文件位置**：写入 App 沙盒目录（iOS/Android 写 Caches，HarmonyOS 写 files），系统磁盘紧张时 Caches 可能被清理；分析完建议及时备份。

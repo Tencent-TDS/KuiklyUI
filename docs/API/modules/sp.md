@@ -93,3 +93,18 @@
 | 参数  | 描述     | 类型 |
 |:----|:-------|:--|
 | key <Badge text="必需" type="warn"/> | 缓存key  | String |
+
+
+:::tip 注意 
+鸿蒙侧提供了两种 SharedPreferences 缓存实现：
+- KRSharedPreferencesModule：基于 XML 文件读写，兼容所有 API 版本
+- KROhSharedPreferencesModule：基于鸿蒙原生 oh_preferences C API（GSKV 格式），要求 OpenHarmony API 版本 ≥ 13
+- 推荐在 API 13 及以上版本使用 KROhSharedPreferencesModule，其性能和数据安全性更优，接入方式参考以下代码： 
+
+```Arkts
+Kuikly({
+    useOhSharedPreferences: true,
+    // ...
+});
+```
+:::

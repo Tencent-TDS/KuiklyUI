@@ -33,7 +33,7 @@ class DataOhPreferences {
     DataOhPreferences(const std::string &filesDir, const std::string &filesName);     // 构造函数，构造Preferences
     ~DataOhPreferences();                                                             // 回收函数，回收Preferences
     
-    static std::shared_ptr<util::DataOhPreferences> GetInstance(const std::string &bundleName, const std::string &filesName);
+    static DataOhPreferences& GetInstance(const std::string &bundleName, const std::string &filesName);
     void SetSync(const std::string &key, const std::string &value);                 // 同步向Preferences写入键值对
     std::string GetSync(const std::string &key, const std::string &defaultValue);   // 同步从Preferences读取键值对
     

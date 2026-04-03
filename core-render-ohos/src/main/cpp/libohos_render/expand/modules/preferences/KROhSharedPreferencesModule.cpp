@@ -28,7 +28,6 @@ namespace expand {
 const char KROhSharedPreferencesModule::MODULE_NAME[] = "KROhSharedPreferencesModule";
 const char KROhSharedPreferencesModule::GET_ITEM[] = "getItem";
 const char KROhSharedPreferencesModule::SET_ITEM[] = "setItem";
-const char KROhSharedPreferencesModule::BUNDLE_NAME[] = "com.tencent.kuiklyharmonyapp";
 
 bool KROhSharedPreferencesModule::SyncMode() {
     return true;
@@ -40,7 +39,7 @@ void KROhSharedPreferencesModule::InitIfNeeded() {
         if (auto root = GetRootView().lock()) {
             const std::string filesDir = root->GetContext()->Config()->GetFilesDir();
             if (!filesDir.empty()) {
-                this->preferences = util::DataOhPreferences::GetInstance(BUNDLE_NAME, options);
+                this->preferences = &util::DataOhPreferences::GetInstance("", options);
             }
         }
     }

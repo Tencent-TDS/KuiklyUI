@@ -29,11 +29,9 @@ namespace util {
 
 
 // OhPreferences 单例 => 确保多页面多Module仍然共享一个执行缓存的 OhPreferences 实例
-std::shared_ptr<util::DataOhPreferences> DataOhPreferences::GetInstance(const std::string &bundleName, const std::string &filesName) {
-    static std::once_flag flag;
-    static std::shared_ptr<util::DataOhPreferences> preference;
-    std::call_once(flag, [&]() { preference = std::make_shared<util::DataOhPreferences>(bundleName, filesName); });
-    return preference;
+DataOhPreferences& DataOhPreferences::GetInstance(const std::string &bundleName, const std::string &filesName) {
+    static DataOhPreferences instance(bundleName, filesName);
+    return instance;
 }
 
 // 实例化Preferences

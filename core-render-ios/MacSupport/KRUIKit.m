@@ -443,6 +443,7 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 
 @interface KRUITextView ()
 @property (nonatomic, weak) id<UITextViewDelegate> uiDelegate;
+@property (nonatomic, assign) BOOL kr_isResigningFirstResponder;
 @end
 
 @implementation KRUITextView
@@ -614,8 +615,13 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 }
 
 - (BOOL)resignFirstResponder {
+    if (_kr_isResigningFirstResponder) {
+        return [super resignFirstResponder];
+    }
+    _kr_isResigningFirstResponder = YES;
     [[self window] makeFirstResponder:nil];
-    return [super resignFirstResponder];
+    _kr_isResigningFirstResponder = NO;
+    return YES;
 }
 
 - (BOOL)isFirstResponder {

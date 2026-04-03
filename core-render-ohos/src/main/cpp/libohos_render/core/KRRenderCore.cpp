@@ -249,12 +249,32 @@ KRAnyValue KRRenderCore::PerformNativeCallback(const KuiklyRenderNativeMethod &m
             std::weak_ptr<KRRenderCore> weakSelf = shared_from_this();
             KRRenderCallback callback = [weakSelf, arg1, arg2, arg3, arg4, arg5, sync](KRAnyValue res) {
                 auto shouldSync = sync;
+                // 动态同步机制（对齐 iOS）：从回调结果中读取 hr_sync_callback flag
+                // scroll 回调在可见区域内容不足时会设置此 flag 为 1，请求同步 flush
+                if (!shouldSync && res && res->isMap()) {
+                    auto map = res->toMap();
+                    auto it = map.find("hr_sync_callback");
+                    if (it != map.end() && it->second && it->second->toInt() == 1) {
+                        shouldSync = true;
+                    }
+                }
+                // 正在主线程执行任务产生的同步事件 → 降级为异步（防止死锁，对齐 iOS）
+                if (shouldSync) {
+                    if (auto locked = weakSelf.lock()) {
+                        if (locked->uiScheduler_->IsPerformMainTasking()) {
+                            shouldSync = false;
+                        }
+                    }
+                }
                 KRContextScheduler::DirectRunOnMainThread(shouldSync, [weakSelf, shouldSync, res, arg1, arg2, arg3, arg4, arg5] {
                     if (auto locked = weakSelf.lock()) {
                         locked->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodFireViewEvent, arg1, arg2,
                                                  res, locked->defaultNullValue_, locked->defaultNullValue_);
-                        if (shouldSync) {  // 主线程
+                        if (shouldSync) {
                             locked->uiScheduler_->PerformSyncMainQueueTasksBlockIfNeed(true);
+                        } else {
+                            // 异步事件：Kotlin处理完后立即flush积压的UI任务到主线程
+                            locked->uiScheduler_->PerformSyncMainQueueTasksBlockIfNeed(false);
                         }
                     }
                 });

@@ -19,61 +19,110 @@
 @implementation KRNetworkModule
 
 /**
- * Extracts the raw JSON substring for a given key from a JSON string,
- * preserving the original key ordering.
+ * Extracts the raw JSON object/array substring for a top-level key from a JSON
+ * object string, preserving the original key ordering.
  *
- * When the Kotlin side serializes the network params via JSONObject.toString(),
- * it produces a JSON string with keys in insertion order. If we parse this
- * string into an NSDictionary and then re-serialize the nested "param" object,
- * the key order may change because NSDictionary is a hash table that does not
- * preserve insertion order. Using the raw substring avoids this problem.
+ * Only matches the key at the outermost object level (depth 1) to avoid false
+ * positives from nested objects that happen to contain the same key name.
+ *
+ * Background: NSDictionary is a hash map that does not preserve insertion order.
+ * Parsing a JSON string into NSDictionary and re-serializing it produces a
+ * different key ordering than the original, which breaks request signature
+ * verification when the signature is computed from the original ordered JSON.
  */
 - (NSString *)kr_extractJsonObjectForKey:(NSString *)key fromString:(NSString *)jsonStr {
-    if (!jsonStr.length || !key.length) return nil;
+    if (![jsonStr isKindOfClass:[NSString class]] || !jsonStr.length || !key.length) return nil;
 
-    NSString *keyPattern = [NSString stringWithFormat:@"\"%@\":", key];
-    NSRange keyRange = [jsonStr rangeOfString:keyPattern];
-    if (keyRange.location == NSNotFound) return nil;
-
-    NSInteger pos = NSMaxRange(keyRange);
+    NSString *keyToken = [NSString stringWithFormat:@"\"%@\"", key];
+    NSInteger keyTokenLen = (NSInteger)keyToken.length;
     NSInteger len = (NSInteger)jsonStr.length;
-
-    // Skip whitespace
-    while (pos < len) {
-        unichar c = [jsonStr characterAtIndex:pos];
-        if (c != ' ' && c != '\t' && c != '\n' && c != '\r') break;
-        pos++;
-    }
-    if (pos >= len) return nil;
-
-    unichar firstChar = [jsonStr characterAtIndex:pos];
-    if (firstChar != '{' && firstChar != '[') return nil;
-
-    // Match brackets, handling nested objects/arrays and escape sequences in strings
+    NSInteger pos = 0;
     NSInteger depth = 0;
-    NSInteger startPos = pos;
     BOOL inString = NO;
     BOOL escaped = NO;
 
     while (pos < len) {
         unichar c = [jsonStr characterAtIndex:pos];
+
         if (escaped) {
             escaped = NO;
-        } else if (c == '\\') {
+            pos++;
+            continue;
+        }
+
+        if (c == '\\' && inString) {
             escaped = YES;
-        } else if (c == '"') {
-            inString = !inString;
-        } else if (!inString) {
-            if (c == '{' || c == '[') depth++;
-            else if (c == '}' || c == ']') {
-                depth--;
-                if (depth == 0) {
-                    return [jsonStr substringWithRange:NSMakeRange(startPos, pos - startPos + 1)];
+            pos++;
+            continue;
+        }
+
+        if (c == '"') {
+            if (!inString && depth == 1 && pos + keyTokenLen <= len) {
+                NSString *candidate = [jsonStr substringWithRange:NSMakeRange(pos, keyTokenLen)];
+                if ([candidate isEqualToString:keyToken]) {
+                    NSInteger colonPos = pos + keyTokenLen;
+                    while (colonPos < len) {
+                        unichar wc = [jsonStr characterAtIndex:colonPos];
+                        if (wc != ' ' && wc != '\t' && wc != '\n' && wc != '\r') break;
+                        colonPos++;
+                    }
+                    if (colonPos < len && [jsonStr characterAtIndex:colonPos] == ':') {
+                        NSInteger valueStart = colonPos + 1;
+                        while (valueStart < len) {
+                            unichar wc = [jsonStr characterAtIndex:valueStart];
+                            if (wc != ' ' && wc != '\t' && wc != '\n' && wc != '\r') break;
+                            valueStart++;
+                        }
+                        if (valueStart >= len) return nil;
+
+                        unichar firstChar = [jsonStr characterAtIndex:valueStart];
+                        if (firstChar != '{' && firstChar != '[') return nil;
+
+                        NSInteger vDepth = 0;
+                        BOOL vInString = NO;
+                        BOOL vEscaped = NO;
+                        NSInteger vPos = valueStart;
+
+                        while (vPos < len) {
+                            unichar vc = [jsonStr characterAtIndex:vPos];
+                            if (vEscaped) {
+                                vEscaped = NO;
+                            } else if (vc == '\\' && vInString) {
+                                vEscaped = YES;
+                            } else if (vc == '"') {
+                                vInString = !vInString;
+                            } else if (!vInString) {
+                                if (vc == '{' || vc == '[') {
+                                    vDepth++;
+                                } else if (vc == '}' || vc == ']') {
+                                    vDepth--;
+                                    if (vDepth == 0) {
+                                        return [jsonStr substringWithRange:NSMakeRange(valueStart, vPos - valueStart + 1)];
+                                    }
+                                }
+                            }
+                            vPos++;
+                        }
+                        return nil;
+                    }
                 }
             }
+            inString = !inString;
+            pos++;
+            continue;
         }
+
+        if (!inString) {
+            if (c == '{' || c == '[') {
+                depth++;
+            } else if (c == '}' || c == ']') {
+                depth--;
+            }
+        }
+
         pos++;
     }
+
     return nil;
 }
 
@@ -138,7 +187,8 @@
     if (paramArgs.count < 2) {
         return;
     }
-    NSDictionary *param = [paramArgs[0] hr_stringToDictionary];
+    NSString *argsJsonStr = paramArgs[0];
+    NSDictionary *param = [argsJsonStr hr_stringToDictionary];
     KuiklyRenderCallback callback = args[KR_CALLBACK_KEY];
     NSString *url = param[@"url"];
     NSString *method = param[@"method"];
@@ -146,11 +196,14 @@
     NSDictionary *headers = param[@"headers"];
     NSString *cookie = param[@"cookie"];
     NSInteger timeout = [param[@"timeout"] intValue];
-    id binaryData = paramArgs[1]; // 获取二进制数据
+    id binaryData = paramArgs[1];
+
+    NSString *rawParamStr = [self kr_extractJsonObjectForKey:@"param" fromString:argsJsonStr];
 
     [KRHttpRequestTool requestWithMethod:method
                                      url:url
                                    param:requestParam
+                           rawBodyString:rawParamStr
                               binaryData:(NSData *)binaryData
                                  headers:headers
                                  timeout:timeout
@@ -177,3 +230,100 @@
 }
 
 @end
+
+#pragma mark - Debug Self-Tests for kr_extractJsonObjectForKey:fromString:
+
+#if DEBUG
+
+@implementation KRNetworkModule (ExtractJsonTests)
+
++ (void)load {
+    dispatch_async(dispatch_get_main_queue(), ^{ [self kr_runExtractJsonTests]; });
+}
+
++ (void)kr_runExtractJsonTests {
+    KRNetworkModule *m = [[KRNetworkModule alloc] init];
+    int passed = 0, failed = 0;
+
+    #define _KR_ASSERT(name, expr) do { \
+        if (expr) { passed++; } \
+        else { failed++; NSLog(@"[KRNetworkModule] FAIL: %@", name); } \
+    } while(0)
+
+    // Basic extraction
+    _KR_ASSERT(@"basic",
+        [[m kr_extractJsonObjectForKey:@"param" fromString:
+          @"{\"url\":\"http://a.com\",\"param\":{\"a\":1,\"b\":2}}"]
+         isEqualToString:@"{\"a\":1,\"b\":2}"]);
+
+    // Must match top-level key only, not nested
+    _KR_ASSERT(@"depth-1 only",
+        [[m kr_extractJsonObjectForKey:@"param" fromString:
+          @"{\"headers\":{\"param\":\"val\"},\"param\":{\"x\":1}}"]
+         isEqualToString:@"{\"x\":1}"]);
+
+    // Escaped quotes and brackets inside string values
+    _KR_ASSERT(@"escaped quotes",
+        [[m kr_extractJsonObjectForKey:@"param" fromString:
+          @"{\"param\":{\"k\":\"v\\\"}{\"}}"]
+         isEqualToString:@"{\"k\":\"v\\\"}{\"}"]);
+
+    // Array value
+    _KR_ASSERT(@"array value",
+        [[m kr_extractJsonObjectForKey:@"items" fromString:
+          @"{\"items\":[1,2,{\"a\":3}]}"]
+         isEqualToString:@"[1,2,{\"a\":3}]"]);
+
+    // Key not present
+    _KR_ASSERT(@"missing key",
+        [m kr_extractJsonObjectForKey:@"missing" fromString:@"{\"a\":1}"] == nil);
+
+    // Value is string, not object/array
+    _KR_ASSERT(@"string value",
+        [m kr_extractJsonObjectForKey:@"param" fromString:@"{\"param\":\"hello\"}"] == nil);
+
+    // Escaped backslash before closing quote
+    _KR_ASSERT(@"escaped backslash",
+        [[m kr_extractJsonObjectForKey:@"param" fromString:
+          @"{\"k\":\"val\\\\\",\"param\":{\"z\":0}}"]
+         isEqualToString:@"{\"z\":0}"]);
+
+    // Edge cases: empty / nil
+    _KR_ASSERT(@"empty string", [m kr_extractJsonObjectForKey:@"k" fromString:@""] == nil);
+    _KR_ASSERT(@"empty key",    [m kr_extractJsonObjectForKey:@"" fromString:@"{\"a\":1}"] == nil);
+
+    // Deeply nested same key name
+    _KR_ASSERT(@"deep nested same key",
+        [[m kr_extractJsonObjectForKey:@"param" fromString:
+          @"{\"a\":{\"b\":{\"param\":{\"wrong\":true}}},\"param\":{\"right\":true}}"]
+         isEqualToString:@"{\"right\":true}"]);
+
+    // Realistic bridge payload with "param" in headers (should not match)
+    _KR_ASSERT(@"realistic payload",
+        [[m kr_extractJsonObjectForKey:@"param" fromString:
+          @"{\"url\":\"https://api.example.com/v1/order\",\"method\":\"POST\","
+           "\"param\":{\"order_id\":\"12345\",\"items\":[{\"sku\":\"A\",\"qty\":2},"
+           "{\"sku\":\"B\",\"qty\":1}],\"sign\":\"abc123\"},\"headers\":"
+           "{\"Content-Type\":\"application/json\",\"param\":\"should-not-match\"},"
+           "\"cookie\":\"sid=xyz\",\"timeout\":30}"]
+         isEqualToString:
+          @"{\"order_id\":\"12345\",\"items\":[{\"sku\":\"A\",\"qty\":2},"
+           "{\"sku\":\"B\",\"qty\":1}],\"sign\":\"abc123\"}"]);
+
+    // Key order preserved (the whole point of this fix)
+    _KR_ASSERT(@"key order preserved",
+        [[m kr_extractJsonObjectForKey:@"param" fromString:@"{\"param\":{\"z\":1,\"a\":2,\"m\":3}}"]
+         isEqualToString:@"{\"z\":1,\"a\":2,\"m\":3}"]);
+
+    #undef _KR_ASSERT
+
+    if (failed == 0) {
+        NSLog(@"[KRNetworkModule] All %d extract-json tests passed.", passed);
+    } else {
+        NSLog(@"[KRNetworkModule] extract-json tests: %d passed, %d FAILED", passed, failed);
+    }
+}
+
+@end
+
+#endif

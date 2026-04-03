@@ -20,6 +20,10 @@
 
 
 + (void)requestWithMethod:(NSString *)method url:(NSString *)url param:(NSDictionary *)param binaryData:(NSData * _Nullable)binaryData headers:(NSDictionary *)headerDics timeout:(float)timeout cookie:(NSString * _Nullable)p_cookie responseBlock:(KRKotlinHttpResponse)response {
+    [self requestWithMethod:method url:url param:param rawBodyString:nil binaryData:binaryData headers:headerDics timeout:timeout cookie:p_cookie responseBlock:response];
+}
+
++ (void)requestWithMethod:(NSString *)method url:(NSString *)url param:(NSDictionary *)param rawBodyString:(NSString * _Nullable)rawBodyString binaryData:(NSData * _Nullable)binaryData headers:(NSDictionary *)headerDics timeout:(float)timeout cookie:(NSString * _Nullable)p_cookie responseBlock:(KRKotlinHttpResponse)response {
     if(!([url isKindOfClass:[NSString class]] && url.length)) return;
     BOOL binaryMode = binaryData ? YES : NO;
     param = [param isKindOfClass:[NSDictionary class]] ? param : @{};
@@ -42,7 +46,14 @@
             }
             
             if ([contentType isKindOfClass:[NSString class]] && [contentType rangeOfString:@"/json"].length) {
-                if (param.count) {
+                if (rawBodyString.length) {
+                    // Use the raw JSON string directly to preserve key ordering.
+                    // NSDictionary does not guarantee key order, so re-serializing it via
+                    // hr_dictionaryToString may produce a different key order than what was
+                    // used to compute the request signature on the Kotlin side, causing
+                    // server-side signature verification to fail on iOS.
+                    postBody = [rawBodyString dataUsingEncoding:NSUTF8StringEncoding];
+                } else if (param.count) {
                     postBody = [[param hr_dictionaryToString] dataUsingEncoding:NSUTF8StringEncoding];
                 }
             } else {

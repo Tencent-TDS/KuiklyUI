@@ -24,6 +24,12 @@ typedef void (^KRHttpFileResponse)(NSString * _Nullable path , NSError * _Nullab
 + (void)downloadWithUrl:(NSString * )url param:(NSDictionary * _Nullable)param sotrePath:(NSString * )path responseBlock:(KRHttpFileResponse)response;
 + (void)requestWithMethod:(NSString *)method url:(NSString *)url param:(NSDictionary *)param binaryData:(NSData * _Nullable)binaryData headers:(NSDictionary *)headerDics timeout:(float)timeout cookie:(NSString * _Nullable)cookie responseBlock:(KRKotlinHttpResponse)response;
 
+/// Sends an HTTP request using the provided raw JSON body string directly, preserving key ordering.
+/// When content-type is application/json and rawBodyString is non-nil, it is used as the POST body
+/// instead of re-serializing the param NSDictionary (which does not guarantee key order).
+/// This ensures the request body matches the data used to compute request signatures on the Kotlin side.
++ (void)requestWithMethod:(NSString *)method url:(NSString *)url param:(NSDictionary *)param rawBodyString:(NSString * _Nullable)rawBodyString binaryData:(NSData * _Nullable)binaryData headers:(NSDictionary *)headerDics timeout:(float)timeout cookie:(NSString * _Nullable)cookie responseBlock:(KRKotlinHttpResponse)response;
+
 
 
 @end

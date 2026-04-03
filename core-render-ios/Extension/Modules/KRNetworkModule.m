@@ -237,10 +237,22 @@
 
 @implementation KRNetworkModule (ExtractJsonTests)
 
-+ (void)load {
-    dispatch_async(dispatch_get_main_queue(), ^{ [self kr_runExtractJsonTests]; });
++ (BOOL)kr_shouldRunExtractJsonTests {
+    NSString *flag = [[[NSProcessInfo processInfo] environment] objectForKey:@"KR_RUN_EXTRACT_JSON_SELF_TESTS"];
+    if (![flag isKindOfClass:[NSString class]]) {
+        return NO;
+    }
+    NSString *normalizedFlag = [flag lowercaseString];
+    return [normalizedFlag isEqualToString:@"1"] ||
+           [normalizedFlag isEqualToString:@"yes"] ||
+           [normalizedFlag isEqualToString:@"true"];
 }
 
++ (void)kr_runExtractJsonTestsIfEnabled {
+    if ([self kr_shouldRunExtractJsonTests]) {
+        [self kr_runExtractJsonTests];
+    }
+}
 + (void)kr_runExtractJsonTests {
     KRNetworkModule *m = [[KRNetworkModule alloc] init];
     int passed = 0, failed = 0;

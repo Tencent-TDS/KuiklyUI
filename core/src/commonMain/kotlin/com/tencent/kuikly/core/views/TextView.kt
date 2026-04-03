@@ -143,9 +143,10 @@ open class TextView : DeclarativeBaseView<TextAttr, TextEvent>(), MeasureFunctio
     private fun tryFireLineBreakMarginEvent() {
         if (attr.getProp(TextConst.LINE_BREAK_MARGIN) != null) {
             getPager().addTaskWhenPagerDidCalculateLayout {
-                val isLineBreakMargin = shadow?.callMethod(TextConst.SHADOW_METHOD_IS_LINE_BREAK_MARGIN, "") == "1"
+                val isLineBreakMargin =
+                    shadow?.callMethod(TextConst.SHADOW_METHOD_IS_LINE_BREAK_MARGIN, "") == "1"
                 if (isLineBreakMargin) {
-                    event.handler?.invoke(null)
+                    onFireEvent(TextEvent.TextEventConst.ON_LINE_BREAK_MARGIN, null)
                 }
             }
         }
@@ -512,14 +513,18 @@ open class TextAttr : Attr() {
 
 open class TextEvent : Event() {
 
-    internal var handler: EventHandlerFn? = null
-
     /**
      * 监听是否触发了LineBreakMargin
      * @param handler 事件处理器
      */
     open fun onLineBreakMargin(handler: EventHandlerFn) {
-        this.handler = handler
+        this.register(TextEventConst.ON_LINE_BREAK_MARGIN) {
+            handler.invoke(it)
+        }
+    }
+
+    object TextEventConst {
+        const val ON_LINE_BREAK_MARGIN = "onLineBreakMargin"
     }
 }
 

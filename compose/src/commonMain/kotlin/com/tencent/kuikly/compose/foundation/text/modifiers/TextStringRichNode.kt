@@ -65,6 +65,7 @@ import com.tencent.kuikly.core.views.PlaceholderSpan
 import com.tencent.kuikly.core.views.RichTextAttr
 import com.tencent.kuikly.core.views.RichTextView
 import com.tencent.kuikly.core.views.TextConst
+import com.tencent.kuikly.core.views.TextEvent
 import kotlin.math.ceil
 
 /**
@@ -295,6 +296,16 @@ internal class TextStringRichNode(
             maxHeight.toFloat() / density
         )
         textView?.updateShadow()
+
+        // Compose layout runs outside Kuikly's Flex layout loop,
+        // so we need to manually fire the line break margin event.
+        if (textView?.getViewAttr()?.getProp(TextConst.LINE_BREAK_MARGIN) != null) {
+            val isLineBreakMargin =
+                textView.shadow?.callMethod(TextConst.SHADOW_METHOD_IS_LINE_BREAK_MARGIN, "") == "1"
+            if (isLineBreakMargin) {
+                textView.onFireEvent(TextEvent.TextEventConst.ON_LINE_BREAK_MARGIN, null)
+            }
+        }
 
         var intSize = IntSize(1000, 1000)
         size?.also {

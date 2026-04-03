@@ -176,6 +176,12 @@ object RichTextProcessor : IRichTextProcessor {
         var w = newEle.offsetWidth
         // Element height
         var h = newEle.offsetHeight.toFloat()
+        // Detect whether the actual text lines exceed numberOfLines limit:
+        // scrollHeight reflects the full content height ignoring -webkit-line-clamp,
+        // while offsetHeight is the clamped rendered height.
+        if (view.numberOfLines > 0 && view.getLineBreakMargin() > 0) {
+            view.setIsLineBreakMargin(newEle.scrollHeight > newEle.offsetHeight)
+        }
         // Special case handling, if line height is set but the actual height is much smaller than
         // the expected value, need to remove multi-line style
         if (view.numberOfLines > 0) {

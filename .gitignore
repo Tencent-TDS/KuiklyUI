@@ -51,8 +51,3 @@ proto/**/*.kt
 ## Profiler / tool logs
 /logs/
 /iosApp/logs/
-
-## Platform build artifacts (auto-generated, not for version control)
-/iosApp/iosApp.xcodeproj/project.pbxproj
-/ohosApp/build-profile.json5
-/ohosApp/entry/oh-package-lock.json5

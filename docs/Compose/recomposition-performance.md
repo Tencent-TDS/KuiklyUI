@@ -98,58 +98,6 @@ grep "RCProfiler" logs/kuikly_ohos.log
 | `triggers=[State(prev=1, now=2)]` | 触发此次重组的 State 及值变化 |
 | `readers: CounterSection` | 读取该 State 的组件名 |
 
-### 文件输出（供 AI 分析）
-
-`enableFile = true`（默认）时，自动将采集数据写入 App 沙盒目录，供 AI 工具离线分析：
-
-| 文件 | 写入时机 | 内容 |
-|------|---------|------|
-| `profiler_frames.jsonl` | start/stop 期间每 2 秒 append | 逐帧详情，每行一帧 JSON |
-| `profiler_report.json` | `stop()` 或 `getReport(saveToFile=true)` | 聚合报告：热点排名、平均耗时、State 变更统计 |
-
-**各平台读取命令：**
-
-```bash
-# iOS 模拟器
-APP_DATA=$(xcrun simctl get_app_container <SIM_ID> <BUNDLE_ID> data)
-cat "$APP_DATA/Library/Caches/KuiklyProfiler/profiler_report.json"
-
-# iOS 真机
-xcrun devicectl device copy from \
-  --device <DEVICE_ID> --domain-type appDataContainer \
-  --domain-identifier <BUNDLE_ID> \
-  --source Library/Caches/KuiklyProfiler/profiler_report.json \
-  /tmp/profiler_report.json
-
-# Android 模拟器/真机
-adb shell run-as <PACKAGE_NAME> cat cache/KuiklyProfiler/profiler_report.json
-
-# HarmonyOS
-hdc file recv /data/storage/el2/base/cache/KuiklyProfiler/profiler_report.json /tmp/profiler_report.json
-```
-
-### JSON 报告格式
-
-`report.toJson()` 输出结构化报告，包含：
-
-```json
-{
-  "sessionId": "abc123",
-  "durationMs": 5000,
-  "totalRecompositions": 47,
-  "composables": [
-    {
-      "name": "CounterSection",
-      "recompositionCount": 12,
-      "avgDurationMs": 0.8,
-      "isHotspot": false,
-      "triggerStates": ["State(prev=1, now=2), readers: CounterSection"]
-    }
-  ],
-  "hotspots": []
-}
-```
-
 ---
 
 ## Overlay 热点面板

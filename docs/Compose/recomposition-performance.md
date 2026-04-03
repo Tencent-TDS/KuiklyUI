@@ -22,15 +22,15 @@ RecompositionProfiler.configure {
     sampleRate = 1.0f          // 采样率，1.0 = 全量采集
     hotspotThreshold = 10      // 热点阈值
     enableLog = true           // 默认 true，开启日志输出
-    enableFile = true          // 默认 true，开启文件写入
+    enableFile = true          // 默认 true，开启文件写入，供 AI 离线分析
     enableOverlay = true       // 启用悬浮热点面板（默认 false）
 }
 
-// 启动（自动装配 LogOutputStrategy 和 FileOutputStrategy）
+// 启动
 RecompositionProfiler.start()
 ```
 
-> **默认行为**：`start()` 后自动开启日志输出（`enableLog = true`）和文件写入（`enableFile = true`），无需手动添加策略。
+> **默认行为**：`start()` 后自动开启日志输出（`enableLog = true`）和文件写入（`enableFile = true`），文件写入用于 AI 离线分析重组问题，无需手动配置。
 
 ### 2. 获取报告
 
@@ -62,7 +62,7 @@ RecompositionProfiler.reset()
 
 ## 输出格式
 
-### 日志格式（LogOutputStrategy）
+### 日志格式
 
 日志 Tag 为 `RCProfiler`，每行单独输出，可用此 Tag 过滤所有重组日志：
 
@@ -98,9 +98,9 @@ grep "RCProfiler" logs/kuikly_ohos.log
 | `triggers=[State(prev=1, now=2)]` | 触发此次重组的 State 及值变化 |
 | `readers: CounterSection` | 读取该 State 的组件名 |
 
-### 文件输出（FileOutputStrategy）
+### 文件输出（供 AI 分析）
 
-`enableFile = true`（默认）时自动写入 App 沙盒目录：
+`enableFile = true`（默认）时，自动将采集数据写入 App 沙盒目录，供 AI 工具离线分析：
 
 | 文件 | 写入时机 | 内容 |
 |------|---------|------|
@@ -154,7 +154,11 @@ hdc file recv /data/storage/el2/base/cache/KuiklyProfiler/profiler_report.json /
 
 ## Overlay 热点面板
 
-启用 `enableOverlay = true` 后，页面右下角出现悬浮圆形按钮：
+启用 `enableOverlay = true` 后，页面右下角出现悬浮圆形按钮，可拖动位置：
+
+| ![Overlay FAB](img/profiler-overlay-fab.png) | ![Overlay 展开面板](img/profiler-overlay-panel.png) |
+|:---:|:---:|
+| 悬浮 FAB | 展开热点面板 |
 
 - **正常态**：显示当前会话累计重组次数，绿色（无重组）→ 橙色 → 红色（高频重组）
 - **暂停态**：显示 `||`，数据更新暂停但 Overlay 仍可见
@@ -187,39 +191,10 @@ hdc file recv /data/storage/el2/base/cache/KuiklyProfiler/profiler_report.json /
 | `hotspotThreshold` | Int | `10` | 热点判定阈值：Report 中 `isHotspot = true` 的判定条件 |
 | `maxEventBufferSize` | Int | `10000` | 事件缓冲区最大容量，超出时丢弃最旧事件 |
 | `includeFrameworkComposables` | Boolean | `false` | 是否包含框架内部 Composable（Row/Column 等）。默认只监控业务代码 |
-| `enableLog` | Boolean | `true` | 是否开启日志输出（`LogOutputStrategy`）。仅在 start/stop 期间有效 |
-| `enableFile` | Boolean | `true` | 是否开启文件写入（`FileOutputStrategy`）。仅在 start/stop 期间有效 |
+| `enableLog` | Boolean | `true` | 是否开启日志输出。仅在 start/stop 期间有效 |
+| `enableFile` | Boolean | `true` | 是否开启文件写入，供 AI 离线分析。仅在 start/stop 期间有效 |
 | `enableOverlay` | Boolean | `false` | 启用悬浮热点面板。需在 `start()` 前设置 |
 | `overlayTopCount` | Int | `10` | 热点面板展示的最大条目数 |
-
----
-
-## 输出策略（OutputStrategy）
-
-Profiler 内置三种输出策略，通过 `configure {}` 配置项开关，无需手动注册：
-
-| 策略 | 配置项 | 默认 | 说明 |
-|------|--------|------|------|
-| `LogOutputStrategy` | `enableLog` | ✅ true | 将每帧重组信息输出到控制台日志 |
-| `FileOutputStrategy` | `enableFile` | ✅ true | 写文件：逐帧 JSONL + 聚合报告 JSON |
-| `OverlayOutputStrategy` | `enableOverlay` | ❌ false | 驱动悬浮热点面板 |
-
-如需自定义输出，可实现 `RecompositionOutputStrategy` 接口并通过 `addOutputStrategy()` 注册：
-
-```kotlin
-class MyOutputStrategy : RecompositionOutputStrategy {
-    override fun onFrameComplete(events: List<RecompositionEvent>) {
-        // 处理每帧数据
-    }
-    override fun onReportReady(report: RecompositionReport) {
-        // 处理报告
-    }
-    override fun onReset() {
-        // 重置自身数据
-    }
-}
-RecompositionProfiler.addOutputStrategy(MyOutputStrategy())
-```
 
 ---
 

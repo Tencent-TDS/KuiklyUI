@@ -1,23 +1,15 @@
 schema: spec-driven
 
 context: |
-  ## Project Overview
-  KuiklyUI (Kuikly) — Tencent 开源的基于 Kotlin Multiplatform 的跨平台 UI 框架。
-  一套代码运行在 Android / iOS / HarmonyOS / Web / 小程序 / macOS 六个平台。
-
-  ## Tech Stack
-  - Language: Kotlin (KMP), ObjC (iOS renderer), C++/ETS (HarmonyOS renderer), Kotlin/JS (Web renderer)
-  - Build: Gradle (多版本 build 文件，当前 build.2.1.21.gradle.kts), KSP 注解处理
-  - UI Paradigm: 双 DSL 模式（自研 DSL + Compose DSL），二者不可混用
-  - Architecture: 声明式 & 响应式，NativeBridge 跨平台通信，平台原生渲染
-  - Compose: 基于 Jetpack Compose 1.7.3 魔改版，包名 com.tencent.kuikly.compose.*
-  - Min SDK: Android 5.0+, iOS 12.0+, macOS 10.13+, HarmonyOS Next 5.0.0(12)+, Kotlin 1.3.10+
+  ## Project
+  KuiklyUI — Tencent 开源的 Kotlin Multiplatform 跨端 UI 框架，支持 Android / iOS / HarmonyOS / Web / 小程序。
+  提供两种 DSL：自研 DSL（Pager + body()）和 Compose DSL（ComposeContainer + setContent{}），二者不可混用。
 
   ## Module Map
   | Module | Path | Responsibility |
   |--------|------|----------------|
   | core | core/ | KMP core: Pager, DeclarativeBaseView, NativeBridge, ReactiveObserver, Module |
-  | compose | compose/ | Compose DSL layer: ComposeContainer, KuiklyComposeNode, layout/gesture/animation |
+  | compose | compose/ | Compose DSL layer: ComposeContainer, KuiklyApplier, layout/gesture/animation |
   | core-annotations | core-annotations/ | Annotation definitions: @Page, @PageModule, etc. |
   | core-ksp | core-ksp/ | KSP processor: auto-generates page/module registration code |
   | core-render-android | core-render-android/ | Android native renderer |
@@ -26,20 +18,11 @@ context: |
   | core-render-web | core-render-web/ | Web renderer (Kotlin/JS) |
   | demo | demo/ | Example code (both self-DSL and Compose DSL) |
 
-  ## Conventions
-  - Package naming: androidx.compose.runtime.* for official Compose runtime; com.tencent.kuikly.compose.* for everything else
-  - Two DSL modes must NOT be mixed: self-DSL (Pager + body()) vs Compose DSL (ComposeContainer + setContent{})
-  - Commit: Angular Convention — feat: / fix: / docs: / style: / refactor: / test: / chore:
-  - Version: major.minor.fix[-alpha|beta|rc], core libs include Kotlin version (e.g. 1.0.0-1.7.0)
-  - Branch: main (stable), feature/**, bugfix/**
-
-  ## AI Knowledge Base
-  Project has .ai/ directory with detailed knowledge files. Key references:
-  - .ai/index.md — module lookup & task routing
-  - .ai/architecture.md — project architecture & core classes
-  - .ai/patterns/self-dsl.md — self-DSL development patterns
-  - .ai/patterns/compose-dsl.md — Compose DSL development patterns
-  - .ai/coding-standards.md — coding standards & naming conventions
+  ## Key Constraints
+  - Compose 包名：只有 `androidx.compose.runtime.*` 用官方包，其他一律用 `com.tencent.kuikly.compose.*`
+  - `core/` 和 `compose/` 是纯 KMP 模块，禁止依赖 `core-render-*`
+  - Commit 格式：Angular Convention — feat: / fix: / docs: / refactor: / chore:
+  - 详细开发规范、模块结构、代码模式见 AGENTS.md 及 .ai/ 知识库
 
 rules:
   proposal:

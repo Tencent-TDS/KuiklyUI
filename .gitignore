@@ -46,3 +46,19 @@ proto/**/*.kt
 /compose/compose.podspec
 /core/core.podspec
 /core-ksp/bin/
+# KuiklyUI Harness (installed via .kuikly-harness, not committed to this repo)
+.kuikly-harness
+.kuikly-harness/
+.ai
+.ai/
+.agents
+.agents/
+AGENTS.md
+AGENTS.md/
+CLAUDE.md
+CLAUDE.md/
+.claude
+.claude/
+.codebuddy
+.codebuddy/
+

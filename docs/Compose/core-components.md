@@ -11,7 +11,7 @@ Kuikly 基于 Compose 1.7 的能力做了对齐，下列为当前支持的常用
 
 ### 文本与输入
 - **Text** - 文本显示（支持 `style` / `color` / `maxLines` 等）
-- **TextField** / **OutlinedTextField** - 文本输入框（支持 label / placeholder / leadingIcon / trailingIcon 等）
+- **TextField** - 文本输入框（支持 label / placeholder / leadingIcon / trailingIcon 等）
 
 ### 图片展示
 - **Image** - 图片组件，支持：  
@@ -35,6 +35,10 @@ Kuikly 基于 Compose 1.7 的能力做了对齐，下列为当前支持的常用
 - **TopAppBar** / **CenterAlignedTopAppBar** - 顶部应用栏
 - **TabRow** / **ScrollableTabRow** - 标签栏
 - **Tab** - 标签页内容
+
+### 导航抽屉
+- **ModalNavigationDrawer** - 模态侧滑抽屉导航，支持 `DrawerState` 状态管理、基于 `anchoredDraggable` 的手势拖拽、Scrim 遮罩点击关闭、`gesturesEnabled` 手势开关，以及 `ModalDrawerSheet` / `NavigationDrawerItem` 子组件
+- **DismissibleNavigationDrawer** - 推开内容式侧滑抽屉，与 `ModalNavigationDrawer` 共享 `DrawerState`，支持内容区域随抽屉推开的动画效果
 
 ### 状态与反馈
 - **Dialog** - 对话框（支持自定义内容、背景遮罩、点击外部关闭等配置）
@@ -185,7 +189,15 @@ fun ScrollAlternatives() {
 }
 ```
 
+#### 7. TextField 未沿用Compose默认的点击功能按钮后的软键盘处理方式 <Badge text="版本2.17.0及以上" type="warn"/>
+   差异说明：在标准 Compose 中，点击键盘操作按钮（如“发送”、“搜索”等 IME Action）后，软键盘默认不收回，开发者可通过 FocusManager 手动控制键盘收起。 
+   由于 KuiklyUI 三端对键盘回收的默认行为存在差异（iOS 默认按键触发后关闭软键盘，Android和鸿蒙反之），我们新增了 `Modifier.autoHideKeyboardOnImeAction` 修饰符，用于统一控制点击 IME Action 后是否自动收回键盘。该设计与 Compose 默认“不回收+手动控制”的策略不同，
+
 > **提示**：以上为当前已知的差异化点，更多差异化内容将持续更新补充。
+
+#### 7. ModalNavigationDrawer / DismissibleNavigationDrawer 部分能力待建设
+
+**差异说明**：当前已实现核心的抽屉交互功能，但 Semantics 无障碍支持、NavigationDrawerItemColors 颜色系统、ModalDrawerSheet 的 shape / windowInsets 参数、RTL 布局支持、PermanentNavigationDrawer、DismissibleDrawerSheet / PermanentDrawerSheet 等能力正在建设中。
 
 ## 扩展能力
 
@@ -334,6 +346,24 @@ fun TextFieldWithMaxLength() {
 
 > **提示**：以上为当前已支持的扩展能力，更多扩展能力将持续更新补充。
 
+#### 自动回收软键盘：`Modifier.autoHideKeyboardOnImeAction` <Badge text="版本2.17.0及以上" type="warn"/>
+
+用于统一控制三端在 IME Action 执行后是否收回软键盘。未设置前各端默认状态为：iOS 按键点击后收回、鸿蒙与安卓不收回。
+
+```kotlin
+@Composable
+fun TextFieldWithMaxLength() {
+    var text by remember { mutableStateOf("") }
+    
+    TextField(
+        value = text,
+        onValueChange = { text = it },
+        modifier = Modifier
+          .autoHideKeyboardOnImeAction(true), // 设置true，点击Send自动收起键盘
+    )
+}
+```
+
 ### 可滚动组件扩展
 
 #### 点击状态栏返回顶部：`Modifier.scrollToTop`
@@ -372,7 +402,7 @@ fun ScrollableWithScrollToTop() {
 以下 Demo 展示了核心组件的典型用法，可在开源仓库中查看完整代码：
 
 - [`MaterialDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/MaterialDemo.kt)：Material3 组件综合示例（包含 Checkbox、Switch、Slider、ProgressIndicator、Snackbar 等）
-- [`TextFieldDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/TextFieldDemo.kt)：`TextField` / `OutlinedTextField` 组件示例
+- [`TextFieldDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/TextFieldDemo.kt)：`TextField` 组件示例
 - [`TextDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/TextDemo.kt)：`Text` 组件示例
 - [`ImageDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/ImageDemo.kt)：`Image` 组件示例（包含本地图片和网络图片加载）
 - [`AppBarDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/AppBarDemo.kt)：`TopAppBar` / `CenterAlignedTopAppBar` 组件示例

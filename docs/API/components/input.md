@@ -84,6 +84,10 @@
 
 自定根据内容禁用和启用iOS软件盘的Return Key
 
+### autoHideKeyboardOnImeAction方法
+
+设置是否在点击 IME 动作按钮（如 Send/Go/Search）时自动收起键盘
+
 ### enablePinyinCallback方法<Badge text="仅iOS" type="warn"/>
 
 是否启用拼音输入回调。当设置为 `true` 时，在拼音输入过程中（未确认选择汉字时）也会触发 `textDidChange` 回调。

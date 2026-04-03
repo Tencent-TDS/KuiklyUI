@@ -19,7 +19,7 @@
 
 namespace kuikly {
 namespace util {
-class DataPreferences;
+class DataOhPreferences;
 }
 
 namespace expand {

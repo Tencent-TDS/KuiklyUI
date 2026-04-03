@@ -28,25 +28,30 @@ namespace kuikly {
 namespace util {
 
 
+// OhPreferences 单例 => 确保多页面多Module仍然共享一个执行缓存的 OhPreferences 实例
+std::shared_ptr<util::DataOhPreferences> DataOhPreferences::GetInstance(const std::string &bundleName, const std::string &filesName) {
+    static std::once_flag flag;
+    static std::shared_ptr<util::DataOhPreferences> preference;
+    std::call_once(flag, [&]() { preference = std::make_shared<util::DataOhPreferences>(bundleName, filesName); });
+    return preference;
+}
+
 // 实例化Preferences
 DataOhPreferences::DataOhPreferences(const std::string &bundleName, const std::string &filesName) {
     // 创建Preferences的配置选项
     OH_PreferencesOption *option = OH_PreferencesOption_Create();
     if (!option) {
-//        KLOG_ERROR(TAG) << "Failed to create PreferencesOption";
         return;
     }
     // 设置配置选中 文件名参数
     int ret = OH_PreferencesOption_SetFileName(option, filesName.c_str());
     if (ret != PREFERENCES_OK) {
-//        KLOG_ERROR(TAG) << "Failed to set FileName, ret: " << ret;
         OH_PreferencesOption_Destroy(option);
         return;
     }
     // 设置配置选项中 应用组ID参数
     ret = OH_PreferencesOption_SetDataGroupId(option, "");
     if (ret != PREFERENCES_OK) {
-//        KLOG_ERROR(TAG) << "Failed to set DataGroupId, ret: " << ret;
         OH_PreferencesOption_Destroy(option);
         return;
     }
@@ -54,7 +59,6 @@ DataOhPreferences::DataOhPreferences(const std::string &bundleName, const std::s
     ret = OH_PreferencesOption_SetBundleName(option, bundleName.c_str());
     if (ret != PREFERENCES_OK) {
         OH_PreferencesOption_Destroy(option);
-//         KLOG_ERROR(TAG) << "SetBundleName failed: " << ret;
         return;
     }
     
@@ -73,6 +77,7 @@ DataOhPreferences::DataOhPreferences(const std::string &bundleName, const std::s
 DataOhPreferences::~DataOhPreferences() {
     if (this->preferences_) {
         OH_Preferences_Close(preferences_);
+        this->preferences_ = nullptr;
     }
 } 
 

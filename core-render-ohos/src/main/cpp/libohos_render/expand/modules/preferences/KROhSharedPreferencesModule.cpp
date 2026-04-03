@@ -35,13 +35,12 @@ bool KROhSharedPreferencesModule::SyncMode() {
 }
 
 void KROhSharedPreferencesModule::InitIfNeeded() {
-    OH_LOG_INFO(LOG_APP, "KROhSharedPreferencesModule 被采用");
     if (this->preferences == nullptr) {
         std::string options = this->MODULE_NAME;
         if (auto root = GetRootView().lock()) {
             const std::string filesDir = root->GetContext()->Config()->GetFilesDir();
             if (!filesDir.empty()) {
-                this->preferences = std::make_shared<util::DataOhPreferences>(filesDir, options);
+                this->preferences = util::DataOhPreferences::GetInstance(BUNDLE_NAME, options);
             }
         }
     }
@@ -59,7 +58,6 @@ KRAnyValue KROhSharedPreferencesModule::CallMethod(bool sync, const std::string 
 
 std::string KROhSharedPreferencesModule::GetItem(const KRAnyValue &params) {
     InitIfNeeded();
-    OH_LOG_INFO(LOG_APP, "KROhSharedPreferencesModule 执行GetItem");
     auto key = params->toString();
     auto value = this->preferences->GetSync(key, "");
     return value;
@@ -67,7 +65,6 @@ std::string KROhSharedPreferencesModule::GetItem(const KRAnyValue &params) {
 
 std::string KROhSharedPreferencesModule::SetItem(const KRAnyValue &params) {
     InitIfNeeded();
-    OH_LOG_INFO(LOG_APP, "KROhSharedPreferencesModule 执行SetItem");
     auto jsonObj = util::JSONObject::Parse(params->toString());
     std::string key = jsonObj->GetString("key");
     std::string value = jsonObj->GetString("value");
@@ -76,9 +73,7 @@ std::string KROhSharedPreferencesModule::SetItem(const KRAnyValue &params) {
 }
 
 void KROhSharedPreferencesModule::OnDestroy() {
-    if (this->preferences) {
-        this->preferences.reset();  // 关联Preferences的引用计数为零时，会自动调用KRPreferences.h中的~DataPreference()析构函数
-    }
+    // Intentionally left blank
 }
 }  // namespace expand
 }  // namespace kuikly

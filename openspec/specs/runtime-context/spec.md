@@ -1,5 +1,7 @@
 # 运行时上下文数据方案
 
+> **status: draft** — 尚未实现，计划在独立 change 中完成（依赖 AI skills 完善后）。
+
 ## 背景
 
 当前 profiler 输出只有重组次数/耗时/triggerStates，缺乏**操作行为上下文**，AI 无法判断重组是否合理：

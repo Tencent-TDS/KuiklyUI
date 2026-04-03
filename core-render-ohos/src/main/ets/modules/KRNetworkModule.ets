@@ -21,6 +21,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import Url from '@ohos.url';
 import buffer from '@ohos.buffer';
 import { KRRenderLog } from '../adapter/KRRenderLog';
+import { util } from '@kit.ArkTS';
 
 interface ParamsObject {
   url: string;
@@ -31,6 +32,17 @@ interface ParamsObject {
   timeout: number;
 }
 
+interface StreamParamsObject extends ParamsObject {
+  requestId: string;
+}
+
+interface StreamEventData {
+  event: string;
+  data: string;
+  headers?: string;
+  statusCode?: number;
+}
+
 export class KRNetworkModule extends KuiklyRenderBaseModule {
   syncMode(): boolean {
     return false;
@@ -39,6 +51,11 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
   static readonly MODULE_NAME = 'KRNetworkModule';
   private static readonly METHOD_HTTP_REQUEST = 'httpRequest';
   private static readonly METHOD_HTTP_REQUEST_BINARY = "httpRequestBinary";
+  private static readonly METHOD_HTTP_STREAM_REQUEST = 'httpStreamRequest';
+  private static readonly METHOD_CLOSE_STREAM_REQUEST = 'closeStreamRequest';
+  private static readonly DEFAULT_TIMEOUT_S = 30;
+  private static readonly STATE_CODE_UNKNOWN = -1000;
+  private activeStreamRequests: Map<string, http.HttpRequest> = new Map();
 
   call(method: string, params: KRAny, callback: KuiklyRenderCallback | null): KRAny {
     switch (method) {
@@ -53,12 +70,171 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
       case KRNetworkModule.METHOD_HTTP_REQUEST_BINARY:
         const args = params as Array<KRAny>;
         return this.httpRequest(args[0], args[1] as Int8Array, callback);
+      case KRNetworkModule.METHOD_HTTP_STREAM_REQUEST:
+        this.httpStreamRequest(params as string, callback);
+        return null;
+      case KRNetworkModule.METHOD_CLOSE_STREAM_REQUEST:
+        this.closeStreamRequest(params as string);
+        return null;
       default:
         return null;
     }
   }
 
   onDestroy(): void {
+    this.activeStreamRequests.forEach((httpReq) => {
+      try {
+        httpReq.off('dataReceive');
+        httpReq.off('dataEnd');
+        httpReq.destroy();
+      } catch (_) {}
+    });
+    this.activeStreamRequests.clear();
+  }
+
+  private httpStreamRequest(paramsStr: string, callback: KuiklyRenderCallback | null): void {
+    try {
+      const params: StreamParamsObject = JSON.parse(paramsStr);
+      const requestId = params.requestId;
+
+      // requestId 空校验
+      if (!requestId) {
+        KRRenderLog.e("NetworkModule", "Stream request error: requestId is empty");
+        if (callback) {
+          const eventData: StreamEventData = {
+            event: 'error',
+            data: 'requestId is empty',
+            statusCode: KRNetworkModule.STATE_CODE_UNKNOWN
+          };
+          callback(eventData);
+        }
+        return;
+      }
+
+      const urlOptions = this.createURLAndOptions(params, null);
+      if (urlOptions == null) {
+        return;
+      }
+
+      const url = urlOptions[0];
+      const options = urlOptions[1];
+
+      const httpRequest = http.createHttp();
+      this.activeStreamRequests.set(requestId, httpRequest);
+
+      const decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true });
+      let isFirstCallback = true;
+      let responseHeaders = '';
+      let responseCode = 0;
+
+      httpRequest.on('dataReceive', (data: ArrayBuffer) => {
+        if (!callback || !this.activeStreamRequests.has(requestId)) return;
+        const text = decoder.decodeToString(new Uint8Array(data));
+        const eventData: StreamEventData = {
+          event: 'data',
+          data: text
+        };
+        if (isFirstCallback) {
+          isFirstCallback = false;
+          eventData.headers = responseHeaders;
+          eventData.statusCode = responseCode;
+        }
+        callback(eventData);
+      });
+
+      httpRequest.on('dataEnd', () => {
+        if (!this.activeStreamRequests.has(requestId)) return;
+        if (callback) {
+          const eventData: StreamEventData = {
+            event: 'complete',
+            data: ''
+          };
+          callback(eventData);
+        }
+        httpRequest.off('dataReceive');
+        httpRequest.off('dataEnd');
+        httpRequest.destroy();
+        this.activeStreamRequests.delete(requestId);
+      });
+
+      // 监听 headersReceive 以获取响应头
+      httpRequest.on('headersReceive', (header: Object) => {
+        try {
+          responseHeaders = JSON.stringify(header);
+        } catch (_) {
+          responseHeaders = '';
+        }
+      });
+
+      options.expectDataType = http.HttpDataType.STRING;
+
+      httpRequest.requestInStream(url.toString(), options).then((code: number) => {
+        responseCode = code;
+        if (code >= 200 && code <= 299) {
+          // 成功，数据通过 dataReceive/dataEnd 事件回调处理
+        } else {
+          // HTTP 非2xx 错误码处理
+          if (callback && this.activeStreamRequests.has(requestId)) {
+            const eventData: StreamEventData = {
+              event: 'error',
+              data: `HTTP error ${code}`,
+              statusCode: code
+            };
+            callback(eventData);
+          }
+          httpRequest.off('dataReceive');
+          httpRequest.off('dataEnd');
+          httpRequest.off('headersReceive');
+          httpRequest.destroy();
+          this.activeStreamRequests.delete(requestId);
+        }
+      }).catch((err: Error) => {
+        KRRenderLog.e("NetworkModule", `Stream request error: ${err.message}`);
+        // 如果是主动关闭导致的异常（requestId 已被 closeStreamRequest 移除），不回调 error
+        if (callback && this.activeStreamRequests.has(requestId)) {
+          const eventData: StreamEventData = {
+            event: 'error',
+            data: err.message,
+            statusCode: KRNetworkModule.STATE_CODE_UNKNOWN
+          };
+          callback(eventData);
+        }
+        httpRequest.off('dataReceive');
+        httpRequest.off('dataEnd');
+        httpRequest.off('headersReceive');
+        httpRequest.destroy();
+        this.activeStreamRequests.delete(requestId);
+      });
+    } catch (e) {
+      const errmsg = `stream request error: ${(e as BusinessError).message}`;
+      KRRenderLog.e("NetworkModule", errmsg);
+      if (callback) {
+        const eventData: StreamEventData = {
+          event: 'error',
+          data: errmsg,
+          statusCode: KRNetworkModule.STATE_CODE_UNKNOWN
+        };
+        callback(eventData);
+      }
+    }
+  }
+
+  private closeStreamRequest(paramsStr: string): void {
+    try {
+      const params = JSON.parse(paramsStr) as Record<string, string>;
+      const requestId = params['requestId'];
+      if (requestId && this.activeStreamRequests.has(requestId)) {
+        const httpReq = this.activeStreamRequests.get(requestId);
+        if (httpReq) {
+          httpReq.off('dataReceive');
+          httpReq.off('dataEnd');
+          httpReq.destroy();
+        }
+        this.activeStreamRequests.delete(requestId);
+      }
+    } catch (e) {
+      KRRenderLog.e("NetworkModule", `close stream error: ${(e as BusinessError).message}`);
+    }
   }
 
   private httpRequest(params: KRAny, bytes: Int8Array | null, callback: KuiklyRenderCallback | null): KRAny {
@@ -194,7 +370,9 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
     }
 
     // set timeout
-    options.readTimeout = params.timeout * 1000;
+    const timeoutS = params.timeout > 0 ? params.timeout : KRNetworkModule.DEFAULT_TIMEOUT_S;
+    options.readTimeout = timeoutS * 1000;
+    options.connectTimeout = timeoutS * 1000;
 
     //options.usingProxy = true;
 

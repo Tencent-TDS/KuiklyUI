@@ -34,16 +34,26 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLConnection
 import java.net.URLEncoder
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Created by kam on 2023/4/19.
  */
 class KRNetworkModule : KuiklyRenderBaseModule() {
 
+    private val activeStreamConnections = ConcurrentHashMap<String, HttpURLConnection>()
+
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
             METHOD_HTTP_REQUEST -> KuiklyRenderAdapterManager.krThreadAdapter?.executeOnSubThread {
                 httpRequest(params, null, callback)
+            }
+            METHOD_HTTP_STREAM_REQUEST -> KuiklyRenderAdapterManager.krThreadAdapter?.executeOnSubThread {
+                httpStreamRequest(params, callback)
+            }
+            METHOD_CLOSE_STREAM_REQUEST -> {
+                closeStreamRequest(params)
+                null
             }
             else -> super.call(method, params, callback)
         }
@@ -108,6 +118,141 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
                 }
             }
         }
+    }
+
+    private fun httpStreamRequest(params: String?, callback: KuiklyRenderCallback?) {
+        val paramsJSON = params.toJSONObjectSafely()
+        val url = paramsJSON.optString("url")
+        val method = paramsJSON.optString("method")
+        val param = paramsJSON.optJSONObject("param")
+        val header = paramsJSON.optJSONObject("headers")
+        val cookie = paramsJSON.optString("cookie")
+        val timeoutS = paramsJSON.optInt("timeout", DEFAULT_TIMEOUT_S)
+        val requestId = paramsJSON.optString("requestId")
+
+        if (requestId.isEmpty()) {
+            KuiklyRenderLog.e(MODULE_NAME, "Stream request error: requestId is empty")
+            callback?.invoke(
+                mapOf(
+                    KEY_STREAM_EVENT to STREAM_EVENT_ERROR,
+                    KEY_STREAM_DATA to "requestId is empty",
+                    KEY_STATUS_CODE to STATE_CODE_UNKNOWN
+                )
+            )
+            return
+        }
+
+        var reader: InputStreamReader? = null
+        var errorStream: InputStream? = null
+        var connection: HttpURLConnection? = null
+        try {
+            connection = openConnection(url, method, param) as HttpURLConnection
+            activeStreamConnections[requestId] = connection
+            val timeoutMs = if (timeoutS > 0) timeoutS * 1000 else DEFAULT_TIMEOUT_S * 1000
+            connection.connectTimeout = timeoutMs
+            connection.readTimeout = timeoutMs
+            connection.useCaches = false
+            connection.doInput = true
+            addHeaderToConnection(connection, header, cookie)
+            addBodyParamsIfNeed(connection, method, header, param, null)
+            setRequestMethod(connection, method)
+
+            val responseCode = connection.responseCode
+            if (responseCode >= 200 && responseCode <= 299) {
+                val rawStream = connection.inputStream
+                val headers: String = try {
+                    if (connection.headerFields != null) connection.headerFields.toJSONObject().toString() else ""
+                } catch (e: Throwable) {
+                    KuiklyRenderLog.e(MODULE_NAME, "stream headerFields to json exception: $e")
+                    ""
+                }
+                reader = InputStreamReader(rawStream, Charsets.UTF_8)
+                var isFirstCallback = true
+                val buffer = CharArray(8192)
+                var charsRead: Int
+                while (reader.read(buffer).also { charsRead = it } != -1) {
+                    if (!activeStreamConnections.containsKey(requestId)) {
+                        break
+                    }
+                    val chunk = String(buffer, 0, charsRead)
+                    val eventData = mapOf(
+                        KEY_STREAM_EVENT to STREAM_EVENT_DATA,
+                        KEY_STREAM_DATA to chunk
+                    ).let {
+                        if (isFirstCallback) {
+                            isFirstCallback = false
+                            it + mapOf(
+                                KEY_HEADERS to headers,
+                                KEY_STATUS_CODE to responseCode
+                            )
+                        } else {
+                            it
+                        }
+                    }
+                    callback?.invoke(eventData)
+                }
+                if (activeStreamConnections.containsKey(requestId)) {
+                    callback?.invoke(
+                        mapOf(
+                            KEY_STREAM_EVENT to STREAM_EVENT_COMPLETE,
+                            KEY_STREAM_DATA to ""
+                        )
+                    )
+                }
+            } else {
+                errorStream = connection.errorStream
+                val errorMsg = readInputStreamAsString(errorStream)
+                callback?.invoke(
+                    mapOf(
+                        KEY_STREAM_EVENT to STREAM_EVENT_ERROR,
+                        KEY_STREAM_DATA to errorMsg,
+                        KEY_STATUS_CODE to responseCode
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            KuiklyRenderLog.e(MODULE_NAME, "Stream request error: $e")
+            // 如果是主动关闭导致的异常（requestId 已被 closeStreamRequest 移除），不回调 error
+            if (activeStreamConnections.containsKey(requestId)) {
+                callback?.invoke(
+                    mapOf(
+                        KEY_STREAM_EVENT to STREAM_EVENT_ERROR,
+                        KEY_STREAM_DATA to (e.message ?: "io exception"),
+                        KEY_STATUS_CODE to STATE_CODE_UNKNOWN
+                    )
+                )
+            }
+        } finally {
+            activeStreamConnections.remove(requestId)
+            try {
+                reader?.close()
+                errorStream?.close()
+                connection?.disconnect()
+            } catch (e: IOException) {
+                KuiklyRenderLog.e(MODULE_NAME, "Stream request close error: $e")
+            }
+        }
+    }
+
+    private fun closeStreamRequest(params: String?) {
+        val paramsJSON = params.toJSONObjectSafely()
+        val requestId = paramsJSON.optString("requestId")
+        val connection = activeStreamConnections.remove(requestId)
+        try {
+            connection?.disconnect()
+        } catch (e: Exception) {
+            KuiklyRenderLog.e(MODULE_NAME, "Close stream request error: $e")
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        activeStreamConnections.forEach { (_, conn) ->
+            try {
+                conn.disconnect()
+            } catch (_: Exception) {}
+        }
+        activeStreamConnections.clear()
     }
 
     private fun httpRequest(params: String?, bytes: ByteArray?, callback: KuiklyRenderCallback?) {
@@ -376,14 +521,22 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
         const val MODULE_NAME = "KRNetworkModule"
         private const val METHOD_HTTP_REQUEST = "httpRequest"
         private const val METHOD_HTTP_REQUEST_BINARY = "httpRequestBinary"
+        private const val METHOD_HTTP_STREAM_REQUEST = "httpStreamRequest"
+        private const val METHOD_CLOSE_STREAM_REQUEST = "closeStreamRequest"
         private const val HTTP_METHOD_GET = "GET"
         private const val HTTP_METHOD_POST = "POST"
         private const val KEY_SUCCESS = "success"
         private const val KEY_ERROR_MSG = "errorMsg"
         private const val KEY_HEADERS = "headers"
         private const val KEY_STATUS_CODE = "statusCode"
+        private const val KEY_STREAM_EVENT = "event"
+        private const val KEY_STREAM_DATA = "data"
+        private const val STREAM_EVENT_DATA = "data"
+        private const val STREAM_EVENT_COMPLETE = "complete"
+        private const val STREAM_EVENT_ERROR = "error"
 
         private const val STATE_CODE_UNKNOWN = -1000
+        private const val DEFAULT_TIMEOUT_S = 30
 
     }
 }

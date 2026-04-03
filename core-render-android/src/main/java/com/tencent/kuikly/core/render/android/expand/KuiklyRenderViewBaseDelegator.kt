@@ -41,6 +41,7 @@ import com.tencent.kuikly.core.render.android.expand.component.pag.KRPAGView
 import com.tencent.kuikly.core.render.android.expand.module.KRBackPressModule
 import com.tencent.kuikly.core.render.android.expand.module.KRCalendarModule
 import com.tencent.kuikly.core.render.android.expand.module.KRCodecModule
+import com.tencent.kuikly.core.render.android.expand.module.KRFileModule
 import com.tencent.kuikly.core.render.android.expand.module.KRFontModule
 import com.tencent.kuikly.core.render.android.expand.module.KRLogModule
 import com.tencent.kuikly.core.render.android.expand.module.KRKeyboardModule
@@ -490,6 +491,9 @@ open class KuiklyRenderViewBaseDelegator(private val delegate: KuiklyRenderViewB
             }
             moduleExport(KRLogModule.MODULE_NAME) {
                 KRLogModule()
+            }
+            moduleExport(KRFileModule.MODULE_NAME) {
+                KRFileModule()
             }
             moduleExport(KRKeyboardModule.MODULE_NAME) {
                 KRKeyboardModule()

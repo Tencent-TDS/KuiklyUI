@@ -46,3 +46,4 @@ proto/**/*.kt
 /compose/compose.podspec
 /core/core.podspec
 /core-ksp/bin/
+.build

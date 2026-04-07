@@ -200,6 +200,11 @@ NS_ASSUME_NONNULL_BEGIN
  */
 - (void)didHitTest;
 
+/**
+ * @brief 额外缓存内容（用于TurboDisplay传递给Kotlin侧pageData）
+ */
+- (NSString * _Nullable)extraCacheContent;
+
 @end
 
 

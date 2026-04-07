@@ -217,6 +217,14 @@ NSString *const KRDensity = @"density";
     return nil;
 }
 
+// KuiklyRenderView.m - 实现传递
+- (KRTurboDisplayConfig *)turboDisplayConfig {
+    if ([self.delegate respondsToSelector:@selector(turboDisplayConfig)]) {
+        return [self.delegate turboDisplayConfig];
+    }
+    return nil;
+}
+
 - (UIWindow *)viewControllerHostWindow {
     if ([self.delegate respondsToSelector:@selector(viewControllerHostWindow)]) {
         return [self.delegate viewControllerHostWindow];
@@ -240,11 +248,19 @@ NSString *const KRDensity = @"density";
     mParmas[KRDeviceWidthKey] = @(deviceSize.width);
     mParmas[KRDeviceHeightKey] = @(deviceSize.height);
     mParmas[KROsVersionKey] = [[NSProcessInfo processInfo] operatingSystemVersionString] ?: @"";
+    UIWindow *window = [self.delegate viewControllerHostWindow] ?: [KRConvertUtil keyWindow];
+    CGRect windowBounds = window.frame;
+    mParmas[KRActivityWidthKey] = @(windowBounds.size.width);
+    mParmas[KRActivityHeightKey] = @(windowBounds.size.height);
 #else
     mParmas[KRPlatformKey] = @"iOS";
     mParmas[KRDeviceWidthKey] = @(CGRectGetWidth([UIScreen mainScreen].bounds));
     mParmas[KRDeviceHeightKey] = @(CGRectGetHeight([UIScreen mainScreen].bounds));
     mParmas[KROsVersionKey] = [[UIDevice currentDevice] systemVersion] ?: @"";
+    UIWindow *window = [self.delegate viewControllerHostWindow] ?: [KRConvertUtil keyWindow];
+    CGRect windowBounds = window.bounds;
+    mParmas[KRActivityWidthKey] = @(windowBounds.size.width);
+    mParmas[KRActivityHeightKey] = @(windowBounds.size.height);
 #endif
     mParmas[KRAppVersionKey] = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleShortVersionString"] ? : @"1.0.0";
     mParmas[KRParamKey] = params? : @{};

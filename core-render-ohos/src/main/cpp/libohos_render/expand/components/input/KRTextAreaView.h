@@ -21,6 +21,8 @@
 
 class KRTextAreaView : public KRTextFieldView {
  public:
+    void DidInit() override ;
+    
     ArkUI_NodeHandle CreateNode() override {
         return kuikly::util::GetNodeApi()->createNode(ARKUI_NODE_TEXT_AREA);
     }

@@ -16,6 +16,10 @@
 package com.tencent.kuikly.demo.pages.compose
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.compose.ComposeContainer
 import com.tencent.kuikly.compose.extension.NestedScrollMode
@@ -38,6 +42,8 @@ import com.tencent.kuikly.compose.foundation.lazy.items
 import com.tencent.kuikly.compose.foundation.pager.HorizontalPager
 import com.tencent.kuikly.compose.foundation.pager.PagerState
 import com.tencent.kuikly.compose.foundation.pager.rememberPagerState
+import com.tencent.kuikly.compose.material3.ScrollableTabRow
+import com.tencent.kuikly.compose.material3.Tab
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.Color
@@ -61,34 +67,80 @@ class LazyRowInHorizontalPager : ComposeContainer() {
         Column(modifier = Modifier.fillMaxSize().background(Color.White)) {
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier.fillMaxWidth().bouncesEnable(false).height(220.dp),
+                modifier = Modifier.fillMaxWidth().bouncesEnable(false).height(280.dp),
                 beyondViewportPageCount = 3
             ) { page ->
+                val tabTitles = List(20) { "Tab ${it + 1}" }
+                var selectedTabIndex by remember { mutableStateOf(0) }
                 val items = List(20) { idx -> "Page ${page + 1} - Item ${idx + 1}" }
-                LazyRow(
-                    modifier = Modifier.fillMaxSize().background(
-                        when (page % 3) {
-                            0 -> Color(0xFFE3F2FD)
-                            1 -> Color(0xFFE8F5E9)
-                            else -> Color(0xFFFFF3E0)
+                Column {
+                    // ScrollableTabRow with nestedScroll SELF_ONLY
+                    ScrollableTabRow(
+                        selectedTabIndex = selectedTabIndex,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .nestedScroll(NestedScrollMode.SELF_ONLY, NestedScrollMode.SELF_ONLY),
+                        edgePadding = 8.dp,
+                    ) {
+                        tabTitles.forEachIndexed { index, title ->
+                            Tab(
+                                selected = selectedTabIndex == index,
+                                onClick = { selectedTabIndex = index },
+                                text = { Text(title) },
+                            )
                         }
-                    )
-                        .nestedScroll(NestedScrollMode.SELF_FIRST, NestedScrollMode.SELF_FIRST)
-                        .bouncesEnable(false),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    contentPadding = PaddingValues(12.dp)
-                ) {
-                    items(items) { label ->
-                        Box(
-                            modifier = Modifier
-                                .height(120.dp)
-                                .width(160.dp)
-                                .background(Color(0xFF90CAF9)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(label)
+                    }
+                    ScrollableTabRow(
+                        selectedTabIndex = selectedTabIndex,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .bouncesEnable(false)
+                            .nestedScroll(NestedScrollMode.SELF_FIRST, NestedScrollMode.SELF_FIRST),
+                        edgePadding = 8.dp,
+                    ) {
+                        tabTitles.forEachIndexed { index, title ->
+                            Tab(
+                                selected = selectedTabIndex == index,
+                                onClick = { selectedTabIndex = index },
+                                text = { Text(title) },
+                            )
                         }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth().height(120.dp)
+                            .background(
+                                when (page % 3) {
+                                    0 -> Color(0xFFE3F2FD)
+                                    1 -> Color(0xFFE8F5E9)
+                                    else -> Color(0xFFFFF3E0)
+                                }
+                            )
+                            .nestedScroll(NestedScrollMode.SELF_FIRST, NestedScrollMode.SELF_FIRST)
+                            .bouncesEnable(false),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        contentPadding = PaddingValues(12.dp)
+                    ) {
+                        items(items) { label ->
+                            Box(
+                                modifier = Modifier
+                                    .height(120.dp)
+                                    .width(160.dp)
+                                    .background(Color(0xFF90CAF9)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(label)
+                            }
+                        }
+                    }
+                    val innerPagerState: PagerState = rememberPagerState(pageCount = { 3 })
+                    HorizontalPager(
+                        state = innerPagerState,
+                        modifier = Modifier.fillMaxWidth().bouncesEnable(false).height(50.dp).nestedScroll(NestedScrollMode.SELF_FIRST, NestedScrollMode.PARENT_FIRST),
+                        beyondViewportPageCount = 3
+                    ) {
+                        Text("InnerPage ${it}")
                     }
                 }
             }

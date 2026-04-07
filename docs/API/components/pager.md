@@ -17,7 +17,30 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager
 
 | 属性 | 描述 | 类型 |
 | -- | -- | -- |
-| pageData | 页面数据对象 | PageData |
+| params | 页面参数（页面携带参数&扩展参数） | JSONObject |
+| pageViewWidth | 页面视图宽度 | Float |
+| pageViewHeight | 页面视图高度 | Float |
+| statusBarHeight | 状态栏高度 | Float |
+| deviceHeight | 设备高度 | Float |
+| deviceWidth | 设备宽度 | Float |
+| appVersion | 应用版本号 | String |
+| platform | 平台标识（android/iOS/macOS/ohos/web/miniprogram） | String |
+| isIOS | 是否为 iOS 平台 | Boolean |
+| isMacOS | 是否为 macOS 平台 | Boolean |
+| isAndroid | 是否为 Android 平台 | Boolean |
+| isOhOs | 是否为鸿蒙平台 | Boolean |
+| isWeb | 是否为 Web 平台 | Boolean |
+| isMiniApp | 是否为小程序平台 | Boolean |
+| isIphoneX | 是否为 iPhoneX 及以上机型（刘海屏） | Boolean |
+| navigationBarHeight | 导航栏高度 | Float |
+| nativeBuild | 原生构建版本号 | Int |
+| activityWidth | Activity/页面控制器宽度 | Float |
+| activityHeight | Activity/页面控制器高度 | Float |
+| safeAreaInsets | 安全区域边距（不被系统界面遮挡的区域） | EdgeInsets |
+| density | 屏幕密度（默认为 3） | Float |
+| osVersion | 系统版本 | String |
+| isAccessibilityRunning | 是否处于无障碍化模式 | Boolean |
+| androidBottomBavBarHeight | Android 底部导航栏高度 | Float |
 
 ### pageName
 页面名称，用于页面标识和路由

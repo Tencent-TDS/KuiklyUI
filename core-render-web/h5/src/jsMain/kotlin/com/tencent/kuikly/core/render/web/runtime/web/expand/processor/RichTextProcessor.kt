@@ -6,6 +6,7 @@ import com.tencent.kuikly.core.render.web.processor.FontSizeToLineHeightMap
 import com.tencent.kuikly.core.render.web.processor.IRichTextProcessor
 import com.tencent.kuikly.core.render.web.const.KRCssConst
 import com.tencent.kuikly.core.render.web.ktx.SizeF
+import com.tencent.kuikly.core.render.web.ktx.height
 import com.tencent.kuikly.core.render.web.ktx.indexOfChild
 import com.tencent.kuikly.core.render.web.ktx.kuiklyDocument
 import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
@@ -24,6 +25,7 @@ import org.w3c.dom.Element
 import org.w3c.dom.HTMLCanvasElement
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLSpanElement
+import org.w3c.dom.Node
 import org.w3c.dom.get
 import kotlin.math.max
 
@@ -157,12 +159,29 @@ object RichTextProcessor : IRichTextProcessor {
             setMultiLineStyle(view.numberOfLines, newEle)
         }
         setMultiLineStyle(view.numberOfLines, ele)
+        var removedFloatSpans: List<Node> = emptyList()
+        if (view.getHasAppendFloatSpans()) {
+            val childNodes = ele.childNodes
+            if (childNodes.length >= 2) {
+                val first: Node = childNodes[0]!!
+                val second: Node = childNodes[1]!!
+                ele.removeChild(first)
+                ele.removeChild(second)
+                removedFloatSpans = listOf(first, second)
+            }
+        }
         // Insert the node into the page to complete rendering, used to get the actual size of the node
         kuiklyDocument.body?.appendChild(newEle)
         // Element width
         var w = newEle.offsetWidth
         // Element height
         var h = newEle.offsetHeight.toFloat()
+        // Detect whether the actual text lines exceed numberOfLines limit:
+        // scrollHeight reflects the full content height ignoring -webkit-line-clamp,
+        // while offsetHeight is the clamped rendered height.
+        if (view.numberOfLines > 0 && view.getLineBreakMargin() > 0) {
+            view.setIsLineBreakMargin(newEle.scrollHeight > newEle.offsetHeight)
+        }
         // Special case handling, if line height is set but the actual height is much smaller than
         // the expected value, need to remove multi-line style
         if (view.numberOfLines > 0) {
@@ -189,6 +208,11 @@ object RichTextProcessor : IRichTextProcessor {
 
         // After getting the size, remove the node from the page
         kuiklyDocument.body?.removeChild(newEle)
+        if (view.getHasAppendFloatSpans() && removedFloatSpans.isNotEmpty()) {
+            removedFloatSpans.reversed().forEach { span ->
+                ele.insertBefore(span, ele.firstChild)
+            }
+        }
         Log.trace("calculate size by dom, size: ", w, h)
         // Actual width
         val realWidth = if (w < constraintSize.width) w + 0.5f else constraintSize.width
@@ -458,6 +482,15 @@ object RichTextProcessor : IRichTextProcessor {
     override fun setRichTextValues(richTextValues: JSONArray, view: KRRichTextView) {
         // fix repeat node when change richText styles
         view.ele.clear();
+        view.setHasAppendFloatSpans(false)
+        val lineBreakMargin = view.getLineBreakMargin()
+        val measureResult = view.getMeasureResult()
+        if (lineBreakMargin > 0 && measureResult.height > 0) {
+            val singleLineHeight = view.getSingleLineHeight()
+            view.ele.appendChild(view.createFloatSpan(0f, measureResult.height - singleLineHeight))
+            view.ele.appendChild(view.createFloatSpan(lineBreakMargin, 1f))
+            view.setHasAppendFloatSpans(true)
+        }
         for (i in 0 until richTextValues.length()) {
             view.ele.appendChild(createSpan(richTextValues.optJSONObject(i) ?: JSONObject(), view))
         }

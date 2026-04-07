@@ -197,6 +197,12 @@ object KRImageAdapter : IKRImageAdapter {
 `fetchDrawable` 方法可能在非UI线程调用，例如在 `MemoryCacheModule.cacheImage` 中（可参考[示例](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/CanvasTestPage.kt)）。实现时需要注意线程安全，如果需要在UI线程操作（如更新UI组件），请使用 `Handler` 或 `runOnUiThread` 等方式切换到UI线程。
 :::
 
+:::tip 注意
+框架默认会把图片在首屏完成后在进行加载(优化首屏性能)，若不希望框架对此做异步
+
+可以在 `KRImageAdapter` 重写 `shouldWaitViewDidLoad` 字段为 `false` 以实现
+:::
+
 ### 实现日志适配器
 具体实现代码，请参考源码工程androidApp模块的``KRLogAdapter``类。
 ```kotlin
@@ -403,15 +409,18 @@ object KRColorAdapter : IKRColorParserAdapter {
 
 ### 自定义字体适配器
 
-通过该适配器扩展自定义字体, 业务可根据实际使用需求来决定是否实现
+通过该适配器扩展自定义字体，以及控制系统显示大小缩放行为。
 
-具体实现代码，请参考源码工程androidApp模块的``KRFontAdapter``类。
+#### 加载自定义字体
+
+从 assets 加载自定义字体文件：
+
 ```kotlin
 object KRFontAdapter : IKRFontAdapter {
     override fun getTypeface(fontFamily: String, result: (Typeface?) -> Unit) {
-        // 加载自定义字体, 结果通过result回调给Kuikly侧
-        
-        // 例：assets/font/ 存放Satisfy-Regular.ttf 自定义字体文件
+        // 加载自定义字体，结果通过 result 回调给 Kuikly 侧
+
+        // 例：assets/fonts/ 存放 Satisfy-Regular.ttf 自定义字体文件
         if (fontFamily.isEmpty()) {
             result(null)
         } else {
@@ -424,6 +433,31 @@ object KRFontAdapter : IKRFontAdapter {
             result(tfe)
         }
     }
+}
+```
+
+#### 实现不跟随系统显示大小变化
+
+通过固定 density 值，使 Kuikly 页面布局不受系统"显示大小"设置影响。
+
+**步骤 1：在 FontAdapter 中实现固定 density**
+
+```kotlin
+object KRFontAdapter : IKRFontAdapter {
+    override fun getDisplayMetrics(useHostDisplayMetrics: Boolean?): DisplayMetrics {
+        return DisplayMetrics().apply {
+            density = 2f
+            scaledDensity = 2f
+        }
+    }
+}
+```
+
+**步骤 2：在 Delegate 中启用 useHostDisplayMetrics**
+
+```kotlin
+val delegate = object : KuiklyRenderViewBaseDelegatorDelegate {
+    override fun useHostDisplayMetrics(): Boolean = true
 }
 ```
 

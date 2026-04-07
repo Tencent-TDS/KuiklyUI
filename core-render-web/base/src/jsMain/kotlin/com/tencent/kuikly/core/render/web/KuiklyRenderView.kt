@@ -416,6 +416,8 @@ class KuiklyRenderView(
 
         const val PAGER_EVENT_FIRST_FRAME_PAINT = "pageFirstFramePaint"
 
+        const val PAGER_EVENT_ON_FONT_LOADED = "onFontLoaded"
+
         // RenderView lifecycle state
         private const val STATE_INIT = 0
         private const val STATE_PRELOAD_DEX_CLASS_FINISH = STATE_INIT + 1

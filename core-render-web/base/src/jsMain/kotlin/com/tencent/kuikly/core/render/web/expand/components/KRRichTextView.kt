@@ -9,15 +9,19 @@ import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.web.const.KRCssConst
 import com.tencent.kuikly.core.render.web.ktx.SizeF
 import com.tencent.kuikly.core.render.web.ktx.getCSSBackgroundImage
+import com.tencent.kuikly.core.render.web.ktx.height
 import com.tencent.kuikly.core.render.web.ktx.kuiklyDocument
+import com.tencent.kuikly.core.render.web.ktx.pxToFloat
 import com.tencent.kuikly.core.render.web.ktx.toNumberFloat
 import com.tencent.kuikly.core.render.web.ktx.toPxF
 import com.tencent.kuikly.core.render.web.ktx.toRgbColor
 import com.tencent.kuikly.core.render.web.nvi.serialization.json.JSONArray
 import com.tencent.kuikly.core.render.web.nvi.serialization.json.JSONObject
+import com.tencent.kuikly.core.render.web.processor.FontSizeToLineHeightMap
 import com.tencent.kuikly.core.render.web.runtime.dom.element.ElementType
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLParagraphElement
+import org.w3c.dom.HTMLSpanElement
 import org.w3c.dom.get
 
 class KRTextProps {
@@ -45,6 +49,11 @@ class KRTextProps {
      * Text custom post-processor identifier, processing completion flag
      */
     var textPostProcessorDone = false
+
+    /**
+     * LineBreakMargin属性是否触发
+     */
+    var isLineBreakMargin = false
 
     /**
      * Set text properties
@@ -161,6 +170,8 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
     private var fontSize = DEFAULT_ELEMENT_FONT_SIZE
     private var renderText = ""
     private var strokeColor = ""
+    private var measureResult = SizeF(0f, 0f)
+    private var hasAppendFloatSpans = false
 
     // Initialize p tag
     private val textEle = kuiklyDocument.createElement(ElementType.P).apply {
@@ -226,7 +237,6 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
                 // Save original text value
                 text = propValue.unsafeCast<String>()
                 renderText = text
-
                 // emoji textPostProcessor
                 if (textProps.textPostProcessor.isNotEmpty()) {
                     KuiklyRenderAdapterManager.krTextPostProcessorAdapter?.onTextPostProcess(
@@ -278,10 +288,26 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
 
     override fun setShadow(shadow: IKuiklyRenderShadowExport) {
         super.setShadow(shadow)
-        if(!this.isRichTextValues() && ele.innerText != renderText) {
-            // for compose , plain text, isRichText is true, but richTextSpanList.length is 0
-            // for web, when set innerText, the span will be removed
-            ele.innerText = renderText
+
+        if(!this.isRichTextValues()) {
+            if (ele.innerText != renderText) {
+                // for compose , plain text, isRichText is true, but richTextSpanList.length is 0
+                // for web, when set innerText, the span will be removed
+                ele.innerText = renderText
+            }
+            if (lineBreakMargin > 0 && ele.innerText.isNotEmpty() && ele.childNodes.length == 1) {
+                val singleLineHeight = getSingleLineHeight()
+                val spanHeight = measureResult.height - singleLineHeight
+                val span1 = createFloatSpan(0f, spanHeight)
+                val span2 = createFloatSpan(lineBreakMargin, 1f)
+                val firstChild = ele.childNodes[0]
+                ele.insertBefore(span1, firstChild)
+                ele.insertBefore(span2, firstChild)
+            }
+        } else {
+            if (lineBreakMargin > 0 && !getHasAppendFloatSpans()) {
+                KuiklyProcessor.richTextProcessor.setRichTextValues(values!!, this)
+            }
         }
     }
 
@@ -294,8 +320,10 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
      *
      * @param constraintSize Constraint size
      */
-    override fun calculateRenderViewSize(constraintSize: SizeF): SizeF =
-        KuiklyProcessor.richTextProcessor.measureTextSize(constraintSize, this, this.renderText)
+    override fun calculateRenderViewSize(constraintSize: SizeF): SizeF {
+        measureResult = KuiklyProcessor.richTextProcessor.measureTextSize(constraintSize, this, this.renderText)
+        return measureResult
+    }
 
     override fun call(methodName: String, params: String): Any? {
         return when (methodName) {
@@ -303,7 +331,9 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
                 // Return placeholder span position and size data
                 getPlaceholderSpanRect(params.toInt())
             }
-
+            METHOD_IS_LINE_BREAK_MARGIN -> {
+                return if (textProps.isLineBreakMargin) "1" else "0"
+            }
             else -> super<IKuiklyRenderShadowExport>.call(methodName, params)
         }
     }
@@ -319,6 +349,47 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
         return text.ifEmpty {
             null
         }
+    }
+
+    fun getLineBreakMargin(): Float {
+        return lineBreakMargin
+    }
+
+    fun getMeasureResult(): SizeF {
+        return measureResult
+    }
+
+    fun getSingleLineHeight(): Float {
+        val h = if (ele.style.lineHeight != "") {
+            ele.style.lineHeight.pxToFloat()
+        } else if (ele.style.fontSize != "") {
+            FontSizeToLineHeightMap.getLineHeight(ele.style.fontSize.pxToFloat())
+        } else {
+            10f
+        }
+        return h
+    }
+
+    fun setHasAppendFloatSpans(flag: Boolean) {
+        hasAppendFloatSpans = flag
+    }
+
+    fun getHasAppendFloatSpans(): Boolean {
+        return hasAppendFloatSpans
+    }
+
+    fun setIsLineBreakMargin(value: Boolean) {
+        textProps.isLineBreakMargin = value
+    }
+
+    fun createFloatSpan(width: Float, height: Float): HTMLSpanElement {
+        val span = kuiklyDocument.createElement(ElementType.SPAN).unsafeCast<HTMLSpanElement>()
+        val style = span.style
+        style.cssFloat = "right"
+        style.clear = "right"
+        style.width = width.toPxF()
+        style.height = height.toPxF()
+        return span
     }
 
     /**
@@ -434,6 +505,7 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
         private const val FONT_VARIANT = "fontVariant"
         // Rich text placeholder setting method
         private const val METHOD_GET_PLACEHOLDER_SPAN_RECT = "spanRect"
+        private const val METHOD_IS_LINE_BREAK_MARGIN = "isLineBreakMargin"
         private const val HEAD_INDENT = "headIndent"
         private const val GRAB_TEXT = "grabText"
 

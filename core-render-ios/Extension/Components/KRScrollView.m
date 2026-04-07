@@ -179,6 +179,7 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     self.cascadeLockForNestedScroll = NO;
     self.isLockedInNestedScroll = NO;
     self.tempLastContentOffsetForMultiLayerNested = nil;
+    _isCurrentlyDragging = NO;  // Defensive: prevent incorrect inset adjustment during programmatic offset updates after reuse
 }
 
 #pragma mark - pubilc

@@ -24,6 +24,7 @@ internal class KuiklyApplier(
     private val onEndChanges: () -> Unit = {},
     ) : AbstractApplier<KNode<DeclarativeBaseView<*, *>>>(node) {
 
+
     override fun onEndChanges() {
         super.onEndChanges()
         root.owner?.onEndApplyChanges()

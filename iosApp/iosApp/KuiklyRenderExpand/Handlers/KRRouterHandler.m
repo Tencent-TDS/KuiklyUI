@@ -17,6 +17,7 @@
 #import "KRRouterHandler.h"
 #import "KuiklyRenderViewController.h"
 #import "NativeMixKuiklyViewDemoViewController.h"
+#import "NativeAppWaterfallViewController.h"
 
 #define KR_MODAL_PRESENT @"kr_modal_present"
 @implementation KRRouterHandler
@@ -30,6 +31,8 @@
     UIViewController *vc = nil;
     if ([pageName isEqualToString:@"NativeMixKuikly"]) {
         vc = [[NativeMixKuiklyViewDemoViewController alloc] init];
+    } else if ([pageName isEqualToString:@"NativeAppWaterfall"]) {
+        vc = [[NativeAppWaterfallViewController alloc] init];
     } else {
         vc = [[KuiklyRenderViewController alloc] initWithPageName:pageName pageData:pageData];
     }

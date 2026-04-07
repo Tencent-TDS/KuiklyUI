@@ -390,7 +390,7 @@ struct KuiklyListItem {
 }
 ```
 
-> 💡 完整的 View 粒度接入实践示例（卡片式风格瀑布流），请参考源码工程 ohosApp 模块的 `NativeAppWaterfall.ets` 页面，该 Demo 使用 `WaterFlow` + `LazyForEach` 实现两列瀑布流，每个 `FlowItem` 中各嵌入了一个 `Kuikly()` 组件。另外也可参考 `KuiklyInList.ets` 了解在 `List` 容器中的嵌入方式。
+> 完整的 View 粒度接入实践示例（卡片式风格瀑布流），请参考源码工程 ohosApp 模块的 `NativeAppWaterfall.ets` 页面，该 Demo 使用 `WaterFlow` + `LazyForEach` 实现两列瀑布流，每个 `FlowItem` 中各嵌入了一个 `Kuikly()` 组件。另外也可参考 `KuiklyInList.ets` 了解在 `List` 容器中的嵌入方式。
 
 ##### `与页面级方式的主要不同点`
 

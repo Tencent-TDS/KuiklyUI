@@ -184,7 +184,7 @@ class NativeMixKuiklyViewDemoActivity : AppCompatActivity() {
         // 创建KuiklyBaseView并附加到容器
         kuiklyView = KuiklyBaseView(this, delegate)
         // 加载Kuikly页面：contextCode传空字符串，pageName为页面名称，pageData为页面参数
-        kuiklyView?.onAttach("", "router", mapOf())
+        kuiklyView?.onAttach("", "yourPageName", mapOf())
         rootView.addView(kuiklyView)
     }
 
@@ -205,9 +205,8 @@ class NativeMixKuiklyViewDemoActivity : AppCompatActivity() {
 }
 ```
 
-> 💡 完整的 View 粒度接入实践示例（卡片式风格瀑布流），请参考源码工程 androidApp 模块的 `NativeAppWaterfallActivity` 类，该 Demo 在一个 RecyclerView 的每个 ViewHolder 中各嵌入了一个 `KuiklyBaseView`。
+> 完整的 View 粒度接入实践示例（卡片式风格瀑布流），请参考源码工程 androidApp 模块的 `NativeAppWaterfallActivity` 类，该 Demo 在一个 RecyclerView 的每个 ViewHolder 中各嵌入了一个 `KuiklyBaseView`。
 
-[完整代码](https://github.com/Tencent-TDS/KuiklyUI/blob/main/androidApp/src/main/java/com/tencent/kuikly/android/demo/NativeAppWaterfallActivity.kt)
 
 #### 与 Activity 方式的主要不同点
 

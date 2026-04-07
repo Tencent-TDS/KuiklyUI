@@ -114,9 +114,18 @@ internal class FileOutputStrategy(
     private fun buildFrameJson(events: List<RecompositionEvent>): String {
         return buildString {
             append("{\"type\":\"frame\",\"events\":[")
-            events.forEachIndexed { index, event ->
-                if (index > 0) append(",")
+            var firstWritten = false
+            events.forEach { event ->
+                val before = length
                 appendEventJson(event)
+                val written = length > before
+                if (written) {
+                    if (firstWritten) {
+                        // insert comma before this event
+                        insert(before, ",")
+                    }
+                    firstWritten = true
+                }
             }
             append("]}")
         }

@@ -17,6 +17,7 @@ package com.tencent.kuikly.compose.profiler.output
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.tencent.kuikly.compose.profiler.ComposableRecomposedEvent
 import com.tencent.kuikly.compose.profiler.RecompositionEvent
@@ -59,9 +60,8 @@ class OverlayOutputStrategy : RecompositionOutputStrategy {
     /** 最多展示的热点条数 */
     var topCount: Int = 5
 
-    /** 是否已暂停 */
-    @Volatile
-    var paused: Boolean = false
+    /** 是否已暂停（mutableStateOf 确保 Overlay 按钮文字实时更新） */
+    var paused: Boolean by mutableStateOf(false)
 
     override fun onFrameComplete(events: List<RecompositionEvent>) {
         if (paused) return

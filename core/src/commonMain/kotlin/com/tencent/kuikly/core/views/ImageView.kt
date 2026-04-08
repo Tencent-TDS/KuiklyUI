@@ -134,6 +134,15 @@ open class ImageAttr : Attr(), IImageAttr {
         return this
     }
 
+    override fun colorFilter(matrix: String?): IImageAttr {
+        if (matrix.isNullOrEmpty()) {
+            ImageConst.COLOR_FILTER with ""
+        } else {
+            ImageConst.COLOR_FILTER with matrix
+        }
+        return this
+    }
+
     /**
      * 设置图片组件鸿蒙平台上是否可以拖动
      */
@@ -332,6 +341,7 @@ object ImageConst {
     const val RESIZE = "resize"
     const val BLUR_RADIUS = "blurRadius"
     const val TINT_COLOR = "tintColor"
+    const val COLOR_FILTER = "colorFilter"
     const val MASK_LINEAR_GRADIENT = "maskLinearGradient"
     const val BASE64_ICON_PREFIX = "data:image"
     const val BASE64_CACHE_KEY_PREFIX = BASE64_ICON_PREFIX + "_Md5_"

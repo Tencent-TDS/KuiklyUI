@@ -56,6 +56,13 @@ interface IImageAttr {
      */
     fun tintColor(color: Color?): IImageAttr
 
+    /**
+     * 设置图片颜色矩阵滤镜（4×5 矩阵，20 个浮点数以 "|" 分隔）。
+     * 传 null 可清除滤镜。
+     * @param matrix 颜色矩阵字符串，如 "0.2126|0.7152|0.0722|0|0|..."，或 null
+     */
+    fun colorFilter(matrix: String?): IImageAttr
+
     /*
       * 设置图片拉伸模式：cover
       * 在保持图片宽高比的情况下下缩放图片，直到宽度和高度都大于等于组件的大小（超出部分将裁剪）

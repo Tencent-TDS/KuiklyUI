@@ -69,6 +69,10 @@ internal fun ScrollableState.kuiklyOnScrollEnd(params: ScrollParams) {
         is KuiklyScrollableState -> kuiklyOnScrollEnd(params)
         else -> { /* No need to handle */ }
     }
+    // Pager uses a different scroll-end sync path; skip lazy scroll expansion here.
+    if (this !is PagerState && this !is KuiklyScrollableState) {
+        tryExpandStartSizeNoScroll()
+    }
 }
 
 /**

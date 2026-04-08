@@ -58,11 +58,15 @@ import com.tencent.kuikly.compose.ui.draw.rotate
 import com.tencent.kuikly.compose.ui.graphics.Brush
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.ColorFilter
+import com.tencent.kuikly.compose.ui.graphics.ColorMatrix
+import com.tencent.kuikly.compose.ui.graphics.ColorMatrixConfig
 import com.tencent.kuikly.compose.ui.graphics.SolidColor
 import com.tencent.kuikly.compose.ui.graphics.painter.BrushPainter
 import com.tencent.kuikly.compose.ui.graphics.painter.ColorPainter
+import com.tencent.kuikly.compose.ui.graphics.toColorMatrix
 import com.tencent.kuikly.compose.ui.layout.ContentScale
 import com.tencent.kuikly.compose.ui.layout.onSizeChanged
+import com.tencent.kuikly.compose.ui.platform.LocalConfiguration
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
@@ -91,6 +95,8 @@ internal class ImageDemo : ComposeContainer() {
                 AlignmentAndContentScaleSamples()
                 Text("Reload")
                 ReloadSamples()
+                Text("grayscale image")
+                GrayscaleSamples()
             }
         }
     }
@@ -741,6 +747,36 @@ private fun ReloadSamples() {
                 Text("Click to reload")
             }
         }
+    }
+}
+
+@Composable
+private fun GrayscaleSamples() {
+    val config = LocalConfiguration.current
+    var colorMatrix by remember { mutableStateOf(ColorMatrix.identity) }
+    Column(
+        modifier = Modifier.padding(15.dp).fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(
+            modifier = Modifier,
+            horizontalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            Button(onClick = { colorMatrix = ColorMatrix.rec709Gray }) {
+                Text("grayscale")
+            }
+            Button(onClick = { colorMatrix = ColorMatrix.identity }) {
+                Text("identity")
+            }
+        }
+
+        Image(
+            painter = rememberAsyncImagePainter("https://wfiles.gtimg.cn/wuji_dashboard/xy/starter/baa91edc.png"),
+            contentDescription = null,
+            modifier = Modifier.width(193.dp).height(150.dp),
+            contentScale = ContentScale.Crop,
+            colorMatrix = colorMatrix,
+        )
     }
 }
 

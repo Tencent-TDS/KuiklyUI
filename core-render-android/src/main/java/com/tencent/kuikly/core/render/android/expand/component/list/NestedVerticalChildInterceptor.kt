@@ -83,8 +83,8 @@ internal class NestedVerticalChildInterceptor(recyclerView: KRRecyclerView) : IN
 
     private fun processDownEvent(e: MotionEvent, actionIndex: Int) {
         scrollPointerId = e.getPointerId(actionIndex)
-        initialTouchX = (e.x + 0.5f).toInt()
-        initialTouchY = (e.y + 0.5f).toInt()
+        initialTouchX = (e.getX(actionIndex) + 0.5f).toInt()
+        initialTouchY = (e.getY(actionIndex) + 0.5f).toInt()
     }
 
     private fun processMoveEvent(e: MotionEvent): Boolean {
@@ -132,8 +132,8 @@ internal class NestedVerticalChildInterceptor(recyclerView: KRRecyclerView) : IN
         if (event.getPointerId(activeIndex) == scrollPointerId) {
             val newIndex = if (activeIndex == 0) 1 else 0
             scrollPointerId = event.getPointerId(newIndex)
-            initialTouchX = (event.x + 0.5f).toInt()
-            initialTouchY = (event.y + 0.5f).toInt()
+            initialTouchX = (event.getX(newIndex) + 0.5f).toInt()
+            initialTouchY = (event.getY(newIndex) + 0.5f).toInt()
         }
     }
 }

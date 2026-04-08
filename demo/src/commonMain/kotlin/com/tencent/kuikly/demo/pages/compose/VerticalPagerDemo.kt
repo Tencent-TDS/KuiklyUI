@@ -32,6 +32,7 @@ import com.tencent.kuikly.compose.foundation.layout.Column
 import com.tencent.kuikly.compose.foundation.layout.fillMaxSize
 import com.tencent.kuikly.compose.foundation.layout.fillMaxWidth
 import com.tencent.kuikly.compose.foundation.layout.padding
+import com.tencent.kuikly.compose.foundation.pager.HorizontalPager
 import com.tencent.kuikly.compose.foundation.pager.PageSize
 import com.tencent.kuikly.compose.foundation.pager.VerticalPager
 import com.tencent.kuikly.compose.foundation.pager.rememberPagerState
@@ -103,70 +104,75 @@ class VerticalPagerDemo : ComposeContainer() {
             }
         }
 
-        Box(modifier = Modifier.fillMaxSize()) {
-            VerticalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize(),
-                pageSize = PageSize.Fill,
-                key = { index -> dataList[index].id },
-            ) { page ->
-                val item = dataList[page]
+        HorizontalPager(modifier = Modifier.fillMaxSize(), state = rememberPagerState { 3 }) {
+
+            if (it == 1) {
+                VerticalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                    pageSize = PageSize.Fill,
+                    key = { index -> dataList[index].id },
+                ) { page ->
+                    val item = dataList[page]
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                // 使用不同颜色区分不同页面
+                                Color(
+                                    red = (item.id * 25) % 256,
+                                    green = (item.id * 50) % 256,
+                                    blue = (item.id * 75) % 256,
+                                ),
+                            )
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                text = item.content,
+                                fontSize = 24.sp,
+                                color = Color.White,
+                            )
+                            Text(
+                                text = "ID: ${item.id}",
+                                fontSize = 16.sp,
+                                color = Color.White.copy(alpha = 0.8f),
+                            )
+                            Text(
+                                text = "页面索引: $page",
+                                fontSize = 14.sp,
+                                color = Color.White.copy(alpha = 0.6f),
+                            )
+                        }
+                    }
+                }
+
+                // 右上角刷新按钮
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(
-                            // 使用不同颜色区分不同页面
-                            Color(
-                                red = (item.id * 25) % 256,
-                                green = (item.id * 50) % 256,
-                                blue = (item.id * 75) % 256,
-                            ),
-                        )
                         .padding(16.dp),
-                    contentAlignment = Alignment.Center,
+                    contentAlignment = Alignment.TopEnd,
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(
-                            text = item.content,
-                            fontSize = 24.sp,
-                            color = Color.White,
-                        )
-                        Text(
-                            text = "ID: ${item.id}",
-                            fontSize = 16.sp,
-                            color = Color.White.copy(alpha = 0.8f),
-                        )
-                        Text(
-                            text = "页面索引: $page",
-                            fontSize = 14.sp,
-                            color = Color.White.copy(alpha = 0.6f),
-                        )
-                    }
+                    Text(
+                        text = "刷新",
+                        fontSize = 16.sp,
+                        color = Color.White,
+                        modifier = Modifier
+                            .background(Color.Blue)
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .clickable {
+                                // 触发刷新流程：在 LaunchedEffect 中先跳转到第 0 页，然后更新数据
+                                refreshKey++
+                            },
+                    )
                 }
-            }
-
-            // 右上角刷新按钮
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                contentAlignment = Alignment.TopEnd,
-            ) {
-                Text(
-                    text = "刷新",
-                    fontSize = 16.sp,
-                    color = Color.White,
-                    modifier = Modifier
-                        .background(Color.Blue)
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .clickable {
-                            // 触发刷新流程：在 LaunchedEffect 中先跳转到第 0 页，然后更新数据
-                            refreshKey++
-                        },
-                )
+            } else {
+                Text("empty")
             }
         }
     }

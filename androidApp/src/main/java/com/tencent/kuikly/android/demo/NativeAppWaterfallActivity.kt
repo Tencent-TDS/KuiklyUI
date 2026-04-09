@@ -36,7 +36,7 @@ import com.tencent.kuikly.core.render.android.expand.KuiklyBaseView
  *          └─ AppCardViewHolder
  *               └─ KuiklyBaseView(pageName="AppCardPage", pageData={...})
  *                    └─ AppCardPage (Kuikly DSL 页面)
- */
+*/
 class NativeAppWaterfallActivity : AppCompatActivity() {
 
     private lateinit var recyclerView: RecyclerView
@@ -194,18 +194,21 @@ class NativeAppWaterfallActivity : AppCompatActivity() {
             240f, 170f, 230f, 190f, 210f
         )
 
-        for (i in 0 until 20) {
+        // 循环扩充到 200 条，确保 RecyclerView 必须回收复用 ViewHolder
+        val totalCount = 200
+        for (i in 0 until totalCount) {
+            val idx = i % 20
             cardList.add(
                 AppCardData(
-                    imageUrl = imageUrls[i],
-                    imageHeight = imageHeights[i],
-                    title = titles[i],
-                    nickname = nicknames[i],
-                    avatarUrl = avatarUrls[i],
-                    likeCount = likeNums[i],
-                    tag = tags[i],
+                    imageUrl = imageUrls[idx],
+                    imageHeight = imageHeights[idx],
+                    title = titles[idx],
+                    nickname = nicknames[idx],
+                    avatarUrl = avatarUrls[idx],
+                    likeCount = likeNums[idx],
+                    tag = tags[idx],
                     colorIndex = i,
-                    desc = descs[i]
+                    desc = descs[idx]
                 )
             )
         }

@@ -201,10 +201,10 @@ function buildMockCardList(): AppCardData[] {
 
   // 参差不齐的图片高度（vp），确保瀑布流效果
   const imageHeights: number[] = [
-    180, 220, 160, 240, 200,
-    250, 170, 210, 190, 230,
-    260, 150, 200, 220, 180,
-    240, 170, 230, 190, 210
+    180, 230, 280, 180, 230,
+    280, 180, 180, 230, 280,
+    180, 280, 230, 180, 180,
+    230, 180, 280, 180, 280
   ];
 
   const cards: AppCardData[] = [];
@@ -222,6 +222,15 @@ function buildMockCardList(): AppCardData[] {
     });
   }
   return cards;
+}
+
+function selectReuseID(height: number) : string {
+  if (height == 180) {
+    return "small_card"
+  } else if (height == 230) {
+    return "medium_card"
+  }
+  return "huge_card"
 }
 
 // endregion
@@ -270,6 +279,7 @@ struct NativeAppWaterfall {
               card: card,
               index: index
             })
+              .reuseId(selectReuseID(card.imageHeight))
           }
           // 关键：FlowItem 必须明确设置 width 和 height，否则瀑布流布局无法计算
           .width('100%')
@@ -286,7 +296,7 @@ struct NativeAppWaterfall {
       .width('100%')
       .layoutWeight(1)
       .backgroundColor('#F5F5F5')
-      .cachedCount(6)
+      .cachedCount(0)      // 少预加载的范围，增大触发复用的范围
     }
     .width('100%')
     .height('100%')
@@ -294,13 +304,20 @@ struct NativeAppWaterfall {
 }
 
 // region 瀑布流卡片组件
-
+@Reusable
 @Component
 struct AppKuiklyCard {
-  @Prop card: AppCardData;
-  @Prop index: number;
+  @State card: AppCardData = {} as AppCardData;
+  @State index: number = 0;
   private delegate = new KuiklyViewDelegate();
   private kuiklyController: KRNativeRenderController | null = null;
+
+
+  aboutToReuse(params: Record<string, Object>): void {
+    this.card = params['card'] as AppCardData;
+    this.index = params['index'] as number;
+    this.kuiklyController?.sendEvent("CardDataWillChanged", {"data":this.card})
+  }
 
   build() {
     // 卡片总高度 = 封面图高度 + 额外区域（标签行+标题+描述+底部栏+内间距 ≈ 132vp）

@@ -20,6 +20,9 @@ import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ColorStop
 import com.tencent.kuikly.core.base.Direction
 import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.log.KLog
+import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
+import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.Image
 import com.tencent.kuikly.core.views.Text
 import com.tencent.kuikly.core.views.View
@@ -56,23 +59,37 @@ internal class AppCardPage : BasePager() {
         Pair(Color(0xFF5ee7df), Color(0xFFb490ca)),  // 青紫
     )
 
+    var imageUrl by observable("")
+    var imageHeight by observable(0f)
+    var title by observable("")
+    var nickname by observable("")
+    var avatarUrl by observable("")
+    var likeCount by observable(0)
+    var tag by observable("")
+    var colorIndex by observable(0)
+    var desc by observable("")
+    var gradient by observable(Pair(Color.WHITE, Color.WHITE))
+
+    override fun created() {
+        parseData(pageData.params)
+    }
+
+    override fun onReceivePagerEvent(pagerEvent: String, eventData: JSONObject) {
+        super.onReceivePagerEvent(pagerEvent, eventData)
+
+        when(pagerEvent) {
+            "CardDataWillChanged" -> {
+                KLog.i("[aboutToReuse]", eventData.toString())
+                val params = eventData.optJSONObject("data") ?: JSONObject()
+                parseData(params)
+            }
+        }
+    }
+
     override fun body(): ViewBuilder {
-        val params = pagerData.params
-        val imageUrl = params.optString("imageUrl", "")
-        val imageHeight = params.optDouble("imageHeight", 200.0).toFloat()
-        val title = params.optString("title", "")
-        val nickname = params.optString("nickname", "")
-        val avatarUrl = params.optString("avatarUrl", "")
-        val likeCount = params.optInt("likeCount", 0)
-        val tag = params.optString("tag", "")
-
-        val colorIndex = params.optInt("colorIndex", 0)
-        val desc = params.optString("desc", "")
         val ctx = this
-
-        val gradient = gradientPairs[colorIndex % gradientPairs.size]
-
         return {
+            KLog.i("[body]", "AppCardPage")
             attr {
                 backgroundColor(Color.WHITE)
                 borderRadius(8f)
@@ -82,33 +99,31 @@ internal class AppCardPage : BasePager() {
             View {
                 attr {
                     width(pagerData.pageViewWidth)
-                    height(imageHeight)
+                    height(ctx.imageHeight)
                     backgroundLinearGradient(
                         Direction.TO_BOTTOM_RIGHT,
-                        ColorStop(gradient.first, 0f),
-                        ColorStop(gradient.second, 1f)
+                        ColorStop(ctx.gradient.first, 0f),
+                        ColorStop(ctx.gradient.second, 1f)
                     )
                     allCenter()
                     borderRadius(8f, 8f, 0f, 0f)
                 }
 
                 // 封面图片（叠加在渐变背景上，如果图片加载成功则覆盖渐变色）
-                if (imageUrl.isNotEmpty()) {
+                if (ctx.imageUrl.isNotEmpty()) {
                     Image {
                         attr {
                             absolutePositionAllZero()
                             resizeCover()
                             borderRadius(8f, 8f, 0f, 0f)
-                            src(imageUrl)
+                            src(ctx.imageUrl)
                         }
                     }
                 }
-
-
             }
 
             // 标签
-            if (tag.isNotEmpty()) {
+            if (ctx.tag.isNotEmpty()) {
                 View {
                     attr {
                         flexDirectionRow()
@@ -131,7 +146,7 @@ internal class AppCardPage : BasePager() {
                             attr {
                                 fontSize(10f)
                                 color(Color(0xFFFF6B6B))
-                                text(tag)
+                                text(ctx.tag)
                             }
                         }
                     }
@@ -141,19 +156,19 @@ internal class AppCardPage : BasePager() {
             // 标题
             Text {
                 attr {
-                    marginTop(if (tag.isNotEmpty()) 6f else 8f)
+                    marginTop(if (ctx.tag.isNotEmpty()) 6f else 8f)
                     marginLeft(8f)
                     marginRight(8f)
                     fontSize(14f)
                     fontWeightBold()
                     color(Color(0xFF333333))
                     lines(2)
-                    text(title)
+                    text(ctx.title)
                 }
             }
 
             // 描述（如果有）
-            if (desc.isNotEmpty()) {
+            if (ctx.desc.isNotEmpty()) {
                 Text {
                     attr {
                         marginTop(4f)
@@ -162,7 +177,7 @@ internal class AppCardPage : BasePager() {
                         fontSize(11f)
                         color(Color(0xFF999999))
                         lines(2)
-                        text(desc)
+                        text(ctx.desc)
                     }
                 }
             }
@@ -185,20 +200,20 @@ internal class AppCardPage : BasePager() {
                         borderRadius(10f)
                         backgroundLinearGradient(
                             Direction.TO_BOTTOM_RIGHT,
-                            ColorStop(gradient.first, 0f),
-                            ColorStop(gradient.second, 1f)
+                            ColorStop(ctx.gradient.first, 0f),
+                            ColorStop(ctx.gradient.second, 1f)
                         )
                         allCenter()
                     }
 
                     // 头像图片
-                    if (avatarUrl.isNotEmpty()) {
+                    if (ctx.avatarUrl.isNotEmpty()) {
                         Image {
                             attr {
                                 absolutePositionAllZero()
                                 borderRadius(10f)
                                 resizeCover()
-                                src(avatarUrl)
+                                src(ctx.avatarUrl)
                             }
                         }
                     }
@@ -209,7 +224,7 @@ internal class AppCardPage : BasePager() {
                             fontSize(10f)
                             color(Color.WHITE)
                             fontWeightBold()
-                            text(if (nickname.isNotEmpty()) nickname.substring(0, 1) else "U")
+                            text(if (ctx.nickname.isNotEmpty()) ctx.nickname.substring(0, 1) else "U")
                         }
                     }
                 }
@@ -221,7 +236,7 @@ internal class AppCardPage : BasePager() {
                         marginLeft(4f)
                         fontSize(11f)
                         color(Color(0xFF999999))
-                        text(nickname)
+                        text(ctx.nickname)
                     }
                 }
 
@@ -240,7 +255,7 @@ internal class AppCardPage : BasePager() {
                         marginLeft(2f)
                         fontSize(11f)
                         color(Color(0xFF999999))
-                        text(ctx.formatCount(likeCount))
+                        text(ctx.formatCount(ctx.likeCount))
                     }
                 }
             }
@@ -253,5 +268,18 @@ internal class AppCardPage : BasePager() {
             count >= 1000 -> "${count / 1000}.${(count % 1000) / 100}k"
             else -> "$count"
         }
+    }
+
+    private fun parseData(data: JSONObject) {
+        imageUrl = data.optString("imageUrl", "")
+        imageHeight = data.optDouble("imageHeight", 200.0).toFloat()
+        title = data.optString("title", "")
+        nickname = data.optString("nickname", "")
+        avatarUrl = data.optString("avatarUrl", "")
+        likeCount = data.optInt("likeCount", 0)
+        tag = data.optString("tag", "")
+        colorIndex = data.optInt("colorIndex", 0)
+        desc = data.optString("desc", "")
+        gradient = gradientPairs[colorIndex % gradientPairs.size]
     }
 }

@@ -157,27 +157,15 @@ static CGFloat const kSearchBarHeight = 50.0;
 
 - (void)prepareForReuse {
     [super prepareForReuse];
-    // 移除并销毁旧的 KuiklyBaseView
-    if (_kuiklyView) {
-        [_kuiklyView viewDidDisappear];
-        [_kuiklyView removeFromSuperview];
-        _kuiklyView = nil;
-    }
+    // 注意：不要在这里销毁 KuiklyBaseView！
+    // Cell 复用时应该保留 KuiklyBaseView，只更新数据
+    // 销毁操作改为在 dealloc 中进行
 }
 
 - (void)configureWithCard:(AppCardModel *)card cellSize:(CGSize)cellSize {
     _cardModel = card;
     
-    // 移除旧 view
-    if (_kuiklyView) {
-        [_kuiklyView viewDidDisappear];
-        [_kuiklyView removeFromSuperview];
-        _kuiklyView = nil;
-    }
-    
     // 构造传给 @Page 的 pageData
-    // 注意：KuiklyRenderView 内部会自动将整个 pageData 放入 coreParams[@"param"] 中
-    // 所以这里直接传字段即可，不需要再包裹 @"param" key，否则 Kotlin 侧会变成 param.param.xxx 双层嵌套
     NSDictionary *pageData = @{
         @"imageUrl": card.imageUrl ?: @"",
         @"imageHeight": @(card.imageHeight),
@@ -190,27 +178,35 @@ static CGFloat const kSearchBarHeight = 50.0;
         @"desc": card.desc ?: @""
     };
     
-    // 创建 KuiklyBaseView，加载 @Page("AppCardPage")
-    _kuiklyView = [[KuiklyBaseView alloc] initWithFrame:CGRectMake(0, 0, cellSize.width, cellSize.height)
-                                               pageName:@"AppCardPage"
-                                               pageData:pageData
-                                               delegate:self
-                                          frameworkName:@"shared"];
-    _kuiklyView.layer.cornerRadius = 8.0;
-    _kuiklyView.clipsToBounds = YES;
-    [self.contentView addSubview:_kuiklyView];
-    
-    // 给 cell 添加阴影效果
-    self.contentView.layer.cornerRadius = 8.0;
-    self.layer.shadowColor = [UIColor blackColor].CGColor;
-    self.layer.shadowOffset = CGSizeMake(0, 1);
-    self.layer.shadowRadius = 3.0;
-    self.layer.shadowOpacity = 0.1;
-    self.layer.masksToBounds = NO;
-    
-    // 触发生命周期
-    [_kuiklyView viewWillAppear];
-    [_kuiklyView viewDidAppear];
+    if (!_kuiklyView) {
+        // 首次创建：初始化 KuiklyBaseView
+        _kuiklyView = [[KuiklyBaseView alloc] initWithFrame:CGRectMake(0, 0, cellSize.width, cellSize.height)
+                                                   pageName:@"AppCardPage"
+                                                   pageData:pageData
+                                                   delegate:self
+                                              frameworkName:@"shared"];
+        _kuiklyView.layer.cornerRadius = 8.0;
+        _kuiklyView.clipsToBounds = YES;
+        [self.contentView addSubview:_kuiklyView];
+        
+        // 给 cell 添加阴影效果
+        self.contentView.layer.cornerRadius = 8.0;
+        self.layer.shadowColor = [UIColor blackColor].CGColor;
+        self.layer.shadowOffset = CGSizeMake(0, 1);
+        self.layer.shadowRadius = 3.0;
+        self.layer.shadowOpacity = 0.1;
+        self.layer.masksToBounds = NO;
+        
+        // 触发生命周期
+        [_kuiklyView viewWillAppear];
+        [_kuiklyView viewDidAppear];
+    } else {
+        // Cell 复用：只更新数据，不销毁重建
+        // 更新 frame（如果高度变化了）
+        _kuiklyView.frame = CGRectMake(0, 0, cellSize.width, cellSize.height);
+        // 发送事件通知 KuiklyDSL 层更新数据
+        [_kuiklyView sendWithEvent:@"CardDataWillChanged" data:@{@"data": pageData}];
+    }
 }
 
 #pragma mark - KuiklyViewBaseDelegate
@@ -301,7 +297,7 @@ static CGFloat const kSearchBarHeight = 50.0;
     
     NSArray *descs = @[
         @"一杯咖啡，一本书，一段静谧的时光。生活不需要太多的喧嚣，简单才是最真实的幸福。",
-        @"我们这代人最擅长的，就是把"我想你"翻译成"你看月亮了吗"。",
+        @"我们这代人最擅长的，就是把\"我想你\"翻译成\"你看月亮了吗\"。",
         @"分享今日打卡的冷门咖啡馆，空调超足人还少！",
         @"A17 芯片性能提升显著，摄像头系统也进行了全面升级。",
         @"星空太震撼了！周末去哪玩看这里。",
@@ -311,8 +307,8 @@ static CGFloat const kSearchBarHeight = 50.0;
         @"一碗浇了8只蟹的膏黄！碳水爱好者天堂。",
         @"乌尔善的选角眼光太毒了！强烈推荐。",
         @"当北方人第一次见到会飞的蟑螂时的反应...南北差异太大了。",
-        @"领导说"年轻人要多学习"的真实意思：下班后免费加班三小时。",
-        @"建议把标语换成"电动车进电梯会爆炸"，恐惧比道德更有效。",
+        @"领导说\"年轻人要多学习\"的真实意思：下班后免费加班三小时。",
+        @"建议把标语换成\"电动车进电梯会爆炸\"，恐惧比道德更有效。",
         @"他们家的牛肉面汤底浓郁，牛肉软烂入味，简直是人间美味！",
         @"使用三脚架和慢快门可以有效减少噪点，拍出清晰明亮的照片。",
         @"据悉，某一线明星将在新剧中挑战反派角色，造型颠覆以往形象。",

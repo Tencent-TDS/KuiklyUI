@@ -264,45 +264,60 @@ class NativeAppWaterfallActivity : AppCompatActivity() {
         private var kuiklyView: KuiklyBaseView? = null
 
         fun bind(card: AppCardData) {
-            // 销毁旧的 KuiklyBaseView
-            kuiklyView?.let {
-                it.onDetach()
-                activeKuiklyViews.remove(it)
-                container.removeView(it)
-            }
-
             // 卡片总高度 = 封面图高度 + 额外区域（标签行+标题+描述+底部栏+内间距 ≈ 132dp）
             val totalHeightDp = card.imageHeight + 132f
             val totalHeightPx = dp2px(totalHeightDp)
 
-            // 创建新的 KuiklyBaseView
-            val newKuiklyView = KuiklyBaseView(container.context).apply {
-                layoutParams = FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    totalHeightPx
+            if (kuiklyView == null) {
+                // 首次创建：初始化 KuiklyBaseView
+                val newKuiklyView = KuiklyBaseView(container.context).apply {
+                    layoutParams = FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        totalHeightPx
+                    )
+                }
+
+                // 构造 pageData
+                val pageData = mapOf<String, Any>(
+                    "imageUrl" to card.imageUrl,
+                    "imageHeight" to card.imageHeight.toDouble(),
+                    "title" to card.title,
+                    "nickname" to card.nickname,
+                    "avatarUrl" to card.avatarUrl,
+                    "likeCount" to card.likeCount,
+                    "tag" to card.tag,
+                    "colorIndex" to card.colorIndex,
+                    "desc" to card.desc
                 )
+
+                // 加载 Kuikly 页面
+                newKuiklyView.onAttach("", "AppCardPage", pageData)
+
+                container.addView(newKuiklyView)
+                kuiklyView = newKuiklyView
+                activeKuiklyViews.add(newKuiklyView)
+            } else {
+                // Cell 复用：只更新数据，不销毁重建
+                kuiklyView?.let { view ->
+                    // 更新高度（如果高度变化了）
+                    view.layoutParams = FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        totalHeightPx
+                    )
+                    // 发送事件通知 KuiklyDSL 层更新数据
+                    view.sendEvent("CardDataWillChanged", mapOf("data" to mapOf<String, Any>(
+                        "imageUrl" to card.imageUrl,
+                        "imageHeight" to card.imageHeight.toDouble(),
+                        "title" to card.title,
+                        "nickname" to card.nickname,
+                        "avatarUrl" to card.avatarUrl,
+                        "likeCount" to card.likeCount,
+                        "tag" to card.tag,
+                        "colorIndex" to card.colorIndex,
+                        "desc" to card.desc
+                    )))
+                }
             }
-
-            // 构造 pageData（扁平 Map，不需要额外包裹 "param" key，
-            // 因为 KuiklyRenderView 内部会自动将 pageData 放入 param key 下）
-            val pageData = mapOf<String, Any>(
-                "imageUrl" to card.imageUrl,
-                "imageHeight" to card.imageHeight.toDouble(),
-                "title" to card.title,
-                "nickname" to card.nickname,
-                "avatarUrl" to card.avatarUrl,
-                "likeCount" to card.likeCount,
-                "tag" to card.tag,
-                "colorIndex" to card.colorIndex,
-                "desc" to card.desc
-            )
-
-            // 加载 Kuikly 页面
-            newKuiklyView.onAttach("", "AppCardPage", pageData)
-
-            container.addView(newKuiklyView)
-            kuiklyView = newKuiklyView
-            activeKuiklyViews.add(newKuiklyView)
         }
     }
 

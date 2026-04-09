@@ -354,7 +354,6 @@ open class ComposeContainer :
      * 注册扩展module接口，（注：注册时机为override ComponentActivity.createExternalModules中统一注册）
      */
     override fun createExternalModules(): Map<String, Module>? {
-        // FileModule 注册到所有 ComposeContainer 页面，无需业务方手动注册
-        return mapOf(FileModule.MODULE_NAME to FileModule())
+        return null
     }
 }

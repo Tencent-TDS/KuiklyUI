@@ -89,11 +89,9 @@ DataPreferences::DataPreferences(const std::string &filesDir, const std::string 
     }
 }
 
-std::shared_ptr<util::DataPreferences> DataPreferences::GetInstance(const std::string &filesDir, const std::string &filesName) {
-    static std::once_flag flag;
-    static std::shared_ptr<util::DataPreferences> preference;
-    std::call_once(flag, [&]() { preference = std::make_shared<util::DataPreferences>(filesDir, filesName); });
-    return preference;
+DataPreferences& DataPreferences::GetInstance(const std::string &filesDir, const std::string &filesName) {
+    static DataPreferences instance(filesDir, filesName);
+    return instance;
 }
 
 void DataPreferences::SetSync(const std::string &key, const std::string &value) {

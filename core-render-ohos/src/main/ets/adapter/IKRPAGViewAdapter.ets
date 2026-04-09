@@ -27,6 +27,8 @@ export interface IKRPAGViewController {
   play(): void;
 
   stop(): void;
+
+  setProgress(value: number): void;
 }
 
 export interface IKRPAGViewListener {

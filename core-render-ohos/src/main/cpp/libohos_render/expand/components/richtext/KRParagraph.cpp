@@ -185,6 +185,12 @@ std::tuple<float, float, OH_Drawing_Typography *> KRParagraph::Measure(ArkUI_Sty
                                                                        float max_width_pt, float max_height_pt) {
     if (styled_string) {
         auto typo = OH_ArkUI_StyledString_CreateTypography(styled_string);
+        // headIndent: 首行缩进（第一个元素为首行缩进，第二个元素为0表示后续行不缩进）
+        auto headIndent = GetKTValue("headIndent", props_, props_)->toFloat();
+        if (headIndent > 0) {
+            float indents[] = {static_cast<float>(headIndent * density_), 0.0f};
+            OH_Drawing_TypographySetIndents(typo, 2, indents);
+        }
         OH_Drawing_TypographyLayout(typo, max_width_pt * density_);
         float paragraph_height = OH_Drawing_TypographyGetHeight(typo) / density_;
         double maxWidth = max_width_pt * density_;

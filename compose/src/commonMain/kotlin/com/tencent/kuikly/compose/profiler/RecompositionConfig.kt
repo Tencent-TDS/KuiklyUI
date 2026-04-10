@@ -21,7 +21,7 @@ package com.tencent.kuikly.compose.profiler
  *
  * @property sampleRate 采样率，取值 0.0f ~ 1.0f。1.0f 表示全量采集，0.5f 表示约 50% 的帧被记录。默认 1.0f。
  * @property hotspotThreshold 热点组件阈值：每秒重组次数超过此值的 Composable 将被标记为热点。默认 10。
- * @property maxEventBufferSize 事件缓冲区最大容量，取值范围 1～1,000,000。超过此数量时将丢弃最旧的事件。默认 10000。
+ * @property maxEventBufferSize 事件缓冲区最大容量，取值范围 1～10,000,000。超过此数量时将丢弃最旧的事件。默认 100000。
  * @property enableStateTracking 是否启用 State 变更追踪。关闭可降低追踪开销。默认 true。
  * @property includeFrameworkComposables 是否包含框架内部 Composable（如 Row/Column measure policy、Runtime 内部函数等）。
  *   默认 false，只监控业务代码的 Composable。设为 true 可查看所有 Composable 的重组情况。
@@ -35,7 +35,7 @@ package com.tencent.kuikly.compose.profiler
 data class RecompositionConfig(
     val sampleRate: Float = 1.0f,
     val hotspotThreshold: Int = 10,
-    val maxEventBufferSize: Int = 10000,
+    val maxEventBufferSize: Int = 100_000,
     val enableStateTracking: Boolean = true,
     val includeFrameworkComposables: Boolean = false,
     val enableOverlay: Boolean = false,
@@ -50,8 +50,8 @@ data class RecompositionConfig(
         require(hotspotThreshold > 0) {
             "hotspotThreshold must be positive, got $hotspotThreshold"
         }
-        require(maxEventBufferSize in 1..1_000_000) {
-            "maxEventBufferSize must be between 1 and 1_000_000, got $maxEventBufferSize"
+        require(maxEventBufferSize in 1..10_000_000) {
+            "maxEventBufferSize must be between 1 and 10_000_000, got $maxEventBufferSize"
         }
         require(overlayTopCount in 1..20) {
             "overlayTopCount must be between 1 and 20, got $overlayTopCount"

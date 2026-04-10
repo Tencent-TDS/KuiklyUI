@@ -57,8 +57,11 @@ internal class RecompositionTracker {
     /** 事件缓冲区，使用 ArrayDeque 保证 removeFirst() 为 O(1) */
     private val events = ArrayDeque<RecompositionEvent>()
 
-    /** 帧计数器 */
+    /** 帧计数器（包含虚拟帧，仅用作 frameId） */
     private var frameCounter: Long = 0L
+
+    /** 实际有重组事件并被 flush 的帧计数（用于 Report.totalFrames） */
+    private var flushedFrameCounter: Long = 0L
 
     /** 当前帧是否被采样 */
     private var currentFrameSampled: Boolean = true
@@ -207,6 +210,7 @@ internal class RecompositionTracker {
         this.startTimestampMs = DateTime.currentTimestamp()
         this.sessionId = "rcp-${startTimestampMs}-${Random.nextInt(10000)}"
         this.frameCounter = 0L
+        this.flushedFrameCounter = 0L
         events.clear()
         currentFrameStateChanges.clear()
         stateChangeAccumulator.clear()
@@ -233,6 +237,7 @@ internal class RecompositionTracker {
     fun reset() {
         events.clear()
         frameCounter = 0L
+        flushedFrameCounter = 0L
         currentFrameStateChanges.clear()
         stateChangeCache.clear()
         stateChangeAccumulator.clear()
@@ -481,7 +486,7 @@ internal class RecompositionTracker {
             sessionId = sessionId,
             startTimestampMs = startTimestampMs,
             durationMs = durationMs,
-            totalFrames = frameCounter,
+            totalFrames = flushedFrameCounter,
             totalRecompositions = composableAccumulator.values.sumOf { it.count },
             composables = composableStatsList,
             hotspots = hotspots,
@@ -524,6 +529,7 @@ internal class RecompositionTracker {
         if (lastStartIndex < 0) return
         val frameEvents = events.subList(lastStartIndex, events.size).toList()
         if (frameEvents.any { it is ComposableRecomposedEvent }) {
+            flushedFrameCounter++
             for (strategy in outputStrategies) {
                 strategy.onFrameComplete(frameEvents)
             }

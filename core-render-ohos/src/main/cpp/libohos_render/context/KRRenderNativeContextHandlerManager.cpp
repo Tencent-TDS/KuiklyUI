@@ -16,7 +16,6 @@
 #include "libohos_render/context/KRRenderNativeContextHandlerManager.h"
 
 #include "libohos_render/context/DefaultRenderNativeContextHandler.h"
-#include "libohos_render/manager/KRRenderManager.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"
 
 extern CallKotlin callKotlin_;
@@ -82,25 +81,36 @@ void KRRenderNativeContextHandlerManager::ScheduleDeallocRenderValues(
     }
 }
 
+static inline std::shared_ptr<KRRenderValue> MakeFromCValue(const KRRenderCValue &cValue) {
+    if (cValue.type == KRRenderCValue::NULL_VALUE) {
+        return KRRenderValue::MakeNull();  // 复用静态单例，避免堆分配
+    }
+    return KRRenderValue::Make(cValue);
+}
+
 KRRenderCValue KRRenderNativeContextHandlerManager::DispatchCallNative(
     const std::string &instanceId, int methodId, const KRRenderCValue &arg0, const KRRenderCValue &arg1,
     const KRRenderCValue &arg2, const KRRenderCValue &arg3, const KRRenderCValue &arg4, const KRRenderCValue &arg5) {
     auto handler = context_handler_map_.Get(instanceId);
-    if (!handler || nullptr == KRRenderManager::GetInstance().GetRenderView(instanceId)) {
-        auto cv = KRRenderCValue();
-        cv.type = KRRenderCValue::NULL_VALUE;
-        return cv;
+    // 优化：移除冗余的 KRRenderManager::GetInstance().GetRenderView(instanceId) 检查
+    // context_handler_map_ 中存在 handler 就意味着实例有效（注册/注销是配对的），
+    // 额外的 GetRenderView 每次都要获取 SpinLock + unordered_map 查找，纯属浪费。
+    if (!handler) {
+        KRRenderCValue null_cv;
+        null_cv.type = KRRenderCValue::NULL_VALUE;
+        return null_cv;
     }
-    auto cv0 = KRRenderValue::Make(arg0);
-    auto cv1 = KRRenderValue::Make(arg1);
-    auto cv2 = KRRenderValue::Make(arg2);
-    auto cv3 = KRRenderValue::Make(arg3);
-    auto cv4 = KRRenderValue::Make(arg4);
-    auto cv5 = KRRenderValue::Make(arg5);
+    // 优化：cv0(instanceId) 在 OnCallNative 中不被使用，直接传 null 单例避免 string 构造
+    auto cv0 = KRRenderValue::MakeNull();
+    auto cv1 = MakeFromCValue(arg1);
+    auto cv2 = MakeFromCValue(arg2);
+    auto cv3 = MakeFromCValue(arg3);
+    auto cv4 = MakeFromCValue(arg4);
+    auto cv5 = MakeFromCValue(arg5);
 
     auto return_value =
         handler->OnCallNative(static_cast<KuiklyRenderNativeMethod>(methodId), cv0, cv1, cv2, cv3, cv4, cv5);
-    if (return_value == nullptr) {
+    if (return_value == nullptr || return_value->isNull()) {
         KRRenderCValue null_return_value;
         null_return_value.type = KRRenderCValue::NULL_VALUE;
         return null_return_value;

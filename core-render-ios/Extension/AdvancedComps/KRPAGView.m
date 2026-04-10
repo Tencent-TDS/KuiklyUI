@@ -51,6 +51,7 @@ NSString *const KRPagAssetsPrefix = @"assets://";
 
 @implementation KRPAGView {
     BOOL _didSetFilePath;
+    BOOL _isPlaying;
 }
 
 
@@ -210,11 +211,13 @@ static PAGViewCreator gPagViewCreator;
 
 - (void)css_play:(NSDictionary *)args  {
     _css_autoPlay = @(YES);
+    _isPlaying = YES;
     [self.pagView play];
 }
 
 - (void)css_stop:(NSDictionary *)args  {
     _css_autoPlay = @(NO);
+    _isPlaying = NO;
     [self.pagView stop];
 }
 
@@ -239,6 +242,7 @@ static PAGViewCreator gPagViewCreator;
  * Notifies the start of the animation.
  */
 - (void)onAnimationStart:(PAGView*)pagView {
+    _isPlaying = YES;
     if (self.css_animationStart) {
         self.css_animationStart(@{});
     }
@@ -248,6 +252,7 @@ static PAGViewCreator gPagViewCreator;
  * Notifies the end of the animation.
  */
 - (void)onAnimationEnd:(PAGView*)pagView {
+    _isPlaying = NO;
     if (self.css_animationEnd) {
         self.css_animationEnd(@{});
     }
@@ -257,6 +262,7 @@ static PAGViewCreator gPagViewCreator;
  * Notifies the cancellation of the animation.
  */
 - (void)onAnimationCancel:(PAGView *)pagView {
+    _isPlaying = NO;
     if (self.css_animationCancel) {
         self.css_animationCancel(@{});
     }
@@ -266,6 +272,7 @@ static PAGViewCreator gPagViewCreator;
  * Notifies the repetition of the animation.
  */
 - (void)onAnimationRepeat:(PAGView*)pagView {
+    _isPlaying = YES;
     if (self.css_animationRepeat) {
         self.css_animationRepeat(@{});
     }
@@ -282,7 +289,8 @@ static PAGViewCreator gPagViewCreator;
 #pragma mark - private
 
 - (void)p_tryToAutoPlay {
-    if ([_css_autoPlay boolValue] && _didSetFilePath) {
+    if ([_css_autoPlay boolValue] && _didSetFilePath && !_isPlaying) {
+        _isPlaying = YES;
         [self.pagView play];
     }
 }
@@ -323,6 +331,7 @@ static PAGViewCreator gPagViewCreator;
 - (void)p_setWithFilePath:(NSString *)filePath {
     [_pagView setPath:filePath];
     _didSetFilePath = YES;
+    _isPlaying = NO;  // 加载新文件后重置播放状态
 }
 
 - (void)p_tryToReplaceText:(NSString *)text inLayerWithName:(NSString *)layerName {
@@ -385,9 +394,10 @@ static PAGViewCreator gPagViewCreator;
     }
     
     id<IPAGFileProtocol> pagFile = (id<IPAGFileProtocol>)pagComposition;
+    int numTexts = [pagFile numTexts];
     
-    if (editableIndex < 0 || editableIndex >= [pagFile numTexts]) {
-        [KRLogModule logError:[NSString stringWithFormat:@"按 index=%d 替换文字失败，index 超出范围 [0, %d)", editableIndex, [pagFile numTexts]]];
+    if (editableIndex < 0 || editableIndex >= numTexts) {
+        [KRLogModule logError:[NSString stringWithFormat:@"按 index=%d 替换文字失败，index 超出范围 [0, %d)", editableIndex, numTexts]];
         return;
     }
     
@@ -414,9 +424,10 @@ static PAGViewCreator gPagViewCreator;
     }
     
     id<IPAGFileProtocol> pagFile = (id<IPAGFileProtocol>)pagComposition;
+    int numImages = [pagFile numImages];
     
-    if (editableIndex < 0 || editableIndex >= [pagFile numImages]) {
-        [KRLogModule logError:[NSString stringWithFormat:@"按 index=%d 替换图片失败，index 超出范围 [0, %d)", editableIndex, [pagFile numImages]]];
+    if (editableIndex < 0 || editableIndex >= numImages) {
+        [KRLogModule logError:[NSString stringWithFormat:@"按 index=%d 替换图片失败，index 超出范围 [0, %d)", editableIndex, numImages]];
         return;
     }
     

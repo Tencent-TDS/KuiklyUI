@@ -31,21 +31,25 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
   }
 
   onAnimationStart = (viewController: IKRPAGViewController) => {
+    this.isPlaying = true;
     if (this.animationStartEvent) {
       this.animationStartEvent('{}');
     }
   };
   onAnimationEnd = (viewController: IKRPAGViewController) => {
+    this.isPlaying = false;
     if (this.animationEndEvent) {
       this.animationEndEvent('{}');
     }
   };
   onAnimationRepeat = (viewController: IKRPAGViewController) => {
+    this.isPlaying = true;
     if (this.animationRepeatEvent) {
       this.animationRepeatEvent('{}');
     }
   };
   onAnimationCancel = (viewController: IKRPAGViewController) => {
+    this.isPlaying = false;
     if (this.animationCancelEvent) {
       this.animationCancelEvent('{}');
     }
@@ -63,6 +67,7 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
   repeatCount = 0;
   private hadSrcSet: boolean = false;
   private hadStop: boolean = false;
+  private isPlaying: boolean = false;
   controller: IKRPAGViewController | undefined;
   static readonly VIEW_NAME = 'KRPAGView';
   private static readonly PROP_SRC = 'src';
@@ -121,9 +126,11 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
     if (method == KRPAGView.PROP_METHOD_PLAY) {
       this.autoPlay = true;
       this.hadStop = false;
+      this.isPlaying = true;
       this.controller?.play();
     } else if (method == KRPAGView.PROP_METHOD_STOP) {
       this.autoPlay = false;
+      this.isPlaying = false;
       if (!this.hadStop) {
         this.hadStop = true;
         this.controller?.stop();
@@ -140,7 +147,8 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
   }
 
   private tryAutoPlay(): void {
-    if (this.autoPlay && this.hadSrcSet && !this.hadStop) {
+    if (this.autoPlay && this.hadSrcSet && !this.hadStop && !this.isPlaying) {
+      this.isPlaying = true;
       this.controller?.play();
     }
   }

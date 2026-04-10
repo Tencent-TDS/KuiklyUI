@@ -47,6 +47,7 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
     private var hadStop = false
     private var hadFilePath = false
     private var didLayout = false
+    private var isPlaying = false
 
     private var pagView = KuiklyRenderAdapterManager.krPagViewAdapter?.createPAGView(context)?.apply {
         addPAGViewListener(this@KRPAGView)
@@ -124,18 +125,22 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
     }
 
     override fun onAnimationStart(pagView: View) {
+        isPlaying = true
         animationStartCallback?.invoke(mapOf<String, Any>())
     }
 
     override fun onAnimationEnd(pagView: View) {
+        isPlaying = false
         animationEndCallback?.invoke(mapOf<String, Any>())
     }
 
     override fun onAnimationCancel(pagView: View) {
+        isPlaying = false
         animationCancelCallback?.invoke(mapOf<String, Any>())
     }
 
     override fun onAnimationRepeat(pagView: View) {
+        isPlaying = true
         animationRepeatCallback?.invoke(mapOf<String, Any>())
     }
 
@@ -184,11 +189,13 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
     private fun play(params: String?) {
         this.autoPlay = true
         hadStop = false
+        isPlaying = true
         pagView?.playPAGView()
     }
 
     private fun stop(params: String?) {
         this.autoPlay = false
+        isPlaying = false
         if (!hadStop) {
             hadStop = true
             pagView?.stopPAGView()

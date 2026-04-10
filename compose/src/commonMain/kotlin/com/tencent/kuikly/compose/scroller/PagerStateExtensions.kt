@@ -37,11 +37,11 @@ import kotlin.math.min
 internal fun PagerState.kuiklyWillDragEnd(params: WillEndDragParams, orientation: Orientation) {
     val effectivePageSizePx = pageSize + pageSpacing
     if (effectivePageSizePx == 0) return
-    
+
     val velocity = if (orientation == Orientation.Horizontal) -params.velocityX else -params.velocityY
     val startPage = if (velocity < 0) firstVisiblePage + 1 else firstVisiblePage
     val targetPage = startPage.coerceIn(0, pageCount)
-    
+
     val correctedTargetPage = calculateTargetPage(startPage, targetPage, velocity)
     handleTargetPageScroll(correctedTargetPage, params, orientation)
 }

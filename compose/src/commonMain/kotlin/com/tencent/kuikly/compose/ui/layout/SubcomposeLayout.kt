@@ -74,6 +74,7 @@ import com.tencent.kuikly.compose.layout.restoreScrollerViewOnReuse
 import com.tencent.kuikly.compose.layout.transferScrollToTopCallback
 import com.tencent.kuikly.compose.scroller.handleScrollToTopCallback
 import com.tencent.kuikly.compose.scroller.isAtTop
+import com.tencent.kuikly.compose.scroller.lastItemVisible
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.kuiklyOnScroll
 import com.tencent.kuikly.compose.scroller.kuiklyOnScrollEnd
@@ -263,7 +264,7 @@ fun SubcomposeLayout(
                     val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
                     // 实现分页滑动
                     val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
-                    if ((offset < 0 && scrollableState.isAtTop()) || offset > (kuiklyInfo.currentContentSize - viewportSize)) {
+                    if ((offset <= 0 && scrollableState.isAtTop()) || (offset >= (kuiklyInfo.currentContentSize - viewportSize) && scrollableState.lastItemVisible())) {
                         return@willDragEndBySync
                     }
                     scrollableState.kuiklyWillDragEnd(scaleParams, orientation)

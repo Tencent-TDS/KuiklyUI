@@ -37,6 +37,8 @@ NSString *const KRPagAssetsPrefix = @"assets://";
 @property (nonatomic, strong) NSNumber *css_scaleMode;
 @property (nonatomic, strong) NSString *css_replaceTextLayerContent;
 @property (nonatomic, strong) NSString *css_replaceImageLayerContent;
+@property (nonatomic, strong) NSString *css_replaceTextByIndex;
+@property (nonatomic, strong) NSString *css_replaceImageByIndex;
 
 @property (nonatomic,strong) KuiklyRenderCallback css_loadFailure;
 @property (nonatomic,strong) KuiklyRenderCallback css_animationStart;
@@ -172,6 +174,36 @@ static PAGViewCreator gPagViewCreator;
     }
     
     [self p_tryToReplaceImageWithFilePath:filePath inLayerWithName:layerName];
+}
+
+- (void)setCss_replaceTextByIndex:(NSString *)css_replaceTextByIndex {
+    // 格式: "editableIndex,textContent"
+    NSRange firstCommaRange = [css_replaceTextByIndex rangeOfString:@","];
+    if (firstCommaRange.location == NSNotFound) {
+        return;
+    }
+    NSString *indexStr = [css_replaceTextByIndex substringToIndex:firstCommaRange.location];
+    NSString *textContent = [css_replaceTextByIndex substringFromIndex:firstCommaRange.location + 1];
+    int editableIndex = [indexStr intValue];
+    
+    [self p_tryToReplaceTextByIndex:editableIndex text:textContent];
+}
+
+- (void)setCss_replaceImageByIndex:(NSString *)css_replaceImageByIndex {
+    // 格式: "editableIndex,imageFilePath"
+    NSRange firstCommaRange = [css_replaceImageByIndex rangeOfString:@","];
+    if (firstCommaRange.location == NSNotFound) {
+        return;
+    }
+    NSString *indexStr = [css_replaceImageByIndex substringToIndex:firstCommaRange.location];
+    NSString *filePath = [css_replaceImageByIndex substringFromIndex:firstCommaRange.location + 1];
+    int editableIndex = [indexStr intValue];
+    
+    if ([filePath hasPrefix:KRPagAssetsPrefix]) {
+        filePath = [self p_getAssetPathWithCss_src:filePath];
+    }
+    
+    [self p_tryToReplaceImageByIndex:editableIndex filePath:filePath];
 }
 
 #pragma mark - css method
@@ -335,6 +367,66 @@ static PAGViewCreator gPagViewCreator;
         }
         [imageLayer setImage:pagImage];
     }
+}
+
+- (void)p_tryToReplaceTextByIndex:(int)editableIndex text:(NSString *)text {
+    id<IPAGCompositionProtocol> pagComposition = [self.pagView getComposition];
+    
+    if (!pagComposition) {
+        [KRLogModule logError:[NSString stringWithFormat:@"按 index=%d 替换文字失败，请检查该路径 %@ 的 PAG 素材", editableIndex, self.css_src]];
+        return;
+    }
+    
+    // PAGFile 继承自 PAGComposition，需要判断 composition 是否为 PAGFile 类型
+    Class pagFileClass = NSClassFromString(@"PAGFile");
+    if (!pagFileClass || ![pagComposition isKindOfClass:pagFileClass]) {
+        [KRLogModule logError:[NSString stringWithFormat:@"按 index=%d 替换文字失败，composition 不是 PAGFile 类型", editableIndex]];
+        return;
+    }
+    
+    id<IPAGFileProtocol> pagFile = (id<IPAGFileProtocol>)pagComposition;
+    
+    if (editableIndex < 0 || editableIndex >= [pagFile numTexts]) {
+        [KRLogModule logError:[NSString stringWithFormat:@"按 index=%d 替换文字失败，index 超出范围 [0, %d)", editableIndex, [pagFile numTexts]]];
+        return;
+    }
+    
+    // 获取原始 PAGText 对象，修改 text 属性后回填
+    id textData = [pagFile getTextData:editableIndex];
+    if (textData && [textData respondsToSelector:@selector(setText:)]) {
+        [textData performSelector:@selector(setText:) withObject:text];
+        [pagFile replaceText:editableIndex data:textData];
+    }
+}
+
+- (void)p_tryToReplaceImageByIndex:(int)editableIndex filePath:(NSString *)filePath {
+    id<IPAGCompositionProtocol> pagComposition = [self.pagView getComposition];
+    
+    if (!pagComposition) {
+        [KRLogModule logError:[NSString stringWithFormat:@"按 index=%d 替换图片失败，请检查该路径 %@ 的 PAG 素材", editableIndex, self.css_src]];
+        return;
+    }
+    
+    Class pagFileClass = NSClassFromString(@"PAGFile");
+    if (!pagFileClass || ![pagComposition isKindOfClass:pagFileClass]) {
+        [KRLogModule logError:[NSString stringWithFormat:@"按 index=%d 替换图片失败，composition 不是 PAGFile 类型", editableIndex]];
+        return;
+    }
+    
+    id<IPAGFileProtocol> pagFile = (id<IPAGFileProtocol>)pagComposition;
+    
+    if (editableIndex < 0 || editableIndex >= [pagFile numImages]) {
+        [KRLogModule logError:[NSString stringWithFormat:@"按 index=%d 替换图片失败，index 超出范围 [0, %d)", editableIndex, [pagFile numImages]]];
+        return;
+    }
+    
+    id<PAGImageProtocol> pagImage = [((id<PAGImageProtocol>)NSClassFromString(@"PAGImage")) FromPath:filePath];
+    if (!pagImage) {
+        [KRLogModule logError:[NSString stringWithFormat:@"按 index=%d 替换图片失败，请检查该路径 %@ 的图片素材是否存在", editableIndex, filePath]];
+        return;
+    }
+    
+    [pagFile replaceImage:editableIndex data:pagImage];
 }
 
 - (NSString *)p_getAssetPathWithCss_src:(NSString *)css_src {

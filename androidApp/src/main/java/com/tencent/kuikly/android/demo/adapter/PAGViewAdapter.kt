@@ -20,6 +20,7 @@ import android.view.View
 import com.tencent.kuikly.core.render.android.adapter.IKRPAGViewAdapter
 import com.tencent.kuikly.core.render.android.adapter.IPAGView
 import com.tencent.kuikly.core.render.android.adapter.IPAGViewListener
+import org.libpag.PAGFile
 import org.libpag.PAGImage
 import org.libpag.PAGImageLayer
 import org.libpag.PAGTextLayer
@@ -96,6 +97,24 @@ class KRPagView(context: Context) : PAGView(context), IPAGView {
                 it.setImage(image)
             }
         }
+    }
+
+    override fun replaceTextByIndex(editableIndex: Int, text: String) {
+        val pagFile = composition as? PAGFile ?: return
+        val textData = pagFile.getTextData(editableIndex) ?: return
+        textData.text = text
+        pagFile.replaceText(editableIndex, textData)
+    }
+
+    override fun replaceImageByIndex(editableIndex: Int, filePath: String) {
+        val pagFile = composition as? PAGFile ?: return
+        if (editableIndex < 0 || editableIndex >= pagFile.numImages()) return
+        val image = if (filePath.startsWith("assets://")) {
+            PAGImage.FromAssets(this.context.assets, filePath.substring(9))
+        } else {
+            PAGImage.FromPath(filePath)
+        }
+        pagFile.replaceImage(editableIndex, image)
     }
 
     override fun addPAGViewListener(listener: IPAGViewListener) {

@@ -18,6 +18,7 @@
 		AAEA1C808D295174487047AD /* libPods-iosApp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 389E5FAFF97F19DA513B54A5 /* libPods-iosApp.a */; };
 		AFEB55D22D9C17820014FCBD /* Satisfy-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = AFEB55D12D9C17820014FCBD /* Satisfy-Regular.ttf */; };
 		C125EBCC2D96FBE200FBFA34 /* KRAPNGViewHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = C125EBCA2D96FBE200FBFA34 /* KRAPNGViewHandler.m */; };
+		D1A2B3C42E074A0100AABB01 /* KRPAGViewHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = D1A2B3C22E074A0100AABB01 /* KRPAGViewHandler.m */; };
 		FF047757288C4842008D3F39 /* NSObject+RIJCategory.m in Sources */ = {isa = PBXBuildFile; fileRef = FF047756288C4842008D3F39 /* NSObject+RIJCategory.m */; };
 		FF05C63C29C84FFF00C5E02A /* KuiklyRenderViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = FF05C63A29C84FFF00C5E02A /* KuiklyRenderViewController.m */; };
 		FF05C63F29C850BC00C5E02A /* KuiklyRenderComponentExpandHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = FF05C63E29C850BC00C5E02A /* KuiklyRenderComponentExpandHandler.m */; };
@@ -49,6 +50,8 @@
 		AFEB55D12D9C17820014FCBD /* Satisfy-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Satisfy-Regular.ttf"; sourceTree = "<group>"; };
 		C125EBCA2D96FBE200FBFA34 /* KRAPNGViewHandler.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = KRAPNGViewHandler.m; sourceTree = "<group>"; };
 		C125EBCB2D96FBE200FBFA34 /* KRAPNGViewHandler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KRAPNGViewHandler.h; sourceTree = "<group>"; };
+		D1A2B3C22E074A0100AABB01 /* KRPAGViewHandler.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = KRPAGViewHandler.m; sourceTree = "<group>"; };
+		D1A2B3C32E074A0100AABB01 /* KRPAGViewHandler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KRPAGViewHandler.h; sourceTree = "<group>"; };
 		C57F6971A5640F2A8FDA3C78 /* Pods-iosApp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-iosApp.release.xcconfig"; path = "Target Support Files/Pods-iosApp/Pods-iosApp.release.xcconfig"; sourceTree = "<group>"; };
 		F1A0CBBBE932EBF38B00760C /* Pods-iosApp.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-iosApp.debug.xcconfig"; path = "Target Support Files/Pods-iosApp/Pods-iosApp.debug.xcconfig"; sourceTree = "<group>"; };
 		FF047755288C4842008D3F39 /* NSObject+RIJCategory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSObject+RIJCategory.h"; sourceTree = "<group>"; };
@@ -185,6 +188,8 @@
 				FF151BB72A23A7E800D2BBED /* KRVideoViewHandler.m */,
 				FF5BF16E2B6EC62D001C5632 /* KRFontHanlder.h */,
 				FF5BF16F2B6EC62D001C5632 /* KRFontHanlder.m */,
+				D1A2B3C32E074A0100AABB01 /* KRPAGViewHandler.h */,
+				D1A2B3C22E074A0100AABB01 /* KRPAGViewHandler.m */,
 			);
 			path = Handlers;
 			sourceTree = "<group>";
@@ -314,13 +319,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -357,13 +358,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-resources-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -382,6 +379,7 @@
 				FF0DD45329EC211B0024F7FF /* KRRouterHandler.m in Sources */,
 				FF047757288C4842008D3F39 /* NSObject+RIJCategory.m in Sources */,
 				C125EBCC2D96FBE200FBFA34 /* KRAPNGViewHandler.m in Sources */,
+				D1A2B3C42E074A0100AABB01 /* KRPAGViewHandler.m in Sources */,
 				7126B4462E1E726900B6B1D9 /* KRTabbarView.m in Sources */,
 				FFDEA045288C2DF3008534B5 /* KuiklyRenderViewPage.swift in Sources */,
 				7555FF83242A565900829871 /* ContentView.swift in Sources */,

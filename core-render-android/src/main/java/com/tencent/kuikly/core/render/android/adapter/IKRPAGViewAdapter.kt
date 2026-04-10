@@ -79,6 +79,20 @@ interface IPAGView {
     fun replaceImageLayerContent(layerName: String, filePath: String)
 
     /**
+     * 按 editableIndex 替换当前 PAG 文件中的文字
+     * @param editableIndex 可编辑文字的索引 (0 到 numTexts-1)
+     * @param text 替换文案内容
+     */
+    fun replaceTextByIndex(editableIndex: Int, text: String) {}
+
+    /**
+     * 按 editableIndex 替换当前 PAG 文件中的图片
+     * @param editableIndex 可编辑图片的索引 (0 到 numImages-1)
+     * @param filePath 替换图片的文件路径
+     */
+    fun replaceImageByIndex(editableIndex: Int, filePath: String) {}
+
+    /**
      * kuikly侧设置的属性，一般用于业务扩展使用
      * @param propKey
      * @param propValue

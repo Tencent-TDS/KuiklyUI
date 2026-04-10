@@ -66,6 +66,8 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
             SCALE_MODE -> setScaleMode(propValue)
             REPLACE_TEXT_LAYER_CONTENT -> setReplaceTextLayerContent(propValue)
             REPLACE_IMAGE_LAYER_CONTENT -> setReplaceImageLayerContent(propValue)
+            REPLACE_TEXT_BY_INDEX -> setReplaceTextByIndex(propValue)
+            REPLACE_IMAGE_BY_INDEX -> setReplaceImageByIndex(propValue)
             LOAD_FAIL -> {
                 loadFailureCallback = propValue as KuiklyRenderCallback
                 true
@@ -247,6 +249,26 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
         return true
     }
 
+    private fun setReplaceTextByIndex(params: Any): Boolean {
+        val string = params as? String ?: return false
+        val commaIndex = string.indexOf(',')
+        if (commaIndex < 0) return false
+        val editableIndex = string.substring(0, commaIndex).toIntOrNull() ?: return false
+        val text = string.substring(commaIndex + 1)
+        pagView?.replaceTextByIndex(editableIndex, text)
+        return true
+    }
+
+    private fun setReplaceImageByIndex(params: Any): Boolean {
+        val string = params as? String ?: return false
+        val commaIndex = string.indexOf(',')
+        if (commaIndex < 0) return false
+        val editableIndex = string.substring(0, commaIndex).toIntOrNull() ?: return false
+        val imageFilePath = string.substring(commaIndex + 1)
+        pagView?.replaceImageByIndex(editableIndex, imageFilePath)
+        return true
+    }
+
     private fun autoPlay(propValue: Any): Boolean {
         this.autoPlay = propValue as Int == 1
         if (autoPlay) {
@@ -268,6 +290,8 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
         private const val SCALE_MODE = "scaleMode"
         private const val REPLACE_TEXT_LAYER_CONTENT = "replaceTextLayerContent"
         private const val REPLACE_IMAGE_LAYER_CONTENT = "replaceImageLayerContent"
+        private const val REPLACE_TEXT_BY_INDEX = "replaceTextByIndex"
+        private const val REPLACE_IMAGE_BY_INDEX = "replaceImageByIndex"
         private const val LOAD_FAIL = "loadFailure"
         private const val ANIMATION_START = "animationStart"
         private const val ANIMATION_END = "animationEnd"

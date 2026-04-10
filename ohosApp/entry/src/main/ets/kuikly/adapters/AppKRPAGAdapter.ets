@@ -26,7 +26,7 @@ import {
 } from '@kuikly-open/render';
 import { UIContext } from '@ohos.arkui.UIContext';
 import { ComponentContent } from '@kit.ArkUI';
-import { PAGFile, PAGLayerType, PAGTextLayer, PAGView, PAGViewController, PAGViewListener } from '@tencent/libpag';
+import { PAGFile, PAGImage, PAGLayerType, PAGTextLayer, PAGView, PAGViewController, PAGViewListener } from '@tencent/libpag';
 
 @Component
 struct MyPAGView {
@@ -139,6 +139,35 @@ class AppKRPAGViewController implements IKRPAGViewController, PAGViewListener {
         setTimeout(() => {
           this.doCachedUpdateContent();
         });
+      }
+    } else if (propKey == 'replaceTextByIndex') {
+      const str = propValue.toString();
+      const commaIdx = str.indexOf(',');
+      if (commaIdx < 0) return false;
+      const editableIndex = parseInt(str.substring(0, commaIdx));
+      const textContent = str.substring(commaIdx + 1);
+      const composition = this.viewController.getComposition();
+      if (composition) {
+        const pagFile = composition as PAGFile;
+        const textData = pagFile.getTextData(editableIndex);
+        if (textData) {
+          textData.text = textContent;
+          pagFile.replaceText(editableIndex, textData);
+        }
+      }
+    } else if (propKey == 'replaceImageByIndex') {
+      const str = propValue.toString();
+      const commaIdx = str.indexOf(',');
+      if (commaIdx < 0) return false;
+      const editableIndex = parseInt(str.substring(0, commaIdx));
+      const imageFilePath = str.substring(commaIdx + 1);
+      const composition = this.viewController.getComposition();
+      if (composition) {
+        const pagFile = composition as PAGFile;
+        if (editableIndex >= 0 && editableIndex < pagFile.numImages()) {
+          const image = PAGImage.FromPath(imageFilePath);
+          pagFile.replaceImage(editableIndex, image);
+        }
       }
     }
 

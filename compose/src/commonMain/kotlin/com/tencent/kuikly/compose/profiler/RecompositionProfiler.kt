@@ -97,7 +97,7 @@ object RecompositionProfiler {
                 val strategy = FileOutputStrategy(fileModule)
                 fileStrategy = strategy
                 tracker?.addOutputStrategy(strategy)
-                strategy.activate()
+                strategy.activate(tracker?.sessionId ?: "")
             }
         }
     }

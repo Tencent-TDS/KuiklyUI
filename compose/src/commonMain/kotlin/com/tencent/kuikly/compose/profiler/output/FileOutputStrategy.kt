@@ -29,7 +29,11 @@ import com.tencent.kuikly.core.module.FileModule
  *
  * 行为（仅在 start/stop 期间生效）：
  * - 每帧完成时将帧 JSON 存入内存缓冲区；每 2 秒批量 append 到 profiler_frames.jsonl
- * - stop() 或 getReport(saveToFile=true) 时将聚合报告覆盖写入 profiler_report.json
+ * - getReport(saveToFile=true) / stop() 时先 flush 剩余帧，再覆盖写入 profiler_report.json
+ *
+ * 文件格式：
+ * - profiler_frames.jsonl 第一行为 session header：{"type":"session","sessionId":"...","startTimestampMs":...}
+ *   后续每行一个帧 JSON，可按 sessionId 过滤跨 session 数据
  *
  * 多页面场景：同 App 内多个页面共享同一 FileModule 目录，同名文件后写覆盖前写。
  *
@@ -55,16 +59,21 @@ internal class FileOutputStrategy(
     /** 当前是否处于 start/stop 之间（由外部通过 setActive 控制） */
     private var active: Boolean = false
 
+    /** 当前 session ID，写入 frames 文件 header 用 */
+    private var currentSessionId: String = ""
+
     /**
      * 由 RecompositionProfiler 在 start() 时调用，激活文件写入。
-     * 同时清空上次遗留的 frames 文件，避免新 session 数据混入旧数据。
+     * 写入 session header 行到 frames 文件（覆盖旧文件），确保每次 session 数据独立。
      */
-    fun activate() {
+    fun activate(sessionId: String) {
         active = true
+        currentSessionId = sessionId
         lastAppendMs = DateTime.currentTimestamp()
         pendingFrames.clear()
-        // 清空上次 session 的帧文件
-        fileModule.writeFile(FILE_FRAMES, "") { }
+        // 写 session header，同时清空上次 session 的帧数据
+        val header = "{\"type\":\"session\",\"sessionId\":\"$sessionId\",\"startTimestampMs\":${DateTime.currentTimestamp()}}"
+        fileModule.writeFile(FILE_FRAMES, header) { }
     }
 
     /**
@@ -81,8 +90,10 @@ internal class FileOutputStrategy(
 
     /**
      * 主动写入报告文件（对应 getReport(saveToFile=true)）。
+     * 先 flush 内存中尚未写入的帧，确保 frames 文件与 report 数据完整一致。
      */
     fun writeReport(report: RecompositionReport) {
+        flushPendingFrames()
         fileModule.writeFile(FILE_REPORT, report.toJson()) { }
     }
 

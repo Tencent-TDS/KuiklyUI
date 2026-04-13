@@ -70,7 +70,8 @@ internal class RecompositionTracker {
     private var startTimestampMs: Long = 0L
 
     /** 会话 ID */
-    private var sessionId: String = ""
+    internal var sessionId: String = ""
+        private set
 
     /** Snapshot 观察者取消句柄 */
     private var snapshotObserverDisposable: (() -> Unit)? = null

@@ -62,6 +62,9 @@ internal class FileOutputStrategy(
     /** 当前 session ID，写入 frames 文件 header 用 */
     private var currentSessionId: String = ""
 
+    /** activate() 时的时间戳，用于过滤 activate 前产生的旧帧 */
+    private var activateTimestampMs: Long = 0L
+
     /**
      * 由 RecompositionProfiler 在 start() 时调用，激活文件写入。
      * 写入 session header 行到 frames 文件（覆盖旧文件），确保每次 session 数据独立。
@@ -69,10 +72,11 @@ internal class FileOutputStrategy(
     fun activate(sessionId: String) {
         active = true
         currentSessionId = sessionId
-        lastAppendMs = DateTime.currentTimestamp()
+        activateTimestampMs = DateTime.currentTimestamp()
+        lastAppendMs = activateTimestampMs
         pendingFrames.clear()
         // 写 session header，同时清空上次 session 的帧数据
-        val header = "{\"type\":\"session\",\"sessionId\":\"$sessionId\",\"startTimestampMs\":${DateTime.currentTimestamp()}}\n"
+        val header = "{\"type\":\"session\",\"sessionId\":\"$sessionId\",\"startTimestampMs\":$activateTimestampMs}\n"
         fileModule.writeFile(FILE_FRAMES, header) { }
     }
 
@@ -99,6 +103,9 @@ internal class FileOutputStrategy(
 
     override fun onFrameComplete(events: List<RecompositionEvent>) {
         if (!active) return
+        // 过滤 activate 之前产生的旧帧（多页面场景下其他页面的帧可能晚于 activate 到达）
+        val frameStart = events.firstOrNull { it is RecompositionFrameStartEvent } as? RecompositionFrameStartEvent
+        if (frameStart != null && frameStart.timestampMs < activateTimestampMs) return
         val frameJson = buildFrameJson(events)
         pendingFrames.add(frameJson)
         // 每 2 秒批量写入一次

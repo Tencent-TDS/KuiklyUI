@@ -23,6 +23,7 @@ import com.tencent.kuikly.core.render.android.adapter.IPAGViewListener
 import org.libpag.PAGFile
 import org.libpag.PAGImage
 import org.libpag.PAGImageLayer
+import org.libpag.PAGLayer
 import org.libpag.PAGTextLayer
 import org.libpag.PAGView
 
@@ -115,6 +116,34 @@ class KRPagView(context: Context) : PAGView(context), IPAGView {
             PAGImage.FromPath(filePath)
         }
         pagFile.replaceImage(editableIndex, image)
+    }
+
+    override fun getEditableLayersUnderPoint(x: Float, y: Float): List<Map<String, Any>> {
+        val result = mutableListOf<Map<String, Any>>()
+        try {
+            // libpag 的 getLayersUnderPoint 需要 Surface 坐标（像素），dp 转换为 pixel
+            val density = context.resources.displayMetrics.density
+            val pixelX = x * density
+            val pixelY = y * density
+            // 通过反射调用 PAGView 父类的 getLayersUnderPoint，避免与 IPAGView 接口方法冲突
+            val method = PAGView::class.java.getMethod("getLayersUnderPoint", Float::class.javaPrimitiveType, Float::class.javaPrimitiveType)
+            val layers = method.invoke(this, pixelX, pixelY) as? Array<*> ?: return result
+            for (layer in layers) {
+                if (layer !is PAGLayer) continue
+                val editableIndex = layer.editableIndex()
+                // 过滤掉 editableIndex == -1 的非可编辑图层，只回调业务可操作的图层
+                if (editableIndex < 0) {
+                    continue
+                }
+                result.add(mapOf(
+                    "layerName" to (layer.layerName() ?: ""),
+                    "editableIndex" to editableIndex
+                ))
+            }
+        } catch (_: Exception) {
+            // libpag 未集成或版本不支持时，安全返回空列表
+        }
+        return result
     }
 
     override fun addPAGViewListener(listener: IPAGViewListener) {

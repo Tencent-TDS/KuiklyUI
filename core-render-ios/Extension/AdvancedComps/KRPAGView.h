@@ -165,6 +165,25 @@ typedef id<KRPagViewProtocol> _Nonnull (^PAGViewCreator)(CGRect frame);
 @end
 
 @protocol IPAGLayerProtocol <NSObject>
+
+@optional
+/**
+ * Returns the name of the layer.
+ */
+- (NSString *)layerName;
+
+/**
+ * Ranges from 0 to PAGFile.numTexts - 1 if the layer type is text,
+ * or from 0 to PAGFile.numImages - 1 if the layer type is image,
+ * otherwise returns -1.
+ */
+- (NSInteger)editableIndex;
+
+/**
+ * Returns the type of the layer.
+ */
+- (int)layerType;
+
 @end
 
 @protocol PAGImageLayerProtocol <IPAGLayerProtocol>

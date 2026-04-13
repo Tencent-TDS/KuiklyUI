@@ -113,6 +113,18 @@ interface IPAGView {
         return false
     }
 
+    /**
+     * 获取指定坐标下的所有可编辑图层信息。
+     * 坐标为相对于 PAGView 自身的 dp 值，实现方需要自行转换为 libpag 所需的像素坐标。
+     * @param x 触摸点 x 坐标（dp）
+     * @param y 触摸点 y 坐标（dp）
+     * @return 图层信息列表，每个元素包含 "layerName" 和 "editableIndex" 键值对。
+     *         仅返回 editableIndex >= 0 的可编辑图层（文本/图像图层）。
+     */
+    fun getEditableLayersUnderPoint(x: Float, y: Float): List<Map<String, Any>> {
+        return emptyList()
+    }
+
 }
 
 interface IPAGViewListener {

@@ -22,6 +22,7 @@
 #import "KuiklyRenderBridge.h"
 #import "KuiklyContextParam.h"
 #import "KRCacheManager.h"
+#import <objc/message.h>
 
 
 NSString *const KRPagAssetsPrefix = @"assets://";
@@ -226,6 +227,67 @@ static PAGViewCreator gPagViewCreator;
     double value = [params[@"value"] doubleValue];
     if ([self.pagView respondsToSelector:@selector(setProgress:)]) {
         [self.pagView setProgress:value];
+    }
+}
+
+- (void)css_onClickTapWithSender:(UIGestureRecognizer *)sender {
+    CGPoint location = [sender locationInView:self];
+#if TARGET_OS_OSX
+    CGPoint pageLocation = [sender locationInView:nil];
+#else
+    CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
+#endif
+    
+    NSMutableArray *layerInfos = [NSMutableArray array];
+    
+    // 通过 NSInvocation 调用 PAGView 的 getLayersUnderPoint: 方法（参数为 CGPoint 结构体）
+    SEL sel = NSSelectorFromString(@"getLayersUnderPoint:");
+    if ([(NSObject *)_pagView respondsToSelector:sel]) {
+        // getLayersUnderPoint: 需要像素坐标，dp 转换为 pixel
+        CGFloat scale = [UIScreen mainScreen].scale;
+        CGPoint pixelPoint = CGPointMake(location.x * scale, location.y * scale);
+        
+        NSMethodSignature *sig = [(NSObject *)_pagView methodSignatureForSelector:sel];
+        NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:sig];
+        [invocation setTarget:(NSObject *)_pagView];
+        [invocation setSelector:sel];
+        [invocation setArgument:&pixelPoint atIndex:2];
+        [invocation invoke];
+        
+        __unsafe_unretained NSArray *hitLayers = nil;
+        [invocation getReturnValue:&hitLayers];
+        
+        if (hitLayers.count > 0) {
+            for (id layer in hitLayers) {
+                NSInteger editableIndex = -1;
+                if ([layer respondsToSelector:NSSelectorFromString(@"editableIndex")]) {
+                    editableIndex = ((NSInteger (*)(id, SEL))objc_msgSend)(layer, NSSelectorFromString(@"editableIndex"));
+                }
+                // 过滤掉 editableIndex == -1 的非可编辑图层，只回调业务可操作的图层
+                if (editableIndex < 0) {
+                    continue;
+                }
+                NSString *layerName = @"";
+                if ([layer respondsToSelector:NSSelectorFromString(@"layerName")]) {
+                    layerName = ((NSString * (*)(id, SEL))objc_msgSend)(layer, NSSelectorFromString(@"layerName")) ?: @"";
+                }
+                [layerInfos addObject:@{
+                    @"layerName": layerName,
+                    @"editableIndex": @(editableIndex)
+                }];
+            }
+        }
+    }
+    
+    NSDictionary *param = @{
+        @"x": @(location.x),
+        @"y": @(location.y),
+        @"pageX": @(pageLocation.x),
+        @"pageY": @(pageLocation.y),
+        @"layers": layerInfos
+    };
+    if (self.css_click) {
+        self.css_click(param);
     }
 }
 

@@ -22,6 +22,7 @@ import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.render.android.adapter.HRImageLoadOption
 import com.tencent.kuikly.core.render.android.adapter.IPAGViewListener
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
+import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.css.ktx.frameHeight
 import com.tencent.kuikly.core.render.android.css.ktx.frameWidth
 import com.tencent.kuikly.core.render.android.expand.component.KRAPNGView
@@ -88,6 +89,21 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
             ANIMATION_REPEAT -> {
                 animationRepeatCallback = propValue as KuiklyRenderCallback
                 true
+            }
+            KRCssConst.CLICK -> {
+                // 拦截 click 事件注册，包装原始 callback，在点击时注入 layers 信息
+                val originalCallback = propValue as KuiklyRenderCallback
+                val wrappedCallback: KuiklyRenderCallback = { clickResult ->
+                    val params = (clickResult as? Map<*, *>)?.toMutableMap() ?: mutableMapOf<Any?, Any?>()
+                    // 从 click 参数中获取坐标
+                    val x = (params["x"] as? Number)?.toFloat() ?: 0f
+                    val y = (params["y"] as? Number)?.toFloat() ?: 0f
+                    // 通过 IPAGView 适配器获取点击位置下的图层信息
+                    val layers = pagView?.getEditableLayersUnderPoint(x, y) ?: emptyList()
+                    params["layers"] = layers
+                    originalCallback.invoke(params)
+                }
+                super.setProp(propKey, wrappedCallback)
             }
             else -> super.setProp(propKey, propValue)
         }

@@ -858,3 +858,30 @@ static napi_value InitKuikly(napi_env env, napi_callback_info info) {
  }
  ...
 ```
+
+### 实现 PAG 适配器
+
+与字体、图片适配器的定位不同，PAG 适配器是以`工厂类`的角色向框架提供 PAGView 实例。业务可通过实现此适配器创建框架的 PAGView 组件，也可以构建自定义 PAGView，再通过 createController 输出实例。
+
+具体实现代码，请参考源码工程 ohosApp 模块的 `AppKRPAGAdapter.ets` 类。
+
+```ts
+import { IKRPAGViewAdapter, IKRPAGViewController, KRPAGView, KuiklyRenderBaseView } from '@kuikly-open/render';
+import { UIContext } from '@ohos.arkui.UIContext';
+import { ComponentContent } from '@kit.ArkUI';
+
+class AppKRPAGViewController implements IKRPAGViewController {
+  // 实现 play、stop、setProp、addListener、removeListener 等方法
+  // ...
+}
+
+export class AppKRPagViewAdapter implements IKRPAGViewAdapter {
+  createController(): IKRPAGViewController {
+    return new AppKRPAGViewController();
+  }
+
+  createPAGView(ctx: UIContext, view: KuiklyRenderBaseView): ComponentContent<KuiklyRenderBaseView> {
+    return new ComponentContent<KuiklyRenderBaseView>(ctx, wrapBuilder<[KuiklyRenderBaseView]>(createMyPAGView), view);
+  }
+}
+```

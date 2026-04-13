@@ -461,6 +461,50 @@ val delegate = object : KuiklyRenderViewBaseDelegatorDelegate {
 }
 ```
 
+### 实现 PAG 适配器
+
+与字体、图片适配器的定位不同，PAG 适配器是以`工厂类`的角色向框架提供 PAGView 实例。业务可通过实现此适配器创建框架的 PAGView 组件，也可以构建自定义 PAGView，再通过 createPAGView 输出实例。
+
+具体实现代码，请参考源码工程 androidApp 模块的 `PAGViewAdapter` 类。
+
+```kotlin
+class PAGViewAdapter : IKRPAGViewAdapter {
+
+    init {
+        try {
+            System.loadLibrary("pag")
+        } catch (e: Throwable) {
+
+        }
+    }
+
+    override fun createPAGView(context: Context): IPAGView {
+        return KRPagView(context)
+    }
+}
+// 自定义 PAGView 示例
+class KRPagView(context: Context) : PAGView(context), IPAGView {
+
+    override fun asView(): View {
+        return this
+    }
+
+    override fun setFilePath(filePath: String) {
+        path = filePath
+    }
+
+    override fun playPAGView() {
+        play()
+    }
+
+    override fun stopPAGView() {
+        stop()
+    }
+
+    // ...
+}
+```
+
 ## 配置混淆规则（ProGuard/R8）
 
 如果您的 Android 项目开启了代码混淆（ProGuard/R8），需要确保 Kuikly 相关的类不被混淆，以保证框架正常运行。

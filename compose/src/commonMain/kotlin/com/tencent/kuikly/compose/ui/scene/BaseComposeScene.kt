@@ -24,9 +24,12 @@ import androidx.compose.runtime.Composition
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.CompositionLocalContext
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ExperimentalComposeRuntimeApi
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.tooling.CompositionObserverHandle
+import androidx.compose.runtime.tooling.observe
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.GlobalSnapshotManager
 import com.tencent.kuikly.compose.ui.InternalComposeUiApi
@@ -41,6 +44,8 @@ import com.tencent.kuikly.compose.ui.node.InternalCoreApi
 import com.tencent.kuikly.compose.ui.node.LayoutNode
 import com.tencent.kuikly.compose.ui.node.SnapshotInvalidationTracker
 import com.tencent.kuikly.compose.container.VsyncTickConditions
+import com.tencent.kuikly.compose.profiler.RecompositionProfiler
+import com.tencent.kuikly.compose.profiler.RecompositionTracker
 import com.tencent.kuikly.compose.ui.KuiklyCanvas
 import com.tencent.kuikly.core.exception.throwRuntimeError
 import kotlin.concurrent.Volatile
@@ -89,6 +94,15 @@ internal abstract class BaseComposeScene(
 
     private var isInvalidationDisabled = false
 
+    // ========== CompositionObserver 集成 ==========
+
+    /** CompositionObserver 注册句柄 */
+    @OptIn(ExperimentalComposeRuntimeApi::class)
+    private var compositionObserverHandle: CompositionObserverHandle? = null
+
+    /** Profiler 生命周期监听器 */
+    private var profilerListener: RecompositionProfiler.ProfilerLifecycleListener? = null
+
     private inline fun <T> postponeInvalidation(crossinline block: () -> T): T {
         check(!isClosed) { "ComposeScene is closed" }
         isInvalidationDisabled = true
@@ -135,6 +149,9 @@ internal abstract class BaseComposeScene(
         check(!isClosed) { "ComposeScene is already closed" }
         isClosed = true
 
+        // Cleanup CompositionObserver
+        teardownCompositionObserver()
+
         composition?.dispose()
         recomposer.cancel()
     }
@@ -161,6 +178,9 @@ internal abstract class BaseComposeScene(
                     )
                 }
 
+            // Register CompositionObserver for precise recomposition reason tracking
+            setupCompositionObserver(composition!!)
+
             recomposer.performScheduledTasks()
         }
 
@@ -172,28 +192,31 @@ internal abstract class BaseComposeScene(
             return
         }
 
-        return postponeInvalidation {
-            // Note that on Android the order is slightly different:
-            // - Recomposition
-            // - Layout
-            // - Draw
-            // - Composition effects
-            // - Synthetic events
-            // We do this differently in order to be able to observe changes made by synthetic events
-            // in the drawing phase, thus reducing the time before they are visible on screen.
-            //
-            // It is important, however, to run the composition effects before the synthetic events are
-            // dispatched, in order to allow registering for these events before they are sent.
-            // Otherwise, events like a synthetic mouse-enter sent due to a new element appearing under
-            // the pointer would be missed by e.g. InteractionSource.collectHoverAsState
+        postponeInvalidation {
+            val profilerEnabled = RecompositionProfiler.isEnabled
+            val tracker = if (profilerEnabled) RecompositionProfiler.tracker else null
+            val frameSampled = tracker?.onFrameStart() ?: false
+
             recomposer.performScheduledTasks()
+
             frameClock.sendFrame(nanoTime) // Recomposition
             doLayout() // Layout
             recomposer.performScheduledEffects() // Composition effects (e.g. LaunchedEffect)
+
+            if (frameSampled) {
+                tracker?.onFrameEnd(0)
+            }
+
             inputHandler.updatePointerPosition() // Synthetic move event
             snapshotInvalidationTracker.onDraw()
             draw(KuiklyCanvas()) // Draw
         }
+
+        // 在 postponeInvalidation 之后（isInvalidationDisabled 已恢复 false），
+        // 安全写入 Compose State 驱动 Overlay UI 刷新
+        RecompositionProfiler.tracker?.notifyOverlayIfNeeded()
+        // notifyOverlayIfNeeded 可能写了 Compose State，需要再次检查是否需要调度新帧
+        invalidateIfNeeded()
     }
 
     @OptIn(ExperimentalComposeUiApi::class)
@@ -241,6 +264,44 @@ internal abstract class BaseComposeScene(
     private fun doLayout() {
         snapshotInvalidationTracker.onMeasureAndLayout()
         measureAndLayout()
+    }
+
+    // ========== CompositionObserver 管理 ==========
+
+    /**
+     * Register a CompositionObserver on the given composition for precise recomposition tracking.
+     * Also registers a [RecompositionProfiler.ProfilerLifecycleListener] so that profiler
+     * start/stop can dynamically attach/detach the observer.
+     */
+    @OptIn(ExperimentalComposeRuntimeApi::class)
+    private fun setupCompositionObserver(comp: Composition) {
+        // Clean up any previous observer
+        teardownCompositionObserver()
+
+        val listener = object : RecompositionProfiler.ProfilerLifecycleListener {
+            override fun onProfilerStarted(tracker: RecompositionTracker) {
+                compositionObserverHandle?.dispose()
+                compositionObserverHandle = comp.observe(tracker.compositionObserver)
+            }
+
+            override fun onProfilerStopped() {
+                compositionObserverHandle?.dispose()
+                compositionObserverHandle = null
+            }
+        }
+        profilerListener = listener
+        RecompositionProfiler.addLifecycleListener(listener)
+    }
+
+    /**
+     * Tear down the CompositionObserver and lifecycle listener.
+     */
+    @OptIn(ExperimentalComposeRuntimeApi::class)
+    private fun teardownCompositionObserver() {
+        compositionObserverHandle?.dispose()
+        compositionObserverHandle = null
+        profilerListener?.let { RecompositionProfiler.removeLifecycleListener(it) }
+        profilerListener = null
     }
 
     protected abstract fun createComposition(content: @Composable () -> Unit): Composition

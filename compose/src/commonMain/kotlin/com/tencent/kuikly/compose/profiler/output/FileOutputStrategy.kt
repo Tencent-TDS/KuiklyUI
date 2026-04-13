@@ -72,7 +72,7 @@ internal class FileOutputStrategy(
         lastAppendMs = DateTime.currentTimestamp()
         pendingFrames.clear()
         // 写 session header，同时清空上次 session 的帧数据
-        val header = "{\"type\":\"session\",\"sessionId\":\"$sessionId\",\"startTimestampMs\":${DateTime.currentTimestamp()}}"
+        val header = "{\"type\":\"session\",\"sessionId\":\"$sessionId\",\"startTimestampMs\":${DateTime.currentTimestamp()}}\n"
         fileModule.writeFile(FILE_FRAMES, header) { }
     }
 

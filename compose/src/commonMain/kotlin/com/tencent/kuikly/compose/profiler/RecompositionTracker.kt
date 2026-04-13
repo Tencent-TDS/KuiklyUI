@@ -67,7 +67,8 @@ internal class RecompositionTracker {
     private var currentFrameSampled: Boolean = true
 
     /** 追踪开始时间 */
-    private var startTimestampMs: Long = 0L
+    internal var startTimestampMs: Long = 0L
+        private set
 
     /** 会话 ID */
     internal var sessionId: String = ""

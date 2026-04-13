@@ -81,6 +81,8 @@ internal class FileOutputStrategy(
         // 写 session header，同时清空上次 session 的帧数据
         val header = "{\"type\":\"session\",\"sessionId\":\"$sessionId\",\"startTimestampMs\":$sessionStartMs}\n"
         fileModule.writeFile(FILE_FRAMES, header) { }
+        // 同步清空 report 文件，避免旧 report 与新 frames 属于不同 session
+        fileModule.writeFile(FILE_REPORT, "") { }
     }
 
     /**

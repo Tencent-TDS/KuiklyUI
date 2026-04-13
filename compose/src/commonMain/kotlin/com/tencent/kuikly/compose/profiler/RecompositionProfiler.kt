@@ -87,12 +87,16 @@ object RecompositionProfiler {
         }
     }
 
+    /** 最近一次传入的 FileModule，供 start() 重新 activate 使用 */
+    private var lastFileModule: FileModule? = null
+
     /**
      * 由 ComposeContainer 在 onProfilerStarted 时传入 FileModule 实例。
      * 如果 enableFile=true 且尚未创建 FileOutputStrategy，则自动创建并注册。
      */
     internal fun setFileModule(fileModule: FileModule) {
         synchronized(lock) {
+            lastFileModule = fileModule
             if (config.enableFile && fileStrategy == null) {
                 val strategy = FileOutputStrategy(fileModule)
                 fileStrategy = strategy
@@ -228,6 +232,15 @@ object RecompositionProfiler {
                 // ComposeContainer 会在 onProfilerStarted 里调用 setFileModule
                 for (listener in lifecycleListeners) {
                     listener.onProfilerStarted(newTracker)
+                }
+                // 如果页面已存活（不会再触发 onProfilerStarted），用上次缓存的 FileModule 直接 activate
+                if (config.enableFile && fileStrategy == null) {
+                    lastFileModule?.let { fm ->
+                        val strategy = FileOutputStrategy(fm)
+                        fileStrategy = strategy
+                        newTracker.addOutputStrategy(strategy)
+                        strategy.activate(newTracker.sessionId, newTracker.startTimestampMs)
+                    }
                 }
             }
         }

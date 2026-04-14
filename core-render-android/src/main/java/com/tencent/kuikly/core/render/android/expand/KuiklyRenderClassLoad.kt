@@ -48,6 +48,7 @@ import com.tencent.kuikly.core.render.android.expand.component.blur.KRBlurView
 import com.tencent.kuikly.core.render.android.expand.component.list.KRRecyclerContentView
 // import com.tencent.kuikly.core.render.android.expand.component.list.KRRecyclerView
 import com.tencent.kuikly.core.render.android.expand.component.pag.KRPAGView
+import com.tencent.kuikly.core.render.android.expand.module.KRFileModule
 import com.tencent.kuikly.core.render.android.expand.module.KRLogModule
 import com.tencent.kuikly.core.render.android.expand.module.KRMemoryCacheModule
 import com.tencent.kuikly.core.render.android.expand.module.KRSharedPreferencesModule
@@ -112,6 +113,7 @@ object KuiklyRenderClassLoad {
                 KuiklyRenderNativeMethod
                 KRMemoryCacheModule
                 KRSharedPreferencesModule
+                KRFileModule
                 KRFileManager
                 KRAPNGView
                 KRPAGView

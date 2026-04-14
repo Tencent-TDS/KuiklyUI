@@ -381,6 +381,7 @@ view 粒度接入进的原生页面，还要在路由处理类 KRRouterHandler.m
 4. **异常适配器**: 当Kuikly业务执行逻辑出错时，决定如何处理异常。**推荐宿主侧实现**
 5. **颜色值转换适配器**: Kuikly框架对颜色值的处理，默认只处理十六进制的颜色值。**宿主按需实现**
 6. **APNG图片加载适配器**: 用于给Kuikly提供APNG图片加载的能力。**宿主按需实现（使用APNG组件时必须实现）**
+7. **PAG加载适配器**: 用于给Kuikly提供PAG动画播放能力。**宿主按需实现（使用PAG组件时需实现，如已依赖 `pod 'libpag'`，则无需额外实现）**
 
 ### 实现图片加载适配器
 
@@ -672,3 +673,78 @@ class TestPage : Pager(){
 @end
 ```
 
+### 实现PAG适配器
+
+与字体、图片适配器的定位不同，PAG 适配器（PAGHandler）是以`工厂类`的角色向框架提供 PAGView 实例。业务可通过实现此适配器创建框架的 PAGView 组件，也可以构建自定义 PAGView，再通过 `registerPAGViewCreator` 输出实例。
+
+业务可将PAGview实例与适配器单独的实现，也可以将PAGviewHandler适配器直接作为PAGview的实现。
+
+代码示例
+
+**方式一** KRPAGViewHandler 作为自定义PAGView实例且向外提供creator
+
+```objc
+// 适配器 自身继承 PAGView 并遵循协议（常见写法）
+@interface KRPAGViewHandler : PAGView <KRPagViewProtocol>
+@end
+
+@implementation KRPAGViewHandler
+
++ (void)load {
+    // 注册 Creator，返回遵循 KRPagViewProtocol 的实例
+    [KRPAGView registerPAGViewCreator:^id<KRPagViewProtocol> _Nonnull(CGRect frame) {
+        return [[KRPAGViewHandler alloc] initWithFrame:frame];
+    }];
+}
+
+#pragma mark - KRPagViewProtocol
+
+- (BOOL)setPath:(NSString *)filePath {
+    // 加载 PAG 文件
+}
+
+- (void)play {
+    // 开始播放动画
+}
+
+- (void)stop {
+    // 停止播放动画
+}
+
+- (void)setProgress:(double)value {
+    // 设置动画播放进度
+}
+
+// ...
+
+@end
+```
+
+
+**方式二** KRPAGViewHandler 仅作为工厂类
+
+```objc
+// 自定义 PAGView
+@interface CustomPAGView : PAGView <KRPagViewProtocol>
+@end
+
+@implementation CustomPAGView
+// 实现 KRPagViewProtocol 方法...
+@end
+
+// PAG适配器仅负责注册，返回其他 View 实例
+@implementation KRPAGViewHandler
+
++ (void)load {
+    [KRPAGView registerPAGViewCreator:^id<KRPagViewProtocol> _Nonnull(CGRect frame) {
+        return [[CustomPAGView alloc] initWithFrame:frame];  // 返回其他实例
+    }];
+}
+
+@end
+```
+
+::: tip 注意
+- 框架引入有libpag库，业务可直接继承libpag的PAGview，获取处理PAG的相关能力
+- PAG适配器的定义与实现可参考类似的`KRVideoViewHandler`与`KRAPNGViewHandler`的实现
+:::

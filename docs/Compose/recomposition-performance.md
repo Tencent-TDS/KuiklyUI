@@ -105,8 +105,8 @@ grep "RCProfiler" logs/kuikly_ohos.log
 启用 `enableOverlay = true` 后，页面右下角出现悬浮圆形按钮，可拖动位置：
 
 | ![Overlay FAB](./img/profiler-overlay-fab.png) | ![Overlay 展开面板](./img/profiler-overlay-panel.png) |
-|:----------------------------------------------:|:-------------------------------------------------:|
-|                     悬浮 FAB                     |                      展开热点面板                       |
+|:---:|:---:|
+| 悬浮 FAB | 展开热点面板 |
 
 - **正常态**：显示当前会话累计重组次数，绿色（无重组）→ 橙色 → 红色（高频重组）
 - **暂停态**：显示 `||`，数据更新暂停但 Overlay 仍可见

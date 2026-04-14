@@ -81,6 +81,7 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
   private static readonly PROP_METHOD_PLAY = 'play';
   private static readonly PROP_METHOD_STOP = 'stop';
   private static readonly PROP_METHOD_SET_PROGRESS = 'setProgress';
+  private static readonly PROP_METHOD_GET_EDITABLE_LAYERS = 'getEditableLayersUnderPoint';
 
   private static readonly SCHEME_ASSETS = "assets://";
   private static readonly SCHEME_FILE = "files://";
@@ -141,6 +142,16 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
         const value = json['value'] as number;
         if (value !== undefined) {
           this.controller?.setProgress(value);
+        }
+      }
+    } else if (method == KRPAGView.PROP_METHOD_GET_EDITABLE_LAYERS) {
+      if (typeof params === 'string') {
+        const json: Record<string, Object> = JSON.parse(params as string) as Record<string, Object>;
+        const x = json['x'] as number ?? 0;
+        const y = json['y'] as number ?? 0;
+        const layers = this.controller?.getEditableLayersUnderPoint(x, y) ?? [];
+        if (callback) {
+          callback(JSON.stringify(layers));
         }
       }
     }

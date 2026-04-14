@@ -15,6 +15,8 @@
 
 package com.tencent.kuikly.compose.profiler
 
+import com.tencent.kuikly.compose.profiler.filter.ComposableFilter
+
 /**
  * 重组追踪的配置。
  * 通过 [RecompositionProfiler.configure] 设置。
@@ -31,6 +33,10 @@ package com.tencent.kuikly.compose.profiler
  * @property enableFile 是否启用文件写入（FileOutputStrategy）。
  *   开启后每 2 秒 append 帧数据到 profiler_frames.jsonl，
  *   stop() 和 getReport(saveToFile=true) 时写 profiler_report.json。默认 true。
+ * @property customFilters 自定义 Composable 过滤器列表，用于精细化控制哪些 Composable 被追踪。
+ *   过滤器将与内置框架过滤器组合使用（OR 逻辑）。默认空列表。
+ * @property enableBuiltinFilters 是否启用内置框架 Composable 过滤器（已弃用字段 includeFrameworkComposables 的替代品）。
+ *   当 false 时，不应用任何框架级别的过滤。默认 true。
  */
 data class RecompositionConfig(
     val sampleRate: Float = 1.0f,
@@ -42,6 +48,8 @@ data class RecompositionConfig(
     val overlayTopCount: Int = 10,
     val enableLog: Boolean = true,
     val enableFile: Boolean = true,
+    val customFilters: List<ComposableFilter> = emptyList(),
+    val enableBuiltinFilters: Boolean = true,
 ) {
     init {
         require(sampleRate in 0.0f..1.0f) {
@@ -74,6 +82,9 @@ data class RecompositionConfig(
  * RecompositionProfiler.configure {
  *     sampleRate = 0.5f
  *     hotspotThreshold = 20
+ *     customFilters = listOf(
+ *         PrefixComposableFilter(listOf("com.example.internal."))
+ *     )
  * }
  * ```
  */
@@ -87,6 +98,8 @@ class RecompositionConfigBuilder {
     var overlayTopCount: Int = 10
     var enableLog: Boolean = true
     var enableFile: Boolean = true
+    var customFilters: List<ComposableFilter> = emptyList()
+    var enableBuiltinFilters: Boolean = true
 
     internal fun build(): RecompositionConfig = RecompositionConfig(
         sampleRate = sampleRate,
@@ -98,5 +111,7 @@ class RecompositionConfigBuilder {
         overlayTopCount = overlayTopCount,
         enableLog = enableLog,
         enableFile = enableFile,
+        customFilters = customFilters,
+        enableBuiltinFilters = enableBuiltinFilters,
     )
 }

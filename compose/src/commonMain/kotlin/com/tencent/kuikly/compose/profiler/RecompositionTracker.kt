@@ -18,6 +18,7 @@ package com.tencent.kuikly.compose.profiler
 import androidx.compose.runtime.InternalComposeTracingApi
 import androidx.compose.runtime.CompositionTracer
 import androidx.compose.runtime.snapshots.Snapshot
+import com.tencent.kuikly.compose.profiler.filter.FilterChain
 import com.tencent.kuikly.core.datetime.DateTime
 import kotlin.random.Random
 
@@ -133,7 +134,13 @@ internal class RecompositionTracker {
     // ========== 框架 Composable 过滤 ==========
 
     /**
-     * 框架内部包名前缀列表。
+     * 过滤链：将自定义过滤器与内置框架过滤器组合。
+     * 当此值非 null 时，使用 FilterChain 进行过滤，否则使用遗留的 isFrameworkComposable 逻辑。
+     */
+    private var filterChain: FilterChain? = null
+
+    /**
+     * 框架内部包名前缀列表（遗留用途，已由 FilterChain 取代）。
      * 当 [RecompositionConfig.includeFrameworkComposables] 为 false 时，
      * info 以这些前缀开头的 Composable 将被忽略。
      */
@@ -169,10 +176,26 @@ internal class RecompositionTracker {
 
     /**
      * 判断给定的 composable info 是否属于框架内部函数或 Overlay 内部函数。
+     * 此方法已被 FilterChain 取代，仅保留用于向后兼容。
      */
     private fun isFrameworkComposable(info: String): Boolean {
         return frameworkPrefixes.any { info.startsWith(it) }
             || overlayPrefixes.any { info.startsWith(it) }
+    }
+
+    /**
+     * 判断给定的 composable 是否应该被过滤。
+     * 优先使用 FilterChain（若已初始化），否则使用遗留的 isFrameworkComposable 逻辑。
+     */
+    private fun shouldFilterComposable(info: String): Boolean {
+        return if (filterChain != null) {
+            // 提取 composable 名称（从 info 中去掉源码位置）
+            val composableName = info.substringBefore(" ")
+            filterChain!!.shouldFilter(composableName, info)
+        } else {
+            // 遗留逻辑：仅根据 includeFrameworkComposables 配置
+            !config.includeFrameworkComposables && isFrameworkComposable(info)
+        }
     }
 
     // ========== CompositionTracer 实现 ==========
@@ -219,6 +242,17 @@ internal class RecompositionTracker {
         composableAccumulator.clear()
         stateIdentityRegistry.clear()
 
+        // 初始化过滤链
+        filterChain = if (config.customFilters.isNotEmpty() || config.enableBuiltinFilters) {
+            if (config.enableBuiltinFilters) {
+                FilterChain.withDefaults(config.customFilters)
+            } else {
+                FilterChain.withCustomFiltersOnly(config.customFilters)
+            }
+        } else {
+            null
+        }
+
         if (config.enableStateTracking) {
             registerSnapshotObserver()
         }
@@ -231,6 +265,7 @@ internal class RecompositionTracker {
         unregisterSnapshotObserver()
         traceStack.clear()
         hasPreciseScopeMapping = false
+        filterChain = null  // 清理过滤链资源
     }
 
     /**
@@ -273,6 +308,16 @@ internal class RecompositionTracker {
             registerSnapshotObserver()
         } else if (!config.enableStateTracking && oldStateTracking) {
             unregisterSnapshotObserver()
+        }
+        // 重初始化过滤链（可能配置变了）
+        filterChain = if (config.customFilters.isNotEmpty() || config.enableBuiltinFilters) {
+            if (config.enableBuiltinFilters) {
+                FilterChain.withDefaults(config.customFilters)
+            } else {
+                FilterChain.withCustomFiltersOnly(config.customFilters)
+            }
+        } else {
+            null
         }
     }
 
@@ -379,8 +424,8 @@ internal class RecompositionTracker {
 
         val entry = traceStack.removeAt(traceStack.lastIndex)
 
-        // 根据配置过滤框架内部 Composable
-        if (!config.includeFrameworkComposables && isFrameworkComposable(entry.info)) {
+        // 根据过滤链判断是否过滤此 Composable
+        if (shouldFilterComposable(entry.info)) {
             return
         }
 

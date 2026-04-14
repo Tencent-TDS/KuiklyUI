@@ -90,7 +90,9 @@ internal fun ProfilerOverlaySlot(strategy: OverlayOutputStrategy) {
                 strategy = strategy,
                 hotspots = hotspots,
                 paused = paused,
-                onClose = { expanded = false }
+                onClose = { expanded = false },
+                onFilterByName = { name -> RecompositionProfiler.excludeByName(listOf(name)) },
+                onClearFilters = { RecompositionProfiler.clearCustomFilters() }
             )
         } else {
             Box(
@@ -128,7 +130,9 @@ private fun ProfilerExpandedPanel(
     strategy: OverlayOutputStrategy,
     hotspots: List<HotspotItem>,
     paused: Boolean,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    onFilterByName: (String) -> Unit,
+    onClearFilters: () -> Unit
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -178,6 +182,10 @@ private fun ProfilerExpandedPanel(
                         println("[ProfilerOverlay] Report:\n${report.toJson()}")
                     }
                 )
+                OverlayControlButton(
+                    text = "清空过滤",
+                    onClick = { onClearFilters() }
+                )
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -200,7 +208,7 @@ private fun ProfilerExpandedPanel(
                                 .background(Color(0xFF444444.toInt()))
                         )
                     }
-                    HotspotRow(item = item)
+                    HotspotRow(item = item, onFilter = { onFilterByName(item.name) })
                 }
             }
         }
@@ -208,7 +216,7 @@ private fun ProfilerExpandedPanel(
 }
 
 @Composable
-private fun HotspotRow(item: HotspotItem) {
+private fun HotspotRow(item: HotspotItem, onFilter: (() -> Unit)? = null) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -222,13 +230,22 @@ private fun HotspotRow(item: HotspotItem) {
             Text(
                 text = item.name,
                 fontSize = 13.sp,
-                color = Color.White
+                color = Color.White,
+                modifier = Modifier.weight(1f)
             )
-            Text(
-                text = "${item.totalCount}x",
-                fontSize = 13.sp,
-                color = countColor(item.totalCount)
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${item.totalCount}x",
+                    fontSize = 13.sp,
+                    color = countColor(item.totalCount)
+                )
+                if (onFilter != null) {
+                    OverlayControlButton(text = "过滤", onClick = onFilter)
+                }
+            }
         }
         if (item.sourceLocation != null) {
             Text(

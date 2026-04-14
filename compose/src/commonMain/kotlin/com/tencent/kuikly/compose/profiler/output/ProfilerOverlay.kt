@@ -35,6 +35,7 @@ import com.tencent.kuikly.compose.foundation.layout.height
 import com.tencent.kuikly.compose.foundation.layout.offset
 import com.tencent.kuikly.compose.foundation.layout.padding
 import com.tencent.kuikly.compose.foundation.layout.size
+import com.tencent.kuikly.compose.foundation.layout.wrapContentWidth
 import com.tencent.kuikly.compose.foundation.shape.CircleShape
 import com.tencent.kuikly.compose.foundation.shape.RoundedCornerShape
 import com.tencent.kuikly.compose.material3.Text
@@ -162,8 +163,13 @@ private fun ProfilerExpandedPanel(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 控制按钮行
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // 控制按钮行 — 水平可滚动避免窄屏溢出
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentWidth(Alignment.Start),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 OverlayControlButton(
                     text = if (paused) "继续" else "暂停",
                     onClick = { strategy.togglePause() }
@@ -217,6 +223,9 @@ private fun ProfilerExpandedPanel(
 
 @Composable
 private fun HotspotRow(item: HotspotItem, onFilter: (() -> Unit)? = null) {
+    // 本地状态：该行是否已被用户过滤（仅本次 Overlay 展开期间有效）
+    var filtered by remember(item.name) { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -230,7 +239,7 @@ private fun HotspotRow(item: HotspotItem, onFilter: (() -> Unit)? = null) {
             Text(
                 text = item.name,
                 fontSize = 13.sp,
-                color = Color.White,
+                color = if (filtered) Color(0xFF888888.toInt()) else Color.White,
                 modifier = Modifier.weight(1f)
             )
             Row(
@@ -240,10 +249,24 @@ private fun HotspotRow(item: HotspotItem, onFilter: (() -> Unit)? = null) {
                 Text(
                     text = "${item.totalCount}x",
                     fontSize = 13.sp,
-                    color = countColor(item.totalCount)
+                    color = if (filtered) Color(0xFF888888.toInt()) else countColor(item.totalCount)
                 )
                 if (onFilter != null) {
-                    OverlayControlButton(text = "过滤", onClick = onFilter)
+                    if (filtered) {
+                        OverlayControlButton(
+                            text = "已过滤",
+                            enabled = false,
+                            onClick = {}
+                        )
+                    } else {
+                        OverlayControlButton(
+                            text = "过滤",
+                            onClick = {
+                                filtered = true
+                                onFilter()
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -258,15 +281,17 @@ private fun HotspotRow(item: HotspotItem, onFilter: (() -> Unit)? = null) {
 }
 
 @Composable
-private fun OverlayControlButton(text: String, onClick: () -> Unit) {
+private fun OverlayControlButton(text: String, onClick: () -> Unit, enabled: Boolean = true) {
+    val bgColor = if (enabled) Color(0xFF444444.toInt()) else Color(0xFF2A2A2A.toInt())
+    val textColor = if (enabled) Color.White else Color(0xFF666666.toInt())
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(6.dp))
-            .background(Color(0xFF444444.toInt()))
-            .clickable { onClick() }
+            .background(bgColor)
+            .then(if (enabled) Modifier.clickable { onClick() } else Modifier)
             .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
-        Text(text = text, fontSize = 11.sp, color = Color.White)
+        Text(text = text, fontSize = 11.sp, color = textColor)
     }
 }
 

@@ -23,7 +23,7 @@ class ExclusionComposableFilter(
 ) : ComposableFilter {
 
     override fun shouldFilter(composableName: String, info: String): Boolean {
-        if (!enabled) return false
+        // isEnabled() 由 FilterChain 在调用前检查，此处无需重复判断
         return composableName in exclusionSet
     }
 

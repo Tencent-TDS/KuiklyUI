@@ -60,14 +60,14 @@ class CompositeComposableFilter(
 
         return when (mode) {
             CompositeMode.AND -> {
-                // All filters must match
-                orderedFilters.all { filter ->
-                    filter.isEnabled() && filter.shouldFilter(composableName, info)
-                }
+                // 所有「已启用」的 filter 都必须命中才过滤；跳过 disabled filter（不参与判断）
+                val enabledFilters = orderedFilters.filter { it.isEnabled() }
+                if (enabledFilters.isEmpty()) return false
+                enabledFilters.all { filter -> filter.shouldFilter(composableName, info) }
             }
 
             CompositeMode.OR -> {
-                // Any filter can match
+                // 任意「已启用」的 filter 命中即过滤；跳过 disabled filter
                 orderedFilters.any { filter ->
                     filter.isEnabled() && filter.shouldFilter(composableName, info)
                 }

@@ -184,14 +184,14 @@ object RecompositionProfiler {
             includeFrameworkComposables = config.includeFrameworkComposables
             enableLog = config.enableLog
             enableFile = config.enableFile
-            customFilters = config.customFilters
+            customFilters = staticCustomFilters   // 从独立字段读，不从 config 读
             enableBuiltinFilters = config.enableBuiltinFilters
         }
         builder.block()
-        val newConfig = builder.build()
+        val builtConfig = builder.build()
         synchronized(lock) {
-            config = newConfig
-            tracker?.updateConfig(newConfig)
+            staticCustomFilters = builtConfig.customFilters
+            rebuildCustomFilters(builtConfig)
         }
     }
 
@@ -286,8 +286,9 @@ object RecompositionProfiler {
      * Profiler 运行中或 stop 后均可调用（stop 后返回最后一次采集的数据）。
      * 如果从未启动过，返回空报告。
      *
-     * @param saveToFile 是否同时将报告写入 profiler_report.json 文件。
+     * @param saveToFile 是否同时将报告写入 profiler_report.json 并触发各输出策略的 onReportReady 回调。
      *   需要 enableFile=true 且 Profiler 正在运行（stop 后 fileStrategy 已释放）。默认 true。
+     *   设为 false 时静默返回数据，不产生任何日志或文件 I/O。
      */
     fun getReport(saveToFile: Boolean = true): RecompositionReport {
         data class Snapshot(
@@ -311,9 +312,9 @@ object RecompositionProfiler {
         )
         if (saveToFile) {
             fileStrategy?.writeReport(finalReport)
+            // 触发所有策略的 onReportReady（日志输出等）；saveToFile=false 时静默
+            snapshot.trackerRef?.notifyReportReady(finalReport)
         }
-        // 触发所有策略的 onReportReady（日志输出等）
-        snapshot.trackerRef?.notifyReportReady(finalReport)
         return finalReport
     }
 
@@ -341,6 +342,12 @@ object RecompositionProfiler {
      */
     private val excludedPrefixes: MutableSet<String> = mutableSetOf()
 
+    /**
+     * 通过 [configure] 传入的静态自定义过滤器（与 excludedNames/excludedPrefixes 独立，互不覆盖）。
+     * 在 [lock] 保护下访问。
+     */
+    private var staticCustomFilters: List<ComposableFilter> = emptyList()
+
     private const val TAG = "RCProfiler"
 
     /**
@@ -350,14 +357,20 @@ object RecompositionProfiler {
      *
      * 示例：
      * ```
-     * RecompositionProfiler.excludeByName(listOf("MyBaseButton", "CommonLoading"))
+     * RecompositionProfiler.excludeByName("MyBaseButton", "CommonLoading")
      * ```
      *
-     * @param names 要排除的 Composable 名称列表
+     * @param names 要排除的 Composable 名称
+     */
+    fun excludeByName(vararg names: String) = excludeByName(names.toList())
+
+    /**
+     * 按 Composable 名称精确排除（List 重载）。
+     * @see excludeByName
      */
     fun excludeByName(names: List<String>) {
         synchronized(lock) {
-            val added = names.filter { it.isNotEmpty() }
+            val added = names.filter { it.isNotBlank() }
             excludedNames.addAll(added)
             rebuildCustomFilters()
             if (isEnabled) logFilterUpdated()
@@ -371,14 +384,20 @@ object RecompositionProfiler {
      *
      * 示例：
      * ```
-     * RecompositionProfiler.excludeByPrefix(listOf("com.myapp.foundation.", "com.myapp.common."))
+     * RecompositionProfiler.excludeByPrefix("com.myapp.foundation.", "com.myapp.common.")
      * ```
      *
-     * @param prefixes 要排除的包名前缀列表
+     * @param prefixes 要排除的包名前缀
+     */
+    fun excludeByPrefix(vararg prefixes: String) = excludeByPrefix(prefixes.toList())
+
+    /**
+     * 按包名前缀批量排除（List 重载）。
+     * @see excludeByPrefix
      */
     fun excludeByPrefix(prefixes: List<String>) {
         synchronized(lock) {
-            val added = prefixes.filter { it.isNotEmpty() }
+            val added = prefixes.filter { it.isNotBlank() }
             excludedPrefixes.addAll(added)
             rebuildCustomFilters()
             if (isEnabled) logFilterUpdated()
@@ -393,28 +412,33 @@ object RecompositionProfiler {
     fun clearCustomFilters() {
         synchronized(lock) {
             val hadFilters = excludedNames.isNotEmpty() || excludedPrefixes.isNotEmpty()
+            if (!hadFilters) return
             excludedNames.clear()
             excludedPrefixes.clear()
             rebuildCustomFilters()
-            if (hadFilters) {
-                com.tencent.kuikly.core.log.KLog.i(TAG, "Custom filter cleared")
-            }
+            com.tencent.kuikly.core.log.KLog.i(TAG, "Custom filter cleared")
         }
     }
 
     /**
-     * 根据 [excludedNames] 和 [excludedPrefixes] 重建 customFilters 列表并更新到 config / tracker。
+     * 根据 [excludedNames]、[excludedPrefixes] 和 [staticCustomFilters] 重建 customFilters 并更新 config / tracker。
      * 必须在 [lock] 保护下调用。
+     *
+     * @param baseConfig 用于更新其他配置字段的基准 config；为 null 时仅更新过滤器部分。
      */
-    private fun rebuildCustomFilters() {
-        val filters = mutableListOf<ComposableFilter>()
+    private fun rebuildCustomFilters(baseConfig: RecompositionConfig? = null) {
+        // 动态 filters（来自 excludeByName / excludeByPrefix）
+        val dynamicFilters = mutableListOf<ComposableFilter>()
         if (excludedNames.isNotEmpty()) {
-            filters.add(ExclusionComposableFilter(excludedNames.toSet()))
+            dynamicFilters.add(ExclusionComposableFilter(excludedNames.toSet()))
         }
         if (excludedPrefixes.isNotEmpty()) {
-            filters.add(PrefixComposableFilter(excludedPrefixes.toList()))
+            dynamicFilters.add(PrefixComposableFilter(excludedPrefixes.toList()))
         }
-        val newConfig = config.copy(customFilters = filters)
+        // 合并 static（configure 设置）和 dynamic（excludeByName/Prefix 设置）
+        val allFilters = staticCustomFilters + dynamicFilters
+        val source = baseConfig ?: config
+        val newConfig = source.copy(customFilters = allFilters)
         config = newConfig
         tracker?.updateConfig(newConfig)
     }

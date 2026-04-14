@@ -28,13 +28,13 @@ class FilterChain(
     private val enableBuiltinFilters: Boolean = true,
     private val cacheEnabled: Boolean = true
 ) {
+    // cache key = composableName（不含文件位置），命中率更高
     private val filterCache = mutableMapOf<String, Boolean>()
     private val maxCacheSize = 10_000  // Prevent unbounded memory growth
 
     init {
-        require(filters.isNotEmpty() || enableBuiltinFilters) {
-            "Must provide at least one custom filter or enable builtin filters"
-        }
+        // 移除强制 require：filters 为空且 enableBuiltinFilters=false 等同于「不过滤任何东西」，
+        // 这是合理的初始/重置状态，不应抛异常。
     }
 
     /**
@@ -49,9 +49,9 @@ class FilterChain(
             return false  // No filters enabled, track everything
         }
 
-        // Check cache first
+        // Check cache first — key = composableName（不含源码位置，命中率更高）
         if (cacheEnabled) {
-            val cachedResult = filterCache[info]
+            val cachedResult = filterCache[composableName]
             if (cachedResult != null) {
                 return cachedResult
             }
@@ -62,7 +62,7 @@ class FilterChain(
 
         // Cache result if enabled and cache isn't too large
         if (cacheEnabled && filterCache.size < maxCacheSize) {
-            filterCache[info] = result
+            filterCache[composableName] = result
         }
 
         return result

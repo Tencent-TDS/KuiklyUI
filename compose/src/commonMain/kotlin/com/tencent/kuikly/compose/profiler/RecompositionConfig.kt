@@ -91,7 +91,7 @@ data class RecompositionConfig(
 class RecompositionConfigBuilder {
     var sampleRate: Float = 1.0f
     var hotspotThreshold: Int = 10
-    var maxEventBufferSize: Int = 10000
+    var maxEventBufferSize: Int = 100_000   // 与 RecompositionConfig 默认值保持一致
     var enableStateTracking: Boolean = true
     var includeFrameworkComposables: Boolean = false
     var enableOverlay: Boolean = false

@@ -25,7 +25,10 @@ class PrefixComposableFilter(
 
     override fun shouldFilter(composableName: String, info: String): Boolean {
         if (!enabled) return false
-        return prefixes.any { prefix -> info.startsWith(prefix) }
+        // 同时检查两个字段：
+        // - info 用于框架内置前缀（如 "androidx.compose."），编译器注入时 info 带全限定名
+        // - composableName 用于业务自定义前缀（info 通常只含短名如 "CounterSection"）
+        return prefixes.any { prefix -> info.startsWith(prefix) || composableName.startsWith(prefix) }
     }
 
     override fun description(): String {

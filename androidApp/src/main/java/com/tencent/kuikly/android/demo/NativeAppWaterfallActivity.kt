@@ -258,6 +258,16 @@ class NativeAppWaterfallActivity : AppCompatActivity() {
         }
 
         override fun getItemCount(): Int = cardList.size
+
+        override fun onViewRecycled(holder: AppCardViewHolder) {
+            super.onViewRecycled(holder)
+            holder.onRecycled()
+        }
+
+        override fun onViewDetachedFromWindow(holder: AppCardViewHolder) {
+            super.onViewDetachedFromWindow(holder)
+            holder.onDetachedFromWindow()
+        }
     }
 
     private inner class AppCardViewHolder(
@@ -265,6 +275,18 @@ class NativeAppWaterfallActivity : AppCompatActivity() {
     ) : RecyclerView.ViewHolder(container) {
 
         private var kuiklyView: KuiklyBaseView? = null
+
+        fun onRecycled() {
+            // ViewHolder 被回收时，从 activeKuiklyViews 中移除
+            kuiklyView?.let {
+                activeKuiklyViews.remove(it)
+            }
+        }
+
+        fun onDetachedFromWindow() {
+            // ViewHolder 脱离窗口时，触发 onPause 生命周期
+            kuiklyView?.onPause()
+        }
 
         fun bind(card: AppCardData) {
             // 卡片总高度 = 封面图高度 + 额外区域（标签行+标题+描述+底部栏+内间距 ≈ 132dp）

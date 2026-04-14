@@ -227,7 +227,7 @@ class NativeMixKuiklyViewDemoActivity : AppCompatActivity() {
 
 
 ::: tip 注意
-view 粒度接入进的原生页面，还要在 KRRouterAdapter 中添加 pageName 路由分支,并在 AndroidManifest.xml 中注册新建的 Native Activity。。
+view 粒度接入进的原生页面，还要在 KRRouterAdapter 中添加 pageName 路由分支,并在 AndroidManifest.xml 中注册新建的 Native Activity。
 :::
 
 

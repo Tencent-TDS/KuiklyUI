@@ -79,7 +79,6 @@ internal class AppCardPage : BasePager() {
 
         when(pagerEvent) {
             "CardDataWillChanged" -> {
-                KLog.i("[aboutToReuse]", eventData.toString())
                 val params = eventData.optJSONObject("data") ?: JSONObject()
                 parseData(params)
             }

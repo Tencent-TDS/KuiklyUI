@@ -136,7 +136,7 @@ static CGFloat const kSearchBarHeight = 50.0;
 }
 
 - (BOOL)shouldInvalidateLayoutForBoundsChange:(CGRect)newBounds {
-    return NO;
+    return !CGSizeEqualToSize(self.collectionView.bounds.size, newBounds.size);
 }
 
 @end
@@ -155,11 +155,33 @@ static CGFloat const kSearchBarHeight = 50.0;
 
 @implementation AppWaterfallCell
 
+- (void)dealloc {
+    if (_kuiklyView) {
+        [_kuiklyView viewWillDisappear];
+        [_kuiklyView viewDidDisappear];
+        [_kuiklyView removeFromSuperview];
+        _kuiklyView = nil;
+    }
+}
+
 - (void)prepareForReuse {
     [super prepareForReuse];
     // 注意：不要在这里销毁 KuiklyBaseView！
     // Cell 复用时应该保留 KuiklyBaseView，只更新数据
     // 销毁操作改为在 dealloc 中进行
+}
+
+- (void)willMoveToWindow:(UIWindow *)newWindow {
+    [super willMoveToWindow:newWindow];
+    if (newWindow == nil && _kuiklyView) {
+        // Cell 从 window 移除（滑出屏幕）
+        [_kuiklyView viewWillDisappear];
+        [_kuiklyView viewDidDisappear];
+    } else if (newWindow != nil && _kuiklyView) {
+        // Cell 进入 window（滑入屏幕）
+        [_kuiklyView viewWillAppear];
+        [_kuiklyView viewDidAppear];
+    }
 }
 
 - (void)configureWithCard:(AppCardModel *)card cellSize:(CGSize)cellSize {
@@ -197,9 +219,7 @@ static CGFloat const kSearchBarHeight = 50.0;
         self.layer.shadowOpacity = 0.1;
         self.layer.masksToBounds = NO;
         
-        // 触发生命周期
-        [_kuiklyView viewWillAppear];
-        [_kuiklyView viewDidAppear];
+        // 注意：生命周期由 willMoveToWindow: 统一管理，不要在这里重复触发
     } else {
         // Cell 复用：只更新数据，不销毁重建
         // 更新 frame（如果高度变化了）
@@ -495,6 +515,14 @@ static CGFloat const kSearchBarHeight = 50.0;
     [cell configureWithCard:card cellSize:CGSizeMake(itemWidth, itemHeight)];
     
     return cell;
+}
+
+#pragma mark - UICollectionViewDelegate
+
+- (void)collectionView:(UICollectionView *)collectionView didEndDisplayingCell:(UICollectionViewCell *)cell forItemAtIndexPath:(NSIndexPath *)indexPath {
+    // 生命周期由 willMoveToWindow: 统一管理，避免重复触发
+    // 可以在这里做一些轻量级清理（如暂停动画），但不触发生命周期
+    // 生命周期交由willMoveToWindow: 统一管理
 }
 
 @end

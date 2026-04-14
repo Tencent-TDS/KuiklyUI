@@ -306,7 +306,7 @@ NS_ASSUME_NONNULL_END
 
 ### 以 View 方式接入
 
-Kuikly iOS Render 也支持以 view 承载 Pager 将页面嵌入到任意原生视图层级中。可充分支持如瀑布流卡片、Banner 等卡片式结构场景。
+Kuikly iOS Render 也支持以 view 承载 Page 将页面嵌入到任意原生视图层级中。可充分支持如瀑布流卡片、Banner 等卡片式结构场景。
 
 **接入步骤**：在原生页面中创建 `KuiklyBaseView` 实例，指定 frame、页面名和页面参数，并手动触发生命周期方法即可。
 

@@ -29,7 +29,6 @@ import globalNativeManager from '../kuikly/MyNativeManager';
 import { KuiklyViewDelegate } from '../kuikly/KuiklyViewDelegate';
 import { AppKRRenderManager } from '../kuikly/adapters/AppKRRenderManager';
 import { KRNativeRenderController, KRRenderNativeMode, KRRecord, Kuikly } from '@kuikly-open/render';
-import { display } from '@kit.ArkUI';
 
 // region 卡片数据模型
 
@@ -240,8 +239,6 @@ function selectReuseID(height: number) : string {
 struct NativeAppWaterfall {
   private cardList: AppCardData[] = buildMockCardList();
   private dataSource: WaterfallDataSource = new WaterfallDataSource(this.cardList);
-  // 瀑布流区域左右 padding 6vp * 2 + 列间距 6vp = 18vp
-  private readonly waterfallPaddingGap: number = 18;
   // 卡片底部信息区域高度（标签+标题+描述+底部栏+内间距）
   private readonly cardExtraHeight: number = 132;
 

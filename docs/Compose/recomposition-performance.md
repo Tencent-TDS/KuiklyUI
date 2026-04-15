@@ -104,7 +104,7 @@ grep "RCProfiler" logs/kuikly_ohos.log
 
 启用 `enableOverlay = true` 后，页面右下角出现悬浮圆形按钮，可拖动位置：
 
-| ![Overlay FAB](img/profiler-overlay-fab.png) | ![Overlay 展开面板](img/profiler-overlay-panel.png) |
+| ![Overlay FAB](./img/profiler-overlay-fab.png) | ![Overlay 展开面板](./img/profiler-overlay-panel.png) |
 |:---:|:---:|
 | 悬浮 FAB | 展开热点面板 |
 

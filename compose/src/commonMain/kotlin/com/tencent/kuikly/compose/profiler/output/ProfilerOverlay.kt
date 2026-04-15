@@ -27,6 +27,8 @@ import com.tencent.kuikly.compose.foundation.layout.Arrangement
 import com.tencent.kuikly.compose.foundation.layout.Box
 import com.tencent.kuikly.compose.foundation.layout.BoxWithConstraints
 import com.tencent.kuikly.compose.foundation.layout.Column
+import com.tencent.kuikly.compose.foundation.layout.ExperimentalLayoutApi
+import com.tencent.kuikly.compose.foundation.layout.FlowRow
 import com.tencent.kuikly.compose.foundation.layout.Row
 import com.tencent.kuikly.compose.foundation.layout.Spacer
 import com.tencent.kuikly.compose.foundation.layout.fillMaxSize
@@ -35,10 +37,12 @@ import com.tencent.kuikly.compose.foundation.layout.height
 import com.tencent.kuikly.compose.foundation.layout.offset
 import com.tencent.kuikly.compose.foundation.layout.padding
 import com.tencent.kuikly.compose.foundation.layout.size
+import com.tencent.kuikly.compose.foundation.layout.wrapContentWidth
 import com.tencent.kuikly.compose.foundation.shape.CircleShape
 import com.tencent.kuikly.compose.foundation.shape.RoundedCornerShape
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.profiler.RecompositionProfiler
+import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.draw.clip
@@ -50,6 +54,7 @@ import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
 import kotlin.math.roundToInt
 
+private const val TAG = "RCProfiler"
 private const val FAB_SIZE_DP = 52
 private const val FAB_MARGIN_DP = 16
 
@@ -123,6 +128,7 @@ internal fun ProfilerOverlaySlot(strategy: OverlayOutputStrategy) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ProfilerExpandedPanel(
     strategy: OverlayOutputStrategy,
@@ -130,6 +136,16 @@ private fun ProfilerExpandedPanel(
     paused: Boolean,
     onClose: () -> Unit
 ) {
+    // 用一个递增版本号触发过滤状态刷新（点击过滤/取消/清空后 +1）
+    var filterVersion by remember { mutableStateOf(0) }
+
+    // 读取 filterVersion 建立依赖，确保过滤操作后触发重组
+    @Suppress("UNUSED_VARIABLE")
+    val fv = filterVersion
+    val activeHotspots = hotspots.filter { !RecompositionProfiler.isNameExcluded(it.name) }
+    // 已过滤列表：直接从 RecompositionProfiler 读，不依赖 hotspots（重置后 hotspots 为空但过滤规则仍在）
+    val excludedNames = RecompositionProfiler.getExcludedNames()
+
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -159,7 +175,12 @@ private fun ProfilerExpandedPanel(
             Spacer(modifier = Modifier.height(8.dp))
 
             // 控制按钮行
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentWidth(Alignment.Start),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 OverlayControlButton(
                     text = if (paused) "继续" else "暂停",
                     onClick = { strategy.togglePause() }
@@ -175,15 +196,22 @@ private fun ProfilerExpandedPanel(
                     text = "报告",
                     onClick = {
                         val report = RecompositionProfiler.getReport()
-                        println("[ProfilerOverlay] Report:\n${report.toJson()}")
+                        KLog.i(TAG, "Report:\n${report.toJson()}")
+                    }
+                )
+                OverlayControlButton(
+                    text = "清空过滤",
+                    onClick = {
+                        RecompositionProfiler.clearCustomFilters()
+                        filterVersion++
                     }
                 )
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 热点列表
-            if (hotspots.isEmpty()) {
+            // === 活跃热点列表 ===
+            if (activeHotspots.isEmpty() && excludedNames.isEmpty()) {
                 Text(
                     text = "暂无重组记录",
                     fontSize = 12.sp,
@@ -191,16 +219,64 @@ private fun ProfilerExpandedPanel(
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
             } else {
-                for ((index, item) in hotspots.withIndex()) {
-                    if (index > 0) {
-                        Spacer(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(1.dp)
-                                .background(Color(0xFF444444.toInt()))
+                if (activeHotspots.isEmpty() && excludedNames.isNotEmpty()) {
+                    Text(
+                        text = "所有热点已被过滤",
+                        fontSize = 12.sp,
+                        color = Color(0xFF888888.toInt()),
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                } else {
+                    for ((index, item) in activeHotspots.withIndex()) {
+                        if (index > 0) {
+                            Spacer(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(1.dp)
+                                    .background(Color(0xFF444444.toInt()))
+                            )
+                        }
+                        HotspotRow(
+                            item = item,
+                            onFilter = {
+                                RecompositionProfiler.excludeByName(listOf(item.name))
+                                filterVersion++
+                            }
                         )
                     }
-                    HotspotRow(item = item)
+                }
+            }
+
+            // === 已过滤区域（紧凑 chip 自动换行） ===
+            if (excludedNames.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(Color(0xFF555555.toInt()))
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "已过滤:",
+                    fontSize = 11.sp,
+                    color = Color(0xFF888888.toInt())
+                )
+                Spacer(modifier = Modifier.height(3.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    for (name in excludedNames) {
+                        FilterChip(
+                            name = name,
+                            onRemove = {
+                                RecompositionProfiler.removeExcludedName(name)
+                                filterVersion++
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -208,7 +284,7 @@ private fun ProfilerExpandedPanel(
 }
 
 @Composable
-private fun HotspotRow(item: HotspotItem) {
+private fun HotspotRow(item: HotspotItem, onFilter: (() -> Unit)? = null) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -222,13 +298,25 @@ private fun HotspotRow(item: HotspotItem) {
             Text(
                 text = item.name,
                 fontSize = 13.sp,
-                color = Color.White
+                color = Color.White,
+                modifier = Modifier.weight(1f)
             )
-            Text(
-                text = "${item.totalCount}x",
-                fontSize = 13.sp,
-                color = countColor(item.totalCount)
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${item.totalCount}x",
+                    fontSize = 13.sp,
+                    color = countColor(item.totalCount)
+                )
+                if (onFilter != null) {
+                    OverlayControlButton(
+                        text = "过滤",
+                        onClick = { onFilter() }
+                    )
+                }
+            }
         }
         if (item.sourceLocation != null) {
             Text(
@@ -240,16 +328,41 @@ private fun HotspotRow(item: HotspotItem) {
     }
 }
 
+/**
+ * 已过滤项紧凑标签：「名称 ✕」，点击 ✕ 取消过滤。
+ */
 @Composable
-private fun OverlayControlButton(text: String, onClick: () -> Unit) {
+private fun FilterChip(name: String, onRemove: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(4.dp))
+            .background(Color(0xFF333333.toInt()))
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        Text(text = name, fontSize = 10.sp, color = Color(0xFF999999.toInt()))
+        Text(
+            text = "✕",
+            fontSize = 10.sp,
+            color = Color(0xFF999999.toInt()),
+            modifier = Modifier.clickable { onRemove() }
+        )
+    }
+}
+
+@Composable
+private fun OverlayControlButton(text: String, onClick: () -> Unit, enabled: Boolean = true) {
+    val bgColor = if (enabled) Color(0xFF444444.toInt()) else Color(0xFF2A2A2A.toInt())
+    val textColor = if (enabled) Color.White else Color(0xFF666666.toInt())
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(6.dp))
-            .background(Color(0xFF444444.toInt()))
-            .clickable { onClick() }
+            .background(bgColor)
+            .then(if (enabled) Modifier.clickable { onClick() } else Modifier)
             .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
-        Text(text = text, fontSize = 11.sp, color = Color.White)
+        Text(text = text, fontSize = 11.sp, color = textColor)
     }
 }
 

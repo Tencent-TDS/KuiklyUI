@@ -323,6 +323,96 @@ export class ContextCodeHandler {
 }
 ```
 
+#### `将承载容器作为组件批量嵌入页面`
+
+在鸿蒙侧，`Kuikly()` 组件本身就是一个 ArkUI 组件，天然支持嵌入到任意 Native 布局容器中。与页面级使用的区别在于：页面级直接在 `@Entry` 页面的 `build()` 中放置一个全屏的 `Kuikly()` 组件，而 View 粒度则是在一个 Native 布局容器（如 `WaterFlow`、`List`、`Grid` 等）中嵌入多个 `Kuikly()` 组件。详细的操作步骤可参考以下代码：
+
+##### 代码示例
+
+```ts
+import globalNativeManager from '../kuikly/MyNativeManager';
+import { KuiklyViewDelegate } from '../kuikly/KuiklyViewDelegate';
+import { AppKRRenderManager } from '../kuikly/adapters/AppKRRenderManager';
+import { KRNativeRenderController, KRRenderNativeMode, KRRecord, Kuikly } from '@kuikly-open/render';
+
+@Entry
+@Component
+struct NativeContainerPage {
+  aboutToAppear(): void {
+    AppKRRenderManager.getInstance().initIfNeed();
+  }
+
+  build() {
+    Column() {
+      // 在原生布局中嵌入一个 Kuikly 子视图
+      Kuikly({
+        pageName: 'YourPageName',
+        pageData: { 'key': 'value' } as KRRecord,
+        delegate: new KuiklyViewDelegate(),
+        contextCode: '',
+        executeMode: KRRenderNativeMode.Native,
+        nativeManager: globalNativeManager,
+        initialSize: { width: 200, height: 300 }
+      })
+        .width(200)
+        .height(300)
+    }
+    .width('100%')
+    .height('100%')
+  }
+}
+```
+
+在列表场景中使用时，推荐配合 `@Reusable` 组件：
+
+```ts
+@Reusable
+@Component
+struct KuiklyListItem {
+  @State itemData: Record<string, Object> = {};
+  private delegate = new KuiklyViewDelegate();
+
+  build() {
+    Column() {
+      Kuikly({
+        pageName: 'YourCardPage',
+        pageData: this.itemData as KRRecord,
+        delegate: this.delegate,
+        contextCode: '',
+        executeMode: KRRenderNativeMode.Native,
+        nativeManager: globalNativeManager,
+        initialSize: { width: 180, height: 200 }
+      })
+        .width('100%')
+        .height(200)
+    }
+  }
+}
+```
+
+> 完整的 View 粒度接入实践示例（卡片式风格瀑布流），请参考源码工程 ohosApp 模块的 `NativeAppWaterfall.ets` 页面，该 Demo 使用 `WaterFlow` + `LazyForEach` 实现两列瀑布流，每个 `FlowItem` 中各嵌入了一个 `Kuikly()` 组件。另外也可参考 `KuiklyInList.ets` 了解在 `List` 容器中的嵌入方式。
+
+##### `与页面级方式的主要不同点`
+
+| | 页面级（@Entry Page） | View 粒度（嵌入容器） |
+|---|---|---|
+| **容器** | `Kuikly()` 作为页面唯一根组件 | 多个 `Kuikly()` 组件嵌入到 `WaterFlow`、`List` 等原生容器中 |
+| **生命周期** | 由 `@Entry` 页面的 `onPageShow`/`onPageHide` 自动触发 delegate 的 `pageDidAppear`/`pageDidDisappear` | 由宿主 Native 页面手动管理，或借助 `@Reusable` 组件的 `aboutToAppear`/`aboutToDisappear` |
+| **initialSize** | 可选（组件自动获取页面尺寸） | **建议指定**，传入正确的初始宽高可以提前跨端页面的创建，避免重复排版 |
+| **delegate** | 每个页面一个 delegate 实例 | 每个嵌入的 `Kuikly()` 组件各自持有一个 delegate 实例 |
+| **组件复用** | 无需关注 | 使用 `@Reusable` + `LazyForEach` 优化列表性能 |
+
+##### `注意事项`
+
+1. **initialSize 建议指定**：View 粒度嵌入时，`Kuikly()` 组件的初始尺寸不像全屏页面那样确定，建议通过 `initialSize: { width: xxx, height: xxx }` 传入正确的初始尺寸
+2. **pageData 扁平传递**：`pageData` 传入扁平的 `KRRecord` 对象即可（如 `{ 'key': 'value' }`），框架内部会自动将其包裹在 `param` key 下
+3. **delegate 独立实例**：每个 `Kuikly()` 组件应各自持有独立的 `KuiklyViewDelegate` 实例
+4. **列表场景推荐 @Reusable**：在 `List` / `WaterFlow` 等列表容器中使用时，建议配合 `@Reusable` 组件和 `LazyForEach` 实现组件复用，提升性能
+
+::: tip 注意
+view 粒度接入进的原生页面，还要在 AppKRRouterAdapter.ets 中添加 pageName 路由分支,并在 main_pages.json 中注册新建的 ArkTS Page 路径。
+:::
+
 ## 实现适配器（必须实现部分）
 ``Kuikly``框架为了灵活和可拓展性，不会内置实现异常处理，日志实现等功能，而是通过适配器的设计模式，将具体实现委托给宿主App实现。
 

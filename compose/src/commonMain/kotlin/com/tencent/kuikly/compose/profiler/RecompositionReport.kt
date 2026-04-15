@@ -69,6 +69,8 @@ data class StateChangeRecord(
  * @property composables 按 Composable 聚合的重组统计列表，按重组次数降序排列
  * @property hotspots 热点组件列表（重组频率超过阈值的 Composable）
  * @property stateChanges State 变更记录列表，按变更次数降序排列
+ * @property filteredNames 当前生效的业务自定义排除名称列表（调用 [RecompositionProfiler.excludeByName] 添加）
+ * @property filteredPrefixes 当前生效的业务自定义排除前缀列表（调用 [RecompositionProfiler.excludeByPrefix] 添加）
  */
 data class RecompositionReport(
     val sessionId: String,
@@ -78,7 +80,9 @@ data class RecompositionReport(
     val totalRecompositions: Int,
     val composables: List<ComposableStats>,
     val hotspots: List<ComposableStats>,
-    val stateChanges: List<StateChangeRecord>
+    val stateChanges: List<StateChangeRecord>,
+    val filteredNames: List<String> = emptyList(),
+    val filteredPrefixes: List<String> = emptyList()
 ) {
     /**
      * 将报告序列化为 JSON 字符串。
@@ -119,6 +123,22 @@ data class RecompositionReport(
                 append("\"firstChangeMs\":${record.firstChangeMs},")
                 append("\"lastChangeMs\":${record.lastChangeMs}")
                 append("}")
+            }
+            append("],")
+
+            // filteredNames
+            append("\"filteredNames\":[")
+            filteredNames.forEachIndexed { index, name ->
+                if (index > 0) append(",")
+                append("\"${escapeJson(name)}\"")
+            }
+            append("],")
+
+            // filteredPrefixes
+            append("\"filteredPrefixes\":[")
+            filteredPrefixes.forEachIndexed { index, prefix ->
+                if (index > 0) append(",")
+                append("\"${escapeJson(prefix)}\"")
             }
             append("]")
 

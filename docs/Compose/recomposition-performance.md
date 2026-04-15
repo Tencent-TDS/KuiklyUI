@@ -7,6 +7,7 @@
 - 精确显示触发重组的 State 对象及其值变化（`prev → now`）
 - 检测参数级变更（哪个参数导致了本次重组）
 - 悬浮热点面板（Overlay），实时可视化重组热点
+- 自定义过滤：按名称或包名前缀排除业务基础组件，聚焦核心业务逻辑
 - 自动写文件（JSON 报告 + 逐帧数据），供 AI 离线分析
 - 多平台一致：iOS、Android、HarmonyOS 行为相同
 
@@ -57,6 +58,57 @@ RecompositionProfiler.reset()
 ```
 
 清空当前会话内所有已采集的重组数据（帧事件、组件统计、State 变更记录），计数从零重新开始。适合在切换测试场景时使用，Profiler 保持运行状态不中断。
+
+---
+
+## 自定义过滤
+
+业务项目中通常有大量基础组件（如通用按钮、Loading 组件等）频繁重组，这些噪声会干扰对核心业务逻辑的分析。通过自定义过滤，可以将指定组件从面板和日志中排除，聚焦真正需要关注的重组。
+
+### 按名称精确排除
+
+```kotlin
+// 排除指定 Composable（追加语义，不替换已有规则）
+RecompositionProfiler.excludeByName("MyBaseButton", "CommonLoading")
+
+// 也支持 List 传参
+RecompositionProfiler.excludeByName(listOf("MyBaseButton", "CommonLoading"))
+```
+
+### 按包名前缀批量排除
+
+```kotlin
+// 排除某个包下的所有 Composable
+RecompositionProfiler.excludeByPrefix("com.myapp.foundation.", "com.myapp.common.")
+```
+
+### 清空过滤规则
+
+```kotlin
+// 清空所有业务自定义过滤规则（内置框架过滤不受影响）
+RecompositionProfiler.clearCustomFilters()
+```
+
+### 配置时机
+
+过滤规则可在 `start()` 前后任意时刻配置，立即生效：
+
+```kotlin
+// 方式一：start 前配置，从第一帧起就过滤
+RecompositionProfiler.excludeByName("MyWidget")
+RecompositionProfiler.start()
+
+// 方式二：运行中动态添加
+RecompositionProfiler.start()
+// ... 观察一段时间后 ...
+RecompositionProfiler.excludeByName("NoisyComponent")
+```
+
+### 规则持久性
+
+- **stop/start 跨 session**：过滤规则在 `stop()` 后保留，下次 `start()` 仍生效
+- **幂等**：重复添加同一名称无副作用（Set 语义）
+- **空字符串**：会被自动忽略
 
 ---
 
@@ -117,8 +169,9 @@ grep "RCProfiler" logs/kuikly_ohos.log
 | 按钮 | 功能 |
 |------|------|
 | 暂停 / 继续 | 暂停或恢复 Overlay 数据更新（不影响底层采集，也不隐藏面板） |
-| 重置 | 清空所有计数，等同于 `RecompositionProfiler.reset()` |
+| 重置 | 清空所有计数，等同于 `RecompositionProfiler.reset()`。过滤规则保留不受影响 |
 | 报告 | 将完整 JSON 报告输出到控制台日志 |
+| 清空过滤 | 清空所有业务自定义过滤规则，等同于 `RecompositionProfiler.clearCustomFilters()` |
 
 ### 热点列表说明
 
@@ -137,8 +190,10 @@ grep "RCProfiler" logs/kuikly_ohos.log
 |--------|------|--------|------|
 | `sampleRate` | Float | `1.0` | 采样率（0.0～1.0）。`0.5` 表示约 50% 的帧被记录，可降低性能开销 |
 | `hotspotThreshold` | Int | `10` | 热点判定阈值：Report 中 `isHotspot = true` 的判定条件 |
-| `maxEventBufferSize` | Int | `10000` | 事件缓冲区最大容量，超出时丢弃最旧事件 |
+| `maxEventBufferSize` | Int | `100000` | 事件缓冲区最大容量，超出时丢弃最旧事件 |
 | `includeFrameworkComposables` | Boolean | `false` | 是否包含框架内部 Composable（Row/Column 等）。默认只监控业务代码 |
+| `enableBuiltinFilters` | Boolean | `true` | 是否启用内置框架过滤。关闭后框架 Composable 也会被记录 |
+| `customFilters` | List | `[]` | 静态自定义过滤器列表（实现 `ComposableFilter` 接口）。与 `excludeByName`/`excludeByPrefix` 共存互不覆盖 |
 | `enableLog` | Boolean | `true` | 是否开启日志输出。仅在 start/stop 期间有效 |
 | `enableFile` | Boolean | `true` | 是否开启文件写入，供 AI 离线分析。仅在 start/stop 期间有效 |
 | `enableOverlay` | Boolean | `false` | 启用悬浮热点面板。需在 `start()` 前设置 |

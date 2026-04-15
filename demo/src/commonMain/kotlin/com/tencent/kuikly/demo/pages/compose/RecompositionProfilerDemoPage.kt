@@ -39,6 +39,7 @@ import com.tencent.kuikly.compose.foundation.lazy.items
 import com.tencent.kuikly.compose.foundation.shape.RoundedCornerShape
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.profiler.RecompositionProfiler
+import com.tencent.kuikly.compose.profiler.filter.ComposableFilter
 import com.tencent.kuikly.compose.setContent
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
@@ -138,6 +139,241 @@ private fun RecompositionProfilerDemo() {
                 ActionButton(text = "Get Report", color = Color(0xFF9C27B0.toInt())) {
                     val report = RecompositionProfiler.getReport(saveToFile = true)
                     reportJson = report.toJson()
+                }
+            }
+        }
+
+        item {
+            // TC-01: 基础过滤名称测试
+            Text("[TC-01] Filter by Name", fontSize = 14.sp, color = Color.Gray)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ActionButton(text = "Exclude CounterSection", color = Color(0xFFFF5722.toInt())) {
+                    RecompositionProfiler.excludeByName("CounterSection", "StatusBar")
+                    println("[TC01] excludeByName called — check RCProfiler log for: names: [CounterSection, StatusBar], prefixes: []")
+                }
+                ActionButton(text = "Clear Filters", color = Color(0xFF607D8B.toInt())) {
+                    RecompositionProfiler.clearCustomFilters()
+                    println("[TC01] clearCustomFilters called — check RCProfiler log for: Custom filter cleared")
+                }
+            }
+        }
+
+        item {
+            // TC-02: 追加语义 + TC-05: 空白字符串 + TC-06: 幂等
+            Text("[TC-02/05/06] Append + Blank + Idempotent", fontSize = 14.sp, color = Color.Gray)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ActionButton(text = "Run TC-02/05/06", color = Color(0xFF3F51B5.toInt())) {
+                    // 先清空
+                    RecompositionProfiler.clearCustomFilters()
+                    // TC-02: 追加语义
+                    RecompositionProfiler.excludeByName("A")
+                    RecompositionProfiler.excludeByName("B")
+                    println("[TC02] After two excludeByName calls — expect names: [A, B] (not just [B])")
+                    // TC-05: 空白字符串
+                    RecompositionProfiler.excludeByName("", "  ", "ValidName")
+                    println("[TC05] After blank strings — expect names: [A, B, ValidName] (no empty strings)")
+                    // TC-06: 幂等
+                    RecompositionProfiler.excludeByName("ValidName")
+                    println("[TC06] After duplicate add — expect names still: [A, B, ValidName] (Set, no dups)")
+                }
+            }
+        }
+
+        item {
+            // TC-03: 前缀过滤
+            Text("[TC-03] Prefix Filter", fontSize = 14.sp, color = Color.Gray)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ActionButton(text = "Exclude by Prefix", color = Color(0xFF009688.toInt())) {
+                    RecompositionProfiler.clearCustomFilters()
+                    RecompositionProfiler.excludeByPrefix("com.tencent.kuikly.demo.pages.compose.Counter")
+                    println("[TC03] excludeByPrefix called — expect prefixes: [com.tencent.kuikly.demo.pages.compose.Counter]")
+                    println("[TC03] CounterSection should no longer appear in logs")
+                }
+            }
+        }
+
+        item {
+            // TC-04: vararg / List 两种方式
+            Text("[TC-04] vararg vs List", fontSize = 14.sp, color = Color.Gray)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ActionButton(text = "Run TC-04", color = Color(0xFF795548.toInt())) {
+                    RecompositionProfiler.clearCustomFilters()
+                    RecompositionProfiler.excludeByName("Foo", "Bar")       // vararg
+                    RecompositionProfiler.excludeByName(listOf("Baz"))      // List
+                    println("[TC04] vararg + List — expect names: [Bar, Baz, Foo] (sorted)")
+                }
+            }
+        }
+
+        item {
+            // TC-08: 清空过滤 + 连续清空幂等
+            Text("[TC-08] Clear Filters", fontSize = 14.sp, color = Color.Gray)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ActionButton(text = "Run TC-08", color = Color(0xFFE91E63.toInt())) {
+                    // 先加规则
+                    RecompositionProfiler.excludeByName("Foo")
+                    println("[TC08] Added Foo — expect 'Custom filter updated' log")
+                    // 清空
+                    RecompositionProfiler.clearCustomFilters()
+                    println("[TC08] Cleared — expect 'Custom filter cleared' log")
+                    // 连续清空（应无日志输出）
+                    RecompositionProfiler.clearCustomFilters()
+                    println("[TC08] Cleared again — expect NO 'Custom filter cleared' log (already empty)")
+                }
+            }
+        }
+
+        item {
+            // TC-10: Report 过滤快照 + TC-11: saveToFile=false 无日志
+            Text("[TC-10/11] Report Snapshot", fontSize = 14.sp, color = Color.Gray)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ActionButton(text = "Run TC-10/11", color = Color(0xFF9C27B0.toInt())) {
+                    RecompositionProfiler.clearCustomFilters()
+                    RecompositionProfiler.excludeByName("Widget1")
+                    RecompositionProfiler.excludeByPrefix("com.myapp.")
+                    // TC-10: Report 快照
+                    val report = RecompositionProfiler.getReport(saveToFile = false)
+                    println("[TC10] report.filteredNames=${report.filteredNames}")
+                    println("[TC10] report.filteredPrefixes=${report.filteredPrefixes}")
+                    println("[TC10] JSON snippet: ${report.toJson().let { json ->
+                        val start = json.indexOf("\"filteredNames\"")
+                        if (start >= 0) json.substring(start, minOf(start + 120, json.length)) else "NOT FOUND"
+                    }}")
+                    // TC-11: saveToFile=false 应无 === Recomposition Report === 日志
+                    println("[TC11] Above getReport used saveToFile=false — check NO '=== Recomposition Report ===' in RCProfiler logs")
+                    // 对比：saveToFile=true
+                    val report2 = RecompositionProfiler.getReport(saveToFile = true)
+                    println("[TC11] This getReport used saveToFile=true — check '=== Recomposition Report ===' APPEARS in RCProfiler logs")
+                }
+            }
+        }
+
+        item {
+            // TC-07: configure 不覆盖 excludeByName
+            Text("[TC-07] configure vs excludeByName", fontSize = 14.sp, color = Color.Gray)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ActionButton(text = "Run TC-07", color = Color(0xFF00BCD4.toInt())) {
+                    RecompositionProfiler.clearCustomFilters()
+                    // 先用 configure 设置一个 static filter
+                    RecompositionProfiler.configure {
+                        customFilters = listOf(object : ComposableFilter {
+                            override fun shouldFilter(composableName: String, info: String): Boolean {
+                                return composableName == "StaticTarget"
+                            }
+                        })
+                    }
+                    // 再用 excludeByName 添加动态规则
+                    RecompositionProfiler.excludeByName("DynamicWidget")
+                    println("[TC07] configure(StaticTarget) + excludeByName(DynamicWidget) — both should coexist")
+                    println("[TC07] Check: names: [DynamicWidget] in log (StaticFilter is separate, not shown in names)")
+                    // 再次 configure 修改其他配置，不设置 customFilters
+                    RecompositionProfiler.configure { hotspotThreshold = 20 }
+                    println("[TC07] After configure{hotspotThreshold=20} — DynamicWidget should STILL be in names")
+                }
+            }
+        }
+
+        item {
+            // TC-09: start 前配置生效
+            Text("[TC-09] Config before start", fontSize = 14.sp, color = Color.Gray)
+            Text("  ⚠️ 需先 Stop Profiler，再点此按钮", fontSize = 11.sp, color = Color.Red)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ActionButton(text = "Run TC-09", color = Color(0xFFFF9800.toInt())) {
+                    // 确保 stop 状态
+                    RecompositionProfiler.stop()
+                    RecompositionProfiler.clearCustomFilters()
+                    // 先配置过滤，再启动
+                    RecompositionProfiler.excludeByName("CounterSection")
+                    println("[TC09] excludeByName(CounterSection) called BEFORE start")
+                    RecompositionProfiler.configure { enableOverlay = true; enableLog = true }
+                    RecompositionProfiler.start()
+                    println("[TC09] Profiler started — now tap '+' to trigger CounterSection recomposition")
+                    println("[TC09] CounterSection should NOT appear in logs (pre-start config)")
+                }
+            }
+        }
+
+        item {
+            // TC-19: 动态修改规则 + TC-20: stop/start 保留 + TC-21: configure 多次不丢规则
+            Text("[TC-19/20/21] Stability Tests", fontSize = 14.sp, color = Color.Gray)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ActionButton(text = "Run TC-19/20/21", color = Color(0xFF673AB7.toInt())) {
+                    // TC-19: 动态修改规则
+                    RecompositionProfiler.clearCustomFilters()
+                    RecompositionProfiler.excludeByName("W1")
+                    println("[TC19] Step 1: excludeByName(W1)")
+                    RecompositionProfiler.excludeByName("W2")
+                    println("[TC19] Step 2: excludeByName(W2) — expect names: [W1, W2]")
+                    RecompositionProfiler.clearCustomFilters()
+                    println("[TC19] Step 3: clearCustomFilters — expect 'Custom filter cleared'")
+                    RecompositionProfiler.excludeByPrefix("com.test.")
+                    println("[TC19] Step 4: excludeByPrefix — expect prefixes: [com.test.]")
+
+                    // TC-20: stop/start 规则保留
+                    RecompositionProfiler.clearCustomFilters()
+                    RecompositionProfiler.excludeByName("MyWidget")
+                    println("[TC20] Added MyWidget, now stop+start...")
+                    RecompositionProfiler.stop()
+                    RecompositionProfiler.configure { enableOverlay = true; enableLog = true }
+                    RecompositionProfiler.start()
+                    // 检查规则是否保留
+                    val report20 = RecompositionProfiler.getReport(saveToFile = false)
+                    println("[TC20] After stop+start: filteredNames=${report20.filteredNames} — expect [MyWidget]")
+
+                    // TC-21: configure 多次不丢动态规则
+                    RecompositionProfiler.configure { hotspotThreshold = 15 }
+                    val report21 = RecompositionProfiler.getReport(saveToFile = false)
+                    println("[TC21] After configure{hotspotThreshold=15}: filteredNames=${report21.filteredNames} — expect [MyWidget] still")
+                    RecompositionProfiler.configure { hotspotThreshold = 30 }
+                    val report21b = RecompositionProfiler.getReport(saveToFile = false)
+                    println("[TC21] After configure{hotspotThreshold=30}: filteredNames=${report21b.filteredNames} — expect [MyWidget] still")
+                }
+            }
+        }
+
+        item {
+            // TC-22: 大量规则性能
+            Text("[TC-22] Bulk Rules Performance", fontSize = 14.sp, color = Color.Gray)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ActionButton(text = "Run TC-22", color = Color(0xFF455A64.toInt())) {
+                    RecompositionProfiler.clearCustomFilters()
+                    val names = (1..200).map { "Widget$it" }
+                    val mark = kotlin.time.TimeSource.Monotonic.markNow()
+                    RecompositionProfiler.excludeByName(names)
+                    val elapsed = mark.elapsedNow().inWholeMilliseconds
+                    println("[TC22] Added 200 rules in ${elapsed}ms — expect <50ms, no crash")
+                    val report = RecompositionProfiler.getReport(saveToFile = false)
+                    println("[TC22] filteredNames.size=${report.filteredNames.size} — expect 200")
                 }
             }
         }

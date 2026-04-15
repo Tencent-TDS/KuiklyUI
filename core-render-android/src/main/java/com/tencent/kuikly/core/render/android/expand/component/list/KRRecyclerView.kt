@@ -2016,4 +2016,18 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
     }
 
     fun isNestScrolling() = nestedScrollAxes != SCROLL_AXIS_NONE
+
+    override fun canScrollHorizontally(direction: Int): Boolean {
+        if (!scrollEnabled) {
+            return false
+        }
+        return super.canScrollHorizontally(direction)
+    }
+
+    override fun canScrollVertically(direction: Int): Boolean {
+        if (!scrollEnabled) {
+            return false
+        }
+        return super.canScrollVertically(direction)
+    }
 }

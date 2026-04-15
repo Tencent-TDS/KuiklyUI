@@ -487,8 +487,6 @@ export default class EntryAbility extends UIAbility {
     KuiklyRenderAdapterManager.krLogAdapter = new AppKRLogAdapter();
     // 路由适配器
     KuiklyRenderAdapterManager.krRouterAdapter = new AppKRRouterAdapter();
-    // PAG 适配器：向框架提供 PAGView 实例（使用 PAG 组件时必需）
-    KuiklyRenderAdapterManager.krPAGViewAdapter = new AppKRPagViewAdapter();
     ...
   }
 }

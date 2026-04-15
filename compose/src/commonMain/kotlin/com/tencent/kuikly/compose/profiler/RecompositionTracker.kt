@@ -50,6 +50,7 @@ internal class RecompositionTracker {
         private const val MAX_STATE_CHANGE_ENTRIES = 500
     }
 
+    @Volatile
     private var config: RecompositionConfig = RecompositionConfig.DEFAULT
 
     /** 当前帧内的重组计数 */
@@ -118,6 +119,14 @@ internal class RecompositionTracker {
     private val traceStack = mutableListOf<TraceEntry>()
 
     /**
+     * Overlay 子树过滤深度计数器。
+     * 当 traceEventStart 检测到当前 info 属于 Overlay 内部 composable（匹配 overlayPrefixes）时，
+     * 计数器递增；其所有子 composable 的 traceStart/End 也不做任何记录，直到对应的 traceEnd 将计数器恢复。
+     * 这从根本上阻断了 Overlay 重组 → 记录事件 → dataVersion++ → 触发 Overlay 重组的无限循环。
+     */
+    private var overlayFilterDepth: Int = 0
+
+    /**
      * CompositionObserver 实例，用于精确的 scope→state 重组原因追踪。
      * 通过 [BaseComposeScene] 注册到 Composition 实例上。
      */
@@ -137,6 +146,7 @@ internal class RecompositionTracker {
      * 过滤链：将自定义过滤器与内置框架过滤器组合。
      * 当此值非 null 时，使用 FilterChain 进行过滤，否则使用遗留的 isFrameworkComposable 逻辑。
      */
+    @Volatile
     private var filterChain: FilterChain? = null
 
     /**
@@ -175,6 +185,15 @@ internal class RecompositionTracker {
     )
 
     /**
+     * 判断给定的 composable info 是否属于 Overlay 内部函数。
+     * 用于 overlayFilterDepth 机制：Overlay 子树内所有 composable 的 trace 事件都不记录，
+     * 从根本上阻断 Overlay 重组的无限循环。
+     */
+    private fun isOverlayComposable(info: String): Boolean {
+        return overlayPrefixes.any { info.startsWith(it) }
+    }
+
+    /**
      * 判断给定的 composable info 是否属于框架内部函数或 Overlay 内部函数。
      * 此方法已被 FilterChain 取代，仅保留用于向后兼容。
      */
@@ -189,11 +208,11 @@ internal class RecompositionTracker {
      */
     private fun shouldFilterComposable(info: String): Boolean {
         return if (filterChain != null) {
-            // 提取 composable 名称（从 info 中去掉源码位置）
-            val composableName = info.substringBefore(" ")
+            // 使用 extractComposableName 正确提取短名（去掉包名前缀和源码位置）
+            // 不能用 substringBefore(" ")，因为 info 可能是全限定名如 "com.example.Foo (Foo.kt:10)"
+            val composableName = extractComposableName(info)
             filterChain!!.shouldFilter(composableName, info)
         } else {
-            // 遗留逻辑：仅根据 includeFrameworkComposables 配置
             !config.includeFrameworkComposables && isFrameworkComposable(info)
         }
     }
@@ -264,6 +283,7 @@ internal class RecompositionTracker {
     fun stop() {
         unregisterSnapshotObserver()
         traceStack.clear()
+        overlayFilterDepth = 0
         hasPreciseScopeMapping = false
         filterChain = null  // 清理过滤链资源
     }
@@ -310,7 +330,7 @@ internal class RecompositionTracker {
             unregisterSnapshotObserver()
         }
         // 重初始化过滤链（可能配置变了）
-        filterChain = if (config.customFilters.isNotEmpty() || config.enableBuiltinFilters) {
+        val newChain = if (config.customFilters.isNotEmpty() || config.enableBuiltinFilters) {
             if (config.enableBuiltinFilters) {
                 FilterChain.withDefaults(config.customFilters)
             } else {
@@ -319,6 +339,7 @@ internal class RecompositionTracker {
         } else {
             null
         }
+        filterChain = newChain
     }
 
     /**
@@ -411,6 +432,16 @@ internal class RecompositionTracker {
         if (!currentFrameSampled) {
             return
         }
+        // If already inside an Overlay subtree, just increment depth and skip
+        if (overlayFilterDepth > 0) {
+            overlayFilterDepth++
+            return
+        }
+        // Check if this composable is an Overlay internal (e.g. ProfilerOverlaySlot)
+        if (isOverlayComposable(info)) {
+            overlayFilterDepth = 1
+            return
+        }
         traceStack.add(TraceEntry(key, info, DateTime.currentTimestamp(), dirty1, dirty2))
     }
 
@@ -420,6 +451,11 @@ internal class RecompositionTracker {
      */
     private fun onComposableTraceEnd() {
         if (!currentFrameSampled) return
+        // If inside an Overlay subtree, just decrement depth and skip
+        if (overlayFilterDepth > 0) {
+            overlayFilterDepth--
+            return
+        }
         if (traceStack.isEmpty()) return
 
         val entry = traceStack.removeAt(traceStack.lastIndex)

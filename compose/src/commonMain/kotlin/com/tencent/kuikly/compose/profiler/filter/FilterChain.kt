@@ -112,6 +112,7 @@ class FilterChain(
      */
     private fun isBuiltinFrameworkComposable(info: String): Boolean {
         return frameworkPrefixes.any { prefix -> info.startsWith(prefix) }
+            || frameworkNamePatterns.any { pattern -> info.startsWith(pattern) }
     }
 
     data class CacheStats(
@@ -126,20 +127,43 @@ class FilterChain(
          * These match the original hardcoded values from RecompositionTracker.
          */
         private val frameworkPrefixes = listOf(
-            "androidx.compose.",
+            // AndroidX Compose
+            "androidx.compose.runtime.",
+            "androidx.compose.ui.",
+            "androidx.compose.foundation.",
+            "androidx.compose.material.",
+            "androidx.compose.material3.",
+            "androidx.compose.animation.",
             "androidx.activity.compose.",
             "androidx.navigation.compose.",
             "androidx.lifecycle.compose.",
             "androidx.tv.compose.",
             "androidx.paging.compose.",
             "androidx.constraintlayout.compose.",
-            "com.tencent.kuikly.compose.ui.",
+            // KuiklyUI Compose
             "com.tencent.kuikly.compose.foundation.",
-            "com.tencent.kuikly.compose.layout.",
             "com.tencent.kuikly.compose.material.",
+            "com.tencent.kuikly.compose.material3.",
+            "com.tencent.kuikly.compose.ui.",
+            "com.tencent.kuikly.compose.animation.",
+            "com.tencent.kuikly.compose.runtime.",
+            "com.tencent.kuikly.compose.layout.",
             "com.tencent.kuikly.compose.component.",
             "com.tencent.kuikly.compose.theme.",
-            "com.tencent.kuikly.compose.model."
+            "com.tencent.kuikly.compose.model.",
+            // Profiler Overlay itself — must be filtered to prevent infinite recomposition loop
+            "com.tencent.kuikly.compose.profiler."
+        )
+
+        /**
+         * Non-prefix name patterns to filter (e.g., image loading, ViewModel internals).
+         */
+        private val frameworkNamePatterns = listOf(
+            "rememberAsyncImagePainter",
+            "rememberAsyncImagePainterInternal",
+            "painterResource",
+            "collectAsState",
+            "viewModel"
         )
 
         /**

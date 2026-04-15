@@ -62,22 +62,23 @@
 **注：** 主要追踪方式已切换为 CompositionTracer 自动全覆盖，`TrackRecomposition` 保留供需要自定义名称等特定场景使用。
 
 ### Requirement: 分析报告获取
-系统 SHALL 提供 API 获取结构化的重组分析报告。
+系统 SHALL 提供 API 获取结构化的重组分析报告，报告中 SHALL 同时包含当前生效的业务自定义过滤配置快照（`filteredNames` 和 `filteredPrefixes`）。
 
 #### Scenario: 获取当前报告
 - **GIVEN** RecompositionProfiler 已启用且已收集数据
 - **WHEN** 开发者调用 `RecompositionProfiler.getReport()`
-- **THEN** 系统 SHALL 返回 `RecompositionReport` 对象，包含 sessionId、durationMs、totalFrames、totalRecompositions、composables（按重组次数降序）、hotspots、stateChanges
+- **THEN** 系统 SHALL 返回 `RecompositionReport` 对象，包含 sessionId、durationMs、totalFrames、totalRecompositions、composables（按重组次数降序）、hotspots、stateChanges、**filteredNames**、**filteredPrefixes**
 
 #### Scenario: 重置数据
 - **GIVEN** RecompositionProfiler 已启用
 - **WHEN** 开发者调用 `RecompositionProfiler.reset()`
 - **THEN** 系统 SHALL 清空已采集的所有事件数据，后续报告从零开始统计
+- **AND** 过滤配置 SHALL 保留不受影响（reset 只清数据，不清配置）
 
 #### Scenario: 未启用时获取报告
 - **GIVEN** RecompositionProfiler 未启用
 - **WHEN** 开发者调用 `RecompositionProfiler.getReport()`
-- **THEN** 系统 SHALL 返回一个空的 `RecompositionReport`（所有计数为 0），不抛出异常
+- **THEN** 系统 SHALL 返回一个空的 `RecompositionReport`（所有计数为 0），`filteredNames` 和 `filteredPrefixes` 反映当前配置快照，不抛出异常
 
 ### Requirement: 输出策略管理
 系统 SHALL 提供 API 管理输出策略的注册和激活。

@@ -421,6 +421,41 @@ object RecompositionProfiler {
     }
 
     /**
+     * 移除指定名称的动态过滤规则。
+     * 用于 Overlay 面板「取消过滤」操作。
+     *
+     * @param name 要移除的 Composable 名称
+     */
+    fun removeExcludedName(name: String) {
+        synchronized(lock) {
+            if (excludedNames.remove(name)) {
+                rebuildCustomFilters()
+                if (isEnabled) logFilterUpdated()
+            }
+        }
+    }
+
+    /**
+     * 查询指定名称是否在动态排除列表中。
+     * Overlay 用此接口同步过滤状态。
+     */
+    fun isNameExcluded(name: String): Boolean {
+        synchronized(lock) {
+            return name in excludedNames
+        }
+    }
+
+    /**
+     * 获取当前动态排除名称列表的快照。
+     * Overlay 用此接口显示已过滤区域。
+     */
+    fun getExcludedNames(): List<String> {
+        synchronized(lock) {
+            return excludedNames.toList().sorted()
+        }
+    }
+
+    /**
      * 根据 [excludedNames]、[excludedPrefixes] 和 [staticCustomFilters] 重建 customFilters 并更新 config / tracker。
      * 必须在 [lock] 保护下调用。
      *

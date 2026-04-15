@@ -150,6 +150,12 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
     private var mNestedScrollAxesNonTouch = SCROLL_AXIS_NONE
 
     /**
+     * Reference count for nested scrolling children (TYPE_TOUCH).
+     * Only reset mNestedScrollAxesTouch when all children have stopped nested scrolling.
+     */
+    private var mNestedScrollTouchCount = 0
+
+    /**
      * 向前滑动
      */
     private var scrollForwardMode = KRNestedScrollMode.SELF_FIRST
@@ -1329,6 +1335,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         // Reset nested scroll axes
         mNestedScrollAxesTouch = SCROLL_AXIS_NONE
         mNestedScrollAxesNonTouch = SCROLL_AXIS_NONE
+        mNestedScrollTouchCount = 0
         // Reset nested scroll transient state
         skipFlingIfNestOverScroll = false
         lastScrollParentX = 0
@@ -1565,6 +1572,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         if (myAxes != View.SCROLL_AXIS_NONE) {
             if (type == ViewCompat.TYPE_TOUCH) {
                 mNestedScrollAxesTouch = myAxes
+                mNestedScrollTouchCount++
             } else {
                 mNestedScrollAxesNonTouch = myAxes
             }
@@ -1601,7 +1609,10 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
 
     override fun onStopNestedScroll(target: View, type: Int) {
         if (type == ViewCompat.TYPE_TOUCH) {
-            mNestedScrollAxesTouch = View.SCROLL_AXIS_NONE
+            mNestedScrollTouchCount = (mNestedScrollTouchCount - 1).coerceAtLeast(0)
+            if (mNestedScrollTouchCount == 0) {
+                mNestedScrollAxesTouch = View.SCROLL_AXIS_NONE
+            }
         } else {
             mNestedScrollAxesNonTouch = View.SCROLL_AXIS_NONE
         }
@@ -2005,4 +2016,18 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
     }
 
     fun isNestScrolling() = nestedScrollAxes != SCROLL_AXIS_NONE
+
+    override fun canScrollHorizontally(direction: Int): Boolean {
+        if (!scrollEnabled) {
+            return false
+        }
+        return super.canScrollHorizontally(direction)
+    }
+
+    override fun canScrollVertically(direction: Int): Boolean {
+        if (!scrollEnabled) {
+            return false
+        }
+        return super.canScrollVertically(direction)
+    }
 }

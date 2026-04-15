@@ -20,6 +20,7 @@ import androidx.compose.runtime.CompositionTracer
 import androidx.compose.runtime.snapshots.Snapshot
 import com.tencent.kuikly.compose.profiler.filter.FilterChain
 import com.tencent.kuikly.core.datetime.DateTime
+import kotlin.concurrent.Volatile
 import kotlin.random.Random
 
 /**

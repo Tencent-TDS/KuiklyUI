@@ -19,7 +19,16 @@ import { common } from '@kit.AbilityKit';
 
 export class AppKRRouterAdapter implements IKRRouterAdapter {
   openPage(context: common.UIAbilityContext, pageName: string, pageData: KRRecord): void {
-    const url = pageName.startsWith('OverNativeClickDemo') ? 'pages/GestureThrough' : 'pages/Index';
+    let url: string;
+    if (pageName.startsWith('OverNativeClickDemo')) {
+      url = 'pages/GestureThrough';
+    } else if (pageName === 'NativeAppWaterfall') {
+      url = 'pages/NativeAppWaterfall';
+    } else if (pageName === 'KuiklyInList') {
+      url = 'pages/KuiklyInList';
+    } else {
+      url = 'pages/Index';
+    }
     router.pushUrl({
       url,
       params: {

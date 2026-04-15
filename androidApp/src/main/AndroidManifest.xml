@@ -32,5 +32,6 @@
             </intent-filter>
         </activity>
         <activity android:name=".NativeMixKuiklyViewDemoActivity"/>
+        <activity android:name=".NativeAppWaterfallActivity"/>
     </application>
 </manifest>

@@ -42,6 +42,7 @@ import com.tencent.kuikly.compose.foundation.shape.CircleShape
 import com.tencent.kuikly.compose.foundation.shape.RoundedCornerShape
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.profiler.RecompositionProfiler
+import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.draw.clip
@@ -53,6 +54,7 @@ import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
 import kotlin.math.roundToInt
 
+private const val TAG = "RCProfiler"
 private const val FAB_SIZE_DP = 52
 private const val FAB_MARGIN_DP = 16
 
@@ -194,7 +196,7 @@ private fun ProfilerExpandedPanel(
                     text = "报告",
                     onClick = {
                         val report = RecompositionProfiler.getReport()
-                        println("[ProfilerOverlay] Report:\n${report.toJson()}")
+                        KLog.i(TAG, "Report:\n${report.toJson()}")
                     }
                 )
                 OverlayControlButton(

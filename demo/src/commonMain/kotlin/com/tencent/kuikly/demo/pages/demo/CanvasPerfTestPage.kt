@@ -55,6 +55,8 @@ internal class CanvasPerfTestPage : BasePager() {
     // ---- 响应式状态 ----
     private var resultText by observable("点击按钮运行对应的 Canvas 性能测试")
     private var isRunning by observable(false)
+    // 批量绘制模式开关（默认 false = 非批量）
+    private var useBatchDraw by observable(false)
 
     // 用于触发 Canvas 重绘的计数器
     private var redrawTrigger by observable(0)
@@ -99,7 +101,7 @@ internal class CanvasPerfTestPage : BasePager() {
                     }
                     Text {
                         attr {
-                            text("此页面用于量化 Canvas 绘制性能。\n每个测试在单次 draw 回调中执行大量绘制指令，统计 Kotlin 侧执行耗时。\n在 OHOS 平台上将自动使用 batchOps 批处理优化。")
+                            text("此页面用于量化 Canvas 绘制性能。\n每个测试在单次 draw 回调中执行大量绘制指令，统计 Kotlin 侧执行耗时。\n可通过【批量模式】按钮切换 batchDraw 开/关，对比两种模式的性能差异。")
                             fontSize(13f)
                             color(Color(0xFF666666))
                         }
@@ -119,6 +121,9 @@ internal class CanvasPerfTestPage : BasePager() {
                     // 触发依赖追踪
                     val trigger = ctx.redrawTrigger
                     val test = ctx.currentTest
+
+                    // 根据标志位控制批量模式
+                    context.batchDraw = ctx.useBatchDraw
 
                     val begin = DateTime.currentTimestamp()
                     when (test) {
@@ -147,6 +152,33 @@ internal class CanvasPerfTestPage : BasePager() {
                     ctx.testButton(this, "② 密集网格\n(${GRID_ROWS}×${GRID_COLS})", 2)
                     ctx.testButton(this, "③ 贝塞尔曲线\n(${CURVE_POINTS}点)", 3)
                     ctx.testButton(this, "④ 综合混合\n(多类型)", 4)
+                }
+
+                // 批量模式切换按钮
+                View {
+                    attr {
+                        margin(left = 16f, right = 16f, top = 8f)
+                        alignItemsCenter()
+                    }
+                    Button {
+                        attr {
+                            titleAttr {
+                                text("批量模式: ${if (ctx.useBatchDraw) "ON ✓" else "OFF"}")
+                                color(Color.WHITE)
+                                fontSize(14f)
+                            }
+                            backgroundColor(if (ctx.useBatchDraw) Color(0xFF34C759) else Color(0xFF8E8E93))
+                            size(width = 300f, height = 40f)
+                            borderRadius(8f)
+                        }
+                        event {
+                            click {
+                                ctx.useBatchDraw = !ctx.useBatchDraw
+                                // 触发重绘以应用新模式
+                                if (ctx.currentTest > 0) ctx.redrawTrigger++
+                            }
+                        }
+                    }
                 }
 
                 // 连续重绘测试按钮
@@ -182,7 +214,7 @@ internal class CanvasPerfTestPage : BasePager() {
                                         append("连续重绘 20 次\n")
                                         append("总耗时: ${totalDuration}ms\n")
                                         append("平均每帧绘制: ${totalDrawTime / 20}ms\n")
-                                        append("平台: ${if (ctx.pageData.isOhOs) "OHOS (batchOps ON)" else "非OHOS (batchOps OFF)"}")
+                                        append("模式: ${if (ctx.useBatchDraw) "批量模式 (batchDraw ON)" else "非批量模式 (batchDraw OFF)"}")
                                     }
                                     ctx.isRunning = false
                                 }
@@ -237,7 +269,7 @@ internal class CanvasPerfTestPage : BasePager() {
                     ctx.redrawTrigger++
                     ctx.resultText = buildString {
                         append("测试 $testId 单帧绘制耗时: ${ctx.lastDrawTime}ms\n")
-                        append("平台: ${if (ctx.pageData.isOhOs) "OHOS (batchOps ON)" else "非OHOS (batchOps OFF)"}")
+                        append("模式: ${if (ctx.useBatchDraw) "批量模式 (batchDraw ON)" else "非批量模式 (batchDraw OFF)"}")
                     }
                 }
             }

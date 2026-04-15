@@ -173,32 +173,52 @@ open class CanvasContext(private val renderView: RenderView, private val pagerId
     private var textAlign: TextAlign = TextAlign.LEFT
 
     /**
-     * 批量绘制命令缓冲区。
-     * 所有 drawCallback 中的绘制命令先积累到此数组，
-     * drawCallback 执行完毕后通过 [flush] 一次性发送给 native。
+     * 批量绘制模式开关（默认 false = 非批量模式）。
+     *
+     * - **false（默认）**：每条绘制命令立即通过 bridge 发送给 native，行为与旧版一致。
+     * - **true**：所有命令缓冲到内部队列，drawCallback 执行完毕后由 [flush] 一次性发送，
+     *   可大幅减少 bridge 调用次数，在 OHOS 等平台上显著提升性能。
+     *
+     * 在 draw 回调中可按需动态设置，例如：
+     * ```kotlin
+     * Canvas({ ... }) { context, width, height ->
+     *     context.batchDraw = true   // 开启批量模式
+     *     // ... 绘制指令 ...
+     * }
+     * ```
+     */
+    var batchDraw: Boolean = false
+
+    /**
+     * 批量绘制命令缓冲区（batchDraw = true 时使用）。
      */
     private val cmdBuffer = JSONArray()
 
     /**
-     * 将绘制命令加入缓冲区（内部使用）。
+     * 将绘制命令分发：批量模式下入缓冲区，非批量模式下立即发送给 native。
      * @param method 命令名称
      * @param params 命令参数（JSON 字符串或空字符串）
      */
     private fun enqueue(method: String, params: String) {
-        val entry = JSONObject()
-        entry.put("m", method)
-        if (params.isNotEmpty()) {
-            entry.put("p", params)
+        if (batchDraw) {
+            val entry = JSONObject()
+            entry.put("m", method)
+            if (params.isNotEmpty()) {
+                entry.put("p", params)
+            }
+            cmdBuffer.put(entry)
+        } else {
+            renderView.callMethod(method, params)
         }
-        cmdBuffer.put(entry)
     }
 
     /**
-     * 将缓冲区中的所有命令一次性发送给 native（batchDraw）。
+     * 批量模式下，将缓冲区中的所有命令一次性发送给 native（batchDraw）。
+     * 非批量模式下此方法为空操作。
      * 由 [CanvasView.draw] 在 drawCallback 执行完毕后调用。
      */
     internal fun flush() {
-        if (cmdBuffer.length() > 0) {
+        if (batchDraw && cmdBuffer.length() > 0) {
             renderView.callMethod("batchDraw", cmdBuffer.toString())
         }
     }

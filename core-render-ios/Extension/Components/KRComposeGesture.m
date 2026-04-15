@@ -148,68 +148,53 @@
 #else // [macOS
 
 // macOS: 使用鼠标事件替代触摸事件（NSGestureRecognizer 不支持 touches* 方法）
+// 注意：macOS 上每个 mouseDown/mouseDragged/mouseUp 都是独立的 NSEvent 对象，
+// 其 hash 值不同。为了让 Compose 层手势检测器能正确追踪指针（依赖 pointerId 一致性），
+// 需要在整个鼠标操作序列中使用当前最新的 NSEvent，并保持 trackedTouches 的更新。
+
 - (void)mouseDown:(NSEvent *)event {
-    // 在 macOS 上创建模拟的触摸对象
+    // 清空旧的追踪集合，开始新的鼠标操作序列
+    [self.trackedTouches removeAllObjects];
     NSSet<UITouch *> *touches = [NSSet setWithObject:(UITouch *)event];
-    BOOL areTouchesInitial = [self startTrackingTouches:touches];
+    [self startTrackingTouches:touches];
     
     [self onTouchesEvent:self.trackedTouches event:(UIEvent *)event phase:TouchesEventKindBegin];
     
-    if ([self isOngoing]) {
-        switch (self.state) {
-            case UIGestureRecognizerStatePossible:
-                self.state = UIGestureRecognizerStateBegan;
-                break;
-            case UIGestureRecognizerStateBegan:
-            case UIGestureRecognizerStateChanged:
-                self.state = UIGestureRecognizerStateChanged;
-                break;
-            default:
-                break;
-        }
-    } else {
-        if (!areTouchesInitial) {
-            [self checkPanIntent];
-        }
-    }
+    // macOS 的 NSGestureRecognizer 必须在 mouseDown 中将 state 设为 Began，
+    // 否则 AppKit 不会将后续的 mouseDragged/mouseUp 事件分发给该手势识别器。
+    // 这与 iOS 的 UIGestureRecognizer 行为不同——iOS 在 Possible 状态下也会分发所有 touch 事件。
+    self.state = UIGestureRecognizerStateBegan;
 }
 
 - (void)mouseDragged:(NSEvent *)event {
+    // 替换 trackedTouches 中的旧事件为当前事件，确保坐标是最新的
+    [self.trackedTouches removeAllObjects];
+    [self.trackedTouches addObject:(UITouch *)event];
+    
     [self onTouchesEvent:_trackedTouches event:(UIEvent *)event phase:TouchesEventKindMoved];
     
-    if ([self isOngoing]) {
-        self.state = UIGestureRecognizerStateChanged;
-    } else {
-        [self checkPanIntent];
-    }
+    self.state = UIGestureRecognizerStateChanged;
 }
 
 - (void)mouseUp:(NSEvent *)event {
-    NSSet<UITouch *> *touches = [NSSet setWithObject:(UITouch *)event];
-    [self onTouchesEvent:_trackedTouches event:(UIEvent *)event phase:TouchesEventKindEnd];
-    [self stopTrackingTouches:touches];
+    // 使用当前 mouseUp 事件替换，确保 up 坐标正确
+    [self.trackedTouches removeAllObjects];
+    [self.trackedTouches addObject:(UITouch *)event];
     
-    if ([self isOngoing]) {
-        self.state = self.trackedTouches.count == 0 ? UIGestureRecognizerStateEnded : UIGestureRecognizerStateChanged;
-    } else {
-        if (self.trackedTouches.count == 0) {
-            self.state = UIGestureRecognizerStateFailed;
-        }
-    }
+    [self onTouchesEvent:_trackedTouches event:(UIEvent *)event phase:TouchesEventKindEnd];
+    [self.trackedTouches removeAllObjects];
+    
+    self.state = UIGestureRecognizerStateEnded;
 }
 
 - (void)mouseCancelled:(NSEvent *)event {
-    NSSet<UITouch *> *touches = [NSSet setWithObject:(UITouch *)event];
-    [self onTouchesEvent:_trackedTouches event:event phase:TouchesEventKindCancel];
-    [self stopTrackingTouches:touches];
+    [self.trackedTouches removeAllObjects];
+    [self.trackedTouches addObject:(UITouch *)event];
     
-    if ([self isOngoing]) {
-        self.state = self.trackedTouches.count == 0 ? UIGestureRecognizerStateCancelled : UIGestureRecognizerStateEnded;
-    } else {
-        if (self.trackedTouches.count == 0) {
-            self.state = UIGestureRecognizerStateFailed;
-        }
-    }
+    [self onTouchesEvent:_trackedTouches event:event phase:TouchesEventKindCancel];
+    [self.trackedTouches removeAllObjects];
+    
+    self.state = UIGestureRecognizerStateCancelled;
 }
 
 #endif // macOS]
@@ -292,6 +277,10 @@
     }
 #else // [macOS
     // macOS: 从 NSEvent 提取鼠标位置信息
+    // macOS 上鼠标永远是单点操作，使用固定的 pointerId 确保
+    // mouseDown/mouseDragged/mouseUp 序列中 pointerId 一致，
+    // 否则 Compose 手势检测器无法正确追踪指针。
+    static const NSUInteger kMacMousePointerId = 0;
     for (UITouch *touch in touches) {
         NSEvent *mouseEvent = (NSEvent *)touch;
         CGPoint locationInSelf = [self.containerView convertPoint:mouseEvent.locationInWindow fromView:nil];
@@ -307,8 +296,8 @@
             @"y" : @(locationInSelf.y),
             @"pageX" : @(locationInRootView.x),
             @"pageY" : @(locationInRootView.y),
-            @"hash" : @(mouseEvent.hash),
-            @"pointerId" : @(mouseEvent.hash),  // 使用 event.hash 作为唯一的 pointerId
+            @"hash" : @(kMacMousePointerId),
+            @"pointerId" : @(kMacMousePointerId),
         }];
     }
 #endif // macOS]

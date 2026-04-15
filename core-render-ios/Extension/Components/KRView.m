@@ -278,6 +278,19 @@
     CGPoint locationInSelf = [self convertPoint:locationInWindow fromView:nil];
     CGPoint locationInRootView = self.hr_rootView ? [self.hr_rootView convertPoint:locationInWindow fromView:nil] : locationInWindow;
 #endif // macOS]
+#if TARGET_OS_OSX // [macOS]
+    // macOS 上鼠标永远是单点操作，使用固定 pointerId 确保
+    // mouseDown/mouseDragged/mouseUp 序列中 pointerId 一致。
+    static const NSUInteger kMacMousePointerId = 0;
+    return @{
+        @"x" : @(locationInSelf.x),
+        @"y" : @(locationInSelf.y),
+        @"pageX" : @(locationInRootView.x),
+        @"pageY" : @(locationInRootView.y),
+        @"hash"  : @(kMacMousePointerId),
+        @"pointerId" : @(kMacMousePointerId),
+    };
+#else
     return @{
         @"x" : @(locationInSelf.x),
         @"y" : @(locationInSelf.y),
@@ -286,6 +299,7 @@
         @"hash"  : @(touch.hash),
         @"pointerId" : [NSNumber numberWithUnsignedLong:touch.hash],
     };
+#endif // macOS]
 }
 
 

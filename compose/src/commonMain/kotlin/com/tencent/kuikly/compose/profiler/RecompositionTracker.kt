@@ -470,6 +470,10 @@ internal class RecompositionTracker {
         val parentInfo = if (traceStack.isNotEmpty()) traceStack.last().info else null
 
         val composableName = extractComposableName(entry.info)
+
+        // <anonymous> 是 lambda content slot，无具体名称，不记录也不计数
+        if (composableName == "<anonymous>") return
+
         val sourceLocation = extractSourceLocation(entry.info)
         val parentName = if (parentInfo != null) extractComposableName(parentInfo) else null
 

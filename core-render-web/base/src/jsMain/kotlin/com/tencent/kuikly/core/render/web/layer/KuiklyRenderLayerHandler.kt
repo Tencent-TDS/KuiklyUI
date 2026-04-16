@@ -13,6 +13,7 @@ import com.tencent.kuikly.core.render.web.export.IKuiklyRenderShadowExport
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.web.ktx.Frame
 import com.tencent.kuikly.core.render.web.const.KRCssConst
+import com.tencent.kuikly.core.render.web.const.KRExtraConst
 import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.web.ktx.SizeF
 import org.w3c.dom.Element
@@ -369,6 +370,8 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
             // If element id is empty, set id to instanceId_tag, e.g. 1_1, unique for different instance
             renderViewHandler.viewExport.ele.id = "${instanceId}_${tag}"
         }
+        // Set data-kuikly-component attribute for component identification
+        renderViewHandler.viewExport.ele.setAttribute(KRExtraConst.COMPONENT_IDENTIFIER_KEY, viewName)
         // Save render context
         renderViewHandler.viewExport.kuiklyRenderContext = renderView.kuiklyRenderContext
         // After successful creation, cache created renderView handler internally

@@ -14,6 +14,7 @@ import com.tencent.kuikly.core.render.web.expand.components.KRCanvasView
 import com.tencent.kuikly.core.render.web.expand.components.KRHoverView
 import com.tencent.kuikly.core.render.web.expand.components.KRImageView
 import com.tencent.kuikly.core.render.web.expand.components.KRMaskView
+import com.tencent.kuikly.core.render.web.expand.components.KRModalView
 import com.tencent.kuikly.core.render.web.expand.components.KRPagView
 import com.tencent.kuikly.core.render.web.expand.components.KRRichTextView
 import com.tencent.kuikly.core.render.web.expand.components.KRScrollContentView
@@ -291,8 +292,12 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
             registerCallback(renderViewCallback)
             // Register view and module, etc.
             registerKuiklyRenderExport(this)
+            val params = pageData ?: mapOf()
             // Initialize and render
-            init(rootContainer, pageName ?: "", pageData ?: mapOf(), size)
+            init(rootContainer, pageName ?: "", params.toMutableMap().apply {
+                // h5 set native build version to 5 like android
+                put(NATIVE_BUILD, NATIVE_BUILD_VALUE)
+            }, size)
         }
         // Lifecycle hook callback
         delegate.onKuiklyRenderViewCreated()
@@ -456,6 +461,9 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
             renderViewExport(KRMaskView.VIEW_NAME, {
                 KRMaskView()
             })
+            renderViewExport(KRModalView.VIEW_NAME, {
+                KRModalView()
+            })
             // Delegate to external, allowing host project to expose its own views
             delegate.registerExternalRenderView(this)
         }
@@ -500,5 +508,7 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
         private const val TAG = "KuiklyRenderViewDelegator"
         // Development environment identifier
         private const val DEBUG_FIELD = "is_dev"
+        private const val NATIVE_BUILD = "nativeBuild"
+        private const val NATIVE_BUILD_VALUE = 5
     }
 }

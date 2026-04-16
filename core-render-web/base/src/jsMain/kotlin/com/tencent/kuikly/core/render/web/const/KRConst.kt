@@ -69,8 +69,6 @@ object KRCssConst {
     const val TURBO_DISPLAY_AUTO_UPDATE_ENABLE = "turboDisplayAutoUpdateEnable"
     const val SCROLL_INDEX = "scrollIndex"
 
-    const val WEB_CONTAINER_PREFIX = "kuikly_web_container_"
-
     // Frame related attributes
     val FRAME_ATTRS = listOf("width", "height", "left", "top")
 }
@@ -375,4 +373,10 @@ object KRListConst {
 object KRPlaceholderConst {
     const val CLASS_PREFIX = "phcolor_"
     const val MAX_RANDOM = 1_000_000
+}
+
+object KRExtraConst {
+    const val WEB_CONTAINER_PREFIX = "kuikly_web_container_"
+    const val WEB_DECREASE_CALLKOTLIN_ID_METHOD = "webDecreaseCallKotlinIdMethod"
+    const val COMPONENT_IDENTIFIER_KEY = "data-kuikly-component"
 }

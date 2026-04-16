@@ -13,6 +13,7 @@
 		3A622B9B2AB052B0002410B8 /* TDFTestModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 3A622B982AB052B0002410B8 /* TDFTestModule.m */; };
 		3A622B9C2AB052B0002410B8 /* KRNewTestModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 3A622B992AB052B0002410B8 /* KRNewTestModule.m */; };
 		3AF526722A9309C300A93682 /* RootViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 3AF526712A9309C300A93682 /* RootViewController.m */; };
+		4584A21D2F8FD72F00301AAE /* KRPAGViewHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = 4584A21C2F8FD72F00301AAE /* KRPAGViewHandler.m */; };
 		7126B4462E1E726900B6B1D9 /* KRTabbarView.m in Sources */ = {isa = PBXBuildFile; fileRef = 7126B4452E1E709000B6B1D9 /* KRTabbarView.m */; };
 		7555FF83242A565900829871 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7555FF82242A565900829871 /* ContentView.swift */; };
 		AAEA1C808D295174487047AD /* libPods-iosApp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 389E5FAFF97F19DA513B54A5 /* libPods-iosApp.a */; };
@@ -43,6 +44,8 @@
 		3A622B9A2AB052B0002410B8 /* KRNewTestModule.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KRNewTestModule.h; sourceTree = "<group>"; };
 		3AF526702A9309C300A93682 /* RootViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RootViewController.h; sourceTree = "<group>"; };
 		3AF526712A9309C300A93682 /* RootViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = RootViewController.m; sourceTree = "<group>"; };
+		4584A21B2F8FD72F00301AAE /* KRPAGViewHandler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KRPAGViewHandler.h; sourceTree = "<group>"; };
+		4584A21C2F8FD72F00301AAE /* KRPAGViewHandler.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = KRPAGViewHandler.m; sourceTree = "<group>"; };
 		7126B4442E1E708100B6B1D9 /* KRTabbarView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KRTabbarView.h; sourceTree = "<group>"; };
 		7126B4452E1E709000B6B1D9 /* KRTabbarView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = KRTabbarView.m; sourceTree = "<group>"; };
 		7555FF7B242A565900829871 /* iosApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iosApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -51,9 +54,9 @@
 		AFEB55D12D9C17820014FCBD /* Satisfy-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Satisfy-Regular.ttf"; sourceTree = "<group>"; };
 		C125EBCA2D96FBE200FBFA34 /* KRAPNGViewHandler.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = KRAPNGViewHandler.m; sourceTree = "<group>"; };
 		C125EBCB2D96FBE200FBFA34 /* KRAPNGViewHandler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KRAPNGViewHandler.h; sourceTree = "<group>"; };
+		C57F6971A5640F2A8FDA3C78 /* Pods-iosApp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-iosApp.release.xcconfig"; path = "Target Support Files/Pods-iosApp/Pods-iosApp.release.xcconfig"; sourceTree = "<group>"; };
 		D1A2B3C22E074A0100AABB01 /* KRPAGViewHandler.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = KRPAGViewHandler.m; sourceTree = "<group>"; };
 		D1A2B3C32E074A0100AABB01 /* KRPAGViewHandler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KRPAGViewHandler.h; sourceTree = "<group>"; };
-		C57F6971A5640F2A8FDA3C78 /* Pods-iosApp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-iosApp.release.xcconfig"; path = "Target Support Files/Pods-iosApp/Pods-iosApp.release.xcconfig"; sourceTree = "<group>"; };
 		F1A0CBBBE932EBF38B00760C /* Pods-iosApp.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-iosApp.debug.xcconfig"; path = "Target Support Files/Pods-iosApp/Pods-iosApp.debug.xcconfig"; sourceTree = "<group>"; };
 		FF047755288C4842008D3F39 /* NSObject+RIJCategory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSObject+RIJCategory.h"; sourceTree = "<group>"; };
 		FF047756288C4842008D3F39 /* NSObject+RIJCategory.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSObject+RIJCategory.m"; sourceTree = "<group>"; };
@@ -193,6 +196,8 @@
 				FF5BF16F2B6EC62D001C5632 /* KRFontHanlder.m */,
 				D1A2B3C32E074A0100AABB01 /* KRPAGViewHandler.h */,
 				D1A2B3C22E074A0100AABB01 /* KRPAGViewHandler.m */,
+				4584A21B2F8FD72F00301AAE /* KRPAGViewHandler.h */,
+				4584A21C2F8FD72F00301AAE /* KRPAGViewHandler.m */,
 			);
 			path = Handlers;
 			sourceTree = "<group>";
@@ -398,6 +403,7 @@
 				FFEDDC7B2AA6F0980000420F /* NativeAppWaterfallViewController.m in Sources */,
 				3A622B9B2AB052B0002410B8 /* TDFTestModule.m in Sources */,
 				FF05C63F29C850BC00C5E02A /* KuiklyRenderComponentExpandHandler.m in Sources */,
+				4584A21D2F8FD72F00301AAE /* KRPAGViewHandler.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

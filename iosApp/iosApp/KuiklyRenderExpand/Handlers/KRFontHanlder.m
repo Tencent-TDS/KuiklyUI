@@ -50,18 +50,46 @@
         return NO;
     } else {
         // 加载本地URL加载字体资源
-        return [self registerFontAtLocalURL:fontPathURL];
+        return [self registerFontAtLocalURL:fontPathURL] != nil;
     }
 }
 
-/*
- * 字体动态加载函数
- */
-- (BOOL)registerFontAtLocalURL:(NSURL *)fontURL {
+
+- (UIFont *)hr_fontWithFontFamily:(NSString *)fontFamily
+                         fontSize:(CGFloat)fontSize
+                       fontWeight:(UIFontWeight)fontWeight
+                    contextParams:(KuiklyContextParam *)contextParam {
+    // 构建字体资源路径 或者 可以直接开启字体加载
+//    NSString *fontPath = [NSString stringWithFormat:@"%@/%@", contextParam.resourceFolderUrl, fontFamily];
+//    NSURL *fontPathURL = [NSURL fileURLWithPath:fontPath];
+
+    NSURL *fontPathURL = [[NSBundle mainBundle] URLForResource:@"Satisfy-Regular" withExtension:@"ttf"];
+    
+    // 执行HotReload动态化模式下，字体资源已被加载到本地，因此字体加载实际是加载本地URL（走else部分）
+    if ([fontPathURL.scheme hasPrefix:@"http"]) {
+        // 若指定通过网络URL的方式加载字体资源，将由业务方自行设定加载逻辑，且注意加载时的异步 与 在主线程返回加载完成的UIFont 如何实现相互配合
+        return nil;
+    } else {
+        
+        NSString *targetFontName = [self registerFontAtLocalURL:fontPathURL];
+        if (targetFontName.length) {
+            return [UIFont fontWithName:targetFontName size:fontSize];
+        }
+    }
+    
+
+    return nil;
+}
+
+
+#pragma mark - Private
+
+/// 字体动态加载函数
+- (nullable NSString *)registerFontAtLocalURL:(NSURL *)fontURL {
 
     CGDataProviderRef fontDataProvider = CGDataProviderCreateWithURL((__bridge CFURLRef)fontURL);
     if (!fontDataProvider) {
-        return NO;
+        return nil;
     }
 
     // 创建目标字体Provider
@@ -69,24 +97,26 @@
     CGDataProviderRelease(fontDataProvider);
 
     if (!newFont) {
-        return NO;
+        return nil;
     }
+    
+    // 从 newFont 提取真实的 PostScript Name
+    NSString *postScriptName = (__bridge_transfer NSString *)CGFontCopyPostScriptName(newFont);
 
     // 字体加载成功，进行字体注册
     CFErrorRef error = NULL;
     BOOL success = CTFontManagerRegisterFontsForURL((__bridge  CFURLRef)fontURL,
                                                     kCTFontManagerScopeProcess,
                                                     &error);
-
-    // 获取字体的名称
+    // 释放字体Provider
     CGFontRelease(newFont);
     if (!success) {
         if (error) {
             CFRelease(error);
         }
-        return NO;
+        return nil;
     }
-    return YES;
+    return postScriptName;
 }
 
 @end

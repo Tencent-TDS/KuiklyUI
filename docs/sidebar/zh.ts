@@ -264,6 +264,7 @@ export const zhSidebar = sidebar({
     ],
     "/AI/": false,
     "/Blog": [
+        "roadmap2026.md",
         "roadmap2025.md",
         {
             text: "架构原理",

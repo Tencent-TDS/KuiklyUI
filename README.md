@@ -184,7 +184,7 @@ After successful build on any platform, you can modify Core, Render, and Demo to
 Scan the QR code with an Android phone to quickly try the demo. For iPhone and HarmonyOS phones, please follow the steps above to compile and experience the demo app from the source code.
 
 ## Roadmap
-[Roadmap (2025)](https://kuikly.tds.qq.com/Blog/roadmap2025.html)
+[Roadmap (2026)](https://kuikly.tds.qq.com/Blog/roadmap2026.html) | [Roadmap (2025)](https://kuikly.tds.qq.com/Blog/roadmap2025.html)
 
 ## Contribution Guidelines
 We welcome all developers to submit issues or PRs for `Kuikly`. Please review our [Contribution Guide](CONTRIBUTING.md) before contributing.

@@ -15,6 +15,9 @@
 
 package com.tencent.kuikly.compose.profiler.output
 
+import com.tencent.kuikly.compose.foundation.lazy.LazyColumn
+import com.tencent.kuikly.compose.foundation.lazy.items
+import com.tencent.kuikly.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +37,7 @@ import com.tencent.kuikly.compose.foundation.layout.Spacer
 import com.tencent.kuikly.compose.foundation.layout.fillMaxSize
 import com.tencent.kuikly.compose.foundation.layout.fillMaxWidth
 import com.tencent.kuikly.compose.foundation.layout.height
+import com.tencent.kuikly.compose.foundation.layout.heightIn
 import com.tencent.kuikly.compose.foundation.layout.offset
 import com.tencent.kuikly.compose.foundation.layout.padding
 import com.tencent.kuikly.compose.foundation.layout.size
@@ -42,7 +46,6 @@ import com.tencent.kuikly.compose.foundation.shape.CircleShape
 import com.tencent.kuikly.compose.foundation.shape.RoundedCornerShape
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.profiler.RecompositionProfiler
-import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.draw.clip
@@ -54,7 +57,6 @@ import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
 import kotlin.math.roundToInt
 
-private const val TAG = "RCProfiler"
 private const val FAB_SIZE_DP = 52
 private const val FAB_MARGIN_DP = 16
 
@@ -93,7 +95,7 @@ internal fun ProfilerOverlaySlot(strategy: OverlayOutputStrategy) {
             )
             ProfilerExpandedPanel(
                 strategy = strategy,
-                hotspots = hotspots,
+                allHotspots = hotspots,
                 paused = paused,
                 onClose = { expanded = false }
             )
@@ -132,7 +134,7 @@ internal fun ProfilerOverlaySlot(strategy: OverlayOutputStrategy) {
 @Composable
 private fun ProfilerExpandedPanel(
     strategy: OverlayOutputStrategy,
-    hotspots: List<HotspotItem>,
+    allHotspots: List<HotspotItem>,
     paused: Boolean,
     onClose: () -> Unit
 ) {
@@ -142,9 +144,11 @@ private fun ProfilerExpandedPanel(
     // 读取 filterVersion 建立依赖，确保过滤操作后触发重组
     @Suppress("UNUSED_VARIABLE")
     val fv = filterVersion
-    val activeHotspots = hotspots.filter { !RecompositionProfiler.isNameExcluded(it.name) }
-    // 已过滤列表：直接从 RecompositionProfiler 读，不依赖 hotspots（重置后 hotspots 为空但过滤规则仍在）
     val excludedNames = RecompositionProfiler.getExcludedNames()
+    // 先过滤再截取，确保过滤后仍显示 topCount 条
+    val hotspots = allHotspots
+        .filterNot { RecompositionProfiler.isNameExcluded(it.name, it.sourceLocation) }
+        .take(strategy.topCount)
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -195,8 +199,7 @@ private fun ProfilerExpandedPanel(
                 OverlayControlButton(
                     text = "报告",
                     onClick = {
-                        val report = RecompositionProfiler.getReport()
-                        KLog.i(TAG, "Report:\n${report.toJson()}")
+                        RecompositionProfiler.getReport()
                     }
                 )
                 OverlayControlButton(
@@ -210,8 +213,8 @@ private fun ProfilerExpandedPanel(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // === 活跃热点列表 ===
-            if (activeHotspots.isEmpty() && excludedNames.isEmpty()) {
+            // === 活跃热点列表（可滚动，最多50条） ===
+            if (hotspots.isEmpty() && excludedNames.isEmpty()) {
                 Text(
                     text = "暂无重组记录",
                     fontSize = 12.sp,
@@ -219,7 +222,7 @@ private fun ProfilerExpandedPanel(
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
             } else {
-                if (activeHotspots.isEmpty() && excludedNames.isNotEmpty()) {
+                if (hotspots.isEmpty() && excludedNames.isNotEmpty()) {
                     Text(
                         text = "所有热点已被过滤",
                         fontSize = 12.sp,
@@ -227,22 +230,30 @@ private fun ProfilerExpandedPanel(
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                 } else {
-                    for ((index, item) in activeHotspots.withIndex()) {
-                        if (index > 0) {
-                            Spacer(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(1.dp)
-                                    .background(Color(0xFF444444.toInt()))
-                            )
-                        }
-                        HotspotRow(
-                            item = item,
-                            onFilter = {
-                                RecompositionProfiler.excludeByName(listOf(item.name))
-                                filterVersion++
+                    // LazyColumn 最大高度 320dp，保证底部过滤区域不被顶出屏幕
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 320.dp)
+                    ) {
+                        itemsIndexed(hotspots, key = { _, it -> it.name + (it.sourceLocation ?: "") }) { index, item ->
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                HotspotRow(
+                                    index = index,
+                                    item = item,
+                                    onFilter = {
+                                        RecompositionProfiler.excludeByName(listOf(item.name), item.sourceLocation)
+                                        filterVersion++
+                                    }
+                                )
+                                Spacer(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(1.dp)
+                                        .background(Color(0xFF444444.toInt()))
+                                )
                             }
-                        )
+                        }
                     }
                 }
             }
@@ -284,7 +295,7 @@ private fun ProfilerExpandedPanel(
 }
 
 @Composable
-private fun HotspotRow(item: HotspotItem, onFilter: (() -> Unit)? = null) {
+private fun HotspotRow(index: Int, item: HotspotItem, onFilter: (() -> Unit)? = null) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -295,6 +306,11 @@ private fun HotspotRow(item: HotspotItem, onFilter: (() -> Unit)? = null) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Text(
+                text = "${index + 1}.",
+                fontSize = 13.sp,
+                color = Color(0xFF888888.toInt())
+            )
             Text(
                 text = item.name,
                 fontSize = 13.sp,

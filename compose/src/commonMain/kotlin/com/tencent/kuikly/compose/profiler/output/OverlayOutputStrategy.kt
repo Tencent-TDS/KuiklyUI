@@ -36,13 +36,14 @@ import kotlin.concurrent.Volatile
  */
 class OverlayOutputStrategy : RecompositionOutputStrategy {
 
-    // key = composableName，按函数名聚合。
+    // key = composableName + sourceLocation，按函数名+源码位置聚合。
     //
     // 设计决策（2026-04-02）：
     // 曾尝试用 composableName + scopeKey 区分实例，但 scopeKey 语义是"最近的失效祖先 scope"，
     // 不同驱动方式（State 失效 vs 参数驱动）下 scopeKey 有值/null 不一致，
     // 导致热点列表里有些组件有 #N 序号、有些没有，行为不统一，用户体验差。
-    // Overlay 定位是「快速直觉感知」，函数名粒度已够用；实例级细节通过日志 RECOMPOSED 输出查看。
+    // 现改用 composableName + sourceLocation 聚合，不同文件的同名函数不再合并。
+    // Overlay 定位是「快速直觉感知」，函数名+文件位置粒度已够用；实例级细节通过日志 RECOMPOSED 输出查看。
     private val instanceCounts = mutableMapOf<String, InstanceCount>()
 
     /** Compose State 版本号，驱动 Overlay Composable 重组 */
@@ -58,7 +59,7 @@ class OverlayOutputStrategy : RecompositionOutputStrategy {
     private var hasPendingUpdate = false
 
     /** 最多展示的热点条数 */
-    var topCount: Int = 5
+    var topCount: Int = 50
 
     /** 是否已暂停（mutableStateOf 确保 Overlay 按钮文字实时更新） */
     var paused: Boolean by mutableStateOf(false)
@@ -73,8 +74,8 @@ class OverlayOutputStrategy : RecompositionOutputStrategy {
                 totalCount++
                 hasPendingUpdate = true
 
-                // 按函数名聚合，key = composableName（详见 specs/overlay-highlight/spec.md 设计决策）
-                val key = event.composableName
+                // 按函数名+源码位置聚合，key = composableName @sourceLocation
+                val key = if (event.sourceLocation != null) "${event.composableName} @${event.sourceLocation}" else event.composableName
                 val existing = instanceCounts[key]
                 if (existing != null) {
                     instanceCounts[key] = existing.copy(totalCount = existing.totalCount + 1)
@@ -98,7 +99,6 @@ class OverlayOutputStrategy : RecompositionOutputStrategy {
     fun getHotspots(): List<HotspotItem> {
         return instanceCounts.values
             .sortedByDescending { it.totalCount }
-            .take(topCount)
             .map { HotspotItem(it.baseName, it.sourceLocation, it.totalCount) }
     }
 

@@ -16,6 +16,7 @@
 #ifndef CORE_RENDER_OHOS_KRSCROLLERVIEW_H
 #define CORE_RENDER_OHOS_KRSCROLLERVIEW_H
 
+#include <unordered_set>
 #include "KRScrollerContentInset.h"
 #include "libohos_render/export/IKRRenderViewExport.h"
 #include "libohos_render/foundation/KRPoint.h"
@@ -56,12 +57,12 @@ class KRScrollerContentView : public IKRRenderViewExport {
     void AddContentScrollObserver(IKRContentScrollObserver *observer);
     void RemoveContentScrollObserver(IKRContentScrollObserver *observer);
 
-    const std::vector<IKRContentScrollObserver *> &GetContentScrollObservers() {
+    const std::unordered_set<IKRContentScrollObserver *> &GetContentScrollObservers() {
         return contentScrollObservers_;
     }
 
  private:
-    std::vector<IKRContentScrollObserver *> contentScrollObservers_;
+    std::unordered_set<IKRContentScrollObserver *> contentScrollObservers_;
     bool handling_set_view_frame_ = false;
 };
 
@@ -90,6 +91,10 @@ class KRScrollerView : public IKRRenderViewExport {
     void WillRemoveFromParentView() override;
     ArkUI_GestureInterruptResult OnInterruptGestureEvent(const ArkUI_GestureInterruptInfo *info) override;
     void TryApplyPendingFireOnScroll();
+
+    bool IsScrollView() override {
+        return true;
+    }
 
  private:
     bool SetNestedScroll(const KRAnyValue &value);
@@ -154,7 +159,7 @@ class KRScrollerView : public IKRRenderViewExport {
 
     std::shared_ptr<KRAnimation> content_inset_animate_;
     std::shared_ptr<KRScrollerContentInset> content_inset_when_drag_end_;
-    std::vector<IKRScrollObserver *> scroll_observers_;
+    std::unordered_set<IKRScrollObserver *> scroll_observers_;
 
     // 滚动相关的成员变量
     int64_t last_scroll_time_ = 0;

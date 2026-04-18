@@ -24,6 +24,7 @@
 NSString *const KRHighlightAttributeKey = @"KRHighlightAttributeKey";
 NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
 
+
 @interface KRLabel()
 
 @end
@@ -31,6 +32,31 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
 @implementation KRLabel
 
 
+- (void)setSelectedRange:(NSRange)selectedRange {
+    if (NSEqualRanges(_selectedRange, selectedRange)) {
+        return;
+    }
+    _selectedRange = selectedRange;
+    [self setNeedsDisplay];
+}
+
+- (void)setSelectionColor:(UIColor *)selectionColor {
+    if (_selectionColor == selectionColor) {
+        return;
+    }
+    _selectionColor = selectionColor;
+    [self setNeedsDisplay];
+}
+
+
+
+- (void)setSelectionColor:(UIColor *)selectionColor {
+    if (_selectionColor == selectionColor) {
+        return;
+    }
+    _selectionColor = selectionColor;
+    [self setNeedsDisplay];
+}
 
 #pragma mark - override
 
@@ -58,6 +84,20 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
         CGSize size = self.textRender.size;
         UIBezierPath * bezierPath = [UIBezierPath bezierPathWithRect:CGRectMake(size.width - self.textRender.lineBreakMargin, size.height - 10, self.textRender.lineBreakMargin, 10)];
         self.textRender.textContainer.exclusionPaths = @[bezierPath];
+    }
+	
+	// Draw selection background.
+    if (self.selectedRange.length > 0 && self.selectedRange.location != NSNotFound && self.selectedRange.location + self.selectedRange.length <= self.textRender.textStorage.length) {
+        if (!self.selectionColor) {
+            self.selectionColor = [[UIColor colorWithRed:0x00/255.0 green:0x99/255.0 blue:0xff/255.0 alpha:1.0] colorWithAlphaComponent:0.3];
+        }
+        [self.selectionColor setFill];
+        
+        NSRange glyphRange = [self.textRender.layoutManager glyphRangeForCharacterRange:self.selectedRange actualCharacterRange:nil];
+        [self.textRender.layoutManager enumerateEnclosingRectsForGlyphRange:glyphRange withinSelectedGlyphRange:glyphRange inTextContainer:self.textRender.textContainer usingBlock:^(CGRect r, BOOL * _Nonnull stop) {
+             CGRect drawRect = CGRectOffset(r, rect.origin.x, rect.origin.y);
+             UIRectFill(drawRect);
+        }];
     }
     
     [self.textRender drawTextAtPoint:rect.origin isCanceled:nil];

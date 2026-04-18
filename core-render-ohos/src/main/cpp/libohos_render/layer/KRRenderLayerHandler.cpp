@@ -54,6 +54,7 @@ void KRRenderLayerHandler::CreateRenderView(int tag, const std::string &view_nam
         }
         if (view != nullptr) {
             view_registry_[tag] = view;
+            handle_to_tag_[view->GetNode()] = tag;
         }
     }
 }
@@ -73,6 +74,7 @@ void KRRenderLayerHandler::RemoveRenderView(int tag) {
     }
 
     view->ToRemoveFromSuperView();
+    handle_to_tag_.erase(view->GetNode());
     view_registry_.erase(it);
     if (view->CanReuse()) {
         PushViewToReuseQueue(view);  // 放入复用队列
@@ -290,6 +292,13 @@ std::shared_ptr<IKRRenderViewExport> KRRenderLayerHandler::GetRenderView(int tag
     return view_registry_[tag];
 }
 
+std::shared_ptr<IKRRenderViewExport> KRRenderLayerHandler::GetRenderView(ArkUI_NodeHandle handle) {
+    if (auto it = handle_to_tag_.find(handle); it != handle_to_tag_.end()) {
+        return GetRenderView(it->second);
+    }
+    return nullptr;
+}
+
 /**
  * 将要销毁时调用
  */
@@ -309,6 +318,7 @@ void KRRenderLayerHandler::OnDestroy() {
     // views should be clear, otherwise pending async ops like RemoveRenderView or InsertSubRenderView
     // would still be able to find them and could cause unexpected behaviors
     view_registry_.clear();
+    handle_to_tag_.clear();
 
     {  // auto lock sub-scope to destroy modules
         std::unique_lock lock(module_rw_mutex_);

@@ -740,7 +740,9 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
             richTextViewParent?.addChild(ImageView()) {
                 ctx.view = this
                 attr {
-                    visibility(ctx.placeholderFrame.width != 0f && ctx.placeholderFrame.height != 0f)
+                    val isWithinRichText = ctx.richTextFrame.height == 0f ||
+                        (ctx.placeholderFrame.y + ctx.placeholderFrame.height) <= ctx.richTextFrame.height
+                    visibility(ctx.placeholderFrame.width != 0f && ctx.placeholderFrame.height != 0f && isWithinRichText)
                     absolutePosition(
                         top = ctx.richTextFrame.y + ctx.placeholderFrame.y + ctx.verticalAlignOffset,
                         left = ctx.richTextFrame.x + ctx.placeholderFrame.x + ctx.horizontalAlignOffset

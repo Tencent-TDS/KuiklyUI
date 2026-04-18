@@ -453,9 +453,12 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
         [self p_springAnimationWithContentOffset:contentOffset duration:duration damping:damping velocity:velocity curve:curve];
         return ;
     }
-    UIEdgeInsets newContentInsets = [self maxEdgeInsetsWithContentOffset:contentOffset];
-    if (!UIEdgeInsetsEqualToEdgeInsets(self.contentInset, newContentInsets)) {
-        self.contentInset = newContentInsets;
+    // 非动画时，无边界回弹效果，则解耦 inset 跟随 offset 发生变化
+    if (animated) {
+        UIEdgeInsets newContentInsets = [self maxEdgeInsetsWithContentOffset:contentOffset];
+        if (!UIEdgeInsetsEqualToEdgeInsets(self.contentInset, newContentInsets)) {
+            self.contentInset = newContentInsets;
+        }
     }
     self.skipNestScrollLock = YES;
     [self setContentOffset:contentOffset animated:animated];

@@ -89,14 +89,16 @@ internal fun Modifier.paintInternal(
     alignment: Alignment = Alignment.Center,
     contentScale: ContentScale = ContentScale.Inside,
     alpha: Float = DefaultAlpha,
-    colorFilter: ColorFilter? = null
+    colorFilter: ColorFilter? = null,
+    colorMatrix: String? = null,
 ) = this then PainterElement(
     painter = painter,
     sizeToIntrinsics = sizeToIntrinsics,
     alignment = alignment,
     contentScale = contentScale,
     alpha = alpha,
-    colorFilter = colorFilter
+    colorFilter = colorFilter,
+    colorMatrix = colorMatrix,
 )
 
 /**
@@ -117,7 +119,8 @@ private data class PainterElement(
     val alignment: Alignment,
     val contentScale: ContentScale,
     val alpha: Float,
-    val colorFilter: ColorFilter?
+    val colorFilter: ColorFilter?,
+    val colorMatrix: String?,
 ) : ModifierNodeElement<PainterNode>() {
     override fun create(): PainterNode {
         return PainterNode(
@@ -127,6 +130,7 @@ private data class PainterElement(
             contentScale = contentScale,
             alpha = alpha,
             colorFilter = colorFilter,
+            colorMatrix = colorMatrix,
         )
     }
 
@@ -144,6 +148,7 @@ private data class PainterElement(
         node.contentScale = contentScale
         node.alpha = alpha
         node.colorFilter = colorFilter
+        node.colorMatrix = colorMatrix
 
         // Only remeasure if intrinsics have changed.
         if (intrinsicsChanged) {
@@ -180,7 +185,8 @@ private class PainterNode(
     var alignment: Alignment = Alignment.Center,
     var contentScale: ContentScale = ContentScale.Inside,
     var alpha: Float = DefaultAlpha,
-    var colorFilter: ColorFilter? = null
+    var colorFilter: ColorFilter? = null,
+    var colorMatrix: String? = null,
 ) : LayoutModifierNode, Modifier.Node(), DrawModifierNode {
 
     /**
@@ -494,10 +500,21 @@ private class PainterNode(
     private fun applyCommon(imageView: ImageView) {
         val colorFilter = this.colorFilter
         imageView.getViewAttr().apply {
-            if (colorFilter is BlendModeColorFilter && colorFilter.blendMode.isSupported()) {
+            if (!colorMatrix.isNullOrEmpty()) {
+                colorFilter(colorMatrix)
+                if (getProp(ImageConst.TINT_COLOR) != null) {
+                    tintColor(null)
+                }
+            } else if (colorFilter is BlendModeColorFilter && colorFilter.blendMode.isSupported()) {
                 tintColor(colorFilter.color.toKuiklyColor())
-            } else if (getProp(ImageConst.TINT_COLOR) != null) {
-                tintColor(null)
+                colorFilter(null)
+            } else {
+                if (getProp(ImageConst.TINT_COLOR) != null) {
+                    tintColor(null)
+                }
+                if (getProp(ImageConst.COLOR_FILTER) != null) {
+                    colorFilter(null)
+                }
             }
         }
     }

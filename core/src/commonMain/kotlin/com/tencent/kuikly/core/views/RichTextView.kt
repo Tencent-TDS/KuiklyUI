@@ -531,6 +531,7 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
     private var resizeMode: String = ""
     private var blurRadius: Float = 0f
     private var tintColor: Color? = null
+    private var colorFilter: String? = null
     private var isDotNineImage: Boolean = false
     private var borderRadius = 0f
     private var capInsets: EdgeInsets = EdgeInsets.default
@@ -619,6 +620,11 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
 
     override fun tintColor(color: Color?): IImageAttr {
         this.tintColor = color
+        return this
+    }
+
+    override fun colorFilter(matrix: String?): IImageAttr {
+        this.colorFilter = matrix
         return this
     }
 

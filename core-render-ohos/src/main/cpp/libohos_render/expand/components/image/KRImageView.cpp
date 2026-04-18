@@ -17,6 +17,7 @@
 
 #include <deviceinfo.h>
 #include <resourcemanager/ohresmgr.h>
+#include <sstream>
 #include <string_view>
 #include "libohos_render/api/src/KRAnyDataInternal.h"
 #include "libohos_render/expand/components/image/KRImageAdapterManager.h"
@@ -44,6 +45,7 @@ constexpr char kPropNameDragEnable[] = "dragEnable";
 
 constexpr char kPropNameBlurRadius[] = "blurRadius";
 constexpr char kPropNameTintColor[] = "tintColor";
+constexpr char kPropNameColorFilter[] = "colorFilter";
 constexpr char kPropNameCapInsets[] = "capInsets";
 constexpr char kPropNameDotNineImage[] = "dotNineImage";
 constexpr char kPropNameImageParams[] = "imageParams";
@@ -109,6 +111,8 @@ bool KRImageView::SetProp(const std::string &prop_key, const KRAnyValue &prop_va
         didHanded = SetBlurRadius(prop_value);
     } else if (kuikly::util::isEqual(prop_key, kPropNameTintColor)) {
         didHanded = SetTintColor(prop_value);
+    } else if (kuikly::util::isEqual(prop_key, kPropNameColorFilter)) {
+        didHanded = SetColorFilter(prop_value);
     } else if (kuikly::util::isEqual(prop_key, kPropNameCapInsets)) {
         didHanded = SetCapInsets(prop_value);
     } else if (kuikly::util::isEqual(prop_key, kPropNameDotNineImage)) {
@@ -144,6 +148,8 @@ bool KRImageView::ResetProp(const std::string &prop_key) {
     } else if (kuikly::util::isEqual(prop_key, kPropNameTintColor)) {
         kuikly::util::ResetArkUIImageTintColor(GetNode());
         didHanded = true;
+    } else if (kuikly::util::isEqual(prop_key, kPropNameColorFilter)) {
+        didHanded = ResetColorFilter();
     } else if (kuikly::util::isEqual(prop_key, kPropNameCapInsets)) {
         kuikly::util::ResetArkUIImageCapInsets(GetNode());
         didHanded = true;
@@ -311,6 +317,32 @@ bool KRImageView::SetTintColor(const KRAnyValue &value) {
         auto argb = kuikly::util::ToArgb(valueStr);
         kuikly::util::SetArkUIImageTintColor(GetNode(), argb);
     }
+    return true;
+}
+
+bool KRImageView::SetColorFilter(const KRAnyValue &value) {
+    std::string matrix_str = value->toString();
+    if (matrix_str.empty()) {
+        kuikly::util::ResetArkUIImageColorFilter(GetNode());
+        return true;
+    }
+    std::vector<float> matrix;
+    matrix.reserve(20);
+    std::istringstream ss(matrix_str);
+    std::string token;
+    while (std::getline(ss, token, '|')) {
+        try {
+            matrix.push_back(std::stof(token));
+        } catch (...) {
+            matrix.push_back(0.f);
+        }
+    }
+    kuikly::util::SetArkUIImageColorFilter(GetNode(), matrix);
+    return true;
+}
+
+bool KRImageView::ResetColorFilter() {
+    kuikly::util::ResetArkUIImageColorFilter(GetNode());
     return true;
 }
 

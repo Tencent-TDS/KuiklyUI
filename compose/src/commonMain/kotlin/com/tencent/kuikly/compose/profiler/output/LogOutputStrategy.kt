@@ -65,13 +65,14 @@ class LogOutputStrategy(
                 is ComposableRecomposedEvent -> {
                     if (event.composableName == "<anonymous>") continue
                     val locationInfo = if (event.sourceLocation != null) " @${event.sourceLocation}" else ""
+                    val scopeInfo = if (event.scopeKey != null) " [scope=${event.scopeKey}]" else " [scope=none]"
                     val parentInfo = " [parent=${event.parentName ?: "<unknown>"}]"
                     val paramInfo = buildParamChangeString(event)
                     val statesInfo = if (event.triggerStates.isNotEmpty()) {
                         " triggers=[${event.triggerStates.joinToString(", ")}]"
                     } else ""
                     val indent2 = indentStr(indent)
-                    KLog.d(TAG, "${indent2}RECOMPOSED: ${event.composableName}$locationInfo (${event.durationMs}ms)$parentInfo$paramInfo$statesInfo")
+                    KLog.d(TAG, "${indent2}RECOMPOSED: ${event.composableName}$locationInfo (${event.durationMs}ms)$scopeInfo$parentInfo$paramInfo$statesInfo")
                 }
             }
         }
@@ -85,7 +86,8 @@ class LogOutputStrategy(
         if (report.hotspots.isNotEmpty()) {
             KLog.i(TAG, "--- HOTSPOTS ---")
             for (hotspot in report.hotspots) {
-                KLog.i(TAG, "  ${hotspot.name}: ${hotspot.recompositionCount}x (avg=${formatFloat(hotspot.avgDurationMs)}ms, max=${hotspot.maxDurationMs}ms)")
+                val loc = if (hotspot.sourceLocation != null) " @${hotspot.sourceLocation}" else ""
+                KLog.i(TAG, "  ${hotspot.name}$loc: ${hotspot.recompositionCount}x (avg=${formatFloat(hotspot.avgDurationMs)}ms, max=${hotspot.maxDurationMs}ms)")
             }
         }
 
@@ -106,7 +108,20 @@ class LogOutputStrategy(
                 } else {
                     " no state change"
                 }
-                KLog.i(TAG, "  ${stats.name}: ${stats.recompositionCount}x (avg=${formatFloat(stats.avgDurationMs)}ms)$marker$paramInfo$stateInfo")
+                val loc = if (stats.sourceLocation != null) " @${stats.sourceLocation}" else ""
+                KLog.i(TAG, "  ${stats.name}$loc: ${stats.recompositionCount}x (avg=${formatFloat(stats.avgDurationMs)}ms)$marker$paramInfo$stateInfo")
+                // Scope 分布行
+                if (stats.scopeDistribution.isNotEmpty() || stats.noScopeRecompositions > 0) {
+                    val scopeInfo = if (stats.scopeDistribution.isNotEmpty()) {
+                        val sorted = stats.scopeDistribution.entries.sortedByDescending { it.value }
+                        val displayed = sorted.take(5).joinToString(", ") { "${it.key}: ${it.value}x" }
+                        val more = if (sorted.size > 5) ", ...+${sorted.size - 5} more" else ""
+                        "{$displayed$more}"
+                    } else {
+                        "{}"
+                    }
+                    KLog.i(TAG, "    → scopes: $scopeInfo, no-scope: ${stats.noScopeRecompositions}")
+                }
             }
         }
     }
@@ -116,7 +131,9 @@ class LogOutputStrategy(
     private fun buildParamChangeString(event: ComposableRecomposedEvent): String {
         val changes = event.paramChanges ?: return " params=[no params change]"
         if (!changes.hasChanges) return " params=[no changes] (0/${changes.totalParams})"
-        val positions = changes.changedParams.joinToString(", ") { "#$it" }
+        val positions = changes.changedParams.joinToString(", ") { idx ->
+            "#$idx"
+        }
         return " params changed: [$positions] (${changes.changedParams.size}/${changes.totalParams})"
     }
 

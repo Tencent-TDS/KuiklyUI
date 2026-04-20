@@ -20,6 +20,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.content.res.Resources
+import android.graphics.Rect
 import android.os.Build
 import android.util.ArrayMap
 import android.util.Log
@@ -31,6 +32,7 @@ import android.view.ViewGroup
 import android.view.accessibility.AccessibilityManager
 import android.widget.FrameLayout
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.const.KRViewConst
 import com.tencent.kuikly.core.render.android.context.IKotlinBridgeStatusListener
@@ -664,12 +666,84 @@ class KuiklyRenderView(
 
         @SuppressLint("WrongConstant")
         internal fun getNavigationBarHeight(view: View): Float {
-            val insets = ViewCompat.getRootWindowInsets(view) ?: return 0f
-            return if (!insets.isVisible(NAVIGATION_BARS)) {
-                0f
-            } else {
-                toDpF(false, insets.getInsets(NAVIGATION_BARS).bottom.toFloat())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val insets = ViewCompat.getRootWindowInsets(view) ?: return 0f
+                return if (!insets.isVisible(NAVIGATION_BARS)) {
+                    0f
+                } else {
+                    toDpF(false, insets.getInsets(NAVIGATION_BARS).bottom.toFloat())
+                }
             }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                val bottomPx = RootWindowInsetsCompatHelper.getStableInsetBottom(view)
+                if (bottomPx <= 0) return 0f
+                return toDpF(false, bottomPx.toFloat())
+            }
+            return 0f
+        }
+    }
+}
+
+/**
+ * API 21/22 反射兜底工具（对齐 AndroidX `WindowInsetsCompat.Api21ReflectionHolder.getRootWindowInsets`
+ * 的核心逻辑，但：
+ *   1. 不依赖其 package-private 类（Kotlin 无法直接访问）；
+ *   2. 只保留当前业务所需的 `stableInsets.bottom`，省略 WindowInsetsCompat 的构造、
+ *      `setRootWindowInsets` / `copyRootViewBounds` 等当前场景用不到的步骤。
+ *
+ * 原理（与官方一致）：
+ *   View.getRootView() -> View.mAttachInfo -> AttachInfo.mStableInsets (Rect) -> .bottom
+ *
+ * 线程安全：双检锁保证反射成员只解析一次；解析失败后不再重试。
+ */
+internal object RootWindowInsetsCompatHelper {
+
+    @Volatile private var resolved: Boolean = false
+    private var reflectionSucceeded: Boolean = false
+    private var viewAttachInfoField: java.lang.reflect.Field? = null
+    private var stableInsetsField: java.lang.reflect.Field? = null
+
+    @SuppressLint("PrivateApi", "DiscouragedPrivateApi", "SoonBlockedPrivateApi", "BlockedPrivateApi")
+    private fun ensureReflection() {
+        if (resolved) return
+        synchronized(this) {
+            if (resolved) return
+            try {
+                // View.mAttachInfo（hidden 字段）
+                viewAttachInfoField = View::class.java
+                    .getDeclaredField("mAttachInfo")
+                    .apply { isAccessible = true }
+                // android.view.View$AttachInfo.mStableInsets
+                val attachInfoClass = Class.forName("android.view.View\$AttachInfo")
+                stableInsetsField = attachInfoClass
+                    .getDeclaredField("mStableInsets")
+                    .apply { isAccessible = true }
+                reflectionSucceeded = true
+            } catch (t: Throwable) {
+                viewAttachInfoField = null
+                stableInsetsField = null
+                reflectionSucceeded = false
+            }
+            resolved = true
+        }
+    }
+
+    /**
+     * 读取 rootView 的 `AttachInfo.mStableInsets.bottom`（px）。
+     * 未 attach、反射失败或字段为空时返回 0。
+     */
+    fun getStableInsetBottom(view: View): Int {
+        ensureReflection()
+        if (!reflectionSucceeded) return 0
+        if (!view.isAttachedToWindow) return 0
+        val attachInfoField = viewAttachInfoField ?: return 0
+        val stableField = stableInsetsField ?: return 0
+        return try {
+            val attachInfo = attachInfoField.get(view.rootView) ?: return 0
+            val rect = stableField.get(attachInfo) as? Rect ?: return 0
+            rect.bottom
+        } catch (t: Throwable) {
+            0
         }
     }
 }

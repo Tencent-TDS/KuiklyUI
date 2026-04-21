@@ -161,7 +161,7 @@ export const zhSidebar = sidebar({
                     text: "Web教程",
                     collapsible: false,
                     children: [
-                        "web-import-jssdk.md", "h5-image-path.md", "h5-spa-demo.md", "h5-custom-font.md"
+                        "web-import-jssdk.md", "h5-image-path.md", "h5-spa-demo.md", "h5-custom-font.md", "h5-css-class.md"
                     ]
                 }
             ],
@@ -264,6 +264,7 @@ export const zhSidebar = sidebar({
     ],
     "/AI/": false,
     "/Blog": [
+        "roadmap2026.md",
         "roadmap2025.md",
         {
             text: "架构原理",

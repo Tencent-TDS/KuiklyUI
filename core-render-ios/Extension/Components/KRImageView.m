@@ -754,10 +754,13 @@ typedef void (^KRSetImageBlock) (UIImage *_Nullable image);
         return YES;
     }
         
-    // 本地资源 取src和url 最后一个"/"之后的内容
+    // 本地资源 取src和url 最后一个"/"之后的内容，两侧都做 URL 百分号解码后再比较
+    // 统一对两侧解码后比较，确保所有图片加载路径下中文/特殊字符均能正确匹配
     NSString *srcFileName = [self p_fileNameFromPath:src];
     NSString *urlFileName = [self p_fileNameFromPath:url];
-    return srcFileName.length && urlFileName.length && [srcFileName isEqualToString:urlFileName];
+    NSString *srcFileNameDecoded = [srcFileName stringByRemovingPercentEncoding] ?: srcFileName;
+    NSString *urlFileNameDecoded = [urlFileName stringByRemovingPercentEncoding] ?: urlFileName;
+    return srcFileNameDecoded.length && urlFileNameDecoded.length && [srcFileNameDecoded isEqualToString:urlFileNameDecoded];
 }
 
 // 提取src路径中的文件名

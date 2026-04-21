@@ -65,6 +65,7 @@ object KRCssConst {
 
     // Same as Attr.StyleConst.DEBUG_NAME
     const val DEBUG_NAME = "debugName"
+    const val CSS_CLASS = "cssClass"
     const val AUTO_DARK_ENABLE = "autoDarkEnable"
     const val TURBO_DISPLAY_AUTO_UPDATE_ENABLE = "turboDisplayAutoUpdateEnable"
     const val SCROLL_INDEX = "scrollIndex"

@@ -565,7 +565,8 @@ open class TextAreaEvent : Event() {
                 it as JSONObject
                 val text = it.optString("text")
                 val length = if (it.has("length")) it.optInt("length") else null
-                val params = InputParams(text, length = length)
+                val hasMarkedText = if (it.has("hasMarkedText")) it.optBoolean("hasMarkedText") else false
+                val params = InputParams(text, length = length, hasMarkedText = hasMarkedText)
                 syncTextDidChangeObservers.forEach { observer -> observer.invoke(params) }
                 textDidChangeHandler?.invoke(params)
             }, isSync = isSyncEdit || syncTextDidChangeObservers.isNotEmpty())

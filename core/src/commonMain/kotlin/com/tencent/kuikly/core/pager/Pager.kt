@@ -30,6 +30,16 @@ import com.tencent.kuikly.core.manager.PagerManager
 import com.tencent.kuikly.core.manager.Task
 import com.tencent.kuikly.core.manager.TaskManager
 import com.tencent.kuikly.core.module.*
+import com.tencent.kuikly.core.module.wx.WXApiModule
+import com.tencent.kuikly.core.module.wx.WXClipboardModule
+import com.tencent.kuikly.core.module.wx.WXLocationModule
+import com.tencent.kuikly.core.module.wx.WXMediaModule
+import com.tencent.kuikly.core.module.wx.WXRawApiModule
+import com.tencent.kuikly.core.module.wx.WXScanModule
+import com.tencent.kuikly.core.module.wx.WXShareModule
+import com.tencent.kuikly.core.module.wx.WXStorageModule
+import com.tencent.kuikly.core.module.wx.WXSystemModule
+import com.tencent.kuikly.core.module.wx.WXUIModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.timer.setTimeout
 import com.tencent.kuikly.core.utils.verifyFailedHandler
@@ -398,6 +408,75 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         registerModule(ModuleConst.FILE, object : IModuleCreator {
             override fun createModule(): Module {
                 return FileModule()
+            }
+        })
+        initWXModules()
+    }
+
+    /**
+     * 注册微信小程序 API 封装 Modules。
+     *
+     * 仅在小程序平台（pageData.params.is_miniprogram == "1"）注册，其它平台不注册这些 Module，
+     * 业务侧在非小程序平台 acquireModule 时会按核心 Pager 的既有行为抛出明确提示。
+     *
+     * 当前覆盖：
+     * - P0：WXApi/WXStorage/WXUI/WXSystem
+     * - P1：WXClipboard/WXLocation/WXScan/WXMedia/WXShare
+     * - 兜底桥：WXRawApi（任意 wx.xxx 透传）
+     */
+    private fun initWXModules() {
+        if (pageData.params.optString("is_miniprogram") != "1") {
+            return
+        }
+        registerModule(WXApiModule.MODULE_NAME, object : IModuleCreator {
+            override fun createModule(): Module {
+                return WXApiModule()
+            }
+        })
+        registerModule(WXStorageModule.MODULE_NAME, object : IModuleCreator {
+            override fun createModule(): Module {
+                return WXStorageModule()
+            }
+        })
+        registerModule(WXUIModule.MODULE_NAME, object : IModuleCreator {
+            override fun createModule(): Module {
+                return WXUIModule()
+            }
+        })
+        registerModule(WXSystemModule.MODULE_NAME, object : IModuleCreator {
+            override fun createModule(): Module {
+                return WXSystemModule()
+            }
+        })
+        registerModule(WXClipboardModule.MODULE_NAME, object : IModuleCreator {
+            override fun createModule(): Module {
+                return WXClipboardModule()
+            }
+        })
+        registerModule(WXLocationModule.MODULE_NAME, object : IModuleCreator {
+            override fun createModule(): Module {
+                return WXLocationModule()
+            }
+        })
+        registerModule(WXScanModule.MODULE_NAME, object : IModuleCreator {
+            override fun createModule(): Module {
+                return WXScanModule()
+            }
+        })
+        registerModule(WXMediaModule.MODULE_NAME, object : IModuleCreator {
+            override fun createModule(): Module {
+                return WXMediaModule()
+            }
+        })
+        registerModule(WXShareModule.MODULE_NAME, object : IModuleCreator {
+            override fun createModule(): Module {
+                return WXShareModule()
+            }
+        })
+        // 兜底桥：任意 wx.xxx 透传
+        registerModule(WXRawApiModule.MODULE_NAME, object : IModuleCreator {
+            override fun createModule(): Module {
+                return WXRawApiModule()
             }
         })
     }

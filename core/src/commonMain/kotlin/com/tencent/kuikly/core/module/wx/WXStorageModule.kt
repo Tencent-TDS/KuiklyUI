@@ -40,7 +40,7 @@ class WXStorageModule : Module() {
         key: String,
         data: Any?,
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val params = JSONObject().apply {
             put("key", key)
@@ -63,7 +63,7 @@ class WXStorageModule : Module() {
     fun getStorage(
         key: String,
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val params = JSONObject().apply { put("key", key) }
         invoke(METHOD_GET_STORAGE, params, onSuccess, onFail)
@@ -81,7 +81,7 @@ class WXStorageModule : Module() {
     fun removeStorage(
         key: String,
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val params = JSONObject().apply { put("key", key) }
         invoke(METHOD_REMOVE_STORAGE, params, onSuccess, onFail)
@@ -98,7 +98,7 @@ class WXStorageModule : Module() {
     /** wx.clearStorage */
     fun clearStorage(
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         invoke(METHOD_CLEAR_STORAGE, null, onSuccess, onFail)
     }
@@ -118,7 +118,7 @@ class WXStorageModule : Module() {
         method: String,
         params: JSONObject?,
         onSuccess: CallbackFn?,
-        onFail: CallbackFn?,
+        onFail: CallbackFn?
     ) {
         val wrapped = JSONObject().apply {
             put(WXApiModule.KEY_ARGS, params ?: JSONObject())

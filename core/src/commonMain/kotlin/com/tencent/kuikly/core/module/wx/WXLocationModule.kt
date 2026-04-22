@@ -38,7 +38,7 @@ class WXLocationModule : Module() {
         isHighAccuracy: Boolean = false,
         highAccuracyExpireTime: Int? = null,
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val params = JSONObject().apply {
             put("type", type)
@@ -54,7 +54,7 @@ class WXLocationModule : Module() {
         latitude: Double? = null,
         longitude: Double? = null,
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val params = JSONObject().apply {
             latitude?.also { put("latitude", it) }
@@ -71,7 +71,7 @@ class WXLocationModule : Module() {
         name: String? = null,
         address: String? = null,
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val params = JSONObject().apply {
             put("latitude", latitude)
@@ -87,7 +87,7 @@ class WXLocationModule : Module() {
         method: String,
         params: JSONObject?,
         onSuccess: CallbackFn?,
-        onFail: CallbackFn?,
+        onFail: CallbackFn?
     ) {
         val wrapped = JSONObject().apply {
             put(WXApiModule.KEY_ARGS, params ?: JSONObject())

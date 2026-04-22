@@ -40,7 +40,7 @@ class WXUIModule : Module() {
         duration: Int = 1500,
         mask: Boolean = false,
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val params = JSONObject().apply {
             put("title", title)
@@ -64,7 +64,7 @@ class WXUIModule : Module() {
         title: String = "加载中",
         mask: Boolean = false,
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val params = JSONObject().apply {
             put("title", title)
@@ -96,7 +96,7 @@ class WXUIModule : Module() {
         editable: Boolean = false,
         placeholderText: String = "",
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val params = JSONObject().apply {
             title?.also { put("title", it) }
@@ -121,7 +121,7 @@ class WXUIModule : Module() {
         itemColor: String = "#000000",
         alertText: String? = null,
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val arr = JSONArray()
         itemList.forEach { arr.put(it) }
@@ -137,7 +137,7 @@ class WXUIModule : Module() {
         method: String,
         params: JSONObject?,
         onSuccess: CallbackFn?,
-        onFail: CallbackFn?,
+        onFail: CallbackFn?
     ) {
         val wrapped = JSONObject().apply {
             put(WXApiModule.KEY_ARGS, params ?: JSONObject())

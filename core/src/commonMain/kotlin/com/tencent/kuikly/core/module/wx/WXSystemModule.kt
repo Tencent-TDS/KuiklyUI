@@ -50,7 +50,7 @@ class WXSystemModule : Module() {
     /** wx.getSystemInfo —— 异步版本 */
     fun getSystemInfo(
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val wrapped = JSONObject().apply {
             put(WXApiModule.KEY_ARGS, JSONObject())

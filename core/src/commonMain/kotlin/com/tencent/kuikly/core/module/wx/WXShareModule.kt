@@ -39,7 +39,7 @@ class WXShareModule : Module() {
         withShareTicket: Boolean = false,
         menus: List<String> = listOf("shareAppMessage", "shareTimeline"),
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val arr = JSONArray()
         menus.forEach { arr.put(it) }
@@ -54,7 +54,7 @@ class WXShareModule : Module() {
     fun hideShareMenu(
         menus: List<String>? = null,
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val params = JSONObject().apply {
             menus?.also { list ->
@@ -81,7 +81,7 @@ class WXShareModule : Module() {
         templateInfo: JSONObject? = null,
         toDoActivityId: String? = null,
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val params = JSONObject().apply {
             put("withShareTicket", withShareTicket)
@@ -97,7 +97,7 @@ class WXShareModule : Module() {
         method: String,
         params: JSONObject?,
         onSuccess: CallbackFn?,
-        onFail: CallbackFn?,
+        onFail: CallbackFn?
     ) {
         val wrapped = JSONObject().apply {
             put(WXApiModule.KEY_ARGS, params ?: JSONObject())

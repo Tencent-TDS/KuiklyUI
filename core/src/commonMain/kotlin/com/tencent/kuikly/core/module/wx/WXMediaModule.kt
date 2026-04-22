@@ -39,7 +39,7 @@ class WXMediaModule : Module() {
         sizeType: List<String> = listOf("original", "compressed"),
         sourceType: List<String> = listOf("album", "camera"),
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val params = JSONObject().apply {
             put("count", count)
@@ -61,7 +61,7 @@ class WXMediaModule : Module() {
         sizeType: List<String> = listOf("original", "compressed"),
         camera: String = "back",
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val params = JSONObject().apply {
             put("count", count)
@@ -80,7 +80,7 @@ class WXMediaModule : Module() {
         current: String? = null,
         showmenu: Boolean = true,
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val params = JSONObject().apply {
             put("urls", toArray(urls))
@@ -94,7 +94,7 @@ class WXMediaModule : Module() {
     fun saveImageToPhotosAlbum(
         filePath: String,
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val params = JSONObject().apply { put("filePath", filePath) }
         invoke(METHOD_SAVE_IMAGE, params, onSuccess, onFail)
@@ -110,7 +110,7 @@ class WXMediaModule : Module() {
         method: String,
         params: JSONObject?,
         onSuccess: CallbackFn?,
-        onFail: CallbackFn?,
+        onFail: CallbackFn?
     ) {
         val wrapped = JSONObject().apply {
             put(WXApiModule.KEY_ARGS, params ?: JSONObject())

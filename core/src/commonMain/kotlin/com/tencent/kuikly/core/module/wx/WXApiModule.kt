@@ -48,7 +48,7 @@ class WXApiModule : Module() {
     fun login(
         timeout: Int? = null,
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val params = JSONObject().apply {
             timeout?.also { put("timeout", it) }
@@ -61,7 +61,7 @@ class WXApiModule : Module() {
      */
     fun checkSession(
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         invoke(METHOD_CHECK_SESSION, null, onSuccess, onFail)
     }
@@ -75,7 +75,7 @@ class WXApiModule : Module() {
         desc: String,
         lang: String = "en",
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val params = JSONObject().apply {
             put("desc", desc)
@@ -91,7 +91,7 @@ class WXApiModule : Module() {
         withCredentials: Boolean = false,
         lang: String = "en",
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val params = JSONObject().apply {
             put("withCredentials", withCredentials)
@@ -113,7 +113,7 @@ class WXApiModule : Module() {
         method: String,
         params: JSONObject?,
         onSuccess: CallbackFn?,
-        onFail: CallbackFn?,
+        onFail: CallbackFn?
     ) {
         val wrapped = JSONObject().apply {
             put(KEY_ARGS, params ?: JSONObject())

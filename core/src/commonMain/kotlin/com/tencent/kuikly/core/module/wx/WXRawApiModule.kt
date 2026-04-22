@@ -59,7 +59,7 @@ class WXRawApiModule : Module() {
         apiName: String,
         args: JSONObject? = null,
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val wrapped = JSONObject().apply {
             put(KEY_API_NAME, apiName)

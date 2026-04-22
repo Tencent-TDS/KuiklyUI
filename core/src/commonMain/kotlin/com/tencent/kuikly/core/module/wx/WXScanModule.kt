@@ -34,7 +34,7 @@ class WXScanModule : Module() {
         onlyFromCamera: Boolean = false,
         scanType: List<String>? = null,
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val params = JSONObject().apply {
             put("onlyFromCamera", onlyFromCamera)

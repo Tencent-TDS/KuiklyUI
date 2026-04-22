@@ -29,7 +29,7 @@ class WXClipboardModule : Module() {
     fun setClipboardData(
         data: String,
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         val params = JSONObject().apply { put("data", data) }
         invoke(METHOD_SET_CLIPBOARD_DATA, params, onSuccess, onFail)
@@ -41,7 +41,7 @@ class WXClipboardModule : Module() {
      */
     fun getClipboardData(
         onSuccess: CallbackFn? = null,
-        onFail: CallbackFn? = null,
+        onFail: CallbackFn? = null
     ) {
         invoke(METHOD_GET_CLIPBOARD_DATA, null, onSuccess, onFail)
     }
@@ -50,7 +50,7 @@ class WXClipboardModule : Module() {
         method: String,
         params: JSONObject?,
         onSuccess: CallbackFn?,
-        onFail: CallbackFn?,
+        onFail: CallbackFn?
     ) {
         val wrapped = JSONObject().apply {
             put(WXApiModule.KEY_ARGS, params ?: JSONObject())

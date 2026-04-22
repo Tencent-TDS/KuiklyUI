@@ -256,6 +256,17 @@ object MiniGlobal {
     @JsName("global")
     val globalThis: dynamic
         get() = js("global")
+    
+    init {
+        // Initialize customWrapperCache if not exists
+        if (jsTypeOf(globalThis.customWrapperCache) == "undefined") {
+            globalThis.customWrapperCache = js("new Map()")
+        }
+        // Initialize incrementId if not exists
+        if (jsTypeOf(globalThis.incrementId) == "undefined") {
+            globalThis.incrementId = 0
+        }
+    }
 
     private val miniSystemInitInfo = NativeApi.plat.getSystemInfoSync()
 

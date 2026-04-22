@@ -11,6 +11,8 @@ typealias PageLifeCallback = (params: Any?) -> Unit
 /**
  * Mini program lifecycle callbacks exposed for external use
  */
+@JsExport
+@OptIn(ExperimentalJsExport::class)
 class PageLifeCycle(private val pageInstance: MiniPage) {
     /**
      * Expose onLoad event, the callback needs to handle the open parameters,

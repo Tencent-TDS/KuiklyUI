@@ -4,6 +4,7 @@ import com.tencent.kuikly.core.render.web.collection.array.JsArray
 import com.tencent.kuikly.core.render.web.expand.components.KRRichTextView
 import com.tencent.kuikly.core.render.web.processor.FontSizeToLineHeightMap
 import com.tencent.kuikly.core.render.web.processor.IRichTextProcessor
+import com.tencent.kuikly.core.render.web.processor.TextMeasureCache
 import com.tencent.kuikly.core.render.web.const.KRCssConst
 import com.tencent.kuikly.core.render.web.ktx.SizeF
 import com.tencent.kuikly.core.render.web.ktx.height
@@ -41,6 +42,9 @@ object RichTextProcessor : IRichTextProcessor {
 
     // Whether support fontBoundingBoxAscent, default believe support
     private var isSupportFontBoundingBox: Boolean = true
+    
+    // Cache last used font string to avoid redundant font setting
+    private var lastCanvasFont: String = ""
 
     // Rich text placeholder attribute setting
     private const val PLACEHOLDER_WIDTH = "placeholderWidth"
@@ -69,8 +73,26 @@ object RichTextProcessor : IRichTextProcessor {
             style.asDynamic().webkitBoxOrient = ""
             style.whiteSpace = "pre-wrap"
             style.overflowY = "auto"
-            style.top = "-5000px"
+            // Use transform to move offscreen instead of absolute positioning for better performance
             style.position = "absolute"
+            style.visibility = "hidden"
+            style.top = "0"
+            style.left = "0"
+            style.transform = "translate(-10000px, -10000px)"
+            style.asDynamic().willChange = "transform"
+        }
+    }
+    
+    // Track if measure element is attached to DOM
+    private var isMeasureElementAttached = false
+    
+    /**
+     * Ensure measure element is attached to DOM (do once)
+     */
+    private fun ensureMeasureElementAttached() {
+        if (!isMeasureElementAttached) {
+            kuiklyDocument.body?.appendChild(measureElement)
+            isMeasureElementAttached = true
         }
     }
 
@@ -130,14 +152,50 @@ object RichTextProcessor : IRichTextProcessor {
      */
     private fun calculateRenderViewSizeByDom(constraintSize: SizeF, view: KRRichTextView, renderText: String): SizeF {
         val ele = view.ele
+        val style = ele.style
+        
+        // Try cache first for plain text
+        var cacheKey: String? = null
+        if (!view.isRichTextValues() && renderText.isNotEmpty()) {
+            cacheKey = TextMeasureCache.generateKey(
+                text = renderText,
+                fontSize = style.fontSize,
+                fontWeight = style.fontWeight,
+                fontFamily = style.fontFamily,
+                fontStyle = style.fontStyle,
+                letterSpacing = style.letterSpacing,
+                lineHeight = style.lineHeight,
+                constraintWidth = constraintSize.width,
+                numberOfLines = view.numberOfLines
+            )
+            
+            TextMeasureCache.get(cacheKey)?.let { cachedSize ->
+                Log.trace("Using cached size: ", cachedSize.width, cachedSize.height)
+                return cachedSize
+            }
+        }
+        
         val originParent = ele.parentElement
         val index = indexOfChild(ele)
         var newEle = measureElement
         var useMeasureElement = !view.isRichTextValues()
+        
         if (useMeasureElement) {
-            // Copy all styles at once using cssText for better performance
-            newEle.style.cssText = ele.style.cssText
-            // Set content after style copying to avoid potential style interference
+            // Ensure measure element is attached (only once)
+            ensureMeasureElementAttached()
+            
+            // Copy critical styles only for better performance
+            newEle.style.fontSize = style.fontSize
+            newEle.style.fontWeight = style.fontWeight
+            newEle.style.fontFamily = style.fontFamily
+            newEle.style.fontStyle = style.fontStyle
+            newEle.style.letterSpacing = style.letterSpacing
+            newEle.style.lineHeight = style.lineHeight
+            newEle.style.textDecoration = style.textDecoration
+            newEle.style.wordBreak = style.wordBreak
+            newEle.style.textIndent = style.textIndent
+            
+            // Set content after style copying
             newEle.innerText = renderText.ifEmpty { ele.innerText }
         } else {
             // can not measure for RichTextValues
@@ -159,6 +217,7 @@ object RichTextProcessor : IRichTextProcessor {
             setMultiLineStyle(view.numberOfLines, newEle)
         }
         setMultiLineStyle(view.numberOfLines, ele)
+
         var removedFloatSpans: List<Node> = emptyList()
         if (view.getHasAppendFloatSpans()) {
             val childNodes = ele.childNodes
@@ -170,8 +229,13 @@ object RichTextProcessor : IRichTextProcessor {
                 removedFloatSpans = listOf(first, second)
             }
         }
-        // Insert the node into the page to complete rendering, used to get the actual size of the node
-        kuiklyDocument.body?.appendChild(newEle)
+
+        // For measure element, no need to append/remove as it's persistent
+        if (!useMeasureElement) {
+            // Insert the node into the page to complete rendering, used to get the actual size of the node
+            kuiklyDocument.body?.appendChild(newEle)
+        }
+
         // Element width
         var w = newEle.offsetWidth
         // Element height
@@ -206,13 +270,16 @@ object RichTextProcessor : IRichTextProcessor {
             }
         }
 
-        // After getting the size, remove the node from the page
-        kuiklyDocument.body?.removeChild(newEle)
+        // After getting the size, remove the node from the page only if not using measure element
+        if (!useMeasureElement) {
+            kuiklyDocument.body?.removeChild(newEle)
+        }
         if (view.getHasAppendFloatSpans() && removedFloatSpans.isNotEmpty()) {
             removedFloatSpans.reversed().forEach { span ->
                 ele.insertBefore(span, ele.firstChild)
             }
         }
+
         Log.trace("calculate size by dom, size: ", w, h)
         // Actual width
         val realWidth = if (w < constraintSize.width) w + 0.5f else constraintSize.width
@@ -226,8 +293,16 @@ object RichTextProcessor : IRichTextProcessor {
             // measureElement is removed so don't need insert newEle
             insertChild(originParent, newEle, index)
         }
+        
+        val result = SizeF(realWidth, realHeight)
+        
+        // Cache the result for plain text
+        if (cacheKey != null) {
+            TextMeasureCache.put(cacheKey, result)
+        }
+        
         Log.trace("real size by dom, size:", realWidth, realHeight)
-        return SizeF(realWidth, realHeight)
+        return result
     }
 
     /**
@@ -279,6 +354,24 @@ object RichTextProcessor : IRichTextProcessor {
 
         val ele = view.ele
         val style = view.ele.style
+        
+        // Try cache first
+        val cacheKey = TextMeasureCache.generateKey(
+            text = renderText,
+            fontSize = style.fontSize,
+            fontWeight = style.fontWeight,
+            fontFamily = style.fontFamily,
+            fontStyle = style.fontStyle,
+            letterSpacing = style.letterSpacing,
+            lineHeight = style.lineHeight,
+            constraintWidth = constraintSize.width,
+            numberOfLines = view.numberOfLines
+        )
+        
+        TextMeasureCache.get(cacheKey)?.let { cachedSize ->
+            Log.trace("Using cached canvas size: ", cachedSize.width, cachedSize.height)
+            return cachedSize
+        }
 
         // No truncation or ellipsis when calculating actual size
         style.whiteSpace = "pre-wrap"
@@ -297,8 +390,13 @@ object RichTextProcessor : IRichTextProcessor {
         }
         // Canvas font style to set
         val font = "$fontWeight $fontSize $fontFamily"
-        // Set canvas font style
-        canvasCtx?.font = font
+        
+        // Only set font if it changed to avoid redundant operations
+        if (font != lastCanvasFont) {
+            canvasCtx?.font = font
+            lastCanvasFont = font
+        }
+        
         // Get all text line list based on line breaks
         val textArray = renderText.asDynamic().split("\n").unsafeCast<JsArray<String>>()
         // Maximum width of a single line
@@ -363,9 +461,14 @@ object RichTextProcessor : IRichTextProcessor {
                 // If not specified, use canvas calculated height
                 totalHeight
             }
+            
+            val result = SizeF(realWidth, realHeight)
+            // Cache the result
+            TextMeasureCache.put(cacheKey, result)
+            
             Log.trace("canvas real size: ", realWidth, realHeight)
             // Return size
-            return SizeF(realWidth, realHeight)
+            return result
         } else {
             // Exceed constraint width, because text wrapping may have extra space occupied, unable
             // to accurately calculate, so use DOM calculation

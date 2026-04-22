@@ -182,8 +182,9 @@ class KeyboardStatusWatcher(private val activity: Activity) : PopupWindow(activi
     }
 
     private fun notifyKeyboardHeightChanged(height: Int) {
-        listeners.forEach {
-            it.onHeightChanged(height)
+        val list = ArrayList(listeners)
+        for (listener in list) {
+            listener.onHeightChanged(height)
         }
     }
 
@@ -240,8 +241,9 @@ class Android11PlusKeyboardWatcher(private val activity: Activity) : ViewTreeObs
     }
 
     private fun notifyKeyboardHeightChanged(height: Int) {
-        listeners.forEach {
-            it.onHeightChanged(height)
+        val list = ArrayList(listeners)
+        for (listener in list) {
+            listener.onHeightChanged(height)
         }
     }
 

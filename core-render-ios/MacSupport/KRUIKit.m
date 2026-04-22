@@ -711,6 +711,7 @@ void UIBezierPathAppendPath(UIBezierPath *path, UIBezierPath *appendPath) {
     BOOL _hasMouseOver;
     NSTrackingArea *_trackingArea;
     BOOL _mouseDownCanMoveWindow;
+    BOOL _didPushCursor; // hover 时是否已 push 了 NSCursor，保证 push/pop 严格配对
 }
 
 #pragma mark Initialization
@@ -768,6 +769,14 @@ static KRUIView *KRUIViewCommonInit(KRUIView *self) {
 
 #pragma mark View Lifecycle
 
+- (void)dealloc {
+    // 兜底：视图销毁时如果仍处于 hover 态，确保 pop cursor 恢复
+    if (_didPushCursor) {
+        [NSCursor pop];
+        _didPushCursor = NO;
+    }
+}
+
 - (void)viewDidMoveToWindow {
     // Subscribe to view bounds changed notification so that the view can be notified when a
     // scroll event occurs either due to trackpad/gesture based scrolling or a scrollwheel event
@@ -799,18 +808,80 @@ static KRUIView *KRUIViewCommonInit(KRUIView *self) {
 #pragma mark Mouse Event Handling
 
 - (BOOL)hasMouseHoverEvent {
-    // Disabled for now to avoid selector warnings
-    return NO;
+    BOOL hasHoverCallback = NO;
+    if ([self respondsToSelector:@selector(css_mouseEnter)] &&
+        [self respondsToSelector:@selector(css_mouseExit)]) {
+        id enterCb = [self performSelector:@selector(css_mouseEnter)];
+        id exitCb = [self performSelector:@selector(css_mouseExit)];
+        hasHoverCallback = enterCb != nil || exitCb != nil;
+    }
+    BOOL hasCursor = NO;
+    if ([self respondsToSelector:@selector(css_cursor)]) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+        NSString *cursorType = [self performSelector:@selector(css_cursor)];
+#pragma clang diagnostic pop
+        hasCursor = cursorType.length > 0;
+    }
+    return hasHoverCallback || hasCursor;
 }
 
 - (void)mouseEntered:(NSEvent *)event {
     _hasMouseOver = YES;
-    // TODO: Implement mouse enter event callback when needed
+    // cursor 联动：hover 进入时切换光标（用 _didPushCursor 保证 push/pop 严格配对）
+    if (!_didPushCursor && [self respondsToSelector:@selector(css_cursor)]) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+        NSString *cursorType = [self performSelector:@selector(css_cursor)];
+#pragma clang diagnostic pop
+        NSCursor *cursor = [self kr_cursorForType:cursorType];
+        if (cursor) {
+            [cursor push];
+            _didPushCursor = YES;
+        }
+    }
+    // hover 事件回调
+    if ([self respondsToSelector:@selector(css_mouseEnter)]) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+        void (^callback)(id _Nullable) = [self performSelector:@selector(css_mouseEnter)];
+#pragma clang diagnostic pop
+        if (callback) {
+            callback(@{});
+        }
+    }
 }
 
 - (void)mouseExited:(NSEvent *)event {
     _hasMouseOver = NO;
-    // TODO: Implement mouse leave event callback when needed
+    // cursor 联动：hover 离开时恢复光标（严格配对，只有 push 过才 pop）
+    if (_didPushCursor) {
+        [NSCursor pop];
+        _didPushCursor = NO;
+    }
+    // hover 事件回调
+    if ([self respondsToSelector:@selector(css_mouseExit)]) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+        void (^callback)(id _Nullable) = [self performSelector:@selector(css_mouseExit)];
+#pragma clang diagnostic pop
+        if (callback) {
+            callback(@{});
+        }
+    }
+}
+
+// 根据 cursor 类型字符串返回对应 NSCursor
+- (NSCursor *)kr_cursorForType:(NSString *)cursorType {
+    if (!cursorType || cursorType.length == 0) return nil;
+    if ([cursorType isEqualToString:@"pointer"]) return [NSCursor pointingHandCursor];
+    if ([cursorType isEqualToString:@"text"]) return [NSCursor IBeamCursor];
+    if ([cursorType isEqualToString:@"crosshair"]) return [NSCursor crosshairCursor];
+    if ([cursorType isEqualToString:@"grab"]) return [NSCursor openHandCursor];
+    if ([cursorType isEqualToString:@"grabbing"]) return [NSCursor closedHandCursor];
+    if ([cursorType isEqualToString:@"not-allowed"]) return [NSCursor operationNotAllowedCursor];
+    if ([cursorType isEqualToString:@"default"]) return [NSCursor arrowCursor];
+    return nil;
 }
 
 - (void)updateTrackingAreas {

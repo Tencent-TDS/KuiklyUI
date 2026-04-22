@@ -3,6 +3,12 @@ pluginManagement {
         google()
         gradlePluginPortal()
         mavenCentral()
+        maven {
+            url = uri("https://mirrors.tencent.com/repository/maven-tencent/")
+        }
+        maven {
+            url = uri("https://mirrors.tencent.com/nexus/repository/gradle-plugins/")
+        }
     }
 }
 

@@ -24,25 +24,7 @@ class ExclusionComposableFilter(
 
     override fun shouldFilter(composableName: String, info: String): Boolean {
         // isEnabled() 由 FilterChain 在调用前检查，此处无需重复判断
-        if (composableName in exclusionSet) return true
-        // 支持带源码位置的精确排除（如 "invoke @FeedsDoubleColumnCard.kt:47"）
-        val srcLoc = extractSourceLocation(info)
-        if (srcLoc != null) {
-            val qualifiedKey = "$composableName @$srcLoc"
-            if (qualifiedKey in exclusionSet) return true
-        }
-        return false
-    }
-
-    /**
-     * 从 CompositionTracer 的 info 字符串中提取源码位置。
-     * 例如 "CounterSection (Demo.kt:195)" → "Demo.kt:195"
-     */
-    private fun extractSourceLocation(info: String): String? {
-        val startIndex = info.lastIndexOf('(')
-        val endIndex = info.lastIndexOf(')')
-        if (startIndex < 0 || endIndex < 0 || endIndex <= startIndex) return null
-        return info.substring(startIndex + 1, endIndex).takeIf { it.isNotEmpty() }
+        return composableName in exclusionSet
     }
 
     override fun description(): String {

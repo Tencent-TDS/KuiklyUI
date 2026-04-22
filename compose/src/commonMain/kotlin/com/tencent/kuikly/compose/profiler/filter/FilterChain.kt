@@ -99,7 +99,7 @@ class FilterChain(
         }
 
         // Check builtin framework filters
-        if (enableBuiltinFilters && isBuiltinFrameworkComposable(composableName, info)) {
+        if (enableBuiltinFilters && isBuiltinFrameworkComposable(info)) {
             return true
         }
 
@@ -110,9 +110,9 @@ class FilterChain(
      * Built-in framework Composable detection (from original implementation).
      * This is kept for backward compatibility with existing configuration.
      */
-    private fun isBuiltinFrameworkComposable(composableName: String, info: String): Boolean {
+    private fun isBuiltinFrameworkComposable(info: String): Boolean {
         return frameworkPrefixes.any { prefix -> info.startsWith(prefix) }
-            || frameworkNamePatterns.any { pattern -> info.startsWith(pattern) || composableName == pattern }
+            || frameworkNamePatterns.any { pattern -> info.startsWith(pattern) }
     }
 
     data class CacheStats(

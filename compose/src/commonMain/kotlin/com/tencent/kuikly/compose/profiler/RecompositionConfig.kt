@@ -28,7 +28,7 @@ import com.tencent.kuikly.compose.profiler.filter.ComposableFilter
  * @property includeFrameworkComposables 是否包含框架内部 Composable（如 Row/Column measure policy、Runtime 内部函数等）。
  *   默认 false，只监控业务代码的 Composable。设为 true 可查看所有 Composable 的重组情况。
  * @property enableOverlay 是否启用悬浮 Overlay 热点可视化面板。默认 false。
- * @property overlayTopCount Overlay 面板显示的热点 Composable 最大条数。默认 50。
+ * @property overlayTopCount Overlay 面板显示的热点 Composable 最大条数。默认 5。
  * @property enableLog 是否启用日志输出（LogOutputStrategy）。仅在 start/stop 期间有效。默认 true。
  * @property enableFile 是否启用文件写入（FileOutputStrategy）。
  *   开启后每 2 秒 append 帧数据到 profiler_frames.jsonl，
@@ -45,7 +45,7 @@ data class RecompositionConfig(
     val enableStateTracking: Boolean = true,
     val includeFrameworkComposables: Boolean = false,
     val enableOverlay: Boolean = false,
-    val overlayTopCount: Int = 50,
+    val overlayTopCount: Int = 10,
     val enableLog: Boolean = true,
     val enableFile: Boolean = true,
     val customFilters: List<ComposableFilter> = emptyList(),
@@ -61,8 +61,8 @@ data class RecompositionConfig(
         require(maxEventBufferSize in 1..10_000_000) {
             "maxEventBufferSize must be between 1 and 10_000_000, got $maxEventBufferSize"
         }
-        require(overlayTopCount in 1..100) {
-            "overlayTopCount must be between 1 and 100, got $overlayTopCount"
+        require(overlayTopCount in 1..20) {
+            "overlayTopCount must be between 1 and 20, got $overlayTopCount"
         }
     }
 
@@ -95,7 +95,7 @@ class RecompositionConfigBuilder {
     var enableStateTracking: Boolean = true
     var includeFrameworkComposables: Boolean = false
     var enableOverlay: Boolean = false
-    var overlayTopCount: Int = 50
+    var overlayTopCount: Int = 10
     var enableLog: Boolean = true
     var enableFile: Boolean = true
     var customFilters: List<ComposableFilter> = emptyList()

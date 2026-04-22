@@ -16,10 +16,8 @@
 package com.tencent.kuikly.demo.pages.compose
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -415,9 +413,6 @@ private fun RecompositionProfilerDemo() {
 
         // === 对象持有 State 属性 ===
         item { ObjectWithStateSection() }
-
-        // === Filter 截断 scope 复现 ===
-        item { FilterTruncatedScopeSection() }
 
         // === 报告 ===
         if (reportJson.isNotEmpty()) {
@@ -922,65 +917,4 @@ private fun LabelDisplay(label: String) {
         fontSize = 13.sp,
         color = Color(0xFF3949AB.toInt())
     )
-}
-
-// ========== Filter 截断 scope 复现 ==========
-
-/**
- * CompositionLocal 用于演示 filter 截断问题。
- * CompositionLocalProvider 是 androidx.compose.runtime 包下的框架组件，
- * 会被 builtin filter 过滤掉。当它是 scope 的直接持有者时，
- * 修复前：子节点 scope=none（filter 截断导致链路断裂）
- * 修复后：子节点应该有正确的 scope 值
- */
-private val LocalThemeColor = compositionLocalOf { Color(0xFF333333.toInt()) }
-
-@Composable
-private fun FilterTruncatedScopeSection() {
-    var themeToggle by remember { mutableStateOf(false) }
-    val currentColor = if (themeToggle) Color(0xFFE91E63.toInt()) else Color(0xFF333333.toInt())
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color(0xFFE0F7FA.toInt()), RoundedCornerShape(8.dp))
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Text(
-            "Filter Truncated Scope (CompositionLocalProvider)",
-            fontSize = 14.sp,
-            color = Color(0xFF00695C.toInt())
-        )
-        Text(
-            text = "State → CompositionLocalProvider (filtered) → children. " +
-                "Fix: children should show scope != none after toggle.",
-            fontSize = 11.sp,
-            color = Color.Gray
-        )
-
-        // CompositionLocalProvider 会被 builtin filter 过滤（属于 androidx.compose.runtime）
-        // 点击 Toggle 后，themeToggle 变化触发 FilterTruncatedScopeSection 重组，
-        // CompositionLocalProvider 被 filter，子节点 ThemedTitle / ThemedSubtitle 应继承 scope
-        CompositionLocalProvider(LocalThemeColor provides currentColor) {
-            ThemedTitle(title = "Hello Profiler")
-            ThemedSubtitle(subtitle = if (themeToggle) "Pink Mode" else "Default Mode")
-        }
-
-        ActionButton(text = "Toggle Theme", color = Color(0xFF00897B.toInt())) {
-            themeToggle = !themeToggle
-        }
-    }
-}
-
-@Composable
-private fun ThemedTitle(title: String) {
-    val color = LocalThemeColor.current
-    Text(text = title, fontSize = 16.sp, color = color)
-}
-
-@Composable
-private fun ThemedSubtitle(subtitle: String) {
-    val color = LocalThemeColor.current
-    Text(text = subtitle, fontSize = 12.sp, color = color)
 }

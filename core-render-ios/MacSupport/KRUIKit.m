@@ -21,6 +21,15 @@
 #import <QuartzCore/QuartzCore.h>
 #import <objc/runtime.h>
 #import <objc/message.h>
+
+// Forward-declare hover/cursor selectors to suppress "Undeclared selector" warnings.
+// Actual properties are declared in KRView.h and UIView+CSS.h.
+@protocol KRUIKitHoverSelectors
+@optional
+@property (nonatomic, strong, nullable) id css_mouseEnter;
+@property (nonatomic, strong, nullable) id css_mouseExit;
+@property (nonatomic, strong, nullable) NSString *css_cursor;
+@end
 #import <CoreImage/CIFilter.h>
 #import <CoreImage/CIVector.h>
 
@@ -798,11 +807,19 @@ static KRUIView *KRUIViewCommonInit(KRUIView *self) {
 }
 
 - (void)viewBoundsChanged:(NSNotification *)__unused inNotif {
-    // TODO: Implement mouse hover tracking logic when needed
-    // When an enclosing scrollview is scrolled using the scrollWheel or trackpad,
-    // the mouseExited: event does not get called on the view where mouseEntered: was previously called.
-    // This creates an unnatural pairing of mouse enter and exit events and can cause problems.
-    // We therefore explicitly check for this here and handle them by calling the appropriate callbacks.
+    // 滚动时 mouseExited: 不会被调用，需要手动检查鼠标是否仍在视图内，
+    // 合成缺失的 exit/enter 事件，保证 cursor push/pop 和回调严格配对。
+    NSPoint mouseLocationInWindow = [[self window] mouseLocationOutsideOfEventStream];
+    NSPoint locationInSelf = [self convertPoint:mouseLocationInWindow fromView:nil];
+    BOOL isInsideBounds = NSMouseInRect(locationInSelf, self.bounds, [self isFlipped]);
+
+    if (_hasMouseOver && !isInsideBounds) {
+        // 鼠标已经离开但 mouseExited: 没被调用 → 合成 exit
+        [self mouseExited:[NSEvent new]];
+    } else if (!_hasMouseOver && isInsideBounds) {
+        // 鼠标进入但 mouseEntered: 没被调用 → 合成 enter
+        [self mouseEntered:[NSEvent new]];
+    }
 }
 
 #pragma mark Mouse Event Handling
@@ -811,8 +828,11 @@ static KRUIView *KRUIViewCommonInit(KRUIView *self) {
     BOOL hasHoverCallback = NO;
     if ([self respondsToSelector:@selector(css_mouseEnter)] &&
         [self respondsToSelector:@selector(css_mouseExit)]) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
         id enterCb = [self performSelector:@selector(css_mouseEnter)];
         id exitCb = [self performSelector:@selector(css_mouseExit)];
+#pragma clang diagnostic pop
         hasHoverCallback = enterCb != nil || exitCb != nil;
     }
     BOOL hasCursor = NO;
@@ -891,6 +911,7 @@ static KRUIView *KRUIViewCommonInit(KRUIView *self) {
     if (!wouldRecreateIdenticalTrackingArea) {
         if (_trackingArea) {
             [self removeTrackingArea:_trackingArea];
+            _trackingArea = nil;
         }
         
         if (hasMouseHoverEvent) {

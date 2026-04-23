@@ -84,6 +84,18 @@ class HoverDemo : ComposeContainer() {
                         PointerIconStyleTest()
                     }
 
+                    // 测试 5：ScrollView 内 hover 滚出视口测试
+                    item {
+                        Text("测试 5：滚动场景 Hover 测试", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("将鼠标悬停在某个卡片上，然后用滚轮/触控板滚动列表，观察 hover 状态是否正确复位", fontSize = 14.sp, color = Color.Gray)
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    // 生成多个 hoverable 卡片，用于滚出视口测试
+                    items(12) { index ->
+                        ScrollHoverCard(index)
+                    }
+
                     item {
                         Spacer(modifier = Modifier.height(100.dp))
                     }
@@ -236,6 +248,56 @@ class HoverDemo : ComposeContainer() {
                         color = Color(0xFF333333)
                     )
                 }
+            }
+        }
+    }
+
+    @Composable
+    fun ScrollHoverCard(index: Int) {
+        val interactionSource = remember { MutableInteractionSource() }
+        val isHovered by interactionSource.collectIsHoveredAsState()
+        val bgColors = listOf(
+            Color(0xFFE3F2FD), Color(0xFFF3E5F5), Color(0xFFE8F5E9),
+            Color(0xFFFFF3E0), Color(0xFFFCE4EC), Color(0xFFE0F7FA),
+        )
+        val accentColors = listOf(
+            Color(0xFF1565C0), Color(0xFF7B1FA2), Color(0xFF2E7D32),
+            Color(0xFFE65100), Color(0xFFC62828), Color(0xFF00838F),
+        )
+        val bg = bgColors[index % bgColors.size]
+        val accent = accentColors[index % accentColors.size]
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .hoverable(interactionSource)
+                .pointerHoverIcon(PointerIcon.Hand)
+                .background(if (isHovered) accent else bg)
+                .border(
+                    width = if (isHovered) 2.dp else 1.dp,
+                    color = if (isHovered) accent else accent.copy(alpha = 0.3f),
+                    shape = RoundedCornerShape(8.dp)
+                )
+                .padding(16.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Column {
+                Text(
+                    text = "卡片 #${index + 1}",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isHovered) Color.White else accent
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = if (isHovered)
+                        "悬停中 — 现在用滚轮滚动，观察这个状态是否自动复位"
+                    else
+                        "鼠标悬停到这里，然后滚动列表测试",
+                    fontSize = 13.sp,
+                    color = if (isHovered) Color.White.copy(alpha = 0.9f) else Color(0xFF666666)
+                )
             }
         }
     }

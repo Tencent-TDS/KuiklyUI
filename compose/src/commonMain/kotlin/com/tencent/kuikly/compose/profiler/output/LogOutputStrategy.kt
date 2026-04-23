@@ -74,6 +74,7 @@ class LogOutputStrategy(
                     val indent2 = indentStr(indent)
                     KLog.d(TAG, "${indent2}RECOMPOSED: ${event.composableName}$locationInfo (${event.durationMs}ms)$scopeInfo$parentInfo$paramInfo$statesInfo")
                 }
+                else -> { /* TouchContextEvent / ScrollContextEvent — not logged per-frame */ }
             }
         }
     }

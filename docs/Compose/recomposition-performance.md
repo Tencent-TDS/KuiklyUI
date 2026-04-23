@@ -267,3 +267,70 @@ Compose 编译器的 `$dirty` bitmask 中，参数按 slot 位置编号 `#0, #1,
 - **Overlay 开关**：`enableOverlay` 需要在 `start()` 之前通过 `configure { }` 设置。
 - **采样率**：高频重组场景（如 60fps 动画）可设置 `sampleRate = 0.3` 降低日志量。
 - **文件位置**：写入 App 沙盒目录（iOS/Android 写 Caches，HarmonyOS 写 files），系统磁盘紧张时 Caches 可能被清理；分析完建议及时备份。
+
+---
+
+## AI 辅助分析（Recomposition Analyzer Skill）
+
+采集完 `profiler_report.json` 和 `profiler_frames.jsonl` 后，可以使用 `kuikly-recomposition-analyzer` skill 让 AI 自动分析重组问题，生成诊断报告。
+
+### 使用方式
+
+在 CodeBuddy Code 中直接说：
+
+```
+帮我分析重组性能
+```
+
+或指定文件路径：
+
+```
+分析这两个文件的重组问题：
+- report: ./profiler_report.json
+- frames: ./profiler_frames.jsonl
+```
+
+也可以指定 App 包名，让 skill 自动从设备拉取日志：
+
+```
+分析 com.myapp.demo 的重组性能
+```
+
+### 分析流程
+
+Skill 采用三阶段漏斗分析，逐层收窄范围：
+
+1. **Report 筛查** — 读取 `report.json`，按阈值过滤出嫌疑组件（scope 高频触发、参数高频变化、State 广播等）
+2. **Frames 深挖** — 读取 `frames.jsonl`，确认帧级问题（帧卡顿、级联重组），结合 touch/scroll 上下文事件判断重组是否正常
+3. **源码确认** — 对嫌疑组件定位业务源码，分析根因并给出具体优化建议
+
+### 输出产物
+
+- **对话摘要**：TOP 3 问题的高层概览
+- **Markdown 报告文件**（`recomp-analysis-YYYYMMDD-HHmm.md`）：包含数据概览、正常重组清单、问题诊断（按严重度降序）、帧级卡顿分析、优化建议
+
+### 自定义阈值
+
+分析时可覆盖默认阈值：
+
+```
+重组分析，scopeCountThreshold=10，durationThreshold=8
+```
+
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| `scopeCountThreshold` | 5 | 某 scope 重组次数超过此值标记为嫌疑 |
+| `durationThreshold` | 5ms | 单次重组耗时超过此值标记为嫌疑 |
+| `singleRecompDurationThreshold` | 10ms | 单次峰值耗时超过此值必须输出到报告 |
+| `frameDurationThreshold` | 16ms | 单帧耗时超过此值标记为帧卡顿 |
+| `paramChangeRateThreshold` | 0.9 | 参数变化率超过此值标记为参数不稳定 |
+| `stateReadersThreshold` | 3 | State 的 readers 数超过此值标记为广播 |
+
+### 聚焦特定页面
+
+如果只想分析某个页面的重组：
+
+1. 在 Profiler Overlay 面板点「重置」
+2. 进入目标页面执行一遍操作
+3. 停止 Profiler，获取报告
+4. 告诉 AI 分析

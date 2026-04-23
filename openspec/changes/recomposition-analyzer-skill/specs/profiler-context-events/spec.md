@@ -2,14 +2,16 @@
 
 ### Requirement: Touch 上下文事件
 
-Profiler SHALL 在 `profiler_frames.jsonl` 中写入 touch 上下文事件，记录 `touchBegin` / `touchEnd` / `touchCancel`（不记录 move 事件）。
+Profiler SHALL 在 `profiler_frames.jsonl` 中写入 touch 上下文事件，记录 `touchBegin` / `touchEnd`（不记录 move 事件）。
+
+> 当前平台 PointerEventType 不包含 Cancel 类型，因此不记录 touchCancel。
 
 Touch 上下文事件 SHALL 写为独立 JSONL 行，格式为：
 ```json
-{"type":"touch_context","eventType":"touchBegin|touchEnd|touchCancel","timestampMs":<ms>,"pointerCount":<N>}
+{"type":"touch_context","eventType":"touchBegin|touchEnd","timestampMs":<ms>,"pointerCount":<N>}
 ```
 
-Hook 点 SHALL 为 `RootNodeOwner.onPointerInput()`，检测 `PointerEventType.Press/Release/Cancel`，调用 `RecompositionProfiler.recordTouchContext()`。
+Hook 点 SHALL 为 `RootNodeOwner.onPointerInput()`，检测 `PointerEventType.Press/Release`，调用 `RecompositionProfiler.recordTouchContext()`。
 
 仅在 `RecompositionProfiler.isEnabled` 为 true 时记录，未启用时零开销。
 

@@ -17,7 +17,7 @@ KuiklyUI 的重组性能分析工具（Recomposition Profiler）已能输出 `re
 ### New Capabilities
 
 - `recomposition-analyzer-skill`: CodeBuddy Code skill，运行在业务仓库，读取 profiler 日志 + 业务源码，自动诊断重组问题并输出优化建议报告。含三阶段漏斗（report → frames → 源码）、可配置阈值、知识内嵌 references。
-- `profiler-context-events`: 为 Recomposition Profiler 新增用户操作上下文事件：touch 事件（touchBegin/touchEnd/touchCancel）和滚动列表事件（firstVisibleItemIndex 变化）。写入 frames.jsonl 为独立 JSONL 行，与现有 frame 行穿插，向后兼容。skill 消费这些事件辅助判断重组是否正常。
+- `profiler-context-events`: 为 Recomposition Profiler 新增用户操作上下文事件：touch 事件（touchBegin/touchEnd）和滚动列表事件（firstVisibleItemIndex 变化）。写入 frames.jsonl 为独立 JSONL 行，与现有 frame 行穿插，向后兼容。skill 消费这些事件辅助判断重组是否正常。
 
 ### Modified Capabilities
 
@@ -35,7 +35,7 @@ KuiklyUI 的重组性能分析工具（Recomposition Profiler）已能输出 `re
 ## Impact
 
 **新增文件（skill）**：
-- `.codebuddy/skills/kuikly-recomposition-analyzer/` 目录下约 8-10 个文件
+- `.codebuddy/skills/kuikly-recomposition-analyzer/` 目录下约 10 个文件（SKILL.md + 9 个 reference 文件）
 - 不影响任何现有框架代码
 
 **修改文件（profiler context events）**：

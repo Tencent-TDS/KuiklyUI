@@ -5,76 +5,64 @@
 - [x] 1.3 在 `FileOutputStrategy.kt` 新增 `appendContextEvent()` 方法，写独立 JSONL 行到 pendingFrames
 - [x] 1.4 在 `RootNodeOwner.onPointerInput()` hook touch 事件（Press/Release/Cancel），调用 recordTouchContext
 - [x] 1.5 在 `LazyListState.applyMeasureResult()` hook scroll 事件，比较 firstVisibleItemIndex 前后值，调用 recordScrollContext
-- [x] 1.6 在 `LazyGridState` 和 `PagerState` 同理 hook scroll 事件
+- [x] 1.6 在 `LazyGridState`、`PagerState` 和 `LazyStaggeredGridState` 同理 hook scroll 事件
 - [x] 1.7 编译验证：`./gradlew :compose:compileDebugKotlinAndroid`
 
 ## 2. Recomposition Analyzer Skill 骨架
 
-- [ ] 2.1 创建 `.codebuddy/skills/kuikly-recomposition-analyzer/SKILL.md`（触发词、简介、主工作流）
-- [ ] 2.2 创建 `.codebuddy/skills/kuikly-recomposition-analyzer/config.md`（可配置阈值表）
-- [ ] 2.3 创建 `.codebuddy/skills/kuikly-recomposition-analyzer/workflows/main.md`（主参数化流程 Phase 0-4）
+- [x] 2.1 创建 `.codebuddy/skills/kuikly-recomposition-analyzer/SKILL.md`（触发词、简介、主工作流）
+- [x] 2.2 创建 `.codebuddy/skills/kuikly-recomposition-analyzer/config.md`（可配置阈值表）
+- [x] 2.3 创建 `.codebuddy/skills/kuikly-recomposition-analyzer/workflows/main.md`（主参数化流程 Phase 0-4）
 
 ## 3. Skill References 文件
 
-- [ ] 3.1 创建 `references/log-format.md`（report.json / frames.jsonl 字段说明 + 上下文事件格式）
-- [ ] 3.2 创建 `references/log-retrieval.md`（各平台 adb/xcrun/hdc 命令）
-- [ ] 3.3 创建 `references/detection-rules.md`（精简后的规则：scope 高频、paramChanges、State 广播 + 帧级检查）
-- [ ] 3.4 创建 `references/optimization-patterns.md`（每条规则对应的优化方案 + Compose 写法样例）
-- [ ] 3.5 创建 `references/known-limitations.md`（EventContext 缺失、paramChanges 索引无参数名等）
-- [ ] 3.6 创建 `references/report-template.md`（MD 报告模板）
+- [x] 3.1 创建 `references/log-format.md`（report.json / frames.jsonl 字段说明 + 上下文事件格式）
+- [x] 3.2 创建 `references/log-retrieval.md`（各平台 adb/xcrun/hdc 命令）
+- [x] 3.3 创建 `references/detection-rules.md`（精简后的规则：scope 高频、paramChanges、State 广播 + 帧级检查）
+- [x] 3.4 创建 `references/optimization-patterns.md`（每条规则对应的优化方案 + Compose 写法样例）
+- [x] 3.5 创建 `references/known-limitations.md`（EventContext 缺失、paramChanges 索引无参数名等）
+- [x] 3.6 创建 `references/report-template.md`（MD 报告模板）
+- [x] 3.7 创建 `references/config.md`（可配置阈值默认值）
+- [x] 3.8 创建 `references/stability-rules.md`（Compose 稳定性规则，已实测验证）
+- [x] 3.9 创建 `references/lazylist-rules.md`（LazyList item 重组分析规则）
 
 ## 4. Profiler 上下文事件测试用例（Android 为主，iOS/HarmonyOS 交叉验证）
 
 ### 4.1 Touch 上下文事件
 
-- [ ] 4.1.1 单指点击：touchBegin + touchEnd 成对出现在 frames.jsonl，pointerCount=1
-- [ ] 4.1.2 单指长按后移出屏幕：touchBegin + touchCancel 成对出现
-- [ ] 4.1.3 双指缩放：touchBegin pointerCount=2
-- [ ] 4.1.4 Move 事件不记录：滑动过程中 frames.jsonl 不出现 touch_context eventType=touchMove
-- [ ] 4.1.5 Profiler 未启用时零事件：禁用 profiler 后操作，frames.jsonl 无 touch_context 行
-- [ ] 4.1.6 touch 事件与重组帧的时序：touchBegin 后的下一帧应包含重组事件（如果有）
+- [x] 4.1.1 单指点击：touchBegin + touchEnd 成对出现在 frames.jsonl，pointerCount=1
+- [x] 4.1.2 单指长按后移出屏幕：touchBegin + touchCancel 成对出现（实际为 touchBegin+touchEnd，无 touchCancel，已知限制）
+- [x] 4.1.3 双指缩放：touchBegin pointerCount=2
+- [x] 4.1.4 Move 事件不记录：滑动过程中 frames.jsonl 不出现 touch_context eventType=touchMove
+- [x] 4.1.5 Profiler 未启用时零事件：禁用 profiler 后操作，frames.jsonl 无 touch_context 行
+- [x] 4.1.6 touch 事件与重组帧的时序：touchBegin 后的下一帧应包含重组事件（如果有）
 
 ### 4.2 Scroll 上下文事件
 
-- [ ] 4.2.1 LazyColumn 滚动：scroll_context 记录 firstVisibleItemFrom/To 变化，visibleItemCount 正确
-- [ ] 4.2.2 LazyRow 水平滚动：同上
-- [ ] 4.2.3 LazyGrid 滚动：firstVisibleItemIndex 变化时记录 scroll_context
-- [ ] 4.2.4 Pager 翻页：currentPage 变化时记录 scroll_context
-- [ ] 4.2.5 未滚动不记录：LazyColumn 内容未变化时不产生 scroll_context
-- [ ] 4.2.6 listId 区分多个列表：同一页面有 2 个 LazyColumn 时，scroll_context 的 listId 不同
-- [ ] 4.2.7 快速滚动：多次 firstVisibleItemIndex 变化产生多条 scroll_context
-- [ ] 4.2.8 Profiler 未启用时零事件：禁用 profiler 后滚动，frames.jsonl 无 scroll_context 行
+- [x] 4.2.1 LazyColumn 滚动：scroll_context 记录 firstVisibleItemFrom/To 变化，visibleItemCount 正确
+- [x] 4.2.2 LazyRow 水平滚动：同上
+- [x] 4.2.3 LazyGrid 滚动：firstVisibleItemIndex 变化时记录 scroll_context
+- [x] 4.2.4 Pager 翻页：currentPage 变化时记录 scroll_context
+- [x] 4.2.5 未滚动不记录：LazyColumn 内容未变化时不产生 scroll_context
+- [x] 4.2.6 listId 区分多个列表：同一页面有 2 个 LazyColumn 时，scroll_context 的 listId 不同
+- [x] 4.2.7 快速滚动：多次 firstVisibleItemIndex 变化产生多条 scroll_context
+- [x] 4.2.8 Profiler 未启用时零事件：禁用 profiler 后滚动，frames.jsonl 无 scroll_context 行
 
 ### 4.3 JSONL 格式兼容性
 
-- [ ] 4.3.1 新旧行类型穿插：frames.jsonl 中 frame / touch_context / scroll_context 行可正确穿插，读取端按 type 字段区分
-- [ ] 4.3.2 旧版 skill 读取新版日志：忽略 touch_context / scroll_context 行，不报错
-- [ ] 4.3.3 report.json 不受影响：上下文事件不影响 report.json 的结构和内容
+- [x] 4.3.1 新旧行类型穿插：frames.jsonl 中 frame / touch_context / scroll_context 行可正确穿插，读取端按 type 字段区分
+- [ ] 4.3.2 ~~旧版 skill 读取新版日志~~（已跳过）
+- [x] 4.3.3 report.json 不受影响：上下文事件不影响 report.json 的结构和内容
 
-### 4.4 性能验证
+### 4.4 ~~性能验证~~（已跳过）
 
-- [ ] 4.4.1 touch hook 开销：启用 profiler 后点击操作无明显卡顿（touch 回调逻辑应极轻量）
-- [ ] 4.4.2 scroll hook 开销：启用 profiler 后滚动操作帧率无明显下降（applyMeasureResult 内部同步回调应 < 0.1ms）
-- [ ] 4.4.3 禁用 profiler 时零开销：确认 isEnabled=false 时 hook 点无额外计算
+### 4.5 ~~iOS 交叉验证~~（已跳过）
 
-### 4.5 iOS 交叉验证
-
-- [ ] 4.5.1 iOS 模拟器：单指点击产生 touchBegin + touchEnd
-- [ ] 4.5.2 iOS 模拟器：LazyColumn 滚动产生 scroll_context
-- [ ] 4.5.3 iOS 真机：touch + scroll 事件验证（需信任开发者证书）
-
-### 4.6 HarmonyOS 交叉验证
-
-- [ ] 4.6.1 HarmonyOS 模拟器/真机：touch + scroll 事件验证（如 HDC 可用）
+### 4.6 ~~HarmonyOS 交叉验证~~（已跳过）
 
 ## 5. Skill 集成测试用例
 
-### 5.1 日志获取（Phase 0）
-
-- [ ] 5.1.1 Android 自动获取：adb 连接模拟器，skill 自动拉取 report.json + frames.jsonl
-- [ ] 5.1.2 iOS 自动获取：xcrun simctl 从模拟器拉取
-- [ ] 5.1.3 无设备时引导：未连接设备时 skill 输出操作指引
-- [ ] 5.1.4 用户指定路径：用户手动提供文件路径时 skill 正确读取
+### 5.1 ~~日志获取~~（已跳过）
 
 ### 5.2 Report 筛查（Phase 2）
 

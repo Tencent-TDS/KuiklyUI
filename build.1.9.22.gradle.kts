@@ -27,4 +27,4 @@ allprojects {
         mavenCentral()
         mavenLocal()
     }
-}
+}test comment

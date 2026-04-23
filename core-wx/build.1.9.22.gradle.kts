@@ -1,5 +1,6 @@
 plugins {
     kotlin("multiplatform")
+    id("com.android.library")
     id("maven-publish")
     signing
 }
@@ -30,9 +31,32 @@ publishing {
     }
 }
 
-// core-wx: Kuikly WeChat MiniProgram bindings.
-// Only js(IR) target -> no android / iOS zombie classes.
+// core-wx: Kuikly WeChat MiniProgram bindings (views + modules).
+//
+// Target matrix aligned with :core — publishes android/iOS/macOS/js(IR).
+// Rationale: business apps may share cross-platform pages in commonMain and
+// conditionally use WXButton / registerWXModules() only on MiniProgram runtime.
+// The wrappers themselves are pure Kotlin (no js() macros / no wx.* access —
+// all `wx.*` calls live in core-render-web), so it is safe to compile on every
+// target. On non-MiniProgram runtime, WX views degrade to a plain view and
+// `registerWXModules()` is a no-op.
+//
+// Apps that don't need WX capabilities simply do NOT depend on :core-wx
+// — core itself has zero references to :core-wx, so no code pulled in.
 kotlin {
+
+    androidTarget {
+        publishLibraryVariantsGroupedByFlavor = true
+        publishLibraryVariants("release")
+    }
+
+    iosSimulatorArm64()
+    iosX64()
+    iosArm64()
+
+    macosX64()
+    macosArm64()
+
     js(IR) {
         moduleName = "KuiklyCore-core-wx"
         browser {
@@ -47,10 +71,19 @@ kotlin {
     }
 
     sourceSets {
-        val jsMain by getting {
+        val commonMain by getting {
             dependencies {
                 implementation(project(":core"))
             }
         }
+    }
+}
+
+android {
+    compileSdk = 30
+    namespace = "com.tencent.kuikly.core.wx"
+    defaultConfig {
+        minSdk = 21
+        targetSdk = 30
     }
 }

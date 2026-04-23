@@ -42,9 +42,10 @@ import com.tencent.kuikly.core.wx.module.WXUIModule
  * }
  * ```
  *
- * This method is a safe no-op on non-MiniProgram runtimes (detected via
- * `pageData.params.is_miniprogram == "1"`), so you can keep it in code paths
- * that compile to js(IR) and might still be exercised outside WeChat.
+ * This method is safe to call from cross-platform code (commonMain): it has
+ * a built-in runtime guard (`pageData.params.is_miniprogram == "1"`) and
+ * becomes a no-op on non-MiniProgram runtimes. Android/iOS/macOS/js targets
+ * all compile and link without error.
  *
  * Covered modules:
  * - P0: WXApi / WXStorage / WXUI / WXSystem

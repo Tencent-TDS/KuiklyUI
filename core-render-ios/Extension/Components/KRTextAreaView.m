@@ -251,40 +251,12 @@ NSString *const KRFontWeightKey = @"fontWeight";
 
 - (void)setCss_placeholder:(NSString *)css_placeholder {
     _css_placeholder = css_placeholder;
-#if TARGET_OS_OSX
-    // macOS: 使用 attributedString 设置 placeholder，确保字体和颜色正确
-    UITextView *phView = self.placeholderTextView;
-    if (css_placeholder.length > 0) {
-        NSMutableAttributedString *attrStr = [[NSMutableAttributedString alloc] initWithString:css_placeholder];
-        NSRange fullRange = NSMakeRange(0, attrStr.length);
-        UIFont *font = self.font ?: [UIFont systemFontOfSize:16];
-        [attrStr addAttribute:NSFontAttributeName value:font range:fullRange];
-        if (phView.textColor) {
-            [attrStr addAttribute:NSForegroundColorAttributeName value:phView.textColor range:fullRange];
-        }
-        phView.attributedText = attrStr;
-    } else {
-        phView.text = @"";
-    }
-#else
     self.placeholderTextView.text = css_placeholder;
-#endif
     [self p_updatePlaceholder];
 }
 
 - (void)setCss_placeholderColor:(NSString *)css_placeholderColor {
     self.placeholderTextView.textColor = [UIView css_color:css_placeholderColor];
-#if TARGET_OS_OSX
-    // macOS: 颜色变更后刷新 attributedString
-    if (_css_placeholder.length > 0) {
-        NSMutableAttributedString *attrStr = [[NSMutableAttributedString alloc] initWithString:_css_placeholder];
-        NSRange fullRange = NSMakeRange(0, attrStr.length);
-        UIFont *font = self.font ?: [UIFont systemFontOfSize:16];
-        [attrStr addAttribute:NSFontAttributeName value:font range:fullRange];
-        [attrStr addAttribute:NSForegroundColorAttributeName value:self.placeholderTextView.textColor range:fullRange];
-        self.placeholderTextView.attributedText = attrStr;
-    }
-#endif
 }
 
 - (void)setCss_maxTextLength:(NSNumber *)css_maxTextLength {
@@ -386,21 +358,6 @@ NSString *const KRFontWeightKey = @"fontWeight";
     }
 }
 
-// macOS: NSTextView 在拼音输入（markedText）阶段不触发 textDidChange:，
-// 需要重写此方法手动更新 placeholder 显隐，并通知 Compose 层正在 IME 输入中
-- (void)setMarkedText:(id)string selectedRange:(NSRange)selectedRange replacementRange:(NSRange)replacementRange {
-    [super setMarkedText:string selectedRange:selectedRange replacementRange:replacementRange];
-    [self p_updatePlaceholder];
-    // 通知 Compose 层 markedText 状态变化
-    if (self.css_textDidChange) {
-        BOOL hasMarked = (self.markedRange.location != NSNotFound && self.markedRange.length > 0);
-        NSString *text = [self p_outputText].copy ?: @"";
-        NSMutableDictionary *params = [@{@"text": text, @"length": @([self p_calculateLengthForText:text])} mutableCopy];
-        params[@"hasMarkedText"] = @(hasMarked);
-        self.css_textDidChange(params);
-    }
-}
-
 - (void)setCss_clipPath:(NSString *)css_clipPath {
     _css_clipPath = [css_clipPath copy];
     // 禁用默认 mask，使用 drawRect 裁剪
@@ -413,8 +370,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
 }
 
 - (void)drawRect:(NSRect)dirtyRect {
-    // 绘制期间临时隐藏 placeholder，避免干扰 clipPath 裁剪绘制
-    BOOL placeholderWasHidden = _placeholderTextView.hidden;
+    // 隐藏 placeholder 避免干扰
     if (_placeholderTextView) {
         _placeholderTextView.hidden = YES;
     }
@@ -446,11 +402,6 @@ NSString *const KRFontWeightKey = @"fontWeight";
         [NSGraphicsContext restoreGraphicsState];
     } else {
         [super drawRect:dirtyRect];
-    }
-    
-    // 绘制完成后恢复 placeholder 的可见状态
-    if (_placeholderTextView) {
-        _placeholderTextView.hidden = placeholderWasHidden;
     }
 }
 
@@ -539,9 +490,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
         if (enablePinyinCallback) {
             if (self.css_textDidChange) {
                 NSString *text = [self p_outputText].copy ?: @"";
-                NSMutableDictionary *params = [@{@"text": text, @"length": @([self p_calculateLengthForText:text])} mutableCopy];
-                params[@"hasMarkedText"] = @(YES);
-                self.css_textDidChange(params);
+                self.css_textDidChange(@{@"text": text, @"length": @([self p_calculateLengthForText:text])});
             }
         }
         return;
@@ -550,9 +499,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
    
     if (self.css_textDidChange) {
         NSString *text = [self p_outputText].copy ?: @"";
-        NSMutableDictionary *params = [@{@"text": text, @"length": @([self p_calculateLengthForText:text])} mutableCopy];
-        params[@"hasMarkedText"] = @(NO);
-        self.css_textDidChange(params);
+        self.css_textDidChange(@{@"text": text, @"length": @([self p_calculateLengthForText:text])});
     }
 }
 
@@ -643,10 +590,6 @@ NSString *const KRFontWeightKey = @"fontWeight";
         self.textContainer.widthTracksTextView = NO;
         self.textContainer.heightTracksTextView = NO;
     }
-    // 同步 placeholderTextView 的 textContainer 尺寸
-    if (_placeholderTextView && _placeholderTextView.textContainer) {
-        _placeholderTextView.textContainer.containerSize = NSMakeSize(frame.size.width, CGFLOAT_MAX);
-    }
     [self setNeedsDisplay:YES];
 #endif
 }
@@ -654,23 +597,6 @@ NSString *const KRFontWeightKey = @"fontWeight";
 - (void)setFont:(UIFont *)font {
     [super setFont:font];
     _placeholderTextView.font = font;
-#if TARGET_OS_OSX
-    // macOS: NSTextView 的 setFont: 对空文本不生效，需要额外设置 typingAttributes
-    if (_placeholderTextView && font) {
-        NSMutableDictionary *attrs = [_placeholderTextView.typingAttributes mutableCopy] ?: [NSMutableDictionary dictionary];
-        attrs[NSFontAttributeName] = font;
-        _placeholderTextView.typingAttributes = attrs;
-        // 如果已有 placeholder 文本，刷新其显示
-        if (_placeholderTextView.text.length > 0) {
-            NSMutableAttributedString *attrStr = [[NSMutableAttributedString alloc] initWithString:_placeholderTextView.text];
-            [attrStr addAttribute:NSFontAttributeName value:font range:NSMakeRange(0, attrStr.length)];
-            if (_placeholderTextView.textColor) {
-                [attrStr addAttribute:NSForegroundColorAttributeName value:_placeholderTextView.textColor range:NSMakeRange(0, attrStr.length)];
-            }
-            _placeholderTextView.attributedText = attrStr;
-        }
-    }
-#endif
 }
 
 - (void)setTextAlignment:(NSTextAlignment)textAlignment {
@@ -919,30 +845,15 @@ NSString *const KRFontWeightKey = @"fontWeight";
         _placeholderTextView.userInteractionEnabled = NO;
 #if TARGET_OS_OSX // [macOS
         _placeholderTextView.selectable = NO; // NSTextView specific: disable text selection
-        // macOS: 同步 drawsBackground 和 focusRingType
-        [_placeholderTextView setDrawsBackground:NO];
-        [_placeholderTextView setFocusRingType:NSFocusRingTypeNone];
 #endif // macOS]
         _placeholderTextView.textContainerInset = self.textContainerInset;
         _placeholderTextView.textContainer.lineFragmentPadding = self.textContainer.lineFragmentPadding;
         _placeholderTextView.backgroundColor = [UIColor clearColor];
-        // 创建时即同步字体，避免 macOS 上使用默认小字体
-        if (self.font) {
-            _placeholderTextView.font = self.font;
-        }
         if (@available(iOS 13.0, macOS 10.10, *)) { // [macOS]
             _placeholderTextView.textColor = UIColor.placeholderTextColor;
         } else {
             _placeholderTextView.textColor = UIColor.lightGrayColor;
         }
-#if TARGET_OS_OSX // [macOS
-        // macOS: 设置 textContainer 尺寸跟随父视图，防止文本被裁剪
-        _placeholderTextView.textContainer.containerSize = NSMakeSize(self.bounds.size.width, CGFLOAT_MAX);
-        _placeholderTextView.textContainer.widthTracksTextView = YES;
-        _placeholderTextView.textContainer.heightTracksTextView = NO;
-        [_placeholderTextView setMinSize:NSZeroSize];
-        [_placeholderTextView setMaxSize:NSMakeSize(CGFLOAT_MAX, CGFLOAT_MAX)];
-#endif // macOS]
         [self insertSubview:_placeholderTextView atIndex:0];
      }
      return _placeholderTextView;

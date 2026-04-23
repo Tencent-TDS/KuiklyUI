@@ -51,8 +51,8 @@
 和使用其他 Kuikly 组件一致，``WXxxx`` 采用标准的 ``attr { } / event { }`` DSL：
 
 ```kotlin
-import com.tencent.kuikly.core.views.wx.WXButton
-import com.tencent.kuikly.core.views.wx.WXButtonOpenType
+import com.tencent.kuikly.core.wx.views.WXButton
+import com.tencent.kuikly.core.wx.views.WXButtonOpenType
 
 WXButton {
     attr {

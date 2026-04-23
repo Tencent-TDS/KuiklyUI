@@ -70,6 +70,9 @@ kotlin {
 
     val jsMain by sourceSets.getting {
         dependsOn(commonMain)
+        dependencies {
+            implementation(project(":core-wx"))
+        }
 //        kotlin.srcDir(
 //            "build/generated/ksp/js/jsMain/kotlin"
 //        )

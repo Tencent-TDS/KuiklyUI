@@ -290,7 +290,7 @@ RecompositionProfiler.configure {
 
 ### 使用方式
 
-在 CodeBuddy Code 中指定平台和包名：
+在支持 Skills 的 AI 编码工具（如 CodeBuddy Code、Claude Code 等）中，指定平台和包名：
 
 ```
 用 kuikly-recomposition-analyzer 分析 android 模拟器上 com.tencent.news.core 的重组问题

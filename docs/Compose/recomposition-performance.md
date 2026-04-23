@@ -272,28 +272,36 @@ Compose 编译器的 `$dirty` bitmask 中，参数按 slot 位置编号 `#0, #1,
 
 ## AI 辅助分析（Recomposition Analyzer Skill）
 
-采集完 `profiler_report.json` 和 `profiler_frames.jsonl` 后，可以使用 `kuikly-recomposition-analyzer` skill 让 AI 自动分析重组问题，生成诊断报告。
+### 前置条件
+
+1. **确保 `enableFile = true`**（默认已开启），Profiler 才会输出文件供 AI 分析：
+
+```kotlin
+RecompositionProfiler.configure {
+    enableFile = true     // 确保开启文件输出
+    enableLog = true      // 可选，开启 KLog 实时输出
+}
+```
+
+2. **使用 debug 包**运行 App（release 包通常不包含 Profiler）
+3. **采集数据**：打开目标页面 → 启动 Profiler → 执行要分析的操作（滚动、点击等）→ 停止 Profiler → 点击「获取报告」
+
+完成以上步骤后，设备上已生成 `profiler_report.json` 和 `profiler_frames.jsonl`，可以让 AI 介入分析。
 
 ### 使用方式
 
-在 CodeBuddy Code 中直接说：
+在 CodeBuddy Code 中指定平台和包名：
 
 ```
-帮我分析重组性能
+用 kuikly-recomposition-analyzer 分析 android 模拟器上 com.tencent.news.core 的重组问题
 ```
 
-或指定文件路径：
+或指定已拉取到本地的文件路径：
 
 ```
-分析这两个文件的重组问题：
-- report: ./profiler_report.json
-- frames: ./profiler_frames.jsonl
-```
-
-也可以指定 App 包名，让 skill 自动从设备拉取日志：
-
-```
-分析 com.myapp.demo 的重组性能
+用 kuikly-recomposition-analyzer 分析这两个文件：
+- report: /tmp/profiler_report.json
+- frames: /tmp/profiler_frames.jsonl
 ```
 
 ### 分析流程

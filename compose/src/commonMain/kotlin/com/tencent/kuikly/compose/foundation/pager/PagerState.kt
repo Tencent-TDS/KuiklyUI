@@ -59,6 +59,8 @@ import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.scroller.applyScrollViewOffsetDelta
 import com.tencent.kuikly.compose.scroller.convertAnimationSpecToSpringAnimation
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
+import com.tencent.kuikly.compose.profiler.RecompositionProfiler
+import com.tencent.kuikly.compose.material3.internal.identityHashCode
 import com.tencent.kuikly.core.collection.fastMutableMapOf
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.math.abs
@@ -706,11 +708,24 @@ abstract class PagerState internal constructor(
         visibleItemsStayedTheSame: Boolean = false
     ) {
         debugLog { "Applying Measure Result" }
+        // Hook: record page scroll context event for Recomposition Profiler
+        val oldPage = scrollPosition.currentPage
         if (visibleItemsStayedTheSame) {
             scrollPosition.updateCurrentPageOffsetFraction(result.currentPageOffsetFraction)
         } else {
             scrollPosition.updateFromMeasureResult(result)
             cancelPrefetchIfVisibleItemsChanged(result)
+        }
+        if (RecompositionProfiler.isEnabled) {
+            val newPage = scrollPosition.currentPage
+            if (newPage != oldPage) {
+                RecompositionProfiler.recordScrollContext(
+                    listId = "pager_${identityHashCode(this)}",
+                    from = oldPage,
+                    to = newPage,
+                    visibleItemCount = result.visiblePagesInfo.size
+                )
+            }
         }
         pagerLayoutInfoState.value = result
         canScrollForward = result.canScrollForward

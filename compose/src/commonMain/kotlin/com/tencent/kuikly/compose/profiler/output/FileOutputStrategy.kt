@@ -21,6 +21,8 @@ import com.tencent.kuikly.compose.profiler.RecompositionFrameEndEvent
 import com.tencent.kuikly.compose.profiler.RecompositionFrameStartEvent
 import com.tencent.kuikly.compose.profiler.RecompositionOutputStrategy
 import com.tencent.kuikly.compose.profiler.RecompositionReport
+import com.tencent.kuikly.compose.profiler.ScrollContextEvent
+import com.tencent.kuikly.compose.profiler.TouchContextEvent
 import com.tencent.kuikly.core.datetime.DateTime
 import com.tencent.kuikly.core.module.FileModule
 
@@ -125,6 +127,17 @@ internal class FileOutputStrategy(
         // 由 deactivate() / writeReport() 主动调用，此处不重复写
     }
 
+    /**
+     * 追加上下文事件（touch_context / scroll_context）为独立 JSONL 行到 pendingFrames 缓冲区。
+     * 由 RecompositionProfiler.recordTouchContext / recordScrollContext 调用。
+     * 非 active 状态下忽略（Profiler 未启用时零开销由调用方的 isEnabled 门控保证）。
+     */
+    internal fun appendContextEvent(event: RecompositionEvent) {
+        if (!active) return
+        val json = buildContextEventJson(event) ?: return
+        pendingFrames.add(json)
+    }
+
     // ========== 内部方法 ==========
 
     private fun flushPendingFrames() {
@@ -195,6 +208,27 @@ internal class FileOutputStrategy(
                 }
                 append("]}")
             }
+            else -> { /* TouchContextEvent / ScrollContextEvent are written as standalone lines via appendContextEvent, not inside frame arrays */ }
+        }
+    }
+
+    private fun buildContextEventJson(event: RecompositionEvent): String? {
+        return when (event) {
+            is TouchContextEvent -> buildString {
+                append("{\"type\":\"touch_context\",")
+                append("\"eventType\":\"${event.touchEventType}\",")
+                append("\"timestampMs\":${event.timestampMs},")
+                append("\"pointerCount\":${event.pointerCount}}")
+            }
+            is ScrollContextEvent -> buildString {
+                append("{\"type\":\"scroll_context\",")
+                append("\"listId\":\"${escapeJson(event.listId)}\",")
+                append("\"firstVisibleItemFrom\":${event.firstVisibleItemFrom},")
+                append("\"firstVisibleItemTo\":${event.firstVisibleItemTo},")
+                append("\"visibleItemCount\":${event.visibleItemCount},")
+                append("\"timestampMs\":${event.timestampMs}}")
+            }
+            else -> null
         }
     }
 }

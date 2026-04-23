@@ -100,14 +100,7 @@ fun Modifier.placeholderColor(color: Color): Modifier = setProp("placeholderColo
 fun Modifier.lineBreakMargin(dp: Dp): Modifier = setProp("lineBreakMargin", dp.value)
 
 /**
- * macOS: 设置鼠标光标样式
- * @param type 光标类型，使用 [com.tencent.kuikly.core.base.CursorType] 常量：
- *  - CursorType.POINTER 手指（可点击）
- *  - CursorType.TEXT 文本选择
- *  - CursorType.CROSSHAIR 十字准心
- *  - CursorType.GRAB 抓手
- *  - CursorType.GRABBING 抓取中
- *  - CursorType.NOT_ALLOWED 禁止
- *  - CursorType.DEFAULT 默认箭头
+ * 内部 API：设置鼠标光标样式 (macOS)。
+ * 业务侧请使用 [com.tencent.kuikly.compose.ui.input.pointer.pointerHoverIcon]。
  */
-fun Modifier.cursor(type: String): Modifier = setProp("cursor", type)
+internal fun Modifier.cursor(type: String): Modifier = setProp("cursor", type)

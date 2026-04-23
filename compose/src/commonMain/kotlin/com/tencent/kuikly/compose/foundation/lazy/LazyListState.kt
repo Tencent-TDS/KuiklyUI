@@ -59,6 +59,8 @@ import com.tencent.kuikly.compose.ui.util.fastRoundToInt
 import com.tencent.kuikly.compose.ui.util.fastSumBy
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.tryExpandStartSizeNoScroll
+import com.tencent.kuikly.compose.profiler.RecompositionProfiler
+import com.tencent.kuikly.compose.material3.internal.identityHashCode
 import com.tencent.kuikly.core.collection.fastMutableMapOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -521,10 +523,23 @@ class LazyListState
                 scrollToBeConsumed -= result.consumedScroll
                 layoutInfoState.value = result
 
+                // Hook: record scroll context event for Recomposition Profiler
+                val oldFirstVisible = scrollPosition.index
                 if (visibleItemsStayedTheSame) {
                     scrollPosition.updateScrollOffset(result.firstVisibleItemScrollOffset)
                 } else {
                     scrollPosition.updateFromMeasureResult(result)
+                }
+                if (RecompositionProfiler.isEnabled) {
+                    val newFirstVisible = result.firstVisibleItem?.index ?: scrollPosition.index
+                    if (newFirstVisible != oldFirstVisible) {
+                        RecompositionProfiler.recordScrollContext(
+                            listId = "list_${identityHashCode(this@LazyListState)}",
+                            from = oldFirstVisible,
+                            to = newFirstVisible,
+                            visibleItemCount = result.visibleItemsInfo.size
+                        )
+                    }
                 }
 
                 if (isLookingAhead) {

@@ -541,6 +541,49 @@ object RecompositionProfiler {
     }
 
     /**
+     * 记录用户触摸上下文事件（touchBegin / touchEnd / touchCancel）。
+     * 仅在 isEnabled 为 true 时记录，未启用时零开销。
+     * 由 RootNodeOwner.onPointerInput 调用。
+     *
+     * @param touchEventType "touchBegin" | "touchEnd" | "touchCancel"
+     * @param pointerCount 同时触摸的手指数
+     */
+    fun recordTouchContext(touchEventType: String, pointerCount: Int) {
+        if (!isEnabled) return
+        val event = TouchContextEvent(
+            timestampMs = com.tencent.kuikly.core.datetime.DateTime.currentTimestamp(),
+            touchEventType = touchEventType,
+            pointerCount = pointerCount
+        )
+        com.tencent.kuikly.core.log.KLog.d(TAG, "[touch_context] $touchEventType pointerCount=$pointerCount ts=${event.timestampMs}")
+        fileStrategy?.appendContextEvent(event)
+    }
+
+    /**
+     * 记录列表滚动上下文事件（firstVisibleItemIndex 变化时）。
+     * 仅在 isEnabled 为 true 时记录，未启用时零开销。
+     * 由 LazyListState / LazyGridState / PagerState 内部 hook 调用。
+     *
+     * @param listId 列表标识符（区分同一页面内的多个列表）
+     * @param from 变化前的 firstVisibleItemIndex
+     * @param to 变化后的 firstVisibleItemIndex
+     * @param visibleItemCount 当前可见 item 数量
+     */
+    fun recordScrollContext(listId: String, from: Int, to: Int, visibleItemCount: Int) {
+        if (!isEnabled) return
+        val event = ScrollContextEvent(
+            timestampMs = com.tencent.kuikly.core.datetime.DateTime.currentTimestamp(),
+            listId = listId,
+            firstVisibleItemFrom = from,
+            firstVisibleItemTo = to,
+            visibleItemCount = visibleItemCount
+        )
+        com.tencent.kuikly.core.log.KLog.d(TAG, "[scroll_context] $listId from=$from to=$to visibleCount=$visibleItemCount ts=${event.timestampMs}")
+        fileStrategy?.appendContextEvent(event)
+    }
+
+
+    /**
      * 添加输出策略。
      *
      * @param strategy 输出策略实例

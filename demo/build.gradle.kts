@@ -202,6 +202,12 @@ fun getLinkerArgs(): List<String> {
     )
 }
 
+// Compose 编译器稳定性报告（按需开启，用于验证类的稳定性推断，会增加编译耗时）
+// composeCompiler {
+//     reportsDestination.set(layout.buildDirectory.dir("compose_compiler"))
+//     metricsDestination.set(layout.buildDirectory.dir("compose_compiler"))
+// }
+
 // Kuikly 插件配置
 kuikly {
     // JS 产物配置

@@ -26,6 +26,9 @@ project(":core-ksp").buildFileName = buildFileName
 include(":core")
 project(":core").buildFileName = buildFileName
 
+include(":core-wx")
+project(":core-wx").buildFileName = buildFileName
+
 include(":core-render-android")
 project(":core-render-android").buildFileName = buildFileName
 

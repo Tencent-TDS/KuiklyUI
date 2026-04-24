@@ -401,6 +401,7 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
             }
         })
     }
+
     private fun initExternalModules() {
         createExternalModules()?.also { map ->
             modulesMap.putAll(map)

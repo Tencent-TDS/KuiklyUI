@@ -60,6 +60,8 @@ internal class AppEmptyPageView(): ComposeView<AppEmptyPageViewAttr, AppEmptyPag
                 allCenter()
                 flex(1f)
                 backgroundColor(ctx.theme.colors.background)
+                // Test hooks: padding around the text
+                padding(16f)
             }
             Text {
                 attr {
@@ -72,7 +74,7 @@ internal class AppEmptyPageView(): ComposeView<AppEmptyPageViewAttr, AppEmptyPag
 }
 
 internal class AppEmptyPageViewAttr : ComposeAttr() {
-    var title by observable("No Content")
+    var title by observable("")
 }
 
 internal class AppEmptyPageViewEvent : ComposeEvent()

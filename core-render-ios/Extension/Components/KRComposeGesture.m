@@ -201,6 +201,19 @@
 
 // 重写 reset 方法，在手势识别结束后重置状态
 - (void)reset {
+#if TARGET_OS_OSX
+    // macOS: 如果 gesture 在有未配对 Press 的情况下被 AppKit 重置（例如 NSTextView 
+    // 抢走 first responder 导致 mouseUp 丢失），需要主动合成一次 Cancel 事件发给 
+    // Compose，让 Compose 的 pointer 状态机（HitPathTracker）清理被卡住的 hit path。
+    // 否则下一次点击外部组件时，Compose 会将新的 Press 错误地归为"旧事件的延续"，
+    // 分发到旧的 hit path（如 TextField），新按钮收不到 Press → onClick 不触发，
+    // 必须点击两次才能生效。
+    if (self.trackedTouches.count > 0 && self.state != UIGestureRecognizerStateEnded
+        && self.state != UIGestureRecognizerStateCancelled) {
+        NSSet *pending = [self.trackedTouches copy];
+        [self onTouchesEvent:pending event:(UIEvent *)pending.anyObject phase:TouchesEventKindCancel];
+    }
+#endif
     [super reset];
     [self.trackedTouches removeAllObjects];
 }

@@ -72,7 +72,7 @@ internal class AppEmptyPageView(): ComposeView<AppEmptyPageViewAttr, AppEmptyPag
 }
 
 internal class AppEmptyPageViewAttr : ComposeAttr() {
-    var title by observable("")
+    var title by observable("No Content")
 }
 
 internal class AppEmptyPageViewEvent : ComposeEvent()

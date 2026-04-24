@@ -225,6 +225,26 @@ open class Event : BaseEvent() {
         }
     }
 
+    /**
+     * 鼠标悬停进入事件 (macOS)
+     * @param handler 鼠标进入视图区域时的回调
+     */
+    open fun mouseEnter(handler: () -> Unit) {
+        this.register(EventName.MOUSE_ENTER.value) {
+            handler()
+        }
+    }
+
+    /**
+     * 鼠标悬停离开事件 (macOS)
+     * @param handler 鼠标离开视图区域时的回调
+     */
+    open fun mouseExit(handler: () -> Unit) {
+        this.register(EventName.MOUSE_EXIT.value) {
+            handler()
+        }
+    }
+
     internal fun listenInternalAnimationCompletion(handler: (AnimationCompletionParams) -> Unit) {
         this.internalAnimationCompletion = handler
         val eventHandler = handlerWithEventName(EventName.ANIMATION_COMPLETE.value)

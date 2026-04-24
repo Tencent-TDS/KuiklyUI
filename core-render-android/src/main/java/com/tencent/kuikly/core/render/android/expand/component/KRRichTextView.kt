@@ -654,8 +654,9 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
         constraintSize: SizeF,
         measureMode: TextMeasureMode
     ): Layout {
+        val adapter = KuiklyRenderAdapterManager.krTextPostProcessorAdapter
         val textSource = if (textProps.textPostProcessor.isNotEmpty()) {
-            KuiklyRenderAdapterManager.krTextPostProcessorAdapter?.onTextPostProcess(
+            adapter?.onTextPostProcess(
                 kuiklyRenderContext, TextPostProcessorInput(textProps.textPostProcessor, text, textProps)
             )?.text ?: text
         } else {

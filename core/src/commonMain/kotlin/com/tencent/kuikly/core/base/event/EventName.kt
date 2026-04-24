@@ -38,4 +38,8 @@ enum class EventName(val value:String) {
     ANIMATION_COMPLETE("animationCompletion"),
     // 屏幕帧VSYNC信号事件
     SCREEN_FRAME("screenFrame"),
+    // 鼠标悬停进入事件 (macOS)
+    MOUSE_ENTER("mouseEnter"),
+    // 鼠标悬停离开事件 (macOS)
+    MOUSE_EXIT("mouseExit"),
 }

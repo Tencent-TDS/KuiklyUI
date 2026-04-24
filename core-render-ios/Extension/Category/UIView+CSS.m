@@ -752,6 +752,18 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 }
 
 
+#if TARGET_OS_OSX
+#pragma mark - macOS Cursor
+
+- (NSString *)css_cursor {
+    return objc_getAssociatedObject(self, @selector(css_cursor));
+}
+
+- (void)setCss_cursor:(NSString *)css_cursor {
+    objc_setAssociatedObject(self, @selector(css_cursor), css_cursor, OBJC_ASSOCIATION_COPY_NONATOMIC);
+    [self updateTrackingAreas];
+}
+#endif
 
 
 - (NSValue *)css_frame {

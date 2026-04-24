@@ -35,6 +35,28 @@ import com.tencent.kuikly.core.manager.PagerManager
 import com.tencent.kuikly.core.utils.ConvertUtil
 import kotlin.math.max
 
+/**
+ * 鼠标光标样式常量 (macOS)
+ * KuiklyDSL: attr { cursor(CursorType.POINTER) }
+ * ComposeDSL: Modifier.cursor(CursorType.POINTER)
+ */
+object CursorType {
+    /** 手指（可点击） */
+    const val POINTER = "pointer"
+    /** 文本选择（I-beam） */
+    const val TEXT = "text"
+    /** 十字准心 */
+    const val CROSSHAIR = "crosshair"
+    /** 抓手（可拖拽） */
+    const val GRAB = "grab"
+    /** 抓取中 */
+    const val GRABBING = "grabbing"
+    /** 禁止操作 */
+    const val NOT_ALLOWED = "not-allowed"
+    /** 默认箭头 */
+    const val DEFAULT = "default"
+}
+
 open class Attr : Props(), IStyleAttr, ILayoutAttr {
     var flexNode: FlexNode? = null
     var keepAlive: Boolean = false
@@ -286,6 +308,15 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
 
     override fun touchEnable(touchEnable: Boolean): Attr {
         StyleConst.TOUCH_ENABLE with touchEnable.toInt()
+        return this
+    }
+
+    /**
+     * 设置鼠标光标样式 (macOS)
+     * @param type 光标类型，使用 [CursorType] 常量，如 CursorType.POINTER、CursorType.TEXT 等
+     */
+    fun cursor(type: String): Attr {
+        "cursor" with type
         return this
     }
 

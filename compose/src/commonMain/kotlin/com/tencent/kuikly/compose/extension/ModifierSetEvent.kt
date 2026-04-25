@@ -117,15 +117,3 @@ fun Modifier.onLineBreakMargin(onLineBreakMargin: (Any?) -> Unit): Modifier =
     this.setEvent("onLineBreakMargin", {
         onLineBreakMargin.invoke(it)
     })
-
-/**
- * macOS: 鼠标悬停事件修饰符
- * @param onEnter 鼠标进入视图区域时的回调
- * @param onExit 鼠标离开视图区域时的回调
- */
-fun Modifier.onHover(
-    onEnter: () -> Unit = {},
-    onExit: () -> Unit = {}
-): Modifier = this
-    .setEvent("mouseEnter") { onEnter() }
-    .setEvent("mouseExit") { onExit() }

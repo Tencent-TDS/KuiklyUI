@@ -146,10 +146,8 @@ internal fun CommonDecorationBox(
         val showPlaceholder by remember {
             derivedStateOf(structuralEqualityPolicy()) { placeholderAlpha.value > 0f }
         }
-        // IME composing (markedText) 状态：拼音输入时隐藏 placeholder
-        val hasMarkedText = com.tencent.kuikly.compose.foundation.text.LocalTextFieldHasMarkedText.current
         val decoratedPlaceholder: @Composable ((Modifier) -> Unit)? =
-            if (placeholder != null && transformedText.isEmpty() && showPlaceholder && !hasMarkedText) {
+            if (placeholder != null && transformedText.isEmpty() && showPlaceholder) {
                 @Composable { modifier ->
                     Box(modifier.graphicsLayer { alpha = placeholderAlpha.value }) {
                         Decoration(

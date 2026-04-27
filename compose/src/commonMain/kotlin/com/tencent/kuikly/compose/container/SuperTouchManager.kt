@@ -62,9 +62,6 @@ class SuperTouchManager {
     fun DivEvent.setTouchDown(isSync: Boolean) {
         touchDown(isSync) {
             val result = touchesDelegate.onTouchesEvent(it.touches, PointerEventType.Press, it.timestamp)
-            com.tencent.kuikly.core.log.KLog.i("KuiklyDiag",
-                "touchDown(Press) pos=${it.touches.firstOrNull()?.let { t -> "${t.x},${t.y}" }}, " +
-                    "dispatched=${result.dispatchedToAPointerInputModifier}, consumed=${it.consumed}")
             if (result.dispatchedToAPointerInputModifier) {
                 getView()?.getViewAttr()?.forceUpdate = true
                 getView()?.getViewAttr()?.consumeTouchDown(true)
@@ -74,10 +71,7 @@ class SuperTouchManager {
 
     internal fun DivEvent.setTouchUp(isSync: Boolean) {
         touchUp(isSync) {
-            val result = touchesDelegate.onTouchesEvent(it.touches, PointerEventType.Release, it.timestamp, it.consumed)
-            com.tencent.kuikly.core.log.KLog.i("KuiklyDiag",
-                "touchUp(Release) pos=${it.touches.firstOrNull()?.let { t -> "${t.x},${t.y}" }}, " +
-                    "dispatched=${result.dispatchedToAPointerInputModifier}, nativeConsumed=${it.consumed}")
+            touchesDelegate.onTouchesEvent(it.touches, PointerEventType.Release, it.timestamp, it.consumed)
             if (container.getViewAttr().getProp(StyleConst.PREVENT_TOUCH) == true) {
                 container.getViewAttr().preventTouch(false)
                 if (useSyncMove) {
@@ -103,8 +97,6 @@ class SuperTouchManager {
 
     internal fun DivEvent.setTouchCancel(isSync: Boolean) {
         touchCancel(isSync) {
-            com.tencent.kuikly.core.log.KLog.i("KuiklyDiag",
-                "touchCancel pos=${it.touches.firstOrNull()?.let { t -> "${t.x},${t.y}" }}, nativeConsumed=${it.consumed}")
             touchesDelegate.onTouchesEvent(it.touches, PointerEventType.Release, it.timestamp, true)
             if (container.getViewAttr().getProp(StyleConst.PREVENT_TOUCH) == true) {
                 container.getViewAttr().preventTouch(false)

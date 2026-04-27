@@ -542,8 +542,6 @@ NSString *const KRFontWeightKey = @"fontWeight";
 }
 
 - (void)textViewDidBeginEditing:(UITextView *)textView { // 获焦
-    NSLog(@"[KuiklyDiag] textViewDidBeginEditing. firstResponder=%@",
-          NSStringFromClass([textView.window.firstResponder class]));
     if (self.css_inputFocus) {
         self.css_inputFocus(@{@"text": textView.text.copy ?: @""});
     }
@@ -551,8 +549,6 @@ NSString *const KRFontWeightKey = @"fontWeight";
 
 
 - (void)textViewDidEndEditing:(UITextView *)textView{ // 失焦
-    NSLog(@"[KuiklyDiag] textViewDidEndEditing. firstResponder=%@",
-          NSStringFromClass([textView.window.firstResponder class]));
     if (self.css_inputBlur) {
         self.css_inputBlur(@{@"text": textView.text.copy ?: @""});
     }

@@ -30,12 +30,8 @@ extern NSString *const KRBGAttributeKey;
 @property (nonatomic, strong, nullable) KRTextRender *textRender;
 @property (nonatomic, assign) BOOL displaysAsynchronously;
 
-#if TARGET_OS_OSX // [macOS text selection support
-@property (nonatomic, assign) BOOL textSelectable;
-@property (nonatomic, assign) NSRange kr_selectedTextRange;
-/// Clear selection without triggering manager notification (used by manager to batch clear)
-- (void)kr_clearSelectionSilently;
-#endif // macOS]
+@property (nonatomic, assign) NSRange selectedRange;
+@property (nonatomic, strong, nullable) UIColor *selectionColor;
 
 /**
  * 获取富文本的对应尺寸大小
@@ -140,22 +136,7 @@ typedef NS_ENUM(NSUInteger, KRAttachmentAlignment) {
 
 @end
 
-#if TARGET_OS_OSX // [macOS
-/// Manages mutual exclusion of text selection across multiple KRLabel instances.
-/// When one KRLabel starts a new selection, all others are cleared.
-/// Also monitors window-level mouseDown to clear selection when clicking outside any selectable text.
-@interface KRTextSelectionManager : NSObject
-+ (instancetype)sharedManager;
-/// Register a KRLabel that has an active selection
-- (void)registerActiveLabel:(KRLabel *)label;
-/// Unregister when label is deallocated or textSelectable is disabled
-- (void)unregisterLabel:(KRLabel *)label;
-/// Clear all selections (e.g., when window gets a mouseDown on non-text area)
-- (void)clearAllSelections;
-/// Called by KRLabel.mouseDown — clears all OTHER labels' selections
-- (void)willBeginSelectionInLabel:(KRLabel *)label;
-@end
-#endif // macOS]
+
 
 NS_ASSUME_NONNULL_END
 

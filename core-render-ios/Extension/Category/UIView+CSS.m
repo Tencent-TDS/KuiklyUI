@@ -775,22 +775,6 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 
 - (void)setCss_selectable:(NSNumber *)css_selectable {
     objc_setAssociatedObject(self, @selector(css_selectable), css_selectable, OBJC_ASSOCIATION_RETAIN);
-    BOOL enable = [css_selectable boolValue];
-    // If this view is a KRLabel (or subclass like KRRichTextView), apply directly
-    if ([self isKindOfClass:[KRUILabel class]] && [self respondsToSelector:@selector(setTextSelectable:)]) {
-        [(id)self setTextSelectable:enable];
-    }
-    // Recursively propagate to all KRLabel descendants
-    [self kr_propagateSelectable:enable];
-}
-
-- (void)kr_propagateSelectable:(BOOL)enable {
-    for (NSView *subview in self.subviews) {
-        if ([subview isKindOfClass:[KRUILabel class]] && [subview respondsToSelector:@selector(setTextSelectable:)]) {
-            [(id)subview setTextSelectable:enable];
-        }
-        [subview kr_propagateSelectable:enable];
-    }
 }
 
 #endif

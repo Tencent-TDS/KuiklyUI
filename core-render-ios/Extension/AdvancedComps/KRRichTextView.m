@@ -48,23 +48,7 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
     return self;
 }
 
-#if TARGET_OS_OSX // [macOS
-- (void)didMoveToSuperview {
-    [super didMoveToSuperview];
-    if (self.superview && !self.textSelectable) {
-        // Walk up the view hierarchy to check if any ancestor has selectable enabled
-        NSView *ancestor = self.superview;
-        while (ancestor) {
-            NSNumber *selectable = objc_getAssociatedObject(ancestor, @selector(css_selectable));
-            if (selectable && [selectable boolValue]) {
-                self.textSelectable = YES;
-                break;
-            }
-            ancestor = ancestor.superview;
-        }
-    }
-}
-#endif // macOS]
+
 
 - (void)hrv_setPropWithKey:(NSString *)propKey propValue:(id)propValue {
     KUIKLY_SET_CSS_COMMON_PROP;
@@ -106,17 +90,14 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
 
 - (void)setCss_selectable:(NSNumber *)css_selectable {
     _css_selectable = css_selectable;
-#if TARGET_OS_OSX // [macOS
-    self.textSelectable = [css_selectable boolValue];
-#endif // macOS]
 }
 
 #pragma mark - override
 
 - (void)css_onClickTapWithSender:(UIGestureRecognizer *)sender {
 #if TARGET_OS_OSX // [macOS
-    // If text is selectable and there's an active selection, don't trigger click
-    if (self.textSelectable && self.kr_selectedTextRange.length > 0) {
+    // If there's an active selection, don't trigger click
+    if (self.selectedRange.length > 0) {
         return;
     }
 #endif // macOS]

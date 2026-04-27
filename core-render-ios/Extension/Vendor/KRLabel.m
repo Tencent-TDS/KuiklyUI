@@ -19,21 +19,34 @@
 #import "KRAsyncDeallocManager.h"
 #import <objc/runtime.h>
 #import "NSObject+KR.h"
+#import "KRTextSelectionHelper.h"
+#import "KRView+TextSelection.h"
 
 #define KRAssertMainThread() NSAssert(0 != pthread_main_np(), @"This method must be called on the main thread!")
 NSString *const KRHighlightAttributeKey = @"KRHighlightAttributeKey";
 NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
 
 @interface KRLabel()
-#if TARGET_OS_OSX // [macOS
-@property (nonatomic, assign) BOOL isDraggingSelection;
-@property (nonatomic, assign) NSUInteger selectionAnchorIndex;
-#endif // macOS]
 @end
 
 @implementation KRLabel
 
+- (void)setSelectedRange:(NSRange)selectedRange {
+    if (NSEqualRanges(_selectedRange, selectedRange)) {
+        return;
+    }
+    [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] KRLabel setSelectedRange %@ (%ld,%ld) -> (%ld,%ld)", self, (long)_selectedRange.location, (long)_selectedRange.length, (long)selectedRange.location, (long)selectedRange.length]];
+    _selectedRange = selectedRange;
+    [self setNeedsDisplay];
+}
 
+- (void)setSelectionColor:(UIColor *)selectionColor {
+    if (_selectionColor == selectionColor) {
+        return;
+    }
+    _selectionColor = selectionColor;
+    [self setNeedsDisplay];
+}
 
 #pragma mark - override
 
@@ -50,10 +63,7 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
     [super setAttributedText:attributedText];
     self.textRender = attributedText.hr_textRender;
     self.attributedText.hr_textRender = self.textRender;
-#if TARGET_OS_OSX // [macOS
-    // Clear selection when text changes
-    _kr_selectedTextRange = NSMakeRange(0, 0);
-#endif // macOS]
+    _selectedRange = NSMakeRange(0, 0);
     [self setNeedsDisplay];
 }
 
@@ -67,9 +77,24 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
         self.textRender.textContainer.exclusionPaths = @[bezierPath];
     }
     
-#if TARGET_OS_OSX // [macOS: draw selection highlight before text
-    [self kr_drawSelectionHighlightInRect:rect];
-#endif // macOS]
+    if (self.selectedRange.length > 0 && self.selectedRange.location != NSNotFound
+        && self.selectedRange.location + self.selectedRange.length <= self.textRender.textStorage.length) {
+        if (!self.selectionColor) {
+            self.selectionColor = [[NSColor colorWithRed:0x00/255.0 green:0x99/255.0 blue:0xff/255.0 alpha:1.0] colorWithAlphaComponent:0.3];
+        }
+        [self.selectionColor setFill];
+        NSRange glyphRange = [self.textRender.layoutManager glyphRangeForCharacterRange:self.selectedRange actualCharacterRange:nil];
+        [self.textRender.layoutManager enumerateEnclosingRectsForGlyphRange:glyphRange
+                                     withinSelectedGlyphRange:glyphRange
+                                              inTextContainer:self.textRender.textContainer
+                                                   usingBlock:^(CGRect enclosingRect, BOOL *stop) {
+            NSRect highlightRect = NSMakeRect(enclosingRect.origin.x + rect.origin.x,
+                                          enclosingRect.origin.y + rect.origin.y,
+                                          enclosingRect.size.width,
+                                          enclosingRect.size.height);
+            NSRectFill(highlightRect);
+        }];
+    }
     
     [self.textRender drawTextAtPoint:rect.origin isCanceled:nil];
 
@@ -82,317 +107,147 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
     [super setBackgroundColor:backgroundColor];
 }
 
-#if TARGET_OS_OSX // [macOS text selection support
+#if TARGET_OS_OSX
 
-#pragma mark - macOS Text Selection
-
-- (void)setTextSelectable:(BOOL)textSelectable {
-    _textSelectable = textSelectable;
-    if (!textSelectable) {
-        _kr_selectedTextRange = NSMakeRange(0, 0);
-        [self setNeedsDisplay];
+- (KRTextSelectionHelper *)kr_findTextSelectionHelper {
+    UIView *v = self;
+    while (v) {
+        if ([v respondsToSelector:@selector(kr_textSelectionHelper)]) {
+            KRTextSelectionHelper *helper = [(id)v kr_textSelectionHelper];
+            if (helper) {
+                [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] kr_findTextSelectionHelper found at %@ %p", NSStringFromClass([v class]), v]];
+                return helper;
+            }
+        }
+        v = v.superview;
     }
-}
-
-- (void)kr_drawSelectionHighlightInRect:(CGRect)rect {
-    if (!_textSelectable || _kr_selectedTextRange.length == 0 || !self.textRender) {
-        return;
-    }
-    
-    NSLayoutManager *layoutManager = self.textRender.layoutManager;
-    NSTextContainer *textContainer = self.textRender.textContainer;
-    if (!layoutManager || !textContainer) {
-        return;
-    }
-    
-    // Clamp selection range to text length
-    NSUInteger textLength = self.textRender.textStorage.length;
-    NSRange safeRange = _kr_selectedTextRange;
-    if (safeRange.location >= textLength) {
-        return;
-    }
-    if (safeRange.location + safeRange.length > textLength) {
-        safeRange.length = textLength - safeRange.location;
-    }
-    
-    NSRange glyphRange = [layoutManager glyphRangeForCharacterRange:safeRange actualCharacterRange:nil];
-    
-    // Use system selection color — same as native NSTextView selection
-    // selectedTextBackgroundColor is opaque, matching native text selection appearance
-    [[NSColor selectedTextBackgroundColor] setFill];
-    
-    [layoutManager enumerateEnclosingRectsForGlyphRange:glyphRange
-                              withinSelectedGlyphRange:glyphRange
-                                       inTextContainer:textContainer
-                                            usingBlock:^(CGRect enclosingRect, BOOL *stop) {
-        NSRect highlightRect = NSMakeRect(enclosingRect.origin.x + rect.origin.x,
-                                          enclosingRect.origin.y + rect.origin.y,
-                                          enclosingRect.size.width,
-                                          enclosingRect.size.height);
-        NSRectFill(highlightRect);
-    }];
-}
-
-- (NSUInteger)kr_characterIndexAtPoint:(NSPoint)point {
-    if (!self.textRender) {
-        return NSNotFound;
-    }
-    
-    NSLayoutManager *layoutManager = self.textRender.layoutManager;
-    NSTextContainer *textContainer = self.textRender.textContainer;
-    if (!layoutManager || !textContainer) {
-        return NSNotFound;
-    }
-    
-    CGFloat fraction = 0;
-    NSUInteger glyphIndex = [layoutManager glyphIndexForPoint:point inTextContainer:textContainer fractionOfDistanceThroughGlyph:&fraction];
-    NSUInteger charIndex = [layoutManager characterIndexForGlyphAtIndex:glyphIndex];
-    
-    // If click is past halfway through the glyph, move to next character
-    if (fraction > 0.5 && charIndex < self.textRender.textStorage.length) {
-        charIndex++;
-    }
-    
-    return charIndex;
+    [KRLogModule logInfo:@"[TextSelection] kr_findTextSelectionHelper not found"];
+    return nil;
 }
 
 - (void)mouseDown:(NSEvent *)event {
-    if (!_textSelectable || !self.textRender) {
+    KRTextSelectionHelper *helper = [self kr_findTextSelectionHelper];
+    if (!helper) {
+        // Auto-setup: find ancestor KRView and initialize helper
+        UIView *v = self.superview;
+        while (v) {
+            if ([v respondsToSelector:@selector(kr_setupTextSelectionIfNeeded)]) {
+                [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] mouseDown auto-setup at %@", NSStringFromClass([v class])]];
+                [(id)v kr_setupTextSelectionIfNeeded];
+                helper = [self kr_findTextSelectionHelper];
+                break;
+            }
+            v = v.superview;
+        }
+    }
+    if (!helper) {
+        [KRLogModule logInfo:@"[TextSelection] mouseDown no helper, forwarding to super"];
         [super mouseDown:event];
         return;
     }
-    
-    // Notify manager to clear all OTHER labels' selections
-    [[KRTextSelectionManager sharedManager] willBeginSelectionInLabel:self];
-    
-    // Clear own previous selection
-    if (_kr_selectedTextRange.length > 0) {
-        _kr_selectedTextRange = NSMakeRange(0, 0);
-        [self setNeedsDisplay];
-    }
-    
-    NSPoint point = [self convertPoint:[event locationInWindow] fromView:nil];
-    NSUInteger charIndex = [self kr_characterIndexAtPoint:point];
-    
-    if (charIndex == NSNotFound) {
-        _kr_selectedTextRange = NSMakeRange(0, 0);
-        [self setNeedsDisplay];
-        [super mouseDown:event];
-        return;
-    }
-    
-    // Double-click: select word
-    if (event.clickCount == 2) {
-        [self kr_selectWordAtIndex:charIndex];
-        _isDraggingSelection = NO;
-        [[KRTextSelectionManager sharedManager] registerActiveLabel:self];
-        return;
-    }
-    
-    // Triple-click: select all
-    if (event.clickCount >= 3) {
-        _kr_selectedTextRange = NSMakeRange(0, self.textRender.textStorage.length);
-        [self setNeedsDisplay];
-        _isDraggingSelection = NO;
-        [[KRTextSelectionManager sharedManager] registerActiveLabel:self];
-        return;
-    }
-    
-    _selectionAnchorIndex = charIndex;
-    _kr_selectedTextRange = NSMakeRange(charIndex, 0);
-    _isDraggingSelection = YES;
-    [self setNeedsDisplay];
+    NSPoint local = [self convertPoint:[event locationInWindow] fromView:nil];
+    [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] mouseDown label:%@ local:(%.1f,%.1f)", self, local.x, local.y]];
+    [helper mouseDown:event inLabel:self localPoint:local];
 }
 
 - (void)mouseDragged:(NSEvent *)event {
-    if (!_textSelectable || !_isDraggingSelection || !self.textRender) {
+    KRTextSelectionHelper *helper = [self kr_findTextSelectionHelper];
+    if (!helper) {
         [super mouseDragged:event];
         return;
     }
-    
-    NSPoint point = [self convertPoint:[event locationInWindow] fromView:nil];
-    NSUInteger charIndex = [self kr_characterIndexAtPoint:point];
-    
-    if (charIndex == NSNotFound) {
-        return;
-    }
-    
-    NSUInteger textLength = self.textRender.textStorage.length;
-    if (charIndex > textLength) {
-        charIndex = textLength;
-    }
-    
-    NSUInteger start = MIN(_selectionAnchorIndex, charIndex);
-    NSUInteger end = MAX(_selectionAnchorIndex, charIndex);
-    _kr_selectedTextRange = NSMakeRange(start, end - start);
-    
-    [self setNeedsDisplay];
+    NSPoint containerPoint = [helper.containerView convertPoint:[event locationInWindow] fromView:nil];
+    [helper mouseDraggedToPoint:containerPoint];
 }
 
 - (void)mouseUp:(NSEvent *)event {
-    if (!_textSelectable || !_isDraggingSelection) {
+    KRTextSelectionHelper *helper = [self kr_findTextSelectionHelper];
+    if (!helper) {
         [super mouseUp:event];
         return;
     }
-    
-    _isDraggingSelection = NO;
-    
-    // Single click without drag → clear selection
-    if (_kr_selectedTextRange.length == 0) {
-        [self setNeedsDisplay];
-    } else {
-        // Register with manager so it can clear us later
-        [[KRTextSelectionManager sharedManager] registerActiveLabel:self];
-    }
+    [helper mouseUp];
 }
 
-// Double-click to select word
-- (void)kr_selectWordAtIndex:(NSUInteger)charIndex {
-    if (!self.textRender || !self.textRender.textStorage) {
-        return;
-    }
-    
-    NSString *text = self.textRender.textStorage.string;
-    if (charIndex >= text.length) {
-        return;
-    }
-    
-    NSRange wordRange = [text rangeOfComposedCharacterSequencesForRange:NSMakeRange(charIndex, 0)];
-    // Use word boundary detection
-    __block NSRange result = NSMakeRange(charIndex, 1);
-    [text enumerateSubstringsInRange:NSMakeRange(0, text.length)
-                             options:NSStringEnumerationByWords | NSStringEnumerationSubstringNotRequired
-                          usingBlock:^(NSString *substring, NSRange substringRange, NSRange enclosingRange, BOOL *stop) {
-        if (NSLocationInRange(charIndex, substringRange)) {
-            result = substringRange;
-            *stop = YES;
-        }
-    }];
-    
-    _kr_selectedTextRange = result;
-    [self setNeedsDisplay];
-}
-
-// Cmd+A to select all
-- (BOOL)performKeyEquivalent:(NSEvent *)event {
-    if (!_textSelectable) {
-        return [super performKeyEquivalent:event];
-    }
-    
-    NSUInteger flags = event.modifierFlags & NSEventModifierFlagDeviceIndependentFlagsMask;
-    
-    // Cmd+A: Select All
-    if (flags == NSEventModifierFlagCommand && [[event charactersIgnoringModifiers] isEqualToString:@"a"]) {
-        if (self.textRender && self.textRender.textStorage.length > 0) {
-            _kr_selectedTextRange = NSMakeRange(0, self.textRender.textStorage.length);
-            [self setNeedsDisplay];
-            return YES;
-        }
-    }
-    
-    // Cmd+C: Copy
-    if (flags == NSEventModifierFlagCommand && [[event charactersIgnoringModifiers] isEqualToString:@"c"]) {
-        if (_kr_selectedTextRange.length > 0) {
-            [self kr_copySelectedText];
-            return YES;
-        }
-    }
-    
-    return [super performKeyEquivalent:event];
-}
-
-- (void)kr_copySelectedText {
-    if (_kr_selectedTextRange.length == 0 || !self.textRender || !self.textRender.textStorage) {
-        return;
-    }
-    
-    NSString *text = self.textRender.textStorage.string;
-    NSRange safeRange = _kr_selectedTextRange;
-    if (safeRange.location + safeRange.length > text.length) {
-        safeRange.length = text.length - safeRange.location;
-    }
-    
-    NSString *selectedText = [text substringWithRange:safeRange];
-    if (selectedText.length > 0) {
-        NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
-        [pasteboard clearContents];
-        [pasteboard setString:selectedText forType:NSPasteboardTypeString];
-    }
-}
-
-// Right-click context menu for copy
-- (NSMenu *)menuForEvent:(NSEvent *)event {
-    if (!_textSelectable || _kr_selectedTextRange.length == 0) {
-        return [super menuForEvent:event];
-    }
-    
-    NSMenu *menu = [[NSMenu alloc] initWithTitle:@""];
-    NSMenuItem *copyItem = [[NSMenuItem alloc] initWithTitle:@"Copy"
-                                                     action:@selector(kr_copySelectedText)
-                                              keyEquivalent:@"c"];
-    copyItem.target = self;
-    [menu addItem:copyItem];
-    
-    NSMenuItem *selectAllItem = [[NSMenuItem alloc] initWithTitle:@"Select All"
-                                                          action:@selector(kr_selectAll)
-                                                   keyEquivalent:@"a"];
-    selectAllItem.target = self;
-    [menu addItem:selectAllItem];
-    
-    return menu;
-}
-
-- (void)kr_selectAll {
-    if (self.textRender && self.textRender.textStorage.length > 0) {
-        _kr_selectedTextRange = NSMakeRange(0, self.textRender.textStorage.length);
-        [self setNeedsDisplay];
-    }
-}
-
-// Update cursor to I-beam when text is selectable
-- (void)resetCursorRects {
-    [super resetCursorRects];
-    if (_textSelectable) {
-        [self addCursorRect:self.bounds cursor:[NSCursor IBeamCursor]];
-    }
-}
-
-// Allow this view to become first responder for key events
 - (BOOL)acceptsFirstResponder {
-    if (_textSelectable) {
-        return YES;
-    }
-    return [super acceptsFirstResponder];
+    return YES;
 }
 
 - (BOOL)becomeFirstResponder {
-    if (_textSelectable) {
-        return YES;
-    }
     return [super becomeFirstResponder];
 }
 
 - (BOOL)resignFirstResponder {
-    // Clear selection when losing focus (user clicked elsewhere)
-    if (_textSelectable && _kr_selectedTextRange.length > 0) {
-        _kr_selectedTextRange = NSMakeRange(0, 0);
-        [self setNeedsDisplay];
-    }
     return [super resignFirstResponder];
 }
 
-- (void)kr_clearSelectionSilently {
-    if (_kr_selectedTextRange.length > 0) {
-        _kr_selectedTextRange = NSMakeRange(0, 0);
-        [self setNeedsDisplay];
+- (BOOL)performKeyEquivalent:(NSEvent *)event {
+    if (!(event.modifierFlags & NSEventModifierFlagCommand)) {
+        return [super performKeyEquivalent:event];
+    }
+    NSString *chars = [event charactersIgnoringModifiers];
+    if ([chars isEqualToString:@"a"] || [chars isEqualToString:@"A"]) {
+        KRTextSelectionHelper *helper = [self kr_findTextSelectionHelper];
+        if (helper) {
+            [KRLogModule logInfo:@"[TextSelection] performKeyEquivalent Cmd+A -> selectAll"];
+            [helper selectAll];
+            return YES;
+        }
+    }
+    if ([chars isEqualToString:@"c"] || [chars isEqualToString:@"C"]) {
+        KRTextSelectionHelper *helper = [self kr_findTextSelectionHelper];
+        NSArray<NSString *> *texts = [helper getSelectedTexts];
+        [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] performKeyEquivalent Cmd+C texts:%lu", (unsigned long)texts.count]];
+        if (texts.count > 0) {
+            NSMutableString *fullText = [NSMutableString string];
+            for (NSString *text in texts) {
+                [fullText appendString:text];
+            }
+            [[NSPasteboard generalPasteboard] clearContents];
+            [[NSPasteboard generalPasteboard] setString:fullText forType:NSPasteboardTypeString];
+            return YES;
+        }
+    }
+    return [super performKeyEquivalent:event];
+}
+
+- (NSMenu *)menuForEvent:(NSEvent *)event {
+    KRTextSelectionHelper *helper = [self kr_findTextSelectionHelper];
+    NSArray<NSString *> *texts = [helper getSelectedTexts];
+    [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] menuForEvent texts:%lu", (unsigned long)texts.count]];
+    if (texts.count == 0) {
+        return [super menuForEvent:event];
+    }
+    NSMenu *menu = [[NSMenu alloc] initWithTitle:@""];
+    NSMenuItem *copyItem = [[NSMenuItem alloc] initWithTitle:@"Copy" action:@selector(kr_copyFromHelper:) keyEquivalent:@""];
+    copyItem.target = self;
+    [menu addItem:copyItem];
+    return menu;
+}
+
+- (void)kr_copyFromHelper:(id)sender {
+    KRTextSelectionHelper *helper = [self kr_findTextSelectionHelper];
+    NSArray<NSString *> *texts = [helper getSelectedTexts];
+    [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] kr_copyFromHelper texts:%lu", (unsigned long)texts.count]];
+    if (texts.count == 0) return;
+    NSMutableString *fullText = [NSMutableString string];
+    for (NSString *text in texts) {
+        [fullText appendString:text];
+    }
+    [[NSPasteboard generalPasteboard] clearContents];
+    [[NSPasteboard generalPasteboard] setString:fullText forType:NSPasteboardTypeString];
+}
+
+- (void)resetCursorRects {
+    KRTextSelectionHelper *helper = [self kr_findTextSelectionHelper];
+    if (helper) {
+        [self addCursorRect:self.bounds cursor:[NSCursor IBeamCursor]];
+    } else {
+        [super resetCursorRects];
     }
 }
 
-- (void)dealloc {
-    [[KRTextSelectionManager sharedManager] unregisterLabel:self];
-}
-
-#endif // macOS]
+#endif
 
 #pragma mark - public
 
@@ -516,106 +371,7 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
 
 @end
 
-#pragma mark - macOS KRTextSelectionManager
 
-#if TARGET_OS_OSX
-
-@interface KRTextSelectionManager ()
-@property (nonatomic, strong) NSHashTable<KRLabel *> *activeLabels;
-@property (nonatomic, assign) BOOL hasInstalledMonitor;
-@property (nonatomic, strong) id localMonitor;
-@end
-
-@implementation KRTextSelectionManager
-
-+ (instancetype)sharedManager {
-    static KRTextSelectionManager *instance;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        instance = [[KRTextSelectionManager alloc] init];
-    });
-    return instance;
-}
-
-- (instancetype)init {
-    if (self = [super init]) {
-        _activeLabels = [NSHashTable weakObjectsHashTable];
-    }
-    return self;
-}
-
-- (void)registerActiveLabel:(KRLabel *)label {
-    [_activeLabels addObject:label];
-    [self installMonitorIfNeeded];
-}
-
-- (void)unregisterLabel:(KRLabel *)label {
-    [_activeLabels removeObject:label];
-    // Uninstall monitor when no active labels remain to avoid permanent event interception
-    if (_activeLabels.count == 0 && _localMonitor) {
-        [NSEvent removeMonitor:_localMonitor];
-        _localMonitor = nil;
-        _hasInstalledMonitor = NO;
-    }
-}
-
-- (void)willBeginSelectionInLabel:(KRLabel *)label {
-    // Clear all OTHER labels' selections
-    for (KRLabel *existingLabel in _activeLabels.allObjects) {
-        if (existingLabel != label) {
-            [existingLabel kr_clearSelectionSilently];
-        }
-    }
-}
-
-- (void)clearAllSelections {
-    for (KRLabel *label in _activeLabels.allObjects) {
-        [label kr_clearSelectionSilently];
-    }
-}
-
-/// Install a local event monitor to detect mouseDown on non-KRLabel areas
-- (void)installMonitorIfNeeded {
-    if (_hasInstalledMonitor) return;
-    _hasInstalledMonitor = YES;
-    
-    __weak typeof(self) weakSelf = self;
-    _localMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskLeftMouseDown handler:^NSEvent *(NSEvent *event) {
-        [weakSelf handleGlobalMouseDown:event];
-        return event;
-    }];
-}
-
-- (void)handleGlobalMouseDown:(NSEvent *)event {
-    if (_activeLabels.count == 0) return;
-    
-    // Check if the click landed on any selectable KRLabel
-    NSWindow *window = event.window;
-    if (!window) return;
-    
-    NSPoint windowPoint = event.locationInWindow;
-    NSView *hitView = [window.contentView hitTest:windowPoint];
-    
-    // Walk up to see if the hit view is a KRLabel with textSelectable
-    BOOL hitSelectableLabel = NO;
-    NSView *current = hitView;
-    while (current) {
-        if ([current isKindOfClass:[KRLabel class]] && [(KRLabel *)current textSelectable]) {
-            hitSelectableLabel = YES;
-            break;
-        }
-        current = current.superview;
-    }
-    
-    if (!hitSelectableLabel) {
-        // Clicked on non-selectable area → clear all selections
-        [self clearAllSelections];
-    }
-}
-
-@end
-
-#endif // TARGET_OS_OSX
 
 //---------KRTextRender类分割线------------
 @interface KRTextRender() <NSLayoutManagerDelegate> {

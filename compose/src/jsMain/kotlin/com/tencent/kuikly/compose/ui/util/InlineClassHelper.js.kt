@@ -28,18 +28,33 @@ package com.tencent.kuikly.compose.ui.util
  * hold no observable reentrant state between calls.
  */
 
-// Shared buffer for Float packing. The same 8-byte buffer is viewed as both
-// `Float32Array` (two 32-bit floats) and `Float64Array` (one 64-bit double).
-private val floatBuffer: dynamic = js("new ArrayBuffer(8)")
-private val f32: dynamic = js("new Float32Array(floatBuffer)")
-private val f64FromF32: dynamic = js("new Float64Array(floatBuffer)")
-private val i32FromF32: dynamic = js("new Int32Array(floatBuffer)")
+// All TypedArray views are created inside a single js() call and returned as one
+// object. This avoids cross-referencing Kotlin `val` names from inside `js("...")`
+// strings — the Kotlin/JS compiler mangles top-level property names, so
+// `js("new Float32Array(floatBuffer)")` fails at runtime with
+// `ReferenceError: Can't find variable: floatBuffer`.
+//
+// By constructing the ArrayBuffer and all its views in the same js() expression,
+// everything stays within one JavaScript scope and no Kotlin names leak in.
+private val floatViews: dynamic = js("""
+(function() {
+    var buf = new ArrayBuffer(8);
+    return { f32: new Float32Array(buf), f64: new Float64Array(buf), i32: new Int32Array(buf) };
+})()
+""")
+private val intViews: dynamic = js("""
+(function() {
+    var buf = new ArrayBuffer(8);
+    return { i32: new Int32Array(buf), f64: new Float64Array(buf) };
+})()
+""")
 
-// Shared buffer for Int packing. Separate from the float buffer so that
-// float packing is not disturbed if a caller interleaves float/int operations.
-private val intBuffer: dynamic = js("new ArrayBuffer(8)")
-private val i32: dynamic = js("new Int32Array(intBuffer)")
-private val f64FromI32: dynamic = js("new Float64Array(intBuffer)")
+// Convenience accessors — no overhead, these are just property reads on a plain JS object.
+private inline val f32: dynamic get() = floatViews.f32
+private inline val f64FromF32: dynamic get() = floatViews.f64
+private inline val i32FromF32: dynamic get() = floatViews.i32
+private inline val i32: dynamic get() = intViews.i32
+private inline val f64FromI32: dynamic get() = intViews.f64
 
 actual fun packFloatsP(val1: Float, val2: Float): PackedFloats {
     f32[0] = val1

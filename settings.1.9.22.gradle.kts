@@ -3,6 +3,12 @@ pluginManagement {
         google()
         gradlePluginPortal()
         mavenCentral()
+        maven {
+            url = uri("https://mirrors.tencent.com/repository/maven-tencent/")
+        }
+        maven {
+            url = uri("https://mirrors.tencent.com/nexus/repository/gradle-plugins/")
+        }
     }
 }
 
@@ -18,6 +24,8 @@ project(":core-ksp").buildFileName = buildFileName
 
 include(":core")
 project(":core").buildFileName = buildFileName
+include(":core-wx")
+project(":core-wx").buildFileName = buildFileName
 include(":core-render-android")
 project(":core-render-android").buildFileName = buildFileName
 include(":compose")

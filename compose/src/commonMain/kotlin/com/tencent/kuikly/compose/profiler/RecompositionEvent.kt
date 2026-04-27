@@ -95,3 +95,39 @@ class ComposableRecomposedEvent(
 ) : RecompositionEvent(timestampMs) {
     override val eventType: String = "composable_recomposed"
 }
+
+/**
+ * 用户触摸上下文事件。
+ * 记录 touchBegin / touchEnd / touchCancel，不记录 move 事件。
+ * 写入 profiler_frames.jsonl 为独立 JSONL 行，与 frame 行穿插。
+ *
+ * @property touchEventType touch 事件类型："touchBegin" | "touchEnd" | "touchCancel"
+ * @property pointerCount 同时触摸的手指数
+ */
+class TouchContextEvent(
+    timestampMs: Long,
+    val touchEventType: String,
+    val pointerCount: Int
+) : RecompositionEvent(timestampMs) {
+    override val eventType: String = "touch_context"
+}
+
+/**
+ * 列表滚动上下文事件。
+ * 当 firstVisibleItemIndex 发生变化时记录。
+ * 写入 profiler_frames.jsonl 为独立 JSONL 行，与 frame 行穿插。
+ *
+ * @property listId 列表标识符，用于区分同一页面内的多个列表
+ * @property firstVisibleItemFrom 变化前的 firstVisibleItemIndex
+ * @property firstVisibleItemTo 变化后的 firstVisibleItemIndex
+ * @property visibleItemCount 当前可见 item 数量
+ */
+class ScrollContextEvent(
+    timestampMs: Long,
+    val listId: String,
+    val firstVisibleItemFrom: Int,
+    val firstVisibleItemTo: Int,
+    val visibleItemCount: Int
+) : RecompositionEvent(timestampMs) {
+    override val eventType: String = "scroll_context"
+}

@@ -22,6 +22,23 @@ import com.tencent.kuikly.core.render.web.expand.components.KRTextFieldView
 import com.tencent.kuikly.core.render.web.expand.components.KRVideoView
 import com.tencent.kuikly.core.render.web.expand.components.KRView
 import com.tencent.kuikly.core.render.web.expand.components.list.KRListView
+import com.tencent.kuikly.core.render.web.runtime.miniapp.core.Transform
+import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.wx.MiniWXButtonViewElement
+import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.wx.MiniWXCameraViewElement
+import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.wx.MiniWXInputViewElement
+import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.wx.MiniWXMapViewElement
+import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.wx.MiniWXPickerViewElement
+import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.wx.MiniWXTextAreaViewElement
+import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.wx.MiniWXVideoViewElement
+import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.wx.MiniWXWebViewElement
+import com.tencent.kuikly.core.render.web.runtime.miniapp.expand.components.wx.KRWXButtonView
+import com.tencent.kuikly.core.render.web.runtime.miniapp.expand.components.wx.KRWXCameraView
+import com.tencent.kuikly.core.render.web.runtime.miniapp.expand.components.wx.KRWXInputView
+import com.tencent.kuikly.core.render.web.runtime.miniapp.expand.components.wx.KRWXMapView
+import com.tencent.kuikly.core.render.web.runtime.miniapp.expand.components.wx.KRWXPickerView
+import com.tencent.kuikly.core.render.web.runtime.miniapp.expand.components.wx.KRWXTextAreaView
+import com.tencent.kuikly.core.render.web.runtime.miniapp.expand.components.wx.KRWXVideoView
+import com.tencent.kuikly.core.render.web.runtime.miniapp.expand.components.wx.KRWXWebView
 import com.tencent.kuikly.core.render.web.expand.module.KRCalendarModule
 import com.tencent.kuikly.core.render.web.expand.module.KRCodecModule
 import com.tencent.kuikly.core.render.web.expand.module.KRLogModule
@@ -32,6 +49,16 @@ import com.tencent.kuikly.core.render.web.expand.module.KRPerformanceModule
 import com.tencent.kuikly.core.render.web.expand.module.KRRouterModule
 import com.tencent.kuikly.core.render.web.expand.module.KRSharedPreferencesModule
 import com.tencent.kuikly.core.render.web.expand.module.KRSnapshotModule
+import com.tencent.kuikly.core.render.web.runtime.miniapp.expand.module.wx.KRWXApiModule
+import com.tencent.kuikly.core.render.web.runtime.miniapp.expand.module.wx.KRWXClipboardModule
+import com.tencent.kuikly.core.render.web.runtime.miniapp.expand.module.wx.KRWXLocationModule
+import com.tencent.kuikly.core.render.web.runtime.miniapp.expand.module.wx.KRWXMediaModule
+import com.tencent.kuikly.core.render.web.runtime.miniapp.expand.module.wx.KRWXRawApiModule
+import com.tencent.kuikly.core.render.web.runtime.miniapp.expand.module.wx.KRWXScanModule
+import com.tencent.kuikly.core.render.web.runtime.miniapp.expand.module.wx.KRWXShareModule
+import com.tencent.kuikly.core.render.web.runtime.miniapp.expand.module.wx.KRWXStorageModule
+import com.tencent.kuikly.core.render.web.runtime.miniapp.expand.module.wx.KRWXSystemModule
+import com.tencent.kuikly.core.render.web.runtime.miniapp.expand.module.wx.KRWXUIModule
 import com.tencent.kuikly.core.render.web.ktx.SizeI
 import com.tencent.kuikly.core.render.web.performance.IKRMonitorCallback
 import com.tencent.kuikly.core.render.web.performance.KRPerformanceData
@@ -359,6 +386,38 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
             moduleExport(KRNetworkModule.MODULE_NAME) {
                 KRNetworkModule()
             }
+            // 微信小程序 API 封装 Modules（仅在小程序平台有实际实现，其它平台走 fail 兜底）
+            moduleExport(KRWXApiModule.MODULE_NAME) {
+                KRWXApiModule()
+            }
+            moduleExport(KRWXStorageModule.MODULE_NAME) {
+                KRWXStorageModule()
+            }
+            moduleExport(KRWXUIModule.MODULE_NAME) {
+                KRWXUIModule()
+            }
+            moduleExport(KRWXSystemModule.MODULE_NAME) {
+                KRWXSystemModule()
+            }
+            moduleExport(KRWXClipboardModule.MODULE_NAME) {
+                KRWXClipboardModule()
+            }
+            moduleExport(KRWXLocationModule.MODULE_NAME) {
+                KRWXLocationModule()
+            }
+            moduleExport(KRWXScanModule.MODULE_NAME) {
+                KRWXScanModule()
+            }
+            moduleExport(KRWXMediaModule.MODULE_NAME) {
+                KRWXMediaModule()
+            }
+            moduleExport(KRWXShareModule.MODULE_NAME) {
+                KRWXShareModule()
+            }
+            // 兜底桥：任意 wx.xxx 透传
+            moduleExport(KRWXRawApiModule.MODULE_NAME) {
+                KRWXRawApiModule()
+            }
             // Delegate to the external host project to expose their own modules
             delegate.registerExternalModule(this)
         }
@@ -437,8 +496,90 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
             renderViewExport(KRMaskView.VIEW_NAME, {
                 KRMaskView()
             })
+            // Register WeChat mini-program native component wrappers (wx.*)
+            registerWXRenderView(this)
             // Delegate to the external host project to expose their own views
             delegate.registerExternalRenderView(this)
+        }
+    }
+
+    /**
+     * Register built-in wrappers for WeChat mini-program native components (prefixed with `WX`).
+     */
+    private fun registerWXRenderView(kuiklyRenderExport: IKuiklyRenderExport) {
+        with(kuiklyRenderExport) {
+            // Register `button` component template alias so that Transform can recognize it
+            Transform.addComponentsAlias(
+                MiniWXButtonViewElement.NODE_NAME,
+                MiniWXButtonViewElement.componentsAlias
+            )
+            // Register KRWXButtonView
+            renderViewExport(KRWXButtonView.VIEW_NAME, {
+                KRWXButtonView()
+            })
+            // Register `wx-input` component template alias so that Transform can recognize it
+            Transform.addComponentsAlias(
+                MiniWXInputViewElement.NODE_NAME,
+                MiniWXInputViewElement.componentsAlias
+            )
+            // Register KRWXInputView
+            renderViewExport(KRWXInputView.VIEW_NAME, {
+                KRWXInputView()
+            })
+            // Register `wx-textarea` component template alias so that Transform can recognize it
+            Transform.addComponentsAlias(
+                MiniWXTextAreaViewElement.NODE_NAME,
+                MiniWXTextAreaViewElement.componentsAlias
+            )
+            // Register KRWXTextAreaView
+            renderViewExport(KRWXTextAreaView.VIEW_NAME, {
+                KRWXTextAreaView()
+            })
+            // Register `wx-picker` component template alias so that Transform can recognize it
+            Transform.addComponentsAlias(
+                MiniWXPickerViewElement.NODE_NAME,
+                MiniWXPickerViewElement.componentsAlias
+            )
+            // Register KRWXPickerView
+            renderViewExport(KRWXPickerView.VIEW_NAME, {
+                KRWXPickerView()
+            })
+            // Register `wx-video` component template alias so that Transform can recognize it
+            Transform.addComponentsAlias(
+                MiniWXVideoViewElement.NODE_NAME,
+                MiniWXVideoViewElement.componentsAlias
+            )
+            // Register KRWXVideoView
+            renderViewExport(KRWXVideoView.VIEW_NAME, {
+                KRWXVideoView()
+            })
+            // Register `wx-camera` component template alias so that Transform can recognize it
+            Transform.addComponentsAlias(
+                MiniWXCameraViewElement.NODE_NAME,
+                MiniWXCameraViewElement.componentsAlias
+            )
+            // Register KRWXCameraView
+            renderViewExport(KRWXCameraView.VIEW_NAME, {
+                KRWXCameraView()
+            })
+            // Register `wx-map` component template alias so that Transform can recognize it
+            Transform.addComponentsAlias(
+                MiniWXMapViewElement.NODE_NAME,
+                MiniWXMapViewElement.componentsAlias
+            )
+            // Register KRWXMapView
+            renderViewExport(KRWXMapView.VIEW_NAME, {
+                KRWXMapView()
+            })
+            // Register `wx-web-view` component template alias so that Transform can recognize it
+            Transform.addComponentsAlias(
+                MiniWXWebViewElement.NODE_NAME,
+                MiniWXWebViewElement.componentsAlias
+            )
+            // Register KRWXWebView
+            renderViewExport(KRWXWebView.VIEW_NAME, {
+                KRWXWebView()
+            })
         }
     }
 

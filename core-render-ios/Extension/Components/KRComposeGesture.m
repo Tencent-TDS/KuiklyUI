@@ -153,6 +153,11 @@
 // 需要在整个鼠标操作序列中使用当前最新的 NSEvent，并保持 trackedTouches 的更新。
 
 - (void)mouseDown:(NSEvent *)event {
+    NSResponder *fr = self.view.window.firstResponder;
+    NSLog(@"[KuiklyDiag] mouseDown. eventNum=%ld, state_before=%ld, trackedCount_before=%lu, firstResponder=%@, pos={%.1f,%.1f}",
+          (long)event.eventNumber, (long)self.state, (unsigned long)self.trackedTouches.count,
+          NSStringFromClass([fr class]), event.locationInWindow.x, event.locationInWindow.y);
+    
     // 清空旧的追踪集合，开始新的鼠标操作序列
     [self.trackedTouches removeAllObjects];
     NSSet<UITouch *> *touches = [NSSet setWithObject:(UITouch *)event];
@@ -164,9 +169,11 @@
     // 否则 AppKit 不会将后续的 mouseDragged/mouseUp 事件分发给该手势识别器。
     // 这与 iOS 的 UIGestureRecognizer 行为不同——iOS 在 Possible 状态下也会分发所有 touch 事件。
     self.state = UIGestureRecognizerStateBegan;
+    NSLog(@"[KuiklyDiag] mouseDown done. state_after=%ld", (long)self.state);
 }
 
 - (void)mouseDragged:(NSEvent *)event {
+    NSLog(@"[KuiklyDiag] mouseDragged. eventNum=%ld, state_before=%ld", (long)event.eventNumber, (long)self.state);
     // 替换 trackedTouches 中的旧事件为当前事件，确保坐标是最新的
     [self.trackedTouches removeAllObjects];
     [self.trackedTouches addObject:(UITouch *)event];
@@ -177,6 +184,8 @@
 }
 
 - (void)mouseUp:(NSEvent *)event {
+    NSLog(@"[KuiklyDiag] mouseUp. eventNum=%ld, state_before=%ld, trackedCount=%lu",
+          (long)event.eventNumber, (long)self.state, (unsigned long)self.trackedTouches.count);
     // 使用当前 mouseUp 事件替换，确保 up 坐标正确
     [self.trackedTouches removeAllObjects];
     [self.trackedTouches addObject:(UITouch *)event];
@@ -185,9 +194,11 @@
     [self.trackedTouches removeAllObjects];
     
     self.state = UIGestureRecognizerStateEnded;
+    NSLog(@"[KuiklyDiag] mouseUp done. state_after=%ld", (long)self.state);
 }
 
 - (void)mouseCancelled:(NSEvent *)event {
+    NSLog(@"[KuiklyDiag] mouseCancelled. eventNum=%ld, state_before=%ld", (long)event.eventNumber, (long)self.state);
     [self.trackedTouches removeAllObjects];
     [self.trackedTouches addObject:(UITouch *)event];
     
@@ -201,6 +212,8 @@
 
 // 重写 reset 方法，在手势识别结束后重置状态
 - (void)reset {
+    NSLog(@"[KuiklyDiag] reset. state_before=%ld, trackedCount=%lu",
+          (long)self.state, (unsigned long)self.trackedTouches.count);
 #if TARGET_OS_OSX
     // macOS: 如果 gesture 在有未配对 Press 的情况下被 AppKit 重置（例如 NSTextView 
     // 抢走 first responder 导致 mouseUp 丢失），需要主动合成一次 Cancel 事件发给 
@@ -210,6 +223,7 @@
     // 必须点击两次才能生效。
     if (self.trackedTouches.count > 0 && self.state != UIGestureRecognizerStateEnded
         && self.state != UIGestureRecognizerStateCancelled) {
+        NSLog(@"[KuiklyDiag] reset -> synthetic Cancel for %lu pending touches", (unsigned long)self.trackedTouches.count);
         NSSet *pending = [self.trackedTouches copy];
         [self onTouchesEvent:pending event:(UIEvent *)pending.anyObject phase:TouchesEventKindCancel];
     }

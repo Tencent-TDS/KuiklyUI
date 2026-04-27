@@ -221,9 +221,12 @@
     // 否则下一次点击外部组件时，Compose 会将新的 Press 错误地归为"旧事件的延续"，
     // 分发到旧的 hit path（如 TextField），新按钮收不到 Press → onClick 不触发，
     // 必须点击两次才能生效。
-    if (self.trackedTouches.count > 0 && self.state != UIGestureRecognizerStateEnded
-        && self.state != UIGestureRecognizerStateCancelled) {
-        NSLog(@"[KuiklyDiag] reset -> synthetic Cancel for %lu pending touches", (unsigned long)self.trackedTouches.count);
+    // 注意：只检查 state != Ended（正常结束），不排除 Cancelled——因为 AppKit 可能
+    // 在 reset 前将 state 设为 Cancelled 但不调用 mouseCancelled:，此时 Compose
+    // 仍未收到配对的 Cancel/Release 事件。
+    if (self.trackedTouches.count > 0 && self.state != UIGestureRecognizerStateEnded) {
+        NSLog(@"[KuiklyDiag] reset -> synthetic Cancel for %lu pending touches, state=%ld",
+              (unsigned long)self.trackedTouches.count, (long)self.state);
         NSSet *pending = [self.trackedTouches copy];
         [self onTouchesEvent:pending event:(UIEvent *)pending.anyObject phase:TouchesEventKindCancel];
     }

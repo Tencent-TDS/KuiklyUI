@@ -52,6 +52,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong, nullable) CAShapeLayer *css_clipPathLayer;
 #if TARGET_OS_OSX
 @property (nonatomic, strong, nullable) NSString *css_cursor;
+@property (nonatomic, strong, nullable) NSNumber *css_selectable;
+/// Recursively propagate selectable state to all KRLabel descendants
+- (void)kr_propagateSelectable:(BOOL)enable;
 #endif
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_click;
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_doubleClick;

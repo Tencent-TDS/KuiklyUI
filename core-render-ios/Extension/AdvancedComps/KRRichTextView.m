@@ -18,6 +18,9 @@
 #import "KRConvertUtil.h"
 #import "KuiklyRenderBridge.h"
 #import "NSObject+KR.h"
+#if TARGET_OS_OSX
+#import <objc/runtime.h>
+#endif
 
 NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
 NSString *const kGradientInfoKeyCSSGradient = @"cssGradient";
@@ -28,7 +31,7 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
 
 @property (nonatomic, strong) NSNumber *css_numberOfLines;
 @property (nonatomic, strong) NSString *css_lineBreakMode;
-
+@property (nonatomic, strong) NSNumber *css_selectable;
 
 @end
 
@@ -45,6 +48,24 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
     return self;
 }
 
+#if TARGET_OS_OSX // [macOS
+- (void)didMoveToSuperview {
+    [super didMoveToSuperview];
+    if (self.superview && !self.textSelectable) {
+        // Walk up the view hierarchy to check if any ancestor has selectable enabled
+        NSView *ancestor = self.superview;
+        while (ancestor) {
+            NSNumber *selectable = objc_getAssociatedObject(ancestor, @selector(css_selectable));
+            if (selectable && [selectable boolValue]) {
+                self.textSelectable = YES;
+                break;
+            }
+            ancestor = ancestor.superview;
+        }
+    }
+}
+#endif // macOS]
+
 - (void)hrv_setPropWithKey:(NSString *)propKey propValue:(id)propValue {
     KUIKLY_SET_CSS_COMMON_PROP;
 }
@@ -54,6 +75,7 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
     self.attributedText = nil;
     self.css_numberOfLines = nil;
     self.css_lineBreakMode = nil;
+    self.css_selectable = @(NO);
 }
 
 + (id<KuiklyRenderShadowProtocol>)hrv_createShadow {
@@ -82,9 +104,22 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
     }
 }
 
+- (void)setCss_selectable:(NSNumber *)css_selectable {
+    _css_selectable = css_selectable;
+#if TARGET_OS_OSX // [macOS
+    self.textSelectable = [css_selectable boolValue];
+#endif // macOS]
+}
+
 #pragma mark - override
 
 - (void)css_onClickTapWithSender:(UIGestureRecognizer *)sender {
+#if TARGET_OS_OSX // [macOS
+    // If text is selectable and there's an active selection, don't trigger click
+    if (self.textSelectable && self.kr_selectedTextRange.length > 0) {
+        return;
+    }
+#endif // macOS]
     CGPoint location = [sender locationInView:self];
 #if TARGET_OS_OSX // [macOS NSWindow is not a subclass of NSView, use contentView
     CGPoint pageLocation = [sender locationInView:self.window.contentView];

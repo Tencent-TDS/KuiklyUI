@@ -19,6 +19,9 @@
 #import "KRView.h"
 #import "KuiklyRenderBridge.h"
 #import "KuiklyRenderViewExportProtocol.h"
+#if TARGET_OS_OSX
+#import "KRLabel.h"
+#endif
 
 #define LAZY_ANIMATION_KEY @"lazyAnimationKey"
 #define ANIMATION_KEY @"animation"
@@ -763,6 +766,33 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     objc_setAssociatedObject(self, @selector(css_cursor), css_cursor, OBJC_ASSOCIATION_COPY_NONATOMIC);
     [self updateTrackingAreas];
 }
+
+#pragma mark - macOS Text Selection (selectable prop propagation)
+
+- (NSNumber *)css_selectable {
+    return objc_getAssociatedObject(self, @selector(css_selectable));
+}
+
+- (void)setCss_selectable:(NSNumber *)css_selectable {
+    objc_setAssociatedObject(self, @selector(css_selectable), css_selectable, OBJC_ASSOCIATION_RETAIN);
+    BOOL enable = [css_selectable boolValue];
+    // If this view is a KRLabel (or subclass like KRRichTextView), apply directly
+    if ([self isKindOfClass:[KRUILabel class]] && [self respondsToSelector:@selector(setTextSelectable:)]) {
+        [(id)self setTextSelectable:enable];
+    }
+    // Recursively propagate to all KRLabel descendants
+    [self kr_propagateSelectable:enable];
+}
+
+- (void)kr_propagateSelectable:(BOOL)enable {
+    for (NSView *subview in self.subviews) {
+        if ([subview isKindOfClass:[KRUILabel class]] && [subview respondsToSelector:@selector(setTextSelectable:)]) {
+            [(id)subview setTextSelectable:enable];
+        }
+        [subview kr_propagateSelectable:enable];
+    }
+}
+
 #endif
 
 

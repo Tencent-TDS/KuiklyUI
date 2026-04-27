@@ -21,6 +21,7 @@
 #import "NSObject+KR.h"
 #import "KRTextSelectionHelper.h"
 #import "KRView+TextSelection.h"
+#import "KRLogModule.h"
 
 #define KRAssertMainThread() NSAssert(0 != pthread_main_np(), @"This method must be called on the main thread!")
 NSString *const KRHighlightAttributeKey = @"KRHighlightAttributeKey";

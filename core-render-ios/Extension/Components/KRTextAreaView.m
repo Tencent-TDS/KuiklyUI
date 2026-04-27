@@ -520,23 +520,54 @@ NSString *const KRFontWeightKey = @"fontWeight";
             // It's a delete operation
             // Perform your desired action for delete operation here
     }
-    if (self.css_inputReturn && self.css_returnKeyType && [text isEqualToString:@"\n"]) {
-        self.css_inputReturn(@{@"text": textView.text.copy ?: @"", @"ime_action": self.css_returnKeyType ?: @""});
-        if ([self.css_autoHideKeyboardOnImeAction boolValue]) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [textView resignFirstResponder];
-            });
+    if ([text isEqualToString:@"\n"]) {
+#if TARGET_OS_OSX
+        // macOS: Enter（无 Shift）触发 inputReturn 回调（发送），Shift+Enter 插入换行。
+        // 不要求 css_returnKeyType 必须存在——macOS 上多行 TextField 的 imeAction
+        // 通常是 Unspecified，不会设置 returnKeyType，但 Enter 键仍应触发 send。
+        NSEventModifierFlags modifiers = [NSEvent modifierFlags];
+        BOOL isShiftPressed = (modifiers & NSEventModifierFlagShift) != 0;
+        if (!isShiftPressed && self.css_inputReturn) {
+            NSString *imeAction = self.css_returnKeyType ?: @"send";
+            self.css_inputReturn(@{@"text": textView.text.copy ?: @"", @"ime_action": imeAction});
+            if ([self.css_autoHideKeyboardOnImeAction boolValue]) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [textView resignFirstResponder];
+                });
+            }
+            return NO;
         }
-        return NO;
-    }
-    if(self.css_imeAction && [text isEqualToString:@"\n"]) {
-        self.css_imeAction(@{@"ime_action": self.css_returnKeyType ?: @""});
-        if ([self.css_autoHideKeyboardOnImeAction boolValue]) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [textView resignFirstResponder];
-            });
+        if (!isShiftPressed && self.css_imeAction) {
+            self.css_imeAction(@{@"ime_action": self.css_returnKeyType ?: @"send"});
+            if ([self.css_autoHideKeyboardOnImeAction boolValue]) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [textView resignFirstResponder];
+                });
+            }
+            return NO;
         }
-        return NO;
+        // Shift+Enter 或无回调注册时：允许插入换行（fall through to return YES）
+#else
+        // iOS: 保持原有逻辑——需要 returnKeyType 显式设置才拦截回车
+        if (self.css_inputReturn && self.css_returnKeyType) {
+            self.css_inputReturn(@{@"text": textView.text.copy ?: @"", @"ime_action": self.css_returnKeyType ?: @""});
+            if ([self.css_autoHideKeyboardOnImeAction boolValue]) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [textView resignFirstResponder];
+                });
+            }
+            return NO;
+        }
+        if (self.css_imeAction) {
+            self.css_imeAction(@{@"ime_action": self.css_returnKeyType ?: @""});
+            if ([self.css_autoHideKeyboardOnImeAction boolValue]) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [textView resignFirstResponder];
+                });
+            }
+            return NO;
+        }
+#endif
     }
     return YES;
 }

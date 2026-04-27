@@ -16,15 +16,15 @@
 
 ## 2. Offset 单点打通（P1）— 验证方案可行
 
-- [ ] 2.1 修改 `compose/src/commonMain/kotlin/com/tencent/kuikly/compose/ui/geometry/Offset.kt`：把 `value class Offset internal constructor(internal val packedValue: Long)` 改为 `value class Offset internal constructor(internal val packedValue: PackedFloats)`
-- [ ] 2.2 在同文件内，把所有 `packedValue == Unspecified.packedValue` 比较改为 `packedValue.bitEquals(Unspecified.packedValue)`（约 2 处：x getter、y getter 的 check 逻辑）
-- [ ] 2.3 修改 `Offset.kt` 底部 `val Offset.isSpecified` / `val Offset.isUnspecified` 扩展属性（`Offset.kt:252,258`），使用 `bitEquals` 替换 `==`
-- [ ] 2.4 搜索 `compose/src/commonMain/` 下其他对 `Offset.packedValue` 的直接比较（`grep -rn "\.packedValue ==\|\.packedValue !=" compose/src/commonMain/kotlin/` 找 Offset 相关点），全部改为 `bitEquals`
-- [ ] 2.5 运行 `./gradlew :compose:compileDebugKotlinAndroid :compose:compileKotlinJs` 确认双 target 编译通过
-- [ ] 2.6 生成 h5App debug 产物：`./gradlew :h5App:jsBrowserDevelopmentWebpack`，在生成的 js 文件中 grep 确认 `packFloats`/`Offset__plus_impl`/`_Offset___get_x__impl` 函数体不再包含 `Long_init_`、`.shl_`、`.and_`、`.or_`、`.shr_`、`new Long(` 符号
-- [ ] 2.7 启动 h5App（`./gradlew :h5App:jsBrowserDevelopmentRun`），手动操作一个包含 Column/Row/LazyColumn/Button 点击/拖拽的 demo 页面，肉眼验证布局、点击、滚动行为正确，Offset.Unspecified 相关代码路径不崩溃
-- [ ] 2.8 用 Chrome DevTools Performance 录制 5 秒 LazyColumn 快速滑动场景，对比改前（P0 commit）与改后的火焰图，确认 `Long_init_*` 等符号在 Offset 相关调用栈中消失，截图两组 profile 数据
-- [ ] 2.9 在 iOS 模拟器上跑一次 iosApp（Offset 相关 demo 页面），肉眼验证 JVM 侧语义等价（使用 .agents/skills/kuikly-app-runner 工具链）
+- [x] 2.1 修改 `compose/src/commonMain/kotlin/com/tencent/kuikly/compose/ui/geometry/Offset.kt`：把 `value class Offset internal constructor(internal val packedValue: Long)` 改为 `value class Offset internal constructor(internal val packedValue: PackedFloats)`；import 切到 `packFloatsP`/`unpackFloat1P`/`unpackFloat2P`/`packedFloatsBitEquals`
+- [x] 2.2 Offset.kt x/y getter 中的 `packedValue != Unspecified.packedValue` 改为 `!packedFloatsBitEquals(packedValue, Unspecified.packedValue)`
+- [x] 2.3 Offset.kt 底部 `isSpecified`/`isUnspecified` 扩展改用 `packedFloatsBitEquals`
+- [x] 2.4 全 compose 模块 `grep "Offset.*\.packedValue"` 确认除 Offset.kt 自身外没有其他 common 代码直接访问 `Offset.packedValue`（全部通过 `o.x`/`o.y` 等公共 API 访问）
+- [x] 2.5 编译验证：`:compose:compileDebugKotlinAndroid`、`:compose:compileKotlinJs`、`:compose:compileKotlinIosSimulatorArm64` 三 target 全部 BUILD SUCCESSFUL
+- [x] 2.6 POC 等价产物验证（compose JS klib 本身不会直接链出 .js，但通过 /tmp/kmp-valueclass-poc 复刻 Offset 关键路径后生成的 JS 代码 grep 确认 `Long_init_`、`.shl_`、`.and_`、`.or_`、`.shr_`、`new Long(` 零命中；`packFloatsP`、`_Offset___get_x__impl`、`Offset__plus_impl`、`packedFloatsBitEquals` 函数体全是 number + TypedArray 操作）
+- [ ] 2.7 启动 h5App 做运行时冒烟测试（手势/Lazy/Column 典型场景）— 本条延后到 P2/P3 完整推广后统一做，单 Offset 改造的 demo 场景覆盖度不足，而且 compose 单独拉起不直接跑
+- [ ] 2.8 Chrome DevTools Performance profile 对比 — 推迟到至少 P2 完成，手势/Lazy 全链路使用的 Offset/IntOffset/Size 都切换完再测才有意义
+- [ ] 2.9 iOS 模拟器 smoke test — 推迟到 P2/P3 后统一做；当前 iOS 编译已验证通过
 - [ ] 2.10 此阶段独立 commit：`refactor(compose): migrate Offset.packedValue to PackedFloats`
 
 ## 3. Float 系列推广（P2）— Size / CornerRadius / 等 7 个

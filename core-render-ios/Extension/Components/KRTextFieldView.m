@@ -225,6 +225,12 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 
 - (void)css_focus:(NSDictionary *)args  {
     dispatch_async(dispatch_get_main_queue(), ^{
+        // macOS: NSTextField uses a field editor. Re-calling becomeFirstResponder
+        // while the field editor is active can re-select all text, causing the
+        // "first backspace selects all" bug on non-empty initial values.
+        if ([self respondsToSelector:@selector(currentEditor)] && [self currentEditor] != nil) {
+            return;
+        }
         [self becomeFirstResponder];
     });
 }

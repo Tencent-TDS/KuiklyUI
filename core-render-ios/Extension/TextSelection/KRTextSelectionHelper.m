@@ -27,6 +27,10 @@
 @property (nonatomic, weak) KRLabel *endLabel;
 @property (nonatomic, assign) NSInteger endIndex;
 
+// 原始锚点：用户 mouseDown 的位置，drag 期间不变
+@property (nonatomic, weak) KRLabel *anchorLabel;
+@property (nonatomic, assign) NSInteger anchorIndex;
+
 @property (nonatomic, strong) UIColor *selectionColor;
 
 #if TARGET_OS_OSX
@@ -546,6 +550,10 @@
         [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] mouseDown singleClick label:%@ idx:%ld", label, (long)idx]];
     }
     
+    // 保存原始锚点
+    self.anchorLabel = self.startLabel;
+    self.anchorIndex = self.startIndex;
+    
     [self updateUI];
     [self notifyDelegateDidStartSelection];
 }
@@ -580,16 +588,21 @@
     CGPoint local = [self.containerView convertPoint:containerPoint toView:closest];
     NSInteger idx = [self insertionIndexForPoint:local inLabel:closest];
     
+    // 始终和原始锚点比较，而非和当前 start 比较
     NSComparisonResult cmp = [self comparePositionLabel:closest index:idx
-                                              withLabel:self.startLabel index:self.startIndex];
+                                              withLabel:self.anchorLabel index:self.anchorIndex];
     if (cmp == NSOrderedDescending || cmp == NSOrderedSame) {
+        // 拖拽在锚点之后（向下）→ anchor 是 start，拖拽位置是 end
+        self.startLabel = self.anchorLabel;
+        self.startIndex = self.anchorIndex;
         self.endLabel = closest;
         self.endIndex = idx;
     } else {
-        self.endLabel = self.startLabel;
-        self.endIndex = self.startIndex;
+        // 拖拽在锚点之前（向上）→ 拖拽位置是 start，anchor 是 end
         self.startLabel = closest;
         self.startIndex = idx;
+        self.endLabel = self.anchorLabel;
+        self.endIndex = self.anchorIndex;
     }
     
     [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] mouseDragged closest:%@ idx:%ld start:(%@,%ld) end:(%@,%ld)",

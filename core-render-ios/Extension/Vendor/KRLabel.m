@@ -97,7 +97,11 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
                                               enclosingRect.origin.y + rect.origin.y,
                                               enclosingRect.size.width,
                                               enclosingRect.size.height);
+#if TARGET_OS_OSX
+            NSRectFill(highlightRect);
+#else
             UIRectFill(highlightRect);
+#endif
         }];
     }
     

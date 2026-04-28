@@ -479,6 +479,10 @@ object RichTextProcessor : IRichTextProcessor {
         // Process remaining lines
         processRemainingLine(constraintSize, linesSizeList, view)
 
+        // Apply lineBreakMargin before line-clamp so that the "is truncated"
+        // judgement can observe the real overflow state.
+        applyLineBreakMargin(constraintSize, view, linesSizeList)
+
         // If maximum number of lines is set, and actual exceeds maximum number of lines,
         // use maximum number of lines, otherwise use actual number of lines for processing
         if (view.numberOfLines in 1..linesSizeList.length) {
@@ -551,11 +555,54 @@ object RichTextProcessor : IRichTextProcessor {
     }
 
     /**
+     * Apply lineBreakMargin: decide whether the reserved right-side blank on
+     * the last visible line would cause the text to wrap. When triggered we
+     * just flip `isLineBreakMargin = true` so core can fire `onLineBreakMargin`.
+     *
+     * The actual visual blank is produced by two right-floating spans injected
+     * in [setRichTextValues] (mirroring the H5 implementation).
+     */
+    private fun applyLineBreakMargin(
+        constraintSize: SizeF,
+        view: KRRichTextView,
+        linesSizeList: JsArray<SizeF>,
+    ) {
+        val lineBreakMargin = view.getLineBreakMargin()
+        val maxLines = view.numberOfLines
+        // Reset previous state first so that successive layouts are correct
+        view.setIsLineBreakMargin(false)
+        if (lineBreakMargin <= 0f || maxLines <= 0) {
+            return
+        }
+        if (constraintSize.width <= lineBreakMargin) {
+            return
+        }
+        // Only meaningful when the content actually reaches the last visible line
+        if (linesSizeList.length < maxLines) {
+            return
+        }
+        val effectiveWidth = constraintSize.width - lineBreakMargin
+        val lastVisibleIndex = maxLines - 1
+        val lastVisibleLine = linesSizeList[lastVisibleIndex]
+        val hasMoreLines = linesSizeList.length > maxLines
+        // Strategy B (simplified): if the last visible line's text width already
+        // exceeds `effectiveWidth`, or there are still overflow lines after it,
+        // we consider that the text would have wrapped when the reserved margin
+        // is taken into account.
+        if (hasMoreLines || lastVisibleLine.width > effectiveWidth) {
+            view.setIsLineBreakMargin(true)
+        }
+    }
+
+    /**
      * Calculate the size data of rich text element occupied
      */
     private fun calculateRichTextSize(constraintSize: SizeF, view: KRRichTextView): SizeF {
         // Get the size data list of all lines of the element
         var linesSizeList = calculateLinesSize(constraintSize, view)
+        // Apply lineBreakMargin before line-clamp so that the "is truncated"
+        // judgement can observe the real overflow state.
+        applyLineBreakMargin(constraintSize, view, linesSizeList)
         // If maximum number of lines is set, and actual exceeds maximum number of lines,
         // use maximum number of lines, otherwise use actual number of lines for processing
         if (view.numberOfLines in 1..linesSizeList.length) {
@@ -761,6 +808,29 @@ object RichTextProcessor : IRichTextProcessor {
     }
 
     /**
+     * Build the two right-floating span HTML snippets used to reserve
+     * `lineBreakMargin` blank on the right side of the last visible line of
+     * a rich-text. Equivalent to H5's `createFloatSpan` pair.
+     */
+    private fun buildFloatSpansHtml(view: KRRichTextView): String {
+        val lineBreakMargin = view.getLineBreakMargin()
+        val measureResult = view.getMeasureResult()
+        if (lineBreakMargin <= 0f || measureResult.height <= 0f) {
+            return ""
+        }
+        val singleLineHeight = view.getSingleLineHeight()
+        val upperSpanHeight = (measureResult.height - singleLineHeight).coerceAtLeast(0f)
+        // First span: occupies the full height of the lines above the last one,
+        // zero width, floats right. Second span: `lineBreakMargin`px wide, 1px
+        // tall, also floats right. Together they push the last line's text out
+        // by `lineBreakMargin` on the right side.
+        val style1 = "float:right;clear:right;width:0px;height:${upperSpanHeight}px;"
+        val style2 = "float:right;clear:right;width:${lineBreakMargin}px;height:1px;"
+        view.setHasAppendFloatSpans(true)
+        return "<span style=\"$style1\"></span><span style=\"$style2\"></span>"
+    }
+
+    /**
      * Rich text content setting, here we need to calculate the overall width and height of the rich text,
      * the calculation method is quite complex:
      * 1. The width of each span added together. For placeholder spans, additional height needs to be calculated,
@@ -773,7 +843,10 @@ object RichTextProcessor : IRichTextProcessor {
     override fun setRichTextValues(richTextValues: JSONArray, view: KRRichTextView) {
         // Clear all child nodes
         clearRichTextValues(view)
-        
+        // Reset float-span flag; it will be re-set inside buildFloatSpansHtml
+        // when we actually inject the reserved blank on this layout pass.
+        view.setHasAppendFloatSpans(false)
+
         for (i in 0 until richTextValues.length()) {
             val span = createSpan(richTextValues.optJSONObject(i) ?: JSONObject(), view)
             if (span.textContent != null) {
@@ -806,8 +879,9 @@ object RichTextProcessor : IRichTextProcessor {
                 }
             }
         }
-        // Calculate span innerHTML
-        view.spanHtml = getChildSpanHtml(view)
+        // Calculate span innerHTML, prepending the two right-floating spans
+        // that reserve `lineBreakMargin` blank on the last visible line.
+        view.spanHtml = buildFloatSpansHtml(view) + getChildSpanHtml(view)
         // Set rich text content
         view.ele.setAttribute("nodes", view.divHtml)
     }

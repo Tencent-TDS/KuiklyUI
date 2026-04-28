@@ -81,7 +81,11 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
     if (self.selectedRange.length > 0 && self.selectedRange.location != NSNotFound
         && self.selectedRange.location + self.selectedRange.length <= self.textRender.textStorage.length) {
         if (!self.selectionColor) {
+#if TARGET_OS_OSX
             self.selectionColor = [[NSColor colorWithRed:0x00/255.0 green:0x99/255.0 blue:0xff/255.0 alpha:1.0] colorWithAlphaComponent:0.3];
+#else
+            self.selectionColor = [[UIColor colorWithRed:0x00/255.0 green:0x99/255.0 blue:0xff/255.0 alpha:1.0] colorWithAlphaComponent:0.3];
+#endif
         }
         [self.selectionColor setFill];
         NSRange glyphRange = [self.textRender.layoutManager glyphRangeForCharacterRange:self.selectedRange actualCharacterRange:nil];
@@ -89,11 +93,11 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
                                      withinSelectedGlyphRange:glyphRange
                                               inTextContainer:self.textRender.textContainer
                                                    usingBlock:^(CGRect enclosingRect, BOOL *stop) {
-            NSRect highlightRect = NSMakeRect(enclosingRect.origin.x + rect.origin.x,
-                                          enclosingRect.origin.y + rect.origin.y,
-                                          enclosingRect.size.width,
-                                          enclosingRect.size.height);
-            NSRectFill(highlightRect);
+            CGRect highlightRect = CGRectMake(enclosingRect.origin.x + rect.origin.x,
+                                              enclosingRect.origin.y + rect.origin.y,
+                                              enclosingRect.size.width,
+                                              enclosingRect.size.height);
+            UIRectFill(highlightRect);
         }];
     }
     

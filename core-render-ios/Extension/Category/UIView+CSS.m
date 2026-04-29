@@ -954,7 +954,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         }
         if (css_longPress != nil) {
             self.css_longPressGR = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(css_onLongPressWithSender:)];
-           
+            self.css_longPressGR.cancelsTouchesInView = NO;
             [self addGestureRecognizer:self.css_longPressGR];
             if (!self.css_touchEnable) {
                 self.userInteractionEnabled = YES;

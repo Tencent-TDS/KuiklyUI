@@ -348,6 +348,7 @@ object RichTextProcessor : IRichTextProcessor {
         fontWeight: Int,
         fontFamily: String,
         fontStyle: String,
+        letterSpacing: Float = 0f,
     ): JsArray<SizeF> {
         // First split the text into a list based on line breaks
         val textArray = value.asDynamic().split("\n").unsafeCast<JsArray<String>>()
@@ -379,8 +380,24 @@ object RichTextProcessor : IRichTextProcessor {
 
                 // Add the width and height of each line, using the larger of canvas width and actualBoundingBox
                 textWidth = max(textWidth, textMetrics.width.unsafeCast<Float>())
+                // Canvas measureText does NOT take letter-spacing into account, but the
+                // real rendering of <text> does. Compensate it here otherwise the measured
+                // width would be smaller than the actual drawn width and cause the last
+                // character to be truncated.
+                // NOTE: use `it.length` (NOT `it.length - 1`) on purpose:
+                //   1) Different mini-program runtimes disagree on whether the trailing
+                //      letter-spacing after the last glyph is included in the line box.
+                //   2) Reserving one extra gap also absorbs floating-point rounding
+                //      errors accumulated through the canvas measurement + ratio scaling.
+                // The over-estimation is at most one letter-spacing, which is harmless
+                // for layout but prevents the "last character clipped" problem.
+                if (letterSpacing != 0f && it.length > 0) {
+                    textWidth += it.length * letterSpacing
+                }
                 if (MiniGlobal.isAndroid) {
-                    // Android canvas measurement is not accurate, so we need to multiply a magic number
+                    // Android canvas measurement is not accurate, so we need to multiply a magic number.
+                    // Apply AFTER letter-spacing compensation so both glyph width and spacing
+                    // are scaled by the same factor, keeping them consistent with real rendering.
                     textWidth *= WIDTH_RATIO_MAGIC
                 }
                 textSizeList.add(SizeF(textWidth, textHeight))
@@ -404,6 +421,7 @@ object RichTextProcessor : IRichTextProcessor {
         constraintSize: SizeF,
         linesSizeList: JsArray<SizeF>,
         realLineHeight: Float,
+        letterSpacing: Float = 0f,
     ) {
         // Get text span line size list, split by line break
         val spanSizeList = getSpanSizeList(
@@ -411,7 +429,8 @@ object RichTextProcessor : IRichTextProcessor {
             childSpan.fontSize,
             childSpan.fontWeight,
             childSpan.fontFamily,
-            childSpan.fontStyle
+            childSpan.fontStyle,
+            letterSpacing,
         )
         spanSizeList.forEach { item, index ->
             if (index == 0 && view.currentLineWidth != 0f) {
@@ -463,6 +482,11 @@ object RichTextProcessor : IRichTextProcessor {
         } else {
             0f
         }
+        // letter-spacing from inline style (e.g. "1.5px"), canvas measureText
+        // does not include it, we need to add it back manually so the measured
+        // width matches the real rendering width.
+        val letterSpacingStr = ele.style.letterSpacing
+        val letterSpacing = if (letterSpacingStr.isNotEmpty()) letterSpacingStr.pxToFloat() else 0f
         // Text span size list
         var linesSizeList = JsArray<SizeF>()
         // Process Text span size list
@@ -474,7 +498,7 @@ object RichTextProcessor : IRichTextProcessor {
                 fontWeight = fontWeight,
                 fontFamily = ele.style.fontFamily,
                 fontStyle = ele.style.fontStyle
-            ), constraintSize, linesSizeList, realLineHeight
+            ), constraintSize, linesSizeList, realLineHeight, letterSpacing
         )
         // Process remaining lines
         processRemainingLine(constraintSize, linesSizeList, view)
@@ -691,10 +715,10 @@ object RichTextProcessor : IRichTextProcessor {
         if (fontVariant.isNotEmpty()) {
             style.fontVariant = fontVariant
         }
-        val lineSpacing = value.optDouble(LETTER_SPACING, -1.0)
-        if (lineSpacing != -1.0) {
-            // Set lineHeight according to line spacing
-            style.lineHeight = lineSpacing.toNumberFloat().toString()
+        val letterSpacing = value.optDouble(LETTER_SPACING, -1.0)
+        if (letterSpacing != -1.0) {
+            // Set letterSpacing according to letter spacing
+            style.letterSpacing = "${letterSpacing.toNumberFloat()}px"
         }
 
         val strokeColor = value.optString(STROKE_COLOR).toRgbColor()

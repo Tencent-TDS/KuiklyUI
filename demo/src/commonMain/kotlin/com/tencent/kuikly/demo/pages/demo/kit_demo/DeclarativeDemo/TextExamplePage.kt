@@ -908,6 +908,200 @@ internal fun ViewContainer<*, *>.TextExampleLineHeight(init: TextExampleLineHeig
     addChild(TextExampleLineHeight(), init)
 }
 
+internal class TextExampleLetterSpacing: ComposeView<ComposeAttr, ComposeEvent>() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                flexDirectionColumn()
+                justifyContentFlexStart()
+                padding(all = 16f)
+            }
+            Text {
+                attr {
+                    text("letterSpacing(0f)  Hello Kuikly 你好世界")
+                    fontSize(16f)
+                    letterSpacing(0f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+            Text {
+                attr {
+                    text("letterSpacing(2f)  Hello Kuikly 你好世界")
+                    fontSize(16f)
+                    letterSpacing(2f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+            Text {
+                attr {
+                    text("letterSpacing(5f)  Hello Kuikly 你好世界")
+                    fontSize(16f)
+                    letterSpacing(5f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+            Text {
+                attr {
+                    text("letterSpacing(10f) Hello Kuikly 你好世界")
+                    fontSize(16f)
+                    letterSpacing(10f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+            // Rich text with letterSpacing
+            RichText {
+                attr {
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+                Span {
+                    text("RichText span1(letterSpacing=4)  ")
+                    fontSize(16f)
+                    letterSpacing(4f)
+                }
+                Span {
+                    text("span2(letterSpacing=0)")
+                    fontSize(16f)
+                    letterSpacing(0f)
+                }
+            }
+        }
+    }
+
+    override fun createAttr(): ComposeAttr {
+        return ComposeAttr()
+    }
+
+    override fun createEvent(): ComposeEvent {
+        return ComposeEvent()
+    }
+}
+
+internal fun ViewContainer<*, *>.TextExampleLetterSpacing(init: TextExampleLetterSpacing.() -> Unit) {
+    addChild(TextExampleLetterSpacing(), init)
+}
+
+internal class TextExampleLineBreakMargin: ComposeView<ComposeAttr, ComposeEvent>() {
+    private var lineBreakTriggered1 by com.tencent.kuikly.core.reactive.handler.observable(false)
+    private var lineBreakTriggered2 by com.tencent.kuikly.core.reactive.handler.observable(false)
+
+    override fun body(): ViewBuilder {
+        val ctx = this
+        return {
+            attr {
+                flexDirectionColumn()
+                justifyContentFlexStart()
+                padding(all = 16f)
+            }
+            // Example 1: 2 lines + lineBreakMargin(80), long text triggers onLineBreakMargin
+            Text {
+                attr {
+                    text("这是一段用于演示 lineBreakMargin 的较长文本，" +
+                        "当最后一行右侧预留 80 的空白区域后，如果文本被折叠则会触发 onLineBreakMargin 事件。" +
+                        "再多写一些内容保证会换行到第二行被截断。")
+                    fontSize(15f)
+                    color(Color.BLACK)
+                    lines(2)
+                    lineHeight(20f)
+                    lineBreakMargin(80f)
+                    backgroundColor(0xFFF0E68C)
+                    marginBottom(5f)
+                }
+                event {
+                    onLineBreakMargin {
+                        ctx.lineBreakTriggered1 = true
+                        KLog.i("TextExamplePage", "Example1 onLineBreakMargin fired")
+                    }
+                }
+            }
+            Text {
+                attr {
+                    text("Example1 onLineBreakMargin 已触发: ${ctx.lineBreakTriggered1}")
+                    fontSize(13f)
+                    color(Color.GRAY)
+                    marginBottom(10f)
+                }
+            }
+
+            // Example 2: short text, not enough to wrap, onLineBreakMargin should NOT fire
+            Text {
+                attr {
+                    text("短文本 lineBreakMargin(80)")
+                    fontSize(15f)
+                    color(Color.BLACK)
+                    lines(2)
+                    lineHeight(20f)
+                    lineBreakMargin(80f)
+                    backgroundColor(0xFFADD8E6)
+                    marginBottom(5f)
+                }
+                event {
+                    onLineBreakMargin {
+                        ctx.lineBreakTriggered2 = true
+                        KLog.i("TextExamplePage", "Example2 onLineBreakMargin fired (unexpected)")
+                    }
+                }
+            }
+            Text {
+                attr {
+                    text("Example2 onLineBreakMargin 已触发: ${ctx.lineBreakTriggered2}")
+                    fontSize(13f)
+                    color(Color.GRAY)
+                    marginBottom(10f)
+                }
+            }
+
+            // Example 3: different margin values
+            Text {
+                attr {
+                    text("lineBreakMargin(40)：" +
+                        "这是一段文本用于演示不同的右侧预留宽度效果，" +
+                        "预留 40 时最后一行右边会有较小的空白区域。" +
+                        "再加点内容保证超过两行被截断显示省略号。")
+                    fontSize(15f)
+                    color(Color.BLACK)
+                    lines(2)
+                    lineHeight(20f)
+                    lineBreakMargin(40f)
+                    backgroundColor(0xFFFFA07A)
+                    marginBottom(5f)
+                }
+            }
+            Text {
+                attr {
+                    text("lineBreakMargin(120)：" +
+                        "这是一段文本用于演示不同的右侧预留宽度效果，" +
+                        "预留 120 时最后一行右边会有较大的空白区域，可以用于放置\"查看更多\"按钮。" +
+                        "再加点内容保证超过两行被截断显示省略号。")
+                    fontSize(15f)
+                    color(Color.BLACK)
+                    lines(2)
+                    lineHeight(20f)
+                    lineBreakMargin(120f)
+                    backgroundColor(0xFFFFA07A)
+                    marginBottom(5f)
+                }
+            }
+        }
+    }
+
+    override fun createAttr(): ComposeAttr {
+        return ComposeAttr()
+    }
+
+    override fun createEvent(): ComposeEvent {
+        return ComposeEvent()
+    }
+}
+
+internal fun ViewContainer<*, *>.TextExampleLineBreakMargin(init: TextExampleLineBreakMargin.() -> Unit) {
+    addChild(TextExampleLineBreakMargin(), init)
+}
+
 @Page("TextExamplePage")
 internal class TextExamplePage: BasePager() {
     override fun body(): ViewBuilder {
@@ -937,6 +1131,10 @@ internal class TextExamplePage: BasePager() {
                 TextExampleRichText {  }
                 ViewExampleSectionHeader { attr { title = "LineHeight" } }
                 TextExampleLineHeight {  }
+                ViewExampleSectionHeader { attr { title = "LetterSpacing" } }
+                TextExampleLetterSpacing {  }
+                ViewExampleSectionHeader { attr { title = "LineBreakMargin & onLineBreakMargin" } }
+                TextExampleLineBreakMargin {  }
             }
         }
     }

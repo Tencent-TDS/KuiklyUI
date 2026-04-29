@@ -988,6 +988,7 @@ internal fun ViewContainer<*, *>.TextExampleLetterSpacing(init: TextExampleLette
 internal class TextExampleLineBreakMargin: ComposeView<ComposeAttr, ComposeEvent>() {
     private var lineBreakTriggered1 by com.tencent.kuikly.core.reactive.handler.observable(false)
     private var lineBreakTriggered2 by com.tencent.kuikly.core.reactive.handler.observable(false)
+    private var lineBreakTriggeredRich by com.tencent.kuikly.core.reactive.handler.observable(false)
 
     override fun body(): ViewBuilder {
         val ctx = this
@@ -1084,6 +1085,58 @@ internal class TextExampleLineBreakMargin: ComposeView<ComposeAttr, ComposeEvent
                     lineBreakMargin(120f)
                     backgroundColor(0xFFFFA07A)
                     marginBottom(5f)
+                }
+            }
+
+            // Example 4: RichText with lineBreakMargin + onLineBreakMargin
+            RichText {
+                attr {
+                    lines(2)
+                    lineHeight(20f)
+                    lineBreakMargin(100f)
+                    backgroundColor(0xFFF0E68C)
+                    marginBottom(5f)
+                }
+                Span {
+                    text("RichText+lineBreakMargin(100)：")
+                    fontSize(15f)
+                    color(Color(0xFFEE3333))
+                    fontWeightBold()
+                }
+                Span {
+                    text("这里演示富文本在最后一行右侧预留 100 宽度的空白区域，")
+                    fontSize(15f)
+                    color(Color.BLACK)
+                }
+                ImageSpan {
+                    size(20f, 20f)
+                    src("https://wfiles.gtimg.cn/wuji_dashboard/xy/starter/be8ff284.png")
+                    borderRadius(4f)
+                }
+                Span {
+                    text("当文本+图片的总长度超过两行时，会被折叠并触发 onLineBreakMargin 事件，")
+                    fontSize(15f)
+                    color(Color.BLACK)
+                }
+                Span {
+                    text("可在右侧预留区域放置\"展开\"按钮。")
+                    fontSize(15f)
+                    color(Color(0xFF3377FF))
+                    textDecorationUnderLine()
+                }
+                event {
+                    onLineBreakMargin {
+                        ctx.lineBreakTriggeredRich = true
+                        KLog.i("TextExamplePage", "RichText onLineBreakMargin fired")
+                    }
+                }
+            }
+            Text {
+                attr {
+                    text("RichText onLineBreakMargin 已触发: ${ctx.lineBreakTriggeredRich}")
+                    fontSize(13f)
+                    color(Color.GRAY)
+                    marginBottom(10f)
                 }
             }
         }

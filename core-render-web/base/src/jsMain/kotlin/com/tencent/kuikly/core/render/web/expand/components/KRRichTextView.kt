@@ -88,6 +88,10 @@ class KRTextProps {
  * @param fontStyle Rich text font style (non-placeholder span has)
  * @param offsetLeft Rich text distance from left (placeholder span has)
  * @param offsetTop Rich text distance from top (placeholder span has)
+ * @param letterSpacing Per-span letter spacing in px (non-placeholder span has).
+ *                     Needed by the mini-app measurement path so each span is
+ *                     measured with its own letter-spacing rather than only
+ *                     the RichText root container's one.
  *
  */
 data class RichTextSpan(
@@ -99,7 +103,9 @@ data class RichTextSpan(
     val fontFamily: String = "",
     var offsetLeft: Float = 0f,
     var offsetTop: Float = 0f,
-    val fontStyle: String = ""
+    var lineIndex: Int = 0,
+    val fontStyle: String = "",
+    val letterSpacing: Float = 0f
 )
 
 private const val DEFAULT_FONT_WEIGHT = 400
@@ -296,13 +302,22 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
                 ele.innerText = renderText
             }
             if (lineBreakMargin > 0 && ele.innerText.isNotEmpty() && ele.childNodes.length == 1) {
-                val singleLineHeight = getSingleLineHeight()
-                val spanHeight = measureResult.height - singleLineHeight
-                val span1 = createFloatSpan(0f, spanHeight)
-                val span2 = createFloatSpan(lineBreakMargin, 1f)
-                val firstChild = ele.childNodes[0]
-                ele.insertBefore(span1, firstChild)
-                ele.insertBefore(span2, firstChild)
+                // Let the platform processor try first. On mini-app this
+                // path promotes the element to rich-text and injects the
+                // two float spans via the `nodes` attribute (returns true).
+                // On H5 it returns false and we fall through to the
+                // DOM-based insertBefore logic below.
+                val handled = KuiklyProcessor.richTextProcessor
+                    .applyPlainTextLineBreakMargin(this)
+                if (!handled) {
+                    val singleLineHeight = getSingleLineHeight()
+                    val spanHeight = measureResult.height - singleLineHeight
+                    val span1 = createFloatSpan(0f, spanHeight)
+                    val span2 = createFloatSpan(lineBreakMargin, 1f)
+                    val firstChild = ele.childNodes[0]
+                    ele.insertBefore(span1, firstChild)
+                    ele.insertBefore(span2, firstChild)
+                }
             }
         } else {
             if (lineBreakMargin > 0 && !getHasAppendFloatSpans()) {
@@ -425,18 +440,36 @@ class KRRichTextView : IKuiklyRenderViewExport, IKuiklyRenderShadowExport {
      */
     private fun getPlaceholderSpanRect(index: Int?): String {
         var rectInfo = "0.0 0.0 0.0 0.0"
+        if (index == null) return rectInfo
 
-        if (index != null) {
-            val placeholderSpan = ele.childNodes[index].unsafeCast<HTMLElement?>()
-            if (
-                placeholderSpan != null &&
-                placeholderSpan.style.width != "" &&
-                placeholderSpan.style.height != ""
-            ) {
-                // Determine that it is a placeholder span, get size information
-                with(placeholderSpan) {
-                    rectInfo = "$offsetLeft $offsetTop $offsetWidth $offsetHeight"
-                }
+        // Let the platform-specific processor handle it first (e.g. miniapp).
+        // Returns "" when not supported, falling through to DOM-based logic below.
+        val processorRect = KuiklyProcessor.richTextProcessor.getPlaceholderSpanRect(index, this)
+        if (processorRect.isNotEmpty()) return processorRect
+
+        // Account for float spans prepended when lineBreakMargin is set
+        val adjustedIndex = if (getHasAppendFloatSpans()) index + 2 else index
+        val placeholderSpan = ele.childNodes[adjustedIndex].unsafeCast<HTMLElement?>()
+
+        if (
+            placeholderSpan != null &&
+            placeholderSpan.style.width != "" &&
+            placeholderSpan.style.height != ""
+        ) {
+            // ele may be detached because insertSubRenderView is async;
+            // temporarily attach to body to force a synchronous reflow
+            val isConnected = ele.asDynamic().isConnected.unsafeCast<Boolean>()
+            if (!isConnected) {
+                kuiklyDocument.body?.appendChild(ele)
+            }
+
+            // Determine that it is a placeholder span, get size information
+            with(placeholderSpan) {
+                rectInfo = "$offsetLeft $offsetTop $offsetWidth $offsetHeight"
+            }
+
+            if (!isConnected) {
+                kuiklyDocument.body?.removeChild(ele)
             }
         }
 

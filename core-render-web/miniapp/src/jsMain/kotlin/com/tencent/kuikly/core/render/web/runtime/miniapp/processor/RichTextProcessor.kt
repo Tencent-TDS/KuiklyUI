@@ -909,6 +909,86 @@ object RichTextProcessor : IRichTextProcessor {
     }
 
     /**
+     * Plain-text path of `lineBreakMargin` on mini-app.
+     *
+     * Unlike H5, the mini-app `text` component only shows its `value`
+     * attribute and cannot honor floating child spans. To reserve the
+     * `lineBreakMargin` blank visually we have to promote the element to
+     * a `rich-text` component and feed it HTML nodes:
+     *   - Two right-floating spans that reserve the blank on the last line
+     *     (exactly the same trick as the rich-text path);
+     *   - A span that carries the plain text content with the element's
+     *     own text styles inherited, so the visual looks identical.
+     *
+     * Returns `true` to tell the caller we've handled it and the legacy
+     * DOM-based `insertBefore` branch should be skipped.
+     */
+    override fun applyPlainTextLineBreakMargin(view: KRRichTextView): Boolean {
+        val lineBreakMargin = view.getLineBreakMargin()
+        val measureResult = view.getMeasureResult()
+        val rawText = view.rawText
+        // Only handle when margin is set, measurement is ready and text
+        // is not empty. Otherwise leave everything untouched so nothing
+        // regresses for the common case.
+        if (lineBreakMargin <= 0f || measureResult.height <= 0f || rawText.isEmpty()) {
+            return false
+        }
+        // If we've already appended the float spans on a previous pass,
+        // skip to avoid duplicating them.
+        if (view.getHasAppendFloatSpans()) {
+            return true
+        }
+
+        // Reset rich-text related state (the plain-text path has never
+        // populated them, but be defensive for repeated layout passes).
+        clearRichTextValues(view)
+
+        // Promote the paragraph element to `rich-text`. The transform
+        // switch in MiniParagraphElement.onTransformData() relies on both
+        // `isRichText == true` and `richTextSpanList.length > 0`.
+        view.isRichText = true
+        view.richTextSpanList.add(RichTextSpan(value = rawText))
+
+        // Build the inner text span. Inherit the core text styles from the
+        // paragraph element so the rich-text renders visually the same as
+        // the original plain text.
+        val style = view.ele.style
+        val textStyleParts = mutableListOf<String>()
+        if (style.fontSize.isNotEmpty()) textStyleParts.add("font-size:${style.fontSize}")
+        if (style.fontFamily.isNotEmpty()) textStyleParts.add("font-family:${style.fontFamily}")
+        if (style.fontWeight.isNotEmpty()) textStyleParts.add("font-weight:${style.fontWeight}")
+        if (style.fontStyle.isNotEmpty()) textStyleParts.add("font-style:${style.fontStyle}")
+        if (style.color.isNotEmpty()) textStyleParts.add("color:${style.color}")
+        if (style.letterSpacing.isNotEmpty()) textStyleParts.add("letter-spacing:${style.letterSpacing}")
+        if (style.lineHeight.isNotEmpty()) textStyleParts.add("line-height:${style.lineHeight}")
+        if (style.textDecoration.isNotEmpty()) textStyleParts.add("text-decoration:${style.textDecoration}")
+        if (style.textAlign.isNotEmpty()) textStyleParts.add("text-align:${style.textAlign}")
+        val textStyle = textStyleParts.joinToString(";")
+        val escapedText = escapeHtml(rawText)
+        val textSpan = "<span style=\"$textStyle\">$escapedText</span>"
+
+        // Float spans + text span. buildFloatSpansHtml also flips
+        // hasAppendFloatSpans to true internally.
+        view.spanHtml = buildFloatSpansHtml(view) + textSpan
+        // Write to rich-text `nodes` so the mini-app native component
+        // picks up the reserved blank on the last line.
+        view.ele.setAttribute("nodes", view.divHtml)
+        return true
+    }
+
+    /**
+     * Minimal HTML escape for plain text content before embedding into
+     * a rich-text `nodes` string.
+     */
+    private fun escapeHtml(text: String): String {
+        return text
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+    }
+
+    /**
      * Build the two right-floating span HTML snippets used to reserve
      * `lineBreakMargin` blank on the right side of the last visible line of
      * a rich-text. Equivalent to H5's `createFloatSpan` pair.

@@ -1,0 +1,220 @@
+/*
+ * Copyright 2020 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@file:OptIn(ExperimentalComposeUiApi::class)
+
+package com.tencent.kuikly.compose.ui.window
+
+import androidx.compose.runtime.*
+import androidx.compose.runtime.Immutable
+import com.tencent.kuikly.compose.foundation.clickable
+import com.tencent.kuikly.compose.foundation.interaction.MutableInteractionSource
+import com.tencent.kuikly.compose.foundation.layout.Box
+import com.tencent.kuikly.compose.foundation.layout.fillMaxSize
+import com.tencent.kuikly.compose.foundation.layout.offset
+import com.tencent.kuikly.compose.ui.Modifier
+import com.tencent.kuikly.compose.ui.Alignment
+import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
+import com.tencent.kuikly.compose.ui.graphics.Color
+import com.tencent.kuikly.compose.ui.unit.IntOffset
+import com.tencent.kuikly.compose.ui.unit.IntRect
+import com.tencent.kuikly.compose.ui.unit.IntSize
+import com.tencent.kuikly.compose.ui.unit.LayoutDirection
+
+/**
+ * Properties used to customize the behavior of a [Popup].
+ *
+ * @property focusable Whether the popup is focusable. When true, the popup will receive IME
+ * events and key presses, such as when the back button is pressed.
+ * @property dismissOnBackPress Whether the popup can be dismissed by pressing the back button
+ * on Android or escape key on desktop.
+ * If true, pressing the back button will call onDismissRequest. Note that [focusable] must be
+ * set to true in order to receive key events such as the back button - if the popup is not
+ * focusable then this property does nothing.
+ * @property dismissOnClickOutside Whether the popup can be dismissed by clicking outside the
+ * popup's bounds. If true, clicking outside the popup will call onDismissRequest.
+ * @property clippingEnabled Whether to allow the popup window to extend beyond the bounds of the
+ * screen. By default the window is clipped to the screen boundaries. Setting this to false will
+ * allow windows to be accurately positioned.
+ * The default value is true.
+ */
+class PopupProperties @ExperimentalComposeUiApi constructor(
+    val focusable: Boolean = false,
+    val dismissOnBackPress: Boolean = true,
+    val dismissOnClickOutside: Boolean = true,
+    val clippingEnabled: Boolean = true,
+    val usePlatformDefaultWidth: Boolean = false,
+    val usePlatformInsets: Boolean = true,
+) {
+    constructor(
+        focusable: Boolean,
+        dismissOnBackPress: Boolean,
+        dismissOnClickOutside: Boolean,
+        clippingEnabled: Boolean,
+    ) : this(
+        focusable = focusable,
+        dismissOnBackPress = dismissOnBackPress,
+        dismissOnClickOutside = dismissOnClickOutside,
+        clippingEnabled = clippingEnabled,
+        usePlatformDefaultWidth = false,
+        usePlatformInsets = true,
+    )
+
+    @Deprecated("Maintained for binary compatibility", level = DeprecationLevel.HIDDEN)
+    constructor(
+        focusable: Boolean,
+        dismissOnBackPress: Boolean,
+        dismissOnClickOutside: Boolean,
+
+        /*
+         * Temporary hack to skip unsupported arguments from Android source set.
+         * Should be removed after upstreaming changes from JetBrains' fork.
+         *
+         * After skip this unsupported argument, you must name all subsequent arguments.
+         */
+        @Suppress("FORBIDDEN_VARARG_PARAMETER_TYPE")
+        vararg unsupported: Nothing,
+
+        clippingEnabled: Boolean,
+    ) : this(
+        focusable = focusable,
+        dismissOnBackPress = dismissOnBackPress,
+        dismissOnClickOutside = dismissOnClickOutside,
+        clippingEnabled = clippingEnabled,
+        usePlatformDefaultWidth = false,
+        usePlatformInsets = true,
+    )
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is PopupProperties) return false
+
+        if (focusable != other.focusable) return false
+        if (dismissOnBackPress != other.dismissOnBackPress) return false
+        if (dismissOnClickOutside != other.dismissOnClickOutside) return false
+        if (clippingEnabled != other.clippingEnabled) return false
+        if (usePlatformDefaultWidth != other.usePlatformDefaultWidth) return false
+        if (usePlatformInsets != other.usePlatformInsets) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = focusable.hashCode()
+        result = 31 * result + dismissOnBackPress.hashCode()
+        result = 31 * result + dismissOnClickOutside.hashCode()
+        result = 31 * result + clippingEnabled.hashCode()
+        result = 31 * result + usePlatformDefaultWidth.hashCode()
+        result = 31 * result + usePlatformInsets.hashCode()
+        return result
+    }
+}
+
+/**
+ * Calculates the position of a [Popup] on screen.
+ */
+@Immutable
+interface PopupPositionProvider {
+    /**
+     * Calculates the position of a [Popup] on screen.
+     *
+     * The window size is useful in cases where the popup is meant to be positioned next to its
+     * anchor instead of inside of it. The size can be used to calculate available space
+     * around the parent to find a spot with enough clearance (e.g. when implementing a dropdown).
+     * Note that positioning the popup outside of the window bounds might prevent it from being
+     * visible.
+     *
+     * @param anchorBounds The window relative bounds of the layout which this popup is anchored to.
+     * @param windowSize The size of the window containing the anchor layout.
+     * @param layoutDirection The layout direction of the anchor layout.
+     * @param popupContentSize The size of the popup's content.
+     *
+     * @return The window relative position where the popup should be positioned.
+     */
+    fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize
+    ): IntOffset
+}
+
+/**
+ * Opens a popup with the given content.
+ *
+ * A popup is a floating container that appears on top of the current activity.
+ * It is especially useful for non-modal UI surfaces that remain hidden until they
+ * are needed, for example floating menus like Cut/Copy/Paste.
+ *
+ * The popup is positioned relative to its parent, using the [alignment] and [offset].
+ * The popup is visible as long as it is part of the composition hierarchy.
+ *
+ * @sample com.tencent.kuikly.compose.ui.samples.PopupSample
+ *
+ * @param alignment The alignment relative to the parent.
+ * @param offset An offset from the original aligned position of the popup. Offset respects the
+ * Ltr/Rtl context, thus in Ltr it will be added to the original aligned position and in Rtl it
+ * will be subtracted from it.
+ * @param onDismissRequest Executes when the user clicks outside of the popup.
+ * @param properties [PopupProperties] for further customization of this popup's behavior.
+ * @param content The content to be displayed inside the popup.
+ */
+@Composable
+fun Popup(
+    alignment: Alignment,
+    offset: IntOffset = IntOffset.Zero,
+    onDismissRequest: (() -> Unit)?,
+    properties: PopupProperties,
+    content: @Composable () -> Unit
+) {
+    val dialogProperties = DialogProperties(
+        dismissOnBackPress = properties.dismissOnBackPress,
+        dismissOnClickOutside = false, // 由我们自己处理
+        usePlatformDefaultWidth = false,
+        scrimColor = Color.Transparent
+    )
+    Dialog(
+        onDismissRequest = onDismissRequest ?: {},
+        properties = dialogProperties
+    ) {
+        // 外层Box拦截点击，content区域不关闭，外部区域关闭
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) {
+                    if (properties.dismissOnClickOutside) {
+                        onDismissRequest?.invoke()
+                    }
+                },
+            contentAlignment = alignment
+        ) {
+            // 内容区域阻止冒泡
+            Box(
+                modifier = Modifier
+                    .offset { offset }
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { /* 拦截点击，防止冒泡到外层 */ }
+            ) {
+                content()
+            }
+        }
+    }
+}

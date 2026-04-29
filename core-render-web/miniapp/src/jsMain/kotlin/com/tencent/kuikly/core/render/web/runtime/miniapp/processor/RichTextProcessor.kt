@@ -286,8 +286,17 @@ object RichTextProcessor : IRichTextProcessor {
                 // Placeholder Span processing
                 processPlaceHolderSpan(view, childSpan, constraintSize, linesSizeList)
             } else {
-                // Plain span processing
-                processTextSpan(view, childSpan, constraintSize, linesSizeList, realLineHeight)
+                // Plain span processing — use this span's own letter-spacing
+                // so the measured width matches the real rendering width when
+                // different spans carry different letter-spacing values.
+                processTextSpan(
+                    view,
+                    childSpan,
+                    constraintSize,
+                    linesSizeList,
+                    realLineHeight,
+                    childSpan.letterSpacing
+                )
             }
         }
         // Process remaining lines
@@ -958,14 +967,26 @@ object RichTextProcessor : IRichTextProcessor {
                     // Placeholder span input
                     view.imageSpanList.add(span)
                 } else {
-                    // For non-placeholder spans, save the text content value
+                    // For non-placeholder spans, save the text content value.
+                    // Also read back each span's own letter-spacing from its
+                    // inline style — it has been set in `createSpan` per-span —
+                    // so the measurement phase can apply the correct spacing
+                    // for each segment instead of relying only on the
+                    // RichText root container's letter-spacing.
+                    val spanLetterSpacingStr = span.style.letterSpacing
+                    val spanLetterSpacing = if (spanLetterSpacingStr.isNotEmpty()) {
+                        spanLetterSpacingStr.pxToFloat()
+                    } else {
+                        0f
+                    }
                     view.richTextSpanList.add(
                         RichTextSpan(
                             value = span.textContent!!,
                             fontSize = fontSize.toFloat(),
                             fontWeight = span.style.fontWeight.toInt(),
                             fontFamily = span.style.fontFamily,
-                            fontStyle = span.style.fontStyle
+                            fontStyle = span.style.fontStyle,
+                            letterSpacing = spanLetterSpacing
                         )
                     )
                 }

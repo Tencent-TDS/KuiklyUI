@@ -88,6 +88,10 @@ class KRTextProps {
  * @param fontStyle Rich text font style (non-placeholder span has)
  * @param offsetLeft Rich text distance from left (placeholder span has)
  * @param offsetTop Rich text distance from top (placeholder span has)
+ * @param letterSpacing Per-span letter spacing in px (non-placeholder span has).
+ *                     Needed by the mini-app measurement path so each span is
+ *                     measured with its own letter-spacing rather than only
+ *                     the RichText root container's one.
  *
  */
 data class RichTextSpan(
@@ -100,7 +104,8 @@ data class RichTextSpan(
     var offsetLeft: Float = 0f,
     var offsetTop: Float = 0f,
     var lineIndex: Int = 0,
-    val fontStyle: String = ""
+    val fontStyle: String = "",
+    val letterSpacing: Float = 0f
 )
 
 private const val DEFAULT_FONT_WEIGHT = 400

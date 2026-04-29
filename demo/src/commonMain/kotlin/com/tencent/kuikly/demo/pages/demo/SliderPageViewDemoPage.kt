@@ -65,7 +65,7 @@ internal class SliderPageViewDemoPage: BasePager() {
                    SliderPage {
                        attr {
                            isHorizontal = true
-                           pageItemWidth = 375f
+                           pageItemWidth = ctx.pageData.pageViewWidth
                            pageItemHeight = 375f
 
                            initSliderItems(ctx.pageItemList) { item ->

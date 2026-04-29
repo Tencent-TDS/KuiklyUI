@@ -44,6 +44,16 @@ object RichTextProcessor : IRichTextProcessor {
 
     // Prevent additional width added due to special situation during text rendering
     private const val TEXT_WIDTH_DEFAULT = 0.5f
+
+    // When business does not specify a line-height, use this factor multiplied
+    // by font-size to approximate the browser's default "normal" line-height.
+    // This is used as a strut fallback for lines that only contain inline
+    // placeholders (e.g. images), so the measured height matches the real
+    // rendered height of the `rich-text` host element.
+    private const val LINE_HEIGHT_FACTOR = 1.2f
+
+    // Fallback font size when the container has no explicit font-size set.
+    private const val DEFAULT_FONT_SIZE = 16f
     // mini app measure text canvas context
     private var measureTextCtx: dynamic = null
 
@@ -203,10 +213,33 @@ object RichTextProcessor : IRichTextProcessor {
         constraintSize: SizeF,
         linesSizeList: JsArray<SizeF>,
     ) {
+        // A placeholder (e.g. inline image) alone is not enough to decide the
+        // real line height: when rendered inside a `rich-text`, the host text
+        // element always contributes a "strut" whose height is at least
+        // `fontSize * line-height`. If we only take the placeholder's own
+        // height, the measurement will be smaller than the actual rendered
+        // height, which may cause the following lines to be clipped.
+        //
+        // Use business-specified lineHeight when available; otherwise fall
+        // back to `container fontSize * LINE_HEIGHT_FACTOR`.
+        val businessLineHeight = view.ele.style.lineHeight
+        val strutHeight = if (businessLineHeight.isNotEmpty()) {
+            businessLineHeight.pxToFloat()
+        } else {
+            val containerFontSize = view.ele.style.fontSize
+            val fs = if (containerFontSize.isNotEmpty()) {
+                containerFontSize.pxToFloat()
+            } else {
+                DEFAULT_FONT_SIZE
+            }
+            fs * LINE_HEIGHT_FACTOR
+        }
         // Use placeholder height as current line height, need to consider
-        // multiple placeholder situations, use the highest as height
-        if (childSpan.height > view.currentLineHeight) {
-            view.currentLineHeight = childSpan.height
+        // multiple placeholder situations, use the highest as height.
+        // Also make sure it is not smaller than the container strut.
+        val targetLineHeight = max(childSpan.height, strutHeight)
+        if (targetLineHeight > view.currentLineHeight) {
+            view.currentLineHeight = targetLineHeight
         }
         // Current placeholder plus after width
         val sumWidth = view.currentLineWidth + childSpan.width
@@ -354,10 +387,20 @@ object RichTextProcessor : IRichTextProcessor {
         val textArray = value.asDynamic().split("\n").unsafeCast<JsArray<String>>()
         // Span size list
         val textSizeList: JsArray<SizeF> = JsArray()
+        // Fallback empty-line height, used when a "\n" produces an empty segment
+        // (e.g. leading/trailing "\n" or consecutive "\n"). We must NOT skip
+        // such segments — otherwise the line-break semantics would be lost and
+        // the outer logic would mistakenly concatenate the next span onto the
+        // current line. Height uses fontSize * 1.2 as a conservative estimation
+        // aligned with other canvas-measure fallbacks in this file.
+        val emptyLineHeight = (fontSize * 1.2).toFloat()
         // Process in a loop
         textArray.forEach { it ->
-            // Empty lines are not processed
-            if (it != "") {
+            if (it == "") {
+                // Preserve an empty segment as a zero-width placeholder so the
+                // caller (processTextSpan) can emit a real line break.
+                textSizeList.add(SizeF(0f, emptyLineHeight))
+            } else {
                 // Calculate the width of each line
                 val textMetrics =
                     measureTextWidth(it, fontSize.toInt(), fontWeight, fontFamily, fontStyle)
@@ -433,6 +476,31 @@ object RichTextProcessor : IRichTextProcessor {
             letterSpacing,
         )
         spanSizeList.forEach { item, index ->
+            // Zero-width item means this segment came from a "\n" that produced
+            // an empty line (leading/trailing/consecutive "\n"). We must flush
+            // whatever has been accumulated on the current line to the result
+            // list and then start a fresh empty line, otherwise the line-break
+            // semantics would be lost.
+            if (item.width == 0f) {
+                if (view.currentLineWidth != 0f || view.currentLineHeight != 0f) {
+                    // Close the currently accumulated line
+                    linesSizeList.add(
+                        SizeF(view.currentLineWidth, view.currentLineHeight)
+                    )
+                } else {
+                    // Even an already-empty current line represents a real blank
+                    // line introduced by the "\n", we still need to record it so
+                    // the total line count is correct.
+                    linesSizeList.add(
+                        SizeF(0f, if (realLineHeight > 0f) realLineHeight else item.height)
+                    )
+                }
+                // Reset current line — the next segment (if any) will start at
+                // the beginning of a brand-new line.
+                view.currentLineWidth = 0f
+                view.currentLineHeight = 0f
+                return@forEach
+            }
             if (index == 0 && view.currentLineWidth != 0f) {
                 // If it is multi-line text, it means there is line break, then the first line, and current
                 // line width is not 0, then should participate in line accumulation calculation, rather than

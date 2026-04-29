@@ -1108,11 +1108,12 @@ internal class TextExampleLineBreakMargin: ComposeView<ComposeAttr, ComposeEvent
                     fontSize(15f)
                     color(Color.BLACK)
                 }
-                ImageSpan {
-                    size(20f, 20f)
-                    src("https://wfiles.gtimg.cn/wuji_dashboard/xy/starter/be8ff284.png")
-                    borderRadius(4f)
-                }
+                // TODO: 临时注释，因为ImageSpan刚好落在lineBreakMargin预留区时不会被裁剪
+                // ImageSpan {
+                //     size(20f, 20f)
+                //     src("https://wfiles.gtimg.cn/wuji_dashboard/xy/starter/be8ff284.png")
+                //     borderRadius(4f)
+                // }
                 Span {
                     text("当文本+图片的总长度超过两行时，会被折叠并触发 onLineBreakMargin 事件，")
                     fontSize(15f)

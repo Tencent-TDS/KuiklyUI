@@ -19,6 +19,9 @@
 #import "KRView.h"
 #import "KuiklyRenderBridge.h"
 #import "KuiklyRenderViewExportProtocol.h"
+#if TARGET_OS_OSX
+#import "KRLabel.h"
+#endif
 
 #define LAZY_ANIMATION_KEY @"lazyAnimationKey"
 #define ANIMATION_KEY @"animation"
@@ -763,6 +766,17 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     objc_setAssociatedObject(self, @selector(css_cursor), css_cursor, OBJC_ASSOCIATION_COPY_NONATOMIC);
     [self updateTrackingAreas];
 }
+
+#pragma mark - macOS Text Selection (selectable prop propagation)
+
+- (NSNumber *)css_selectable {
+    return objc_getAssociatedObject(self, @selector(css_selectable));
+}
+
+- (void)setCss_selectable:(NSNumber *)css_selectable {
+    objc_setAssociatedObject(self, @selector(css_selectable), css_selectable, OBJC_ASSOCIATION_RETAIN);
+}
+
 #endif
 
 

@@ -244,6 +244,18 @@ uint32_t ArkUINativeNodeAPI::getTotalChildCount(ArkUI_NodeHandle node) {
     return impl_->getTotalChildCount(node);
 }
 
+ArkUI_NodeHandle ArkUINativeNodeAPI::getParent(ArkUI_NodeHandle node) {
+    KREnsureMainThread();
+    KUIKLY_CHECK_NODE_OR_RETURN_NULL(node);
+    return impl_->getParent(node);
+}
+
+ArkUI_NodeHandle ArkUINativeNodeAPI::getChildAt(ArkUI_NodeHandle node, int32_t position) {
+    KREnsureMainThread();
+    KUIKLY_CHECK_NODE_OR_RETURN_NULL(node);
+    return impl_->getChildAt(node, position);
+}
+
 int32_t ArkUINativeNodeAPI::registerNodeCustomEvent(ArkUI_NodeHandle node, ArkUI_NodeCustomEventType eventType,
                                                     int32_t targetId, void *userData) {
     KREnsureMainThread();

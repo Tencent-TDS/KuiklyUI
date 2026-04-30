@@ -28,6 +28,7 @@
 #include <native_drawing/drawing_text_typography.h>
 #include <sys/stat.h>
 #include <unordered_set>
+#include <vector>
 #include "libohos_render/expand/components/base/KRBasePropsHandler.h"
 #include "libohos_render/expand/components/base/animation/KRNodeAnimation.h"
 // #include "libohos_render/expand/components/forward/KRForwardArkTSView.h"
@@ -156,6 +157,10 @@ void ResetArkUIImageBlurRadius(ArkUI_NodeHandle handle);
 void SetArkUIImageTintColor(ArkUI_NodeHandle handle, const std::tuple<float, float, float, float> &hex_color);
 
 void ResetArkUIImageTintColor(ArkUI_NodeHandle handle);
+
+void SetArkUIImageColorFilter(ArkUI_NodeHandle handle, const std::vector<float> &matrix);
+
+void ResetArkUIImageColorFilter(ArkUI_NodeHandle handle);
 
 void SetArkUIImageCapInsets(ArkUI_NodeHandle handle, float top, float left, float bottom, float right);
 

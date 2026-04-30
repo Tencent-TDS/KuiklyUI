@@ -299,11 +299,17 @@ fun SubcomposeLayout(
                     val ignoreOffset = kuiklyInfo.ignoreScrollOffset!!
                     val epsilon = 0.5 * kuiklyInfo.getDensity()  // 使用 0.5dp 作为误差值
                     val matched = abs(ignoreOffset.x.minus(scaleParams.offsetX)) <= epsilon
-                        && abs(ignoreOffset.y.minus(scaleParams.offsetY)) <= epsilon
+                            && abs(ignoreOffset.y.minus(scaleParams.offsetY)) <= epsilon
                     if (matched) {
                         kuiklyInfo.ignoreScrollOffset = null
+                        return@scroll
                     }
-                    return@scroll
+                    // 防御性修复：实际 offset 已远离 ignoreScrollOffset 目标位置，说明此次 scroll
+                    // 不是 setContentOffset(target) 回调而是真实用户滚动。
+                    // （macOS 上 setContentOffset(0,0) 与当前 offset 一致时 documentView.scrollPoint
+                    // 不触发 bounds change 回调，导致 ignoreScrollOffset 永远无法被清除的死锁）
+                    // 此时清除过期标记并继续向下执行正常滚动处理。
+                    kuiklyInfo.ignoreScrollOffset = null
                 }
 
                 // 忽略较小的滑动
@@ -489,10 +495,10 @@ class SubcomposeLayoutState(
         state.slotReusePolicy = slotReusePolicy
     }
     internal val setCompositionContext:
-        LayoutNode.(CompositionContext) -> Unit =
+            LayoutNode.(CompositionContext) -> Unit =
         { state.compositionContext = it }
     internal val setMeasurePolicy:
-        LayoutNode.((SubcomposeMeasureScope.(Constraints) -> MeasureResult)) -> Unit =
+            LayoutNode.((SubcomposeMeasureScope.(Constraints) -> MeasureResult)) -> Unit =
         { measurePolicy = state.createMeasurePolicy(it) }
 
     /**
@@ -722,9 +728,9 @@ internal class LayoutNodeSubcompositionsState(
         val layoutState = root.layoutState
         checkPrecondition(
             layoutState == LayoutNode.LayoutState.Measuring ||
-                layoutState == LayoutNode.LayoutState.LayingOut ||
-                layoutState == LayoutNode.LayoutState.LookaheadMeasuring ||
-                layoutState == LayoutNode.LayoutState.LookaheadLayingOut,
+                    layoutState == LayoutNode.LayoutState.LayingOut ||
+                    layoutState == LayoutNode.LayoutState.LookaheadMeasuring ||
+                    layoutState == LayoutNode.LayoutState.LookaheadLayingOut,
         ) {
             "subcompose can only be used inside the measure or layout blocks"
         }
@@ -753,7 +759,7 @@ internal class LayoutNodeSubcompositionsState(
             val itemIndex = root.foldedChildren.indexOf(node)
             require(itemIndex >= currentIndex) {
                 "Key \"$slotId\" was already used. If you are using LazyColumn/Row please make " +
-                    "sure you provide a unique key for each item."
+                        "sure you provide a unique key for each item."
             }
             if (currentIndex != itemIndex) {
                 move(itemIndex, currentIndex)
@@ -950,17 +956,17 @@ internal class LayoutNodeSubcompositionsState(
         val childrenCount = root.foldedChildren.size
         require(nodeToNodeState.size == childrenCount) {
             "Inconsistency between the count of nodes tracked by the state " +
-                "(${nodeToNodeState.size}) and the children count on the SubcomposeLayout" +
-                " ($childrenCount). Are you trying to use the state of the" +
-                " disposed SubcomposeLayout?"
+                    "(${nodeToNodeState.size}) and the children count on the SubcomposeLayout" +
+                    " ($childrenCount). Are you trying to use the state of the" +
+                    " disposed SubcomposeLayout?"
         }
         require(childrenCount - reusableCount - precomposedCount >= 0) {
             "Incorrect state. Total children $childrenCount. Reusable children " +
-                "$reusableCount. Precomposed children $precomposedCount"
+                    "$reusableCount. Precomposed children $precomposedCount"
         }
         require(precomposeMap.size == precomposedCount) {
             "Incorrect state. Precomposed children $precomposedCount. Map size " +
-                "${precomposeMap.size}"
+                    "${precomposeMap.size}"
         }
     }
 
@@ -1084,14 +1090,14 @@ internal class LayoutNodeSubcompositionsState(
 
     private val NoIntrinsicsMessage =
         "Asking for intrinsic measurements of SubcomposeLayout " +
-            "layouts is not supported. This includes components that are built on top of " +
-            "SubcomposeLayout, such as lazy lists, BoxWithConstraints, TabRow, etc. To mitigate " +
-            "this:\n" +
-            "- if intrinsic measurements are used to achieve 'match parent' sizing, consider " +
-            "replacing the parent of the component with a custom layout which controls the order in " +
-            "which children are measured, making intrinsic measurement not needed\n" +
-            "- adding a size modifier to the component, in order to fast return the queried " +
-            "intrinsic measurement."
+                "layouts is not supported. This includes components that are built on top of " +
+                "SubcomposeLayout, such as lazy lists, BoxWithConstraints, TabRow, etc. To mitigate " +
+                "this:\n" +
+                "- if intrinsic measurements are used to achieve 'match parent' sizing, consider " +
+                "replacing the parent of the component with a custom layout which controls the order in " +
+                "which children are measured, making intrinsic measurement not needed\n" +
+                "- adding a size modifier to the component, in order to fast return the queried " +
+                "intrinsic measurement."
 
     fun precompose(
         slotId: Any?,
@@ -1210,20 +1216,20 @@ internal class LayoutNodeSubcompositionsState(
 
     private inline fun ignoreRemeasureRequests(block: () -> Unit) = root.ignoreRemeasureRequests(block)
 
-     private class NodeState(
-         var slotId: Any?,
-         var content: @Composable () -> Unit,
-         var composition: ReusableComposition? = null,
-     ) {
-         var forceRecompose = false
-         var forceReuse = false
-         var activeState = mutableStateOf(true)
-         var active: Boolean
-             get() = activeState.value
-             set(value) {
-                 activeState.value = value
-             }
-     }
+    private class NodeState(
+        var slotId: Any?,
+        var content: @Composable () -> Unit,
+        var composition: ReusableComposition? = null,
+    ) {
+        var forceRecompose = false
+        var forceReuse = false
+        var activeState = mutableStateOf(true)
+        var active: Boolean
+            get() = activeState.value
+            set(value) {
+                activeState.value = value
+            }
+    }
 
     private inner class Scope : SubcomposeMeasureScope {
         // MeasureScope delegation
@@ -1233,7 +1239,7 @@ internal class LayoutNodeSubcompositionsState(
         override val isLookingAhead: Boolean
             get() =
                 root.layoutState == LayoutNode.LayoutState.LookaheadLayingOut ||
-                    root.layoutState == LayoutNode.LayoutState.LookaheadMeasuring
+                        root.layoutState == LayoutNode.LayoutState.LookaheadMeasuring
 
         override fun subcompose(
             slotId: Any?,
@@ -1298,7 +1304,7 @@ internal class LayoutNodeSubcompositionsState(
     ): List<Measurable> {
         require(postLookaheadComposedSlotIds.size >= currentPostLookaheadIndex) {
             "Error: currentPostLookaheadIndex cannot be greater than the size of the" +
-                "postLookaheadComposedSlotIds list."
+                    "postLookaheadComposedSlotIds list."
         }
         if (postLookaheadComposedSlotIds.size == currentPostLookaheadIndex) {
             postLookaheadComposedSlotIds.add(slotId)

@@ -30,6 +30,9 @@ extern NSString *const KRBGAttributeKey;
 @property (nonatomic, strong, nullable) KRTextRender *textRender;
 @property (nonatomic, assign) BOOL displaysAsynchronously;
 
+@property (nonatomic, assign) NSRange selectedRange;
+@property (nonatomic, strong, nullable) UIColor *selectionColor;
+
 /**
  * 获取富文本的对应尺寸大小
  * note：任意线程都可以调用该方法，一般用于 子线程 执行
@@ -132,6 +135,8 @@ typedef NS_ENUM(NSUInteger, KRAttachmentAlignment) {
 - (NSArray<KRTextAttachment *> *)hr_viewAttachments;
 
 @end
+
+
 
 NS_ASSUME_NONNULL_END
 

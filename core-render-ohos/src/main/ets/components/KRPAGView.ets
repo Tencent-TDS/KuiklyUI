@@ -31,21 +31,25 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
   }
 
   onAnimationStart = (viewController: IKRPAGViewController) => {
+    this.isPlaying = true;
     if (this.animationStartEvent) {
       this.animationStartEvent('{}');
     }
   };
   onAnimationEnd = (viewController: IKRPAGViewController) => {
+    this.isPlaying = false;
     if (this.animationEndEvent) {
       this.animationEndEvent('{}');
     }
   };
   onAnimationRepeat = (viewController: IKRPAGViewController) => {
+    this.isPlaying = true;
     if (this.animationRepeatEvent) {
       this.animationRepeatEvent('{}');
     }
   };
   onAnimationCancel = (viewController: IKRPAGViewController) => {
+    this.isPlaying = false;
     if (this.animationCancelEvent) {
       this.animationCancelEvent('{}');
     }
@@ -63,6 +67,7 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
   repeatCount = 0;
   private hadSrcSet: boolean = false;
   private hadStop: boolean = false;
+  private isPlaying: boolean = false;
   controller: IKRPAGViewController | undefined;
   static readonly VIEW_NAME = 'KRPAGView';
   private static readonly PROP_SRC = 'src';
@@ -76,6 +81,7 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
   private static readonly PROP_METHOD_PLAY = 'play';
   private static readonly PROP_METHOD_STOP = 'stop';
   private static readonly PROP_METHOD_SET_PROGRESS = 'setProgress';
+  private static readonly PROP_METHOD_GET_EDITABLE_LAYERS = 'getEditableLayersUnderPoint';
 
   private static readonly SCHEME_ASSETS = "assets://";
   private static readonly SCHEME_FILE = "files://";
@@ -121,9 +127,11 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
     if (method == KRPAGView.PROP_METHOD_PLAY) {
       this.autoPlay = true;
       this.hadStop = false;
+      this.isPlaying = true;
       this.controller?.play();
     } else if (method == KRPAGView.PROP_METHOD_STOP) {
       this.autoPlay = false;
+      this.isPlaying = false;
       if (!this.hadStop) {
         this.hadStop = true;
         this.controller?.stop();
@@ -136,11 +144,22 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
           this.controller?.setProgress(value);
         }
       }
+    } else if (method == KRPAGView.PROP_METHOD_GET_EDITABLE_LAYERS) {
+      if (typeof params === 'string') {
+        const json: Record<string, Object> = JSON.parse(params as string) as Record<string, Object>;
+        const x = json['x'] as number ?? 0;
+        const y = json['y'] as number ?? 0;
+        const layers = this.controller?.getEditableLayersUnderPoint(x, y) ?? [];
+        if (callback) {
+          callback(JSON.stringify(layers));
+        }
+      }
     }
   }
 
   private tryAutoPlay(): void {
-    if (this.autoPlay && this.hadSrcSet && !this.hadStop) {
+    if (this.autoPlay && this.hadSrcSet && !this.hadStop && !this.isPlaying) {
+      this.isPlaying = true;
       this.controller?.play();
     }
   }

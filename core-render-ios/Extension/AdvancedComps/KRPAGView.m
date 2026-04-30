@@ -22,6 +22,7 @@
 #import "KuiklyRenderBridge.h"
 #import "KuiklyContextParam.h"
 #import "KRCacheManager.h"
+#import <objc/message.h>
 
 
 NSString *const KRPagAssetsPrefix = @"assets://";
@@ -37,6 +38,8 @@ NSString *const KRPagAssetsPrefix = @"assets://";
 @property (nonatomic, strong) NSNumber *css_scaleMode;
 @property (nonatomic, strong) NSString *css_replaceTextLayerContent;
 @property (nonatomic, strong) NSString *css_replaceImageLayerContent;
+@property (nonatomic, strong) NSString *css_replaceTextByIndex;
+@property (nonatomic, strong) NSString *css_replaceImageByIndex;
 
 @property (nonatomic,strong) KuiklyRenderCallback css_loadFailure;
 @property (nonatomic,strong) KuiklyRenderCallback css_animationStart;
@@ -49,6 +52,7 @@ NSString *const KRPagAssetsPrefix = @"assets://";
 
 @implementation KRPAGView {
     BOOL _didSetFilePath;
+    BOOL _isPlaying;
 }
 
 
@@ -174,15 +178,47 @@ static PAGViewCreator gPagViewCreator;
     [self p_tryToReplaceImageWithFilePath:filePath inLayerWithName:layerName];
 }
 
+- (void)setCss_replaceTextByIndex:(NSString *)css_replaceTextByIndex {
+    // 格式: "editableIndex,textContent"
+    NSRange firstCommaRange = [css_replaceTextByIndex rangeOfString:@","];
+    if (firstCommaRange.location == NSNotFound) {
+        return;
+    }
+    NSString *indexStr = [css_replaceTextByIndex substringToIndex:firstCommaRange.location];
+    NSString *textContent = [css_replaceTextByIndex substringFromIndex:firstCommaRange.location + 1];
+    int editableIndex = [indexStr intValue];
+    
+    [self p_tryToReplaceTextByIndex:editableIndex text:textContent];
+}
+
+- (void)setCss_replaceImageByIndex:(NSString *)css_replaceImageByIndex {
+    // 格式: "editableIndex,imageFilePath"
+    NSRange firstCommaRange = [css_replaceImageByIndex rangeOfString:@","];
+    if (firstCommaRange.location == NSNotFound) {
+        return;
+    }
+    NSString *indexStr = [css_replaceImageByIndex substringToIndex:firstCommaRange.location];
+    NSString *filePath = [css_replaceImageByIndex substringFromIndex:firstCommaRange.location + 1];
+    int editableIndex = [indexStr intValue];
+    
+    if ([filePath hasPrefix:KRPagAssetsPrefix]) {
+        filePath = [self p_getAssetPathWithCss_src:filePath];
+    }
+    
+    [self p_tryToReplaceImageByIndex:editableIndex filePath:filePath];
+}
+
 #pragma mark - css method
 
 - (void)css_play:(NSDictionary *)args  {
     _css_autoPlay = @(YES);
+    _isPlaying = YES;
     [self.pagView play];
 }
 
 - (void)css_stop:(NSDictionary *)args  {
     _css_autoPlay = @(NO);
+    _isPlaying = NO;
     [self.pagView stop];
 }
 
@@ -191,6 +227,71 @@ static PAGViewCreator gPagViewCreator;
     double value = [params[@"value"] doubleValue];
     if ([self.pagView respondsToSelector:@selector(setProgress:)]) {
         [self.pagView setProgress:value];
+    }
+}
+
+- (void)css_onClickTapWithSender:(UIGestureRecognizer *)sender {
+    CGPoint location = [sender locationInView:self];
+#if TARGET_OS_OSX
+    CGPoint pageLocation = [sender locationInView:nil];
+#else
+    CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
+#endif
+    
+    NSMutableArray *layerInfos = [NSMutableArray array];
+    
+    // 通过 NSInvocation 调用 PAGView 的 getLayersUnderPoint: 方法（参数为 CGPoint 结构体）
+    SEL sel = NSSelectorFromString(@"getLayersUnderPoint:");
+    if ([(NSObject *)_pagView respondsToSelector:sel]) {
+        // getLayersUnderPoint: 需要像素坐标，dp/pt 转换为 pixel
+#if TARGET_OS_OSX
+        CGFloat scale = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
+#else
+        CGFloat scale = [UIScreen mainScreen].scale;
+#endif
+        CGPoint pixelPoint = CGPointMake(location.x * scale, location.y * scale);
+        
+        NSMethodSignature *sig = [(NSObject *)_pagView methodSignatureForSelector:sel];
+        NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:sig];
+        [invocation setTarget:(NSObject *)_pagView];
+        [invocation setSelector:sel];
+        [invocation setArgument:&pixelPoint atIndex:2];
+        [invocation invoke];
+        
+        __unsafe_unretained NSArray *hitLayers = nil;
+        [invocation getReturnValue:&hitLayers];
+        
+        if (hitLayers.count > 0) {
+            for (id layer in hitLayers) {
+                NSInteger editableIndex = -1;
+                if ([layer respondsToSelector:NSSelectorFromString(@"editableIndex")]) {
+                    editableIndex = ((NSInteger (*)(id, SEL))objc_msgSend)(layer, NSSelectorFromString(@"editableIndex"));
+                }
+                // 过滤掉 editableIndex == -1 的非可编辑图层，只回调业务可操作的图层
+                if (editableIndex < 0) {
+                    continue;
+                }
+                NSString *layerName = @"";
+                if ([layer respondsToSelector:NSSelectorFromString(@"layerName")]) {
+                    layerName = ((NSString * (*)(id, SEL))objc_msgSend)(layer, NSSelectorFromString(@"layerName")) ?: @"";
+                }
+                [layerInfos addObject:@{
+                    @"layerName": layerName,
+                    @"editableIndex": @(editableIndex)
+                }];
+            }
+        }
+    }
+    
+    NSDictionary *param = @{
+        @"x": @(location.x),
+        @"y": @(location.y),
+        @"pageX": @(pageLocation.x),
+        @"pageY": @(pageLocation.y),
+        @"layers": layerInfos
+    };
+    if (self.css_click) {
+        self.css_click(param);
     }
 }
 
@@ -207,6 +308,7 @@ static PAGViewCreator gPagViewCreator;
  * Notifies the start of the animation.
  */
 - (void)onAnimationStart:(PAGView*)pagView {
+    _isPlaying = YES;
     if (self.css_animationStart) {
         self.css_animationStart(@{});
     }
@@ -216,6 +318,7 @@ static PAGViewCreator gPagViewCreator;
  * Notifies the end of the animation.
  */
 - (void)onAnimationEnd:(PAGView*)pagView {
+    _isPlaying = NO;
     if (self.css_animationEnd) {
         self.css_animationEnd(@{});
     }
@@ -225,6 +328,7 @@ static PAGViewCreator gPagViewCreator;
  * Notifies the cancellation of the animation.
  */
 - (void)onAnimationCancel:(PAGView *)pagView {
+    _isPlaying = NO;
     if (self.css_animationCancel) {
         self.css_animationCancel(@{});
     }
@@ -234,6 +338,7 @@ static PAGViewCreator gPagViewCreator;
  * Notifies the repetition of the animation.
  */
 - (void)onAnimationRepeat:(PAGView*)pagView {
+    _isPlaying = YES;
     if (self.css_animationRepeat) {
         self.css_animationRepeat(@{});
     }
@@ -250,7 +355,8 @@ static PAGViewCreator gPagViewCreator;
 #pragma mark - private
 
 - (void)p_tryToAutoPlay {
-    if ([_css_autoPlay boolValue] && _didSetFilePath) {
+    if ([_css_autoPlay boolValue] && _didSetFilePath && !_isPlaying) {
+        _isPlaying = YES;
         [self.pagView play];
     }
 }
@@ -291,6 +397,7 @@ static PAGViewCreator gPagViewCreator;
 - (void)p_setWithFilePath:(NSString *)filePath {
     [_pagView setPath:filePath];
     _didSetFilePath = YES;
+    _isPlaying = NO;  // 加载新文件后重置播放状态
 }
 
 - (void)p_tryToReplaceText:(NSString *)text inLayerWithName:(NSString *)layerName {
@@ -335,6 +442,68 @@ static PAGViewCreator gPagViewCreator;
         }
         [imageLayer setImage:pagImage];
     }
+}
+
+- (void)p_tryToReplaceTextByIndex:(int)editableIndex text:(NSString *)text {
+    id<IPAGCompositionProtocol> pagComposition = [self.pagView getComposition];
+    
+    if (!pagComposition) {
+        [KRLogModule logError:[NSString stringWithFormat:@"按 index=%d 替换文字失败，请检查该路径 %@ 的 PAG 素材", editableIndex, self.css_src]];
+        return;
+    }
+    
+    // PAGFile 继承自 PAGComposition，需要判断 composition 是否为 PAGFile 类型
+    Class pagFileClass = NSClassFromString(@"PAGFile");
+    if (!pagFileClass || ![pagComposition isKindOfClass:pagFileClass]) {
+        [KRLogModule logError:[NSString stringWithFormat:@"按 index=%d 替换文字失败，composition 不是 PAGFile 类型", editableIndex]];
+        return;
+    }
+    
+    id<IPAGFileProtocol> pagFile = (id<IPAGFileProtocol>)pagComposition;
+    int numTexts = [pagFile numTexts];
+    
+    if (editableIndex < 0 || editableIndex >= numTexts) {
+        [KRLogModule logError:[NSString stringWithFormat:@"按 index=%d 替换文字失败，index 超出范围 [0, %d)", editableIndex, numTexts]];
+        return;
+    }
+    
+    // 获取原始 PAGText 对象，修改 text 属性后回填
+    id textData = [pagFile getTextData:editableIndex];
+    if (textData && [textData respondsToSelector:@selector(setText:)]) {
+        [textData performSelector:@selector(setText:) withObject:text];
+        [pagFile replaceText:editableIndex data:textData];
+    }
+}
+
+- (void)p_tryToReplaceImageByIndex:(int)editableIndex filePath:(NSString *)filePath {
+    id<IPAGCompositionProtocol> pagComposition = [self.pagView getComposition];
+    
+    if (!pagComposition) {
+        [KRLogModule logError:[NSString stringWithFormat:@"按 index=%d 替换图片失败，请检查该路径 %@ 的 PAG 素材", editableIndex, self.css_src]];
+        return;
+    }
+    
+    Class pagFileClass = NSClassFromString(@"PAGFile");
+    if (!pagFileClass || ![pagComposition isKindOfClass:pagFileClass]) {
+        [KRLogModule logError:[NSString stringWithFormat:@"按 index=%d 替换图片失败，composition 不是 PAGFile 类型", editableIndex]];
+        return;
+    }
+    
+    id<IPAGFileProtocol> pagFile = (id<IPAGFileProtocol>)pagComposition;
+    int numImages = [pagFile numImages];
+    
+    if (editableIndex < 0 || editableIndex >= numImages) {
+        [KRLogModule logError:[NSString stringWithFormat:@"按 index=%d 替换图片失败，index 超出范围 [0, %d)", editableIndex, numImages]];
+        return;
+    }
+    
+    id<PAGImageProtocol> pagImage = [((id<PAGImageProtocol>)NSClassFromString(@"PAGImage")) FromPath:filePath];
+    if (!pagImage) {
+        [KRLogModule logError:[NSString stringWithFormat:@"按 index=%d 替换图片失败，请检查该路径 %@ 的图片素材是否存在", editableIndex, filePath]];
+        return;
+    }
+    
+    [pagFile replaceImage:editableIndex data:pagImage];
 }
 
 - (NSString *)p_getAssetPathWithCss_src:(NSString *)css_src {

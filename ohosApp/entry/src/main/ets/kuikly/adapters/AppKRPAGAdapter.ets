@@ -26,7 +26,7 @@ import {
 } from '@kuikly-open/render';
 import { UIContext } from '@ohos.arkui.UIContext';
 import { ComponentContent } from '@kit.ArkUI';
-import { PAGFile, PAGLayerType, PAGTextLayer, PAGView, PAGViewController, PAGViewListener } from '@tencent/libpag';
+import { PAGFile, PAGImage, PAGLayer, PAGLayerType, PAGTextLayer, PAGView, PAGViewController, PAGViewListener } from '@tencent/libpag';
 
 @Component
 struct MyPAGView {
@@ -108,6 +108,31 @@ class AppKRPAGViewController implements IKRPAGViewController, PAGViewListener {
     this.viewController.setProgress(value);
   }
 
+  getEditableLayersUnderPoint(x: number, y: number): Array<Record<string, string | number>> {
+    const result: Array<Record<string, string | number>> = [];
+    try {
+      const pixelX = vp2px(x);
+      const pixelY = vp2px(y);
+      const layers: Array<PAGLayer> = this.viewController.getLayersUnderPoint(pixelX, pixelY);
+
+      for (const layer of layers) {
+        const editableIndex = layer.editableIndex();
+        const layerName = layer.layerName() ?? '';
+        if (editableIndex < 0) {
+          continue;
+        }
+        const layerInfo: Record<string, string | number> = {
+          'layerName': layerName,
+          'editableIndex': editableIndex
+        };
+        result.push(layerInfo);
+      }
+    } catch (e) {
+      console.error(`[PAGClick] Adapter getEditableLayersUnderPoint error: ${e}`);
+    }
+    return result;
+  }
+
   setProp(propKey: string, propValue: KRValue | KuiklyRenderCallback): boolean {
     if (propKey == 'src') {
       const resdir = getContext().resourceDir;
@@ -139,6 +164,35 @@ class AppKRPAGViewController implements IKRPAGViewController, PAGViewListener {
         setTimeout(() => {
           this.doCachedUpdateContent();
         });
+      }
+    } else if (propKey == 'replaceTextByIndex') {
+      const str = propValue.toString();
+      const commaIdx = str.indexOf(',');
+      if (commaIdx < 0) return false;
+      const editableIndex = parseInt(str.substring(0, commaIdx));
+      const textContent = str.substring(commaIdx + 1);
+      const composition = this.viewController.getComposition();
+      if (composition) {
+        const pagFile = composition as PAGFile;
+        const textData = pagFile.getTextData(editableIndex);
+        if (textData) {
+          textData.text = textContent;
+          pagFile.replaceText(editableIndex, textData);
+        }
+      }
+    } else if (propKey == 'replaceImageByIndex') {
+      const str = propValue.toString();
+      const commaIdx = str.indexOf(',');
+      if (commaIdx < 0) return false;
+      const editableIndex = parseInt(str.substring(0, commaIdx));
+      const imageFilePath = str.substring(commaIdx + 1);
+      const composition = this.viewController.getComposition();
+      if (composition) {
+        const pagFile = composition as PAGFile;
+        if (editableIndex >= 0 && editableIndex < pagFile.numImages()) {
+          const image = PAGImage.FromPath(imageFilePath);
+          pagFile.replaceImage(editableIndex, image);
+        }
       }
     }
 

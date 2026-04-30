@@ -29,6 +29,15 @@ export interface IKRPAGViewController {
   stop(): void;
 
   setProgress(value: number): void;
+
+  /**
+   * 获取指定坐标下的可编辑 PAG 图层列表。
+   * 坐标为 vp 单位，实现侧需自行转换为像素后调用 libpag 的 getLayersUnderPoint。
+   * @param x 点击位置 x 坐标（vp 单位）
+   * @param y 点击位置 y 坐标（vp 单位）
+   * @returns 可编辑图层信息数组，每个元素包含 layerName 和 editableIndex
+   */
+  getEditableLayersUnderPoint(x: number, y: number): Array<Record<string, string | number>>;
 }
 
 export interface IKRPAGViewListener {

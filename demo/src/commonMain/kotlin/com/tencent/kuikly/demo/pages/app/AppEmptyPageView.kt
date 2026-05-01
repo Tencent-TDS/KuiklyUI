@@ -60,6 +60,8 @@ internal class AppEmptyPageView(): ComposeView<AppEmptyPageViewAttr, AppEmptyPag
                 allCenter()
                 flex(1f)
                 backgroundColor(ctx.theme.colors.background)
+                // Test hooks: padding around the text
+                padding(16f)
             }
             Text {
                 attr {

@@ -72,6 +72,7 @@ static constexpr std::string_view ROTATE = "rotate";
 static constexpr std::string_view SKEW = "skew";
 static constexpr std::string_view TRANSFORM = "transform";
 static constexpr std::string_view DRAW_IMAGE = "drawImage";
+static constexpr std::string_view BATCH_DRAW = "batchDraw";
 
 KRCanvasView::KRCanvasView()
     : KRView(), cachable_methods_({LINE_CAP, LINE_WIDTH, LINE_DASH, STROKE_STYLE, FILL_STYLE, BEGIN_PATH, MOVE_TO,
@@ -102,15 +103,35 @@ bool KRCanvasView::MarkDirtyIfNeeded(const std::string &method) {
 }
 
 void KRCanvasView::CallMethod(const std::string &method, const KRAnyValue &params, const KRRenderCallback &cb) {
-    if (ShouldCacheOp(method)) {
+    if (method == BATCH_DRAW) {
+        BatchDraw(params);
+    } else if (ShouldCacheOp(method)) {
         AddOp(method, params);
+        MarkDirtyIfNeeded(method);
     } else if (method == RESET) {
         Reset();
     } else {
         KRView::CallMethod(method, params, cb);
-        return;
     }
-    MarkDirtyIfNeeded(method);
+}
+
+void KRCanvasView::BatchDraw(const KRAnyValue &params) {
+    auto arr = params->toArray();
+    for (auto &item : arr) {
+        auto m = item->toMap();
+        auto methodIt = m.find("m");
+        if (methodIt == m.end()) {
+            continue;
+        }
+        std::string method = methodIt->second->toString();
+        auto paramsIt = m.find("p");
+        std::string p = (paramsIt != m.end()) ? paramsIt->second->toString() : "";
+        if (ShouldCacheOp(method)) {
+            ops_.push_back(std::pair{method, p});
+        }
+    }
+    // 整批命令全部入队后，只触发一次重绘，避免每条命令各触发一次 markDirty
+    kuikly::util::GetNodeApi()->markDirty(GetNode(), NODE_NEED_RENDER);
 }
 
 void KRCanvasView::OnCustomEvent(ArkUI_NodeCustomEvent *event, const ArkUI_NodeCustomEventType &event_type) {

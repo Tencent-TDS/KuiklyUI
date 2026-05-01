@@ -289,12 +289,20 @@ fun SubcomposeLayout(
                 // / back是回滑,forward是前滑
                 scrollableState.kuiklyOnScrollEnd(scaleParams)
             }
+            dragEnd {
+                val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
+                val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
+                kuiklyInfo.contentOffset = offset
+                kuiklyInfo.isDragging = kuiklyInfo.scrollView?.isDragging ?: false
+            }
             scroll {
                 val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
                 val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
 
                 val prevOffset = kuiklyInfo.contentOffset
                 kuiklyInfo.contentOffset = offset
+                kuiklyInfo.isDragging = kuiklyInfo.scrollView?.isDragging ?: false
+
                 if (kuiklyInfo.ignoreScrollOffset != null) {
                     val ignoreOffset = kuiklyInfo.ignoreScrollOffset!!
                     val epsilon = 0.5 * kuiklyInfo.getDensity()  // 使用 0.5dp 作为误差值

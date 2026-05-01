@@ -125,6 +125,9 @@ class H5ListView : IListElement {
     override var clickEventCallback: KuiklyRenderCallback? = null
 
     override var doubleClickEventCallback: KuiklyRenderCallback? = null
+    
+    // Whether this list has a pull-to-refresh child
+    override var hasPullToRefresh: Boolean = false
 
     var listPagingHelper: H5ListPagingHelper = H5ListPagingHelper(ele, this)
         private set
@@ -202,17 +205,7 @@ class H5ListView : IListElement {
      * Check if it contains pull-to-refresh child node
      */
     private fun checkHasRefreshChild(): Boolean {
-        // Check the first child element to see if it's a pull-to-refresh node. Since the listView
-        // implementation wraps a ScrollContentView,
-        // which then wraps the actual scrollable content, we need to get the child node of ScrollContentView
-        val firstChild = ele.firstElementChild?.firstElementChild.unsafeCast<HTMLElement?>()
-
-        if (firstChild !== null) {
-            // Determine if the first child node is a pull-to-refresh node. This is a hardcoded way to check,
-            // todo: optimize for a more reasonable approach
-            return firstChild.style.transform.contains(KRListConst.REFRESH_CHILD_TRANSFORM)
-        }
-        return false
+        return hasPullToRefresh
     }
 
     override fun updateOffsetMap(offsetX: Float, offsetY: Float, isDragging: Int): MutableMap<String, Any> {
@@ -290,10 +283,8 @@ class H5ListView : IListElement {
             // Set end position before drag ends
             touchEndY = eventsParams[KRParamConst.Y].unsafeCast<Float>()
             // Set element's translate
-            ele.style.transform = buildTranslateY(deltaY)
-            // During pull-to-refresh, set overflow to visible, restore after pull-to-refresh completes
-            ele.style.overflowY = KRStyleConst.OVERFLOW_VISIBLE
-            ele.style.overflowX = KRStyleConst.OVERFLOW_VISIBLE
+            val contentEle = ele.firstElementChild.unsafeCast<HTMLElement?>()
+            contentEle?.style?.transform = buildTranslateY(deltaY)
             val offsetMap = updateOffsetMap(ele.scrollLeft.toFloat(), -deltaY, isDragging)
             // Notify
             scrollEventCallback?.invoke(offsetMap)
@@ -315,7 +306,8 @@ class H5ListView : IListElement {
             if (canPullRefreshHeight == 0f) {
                 // If at pull-to-refresh release but not reaching pull-to-refresh position,
                 // need to restore contentInset and scrolling
-                ele.style.transform = KRListConst.TRANSFORM_RESET
+                val contentEle = ele.firstElementChild.unsafeCast<HTMLElement?>()
+                contentEle?.style?.transform = KRListConst.TRANSFORM_RESET
                 // Handle extreme sliding in static sliding scenarios
                 if (scrollEnabled) {
                     if (scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN) {
@@ -327,13 +319,14 @@ class H5ListView : IListElement {
 
                 // remove transform attribute after transform end
                 kuiklyWindow.setTimeout({
-                    ele.style.transform = KRCssConst.EMPTY_STRING
+                    contentEle?.style?.transform = KRCssConst.EMPTY_STRING
                 }, KRListConst.IMMEDIATE_TIMEOUT)
             } else if (deltaY > canPullRefreshHeight) {
-                ele.style.transition = buildTransition()
+                val contentEle = ele.firstElementChild.unsafeCast<HTMLElement?>()
+                contentEle?.style?.transition = buildTransition()
                 // If at pull-to-refresh release and exceeding pull-to-refresh height,
                 // need to bounce back to pull-to-refresh height before refreshing
-                ele.style.transform = buildTranslateY(canPullRefreshHeight)
+                contentEle?.style?.transform = buildTranslateY(canPullRefreshHeight)
             }
             // If current scroll distance is 0 and starting to drag down, handle pull-to-refresh logic,
             // deltaY > 0 means pulling down
@@ -675,13 +668,14 @@ class H5ListView : IListElement {
         // Complete setting asynchronously
         KuiklyRenderCoreContextScheduler.scheduleTask(KRListConst.IMMEDIATE_TIMEOUT) {
             // Use animation to set inset value if needed
-            ele.style.transition = if (contentInset.animate) {
+            val contentEle = ele.firstElementChild.unsafeCast<HTMLElement?>()
+            contentEle?.style?.transition = if (contentInset.animate) {
                 buildTransition()
             } else {
                 KRCssConst.EMPTY_STRING
             }
             // Set the value to complete
-            ele.style.transform = buildTranslate(contentInset.left, contentInset.top)
+            contentEle?.style?.transform = buildTranslate(contentInset.left, contentInset.top)
         }
     }
 
@@ -709,9 +703,10 @@ class H5ListView : IListElement {
             // so this value is not processed, only handle the value when preparing for pull-to-refresh
             KuiklyRenderCoreContextScheduler.scheduleTask(KRListConst.BOUND_BACK_DURATION.toInt()) {
                 // Clear animation
-                ele.style.transition = KRCssConst.EMPTY_STRING
+                val contentEle = ele.firstElementChild.unsafeCast<HTMLElement?>()
+                contentEle?.style?.transition = KRCssConst.EMPTY_STRING
                 // Delay setting inset value until pull-down animation completes
-                ele.style.transform = if (contentInset.left == 0f && contentInset.top == 0f) {
+                contentEle?.style?.transform = if (contentInset.left == 0f && contentInset.top == 0f) {
                     KRCssConst.EMPTY_STRING
                 } else {
                     transform

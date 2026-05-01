@@ -18,10 +18,12 @@ package com.tencent.kuikly.compose.ui.geometry
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
+import com.tencent.kuikly.compose.ui.util.PackedFloats
 import com.tencent.kuikly.compose.ui.util.lerp
-import com.tencent.kuikly.compose.ui.util.packFloats
-import com.tencent.kuikly.compose.ui.util.unpackFloat1
-import com.tencent.kuikly.compose.ui.util.unpackFloat2
+import com.tencent.kuikly.compose.ui.util.packFloatsP
+import com.tencent.kuikly.compose.ui.util.packedFloatsBitEquals
+import com.tencent.kuikly.compose.ui.util.unpackFloat1P
+import com.tencent.kuikly.compose.ui.util.unpackFloat2P
 import kotlin.math.absoluteValue
 import kotlin.math.max
 import kotlin.math.min
@@ -30,7 +32,7 @@ import kotlin.math.min
  * Constructs a [Size] from the given width and height
  */
 @Stable
-fun Size(width: Float, height: Float) = Size(packFloats(width, height))
+fun Size(width: Float, height: Float) = Size(packFloatsP(width, height))
 
 /**
  * Holds a 2D floating-point size.
@@ -39,26 +41,27 @@ fun Size(width: Float, height: Float) = Size(packFloats(width, height))
  */
 @Immutable
 @kotlin.jvm.JvmInline
-value class Size internal constructor(@PublishedApi internal val packedValue: Long) {
+value class Size internal constructor(@PublishedApi internal val packedValue: PackedFloats) {
 
     @Stable
     val width: Float
         get() {
-            // Explicitly compare against packed values to avoid auto-boxing of Size.Unspecified
-            check(this.packedValue != Unspecified.packedValue) {
+            // Explicitly compare against packed values to avoid auto-boxing of Size.Unspecified.
+            // Use packedFloatsBitEquals so that NaN sentinels match correctly on JS (where
+            // Double's `==` returns false for NaN).
+            check(!packedFloatsBitEquals(this.packedValue, Unspecified.packedValue)) {
                 "Size is unspecified"
             }
-            return unpackFloat1(packedValue)
+            return unpackFloat1P(packedValue)
         }
 
     @Stable
     val height: Float
         get() {
-            // Explicitly compare against packed values to avoid auto-boxing of Size.Unspecified
-            check(this.packedValue != Unspecified.packedValue) {
+            check(!packedFloatsBitEquals(this.packedValue, Unspecified.packedValue)) {
                 "Size is unspecified"
             }
-            return unpackFloat2(packedValue)
+            return unpackFloat2P(packedValue)
         }
 
     @Suppress("NOTHING_TO_INLINE")
@@ -149,14 +152,14 @@ value class Size internal constructor(@PublishedApi internal val packedValue: Lo
  */
 @Stable
 inline val Size.isSpecified: Boolean
-    get() = packedValue != Size.Unspecified.packedValue
+    get() = !packedFloatsBitEquals(packedValue, Size.Unspecified.packedValue)
 
 /**
  * `true` when this is [Size.Unspecified].
  */
 @Stable
 inline val Size.isUnspecified: Boolean
-    get() = packedValue == Size.Unspecified.packedValue
+    get() = packedFloatsBitEquals(packedValue, Size.Unspecified.packedValue)
 
 /**
  * If this [Size]&nbsp;[isSpecified] then this is returned, otherwise [block] is executed

@@ -231,7 +231,7 @@ internal fun CoreTextField(
             }
 
             // 高度变化，重新测量
-            var intSize = IntSize(1001000)
+            var intSize = IntSize(0, 1001000)
             size?.also {
                 intSize = IntSize(
                     ceil(maxWidth).toInt(),

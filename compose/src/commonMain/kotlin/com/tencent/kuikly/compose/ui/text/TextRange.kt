@@ -17,9 +17,10 @@
 package com.tencent.kuikly.compose.ui.text
 
 import androidx.compose.runtime.Immutable
-import com.tencent.kuikly.compose.ui.util.packInts
-import com.tencent.kuikly.compose.ui.util.unpackInt1
-import com.tencent.kuikly.compose.ui.util.unpackInt2
+import com.tencent.kuikly.compose.ui.util.PackedInts
+import com.tencent.kuikly.compose.ui.util.packIntsP
+import com.tencent.kuikly.compose.ui.util.unpackInt1P
+import com.tencent.kuikly.compose.ui.util.unpackInt2P
 
 fun CharSequence.substring(range: TextRange): String = this.substring(range.min, range.max)
 
@@ -43,11 +44,11 @@ fun TextRange(/*@IntRange(from = 0)*/ start: Int, /*@IntRange(from = 0)*/ end: I
  */
 @kotlin.jvm.JvmInline
 @Immutable
-value class TextRange internal constructor(private val packedValue: Long) {
+value class TextRange internal constructor(private val packedValue: PackedInts) {
 
-    val start: Int get() = unpackInt1(packedValue)
+    val start: Int get() = unpackInt1P(packedValue)
 
-    val end: Int get() = unpackInt2(packedValue)
+    val end: Int get() = unpackInt2P(packedValue)
 
     /** The minimum offset of the range. */
     val min: Int get() = if (start > end) end else start
@@ -117,12 +118,12 @@ fun TextRange.coerceIn(minimumValue: Int, maximumValue: Int): TextRange {
     return this
 }
 
-private fun packWithCheck(start: Int, end: Int): Long {
+private fun packWithCheck(start: Int, end: Int): PackedInts {
     require(start >= 0) {
         "start cannot be negative. [start: $start, end: $end]"
     }
     require(end >= 0) {
         "end cannot be negative. [start: $start, end: $end]"
     }
-    return packInts(start, end)
+    return packIntsP(start, end)
 }

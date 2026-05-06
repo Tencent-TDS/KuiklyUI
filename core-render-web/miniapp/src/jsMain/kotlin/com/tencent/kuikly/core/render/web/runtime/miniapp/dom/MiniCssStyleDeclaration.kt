@@ -449,6 +449,22 @@ class MiniCssStyleDeclaration(private val miniElement: MiniElement) {
     var counterReset: String by cssPropertyDelegate
     @JsName("emptyCells")
     var emptyCells: String by cssPropertyDelegate
+    // CSS `caret-color` — used by the shared base layer
+    // [com.tencent.kuikly.core.render.web.expand.components.KRTextFieldView] /
+    // [com.tencent.kuikly.core.render.web.expand.components.KRTextAreaView] to translate the
+    // core `tintColor()` DSL. On H5 this maps to the browser's `HTMLInputElement.style
+    // .caret-color` directly. On mini-program, the Taro-built `<input>` / `<textarea>`
+    // template passes the element's `style=` attribute through to the real native node,
+    // so declaring the property here routes the shared-layer
+    // `ele.style.asDynamic().caretColor = "..."` assignment through the property delegate
+    // and lets the value surface in the generated `cssText`. Note that we deliberately do
+    // NOT translate it to the WX-only `cursor-color` attribute because that attribute is
+    // not exposed by the standard Taro `<input>` template (its alias table has no slot for
+    // it) — the template's forwarded `style` is the only path that actually reaches the
+    // native node. On most Chromium-based WeChat WebViews the `caret-color` CSS property is
+    // honored natively, yielding the expected behavior.
+    @JsName("caretColor")
+    var caretColor: String by cssPropertyDelegate
     @JsName("hangingPunctuation")
     var hangingPunctuation: String by cssPropertyDelegate
     @JsName("imageOrientation")
@@ -777,6 +793,10 @@ class MiniCssStyleDeclaration(private val miniElement: MiniElement) {
               webkitBoxOrient: '-webkit-box-orient',
               wordWrap: 'word-wrap',
               zIndex: 'z-index',
+              // Mapped so `cssText` emits a real `caret-color: ...;` declaration for
+              // inputs' `tintColor()` DSL on mini-program; see the `caretColor` property
+              // above for the full rationale.
+              caretColor: 'caret-color',
             }
         """
         )

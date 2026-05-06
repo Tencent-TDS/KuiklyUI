@@ -15,7 +15,6 @@
 
 #import "KRTextSelectionHelper.h"
 #import "KRLabel.h"
-#import "KRLogModule.h"
 #import "KRView+TextSelection.h"
 
 @interface KRTextSelectionHelper ()
@@ -46,7 +45,6 @@
         self.startIndex = -1;
         self.endIndex = -1;
     }
-    [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] Helper init %p", self]];
     return self;
 }
 
@@ -59,9 +57,6 @@
     self.startIndex = -1;
     self.endIndex = -1;
     
-    [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] startSelection labels:%lu container:%@",
-                          (unsigned long)labels.count, NSStringFromClass([containerView class])]];
-    
 #if TARGET_OS_OSX
     [self installMouseMonitor];
 #endif
@@ -73,8 +68,6 @@
 
 - (void)selectAtPoint:(CGPoint)point type:(KRTextSelectionType)type {
     if (!self.labels || !self.containerView) {
-        [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] selectAtPoint failed - labels:%@ container:%@",
-                              self.labels ? @"exists" : @"nil", self.containerView ? @"exists" : @"nil"]];
         return;
     }
     
@@ -122,15 +115,11 @@
         [self updateUI];
         
         [self notifyDelegateDidStartSelection];
-        
-        [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] selectAtPoint:(%.1f,%.1f) type:%ld range:(%ld,%ld)",
-                              point.x, point.y, (long)type, (long)selectionRange.location, (long)selectionRange.length]];
     }
 }
 
 - (void)selectAll {
     if (self.labels.count == 0) {
-        [KRLogModule logInfo:@"[TextSelection] selectAll failed - no labels"];
         return;
     }
     
@@ -143,14 +132,9 @@
     [self updateUI];
     
     [self notifyDelegateDidStartSelection];
-    
-    [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] selectAll labels:%lu endIndex:%ld",
-                          (unsigned long)self.labels.count, (long)self.endIndex]];
 }
 
 - (void)endSelection {
-    [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] endSelection begin helper:%p labels:%@ container:%@", self, self.labels ? @"exists" : @"nil", self.containerView ? @"exists" : @"nil"]];
-    
 #if TARGET_OS_OSX
     [self removeMouseMonitor];
 #endif
@@ -170,9 +154,6 @@
     
     if (hadSelection) {
         [self notifyDelegateDidCancelSelection];
-        [KRLogModule logInfo:@"[TextSelection] endSelection finished (had selection)"];
-    } else {
-        [KRLogModule logInfo:@"[TextSelection] endSelection finished (no active selection)"];
     }
 }
 
@@ -180,7 +161,6 @@
 
 - (void)updateUI {
     if (!self.startLabel || !self.endLabel || self.startIndex < 0 || self.endIndex < 0) {
-        [KRLogModule logInfo:@"[TextSelection] updateUI early return - invalid state"];
         return;
     }
     
@@ -205,15 +185,11 @@
         
         if (range.location != NSNotFound && range.length > 0) {
             assignedCount++;
-            [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] updateUI label:%@ range:(%ld,%ld)", label, (long)range.location, (long)range.length]];
         }
         label.selectedRange = range;
     }
     
-    [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] updateUI totalLabels:%lu assigned:%ld start:(%@,%ld) end:(%@,%ld)",
-                          (unsigned long)self.labels.count, (long)assignedCount,
-                          self.startLabel, (long)self.startIndex,
-                          self.endLabel, (long)self.endIndex]];
+
 }
 
 #pragma mark - Public Methods
@@ -522,7 +498,6 @@
 #if TARGET_OS_OSX
 - (void)mouseDown:(NSEvent *)event inLabel:(KRLabel *)label localPoint:(NSPoint)localPoint {
     if (!self.labels || ![self.labels containsObject:label]) {
-        [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] mouseDown rejected - labels:%@ contains:%d", self.labels ? @"exists" : @"nil", (int)[self.labels containsObject:label]]];
         return;
     }
     
@@ -535,19 +510,16 @@
         self.startIndex = wordRange.location;
         self.endLabel = label;
         self.endIndex = wordRange.location + wordRange.length;
-        [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] mouseDown doubleClick label:%@ idx:%ld wordRange:(%ld,%ld)", label, (long)idx, (long)wordRange.location, (long)wordRange.length]];
     } else if (event.clickCount >= 3) {
         self.startLabel = label;
         self.startIndex = 0;
         self.endLabel = label;
         self.endIndex = label.textRender.textStorage.length;
-        [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] mouseDown tripleClick label:%@ idx:%ld fullLength:%ld", label, (long)idx, (long)self.endIndex]];
     } else {
         self.startLabel = label;
         self.startIndex = idx;
         self.endLabel = label;
         self.endIndex = idx;
-        [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] mouseDown singleClick label:%@ idx:%ld", label, (long)idx]];
     }
     
     // 保存原始锚点
@@ -560,7 +532,6 @@
 
 - (void)mouseDraggedToPoint:(NSPoint)containerPoint {
     if (!self.labels || !self.containerView) {
-        [KRLogModule logInfo:@"[TextSelection] mouseDragged rejected - no labels or container"];
         return;
     }
     
@@ -581,7 +552,6 @@
     }
     
     if (!closest) {
-        [KRLogModule logInfo:@"[TextSelection] mouseDragged no closest label found"];
         return;
     }
     
@@ -604,16 +574,12 @@
         self.endLabel = self.anchorLabel;
         self.endIndex = self.anchorIndex;
     }
-    
-    [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] mouseDragged closest:%@ idx:%ld start:(%@,%ld) end:(%@,%ld)",
-                          closest, (long)idx, self.startLabel, (long)self.startIndex, self.endLabel, (long)self.endIndex]];
-    
+
     [self updateUI];
     [self notifyDelegateDidChangeSelection];
 }
 
 - (void)mouseUp {
-    [KRLogModule logInfo:@"[TextSelection] mouseUp"];
     [self notifyDelegateDidEndSelection];
 }
 #endif
@@ -629,34 +595,28 @@
         [weakSelf handleGlobalMouseDown:event];
         return event;
     }];
-    [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] installMouseMonitor helper:%p", self]];
 }
 
 - (void)removeMouseMonitor {
     if (self.localEventMonitor) {
         [NSEvent removeMonitor:self.localEventMonitor];
         self.localEventMonitor = nil;
-        [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] removeMouseMonitor helper:%p", self]];
     }
 }
 
 - (void)handleGlobalMouseDown:(NSEvent *)event {
     if (!self.labels || self.labels.count == 0) {
-        [KRLogModule logInfo:@"[TextSelection] handleGlobalMouseDown early return - no labels"];
         return;
     }
     
     NSWindow *window = event.window;
     if (!window) {
-        [KRLogModule logInfo:@"[TextSelection] handleGlobalMouseDown early return - no window"];
         return;
     }
     
     NSPoint windowPoint = event.locationInWindow;
     NSView *hitView = [window.contentView hitTest:windowPoint];
-    
-    [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] handleGlobalMouseDown hitView:%@ windowPoint:(%.1f,%.1f)", hitView, windowPoint.x, windowPoint.y]];
-    
+
     // Check if hit view is one of the selected labels or inside one
     BOOL hitSelectedLabel = NO;
     NSView *current = hitView;
@@ -665,7 +625,6 @@
             for (KRLabel *label in self.labels) {
                 if (label == current && label.selectedRange.length > 0) {
                     hitSelectedLabel = YES;
-                    [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] handleGlobalMouseDown hit selected label:%@ range:(%ld,%ld)", label, (long)label.selectedRange.location, (long)label.selectedRange.length]];
                     break;
                 }
             }
@@ -675,7 +634,6 @@
     }
     
     if (!hitSelectedLabel) {
-        [KRLogModule logInfo:@"[TextSelection] handleGlobalMouseDown miss selected labels -> endSelection"];
         [self endSelection];
     }
 }

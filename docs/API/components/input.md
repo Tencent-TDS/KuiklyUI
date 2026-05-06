@@ -96,19 +96,7 @@
 
 控制横屏状态下IME输入法是否进入全屏模式
 
-### returnKeyTypeContinue方法<Badge text="仅iOS" type="warn"/>
-
-设置输入法的下一步按钮类型为继续类型
-
-### returnKeyTypeGo方法
-
-设置输入法的下一步按钮类型为前往类型
-
-### returnKeyTypeGoogle方法<Badge text="仅iOS" type="warn"/>
-
-设置输入法的下一步按钮类型为谷歌类型
-
-### placeholder方法<Badge text="微信小程序实现中" type="warn"/>
+### placeholder方法
 
 设置输入框的提示文本
 
@@ -154,7 +142,7 @@ internal class TestPage : BasePager() {
 
 :::
 
-### placeholderColor <Badge text="微信小程序实现中" type="warn"/>
+### placeholderColor
 
 设置输入框提示文本颜色
 
@@ -201,7 +189,7 @@ internal class TestPage : BasePager() {
 
 :::
 
-### tintColor方法 <Badge text="微信小程序实现中" type="warn"/>
+### tintColor方法
 
 设置输入框光标颜色
 
@@ -663,10 +651,14 @@ internal class TestPage : BasePager() {
 }
 ```
 
-### keyboardHeightChange<Badge text="H5实现中" type="warn"/> <Badge text="微信小程序实现中" type="warn"/>
+### keyboardHeightChange
 
 ``keyboardHeightChange``事件意为软键盘高度变化事件，如果组件有设置该事件事件，当软键盘高度变化时，会触发``keyboardHeightChange``闭包回调。``keyboardHeightChange``闭包中含有
 ``KeyboardParams``类型参数，以此来描述软键盘高度变化事件的信息
+
+::: tip 平台说明
+- H5 和微信小程序：height 为键盘高度（px）；微信小程序一次聚焦可能回调多帧（包括 `duration=0` 的同步快照帧与多个动画过渡帧），如需驱动界面动画建议自行对重复的最终高度帧做去重。
+:::
 
 <div class="table-01">
 
@@ -761,7 +753,7 @@ internal class TestPage : BasePager() {
 }
 ```
 
-### inputReturn <Badge text="微信小程序实现中" type="warn"/>
+### inputReturn
 
 ``inputReturn``事件意为软键盘触发了Return事件，如果组件有设置该事件事件，当软键盘触发了Return事件时，会触发``inputReturn``闭包回调。``inputReturn``闭包中含有
 ``InputParams``类型参数，以此来描述软键盘触发了Return事件的信息
@@ -794,7 +786,7 @@ internal class TestPage : BasePager() {
 }
 ```
 
-### textLengthBeyondLimit <Badge text="微信小程序实现中" type="warn"/>
+### textLengthBeyondLimit
 
 ``textLengthBeyondLimit``事件意为输入框发生了输入超出最大输入字符的事件，如果组件有设置该事件事件，当输入框发生了输入超出最大输入字符的事件，会触发``textLengthBeyondLimit``闭包回调。``textLengthBeyondLimit``闭包中含有
 ``InputParams``类型参数，以此来描述输入框触发了输入超出最大输入字符的事件的信息
@@ -953,7 +945,7 @@ internal class TestPage : BasePager() {
 }
 ```
 
-### cursorIndex <Badge text="小程序支持中" type="warn"/>
+### cursorIndex
 
 获取光标当前位置
 
@@ -993,7 +985,7 @@ internal class TestPage : BasePager() {
 }
 ```
 
-### setCursorIndex <Badge text="小程序支持中" type="warn"/>
+### setCursorIndex
 
 设置当前光标位置
 

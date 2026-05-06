@@ -27,18 +27,43 @@ import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.timer.setTimeout
 import com.tencent.kuikly.core.utils.PlatformUtils
 import com.tencent.kuikly.core.views.Image
-import com.tencent.kuikly.core.views.Input
-import com.tencent.kuikly.core.views.InputView
 import com.tencent.kuikly.core.views.KeyboardParams
+import com.tencent.kuikly.core.views.LengthLimitType
 import com.tencent.kuikly.core.views.List
 import com.tencent.kuikly.core.views.Text
+import com.tencent.kuikly.core.views.TextArea
+import com.tencent.kuikly.core.views.TextAreaView
 import com.tencent.kuikly.core.views.View
 import com.tencent.kuikly.demo.pages.base.BasePager
 import com.tencent.kuikly.demo.pages.demo.base.NavBar
 
-@Page("InputViewDemoPage")
-internal class InputViewDemoPage : BasePager() {
-    lateinit var inputRef: ViewRef<InputView>
+/**
+ * Multi-line `TextArea` sibling of [InputViewDemoPage].
+ *
+ * Structure is intentionally kept in strict parity with [InputViewDemoPage] so the
+ * two demos are visually/functionally comparable — differences are driven purely
+ * by the DSL surface:
+ *  - `TextArea { ... }` instead of `Input { ... }`
+ *  - `lines(N)` for multi-line rendering
+ *  - bigger height to show scrolling/wrapping behavior
+ *
+ * All recently landed TextArea-capabilities are exercised here, so the page also
+ * doubles as a manual-QA surface on H5 / miniApp / iOS / Android:
+ *  - `maxTextLength` + `textLengthBeyondLimit` (WX native <textarea> adapter path
+ *    synthesizes a `beforeinput` via `bindinput` diff, see MiniTextAreaElement).
+ *  - `keyboardHeightChange` (H5 dispatches via VisualViewport; miniApp bridges
+ *    `bindkeyboardheightchange`).
+ *  - `returnKeyType*` (H5 `enterkeyhint`; miniApp `confirm-type`).
+ *  - `placeholder` / `placeholderColor` (miniApp: `placeholder-style` CSS path).
+ *  - `tintColor` (caret-color on H5/miniApp).
+ *  - `cursorIndex` / `setCursorIndex` (miniApp reads `selection-start`, writes
+ *    `selection-start` / `selection-end`).
+ */
+@Page("TextAreaDemoPage")
+internal class TextAreaDemoPage : BasePager() {
+    lateinit var textAreaRef: ViewRef<TextAreaView>
+
+    // Keyboard-avoidance state, identical pattern to InputViewDemoPage.
     var keyboardHeight: Float by observable(0f)
     var keyboardAnimation: Animation by observable(Animation.easeInOut(0.25f))
 
@@ -63,7 +88,7 @@ internal class InputViewDemoPage : BasePager() {
             // navBar
             NavBar {
                 attr {
-                    title = "Input组件Demo"
+                    title = "TextArea组件Demo"
                 }
             }
 
@@ -80,41 +105,44 @@ internal class InputViewDemoPage : BasePager() {
                     }
                     View {
                         attr {
-                            height(200f)
+                            height(150f)
                             backgroundColor(Color.BLACK)
                         }
                         event {
-                            click { ctx.inputRef.view?.blur() }
+                            click { ctx.textAreaRef.view?.blur() }
                         }
                     }
 
                     View {
                         attr {
-                            height(200f)
+                            height(150f)
                             backgroundColor(Color.GREEN)
                         }
                         event {
-                            click { ctx.inputRef.view?.blur() }
+                            click { ctx.textAreaRef.view?.blur() }
                         }
                     }
 
-                    Input {
-
+                    TextArea {
                         ref {
-                            ctx.inputRef = it
+                            ctx.textAreaRef = it
                         }
 
                         attr {
                             margin(20f)
-                            maxTextLength(20)
-                            height(200f)
-                            fontSize(30f)
-                            fontWeightBold()
+                            // Use the new two-arg overload so textLengthBeyondLimit can
+                            // fire with the unified semantics across platforms. CHARACTER
+                            // counts by unicode code points, matching "最多40字" semantics.
+                            maxTextLength(40, LengthLimitType.CHARACTER)
+                            // Make room for multi-line input. Real height is still
+                            // driven by layout; `lines(N)` hints the IME / measure path.
+                            height(160f)
+                            lines(6)
+                            fontSize(18f)
+                            fontWeightNormal()
 
-                            //  keyboardTypeNumber()
-                            // textAlignCenter()
-                            returnKeyTypeNext()
-                            placeholder("我是placeholder")
+                            returnKeyTypeDone()
+                            placeholder("请输入多行内容…（最多40字）")
                             placeholderColor(Color.YELLOW)
 
                             color(Color.BLACK)
@@ -122,52 +150,57 @@ internal class InputViewDemoPage : BasePager() {
                             backgroundColor(Color.RED)
                             // Drive the caret/cursor color. On H5 / mini-program this is
                             // translated to the CSS `caret-color` declaration on the
-                            // underlying <input>; on iOS/Android it maps to the native
-                            // text-field tint. Picking YELLOW here makes the caret clearly
-                            // distinguishable against the RED background above.
+                            // underlying <textarea>; on iOS/Android it maps to the native
+                            // text-area tint. Picking RED makes the caret stand out
+                            // against the WHITE background.
                             tintColor(Color.YELLOW)
-
-                            transform(Translate(0f, -ctx.keyboardHeight / 200f))
-                            animation(ctx.keyboardAnimation, ctx.keyboardHeight)
                         }
 
                         event {
                             textDidChange {
-                                KLog.i("InputViewDemoPage", "textDidChange$it")
+                                KLog.i("TextAreaDemoPage", "textDidChange$it")
                             }
 
                             inputBlur {
-                                KLog.i("InputViewDemoPage", "inputBlur$it")
+                                KLog.i("TextAreaDemoPage", "inputBlur$it")
                             }
 
                             inputFocus {
-                                KLog.i("InputViewDemoPage", "inputFocus$it")
+                                KLog.i("TextAreaDemoPage", "inputFocus$it")
                             }
 
                             keyboardHeightChange {
-                                KLog.i("InputViewDemoPage", "keyboardHeightChange: height=${it.height}, duration=${it.duration}, curve=${it.curve}")
-                                ctx.keyboardAnimation = this@InputViewDemoPage.createKeyboardAnimation(it)
+                                KLog.i(
+                                    "TextAreaDemoPage",
+                                    "keyboardHeightChange: height=${it.height}, duration=${it.duration}, curve=${it.curve}"
+                                )
+                                ctx.keyboardAnimation =
+                                    this@TextAreaDemoPage.createKeyboardAnimation(it)
                                 ctx.keyboardHeight = it.height
                             }
 
                             inputReturn {
-                                KLog.i("InputViewDemoPage", "inputReturn$it")
+                                // NOTE: on a multi-line <textarea>, Return often means
+                                // "newline" rather than "submit"; whether this fires is
+                                // platform-dependent and is a good thing to visually
+                                // verify in the demo.
+                                KLog.i("TextAreaDemoPage", "inputReturn$it")
                             }
 
                             textLengthBeyondLimit {
                                 // Triggered when the user tries to type/paste a character
-                                // that would exceed `maxTextLength(20)` set above. The
+                                // that would exceed `maxTextLength(40, …)` set above. The
                                 // payload carries the current (already-capped) text.
-                                KLog.i("InputViewDemoPage", "textLengthBeyondLimit$it")
+                                KLog.i("TextAreaDemoPage", "textLengthBeyondLimit$it")
                             }
                         }
                     }
 
                     // --- cursorIndex / setCursorIndex demo panel ---------------------------
                     // Two tappable rows plus a readout label. Tap "Get cursor" to ask the
-                    // input for its caret position (async callback), tap "Set cursor -> 3"
-                    // to programmatically move the caret to offset 3. The result of the
-                    // latest read is rendered to the right as "cursor=N".
+                    // textarea for its caret position (async callback), tap
+                    // "Set cursor -> 5" to programmatically move the caret to offset 5.
+                    // The result of the latest read is rendered to the right as "cursor=N".
                     View {
                         attr {
                             height(60f)
@@ -176,13 +209,9 @@ internal class InputViewDemoPage : BasePager() {
                             allCenter()
                         }
                         event {
-                            // Ask the native/H5/miniApp layer for the current cursor
-                            // offset. The callback is invoked asynchronously with the
-                            // resolved Int; we stash it into `lastCursorIndex` so the
-                            // label on the right re-renders.
                             click {
-                                ctx.inputRef.view?.cursorIndex { idx ->
-                                    KLog.i("InputViewDemoPage", "cursorIndex callback: $idx")
+                                ctx.textAreaRef.view?.cursorIndex { idx ->
+                                    KLog.i("TextAreaDemoPage", "cursorIndex callback: $idx")
                                     ctx.lastCursorIndex = idx
                                 }
                             }
@@ -197,7 +226,9 @@ internal class InputViewDemoPage : BasePager() {
                         }
                         Text {
                             attr {
-                                text("cursor=${if (ctx.lastCursorIndex < 0) "?" else ctx.lastCursorIndex.toString()}")
+                                text(
+                                    "cursor=${if (ctx.lastCursorIndex < 0) "?" else ctx.lastCursorIndex.toString()}"
+                                )
                                 fontSize(16f)
                                 color(Color.YELLOW)
                             }
@@ -211,17 +242,14 @@ internal class InputViewDemoPage : BasePager() {
                             allCenter()
                         }
                         event {
-                            // Programmatically move the caret. `setCursorIndex` focuses
-                            // the input if needed (iOS/Android/H5/miniApp all share this
-                            // behavior via the underlying platform impl).
                             click {
-                                ctx.inputRef.view?.setCursorIndex(3)
-                                KLog.i("InputViewDemoPage", "setCursorIndex(3) invoked")
+                                ctx.textAreaRef.view?.setCursorIndex(5)
+                                KLog.i("TextAreaDemoPage", "setCursorIndex(5) invoked")
                             }
                         }
                         Text {
                             attr {
-                                text("Set cursor -> 3")
+                                text("Set cursor -> 5")
                                 fontSize(16f)
                                 color(Color.WHITE)
                             }
@@ -236,7 +264,7 @@ internal class InputViewDemoPage : BasePager() {
                             allCenter()
                         }
                         event {
-                            click { ctx.inputRef.view?.blur() }
+                            click { ctx.textAreaRef.view?.blur() }
                         }
                     }
 
@@ -246,12 +274,10 @@ internal class InputViewDemoPage : BasePager() {
                             backgroundColor(Color.GREEN)
                         }
                         event {
-                            click { ctx.inputRef.view?.blur() }
+                            click { ctx.textAreaRef.view?.blur() }
                         }
                     }
-
                 }
-
             }
         }
     }
@@ -262,11 +288,13 @@ internal class InputViewDemoPage : BasePager() {
 
     override fun viewDidLoad() {
         super.viewDidLoad()
+        // Mirror InputViewDemoPage: after 5s, clear the TextArea and drop focus so
+        // the keyboard-avoidance animation can be observed closing down.
         setTimeout(pagerId, 5000) {
-
-            val inputView = inputRef.view!!
-            inputView.setText("")
-            inputView.blur()
+            val view = textAreaRef.view ?: return@setTimeout
+            @Suppress("DEPRECATION")
+            view.setText("")
+            view.blur()
         }
     }
 

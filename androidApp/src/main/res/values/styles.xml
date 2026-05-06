@@ -7,4 +7,13 @@
         <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
     </style>
 
+    <!-- 全屏 Dialog 主题：关闭 windowIsFloating，避免默认边距和最小宽度限制 -->
+    <style name="MyDialogFullScreen" parent="android:Theme.Translucent.NoTitleBar">
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+
 </resources>

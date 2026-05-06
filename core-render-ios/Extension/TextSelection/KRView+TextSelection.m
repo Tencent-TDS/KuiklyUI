@@ -98,7 +98,6 @@ typedef NS_ENUM(NSInteger, KRSelectableOption) {
 }
 
 - (void)kr_setTextSelectionHelper:(KRTextSelectionHelper *)helper {
-    [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] kr_setTextSelectionHelper view:%@ helper:%p", self, helper]];
     objc_setAssociatedObject(self, kTextSelectionHelperKey, helper, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
@@ -171,11 +170,7 @@ typedef NS_ENUM(NSInteger, KRSelectableOption) {
         @"preContent": preContent ?: @[],
         @"postContent": postContent ?: @[]
     };
-    
-    [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] getSelection content:%lu pre:%lu post:%lu",
-                          (unsigned long)texts.count,
-                          (unsigned long)preContent.count,
-                          (unsigned long)postContent.count]];
+
     callback(result);
 }
 
@@ -228,7 +223,6 @@ typedef NS_ENUM(NSInteger, KRSelectableOption) {
                 return YES;
             }
             if (selectable == KRSelectableOptionDisable) {
-                [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] kr_isLabelSelectable NO - disabled at %@", currentView]];
                 return NO;
             }
         }
@@ -264,7 +258,6 @@ typedef NS_ENUM(NSInteger, KRSelectableOption) {
 
 - (void)kr_cleanupTextSelection {
     KRTextSelectionHelper *helper = [self kr_textSelectionHelper];
-    [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] kr_cleanupTextSelection helper:%p", helper]];
     [helper endSelection];
 }
 
@@ -274,9 +267,6 @@ typedef NS_ENUM(NSInteger, KRSelectableOption) {
         helper = [[KRTextSelectionHelper alloc] init];
         helper.delegate = [self kr_delegateHandler];
         [self kr_setTextSelectionHelper:helper];
-        [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] kr_setupTextSelectionIfNeeded created new helper:%p", helper]];
-    } else {
-        [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] kr_setupTextSelectionIfNeeded reuse helper:%p", helper]];
     }
     
     NSMutableArray<KRLabel *> *labels = [NSMutableArray array];

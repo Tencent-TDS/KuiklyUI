@@ -1461,11 +1461,12 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         if (@available(macos 14.0, *)) {
             self.path = path.CGPath;
         } else {
-            // 低于 14：退化为矩形
-            CGMutablePathRef p = CGPathCreateMutable();
-            CGPathAddRect(p, NULL, self.bounds);
-            self.path = p;
-            CGPathRelease(p);
+            // macOS 14.0 以下：NSBezierPath 无 CGPath 属性，手动转换
+            CGPathRef cgPath = [KRConvertUtil hr_convertNSBezierPathToCGPath:path];
+            self.path = cgPath;
+            if (cgPath) {
+                CGPathRelease(cgPath);
+            }
         }
         #else // [macOS]
         self.path = path.CGPath;

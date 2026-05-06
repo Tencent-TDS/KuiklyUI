@@ -207,9 +207,6 @@ typedef NS_ENUM(NSInteger, KRSelectableOption) {
         }
         [self kr_findAllKRLabelsInView:subview toArray:array];
     }
-    if (array.count > beforeCount) {
-        [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] kr_findAllKRLabelsInView %@ found %ld labels (total:%lu)", view, (long)(array.count - beforeCount), (unsigned long)array.count]];
-    }
 }
 
 - (BOOL)kr_isLabelSelectable:(KRLabel *)label {
@@ -272,7 +269,6 @@ typedef NS_ENUM(NSInteger, KRSelectableOption) {
     NSMutableArray<KRLabel *> *labels = [NSMutableArray array];
     [self kr_findAllKRLabelsInView:self toArray:labels];
     if (labels.count == 0) {
-        [KRLogModule logInfo:@"[TextSelection] kr_setupTextSelectionIfNeeded no labels found"];
         return;
     }
     

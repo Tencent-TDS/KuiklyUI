@@ -48,16 +48,6 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
     [self setNeedsDisplay];
 }
 
-
-
-- (void)setSelectionColor:(UIColor *)selectionColor {
-    if (_selectionColor == selectionColor) {
-        return;
-    }
-    _selectionColor = selectionColor;
-    [self setNeedsDisplay];
-}
-
 #pragma mark - override
 
 - (NSString *)accessibilityLabel{

@@ -39,11 +39,11 @@ import com.tencent.kuikly.compose.ui.geometry.Offset
 import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
-import com.tencent.kuikly.compose_dsl.kuikly.text.DisableSelection
-import com.tencent.kuikly.compose_dsl.kuikly.text.SelectionContainer
-import com.tencent.kuikly.compose_dsl.kuikly.text.SelectionFrame
-import com.tencent.kuikly.compose_dsl.kuikly.text.TextSelectionType
-import com.tencent.kuikly.compose_dsl.kuikly.text.rememberSelectionContainerState
+import com.tencent.kuikly.compose.text.DisableSelection
+import com.tencent.kuikly.compose.text.SelectionContainer
+import com.tencent.kuikly.compose.text.SelectionFrame
+import com.tencent.kuikly.compose.text.TextSelectionType
+import com.tencent.kuikly.compose.text.rememberSelectionContainerState
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.log.KLog
 
@@ -74,6 +74,8 @@ private fun TextSelectionGestureDemoContent() {
     var showMenu by remember { mutableStateOf(false) }
     var menuPosition by remember { mutableStateOf(SelectionFrame.Zero) }
     var selectedText by remember { mutableStateOf("") }
+    var preSelectedText by remember { mutableStateOf("") }
+    var postSelectedText by remember { mutableStateOf("") }
     var isSelectionActive by remember { mutableStateOf(false) }
     
     // Track the SelectionContainer's position on screen (for menu positioning)
@@ -127,9 +129,19 @@ private fun TextSelectionGestureDemoContent() {
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
+                            text = preSelectedText,
+                            fontSize = 14.sp,
+                            color = Color(0x991B5E20)
+                        )
+                        Text(
                             text = selectedText,
                             fontSize = 14.sp,
                             color = Color(0xFF1B5E20)
+                        )
+                        Text(
+                            text = postSelectedText,
+                            fontSize = 14.sp,
+                            color = Color(0x991B5E20)
                         )
                     }
                     Spacer(modifier = Modifier.height(16.dp))
@@ -294,6 +306,8 @@ private fun TextSelectionGestureDemoContent() {
                 onCopy = {
                     selectionState.getSelection { texts ->
                         selectedText = texts.joinToString(" ")
+                        preSelectedText = texts.preContent.joinToString(" ")
+                        postSelectedText = texts.postContent.joinToString(" ")
                         KLog.i("TextSelectionGesture", "Copied: $selectedText")
                     }
                     showMenu = false

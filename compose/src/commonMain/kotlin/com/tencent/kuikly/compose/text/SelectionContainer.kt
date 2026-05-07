@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-package com.tencent.kuikly.compose_dsl.kuikly.text
+package com.tencent.kuikly.compose.text
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -29,13 +29,14 @@ import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.platform.LocalDensity
 import com.tencent.kuikly.compose.ui.unit.Density
-import com.tencent.kuikly.compose_dsl.kuikly.extension.nativeRef
-import com.tencent.kuikly.compose_dsl.kuikly.extension.setEvent
-import com.tencent.kuikly.compose_dsl.kuikly.extension.setProp
+import com.tencent.kuikly.compose.extension.nativeRef
+import com.tencent.kuikly.compose.extension.setEvent
+import com.tencent.kuikly.compose.extension.setProp
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.views.DivView
 import com.tencent.kuikly.core.views.SelectableOption
+import com.tencent.kuikly.core.views.SelectionResult
 import com.tencent.kuikly.core.views.SelectionType
 
 /**
@@ -102,7 +103,7 @@ val LocalSelectionEnabled = compositionLocalOf { true }
  * @param content The content to be wrapped with selection capability
  */
 @Composable
-fun SelectionContainer(
+private fun SelectionContainer(
     modifier: Modifier = Modifier,
     selectionColor: Color? = null,
     onSelectStart: ((SelectionFrame) -> Unit)? = null,
@@ -263,12 +264,6 @@ class SelectionContainerState internal constructor(
     private var boundView: DivView? = null
     
     /**
-     * The currently selected texts as a list of strings.
-     */
-    var selectedTexts by mutableStateOf<List<String>>(emptyList())
-        private set
-    
-    /**
      * The current selection frame (in pixels).
      */
     var selectionFrame by mutableStateOf(SelectionFrame.Zero)
@@ -305,15 +300,12 @@ class SelectionContainerState internal constructor(
      *
      * @param callback Callback with the list of selected text strings
      */
-    fun getSelection(callback: (List<String>) -> Unit) {
+    fun getSelection(callback: (SelectionResult) -> Unit) {
         val view = boundView
         if (view != null) {
-            view.getSelection { texts ->
-                selectedTexts = texts
-                callback(texts)
-            }
+            view.getSelection(callback)
         } else {
-            callback(emptyList())
+            callback(SelectionResult.EMPTY)
         }
     }
     
@@ -322,7 +314,6 @@ class SelectionContainerState internal constructor(
      */
     fun clearSelection() {
         boundView?.clearSelection()
-        selectedTexts = emptyList()
         selectionFrame = SelectionFrame.Zero
     }
     

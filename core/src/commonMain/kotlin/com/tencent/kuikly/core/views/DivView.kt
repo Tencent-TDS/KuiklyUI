@@ -60,17 +60,10 @@ open class DivView : GroupView<DivAttr, DivEvent>() {
      * 获取当前文本选区内容
      * @param callback 选区内容回调，List<String>表示选区内的文本内容数组
      */
-    fun getSelection(callback: (List<String>) -> Unit) {
+    fun getSelection(callback: (SelectionResult) -> Unit) {
         performTaskWhenRenderViewDidLoad {
             renderView?.callMethod("getSelection", null) { data ->
-                val result = mutableListOf<String>()
-                data?.optJSONArray("content")?.also {
-                    for (i in 0 until it.length()) {
-                        val text = it.optString(i, "")!!
-                        result.add(text)
-                    }
-                }
-                callback(result)
+                callback(SelectionResult.fromJson(data))
             }
         }
     }
@@ -93,6 +86,33 @@ open class DivView : GroupView<DivAttr, DivEvent>() {
         }
     }
 
+}
+
+class SelectionResult internal constructor(
+    val content: List<String>,
+    val preContent: List<String>,
+    val postContent: List<String>
+) : List<String> by content {
+    companion object {
+        val EMPTY = SelectionResult(emptyList(), emptyList(), emptyList())
+        private fun JSONObject.optStrings(key: String): List<String> {
+            val list = mutableListOf<String>()
+            this.optJSONArray(key)?.also {
+                for (i in 0 until it.length()) {
+                    val text = it.optString(i, "")!!
+                    list.add(text)
+                }
+            }
+            return list
+        }
+        internal fun fromJson(json: JSONObject?): SelectionResult {
+            json ?: return EMPTY
+            val content = json.optStrings("content")
+            val preContent = json.optStrings("preContent")
+            val postContent = json.optStrings("postContent")
+            return SelectionResult(content, preContent, postContent)
+        }
+    }
 }
 
 enum class SelectionType(val value: Int) {

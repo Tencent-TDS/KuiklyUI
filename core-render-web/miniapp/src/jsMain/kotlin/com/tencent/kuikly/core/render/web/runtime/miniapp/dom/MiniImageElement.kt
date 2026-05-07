@@ -38,7 +38,7 @@ class MiniImageElement(
             val mode = getAttribute(MODE_ATTR).unsafeCast<String>()
             // adapt image cover value for mini app
             return when (mode) {
-                MODE_SCALE_FILL -> "stretch"
+                MODE_SCALE_FILL -> "fill"
                 MODE_ASPECT_FIT -> "contain"
                 else -> "cover"
             }
@@ -48,9 +48,14 @@ class MiniImageElement(
 
     private fun resetStyleSet(styleName: String, value: Any): Boolean {
         if (styleName == OBJECT_FIT) {
-            // adapt image cover value for mini app
+            // adapt image cover value for mini app.
+            // The upstream KRImageView maps Kuikly's `stretch` to the CSS
+            // value `fill` (so that H5 `<img>` gets the correct
+            // `object-fit: fill`). We therefore treat both `fill` and
+            // `stretch` as the MiniApp `scaleToFill` mode to keep the
+            // rendering consistent between H5 and MiniApp.
             val mode = when (value) {
-                "stretch" -> {
+                "fill", "stretch" -> {
                     MODE_SCALE_FILL
                 }
 

@@ -612,9 +612,14 @@ class MiniCssStyleDeclaration(private val miniElement: MiniElement) {
     }
 
     private fun checkIfNeedResetPosition(element: MiniElement): Boolean {
+        // Only support uniform-border case (single-value px like "12px"). When
+        // the four border widths differ (e.g. border-image with capInsets),
+        // borderWidth is serialized as a multi-value shorthand that cannot be
+        // parsed into a single Double; skip the per-side offset reset in that
+        // case to avoid NumberFormatException.
+        val bw = element.parentElement?.style?.borderWidth ?: return false
         return element.rawLeft != null && element.rawTop != null &&
-                element.parentElement?.style?.borderWidth != "" &&
-                element.parentElement?.style?.borderWidth?.endsWith("px") == true
+                bw != "" && bw.endsWith("px") && !bw.contains(' ')
     }
 
     private fun resetElementPosition(element: MiniElement) {

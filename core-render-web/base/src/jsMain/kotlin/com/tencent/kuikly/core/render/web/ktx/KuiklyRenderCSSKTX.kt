@@ -139,37 +139,47 @@ fun getCSSTransform(value: Any): Array<String> {
     )
 }
 
+/**
+ * Convert core-layer gradient string (format: `linear-gradient(<dir>,<hexColorInt> <stop01>,...)`)
+ * into a browser-valid CSS linear-gradient. Core layer emits color as the raw hex ARGB
+ * integer (see `Color.toString()`), so we reuse the same hex -> rgba conversion that
+ * `getCSSBackgroundImage` uses for `backgroundLinearGradient`.
+ */
 fun convertGradientStringToCssMask(gradientStr: String): String {
-    val directionMap = mapOf(
-        0 to "to top",
-        1 to "to bottom",
-        2 to "to left",
-        3 to "to right",
-        4 to "to top left",
-        5 to "to top right",
-        6 to "to bottom left",
-        7 to "to bottom right"
-    )
-
-    val pattern = """linear-gradient\((\d+),(.+)\)""".toRegex()
-    val match = pattern.find(gradientStr) ?: return gradientStr
-
-    val (dirNum, stops) = match.destructured
-    val direction = directionMap[dirNum.toInt()] ?: "to bottom"
-
-    // Improved color stop parsing
-    val colorStopPattern = """rgba\((\d+),(\d+),(\d+),([\d.]+)\)\s*([\d.]+)?""".toRegex()
-    val processedStops = stops.split(",(?![^()]*\\))".toRegex()).joinToString(", ") { stop ->
-        colorStopPattern.find(stop)?.let { mr ->
-            val (r, g, b, a, pos) = mr.destructured
-            val position = pos.takeIf { it.isNotEmpty() }?.let {
-                "${(it.toFloat() * 100).toInt()}%"
-            } ?: ""
-            "rgba($r,$g,$b,${a.toFloat()})${if (position.isNotEmpty()) " $position" else ""}"
-        } ?: stop
+    val startIndex = gradientStr.indexOf("(")
+    if (startIndex < 0 || !gradientStr.endsWith(")")) {
+        return gradientStr
     }
-
-    return "linear-gradient($direction, $processedStops)"
+    val inner = gradientStr.substring(startIndex + 1, gradientStr.length - 1)
+    val parts = inner.split(",")
+    if (parts.size < 2) {
+        return gradientStr
+    }
+    val direction = when (parts[0].trim()) {
+        "0" -> "to top"
+        "1" -> "to bottom"
+        "2" -> "to left"
+        "3" -> "to right"
+        "4" -> "to top left"
+        "5" -> "to top right"
+        "6" -> "to bottom left"
+        "7" -> "to bottom right"
+        else -> "to bottom"
+    }
+    val stops = StringBuilder()
+    for (i in 1 until parts.size) {
+        val colorStopSplit = parts[i].trim().split(" ")
+        val stop = if (colorStopSplit.size == 2) {
+            colorStopSplit[0].toRgbColor() + " " + (colorStopSplit[1].toFloat() * 100f) + "%"
+        } else {
+            colorStopSplit[0].toRgbColor()
+        }
+        stops.append(stop)
+        if (i != parts.size - 1) {
+            stops.append(", ")
+        }
+    }
+    return "linear-gradient($direction, $stops)"
 }
 
 /**
@@ -190,7 +200,13 @@ var Element.animationCompletionBlock: KuiklyRenderCallback?
  */
 private fun Element.checkAndUpdatePositionForH5(frame: Frame, style: CSSStyleDeclaration) {
     // update style for h5
-    if (style.borderWidth.endsWith(KRStyleConst.PX_SUFFIX)) {
+    // Note: when the four border widths are not all equal, browsers serialize
+    // `style.borderWidth` as a shorthand with multiple values (e.g.
+    // "12px 12px 12px 25px"), which must not be passed to pxToDouble(). In that
+    // case we skip the per-side child-offset adjustment (only used by the
+    // uniform-border layout path). The per-edge used below (borderTopWidth /
+    // borderLeftWidth) is always a single-value string and safe to parse.
+    if (isSingleValuePx(style.borderWidth)) {
         val borderWidth = style.borderWidth.pxToDouble()
         Promise.resolve(null).then {
             // if element has border, then element is border-box, then adjust the children's offset
@@ -217,7 +233,7 @@ private fun Element.checkAndUpdatePositionForH5(frame: Frame, style: CSSStyleDec
     // handle offset for dynamic child
     parentElement.unsafeCast<HTMLElement?>()?.let { parent ->
         val dynamicChild = this.asDynamic()
-        if (parent.style.borderWidth.endsWith(KRStyleConst.PX_SUFFIX) && jsTypeOf(dynamicChild.isAdujustedOffset) == KRJsTypeConst.UNDEFINED) {
+        if (isSingleValuePx(parent.style.borderWidth) && jsTypeOf(dynamicChild.isAdujustedOffset) == KRJsTypeConst.UNDEFINED) {
             // adjust offset for non adjusted child
             val borderWidth = parent.style.borderWidth.pxToDouble()
             style.left = (frame.x - borderWidth).toPxF()
@@ -225,6 +241,15 @@ private fun Element.checkAndUpdatePositionForH5(frame: Frame, style: CSSStyleDec
         }
     }
 }
+
+/**
+ * Whether the given CSS length string is a single-value px expression
+ * (e.g. "12px"). Shorthand multi-value strings like "12px 12px 12px 25px"
+ * are not safely parseable as a single Double and should be handled
+ * per-side by the caller.
+ */
+private fun isSingleValuePx(value: String): Boolean =
+    value.endsWith(KRStyleConst.PX_SUFFIX) && !value.contains(' ')
 
 /**
  * Set element frame

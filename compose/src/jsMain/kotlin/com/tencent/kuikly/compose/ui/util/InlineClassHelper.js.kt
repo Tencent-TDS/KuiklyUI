@@ -7,6 +7,8 @@
 
 package com.tencent.kuikly.compose.ui.util
 
+import kotlin.math.floor
+
 /*
  * JS-side implementation of the platform-abstract packed-value helpers.
  *
@@ -21,7 +23,7 @@ package com.tencent.kuikly.compose.ui.util
  * shared TypedArray views:
  *
  *   - `Float32Array(2)` + `Float64Array(buffer)`: write two Floats, read one Double back.
- *   - `Int32Array(2)` + `Float64Array(buffer)`: write two Ints, read one Double back.
+ *   - `Int` pairs use a JS safe-integer fast path and only allocate for rare full-range values.
  *
  * Kotlin/JS is single-threaded (each Web Worker has its own realm), so top-level
  * shared views are safe. The pack/unpack functions are purely synchronous and
@@ -44,69 +46,109 @@ private val floatViews: dynamic = js("""
 """)
 private val intViews: dynamic = js("""
 (function() {
-    var buf = new ArrayBuffer(8);
-    return { i32: new Int32Array(buf), f64: new Float64Array(buf) };
+    return {
+        pack: function(x, y) { return { x: x | 0, y: y | 0 }; },
+        x: function(value) { return value.x | 0; },
+        y: function(value) { return value.y | 0; },
+        equals: function(a, b) { return (a.x | 0) === (b.x | 0) && (a.y | 0) === (b.y | 0); }
+    };
 })()
 """)
 
-// Convenience accessors — no overhead, these are just property reads on a plain JS object.
-private inline val f32: dynamic get() = floatViews.f32
-private inline val f64FromF32: dynamic get() = floatViews.f64
-private inline val i32FromF32: dynamic get() = floatViews.i32
-private inline val i32: dynamic get() = intViews.i32
-private inline val f64FromI32: dynamic get() = intViews.f64
-
 actual fun packFloatsP(val1: Float, val2: Float): PackedFloats {
+    val views = floatViews
+    val f32 = views.f32
     f32[0] = val1
     f32[1] = val2
-    return f64FromF32[0].unsafeCast<Double>()
+    val value = views.f64[0]
+    if (value == value) {
+        return value.unsafeCast<Double>()
+    }
+    val i32 = views.i32
+    return intViews.pack(i32[0], i32[1]).unsafeCast<Any>()
 }
 
 actual fun unpackFloat1P(value: PackedFloats): Float {
-    f64FromF32[0] = value
-    return f32[0].unsafeCast<Float>()
+    val views = floatViews
+    if (value is Double) {
+        views.f64[0] = value
+    } else {
+        views.i32[0] = intViews.x(value)
+        views.i32[1] = intViews.y(value)
+    }
+    return views.f32[0].unsafeCast<Float>()
 }
 
 actual fun unpackFloat2P(value: PackedFloats): Float {
-    f64FromF32[0] = value
-    return f32[1].unsafeCast<Float>()
+    val views = floatViews
+    if (value is Double) {
+        views.f64[0] = value
+    } else {
+        views.i32[0] = intViews.x(value)
+        views.i32[1] = intViews.y(value)
+    }
+    return views.f32[1].unsafeCast<Float>()
 }
 
 actual fun packedFloatsBitEquals(a: PackedFloats, b: PackedFloats): Boolean {
-    // Bit-level equality that handles NaN correctly.
-    // IEEE-754 says `NaN != NaN`, but `Offset.Unspecified` relies on bit equality.
-    f64FromF32[0] = a
-    val aLo = i32FromF32[0].unsafeCast<Int>()
-    val aHi = i32FromF32[1].unsafeCast<Int>()
-    f64FromF32[0] = b
-    val bLo = i32FromF32[0].unsafeCast<Int>()
-    val bHi = i32FromF32[1].unsafeCast<Int>()
-    return aLo == bLo && aHi == bHi
+    if (a is Double && b is Double) {
+        if (a != b) {
+            return false
+        }
+        // Bit-level equality that handles NaN correctly.
+        // IEEE-754 says `NaN != NaN`, but `Offset.Unspecified` relies on bit equality.
+        val views = floatViews
+        val f64 = views.f64
+        val i32 = views.i32
+        f64[0] = a
+        val aLo = i32[0].unsafeCast<Int>()
+        val aHi = i32[1].unsafeCast<Int>()
+        f64[0] = b
+        val bLo = i32[0].unsafeCast<Int>()
+        val bHi = i32[1].unsafeCast<Int>()
+        return aLo == bLo && aHi == bHi
+    }
+    if (a is Double || b is Double) {
+        return false
+    }
+    return intViews.equals(a, b).unsafeCast<Boolean>()
 }
 
 actual fun packIntsP(val1: Int, val2: Int): PackedInts {
-    // val1 stored at slot 0, val2 at slot 1. unpackInt1P reads slot 0, unpackInt2P reads slot 1.
-    i32[0] = val1
-    i32[1] = val2
-    return f64FromI32[0].unsafeCast<Double>()
+    if (val1 >= INT_PACKED_FAST_MIN && val1 <= INT_PACKED_FAST_MAX &&
+        val2 >= INT_PACKED_FAST_MIN && val2 <= INT_PACKED_FAST_MAX
+    ) {
+        return ((val1 - INT_PACKED_FAST_MIN).toDouble() * INT_PACKED_FAST_BASE +
+            (val2 - INT_PACKED_FAST_MIN).toDouble()).unsafeCast<Double>()
+    }
+    return intViews.pack(val1, val2).unsafeCast<Any>()
 }
 
 actual fun unpackInt1P(value: PackedInts): Int {
-    f64FromI32[0] = value
-    return i32[0].unsafeCast<Int>()
+    if (value is Double) {
+        return floor(value / INT_PACKED_FAST_BASE).toInt() + INT_PACKED_FAST_MIN
+    }
+    return intViews.x(value).unsafeCast<Int>()
 }
 
 actual fun unpackInt2P(value: PackedInts): Int {
-    f64FromI32[0] = value
-    return i32[1].unsafeCast<Int>()
+    if (value is Double) {
+        return (value % INT_PACKED_FAST_BASE).toInt() + INT_PACKED_FAST_MIN
+    }
+    return intViews.y(value).unsafeCast<Int>()
 }
 
 actual fun packedIntsBitEquals(a: PackedInts, b: PackedInts): Boolean {
-    f64FromI32[0] = a
-    val aLo = i32[0].unsafeCast<Int>()
-    val aHi = i32[1].unsafeCast<Int>()
-    f64FromI32[0] = b
-    val bLo = i32[0].unsafeCast<Int>()
-    val bHi = i32[1].unsafeCast<Int>()
-    return aLo == bLo && aHi == bHi
+    if (a is Double && b is Double) {
+        return a == b
+    }
+    if (a is Double || b is Double) {
+        return false
+    }
+    return intViews.equals(a, b).unsafeCast<Boolean>()
 }
+
+private const val INT_PACKED_FAST_BITS = 26
+private const val INT_PACKED_FAST_BASE = 67108864.0
+private const val INT_PACKED_FAST_MIN = -33554432
+private const val INT_PACKED_FAST_MAX = 33554431

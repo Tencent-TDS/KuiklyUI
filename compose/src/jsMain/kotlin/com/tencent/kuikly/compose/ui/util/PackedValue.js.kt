@@ -8,14 +8,14 @@
 package com.tencent.kuikly.compose.ui.util
 
 /**
- * On JS, the backing storage is a plain `Double`. Float packing is performed by
- * reinterpreting the bits of two consecutive `Float32Array` slots as one
- * `Float64Array` slot; this avoids any Kotlin/JS Long allocation or soft-math.
+ * On JS, packed values are stored as lightweight JS values instead of Kotlin/JS `Long`.
+ * Most packed float pairs use a `Double` bit reinterpretation fast path; rare bit patterns
+ * that would become a JS `NaN` fall back to a small object to avoid NaN canonicalization.
  */
-actual typealias PackedFloats = Double
+actual typealias PackedFloats = Any
 
-/** Integer packing uses `Double` as well so that a full pair of `Int` survives round-trip. */
-actual typealias PackedInts = Double
+/** Integer packing uses a JS safe-integer fast path and falls back to an object out of range. */
+actual typealias PackedInts = Any
 
 /** Reserved for future TextUnit migration. */
 actual typealias PackedTextUnit = Double

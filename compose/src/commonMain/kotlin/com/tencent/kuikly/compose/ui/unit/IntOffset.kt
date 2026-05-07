@@ -25,6 +25,7 @@ import com.tencent.kuikly.compose.ui.util.PackedInts
 import com.tencent.kuikly.compose.ui.util.fastRoundToInt
 import com.tencent.kuikly.compose.ui.util.lerp
 import com.tencent.kuikly.compose.ui.util.packIntsP
+import com.tencent.kuikly.compose.ui.util.packedIntsBitEquals
 import com.tencent.kuikly.compose.ui.util.unpackInt1P
 import com.tencent.kuikly.compose.ui.util.unpackInt2P
 import kotlin.jvm.JvmInline
@@ -72,25 +73,36 @@ value class IntOffset internal constructor(@PublishedApi internal val packedValu
      * Subtract a [IntOffset] from another one.
      */
     @Stable
-    operator fun minus(other: IntOffset) =
-        IntOffset(
+    operator fun minus(other: IntOffset): IntOffset {
+        if (other.isZero()) {
+            return this
+        }
+        return IntOffset(
             packIntsP(
                 unpackInt1P(packedValue) - unpackInt1P(other.packedValue),
                 unpackInt2P(packedValue) - unpackInt2P(other.packedValue)
             )
         )
+    }
 
     /**
      * Add a [IntOffset] to another one.
      */
     @Stable
-    operator fun plus(other: IntOffset) =
-        IntOffset(
+    operator fun plus(other: IntOffset): IntOffset {
+        if (other.isZero()) {
+            return this
+        }
+        if (isZero()) {
+            return other
+        }
+        return IntOffset(
             packIntsP(
                 unpackInt1P(packedValue) + unpackInt1P(other.packedValue),
                 unpackInt2P(packedValue) + unpackInt2P(other.packedValue)
             )
         )
+    }
 
     /** Returns a new [IntOffset] representing the negation of this point. */
     @Stable
@@ -149,6 +161,8 @@ value class IntOffset internal constructor(@PublishedApi internal val packedValu
         val Zero = IntOffset(0, 0)
     }
 }
+
+private fun IntOffset.isZero(): Boolean = packedIntsBitEquals(packedValue, IntOffset.Zero.packedValue)
 
 /**
  * Linearly interpolate between two [IntOffset]s.

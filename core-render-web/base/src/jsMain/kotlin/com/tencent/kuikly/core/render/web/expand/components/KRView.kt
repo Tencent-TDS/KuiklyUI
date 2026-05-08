@@ -14,6 +14,7 @@ import com.tencent.kuikly.core.render.web.ktx.kuiklyDocument
 import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
 import com.tencent.kuikly.core.render.web.processor.IEvent
 import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
+import com.tencent.kuikly.core.render.web.processor.state
 import com.tencent.kuikly.core.render.web.runtime.dom.element.ElementType
 import com.tencent.kuikly.core.render.web.utils.DeviceType
 import com.tencent.kuikly.core.render.web.utils.DeviceUtils
@@ -186,7 +187,8 @@ open class KRView : IKuiklyRenderViewExport {
                         propValue.unsafeCast<KuiklyRenderCallback>().invoke(
                             mapOf(
                                 KRParamConst.X to it.clientX.toFloat(),
-                                KRParamConst.Y to it.clientY.toFloat()
+                                KRParamConst.Y to it.clientY.toFloat(),
+                                KRParamConst.STATE to it.state
                             )
                         )
                     }

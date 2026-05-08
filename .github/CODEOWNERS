@@ -11,9 +11,9 @@
 # universal files
 * @iPel @elixxli @ruifanyan @luoyibu @zenipchen @zealotchen0
 /README.md @elixxli @ruifanyan
-/buildSrc/ @elixxli
+/buildSrc/ @elixxli @iPel
 /androidApp/ @iPel @elixxli @zenipchen
-/core/ @iPel @zenipchen
+/core/ @iPel @zenipchen @luoyibu
 /compose/ @luoyibu @iPel @zenipchen
 /core-annotations/ @elixxli @iPel
 /core-kapt/ @elixxli @iPel
@@ -22,8 +22,8 @@
 /core-render-ios/ @luoyibu @ruifanyan
 /core-render-ohos/ @ruifanyan @iPel
 /core-render-web/ @gguoyu @xyc-cn @zealotchen0 @elixxli @etkmao
-/h5App/ @gguoyu @xyc-cn @zealotchen0 @elixxli
-/miniApp/ @gguoyu @xyc-cn @zealotchen0 @elixxli
+/h5App/ @gguoyu @xyc-cn @zealotchen0 @elixxli @etkmao
+/miniApp/ @gguoyu @xyc-cn @zealotchen0 @elixxli @etkmao
 /demo/ @iPel @zenipchen @luoyibu
 /gradle/ @elixxli @iPel
 /img/ @iPel @elixxli

@@ -369,6 +369,29 @@ static void registerExampleCModule(){
     KRRenderModuleRegister("MyExampleCModule", &ExampleModuleOnConstruct, &ExampleModuleOnDestruct, &ExampleModuleOnCallMethod, nullptr);
 }
 
+// 设置输入控件新实现开关。参数：int32 value（0=走老控件；1=走新 ARKUI_NODE_TEXT_EDITOR 控件，
+// 且仅在 API>=24 时生效）。仅影响设置后新创建的 Input/TextArea。
+// 开关值的实际存储位于 libkuikly.so（core-render-ohos 产物）内，本函数通过链接
+// 期符号解析调用对应的 C API，避免跨 so 使用 inline/static 变量每个模块一份副本导致开关失效。
+extern "C" void KRSetUseNewTextInputComponent(int value);
+static napi_value SetUseNewTextInputComponent(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value args[1] = {nullptr};
+    napi_value result;
+    napi_create_int32(env, 0, &result);
+    if (napi_ok != napi_get_cb_info(env, info, &argc, args, nullptr, nullptr)) {
+        napi_throw_error(env, "-1000", "napi_get_cb_info error");
+        return result;
+    }
+    int32_t value = 0;
+    if (argc >= 1 && args[0] != nullptr) {
+        napi_get_value_int32(env, args[0], &value);
+    }
+    KRSetUseNewTextInputComponent(value);
+    napi_create_int32(env, value, &result);
+    return result;
+}
+
 static int adapterRegistered = false;
 static napi_value InitKuikly(napi_env env, napi_callback_info info) {
     if (!adapterRegistered) {
@@ -396,6 +419,7 @@ static napi_value Init(napi_env env, napi_value exports) {
         {"initKuikly", nullptr, InitKuikly, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"setFontPath", nullptr, SetFontPath, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"setResourceManager", nullptr, SetResourceManager, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"setUseNewTextInputComponent", nullptr, SetUseNewTextInputComponent, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
     return exports;

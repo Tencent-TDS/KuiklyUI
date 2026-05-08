@@ -304,7 +304,7 @@ fun SubcomposeLayout(
                         kuiklyInfo.ignoreScrollOffset = null
                         return@scroll
                     }
-                    /*（macOS 上 setContentOffset(0,0) 与当前 offset 一致时 documentView.scrollPoint
+                    /* macOS 上 setContentOffset(0,0) 与当前 offset 一致时 documentView.scrollPoint
                      * 不触发 bounds change 回调，导致 ignoreScrollOffset 永远无法被清除的死锁）
                      * 此时清除过期标记并继续向下执行正常滚动处理。
                      */

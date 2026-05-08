@@ -62,6 +62,8 @@ set(SOURCE_SET
         libohos_render/utils/KRTransformParser.cpp
         libohos_render/expand/components/input/KRTextFieldView.cpp
         libohos_render/expand/components/input/KRTextAreaView.cpp
+        libohos_render/expand/components/input/KRTextEditorFieldView.cpp
+        libohos_render/expand/components/input/KRTextEditorAreaView.cpp
         libohos_render/manager/KRKeyboardManager.cpp
         libohos_render/expand/modules/forward/KRForwardArkTSModule.cpp
         libohos_render/expand/modules/preferences/KRPreferences.cpp

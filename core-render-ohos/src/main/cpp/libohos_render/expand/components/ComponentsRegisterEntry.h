@@ -25,6 +25,8 @@
 #include "libohos_render/expand/components/image/KRImageView.h"
 #include "libohos_render/expand/components/image/KRImageViewWrapper.h"
 #include "libohos_render/expand/components/input/KRTextAreaView.h"
+#include "libohos_render/expand/components/input/KRTextEditorAreaView.h"
+#include "libohos_render/expand/components/input/KRTextEditorFieldView.h"
 #include "libohos_render/expand/components/input/KRTextFieldView.h"
 #include "libohos_render/expand/components/mask/KRMaskView.h"
 #include "libohos_render/expand/components/modal/KRModalView.h"
@@ -36,6 +38,8 @@
 #include "libohos_render/expand/components/view/KRView.h"
 #include "libohos_render/export/IKRRenderViewExport.h"
 #include "libohos_render/view/IKRRenderView.h"
+
+#include <deviceinfo.h>
 
 /**
  * 内置组件均在此注册生成实例闭包
@@ -66,11 +70,40 @@ static void ComponentsRegisterEntry() {
     IKRRenderViewExport::RegisterViewCreator("KRScrollView", [] { return std::make_shared<KRScrollerView>(); });
     IKRRenderViewExport::RegisterViewCreator("KRScrollContentView",
                                              [] { return std::make_shared<KRScrollerContentView>(); });
+
+    // 运行期 SDK API 版本，注册期查询一次即可。
+    // 仅在编译期 SDK header >= 24（TEXT_EDITOR 相关 API 可用）时才考虑新控件，
+    // 否则即便运行设备版本足够高、开关打开，新控件的 CreateNode/DidInit 等也都是空壳，
+    // 会导致输入框不工作——此处用预处理保护，彻底规避"低 header 编译 + 高版本设备"的错位风险。
+#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+    const int gApiVersion = OH_GetSdkApiVersion();
     // single line - text input (单行输入框)
-    IKRRenderViewExport::RegisterViewCreator("KRTextFieldView", [] { return std::make_shared<KRTextFieldView>(); });
+    // 需同时满足：1）运行期 SDK API 版本 >= 24（ARKUI_NODE_TEXT_EDITOR 可用）；
+    //          2）全局开关 KRGetUseNewTextInputComponent() == 1。
+    // 两者任一不满足都回退到老的 KRTextFieldView，保证默认行为与历史一致。
+    IKRRenderViewExport::RegisterViewCreator("KRTextFieldView", [gApiVersion] {
+        if (gApiVersion >= 24 && KRGetUseNewTextInputComponent() == 1) {
+            return std::static_pointer_cast<IKRRenderViewExport>(
+                std::make_shared<KRTextEditorFieldView>());
+        }
+        return std::static_pointer_cast<IKRRenderViewExport>(std::make_shared<KRTextFieldView>());
+    });
 
     // multi-line text input
-    IKRRenderViewExport::RegisterViewCreator("KRTextAreaView", [] { return std::make_shared<KRTextAreaView>(); });
+    IKRRenderViewExport::RegisterViewCreator("KRTextAreaView", [gApiVersion] {
+        if (gApiVersion >= 24 && KRGetUseNewTextInputComponent() == 1) {
+            return std::static_pointer_cast<IKRRenderViewExport>(
+                std::make_shared<KRTextEditorAreaView>());
+        }
+        return std::static_pointer_cast<IKRRenderViewExport>(std::make_shared<KRTextAreaView>());
+    });
+#else
+    // 编译期 SDK header < 24，TEXT_EDITOR 相关类型均为空壳，直接注册老控件。
+    IKRRenderViewExport::RegisterViewCreator("KRTextFieldView",
+                                             [] { return std::make_shared<KRTextFieldView>(); });
+    IKRRenderViewExport::RegisterViewCreator("KRTextAreaView",
+                                             [] { return std::make_shared<KRTextAreaView>(); });
+#endif
 
     // modal
     IKRRenderViewExport::RegisterViewCreator("KRModalView", [] { return std::make_shared<KRModalView>(); });

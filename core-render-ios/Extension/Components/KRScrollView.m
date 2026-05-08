@@ -449,6 +449,7 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     int curve = curveSpecified ? [points[6] intValue] : 0;
     CGPoint contentOffset = CGPointMake([points.firstObject doubleValue], [points[1] doubleValue]);
     [self p_setTargetContentOffsetIfNeed:contentOffset];
+    self.skipNestScrollLock = YES;
     if (damping || curveSpecified) {
         [self p_springAnimationWithContentOffset:contentOffset duration:duration damping:damping velocity:velocity curve:curve];
         return ;
@@ -457,7 +458,6 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     if (!UIEdgeInsetsEqualToEdgeInsets(self.contentInset, newContentInsets)) {
         self.contentInset = newContentInsets;
     }
-    self.skipNestScrollLock = YES;
     [self setContentOffset:contentOffset animated:animated];
 }
 

@@ -412,10 +412,10 @@ object RichTextProcessor : IRichTextProcessor {
             val usedStrokeWidth = strokeWidth / 4
             style.asDynamic().webkitTextStroke = "${usedStrokeWidth}px $strokeColor"
         }
-        val lineSpacing = value.optDouble(LETTER_SPACING, -1.0)
-        if (lineSpacing != -1.0) {
-            // Set lineHeight based on line spacing
-            style.lineHeight = lineSpacing.toNumberFloat().toString()
+        val letterSpacing = value.optDouble(LETTER_SPACING, -1.0)
+        if (letterSpacing != -1.0) {
+            // Set letterSpacing based on letter spacing
+            style.letterSpacing = letterSpacing.toNumberFloat().toPxF()
         }
         val lineHeight = value.optDouble(LINE_HEIGHT, -1.0)
         if (lineHeight != -1.0) {

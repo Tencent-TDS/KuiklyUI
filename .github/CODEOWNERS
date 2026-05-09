@@ -9,33 +9,34 @@
 #
 
 # universal files
-* @wwwcg @iPel @hidawei @elixxli @ruifanyan @luoyibu @zenipchen
-/README.md @hidawei
-/buildSrc/ @elixxli
-/androidApp/ @hidawei @elixxli
-/core/ @iPel @hidawei
+* @iPel @elixxli @ruifanyan @luoyibu @zenipchen @zealotchen0
+/README.md @elixxli @ruifanyan
+/buildSrc/ @elixxli @iPel
+/androidApp/ @iPel @elixxli @zenipchen
+/core/ @iPel @zenipchen @luoyibu
 /compose/ @luoyibu @iPel @zenipchen
-/core-annotations/ @elixxli
-/core-kapt/ @elixxli
-/core-ksp/ @elixxli
-/core-render-android/ @iPel @hidawei
-/core-render-ios/ @wwwcg
-/core-render-web/ @gguoyu @xyc-cn @zealotchen0 @elixxli
-/h5App/ @gguoyu @xyc-cn @zealotchen0 @elixxli
-/miniApp/ @gguoyu @xyc-cn @zealotchen0 @elixxli
-/demo/ @hidawei
-/gradle/ @elixxli
-/img/ @hidawei
-/iosApp/ @wwwcg @luoyibu
+/core-annotations/ @elixxli @iPel
+/core-kapt/ @elixxli @iPel
+/core-ksp/ @elixxli @iPel
+/core-render-android/ @iPel @zenipchen
+/core-render-ios/ @luoyibu @ruifanyan
+/core-render-ohos/ @ruifanyan @iPel
+/core-render-web/ @gguoyu @xyc-cn @zealotchen0 @elixxli @etkmao
+/h5App/ @gguoyu @xyc-cn @zealotchen0 @elixxli @etkmao
+/miniApp/ @gguoyu @xyc-cn @zealotchen0 @elixxli @etkmao
+/demo/ @iPel @zenipchen @luoyibu
+/gradle/ @elixxli @iPel
+/img/ @iPel @elixxli
+/iosApp/ @luoyibu @ruifanyan
 /*.sh @elixxli @iPel
 /*.gradle.kts @elixxli @iPel
-/CODE_OF_CONDUCT.md @hidawei
-/CONTRIBUTING.md @hidawei
-/LICENSE @hidawei
-/README* @hidawei
-/OpenKuiklyIOSRender.podspec @wwwcg @luoyibu
+/CODE_OF_CONDUCT.md @iPel @luoyibu
+/CONTRIBUTING.md @iPel @luoyibu
+/LICENSE @iPel @luoyibu
+/README* @iPel @luoyibu
+/OpenKuiklyIOSRender.podspec @luoyibu @ruifanyan
 /gradlew*  @elixxli @iPel
-/.gitignore @iPel @hidawei
+/.gitignore @iPel @elixxli
 
 
 

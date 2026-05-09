@@ -44,6 +44,18 @@ object PCPanEventHandler {
             mouseDownEleIds.clear()
             panHandler = null
         })
+
+        // Defensive fallback: a native HTML5 drag swallows mousemove/mouseup, so we must
+        // also finalize the pan state on `dragend` / `drop` to avoid the gesture being
+        // stuck open until the next click. See KuiklyProcessor.preventDefaultDrag.
+        val dragFinalizer: (Event) -> Unit = { evt ->
+            // dragend / drop both inherit from MouseEvent.
+            panHandler?.handleMouseUp(evt as MouseEvent)
+            mouseDownEleIds.clear()
+            panHandler = null
+        }
+        kuiklyWindow.addEventListener("dragend", dragFinalizer)
+        kuiklyWindow.addEventListener("drop", dragFinalizer)
     }
 }
 
@@ -395,15 +407,24 @@ class TouchEventHandlers {
             })
 
             // Prevent text selection
-            if (KuiklyProcessor.preventDefaultDragAndSelect) {
+            if (KuiklyProcessor.preventDefaultSelect) {
                 element.addEventListener("selectstart", {
                     it.preventDefault();
                 })
             }
             // Prevent image drag
-            if (KuiklyProcessor.preventDefaultDragAndSelect) {
+            if (KuiklyProcessor.preventDefaultDrag) {
                 element.addEventListener("dragstart", {
                     it.preventDefault();
+                })
+            } else {
+                // Defensive fallback: if native HTML5 drag is allowed, the browser
+                // will stop dispatching mousemove/mouseup once a drag starts. Without
+                // this fallback `isMouseDown` would stay true and the pan state machine
+                // would be stuck. Proactively finalize the pan state on dragstart.
+                element.addEventListener("dragstart", { evt ->
+                    handleMouseUp(evt as MouseEvent)
+                    PCPanEventHandler.mouseDownEleIds.remove(element.id)
                 })
             }
         }

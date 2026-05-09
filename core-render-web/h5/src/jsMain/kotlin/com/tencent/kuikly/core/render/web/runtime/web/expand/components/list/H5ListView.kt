@@ -537,15 +537,28 @@ class H5ListView : IListElement {
             }, json(KRAttrConst.PASSIVE to true))
 
             // Prevent text selection
-            if (KuiklyProcessor.preventDefaultDragAndSelect) {
+            if (KuiklyProcessor.preventDefaultSelect) {
                 ele.addEventListener(KREventConst.SELECT_START, {
                     it.preventDefault()
                 })
             }
             // Prevent image drag
-            if (KuiklyProcessor.preventDefaultDragAndSelect) {
+            if (KuiklyProcessor.preventDefaultDrag) {
                 ele.addEventListener(KREventConst.DRAG_START, {
                     it.preventDefault()
+                })
+            } else {
+                // Defensive fallback: when native HTML5 drag is allowed (e.g. user disabled
+                // [preventDefaultDrag] / [preventDefaultDragAndSelect] to support text copy),
+                // a `dragstart` will cause the browser to stop dispatching mousemove/mouseup,
+                // which would leave `pcScrollHelper.isMouseDown` stuck as true and the list
+                // would keep following the cursor until the next click. So we proactively
+                // finalize the PC scroll state when a drag starts.
+                ele.addEventListener(KREventConst.DRAG_START, { evt ->
+                    // dragstart inherits from MouseEvent.
+                    val mouseEvt = evt as MouseEvent
+                    pcScrollHelper.cancelMouseInteraction(mouseEvt)
+                    PCListScrollHandler.cancelMouseInteraction(mouseEvt)
                 })
             }
         }

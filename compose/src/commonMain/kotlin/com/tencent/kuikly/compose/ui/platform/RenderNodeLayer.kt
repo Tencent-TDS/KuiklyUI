@@ -47,12 +47,14 @@ import com.tencent.kuikly.compose.ui.node.KNode.Companion.translate
 import com.tencent.kuikly.compose.ui.node.OwnedLayer
 import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.compose.ui.unit.IntSize
+import com.tencent.kuikly.core.base.DeclarativeBaseView
 import kotlin.math.abs
 import kotlin.math.max
 
 internal class RenderNodeLayer(
     private val invalidateParentLayer: () -> Unit,
     private val drawBlock: (Canvas) -> Unit,
+    private val view: DeclarativeBaseView<*, *>?,
     private val onDestroy: () -> Unit = {},
 ) : OwnedLayer {
     private var size = IntSize.Zero
@@ -232,8 +234,9 @@ internal class RenderNodeLayer(
     }
 
     private fun performDrawLayer(canvas: Canvas) {
+        val layerView = view ?: canvas.view
         if (alpha > 0f) {
-            canvas.view?.apply {
+            layerView?.apply {
                 // todo deal with position
                 measuredSize(size.width, size.height)
                 // todo deal with transformOrigin.pivotFractionX, transformOrigin.pivotFractionY
@@ -263,7 +266,7 @@ internal class RenderNodeLayer(
             }
             drawBlock(canvas)
         } else {
-            canvas.view?.alpha(0f)
+            layerView?.alpha(0f)
         }
     }
 

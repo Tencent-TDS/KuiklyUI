@@ -96,6 +96,7 @@ object KREventConst {
     const val CLICK = "click"
     const val SELECT_START = "selectstart"
     const val DRAG_START = "dragstart"
+    const val DRAG_END = "dragend"
     const val TRANSITION_END = "transitionend"
     const val INPUT = "input"
     const val FOCUS = "focus"

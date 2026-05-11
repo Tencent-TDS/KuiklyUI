@@ -70,4 +70,20 @@ interface IRichTextProcessor {
      * set rich text values
      */
     fun setRichTextValues(richTextValues: JSONArray, view: KRRichTextView)
+
+    /**
+     * Return "offsetLeft offsetTop width height" for a placeholder span at [index].
+     * Return "" to let the caller fall back to the default DOM-based measurement (H5).
+     */
+    fun getPlaceholderSpanRect(index: Int, view: KRRichTextView): String = ""
+
+    /**
+     * Apply the `lineBreakMargin` visual reserved-blank for a plain-text
+     * (non-rich) view. Platforms that cannot rely on DOM `insertBefore`
+     * (e.g. mini-app) should override this to inject the two floating spans
+     * via their own node-serialization path and return `true`. Platforms
+     * that can handle it with real DOM (e.g. H5) should keep the default
+     * `false` so the caller falls back to the DOM-based logic.
+     */
+    fun applyPlainTextLineBreakMargin(view: KRRichTextView): Boolean = false
 }

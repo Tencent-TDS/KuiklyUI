@@ -91,6 +91,13 @@ class KuiklyWebRenderViewDelegator : KuiklyRenderViewDelegatorDelegate {
     }
 
     /**
+     * Page fontLoaded
+     */
+    fun fontLoaded() {
+        delegate.onFontLoaded()
+    }
+
+    /**
      * Register custom modules
      */
     override fun registerExternalModule(kuiklyRenderExport: IKuiklyRenderExport) {

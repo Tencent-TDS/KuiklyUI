@@ -3,6 +3,16 @@
     <img alt="Kuikly Logo"  src="img/kuikly_logo.svg" width="200" />
 </p>
 
+<p align="center">
+
+[![GitHub Release](https://img.shields.io/github/v/release/Tencent-TDS/KuiklyUI)](https://github.com/Tencent-TDS/KuiklyUI/releases)
+[![License](https://img.shields.io/badge/license-KuiklyUI%20License-blue)](https://github.com/Tencent-TDS/KuiklyUI/blob/main/LICENSE)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.1.21-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
+[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20macOS%20%7C%20HarmonyOS%20%7C%20Web%20%7C%20MiniApp-brightgreen)](https://github.com/Tencent-TDS/KuiklyUI)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Tencent-TDS/KuiklyUI/pulls)
+
+</p>
+
 English | [简体中文](./README-zh_CN.md) | [Homepage](https://framework.tds.qq.com/)
 
 
@@ -103,6 +113,17 @@ Alternatively, open KuiklyUI/iosApp in Xcode and Run
 
 > Note: The iosApp project will execute the KMP script when compiling. If you encounter an error with the script read and write file permissions, you need to set `User Script Sandboxing` to `No` in `Xcode -> Build Setting`.
 
+### Running macOS App
+Ensure environment preparation is complete before building:
+1. Navigate to `macApp` directory
+2. Execute `pod install --repo-update`
+3. Open `KuiklyUI` root directory in Android Studio and sync project
+4. Select macOSApp configuration, then Run 'macOSApp'
+
+Alternatively, open KuiklyUI/macApp in Xcode and Run
+
+> Note: The macApp project will execute the KMP script when compiling. If you encounter an error with the script read and write file permissions, you need to set `User Script Sandboxing` to `No` in `Xcode -> Build Setting`.
+
 ### Running Ohos APP
 Ensure environment preparation is complete before building:
 
@@ -163,7 +184,7 @@ After successful build on any platform, you can modify Core, Render, and Demo to
 Scan the QR code with an Android phone to quickly try the demo. For iPhone and HarmonyOS phones, please follow the steps above to compile and experience the demo app from the source code.
 
 ## Roadmap
-[Roadmap (2025)](https://kuikly.tds.qq.com/Blog/roadmap2025.html)
+[Roadmap (2026)](https://kuikly.tds.qq.com/Blog/roadmap2026.html) | [Roadmap (2025)](https://kuikly.tds.qq.com/Blog/roadmap2025.html)
 
 ## Contribution Guidelines
 We welcome all developers to submit issues or PRs for `Kuikly`. Please review our [Contribution Guide](CONTRIBUTING.md) before contributing.
@@ -213,3 +234,4 @@ Scan the QR codes below to follow our latest updates or contact us for inquiries
 
 ## Additional Notes
 The copyright notice pertaining to the Tencent code in this repo was previously in the name of “THL A29 Limited.”  That entity has now been de-registered.  You should treat all previously distributed copies of the code as if the copyright notice was in the name of “Tencent.”
+

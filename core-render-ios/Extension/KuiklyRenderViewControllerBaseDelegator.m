@@ -371,6 +371,15 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     return nil;
 }
 
+// 新增：返回 TurboDisplay 配置实例
+- (KRTurboDisplayConfig *)turboDisplayConfig {
+    if ([self.delegate respondsToSelector:@selector(configureTurboDisplay)]) {
+        KRTurboDisplayConfig *config = [self.delegate configureTurboDisplay];
+        return config ? [config copy] : nil;
+    }
+    return nil;
+}
+
 
 - (UIWindow *)viewControllerHostWindow {
     if ([self.delegate respondsToSelector:@selector(viewControllerHostWindow)]) {

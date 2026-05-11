@@ -120,8 +120,15 @@ internal class ExampleIndexPage : BasePager() {
         itemList.add(ExampleItemData().apply {
             avatarText = "In"
             titleText = "InputView"
-            subtitleText = "单行/多行(TextArea)输入框组件，用法一致"
+            subtitleText = "单行输入框组件"
             declarativeExampleUrl = generateJumpUrl("InputViewDemoPage")
+        })
+
+        itemList.add(ExampleItemData().apply {
+            avatarText = "Ta"
+            titleText = "TextArea"
+            subtitleText = "多行输入框，与 Input 用法一致，支持换行 / keyboardHeightChange / textLengthBeyondLimit 等"
+            declarativeExampleUrl = generateJumpUrl("TextAreaDemoPage")
         })
 
         itemList.add(ExampleItemData().apply {
@@ -274,10 +281,36 @@ internal class ExampleIndexPage : BasePager() {
             declarativeExampleUrl = generateJumpUrl("VideoExamplePage")
         })
 
+        // 仅在微信小程序平台展示 WX 组件 / API 示例
+        if (pageData.params.optString(IS_MINI_PROGRAM) == "1") {
+            itemList.add(ExampleItemData().apply {
+                avatarText = "WX"
+                titleText = "WX Demo"
+                subtitleText = "微信小程序封装组件示例（WXButton 等）"
+                declarativeExampleUrl = generateJumpUrl("WXExamplePage")
+            })
+            itemList.add(ExampleItemData().apply {
+                avatarText = "API"
+                titleText = "WX API Demo"
+                subtitleText = "微信小程序封装 API 示例（登录 / 存储 / Toast / 定位 / 扫码 等）"
+                declarativeExampleUrl = generateJumpUrl("WXApiExamplePage")
+            })
+            itemList.add(ExampleItemData().apply {
+                avatarText = "Raw"
+                titleText = "WX Raw API Demo"
+                subtitleText = "兜底桥：直接调用任意 wx.xxx"
+                declarativeExampleUrl = generateJumpUrl("WXRawApiExamplePage")
+            })
+        }
+
     }
 
     private fun generateJumpUrl(pagerName: String) : String {
         return pagerName
+    }
+
+    companion object {
+        private const val IS_MINI_PROGRAM = "is_miniprogram"
     }
 
 }

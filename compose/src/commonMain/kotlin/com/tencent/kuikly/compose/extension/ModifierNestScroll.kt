@@ -108,7 +108,10 @@ private class NestedScrollNode(
         // 1. 获取底层视图
         val layoutNode = requireLayoutNode()
         val kNode = layoutNode as? KNode<*> ?: return
-        val scrollerView = kNode.view as? ScrollerView<*, *> ?: return
+        // Try current node's view first, then find the first child's ScrollerView
+        val scrollerView = (kNode.view as? ScrollerView<*, *>)
+            ?: layoutNode.findFirstChildScrollerView()
+            ?: return
 
         // 2. 转换为框架需要的模式
         val krUpMode = currentUpMode.toFrameworkMode()

@@ -54,6 +54,9 @@ abstract class DeclarativeBaseView<A : Attr, E : Event> : AbstractBaseView<A, E>
 
     internal var absoluteFlexNode : Boolean = false
 
+    // 渲染属性对象,延迟初始化
+    public var renderProperties: Any? = null
+
     override fun <T : DeclarativeBaseView<*, *>> T.ref(ref: (viewRef: ViewRef<T>) -> Unit) {
         ref(ViewRef<T>(pagerId, nativeRef))
     }
@@ -283,7 +286,7 @@ abstract class DeclarativeBaseView<A : Attr, E : Event> : AbstractBaseView<A, E>
 
     /**
      * 获取View截图
-     * 注：暂时仅支持鸿蒙平台（1.1.71版本）
+     * 注：支持鸿蒙平台（1.1.71版本）、iOS平台、Android平台
      *
      * @param type 截图类型
      * @param sampleSize 采样率，取值大于或等于1，默认1

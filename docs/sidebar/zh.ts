@@ -100,11 +100,13 @@ export const zhSidebar = sidebar({
                                 {
                                     text: "性能优化",
                                     collapsible: true,
-                                    children: ["kuikly-perf-guidelines.md", "android-start-guide.md"]
+                                    children: ["kuikly-perf-guidelines.md", "android-start-guide.md", "turboDisplay.md"]
                                 }
                             ]
                         },
                         "view-external-prop.md",
+                        "text-measure.md",
+                        "get-component-size-and-position.md",
                         "protobuf.md",
                         "thread-and-coroutines.md",
                         "multi-page.md"]
@@ -118,7 +120,7 @@ export const zhSidebar = sidebar({
                                 {
                                     text: "开发方式与集成",
                                     collapsible: true,
-                                    children : ["dev-overview.md", "android-dev.md", "ios-dev.md", "harmony-dev.md", "h5-dev.md", "miniapp-dev.md"]
+                                    children : ["dev-overview.md", "android-dev.md", "ios-dev.md", "harmony-dev.md", "h5-dev.md", "miniapp-dev.md", "miniapp-wx-components.md"]
                                 },
                                 {
                                     text: "调试与工具",
@@ -127,7 +129,9 @@ export const zhSidebar = sidebar({
                                 },
                             ]
                         },
-                        "multi_module.md"
+                        "multi_module.md",
+                        "version_skills.md",
+                        "compile_skills.md"
                     ]
                 },
 
@@ -141,7 +145,7 @@ export const zhSidebar = sidebar({
                                 {
                                     text: "堆栈捕获和还原",
                                     collapsible: true,
-                                    children: ["kuiklybase-feat-stack-symbolication.md", "symbol-iOS.md", "ohos-kn-stack-symbolication.md"]
+                                    children: ["kuiklybase-feat-stack-symbolication.md", "symbol-iOS.md", "ohos-kn-stack-symbolication.md", "ohos-kn-stack-symbolication-report.md", ]
                                 },
                                 {
                                     text: "脚手架和插件",
@@ -157,7 +161,7 @@ export const zhSidebar = sidebar({
                     text: "Web教程",
                     collapsible: false,
                     children: [
-                        "web-import-jssdk.md", "h5-image-path.md", "h5-spa-demo.md"
+                        "web-import-jssdk.md", "h5-image-path.md", "h5-spa-demo.md", "h5-custom-font.md", "h5-css-class.md"
                     ]
                 }
             ],
@@ -243,12 +247,24 @@ export const zhSidebar = sidebar({
         }
     ],  
     "/Community": [
-        "component_market.md",
-        "tech_sharing.md",
         "contribute-guide.md",
+        "honor_wall.md",
         "contributor_role.md",
+        "contributor_role_details.md",
+        {
+            text: "社区生态",
+            collapsible: false,
+            children: [
+                "component_market.md",
+                "tech_sharing.md",
+                "kmp_ohos_adaptation_guide.md",
+                "kuikly_extension_lib_guide.md",
+            ]
+        },
     ],
+    "/AI/": false,
     "/Blog": [
+        "roadmap2026.md",
         "roadmap2025.md",
         {
             text: "架构原理",

@@ -69,6 +69,10 @@ internal fun ScrollableState.kuiklyOnScrollEnd(params: ScrollParams) {
         is KuiklyScrollableState -> kuiklyOnScrollEnd(params)
         else -> { /* No need to handle */ }
     }
+    // Pager uses a different scroll-end sync path; skip lazy scroll expansion here.
+    if (this !is PagerState && this !is KuiklyScrollableState) {
+        tryExpandStartSizeNoScroll()
+    }
 }
 
 /**
@@ -123,6 +127,7 @@ internal suspend fun ScrollableState.animateScrollToTop() {
         is LazyListState -> this.animateScrollToItem(0)
         is LazyGridState -> this.animateScrollToItem(0)
         is LazyStaggeredGridState -> this.animateScrollToItem(0)
+        is PagerState -> this.animateScrollToPage(0)
         else -> {}
     }
 }
@@ -150,7 +155,22 @@ internal fun ScrollableState.requestScrollToTop() {
         is LazyListState -> requestScrollToItem(0)
         is LazyGridState -> requestScrollToItem(0)
         is LazyStaggeredGridState -> requestScrollToItem(0)
+        is PagerState -> requestScrollToPage(0)
         // ScrollState does not have request API; skip for now
         else -> {}
+    }
+}
+
+/**
+ * Check if scroll to top callback is set.
+ * If callback is set, invoke it and return true; otherwise return false.
+ */
+internal fun ScrollableState.handleScrollToTopCallback(): Boolean {
+    val callback = kuiklyInfo.scrollToTopCallback
+    return if (callback != null) {
+        callback.invoke()
+        true
+    } else {
+        false
     }
 }

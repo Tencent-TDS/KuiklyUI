@@ -44,6 +44,12 @@ fun main() {
     // Register Kuikly event listener for Web host to receive events from Kuikly pages
     // When Kuikly page calls NotifyModule.postNotify(), Web host can receive the event here
     registerKuiklyEventListener()
+
+    // When using custom fonts, fonts are loaded asynchronously, so a re-layout needs to be 
+    // triggered after loading completes to re-measure text with the correct font metrics
+    // document.asDynamic().fonts.load("16px 'Kanit Medium'").then({ _ ->
+    //     delegator.fontLoaded()
+    // })
 }
 
 /**

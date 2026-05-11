@@ -129,6 +129,25 @@ internal class TestPage : BasePager() {
 
 :::
 
+### replaceTextLayerContent <Badge text="微信小程序实现中" type="warn"/>
+
+替换当前 PAG 资源中的文字图层信息（适用于单个图层替换场景，多个图层替换请使用 `replaceLayerContents`）
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| layerName | 目标图层名称 | String |
+| textContent | 替换的文本内容 | String |
+
+### replaceImageLayerContent <Badge text="微信小程序实现中" type="warn"/>
+
+替换当前 PAG 资源中的图像图层信息（适用于单个图层替换场景，多个图层替换请使用 `replaceLayerContents`）
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| layerName | 目标图层名称 | String |
+| imageFilePath | 替换的图片资源文件路径（与 uri 二选一） | String |
+| uri | 替换的图片 Assets 资源 uri（与 imageFilePath 二选一） | ImageUri |
+
 ## 事件
 
 支持所有[基础事件](basic-attr-event.md#基础事件)，此外还支持：
@@ -157,8 +176,16 @@ internal class TestPage : BasePager() {
 
 ### play <Badge text="微信小程序实现中" type="warn"/>
 
-设置动画重复时的事件回调播放动画（autoPlay属性为true时不需要手动调用该接口）
+播放动画（autoPlay属性为true时不需要手动调用该接口）
 
 ### stop <Badge text="微信小程序实现中" type="warn"/>
 
 停止动画
+
+### setProgress <Badge text="微信小程序实现中" type="warn"/>
+
+设置动画播放进度
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| value | 播放进度，有效值为 0.0 到 1.0 | Float |

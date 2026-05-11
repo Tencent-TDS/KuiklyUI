@@ -234,7 +234,7 @@ internal class FontSizePage : BasePager() {
 | fontFamily | 字体名称  | String |
 
 :::tip 注意
-如果需要使用自定义字体，安卓和鸿蒙端需要实现[自定义字体适配器](../../QuickStart/android.md#自定义字体适配器)，iOS端需要在系统中[注册字体](https://developer.apple.com/documentation/uikit/adding-a-custom-font-to-your-app?language=objc)。
+如果需要使用自定义字体，安卓和鸿蒙端需要实现[自定义字体适配器](../../QuickStart/android.md#自定义字体适配器)，iOS端需要在系统中[注册字体](https://developer.apple.com/documentation/uikit/adding-a-custom-font-to-your-app?language=objc)，H5端需要判断字体加载完成后[重新测量](../../DevGuide/h5-custom-font.md)。
 :::
 示例：
 ```kotlin

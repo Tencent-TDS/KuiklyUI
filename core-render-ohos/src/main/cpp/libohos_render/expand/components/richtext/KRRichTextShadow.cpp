@@ -540,6 +540,12 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
     if (constraint_width == 0) {
         constraint_width = 10000000;  // 无限宽
     }
+    // headIndent: 首行缩进（第一个元素为首行缩进，第二个元素为0表示后续行不缩进）
+    auto headIndent = GetKRValue("headIndent", props_, props_)->toFloat();
+    if (headIndent > 0) {
+        float indents[] = {static_cast<float>(headIndent * dpi), 0.0f};
+        OH_Drawing_TypographySetIndents(context_thread_typography_, 2, indents);
+    }
     double maxWidth = constraint_width * dpi;
     OH_Drawing_TypographyLayout(context_thread_typography_, maxWidth);
     did_exceed_max_lines_ = OH_Drawing_TypographyDidExceedMaxLines(context_thread_typography_);

@@ -36,9 +36,7 @@ import com.tencent.kuikly.compose.setContent
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.Color
-import com.tencent.kuikly.compose.ui.text.style.TextAlign
 import com.tencent.kuikly.compose.ui.unit.dp
-import com.tencent.kuikly.compose.ui.unit.sp
 import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.views.VideoPlayControl
 
@@ -57,10 +55,6 @@ internal class ComposeVideoDemo : ComposeContainer() {
 
 @Composable
 fun ComposeVideoDemoImpl(){
-    // 定义当前播放时间和总时间
-    var currentTime by remember { mutableStateOf(0) }
-    var totalTime by remember { mutableStateOf(1) } // 避免除以0错误
-
     // 定义播放控制状态
     var playControl by remember { mutableStateOf(VideoPlayControl.PLAY) }
 
@@ -77,13 +71,6 @@ fun ComposeVideoDemoImpl(){
         Video(
             src = videoUrl,
             playControl = playControl,
-            playTimeDidChanged = { curTime, total ->
-                println("xxxx playTimeDidChanged $curTime, $total")
-                currentTime = curTime
-                if (total > 0) {
-                    totalTime = total
-                }
-            },
             modifier = Modifier.align(Alignment.Center).size(width = 400.dp, height = 300.dp).background(Color.Red),
         )
 
@@ -97,15 +84,6 @@ fun ComposeVideoDemoImpl(){
                     .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // 时间显示
-            Text(
-                text = "播放进度: ${formatTime(currentTime)} / ${formatTime(totalTime)}",
-                color = Color.White,
-                fontSize = 14.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = 8.dp),
-            )
-
             // 控制按钮
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -122,34 +100,13 @@ fun ComposeVideoDemoImpl(){
                                 VideoPlayControl.PAUSE
                             }
                     },
-                    modifier = Modifier.padding(end = 8.dp),
                 ) {
                     Text(
                         text = if (playControl != VideoPlayControl.PLAY) "播放" else "暂停",
                         color = Color.White,
                     )
                 }
-
-                // 停止按钮
-                Button(
-                    onClick = {
-                        playControl = VideoPlayControl.STOP
-                    },
-                ) {
-                    Text(
-                        text = "停止",
-                        color = Color.White,
-                    )
-                }
             }
         }
     }
-}
-
-// 格式化时间（毫秒转为分:秒格式）
-private fun formatTime(timeMs: Int): String {
-    val totalSeconds = timeMs / 1000
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return "${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
 }

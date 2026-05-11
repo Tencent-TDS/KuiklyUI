@@ -16,7 +16,6 @@
 package com.tencent.kuikly.demo.pages.compose
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import com.tencent.kuikly.compose.ComposeContainer
 import com.tencent.kuikly.compose.extension.textPostProcessor
 import com.tencent.kuikly.compose.foundation.background
@@ -46,11 +45,6 @@ import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
 import com.tencent.kuikly.core.annotations.Page
 
-/**
- * Compose DSL 自定义表情输入 Demo。
- *
- * 使用 TextFieldState + edit 方法，在当前光标/选区插入短码。
- */
 @Page("TextFieldEmojiDemo")
 class TextFieldEmojiDemo : ComposeContainer() {
 
@@ -88,24 +82,23 @@ class TextFieldEmojiDemo : ComposeContainer() {
                 modifier = Modifier.padding(bottom = 4.dp)
             )
             Text(
-                text = "演示 BasicTextField + TextPostProcessor 实现表情输入",
+                text = "演示 BasicTextField + TextPostProcessor 实现表情输入\n注意：iOS 上 singleLine=true 时 UITextField 不支持 NSTextAttachment 图片渲染，仅多行模式支持表情预览",
                 fontSize = 12.sp,
                 color = Color.Gray,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            // 组件1: BasicTextField - 输入框（支持表情预览）
             Text(
-                text = "① BasicTextField（输入框 + 表情预览）",
+                text = "① BasicTextField（多行输入框 + 表情预览）",
                 fontSize = 14.sp,
                 color = Color(0xFF666666),
-                modifier = Modifier.padding(bottom = 8.dp)
+                modifier = Modifier.padding(bottom = 4.dp)
             )
             BasicTextField(
                 state = state,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(72.dp)
+                    .height(80.dp)
                     .background(Color.White)
                     .padding(12.dp)
                     .textPostProcessor("input"),
@@ -115,12 +108,11 @@ class TextFieldEmojiDemo : ComposeContainer() {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 组件2: EmojiGrid - 自定义表情面板
             Text(
                 text = "② EmojiGrid（自定义表情面板）",
                 fontSize = 14.sp,
                 color = Color(0xFF666666),
-                modifier = Modifier.padding(bottom = 8.dp)
+                modifier = Modifier.padding(bottom = 4.dp)
             )
             Box(
                 modifier = Modifier
@@ -137,7 +129,6 @@ class TextFieldEmojiDemo : ComposeContainer() {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 组件3: 原始文本显示
             Text(
                 text = "③ 原始文本 State.text（短码格式）",
                 fontSize = 14.sp,
@@ -156,7 +147,6 @@ class TextFieldEmojiDemo : ComposeContainer() {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 组件4: 表情预览（使用 textPostProcessor 修饰符）
             Text(
                 text = "④ 表情预览 Text.composable（textPostProcessor 修饰符）",
                 fontSize = 14.sp,
@@ -188,7 +178,7 @@ class TextFieldEmojiDemo : ComposeContainer() {
                 Text("清空内容")
             }
 
-            Spacer(modifier = Modifier.height(300.dp))
+            Spacer(modifier = Modifier.height(200.dp))
         }
     }
 }

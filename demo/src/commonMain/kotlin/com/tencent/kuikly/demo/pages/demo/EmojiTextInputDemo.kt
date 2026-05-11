@@ -37,7 +37,7 @@ internal class EmojiTextInputDemo : Pager() {
 
     private var inputState: TextInputState by observable(TextInputState(text = ""))
     private var previewText: String by observable("")
-    private var inputRef: ViewRef<TextAreaView>? = null
+    private var textAreaRef: ViewRef<TextAreaView>? = null
 
     private val emojiShortcodes = listOf("[smile]", "[heart]", "[thumbup]", "[star]", "[fire]")
     private val emojiLabels  = listOf("😊", "❤️", "👍", "⭐", "🔥")
@@ -62,7 +62,7 @@ internal class EmojiTextInputDemo : Pager() {
                     }
                     Text {
                         attr {
-                            text("点击表情按钮会替换当前选区或插入当前光标，raw text 保留短码。")
+                            text("点击表情按钮会替换当前选区或插入当前光标，raw text 保留短码。仅多行输入框（TextArea）支持表情预览，单行输入框（Input）暂不支持。")
                             color(Color(0xFF666666))
                             fontSize(14f)
                         }
@@ -85,7 +85,7 @@ internal class EmojiTextInputDemo : Pager() {
                     }
                     TextArea {
                         ref {
-                            ctx.inputRef = it
+                            ctx.textAreaRef = it
                         }
                         attr {
                             flex(1f)
@@ -93,7 +93,7 @@ internal class EmojiTextInputDemo : Pager() {
                             fontSize(16f)
                             color(Color(0xFF333333))
                             textPostProcessor("input")
-                            textInputState(ctx.inputState)
+                            textInputState { ctx.inputState }
                         }
                         event {
                             textInputStateChange { state ->
@@ -171,14 +171,7 @@ internal class EmojiTextInputDemo : Pager() {
     }
 
     private fun insertEmoji(shortcode: String) {
-        val currentInputRef = inputRef
-        if (currentInputRef == null) {
-            commitInputState(inputState.replaceSelection(shortcode))
-            return
-        }
-        currentInputRef.view?.getTextInputState { nativeState ->
-            commitInputState(nativeState.replaceSelection(shortcode))
-        }
+        commitInputState(inputState.replaceSelection(shortcode))
     }
 
     private fun commitInputState(state: TextInputState) {

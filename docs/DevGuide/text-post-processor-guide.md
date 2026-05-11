@@ -14,8 +14,13 @@
 使用文本后置处理器需要三步：
 
 ```
-1. DSL 声明 processor 名称  →  2. Android 实现 IKRTextPostProcessorAdapter  →  3. 注册适配器
+1. DSL 声明 processor 名称  →  2. 平台实现处理器适配器  →  3. 注册适配器
 ```
+
+:::warning iOS 平台限制
+- **单行输入框（`Input` / `UITextField`）不支持 `NSTextAttachment` 图片渲染**，因此自定义表情图片预览在 iOS 单行模式下不可用。如需表情预览，请使用多行输入框（`TextArea` / `UITextView`）。
+- 非图片类的文本后处理（如文本掩码、格式化）不受此限制影响。
+:::
 
 ## DSL 使用方式
 
@@ -216,6 +221,82 @@ class MyApplication : Application() {
 必须在 **Application.onCreate()** 中注册，确保在页面创建前完成初始化。
 :::
 
+## iOS 适配器实现
+
+iOS 侧通过实现 `KuiklyRenderComponentExpandHandler` 的 `hr_customTextWithAttributedString:textPostProcessor:` 方法来处理文本后置变换。
+
+### 1. 实现处理器方法
+
+在 `KuiklyRenderComponentExpandHandler` 中实现 `hr_customTextWithAttributedString:textPostProcessor:`：
+
+```objc
+- (NSMutableAttributedString *)hr_customTextWithAttributedString:(NSAttributedString *)attributedString
+                                               textPostProcessor:(NSString *)textPostProcessor {
+    // 按 processor 名称路由
+    if (![textPostProcessor isEqualToString:@"KRTextAreaView"] &&
+        ![textPostProcessor isEqualToString:@"input"] &&
+        ![textPostProcessor isEqualToString:@"emoji"]) {
+        return [attributedString mutableCopy]; // 未匹配的 processor 透传
+    }
+    
+    NSString *sourceString = attributedString.string;
+    if (sourceString.length == 0) {
+        return [attributedString mutableCopy];
+    }
+    
+    // 匹配 [xxx] 短码
+    NSArray<NSTextCheckingResult *> *matches = [EMOJI_REGEX matchesInString:sourceString
+                                                                     options:0
+                                                                       range:NSMakeRange(0, sourceString.length)];
+    if (matches.count == 0) {
+        return [attributedString mutableCopy];
+    }
+    
+    NSMutableAttributedString *result = [attributedString mutableCopy];
+    NSInteger offset = 0;
+    UIFont *font = [attributedString attribute:NSFontAttributeName atIndex:0 effectiveRange:NULL];
+    if (!font) font = [UIFont systemFontOfSize:16];
+    CGFloat emojiSize = font.pointSize * 1.2;
+    
+    for (NSTextCheckingResult *match in matches) {
+        NSRange matchRange = [match range];
+        NSRange adjustedRange = NSMakeRange(matchRange.location + offset, matchRange.length);
+        NSString *shortcode = [sourceString substringWithRange:matchRange];
+        NSString *imageName = EMOJI_IMAGE_MAP[shortcode]; // 如 @"emoji_smile"
+        if (!imageName) continue;
+        
+        UIImage *emojiImage = [UIImage imageNamed:imageName];
+        if (!emojiImage) continue;
+        
+        // 创建 NSTextAttachment 替换短码
+        NSTextAttachment *attachment = [[NSTextAttachment alloc] init];
+        attachment.image = emojiImage;
+        attachment.bounds = CGRectMake(0, font.descender * 0.5, emojiSize, emojiSize);
+        
+        NSMutableAttributedString *attachmentStr = [[NSAttributedString attributedStringWithAttachment:attachment] mutableCopy];
+        [attachmentStr addAttribute:NSFontAttributeName value:font range:NSMakeRange(0, attachmentStr.length)];
+        [result replaceCharactersInRange:adjustedRange withAttributedString:attachmentStr];
+        offset += (1 - matchRange.length); // 附件占1字符，短码占N字符
+    }
+    
+    return result;
+}
+```
+
+### 2. processor 名称说明
+
+iOS 侧 processor 名称的来源：
+- **类名**（如 `KRTextAreaView`）：`setCss_values` 渲染路径默认使用 `NSStringFromClass([self class])`
+- **业务自定义**（如 `input`、`emoji`）：Kotlin 侧通过 `textPostProcessor("input")` 设置
+
+### 3. 已知限制
+
+| 限制 | 说明 |
+|------|------|
+| `UITextField` 不渲染 `NSTextAttachment` 图片 | iOS 单行输入框（`Input` 组件）无法显示表情图片，只有 `UITextView`（`TextArea` 组件）支持 |
+| 光标跳动 | `UITextView` + `NSTextAttachment` 点击时可能触发两次 `selectionChange`，导致光标短暂跳回（iOS 原生问题） |
+| 非图片后处理不受限 | 文本掩码、格式化等不依赖 `NSTextAttachment` 的后处理器在单行模式下正常工作 |
+
 ## 关键实现细节
 
 ### 为什么返回 SpannableStringBuilder？
@@ -366,6 +447,17 @@ glide.load(url).into(object : CustomTarget<Drawable>() {
 })
 ```
 
+### Q: iOS 上表情图片不显示？
+
+A: 检查以下几点：
+1. **是否使用了单行输入框** — iOS 的 `UITextField` 不支持 `NSTextAttachment` 图片渲染，表情图片只在 `UITextView`（即 `TextArea` 组件）中显示
+2. **图片资源是否在 Asset Catalog 中** — iOS 侧需要将表情 PNG 添加到 `Assets.xcassets`
+3. **processor 名称是否在 expandHandler 中匹配** — 确认 `hr_customTextWithAttributedString:textPostProcessor:` 中有对应的名称路由
+
+### Q: iOS 上点击带表情的文本时光标会跳一下？
+
+A: 这是 `UITextView` + `NSTextAttachment` 的 iOS 原生问题。点击时 `UITextView` 会先设置一个初始 selection，然后约 50ms 后修正到实际位置，导致光标短暂跳动。目前无法在 App 层面修复，长期方案需要避免在 `UITextView` 中使用 `NSTextAttachment`。
+
 ## 迁移：从追加式输入到光标插入
 
 旧写法通常直接拼接短码，只能追加到末尾：
@@ -398,13 +490,16 @@ EmojiGrid { shortcode ->
 ```kotlin
 private var inputState by observable(TextInputState(text = ""))
 
-Input {
+TextArea {  // 注意：iOS 上请使用 TextArea，Input 不支持表情图片渲染
     attr {
         textPostProcessor("input")
-        textInputState(inputState)
+        textInputState { inputState }  // lambda 形式支持响应式绑定
     }
     event {
         textInputStateChange { state ->
+            inputState = state
+        }
+        selectionChange { state ->
             inputState = state
         }
     }
@@ -518,7 +613,7 @@ internal class TextInputStateDemo : Pager() {
                 ref { ctx.inputRef = it }
                 attr {
                     textPostProcessor("input")
-                    textInputState(ctx.inputState)
+                    textInputState { ctx.inputState }
                 }
                 event {
                     // 监听文本和选区变化
@@ -544,16 +639,8 @@ internal class TextInputStateDemo : Pager() {
     }
 
     private fun insertText(text: String) {
-        val currentRef = inputRef
-        if (currentRef == null) {
-            // 组件未挂载，直接修改状态
-            inputState = inputState.replaceSelection(text)
-        } else {
-            // 从原生输入框获取最新状态，然后插入
-            currentRef.view?.getTextInputState { state ->
-                inputState = state.replaceSelection(text)
-            }
-        }
+        // 同步修改 inputState，通过 textInputState lambda 绑定自动同步到原生层
+        inputState = inputState.replaceSelection(text)
     }
 }
 ```

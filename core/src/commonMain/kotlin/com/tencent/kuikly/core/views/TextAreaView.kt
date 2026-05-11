@@ -113,7 +113,7 @@ open class TextAreaView : DeclarativeBaseView<TextAreaAttr, TextAreaEvent>(), Me
     override fun didSetProp(propKey: String, propValue: Any) {
         // 处理 TEXT_INPUT_STATE prop，添加防循环同步逻辑
         if (propKey == TextAreaAttr.TEXT_INPUT_STATE) {
-            val state = TextInputState.decode(propValue as? JSONObject)
+            val state = TextInputState.decode(JSONObject(propValue.toString()))
             val textChanged = state.text != lastSyncedText
             // 只有当文本发生变化，或者不是来自原生事件时，才同步到原生层
             val shouldSyncToNative = textChanged || !isProcessingNativeEvent
@@ -299,6 +299,11 @@ open class TextAreaAttr : Attr() {
      */
     fun textInputState(state: TextInputState): TextAreaAttr {
         TEXT_INPUT_STATE with state.encode()
+        return this
+    }
+
+    fun textInputState(stateProvider: () -> TextInputState): TextAreaAttr {
+        TEXT_INPUT_STATE with { stateProvider().encode() }
         return this
     }
 

@@ -394,6 +394,7 @@ internal class RootNodeOwner(
                     snapshotInvalidationTracker.requestDraw()
                 },
                 drawBlock = drawBlock,
+                view = view,
                 onDestroy = { needClearObservations = true },
             )
 

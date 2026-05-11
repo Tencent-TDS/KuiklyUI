@@ -31,6 +31,7 @@ import android.text.SpannableString
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.TextWatcher
+import android.text.style.ImageSpan
 import android.util.SizeF
 import android.util.TypedValue
 import android.view.Gravity
@@ -63,6 +64,7 @@ import com.tencent.kuikly.core.render.android.expand.module.KRKeyboardModule
 import com.tencent.kuikly.core.render.android.expand.module.KeyboardStatusListener
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
+import org.json.JSONObject
 
 /**
  * KTV单行输入组件
@@ -74,6 +76,18 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
      * text变化回调
      */
     private var textDidChangeCallback: KuiklyRenderCallback? = null
+
+    /**
+     * Raw text input state callback.
+     */
+    private var textInputStateChangeCallback: KuiklyRenderCallback? = null
+
+    /**
+     * Selection-only change callback.
+     */
+    private var selectionChangeCallback: KuiklyRenderCallback? = null
+
+    private var isSettingTextInputState = false
 
     /**
      * 聚焦回调
@@ -121,6 +135,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
 
     private var hadSetEditorFactory = false
     private var textProps: KRTextProps? = null
+    private var textPostProcessor: String = ""
 
     /**
      * 键盘显示需要 window 和 view 两者同时处于 focus才能显示
@@ -169,6 +184,13 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     override fun setProp(propKey: String, propValue: Any): Boolean {
         return when (propKey) {
             TEXT -> setText(propValue)
+            PROP_KEY_TEXT_POST_PROCESSOR -> {
+                textPostProcessor = propValue as String
+                setInputEditorAdapterIfNeed()
+                // Apply emoji processing to existing text (handles case where text was set before textPostProcessor)
+                applyEmojiSpans(editableText)
+                true
+            }
             KRTextProps.PROP_KEY_VALUES -> setValues(propValue)
             FONT_SIZE -> setFontSize(propValue)
             FONT_WEIGHT -> setFontWeight(propValue)
@@ -183,6 +205,12 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
             MAX_TEXT_LENGTH -> setMaxTextLength(propValue)
             EDITABLE -> setEditable(propValue)
             TEXT_DID_CHANGE -> observeTextChanged(propValue)
+            TEXT_INPUT_STATE -> {
+                setTextInputState(propValue.toString())
+                true
+            }
+            TEXT_INPUT_STATE_CHANGE -> observeTextInputStateChanged(propValue)
+            SELECTION_CHANGE -> observeSelectionChanged(propValue)
             INPUT_RETURN -> observeInputReturn(propValue)
             IME_ACTION -> observeInputReturn(propValue)
             INPUT_FOCUS -> {
@@ -242,6 +270,8 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
             METHOD_BLUR -> setBlur()
             METHOD_GET_CURSOR_INDEX -> getCursorIndex(callback)
             METHOD_SET_CURSOR_INDEX -> setCursorIndex(params)
+            METHOD_SET_TEXT_INPUT_STATE -> setTextInputState(params)
+            METHOD_GET_TEXT_INPUT_STATE -> getTextInputState(callback)
             else -> super.call(method, params, callback)
         }
     }
@@ -519,6 +549,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     }
 
     private fun setText(propValue: Any): Boolean {
+        setInputEditorAdapterIfNeed()
         setInputText((propValue as? String)?: "")
         return true
     }
@@ -544,6 +575,9 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     override fun onSelectionChanged(selStart: Int, selEnd: Int) {
         super.onSelectionChanged(selStart, selEnd)
         cursorIndex = selStart
+        if (!isSettingTextInputState) {
+            selectionChangeCallback?.invoke(createTextInputStateParamMap())
+        }
     }
 
     private fun setFontSize(propValue: Any): Boolean {
@@ -613,13 +647,52 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
 
     private fun setCursorIndex(params: String?) {
         val index = params?.toIntOrNull() ?: return
-        setSelection(index)
+        setSelection(index.coerceIn(0, text?.length ?: 0))
+    }
+
+    private fun setTextInputState(params: String?) {
+        val json = runCatching { JSONObject(params ?: "{}") }.getOrElse { JSONObject() }
+        val rawText = json.optString(KEY_TEXT, "")
+        val selectionStart = json.optInt(KEY_SELECTION_START, rawText.length).coerceIn(0, rawText.length)
+        val selectionEnd = json.optInt(KEY_SELECTION_END, selectionStart).coerceIn(0, rawText.length)
+        isSettingTextInputState = true
+        try {
+            setInputEditorAdapterIfNeed()
+            lineHeightSpan?.let { span ->
+                val spannable = SpannableString(rawText)
+                if (rawText.isNotEmpty()) {
+                    spannable.setSpan(span, 0, rawText.length, Spanned.SPAN_EXCLUSIVE_INCLUSIVE)
+                }
+                super.setText(spannable, BufferType.EDITABLE)
+            } ?: super.setText(rawText, BufferType.EDITABLE)
+            applyEmojiSpans(editableText)
+            setSelection(selectionStart, selectionEnd)
+        } finally {
+            isSettingTextInputState = false
+        }
+    }
+
+    private fun getTextInputState(callback: KuiklyRenderCallback?) {
+        callback?.invoke(createTextInputStateParamMap())
     }
 
     @Suppress("UNCHECKED_CAST")
     private fun observeTextChanged(propValue: Any): Boolean {
         textDidChangeCallback = propValue as KuiklyRenderCallback
         observeTextWatcher()
+        return true
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun observeTextInputStateChanged(propValue: Any): Boolean {
+        textInputStateChangeCallback = propValue as KuiklyRenderCallback
+        observeTextWatcher()
+        return true
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun observeSelectionChanged(propValue: Any): Boolean {
+        selectionChangeCallback = propValue as KuiklyRenderCallback
         return true
     }
 
@@ -715,14 +788,34 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         }
         return if (length == null) {
             mapOf(
-                "text" to text.toString()
+                KEY_TEXT to text.toString()
             )
         } else {
             mapOf(
-                "text" to text.toString(),
-                "length" to length!!
+                KEY_TEXT to text.toString(),
+                KEY_LENGTH to length!!
             )
         }
+    }
+
+    private fun createTextInputStateParamMap(): Map<String, Any> {
+        val text = text?.toString() ?: KRCssConst.EMPTY_STRING
+        val selectionStart = selectionStart.coerceIn(0, text.length)
+        val selectionEnd = selectionEnd.coerceIn(0, text.length)
+        val result = mutableMapOf<String, Any>(
+            KEY_TEXT to text,
+            KEY_SELECTION_START to selectionStart,
+            KEY_SELECTION_END to selectionEnd,
+            KEY_COMPOSITION_START to NO_COMPOSITION,
+            KEY_COMPOSITION_END to NO_COMPOSITION
+        )
+        val length = if (lengthLimitType != LENGTH_LIMIT_TYPE_UNSET) {
+            getLengthLimitInputFilter()?.calculateLength(text)
+        } else {
+            null
+        }
+        length?.let { result[KEY_LENGTH] = it }
+        return result
     }
 
     private fun resetDefaultStyle() {
@@ -751,7 +844,41 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         return true
     }
 
+    /**
+     * Apply emoji ImageSpans to the given Editable by delegating to the text post-processor adapter.
+     * Called from afterTextChanged to ensure emoji spans are refreshed on every text change.
+     */
+    private fun applyEmojiSpans(editable: Editable?) {
+        if (editable == null) return
+        val adapter = KuiklyRenderAdapterManager.krTextPostProcessorAdapter ?: return
+        val tp = textProps ?: KRTextProps(kuiklyRenderContext).also {
+            it.fontSize = if (fontSize > 0) fontSize else 16f
+        }
+        if (textPostProcessor.isEmpty()) return
+        val output = adapter.onTextPostProcess(
+            kuiklyRenderContext,
+            TextPostProcessorInput(textPostProcessor, editable, tp)
+        )
+        val outputText = output.text
+        if (outputText is Spannable) {
+            // Remove existing ImageSpans and apply new ones from the processed output
+            val oldSpans = editable.getSpans(0, editable.length, ImageSpan::class.java)
+            for (span in oldSpans) {
+                editable.removeSpan(span)
+            }
+            val newSpans = outputText.getSpans(0, outputText.length, ImageSpan::class.java)
+            for (span in newSpans) {
+                val start = outputText.getSpanStart(span)
+                val end = outputText.getSpanEnd(span)
+                if (start >= 0 && end <= editable.length) {
+                    editable.setSpan(span, start, end, outputText.getSpanFlags(span))
+                }
+            }
+        }
+    }
+
     private fun setInputEditorAdapterIfNeed() {
+        if (textPostProcessor.isEmpty()) return
         val textPostProcessorAdapter = KuiklyRenderAdapterManager.krTextPostProcessorAdapter ?: return
         if (hadSetEditorFactory) {
             return
@@ -762,13 +889,15 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
                 if (source == null) {
                     return SpannableStringBuilder()
                 }
-                val tp = textProps ?: return SpannableStringBuilder()
-                val outputText = textPostProcessorAdapter.onTextPostProcess(kuiklyRenderContext, TextPostProcessorInput("input",
+                val tp = textProps ?: KRTextProps(kuiklyRenderContext).also {
+                    it.fontSize = if (fontSize > 0) fontSize else 16f
+                }
+                val outputText = textPostProcessorAdapter.onTextPostProcess(kuiklyRenderContext, TextPostProcessorInput(textPostProcessor,
                     source, tp)).text
                 return if (outputText is Editable) {
                     outputText
                 } else {
-                    SpannableStringBuilder()
+                    SpannableStringBuilder(source)
                 }
             }
         })
@@ -815,7 +944,12 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         if (textWatcher == null) {
             textWatcher = object : TextWatcher {
                 override fun afterTextChanged(s: Editable?) {
+                    if (isSettingTextInputState) {
+                        return
+                    }
                     s?.also(::ensureLineHeightSpan)
+                    applyEmojiSpans(s)
+                    textInputStateChangeCallback?.invoke(createTextInputStateParamMap())
                     textDidChangeCallback?.invoke(createCallbackParamMap())
                 }
 
@@ -832,6 +966,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
 
     companion object {
         const val VIEW_NAME = "KRTextFieldView"
+        private const val PROP_KEY_TEXT_POST_PROCESSOR = "textPostProcessor"
         private const val TEXT = "text"
         private const val FONT_SIZE = "fontSize"
         private const val FONT_WEIGHT = "fontWeight"
@@ -846,6 +981,9 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         private const val MAX_TEXT_LENGTH = "maxTextLength"
         private const val EDITABLE = "editable"
         private const val TEXT_DID_CHANGE = "textDidChange"
+        private const val TEXT_INPUT_STATE = "textInputState"
+        private const val TEXT_INPUT_STATE_CHANGE = "textInputStateChange"
+        private const val SELECTION_CHANGE = "selectionChange"
         private const val INPUT_RETURN = "inputReturn"
         private const val INPUT_FOCUS = "inputFocus"
         private const val INPUT_BLUR = "inputBlur"
@@ -860,12 +998,22 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         private const val METHOD_BLUR = "blur"
         private const val METHOD_GET_CURSOR_INDEX = "getCursorIndex"
         private const val METHOD_SET_CURSOR_INDEX = "setCursorIndex"
+        private const val METHOD_SET_TEXT_INPUT_STATE = "setTextInputState"
+        private const val METHOD_GET_TEXT_INPUT_STATE = "getTextInputState"
 
         private const val TYPE_ENABLE_EDIT = 1
         private const val TYPE_ENABLE_HIDE_KEYBOARD = 1
 
         private const val KEY_KEYBOARD_CHANGED_DURATION = "duration"
         private const val DEFAULT_KEYBOARD_CHANGED_ANIMATION_DURATION = 0.2
+
+        private const val KEY_TEXT = "text"
+        private const val KEY_SELECTION_START = "selectionStart"
+        private const val KEY_SELECTION_END = "selectionEnd"
+        private const val KEY_COMPOSITION_START = "compositionStart"
+        private const val KEY_COMPOSITION_END = "compositionEnd"
+        private const val KEY_LENGTH = "length"
+        private const val NO_COMPOSITION = -1
 
         private const val LENGTH_LIMIT_TYPE_UNSET = -1
         private const val LENGTH_LIMIT_TYPE_BYTE = 0

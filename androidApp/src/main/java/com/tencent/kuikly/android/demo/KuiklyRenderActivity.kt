@@ -168,7 +168,7 @@ class KuiklyRenderActivity : AppCompatActivity() {
             KuiklyRenderAdapterManager.krVideoViewAdapter = VideoViewAdapter()
         }
         if (KuiklyRenderAdapterManager.krTextPostProcessorAdapter == null) {
-            KuiklyRenderAdapterManager.krTextPostProcessorAdapter = KRTextPostProcessorAdapter()
+            KuiklyRenderAdapterManager.krTextPostProcessorAdapter = KRTextPostProcessorAdapter(this)
         }
     }
 

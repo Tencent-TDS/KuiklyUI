@@ -18,6 +18,35 @@
 #import <SDWebImage/SDWebImageManager.h>
 //#import <YYWebImage/YYWebImageManager.h>
 
+static NSDictionary *EMOJI_IMAGE_MAP;
+static NSRegularExpression *EMOJI_REGEX;
+
+__attribute__((constructor))
+static void initEmojiMap(void) {
+    EMOJI_IMAGE_MAP = @{
+        @"[smile]"  : @"emoji_smile",
+        @"[heart]"  : @"emoji_heart",
+        @"[thumbup]": @"emoji_thumbup",
+        @"[star]"   : @"emoji_star",
+        @"[fire]"   : @"emoji_fire",
+    };
+    EMOJI_REGEX = [NSRegularExpression regularExpressionWithPattern:@"\\[([^\\]]+)\\]"
+                                                            options:0
+                                                              error:nil];
+}
+
+@interface KREmojiTextAttachment : NSTextAttachment <KRTextAttachmentStringProtocol>
+@property (nonatomic, copy) NSString *originalShortcode;
+@end
+
+@implementation KREmojiTextAttachment
+
+- (NSString *)kr_originlTextBeforeTextAttachment {
+    return self.originalShortcode;
+}
+
+@end
+
 
 @implementation KuiklyRenderComponentExpandHandler
 
@@ -100,6 +129,83 @@
 //        }
 //    }];
     return YES;
+}
+
+- (NSMutableAttributedString *)hr_customTextWithAttributedString:(NSAttributedString *)attributedString textPostProcessor:(NSString *)textPostProcessor {
+    if (![textPostProcessor isEqualToString:@"KRTextFieldView"] &&
+        ![textPostProcessor isEqualToString:@"KRTextAreaView"] &&
+        ![textPostProcessor isEqualToString:@"input"] &&
+        ![textPostProcessor isEqualToString:@"emoji"]) {
+        return [attributedString mutableCopy];
+    }
+    
+    NSString *sourceString = attributedString.string;
+    if (sourceString.length == 0) {
+        return [attributedString mutableCopy];
+    }
+    
+    NSArray<NSTextCheckingResult *> *matches = [EMOJI_REGEX matchesInString:sourceString
+                                                                     options:0
+                                                                       range:NSMakeRange(0, sourceString.length)];
+    if (matches.count == 0) {
+        return [attributedString mutableCopy];
+    }
+    
+    NSMutableAttributedString *result = [attributedString mutableCopy];
+    NSInteger offset = 0;
+    
+    UIFont *font;
+    if (attributedString.length > 0) {
+        font = [attributedString attribute:NSFontAttributeName atIndex:0 effectiveRange:NULL];
+    }
+    if (!font) {
+        font = [UIFont systemFontOfSize:16];
+    }
+    CGFloat emojiSize = font.pointSize * 1.2;
+    
+    for (NSTextCheckingResult *match in matches) {
+        NSRange matchRange = [match range];
+        NSRange adjustedRange = NSMakeRange(matchRange.location + offset, matchRange.length);
+        NSString *shortcode = [sourceString substringWithRange:matchRange];
+        NSString *imageName = EMOJI_IMAGE_MAP[shortcode];
+        
+        if (!imageName) {
+            continue;
+        }
+        
+        __block BOOL rangeHasAttachment = NO;
+        if (adjustedRange.location + adjustedRange.length <= result.length) {
+            [result enumerateAttribute:NSAttachmentAttributeName
+                               inRange:adjustedRange
+                               options:0
+                            usingBlock:^(NSObject *value, NSRange range, BOOL *stop) {
+                if (value) {
+                    rangeHasAttachment = YES;
+                    *stop = YES;
+                }
+            }];
+        }
+        if (rangeHasAttachment) {
+            continue;
+        }
+        
+        UIImage *emojiImage = [UIImage imageNamed:imageName];
+        if (!emojiImage) {
+            continue;
+        }
+        
+        KREmojiTextAttachment *attachment = [[KREmojiTextAttachment alloc] init];
+        attachment.image = emojiImage;
+        attachment.originalShortcode = shortcode;
+        attachment.bounds = CGRectMake(0, font.descender * 0.5, emojiSize, emojiSize);
+        
+        NSMutableAttributedString *attachmentStr = [[NSAttributedString attributedStringWithAttachment:attachment] mutableCopy];
+        [attachmentStr addAttribute:NSFontAttributeName value:font range:NSMakeRange(0, attachmentStr.length)];
+        [result replaceCharactersInRange:adjustedRange withAttributedString:attachmentStr];
+        offset += (1 - matchRange.length);
+    }
+    
+    return result;
 }
 
 

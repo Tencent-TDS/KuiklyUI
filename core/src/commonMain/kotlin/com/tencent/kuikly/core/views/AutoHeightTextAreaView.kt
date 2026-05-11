@@ -127,6 +127,26 @@ class AutoHeightTextAreaView(val singleLine: Boolean = false) :
         }
     }
 
+    /**
+     * Atomically set raw text, selection, and composition state.
+     */
+    fun setTextInputState(state: TextInputState) {
+        performTaskWhenRenderViewDidLoad {
+            renderView?.callMethod("setTextInputState", state.encode())
+        }
+    }
+
+    /**
+     * Get raw text, selection, and composition state from native input view.
+     */
+    fun getTextInputState(callback: (TextInputState) -> Unit) {
+        performTaskWhenRenderViewDidLoad {
+            renderView?.callMethod("getTextInputState", "") {
+                callback(TextInputState.decode(it))
+            }
+        }
+    }
+
     override fun measure(
         node: FlexNode,
         width: Float,

@@ -96,7 +96,19 @@
 
 控制横屏状态下IME输入法是否进入全屏模式
 
-### placeholder方法
+### returnKeyTypeContinue方法<Badge text="仅iOS" type="warn"/>
+
+设置输入法的下一步按钮类型为继续类型
+
+### returnKeyTypeGo方法
+
+设置输入法的下一步按钮类型为前往类型
+
+### returnKeyTypeGoogle方法<Badge text="仅iOS" type="warn"/>
+
+设置输入法的下一步按钮类型为谷歌类型
+
+### placeholder方法<Badge text="微信小程序实现中" type="warn"/>
 
 设置输入框的提示文本
 
@@ -142,7 +154,7 @@ internal class TestPage : BasePager() {
 
 :::
 
-### placeholderColor
+### placeholderColor <Badge text="微信小程序实现中" type="warn"/>
 
 设置输入框提示文本颜色
 
@@ -189,7 +201,7 @@ internal class TestPage : BasePager() {
 
 :::
 
-### tintColor方法
+### tintColor方法 <Badge text="微信小程序实现中" type="warn"/>
 
 设置输入框光标颜色
 
@@ -446,6 +458,107 @@ internal class TestPage : BasePager() {
 }
 ```
 
+### textPostProcessor方法 <Badge text="仅Android支持" type="warn"/>
+
+声明文本后置处理器名称，用于将文本中的特定标记（如表情短码）替换为富文本样式（如 `ImageSpan`）。具体处理逻辑需在 Android 端实现 [`IKRTextPostProcessorAdapter`](../../DevGuide/text-post-processor-guide.md) 适配器。
+
+<div class="table-01">
+
+**textPostProcessor方法**
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| processor | 处理器名称，由业务自定义并在 Android 适配器中实现对应逻辑  | String |
+
+</div>
+
+:::tip 常见处理器名称
+- `"emoji"` / `"input"` — 将 `[smile]` 等短码替换为表情图片（需在适配器中实现映射）
+- 其他名称可自由定义，只要在适配器的 `when` 分支中处理即可
+:::
+
+**示例**
+
+```kotlin{14}
+@Page("demo_page")
+internal class TestPage : BasePager() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                allCenter()
+            }
+
+            Input {
+                attr {
+                    size(200f, 40f)
+                    placeholder("输入表情短码如 [smile]")
+                    textPostProcessor("input")
+                }
+            }
+        }
+    }
+}
+```
+
+> 完整实现请参考 [文本后置处理器实践指南](../../DevGuide/text-post-processor-guide.md)。
+
+### textInputState方法 <Badge text="2.15+" type="info"/>
+
+原子化设置输入框的 raw text、selection、composition 状态。通过 `TextInputState` 数据类一次性设置文本内容和光标/选区位置，避免分开设置导致的闪烁问题。
+
+<div class="table-01">
+
+**textInputState方法**
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| state | 文本输入状态对象  | TextInputState |
+
+</div>
+
+:::tip 关于 TextInputState
+`TextInputState` 是用于 Core/Render 通信的跨层文本输入状态数据类，包含以下字段：
+- `text`: 当前输入的文本（String）
+- `selectionStart`: 选区起始位置（Int）
+- `selectionEnd`: 选区结束位置（Int）
+- `compositionStart`: 组合输入起始位置（Int，使用 `NO_COMPOSITION = -1` 表示无组合输入）
+- `compositionEnd`: 组合输入结束位置（Int）
+
+详细文档请参考 [TextInputState 数据结构说明](#textinputstate-数据结构)。
+:::
+
+**示例**
+
+```kotlin{14}
+@Page("demo_page")
+internal class TestPage : BasePager() {
+    var inputState by observable(TextInputState(text = ""))
+    
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                allCenter()
+            }
+
+            Input {
+                attr {
+                    size(200f, 40f)
+                    placeholder("输入文字")
+                    textInputState(inputState) // 绑定状态
+                }
+                event {
+                    textInputStateChange { state ->
+                        inputState = state // 状态变化时更新
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+> 常见使用场景：表情短码插入、@提及、光标定位等需要精确控制文本和选区位置的功能。
+
 ### inputSpans方法<Badge text="鸿蒙实现中" type="warn"/><Badge text="H5实现中" type="warn"/> <Badge text="微信小程序实现中" type="warn"/>
 
 设置输入文本的文本样式配合`textDidChange`来更改`spans`实现输入框富文本化。
@@ -585,6 +698,91 @@ internal class TestPage : BasePager() {
 }
 ```
 
+### textInputStateChange事件 <Badge text="2.15+" type="info"/>
+
+``textInputStateChange``事件在 raw text、selection 或 composition 发生变化时触发。与 `textDidChange` 不同，该事件会返回完整的 `TextInputState` 对象，包含文本内容和选区信息。
+
+<div class="table-01">
+
+**TextInputState**
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| text | 当前输入的文本  | String |
+| selectionStart | 选区起始位置  | Int |
+| selectionEnd | 选区结束位置  | Int |
+| compositionStart | 组合输入起始位置（iOS拼音输入时有效）  | Int |
+| compositionEnd | 组合输入结束位置（iOS拼音输入时有效）  | Int |
+
+</div>
+
+:::tip 使用建议
+- 如果需要同时获取文本和选区变化，使用 `textInputStateChange`
+- 如果只需要文本变化，使用 `textDidChange`
+- 建议设置 `isSyncEdit = true`（默认值）以实现同步编辑，避免异步更新带来的光标跳动
+:::
+
+**示例**
+
+```kotlin{14-16}
+Input {
+    attr {
+        size(200f, 40f)
+        placeholder("输入文字")
+        textInputState(inputState)
+    }
+    event {
+        textInputStateChange { state ->
+            // state 包含 text, selectionStart, selectionEnd, compositionStart, compositionEnd
+            inputState = state
+            previewText = state.text
+        }
+    }
+}
+```
+
+### selectionChange事件 <Badge text="2.15+" type="info"/>
+
+``selectionChange``事件在选区范围发生变化时触发（不需要文本发生变化）。例如：用户移动光标、选择文本等操作会触发此事件。返回完整的 `TextInputState` 对象。
+
+<div class="table-01">
+
+**TextInputState**
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| text | 当前输入的文本（未变化）  | String |
+| selectionStart | 新的选区起始位置  | Int |
+| selectionEnd | 新的选区结束位置  | Int |
+| compositionStart | 组合输入起始位置  | Int |
+| compositionEnd | 组合输入结束位置  | Int |
+
+</div>
+
+:::tip 使用场景
+- 监听光标移动，实现 @提及 弹窗的触发
+- 监听选区变化，实现富文本工具栏的状态更新
+- 与 `textInputStateChange` 配合使用，分别处理「选区变化」和「文本+选区变化」
+:::
+
+**示例**
+
+```kotlin{14-16}
+Input {
+    attr {
+        size(200f, 40f)
+        placeholder("输入文字")
+    }
+    event {
+        selectionChange { state ->
+            // 光标或选区发生变化，但文本未变化
+            currentSelectionStart = state.selectionStart
+            currentSelectionEnd = state.selectionEnd
+        }
+    }
+}
+```
+
 ### inputFocus
 
 ``inputFocus``事件意为输入框获取到焦点事件，如果组件有设置该事件事件，当``Input``组件获取到焦点时，会触发``inputFocus``闭包回调。``inputFocus``闭包中含有
@@ -651,14 +849,10 @@ internal class TestPage : BasePager() {
 }
 ```
 
-### keyboardHeightChange
+### keyboardHeightChange<Badge text="H5实现中" type="warn"/> <Badge text="微信小程序实现中" type="warn"/>
 
 ``keyboardHeightChange``事件意为软键盘高度变化事件，如果组件有设置该事件事件，当软键盘高度变化时，会触发``keyboardHeightChange``闭包回调。``keyboardHeightChange``闭包中含有
 ``KeyboardParams``类型参数，以此来描述软键盘高度变化事件的信息
-
-::: tip 平台说明
-- H5 和微信小程序：height 为键盘高度（px）；微信小程序一次聚焦可能回调多帧（包括 `duration=0` 的同步快照帧与多个动画过渡帧），如需驱动界面动画建议自行对重复的最终高度帧做去重。
-:::
 
 <div class="table-01">
 
@@ -753,7 +947,7 @@ internal class TestPage : BasePager() {
 }
 ```
 
-### inputReturn
+### inputReturn <Badge text="微信小程序实现中" type="warn"/>
 
 ``inputReturn``事件意为软键盘触发了Return事件，如果组件有设置该事件事件，当软键盘触发了Return事件时，会触发``inputReturn``闭包回调。``inputReturn``闭包中含有
 ``InputParams``类型参数，以此来描述软键盘触发了Return事件的信息
@@ -786,7 +980,7 @@ internal class TestPage : BasePager() {
 }
 ```
 
-### textLengthBeyondLimit
+### textLengthBeyondLimit <Badge text="微信小程序实现中" type="warn"/>
 
 ``textLengthBeyondLimit``事件意为输入框发生了输入超出最大输入字符的事件，如果组件有设置该事件事件，当输入框发生了输入超出最大输入字符的事件，会触发``textLengthBeyondLimit``闭包回调。``textLengthBeyondLimit``闭包中含有
 ``InputParams``类型参数，以此来描述输入框触发了输入超出最大输入字符的事件的信息
@@ -945,7 +1139,7 @@ internal class TestPage : BasePager() {
 }
 ```
 
-### cursorIndex
+### cursorIndex <Badge text="小程序支持中" type="warn"/>
 
 获取光标当前位置
 
@@ -985,7 +1179,98 @@ internal class TestPage : BasePager() {
 }
 ```
 
-### setCursorIndex
+### getTextInputState方法 <Badge text="2.15+" type="info"/>
+
+从原生输入框获取当前的 raw text、selection、composition 状态。用于获取输入框的实时状态。
+
+<div class="table-01">
+
+**getTextInputState方法**
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| callback | 回调函数，返回 TextInputState 对象  | (TextInputState) -> Unit |
+
+</div>
+
+:::tip 使用场景
+- 在按钮点击等事件中，获取当前输入框的完整状态
+- 配合 `setTextInputState()` 实现状态的读取-修改-写入流程
+- 例如：插入表情时，先获取当前状态和选区，然后计算新的文本和光标位置
+:::
+
+**示例**
+
+```kotlin{20-24}
+@Page("demo_page")
+internal class TestPage : BasePager() {
+    lateinit var inputRef: ViewRef<InputView>
+
+    override fun body(): ViewBuilder {
+        val ctx = this
+        return {
+            // ... UI布局
+        }
+    }
+
+    private fun insertText(text: String) {
+        inputRef.view?.getTextInputState { state ->
+            // 获取当前状态，计算新状态，然后设置
+            val newState = state.replaceSelection(text)
+            inputRef.view?.setTextInputState(newState)
+        }
+    }
+}
+```
+
+### setTextInputState方法 <Badge text="2.15+" type="info"/>
+
+原子化设置输入框的 raw text、selection、composition 状态。与 `textInputState()` 属性方法不同，此方法可以在任意时刻调用（不限于声明阶段）。
+
+<div class="table-01">
+
+**setTextInputState方法**
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| state | 文本输入状态对象  | TextInputState |
+
+</div>
+
+:::tip 与 textInputState() 属性的区别
+- `textInputState()` 是属性方法，在声明阶段绑定状态，适合响应式更新
+- `setTextInputState()` 是实例方法，可以在任意时刻调用，适合事件处理中动态设置
+:::
+
+**示例**
+
+```kotlin{20-22}
+@Page("demo_page")
+internal class TestPage : BasePager() {
+    lateinit var inputRef: ViewRef<InputView>
+
+    override fun body(): ViewBuilder {
+        val ctx = this
+        return {
+            // ... UI布局
+        }
+    }
+
+    private fun clearInput() {
+        // 清空输入框
+        inputRef.view?.setTextInputState(TextInputState(text = ""))
+    }
+    
+    private fun insertEmoji(shortcode: String) {
+        inputRef.view?.getTextInputState { state ->
+            val newState = state.replaceSelection(shortcode)
+            inputRef.view?.setTextInputState(newState)
+        }
+    }
+}
+```
+
+### setCursorIndex <Badge text="小程序支持中" type="warn"/>
 
 设置当前光标位置
 

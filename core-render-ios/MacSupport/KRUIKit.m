@@ -2488,4 +2488,19 @@ BOOL KRUIViewSetClipsToBounds(KRPlatformView *view) {
 
 @end
 
+#pragma mark - NSPasteboard UIKit Compatibility
+
+@implementation NSPasteboard (KRUIPasteboardCompat)
+
+- (NSString *)string {
+    return [self stringForType:NSPasteboardTypeString];
+}
+
+- (void)setString:(NSString *)string {
+    [self clearContents];
+    [self setString:string forType:NSPasteboardTypeString];
+}
+
+@end
+
 #endif

@@ -58,6 +58,7 @@ import com.tencent.kuikly.compose.ui.text.AnnotatedString
 import com.tencent.kuikly.compose.ui.text.MultiParagraph
 import com.tencent.kuikly.compose.ui.text.TextLayoutInput
 import com.tencent.kuikly.compose.ui.text.TextLayoutResult
+import com.tencent.kuikly.compose.ui.text.TextRange
 import com.tencent.kuikly.compose.ui.text.TextStyle
 import com.tencent.kuikly.compose.ui.text.input.ImeAction
 import com.tencent.kuikly.compose.ui.text.input.ImeOptions
@@ -73,6 +74,7 @@ import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.isSpecified
 import com.tencent.kuikly.compose.ui.util.fastRoundToInt
 import com.tencent.kuikly.core.views.AutoHeightTextAreaView
+import com.tencent.kuikly.core.views.TextInputState
 import com.tencent.kuikly.core.views.LengthLimitType
 import com.tencent.kuikly.core.views.TextAreaAttr
 import com.tencent.kuikly.core.views.TextAreaEvent
@@ -193,6 +195,11 @@ internal fun CoreTextField(
     // 共享的文本长度和是否超限状态，供 textDidChange 和 textLengthBeyondLimit 回调共享
     var currentTextLength by remember { mutableStateOf(-1) }
     var currentLimitExceeded by remember { mutableStateOf(false) }
+    var receivedTextInputStateEvent by remember { mutableStateOf(false) }
+    // 记录上一次同步到原生层的文本，用于判断是否需要重新同步
+    var lastSyncedText by remember { mutableStateOf("") }
+    // 标记是否正在处理原生事件，避免 set(value) 反向同步导致选择状态被重置
+    var isProcessingNativeEvent by remember { mutableStateOf(false) }
 
     val measurePolicy = remember(value) { object : MeasurePolicy {
         private val placementBlock: Placeable.PlacementScope.() -> Unit = {}
@@ -369,10 +376,36 @@ internal fun CoreTextField(
                             }
                         }
                     }
+
                     set(value) {
                         if (it == null) return@set
                         withTextAreaView {
-                            getViewAttr().text(value.text)
+                            val newText = value.text
+                            val oldText = lastSyncedText
+                            getViewAttr().updatePropCache(TextConst.VALUE, newText)
+                            val composition = value.composition
+
+                            // 判断是否需要同步到原生层
+                            // 只有当文本发生变化，或者不是来自原生事件时，才同步
+                            // 这样可以避免用户拖动选择游标时，Kotlin层用旧selection覆盖原生层的当前selection
+                            val textChanged = newText != oldText
+                            val shouldSyncToNative = textChanged || !isProcessingNativeEvent
+
+                            if (shouldSyncToNative) {
+                                setTextInputState(
+                                    TextInputState(
+                                        text = newText,
+                                        selectionStart = value.selection.start,
+                                        selectionEnd = value.selection.end,
+                                        compositionStart = composition?.start ?: TextInputState.NO_COMPOSITION,
+                                        compositionEnd = composition?.end ?: TextInputState.NO_COMPOSITION
+                                    )
+                                )
+                                lastSyncedText = newText
+                            }
+
+                            // 重置标志，等待下一次原生事件
+                            isProcessingNativeEvent = false
                         }
                     }
                     set(editable) {
@@ -425,7 +458,58 @@ internal fun CoreTextField(
                     }
                     set(onValueChange to onLimitChange) {
                         withTextAreaView {
+                            getViewEvent().textInputStateChange {
+                                // 标记正在处理原生事件，避免 set(value) 反向同步导致选择状态被重置
+                                isProcessingNativeEvent = true
+                                receivedTextInputStateEvent = true
+                                autoHeightTextAreaView.getViewAttr()
+                                    .updatePropCache(TextConst.VALUE, it.text)
+                                val composition = if (
+                                    it.compositionStart != TextInputState.NO_COMPOSITION &&
+                                    it.compositionEnd != TextInputState.NO_COMPOSITION
+                                ) {
+                                    TextRange(it.compositionStart, it.compositionEnd)
+                                } else {
+                                    null
+                                }
+                                onValueChange(
+                                    TextFieldValue(
+                                        it.text,
+                                        selection = TextRange(it.selectionStart, it.selectionEnd),
+                                        composition = composition
+                                    )
+                                )
+                                val newLength = it.length ?: -1
+                                if (newLength != currentTextLength || currentLimitExceeded) {
+                                    currentTextLength = newLength
+                                    currentLimitExceeded = false
+                                    onLimitChange?.invoke(currentTextLength, currentLimitExceeded)
+                                }
+                            }
+                            getViewEvent().selectionChange {
+                                // 标记正在处理原生事件，避免 set(value) 反向同步导致选择状态被重置
+                                isProcessingNativeEvent = true
+                                receivedTextInputStateEvent = true
+                                val composition = if (
+                                    it.compositionStart != TextInputState.NO_COMPOSITION &&
+                                    it.compositionEnd != TextInputState.NO_COMPOSITION
+                                ) {
+                                    TextRange(it.compositionStart, it.compositionEnd)
+                                } else {
+                                    null
+                                }
+                                onValueChange(
+                                    TextFieldValue(
+                                        it.text,
+                                        selection = TextRange(it.selectionStart, it.selectionEnd),
+                                        composition = composition
+                                    )
+                                )
+                            }
                             getViewEvent().textDidChange {
+                                if (receivedTextInputStateEvent) {
+                                    return@textDidChange
+                                }
                                 autoHeightTextAreaView.getViewAttr()
                                     .updatePropCache(TextConst.VALUE, it.text)
                                 onValueChange(TextFieldValue(it.text))

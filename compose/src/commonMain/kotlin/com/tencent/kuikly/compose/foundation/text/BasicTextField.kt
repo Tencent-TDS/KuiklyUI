@@ -23,7 +23,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.tencent.kuikly.compose.extension.scaleToDensity
+import com.tencent.kuikly.compose.extension.textPostProcessor
 import com.tencent.kuikly.compose.foundation.interaction.MutableInteractionSource
+import com.tencent.kuikly.compose.foundation.text.input.InputTransformation
+import com.tencent.kuikly.compose.foundation.text.input.OutputTransformation
+import com.tencent.kuikly.compose.foundation.text.input.TextFieldBuffer
+import com.tencent.kuikly.compose.foundation.text.input.TextFieldState
+import com.tencent.kuikly.compose.foundation.text.input.TextPostProcessorOutputTransformation
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.Brush
 import com.tencent.kuikly.compose.ui.graphics.Color
@@ -73,6 +79,61 @@ internal fun TextAreaAttr.setTextStyle(style: TextStyle, density: Density) {
     if (style.lineHeight.isSpecified) {
         lineHeight(this.scaleToDensity(density, style.lineHeight.value))
     }
+}
+
+@Composable
+fun BasicTextField(
+    state: TextFieldState,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    readOnly: Boolean = false,
+    textStyle: TextStyle = TextStyle.Default,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    singleLine: Boolean = false,
+    maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
+    minLines: Int = 1,
+    inputTransformation: InputTransformation? = null,
+    outputTransformation: OutputTransformation? = null,
+    onTextLayout: (TextLayoutResult) -> Unit = {},
+    interactionSource: MutableInteractionSource? = null,
+    cursorBrush: Brush = SolidColor(Color.Black),
+    decorationBox: @Composable (innerTextField: @Composable () -> Unit) -> Unit =
+        @Composable { innerTextField -> innerTextField() }
+) {
+    val transformedModifier = when (outputTransformation) {
+        is TextPostProcessorOutputTransformation -> modifier.textPostProcessor(outputTransformation.processor)
+        else -> modifier
+    }
+    CoreTextField(
+        value = TextFieldValue(
+            text = state.text,
+            selection = state.selection,
+            composition = state.composition
+        ),
+        onValueChange = { newValue ->
+            val buffer = TextFieldBuffer(newValue.text, newValue.selection, newValue.composition)
+            inputTransformation?.let {
+                with(it) { buffer.transformInput() }
+            }
+            if (!buffer.hasReverted) {
+                state.updateFromTextField(buffer.toString(), buffer.selection, buffer.composition)
+            }
+        },
+        modifier = transformedModifier,
+        textStyle = textStyle,
+        onTextLayout = onTextLayout,
+        interactionSource = interactionSource,
+        cursorBrush = cursorBrush,
+        singleLine = singleLine,
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
+        softWrap = !singleLine,
+        maxLines = if (singleLine) 1 else maxLines,
+        decorationBox = decorationBox,
+        enabled = enabled,
+        readOnly = readOnly,
+    )
 }
 
 /**

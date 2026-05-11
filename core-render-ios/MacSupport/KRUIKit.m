@@ -615,10 +615,6 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 
 #pragma mark - iOS compatibility methods
 
-- (BOOL)isFirstResponder {
-    return [[self window] firstResponder] == self;
-}
-
 - (BOOL)becomeFirstResponder {
     // Do NOT call [super becomeFirstResponder] here.
     // NSTextView's becomeFirstResponder throws an exception when called outside

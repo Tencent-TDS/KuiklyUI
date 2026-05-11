@@ -510,6 +510,9 @@ NS_INLINE NSEdgeInsets UIEdgeInsetsMake(CGFloat top, CGFloat left, CGFloat botto
 - (UITextRange *)textRangeFromPosition:(UITextPosition *)fromPosition toPosition:(UITextPosition *)toPosition;
 - (NSInteger)offsetFromPosition:(UITextPosition *)from toPosition:(UITextPosition *)to;
 
+- (BOOL)isFirstResponder;
+- (BOOL)becomeFirstResponder;
+
 @end
 
 #pragma mark - NSImage UIKit Compatibility

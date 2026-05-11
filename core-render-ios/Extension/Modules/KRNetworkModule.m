@@ -229,6 +229,18 @@
         return;
     }
 
+    // 防御性判断：requestId 必须唯一，避免覆盖已有的流式请求导致句柄丢失
+    if (self.activeStreamTasks[requestId] != nil) {
+        if (callback) {
+            callback(@{
+                @"event": @"error",
+                @"data": @"duplicate requestId",
+                @"statusCode": @(-1000)
+            });
+        }
+        return;
+    }
+
     NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:url]];
     request.HTTPMethod = method ?: @"GET";
     request.timeoutInterval = timeout > 0 ? timeout : 30;

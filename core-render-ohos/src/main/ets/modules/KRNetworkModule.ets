@@ -111,6 +111,20 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
         return;
       }
 
+      // 防御性判断：requestId 必须唯一，避免覆盖已有的流式请求导致句柄丢失
+      if (this.activeStreamRequests.has(requestId)) {
+        KRRenderLog.e("NetworkModule", `Stream request error: duplicate requestId=${requestId}`);
+        if (callback) {
+          const eventData: StreamEventData = {
+            event: 'error',
+            data: 'duplicate requestId',
+            statusCode: KRNetworkModule.STATE_CODE_UNKNOWN
+          };
+          callback(eventData);
+        }
+        return;
+      }
+
       const urlOptions = this.createURLAndOptions(params, null);
       if (urlOptions == null) {
         return;

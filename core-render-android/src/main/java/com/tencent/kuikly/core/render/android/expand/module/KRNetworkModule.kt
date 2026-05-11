@@ -142,6 +142,19 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
             return
         }
 
+        // 防御性判断：requestId 必须唯一，避免覆盖已有连接导致句柄丢失、状态错乱
+        if (activeStreamConnections.containsKey(requestId)) {
+            KuiklyRenderLog.e(MODULE_NAME, "Stream request error: duplicate requestId=$requestId")
+            callback?.invoke(
+                mapOf(
+                    KEY_STREAM_EVENT to STREAM_EVENT_ERROR,
+                    KEY_STREAM_DATA to "duplicate requestId",
+                    KEY_STATUS_CODE to STATE_CODE_UNKNOWN
+                )
+            )
+            return
+        }
+
         var reader: InputStreamReader? = null
         var errorStream: InputStream? = null
         var connection: HttpURLConnection? = null

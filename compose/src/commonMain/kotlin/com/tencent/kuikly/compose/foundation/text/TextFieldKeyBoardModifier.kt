@@ -36,3 +36,13 @@ import com.tencent.kuikly.compose.ui.focus.onFocusChanged
  */
 fun Modifier.autoHideKeyboardOnImeAction(enable: Boolean): Modifier =
     setProp("autoHideKeyboardOnImeAction", if (enable) 1 else 0)
+
+/**
+ * 设置软键盘收起时是否保持输入框焦点
+ *
+ * @param enable 是否保持焦点，默认为 false
+ *               - true: 键盘收起后光标保留，可继续输入
+ *               - false: 键盘收起后输入框失焦，光标消失
+ */
+fun Modifier.keepFocusOnKeyboardDismiss(enable: Boolean): Modifier =
+    setProp("keepFocusOnKeyboardDismiss", if (enable) 1 else 0)

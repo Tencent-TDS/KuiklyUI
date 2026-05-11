@@ -558,6 +558,7 @@ object TextConst {
     const val PLACEHOLDER = "placeholder"
     const val PLACEHOLDER_COLOR = "placeholderColor"
     const val AUTO_HIDE_KEYBOARD_ON_IME_ACTION = "autoHideKeyboardOnImeAction"
+    const val KEEP_FOCUS_ON_KEYBOARD_DISMISS = "keepFocusOnKeyboardDismiss"
 }
 
 enum class TextAlign(val value: String) {

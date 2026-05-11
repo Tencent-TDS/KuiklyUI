@@ -138,6 +138,12 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
      */
     private var autoHideKeyboardOnImeAction: Boolean = false
 
+    /**
+     * 软键盘收起时是否保持输入框焦点
+     * 默认值为 false，即失焦
+     */
+    private var keepFocusOnKeyboardDismiss: Boolean = false
+
     init {
         resetDefaultStyle()
         enableFocusInTouchMode()
@@ -201,6 +207,10 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
             KRTextProps.PROP_KEY_LINE_HEIGHT -> setLineHeight(propValue)
             AUTO_HIDE_KEYBOARD_ON_IME_ACTION -> {
                 autoHideKeyboardOnImeAction = (propValue as Int == TYPE_ENABLE_HIDE_KEYBOARD)
+                true
+            }
+            KEEP_FOCUS_ON_KEYBOARD_DISMISS -> {
+                keepFocusOnKeyboardDismiss = (propValue as Int == 1)
                 true
             }
             else -> super.setProp(propKey, propValue)
@@ -598,7 +608,10 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     }
 
     private fun setBlur() {
-        clearFocus()
+        if (!keepFocusOnKeyboardDismiss) {
+            clearFocus()
+        }
+
         post {
             val imm = context.getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
             imm.hideSoftInputFromWindow(windowToken, 0)
@@ -854,6 +867,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         private const val KEYBOARD_HEIGHT_CHANGE = "keyboardHeightChange"
         private const val IME_NO_FULLSCREEN = "imeNoFullscreen"
         private const val AUTO_HIDE_KEYBOARD_ON_IME_ACTION = "autoHideKeyboardOnImeAction"
+        private const val KEEP_FOCUS_ON_KEYBOARD_DISMISS = "keepFocusOnKeyboardDismiss"
 
         private const val METHOD_SET_TEXT = "setText"
         private const val METHOD_FOCUS = "focus"

@@ -302,8 +302,14 @@ fun SubcomposeLayout(
                         && abs(ignoreOffset.y.minus(scaleParams.offsetY)) <= epsilon
                     if (matched) {
                         kuiklyInfo.ignoreScrollOffset = null
+                        return@scroll
                     }
-                    return@scroll
+                    // 防御性修复：实际 offset 已远离 ignoreScrollOffset 目标位置，说明此次 scroll
+                    // 不是 setContentOffset(target) 回调而是真实用户滚动。
+                    // （macOS 上 setContentOffset(0,0) 与当前 offset 一致时 documentView.scrollPoint
+                    // 不触发 bounds change 回调，导致 ignoreScrollOffset 永远无法被清除的死锁）
+                    // 此时清除过期标记并继续向下执行正常滚动处理。
+                    kuiklyInfo.ignoreScrollOffset = null
                 }
 
                 // 忽略较小的滑动

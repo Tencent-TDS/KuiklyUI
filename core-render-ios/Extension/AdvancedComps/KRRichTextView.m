@@ -18,6 +18,9 @@
 #import "KRConvertUtil.h"
 #import "KuiklyRenderBridge.h"
 #import "NSObject+KR.h"
+#if TARGET_OS_OSX
+#import <objc/runtime.h>
+#endif
 
 NSString *const KuiklyIndexAttributeName = @"KuiklyIndexAttributeName";
 NSString *const kGradientInfoKeyCSSGradient = @"cssGradient";
@@ -28,7 +31,7 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
 
 @property (nonatomic, strong) NSNumber *css_numberOfLines;
 @property (nonatomic, strong) NSString *css_lineBreakMode;
-
+@property (nonatomic, strong) NSNumber *css_selectable;
 
 @end
 
@@ -45,6 +48,8 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
     return self;
 }
 
+
+
 - (void)hrv_setPropWithKey:(NSString *)propKey propValue:(id)propValue {
     KUIKLY_SET_CSS_COMMON_PROP;
 }
@@ -54,6 +59,7 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
     self.attributedText = nil;
     self.css_numberOfLines = nil;
     self.css_lineBreakMode = nil;
+    self.css_selectable = @(NO);
 }
 
 + (id<KuiklyRenderShadowProtocol>)hrv_createShadow {
@@ -82,9 +88,19 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
     }
 }
 
+- (void)setCss_selectable:(NSNumber *)css_selectable {
+    _css_selectable = css_selectable;
+}
+
 #pragma mark - override
 
 - (void)css_onClickTapWithSender:(UIGestureRecognizer *)sender {
+#if TARGET_OS_OSX // [macOS
+    // If there's an active selection, don't trigger click
+    if (self.selectedRange.length > 0) {
+        return;
+    }
+#endif // macOS]
     CGPoint location = [sender locationInView:self];
 #if TARGET_OS_OSX // [macOS NSWindow is not a subclass of NSView, use contentView
     CGPoint pageLocation = [sender locationInView:self.window.contentView];

@@ -161,6 +161,9 @@ static const UIAccessibilityTraits UIAccessibilityTraitHeader = (1 << 15);
 #define UITextView KRUITextView
 #define UIWindow NSWindow
 
+// Pasteboard alias
+#define UIPasteboard NSPasteboard
+
 // Application aliases
 #define UIApplication NSApplication
 
@@ -924,6 +927,14 @@ typedef void (^KRUIGraphicsImageDrawingActions)(KRUIGraphicsImageRendererContext
 - (instancetype)initWithSize:(CGSize)size;
 - (instancetype)initWithSize:(CGSize)size format:(KRUIGraphicsImageRendererFormat *)format;
 - (NSImage *)imageWithActions:(NS_NOESCAPE KRUIGraphicsImageDrawingActions)actions;
+
+@end
+
+#pragma mark - NSPasteboard UIKit Compatibility
+
+@interface NSPasteboard (KRUIPasteboardCompat)
+
+@property (nonatomic, copy, nullable) NSString *string;
 
 @end
 

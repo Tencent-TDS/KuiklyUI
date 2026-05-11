@@ -615,6 +615,10 @@ NSData *UIImageJPEGRepresentation(NSImage *image, CGFloat compressionQuality) {
 
 #pragma mark - iOS compatibility methods
 
+- (BOOL)isFirstResponder {
+    return [[self window] firstResponder] == self;
+}
+
 - (BOOL)becomeFirstResponder {
     // Do NOT call [super becomeFirstResponder] here.
     // NSTextView's becomeFirstResponder throws an exception when called outside
@@ -2484,6 +2488,21 @@ BOOL KRUIViewSetClipsToBounds(KRPlatformView *view) {
         return YES;
     }];
     return image;
+}
+
+@end
+
+#pragma mark - NSPasteboard UIKit Compatibility
+
+@implementation NSPasteboard (KRUIPasteboardCompat)
+
+- (NSString *)string {
+    return [self stringForType:NSPasteboardTypeString];
+}
+
+- (void)setString:(NSString *)string {
+    [self clearContents];
+    [self setString:string forType:NSPasteboardTypeString];
 }
 
 @end

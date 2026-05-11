@@ -43,6 +43,9 @@ project(":core-render-android").buildFileName = buildFileName
 include(":compose")
 project(":compose").buildFileName = buildFileName
 
+include(":core-wx")
+project(":core-wx").buildFileName = buildFileName
+
 include(":demo")
 project(":demo").buildFileName = buildFileName
 

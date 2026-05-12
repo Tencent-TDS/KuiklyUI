@@ -30,6 +30,7 @@ import com.tencent.kuikly.compose.ui.util.fastSumBy
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.max
+import kotlin.math.roundToInt
 
 /**
  * Calculate content size
@@ -56,7 +57,7 @@ private fun ScrollableState.calculateContentSize(): Int {
         val composeViewport = composeViewportMainAxisSize() ?: viewportSize
         val viewportDelta = viewportSize - composeViewport
         // Compensate for contentPadding which does not affect viewportSize but is excluded from totalContentSize
-        val contentPaddingCompensation = (contentPadding.totalPadding(kuiklyInfo.orientation).value * density).toInt()
+        val contentPaddingCompensation = (contentPadding.totalPadding(kuiklyInfo.orientation).value * density).roundToInt()
         kuiklyInfo.realContentSize = realContentSize + viewportDelta + contentPaddingCompensation
         return kuiklyInfo.realContentSize!!
     }

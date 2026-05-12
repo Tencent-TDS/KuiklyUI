@@ -52,7 +52,9 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
                 httpStreamRequest(params, callback)
             }
             METHOD_CLOSE_STREAM_REQUEST -> {
-                closeStreamRequest(params)
+                KuiklyRenderAdapterManager.krThreadAdapter?.executeOnSubThread {
+                    closeStreamRequest(params)
+                }
                 null
             }
             else -> super.call(method, params, callback)

@@ -523,14 +523,7 @@ internal class TestPage : BasePager() {
 </div>
 
 :::tip 关于 TextInputState
-`TextInputState` 是用于 Core/Render 通信的跨层文本输入状态数据类，包含以下字段：
-- `text`: 当前输入的文本（String）
-- `selectionStart`: 选区起始位置（Int）
-- `selectionEnd`: 选区结束位置（Int）
-- `compositionStart`: 组合输入起始位置（Int，使用 `NO_COMPOSITION = -1` 表示无组合输入）
-- `compositionEnd`: 组合输入结束位置（Int）
-
-详细文档请参考 [TextInputState 数据结构说明](#textinputstate-数据结构)。
+`TextInputState` 是用于 Core/Render 通信的跨层文本输入状态数据类。详细字段说明请参考 [TextInputState 数据结构](#textinputstate-数据结构)。
 :::
 
 **示例**
@@ -706,21 +699,7 @@ internal class TestPage : BasePager() {
 
 ### textInputStateChange事件 <Badge text="2.15+" type="info"/>
 
-``textInputStateChange``事件在 raw text、selection 或 composition 发生变化时触发。与 `textDidChange` 不同，该事件会返回完整的 `TextInputState` 对象，包含文本内容和选区信息。
-
-<div class="table-01">
-
-**TextInputState**
-
-| 参数  | 描述     | 类型 |
-|:----|:-------|:--|
-| text | 当前输入的文本  | String |
-| selectionStart | 选区起始位置  | Int |
-| selectionEnd | 选区结束位置  | Int |
-| compositionStart | 组合输入起始位置（iOS拼音输入时有效）  | Int |
-| compositionEnd | 组合输入结束位置（iOS拼音输入时有效）  | Int |
-
-</div>
+``textInputStateChange``事件在 raw text、selection 或 composition 发生变化时触发。与 `textDidChange` 不同，该事件会返回完整的 `TextInputState` 对象，包含文本内容和选区信息。详细字段说明请参考 [TextInputState 数据结构](#textinputstate-数据结构)。
 
 :::tip 使用建议
 - 如果需要同时获取文本和选区变化，使用 `textInputStateChange`
@@ -749,21 +728,7 @@ Input {
 
 ### selectionChange事件 <Badge text="2.15+" type="info"/>
 
-``selectionChange``事件在选区范围发生变化时触发（不需要文本发生变化）。例如：用户移动光标、选择文本等操作会触发此事件。返回完整的 `TextInputState` 对象。
-
-<div class="table-01">
-
-**TextInputState**
-
-| 参数  | 描述     | 类型 |
-|:----|:-------|:--|
-| text | 当前输入的文本（未变化）  | String |
-| selectionStart | 新的选区起始位置  | Int |
-| selectionEnd | 新的选区结束位置  | Int |
-| compositionStart | 组合输入起始位置  | Int |
-| compositionEnd | 组合输入结束位置  | Int |
-
-</div>
+``selectionChange``事件在选区范围发生变化时触发（不需要文本发生变化）。例如：用户移动光标、选择文本等操作会触发此事件。返回完整的 `TextInputState` 对象，详细字段说明请参考 [TextInputState 数据结构](#textinputstate-数据结构)。
 
 :::tip 使用场景
 - 监听光标移动，实现 @提及 弹窗的触发
@@ -1314,8 +1279,63 @@ internal class TestPage : BasePager() {
         }
     }
 
-    fun setCursorIndex(index: Int) {
+fun setCursorIndex(index: Int) {
         ref.view?.setCursorIndex(index)
+    }
+}
+```
+
+## TextInputState 数据结构 <Badge text="2.15+" type="info"/>
+
+`TextInputState` 是用于 Core/Render 通信的跨层文本输入状态数据类，被 `textInputState()`、`textInputStateChange`、`selectionChange`、`getTextInputState()`、`setTextInputState()` 等属性和方法共同使用。
+
+<div class="table-01">
+
+**TextInputState 字段说明**
+
+| 字段  | 描述     | 类型 | 默认值 |
+|:----|:-------|:--|:--|
+| text | 当前输入的文本（raw text，不含富文本渲染信息）  | String | `""` |
+| selectionStart | 选区起始位置（光标位置时与 `selectionEnd` 相等）  | Int | `0` |
+| selectionEnd | 选区结束位置  | Int | `0` |
+| compositionStart | 组合输入起始位置（iOS 拼音输入过程中有效，无组合输入时为 `NO_COMPOSITION = -1`）  | Int | `-1` |
+| compositionEnd | 组合输入结束位置（iOS 拼音输入过程中有效）  | Int | `-1` |
+
+</div>
+
+:::tip 常用操作方法
+- `replaceSelection(text)` — 用指定文本替换当前选区，返回新的 `TextInputState`（光标移至插入内容末尾）
+
+`replaceSelection()` 不是 SDK 内置 API，需要开发者自行实现，参考实现如下：
+
+```kotlin
+private fun TextInputState.replaceSelection(insertText: String): TextInputState {
+    val start = selectionStart.coerceIn(0, text.length)
+    val end = selectionEnd.coerceIn(0, text.length)
+    val rangeStart = minOf(start, end)
+    val rangeEnd = maxOf(start, end)
+    val newText = text.substring(0, rangeStart) + insertText + text.substring(rangeEnd)
+    val cursor = rangeStart + insertText.length
+    return copy(
+        text = newText,
+        selectionStart = cursor,
+        selectionEnd = cursor,
+        compositionStart = NO_COMPOSITION,
+        compositionEnd = NO_COMPOSITION,
+        length = null
+    )
+}
+```
+:::
+
+**示例：插入表情短码**
+
+```kotlin
+private fun insertEmoji(shortcode: String) {
+    inputRef.view?.getTextInputState { state ->
+        // state.selectionStart == state.selectionEnd 时表示光标（无选区）
+        val newState = state.replaceSelection(shortcode)
+        inputRef.view?.setTextInputState(newState)
     }
 }
 ```

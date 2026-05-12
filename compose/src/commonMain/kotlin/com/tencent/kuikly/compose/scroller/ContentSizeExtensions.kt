@@ -35,7 +35,7 @@ import kotlin.math.roundToInt
 /**
  * Calculate content size
  */
-private fun ScrollableState.calculateContentSize(): Int {
+internal fun ScrollableState.calculateContentSize(): Int {
     kuiklyInfo.realContentSize = null
     val density = kuiklyInfo.getDensity()
     val minSize = (ScrollableStateConstants.DEFAULT_CONTENT_SIZE * density).toInt()

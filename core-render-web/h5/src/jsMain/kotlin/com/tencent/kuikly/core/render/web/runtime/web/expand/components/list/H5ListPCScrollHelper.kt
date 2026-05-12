@@ -122,6 +122,46 @@ object PCListScrollHandler {
             mouseDownEleIds.clear()
             scrollEleIds.clear()
         }, json("passive" to true))
+
+        // Defensive fallback: once a native HTML5 drag starts (e.g. dragging an image
+        // inside a PageList while [KuiklyProcessor.preventDefaultDrag] is false),
+        // the browser stops dispatching `mousemove` / `mouseup`. Without this fallback
+        // `isMouseDown` would stay true and the list would keep scrolling with the
+        // cursor until the next click. Listening to `dragend` / `drop` on window
+        // guarantees we always finalize the scroll state.
+        val dragFinalizer: (Event) -> Unit = { evt ->
+            // dragstart / dragend / drop all inherit from MouseEvent, so this cast is safe.
+            cancelMouseInteraction(evt as MouseEvent)
+        }
+        kuiklyWindow.addEventListener(KREventConst.DRAG_END, dragFinalizer, json("passive" to true))
+        kuiklyWindow.addEventListener("drop", dragFinalizer, json("passive" to true))
+    }
+
+    /**
+     * Forcefully end the current mouse interaction.
+     *
+     * Used when the browser switches to native HTML5 drag mode and we will no longer
+     * receive a `mouseup` event. Resets every [H5ListView] that thinks it is still
+     * being dragged, then clears the global tracking arrays.
+     *
+     * @param event The drag-related event that triggered the cancel. Will be forwarded
+     *              to the per-list [H5ListPCScrollHelper.cancelMouseInteraction] in place
+     *              of the missing `mouseup`.
+     */
+    fun cancelMouseInteraction(event: MouseEvent) {
+        filterScrollElementIds()
+        if (scrollEleIds.isEmpty()) {
+            mouseDownEleIds.clear()
+            return
+        }
+        scrollEleIds.forEach { id ->
+            val ele = kuiklyDocument.getElementById(id)
+            val listView: H5ListView? = ele?.asDynamic()?.listView?.unsafeCast<H5ListView>()
+            listView?.pcScrollHelper?.cancelMouseInteraction(event)
+        }
+        mouseDownEleIds.clear()
+        scrollEleIds.clear()
+        isScrolling = ScrollingAxis.NONE
     }
 
     /**
@@ -567,6 +607,45 @@ class H5ListPCScrollHelper(
             return
         }
         listView.handleTouchEnd()
+    }
+
+    /**
+     * Forcefully cancel the in-progress mouse interaction without simulating a click.
+     *
+     * This is called when the browser starts a native HTML5 drag (`dragstart`) or finishes
+     * one (`dragend` / `drop`). In that case `mouseup` will never fire, so we must reset
+     * every piece of state that [handleMouseDown] / [handleMouseMove] has touched, and let
+     * the list know the drag has ended (so dragEnd / scroll callbacks fire and the list
+     * stops following the cursor).
+     *
+     * @param event The drag-related event that triggered the cancel. `dragstart` / `dragend`
+     *              / `drop` all inherit from [MouseEvent], so they can be safely passed to
+     *              the underlying paging / nested helpers as a stand-in for a missing
+     *              `mouseup`.
+     */
+    fun cancelMouseInteraction(event: MouseEvent) {
+        if (!isMouseDown) return
+        isMouseDown = false
+        lastMouseEvent = null
+        // Make sure the next "click vs drag" detection starts clean.
+        listView.cancelClickDetectionTimer()
+        listView.setClickEvent(false)
+        // Reset the per-direction "first move" flags so the next gesture is consistent.
+        isFirstMoveLeft = true
+        isFirstMoveRight = true
+        isFirstMoveUp = true
+        isFirstMoveDown = true
+        scrollDistanceX = 0f
+        scrollDistanceY = 0f
+        // Notify the list that the drag has ended (fires willDragEnd / dragEnd callbacks).
+        if (listView.pagingEnabled) {
+            // For paging, finish the current page animation gracefully.
+            listView.listPagingHelper.handlePagerMouseUp(event)
+        } else if (listView.nestScrollEnabled) {
+            listView.nestScrollHelper.handleNestScrollMouseUp(event)
+        } else {
+            listView.handleTouchEnd()
+        }
     }
 }
 

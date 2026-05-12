@@ -235,9 +235,10 @@ open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
     private fun tryFireLineBreakMarginEvent() {
         if (attr.getProp(TextConst.LINE_BREAK_MARGIN) != null) {
             getPager().addTaskWhenPagerDidCalculateLayout {
-                val isLineBreakMargin = shadow?.callMethod(TextConst.SHADOW_METHOD_IS_LINE_BREAK_MARGIN, "") == "1"
+                val isLineBreakMargin =
+                    shadow?.callMethod(TextConst.SHADOW_METHOD_IS_LINE_BREAK_MARGIN, "") == "1"
                 if (isLineBreakMargin) {
-                    event.handler?.invoke(null)
+                    onFireEvent(TextEvent.TextEventConst.ON_LINE_BREAK_MARGIN, null)
                 }
             }
         }
@@ -739,7 +740,9 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
             richTextViewParent?.addChild(ImageView()) {
                 ctx.view = this
                 attr {
-                    visibility(ctx.placeholderFrame.width != 0f && ctx.placeholderFrame.height != 0f)
+                    val isWithinRichText = ctx.richTextFrame.height == 0f ||
+                        (ctx.placeholderFrame.y + ctx.placeholderFrame.height) <= ctx.richTextFrame.height
+                    visibility(ctx.placeholderFrame.width != 0f && ctx.placeholderFrame.height != 0f && isWithinRichText)
                     absolutePosition(
                         top = ctx.richTextFrame.y + ctx.placeholderFrame.y + ctx.verticalAlignOffset,
                         left = ctx.richTextFrame.x + ctx.placeholderFrame.x + ctx.horizontalAlignOffset

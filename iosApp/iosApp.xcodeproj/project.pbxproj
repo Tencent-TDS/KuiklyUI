@@ -28,6 +28,7 @@
 		FFBD31B829015A0200D555DE /* UINavigationController+FDFullscreenPopGesture.m in Sources */ = {isa = PBXBuildFile; fileRef = FFBD31B729015A0100D555DE /* UINavigationController+FDFullscreenPopGesture.m */; };
 		FFDEA045288C2DF3008534B5 /* KuiklyRenderViewPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFDEA044288C2DF3008534B5 /* KuiklyRenderViewPage.swift */; };
 		FFEDDC7A2AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = FFEDDC792AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.m */; };
+		FFEDDC7B2AA6F0980000420F /* NativeAppWaterfallViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = FFEDDC7D2AA6F0980000420F /* NativeAppWaterfallViewController.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -71,6 +72,8 @@
 		FFDEA044288C2DF3008534B5 /* KuiklyRenderViewPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KuiklyRenderViewPage.swift; sourceTree = "<group>"; };
 		FFEDDC782AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = NativeMixKuiklyViewDemoViewController.h; sourceTree = "<group>"; };
 		FFEDDC792AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = NativeMixKuiklyViewDemoViewController.m; sourceTree = "<group>"; };
+		FFEDDC7C2AA6F0980000420F /* NativeAppWaterfallViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = NativeAppWaterfallViewController.h; sourceTree = "<group>"; };
+		FFEDDC7D2AA6F0980000420F /* NativeAppWaterfallViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = NativeAppWaterfallViewController.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -198,6 +201,8 @@
 				3AF526712A9309C300A93682 /* RootViewController.m */,
 				FFEDDC782AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.h */,
 				FFEDDC792AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.m */,
+				FFEDDC7C2AA6F0980000420F /* NativeAppWaterfallViewController.h */,
+				FFEDDC7D2AA6F0980000420F /* NativeAppWaterfallViewController.m */,
 			);
 			path = Controller;
 			sourceTree = "<group>";
@@ -314,13 +319,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -357,13 +358,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-iosApp/Pods-iosApp-resources-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -392,6 +389,7 @@
 				FF05C64229C851A500C5E02A /* KRBridgeModule.m in Sources */,
 				FF05C63C29C84FFF00C5E02A /* KuiklyRenderViewController.m in Sources */,
 				FFEDDC7A2AA6F0970000420F /* NativeMixKuiklyViewDemoViewController.m in Sources */,
+				FFEDDC7B2AA6F0980000420F /* NativeAppWaterfallViewController.m in Sources */,
 				3A622B9B2AB052B0002410B8 /* TDFTestModule.m in Sources */,
 				FF05C63F29C850BC00C5E02A /* KuiklyRenderComponentExpandHandler.m in Sources */,
 			);

@@ -108,7 +108,7 @@ class LazyRowInHorizontalPager : ComposeContainer() {
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     LazyRow(
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxWidth().height(120.dp)
                             .background(
                                 when (page % 3) {
                                     0 -> Color(0xFFE3F2FD)
@@ -133,6 +133,14 @@ class LazyRowInHorizontalPager : ComposeContainer() {
                                 Text(label)
                             }
                         }
+                    }
+                    val innerPagerState: PagerState = rememberPagerState(pageCount = { 3 })
+                    HorizontalPager(
+                        state = innerPagerState,
+                        modifier = Modifier.fillMaxWidth().bouncesEnable(false).height(50.dp).nestedScroll(NestedScrollMode.SELF_FIRST, NestedScrollMode.PARENT_FIRST),
+                        beyondViewportPageCount = 3
+                    ) {
+                        Text("InnerPage ${it}")
                     }
                 }
             }

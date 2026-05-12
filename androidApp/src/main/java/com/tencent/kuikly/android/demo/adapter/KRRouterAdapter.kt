@@ -19,6 +19,7 @@ import android.app.Activity
 import android.content.Context
 import com.tencent.kuikly.android.demo.KuiklyRenderActivity
 import com.tencent.kuikly.android.demo.NativeMixKuiklyViewDemoActivity
+import com.tencent.kuikly.android.demo.NativeAppWaterfallActivity
 import com.tencent.kuikly.core.render.android.adapter.IKRRouterAdapter
 import org.json.JSONObject
 
@@ -34,6 +35,8 @@ class KRRouterAdapter : IKRRouterAdapter {
     ) {
         if (pageName == "NativeMixKuikly") {
             NativeMixKuiklyViewDemoActivity.start(context)
+        } else if (pageName == "NativeAppWaterfall") {
+            NativeAppWaterfallActivity.start(context)
         } else {
             KuiklyRenderActivity.start(context, pageName, pageData)
         }

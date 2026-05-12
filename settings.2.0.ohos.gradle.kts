@@ -6,6 +6,9 @@ pluginManagement {
         maven {
             url = uri("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
         }
+        maven {
+            url = uri("https://mirrors.tencent.com/nexus/repository/gradle-plugins/")
+        }
     }
 }
 
@@ -39,6 +42,9 @@ project(":core-render-android").buildFileName = buildFileName
 
 include(":compose")
 project(":compose").buildFileName = buildFileName
+
+include(":core-wx")
+project(":core-wx").buildFileName = buildFileName
 
 include(":demo")
 project(":demo").buildFileName = buildFileName

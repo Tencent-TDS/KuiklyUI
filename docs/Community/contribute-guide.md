@@ -36,7 +36,7 @@
 
 **代码规范与质量**：``Kuikly``遵循Kotlin官方代码规范，请在提交前确保代码风格一致。新增功能应包含适当的测试用例，确保功能稳定性和长期维护性。
 
-**提交Pull Request**：PR应包含清晰的目的描述、相关Issue链接、测试计划和任何可能影响的范围。请确保您的提交信息遵循[Contribution Guide](../../CONTRIBUTING.md)约定格式，如"feat: 添加新组件"、"fix: 修复XX问题"等。
+**提交Pull Request**：PR应包含清晰的目的描述、相关Issue链接、测试计划和任何可能影响的范围。请确保您的提交信息遵循[Contribution Guide](https://github.com/Tencent-TDS/KuiklyUI/blob/main/CONTRIBUTING.md)约定格式，如"feat: 添加新组件"、"fix: 修复XX问题"等。
 
 ### 贡献组件
 

@@ -62,8 +62,8 @@ struct KuiklyInList {
               KuiklyListItem({
                 index: item,
               })
+                .reuseId('kuiklyItem')
             }
-            .reuseId('kuiklyItem')
             .borderColor(Color.Blue)
             .borderWidth(2)
           }, (item: number) => item.toString())

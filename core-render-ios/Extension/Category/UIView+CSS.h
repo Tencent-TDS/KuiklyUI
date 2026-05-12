@@ -50,6 +50,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong, nullable) NSString *css_lazyAnimationKey;
 @property (nonatomic, strong, nullable) NSString *css_clipPath;
 @property (nonatomic, strong, nullable) CAShapeLayer *css_clipPathLayer;
+#if TARGET_OS_OSX
+@property (nonatomic, strong, nullable) NSString *css_cursor;
+#endif
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_click;
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_doubleClick;
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_longPress;

@@ -395,7 +395,13 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
                 return BackPressModule()
             }
         })
+        registerModule(ModuleConst.FILE, object : IModuleCreator {
+            override fun createModule(): Module {
+                return FileModule()
+            }
+        })
     }
+
     private fun initExternalModules() {
         createExternalModules()?.also { map ->
             modulesMap.putAll(map)

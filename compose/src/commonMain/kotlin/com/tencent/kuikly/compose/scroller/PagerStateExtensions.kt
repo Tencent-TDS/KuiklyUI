@@ -73,23 +73,24 @@ private fun PagerState.handleTargetPageScroll(
     (layoutInfo as? PagerMeasureResult)?.run {
         val allResult = visiblePagesInfo + extraPagesAfter + extraPagesBefore
         val nextPage = allResult.fastFirstOrNull { it.index == targetPage }
-        val offset = if (orientation == Orientation.Vertical) params.offsetY.toInt() else params.offsetX.toInt()
+        val density = kuiklyInfo.getDensity()
+        val offset = kuiklyInfo.composeOffset.toInt()
 
         val maxOffset = kuiklyInfo.currentContentSize - kuiklyInfo.viewportSize
         var targetOffset = nextPage?.let { offset + it.offset }
             ?: (pageSizeWithSpacing * targetPage)
         targetOffset = min(targetOffset, maxOffset)
 
-        val density = kuiklyInfo.getDensity()
         val springAnimation = SpringAnimation(
             ScrollableStateConstants.SPRING_ANIMATION_DURATION,
             ScrollableStateConstants.SPRING_ANIMATION_DAMPING,
             if (orientation == Orientation.Horizontal) params.velocityX else params.velocityY
         )
+        val targetOffsetDp = targetOffset / density
 
         if (orientation == Orientation.Horizontal) {
             kuiklyInfo.scrollView?.setContentOffset(
-                (targetOffset - ScrollableStateConstants.OFFSET_CORRECTION) / density,
+                targetOffsetDp,
                 0f,
                 true,
                 springAnimation
@@ -97,7 +98,7 @@ private fun PagerState.handleTargetPageScroll(
         } else {
             kuiklyInfo.scrollView?.setContentOffset(
                 0f,
-                (targetOffset - ScrollableStateConstants.OFFSET_CORRECTION) / density,
+                targetOffsetDp,
                 true,
                 springAnimation
             )

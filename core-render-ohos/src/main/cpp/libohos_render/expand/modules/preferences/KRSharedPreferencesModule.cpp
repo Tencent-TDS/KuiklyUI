@@ -33,7 +33,7 @@ void KRSharedPreferencesModule::InitIfNeeded() {
         if (auto root = GetRootView().lock()) {
             const std::string filesDir = root->GetContext()->Config()->GetFilesDir();
             if (!filesDir.empty()) {
-                this->preferences = util::DataPreferences::GetInstance(filesDir, options);
+                this->preferences = &util::DataPreferences::GetInstance(filesDir, options);
             }
         }
     }

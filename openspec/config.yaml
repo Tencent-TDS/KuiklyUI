@@ -1,0 +1,45 @@
+schema: spec-driven
+
+context: |
+  ## Project
+  KuiklyUI — Tencent 开源的 Kotlin Multiplatform 跨端 UI 框架，支持 Android / iOS / HarmonyOS / Web / 小程序。
+  提供两种 DSL：自研 DSL（Pager + body()）和 Compose DSL（ComposeContainer + setContent{}），二者不可混用。
+
+  ## Module Map
+  | Module | Path | Responsibility |
+  |--------|------|----------------|
+  | core | core/ | KMP core: Pager, DeclarativeBaseView, NativeBridge, ReactiveObserver, Module |
+  | compose | compose/ | Compose DSL layer: ComposeContainer, KuiklyApplier, layout/gesture/animation |
+  | core-annotations | core-annotations/ | Annotation definitions: @Page, @PageModule, etc. |
+  | core-ksp | core-ksp/ | KSP processor: auto-generates page/module registration code |
+  | core-render-android | core-render-android/ | Android native renderer |
+  | core-render-ios | core-render-ios/ | iOS native renderer (ObjC, prefix KR/TDF) |
+  | core-render-ohos | core-render-ohos/ | HarmonyOS renderer (C++/ETS) |
+  | core-render-web | core-render-web/ | Web renderer (Kotlin/JS) |
+  | demo | demo/ | Example code (both self-DSL and Compose DSL) |
+
+  ## Key Constraints
+  - Compose 包名：只有 `androidx.compose.runtime.*` 用官方包，其他一律用 `com.tencent.kuikly.compose.*`
+  - `core/` 和 `compose/` 是纯 KMP 模块，禁止依赖 `core-render-*`
+  - Commit 格式：Angular Convention — feat: / fix: / docs: / refactor: / chore:
+  - 详细开发规范、模块结构、代码模式见 AGENTS.md 及 .ai/ 知识库
+
+rules:
+  proposal:
+    - Must include a "Non-goals" section to clarify scope boundaries
+    - Must identify affected platforms (Android/iOS/HarmonyOS/Web/miniApp/macOS)
+    - Must identify which modules (core/compose/renderer/demo) are impacted
+    - Capabilities section must use module names from the Module Map above
+  specs:
+    - Use Given/When/Then format for scenarios
+    - Each requirement must have at least one scenario per affected platform
+    - Use SHALL/MUST for normative requirements
+    - Consider cross-platform consistency — if behavior differs per platform, document it explicitly
+  design:
+    - Must specify which DSL mode (self-DSL or Compose DSL) the change applies to
+    - Must document NativeBridge interactions if the change involves cross-platform communication
+    - Must list file changes grouped by module
+  tasks:
+    - Group tasks by module (core, compose, renderer, demo)
+    - Include platform-specific testing tasks (Android/iOS/HarmonyOS at minimum)
+    - Each task should be completable in under 2 hours

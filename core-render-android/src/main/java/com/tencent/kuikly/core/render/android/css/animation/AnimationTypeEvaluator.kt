@@ -22,7 +22,7 @@ import android.graphics.Rect
 import android.view.View
 import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.css.ktx.setCommonProp
-import com.tencent.kuikly.core.render.android.css.ktx.viewDecorator
+import com.tencent.kuikly.core.render.android.css.ktx.obtainViewDecorator
 
 /**
  * Frame动画转换器，evaluate方法接收start和end值，并配合[android.animation.RectEvaluator]来进行Frame动画转换
@@ -50,7 +50,7 @@ internal class BackgroundColorTypeEvaluator(private val targetView: View) : Type
 
     override fun evaluate(fraction: Float, startValue: Int?, endValue: Int?): Int {
         val newColor = argbEvaluator.evaluate(fraction, startValue, endValue) as Int
-        targetView.viewDecorator?.backgroundColor = newColor
+        targetView.obtainViewDecorator().backgroundColor = newColor
         return newColor
     }
 

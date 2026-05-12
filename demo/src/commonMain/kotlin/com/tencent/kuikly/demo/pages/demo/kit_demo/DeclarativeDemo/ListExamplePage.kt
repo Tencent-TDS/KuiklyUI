@@ -77,6 +77,12 @@ internal class ListExamplePage: BasePager() {
                 ctx.scrollView = this
                 attr {
                     flex(1f)
+
+                }
+                event {
+                    scrollToTop {
+                        println("statusbar: scrollToTop prevent")
+                    }
                 }
                 Refresh {
                     ctx.headerRefreshView = this

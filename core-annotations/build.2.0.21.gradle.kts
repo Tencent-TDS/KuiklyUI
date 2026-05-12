@@ -39,9 +39,21 @@ publishing {
 }
 
 kotlin {
-    jvm()
+    jvm {
+        compilations.all {
+            kotlinOptions {
+                moduleName = "${project.group}.${project.name}"
+            }
+        }
+    }
 
-    androidTarget()
+    androidTarget {
+        compilations.all {
+            kotlinOptions {
+                moduleName = "${project.group}.${project.name}"
+            }
+        }
+    }
 
     js(IR) {
         browser()

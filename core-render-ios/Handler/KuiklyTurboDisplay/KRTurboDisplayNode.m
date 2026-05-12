@@ -42,6 +42,7 @@
     if (self = [super init]) {
         _tag = tag;
         _viewName = viewName;
+        _nodePersistentChangedEnable = YES;
     }
     return self;
 }
@@ -245,6 +246,7 @@
     }
     return _callMethods;
 }
+
 
 - (BOOL)hasChild {
     return _children.count > 0;

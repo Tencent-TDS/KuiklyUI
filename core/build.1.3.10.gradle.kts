@@ -76,7 +76,10 @@ android {
 //    }
 
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-        kotlinOptions.freeCompilerArgs += listOf("-Xmulti-platform")
+        kotlinOptions.freeCompilerArgs += listOf(
+            "-Xmulti-platform",
+            "-module-name", "${project.group}.${project.name}"
+        )
     }
 
     val fileDir = rootProject.rootDir.absolutePath + "/core/src"

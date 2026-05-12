@@ -17,6 +17,7 @@
 #import "KuiklyRenderViewExportProtocol.h"
 #import "NestedScrollCoordinator.h"
 #import "NestedScrollProtocol.h"
+#import "KRTurboDisplayStateRestorableProtocol.h"
 
 #import "KRView.h"
 NS_ASSUME_NONNULL_BEGIN
@@ -24,7 +25,7 @@ NS_ASSUME_NONNULL_BEGIN
 /*
  * @brief 暴露给Kotlin侧调用的Scoller组件
  */
-@interface KRScrollView : UIScrollView<KuiklyRenderViewExportProtocol, UIScrollViewDelegate, NestedScrollProtocol>
+@interface KRScrollView : UIScrollView<KuiklyRenderViewExportProtocol, UIScrollViewDelegate, NestedScrollProtocol, KRTurboDisplayStateRestorableProtocol>
 
 @property (nonatomic, assign) BOOL autoAdjustContentOffsetDisable ;
 @property (nonatomic, assign) BOOL setContentSizeing ;

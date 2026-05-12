@@ -104,6 +104,10 @@ class AppKRPAGViewController implements IKRPAGViewController, PAGViewListener {
     this.viewController.pause();
   }
 
+  setProgress(value: number): void {
+    this.viewController.setProgress(value);
+  }
+
   setProp(propKey: string, propValue: KRValue | KuiklyRenderCallback): boolean {
     if (propKey == 'src') {
       const resdir = getContext().resourceDir;

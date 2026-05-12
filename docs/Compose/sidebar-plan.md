@@ -20,6 +20,7 @@
 │   ├── modifier.md (新增：Modifier)
 │   ├── animation.md (新增：动画)
 │   ├── gestures.md (新增：手势)
+│   ├── navigation.md (新增：导航)
 │   ├── performance.md (新增：性能优化)
 │   └── best-practices.md (新增：最佳实践)
 │
@@ -66,7 +67,7 @@
   - ComposeContainer 生命周期
   - 渲染流程详解
 
-### 2. 开发指南（9篇）
+### 2. 开发指南（10篇）
 - **layout.md** (从 layout-components.md 拆分)：
   - Column/Row/Box 等布局组件
   - 布局测量与放置规则
@@ -103,6 +104,12 @@
   - 手势处理
   - 拖拽、滑动等
   
+- **navigation.md** (新增)：
+  - NavHost、NavController 等导航组件
+  - 路由参数传递
+  - 嵌套导航图
+  - 页面切换动画
+
 - **performance.md** (新增)：
   - 重组优化
   - 列表性能
@@ -306,6 +313,7 @@
             "modifier.md",
             "animation.md",
             "gestures.md",
+            "navigation.md",
             "performance.md",
             "best-practices.md"
         ]

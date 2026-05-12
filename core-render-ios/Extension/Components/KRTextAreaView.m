@@ -19,6 +19,7 @@
 #import "KRRichTextView.h"
 #import "KuiklyRenderBridge.h"
 #import "NSObject+KR.h"
+
 // 字典key常量
 NSString *const KRFontSizeKey = @"fontSize";
 NSString *const KRFontWeightKey = @"fontWeight";
@@ -37,7 +38,11 @@ NSString *const KRFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  NSNumber *KUIKLY_PROP(fontSize);
 /** attr is fontWeight */
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(fontWeight);
-/** attr is placeholder */
+#if TARGET_OS_OSX
+/** clipPath for macOS - 使用 KUIKLY_PROP 命名规范，仅在 macOS 声明避免覆盖 iOS 上 UIView+CSS category */
+@property (nonatomic, copy) NSString *KUIKLY_PROP(clipPath);
+#endif
+
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(placeholder);
 /** attr is placeholderColor */
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(placeholderColor);
@@ -57,6 +62,8 @@ NSString *const KRFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(keyboardType);
 /** attr is returnKeyType */
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(returnKeyType);
+/** 是否在点击 IME 动作按钮（如 Send/Go/Search）时自动收起键盘，默认值为 YES，即自动收起，可由业务设置autoHideKeyboardOnImeAction来关闭 */
+@property (nonatomic, strong)  NSNumber *KUIKLY_PROP(autoHideKeyboardOnImeAction);
 /** event is textDidChange 文本变化 */
 @property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(textDidChange);
 /** event is inputFocus 获焦 触发 */
@@ -73,6 +80,12 @@ NSString *const KRFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(inputReturn);
 /** attr is enablePinyinCallback 是否启用拼音输入回调 */
 @property (nonatomic, strong)  NSNumber *KUIKLY_PROP(enablePinyinCallback);
+/** event is textInputStateChange raw text/selection/composition state change */
+@property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(textInputStateChange);
+/** event is selectionChange cursor/selection-only change */
+@property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(selectionChange);
+/** attr is textInputState */
+@property (nonatomic, strong)  NSString *KUIKLY_PROP(textInputState);
 
 /** placeholderTextView property */
 @property (nullable, nonatomic, strong) UITextView *placeholderTextView;
@@ -87,14 +100,28 @@ NSString *const KRFontWeightKey = @"fontWeight";
 }
 
 @synthesize hr_rootView;
+#if TARGET_OS_OSX
+@synthesize css_clipPath = _css_clipPath;
+#endif
 
 #pragma mark - init
 
 - (instancetype)init {
     if (self = [super init]) {
         self.delegate = self;
+        self.css_autoHideKeyboardOnImeAction = [NSNumber numberWithInt: 1];     // 保持原有能力，默认是关闭关闭软键盘
 #if TARGET_OS_OSX // [macOS]
         self.textContainerInset = NSZeroSize;
+        // macOS: 启用 layer-backed 支持 clipPath
+        self.wantsLayer = YES;
+        // 禁用自动调整
+        [self setAutoresizingMask:NSViewNotSizable];
+        [self setTranslatesAutoresizingMaskIntoConstraints:NO];
+        [self setMinSize:NSZeroSize];
+        [self setMaxSize:NSMakeSize(CGFLOAT_MAX, CGFLOAT_MAX)];
+        // 禁用默认背景和 focus ring
+        [self setDrawsBackground:NO];
+        [self setFocusRingType:NSFocusRingTypeNone];
 #else // [macOS]
         self.textContainerInset = UIEdgeInsetsZero;
 #endif // [macOS]
@@ -260,6 +287,10 @@ NSString *const KRFontWeightKey = @"fontWeight";
     _css_enablePinyinCallback = css_enablePinyinCallback;
 }
 
+- (void)setCss_autoHideKeyboardOnImeAction:(NSNumber *)css_autoHideKeyboardOnImeAction {
+    _css_autoHideKeyboardOnImeAction = css_autoHideKeyboardOnImeAction;
+}
+
 #pragma mark - css method
 
 - (void)css_focus:(NSDictionary *)args  {
@@ -285,6 +316,73 @@ NSString *const KRFontWeightKey = @"fontWeight";
 - (void)css_setCursorIndex:(NSDictionary *)args {
     NSUInteger index = [args[KRC_PARAM_KEY] intValue];
     [self updateCursorIndex:index];
+}
+
+- (void)setCss_textInputState:(NSString *)css_textInputState {
+    if (!css_textInputState.length) return;
+    [self css_setTextInputState:@{KRC_PARAM_KEY: css_textInputState}];
+}
+
+- (void)css_setTextInputState:(NSDictionary *)args {
+    NSString *params = args[KRC_PARAM_KEY];
+    if (!params.length) return;
+    NSData *jsonData = [params dataUsingEncoding:NSUTF8StringEncoding];
+    if (!jsonData) return;
+    NSError *error = nil;
+    NSDictionary *json = [NSJSONSerialization JSONObjectWithData:jsonData options:0 error:&error];
+    if (!json) return;
+    
+    NSString *rawText = json[@"text"] ?: @"";
+    NSInteger selectionStart = json[@"selectionStart"] ? [json[@"selectionStart"] integerValue] : rawText.length;
+    NSInteger selectionEnd = json[@"selectionEnd"] ? [json[@"selectionEnd"] integerValue] : selectionStart;
+    selectionStart = MAX(0, MIN(selectionStart, (NSInteger)rawText.length));
+    selectionEnd = MAX(0, MIN(selectionEnd, (NSInteger)rawText.length));
+    
+    if (![self isFirstResponder] && rawText.length > 0) {
+        [self becomeFirstResponder];
+    }
+    _ignoreTextDidChanged = YES;
+    NSString *currentRawText = [self p_outputText];
+    if (![currentRawText isEqualToString:rawText]) {
+        NSMutableAttributedString *rawAttr = [[NSMutableAttributedString alloc] initWithString:rawText];
+        UIFont *font = self.font ?: self.typingAttributes[NSFontAttributeName];
+        if (font) {
+            [rawAttr addAttribute:NSFontAttributeName value:font range:NSMakeRange(0, rawAttr.length)];
+        }
+        UIColor *textColor = self.textColor ?: self.typingAttributes[NSForegroundColorAttributeName];
+        if (textColor) {
+            [rawAttr addAttribute:NSForegroundColorAttributeName value:textColor range:NSMakeRange(0, rawAttr.length)];
+        }
+        self.attributedText = rawAttr;
+        [self p_applyTextPostProcessorIfNeed];
+        [self p_updatePlaceholder];
+        NSUInteger inputCursorStart = [self p_getInputCursorIndexWithIndex:selectionStart];
+        NSUInteger inputCursorEnd = [self p_getInputCursorIndexWithIndex:selectionEnd];
+        NSRange selectedRange = NSMakeRange(inputCursorStart, inputCursorEnd - inputCursorStart);
+        UITextPosition *startPos = [self positionFromPosition:self.beginningOfDocument offset:selectedRange.location];
+        UITextPosition *endPos = [self positionFromPosition:self.beginningOfDocument offset:selectedRange.location + selectedRange.length];
+        if (startPos && endPos) {
+            self.selectedTextRange = [self textRangeFromPosition:startPos toPosition:endPos];
+        }
+    }
+    _ignoreTextDidChanged = NO;
+}
+
+- (void)css_getTextInputState:(NSDictionary *)args {
+    KuiklyRenderCallback callback = args[KRC_CALLBACK_KEY];
+    if (callback) {
+        NSString *rawText = [self p_outputText];
+        NSUInteger outputCursor = [self p_getOutputCursorIndex];
+        NSUInteger outputCursorEnd = outputCursor;
+        // TODO: support selection end when available
+        callback(@{
+            @"text": rawText ?: @"",
+            @"selectionStart": @(outputCursor),
+            @"selectionEnd": @(outputCursorEnd),
+            @"compositionStart": @(-1),
+            @"compositionEnd": @(-1)
+        });
+    }
 }
 
 - (void)updateCursorIndex:(NSUInteger)index {
@@ -324,6 +422,133 @@ NSString *const KRFontWeightKey = @"fontWeight";
     }
 }
 
+#if TARGET_OS_OSX
+- (void)layout {
+    CGRect savedFrame = self.frame;
+    [super layout];
+    if (!CGRectEqualToRect(self.frame, savedFrame)) {
+        [super setFrame:savedFrame];
+    }
+}
+
+- (void)setCss_clipPath:(NSString *)css_clipPath {
+    _css_clipPath = [css_clipPath copy];
+    // 禁用默认 mask，使用 drawRect 裁剪
+    self.layer.mask = nil;
+    [self setNeedsDisplay:YES];
+}
+
+- (NSString *)css_clipPath {
+    return _css_clipPath;
+}
+
+- (void)drawRect:(NSRect)dirtyRect {
+    // 隐藏 placeholder 避免干扰
+    if (_placeholderTextView) {
+        _placeholderTextView.hidden = YES;
+    }
+    
+    // 隐藏 CSSBorderLayer，我们将在下面自己绘制边框
+    for (CALayer *layer in self.layer.sublayers) {
+        if ([NSStringFromClass([layer class]) isEqualToString:@"CSSBorderLayer"]) {
+            layer.hidden = YES;
+        }
+    }
+    
+    if (_css_clipPath.length > 0) {
+        // 先保存图形状态
+        [NSGraphicsContext saveGraphicsState];
+        
+        // 解析 clipPath
+        NSBezierPath *clipPath = [self kr_bezierPathFromClipPathString:_css_clipPath];
+        if (clipPath) {
+            // 应用 clipPath 裁剪内容
+            [clipPath addClip];
+            // 绘制边框（在 clipPath 之前，这样不会被裁剪）
+            [self drawBorderWithClipPath:clipPath];
+        }
+        
+        // 调用父类绘制（在裁剪区域内）
+        [super drawRect:dirtyRect];
+        
+        // 恢复图形状态
+        [NSGraphicsContext restoreGraphicsState];
+    } else {
+        [super drawRect:dirtyRect];
+    }
+}
+
+- (void)drawBorderWithClipPath:(NSBezierPath *)clipPath {
+    // 解析 border 属性
+    if (self.css_border.length > 0) {
+        NSArray *borderParts = [self.css_border componentsSeparatedByString:@" "];
+        if (borderParts.count >= 3) {
+            CGFloat borderWidth = [borderParts[0] floatValue];
+            NSString *borderColorStr = borderParts[2];
+            UIColor *borderColor = [UIView css_color:borderColorStr];
+            
+            // 绘制边框（stroke）
+            [borderColor setStroke];
+            // 对于 NSBezierPath stroke，使用实际的 borderWidth
+            [clipPath setLineWidth:2 * borderWidth];
+            [clipPath stroke];
+        }
+    }
+}
+
+- (NSBezierPath *)kr_bezierPathFromClipPathString:(NSString *)pathString {
+    NSBezierPath *path = [NSBezierPath bezierPath];
+    NSArray *tokens = [pathString componentsSeparatedByCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    NSMutableArray *cleanTokens = [NSMutableArray array];
+    for (NSString *token in tokens) {
+        if (token.length > 0) {
+            [cleanTokens addObject:token];
+        }
+    }
+    
+    NSInteger i = 0;
+    while (i < cleanTokens.count) {
+        NSString *token = cleanTokens[i];
+        
+        if ([token isEqualToString:@"M"]) {
+            if (i + 2 < cleanTokens.count) {
+                CGFloat x = [cleanTokens[i + 1] floatValue];
+                CGFloat y = [cleanTokens[i + 2] floatValue];
+                [path moveToPoint:NSMakePoint(x, y)];
+                i += 3;
+            } else {
+                i++;
+            }
+        } else if ([token isEqualToString:@"L"]) {
+            if (i + 2 < cleanTokens.count) {
+                CGFloat x = [cleanTokens[i + 1] floatValue];
+                CGFloat y = [cleanTokens[i + 2] floatValue];
+                [path lineToPoint:NSMakePoint(x, y)];
+                i += 3;
+            } else {
+                i++;
+            }
+        } else if ([token isEqualToString:@"Z"] || [token isEqualToString:@"z"]) {
+            [path closePath];
+            i++;
+        } else {
+            if (i + 1 < cleanTokens.count) {
+                unichar firstChar = [token characterAtIndex:0];
+                if ((firstChar >= '0' && firstChar <= '9') || firstChar == '-' || firstChar == '+') {
+                    CGFloat x = [token floatValue];
+                    CGFloat y = [cleanTokens[i + 1] floatValue];
+                    [path lineToPoint:NSMakePoint(x, y)];
+                    i += 2;
+                    continue;
+                }
+            }
+            i++;
+        }
+    }
+    return path;
+}
+#endif
+
 
 #pragma mark - UITextViewDelegate
 
@@ -344,19 +569,140 @@ NSString *const KRFontWeightKey = @"fontWeight";
         return;
     }
     [self p_limitTextInput];
-   
+    // 实时应用 textPostProcessor（emoji attachment）
+    [self p_applyTextPostProcessorIfNeed];
+    
     if (self.css_textDidChange) {
         NSString *text = [self p_outputText].copy ?: @"";
         self.css_textDidChange(@{@"text": text, @"length": @([self p_calculateLengthForText:text])});
     }
+    
+    if (self.css_textInputStateChange) {
+        NSString *rawText = [self p_outputText];
+        NSUInteger outputCursor = [self p_getOutputCursorIndex];
+        self.css_textInputStateChange(@{
+            @"text": rawText ?: @"",
+            @"selectionStart": @(outputCursor),
+            @"selectionEnd": @(outputCursor),
+            @"compositionStart": @(-1),
+            @"compositionEnd": @(-1)
+        });
+    }
+}
+
+- (void)textViewDidChangeSelection:(UITextView *)textView {
+    if (_ignoreTextDidChanged) {
+        return;
+    }
+    if (!self.css_selectionChange) {
+        return;
+    }
+    NSString *rawText = [self p_outputText];
+    NSUInteger outputCursor = [self p_getOutputCursorIndex];
+    self.css_selectionChange(@{
+        @"text": rawText ?: @"",
+        @"selectionStart": @(outputCursor),
+        @"selectionEnd": @(outputCursor),
+        @"compositionStart": @(-1),
+        @"compositionEnd": @(-1)
+    });
+}
+
+- (void)copy:(id)sender {
+    NSRange selectedRange = self.selectedRange;
+    if (selectedRange.length == 0) {
+        [super copy:sender];
+        return;
+    }
+    NSAttributedString *selectedAttr = [self.attributedText attributedSubstringFromRange:selectedRange];
+    if (!selectedAttr) {
+        [super copy:sender];
+        return;
+    }
+    NSMutableArray *replacements = [NSMutableArray array];
+    [selectedAttr enumerateAttribute:NSAttachmentAttributeName
+                             inRange:NSMakeRange(0, selectedAttr.length)
+                             options:0
+                          usingBlock:^(NSObject *value, NSRange range, BOOL *stop) {
+        if ([value respondsToSelector:@selector(kr_originlTextBeforeTextAttachment)]) {
+            id<KRTextAttachmentStringProtocol> attachment = (id<KRTextAttachmentStringProtocol>)value;
+            NSString *shortcode = [attachment kr_originlTextBeforeTextAttachment];
+            if (shortcode) {
+                [replacements addObject:@{@"range": [NSValue valueWithRange:range], @"shortcode": shortcode}];
+            }
+        }
+    }];
+    NSMutableAttributedString *exportAttr = [selectedAttr mutableCopy];
+    for (NSDictionary *item in [replacements reverseObjectEnumerator]) {
+        NSRange range = [item[@"range"] rangeValue];
+        NSString *shortcode = item[@"shortcode"];
+        NSDictionary *attrs = [exportAttr attributesAtIndex:range.location effectiveRange:NULL];
+        NSAttributedString *replacement = [[NSAttributedString alloc] initWithString:shortcode attributes:attrs];
+        [exportAttr replaceCharactersInRange:range withAttributedString:replacement];
+    }
+    [UIPasteboard generalPasteboard].string = exportAttr.string;
+}
+
+- (void)cut:(id)sender {
+    [self copy:sender];
+    NSRange selectedRange = self.selectedRange;
+    if (selectedRange.length > 0) {
+        _ignoreTextDidChanged = YES;
+        [self.textStorage deleteCharactersInRange:selectedRange];
+        _ignoreTextDidChanged = NO;
+        [self textViewDidChange:self];
+    }
 }
 
 - (void)paste:(id)sender {
-    [super paste:sender];
-    // 粘贴后，滚动到当前光标位置（延迟执行确保光标处于正确位置）
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        [self scrollRangeToVisible:self.selectedRange];
-    });
+    NSString *pasteText = UIPasteboard.generalPasteboard.string;
+    if (pasteText.length == 0) {
+        [super paste:sender];
+        return;
+    }
+    NSRange selectedRange = self.selectedRange;
+    NSString *rawText = [self p_outputText] ?: @"";
+    NSUInteger rawStart = [self p_getOutputCursorIndexWithInputIndex:selectedRange.location];
+    NSUInteger rawEnd = [self p_getOutputCursorIndexWithInputIndex:selectedRange.location + selectedRange.length];
+    rawStart = MIN(rawStart, rawText.length);
+    rawEnd = MIN(rawEnd, rawText.length);
+    if (rawStart > rawEnd) {
+        NSUInteger temp = rawStart;
+        rawStart = rawEnd;
+        rawEnd = temp;
+    }
+    NSString *newRawText = [rawText stringByReplacingCharactersInRange:NSMakeRange(rawStart, rawEnd - rawStart)
+                                                            withString:pasteText];
+    NSUInteger outputCursor = rawStart + pasteText.length;
+    _ignoreTextDidChanged = YES;
+    NSMutableAttributedString *rawAttr = [[NSMutableAttributedString alloc] initWithString:newRawText];
+    UIFont *font = self.font ?: self.typingAttributes[NSFontAttributeName];
+    if (font) {
+        [rawAttr addAttribute:NSFontAttributeName value:font range:NSMakeRange(0, rawAttr.length)];
+    }
+    UIColor *textColor = self.textColor ?: self.typingAttributes[NSForegroundColorAttributeName];
+    if (textColor) {
+        [rawAttr addAttribute:NSForegroundColorAttributeName value:textColor range:NSMakeRange(0, rawAttr.length)];
+    }
+    self.attributedText = rawAttr;
+    [self p_applyTextPostProcessorIfNeed];
+    NSUInteger inputCursor = [self p_getInputCursorIndexWithIndex:outputCursor];
+    self.selectedRange = NSMakeRange(inputCursor, 0);
+    _ignoreTextDidChanged = NO;
+    [self p_updatePlaceholder];
+    if (self.css_textDidChange) {
+        self.css_textDidChange(@{@"text": newRawText, @"length": @([self p_calculateLengthForText:newRawText])});
+    }
+    if (self.css_textInputStateChange) {
+        self.css_textInputStateChange(@{
+            @"text": newRawText,
+            @"selectionStart": @(outputCursor),
+            @"selectionEnd": @(outputCursor),
+            @"compositionStart": @(-1),
+            @"compositionEnd": @(-1)
+        });
+    }
+    [self scrollRangeToVisible:self.selectedRange];
 }
 
 - (BOOL)textView:(UITextView *)textView shouldChangeTextInRange:(NSRange)range replacementText:(NSString *)text {
@@ -368,20 +714,55 @@ NSString *const KRFontWeightKey = @"fontWeight";
             // It's a delete operation
             // Perform your desired action for delete operation here
     }
-    if (self.css_inputReturn && self.css_returnKeyType && [text isEqualToString:@"\n"]) {
-        self.css_inputReturn(@{@"text": textView.text.copy ?: @"", @"ime_action": self.css_returnKeyType ?: @""});
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [textView resignFirstResponder];
-        });
-        return NO;
+    if ([text isEqualToString:@"\n"]) {
+#if TARGET_OS_OSX
+        // macOS: Enter（无 Shift）触发 inputReturn 回调（发送），Shift+Enter 插入换行。
+        // 不要求 css_returnKeyType 必须存在——macOS 上多行 TextField 的 imeAction
+        // 通常是 Unspecified，不会设置 returnKeyType，但 Enter 键仍应触发 send。
+        NSEventModifierFlags modifiers = [NSEvent modifierFlags];
+        BOOL isShiftPressed = (modifiers & NSEventModifierFlagShift) != 0;
+        if (!isShiftPressed && self.css_inputReturn) {
+            NSString *imeAction = self.css_returnKeyType ?: @"send";
+            self.css_inputReturn(@{@"text": textView.text.copy ?: @"", @"ime_action": imeAction});
+            if ([self.css_autoHideKeyboardOnImeAction boolValue]) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [textView resignFirstResponder];
+                });
+            }
+            return NO;
+        }
+        if (!isShiftPressed && self.css_imeAction) {
+            self.css_imeAction(@{@"ime_action": self.css_returnKeyType ?: @"send"});
+            if ([self.css_autoHideKeyboardOnImeAction boolValue]) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [textView resignFirstResponder];
+                });
+            }
+            return NO;
+        }
+        // Shift+Enter 或无回调注册时：允许插入换行（fall through to return YES）
+#else
+        // iOS: 保持原有逻辑——需要 returnKeyType 显式设置才拦截回车
+        if (self.css_inputReturn && self.css_returnKeyType) {
+            self.css_inputReturn(@{@"text": textView.text.copy ?: @"", @"ime_action": self.css_returnKeyType ?: @""});
+            if ([self.css_autoHideKeyboardOnImeAction boolValue]) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [textView resignFirstResponder];
+                });
+            }
+            return NO;
+        }
+        if (self.css_imeAction) {
+            self.css_imeAction(@{@"ime_action": self.css_returnKeyType ?: @""});
+            if ([self.css_autoHideKeyboardOnImeAction boolValue]) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [textView resignFirstResponder];
+                });
+            }
+            return NO;
+        }
+#endif
     }
-    if(self.css_imeAction && [text isEqualToString:@"\n"]) {
-        self.css_imeAction(@{@"ime_action": self.css_returnKeyType ?: @""});
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [textView resignFirstResponder];
-        });
-        return NO;
-      }
     return YES;
 }
 
@@ -427,6 +808,15 @@ NSString *const KRFontWeightKey = @"fontWeight";
     [super setFrame:frame];
     [self setNeedsLayout];
     _placeholderTextView.frame = self.bounds;
+#if TARGET_OS_OSX
+    // 设置 textContainer 防止自动调整
+    if (self.textContainer) {
+        self.textContainer.containerSize = NSSizeFromCGSize(frame.size);
+        self.textContainer.widthTracksTextView = NO;
+        self.textContainer.heightTracksTextView = NO;
+    }
+    [self setNeedsDisplay:YES];
+#endif
 }
 
 - (void)setFont:(UIFont *)font {
@@ -619,7 +1009,11 @@ NSString *const KRFontWeightKey = @"fontWeight";
 }
 
 - (NSUInteger)p_getOutputCursorIndex {
-    NSUInteger location = self.selectedRange.location;
+    return [self p_getOutputCursorIndexWithInputIndex:self.selectedRange.location];
+}
+
+- (NSUInteger)p_getOutputCursorIndexWithInputIndex:(NSUInteger)inputIndex {
+    NSUInteger location = inputIndex;
     
     __block int offset = 0;
     NSAttributedString *attributedString = self.attributedText;
@@ -669,6 +1063,42 @@ NSString *const KRFontWeightKey = @"fontWeight";
         }
     }];
     return location - offset;
+}
+
+- (void)p_applyTextPostProcessorIfNeed {
+    if (![[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_customTextWithAttributedString:textPostProcessor:)]) {
+        return;
+    }
+    NSAttributedString *currentAttr = self.attributedText;
+    if (!currentAttr) {
+        return;
+    }
+    if (currentAttr.length > 0) {
+        NSRange fontRange;
+        [currentAttr attribute:NSFontAttributeName atIndex:0 effectiveRange:&fontRange];
+    }
+    
+    NSAttributedString *processedAttr = [[KuiklyRenderBridge componentExpandHandler] hr_customTextWithAttributedString:currentAttr textPostProcessor:_props[@"textPostProcessor"] ?: NSStringFromClass([self class])];
+    if (!processedAttr) {
+        return;
+    }
+    
+    if (processedAttr.length > 0) {
+        NSRange fontRange2;
+        [processedAttr attribute:NSFontAttributeName atIndex:0 effectiveRange:&fontRange2];
+    }
+    
+    // 保存当前光标的原始文本位置
+    NSUInteger outputCursor = [self p_getOutputCursorIndex];
+    BOOL savedIgnore = _ignoreTextDidChanged;
+    _ignoreTextDidChanged = YES;
+    self.attributedText = processedAttr;
+    NSUInteger inputCursor = [self p_getInputCursorIndexWithIndex:outputCursor];
+    UITextPosition *newPosition = [self positionFromPosition:self.beginningOfDocument offset:inputCursor];
+    if (newPosition) {
+        self.selectedTextRange = [self textRangeFromPosition:newPosition toPosition:newPosition];
+    }
+    _ignoreTextDidChanged = savedIgnore;
 }
 
 #pragma mark - getter

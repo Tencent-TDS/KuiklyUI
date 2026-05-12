@@ -44,6 +44,16 @@ object RichTextProcessor : IRichTextProcessor {
 
     // Prevent additional width added due to special situation during text rendering
     private const val TEXT_WIDTH_DEFAULT = 0.5f
+
+    // When business does not specify a line-height, use this factor multiplied
+    // by font-size to approximate the browser's default "normal" line-height.
+    // This is used as a strut fallback for lines that only contain inline
+    // placeholders (e.g. images), so the measured height matches the real
+    // rendered height of the `rich-text` host element.
+    private const val LINE_HEIGHT_FACTOR = 1.2f
+
+    // Fallback font size when the container has no explicit font-size set.
+    private const val DEFAULT_FONT_SIZE = 16f
     // mini app measure text canvas context
     private var measureTextCtx: dynamic = null
 
@@ -203,10 +213,33 @@ object RichTextProcessor : IRichTextProcessor {
         constraintSize: SizeF,
         linesSizeList: JsArray<SizeF>,
     ) {
+        // A placeholder (e.g. inline image) alone is not enough to decide the
+        // real line height: when rendered inside a `rich-text`, the host text
+        // element always contributes a "strut" whose height is at least
+        // `fontSize * line-height`. If we only take the placeholder's own
+        // height, the measurement will be smaller than the actual rendered
+        // height, which may cause the following lines to be clipped.
+        //
+        // Use business-specified lineHeight when available; otherwise fall
+        // back to `container fontSize * LINE_HEIGHT_FACTOR`.
+        val businessLineHeight = view.ele.style.lineHeight
+        val strutHeight = if (businessLineHeight.isNotEmpty()) {
+            businessLineHeight.pxToFloat()
+        } else {
+            val containerFontSize = view.ele.style.fontSize
+            val fs = if (containerFontSize.isNotEmpty()) {
+                containerFontSize.pxToFloat()
+            } else {
+                DEFAULT_FONT_SIZE
+            }
+            fs * LINE_HEIGHT_FACTOR
+        }
         // Use placeholder height as current line height, need to consider
-        // multiple placeholder situations, use the highest as height
-        if (childSpan.height > view.currentLineHeight) {
-            view.currentLineHeight = childSpan.height
+        // multiple placeholder situations, use the highest as height.
+        // Also make sure it is not smaller than the container strut.
+        val targetLineHeight = max(childSpan.height, strutHeight)
+        if (targetLineHeight > view.currentLineHeight) {
+            view.currentLineHeight = targetLineHeight
         }
         // Current placeholder plus after width
         val sumWidth = view.currentLineWidth + childSpan.width
@@ -215,9 +248,14 @@ object RichTextProcessor : IRichTextProcessor {
             // then directly add current line Record offsetLeft, because the current text width
             // calculation has been multiplied by the ratio value, so the actual placeholder
             // offset needs to be divided by the offset ratio
-            childSpan.offsetLeft = view.currentLineWidth / WIDTH_RATIO_MAGIC
+            childSpan.offsetLeft = view.currentLineWidth
+            if (MiniGlobal.isAndroid) {
+                childSpan.offsetLeft /= WIDTH_RATIO_MAGIC
+            }
             // Then just add width to current line
             view.currentLineWidth = sumWidth
+            // Record line index
+            childSpan.lineIndex = linesSizeList.length.toInt()
         } else {
             // If it exceeds one line, it needs to be changed, because placeholder span cannot be
             // folded, so placeholder span needs to start from new line head Here, it needs to be
@@ -229,6 +267,8 @@ object RichTextProcessor : IRichTextProcessor {
             view.currentLineWidth = childSpan.width
             // Record offsetLeft
             childSpan.offsetLeft = 0f
+            // Record line index
+            childSpan.lineIndex = linesSizeList.length.toInt()
         }
     }
 
@@ -246,8 +286,17 @@ object RichTextProcessor : IRichTextProcessor {
                 // Placeholder Span processing
                 processPlaceHolderSpan(view, childSpan, constraintSize, linesSizeList)
             } else {
-                // Plain span processing
-                processTextSpan(view, childSpan, constraintSize, linesSizeList, realLineHeight)
+                // Plain span processing — use this span's own letter-spacing
+                // so the measured width matches the real rendering width when
+                // different spans carry different letter-spacing values.
+                processTextSpan(
+                    view,
+                    childSpan,
+                    constraintSize,
+                    linesSizeList,
+                    realLineHeight,
+                    childSpan.letterSpacing
+                )
             }
         }
         // Process remaining lines
@@ -341,15 +390,26 @@ object RichTextProcessor : IRichTextProcessor {
         fontWeight: Int,
         fontFamily: String,
         fontStyle: String,
+        letterSpacing: Float = 0f,
     ): JsArray<SizeF> {
         // First split the text into a list based on line breaks
         val textArray = value.asDynamic().split("\n").unsafeCast<JsArray<String>>()
         // Span size list
         val textSizeList: JsArray<SizeF> = JsArray()
+        // Fallback empty-line height, used when a "\n" produces an empty segment
+        // (e.g. leading/trailing "\n" or consecutive "\n"). We must NOT skip
+        // such segments — otherwise the line-break semantics would be lost and
+        // the outer logic would mistakenly concatenate the next span onto the
+        // current line. Height uses fontSize * 1.2 as a conservative estimation
+        // aligned with other canvas-measure fallbacks in this file.
+        val emptyLineHeight = (fontSize * 1.2).toFloat()
         // Process in a loop
         textArray.forEach { it ->
-            // Empty lines are not processed
-            if (it != "") {
+            if (it == "") {
+                // Preserve an empty segment as a zero-width placeholder so the
+                // caller (processTextSpan) can emit a real line break.
+                textSizeList.add(SizeF(0f, emptyLineHeight))
+            } else {
                 // Calculate the width of each line
                 val textMetrics =
                     measureTextWidth(it, fontSize.toInt(), fontWeight, fontFamily, fontStyle)
@@ -372,8 +432,24 @@ object RichTextProcessor : IRichTextProcessor {
 
                 // Add the width and height of each line, using the larger of canvas width and actualBoundingBox
                 textWidth = max(textWidth, textMetrics.width.unsafeCast<Float>())
+                // Canvas measureText does NOT take letter-spacing into account, but the
+                // real rendering of <text> does. Compensate it here otherwise the measured
+                // width would be smaller than the actual drawn width and cause the last
+                // character to be truncated.
+                // NOTE: use `it.length` (NOT `it.length - 1`) on purpose:
+                //   1) Different mini-program runtimes disagree on whether the trailing
+                //      letter-spacing after the last glyph is included in the line box.
+                //   2) Reserving one extra gap also absorbs floating-point rounding
+                //      errors accumulated through the canvas measurement + ratio scaling.
+                // The over-estimation is at most one letter-spacing, which is harmless
+                // for layout but prevents the "last character clipped" problem.
+                if (letterSpacing != 0f && it.length > 0) {
+                    textWidth += it.length * letterSpacing
+                }
                 if (MiniGlobal.isAndroid) {
-                    // Android canvas measurement is not accurate, so we need to multiply a magic number
+                    // Android canvas measurement is not accurate, so we need to multiply a magic number.
+                    // Apply AFTER letter-spacing compensation so both glyph width and spacing
+                    // are scaled by the same factor, keeping them consistent with real rendering.
                     textWidth *= WIDTH_RATIO_MAGIC
                 }
                 textSizeList.add(SizeF(textWidth, textHeight))
@@ -397,6 +473,7 @@ object RichTextProcessor : IRichTextProcessor {
         constraintSize: SizeF,
         linesSizeList: JsArray<SizeF>,
         realLineHeight: Float,
+        letterSpacing: Float = 0f,
     ) {
         // Get text span line size list, split by line break
         val spanSizeList = getSpanSizeList(
@@ -404,9 +481,35 @@ object RichTextProcessor : IRichTextProcessor {
             childSpan.fontSize,
             childSpan.fontWeight,
             childSpan.fontFamily,
-            childSpan.fontStyle
+            childSpan.fontStyle,
+            letterSpacing,
         )
         spanSizeList.forEach { item, index ->
+            // Zero-width item means this segment came from a "\n" that produced
+            // an empty line (leading/trailing/consecutive "\n"). We must flush
+            // whatever has been accumulated on the current line to the result
+            // list and then start a fresh empty line, otherwise the line-break
+            // semantics would be lost.
+            if (item.width == 0f) {
+                if (view.currentLineWidth != 0f || view.currentLineHeight != 0f) {
+                    // Close the currently accumulated line
+                    linesSizeList.add(
+                        SizeF(view.currentLineWidth, view.currentLineHeight)
+                    )
+                } else {
+                    // Even an already-empty current line represents a real blank
+                    // line introduced by the "\n", we still need to record it so
+                    // the total line count is correct.
+                    linesSizeList.add(
+                        SizeF(0f, if (realLineHeight > 0f) realLineHeight else item.height)
+                    )
+                }
+                // Reset current line — the next segment (if any) will start at
+                // the beginning of a brand-new line.
+                view.currentLineWidth = 0f
+                view.currentLineHeight = 0f
+                return@forEach
+            }
             if (index == 0 && view.currentLineWidth != 0f) {
                 // If it is multi-line text, it means there is line break, then the first line, and current
                 // line width is not 0, then should participate in line accumulation calculation, rather than
@@ -456,6 +559,11 @@ object RichTextProcessor : IRichTextProcessor {
         } else {
             0f
         }
+        // letter-spacing from inline style (e.g. "1.5px"), canvas measureText
+        // does not include it, we need to add it back manually so the measured
+        // width matches the real rendering width.
+        val letterSpacingStr = ele.style.letterSpacing
+        val letterSpacing = if (letterSpacingStr.isNotEmpty()) letterSpacingStr.pxToFloat() else 0f
         // Text span size list
         var linesSizeList = JsArray<SizeF>()
         // Process Text span size list
@@ -467,10 +575,14 @@ object RichTextProcessor : IRichTextProcessor {
                 fontWeight = fontWeight,
                 fontFamily = ele.style.fontFamily,
                 fontStyle = ele.style.fontStyle
-            ), constraintSize, linesSizeList, realLineHeight
+            ), constraintSize, linesSizeList, realLineHeight, letterSpacing
         )
         // Process remaining lines
         processRemainingLine(constraintSize, linesSizeList, view)
+
+        // Apply lineBreakMargin before line-clamp so that the "is truncated"
+        // judgement can observe the real overflow state.
+        applyLineBreakMargin(constraintSize, view, linesSizeList)
 
         // If maximum number of lines is set, and actual exceeds maximum number of lines,
         // use maximum number of lines, otherwise use actual number of lines for processing
@@ -516,11 +628,82 @@ object RichTextProcessor : IRichTextProcessor {
     }
 
     /**
+     * Calculate the offset top of placeholder spans
+     */
+    private fun calculateSpanOffsetTop(linesSizeList: JsArray<SizeF>, view: KRRichTextView) {
+        // Pre-compute the top Y coordinate of each line to avoid repeated accumulation
+        val lineTopPositions: JsArray<Float> = JsArray()
+        var accumulated = 0f
+        linesSizeList.forEach { line ->
+            lineTopPositions.add(accumulated)
+            accumulated += line.height
+        }
+        lineTopPositions.add(accumulated)
+        // Iterate all placeholder spans and restore the vertically-centered offsetTop using the stored line index
+        view.richTextSpanList.forEach { span ->
+            if (span.width != 0f) {
+                val lineIndex = span.lineIndex  // Retrieve the line index stored earlier
+                if (lineIndex < linesSizeList.length) {  // Skip spans in truncated lines (not visible)
+                    val lineTop    = lineTopPositions[lineIndex]
+                    val lineHeight = linesSizeList[lineIndex].height
+                    // Vertically center: line top + (line height - placeholder height) / 2
+                    span.offsetTop = lineTop + (lineHeight - span.height).coerceAtLeast(0f) / 2f
+                } else {
+                    span.offsetTop = lineTopPositions[lineTopPositions.length - 1]
+                }
+            }
+        }
+    }
+
+    /**
+     * Apply lineBreakMargin: decide whether the reserved right-side blank on
+     * the last visible line would cause the text to wrap. When triggered we
+     * just flip `isLineBreakMargin = true` so core can fire `onLineBreakMargin`.
+     *
+     * The actual visual blank is produced by two right-floating spans injected
+     * in [setRichTextValues] (mirroring the H5 implementation).
+     */
+    private fun applyLineBreakMargin(
+        constraintSize: SizeF,
+        view: KRRichTextView,
+        linesSizeList: JsArray<SizeF>,
+    ) {
+        val lineBreakMargin = view.getLineBreakMargin()
+        val maxLines = view.numberOfLines
+        // Reset previous state first so that successive layouts are correct
+        view.setIsLineBreakMargin(false)
+        if (lineBreakMargin <= 0f || maxLines <= 0) {
+            return
+        }
+        if (constraintSize.width <= lineBreakMargin) {
+            return
+        }
+        // Only meaningful when the content actually reaches the last visible line
+        if (linesSizeList.length < maxLines) {
+            return
+        }
+        val effectiveWidth = constraintSize.width - lineBreakMargin
+        val lastVisibleIndex = maxLines - 1
+        val lastVisibleLine = linesSizeList[lastVisibleIndex]
+        val hasMoreLines = linesSizeList.length > maxLines
+        // Strategy B (simplified): if the last visible line's text width already
+        // exceeds `effectiveWidth`, or there are still overflow lines after it,
+        // we consider that the text would have wrapped when the reserved margin
+        // is taken into account.
+        if (hasMoreLines || lastVisibleLine.width > effectiveWidth) {
+            view.setIsLineBreakMargin(true)
+        }
+    }
+
+    /**
      * Calculate the size data of rich text element occupied
      */
     private fun calculateRichTextSize(constraintSize: SizeF, view: KRRichTextView): SizeF {
         // Get the size data list of all lines of the element
         var linesSizeList = calculateLinesSize(constraintSize, view)
+        // Apply lineBreakMargin before line-clamp so that the "is truncated"
+        // judgement can observe the real overflow state.
+        applyLineBreakMargin(constraintSize, view, linesSizeList)
         // If maximum number of lines is set, and actual exceeds maximum number of lines,
         // use maximum number of lines, otherwise use actual number of lines for processing
         if (view.numberOfLines in 1..linesSizeList.length) {
@@ -535,6 +718,9 @@ object RichTextProcessor : IRichTextProcessor {
         // Here style changed, need to re-set divHtml, considering update queue problem,
         // whether need to delay setting, only rich text needs setting
         view.ele.setAttribute("nodes", view.divHtml)
+
+        // Calculate span offset top
+        calculateSpanOffsetTop(linesSizeList, view)
 
         // Get occupied size position information based on the final size list
         return calculateTotalSize(linesSizeList)
@@ -606,10 +792,10 @@ object RichTextProcessor : IRichTextProcessor {
         if (fontVariant.isNotEmpty()) {
             style.fontVariant = fontVariant
         }
-        val lineSpacing = value.optDouble(LETTER_SPACING, -1.0)
-        if (lineSpacing != -1.0) {
-            // Set lineHeight according to line spacing
-            style.lineHeight = lineSpacing.toNumberFloat().toString()
+        val letterSpacing = value.optDouble(LETTER_SPACING, -1.0)
+        if (letterSpacing != -1.0) {
+            // Set letterSpacing according to letter spacing
+            style.letterSpacing = "${letterSpacing.toNumberFloat()}px"
         }
 
         val strokeColor = value.optString(STROKE_COLOR).toRgbColor()
@@ -723,6 +909,109 @@ object RichTextProcessor : IRichTextProcessor {
     }
 
     /**
+     * Plain-text path of `lineBreakMargin` on mini-app.
+     *
+     * Unlike H5, the mini-app `text` component only shows its `value`
+     * attribute and cannot honor floating child spans. To reserve the
+     * `lineBreakMargin` blank visually we have to promote the element to
+     * a `rich-text` component and feed it HTML nodes:
+     *   - Two right-floating spans that reserve the blank on the last line
+     *     (exactly the same trick as the rich-text path);
+     *   - A span that carries the plain text content with the element's
+     *     own text styles inherited, so the visual looks identical.
+     *
+     * Returns `true` to tell the caller we've handled it and the legacy
+     * DOM-based `insertBefore` branch should be skipped.
+     */
+    override fun applyPlainTextLineBreakMargin(view: KRRichTextView): Boolean {
+        val lineBreakMargin = view.getLineBreakMargin()
+        val measureResult = view.getMeasureResult()
+        val rawText = view.rawText
+        // Only handle when margin is set, measurement is ready and text
+        // is not empty. Otherwise leave everything untouched so nothing
+        // regresses for the common case.
+        if (lineBreakMargin <= 0f || measureResult.height <= 0f || rawText.isEmpty()) {
+            return false
+        }
+        // If we've already appended the float spans on a previous pass,
+        // skip to avoid duplicating them.
+        if (view.getHasAppendFloatSpans()) {
+            return true
+        }
+
+        // Reset rich-text related state (the plain-text path has never
+        // populated them, but be defensive for repeated layout passes).
+        clearRichTextValues(view)
+
+        // Promote the paragraph element to `rich-text`. The transform
+        // switch in MiniParagraphElement.onTransformData() relies on both
+        // `isRichText == true` and `richTextSpanList.length > 0`.
+        view.isRichText = true
+        view.richTextSpanList.add(RichTextSpan(value = rawText))
+
+        // Build the inner text span. Inherit the core text styles from the
+        // paragraph element so the rich-text renders visually the same as
+        // the original plain text.
+        val style = view.ele.style
+        val textStyleParts = mutableListOf<String>()
+        if (style.fontSize.isNotEmpty()) textStyleParts.add("font-size:${style.fontSize}")
+        if (style.fontFamily.isNotEmpty()) textStyleParts.add("font-family:${style.fontFamily}")
+        if (style.fontWeight.isNotEmpty()) textStyleParts.add("font-weight:${style.fontWeight}")
+        if (style.fontStyle.isNotEmpty()) textStyleParts.add("font-style:${style.fontStyle}")
+        if (style.color.isNotEmpty()) textStyleParts.add("color:${style.color}")
+        if (style.letterSpacing.isNotEmpty()) textStyleParts.add("letter-spacing:${style.letterSpacing}")
+        if (style.lineHeight.isNotEmpty()) textStyleParts.add("line-height:${style.lineHeight}")
+        if (style.textDecoration.isNotEmpty()) textStyleParts.add("text-decoration:${style.textDecoration}")
+        if (style.textAlign.isNotEmpty()) textStyleParts.add("text-align:${style.textAlign}")
+        val textStyle = textStyleParts.joinToString(";")
+        val escapedText = escapeHtml(rawText)
+        val textSpan = "<span style=\"$textStyle\">$escapedText</span>"
+
+        // Float spans + text span. buildFloatSpansHtml also flips
+        // hasAppendFloatSpans to true internally.
+        view.spanHtml = buildFloatSpansHtml(view) + textSpan
+        // Write to rich-text `nodes` so the mini-app native component
+        // picks up the reserved blank on the last line.
+        view.ele.setAttribute("nodes", view.divHtml)
+        return true
+    }
+
+    /**
+     * Minimal HTML escape for plain text content before embedding into
+     * a rich-text `nodes` string.
+     */
+    private fun escapeHtml(text: String): String {
+        return text
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+    }
+
+    /**
+     * Build the two right-floating span HTML snippets used to reserve
+     * `lineBreakMargin` blank on the right side of the last visible line of
+     * a rich-text. Equivalent to H5's `createFloatSpan` pair.
+     */
+    private fun buildFloatSpansHtml(view: KRRichTextView): String {
+        val lineBreakMargin = view.getLineBreakMargin()
+        val measureResult = view.getMeasureResult()
+        if (lineBreakMargin <= 0f || measureResult.height <= 0f) {
+            return ""
+        }
+        val singleLineHeight = view.getSingleLineHeight()
+        val upperSpanHeight = (measureResult.height - singleLineHeight).coerceAtLeast(0f)
+        // First span: occupies the full height of the lines above the last one,
+        // zero width, floats right. Second span: `lineBreakMargin`px wide, 1px
+        // tall, also floats right. Together they push the last line's text out
+        // by `lineBreakMargin` on the right side.
+        val style1 = "float:right;clear:right;width:0px;height:${upperSpanHeight}px;"
+        val style2 = "float:right;clear:right;width:${lineBreakMargin}px;height:1px;"
+        view.setHasAppendFloatSpans(true)
+        return "<span style=\"$style1\"></span><span style=\"$style2\"></span>"
+    }
+
+    /**
      * Rich text content setting, here we need to calculate the overall width and height of the rich text,
      * the calculation method is quite complex:
      * 1. The width of each span added together. For placeholder spans, additional height needs to be calculated,
@@ -735,7 +1024,10 @@ object RichTextProcessor : IRichTextProcessor {
     override fun setRichTextValues(richTextValues: JSONArray, view: KRRichTextView) {
         // Clear all child nodes
         clearRichTextValues(view)
-        
+        // Reset float-span flag; it will be re-set inside buildFloatSpansHtml
+        // when we actually inject the reserved blank on this layout pass.
+        view.setHasAppendFloatSpans(false)
+
         for (i in 0 until richTextValues.length()) {
             val span = createSpan(richTextValues.optJSONObject(i) ?: JSONObject(), view)
             if (span.textContent != null) {
@@ -755,23 +1047,48 @@ object RichTextProcessor : IRichTextProcessor {
                     // Placeholder span input
                     view.imageSpanList.add(span)
                 } else {
-                    // For non-placeholder spans, save the text content value
+                    // For non-placeholder spans, save the text content value.
+                    // Also read back each span's own letter-spacing from its
+                    // inline style — it has been set in `createSpan` per-span —
+                    // so the measurement phase can apply the correct spacing
+                    // for each segment instead of relying only on the
+                    // RichText root container's letter-spacing.
+                    val spanLetterSpacingStr = span.style.letterSpacing
+                    val spanLetterSpacing = if (spanLetterSpacingStr.isNotEmpty()) {
+                        spanLetterSpacingStr.pxToFloat()
+                    } else {
+                        0f
+                    }
                     view.richTextSpanList.add(
                         RichTextSpan(
                             value = span.textContent!!,
                             fontSize = fontSize.toFloat(),
                             fontWeight = span.style.fontWeight.toInt(),
                             fontFamily = span.style.fontFamily,
-                            fontStyle = span.style.fontStyle
+                            fontStyle = span.style.fontStyle,
+                            letterSpacing = spanLetterSpacing
                         )
                     )
                 }
             }
         }
-        // Calculate span innerHTML
-        view.spanHtml = getChildSpanHtml(view)
+        // Calculate span innerHTML, prepending the two right-floating spans
+        // that reserve `lineBreakMargin` blank on the last visible line.
+        view.spanHtml = buildFloatSpansHtml(view) + getChildSpanHtml(view)
         // Set rich text content
         view.ele.setAttribute("nodes", view.divHtml)
+    }
+
+    /**
+     * Return "offsetLeft offsetTop width height" for a placeholder span at [index].
+     * Return "" to let the caller fall back to the default DOM-based measurement (H5).
+     */
+    override fun getPlaceholderSpanRect(index: Int, view: KRRichTextView): String {
+        if (index < 0 || index >= view.richTextSpanList.length) return ""
+        val span = view.richTextSpanList[index]
+        // Only placeholder spans have width != 0
+        if (span.width == 0f) return ""
+        return "${span.offsetLeft} ${span.offsetTop} ${span.width} ${span.height}"
     }
 
     /**

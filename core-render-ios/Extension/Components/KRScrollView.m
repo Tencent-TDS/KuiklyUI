@@ -50,6 +50,8 @@ typedef NS_ENUM(NSUInteger, KRSetContentOffsetAnimation) {
 @property (nonatomic, strong) NSNumber *KUIKLY_PROP(dynamicSyncScrollDisable);
 /** attr is minContentOffset */
 @property (nonatomic, strong) NSNumber *KUIKLY_PROP(limitHeaderBounces);
+/** attr is flingEnable */
+@property (nonatomic, strong) NSNumber *KUIKLY_PROP(flingEnable);
 /** attr nestedScroll */
 @property (nonatomic, strong) NSString *KUIKLY_PROP(nestedScroll);
 /** event is scroll  */
@@ -105,6 +107,9 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
         }
         self.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
         self.delaysContentTouches = NO;
+        #else // [macOS]
+        // macOS: 启用 layer-backed 支持 clipPath
+        self.wantsLayer = YES;
         #endif // [macOS]
         self.alwaysBounceVertical = YES;
         _delegateProxy = [KRMultiDelegateProxy alloc];
@@ -130,6 +135,8 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
         [self css_contentInsetWhenEndDragWithParams:params];
     } else if ([method isEqualToString:@"abortContentOffsetAnimate"]) {
         [self css_abortContentOffsetAnimate];
+    } else if ([method isEqualToString:@"prepareForComposeReuse"]) {
+        [self css_prepareForComposeReuse];
     }
 }
 
@@ -150,6 +157,28 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     [self setContentOffset:currentOffset animated:NO];
     
     _nextEndScrollingAnimationCallback = nil;
+}
+
+// Clear transient state for Compose DSL reuse. Kotlin side overwrites contentSize/contentOffset immediately after.
+- (void)css_prepareForComposeReuse {
+    // Required: ensures dispatchScrollEventWithCurOffset: fires on restored offset,
+    // otherwise ignoreScrollOffset gets stuck and blocks all subsequent scrolling.
+    _lastContentOffset = CGPointMake(-CGFLOAT_MAX, -CGFLOAT_MAX);
+    // Defensive: clear pull-to-refresh residual from previous owner.
+    if (!UIEdgeInsetsEqualToEdgeInsets(self.contentInset, UIEdgeInsetsZero)) {
+        self.autoAdjustContentOffsetDisable = YES;
+        self.contentInset = UIEdgeInsetsZero;
+        self.autoAdjustContentOffsetDisable = NO;
+    }
+    _contentInsetWhenEndDrag = UIEdgeInsetsZero;
+    // Reset nested scroll transient state.
+    [self.nestedScrollCoordinator prepareForComposeReuse];
+    self.shouldHaveActiveInner = NO;
+    self.activeInnerScrollView = nil;
+    self.activeOuterScrollView = nil;
+    self.cascadeLockForNestedScroll = NO;
+    self.isLockedInNestedScroll = NO;
+    self.tempLastContentOffsetForMultiLayerNested = nil;
 }
 
 #pragma mark - pubilc
@@ -319,6 +348,11 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 
 - (void)scrollViewWillEndDragging:(UIScrollView *)scrollView withVelocity:(CGPoint)velocity targetContentOffset:(inout CGPoint *)targetContentOffset {
 
+    // flingEnable: cancel system deceleration when disabled (default is YES)
+    if (_css_flingEnable && ![_css_flingEnable boolValue] && targetContentOffset) {
+        *targetContentOffset = scrollView.contentOffset;
+    }
+
     BOOL isCompose = self.hr_rootView.contextParam.isCompose;
     if (isCompose && targetContentOffset && ![self.css_isComposePager boolValue]) {
         CGPoint proposed = *targetContentOffset;
@@ -415,6 +449,7 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     int curve = curveSpecified ? [points[6] intValue] : 0;
     CGPoint contentOffset = CGPointMake([points.firstObject doubleValue], [points[1] doubleValue]);
     [self p_setTargetContentOffsetIfNeed:contentOffset];
+    self.skipNestScrollLock = YES;
     if (damping || curveSpecified) {
         [self p_springAnimationWithContentOffset:contentOffset duration:duration damping:damping velocity:velocity curve:curve];
         return ;
@@ -423,7 +458,6 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     if (!UIEdgeInsetsEqualToEdgeInsets(self.contentInset, newContentInsets)) {
         self.contentInset = newContentInsets;
     }
-    self.skipNestScrollLock = YES;
     [self setContentOffset:contentOffset animated:animated];
 }
 
@@ -483,6 +517,12 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 - (void)setCss_isComposePager:(NSNumber *)css_isComposePager {
     if (self.css_isComposePager != css_isComposePager) {
         _css_isComposePager = css_isComposePager;
+    }
+}
+
+- (void)setCss_flingEnable:(NSNumber *)css_flingEnable {
+    if (self.css_flingEnable != css_flingEnable) {
+        _css_flingEnable = css_flingEnable;
     }
 }
 
@@ -840,6 +880,16 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
     [_offsetAnimator cancel];
 }
 
+#pragma mark - KRTurboDisplayStateRestorableProtocol
+
+- (void)applyTurboDisplayExtraCacheContent:(NSDictionary *)extraCacheProps {
+    // 恢复 contentOffset
+    if (extraCacheProps[@"contentOffsetX"] || extraCacheProps[@"contentOffsetY"]) {
+        CGFloat offsetX = [extraCacheProps[@"contentOffsetX"] doubleValue];
+        CGFloat offsetY = [extraCacheProps[@"contentOffsetY"] doubleValue];
+        [self setContentOffset:CGPointMake(offsetX, offsetY) animated:NO];
+    }
+}
 
 @end
 
@@ -870,12 +920,27 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
 }
 
 - (void)setFrame:(CGRect)frame {
+#if TARGET_OS_OSX // [macOS]
+    KRScrollView *scrollView = nil;
+    // macOS: documentView.superview is NSClipView, need to find KRScrollView
+    NSView *currentView = self.superview;
+    while (currentView) {
+        if ([currentView isKindOfClass:[KRScrollView class]]) {
+            scrollView = (KRScrollView *)currentView;
+            break;
+        }
+        currentView = currentView.superview;
+    }
+#else
     KRScrollView *scrollView = (KRScrollView *)self.superview;
-    scrollView.skipNestScrollLock = YES;
+#endif
+    
+    if (scrollView) {
+        scrollView.skipNestScrollLock = YES;
+    }
     [super setFrame:frame];
     [self syncScrollViewContentSize];
 }
-
 - (void)didMoveToSuperview {
     [super didMoveToSuperview];
     [self syncScrollViewContentSize];

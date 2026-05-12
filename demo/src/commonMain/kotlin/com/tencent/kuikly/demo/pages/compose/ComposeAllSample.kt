@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import com.tencent.kuikly.compose.ComposeContainer
+import com.tencent.kuikly.compose.extension.scrollToTop
 import com.tencent.kuikly.compose.foundation.background
 import com.tencent.kuikly.compose.foundation.clickable
 import com.tencent.kuikly.compose.foundation.layout.Arrangement
@@ -106,6 +107,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("LazyHorizontalGrid", "LazyHorizontalGrid基本用法示例", "LazyHorizontalGridDemo1"),
             DemoItem("焦点处理", "Focus焦点处理示例", "focusDemo"),
             DemoItem("TextField", "TextField 组件示例", "TextFieldDemo"),
+            DemoItem("TextFieldEmoji", "TextField 自定义表情示例", "TextFieldEmojiDemo"),
             DemoItem("PullToRefresh", "PullToRefresh 组件示例", "PullToRefreshDemo"),
             // 其他
             DemoItem("封装KuiklyView", "封装Kuikly的VideoView为一个Composeable组件示例", "ComposeVideoDemo"),
@@ -150,6 +152,8 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("Dialog弹出菜单PopMenu", "基于Dialog实现的弹出菜单PopMenu示例", "PopMenuDialogDemo"),
             DemoItem("AnchoredDraggableDemo", "AnchoredDraggable使用案例", "AnchoredDraggableDemo"),
             DemoItem("ScaffoldDemo", "Scaffold使用案例", "ScaffoldDemo"),
+            DemoItem("NavigationBarDemo", "Material3 NavigationBar底部导航栏", "NavigationBarDemo"),
+            DemoItem("NavHostDemo", "跨平台NavHost导航组件(含Test/NewAPI子Demo)", "NavHostDemo"),
             DemoItem("AI对话Demo", "支持Markdown渲染的AI对话示例", "ChatDemo"),
             DemoItem("DensityScaleDemo", "基于Density实现跨端缩放", "DensityScaleDemo"),
             DemoItem("BackHandlerDemo", "监听并拦截返回键", "BackHandlerDemo"),
@@ -159,6 +163,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("InteractionSourceDemo", "交互源Demo", "InteractionSourceDemo"),
             DemoItem("ViewModel示例", "Lifecycle和ViewModel", "ViewModelDemo"),
             DemoItem("GradientAnimationDemo", "Offset or color animate ", "GradientAnimationDemo"),
+            DemoItem("重组性能分析", "RecompositionProfiler追踪重组热点", "RecompositionProfilerDemo"),
         )
 
     @Composable

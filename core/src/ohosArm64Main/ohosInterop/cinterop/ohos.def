@@ -4,6 +4,319 @@ headers = ../include/KRRenderCValue.h
 #include <dlfcn.h>
 #include <time.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <elf.h>
+#include <link.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <malloc.h>
+#include <errno.h>
+#include <string.h>
+#include <pthread.h>
+
+// ===== xdl symbol resolution =====
+
+typedef struct xdl {
+    bool isSymtabLoaded;
+    char *pathname;
+    uintptr_t load_bias;
+    const ElfW(Phdr) *dlpi_phdr;
+    ElfW(Half) dlpi_phnum;
+    uintptr_t base;
+
+    ElfW(Sym) *symtab;  // .symtab
+    size_t symtab_cnt;
+    char *strtab;
+    char* so_name;
+} xdl_t;
+
+#define XDL_UTIL_TEMP_FAILURE_RETRY(exp)   \
+  ({                                       \
+    __typeof__(exp) _rc;                   \
+    do {                                   \
+      errno = 0;                           \
+      _rc = (exp);                         \
+    } while (_rc == -1 && errno == EINTR); \
+    _rc;                                   \
+  })
+
+#define XDL_DYNSYM_IS_EXPORT_SYM(shndx) (SHN_UNDEF != (shndx))
+#define XDL_SYMTAB_IS_EXPORT_SYM(shndx) \
+  (SHN_UNDEF != (shndx) && !((shndx) >= SHN_LORESERVE && (shndx) <= SHN_HIRESERVE))
+
+static void *
+xdl_read_file_to_heap(int file_fd, size_t file_sz, size_t data_offset, size_t data_len) {
+    if (0 == data_len) return NULL;
+    if (data_offset >= file_sz) return NULL;
+    if (data_offset + data_len > file_sz) return NULL;
+
+    if (data_offset != (size_t) lseek(file_fd, (off_t) data_offset, SEEK_SET)) return NULL;
+
+    void *data = malloc(data_len);
+    if (NULL == data) return NULL;
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-statement-expression"
+    if ((ssize_t) data_len != XDL_UTIL_TEMP_FAILURE_RETRY(read(file_fd, data, data_len)))
+#pragma clang diagnostic pop
+    {
+        free(data);
+        return NULL;
+    }
+
+    return data;
+}
+
+static void *xdl_read_file_to_heap_by_section(int file_fd, size_t file_sz, ElfW(Shdr) *shdr) {
+    return xdl_read_file_to_heap(file_fd, file_sz, (size_t) shdr->sh_offset, shdr->sh_size);
+}
+
+static int xdl_symtab_load(xdl_t *self) {
+    if ('[' == self->pathname[0]) return -1;
+
+    int r = -1;
+    ElfW(Shdr) *shdrs = NULL;
+    char *shstrtab = NULL;
+
+    // get base address
+    uintptr_t vaddr_min = UINTPTR_MAX;
+    for (size_t i = 0; i < self->dlpi_phnum; i++) {
+        const ElfW(Phdr) *phdr = &(self->dlpi_phdr[i]);
+        if (PT_LOAD == phdr->p_type) {
+            if (vaddr_min > phdr->p_vaddr) vaddr_min = phdr->p_vaddr;
+        }
+    }
+    if (UINTPTR_MAX == vaddr_min) return -1;
+    self->base = self->load_bias + vaddr_min;
+
+    // open file
+    int file_fd = open(self->pathname, O_RDONLY | O_CLOEXEC);
+    if (file_fd < 0) return -1;
+    struct stat st;
+    if (0 != fstat(file_fd, &st)) goto end;
+    size_t file_sz = (size_t) st.st_size;
+
+    // get ELF header
+    ElfW(Ehdr) *ehdr = (ElfW(Ehdr) *) self->base;
+    if (0 == ehdr->e_shnum || ehdr->e_shentsize != sizeof(ElfW(Shdr))) goto end;
+
+    // get section headers
+    shdrs = (ElfW(Shdr) *) xdl_read_file_to_heap(file_fd, file_sz, (size_t) ehdr->e_shoff,
+                                                 ehdr->e_shentsize * ehdr->e_shnum);
+    if (NULL == shdrs) goto end;
+
+    // get .shstrtab
+    if (SHN_UNDEF == ehdr->e_shstrndx || ehdr->e_shstrndx >= ehdr->e_shnum) goto end;
+    shstrtab = (char *) xdl_read_file_to_heap_by_section(file_fd, file_sz,
+                                                         shdrs + ehdr->e_shstrndx);
+    if (NULL == shstrtab) goto end;
+
+    // find .symtab & .strtab
+    for (ElfW(Shdr) *shdr = shdrs; shdr < shdrs + ehdr->e_shnum; shdr++) {
+        char *shdr_name = shstrtab + shdr->sh_name;
+
+        if (SHT_SYMTAB == shdr->sh_type && 0 == strcmp(".symtab", shdr_name)) {
+            // get & check associated .strtab section
+            if (shdr->sh_link >= ehdr->e_shnum) continue;
+            ElfW(Shdr) *shdr_strtab = shdrs + shdr->sh_link;
+            if (SHT_STRTAB != shdr_strtab->sh_type) continue;
+
+            // get .symtab & .strtab
+            ElfW(Sym) *symtab = (ElfW(Sym) *) xdl_read_file_to_heap_by_section(file_fd, file_sz,
+                                                                               shdr);
+            if (NULL == symtab) continue;
+            char *strtab = (char *) xdl_read_file_to_heap_by_section(file_fd, file_sz, shdr_strtab);
+            if (NULL == strtab) {
+                free(symtab);
+                continue;
+            }
+
+            // OK
+            self->symtab = symtab;
+            self->strtab = strtab;
+            self->symtab_cnt = shdr->sh_size / shdr->sh_entsize;
+            r = 0;
+            break;
+        } else if (SHT_PROGBITS == shdr->sh_type && 0 == strcmp(".gnu_debugdata", shdr_name)) {
+            break;
+        }
+    }
+
+    end:
+    close(file_fd);
+    if (NULL != shdrs) free(shdrs);
+    if (NULL != shstrtab) free(shstrtab);
+    return r;
+}
+
+static int dl_iterate_callback(struct dl_phdr_info *info, size_t size, void * data) {
+    xdl_t* xdl = (xdl_t*)data;
+    const char* soName = xdl->so_name;
+    bool isMatched = false;
+    if (soName[0] == '/') {
+        isMatched = strcmp(soName, info->dlpi_name) == 0;
+    } else {
+        int len = strlen(info->dlpi_name);
+        isMatched = strlen(info->dlpi_name) >= strlen(soName) && strcmp(info->dlpi_name + len - strlen(soName), soName) == 0;
+    }
+
+    if (isMatched) {
+        xdl->load_bias = info->dlpi_addr;
+        xdl->dlpi_phdr = info->dlpi_phdr;
+        xdl->dlpi_phnum = info->dlpi_phnum;
+        xdl->pathname = strdup(info->dlpi_name);
+        xdl_symtab_load(xdl);
+        return 1;
+    }
+    return 0;
+}
+
+static void fill_dlinfo(xdl_t *xdl, long offset, Dl_info* dlinfo) {
+    for (size_t i = 0; i < xdl->symtab_cnt; i++) {
+        ElfW(Sym) *sym = xdl->symtab + i;
+
+        if (!XDL_SYMTAB_IS_EXPORT_SYM(sym->st_shndx)) {
+            continue;
+        }
+
+        if (sym->st_name != 0 && sym->st_value <= offset && sym->st_value + sym->st_size > offset) {
+            dlinfo->dli_saddr = (void*)(offset - sym->st_value);
+            char* symName = (char*) xdl->strtab + sym->st_name;
+            size_t len = strlen(symName) + 1;
+            char* ret = malloc(len);
+            memcpy(ret, symName, len);
+            dlinfo->dli_sname = ret;
+        }
+    }
+}
+
+void fill_dl_info_sym(xdl_t* xdl, Dl_info* info, long offset) {
+    xdl->so_name = info->dli_fname;
+    if (!xdl->isSymtabLoaded) {
+        dl_iterate_phdr(dl_iterate_callback, xdl);
+        xdl->isSymtabLoaded = true;
+    }
+    if (xdl == NULL || xdl->symtab == NULL) {
+        return;
+    }
+    fill_dlinfo(xdl, offset, info);
+}
+
+// ===== Build ID =====
+
+#ifndef NT_GNU_BUILD_ID
+#define NT_GNU_BUILD_ID 3
+#endif
+
+#define ALIGN_VAL(val, align) (((val) + (align)-1) & ~((align)-1))
+
+struct build_id_note {
+    ElfW(Nhdr) nhdr;
+    char name[4];
+    uint8_t build_id[0];
+};
+
+enum build_id_tag {
+    BY_NAME, BY_SYMBOL
+};
+
+struct build_id_callback_data {
+    union {
+        const char *name;
+        const void *dli_fbase;
+    };
+    enum build_id_tag tag;
+    struct build_id_note *note;
+};
+
+static int build_id_find_nhdr_callback(struct dl_phdr_info *info, size_t size, void *data_) {
+    struct build_id_callback_data *data = (struct build_id_callback_data *) data_;
+
+    if (data->tag == BY_NAME)
+        if (!info->dlpi_name || strcmp(info->dlpi_name, data->name) != 0)
+            return 0;
+
+    if (data->tag == BY_SYMBOL) {
+        void *map_start = NULL;
+        for (unsigned i = 0; i < info->dlpi_phnum; i++) {
+            if (info->dlpi_phdr[i].p_type == PT_LOAD) {
+                map_start = (void *) (info->dlpi_addr + info->dlpi_phdr[i].p_vaddr);
+                break;
+            }
+        }
+
+        if (map_start != data->dli_fbase)
+            return 0;
+    }
+
+    for (unsigned i = 0; i < info->dlpi_phnum; i++) {
+        if (info->dlpi_phdr[i].p_type != PT_NOTE)
+            continue;
+
+        struct build_id_note *note = (struct build_id_note *) (info->dlpi_addr +
+                                                        info->dlpi_phdr[i].p_vaddr);
+        ptrdiff_t len = info->dlpi_phdr[i].p_filesz;
+
+        while (len >= (ptrdiff_t)sizeof(struct build_id_note)) {
+            if (note->nhdr.n_type == NT_GNU_BUILD_ID && note->nhdr.n_descsz != 0 &&
+                note->nhdr.n_namesz == 4 &&
+                memcmp(note->name, "GNU", 4) == 0) {
+                data->note = note;
+                return 1;
+            }
+
+            size_t offset = sizeof(ElfW(Nhdr)) + ALIGN_VAL(note->nhdr.n_namesz, 4) +
+                            ALIGN_VAL(note->nhdr.n_descsz, 4);
+            // Kotlin Native 编译生成的 elf 文件，第一节 note 缺失 Elf64_Nhdr.n_type 数据
+            // 而 Elf64_Nhdr.n_type 4 bit 刚好是平台名，即"OHOS", 下面魔数为"OHOS"转换的 uint32 值
+            if (note->nhdr.n_type == 1397704783) {
+                offset -= 4;
+            }
+            note = (struct build_id_note *) ((char *) note + offset);
+            len -= offset;
+        }
+    }
+
+    return 0;
+}
+
+static const struct build_id_note *build_id_find_nhdr_by_name(const char *name) {
+    struct build_id_callback_data data;
+    data.name = name;
+    data.tag = BY_NAME;
+    data.note = NULL;
+
+    if (!dl_iterate_phdr(build_id_find_nhdr_callback, &data))
+        return NULL;
+
+    return data.note;
+}
+
+char *kuiklyGetBuildIDByName(const char *name) {
+    const struct build_id_note *note = build_id_find_nhdr_by_name(name);
+    if (!note) {
+        char *empty = (char *)malloc(1);
+        empty[0] = '\0';
+        return empty;
+    }
+    ElfW(Word) build_id_len = note->nhdr.n_descsz;
+    ElfW(Word) len = build_id_len * 2;
+
+    const uint8_t *build_id = note->build_id;
+
+    char *result = (char *) malloc(len + 1);
+
+    for (size_t i = 0; i < build_id_len; ++i) {
+        sprintf(result + i * 2, "%02x", build_id[i]);
+    }
+    result[len] = '\0';
+
+    return result;
+}
+
+// ===== Original functions =====
 
 int com_tencent_kuikly_GetAddress(long address) {
   Dl_info info;

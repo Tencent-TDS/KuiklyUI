@@ -240,6 +240,12 @@ internal class RootDemoPage: BasePager() {
         }
 
         ButtonDataItem().apply {
+            title = "Image Shared Drawable Test"
+            jumUrl = generateJumpUrl("image_shared_drawable_demo")
+            itemList.add(this)
+        }
+
+        ButtonDataItem().apply {
             title = "profileDemo"
             jumUrl = generateJumpUrl("profileDemoPage")
             itemList.add(this)

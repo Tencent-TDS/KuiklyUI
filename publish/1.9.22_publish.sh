@@ -18,11 +18,12 @@ PUBLISH_TASK=${2:-publishToMavenLocal}
 GRADLE_RUN_STATUS=0
 
 if [ "$MODULE" = "all" ]; then
-  echo "编译所有模块 core-annotations、core-ksp、core、core-render-android、compose、web:base、web:h5、web:miniapp"
+  echo "编译所有模块 core-annotations、core-ksp、core、core-wx、core-render-android、compose、web:base、web:h5、web:miniapp"
   echo "发布方式: $PUBLISH_TASK"
   KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="1.9.22" ./gradlew -c settings.1.9.22.gradle.kts :core-annotations:$PUBLISH_TASK --stacktrace
   KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="1.9.22" ./gradlew -c settings.1.9.22.gradle.kts :core-ksp:$PUBLISH_TASK --stacktrace
   KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="1.9.22" ./gradlew -c settings.1.9.22.gradle.kts :core:$PUBLISH_TASK --stacktrace
+  KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="1.9.22" ./gradlew -c settings.1.9.22.gradle.kts :core-wx:$PUBLISH_TASK --stacktrace
   KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="1.9.22" ./gradlew -c settings.1.9.22.gradle.kts :core-render-android:$PUBLISH_TASK --stacktrace
   KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="1.9.22" ./gradlew -c settings.1.9.22.gradle.kts :compose:$PUBLISH_TASK --stacktrace
   KUIKLY_AGP_VERSION="7.4.2" KUIKLY_KOTLIN_VERSION="1.9.22" ./gradlew -c settings.1.9.22.gradle.kts :core-render-web:base:$PUBLISH_TASK --stacktrace

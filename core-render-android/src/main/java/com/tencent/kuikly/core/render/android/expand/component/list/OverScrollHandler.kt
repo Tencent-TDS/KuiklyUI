@@ -105,6 +105,17 @@ internal class OverScrollHandler(
         }
     }
 
+    /** Reset transient state for Compose DSL reuse. */
+    fun prepareForComposeReuse() {
+        dragging = false
+        downing = false
+        hadBeginDrag = false
+        overScrolling = false
+        overScrollX = 0f
+        overScrollY = 0f
+        contentInsetWhenEndDrag = null
+    }
+
     /**
      * 根据内容边距进行OverScroll滚动
      * @param contentInset 内容边距

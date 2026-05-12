@@ -27,12 +27,47 @@
 #include "libohos_render/utils/KRScopedSpinLock.h"
 #include "libohos_render/export/IKRRenderShadowExport.h"
 
-struct KRFontCollectionWrapper {
+class KRFontCollectionWrapper {
+public:
+    static KRFontCollectionWrapper& GetInstance() {
+        static KRFontCollectionWrapper instance;
+        return instance;
+    }
+
+    // 禁止拷贝和赋值
+    KRFontCollectionWrapper(const KRFontCollectionWrapper&) = delete;
+    KRFontCollectionWrapper& operator=(const KRFontCollectionWrapper&) = delete;
+
+    /**
+     * 获取 FontCollection（用于注册自定义字体和创建 Typography）
+     * 使用全局实例（如果可用），否则使用共享实例
+     */
+    OH_Drawing_FontCollection* GetFontCollection();
+
+    /**
+     * 注册自定义字体（如果适用）
+     * @param resMgr 资源管理器
+     * @param fontFamily 字体名称
+     */
+    void RegisterCustomFont(NativeResourceManager *resMgr, const std::string &fontFamily);
+
+private:
     KRFontCollectionWrapper();
     ~KRFontCollectionWrapper();
-    OH_Drawing_FontCollection *fontCollection;
-    OH_Drawing_FontCollection *fontCollectionSystem;
-    std::unordered_set<std::string> registered;
+
+    /**
+     * 检查字体是否已注册
+     */
+    bool IsFontRegistered(const std::string& fontFamily) const;
+
+    /**
+     * 标记字体为已注册
+     */
+    void MarkFontRegistered(const std::string& fontFamily);
+
+    OH_Drawing_FontCollection* fontCollection_ = nullptr;
+    bool isGlobalInstance_ = false;  // 标记是否为全局实例（全局实例不需要销毁）
+    std::unordered_set<std::string> registered_;
 };
 
 class KRRichTextShadow : public IKRRenderShadowExport {
@@ -138,7 +173,6 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     KRSize main_measure_size_;
     std::unordered_map<int, int> placeholder_index_map_;
     std::vector<std::tuple<int, int, int>> span_offsets_;  // span, begin, end
-    std::shared_ptr<struct KRFontCollectionWrapper> font_collection_wrapper_;
     std::shared_ptr<KRParagraph> paragraph_;
     KRSpinLock paragraph_lock_;
     std::shared_ptr<kuikly::util::KRLinearGradientParser> text_linearGradient_;
@@ -161,11 +195,6 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     friend class KRGradientRichTextShadow;
 };
 
-void SetCustomFontIfApplicable(NativeResourceManager *resMgr, std::shared_ptr<struct KRFontCollectionWrapper> wrapper,
-                               const std::string &fontFamily,
-                               const std::unordered_map<std::string, KRFontAdapter> &fontAdapters);
-
-OH_Drawing_TypographyCreate* CreateTypographyHandler(OH_Drawing_TypographyStyle* typoStyle, 
-    std::shared_ptr<struct KRFontCollectionWrapper> wrapper);
+OH_Drawing_TypographyCreate* CreateTypographyHandler(OH_Drawing_TypographyStyle* typoStyle);
 
 #endif  // CORE_RENDER_OHOS_KRRICHTEXTSHADOW_H

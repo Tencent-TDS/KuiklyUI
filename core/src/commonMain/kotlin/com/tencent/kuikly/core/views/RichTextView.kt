@@ -30,6 +30,7 @@ import com.tencent.kuikly.core.base.domChildren
 import com.tencent.kuikly.core.base.event.ClickParams
 import com.tencent.kuikly.core.base.event.addLayoutFrameDidChange
 import com.tencent.kuikly.core.base.isVirtualView
+import com.tencent.kuikly.core.collection.fastArrayListOf
 import com.tencent.kuikly.core.collection.fastHashMapOf
 import com.tencent.kuikly.core.layout.FlexDirection
 import com.tencent.kuikly.core.layout.FlexNode
@@ -234,9 +235,10 @@ open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
     private fun tryFireLineBreakMarginEvent() {
         if (attr.getProp(TextConst.LINE_BREAK_MARGIN) != null) {
             getPager().addTaskWhenPagerDidCalculateLayout {
-                val isLineBreakMargin = shadow?.callMethod(TextConst.SHADOW_METHOD_IS_LINE_BREAK_MARGIN, "") == "1"
+                val isLineBreakMargin =
+                    shadow?.callMethod(TextConst.SHADOW_METHOD_IS_LINE_BREAK_MARGIN, "") == "1"
                 if (isLineBreakMargin) {
-                    event.handler?.invoke(null)
+                    onFireEvent(TextEvent.TextEventConst.ON_LINE_BREAK_MARGIN, null)
                 }
             }
         }
@@ -342,7 +344,7 @@ open class RichTextView : DeclarativeBaseView<RichTextAttr, RichTextEvent>(),
 }
 
 open class RichTextAttr : TextAttr() {
-    internal var spans: ArrayList<ISpan> = arrayListOf()
+    var spans = fastArrayListOf<ISpan>()
     fun spans(spans: ArrayList<ISpan>) {
         this.spans = spans
         spans.forEach {
@@ -738,7 +740,9 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
             richTextViewParent?.addChild(ImageView()) {
                 ctx.view = this
                 attr {
-                    visibility(ctx.placeholderFrame.width != 0f && ctx.placeholderFrame.height != 0f)
+                    val isWithinRichText = ctx.richTextFrame.height == 0f ||
+                        (ctx.placeholderFrame.y + ctx.placeholderFrame.height) <= ctx.richTextFrame.height
+                    visibility(ctx.placeholderFrame.width != 0f && ctx.placeholderFrame.height != 0f && isWithinRichText)
                     absolutePosition(
                         top = ctx.richTextFrame.y + ctx.placeholderFrame.y + ctx.verticalAlignOffset,
                         left = ctx.richTextFrame.x + ctx.placeholderFrame.x + ctx.horizontalAlignOffset

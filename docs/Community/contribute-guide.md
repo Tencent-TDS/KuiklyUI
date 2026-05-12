@@ -1,41 +1,55 @@
-# 贡献指南
+# Kuikly 社区
 
-## 概述
-``Kuikly``社区致力于打造一个开放、包容、充满活力的跨端开发社区，为开发者提供全方位的交流、学习和协作平台。希望依靠社区的力量，推动``Kuikly``框架及其生态系统的持续演进。
+欢迎来到``Kuikly``开源社区！这里是开发者交流、学习和协作的平台。无论您是初次了解``Kuikly``，还是已经在项目中使用，都可以在这里找到组件资源、技术文章、问答交流等内容。
 
-贡献是开源社区的生命力源泉，``Kuikly``社区欢迎并鼓励所有形式的贡献。您的每一次贡献，无论是解决Bug、开发功能、共享组件、改进文档、还是分享经验，帮助社区中的其他人，都是对社区的宝贵贡献。
-这些贡献不仅帮助``Kuikly``变得更加完善和强大，也使您自身获得技术成长、行业认可和社区影响力。
+## 快速入口
 
-## 贡献代码
-**寻找合适的任务**：新手可以从带有"good first issue"标签的问题开始，这些问题通常专门为新手贡献者设计，难度较低。
-也可以查看带有"Help Wanted"标签的issue参与贡献。
+| | 入口 | 说明 |
+| --- | --- | --- |
+| 🧩 | **[组件市场](https://kuikly.tds.qq.com/third-party?tab=component)** | 浏览和发现社区共享组件 |
+| 📝 | **[社区分享](https://kuikly.tds.qq.com/third-party?tab=artical)** | 技术文章、教程与实践经验 |
+| 💬 | **[Q&A 问答](https://github.com/Tencent-TDS/KuiklyUI/discussions/categories/q-a)** | 使用疑问交流与解答 |
+| 🌐 | **[GitHub 仓库](https://github.com/Tencent-TDS/KuiklyUI)** | 源码、Issue 与 PR |
+
+## 参与社区
+
+``Kuikly``社区欢迎所有形式的参与。您可以：
+
+* **使用组件**：在[组件市场](./component_market.md)找到现成的社区组件，快速集成到您的项目中。
+* **阅读与分享**：浏览[社区分享](./tech_sharing.md)中的技术文章，也欢迎分享您的实践经验。
+* **提问与讨论**：在 [Q&A 问答](https://github.com/Tencent-TDS/KuiklyUI/discussions/categories/q-a)板块交流使用疑问，也可以帮助解答其他开发者的问题。
+* **报告问题**：在 [GitHub Issues](https://github.com/Tencent-TDS/KuiklyUI/issues) 提交 Bug 报告或功能建议。
+
+## 贡献指南
+
+如果您希望更深入地参与``Kuikly``的发展，以下是主要的贡献方式：
+
+> 🏅 ``Kuikly``社区设有[贡献者激励机制](./contributor_role.md)，对持续贡献者授予专属头衔、物质激励等权益，详情请查阅。
+
+### 贡献代码
+
+**寻找合适的任务**：新手可以从带有"good first issue"标签的问题开始，这些问题通常专门为新手贡献者设计，难度较低。也可以查看带有"Help Wanted"标签的issue参与贡献。
 
 **设置开发环境**：在开始编码前，请先阅读[README 源码编译](https://github.com/Tencent-TDS/KuiklyUI)指引，确保您的本地环境能够正确构建和测试Kuikly。
 
 **Fork仓库**：在正式修改代码前，请先Fork仓库，在Fork的仓库进行编码、测试。
 
-**代码规范与质量**：``Kuikly``遵循Kotlin官方代码规范，请在提交前确保代码风格一致。新增功能应包含适当的测试用例，确保功能稳定性和长期维护性
+**代码规范与质量**：``Kuikly``遵循Kotlin官方代码规范，请在提交前确保代码风格一致。新增功能应包含适当的测试用例，确保功能稳定性和长期维护性。
 
-**提交Pull Request**：PR应包含清晰的目的描述、相关Issue链接、测试计划和任何可能影响的范围。请确保您的提交信息遵循[Contribution Guide](../../CONTRIBUTING.md)约定格式，如"feat: 添加新组件"、"fix: 修复XX问题"等
+**提交Pull Request**：PR应包含清晰的目的描述、相关Issue链接、测试计划和任何可能影响的范围。请确保您的提交信息遵循[Contribution Guide](https://github.com/Tencent-TDS/KuiklyUI/blob/main/CONTRIBUTING.md)约定格式，如"feat: 添加新组件"、"fix: 修复XX问题"等。
 
-## 贡献组件
-开发基于``Kuikly``的通用组件或业务组件，贡献到社区生态仓库。优质组件可能被纳入官方推荐生态，获得更多曝光和使用。
+### 贡献组件
 
-**组件交流**：``Kuikly``在Github Discussion增加了[社区生态](https://github.com/Tencent-TDS/KuiklyUI/discussions/categories/%E7%A4%BE%E5%8C%BA%E7%94%9F%E6%80%81)讨论区。关于组件的需求、组件的维护问题等在这里进行交流、讨论。
+开发基于``Kuikly``的通用组件或业务组件，贡献到社区生态仓库。优质组件可能被纳入官方推荐生态，获得更多曝光和使用。详见[社区组件](./component_market.md)页面。
 
-**组件分享**：社区提供了中心化收集``Kuikly``组件的方式，共享的组件按照[Kuikly-third-party](https://github.com/Tencent-TDS/KuiklyUI-third-party)指引，上架到组件市场。
+### 知识分享
 
-## 知识分享
-社区生态离不开丰富的技术实践分享，通过分享自己的见解，并借鉴他人的经验，我们可以互相学习，共同进步。
-技术分享不限于篇幅，大到技术方案、小到解决某个具体问题的心得，都欢迎随时共享到社区。
+技术分享不限于篇幅，大到技术方案、小到解决某个具体问题的心得，都欢迎随时共享到社区。详见[社区分享](./tech_sharing.md)页面。
 
-**三方社区分享**：开发者首先在自己的渠道，比如个人博客、三方技术社区(掘金、CSDN、知呼等)发表文章。知识分享采用去中心化分享，中心化收集展示的管理方式，这样既方便贡献者通过自己的渠道分享，也方面社区开发者查阅。
+### 文档贡献
 
-**分享收集**：三方社区分享后，可按照[Kuikly-third-party](https://github.com/Tencent-TDS/KuiklyUI-third-party)指引，共享到``Kuikly``社区。
+**文档位置**：``Kuikly``文档位于项目``docs``目录，以``markdown``格式编写。如需增加图片，请存放在对应目录下的``img``文件夹中。
 
-## 文档与知识库贡献
-**文档位置**：``Kuikly``文档位于项目``docs``目录。文档以``markdown``文件格式编写。如果需要增加图片，请将图片存放在对应目录下的``img``文件夹下。
+**增删导航栏**：导航栏配置在``docs/navbar/zh.ts``文件，新增条目需同步更新。
 
-**增删导航栏**：文档首页的导航栏的配置在``docs/navbar/zh.ts``文件。如果新增导航栏条目，需同时在该文件增加入口文件描述。
-
-**增删文档**：如果是在某个导航栏条目下增删``markdown``文件，请同步在``docs/sidebar/zh.ts``文件，同步进行配置更新。
+**增删文档**：在某个导航栏条目下增删``markdown``文件时，请同步更新``docs/sidebar/zh.ts``配置。

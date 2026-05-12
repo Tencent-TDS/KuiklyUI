@@ -48,6 +48,11 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong, nullable) NSNumber *css_turboDisplayAutoUpdateEnable;
 @property (nonatomic, strong, nullable) NSNumber *css_shouldRasterize;
 @property (nonatomic, strong, nullable) NSString *css_lazyAnimationKey;
+@property (nonatomic, strong, nullable) NSString *css_clipPath;
+@property (nonatomic, strong, nullable) CAShapeLayer *css_clipPathLayer;
+#if TARGET_OS_OSX
+@property (nonatomic, strong, nullable) NSString *css_cursor;
+#endif
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_click;
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_doubleClick;
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_longPress;
@@ -109,6 +114,15 @@ NS_ASSUME_NONNULL_BEGIN
 @interface CSSShapeLayer : CAShapeLayer
 
 - (instancetype)initWithBorderRadius:(CSSBorderRadius *)borderRadius;
+
+@end
+
+@interface CSSClipPathLayer : CAShapeLayer
+
+@property (nonatomic, copy) NSString *clipPathData;
+@property (nonatomic, weak) UIView *hostView;
+
+- (instancetype)initWithClipPath:(NSString *)clipPath hostView:(UIView *)hostView;
 
 @end
 

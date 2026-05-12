@@ -23,6 +23,7 @@ extern NSString *_Nonnull const kKuiklyFatalExceptionNotification;
 NS_ASSUME_NONNULL_BEGIN
 
 @class KuiklyContextParam;
+@class KRTurboDisplayConfig;
 @protocol KuiklyRenderCoreDelegate;
 @protocol KuiklyRenderLayerProtocol;
 
@@ -117,6 +118,11 @@ NS_ASSUME_NONNULL_BEGIN
  * @return 返回该页面的TurboDisplayKey（一般可为PageName，若为nil，则为关闭TurboDisplay渲染模式）
  */
 - (NSString * _Nullable)turboDisplayKey;
+
+/*
+ * @brief 返回 TurboDisplay 页面级配置（新增）
+ */
+- (KRTurboDisplayConfig * _Nullable)turboDisplayConfig;
 
 @end
 

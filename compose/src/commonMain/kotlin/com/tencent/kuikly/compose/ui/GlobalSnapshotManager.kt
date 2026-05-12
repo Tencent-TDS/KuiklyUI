@@ -16,16 +16,6 @@
 
 package com.tencent.kuikly.compose.ui
 
-import androidx.compose.runtime.snapshots.Snapshot
-import com.tencent.kuikly.compose.ComposeContainer
-import com.tencent.kuikly.compose.coroutines.internal.KuiklyContextScheduler
-import kotlinx.atomicfu.atomic
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.consumeEach
-import kotlinx.coroutines.launch
-
 /**
  * Platform-specific mechanism for starting a monitor of global snapshot state writes
  * in order to schedule the periodic dispatch of snapshot apply notifications.
@@ -35,41 +25,6 @@ import kotlinx.coroutines.launch
  * Composition bootstrapping mechanisms for a particular platform/framework should call
  * [ensureStarted] during setup to initialize periodic global snapshot notifications.
  */
-internal object GlobalSnapshotManager {
-
-    private val started = atomic(0)
-
-    private val sent = atomic(0)
-
-    private fun runOnKuiklyThread(block: () -> Unit) {
-        if (KuiklyContextScheduler.isOnKuiklyThread("")) {
-            block()
-        } else {
-            KuiklyContextScheduler.runOnKuiklyThread("") {
-                block()
-            }
-        }
-    }
-
-    fun ensureStarted() {
-        if (started.compareAndSet(0, 1)) {
-            val channel = Channel<Unit>(1)
-            CoroutineScope(Dispatchers.Unconfined).launch {
-                channel.consumeEach {
-                    runOnKuiklyThread {
-                        sent.compareAndSet(1, 0)
-                        Snapshot.sendApplyNotifications()
-                    }
-                }
-            }
-            Snapshot.registerGlobalWriteObserver {
-                if (!ComposeContainer.enableConsumeSnapshot) {
-                    return@registerGlobalWriteObserver
-                }
-                if (sent.compareAndSet(0, 1)) {
-                    channel.trySend(Unit)
-                }
-            }
-        }
-    }
+internal expect object GlobalSnapshotManager {
+    fun ensureStarted()
 }

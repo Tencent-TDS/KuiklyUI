@@ -4,6 +4,11 @@ plugins {
     id("com.google.devtools.ksp")
     id("org.jetbrains.compose")
     id("maven-publish")
+    id("com.tencent.kuiklybase.knoi.plugin")
+}
+
+knoi {
+    tsGenDir = projectDir.absolutePath + "/../ohosApp/entry/src/main/ets/ts-api/"
 }
 
 @OptIn(org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi::class)
@@ -30,6 +35,7 @@ kotlin {
     ohosArm64 {
         binaries.sharedLib("shared"){
             freeCompilerArgs += "-Xadd-light-debug=enable"
+            linkerOpts += "--build-id=sha1"
             // 安装包优化（仅 release）
             if (buildType == org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType.RELEASE) {
                 val CLANG_OPT_FLAGS = "-Os -mllvm -enable-machine-outliner=always -ffunction-sections"
@@ -47,6 +53,7 @@ kotlin {
                 implementation(project(":core"))
                 implementation(project(":core-annotations"))
                 implementation(project(":compose"))
+                implementation(project(":core-wx"))
                 // Chat Demo 相关依赖
                 implementation("com.tencent.kuiklybase:markdown:0.3.0-ohos")
             }
@@ -64,3 +71,6 @@ dependencies {
     add("kspOhosArm64", project(":core-ksp"))
 }
 
+ksp {
+    arg("catchException", "false")
+}

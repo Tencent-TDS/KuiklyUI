@@ -29,6 +29,8 @@ std::string KRBase64Decode(const std::string &str);
 
 std::string KRMd5(const std::string &str);
 
+std::string KRMd5With32(const std::string &str);
+
 std::string KRSha256(const std::string &str);
 }  //  namespace util
 }  //  namespace kuikly

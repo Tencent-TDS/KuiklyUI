@@ -18,7 +18,6 @@ package com.tencent.kuikly.compose.foundation.lazy.staggeredgrid
 
 import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
 import com.tencent.kuikly.compose.foundation.gestures.Orientation
-import com.tencent.kuikly.compose.foundation.lazy.grid.LazyGridItemInfo
 import com.tencent.kuikly.compose.foundation.lazy.layout.MutableIntervalList
 import com.tencent.kuikly.compose.ui.layout.AlignmentLine
 import com.tencent.kuikly.compose.ui.layout.MeasureResult
@@ -27,6 +26,7 @@ import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.ui.util.fastForEach
 import com.tencent.kuikly.compose.ui.util.fastSumBy
+import com.tencent.kuikly.core.collection.fastMutableMapOf
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.CoroutineScope
 
@@ -266,7 +266,7 @@ internal val EmptyLazyStaggeredGridLayoutInfo = LazyStaggeredGridMeasureResult(
         override val width: Int = 0
         override val height: Int = 0
         @Suppress("PrimitiveInCollection")
-        override val alignmentLines: Map<AlignmentLine, Int> = emptyMap()
+        override val alignmentLines: Map<AlignmentLine, Int> = fastMutableMapOf()
         override fun placeChildren() {}
     },
     canScrollForward = false,

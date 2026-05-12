@@ -197,6 +197,18 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
     }
 
     /**
+     * Called when page onFontLoaded
+     */
+    fun onFontLoaded() {
+        runKuiklyRenderViewTask {
+            it.sendEvent(
+                KuiklyRenderView.PAGER_EVENT_ON_FONT_LOADED,
+                mapOf()
+            )
+        }
+    }
+
+    /**
      * Send events to Kuikly page
      */
     fun sendEvent(event: String, data: Map<String, Any>) {
@@ -387,6 +399,8 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
      * Register custom property handler
      */
     private fun registerViewExternalPropHandler(kuiklyRenderExport: IKuiklyRenderExport) {
+        // Register built-in external prop handlers
+        kuiklyRenderExport.viewPropExternalHandlerExport(KRCustomPropsHandler())
         // Delegate to external, allowing host project to expose its own custom property handler
         delegate.registerViewExternalPropHandler(kuiklyRenderExport)
     }

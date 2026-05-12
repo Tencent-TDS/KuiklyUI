@@ -2,6 +2,16 @@
     <img alt="Kuikly Logo"  src="img/kuikly_logo.svg" width="200" />
 </p>
 
+<p align="center">
+
+[![GitHub Release](https://img.shields.io/github/v/release/Tencent-TDS/KuiklyUI)](https://github.com/Tencent-TDS/KuiklyUI/releases)
+[![License](https://img.shields.io/badge/license-KuiklyUI%20License-blue)](https://github.com/Tencent-TDS/KuiklyUI/blob/main/LICENSE)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.1.21-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
+[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20macOS%20%7C%20HarmonyOS%20%7C%20Web%20%7C%20MiniApp-brightgreen)](https://github.com/Tencent-TDS/KuiklyUI)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Tencent-TDS/KuiklyUI/pulls)
+
+</p>
+
 [English](./README.md) | 简体中文 | [官网](https://framework.tds.qq.com/)
 
 ## 项目介绍
@@ -105,6 +115,18 @@
 
 > 注意：源码iosApp工程在编译时会执行KMP脚本，如果遇到脚本读写文件权限报错，需要在`Xcode -> Build Setting`中将`User Script Sandboxing`设置为`No`
 
+### 运行macOS APP
+在构建 macOS App 之前，请确保完成了环境准备
+
+1. `cd` 到 `macApp`
+2. 执行 `pod install --repo-update`
+3. 使用 `Android Studio` 打开 `KuiklyUI` 项目根目录，完成 `sync`
+4. Configuration 选择 macOSApp，Run 'macOSApp'
+
+或者使用 XCode 打开 KuiklyUI/macApp 目录，`Run`
+
+> 注意：源码macApp工程在编译时会执行KMP脚本，如果遇到脚本读写文件权限报错，需要在`Xcode -> Build Setting`中将`User Script Sandboxing`设置为`No`
+
 ### 运行Ohos APP
 在构建 Ohos App 之前，请确保完成了环境准备
 
@@ -166,7 +188,7 @@ KuiklyUI目录下有各个`Kotlin`版本的gradle配置项
 安卓手机扫码快速体验。iPhone和鸿蒙手机请按上述步骤源码编译Demo APP体验。
 
 ## Roadmap
-[Roadmap(2025)](https://kuikly.tds.qq.com/Blog/roadmap2025.html)
+[Roadmap（2026）](https://kuikly.tds.qq.com/Blog/roadmap2026.html) | [Roadmap（2025）](https://kuikly.tds.qq.com/Blog/roadmap2025.html)
 
 ## 贡献指南
 欢迎各位开发者为 `Kuikly` 提出问题或发起 PR，建议你在为 `Kuikly` 贡献代码先阅读 [贡献指引](CONTRIBUTING.md)。

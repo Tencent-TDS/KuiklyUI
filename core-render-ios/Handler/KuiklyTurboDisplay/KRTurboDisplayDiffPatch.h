@@ -16,24 +16,38 @@
 #import <Foundation/Foundation.h>
 #import "KRTurboDisplayNode.h"
 #import "KuiklyRenderLayerProtocol.h"
+#import "KRTurboDisplayConfig.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
+typedef enum : NSUInteger {
+    KRCacheFirstScreenDiff,              // TB 首屏diff-view，view创建 + 缓存Prop设置 + 设置临时事件callback
+    KRRealFirstScreenDiffEventReplay,    // 业务首屏优先执行事件回放
+    KRRealFirstScreenDiffPropUpdate,     // 业务首屏事件回放完成，执行真正的diff-view，更新页面首屏。
+} KRFirstScreenDiffPolicy;
+
+
 @interface KRTurboDisplayDiffPatch : NSObject
-/**
- * @brief diff 两棵树进行差量更新到渲染器
- */
+/** TB 首屏 Diff（Diff-View） */
 + (void)diffPatchToRenderingWithRenderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer
                                 oldNodeTree:(KRTurboDisplayNode * _Nullable)oldNodeTree
                                 newNodeTree:(KRTurboDisplayNode *)newNodeTree;
 
-/**
- * @brief 保留目标树结构，仅更新目标树属性信息
- * @param targetNodeTree 被更新的目标树
- * @param fromNodeTree 更新的来源树
- * @return 是否有发生更新
- */
-+ (BOOL)onlyUpdateWithTargetNodeTree:(KRTurboDisplayNode *)targetNodeTree fromNodeTree:(KRTurboDisplayNode *)fromNodeTree;
+/** 延迟 Diff 实现 */
++ (void)delayedDiffPatchToRenderingWithRenderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer
+                                       oldNodeTree:(KRTurboDisplayNode * _Nullable)oldNodeTree
+                                       newNodeTree:(KRTurboDisplayNode *)newNodeTree
+                                        completion:(dispatch_block_t _Nullable)completion;
+
++ (void)diffPatchToRenderingWithRenderLayer:(id<KuiklyRenderLayerProtocol>)renderLayer
+                                oldNodeTree:(KRTurboDisplayNode * _Nullable)oldNodeTree
+                                newNodeTree:(KRTurboDisplayNode *)newNodeTree
+                                 diffPolicy:(KRFirstScreenDiffPolicy)diffPolicy;
+
+/** Diff-DOM（新增 config 参数） */
++ (BOOL)onlyUpdateWithTargetNodeTree:(KRTurboDisplayNode *)targetNodeTree
+                        fromNodeTree:(KRTurboDisplayNode *)fromNodeTree
+                              config:(KRTurboDisplayConfig *)config;
 
 @end
 

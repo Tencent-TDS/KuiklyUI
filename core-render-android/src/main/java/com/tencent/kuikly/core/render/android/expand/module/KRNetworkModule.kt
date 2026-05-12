@@ -262,12 +262,23 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
 
     override fun onDestroy() {
         super.onDestroy()
-        activeStreamConnections.forEach { (_, conn) ->
-            try {
-                conn.disconnect()
-            } catch (_: Exception) {}
+        //  remove 在主线程立即执行，disconnect() 交给子线程执行，
+        // 使用 iterator.remove() 逐个原子移除，避免 values snapshot 和 clear 之间的竞态窗口
+        val connections = ArrayList<HttpURLConnection>()
+        val iterator = activeStreamConnections.entries.iterator()
+        while (iterator.hasNext()) {
+            connections.add(iterator.next().value)
+            iterator.remove()
         }
-        activeStreamConnections.clear()
+        if (connections.isNotEmpty()) {
+            KuiklyRenderAdapterManager.krThreadAdapter?.executeOnSubThread {
+                for (conn in connections) {
+                    try {
+                        conn.disconnect()
+                    } catch (_: Exception) {}
+                }
+            }
+        }
     }
 
     private fun httpRequest(params: String?, bytes: ByteArray?, callback: KuiklyRenderCallback?) {

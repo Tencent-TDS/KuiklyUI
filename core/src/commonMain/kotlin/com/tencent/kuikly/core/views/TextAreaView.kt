@@ -60,6 +60,10 @@ open class TextAreaView : DeclarativeBaseView<TextAreaAttr, TextAreaEvent>(), Me
             flexNode.markDirty()
         }
     }
+    // 标记是否正在处理原生事件，避免反向同步导致选择状态被重置
+    internal var isProcessingNativeEvent: Boolean = false
+    // 记录上一次同步到原生层的文本，用于判断是否需要重新同步
+    internal var lastSyncedText: String = ""
 
     override fun willInit() {
         super.willInit()
@@ -75,7 +79,12 @@ open class TextAreaView : DeclarativeBaseView<TextAreaAttr, TextAreaEvent>(), Me
     }
 
     override fun createEvent(): TextAreaEvent {
-        return TextAreaEvent()
+        val event = TextAreaEvent()
+        // 设置原生事件触发前的回调，用于标记正在处理原生事件
+        event.beforeNativeEventCallback = {
+            this.isProcessingNativeEvent = true
+        }
+        return event
     }
 
     override fun viewName(): String {
@@ -102,10 +111,24 @@ open class TextAreaView : DeclarativeBaseView<TextAreaAttr, TextAreaEvent>(), Me
     }
 
     override fun didSetProp(propKey: String, propValue: Any) {
-        super.didSetProp(propKey, propValue)
-        if (propKey !in NON_SHADOW_PROPS) {
-            shadow?.setProp(propKey, propValue)
-            flexNode.markDirty()
+        // 处理 TEXT_INPUT_STATE prop，添加防循环同步逻辑
+        if (propKey == TextAreaAttr.TEXT_INPUT_STATE) {
+            val state = TextInputState.decode(JSONObject(propValue.toString()))
+            val textChanged = state.text != lastSyncedText
+            // 只有当文本发生变化，或者不是来自原生事件时，才同步到原生层
+            val shouldSyncToNative = textChanged || !isProcessingNativeEvent
+            if (shouldSyncToNative) {
+                super.didSetProp(propKey, propValue)
+                lastSyncedText = state.text
+            }
+            // 重置标志，等待下一次原生事件
+            isProcessingNativeEvent = false
+        } else {
+            super.didSetProp(propKey, propValue)
+            if (propKey !in NON_SHADOW_PROPS) {
+                shadow?.setProp(propKey, propValue)
+                flexNode.markDirty()
+            }
         }
     }
 
@@ -150,6 +173,26 @@ open class TextAreaView : DeclarativeBaseView<TextAreaAttr, TextAreaEvent>(), Me
     fun setCursorIndex(index: Int) {
         performTaskWhenRenderViewDidLoad {
             renderView?.callMethod("setCursorIndex", index.toString())
+        }
+    }
+
+    /**
+     * Atomically set raw text, selection, and composition state.
+     */
+    fun setTextInputState(state: TextInputState) {
+        performTaskWhenRenderViewDidLoad {
+            renderView?.callMethod("setTextInputState", state.encode())
+        }
+    }
+
+    /**
+     * Get raw text, selection, and composition state from native input view.
+     */
+    fun getTextInputState(callback: (TextInputState) -> Unit) {
+        performTaskWhenRenderViewDidLoad {
+            renderView?.callMethod("getTextInputState", "") {
+                callback(TextInputState.decode(it))
+            }
         }
     }
 
@@ -252,6 +295,19 @@ open class TextAreaAttr : Attr() {
     }
 
     /**
+     * Atomically set raw text, selection, and composition state.
+     */
+    fun textInputState(state: TextInputState): TextAreaAttr {
+        TEXT_INPUT_STATE with state.encode()
+        return this
+    }
+
+    fun textInputState(stateProvider: () -> TextInputState): TextAreaAttr {
+        TEXT_INPUT_STATE with { stateProvider().encode() }
+        return this
+    }
+
+    /**
      * 设置输入文本的文本样式
      * 配合TextArea的textDidChange来更改spans实现输入框富文本化
      * 注：设置新inputSpans后，光标会保持原index
@@ -324,6 +380,16 @@ open class TextAreaAttr : Attr() {
 
     fun placeholder(placeholder: String): TextAreaAttr {
         TextConst.PLACEHOLDER with placeholder
+        return this
+    }
+
+    /**
+     * Set text post-processor name.
+     * Works with KRTextPostProcessorAdapter to enable features like emoji shortcode replacement.
+     * @param processor processor name, e.g. "input"
+     */
+    fun textPostProcessor(processor: String): TextAreaAttr {
+        "textPostProcessor" with processor
         return this
     }
 
@@ -447,6 +513,7 @@ open class TextAreaAttr : Attr() {
     companion object {
         const val RETURN_KEY_TYPE = "returnKeyType"
         const val KEYBOARD_TYPE = "keyboardType"
+        const val TEXT_INPUT_STATE = "textInputState"
     }
 }
 
@@ -535,6 +602,8 @@ open class TextAreaEvent : Event() {
     private val syncTextDidChangeObservers = fastMutableListOf<InputEventHandlerFn>()
     private var textDidChangeHandler: InputEventHandlerFn? = null
     private var isSyncEdit = false
+    // 原生事件触发前的回调，用于设置 View 的标志位
+    internal var beforeNativeEventCallback: (() -> Unit)? = null
 
     internal fun addTextDidChangeObserver(observer: InputEventHandlerFn) {
         if (observer in syncTextDidChangeObservers) {
@@ -597,6 +666,28 @@ open class TextAreaEvent : Event() {
         this.isSyncEdit = isSyncEdit
         this.textDidChangeHandler = handler
         updateTextDidChangeInternal()
+    }
+
+    /**
+     * Called when raw text, selection, or composition changes.
+     */
+    fun textInputStateChange(isSyncEdit: Boolean = true, handler: TextInputStateHandlerFn) {
+        this.register(TEXT_INPUT_STATE_CHANGE, {
+            // 标记正在处理原生事件，避免 didSetProp 反向同步导致选择状态被重置
+            beforeNativeEventCallback?.invoke()
+            handler(TextInputState.decode(it as? JSONObject))
+        }, isSync = isSyncEdit)
+    }
+
+    /**
+     * Called when selection changes without requiring text changes.
+     */
+    fun selectionChange(handler: TextInputStateHandlerFn) {
+        this.register(SELECTION_CHANGE, {
+            // 标记正在处理原生事件，避免 didSetProp 反向同步导致选择状态被重置
+            beforeNativeEventCallback?.invoke()
+            handler(TextInputState.decode(it as? JSONObject))
+        }, isSync = true)
     }
 
     /**
@@ -681,6 +772,8 @@ open class TextAreaEvent : Event() {
 
     companion object {
         const val TEXT_DID_CHANGE = "textDidChange"
+        const val TEXT_INPUT_STATE_CHANGE = "textInputStateChange"
+        const val SELECTION_CHANGE = "selectionChange"
         const val INPUT_FOCUS = "inputFocus"
         const val INPUT_BLUR = "inputBlur"
         const val KEYBOARD_HEIGHT_CHANGE = "keyboardHeightChange"

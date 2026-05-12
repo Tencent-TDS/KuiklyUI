@@ -210,3 +210,34 @@ if (showBottomSheet) {
 通过让根布局具备获取焦点的能力，当 BottomSheet 关闭时，焦点会传递给根布局而不是页面上的 TextField，从而避免键盘自动弹出。
 
 **参考 Issue：** [#957](https://github.com/Tencent-TDS/KuiklyUI/issues/957)
+
+---
+
+## 3. enableConsumeSnapshot 配置说明（Android 平台）
+
+**关键词：** enableConsumeSnapshot、Snapshot、状态丢失、ANR、死锁、原生 Compose 共存
+
+**适用平台：** Android（建议仅在 Android 平台根据需要配置）
+
+### 问题描述
+
+在 Android 平台上，当 **Kuikly Compose 和原生 Jetpack Compose 同时存在**时，可能会遇到以下问题：
+
+1. **原生 Compose 的重组状态偶现丢失**：原生 Compose 界面的状态更新不及时或丢失
+2. **ANR 死锁问题**：两个 Compose 系统的 Snapshot 通知机制可能产生死锁，导致应用 ANR
+
+### 解决方案
+
+`enableConsumeSnapshot` 是 `ComposeContainer` 的全局配置项，用于控制 Kuikly Compose 是否消费 Snapshot 状态变更通知。
+
+**使用方式**：在 `ComposeContainer` 的 `willInit` 方法中设置（必须在 `setContent` 之前）：
+
+```kotlin
+class MyComposePage : ComposeContainer() {
+    override fun willInit() {
+        // 如果页面会与原生 Compose 共存，设置为 false
+        ComposeContainer.enableConsumeSnapshot = pageData.isAndroid
+        super.willInit()
+    }
+}
+```

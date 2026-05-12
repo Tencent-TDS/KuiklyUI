@@ -109,6 +109,20 @@
     }
 }
 
+#pragma mark - Override - Mouse Hover (macOS)
+
+#if TARGET_OS_OSX
+- (void)setCss_mouseEnter:(KuiklyRenderCallback)css_mouseEnter {
+    _css_mouseEnter = css_mouseEnter;
+    [self updateTrackingAreas];
+}
+
+- (void)setCss_mouseExit:(KuiklyRenderCallback)css_mouseExit {
+    _css_mouseExit = css_mouseExit;
+    [self updateTrackingAreas];
+}
+#endif
+
 #pragma mark - Override - Base Touch
 
 #if !TARGET_OS_OSX // [macOS]

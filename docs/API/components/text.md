@@ -1049,6 +1049,50 @@ internal class TestPage : BasePager() {
 
 :::
 
+### textPostProcessor方法 <Badge text="仅Android支持" type="warn"/>
+
+声明文本后置处理器名称，用于将文本中的特定标记（如表情短码）替换为富文本样式（如 `ImageSpan`）。具体处理逻辑需在 Android 端实现 [`IKRTextPostProcessorAdapter`](../../DevGuide/text-post-processor-guide.md) 适配器。
+
+<div class="table-01">
+
+**textPostProcessor方法**
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| processor | 处理器名称，由业务自定义并在 Android 适配器中实现对应逻辑  | String |
+
+</div>
+
+:::tip 常见处理器名称
+- `"emoji"` / `"input"` — 将 `[smile]` 等短码替换为表情图片（需在适配器中实现映射）
+- 其他名称可自由定义，只要在适配器的 `when` 分支中处理即可
+:::
+
+**示例**
+
+```kotlin{14}
+@Page("demo_page")
+internal class TestPage : BasePager() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                allCenter()
+            }
+
+            Text {
+                attr {
+                    text("Hello [smile] World")
+                    fontSize(20f)
+                    textPostProcessor("emoji")
+                }
+            }
+        }
+    }
+}
+```
+
+> 完整实现请参考 [文本后置处理器实践指南](../../DevGuide/text-post-processor-guide.md)。
+
 ## 事件
 
 支持所有[基础事件](basic-attr-event.md#基础事件)

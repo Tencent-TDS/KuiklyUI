@@ -94,7 +94,13 @@
 
 ### imeNoFullscreen方法<Badge text="仅Android" type="warn"/>
 
-控制横屏状态下IME输入法是否进入全屏模式
+控制横屏状态下 IME 输入法是否进入全屏模式。
+
+> **使用建议**：当输入框位于**独立 Window** 的浮层中（例如 `Dialog`、或 `Modal(inWindow = true)`），并希望在横屏下也能正常弹出软键盘时，**强烈建议设置为 `true`**。
+>
+> Android 横屏默认进入 fullscreen IME，此时若输入框处于独立 Window 浮层，系统首次 `showSoftInput(SHOW_IMPLICIT)` 会被忽略，导致软键盘不弹出。设置 `imeNoFullscreen(true)` 会同时触发 `restartInput()` 重启输入连接，绕过该问题。
+>
+> Compose DSL 中可通过 `Modifier.setProp("imeNoFullscreen", true)` 设置，详见 [Compose 核心组件 - TextField 差异化点](../../Compose/core-components.md)。
 
 ### returnKeyTypeContinue方法<Badge text="仅iOS" type="warn"/>
 

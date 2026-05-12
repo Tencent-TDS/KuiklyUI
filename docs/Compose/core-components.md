@@ -193,9 +193,30 @@ fun ScrollAlternatives() {
    差异说明：在标准 Compose 中，点击键盘操作按钮（如“发送”、“搜索”等 IME Action）后，软键盘默认不收回，开发者可通过 FocusManager 手动控制键盘收起。 
    由于 KuiklyUI 三端对键盘回收的默认行为存在差异（iOS 默认按键触发后关闭软键盘，Android和鸿蒙反之），我们新增了 `Modifier.autoHideKeyboardOnImeAction` 修饰符，用于统一控制点击 IME Action 后是否自动收回键盘。该设计与 Compose 默认“不回收+手动控制”的策略不同，
 
+#### 8. Android 横屏 + 独立 Window 浮层下，软键盘需手动关闭全屏 IME <Badge text="仅Android" type="warn"/>
+
+**差异说明**：Android 横屏时 IME 默认进入 fullscreen 编辑模式。当 `TextField` 位于**独立 Window** 的浮层中（例如 `Dialog`、或自定义 `ModalView(inWindow = true)`），首次 `InputMethodManager.showSoftInput(SHOW_IMPLICIT)` 会被系统忽略，导致即使焦点已请求成功，软键盘仍**不弹出**。这与标准 Compose（在 Android 原生 View 体系下不存在该现象）不一致。
+
+**典型触发场景**：
+- 横屏下点击按钮弹出 `Dialog`（或 `inWindow = true` 的 `Modal`），浮层内 `TextField` 通过 `FocusRequester.requestFocus()` 申请焦点
+
+**解决方案**：给浮层中的 `TextField` 关闭横屏全屏 IME。底层会触发 `imm.restartInput()` 重启输入连接，绕过首次失败。
+
+```kotlin
+TextField(
+    value = text,
+    onValueChange = { text = it },
+    modifier = Modifier
+        .focusRequester(focusRequester)
+        .setProp("imeNoFullscreen", true), // 关闭横屏全屏 IME
+)
+```
+
+**相关 API**：详见自研 DSL [Input 组件 - imeNoFullscreen](../API/components/input.md#imenofullscreen方法) 章节。
+
 > **提示**：以上为当前已知的差异化点，更多差异化内容将持续更新补充。
 
-#### 7. ModalNavigationDrawer / DismissibleNavigationDrawer 部分能力待建设
+#### 9. ModalNavigationDrawer / DismissibleNavigationDrawer 部分能力待建设
 
 **差异说明**：当前已实现核心的抽屉交互功能，但 Semantics 无障碍支持、NavigationDrawerItemColors 颜色系统、ModalDrawerSheet 的 shape / windowInsets 参数、RTL 布局支持、PermanentNavigationDrawer、DismissibleDrawerSheet / PermanentDrawerSheet 等能力正在建设中。
 

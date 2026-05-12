@@ -35,12 +35,25 @@ export class KRPixelMapUtil {
     const mimeType = 'image/png';
     const imagePackerApi = image.createImagePacker();
     const packOpts: image.PackingOption = { format: mimeType, quality: 100 }
-    return fs.open(filePath, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE)
-      .then((file) => {
-        return imagePackerApi.packToFile(pixelMap, file.fd, packOpts)
+    const tempFilePath = `${filePath}.tmp`;
+    let file: fs.File | null = null;
+    return fs.open(tempFilePath, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE)
+      .then((openedFile) => {
+        file = openedFile;
+        return imagePackerApi.packToFile(pixelMap, openedFile.fd, packOpts)
+      })
+      .then(() => {
+        if (file != null) {
+          fs.closeSync(file);
+          file = null;
+        }
+        return fs.rename(tempFilePath, filePath);
       })
       .then(() => filePath)
       .finally(() => {
+        if (file != null) {
+          fs.closeSync(file);
+        }
         imagePackerApi.release();
       });
   }

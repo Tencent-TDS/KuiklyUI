@@ -10,6 +10,10 @@ maven("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
 
 [ohpm](https://ohpm.openharmony.cn/#/cn/detail/@kuikly-open%2Frender)
 
+## [2026-05-12 Version 2.17.1](https://github.com/Tencent-TDS/KuiklyUI/tree/2.17.1)
+### What's Changed
+Align default version metadata across publish files (`buildSrc`, iOS podspec, and OHOS package).
+
 ## [2026-04-22 Version 2.17.0](https://github.com/Tencent-TDS/KuiklyUI/tree/2.17.0)
 ### What's Changed
 https://github.com/Tencent-TDS/KuiklyUI/releases/tag/2.17.0

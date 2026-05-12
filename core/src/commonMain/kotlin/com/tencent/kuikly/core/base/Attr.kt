@@ -425,6 +425,11 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
         return this
     }
 
+    override fun testTag(tag: String): IStyleAttr {
+        StyleConst.TEST_TAG with tag
+        return this
+    }
+
     /**
      * 补充无障碍节点信息 目前有clickable 和 long clickable
      * 这些信息用于关键的播报比如"点击两次即可激活"，"点击两次长按即可激活"
@@ -701,6 +706,7 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
         const val USE_OUTLINE = "useOutline"
         const val ACCESSIBILITY = "accessibility"
         const val ACCESSIBILITY_ROLE = "accessibilityRole"
+        const val TEST_TAG = "testTag"
         const val WRAPPER_BOX_SHADOW_VIEW = "wrapperBoxShadowView" // only for ios
         const val AUTO_DARK_ENABLE = "autoDarkEnable"
         const val INTERFACE_STYLE = "interfaceStyle"

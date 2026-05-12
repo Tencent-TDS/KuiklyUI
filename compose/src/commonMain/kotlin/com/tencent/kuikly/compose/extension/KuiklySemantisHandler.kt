@@ -63,6 +63,11 @@ class KuiklySemantisHandler {
                     view.getViewAttr().accessibilityInfo(isClickable, isLongClickable)
                 }
 
+                val testTag = config.getOrNull(SemanticsProperties.TestTag)
+                if (testTag != null) {
+                    view.getViewAttr().testTag(testTag)
+                }
+
                 val last = lastStateDescriptionMap[nodeId]
                 if (stateDescription != last) {
                     val changeType = when {

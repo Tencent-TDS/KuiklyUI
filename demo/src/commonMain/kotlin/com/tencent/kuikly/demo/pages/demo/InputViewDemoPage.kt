@@ -110,6 +110,7 @@ internal class InputViewDemoPage : BasePager() {
                             height(200f)
                             fontSize(30f)
                             fontWeightBold()
+                            testTag("input_field")
 
                             //  keyboardTypeNumber()
                             // textAlignCenter()

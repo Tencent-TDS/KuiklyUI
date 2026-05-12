@@ -152,11 +152,22 @@ interface IStyleAttr {
 
     /**
      *设置视图的无障碍化元素对应类型。
-     *此方法用于辅助功能（如屏幕阅读器）更好地理解和描述这个视图。例如，如果视图是一个按钮，
-     *可以设置其角色为AccessibilityRole.Button，这样辅助功能就会将其识别为按钮，并提供相应的交互提示。
+此方法用于辅助功能（如屏幕阅读器）更好地理解和描述这个视图。例如，如果视图是一个按钮，
+可以设置其角色为AccessibilityRole.Button，这样辅助功能就会将其识别为按钮，并提供相应的交互提示。
      * @param role 视图的无障碍角色，应为AccessibilityRole枚举的一个值。
      * @return 返回当前对象，以支持链式调用。 */
     fun accessibilityRole(role: AccessibilityRole): IStyleAttr
+
+    /**
+     * 设置视图的测试标识符，用于自动化测试框架定位元素。
+     *
+     * Android 端映射到 AccessibilityNodeInfo.viewIdResourceName，可通过 UIAutomator By.res() 匹配。
+     * iOS 端映射到 UIView.accessibilityIdentifier，可通过 XCUITest identifier 匹配。
+     *
+     * @param tag 测试标识符字符串，建议使用唯一且有语义的命名，如 "login_button"、"profile_avatar"。
+     * @return 返回 IStyleAttr 接口以支持链式调用。
+     */
+    fun testTag(tag: String): IStyleAttr
 
     /**
      * 设置视图的自动暗黑模式。

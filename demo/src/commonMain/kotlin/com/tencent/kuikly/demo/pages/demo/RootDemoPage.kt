@@ -76,6 +76,7 @@ internal class RootDemoPage: BasePager() {
                             height(45f)
                             borderRadius(22.5f)
                             backgroundColor(Color(255, 255, 255,0.4f))
+                            testTag("root_btn_${item.title}")
                             titleAttr {
                                 text(item.title)
                                 fontSize(17f)

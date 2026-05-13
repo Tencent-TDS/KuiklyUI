@@ -63,7 +63,8 @@ class H5ListView : IListElement {
     // Current horizontal touch position
     private var touchEndX = 0f
     // Whether scrolling is enabled
-    private var scrollEnabled = true
+    internal var scrollEnabled = true
+        private set
     // Whether to show scrollbar
     private var showScrollerBar = true
     // Scroll direction
@@ -460,6 +461,7 @@ class H5ListView : IListElement {
                     isClickEvent = true
                 }, KRListConst.CLICK_DETECTION_TIMEOUT_TOUCH)
                 if (pagingEnabled) {
+                    if (!scrollEnabled) return@addEventListener
                     listPagingHelper.handlePagerTouchStart(it as TouchEvent)
                     return@addEventListener
                 }
@@ -478,6 +480,7 @@ class H5ListView : IListElement {
                 }
                 isClickEvent = false
                 if (pagingEnabled) {
+                    if (!scrollEnabled) return@addEventListener
                     listPagingHelper.handlePagerTouchMove(it as TouchEvent)
                     return@addEventListener
                 }
@@ -526,6 +529,7 @@ class H5ListView : IListElement {
                 // Initialize canScroll state
                 pcScrollHelper.initCanScroll(showScrollerBar)
                 if (pagingEnabled) {
+                    if (!scrollEnabled) return@addEventListener
                     listPagingHelper.handlePagerMouseDown(event)
                     return@addEventListener
                 }
@@ -566,6 +570,7 @@ class H5ListView : IListElement {
             // Handle paging mode with wheel event
             event as WheelEvent
             if (pagingEnabled) {
+                if (!scrollEnabled) return@addEventListener
                 var eps = 1.0; // depending on device sensitivity
                 val isVerticalScroll = event.deltaY.absoluteValue > event.deltaX.absoluteValue + eps
                 val isHorizontalScroll = event.deltaX.absoluteValue > event.deltaY.absoluteValue + eps

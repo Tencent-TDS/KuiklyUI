@@ -759,7 +759,8 @@ class KuiklyRenderView(
             // ----------- 反射 Field 静态缓存（仅 API 21/22 走到时使用） -----------
             private var viewAttachInfoField: java.lang.reflect.Field? = null
             private var stableInsetsField: java.lang.reflect.Field? = null
-            private val reflectionReady: Boolean = tryInitReflectionFields()
+            private val reflectionReady: Boolean =
+                if (Build.VERSION.SDK_INT in 21..22) tryInitReflectionFields() else false
 
             @SuppressLint("PrivateApi", "DiscouragedPrivateApi", "BlockedPrivateApi",
                 "SoonBlockedPrivateApi")

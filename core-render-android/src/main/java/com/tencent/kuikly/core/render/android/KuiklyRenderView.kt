@@ -20,6 +20,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.content.res.Resources
+import android.graphics.Rect
 import android.os.Build
 import android.util.ArrayMap
 import android.util.Log
@@ -353,7 +354,8 @@ class KuiklyRenderView(
                     ACTIVITY_WIDTH to kuiklyRenderContext.toDpF(activitySize.width.toFloat()),
                     ACTIVITY_HEIGHT to kuiklyRenderContext.toDpF(activitySize.height.toFloat()),
                     DEVICE_WIDTH to kuiklyRenderContext.toDpF(deviceSize.width.toFloat()),
-                    DEVICE_HEIGHT to kuiklyRenderContext.toDpF(deviceSize.height.toFloat())
+                    DEVICE_HEIGHT to kuiklyRenderContext.toDpF(deviceSize.height.toFloat()),
+                    SAFE_AREA_INSETS to formatSafeAreaInsetsForKuikly(view, kuiklyRenderContext)
                 )
             )
             lastSize = sizeF
@@ -427,7 +429,7 @@ class KuiklyRenderView(
             put(APP_VERSION, context.versionName)
             put(PARAMS, params)
             put(NATIVE_BUILD, 8)
-            put(SAFE_AREA_INSETS, "${kuiklyRenderContext.toDpF(context.statusBarHeight.toFloat())} 0 0 0")
+            put(SAFE_AREA_INSETS, formatSafeAreaInsetsForKuikly(view, kuiklyRenderContext))
             put(ACTIVITY_WIDTH, kuiklyRenderContext.toDpF((contentView?.width ?: 0).toFloat()))
             put(ACTIVITY_HEIGHT, kuiklyRenderContext.toDpF((contentView?.height ?: 0).toFloat()))
             put(DENSITY, usingDisplayMetrics.density)
@@ -671,6 +673,145 @@ class KuiklyRenderView(
         private const val STATE_PAUSE = STATE_RESUME + 1
         private const val STATE_DESTROY = STATE_PAUSE + 1
 
+        /**
+         * 安全区域兼容工具
+         *
+         * 背景：在低版本 androidx（如 appcompat 1.0.0 / core 1.0.0）中：
+         *   - `ViewCompat.getRootWindowInsets` 方法不存在
+         *   - `WindowInsetsCompat.Builder` / `isVisible(int)` / `getInsets(int)` 也不存在
+         *   - `androidx.core.graphics.Insets` 也不存在
+         * 所以这里完全不依赖 androidx 的相关 API，直接通过
+         * 原生 `android.view.View#getRootWindowInsets()`（API 23+），
+         * 并在更低版本（API 21/22）通过反射读取 `View.mAttachInfo.mStableInsets`。
+         */
+        private object SafeAreaCompat {
+
+            /**
+             * 四个方向的安全距离（像素），任意获取失败的方向为 0。
+             * 顺序与 android.graphics.Rect 一致：left/top/right/bottom。
+             */
+            data class InsetsPx(val left: Int, val top: Int, val right: Int, val bottom: Int) {
+                companion object {
+                    val ZERO = InsetsPx(0, 0, 0, 0)
+                }
+            }
+
+            /**
+             * 获取四个方向的安全距离（像素）。获取不到则返回全 0。
+             */
+            @SuppressLint("ObsoleteSdkInt", "NewApi")
+            fun getInsets(view: View): InsetsPx {
+                return when {
+                    Build.VERSION.SDK_INT >= 23 -> getInsetsByPublicApi(view)
+                    Build.VERSION.SDK_INT >= 21 -> getInsetsByReflection(view)
+                    else -> InsetsPx.ZERO
+                }
+            }
+
+            /**
+             * API 23+ 直接调用 android.view.View#getRootWindowInsets()
+             * 和 android.view.WindowInsets 的四个 stable/systemWindowInset 公开 API
+             *
+             * 注：stableInsetLeft/Top/Right/Bottom 与 systemWindowInsetLeft/Top/Right/Bottom
+             * 在 API 30 (R) 起被官方标记为 deprecated，但替代品 getInsets(WindowInsets.Type) 仅 API 30+ 可用，
+             * 且当前依赖的低版本 androidx 中 WindowInsetsCompat.getInsets / Insets 也不存在，
+             * 因此为了兼容性继续使用旧 API，并显式抑制 deprecation 警告。
+             */
+            @SuppressLint("NewApi")
+            @Suppress("DEPRECATION")
+            private fun getInsetsByPublicApi(view: View): InsetsPx {
+                return try {
+                    val windowInsets = view.rootWindowInsets ?: return InsetsPx.ZERO
+                    val left = if (windowInsets.stableInsetLeft > 0) windowInsets.stableInsetLeft
+                        else windowInsets.systemWindowInsetLeft
+                    val top = if (windowInsets.stableInsetTop > 0) windowInsets.stableInsetTop
+                        else windowInsets.systemWindowInsetTop
+                    val right = if (windowInsets.stableInsetRight > 0) windowInsets.stableInsetRight
+                        else windowInsets.systemWindowInsetRight
+                    val bottom = if (windowInsets.stableInsetBottom > 0) windowInsets.stableInsetBottom
+                        else windowInsets.systemWindowInsetBottom
+                    InsetsPx(left, top, right, bottom)
+                } catch (e: Throwable) {
+                    KuiklyRenderLog.e(TAG, "getInsetsByPublicApi failed: ${e.message}")
+                    InsetsPx.ZERO
+                }
+            }
+
+            /**
+             * API 21/22 反射兜底：读取 View.mAttachInfo.mStableInsets (Rect)，
+             * 该 Rect 的 left/top/right/bottom 即为四个方向的稳定安全距离。
+             *
+             * 实现对齐 AndroidX `WindowInsetsCompat.Api21ReflectionHolder`：
+             *   - 直接 View.class.getDeclaredField("mAttachInfo")，无需递归父类
+             *     （mAttachInfo 是 android.view.View 自身声明的字段）
+             *   - Field 静态缓存一次，避免每次都反射查找
+             *   - 任意一步失败时返回全 0（不抛异常）
+             */
+            @SuppressLint("PrivateApi", "DiscouragedPrivateApi", "BlockedPrivateApi",
+                "SoonBlockedPrivateApi")
+            private fun getInsetsByReflection(view: View): InsetsPx {
+                if (!reflectionReady) {
+                    return InsetsPx.ZERO
+                }
+                return try {
+                    val attachInfo = viewAttachInfoField?.get(view) ?: return InsetsPx.ZERO
+                    val stableInsets = stableInsetsField?.get(attachInfo) as? Rect
+                        ?: return InsetsPx.ZERO
+                    InsetsPx(
+                        left = stableInsets.left,
+                        top = stableInsets.top,
+                        right = stableInsets.right,
+                        bottom = stableInsets.bottom
+                    )
+                } catch (e: Throwable) {
+                    KuiklyRenderLog.e(TAG, "getInsetsByReflection failed: ${e.message}")
+                    InsetsPx.ZERO
+                }
+            }
+
+            // ----------- 反射 Field 静态缓存（仅 API 21/22 走到时使用） -----------
+            private var viewAttachInfoField: java.lang.reflect.Field? = null
+            private var stableInsetsField: java.lang.reflect.Field? = null
+            private val reflectionReady: Boolean =
+                if (Build.VERSION.SDK_INT >= 21 && Build.VERSION.SDK_INT < 23) {
+                    tryInitReflectionFields()
+                } else {
+                    false
+                }
+
+            @SuppressLint("PrivateApi", "DiscouragedPrivateApi", "BlockedPrivateApi",
+                "SoonBlockedPrivateApi")
+            private fun tryInitReflectionFields(): Boolean {
+                return try {
+                    val attachInfoField = View::class.java.getDeclaredField("mAttachInfo")
+                    attachInfoField.isAccessible = true
+                    val attachInfoClass = Class.forName("android.view.View\$AttachInfo")
+                    val mStableInsetsField = attachInfoClass.getDeclaredField("mStableInsets")
+                    mStableInsetsField.isAccessible = true
+                    viewAttachInfoField = attachInfoField
+                    stableInsetsField = mStableInsetsField
+                    true
+                } catch (e: Throwable) {
+                    KuiklyRenderLog.e(TAG, "tryInitReflectionFields failed: ${e.message}")
+                    false
+                }
+            }
+        }
+
+        /**
+         * 拼接 safeAreaInsets 协议字符串："top left bottom right"，
+         * 与 EdgeInsets.decodeWithString 解析顺序保持一致。
+         *
+         * 一次反射/系统调用即可拿到四个方向的 inset，避免重复获取。
+         */
+        internal fun formatSafeAreaInsetsForKuikly(view: View, context: IKuiklyRenderContext?): String {
+            val insets = SafeAreaCompat.getInsets(view)
+            val top = context.toDpF(insets.top.toFloat())
+            val left = context.toDpF(insets.left.toFloat())
+            val bottom = context.toDpF(insets.bottom.toFloat())
+            val right = context.toDpF(insets.right.toFloat())
+            return "$top $left $bottom $right"
+        }
     }
 }
 

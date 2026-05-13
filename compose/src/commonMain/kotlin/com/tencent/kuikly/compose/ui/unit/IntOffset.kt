@@ -21,38 +21,40 @@ package com.tencent.kuikly.compose.ui.unit
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import com.tencent.kuikly.compose.ui.geometry.Offset
+import com.tencent.kuikly.compose.ui.util.PackedInts
 import com.tencent.kuikly.compose.ui.util.fastRoundToInt
 import com.tencent.kuikly.compose.ui.util.lerp
-import com.tencent.kuikly.compose.ui.util.packInts
-import com.tencent.kuikly.compose.ui.util.unpackInt1
-import com.tencent.kuikly.compose.ui.util.unpackInt2
+import com.tencent.kuikly.compose.ui.util.packIntsP
+import com.tencent.kuikly.compose.ui.util.packedIntsBitEquals
+import com.tencent.kuikly.compose.ui.util.unpackInt1P
+import com.tencent.kuikly.compose.ui.util.unpackInt2P
 import kotlin.jvm.JvmInline
 
 /**
  * Constructs a [IntOffset] from [x] and [y] position [Int] values.
  */
 @Stable
-fun IntOffset(x: Int, y: Int): IntOffset = IntOffset(packInts(x, y))
+fun IntOffset(x: Int, y: Int): IntOffset = IntOffset(packIntsP(x, y))
 
 /**
  * A two-dimensional position using [Int] pixels for units
  */
 @Immutable
 @JvmInline
-value class IntOffset internal constructor(@PublishedApi internal val packedValue: Long) {
+value class IntOffset internal constructor(@PublishedApi internal val packedValue: PackedInts) {
     /**
      * The horizontal aspect of the position in [Int] pixels.
      */
     @Stable
     val x: Int
-        get() = unpackInt1(packedValue)
+        get() = unpackInt1P(packedValue)
 
     /**
      * The vertical aspect of the position in [Int] pixels.
      */
     @Stable
     val y: Int
-        get() = unpackInt2(packedValue)
+        get() = unpackInt2P(packedValue)
 
     @Stable
     inline operator fun component1(): Int = x
@@ -64,37 +66,48 @@ value class IntOffset internal constructor(@PublishedApi internal val packedValu
      * Returns a copy of this IntOffset instance optionally overriding the
      * x or y parameter
      */
-    fun copy(x: Int = unpackInt1(packedValue), y: Int = unpackInt2(packedValue)) =
-        IntOffset(packInts(x, y))
+    fun copy(x: Int = unpackInt1P(packedValue), y: Int = unpackInt2P(packedValue)) =
+        IntOffset(packIntsP(x, y))
 
     /**
      * Subtract a [IntOffset] from another one.
      */
     @Stable
-    operator fun minus(other: IntOffset) =
-        IntOffset(
-            packInts(
-                unpackInt1(packedValue) - unpackInt1(other.packedValue),
-                unpackInt2(packedValue) - unpackInt2(other.packedValue)
+    operator fun minus(other: IntOffset): IntOffset {
+        if (other.isZero()) {
+            return this
+        }
+        return IntOffset(
+            packIntsP(
+                unpackInt1P(packedValue) - unpackInt1P(other.packedValue),
+                unpackInt2P(packedValue) - unpackInt2P(other.packedValue)
             )
         )
+    }
 
     /**
      * Add a [IntOffset] to another one.
      */
     @Stable
-    operator fun plus(other: IntOffset) =
-        IntOffset(
-            packInts(
-                unpackInt1(packedValue) + unpackInt1(other.packedValue),
-                unpackInt2(packedValue) + unpackInt2(other.packedValue)
+    operator fun plus(other: IntOffset): IntOffset {
+        if (other.isZero()) {
+            return this
+        }
+        if (isZero()) {
+            return other
+        }
+        return IntOffset(
+            packIntsP(
+                unpackInt1P(packedValue) + unpackInt1P(other.packedValue),
+                unpackInt2P(packedValue) + unpackInt2P(other.packedValue)
             )
         )
+    }
 
     /** Returns a new [IntOffset] representing the negation of this point. */
     @Stable
     operator fun unaryMinus() =
-        IntOffset(packInts(-unpackInt1(packedValue), -unpackInt2(packedValue)))
+        IntOffset(packIntsP(-unpackInt1P(packedValue), -unpackInt2P(packedValue)))
 
     /**
      * Multiplication operator.
@@ -105,9 +118,9 @@ value class IntOffset internal constructor(@PublishedApi internal val packedValu
      */
     @Stable
     operator fun times(operand: Float): IntOffset = IntOffset(
-        packInts(
-            (unpackInt1(packedValue) * operand).fastRoundToInt(),
-            (unpackInt2(packedValue) * operand).fastRoundToInt()
+        packIntsP(
+            (unpackInt1P(packedValue) * operand).fastRoundToInt(),
+            (unpackInt2P(packedValue) * operand).fastRoundToInt()
         )
     )
 
@@ -120,9 +133,9 @@ value class IntOffset internal constructor(@PublishedApi internal val packedValu
      */
     @Stable
     operator fun div(operand: Float): IntOffset = IntOffset(
-        packInts(
-            (unpackInt1(packedValue) / operand).fastRoundToInt(),
-            (unpackInt2(packedValue) / operand).fastRoundToInt()
+        packIntsP(
+            (unpackInt1P(packedValue) / operand).fastRoundToInt(),
+            (unpackInt2P(packedValue) / operand).fastRoundToInt()
         )
     )
 
@@ -135,9 +148,9 @@ value class IntOffset internal constructor(@PublishedApi internal val packedValu
      */
     @Stable
     operator fun rem(operand: Int) = IntOffset(
-        packInts(
-            unpackInt1(packedValue) % operand,
-            unpackInt2(packedValue) % operand
+        packIntsP(
+            unpackInt1P(packedValue) % operand,
+            unpackInt2P(packedValue) % operand
         )
     )
 
@@ -145,9 +158,11 @@ value class IntOffset internal constructor(@PublishedApi internal val packedValu
     override fun toString(): String = "($x, $y)"
 
     companion object {
-        val Zero = IntOffset(0x0L)
+        val Zero = IntOffset(0, 0)
     }
 }
+
+private fun IntOffset.isZero(): Boolean = packedIntsBitEquals(packedValue, IntOffset.Zero.packedValue)
 
 /**
  * Linearly interpolate between two [IntOffset]s.
@@ -163,7 +178,7 @@ value class IntOffset internal constructor(@PublishedApi internal val packedValu
 @Stable
 fun lerp(start: IntOffset, stop: IntOffset, fraction: Float): IntOffset =
     IntOffset(
-        packInts(
+        packIntsP(
             lerp(start.x, stop.x, fraction),
             lerp(start.y, stop.y, fraction)
         )
@@ -195,4 +210,4 @@ operator fun IntOffset.minus(offset: Offset): Offset =
  * Round a [Offset] down to the nearest [Int] coordinates.
  */
 @Stable
-fun Offset.round(): IntOffset = IntOffset(packInts(x.fastRoundToInt(), y.fastRoundToInt()))
+fun Offset.round(): IntOffset = IntOffset(packIntsP(x.fastRoundToInt(), y.fastRoundToInt()))

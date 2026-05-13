@@ -439,7 +439,12 @@ internal abstract class LookaheadDelegate(
     }
 
     internal fun placeSelfApparentToRealOffset(position: IntOffset) {
-        placeSelf(position + apparentToRealOffset)
+        val realPosition = if (apparentToRealOffset == IntOffset.Zero) {
+            position
+        } else {
+            position + apparentToRealOffset
+        }
+        placeSelf(realPosition)
     }
 
     protected open fun placeChildren() {

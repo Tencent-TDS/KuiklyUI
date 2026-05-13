@@ -483,7 +483,12 @@ abstract class Placeable : Measured {
             noinline layerBlock: (GraphicsLayerScope.() -> Unit)?,
         ) {
             handleMotionFrameOfReferencePlacement()
-            placeAt(position + apparentToRealOffset, zIndex, layerBlock)
+            val realPosition = if (apparentToRealOffset == IntOffset.Zero) {
+                position
+            } else {
+                position + apparentToRealOffset
+            }
+            placeAt(realPosition, zIndex, layerBlock)
         }
 
 //        @Suppress("NOTHING_TO_INLINE")

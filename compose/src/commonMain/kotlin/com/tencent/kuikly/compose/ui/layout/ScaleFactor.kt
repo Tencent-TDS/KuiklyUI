@@ -21,22 +21,24 @@ import androidx.compose.runtime.Stable
 import com.tencent.kuikly.compose.ui.geometry.Size
 import com.tencent.kuikly.compose.ui.graphics.isSpecified
 import com.tencent.kuikly.compose.ui.internal.checkPrecondition
-import com.tencent.kuikly.compose.ui.util.packFloats
-import com.tencent.kuikly.compose.ui.util.unpackFloat1
-import com.tencent.kuikly.compose.ui.util.unpackFloat2
+import com.tencent.kuikly.compose.ui.util.PackedFloats
+import com.tencent.kuikly.compose.ui.util.packFloatsP
+import com.tencent.kuikly.compose.ui.util.packedFloatsBitEquals
+import com.tencent.kuikly.compose.ui.util.unpackFloat1P
+import com.tencent.kuikly.compose.ui.util.unpackFloat2P
 
 /**
  * Constructs a [ScaleFactor] from the given x and y scale values
  */
 @Stable
-fun ScaleFactor(scaleX: Float, scaleY: Float) = ScaleFactor(packFloats(scaleX, scaleY))
+fun ScaleFactor(scaleX: Float, scaleY: Float) = ScaleFactor(packFloatsP(scaleX, scaleY))
 
 /**
  * Holds 2 dimensional scaling factors for horizontal and vertical axes
  */
 @Immutable
 @kotlin.jvm.JvmInline
-value class ScaleFactor internal constructor(@PublishedApi internal val packedValue: Long) {
+value class ScaleFactor internal constructor(@PublishedApi internal val packedValue: PackedFloats) {
 
     /**
      * Returns the scale factor to apply along the horizontal axis
@@ -45,11 +47,12 @@ value class ScaleFactor internal constructor(@PublishedApi internal val packedVa
     val scaleX: Float
         get() {
             // Explicitly compare against packed values to avoid
-            // auto-boxing of ScaleFactor.Unspecified
-            checkPrecondition(this.packedValue != Unspecified.packedValue) {
+            // auto-boxing of ScaleFactor.Unspecified.
+            // Use packedFloatsBitEquals so that NaN sentinels match correctly on JS.
+            checkPrecondition(!packedFloatsBitEquals(this.packedValue, Unspecified.packedValue)) {
                 "ScaleFactor is unspecified"
             }
-            return unpackFloat1(packedValue)
+            return unpackFloat1P(packedValue)
         }
 
     /**
@@ -58,12 +61,10 @@ value class ScaleFactor internal constructor(@PublishedApi internal val packedVa
     @Stable
     val scaleY: Float
         get() {
-            // Explicitly compare against packed values to avoid
-            // auto-boxing of Size.Unspecified
-            checkPrecondition(this.packedValue != Unspecified.packedValue) {
+            checkPrecondition(!packedFloatsBitEquals(this.packedValue, Unspecified.packedValue)) {
                 "ScaleFactor is unspecified"
             }
-            return unpackFloat2(packedValue)
+            return unpackFloat2P(packedValue)
         }
 
     @Suppress("NOTHING_TO_INLINE")
@@ -128,14 +129,14 @@ private fun Float.roundToTenths(): Float {
  */
 @Stable
 inline val ScaleFactor.isSpecified: Boolean
-    get() = packedValue != ScaleFactor.Unspecified.packedValue
+    get() = !packedFloatsBitEquals(packedValue, ScaleFactor.Unspecified.packedValue)
 
 /**
  * `true` when this is [ScaleFactor.Unspecified].
  */
 @Stable
 inline val ScaleFactor.isUnspecified: Boolean
-    get() = packedValue == ScaleFactor.Unspecified.packedValue
+    get() = packedFloatsBitEquals(packedValue, ScaleFactor.Unspecified.packedValue)
 
 /**
  * If this [ScaleFactor] [isSpecified] then this is returned, otherwise [block] is executed

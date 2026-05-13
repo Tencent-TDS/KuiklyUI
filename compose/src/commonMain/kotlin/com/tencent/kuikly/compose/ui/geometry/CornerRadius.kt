@@ -18,10 +18,11 @@ package com.tencent.kuikly.compose.ui.geometry
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
+import com.tencent.kuikly.compose.ui.util.PackedFloats
 import com.tencent.kuikly.compose.ui.util.lerp
-import com.tencent.kuikly.compose.ui.util.packFloats
-import com.tencent.kuikly.compose.ui.util.unpackFloat1
-import com.tencent.kuikly.compose.ui.util.unpackFloat2
+import com.tencent.kuikly.compose.ui.util.packFloatsP
+import com.tencent.kuikly.compose.ui.util.unpackFloat1P
+import com.tencent.kuikly.compose.ui.util.unpackFloat2P
 
 /**
  * Constructs a Radius with the given [x] and [y] parameters for the
@@ -30,7 +31,7 @@ import com.tencent.kuikly.compose.ui.util.unpackFloat2
  * unless otherwise specified. Negative radii values are clamped to 0.
  */
 @Stable
-fun CornerRadius(x: Float, y: Float = x) = CornerRadius(packFloats(x, y))
+fun CornerRadius(x: Float, y: Float = x) = CornerRadius(packFloatsP(x, y))
 
 /**
  * A radius for either circular or elliptical (oval) shapes.
@@ -41,16 +42,16 @@ fun CornerRadius(x: Float, y: Float = x) = CornerRadius(packFloats(x, y))
  */
 @Immutable
 @kotlin.jvm.JvmInline
-value class CornerRadius internal constructor(@PublishedApi internal val packedValue: Long) {
+value class CornerRadius internal constructor(@PublishedApi internal val packedValue: PackedFloats) {
 
     /** The radius value on the horizontal axis. */
     @Stable
     val x: Float
-        get() = unpackFloat1(packedValue)
+        get() = unpackFloat1P(packedValue)
     /** The radius value on the vertical axis. */
     @Stable
     val y: Float
-        get() = unpackFloat2(packedValue)
+        get() = unpackFloat2P(packedValue)
 
     @Suppress("NOTHING_TO_INLINE")
     @Stable

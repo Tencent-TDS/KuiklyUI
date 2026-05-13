@@ -243,8 +243,10 @@ internal class RenderNodeLayer(
                 translate(translationX, translationY)
                 scale(scaleX, scaleY)
                 rotate(rotationX, rotationY, rotationZ)
-                // 0.19f is from the Original Compose Multiplatform, which is the default spotShadowAlpha in Android.
-                shadow(shadowElevation, spotShadowColor.copy(alpha = 0.19f * alpha))
+                if (shadowElevation > 0f) {
+                    // 0.19f is from the Original Compose Multiplatform, which is the default spotShadowAlpha in Android.
+                    shadow(shadowElevation, spotShadowColor.copy(alpha = 0.19f * alpha))
+                }
                 // todo renderEffect
                 alpha(alpha)
                 if (clip) {

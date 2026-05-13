@@ -27,7 +27,7 @@ fun Event.layoutFrameDidChange(handlerFn: (layoutFrame: Frame) -> Unit) {
 }
 
 fun Event.notifyLayoutFrameDidChange(layoutFrame: Frame) {
-    getFramePlugin().layoutFrameChangedHandlerFn?.invoke(layoutFrame)
+    getFramePluginOrNull()?.layoutFrameChangedHandlerFn?.invoke(layoutFrame)
 }
 
 fun Event.renderViewDidCreated(handlerFn: EventHandlerFn) {
@@ -100,4 +100,8 @@ private fun Event.getFramePlugin(): FrameEvent {
         this.putPluginEvent(FrameEvent.PLUGIN_NAME, plugin)
     }
     return plugin as FrameEvent
+}
+
+private fun Event.getFramePluginOrNull(): FrameEvent? {
+    return this.getPluginEvent(FrameEvent.PLUGIN_NAME) as? FrameEvent
 }

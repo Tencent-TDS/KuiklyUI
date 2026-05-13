@@ -235,7 +235,17 @@ internal abstract class NodeCoordinator(
     }
 
     override var position: IntOffset = IntOffset.Zero
-        protected set
+        protected set(value) {
+            field = value
+            positionX = value.x
+            positionY = value.y
+        }
+
+    internal var positionX: Int = 0
+        private set
+
+    internal var positionY: Int = 0
+        private set
 
     var zIndex: Float = 0f
         protected set
@@ -398,7 +408,12 @@ internal abstract class NodeCoordinator(
         layerBlock: (GraphicsLayerScope.() -> Unit)?,
 //        layer: GraphicsLayer?
     ) {
-        placeSelf(position + apparentToRealOffset, zIndex, layerBlock)
+        val realPosition = if (apparentToRealOffset == IntOffset.Zero) {
+            position
+        } else {
+            position + apparentToRealOffset
+        }
+        placeSelf(realPosition, zIndex, layerBlock)
     }
 
     /**
@@ -890,10 +905,11 @@ internal abstract class NodeCoordinator(
         var wrapper = this
         while (wrapper != ancestor) {
             wrapper.layer?.transform(matrix)
-            val position = wrapper.position
-            if (position != IntOffset.Zero) {
+            val x = wrapper.positionX
+            val y = wrapper.positionY
+            if (x != 0 || y != 0) {
                 tmpMatrix.reset()
-                tmpMatrix.translate(position.x.toFloat(), position.y.toFloat())
+                tmpMatrix.translate(x.toFloat(), y.toFloat())
                 matrix.timesAssign(tmpMatrix)
             }
             wrapper = wrapper.wrappedBy!!
@@ -903,9 +919,11 @@ internal abstract class NodeCoordinator(
     private fun transformFromAncestor(ancestor: NodeCoordinator, matrix: Matrix) {
         if (ancestor != this) {
             wrappedBy!!.transformFromAncestor(ancestor, matrix)
-            if (position != IntOffset.Zero) {
+            val x = positionX
+            val y = positionY
+            if (x != 0 || y != 0) {
                 tmpMatrix.reset()
-                tmpMatrix.translate(-position.x.toFloat(), -position.y.toFloat())
+                tmpMatrix.translate(-x.toFloat(), -y.toFloat())
                 matrix.timesAssign(tmpMatrix)
             }
             layer?.inverseTransform(matrix)
@@ -987,8 +1005,8 @@ internal abstract class NodeCoordinator(
     }
 
     protected inline fun withPositionTranslation(canvas: Canvas, block: (Canvas) -> Unit) {
-        val x = position.x.toFloat()
-        val y = position.y.toFloat()
+        val x = positionX.toFloat()
+        val y = positionY.toFloat()
         canvas.translate(x, y)
         block(canvas)
         canvas.translate(-x, -y)
@@ -1097,11 +1115,11 @@ internal abstract class NodeCoordinator(
             layer.mapBounds(bounds, inverse = false)
         }
 
-        val x = position.x
+        val x = positionX
         bounds.left += x
         bounds.right += x
 
-        val y = position.y
+        val y = positionY
         bounds.top += y
         bounds.bottom += y
     }
@@ -1111,11 +1129,11 @@ internal abstract class NodeCoordinator(
      * coordinates, including clipping, if [clipBounds] is true.
      */
     private fun fromParentRect(bounds: MutableRect, clipBounds: Boolean) {
-        val x = position.x
+        val x = positionX
         bounds.left -= x
         bounds.right -= x
 
-        val y = position.y
+        val y = positionY
         bounds.top -= y
         bounds.bottom -= y
 

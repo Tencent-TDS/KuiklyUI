@@ -18,23 +18,24 @@ package com.tencent.kuikly.compose.ui.graphics
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
-import com.tencent.kuikly.compose.ui.util.packFloats
-import com.tencent.kuikly.compose.ui.util.unpackFloat1
-import com.tencent.kuikly.compose.ui.util.unpackFloat2
+import com.tencent.kuikly.compose.ui.util.PackedFloats
+import com.tencent.kuikly.compose.ui.util.packFloatsP
+import com.tencent.kuikly.compose.ui.util.unpackFloat1P
+import com.tencent.kuikly.compose.ui.util.unpackFloat2P
 
 /**
  * Constructs a [TransformOrigin] from the given fractional values from the Layer's
  * width and height
  */
 fun TransformOrigin(pivotFractionX: Float, pivotFractionY: Float): TransformOrigin =
-    TransformOrigin(packFloats(pivotFractionX, pivotFractionY))
+    TransformOrigin(packFloatsP(pivotFractionX, pivotFractionY))
 
 /**
  * A two-dimensional position represented as a fraction of the Layer's width and height
  */
 @Immutable
 @kotlin.jvm.JvmInline
-value class TransformOrigin internal constructor(@PublishedApi internal val packedValue: Long) {
+value class TransformOrigin internal constructor(@PublishedApi internal val packedValue: PackedFloats) {
 
     /**
      * Return the position along the x-axis that should be used as the
@@ -43,7 +44,7 @@ value class TransformOrigin internal constructor(@PublishedApi internal val pack
      * and right bounds of the content
      */
     val pivotFractionX: Float
-        get() = unpackFloat1(packedValue)
+        get() = unpackFloat1P(packedValue)
 
     /**
      * Return the position along the y-axis that should be used as the
@@ -52,7 +53,7 @@ value class TransformOrigin internal constructor(@PublishedApi internal val pack
      * and bottom bounds of the content
      */
     val pivotFractionY: Float
-        get() = unpackFloat2(packedValue)
+        get() = unpackFloat2P(packedValue)
 
     @Suppress("NOTHING_TO_INLINE")
     @Stable

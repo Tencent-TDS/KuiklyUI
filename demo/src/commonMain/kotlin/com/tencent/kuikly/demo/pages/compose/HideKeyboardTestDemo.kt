@@ -109,8 +109,7 @@ fun HideKeyboardTestContent() {
                 .height(48.dp)
                 .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
                 .padding(12.dp)
-                .autoHideKeyboardOnImeAction(true)
-                .keepFocusOnKeyboardDismiss(keepFocus1),
+                .autoHideKeyboardOnImeAction(true),
             textStyle = TextStyle(fontSize = 16.sp, color = Color.Black),
             cursorBrush = SolidColor(Color.Blue),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -163,8 +162,7 @@ fun HideKeyboardTestContent() {
                 .height(48.dp)
                 .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
                 .padding(12.dp)
-                .autoHideKeyboardOnImeAction(true)
-                .keepFocusOnKeyboardDismiss(keepFocus2),
+                .autoHideKeyboardOnImeAction(false),
             textStyle = TextStyle(fontSize = 16.sp, color = Color.Black),
             cursorBrush = SolidColor(Color.Blue),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),

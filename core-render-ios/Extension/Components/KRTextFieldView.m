@@ -258,25 +258,21 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     if (!self.isFirstResponder) {
         return;
     }
-    if ([self.css_keepFocusOnKeyboardDismiss boolValue]) {
-        // keepFocusOnKeyboardDismiss=true：使用 inputView trick 收键盘但保持焦点
-        // 设置一个空的 inputView 替换系统键盘，在保持 firstResponder 的同时隐藏键盘
-        UIView *dummyView = [[UIView alloc] initWithFrame:CGRectZero];
-        dummyView.tag = 99999;
-        self.inputView = dummyView;
-        [self reloadInputViews];
-        // 手动触发 inputBlur 回调（因为未 resignFirstResponder，textFieldDidEndEditing 不会被调用）
-        if (self.css_inputBlur) {
-            self.css_inputBlur(@{@"text": self.text.copy ?: @""});
-        }
-        // 手动补发键盘高度为 0 的通知（inputView trick 下系统不会发送 UIKeyboardWillHideNotification）
-        if (self.css_keyboardHeightChange) {
-            self.css_keyboardHeightChange(@{@"height": @(0), @"duration": @(0.25), @"curve": @(7)});
-        }
-    } else {
-        // keepFocusOnKeyboardDismiss=false：原始逻辑，真正失焦并收起键盘
-        [self resignFirstResponder];
+    
+    // 设置一个空的 inputView 替换系统键盘，在保持 firstResponder 的同时隐藏键盘
+    UIView *dummyView = [[UIView alloc] initWithFrame:CGRectZero];
+    dummyView.tag = 99999;
+    self.inputView = dummyView;
+    [self reloadInputViews];
+    // 手动触发 inputBlur 回调（因为未 resignFirstResponder，textFieldDidEndEditing 不会被调用）
+    if (self.css_inputBlur) {
+        self.css_inputBlur(@{@"text": self.text.copy ?: @""});
     }
+    // 手动补发键盘高度为 0 的通知（inputView trick 下系统不会发送 UIKeyboardWillHideNotification）
+    if (self.css_keyboardHeightChange) {
+        self.css_keyboardHeightChange(@{@"height": @(0), @"duration": @(0.25), @"curve": @(7)});
+    }
+    
 }
 
 - (void)css_setText:(NSDictionary *)args {
@@ -361,11 +357,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     // 默认值为 NO（不自动收起），如果设置为 YES 则自动收起键盘
     if ([self.css_autoHideKeyboardOnImeAction boolValue]) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            if ([self.css_keepFocusOnKeyboardDismiss boolValue]) {
-                [self css_blur:nil];
-            } else {
-                [textField resignFirstResponder];
-            }
+            [self css_blur:nil];
         });
     }
     return NO;  // 阻止系统默认行为，blur 已由 css_blur 处理

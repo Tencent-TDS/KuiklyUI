@@ -194,6 +194,10 @@ fun View.setCommonProp(key: String, value: Any): Boolean {
             setAccessibilityRole(value)
             true
         }
+        KRCssConst.TEST_TAG -> {
+            setTestTag(value)
+            true
+        }
         KRCssConst.USE_OUTLINE -> {
             obtainViewDecorator().useOutline = value as Boolean
             true
@@ -811,6 +815,12 @@ private fun View.setAccessibilityRole(propValue: Any) {
     initAccessibilityDelegate()
 }
 
+private fun View.setTestTag(propValue: Any) {
+    val tag = propValue as String
+    putViewData(KRCssConst.TEST_TAG, tag)
+    initAccessibilityDelegate()
+}
+
 private fun View.setAccessibilityInfo(propValue: Any) {
     putViewData(KRCssConst.ACCESSIBILITY_INFO, propValue)
     initAccessibilityDelegate()
@@ -850,6 +860,10 @@ private fun View.initAccessibilityDelegate() {
                 val flags = (this as String).split(" ")
                 info.isClickable = flags[0] == "1"
                 info.isLongClickable = flags[1] == "1"
+            }
+
+            getViewData<String>(KRCssConst.TEST_TAG)?.apply {
+                info.viewIdResourceName = this
             }
 
             if (hasEventListener(KRCSSGestureListener.TYPE_CLICK)) {

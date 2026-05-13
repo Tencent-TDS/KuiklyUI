@@ -42,6 +42,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong, nullable) NSNumber *css_zIndex;
 @property (nonatomic, strong, nullable) NSString *css_accessibility;
 @property (nonatomic, strong, nullable) NSString *css_accessibilityRole;
+@property (nonatomic, strong, nullable) NSString *css_testTag;
 @property (nonatomic, strong, nullable) NSNumber *css_wrapperBoxShadowView;
 @property (nonatomic, strong, nullable) NSNumber *css_autoDarkEnable;
 @property (nonatomic, strong, nullable) NSNumber *css_scrollIndex;

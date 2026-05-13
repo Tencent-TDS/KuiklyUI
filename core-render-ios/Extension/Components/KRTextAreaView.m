@@ -301,11 +301,13 @@ NSString *const KRFontWeightKey = @"fontWeight";
 - (void)css_focus:(NSDictionary *)args  {
     dispatch_async(dispatch_get_main_queue(), ^{
         // 若当前存在 dummy inputView（由 keepFocusOnKeyboardDismiss 设置），先清除以恢复系统键盘
+#if !TARGET_OS_OSX
         BOOL hasDummyInputView = (self.inputView != nil);
         if (hasDummyInputView) {
             self.inputView = nil;
             [self reloadInputViews];
         }
+#endif
         if (!self.isFirstResponder) {
             [self becomeFirstResponder];
         }
@@ -318,6 +320,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
     }
     
     // 设置一个空的 inputView 替换系统键盘，在保持 firstResponder 的同时隐藏键盘
+#if !TARGET_OS_OSX
     UIView *dummyView = [[UIView alloc] initWithFrame:CGRectZero];
     dummyView.tag = 99999;
     self.inputView = dummyView;
@@ -330,6 +333,10 @@ NSString *const KRFontWeightKey = @"fontWeight";
     if (self.css_keyboardHeightChange) {
         self.css_keyboardHeightChange(@{@"height": @(0), @"duration": @(0.25), @"curve": @(7)});
     }
+#else
+    [self resignFirstResponder];
+#endif
+    
     
 }
 
@@ -1158,11 +1165,13 @@ NSString *const KRFontWeightKey = @"fontWeight";
 
 // 用户再次点击输入框时，若存在 dummy inputView（键盘已被 trick 隐藏），则清除并恢复系统键盘
 - (void)p_handleRestoreKeyboardTap:(UITapGestureRecognizer *)gesture {
+#if !TARGET_OS_OSX
     if (gesture.state == UIGestureRecognizerStateRecognized && self.inputView != nil && self.inputView.tag == 99999) {
         NSLog(@"[KRTextAreaView] tap detected with dummy inputView, restoring system keyboard");
         self.inputView = nil;
         [self reloadInputViews];
     }
+#endif
 }
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {

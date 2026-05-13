@@ -16,14 +16,18 @@
 #ifndef CORE_RENDER_OHOS_KRSNAPSHOTMANAGER_H
 #define CORE_RENDER_OHOS_KRSNAPSHOTMANAGER_H
 #include <arkui/drawable_descriptor.h>
+#include <js_native_api.h>
 #include <string>
 #include <unordered_map>
 #include "libohos_render/expand/components/view/KRView.h"
 #include "libohos_render/foundation/KRCommon.h"
 
 struct KRSnapshotItem {
-    KRSnapshotItem() : drawableDescriptor(nullptr) {}
+    KRSnapshotItem() : drawableDescriptor(nullptr), env(nullptr), drawableDescriptorRef(nullptr), pixelMapRef(nullptr) {}
     ArkUI_DrawableDescriptor *drawableDescriptor;
+    napi_env env;
+    napi_ref drawableDescriptorRef;
+    napi_ref pixelMapRef;
     std::string uri;
 };
 
@@ -31,7 +35,7 @@ class KRSnapshotManager {
  public:
     ~KRSnapshotManager();
 
-    void SetCachedSnapshotToNode(ArkUI_NodeHandle node, const std::string &key);
+    bool SetCachedSnapshotToNode(ArkUI_NodeHandle node, const std::string &key);
     void TakeSnapshot(const std::string &instance_id, const std::string &method_name, const std::string &nodeId,
                       const KRAnyValue &params, const KRRenderCallback &cb,
                       std::weak_ptr<IKRRenderViewExport> weak_view);
@@ -47,7 +51,8 @@ class KRSnapshotManager {
                                                         const std::string &pathUri,
                                                         ArkUI_DrawableDescriptor *drawableDescriptorPtr,
                                                         std::weak_ptr<IKRRenderViewExport> weak_view);
-    struct ResultData ProcessSnapshotResultWithCacheKeyType(napi_env env, napi_value pixelMap, const std::string &path,
+    struct ResultData ProcessSnapshotResultWithCacheKeyType(napi_env env, napi_value pixelMap,
+                                                            napi_value drawableDescriptor, const std::string &path,
                                                             const std::string &pathUri,
                                                             ArkUI_DrawableDescriptor *drawableDescriptorPtr,
                                                             std::weak_ptr<IKRRenderViewExport> weak_view);
@@ -56,10 +61,11 @@ class KRSnapshotManager {
                                                         ArkUI_DrawableDescriptor *drawableDescriptorPtr,
                                                         std::weak_ptr<IKRRenderViewExport> weak_view);
 
-    void CacheSnapshot(ArkUI_DrawableDescriptor *descriptor, const std::string &key);
+    void CacheSnapshot(napi_env env, napi_value drawableDescriptor, napi_value pixelMap,
+                       ArkUI_DrawableDescriptor *descriptor, const std::string &key);
     void UpdateSnapshot(const std::string &uri, const std::string &key);
-    void RemoveCachedDrawableAfterDelay(int delayMS, const std::string &key, const std::string &path,
-                                        const std::string &pathUri, std::weak_ptr<IKRRenderViewExport> weak_view);
+    void UpdateCachedSnapshotUriAfterDelay(int delayMS, const std::string &key, const std::string &path,
+                                           const std::string &pathUri, std::weak_ptr<IKRRenderViewExport> weak_view);
 
     std::unordered_map<std::string, struct KRSnapshotItem> drawableDescriptorCache_;
 };

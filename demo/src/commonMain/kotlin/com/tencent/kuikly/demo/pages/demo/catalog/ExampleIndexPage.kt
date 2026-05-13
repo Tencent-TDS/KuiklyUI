@@ -118,6 +118,13 @@ internal class ExampleIndexPage : BasePager() {
         })
 
         itemList.add(ExampleItemData().apply {
+            avatarText = "Cr"
+            titleText = "ToImage Crash Repro"
+            subtitleText = "复现鸿蒙 toImage(CACHE_KEY) 延迟设置 Image src 的 crash"
+            declarativeExampleUrl = generateJumpUrl("ToImageCrashRepro")
+        })
+
+        itemList.add(ExampleItemData().apply {
             avatarText = "In"
             titleText = "InputView"
             subtitleText = "单行输入框组件"

@@ -137,6 +137,12 @@ internal class RootDemoPage: BasePager() {
             jumUrl = generateJumpUrl("image_demo")
             itemList.add(this)
         }
+        // ToImage Crash Repro
+        ButtonDataItem().apply {
+            title = "ToImageCrashRepro"
+            jumUrl = generateJumpUrl("ToImageCrashRepro")
+            itemList.add(this)
+        }
         // ViewDemo
         ButtonDataItem().apply {
             title = "ViewDemo"

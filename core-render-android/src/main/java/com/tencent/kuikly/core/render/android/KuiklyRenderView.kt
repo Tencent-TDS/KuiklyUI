@@ -760,7 +760,11 @@ class KuiklyRenderView(
             private var viewAttachInfoField: java.lang.reflect.Field? = null
             private var stableInsetsField: java.lang.reflect.Field? = null
             private val reflectionReady: Boolean =
-                if (Build.VERSION.SDK_INT in 21..22) tryInitReflectionFields() else false
+                if (Build.VERSION.SDK_INT >= 21 && Build.VERSION.SDK_INT < 23) {
+                    tryInitReflectionFields()
+                } else {
+                    false
+                }
 
             @SuppressLint("PrivateApi", "DiscouragedPrivateApi", "BlockedPrivateApi",
                 "SoonBlockedPrivateApi")

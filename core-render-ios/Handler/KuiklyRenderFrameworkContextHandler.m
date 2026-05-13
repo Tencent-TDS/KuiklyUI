@@ -75,9 +75,12 @@
  * @param contextCode 环境代码（framework名）
  * @return 返回context实例
  */
-- (instancetype)initWithContext:(NSString *)contextCode contextParam:(KuiklyContextParam *)contextParam {
+- (instancetype)initWithContext:(id)contextCode contextParam:(KuiklyContextParam *)contextParam {
     if (self = [super init]) {
-        _coreEntryInstance = [[[[self class] entryClassWithFrameworkName:contextCode] alloc] init];
+        NSAssert([contextCode isKindOfClass:[NSString class]], @"Framework 模式下 contextCode 必须为 NSString 类型");
+        if ([contextCode isKindOfClass:[NSString class]]) {
+            _coreEntryInstance = [[[[self class] entryClassWithFrameworkName:(NSString *)contextCode] alloc] init];
+        }
         NSAssert([_coreEntryInstance respondsToSelector:@selector(callKotlinMethodMethodId:arg0:arg1:arg2:arg3:arg4:arg5:)], @"entry未实现该方法，请check下entry文件");
         _coreEntryInstance.hrCoreDelegate = (id<KRKuiklyKotlinCoreEntryDelegate>)self;
         _contextParam = contextParam;

@@ -31,7 +31,8 @@ extern const KuiklyContextMode KuiklyContextMode_Framework;
 - (instancetype)initFrameworkMode;
 
 // 创建Kuikly执行环境的实现者
-- (id<KuiklyRenderContextProtocol>)createContextHandlerWithContextCode:(NSString *)contextCode
+// contextCode: 产物数据（NSString 或 NSData）
+- (id<KuiklyRenderContextProtocol>)createContextHandlerWithContextCode:(id)contextCode
                                                           contextParam:(KuiklyContextParam *)contextParam;
 
 @end

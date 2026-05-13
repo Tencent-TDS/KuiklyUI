@@ -38,13 +38,13 @@ NS_ASSUME_NONNULL_BEGIN
 /**
  * @brief 初始化KuiklyRenderCore实例的方法。
  * @param rootView 宿主根视图，用于渲染层内容。
- * @param contextCode 驱动渲染所对应的代码。该值为framework名，如shared.framework,则为@"shared"
+ * @param contextCode 产物数据（NSString 或 NSData）
  * @param contextParam 包含contextCode，pageName，url等信息的参数
  * @param params 页面对应的参数（kotlin侧可通过pageData.params获取）
  * @return 返回KuiklyRenderCore实例
  */
 - (instancetype)initWithRootView:(UIView *)rootView
-                     contextCode:(NSString *)contextCode
+                     contextCode:(id)contextCode
                     contextParam:(KuiklyContextParam *)contextParam
                           params:(NSDictionary *_Nullable)params
                         delegate:(id<KuiklyRenderCoreDelegate>)delegate;

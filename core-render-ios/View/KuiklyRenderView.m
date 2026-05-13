@@ -59,7 +59,7 @@ NSString *const KRDensity = @"density";
 
 #pragma mark - init
 - (nonnull instancetype)initWithSize:(CGSize)size
-                         contextCode:(NSString *)contextCode
+                         contextCode:(id)contextCode
                         contextParam:(nonnull KuiklyContextParam *)contextParam
                               params:(NSDictionary * _Nullable)params
                              delegate:(nonnull id<KuiklyRenderViewDelegate>)delegate {
@@ -70,7 +70,7 @@ NSString *const KRDensity = @"density";
         // 生成Core所需要的参数
         NSDictionary *coreParams = [self p_generateWithParams:params size:size];
         _renderCore = [[KuiklyRenderCore alloc] initWithRootView:self
-                                                     contextCode:(NSString *)contextCode
+                                                     contextCode:contextCode
                                                     contextParam:contextParam
                                                           params:coreParams
                                                         delegate:self];

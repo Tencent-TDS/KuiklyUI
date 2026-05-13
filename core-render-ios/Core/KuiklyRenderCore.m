@@ -60,7 +60,7 @@ NSString *const kCustomFirstScreenTag = @"customFirstScreenTag";
 #pragma mark - init
 
 - (instancetype)initWithRootView:(UIView *)rootView
-                     contextCode:(NSString *)contextCode
+                     contextCode:(id)contextCode
                     contextParam:(KuiklyContextParam *)contextParam
                           params:(NSDictionary *)params
                         delegate:(id<KuiklyRenderCoreDelegate>)delegate {
@@ -180,7 +180,7 @@ NSString *const kCustomFirstScreenTag = @"customFirstScreenTag";
 #pragma mark - private
 
 // 初始化与kotlin侧交互的实现者
-- (void)p_initContextHandlerWithContextCode:(NSString *)contextCode
+- (void)p_initContextHandlerWithContextCode:(id)contextCode
                                    pageName:(NSString *)pageName
                                      params:(NSDictionary * _Nullable)params {
     KR_ASSERT_CONTEXT_HTREAD;

@@ -44,14 +44,13 @@ FOUNDATION_EXTERN NSString *const KRRootViewSizeDidChangedEventKey;
 /*
  * @brief 创建实例对应的初始化方法.
  * @param size 初始化的视频尺寸大小.
- * @param contextCode 驱动渲染所对应的代码
-        注意：该值为framework名，如shared.framework,则为@"shared"
+ * @param contextCode 产物数据（NSString 或 NSData）
  * @param contextParam 包含contextCode，pageName，url等信息
  * @param params 页面对应的参数（kotlin侧可通过pageData.params获取）
  * @return 返回KuiklyRenderView实例
  */
 - (instancetype)initWithSize:(CGSize)size
-                 contextCode:(NSString *)contextCode
+                 contextCode:(id)contextCode
                 contextParam:(KuiklyContextParam *)contextParam
                       params:(NSDictionary * _Nullable)params
                     delegate:(id<KuiklyRenderViewDelegate>)delegate;

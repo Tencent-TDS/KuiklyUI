@@ -87,11 +87,11 @@ typedef id _Nullable (^KuiklyRenderNativeMethodCallback)(KuiklyRenderNativeMetho
 
 /*
  * @brief 初始化Kotlin侧代码执行环境
- * @param contextCode 环境代码
+ * @param contextCode 环境代码（NSString 或 NSData，Handler 内部根据类型自动处理）
  * @param contextParam 初始化相关参数。
  * @return 返回context实例
  */
-- (instancetype)initWithContext:(NSString * _Nullable)contextCode
+- (instancetype)initWithContext:(id _Nullable)contextCode
                    contextParam:(KuiklyContextParam * _Nullable)contextParam;
 /*
  * @brief Native侧调用Kotlin侧方法接口

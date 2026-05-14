@@ -204,16 +204,6 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
     private fun LayoutCoordinates.toCoordinator() =
         (this as? LookaheadLayoutCoordinates)?.coordinator ?: this as NodeCoordinator
 
-    private fun LayoutCoordinates.viewPositionOf(coordinator: LayoutCoordinates): Offset {
-        var nodeCoordinator = coordinator.toCoordinator()
-        var position = Offset.Zero
-        while (nodeCoordinator !== this) {
-            position += nodeCoordinator.position
-            nodeCoordinator = nodeCoordinator.wrappedBy!!
-        }
-        return position
-    }
-
     override fun updateKuiklyViewFrame(coordinator: LayoutCoordinates) {
         val curCoordinator = kuiklyCoordinates ?: innerCoordinator
 
@@ -222,17 +212,27 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         val ksScrollSubView = view.parent is VirtualNodeView
         val parentNode = parent as? KNode<*>
         val parentCoordinator = parentNode?.kuiklyCoordinates ?: parentNode?.innerCoordinator
-        var pos = parentCoordinator?.viewPositionOf(curCoordinator) ?: Offset.Zero
+        var posX = 0f
+        var posY = 0f
+        if (parentCoordinator != null) {
+            val targetCoordinator = parentCoordinator.toCoordinator()
+            var nodeCoordinator = curCoordinator.toCoordinator()
+            while (nodeCoordinator !== targetCoordinator) {
+                posX += nodeCoordinator.positionX
+                posY += nodeCoordinator.positionY
+                nodeCoordinator = nodeCoordinator.wrappedBy!!
+            }
+        }
 
-        // Child nodes on scrollview, parent is virtual node
+        var deltaOffset = 0f
         if (ksScrollSubView && needFixScrollOffset) {
             val scrollerView = (parent as KNode<*>).view
             ((scrollerView.renderProperties as? RenderProperties)?.kuiklyScrollInfo)?.apply {
-                val deltaOffset = composeOffset
-                pos = if (orientation == Orientation.Vertical) {
-                    Offset(pos.x, pos.y + deltaOffset)
+                deltaOffset = composeOffset
+                if (orientation == Orientation.Vertical) {
+                    posY += deltaOffset
                 } else {
-                    Offset(pos.x + deltaOffset, pos.y)
+                    posX += deltaOffset
                 }
             }
         }
@@ -242,12 +242,14 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         // Check if it's a sticky header and handle position caching
         val isStickyHeader = isStickyHeaderNode()
         if (isStickyHeader) {
-            pos = getCachedStickyPosition(pos)
+            val pos = getCachedStickyPosition(Offset(posX, posY))
+            posX = pos.x
+            posY = pos.y
         }
 
         var newFrame = Frame(
-            x = pos.x / densityValue,
-            y = pos.y / densityValue,
+            x = posX / densityValue,
+            y = posY / densityValue,
             width = curCoordinator.size.width.toFloat() / densityValue,
             height = curCoordinator.size.height.toFloat() / densityValue,
         )

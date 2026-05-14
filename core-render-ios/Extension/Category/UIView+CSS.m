@@ -480,6 +480,17 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     }
 }
 
+- (NSString *)css_testTag {
+    return objc_getAssociatedObject(self, @selector(css_testTag));
+}
+
+- (void)setCss_testTag:(NSString *)css_testTag {
+    if (self.css_testTag != css_testTag) {
+        objc_setAssociatedObject(self, @selector(css_testTag), css_testTag, OBJC_ASSOCIATION_RETAIN);
+        self.accessibilityIdentifier = css_testTag;
+    }
+}
+
 - (void)setCss_scrollIndex:(NSNumber *)css_scrollIndex {
     objc_setAssociatedObject(self, @selector(css_scrollIndex), css_scrollIndex, OBJC_ASSOCIATION_RETAIN);
 }

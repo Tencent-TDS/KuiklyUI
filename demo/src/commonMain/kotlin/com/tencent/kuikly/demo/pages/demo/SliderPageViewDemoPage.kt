@@ -68,21 +68,22 @@ internal class SliderPageViewDemoPage: BasePager() {
                            pageItemWidth = ctx.pageData.pageViewWidth
                            pageItemHeight = 375f
 
-                           initSliderItems(ctx.pageItemList) { item ->
-                               View {
-                                   attr {
-                                       backgroundColor(item.bgColor)
-                                       allCenter()
-                                   }
-                                   Text {
-                                       attr {
-                                           text(item.title)
-                                           fontSize(20f)
-                                           color(Color.BLACK)
-                                       }
-                                   }
-                               }
-                           }
+                            initSliderItems(ctx.pageItemList) { item ->
+                                View {
+                                    attr {
+                                        backgroundColor(item.bgColor)
+                                        allCenter()
+                                        testTag("slider_page_${item.title}")
+                                    }
+                                    Text {
+                                        attr {
+                                            text(item.title)
+                                            fontSize(20f)
+                                            color(Color.BLACK)
+                                        }
+                                    }
+                                }
+                            }
                        }
                    event {
                        pageIndexDidChanged {

@@ -98,6 +98,7 @@ internal class ModalViewDemoPage : BasePager() {
 
                     Button {
                         attr {
+                            testTag("modal_trigger_btn")
                             if (ctx.showModal) {
                                 titleAttr {
                                     text("did点击展示modal")
@@ -220,6 +221,7 @@ internal class ActionSheetView : ComposeView<ComposeAttr, ActionSheetEvent>() {
                         backgroundColor(Color.BLUE)
                         height(50f)
                         borderRadius(25f)
+                        testTag("action_item_0")
                         titleAttr {
                             text("Item0")
                             fontSize(20f)
@@ -234,6 +236,7 @@ internal class ActionSheetView : ComposeView<ComposeAttr, ActionSheetEvent>() {
                         backgroundColor(Color.BLUE)
                         height(50f)
                         borderRadius(25f)
+                        testTag("action_item_1")
                         titleAttr {
                             text("Item1")
                             fontSize(20f)
@@ -249,6 +252,7 @@ internal class ActionSheetView : ComposeView<ComposeAttr, ActionSheetEvent>() {
                         backgroundColor(Color.BLUE)
                         height(50f)
                         borderRadius(25f)
+                        testTag("action_item_2")
                         titleAttr {
                             text("Item2")
                             fontSize(20f)
@@ -264,6 +268,7 @@ internal class ActionSheetView : ComposeView<ComposeAttr, ActionSheetEvent>() {
                         backgroundColor(Color.BLUE)
                         height(50f)
                         borderRadius(25f)
+                        testTag("action_item_3")
                         titleAttr {
                             text("Item3")
                             fontSize(20f)

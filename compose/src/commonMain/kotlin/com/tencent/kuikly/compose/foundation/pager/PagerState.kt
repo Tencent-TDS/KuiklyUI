@@ -740,7 +740,6 @@ abstract class PagerState internal constructor(
                 "\nNew maxScrollOffset=$maxScrollOffset"
         }
 
-        val composeOffset = currentAbsoluteScrollOffset()
         val layoutSize = if (result.orientation == Orientation.Horizontal)
             result.viewportSize.width else result.viewportSize.height
 
@@ -749,13 +748,19 @@ abstract class PagerState internal constructor(
             appleScrollViewOffsetJob?.cancel()
             appleScrollViewOffsetJob = scope?.launch {
                 delay(50)
-                if (!isScrollInProgress && scrollableState.kuiklyInfo.contentOffset != composeOffset.toInt()) {
-                    // 先扩容
-                    currentContentSize = max((maxScrollOffset + layoutSize).toInt(), currentContentSize)
+                val latestComposeOffset = currentAbsoluteScrollOffset()
+                val contentOffsetInt = scrollableState.kuiklyInfo.contentOffset
+                val composeOffsetInt = latestComposeOffset.toInt()
+                val needFix = !isScrollInProgress && contentOffsetInt != composeOffsetInt
+
+                val requiredContentSize = (maxScrollOffset + layoutSize).toInt()
+                if (currentContentSize < requiredContentSize) {
+                    currentContentSize = requiredContentSize
                     updateContentSizeToRender()
+                }
 
-                    val delta = composeOffset.toInt() - scrollableState.kuiklyInfo.contentOffset
-
+                if (needFix) {
+                    val delta = composeOffsetInt - contentOffsetInt
                     // 调整pager的offset
                     applyScrollViewOffsetDelta(delta)
                 }
@@ -951,7 +956,7 @@ private inline fun debugLog(generateMsg: () -> String) {
 internal fun PagerLayoutInfo.calculateNewMaxScrollOffset(pageCount: Int): Long {
     val pageSizeWithSpacing = pageSpacing + pageSize
     val maxScrollPossible =
-        (pageCount.toLong()) * pageSizeWithSpacing + beforeContentPadding + afterContentPadding
+        (pageCount.toLong()) * pageSizeWithSpacing + beforeContentPadding + afterContentPadding - pageSpacing
     val layoutSize =
         if (orientation == Orientation.Horizontal) viewportSize.width else viewportSize.height
 

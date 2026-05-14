@@ -62,10 +62,12 @@ static bool isRawFilePath(const std::string &src) {
 
 KRRichTextShadow::~KRRichTextShadow() {
     DestroyCachedTextLines();
-    if (context_thread_typography_ != nullptr) {
-        OH_Drawing_DestroyTypography(context_thread_typography_);
-    }
-    context_thread_typography_ = nullptr;
+    // 不再手动调 OH_Drawing_DestroyTypography：shared_ptr 的 deleter 会在
+    // 最后一个引用释放时自动销毁对象，避免与同时还持有该 typography 的
+    // 任务 lambda 冲突。如果还有另一端持有它，销毁会自然延后到那个持有者
+    // 释放时。
+    main_thread_typography_.reset();
+    context_thread_typography_.reset();
 }
 
 /**
@@ -167,6 +169,9 @@ bool KRRichTextShadow::StyledStringEnabled(){
  */
 KRSchedulerTask KRRichTextShadow::TaskToMainQueueWhenWillSetShadowToView() {
     auto self = shared_from_this();
+    // 拷贝一份 shared_ptr，保证 lambda 在主线程执行期间该 typography 不会被
+    // context 线程后续的 ReleaseLastTypography()/重新 BuildTextTypography()
+    // 释放掉。
     auto typography = context_thread_typography_;
     auto offsetY = context_thread_drawOffsetY_;
     auto offsetX = context_thread_drawOffsetX_;
@@ -536,7 +541,8 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
         spanIndex++;
     }
     // 根据handler对象生成文本排版布局typography
-    context_thread_typography_ = OH_Drawing_CreateTypography(handler);
+    context_thread_typography_ = KRMakeTypographyHandle(OH_Drawing_CreateTypography(handler));
+    OH_Drawing_Typography *typography_raw = context_thread_typography_.get();
     if (constraint_width == 0) {
         constraint_width = 10000000;  // 无限宽
     }
@@ -544,16 +550,16 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
     auto headIndent = GetKRValue("headIndent", props_, props_)->toFloat();
     if (headIndent > 0) {
         float indents[] = {static_cast<float>(headIndent * dpi), 0.0f};
-        OH_Drawing_TypographySetIndents(context_thread_typography_, 2, indents);
+        OH_Drawing_TypographySetIndents(typography_raw, 2, indents);
     }
     double maxWidth = constraint_width * dpi;
-    OH_Drawing_TypographyLayout(context_thread_typography_, maxWidth);
-    did_exceed_max_lines_ = OH_Drawing_TypographyDidExceedMaxLines(context_thread_typography_);
+    OH_Drawing_TypographyLayout(typography_raw, maxWidth);
+    did_exceed_max_lines_ = OH_Drawing_TypographyDidExceedMaxLines(typography_raw);
     // 获取文本布局结果的宽高
-    auto height = OH_Drawing_TypographyGetHeight(context_thread_typography_);
+    auto height = OH_Drawing_TypographyGetHeight(typography_raw);
     auto ouput_measure_height_ = height / dpi;
     auto longestLineWidth =
-        std::fmax(0, std::fmin(std::ceil(OH_Drawing_TypographyGetLongestLine(context_thread_typography_)), maxWidth));
+        std::fmax(0, std::fmin(std::ceil(OH_Drawing_TypographyGetLongestLine(typography_raw)), maxWidth));
     context_thread_text_align_ = text_align;
     auto ouput_measure_width_ = (longestLineWidth / dpi);
     if (ouput_measure_width_ < 0.01) {
@@ -568,30 +574,22 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
     if (typoStyle != nullptr) {
         OH_Drawing_DestroyTypographyStyle(typoStyle);
     }
-    return context_thread_typography_;
+    return typography_raw;
 }
 
 void KRRichTextShadow::ReleaseLastTypography() {
-    OH_Drawing_Typography *typography = context_thread_typography_;
-    float drawOffsetY = context_thread_drawOffsetY_;
-    float drawOffsetX = context_thread_drawOffsetX_;
-    context_thread_typography_ = nullptr;
+    // 同步在当前线程（通常是 context 线程，但在 “主线程 Kotlin 同步回调递归
+    // 触发 measure” 的场景下也可能是主线程）上释放本身对 typography 的强引用。
+    //
+    // 这里不再主动投递 destroy 任务到主线程：如果同一个 typography 还被
+    // main_thread_typography_ 、或者某条尚未消费的 SetShadow lambda、或者本线程
+    // 当前调用栈上起上游代码所持有，那么这些持有者会延长它的寿命，直到
+    // 安全的时机（由 shared_ptr 的 deleter）才调 OH_Drawing_DestroyTypography。
+    context_thread_typography_.reset();
     context_thread_drawOffsetY_ = 0;
     context_thread_drawOffsetX_ = 0;
     context_thread_text_align_ = TEXT_ALIGN_LEFT;
     context_measure_size_ = KRSize(0, 0);
-    if (typography != nullptr) {
-        if (auto lock = GetRootView().lock()) {
-            std::shared_ptr<IKRRenderShadowExport> self = shared_from_this();
-            lock->AddTaskToMainQueueWithTask([self, typography, drawOffsetY, drawOffsetX] {
-                KRRichTextShadow *shadow = static_cast<KRRichTextShadow *>(self.get());
-                if (shadow && shadow->MainThreadTypography() == typography) {
-                    shadow->SetMainThreadTypography(nullptr);
-                }
-                OH_Drawing_DestroyTypography(typography);
-            });
-        }
-    }
 }
 
 /**
@@ -608,7 +606,13 @@ KRAnyValue KRRichTextShadow::SpanRect(int spanIndex) {
 
     if (placeholder_index_map_.find(spanIndex) != placeholder_index_map_.end()) {
         auto placeholderIndex = placeholder_index_map_[spanIndex];
-        auto placeholderRects = OH_Drawing_TypographyGetRectsForPlaceholders(context_thread_typography_);
+        // 在调用栈内拷贝一份强引用，避免其它线程同时 ReleaseLastTypography 释放。
+        KRTypographyHandle typo = context_thread_typography_;
+        OH_Drawing_Typography *typo_raw = typo ? typo.get() : nullptr;
+        if (typo_raw == nullptr) {
+            return NewKRRenderValue("0 0 0 0");
+        }
+        auto placeholderRects = OH_Drawing_TypographyGetRectsForPlaceholders(typo_raw);
         auto x = OH_Drawing_GetLeftFromTextBox(placeholderRects, placeholderIndex);
         auto y = OH_Drawing_GetTopFromTextBox(placeholderRects, placeholderIndex);
         auto width = OH_Drawing_GetRightFromTextBox(placeholderRects, placeholderIndex) -
@@ -631,12 +635,18 @@ int KRRichTextShadow::SpanIndexAt(float spanX, float spanY) {
         return paragraphResultIndex;
     }
     int resultIndex = -1;
+    // 同上，拿到强引用后再使用裸指针调 OH 接口。
+    KRTypographyHandle main_typo = main_thread_typography_;
+    OH_Drawing_Typography *main_typo_raw = main_typo ? main_typo.get() : nullptr;
+    if (main_typo_raw == nullptr) {
+        return resultIndex;
+    }
     for (int index = 0; index < span_offsets_.size(); ++index) {
         int lastSpanIndex = std::get<0>(span_offsets_[index]);
         int lastSpanBegin = std::get<1>(span_offsets_[index]);
         int lastSpanEnd = std::get<2>(span_offsets_[index]);
         OH_Drawing_TextBox *box = OH_Drawing_TypographyGetRectsForRange(
-            main_thread_typography_, lastSpanBegin, lastSpanEnd, RECT_HEIGHT_STYLE_MAX, RECT_WIDTH_STYLE_MAX);
+            main_typo_raw, lastSpanBegin, lastSpanEnd, RECT_HEIGHT_STYLE_MAX, RECT_WIDTH_STYLE_MAX);
         int n = OH_Drawing_GetSizeOfTextBox(box);
         auto dpi = KRConfig::GetDpi();
         for (int boxIndex = 0; boxIndex < n; ++boxIndex) {
@@ -659,7 +669,13 @@ int KRRichTextShadow::SpanIndexAt(float spanX, float spanY) {
 
 OH_Drawing_Array *KRRichTextShadow::GetTextLines(){
     if(text_lines_ == nullptr && OH_Drawing_TypographyGetTextLines){
-        text_lines_ = OH_Drawing_TypographyGetTextLines(main_thread_typography_);
+        // 拿到强引用，防止在调用 OH_Drawing_TypographyGetTextLines 期间被其他线程释放。
+        KRTypographyHandle main_typo = main_thread_typography_;
+        OH_Drawing_Typography *main_typo_raw = main_typo ? main_typo.get() : nullptr;
+        if (main_typo_raw == nullptr) {
+            return text_lines_;
+        }
+        text_lines_ = OH_Drawing_TypographyGetTextLines(main_typo_raw);
     }
     return text_lines_;
 }

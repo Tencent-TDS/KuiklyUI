@@ -231,6 +231,7 @@ internal class ListViewDemoPage : BasePager() {
                     size(100f, 100f)
                     borderRadius(50f)
                     backgroundColor(Color.BLUE)
+                    testTag("refresh_btn")
                     titleAttr {
                         text("点击刷新")
                         color(Color.WHITE)

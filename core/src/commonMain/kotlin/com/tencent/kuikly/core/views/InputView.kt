@@ -370,18 +370,6 @@ class InputAttr : Attr() {
         return this
     }
 
-    /**
-     * 设置软键盘收起时是否保持输入框焦点
-     *
-     * @param enable 是否保持焦点, 默认 false（收起键盘时同时失焦）
-     *               - 若设置为true: 键盘收起后保持焦点，光标不消失
-     *               - 若设置为false: 键盘收起后输入框失焦，光标消失
-     */
-    fun keepFocusOnKeyboardDismiss(enable: Boolean): InputAttr {
-        TextConst.KEEP_FOCUS_ON_KEYBOARD_DISMISS with (if (enable) 1 else 0)
-        return this
-    }
-
     companion object {
         const val RETURN_KEY_TYPE = "returnKeyType"
         const val KEYBOARD_TYPE = "keyboardType"

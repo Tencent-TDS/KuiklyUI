@@ -64,8 +64,6 @@ NSString *const KRFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(returnKeyType);
 /** 是否在点击 IME 动作按钮（如 Send/Go/Search）时自动收起键盘，默认值为 YES，即自动收起，可由业务设置autoHideKeyboardOnImeAction来关闭 */
 @property (nonatomic, strong)  NSNumber *KUIKLY_PROP(autoHideKeyboardOnImeAction);
-/** 软键盘收起时是否保持输入框焦点，默认值为 NO，即失焦 */
-@property (nonatomic, strong)  NSNumber *KUIKLY_PROP(keepFocusOnKeyboardDismiss);
 /** event is textDidChange 文本变化 */
 @property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(textDidChange);
 /** event is inputFocus 获焦 触发 */
@@ -300,7 +298,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
 
 - (void)css_focus:(NSDictionary *)args  {
     dispatch_async(dispatch_get_main_queue(), ^{
-        // 若当前存在 dummy inputView（由 keepFocusOnKeyboardDismiss 设置），先清除以恢复系统键盘
+        // 若当前存在 dummy inputView，先清除以恢复系统键盘
 #if !TARGET_OS_OSX
         BOOL hasDummyInputView = (self.inputView != nil);
         if (hasDummyInputView) {

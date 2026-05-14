@@ -153,7 +153,6 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
      */
     private var autoHideKeyboardOnImeAction: Boolean = false
 
-
     init {
         resetDefaultStyle()
         enableFocusInTouchMode()

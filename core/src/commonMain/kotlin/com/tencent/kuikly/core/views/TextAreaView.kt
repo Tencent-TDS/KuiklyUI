@@ -516,6 +516,11 @@ open class TextAreaAttr : Attr() {
         return this
     }
 
+    fun keepFocusCloseKeyboard(enable: Boolean): TextAreaAttr {
+        TextConst.KEEP_FOCUS_CLOSE_KEYBOARD with (if (enable) 1 else 0)
+        return this
+    }
+
     companion object {
         const val RETURN_KEY_TYPE = "returnKeyType"
         const val KEYBOARD_TYPE = "keyboardType"

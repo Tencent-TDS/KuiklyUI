@@ -176,7 +176,7 @@ fun HideKeyboardTestContent() {
                 .height(44.dp)
                 .background(Color(0xFFFF9800), RoundedCornerShape(8.dp))
                 .clickable {
-                    keyboardController?.hide(keepFocus = true)
+                    keyboardController?.hide()
                     statusText1 = "状态：hide(keepFocus=true)（收键盘保光标）"
                     statusText2 = "状态：hide(keepFocus=true)（收键盘保光标）"
                 },

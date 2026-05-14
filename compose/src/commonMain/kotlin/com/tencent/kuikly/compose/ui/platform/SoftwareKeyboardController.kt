@@ -64,7 +64,7 @@ interface SoftwareKeyboardController {
      *
      * @sample androidx.compose.ui.samples.SoftwareKeyboardControllerSample
      */
-    fun hide(keepFocus: Boolean = false)
+    fun hide()
 }
 
 internal class KuiklySoftwareKeyboardController : SoftwareKeyboardController {
@@ -81,8 +81,7 @@ internal class KuiklySoftwareKeyboardController : SoftwareKeyboardController {
         activeView?.also { sendInputCommand(it, PendingAction.SHOW_KEYBOARD) }
     }
 
-    override fun hide(keepFocus: Boolean) {
-        pendingKeepFocus = keepFocus
+    override fun hide() {
         activeView?.also { sendInputCommand(it, PendingAction.HIDE_KEYBOARD) }
     }
 
@@ -114,8 +113,7 @@ internal class KuiklySoftwareKeyboardController : SoftwareKeyboardController {
                         activeView?.focus()
                     }
                     PendingAction.HIDE_KEYBOARD -> {
-                        activeView?.blur(keepFocus = pendingKeepFocus)
-                        pendingKeepFocus = false
+                        activeView?.blur(keepFocus = true)
                     }
                     else -> {}
                 }

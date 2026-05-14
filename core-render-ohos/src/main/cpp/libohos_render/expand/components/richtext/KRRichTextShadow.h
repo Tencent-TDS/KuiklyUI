@@ -25,7 +25,37 @@
 #include "libohos_render/expand/components/richtext/KRFontAdapterManager.h"
 #include "libohos_render/expand/components/richtext/KRParagraph.h"
 #include "libohos_render/utils/KRScopedSpinLock.h"
+#include "libohos_render/utils/KRRenderLoger.h"
 #include "libohos_render/export/IKRRenderShadowExport.h"
+
+/**
+ * 跨线程安全的 OH_Drawing_Typography 持有句柄。
+ *
+ * Typography 在 KuiklyUI 的渲染流水线中会被多线程同时持有（context 线程负责
+ * 创建/Layout/SpanRect 计算，主线程负责 Paint/SetShadow），并且主线程上的
+ * Kotlin 同步回调还可能再触发 context 业务逻辑、形成跨线程交错调用。如果用
+ * 裸指针 + 投递 destroy 任务的方式管理，极易出现"release 后还在使用"的悬空
+ * 指针问题（例如某条 destroy 任务先于一条尚未消费的 SetShadow 任务执行）。
+ *
+ * 这里把 OH_Drawing_Typography* 用 std::shared_ptr 包起来：
+ *  - 多线程拷贝/释放 shared_ptr 自身是线程安全的（控制块为 atomic）；
+ *  - 真正的 OH_Drawing_DestroyTypography 只会在 "最后一个引用消失" 时触发，
+ *    保证任何同时持有它的 lambda / 主线程字段在使用期间对象都不会析构；
+ *  - 替换 main_thread_typography_ 时，被替换下来的旧 typography 在最后一个
+ *    引用归零的瞬间析构，无需依赖任何任务派发顺序。
+ */
+using KRTypographyHandle = std::shared_ptr<OH_Drawing_Typography>;
+
+inline KRTypographyHandle KRMakeTypographyHandle(OH_Drawing_Typography *raw) {
+    if (raw == nullptr) {
+        return KRTypographyHandle();
+    }
+    return KRTypographyHandle(raw, [](OH_Drawing_Typography *p) {
+        if (p) {
+            OH_Drawing_DestroyTypography(p);
+        }
+    });
+}
 
 class KRFontCollectionWrapper {
 public:
@@ -111,6 +141,15 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     KRSchedulerTask TaskToMainQueueWhenWillSetShadowToView() override;
 
     OH_Drawing_Typography *MainThreadTypography() const {
+        return main_thread_typography_ ? main_thread_typography_.get() : nullptr;
+    }
+
+    /**
+     * 拿到一个对当前主线程 typography 的强引用，调用方在使用期间该 typography
+     * 不会被 context 线程的 release/replace 释放掉。建议主线程上的所有
+     * Layout/Paint/Span 查询都通过这个接口拿到 handle 并保持到使用结束。
+     */
+    KRTypographyHandle MainThreadTypographyHandle() const {
         return main_thread_typography_;
     }
     const float DrawOffsetY() const {
@@ -136,11 +175,19 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     
     OH_Drawing_Array *GetTextLines();
     
-    void SetMainThreadTypography(OH_Drawing_Typography *typography) {
-        if(main_thread_typography_ == typography){
+    /**
+     * 替换主线程持有的 typography。被替换下来的旧 typography 会在最后一个
+     * 引用消失时自动 destroy（通常发生在本次替换调用栈中，主线程上）。
+     */
+    void SetMainThreadTypography(KRTypographyHandle typography) {
+        if (main_thread_typography_ == typography) {
             return;
         }
-        main_thread_typography_ = typography;
+        // 赋值会触发旧 shared_ptr 的引用计数 -1。当且仅当没有其他
+        // lambda / 字段还持有它时，OH_Drawing_DestroyTypography 才会执行；
+        // 否则它会自然延后到最后一个持有者析构时再销毁，从而避免任何
+        // "release-after-use" 的窗口。
+        main_thread_typography_ = std::move(typography);
         DestroyCachedTextLines();
     }
 
@@ -160,8 +207,14 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     KRRenderValue::Array values_;
     OH_Drawing_Array *text_lines_ = nullptr;
     bool did_exceed_max_lines_ = false;
-    OH_Drawing_Typography *main_thread_typography_ = nullptr;
-    OH_Drawing_Typography *context_thread_typography_ = nullptr;
+    // 持有 typography 的两个槽位：
+    //  - main_thread_typography_:    主线程使用（Paint/SpanIndex 等）；
+    //  - context_thread_typography_: context 线程使用（Layout/SpanRect 计算）。
+    // 都使用 KRTypographyHandle（shared_ptr）持有，跨线程任何角色都通过
+    // 拷贝该 handle 来"延长寿命"，避免任意一端的 reset/replace 释放对方仍
+    // 在使用的对象。
+    KRTypographyHandle main_thread_typography_;
+    KRTypographyHandle context_thread_typography_;
     float context_thread_drawOffsetX_ = 0;
     float context_thread_drawOffsetY_ = 0;
     float main_thread_drawOffsetX_ = 0;
@@ -181,6 +234,11 @@ class KRRichTextShadow : public IKRRenderShadowExport {
         KRScopedSpinLock lock(&paragraph_lock_);
         paragraph_ = paragraph;
     }
+    /**
+     * 在 context 线程调用：根据当前属性构造一个新的 typography 并赋给
+     * context_thread_typography_，返回值依旧返回裸指针（仅供调用栈内立即
+     * 使用，生命周期由 context_thread_typography_ 管理）。
+     */
     OH_Drawing_Typography *BuildTextTypography(double constraint_width, double constraint_height);
 
     void ReleaseLastTypography();

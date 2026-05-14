@@ -132,7 +132,11 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
         KR_LOG_ERROR << "OnForegroundDraw, richTextShadow null";
         return;
     }
-    OH_Drawing_Typography *textTypo = richTextShadow->MainThreadTypography();
+    // 拿一份 typography 的强引用并保持到本函数返回。这样即使主线程中途因
+    // Kotlin 同步回调递归进入 ReleaseLastTypography()/SetMainThreadTypography(新)，
+    // 被替换下来的旧 typography 也不会在本调用栈还在使用它的期间被销毁。
+    KRTypographyHandle textTypoHandle = richTextShadow->MainThreadTypographyHandle();
+    OH_Drawing_Typography *textTypo = textTypoHandle ? textTypoHandle.get() : nullptr;
     if (textTypo == nullptr) {
         KR_LOG_ERROR << "OnForegroundDraw, textTypo null, shadow:" << richTextShadow;
         return;

@@ -58,9 +58,13 @@ interface SoftwareKeyboardController {
      * Calling this function is considered a side-effect and should not be called directly from
      * recomposition.
      *
+     * @param keepFocus 是否保持焦点/光标，默认 false
+     *                  - false: 收键盘+失焦（默认行为，触发 inputBlur）
+     *                  - true: 只收键盘不失焦，光标保留
+     *
      * @sample androidx.compose.ui.samples.SoftwareKeyboardControllerSample
      */
-    fun hide()
+    fun hide(keepFocus: Boolean = false)
 }
 
 internal class KuiklySoftwareKeyboardController : SoftwareKeyboardController {
@@ -70,13 +74,15 @@ internal class KuiklySoftwareKeyboardController : SoftwareKeyboardController {
     private var activeView: AutoHeightTextAreaView? = null
     private var pendingView: AutoHeightTextAreaView? = null
     private var pendingAction = PendingAction.NONE
+    private var pendingKeepFocus = false
     private var scheduleInputCommand = false
 
     override fun show() {
         activeView?.also { sendInputCommand(it, PendingAction.SHOW_KEYBOARD) }
     }
 
-    override fun hide() {
+    override fun hide(keepFocus: Boolean) {
+        pendingKeepFocus = keepFocus
         activeView?.also { sendInputCommand(it, PendingAction.HIDE_KEYBOARD) }
     }
 
@@ -108,7 +114,8 @@ internal class KuiklySoftwareKeyboardController : SoftwareKeyboardController {
                         activeView?.focus()
                     }
                     PendingAction.HIDE_KEYBOARD -> {
-                        activeView?.blur()
+                        activeView?.blur(keepFocus = pendingKeepFocus)
+                        pendingKeepFocus = false
                     }
                     else -> {}
                 }

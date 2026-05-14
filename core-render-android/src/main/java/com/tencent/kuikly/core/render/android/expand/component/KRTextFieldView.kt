@@ -267,7 +267,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         return when (method) {
             METHOD_SET_TEXT -> setInputText(params)
             METHOD_FOCUS -> setFocus()
-            METHOD_BLUR -> setBlur()
+            METHOD_BLUR -> setBlur(params)
             METHOD_GET_CURSOR_INDEX -> getCursorIndex(callback)
             METHOD_SET_CURSOR_INDEX -> setCursorIndex(params)
             METHOD_SET_TEXT_INPUT_STATE -> setTextInputState(params)
@@ -631,8 +631,12 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         imm.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
     }
 
-    private fun setBlur() {
-
+    private fun setBlur(params: String?) {
+        val keepFocus = params == "1"
+        if (keepFocus) {
+            // 默认行为：clearFocus + hideSoftInput，OnFocusChangeListener 会触发 inputBlur
+            clearFocus()
+        }
         post {
             val imm = context.getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
             imm.hideSoftInputFromWindow(windowToken, 0)
@@ -716,7 +720,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
             // 根据 autoHideKeyboardOnImeAction 属性决定是否收起键盘
             // 默认值为 false（不自动收起），只有显式设置为 true 才自动收起
             if (autoHideKeyboardOnImeAction) {
-                setBlur()
+                setBlur(null)
             }
 
             true

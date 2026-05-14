@@ -298,17 +298,26 @@ NSString *const KRFontWeightKey = @"fontWeight";
 
 - (void)css_focus:(NSDictionary *)args  {
     dispatch_async(dispatch_get_main_queue(), ^{
-        // 若当前存在 dummy inputView，先清除以恢复系统键盘
-#if !TARGET_OS_OSX
+#if TARGET_OS_OSX
+        if ([self currentEditor] != nil) {
+            return;
+        }
+        [self becomeFirstResponder];
+#else
+        // 若当前存在 dummy inputView（由 keepFocus blur 设置），先清除以恢复系统键盘
         BOOL hasDummyInputView = (self.inputView != nil);
         if (hasDummyInputView) {
             self.inputView = nil;
             [self reloadInputViews];
         }
-#endif
         if (!self.isFirstResponder) {
             [self becomeFirstResponder];
+        } else if (hasDummyInputView) {
+            if (self.css_inputFocus) {
+                self.css_inputFocus(@{@"text": self.text.copy ?: @""});
+            }
         }
+#endif
     });
 }
 
@@ -316,26 +325,26 @@ NSString *const KRFontWeightKey = @"fontWeight";
     if (!self.isFirstResponder) {
         return;
     }
-    
-    // 设置一个空的 inputView 替换系统键盘，在保持 firstResponder 的同时隐藏键盘
 #if !TARGET_OS_OSX
-    UIView *dummyView = [[UIView alloc] initWithFrame:CGRectZero];
-    dummyView.tag = 99999;
-    self.inputView = dummyView;
-    [self reloadInputViews];
-    // 手动触发 inputBlur 回调（因为未 resignFirstResponder，textViewDidEndEditing 不会被调用）
-    if (self.css_inputBlur) {
-        self.css_inputBlur(@{@"text": self.text.copy ?: @""});
-    }
-    // 手动补发键盘高度为 0 的通知（inputView trick 下系统不会发送 UIKeyboardWillHideNotification）
-    if (self.css_keyboardHeightChange) {
-        self.css_keyboardHeightChange(@{@"height": @(0), @"duration": @(0.25), @"curve": @(7)});
+    NSString *params = args[KRC_PARAM_KEY];
+    BOOL keepFocus = [params isEqualToString:@"1"];
+    if (keepFocus) {
+        // keepFocus=true：使用 inputView trick 收键盘但保持焦点
+        UIView *dummyView = [[UIView alloc] initWithFrame:CGRectZero];
+        dummyView.tag = 99999;
+        self.inputView = dummyView;
+        [self reloadInputViews];
+        // 手动补发键盘高度为 0 的通知
+        if (self.css_keyboardHeightChange) {
+            self.css_keyboardHeightChange(@{@"height": @(0), @"duration": @(0.25), @"curve": @(7)});
+        }
+    } else {
+        // 默认行为：resignFirstResponder，系统自动触发 textViewDidEndEditing → inputBlur
+        [self resignFirstResponder];
     }
 #else
     [self resignFirstResponder];
 #endif
-    
-    
 }
 
 - (void)css_getCursorIndex:(NSDictionary *)args {

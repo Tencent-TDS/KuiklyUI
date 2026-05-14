@@ -21,11 +21,11 @@ import com.tencent.kuikly.compose.foundation.text.BasicTextField
 import com.tencent.kuikly.compose.foundation.text.KeyboardActions
 import com.tencent.kuikly.compose.foundation.text.KeyboardOptions
 import com.tencent.kuikly.compose.foundation.text.autoHideKeyboardOnImeAction
-import com.tencent.kuikly.compose.foundation.text.keepFocusOnKeyboardDismiss
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.setContent
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
+import com.tencent.kuikly.compose.ui.focus.onFocusChanged
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.SolidColor
 import com.tencent.kuikly.compose.ui.platform.LocalSoftwareKeyboardController
@@ -34,6 +34,9 @@ import com.tencent.kuikly.compose.ui.text.input.ImeAction
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
 import com.tencent.kuikly.core.annotations.Page
+import com.tencent.kuikly.core.log.KLog
+
+private const val TAG = "HideKeyboardTest"
 
 @Page("HideKeyboardTestDemo")
 class HideKeyboardTestDemo : ComposeContainer() {
@@ -53,8 +56,6 @@ fun HideKeyboardTestContent() {
     var text2 by remember { mutableStateOf("") }
     var statusText1 by remember { mutableStateOf("状态：等待操作") }
     var statusText2 by remember { mutableStateOf("状态：等待操作") }
-    var keepFocus1 by remember { mutableStateOf(true) }
-    var keepFocus2 by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -63,7 +64,7 @@ fun HideKeyboardTestContent() {
             .padding(16.dp)
     ) {
         Text(
-            text = "Hide Keyboard 测试",
+            text = "Hide Keyboard 测试（Compose）",
             style = TextStyle(fontSize = 20.sp, color = Color.Black)
         )
 
@@ -71,30 +72,9 @@ fun HideKeyboardTestContent() {
 
         // ========== 输入框1 ==========
         Text(
-            text = "输入框1：autoHideKeyboardOnImeAction + keepFocusOnKeyboardDismiss",
+            text = "输入框1：autoHideKeyboardOnImeAction(true)",
             style = TextStyle(fontSize = 12.sp, color = Color.DarkGray)
         )
-
-        // 输入框1 的 keepFocus 开关
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(36.dp)
-                .background(
-                    if (keepFocus1) Color(0xFF4CAF50) else Color(0xFFF44336),
-                    RoundedCornerShape(8.dp)
-                )
-                .clickable {
-                    keepFocus1 = !keepFocus1
-                    statusText1 = "状态：keepFocus1 = $keepFocus1"
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = if (keepFocus1) "keepFocus1 = true（收键盘保光标）" else "keepFocus1 = false（收键盘失焦）",
-                style = TextStyle(fontSize = 12.sp, color = Color.White)
-            )
-        }
 
         Text(
             text = statusText1,
@@ -109,13 +89,20 @@ fun HideKeyboardTestContent() {
                 .height(48.dp)
                 .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
                 .padding(12.dp)
-                .autoHideKeyboardOnImeAction(true),
+                .autoHideKeyboardOnImeAction(true)
+                .onFocusChanged { state ->
+                    if (state.isFocused) {
+                        KLog.i(TAG, "输入框1：触发 inputFocus")
+                    } else {
+                        KLog.i(TAG, "输入框1：触发 inputBlur")
+                    }
+                },
             textStyle = TextStyle(fontSize = 16.sp, color = Color.Black),
             cursorBrush = SolidColor(Color.Blue),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(
                 onDone = {
-                    statusText1 = "状态：点击Done1，keepFocus1=$keepFocus1"
+                    statusText1 = "状态：点击Done1"
                 }
             )
         )
@@ -124,30 +111,9 @@ fun HideKeyboardTestContent() {
 
         // ========== 输入框2 ==========
         Text(
-            text = "输入框2：autoHideKeyboardOnImeAction + keepFocusOnKeyboardDismiss",
+            text = "输入框2：autoHideKeyboardOnImeAction(false)",
             style = TextStyle(fontSize = 12.sp, color = Color.DarkGray)
         )
-
-        // 输入框2 的 keepFocus 开关
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(36.dp)
-                .background(
-                    if (keepFocus2) Color(0xFF4CAF50) else Color(0xFFF44336),
-                    RoundedCornerShape(8.dp)
-                )
-                .clickable {
-                    keepFocus2 = !keepFocus2
-                    statusText2 = "状态：keepFocus2 = $keepFocus2"
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = if (keepFocus2) "keepFocus2 = true（收键盘保光标）" else "keepFocus2 = false（收键盘失焦）",
-                style = TextStyle(fontSize = 12.sp, color = Color.White)
-            )
-        }
 
         Text(
             text = statusText2,
@@ -162,20 +128,27 @@ fun HideKeyboardTestContent() {
                 .height(48.dp)
                 .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
                 .padding(12.dp)
-                .autoHideKeyboardOnImeAction(false),
+                .autoHideKeyboardOnImeAction(false)
+                .onFocusChanged { state ->
+                    if (state.isFocused) {
+                        KLog.i(TAG, "输入框2：触发 inputFocus")
+                    } else {
+                        KLog.i(TAG, "输入框2：触发 inputBlur")
+                    }
+                },
             textStyle = TextStyle(fontSize = 16.sp, color = Color.Black),
             cursorBrush = SolidColor(Color.Blue),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(
                 onDone = {
-                    statusText2 = "状态：点击Done2，keepFocus2=$keepFocus2"
+                    statusText2 = "状态：点击Done2"
                 }
             )
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // 手动 hide 按钮
+        // hide() — 默认失焦
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -183,20 +156,41 @@ fun HideKeyboardTestContent() {
                 .background(Color(0xFF4CAF50), RoundedCornerShape(8.dp))
                 .clickable {
                     keyboardController?.hide()
-                    statusText1 = "状态：手动hide()"
-                    statusText2 = "状态：手动hide()"
+                    statusText1 = "状态：hide()（收键盘+失焦）"
+                    statusText2 = "状态：hide()（收键盘+失焦）"
                 },
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "手动调用 hide()",
+                text = "hide()（收键盘+失焦）",
                 style = TextStyle(fontSize = 14.sp, color = Color.White)
             )
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 手动 show 按钮
+        // hide(keepFocus = true) — 保光标
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp)
+                .background(Color(0xFFFF9800), RoundedCornerShape(8.dp))
+                .clickable {
+                    keyboardController?.hide(keepFocus = true)
+                    statusText1 = "状态：hide(keepFocus=true)（收键盘保光标）"
+                    statusText2 = "状态：hide(keepFocus=true)（收键盘保光标）"
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "hide(keepFocus=true)（收键盘保光标）",
+                style = TextStyle(fontSize = 14.sp, color = Color.White)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // show()
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -204,13 +198,13 @@ fun HideKeyboardTestContent() {
                 .background(Color(0xFF2196F3), RoundedCornerShape(8.dp))
                 .clickable {
                     keyboardController?.show()
-                    statusText1 = "状态：手动show()，键盘应重新弹出"
-                    statusText2 = "状态：手动show()，键盘应重新弹出"
+                    statusText1 = "状态：show()（弹出键盘）"
+                    statusText2 = "状态：show()（弹出键盘）"
                 },
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "手动调用 show()",
+                text = "show()（弹出键盘）",
                 style = TextStyle(fontSize = 14.sp, color = Color.White)
             )
         }

@@ -88,9 +88,15 @@ class InputView : DeclarativeBaseView<InputAttr, InputEvent>() {
         }
     }
 
-    fun blur() {
+    /**
+     * 收起软键盘
+     * @param keepFocus 是否保持焦点/光标，默认 false（收键盘+失焦）
+     *                  - false: resignFirstResponder/clearFocus，触发 inputBlur
+     *                  - true: 只收键盘不失焦（iOS 用 inputView trick，Android 只 hideSoftInput）
+     */
+    fun blur(keepFocus: Boolean = false) {
         performTaskWhenRenderViewDidLoad {
-            renderView?.callMethod("blur", "")
+            renderView?.callMethod("blur", if (keepFocus) "1" else "")
         }
     }
 

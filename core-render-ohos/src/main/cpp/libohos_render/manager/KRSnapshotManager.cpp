@@ -23,7 +23,6 @@
 #include <multimedia/image_framework/image_pixel_map_mdk.h>
 #include <unistd.h>
 
-#include "libohos_render/expand/components/view/KRView.h"
 #include "libohos_render/foundation/KRCommon.h"
 #include "libohos_render/foundation/ark_ts.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"

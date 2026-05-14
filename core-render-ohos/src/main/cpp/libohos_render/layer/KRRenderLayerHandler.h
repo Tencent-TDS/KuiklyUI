@@ -16,6 +16,7 @@
 #ifndef CORE_RENDER_OHOS_KRRENDERLAYERHANDLER_H
 #define CORE_RENDER_OHOS_KRRENDERLAYERHANDLER_H
 
+#include <arkui/native_node.h>
 #include <shared_mutex>
 #include "libohos_render/context/KRRenderContextParams.h"
 #include "libohos_render/layer/IKRRenderLayer.h"
@@ -170,6 +171,13 @@ class KRRenderLayerHandler : public IKRRenderLayer {
     std::shared_ptr<IKRRenderViewExport> GetRenderView(int tag) override;
 
     /**
+     * 通过节点句柄获取渲染视图实例
+     * @param handle 节点句柄
+     * @return 对应节点视图实例，如果不存在则返回 null
+     */
+    std::shared_ptr<IKRRenderViewExport> GetRenderView(ArkUI_NodeHandle handle);
+
+    /**
      * 将要销毁时调用
      */
     void WillDestroy() override;
@@ -186,6 +194,7 @@ class KRRenderLayerHandler : public IKRRenderLayer {
     std::weak_ptr<IKRRenderView> root_view_;
     std::unordered_map<std::string, std::vector<std::shared_ptr<IKRRenderViewExport>>> view_reuse_queue_;
     std::unordered_map<int, std::shared_ptr<IKRRenderViewExport>> view_registry_;
+    std::unordered_map<void *, int> handle_to_tag_;
     std::unordered_map<std::string, std::shared_ptr<IKRRenderModuleExport>> module_registry_;
     std::unordered_map<int, std::shared_ptr<IKRRenderShadowExport>> shadow_registry_;
     mutable std::shared_mutex module_rw_mutex_;  // 用于module读写安全用的读写锁

@@ -126,6 +126,10 @@ class KRRichTextShadow : public IKRRenderShadowExport {
         main_thread_text_align_ = TEXT_ALIGN_LEFT;
     }
 
+    std::string GetTextContent() const {
+        return text_content_;
+    }
+
     const KRSize MainMeasureSize() {
         return main_measure_size_;
     }
@@ -152,10 +156,10 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     virtual bool StyledStringEnabled();
  private:
     void DestroyCachedTextLines();
-    std::string GetTextContent();
     KRSize CalculateRenderViewSizeWithStyledString(double constraint_width, double constraint_height);
 
  private:
+    std::string text_content_;
     KRRenderValue::Map props_;
     KRRenderValue::Array values_;
     OH_Drawing_Array *text_lines_ = nullptr;

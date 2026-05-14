@@ -19,7 +19,7 @@
 #include <js_native_api.h>
 #include <string>
 #include <unordered_map>
-#include "libohos_render/expand/components/view/KRView.h"
+#include "libohos_render/export/IKRRenderViewExport.h"
 #include "libohos_render/foundation/KRCommon.h"
 
 struct KRSnapshotItem {

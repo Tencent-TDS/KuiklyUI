@@ -126,8 +126,6 @@ kotlin 2.0 以上运行: ./gradlew :h5App:jsBrowserDevelopmentRun -t
 微信小程序先通过 gradle 编译js，然后通过微信开发者工具来运行
 1. 编译demo代码成js
 ```shell
-# 运行 demo 项目 dev server 服务器，没有安装 npm 包则先 npm install 安装一下依赖
-npm run serve
 #  构建 demo 项目 Debug 版
 ./gradlew :shared:packLocalJsBundleDebug
 ```

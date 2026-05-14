@@ -14,6 +14,7 @@
  */
 
 #import "UIView+CSS.h"
+#import "UIView+CSSDebug.h"
 #import <objc/runtime.h>
 #import "KRConvertUtil.h"
 #import "KRView.h"
@@ -487,7 +488,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 - (void)setCss_testTag:(NSString *)css_testTag {
     if (self.css_testTag != css_testTag) {
         objc_setAssociatedObject(self, @selector(css_testTag), css_testTag, OBJC_ASSOCIATION_RETAIN);
-        self.accessibilityIdentifier = css_testTag;
+        [self kr_updateAccessibilityIdentifier];
     }
 }
 

@@ -215,3 +215,5 @@ private fun InspectorInfo.addSemanticsPropertiesFrom(
         key.name to value
     }
 }
+
+fun Modifier.testTag(tag: String): Modifier = semantics { testTag = tag }

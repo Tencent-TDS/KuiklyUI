@@ -22,6 +22,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// 调试类名
 @property (nonatomic, strong, nullable) NSString *css_debugName;
 
+- (void)kr_updateAccessibilityIdentifier;
+
 @end
 
 NS_ASSUME_NONNULL_END

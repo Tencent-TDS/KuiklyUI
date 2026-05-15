@@ -54,9 +54,9 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(keyboardType);
 /** attr is returnKeyType */
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(returnKeyType);
-/** 是否在点击 IME 动作按钮（如 Send/Go/Search）时自动收起键盘，默认值为 YES，即自动收起，可由业务设置autoHideKeyboardOnImeAction来关闭*/
+/** 是否在点击 IME 动作按钮（如 Done/Send/Go/Search）时自动收起键盘，默认值为 YES，即自动收起，可由业务设置 autoHideKeyboardOnImeAction 来关闭 */
 @property (nonatomic, strong)  NSNumber *KUIKLY_PROP(autoHideKeyboardOnImeAction);
-/** 是否在收回软件盘的时候不失焦，默认值为 NO，即收回软键盘时失焦，可由业务仅能在KuiKlyDSL 设置 autoHideKeyboardOnImeAction来开启 */
+/** 是否在收回软键盘时不失焦，默认值为 NO（收键盘+失焦）。KuiklyDSL 可通过 keepFocusCloseKeyboard 属性开启；Compose DSL 由框架根据 isCompose 自动判断 */
 @property (nonatomic, strong)  NSNumber *KUIKLY_PROP(keepFocusCloseKeyboard);
 /** event is textDidChange 文本变化 */
 @property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(textDidChange);
@@ -92,8 +92,8 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     if (self = [super init]) {
         self.delegate = self;
         _props = [NSMutableDictionary new];
-        self.css_autoHideKeyboardOnImeAction = [NSNumber numberWithInt: 1];     // 保持原有能力，默认是关闭关闭软键盘
-        self.css_keepFocusCloseKeyboard = [NSNumber numberWithInt: 0];          // 保持原有能力，KuiklyDSL 默认是收键盘 + 失焦
+        self.css_autoHideKeyboardOnImeAction = [NSNumber numberWithInt: 1];     // 保持原有能力，默认自动收起软键盘
+        self.css_keepFocusCloseKeyboard = [NSNumber numberWithInt: 0];          // 保持原有能力，KuiklyDSL 默认收键盘+失焦
         [self addTarget:self action:@selector(onTextFeildTextChanged:) forControlEvents:UIControlEventEditingChanged];
         UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(p_handleRestoreKeyboardTap:)];
         tapGesture.delegate = self;
@@ -373,16 +373,17 @@ NSString *const KRVFontWeightKey = @"fontWeight";
         self.css_inputReturn(@{@"text": textField.text.copy ?: @"", @"ime_action": self.css_returnKeyType ?: @""});
     }
     // 根据 autoHideKeyboardOnImeAction 属性决定是否收起键盘
-    // 默认值为 NO（不自动收起），如果设置为 YES 则自动收起键盘
+    // 默认值为 YES（自动收起），可由业务设置为 NO 关闭
     if ([self.css_autoHideKeyboardOnImeAction boolValue]) {
         dispatch_async(dispatch_get_main_queue(), ^{
             NSDictionary *args = @{
-                KRC_PARAM_KEY : self.hr_rootView.contextParam.isCompose || self.css_keepFocusCloseKeyboard ? @"1" : @""
+                KRC_PARAM_KEY : self.hr_rootView.contextParam.isCompose || [self.css_keepFocusCloseKeyboard boolValue] ? @"1" : @""
             };
             [self css_blur:args];
         });
+        return NO;  // 已接管收起键盘逻辑，阻止系统默认行为
     }
-    return NO;  // 阻止系统默认行为，blur 已由 css_blur 处理
+    return YES;
 }
 
 - (BOOL)textField:(UITextField *)textField shouldChangeCharactersInRange:(NSRange)range replacementString:(NSString *)string {
@@ -568,7 +569,6 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 - (void)p_handleRestoreKeyboardTap:(UITapGestureRecognizer *)gesture {
 #if !TARGET_OS_OSX
     if (gesture.state == UIGestureRecognizerStateRecognized && self.inputView != nil && self.inputView.tag == 99999) {
-        NSLog(@"[KRTextFieldView] tap detected with dummy inputView, restoring system keyboard");
         self.inputView = nil;
         [self reloadInputViews];
     }

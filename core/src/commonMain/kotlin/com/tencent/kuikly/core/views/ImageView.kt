@@ -16,6 +16,7 @@
 package com.tencent.kuikly.core.views
 
 import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.base.attr.ColorMatrix
 import com.tencent.kuikly.core.base.attr.IImageAttr
 import com.tencent.kuikly.core.base.attr.ImageUri
 import com.tencent.kuikly.core.base.event.Event
@@ -134,11 +135,11 @@ open class ImageAttr : Attr(), IImageAttr {
         return this
     }
 
-    override fun colorFilter(matrix: String?): IImageAttr {
-        if (matrix.isNullOrEmpty()) {
+    override fun colorFilter(matrix: ColorMatrix?): IImageAttr {
+        if (matrix == null) {
             ImageConst.COLOR_FILTER with ""
         } else {
-            ImageConst.COLOR_FILTER with matrix
+            ImageConst.COLOR_FILTER with matrix.toColorMatrixString()
         }
         return this
     }

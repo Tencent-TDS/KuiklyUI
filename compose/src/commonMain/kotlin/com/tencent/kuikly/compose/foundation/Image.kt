@@ -30,7 +30,7 @@ import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.KuiklyPainter
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.ColorFilter
-import com.tencent.kuikly.compose.ui.graphics.ColorMatrix
+import com.tencent.kuikly.core.base.attr.ColorMatrix
 import com.tencent.kuikly.compose.ui.graphics.DefaultAlpha
 import com.tencent.kuikly.compose.ui.graphics.painter.Painter
 import com.tencent.kuikly.compose.ui.layout.ContentScale

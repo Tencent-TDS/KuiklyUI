@@ -57,11 +57,34 @@ interface IImageAttr {
     fun tintColor(color: Color?): IImageAttr
 
     /**
-     * 设置图片颜色矩阵滤镜（4×5 矩阵，20 个浮点数以 "|" 分隔）。
+     * 设置图片颜色矩阵滤镜。
      * 传 null 可清除滤镜。
-     * @param matrix 颜色矩阵字符串，如 "0.2126|0.7152|0.0722|0|0|..."，或 null
+     *
+     * ## 平台支持
+     * - Android: 支持
+     * - HarmonyOS: 支持
+     * - iOS: 暂不支持
+     *
+     * ## 使用示例
+     * ```kotlin
+     * Image {
+     *     attr {
+     *         src("https://example.com/image.png")
+     *         // 灰度效果
+     *         colorFilter(ColorMatrix.rec709Gray)
+     *         // 或通过配置生成
+     *         colorFilter(ColorMatrixConfig(saturation = 0.5f).toColorMatrix())
+     *         // 清除滤镜
+     *         colorFilter(null)
+     *     }
+     * }
+     * ```
+     *
+     * @param matrix 4×5 颜色变换矩阵，或 null 清除滤镜
+     * @see ColorMatrix
+     * @see ColorMatrixConfig
      */
-    fun colorFilter(matrix: String?): IImageAttr
+    fun colorFilter(matrix: ColorMatrix?): IImageAttr
 
     /*
       * 设置图片拉伸模式：cover
@@ -83,6 +106,13 @@ interface IImageAttr {
      */
     fun capInsets(top: Float, left: Float, bottom: Float, right: Float): IImageAttr
 }
+
+/**
+ * 便捷扩展：从原始 `|` 分隔字符串设置颜色矩阵滤镜。
+ * 字符串格式不正确时等同于传 null（清除滤镜）。
+ */
+fun IImageAttr.colorFilter(raw: String?): IImageAttr =
+    colorFilter(raw?.let { ColorMatrix.fromString(it) })
 
 class ImageUri private constructor(private val scheme: String, private val path: String){
 

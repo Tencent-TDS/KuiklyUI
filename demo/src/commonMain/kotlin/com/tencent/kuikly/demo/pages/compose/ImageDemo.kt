@@ -58,12 +58,12 @@ import com.tencent.kuikly.compose.ui.draw.rotate
 import com.tencent.kuikly.compose.ui.graphics.Brush
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.ColorFilter
-import com.tencent.kuikly.compose.ui.graphics.ColorMatrix
-import com.tencent.kuikly.compose.ui.graphics.ColorMatrixConfig
+import com.tencent.kuikly.core.base.attr.ColorMatrix
+import com.tencent.kuikly.core.base.attr.ColorMatrixConfig
 import com.tencent.kuikly.compose.ui.graphics.SolidColor
 import com.tencent.kuikly.compose.ui.graphics.painter.BrushPainter
 import com.tencent.kuikly.compose.ui.graphics.painter.ColorPainter
-import com.tencent.kuikly.compose.ui.graphics.toColorMatrix
+import com.tencent.kuikly.core.base.attr.toColorMatrix
 import com.tencent.kuikly.compose.ui.layout.ContentScale
 import com.tencent.kuikly.compose.ui.layout.onSizeChanged
 import com.tencent.kuikly.compose.ui.platform.LocalConfiguration

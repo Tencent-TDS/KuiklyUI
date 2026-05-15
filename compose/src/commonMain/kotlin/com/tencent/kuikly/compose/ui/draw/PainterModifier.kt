@@ -52,6 +52,7 @@ import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.ui.unit.constrainHeight
 import com.tencent.kuikly.compose.ui.unit.constrainWidth
 import com.tencent.kuikly.core.base.DeclarativeBaseView
+import com.tencent.kuikly.core.base.attr.colorFilter
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.views.ImageConst

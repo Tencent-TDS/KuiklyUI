@@ -169,7 +169,7 @@ fun HideKeyboardTestContent() {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // hide(keepFocus = true) — 保光标
+        // hide() — 与 Compose 默认效果保持一致，收键盘不失焦
         Box(
             modifier = Modifier
                 .fillMaxWidth()

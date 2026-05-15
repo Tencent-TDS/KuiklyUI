@@ -985,6 +985,151 @@ internal fun ViewContainer<*, *>.TextExampleLetterSpacing(init: TextExampleLette
     addChild(TextExampleLetterSpacing(), init)
 }
 
+internal class TextExampleEmoji: ComposeView<ComposeAttr, ComposeEvent>() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                flexDirectionColumn()
+                justifyContentFlexStart()
+                padding(all = 16f)
+            }
+
+            // ---- Single-line: pure emoji ----
+            Text {
+                attr {
+                    text("😀😃😄😁😆😅🤣😂🙂🙃😉😊")
+                    fontSize(18f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+
+            // ---- Single-line: emoji + Chinese + English mixed ----
+            Text {
+                attr {
+                    text("Hello 🌍 你好世界 🚀 Kuikly 👋")
+                    fontSize(18f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+
+            // ---- Single-line: ZWJ family / skin-tone modifiers / flags ----
+            Text {
+                attr {
+                    text("👨‍👩‍👧‍👦 family · 👍🏻👍🏼👍🏽👍🏾👍🏿 · 🇨🇳🇨🇳🇨🇳")
+                    fontSize(18f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+
+            // ---- Single-line: emoji + letterSpacing ----
+            Text {
+                attr {
+                    text("letterSpacing(4) 🍎🍊🍋🍌🍉 Hi")
+                    fontSize(16f)
+                    letterSpacing(4f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+
+            // ---- Multi-line via "\n" ----
+            Text {
+                attr {
+                    text("第一行 😀 Hello\n第二行 🚀 Kuikly\n第三行 🌍 你好世界")
+                    fontSize(18f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+
+            // ---- Multi-line via word-break (long content + narrow width) ----
+            Text {
+                attr {
+                    text("这是一段较长的包含emoji的文本😀😃😄😁，用于演示自动折行时的高度测量是否准确🚀🌍👋，再加点内容保证一定会换到第三行甚至第四行🍎🍊🍋🍌🍉。")
+                    fontSize(15f)
+                    lineHeight(22f)
+                    backgroundColor(0xFFF0E68C)
+                    marginBottom(5f)
+                }
+            }
+
+            // ---- Multi-line: long pure emoji string ----
+            Text {
+                attr {
+                    text("😀😃😄😁😆😅🤣😂🙂🙃😉😊😇🥰😍🤩😘😗😚😙🥲😋😛😜🤪😝🤑🤗🤭🤫🤔")
+                    fontSize(20f)
+                    backgroundColor(0xFFADD8E6)
+                    marginBottom(5f)
+                }
+            }
+
+            // ---- Rich text: emoji across multiple spans, mixed font size ----
+            RichText {
+                attr {
+                    backgroundColor(0xFFFFA07A)
+                    marginBottom(5f)
+                    lineHeight(24f)
+                }
+                Span {
+                    fontSize(14f)
+                    text("RichText ")
+                }
+                Span {
+                    fontSize(20f)
+                    color(Color(0xFFEE3333))
+                    text("含 emoji 😀 ")
+                }
+                Span {
+                    fontSize(16f)
+                    text("跨段落混排 🚀 你好 🌍 ")
+                }
+                Span {
+                    fontSize(22f)
+                    fontWeightBold()
+                    text("Kuikly 👋👨‍👩‍👧‍👦")
+                }
+            }
+
+            // ---- Rich text: forces multiple lines + emoji ----
+            RichText {
+                attr {
+                    backgroundColor(0xFFF0E68C)
+                    marginBottom(5f)
+                    lineHeight(20f)
+                }
+                Span {
+                    fontSize(15f)
+                    text("RichText 多行 emoji 测量验证：😀😃😄😁😆😅🤣😂🙂🙃，")
+                }
+                Span {
+                    fontSize(18f)
+                    color(Color(0xFF205AEF))
+                    text("中间一段大字号 🌍🚀，")
+                }
+                Span {
+                    fontSize(15f)
+                    text("再回到正常字号 👋 让总宽度足够换到第三行 🍎🍊🍋🍌🍉。")
+                }
+            }
+        }
+    }
+
+    override fun createAttr(): ComposeAttr {
+        return ComposeAttr()
+    }
+
+    override fun createEvent(): ComposeEvent {
+        return ComposeEvent()
+    }
+}
+
+internal fun ViewContainer<*, *>.TextExampleEmoji(init: TextExampleEmoji.() -> Unit) {
+    addChild(TextExampleEmoji(), init)
+}
+
 internal class TextExampleLineBreakMargin: ComposeView<ComposeAttr, ComposeEvent>() {
     private var lineBreakTriggered1 by com.tencent.kuikly.core.reactive.handler.observable(false)
     private var lineBreakTriggered2 by com.tencent.kuikly.core.reactive.handler.observable(false)
@@ -1187,6 +1332,8 @@ internal class TextExamplePage: BasePager() {
                 TextExampleLineHeight {  }
                 ViewExampleSectionHeader { attr { title = "LetterSpacing" } }
                 TextExampleLetterSpacing {  }
+                ViewExampleSectionHeader { attr { title = "Emoji" } }
+                TextExampleEmoji {  }
                 ViewExampleSectionHeader { attr { title = "LineBreakMargin & onLineBreakMargin" } }
                 TextExampleLineBreakMargin {  }
             }

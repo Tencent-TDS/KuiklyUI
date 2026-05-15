@@ -92,6 +92,12 @@ class KRTextProps {
  *                     Needed by the mini-app measurement path so each span is
  *                     measured with its own letter-spacing rather than only
  *                     the RichText root container's one.
+ * @param lineHeight Per-span line height in px (non-placeholder span has, optional).
+ *                   When greater than 0, the mini-app measurement path uses this
+ *                   value as the line height for any line that this span lives on,
+ *                   so that a span with a larger line-height correctly contributes
+ *                   to the line box height instead of being collapsed by the
+ *                   container's default line-height.
  *
  */
 data class RichTextSpan(
@@ -105,7 +111,8 @@ data class RichTextSpan(
     var offsetTop: Float = 0f,
     var lineIndex: Int = 0,
     val fontStyle: String = "",
-    val letterSpacing: Float = 0f
+    val letterSpacing: Float = 0f,
+    val lineHeight: Float = 0f
 )
 
 private const val DEFAULT_FONT_WEIGHT = 400

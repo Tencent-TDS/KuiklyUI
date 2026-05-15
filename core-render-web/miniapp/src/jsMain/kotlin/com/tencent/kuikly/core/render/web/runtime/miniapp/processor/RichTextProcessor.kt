@@ -51,9 +51,45 @@ object RichTextProcessor : IRichTextProcessor {
     // placeholders (e.g. images), so the measured height matches the real
     // rendered height of the `rich-text` host element.
     private const val LINE_HEIGHT_FACTOR = 1.2f
+    /**
+     * Real rendered line-height factor for an emoji-bearing line.
+     *
+     * Pure-emoji lines (and lines containing emoji clusters) are drawn taller
+     * than the canvas `fontBoundingBox*` metrics imply, because emoji glyphs
+     * carry larger ascent/descent than the surrounding latin font. Using only
+     * `fontSize * 1.2` per line under-estimates each line's height, so when a
+     * long emoji string auto-wraps to N lines the cumulative shortfall clips
+     * the bottom of the last line.
+     */
+    private const val EMOJI_LINE_HEIGHT_FACTOR = 1.4f
 
     // Fallback font size when the container has no explicit font-size set.
     private const val DEFAULT_FONT_SIZE = 16f
+
+    // Emoji glyphs are usually rendered at ~1.0em in real <text>/<rich-text>
+    // components, but the offscreen canvas measureText() returns 0 (or a
+    // tofu-box width) because the canvas font does NOT contain emoji glyphs.
+    // Use this factor as a per-grapheme fallback width so that the measured
+    // line width is close to the real rendered width and the last
+    // characters don't get truncated when the line contains emojis.
+    /**
+     * Approximate advance-width of one emoji grapheme cluster, expressed as a
+     * multiple of `fontSize`. Real-world emoji clusters render slightly wider
+     * than `fontSize` (square glyph + small inter-glyph padding), so a 1.0
+     * factor consistently under-estimates the line width, which in turn
+     * causes `safeLineCount` to report N-1 lines for a long pure-emoji string
+     * that the renderer actually wraps to N lines, clipping the last line.
+     */
+    private const val EMOJI_WIDTH_FACTOR = 1.0f
+
+    // Threshold to trigger an extra-line guard: when the geometric ratio
+    // (totalWidth / constraintWidth) has a fractional part close to an
+    // integer (e.g. 1.92, 2.95), real word-break / break-word may push
+    // one more glyph onto a new line, while ceil() would still treat it as
+    // the same line. Reserving one extra line at this boundary prevents
+    // the multi-line height from being underestimated.
+    private const val LINE_FRACTION_GUARD = 0.85f
+
     // mini app measure text canvas context
     private var measureTextCtx: dynamic = null
 
@@ -171,6 +207,219 @@ object RichTextProcessor : IRichTextProcessor {
     }
 
     /**
+     * Detect whether a code unit is part of an emoji / pictographic /
+     * symbol sequence that the offscreen canvas usually mis-measures.
+     *
+     * The offscreen canvas font (PingFang / Roboto / sans-serif) does not
+     * contain color emoji glyphs, so `ctx.measureText` returns either 0 or
+     * a tofu-box width for them. We have to detect them and apply a
+     * per-grapheme fallback width.
+     *
+     * Detection covers:
+     *   - Surrogate pair leading code unit (U+D800..U+DBFF) — almost all
+     *     SMP characters used as emoji (😀, 👨, 🏳 ...).
+     *   - Variation Selector-16 (U+FE0F).
+     *   - Zero-Width Joiner (U+200D) used to glue emoji sequences.
+     *   - BMP misc-symbol/pictograph ranges that are commonly emoji:
+     *     U+2600..U+27BF (☀,★,⚡,✈ ...), U+2300..U+23FF, U+2B00..U+2BFF,
+     *     U+3030, U+303D, U+3297, U+3299.
+     */
+    private fun isEmojiCodeUnit(code: Int): Boolean {
+        // High surrogate — start of a 2-code-unit SMP character
+        if (code in 0xD800..0xDBFF) return true
+        // Low surrogate — paired with a preceding high surrogate
+        if (code in 0xDC00..0xDFFF) return true
+        // Variation Selector-16, ZWJ
+        if (code == 0xFE0F || code == 0x200D) return true
+        // Common BMP pictograph / dingbat / symbol blocks
+        if (code in 0x2600..0x27BF) return true
+        if (code in 0x2300..0x23FF) return true
+        if (code in 0x2B00..0x2BFF) return true
+        if (code == 0x3030 || code == 0x303D || code == 0x3297 || code == 0x3299) return true
+        return false
+    }
+
+    /**
+     * Quick scan: does the text contain any emoji-ish code unit?
+     * When false, we keep the original fast canvas measure path.
+     */
+    private fun containsEmoji(text: String): Boolean {
+        for (i in 0 until text.length) {
+            if (isEmojiCodeUnit(text.asDynamic().charCodeAt(i).unsafeCast<Int>())) {
+                return true
+            }
+        }
+        return false
+    }
+
+    /**
+     * Measure a single line that may contain emoji glyphs.
+     *
+     * Strategy: split the line into runs — each run is either a pure
+     * non-emoji string (measured by canvas as usual) or a single emoji
+     * grapheme cluster (estimated as `fontSize * EMOJI_WIDTH_FACTOR`).
+     *
+     * Returns a Triple(width, height, graphemeCount):
+     *   - graphemeCount counts emoji as 1 each (instead of UTF-16 length
+     *     2~8) so the caller can apply letter-spacing accurately.
+     */
+    private fun measureMixedLine(
+        text: String,
+        fontSize: Float,
+        fontWeight: Int,
+        fontFamily: String,
+        fontStyle: String,
+    ): dynamic {
+        var totalWidth = 0f
+        var maxHeight = 0f
+        var graphemeCount = 0
+        var nonEmojiBuf = ""
+        // Conservative fallback line height when canvas metrics are unusable
+        // (e.g. WeChat mini-program returns NaN for fontBoundingBox*).
+        val fallbackLineHeight = (fontSize * 1.2f).let {
+            if (it.isFinite() && it > 0f) it else (DEFAULT_FONT_SIZE * 1.2f)
+        }
+
+        // A safe number reader: returns the number value only when it is a
+        // finite real number; otherwise returns the supplied default. This
+        // protects against `undefined` / `NaN` / `Infinity` produced by some
+        // mini-program canvas implementations.
+        fun safeNum(v: dynamic, default: Float): Float {
+            if (jsTypeOf(v) != "number") return default
+            val f = v.unsafeCast<Float>()
+            return if (f.isFinite()) f else default
+        }
+
+        fun flushNonEmoji() {
+            if (nonEmojiBuf.isEmpty()) return
+            val metrics = measureTextWidth(
+                nonEmojiBuf, fontSize.toInt(), fontWeight, fontFamily, fontStyle
+            )
+            // Width: prefer actualBoundingBox, fall back to metrics.width,
+            // both must be finite numbers.
+            val abl = safeNum(metrics.actualBoundingBoxLeft, Float.NaN)
+            val abr = safeNum(metrics.actualBoundingBoxRight, Float.NaN)
+            val boxW = if (abl.isFinite() && abr.isFinite()) abl + abr else 0f
+            val mW = safeNum(metrics.width, 0f)
+            var w = max(boxW, mW)
+            // Last-resort fallback when canvas returns nothing usable.
+            if (!w.isFinite() || w < 0f) w = 0f
+
+            // Height: prefer fontBoundingBox metrics, fall back to fontSize * 1.2.
+            val asc = safeNum(metrics.fontBoundingBoxAscent, Float.NaN)
+            val desc = safeNum(metrics.fontBoundingBoxDescent, Float.NaN)
+            var h = if (asc.isFinite() && desc.isFinite()) asc + desc + 1f
+                    else fallbackLineHeight
+            if (!h.isFinite() || h <= 0f) h = fallbackLineHeight
+
+            totalWidth += w
+            if (h > maxHeight) maxHeight = h
+            graphemeCount += nonEmojiBuf.length
+            nonEmojiBuf = ""
+        }
+
+        var i = 0
+        while (i < text.length) {
+            val code = text.asDynamic().charCodeAt(i).unsafeCast<Int>()
+            // Try to detect a full emoji grapheme cluster starting at i.
+            // A cluster may be:
+            //   high-surrogate + low-surrogate (+ VS16)? (+ ZWJ + ...)*
+            // For simplicity we walk forward while the next code unit is a
+            // continuation (low-surrogate, VS16, ZWJ, or another emoji code
+            // unit). This treats e.g. 👨‍👩‍👧 as one grapheme.
+            val isEmojiStart = isEmojiCodeUnit(code)
+            if (isEmojiStart) {
+                flushNonEmoji()
+                // Walk to the end of this grapheme cluster
+                var end = i
+                // Consume current code unit
+                end += 1
+                // Consume the low-surrogate paired with a high-surrogate
+                if (code in 0xD800..0xDBFF && end < text.length) {
+                    val nextCode = text.asDynamic().charCodeAt(end).unsafeCast<Int>()
+                    if (nextCode in 0xDC00..0xDFFF) {
+                        end += 1
+                    }
+                }
+                // Consume any trailing VS16 / ZWJ + next emoji loop
+                while (end < text.length) {
+                    val c = text.asDynamic().charCodeAt(end).unsafeCast<Int>()
+                    if (c == 0xFE0F) {
+                        end += 1
+                        continue
+                    }
+                    if (c == 0x200D && end + 1 < text.length) {
+                        // ZWJ followed by another emoji-starting code unit
+                        val c2 = text.asDynamic().charCodeAt(end + 1).unsafeCast<Int>()
+                        if (isEmojiCodeUnit(c2)) {
+                            end += 1 // consume ZWJ, the emoji itself will be
+                            continue   // handled in the next outer iteration
+                        }
+                    }
+                    break
+                }
+                // Add fallback width for this whole cluster (1 grapheme).
+                val clusterW = (fontSize * EMOJI_WIDTH_FACTOR).let {
+                    if (it.isFinite() && it > 0f) it else (DEFAULT_FONT_SIZE * EMOJI_WIDTH_FACTOR)
+                }
+                totalWidth += clusterW
+                // Emoji clusters render taller than `fontSize * 1.2` because
+                // their ascent/descent exceeds the surrounding latin font.
+                // If we only reserve 1.2x per line, a long pure-emoji string
+                // that auto-wraps to N lines accumulates ~0.25*fontSize*N of
+                // shortfall and the bottom of the last line gets clipped.
+                val emojiH = (fontSize * EMOJI_LINE_HEIGHT_FACTOR).let {
+                    if (it.isFinite() && it > 0f) it else fallbackLineHeight
+                }
+                if (emojiH > maxHeight) maxHeight = emojiH
+                graphemeCount += 1
+                i = end
+            } else {
+                nonEmojiBuf += text.asDynamic().charAt(i).unsafeCast<String>()
+                i += 1
+            }
+        }
+        flushNonEmoji()
+        // Final guard: a NaN/Infinity/<=0 here would later be serialized into
+        // `style.lineHeight = "NaNpx"` and crash the layout (the text would
+        // collapse to a 0.5px hairline). Always return a renderable size.
+        if (!totalWidth.isFinite() || totalWidth < 0f) totalWidth = 0f
+        if (!maxHeight.isFinite() || maxHeight <= 0f) maxHeight = fallbackLineHeight
+        // IMPORTANT: do NOT return a Kotlin `SizeF` here. Kotlin/JS mangles
+        // `SizeF.width` / `SizeF.height` to accessor methods like
+        // `width_xxx_k$()`, so reading `ret.width` on the JS side yields
+        // `undefined`. The caller treats `undefined` as a zero-size span and
+        // the whole emoji line collapses into a 0.5-px hairline.
+        //
+        // Return a plain JS object whose `width`, `height` and `graphemeCount`
+        // are real own properties accessible from any JS / dynamic context.
+        val ret: dynamic = js("({})")
+        ret.width = totalWidth
+        ret.height = maxHeight
+        ret.graphemeCount = graphemeCount
+        return ret
+    }
+
+    /**
+     * Compute a "safe" line count from the geometric ratio totalWidth /
+     * constraintWidth.
+     *
+     * The native text components break by word / break-word, while the
+     * canvas-based measurement here only knows the total drawn width. When
+     * the fractional part of the ratio is close to 1 (e.g. 1.92), the real
+     * renderer is very likely to push the trailing word/grapheme onto a
+     * brand-new line, but `ceil()` would still report the same line count
+     * and underestimate the height. Reserve one extra line in that case.
+     */
+    private fun safeLineCount(totalWidth: Float, constraintWidth: Float): Int {
+        if (constraintWidth <= 0f || totalWidth <= 0f) return 1
+        val ratio = totalWidth / constraintWidth
+        val ceiled = ceil(ratio).toInt()
+        val frac = ratio - ratio.toInt()
+        return if (frac > LINE_FRACTION_GUARD) ceiled + 1 else ceiled
+    }
+
+    /**
      * Process the size data of the remaining lines
      *
      * @param constraintSize Parent container constraint size
@@ -181,22 +430,44 @@ object RichTextProcessor : IRichTextProcessor {
         linesSizeList: JsArray<SizeF>,
         view: KRRichTextView
     ) {
+        // Resolve the strut height that every line must contribute at minimum:
+        //   1) explicit container line-height takes precedence;
+        //   2) otherwise fall back to container fontSize * LINE_HEIGHT_FACTOR;
+        //   3) finally, never below DEFAULT_FONT_SIZE * LINE_HEIGHT_FACTOR.
+        // This guards against the multi-line-height-too-small problem when
+        // the last physical line's accumulated `currentLineHeight` is smaller
+        // than the real rendered strut (e.g. a span with very small fontSize
+        // ended the line, but the container actually reserves a taller box).
+        val containerLineHeightStr = view.ele.style.lineHeight
+        val containerFontSizeStr = view.ele.style.fontSize
+        val strutHeight: Float = when {
+            containerLineHeightStr.isNotEmpty() -> containerLineHeightStr.pxToFloat()
+            containerFontSizeStr.isNotEmpty() ->
+                containerFontSizeStr.pxToFloat() * LINE_HEIGHT_FACTOR
+            else -> DEFAULT_FONT_SIZE * LINE_HEIGHT_FACTOR
+        }
+        // Effective height for the trailing line(s): take the larger of the
+        // accumulated per-span height and the container strut, otherwise a
+        // shorter trailing span would shrink the whole final line below the
+        // real rendered height.
+        val effectiveLineHeight = max(view.currentLineHeight, strutHeight)
         if (constraintSize.width > 0f) {
-            // Total number of lines
-            val totalLines = ceil(view.currentLineWidth / constraintSize.width).toInt()
+            // Total number of lines, using safe count to absorb word-break
+            // induced extra lines that the geometric measurement ignores.
+            val totalLines = safeLineCount(view.currentLineWidth, constraintSize.width)
             // Remaining width that is not full
             val remainWidth = view.currentLineWidth % constraintSize.width
             if (totalLines > 1) {
                 // For parts greater than one line, directly insert full line size list
                 repeat(totalLines - 1) {
-                    linesSizeList.add(SizeF(constraintSize.width, view.currentLineHeight))
+                    linesSizeList.add(SizeF(constraintSize.width, effectiveLineHeight))
                 }
             }
             // Last insert width that is not full line
-            linesSizeList.add(SizeF(remainWidth, view.currentLineHeight))
+            linesSizeList.add(SizeF(remainWidth, effectiveLineHeight))
         } else {
             // If there is no constraint, just use the remaining width and height directly
-            linesSizeList.add(SizeF(view.currentLineWidth, view.currentLineHeight))
+            linesSizeList.add(SizeF(view.currentLineWidth, effectiveLineHeight))
         }
     }
 
@@ -278,7 +549,7 @@ object RichTextProcessor : IRichTextProcessor {
     private fun calculateLinesSize(constraintSize: SizeF, view: KRRichTextView): JsArray<SizeF> {
         val linesSizeList: JsArray<SizeF> = JsArray()
         val lineHeight = view.ele.style.lineHeight
-        val realLineHeight = if (lineHeight.isNotEmpty()) lineHeight.pxToFloat() else 0f
+        val containerLineHeight = if (lineHeight.isNotEmpty()) lineHeight.pxToFloat() else 0f
 
         // Process child text nodes in a loop to calculate actual line size of each line
         view.richTextSpanList.forEach { childSpan ->
@@ -289,12 +560,21 @@ object RichTextProcessor : IRichTextProcessor {
                 // Plain span processing — use this span's own letter-spacing
                 // so the measured width matches the real rendering width when
                 // different spans carry different letter-spacing values.
+                // Per-span line-height takes precedence over the container's
+                // line-height so that a span with a larger line-height
+                // correctly contributes to the line box height instead of
+                // being collapsed by the container default.
+                val effectiveLineHeight = if (childSpan.lineHeight > 0f) {
+                    max(childSpan.lineHeight, containerLineHeight)
+                } else {
+                    containerLineHeight
+                }
                 processTextSpan(
                     view,
                     childSpan,
                     constraintSize,
                     linesSizeList,
-                    realLineHeight,
+                    effectiveLineHeight,
                     childSpan.letterSpacing
                 )
             }
@@ -324,11 +604,19 @@ object RichTextProcessor : IRichTextProcessor {
             // Last element as remain element processing
             view.currentLineWidth = spanSize.width
         } else {
-            // For elements that are not the last, each line of the line is independent
-            // Remaining lines
-            val totalLines = ceil(spanSize.width / constraintSize.width).toInt()
-            // Current line remaining width
-            view.currentLineWidth = spanSize.width % constraintSize.width
+            // For elements that are not the last, each line of the line is independent.
+            // Use safe line count so that word-break-induced extra lines don't
+            // shrink the measured height below the actual rendered height.
+            val totalLines = if (constraintSize.width > 0f) {
+                safeLineCount(spanSize.width, constraintSize.width)
+            } else 1
+            // Current line remaining width — when the safe count was bumped
+            // by 1, the remaining width is just the leftover above the last
+            // full-line; when no bump happened, fall back to width % constraint.
+            view.currentLineWidth = if (constraintSize.width > 0f) {
+                val mod = spanSize.width % constraintSize.width
+                if (mod == 0f && totalLines >= 1 && spanSize.width > 0f) constraintSize.width else mod
+            } else spanSize.width
             // If there are multiple lines, add them to full line size list
             if (totalLines > 1) {
                 repeat(totalLines - 1) {
@@ -362,12 +650,20 @@ object RichTextProcessor : IRichTextProcessor {
         } else {
             // Width that exceeds one line
             val subWidth = sumWidth - constraintSize.width
+            // The first "full" line we are about to flush should also account
+            // for THIS span's height, because the span occupies a non-zero
+            // portion of that line. Otherwise, when the previous accumulated
+            // line was empty (currentLineHeight == 0) or shorter than this
+            // span, the flushed line would be too short.
+            val firstLineHeight = max(view.currentLineHeight, spanSize.height)
             // First record full line size, because it is not empty line, so it must have been set line height
-            linesSizeList.add(SizeF(constraintSize.width, view.currentLineHeight))
-            // Remaining non-one line width
-            view.currentLineWidth = subWidth % constraintSize.width
-            // Remaining total number of lines
-            val totalLines = ceil(subWidth / constraintSize.width).toInt()
+            linesSizeList.add(SizeF(constraintSize.width, firstLineHeight))
+            // Remaining non-one line width — guard against negative / zero
+            // so we don't accidentally emit an empty extra line.
+            val safeSub = if (subWidth < 0f) 0f else subWidth
+            view.currentLineWidth = safeSub % constraintSize.width
+            // Remaining total number of lines, with the safe-count bump.
+            val totalLines = safeLineCount(safeSub, constraintSize.width)
             // All parts that exceed one line in remaining lines are calculated as full lines
             if (totalLines > 0) {
                 // Because it is already new line, actual line height will not be affected by placeholder
@@ -410,41 +706,74 @@ object RichTextProcessor : IRichTextProcessor {
                 // caller (processTextSpan) can emit a real line break.
                 textSizeList.add(SizeF(0f, emptyLineHeight))
             } else {
-                // Calculate the width of each line
-                val textMetrics =
-                    measureTextWidth(it, fontSize.toInt(), fontWeight, fontFamily, fontStyle)
-                // Text width
-                var textWidth = if (jsTypeOf(textMetrics.actualBoundingBoxLeft) == "number") {
-                    (textMetrics.actualBoundingBoxLeft + textMetrics.actualBoundingBoxRight)
-                        .unsafeCast<Float>()
+                // Pick the measurement strategy based on whether the line
+                // contains emoji-ish code units. The mixed path is more
+                // expensive but is the only way to avoid undercounting the
+                // emoji width on canvas (which lacks emoji glyphs).
+                val hasEmoji = containsEmoji(it)
+                var textWidth: Float
+                var textHeight: Float
+                // Number of graphemes used to multiply letter-spacing.
+                // For pure ASCII / CJK lines this equals it.length; for
+                // emoji lines it counts each emoji cluster as 1 instead of
+                // its UTF-16 length (2~8), avoiding the over-compensation
+                // that would otherwise push the line width way too wide.
+                var graphemeCount: Int
+
+                if (hasEmoji) {
+                    val mixed = measureMixedLine(
+                        it, fontSize, fontWeight, fontFamily, fontStyle
+                    )
+                    textWidth = mixed.width.unsafeCast<Float>()
+                    textHeight = mixed.height.unsafeCast<Float>()
+                    graphemeCount = mixed.graphemeCount.unsafeCast<Int>()
+                    // If for any reason the mixed measure produced a zero
+                    // height (very short emoji-only string with broken
+                    // canvas metrics), fall back to fontSize * 1.2.
+                    if (textHeight <= 0f) {
+                        textHeight = (fontSize * 1.2f)
+                    }
+                    // Same for width — emoji glyphs always render with a
+                    // non-zero width on screen; if our measurement collapsed
+                    // to 0, use a conservative grapheme-based fallback so the
+                    // outer logic does not treat this whole line as "empty".
+                    if (textWidth <= 0f && graphemeCount > 0) {
+                        textWidth = graphemeCount * fontSize * EMOJI_WIDTH_FACTOR
+                    }
                 } else {
-                    0f
-                }
-                // Text height，use canvas measure result，plus 1px for round missing
-                val textHeight: Float = if (textMetrics.fontBoundingBoxAscent != null && textMetrics.fontBoundingBoxDescent != null) {
-                    textMetrics.fontBoundingBoxAscent.unsafeCast<Float>() +
-                            textMetrics.fontBoundingBoxDescent.unsafeCast<Float>() + 1f
-                } else {
-                    // wechat 8.0.49 run in ios 18.2 can not get textMetrics.fontBoundingBoxAscent textMetrics.fontBoundingBoxDescent
-                    // use fontSize * 1.2
-                    (fontSize * 1.2).toFloat()
+                    // Calculate the width of each line
+                    val textMetrics =
+                        measureTextWidth(it, fontSize.toInt(), fontWeight, fontFamily, fontStyle)
+                    // Text width
+                    textWidth = if (jsTypeOf(textMetrics.actualBoundingBoxLeft) == "number") {
+                        (textMetrics.actualBoundingBoxLeft + textMetrics.actualBoundingBoxRight)
+                            .unsafeCast<Float>()
+                    } else {
+                        0f
+                    }
+                    // Text height，use canvas measure result，plus 1px for round missing
+                    textHeight = if (textMetrics.fontBoundingBoxAscent != null && textMetrics.fontBoundingBoxDescent != null) {
+                        textMetrics.fontBoundingBoxAscent.unsafeCast<Float>() +
+                                textMetrics.fontBoundingBoxDescent.unsafeCast<Float>() + 1f
+                    } else {
+                        // wechat 8.0.49 run in ios 18.2 can not get textMetrics.fontBoundingBoxAscent textMetrics.fontBoundingBoxDescent
+                        // use fontSize * 1.2
+                        (fontSize * 1.2).toFloat()
+                    }
+                    // Add the width and height of each line, using the larger of canvas width and actualBoundingBox
+                    textWidth = max(textWidth, textMetrics.width.unsafeCast<Float>())
+                    graphemeCount = it.length
                 }
 
-                // Add the width and height of each line, using the larger of canvas width and actualBoundingBox
-                textWidth = max(textWidth, textMetrics.width.unsafeCast<Float>())
                 // Canvas measureText does NOT take letter-spacing into account, but the
                 // real rendering of <text> does. Compensate it here otherwise the measured
                 // width would be smaller than the actual drawn width and cause the last
                 // character to be truncated.
-                // NOTE: use `it.length` (NOT `it.length - 1`) on purpose:
-                //   1) Different mini-program runtimes disagree on whether the trailing
-                //      letter-spacing after the last glyph is included in the line box.
-                //   2) Reserving one extra gap also absorbs floating-point rounding
-                //      errors accumulated through the canvas measurement + ratio scaling.
-                // The over-estimation is at most one letter-spacing, which is harmless
-                // for layout but prevents the "last character clipped" problem.
-                if (letterSpacing != 0f && it.length > 0) {
-                    textWidth += it.length * letterSpacing
+                // NOTE: use `graphemeCount` instead of UTF-16 length so that emoji
+                // clusters contribute exactly one letter-spacing gap (matching the
+                // real renderer), instead of 2~8 of them.
+                if (letterSpacing != 0f && graphemeCount > 0) {
+                    textWidth += graphemeCount * letterSpacing
                 }
                 if (MiniGlobal.isAndroid) {
                     // Android canvas measurement is not accurate, so we need to multiply a magic number.
@@ -881,24 +1210,42 @@ object RichTextProcessor : IRichTextProcessor {
             ele.style.maxWidth = "${constraintSize.width}px"
         }
 
-        return if (view.isRichText && view.richTextSpanList.length > 0) {
+        val rawSize = if (view.isRichText && view.richTextSpanList.length > 0) {
             // Rich text needs loop calculation and comprehensive calculation
             calculateRichTextSize(constraintSize, view)
         } else {
-            val textSize = calculateTextSize(constraintSize, view)
+            calculateTextSize(constraintSize, view)
+        }
+
+        // ===== FINAL GUARD =====
+        // Whatever happened upstream (canvas returning NaN for fontBoundingBox*,
+        // a mis-typed font-size, an empty span list, etc.) the value we hand
+        // back to the layout engine MUST be a renderable finite positive size,
+        // otherwise the mini-program will write
+        //   `width: NaNpx; height: NaNpx; line-height: NaNpx`
+        // and collapse the whole element into a 0.5px hairline (which then
+        // breaks the surrounding List layout).
+        val fontSizeStr = ele.style.fontSize.asDynamic().split("px")[0].unsafeCast<String>()
+        val fs = fontSizeStr.toFloatOrNull()?.takeIf { it.isFinite() && it > 0f } ?: DEFAULT_FONT_SIZE
+        var sw = rawSize.width
+        var sh = rawSize.height
+        if (!sw.isFinite() || sw < 0f) sw = 0f
+        if (!sh.isFinite() || sh <= 0f) sh = fs * 1.2f
+        val textSize = SizeF(sw, sh)
+
+        if (!(view.isRichText && view.richTextSpanList.length > 0)) {
             val webkitLineClamp = ele.style.asDynamic().webkitLineClamp.unsafeCast<String>()
-            // set lineHeight for text to vertical center, only support single line
+            // set lineHeight for text to vertical center, only support single line.
+            // safeH is now guaranteed finite and > 0 by the guard above.
             if (ele.style.lineHeight.isEmpty() &&
                 !view.rawText.contains("\n") &&
                 (webkitLineClamp.isEmpty() || webkitLineClamp.toInt() == 1) &&
-                textSize.height != 0f &&
                 ele.asDynamic().linesCount == 1
             ) {
-                ele.style.lineHeight = "${textSize.height}px"
+                ele.style.lineHeight = "${sh}px"
             }
-
-            return textSize
         }
+        return textSize
     }
 
     fun clearRichTextValues(view: KRRichTextView) {
@@ -1059,6 +1406,17 @@ object RichTextProcessor : IRichTextProcessor {
                     } else {
                         0f
                     }
+                    // Read each span's own line-height (set in createSpan when
+                    // the business specifies LINE_HEIGHT). Carrying it into
+                    // RichTextSpan lets the measurement phase honor a
+                    // per-span line-height that differs from the container's,
+                    // otherwise multi-line height would be underestimated.
+                    val spanLineHeightStr = span.style.lineHeight
+                    val spanLineHeight = if (spanLineHeightStr.isNotEmpty()) {
+                        spanLineHeightStr.pxToFloat()
+                    } else {
+                        0f
+                    }
                     view.richTextSpanList.add(
                         RichTextSpan(
                             value = span.textContent!!,
@@ -1066,7 +1424,8 @@ object RichTextProcessor : IRichTextProcessor {
                             fontWeight = span.style.fontWeight.toInt(),
                             fontFamily = span.style.fontFamily,
                             fontStyle = span.style.fontStyle,
-                            letterSpacing = spanLetterSpacing
+                            letterSpacing = spanLetterSpacing,
+                            lineHeight = spanLineHeight
                         )
                     )
                 }

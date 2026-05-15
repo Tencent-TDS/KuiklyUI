@@ -59,7 +59,7 @@ NSString *const KRDensity = @"density";
 
 #pragma mark - init
 - (nonnull instancetype)initWithSize:(CGSize)size
-                         contextCode:(NSString *)contextCode
+                         contextCode:(id)contextCode
                         contextParam:(nonnull KuiklyContextParam *)contextParam
                               params:(NSDictionary * _Nullable)params
                              delegate:(nonnull id<KuiklyRenderViewDelegate>)delegate {
@@ -70,7 +70,7 @@ NSString *const KRDensity = @"density";
         // 生成Core所需要的参数
         NSDictionary *coreParams = [self p_generateWithParams:params size:size];
         _renderCore = [[KuiklyRenderCore alloc] initWithRootView:self
-                                                     contextCode:(NSString *)contextCode
+                                                     contextCode:contextCode
                                                     contextParam:contextParam
                                                           params:coreParams
                                                         delegate:self];
@@ -248,11 +248,19 @@ NSString *const KRDensity = @"density";
     mParmas[KRDeviceWidthKey] = @(deviceSize.width);
     mParmas[KRDeviceHeightKey] = @(deviceSize.height);
     mParmas[KROsVersionKey] = [[NSProcessInfo processInfo] operatingSystemVersionString] ?: @"";
+    UIWindow *window = [self.delegate viewControllerHostWindow] ?: [KRConvertUtil keyWindow];
+    CGRect windowBounds = window.frame;
+    mParmas[KRActivityWidthKey] = @(windowBounds.size.width);
+    mParmas[KRActivityHeightKey] = @(windowBounds.size.height);
 #else
     mParmas[KRPlatformKey] = @"iOS";
     mParmas[KRDeviceWidthKey] = @(CGRectGetWidth([UIScreen mainScreen].bounds));
     mParmas[KRDeviceHeightKey] = @(CGRectGetHeight([UIScreen mainScreen].bounds));
     mParmas[KROsVersionKey] = [[UIDevice currentDevice] systemVersion] ?: @"";
+    UIWindow *window = [self.delegate viewControllerHostWindow] ?: [KRConvertUtil keyWindow];
+    CGRect windowBounds = window.bounds;
+    mParmas[KRActivityWidthKey] = @(windowBounds.size.width);
+    mParmas[KRActivityHeightKey] = @(windowBounds.size.height);
 #endif
     mParmas[KRAppVersionKey] = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleShortVersionString"] ? : @"1.0.0";
     mParmas[KRParamKey] = params? : @{};

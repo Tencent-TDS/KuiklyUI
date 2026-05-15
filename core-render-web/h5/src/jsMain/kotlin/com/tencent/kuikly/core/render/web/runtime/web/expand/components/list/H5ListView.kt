@@ -63,7 +63,8 @@ class H5ListView : IListElement {
     // Current horizontal touch position
     private var touchEndX = 0f
     // Whether scrolling is enabled
-    private var scrollEnabled = true
+    internal var scrollEnabled = true
+        private set
     // Whether to show scrollbar
     private var showScrollerBar = true
     // Scroll direction
@@ -460,6 +461,7 @@ class H5ListView : IListElement {
                     isClickEvent = true
                 }, KRListConst.CLICK_DETECTION_TIMEOUT_TOUCH)
                 if (pagingEnabled) {
+                    if (!scrollEnabled) return@addEventListener
                     listPagingHelper.handlePagerTouchStart(it as TouchEvent)
                     return@addEventListener
                 }
@@ -478,6 +480,7 @@ class H5ListView : IListElement {
                 }
                 isClickEvent = false
                 if (pagingEnabled) {
+                    if (!scrollEnabled) return@addEventListener
                     listPagingHelper.handlePagerTouchMove(it as TouchEvent)
                     return@addEventListener
                 }
@@ -526,6 +529,7 @@ class H5ListView : IListElement {
                 // Initialize canScroll state
                 pcScrollHelper.initCanScroll(showScrollerBar)
                 if (pagingEnabled) {
+                    if (!scrollEnabled) return@addEventListener
                     listPagingHelper.handlePagerMouseDown(event)
                     return@addEventListener
                 }
@@ -537,15 +541,28 @@ class H5ListView : IListElement {
             }, json(KRAttrConst.PASSIVE to true))
 
             // Prevent text selection
-            if (KuiklyProcessor.preventDefaultDragAndSelect) {
+            if (KuiklyProcessor.preventDefaultSelect) {
                 ele.addEventListener(KREventConst.SELECT_START, {
                     it.preventDefault()
                 })
             }
             // Prevent image drag
-            if (KuiklyProcessor.preventDefaultDragAndSelect) {
+            if (KuiklyProcessor.preventDefaultDrag) {
                 ele.addEventListener(KREventConst.DRAG_START, {
                     it.preventDefault()
+                })
+            } else {
+                // Defensive fallback: when native HTML5 drag is allowed (e.g. user disabled
+                // [preventDefaultDrag] / [preventDefaultDragAndSelect] to support text copy),
+                // a `dragstart` will cause the browser to stop dispatching mousemove/mouseup,
+                // which would leave `pcScrollHelper.isMouseDown` stuck as true and the list
+                // would keep following the cursor until the next click. So we proactively
+                // finalize the PC scroll state when a drag starts.
+                ele.addEventListener(KREventConst.DRAG_START, { evt ->
+                    // dragstart inherits from MouseEvent.
+                    val mouseEvt = evt as MouseEvent
+                    pcScrollHelper.cancelMouseInteraction(mouseEvt)
+                    PCListScrollHandler.cancelMouseInteraction(mouseEvt)
                 })
             }
         }
@@ -553,6 +570,7 @@ class H5ListView : IListElement {
             // Handle paging mode with wheel event
             event as WheelEvent
             if (pagingEnabled) {
+                if (!scrollEnabled) return@addEventListener
                 var eps = 1.0; // depending on device sensitivity
                 val isVerticalScroll = event.deltaY.absoluteValue > event.deltaX.absoluteValue + eps
                 val isHorizontalScroll = event.deltaX.absoluteValue > event.deltaY.absoluteValue + eps

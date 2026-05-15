@@ -44,8 +44,8 @@ object CustomImageProcessor : IImageProcessor {
         return BaseImageProcessor.isSVGFilterSupported()
     }
 
-    override fun applyTintColor(imageElement: HTMLImageElement, tintColorValue: String, rootWidth: Double) {
-        BaseImageProcessor.applyTintColor(imageElement, tintColorValue, rootWidth)
+    override fun applyTintColor(imageElement: HTMLImageElement, tintColorValue: String, frameHeight: Double) {
+        BaseImageProcessor.applyTintColor(imageElement, tintColorValue, frameHeight)
     }
 }
 ```

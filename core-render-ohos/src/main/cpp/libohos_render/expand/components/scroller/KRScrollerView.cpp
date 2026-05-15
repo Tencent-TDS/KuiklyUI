@@ -15,6 +15,7 @@
 
 #include "libohos_render/expand/components/scroller/KRScrollerView.h"
 
+#include <cfloat>
 #include "libohos_render/expand/components/view/KRView.h"
 #include "libohos_render/foundation/type/KRRenderValue.h"
 #include "libohos_render/utils/KRJSONObject.h"
@@ -61,6 +62,7 @@ constexpr char kMethodNameContentOffset[] = "contentOffset";
 constexpr char kMethodNameContentInset[] = "contentInset";
 constexpr char kMethodNameContentInsetWhenDragEnd[] = "contentInsetWhenEndDrag";
 constexpr char kMethodNameAbortContentOffsetAnimate[] = "abortContentOffsetAnimate";
+constexpr char kMethodNamePrepareForComposeReuse[] = "prepareForComposeReuse";
 
 ArkUI_NodeHandle KRScrollerContentView::CreateNode() {
     return kuikly::util::GetNodeApi()->createNode(ARKUI_NODE_STACK);
@@ -224,6 +226,8 @@ void KRScrollerView::CallMethod(const std::string &method, const KRAnyValue &par
         SetContentInsetWhenDragEnd(params);
     } else if (kuikly::util::isEqual(method, kMethodNameAbortContentOffsetAnimate)) {
         AbortContentOffsetAnimate();
+    } else if (kuikly::util::isEqual(method, kMethodNamePrepareForComposeReuse)) {
+        PrepareForComposeReuse();
     } else {
         IKRRenderViewExport::CallMethod(method, params, callback);
     }
@@ -685,6 +689,27 @@ bool KRScrollerView::SetFlingEnable(bool enable) {
 
 void KRScrollerView::TryApplyPendingFireOnScroll() {
     FireOnScrollEvent(nullptr);
+}
+
+// Clear transient native state for Compose DSL reuse (not the native reuse pool).
+void KRScrollerView::PrepareForComposeReuse() {
+    // Reset scroll event dedup cache so restored offset fires a scroll event
+    last_fired_scroll_x_ = -FLT_MAX;
+    last_fired_scroll_y_ = -FLT_MAX;
+    // Reset scroll state machine
+    current_scroll_state_ = ArkUI_ScrollState::ARKUI_SCROLL_STATE_IDLE;
+    // Reset drag state
+    is_dragging_ = false;
+    // Reset bounces dedup flag
+    current_bounces_enabled_ = false;
+    // Clear PullToRefresh residual
+    content_inset_when_drag_end_ = nullptr;
+    // Reset velocity calculation state
+    last_scroll_time_ = 0;
+    last_scroll_x_ = 0;
+    last_scroll_y_ = 0;
+    velocity_x_ = 0;
+    velocity_y_ = 0;
 }
 
 void KRScrollerView::AbortContentOffsetAnimate() {

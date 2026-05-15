@@ -19,7 +19,7 @@
 
 namespace kuikly {
 namespace util {
-class DataPreferences;
+class DataOhPreferences;
 }
 
 namespace expand {
@@ -38,7 +38,7 @@ class KROhSharedPreferencesModule : public IKRRenderModuleExport {
     static const char BUNDLE_NAME[];
     std::string GetItem(const KRAnyValue &params);
     std::string SetItem(const KRAnyValue &params);
-    std::shared_ptr<util::DataOhPreferences> preferences;
+    util::DataOhPreferences* preferences = nullptr;
     void InitIfNeeded();
 };
 

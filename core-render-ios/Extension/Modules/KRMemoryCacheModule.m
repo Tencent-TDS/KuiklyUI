@@ -230,6 +230,10 @@ static NSString *const kCacheStateInProgress = @"InProgress";
 }
 
 - (void)dealloc {
+    // 显式清空 memoryKeyValueMap，确保 toImage 的 cacheKey 缓存被及时释放
+    [_memoryKeyValueMap removeAllObjects];
+    _memoryKeyValueMap = nil;
+    
     NSDictionary* cache = _imageCache;
     _imageCache = nil;
     dispatch_async(dispatch_get_main_queue(), ^{

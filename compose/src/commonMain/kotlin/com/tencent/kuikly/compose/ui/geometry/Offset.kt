@@ -18,17 +18,19 @@ package com.tencent.kuikly.compose.ui.geometry
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
+import com.tencent.kuikly.compose.ui.util.PackedFloats
 import com.tencent.kuikly.compose.ui.util.lerp
-import com.tencent.kuikly.compose.ui.util.packFloats
-import com.tencent.kuikly.compose.ui.util.unpackFloat1
-import com.tencent.kuikly.compose.ui.util.unpackFloat2
+import com.tencent.kuikly.compose.ui.util.packFloatsP
+import com.tencent.kuikly.compose.ui.util.packedFloatsBitEquals
+import com.tencent.kuikly.compose.ui.util.unpackFloat1P
+import com.tencent.kuikly.compose.ui.util.unpackFloat2P
 import kotlin.math.sqrt
 
 /**
  * Constructs an Offset from the given relative x and y offsets
  */
 @Stable
-fun Offset(x: Float, y: Float) = Offset(packFloats(x, y))
+fun Offset(x: Float, y: Float) = Offset(packFloatsP(x, y))
 
 /**
  * An immutable 2D floating-point offset.
@@ -58,26 +60,27 @@ fun Offset(x: Float, y: Float) = Offset(packFloats(x, y))
  */
 @Immutable
 @kotlin.jvm.JvmInline
-value class Offset internal constructor(internal val packedValue: Long) {
+value class Offset internal constructor(internal val packedValue: PackedFloats) {
 
     @Stable
     val x: Float
         get() {
-            // Explicitly compare against packed values to avoid auto-boxing of Size.Unspecified
-            check(this.packedValue != Unspecified.packedValue) {
+            // Explicitly compare against packed values to avoid auto-boxing of Size.Unspecified.
+            // Use packedFloatsBitEquals so that NaN sentinels match correctly on JS (where
+            // Double's `==` returns false for NaN).
+            check(!packedFloatsBitEquals(this.packedValue, Unspecified.packedValue)) {
                 "Offset is unspecified"
             }
-            return unpackFloat1(packedValue)
+            return unpackFloat1P(packedValue)
         }
 
     @Stable
     val y: Float
         get() {
-            // Explicitly compare against packed values to avoid auto-boxing of Size.Unspecified
-            check(this.packedValue != Unspecified.packedValue) {
+            check(!packedFloatsBitEquals(this.packedValue, Unspecified.packedValue)) {
                 "Offset is unspecified"
             }
-            return unpackFloat2(packedValue)
+            return unpackFloat2P(packedValue)
         }
 
     @Stable
@@ -249,13 +252,15 @@ val Offset.isFinite: Boolean get() = x.isFinite() && y.isFinite()
  * `false` when this is [Offset.Unspecified].
  */
 @Stable
-val Offset.isSpecified: Boolean get() = packedValue != Offset.Unspecified.packedValue
+val Offset.isSpecified: Boolean
+    get() = !packedFloatsBitEquals(packedValue, Offset.Unspecified.packedValue)
 
 /**
  * `true` when this is [Offset.Unspecified].
  */
 @Stable
-val Offset.isUnspecified: Boolean get() = packedValue == Offset.Unspecified.packedValue
+val Offset.isUnspecified: Boolean
+    get() = packedFloatsBitEquals(packedValue, Offset.Unspecified.packedValue)
 
 /**
  * If this [Offset]&nbsp;[isSpecified] then this is returned, otherwise [block] is executed

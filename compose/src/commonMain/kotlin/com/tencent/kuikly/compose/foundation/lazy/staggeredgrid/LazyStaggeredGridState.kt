@@ -50,6 +50,8 @@ import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.util.fastSumBy
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.tryExpandStartSizeNoScroll
+import com.tencent.kuikly.compose.profiler.RecompositionProfiler
+import com.tencent.kuikly.compose.material3.internal.identityHashCode
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -566,11 +568,24 @@ class LazyStaggeredGridState internal constructor(
         scrollToBeConsumed -= result.consumedScroll
         layoutInfoState.value = result
 
+        // Hook: record scroll context event for Recomposition Profiler
+        val oldFirstVisible = scrollPosition.index
         if (visibleItemsStayedTheSame) {
             scrollPosition.updateScrollOffset(result.firstVisibleItemScrollOffsets)
         } else {
             scrollPosition.updateFromMeasureResult(result)
             cancelPrefetchIfVisibleItemsChanged(result)
+        }
+        if (RecompositionProfiler.isEnabled) {
+            val newFirstVisible = scrollPosition.index
+            if (newFirstVisible != oldFirstVisible) {
+                RecompositionProfiler.recordScrollContext(
+                    listId = "staggered_${identityHashCode(this)}",
+                    from = oldFirstVisible,
+                    to = newFirstVisible,
+                    visibleItemCount = result.visibleItemsInfo.size
+                )
+            }
         }
         canScrollBackward = result.canScrollBackward
         canScrollForward = result.canScrollForward
@@ -625,17 +640,33 @@ class LazyStaggeredGridState internal constructor(
 
     companion object {
         /**
-         * The default implementation of [Saver] for [LazyStaggeredGridState]
+         * The default implementation of [Saver] for [LazyStaggeredGridState].
+         * Saves bridge-layer state (composeOffset, currentContentSize, contentOffset, offsetDirty)
+         * in addition to scroll position, to support ScrollerView reuse in nested scenarios.
          */
         val Saver = listSaver<LazyStaggeredGridState, IntArray>(
             save = { state ->
                 listOf(
                     state.scrollPosition.indices,
-                    state.scrollPosition.scrollOffsets
+                    state.scrollPosition.scrollOffsets,
+                    intArrayOf(
+                        state.kuiklyInfo.composeOffset.toInt(),
+                        state.kuiklyInfo.currentContentSize,
+                        state.kuiklyInfo.contentOffset,
+                        if (state.kuiklyInfo.offsetDirty) 1 else 0,
+                    )
                 )
             },
             restore = {
-                LazyStaggeredGridState(it[0], it[1])
+                LazyStaggeredGridState(it[0], it[1]).also { state ->
+                    if (it.size > 2) {
+                        val bridge = it[2]
+                        state.kuiklyInfo.composeOffset = bridge[0].toFloat()
+                        state.kuiklyInfo.currentContentSize = bridge[1]
+                        state.kuiklyInfo.contentOffset = bridge[2]
+                        state.kuiklyInfo.offsetDirty = bridge[3] == 1
+                    }
+                }
             }
         )
     }

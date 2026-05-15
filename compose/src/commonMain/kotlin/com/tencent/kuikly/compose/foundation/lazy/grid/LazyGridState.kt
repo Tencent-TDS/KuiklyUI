@@ -50,8 +50,11 @@ import com.tencent.kuikly.compose.ui.layout.RemeasurementModifier
 import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.util.fastForEach
+import com.tencent.kuikly.compose.scroller.calculateContentSize
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.tryExpandStartSizeNoScroll
+import com.tencent.kuikly.compose.profiler.RecompositionProfiler
+import com.tencent.kuikly.compose.material3.internal.identityHashCode
 import com.tencent.kuikly.core.collection.fastMutableMapOf
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.math.abs
@@ -532,6 +535,8 @@ class LazyGridState @ExperimentalFoundationApi constructor(
         canScrollBackward = result.canScrollBackward
         canScrollForward = result.canScrollForward
 
+        // Hook: record scroll context event for Recomposition Profiler
+        val oldFirstVisible = scrollPosition.index
         if (visibleItemsStayedTheSame) {
             scrollPosition.updateScrollOffset(result.firstVisibleLineScrollOffset)
         } else {
@@ -540,6 +545,25 @@ class LazyGridState @ExperimentalFoundationApi constructor(
 //                with(prefetchStrategy) {
 //                    prefetchScope.onVisibleItemsUpdated(result)
 //                }
+            }
+        }
+        if (RecompositionProfiler.isEnabled) {
+            val newFirstVisible = result.firstVisibleLine?.items?.firstOrNull()?.index ?: scrollPosition.index
+            if (newFirstVisible != oldFirstVisible) {
+                RecompositionProfiler.recordScrollContext(
+                    listId = "grid_${identityHashCode(this)}",
+                    from = oldFirstVisible,
+                    to = newFirstVisible,
+                    visibleItemCount = result.visibleItemsInfo.size
+                )
+            }
+        }
+
+        kuiklyInfo.run {
+            val requiredContentSize = calculateContentSize()
+            if (currentContentSize < requiredContentSize) {
+                currentContentSize = requiredContentSize
+                updateContentSizeToRender()
             }
         }
 
@@ -559,14 +583,33 @@ class LazyGridState @ExperimentalFoundationApi constructor(
     companion object {
         /**
          * The default [Saver] implementation for [LazyGridState].
+         * Saves bridge-layer state (composeOffset, currentContentSize, contentOffset, offsetDirty)
+         * in addition to Compose-layer state, to support ScrollerView reuse in nested LazyGrid scenarios.
          */
         val Saver: Saver<LazyGridState, *> = listSaver(
-            save = { listOf(it.firstVisibleItemIndex, it.firstVisibleItemScrollOffset) },
+            save = {
+                val saved = listOf(
+                    it.firstVisibleItemIndex,           // [0]
+                    it.firstVisibleItemScrollOffset,    // [1]
+                    it.kuiklyInfo.composeOffset.toInt(),// [2] bridge: Compose scroll offset
+                    it.kuiklyInfo.currentContentSize,   // [3] bridge: virtual content size
+                    it.kuiklyInfo.contentOffset,        // [4] bridge: native scrollView offset
+                    if (it.kuiklyInfo.offsetDirty) 1 else 0, // [5] bridge: offset dirty flag
+                )
+                saved
+            },
             restore = {
                 LazyGridState(
                     firstVisibleItemIndex = it[0],
                     firstVisibleItemScrollOffset = it[1]
-                )
+                ).also { state ->
+                    if (it.size > 2) { // backward compatibility with old saved data
+                        state.kuiklyInfo.composeOffset = it[2].toFloat()
+                        state.kuiklyInfo.currentContentSize = it[3]
+                        state.kuiklyInfo.contentOffset = it[4]
+                        state.kuiklyInfo.offsetDirty = it[5] == 1
+                    }
+                }
             }
         )
 

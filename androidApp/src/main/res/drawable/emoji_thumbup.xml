@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- thumb -->
+    <path android:fillColor="#FFD700" android:pathData="M4,7c0,-1.1 0.9,-2 2,-2h1v10H6c-1.1,0 -2,-0.9 -2,-2V7z"/>
+    <!-- hand -->
+    <path android:fillColor="#FFD700" android:pathData="M20,7c0,-1.1 -0.9,-2 -2,-2h-5.5c-0.83,0 -1.5,0.67 -1.5,1.5v4c0,0.83 0.67,1.5 1.5,1.5H14l-1.5,1.5V14c0,1.1 0.9,2 2,2h3.5c0.83,0 1.5,-0.67 1.5,-1.5V9C20,7.9 19.1,7 18,7z"/>
+</vector>

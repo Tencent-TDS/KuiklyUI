@@ -106,6 +106,8 @@ export const zhSidebar = sidebar({
                         },
                         "view-external-prop.md",
                         "text-measure.md",
+                        "text-post-processor-guide.md",
+                        "get-component-size-and-position.md",
                         "protobuf.md",
                         "thread-and-coroutines.md",
                         "multi-page.md"]
@@ -119,7 +121,7 @@ export const zhSidebar = sidebar({
                                 {
                                     text: "开发方式与集成",
                                     collapsible: true,
-                                    children : ["dev-overview.md", "android-dev.md", "ios-dev.md", "harmony-dev.md", "h5-dev.md", "miniapp-dev.md"]
+                                    children : ["dev-overview.md", "android-dev.md", "ios-dev.md", "harmony-dev.md", "h5-dev.md", "miniapp-dev.md", "miniapp-wx-components.md"]
                                 },
                                 {
                                     text: "调试与工具",
@@ -128,7 +130,9 @@ export const zhSidebar = sidebar({
                                 },
                             ]
                         },
-                        "multi_module.md"
+                        "multi_module.md",
+                        "version_skills.md",
+                        "compile_skills.md"
                     ]
                 },
 
@@ -158,7 +162,7 @@ export const zhSidebar = sidebar({
                     text: "Web教程",
                     collapsible: false,
                     children: [
-                        "web-import-jssdk.md", "h5-image-path.md", "h5-spa-demo.md"
+                        "web-import-jssdk.md", "h5-image-path.md", "h5-spa-demo.md", "h5-custom-font.md", "h5-css-class.md"
                     ]
                 }
             ],
@@ -261,6 +265,7 @@ export const zhSidebar = sidebar({
     ],
     "/AI/": false,
     "/Blog": [
+        "roadmap2026.md",
         "roadmap2025.md",
         {
             text: "架构原理",

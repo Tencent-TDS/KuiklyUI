@@ -164,3 +164,7 @@ kuikly.biz.dir=xxxx // xxxx替换成本地Kuikly业务工程的路径
 6. sync工程, 然后就可以在Project窗口看到引入的Kuikly业务工程的模块，你可以在宿主工程中修改该模块的代码，开发需求
 
 ![](./img/kuikly_aar_local_dev.png)
+
+## 适配器配置
+
+Kuikly Android 提供了一系列适配器（Adapter）接口，允许宿主应用自定义字体加载、图片加载、颜色解析等行为。详见 [Android 工程接入 - 适配器配置](../QuickStart/android.md#实现kuikly适配器必须实现部分)。

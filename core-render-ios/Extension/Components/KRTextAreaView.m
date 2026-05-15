@@ -90,6 +90,8 @@ NSString *const KRFontWeightKey = @"fontWeight";
 /** placeholderTextView property */
 @property (nullable, nonatomic, strong) UITextView *placeholderTextView;
 
+- (BOOL)p_shouldReapplyTextPostProcessorForIncomingRawText:(NSString *)rawText;
+
 @end
 
 @implementation KRTextAreaView {
@@ -148,6 +150,13 @@ NSString *const KRFontWeightKey = @"fontWeight";
         _props[propKey] = propValue;
     }
     KUIKLY_SET_CSS_COMMON_PROP;
+    // textInputState may arrive before textPostProcessor; re-run when attachments were lost but raw is unchanged.
+    if ([propKey isEqualToString:@"textPostProcessor"] && self.attributedText.length > 0) {
+        NSString *rawText = [self p_outputText];
+        if ([self p_shouldReapplyTextPostProcessorForIncomingRawText:rawText]) {
+            [self p_applyTextPostProcessorIfNeed];
+        }
+    }
 }
 
 - (void)hrv_callWithMethod:(NSString *)method params:(NSString *)params callback:(KuiklyRenderCallback)callback {
@@ -343,7 +352,9 @@ NSString *const KRFontWeightKey = @"fontWeight";
     }
     _ignoreTextDidChanged = YES;
     NSString *currentRawText = [self p_outputText];
-    if (![currentRawText isEqualToString:rawText]) {
+    BOOL textChanged = ![currentRawText isEqualToString:rawText];
+    BOOL needsPostProcessor = textChanged || [self p_shouldReapplyTextPostProcessorForIncomingRawText:rawText];
+    if (textChanged) {
         NSMutableAttributedString *rawAttr = [[NSMutableAttributedString alloc] initWithString:rawText];
         UIFont *font = self.font ?: self.typingAttributes[NSFontAttributeName];
         if (font) {
@@ -354,8 +365,12 @@ NSString *const KRFontWeightKey = @"fontWeight";
             [rawAttr addAttribute:NSForegroundColorAttributeName value:textColor range:NSMakeRange(0, rawAttr.length)];
         }
         self.attributedText = rawAttr;
-        [self p_applyTextPostProcessorIfNeed];
         [self p_updatePlaceholder];
+    }
+    if (needsPostProcessor) {
+        [self p_applyTextPostProcessorIfNeed];
+    }
+    if (textChanged || needsPostProcessor) {
         NSUInteger inputCursorStart = [self p_getInputCursorIndexWithIndex:selectionStart];
         NSUInteger inputCursorEnd = [self p_getInputCursorIndexWithIndex:selectionEnd];
         NSRange selectedRange = NSMakeRange(inputCursorStart, inputCursorEnd - inputCursorStart);
@@ -1065,8 +1080,25 @@ NSString *const KRFontWeightKey = @"fontWeight";
     return location - offset;
 }
 
+/// Re-apply when textPostProcessor is set but the view still shows literal raw (attachments not applied).
+- (BOOL)p_shouldReapplyTextPostProcessorForIncomingRawText:(NSString *)rawText {
+    if (rawText.length == 0) {
+        return NO;
+    }
+    NSString *processor = _props[@"textPostProcessor"];
+    if (![processor isKindOfClass:[NSString class]] || processor.length == 0) {
+        return NO;
+    }
+    NSString *displayedText = self.attributedText.string ?: @"";
+    return [displayedText isEqualToString:rawText];
+}
+
 - (void)p_applyTextPostProcessorIfNeed {
     if (![[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_customTextWithAttributedString:textPostProcessor:)]) {
+        return;
+    }
+    NSString *processor = _props[@"textPostProcessor"];
+    if (![processor isKindOfClass:[NSString class]] || processor.length == 0) {
         return;
     }
     NSAttributedString *currentAttr = self.attributedText;
@@ -1078,7 +1110,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
         [currentAttr attribute:NSFontAttributeName atIndex:0 effectiveRange:&fontRange];
     }
     
-    NSAttributedString *processedAttr = [[KuiklyRenderBridge componentExpandHandler] hr_customTextWithAttributedString:currentAttr textPostProcessor:_props[@"textPostProcessor"] ?: NSStringFromClass([self class])];
+    NSAttributedString *processedAttr = [[KuiklyRenderBridge componentExpandHandler] hr_customTextWithAttributedString:currentAttr textPostProcessor:processor];
     if (!processedAttr) {
         return;
     }

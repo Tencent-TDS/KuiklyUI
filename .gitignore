@@ -51,3 +51,4 @@ proto/**/*.kt
 ## Profiler / tool logs
 /logs/
 /iosApp/logs/
+/.claude-internal

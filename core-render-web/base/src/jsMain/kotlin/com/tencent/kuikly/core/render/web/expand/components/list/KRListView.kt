@@ -5,7 +5,6 @@ import com.tencent.kuikly.core.render.web.const.KRCssConst
 import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.web.ktx.toPxF
 import com.tencent.kuikly.core.render.web.processor.KuiklyProcessor
-import org.w3c.dom.Element
 import org.w3c.dom.HTMLElement
 
 /**
@@ -43,6 +42,17 @@ class KRListView : IKuiklyRenderViewExport {
                 // to view the rest. In Android,
                 // this effect may need to use scroll containers like ScrollView or RecyclerView, while clipChildren
                 // property still needs to be set to true.
+                true
+            }
+
+            CLICK -> {
+                listEle.clickEventCallback = propValue.unsafeCast<KuiklyRenderCallback>()
+                true
+            }
+
+            DOUBLE_CLICK -> {
+                ele.asDynamic().hasDoubleClickListener = true
+                listEle.doubleClickEventCallback = propValue.unsafeCast<KuiklyRenderCallback>()
                 true
             }
 
@@ -160,5 +170,7 @@ class KRListView : IKuiklyRenderViewExport {
         private const val DRAG_END = "dragEnd"
         private const val SCROLL = "scroll"
         private const val SCROLL_END = "scrollEnd"
+        private const val CLICK = "click"
+        private const val DOUBLE_CLICK = "doubleClick"
     }
 }

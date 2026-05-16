@@ -13,6 +13,7 @@ import com.tencent.kuikly.core.render.web.export.IKuiklyRenderShadowExport
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.web.ktx.Frame
 import com.tencent.kuikly.core.render.web.const.KRCssConst
+import com.tencent.kuikly.core.render.web.const.KRExtraConst
 import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.web.ktx.SizeF
 import org.w3c.dom.Element
@@ -48,8 +49,8 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
     /**
      * Create rendering View
      */
-    override fun createRenderView(tag: Int, viewName: String) {
-        createRenderViewHandler(tag, viewName)
+    override fun createRenderView(tag: Int, viewName: String, instanceId: String) {
+        createRenderViewHandler(tag, viewName, instanceId)
     }
 
     /**
@@ -334,7 +335,7 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
     /**
      * Create renderView handler logic
      */
-    private fun createRenderViewHandler(tag: Int, viewName: String) {
+    private fun createRenderViewHandler(tag: Int, viewName: String, instanceId: String) {
         // Return directly if rootView not initialized
         val renderView: IKuiklyRenderView = this.renderView ?: return
 
@@ -366,8 +367,11 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
         }
         // Set id for all elements to facilitate problem investigation
         if (renderViewHandler.viewExport.ele.id == "") {
-            renderViewHandler.viewExport.ele.id = tag.toString()
+            // If element id is empty, set id to instanceId_tag, e.g. 1_1, unique for different instance
+            renderViewHandler.viewExport.ele.id = "${instanceId}_${tag}"
         }
+        // Set data-kuikly-component attribute for component identification
+        renderViewHandler.viewExport.ele.setAttribute(KRExtraConst.COMPONENT_IDENTIFIER_KEY, viewName)
         // Save render context
         renderViewHandler.viewExport.kuiklyRenderContext = renderView.kuiklyRenderContext
         // After successful creation, cache created renderView handler internally

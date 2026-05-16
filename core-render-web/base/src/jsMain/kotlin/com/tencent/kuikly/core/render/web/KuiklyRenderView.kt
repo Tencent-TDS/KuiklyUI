@@ -7,6 +7,7 @@ import com.tencent.kuikly.core.render.web.collection.map.JsMap
 import com.tencent.kuikly.core.render.web.collection.map.get
 import com.tencent.kuikly.core.render.web.collection.map.remove
 import com.tencent.kuikly.core.render.web.collection.map.set
+import com.tencent.kuikly.core.render.web.const.KRExtraConst
 import com.tencent.kuikly.core.render.web.context.KuiklyRenderCoreExecuteMode
 import com.tencent.kuikly.core.render.web.core.IKuiklyRenderContextInitCallback
 import com.tencent.kuikly.core.render.web.core.IKuiklyRenderCore
@@ -247,6 +248,8 @@ class KuiklyRenderView(
             put(ACTIVITY_HEIGHT, params[ACTIVITY_HEIGHT] ?: 0)
             put(SAFE_AREA_INSETS, "$statusBarHeight 0 0 0")
             put(APP_VERSION, kuiklyWindow.navigator.appVersion)
+            //  Native build >= 2 will use modalView instead of view when isWindow is true
+            put(NATIVE_BUILD, params[NATIVE_BUILD] ?: 0)
 
             // Page parameters
             put(PARAMS, params[PARAMS] ?: mutableMapOf<String, Any>())
@@ -288,6 +291,8 @@ class KuiklyRenderView(
                     }
                 }
             )
+            // set container element id
+            setContainerElementId(getInstanceId())
         }
         dispatchLifecycleStateChanged(STATE_INIT_CORE_FINISH)
     }
@@ -387,6 +392,14 @@ class KuiklyRenderView(
                 }
             }
         }
+    }
+
+    /**
+     * Set container element ID with prefix
+     */
+    private fun setContainerElementId(containerElementId: String) {
+        // Add prefix,eg "kuikly_web_container_0"
+        this._container.id = "${KRExtraConst.WEB_CONTAINER_PREFIX}${containerElementId}"
     }
 
     companion object {

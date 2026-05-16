@@ -3,6 +3,7 @@ package com.tencent.kuikly.core.render.web.core
 import com.tencent.kuikly.core.render.web.IKuiklyRenderView
 import com.tencent.kuikly.core.render.web.collection.array.JsArray
 import com.tencent.kuikly.core.render.web.collection.array.fifthArg
+import com.tencent.kuikly.core.render.web.collection.array.firstArg
 import com.tencent.kuikly.core.render.web.collection.array.fourthArg
 import com.tencent.kuikly.core.render.web.collection.array.get
 import com.tencent.kuikly.core.render.web.collection.array.secondArg
@@ -134,6 +135,13 @@ class KuiklyRenderCore : IKuiklyRenderCore {
     override fun getView(tag: Int): Element? = renderLayerHandler?.getView(tag)
 
     /**
+     * Get instance id
+     */
+    override fun getInstanceId(): String {
+        return instanceId
+    }
+
+    /**
      * Put event into context queue for execution
      */
     private fun performOnContextQueue(delayMs: Float = 0f, task: () -> Unit) {
@@ -234,7 +242,8 @@ class KuiklyRenderCore : IKuiklyRenderCore {
     private fun createRenderView(method: KuiklyRenderNativeMethod, args: JsArray<Any?>): Any? {
         return renderLayerHandler?.createRenderView(
             args.secondArg().unsafeCast<Int>(),
-            args.thirdArg().unsafeCast<String>()
+            args.thirdArg().unsafeCast<String>(),
+            args.firstArg().unsafeCast<String>()
         )
     }
 

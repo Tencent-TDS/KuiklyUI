@@ -16,15 +16,15 @@
 npm run serve
 // 构建 demo 项目 Debug 版产物(无混淆压缩)
 // H5需要用远程ksp源，KuiklyUI仓库加上 -Pkuikly.useLocalKsp=false 参数
-./gradlew :demo:packLocalJsBundleDebug -Pkuikly.useLocalKsp=false
+./gradlew :demo:packLocalJsBundleDebug "-Pkuikly.useLocalKsp=false"
 // 或 Release 版产物(有混淆和压缩)
-./gradlew :demo:packLocalJsBundleRelease -Pkuikly.useLocalKsp=false
+./gradlew :demo:packLocalJsBundleRelease "-Pkuikly.useLocalKsp=false"
 ```
 
 然后构建 h5App 项目（持续构建可以加上 -t 参数）
 ```shell
 // 运行 h5App 服务器 Debug 版, 部分demo需要配合运行./gradlew :h5App:copyAssetsToWebpackDevServer复制静态资源到对应开发目录
-./gradlew :h5App:jsBrowserRun 或者 ./gradlew :h5App:jsBrowserDevelopmentRun'
+./gradlew :h5App:jsBrowserRun 或者 ./gradlew :h5App:jsBrowserDevelopmentRun
 // 或 Release 版
 ./gradlew :h5App:jsBrowserProductionRun
 ```
@@ -66,7 +66,7 @@ npm run serve
 # 构建业务 h5App 和 JSBundle
 # 首先构建业务 Bundle
 # H5需要用远程ksp源，KuiklyUI仓库加上 -Pkuikly.useLocalKsp=false 参数
-./gradlew :demo:packLocalJSBundleRelease -Pkuikly.useLocalKsp=false
+./gradlew :demo:packLocalJSBundleRelease "-Pkuikly.useLocalKsp=false"
 # 然后构建宿主 APP
 ./gradlew :h5App:publishLocalJSBundle
 ```

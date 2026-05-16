@@ -20,7 +20,7 @@ interface IKuiklyRenderLayerHandler {
     /**
      * Create rendering View
      */
-    fun createRenderView(tag: Int, viewName: String)
+    fun createRenderView(tag: Int, viewName: String, instanceId: String)
 
     /**
      * Remove rendering View

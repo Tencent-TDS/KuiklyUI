@@ -4,7 +4,9 @@ import com.tencent.kuikly.core.render.web.processor.IEvent
 import com.tencent.kuikly.core.render.web.processor.IEventProcessor
 import com.tencent.kuikly.core.render.web.processor.state
 import com.tencent.kuikly.core.render.web.runtime.miniapp.event.MiniEvent
+import org.w3c.dom.Element
 import org.w3c.dom.HTMLElement
+import org.w3c.dom.events.Event
 import kotlin.math.abs
 
 // 为 MiniEvent 增加 state 属性, 用于记录longpress/pan事件状态
@@ -177,5 +179,9 @@ object EventProcessor : IEventProcessor {
         PanHandler(element = ele.unsafeCast<HTMLElement>(), onPan = { event ->
             handleEventCallback(event.unsafeCast<MiniEvent>(), callback)
         })
+    }
+
+    override fun dispatchMouseEvent(type: String, event: Event, ele: Element?) {
+       // TODO("Not yet implemented")
     }
 }

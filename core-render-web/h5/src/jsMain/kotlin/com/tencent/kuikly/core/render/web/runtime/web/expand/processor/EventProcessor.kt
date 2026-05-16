@@ -19,6 +19,9 @@ import kotlin.js.Date
 import kotlin.math.abs
 import com.tencent.kuikly.core.render.web.processor.state
 import com.tencent.kuikly.core.render.web.runtime.web.expand.components.list.isTouchEventOrNull
+import org.w3c.dom.CustomEvent
+import org.w3c.dom.CustomEventInit
+import org.w3c.dom.Element
 
 
 /**
@@ -217,7 +220,6 @@ class TouchEventHandlers {
             element.addEventListener("touchend", { event ->
                 if (isLongPressing) {
                     event.state = EVENT_STATE_END
-                    onLongPress(event)
                 }
                 cancelTimer()
             })
@@ -227,7 +229,6 @@ class TouchEventHandlers {
             element.addEventListener("touchcancel", { event ->
                 if (isLongPressing) {
                     event.state = EVENT_STATE_END
-                    onLongPress(event)
                 }
                 cancelTimer()
             })
@@ -250,7 +251,6 @@ class TouchEventHandlers {
                 if (!isMouseDown) return@addEventListener
                 val moveX = event.clientX
                 val moveY = event.clientY
-
                 // If movement exceeds tolerance, cancel long press
                 if ((abs(moveX - startX) > moveTolerance ||
                             abs(moveY - startY) > moveTolerance) && !isLongPressing) {
@@ -267,7 +267,6 @@ class TouchEventHandlers {
             element.addEventListener("mouseup", { event ->
                 if (isLongPressing) {
                     event.state = EVENT_STATE_END
-                    onLongPress(event)
                     // Marks the current element as having triggered a pan or long-press event
                     element.asDynamic().panOrLongPressTriggered = true
                 }
@@ -565,5 +564,19 @@ object EventProcessor : IEventProcessor {
             element = ele.unsafeCast<HTMLElement>(), onPan = { event ->
                 handleEventCallback(event, callback)
             })
+    }
+
+    override fun dispatchMouseEvent(type:String, event: Event, ele: Element?) {
+        val customEvent = CustomEvent(type, CustomEventInit(
+            bubbles = false,
+            cancelable = true,
+            detail = event
+        )
+        )
+        if (ele != null) {
+            ele.dispatchEvent(customEvent)
+        } else {
+            kuiklyWindow.dispatchEvent(customEvent)
+        }
     }
 }

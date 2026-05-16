@@ -1,7 +1,6 @@
 package com.tencent.kuikly.core.render.web.runtime.web.expand.components.list
 
 import com.tencent.kuikly.core.render.web.collection.array.JsArray
-import com.tencent.kuikly.core.render.web.collection.array.add
 import com.tencent.kuikly.core.render.web.collection.array.clear
 import com.tencent.kuikly.core.render.web.collection.array.get
 import com.tencent.kuikly.core.render.web.collection.array.isEmpty
@@ -11,9 +10,11 @@ import com.tencent.kuikly.core.render.web.collection.map.set
 import com.tencent.kuikly.core.render.web.const.KREventConst
 import com.tencent.kuikly.core.render.web.const.KRListConst
 import com.tencent.kuikly.core.render.web.expand.components.toPanEventParams
+import com.tencent.kuikly.core.render.web.ktx.GlobalState
 import com.tencent.kuikly.core.render.web.ktx.kuiklyDocument
 import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
 import com.tencent.kuikly.core.render.web.runtime.dom.element.IListElement
+import org.w3c.dom.CustomEvent
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.TouchEvent
 import org.w3c.dom.events.Event
@@ -96,27 +97,55 @@ object PCListScrollHandler {
 
     init {
         kuiklyWindow.addEventListener(KREventConst.MOUSE_DOWN, {
-            lastX = it.getEventParams()[EVENT_X_KEY].unsafeCast<Float>()
-            lastY = it.getEventParams()[EVENT_Y_KEY].unsafeCast<Float>()
+            val mouseEvent = if (it is CustomEvent) {
+                // 从派发事件的 detail 中提取原始 MouseEvent
+                it.detail.unsafeCast<MouseEvent>()
+            } else {
+                it.unsafeCast<MouseEvent>()
+            }
+            lastX = mouseEvent.getEventParams()[EVENT_X_KEY].unsafeCast<Float>()
+            lastY = mouseEvent.getEventParams()[EVENT_Y_KEY].unsafeCast<Float>()
             isScrolling = ScrollingAxis.NONE
+            // reset has scrolled flag
+            GlobalState.hasScrolled = false
         })
 
         kuiklyWindow.addEventListener(KREventConst.MOUSE_MOVE, {
             if (scrollEleIds.isEmpty()) return@addEventListener
-            detectScrollDirection(it as MouseEvent)
+            val mouseEvent = if (it is CustomEvent) {
+                // 从派发事件的 detail 中提取原始 MouseEvent
+                it.detail.unsafeCast<MouseEvent>()
+            } else {
+                it.unsafeCast<MouseEvent>()
+            }
+
+            detectScrollDirection(mouseEvent)
             // Trigger the mouseMove event handler of listViews
-            handleListViewsScroll(it)
+            handleListViewsScroll(mouseEvent)
+
+            // Scroll flag to prevent click events from being triggered.
+            if (!GlobalState.hasScrolled){
+                GlobalState.hasScrolled = true
+            }
         })
 
         kuiklyWindow.addEventListener(KREventConst.MOUSE_UP, {
             // Prevent only clicking occurs, causing isMouseDown to not be reset to false
             filterScrollElementIds()
             if (scrollEleIds.isEmpty()) return@addEventListener
+
+            val mouseEvent = if (it is CustomEvent) {
+                // 从派发事件的 detail 中提取原始 MouseEvent
+                it.detail.unsafeCast<MouseEvent>()
+            } else {
+                it.unsafeCast<MouseEvent>()
+            }
+
             // Trigger the mouseup event handler of ListViews
             scrollEleIds.forEach { id ->
                 val ele = kuiklyDocument.getElementById(id)
                 val listView: H5ListView = ele.asDynamic().listView.unsafeCast<H5ListView>()
-                listView.pcScrollHelper.onMouseUpEvent(it as MouseEvent)
+                listView.pcScrollHelper.onMouseUpEvent(mouseEvent)
             }
             // reset
             mouseDownEleIds.clear()

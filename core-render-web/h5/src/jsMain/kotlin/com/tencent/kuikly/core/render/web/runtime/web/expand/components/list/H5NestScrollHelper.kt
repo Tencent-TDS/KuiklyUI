@@ -432,4 +432,3 @@ class H5NestScrollHelper(private val ele: HTMLElement, private var listElement: 
         private const val PASSIVE_KEY = "passive"
     }
 }
-

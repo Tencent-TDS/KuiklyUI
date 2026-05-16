@@ -2,8 +2,8 @@ package com.tencent.kuikly.core.render.web.expand.module
 
 import com.tencent.kuikly.core.render.web.export.KuiklyRenderBaseModule
 import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
+import com.tencent.kuikly.core.render.web.ktx.kuiklyWindow
 import com.tencent.kuikly.core.render.web.nvi.serialization.json.JSONObject
-import kotlinx.browser.window
 import org.w3c.dom.events.Event
 
 /**
@@ -15,7 +15,8 @@ private data class KRCallbackWrapper(
 )
 
 /**
- * Event notification module, web event notification does not support different pages, notifications between different pages need to use higher-level host capabilities
+ * Event notification module, web event notification does not support different pages,
+ * notifications between different pages need to use higher-level host capabilities
  */
 open class KRNotifyModule : KuiklyRenderBaseModule() {
     // Notification event Map, cache registered event callbacks
@@ -102,7 +103,7 @@ open class KRNotifyModule : KuiklyRenderBaseModule() {
         // Execute callbacks if event name exists
         if (eventName != "") {
             // 1. Notify other Kuikly pages (existing logic)
-            dispatchEvent(eventName, data)
+            dispatchGlobalEvent(eventName, data)
             // 2. Notify Web host (new feature - like iOS/Android/Ohos)
             dispatchToHost(eventName, data)
         }
@@ -116,7 +117,7 @@ open class KRNotifyModule : KuiklyRenderBaseModule() {
         val detail = js("{ eventName: eventName, data: data }")
         val eventInit = js("{ detail: detail, bubbles: true, cancelable: true }")
         val customEvent = js("new CustomEvent('kuikly_notify', eventInit)")
-        window.dispatchEvent(customEvent.unsafeCast<Event>())
+        kuiklyWindow.dispatchEvent(customEvent.unsafeCast<Event>())
     }
 
     /**
@@ -159,9 +160,9 @@ open class KRNotifyModule : KuiklyRenderBaseModule() {
         private val moduleInstances = mutableSetOf<KRNotifyModule>()
 
         // dispatch global event to all KRNotifyModule instances
-        fun dispatchGlobalEvent(eventName: String, data: JSONObject) {
+        fun dispatchGlobalEvent(eventName: String, data: String) {
             moduleInstances.forEach { module ->
-                module.dispatchEvent(eventName, data.toString())
+                module.dispatchEvent(eventName, data)
             }
         }
     }

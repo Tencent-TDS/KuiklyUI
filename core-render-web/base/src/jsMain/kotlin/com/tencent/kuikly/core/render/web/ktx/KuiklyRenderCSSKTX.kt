@@ -4,13 +4,9 @@ import com.tencent.kuikly.core.render.web.const.KRAnimationConst
 import com.tencent.kuikly.core.render.web.const.KRAttrConst
 import com.tencent.kuikly.core.render.web.const.KRCssConst
 import com.tencent.kuikly.core.render.web.const.KREventConst
-import com.tencent.kuikly.core.render.web.const.KRExtConst
 import com.tencent.kuikly.core.render.web.const.KRJsTypeConst
-import com.tencent.kuikly.core.render.web.const.KRParamConst
-import com.tencent.kuikly.core.render.web.const.KRPlaceholderConst
 import com.tencent.kuikly.core.render.web.const.KRStyleConst
 import com.tencent.kuikly.core.render.web.const.KRTagConst
-import com.tencent.kuikly.core.render.web.const.KRViewConst
 import com.tencent.kuikly.core.render.web.css.animation.KRCSSAnimation
 import com.tencent.kuikly.core.render.web.processor.IAnimation
 import com.tencent.kuikly.core.render.web.processor.IEvent
@@ -847,7 +843,12 @@ private val propHandlers = mapOf<String, (CSSStyleDeclaration, Any, HTMLElement)
     KRCssConst.STROKE_WIDTH to { cssStyle, value, _ ->
         val usedWidth = value.asDynamic() / 4
         val dynamicCssStyle = cssStyle.asDynamic()
-        dynamicCssStyle.webkitTextStroke = "${usedWidth}px ${dynamicCssStyle.webkitTextStroke}"
+        val strokeColor = if (dynamicCssStyle.webkitTextStroke.indexOf("rgb") != -1) {
+            dynamicCssStyle.webkitTextStroke
+        } else {
+            dynamicCssStyle.webkitTextStroke.unsafeCast<String>().toRgbColor()
+        }
+        dynamicCssStyle.webkitTextStroke = "${usedWidth}px $strokeColor"
         true
     },
     KRCssConst.STROKE_COLOR to { cssStyle, value, _ ->
@@ -895,7 +896,9 @@ private val propHandlers = mapOf<String, (CSSStyleDeclaration, Any, HTMLElement)
         ele.addEventListener("click", { event ->
             // If a pan or long-press has been triggered, ignore the click.
             val panOrLongPressTriggered = ele.asDynamic().panOrLongPressTriggered == true
-            if (panOrLongPressTriggered) {
+            // If a scroll has been triggered, ignore the click.
+            val hasScrolled = GlobalState.hasScrolled
+            if (panOrLongPressTriggered || hasScrolled) {
                 return@addEventListener
             }
 
@@ -1038,6 +1041,13 @@ private val propHandlers = mapOf<String, (CSSStyleDeclaration, Any, HTMLElement)
         ele.setAttribute("aria-label", value.unsafeCast<String>())
         true
     },
+    KRCssConst.ACCESSIBILITY_ROLE to { _, value, ele ->
+        // Set accessibility role
+        ele.setAttribute("aria-roledescription", value.unsafeCast<String>())
+        // Set cursor
+        ele.style.cursor = "pointer"
+        true
+    }
 )
 
 /**

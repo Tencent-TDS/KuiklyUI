@@ -30,29 +30,10 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
 
 
 + (UIFont *)UIFont:(id)json {
+    // 确认必要的字体属性 fontFamily、fontSize、fontWeight
     NSString *fontFamily = json[@"fontFamily"];
     CGFloat fontSize = [self CGFloat:json[@"fontSize"]] ?: 15;
     KuiklyContextParam* contextParam = json[@"contextParam"];
-    
-    if (fontFamily && fontFamily.length) {
-        UIFont* font = [UIFont fontWithName:fontFamily size:fontSize];      // 判断字体是否已经在info.plist中注册
-        if (font) {
-            return font;
-        }
-        
-        // 未静态注册，则调用业务方hr_loadCustomFont
-        if (contextParam && [KRFontModule hr_loadCustomFont:fontFamily contextParams:contextParam]) {
-            UIFont* font = [UIFont fontWithName:fontFamily size:fontSize];      // 以上下文参数ContextParam作为路径来源，动态加载字体
-            if (font) {
-                return font;
-            }
-        } else {
-            // 动态加载字体失败，返回系统默认字体
-            return [UIFont systemFontOfSize:fontSize];
-        }
-    }
-    
-    // 执行默认字体加载，所覆盖的场景有：fontFamily为nil或者为空、ContextParam为nil、业务方字体加载失败
     static dispatch_once_t onceToken;
     static NSDictionary *gFontWeightMap = nil;
     dispatch_once(&onceToken, ^{
@@ -72,8 +53,35 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
     });
     UIFontWeight fontWeight = [(gFontWeightMap[json[@"fontWeight"]?:@""] ?: @(UIFontWeightRegular)) doubleValue];
     
-    if (fontFamily.length) {
-        UIFont *font = nil;
+    
+    if (fontFamily && fontFamily.length) {
+        // 情形 1: 字体静态注册
+        UIFont* font = [UIFont fontWithName:fontFamily size:fontSize];      // 判断字体是否已经在info.plist中注册
+        if (font) {
+            return font;
+        }
+        
+        // 情形 2: 业务直接返回fontFamily对应的字体
+        // 和Android 和 鸿蒙 对齐，fontFamily 和 字体实际的名称不对齐时需要用这种方式来实现字体加载
+        UIFont *adapterFont = [KRFontModule hr_fontWithFontFamily:fontFamily
+                                                         fontSize:fontSize
+                                                       fontWeight:fontWeight
+                                                    contextParams:contextParam];
+        if (adapterFont) {
+            return adapterFont;
+        }
+        
+        
+        // 情形 3: 业务方通过 hr_loadCustomFont 向框架动态注入字体，Kuikly再主动获取
+        if (contextParam && [KRFontModule hr_loadCustomFont:fontFamily contextParams:contextParam]) {
+            UIFont* font = [UIFont fontWithName:fontFamily size:fontSize];      // 以上下文参数ContextParam作为路径来源，动态加载字体
+            if (font) {
+                return font;
+            }
+        }
+        
+        // 情形 4: 走 componentExpandHandler 的旧兼容逻辑
+        font = nil;
         if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_fontWithFontFamily:fontSize:fontWeight:)]) {
             font = [[KuiklyRenderBridge componentExpandHandler] hr_fontWithFontFamily:fontFamily fontSize:fontSize fontWeight:fontWeight];
         }
@@ -88,6 +96,7 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
         }
     }
     
+    // 情形 5: fontFamily 为空或以上全部失败，走默认系统字体
     if (json[@"fontStyle"] && [@"italic" isEqualToString:json[@"fontStyle"]]) {
         return [self italicFontWithSize:fontSize bold:fontWeight >=UIFontWeightBold itatic:YES weight:fontWeight];
     }

@@ -34,6 +34,9 @@ import com.tencent.kuikly.demo.pages.demo.base.TabbarIOSItem
 import com.tencent.kuikly.demo.pages.app.home.AppHomePage
 import com.tencent.kuikly.demo.pages.app.lang.MultiLingualPager
 import com.tencent.kuikly.demo.pages.app.theme.ThemeManager
+import com.tencent.kuikly.demo.pages.video.PageListVideo
+import com.tencent.kuikly.demo.pages.video.PageListVideoView
+import com.tencent.kuikly.demo.pages.view.KuiklyPage
 
 @Page("AppTabPage")
 internal class AppTabPage : MultiLingualPager() {
@@ -214,7 +217,14 @@ internal class AppTabPage : MultiLingualPager() {
                     keepItemAlive(true)
                 }
                 AppHomePage { }
-                for (i in 1 until ctx.pageTitles.size) {
+
+                PageListVideoView {
+                    attr {
+                        customHeight = pagerData.pageViewHeight - pagerData.statusBarHeight - tabBottomHeight
+                    }
+                }
+                
+                for (i in 2 until ctx.pageTitles.size) {
                     AppEmptyPage {
                         attr {
                             title = ctx.pageTitles[i]

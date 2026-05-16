@@ -22,6 +22,7 @@
 #import "KRView+Compose.h"
 #import "NSObject+KR.h"
 #import "KRMemoryCacheModule.h"
+#import "KRView+TextSelection.h"
 
 /// 层级置顶方法
 #define CSS_METHOD_BRING_TO_FRONT @"bringToFront"
@@ -81,6 +82,8 @@
         }
     } else if ([method isEqualToString:CSS_METHOD_TOIMAGE]) {
         [self kr_toImageWithParams:params callback:callback];
+    } else if ([self kr_handleTextSelectionMethod:method params:params callback:callback]) {
+        // Text selection methods handled by category
     }
 }
 

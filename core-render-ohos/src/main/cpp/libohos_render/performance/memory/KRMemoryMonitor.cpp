@@ -22,6 +22,8 @@
 #include "libohos_render/foundation/ffrt/KRFfrt.h"
 #include "libohos_render/foundation/type/KRRenderValue.h"
 
+extern GetNativeHeapSize getNativeHeapSize_;
+
 const char KRMemoryMonitor::kMonitorName[] = "KRMemoryMonitor";
 constexpr char kTag[] = "KRMemoryMonitor";
 
@@ -101,7 +103,13 @@ long long KRMemoryMonitor::GetPssSize() {
 }
 
 long long KRMemoryMonitor::GetEnvHeapSize() {
-    // todo 需要根据运行环境区分
+    if (mode_ == 0) {
+        long nativeHeapSize = 0;
+        if (getNativeHeapSize_ != nullptr) {
+            nativeHeapSize = getNativeHeapSize_();
+        }
+        return nativeHeapSize;
+    }
     return 0;
 }
 

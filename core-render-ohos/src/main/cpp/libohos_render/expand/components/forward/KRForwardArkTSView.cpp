@@ -37,7 +37,19 @@ void KRForwardArkTSView::OnDestroy() {
 bool KRForwardArkTSView::ToSetBaseProp(const std::string &prop_key, const KRAnyValue &prop_value,
                                        const KRRenderCallback event_call_back) {
     bool handled = IKRRenderViewExport::ToSetBaseProp(prop_key, prop_value, event_call_back);
-    if (handled) {
+    // IKRRenderViewExport 处理当前的事件的处理与绑定
+    // 之前的 arkts 层处理View的逻辑，之前只有setProp，而没有setEvent，因此 arkts 层的Click事件误被 C++层的节点去处理了
+    // ForwardArkTSView 的事件必须透传到 ArkTS 层，不能让 KRBaseEventHandler 截胡
+    if (event_call_back) {
+        event_registry_[prop_key] = event_call_back;
+        KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(), KRNativeCallArkTSMethod::SetViewEvent,
+                                                      KRRenderValue::Make(GetViewTag()),
+                                                      KRRenderValue::Make(prop_key), nullptr, nullptr,
+                                                      nullptr, nullptr);
+        handled = true;
+    }
+
+    if (handled && !event_call_back) {
         if (prop_key == kBackgroundColor || prop_key == kBackgroundImage) {
             KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(), KRNativeCallArkTSMethod::SetViewProp,
                                                           KRRenderValue::Make(GetViewTag()),
@@ -50,20 +62,16 @@ bool KRForwardArkTSView::ToSetBaseProp(const std::string &prop_key, const KRAnyV
 
 bool KRForwardArkTSView::SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
                                  const KRRenderCallback event_call_back) {
-    if (event_call_back) {  // is event
-        event_registry_[prop_key] = event_call_back;
-        // 设置事件
-        KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(), KRNativeCallArkTSMethod::SetViewEvent,
-                                                      KRRenderValue::Make(GetViewTag()),
-                                                      KRRenderValue::Make(prop_key), nullptr, nullptr,
-                                                      nullptr, nullptr);
-    } else {  // is prop
-        // 设置属性
-        KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(), KRNativeCallArkTSMethod::SetViewProp,
-                                                      KRRenderValue::Make(GetViewTag()),
-                                                      KRRenderValue::Make(prop_key), prop_value, nullptr,
-                                                      nullptr, nullptr);
+    // 当前SetProp 是 RenderViewExport 中属性设置的最后一层，处理事件的绑定的应该在第一层 toSetProp 中就被记录下来
+    if (event_call_back) {
+        // 事件已在 ToSetBaseProp 中处理，避免重复
+        return true;
     }
+    // 设置属性
+    KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(), KRNativeCallArkTSMethod::SetViewProp,
+                                                  KRRenderValue::Make(GetViewTag()),
+                                                  KRRenderValue::Make(prop_key), prop_value, nullptr,
+                                                  nullptr, nullptr);
     return true;
 }
 

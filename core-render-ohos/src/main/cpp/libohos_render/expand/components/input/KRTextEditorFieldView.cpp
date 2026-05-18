@@ -134,6 +134,12 @@ void KRTextEditorFieldView::InitControllerIfNeeded() {
     ArkUI_AttributeItem item = {};
     item.object = state_.controller_;
     kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_EDITOR_STYLED_STRING_CONTROLLER, &item);
+    // 灌入 assetsDir，让 SetStyledText 中的 emoji shortcode 替换路径能解析 "assets://..." URI。
+    // 取值时机与老 KRImageView::LoadFromAssets 同条件：通过 RootView 的 KRConfig 拿到资源
+    // 根目录字符串。Root view 不可用（极端 dispose 顺序）时留空，SetStyledText 自动跳过 emoji 段。
+    if (auto root = GetRootView().lock()) {
+        state_.assets_dir_ = root->GetContext()->Config()->GetAssetsDir();
+    }
 #endif
 }
 
@@ -251,6 +257,13 @@ bool KRTextEditorFieldView::SetProp(const std::string &prop_key, const KRAnyValu
         return true;
     }
 
+    if (kuikly::util::isEqual(prop_key, kTextInputState)) {
+        // attr 路径下发的 textInputState（与 Android InputAttr.textInputState 同路径）。
+        // method 路径走 CallMethod(kMethodSetTextInputState)，两者体现为同一 helper。
+        SetTextInputStateInternal(prop_value->toString());
+        return true;
+    }
+
     // --- 事件 ---
     if (kuikly::util::isEqual(prop_key, kEventTextDidChanged)) {
         state_.text_did_change_callback_ = event_call_back;
@@ -262,6 +275,25 @@ bool KRTextEditorFieldView::SetProp(const std::string &prop_key, const KRAnyValu
             state_.pending_text_did_change_ = false;
             OnTextDidChanged(nullptr);
         }
+        return true;
+    }
+    if (kuikly::util::isEqual(prop_key, kEventTextInputStateChange)) {
+        // 与 Android KRTextFieldView observeTextInputStateChanged 对齐：事件注册仅记回调，
+        // 实际触发点复用 NODE_TEXT_EDITOR_ON_DID_CHANGE（文本变化后发起）。
+        // 同样需要补发机制：若首次 SetContentText 已经发生但事件未注册，补发一次。
+        state_.text_input_state_change_callback_ = event_call_back;
+        RegisterEvent(ArkUI_NodeEventType::NODE_TEXT_EDITOR_ON_DID_CHANGE);
+        if (state_.pending_text_input_state_change_ && event_call_back) {
+            state_.pending_text_input_state_change_ = false;
+            EmitTextInputStateChange();
+        }
+        return true;
+    }
+    if (kuikly::util::isEqual(prop_key, kEventSelectionChange)) {
+        // 选区/光标变化事件，复用 NODE_TEXT_EDITOR_ON_SELECTION_CHANGE（API 24+）。
+        // 与 textInputStateChange 互补：纯选区变化仅发 selectionChange，文本变化发 textInputStateChange。
+        state_.selection_change_callback_ = event_call_back;
+        RegisterEvent(ArkUI_NodeEventType::NODE_TEXT_EDITOR_ON_SELECTION_CHANGE);
         return true;
     }
     if (kuikly::util::isEqual(prop_key, kEventInputFocus)) {
@@ -327,6 +359,9 @@ void KRTextEditorFieldView::OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEven
         case ArkUI_NodeEventType::NODE_TEXT_EDITOR_ON_PASTE:
             OnPasteText(event);
             break;
+        case ArkUI_NodeEventType::NODE_TEXT_EDITOR_ON_SELECTION_CHANGE:
+            OnSelectionChanged(event);
+            break;
         default:
             break;
     }
@@ -350,6 +385,10 @@ void KRTextEditorFieldView::CallMethod(const std::string &method, const KRAnyVal
         GetCursorIndex(callback);
     } else if (kuikly::util::isEqual(method, kMethodSetCursorIndex)) {
         SetCursorIndex(params->toInt());
+    } else if (kuikly::util::isEqual(method, kMethodSetTextInputState)) {
+        SetTextInputStateInternal(params->toString());
+    } else if (kuikly::util::isEqual(method, kMethodGetTextInputState)) {
+        GetTextInputStateInternal(callback);
     } else {
         IKRRenderViewExport::CallMethod(method, params, callback);
     }
@@ -457,6 +496,11 @@ void KRTextEditorFieldView::SetCursorIndex(uint32_t index) {
 void KRTextEditorFieldView::OnTextDidChanged(ArkUI_NodeEvent *event) {
 #ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
     (void)event;
+    // guard：SetTextInputStateInternal 主动写入期间不发任何 textDidChange / textInputStateChange，
+    // 与 Android isSettingTextInputState / iOS _ignoreTextDidChanged 同语义。
+    if (state_.is_setting_text_input_state_) {
+        return;
+    }
     // 长度限制：无 lengthLimitType 分支走 MaxLength 节点属性直接约束；
     // 有 lengthLimitType 分支通过 ON_WILL_CHANGE 拦截 + ON_DID_CHANGE 补救（非法状态下截断）。
     if (state_.length_limit_type_ == -1) {
@@ -464,9 +508,11 @@ void KRTextEditorFieldView::OnTextDidChanged(ArkUI_NodeEvent *event) {
     } else if (state_.max_length_ != -1) {
         LimitInputContentTextInMaxLength();
     }
+    auto text = GetContentText();
+    state_.cached_text_ = text;
+    bool any_callback_present =
+        state_.text_did_change_callback_ || state_.text_input_state_change_callback_;
     if (state_.text_did_change_callback_) {
-        auto text = GetContentText();
-        state_.cached_text_ = text;
         KRRenderValueMap map;
         map["text"] = NewKRRenderValue(text);
         if (state_.length_limit_type_ != -1) {
@@ -474,12 +520,20 @@ void KRTextEditorFieldView::OnTextDidChanged(ArkUI_NodeEvent *event) {
             map["length"] = NewKRRenderValue(length);
         }
         state_.text_did_change_callback_(NewKRRenderValue(map));
-        state_.pending_text_did_change_ = false;  // 清挂起标记
+        state_.pending_text_did_change_ = false;
     } else {
-        // callback 还未注册（Kuikly 侧先下发属性再下发事件，首次 setProp(text)
-        // 会走到这里）；打挂起标记，等事件注册分支补发一次。
+        // 只要 textDidChange 尚未注册就打挂起标记，不考虑 textInputStateChange 是否有。
         state_.pending_text_did_change_ = true;
     }
+    // 同一次文本变化中，textInputStateChange 与 textDidChange 并发，使业务侧可拿到完整选区。
+    if (state_.text_input_state_change_callback_) {
+        EmitTextInputStateChange();
+        state_.pending_text_input_state_change_ = false;
+    } else {
+        // textInputStateChange 未注册，打挂起，事件注册路径补发。
+        state_.pending_text_input_state_change_ = true;
+    }
+    (void)any_callback_present;
 #endif
 }
 
@@ -513,6 +567,81 @@ void KRTextEditorFieldView::OnInputReturn(ArkUI_NodeEvent *event) {
             Blur();
         }
     }
+}
+
+// ============================================================================
+// textInputState 协议实现
+// ============================================================================
+
+void KRTextEditorFieldView::OnSelectionChanged(ArkUI_NodeEvent *event) {
+#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+    (void)event;
+    // SetTextInputStateInternal 主动写入选区时由 guard 抑制，避免回环。
+    if (state_.is_setting_text_input_state_) {
+        return;
+    }
+    EmitSelectionChange();
+#endif
+}
+
+void KRTextEditorFieldView::EmitTextInputStateChange() {
+#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+    if (!state_.text_input_state_change_callback_) {
+        return;
+    }
+    auto map = kuikly::text_editor::BuildTextInputStatePayload(state_);
+    state_.text_input_state_change_callback_(NewKRRenderValue(map));
+#endif
+}
+
+void KRTextEditorFieldView::EmitSelectionChange() {
+#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+    if (!state_.selection_change_callback_) {
+        return;
+    }
+    auto map = kuikly::text_editor::BuildTextInputStatePayload(state_);
+    state_.selection_change_callback_(NewKRRenderValue(map));
+#endif
+}
+
+void KRTextEditorFieldView::SetTextInputStateInternal(const std::string &json) {
+#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+    auto parsed = kuikly::text_editor::ParseTextInputStateJson(json);
+
+    // guard：抑制 textDidChange / textInputStateChange / selectionChange 三个回调，
+    // 与 Android isSettingTextInputState、iOS _ignoreTextDidChanged 同语义。业务侧
+    // 通过 setTextInputState(...) 主动写入的状态变化不应再回流到业务层。
+    state_.is_setting_text_input_state_ = true;
+
+    // 1) 文本写入：与 iOS 相同——文本未变时跳过 SetStyledText，保留已有 span / typing 样式。
+    if (parsed.text != state_.cached_text_) {
+        kuikly::text_editor::SetStyledText(state_, parsed.text);
+        kuikly::text_editor::ApplyTypingStyle(state_);
+        state_.cached_text_ = parsed.text;
+    }
+
+    // 2) 选区写入：优先 SDK SetSelection，失败时 SetSelectionRange 内部降级到 SetCaretOffset(end)。
+    kuikly::text_editor::SetSelectionRange(state_, parsed.selection_start, parsed.selection_end);
+
+    state_.is_setting_text_input_state_ = false;
+
+    // 注意：不主动触发 textDidChange / textInputStateChange / selectionChange——
+    // 调用方调用 setTextInputState 时已知道目标状态，无需再回调（与 Android 行为一致）。
+#else
+    (void)json;
+#endif
+}
+
+void KRTextEditorFieldView::GetTextInputStateInternal(const KRRenderCallback &callback) {
+    if (!callback) {
+        return;
+    }
+#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+    auto map = kuikly::text_editor::BuildTextInputStatePayload(state_);
+    callback(NewKRRenderValue(map));
+#else
+    callback(KREmptyValue());
+#endif
 }
 
 void KRTextEditorFieldView::OnWillChangeText(ArkUI_NodeEvent *event) {

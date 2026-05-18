@@ -84,6 +84,18 @@ class KRTextEditorFieldView : public IKRRenderViewExport {
     void GetCursorIndex(const KRRenderCallback &callback);
     void SetCursorIndex(uint32_t index);
 
+    // textInputState 协议（与 Android KRTextFieldView.setTextInputState/getTextInputState 同语义）。
+    // 设置文本+选区+composition 的原子化 API；composition 字段被忽略（OHOS 不暴露 IME 组合区间）。
+    // 调用期间会用 state_.is_setting_text_input_state_ guard 抑制 textDidChange /
+    // textInputStateChange / selectionChange 三个回调，避免业务侧 set->callback->set 回环。
+    void SetTextInputStateInternal(const std::string &json);
+    // 同步收集当前 text+selection 通过 callback 回传，便于业务侧 read-modify-write。
+    void GetTextInputStateInternal(const KRRenderCallback &callback);
+    // 触发一次 textInputStateChange 回调（带完整 state payload）。仅在 textDidChange 一同发。
+    void EmitTextInputStateChange();
+    // 触发一次 selectionChange 回调（仅选区/光标变化、文本未变时使用）。
+    void EmitSelectionChange();
+
     // 事件分发入口
     void OnTextDidChanged(ArkUI_NodeEvent *event);
     void OnInputFocus(ArkUI_NodeEvent *event);
@@ -91,6 +103,9 @@ class KRTextEditorFieldView : public IKRRenderViewExport {
     void OnInputReturn(ArkUI_NodeEvent *event);
     void OnWillChangeText(ArkUI_NodeEvent *event);
     void OnPasteText(ArkUI_NodeEvent *event);
+    // SDK NODE_TEXT_EDITOR_ON_SELECTION_CHANGE：选区/光标变化（含纯光标移动）。
+    // 与 textDidChange 解耦——纯选区变化不会触发 textDidChange。
+    void OnSelectionChanged(ArkUI_NodeEvent *event);
 
     // max-length 过滤
     bool LimitInputContentTextInMaxLength();

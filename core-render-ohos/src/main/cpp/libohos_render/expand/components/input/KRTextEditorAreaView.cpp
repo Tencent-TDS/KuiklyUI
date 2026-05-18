@@ -26,23 +26,21 @@ void KRTextEditorAreaView::DidInit() {
 bool KRTextEditorAreaView::SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
                                    const KRRenderCallback event_call_back) {
     // 多行特有：lineHeight（对齐老 KRTextAreaView 支持）。
-    // ARKUI_NODE_TEXT_EDITOR 的 line height 通过 TextStyle 设置，这里做透传。
+    // 设计要点：
+    //   1. 仅持久化到 state_，由 ApplyTypingStyle / SetStyledText 统一从 state 推导，
+    //      避免在 fontSize 等其它属性变更触发 ApplyTypingStyle 时把 lineHeight 误清掉。
+    //   2. 立即重写已有文本 span（3.3-α 方案）——因为 typing style 只影响后续键入，
+    //      不主动重写 span 的话当前已有文本视觉不会跟随变化。
     if (kuikly::util::isEqual(prop_key, kuikly::text_editor::kLineHeight)) {
 #ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
-        // 将 lineHeight 写入当前 typing style（仅影响后续键入），
-        // 与老 NODE_TEXT_AREA_LINE_HEIGHT 的视觉行为接近。
+        float new_lh = prop_value->toFloat();
+        state_.line_height_ = new_lh;
+        state_.line_height_set_ = new_lh > 0;
         if (state_.controller_) {
-            OH_ArkUI_TextEditorTextStyle *style = OH_ArkUI_TextEditorTextStyle_Create();
-            if (style) {
-                OH_ArkUI_TextEditorTextStyle_SetFontColor(style, state_.font_color_);
-                OH_ArkUI_TextEditorTextStyle_SetFontSize(style, state_.font_size_);
-                OH_ArkUI_TextEditorTextStyle_SetFontWeight(
-                    style, static_cast<uint32_t>(state_.font_weight_));
-                OH_ArkUI_TextEditorTextStyle_SetLineHeight(
-                    style, static_cast<int32_t>(prop_value->toFloat()));
-                OH_ArkUI_TextEditorStyledStringController_SetTypingStyle(state_.controller_, style);
-                OH_ArkUI_TextEditorTextStyle_Destroy(style);
-            }
+            // typing style：影响后续键入。
+            kuikly::text_editor::ApplyTypingStyle(state_);
+            // 已有文本：通过重写 SpanStyle 立即生效（含 LineHeightStyle）。
+            kuikly::text_editor::SetStyledText(state_, state_.cached_text_);
         }
 #endif
         return true;

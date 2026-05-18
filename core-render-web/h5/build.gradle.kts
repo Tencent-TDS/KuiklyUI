@@ -51,6 +51,8 @@ kotlin {
         }
         // Output executable JS rather than library
         binaries.executable()
+        // Generate type definitions
+        generateTypeScriptDefinitions()
     }
 
     sourceSets {

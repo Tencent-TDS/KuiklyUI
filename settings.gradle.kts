@@ -9,6 +9,9 @@ pluginManagement {
         maven {
             url = uri("https://mirrors.tencent.com/nexus/repository/gradle-plugins/")
         }
+        maven {
+            url = uri("https://mirrors.tencent.com/repository/maven/kuikly-snapshot/")
+        }
     }
 }
 

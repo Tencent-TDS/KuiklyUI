@@ -11,6 +11,8 @@
 local.properties
 *.so
 *.js
+!demo/webpack.config.d/*.js
+!h5App/webpack.config.d/*.js
 node_modules
 Pods
 Pods/*

@@ -16,6 +16,9 @@ buildscript {
         maven {
             url = uri("https://mirrors.tencent.com/repository/maven-tencent/")
         }
+        maven {
+            url = uri("https://mirrors.tencent.com/repository/maven/kuikly-snapshot")
+        }
     }
     dependencies {
         classpath(BuildPlugin.kotlin)
@@ -31,6 +34,9 @@ allprojects {
         mavenLocal()
         maven {
             url = uri("https://mirrors.tencent.com/repository/maven-tencent/")
+        }
+        maven {
+            url = uri("https://mirrors.tencent.com/repository/maven/kuikly-snapshot")
         }
     }
     configurations.all {

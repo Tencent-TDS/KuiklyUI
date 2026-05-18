@@ -16,6 +16,7 @@ import com.tencent.kuikly.core.render.web.ktx.width
 import com.tencent.kuikly.core.render.web.nvi.serialization.json.JSONArray
 import com.tencent.kuikly.core.render.web.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.render.web.processor.IRichTextProcessor
+import com.tencent.kuikly.core.render.web.processor.TextMeasureCache
 import com.tencent.kuikly.core.render.web.runtime.miniapp.MiniGlobal
 import com.tencent.kuikly.core.render.web.runtime.miniapp.MiniGlobal.isIOS
 import com.tencent.kuikly.core.render.web.runtime.miniapp.const.RenderConst
@@ -92,6 +93,9 @@ object RichTextProcessor : IRichTextProcessor {
 
     // mini app measure text canvas context
     private var measureTextCtx: dynamic = null
+    
+    // Cache last used font string to avoid redundant font setting
+    private var lastCanvasFont: String = ""
 
     // Rich text placeholder attribute setting
     private const val PLACEHOLDER_WIDTH = "placeholderWidth"
@@ -202,7 +206,13 @@ object RichTextProcessor : IRichTextProcessor {
             usedFontFamily = getDefaultFontFamily()
         }
         val fontStr = "$fontStyle $fontWeight ${fontSize}px $usedFontFamily"
-        ctx.font = fontStr
+        
+        // Only set font if it changed to avoid redundant operations
+        if (fontStr != lastCanvasFont) {
+            ctx.font = fontStr
+            lastCanvasFont = fontStr
+        }
+        
         return ctx.measureText(text)
     }
 
@@ -868,6 +878,25 @@ object RichTextProcessor : IRichTextProcessor {
      */
     private fun calculateTextSize(constraintSize: SizeF, view: KRRichTextView): SizeF {
         val ele = view.ele
+        
+        // Try cache first for plain text
+        val cacheKey = TextMeasureCache.generateKey(
+            text = view.rawText,
+            fontSize = ele.style.fontSize,
+            fontWeight = ele.style.fontWeight,
+            fontFamily = ele.style.fontFamily,
+            fontStyle = ele.style.fontStyle,
+            letterSpacing = "",
+            lineHeight = ele.style.lineHeight,
+            constraintWidth = constraintSize.width,
+            numberOfLines = view.numberOfLines
+        )
+        
+        TextMeasureCache.get(cacheKey)?.let { cachedSize ->
+            Log.trace("Using cached text size: ", cachedSize.width, cachedSize.height)
+            return cachedSize
+        }
+        
         // Font size string
         val fontSizeStr = ele.style.fontSize.asDynamic().split("px")[0].unsafeCast<String>()
         // Font size
@@ -929,8 +958,14 @@ object RichTextProcessor : IRichTextProcessor {
         resetCurrentLineSize(view)
         // save current line size
         view.ele.asDynamic().linesCount = linesSizeList.length
+        
         // Return width and height occupied by plain Text
-        return calculateTotalSize(linesSizeList)
+        val result = calculateTotalSize(linesSizeList)
+        
+        // Cache the result
+        TextMeasureCache.put(cacheKey, result)
+        
+        return result
     }
 
     /**

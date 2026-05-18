@@ -1,0 +1,12 @@
+{
+  "version": "2.0.0",
+  "generatedAt": "2026-04-20T03:55:16.878Z",
+  "files": [],
+  "fileCount": 0,
+  "pages": {
+    "000": "000.bundle.js",
+    "HelloWorldPage": "HelloWorldPage.bundle.js"
+  },
+  "pageCount": 2,
+  "totalCount": 2
+}

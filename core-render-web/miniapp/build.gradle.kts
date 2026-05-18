@@ -41,14 +41,28 @@ kotlin {
         browser {
             webpackTask {
                 outputFileName = "${moduleName}.js" // Final output name
+                // 禁用 webpack 的代码压缩和混淆
+                mode = org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig.Mode.DEVELOPMENT
             }
 
             commonWebpackConfig {
                 output?.library = null // Don't export global objects, only export necessary entry functions
+                // 禁用 webpack 优化
+                devtool = null
             }
         }
         // Output executable JS rather than library
         binaries.executable()
+        
+        // 添加编译选项：禁用成员名称混淆
+        compilations.all {
+            kotlinOptions {
+                freeCompilerArgs += listOf(
+                    "-Xir-minimized-member-names=false",  // 禁用成员名称混淆
+                    "-Xir-property-lazy-initialization=false"  // 禁用惰性属性初始化优化
+                )
+            }
+        }
     }
 
     sourceSets {

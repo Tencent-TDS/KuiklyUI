@@ -1,9 +1,12 @@
+@file:OptIn(ExperimentalJsExport::class)
+
 package com.tencent.kuikly.core.render.web.runtime.miniapp.expand
 
 import com.tencent.kuikly.core.render.web.IKuiklyRenderExport
 import com.tencent.kuikly.core.render.web.IKuiklyRenderViewLifecycleCallback
 import com.tencent.kuikly.core.render.web.KuiklyRenderView
 import com.tencent.kuikly.core.render.web.collection.FastMutableMap
+import com.tencent.kuikly.core.render.web.collection.fastMutableListOf
 import com.tencent.kuikly.core.render.web.context.KuiklyRenderCoreExecuteMode
 import com.tencent.kuikly.core.render.web.exception.ErrorReason
 import com.tencent.kuikly.core.render.web.expand.KuiklyRenderViewDelegatorDelegate
@@ -61,6 +64,7 @@ import com.tencent.kuikly.core.render.web.runtime.miniapp.expand.module.wx.KRWXS
 import com.tencent.kuikly.core.render.web.runtime.miniapp.expand.module.wx.KRWXUIModule
 import com.tencent.kuikly.core.render.web.ktx.SizeI
 import com.tencent.kuikly.core.render.web.performance.IKRMonitorCallback
+import com.tencent.kuikly.core.render.web.performance.KRMonitorType
 import com.tencent.kuikly.core.render.web.performance.KRPerformanceData
 import com.tencent.kuikly.core.render.web.performance.KRPerformanceManager
 import com.tencent.kuikly.core.render.web.performance.launch.KRLaunchData
@@ -76,10 +80,15 @@ import com.tencent.kuikly.core.render.web.runtime.miniapp.processor.ImageProcess
 import com.tencent.kuikly.core.render.web.runtime.miniapp.processor.ListProcessor
 import com.tencent.kuikly.core.render.web.runtime.miniapp.processor.RichTextProcessor
 import com.tencent.kuikly.core.render.web.utils.Log
+import kotlin.js.JsExport
+import kotlin.js.JsName
 
 /**
  * Mini program host project can simplify KuiklyRenderCore access through this class
  */
+@JsExport
+@JsName("KuiklyRenderViewDelegator")
+@OptIn(ExperimentalJsExport::class)
 class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorDelegate) {
     // todo Need to change to mini program access unique path - renderView mapping
     // todo isLoadFinish performanceManager renderView pendingTaskList renderViewCallback
@@ -259,7 +268,17 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
      * Initialize performance monitoring manager
      */
     private fun initPerformanceManager(pageName: String): KRPerformanceManager? {
-        val monitorOptions = delegate.performanceMonitorTypes()
+        val result = delegate.performanceMonitorTypes()
+        
+        // Handle undefined/null from JS (use default) or FastMutableList
+        val monitorOptions = when {
+            jsTypeOf(result) == "undefined" || result.unsafeCast<Any?>() == null -> {
+                // JS returned undefined/null, use default (LAUNCH monitoring)
+                fastMutableListOf<KRMonitorType>().apply { add(KRMonitorType.LAUNCH) }
+            }
+            else -> result
+        }
+        
         if (monitorOptions.isNotEmpty()) {
             return KRPerformanceManager(pageName, executeMode, monitorOptions).apply {
                 setMonitorCallback(object : IKRMonitorCallback {
@@ -597,14 +616,17 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
             globalThis.kuiklyWindow = MiniGlobal
         }
 
+        // Get the actual global object where mainWrapper sets callKotlinMethod
+        val actualGlobal = js("(typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : global))")
+
         // inject kuikly register native method
         if (jsTypeOf(globalThis.kuiklyWindow.com) == "undefined") {
-            globalThis.kuiklyWindow.com = globalThis.global.com
+            globalThis.kuiklyWindow.com = actualGlobal.com
         }
 
         // inject kuikly call kotlin method
         if (jsTypeOf(globalThis.kuiklyWindow.callKotlinMethod) == "undefined") {
-            globalThis.kuiklyWindow.callKotlinMethod = globalThis.global.callKotlinMethod
+            globalThis.kuiklyWindow.callKotlinMethod = actualGlobal.callKotlinMethod
         }
 
         // inject network request Headers class

@@ -302,7 +302,7 @@ class PullToRefreshDemo : ComposeContainer() {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "🌀 Loading...",
+                        text = "Loading...",
                         fontSize = 18.sp,
                         color = Color.Blue,
                         textAlign = TextAlign.Center
@@ -318,30 +318,32 @@ class PullToRefreshDemo : ComposeContainer() {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    val emoji = when {
-                        pullProgress >= 1f -> "🚀"
-                        pullProgress > 0.5f -> "⬆️"
-                        else -> "⬇️"
+                    // Use ASCII arrows: Compose Text on iOS may render emoji as '?'.
+                    val icon = when {
+                        pullProgress >= 1f -> "↑"
+                        pullProgress > 0.5f -> "↑"
+                        else -> "↓"
                     }
-                    
+
                     val text = when {
                         pullProgress >= 1f -> "松开立即刷新"
                         pullProgress > 0.5f -> "继续下拉"
                         else -> "下拉刷新数据"
                     }
-                    
+
                     val textColor = when {
                         pullProgress >= 1f -> Color.Green
                         pullProgress > 0.5f -> Color.Cyan
                         else -> Color.Gray
                     }
-                    
+
                     Text(
-                        text = emoji,
-                        fontSize = 20.sp,
+                        text = icon,
+                        fontSize = 24.sp,
+                        color = textColor,
                         textAlign = TextAlign.Center
                     )
-                    
+
                     Text(
                         text = text,
                         fontSize = 14.sp,

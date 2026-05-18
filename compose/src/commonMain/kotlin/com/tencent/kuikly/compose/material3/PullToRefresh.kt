@@ -46,6 +46,15 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlin.math.abs
 
+// Set true to trace offset / state in Xcode console while debugging pull-to-refresh.
+private const val DEBUG_PULL_TO_REFRESH = false
+
+private inline fun pullToRefreshLog(message: () -> String) {
+    if (DEBUG_PULL_TO_REFRESH) {
+        println("[PullToRefresh] ${message()}")
+    }
+}
+
 /**
  * Custom offset modifier to adjust child position
  */
@@ -229,12 +238,21 @@ internal fun PullToRefreshItem(
         }
         .distinctUntilChanged()
         .collectLatest { (contentOffset, isAtTop, isDragging, _) ->
+            val previousPullState = state.pullState
             if (!isAtTop) {
                 // Reset state when not at top
                 if (state.pullState != PullState.IDLE) {
+                    pullToRefreshLog {
+                        "leave top: contentOffset=$contentOffset isDragging=$isDragging " +
+                            "pullState $previousPullState -> IDLE"
+                    }
                     state.updatePullState(PullState.IDLE)
                     state.updateProgress(0f)
-                    scrollState.kuiklyInfo.scrollView?.setContentInsetWhenEndDrag(top = 0f)
+                    val scrollViewOnLeave = scrollState.kuiklyInfo.scrollView
+                    scrollViewOnLeave?.setContentInsetWhenEndDrag(top = 0f)
+                    if (scrollViewOnLeave?.isDragging != true) {
+                        scrollViewOnLeave?.setContentInset(top = 0f, animated = false)
+                    }
                 }
                 return@collectLatest
             }
@@ -259,6 +277,10 @@ internal fun PullToRefreshItem(
                 }
                 PullState.IDLE -> {
                     if (isDragging && pullDistance >= refreshThresholdPx) {
+                        pullToRefreshLog {
+                            "IDLE -> PULLING: offset=$contentOffset pullDistance=$pullDistance " +
+                                "progress=$progress thresholdPx=$refreshThresholdPx"
+                        }
                         state.updatePullState(PullState.PULLING)
                         scrollView?.setContentInsetWhenEndDrag(top = refreshThresholdLogical)
                     }
@@ -266,14 +288,28 @@ internal fun PullToRefreshItem(
                 PullState.PULLING -> {
                     if (isDragging) {
                         if (pullDistance < refreshThresholdPx) {
+                            pullToRefreshLog {
+                                "PULLING -> IDLE (drag, below threshold): offset=$contentOffset " +
+                                    "pullDistance=$pullDistance progress=$progress"
+                            }
                             state.updatePullState(PullState.IDLE)
                             scrollView?.setContentInsetWhenEndDrag(top = 0f)
                         }
                     } else {
                         // Released while pulling, start refresh
+                        pullToRefreshLog {
+                            "PULLING -> REFRESHING (release): offset=$contentOffset " +
+                                "pullDistance=$pullDistance"
+                        }
                         state.updatePullState(PullState.REFRESHING)
                         updatedOnRefresh()
                     }
+                }
+            }
+            if (state.pullState != previousPullState) {
+                pullToRefreshLog {
+                    "state=$previousPullState -> ${state.pullState}: offset=$contentOffset " +
+                        "pullDistance=$pullDistance progress=$progress isDragging=$isDragging"
                 }
             }
         }
@@ -282,18 +318,40 @@ internal fun PullToRefreshItem(
     // Handle inset changes based on pull state
     LaunchedEffect(state.pullState) {
         val scrollView = scrollState.kuiklyInfo.scrollView
+        val isDragging = scrollView?.isDragging == true
         when (state.pullState) {
             PullState.REFRESHING -> {
+                pullToRefreshLog { "apply inset REFRESHING top=$refreshThresholdLogical animated=true" }
                 scrollView?.setContentInset(top = refreshThresholdLogical, animated = true)
             }
             PullState.IDLE -> {
-                scrollView?.setContentInset(top = 0f, animated = true)
+                // Never apply contentInset while dragging:
+                // - iOS: animated inset also animates contentOffset back to bounds
+                // - Android: non-animated inset calls setFinalTranslation and snaps overscroll to 0
                 scrollView?.setContentInsetWhenEndDrag(top = 0f)
+                if (!isDragging) {
+                    pullToRefreshLog { "apply inset IDLE top=0 animated=true isDragging=false" }
+                    scrollView?.setContentInset(top = 0f, animated = true)
+                } else {
+                    pullToRefreshLog { "defer inset IDLE reset until drag end" }
+                }
             }
             PullState.PULLING -> {
                 // Handled by EndDragInset
             }
         }
+    }
+
+    // Android/iOS: apply deferred inset reset after drag ends in IDLE
+    LaunchedEffect(scrollState) {
+        snapshotFlow { scrollState.kuiklyInfo.scrollView?.isDragging ?: false }
+            .distinctUntilChanged()
+            .collect { isDragging ->
+                if (!isDragging && state.pullState == PullState.IDLE) {
+                    pullToRefreshLog { "drag end: apply inset IDLE top=0 animated=true" }
+                    scrollState.kuiklyInfo.scrollView?.setContentInset(top = 0f, animated = true)
+                }
+            }
     }
 
     // Sync external refresh state
@@ -333,18 +391,18 @@ private fun DefaultRefreshIndicator(
 ) {
     if (isRefreshing) {
         Text(
-            text = "🔄 Refreshing...",
+            text = "Refreshing...",
             fontSize = 16.sp,
             color = Color.Blue,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(16.dp)
         )
     } else {
-        val emoji = if (pullProgress >= 1f) "⬆️" else "⬇️"
+        val icon = if (pullProgress >= 1f) "↑" else "↓"
         val text = if (pullProgress >= 1f) "Release to refresh" else "Pull to refresh"
         
         Text(
-            text = "$emoji $text",
+            text = "$icon $text",
             fontSize = 14.sp,
             color = Color.Gray,
             textAlign = TextAlign.Center,

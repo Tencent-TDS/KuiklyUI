@@ -99,8 +99,8 @@ int KRAnyDataVisitMap(KRAnyData data, KRAnyDataMapVisitor visitor, void *userDat
         return KRANYDATA_TYPE_MISMATCH;
     }
     
-    auto& map = internal->anyValue->toMap();
-    for (auto& pair : map) {
+    auto map = internal->anyValue->toMap();
+    for (const auto& pair : map) {
         KRAnyDataInternal tempValue;
         tempValue.anyValue = pair.second;
         visitor(pair.first.c_str(), &tempValue, userData);
@@ -121,7 +121,7 @@ int KRAnyDataGetMapValue(KRAnyData data, const char* key, KRAnyData* value) {
         return KRANYDATA_TYPE_MISMATCH;
     }
     
-    auto& map = internal->anyValue->toMap();
+    auto map = internal->anyValue->toMap();
     auto it = map.find(key);
     if (it == map.end()) {
         *value = nullptr;
@@ -257,38 +257,38 @@ void KRAnyDataDestroy(KRAnyData data) {
 
 KRAnyData KRAnyDataCreateInt(int32_t value) {
     auto data = new KRAnyDataInternal();
-    data->anyValue = std::make_shared<KRRenderValue>(value);
+    data->anyValue = KRRenderValue::Make(value);
     return data;
 }
 
 KRAnyData KRAnyDataCreateLong(int64_t value) {
     auto data = new KRAnyDataInternal();
-    data->anyValue = std::make_shared<KRRenderValue>(value);
+    data->anyValue = KRRenderValue::Make(value);
     return data;
 }
 
 KRAnyData KRAnyDataCreateFloat(float value) {
     auto data = new KRAnyDataInternal();
-    data->anyValue = std::make_shared<KRRenderValue>(value);
+    data->anyValue = KRRenderValue::Make(value);
     return data;
 }
 
 KRAnyData KRAnyDataCreateBool(bool value) {
     auto data = new KRAnyDataInternal();
-    data->anyValue = std::make_shared<KRRenderValue>(value);
+    data->anyValue = KRRenderValue::Make(value);
     return data;
 }
 
 KRAnyData KRAnyDataCreateString(const char* value) {
     auto data = new KRAnyDataInternal();
-    data->anyValue = std::make_shared<KRRenderValue>(value);
+    data->anyValue = KRRenderValue::Make(value);
     return data;
 }
 
 KRAnyData KRAnyDataCreateBytes(const char* value, int size) {
     auto data = new KRAnyDataInternal();
     auto byteArray = std::make_shared<std::vector<uint8_t>>(value, value + size);
-    data->anyValue = std::make_shared<KRRenderValue>(byteArray);
+    data->anyValue = KRRenderValue::Make(byteArray);
     return data;
 }
 
@@ -297,9 +297,9 @@ KRAnyData KRAnyDataCreateArray(int size) {
     std::vector<std::shared_ptr<KRRenderValue>> valueArray;
     valueArray.reserve(size);
     for (int i = 0; i < size; ++i) {
-        valueArray.emplace_back(std::make_shared<KRRenderValue>());
+        valueArray.emplace_back(KRRenderValue::Make());
     }
-    data->anyValue = std::make_shared<KRRenderValue>(valueArray);
+    data->anyValue = KRRenderValue::Make(valueArray);
     return data;
 }
 
@@ -313,7 +313,7 @@ int KRAnyDataSetArrayElement(KRAnyData data, KRAnyData value, int index) {
         return KRANYDATA_NULL_INPUT;
     }
     if (!internal->anyValue) {
-        internal->anyValue = std::make_shared<KRRenderValue>();
+        internal->anyValue = KRRenderValue::Make();
     }
 
     if (internal->anyValue->isArray()) {
@@ -324,7 +324,7 @@ int KRAnyDataSetArrayElement(KRAnyData data, KRAnyData value, int index) {
         std::vector<std::shared_ptr<KRRenderValue>> valueArray;
         valueArray = array;
         valueArray[index] = valueInternal->anyValue;
-        internal->anyValue = std::make_shared<KRRenderValue>(valueArray);
+        internal->anyValue = KRRenderValue::Make(valueArray);
     } else {
         return KRANYDATA_TYPE_MISMATCH;
     }
@@ -341,7 +341,7 @@ int KRAnyDataAddArrayElement(KRAnyData data, KRAnyData value) {
         return KRANYDATA_NULL_INPUT;
     }
     if (!internal->anyValue) {
-        internal->anyValue = std::make_shared<KRRenderValue>();
+        internal->anyValue = KRRenderValue::Make();
     }
 
     if (internal->anyValue->isArray()) {
@@ -349,7 +349,7 @@ int KRAnyDataAddArrayElement(KRAnyData data, KRAnyData value) {
         std::vector<std::shared_ptr<KRRenderValue>> valueArray;
         valueArray = array;
         valueArray.push_back(valueInternal->anyValue);
-        internal->anyValue = std::make_shared<KRRenderValue>(valueArray);
+        internal->anyValue = KRRenderValue::Make(valueArray);
     } else {
         return KRANYDATA_TYPE_MISMATCH;
     }

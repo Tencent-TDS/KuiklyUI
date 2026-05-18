@@ -182,7 +182,7 @@ KRAnyValue KRRenderLayerHandler::CallModuleMethod(bool sync, const std::string &
     if (module != nullptr) {
         return module->CallMethod(sync, method, params, callback, callback_keep_alive);
     }
-    return std::make_shared<KRRenderValue>(nullptr);
+    return KRRenderValue::Make(nullptr);
 }
 
 /**
@@ -198,7 +198,7 @@ KRAnyValue KRRenderLayerHandler::CallTDFModuleMethod(const std::string &module_n
                                                      const std::string &params, const std::string &call_id,
                                                      const KRRenderCallback &success_callback,
                                                      KRRenderCallback &error_callback) {
-    return std::make_shared<KRRenderValue>();
+    return KRRenderValue::Make();
 }
 
 /**
@@ -262,7 +262,7 @@ KRAnyValue KRRenderLayerHandler::CallShadowMethod(int tag, const std::string &me
     if (shadow != nullptr) {
         return shadow->Call(method_name, params);
     }
-    return std::make_shared<KRRenderValue>(nullptr);
+    return KRRenderValue::Make(nullptr);
 }
 
 /**
@@ -357,23 +357,28 @@ std::shared_ptr<IKRRenderModuleExport> KRRenderLayerHandler::GetModuleOrCreate(c
     if (destroying_) {
         return nullptr;
     }
+    
+    // 特殊情况，判断是否需要使用新实现的KROhSharedPreferencesModule
+    bool useOhSharedPreferences = this->root_view_.lock()->GetContext()->Config()->GetUseOhSharedPreferences();
+    // 如果调用的是 KRSharedPreferencesModule 并且 启用新SharedPreferencesModule，返回KROhSharedPreferencesModule
+    std::string target_module_name = (module_name == "KRSharedPreferencesModule" && useOhSharedPreferences? "KROhSharedPreferencesModule" : module_name);
 
-    auto module = GetModule(module_name);
+    auto module = GetModule(target_module_name);
     if (module == nullptr) {
         // 写操作
         std::unique_lock lock(module_rw_mutex_);
         if (destroying_) {
             return nullptr;
         }
-        if (auto it = module_registry_.find(module_name); it != module_registry_.end()){
+        if (auto it = module_registry_.find(target_module_name); it != module_registry_.end()){
             module = it->second;
         }
         if (module == nullptr) {
-            module = IKRRenderModuleExport::CreateModule(module_name);
+            module = IKRRenderModuleExport::CreateModule(target_module_name);
             if (module != nullptr) {
                 module->SetRootView(root_view_, context_->InstanceId());
-                module->SetModuleName(module_name);
-                module_registry_[module_name] = module;
+                module->SetModuleName(target_module_name);
+                module_registry_[target_module_name] = module;
             }
         }
     }

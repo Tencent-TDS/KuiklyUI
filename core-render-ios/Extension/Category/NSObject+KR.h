@@ -49,6 +49,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)kr_appendUrlEncodeWithParam:(NSDictionary *)param;
 - (NSString *)kr_md5String;
+- (NSString *)kr_md5String32;
 - (NSString *)kr_base64Encode;
 - (NSString *)kr_base64Decode;
 - (NSString *)kr_sha256String;

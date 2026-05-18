@@ -76,6 +76,7 @@ internal class RootDemoPage: BasePager() {
                             height(45f)
                             borderRadius(22.5f)
                             backgroundColor(Color(255, 255, 255,0.4f))
+                            testTag("root_btn_${item.title}")
                             titleAttr {
                                 text(item.title)
                                 fontSize(17f)
@@ -134,6 +135,12 @@ internal class RootDemoPage: BasePager() {
         ButtonDataItem().apply {
             title = "Image/GifViewDemo"
             jumUrl = generateJumpUrl("image_demo")
+            itemList.add(this)
+        }
+        // ToImage Crash Repro
+        ButtonDataItem().apply {
+            title = "ToImageCrashRepro"
+            jumUrl = generateJumpUrl("ToImageCrashRepro")
             itemList.add(this)
         }
         // ViewDemo
@@ -236,6 +243,12 @@ internal class RootDemoPage: BasePager() {
         ButtonDataItem().apply {
             title = "经典HelloWorldDemo"
             jumUrl = generateJumpUrl("classic_demo")
+            itemList.add(this)
+        }
+
+        ButtonDataItem().apply {
+            title = "Image Shared Drawable Test"
+            jumUrl = generateJumpUrl("image_shared_drawable_demo")
             itemList.add(this)
         }
 

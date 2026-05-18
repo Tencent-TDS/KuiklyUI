@@ -17,8 +17,9 @@
 #import "KRUIKit.h"
 #import "KuiklyRenderView.h"
 #import "KRBackPressModule.h"
+#import "KRTurboDisplayConfig.h"
 
-typedef void (^KuiklyContextCodeCallback)(NSString * _Nullable contextCode, NSError * _Nullable error);
+typedef void (^KuiklyContextCodeCallback)(id _Nullable contextCode, NSError * _Nullable error);
 @protocol KRPerformanceDataProtocol;
 
 NS_ASSUME_NONNULL_BEGIN
@@ -105,14 +106,15 @@ FOUNDATION_EXTERN NSString *const KRPageDataSnapshotKey;
 - (void)fetchContextCodeWithResultCallback:(KuiklyContextCodeCallback)callback;
 /*
  * @brief 创建Kuikly接入模式实例
- * @param contextCode kmm工程打包的framework名字
+ * @param contextCode 产物数据（NSString 或 NSData）
  */
-- (KuiklyBaseContextMode *)createContextMode:(NSString * _Nullable) contextCode;
+- (KuiklyBaseContextMode *)createContextMode:(id _Nullable)contextCode;
+
 /*
  * @brief 初始化renderView
- * @param contextCode kmm工程打包的framework名字
+ * @param contextCode 产物数据（NSString 或 NSData）
  */
-- (void)initRenderViewWithContextCode:(NSString *)contextCode;
+- (void)initRenderViewWithContextCode:(id)contextCode;
 
 
 /*
@@ -205,6 +207,34 @@ FOUNDATION_EXTERN NSString *const KRPageDataSnapshotKey;
  * @return 返回该页面的TurboDisplayKey（一般可为PageName，若为nil，则为关闭TurboDisplay渲染模式）
  */
 - (NSString * _Nullable)turboDisplayKey;
+
+
+/*
+ * @brief 设置 当前页面获取信息来源的window 为 业务在 vc 中指定window
+ */
+- (UIWindow * _Nullable) viewControllerHostWindow;
+
+
+/*
+ * @brief 配置 TurboDisplay 的全局参数
+ * @param config 可调用方法中配置 Diff-DOM 模式、延迟 Diff 模式、自动刷新首屏
+ * @warning configureTurboDisplay 方法不可单独实现，需同时声明 TurboDisplayKey 方法
+ *
+ * 示例用法：
+ * - (KRTurboDisplayConfig*)configureTurboDisplay {
+ *     // 1. 定义 TurboDisplayConfig 实例
+ *     KRTurboDisplayConfig *config = [[KRTurboDisplayConfig alloc] init];
+ *     // 2. 配置功能项
+ *     // 启用 Diff-DOM 结构变化支持（默认已启用）
+ *     [config enableDiffDOMStructureAware];
+ *     // 启用延迟 Diff（默认禁用）
+ *     [config enableDelayedDiff];
+ *     // 启用自动刷新（默认已启用）
+ *     [config disableCloseAutoUpdateTurboDisplay];
+ *     return config;
+ * }
+ */
+- (KRTurboDisplayConfig*)configureTurboDisplay;
 
 @end
 

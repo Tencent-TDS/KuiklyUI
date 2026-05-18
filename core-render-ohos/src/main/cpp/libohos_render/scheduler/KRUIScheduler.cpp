@@ -112,9 +112,14 @@ void KRUIScheduler::SetNeedSyncMainQuequeTasks() {
 void KRUIScheduler::PerformOnMainQueueWithTask(bool sync, const std::function<void()> &task) {
     if (sync) {
         m_main_thread_task_wait_to_sync_block_ = task;
+        std::weak_ptr<IKRScheduler> weak_self = shared_from_this();
         KRMainThread::RunOnMainThread(
-            [this] {  // 兜底执行
-                this->PerformMainThreadTaskWaitToSyncBlockIfNeed();
+            [weak_self] {  // 兜底执行
+                if (auto strong_self = weak_self.lock()){
+                    std::dynamic_pointer_cast<KRUIScheduler>(strong_self)->PerformMainThreadTaskWaitToSyncBlockIfNeed();
+                } else {
+                    KR_LOG_ERROR<<"KRUIScheduler deallocated";
+                }
             },
             1);
     } else {

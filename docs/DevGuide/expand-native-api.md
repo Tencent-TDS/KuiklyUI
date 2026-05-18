@@ -230,6 +230,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 
 在``call``方法中，我们通过``method``参数来识别``log``方法，然后调用我们定义的私有方法``log``，并将``Kuikly``侧传递过来的``content``参数传递给``log``方法
 
+:::tip 注意
+`log` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+:::
+
 ### logWithCallback方法
 
 ```kotlin
@@ -253,6 +257,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 }
 ```
 
+:::tip 注意
+`logWithCallback` 方法通过 `asyncToNativeMethod` 异步调用，运行在 **主线程(UI线程)** 中。应避免在方法中执行耗时操作，以免阻塞UI线程导致卡顿。
+:::
+
 ### syncLog方法
 
 ```kotlin
@@ -274,6 +282,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
     ...
 }
 ```
+
+::::tip 注意
+`syncLog` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
 
 2. 原生侧实现完API后，我们将``KRMyLogModule``注册暴露到``Kuikly``中，与``Kuikly``侧的``MyLogModule``对应起来。在实现了``KuiklyRenderViewDelegatorDelegate``接口
 类中重写``registerExternalModule``方法，注册``KRMyLogModule``
@@ -299,7 +311,8 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 1. 在接入``Kuikly``的iOS宿主工程中新建``KRMyLogModule``类，然后继承``KRBaseModule``
 
 :::tip 注意
-iOS原生侧的Module创建是在运行时根据``Kuikly``注册``module``的名字来动态创建的，因此类名必须与``Kuikly``侧注册``module``的名字保持一致
+- iOS原生侧的Module创建是在运行时根据``Kuikly``注册``module``的名字来动态创建的，因此类名必须与``Kuikly``侧注册``module``的名字保持一致
+- 如果使用 **Swift** 实现 Module，需要使用 `@objc` 或 `@objcMembers` 注解修饰 Swift 类，以供kuikly识别并调用。
 :::
 
 ```objc
@@ -340,6 +353,10 @@ NS_ASSUME_NONNULL_END
 @end
 ```
 
+::::tip 注意
+`log` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
+
 方法名字保持与``Kuikly``侧的log方法名字一致，并且参数固定为``NSDictionary``类型。
 
 ``Kuikly``侧传递过来的参数从``args``字典中提取, 例如
@@ -369,6 +386,10 @@ iOS侧的Module中的方法名字必须与kuikly侧toNative方法传递的方法
 
 ``Kuikly``侧的``CallbackFn``我们可以从args字典中拿到
 
+::::tip 注意
+`logWithCallback` 方法通过 `asyncToNativeMethod` 异步调用，运行在 **主线程(UI线程)** 中。应避免在方法中执行耗时操作，以免阻塞UI线程导致卡顿。
+::::
+
 ```kotlin
 KuiklyRenderCallback callback = args[KR_CALLBACK_KEY];
 ```
@@ -384,6 +405,10 @@ KuiklyRenderCallback callback = args[KR_CALLBACK_KEY];
 }
 ```
 ## 鸿蒙侧
+
+::::tip 注意
+`syncLog` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
 
 1. 在接入``Kuikly``的鸿蒙宿主工程（ArkTS）中新建``KRMyLogModule``类，继承``KuiklyRenderBaseModule``，并重写其``call``方法
 
@@ -437,6 +462,10 @@ export class KRMyLogModule extends KuiklyRenderBaseModule {
 
 在``call``方法中，我们通过``method``参数来识别``log``方法，然后调用我们定义的私有方法``log``，并将``Kuikly``侧传递过来的``content``参数传递给``log``方法
 
+::::tip 注意
+`log` 方法通过 `syncToNativeMethod` 同步调用，由于 `syncMode()` 返回 `true`，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
+
 ### logWithCallback方法
 
 ```ts
@@ -475,6 +504,10 @@ export class KRMyLogModule extends KuiklyRenderBaseModule {
 
 ### syncLog方法
 
+::::tip 注意
+`logWithCallback` 方法通过 `asyncToNativeMethod` 异步调用，由于 `syncMode()` 返回 `true`，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
+
 ```ts
 export class KRMyLogModule extends KuiklyRenderBaseModule {
     static readonly MODULE_NAME = "KRMyLogModule";
@@ -510,6 +543,10 @@ export class KRMyLogModule extends KuiklyRenderBaseModule {
 
 2. 原生侧实现完API后，我们将``KRMyLogModule``注册暴露到``Kuikly``中，与``Kuikly``侧的``MyLogModule``对应起来。在实现了``IKuiklyViewDelegate``接口
 类中重写``getCustomRenderModuleCreatorRegisterMap``方法，注册``KRMyLogModule``
+
+::::tip 注意
+`syncLog` 方法通过 `syncToNativeMethod` 同步调用，由于 `syncMode()` 返回 `true`，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
 
 :::tip 注意
 注册的名字必须与``Kuikly moudle``侧注册的名字一样
@@ -676,6 +713,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 
 在``call``方法中，我们通过``method``参数来识别``log``方法，然后调用我们定义的私有方法``log``，并将``Kuikly``侧传递过来的``content``参数传递给``log``方法
 
+::::tip 注意
+`log` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
+
 ### logWithCallback方法
 
 ```kotlin
@@ -708,6 +749,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
+
+::::tip 注意
+`logWithCallback` 方法通过 `asyncToNativeMethod` 异步调用，运行在 **主线程(UI线程)** 中。应避免在方法中执行耗时操作，以免阻塞UI线程导致卡顿。
+::::
             "log" -> log(params ?: "")
             "logWithCallback" -> logWithCallback(params ?: "", callback)
             "syncLog" -> syncLog(params ?: "")
@@ -730,6 +775,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 注册的名字必须与``Kuikly moudle``侧注册的名字一样
 ::::
 
+
+::::tip 注意
+`syncLog` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
 ```kotlin
     override fun registerExternalModule(kuiklyRenderExport: IKuiklyRenderExport) {
         super.registerExternalModule(kuiklyRenderExport)
@@ -787,6 +836,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 
 在``call``方法中，我们通过``method``参数来识别``log``方法，然后调用我们定义的私有方法``log``，并将``Kuikly``侧传递过来的``content``参数传递给``log``方法
 
+::::tip 注意
+`log` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
+
 ### logWithCallback方法
 
 ```kotlin
@@ -819,6 +872,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
             "log" -> log(params ?: "")
+
+::::tip 注意
+`logWithCallback` 方法通过 `asyncToNativeMethod` 异步调用，运行在 **主线程(UI线程)** 中。应避免在方法中执行耗时操作，以免阻塞UI线程导致卡顿。
+::::
             "logWithCallback" -> logWithCallback(params ?: "", callback)
             "syncLog" -> syncLog(params ?: "")
             else -> super.call(method, params, callback)
@@ -841,6 +898,10 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
 ::::
 
 ```kotlin
+
+::::tip 注意
+`syncLog` 方法通过 `syncToNativeMethod` 同步调用，运行在 **Kuikly线程** 中。应避免在方法中执行耗时操作，以免阻塞 Kuikly 渲染线程导致卡顿。
+::::
     override fun registerExternalModule(kuiklyRenderExport: IKuiklyRenderExport) {
         super.registerExternalModule(kuiklyRenderExport)
         with(kuiklyRenderExport) {
@@ -851,3 +912,108 @@ class KRMyLogModule : KuiklyRenderBaseModule() {
         }
     }
 ```
+
+## 在 Native 侧获取 Kuikly 渲染的 View —— viewWithTag 方法
+
+### 方法说明
+
+`viewWithTag` 是 Module 基类（iOS `KRBaseModule` / Android `KuiklyRenderBaseModule` / 鸿蒙 `KuiklyRenderBaseModule`）提供的实例方法，允许在 **Native 侧的自定义 Module 中**，通过 Kuikly DSL 中设置的 `tag` 值来获取对应的**平台原生 View 实例**。
+
+该方法适用于需要在 Native 侧直接获取 Kuikly 渲染出的某个具体 View 。
+
+### 各平台 API 签名与返回值
+
+| 平台 | API 签名 | 返回值 |
+|:---|:---|:---|
+| **Android** | `fun viewWithTag(tag: Int): View?` | `android.view.View?`，未找到时返回 `null` |
+| **iOS** | `- (UIView * _Nullable)viewWithTag:(NSNumber *)tag` | `UIView *`，未找到时返回 `nil` |
+| **鸿蒙** | `viewWithTag(tag: number): KuiklyRenderBaseView \| null` | `KuiklyRenderBaseView`，未找到时返回 `null` |
+
+:::tip 注意
+- 由于鸿蒙侧 `KRNativeManager` 和 `KRNativeInstance` 为框架内部类，业务层无法直接获取 Module 实例并调用 `viewWithTag` 方法。
+  因此鸿蒙侧暂未支持基于 viewWithTag 获取Native的Kuikly view。
+- 以下将给出 iOS 侧和 Android 侧的 Native Kuikly view 获取的操作指引
+  :::
+
+### 示例代码
+
+#### 第一步：自定义 Module 并定义使用 `viewWithTag` 的方法
+
+自定义 Module **必须继承平台对应的 BaseModule**，才能使用 `viewWithTag` 方法。
+
+**Android侧**
+
+```kotlin
+// 自定义 Module 必须继承 KuiklyRenderBaseModule
+class KRBridgeModule : KuiklyRenderBaseModule() {
+
+    // 定义一个方法，内部通过 viewWithTag 获取 View
+    fun getSnapshotView(): View? {
+        return viewWithTag(3) // 通过 tag 获取对应的 Android View
+    }
+
+    companion object {
+        const val MODULE_NAME = "KRBridgeModule"
+    }
+}
+```
+
+**iOS侧**
+
+```objc
+// 自定义 Module 必须继承 KRBaseModule
+@interface KRBridgeModule : KRBaseModule
+- (UIView *)getSnapshotView;
+@end
+
+@implementation KRBridgeModule
+
+- (UIView *)getSnapshotView {
+    return [self viewWithTag:@(3)]; // 通过 tag 获取对应的 UIView
+}
+
+@end
+```
+
+
+
+#### 第二步：在 Native 侧获取 Module 实例并调用方法
+
+`viewWithTag` 获取到的 View 只能在 Native 侧使用，因此需要在 Native 侧获取 Module 实例，再调用上面定义的方法。
+
+**Android侧** — 通过 `KuiklyRenderView.module<T>(name)` 获取 Module 实例：
+
+```kotlin
+// 在合适的时机（如页面内容加载完成后），获取 Module 实例并调用
+val bridgeModule = kuiklyRenderView.module<KRBridgeModule>(KRBridgeModule.MODULE_NAME)
+val view = bridgeModule?.getSnapshotView()
+if (view != null) {
+    // ...
+}
+```
+
+**iOS侧** — 通过 `KuiklyRenderView` 的 `moduleWithName:` 获取 Module 实例：
+
+```objc
+// 在合适的时机（如KuiklyRenderViewController.m 的 viewDidAppear 方法中 ），获取 Module 实例并调用
+KRBridgeModule *bridgeModule = (KRBridgeModule *)[renderView moduleWithName:@"KRBridgeModule"];
+if (bridgeModule) {
+    // 由于 getSnapshotView 为 Module 内部方法，通过 performSelector 安全调用
+    SEL sel = NSSelectorFromString(@"getSnapshotView");
+    if ([bridgeModule respondsToSelector:sel]) {
+        UIView *view = [bridgeModule performSelector:sel];
+        if (view) {
+            // 在 Native 侧使用获取到的 UIView，例如截图、传递给原生 SDK 等
+        }
+    }
+}
+```
+
+### 注意事项
+
+::: tip 注意
+1. **必须在主线程调用**：`viewWithTag` 方法需要在**主线程（UI 线程）**中调用，不可在子线程或 Kuikly 线程中直接调用，否则可能导致线程安全问题或返回异常结果。
+
+2. **仅适用于 Native 侧使用**：Module 的 `call` 方法返回值和 `callback` 回调参数仅支持基本数据类型（String、Int、Map 等），**不支持返回 View 对象或在 Callback 中回传 View 实例**给 Kuikly 侧。因此 `viewWithTag` 获取到的 View 只能在 **Native 侧的 Module 内部**直接使用（例如进行截图、传递给原生 SDK 等），无法将 View 传递回 Kuikly（Kotlin）侧。
+:::
+

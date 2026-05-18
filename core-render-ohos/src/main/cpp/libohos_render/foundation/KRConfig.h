@@ -27,7 +27,7 @@ class KRConfig {
     }
 
     void Update(const std::string &configJson) {
-        auto configValue = std::make_shared<KRRenderValue>(configJson);
+        auto configValue = KRRenderValue::Make(configJson);
         auto map = configValue->toMap();
         auto vp2px = map.find("vp2px");
         if (vp2px != map.end()) {
@@ -58,6 +58,12 @@ class KRConfig {
         auto assets_dir = map.find("assets_dir");
         if (assets_dir != map.end()) {
             assets_dir_ = assets_dir->second->toString();
+        }
+        
+        auto useOhSharedPreferences = map.find("useOhSharedPreferences");
+        if (useOhSharedPreferences != map.end()) {
+            std::string value = useOhSharedPreferences->second->toString();
+            useOhSharedPreferences_ = (value.compare("1") == 0);
         }
 
         auto screenDensity = map.find("screenDensity");
@@ -158,6 +164,10 @@ class KRConfig {
         return screenDensity_;
     }
     
+    const bool GetUseOhSharedPreferences() {
+        return useOhSharedPreferences_;
+    }
+    
     const bool ImeMode() {
         return ime_mode_;
     }
@@ -188,6 +198,7 @@ class KRConfig {
     bool ime_mode_ = false;
     bool fontSizeScaleFollowSystem_ = true;
     int performanceMonitorTypesMask_ = 0;
+    bool useOhSharedPreferences_ = true;    // 默认使用新的SharedPreferencesModule
 };
 
 #endif  // CORE_RENDER_OHOS_KRCONFIG_H

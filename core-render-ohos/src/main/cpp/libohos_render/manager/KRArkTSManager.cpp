@@ -46,7 +46,7 @@ KRArkTSManager::KRArkTSManager() {}
  * 处理来自ArkTS对Native侧的统一调用
  */
 void KRArkTSManager::HandleArkTSCallNative(napi_env env, napi_value *args, size_t arg_size) {
-    auto methodId = std::make_shared<KRRenderValue>(env, args[1])->toInt();
+    auto methodId = KRRenderValue::Make(env, args[1])->toInt();
     if (methodId == static_cast<int>(KRArkTSCallNativeMethod::Register)) {  // 注册ArkTS互通信
         RegisterArkTSCallback(env, args, arg_size);
     } else if (methodId == static_cast<int>(KRArkTSCallNativeMethod::FireCallback)) {  // callback参数回调
@@ -96,7 +96,7 @@ KRAnyValue KRArkTSManager::CallArkTSMethod(const std::string &instanceId, KRNati
     napi_value callbackArgs[8] = {nullptr};
     napi_value instanceIdValue;
     napi_status status;
-    std::make_shared<KRRenderValue>(instanceId)->ToNapiValue(env, &instanceIdValue, status);
+    KRRenderValue::Make(instanceId)->ToNapiValue(env, &instanceIdValue, status);
     callbackArgs[0] = instanceIdValue;
     napi_value methodIdValue;
     napi_create_int32(env, (int32_t)methodId, &methodIdValue);
@@ -123,7 +123,7 @@ KRAnyValue KRArkTSManager::CallArkTSMethod(const std::string &instanceId, KRNati
     napi_value result = nullptr;
     status = napi_call_function(env, nullptr, callbackFun, 8, callbackArgs, &result);
     if(napi_ok != status){
-        return std::make_shared<KRRenderValue>(nullptr);
+        return KRRenderValue::Make(nullptr);
     }
     if (return_node_handle != nullptr) {  // 返回一个arkui侧的node_handle
         napi_value componentContent = nullptr;
@@ -140,18 +140,18 @@ KRAnyValue KRArkTSManager::CallArkTSMethod(const std::string &instanceId, KRNati
             *pContentHandle = contentHandle;
         }
         
-        return std::make_shared<KRRenderValue>(nullptr);
+        return KRRenderValue::Make(nullptr);
     }
-    return std::make_shared<KRRenderValue>(env, result);
+    return KRRenderValue::Make(env, result);
 }
 
 /**
  * 键盘高度变化回调
  */
 void KRArkTSManager::KeyboardHeightChange(napi_env env, napi_value *args, size_t arg_size) {
-    auto height = std::make_shared<KRRenderValue>(env, args[2])->toFloat();
-    auto duration_ms = std::make_shared<KRRenderValue>(env, args[3])->toInt();
-    auto window_id = std::make_shared<KRRenderValue>(env, args[4])->toString();
+    auto height = KRRenderValue::Make(env, args[2])->toFloat();
+    auto duration_ms = KRRenderValue::Make(env, args[3])->toInt();
+    auto window_id = KRRenderValue::Make(env, args[4])->toString();
     KRKeyboardManager::GetInstance().NotifyKeyboardHeightChanged(height, duration_ms, window_id);
 }
 
@@ -159,8 +159,8 @@ void KRArkTSManager::KeyboardHeightChange(napi_env env, napi_value *args, size_t
  * ArkTS侧调用Native Callback
  */
 void KRArkTSManager::FireCallbackFromArkTS(napi_env env, napi_value *args, size_t arg_size) {
-    auto pager_id = std::make_shared<KRRenderValue>(env, args[0])->toString();
-    auto callback_id = std::make_shared<KRRenderValue>(env, args[2])->toString();
+    auto pager_id = KRRenderValue::Make(env, args[0])->toString();
+    auto callback_id = KRRenderValue::Make(env, args[2])->toString();
     auto renderView = KRRenderManager::GetInstance().GetRenderView(pager_id);
     if (renderView != nullptr) {
         bool arg_prefer_raw_napi_value = false;
@@ -168,9 +168,9 @@ void KRArkTSManager::FireCallbackFromArkTS(napi_env env, napi_value *args, size_
         if (callback != nullptr) {
             std::shared_ptr<KRRenderValue> data;
             if (arg_prefer_raw_napi_value) {
-                data = std::make_shared<KRRenderValue>(NapiValue(env, args[3]));
+                data = KRRenderValue::Make(NapiValue(env, args[3]));
             } else {
-                data = std::make_shared<KRRenderValue>(env, args[3]);
+                data = KRRenderValue::Make(env, args[3]);
             }
             callback(data);
         }
@@ -181,14 +181,14 @@ void KRArkTSManager::FireCallbackFromArkTS(napi_env env, napi_value *args, size_
  * ArkTS侧响应ViewEvent事件
  */
 void KRArkTSManager::FireViewEventFromArkTS(napi_env env, napi_value *args, size_t arg_size) {
-    auto pager_id = std::make_shared<KRRenderValue>(env, args[0])->toString();
-    auto tag = std::make_shared<KRRenderValue>(env, args[2])->toInt();
-    auto eventKey = std::make_shared<KRRenderValue>(env, args[3])->toString();
+    auto pager_id = KRRenderValue::Make(env, args[0])->toString();
+    auto tag = KRRenderValue::Make(env, args[2])->toInt();
+    auto eventKey = KRRenderValue::Make(env, args[3])->toString();
     auto renderView = KRRenderManager::GetInstance().GetRenderView(pager_id);
     if (renderView != nullptr) {
         auto view = renderView->GetView(tag);
         if (view != nullptr) {
-            auto data = std::make_shared<KRRenderValue>(env, args[4]);
+            auto data = KRRenderValue::Make(env, args[4]);
             view->FireViewEventFromArkTS(eventKey, data);
         }
     }

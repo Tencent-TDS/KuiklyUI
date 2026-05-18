@@ -9,6 +9,20 @@
 
 支持所有[基础属性](basic-attr-event.md#基础属性)
 
+### scrollEnable
+
+是否允许滑动内容
+
+<div class="table-01">
+
+**scrollEnable**
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| value | 是否允许滑动内容，默认`true` | Boolean |
+
+</div>
+
 ### pageItemWidth方法
 
 分页组件的Item宽度大小
@@ -107,9 +121,24 @@
 
 | 参数  | 描述     | 类型 |
 |:----|:-------|:--|
-| index | 当前分页的index  | Int |
+| it | 回调参数，为 JSONObject 类型，包含 index 字段  | JSONObject |
+| index | 当前分页的index，通过 `(it as JSONObject).optInt("index")` 获取  | Int |
 
 </div>
+
+```kotlin
+PageList {
+    ...
+    event {
+        pageIndexDidChanged {
+            val index = (it as JSONObject).optInt("index")
+            ...
+        }
+    }
+    ...
+}
+
+```
 
 ## 方法
 

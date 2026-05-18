@@ -54,6 +54,8 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(keyboardType);
 /** attr is returnKeyType */
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(returnKeyType);
+/** 是否在点击 IME 动作按钮（如 Send/Go/Search）时自动收起键盘，默认值为 YES，即自动收起，可由业务设置autoHideKeyboardOnImeAction来关闭*/
+@property (nonatomic, strong)  NSNumber *KUIKLY_PROP(autoHideKeyboardOnImeAction);
 /** event is textDidChange 文本变化 */
 @property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(textDidChange);
 /** event is inputFocus 获焦 触发 */
@@ -88,6 +90,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     if (self = [super init]) {
         self.delegate = self;
         _props = [NSMutableDictionary new];
+        self.css_autoHideKeyboardOnImeAction = [NSNumber numberWithInt: 1];     // 保持原有能力，默认是关闭关闭软键盘
         [self addTarget:self action:@selector(onTextFeildTextChanged:) forControlEvents:UIControlEventEditingChanged];
     }
     return self;
@@ -140,7 +143,11 @@ NSString *const KRVFontWeightKey = @"fontWeight";
             UITextRange *originalSelectedTextRange = self.selectedTextRange;
             // 设置新的 attributedText
             NSAttributedString *resAttr = [textShadow buildAttributedString];
-            // 代理
+            // NOTE: UITextField does not render NSTextAttachment images (only UITextView does).
+            // Therefore textPostProcessor with emoji/image attachment rendering is NOT supported
+            // in single-line mode (KRTextFieldView). Use KRTextAreaView for custom emoji support.
+            // The textPostProcessor call here is kept for any non-image text transformations
+            // (e.g., text masking, formatting) that do not rely on NSTextAttachment rendering.
             if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_customTextWithAttributedString:textPostProcessor:)]) {
                 resAttr = [[KuiklyRenderBridge componentExpandHandler] hr_customTextWithAttributedString:resAttr textPostProcessor:NSStringFromClass([self class])];
             }
@@ -199,6 +206,10 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 - (void)setCss_returnKeyType:(NSString *)css_returnKeyType {
     _css_returnKeyType = css_returnKeyType;
     self.returnKeyType = [KRConvertUtil hr_toReturnKeyType:css_returnKeyType];
+}
+
+- (void)setCss_autoHideKeyboardOnImeAction:(NSNumber *)css_autoHideKeyboardOnImeAction {
+    _css_autoHideKeyboardOnImeAction = css_autoHideKeyboardOnImeAction;
 }
 
 - (void)setCss_enablesReturnKeyAutomatically:(NSNumber *)flag{
@@ -303,6 +314,13 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 - (BOOL)textFieldShouldReturn:(UITextField *)textField {
     if (self.css_inputReturn) {
         self.css_inputReturn(@{@"text": textField.text.copy ?: @"", @"ime_action": self.css_returnKeyType ?: @""});
+    }
+    // 根据 autoHideKeyboardOnImeAction 属性决定是否收起键盘
+    // 默认值为 NO（不自动收起），如果设置为 YES 则自动收起键盘
+    if ([self.css_autoHideKeyboardOnImeAction boolValue]) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [textField resignFirstResponder];
+        });
     }
     return YES;
 }

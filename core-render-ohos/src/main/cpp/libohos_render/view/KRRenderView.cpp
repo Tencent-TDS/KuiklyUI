@@ -40,15 +40,22 @@ KRRenderView::KRRenderView(ArkUI_NodeContentHandle handle, std::string instance_
     OH_ArkUI_NodeContent_SetUserData(handle, (void*)id_value);
     auto cb = [](ArkUI_NodeContentEvent* event){
         auto event_type = OH_ArkUI_NodeContentEvent_GetEventType(event);
+        auto handle = OH_ArkUI_NodeContentEvent_GetNodeContentHandle(event);
+        void *user_data = OH_ArkUI_NodeContent_GetUserData(handle);
+        unsigned long long id_value = (unsigned long long)user_data;
+        std::string instance_id = std::to_string(id_value);
         if(event_type == NODE_CONTENT_EVENT_ON_DETACH_FROM_WINDOW){
-            auto handle = OH_ArkUI_NodeContentEvent_GetNodeContentHandle(event);
-            void *user_data = OH_ArkUI_NodeContent_GetUserData(handle);
-            unsigned long long id_value = (unsigned long long)user_data;
-            std::string instance_id = std::to_string(id_value);
             if (auto instance = KRRenderManager::GetInstance().GetRenderView(instance_id)) {
                 std::shared_ptr<KRRenderView> render_view = std::dynamic_pointer_cast<KRRenderView>(instance);
                 if(render_view){
-                    render_view->RemoveRootViewFromContentHandle(true);
+                    render_view->OnDetachFromWindow();
+                }
+            }
+        } else if(event_type == NODE_CONTENT_EVENT_ON_ATTACH_TO_WINDOW){
+            if (auto instance = KRRenderManager::GetInstance().GetRenderView(instance_id)) {
+                std::shared_ptr<KRRenderView> render_view = std::dynamic_pointer_cast<KRRenderView>(instance);
+                if(render_view){
+                    render_view->OnAttachToWindow(handle);
                 }
             }
         }
@@ -58,19 +65,15 @@ KRRenderView::KRRenderView(ArkUI_NodeContentHandle handle, std::string instance_
 
 KRRenderView::~KRRenderView() {
     RemoveRootViewFromContentHandle(false);
-//    if (node_content_handle_ && root_node_){
-//        ArkUI_NodeContentHandle content_handle = node_content_handle_;
-//        ArkUI_NodeHandle root_node = root_node_;
-//
-//        KRMainThread::RunOnMainThread([content_handle, root_node] {
-//            OH_ArkUI_NodeContent_RemoveNode(content_handle, root_node);
-//        });
-//    }
     if(root_node_ != nullptr){
         ArkUI_NodeHandle root_node = root_node_;
-        KRMainThread::RunOnMainThread([root_node] {
+        if (kuikly::util::isMainThread()){
             kuikly::util::GetNodeApi()->disposeNode(root_node);
-        });
+        } else {
+            KRMainThread::RunOnMainThread([root_node] {
+                kuikly::util::GetNodeApi()->disposeNode(root_node);
+            });
+        }
         root_node_ = nullptr;
     }
     node_content_handle_ = nullptr;
@@ -83,20 +86,31 @@ void KRRenderView::RemoveRootViewFromContentHandle(bool immediate){
         ArkUI_NodeContentHandle content_handle = node_content_handle_;
         ArkUI_NodeHandle root_node = root_node_;
         
-        auto unregister_and_remove = [content_handle, root_node](){
-            OH_ArkUI_NodeContent_RegisterCallback(content_handle, [](ArkUI_NodeContentEvent*){}); // set callback to noop
+        if(immediate || kuikly::util::isMainThread()){
             OH_ArkUI_NodeContent_RemoveNode(content_handle, root_node);
-        };
-        
-        if(immediate){
-            unregister_and_remove();
         }else{
-            KRMainThread::RunOnMainThread([unregister_and_remove] {
-                unregister_and_remove();
+            KRMainThread::RunOnMainThread([content_handle, root_node] {
+                OH_ArkUI_NodeContent_RemoveNode(content_handle, root_node);
             });
         }
         
         node_content_handle_ = nullptr;
+    }
+}
+
+void KRRenderView::OnDetachFromWindow(){
+    if (is_detached_) {
+        return;
+    }
+    is_detached_ = true;
+    RemoveRootViewFromContentHandle(true);
+}
+
+void KRRenderView::OnAttachToWindow(ArkUI_NodeContentHandle handle){
+    if(is_detached_ && root_node_ != nullptr){
+        is_detached_ = false;
+        node_content_handle_ = handle;
+        OH_ArkUI_NodeContent_AddNode(node_content_handle_, root_node_);
     }
 }
 
@@ -105,6 +119,8 @@ void KRRenderView::WillDestroy(const std::string &instanceId) {
     core_->WillDealloc(instanceId);
     // send event to call
     // delay destroy for core
+    KR_LOG_INFO_WITH_TAG("RemoveRootView")<<"KTRenderView WillDestroy";
+    RemoveRootViewFromContentHandle(true);
 }
 
 /**
@@ -242,9 +258,9 @@ void KRRenderView::OnRenderViewSizeChanged(float width, float height) {
         kuikly::util::UpdateNodeSize(root_node_, width, height);
         // 尺寸变化更新到Kotlin
         KRRenderValue::Map data;
-        data["width"] = std::make_shared<KRRenderValue>(width);
-        data["height"] = std::make_shared<KRRenderValue>(height);
-        auto json_data = std::make_shared<KRRenderValue>(data)->toString();
+        data["width"] = KRRenderValue::Make(width);
+        data["height"] = KRRenderValue::Make(height);
+        auto json_data = KRRenderValue::Make(data)->toString();
         SendEvent("rootViewSizeDidChanged", json_data);
     }
 }

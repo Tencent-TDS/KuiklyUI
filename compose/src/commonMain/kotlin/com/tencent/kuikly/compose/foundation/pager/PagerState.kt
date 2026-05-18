@@ -59,6 +59,9 @@ import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.scroller.applyScrollViewOffsetDelta
 import com.tencent.kuikly.compose.scroller.convertAnimationSpecToSpringAnimation
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
+import com.tencent.kuikly.compose.profiler.RecompositionProfiler
+import com.tencent.kuikly.compose.material3.internal.identityHashCode
+import com.tencent.kuikly.core.collection.fastMutableMapOf
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.math.abs
 import kotlin.math.absoluteValue
@@ -128,22 +131,36 @@ private class DefaultPagerState(
 
     companion object {
         /**
-         * To keep current page and current page offset saved
+         * To keep current page and current page offset saved.
+         * Also saves bridge-layer state (composeOffset, currentContentSize, contentOffset, offsetDirty)
+         * to support ScrollerView reuse in nested Pager scenarios.
          */
         val Saver: Saver<DefaultPagerState, *> = listSaver(
             save = {
-                listOf(
-                    it.currentPage,
-                    (it.currentPageOffsetFraction).coerceIn(MinPageOffset, MaxPageOffset),
-                    it.pageCount
+                val saved = listOf(
+                    it.currentPage,                             // [0] Int
+                    (it.currentPageOffsetFraction).coerceIn(MinPageOffset, MaxPageOffset), // [1] Float
+                    it.pageCount,                               // [2] Int
+                    it.kuiklyInfo.composeOffset.toInt(),        // [3] bridge: Compose scroll offset
+                    it.kuiklyInfo.currentContentSize,           // [4] bridge: virtual content size
+                    it.kuiklyInfo.contentOffset,                // [5] bridge: native scrollView offset
+                    if (it.kuiklyInfo.offsetDirty) 1 else 0,   // [6] bridge: offset dirty flag
                 )
+                saved
             },
             restore = {
                 DefaultPagerState(
                     currentPage = it[0] as Int,
                     currentPageOffsetFraction = it[1] as Float,
                     updatedPageCount = { it[2] as Int }
-                )
+                ).also { state ->
+                    if (it.size > 3) { // backward compatibility with old saved data
+                        state.kuiklyInfo.composeOffset = (it[3] as Int).toFloat()
+                        state.kuiklyInfo.currentContentSize = it[4] as Int
+                        state.kuiklyInfo.contentOffset = it[5] as Int
+                        state.kuiklyInfo.offsetDirty = (it[6] as Int) == 1
+                    }
+                }
             }
         )
     }
@@ -691,11 +708,24 @@ abstract class PagerState internal constructor(
         visibleItemsStayedTheSame: Boolean = false
     ) {
         debugLog { "Applying Measure Result" }
+        // Hook: record page scroll context event for Recomposition Profiler
+        val oldPage = scrollPosition.currentPage
         if (visibleItemsStayedTheSame) {
             scrollPosition.updateCurrentPageOffsetFraction(result.currentPageOffsetFraction)
         } else {
             scrollPosition.updateFromMeasureResult(result)
             cancelPrefetchIfVisibleItemsChanged(result)
+        }
+        if (RecompositionProfiler.isEnabled) {
+            val newPage = scrollPosition.currentPage
+            if (newPage != oldPage) {
+                RecompositionProfiler.recordScrollContext(
+                    listId = "pager_${identityHashCode(this)}",
+                    from = oldPage,
+                    to = newPage,
+                    visibleItemCount = result.visiblePagesInfo.size
+                )
+            }
         }
         pagerLayoutInfoState.value = result
         canScrollForward = result.canScrollForward
@@ -710,7 +740,6 @@ abstract class PagerState internal constructor(
                 "\nNew maxScrollOffset=$maxScrollOffset"
         }
 
-        val composeOffset = currentAbsoluteScrollOffset()
         val layoutSize = if (result.orientation == Orientation.Horizontal)
             result.viewportSize.width else result.viewportSize.height
 
@@ -719,13 +748,19 @@ abstract class PagerState internal constructor(
             appleScrollViewOffsetJob?.cancel()
             appleScrollViewOffsetJob = scope?.launch {
                 delay(50)
-                if (!isScrollInProgress && scrollableState.kuiklyInfo.contentOffset != composeOffset.toInt()) {
-                    // 先扩容
-                    currentContentSize = max((maxScrollOffset + layoutSize).toInt(), currentContentSize)
+                val latestComposeOffset = currentAbsoluteScrollOffset()
+                val contentOffsetInt = scrollableState.kuiklyInfo.contentOffset
+                val composeOffsetInt = latestComposeOffset.toInt()
+                val needFix = !isScrollInProgress && contentOffsetInt != composeOffsetInt
+
+                val requiredContentSize = (maxScrollOffset + layoutSize).toInt()
+                if (currentContentSize < requiredContentSize) {
+                    currentContentSize = requiredContentSize
                     updateContentSizeToRender()
+                }
 
-                    val delta = composeOffset.toInt() - scrollableState.kuiklyInfo.contentOffset
-
+                if (needFix) {
+                    val delta = composeOffsetInt - contentOffsetInt
                     // 调整pager的offset
                     applyScrollViewOffsetDelta(delta)
                 }
@@ -899,7 +934,7 @@ internal val EmptyLayoutInfo = PagerMeasureResult(
         override val height: Int = 0
 
         @Suppress("PrimitiveInCollection")
-        override val alignmentLines: Map<AlignmentLine, Int> = mapOf()
+        override val alignmentLines: Map<AlignmentLine, Int> = fastMutableMapOf()
 
         override fun placeChildren() {}
     },
@@ -921,7 +956,7 @@ private inline fun debugLog(generateMsg: () -> String) {
 internal fun PagerLayoutInfo.calculateNewMaxScrollOffset(pageCount: Int): Long {
     val pageSizeWithSpacing = pageSpacing + pageSize
     val maxScrollPossible =
-        (pageCount.toLong()) * pageSizeWithSpacing + beforeContentPadding + afterContentPadding
+        (pageCount.toLong()) * pageSizeWithSpacing + beforeContentPadding + afterContentPadding - pageSpacing
     val layoutSize =
         if (orientation == Orientation.Horizontal) viewportSize.width else viewportSize.height
 

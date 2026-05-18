@@ -39,10 +39,22 @@ publishing {
 }
 
 kotlin {
-    jvm()
+    jvm {
+        compilations.all {
+            kotlinOptions {
+                moduleName = "${project.group}.${project.name}"
+            }
+        }
+    }
 
     ohosArm64()
-    android()
+    android {
+        compilations.all {
+            kotlinOptions {
+                moduleName = "${project.group}.${project.name}"
+            }
+        }
+    }
 
     iosArm64()
     iosX64()

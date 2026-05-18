@@ -12,6 +12,10 @@ import com.tencent.kuikly.h5app.processor.CustomImageProcessor
  * WebApp entry, use renderView delegate method to initialize and create renderView
  */
 fun main() {
+    // Configure whether to prevent default text selection and image drag behavior.
+    // Set to false to allow text selection and image dragging.
+    // KuiklyProcessor.preventDefaultDragAndSelect = false
+
     // Takes over control if "use_spa=1" is present in URL or ENABLE_BY_DEFAULT is true
     if (KuiklyRouter.handleEntry()) {
         return
@@ -40,6 +44,12 @@ fun main() {
     // Register Kuikly event listener for Web host to receive events from Kuikly pages
     // When Kuikly page calls NotifyModule.postNotify(), Web host can receive the event here
     registerKuiklyEventListener()
+
+    // When using custom fonts, fonts are loaded asynchronously, so a re-layout needs to be 
+    // triggered after loading completes to re-measure text with the correct font metrics
+    // document.asDynamic().fonts.load("16px 'Kanit Medium'").then({ _ ->
+    //     delegator.fontLoaded()
+    // })
 }
 
 /**

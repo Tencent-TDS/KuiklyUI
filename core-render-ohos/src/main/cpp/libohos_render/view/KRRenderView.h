@@ -94,6 +94,17 @@ class KRRenderView : public IKRRenderView {
     KRPoint GetRootNodePositionInWindow() const override;
 
     void OnFirstFramePaint();
+
+    /**
+     * ContentSlot detach from window 时调用（如 @Reusable 组件回收）
+     */
+    void OnDetachFromWindow();
+
+    /**
+     * ContentSlot attach to window 时调用（如 @Reusable 组件复用）
+     */
+    void OnAttachToWindow(ArkUI_NodeContentHandle handle);
+
     /**
      * 根据Callback生成callback_id
      * @return 该Callback索引ID, 用于GetArgCallback
@@ -138,7 +149,6 @@ class KRRenderView : public IKRRenderView {
     };
 
  private:
-    friend void NodeContentCallback(ArkUI_NodeContentEvent* event);
     void RemoveRootViewFromContentHandle(bool immediate);
     ArkUI_NodeContentHandle node_content_handle_ = nullptr;
     ArkUI_NodeHandle root_node_ = nullptr;
@@ -153,6 +163,7 @@ class KRRenderView : public IKRRenderView {
     KRSnapshotManager snapshot_manager_;
     std::shared_ptr<KRPerformanceManager> performance_manager_ = nullptr;
     bool is_load_finish = false;  //  是否已经初始化过标记
+    bool is_detached_ = false;    //  是否因为 detach from window 而移除了 root view
     void InitRender(float width, float height);
 };
 

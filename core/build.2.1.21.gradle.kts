@@ -38,6 +38,11 @@ publishing {
 kotlin {
 
     androidTarget {
+        compilations.all {
+            kotlinOptions {
+                moduleName = "${project.group}.${project.name}"
+            }
+        }
         publishLibraryVariantsGroupedByFlavor = true
         publishLibraryVariants("release")
     }

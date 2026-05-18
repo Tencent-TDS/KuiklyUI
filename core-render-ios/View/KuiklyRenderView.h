@@ -18,6 +18,7 @@
 #import "KuiklyRenderViewExportProtocol.h"
 #import "KuiklyContextParam.h"
 #import "KuiklyRenderContextProtocol.h"
+#import "KRTurboDisplayConfig.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -43,14 +44,13 @@ FOUNDATION_EXTERN NSString *const KRRootViewSizeDidChangedEventKey;
 /*
  * @brief 创建实例对应的初始化方法.
  * @param size 初始化的视频尺寸大小.
- * @param contextCode 驱动渲染所对应的代码
-        注意：该值为framework名，如shared.framework,则为@"shared"
+ * @param contextCode 产物数据（NSString 或 NSData）
  * @param contextParam 包含contextCode，pageName，url等信息
  * @param params 页面对应的参数（kotlin侧可通过pageData.params获取）
  * @return 返回KuiklyRenderView实例
  */
 - (instancetype)initWithSize:(CGSize)size
-                 contextCode:(NSString *)contextCode
+                 contextCode:(id)contextCode
                 contextParam:(KuiklyContextParam *)contextParam
                       params:(NSDictionary * _Nullable)params
                     delegate:(id<KuiklyRenderViewDelegate>)delegate;
@@ -141,6 +141,16 @@ FOUNDATION_EXTERN NSString *const KRRootViewSizeDidChangedEventKey;
  * @return 返回该页面的TurboDisplayKey（一般可为PageName，若为nil，则为关闭TurboDisplay渲染模式）
  */
 - (NSString * _Nullable)turboDisplayKey;
+
+/*
+ * @brief 设置 当前页面获取信息来源的window 为 业务在 vc 中指定window
+ */
+- (UIWindow * _Nullable)viewControllerHostWindow;
+
+/*
+ * @brief 返回 TurboDisplay 页面级配置（新增）
+ */
+- (KRTurboDisplayConfig * _Nullable)turboDisplayConfig;
 
 @end
 

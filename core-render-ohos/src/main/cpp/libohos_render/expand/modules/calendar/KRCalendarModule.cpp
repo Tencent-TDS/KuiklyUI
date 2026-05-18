@@ -42,17 +42,17 @@ KRAnyValue KRCalendarModule::CallMethod(bool sync, const std::string &method, KR
                                         const KRRenderCallback &callback) {
     // KLOG_INFO(TAG) << method;
     if (method == this->METHOD_CURRENT_TIMESTAMP) {
-        return std::make_shared<KRRenderValue>(this->CurrentTimestamp(params));
+        return KRRenderValue::Make(this->CurrentTimestamp(params));
     } else if (method == this->METHOD_GET_FIELD) {
-        return std::make_shared<KRRenderValue>(this->GetField(params));
+        return KRRenderValue::Make(this->GetField(params));
     } else if (method == this->METHOD_GET_TIME_IN_MILLIS) {
-        return std::make_shared<KRRenderValue>(this->GetTimeMillis(params));
+        return KRRenderValue::Make(this->GetTimeMillis(params));
     } else if (method == this->METHOD_FORMAT) {
-        return std::make_shared<KRRenderValue>(this->Format(params));
+        return KRRenderValue::Make(this->Format(params));
     } else if (method == this->METHOD_PARSE_FORMAT) {
-        return std::make_shared<KRRenderValue>(this->Parse(params));
+        return KRRenderValue::Make(this->Parse(params));
     }
-    return std::make_shared<KRRenderValue>();
+    return KRRenderValue::Make();
 }
 
 void KRCalendarModule::OnDestroy() {

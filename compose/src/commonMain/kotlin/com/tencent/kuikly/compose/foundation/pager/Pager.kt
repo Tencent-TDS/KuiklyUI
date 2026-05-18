@@ -41,11 +41,12 @@ import com.tencent.kuikly.compose.ui.unit.Dp
 import com.tencent.kuikly.compose.ui.unit.Velocity
 import com.tencent.kuikly.compose.ui.unit.dp
 import kotlin.math.abs
-import kotlin.math.roundToInt
+import kotlin.math.floor
 import kotlin.math.sign
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /**
  * A Pager that scrolls horizontally. Pages are lazily placed in accordance to the available

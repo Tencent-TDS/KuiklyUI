@@ -35,6 +35,7 @@
 static NSInteger gInstanceId = 0;
 
 NSString *const kKuiklyFatalExceptionNotification = @"KuiklyFatalExceptionNotification";
+NSString *const kCustomFirstScreenTag = @"customFirstScreenTag";
 
 @interface KuiklyRenderCore () <KuiklyRenderUISchedulerDelegate>
 /** 渲染层协议的实现者 */
@@ -59,7 +60,7 @@ NSString *const kKuiklyFatalExceptionNotification = @"KuiklyFatalExceptionNotifi
 #pragma mark - init
 
 - (instancetype)initWithRootView:(UIView *)rootView
-                     contextCode:(NSString *)contextCode
+                     contextCode:(id)contextCode
                     contextParam:(KuiklyContextParam *)contextParam
                           params:(NSDictionary *)params
                         delegate:(id<KuiklyRenderCoreDelegate>)delegate {
@@ -179,7 +180,7 @@ NSString *const kKuiklyFatalExceptionNotification = @"KuiklyFatalExceptionNotifi
 #pragma mark - private
 
 // 初始化与kotlin侧交互的实现者
-- (void)p_initContextHandlerWithContextCode:(NSString *)contextCode
+- (void)p_initContextHandlerWithContextCode:(id)contextCode
                                    pageName:(NSString *)pageName
                                      params:(NSDictionary * _Nullable)params {
     KR_ASSERT_CONTEXT_HTREAD;
@@ -196,8 +197,17 @@ NSString *const kKuiklyFatalExceptionNotification = @"KuiklyFatalExceptionNotifi
         // 执行KuiklyKotlin侧调用Native侧的事件
         return [strongSelf p_performNativeMethodWithMethod:method args:args];
     }];
+    
+    NSMutableDictionary *finalParams = params ? [params mutableCopy] : [NSMutableDictionary new];
+    if ([_renderLayerHandler respondsToSelector:@selector(extraCacheContent)]) {
+        NSString *extraContent = [_renderLayerHandler extraCacheContent];
+        if (extraContent.length > 0) {
+            finalParams[kCustomFirstScreenTag] = extraContent;
+        }
+    }
+    
     // Native侧调用Kotlin侧事件：CreateInstance, 让Kotlin侧开始创建页面实例
-    [_contextHandler callWithMethod:(KuiklyRenderContextMethodCreateInstance) args:@[_instanceId, pageName, (params ?: @{})]];
+    [_contextHandler callWithMethod:(KuiklyRenderContextMethodCreateInstance) args:@[_instanceId, pageName, finalParams]];
 }
 
 /**
@@ -485,14 +495,21 @@ NSString *const kKuiklyFatalExceptionNotification = @"KuiklyFatalExceptionNotifi
 
 - (id<KuiklyRenderLayerProtocol>)p_createRenderLayerWithRootView:(UIView *)rootView {
     NSString * turboDisplayKey = nil; // 是否为TurboDisplay AOT渲染模式
+    KRTurboDisplayConfig *config = nil;
+    
     if ([_delegate respondsToSelector:@selector(turboDisplayKey)]) {
         turboDisplayKey = [_delegate turboDisplayKey];
     }
+    
+    if ([_delegate respondsToSelector:@selector(turboDisplayConfig)]) {
+        config = [_delegate turboDisplayConfig];
+    }
     if (turboDisplayKey.length) {
-        KuiklyTurboDisplayRenderLayerHandler *handler = [[KuiklyTurboDisplayRenderLayerHandler alloc] 
+        KuiklyTurboDisplayRenderLayerHandler *handler = [[KuiklyTurboDisplayRenderLayerHandler alloc]
                                                          initWithRootView:rootView
                                                          contextParam:_contextParam
-                                                         turboDisplayKey:turboDisplayKey];
+                                                         turboDisplayKey:turboDisplayKey
+                                                         turboDisplayConfig:config];
         handler.uiScheduler = _uiScheduler;
         return handler;
     }

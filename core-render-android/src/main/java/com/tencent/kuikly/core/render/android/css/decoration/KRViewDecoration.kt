@@ -195,6 +195,12 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
             updateFgBorderDrawable()
         }
 
+    val hasBoxShadow: Boolean get() = shadowRadius > 0f && shadowColor != Color.TRANSPARENT
+
+    val needClip: Boolean get() = borderRadiusF != BORDER_RADIUS_UNSET_VALUE ||
+            borderRadii?.any { it > 0f } == true ||
+            clipPathData.isNotEmpty()
+
     override fun drawCommonDecoration(w: Int, h: Int, canvas: Canvas) {
         drawShadow(w, h, canvas) // 绘制阴影
         clipPath(w, h, canvas) // 裁剪圆角或路径
@@ -217,9 +223,6 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
     }
 
     private fun clipPath(w: Int, h: Int, canvas: Canvas) {
-        val needClip = borderRadiusF != BORDER_RADIUS_UNSET_VALUE ||
-                borderRadii?.any { it > 0f } == true ||
-                clipPathData.isNotEmpty()
         if (!needClip) { // 没有设置圆角或路径的情况
             return
         }
@@ -249,7 +252,7 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
         }
     }
     private fun drawShadow(w: Int, h: Int, canvas: Canvas) {
-        if (shadowRadius == 0f) {
+        if (!hasBoxShadow) {
             return
         }
 
@@ -345,7 +348,7 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
                 bl, bl
             )
             if (KRCSSBackgroundDrawable.isAllBorderRadiusEqual(radii)) {
-                borderRadiusF = tl
+                borderRadiusF = if (tl > 0f) tl else BORDER_RADIUS_UNSET_VALUE
                 borderRadii = null
             } else {
                 borderRadiusF = BORDER_RADIUS_UNSET_VALUE

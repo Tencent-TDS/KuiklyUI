@@ -62,6 +62,14 @@ kotlin {
             implementation(project(":compose"))
             implementation(project(":core-annotations"))
 //            compileOnly(project(":core-annotations"))
+            // :core-wx is OPTIONAL. Depend on it here only because the demo
+            // showcases WeChat MiniProgram components / APIs. Apps that do not
+            // need WX capabilities simply omit this dependency and pay zero
+            // cost (no classes leaked into android/iOS artifacts).
+            // Declared in commonMain so cross-platform pages can conditionally
+            // use `WXButton {}` / `registerWXModules()` behind an
+            // `is_miniprogram` runtime check.
+            implementation(project(":core-wx"))
             // Chat Demo 相关依赖
             implementation("com.tencent.kuiklybase:markdown:0.4.0")
             implementation("io.ktor:ktor-client-core:2.3.10")
@@ -201,6 +209,12 @@ fun getLinkerArgs(): List<String> {
         "-Wl,--gc-sections,-s"
     )
 }
+
+// Compose 编译器稳定性报告（按需开启，用于验证类的稳定性推断，会增加编译耗时）
+// composeCompiler {
+//     reportsDestination.set(layout.buildDirectory.dir("compose_compiler"))
+//     metricsDestination.set(layout.buildDirectory.dir("compose_compiler"))
+// }
 
 // Kuikly 插件配置
 kuikly {

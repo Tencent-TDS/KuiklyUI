@@ -97,7 +97,7 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
                 return v;
             }
 
-            return std::make_shared<KRRenderValue>();
+            return KRRenderValue::Make();
         } else if (onCallMethod_) {
             std::string paramStr = params->toString();
             // create a callback context
@@ -112,14 +112,14 @@ class KRForwardRenderModule : public IKRRenderModuleExport {
             auto val = onCallMethod_(moduleInstance_, moduleName_.c_str(), sync, method.c_str(), &anyDataInternal, (KRRenderModuleCallbackContext)cbData);
             
             if(val.res){
-                auto value = std::make_shared<KRRenderValue>(val.res);
+                auto value = KRRenderValue::Make(val.res);
                 if(val.free){
                     val.free((void*)val.res);
                 }
                 
                 return value;
             }
-            return std::make_shared<KRRenderValue>();
+            return KRRenderValue::Make();
         }
         return nullptr;
     }

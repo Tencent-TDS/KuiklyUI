@@ -37,6 +37,7 @@ import com.tencent.kuikly.compose.foundation.lazy.LazyColumn
 import com.tencent.kuikly.compose.foundation.lazy.items
 import com.tencent.kuikly.compose.foundation.shape.RoundedCornerShape
 import com.tencent.kuikly.compose.extension.NestedScrollMode
+import com.tencent.kuikly.compose.extension.bouncesEnable
 import com.tencent.kuikly.compose.extension.nestedScroll
 import com.tencent.kuikly.compose.material3.Card
 import com.tencent.kuikly.compose.material3.Text

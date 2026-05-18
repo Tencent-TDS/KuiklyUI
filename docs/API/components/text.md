@@ -234,7 +234,7 @@ internal class FontSizePage : BasePager() {
 | fontFamily | 字体名称  | String |
 
 :::tip 注意
-如果需要使用自定义字体，安卓和鸿蒙端需要实现[自定义字体适配器](../../QuickStart/android.md#自定义字体适配器)，iOS端需要在系统中[注册字体](https://developer.apple.com/documentation/uikit/adding-a-custom-font-to-your-app?language=objc)。
+如果需要使用自定义字体，安卓和鸿蒙端需要实现[自定义字体适配器](../../QuickStart/android.md#自定义字体适配器)，iOS端需要在系统中[注册字体](https://developer.apple.com/documentation/uikit/adding-a-custom-font-to-your-app?language=objc)，H5端需要判断字体加载完成后[重新测量](../../DevGuide/h5-custom-font.md)。
 :::
 示例：
 ```kotlin
@@ -1048,6 +1048,50 @@ internal class TestPage : BasePager() {
 文字会显示红色的描边效果，描边宽度为2像素。
 
 :::
+
+### textPostProcessor方法 <Badge text="仅Android支持" type="warn"/>
+
+声明文本后置处理器名称，用于将文本中的特定标记（如表情短码）替换为富文本样式（如 `ImageSpan`）。具体处理逻辑需在 Android 端实现 [`IKRTextPostProcessorAdapter`](../../DevGuide/text-post-processor-guide.md) 适配器。
+
+<div class="table-01">
+
+**textPostProcessor方法**
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| processor | 处理器名称，由业务自定义并在 Android 适配器中实现对应逻辑  | String |
+
+</div>
+
+:::tip 常见处理器名称
+- `"emoji"` / `"input"` — 将 `[smile]` 等短码替换为表情图片（需在适配器中实现映射）
+- 其他名称可自由定义，只要在适配器的 `when` 分支中处理即可
+:::
+
+**示例**
+
+```kotlin{14}
+@Page("demo_page")
+internal class TestPage : BasePager() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                allCenter()
+            }
+
+            Text {
+                attr {
+                    text("Hello [smile] World")
+                    fontSize(20f)
+                    textPostProcessor("emoji")
+                }
+            }
+        }
+    }
+}
+```
+
+> 完整实现请参考 [文本后置处理器实践指南](../../DevGuide/text-post-processor-guide.md)。
 
 ## 事件
 

@@ -65,6 +65,7 @@ object KRCssConst {
 
     // Same as Attr.StyleConst.DEBUG_NAME
     const val DEBUG_NAME = "debugName"
+    const val CSS_CLASS = "cssClass"
     const val AUTO_DARK_ENABLE = "autoDarkEnable"
     const val TURBO_DISPLAY_AUTO_UPDATE_ENABLE = "turboDisplayAutoUpdateEnable"
     const val SCROLL_INDEX = "scrollIndex"
@@ -95,6 +96,7 @@ object KREventConst {
     const val CLICK = "click"
     const val SELECT_START = "selectstart"
     const val DRAG_START = "dragstart"
+    const val DRAG_END = "dragend"
     const val TRANSITION_END = "transitionend"
     const val INPUT = "input"
     const val FOCUS = "focus"

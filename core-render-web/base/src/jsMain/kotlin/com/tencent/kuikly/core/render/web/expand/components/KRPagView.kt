@@ -247,7 +247,16 @@ class KRPagView : IKuiklyRenderViewExport {
                     // If already instantiated, use it directly
                     loadPagFile(buffer)
                 } else {
-                    pagInitPromise = pagInitPromise ?: kuiklyWindow.asDynamic().libpag.PAGInit()
+                    // Defensive check: libpag SDK may not be loaded yet (e.g. CDN failure,
+                    // host page didn't import libpag.umd.min.js, or async script not ready).
+                    // Without this guard, calling PAGInit on undefined throws TypeError.
+                    val libpag = kuiklyWindow.asDynamic().libpag
+                    if (libpag === undefined || libpag == null ||
+                        libpag.PAGInit === undefined) {
+                        loadFailureCallback?.invoke(null)
+                        return@then
+                    }
+                    pagInitPromise = pagInitPromise ?: libpag.PAGInit()
                     // Get pag instance
                     pagInitPromise.then { instance ->
                         if (instance !== undefined) {
@@ -255,7 +264,11 @@ class KRPagView : IKuiklyRenderViewExport {
                             kuiklyWindow.asDynamic().PAGInstance = instance
                             // Load pag file
                             loadPagFile(buffer)
+                        } else {
+                            loadFailureCallback?.invoke(null)
                         }
+                    }.catch {
+                        loadFailureCallback?.invoke(null)
                     }
                 }
             }

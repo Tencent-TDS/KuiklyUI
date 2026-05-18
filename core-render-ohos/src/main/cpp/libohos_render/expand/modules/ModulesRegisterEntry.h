@@ -26,6 +26,8 @@
 #include "libohos_render/expand/modules/network/KRNetworkModule.h"
 #include "libohos_render/expand/modules/performance/KRPerformanceModule.h"
 #include "libohos_render/expand/modules/preferences/KRSharedPreferencesModule.h"
+#include "libohos_render/expand/modules/preferences/KROhSharedPreferencesModule.h"
+#include "libohos_render/expand/modules/file/KRFileModule.h"
 #include "libohos_render/export/IKRRenderModuleExport.h"
 
 #endif  // CORE_RENDER_OHOS_MODULESREGISTERENTRY_H
@@ -65,5 +67,11 @@ static void ModulesRegisterEntry() {
         return std::make_shared<kuikly::module::KRLogTestModule>();
     });
     
+    IKRRenderModuleExport::RegisterModuleCreator(kuikly::expand::KROhSharedPreferencesModule::MODULE_NAME, [] {
+        return std::make_shared<kuikly::expand::KROhSharedPreferencesModule>();
+    });
 
+    IKRRenderModuleExport::RegisterModuleCreator(kuikly::module::KRFileModule::MODULE_NAME, [] {
+        return std::make_shared<kuikly::module::KRFileModule>();
+    });
 }

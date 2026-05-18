@@ -81,6 +81,7 @@ struct Index {
           pageData: this.pageData ?? {},
           delegate: this.kuiklyViewDelegate,
           contextCode: this.contextCode,
+          useOhSharedPreferences: true,
           executeMode: this.contextCodeHandler.getExecuteMode(this.contextCode),
           onControllerReadyCallback: (controller) => {
             this.kuiklyController = controller;

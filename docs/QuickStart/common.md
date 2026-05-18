@@ -56,14 +56,14 @@
 ## 运行iosApp
 
 1. 如果是首次运行iOS的话，需要先进入iosApp目录，执行`pod install --repo-update`。
-2. 将运行的scheme改为iosApp
+2. 工具栏下拉框中选择iosApp，并在左侧选择要运行的目标设备或者模拟器。
 
-![](./img/run_config_step.png)
-![](./img/iosApp_scheme.png)
+![](../img/run_config_step.png)
+![](../img/select_device_step.png)
 
 3. 运行``iosApp``
 
-![运行iosApp](./img/ios_app_run.png)
+![运行iosApp](../img/ios_app_run.png)
 
 4. 当手机出现下面界面时，说明已运行成功
 
@@ -126,8 +126,6 @@ kotlin 2.0 以上运行: ./gradlew :h5App:jsBrowserDevelopmentRun -t
 微信小程序先通过 gradle 编译js，然后通过微信开发者工具来运行
 1. 编译demo代码成js
 ```shell
-# 运行 demo 项目 dev server 服务器，没有安装 npm 包则先 npm install 安装一下依赖
-npm run serve
 #  构建 demo 项目 Debug 版
 ./gradlew :shared:packLocalJsBundleDebug
 ```

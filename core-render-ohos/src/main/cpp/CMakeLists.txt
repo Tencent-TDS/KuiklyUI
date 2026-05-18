@@ -80,6 +80,7 @@ set(SOURCE_SET
         libohos_render/expand/modules/codec/KRCodecModule.cpp
         libohos_render/expand/modules/calendar/KRDate.cpp
         libohos_render/expand/modules/calendar/KRCalendarModule.cpp
+        libohos_render/expand/modules/file/KRFileModule.cpp
         libohos_render/expand/modules/back_press/KRBackPressModule.cpp
         libohos_render/utils/KRURIHelper.cpp
         libohos_render/utils/KRBase64Util.cpp
@@ -105,6 +106,8 @@ set(SOURCE_SET
         libohos_render/expand/modules/performance/KRPerformanceModule.cpp
         libohos_render/expand/modules/log/KRLogTestModule.cpp
         libohos_render/expand/components/mask/KRMaskView.cpp
+        libohos_render/expand/modules/preferences/KROhSharedPreferencesModule.cpp
+        libohos_render/expand/modules/preferences/KROhPreferences.cpp
 )
 
 add_library(kuikly SHARED ${SOURCE_SET})
@@ -133,4 +136,6 @@ target_link_libraries(kuikly PUBLIC hilog_ndk.z.so
                                     libohhidebug.so
                                     libnative_vsync.so
                                     libffrt.z.so
+                                    libohpreferences.so
+                                    libhilog_ndk.z.so
                                     )

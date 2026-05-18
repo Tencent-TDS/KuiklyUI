@@ -23,6 +23,7 @@ extern NSString *_Nonnull const kKuiklyFatalExceptionNotification;
 NS_ASSUME_NONNULL_BEGIN
 
 @class KuiklyContextParam;
+@class KRTurboDisplayConfig;
 @protocol KuiklyRenderCoreDelegate;
 @protocol KuiklyRenderLayerProtocol;
 
@@ -37,13 +38,13 @@ NS_ASSUME_NONNULL_BEGIN
 /**
  * @brief 初始化KuiklyRenderCore实例的方法。
  * @param rootView 宿主根视图，用于渲染层内容。
- * @param contextCode 驱动渲染所对应的代码。该值为framework名，如shared.framework,则为@"shared"
+ * @param contextCode 产物数据（NSString 或 NSData）
  * @param contextParam 包含contextCode，pageName，url等信息的参数
  * @param params 页面对应的参数（kotlin侧可通过pageData.params获取）
  * @return 返回KuiklyRenderCore实例
  */
 - (instancetype)initWithRootView:(UIView *)rootView
-                     contextCode:(NSString *)contextCode
+                     contextCode:(id)contextCode
                     contextParam:(KuiklyContextParam *)contextParam
                           params:(NSDictionary *_Nullable)params
                         delegate:(id<KuiklyRenderCoreDelegate>)delegate;
@@ -117,6 +118,11 @@ NS_ASSUME_NONNULL_BEGIN
  * @return 返回该页面的TurboDisplayKey（一般可为PageName，若为nil，则为关闭TurboDisplay渲染模式）
  */
 - (NSString * _Nullable)turboDisplayKey;
+
+/*
+ * @brief 返回 TurboDisplay 页面级配置（新增）
+ */
+- (KRTurboDisplayConfig * _Nullable)turboDisplayConfig;
 
 @end
 

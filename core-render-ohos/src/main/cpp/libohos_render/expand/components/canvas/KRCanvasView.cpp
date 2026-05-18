@@ -363,22 +363,17 @@ void KRCanvasView::SetFont(const std::string &params) {
 
 void KRCanvasView::FillText(const std::string &params) {
     if (canvas_) {
-        std::shared_ptr<struct KRFontCollectionWrapper> font_collection_wrapper =
-            std::make_shared<KRFontCollectionWrapper>();
-        DrawText(params, font_collection_wrapper, FILL_TEXT);
+        DrawText(params, FILL_TEXT);
     }
 }
 
 void KRCanvasView::StrokeText(const std::string &params) {
     if (canvas_) {
-        std::shared_ptr<struct KRFontCollectionWrapper> font_collection_wrapper =
-            std::make_shared<KRFontCollectionWrapper>();
-        DrawText(params, font_collection_wrapper, STROKE_TEXT);
+        DrawText(params, STROKE_TEXT);
     }
 }
 
-void KRCanvasView::DrawText(std::string params, std::shared_ptr<struct KRFontCollectionWrapper> wrapper,
-                            std::string_view type) {
+void KRCanvasView::DrawText(std::string params, std::string_view type) {
     OH_Drawing_TextStyle *txtStyle = OH_Drawing_CreateTextStyle();
     // 设置文字大小、字重等属性
     float fontSizeScale = 1;
@@ -399,22 +394,12 @@ void KRCanvasView::DrawText(std::string params, std::shared_ptr<struct KRFontCol
     OH_Drawing_SetTextStyleLocale(txtStyle, "en");
 
     // 自定义字体
-    auto fontAdapters = KRFontAdapterManager::GetInstance()->AllAdapters();
     if (!text_feature_.fontFamily.empty()) {
         const char *fontFamilyPtr = text_feature_.fontFamily.c_str();
         const char *fontFamilies[] = {fontFamilyPtr};
         OH_Drawing_SetTextStyleFontFamilies(txtStyle, 1, fontFamilies);
         auto nativeResMgr = rootView->GetNativeResourceManager();
-        SetCustomFontIfApplicable(nativeResMgr, wrapper, text_feature_.fontFamily, fontAdapters);
-    } else {
-        if (OH_Drawing_GetFontCollectionGlobalInstance) {
-            // new api available (systems with api version >= 14)
-            wrapper->fontCollectionSystem = OH_Drawing_GetFontCollectionGlobalInstance();
-        } else {
-            if (!wrapper->fontCollection) {
-                wrapper->fontCollection = OH_Drawing_CreateSharedFontCollection();
-            }
-        }
+        KRFontCollectionWrapper::GetInstance().RegisterCustomFont(nativeResMgr, text_feature_.fontFamily);
     }
 
     OH_Drawing_TypographyStyle *typoStyle = OH_Drawing_CreateTypographyStyle();
@@ -435,7 +420,7 @@ void KRCanvasView::DrawText(std::string params, std::shared_ptr<struct KRFontCol
     auto x = paramObj->GetNumber("x");
     auto y = paramObj->GetNumber("y");
 
-    OH_Drawing_TypographyCreate *handler = CreateTypographyHandler(typoStyle, wrapper);
+    OH_Drawing_TypographyCreate *handler = CreateTypographyHandler(typoStyle);
     OH_Drawing_TypographyHandlerPushTextStyle(handler, txtStyle);
     // 设置文字内容
     OH_Drawing_TypographyHandlerAddText(handler, text.c_str());

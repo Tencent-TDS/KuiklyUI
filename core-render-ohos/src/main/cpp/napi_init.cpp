@@ -73,7 +73,7 @@ static napi_value OnInitRenderView(napi_env env, napi_callback_info info) {
     std::string config_json = kuikly::util::getNApiArgsStdString(env, args[5]);
     auto renderView = KRRenderManager::GetInstance().GetRenderView(instance_id);
     if (renderView != nullptr) {
-        auto page_Data = std::make_shared<KRRenderValue>(page_data_json_str == "" ? "{}" : page_data_json_str);
+        auto page_Data = KRRenderValue::Make(page_data_json_str == "" ? "{}" : page_data_json_str);
         auto context = std::make_shared<KRRenderContextParams>(page_name, page_Data, instance_id, config_json);
         ArkUI_ContextHandle context_handle;
         OH_ArkUI_GetContextFromNapiValue(env, args[6], &context_handle);
@@ -161,6 +161,8 @@ static napi_value ArkTSOnSendEvent(napi_env env, napi_callback_info info) {
     return 0;
 }
 static napi_value CreateNativeRoot(napi_env env, napi_callback_info info) {
+    // The API OH_ArkUI_NodeContent_RegisterCallback depends on it
+    auto nodeApi = kuikly::util::GetNodeApi();
     KRRenderManager::GetInstance().CreateRenderViewIfNeeded(env, info);
     return nullptr;
 }

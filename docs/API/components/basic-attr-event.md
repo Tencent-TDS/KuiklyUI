@@ -197,6 +197,11 @@ internal class TestPage : BasePager() {
 
 ****
 
+:::tip 注意
+- 设置圆角后，将对子组件进行裁剪，子组件超出父组件圆角范围的部分将不可见，此行为无法通过overflow属性调整
+- **跨平台一致性提示**：Android平台2.15.x及以下版本设置`borderRadius(0f)`仍然会裁剪子组件，最新版本已修复该问题，与iOS平台保持一致（设置`borderRadius(0f)`将不再裁剪子组件）
+:::
+
 ::: tabs
 
 @tab:active 示例
@@ -639,8 +644,8 @@ internal class ZIndexPage : BasePager() {
 子组件超出父组件部分能让能够显示
 
 :::tip 注意
-overflow的默认表现在iOS开发者看来是很正常的，因此iOS默认对子View超出父View的区域是不会裁剪的。
-但是对于Android开发者来说会有不同，因此Android系统默认会不显示子View超出父View的区域
+overflow的默认表现在iOS开发者看来是很正常的，因为iOS默认对子View超出父View的区域是不会裁剪的，
+但是对于Android开发者来说会有不同，因为Android系统默认会不显示子View超出父View的区域。
 :::
 
 :::tabs
@@ -697,7 +702,7 @@ internal class OverflowPage : BasePager() {
 
 :::
 
-### clipPath方法<Badge text="安卓2.8.0以上" type="warn"/><Badge text="鸿蒙2.8.0以上" type="warn"/>
+### clipPath方法<Badge text="安卓2.8.0以上" type="warn"/><Badge text="鸿蒙2.8.0以上" type="warn"/><Badge text="iOS 2.16.0 以上" type="warn"/>
 
 设置组件的裁剪路径，可以使用路径绑定的方式裁剪组件的显示区域为任意形状。
 
@@ -1374,6 +1379,12 @@ internal class WillAppearEventtPage : BasePager() {
 
 **注:** 根节点请使用页面事件 pageDidAppear
 
+:::tip 注意
+如果是Scroller、List这类滚动容器，节点的didAppear是相对于**列表位置**可见，并非**屏幕**位置的可见。
+
+若需要**屏幕**位置上可见，可以使用滚动容器的scroll事件回调，使用列表偏移计算节点的真实位置。
+:::
+
 **示例**
 
 ```kotlin {14-18}
@@ -1499,7 +1510,7 @@ internal class AppearPercentageEventPage : BasePager() {
 
 ## 基础方法
 
-### toImage方法<Badge text="仅鸿蒙支持" type="warn"/>
+### toImage方法<Badge text="2.17.0 版本及以上 支持鸿蒙/iOS/Android" type="warn"/>
 
 获取View截图。该方法用于将当前View转换为图片，支持多种输出格式。
 

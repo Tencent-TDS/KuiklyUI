@@ -41,7 +41,7 @@ class IKRRenderShadowExport : public std::enable_shared_from_this<IKRRenderShado
      * @return
      */
     virtual KRAnyValue Call(const std::string &method_name, const std::string &params) {
-        return std::make_shared<KRRenderValue>(nullptr);
+        return KRRenderValue::Make(nullptr);
     }
 
     /**

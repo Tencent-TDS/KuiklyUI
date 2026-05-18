@@ -35,6 +35,28 @@ import com.tencent.kuikly.core.manager.PagerManager
 import com.tencent.kuikly.core.utils.ConvertUtil
 import kotlin.math.max
 
+/**
+ * 鼠标光标样式常量 (macOS)
+ * KuiklyDSL: attr { cursor(CursorType.POINTER) }
+ * ComposeDSL: Modifier.cursor(CursorType.POINTER)
+ */
+object CursorType {
+    /** 手指（可点击） */
+    const val POINTER = "pointer"
+    /** 文本选择（I-beam） */
+    const val TEXT = "text"
+    /** 十字准心 */
+    const val CROSSHAIR = "crosshair"
+    /** 抓手（可拖拽） */
+    const val GRAB = "grab"
+    /** 抓取中 */
+    const val GRABBING = "grabbing"
+    /** 禁止操作 */
+    const val NOT_ALLOWED = "not-allowed"
+    /** 默认箭头 */
+    const val DEFAULT = "default"
+}
+
 open class Attr : Props(), IStyleAttr, ILayoutAttr {
     var flexNode: FlexNode? = null
     var keepAlive: Boolean = false
@@ -289,6 +311,15 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
         return this
     }
 
+    /**
+     * 设置鼠标光标样式 (macOS)
+     * @param type 光标类型，使用 [CursorType] 常量，如 CursorType.POINTER、CursorType.TEXT 等
+     */
+    fun cursor(type: String): Attr {
+        "cursor" with type
+        return this
+    }
+
     override fun animation(animation: Animation, value: Any): Attr {
         if (animationMap == null) {
             animationMap = fastHashMapOf()
@@ -391,6 +422,11 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
      * @return 返回当前对象，以支持链式调用。 */
     override fun accessibilityRole(role: AccessibilityRole): IStyleAttr {
         StyleConst.ACCESSIBILITY_ROLE with role.roleName
+        return this
+    }
+
+    override fun testTag(tag: String): IStyleAttr {
+        StyleConst.TEST_TAG with tag
         return this
     }
 
@@ -670,6 +706,7 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
         const val USE_OUTLINE = "useOutline"
         const val ACCESSIBILITY = "accessibility"
         const val ACCESSIBILITY_ROLE = "accessibilityRole"
+        const val TEST_TAG = "testTag"
         const val WRAPPER_BOX_SHADOW_VIEW = "wrapperBoxShadowView" // only for ios
         const val AUTO_DARK_ENABLE = "autoDarkEnable"
         const val INTERFACE_STYLE = "interfaceStyle"
@@ -779,6 +816,9 @@ class Rotate(
     private val xAngle: Float = 0f, //  围绕x轴旋转xAngle角度 属于3d旋转 （range of [-360, 360]）
     private val yAngle: Float = 0f // 围绕y轴旋转yAngle角度 属于3d旋转 （range of [-360, 360]）
 ) {
+    @Deprecated("Deprecated", level = DeprecationLevel.HIDDEN)
+    constructor(angle: Float) : this(angle, 0f, 0f)
+
     // 是否为3d旋转
     val is3d: Boolean get() = xAngle != 0f || yAngle != 0f
 

@@ -62,10 +62,10 @@ void KRRenderNativeContextHandlerManager::ScheduleDeallocRenderValues(
     std::shared_ptr<KRRenderValue> will_dealloc_render_value) {
     {
         KRScopedSpinLock lock(&pending_dealloc_render_values_lock_);
-        pending_dealloc_render_values_.push_back(will_dealloc_render_value);
+        pending_dealloc_render_values_.push_back(std::move(will_dealloc_render_value));
     }
-    if (!scheduling_dealloc_render_values_) {
-        scheduling_dealloc_render_values_ = true;
+    bool expected = false;
+    if (scheduling_dealloc_render_values_.compare_exchange_strong(expected, true)) {
         KRContextScheduler::ScheduleTask(false, 16, [this]() {
             // `this` is safe to be captured in the closure, because it is an singleton.
             decltype(pending_dealloc_render_values_) values;
@@ -73,8 +73,11 @@ void KRRenderNativeContextHandlerManager::ScheduleDeallocRenderValues(
                 KRScopedSpinLock lock(&pending_dealloc_render_values_lock_);
                 values.swap(pending_dealloc_render_values_);
             }
-            
-            KRRenderNativeContextHandlerManager::GetInstance().scheduling_dealloc_render_values_ = false;
+            // 必须先把标志位重置为 false 再让 values 离开作用域析构，
+            // 否则若析构过程中又触发 ScheduleDeallocRenderValues，将无法再投递新一轮调度任务。
+            KRRenderNativeContextHandlerManager::GetInstance()
+                .scheduling_dealloc_render_values_.store(false);
+            // values 在这里析构 -> shared_ptr<KRRenderValue> release，全部发生在 context 线程
         });
     }
 }
@@ -88,12 +91,12 @@ KRRenderCValue KRRenderNativeContextHandlerManager::DispatchCallNative(
         cv.type = KRRenderCValue::NULL_VALUE;
         return cv;
     }
-    auto cv0 = std::make_shared<KRRenderValue>(arg0);
-    auto cv1 = std::make_shared<KRRenderValue>(arg1);
-    auto cv2 = std::make_shared<KRRenderValue>(arg2);
-    auto cv3 = std::make_shared<KRRenderValue>(arg3);
-    auto cv4 = std::make_shared<KRRenderValue>(arg4);
-    auto cv5 = std::make_shared<KRRenderValue>(arg5);
+    auto cv0 = KRRenderValue::Make(arg0);
+    auto cv1 = KRRenderValue::Make(arg1);
+    auto cv2 = KRRenderValue::Make(arg2);
+    auto cv3 = KRRenderValue::Make(arg3);
+    auto cv4 = KRRenderValue::Make(arg4);
+    auto cv5 = KRRenderValue::Make(arg5);
 
     auto return_value =
         handler->OnCallNative(static_cast<KuiklyRenderNativeMethod>(methodId), cv0, cv1, cv2, cv3, cv4, cv5);

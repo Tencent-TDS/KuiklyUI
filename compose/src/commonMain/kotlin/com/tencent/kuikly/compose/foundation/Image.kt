@@ -82,21 +82,23 @@ fun Image(
     alpha: Float = DefaultAlpha,
     colorFilter: ColorFilter? = null
 ) {
-    val combined = currentComposer.materialize(modifier).then(
-        if (contentDescription != null) {
-            Modifier.semantics {
-                this.contentDescription = contentDescription
-                this.role = Role.Image
+    val combined = currentComposer.materialize(
+        modifier.then(
+            if (contentDescription != null) {
+                Modifier.semantics {
+                    this.contentDescription = contentDescription
+                    this.role = Role.Image
+                }
+            } else {
+                Modifier
             }
-        } else {
-            Modifier
-        }
-    ).paintInternal(
-        painter = painter,
-        alignment = alignment,
-        contentScale = contentScale,
-        alpha = alpha,
-        colorFilter = colorFilter
+        ).paintInternal(
+            painter = painter,
+            alignment = alignment,
+            contentScale = contentScale,
+            alpha = alpha,
+            colorFilter = colorFilter
+        )
     )
 
     val compositeKeyHash = currentCompositeKeyHash

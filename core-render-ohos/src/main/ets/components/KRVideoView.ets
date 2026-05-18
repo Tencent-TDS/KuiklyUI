@@ -55,6 +55,7 @@ export class KRVideoView extends KuiklyRenderBaseView implements IKRVideoViewLis
   }
 
   onPlayStateDidChanged = (state: KRVideoPlayState, viewController: IKRVideoViewController) => {
+    this.isPlaying = (state === KRVideoPlayState.Playing);
     if (this.playStateDidChangedEvent) {
       this.playStateDidChangedEvent({ 'state': state });
     }
@@ -80,6 +81,7 @@ export class KRVideoView extends KuiklyRenderBaseView implements IKRVideoViewLis
   customEventWithInfoEvent: KuiklyRenderCallback | null = null;
   src: string = '';
   controller: IKRVideoViewController | undefined;
+  isPlaying: boolean = false;
   static readonly VIEW_NAME = 'KRVideoView';
   private static readonly PROP_SRC = 'src';
   private static readonly PROP_PLAY_CONTROL = 'playControl';
@@ -162,6 +164,14 @@ export class KRVideoView extends KuiklyRenderBaseView implements IKRVideoViewLis
 
   call(method: string, params: KRAny, callback: KuiklyRenderCallback | null): void {
 
+  }
+
+  override didMoveToParentView() {
+    // After movableContent re-parent, Video gets paused by ArkUI.
+    // Resume playback if it was playing before the move.
+    if (this.isPlaying && this.controller) {
+      this.controller.play();
+    }
   }
 
   createArkUIView(): ComponentContent<KuiklyRenderBaseView> {

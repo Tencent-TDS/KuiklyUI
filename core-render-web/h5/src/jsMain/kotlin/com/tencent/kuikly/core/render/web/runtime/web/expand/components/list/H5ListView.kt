@@ -105,6 +105,11 @@ class H5ListView : IListElement {
     // Count of clicks on the current element, used to determine whether it's a double click
     private var clickCount = 0
 
+    // Set by [prepareForComposeReuse]; the next [setContentOffset] will proactively fire a
+    // scroll event even if the underlying scroll position is unchanged. This compensates
+    // for the browser/miniapp behavior of not dispatching `scroll` on no-op `scrollTo`.
+    private var pendingFireScrollForReuse: Boolean = false
+
     // real html element
     override var ele: HTMLElement = listEle.unsafeCast<HTMLElement>()
 
@@ -647,6 +652,23 @@ class H5ListView : IListElement {
         }
         if (pagingEnabled) {
             listPagingHelper.setContentOffset(offsetX, offsetY, animate)
+            // listPagingHelper.setContentOffset already invokes scrollEventCallback synchronously,
+            // but during Compose reuse the upper-layer scrollEventCallback may not yet be registered
+            // when this method runs (callback is registered later via listenScrollEvent in
+            // LaunchedEffect). Therefore we still need to async re-fire so the upper layer can
+            // clear ignoreScrollOffset.
+            if (pendingFireScrollForReuse) {
+                pendingFireScrollForReuse = false
+                kuiklyWindow.setTimeout({
+                    val cb = scrollEventCallback ?: return@setTimeout
+                    val map = updateOffsetMap(
+                        abs(listPagingHelper.currentTranslateX),
+                        abs(listPagingHelper.currentTranslateY),
+                        isDragging,
+                    )
+                    cb.invoke(map)
+                }, KRListConst.IMMEDIATE_TIMEOUT)
+            }
             return
         }
         // Scroll to specified distance
@@ -657,6 +679,31 @@ class H5ListView : IListElement {
                 if (animate) ScrollBehavior.SMOOTH else ScrollBehavior.AUTO
             )
         )
+        // After Compose DSL reuse, the upper layer sets `ignoreScrollOffset` and expects the
+        // next setContentOffset to fire a scroll event so the flag can be cleared. However,
+        // when the target offset equals the current scrollTop/scrollLeft, browsers won't
+        // dispatch a `scroll` event at all. To match iOS/Android semantics ("setContentOffset
+        // always triggers a scroll callback"), proactively fire one async scroll event.
+        if (pendingFireScrollForReuse) {
+            pendingFireScrollForReuse = false
+            kuiklyWindow.setTimeout({
+                val cb = scrollEventCallback ?: return@setTimeout
+                val map = updateOffsetMap(ele.scrollLeft.toFloat(), ele.scrollTop.toFloat(), isDragging)
+                cb.invoke(map)
+            }, KRListConst.IMMEDIATE_TIMEOUT)
+        }
+    }
+
+    /**
+     * Clear transient state for Compose DSL reuse.
+     *
+     * The actual "reset" web side needs is much smaller than native (no native cell pool here);
+     * the critical part is to make sure the *next* [setContentOffset] still fires a scroll
+     * event even if scrollTop/scrollLeft do not change, so that the upper-layer
+     * `ignoreScrollOffset` flag can be cleared.
+     */
+    override fun prepareForComposeReuse() {
+        pendingFireScrollForReuse = true
     }
 
     /**

@@ -54,6 +54,11 @@ class MiniListElement(
     // Whether this list has a pull-to-refresh child
     override var hasPullToRefresh: Boolean = false
 
+    // Set by [prepareForComposeReuse]; the next [setContentOffset] will proactively fire a
+    // scroll event even if the underlying scroll position is unchanged. This compensates
+    // for the miniapp scroll-view behavior of not dispatching `scroll` on no-op scrollTo.
+    private var pendingFireScrollForReuse: Boolean = false
+
     // When manually set, record the scroll value. When the triggered scroll equals this value,
     // it can be considered as scroll ended
     private var tempScrollLeft: Float? = 0f
@@ -179,6 +184,30 @@ class MiniListElement(
             scrollLeft = offsetX.toDouble()
             scrollTop = offsetY.toDouble()
         }
+
+        // After Compose DSL reuse, the upper layer sets `ignoreScrollOffset` and expects the
+        // next setContentOffset to fire a scroll event so the flag can be cleared. However,
+        // when the target offset equals the current scrollTop/scrollLeft, miniapp scroll-view
+        // won't dispatch a `scroll` event at all. To match iOS/Android semantics
+        // ("setContentOffset always triggers a scroll callback"), proactively fire one async
+        // scroll event.
+        if (pendingFireScrollForReuse) {
+            pendingFireScrollForReuse = false
+            MiniGlobal.setTimeout({
+                fireScrollEvent()
+            }, 0)
+        }
+    }
+
+    /**
+     * Clear transient state for Compose DSL reuse.
+     *
+     * Sets a flag so the *next* [setContentOffset] still fires a scroll event even if
+     * scrollTop/scrollLeft do not change, so that the upper-layer `ignoreScrollOffset`
+     * flag in SubcomposeLayout can be cleared.
+     */
+    override fun prepareForComposeReuse() {
+        pendingFireScrollForReuse = true
     }
 
 

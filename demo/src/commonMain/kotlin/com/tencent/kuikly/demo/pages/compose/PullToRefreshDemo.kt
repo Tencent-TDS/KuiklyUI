@@ -154,7 +154,7 @@ class PullToRefreshDemo : ComposeContainer() {
                     )
                     
                     // 少量列表项用于演示
-                    items(5) { index ->
+                    items(itemCount) { index ->
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()

@@ -164,7 +164,28 @@ class H5ListView : IListElement {
     override fun setBounceEnable(params: Any): Boolean {
         bounceEnabled = params.unsafeCast<Int>() == KRListConst.ENABLED_FLAG
         listPagingHelper.bounceEnabled = bounceEnabled
+        // Apply overscroll-behavior to current scroll axis so non-paging mode is also controlled.
+        // Browser support: Android WebView 63+, iOS Safari 16+. Lower versions silently ignore it.
+        applyOverscrollBehavior()
         return true
+    }
+
+    /**
+     * Sync `overscroll-behavior-x/y` with current scrollDirection and bounceEnabled.
+     * - scroll axis: `auto` when bounceEnabled, otherwise `none` (disable native bounce / pull-to-refresh)
+     * - cross axis: keep `auto` (no extra constraint)
+     */
+    private fun applyOverscrollBehavior() {
+        val scrollAxisValue = if (bounceEnabled) OVERSCROLL_AUTO else OVERSCROLL_NONE
+        ele.style.apply {
+            if (scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN) {
+                setProperty(OVERSCROLL_BEHAVIOR_Y, scrollAxisValue)
+                setProperty(OVERSCROLL_BEHAVIOR_X, OVERSCROLL_AUTO)
+            } else {
+                setProperty(OVERSCROLL_BEHAVIOR_X, scrollAxisValue)
+                setProperty(OVERSCROLL_BEHAVIOR_Y, OVERSCROLL_AUTO)
+            }
+        }
     }
 
     override fun setNestedScroll(propValue: Any): Boolean {
@@ -204,6 +225,8 @@ class H5ListView : IListElement {
         scrollDirection = direction
         listPagingHelper.scrollDirection = scrollDirection
         nestScrollHelper.scrollDirection = scrollDirection
+        // Re-apply overscroll-behavior to the new scroll axis
+        applyOverscrollBehavior()
         return true
     }
 
@@ -821,6 +844,12 @@ class H5ListView : IListElement {
 
         // CSS property names
         private const val TRANSFORM_PROPERTY = "transform"
+
+        // CSS overscroll-behavior property names and values, used to control native bounce/pull-to-refresh
+        private const val OVERSCROLL_BEHAVIOR_X = "overscroll-behavior-x"
+        private const val OVERSCROLL_BEHAVIOR_Y = "overscroll-behavior-y"
+        private const val OVERSCROLL_AUTO = "auto"
+        private const val OVERSCROLL_NONE = "none"
 
         // Helper functions for building CSS values
         private fun buildTranslateY(y: Any) = "translate(0, $y${KRStyleConst.PX_SUFFIX})"

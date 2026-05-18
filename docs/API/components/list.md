@@ -17,13 +17,17 @@
 |--------------| ------------------------------------------------------------ | ------------- |
 | value | 是否允许滑动内容，默认`true`                                 | Boolean       |
 
-### bouncesEnable <Badge text="H5实现中" type="warn"/> <Badge text="微信小程序实现中" type="warn"/>
+### bouncesEnable
 
 是否开启回弹效果，默认 `true`
 
 | 参数           | 描述                                                         | 类型          |
 |--------------| ------------------------------------------------------------ | ------------- |
 | value | 是否开启回弹效果，默认`true`                                 | Boolean       |
+
+> 平台说明：
+> - **H5**：基于 CSS `overscroll-behavior` 实现，需要 Android WebView 63+ / iOS Safari 16+，低版本浏览器会自动忽略该设置。
+> - **微信小程序**：基于 `scroll-view` 增强模式的 `bounces` 属性实现；当开启横向分页（`pagingEnable=true` 且 `flexDirection=Row`，内部会走 `movable-area`）时该属性不生效。
 
 ### showScrollerIndicator
 

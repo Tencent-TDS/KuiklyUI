@@ -146,6 +146,9 @@ class MiniListElement(
     // Whether scrolling is enabled
     var scrollEnabled = true
 
+    // Whether bounce (edge rebound) effect is enabled. Mapped to scroll-view's `bounces` attribute.
+    private var bounceEnabled = false
+
     // Use movableArea when paging is enabled and horizontal scrolling
     val isMovableArea: Boolean
         get() = pagingEnabled && !isColumnDirection
@@ -335,6 +338,11 @@ class MiniListElement(
     }
 
     override fun setBounceEnable(params: Any): Boolean {
+        bounceEnabled = params.unsafeCast<Int>() == 1
+        // Only scroll-view mode supports bounces; movable-area ignores it.
+        if (!isMovableArea) {
+            setAttribute("bounces", bounceEnabled)
+        }
         return true;
     }
 
@@ -522,8 +530,8 @@ class MiniListElement(
             setScrollViewScrollEvent()
             // Enable scroll-view enhancement mode
             setAttribute("enhanced", true)
-            // Disable bounces animation
-            setAttribute("bounces", false)
+            // Apply bounces according to current bounceEnabled (default false)
+            setAttribute("bounces", bounceEnabled)
             // Default set scrollbar with animation
             setAttribute("scroll-with-animation", true)
             setAttribute("scroll-anchoring", true)

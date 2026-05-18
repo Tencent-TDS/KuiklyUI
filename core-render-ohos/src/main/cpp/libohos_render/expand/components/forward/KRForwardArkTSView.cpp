@@ -78,6 +78,16 @@ void KRForwardArkTSView::SetRenderViewFrame(const KRRect &frame) {
  * view添加到父节点中后调用
  */
 void KRForwardArkTSView::DidMoveToParentView() {
+    // If ark_node_ already exists, this is a re-parent (movableContent move).
+    // Skip re-creating ComponentContent — the existing one moved with the STACK node.
+    if (ark_node_ != nullptr) {
+        // Still notify ArkTS side so it can resume state (e.g. video playback)
+        KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(),
+                                                      KRNativeCallArkTSMethod::DidMoveToParentView,
+                                                      KRRenderValue::Make(GetViewTag()), nullptr,
+                                                      nullptr, nullptr, nullptr, nullptr);
+        return;
+    }
     if (auto rootView = GetRootView().lock()) {
         auto uiContext = rootView->GetUIContextHandle();
         if (!uiContext) {

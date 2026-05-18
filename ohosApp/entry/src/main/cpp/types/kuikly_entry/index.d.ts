@@ -20,6 +20,20 @@ export const setFontPath: (path: string) => number;
 export const setResourceManager: (resmgr: resourceManager.ResourceManager) => number;
 
 /**
+ * 把应用沙盒 cacheDir 下发给 native，供业务侧 adapter 需要写入沙盒时使用。
+ * 应在 EntryAbility.onCreate / onWindowStageCreate 时尽早调用。
+ */
+export const setCacheDir: (path: string) => number;
+
+/**
+ * 把 hap 的 resfile 根路径（context.resourceDir）下发给 native，供
+ * TextPostProcessor 等业务侧 adapter 拼接 "file://${resourceDir}/${rel}" URI
+ * 后交给 SDK（resfile 中的资源由 hvigorfile.ts 的 kuiklyCopyAssets 从
+ * demo/commonMain/assets 同步过来）。应在 EntryAbility.onWindowStageCreate 时尽早调用。
+ */
+export const setResfileDir: (path: string) => number;
+
+/**
  * 设置输入控件新实现开关。0=走老的 KRTextFieldView/KRTextAreaView；
  * 1=在 API>=24 时走新的 KRTextEditorFieldView/KRTextEditorAreaView。
  * 只影响设置后新创建的 Input/TextArea。开关值实际存储在 libkuikly.so 内，

@@ -22,6 +22,32 @@
 
 #include <algorithm>
 #include <cstring>
+#include <hilog/log.h>
+
+// ===== DEBUG: image span 场景下 selection / caret 链路诊断 hooks =====
+// 默认 LOG_DEBUG 等级，发布构建中不进入主 buffer。排查时通过
+//   hilog -b D -T KuiklyInputDbg
+// 打开。覆盖 raw↔flat 双向映射的全链路，下面任何一条都不要轻易删除：
+// 一旦再次出现选区/光标错位类回归，第一手证据都在这里。
+#define KR_DBG_DOMAIN 0x1237
+#define KR_DBG_TAG "KuiklyInputDbg"
+namespace {
+inline std::string KRDbgImageSpansDump(
+    const std::vector<kuikly::text_editor::KRTextEditorState::KRImageSpanRecord> &spans) {
+    std::string out;
+    out.reserve(spans.size() * 32);
+    char buf[64];
+    for (size_t i = 0; i < spans.size(); ++i) {
+        std::snprintf(buf, sizeof(buf), "[%zu] flat=%zu utf16=%u lit=", i,
+                      spans[i].flat_offset,
+                      static_cast<unsigned>(spans[i].utf16_offset));
+        out.append(buf);
+        out.append(spans[i].raw_literal);
+        out.push_back(' ');
+    }
+    return out;
+}
+}  // namespace
 
 namespace {
 using kuikly::text_editor::KRTextEditorState;
@@ -508,8 +534,47 @@ void KRTextEditorFieldView::OnTextDidChanged(ArkUI_NodeEvent *event) {
     } else if (state_.max_length_ != -1) {
         LimitInputContentTextInMaxLength();
     }
-    auto text = GetContentText();
+    // 对外暴露 / 业务持有的 text 永远是「raw shortcode 文本」（如 "[smile]a"）。
+    // ArkUI GetStyledString 拿到的是「flat」（image span 被扁平化为占位空格，如 " a"）。
+    // 直接上抛 flat 会导致业务把它写回给 setTextInputState → SetStyledText，shortcode 永久
+    // 丢失（image span 被当成纯空格回写）。这里用基于 image_spans_ 权威映射的差分回写
+    // 算法把 flat 还原成 raw —— 与 iOS 通过 NSTextStorage 自动维护 NSTextAttachment
+    // 位置等价；详见 KRTextEditorCommon.h: ReconstructRawFromFlat / RebuildRawAfterUserEdit。
+    auto new_flat = GetContentText();
+    OH_LOG_Print(LOG_APP, LOG_DEBUG, KR_DBG_DOMAIN, KR_DBG_TAG,
+                 "[OnTextDidChanged] enter prev_raw='%{public}s' new_flat='%{public}s' "
+                 "prev_image_spans={%{public}s}",
+                 state_.cached_text_.c_str(), new_flat.c_str(),
+                 KRDbgImageSpansDump(state_.image_spans_).c_str());
+    auto text = kuikly::text_editor::RebuildRawAfterUserEdit(state_, new_flat);
     state_.cached_text_ = text;
+    OH_LOG_Print(LOG_APP, LOG_DEBUG, KR_DBG_DOMAIN, KR_DBG_TAG,
+                 "[OnTextDidChanged] exit  new_raw='%{public}s' new_image_spans={%{public}s}",
+                 text.c_str(), KRDbgImageSpansDump(state_.image_spans_).c_str());
+    {
+        // 同步把 ArkUI 当前 selection（flat）打出来，便于推断光标错位发生位置。
+        uint32_t fs = 0, fe = 0;
+#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+        if (state_.controller_) {
+            if (OH_ArkUI_TextEditorStyledStringController_GetSelection(state_.controller_, &fs, &fe) !=
+                ARKUI_ERROR_CODE_NO_ERROR) {
+                fs = fe = 0;
+            }
+            if (fs == fe) {
+                int32_t caret = 0;
+                if (OH_ArkUI_TextEditorStyledStringController_GetCaretOffset(
+                        state_.controller_, &caret) == ARKUI_ERROR_CODE_NO_ERROR) {
+                    fs = fe = static_cast<uint32_t>(caret < 0 ? 0 : caret);
+                }
+            }
+        }
+#endif
+        uint32_t rs = kuikly::text_editor::FlatUtf16ToRawUtf16(state_.image_spans_, fs);
+        uint32_t re = kuikly::text_editor::FlatUtf16ToRawUtf16(state_.image_spans_, fe);
+        OH_LOG_Print(LOG_APP, LOG_DEBUG, KR_DBG_DOMAIN, KR_DBG_TAG,
+                     "[OnTextDidChanged] selection flat=[%{public}u,%{public}u] raw=[%{public}u,%{public}u]",
+                     fs, fe, rs, re);
+    }
     bool any_callback_present =
         state_.text_did_change_callback_ || state_.text_input_state_change_callback_;
     if (state_.text_did_change_callback_) {
@@ -541,7 +606,8 @@ void KRTextEditorFieldView::OnInputFocus(ArkUI_NodeEvent *event) {
     (void)event;
     if (state_.input_focus_callback_) {
         KRRenderValueMap map;
-        map["text"] = NewKRRenderValue(GetContentText());
+        // 上抛 raw 而非 flat（与 textDidChange 一致），避免业务拿到带占位空格的字符串。
+        map["text"] = NewKRRenderValue(state_.cached_text_);
         state_.input_focus_callback_(NewKRRenderValue(map));
     }
 }
@@ -550,7 +616,7 @@ void KRTextEditorFieldView::OnInputBlur(ArkUI_NodeEvent *event) {
     (void)event;
     if (state_.input_blur_callback_) {
         KRRenderValueMap map;
-        map["text"] = NewKRRenderValue(GetContentText());
+        map["text"] = NewKRRenderValue(state_.cached_text_);
         state_.input_blur_callback_(NewKRRenderValue(map));
     }
 }
@@ -559,7 +625,7 @@ void KRTextEditorFieldView::OnInputReturn(ArkUI_NodeEvent *event) {
     (void)event;
     if (state_.input_return_callback_) {
         KRRenderValueMap map;
-        map["text"] = NewKRRenderValue(GetContentText());
+        map["text"] = NewKRRenderValue(state_.cached_text_);
         map["ime_action"] =
             NewKRRenderValue(kuikly::util::ConvertEnterKeyTypeToString(state_.enter_key_type_));
         state_.input_return_callback_(NewKRRenderValue(map));
@@ -580,6 +646,24 @@ void KRTextEditorFieldView::OnSelectionChanged(ArkUI_NodeEvent *event) {
     if (state_.is_setting_text_input_state_) {
         return;
     }
+    uint32_t fs = 0, fe = 0;
+    if (state_.controller_) {
+        if (OH_ArkUI_TextEditorStyledStringController_GetSelection(state_.controller_, &fs, &fe) !=
+            ARKUI_ERROR_CODE_NO_ERROR) {
+            fs = fe = 0;
+        }
+        if (fs == fe) {
+            int32_t caret = 0;
+            if (OH_ArkUI_TextEditorStyledStringController_GetCaretOffset(
+                    state_.controller_, &caret) == ARKUI_ERROR_CODE_NO_ERROR) {
+                fs = fe = static_cast<uint32_t>(caret < 0 ? 0 : caret);
+            }
+        }
+    }
+    OH_LOG_Print(LOG_APP, LOG_DEBUG, KR_DBG_DOMAIN, KR_DBG_TAG,
+                 "[OnSelectionChanged] flat_sel=[%{public}u,%{public}u] cached='%{public}s' image_spans={%{public}s}",
+                 fs, fe, state_.cached_text_.c_str(),
+                 KRDbgImageSpansDump(state_.image_spans_).c_str());
     EmitSelectionChange();
 #endif
 }
@@ -607,6 +691,10 @@ void KRTextEditorFieldView::EmitSelectionChange() {
 void KRTextEditorFieldView::SetTextInputStateInternal(const std::string &json) {
 #ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
     auto parsed = kuikly::text_editor::ParseTextInputStateJson(json);
+    OH_LOG_Print(LOG_APP, LOG_DEBUG, KR_DBG_DOMAIN, KR_DBG_TAG,
+                 "[SetTextInputStateInternal] parsed text='%{public}s' raw_sel=[%{public}u,%{public}u] cached='%{public}s'",
+                 parsed.text.c_str(), parsed.selection_start, parsed.selection_end,
+                 state_.cached_text_.c_str());
 
     // guard：抑制 textDidChange / textInputStateChange / selectionChange 三个回调，
     // 与 Android isSettingTextInputState、iOS _ignoreTextDidChanged 同语义。业务侧
@@ -614,14 +702,97 @@ void KRTextEditorFieldView::SetTextInputStateInternal(const std::string &json) {
     state_.is_setting_text_input_state_ = true;
 
     // 1) 文本写入：与 iOS 相同——文本未变时跳过 SetStyledText，保留已有 span / typing 样式。
-    if (parsed.text != state_.cached_text_) {
+    bool text_changed = (parsed.text != state_.cached_text_);
+    if (text_changed) {
         kuikly::text_editor::SetStyledText(state_, parsed.text);
         kuikly::text_editor::ApplyTypingStyle(state_);
         state_.cached_text_ = parsed.text;
+        OH_LOG_Print(LOG_APP, LOG_DEBUG, KR_DBG_DOMAIN, KR_DBG_TAG,
+                     "[SetTextInputStateInternal] applied SetStyledText, image_spans={%{public}s}",
+                     KRDbgImageSpansDump(state_.image_spans_).c_str());
+    } else {
+        OH_LOG_Print(LOG_APP, LOG_DEBUG, KR_DBG_DOMAIN, KR_DBG_TAG,
+                     "[SetTextInputStateInternal] text unchanged, skip SetStyledText");
     }
 
-    // 2) 选区写入：优先 SDK SetSelection，失败时 SetSelectionRange 内部降级到 SetCaretOffset(end)。
-    kuikly::text_editor::SetSelectionRange(state_, parsed.selection_start, parsed.selection_end);
+    // 2) 选区写入：业务侧给的 selection 是 raw 文本上的 UTF-16 偏移，必须先映射到
+    //    ArkUI flat 上的 UTF-16 偏移（image span 在 raw 中占 utf16Len(raw_literal)，
+    //    在 flat 中固定占 1 个 UTF-16 code unit），否则光标会落到 image 占位的"中间"，
+    //    后续受控插入会切碎 shortcode 字面量。
+    uint32_t flat_start =
+        kuikly::text_editor::RawUtf16ToFlatUtf16(state_.image_spans_, parsed.selection_start);
+    uint32_t flat_end =
+        kuikly::text_editor::RawUtf16ToFlatUtf16(state_.image_spans_, parsed.selection_end);
+    OH_LOG_Print(LOG_APP, LOG_DEBUG, KR_DBG_DOMAIN, KR_DBG_TAG,
+                 "[SetTextInputStateInternal] map raw=[%{public}u,%{public}u] -> flat=[%{public}u,%{public}u]",
+                 parsed.selection_start, parsed.selection_end, flat_start, flat_end);
+
+    if (text_changed) {
+        // ArkUI SDK 在 SetStyledString 之后会异步把 caret 重置到文本末尾（实测 readback
+        // 与我们 set 的目标值不一致），导致同步调用的 SetSelection 被吞。把 SetSelection
+        // 推迟到下一帧执行，绕过这次重置；同时下一帧重新挂上 guard，避免下一帧 SDK 触发
+        // SelectionChanged 时回流业务层造成回环。
+        KRMainThread::RunOnMainThreadForNextLoop(
+            [weakSelf = weak_from_this(), flat_start, flat_end] {
+                auto strongSelf =
+                    std::dynamic_pointer_cast<KRTextEditorFieldView>(weakSelf.lock());
+                if (!strongSelf || !strongSelf->state_.controller_) {
+                    return;
+                }
+                strongSelf->state_.is_setting_text_input_state_ = true;
+                // 纯光标（start == end）走 SetCaretOffset，路径更短、不触发 SetSelection 路径上
+                // 潜在的 caret reset；非纯光标（真选区）才走 SetSelection。
+                bool sel_ok = false;
+                bool used_caret_api = (flat_start == flat_end);
+                if (used_caret_api) {
+                    kuikly::text_editor::SetCaretOffset(strongSelf->state_,
+                                                        static_cast<int32_t>(flat_start));
+                    sel_ok = true;
+                } else {
+                    sel_ok = kuikly::text_editor::SetSelectionRange(
+                        strongSelf->state_, flat_start, flat_end);
+                }
+                uint32_t fs2 = 0, fe2 = 0;
+                int32_t caret2 = -1;
+                ArkUI_ErrorCode get_sel_rc = OH_ArkUI_TextEditorStyledStringController_GetSelection(
+                    strongSelf->state_.controller_, &fs2, &fe2);
+                ArkUI_ErrorCode get_caret_rc = OH_ArkUI_TextEditorStyledStringController_GetCaretOffset(
+                    strongSelf->state_.controller_, &caret2);
+                OH_LOG_Print(LOG_APP, LOG_DEBUG, KR_DBG_DOMAIN, KR_DBG_TAG,
+                             "[SetTextInputStateInternal] (next-loop) after %{public}s sel_ok=%{public}d "
+                             "readback flat_sel=[%{public}u,%{public}u](rc=%{public}d) caret=%{public}d(rc=%{public}d)",
+                             used_caret_api ? "SetCaretOffset" : "SetSelection",
+                             sel_ok ? 1 : 0, fs2, fe2, get_sel_rc, caret2, get_caret_rc);
+                strongSelf->state_.is_setting_text_input_state_ = false;
+            });
+    } else {
+        // 文本未变路径：同步设 selection（已验证 SDK 不会重置 caret）。
+        // 纯光标（start == end）走 SetCaretOffset，路径更短、不触发 SetSelection 路径上
+        // 潜在的 caret reset；非纯光标（真选区）才走 SetSelection。
+        bool sel_ok = false;
+        bool used_caret_api = (flat_start == flat_end);
+        if (used_caret_api) {
+            kuikly::text_editor::SetCaretOffset(state_, static_cast<int32_t>(flat_start));
+            sel_ok = true;
+        } else {
+            sel_ok = kuikly::text_editor::SetSelectionRange(state_, flat_start, flat_end);
+        }
+        uint32_t fs2 = 0, fe2 = 0;
+        int32_t caret2 = -1;
+        ArkUI_ErrorCode get_sel_rc = ARKUI_ERROR_CODE_NO_ERROR;
+        ArkUI_ErrorCode get_caret_rc = ARKUI_ERROR_CODE_NO_ERROR;
+        if (state_.controller_) {
+            get_sel_rc = OH_ArkUI_TextEditorStyledStringController_GetSelection(
+                state_.controller_, &fs2, &fe2);
+            get_caret_rc = OH_ArkUI_TextEditorStyledStringController_GetCaretOffset(
+                state_.controller_, &caret2);
+        }
+        OH_LOG_Print(LOG_APP, LOG_DEBUG, KR_DBG_DOMAIN, KR_DBG_TAG,
+                     "[SetTextInputStateInternal] (sync) after %{public}s sel_ok=%{public}d "
+                     "readback flat_sel=[%{public}u,%{public}u](rc=%{public}d) caret=%{public}d(rc=%{public}d)",
+                     used_caret_api ? "SetCaretOffset" : "SetSelection",
+                     sel_ok ? 1 : 0, fs2, fe2, get_sel_rc, caret2, get_caret_rc);
+    }
 
     state_.is_setting_text_input_state_ = false;
 

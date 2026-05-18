@@ -36,6 +36,7 @@
 #include <arkui/styled_string.h>
 #endif
 
+#include "libohos_render/api/src/KRTextPostProcessor.h"
 #include "libohos_render/foundation/KRCommon.h"
 #include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/utils/KRURIHelper.h"
@@ -155,6 +156,40 @@ struct KRTextEditorState {
     // 当前已设置到节点的文本（逻辑层缓存，供 SetProp text 幂等判断及过滤使用）
     std::string cached_text_;
 
+    // ===== Image span 权威映射表（输入框编辑差分回写算法的核心） =====
+    //
+    // 每条记录描述「当前 ArkUI 节点中的一个 image span」：它在 ArkUI flat 文本中
+    // 占用 1 个 ASCII 空格（0x20）作为占位字符，flat_offset_ 即该占位空格的字节偏移；
+    // raw_literal_ 是它在「raw 原始文本」中对应的字面量（如 "[smile]"）。
+    //
+    // 维护时机（仅这两处写）：
+    //   1) SetStyledText：以业务 adapter 返回的 spans 为权威源，遍历时把每个 image
+    //      span 的 {flat_offset, raw_literal} 顺序 push 进来。
+    //   2) ReconstructRawFromFlat（OnTextDidChanged 调用）：基于 lcp/lcs 求差异区段，
+    //      对落在差异区段之前 / 之后 / 之内的 image 分别做「保留 / 平移 / 删除」三类
+    //      O(N) 增量平移，最终输出新的 image_spans_ 列表（覆盖式赋值）。
+    //
+    // 与 iOS 方案对齐：iOS 的 NSTextStorage 自动维护 NSTextAttachment 的位置，SDK
+    // 侧只需 enumerateAttribute:NSAttachmentAttributeName 还原 raw 即可；OHOS 这里
+    // 维护一份「权威映射表」是 NSTextStorage 行为的人工等价物。
+    //
+    // 不变量：
+    //   * flat_offset_ 严格单调递增；
+    //   * 每条记录在 ArkUI flat 文本对应 flat_offset_ 处的字节为 0x20（空格占位符）；
+    //   * 当 raw_literal_ 为空时，差分回写阶段把该位置当成普通空格处理（与不携带
+    //     raw_literal 的旧 AppendImageSpan 接口语义一致）。
+    struct KRImageSpanRecord {
+        // ArkUI flat 中该 image 占位空格的字节偏移（UTF-8 byte），用于
+        // ReconstructRawFromFlat 字节级差分回写。
+        size_t flat_offset = 0;
+        // ArkUI flat 中该 image 占位空格的 UTF-16 code unit 偏移，用于 selection
+        // 坐标的 flat ↔ raw 双向映射（ArkUI GetSelection / SetSelection 单位为
+        // UTF-16 code unit，与 byte_offset 在含中文等多字节字符时不相等）。
+        uint32_t utf16_offset = 0;
+        std::string raw_literal;
+    };
+    std::vector<KRImageSpanRecord> image_spans_;
+
     // returnKeyType 上一次设置值的原始字符串，用于 OnSubmit 回调时回传 ime_action。
     ArkUI_EnterKeyType enter_key_type_ = ARKUI_ENTER_KEY_TYPE_DONE;
 
@@ -165,19 +200,20 @@ struct KRTextEditorState {
     std::string assets_dir_;
 };
 
-// ========== Emoji shortcode 替换（与 Android KRTextPostProcessorAdapter 对齐） ==========
+// ========== Text Post Processor 派发（业务自定义文本预处理） ==========
 //
-// 业务侧文本中出现下列 shortcode 时，SetStyledText 会把对应字符替换为 ImageAttachment 段，
-// 与 Android 用 SpannableStringBuilder + ImageSpan 渲染的 [smile] 等价：
-//   * "[smile]" -> assets://common/emoji_smile.png
-// 资源放置位置：demo/src/commonMain/assets/common/emoji_smile.png
-//   （与 demo/RichInputDemoPage.kt 注释中 "assets://common/$assetName" 约定一致）
+// SetStyledText 写入控件前，会把原始文本分发到名为 "input" 的 TextPostProcessor adapter
+// （由业务通过 KRRegisterTextPostProcessorAdapter("input", ...) 注册）。adapter 负责：
+//   * 扫描自定义短码（如 [smile]）；
+//   * 解析为可寻址 URI（file:// / http(s):// / data:image;base64,...）；
+//   * 通过 KRTextProcessedResultAppendTextSpan / AppendImageSpan 顺序灌入 builder。
+// SDK 这一侧不再持有任何 emoji 短码 / 资源路径硬编码，与 Android `IKRTextPostProcessorAdapter`、
+// iOS `hr_customTextWithAttributedString:textPostProcessor:` 在职责边界上对齐。
 //
 // ⚠️ 选区/getTextInputState 的 raw <-> rendered 坐标映射本轮不做：SDK 侧每个 image
-//    attachment 占用 1 个 UTF-16 占位字符，与 Android 保留 raw shortcode 字面量的口径
+//    attachment 占用 1 个 UTF-16 占位字符，与 Android 保留 raw 短码字面量的口径
 //    存在差异；后续如需跨端一致，再在 BuildTextInputStatePayload 中做映射。
-static constexpr const char kEmojiSmileShortcode[] = "[smile]";
-static constexpr const char kEmojiSmileSrc[]       = "assets://common/emoji_smile.png";
+static constexpr const char kTextPostProcessorNameInput[] = "input";
 
 // ========== StyledString / Controller 读写 ==========
 
@@ -261,36 +297,20 @@ inline void ApplyTypingStyle(KRTextEditorState &state) {
     }
 }
 
-// 解析 emoji image span 资源 URI：
-//   * "assets://xxx" -> 通过 KRURIHelper::URIForResFile + state.assets_dir_ 转 file URI；
-//   * "http(s)://..." / "file://..." -> 直接透传；
-//   * "data:image..." 与裸 resource name 暂不在 styled-string 场景支持，返回空。
-// 与 KRImageView::LoadFromXxx 中纯字符串 URI 路径完全一致（不走 base64/drawable）。
-inline std::string ResolveStyledImageUri(const std::string &src, const std::string &assets_dir) {
-    static constexpr const char kPfxHttp[]   = "http:";
-    static constexpr const char kPfxHttps[]  = "https:";
-    static constexpr const char kPfxFile[]   = "file:";
-    static constexpr const char kPfxAssets[] = "assets://";
-    if (src.rfind(kPfxAssets, 0) == 0) {
-        if (assets_dir.empty()) {
-            return "";  // 无 assetsDir 上下文，无法解析
-        }
-        // sizeof("assets://") - 1 == 9
-        return KRURIHelper::GetInstance()->URIForResFile(src.substr(sizeof(kPfxAssets) - 1), assets_dir);
-    }
-    if (src.rfind(kPfxHttps, 0) == 0 || src.rfind(kPfxHttp, 0) == 0 || src.rfind(kPfxFile, 0) == 0) {
-        return src;
-    }
-    return "";
-}
-
-// 构造一个 emoji image span 对应的 ArkUI_StyledString_Descriptor。
+// 构造一段 image span 对应的 ArkUI_StyledString_Descriptor。
 // 调用方负责后续 Append；attachment 仅作为构造材料，构造完即可销毁，所有权由
 // descriptor 接管（与 SDK CreateWith*Attachment 文档一致）。
-// font_size_vp 用作 emoji 渲染尺寸：与 Android KRTextPostProcessorAdapter 思路一致——
-// 按当前字号自适应，确保 emoji 与文本视觉一致；fontSize<=0 时退回 16vp 兜底。
-inline ArkUI_StyledString_Descriptor *BuildEmojiImageDescriptor(const std::string &resource_uri,
-                                                                float font_size_vp) {
+//
+// 业务通过 KRTextProcessedResultAppendImageSpan 给出 src（必须是可寻址 URI：file:// /
+// http(s):// / data:image;base64,...）以及 width/height（vp，<=0 表示按字号自适应）。
+// SDK 不再做 "assets://" 这类私有协议解析——业务负责把 hap rawfile 拷到沙盒后给 file://。
+//
+// fallback_size_vp 兜底：当 width/height 都为 <=0 时按当前 fontSize 自适应；fontSize<=0
+// 时再退回 16vp，避免出现 0×0 的不可见 attachment。
+inline ArkUI_StyledString_Descriptor *BuildImageSpanDescriptor(const std::string &resource_uri,
+                                                                float width_vp,
+                                                                float height_vp,
+                                                                float fallback_size_vp) {
     if (resource_uri.empty()) {
         return nullptr;
     }
@@ -299,9 +319,11 @@ inline ArkUI_StyledString_Descriptor *BuildEmojiImageDescriptor(const std::strin
         return nullptr;
     }
     OH_ArkUI_ImageAttachment_SetResource(attachment, resource_uri.c_str());
-    float size = font_size_vp > 0 ? font_size_vp : 16.0f;
-    OH_ArkUI_ImageAttachment_SetSizeWidth(attachment, size);
-    OH_ArkUI_ImageAttachment_SetSizeHeight(attachment, size);
+    float fb = fallback_size_vp > 0 ? fallback_size_vp : 16.0f;
+    float w = width_vp > 0 ? width_vp : fb;
+    float h = height_vp > 0 ? height_vp : w;  // 仅 width 有值时按方形展开
+    OH_ArkUI_ImageAttachment_SetSizeWidth(attachment, w);
+    OH_ArkUI_ImageAttachment_SetSizeHeight(attachment, h);
     OH_ArkUI_ImageAttachment_SetVerticalAlign(attachment, ARKUI_IMAGE_SPAN_ALIGNMENT_CENTER);
     OH_ArkUI_ImageAttachment_SetObjectFit(attachment, ARKUI_OBJECT_FIT_CONTAIN);
 
@@ -371,23 +393,29 @@ inline void DestroyTextSpanResources(OH_ArkUI_TextStyle *text_style, OH_ArkUI_Sp
 //     style 控制）。
 //   * TypingStyle（SetTypingParagraphStyle/SetTypingStyle）只影响**后续键入**，不会
 //     回写到已有文本；所以写入时必须同时带上 span style。
-//   * Emoji shortcode 替换（与 Android KRTextPostProcessorAdapter 等价）：扫描 text
-//     是否含 [smile] 等 shortcode；含则按段构建（text → ImageAttachment → text → …）
-//     用 OH_ArkUI_StyledString_Descriptor_AppendStyledString 串接成最终 descriptor。
-//     不含 shortcode 时走原有最快路径，零回归。
+//   * 文本预处理（与 Android KRTextPostProcessorAdapter / iOS hr_customTextWithAttributedString
+//     等价）：通过 kuikly::text::RunTextPostProcessor("input", text, spans) 把原始文本
+//     交给业务侧 adapter 处理，拿到 [TextSpan/ImageSpan ...] 序列，按段构建 descriptor
+//     再 OH_ArkUI_StyledString_Descriptor_AppendStyledString 串接。
+//     adapter 未注册或返回空段时走原有最快路径，零回归。
 inline void SetStyledText(KRTextEditorState &state, const std::string &text) {
     if (!state.controller_) {
         return;
     }
 
-    // ---- emoji 替换分支：仅当文本中确实含 shortcode 且 assets_dir_ 已注入时启用 ----
-    if (!state.assets_dir_.empty() && text.find(kEmojiSmileShortcode) != std::string::npos) {
-        // 解析 emoji 资源 URI（一次即可，多次出现复用）
-        std::string emoji_uri = ResolveStyledImageUri(kEmojiSmileSrc, state.assets_dir_);
-        if (emoji_uri.empty()) {
-            // 资源解析失败：退回纯文本路径，避免 emoji 段缺失导致整段文本写不进去。
-            // 走完后续旧逻辑即可。
-        } else {
+    // 入口处先清空 image_spans_：本函数是「权威映射」的唯一构建点，无论走 adapter
+    // 路径还是纯文本旧路径，都需要保证 image_spans_ 与 ArkUI 节点中的 image span
+    // 一一对应。adapter 未命中时纯文本无 image，image_spans_ 维持空即可。
+    state.image_spans_.clear();
+
+    // ---- TextPostProcessor 分支：业务侧把原始文本切为 [Text/Image Span ...] ----
+    // 业务在 adapter 中负责：
+    //   1) 识别自定义短码（如 [smile]）；
+    //   2) 把图片资源解析为可寻址 URI（file:// / http(s):// / data:image;base64,...）。
+    // SDK 这里仅负责按段构建 descriptor 并串接，不再做任何资源协议解析。
+    {
+        std::vector<kuikly::text::KRTextPostProcessSpan> spans;
+        if (kuikly::text::RunTextPostProcessor(kTextPostProcessorNameInput, text, spans)) {
             ArkUI_StyledString_Descriptor *root_desc = nullptr;
             // 跟踪 build segment 期间的临时资源，统一在尾部一次性 Destroy（与原实现
             // 同生命周期：style 资源 Destroy 安全；descriptor 由于已知所有权问题不
@@ -396,78 +424,75 @@ inline void SetStyledText(KRTextEditorState &state, const std::string &text) {
             std::vector<OH_ArkUI_SpanStyle *> temp_span_styles;
             std::vector<OH_ArkUI_ParagraphStyle *> temp_para_styles;
             std::vector<OH_ArkUI_LineHeightStyle *> temp_lh_styles;
-            const std::string shortcode = kEmojiSmileShortcode;
-            size_t pos = 0;
-            while (pos < text.size()) {
-                size_t hit = text.find(shortcode, pos);
-                if (hit == std::string::npos) {
-                    // 末尾纯文本段
-                    if (pos < text.size()) {
-                        std::string seg = text.substr(pos);
-                        OH_ArkUI_TextStyle *ts = nullptr;
-                        OH_ArkUI_SpanStyle *ss = nullptr;
-                        OH_ArkUI_ParagraphStyle *ps = nullptr;
-                        OH_ArkUI_LineHeightStyle *ls = nullptr;
-                        ArkUI_StyledString_Descriptor *seg_desc =
-                            BuildPlainTextDescriptor(state, seg, &ts, &ss, &ps, &ls);
-                        if (seg_desc) {
-                            if (!root_desc) {
-                                root_desc = seg_desc;
-                            } else {
-                                OH_ArkUI_StyledString_Descriptor_AppendStyledString(root_desc, seg_desc);
-                            }
-                        }
-                        if (ts) temp_text_styles.push_back(ts);
-                        if (ss) temp_span_styles.push_back(ss);
-                        if (ps) temp_para_styles.push_back(ps);
-                        if (ls) temp_lh_styles.push_back(ls);
+
+            auto append_text_span = [&](const std::string &seg) {
+                // 长度为 0 的 text span 仅在"image 居首需要建空 root"场景使用，外部跳过；
+                // 这里允许空字符串落到 BuildPlainTextDescriptor，让 SDK 走与外层旧路径
+                // 一致的"必须带 span"语义。
+                OH_ArkUI_TextStyle *ts = nullptr;
+                OH_ArkUI_SpanStyle *ss = nullptr;
+                OH_ArkUI_ParagraphStyle *ps = nullptr;
+                OH_ArkUI_LineHeightStyle *ls = nullptr;
+                ArkUI_StyledString_Descriptor *seg_desc =
+                    BuildPlainTextDescriptor(state, seg, &ts, &ss, &ps, &ls);
+                if (seg_desc) {
+                    if (!root_desc) {
+                        root_desc = seg_desc;
+                    } else {
+                        OH_ArkUI_StyledString_Descriptor_AppendStyledString(root_desc, seg_desc);
                     }
-                    break;
                 }
-                // hit 之前的纯文本段（可能为空，长度 0 仍按 "必须带空 span" 思路构造，
-                // 但 emoji 直接相邻时跳过，避免无意义 0 长 span）
-                if (hit > pos) {
-                    std::string seg = text.substr(pos, hit - pos);
+                if (ts) temp_text_styles.push_back(ts);
+                if (ss) temp_span_styles.push_back(ss);
+                if (ps) temp_para_styles.push_back(ps);
+                if (ls) temp_lh_styles.push_back(ls);
+            };
+
+            auto append_image_span = [&](const std::string &uri, float w, float h) {
+                ArkUI_StyledString_Descriptor *img_desc =
+                    BuildImageSpanDescriptor(uri, w, h, state.font_size_);
+                if (!img_desc) return;
+                if (!root_desc) {
+                    // 文本以 image 开头：root 必须是个 string descriptor 才能被 Append
+                    // 成功——为安全起见先建一个空文本 descriptor 作为 root。
                     OH_ArkUI_TextStyle *ts = nullptr;
                     OH_ArkUI_SpanStyle *ss = nullptr;
                     OH_ArkUI_ParagraphStyle *ps = nullptr;
                     OH_ArkUI_LineHeightStyle *ls = nullptr;
-                    ArkUI_StyledString_Descriptor *seg_desc =
-                        BuildPlainTextDescriptor(state, seg, &ts, &ss, &ps, &ls);
-                    if (seg_desc) {
-                        if (!root_desc) {
-                            root_desc = seg_desc;
-                        } else {
-                            OH_ArkUI_StyledString_Descriptor_AppendStyledString(root_desc, seg_desc);
-                        }
-                    }
+                    root_desc = BuildPlainTextDescriptor(state, "", &ts, &ss, &ps, &ls);
                     if (ts) temp_text_styles.push_back(ts);
                     if (ss) temp_span_styles.push_back(ss);
                     if (ps) temp_para_styles.push_back(ps);
                     if (ls) temp_lh_styles.push_back(ls);
                 }
-                // emoji 段
-                ArkUI_StyledString_Descriptor *emoji_desc =
-                    BuildEmojiImageDescriptor(emoji_uri, state.font_size_);
-                if (emoji_desc) {
-                    if (!root_desc) {
-                        // 文本以 [smile] 开头：root 必须是个 string descriptor 才能被
-                        // Append 成功——为安全起见先建一个空文本 descriptor 作为 root。
-                        OH_ArkUI_TextStyle *ts = nullptr;
-                        OH_ArkUI_SpanStyle *ss = nullptr;
-                        OH_ArkUI_ParagraphStyle *ps = nullptr;
-                        OH_ArkUI_LineHeightStyle *ls = nullptr;
-                        root_desc = BuildPlainTextDescriptor(state, "", &ts, &ss, &ps, &ls);
-                        if (ts) temp_text_styles.push_back(ts);
-                        if (ss) temp_span_styles.push_back(ss);
-                        if (ps) temp_para_styles.push_back(ps);
-                        if (ls) temp_lh_styles.push_back(ls);
-                    }
-                    if (root_desc) {
-                        OH_ArkUI_StyledString_Descriptor_AppendStyledString(root_desc, emoji_desc);
-                    }
+                if (root_desc) {
+                    OH_ArkUI_StyledString_Descriptor_AppendStyledString(root_desc, img_desc);
                 }
-                pos = hit + shortcode.size();
+            };
+
+            // image_spans_ 维护：随 spans 顺序遍历，跟踪每段在 ArkUI flat 字节流中
+            // 的当前偏移（byte）以及 UTF-16 code unit 偏移；image 段在 flat 中占
+            // 1 个 ASCII 空格（见 BuildImageSpanDescriptor / kArkUIImageSpanPlaceholder），
+            // text 段按 UTF-8 字节 / UTF-16 code unit 原样占据。
+            size_t flat_byte_cursor = 0;
+            uint32_t flat_utf16_cursor = 0;
+            for (const auto &span : spans) {
+                if (span.type == kuikly::text::KRTextPostProcessSpan::Type::kText) {
+                    if (!span.text_or_src.empty()) {
+                        append_text_span(span.text_or_src);
+                        flat_byte_cursor += span.text_or_src.size();
+                        flat_utf16_cursor += static_cast<uint32_t>(GetUTF16Length(span.text_or_src));
+                    }
+                } else {
+                    append_image_span(span.text_or_src, span.width, span.height);
+                    KRTextEditorState::KRImageSpanRecord rec;
+                    rec.flat_offset = flat_byte_cursor;
+                    rec.utf16_offset = flat_utf16_cursor;
+                    rec.raw_literal = span.raw_literal;
+                    state.image_spans_.push_back(std::move(rec));
+                    flat_byte_cursor += 1;
+                    flat_utf16_cursor += 1;  // ASCII space = 1 UTF-16 code unit
+                }
             }
 
             if (root_desc) {
@@ -483,7 +508,7 @@ inline void SetStyledText(KRTextEditorState &state, const std::string &text) {
             return;
         }
     }
-    // ---- 旧路径：纯文本（无 emoji shortcode 或 assets_dir_ 未注入） ----
+    // ---- 旧路径：纯文本（adapter 未注册或返回空 span） ----
     // 计算 UTF-16 长度（与 SDK SpanStyle_SetLength 的口径一致）
     int32_t u16_len = GetUTF16Length(text);
 
@@ -569,6 +594,337 @@ inline void SetStyledText(KRTextEditorState &state, const std::string &text) {
     }
     state.cached_text_ = text;
 }
+
+// ============================================================================
+// Raw <-> Flat 文本映射工具（基于 image_spans_ 权威映射的差分回写算法）
+//
+// 背景：对外暴露 / 业务持有的 text 永远是「raw shortcode 文本」（如 "[smile]a"）；
+// 但 ArkUI StyledString 内部把每段 image span 在 GetStyledString 读回时统一扁平化为
+// 1 个 ASCII 空格占位符，因此 GetContentText() 拿到的是「flat 文本」（如 " a"）。
+//
+// 一旦把 flat 文本通过 textDidChange / textInputStateChange 上抛给业务，业务通常会
+// 把 state 写回给 setTextInputState（受控组件模式），SDK 这一侧再走 SetStyledText，
+// flat 中的"空格"会被当成纯文本写回——image span 永久消失，表情视觉破碎。
+//
+// 解决方案（与 iOS `KRTextAttachmentStringProtocol` 镜像）：
+//   1) 业务 adapter 通过 KRTextProcessedResultAppendImageSpanWithRaw 显式回传每个
+//      image 的「raw 字面量」（如 "[smile]"）；SetStyledText 在构造 ArkUI 节点的
+//      同时把 {flat_offset, raw_literal} push 进 KRTextEditorState::image_spans_，
+//      作为权威映射表。
+//   2) OnTextDidChanged 拿到 new_flat 后，调用 ReconstructRawFromFlat：基于 lcp/lcs
+//      求差异区段，对落在差异区段之前 / 之后 / 之内的 image 分别做「保留 / 平移 /
+//      删除」三类 O(N) 增量平移，得到新的 image_spans_，最后从右到左把 new_flat 中
+//      仍存活的 image 占位空格替换回 raw_literal，输出 new_raw。
+//
+// 关键不变量：
+//   * image span 在 ArkUI flat 中**永远是 1 个 ASCII 空格 (0x20)**；
+//   * image_spans_ 按 flat_offset 严格单调递增；
+//   * 差分回写算法不依赖 adapter 二次推断，不做任何 find / 模式匹配，正确性由
+//     权威映射保证（与 iOS 通过 NSTextStorage 自动维护 NSTextAttachment 位置等价）。
+//
+// 退化情形：业务 adapter 未注册或未传 raw_literal 时，image_spans_ 为空或 raw_literal
+// 为空——前者完全等价"raw == flat"，与原行为一致；后者把该 image 的占位空格当作
+// 普通空格处理（编辑后 raw 文本中该位置变成空格，shortcode 信息丢失，但不破坏
+// 其他 image 的还原；业务侧应优先使用 WithRaw 接口避免此退化）。
+// ============================================================================
+
+// Image span 在 ArkUI flat 文本中的占位字符（1 个 ASCII 空格 0x20）。
+// 该值与 OH_ArkUI_StyledString_Descriptor_GetString 的实测产物一致；如未来 SDK 行为
+// 变化，仅需在此调整。
+static constexpr char kArkUIImageSpanPlaceholder = ' ';
+
+// 计算 [a, b) 字节区间向左退到合法 UTF-8 字符边界的位置。
+// 用于 lcp / lcs 切到多字节序列中间时回退。
+inline size_t SnapToUtf8CharStart(const std::string &s, size_t pos) {
+    while (pos > 0 && pos < s.size()) {
+        unsigned char c = static_cast<unsigned char>(s[pos]);
+        // UTF-8 续字节：10xxxxxx；首字节是 0xxxxxxx 或 11xxxxxx。
+        if ((c & 0xC0) != 0x80) {
+            break;
+        }
+        --pos;
+    }
+    return pos;
+}
+
+// 基于 image_spans_ 权威映射做差分回写：把 ArkUI flat 文本还原成 raw 文本，
+// 同时输出新的 image_spans_（已按用户编辑动作做过位置增量平移 / 删除）。
+//
+// 入参：
+//   * prev_image_spans : 上一次 SetStyledText / 上一次 OnTextDidChanged 写入的权威映射
+//   * prev_flat        : 与 prev_image_spans 配套的上一次 flat 文本（由调用方提供，
+//                        通常等价于「ArkUI 节点上一次 GetContentText 的结果」）
+//   * new_flat         : 当前 ArkUI flat 文本（GetContentText 实测）
+// 出参：
+//   * out_new_image_spans : 编辑后新的权威映射（按 flat_offset 升序）
+// 返回值：还原后的 raw 文本。
+//
+// 算法（与 iOS p_outputText 同构，但 OHOS 维护权威映射而非依赖 NSTextStorage）：
+//   Step A. 求 lcp/lcs 得到差异区段 [diff_s, prev_e) → [diff_s, new_e)，UTF-8 边界回退。
+//   Step B. 遍历 prev_image_spans，按 flat_offset 与差异区段的位置关系分三类处理：
+//             - flat_offset < diff_s             → 幸存，flat_offset 不变。
+//             - flat_offset >= prev_e            → 幸存，flat_offset += (new_e - prev_e)。
+//             - 在 [diff_s, prev_e) 内           → 被吞掉，丢弃。
+//   Step C. 以 new_flat 为底，按 out_new_image_spans **从右到左** 把每个 flat_offset
+//           处的占位空格替换为该 image 的 raw_literal（从右到左避免影响后续偏移）。
+//           raw_literal 为空时跳过替换（保留单空格）。
+inline std::string ReconstructRawFromFlat(
+    const std::vector<KRTextEditorState::KRImageSpanRecord> &prev_image_spans,
+    const std::string &prev_flat,
+    const std::string &new_flat,
+    std::vector<KRTextEditorState::KRImageSpanRecord> &out_new_image_spans) {
+    out_new_image_spans.clear();
+
+    // 退化路径 1：prev_flat == new_flat（无变化）→ 映射全部原样幸存。
+    if (prev_flat == new_flat) {
+        out_new_image_spans = prev_image_spans;
+        // 直接基于 prev_image_spans 把 new_flat 还原为 raw（无平移，仅替换占位空格）。
+        if (prev_image_spans.empty()) {
+            return new_flat;
+        }
+        std::string raw = new_flat;
+        for (auto it = prev_image_spans.rbegin(); it != prev_image_spans.rend(); ++it) {
+            if (it->raw_literal.empty()) continue;
+            if (it->flat_offset >= raw.size()) continue;
+            raw.replace(it->flat_offset, 1, it->raw_literal);
+        }
+        return raw;
+    }
+    // 退化路径 2：prev_image_spans 为空（prev raw 中无 image）→ raw == flat。
+    if (prev_image_spans.empty()) {
+        return new_flat;
+    }
+
+    // Step A: lcp/lcs 求差异区段。
+    size_t prev_len = prev_flat.size();
+    size_t new_len = new_flat.size();
+    size_t lcp = 0;
+    while (lcp < prev_len && lcp < new_len && prev_flat[lcp] == new_flat[lcp]) {
+        ++lcp;
+    }
+    size_t lcs = 0;
+    while (lcs < prev_len - lcp && lcs < new_len - lcp &&
+           prev_flat[prev_len - 1 - lcs] == new_flat[new_len - 1 - lcs]) {
+        ++lcs;
+    }
+    lcp = SnapToUtf8CharStart(prev_flat, lcp);
+    size_t diff_s = lcp;
+    size_t prev_e = prev_len - lcs;
+    size_t new_e = new_len - lcs;
+    if (prev_e < prev_len) prev_e = SnapToUtf8CharStart(prev_flat, prev_e);
+    if (new_e < new_len) new_e = SnapToUtf8CharStart(new_flat, new_e);
+    if (prev_e < diff_s) prev_e = diff_s;
+    if (new_e < diff_s) new_e = diff_s;
+
+    // Step B: 按差异区段做增量平移（prev → new image_spans）。
+    // 删除 prev 中落在差异区段内的所有 image —— 这与 iOS NSTextStorage 在用户编辑
+    // 时把整个 NSTextAttachment 当作 1 个字符删除的行为一致：用户键入或删除时，
+    // 占位空格（attachment 在 flat 中的 1-char 表示）会被一同覆盖，故视为整段被吞。
+    // 落在差异区段之后的 image 整体平移 (new_e - prev_e)，可能为负（缩短）或正（扩展）。
+    long long shift = static_cast<long long>(new_e) - static_cast<long long>(prev_e);
+    out_new_image_spans.reserve(prev_image_spans.size());
+    for (const auto &rec : prev_image_spans) {
+        if (rec.flat_offset < diff_s) {
+            out_new_image_spans.push_back(rec);  // 不变
+        } else if (rec.flat_offset >= prev_e) {
+            KRTextEditorState::KRImageSpanRecord moved = rec;
+            // 极端 corner case 防御：shift 不应让 flat_offset 越过 0；按理论模型不
+            // 会发生（prev_e 之后的 image 经平移后只会落到 new_e 之后的合法位置），
+            // 但仍 saturate 一下避免环绕。
+            long long new_offset = static_cast<long long>(rec.flat_offset) + shift;
+            if (new_offset < 0) new_offset = 0;
+            moved.flat_offset = static_cast<size_t>(new_offset);
+            out_new_image_spans.push_back(std::move(moved));
+        } else {
+            // 落在差异区段内：被吞掉，丢弃。
+        }
+    }
+
+    // Step C: 以 new_flat 为底，从右到左把 image 占位空格替换回 raw_literal。
+    std::string raw = new_flat;
+    for (auto it = out_new_image_spans.rbegin(); it != out_new_image_spans.rend(); ++it) {
+        if (it->raw_literal.empty()) continue;
+        if (it->flat_offset >= raw.size()) continue;
+        // 若该位置在 new_flat 中不再是占位空格（极端：用户编辑使其变成别的字符），
+        // 仍然按权威映射强制替换为 raw_literal —— 因为 image_spans_ 是这条逻辑的权威源；
+        // 但实际触发概率极低（差分平移已把所有"被编辑"的 image 剔除）。
+        raw.replace(it->flat_offset, 1, it->raw_literal);
+    }
+
+    // Step D: 同步重算 out_new_image_spans 中每条记录的 utf16_offset —— 它依赖
+    // new_flat 内 image 占位空格之前的 UTF-16 长度。差分平移按字节做，UTF-16 偏移
+    // 在新 flat 中需要重新扫描；为避免 O(N²) substr，这里基于已升序的 flat_offset
+    // 单趟扫描 new_flat 的 UTF-8 字节，跨过每个字符就把 utf16 cursor 累加。
+    {
+        size_t byte_idx = 0;
+        size_t utf16_idx = 0;
+        size_t flat_size = new_flat.size();
+        size_t span_idx = 0;
+        size_t span_count = out_new_image_spans.size();
+        while (byte_idx < flat_size && span_idx < span_count) {
+            // 在到达下一个待标定的 image 占位字节之前，按字节累加 UTF-16 长度。
+            while (span_idx < span_count &&
+                   byte_idx == out_new_image_spans[span_idx].flat_offset) {
+                out_new_image_spans[span_idx].utf16_offset = static_cast<uint32_t>(utf16_idx);
+                ++span_idx;
+            }
+            if (span_idx >= span_count) break;
+            unsigned char c = static_cast<unsigned char>(new_flat[byte_idx]);
+            int char_byte_len = (c < 0x80) ? 1
+                              : (c < 0xC0) ? 1   // 续字节（异常容错，按 1 推进，避免死循环）
+                              : (c < 0xE0) ? 2
+                              : (c < 0xF0) ? 3
+                              :              4;
+            byte_idx += char_byte_len;
+            utf16_idx += (char_byte_len >= 4) ? 2 : 1;
+        }
+        // 文末仍有未标定的 image 记录（极端：image 落在 new_flat 末尾）。
+        while (span_idx < span_count) {
+            out_new_image_spans[span_idx].utf16_offset = static_cast<uint32_t>(utf16_idx);
+            ++span_idx;
+        }
+    }
+    return raw;
+}
+
+// 由 image_spans_ 与给定 raw 反推出对应 ArkUI flat 文本。
+// 用途：OnTextDidChanged 调用 ReconstructRawFromFlat 时需要传 prev_flat；prev_flat
+// 不需要每次重新去 ArkUI 节点 GetContentText（那是 new_flat），而是基于「上一次
+// 写入 ArkUI 时的 raw + image_spans_」推导出来——这是 prev_flat 的权威定义。
+//
+// 推导规则：把 raw 中每条 image_spans_ 记录的 raw_literal 替换为单空格占位符；
+// 由于 image_spans_ 持有的是 flat_offset（不是 raw 中的偏移），无法直接基于它做
+// 切片，因此这里采用「以 image_spans_ 顺序为权威，依次在 raw 中查找 raw_literal
+// 并替换」的策略——线性扫描，O(N+M)。
+inline std::string DeriveFlatFromRaw(
+    const std::string &raw,
+    const std::vector<KRTextEditorState::KRImageSpanRecord> &image_spans) {
+    if (image_spans.empty()) {
+        return raw;
+    }
+    // 以 image_spans 顺序逐条把 raw_literal 替换为单空格；从前往后线性推进 cursor，
+    // 与 SetStyledText 中 spans 顺序一致 → adapter 在 raw 中匹配 image 的相对顺序。
+    std::string flat;
+    flat.reserve(raw.size());
+    size_t raw_cursor = 0;
+    for (const auto &rec : image_spans) {
+        if (rec.raw_literal.empty()) {
+            // 未携带 raw_literal 的 image：无法从 raw 中定位它，跳过 → 后续直接把
+            // raw 剩余部分整体追加。这种退化只在业务用旧的 AppendImageSpan 接口
+            // （不传 raw_literal）时出现。
+            continue;
+        }
+        size_t pos = raw.find(rec.raw_literal, raw_cursor);
+        if (pos == std::string::npos) {
+            // 异常：image_spans_ 与 raw 不匹配（可能业务在 SetStyledText 后又用其他
+            // 路径直接修改了 cached_text_）。退化：把 raw 剩余部分整体追加。
+            break;
+        }
+        flat.append(raw, raw_cursor, pos - raw_cursor);
+        flat.push_back(kArkUIImageSpanPlaceholder);
+        raw_cursor = pos + rec.raw_literal.size();
+    }
+    if (raw_cursor < raw.size()) {
+        flat.append(raw, raw_cursor, raw.size() - raw_cursor);
+    }
+    return flat;
+}
+
+// OnTextDidChanged 入口的便捷封装：基于 state 中的 prev raw / image_spans_ 与
+// 当前 ArkUI flat 文本，推算新的 raw 文本，并就地更新 state.image_spans_。
+// 调用方（KRTextEditorFieldView::OnTextDidChanged）只需要：
+//   auto new_raw = RebuildRawAfterUserEdit(state, GetContentText());
+//   state_.cached_text_ = new_raw;
+inline std::string RebuildRawAfterUserEdit(KRTextEditorState &state,
+                                           const std::string &new_flat) {
+    std::string prev_flat = DeriveFlatFromRaw(state.cached_text_, state.image_spans_);
+    std::vector<KRTextEditorState::KRImageSpanRecord> new_spans;
+    std::string new_raw = ReconstructRawFromFlat(state.image_spans_, prev_flat,
+                                                  new_flat, new_spans);
+    state.image_spans_ = std::move(new_spans);
+    return new_raw;
+}
+
+// ============================================================================
+// Selection 坐标双向映射（基于 image_spans_）
+//
+// ArkUI GetSelection / SetSelection 的单位是 UTF-16 code unit，且作用于「flat」
+// 文本（image span 在 flat 里占 1 个 UTF-16 code unit = 1 个 ASCII 空格）。
+// 但业务侧（Kuikly Kotlin / Android / iOS）拿到的 selection 必须是「raw」文本上
+// 的 UTF-16 code unit 偏移——例如 raw="[smile]a"（utf16Len=8），光标点在 'a'
+// 之前对应 raw 的 7，对应 flat 的 1。
+//
+// 缺少这层映射时，业务把 flat selection 直接当 raw selection 用，会出现：
+//   * 受控插入：业务 substring(0, 4) + insert + substring(4) —— 把 [smile] 切到
+//     `[smi` 与 `le]` 之间，bug 表现为 "heart 被插到 smi 和 le 之间"。
+//   * 选区高亮范围错位、删除区段错位等。
+//
+// 算法（与 iOS p_getInputCursorIndex / p_getOutputCursorIndex 同构）：
+//   * FlatUtf16ToRawUtf16: 上抛业务时使用。从 0 开始扫描 image_spans_，每一条
+//     flat_offset_utf16 < flat_cursor 的 image 把 cursor 加上
+//     (utf16Len(raw_literal) - 1)；若 cursor 命中 image 占位字符（==flat_offset_utf16），
+//     约定归到该 image 之前（不展开），与 iOS 行为一致。
+//   * RawUtf16ToFlatUtf16: 业务下发时使用。逆向遍历，每条 image 对应 raw 中起点
+//     = utf16_offset + Σ(prev images: utf16Len(raw_literal) - 1)；cursor 落在 image
+//     的 raw 区间内时，扩展到 image 起点（shortcode 不可分割原子）。
+// ============================================================================
+
+inline uint32_t FlatUtf16ToRawUtf16(
+    const std::vector<KRTextEditorState::KRImageSpanRecord> &image_spans,
+    uint32_t flat_cursor) {
+    uint32_t raw_cursor = flat_cursor;
+    for (const auto &rec : image_spans) {
+        if (rec.utf16_offset >= flat_cursor) {
+            // 该 image 在光标位置或之后，无须为 cursor 之前的 image 做扩展。
+            break;
+        }
+        // image 在 cursor 之前：raw 中占 utf16Len(raw_literal)，flat 中占 1 → 多出
+        // (utf16Len(raw_literal) - 1)。
+        if (rec.raw_literal.empty()) continue;  // 兼容旧 AppendImageSpan 的退化路径
+        int lit_u16 = GetUTF16Length(rec.raw_literal);
+        if (lit_u16 > 1) {
+            raw_cursor += static_cast<uint32_t>(lit_u16 - 1);
+        }
+    }
+    return raw_cursor;
+}
+
+inline uint32_t RawUtf16ToFlatUtf16(
+    const std::vector<KRTextEditorState::KRImageSpanRecord> &image_spans,
+    uint32_t raw_cursor) {
+    uint32_t flat_cursor = raw_cursor;
+    uint32_t raw_consumed_extra = 0;  // 已遍历 image 在 raw 中比 flat 多出的 UTF-16 长度合计
+    for (const auto &rec : image_spans) {
+        if (rec.raw_literal.empty()) continue;
+        int lit_u16 = GetUTF16Length(rec.raw_literal);
+        if (lit_u16 <= 0) continue;
+        // 该 image 在 raw 文本中的起点（UTF-16 偏移）：
+        //   raw_image_start = flat 上 image 的 UTF-16 偏移 + 此前 image 的额外长度
+        uint32_t raw_image_start = rec.utf16_offset + raw_consumed_extra;
+        if (raw_cursor <= raw_image_start) {
+            // cursor 在该 image 之前，无须再扣减；后续 image 也都在 cursor 之后，break。
+            break;
+        }
+        uint32_t raw_image_end = raw_image_start + static_cast<uint32_t>(lit_u16);
+        if (raw_cursor < raw_image_end) {
+            // cursor 落在 image 的 raw 区间内 —— shortcode 不可分割，收缩到 image 起点。
+            return rec.utf16_offset;
+        }
+        // cursor 在该 image 之后：扣减 (lit_u16 - 1)。
+        flat_cursor -= static_cast<uint32_t>(lit_u16 - 1);
+        raw_consumed_extra += static_cast<uint32_t>(lit_u16 - 1);
+    }
+    return flat_cursor;
+}
+
+//
+// 注：以上 ReconstructRawFromFlat / DeriveFlatFromRaw / RebuildRawAfterUserEdit
+// 已替换掉旧的 FlattenRawForArkUI + 二次推断 lcp/lcs 实现 —— 旧实现依赖
+// 「再调一次 adapter 推断 image 在 raw 中的字节区间」，对相同 shortcode 重复出现、
+// shortcode 与相邻文本字符重叠等场景脆弱（详见 commit 历史）。新实现以 SetStyledText
+// 写入时记录的 image_spans_ 作为权威映射，编辑差分回写不再依赖任何二次推断。
+// ============================================================================
+
 
 // 从给定 descriptor 中安全读取文本内容（UTF-8）。
 //
@@ -963,13 +1319,26 @@ inline void ReadSelection(const KRTextEditorState &state, const std::string &tex
 
 // 构造 textInputState payload（与 Android createTextInputStateParamMap 字段对齐）。
 inline KRRenderValueMap BuildTextInputStatePayload(const KRTextEditorState &state) {
-    std::string text;
+    // 对外暴露的 text 必须是「raw shortcode 文本」（与 iOS/Android 一致），
+    // 而非 ArkUI flat（image span 被占位空格扁平化后的产物）。SetStyledText /
+    // OnTextDidChanged / SetTextInputStateInternal 三条路径都会同步更新 cached_text_
+    // 为最新 raw，这里直接读 cached_text_ 即可。
+    // 兜底：cached_text_ 为空但控件中有内容（极端 dispose 顺序）时，回退到
+    // GetStyledText（拿到的可能是 flat，仅作为不丢失数据的最后一道防线）。
+    std::string text = state.cached_text_;
 #ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
-    text = GetStyledText(state);
+    if (text.empty()) {
+        text = GetStyledText(state);
+    }
 #endif
     uint32_t sel_start = 0;
     uint32_t sel_end = 0;
     ReadSelection(state, text, &sel_start, &sel_end);
+    // ReadSelection 拿到的是 ArkUI flat 上的 UTF-16 偏移；上抛业务前必须映射到
+    // raw 上的 UTF-16 偏移，否则业务侧把 flat 坐标当 raw 坐标用会切碎 shortcode
+    // （bug 表现：插入新 emoji 时落到已有 shortcode 字面量中间）。
+    sel_start = FlatUtf16ToRawUtf16(state.image_spans_, sel_start);
+    sel_end = FlatUtf16ToRawUtf16(state.image_spans_, sel_end);
 
     KRRenderValueMap map;
     map[kKeyText] = NewKRRenderValue(text);

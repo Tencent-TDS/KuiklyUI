@@ -33,6 +33,14 @@ export class AppKRRouterAdapter implements IKRRouterAdapter {
       } catch (e) {
         console.error(`[AppKRRouterAdapter] setUseNewTextInputComponent failed: ${(e as Error).message}`);
       }
+    } else if (pageName === 'EmojiTextInputDemo') {
+      // emoji 短码 -> 图片替换依赖新 ARKUI_NODE_TEXT_EDITOR 控件（SetStyledText
+      // 通路），老 KRTextFieldView 不支持 ImageSpan，必须强制开启新实现。
+      try {
+        kuiklyEntry.setUseNewTextInputComponent(1);
+      } catch (e) {
+        console.error(`[AppKRRouterAdapter] setUseNewTextInputComponent(1) for EmojiTextInputDemo failed: ${(e as Error).message}`);
+      }
     }
 
     let url: string;

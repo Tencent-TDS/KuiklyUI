@@ -334,6 +334,120 @@ void KRDisableViewReuse();
  */
 void KREnableTextRenderV2();
 
+/* ============ Text Post Processor Adapter ============
+ *
+ * 用途：在 SDK 把文本写入 ARKUI_NODE_TEXT_EDITOR / RichText 等组件之前，给业务一次
+ *      对原始文本的预处理机会，最常见用法是把诸如 "[smile]" 这类自定义短码替换为
+ *      ImageSpan（emoji / 自定义贴纸）。与 Android `IKRTextPostProcessorAdapter` /
+ *      iOS `hr_customTextWithAttributedString:textPostProcessor:` 在概念上对齐。
+ *
+ * 模型：
+ *   原始文本(string) -> [Text/Image Span 序列] -> SDK 内部组装 StyledString
+ *
+ *   业务侧通过 KRTextProcessedResultBuilder 句柄按顺序追加 Text/Image Span，
+ *   SDK 会按追加顺序拼接为最终 StyledString。
+ *
+ * 内存所有权（关键）：
+ *   - text 入参与 builder 句柄仅在回调期间有效，回调返回后 SDK 立即回收；
+ *   - 业务调用 AppendTextSpan/AppendImageSpan 时传入的字符串会被 SDK 立即拷贝，
+ *     调用返回后业务可任意释放/复用自己的缓冲区；
+ *   - 业务从不分配也从不释放任何 SDK 内部数据结构。
+ */
+
+/**
+ * 业务用来累积本次处理结果的"构建器"句柄（不透明）。
+ * 仅在 KRTextPostProcessorAdapter 回调期间有效，不可跨线程/异步保存。
+ */
+struct KRTextProcessedResultBuilder_;
+typedef struct KRTextProcessedResultBuilder_ *KRTextProcessedResultBuilder;
+
+/**
+ * 追加一段纯文本 span。
+ * @param builder builder 句柄
+ * @param text    UTF-8 文本，SDK 内部立即拷贝；NULL 视为忽略
+ */
+void KRTextProcessedResultAppendTextSpan(KRTextProcessedResultBuilder builder,
+                                         const char *text);
+
+/**
+ * 追加一段图片 span。
+ * @param builder builder 句柄
+ * @param src     **可寻址 URI**，仅支持以下协议（业务侧需自行解析为下列形态）：
+ *                  - "file://..."（推荐：可由 hap rawfile 复制到沙盒后给出）
+ *                  - "http://..." / "https://..."
+ *                  - "data:image/...;base64,..."
+ *                业务在此处不应再使用任何 SDK 私有协议（如 "assets://"）。
+ *                SDK 内部立即拷贝；NULL/空字符串视为忽略
+ * @param width   图片宽度（vp），<=0 表示按当前字号自适应
+ * @param height  图片高度（vp），<=0 表示按当前字号自适应
+ *
+ * @note 该接口未传 raw_literal（image 在原始文本中对应的字面量），SDK 在
+ *       「输入框编辑后差分回写 raw」场景下无法精准还原该 image 段——表现为：
+ *       用户键入纯文本时 image 仍存活，但 raw 文本中 image 位置会以单空格代替，
+ *       上抛给业务的 textDidChange/state.text 会带来 shortcode 丢失。
+ *       *推荐* 在输入框场景下改用 KRTextProcessedResultAppendImageSpanWithRaw。
+ */
+void KRTextProcessedResultAppendImageSpan(KRTextProcessedResultBuilder builder,
+                                          const char *src,
+                                          float width,
+                                          float height);
+
+/**
+ * 追加一段图片 span（携带 raw 字面量；推荐用于输入框场景）。
+ *
+ * 与 KRTextProcessedResultAppendImageSpan 的差异：本版本要求业务额外传入
+ * raw_literal —— 即「image 在原始文本里的字面量」（例如 "[smile]"），让 SDK 在
+ * 输入框编辑差分回写阶段能基于权威映射把 ArkUI 内部的占位空格还原回原始字面量，
+ * shortcode 完全不丢失。
+ *
+ * 与 iOS `KRTextAttachmentStringProtocol::kr_originlTextBeforeTextAttachment` 在
+ * 职责边界上对齐：image attachment 自身携带「raw 字面量」是最健壮的方案，避免
+ * SDK 侧再做正则 / find 反推。
+ *
+ * @param builder      builder 句柄
+ * @param src          可寻址 URI，约束同 KRTextProcessedResultAppendImageSpan
+ * @param raw_literal  image 在原始文本中的字面量（UTF-8）。SDK 内部立即拷贝；
+ *                     NULL / 空字符串等价调用 KRTextProcessedResultAppendImageSpan
+ *                     （即 SDK 在编辑后无法精准还原该 image 段）
+ * @param width        图片宽度（vp），<=0 表示按当前字号自适应
+ * @param height       图片高度（vp），<=0 表示按当前字号自适应
+ */
+void KRTextProcessedResultAppendImageSpanWithRaw(KRTextProcessedResultBuilder builder,
+                                                 const char *src,
+                                                 const char *raw_literal,
+                                                 float width,
+                                                 float height);
+
+/**
+ * 文本预处理 adapter 函数签名。
+ *
+ * 业务侧约定：
+ *   * 不调用任何 Append   -> 视为"未处理"，SDK 退回原始文本路径；
+ *   * 至少调用一次 Append -> 视为"已处理"，SDK 完全按 builder 中的 Span 序列渲染。
+ *
+ * @param text     原始文本（UTF-8），仅本次回调期间有效
+ * @param reserved 保留参数（当前永远为 NULL，未来用于扩展上下文）
+ * @param builder  本次处理的结果构建器，仅本次回调期间有效
+ */
+typedef void (*KRTextPostProcessorAdapter)(const char *text,
+                                           void *reserved,
+                                           KRTextProcessedResultBuilder builder);
+
+/**
+ * 注册一个具名的文本预处理 adapter（覆盖式）。
+ *
+ * SDK 内部根据派发名（name）选择对应 adapter。当前使用约定：
+ *   * "input" : 编辑态 / 输入框（ARKUI_NODE_TEXT_EDITOR 路径）
+ *   * 未来可扩展 "text" / "richtext" 等，业务可按需注册
+ *
+ * 同名后注册替换前者；adapter 传 NULL 表示注销。
+ *
+ * @param name    处理器名字（不可为 NULL）
+ * @param adapter adapter 函数指针；NULL 表示注销
+ */
+void KRRegisterTextPostProcessorAdapter(const char *name,
+                                        KRTextPostProcessorAdapter adapter);
+
 
 #ifdef __cplusplus
 }

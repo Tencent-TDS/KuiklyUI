@@ -178,7 +178,10 @@ NSString *const KRFontWeightKey = @"fontWeight";
     NSMutableParagraphStyle *paragraphStyle = [[NSMutableParagraphStyle alloc] init];
     paragraphStyle.minimumLineHeight = [_css_lineHeight floatValue];
     paragraphStyle.maximumLineHeight = [_css_lineHeight floatValue];
-    paragraphStyle.lineSpacing = ceil(0.2 * _css_fontSize.floatValue);
+    // Note: Do NOT set lineSpacing here. The Shadow (KRRichTextShadow) used for Compose layout
+    // measurement does not include lineSpacing when lineHeight is set, so adding it here causes
+    // the native NSTextView to render taller than the measured height, leading to text being
+    // clipped at the bottom. Keep rendering consistent with measurement.
 
     NSRange range = NSMakeRange(0, attrStr.length);
     [attrStr addAttribute:NSParagraphStyleAttributeName value:paragraphStyle range:range];
@@ -670,7 +673,9 @@ NSString *const KRFontWeightKey = @"fontWeight";
 #if TARGET_OS_OSX
     // 设置 textContainer 防止自动调整
     if (self.textContainer) {
-        self.textContainer.containerSize = NSSizeFromCGSize(frame.size);
+        NSSize containerSize = NSSizeFromCGSize(frame.size);
+        containerSize.height = MAXFLOAT;
+        self.textContainer.containerSize = containerSize;
         self.textContainer.widthTracksTextView = NO;
         self.textContainer.heightTracksTextView = NO;
     }

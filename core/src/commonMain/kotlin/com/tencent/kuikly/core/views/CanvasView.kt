@@ -192,7 +192,7 @@ open class CanvasContext(private val renderView: RenderView, private val pagerId
     /**
      * 批量绘制命令缓冲区（batchDraw = true 时使用）。
      */
-    private val cmdBuffer = JSONArray()
+    private var cmdBuffer: JSONArray? = null
 
     /**
      * 将绘制命令分发：批量模式下入缓冲区，非批量模式下立即发送给 native。
@@ -201,12 +201,15 @@ open class CanvasContext(private val renderView: RenderView, private val pagerId
      */
     private fun enqueue(method: String, params: String) {
         if (batchDraw) {
+            if (cmdBuffer == null) {
+                cmdBuffer = JSONArray()
+            }
             val entry = JSONObject()
             entry.put("m", method)
             if (params.isNotEmpty()) {
                 entry.put("p", params)
             }
-            cmdBuffer.put(entry)
+            cmdBuffer!!.put(entry)
         } else {
             renderView.callMethod(method, params)
         }
@@ -218,9 +221,12 @@ open class CanvasContext(private val renderView: RenderView, private val pagerId
      * 由 [CanvasView.draw] 在 drawCallback 执行完毕后调用。
      */
     internal fun flush() {
-        if (batchDraw && cmdBuffer.length() > 0) {
-            renderView.callMethod("batchDraw", cmdBuffer.toString())
+        cmdBuffer?.let {
+            if (batchDraw && it.length() > 0) {
+                renderView.callMethod("batchDraw", cmdBuffer.toString())
+            }
         }
+        cmdBuffer = null
     }
 
     internal companion object {

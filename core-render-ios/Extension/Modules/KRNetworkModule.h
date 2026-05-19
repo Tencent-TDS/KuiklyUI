@@ -16,10 +16,16 @@
 #import "KRBaseModule.h"
 
 NS_ASSUME_NONNULL_BEGIN
+
+@class KRStreamSessionDelegate;
+
 /*
  * @brief Http网络请求模块
  */
 @interface KRNetworkModule : KRBaseModule
+
+@property (nonatomic, strong) NSMutableDictionary<NSString *, NSURLSessionDataTask *> *activeStreamTasks;
+@property (nonatomic, strong) NSMutableDictionary<NSString *, KRStreamSessionDelegate *> *activeStreamDelegates;
 
 @end
 

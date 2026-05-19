@@ -165,6 +165,25 @@ typedef id<KRPagViewProtocol> _Nonnull (^PAGViewCreator)(CGRect frame);
 @end
 
 @protocol IPAGLayerProtocol <NSObject>
+
+@optional
+/**
+ * Returns the name of the layer.
+ */
+- (NSString *)layerName;
+
+/**
+ * Ranges from 0 to PAGFile.numTexts - 1 if the layer type is text,
+ * or from 0 to PAGFile.numImages - 1 if the layer type is image,
+ * otherwise returns -1.
+ */
+- (NSInteger)editableIndex;
+
+/**
+ * Returns the type of the layer.
+ */
+- (int)layerType;
+
 @end
 
 @protocol PAGImageLayerProtocol <IPAGLayerProtocol>
@@ -199,6 +218,39 @@ typedef id<KRPagViewProtocol> _Nonnull (^PAGViewCreator)(CGRect frame);
  * it's not a valid image file.
  */
 + (id<PAGImageProtocol>)FromPath:(NSString*)path;
+
+@end
+
+@class PAGText;
+
+@protocol IPAGFileProtocol <IPAGCompositionProtocol>
+
+/**
+ * The number of editable texts.
+ */
+- (int)numTexts;
+
+/**
+ * The number of replaceable images.
+ */
+- (int)numImages;
+
+/**
+ * Replace the text data of the specified index. The index ranges from 0 to PAGFile.numTexts - 1.
+ * Passing in null for the textData parameter will reset it to default text data.
+ */
+- (void)replaceText:(int)editableTextIndex data:(id)value;
+
+/**
+ * Replace the image data of the specified index. The index ranges from 0 to PAGFile.numImages - 1.
+ * Passing in null for the image parameter will reset it to default image data.
+ */
+- (void)replaceImage:(int)editableImageIndex data:(id<PAGImageProtocol>)value;
+
+/**
+ * Get a text data of the specified index. The index ranges from 0 to numTexts - 1.
+ */
+- (id)getTextData:(int)editableTextIndex;
 
 @end
 

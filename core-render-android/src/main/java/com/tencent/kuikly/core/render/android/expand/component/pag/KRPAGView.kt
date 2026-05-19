@@ -22,6 +22,7 @@ import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.render.android.adapter.HRImageLoadOption
 import com.tencent.kuikly.core.render.android.adapter.IPAGViewListener
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
+import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.css.ktx.frameHeight
 import com.tencent.kuikly.core.render.android.css.ktx.frameWidth
 import com.tencent.kuikly.core.render.android.expand.component.KRAPNGView
@@ -47,6 +48,7 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
     private var hadStop = false
     private var hadFilePath = false
     private var didLayout = false
+    private var isPlaying = false
 
     private var pagView = KuiklyRenderAdapterManager.krPagViewAdapter?.createPAGView(context)?.apply {
         addPAGViewListener(this@KRPAGView)
@@ -66,6 +68,8 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
             SCALE_MODE -> setScaleMode(propValue)
             REPLACE_TEXT_LAYER_CONTENT -> setReplaceTextLayerContent(propValue)
             REPLACE_IMAGE_LAYER_CONTENT -> setReplaceImageLayerContent(propValue)
+            REPLACE_TEXT_BY_INDEX -> setReplaceTextByIndex(propValue)
+            REPLACE_IMAGE_BY_INDEX -> setReplaceImageByIndex(propValue)
             LOAD_FAIL -> {
                 loadFailureCallback = propValue as KuiklyRenderCallback
                 true
@@ -85,6 +89,21 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
             ANIMATION_REPEAT -> {
                 animationRepeatCallback = propValue as KuiklyRenderCallback
                 true
+            }
+            KRCssConst.CLICK -> {
+                // 拦截 click 事件注册，包装原始 callback，在点击时注入 layers 信息
+                val originalCallback = propValue as KuiklyRenderCallback
+                val wrappedCallback: KuiklyRenderCallback = { clickResult ->
+                    val params = (clickResult as? Map<*, *>)?.toMutableMap() ?: mutableMapOf<Any?, Any?>()
+                    // 从 click 参数中获取坐标
+                    val x = (params["x"] as? Number)?.toFloat() ?: 0f
+                    val y = (params["y"] as? Number)?.toFloat() ?: 0f
+                    // 通过 IPAGView 适配器获取点击位置下的图层信息
+                    val layers = pagView?.getEditableLayersUnderPoint(x, y) ?: emptyList()
+                    params["layers"] = layers
+                    originalCallback.invoke(params)
+                }
+                super.setProp(propKey, wrappedCallback)
             }
             else -> super.setProp(propKey, propValue)
         }
@@ -122,18 +141,22 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
     }
 
     override fun onAnimationStart(pagView: View) {
+        isPlaying = true
         animationStartCallback?.invoke(mapOf<String, Any>())
     }
 
     override fun onAnimationEnd(pagView: View) {
+        isPlaying = false
         animationEndCallback?.invoke(mapOf<String, Any>())
     }
 
     override fun onAnimationCancel(pagView: View) {
+        isPlaying = false
         animationCancelCallback?.invoke(mapOf<String, Any>())
     }
 
     override fun onAnimationRepeat(pagView: View) {
+        isPlaying = true
         animationRepeatCallback?.invoke(mapOf<String, Any>())
     }
 
@@ -182,11 +205,13 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
     private fun play(params: String?) {
         this.autoPlay = true
         hadStop = false
+        isPlaying = true
         pagView?.playPAGView()
     }
 
     private fun stop(params: String?) {
         this.autoPlay = false
+        isPlaying = false
         if (!hadStop) {
             hadStop = true
             pagView?.stopPAGView()
@@ -247,6 +272,26 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
         return true
     }
 
+    private fun setReplaceTextByIndex(params: Any): Boolean {
+        val string = params as? String ?: return false
+        val commaIndex = string.indexOf(',')
+        if (commaIndex < 0) return false
+        val editableIndex = string.substring(0, commaIndex).toIntOrNull() ?: return false
+        val text = string.substring(commaIndex + 1)
+        pagView?.replaceTextByIndex(editableIndex, text)
+        return true
+    }
+
+    private fun setReplaceImageByIndex(params: Any): Boolean {
+        val string = params as? String ?: return false
+        val commaIndex = string.indexOf(',')
+        if (commaIndex < 0) return false
+        val editableIndex = string.substring(0, commaIndex).toIntOrNull() ?: return false
+        val imageFilePath = string.substring(commaIndex + 1)
+        pagView?.replaceImageByIndex(editableIndex, imageFilePath)
+        return true
+    }
+
     private fun autoPlay(propValue: Any): Boolean {
         this.autoPlay = propValue as Int == 1
         if (autoPlay) {
@@ -268,6 +313,8 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
         private const val SCALE_MODE = "scaleMode"
         private const val REPLACE_TEXT_LAYER_CONTENT = "replaceTextLayerContent"
         private const val REPLACE_IMAGE_LAYER_CONTENT = "replaceImageLayerContent"
+        private const val REPLACE_TEXT_BY_INDEX = "replaceTextByIndex"
+        private const val REPLACE_IMAGE_BY_INDEX = "replaceImageByIndex"
         private const val LOAD_FAIL = "loadFailure"
         private const val ANIMATION_START = "animationStart"
         private const val ANIMATION_END = "animationEnd"

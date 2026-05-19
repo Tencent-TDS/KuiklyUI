@@ -70,6 +70,8 @@ TextArea {
 - `autofocus()` - 设置自动获取焦点
 - `editable()` - 设置是否可编辑
 - `inputSpans()` - 设置富文本样式
+- `autoHideKeyboardOnImeAction()` - 设置 IME action 时是否自动收起键盘
+- `keepFocusCloseKeyboard()` - 设置（blur手动或IME action）触发收键盘时是否保持焦点不失焦
 
 ## 事件
 

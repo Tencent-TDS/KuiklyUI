@@ -147,9 +147,15 @@ open class TextAreaView : DeclarativeBaseView<TextAreaAttr, TextAreaEvent>(), Me
         }
     }
 
-    fun blur() {
+    /**
+     * 收起软键盘
+     * @param keepFocus 是否保持焦点/光标，默认 false（收键盘+失焦）
+     *                  - false: resignFirstResponder/clearFocus，触发 inputBlur
+     *                  - true: 只收键盘不失焦（iOS 用 inputView trick，Android 只 hideSoftInput）
+     */
+    fun blur(keepFocus: Boolean = false) {
         performTaskWhenRenderViewDidLoad {
-            renderView?.callMethod("blur", "")
+            renderView?.callMethod("blur", if (keepFocus) "1" else "")
         }
     }
 
@@ -507,6 +513,11 @@ open class TextAreaAttr : Attr() {
      */
     fun autoHideKeyboardOnImeAction(enable: Boolean): TextAreaAttr {
         TextConst.AUTO_HIDE_KEYBOARD_ON_IME_ACTION with (if (enable) 1 else 0)
+        return this
+    }
+
+    fun keepFocusCloseKeyboard(enable: Boolean): TextAreaAttr {
+        TextConst.KEEP_FOCUS_CLOSE_KEYBOARD with (if (enable) 1 else 0)
         return this
     }
 

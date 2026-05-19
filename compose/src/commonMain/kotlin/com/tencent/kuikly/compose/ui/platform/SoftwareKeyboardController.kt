@@ -70,6 +70,7 @@ internal class KuiklySoftwareKeyboardController : SoftwareKeyboardController {
     private var activeView: AutoHeightTextAreaView? = null
     private var pendingView: AutoHeightTextAreaView? = null
     private var pendingAction = PendingAction.NONE
+    private var pendingKeepFocus = false
     private var scheduleInputCommand = false
 
     override fun show() {
@@ -108,7 +109,7 @@ internal class KuiklySoftwareKeyboardController : SoftwareKeyboardController {
                         activeView?.focus()
                     }
                     PendingAction.HIDE_KEYBOARD -> {
-                        activeView?.blur()
+                        activeView?.blur(keepFocus = true)
                     }
                     else -> {}
                 }

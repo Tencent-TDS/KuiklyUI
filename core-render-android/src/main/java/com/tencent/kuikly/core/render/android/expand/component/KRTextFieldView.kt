@@ -153,6 +153,13 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
      */
     private var autoHideKeyboardOnImeAction: Boolean = false
 
+    /**
+     * 是否在点击 IME 动作按钮时要保持焦点
+     * 默认值为 false，KuiKlyDSL延续默认行为，即点击 IME 动作按钮时自动收起键盘
+     * 如果设置为 true，则点击 IME 动作按钮时，保持焦点，不收起键盘，是为了和 Compose 的逻辑对齐
+     */
+    private var keepFocusCloseKeyboard: Boolean = false
+
     init {
         resetDefaultStyle()
         enableFocusInTouchMode()
@@ -231,6 +238,10 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
                 autoHideKeyboardOnImeAction = (propValue as Int == TYPE_ENABLE_HIDE_KEYBOARD)
                 true
             }
+            KEEP_FOCUS_CLOSE_KEYBOARD -> {
+                keepFocusCloseKeyboard = (propValue as Int == TYPE_ENABLE_KEEP_FOCUS_CLOSE_KEYBOARD)
+                true
+            }
             else -> super.setProp(propKey, propValue)
         }
     }
@@ -267,7 +278,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         return when (method) {
             METHOD_SET_TEXT -> setInputText(params)
             METHOD_FOCUS -> setFocus()
-            METHOD_BLUR -> setBlur()
+            METHOD_BLUR -> setBlur(params)
             METHOD_GET_CURSOR_INDEX -> getCursorIndex(callback)
             METHOD_SET_CURSOR_INDEX -> setCursorIndex(params)
             METHOD_SET_TEXT_INPUT_STATE -> setTextInputState(params)
@@ -631,8 +642,12 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         imm.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
     }
 
-    private fun setBlur() {
-        clearFocus()
+    private fun setBlur(params: String?) {
+        val keepFocus = params == "1"
+        if (!keepFocus) {
+            // 默认行为：clearFocus + hideSoftInput，OnFocusChangeListener 会触发 inputBlur
+            clearFocus()
+        }
         post {
             val imm = context.getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
             imm.hideSoftInputFromWindow(windowToken, 0)
@@ -716,7 +731,8 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
             // 根据 autoHideKeyboardOnImeAction 属性决定是否收起键盘
             // 默认值为 false（不自动收起），只有显式设置为 true 才自动收起
             if (autoHideKeyboardOnImeAction) {
-                setBlur()
+                var keepFocus = KRView.isComposeRoot(krRootView()) || keepFocusCloseKeyboard
+                setBlur(if (keepFocus) "1" else "")
             }
 
             true
@@ -992,6 +1008,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         private const val KEYBOARD_HEIGHT_CHANGE = "keyboardHeightChange"
         private const val IME_NO_FULLSCREEN = "imeNoFullscreen"
         private const val AUTO_HIDE_KEYBOARD_ON_IME_ACTION = "autoHideKeyboardOnImeAction"
+        private const val KEEP_FOCUS_CLOSE_KEYBOARD = "keepFocusCloseKeyboard"
 
         private const val METHOD_SET_TEXT = "setText"
         private const val METHOD_FOCUS = "focus"
@@ -1003,6 +1020,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
 
         private const val TYPE_ENABLE_EDIT = 1
         private const val TYPE_ENABLE_HIDE_KEYBOARD = 1
+        private const val TYPE_ENABLE_KEEP_FOCUS_CLOSE_KEYBOARD = 1
 
         private const val KEY_KEYBOARD_CHANGED_DURATION = "duration"
         private const val DEFAULT_KEYBOARD_CHANGED_ANIMATION_DURATION = 0.2

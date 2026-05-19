@@ -25,7 +25,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 /*
  * @brief 暴露给Kotlin侧调用的多行输入框组件
  */
-@interface KRTextFieldView()<UITextFieldDelegate>
+@interface KRTextFieldView()<UITextFieldDelegate, UIGestureRecognizerDelegate>
 /** attr is text */
 @property (nonatomic, copy, readwrite) NSString *KUIKLY_PROP(text);
 /** attr is values */
@@ -54,8 +54,10 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(keyboardType);
 /** attr is returnKeyType */
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(returnKeyType);
-/** 是否在点击 IME 动作按钮（如 Send/Go/Search）时自动收起键盘，默认值为 YES，即自动收起，可由业务设置autoHideKeyboardOnImeAction来关闭*/
+/** 是否在点击 IME 动作按钮（如 Done/Send/Go/Search）时自动收起键盘，默认值为 YES，即自动收起，可由业务设置 autoHideKeyboardOnImeAction 来关闭 */
 @property (nonatomic, strong)  NSNumber *KUIKLY_PROP(autoHideKeyboardOnImeAction);
+/** 是否在收回软键盘时不失焦，默认值为 NO（收键盘+失焦）。KuiklyDSL 可通过 keepFocusCloseKeyboard 属性开启；Compose DSL 由框架根据 isCompose 自动判断 */
+@property (nonatomic, strong)  NSNumber *KUIKLY_PROP(keepFocusCloseKeyboard);
 /** event is textDidChange 文本变化 */
 @property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(textDidChange);
 /** event is inputFocus 获焦 触发 */
@@ -90,8 +92,12 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     if (self = [super init]) {
         self.delegate = self;
         _props = [NSMutableDictionary new];
-        self.css_autoHideKeyboardOnImeAction = [NSNumber numberWithInt: 1];     // 保持原有能力，默认是关闭关闭软键盘
+        self.css_autoHideKeyboardOnImeAction = [NSNumber numberWithInt: 1];     // 保持原有能力，默认自动收起软键盘
+        self.css_keepFocusCloseKeyboard = [NSNumber numberWithInt: 0];          // 保持原有能力，KuiklyDSL 默认收键盘+失焦
         [self addTarget:self action:@selector(onTextFeildTextChanged:) forControlEvents:UIControlEventEditingChanged];
+        UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(p_handleRestoreKeyboardTap:)];
+        tapGesture.delegate = self;
+        [self addGestureRecognizer:tapGesture];
     }
     return self;
 }
@@ -212,6 +218,10 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     _css_autoHideKeyboardOnImeAction = css_autoHideKeyboardOnImeAction;
 }
 
+- (void)setCss_keepFocusCloseKeyboard:(NSNumber *)css_keepFocusCloseKeyboard {
+    _css_keepFocusCloseKeyboard = css_keepFocusCloseKeyboard;
+}
+
 - (void)setCss_enablesReturnKeyAutomatically:(NSNumber *)flag{
     self.enablesReturnKeyAutomatically = [flag boolValue];
 }
@@ -229,12 +239,59 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 
 - (void)css_focus:(NSDictionary *)args  {
     dispatch_async(dispatch_get_main_queue(), ^{
+#if TARGET_OS_OSX
+        // macOS: NSTextField uses a field editor. Re-calling becomeFirstResponder
+        // while the field editor is active can re-select all text, causing the
+        // "first backspace selects all" bug on non-empty initial values.
+        if ([self currentEditor] != nil) {
+            return;
+        }
         [self becomeFirstResponder];
+#else
+        // 若当前存在 dummy inputView（由 keepFocus blur 设置），先清除以恢复系统键盘
+        BOOL hasDummyInputView = (self.inputView != nil);
+        if (hasDummyInputView) {
+            self.inputView = nil;
+            [self reloadInputViews];
+        }
+        if (!self.isFirstResponder) {
+            [self becomeFirstResponder];    // 默认触发 textFieldDidBeginEditing 执行 css_inputFocus
+        } else if (hasDummyInputView) {
+            // 已经是 firstResponder 但刚清除了 dummyInputView，键盘会自动弹出
+            // 手动触发 inputFocus（因为 textFieldDidBeginEditing 不会重复调用）
+            if (self.css_inputFocus) {
+                self.css_inputFocus(@{@"text": self.text.copy ?: @""});
+            }
+        }
+#endif
     });
 }
 
 - (void)css_blur:(NSDictionary *)args  {
+#if !TARGET_OS_OSX
+    if (!self.isFirstResponder) {
+        return;
+    }
+    
+    NSString *params = args[KRC_PARAM_KEY];
+    BOOL keepFocus = [params isEqualToString:@"1"];
+    if (keepFocus) {
+        // keepFocus=true：使用 inputView trick 收键盘但保持焦点
+        UIView *dummyView = [[UIView alloc] initWithFrame:CGRectZero];
+        dummyView.tag = 99999;
+        self.inputView = dummyView;
+        [self reloadInputViews];
+        // 手动补发键盘高度为 0 的通知
+        if (self.css_keyboardHeightChange) {
+            self.css_keyboardHeightChange(@{@"height": @(0), @"duration": @(0.25), @"curve": @(7)});
+        }
+    } else {
+        // 默认行为：resignFirstResponder，系统自动触发 textFieldDidEndEditing → inputBlur
+        [self resignFirstResponder];
+    }
+#else
     [self resignFirstResponder];
+#endif
 }
 
 - (void)css_setText:(NSDictionary *)args {
@@ -316,11 +373,15 @@ NSString *const KRVFontWeightKey = @"fontWeight";
         self.css_inputReturn(@{@"text": textField.text.copy ?: @"", @"ime_action": self.css_returnKeyType ?: @""});
     }
     // 根据 autoHideKeyboardOnImeAction 属性决定是否收起键盘
-    // 默认值为 NO（不自动收起），如果设置为 YES 则自动收起键盘
+    // 默认值为 YES（自动收起），可由业务设置为 NO 关闭
     if ([self.css_autoHideKeyboardOnImeAction boolValue]) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            [textField resignFirstResponder];
+            NSDictionary *args = @{
+                KRC_PARAM_KEY : self.hr_rootView.contextParam.isCompose || [self.css_keepFocusCloseKeyboard boolValue] ? @"1" : @""
+            };
+            [self css_blur:args];
         });
+        return NO;  // 已接管收起键盘逻辑，阻止系统默认行为
     }
     return YES;
 }
@@ -502,6 +563,21 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     }
 }
 
+#pragma mark - Keyboard restore tap gesture
+
+// 用户再次点击输入框时，若存在 dummy inputView（键盘已被 trick 隐藏），则清除并恢复系统键盘
+- (void)p_handleRestoreKeyboardTap:(UITapGestureRecognizer *)gesture {
+#if !TARGET_OS_OSX
+    if (gesture.state == UIGestureRecognizerStateRecognized && self.inputView != nil && self.inputView.tag == 99999) {
+        self.inputView = nil;
+        [self reloadInputViews];
+    }
+#endif
+}
+
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
+    return YES;
+}
 
 @end
 

@@ -86,7 +86,11 @@
 
 ### autoHideKeyboardOnImeAction方法
 
-设置是否在点击 IME 动作按钮（如 Send/Go/Search）时自动收起键盘
+设置是否在点击 IME 动作按钮（如 Done/Send/Go/Search）时自动收起键盘。
+
+### keepFocusCloseKeyboard方法
+
+设置（blur手动或IME action）触发收回软键盘时是否保持焦点（光标不消失），默认值为 `false`。影响 IME action 自动收起和手动调用 `blur` 的场景。KuiklyDSL 业务可通过设置此API实现与 ComposeDSL的输入框组件 `默认收键盘不失焦`的效果对齐。
 
 ### enablePinyinCallback方法<Badge text="仅iOS" type="warn"/>
 

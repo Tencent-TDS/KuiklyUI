@@ -16,6 +16,8 @@
 #include "libohos_render/expand/components/scroller/KRScrollerView.h"
 
 #include <cfloat>
+#include <string>
+#include <unordered_map>
 #include "libohos_render/expand/components/view/KRView.h"
 #include "libohos_render/foundation/type/KRRenderValue.h"
 #include "libohos_render/utils/KRJSONObject.h"
@@ -126,11 +128,32 @@ void KRScrollerContentView::OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEven
     }
 }
 
-bool isBouncesEnableProp(const std::string &prop_key) {
-    auto prop_key_c_str = prop_key.c_str();
-    return std::strcmp(prop_key_c_str, kPropNameVerticalBounces) == 0 ||
-           std::strcmp(prop_key_c_str, kPropNameHorizontalBounces) == 0 ||
-           std::strcmp(prop_key_c_str, kPropNameBouncesEnable) == 0;
+enum class ScrollerPropId {
+    kDirectionRow, kPagingEnabled, kScroll, kScrollEnabled,
+    kVerticalBounces, kHorizontalBounces, kBouncesEnable,
+    kShowScrollerIndicator, kDragBegin, kDragEnd, kScrollEnd,
+    kWillDragEnd, kLimitHeaderBounces, kNestedScroll, kFlingEnable
+};
+
+static const std::unordered_map<std::string, ScrollerPropId>& GetScrollerPropIdMap() {
+    static const std::unordered_map<std::string, ScrollerPropId> sMap = {
+        {kPropNameDirectionRow, ScrollerPropId::kDirectionRow},
+        {kPropNamePagingEnabled, ScrollerPropId::kPagingEnabled},
+        {kEventNameScroll, ScrollerPropId::kScroll},
+        {kPropNameScrollEnabled, ScrollerPropId::kScrollEnabled},
+        {kPropNameVerticalBounces, ScrollerPropId::kVerticalBounces},
+        {kPropNameHorizontalBounces, ScrollerPropId::kHorizontalBounces},
+        {kPropNameBouncesEnable, ScrollerPropId::kBouncesEnable},
+        {kPropNameShowScrollerIndicator, ScrollerPropId::kShowScrollerIndicator},
+        {kEventNameDragBegin, ScrollerPropId::kDragBegin},
+        {kEventNameDragEnd, ScrollerPropId::kDragEnd},
+        {kEventNameScrollEnd, ScrollerPropId::kScrollEnd},
+        {kEventNameWillDragEnd, ScrollerPropId::kWillDragEnd},
+        {kPropNameLimitHeaderBounces, ScrollerPropId::kLimitHeaderBounces},
+        {kPropNameNestedScroll, ScrollerPropId::kNestedScroll},
+        {kPropNameFlingEnable, ScrollerPropId::kFlingEnable},
+    };
+    return sMap;
 }
 
 void KRScrollerView::SetRenderViewFrame(const KRRect &frame) {
@@ -167,35 +190,29 @@ void KRScrollerView::DidInit() {
 
 bool KRScrollerView::SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
                              const KRRenderCallback event_call_back) {
-    auto didHanded = false;
-    if (std::strcmp(prop_key.c_str(), kPropNameDirectionRow) == 0) {
-        didHanded = SetScrollDirection(prop_value);
-    } else if (std::strcmp(prop_key.c_str(), kPropNamePagingEnabled) == 0) {
-        didHanded = SetPagingEnabled(prop_value);
-    } else if (std::strcmp(prop_key.c_str(), kEventNameScroll) == 0) {
-        didHanded = RegisterOnScrollEvent(event_call_back);
-    } else if (std::strcmp(prop_key.c_str(), kPropNameScrollEnabled) == 0) {
-        didHanded = SetScrollEnabled(prop_value);
-    } else if (isBouncesEnableProp(prop_key)) {
-        didHanded = SetBouncesEnable(prop_value);
-    } else if (std::strcmp(prop_key.c_str(), kPropNameShowScrollerIndicator) == 0) {
-        didHanded = SetShowScrollerIndicator(prop_value);
-    } else if (kuikly::util::isEqual(prop_key, kEventNameDragBegin)) {
-        didHanded = RegisterOnDragBeginEvent(event_call_back);
-    } else if (kuikly::util::isEqual(prop_key, kEventNameDragEnd)) {
-        didHanded = RegisterOnDragEndEvent(event_call_back);
-    } else if (kuikly::util::isEqual(prop_key, kEventNameScrollEnd)) {
-        didHanded = RegisterOnScrollEndEvent(event_call_back);
-    } else if (kuikly::util::isEqual(prop_key, kEventNameWillDragEnd)) {
-        didHanded = RegisterWillDragEndEvent(event_call_back);
-    } else if (kuikly::util::isEqual(prop_key, kPropNameLimitHeaderBounces)) {
-        didHanded = SetLimitHeaderBounces(prop_value);
-    } else if (kuikly::util::isEqual(prop_key, kPropNameNestedScroll)) {
-        didHanded = SetNestedScroll(prop_value);
-    } else if (kuikly::util::isEqual(prop_key, kPropNameFlingEnable)) {
-        didHanded = SetFlingEnable(prop_value->toBool());
+    auto &idMap = GetScrollerPropIdMap();
+    auto it = idMap.find(prop_key);
+    if (it == idMap.end()) {
+        return false;
     }
-    return didHanded;
+    switch (it->second) {
+    case ScrollerPropId::kDirectionRow: return SetScrollDirection(prop_value);
+    case ScrollerPropId::kPagingEnabled: return SetPagingEnabled(prop_value);
+    case ScrollerPropId::kScroll: return RegisterOnScrollEvent(event_call_back);
+    case ScrollerPropId::kScrollEnabled: return SetScrollEnabled(prop_value);
+    case ScrollerPropId::kVerticalBounces:
+    case ScrollerPropId::kHorizontalBounces:
+    case ScrollerPropId::kBouncesEnable: return SetBouncesEnable(prop_value);
+    case ScrollerPropId::kShowScrollerIndicator: return SetShowScrollerIndicator(prop_value);
+    case ScrollerPropId::kDragBegin: return RegisterOnDragBeginEvent(event_call_back);
+    case ScrollerPropId::kDragEnd: return RegisterOnDragEndEvent(event_call_back);
+    case ScrollerPropId::kScrollEnd: return RegisterOnScrollEndEvent(event_call_back);
+    case ScrollerPropId::kWillDragEnd: return RegisterWillDragEndEvent(event_call_back);
+    case ScrollerPropId::kLimitHeaderBounces: return SetLimitHeaderBounces(prop_value);
+    case ScrollerPropId::kNestedScroll: return SetNestedScroll(prop_value);
+    case ScrollerPropId::kFlingEnable: return SetFlingEnable(prop_value->toBool());
+    }
+    return false;
 }
 
 bool KRScrollerView::ResetProp(const std::string &prop_key) {
@@ -249,6 +266,8 @@ void KRScrollerView::OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEventType &
     }
 }
 
+constexpr char kSyncCallbackKey[] = "hr_sync_callback";
+
 void KRScrollerView::FireOnScrollEvent(ArkUI_NodeEvent *event) {
     auto point = kuikly::util::GetArkUIScrollContentOffset(GetNode());
     if (point.x == last_fired_scroll_x_ && point.y == last_fired_scroll_y_) {
@@ -261,7 +280,18 @@ void KRScrollerView::FireOnScrollEvent(ArkUI_NodeEvent *event) {
     if (!on_scroll_callback_) {
         return;
     }
-    on_scroll_callback_(GetCommonScrollParams());
+    auto params = GetCommonScrollParams();
+    // 动态同步 scroll 机制（对齐 iOS）：
+    // 检测可见区域是否有足够内容覆盖，如果不够则设置 sync flag，
+    // 让事件回调同步执行 Kotlin 处理并立即 flush UI 操作，避免白屏
+    bool needSync = !HasEnoughVisibleContentViews();
+    if (params->isMap()) {
+        auto map = params->toMap();
+        map[kSyncCallbackKey] = NewKRRenderValue(needSync ? 1 : 0);
+        on_scroll_callback_(NewKRRenderValue(std::move(map)));
+    } else {
+        on_scroll_callback_(params);
+    }
 }
 
 void KRScrollerView::FireBeginDragEvent(ArkUI_NodeEvent *event) {
@@ -689,6 +719,67 @@ bool KRScrollerView::SetFlingEnable(bool enable) {
 
 void KRScrollerView::TryApplyPendingFireOnScroll() {
     FireOnScrollEvent(nullptr);
+}
+
+// 对齐 iOS 的 p_hasEnoughVisibleContentViews：
+// 检查可见区域的上部(30%)和下部(50%~100%)是否都有子 view 覆盖
+// 如果没有足够覆盖，说明可能出现白屏，需要同步 flush
+bool KRScrollerView::HasEnoughVisibleContentViews() {
+    if (!content_view_ || !content_view_->GetNode()) {
+        return true;
+    }
+    auto frame = GetFrame();
+    auto contentFrame = content_view_->GetFrame();
+    float viewWidth = frame.width;
+    float viewHeight = frame.height;
+    float contentWidth = contentFrame.width;
+    float contentHeight = contentFrame.height;
+    // 内容比视图小，不需要同步
+    if (std::max(contentWidth, contentHeight) <= std::max(viewWidth, viewHeight)) {
+        return true;
+    }
+    auto offset = kuikly::util::GetArkUIScrollContentOffset(GetNode());
+    auto nodeApi = kuikly::util::GetNodeApi();
+    int childCount = nodeApi->getTotalChildCount(content_view_->GetNode());
+    if (childCount == 0) {
+        return true;
+    }
+    // 纵向布局判断（对齐 iOS：contentWidth < contentHeight 为纵向）
+    bool isVertical = contentWidth < contentHeight;
+    if (!isVertical) {
+        // 横向布局默认认为有足够内容（对齐 iOS）
+        return true;
+    }
+    bool hasTopView = false;
+    bool hasBottomView = false;
+    // 可见区域上部：0 ~ viewHeight*0.3
+    float topAreaBottom = viewHeight * 0.3f;
+    // 可见区域下部：viewHeight*0.5 ~ viewHeight
+    float bottomAreaTop = viewHeight * 0.5f;
+    for (int i = 0; i < childCount; i++) {
+        auto child = nodeApi->getChildAt(content_view_->GetNode(), i);
+        if (!child) continue;
+        // 获取子 view 的位置和尺寸
+        auto *posItem = nodeApi->getAttribute(child, NODE_POSITION);
+        auto *heightItem = nodeApi->getAttribute(child, NODE_HEIGHT);
+        if (!posItem || posItem->size < 2 || !heightItem || heightItem->size < 1) continue;
+        // 子 view 在可见区域中的相对位置（减去 scroll offset）
+        float childY = posItem->value[1].f32 - offset.y;
+        float childH = heightItem->value[0].f32;
+        float childBottom = childY + childH;
+        // 检查是否与上部区域相交
+        if (childBottom > 1.0f && childY < topAreaBottom) {
+            hasTopView = true;
+        }
+        // 检查是否与下部区域相交
+        if (childBottom > bottomAreaTop && childY < viewHeight - 1.0f) {
+            hasBottomView = true;
+        }
+        if (hasTopView && hasBottomView) {
+            return true;
+        }
+    }
+    return hasTopView && hasBottomView;
 }
 
 // Clear transient native state for Compose DSL reuse (not the native reuse pool).

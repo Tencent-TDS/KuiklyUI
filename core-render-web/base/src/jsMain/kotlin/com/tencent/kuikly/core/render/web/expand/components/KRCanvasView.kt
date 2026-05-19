@@ -1,5 +1,7 @@
 package com.tencent.kuikly.core.render.web.expand.components
 
+import com.tencent.kuikly.core.render.web.IKuiklyRenderContext
+import com.tencent.kuikly.core.render.web.expand.module.KRMemoryCacheModule
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.web.ktx.Frame
 import com.tencent.kuikly.core.render.web.const.KRCssConst
@@ -10,19 +12,25 @@ import com.tencent.kuikly.core.render.web.ktx.setFrame
 import com.tencent.kuikly.core.render.web.ktx.splitCanvasColorDefinitions
 import com.tencent.kuikly.core.render.web.ktx.toJSONObjectSafely
 import com.tencent.kuikly.core.render.web.ktx.toRgbColor
+import com.tencent.kuikly.core.render.web.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.render.web.runtime.dom.element.ElementType
+import com.tencent.kuikly.core.render.web.utils.Log
 import org.w3c.dom.BUTT
 import org.w3c.dom.CanvasGradient
 import org.w3c.dom.CanvasLineCap
 import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLCanvasElement
+import org.w3c.dom.HTMLImageElement
 import org.w3c.dom.ROUND
 import org.w3c.dom.SQUARE
+import kotlin.math.tan
 
 /**
  * Kuikly canvas view, corresponding to web's canvas
  */
-class KRCanvasView : IKuiklyRenderViewExport {
+class KRCanvasView(
+    override var kuiklyRenderContext: IKuiklyRenderContext? = null
+) : IKuiklyRenderViewExport {
     /**
      * canvas object
      */
@@ -88,10 +96,22 @@ class KRCanvasView : IKuiklyRenderViewExport {
             // Linear gradient is handled by core layer, will be set during fillStyle and strokeStyle,
             // empty method kept here
             CREATE_LINEAR_GRADIENT -> {}
+            CREATE_RADIAL_GRADIENT -> createRadialGradient(params)
             QUADRATIC_CURVE_TO -> quadraticCurveTo(params)
             BEZIER_CURVE_TO -> bezierCurveTo(params)
             RESET -> reset()
-            CLIP -> canvasContext?.clip()
+            CLIP -> clip(params)
+            TEXT_ALIGN -> setTextAlign(params)
+            FONT -> setFont(params)
+            DRAW_IMAGE -> drawImage(params)
+            SAVE -> canvasContext?.save()
+            SAVE_LAYER -> saveLayer(params)
+            RESTORE -> canvasContext?.restore()
+            TRANSLATE -> translate(params)
+            SCALE -> scale(params)
+            ROTATE -> rotate(params)
+            SKEW -> skew(params)
+            TRANSFORM -> transform(params)
             else -> super.call(method, params, callback)
         }
     }
@@ -234,10 +254,7 @@ class KRCanvasView : IKuiklyRenderViewExport {
             // no segments, clear dash
             canvasContext?.setLineDash(arrayOf())
         } else {
-            val intervals: Array<Double> = arrayOf()
-            for (i in 0 until jsonArray.length()) {
-                intervals[i] = jsonArray.optDouble(i)
-            }
+            val intervals = Array(jsonArray.length()) { i -> jsonArray.optDouble(i) }
             canvasContext?.setLineDash(intervals)
         }
     }
@@ -278,6 +295,254 @@ class KRCanvasView : IKuiklyRenderViewExport {
         canvasContext?.clearRect(0.0, 0.0, ele.width.toDouble(), ele.height.toDouble())
     }
 
+    /**
+     * Clip current path. Web canvas only natively supports the intersect form;
+     * the difference (clipPathDifference) variant is not supported and a warning is logged.
+     */
+    private fun clip(params: String?) {
+        val intersect = if (params.isNullOrEmpty()) {
+            true
+        } else {
+            params.toJSONObjectSafely().optInt("intersect", 1) == 1
+        }
+        if (!intersect) {
+            // clipPathDifference is not implemented on Web/H5, downgrade to a no-op clip with warning
+            Log.warn("KRCanvasView: clipPathDifference is not supported on web, fallback to no-op")
+            return
+        }
+        canvasContext?.clip()
+    }
+
+    /**
+     * set text align
+     * The core layer sends the raw align value as the params string itself (not JSON).
+     */
+    private fun setTextAlign(params: String?) {
+        val align = params.orEmpty()
+        // textAlign on CanvasRenderingContext2D is a String typealias; assign directly via dynamic
+        val ctx = canvasContext ?: return
+        ctx.asDynamic().textAlign = when (align) {
+            "left", "right", "center", "start", "end" -> align
+            else -> "left"
+        }
+    }
+
+    /**
+     * set font
+     */
+    private fun setFont(params: String?) {
+        val json = params.toJSONObjectSafely()
+        val style = json.optString("style").ifEmpty { "normal" }
+        val weight = json.optString("weight").ifEmpty { "normal" }
+        val size = json.optDouble("size", 0.0)
+        val family = json.optString("family").ifEmpty { "sans-serif" }
+        if (size <= 0) {
+            return
+        }
+        // CSS font shorthand: <style> <weight> <size>px <family>
+        canvasContext?.font = "$style $weight ${size}px $family"
+    }
+
+    /**
+     * draw image. The image must have already been cached by KRMemoryCacheModule#cacheImage.
+     *
+     * The cached value can either be a real HTMLImageElement (browser) or a plain
+     * string path (mini-program). The underlying canvas context accepts both, so we
+     * dispatch via the dynamic API to keep one code path.
+     *
+     * If the cached HTMLImageElement is still loading (typical right after a
+     * cacheImage call for a remote / asynchronously-decoded resource), we register a
+     * one-shot listener that re-issues the same drawImage once the bitmap is ready,
+     * so the picture eventually lands on the canvas without losing previously
+     * rendered content.
+     */
+    private fun drawImage(params: String?) {
+        val ctx = canvasContext ?: return
+        val json = params.toJSONObjectSafely()
+        val cacheKey = json.optString("cacheKey")
+        if (cacheKey.isEmpty()) {
+            return
+        }
+        val cacheModule = kuiklyRenderContext?.module<KRMemoryCacheModule>(KRMemoryCacheModule.MODULE_NAME)
+        val cached: Any = cacheModule?.get<Any>(cacheKey) ?: return
+
+        // If the cached value is an HTMLImageElement that hasn't decoded yet, defer
+        // the draw until onload fires. Until then naturalWidth is 0 and drawing
+        // would either throw or render nothing.
+        if (cached is HTMLImageElement && cached.naturalWidth == 0) {
+            val pending = cached.asDynamic()
+            // Chain previous onload (if any) so we don't drop the cache module's listener
+            val previousOnload: dynamic = pending.onload
+            pending.onload = {
+                if (previousOnload != null && previousOnload != undefined) {
+                    previousOnload()
+                }
+                // Replay this draw call once the image is finally ready
+                performDrawImage(ctx, cached, json)
+            }
+            return
+        }
+
+        performDrawImage(ctx, cached, json)
+    }
+
+    /**
+     * Perform the actual canvas drawImage call once we have a usable image source.
+     */
+    private fun performDrawImage(
+        ctx: CanvasRenderingContext2D,
+        cached: Any,
+        json: JSONObject
+    ) {
+        // Resolve intrinsic size from the cached value when possible
+        val intrinsicWidth: Double
+        val intrinsicHeight: Double
+        when (cached) {
+            is HTMLImageElement -> {
+                if (cached.naturalWidth == 0) {
+                    return
+                }
+                intrinsicWidth = cached.naturalWidth.toDouble()
+                intrinsicHeight = cached.naturalHeight.toDouble()
+            }
+            else -> {
+                // string path or other dynamic value, intrinsic size is unknown
+                intrinsicWidth = 0.0
+                intrinsicHeight = 0.0
+            }
+        }
+
+        val sx = json.optDouble("sx", 0.0)
+        val sy = json.optDouble("sy", 0.0)
+        val hasSrcRect = json.has("sx") || json.has("sy") || json.has("sWidth") || json.has("sHeight")
+        val sWidth = json.optDouble("sWidth", intrinsicWidth)
+        val sHeight = json.optDouble("sHeight", intrinsicHeight)
+        val dx = json.optDouble("dx", 0.0)
+        val dy = json.optDouble("dy", 0.0)
+        val hasDstSize = json.has("dWidth") || json.has("dHeight")
+        val dWidth = json.optDouble("dWidth", if (sWidth > 0) sWidth else intrinsicWidth)
+        val dHeight = json.optDouble("dHeight", if (sHeight > 0) sHeight else intrinsicHeight)
+
+        val image: dynamic = cached
+        when {
+            hasSrcRect && sWidth > 0 && sHeight > 0 ->
+                ctx.asDynamic().drawImage(
+                    image,
+                    sx, sy, sWidth, sHeight,
+                    dx, dy, dWidth, dHeight
+                )
+            hasDstSize && dWidth > 0 && dHeight > 0 ->
+                ctx.asDynamic().drawImage(image, dx, dy, dWidth, dHeight)
+            else ->
+                ctx.asDynamic().drawImage(image, dx, dy)
+        }
+    }
+
+    /**
+     * saveLayer is downgraded to save() + clip(rect) on H5.
+     * The matching restore() will be issued by the core layer at the end of the layer scope.
+     */
+    private fun saveLayer(params: String?) {
+        val ctx = canvasContext ?: return
+        val json = params.toJSONObjectSafely()
+        val x = json.optDouble(KRViewConst.X, 0.0)
+        val y = json.optDouble(KRViewConst.Y, 0.0)
+        val width = json.optDouble(KRViewConst.WIDTH, ele.width.toDouble())
+        val height = json.optDouble(KRViewConst.HEIGHT, ele.height.toDouble())
+        ctx.save()
+        ctx.beginPath()
+        ctx.rect(x, y, width, height)
+        ctx.clip()
+    }
+
+    private fun translate(params: String?) {
+        val json = params.toJSONObjectSafely()
+        canvasContext?.translate(
+            json.optDouble(KRViewConst.X, 0.0),
+            json.optDouble(KRViewConst.Y, 0.0)
+        )
+    }
+
+    private fun scale(params: String?) {
+        val json = params.toJSONObjectSafely()
+        canvasContext?.scale(
+            json.optDouble(KRViewConst.X, 1.0),
+            json.optDouble(KRViewConst.Y, 1.0)
+        )
+    }
+
+    private fun rotate(params: String?) {
+        val json = params.toJSONObjectSafely()
+        canvasContext?.rotate(json.optDouble("angle", 0.0))
+    }
+
+    private fun skew(params: String?) {
+        val ctx = canvasContext ?: return
+        val json = params.toJSONObjectSafely()
+        val sx = json.optDouble(KRViewConst.X, 0.0)
+        val sy = json.optDouble(KRViewConst.Y, 0.0)
+        // Canvas 2D has no native skew, simulate via transform(1, tan(y), tan(x), 1, 0, 0)
+        ctx.transform(1.0, tan(sy), tan(sx), 1.0, 0.0, 0.0)
+    }
+
+    /**
+     * Apply a 3x3 transform matrix. Canvas 2D uses 6 affine values, so we pick
+     * the upper-left 2x3 part: [a, b, _, c, d, _, e, f, _].
+     * The serialization order from the core layer matches a column-major 3x3 affine,
+     * mapping to (a,b,c,d,e,f) for transform().
+     */
+    private fun transform(params: String?) {
+        val json = params.toJSONObjectSafely()
+        val values = json.optJSONArray("values") ?: return
+        if (values.length() < 6) {
+            return
+        }
+        canvasContext?.transform(
+            values.optDouble(0),
+            values.optDouble(1),
+            values.optDouble(2),
+            values.optDouble(3),
+            values.optDouble(4),
+            values.optDouble(5)
+        )
+    }
+
+    /**
+     * createRadialGradient. To stay aligned with iOS behavior (which immediately draws the
+     * gradient covering the whole context with the given globalAlpha), we paint a fullscreen
+     * radial gradient on the canvas right here.
+     */
+    private fun createRadialGradient(params: String?) {
+        val ctx = canvasContext ?: return
+        val json = params.toJSONObjectSafely()
+        val x0 = json.optDouble("x0")
+        val y0 = json.optDouble("y0")
+        val r0 = json.optDouble("r0")
+        val x1 = json.optDouble("x1")
+        val y1 = json.optDouble("y1")
+        val r1 = json.optDouble("r1")
+        val alpha = json.optDouble("alpha", 1.0)
+        val colorStops = json.optString("colors")
+        val gradient = ctx.createRadialGradient(x0, y0, r0, x1, y1, r1)
+        if (colorStops.isNotEmpty()) {
+            val splits = splitCanvasColorDefinitions(colorStops)
+            splits.forEach { item ->
+                val colorAndPosition = item.split(" ")
+                if (colorAndPosition.size >= 2) {
+                    gradient.addColorStop(
+                        colorAndPosition[1].toDouble(),
+                        colorAndPosition[0].toRgbColor()
+                    )
+                }
+            }
+        }
+        ctx.save()
+        ctx.globalAlpha = alpha
+        ctx.fillStyle = gradient
+        ctx.fillRect(0.0, 0.0, ele.width.toDouble(), ele.height.toDouble())
+        ctx.restore()
+    }
+
     companion object {
         const val VIEW_NAME = "KRCanvasView"
 
@@ -297,11 +562,23 @@ class KRCanvasView : IKuiklyRenderViewExport {
         private const val LINE_DASH = "lineDash"
         private const val CLIP = "clip"
         private const val CREATE_LINEAR_GRADIENT = "createLinearGradient"
+        private const val CREATE_RADIAL_GRADIENT = "createRadialGradient"
         private const val QUADRATIC_CURVE_TO = "quadraticCurveTo"
         private const val BEZIER_CURVE_TO = "bezierCurveTo"
         private const val RESET = "reset"
         private const val STYLE = "style"
         private const val TEXT = "text"
+        private const val TEXT_ALIGN = "textAlign"
+        private const val FONT = "font"
+        private const val DRAW_IMAGE = "drawImage"
+        private const val SAVE = "save"
+        private const val SAVE_LAYER = "saveLayer"
+        private const val RESTORE = "restore"
+        private const val TRANSLATE = "translate"
+        private const val SCALE = "scale"
+        private const val ROTATE = "rotate"
+        private const val SKEW = "skew"
+        private const val TRANSFORM = "transform"
 
         private const val RADIUS = "r"
         private const val START_ANGLE = "sAngle"

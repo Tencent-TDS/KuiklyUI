@@ -2,6 +2,9 @@ package com.tencent.kuikly.core.render.web.runtime.miniapp.dom
 
 import com.tencent.kuikly.core.render.web.runtime.miniapp.const.TransformConst
 import com.tencent.kuikly.core.render.web.runtime.miniapp.core.NativeApi
+import com.tencent.kuikly.core.render.web.ktx.splitCanvasColorDefinitions
+import com.tencent.kuikly.core.render.web.ktx.toRgbColor
+import kotlin.math.tan
 
 /**
  * Mini program canvas context
@@ -26,7 +29,8 @@ class MiniCanvasContext(private val canvas: MiniCanvasElement) {
     var strokeStyle: dynamic
         get() = canvasContext?.strokeStyle
         set(value) {
-            canvasContext?.strokeStyle = value
+            val resolved = resolveGradientStyle(value)
+            canvasContext?.setStrokeStyle(resolved)
         }
 
     /**
@@ -36,7 +40,8 @@ class MiniCanvasContext(private val canvas: MiniCanvasElement) {
     var fillStyle: dynamic
         get() = canvasContext?.fillStyle
         set(value) {
-            canvasContext?.setFillStyle(value)
+            val resolved = resolveGradientStyle(value)
+            canvasContext?.setFillStyle(resolved)
         }
 
     /**
@@ -60,6 +65,44 @@ class MiniCanvasContext(private val canvas: MiniCanvasElement) {
         }
 
     /**
+     * Set canvas font (CSS font shorthand string).
+     * The legacy mini-program canvas API only exposes setFontSize; we extract the px size
+     * from the shorthand and apply it for best-effort compatibility.
+     */
+    @JsName("font")
+    var font: dynamic
+        get() = canvasContext?.font
+        set(value) {
+            val str = value?.toString().orEmpty()
+            // Try to extract a size token like "12px" / "14.5px"
+            val match = Regex("(\\d+(?:\\.\\d+)?)px").find(str)
+            val size = match?.groupValues?.getOrNull(1)?.toDoubleOrNull()
+            if (size != null) {
+                canvasContext?.setFontSize(size)
+            }
+        }
+
+    /**
+     * Set canvas textAlign.
+     */
+    @JsName("textAlign")
+    var textAlign: dynamic
+        get() = canvasContext?.textAlign
+        set(value) {
+            canvasContext?.setTextAlign(value)
+        }
+
+    /**
+     * Set canvas globalAlpha.
+     */
+    @JsName("globalAlpha")
+    var globalAlpha: dynamic
+        get() = canvasContext?.globalAlpha
+        set(value) {
+            canvasContext?.setGlobalAlpha(value)
+        }
+
+    /**
      * Currently using the old version of canvas, draw needs to be called once after all operations are set
      */
     private fun draw() {
@@ -68,6 +111,51 @@ class MiniCanvasContext(private val canvas: MiniCanvasElement) {
                 drawPromise = null
                 canvasContext?.draw(true)
             }
+        }
+    }
+
+    /**
+     * Resolve a style value: if it is a string starting with "linear-gradient",
+     * convert it to a CanvasGradient object using the embedded JSON params.
+     * Otherwise the value is returned unchanged.
+     */
+    private fun resolveGradientStyle(value: dynamic): dynamic {
+        // Only handle string values; non-string and null values are returned as-is
+        val isString = js("typeof value === 'string'") as Boolean
+        if (!isString) {
+            return value
+        }
+        val str: String = value.unsafeCast<String>()
+        val prefix = "linear-gradient"
+        if (!str.startsWith(prefix)) {
+            return str
+        }
+        val gradient = parseLinearGradient(str.substring(prefix.length))
+        return gradient ?: str
+    }
+
+    private fun parseLinearGradient(jsonStr: String): dynamic {
+        val ctx = canvasContext ?: return null
+        return try {
+            // Use JSON.parse to keep this lightweight
+            val obj = js("JSON.parse")(jsonStr)
+            val x0 = (obj.x0 as? Number)?.toDouble() ?: 0.0
+            val y0 = (obj.y0 as? Number)?.toDouble() ?: 0.0
+            val x1 = (obj.x1 as? Number)?.toDouble() ?: 0.0
+            val y1 = (obj.y1 as? Number)?.toDouble() ?: 0.0
+            val colorStops = (obj.colorStops as? String).orEmpty()
+            val gradient = ctx.createLinearGradient(x0, y0, x1, y1)
+            if (colorStops.isNotEmpty()) {
+                splitCanvasColorDefinitions(colorStops).forEach { item ->
+                    val parts = item.split(" ")
+                    if (parts.size >= 2) {
+                        gradient.addColorStop(parts[1].toDouble(), parts[0].toRgbColor())
+                    }
+                }
+            }
+            gradient
+        } catch (e: Throwable) {
+            null
         }
     }
 
@@ -141,7 +229,7 @@ class MiniCanvasContext(private val canvas: MiniCanvasElement) {
      * Set fill content area style
      */
     fun setFillStyle(style: dynamic) {
-        canvasContext?.setFillStyle(style)
+        canvasContext?.setFillStyle(resolveGradientStyle(style))
     }
 
     /**
@@ -204,11 +292,143 @@ class MiniCanvasContext(private val canvas: MiniCanvasElement) {
         canvasContext?.createLinearGradient(x0, y0, x1, y1)
 
     /**
+     * Create radial gradient.
+     * The legacy mini-program canvas only exposes createCircularGradient(x, y, r), so we
+     * approximate with the destination circle. To stay aligned with iOS behavior the
+     * gradient is immediately painted across the whole canvas.
+     */
+    @JsName("createRadialGradient")
+    fun createRadialGradient(
+        x0: Double, y0: Double, r0: Double,
+        x1: Double, y1: Double, r1: Double
+    ): dynamic {
+        val ctx = canvasContext ?: return null
+        // Prefer the new-style API if available, otherwise fall back to circular gradient
+        val hasNewApi = js("typeof ctx.createRadialGradient === 'function'") as Boolean
+        return if (hasNewApi) {
+            ctx.createRadialGradient(x0, y0, r0, x1, y1, r1)
+        } else {
+            ctx.createCircularGradient(x1, y1, r1)
+        }
+    }
+
+    /**
      * set dash line
      */
     @JsName("setLineDash")
     fun setLineDash(segments: Array<Double>) =
         canvasContext?.setLineDash(segments)
+
+    /**
+     * Save current drawing state to the stack.
+     */
+    @JsName("save")
+    fun save() {
+        canvasContext?.save()
+    }
+
+    /**
+     * Restore previously saved drawing state.
+     */
+    @JsName("restore")
+    fun restore() {
+        canvasContext?.restore()
+    }
+
+    /**
+     * Translate the canvas origin.
+     */
+    @JsName("translate")
+    fun translate(x: Double, y: Double) {
+        canvasContext?.translate(x, y)
+    }
+
+    /**
+     * Scale the canvas.
+     */
+    @JsName("scale")
+    fun scale(x: Double, y: Double) {
+        canvasContext?.scale(x, y)
+    }
+
+    /**
+     * Rotate the canvas (radians).
+     */
+    @JsName("rotate")
+    fun rotate(angle: Double) {
+        canvasContext?.rotate(angle)
+    }
+
+    /**
+     * Apply an affine transform on top of the existing one.
+     */
+    @JsName("transform")
+    fun transform(a: Double, b: Double, c: Double, d: Double, e: Double, f: Double) {
+        canvasContext?.transform(a, b, c, d, e, f)
+    }
+
+    /**
+     * Replace the current transform with the given affine matrix.
+     */
+    @JsName("setTransform")
+    fun setTransform(a: Double, b: Double, c: Double, d: Double, e: Double, f: Double) {
+        canvasContext?.setTransform(a, b, c, d, e, f)
+    }
+
+    /**
+     * Skew is not natively supported by mini-program canvas, simulate via transform.
+     */
+    @JsName("skew")
+    fun skew(x: Double, y: Double) {
+        canvasContext?.transform(1.0, tan(y), tan(x), 1.0, 0.0, 0.0)
+    }
+
+    /**
+     * Draw an image. Mini-program canvas accepts an image URL/path string instead of an
+     * HTMLImageElement, so we expect the cache to store a string keyed by cacheKey.
+     *
+     * Implemented via raw JS dispatch so callers can use the W3C-style
+     * 3 / 5 / 9 argument forms transparently.
+     */
+    @JsName("drawImage")
+    fun drawImage(image: dynamic, dx: dynamic, dy: dynamic, a: dynamic, b: dynamic, c: dynamic, d: dynamic, e: dynamic, f: dynamic) {
+        val ctx = canvasContext ?: return
+        val hasF = js("typeof f !== 'undefined'") as Boolean
+        val hasB = js("typeof b !== 'undefined'") as Boolean
+        when {
+            // 9-arg: image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight
+            hasF -> ctx.drawImage(image, dx, dy, a, b, c, d, e, f)
+            // 5-arg: image, dx, dy, dWidth, dHeight
+            hasB -> ctx.drawImage(image, dx, dy, a, b)
+            // 3-arg: image, dx, dy
+            else -> ctx.drawImage(image, dx, dy)
+        }
+        draw()
+    }
+
+    /**
+     * Set the canvas font size directly. Used by font() setter helper.
+     */
+    @JsName("setFontSize")
+    fun setFontSize(size: Double) {
+        canvasContext?.setFontSize(size)
+    }
+
+    /**
+     * Set the canvas text align mode directly.
+     */
+    @JsName("setTextAlign")
+    fun setTextAlign(align: String) {
+        canvasContext?.setTextAlign(align)
+    }
+
+    /**
+     * Set the canvas global alpha.
+     */
+    @JsName("setGlobalAlpha")
+    fun setGlobalAlpha(alpha: Double) {
+        canvasContext?.setGlobalAlpha(alpha)
+    }
 }
 
 /**

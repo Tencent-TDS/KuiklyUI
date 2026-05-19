@@ -18,6 +18,10 @@
 
 #include "libohos_render/expand/components/input/KRTextEditorFieldView.h"
 
+// 编译期 guard：同 KRTextEditorFieldView.h，本类继承自 KRTextEditorFieldView，
+// 这个基类在低 SDK header 下不存在，因此本类也必须被同一宏 guard 掉。
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
+
 /**
  * 基于 ARKUI_NODE_TEXT_EDITOR 的多行输入实现。
  * 与 KRTextEditorFieldView 共享绝大多数代码，仅差异：
@@ -41,5 +45,7 @@ class KRTextEditorAreaView : public KRTextEditorFieldView {
     }
     void ApplyKeyboardType(const std::string &type) override;
 };
+
+#endif  // KUIKLY_TEXT_EDITOR_AVAILABLE
 
 #endif  // CORE_RENDER_OHOS_KRTEXTEDITORAREAVIEW_H

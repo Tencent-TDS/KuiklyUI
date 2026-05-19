@@ -19,8 +19,8 @@
 ## 2. KRTextEditorCommon 工具头
 
 - [x] 2.1 新建 [KRTextEditorCommon.h](/Users/steven/code/KuiklyUI/core-render-ohos/src/main/cpp/libohos_render/expand/components/input/KRTextEditorCommon.h)
-- [x] 2.2 SDK header guard：`OH_CURRENT_API_VERSION < 24` → 定义 `KUIKLY_TEXT_EDITOR_UNAVAILABLE`
-- [x] 2.3 所有 TEXT_EDITOR API 调用被 `#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE` 保护
+- [x] 2.2 SDK header guard：始终显式定义 `KUIKLY_TEXT_EDITOR_AVAILABLE`为 0/1（`OH_CURRENT_API_VERSION >= 24` → `1`，否则 `0`）
+- [x] 2.3 所有 TEXT_EDITOR API 调用被 `#if KUIKLY_TEXT_EDITOR_AVAILABLE` 保护
 - [x] 2.4 `namespace kuikly::text_editor`
 - [x] 2.5 属性键常量：`kText` / `kPlaceholder` / `kPlaceholderColor` / `kFontSize` / `kFontWeight` / `kColor` / `kEditable` / `kTintColor` / `kTextAlign` / `kKeyboardType` / `kReturnKeyType` / `kMaxTextLength` / `kLengthLimitType` / `kAutoHideKeyBoardOnIMEAction` / `kLineHeight`
 - [x] 2.6 方法 / 事件名常量（与老实现完全一致）
@@ -41,7 +41,7 @@
 - [x] 3.4 `protected: kuikly::text_editor::KRTextEditorState state_`
 - [x] 3.5 声明所有私有方法：`Focus/Blur/GetCursorIndex/SetCursorIndex/OnTextDidChanged/OnInputFocus/OnInputBlur/OnInputReturn/OnWillChangeText/OnPasteText/SetContentText/GetContentText/LimitInputContentTextInMaxLength/NotifyTextLengthBeyondLimit/SetupLengthInputFilter/DoResetMaxLength/ApplyKeyboardType/ApplyReturnKeyType`；新增 `IsSingleLine()` / `InterceptNewline()` 虚函数供子类覆盖
 - [x] 3.6 新建 [KRTextEditorFieldView.cpp](/Users/steven/code/KuiklyUI/core-render-ohos/src/main/cpp/libohos_render/expand/components/input/KRTextEditorFieldView.cpp)
-- [x] 3.7 `CreateNode()`：`ARKUI_NODE_TEXT_EDITOR`，带 `KUIKLY_TEXT_EDITOR_UNAVAILABLE` 兜底
+- [x] 3.7 `CreateNode()`：`ARKUI_NODE_TEXT_EDITOR`，带 `KUIKLY_TEXT_EDITOR_AVAILABLE == 0` 兜底
 - [x] 3.8 `DidInit()`：背景透明 / 圆角 0 / padding 0 / SingleLine=true / 创建并绑定 controller / 默认注册 `ON_DID_CHANGE` / 首次 ApplyTypingStyle / 首次日志
 - [x] 3.9 `OnDestroy()`：清理 keyboard observer + Destroy controller
 - [x] 3.10 `SetProp()`：text/placeholder/placeholderColor/fontSize/fontWeight/color/tintColor/textAlign/editable/keyboardType(降级warn)/returnKeyType/lengthLimitType/maxTextLength/autoHideKeyboardOnImeAction + 6 个 event callback

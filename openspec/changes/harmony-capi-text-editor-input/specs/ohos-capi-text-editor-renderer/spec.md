@@ -20,7 +20,7 @@
 
 #### Scenario: SDK header 不可用兜底
 
-- **GIVEN** 编译使用的 SDK header 未包含 `ARKUI_NODE_TEXT_EDITOR` 枚举（`KUIKLY_TEXT_EDITOR_UNAVAILABLE` 宏生效）
+- **GIVEN** 编译使用的 SDK header 未包含 `ARKUI_NODE_TEXT_EDITOR` 枚举（`KUIKLY_TEXT_EDITOR_AVAILABLE` 宏为 `0`）
 - **WHEN** `KRTextEditorFieldView::CreateNode()` / `KRTextEditorAreaView::CreateNode()` 被调用
 - **THEN** 该方法 SHALL 返回 `nullptr`
 - **AND** 注册闭包的运行时分支（见 `ohos-text-input-runtime-switch`）SHALL 保证永不调用到新实现，避免返回 `nullptr` 到渲染管线

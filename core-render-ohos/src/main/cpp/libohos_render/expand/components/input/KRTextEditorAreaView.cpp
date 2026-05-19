@@ -18,6 +18,11 @@
 #include "libohos_render/utils/KRStringUtil.h"
 #include "libohos_render/utils/KRViewUtil.h"
 
+// 编译期 guard：同 KRTextEditorAreaView.h，运行期低 SDK header 下本类类型不存在，
+// 为避免低版本上出现未声明类型、API 未声明等问题，本 TU 主体被同一宏整体
+// guard。实现同文件同名类型在低版本只会被跳过。
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
+
 void KRTextEditorAreaView::DidInit() {
     KRTextEditorFieldView::DidInit();
     // 多行模式：SingleLine 已由 IsSingleLine() == false 生效；此处可额外配置默认样式。
@@ -32,7 +37,6 @@ bool KRTextEditorAreaView::SetProp(const std::string &prop_key, const KRAnyValue
     //   2. 立即重写已有文本 span（3.3-α 方案）——因为 typing style 只影响后续键入，
     //      不主动重写 span 的话当前已有文本视觉不会跟随变化。
     if (kuikly::util::isEqual(prop_key, kuikly::text_editor::kLineHeight)) {
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
         float new_lh = prop_value->toFloat();
         state_.line_height_ = new_lh;
         state_.line_height_set_ = new_lh > 0;
@@ -42,7 +46,6 @@ bool KRTextEditorAreaView::SetProp(const std::string &prop_key, const KRAnyValue
             // 已有文本：通过重写 SpanStyle 立即生效（含 LineHeightStyle）。
             kuikly::text_editor::SetStyledText(state_, state_.cached_text_);
         }
-#endif
         return true;
     }
     return KRTextEditorFieldView::SetProp(prop_key, prop_value, event_call_back);
@@ -64,3 +67,5 @@ void KRTextEditorAreaView::ApplyKeyboardType(const std::string &type) {
                      << " is not supported on ARKUI_NODE_TEXT_EDITOR (API 24+), fallback to default";
     }
 }
+
+#endif  // KUIKLY_TEXT_EDITOR_AVAILABLE

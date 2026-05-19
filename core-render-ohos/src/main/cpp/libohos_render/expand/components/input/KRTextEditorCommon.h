@@ -25,16 +25,215 @@
 #include <vector>
 
 // ARKUI_NODE_TEXT_EDITOR 及配套 StyledString / Placeholder / TextStyle 等 API
-// 均为 OpenHarmony API 24 引入。若当前 SDK header 不足 API 24，则通过该 guard 将新实现禁用：
-//   * CreateNode() 返回 nullptr；
+// 均为 OpenHarmony API 24 引入。编译期门控宏 KUIKLY_TEXT_EDITOR_AVAILABLE 的
+// 定义已上提到 KRTextEditorSwitch.h；此处只 include 该头，避免出现两份定义与顺序
+// 依赖问题。当前头里通过该宏将所有 API 24 类型/工具函数整体裁剪：
+//   * SDK header < 24 时本文件主体被 #ifndef 包护，不参与编译；
 //   * 注册入口再以运行时 OH_GetSdkApiVersion() >= 24 兜底，永远走老实现路径。
-#if defined(OH_CURRENT_API_VERSION) && OH_CURRENT_API_VERSION < 24
-#define KUIKLY_TEXT_EDITOR_UNAVAILABLE 1
-#endif
+#include "libohos_render/expand/components/input/KRTextEditorSwitch.h"
 
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
 #include <arkui/styled_string.h>
 #endif
+
+// 编译期 guard：本头之下的全部内容（KRTextEditorState 结构体、ApplyTypingStyle / SetStyledText
+// 等工具函数）都直接引用了 OH_ArkUI_TextEditor* / OH_ArkUI_StyledString_* 等 API 24 才有的
+// 类型。因此在 SDK header < API 24 时整体被同一宏 guard 掉，避免低 SDK header 编译失败。
+// 唯一保留下来的是文件顶部的协议键常量（kText、kPlaceholder 等），它们目前也仅被 editor 路径
+// 使用，但即便被 guard 掉也无影响，简单起见不再细分。
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
+
+// ============================================================================
+// 弱符号重声明块（γ-2 运行时弱链接核心）
+//
+// 问题：编译期 SDK header >= 24 时，所有 OH_ArkUI_TextEditor* / OH_ArkUI_StyledString*
+// / OH_ArkUI_*Style* 等 API 24 入口在 SDK 头里以**强符号**声明。.so 链接后这些符号
+// 进入 .dynsym，运行系统 API < 24 时 dlopen 解析重定位会因符号缺失整体失败：
+//   "Error relocating /data/storage/.../libkuikly.so:
+//      OH_ArkUI_TextEditorStyledStringController_Create: symbol not found"
+//
+// 修复：在所有调用点之前对**全部** API 24 入口重声明一次同名同签名的版本，并附上
+// __attribute__((weak))。clang/gcc 在合并多次声明时，weak 属性是 sticky 的——一旦
+// 任意一次声明带上 weak，最终生成的 ELF 引用就是弱符号。运行时若未解析则地址为
+// nullptr，注册期 KRIsTextEditorRuntimeAvailable() 探测到后整体回退老控件，loader
+// 不再因未解析符号失败。
+//
+// 注意事项：
+//   1. 必须紧跟在 <arkui/styled_string.h> / <arkui/native_node.h> 等 SDK header
+//      include **之后**，确保所有 API 24 类型已可见；
+//   2. 必须 extern "C"，与 SDK header 声明的链接方式一致，否则名称修饰会冲突；
+//   3. 必须保持与 SDK 完全一致的签名（参数 const 限定、返回类型一字不差）。任何
+//      签名漂移都会导致 clang 报 "conflicting types"。本块每次随 SDK 升级需复核
+//      （来源：DevEco-Studio.app SDK 头 native_type.h / styled_string.h / native_node.h）。
+//   4. 仅声明使用到的 API 24 入口；未来代码新增 API 24 调用，必须同步往本块追加，
+//      否则那个新符号仍是强引用，等于又把 .so 卡死在低 API 系统。
+//
+// 本块规模较大但都是机械重声明，集中放置便于审计；按"控件控制器 / 样式构造 /
+// StyledString 描述符 / Image attachment / 节点事件 / 占位符选项"分组排列。
+// ============================================================================
+extern "C" {
+
+// ---- TextEditor StyledString Controller（API 24，native_type.h） ----
+OH_ArkUI_TextEditorStyledStringController *
+OH_ArkUI_TextEditorStyledStringController_Create() __attribute__((weak));
+void OH_ArkUI_TextEditorStyledStringController_Destroy(
+    OH_ArkUI_TextEditorStyledStringController *controller) __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextEditorStyledStringController_SetTypingStyle(
+    OH_ArkUI_TextEditorStyledStringController *controller,
+    OH_ArkUI_TextEditorTextStyle *style) __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextEditorStyledStringController_SetTypingParagraphStyle(
+    OH_ArkUI_TextEditorStyledStringController *controller,
+    OH_ArkUI_TextEditorParagraphStyle *style) __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextEditorStyledStringController_SetStyledString(
+    const OH_ArkUI_TextEditorStyledStringController *controller,
+    const ArkUI_StyledString_Descriptor *descriptor) __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextEditorStyledStringController_GetStyledString(
+    const OH_ArkUI_TextEditorStyledStringController *controller,
+    ArkUI_StyledString_Descriptor *descriptor) __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextEditorStyledStringController_GetSelection(
+    const OH_ArkUI_TextEditorStyledStringController *controller, uint32_t *start,
+    uint32_t *end) __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextEditorStyledStringController_SetSelection(
+    OH_ArkUI_TextEditorStyledStringController *controller, uint32_t start, uint32_t end,
+    ArkUI_MenuPolicy menuPolicy) __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextEditorStyledStringController_GetCaretOffset(
+    OH_ArkUI_TextEditorStyledStringController *controller, int32_t *caretOffset)
+    __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextEditorStyledStringController_SetCaretOffset(
+    OH_ArkUI_TextEditorStyledStringController *controller, int32_t caretOffset)
+    __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextEditorStyledStringController_StopEditing(
+    OH_ArkUI_TextEditorStyledStringController *controller) __attribute__((weak));
+
+// ---- TextEditor TextStyle / ParagraphStyle（API 24，native_type.h） ----
+OH_ArkUI_TextEditorTextStyle *OH_ArkUI_TextEditorTextStyle_Create() __attribute__((weak));
+void OH_ArkUI_TextEditorTextStyle_Destroy(OH_ArkUI_TextEditorTextStyle *style)
+    __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextEditorTextStyle_SetFontColor(OH_ArkUI_TextEditorTextStyle *style,
+                                                         uint32_t color) __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextEditorTextStyle_SetFontSize(OH_ArkUI_TextEditorTextStyle *style,
+                                                        float size) __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextEditorTextStyle_SetFontWeight(OH_ArkUI_TextEditorTextStyle *style,
+                                                          uint32_t fontWeight)
+    __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextEditorTextStyle_SetLineHeight(OH_ArkUI_TextEditorTextStyle *style,
+                                                          int32_t lineHeight)
+    __attribute__((weak));
+
+OH_ArkUI_TextEditorParagraphStyle *OH_ArkUI_TextEditorParagraphStyle_Create()
+    __attribute__((weak));
+void OH_ArkUI_TextEditorParagraphStyle_Destroy(OH_ArkUI_TextEditorParagraphStyle *style)
+    __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextEditorParagraphStyle_SetTextAlign(
+    OH_ArkUI_TextEditorParagraphStyle *style, ArkUI_TextAlignment align) __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextEditorParagraphStyle_SetTextVerticalAlign(
+    OH_ArkUI_TextEditorParagraphStyle *style, ArkUI_TextVerticalAlignment verticalAlignment)
+    __attribute__((weak));
+
+// ---- TextEditor Placeholder Options（API 24，native_type.h） ----
+OH_ArkUI_TextEditorPlaceholderOptions *OH_ArkUI_TextEditorPlaceholderOptions_Create()
+    __attribute__((weak));
+void OH_ArkUI_TextEditorPlaceholderOptions_Destroy(OH_ArkUI_TextEditorPlaceholderOptions *options)
+    __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextEditorPlaceholderOptions_SetValue(
+    OH_ArkUI_TextEditorPlaceholderOptions *options, const char *value) __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextEditorPlaceholderOptions_SetFontSize(
+    OH_ArkUI_TextEditorPlaceholderOptions *options, float fontSize) __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextEditorPlaceholderOptions_SetFontWeight(
+    OH_ArkUI_TextEditorPlaceholderOptions *options, uint32_t fontWeight) __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextEditorPlaceholderOptions_SetFontColor(
+    OH_ArkUI_TextEditorPlaceholderOptions *options, uint32_t fontColor) __attribute__((weak));
+
+// ---- StyledString Descriptor（CreateWithString/AppendStyledString 等多为 API 24，
+//      但 _Create / _Destroy 实为 API 14 引入，这里同样附上 weak 不会有副作用——
+//      系统 API 14+ 必然解析得到，弱符号属性只是降低链接强度，运行无影响） ----
+ArkUI_StyledString_Descriptor *OH_ArkUI_StyledString_Descriptor_Create(void) __attribute__((weak));
+void OH_ArkUI_StyledString_Descriptor_Destroy(ArkUI_StyledString_Descriptor *descriptor)
+    __attribute__((weak));
+ArkUI_StyledString_Descriptor *OH_ArkUI_StyledString_Descriptor_CreateWithString(
+    const char *value, const OH_ArkUI_SpanStyle **styles, int32_t length) __attribute__((weak));
+ArkUI_StyledString_Descriptor *OH_ArkUI_StyledString_Descriptor_CreateWithImageAttachment(
+    const OH_ArkUI_ImageAttachment *value) __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_StyledString_Descriptor_AppendStyledString(
+    ArkUI_StyledString_Descriptor *descriptor, const ArkUI_StyledString_Descriptor *other)
+    __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_StyledString_Descriptor_GetString(
+    const ArkUI_StyledString_Descriptor *descriptor, char *buffer, int32_t bufferSize,
+    int32_t *writeLength) __attribute__((weak));
+
+// ---- Image Attachment（API 24，styled_string.h） ----
+OH_ArkUI_ImageAttachment *OH_ArkUI_ImageAttachment_Create() __attribute__((weak));
+void OH_ArkUI_ImageAttachment_Destroy(OH_ArkUI_ImageAttachment *imageAttachment)
+    __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_ImageAttachment_SetResource(OH_ArkUI_ImageAttachment *imageAttachment,
+                                                    const char *resource) __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_ImageAttachment_SetSizeWidth(OH_ArkUI_ImageAttachment *imageAttachment,
+                                                     float width) __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_ImageAttachment_SetSizeHeight(OH_ArkUI_ImageAttachment *imageAttachment,
+                                                      float height) __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_ImageAttachment_SetVerticalAlign(
+    OH_ArkUI_ImageAttachment *imageAttachment, ArkUI_ImageSpanAlignment verticalAlign)
+    __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_ImageAttachment_SetObjectFit(OH_ArkUI_ImageAttachment *imageAttachment,
+                                                     ArkUI_ObjectFit objectFit)
+    __attribute__((weak));
+
+// ---- TextStyle / SpanStyle / ParagraphStyle / LineHeightStyle（API 24，styled_string.h） ----
+OH_ArkUI_TextStyle *OH_ArkUI_TextStyle_Create() __attribute__((weak));
+void OH_ArkUI_TextStyle_Destroy(OH_ArkUI_TextStyle *textStyle) __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextStyle_SetFontColor(OH_ArkUI_TextStyle *textStyle, uint32_t fontColor)
+    __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextStyle_SetFontSize(OH_ArkUI_TextStyle *textStyle, float fontSize)
+    __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextStyle_SetFontWeight(OH_ArkUI_TextStyle *textStyle,
+                                                uint32_t fontWeight) __attribute__((weak));
+
+OH_ArkUI_SpanStyle *OH_ArkUI_SpanStyle_Create() __attribute__((weak));
+void OH_ArkUI_SpanStyle_Destroy(OH_ArkUI_SpanStyle *spanStyle) __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_SpanStyle_SetStart(OH_ArkUI_SpanStyle *spanStyle, int32_t start)
+    __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_SpanStyle_SetLength(OH_ArkUI_SpanStyle *spanStyle, int32_t length)
+    __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_SpanStyle_SetTextStyle(OH_ArkUI_SpanStyle *spanStyle,
+                                               const OH_ArkUI_TextStyle *textStyle)
+    __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_SpanStyle_SetParagraphStyle(
+    OH_ArkUI_SpanStyle *spanStyle, const OH_ArkUI_ParagraphStyle *paragraphStyle)
+    __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_SpanStyle_SetLineHeightStyle(
+    OH_ArkUI_SpanStyle *spanStyle, const OH_ArkUI_LineHeightStyle *lineHeightStyle)
+    __attribute__((weak));
+
+OH_ArkUI_ParagraphStyle *OH_ArkUI_ParagraphStyle_Create() __attribute__((weak));
+void OH_ArkUI_ParagraphStyle_Destroy(OH_ArkUI_ParagraphStyle *paragraphStyle)
+    __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_ParagraphStyle_SetTextAlign(OH_ArkUI_ParagraphStyle *paragraphStyle,
+                                                    ArkUI_TextAlignment align)
+    __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_ParagraphStyle_SetTextVerticalAlign(
+    OH_ArkUI_ParagraphStyle *paragraphStyle, ArkUI_TextVerticalAlignment verticalAlignment)
+    __attribute__((weak));
+
+OH_ArkUI_LineHeightStyle *OH_ArkUI_LineHeightStyle_Create() __attribute__((weak));
+void OH_ArkUI_LineHeightStyle_Destroy(OH_ArkUI_LineHeightStyle *lineHeightStyle)
+    __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_LineHeightStyle_SetLineHeight(OH_ArkUI_LineHeightStyle *lineHeightStyle,
+                                                      float lineHeight) __attribute__((weak));
+
+// ---- TextEditor 节点事件（API 24，native_node.h / styled_string.h） ----
+OH_ArkUI_TextEditorChangeEvent *OH_ArkUI_NodeEvent_GetTextEditorOnWillChangeEvent(
+    ArkUI_NodeEvent *event) __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextEditorChangeEvent_GetReplacementStyledString(
+    const OH_ArkUI_TextEditorChangeEvent *event, ArkUI_StyledString_Descriptor *descriptor)
+    __attribute__((weak));
+ArkUI_ErrorCode OH_ArkUI_TextEditorChangeEvent_GetRangeBefore(
+    const OH_ArkUI_TextEditorChangeEvent *event, uint32_t *start, uint32_t *end)
+    __attribute__((weak));
+
+}  // extern "C"
+// ============================================================================
+// 弱符号重声明块结束
+// ============================================================================
 
 #include "libohos_render/api/src/KRTextPostProcessor.h"
 #include "libohos_render/foundation/KRCommon.h"
@@ -145,7 +344,7 @@ struct KRTextEditorState {
     KRRenderCallback text_input_state_change_callback_;
     KRRenderCallback selection_change_callback_;
 
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
     // 注意：controller 由调用侧 Create，并通过 NODE_TEXT_EDITOR_STYLED_STRING_CONTROLLER 绑定到
     // 节点；节点销毁时要 Destroy。
     OH_ArkUI_TextEditorStyledStringController *controller_ = nullptr;
@@ -221,7 +420,7 @@ static constexpr const char kTextPostProcessorNameInput[] = "input";
 // "文本长度计算" 块中 GetUTF16Length 复用实现。这里仅作声明，定义在同文件末尾。
 inline int GetUTF16Length(const std::string &text);
 
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
 // 默认行高倍数：未主动设置 lineHeight 时按 fontSize * kDefaultLineHeightMultiplier 推导。
 // 1.4 与 ArkTS 默认 lineSpacingMultiple 接近，实测视觉与老 NODE_TEXT_INPUT 默认行距相近。
 static constexpr float kDefaultLineHeightMultiplier = 1.4f;
@@ -1072,7 +1271,7 @@ inline void SetCaretOffset(KRTextEditorState &state, int32_t offset) {
     }
     OH_ArkUI_TextEditorStyledStringController_SetCaretOffset(state.controller_, offset);
 }
-#endif  // !KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#endif  // KUIKLY_TEXT_EDITOR_AVAILABLE
 
 // ========== 文本长度计算（与老 KRTextFieldView 同算法的独立复刻） ==========
 
@@ -1266,7 +1465,7 @@ inline bool FilterSource(char source[], const std::string &dest, size_t dStart, 
 // 选区设置：优先 OH_ArkUI_TextEditorStyledStringController_SetSelection（API 24+），
 // 失败时降级到 SetCaretOffset(end)，把选区折叠为光标。
 
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
 // 把 [start, end] 区间设到 controller。menuPolicy 取 DEFAULT，避免主动弹/收选择菜单。
 // 当 SDK 调用失败时降级到 SetCaretOffset(end)，与老 KRTextFieldView 行为兜底语义一致：
 // 至少光标位置正确。
@@ -1292,7 +1491,7 @@ inline void ReadSelection(const KRTextEditorState &state, const std::string &tex
                           uint32_t *out_start, uint32_t *out_end) {
     uint32_t start = 0;
     uint32_t end = 0;
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
     if (state.controller_) {
         if (OH_ArkUI_TextEditorStyledStringController_GetSelection(state.controller_, &start, &end) !=
             ARKUI_ERROR_CODE_NO_ERROR) {
@@ -1326,7 +1525,7 @@ inline KRRenderValueMap BuildTextInputStatePayload(const KRTextEditorState &stat
     // 兜底：cached_text_ 为空但控件中有内容（极端 dispose 顺序）时，回退到
     // GetStyledText（拿到的可能是 flat，仅作为不丢失数据的最后一道防线）。
     std::string text = state.cached_text_;
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
     if (text.empty()) {
         text = GetStyledText(state);
     }
@@ -1400,5 +1599,7 @@ inline ParsedTextInputState ParseTextInputStateJson(const std::string &json) {
 
 }  // namespace text_editor
 }  // namespace kuikly
+
+#endif  // KUIKLY_TEXT_EDITOR_AVAILABLE
 
 #endif  // CORE_RENDER_OHOS_KRTEXTEDITORCOMMON_H

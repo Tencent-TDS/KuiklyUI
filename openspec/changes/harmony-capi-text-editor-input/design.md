@@ -131,19 +131,25 @@ IKRRenderViewExport::RegisterViewCreator("KRTextFieldView", [] {
 
 **Context**：`ARKUI_NODE_TEXT_EDITOR` 需 API 24 的 SDK header 支持。项目当前编译基线 `OH_CURRENT_API_VERSION >= 18`（见 `KREventUtil.cpp`）并不保证 SDK header 中一定有该枚举。
 
-**Decision**：在 `KRTextEditorCommon.h` 开头做 header 可用性检查：
+**Decision**：在 `KRTextEditorSwitch.h` 开头始终显式定义三态门控宏，避免"未定义则默认 0"在错误 include 顺序下造成静默错位：
 
 ```cpp
-#if defined(OH_CURRENT_API_VERSION) && OH_CURRENT_API_VERSION < 24
-// 若 SDK header 版本不足 24，定义占位 guard；新 View 在 CreateNode() 中直接返回 nullptr，
-// 并且 ComponentsRegisterEntry 闭包里再用 OH_GetSdkApiVersion() >= 24 的运行时判断，
-// 因此这种情况下永远走不到新实现。
-#define KUIKLY_TEXT_EDITOR_UNAVAILABLE 1
+// 始终显式定义为 0 或 1，不采用"条件 #define / 不定义"头衅接。
+// 1 = SDK header >= API 24，`ARKUI_NODE_TEXT_EDITOR` 等配套类型 / API 均可用；
+// 0 = SDK header <  API 24，需要裁掉带 API 24 类型的实现。
+#include <arkui/native_type.h>
+
+#ifndef KUIKLY_TEXT_EDITOR_AVAILABLE
+#if defined(OH_CURRENT_API_VERSION) && OH_CURRENT_API_VERSION >= 24
+#define KUIKLY_TEXT_EDITOR_AVAILABLE 1
+#else
+#define KUIKLY_TEXT_EDITOR_AVAILABLE 0
+#endif
 #endif
 ```
 
-- 若 `KUIKLY_TEXT_EDITOR_UNAVAILABLE` 定义：新 View 的 `CreateNode()` 返回 `nullptr`，`CreateNode()` 调用方负责兜底（日志 + 不 crash）
-- 若未定义：正常走 `ARKUI_NODE_TEXT_EDITOR` 路径
+- 若 `KUIKLY_TEXT_EDITOR_AVAILABLE == 0`：新 View 的 `CreateNode()` 返回 `nullptr`，`CreateNode()` 调用方负责兜底（日志 + 不 crash）
+- 若 `KUIKLY_TEXT_EDITOR_AVAILABLE == 1`：正常走 `ARKUI_NODE_TEXT_EDITOR` 路径
 - `ComponentsRegisterEntry` 注册闭包内**额外** `OH_GetSdkApiVersion() >= 24` 做双保险（即使 SDK header 有枚举，但运行设备 API < 24 仍走老实现）
 
 **Alternative**：在 `CMakeLists.txt` 里用 `if(API_VERSION LESS 24)` 跳过新 cpp 编译 — 被拒绝：会让 CI 产物与不同 API 设备表现耦合，不如 runtime 判断干净。
@@ -224,7 +230,7 @@ IKRRenderViewExport::RegisterViewCreator("KRTextFieldView", [] {
 **CI / 编译**：
 
 - 确认 DevEco Studio / NDK 版本支持 `ARKUI_NODE_TEXT_EDITOR` 枚举（需 API 24 SDK header）
-- 若不支持，`KUIKLY_TEXT_EDITOR_UNAVAILABLE` 宏会生效，新实现被运行期跳过，编译仍可通过
+- 若不支持，`KUIKLY_TEXT_EDITOR_AVAILABLE` 将为 `0`，新实现被运行期跳过，编译仍可通过
 
 ## File Changes (by module)
 
@@ -232,7 +238,7 @@ IKRRenderViewExport::RegisterViewCreator("KRTextFieldView", [] {
 
 - `core-render-ohos/src/main/cpp/libohos_render/expand/components/input/KRTextEditorCommon.h`
   - `namespace kuikly::text_editor`
-  - SDK header 可用性 guard（`KUIKLY_TEXT_EDITOR_UNAVAILABLE`）
+  - SDK header 可用性 guard（`KUIKLY_TEXT_EDITOR_AVAILABLE`，始终显式定义为 0/1）
   - `struct KRTextEditorState`（共享状态字段）
   - `constexpr char*` 属性键名常量（`kText` / `kPlaceholder` / `kFontSize` / ...）
   - `ArkUI_NodeEventType` 事件类型常量（`kEventTypeChange` / `kEventTypeSubmit` / ...）

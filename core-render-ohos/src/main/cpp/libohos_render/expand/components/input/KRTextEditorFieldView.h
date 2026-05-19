@@ -22,26 +22,22 @@
 #include "libohos_render/expand/components/input/KRTextEditorCommon.h"
 #include "libohos_render/export/IKRRenderViewExport.h"
 
-/**
- * 全局开关：是否启用新的 ARKUI_NODE_TEXT_EDITOR 版输入控件。
- * 0（默认）=走老的 KRTextFieldView/KRTextAreaView；1=在 API>=24 时走新的
- * KRTextEditorFieldView/KRTextEditorAreaView。
- *
- * 仅在 ComponentsRegisterEntry 的 creator lambda 中读取，因此对已创建的 View
- * 不生效，只对「下次 Input/TextArea 创建」生效。
- *
- * 写入点位于宿主侧（如 ohosApp 的 napi 模块 libkuikly_entry.so），通过链接
- * libkuikly.so 调用下列 C API 完成跨 so 传值——内部值维护在 libkuikly.so 的
- * 一个静态变量中，ComponentsRegisterEntry 从同一 so 读取，保证一致性。
- * 注意：切忌再用 inline 变量 + 跨 so 访问，会因每个 so 各有一份副本而失效。
- */
-extern "C" __attribute__((visibility("default"))) void KRSetUseNewTextInputComponent(int value);
-extern "C" __attribute__((visibility("default"))) int KRGetUseNewTextInputComponent();
+// 编译期 guard：当 SDK header < API 24 时，KRTextEditorCommon.h 已通过
+// `#if KUIKLY_TEXT_EDITOR_AVAILABLE` 宏屏蔽全部 ARKUI_NODE_TEXT_EDITOR 相关类型；
+// 本头中的类成员引用了大量 API 24 类型/枚举，因此必须整体被同一宏 guard 掉，
+// 否则低 SDK header 编译会因 OH_ArkUI_TextEditor* 等未声明而失败。
+//
+// 注：开关 C API（KRSetUseNewTextInputComponent / KRGetUseNewTextInputComponent）
+// 已被搬到 KRTextEditorSwitch.h，永远独立可用，不受本宏 guard 影响。
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
 
 /**
  * 基于 ARKUI_NODE_TEXT_EDITOR（OpenHarmony API 24 新增）的单行输入实现，与老
  * KRTextFieldView（基于 ARKUI_NODE_TEXT_INPUT）并列存在。
- * 运行时选择见 ComponentsRegisterEntry.h：API 24+ 走本实现，否则走老实现。
+ *
+ * 注册策略（β 方案，见 ComponentsRegisterEntry.h）：
+ *   * KRTextFieldView 永远走老实现，与本类无关；
+ *   * 本类仅作为 KRTextEditorAreaView 的基类存在，承载共享逻辑。
  */
 class KRTextEditorFieldView : public IKRRenderViewExport {
  public:
@@ -119,5 +115,7 @@ class KRTextEditorFieldView : public IKRRenderViewExport {
     // returnKeyType 映射
     void ApplyReturnKeyType(const std::string &type);
 };
+
+#endif  // KUIKLY_TEXT_EDITOR_AVAILABLE
 
 #endif  // CORE_RENDER_OHOS_KRTEXTEDITORFIELDVIEW_H

@@ -49,34 +49,28 @@ inline std::string KRDbgImageSpansDump(
 }
 }  // namespace
 
+// ============================================================================
+// 编译期 guard：当 SDK header < API 24 时，本 TU 中所有成员函数体都引用了
+// API 24 才存在的 OH_ArkUI_TextEditor* / NODE_TEXT_EDITOR_* 等符号；为了让低
+// SDK header 也能编译通过，整个文件主体都包在 `#if KUIKLY_TEXT_EDITOR_AVAILABLE`
+// 之内。注册闭包（ComponentsRegisterEntry.h）会通过同一个宏 + 运行时 API
+// 版本兜底，永远不会在低版本上选到本类。
+//
+// 注：开关 C API 已搬到 KRTextEditorSwitch.cpp，该 TU 永远参与编译，因此
+// 即便本 TU 整体被编译期裁剪，宿主仍能稳定地读写开关。
+// ============================================================================
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
+
 namespace {
 using kuikly::text_editor::KRTextEditorState;
-
-// 新控件开关的实际存储位置——仅存在于 libkuikly.so 这一个 .so 内（本 TU 静态变量）。
-// 宿主侧通过 KRSetUseNewTextInputComponent 写入、ComponentsRegisterEntry 通过
-// KRGetUseNewTextInputComponent 读取，保证跨 so 调用看到同一份数据。
-int g_kr_use_new_text_input_component = 0;
 }  // namespace
 
-extern "C" void KRSetUseNewTextInputComponent(int value) {
-    g_kr_use_new_text_input_component = value;
-}
-
-extern "C" int KRGetUseNewTextInputComponent() {
-    return g_kr_use_new_text_input_component;
-}
-
 ArkUI_NodeHandle KRTextEditorFieldView::CreateNode() {
-#ifdef KUIKLY_TEXT_EDITOR_UNAVAILABLE
-    // SDK header < 24，不创建节点；注册闭包在运行时也不会选到本类，此处仅防御。
-    return nullptr;
-#else
     return kuikly::util::GetNodeApi()->createNode(ARKUI_NODE_TEXT_EDITOR);
-#endif
 }
 
 void KRTextEditorFieldView::DidInit() {
-#ifdef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if !KUIKLY_TEXT_EDITOR_AVAILABLE
     return;
 #else
     auto node = GetNode();
@@ -131,7 +125,7 @@ void KRTextEditorFieldView::DidInit() {
 }
 
 void KRTextEditorFieldView::OnDestroy() {
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
     if (state_.keyboard_height_changed_callback_) {
         auto key = NewKRRenderValue(GetViewTag())->toString();
         if (auto root = GetRootView().lock()) {
@@ -149,7 +143,7 @@ void KRTextEditorFieldView::OnDestroy() {
 }
 
 void KRTextEditorFieldView::InitControllerIfNeeded() {
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
     if (state_.controller_) {
         return;
     }
@@ -173,7 +167,7 @@ bool KRTextEditorFieldView::SetProp(const std::string &prop_key, const KRAnyValu
                                     const KRRenderCallback event_call_back) {
     using namespace kuikly::text_editor;
 
-#ifdef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if !KUIKLY_TEXT_EDITOR_AVAILABLE
     return IKRRenderViewExport::SetProp(prop_key, prop_value, event_call_back);
 #else
     auto node = GetNode();
@@ -363,7 +357,7 @@ bool KRTextEditorFieldView::SetProp(const std::string &prop_key, const KRAnyValu
 }
 
 void KRTextEditorFieldView::OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEventType &event_type) {
-#ifdef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if !KUIKLY_TEXT_EDITOR_AVAILABLE
     return;
 #else
     switch (event_type) {
@@ -396,7 +390,7 @@ void KRTextEditorFieldView::OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEven
 
 void KRTextEditorFieldView::CallMethod(const std::string &method, const KRAnyValue &params,
                                        const KRRenderCallback &callback) {
-#ifdef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if !KUIKLY_TEXT_EDITOR_AVAILABLE
     IKRRenderViewExport::CallMethod(method, params, callback);
     return;
 #else
@@ -426,7 +420,7 @@ void KRTextEditorFieldView::CallMethod(const std::string &method, const KRAnyVal
 // ============================================================================
 
 void KRTextEditorFieldView::SetContentText(const std::string &text) {
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
     if (state_.cached_text_ == text) {
         return;  // 幂等：内容未变，不写入也不回调
     }
@@ -443,7 +437,7 @@ void KRTextEditorFieldView::SetContentText(const std::string &text) {
 }
 
 void KRTextEditorFieldView::SetContentTextSilent(const std::string &text) {
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
     if (state_.cached_text_ == text) {
         return;
     }
@@ -453,7 +447,7 @@ void KRTextEditorFieldView::SetContentTextSilent(const std::string &text) {
 }
 
 std::string KRTextEditorFieldView::GetContentText() {
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
     return kuikly::text_editor::GetStyledText(state_);
 #else
     return "";
@@ -461,7 +455,7 @@ std::string KRTextEditorFieldView::GetContentText() {
 }
 
 uint32_t KRTextEditorFieldView::GetSelectionStartPosition() {
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
     // 优先走 Selection；若区间为 0，说明无选区，则读 caret
     if (state_.controller_) {
         uint32_t start = 0, end = 0;
@@ -479,19 +473,19 @@ uint32_t KRTextEditorFieldView::GetSelectionStartPosition() {
 }
 
 void KRTextEditorFieldView::SetSelectionStartPosition(uint32_t index) {
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
     kuikly::text_editor::SetCaretOffset(state_, static_cast<int32_t>(index));
 #endif
 }
 
 void KRTextEditorFieldView::Focus() {
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
     kuikly::text_editor::UpdateFocusStatus(GetNode(), true);
 #endif
 }
 
 void KRTextEditorFieldView::Blur() {
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
     // 优先走 controller 的 StopEditing（更精准收键盘），再 fallback 到 FocusStatus
     if (state_.controller_) {
         OH_ArkUI_TextEditorStyledStringController_StopEditing(state_.controller_);
@@ -520,7 +514,7 @@ void KRTextEditorFieldView::SetCursorIndex(uint32_t index) {
 // ============================================================================
 
 void KRTextEditorFieldView::OnTextDidChanged(ArkUI_NodeEvent *event) {
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
     (void)event;
     // guard：SetTextInputStateInternal 主动写入期间不发任何 textDidChange / textInputStateChange，
     // 与 Android isSettingTextInputState / iOS _ignoreTextDidChanged 同语义。
@@ -554,7 +548,7 @@ void KRTextEditorFieldView::OnTextDidChanged(ArkUI_NodeEvent *event) {
     {
         // 同步把 ArkUI 当前 selection（flat）打出来，便于推断光标错位发生位置。
         uint32_t fs = 0, fe = 0;
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
         if (state_.controller_) {
             if (OH_ArkUI_TextEditorStyledStringController_GetSelection(state_.controller_, &fs, &fe) !=
                 ARKUI_ERROR_CODE_NO_ERROR) {
@@ -640,7 +634,7 @@ void KRTextEditorFieldView::OnInputReturn(ArkUI_NodeEvent *event) {
 // ============================================================================
 
 void KRTextEditorFieldView::OnSelectionChanged(ArkUI_NodeEvent *event) {
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
     (void)event;
     // SetTextInputStateInternal 主动写入选区时由 guard 抑制，避免回环。
     if (state_.is_setting_text_input_state_) {
@@ -669,7 +663,7 @@ void KRTextEditorFieldView::OnSelectionChanged(ArkUI_NodeEvent *event) {
 }
 
 void KRTextEditorFieldView::EmitTextInputStateChange() {
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
     if (!state_.text_input_state_change_callback_) {
         return;
     }
@@ -679,7 +673,7 @@ void KRTextEditorFieldView::EmitTextInputStateChange() {
 }
 
 void KRTextEditorFieldView::EmitSelectionChange() {
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
     if (!state_.selection_change_callback_) {
         return;
     }
@@ -689,7 +683,7 @@ void KRTextEditorFieldView::EmitSelectionChange() {
 }
 
 void KRTextEditorFieldView::SetTextInputStateInternal(const std::string &json) {
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
     auto parsed = kuikly::text_editor::ParseTextInputStateJson(json);
     OH_LOG_Print(LOG_APP, LOG_DEBUG, KR_DBG_DOMAIN, KR_DBG_TAG,
                  "[SetTextInputStateInternal] parsed text='%{public}s' raw_sel=[%{public}u,%{public}u] cached='%{public}s'",
@@ -807,7 +801,7 @@ void KRTextEditorFieldView::GetTextInputStateInternal(const KRRenderCallback &ca
     if (!callback) {
         return;
     }
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
     auto map = kuikly::text_editor::BuildTextInputStatePayload(state_);
     callback(NewKRRenderValue(map));
 #else
@@ -816,7 +810,7 @@ void KRTextEditorFieldView::GetTextInputStateInternal(const KRRenderCallback &ca
 }
 
 void KRTextEditorFieldView::OnWillChangeText(ArkUI_NodeEvent *event) {
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
     OH_ArkUI_TextEditorChangeEvent *change_event =
         OH_ArkUI_NodeEvent_GetTextEditorOnWillChangeEvent(event);
     if (!change_event) {
@@ -909,7 +903,7 @@ void KRTextEditorFieldView::OnPasteText(ArkUI_NodeEvent *event) {
 // ============================================================================
 
 bool KRTextEditorFieldView::LimitInputContentTextInMaxLength() {
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
     if (state_.max_length_ < 0) {
         return false;
     }
@@ -965,7 +959,7 @@ void KRTextEditorFieldView::NotifyTextLengthBeyondLimit() {
 }
 
 void KRTextEditorFieldView::SetupLengthInputFilter() {
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
     if (state_.length_limit_type_ == -1 || state_.length_input_filter_) {
         return;
     }
@@ -976,7 +970,7 @@ void KRTextEditorFieldView::SetupLengthInputFilter() {
 }
 
 void KRTextEditorFieldView::DoResetMaxLength() {
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
     auto node = GetNode();
     if (state_.max_length_ == -1) {
         kuikly::text_editor::ResetMaxLengthAttr(node);
@@ -1023,9 +1017,9 @@ void KRTextEditorFieldView::ApplyKeyboardType(const std::string &type) {
 }
 
 void KRTextEditorFieldView::ApplyReturnKeyType(const std::string &type) {
-#ifndef KUIKLY_TEXT_EDITOR_UNAVAILABLE
     ArkUI_EnterKeyType ek = kuikly::util::ConvertToEnterKeyType(type);
     state_.enter_key_type_ = ek;
     kuikly::text_editor::UpdateEnterKeyType(GetNode(), ek);
-#endif
 }
+
+#endif  // KUIKLY_TEXT_EDITOR_AVAILABLE

@@ -17,16 +17,31 @@
 #define CORE_RENDER_OHOS_KRRICHTEXTSHADOW_H
 
 #include <arkui/styled_string.h>
+#include <multimedia/image_framework/image/pixelmap_native.h>
 #include <native_drawing/drawing_text_declaration.h>
 #include <native_drawing/drawing_text_typography.h>
 #include <native_drawing/drawing_text_line.h>
 #include <native_drawing/drawing_types.h>
+#include <functional>
+#include <mutex>
+#include <string>
+#include <unordered_map>
 #include <unordered_set>
+#include <vector>
 #include "libohos_render/expand/components/richtext/KRFontAdapterManager.h"
 #include "libohos_render/expand/components/richtext/KRParagraph.h"
 #include "libohos_render/utils/KRScopedSpinLock.h"
 #include "libohos_render/utils/KRRenderLoger.h"
 #include "libohos_render/export/IKRRenderShadowExport.h"
+
+namespace kuikly {
+namespace richtext {
+// 内置 props key：双下划线前后缀避免与业务字段冲突。仅由 KRRichTextShadow 内部
+// PostProcessor 拆段路径写入与读取，业务零感知。如需在其它 shadow / view 引用，
+// 请统一使用此常量。
+inline constexpr const char *kInternalImageSrcKey = "__kr_image_src__";
+}  // namespace richtext
+}  // namespace kuikly
 
 /**
  * 跨线程安全的 OH_Drawing_Typography 持有句柄。
@@ -165,7 +180,7 @@ class KRRichTextShadow : public IKRRenderShadowExport {
         main_thread_text_align_ = TEXT_ALIGN_LEFT;
     }
 
-    const KRSize MainMeasureSize() {
+    KRSize MainMeasureSize() {
         return main_measure_size_;
     }
     
@@ -197,11 +212,57 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     }
     
     virtual bool StyledStringEnabled();
+
+    // ===================== Phase 4: 只读 RichText 自定义表情绘制 =====================
+    // 只读 RichText 走 V1（老 typography）路径时，business 文本会经 PostProcessor("richtext")
+    // 拆段为 [TextSpan / ImageSpan ...]。Image span 在 typography 中以 PlaceholderSpan
+    // 形式占位（沿用 OHOS 端历来的"占位 + 外挂 ImageView"机制）；与之并行，本 shadow
+    // 把每个 ImageSpan 的 (placeholder_index, src_uri, w_vp, h_vp) 记录到 image_draw_records_
+    // 中。view 层在 OnForegroundDraw 中：
+    //   1) 调 OH_Drawing_TypographyPaint 画文字；
+    //   2) 遍历 image_draw_records_，按 placeholder_index 查 GetRectsForPlaceholders 得到
+    //      实际矩形，从 pixmap_cache_ 取已解码的 OH_PixelmapNative，调用
+    //      OH_Drawing_CanvasDrawPixelMapRect 将图片画到对应矩形上。
+    //
+    // 与 KRRichTextView.kt 的 ImageSpan（业务声明型）共存：业务声明的 ImageSpan 仍走原
+    // PlaceholderSpan + 父节点 ImageView 链路；本机制仅对 PostProcessor 拆段产生的图片生效。
+    struct KRImageDrawRecord {
+        int placeholder_index = -1;  // 在 typography 内部的 placeholder 序号（用于 GetRectsForPlaceholders）
+        std::string src_uri;          // 已规范化的可寻址 URI（file:// / http(s):// / data:...）
+        float width_vp = 0.0f;
+        float height_vp = 0.0f;
+    };
+    const std::vector<KRImageDrawRecord> &GetImageDrawRecords() const {
+        return image_draw_records_;
+    }
+
+    // ===== Phase 3↔4 桥接：image span 解码完成通知 view markDirty =====
+    // view 层（KRRichTextView::SetShadow）在拿到 shadow 时通过本接口注册一个 callback；
+    // shadow 把 image span 的预解码工作委托给 KRCustomEmojiPixmapCache（进程级单例 +
+    // LRU 128），由它在主线程触发本回调，driving view 层 markDirty 触发下一帧
+    // OnForegroundDraw 重绘。view 销毁时通过 SetImageLoadedCallback(nullptr) 清空，
+    // 避免悬挂访问。
+    using ImageLoadedCallback = std::function<void(const std::string & /*uri*/)>;
+    void SetImageLoadedCallback(ImageLoadedCallback cb) {
+        std::lock_guard<std::mutex> lk(image_loaded_callback_mutex_);
+        image_loaded_callback_ = std::move(cb);
+    }
+
+    // image span 是否非空（决策 6C：含 image span 时强制走 V1 OnForegroundDraw 路径）。
+    bool HasImageSpans() const {
+        return !image_draw_records_.empty();
+    }
+
  private:
     void DestroyCachedTextLines();
     std::string GetTextContent();
     KRSize CalculateRenderViewSizeWithStyledString(double constraint_width, double constraint_height);
 
+    // ===== Phase 3: 委托 KRCustomEmojiPixmapCache 异步预加载 =====
+    // 在 BuildTextTypography 末尾被调用：遍历 image_draw_records_，对未缓存的 src_uri
+    // 调用 KRCustomEmojiPixmapCache::Prefetch；解码完成回调里通过 image_loaded_callback_
+    // 通知 view markDirty。shadow 销毁时 weak_from_this 自动断链。
+    void TriggerImagePrefetchIfNeed();
  private:
     KRRenderValue::Map props_;
     KRRenderValue::Array values_;
@@ -229,6 +290,14 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     std::shared_ptr<KRParagraph> paragraph_;
     KRSpinLock paragraph_lock_;
     std::shared_ptr<kuikly::util::KRLinearGradientParser> text_linearGradient_;
+
+    // ===== Phase 4: image span 绘制相关 =====
+    // image_draw_records_ 仅由 BuildTextTypography 在 context 线程构造，主线程读取（OnForegroundDraw）。
+    // 重建（SetProp("values") -> Measure -> BuildTextTypography）时整体覆盖，无并发改写问题。
+    // pixmap 缓存已迁移至 KRCustomEmojiPixmapCache（进程级单例 + LRU 128）。
+    std::vector<KRImageDrawRecord> image_draw_records_;
+    std::mutex image_loaded_callback_mutex_;
+    ImageLoadedCallback image_loaded_callback_;
     
     void SetParagraph(std::shared_ptr<KRParagraph> paragraph){
         KRScopedSpinLock lock(&paragraph_lock_);

@@ -579,9 +579,15 @@ static napi_value InitKuikly(napi_env env, napi_callback_info info) {
         KRRegisterImageAdapter(MyImageAdapter);
         KRRegisterImageAdapterV2(MyImageAdapterV2);
         KRRegisterImageAdapterV3(MyImageAdapterV3);
-        // 文本预处理（emoji 短码 -> 图片替换）示例：注册到 "input" 名下，
-        // 供输入框（ARKUI_NODE_TEXT_EDITOR 路径）使用。
+        // 文本预处理（emoji 短码 -> 图片替换）示例：
+        //   * "input"    : 输入框（ARKUI_NODE_TEXT_EDITOR 路径）；
+        //   * "richtext" : 只读富文本（KRRichTextView OnForegroundDraw 路径，方案 A）。
+        // 两条路径共用同一个 adapter 实现：扫描 [xxx] 短码 → 解为 file:// URI → 用
+        // KRTextProcessedResultAppendImageSpanWithRaw 回传，SDK 内部按 name 分流到对应
+        // 渲染管线（编辑态走 SetStyledText + ImageAttachment；只读富文本走 PlaceholderSpan
+        // + DrawPixelMapRect）。
         KRRegisterTextPostProcessorAdapter("input", MyTextPostProcessorAdapter);
+        KRRegisterTextPostProcessorAdapter("richtext", MyTextPostProcessorAdapter);
         adapterRegistered = true;
     }
 

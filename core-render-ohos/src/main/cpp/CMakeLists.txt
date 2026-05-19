@@ -53,6 +53,7 @@ set(SOURCE_SET
         libohos_render/expand/components/image/KRImageViewWrapper.cpp
         libohos_render/expand/components/richtext/KRFontAdapterManager.cpp
         libohos_render/expand/components/richtext/KRRichTextShadow.cpp
+        libohos_render/expand/components/richtext/KRCustomEmojiPixmapCache.cpp
         libohos_render/expand/components/scroller/KRScrollerView.cpp
         libohos_render/expand/components/richtext/KRRichTextView.cpp
         libohos_render/expand/components/richtext/KRParagraph.cpp

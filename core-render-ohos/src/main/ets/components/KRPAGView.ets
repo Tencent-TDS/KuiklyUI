@@ -59,10 +59,6 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
   animationCancelEvent: KuiklyRenderCallback | null = null;
   animationRepeatEvent: KuiklyRenderCallback | null = null;
   clickEvent: KuiklyRenderCallback | null = null;
-  doubleClickEvent: KuiklyRenderCallback | null = null;
-  longPressEvent: KuiklyRenderCallback | null = null;
-  panEvent: KuiklyRenderCallback | null = null;
-  pinchEvent: KuiklyRenderCallback | null = null;
   src: string = '';
   autoPlay: boolean = true;
   repeatCount = 0;
@@ -100,22 +96,6 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
     } else if (propKey == 'click') {
       this.clickEvent = propValue as KuiklyRenderCallback;
       console.log(`KRPAGView setProp click event registered, viewTag=${this.getViewTag()}`);
-      return true;
-    } else if (propKey == 'doubleClick') {
-      this.doubleClickEvent = propValue as KuiklyRenderCallback;
-      console.log(`KRPAGView setProp doubleClick event registered, viewTag=${this.getViewTag()}`);
-      return true;
-    } else if (propKey == 'longPress') {
-      this.longPressEvent = propValue as KuiklyRenderCallback;
-      console.log(`KRPAGView setProp longPress event registered, viewTag=${this.getViewTag()}`);
-      return true;
-    } else if (propKey == 'pan') {
-      this.panEvent = propValue as KuiklyRenderCallback;
-      console.log(`KRPAGView setProp pan event registered, viewTag=${this.getViewTag()}`);
-      return true;
-    } else if (propKey == 'pinch') {
-      this.pinchEvent = propValue as KuiklyRenderCallback;
-      console.log(`KRPAGView setProp pinch event registered, viewTag=${this.getViewTag()}`);
       return true;
     } else if (propKey == KRPAGView.PROP_AUTO_PLAY) {
       this.autoPlay = (propValue as number) == 1;

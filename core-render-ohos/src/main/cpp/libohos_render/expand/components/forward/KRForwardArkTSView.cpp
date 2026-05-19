@@ -38,8 +38,8 @@ bool KRForwardArkTSView::ToSetBaseProp(const std::string &prop_key, const KRAnyV
                                        const KRRenderCallback event_call_back) {
     bool handled = IKRRenderViewExport::ToSetBaseProp(prop_key, prop_value, event_call_back);
     // IKRRenderViewExport 处理当前的事件的处理与绑定
-    // 之前的 arkts 层处理View的逻辑，之前只有setProp，而没有setEvent，因此 arkts 层的Click事件误被 C++层的节点去处理了
-    // ForwardArkTSView 的事件必须透传到 ArkTS 层，不能让 KRBaseEventHandler 截胡
+    // IKRRenderViewExport 中的处理顺序是 ToSetBaseProp -> base_event_handler_.SetProp -> SetProp
+    // 把 setProp 中处理event 提前到 ToSetBaseProp 中，不让 KRBaseEventHandler 截胡
     if (event_call_back) {
         event_registry_[prop_key] = event_call_back;
         KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(), KRNativeCallArkTSMethod::SetViewEvent,

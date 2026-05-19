@@ -128,11 +128,17 @@ fun ShadowExample() {
 
 **影响范围**：所有使用 `Text` 组件的地方，用户无法通过长按等方式选择并复制文本内容。
 
-#### 4. TextField 不支持指定选择范围
+#### 4. `TextField(value: String)` 不直接暴露 `selection` 参数
 
-**差异说明**：`TextField` 组件不支持通过代码指定文本的选择范围，这是原生组件切换导致的限制。
+**差异说明**：当前 Material3 `TextField(value: String)` 这一组公开 API 仍不直接暴露 `selection` / `composition` 参数，因此不能像标准 Compose 的 `TextFieldValue` 重载那样，直接通过组件参数程序化指定选区。
 
-**影响范围**：无法通过 `TextFieldValue` 的 `selection` 参数来程序化控制文本选择范围。
+**影响范围**：如果业务使用的是 `TextField(value: String, onValueChange = ...)` 这条公开 API，则无法直接通过参数控制光标位置或选区范围。
+
+**推荐方案**：
+- **Compose DSL**：使用 state-based `BasicTextField(state = rememberTextFieldState())`，通过 `TextFieldState.selection` 与 `state.edit { replace(selection.start, selection.end, text) }` 控制 raw 光标 / 选区。
+- **Core / 自研 DSL**：使用 `TextInputState` / `setTextInputState()` 原子化设置 raw text、selection、composition。
+
+**Android 特别说明**：程序化设置 `selection` 后，会同步真实选区并显示高亮，后续输入也会替换该区间；但这**不保证**自动拉起 Android 原生文本选择手柄或 action mode。
 
 #### 5. TextField 不支持通过 onValueChange 做输入长度限制
 
@@ -347,7 +353,7 @@ fun TextFieldWithPlaceholder() {
 @Composable
 fun TextFieldWithMaxLength() {
     var text by remember { mutableStateOf("") }
-    
+
     TextField(
         value = text,
         onValueChange = { text = it },
@@ -363,9 +369,15 @@ fun TextFieldWithMaxLength() {
 
 **相关 API**：
 - `Modifier.maxLength(length: Int, type: LengthLimitType = LengthLimitType.CHARACTER)` - 设置最大输入长度；`type` 可选 `CHARACTER`（按字符）、`BYTE`（按字节）、`VISUAL_WIDTH`（按视觉宽度）
-- `Modifier.onLimitChange(onLimitChange: (length: Int, limit: Boolean) -> Unit)` - 长度变化或超限时回调，`length` 为当前长度，`limit` 为是否已达/超过限制
+- `Modifier.onLimitChange(onLimitChange: (length: Int, limit: Boolean) -> Unit)` - 长度变化回调，`length` 为当前长度，`limit` 为是否已达/超过限制
 
-> **提示**：以上为当前已支持的扩展能力，更多扩展能力将持续更新补充。
+> **说明 1**：当前公开 API 仅支持内置的 `CHARACTER` / `BYTE` / `VISUAL_WIDTH` 三种计数方式。
+>
+> **说明 2**：`onLimitChange` 中 `limit = true` 表示**当前长度已达到或超过上限**，不只是“严格大于上限”。
+>
+> **说明 3**：长度值由各平台输入组件按对应策略计算；在 emoji、attachment 或文本后处理场景下，结果不一定等同于 Kotlin 字符串的 `length`。
+>
+> **说明 4**：当 `TextFieldState.edit { replace(selection.start, selection.end, shortCode) }` 与 `textPostProcessor` / 自定义表情一起使用时，`maxLength` 会基于**替换后的 raw text** 做最终校验；如果整段短码放不下，会直接拒绝本次插入，保留原有文本和合法选区，不会写入半个 shortcode。
 
 #### 自动回收软键盘：`Modifier.autoHideKeyboardOnImeAction` <Badge text="版本2.17.0及以上" type="warn"/>
 

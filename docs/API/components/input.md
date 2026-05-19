@@ -256,16 +256,16 @@ internal class TestPage : BasePager() {
 
 ### maxTextLength
 
-限制输入框的输入长度。支持三种长度限制类型：按字节计算、按字符计算、按视觉宽度计算。
+限制输入框的输入长度。支持三种内置长度限制类型（按字节、字符、视觉宽度计算）。
 
 <div class="table-01">
 
 **maxTextLength方法**
 
-| 参数  | 描述     | 类型 |
-|:----|:-------|:--|
-| length | 最大输入长度  | Int |
-| type | 长度限制类型  | LengthLimitType |
+| 参数  | 描述     | 类型 | 默认值 |
+|:----|:-------|:--|:--|
+| length | 最大输入长度  | Int | - |
+| type | 长度限制类型  | LengthLimitType | - |
 
 </div>
 
@@ -379,7 +379,7 @@ internal class TestPage : BasePager() {
                     size(200f, 40f)
                     placeholder("输入框提示")
                     @Suppress("DEPRECATION")
-                    maxTextLength(20) // 已废弃，建议使用 maxTextLength(20, LengthLimitType.CHARACTER)
+                    maxTextLength(20) // 已废弃，迁移时请改为双参版本并显式指定 LengthLimitType
                 }
             }
         }

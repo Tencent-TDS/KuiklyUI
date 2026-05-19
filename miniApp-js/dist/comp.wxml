@@ -1,0 +1,2 @@
+<import src="./base.wxml"/>
+<template is="{{xs.a(0, i.nn, '')}}" data="{{i:i,c:1}}" />

@@ -220,6 +220,7 @@ class MiniRootElement(
                 val currentPath = key.asDynamic()
                 // Get specific content for setData
                 val dataDetailValue = updatePayload.value()
+                
                 // Check if current update content is wrapped by customWrapper
                 val customData = findCustomWrapper(this, currentPath.split("."))
                 val splitedPath = customData[0]

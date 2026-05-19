@@ -11,6 +11,7 @@ import org.w3c.dom.Element
  * by implementing [IKuiklyRenderViewExport].
  * Business custom UI components need to implement this protocol.
  */
+@JsExport
 interface IKuiklyRenderViewExport : IKuiklyRenderModuleExport {
     // All web render view objects are of type Element
     val ele: Element

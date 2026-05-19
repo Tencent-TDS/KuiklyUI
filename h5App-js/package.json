@@ -1,0 +1,45 @@
+{
+  "name": "kuikly-h5app-js",
+  "version": "1.0.0",
+  "description": "Kuikly H5 App - Pure JavaScript Implementation",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "webpack serve --config webpack.config.js --mode development",
+    "build": "webpack --config webpack.config.js --mode production",
+    "build:dev": "webpack --config webpack.config.js --mode development",
+    "rebuild-kotlin": "node scripts/run-script.js rebuild-kotlin-and-copy",
+    "rebuild-kotlin:dev": "node scripts/run-script.js rebuild-kotlin-and-copy dev",
+    "copy-libs": "node scripts/run-script.js copy-kotlin-libs",
+    "copy-libs:dev": "node scripts/run-script.js copy-kotlin-libs dev",
+    "build-bundles": "node scripts/run-script.js build-and-copy-bundles",
+    "build-bundles:dev": "node scripts/run-script.js build-and-copy-bundles dev",
+    "build-bundles:all": "node scripts/run-script.js build-and-copy-bundles",
+    "build-bundles:all:dev": "node scripts/run-script.js build-and-copy-bundles dev",
+    "generate-manifest": "node scripts/generate-manifest.js"
+  },
+  "keywords": [
+    "kuikly",
+    "h5",
+    "web-render"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/core": "^7.22.0",
+    "@babel/preset-env": "^7.22.0",
+    "ansi-html-community": "^0.0.8",
+    "babel-loader": "^9.1.2",
+    "copy-webpack-plugin": "^11.0.0",
+    "glob": "^10.3.0",
+    "html-webpack-plugin": "^5.5.3",
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1"
+  },
+  "dependencies": {
+    "core-js": "^3.31.0"
+  },
+  "optionalDependencies": {
+    "fsevents": "2.3.3"
+  }
+}

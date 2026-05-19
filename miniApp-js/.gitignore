@@ -1,0 +1,10 @@
+!*.js
+node_modules/
+dist/lib/
+dist/business/
+dist/assets/
+!dist/assets/README.md
+*.log
+.DS_Store
+src/libs
+src/bundles

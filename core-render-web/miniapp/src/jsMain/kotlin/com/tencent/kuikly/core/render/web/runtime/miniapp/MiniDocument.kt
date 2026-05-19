@@ -29,6 +29,8 @@ import com.tencent.kuikly.core.render.web.utils.Log
 /**
  * Mini program host document related operations
  */
+ @JsExport
+@OptIn(ExperimentalJsExport::class)
 object MiniDocument {
     private const val TAG = "MiniDocument"
     private const val SAFE_AREA_INSETS = "safeAreaInsets"
@@ -147,17 +149,18 @@ object MiniDocument {
     /**
      * init mini app page instance
      */
+    @JsName("initPage")
     fun initPage(
-        renderParams: FastMutableMap<String, Any>,
-        onLoadCallback:
-            (pageId: Int, pageName: String, paramsMap: FastMutableMap<String, Any>) -> Unit
+        renderParams: dynamic,
+        onLoadCallback: dynamic
     ) {
+        val renderParamsMap = FastMutableMap<String, Any>(renderParams ?: js("{}"))
         var usedPageName = ""
         // Initialize mini program core configuration
         val miniPage = Page.initMiniPage()
         // Execute renderView initialization logic after mini program onLoad
         miniPage.lifeCycle.onLoad { miniPageName, params ->
-            usedPageName = renderParams[PAGE_NAME].unsafeCast<String?>() ?: miniPageName
+            usedPageName = renderParamsMap[PAGE_NAME].unsafeCast<String?>() ?: miniPageName
             if (usedPageName == "") {
                 throw IllegalArgumentException("pageName is empty")
             }
@@ -173,7 +176,7 @@ object MiniDocument {
                 set(PLATFORM, "miniprogram")
                 set(
                     STATUS_BAR_HEIGHT,
-                    renderParams[STATUS_BAR_HEIGHT] ?: MiniGlobal.statusBarHeight
+                    renderParamsMap[STATUS_BAR_HEIGHT] ?: MiniGlobal.statusBarHeight
                 )
                 set(PARAM, paramsMap)
             }

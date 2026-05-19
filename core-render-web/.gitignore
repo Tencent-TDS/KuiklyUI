@@ -1,3 +1,4 @@
+!*.js
 /build
 /base/build
 /h5/build

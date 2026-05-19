@@ -1,8 +1,15 @@
+@file:JsExport
+
 package com.tencent.kuikly.core.render.web.exception
+
+import kotlin.js.JsExport
+import kotlin.js.JsName
 
 /**
  * Error reason
  */
+@JsExport
+@JsName("ErrorReason")
 enum class ErrorReason {
     UNKNOWN,
     INITIALIZE,

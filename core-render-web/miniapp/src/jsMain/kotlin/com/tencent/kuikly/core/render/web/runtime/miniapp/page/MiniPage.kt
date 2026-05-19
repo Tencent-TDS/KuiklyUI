@@ -18,6 +18,8 @@ import kotlin.js.Promise
 /**
  * Mini program page class, mainly associates page-level events
  */
+@JsExport
+@OptIn(ExperimentalJsExport::class)
 class MiniPage {
     // Current renderView instance corresponding to this Page instance
     var renderView: KuiklyRenderView? = null

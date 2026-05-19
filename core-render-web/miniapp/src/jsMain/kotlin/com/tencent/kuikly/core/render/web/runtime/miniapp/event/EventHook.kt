@@ -5,8 +5,11 @@ import com.tencent.kuikly.core.render.web.runtime.miniapp.page.MiniPageManage
 /**
  * Overall mini program event handling, divided into page-level and non-page-level
  */
+@JsExport
+@OptIn(ExperimentalJsExport::class)
 object EventHook {
-    private val runTimeHooks: EventEmitter = EventEmitter()
+    // 改为 internal 而不是 private，确保实例方法可访问
+    internal val runTimeHooks: EventEmitter = EventEmitter()
 
     /**
      * Listen for non-page-level events

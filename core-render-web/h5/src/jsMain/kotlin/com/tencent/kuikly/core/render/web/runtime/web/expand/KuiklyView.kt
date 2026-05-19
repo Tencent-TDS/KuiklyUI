@@ -1,5 +1,9 @@
+@file:JsExport
+
 package com.tencent.kuikly.core.render.web.runtime.web.expand
 
+import kotlin.js.JsExport
+import kotlin.js.JsName
 import com.tencent.kuikly.core.render.web.IKuiklyRenderExport
 import com.tencent.kuikly.core.render.web.IKuiklyRenderViewLifecycleCallback
 import com.tencent.kuikly.core.render.web.context.KuiklyRenderCoreExecuteMode
@@ -13,6 +17,8 @@ import com.tencent.kuikly.core.render.web.performance.launch.KRLaunchData
 /**
  * View level integration view
  */
+@JsExport
+@JsName("KuiklyView")
 open class KuiklyView(private val delegate: KuiklyRenderViewDelegatorDelegate? = null) :
     IKuiklyView,
     KuiklyRenderViewDelegatorDelegate {

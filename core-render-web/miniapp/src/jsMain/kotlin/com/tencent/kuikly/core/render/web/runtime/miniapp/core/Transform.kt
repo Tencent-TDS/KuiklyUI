@@ -10,6 +10,8 @@ import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.MiniElementUtil
 import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.MiniSpanElement
 import kotlin.js.Json
 import kotlin.js.json
+import kotlin.js.JsExport
+import kotlin.js.JsName
 
 typealias UploadCallBack = () -> Any?
 
@@ -46,11 +48,14 @@ data class UpdatePayload(
 /**
  * Convert mini program DOM to setData data that can be used by mini program
  */
+@JsExport
+@OptIn(ExperimentalJsExport::class)
 object Transform {
     // The Key to get node name on the template, through this Key, get the final template node type alias on usedComponentsAlias
     private const val TEMPLATE_NODE_NAME_KEY = "_num"
 
     // Mini program component aliases
+    @JsName("componentsAlias")
     val componentsAlias = js(
         """
         {
@@ -119,6 +124,7 @@ object Transform {
           },
           'rich-text': {_num: '56', nodes: 'p0', space: 'p1', userSelect: 'p2'},
           'static-rich-text': {_num: '57', nodes: 'p0', space: 'p1', userSelect: 'p2'},
+          'custom-wrapper': {_num: 'custom-wrapper'},
           'scroll-view': {
             _num: '59',
             animation: 'p0',
@@ -236,25 +242,42 @@ object Transform {
     """
     )
 
+    @JsName("hydrate")
     fun hydrate(element: MiniElement): Json {
         // For some nodes, node names are different in different situations, and some specific operations need to be done when converting data
         val nodeName = element.onTransformData()
+        
+        // 调试：总是输出 nodeName
+        console.log("[Transform.hydrate] nodeName:", nodeName, "element.innerId:", element.innerId)
+        
         // Get mapping from node attributes to template attributes
         val usedComponentsAlias = componentsAlias[nodeName]
+        
+        // 调试日志：检查 usedComponentsAlias
+        console.log("[Transform.hydrate] usedComponentsAlias:", usedComponentsAlias)
+        if (usedComponentsAlias == null || jsTypeOf(usedComponentsAlias) == "undefined") {
+            console.error("[Transform.hydrate] ERROR: usedComponentsAlias is null/undefined!")
+            console.log("[Transform.hydrate] Available keys in componentsAlias:", js("Object.keys(this.componentsAlias)"))
+        }
+        
         // Pure text type, special handling, just return the content of the text
         if (isText(element)) {
             val textNode = element.unsafeCast<MiniSpanElement>()
-            return json(
+            val result = json(
                 ShortCutsConst.SID to element.innerId,
                 ShortCutsConst.TEXT to textNode.textContent,
                 ShortCutsConst.NODE_NAME to usedComponentsAlias[TEMPLATE_NODE_NAME_KEY]
             )
+            console.log("[Transform.hydrate] Text node result nn:", result[ShortCutsConst.NODE_NAME])
+            return result
         }
 
         val data = json(
             ShortCutsConst.NODE_NAME to usedComponentsAlias[TEMPLATE_NODE_NAME_KEY],
             ShortCutsConst.SID to element.innerId,
         )
+        
+        console.log("[Transform.hydrate] Element node nn:", data[ShortCutsConst.NODE_NAME])
 
         val propsKeys = element.props
 
@@ -300,6 +323,7 @@ object Transform {
         return data
     }
 
+    @JsName("addComponentsAlias")
     fun addComponentsAlias(key: String, value: dynamic) {
         if (!componentsAlias[key].unsafeCast<Boolean>()) {
             componentsAlias[key] = value

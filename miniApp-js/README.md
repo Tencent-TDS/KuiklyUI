@@ -36,7 +36,7 @@ miniApp-js/
 ```bash
 object BuildPlugin {
     val kuikly by lazy {
-        "com.tencent.kuikly:core-gradle-plugin:2.17.1-beta-2.0.21-SNAPSHOT"
+        "com.tencent.kuikly-open:core-gradle-plugin:2.18.1-2.0.21"
     }
 }
 ```
@@ -45,7 +45,7 @@ object BuildPlugin {
 
 ```bash
 dependencies {
-    compileOnly("com.tencent.kuikly:core-ksp:2.17.1-beta-2.0.21-SNAPSHOT") {
+    compileOnly("com.tencent.kuikly-open:core-ksp:2.18.1-2.0.21") {
         add("kspIosArm64", this)
         add("kspIosX64", this)
         add("kspIosSimulatorArm64", this)

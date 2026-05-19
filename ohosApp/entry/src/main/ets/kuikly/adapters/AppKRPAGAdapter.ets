@@ -41,9 +41,14 @@ struct MyPAGView {
 
 @Builder
 function createMyPAGView(view: KuiklyRenderBaseView) {
-  MyPAGView({
-    pagViewController: ((view as KRPAGView).controller! as AppKRPAGViewController).viewController!,
-  });
+  Stack() {
+    MyPAGView({
+      pagViewController: ((view as KRPAGView).controller! as AppKRPAGViewController).viewController!,
+    })
+  }
+  .onClick(() => {
+    (view as KRPAGView).fireClickEvent();
+  })
 }
 
 class AppKRPAGViewController implements IKRPAGViewController, PAGViewListener {

@@ -144,6 +144,10 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
     }
 
     override fun onRelease() {
+        // Release child subcompositions before clearing the Kuikly view tree. Otherwise nested
+        // applier removeAt calls may observe an already-cleared ViewContainer.children list.
+        super.onRelease()
+
         // Node is permanently destroyed — perform full view cleanup.
         if (isInitialized) {
             // Destroy native render views that were preserved during removeAt.
@@ -151,7 +155,6 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             view.removeRenderView()
             view.didRemoveFromParentView()
         }
-        super.onRelease()
     }
 
     private val currentView: ViewContainer<*, *>

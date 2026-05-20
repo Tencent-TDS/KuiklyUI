@@ -160,6 +160,22 @@ object LocalStorage {
         NativeApi.plat["setStorageSync"](key, value)
     }
 
+    /**
+     * Remove LocalStorage cached content by key
+     */
+    @JsName("removeItem")
+    fun removeItem(key: String) {
+        NativeApi.plat["removeStorageSync"](key)
+    }
+
+    /**
+     * Clear all LocalStorage cached content
+     */
+    @JsName("clear")
+    fun clear() {
+        NativeApi.plat["clearStorageSync"]()
+    }
+
 }
 
 /**

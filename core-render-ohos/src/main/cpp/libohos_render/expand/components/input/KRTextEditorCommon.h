@@ -762,18 +762,11 @@ inline void SetStyledText(KRTextEditorState &state, const std::string &text) {
 
     if (desc) {
         OH_ArkUI_TextEditorStyledStringController_SetStyledString(state.controller_, desc);
-        // TODO(kuikly-text-editor): OH_ArkUI_StyledString_Descriptor_Destroy 在部分真机场景下
-        // 仍会触发 free_default / StyledStringAdapter::DestroyArkUIStyledStringDescriptor
-        // 崩溃。根因怀疑为 SDK 内部对该 descriptor 的所有权关调格式与 API 文档不符：
-        //   * `CreateWithString` + `SetStyledString` 后，系统侧可能接管了其内部
-        //     `span_styles` / `text` 指针，调用方再 `Destroy` 就会 double-free。
-        // 暂缓解方案：暂注释掉 `Destroy`，允许每次 SetStyledText 泄漏一个 descriptor
-        // 对象（生命周期随节点销毁问题在文本改变时重复发生，实测一次填几百
-        // 字节，累计损耗可接受）。后续需要跟进：
-        //   1. 咨询华为确认 Create/Destroy 配对规则
-        //   2. 或改用 StyledStringController_SetText（如有）替代 SetStyledString 线路
-        //   3. 建立长生命周期 desc 缓存（只在 dtor 中一次 Destroy）
-        // OH_ArkUI_StyledString_Descriptor_Destroy(desc);
+        // SDK 缺陷规避（详见 .ai/references/ohos-styledstring-descriptor-quirks.md）：
+        // 此处 desc 是通过 `_CreateWithString` 走 SDK 正常初始化路径构造的，
+        // Destroy 是安全的；不可改用 `_Create()`，那条路径会返回内部指针未初始化
+        // 的 struct，Destroy 时会 free 野指针并崩溃。
+        OH_ArkUI_StyledString_Descriptor_Destroy(desc);
     }
     // SpanStyle / TextStyle 是 Create 时的独立资源，Destroy 是安全的（与 Descriptor
     // 不同，这两者没有所有权被系统接管的问题，官方示例也明确一对一 Destroy）。
@@ -1156,15 +1149,27 @@ inline std::string ReadDescriptorString(const ArkUI_StyledString_Descriptor *des
 // 读取 controller 当前完整文本（UTF-8）。
 //
 // 实现：
-//   * `Create()` 一个空 desc → `GetStyledString(ctrl, desc)` 让系统填充内容
-//     → 通过 `ReadDescriptorString` 一次性读 UTF-8 → `Destroy(desc)`
+//   * 通过 `_CreateWithString("", {spanStyle}, 1)` 构造一个"合法的空 desc"
+//     → `GetStyledString(ctrl, desc)` 让系统把内容覆盖进去
+//     → `ReadDescriptorString` 一次性读 UTF-8 → `Destroy(desc)`
 //   * `ReadDescriptorString` 使用固定大小 buffer，不使用 probe 模式（详见其函数注释）
+//
+// SDK 缺陷规避（详见 .ai/references/ohos-styledstring-descriptor-quirks.md）：
+//   不能用 `OH_ArkUI_StyledString_Descriptor_Create()` —— 该接口返回的 struct
+//   内部指针字段未初始化，后续 Destroy 时会 free 野指针并崩溃。
+//   改用 `_CreateWithString` 走 SDK 内部的正常初始化路径，Destroy 即安全。
 inline std::string GetStyledText(const KRTextEditorState &state) {
     if (!state.controller_) {
         return "";
     }
-    ArkUI_StyledString_Descriptor *desc = OH_ArkUI_StyledString_Descriptor_Create();
+    OH_ArkUI_SpanStyle *spanStyle = OH_ArkUI_SpanStyle_Create();
+    const OH_ArkUI_SpanStyle *spanStyles[1] = {spanStyle};
+    ArkUI_StyledString_Descriptor *desc =
+        OH_ArkUI_StyledString_Descriptor_CreateWithString("", spanStyles, 1);
     if (!desc) {
+        if (spanStyle) {
+            OH_ArkUI_SpanStyle_Destroy(spanStyle);
+        }
         return "";
     }
     std::string ret;
@@ -1172,12 +1177,10 @@ inline std::string GetStyledText(const KRTextEditorState &state) {
         ARKUI_ERROR_CODE_NO_ERROR) {
         ret = ReadDescriptorString(desc);
     }
-    // TODO(kuikly-text-editor): 同 SetStyledText 中的注释——OH_ArkUI_StyledString_Descriptor_Destroy
-    // 在真机上会触发 free_default 崩溃（GetStyledText 被 ON_DID_CHANGE 高频调用，
-    // 任何一次 Destroy 失败就会直接停机）。暂注释掉 Destroy，每次泄漏一个
-    // 空壳 descriptor（无附加数据），作为后续跟进点。
-    // OH_ArkUI_StyledString_Descriptor_Destroy(desc);
-    (void)desc;
+    OH_ArkUI_StyledString_Descriptor_Destroy(desc);
+    if (spanStyle) {
+        OH_ArkUI_SpanStyle_Destroy(spanStyle);
+    }
     return ret;
 }
 

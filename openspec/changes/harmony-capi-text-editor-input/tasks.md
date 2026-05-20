@@ -140,3 +140,17 @@
 ## 10. 提交 commits（按需聚合提交）
 
 - [ ] 10.1 一次性提交所有新增与改动（建议消息：`feat(ohos): switch TextField/TextArea to ARKUI_NODE_TEXT_EDITOR on API 24+`）
+
+## 11. SDK descriptor lifecycle work-around（Create() 缺陷规避）
+
+> 实施期发现 `OH_ArkUI_StyledString_Descriptor_Create()` 返回的 descriptor 内部指针未初始化，
+> 后续 `Destroy()` 在 `free_default` 时崩溃；同时 `_Create()` 路径生成的 descriptor 也无法被
+> `OH_ArkUI_StyledString_Descriptor_GetString` 正确处理。改为使用安全的 `_CreateWithString("", spanStyles, 1)`
+> 创建空 descriptor，放开所有被注释掉的 `Destroy` 调用，避免泄漏。详细背景见
+> [.ai/references/ohos-styledstring-descriptor-quirks.md](/Users/steven/code/KuiklyUI/.ai/references/ohos-styledstring-descriptor-quirks.md)。
+
+- [x] 11.1 `KRTextEditorCommon.h::GetStyledText`：用 `OH_ArkUI_StyledString_Descriptor_CreateWithString("", spanStyles, 1)` 替换 `_Create()`，恢复 `Destroy(spanStyle)` / `Destroy(descriptor)`
+- [x] 11.2 `KRTextEditorCommon.h::SetStyledText`：主路径恢复 `Destroy(descriptor)`
+- [x] 11.3 `KRTextEditorFieldView.cpp::OnWillChangeText`：两处分支（`GetReplacementStyledString` 改写路径与原样回写路径）改用 `_CreateWithString` + 完整 `Destroy` 清理
+- [x] 11.4 知识库归档：新增 [.ai/references/ohos-styledstring-descriptor-quirks.md](/Users/steven/code/KuiklyUI/.ai/references/ohos-styledstring-descriptor-quirks.md) 说明缺陷、推荐写法与代码定位
+- [x] 11.5 真机/模拟器回归：连续输入 / 删除 / setText / OnWillChange 截断路径均不再出现 `free_default` 崩溃

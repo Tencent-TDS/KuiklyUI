@@ -188,6 +188,30 @@ IKRRenderViewExport::RegisterViewCreator("KRTextFieldView", [] {
 - `ARKUI_NODE_TEXT_EDITOR` 对应的节点级 max-length 属性（如果 API 24 提供的话，命名大概率为 `NODE_TEXT_EDITOR_MAX_LENGTH`）用于 `length_limit_type == -1` 的快路径
 - 其他路径继续手动过滤
 
+### Decision 9 — `ArkUI_StyledString_Descriptor` 生命周期 work-around
+
+**Context**：实施期发现 `OH_ArkUI_StyledString_Descriptor_Create()` 在 API 24 SDK 上存在缺陷：
+
+- 返回的 descriptor 内部成员未被初始化，导致紧随其后的 `OH_ArkUI_StyledString_Descriptor_Destroy()` 在 `free_default` 时直接崩溃；
+- 同样的 descriptor 经过 `OH_ArkUI_TextEditorStyledStringController_SetStyledString` 后，再调用 `GetString` 也无法读出文本（疑似与未初始化的字段相关）。
+
+最初的临时规避是把所有 `Destroy()` 注释掉（对应 7 处泄漏），靠系统在进程退出时清理；这显然不能上线。
+
+**Decision**：放弃 `OH_ArkUI_StyledString_Descriptor_Create()`，统一改为
+`OH_ArkUI_StyledString_Descriptor_CreateWithString("", spanStyles, 1)` 创建"空 descriptor"——该 API 内部会完整初始化所有成员，对应的 `Destroy()` 路径安全可用。改造范围：
+
+- [`KRTextEditorCommon.h`](/Users/steven/code/KuiklyUI/core-render-ohos/src/main/cpp/libohos_render/expand/components/input/KRTextEditorCommon.h) 中 `GetStyledText` / `SetStyledText`；
+- [`KRTextEditorFieldView.cpp`](/Users/steven/code/KuiklyUI/core-render-ohos/src/main/cpp/libohos_render/expand/components/input/KRTextEditorFieldView.cpp) 中 `OnWillChangeText` 的两处 descriptor 分配点。
+
+放开此前被注释掉的 6 处 `Destroy(descriptor)` / `Destroy(spanStyle)` 调用，恢复正常的"per-call alloc + destroy"模型。
+
+**Alternatives**：
+
+- 主动初始化 `_Create()` 返回值（按已知 ABI 把内部两个指针写 `nullptr`）— 被拒绝：依赖未公开内部布局，未来 SDK 更新即破坏；
+- 长期保持 `Destroy` 注释 / 进程级泄漏 — 被拒绝：每次 OnWillChange / Get / Set 都会泄漏一个 descriptor，长输入页面会触发明显内存增长。
+
+**Knowledge base**：背景、调用面与排查路径已归档到 [.ai/references/ohos-styledstring-descriptor-quirks.md](/Users/steven/code/KuiklyUI/.ai/references/ohos-styledstring-descriptor-quirks.md)，后续若 OS 修复了 `_Create()` 的初始化缺陷，可参考该文档评估是否回切。
+
 ## Risks / Trade-offs
 
 ### 风险 1 — 新节点行为与老节点细微差异

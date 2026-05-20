@@ -819,7 +819,13 @@ void KRTextEditorFieldView::OnWillChangeText(ArkUI_NodeEvent *event) {
 
     // 单行模式：拦截换行符 —— 若待替换串中含 '\n'，拒绝（返回 0）
     if (InterceptNewline()) {
-        ArkUI_StyledString_Descriptor *repl = OH_ArkUI_StyledString_Descriptor_Create();
+        // SDK 缺陷规避（详见 .ai/references/ohos-styledstring-descriptor-quirks.md）：
+        // 不能用 `OH_ArkUI_StyledString_Descriptor_Create()`，那条路径会返回内部指针未初始化
+        // 的 struct，Destroy 时会 free 野指针并崩溃。改用 `_CreateWithString` 走 SDK 正常初始化路径。
+        OH_ArkUI_SpanStyle *spanStyle = OH_ArkUI_SpanStyle_Create();
+        const OH_ArkUI_SpanStyle *spanStyles[1] = {spanStyle};
+        ArkUI_StyledString_Descriptor *repl =
+            OH_ArkUI_StyledString_Descriptor_CreateWithString("", spanStyles, 1);
         if (repl) {
             bool has_newline = false;
             if (OH_ArkUI_TextEditorChangeEvent_GetReplacementStyledString(change_event, repl) ==
@@ -830,16 +836,17 @@ void KRTextEditorFieldView::OnWillChangeText(ArkUI_NodeEvent *event) {
                     has_newline = true;
                 }
             }
-            // TODO(kuikly-text-editor): OH_ArkUI_StyledString_Descriptor_Destroy 在真机会触发
-            // free_default 崩溃（详见 KRTextEditorCommon.h GetStyledText 处的 TODO）。
-            // 暂注释掉，每次 OnWillChange 泄漏一个空壳 descriptor；后续跟进。
-            // OH_ArkUI_StyledString_Descriptor_Destroy(repl);
-            (void)repl;
+            OH_ArkUI_StyledString_Descriptor_Destroy(repl);
+            if (spanStyle) {
+                OH_ArkUI_SpanStyle_Destroy(spanStyle);
+            }
             if (has_newline) {
                 ArkUI_NumberValue ret[] = {{.i32 = 0}};  // 拒绝
                 OH_ArkUI_NodeEvent_SetReturnNumberValue(event, ret, 1);
                 return;
             }
+        } else if (spanStyle) {
+            OH_ArkUI_SpanStyle_Destroy(spanStyle);
         }
     }
 
@@ -848,7 +855,12 @@ void KRTextEditorFieldView::OnWillChangeText(ArkUI_NodeEvent *event) {
         uint32_t r_start = 0, r_end = 0;
         OH_ArkUI_TextEditorChangeEvent_GetRangeBefore(change_event, &r_start, &r_end);
 
-        ArkUI_StyledString_Descriptor *repl = OH_ArkUI_StyledString_Descriptor_Create();
+        // SDK 缺陷规避（详见 .ai/references/ohos-styledstring-descriptor-quirks.md）：
+        // 同上方注释——必须用 `_CreateWithString` 而非 `_Create()`，否则 Destroy 会崩。
+        OH_ArkUI_SpanStyle *spanStyle = OH_ArkUI_SpanStyle_Create();
+        const OH_ArkUI_SpanStyle *spanStyles[1] = {spanStyle};
+        ArkUI_StyledString_Descriptor *repl =
+            OH_ArkUI_StyledString_Descriptor_CreateWithString("", spanStyles, 1);
         if (repl &&
             OH_ArkUI_TextEditorChangeEvent_GetReplacementStyledString(change_event, repl) ==
                 ARKUI_ERROR_CODE_NO_ERROR) {
@@ -865,21 +877,22 @@ void KRTextEditorFieldView::OnWillChangeText(ArkUI_NodeEvent *event) {
                     if (tmp.empty() || tmp[0] == '\0') {
                         ArkUI_NumberValue ret[] = {{.i32 = 0}};  // 拒绝
                         OH_ArkUI_NodeEvent_SetReturnNumberValue(event, ret, 1);
-                        // TODO(kuikly-text-editor): Destroy 会崩，暂注释。
-                        // OH_ArkUI_StyledString_Descriptor_Destroy(repl);
+                        OH_ArkUI_StyledString_Descriptor_Destroy(repl);
+                        if (spanStyle) {
+                            OH_ArkUI_SpanStyle_Destroy(spanStyle);
+                        }
                         return;
                     }
                     // 原生 API 无法在此替换插入文本；退而求其次：放行本次 ->
                     // 由 ON_DID_CHANGE 的 LimitInputContentTextInMaxLength 做后置截断。
                 }
             }
-            // TODO(kuikly-text-editor): Destroy 会崩，暂注释（详见 KRTextEditorCommon.h 处 TODO）。
-            // OH_ArkUI_StyledString_Descriptor_Destroy(repl);
-            (void)repl;
+            OH_ArkUI_StyledString_Descriptor_Destroy(repl);
         } else if (repl) {
-            // TODO(kuikly-text-editor): Destroy 会崩，暂注释。
-            // OH_ArkUI_StyledString_Descriptor_Destroy(repl);
-            (void)repl;
+            OH_ArkUI_StyledString_Descriptor_Destroy(repl);
+        }
+        if (spanStyle) {
+            OH_ArkUI_SpanStyle_Destroy(spanStyle);
         }
     }
 

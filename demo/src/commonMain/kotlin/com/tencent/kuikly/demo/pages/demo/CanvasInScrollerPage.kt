@@ -88,6 +88,57 @@ internal class CanvasInScrollerPage : BasePager() {
                 }
             }
 
+            // ---------- Real-device tip ----------
+            View {
+                attr {
+                    flexDirectionRow()
+                    alignItemsCenter()
+                    padding(left = 12f, right = 12f, top = 8f, bottom = 8f)
+                    backgroundColor(Color(0xFFFFF3E0L))
+                }
+                Text {
+                    attr {
+                        text("提示：小程序请使用真机测试，开发者工具上 Canvas 可能与真机存在差异。")
+                        fontSize(12f)
+                        color(Color(0xFFD32F2FL))
+                    }
+                }
+            }
+
+            // ---------- Diagnostic: Canvas OUTSIDE Scroller ----------
+            // If this shows a red rect but the canvases below are blank,
+            // the bug is specific to Canvas-inside-Scroller layout/render timing.
+            View {
+                attr {
+                    height(48f)
+                    flexDirectionRow()
+                    alignItemsCenter()
+                    padding(left = 12f, right = 12f)
+                }
+                Text {
+                    attr {
+                        text("对照(Scroller外):")
+                        fontSize(13f)
+                        color(Color(0xFF666666L))
+                    }
+                }
+                Canvas(
+                    {
+                        attr {
+                            margin(left = 12f)
+                            width(120f)
+                            height(40f)
+                            backgroundColor(Color.WHITE)
+                        }
+                    }
+                ) { context, width, height ->
+                    KLog.i(TAG, "outside-canvas drawCallback w=$width h=$height")
+                    context.pathRect(4f, 4f, width - 8f, height - 8f)
+                    context.fillStyle(Color.RED)
+                    context.fill()
+                }
+            }
+
             Scroller {
                 attr {
                     flex(1f)
@@ -115,6 +166,7 @@ internal class CanvasInScrollerPage : BasePager() {
                         }
                     }
                 ) { context, width, height ->
+                    KLog.i(TAG, "section1-canvas drawCallback w=$width h=$height")
                     // diagonal line
                     context.beginPath()
                     context.moveTo(0f, 0f)

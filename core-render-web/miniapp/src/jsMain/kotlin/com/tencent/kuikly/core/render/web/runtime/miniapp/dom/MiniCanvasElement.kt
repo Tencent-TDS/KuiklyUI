@@ -5,6 +5,7 @@ import com.tencent.kuikly.core.render.web.runtime.miniapp.core.NativeApi
 import com.tencent.kuikly.core.render.web.runtime.miniapp.MiniGlobal
 import com.tencent.kuikly.core.render.web.ktx.splitCanvasColorDefinitions
 import com.tencent.kuikly.core.render.web.ktx.toRgbColor
+import com.tencent.kuikly.core.render.web.utils.Log
 import kotlin.math.tan
 
 /**
@@ -72,7 +73,16 @@ class MiniCanvasContext(private val canvas: MiniCanvasElement) {
     private fun scheduleQuery(attempt: Int) {
         if (nativeCtx != null) return
         val plat = NativeApi.plat
-        val query = plat.createSelectorQuery()
+        // Use the canvas-element-aware context (custom-wrapper or page) so that
+        // selectorQuery can pierce into custom components such as the Scroller wrapper.
+        // Falls back to wx/qq global if the canvas has not been mounted yet.
+        val ctx: dynamic = try {
+            canvas.getCurrentContext()
+        } catch (e: Throwable) {
+            plat
+        }
+        val queryRoot: dynamic = if (ctx != null && ctx != undefined) ctx else plat
+        val query = queryRoot.createSelectorQuery()
         query.select("#${canvas.id}")
             .fields(js("({ node: true, size: true })"))
             .exec { res ->
@@ -85,6 +95,15 @@ class MiniCanvasContext(private val canvas: MiniCanvasElement) {
                 if (node != null) {
                     nativeCanvas = node
                     nativeCtx = node.getContext("2d")
+                    // Only warn when readiness took noticeably long (>5 retries),
+                    // useful for spotting timing regressions on slow devices.
+                    if (attempt > 5) {
+                        val rootKind: String = if (queryRoot === plat) "global" else "customWrapper"
+                        Log.warn(
+                            "MiniCanvasContext #${canvas.id} ready after $attempt retries " +
+                                    "(root=$rootKind, pending=${pending.size})"
+                        )
+                    }
                     flushPending()
                 } else if (attempt < maxQueryRetry) {
                     // Node not attached yet, retry on next frame / timeout tick.
@@ -94,6 +113,13 @@ class MiniCanvasContext(private val canvas: MiniCanvasElement) {
                     } else {
                         js("setTimeout")({ scheduleQuery(attempt + 1) }, 16)
                     }
+                } else {
+                    // Final failure: surface so the issue does not silently swallow draw calls.
+                    val rootKind: String = if (queryRoot === plat) "global" else "customWrapper"
+                    Log.warn(
+                        "MiniCanvasContext #${canvas.id} selectorQuery failed after " +
+                                "$maxQueryRetry retries (root=$rootKind, pending=${pending.size})"
+                    )
                 }
             }
     }

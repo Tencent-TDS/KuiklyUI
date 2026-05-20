@@ -518,8 +518,9 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
                 return Array();
             }
             Array json_vec;
-            for(int i = 0; i < cJSON_GetArraySize(cjson); ++i){
-                json_vec.push_back(fromJsonValue(cJSON_GetArrayItem(cjson, i)));
+            // 使用链表遍历而非 cJSON_GetArrayItem(i)，避免 O(n²) 性能问题
+            for (cJSON *item = cjson->child; item != NULL; item = item->next) {
+                json_vec.push_back(fromJsonValue(item));
             }
             cJSON_Delete(cjson);
             return json_vec;
@@ -814,8 +815,9 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
             return Make(map_obj);
         } else if (cJSON_IsArray(cjson)) {
             Array vec_obj;
-            for(int i = 0; i < cJSON_GetArraySize(cjson); ++i){
-                vec_obj.push_back(fromJsonValue(cJSON_GetArrayItem(cjson, i)));
+            // 使用链表遍历而非 cJSON_GetArrayItem(i)，避免 O(n²) 性能问题
+            for (cJSON *item = cjson->child; item != NULL; item = item->next) {
+                vec_obj.push_back(fromJsonValue(item));
             }
             return Make(vec_obj);
         } else {

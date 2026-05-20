@@ -38,6 +38,7 @@ import com.tencent.kuikly.core.render.android.expand.component.text.FontWeightSp
 import com.tencent.kuikly.core.render.android.expand.module.KRMemoryCacheModule
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
+import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.PI
 import kotlin.math.roundToInt
@@ -107,6 +108,7 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
             ROTATE -> rotate(params)
             SKEW -> skew(params)
             TRANSFORM -> transform(params)
+            BATCH_DRAW -> batchDraw(params)
             else -> super.call(method, params, callback)
         }
     }
@@ -485,6 +487,28 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
         drawOperationList.add(LambdaOp { _, canvas -> canvas.concat(m) })
     }
 
+    /**
+     * 批量执行绘制命令。KMP 侧将一帧内所有 draw call 打包成 JSON 数组通过此方法一次性下发，
+     * 避免 N 次 bridge crossing。Android 侧依次分发给对应的 call() 即可，
+     * invalidate() 由 Android 系统合并，不会多次重绘。
+     */
+    private fun batchDraw(params: String?) {
+        if (params.isNullOrEmpty()) return
+        try {
+            val arr = JSONArray(params)
+            for (i in 0 until arr.length()) {
+                val item = arr.optJSONObject(i) ?: continue
+                val method = item.optString("m")
+                val p = item.optString("p", null)
+                if (method.isNotEmpty()) {
+                    call(method, p, null)
+                }
+            }
+        } catch (e: Exception) {
+            KuiklyRenderLog.e("KRCanvas", "batchDraw parse error: ${e.message}")
+        }
+    }
+
     companion object {
         const val VIEW_NAME = "KRCanvasView"
 
@@ -525,6 +549,7 @@ class KRCanvasView(context: Context) : View(context), IKuiklyRenderViewExport {
         private const val SKEW = "skew"
         private const val TRANSFORM = "transform"
         private const val LINE_DASH = "lineDash"
+        private const val BATCH_DRAW = "batchDraw"
     }
 }
 

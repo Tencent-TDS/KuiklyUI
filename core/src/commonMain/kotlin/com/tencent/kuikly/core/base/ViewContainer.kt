@@ -63,6 +63,68 @@ abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView
         child.didInit()
     }
 
+    // region Compose movableContent support
+    //
+    // These methods are called exclusively by KNode (compose module) to implement
+    // movableContentOf semantics: lightweight removal that preserves native view resources,
+    // and reinsertion that reattaches the existing native view to a new parent.
+    // They access private/protected fields and therefore must live in this class.
+
+    /**
+     * Lightweight removal for Compose movableContent support.
+     * Does NOT call didRemoveFromParentView() — preserves view state for potential reinsertion.
+     */
+    open fun removeChildForMove(child: DeclarativeBaseView<*, *>) {
+        child.willRemoveFromParentView()
+        children.remove(child)
+        child.parentRef = 0
+    }
+
+    /**
+     * Batch lightweight removal for all children.
+     */
+    open fun removeChildrenForMoveAll() {
+        forEachChild { child ->
+            removeChildForMove(child)
+        }
+    }
+
+    /**
+     * Reinsert a previously initialized child into a new parent.
+     * Used by Compose movableContent when a node moves between containers.
+     *
+     * After KNode.detach() runs on every node in the subtree, each view's nativeRef is removed
+     * from the pager viewMap. We must re-register the entire subtree so native messages can reach
+     * all views again.
+     */
+    open fun <T : DeclarativeBaseView<*, *>> reinsertChild(child: T, index: Int) {
+        child.pagerId = pagerId
+        child.willMoveToParentComponent()
+        if (index < 0) {
+            children.add(child)
+        } else {
+            children.add(index, child)
+        }
+        child.parentRef = nativeRef
+        reRegisterViewTree(child)
+    }
+
+    /**
+     * Recursively re-registers a view and all its descendants in the pager viewMap.
+     * Called after movableContent moves a subtree, because KNode.detach() removes
+     * every node's nativeRef from the map.
+     */
+    private fun reRegisterViewTree(view: DeclarativeBaseView<*, *>) {
+        view.didMoveToParentView()
+        if (view is ViewContainer<*, *>) {
+            view.forEachChild { child ->
+                reRegisterViewTree(child)
+            }
+        }
+    }
+
+    // endregion
+
     open fun removeChild(child: DeclarativeBaseView<*, *>) {
         internalRemoveChild(child)
     }
@@ -176,6 +238,24 @@ abstract class ViewContainer<A : ContainerAttr, E : Event> : DeclarativeBaseView
         subView.removeFlexNode()
         flexNode.markDirty()
     }
+
+    // region Compose movableContent support (DOM layer)
+
+    /**
+     * Lightweight DOM removal for movableContent support.
+     * Removes only the flex layout node — does NOT destroy the native render view.
+     * The render view stays alive so it can be reattached to a new parent during reinsertion.
+     * Final render view cleanup happens in KNode.onRelease() when the node is permanently destroyed.
+     */
+    open fun removeDomSubViewForMove(subView: DeclarativeBaseView<*, *>) {
+        if (!didCreateFlexNode) {
+            return
+        }
+        subView.removeFlexNode()
+        flexNode.markDirty()
+    }
+
+    // endregion
 
     override fun createRenderView() {
         createRenderViewing = true

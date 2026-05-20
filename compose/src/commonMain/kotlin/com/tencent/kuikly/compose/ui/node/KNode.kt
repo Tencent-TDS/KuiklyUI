@@ -63,6 +63,13 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
     var init: T.() -> Unit = {}
 ) : LayoutNode(isVirtual = isVirtual) {
 
+    /**
+     * Tracks whether this KNode's view has completed its first initialization.
+     * Used to distinguish first insertion (needs init) from reinsertion (movableContent move).
+     */
+    var isInitialized: Boolean = false
+        private set
+
     var kuiklyCoordinates: LayoutCoordinates? = null
 
     /**
@@ -128,7 +135,26 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
 
     override fun detach() {
         requireOwner().snapshotObserver.clear(this)
+        // Clear nativeViewRef registration to keep pager view map consistent.
+        // Do NOT call didRemoveFromParentView — movableContent nodes may be reinserted.
+        if (isInitialized) {
+            view.getPager().removeNativeViewRef(view.nativeRef)
+        }
         super.detach()
+    }
+
+    override fun onRelease() {
+        // Release child subcompositions before clearing the Kuikly view tree. Otherwise nested
+        // applier removeAt calls may observe an already-cleared ViewContainer.children list.
+        super.onRelease()
+
+        // Node is permanently destroyed — perform full view cleanup.
+        if (isInitialized) {
+            // Destroy native render views that were preserved during removeAt.
+            // removeDomSubViewForMove only removed the flex node; now we clean up the render view.
+            view.removeRenderView()
+            view.didRemoveFromParentView()
+        }
     }
 
     private val currentView: ViewContainer<*, *>
@@ -153,7 +179,17 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
     // Construct Kuikly node tree
     fun insertTopDown(index: Int, instance: KNode<DeclarativeBaseView<*, *>>) {
         val childView = instance.view
-        currentView.addChild(childView, instance.init, index)
+        if (instance.isInitialized) {
+            // Reinsertion (movableContent move): skip init, do lightweight re-registration.
+            // renderView is still alive (removeDomSubViewForMove preserved it), so
+            // createRenderView() inside insertDomSubView will be a no-op (renderView != null guard).
+            // insertSubRenderView will re-attach the existing native view to its new parent.
+            currentView.reinsertChild(childView, index)
+        } else {
+            // First insertion: full initialization
+            currentView.addChild(childView, instance.init, index)
+            instance.isInitialized = true
+        }
         currentView.insertDomSubView(childView, index)
     }
 
@@ -164,14 +200,14 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
 
     override fun removeAll() {
         currentView.domChildren().forEach { child ->
-            currentView.removeDomSubView(child)
+            currentView.removeDomSubViewForMove(child)
         }
-        currentView.removeChildren()
+        currentView.removeChildrenForMoveAll()
         super.removeAll()
     }
 
     override fun removeAt(index: Int, count: Int) {
-        currentView.removeChildrenAt(index, count)
+        currentView.removeChildrenForMove(index, count)
         super.removeAt(index, count)
     }
 
@@ -204,6 +240,16 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
     private fun LayoutCoordinates.toCoordinator() =
         (this as? LookaheadLayoutCoordinates)?.coordinator ?: this as NodeCoordinator
 
+    private fun LayoutCoordinates.viewPositionOf(coordinator: LayoutCoordinates): Offset {
+        var nodeCoordinator = coordinator.toCoordinator()
+        var position = Offset.Zero
+        while (nodeCoordinator !== this) {
+            position += nodeCoordinator.position
+            nodeCoordinator = nodeCoordinator.wrappedBy!!
+        }
+        return position
+    }
+
     override fun updateKuiklyViewFrame(coordinator: LayoutCoordinates) {
         val curCoordinator = kuiklyCoordinates ?: innerCoordinator
 
@@ -212,27 +258,17 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         val ksScrollSubView = view.parent is VirtualNodeView
         val parentNode = parent as? KNode<*>
         val parentCoordinator = parentNode?.kuiklyCoordinates ?: parentNode?.innerCoordinator
-        var posX = 0f
-        var posY = 0f
-        if (parentCoordinator != null) {
-            val targetCoordinator = parentCoordinator.toCoordinator()
-            var nodeCoordinator = curCoordinator.toCoordinator()
-            while (nodeCoordinator !== targetCoordinator) {
-                posX += nodeCoordinator.positionX
-                posY += nodeCoordinator.positionY
-                nodeCoordinator = nodeCoordinator.wrappedBy!!
-            }
-        }
+        var pos = parentCoordinator?.viewPositionOf(curCoordinator) ?: Offset.Zero
 
-        var deltaOffset = 0f
+        // Child nodes on scrollview, parent is virtual node
         if (ksScrollSubView && needFixScrollOffset) {
             val scrollerView = (parent as KNode<*>).view
             ((scrollerView.renderProperties as? RenderProperties)?.kuiklyScrollInfo)?.apply {
-                deltaOffset = composeOffset
-                if (orientation == Orientation.Vertical) {
-                    posY += deltaOffset
+                val deltaOffset = composeOffset
+                pos = if (orientation == Orientation.Vertical) {
+                    Offset(pos.x, pos.y + deltaOffset)
                 } else {
-                    posX += deltaOffset
+                    Offset(pos.x + deltaOffset, pos.y)
                 }
             }
         }
@@ -242,14 +278,12 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         // Check if it's a sticky header and handle position caching
         val isStickyHeader = isStickyHeaderNode()
         if (isStickyHeader) {
-            val pos = getCachedStickyPosition(Offset(posX, posY))
-            posX = pos.x
-            posY = pos.y
+            pos = getCachedStickyPosition(pos)
         }
 
         var newFrame = Frame(
-            x = posX / densityValue,
-            y = posY / densityValue,
+            x = pos.x / densityValue,
+            y = pos.y / densityValue,
             width = curCoordinator.size.width.toFloat() / densityValue,
             height = curCoordinator.size.height.toFloat() / densityValue,
         )
@@ -680,14 +714,5 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
                 rotate = Rotate(rotateZ, rotateX, rotateY)
             )
         }
-    }
-}
-
-private fun ViewContainer<*, *>.removeChildrenAt(index: Int, count: Int) {
-    val parentView = realContainerView()
-    for (i in index until index + count) {
-        val childView = parentView.getChild(index)
-        parentView.removeDomSubView(childView)
-        parentView.removeChild(childView)
     }
 }

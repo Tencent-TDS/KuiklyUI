@@ -263,7 +263,7 @@ class SemanticsNode internal constructor(
             // TODO(b/290936195): In some conditions it appears that children here can be
             //  unattached. We just guard against that here as a "quick fix" but we need to
             //  understand why this is happening and followup with a proper fix.
-            if (child.isAttached) {
+            if (child.isAttached && !child.isDeactivated) {
                 if (child.nodes.has(Nodes.Semantics)) {
                     list.add(SemanticsNode(child, mergingEnabled))
                 } else {

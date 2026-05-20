@@ -456,14 +456,35 @@ class KRCanvasView(
         val dHeight = json.optDouble("dHeight", if (sHeight > 0) sHeight else intrinsicHeight)
 
         val image: dynamic = cached
+
+        // Decide which Canvas2D drawImage overload to use.
+        //
+        // Important: when Compose ships dWidth/dHeight (or sWidth/sHeight) explicitly
+        // but their values are 0, it means the underlying KuiklyImageBitmap was not
+        // ready yet at compose time (kImage.width/height == 0 → divided by density
+        // still 0). In that case we must NOT fall back to the 3-arg overload
+        //   ctx.drawImage(image, dx, dy)
+        // which would paint the picture at its natural pixel size and overflow the
+        // small canvas. Skip the draw instead; Compose will reissue a correct call
+        // once the bitmap finishes loading.
+        val srcRectValid = hasSrcRect && sWidth > 0 && sHeight > 0
+        val dstSizeValid = hasDstSize && dWidth > 0 && dHeight > 0
+        val srcRectInvalid = hasSrcRect && !srcRectValid
+        val dstSizeInvalid = hasDstSize && !dstSizeValid
+        if (srcRectInvalid || dstSizeInvalid) {
+            // The compose layer explicitly requested a size but it isn't usable yet;
+            // wait for the next reissue rather than drawing at natural size.
+            return
+        }
+
         when {
-            hasSrcRect && sWidth > 0 && sHeight > 0 ->
+            srcRectValid ->
                 ctx.asDynamic().drawImage(
                     image,
                     sx, sy, sWidth, sHeight,
                     dx, dy, dWidth, dHeight
                 )
-            hasDstSize && dWidth > 0 && dHeight > 0 ->
+            dstSizeValid ->
                 ctx.asDynamic().drawImage(image, dx, dy, dWidth, dHeight)
             else ->
                 ctx.asDynamic().drawImage(image, dx, dy)

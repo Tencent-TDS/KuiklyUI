@@ -2,142 +2,224 @@ package com.tencent.kuikly.core.render.web.runtime.miniapp.dom
 
 import com.tencent.kuikly.core.render.web.runtime.miniapp.const.TransformConst
 import com.tencent.kuikly.core.render.web.runtime.miniapp.core.NativeApi
+import com.tencent.kuikly.core.render.web.runtime.miniapp.MiniGlobal
 import com.tencent.kuikly.core.render.web.ktx.splitCanvasColorDefinitions
 import com.tencent.kuikly.core.render.web.ktx.toRgbColor
 import kotlin.math.tan
 
 /**
- * Mini program canvas context
+ * Mini program canvas context, backed by the Canvas 2D ("type=2d") interface.
+ *
+ * Compared with the legacy `wx.createCanvasContext(id)` interface this implementation:
+ * - obtains the canvas node asynchronously via `selectorQuery().select('#id').node().exec()`;
+ * - exposes W3C-standard property setters (fillStyle / strokeStyle / lineWidth / font / ...);
+ * - does NOT require a final `ctx.draw()` flush call;
+ * - supports same-layer rendering inside scroll-view;
+ * - resolves image sources through `canvas.createImage()` so drawImage works with paths,
+ *   data URLs and HTTP URLs.
+ *
+ * Because node acquisition is asynchronous, every draw call is enqueued and flushed once the
+ * native canvas / context becomes available. Calls made after the context is ready run
+ * immediately. This keeps the public API synchronous for upstream KRCanvasView code.
  */
 class MiniCanvasContext(private val canvas: MiniCanvasElement) {
     /**
-     * Get canvas context
+     * Pending operations that were issued before the canvas node was ready.
+     * Once the node resolves we replay them in order.
      */
-    private val canvasContext: dynamic by lazy {
-        NativeApi.createCanvasContext(canvas.id)
+    private val pending: MutableList<(dynamic) -> Unit> = mutableListOf()
+
+    /**
+     * Native canvas node returned by selectorQuery().node(). Null until selectorQuery resolves.
+     */
+    private var nativeCanvas: dynamic = null
+
+    /**
+     * Real CanvasRenderingContext2D from the native canvas node.
+     */
+    private var nativeCtx: dynamic = null
+
+    /**
+     * Whether selectorQuery has been kicked off (only do it once per canvas instance).
+     */
+    private var queryStarted: Boolean = false
+
+    /**
+     * Maximum number of selectorQuery retries when the canvas node is not yet attached.
+     */
+    private val maxQueryRetry: Int = 30
+
+    /**
+     * Cached image objects created via canvas.createImage(), keyed by src.
+     * Avoids redundant decoding when drawImage is called repeatedly with the same src.
+     */
+    private val imageCache: MutableMap<String, dynamic> = mutableMapOf()
+
+    /**
+     * Lazily kick off the asynchronous selectorQuery to obtain the Canvas 2D node.
+     * The query is retried until the node is found, because the upstream KRCanvasView
+     * may issue draw calls before wxml has finished rendering the <canvas> element.
+     */
+    private fun ensureContext() {
+        if (queryStarted) return
+        queryStarted = true
+        scheduleQuery(0)
     }
 
     /**
-     * Drawing promise for mini app
+     * Run a single selectorQuery attempt; on failure, schedule another via setTimeout.
      */
-    private var drawPromise: dynamic = null
+    private fun scheduleQuery(attempt: Int) {
+        if (nativeCtx != null) return
+        val plat = NativeApi.plat
+        val query = plat.createSelectorQuery()
+        query.select("#${canvas.id}")
+            .fields(js("({ node: true, size: true })"))
+            .exec { res ->
+                // `res` is a plain JS Array returned by selectorQuery; use bracket
+                // indexing instead of Kotlin's `.get()` which would be compiled to a
+                // method call that does not exist on a JS Array.
+                val first: dynamic =
+                    if (res != null && (res.length as? Int ?: 0) > 0) res[0] else null
+                val node: dynamic = if (first != null) first.node else null
+                if (node != null) {
+                    nativeCanvas = node
+                    nativeCtx = node.getContext("2d")
+                    flushPending()
+                } else if (attempt < maxQueryRetry) {
+                    // Node not attached yet, retry on next frame / timeout tick.
+                    val nextTick = plat.nextTick
+                    if (nextTick != null && nextTick != undefined) {
+                        nextTick({ scheduleQuery(attempt + 1) })
+                    } else {
+                        js("setTimeout")({ scheduleQuery(attempt + 1) }, 16)
+                    }
+                }
+            }
+    }
 
     /**
-     * Set drawing style
+     * Run [op] immediately if the context is ready, otherwise enqueue it.
      */
-    @JsName("strokeStyle")
-    var strokeStyle: dynamic
-        get() = canvasContext?.strokeStyle
-        set(value) {
-            val resolved = resolveGradientStyle(value)
-            canvasContext?.setStrokeStyle(resolved)
+    private fun runOrEnqueue(op: (dynamic) -> Unit) {
+        val ctx = nativeCtx
+        if (ctx != null) {
+            op(ctx)
+        } else {
+            pending.add(op)
+            ensureContext()
         }
+    }
 
     /**
-     * Set drawing style
+     * Replay queued operations after the native context has been resolved.
+     */
+    private fun flushPending() {
+        val ctx = nativeCtx ?: return
+        if (pending.isEmpty()) return
+        // Snapshot then clear to avoid re-entrancy issues if an op enqueues more work.
+        val snapshot = pending.toList()
+        pending.clear()
+        snapshot.forEach { it(ctx) }
+    }
+
+    /**
+     * fillStyle setter. Accepts W3C colors, CanvasGradient instances and the kuikly
+     * `linear-gradient{...}` JSON string. Reads return the underlying ctx value once
+     * the context is ready (otherwise null).
      */
     @JsName("fillStyle")
     var fillStyle: dynamic
-        get() = canvasContext?.fillStyle
+        get() = nativeCtx?.fillStyle
         set(value) {
-            val resolved = resolveGradientStyle(value)
-            canvasContext?.setFillStyle(resolved)
+            runOrEnqueue { ctx ->
+                ctx.fillStyle = resolveStyle(ctx, value)
+            }
         }
 
     /**
-     * Set line width
+     * strokeStyle setter. Same semantics as [fillStyle].
+     */
+    @JsName("strokeStyle")
+    var strokeStyle: dynamic
+        get() = nativeCtx?.strokeStyle
+        set(value) {
+            runOrEnqueue { ctx ->
+                ctx.strokeStyle = resolveStyle(ctx, value)
+            }
+        }
+
+    /**
+     * Line width.
      */
     @JsName("lineWidth")
     var lineWidth: dynamic
-        get() = canvasContext?.lineWidth
+        get() = nativeCtx?.lineWidth
         set(value) {
-            canvasContext?.setLineWidth(value)
+            runOrEnqueue { ctx -> ctx.lineWidth = value }
         }
 
     /**
-     * set line cap
+     * Line cap. Accepts "butt" / "round" / "square".
      */
     @JsName("lineCap")
     var lineCap: dynamic
-        get() = canvasContext?.lineCap
+        get() = nativeCtx?.lineCap
         set(value) {
-            canvasContext?.setLineCap(value)
+            runOrEnqueue { ctx -> ctx.lineCap = value }
         }
 
     /**
-     * Set canvas font (CSS font shorthand string).
-     * The legacy mini-program canvas API only exposes setFontSize; we extract the px size
-     * from the shorthand and apply it for best-effort compatibility.
+     * Canvas font (CSS font shorthand string), e.g. "normal 14px sans-serif".
      */
     @JsName("font")
     var font: dynamic
-        get() = canvasContext?.font
+        get() = nativeCtx?.font
         set(value) {
-            val str = value?.toString().orEmpty()
-            // Try to extract a size token like "12px" / "14.5px"
-            val match = Regex("(\\d+(?:\\.\\d+)?)px").find(str)
-            val size = match?.groupValues?.getOrNull(1)?.toDoubleOrNull()
-            if (size != null) {
-                canvasContext?.setFontSize(size)
-            }
+            runOrEnqueue { ctx -> ctx.font = value }
         }
 
     /**
-     * Set canvas textAlign.
+     * textAlign: "left" | "right" | "center" | "start" | "end".
      */
     @JsName("textAlign")
     var textAlign: dynamic
-        get() = canvasContext?.textAlign
+        get() = nativeCtx?.textAlign
         set(value) {
-            canvasContext?.setTextAlign(value)
+            runOrEnqueue { ctx -> ctx.textAlign = value }
         }
 
     /**
-     * Set canvas globalAlpha.
+     * Global alpha, 0..1.
      */
     @JsName("globalAlpha")
     var globalAlpha: dynamic
-        get() = canvasContext?.globalAlpha
+        get() = nativeCtx?.globalAlpha
         set(value) {
-            canvasContext?.setGlobalAlpha(value)
+            runOrEnqueue { ctx -> ctx.globalAlpha = value }
         }
 
     /**
-     * Currently using the old version of canvas, draw needs to be called once after all operations are set
+     * Resolve a style value:
+     * - if it is a CanvasGradient (object with addColorStop), return as-is;
+     * - if it is a "linear-gradient{...}" string, build a real CanvasGradient on [ctx];
+     * - otherwise (regular color / pattern), return unchanged.
      */
-    private fun draw() {
-        if (drawPromise == null) {
-            drawPromise = js("Promise").resolve().then {
-                drawPromise = null
-                canvasContext?.draw(true)
-            }
-        }
-    }
-
-    /**
-     * Resolve a style value: if it is a string starting with "linear-gradient",
-     * convert it to a CanvasGradient object using the embedded JSON params.
-     * Otherwise the value is returned unchanged.
-     */
-    private fun resolveGradientStyle(value: dynamic): dynamic {
-        // Only handle string values; non-string and null values are returned as-is
+    private fun resolveStyle(ctx: dynamic, value: dynamic): dynamic {
+        // Non-string values (color objects, CanvasGradient...) pass through unchanged.
         val isString = js("typeof value === 'string'") as Boolean
-        if (!isString) {
-            return value
-        }
+        if (!isString) return value
         val str: String = value.unsafeCast<String>()
         val prefix = "linear-gradient"
-        if (!str.startsWith(prefix)) {
-            return str
-        }
-        val gradient = parseLinearGradient(str.substring(prefix.length))
-        return gradient ?: str
+        if (!str.startsWith(prefix)) return str
+        return parseLinearGradient(ctx, str.substring(prefix.length)) ?: str
     }
 
-    private fun parseLinearGradient(jsonStr: String): dynamic {
-        val ctx = canvasContext ?: return null
+    /**
+     * Build a CanvasGradient from a kuikly linear-gradient JSON payload using [ctx].
+     */
+    private fun parseLinearGradient(ctx: dynamic, jsonStr: String): dynamic {
         return try {
-            // Use JSON.parse to keep this lightweight
             val obj = js("JSON.parse")(jsonStr)
             val x0 = (obj.x0 as? Number)?.toDouble() ?: 0.0
             val y0 = (obj.y0 as? Number)?.toDouble() ?: 0.0
@@ -159,313 +241,284 @@ class MiniCanvasContext(private val canvas: MiniCanvasElement) {
         }
     }
 
-    /**
-     * Begin path
-     */
     @JsName("beginPath")
-    fun beginPath() {
-        canvasContext?.beginPath()
-    }
+    fun beginPath() = runOrEnqueue { it.beginPath() }
 
-    /**
-     * Move to
-     */
     @JsName("moveTo")
-    fun moveTo(x: Double, y: Double) {
-        canvasContext?.moveTo(x, y)
-    }
+    fun moveTo(x: Double, y: Double) = runOrEnqueue { it.moveTo(x, y) }
 
-    /**
-     * Line to
-     */
     @JsName("lineTo")
-    fun lineTo(x: Double, y: Double) {
-        canvasContext?.lineTo(x, y)
-    }
+    fun lineTo(x: Double, y: Double) = runOrEnqueue { it.lineTo(x, y) }
 
-    /**
-     * Draw arc path
-     */
     @JsName("arc")
-    fun arc(cx: Double, cy: Double, radius: Double, startAngle: Double, endAngle: Double, counterclockwise: Boolean) {
-        canvasContext?.arc(cx, cy, radius, startAngle, endAngle, counterclockwise)
-    }
+    fun arc(cx: Double, cy: Double, radius: Double, startAngle: Double, endAngle: Double, counterclockwise: Boolean) =
+        runOrEnqueue { it.arc(cx, cy, radius, startAngle, endAngle, counterclockwise) }
 
-    /**
-     * Return to the starting point of the path
-     */
     @JsName("closePath")
-    fun closePath() {
-        canvasContext?.closePath()
-    }
+    fun closePath() = runOrEnqueue { it.closePath() }
 
-    /**
-     * Draw the shape
-     */
     @JsName("stroke")
-    fun stroke() {
-        canvasContext?.stroke()
-        draw()
-    }
+    fun stroke() = runOrEnqueue { it.stroke() }
 
-    /**
-     * Set stroke content area text
-     */
     @JsName("strokeText")
-    fun strokeText(text: String, x: Double, y: Double) {
-        canvasContext?.strokeText(text, x, y)
-    }
+    fun strokeText(text: String, x: Double, y: Double) =
+        runOrEnqueue { it.strokeText(text, x, y) }
 
-    /**
-     * Fill content to create solid shape
-     */
     @JsName("fill")
-    fun fill() {
-        canvasContext?.fill()
-        draw()
-    }
+    fun fill() = runOrEnqueue { it.fill() }
 
-    /**
-     * Set fill content area style
-     */
-    fun setFillStyle(style: dynamic) {
-        canvasContext?.setFillStyle(resolveGradientStyle(style))
-    }
-
-    /**
-     * Set fill content area text
-     */
     @JsName("fillText")
-    fun fillText(text: String, x: Double, y: Double) {
-        canvasContext?.fillText(text, x, y)
-    }
+    fun fillText(text: String, x: Double, y: Double) =
+        runOrEnqueue { it.fillText(text, x, y) }
 
-    /**
-     * Set line width
-     */
-    fun setLineWidth(lineWidth: Double) {
-        canvasContext?.setLineWidth(lineWidth)
-    }
+    @JsName("fillRect")
+    fun fillRect(x: Double, y: Double, w: Double, h: Double) =
+        runOrEnqueue { it.fillRect(x, y, w, h) }
 
-    /**
-     * Draw quadratic Bezier curve path
-     */
+    @JsName("strokeRect")
+    fun strokeRect(x: Double, y: Double, w: Double, h: Double) =
+        runOrEnqueue { it.strokeRect(x, y, w, h) }
+
+    @JsName("rect")
+    fun rect(x: Double, y: Double, w: Double, h: Double) =
+        runOrEnqueue { it.rect(x, y, w, h) }
+
     @JsName("quadraticCurveTo")
-    fun quadraticCurveTo(cpx: Double, cpy: Double, x: Double, y: Double) {
-        canvasContext?.quadraticCurveTo(cpx, cpy, x, y)
-    }
+    fun quadraticCurveTo(cpx: Double, cpy: Double, x: Double, y: Double) =
+        runOrEnqueue { it.quadraticCurveTo(cpx, cpy, x, y) }
 
-
-    /**
-     * Draw cubic Bezier curve path
-     */
     @JsName("bezierCurveTo")
-    fun bezierCurveTo(cp1x: Double, cp1y: Double, cp2x: Double, cp2y: Double, x: Double, y: Double) {
-        canvasContext?.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x, y)
-    }
+    fun bezierCurveTo(cp1x: Double, cp1y: Double, cp2x: Double, cp2y: Double, x: Double, y: Double) =
+        runOrEnqueue { it.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x, y) }
 
-    /**
-     * Set the current created path as current clipping path
-     */
     @JsName("clip")
-    fun clip() {
-        canvasContext?.clip()
-        draw()
-    }
+    fun clip() = runOrEnqueue { it.clip() }
 
-    /**
-     * Clear canvas
-     */
     @JsName("clearRect")
-    fun clearRect(x: Double, y: Double, width: Double, height: Double) {
-        // Currently the reset method of canvasRenderingContext2D has low support,
-        // so use clearRect to clear the entire canvas
-        canvasContext?.clearRect(x, y, width, height)
-        canvasContext?.draw()
-    }
+    fun clearRect(x: Double, y: Double, width: Double, height: Double) =
+        runOrEnqueue { it.clearRect(x, y, width, height) }
 
     /**
-     * Create linear gradient
+     * Synchronous createLinearGradient is supported only after the native ctx is ready.
+     * Returns null if called before then; upstream code generally does not rely on the
+     * synchronous return value because gradients are also expressible via the
+     * "linear-gradient{...}" string passed to fillStyle / strokeStyle.
      */
     @JsName("createLinearGradient")
     fun createLinearGradient(x0: Double, y0: Double, x1: Double, y1: Double): dynamic =
-        canvasContext?.createLinearGradient(x0, y0, x1, y1)
+        nativeCtx?.createLinearGradient(x0, y0, x1, y1)
 
     /**
-     * Create radial gradient.
-     * The legacy mini-program canvas only exposes createCircularGradient(x, y, r), so we
-     * approximate with the destination circle. To stay aligned with iOS behavior the
-     * gradient is immediately painted across the whole canvas.
+     * createRadialGradient. With Canvas 2D the W3C signature is supported natively.
      */
     @JsName("createRadialGradient")
     fun createRadialGradient(
         x0: Double, y0: Double, r0: Double,
         x1: Double, y1: Double, r1: Double
-    ): dynamic {
-        val ctx = canvasContext ?: return null
-        // Prefer the new-style API if available, otherwise fall back to circular gradient
-        val hasNewApi = js("typeof ctx.createRadialGradient === 'function'") as Boolean
-        return if (hasNewApi) {
-            ctx.createRadialGradient(x0, y0, r0, x1, y1, r1)
-        } else {
-            ctx.createCircularGradient(x1, y1, r1)
+    ): dynamic = nativeCtx?.createRadialGradient(x0, y0, r0, x1, y1, r1)
+
+    @JsName("setLineDash")
+    fun setLineDash(segments: Array<Double>) =
+        runOrEnqueue { it.setLineDash(segments) }
+
+    @JsName("save")
+    fun save() = runOrEnqueue { it.save() }
+
+    @JsName("restore")
+    fun restore() = runOrEnqueue { it.restore() }
+
+    @JsName("translate")
+    fun translate(x: Double, y: Double) =
+        runOrEnqueue { it.translate(x, y) }
+
+    @JsName("scale")
+    fun scale(x: Double, y: Double) = runOrEnqueue { it.scale(x, y) }
+
+    @JsName("rotate")
+    fun rotate(angle: Double) = runOrEnqueue { it.rotate(angle) }
+
+    @JsName("transform")
+    fun transform(a: Double, b: Double, c: Double, d: Double, e: Double, f: Double) =
+        runOrEnqueue { it.transform(a, b, c, d, e, f) }
+
+    @JsName("setTransform")
+    fun setTransform(a: Double, b: Double, c: Double, d: Double, e: Double, f: Double) =
+        runOrEnqueue { it.setTransform(a, b, c, d, e, f) }
+
+    /**
+     * Skew is not natively supported, simulate via transform.
+     */
+    @JsName("skew")
+    fun skew(x: Double, y: Double) =
+        runOrEnqueue { it.transform(1.0, tan(y), tan(x), 1.0, 0.0, 0.0) }
+
+    /**
+     * drawImage. Canvas 2D only accepts an Image / Canvas / ImageBitmap object as the
+     * first argument; passing a path or data: URL throws "image is null". So whenever
+     * we receive a string we transparently convert it into a real Image via
+     * canvas.createImage() and replay drawImage once it loads.
+     */
+    @JsName("drawImage")
+    fun drawImage(
+        image: dynamic, dx: dynamic, dy: dynamic,
+        a: dynamic, b: dynamic, c: dynamic, d: dynamic, e: dynamic, f: dynamic
+    ) {
+        runOrEnqueue { ctx ->
+            val isString = js("typeof image === 'string'") as Boolean
+            if (isString) {
+                val src: String = image.unsafeCast<String>()
+                val cached = imageCache[src]
+                val cachedReady: Boolean = if (cached != null) {
+                    js("(cached.complete === true) || (typeof cached.width === 'number' && cached.width > 0)") as Boolean
+                } else false
+                if (cached != null && cachedReady) {
+                    invokeDrawImage(ctx, cached, dx, dy, a, b, c, d, e, f)
+                } else {
+                    val img: dynamic = cached ?: nativeCanvas?.createImage()
+                    if (img != null) {
+                        if (cached == null) imageCache[src] = img
+                        val onload: () -> Unit = {
+                            invokeDrawImage(nativeCtx, img, dx, dy, a, b, c, d, e, f)
+                        }
+                        // Stack onload so multiple drawImage calls before completion
+                        // each get their replay.
+                        val previous: dynamic = img.onload
+                        img.onload = {
+                            if (previous != null && previous != undefined) previous()
+                            onload()
+                        }
+                        img.onerror = {
+                            // No-op: failing silently mirrors the behaviour on H5 where a broken
+                            // <img> simply renders nothing.
+                        }
+                        if (img.src == null || img.src == undefined || img.src == "") {
+                            img.src = src
+                        }
+                    }
+                }
+            } else {
+                invokeDrawImage(ctx, image, dx, dy, a, b, c, d, e, f)
+            }
         }
     }
 
     /**
-     * set dash line
+     * Call ctx.drawImage with the appropriate arity based on which arguments are defined.
      */
-    @JsName("setLineDash")
-    fun setLineDash(segments: Array<Double>) =
-        canvasContext?.setLineDash(segments)
-
-    /**
-     * Save current drawing state to the stack.
-     */
-    @JsName("save")
-    fun save() {
-        canvasContext?.save()
-    }
-
-    /**
-     * Restore previously saved drawing state.
-     */
-    @JsName("restore")
-    fun restore() {
-        canvasContext?.restore()
-    }
-
-    /**
-     * Translate the canvas origin.
-     */
-    @JsName("translate")
-    fun translate(x: Double, y: Double) {
-        canvasContext?.translate(x, y)
-    }
-
-    /**
-     * Scale the canvas.
-     */
-    @JsName("scale")
-    fun scale(x: Double, y: Double) {
-        canvasContext?.scale(x, y)
-    }
-
-    /**
-     * Rotate the canvas (radians).
-     */
-    @JsName("rotate")
-    fun rotate(angle: Double) {
-        canvasContext?.rotate(angle)
-    }
-
-    /**
-     * Apply an affine transform on top of the existing one.
-     */
-    @JsName("transform")
-    fun transform(a: Double, b: Double, c: Double, d: Double, e: Double, f: Double) {
-        canvasContext?.transform(a, b, c, d, e, f)
-    }
-
-    /**
-     * Replace the current transform with the given affine matrix.
-     */
-    @JsName("setTransform")
-    fun setTransform(a: Double, b: Double, c: Double, d: Double, e: Double, f: Double) {
-        canvasContext?.setTransform(a, b, c, d, e, f)
-    }
-
-    /**
-     * Skew is not natively supported by mini-program canvas, simulate via transform.
-     */
-    @JsName("skew")
-    fun skew(x: Double, y: Double) {
-        canvasContext?.transform(1.0, tan(y), tan(x), 1.0, 0.0, 0.0)
-    }
-
-    /**
-     * Draw an image. Mini-program canvas accepts an image URL/path string instead of an
-     * HTMLImageElement, so we expect the cache to store a string keyed by cacheKey.
-     *
-     * Implemented via raw JS dispatch so callers can use the W3C-style
-     * 3 / 5 / 9 argument forms transparently.
-     */
-    @JsName("drawImage")
-    fun drawImage(image: dynamic, dx: dynamic, dy: dynamic, a: dynamic, b: dynamic, c: dynamic, d: dynamic, e: dynamic, f: dynamic) {
-        val ctx = canvasContext ?: return
+    private fun invokeDrawImage(
+        ctx: dynamic, image: dynamic, dx: dynamic, dy: dynamic,
+        a: dynamic, b: dynamic, c: dynamic, d: dynamic, e: dynamic, f: dynamic
+    ) {
+        if (ctx == null || image == null) return
         val hasF = js("typeof f !== 'undefined'") as Boolean
         val hasB = js("typeof b !== 'undefined'") as Boolean
         when {
-            // 9-arg: image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight
             hasF -> ctx.drawImage(image, dx, dy, a, b, c, d, e, f)
-            // 5-arg: image, dx, dy, dWidth, dHeight
             hasB -> ctx.drawImage(image, dx, dy, a, b)
-            // 3-arg: image, dx, dy
             else -> ctx.drawImage(image, dx, dy)
         }
-        draw()
     }
 
     /**
-     * Set the canvas font size directly. Used by font() setter helper.
+     * Synchronise the underlying canvas drawing buffer size with [width] / [height]
+     * (interpreted as CSS pixels). The backing store is scaled by `devicePixelRatio`
+     * so HiDPI screens render sharp, and a matching `setTransform(dpr,0,0,dpr,0,0)`
+     * is installed so upstream draw calls keep using CSS-pixel coordinates.
      */
-    @JsName("setFontSize")
-    fun setFontSize(size: Double) {
-        canvasContext?.setFontSize(size)
+    fun resizeBackingStore(width: Int, height: Int) {
+        if (width <= 0 || height <= 0) return
+        val dpr = currentDpr()
+        val applyResize: () -> Unit = {
+            val node: dynamic = nativeCanvas
+            val ctx: dynamic = nativeCtx
+            if (node != null) {
+                node.width = (width * dpr + 0.5).toInt()
+                node.height = (height * dpr + 0.5).toInt()
+            }
+            if (ctx != null) {
+                // Reset to the dpr-scaled identity so CSS-pixel coordinates render correctly.
+                ctx.setTransform(dpr, 0.0, 0.0, dpr, 0.0, 0.0)
+            }
+        }
+        if (nativeCanvas != null) {
+            applyResize()
+        } else {
+            ensureContext()
+            // Insert at the front so resize happens before subsequent draw operations.
+            pending.add(0) { applyResize() }
+        }
     }
 
     /**
-     * Set the canvas text align mode directly.
+     * Best-effort lookup of the current device pixel ratio. Falls back to 1.0 if the
+     * platform API is unavailable (e.g. some sandboxed unit-test environments).
      */
-    @JsName("setTextAlign")
-    fun setTextAlign(align: String) {
-        canvasContext?.setTextAlign(align)
-    }
-
-    /**
-     * Set the canvas global alpha.
-     */
-    @JsName("setGlobalAlpha")
-    fun setGlobalAlpha(alpha: Double) {
-        canvasContext?.setGlobalAlpha(alpha)
+    private fun currentDpr(): Double {
+        return try {
+            val ratio: dynamic = MiniGlobal.devicePixelRatio
+            if (ratio != null && ratio != undefined) {
+                (ratio.unsafeCast<Number>()).toDouble()
+            } else 1.0
+        } catch (e: Throwable) {
+            1.0
+        }
     }
 }
 
 /**
- * Mini program canvas node, which will eventually be rendered as canvas in the mini program
+ * Mini program canvas node, rendered via the Canvas 2D (`type="2d"`) interface.
+ * The legacy `canvas-id` attribute is kept for backward compatibility, but in 2d mode
+ * the small program selects the node by `id`.
  */
 class MiniCanvasElement(
     nodeName: String = TransformConst.CANVAS,
     nodeType: Int = MiniElementUtil.ELEMENT_NODE
 ) : MiniElement(nodeName, nodeType) {
+    init {
+        // Default to Canvas 2D; this drives the wxml `type` attribute and is what enables
+        // same-layer rendering inside scroll-view, drawImage with Image objects, etc.
+        setAttribute(TYPE, TYPE_2D)
+    }
+
     /**
-     *  Mini program needs to specify a canvasId
+     * Mini program needs a canvasId for the legacy bridge. We still emit it so the wxml
+     * keeps working unchanged when running the (deprecated) old API.
      */
     private val canvasId: String
         get() = this.id
 
     /**
-     * Canvas width
+     * Canvas width in CSS pixels (logical size). The drawing buffer is sized
+     * width * dpr internally so the rendering stays sharp on HiDPI screens.
+     *
+     * Note: do NOT route this through setAttribute — the wxml `<canvas>` tag does not
+     * bind a `width` attribute, and even if it did, Canvas 2D requires setting
+     * width / height directly on the native node returned by selectorQuery.
      */
     @JsName("width")
     var width: Int
-        get() = getAttribute(WIDTH).unsafeCast<Int?>() ?: 0
+        get() = cssWidth
         set(value) {
-            setAttribute(WIDTH, value)
+            cssWidth = value
+            canvasContext.resizeBackingStore(value, cssHeight)
         }
 
     /**
-     * Canvas height
+     * Canvas height in CSS pixels (logical size).
      */
     @JsName("height")
     var height: Int
-        get() = getAttribute(HEIGHT).unsafeCast<Int?>() ?: 0
+        get() = cssHeight
         set(value) {
-            setAttribute(HEIGHT, value)
+            cssHeight = value
+            canvasContext.resizeBackingStore(cssWidth, value)
         }
 
+    private var cssWidth: Int = 0
+    private var cssHeight: Int = 0
+
     /**
-     * Get canvas context
+     * Canvas context.
      */
     private val canvasContext = MiniCanvasContext(this)
 
@@ -478,7 +531,8 @@ class MiniCanvasElement(
     }
 
     /**
-     * Get canvas context
+     * Get canvas context. The argument (typically "2d") is ignored because we always
+     * return the Canvas 2D wrapper.
      */
     @JsName("getContext")
     fun getContext(): dynamic = canvasContext
@@ -487,5 +541,7 @@ class MiniCanvasElement(
         private const val CANVAS_ID = "canvasId"
         private const val WIDTH = "width"
         private const val HEIGHT = "height"
+        private const val TYPE = "type"
+        private const val TYPE_2D = "2d"
     }
 }

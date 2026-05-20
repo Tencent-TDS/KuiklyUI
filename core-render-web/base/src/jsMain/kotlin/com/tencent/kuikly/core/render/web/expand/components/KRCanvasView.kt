@@ -156,7 +156,7 @@ class KRCanvasView(
     private fun setStrokeStyle(params: String?) {
         val paramsJSON = params.toJSONObjectSafely()
         val style = paramsJSON.optString(STYLE)
-        canvasContext?.strokeStyle = tryParseGradient(style) ?: style.toRgbColor()
+        canvasContext?.strokeStyle = resolveCanvasStyle(style)
     }
 
     /**
@@ -176,7 +176,24 @@ class KRCanvasView(
     private fun setFillStyle(params: String?) {
         val paramsJSON = params.toJSONObjectSafely()
         val style = paramsJSON.optString(STYLE)
-        canvasContext?.fillStyle = tryParseGradient(style) ?: style.toRgbColor()
+        canvasContext?.fillStyle = resolveCanvasStyle(style)
+    }
+
+    /**
+     * Resolve a canvas paint style. For solid colors, parse to RGB. For
+     * `linear-gradient{...}` strings, prefer building a CanvasGradient now (works
+     * synchronously on H5). When the underlying ctx is not yet ready (e.g. the mini
+     * program Canvas 2D node is resolved asynchronously via selectorQuery), fall
+     * back to passing the raw `linear-gradient{...}` string through — the platform
+     * fillStyle / strokeStyle setter is expected to defer-parse it on its side.
+     * Without this fallback, gradients would silently become solid black on first
+     * paint in async-ctx environments.
+     */
+    private fun resolveCanvasStyle(style: String): dynamic {
+        val gradient = tryParseGradient(style)
+        if (gradient != null) return gradient
+        if (style.startsWith("linear-gradient")) return style
+        return style.toRgbColor()
     }
 
     /**

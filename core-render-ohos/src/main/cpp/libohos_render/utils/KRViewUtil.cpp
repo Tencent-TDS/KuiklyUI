@@ -958,6 +958,17 @@ void UpdateInputNodeCaretrColor(ArkUI_NodeHandle node, uint32_t caret_color) {
     GetNodeApi()->setAttribute(node, NODE_TEXT_INPUT_CARET_COLOR, &item);
 }
 
+void UpdateInputNodeSelectionHighlightColor(ArkUI_NodeHandle node, uint32_t color) {
+    // 限制alpha不超过0x66(约40%透明度)，避免选中高亮完全覆盖文字
+    uint32_t alpha = (color >> 24) & 0xFF;
+    if (alpha > 0x66) {
+        color = (0x66 << 24) | (color & 0x00FFFFFF);
+    }
+    ArkUI_NumberValue value = {.u32 = color};
+    ArkUI_AttributeItem item = {&value, sizeof(ArkUI_NumberValue)};
+    GetNodeApi()->setAttribute(node, NODE_TEXT_INPUT_SELECTED_BACKGROUND_COLOR, &item);
+}
+
 void UpdateInputNodeTextAlign(ArkUI_NodeHandle node, const std::string &text_align) {
     ArkUI_NumberValue value[] = {{.i32 = static_cast<int32_t>(ConvertToArkUITextAlign(text_align))}};
     ArkUI_AttributeItem item = {value, sizeof(value) / sizeof(ArkUI_NumberValue)};

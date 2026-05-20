@@ -98,6 +98,7 @@ fun BasicTextField(
     onTextLayout: (TextLayoutResult) -> Unit = {},
     interactionSource: MutableInteractionSource? = null,
     cursorBrush: Brush = SolidColor(Color.Black),
+    selectionHighlightColor: Color? = null,
     decorationBox: @Composable (innerTextField: @Composable () -> Unit) -> Unit =
         @Composable { innerTextField -> innerTextField() }
 ) {
@@ -133,6 +134,7 @@ fun BasicTextField(
         decorationBox = decorationBox,
         enabled = enabled,
         readOnly = readOnly,
+        selectionHighlightColor = selectionHighlightColor,
     )
 }
 
@@ -244,6 +246,7 @@ fun BasicTextField(
     onTextLayout: (TextLayoutResult) -> Unit = {},
     interactionSource: MutableInteractionSource? = null,
     cursorBrush: Brush = SolidColor(Color.Black),
+    selectionHighlightColor: Color? = null,
     decorationBox: @Composable (innerTextField: @Composable () -> Unit) -> Unit =
         @Composable { innerTextField -> innerTextField() }
 ) {
@@ -300,6 +303,7 @@ fun BasicTextField(
         maxLength = maxLengthElement?.maxLength,
         lengthLimitType = maxLengthElement?.lengthLimitType,
         onLimitChange = onLimitChangeElement?.onLimitChange,
+        selectionHighlightColor = selectionHighlightColor,
     )
 }
 
@@ -404,6 +408,7 @@ fun BasicTextField(
     onTextLayout: (TextLayoutResult) -> Unit = {},
     interactionSource: MutableInteractionSource? = null,
     cursorBrush: Brush = SolidColor(Color.Black),
+    selectionHighlightColor: Color? = null,
     decorationBox: @Composable (innerTextField: @Composable () -> Unit) -> Unit =
         @Composable { innerTextField -> innerTextField() },
 ) {
@@ -435,6 +440,7 @@ fun BasicTextField(
         maxLength = maxLengthElement?.maxLength,
         lengthLimitType = maxLengthElement?.lengthLimitType,
         onLimitChange = onLimitChangeElement?.onLimitChange,
+        selectionHighlightColor = selectionHighlightColor,
     )
 }
 

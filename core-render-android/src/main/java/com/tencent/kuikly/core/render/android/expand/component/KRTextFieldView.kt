@@ -196,6 +196,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
             FONT_WEIGHT -> setFontWeight(propValue)
             COLOR -> setColor(propValue)
             TINT_COLOR -> setTintColor(propValue)
+            SELECTION_HIGHLIGHT_COLOR -> setSelectionHighlightColor(propValue)
             PLACE_HOLDER_COLOR -> setPlaceHolderColor(propValue)
             PLACE_HOLDER -> setPlaceHolder(propValue)
             KEYBOARD_TYPE -> setKeyboardType(propValue)
@@ -544,6 +545,13 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 textCursorDrawable = null
             }
+        }
+        return true
+    }
+
+    private fun setSelectionHighlightColor(propValue: Any): Boolean {
+        if (propValue is String && propValue.isNotEmpty()) {
+            highlightColor = propValue.toColor()
         }
         return true
     }
@@ -992,6 +1000,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         private const val KEYBOARD_HEIGHT_CHANGE = "keyboardHeightChange"
         private const val IME_NO_FULLSCREEN = "imeNoFullscreen"
         private const val AUTO_HIDE_KEYBOARD_ON_IME_ACTION = "autoHideKeyboardOnImeAction"
+        private const val SELECTION_HIGHLIGHT_COLOR = "selectionHighlightColor"
 
         private const val METHOD_SET_TEXT = "setText"
         private const val METHOD_FOCUS = "focus"

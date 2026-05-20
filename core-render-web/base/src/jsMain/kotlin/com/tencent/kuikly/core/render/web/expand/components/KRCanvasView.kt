@@ -503,10 +503,16 @@ class KRCanvasView(
     }
 
     /**
-     * Apply a 3x3 transform matrix. Canvas 2D uses 6 affine values, so we pick
-     * the upper-left 2x3 part: [a, b, _, c, d, _, e, f, _].
-     * The serialization order from the core layer matches a column-major 3x3 affine,
-     * mapping to (a,b,c,d,e,f) for transform().
+     * Apply a 3x3 transform matrix. The core layer serializes a row-major 3x3 affine
+     * matrix as 9 floats following Android `android.graphics.Matrix.getValues` order:
+     *
+     *     [0] scaleX  [1] skewX   [2] translateX
+     *     [3] skewY   [4] scaleY  [5] translateY
+     *     [6] persp0  [7] persp1  [8] persp2
+     *
+     * Canvas 2D `transform(a, b, c, d, e, f)` expects column-major affine values where
+     *   a = scaleX, b = skewY, c = skewX, d = scaleY, e = translateX, f = translateY,
+     * which corresponds to indices (0, 3, 1, 4, 2, 5) of the serialized array.
      */
     private fun transform(params: String?) {
         val json = params.toJSONObjectSafely()
@@ -515,12 +521,12 @@ class KRCanvasView(
             return
         }
         canvasContext?.transform(
-            values.optDouble(0),
-            values.optDouble(1),
-            values.optDouble(2),
-            values.optDouble(3),
-            values.optDouble(4),
-            values.optDouble(5)
+            values.optDouble(0), // a  = scaleX
+            values.optDouble(3), // b  = skewY
+            values.optDouble(1), // c  = skewX
+            values.optDouble(4), // d  = scaleY
+            values.optDouble(2), // e  = translateX
+            values.optDouble(5)  // f  = translateY
         )
     }
 

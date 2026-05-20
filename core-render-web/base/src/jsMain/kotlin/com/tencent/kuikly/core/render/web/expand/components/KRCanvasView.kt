@@ -20,7 +20,6 @@ import org.w3c.dom.CanvasGradient
 import org.w3c.dom.CanvasLineCap
 import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLCanvasElement
-import org.w3c.dom.HTMLImageElement
 import org.w3c.dom.ROUND
 import org.w3c.dom.SQUARE
 import kotlin.math.tan
@@ -383,11 +382,16 @@ class KRCanvasView(
         val cacheModule = kuiklyRenderContext?.module<KRMemoryCacheModule>(KRMemoryCacheModule.MODULE_NAME)
         val cached: Any = cacheModule?.get<Any>(cacheKey) ?: return
 
-        // If the cached value is an HTMLImageElement that hasn't decoded yet, defer
+        // If the cached value is an image element that hasn't decoded yet, defer
         // the draw until onload fires. Until then naturalWidth is 0 and drawing
         // would either throw or render nothing.
-        if (cached is HTMLImageElement && cached.naturalWidth == 0) {
-            val pending = cached.asDynamic()
+        // NOTE: don't use `is HTMLImageElement` here because the `HTMLImageElement`
+        // global doesn't exist in mini-program runtime (would throw ReferenceError).
+        val cachedDyn: dynamic = cached
+        val isPendingImage = js("typeof cached === 'object' && cached !== null && 'naturalWidth' in cached") as Boolean
+            && (cachedDyn.naturalWidth as? Number)?.toInt() == 0
+        if (isPendingImage) {
+            val pending = cachedDyn
             // Chain previous onload (if any) so we don't drop the cache module's listener
             val previousOnload: dynamic = pending.onload
             pending.onload = {
@@ -404,6 +408,16 @@ class KRCanvasView(
     }
 
     /**
+     * Cross-environment check for an image-like object that exposes naturalWidth/Height.
+     * This avoids referencing `HTMLImageElement`, which doesn't exist in mini-program
+     * runtime and would throw ReferenceError.
+     */
+    private fun isImageLike(value: Any): Boolean {
+        val v: dynamic = value
+        return js("typeof v === 'object' && v !== null && 'naturalWidth' in v") as Boolean
+    }
+
+    /**
      * Perform the actual canvas drawImage call once we have a usable image source.
      */
     private fun performDrawImage(
@@ -411,22 +425,23 @@ class KRCanvasView(
         cached: Any,
         json: JSONObject
     ) {
-        // Resolve intrinsic size from the cached value when possible
+        // Resolve intrinsic size from the cached value when possible.
+        // We avoid `is HTMLImageElement` because that global is undefined in mini-program.
         val intrinsicWidth: Double
         val intrinsicHeight: Double
-        when (cached) {
-            is HTMLImageElement -> {
-                if (cached.naturalWidth == 0) {
-                    return
-                }
-                intrinsicWidth = cached.naturalWidth.toDouble()
-                intrinsicHeight = cached.naturalHeight.toDouble()
+        if (isImageLike(cached)) {
+            val img: dynamic = cached
+            val nw = (img.naturalWidth as? Number)?.toInt() ?: 0
+            val nh = (img.naturalHeight as? Number)?.toInt() ?: 0
+            if (nw == 0) {
+                return
             }
-            else -> {
-                // string path or other dynamic value, intrinsic size is unknown
-                intrinsicWidth = 0.0
-                intrinsicHeight = 0.0
-            }
+            intrinsicWidth = nw.toDouble()
+            intrinsicHeight = nh.toDouble()
+        } else {
+            // string path or other dynamic value, intrinsic size is unknown
+            intrinsicWidth = 0.0
+            intrinsicHeight = 0.0
         }
 
         val sx = json.optDouble("sx", 0.0)

@@ -76,11 +76,25 @@ class KRMemoryCacheModule : KuiklyRenderBaseModule() {
         val resolvedSrc = resolveImageSrc(src)
 
         if (!isBrowserEnv()) {
-            // Mini-program / non-browser environment: just remember the resolved path
-            // so drawImage on mini-program side can hand it to canvas directly.
+            // Mini-program / non-browser environment.
+            //
+            // We MUST resolve real width/height before reporting Complete, otherwise
+            // upstream callers (e.g. compose KuiklyImageBitmap) will paint with a 0x0
+            // destination size and the picture won't show up at all.
+            //
+            // Strategy:
+            //   1. Pre-seed the cache with the resolved src string so that any synchronous
+            //      drawImage path that does not depend on width/height (rare) still has
+            //      something to work with.
+            //   2. Try to create a real Image via an offscreen canvas (`wx.createOffscreenCanvas`)
+            //      and load asynchronously. On `onload` we replace the cached value with the
+            //      decoded image object and notify the caller via callback.
+            //   3. Synchronously return InProgress so compose treats the bitmap as not yet
+            //      ready and waits for the callback to flip status to Complete.
             cacheMap[cacheKey] = resolvedSrc
+            loadMiniProgramImageAsync(cacheKey, resolvedSrc, callback)
             return JSONObject().apply {
-                put("state", STATE_COMPLETE)
+                put("state", STATE_IN_PROGRESS)
                 put("errorCode", 0)
                 put("errorMsg", "")
                 put("cacheKey", cacheKey)
@@ -148,6 +162,79 @@ class KRMemoryCacheModule : KuiklyRenderBaseModule() {
      */
     private fun isBrowserEnv(): Boolean =
         js("typeof Image !== 'undefined' && typeof window !== 'undefined'") as Boolean
+
+    /**
+     * Mini-program asynchronous image loader.
+     *
+     * Uses an offscreen Canvas 2D node (`wx.createOffscreenCanvas({ type: '2d' })`) to
+     * create a real Image object that supports data: URLs, http(s) URLs and resolved
+     * asset paths. Once loaded we:
+     *   - replace `cacheMap[cacheKey]` with the decoded Image so canvas drawImage gets
+     *     a ready-to-paint object instead of a string;
+     *   - invoke `callback` with the resolved width/height + Complete state so the
+     *     upstream compose layer flips its `status` and triggers a recompose.
+     */
+    private fun loadMiniProgramImageAsync(
+        cacheKey: String,
+        resolvedSrc: String,
+        callback: KuiklyRenderCallback?
+    ) {
+        try {
+            val plat: dynamic = js(
+                "(typeof wx !== 'undefined') ? wx : ((typeof qq !== 'undefined') ? qq : null)"
+            )
+            if (plat == null) {
+                notifyImageLoadFailed(cacheKey, callback, "no mini-program global")
+                return
+            }
+            val offscreen: dynamic = try {
+                plat.createOffscreenCanvas(js("({ type: '2d' })"))
+            } catch (_: Throwable) {
+                null
+            }
+            val img: dynamic = offscreen?.createImage()
+            if (img == null) {
+                notifyImageLoadFailed(cacheKey, callback, "createImage unavailable")
+                return
+            }
+            img.onload = {
+                val w = (img.width as? Number)?.toInt() ?: 0
+                val h = (img.height as? Number)?.toInt() ?: 0
+                // Cache the decoded Image object so drawImage skips the lazy createImage
+                // path and paints synchronously when invoked later.
+                cacheMap[cacheKey] = img.unsafeCast<Any>()
+                callback?.invoke(JSONObject().apply {
+                    put("state", STATE_COMPLETE)
+                    put("errorCode", 0)
+                    put("errorMsg", "")
+                    put("cacheKey", cacheKey)
+                    put("width", w)
+                    put("height", h)
+                })
+            }
+            img.onerror = {
+                notifyImageLoadFailed(cacheKey, callback, "image load error")
+            }
+            img.src = resolvedSrc
+        } catch (t: Throwable) {
+            notifyImageLoadFailed(cacheKey, callback, t.message ?: "unknown error")
+        }
+    }
+
+    private fun notifyImageLoadFailed(
+        cacheKey: String,
+        callback: KuiklyRenderCallback?,
+        errorMsg: String
+    ) {
+        callback?.invoke(JSONObject().apply {
+            put("state", STATE_COMPLETE)
+            put("errorCode", -1)
+            put("errorMsg", errorMsg)
+            put("cacheKey", cacheKey)
+            put("width", 0)
+            put("height", 0)
+        })
+    }
 
     /**
      * Resolve internal image scheme (e.g. assets://, file://) to a real URL the host

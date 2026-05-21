@@ -908,6 +908,162 @@ internal fun ViewContainer<*, *>.TextExampleLineHeight(init: TextExampleLineHeig
     addChild(TextExampleLineHeight(), init)
 }
 
+internal class TextExampleLineHeightVerticalAlignment: ComposeView<ComposeAttr, ComposeEvent>() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                flexDirectionColumn()
+                justifyContentFlexStart()
+                padding(all = 16f)
+            }
+            
+            // 标题说明
+            Text {
+                attr {
+                    text("单行文本lineHeight垂直居中问题测试")
+                    fontSize(16f)
+                    fontWeightBold()
+                    color(Color.BLACK)
+                    marginBottom(10f)
+                }
+            }
+            
+            // 测试用例1: 小字体 + 大lineHeight
+            Text {
+                attr {
+                    text("小字体(12px) + 大lineHeight(30px)")
+                    fontSize(12f)
+                    lineHeight(30f)
+                    backgroundColor(0xFFF0E68C) // 浅黄色背景
+                    height(30f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 测试用例2: 中等字体 + 大lineHeight
+            Text {
+                attr {
+                    text("中等字体(16px) + 大lineHeight(40px)")
+                    fontSize(16f)
+                    lineHeight(40f)
+                    backgroundColor(0xFFADD8E6) // 浅蓝色背景
+                    height(40f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 测试用例3: 大字体 + 大lineHeight
+            Text {
+                attr {
+                    text("大字体(24px) + 大lineHeight(50px)")
+                    fontSize(24f)
+                    lineHeight(50f)
+                    backgroundColor(0xFFFFA07A) // 浅橙色背景
+                    height(50f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 测试用例4: 正常字体 + 正常lineHeight（作为对比）
+            Text {
+                attr {
+                    text("正常字体(16px) + 正常lineHeight(20px)")
+                    fontSize(16f)
+                    lineHeight(20f)
+                    backgroundColor(0xFFEEEEEE) // 灰色背景
+                    height(20f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 测试用例5: 极端情况 - 字体很小，lineHeight很大
+            Text {
+                attr {
+                    text("极小字体(8px) + 极大lineHeight(60px)")
+                    fontSize(8f)
+                    lineHeight(60f)
+                    backgroundColor(0xFFD8BFD8) // 浅紫色背景
+                    height(60f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 测试用例6: 英文文本测试
+            Text {
+                attr {
+                    text("English Text (16px) + lineHeight(35px)")
+                    fontSize(16f)
+                    lineHeight(35f)
+                    backgroundColor(0xFF98FB98) // 浅绿色背景
+                    height(35f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 测试用例7: 混合文本测试
+            Text {
+                attr {
+                    text("中英文混合ABC中文 (18px) + lineHeight(45px)")
+                    fontSize(18f)
+                    lineHeight(45f)
+                    backgroundColor(0xFFFFD700) // 金色背景
+                    height(45f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 测试用例8: 无lineHeight设置（基准对比）
+            Text {
+                attr {
+                    text("无lineHeight设置 (16px) - 基准对比")
+                    fontSize(16f)
+                    backgroundColor(0xFFF5F5DC) // 米色背景
+                    height(20f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 说明文字
+            Text {
+                attr {
+                    text("问题描述：单行文本设置lineHeight时，文字在鸿蒙上可能显示不居中")
+                    fontSize(12f)
+                    color(Color.GRAY)
+                    marginTop(10f)
+                }
+            }
+            Text {
+                attr {
+                    text("预期效果：文字应该在背景色区域内垂直居中显示")
+                    fontSize(12f)
+                    color(Color.GRAY)
+                    marginBottom(10f)
+                }
+            }
+        }
+    }
+
+    override fun createAttr(): ComposeAttr {
+        return ComposeAttr()
+    }
+
+    override fun createEvent(): ComposeEvent {
+        return ComposeEvent()
+    }
+}
+
+internal fun ViewContainer<*, *>.TextExampleLineHeightVerticalAlignment(init: TextExampleLineHeightVerticalAlignment.() -> Unit) {
+    addChild(TextExampleLineHeightVerticalAlignment(), init)
+}
+
 internal class TextExampleLetterSpacing: ComposeView<ComposeAttr, ComposeEvent>() {
     override fun body(): ViewBuilder {
         return {
@@ -1336,6 +1492,8 @@ internal class TextExamplePage: BasePager() {
                 TextExampleEmoji {  }
                 ViewExampleSectionHeader { attr { title = "LineBreakMargin & onLineBreakMargin" } }
                 TextExampleLineBreakMargin {  }
+                ViewExampleSectionHeader { attr { title = "单行文本lineHeight垂直居中问题测试" } }
+                TextExampleLineHeightVerticalAlignment {  }
             }
         }
     }

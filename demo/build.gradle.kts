@@ -147,8 +147,13 @@ kotlin {
     }
 }
 
+fun getPageNameList(): String {
+    return project.properties["pageNameList"] as? String ?: ""
+}
+
 ksp {
     arg("pageName", getPageName())
+    arg("pageNameList", getPageNameList())
     arg(Output.KEY_PACK_LOCAL_JS_BUNDLE, packLocalJsBundle())
 }
 

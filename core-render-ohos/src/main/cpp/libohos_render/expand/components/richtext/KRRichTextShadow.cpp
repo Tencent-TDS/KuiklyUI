@@ -40,6 +40,9 @@ extern "C" {
 extern OH_Drawing_FontCollection* OH_Drawing_GetFontCollectionGlobalInstance(void) __attribute__((weak));
 extern OH_Drawing_Array* OH_Drawing_TypographyGetTextLines(OH_Drawing_Typography* typography) __attribute__((weak));
 extern void OH_Drawing_DestroyTextLines(OH_Drawing_Array* lines) __attribute__((weak));
+// 垂直对齐接口的弱符号声明（系统 API 20+ 提供，低版本系统该符号为 nullptr）
+extern void OH_Drawing_SetTypographyVerticalAlignment(OH_Drawing_TypographyStyle* style,
+                                                      OH_Drawing_TextVerticalAlignment alignment) __attribute__((weak));
 
 void KREnableTextRenderV2(){
     KR_TEXT_RENDER_V2_ENABLED = true;
@@ -443,7 +446,7 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
         }
         OH_Drawing_SetTextStyleFontSize(txtStyle, fontSize);
         OH_Drawing_SetTextStyleFontWeight(txtStyle, fontWeight);
-        OH_Drawing_SetTextStyleBaseLine(txtStyle, TEXT_BASELINE_IDEOGRAPHIC);
+        OH_Drawing_SetTextStyleBaseLine(txtStyle, TEXT_BASELINE_ALPHABETIC);
         OH_Drawing_SetTextStyleDecoration(txtStyle, textDecoration);
         OH_Drawing_SetTextStyleFontStyle(txtStyle, fontStyle);
         if (letterSpacing > 0) {
@@ -454,6 +457,12 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
         } else if (lineHeight > 0) {
             lineHeight = std::max(lineHeight, 1.0);
             OH_Drawing_SetTextStyleFontHeight(txtStyle, lineHeight);
+            // 低版本系统（不支持 OH_Drawing_SetTypographyVerticalAlignment）的 work around：
+            // cai 系统绘制存在偏移问题，手动校准 drawOffsetY_ 实现垂直居中
+            // 高版本系统通过 OH_Drawing_SetTypographyVerticalAlignment 设置垂直居中，无需此校准
+            if (&OH_Drawing_SetTypographyVerticalAlignment == nullptr) {
+                context_thread_drawOffsetY_ = (fontSize * lineHeight - fontSize) / 4;
+            }
         }
         // fontFamily
         if (!fontFamily.empty()) {
@@ -494,6 +503,11 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
                  * 等待修复，目前使用设置行高+禁用首尾行间距实现，注意同时设置lineHeight和lineSpacing首尾间距也会失效
                  */
                 OH_Drawing_TypographyTextSetHeightBehavior(typoStyle, TEXT_HEIGHT_DISABLE_ALL);
+            }
+            // 设置文本垂直居中：API 20+ 系统支持 OH_Drawing_SetTypographyVerticalAlignment
+            // 弱符号检查：地址为 nullptr 表示当前系统不提供该接口，将回退到基线 work around
+            if (&OH_Drawing_SetTypographyVerticalAlignment != nullptr) {
+                OH_Drawing_SetTypographyVerticalAlignment(typoStyle, TEXT_VERTICAL_ALIGNMENT_CENTER);
             }
             handler = CreateTypographyHandler(typoStyle);
         } else {

@@ -80,6 +80,7 @@ class KRCanvasView : public KRView {
     void DrawText(std::string params, std::string_view type);
 
     void AddOp(const std::string &method, const KRAnyValue &params);
+    void BatchDraw(const KRAnyValue &params);
     void OnDraw(ArkUI_NodeCustomEvent *event);
 
     bool ShouldCacheOp(const std::string &method);

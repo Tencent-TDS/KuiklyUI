@@ -33,7 +33,9 @@ import com.tencent.kuikly.compose.foundation.layout.Box
 import com.tencent.kuikly.compose.foundation.layout.Column
 import com.tencent.kuikly.compose.foundation.layout.Row
 import com.tencent.kuikly.compose.foundation.layout.fillMaxSize
+import com.tencent.kuikly.compose.foundation.layout.fillMaxWidth
 import com.tencent.kuikly.compose.foundation.layout.offset
+import com.tencent.kuikly.compose.foundation.layout.padding
 import com.tencent.kuikly.compose.foundation.layout.size
 import com.tencent.kuikly.compose.foundation.layout.width
 import com.tencent.kuikly.compose.material3.Button
@@ -100,6 +102,19 @@ class CanvasDemo : ComposeContainer() {
 
         setContent {
             DemoScaffold("Canvas Demo", back = true) {
+                // Tip: WeChat Mini-Program DevTools may render Canvas slightly
+                // differently from real devices (e.g. font fallback, DPR,
+                // OffscreenCanvas measurement). Please verify on a real
+                // iOS / Android device for accurate visual results.
+                Text(
+                    text = "提示：小程序请使用真机测试，开发者工具上 Canvas 可能与真机存在差异。",
+                    color = Color(0xFFD32F2F),
+                    fontSize = 12.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFFFF3E0))
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                )
                 CanvasAPIDemo()
                 CanvasDemoContent()
                 ArcDemo()

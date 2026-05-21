@@ -83,6 +83,27 @@ object RichTextProcessor : IRichTextProcessor {
      */
     private const val EMOJI_WIDTH_FACTOR = 1.0f
 
+    /**
+     * Compensation factor for iOS real-device text width measurement.
+     *
+     * Background: mini-program OffscreenCanvas always measures text with a
+     * generic `sans-serif` font, but the real <text> element on a physical
+     * iOS device falls back to PingFang SC, whose glyphs are typically
+     * ~5-7% wider than the canvas-measured ones at the same size/weight.
+     *
+     * If we hand the un-compensated value to the layout engine, the parent
+     * container reserves slightly less width than what PingFang actually
+     * needs, and on iOS the <text> renderer then DROPS the entire trailing
+     * word instead of wrapping (e.g. "Change Theme" → "Change").
+     *
+     * 1.06 leaves ~1px slack at fontSize=14px and grows linearly with the
+     * font size, which empirically matches what we observe on iOS 17/18.
+     * Keep it iOS-real-device only — Android (Roboto) and the WeChat
+     * DevTools simulator (desktop fonts) match canvas measurement well
+     * and do not need any compensation.
+     */
+    private const val IOS_REAL_FONT_WIDTH_FACTOR = 1.06f
+
     // Threshold to trigger an extra-line guard: when the geometric ratio
     // (totalWidth / constraintWidth) has a fractional part close to an
     // integer (e.g. 1.92, 2.95), real word-break / break-word may push
@@ -773,8 +794,22 @@ object RichTextProcessor : IRichTextProcessor {
                     // Add the width and height of each line, using the larger of canvas width and actualBoundingBox
                     textWidth = max(textWidth, textMetrics.width.unsafeCast<Float>())
                     graphemeCount = it.length
+                    // === iOS real-device font compensation ===
+                    // Mini-program OffscreenCanvas measures text with a generic
+                    // sans-serif font, but the real <text> element on an iOS
+                    // physical device falls back to PingFang SC, which is
+                    // typically ~6% wider per glyph at the same point size.
+                    // Without this compensation, the parent container width
+                    // (derived from our measurement) is smaller than what
+                    // PingFang actually needs, and the last word is dropped
+                    // (e.g. "Change Theme" rendered as just "Change").
+                    // The compensation is intentionally NOT applied on Android
+                    // (sans-serif == Roboto, measurement matches reality) nor
+                    // on the WeChat DevTools simulator (uses desktop fonts).
+                    if (textWidth > 0f && MiniGlobal.isIOS && !MiniGlobal.isDevTools) {
+                        textWidth *= IOS_REAL_FONT_WIDTH_FACTOR
+                    }
                 }
-
                 // Canvas measureText does NOT take letter-spacing into account, but the
                 // real rendering of <text> does. Compensate it here otherwise the measured
                 // width would be smaller than the actual drawn width and cause the last
@@ -1251,6 +1286,8 @@ object RichTextProcessor : IRichTextProcessor {
         } else {
             calculateTextSize(constraintSize, view)
         }
+
+
 
         // ===== FINAL GUARD =====
         // Whatever happened upstream (canvas returning NaN for fontBoundingBox*,

@@ -500,7 +500,7 @@ open class MiniElement(var nodeName: String, val nodeType: Int) {
      * Get current component's context, if in custom component, need to return custom component reference
      * Otherwise return global namespace like wx or qq
      */
-    private fun getCurrentContext(): dynamic {
+    internal fun getCurrentContext(): dynamic {
         if (parentElement == null) {
             Log.warn("getCurrentContext call when parentElement is null")
             return NativeApi.plat

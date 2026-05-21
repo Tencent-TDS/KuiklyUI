@@ -466,6 +466,9 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
                 renderViewExport(KRImageView.APNG_VIEW_NAME, {
                     KRImageView(it.kuiklyRenderContext)
                 })
+                renderViewExport(KRCanvasView.VIEW_NAME, {
+                    KRCanvasView(it.kuiklyRenderContext)
+                })
             }
             renderViewExport(KRTextFieldView.VIEW_NAME, {
                 KRTextFieldView()
@@ -499,9 +502,6 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
             })
             renderViewExport(KRVideoView.VIEW_NAME, {
                 KRVideoView()
-            })
-            renderViewExport(KRCanvasView.VIEW_NAME, {
-                KRCanvasView()
             })
             renderViewExport(KRBlurView.VIEW_NAME, {
                 KRBlurView()

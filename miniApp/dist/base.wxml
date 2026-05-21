@@ -415,7 +415,7 @@
 </template>
 
 <template name="tmpl_0_15">
-  <canvas canvas-id="{{i.p0}}" disable-scroll="{{xs.b(i.p1,!1)}}" binderror="eh" bindtouchstart="eh" bindtouchmove="eh" bindtouchend="eh" bindlongtap="eh" type="{{i.p2}}" style="{{i.st}}" bindtap="eh"  id="{{i.uid||i.sid}}" >
+  <canvas canvas-id="{{i.p0}}" disable-scroll="{{xs.b(i.p1,!1)}}" binderror="eh" bindtouchstart="eh" bindtouchmove="eh" bindtouchend="eh" bindlongtap="eh" type="{{xs.b(i.p2,'2d')}}" style="{{i.st}}" bindtap="eh"  id="{{i.uid||i.sid}}" >
     <block wx:for="{{i.cn}}" wx:key="sid">
       <template is="{{xs.a(c, item.nn, l)}}" data="{{i:item,c:c+1}}" />
     </block>

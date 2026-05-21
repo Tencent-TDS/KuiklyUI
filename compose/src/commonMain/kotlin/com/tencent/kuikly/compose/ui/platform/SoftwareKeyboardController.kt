@@ -108,7 +108,7 @@ internal class KuiklySoftwareKeyboardController : SoftwareKeyboardController {
                         activeView?.focus()
                     }
                     PendingAction.HIDE_KEYBOARD -> {
-                        activeView?.blur(keepFocus = true)
+                        activeView?.blur()
                     }
                     else -> {}
                 }

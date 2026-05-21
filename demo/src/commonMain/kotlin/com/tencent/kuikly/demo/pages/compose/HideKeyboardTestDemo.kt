@@ -162,31 +162,12 @@ fun HideKeyboardTestContent() {
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "hide()（收键盘+失焦）",
+                text = "hide()（收键盘+不失焦）",
                 style = TextStyle(fontSize = 14.sp, color = Color.White)
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
 
-        // hide() — 与 Compose 默认效果保持一致，收键盘不失焦
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(44.dp)
-                .background(Color(0xFFFF9800), RoundedCornerShape(8.dp))
-                .clickable {
-                    keyboardController?.hide()
-                    statusText1 = "状态：hide(keepFocus=true)（收键盘保光标）"
-                    statusText2 = "状态：hide(keepFocus=true)（收键盘保光标）"
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "hide(keepFocus=true)（收键盘保光标）",
-                style = TextStyle(fontSize = 14.sp, color = Color.White)
-            )
-        }
 
         Spacer(modifier = Modifier.height(12.dp))
 

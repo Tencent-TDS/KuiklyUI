@@ -150,20 +150,9 @@ open class TextAreaView : DeclarativeBaseView<TextAreaAttr, TextAreaEvent>(), Me
     /**
      * 收起软键盘并失焦
      */
-    @Deprecated("Use blur(keepFocus) instead", level = DeprecationLevel.HIDDEN)
     fun blur() {
         performTaskWhenRenderViewDidLoad {
-            renderView?.callMethod("blur", "")
-        }
-    }
-
-    /**
-     * 收起软键盘
-     * @param keepFocus true: 只收键盘，保留光标不失焦；false: 收键盘+失焦（等同无参 blur()）
-     */
-    fun blur(keepFocus: Boolean = false) {
-        performTaskWhenRenderViewDidLoad {
-            renderView?.callMethod("blur", if (keepFocus) "1" else "")
+            renderView?.callMethod("blur", if (getPager().isComposePage) "1" else "")
         }
     }
 

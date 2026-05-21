@@ -21,7 +21,7 @@ void KRForwardArkTSView::DidInit() {
         GetInstanceId(), KRNativeCallArkTSMethod::CreateView, KRRenderValue::Make(GetViewTag()),
         KRRenderValue::Make(GetViewName()), nullptr, nullptr, nullptr, nullptr);
     // 设置ARKUI_HIT_TEST_MODE_NONE,否则ForwardArkTSView会遮挡同层级事件
-    kuikly::util::UpdateNodeHitTestMode(GetNode(), ARKUI_HIT_TEST_MODE_NONE);
+    kuikly::util::UpdateNodeHitTestMode(GetNode(), ARKUI_HIT_TEST_MODE_TRANSPARENT);
 }
 
 void KRForwardArkTSView::OnDestroy() {

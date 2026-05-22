@@ -121,6 +121,7 @@ class KRScrollerView : public IKRRenderViewExport {
     void OnWillDragEnd(ArkUI_NodeEvent *event);
     void OnScrollStart(ArkUI_NodeEvent *event);
     void OnScrollReachStart(ArkUI_NodeEvent *event);
+    void OnScrollReachEnd(ArkUI_NodeEvent *event);
     bool IsIdeaStateToDraggingState(ArkUI_ScrollState new_scroll_state);
     bool IsFlingStateToDraggingState(ArkUI_ScrollState new_scroll_state);
     bool IsDraggingStateToFlingState(ArkUI_ScrollState new_scroll_state);

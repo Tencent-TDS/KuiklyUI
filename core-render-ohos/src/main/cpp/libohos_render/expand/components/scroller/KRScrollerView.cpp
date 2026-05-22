@@ -159,10 +159,14 @@ void KRScrollerView::DidInit() {
     velocity_x_ = 0;
     velocity_y_ = 0;
     SetBouncesEnable(NewKRRenderValue(bounces_enabled_));
+    // 默认启用嵌套滚动：自身先滚动，到达边界后传给父级
+    kuikly::util::SetArkUINestedScroll(GetNode(), ARKUI_SCROLL_NESTED_MODE_SELF_FIRST, ARKUI_SCROLL_NESTED_MODE_SELF_FIRST);
     RegisterEvent(NODE_SCROLL_EVENT_ON_SCROLL_FRAME_BEGIN);
     RegisterEvent(NODE_SCROLL_EVENT_ON_SCROLL_START);
     RegisterEvent(NODE_SCROLL_EVENT_ON_WILL_SCROLL);
     RegisterEvent(NODE_SCROLL_EVENT_ON_SCROLL_STOP);
+    RegisterEvent(NODE_SCROLL_EVENT_ON_REACH_START);
+    RegisterEvent(NODE_SCROLL_EVENT_ON_REACH_END);
 }
 
 bool KRScrollerView::SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
@@ -246,6 +250,8 @@ void KRScrollerView::OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEventType &
         OnWillScroll(event);
     } else if (event_type == NODE_SCROLL_EVENT_ON_REACH_START) {
         OnScrollReachStart(event);
+    } else if (event_type == NODE_SCROLL_EVENT_ON_REACH_END) {
+        OnScrollReachEnd(event);
     }
 }
 
@@ -550,6 +556,13 @@ void KRScrollerView::OnWillDragEnd(ArkUI_NodeEvent *event) {
 void KRScrollerView::OnScrollStart(ArkUI_NodeEvent *event) {}
 
 void KRScrollerView::OnScrollReachStart(ArkUI_NodeEvent *event) {
+    if (!limit_header_bounces_) {
+        return;
+    }
+    InnerSetBouncesEnable(false);
+}
+
+void KRScrollerView::OnScrollReachEnd(ArkUI_NodeEvent *event) {
     if (!limit_header_bounces_) {
         return;
     }

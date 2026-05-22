@@ -34,6 +34,11 @@
 
 #if KUIKLY_TEXT_EDITOR_AVAILABLE
 #include <arkui/styled_string.h>
+// 复用 RichText 的进程级自定义表情 pixmap 缓存：在编辑器场景下，命中即可直接
+// 通过 OH_ArkUI_ImageAttachment_SetPixelMap 绑定已解码的 OH_PixelmapNative，
+// 跳过系统按 resource URI 的二次异步解码，消除每次插入表情时的闪动。
+// 头文件本身已 include <multimedia/image_framework/image/pixelmap_native.h>。
+#include "libohos_render/expand/components/richtext/KRCustomEmojiPixmapCache.h"
 #endif
 
 // 编译期 guard：本头之下的全部内容（KRTextEditorState 结构体、ApplyTypingStyle / SetStyledText
@@ -176,6 +181,13 @@ ArkUI_ErrorCode OH_ArkUI_ImageAttachment_SetVerticalAlign(
     __attribute__((weak));
 ArkUI_ErrorCode OH_ArkUI_ImageAttachment_SetObjectFit(OH_ArkUI_ImageAttachment *imageAttachment,
                                                      ArkUI_ObjectFit objectFit)
+    __attribute__((weak));
+// 直接绑定已解码 pixelmap，绕过 SDK 内部按 resource URI 的异步加载路径。
+// API 24 引入；此处沿用本头一贯的 weak 重声明范式，避免 .so 在低版本 dlopen 时
+// 因符号未导出而整体失败。OH_PixelmapNative 由上面 KRCustomEmojiPixmapCache.h
+// 链路已 include 的 pixelmap_native.h 提供。
+ArkUI_ErrorCode OH_ArkUI_ImageAttachment_SetPixelMap(OH_ArkUI_ImageAttachment *imageAttachment,
+                                                    struct OH_PixelmapNative *pixelmap)
     __attribute__((weak));
 
 // ---- TextStyle / SpanStyle / ParagraphStyle / LineHeightStyle（API 24，styled_string.h） ----
@@ -517,7 +529,34 @@ inline ArkUI_StyledString_Descriptor *BuildImageSpanDescriptor(const std::string
     if (!attachment) {
         return nullptr;
     }
-    OH_ArkUI_ImageAttachment_SetResource(attachment, resource_uri.c_str());
+    // 优先走 SetPixelMap：当 KRCustomEmojiPixmapCache 已经在 RichText / 此前的
+    // 输入流程中解码过同一 uri 时，这里同步拿到 OH_PixelmapNative*，直接绑定到
+    // attachment，SDK 内部不会再发起异步 image loader 请求，从根源上消除
+    // "插入自定义表情时一帧空白 / 闪动" 的问题。
+    //
+    // 缓存未命中：保持原有 SetResource 路径——首帧仍可能闪一次（取决于 SDK 内
+    // 部的图片管线是否复用），但同时主动触发一次 Prefetch，把解码结果落到进程
+    // 级缓存里，后续相同 uri 的输入都会走上面的 SetPixelMap 快路径。
+    //
+    // 注意：cache 持有 pixmap 所有权（caller 不释放），attachment 内部一般会
+    // 自行 retain 或读取数据；descriptor 后续会接管 attachment，整体生命周期
+    // 与原 SetResource 路径无差异。
+    bool used_pixmap = false;
+    if (OH_ArkUI_ImageAttachment_SetPixelMap) {
+        if (OH_PixelmapNative *cached_pm =
+                KRCustomEmojiPixmapCache::GetInstance().Get(resource_uri)) {
+            if (OH_ArkUI_ImageAttachment_SetPixelMap(attachment, cached_pm) == ARKUI_ERROR_CODE_NO_ERROR) {
+                used_pixmap = true;
+            }
+        }
+    }
+    if (!used_pixmap) {
+        OH_ArkUI_ImageAttachment_SetResource(attachment, resource_uri.c_str());
+        // 异步预解码：下次插入同一 uri 的表情就能命中 SetPixelMap 快路径。
+        // on_loaded 留空——仅触发预解码，不需要回调；调用是幂等的（同 uri 不
+        // 重复发起解码）。
+        KRCustomEmojiPixmapCache::GetInstance().Prefetch(resource_uri, nullptr);
+    }
     float fb = fallback_size_vp > 0 ? fallback_size_vp : 16.0f;
     float w = width_vp > 0 ? width_vp : fb;
     float h = height_vp > 0 ? height_vp : w;  // 仅 width 有值时按方形展开

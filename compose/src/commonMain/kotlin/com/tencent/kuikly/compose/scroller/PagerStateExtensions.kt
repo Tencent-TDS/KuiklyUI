@@ -149,7 +149,6 @@ private fun PagerState.handleTargetPageScroll(
             ScrollableStateConstants.SPRING_ANIMATION_DAMPING,
             if (orientation == Orientation.Horizontal) params.velocityX else params.velocityY
         )
-
         val targetOffsetDp = targetOffset / density
 
         if (orientation == Orientation.Horizontal) {
@@ -181,7 +180,7 @@ private const val SNAP_LAYOUT_SIZE_TOLERANCE = 1
 /**
  * Converts AnimationSpec<Float> to SpringAnimation
  * This is a temporary solution that mainly supports animation duration and basic animation curves
- *
+ * 
  * @param animationSpec The animation spec to convert
  * @param initialValue Initial value (used for calculating SpringSpec duration)
  * @param targetValue Target value (used for calculating SpringSpec duration)
@@ -208,7 +207,7 @@ internal fun convertAnimationSpecToSpringAnimation(
             // SpringSpec is physics-based, so duration needs to be calculated from spring parameters
             // Note: getDurationMillis may involve complex calculations (Newton's method, etc.),
             // but it's only called once per animateScrollToPage, not per frame
-            val vectorizedSpec: VectorizedAnimationSpec<AnimationVector1D> =
+            val vectorizedSpec: VectorizedAnimationSpec<AnimationVector1D> = 
                 animationSpec.vectorize<AnimationVector1D>(Float.VectorConverter)
             val initialVector = AnimationVector1D(initialValue)
             val targetVector = AnimationVector1D(targetValue)
@@ -229,4 +228,4 @@ internal fun convertAnimationSpecToSpringAnimation(
             null
         }
     }
-}
+} 

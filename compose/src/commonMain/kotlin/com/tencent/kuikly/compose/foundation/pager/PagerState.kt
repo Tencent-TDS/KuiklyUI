@@ -132,22 +132,36 @@ private class DefaultPagerState(
 
     companion object {
         /**
-         * To keep current page and current page offset saved
+         * To keep current page and current page offset saved.
+         * Also saves bridge-layer state (composeOffset, currentContentSize, contentOffset, offsetDirty)
+         * to support ScrollerView reuse in nested Pager scenarios.
          */
         val Saver: Saver<DefaultPagerState, *> = listSaver(
             save = {
-                listOf(
-                    it.currentPage,
-                    (it.currentPageOffsetFraction).coerceIn(MinPageOffset, MaxPageOffset),
-                    it.pageCount
+                val saved = listOf(
+                    it.currentPage,                             // [0] Int
+                    (it.currentPageOffsetFraction).coerceIn(MinPageOffset, MaxPageOffset), // [1] Float
+                    it.pageCount,                               // [2] Int
+                    it.kuiklyInfo.composeOffset.toInt(),        // [3] bridge: Compose scroll offset
+                    it.kuiklyInfo.currentContentSize,           // [4] bridge: virtual content size
+                    it.kuiklyInfo.contentOffset,                // [5] bridge: native scrollView offset
+                    if (it.kuiklyInfo.offsetDirty) 1 else 0,   // [6] bridge: offset dirty flag
                 )
+                saved
             },
             restore = {
                 DefaultPagerState(
                     currentPage = it[0] as Int,
                     currentPageOffsetFraction = it[1] as Float,
                     updatedPageCount = { it[2] as Int }
-                )
+                ).also { state ->
+                    if (it.size > 3) { // backward compatibility with old saved data
+                        state.kuiklyInfo.composeOffset = (it[3] as Int).toFloat()
+                        state.kuiklyInfo.currentContentSize = it[4] as Int
+                        state.kuiklyInfo.contentOffset = it[5] as Int
+                        state.kuiklyInfo.offsetDirty = (it[6] as Int) == 1
+                    }
+                }
             }
         )
     }
@@ -891,13 +905,13 @@ abstract class PagerState internal constructor(
         if (targetOffset < 0) {
             targetOffset = minScrollOffset.toFloat()
         } else if (targetOffset + kuiklyInfo.viewportSize > kuiklyInfo.currentContentSize) {
-            targetOffset = kuiklyInfo.currentContentSize.toFloat() - kuiklyInfo.viewportSize
+            targetOffset = maxScrollOffset.toFloat()
         }
-
+        
         // Calculate initial and target offsets (for SpringSpec duration calculation)
         val initialOffset = kuiklyInfo.contentOffset.toFloat()
         val finalTargetOffset = targetOffset
-
+        
         // Convert AnimationSpec to SpringAnimation
         val springAnimation = convertAnimationSpecToSpringAnimation(
             animationSpec = animationSpec,
@@ -972,6 +986,7 @@ abstract class PagerState internal constructor(
         visibleItemsStayedTheSame: Boolean = false
     ) {
         debugLog { "Applying Measure Result" }
+        // Hook: record page scroll context event for Recomposition Profiler
         val oldPage = scrollPosition.currentPage
         if (visibleItemsStayedTheSame) {
             scrollPosition.updateCurrentPageOffsetFraction(result.currentPageOffsetFraction)
@@ -1160,7 +1175,6 @@ abstract class PagerState internal constructor(
         itemProvider: PagerLazyLayoutItemProvider,
         currentPage: Int = Snapshot.withoutReadObservation { scrollPosition.currentPage }
     ): Int = scrollPosition.matchPageWithKey(itemProvider, currentPage)
-
 }
 
 internal suspend fun PagerState.animateToNextPage() {
@@ -1211,17 +1225,17 @@ private val UnitDensity = object : Density {
     override val fontScale: Float = 1f
 }
 
-/** Tolerance (px) when comparing native offset to [PagerState.snapTargetContentOffset]. */
-private const val SNAP_TARGET_OFFSET_TOLERANCE = 1
-
-/** Initial delay before checking native/compose offset alignment after measure. */
-private const val SNAP_MEASURE_JOB_INITIAL_DELAY_MS = 50L
-
 private inline fun debugLog(generateMsg: () -> String) {
     if (PagerDebugConfig.PagerState) {
         println("PagerState: ${generateMsg()}")
     }
 }
+
+/** Tolerance (px) when comparing native offset to [PagerState.snapTargetContentOffset]. */
+private const val SNAP_TARGET_OFFSET_TOLERANCE = 1
+
+/** Initial delay before checking native/compose offset alignment after measure. */
+private const val SNAP_MEASURE_JOB_INITIAL_DELAY_MS = 50L
 
 internal fun PagerLayoutInfo.calculateNewMaxScrollOffset(pageCount: Int): Long {
     val pageSizeWithSpacing = pageSpacing + pageSize

@@ -72,6 +72,8 @@ open class ComposeContainer :
     Pager(),
     OnBackPressedDispatcherOwner {
 
+    override fun currentIsComposePage(): Boolean = true
+
     companion object {
         /**
          * 当 Kuikly Compose 和原生 Compose 同时存在时，可以通过设置此配置为 `false` 来禁止Kuikly消费State变更，

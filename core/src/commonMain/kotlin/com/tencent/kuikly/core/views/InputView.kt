@@ -88,9 +88,12 @@ class InputView : DeclarativeBaseView<InputAttr, InputEvent>() {
         }
     }
 
+    /**
+     * 收起软键盘并失焦
+     */
     fun blur() {
         performTaskWhenRenderViewDidLoad {
-            renderView?.callMethod("blur", "")
+            renderView?.callMethod("blur", if (getPager().isComposePage) "1" else "")
         }
     }
 
@@ -367,6 +370,11 @@ class InputAttr : Attr() {
      */
     fun autoHideKeyboardOnImeAction(enable: Boolean): InputAttr {
         TextConst.AUTO_HIDE_KEYBOARD_ON_IME_ACTION with (if (enable) 1 else 0)
+        return this
+    }
+
+    fun keepFocusCloseKeyboard(enable: Boolean): InputAttr {
+        TextConst.KEEP_FOCUS_CLOSE_KEYBOARD with (if (enable) 1 else 0)
         return this
     }
 

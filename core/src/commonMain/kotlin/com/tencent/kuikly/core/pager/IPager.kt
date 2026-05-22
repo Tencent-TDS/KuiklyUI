@@ -31,6 +31,7 @@ interface IPager {
     val isDebugUIInspector : Boolean
     var didCreateBody: Boolean
     val isAppeared: Boolean
+    val isComposePage: Boolean
     var pageLayoutTracer: PageLayoutTracer
 
     fun onCreatePager(pagerId: String, pageData: JSONObject)

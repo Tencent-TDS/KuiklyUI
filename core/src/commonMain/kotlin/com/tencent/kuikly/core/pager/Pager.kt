@@ -64,6 +64,8 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
     override var didCreateBody: Boolean = false
     final override var isAppeared: Boolean = false
         private set
+    final override var isComposePage: Boolean = false
+        private set
     private val innerBackPressHandler: BackPressHandler by lazy(LazyThreadSafetyMode.NONE) {
         BackPressHandler()
     }
@@ -72,10 +74,17 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
     override fun createAttr(): ComposeAttr = ComposeAttr()
 
     /**
+     * 解析当前页面是否为 Compose 页面，默认 false。
+     * ComposeContainer 会通过 override 将其标记为 true。
+     */
+    protected open fun currentIsComposePage(): Boolean = false
+
+    /**
      * call from native
      */
     override fun onCreatePager(pagerId: String, pageData: JSONObject) {
         pageTrace?.onCreateStart()
+        isComposePage = currentIsComposePage()
         this.pagerId = pagerId
         this.pageData.init(pageData)
         taskManager = TaskManager(pagerId)
@@ -93,6 +102,7 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         pageWillDestroy()
         willRemoveFromParentView()
         didRemoveFromParentView()
+        isComposePage = false
         pagerEventObserverSet.clear()
         layoutEventObserverSet.clear()
         GlobalFunctions.destroyGlobalFunction(pagerId)

@@ -98,9 +98,12 @@ class AutoHeightTextAreaView(val singleLine: Boolean = false) :
         }
     }
 
+    /**
+     * 失焦（收起软键盘 + 失去焦点）
+     */
     fun blur() {
         performTaskWhenRenderViewDidLoad {
-            renderView?.callMethod("blur", "")
+            renderView?.callMethod("blur", if (getPager().isComposePage) "1" else "")
         }
     }
 

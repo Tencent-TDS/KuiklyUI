@@ -147,9 +147,12 @@ open class TextAreaView : DeclarativeBaseView<TextAreaAttr, TextAreaEvent>(), Me
         }
     }
 
+    /**
+     * 收起软键盘并失焦
+     */
     fun blur() {
         performTaskWhenRenderViewDidLoad {
-            renderView?.callMethod("blur", "")
+            renderView?.callMethod("blur", if (getPager().isComposePage) "1" else "")
         }
     }
 
@@ -507,6 +510,11 @@ open class TextAreaAttr : Attr() {
      */
     fun autoHideKeyboardOnImeAction(enable: Boolean): TextAreaAttr {
         TextConst.AUTO_HIDE_KEYBOARD_ON_IME_ACTION with (if (enable) 1 else 0)
+        return this
+    }
+
+    fun keepFocusCloseKeyboard(enable: Boolean): TextAreaAttr {
+        TextConst.KEEP_FOCUS_CLOSE_KEYBOARD with (if (enable) 1 else 0)
         return this
     }
 

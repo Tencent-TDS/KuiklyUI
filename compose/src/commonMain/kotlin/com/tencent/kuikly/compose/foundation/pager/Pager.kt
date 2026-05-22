@@ -398,4 +398,11 @@ internal object PagerDebugConfig {
     const val ScrollPosition = false
     const val PagerSnapDistance = false
     const val PagerSnapLayoutInfoProvider = false
+    const val Snap = false
+}
+
+internal inline fun pagerSnapDebugLog(generateMsg: () -> String) {
+    if (PagerDebugConfig.Snap) {
+        println("[PagerSnap] ${generateMsg()}")
+    }
 }

@@ -62,7 +62,13 @@ internal fun ScrollableState.kuiklyOnScroll(delta: Float): Float = when (this) {
 internal fun ScrollableState.kuiklyOnScrollEnd(params: ScrollParams) {
     when (this) {
         is LazyListState -> scrollableState.kuiklyOnScrollEnd(params)
-        is PagerState -> scrollableState.kuiklyOnScrollEnd(params)
+        is PagerState -> {
+            // NOTE: Do NOT clear isSnapAnimating here.
+            // scrollEnd fires before data-load remeasure, so clearing here
+            // leaves updateFromMeasureResult unprotected. isSnapAnimating is
+            // cleared in the applyMeasureResult_job after FIXING decision.
+            scrollableState.kuiklyOnScrollEnd(params)
+        }
         is LazyGridState -> scrollableState.kuiklyOnScrollEnd(params)
         is LazyStaggeredGridState -> scrollableState.kuiklyOnScrollEnd(params)
         is ScrollState -> scrollableState.kuiklyOnScrollEnd(params)

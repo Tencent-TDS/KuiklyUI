@@ -40,6 +40,7 @@ import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.unit.dp
+import com.tencent.kuikly.compose.extension.bouncesEnable
 import com.tencent.kuikly.core.annotations.Page
 
 @Page("HorizontalPagerDemo3")
@@ -75,6 +76,7 @@ class HorizontalPagerDemo3 : ComposeContainer() {
                         Modifier
                             .height(100.dp)
                             .fillMaxWidth()
+                            .bouncesEnable(false)
                             .background(Color.LightGray),
                     pageSize = PageSize.Fixed(250.dp),
                     contentPadding = PaddingValues(horizontal = 32.dp),

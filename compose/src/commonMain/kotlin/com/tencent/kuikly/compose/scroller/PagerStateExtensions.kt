@@ -26,15 +26,22 @@ import com.tencent.kuikly.compose.foundation.gestures.Orientation
 import com.tencent.kuikly.compose.foundation.pager.PagerMeasureResult
 import com.tencent.kuikly.compose.foundation.pager.PagerSnapDistance
 import com.tencent.kuikly.compose.foundation.pager.PagerState
+import com.tencent.kuikly.compose.foundation.pager.pagerSnapDebugLog
 import com.tencent.kuikly.compose.ui.util.fastFirstOrNull
 import com.tencent.kuikly.core.views.SpringAnimation
 import com.tencent.kuikly.core.views.WillEndDragParams
+import kotlin.math.abs
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 /**
  * Handle drag end event
  */
 internal fun PagerState.kuiklyWillDragEnd(params: WillEndDragParams, orientation: Orientation) {
+    // Clear any previous snap animation flag in case scrollEnd didn't fire
+    // (e.g., user interrupted a snap animation by starting a new drag)
+    clearSnapAnimationState()
+
     val effectivePageSizePx = pageSize + pageSpacing
     if (effectivePageSizePx == 0) return
 
@@ -70,22 +77,79 @@ private fun PagerState.handleTargetPageScroll(
     orientation: Orientation
 ) {
     val kuiklyInfo = this.kuiklyInfo
-    (layoutInfo as? PagerMeasureResult)?.run {
+    val pagerMeasureResult = layoutInfo as? PagerMeasureResult ?: return
+    pagerMeasureResult.run {
         val allResult = visiblePagesInfo + extraPagesAfter + extraPagesBefore
         val nextPage = allResult.fastFirstOrNull { it.index == targetPage }
         val density = kuiklyInfo.getDensity()
         val offset = kuiklyInfo.composeOffset.toInt()
+        val nativeOffset = if (orientation == Orientation.Horizontal) {
+            params.offsetX.toInt()
+        } else {
+            params.offsetY.toInt()
+        }
+        val nativeTargetOffset = if (orientation == Orientation.Horizontal) {
+            params.targetContentOffsetX.toInt()
+        } else {
+            params.targetContentOffsetY.toInt()
+        }
+        val measureViewportSize = if (pagerMeasureResult.orientation == Orientation.Horizontal) {
+            viewportSize.width
+        } else {
+            viewportSize.height
+        }
+        val nativeViewportSize = kuiklyInfo.viewportSize
+
+        if (isSnapLayoutSizeUnstable(measureViewportSize, nativeViewportSize)) {
+            pagerSnapDebugLog {
+                "skipWillDragEndSnapUnstableLayoutSize: " +
+                    "stateId=${this@handleTargetPageScroll.debugPagerStateId} " +
+                    "eventOrientation=$orientation measureOrientation=${pagerMeasureResult.orientation} " +
+                    "targetPage=$targetPage measureViewportSize=$measureViewportSize " +
+                    "nativeViewportSize=$nativeViewportSize pageSize=$pageSize " +
+                    "pageSpacing=$pageSpacing pageSizeWithSpacing=$pageSizeWithSpacing " +
+                    "nativeOffset=$nativeOffset nativeTargetOffset=$nativeTargetOffset " +
+                    "kuiklyContentOffset=${kuiklyInfo.contentOffset} " +
+                    "composeOffset=${kuiklyInfo.composeOffset.toInt()} " +
+                    "currentContentSize=${kuiklyInfo.currentContentSize}"
+            }
+            return
+        }
 
         val maxOffset = kuiklyInfo.currentContentSize - kuiklyInfo.viewportSize
-        var targetOffset = nextPage?.let { offset + it.offset }
+        val composeCandidateOffset = nextPage?.let { offset + it.offset }
+        val pageBoundaryOffset = pageSizeWithSpacing * targetPage
+        val nativeBoundaryOffset = if (pageSizeWithSpacing == 0) {
+            nativeTargetOffset
+        } else {
+            (nativeTargetOffset / pageSizeWithSpacing.toFloat()).roundToInt() * pageSizeWithSpacing
+        }
+        var targetOffset = composeCandidateOffset
             ?: (pageSizeWithSpacing * targetPage)
         targetOffset = min(targetOffset, maxOffset)
+
+        pagerSnapDebugLog {
+            "willDragEndSnap: stateId=${this@handleTargetPageScroll.debugPagerStateId} " +
+                "eventOrientation=$orientation measureOrientation=${pagerMeasureResult.orientation} " +
+                "targetPage=$targetPage targetOffset=$targetOffset " +
+                "composeCandidateOffset=$composeCandidateOffset pageBoundaryOffset=$pageBoundaryOffset " +
+                "nativeOffset=$nativeOffset kuiklyContentOffset=${kuiklyInfo.contentOffset} " +
+                "nativeTargetOffset=$nativeTargetOffset nativeBoundaryOffset=$nativeBoundaryOffset " +
+                "composeOffset=$offset nextPageOffset=${nextPage?.offset} " +
+                "stateCurrentPage=${this@handleTargetPageScroll.currentPage} " +
+                "stateFirstVisiblePage=${this@handleTargetPageScroll.firstVisiblePage} " +
+                "measureCurrentPage=${currentPage?.index} measureFirstVisiblePage=${firstVisiblePage?.index} " +
+                "pageSizeWithSpacing=$pageSizeWithSpacing maxOffset=$maxOffset " +
+                "nextPageFound=${nextPage != null}"
+        }
+        this@handleTargetPageScroll.markSnapAnimationStarted(targetOffset)
 
         val springAnimation = SpringAnimation(
             ScrollableStateConstants.SPRING_ANIMATION_DURATION,
             ScrollableStateConstants.SPRING_ANIMATION_DAMPING,
             if (orientation == Orientation.Horizontal) params.velocityX else params.velocityY
         )
+
         val targetOffsetDp = targetOffset / density
 
         if (orientation == Orientation.Horizontal) {
@@ -106,10 +170,18 @@ private fun PagerState.handleTargetPageScroll(
     }
 }
 
+private fun isSnapLayoutSizeUnstable(measureViewportSize: Int, nativeViewportSize: Int): Boolean {
+    return nativeViewportSize > 0 &&
+        measureViewportSize > 0 &&
+        abs(measureViewportSize - nativeViewportSize) > SNAP_LAYOUT_SIZE_TOLERANCE
+}
+
+private const val SNAP_LAYOUT_SIZE_TOLERANCE = 1
+
 /**
  * Converts AnimationSpec<Float> to SpringAnimation
  * This is a temporary solution that mainly supports animation duration and basic animation curves
- * 
+ *
  * @param animationSpec The animation spec to convert
  * @param initialValue Initial value (used for calculating SpringSpec duration)
  * @param targetValue Target value (used for calculating SpringSpec duration)
@@ -136,7 +208,7 @@ internal fun convertAnimationSpecToSpringAnimation(
             // SpringSpec is physics-based, so duration needs to be calculated from spring parameters
             // Note: getDurationMillis may involve complex calculations (Newton's method, etc.),
             // but it's only called once per animateScrollToPage, not per frame
-            val vectorizedSpec: VectorizedAnimationSpec<AnimationVector1D> = 
+            val vectorizedSpec: VectorizedAnimationSpec<AnimationVector1D> =
                 animationSpec.vectorize<AnimationVector1D>(Float.VectorConverter)
             val initialVector = AnimationVector1D(initialValue)
             val targetVector = AnimationVector1D(targetValue)
@@ -157,4 +229,4 @@ internal fun convertAnimationSpecToSpringAnimation(
             null
         }
     }
-} 
+}

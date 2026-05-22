@@ -54,3 +54,4 @@ proto/**/*.kt
 /logs/
 /iosApp/logs/
 /.claude-internal
+/.cursor/

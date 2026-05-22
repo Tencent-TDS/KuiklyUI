@@ -54,6 +54,7 @@ import com.tencent.kuikly.compose.ui.text.font.FontWeight
 import com.tencent.kuikly.compose.ui.unit.Dp
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
+import com.tencent.kuikly.compose.ui.semantics.semantics
 import com.tencent.kuikly.compose.ui.semantics.testTag
 import com.tencent.kuikly.core.annotations.Page
 
@@ -252,18 +253,18 @@ private fun StatePreservationDemo() {
             ) {
                 Button(
                     onClick = { count++ },
-                    modifier = Modifier.testTag("demo2_btn_increment"),
+                    modifier = Modifier.semantics { testTag = "demo2_btn_increment" },
                 ) { Text("+") }
                 Text(
                     "计数: $count",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF673AB7),
-                    modifier = Modifier.testTag("demo2_counter_text"),
+                    modifier = Modifier.semantics { testTag = "demo2_counter_text" },
                 )
                 Button(
                     onClick = { count-- },
-                    modifier = Modifier.testTag("demo2_btn_decrement"),
+                    modifier = Modifier.semantics { testTag = "demo2_btn_decrement" },
                 ) { Text("-") }
             }
         }
@@ -272,7 +273,7 @@ private fun StatePreservationDemo() {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Button(
             onClick = { isTop = !isTop },
-            modifier = Modifier.testTag("demo2_btn_move"),
+            modifier = Modifier.semantics { testTag = "demo2_btn_move" },
         ) {
             Text(if (isTop) "移到底部" else "移到顶部")
         }
@@ -446,12 +447,12 @@ private fun CrossContainerMoveDemo() {
                     "切换次数: $toggleCount",
                     fontSize = 14.sp,
                     color = Color(0xFF388E3C),
-                    modifier = Modifier.testTag("demo5_toggle_count_text"),
+                    modifier = Modifier.semantics { testTag = "demo5_toggle_count_text" },
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Button(
                     onClick = { toggleCount++ },
-                    modifier = Modifier.testTag("demo5_btn_increment"),
+                    modifier = Modifier.semantics { testTag = "demo5_btn_increment" },
                 ) { Text("点击+1") }
             }
         }
@@ -460,7 +461,7 @@ private fun CrossContainerMoveDemo() {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Button(
             onClick = { inLeft = !inLeft },
-            modifier = Modifier.testTag("demo5_btn_move_panel"),
+            modifier = Modifier.semantics { testTag = "demo5_btn_move_panel" },
         ) {
             Text(if (inLeft) "移到右面板" else "移到左面板")
         }
@@ -566,7 +567,7 @@ private fun VideoViewMoveDemo() {
         ) {
             Button(
                 onClick = { isTop = !isTop; moveCount++ },
-                modifier = Modifier.testTag("demo6_btn_move"),
+                modifier = Modifier.semantics { testTag = "demo6_btn_move" },
             ) {
                 Text(if (isTop) "移到下方" else "移到上方")
             }
@@ -575,19 +576,19 @@ private fun VideoViewMoveDemo() {
                     "移动次数: $moveCount",
                     fontSize = 12.sp,
                     color = Color(0xFF555555),
-                    modifier = Modifier.testTag("demo6_move_count_text"),
+                    modifier = Modifier.semantics { testTag = "demo6_move_count_text" },
                 )
                 Text(
                     "播放进度: ${playTimeMs / 1000}s",
                     fontSize = 12.sp,
                     color = Color(0xFF1565C0),
-                    modifier = Modifier.testTag("demo6_play_time_text"),
+                    modifier = Modifier.semantics { testTag = "demo6_play_time_text" },
                 )
                 Text(
                     statusText,
                     fontSize = 12.sp,
                     color = Color(0xFF388E3C),
-                    modifier = Modifier.testTag("demo6_status_text"),
+                    modifier = Modifier.semantics { testTag = "demo6_status_text" },
                 )
             }
         }

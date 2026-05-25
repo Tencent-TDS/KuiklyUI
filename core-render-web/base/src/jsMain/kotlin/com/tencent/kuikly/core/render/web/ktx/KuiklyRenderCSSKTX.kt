@@ -1060,9 +1060,9 @@ fun setPlaceholderColor(el: HTMLElement, color: String) {
 }
 
 /**
- * Set selection highlight color
+ * Set selection color
  */
-fun setSelectionHighlightColor(el: HTMLElement, color: String) {
+fun setSelectionColor(el: HTMLElement, color: String) {
     val uniqueClass = "selcolor_" + kotlin.random.Random.nextInt(1_000_000)
     el.classList.add(uniqueClass)
 

@@ -162,7 +162,7 @@ class TextFieldDemo : ComposeContainer() {
                                 onValueChange = {
                                     text2 = it
                                 },
-                                selectionHighlightColor = Color.Yellow,
+                                selectionColor = Color.Yellow,
                                 modifier = Modifier.padding(16.dp).fillMaxWidth(),
                             )
                             Box(

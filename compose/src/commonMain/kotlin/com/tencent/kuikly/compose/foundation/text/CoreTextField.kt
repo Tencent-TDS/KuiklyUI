@@ -174,7 +174,7 @@ internal fun CoreTextField(
     maxLength: Int? = null,
     lengthLimitType: LengthLimitType? = null,
     onLimitChange: ((length: Int, limit: Boolean) -> Unit)? = null,
-    selectionHighlightColor: Color? = null,
+    selectionColor: Color? = null,
 ) {
     val compositeKeyHash = currentCompositeKeyHash
     val localMap = currentComposer.currentCompositionLocalMap
@@ -530,10 +530,10 @@ internal fun CoreTextField(
                             }
                         }
                     }
-                    set(selectionHighlightColor) {
-                        if (selectionHighlightColor != null) {
+                    set(selectionColor) {
+                        if (selectionColor != null) {
                             withTextAreaView {
-                                getViewAttr().selectionHighlightColor(selectionHighlightColor.toKuiklyColor())
+                                getViewAttr().selectionColor(selectionColor.toKuiklyColor())
                             }
                         }
                     }

@@ -58,7 +58,7 @@ void KRTextAreaView::UpdateInputNodeCaretrColor(const std::string &propValue) {
     ArkUI_AttributeItem item = {&value, sizeof(ArkUI_NumberValue)};
     kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_AREA_CARET_COLOR, &item);
 }
-void KRTextAreaView::UpdateInputNodeSelectionHighlightColor(const std::string &propValue) {
+void KRTextAreaView::UpdateInputNodeSelectionColor(const std::string &propValue) {
     uint32_t color = kuikly::util::ConvertToHexColor(propValue);
     // 限制alpha不超过0x66(约40%透明度)，避免选中高亮完全覆盖文字
     uint32_t alpha = (color >> 24) & 0xFF;

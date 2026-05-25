@@ -212,7 +212,7 @@ fun TextField(
     interactionSource: MutableInteractionSource? = null,
     shape: Shape = TextFieldDefaults.shape,
     colors: TextFieldColors = TextFieldDefaults.colors(),
-    selectionHighlightColor: Color? = null,
+    selectionColor: Color? = null,
 ) {
     @Suppress("NAME_SHADOWING")
     val interactionSource = interactionSource ?: remember { MutableInteractionSource() }
@@ -239,7 +239,7 @@ fun TextField(
             readOnly = readOnly,
             textStyle = mergedTextStyle,
             cursorBrush = SolidColor(colors.cursorColor(isError)),
-            selectionHighlightColor = selectionHighlightColor,
+            selectionColor = selectionColor,
             visualTransformation = visualTransformation,
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,

@@ -46,8 +46,8 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  NSNumber *KUIKLY_PROP(lengthLimitType);
 /** attr is tint color */
 @property (nonatomic, strong, readwrite) NSString *KUIKLY_PROP(tintColor);
-/** attr is selection highlight color */
-@property (nonatomic, strong, readwrite) NSString *KUIKLY_PROP(selectionHighlightColor);
+/** attr is selection color */
+@property (nonatomic, strong, readwrite) NSString *KUIKLY_PROP(selectionColor);
 /** attr is color */
 @property (nonatomic, strong, readwrite) NSString *KUIKLY_PROP(color);
 /** attr is editable */
@@ -87,7 +87,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     /** 显式设置的光标颜色 */
     UIColor *_cursorColor;
     /** 显式设置的选中高亮颜色 */
-    UIColor *_selectionHighlightColor;
+    UIColor *_selectionColor;
 }
 @synthesize hr_rootView;
 #pragma mark - init
@@ -173,19 +173,19 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 
 - (void)setCss_tintColor:(NSNumber *)css_tintColor {
     _cursorColor = [UIView css_color:css_tintColor];
-    if (!_selectionHighlightColor) {
+    if (!_selectionColor) {
         self.tintColor = _cursorColor;
     } else {
         [self p_applyNativeCursorColorIfNeeded];
     }
 }
 
-- (void)setCss_selectionHighlightColor:(NSNumber *)css_selectionHighlightColor {
-    _selectionHighlightColor = [UIView css_color:css_selectionHighlightColor];
+- (void)setCss_selectionColor:(NSNumber *)css_selectionColor {
+    _selectionColor = [UIView css_color:css_selectionColor];
     if (!_cursorColor) {
         _cursorColor = self.tintColor; // 保存当前光标颜色（可能是默认值）
     }
-    self.tintColor = _selectionHighlightColor;
+    self.tintColor = _selectionColor;
     [self p_applyNativeCursorColorIfNeeded];
 }
 
@@ -286,7 +286,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 
 - (BOOL)becomeFirstResponder {
     BOOL result = [super becomeFirstResponder];
-    if (result && _cursorColor && _selectionHighlightColor) {
+    if (result && _cursorColor && _selectionColor) {
         if (@available(iOS 17.0, *)) {
             // iOS 17+ 已通过 insertionPointColor 设置光标颜色，无需手动修复
         } else {
@@ -309,7 +309,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
                                                                             attributes:@{NSForegroundColorAttributeName:color?: [UIColor clearColor],
                                                                                          NSFontAttributeName:font}];
     }
-    if (_cursorColor && _selectionHighlightColor) {
+    if (_cursorColor && _selectionColor) {
         if (@available(iOS 17.0, *)) {
             // iOS 17+ 已通过 insertionPointColor 设置光标颜色，无需手动遍历修复
         } else {

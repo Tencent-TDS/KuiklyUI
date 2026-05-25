@@ -213,8 +213,8 @@ void UpdateInputNodePlaceholderColor(ArkUI_NodeHandle node, uint32_t placeholder
 // 光标颜色
 void UpdateInputNodeCaretrColor(ArkUI_NodeHandle node, uint32_t caret_color);
 
-// 选中高亮颜色
-void UpdateInputNodeSelectionHighlightColor(ArkUI_NodeHandle node, uint32_t color);
+// 选中颜色
+void UpdateInputNodeSelectionColor(ArkUI_NodeHandle node, uint32_t color);
 
 // 文本对齐
 void UpdateInputNodeTextAlign(ArkUI_NodeHandle node, const std::string &text_align);

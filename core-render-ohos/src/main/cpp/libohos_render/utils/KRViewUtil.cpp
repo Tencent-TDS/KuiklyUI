@@ -958,7 +958,7 @@ void UpdateInputNodeCaretrColor(ArkUI_NodeHandle node, uint32_t caret_color) {
     GetNodeApi()->setAttribute(node, NODE_TEXT_INPUT_CARET_COLOR, &item);
 }
 
-void UpdateInputNodeSelectionHighlightColor(ArkUI_NodeHandle node, uint32_t color) {
+void UpdateInputNodeSelectionColor(ArkUI_NodeHandle node, uint32_t color) {
     // 限制alpha不超过0x66(约40%透明度)，避免选中高亮完全覆盖文字
     uint32_t alpha = (color >> 24) & 0xFF;
     if (alpha > 0x66) {

@@ -4,7 +4,7 @@ import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.web.ktx.kuiklyDocument
 import com.tencent.kuikly.core.render.web.ktx.setPlaceholderColor
-import com.tencent.kuikly.core.render.web.ktx.setSelectionHighlightColor
+import com.tencent.kuikly.core.render.web.ktx.setSelectionColor
 import com.tencent.kuikly.core.render.web.ktx.toNumberFloat
 import com.tencent.kuikly.core.render.web.ktx.toPxF
 import com.tencent.kuikly.core.render.web.ktx.toRgbColor
@@ -131,8 +131,8 @@ class KRTextAreaView : IKuiklyRenderViewExport {
                 true
             }
 
-            SELECTION_HIGHLIGHT_COLOR -> {
-                setSelectionHighlightColor(ele, propValue.unsafeCast<String>().toRgbColor())
+            SELECTION_COLOR -> {
+                setSelectionColor(ele, propValue.unsafeCast<String>().toRgbColor())
                 true
             }
 
@@ -397,7 +397,7 @@ class KRTextAreaView : IKuiklyRenderViewExport {
         private const val FONT_SIZE = "fontSize"
         private const val FONT_WEIGHT = "fontWeight"
         private const val TINT_COLOR = "tintColor"
-        private const val SELECTION_HIGHLIGHT_COLOR = "selectionHighlightColor"
+        private const val SELECTION_COLOR = "selectionColor"
         private const val MAX_TEXT_LENGTH = "maxTextLength"
         private const val AUTO_FOCUS = "autofocus"
         private const val EDIT_ABLE = "editable"

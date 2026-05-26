@@ -67,6 +67,7 @@ class ArkUINativeNodeAPI {
     void unregisterNodeEvent(ArkUI_NodeHandle node, ArkUI_NodeEventType eventType);
     void markDirty(ArkUI_NodeHandle node, ArkUI_NodeDirtyFlag dirtyFlag);
     uint32_t getTotalChildCount(ArkUI_NodeHandle node);
+    ArkUI_NodeHandle getChildAt(ArkUI_NodeHandle node, int32_t position);
     int32_t registerNodeCustomEvent(ArkUI_NodeHandle node, ArkUI_NodeCustomEventType eventType, int32_t targetId,
                                     void *userData);
     void unregisterNodeCustomEvent(ArkUI_NodeHandle node, ArkUI_NodeCustomEventType eventType);

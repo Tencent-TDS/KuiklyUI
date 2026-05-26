@@ -131,6 +131,7 @@ class KRScrollerView : public IKRRenderViewExport {
     void AdjustHeaderBouncesEnableWhenWillScroll(ArkUI_NodeEvent *event);
     void DispatchDidScrollToObservers(KRPoint point);
     bool SetFlingEnable(bool enable);
+    bool HasEnoughVisibleContentViews();
 
  private:
     KRRenderCallback on_scroll_callback_ = nullptr;

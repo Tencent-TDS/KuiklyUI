@@ -15,6 +15,7 @@
 
 #include "IKRRenderViewExport.h"
 
+#include <chrono>
 #include "libohos_render/api/include/Kuikly/Kuikly.h"
 #include "libohos_render/api/src/KRAnyDataInternal.h"
 #include "libohos_render/manager/KRSnapshotManager.h"
@@ -167,6 +168,7 @@ void IKRRenderViewExport::ToSetProp(const std::string &prop_key, const KRAnyValu
     if (node_ == nullptr) {
         return;
     }
+
     // 把设置过的key收集下, 以便ResetProp
     if (CanReuse()) {
         CollectReuseKeyIfNeed(prop_key);
@@ -184,10 +186,12 @@ void IKRRenderViewExport::ToSetProp(const std::string &prop_key, const KRAnyValu
             SetRenderViewFrame(frame_);
         }
     }
+
     if (!didHanded && base_event_handler_ != nullptr) {
         didHanded = base_event_handler_->SetProp(shared_from_this(), prop_key, prop_value,
                                                  event_call_back);  // 基础事件分发处理
     }
+
     if (!didHanded) {
         if (!SetProp(prop_key, prop_value, event_call_back)) {
             // prop not handled, pass it forward to extern handler

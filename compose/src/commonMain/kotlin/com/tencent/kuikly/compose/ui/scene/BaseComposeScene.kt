@@ -29,7 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.tooling.CompositionObserverHandle
-import androidx.compose.runtime.tooling.observe
+import androidx.compose.runtime.tooling.setObserver
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.GlobalSnapshotManager
 import com.tencent.kuikly.compose.ui.InternalComposeUiApi
@@ -281,7 +281,7 @@ internal abstract class BaseComposeScene(
         val listener = object : RecompositionProfiler.ProfilerLifecycleListener {
             override fun onProfilerStarted(tracker: RecompositionTracker) {
                 compositionObserverHandle?.dispose()
-                compositionObserverHandle = comp.observe(tracker.compositionObserver)
+                compositionObserverHandle = comp.setObserver(tracker.compositionObserver)
             }
 
             override fun onProfilerStopped() {

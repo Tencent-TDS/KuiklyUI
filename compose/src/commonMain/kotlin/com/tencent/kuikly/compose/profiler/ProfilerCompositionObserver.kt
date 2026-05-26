@@ -15,30 +15,22 @@
 
 package com.tencent.kuikly.compose.profiler
 
-import androidx.compose.runtime.Composition
 import androidx.compose.runtime.ExperimentalComposeRuntimeApi
 import androidx.compose.runtime.RecomposeScope
 import androidx.compose.runtime.tooling.CompositionObserver
-import androidx.compose.runtime.tooling.CompositionObserverHandle
-import androidx.compose.runtime.tooling.RecomposeScopeObserver
-import androidx.compose.runtime.tooling.observe
+import androidx.compose.runtime.tooling.ObservableComposition
 
 /**
  * CompositionObserver implementation for precise recomposition reason tracking.
  *
- * Leverages [CompositionObserver.onBeginComposition]'s `invalidationMap` to determine
- * exactly which State objects triggered each RecomposeScope's invalidation.
- * Combined with [RecomposeScopeObserver] to maintain an active scope stack,
- * this allows [RecompositionTracker] to associate precise trigger states
- * with each Composable (via the CompositionTracer bridge).
+ * Runtime 1.9+ uses [CompositionObserver.onScopeInvalidated] and scope enter/exit callbacks
+ * instead of the pre-1.9 invalidationMap + [RecomposeScopeObserver] stack.
  *
  * Data flow:
- * 1. `onBeginComposition(invalidationMap)` → save scope→states mapping
- * 2. `RecomposeScopeObserver.onBeginScopeComposition(scope)` → push to active stack
- * 3. `CompositionTracer.traceEventStart(key, info)` → tracker records composable start
- * 4. `CompositionTracer.traceEventEnd()` → tracker queries [getCurrentScopeTriggerStates]
- * 5. `RecomposeScopeObserver.onEndScopeComposition(scope)` → pop from active stack
- * 6. `onEndComposition()` → cleanup
+ * 1. `onScopeInvalidated` → accumulate scope→states mapping between compositions
+ * 2. `onBeginComposition` → promote pending invalidations to [scopeToStatesMap]
+ * 3. `onScopeEnter` / `onScopeExit` → maintain active scope stack
+ * 4. `CompositionTracer.traceEventStart/End` → tracker queries [getCurrentScopeTriggerStates]
  */
 @OptIn(ExperimentalComposeRuntimeApi::class)
 internal class ProfilerCompositionObserver(
@@ -47,21 +39,19 @@ internal class ProfilerCompositionObserver(
 
     /**
      * Current frame's precise scope → trigger states mapping.
-     * Populated by [onBeginComposition], cleared by [onEndComposition].
+     * Populated at [onBeginComposition], cleared at [onEndComposition].
      */
     private val scopeToStatesMap = mutableMapOf<RecomposeScope, Set<Any>?>()
 
     /**
-     * Active scope stack. Maintained by [RecomposeScopeObserver] callbacks.
-     * The top of the stack is the currently executing scope.
+     * Invalidations recorded between composition passes via [onScopeInvalidated].
      */
-    private val activeScopeStack = mutableListOf<RecomposeScope>()
+    private val pendingInvalidations = mutableMapOf<RecomposeScope, MutableSet<Any?>>()
 
     /**
-     * Handles for scope observers registered in the current composition pass.
-     * Disposed at the end of composition to avoid leaks.
+     * Active scope stack. Maintained by [onScopeEnter] / [onScopeExit].
      */
-    private val scopeObserverHandles = mutableListOf<CompositionObserverHandle>()
+    private val activeScopeStack = mutableListOf<RecomposeScope>()
 
     /**
      * Whether precise scope→state mapping is available for the current composition pass.
@@ -69,50 +59,54 @@ internal class ProfilerCompositionObserver(
     internal var hasPreciseMapping: Boolean = false
         private set
 
-    override fun onBeginComposition(
-        composition: Composition,
-        invalidationMap: Map<RecomposeScope, Set<Any>?>
-    ) {
-        // Clean up previous scope observer handles
-        for (handle in scopeObserverHandles) {
-            handle.dispose()
-        }
-        scopeObserverHandles.clear()
-
-        // Save precise scope → states mapping
+    override fun onBeginComposition(composition: ObservableComposition) {
         scopeToStatesMap.clear()
-        scopeToStatesMap.putAll(invalidationMap)
+        for ((scope, values) in pendingInvalidations) {
+            val nonNullValues = values.filterNotNull().toSet()
+            scopeToStatesMap[scope] = when {
+                values.contains(null) && nonNullValues.isEmpty() -> null
+                nonNullValues.isEmpty() -> null
+                else -> nonNullValues
+            }
+        }
+        pendingInvalidations.clear()
 
         activeScopeStack.clear()
-        hasPreciseMapping = true
+        hasPreciseMapping = scopeToStatesMap.isNotEmpty()
 
-        // Register RecomposeScopeObserver for each invalidated scope
-        // This is necessary so that onBeginScopeComposition/onEndScopeComposition
-        // are called by the runtime when each scope's compose lambda executes.
-        val scopeObserver = ScopeObserver()
-        for ((scope, _) in invalidationMap) {
-            val handle = scope.observe(scopeObserver)
-            scopeObserverHandles.add(handle)
-        }
-
-        // Notify tracker
         tracker.onCompositionObserverBegin()
     }
 
-    override fun onEndComposition(composition: Composition) {
-        // Notify tracker
+    override fun onScopeEnter(scope: RecomposeScope) {
+        activeScopeStack.add(scope)
+    }
+
+    override fun onReadInScope(scope: RecomposeScope, value: Any) {
+        // Reads are tracked separately by Snapshot observers in RecompositionTracker.
+    }
+
+    override fun onScopeExit(scope: RecomposeScope) {
+        val idx = activeScopeStack.lastIndexOf(scope)
+        if (idx >= 0) {
+            activeScopeStack.removeAt(idx)
+        }
+    }
+
+    override fun onEndComposition(composition: ObservableComposition) {
         tracker.onCompositionObserverEnd()
 
-        // Dispose scope observer handles
-        for (handle in scopeObserverHandles) {
-            handle.dispose()
-        }
-        scopeObserverHandles.clear()
-
-        // Cleanup frame-level data
         activeScopeStack.clear()
         scopeToStatesMap.clear()
         hasPreciseMapping = false
+    }
+
+    override fun onScopeInvalidated(scope: RecomposeScope, value: Any?) {
+        pendingInvalidations.getOrPut(scope) { mutableSetOf() }.add(value)
+    }
+
+    override fun onScopeDisposed(scope: RecomposeScope) {
+        scopeToStatesMap.remove(scope)
+        pendingInvalidations.remove(scope)
     }
 
     /**
@@ -123,81 +117,28 @@ internal class ProfilerCompositionObserver(
 
     /**
      * Get the precise trigger states for the currently active scope (top of stack).
-     *
-     * **语义说明：**
-     * 返回的 State 列表含义是"该 scope 依赖的 State 中，本次 Snapshot.apply 批次里发生了值变化的那些"，
-     * 即 `invalidationMap[scope]` 的内容。
-     *
-     * 底层来源（Composition.kt `invalidateChecked`）：每当某个 State 变化时，Runtime 调用
-     * `invalidations.add(scope, instance)` 将该 State 记录为触发该 scope 失效的原因。
-     * `invalidationMap[scope]` = 本次 apply 批次中，所有「变化了」且「被该 scope 读取」的 State。
-     *
-     * 常见的"多 State 出现"原因：
-     * - 同一个事件 lambda 中同时修改了多个 State（如 `clickCount++; userName = ...`），
-     *   它们在同一次 Snapshot.apply 中被 commit，该 scope 依赖的所有这些 State 都会出现；
-     * - 子组件 scope 也可能出现在 invalidationMap 中，携带父 scope 的 invalidation 原因。
-     *
-     * 这是 Compose Runtime API 的设计限制，无法从 `invalidationMap` 进一步细分
-     * "是哪个 State 才是真正触发这次重组的那一个"。
-     * 如需精确到参数级别，应结合 `paramChanges`（编译器 `$dirty` bitmask）判断。
-     *
-     * @return List of state identifiers that triggered the current scope's recomposition,
-     *         or null if no active scope / scope not in invalidationMap (e.g., initial composition).
      */
     fun getCurrentScopeTriggerStates(): List<String>? {
         val currentScope = activeScopeStack.lastOrNull() ?: return null
         val states = scopeToStatesMap[currentScope]
-        // states == null means forced recomposition (not in invalidationMap at all means initial)
         return if (states != null) {
             states.map { stateToString(it) }
         } else if (scopeToStatesMap.containsKey(currentScope)) {
-            // Key exists but value is null → forced recomposition
             listOf("[forced recomposition]")
         } else {
-            // Key doesn't exist → initial composition or child scope, no trigger info
             null
         }
     }
 
     /**
      * Get the raw trigger State objects for the currently active scope.
-     * Used by [RecompositionTracker] to register reader mappings with
-     * the human-readable Composable name from CompositionTracer info.
-     *
-     * @return Set of State objects that triggered the current scope, or null if unavailable.
      */
     fun getCurrentScopeTriggerStateObjects(): Set<Any>? {
         val currentScope = activeScopeStack.lastOrNull() ?: return null
         return scopeToStatesMap[currentScope]
     }
 
-    /**
-     * Convert a State object to a human-readable string identifier.
-     * Uses [StateIdentityRegistry] to produce "State(prev=x, now=y), readers: Name" format.
-     */
     private fun stateToString(state: Any): String {
         return tracker.stateIdentityRegistry.formatState(state)
-    }
-
-    /**
-     * Inner RecomposeScopeObserver that tracks scope enter/exit for stack maintenance.
-     */
-    private inner class ScopeObserver : RecomposeScopeObserver {
-
-        override fun onBeginScopeComposition(scope: RecomposeScope) {
-            activeScopeStack.add(scope)
-        }
-
-        override fun onEndScopeComposition(scope: RecomposeScope) {
-            // Remove from stack (should be the last element, but handle edge cases)
-            val idx = activeScopeStack.lastIndexOf(scope)
-            if (idx >= 0) {
-                activeScopeStack.removeAt(idx)
-            }
-        }
-
-        override fun onScopeDisposed(scope: RecomposeScope) {
-            scopeToStatesMap.remove(scope)
-        }
     }
 }

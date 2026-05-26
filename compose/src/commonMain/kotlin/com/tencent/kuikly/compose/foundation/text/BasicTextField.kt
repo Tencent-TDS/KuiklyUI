@@ -17,14 +17,11 @@
 package com.tencent.kuikly.compose.foundation.text
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import com.tencent.kuikly.compose.foundation.text.selection.LocalTextSelectionColors
-import com.tencent.kuikly.compose.foundation.text.selection.TextSelectionColors
 import com.tencent.kuikly.compose.extension.scaleToDensity
 import com.tencent.kuikly.compose.extension.textPostProcessor
 import com.tencent.kuikly.compose.foundation.interaction.MutableInteractionSource
@@ -101,7 +98,6 @@ fun BasicTextField(
     onTextLayout: (TextLayoutResult) -> Unit = {},
     interactionSource: MutableInteractionSource? = null,
     cursorBrush: Brush = SolidColor(Color.Black),
-    selectionColor: Color? = null,
     decorationBox: @Composable (innerTextField: @Composable () -> Unit) -> Unit =
         @Composable { innerTextField -> innerTextField() }
 ) {
@@ -109,49 +105,35 @@ fun BasicTextField(
         is TextPostProcessorOutputTransformation -> modifier.textPostProcessor(outputTransformation.processor)
         else -> modifier
     }
-    val coreTextField = @Composable {
-        CoreTextField(
-            value = TextFieldValue(
-                text = state.text,
-                selection = state.selection,
-                composition = state.composition
-            ),
-            onValueChange = { newValue ->
-                val buffer = TextFieldBuffer(newValue.text, newValue.selection, newValue.composition)
-                inputTransformation?.let {
-                    with(it) { buffer.transformInput() }
-                }
-                if (!buffer.hasReverted) {
-                    state.updateFromTextField(buffer.toString(), buffer.selection, buffer.composition)
-                }
-            },
-            modifier = transformedModifier,
-            textStyle = textStyle,
-            onTextLayout = onTextLayout,
-            interactionSource = interactionSource,
-            cursorBrush = cursorBrush,
-            singleLine = singleLine,
-            keyboardOptions = keyboardOptions,
-            keyboardActions = keyboardActions,
-            softWrap = !singleLine,
-            maxLines = if (singleLine) 1 else maxLines,
-            decorationBox = decorationBox,
-            enabled = enabled,
-            readOnly = readOnly,
-        )
-    }
-    if (selectionColor != null) {
-        CompositionLocalProvider(
-            LocalTextSelectionColors provides TextSelectionColors(
-                handleColor = selectionColor,
-                backgroundColor = selectionColor.copy(alpha = 0.4f)
-            )
-        ) {
-            coreTextField()
-        }
-    } else {
-        coreTextField()
-    }
+    CoreTextField(
+        value = TextFieldValue(
+            text = state.text,
+            selection = state.selection,
+            composition = state.composition
+        ),
+        onValueChange = { newValue ->
+            val buffer = TextFieldBuffer(newValue.text, newValue.selection, newValue.composition)
+            inputTransformation?.let {
+                with(it) { buffer.transformInput() }
+            }
+            if (!buffer.hasReverted) {
+                state.updateFromTextField(buffer.toString(), buffer.selection, buffer.composition)
+            }
+        },
+        modifier = transformedModifier,
+        textStyle = textStyle,
+        onTextLayout = onTextLayout,
+        interactionSource = interactionSource,
+        cursorBrush = cursorBrush,
+        singleLine = singleLine,
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
+        softWrap = !singleLine,
+        maxLines = if (singleLine) 1 else maxLines,
+        decorationBox = decorationBox,
+        enabled = enabled,
+        readOnly = readOnly,
+    )
 }
 
 /**
@@ -262,7 +244,6 @@ fun BasicTextField(
     onTextLayout: (TextLayoutResult) -> Unit = {},
     interactionSource: MutableInteractionSource? = null,
     cursorBrush: Brush = SolidColor(Color.Black),
-    selectionColor: Color? = null,
     decorationBox: @Composable (innerTextField: @Composable () -> Unit) -> Unit =
         @Composable { innerTextField -> innerTextField() }
 ) {
@@ -291,49 +272,35 @@ fun BasicTextField(
     // CoreTextField's onValueChange is called multiple times without recomposition in between.
     var lastTextValue by remember(value) { mutableStateOf(value) }
 
-    val coreTextField = @Composable {
-        CoreTextField(
-            value = textFieldValue,
-            onValueChange = { newTextFieldValueState ->
-                textFieldValueState = newTextFieldValueState
+    CoreTextField(
+        value = textFieldValue,
+        onValueChange = { newTextFieldValueState ->
+            textFieldValueState = newTextFieldValueState
 
-                val stringChangedSinceLastInvocation = lastTextValue != newTextFieldValueState.text
-                lastTextValue = newTextFieldValueState.text
+            val stringChangedSinceLastInvocation = lastTextValue != newTextFieldValueState.text
+            lastTextValue = newTextFieldValueState.text
 
-                if (stringChangedSinceLastInvocation) {
-                    onValueChange(newTextFieldValueState.text)
-                }
-            },
-            modifier = textFieldModifier,
-            textStyle = textStyle,
-            onTextLayout = onTextLayout,
-            interactionSource = interactionSource,
-            cursorBrush = cursorBrush,
-            singleLine = singleLine,
-            keyboardOptions = keyboardOptions,
-            keyboardActions = keyboardActions,
-            softWrap = !singleLine,
-            maxLines = if (singleLine) 1 else maxLines,
-            decorationBox = decorationBox,
-            enabled = enabled,
-            readOnly = readOnly,
-            maxLength = maxLengthElement?.maxLength,
-            lengthLimitType = maxLengthElement?.lengthLimitType,
-            onLimitChange = onLimitChangeElement?.onLimitChange,
-        )
-    }
-    if (selectionColor != null) {
-        CompositionLocalProvider(
-            LocalTextSelectionColors provides TextSelectionColors(
-                handleColor = selectionColor,
-                backgroundColor = selectionColor.copy(alpha = 0.4f)
-            )
-        ) {
-            coreTextField()
-        }
-    } else {
-        coreTextField()
-    }
+            if (stringChangedSinceLastInvocation) {
+                onValueChange(newTextFieldValueState.text)
+            }
+        },
+        modifier = textFieldModifier,
+        textStyle = textStyle,
+        onTextLayout = onTextLayout,
+        interactionSource = interactionSource,
+        cursorBrush = cursorBrush,
+        singleLine = singleLine,
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
+        softWrap = !singleLine,
+        maxLines = if (singleLine) 1 else maxLines,
+        decorationBox = decorationBox,
+        enabled = enabled,
+        readOnly = readOnly,
+        maxLength = maxLengthElement?.maxLength,
+        lengthLimitType = maxLengthElement?.lengthLimitType,
+        onLimitChange = onLimitChangeElement?.onLimitChange,
+    )
 }
 
 /**
@@ -437,7 +404,6 @@ fun BasicTextField(
     onTextLayout: (TextLayoutResult) -> Unit = {},
     interactionSource: MutableInteractionSource? = null,
     cursorBrush: Brush = SolidColor(Color.Black),
-    selectionColor: Color? = null,
     decorationBox: @Composable (innerTextField: @Composable () -> Unit) -> Unit =
         @Composable { innerTextField -> innerTextField() },
 ) {
@@ -446,44 +412,30 @@ fun BasicTextField(
         modifier.extractTextFieldMaxLengthElements()
     }
 
-    val coreTextField = @Composable {
-        CoreTextField(
-            value = value,
-            onValueChange = {
-                if (value != it) {
-                    onValueChange(it)
-                }
-            },
-            modifier = textFieldModifier,
-            textStyle = textStyle,
-            onTextLayout = onTextLayout,
-            interactionSource = interactionSource,
-            cursorBrush = cursorBrush,
-            singleLine = singleLine,
-            keyboardOptions = keyboardOptions,
-            keyboardActions = keyboardActions,
-            softWrap = !singleLine,
-            maxLines = if (singleLine) 1 else maxLines,
-            decorationBox = decorationBox,
-            enabled = enabled,
-            readOnly = readOnly,
-            maxLength = maxLengthElement?.maxLength,
-            lengthLimitType = maxLengthElement?.lengthLimitType,
-            onLimitChange = onLimitChangeElement?.onLimitChange,
-        )
-    }
-    if (selectionColor != null) {
-        CompositionLocalProvider(
-            LocalTextSelectionColors provides TextSelectionColors(
-                handleColor = selectionColor,
-                backgroundColor = selectionColor.copy(alpha = 0.4f)
-            )
-        ) {
-            coreTextField()
-        }
-    } else {
-        coreTextField()
-    }
+    CoreTextField(
+        value = value,
+        onValueChange = {
+            if (value != it) {
+                onValueChange(it)
+            }
+        },
+        modifier = textFieldModifier,
+        textStyle = textStyle,
+        onTextLayout = onTextLayout,
+        interactionSource = interactionSource,
+        cursorBrush = cursorBrush,
+        singleLine = singleLine,
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
+        softWrap = !singleLine,
+        maxLines = if (singleLine) 1 else maxLines,
+        decorationBox = decorationBox,
+        enabled = enabled,
+        readOnly = readOnly,
+        maxLength = maxLengthElement?.maxLength,
+        lengthLimitType = maxLengthElement?.lengthLimitType,
+        onLimitChange = onLimitChangeElement?.onLimitChange,
+    )
 }
 
 @Deprecated("Maintained for binary compatibility", level = DeprecationLevel.HIDDEN)

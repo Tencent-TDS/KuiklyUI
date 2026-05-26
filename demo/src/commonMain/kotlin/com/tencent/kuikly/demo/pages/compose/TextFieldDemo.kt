@@ -162,7 +162,6 @@ class TextFieldDemo : ComposeContainer() {
                                 onValueChange = {
                                     text2 = it
                                 },
-                                selectionColor = Color.Yellow,
                                 modifier = Modifier.padding(16.dp).fillMaxWidth(),
                             )
                             Box(

@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composition
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.CompositionLocalContext
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.PausableComposition
 import androidx.compose.runtime.ReusableComposition
 import com.tencent.kuikly.compose.KuiklyApplier
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
@@ -74,6 +75,15 @@ internal fun createSubcomposition(
     parent: CompositionContext,
 ): ReusableComposition =
     ReusableComposition(
+        KuiklyApplier(container) { },
+        parent,
+    )
+
+internal fun createPausableSubcomposition(
+    container: KNode<DeclarativeBaseView<*, *>>,
+    parent: CompositionContext,
+): PausableComposition =
+    PausableComposition(
         KuiklyApplier(container) { },
         parent,
     )

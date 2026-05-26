@@ -8,6 +8,7 @@ package com.tencent.kuikly.compose.foundation.lazy.layout
 
 import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
 import com.tencent.kuikly.compose.ui.util.traceValue
+import com.tencent.kuikly.core.datetime.DateTime
 import kotlin.math.max
 
 internal const val KUIKLY_PREFETCH_FRAME_INTERVAL_NS = 16_666_667L
@@ -56,13 +57,13 @@ internal class KuiklyPrefetchScheduler :
             if (available < SAFETY_BUDGET_NS) return 0L
         }
 
-        val startTime = System.nanoTime()
+        val startTime = DateTime.nanoTime()
         var scheduleForNextFrame = false
         while (queue.isNotEmpty() && !scheduleForNextFrame) {
             scheduleForNextFrame = runRequest()
         }
         traceValue("compose:lazy:prefetch:available_time_nanos", 0L)
-        return System.nanoTime() - startTime
+        return DateTime.nanoTime() - startTime
     }
 
     private fun runRequest(): Boolean {
@@ -91,7 +92,7 @@ internal class KuiklyPrefetchScheduler :
             if (isFrameIdle) {
                 Long.MAX_VALUE
             } else {
-                max(0, nextFrameTimeNs - System.nanoTime())
+                max(0L, nextFrameTimeNs - DateTime.nanoTime())
             }
     }
 }

@@ -43,6 +43,9 @@ import com.tencent.kuikly.compose.ui.input.pointer.ProcessResult
 import com.tencent.kuikly.compose.ui.node.InternalCoreApi
 import com.tencent.kuikly.compose.ui.node.LayoutNode
 import com.tencent.kuikly.compose.ui.node.SnapshotInvalidationTracker
+import com.tencent.kuikly.compose.foundation.lazy.layout.KUIKLY_PREFETCH_FRAME_INTERVAL_NS
+import com.tencent.kuikly.compose.foundation.lazy.layout.KUIKLY_PREFETCH_MAX_CONTINUATION_FRAMES
+import com.tencent.kuikly.compose.foundation.lazy.layout.KuiklyPrefetchScheduler
 import com.tencent.kuikly.compose.container.VsyncTickConditions
 import com.tencent.kuikly.compose.profiler.RecompositionProfiler
 import com.tencent.kuikly.compose.profiler.RecompositionTracker
@@ -63,8 +66,10 @@ internal abstract class BaseComposeScene(
     coroutineContext: CoroutineContext,
     val composeSceneContext: ComposeSceneContext,
     private val invalidate: () -> Unit,
+    internal val prefetchScheduler: KuiklyPrefetchScheduler? = null,
 ) : ComposeScene {
     private var paused = false
+    private var prefetchContinuationFrames = 0
 
     override val vsyncTickConditions =
         VsyncTickConditions { paused ->
@@ -203,13 +208,34 @@ internal abstract class BaseComposeScene(
             doLayout() // Layout
             recomposer.performScheduledEffects() // Composition effects (e.g. LaunchedEffect)
 
-            if (frameSampled) {
-                tracker?.onFrameEnd(0)
-            }
-
             inputHandler.updatePointerPosition() // Synthetic move event
             snapshotInvalidationTracker.onDraw()
             draw(KuiklyCanvas()) // Draw
+
+            val isFrameIdle =
+                vsyncTickConditions.needsToBeProactive &&
+                    vsyncTickConditions.scheduledRedrawsCount == 0
+            val prefetchSpentNs =
+                prefetchScheduler?.processRequests(
+                    nanoTime,
+                    KUIKLY_PREFETCH_FRAME_INTERVAL_NS,
+                    isFrameIdle,
+                ) ?: 0L
+
+            if (frameSampled) {
+                tracker?.onFrameEnd((prefetchSpentNs / 1_000_000L).toInt())
+            }
+
+            if (
+                prefetchScheduler?.hasPendingWork() == true &&
+                    vsyncTickConditions.needsToBeProactive &&
+                    prefetchContinuationFrames < KUIKLY_PREFETCH_MAX_CONTINUATION_FRAMES
+            ) {
+                vsyncTickConditions.needRedraw()
+                prefetchContinuationFrames++
+            } else {
+                prefetchContinuationFrames = 0
+            }
         }
 
         // 在 postponeInvalidation 之后（isInvalidationDisabled 已恢复 false），

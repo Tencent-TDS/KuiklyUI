@@ -27,6 +27,7 @@ import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.IntRect
 import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
+import com.tencent.kuikly.compose.foundation.lazy.layout.KuiklyPrefetchScheduler
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 import kotlin.coroutines.CoroutineContext
 
@@ -40,6 +41,7 @@ internal fun KuiklyComposeScene(
     coroutineContext: CoroutineContext,
     composeSceneContext: ComposeSceneContext = ComposeSceneContext.Empty,
     invalidate: () -> Unit = {},
+    prefetchScheduler: KuiklyPrefetchScheduler? = null,
     ): ComposeScene = KuiklyComposeSceneImpl(
         boundsInWindow = boundsInWindow,
         density = density,
@@ -48,6 +50,7 @@ internal fun KuiklyComposeScene(
         composeSceneContext = composeSceneContext,
         invalidate = invalidate,
         rootKView = rootKView,
+        prefetchScheduler = prefetchScheduler,
     )
 
 
@@ -60,10 +63,12 @@ private class KuiklyComposeSceneImpl @InternalComposeUiApi constructor(
     composeSceneContext: ComposeSceneContext,
     private val invalidate: () -> Unit,
     private val rootKView: DeclarativeBaseView<*, *>,
+    prefetchScheduler: KuiklyPrefetchScheduler? = null,
 ) : BaseComposeScene(
     coroutineContext = coroutineContext,
     composeSceneContext = composeSceneContext,
-    invalidate = invalidate
+    invalidate = invalidate,
+    prefetchScheduler = prefetchScheduler,
 ) {
     private val mainOwner by lazy {
         RootNodeOwner(

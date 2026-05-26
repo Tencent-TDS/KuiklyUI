@@ -20,6 +20,7 @@ package com.tencent.kuikly.compose.foundation.lazy.layout
 
 import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 
 /**
  * Remembers the platform-specific implementation for scheduling lazy layout item prefetch
@@ -27,7 +28,8 @@ import androidx.compose.runtime.Composable
  */
 @ExperimentalFoundationApi
 @Composable
-internal expect fun rememberDefaultPrefetchScheduler(): PrefetchScheduler
+internal fun rememberDefaultPrefetchScheduler(): PrefetchScheduler =
+    LocalKuiklyPrefetchScheduler.current
 
 /**
  * Implementations of this interface accept prefetch requests via [schedulePrefetch] and decide when

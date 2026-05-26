@@ -63,7 +63,8 @@ class H5ListView : IListElement {
     // Current horizontal touch position
     private var touchEndX = 0f
     // Whether scrolling is enabled
-    private var scrollEnabled = true
+    internal var scrollEnabled = true
+        private set
     // Whether to show scrollbar
     private var showScrollerBar = true
     // Scroll direction
@@ -104,6 +105,11 @@ class H5ListView : IListElement {
     // Count of clicks on the current element, used to determine whether it's a double click
     private var clickCount = 0
 
+    // Set by [prepareForComposeReuse]; the next [setContentOffset] will proactively fire a
+    // scroll event even if the underlying scroll position is unchanged. This compensates
+    // for the browser/miniapp behavior of not dispatching `scroll` on no-op `scrollTo`.
+    private var pendingFireScrollForReuse: Boolean = false
+
     // real html element
     override var ele: HTMLElement = listEle.unsafeCast<HTMLElement>()
 
@@ -125,6 +131,9 @@ class H5ListView : IListElement {
     override var clickEventCallback: KuiklyRenderCallback? = null
 
     override var doubleClickEventCallback: KuiklyRenderCallback? = null
+    
+    // Whether this list has a pull-to-refresh child
+    override var hasPullToRefresh: Boolean = false
 
     var listPagingHelper: H5ListPagingHelper = H5ListPagingHelper(ele, this)
         private set
@@ -155,7 +164,28 @@ class H5ListView : IListElement {
     override fun setBounceEnable(params: Any): Boolean {
         bounceEnabled = params.unsafeCast<Int>() == KRListConst.ENABLED_FLAG
         listPagingHelper.bounceEnabled = bounceEnabled
+        // Apply overscroll-behavior to current scroll axis so non-paging mode is also controlled.
+        // Browser support: Android WebView 63+, iOS Safari 16+. Lower versions silently ignore it.
+        applyOverscrollBehavior()
         return true
+    }
+
+    /**
+     * Sync `overscroll-behavior-x/y` with current scrollDirection and bounceEnabled.
+     * - scroll axis: `auto` when bounceEnabled, otherwise `none` (disable native bounce / pull-to-refresh)
+     * - cross axis: keep `auto` (no extra constraint)
+     */
+    private fun applyOverscrollBehavior() {
+        val scrollAxisValue = if (bounceEnabled) OVERSCROLL_AUTO else OVERSCROLL_NONE
+        ele.style.apply {
+            if (scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN) {
+                setProperty(OVERSCROLL_BEHAVIOR_Y, scrollAxisValue)
+                setProperty(OVERSCROLL_BEHAVIOR_X, OVERSCROLL_AUTO)
+            } else {
+                setProperty(OVERSCROLL_BEHAVIOR_X, scrollAxisValue)
+                setProperty(OVERSCROLL_BEHAVIOR_Y, OVERSCROLL_AUTO)
+            }
+        }
     }
 
     override fun setNestedScroll(propValue: Any): Boolean {
@@ -195,6 +225,8 @@ class H5ListView : IListElement {
         scrollDirection = direction
         listPagingHelper.scrollDirection = scrollDirection
         nestScrollHelper.scrollDirection = scrollDirection
+        // Re-apply overscroll-behavior to the new scroll axis
+        applyOverscrollBehavior()
         return true
     }
 
@@ -202,17 +234,7 @@ class H5ListView : IListElement {
      * Check if it contains pull-to-refresh child node
      */
     private fun checkHasRefreshChild(): Boolean {
-        // Check the first child element to see if it's a pull-to-refresh node. Since the listView
-        // implementation wraps a ScrollContentView,
-        // which then wraps the actual scrollable content, we need to get the child node of ScrollContentView
-        val firstChild = ele.firstElementChild?.firstElementChild.unsafeCast<HTMLElement?>()
-
-        if (firstChild !== null) {
-            // Determine if the first child node is a pull-to-refresh node. This is a hardcoded way to check,
-            // todo: optimize for a more reasonable approach
-            return firstChild.style.transform.contains(KRListConst.REFRESH_CHILD_TRANSFORM)
-        }
-        return false
+        return hasPullToRefresh
     }
 
     override fun updateOffsetMap(offsetX: Float, offsetY: Float, isDragging: Int): MutableMap<String, Any> {
@@ -290,10 +312,8 @@ class H5ListView : IListElement {
             // Set end position before drag ends
             touchEndY = eventsParams[KRParamConst.Y].unsafeCast<Float>()
             // Set element's translate
-            ele.style.transform = buildTranslateY(deltaY)
-            // During pull-to-refresh, set overflow to visible, restore after pull-to-refresh completes
-            ele.style.overflowY = KRStyleConst.OVERFLOW_VISIBLE
-            ele.style.overflowX = KRStyleConst.OVERFLOW_VISIBLE
+            val contentEle = ele.firstElementChild.unsafeCast<HTMLElement?>()
+            contentEle?.style?.transform = buildTranslateY(deltaY)
             val offsetMap = updateOffsetMap(ele.scrollLeft.toFloat(), -deltaY, isDragging)
             // Notify
             scrollEventCallback?.invoke(offsetMap)
@@ -315,7 +335,8 @@ class H5ListView : IListElement {
             if (canPullRefreshHeight == 0f) {
                 // If at pull-to-refresh release but not reaching pull-to-refresh position,
                 // need to restore contentInset and scrolling
-                ele.style.transform = KRListConst.TRANSFORM_RESET
+                val contentEle = ele.firstElementChild.unsafeCast<HTMLElement?>()
+                contentEle?.style?.transform = KRListConst.TRANSFORM_RESET
                 // Handle extreme sliding in static sliding scenarios
                 if (scrollEnabled) {
                     if (scrollDirection == KRListConst.SCROLL_DIRECTION_COLUMN) {
@@ -327,13 +348,14 @@ class H5ListView : IListElement {
 
                 // remove transform attribute after transform end
                 kuiklyWindow.setTimeout({
-                    ele.style.transform = KRCssConst.EMPTY_STRING
+                    contentEle?.style?.transform = KRCssConst.EMPTY_STRING
                 }, KRListConst.IMMEDIATE_TIMEOUT)
             } else if (deltaY > canPullRefreshHeight) {
-                ele.style.transition = buildTransition()
+                val contentEle = ele.firstElementChild.unsafeCast<HTMLElement?>()
+                contentEle?.style?.transition = buildTransition()
                 // If at pull-to-refresh release and exceeding pull-to-refresh height,
                 // need to bounce back to pull-to-refresh height before refreshing
-                ele.style.transform = buildTranslateY(canPullRefreshHeight)
+                contentEle?.style?.transform = buildTranslateY(canPullRefreshHeight)
             }
             // If current scroll distance is 0 and starting to drag down, handle pull-to-refresh logic,
             // deltaY > 0 means pulling down
@@ -460,6 +482,7 @@ class H5ListView : IListElement {
                     isClickEvent = true
                 }, KRListConst.CLICK_DETECTION_TIMEOUT_TOUCH)
                 if (pagingEnabled) {
+                    if (!scrollEnabled) return@addEventListener
                     listPagingHelper.handlePagerTouchStart(it as TouchEvent)
                     return@addEventListener
                 }
@@ -478,6 +501,7 @@ class H5ListView : IListElement {
                 }
                 isClickEvent = false
                 if (pagingEnabled) {
+                    if (!scrollEnabled) return@addEventListener
                     listPagingHelper.handlePagerTouchMove(it as TouchEvent)
                     return@addEventListener
                 }
@@ -526,6 +550,7 @@ class H5ListView : IListElement {
                 // Initialize canScroll state
                 pcScrollHelper.initCanScroll(showScrollerBar)
                 if (pagingEnabled) {
+                    if (!scrollEnabled) return@addEventListener
                     listPagingHelper.handlePagerMouseDown(event)
                     return@addEventListener
                 }
@@ -566,6 +591,7 @@ class H5ListView : IListElement {
             // Handle paging mode with wheel event
             event as WheelEvent
             if (pagingEnabled) {
+                if (!scrollEnabled) return@addEventListener
                 var eps = 1.0; // depending on device sensitivity
                 val isVerticalScroll = event.deltaY.absoluteValue > event.deltaX.absoluteValue + eps
                 val isHorizontalScroll = event.deltaX.absoluteValue > event.deltaY.absoluteValue + eps
@@ -649,6 +675,23 @@ class H5ListView : IListElement {
         }
         if (pagingEnabled) {
             listPagingHelper.setContentOffset(offsetX, offsetY, animate)
+            // listPagingHelper.setContentOffset already invokes scrollEventCallback synchronously,
+            // but during Compose reuse the upper-layer scrollEventCallback may not yet be registered
+            // when this method runs (callback is registered later via listenScrollEvent in
+            // LaunchedEffect). Therefore we still need to async re-fire so the upper layer can
+            // clear ignoreScrollOffset.
+            if (pendingFireScrollForReuse) {
+                pendingFireScrollForReuse = false
+                kuiklyWindow.setTimeout({
+                    val cb = scrollEventCallback ?: return@setTimeout
+                    val map = updateOffsetMap(
+                        abs(listPagingHelper.currentTranslateX),
+                        abs(listPagingHelper.currentTranslateY),
+                        isDragging,
+                    )
+                    cb.invoke(map)
+                }, KRListConst.IMMEDIATE_TIMEOUT)
+            }
             return
         }
         // Scroll to specified distance
@@ -659,6 +702,31 @@ class H5ListView : IListElement {
                 if (animate) ScrollBehavior.SMOOTH else ScrollBehavior.AUTO
             )
         )
+        // After Compose DSL reuse, the upper layer sets `ignoreScrollOffset` and expects the
+        // next setContentOffset to fire a scroll event so the flag can be cleared. However,
+        // when the target offset equals the current scrollTop/scrollLeft, browsers won't
+        // dispatch a `scroll` event at all. To match iOS/Android semantics ("setContentOffset
+        // always triggers a scroll callback"), proactively fire one async scroll event.
+        if (pendingFireScrollForReuse) {
+            pendingFireScrollForReuse = false
+            kuiklyWindow.setTimeout({
+                val cb = scrollEventCallback ?: return@setTimeout
+                val map = updateOffsetMap(ele.scrollLeft.toFloat(), ele.scrollTop.toFloat(), isDragging)
+                cb.invoke(map)
+            }, KRListConst.IMMEDIATE_TIMEOUT)
+        }
+    }
+
+    /**
+     * Clear transient state for Compose DSL reuse.
+     *
+     * The actual "reset" web side needs is much smaller than native (no native cell pool here);
+     * the critical part is to make sure the *next* [setContentOffset] still fires a scroll
+     * event even if scrollTop/scrollLeft do not change, so that the upper-layer
+     * `ignoreScrollOffset` flag can be cleared.
+     */
+    override fun prepareForComposeReuse() {
+        pendingFireScrollForReuse = true
     }
 
     /**
@@ -688,13 +756,14 @@ class H5ListView : IListElement {
         // Complete setting asynchronously
         KuiklyRenderCoreContextScheduler.scheduleTask(KRListConst.IMMEDIATE_TIMEOUT) {
             // Use animation to set inset value if needed
-            ele.style.transition = if (contentInset.animate) {
+            val contentEle = ele.firstElementChild.unsafeCast<HTMLElement?>()
+            contentEle?.style?.transition = if (contentInset.animate) {
                 buildTransition()
             } else {
                 KRCssConst.EMPTY_STRING
             }
             // Set the value to complete
-            ele.style.transform = buildTranslate(contentInset.left, contentInset.top)
+            contentEle?.style?.transform = buildTranslate(contentInset.left, contentInset.top)
         }
     }
 
@@ -722,9 +791,10 @@ class H5ListView : IListElement {
             // so this value is not processed, only handle the value when preparing for pull-to-refresh
             KuiklyRenderCoreContextScheduler.scheduleTask(KRListConst.BOUND_BACK_DURATION.toInt()) {
                 // Clear animation
-                ele.style.transition = KRCssConst.EMPTY_STRING
+                val contentEle = ele.firstElementChild.unsafeCast<HTMLElement?>()
+                contentEle?.style?.transition = KRCssConst.EMPTY_STRING
                 // Delay setting inset value until pull-down animation completes
-                ele.style.transform = if (contentInset.left == 0f && contentInset.top == 0f) {
+                contentEle?.style?.transform = if (contentInset.left == 0f && contentInset.top == 0f) {
                     KRCssConst.EMPTY_STRING
                 } else {
                     transform
@@ -774,6 +844,12 @@ class H5ListView : IListElement {
 
         // CSS property names
         private const val TRANSFORM_PROPERTY = "transform"
+
+        // CSS overscroll-behavior property names and values, used to control native bounce/pull-to-refresh
+        private const val OVERSCROLL_BEHAVIOR_X = "overscroll-behavior-x"
+        private const val OVERSCROLL_BEHAVIOR_Y = "overscroll-behavior-y"
+        private const val OVERSCROLL_AUTO = "auto"
+        private const val OVERSCROLL_NONE = "none"
 
         // Helper functions for building CSS values
         private fun buildTranslateY(y: Any) = "translate(0, $y${KRStyleConst.PX_SUFFIX})"

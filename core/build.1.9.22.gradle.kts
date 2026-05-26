@@ -48,7 +48,7 @@ kotlin {
     }
 
     js(IR) {
-        moduleName = "KuiklyCore-core"
+        moduleName = "kuiklycore-core"
         browser {
             webpackTask {
                 outputFileName = "${moduleName}.js" // 最后输出的名字

@@ -31,6 +31,12 @@ interface IListElement {
     var doubleClickEventCallback: KuiklyRenderCallback?
 
     /**
+     * Whether this list has a pull-to-refresh child.
+     * Set by upper layers (ScrollerView / Compose / DSL RefreshView).
+     */
+    var hasPullToRefresh: Boolean
+
+    /**
      * Scroll element to specified position
      */
     fun setContentOffset(params: String?)
@@ -89,6 +95,17 @@ interface IListElement {
      * update offset
      */
     fun updateOffsetMap(offsetX: Float, offsetY: Float, isDragging: Int): MutableMap<String, Any>
+
+    /**
+     * Clear transient state for Compose DSL reuse (not the native reuse pool).
+     *
+     * After this is called, the next [setContentOffset] MUST asynchronously fire a scroll
+     * event even when the underlying offset is unchanged. This is required so that the
+     * upper-layer `ignoreScrollOffset` flag in SubcomposeLayout can be cleared; otherwise
+     * web/miniapp scroll-view's native silent behavior on no-op scrollTo would block all
+     * subsequent scroll events from reaching Compose.
+     */
+    fun prepareForComposeReuse()
 
     /**
      * Callback to be executed when component is destroyed

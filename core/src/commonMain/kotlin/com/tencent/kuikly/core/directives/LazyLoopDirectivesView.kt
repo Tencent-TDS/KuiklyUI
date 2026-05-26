@@ -207,12 +207,14 @@ class LazyLoopDirectivesView<T>(
         val position: Int,
         val offset: Float,
         val size: Float,
-        val scrolling: Boolean
+        val scrolling: Boolean,
+        val dragging: Boolean
     )
 
     private class WaitToApplyState(
         var contentOffset: Boolean,
         var contentOffsetByScrolling: Boolean,
+        var contentOffsetByDragging: Boolean,
         var scrollEnd: Boolean
     )
 
@@ -236,6 +238,7 @@ class LazyLoopDirectivesView<T>(
     private val waitToApplyState = WaitToApplyState(
         contentOffset = false,
         contentOffsetByScrolling = false,
+        contentOffsetByDragging = false,
         scrollEnd = false
     )
 
@@ -479,7 +482,7 @@ class LazyLoopDirectivesView<T>(
             }
         }
         if (needRefreshRange) {
-            registerAfterLayoutTaskFor(contentOffset = Pair(true, false))
+            registerAfterLayoutTaskFor(contentOffset = Pair(true, false), contentOffsetByDragging = false)
         }
     }
 
@@ -589,14 +592,18 @@ class LazyLoopDirectivesView<T>(
         }
         // KLog.e("pel", "contentOffsetY=$contentOffsetY paramsHeight=${params.contentHeight} frameHeight=${listViewContent?.frame?.height}")
         if (needWaitLayout()) {
-            registerAfterLayoutTaskFor(contentOffset = Pair(true, true), scrollEnd = false)
+            registerAfterLayoutTaskFor(
+                contentOffset = Pair(true, true),
+                contentOffsetByDragging = params.isDragging,
+                scrollEnd = false
+            )
         } else {
-            handleOnContentOffsetDidChanged(contentOffset, true)
+            handleOnContentOffsetDidChanged(contentOffset, true, params.isDragging)
         }
     }
 
-    private fun handleOnContentOffsetDidChanged(contentOffset: Float, scrolling: Boolean) {
-        createItemByOffset(contentOffset, scrolling)
+    private fun handleOnContentOffsetDidChanged(contentOffset: Float, scrolling: Boolean, dragging: Boolean) {
+        createItemByOffset(contentOffset, scrolling, dragging)
 
         if (currentStart == 0 && itemStart.frame.size > 0f && (contentOffset - itemStart.frame.size) <= 0f) {
             logInfo { "onContentOffsetDidChanged reach top ${itemStart.frame.end} contentOffset=$contentOffset" }
@@ -607,9 +614,9 @@ class LazyLoopDirectivesView<T>(
         }
     }
 
-    internal fun createItemByOffset(contentOffset: Float, scrolling: Boolean) {
+    internal fun createItemByOffset(contentOffset: Float, scrolling: Boolean, dragging: Boolean = false) {
         if (contentOffset < itemStart.frame.start) {
-            createItemByPosition(0, itemStart.frame.start, scrolling)
+            createItemByPosition(0, itemStart.frame.start, scrolling, dragging)
             return
         }
         val firstVisibleChildIndex = children.indexOfFirst {
@@ -643,7 +650,7 @@ class LazyLoopDirectivesView<T>(
             }
         }
 
-        createItemByPosition(itemPosition, itemOffset, scrolling)
+        createItemByPosition(itemPosition, itemOffset, scrolling, dragging)
     }
 
     /**
@@ -653,7 +660,7 @@ class LazyLoopDirectivesView<T>(
      * @param scrolling 是否正在滚动中，true表示调用来自列表滚动，偏移修正的目标是内容连贯；false表示调用来自跳转
      * API，偏移修正的目标是跳转位置准确
      */
-    private fun createItemByPosition(position: Int, offset: Float, scrolling: Boolean) {
+    private fun createItemByPosition(position: Int, offset: Float, scrolling: Boolean, dragging: Boolean = false) {
         val curListSize = curList.size
         // assume the middle 1/3 items show
         val newStart = max(0, min(position - maxLoadItem / 3, curListSize - maxLoadItem))
@@ -687,7 +694,8 @@ class LazyLoopDirectivesView<T>(
                 position = position,
                 offset = offset,
                 reachEnd = newStart != 0 && newEnd == curListSize,
-                scrolling = scrolling
+                scrolling = scrolling,
+                dragging = dragging
             )
             // updatePadding(true)
             updatePadding(false)
@@ -699,7 +707,8 @@ class LazyLoopDirectivesView<T>(
                     position = currentStart,
                     offset = children[BEFORE_COUNT].flexNode.start,
                     reachEnd = false,
-                    scrolling = scrolling
+                    scrolling = scrolling,
+                    dragging = dragging
                 )
                 // add item
                 startSize = if (newStart == 0) 0f else INVALID_DIMENSION
@@ -759,7 +768,8 @@ class LazyLoopDirectivesView<T>(
                     position = position,
                     offset = offset,
                     reachEnd = newStart != 0 && newEnd == curListSize,
-                    scrolling = scrolling
+                    scrolling = scrolling,
+                    dragging = dragging
                 )
                 // 来自API的调用可能没有节点变动，主动markDirty确保触发Layout
                 listViewContent?.flexNode?.markDirty()
@@ -791,21 +801,24 @@ class LazyLoopDirectivesView<T>(
         position: Int,
         offset: Float,
         reachEnd: Boolean,
-        scrolling: Boolean
+        scrolling: Boolean,
+        dragging: Boolean
     ) = if (reachEnd) {
         // 滚动到列表底部，偏移修正方式为维持ListContentView的大小不变
         ScrollOffsetCorrectInfo(
             INVALID_POSITION,
             INVALID_DIMENSION,
             itemEnd.frame.end - itemStart.frame.start,
-            scrolling
+            scrolling,
+            dragging
         )
     } else {
         ScrollOffsetCorrectInfo(
             position,
             offset - itemStart.frame.start,
             INVALID_DIMENSION,
-            scrolling
+            scrolling,
+            dragging
         )
     }
 
@@ -854,10 +867,10 @@ class LazyLoopDirectivesView<T>(
         return range
     }
 
-    private fun handleStartSpaceNotEnoughInLayout(spaceExtra: Float, offset: Float) {
+    private fun handleStartSpaceNotEnoughInLayout(spaceExtra: Float, offset: Float, dragging: Boolean) {
         require(spaceExtra < 0f)
         val listView = listView ?: return
-        if (!listView.hasValidScrollEventFilterRule() && needScroll(currentListOffset(), offset)) {
+        if (!dragging && !listView.hasValidScrollEventFilterRule() && needScroll(currentListOffset(), offset)) {
             listView.setScrollEventFilterRule(
                 offset,
                 offset,
@@ -883,7 +896,8 @@ class LazyLoopDirectivesView<T>(
         index: Int,
         offset: Float,
         size: Float,
-        scrolling: Boolean
+        scrolling: Boolean,
+        dragging: Boolean
     ): Boolean {
         // 由于onPagerCalculateLayoutFinish回调不保证顺序，这里无法确定ListView的排版流程是否结束，
         // 因此只能读取frame的width/height，但需要更新frame的x/y。
@@ -898,7 +912,7 @@ class LazyLoopDirectivesView<T>(
             if (scrolling && tmp < -hairWidth) {
                 // 小于-1px说明顶端空间已经不足，必须停下滑动并执行correctScrollOffsetInScrollEnd
                 logInfo { "correctScrollOffset invalid size=$tmp $index $offset ${currentListOffset()}" }
-                handleStartSpaceNotEnoughInLayout(tmp, offset)
+                handleStartSpaceNotEnoughInLayout(tmp, offset, dragging)
                 return false
             }
             tmp.coerceAtLeast(0f)
@@ -1099,7 +1113,8 @@ class LazyLoopDirectivesView<T>(
                 index = info.position,
                 offset = info.offset,
                 size = info.size,
-                scrolling = info.scrolling
+                scrolling = info.scrolling,
+                dragging = info.dragging
             )
         }
     }
@@ -1128,12 +1143,17 @@ class LazyLoopDirectivesView<T>(
 
     private fun registerAfterLayoutTaskFor(
         contentOffset: Pair<Boolean, Boolean>? = null,
+        contentOffsetByDragging: Boolean = false,
         scrollEnd: Boolean? = null
     ) {
         if (!(waitToApplyState.contentOffset || waitToApplyState.scrollEnd) && (contentOffset?.first == true || scrollEnd == true)) {
             getPager().addTaskWhenPagerUpdateLayoutFinish {
                 if (waitToApplyState.contentOffset) {
-                    handleOnContentOffsetDidChanged(currentListOffset(), waitToApplyState.contentOffsetByScrolling)
+                    handleOnContentOffsetDidChanged(
+                        currentListOffset(),
+                        waitToApplyState.contentOffsetByScrolling,
+                        waitToApplyState.contentOffsetByDragging
+                    )
                     waitToApplyState.contentOffset = false
                 }
                 if (waitToApplyState.scrollEnd) {
@@ -1145,6 +1165,7 @@ class LazyLoopDirectivesView<T>(
         if (contentOffset != null) {
             waitToApplyState.contentOffset = contentOffset.first
             waitToApplyState.contentOffsetByScrolling = contentOffset.second
+            waitToApplyState.contentOffsetByDragging = contentOffsetByDragging
         }
         if (scrollEnd != null) {
             waitToApplyState.scrollEnd = scrollEnd

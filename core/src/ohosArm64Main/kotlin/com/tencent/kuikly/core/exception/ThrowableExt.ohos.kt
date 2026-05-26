@@ -26,8 +26,8 @@ import kotlinx.cinterop.sizeOf
 import kotlinx.cinterop.toCPointer
 import kotlinx.cinterop.toKString
 import kotlinx.cinterop.toLong
-import ohos.fill_dl_info_sym
-import ohos.xdl_t
+import ohos.kr_fill_dl_info_sym
+import ohos.kr_xdl_t
 import platform.ohos.LOG_APP
 import platform.ohos.LOG_ERROR
 import platform.ohos.LOG_INFO
@@ -150,7 +150,7 @@ private fun parseSymbolInfo(addrList: List<Long>): List<SymbolInfo> {
     val symbolInfoList = mutableListOf<SymbolInfo>()
 
     memScoped {
-        var xdlInfo = alloc<xdl_t> { memset(this.ptr, 0, sizeOf<xdl_t>().toULong()) }
+        var xdlInfo = alloc<kr_xdl_t> { memset(this.ptr, 0, sizeOf<kr_xdl_t>().toULong()) }
         for (addr in addrList) {
             val result = alloc<Dl_info> { memset(this.ptr, 0, sizeOf<Dl_info>().toULong()) }
             dladdr(addr.toCPointer<LongVar>(), result.ptr)
@@ -158,14 +158,14 @@ private fun parseSymbolInfo(addrList: List<Long>): List<SymbolInfo> {
             if (xdlInfo.so_name == null) {
                 xdlInfo.so_name = result.dli_fname
             } else if ((xdlInfo.so_name as CPointer<ByteVar>).toKString() != result.dli_fname?.toKString()) {
-                xdlInfo = alloc<xdl_t> { memset(this.ptr, 0, sizeOf<xdl_t>().toULong()) }
+                xdlInfo = alloc<kr_xdl_t> { memset(this.ptr, 0, sizeOf<kr_xdl_t>().toULong()) }
             }
 
             val symbolInfo = SymbolInfo()
             symbolInfo.offsetFromSoBase = addr - result.dli_fbase.toLong() - 1
             symbolInfo.soName = result.dli_fname?.toKString() ?: ""
 
-            fill_dl_info_sym(xdlInfo.ptr, result.ptr, symbolInfo.offsetFromSoBase)
+            kr_fill_dl_info_sym(xdlInfo.ptr, result.ptr, symbolInfo.offsetFromSoBase)
             symbolInfo.name = result.dli_sname?.toKString() ?: ""
             symbolInfo.offsetFromSymbol = result.dli_saddr.toLong()
             symbolInfoList.add(symbolInfo)

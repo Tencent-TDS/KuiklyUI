@@ -13,6 +13,7 @@
       "pages/HoverExamplePage/index", 
       "pages/ModalViewDemoPage/index",
       "pages/CanvasDemoTest/index", 
+      "pages/CanvasInScroller/index", 
 
 
       "pages/DisplayIndexPage/index", 

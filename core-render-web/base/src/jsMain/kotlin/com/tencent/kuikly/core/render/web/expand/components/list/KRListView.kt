@@ -108,9 +108,14 @@ class KRListView : IKuiklyRenderViewExport {
      */
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
+            METHOD_SET_HAS_PULL_TO_REFRESH -> {
+                listEle.hasPullToRefresh = (params == "1")
+                null
+            }
             METHOD_CONTENT_OFFSET -> listEle.setContentOffset(params)
             METHOD_CONTENT_INSET -> listEle.setContentInset(params)
             METHOD_CONTENT_INSET_WHEN_END_DRAG -> listEle.setContentInsetWhenEndDrag(params)
+            METHOD_PREPARE_FOR_COMPOSE_REUSE -> listEle.prepareForComposeReuse()
             else -> super.call(method, params, callback)
         }
     }
@@ -131,6 +136,9 @@ class KRListView : IKuiklyRenderViewExport {
         // scroll view and list view are the same thing
         const val VIEW_NAME_SCROLL_VIEW = "KRScrollView"
 
+        // Set whether this list has a pull-to-refresh child
+        private const val METHOD_SET_HAS_PULL_TO_REFRESH = "setHasPullToRefresh"
+
         // Set content offset, will scroll List to corresponding position
         private const val METHOD_CONTENT_OFFSET = "contentOffset"
 
@@ -140,6 +148,9 @@ class KRListView : IKuiklyRenderViewExport {
 
         // Set content margin
         private const val METHOD_CONTENT_INSET = "contentInset"
+
+        // Clear transient state for Compose DSL reuse
+        private const val METHOD_PREPARE_FOR_COMPOSE_REUSE = "prepareForComposeReuse"
         private const val SCROLL_ENABLE = "scrollEnabled"
         // Whether to enable paging
         private const val PAGING_ENABLE = "pagingEnabled"

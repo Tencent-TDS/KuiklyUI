@@ -58,6 +58,65 @@ object FontSizeToLineHeightMap {
 }
 
 /**
+ * Text measurement cache for performance optimization
+ */
+object TextMeasureCache {
+    // Cache size limit to prevent memory overflow
+    private const val MAX_CACHE_SIZE = 500
+    
+    // LRU cache for text measurements
+    private val cache = FastMutableMap<String, SizeF>(js("{}"))
+    private val cacheKeys = mutableListOf<String>()
+    
+    /**
+     * Generate cache key from text and style properties
+     */
+    fun generateKey(
+        text: String,
+        fontSize: String,
+        fontWeight: String,
+        fontFamily: String,
+        fontStyle: String,
+        letterSpacing: String,
+        lineHeight: String,
+        constraintWidth: Float,
+        numberOfLines: Int
+    ): String {
+        // Use a simpler key format for better performance
+        return "$text|$fontSize|$fontWeight|$fontFamily|$fontStyle|$letterSpacing|$lineHeight|$constraintWidth|$numberOfLines"
+    }
+    
+    /**
+     * Get cached measurement result
+     */
+    fun get(key: String): SizeF? {
+        return cache[key]
+    }
+    
+    /**
+     * Store measurement result in cache
+     */
+    fun put(key: String, size: SizeF) {
+        // Implement simple LRU eviction
+        if (cacheKeys.size >= MAX_CACHE_SIZE) {
+            val oldestKey = cacheKeys.removeAt(0)
+            cache.remove(oldestKey)
+        }
+        
+        cache[key] = size
+        cacheKeys.add(key)
+    }
+    
+    /**
+     * Clear cache (useful for memory management)
+     */
+    fun clear() {
+        cache.clear()
+        cacheKeys.clear()
+    }
+}
+
+/**
  * rich text process interface, include text measure, rich text process, etc.
  */
 interface IRichTextProcessor {

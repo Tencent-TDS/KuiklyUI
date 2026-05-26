@@ -380,7 +380,11 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
 
         WillRemoveFromParentView();
         if (parent_node_ != nullptr) {
-            RemoveChildNode(parent_node_, GetNode());
+            // Guard: during batch cleanup (e.g. page exit), parent's RemoveRenderView may run
+            // before child's, destroying parent_node_. Skip removeChild if parent is already dead.
+            if (kuikly::util::GetNodeApi()->IsNodeAlive(parent_node_)) {
+                RemoveChildNode(parent_node_, GetNode());
+            }
             parent_node_ = nullptr;
         }
         parent_tag_ = -1;
@@ -402,6 +406,16 @@ class IKRRenderViewExport : public std::enable_shared_from_this<IKRRenderViewExp
         auto childrenCount = GetChildCount();
         if (index < 0 || index > childrenCount) {
             index = childrenCount;
+        }
+        // For movableContent support: if the child is still attached to a different parent
+        // (removeDomSubViewForMove skipped native removeChild), detach it first.
+        // Note: ArkUI insertChildAt does NOT auto-reparent; removeChild is mandatory.
+        // For KRForwardArkTSView (ComponentContent-based views), the STACK node re-parent
+        // does NOT trigger aboutToDisappear/aboutToAppear on the inner ComponentContent.
+        // DidMoveToParentView() skips re-creating ComponentContent when ark_node_ exists.
+        auto old_parent = sub_render_view->parent_node_;
+        if (old_parent != nullptr && old_parent != GetNode()) {
+            kuikly::util::GetNodeApi()->removeChild(old_parent, sub_render_view->GetNode());
         }
         sub_render_view->parent_node_ = GetNode();
         sub_render_view->parent_tag_ = this->GetViewTag();

@@ -36,7 +36,7 @@ miniApp-js/
 ```bash
 object BuildPlugin {
     val kuikly by lazy {
-        "com.tencent.kuikly-open:core-gradle-plugin:2.18.1-2.0.21"
+        "com.tencent.kuikly-open:core-gradle-plugin:2.20.0-2.0.21"
     }
 }
 ```
@@ -45,7 +45,7 @@ object BuildPlugin {
 
 ```bash
 dependencies {
-    compileOnly("com.tencent.kuikly-open:core-ksp:2.18.1-2.0.21") {
+    compileOnly("com.tencent.kuikly-open:core-ksp:2.20.0-2.0.21") {
         add("kspIosArm64", this)
         add("kspIosX64", this)
         add("kspIosSimulatorArm64", this)
@@ -54,14 +54,6 @@ dependencies {
         add("kspAndroid", this)
         add("kspJs", this)
     }
-}
-```
-
-使用js按页分包时，如有多模块，需要关闭多模块，如`demo/build.gradle.kts`里配置：
-
-```bash
-ksp {
-    arg("enableMultiModule", "false")
 }
 ```
 

@@ -959,10 +959,11 @@ void UpdateInputNodeCaretrColor(ArkUI_NodeHandle node, uint32_t caret_color) {
 }
 
 void UpdateInputNodeSelectionColor(ArkUI_NodeHandle node, uint32_t color) {
-    // 限制alpha不超过0x66(约40%透明度)，避免选中高亮完全覆盖文字
+    // 限制 alpha 不超过 kSelectionColorMaxAlpha（约40%透明度），避免选中高亮完全覆盖文字，多端统一
+    static constexpr uint32_t kSelectionColorMaxAlpha = 0x66;
     uint32_t alpha = (color >> 24) & 0xFF;
-    if (alpha > 0x66) {
-        color = (0x66 << 24) | (color & 0x00FFFFFF);
+    if (alpha > kSelectionColorMaxAlpha) {
+        color = (kSelectionColorMaxAlpha << 24) | (color & 0x00FFFFFF);
     }
     ArkUI_NumberValue value = {.u32 = color};
     ArkUI_AttributeItem item = {&value, sizeof(ArkUI_NumberValue)};

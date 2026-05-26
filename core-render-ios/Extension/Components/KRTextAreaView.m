@@ -23,6 +23,8 @@
 // 字典key常量
 NSString *const KRFontSizeKey = @"fontSize";
 NSString *const KRFontWeightKey = @"fontWeight";
+/// 选中高亮色 alpha 上限（0x66 ≈ 40%），避免高亮完全覆盖文字，多端统一
+static const CGFloat KRSelectionColorMaxAlpha = 0x66 / 255.0;
 
 /*
  * @brief 暴露给Kotlin侧调用的多行输入框组件
@@ -256,12 +258,13 @@ NSString *const KRFontWeightKey = @"fontWeight";
 }
 
 - (void)setCss_selectionColor:(NSNumber *)css_selectionColor {
-    _selectionColor = [UIView css_color:css_selectionColor];
+    _selectionColor = [self p_clampSelectionColorAlpha:[UIView css_color:css_selectionColor]];
 #if !TARGET_OS_OSX
     if (!_cursorColor) {
         _cursorColor = self.tintColor; // 保存当前光标颜色（可能是默认值）
     }
     self.tintColor = _selectionColor;
+    [self tintColorDidChange]; // 确保子视图响应 tintColor 变化
     [self p_applyNativeCursorColorIfNeeded];
 #endif
 }
@@ -914,21 +917,27 @@ NSString *const KRFontWeightKey = @"fontWeight";
 
 #pragma mark - private
 
-/// iOS 17+ 使用 insertionPointColor 独立设置光标颜色，避免与 tintColor（选中高亮色）冲突
+/// iOS 17+ 使用公开属性 insertionPointColor 独立设置光标颜色，避免与 tintColor（选中高亮色）冲突
 #if !TARGET_OS_OSX
 - (void)p_applyNativeCursorColorIfNeeded {
     if (!_cursorColor) return;
     if (@available(iOS 17.0, *)) {
-        SEL sel = NSSelectorFromString(@"setInsertionPointColor:");
-        if ([self respondsToSelector:sel]) {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-            [self performSelector:sel withObject:_cursorColor];
-#pragma clang diagnostic pop
-        }
+        self.insertionPointColor = _cursorColor;
     }
 }
 #endif
+
+/// 限制选中色 alpha 不超过 KRSelectionColorMaxAlpha，避免高亮完全覆盖文字，与 OHOS 侧对齐
+- (UIColor *)p_clampSelectionColorAlpha:(UIColor *)color {
+    if (!color) return nil;
+    CGFloat r, g, b, a;
+    if ([color getRed:&r green:&g blue:&b alpha:&a]) {
+        if (a > KRSelectionColorMaxAlpha) {
+            return [UIColor colorWithRed:r green:g blue:b alpha:KRSelectionColorMaxAlpha];
+        }
+    }
+    return color;
+}
 
 - (void)p_addKeyboardNotificationIfNeed {
     if (_didAddKeyboardNotification) {

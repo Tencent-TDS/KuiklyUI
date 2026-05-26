@@ -173,20 +173,26 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 
 - (void)setCss_tintColor:(NSNumber *)css_tintColor {
     _cursorColor = [UIView css_color:css_tintColor];
+#if !TARGET_OS_OSX
     if (!_selectionColor) {
         self.tintColor = _cursorColor;
     } else {
         [self p_applyNativeCursorColorIfNeeded];
     }
+#else
+    self.tintColor = _cursorColor;
+#endif
 }
 
 - (void)setCss_selectionColor:(NSNumber *)css_selectionColor {
     _selectionColor = [UIView css_color:css_selectionColor];
+#if !TARGET_OS_OSX
     if (!_cursorColor) {
         _cursorColor = self.tintColor; // 保存当前光标颜色（可能是默认值）
     }
     self.tintColor = _selectionColor;
     [self p_applyNativeCursorColorIfNeeded];
+#endif
 }
 
 - (void)setCss_editable:(NSNumber *)css_editable {
@@ -286,6 +292,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 
 - (BOOL)becomeFirstResponder {
     BOOL result = [super becomeFirstResponder];
+#if !TARGET_OS_OSX
     if (result && _cursorColor && _selectionColor) {
         if (@available(iOS 17.0, *)) {
             // iOS 17+ 已通过 insertionPointColor 设置光标颜色，无需手动修复
@@ -296,6 +303,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
             });
         }
     }
+#endif
     return result;
 }
 
@@ -309,6 +317,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
                                                                             attributes:@{NSForegroundColorAttributeName:color?: [UIColor clearColor],
                                                                                          NSFontAttributeName:font}];
     }
+#if !TARGET_OS_OSX
     if (_cursorColor && _selectionColor) {
         if (@available(iOS 17.0, *)) {
             // iOS 17+ 已通过 insertionPointColor 设置光标颜色，无需手动遍历修复
@@ -316,9 +325,11 @@ NSString *const KRVFontWeightKey = @"fontWeight";
             [self p_restoreCursorColorInView:self];
         }
     }
+#endif
 }
 
 /// 遍历子视图，找到光标视图并恢复其颜色
+#if !TARGET_OS_OSX
 - (void)p_restoreCursorColorInView:(UIView *)view {
     NSString *className = NSStringFromClass([view class]);
     if ([className containsString:@"TextCursor"] || [className containsString:@"CursorView"] || [className containsString:@"Caret"]) {
@@ -344,6 +355,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
         }
     }
 }
+#endif
 
 
 #pragma mark - UITextViewDelegate
@@ -400,6 +412,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 
 #pragma mark - notication
 
+#if !TARGET_OS_OSX
 - (void)onReceivekeyboardWillShowNotification:(NSNotification *)notify {
     // 键盘将要弹出
     NSDictionary *info = notify.userInfo;
@@ -420,6 +433,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
         self.css_keyboardHeightChange(@{@"height": @(0), @"duration": @(duration), @"curve": @(curve)});
     }
 }
+#endif
 
 - (void)setFrame:(CGRect)frame {
     [super setFrame:frame];
@@ -433,6 +447,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     if (_didAddKeyboardNotification) {
         return ;
     }
+#if !TARGET_OS_OSX
     _didAddKeyboardNotification = YES;
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(onReceivekeyboardWillShowNotification:)
@@ -442,6 +457,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
                                              selector:@selector(onReceivekeyboardWillHideNotification:)
                                                  name:UIKeyboardWillHideNotification
                                                object:nil];
+#endif
 }
 
 - (void)p_setNeedUpdatePlaceholder {

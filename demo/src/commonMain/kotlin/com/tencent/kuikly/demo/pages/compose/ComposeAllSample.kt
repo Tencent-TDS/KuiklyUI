@@ -109,7 +109,6 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("LazyHorizontalGrid", "LazyHorizontalGrid基本用法示例", "LazyHorizontalGridDemo1"),
             DemoItem("焦点处理", "Focus焦点处理示例", "focusDemo"),
             DemoItem("TextField", "TextField 组件示例", "TextFieldDemo"),
-            DemoItem("TextFieldEmoji", "TextField 自定义表情示例", "TextFieldEmojiDemo"),
             DemoItem("PullToRefresh", "PullToRefresh 组件示例", "PullToRefreshDemo"),
             // 其他
             DemoItem("封装KuiklyView", "封装Kuikly的VideoView为一个Composeable组件示例", "ComposeVideoDemo"),
@@ -166,6 +165,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("ViewModel示例", "Lifecycle和ViewModel", "ViewModelDemo"),
             DemoItem("GradientAnimationDemo", "Offset or color animate ", "GradientAnimationDemo"),
             DemoItem("重组性能分析", "RecompositionProfiler追踪重组热点", "RecompositionProfilerDemo"),
+            DemoItem("TextFieldEmoji", "TextField 自定义表情示例（暂不支持鸿蒙）", "TextFieldEmojiDemo"),
         )
 
     @Composable

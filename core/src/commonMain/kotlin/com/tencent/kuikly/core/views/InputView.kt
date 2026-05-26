@@ -25,8 +25,8 @@ class InputView : DeclarativeBaseView<InputAttr, InputEvent>() {
 
     // 标记是否正在处理原生事件，避免反向同步导致选择状态被重置
     internal var isProcessingNativeEvent: Boolean = false
-    // 记录上一次同步到原生层的文本，用于判断是否需要重新同步
-    internal var lastSyncedText: String = ""
+    // 记录上一次原生层真实生效的编辑态，用于判断是否需要重新同步
+    internal var lastSyncedTextInputState: TextInputState? = null
 
     override fun createAttr(): InputAttr {
         return InputAttr()
@@ -37,6 +37,9 @@ class InputView : DeclarativeBaseView<InputAttr, InputEvent>() {
         // 设置原生事件触发前的回调，用于标记正在处理原生事件
         event.beforeNativeEventCallback = {
             this.isProcessingNativeEvent = true
+        }
+        event.nativeTextInputStateCallback = {
+            this.lastSyncedTextInputState = it
         }
         return event
     }
@@ -56,13 +59,13 @@ class InputView : DeclarativeBaseView<InputAttr, InputEvent>() {
         // 处理 TEXT_INPUT_STATE prop，添加防循环同步逻辑
         if (propKey == InputAttr.TEXT_INPUT_STATE) {
             val state = TextInputState.decode(JSONObject(propValue.toString()))
-            val textChanged = state.text != lastSyncedText
-            // 只有当文本发生变化，或者不是来自原生事件时，才同步到原生层
-            val shouldSyncToNative = textChanged || !isProcessingNativeEvent
+            val hasSameEditingState = lastSyncedTextInputState?.hasSameEditingState(state) ?: false
+            // 只有完整编辑态真的不同，或者不是来自原生事件时，才同步到原生层
+            val shouldSyncToNative = !isProcessingNativeEvent || !hasSameEditingState
             if (shouldSyncToNative) {
                 super.didSetProp(propKey, propValue)
-                lastSyncedText = state.text
             }
+            lastSyncedTextInputState = state
             // 重置标志，等待下一次原生事件
             isProcessingNativeEvent = false
         } else {
@@ -296,13 +299,17 @@ class InputAttr : Attr() {
     }
 
     @Deprecated(
-        "Use maxTextLength(length: Int, type: LengthLimitType) instead",
-        ReplaceWith("maxTextLength(maxLength, LengthLimitType)")
+        "Use maxTextLength(length: Int, type: LengthLimitType) instead, and choose the type explicitly when migrating."
     )
     fun maxTextLength(maxLength: Int) {
         "maxTextLength" with maxLength
     }
 
+    /**
+     * 设置最大文本长度限制
+     * @param length 最大长度值
+     * @param type 内置长度限制类型
+     */
     fun maxTextLength(length: Int, type: LengthLimitType) {
         "lengthLimitType" with type.value
         "maxTextLength" with length
@@ -394,6 +401,8 @@ data class KeyboardParams(
 class InputEvent : Event() {
     // 原生事件触发前的回调，用于设置 View 的标志位
     internal var beforeNativeEventCallback: (() -> Unit)? = null
+    // 原生层真实编辑态回调，用于避免业务回填同一状态时反向覆盖 selection/composition
+    internal var nativeTextInputStateCallback: ((TextInputState) -> Unit)? = null
 
     /**
      * 当文本发生变化时调用的方法
@@ -416,7 +425,9 @@ class InputEvent : Event() {
         register(TEXT_INPUT_STATE_CHANGE, {
             // 标记正在处理原生事件，避免 didSetProp 反向同步导致选择状态被重置
             beforeNativeEventCallback?.invoke()
-            handler(TextInputState.decode(it as? JSONObject))
+            val state = TextInputState.decode(it as? JSONObject)
+            nativeTextInputStateCallback?.invoke(state)
+            handler(state)
         }, isSync = isSyncEdit)
     }
 
@@ -427,7 +438,9 @@ class InputEvent : Event() {
         register(SELECTION_CHANGE, {
             // 标记正在处理原生事件，避免 didSetProp 反向同步导致选择状态被重置
             beforeNativeEventCallback?.invoke()
-            handler(TextInputState.decode(it as? JSONObject))
+            val state = TextInputState.decode(it as? JSONObject)
+            nativeTextInputStateCallback?.invoke(state)
+            handler(state)
         }, isSync = true)
     }
 

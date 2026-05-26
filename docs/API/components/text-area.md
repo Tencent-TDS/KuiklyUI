@@ -51,7 +51,15 @@ TextArea {
 
 ### textPostProcessor方法
 
-声明文本后置处理器，用于表情短码替换等场景。具体说明请参考 [Input#textPostProcessor](input.md#textpostprocessor方法)。
+声明文本后置处理器，用于表情短码替换等场景。基础参数说明可参考 [Input#textPostProcessor](input.md#textpostprocessor方法)，但 `TextArea` 的平台支持范围更宽。
+
+> **平台支持说明**
+>
+> - **Android**：支持通过适配器将短码替换为富文本样式。
+> - **iOS 多行 `TextArea`**：支持基于 `UITextView` 的 attachment 渲染，可用于 emoji / 图片附件类后处理。
+> - **iOS 单行 `Input` / Compose `singleLine = true`**：仍受 `UITextField` 限制，不支持图片附件渲染；如需自定义 emoji 显示，优先使用多行 `TextArea` 路径。
+>
+> **推荐搭配**：做 emoji 短码插入时，结合 `textInputState`、`textInputStateChange` 与 `selectionChange` 一起使用，以 raw text 选区为准更新插入位置。
 
 ### 其他属性
 

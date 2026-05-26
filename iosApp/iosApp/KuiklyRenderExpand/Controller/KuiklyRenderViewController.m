@@ -23,6 +23,7 @@
 
 #import "KRConvertUtil.h"
 #import "UINavigationController+FDFullscreenPopGesture.h"
+#import "KuiklyRenderBridge.h"
 
 /// TurboDisplay 专属测试页面名称，只有该页面启用 TurboDisplay AOT 渲染
 static NSString * const kTurboDisplayTestPageName = @"TurboDisplayAppLoadTestPage";

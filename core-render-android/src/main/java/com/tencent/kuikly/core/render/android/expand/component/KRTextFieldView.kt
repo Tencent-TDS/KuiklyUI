@@ -334,7 +334,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         if (lengthLimitType != value) {
             lengthLimitType = value as Int
             if (maxTextLength != null) {
-                filters = arrayOf(createInputFilter(lengthLimitType))
+                updateInputFilter()
             }
         }
         return true
@@ -343,21 +343,32 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     private fun setMaxTextLength(value: Any): Boolean {
         if (maxTextLength != value) {
             maxTextLength = value as Int
-            filters = arrayOf(createInputFilter(lengthLimitType))
+            updateInputFilter()
         }
         return true
+    }
+
+    private fun updateInputFilter() {
+        val activeMaxLength = maxTextLength
+        filters = if (activeMaxLength != null && activeMaxLength > 0) {
+            filters.filterNot { it is KRBaseLengthFilter }.toTypedArray() + createInputFilter(lengthLimitType)
+        } else {
+            filters.filterNot { it is KRBaseLengthFilter }.toTypedArray()
+        }
     }
 
     private fun createInputFilter(type: Int): InputFilter {
         val length = maxTextLength!!
         val beyondLimitCallback: () -> Unit = { textLengthBeyondLimitCallback?.invoke(null) }
+
         return when (type) {
             LENGTH_LIMIT_TYPE_BYTE -> {
                 KRByteLengthFilter(
                     length,
                     kuiklyRenderContext,
                     { fontSize },
-                    beyondLimitCallback
+                    beyondLimitCallback,
+                    { textPostProcessor }
                 )
             }
 
@@ -366,7 +377,8 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
                     length,
                     kuiklyRenderContext,
                     { fontSize },
-                    beyondLimitCallback
+                    beyondLimitCallback,
+                    { textPostProcessor }
                 )
             }
 
@@ -375,7 +387,8 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
                     length,
                     kuiklyRenderContext,
                     { fontSize },
-                    beyondLimitCallback
+                    beyondLimitCallback,
+                    { textPostProcessor }
                 )
             }
 
@@ -402,6 +415,10 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
             }
         }
         return null
+    }
+
+    private fun calculateLengthWithFilter(text: CharSequence): Int? {
+        return getLengthLimitInputFilter()?.calculateLength(text)
     }
 
     private fun setTextAlign(value: Any): Boolean {
@@ -529,12 +546,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     }
 
     override fun setSelection(index: Int) {
-        val maxTextLength = this.maxTextLength
-        if (maxTextLength != null && maxTextLength <= index) {
-            super.setSelection(maxTextLength)
-        } else {
-            super.setSelection(index)
-        }
+        super.setSelection(index.coerceIn(0, text?.length ?: 0))
     }
 
     private fun setTintColor(propValue: Any): Boolean {
@@ -653,23 +665,66 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     private fun setTextInputState(params: String?) {
         val json = runCatching { JSONObject(params ?: "{}") }.getOrElse { JSONObject() }
         val rawText = json.optString(KEY_TEXT, "")
-        val selectionStart = json.optInt(KEY_SELECTION_START, rawText.length).coerceIn(0, rawText.length)
-        val selectionEnd = json.optInt(KEY_SELECTION_END, selectionStart).coerceIn(0, rawText.length)
+        if (shouldRejectProgrammaticShortcodeInput(rawText)) {
+            textLengthBeyondLimitCallback?.invoke(null)
+            textInputStateChangeCallback?.invoke(createTextInputStateParamMap())
+            return
+        }
+        val limitedRawText = applyProgrammaticInputFilters(rawText)
+        val selectionStart = json.optInt(KEY_SELECTION_START, limitedRawText.length).coerceIn(0, limitedRawText.length)
+        val selectionEnd = json.optInt(KEY_SELECTION_END, selectionStart).coerceIn(0, limitedRawText.length)
         isSettingTextInputState = true
         try {
             setInputEditorAdapterIfNeed()
             lineHeightSpan?.let { span ->
-                val spannable = SpannableString(rawText)
-                if (rawText.isNotEmpty()) {
-                    spannable.setSpan(span, 0, rawText.length, Spanned.SPAN_EXCLUSIVE_INCLUSIVE)
+                val spannable = SpannableString(limitedRawText)
+                if (limitedRawText.isNotEmpty()) {
+                    spannable.setSpan(span, 0, limitedRawText.length, Spanned.SPAN_EXCLUSIVE_INCLUSIVE)
                 }
                 super.setText(spannable, BufferType.EDITABLE)
-            } ?: super.setText(rawText, BufferType.EDITABLE)
+            } ?: super.setText(limitedRawText, BufferType.EDITABLE)
             applyEmojiSpans(editableText)
-            setSelection(selectionStart, selectionEnd)
+            // 程序化文本也可能被长度限制截断，需要基于实际文本长度调整 selection
+            val actualLength = editableText?.length ?: 0
+            val actualStart = selectionStart.coerceIn(0, actualLength)
+            val actualEnd = selectionEnd.coerceIn(0, actualLength)
+            setSelection(actualStart, actualEnd)
         } finally {
             isSettingTextInputState = false
         }
+        // 程序化文本变更后，手动触发回调，确保 Kotlin 层能获取到正确的 length
+        val callbackData = createTextInputStateParamMap()
+        textInputStateChangeCallback?.invoke(callbackData)
+    }
+
+    private fun applyProgrammaticInputFilters(rawText: String): String {
+        if (rawText.isEmpty() || filters.isEmpty()) {
+            return rawText
+        }
+        var result: CharSequence = SpannableStringBuilder(rawText)
+        filters.forEach { filter ->
+            val filtered = filter.filter(result, 0, result.length, SpannableStringBuilder(), 0, 0)
+            result = when {
+                filtered == null -> result
+                filtered is SpannableStringBuilder -> filtered
+                else -> SpannableStringBuilder(filtered)
+            }
+        }
+        return result.toString()
+    }
+
+    private fun shouldRejectProgrammaticShortcodeInput(rawText: String): Boolean {
+        return shouldRejectProgrammaticShortcodeInputRequest(
+            rawText = rawText,
+            maxTextLength = maxTextLength,
+            lengthLimitType = lengthLimitType,
+            calculateProgrammaticLength = ::calculateProgrammaticLength
+        )
+    }
+
+    private fun calculateProgrammaticLength(rawText: String): Int? {
+        val processedText = applyTextPostProcessorForLengthCalculation(rawText)
+        return calculateLengthWithFilter(processedText)
     }
 
     private fun getTextInputState(callback: KuiklyRenderCallback?) {
@@ -780,37 +835,41 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     }
 
     private fun createCallbackParamMap(): Map<String, Any> {
-        val text = text
+        val rawText = text
+        // 应用 textPostProcessor 获取处理后的文本（如将 [smile] 转为 ImageSpan）
+        val processedText = applyTextPostProcessorForLengthCalculation(rawText)
         val length = if (lengthLimitType != LENGTH_LIMIT_TYPE_UNSET) {
-            getLengthLimitInputFilter()?.calculateLength(text)
+            getLengthLimitInputFilter()?.calculateLength(processedText)
         } else {
             null
         }
         return if (length == null) {
             mapOf(
-                KEY_TEXT to text.toString()
+                KEY_TEXT to rawText.toString()
             )
         } else {
             mapOf(
-                KEY_TEXT to text.toString(),
+                KEY_TEXT to rawText.toString(),
                 KEY_LENGTH to length!!
             )
         }
     }
 
     private fun createTextInputStateParamMap(): Map<String, Any> {
-        val text = text?.toString() ?: KRCssConst.EMPTY_STRING
-        val selectionStart = selectionStart.coerceIn(0, text.length)
-        val selectionEnd = selectionEnd.coerceIn(0, text.length)
+        val rawText = text?.toString() ?: KRCssConst.EMPTY_STRING
+        val selectionStart = selectionStart.coerceIn(0, rawText.length)
+        val selectionEnd = selectionEnd.coerceIn(0, rawText.length)
         val result = mutableMapOf<String, Any>(
-            KEY_TEXT to text,
+            KEY_TEXT to rawText,
             KEY_SELECTION_START to selectionStart,
             KEY_SELECTION_END to selectionEnd,
             KEY_COMPOSITION_START to NO_COMPOSITION,
             KEY_COMPOSITION_END to NO_COMPOSITION
         )
+        // 应用 textPostProcessor 获取处理后的文本（如将 [smile] 转为 ImageSpan）
+        val processedText = applyTextPostProcessorForLengthCalculation(text)
         val length = if (lengthLimitType != LENGTH_LIMIT_TYPE_UNSET) {
-            getLengthLimitInputFilter()?.calculateLength(text)
+            calculateLengthWithFilter(processedText)
         } else {
             null
         }
@@ -842,6 +901,25 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
             }
         }
         return true
+    }
+
+    /**
+     * 应用 textPostProcessor 处理文本，用于长度计算
+     * 将短码（如 [smile]）转为 ImageSpan，以便正确计算字符数
+     */
+    private fun applyTextPostProcessorForLengthCalculation(text: CharSequence?): CharSequence {
+        if (text == null) return ""
+        if (textPostProcessor.isEmpty()) return text
+        val adapter = KuiklyRenderAdapterManager.krTextPostProcessorAdapter ?: return text
+
+        val tp = textProps ?: KRTextProps(kuiklyRenderContext).also {
+            it.fontSize = if (fontSize > 0) fontSize else 16f
+        }
+        val output = adapter.onTextPostProcess(
+            kuiklyRenderContext,
+            TextPostProcessorInput(textPostProcessor, text, tp)
+        )
+        return output.text
     }
 
     /**
@@ -1020,4 +1098,22 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         private const val LENGTH_LIMIT_TYPE_CHARACTER = 1
         private const val LENGTH_LIMIT_TYPE_VISUAL_WIDTH = 2
     }
+}
+
+private val PROGRAMMATIC_SHORTCODE_REGEX = Regex("\\[[a-zA-Z0-9_\\-]+\\]")
+
+internal fun shouldRejectProgrammaticShortcodeInputRequest(
+    rawText: String,
+    maxTextLength: Int?,
+    lengthLimitType: Int,
+    calculateProgrammaticLength: (String) -> Int?
+): Boolean {
+    if (maxTextLength == null || maxTextLength <= 0) {
+        return false
+    }
+    if (lengthLimitType == -1 || !PROGRAMMATIC_SHORTCODE_REGEX.containsMatchIn(rawText)) {
+        return false
+    }
+    val requestedLength = calculateProgrammaticLength(rawText) ?: return false
+    return requestedLength > maxTextLength
 }

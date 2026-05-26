@@ -74,11 +74,11 @@ import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.isSpecified
 import com.tencent.kuikly.compose.ui.util.fastRoundToInt
 import com.tencent.kuikly.core.views.AutoHeightTextAreaView
-import com.tencent.kuikly.core.views.TextInputState
 import com.tencent.kuikly.core.views.LengthLimitType
 import com.tencent.kuikly.core.views.TextAreaAttr
 import com.tencent.kuikly.core.views.TextAreaEvent
 import com.tencent.kuikly.core.views.TextConst
+import com.tencent.kuikly.core.views.TextInputState
 import kotlin.math.ceil
 
 /**
@@ -192,12 +192,15 @@ internal fun CoreTextField(
     var lineHeight by remember { mutableStateOf(0f) }
     var oldSize by remember { mutableStateOf(IntSize.Zero) }
     var editable = enabled && !readOnly
-    // 共享的文本长度和是否超限状态，供 textDidChange 和 textLengthBeyondLimit 回调共享
+    // 共享的文本长度和是否达到限额状态，供 textDidChange 和 textLengthBeyondLimit 回调共享
     var currentTextLength by remember { mutableStateOf(-1) }
-    var currentLimitExceeded by remember { mutableStateOf(false) }
-    var receivedTextInputStateEvent by remember { mutableStateOf(false) }
-    // 记录上一次同步到原生层的文本，用于判断是否需要重新同步
-    var lastSyncedText by remember { mutableStateOf("") }
+    var currentLimitReached by remember { mutableStateOf(false) }
+    // 一次性标记：收到超限事件后，等待紧随其后的真实长度回调再统一通知业务，避免先吐旧长度
+    var pendingLimitChangeNotification by remember { mutableStateOf(false) }
+    // 一次性标记：仅在当前轮原生 textInputStateChange 已经覆盖同一文本变更时，跳过紧随其后的 textDidChange fallback
+    var pendingTextInputStateText by remember { mutableStateOf<String?>(null) }
+    // 记录上一次原生层真实生效的编辑态，避免仅因 text 相同而误判 selection/composition 同步
+    var lastSyncedTextInputState by remember { mutableStateOf<TextInputState?>(null) }
     // 标记是否正在处理原生事件，避免 set(value) 反向同步导致选择状态被重置
     var isProcessingNativeEvent by remember { mutableStateOf(false) }
 
@@ -328,6 +331,19 @@ internal fun CoreTextField(
         )
     }
 
+    fun dispatchLimitChange(length: Int?, forceNotify: Boolean = false) {
+        val safeLength = length ?: return
+        if (safeLength == -1) return
+        val limitReached = maxLength != null && safeLength >= maxLength
+        val shouldNotify = forceNotify || safeLength != currentTextLength || currentLimitReached != limitReached
+        currentTextLength = safeLength
+        currentLimitReached = limitReached
+        pendingLimitChangeNotification = false
+        if (shouldNotify) {
+            onLimitChange?.invoke(safeLength, limitReached)
+        }
+    }
+
     if (keyboardActions != null) {
         state.update(keyboardActions, focusManager)
     }
@@ -374,38 +390,6 @@ internal fun CoreTextField(
                             if (hasFocus) {
                                 focus()
                             }
-                        }
-                    }
-
-                    set(value) {
-                        if (it == null) return@set
-                        withTextAreaView {
-                            val newText = value.text
-                            val oldText = lastSyncedText
-                            getViewAttr().updatePropCache(TextConst.VALUE, newText)
-                            val composition = value.composition
-
-                            // 判断是否需要同步到原生层
-                            // 只有当文本发生变化，或者不是来自原生事件时，才同步
-                            // 这样可以避免用户拖动选择游标时，Kotlin层用旧selection覆盖原生层的当前selection
-                            val textChanged = newText != oldText
-                            val shouldSyncToNative = textChanged || !isProcessingNativeEvent
-
-                            if (shouldSyncToNative) {
-                                setTextInputState(
-                                    TextInputState(
-                                        text = newText,
-                                        selectionStart = value.selection.start,
-                                        selectionEnd = value.selection.end,
-                                        compositionStart = composition?.start ?: TextInputState.NO_COMPOSITION,
-                                        compositionEnd = composition?.end ?: TextInputState.NO_COMPOSITION
-                                    )
-                                )
-                                lastSyncedText = newText
-                            }
-
-                            // 重置标志，等待下一次原生事件
-                            isProcessingNativeEvent = false
                         }
                     }
                     set(editable) {
@@ -456,12 +440,20 @@ internal fun CoreTextField(
                             updateKeyboardActions(getViewEvent(), state)
                         }
                     }
-                    set(onValueChange to onLimitChange) {
+                    set(Triple(onValueChange, onLimitChange, maxLength)) {
                         withTextAreaView {
                             getViewEvent().textInputStateChange {
                                 // 标记正在处理原生事件，避免 set(value) 反向同步导致选择状态被重置
                                 isProcessingNativeEvent = true
-                                receivedTextInputStateEvent = true
+                                pendingTextInputStateText = it.text
+                                lastSyncedTextInputState = TextInputState(
+                                    text = it.text,
+                                    selectionStart = it.selectionStart,
+                                    selectionEnd = it.selectionEnd,
+                                    compositionStart = it.compositionStart,
+                                    compositionEnd = it.compositionEnd,
+                                    length = it.length
+                                )
                                 autoHeightTextAreaView.getViewAttr()
                                     .updatePropCache(TextConst.VALUE, it.text)
                                 val composition = if (
@@ -479,17 +471,19 @@ internal fun CoreTextField(
                                         composition = composition
                                     )
                                 )
-                                val newLength = it.length ?: -1
-                                if (newLength != currentTextLength || currentLimitExceeded) {
-                                    currentTextLength = newLength
-                                    currentLimitExceeded = false
-                                    onLimitChange?.invoke(currentTextLength, currentLimitExceeded)
-                                }
+                                dispatchLimitChange(it.length, pendingLimitChangeNotification)
                             }
                             getViewEvent().selectionChange {
                                 // 标记正在处理原生事件，避免 set(value) 反向同步导致选择状态被重置
                                 isProcessingNativeEvent = true
-                                receivedTextInputStateEvent = true
+                                lastSyncedTextInputState = TextInputState(
+                                    text = it.text,
+                                    selectionStart = it.selectionStart,
+                                    selectionEnd = it.selectionEnd,
+                                    compositionStart = it.compositionStart,
+                                    compositionEnd = it.compositionEnd,
+                                    length = it.length
+                                )
                                 val composition = if (
                                     it.compositionStart != TextInputState.NO_COMPOSITION &&
                                     it.compositionEnd != TextInputState.NO_COMPOSITION
@@ -507,18 +501,15 @@ internal fun CoreTextField(
                                 )
                             }
                             getViewEvent().textDidChange {
-                                if (receivedTextInputStateEvent) {
+                                val shouldIgnoreFallback = pendingTextInputStateText == it.text
+                                pendingTextInputStateText = null
+                                if (shouldIgnoreFallback) {
                                     return@textDidChange
                                 }
                                 autoHeightTextAreaView.getViewAttr()
                                     .updatePropCache(TextConst.VALUE, it.text)
                                 onValueChange(TextFieldValue(it.text))
-                                val newLength = it.length ?: -1
-                                if (newLength != currentTextLength || currentLimitExceeded) {
-                                    currentTextLength = newLength
-                                    currentLimitExceeded = false
-                                    onLimitChange?.invoke(currentTextLength, currentLimitExceeded)
-                                }
+                                dispatchLimitChange(it.length, pendingLimitChangeNotification)
                             }
                         }
                     }
@@ -530,21 +521,62 @@ internal fun CoreTextField(
                         }
                     }
                     set(maxLength to lengthLimitType) {
-                        if (maxLength != null && maxLength > 0) {
-                            withTextAreaView {
+                        withTextAreaView {
+                            if (maxLength != null && maxLength > 0) {
                                 val type = lengthLimitType ?: LengthLimitType.CHARACTER
                                 getViewAttr().maxTextLength(maxLength, type)
+                            } else {
+                                // maxLength 被移除时，直接清理 native 侧限长状态，避免借公开 API 透传内部清理语义
+                                getViewAttr().setProp("maxTextLength", -1)
+                                getViewAttr().setProp("lengthLimitType", -1)
                             }
                         }
                     }
-                    set(onLimitChange) {
+                    set(onLimitChange to maxLength) {
                         if (onLimitChange != null) {
                             withTextAreaView {
                                 getViewEvent().textLengthBeyondLimit {
-                                    currentLimitExceeded = true
-                                    onLimitChange.invoke(currentTextLength, currentLimitExceeded)
+                                    if (currentTextLength != -1) {
+                                        currentLimitReached = maxLength != null && currentTextLength >= maxLength
+                                        pendingLimitChangeNotification = false
+                                        onLimitChange.invoke(currentTextLength, currentLimitReached)
+                                    } else {
+                                        pendingLimitChangeNotification = true
+                                    }
                                 }
                             }
+                        } else {
+                            pendingLimitChangeNotification = false
+                        }
+                    }
+
+                    set(value) {
+                        if (it == null) return@set
+                        withTextAreaView {
+                            val composition = value.composition
+                            val incomingTextInputState = TextInputState(
+                                text = value.text,
+                                selectionStart = value.selection.start,
+                                selectionEnd = value.selection.end,
+                                compositionStart = composition?.start ?: TextInputState.NO_COMPOSITION,
+                                compositionEnd = composition?.end ?: TextInputState.NO_COMPOSITION
+                            )
+                            getViewAttr().updatePropCache(TextConst.VALUE, incomingTextInputState.text)
+
+                            // 处理原生事件回流时，只有完整编辑态真的不同才反向同步，避免用旧 selection/composition 覆盖原生态
+                            val shouldSyncToNative = !isProcessingNativeEvent ||
+                                !(lastSyncedTextInputState?.hasSameEditingState(incomingTextInputState) ?: false)
+
+                            if (shouldSyncToNative) {
+                                setTextInputState(incomingTextInputState)
+                                lastSyncedTextInputState = incomingTextInputState
+                            }
+
+                            // 长度计算统一依赖原生层回调，避免 Kotlin 层和原生层计算不一致
+                            // 原生层会在 textInputStateChange 回调中返回正确的 length
+
+                            // 重置标志，等待下一次原生事件
+                            isProcessingNativeEvent = false
                         }
                     }
                 },
@@ -830,6 +862,12 @@ internal fun requestFocusAndShowKeyboardIfNeeded(
     allowKeyboard: Boolean
 ) {
     if (allowKeyboard && !state.hasFocus) {
+        // LazyList 复用窗口里，native TextArea 可能已经先处理了 touch，
+        // 但 Compose 的 FocusRequesterNode 还没重新 attach；这时既不能 requestFocus，
+        // 也不能盲目 show 键盘，否则键盘会继续挂在旧的 served view 上。
+        if (focusRequester.hasAttachedNodes().not()) {
+            return
+        }
         focusRequester.requestFocus()
     } else if (allowKeyboard) {
         state.keyboardController?.show()

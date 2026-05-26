@@ -15,6 +15,17 @@
 
 package com.tencent.kuikly.core.render.android.adapter
 
+class KRVisualWidthConfig {
+    var emojiVisualWidth: Int = DEFAULT_EMOJI_VISUAL_WIDTH
+        set(value) {
+            field = value.coerceAtLeast(1)
+        }
+
+    companion object {
+        private const val DEFAULT_EMOJI_VISUAL_WIDTH = 2
+    }
+}
+
 /**
  * Created by kam on 2023/3/27.
  */
@@ -73,6 +84,14 @@ object KuiklyRenderAdapterManager {
      * 文本后置处理器适配器
      */
     var krTextPostProcessorAdapter: IKRTextPostProcessorAdapter? = null
+
+    /**
+     * 视觉宽度配置
+     * 业务可通过该配置调整 VISUAL_WIDTH 模式下 Emoji / Attachment 占用的宽度
+     */
+    val krVisualWidthConfig: KRVisualWidthConfig by lazy {
+        KRVisualWidthConfig()
+    }
 }
 
 object KuiklyRenderLog {

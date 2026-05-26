@@ -267,6 +267,12 @@ fun EmojiInputDemo() {
 - **清空输入**：使用 `state.clearText()` 一次性清空文本和重置选区
 :::
 
+:::warning 与 `maxLength` / 自定义 processor 组合时的注意事项
+- **processor 名称要全链路一致**：Kotlin 侧 `textPostProcessor("comment_input")`、Android `IKRTextPostProcessorAdapter` 路由、iOS `hr_customTextWithAttributedString:textPostProcessor:` 路由，都应使用同一个名称；不要默认依赖示例里的 `"input"`。
+- **表情插入请始终基于当前 raw selection 做 `replace(selection.start, selection.end, shortCode)`**：不要自己拆成“删选区 + append”，否则容易破坏中间插入和选区替换语义。
+- **与 `Modifier.maxLength` 组合时，超限应拒绝整段 shortcode**：例如 `[smile]` 放不下时，应保留原有 raw text 和合法选区，而不是写入半个 token。
+:::
+
 ## Android 适配器实现
 
 ### 1. 创建适配器类

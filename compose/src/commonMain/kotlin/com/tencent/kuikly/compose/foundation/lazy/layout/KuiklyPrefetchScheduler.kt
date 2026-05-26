@@ -7,6 +7,12 @@
 package com.tencent.kuikly.compose.foundation.lazy.layout
 
 import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
+import com.tencent.kuikly.compose.ui.util.traceValue
+import kotlin.math.max
+
+internal const val KUIKLY_PREFETCH_FRAME_INTERVAL_NS = 16_666_667L
+private const val SAFETY_BUDGET_NS = 2_000_000L
+internal const val KUIKLY_PREFETCH_MAX_CONTINUATION_FRAMES = 2
 
 @OptIn(ExperimentalFoundationApi::class)
 internal class KuiklyPrefetchScheduler :
@@ -14,6 +20,7 @@ internal class KuiklyPrefetchScheduler :
     PriorityPrefetchScheduler {
 
     private val queue = ArrayDeque<PriorityTask>()
+    private val scope = PrefetchRequestScopeImpl()
 
     override fun schedulePrefetch(prefetchRequest: PrefetchRequest) {
         scheduleHighPriorityPrefetch(prefetchRequest)
@@ -38,8 +45,55 @@ internal class KuiklyPrefetchScheduler :
 
     fun hasPendingWork(): Boolean = queue.isNotEmpty()
 
-    /** Stub: filled in Commit 5 frame-loop integration. */
-    fun processRequests(nanoTime: Long, frameIntervalNs: Long, isFrameIdle: Boolean): Long = 0L
+    fun processRequests(nanoTime: Long, frameIntervalNs: Long, isFrameIdle: Boolean): Long {
+        if (queue.isEmpty()) return 0L
+
+        scope.isFrameIdle = isFrameIdle
+        scope.nextFrameTimeNs = nanoTime + frameIntervalNs
+
+        if (!isFrameIdle) {
+            val available = scope.availableTimeNanos()
+            if (available < SAFETY_BUDGET_NS) return 0L
+        }
+
+        val startTime = System.nanoTime()
+        var scheduleForNextFrame = false
+        while (queue.isNotEmpty() && !scheduleForNextFrame) {
+            scheduleForNextFrame = runRequest()
+        }
+        traceValue("compose:lazy:prefetch:available_time_nanos", 0L)
+        return System.nanoTime() - startTime
+    }
+
+    private fun runRequest(): Boolean {
+        val availableTimeNanos = scope.availableTimeNanos()
+        traceValue("compose:lazy:prefetch:available_time_nanos", availableTimeNanos)
+        if (availableTimeNanos > 0) {
+            val task = queue.first()
+            val hasMoreWorkToDo = with(task.request) { scope.execute() }
+            if (hasMoreWorkToDo) {
+                return true
+            } else {
+                queue.removeFirst()
+            }
+            scope.isFrameIdle = false
+        } else {
+            return true
+        }
+        return false
+    }
+
+    private class PrefetchRequestScopeImpl : PrefetchRequestScope {
+        var isFrameIdle: Boolean = false
+        var nextFrameTimeNs: Long = 0L
+
+        override fun availableTimeNanos(): Long =
+            if (isFrameIdle) {
+                Long.MAX_VALUE
+            } else {
+                max(0, nextFrameTimeNs - System.nanoTime())
+            }
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)

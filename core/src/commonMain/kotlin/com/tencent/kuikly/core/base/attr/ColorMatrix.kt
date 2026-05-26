@@ -112,7 +112,7 @@ class ColorMatrix(val values: FloatArray) {
                 1f, 0f, 0f, 0f, 0f,
                 0f, 1f, 0f, 0f, 0f,
                 0f, 0f, 1f, 0f, 0f,
-                0f, 0f, 0f, 1f, 0f,
+                0f, 0f, 0f, 1f, 0f
             )
         )
 
@@ -199,7 +199,7 @@ fun ColorMatrixConfig.toColorMatrix(): ColorMatrix {
             (sr + s) * c,  sg * c,        sb * c,        0f,     offsetR,
             sr * c,        (sg + s) * c,  sb * c,        0f,     offsetG,
             sr * c,        sg * c,        (sb + s) * c,  0f,     offsetB,
-            0f,            0f,            0f,            alpha,  0f,
+            0f,            0f,            0f,            alpha,  0f
         )
     )
 }

@@ -88,6 +88,14 @@ object ComposeFoundationFlags {
     @Suppress("MutableBareField") @JvmField var isSmartSelectionEnabled = true
 
     /**
+     * Kuikly-specific global kill switch for LazyList prefetch. Default off; use
+     * [Modifier.enableLazyListPrefetch] for per-list opt-in.
+     */
+    @Suppress("MutableBareField")
+    @JvmField
+    var isLazyListPrefetchEnabled = false
+
+    /**
      * Selecting flag to enable the use of new PausableComposition in lazy layout prefetch. This
      * change allows us to distribute work we need to do during the prefetch better, for example we
      * can only perform the composition for parts of the LazyColumn's next item during one ui frame,

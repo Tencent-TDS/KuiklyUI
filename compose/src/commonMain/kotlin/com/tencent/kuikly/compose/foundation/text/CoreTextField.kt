@@ -76,6 +76,7 @@ import com.tencent.kuikly.compose.ui.util.fastRoundToInt
 import com.tencent.kuikly.core.views.AutoHeightTextAreaView
 import com.tencent.kuikly.core.views.TextInputState
 import com.tencent.kuikly.core.views.LengthLimitType
+import com.tencent.kuikly.compose.foundation.text.selection.LocalTextSelectionColors
 import com.tencent.kuikly.core.views.TextAreaAttr
 import com.tencent.kuikly.core.views.TextAreaEvent
 import com.tencent.kuikly.core.views.TextConst
@@ -174,7 +175,6 @@ internal fun CoreTextField(
     maxLength: Int? = null,
     lengthLimitType: LengthLimitType? = null,
     onLimitChange: ((length: Int, limit: Boolean) -> Unit)? = null,
-    selectionColor: Color? = null,
 ) {
     val compositeKeyHash = currentCompositeKeyHash
     val localMap = currentComposer.currentCompositionLocalMap
@@ -182,6 +182,7 @@ internal fun CoreTextField(
     val focusManager = LocalFocusManager.current
     val layoutDirection = LocalLayoutDirection.current
     val density = LocalDensity.current
+    val selectionColors = LocalTextSelectionColors.current
 
     var singleLineNew = singleLine
     if (!singleLineNew) {
@@ -530,11 +531,9 @@ internal fun CoreTextField(
                             }
                         }
                     }
-                    set(selectionColor) {
-                        if (selectionColor != null) {
-                            withTextAreaView {
-                                getViewAttr().selectionColor(selectionColor.toKuiklyColor())
-                            }
+                    set(selectionColors) {
+                        withTextAreaView {
+                            getViewAttr().selectionColor(selectionColors.backgroundColor.toKuiklyColor())
                         }
                     }
                     set(maxLength to lengthLimitType) {

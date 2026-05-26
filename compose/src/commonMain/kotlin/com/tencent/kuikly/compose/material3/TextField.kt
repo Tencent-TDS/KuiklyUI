@@ -60,7 +60,6 @@ import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.draw.drawWithContent
 import com.tencent.kuikly.compose.ui.geometry.Offset
 import com.tencent.kuikly.compose.ui.graphics.Shape
-import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.SolidColor
 import com.tencent.kuikly.compose.ui.graphics.takeOrElse
 import com.tencent.kuikly.compose.ui.layout.IntrinsicMeasurable
@@ -212,7 +211,6 @@ fun TextField(
     interactionSource: MutableInteractionSource? = null,
     shape: Shape = TextFieldDefaults.shape,
     colors: TextFieldColors = TextFieldDefaults.colors(),
-    selectionColor: Color? = null,
 ) {
     @Suppress("NAME_SHADOWING")
     val interactionSource = interactionSource ?: remember { MutableInteractionSource() }
@@ -239,7 +237,6 @@ fun TextField(
             readOnly = readOnly,
             textStyle = mergedTextStyle,
             cursorBrush = SolidColor(colors.cursorColor(isError)),
-            selectionColor = selectionColor,
             visualTransformation = visualTransformation,
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,

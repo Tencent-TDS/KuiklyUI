@@ -16,6 +16,7 @@
 package com.tencent.kuikly.demo.pages.compose
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +44,8 @@ import com.tencent.kuikly.compose.foundation.shape.RoundedCornerShape
 import com.tencent.kuikly.compose.foundation.text.BasicTextField
 import com.tencent.kuikly.compose.foundation.text.KeyboardActions
 import com.tencent.kuikly.compose.foundation.text.KeyboardOptions
+import com.tencent.kuikly.compose.foundation.text.selection.LocalTextSelectionColors
+import com.tencent.kuikly.compose.foundation.text.selection.TextSelectionColors
 import com.tencent.kuikly.compose.foundation.text.maxLength
 import com.tencent.kuikly.compose.foundation.text.onLimitChange
 import com.tencent.kuikly.compose.extension.nativeRef
@@ -156,15 +159,21 @@ class TextFieldDemo : ComposeContainer() {
                     ) {
                         Row(modifier = Modifier) {
                             var text2 by remember { mutableStateOf("你好") }
-                            BasicTextField(
-                                cursorBrush = SolidColor(Color.Red),
-                                value = text2,
-                                onValueChange = {
-                                    text2 = it
-                                },
-                                selectionColor = Color.Yellow,
-                                modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                            )
+                            CompositionLocalProvider(
+                                LocalTextSelectionColors provides TextSelectionColors(
+                                    handleColor = Color.Yellow,
+                                    backgroundColor = Color.Yellow.copy(alpha = 0.4f)
+                                )
+                            ) {
+                                BasicTextField(
+                                    cursorBrush = SolidColor(Color.Red),
+                                    value = text2,
+                                    onValueChange = {
+                                        text2 = it
+                                    },
+                                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                                )
+                            }
                             Box(
                                 modifier = Modifier.size(50.dp).clickable {
                                     text2 = ""

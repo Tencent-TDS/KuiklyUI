@@ -62,6 +62,7 @@ import com.tencent.kuikly.compose.ui.platform.LocalConfiguration
 import com.tencent.kuikly.compose.ui.platform.LocalDensity
 import com.tencent.kuikly.compose.ui.platform.createSubcomposition
 import com.tencent.kuikly.compose.ui.unit.Constraints
+import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
 import com.tencent.kuikly.compose.ui.util.fastForEach
 import com.tencent.kuikly.compose.gestures.KuiklyScrollInfo
@@ -523,7 +524,39 @@ class SubcomposeLayoutState(
         content: @Composable () -> Unit,
     ): PrecomposedSlotHandle = state.precompose(slotId, content)
 
+    /**
+     * Creates [PausedPrecomposition] for lazy-list prefetch.
+     *
+     * Kuikly stub (Phase 1): eagerly completes via [precompose] until runtime 1.9.x +
+     * [LayoutNodeSubcompositionsState.precomposePaused] are fully vendored.
+     */
+    fun createPausedPrecomposition(
+        slotId: Any?,
+        content: @Composable () -> Unit,
+    ): PausedPrecomposition = EagerPausedPrecomposition(precompose(slotId, content))
+
     internal fun forceRecomposeChildren() = state.forceRecomposeChildren()
+
+    /**
+     * A subcomposition that can be composed incrementally. See upstream SubcomposeLayout.
+     */
+    sealed interface PausedPrecomposition {
+        val isComplete: Boolean
+        fun resume(shouldPause: () -> Boolean): Boolean
+        fun apply(): PrecomposedSlotHandle
+        fun cancel()
+    }
+
+    private class EagerPausedPrecomposition(
+        private val handle: PrecomposedSlotHandle,
+    ) : PausedPrecomposition {
+        override val isComplete: Boolean = true
+        override fun resume(shouldPause: () -> Boolean): Boolean = true
+        override fun apply(): PrecomposedSlotHandle = handle
+        override fun cancel() {
+            handle.dispose()
+        }
+    }
 
     /**
      * Instance of this interface is returned by [precompose] function.
@@ -556,6 +589,8 @@ class SubcomposeLayoutState(
             index: Int,
             constraints: Constraints,
         ) {}
+
+        fun getSize(index: Int): IntSize = IntSize.Zero
 
         /**
          * Conditionally executes [block] for each [Modifier.Node] of this Composition that is a
@@ -1179,6 +1214,21 @@ internal class LayoutNodeSubcompositionsState(
                 block: (TraversableNode) -> TraversableNode.Companion.TraverseDescendantsAction,
             ) {
                 precomposeMap[slotId]?.nodes?.head?.traverseDescendants(key, block)
+            }
+
+            override fun getSize(index: Int): IntSize {
+                val node = precomposeMap[slotId]
+                if (node != null && node.isAttached) {
+                    val size = node.children.size
+                    if (index < 0 || index >= size) {
+                        throw IndexOutOfBoundsException(
+                            "Index ($index) is out of bound of [0, $size)",
+                        )
+                    }
+                    val child = node.children[index]
+                    return IntSize(child.width, child.height)
+                }
+                return IntSize.Zero
             }
         }
     }

@@ -75,7 +75,7 @@ kotlin {
             api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
             api("androidx.annotation:annotation:1.9.1")
             api("org.jetbrains.kotlinx:atomicfu:0.25.0")
-            api("org.jetbrains.compose.collection-internal:collection:1.7.3")
+            api("org.jetbrains.compose.collection-internal:collection:1.9.3")
             implementation(project(":core-annotations"))
         }
 

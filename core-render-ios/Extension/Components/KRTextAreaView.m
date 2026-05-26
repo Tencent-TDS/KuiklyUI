@@ -922,7 +922,13 @@ static const CGFloat KRSelectionColorMaxAlpha = 0x66 / 255.0;
 - (void)p_applyNativeCursorColorIfNeeded {
     if (!_cursorColor) return;
     if (@available(iOS 17.0, *)) {
-        self.insertionPointColor = _cursorColor;
+        SEL sel = NSSelectorFromString(@"setInsertionPointColor:");
+        if ([self respondsToSelector:sel]) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+            [self performSelector:sel withObject:_cursorColor];
+#pragma clang diagnostic pop
+        }
     }
 }
 #endif

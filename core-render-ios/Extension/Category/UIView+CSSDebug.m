@@ -32,10 +32,28 @@
 - (void)setCss_debugName:(NSString *)css_debugName {
     objc_setAssociatedObject(self, @selector(css_debugName), css_debugName, OBJC_ASSOCIATION_RETAIN);
     [self kr_updateAccessibilityIdentifier];
+    [self kr_syncAccessibilityElement];
 
 #if DEBUG
     [UIView ktv_replaceSubclass:self debugName:css_debugName];
 #endif
+}
+
+- (BOOL)kr_isAccessibilityContainer {
+    return self.css_debugName.length > 0 && self.subviews.count > 0;
+}
+
+- (void)kr_syncAccessibilityElement {
+    if ([self kr_isAccessibilityContainer]) {
+        self.isAccessibilityElement = NO;
+        return;
+    }
+    if (self.css_testTag.length > 0 && self.subviews.count == 0) {
+        self.isAccessibilityElement = YES;
+        if (self.accessibilityTraits == UIAccessibilityTraitNone) {
+            self.accessibilityTraits = UIAccessibilityTraitButton;
+        }
+    }
 }
 
 - (void)kr_updateAccessibilityIdentifier {
@@ -52,6 +70,7 @@
         [identifier appendString:testTag];
     }
     self.accessibilityIdentifier = identifier.length > 0 ? identifier : nil;
+    [self kr_syncAccessibilityElement];
 }
 
 #if DEBUG

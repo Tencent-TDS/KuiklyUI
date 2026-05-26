@@ -60,6 +60,8 @@ class KuiklySemantisHandler {
                     view.getViewAttr().accessibility(accessibility)
                     val kuiklyAccRole = convertComposeRoleToKuiklyRole(role)
                     view.getViewAttr().accessibilityRole(kuiklyAccRole)
+                }
+                if (isClickable || isLongClickable) {
                     view.getViewAttr().accessibilityInfo(isClickable, isLongClickable)
                 }
 

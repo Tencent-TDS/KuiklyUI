@@ -101,7 +101,10 @@ object ComposeFoundationFlags {
      * can only perform the composition for parts of the LazyColumn's next item during one ui frame,
      * and then continue composing the rest of it in the next frames.
      */
-    @Suppress("MutableBareField") @JvmField var isPausableCompositionInPrefetchEnabled = false
+    /**
+     * Kuikly: default on once runtime 1.9 PausableComposition is wired in SubcomposeLayout.
+     */
+    @Suppress("MutableBareField") @JvmField var isPausableCompositionInPrefetchEnabled = true
 
     /**
      * Selecting flag to enable the use of automatic nested prefetch. When this is enabled, nested

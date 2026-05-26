@@ -14,6 +14,7 @@
  */
 
 #import "UIView+CSS.h"
+#import "UIView+CSSDebug.h"
 #import <objc/runtime.h>
 #import "KRConvertUtil.h"
 #import "KRView.h"
@@ -465,6 +466,11 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         objc_setAssociatedObject(self, @selector(css_accessibility), css_accessibility, OBJC_ASSOCIATION_RETAIN);
         self.accessibilityLabel = css_accessibility;
         self.isAccessibilityElement = css_accessibility.length > 0;
+        // When debugName is set and view has children, keep it as a container
+        // so that XCUITest can traverse the subtree
+        if (self.css_debugName.length > 0 && self.subviews.count > 0) {
+            self.isAccessibilityElement = NO;
+        }
     }
 }
 
@@ -477,6 +483,10 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         objc_setAssociatedObject(self, @selector(css_accessibilityRole), css_accessibilityRole, OBJC_ASSOCIATION_RETAIN);
         self.accessibilityTraits = [KRConvertUtil kr_accessibilityTraits:css_accessibilityRole];
         self.isAccessibilityElement = self.accessibilityTraits != UIAccessibilityTraitNone;
+        // When debugName is set and view has children, keep it as a container
+        if (self.css_debugName.length > 0 && self.subviews.count > 0) {
+            self.isAccessibilityElement = NO;
+        }
     }
 }
 
@@ -487,7 +497,7 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 - (void)setCss_testTag:(NSString *)css_testTag {
     if (self.css_testTag != css_testTag) {
         objc_setAssociatedObject(self, @selector(css_testTag), css_testTag, OBJC_ASSOCIATION_RETAIN);
-        self.accessibilityIdentifier = css_testTag;
+        [self kr_updateAccessibilityIdentifier];
     }
 }
 
@@ -1257,6 +1267,11 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
                 // 如果有点击功能，确保组件是可访问的
                 if (isClickable || isLongClickable) {
                     self.accessibilityTraits = traits;
+                    if (![self kr_isAccessibilityContainer]) {
+                        self.isAccessibilityElement = YES;
+                    }
+                } else if ([self kr_isAccessibilityContainer]) {
+                    self.isAccessibilityElement = NO;
                 }
             }
         }
@@ -2252,7 +2267,3 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
 }
 
 @end
-
-
-
-

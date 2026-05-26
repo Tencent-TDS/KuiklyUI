@@ -91,6 +91,10 @@ object KRCssConst {
 
     const val HAD_INIT_ACCESSIBILITY_DELEGATE = "hadInitAccessibilityDelegate"
 
+    // Internal key: plain text for accessibility node info (used by canvas-drawn views like KRRichTextView).
+    // Exposed as info.text only when DEBUG_NAME viewData is set (debugUIInspector).
+    const val PLAIN_TEXT_FOR_A11Y = "plainTextForA11y"
+
     const val CLIP_PATH = "clipPath"
     const val TRANSFORM_OVER_BOUNDS = "transformOverBounds"
     const val CONTENT_OVER_BOUNDS = "contentOverBounds"

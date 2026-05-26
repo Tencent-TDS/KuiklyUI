@@ -180,7 +180,13 @@ fun View.setCommonProp(key: String, value: Any): Boolean {
             true
         }
         KRCssConst.DEBUG_NAME -> {
-            contentDescription = value as String
+            val name = value as String
+            contentDescription = name
+            putViewData(KRCssConst.DEBUG_NAME, name)
+            // RichTextView may set plain text before debugName; init delegate once both are ready.
+            if (!getViewData<String>(KRCssConst.PLAIN_TEXT_FOR_A11Y).isNullOrEmpty()) {
+                initAccessibilityDelegateIfNeeded()
+            }
             true
         }
         KRCssConst.AUTO_DARK_ENABLE -> {
@@ -321,6 +327,7 @@ fun View.resetCommonProp(propKey: String): Boolean {
             return true
         }
         KRCssConst.DEBUG_NAME -> {
+            removeViewData<String>(KRCssConst.DEBUG_NAME)
             contentDescription = null
             return true
         }
@@ -818,6 +825,7 @@ private fun View.setAccessibilityRole(propValue: Any) {
 private fun View.setTestTag(propValue: Any) {
     val tag = propValue as String
     putViewData(KRCssConst.TEST_TAG, tag)
+    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
     initAccessibilityDelegate()
 }
 
@@ -844,6 +852,12 @@ internal fun View.hasInitAccessibilityDelegate(): Boolean {
     return getViewData<Boolean>(KRCssConst.HAD_INIT_ACCESSIBILITY_DELEGATE) == true
 }
 
+internal fun View.initAccessibilityDelegateIfNeeded() {
+    if (!hasInitAccessibilityDelegate()) {
+        initAccessibilityDelegate()
+    }
+}
+
 private fun View.initAccessibilityDelegate() {
     if (getViewData<Boolean>(KRCssConst.HAD_INIT_ACCESSIBILITY_DELEGATE) == true) {
         return
@@ -864,6 +878,13 @@ private fun View.initAccessibilityDelegate() {
 
             getViewData<String>(KRCssConst.TEST_TAG)?.apply {
                 info.viewIdResourceName = this
+            }
+
+            // Expose plain text for canvas-drawn views (e.g. KRRichTextView) only when the
+            // framework injected debugName (debugUIInspector). Without it, keep legacy a11y.
+            val a11yText = getViewData<String>(KRCssConst.PLAIN_TEXT_FOR_A11Y)
+            if (!a11yText.isNullOrEmpty() && hasDebugName()) {
+                info.text = a11yText
             }
 
             if (hasEventListener(KRCSSGestureListener.TYPE_CLICK)) {
@@ -887,6 +908,10 @@ private fun View.initAccessibilityDelegate() {
 
     }
     putViewData(KRCssConst.HAD_INIT_ACCESSIBILITY_DELEGATE, true)
+}
+
+internal fun View.hasDebugName(): Boolean {
+    return getViewData<String>(KRCssConst.DEBUG_NAME) != null
 }
 
 private var innerStatusBarHeight = -1

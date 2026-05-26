@@ -68,6 +68,7 @@ internal class NavigationBar: ComposeView<NavigationBarAttr, ComposeEvent>() {
                         attr {
                             absolutePosition(12f + getPager().pageData.statusBarHeight, 12f, 12f, 12f)
                             size(10f, 17f)
+                            testTag("nav_back")
                             src("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAASBAMAAAB/WzlGAAAAElBMVEUAAAAAAAAAAAAAAAAAAAAAAADgKxmiAAAABXRSTlMAIN/PELVZAGcAAAAkSURBVAjXYwABQTDJqCQAooSCHUAcVROCHBiFECTMhVoEtRYA6UMHzQlOjQIAAAAASUVORK5CYII=")
                         }
                         event {

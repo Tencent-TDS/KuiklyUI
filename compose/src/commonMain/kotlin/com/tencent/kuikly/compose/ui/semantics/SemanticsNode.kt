@@ -45,7 +45,7 @@ internal fun SemanticsNode(
     layoutNode.nodes.head(Nodes.Semantics)!!.node,
     mergingEnabled,
     layoutNode,
-    layoutNode.collapsedSemantics!!
+    layoutNode.collapsedSemantics ?: SemanticsConfiguration()
 )
 
 internal fun SemanticsNode(
@@ -263,6 +263,10 @@ class SemanticsNode internal constructor(
             // TODO(b/290936195): In some conditions it appears that children here can be
             //  unattached. We just guard against that here as a "quick fix" but we need to
             //  understand why this is happening and followup with a proper fix.
+            // Also guard isDeactivated: during applyChanges(), invalidateSemantics() is called
+            // synchronously from onDeactivate(). At that point, sibling/child nodes in the same
+            // batch may already have isDeactivated=true, causing collapsedSemantics to return
+            // null and the SemanticsNode factory's !! to throw NPE.
             if (child.isAttached && !child.isDeactivated) {
                 if (child.nodes.has(Nodes.Semantics)) {
                     list.add(SemanticsNode(child, mergingEnabled))

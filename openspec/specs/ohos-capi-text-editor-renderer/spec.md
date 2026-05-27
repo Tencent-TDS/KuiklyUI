@@ -1,4 +1,8 @@
-## ADDED Requirements
+## Purpose
+
+TBD.
+
+## Requirements
 
 ### Requirement: 新节点类型创建
 

@@ -32,6 +32,14 @@ NS_ASSUME_NONNULL_BEGIN
 // The touch move callback for the view
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_touchMove;
 
+#if TARGET_OS_OSX
+// macOS: Mouse hover enter callback
+@property (nonatomic, strong, nullable) KuiklyRenderCallback css_mouseEnter;
+
+// macOS: Mouse hover exit callback
+@property (nonatomic, strong, nullable) KuiklyRenderCallback css_mouseExit;
+#endif
+
 @end
 
 NS_ASSUME_NONNULL_END

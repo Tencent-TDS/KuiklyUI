@@ -50,6 +50,7 @@ import com.tencent.kuikly.compose.resources.InternalResourceApi
 import com.tencent.kuikly.compose.resources.painterResource
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
+import com.tencent.kuikly.compose.ui.semantics.testTag
 import com.tencent.kuikly.compose.ui.focus.FocusRequester
 import com.tencent.kuikly.compose.ui.focus.focusRequester
 import com.tencent.kuikly.compose.ui.focus.onFocusChanged
@@ -261,6 +262,7 @@ fun ComposeNavigationBar(titleInput: String = "", content: @Composable () -> Uni
         Box {
             Image(
                 modifier = Modifier
+                    .testTag("nav_back")
                     .clickable {
                         routerModule?.closePage()
                     }

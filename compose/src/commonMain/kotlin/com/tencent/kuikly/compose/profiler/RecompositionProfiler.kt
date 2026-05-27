@@ -306,7 +306,26 @@ object RecompositionProfiler {
                 prefixesSnapshot = excludedPrefixes.toList().sorted()
             )
         }
+        // 根据 excludedNames / excludedPrefixes 过滤 composables 和 hotspots
+        val excludedNameSet = snapshot.namesSnapshot.toSet()
+        val prefixes = snapshot.prefixesSnapshot
+
+        fun ComposableStats.isExcluded(): Boolean {
+            // 精确名称匹配
+            if (name in excludedNameSet) return true
+            // 名称+源码位置精确匹配
+            if (sourceLocation != null && "$name @$sourceLocation" in excludedNameSet) return true
+            // 前缀匹配（匹配 name 前缀）
+            if (prefixes.any { name.startsWith(it) }) return true
+            return false
+        }
+
+        val filteredComposables = snapshot.baseReport.composables.filterNot { it.isExcluded() }
+        val filteredHotspots = snapshot.baseReport.hotspots.filterNot { it.isExcluded() }
+
         val finalReport = snapshot.baseReport.copy(
+            composables = filteredComposables,
+            hotspots = filteredHotspots,
             filteredNames = snapshot.namesSnapshot,
             filteredPrefixes = snapshot.prefixesSnapshot
         )
@@ -371,6 +390,27 @@ object RecompositionProfiler {
     fun excludeByName(names: List<String>) {
         synchronized(lock) {
             val added = names.filter { it.isNotBlank() }
+            excludedNames.addAll(added)
+            rebuildCustomFilters()
+            if (isEnabled) logFilterUpdated()
+        }
+    }
+
+    /**
+     * 按 Composable 名称 + 源码位置精确排除。
+     * 适用于同名函数在不同文件中的场景（如多个 invoke）。
+     * sourceLocation 为 null 时退化为按名称排除（与 [excludeByName] 等价）。
+     *
+     * @param names Composable 名称列表
+     * @param sourceLocation 源码位置（如 "FeedsDoubleColumnCard.kt:47"），null 表示仅按名称匹配
+     */
+    fun excludeByName(names: List<String>, sourceLocation: String?) {
+        synchronized(lock) {
+            val added = if (sourceLocation != null) {
+                names.map { "$it @$sourceLocation" }
+            } else {
+                names
+            }.filter { it.isNotBlank() }
             excludedNames.addAll(added)
             rebuildCustomFilters()
             if (isEnabled) logFilterUpdated()
@@ -446,6 +486,18 @@ object RecompositionProfiler {
     }
 
     /**
+     * 查询指定名称+源码位置是否在动态排除列表中。
+     * 同时检查纯名称匹配和带源码位置的精确匹配。
+     */
+    fun isNameExcluded(name: String, sourceLocation: String?): Boolean {
+        synchronized(lock) {
+            if (name in excludedNames) return true
+            if (sourceLocation != null && "$name @$sourceLocation" in excludedNames) return true
+            return false
+        }
+    }
+
+    /**
      * 获取当前动态排除名称列表的快照。
      * Overlay 用此接口显示已过滤区域。
      */
@@ -487,6 +539,49 @@ object RecompositionProfiler {
         val prefixes = excludedPrefixes.toList().sorted()
         com.tencent.kuikly.core.log.KLog.i(TAG, "Custom filter updated — names: $names, prefixes: $prefixes")
     }
+
+    /**
+     * 记录用户触摸上下文事件（touchBegin / touchEnd / touchCancel）。
+     * 仅在 isEnabled 为 true 时记录，未启用时零开销。
+     * 由 RootNodeOwner.onPointerInput 调用。
+     *
+     * @param touchEventType "touchBegin" | "touchEnd" | "touchCancel"
+     * @param pointerCount 同时触摸的手指数
+     */
+    fun recordTouchContext(touchEventType: String, pointerCount: Int) {
+        if (!isEnabled) return
+        val event = TouchContextEvent(
+            timestampMs = com.tencent.kuikly.core.datetime.DateTime.currentTimestamp(),
+            touchEventType = touchEventType,
+            pointerCount = pointerCount
+        )
+        com.tencent.kuikly.core.log.KLog.d(TAG, "[touch_context] $touchEventType pointerCount=$pointerCount ts=${event.timestampMs}")
+        fileStrategy?.appendContextEvent(event)
+    }
+
+    /**
+     * 记录列表滚动上下文事件（firstVisibleItemIndex 变化时）。
+     * 仅在 isEnabled 为 true 时记录，未启用时零开销。
+     * 由 LazyListState / LazyGridState / PagerState 内部 hook 调用。
+     *
+     * @param listId 列表标识符（区分同一页面内的多个列表）
+     * @param from 变化前的 firstVisibleItemIndex
+     * @param to 变化后的 firstVisibleItemIndex
+     * @param visibleItemCount 当前可见 item 数量
+     */
+    fun recordScrollContext(listId: String, from: Int, to: Int, visibleItemCount: Int) {
+        if (!isEnabled) return
+        val event = ScrollContextEvent(
+            timestampMs = com.tencent.kuikly.core.datetime.DateTime.currentTimestamp(),
+            listId = listId,
+            firstVisibleItemFrom = from,
+            firstVisibleItemTo = to,
+            visibleItemCount = visibleItemCount
+        )
+        com.tencent.kuikly.core.log.KLog.d(TAG, "[scroll_context] $listId from=$from to=$to visibleCount=$visibleItemCount ts=${event.timestampMs}")
+        fileStrategy?.appendContextEvent(event)
+    }
+
 
     /**
      * 添加输出策略。

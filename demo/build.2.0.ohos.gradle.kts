@@ -38,7 +38,7 @@ kotlin {
             linkerOpts += "--build-id=sha1"
             // 安装包优化（仅 release）
             if (buildType == org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType.RELEASE) {
-                val CLANG_OPT_FLAGS = "-Os -mllvm -enable-machine-outliner=always -ffunction-sections"
+                val CLANG_OPT_FLAGS = "-Os   -ffunction-sections"
                 val CLANG_FLAGS = "clangOptFlags.ios_arm64=$CLANG_OPT_FLAGS;clangDebugFlags.ios_arm64=$CLANG_OPT_FLAGS;clangOptFlags.ohos_arm64=$CLANG_OPT_FLAGS;clangDebugFlags.ohos_arm64=$CLANG_OPT_FLAGS"
                 freeCompilerArgs += "-Xoverride-konan-properties=$CLANG_FLAGS"
                 linkerOpts += "--pack-dyn-relocs=relr"
@@ -53,6 +53,7 @@ kotlin {
                 implementation(project(":core"))
                 implementation(project(":core-annotations"))
                 implementation(project(":compose"))
+                implementation(project(":core-wx"))
                 // Chat Demo 相关依赖
                 implementation("com.tencent.kuiklybase:markdown:0.3.0-ohos")
             }

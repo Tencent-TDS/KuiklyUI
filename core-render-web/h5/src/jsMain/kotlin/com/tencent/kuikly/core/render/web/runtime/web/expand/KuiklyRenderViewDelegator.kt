@@ -1,5 +1,9 @@
+@file:JsExport
+
 package com.tencent.kuikly.core.render.web.runtime.web.expand
 
+import kotlin.js.JsExport
+import kotlin.js.JsName
 import com.tencent.kuikly.core.render.web.IKuiklyRenderContext
 import com.tencent.kuikly.core.render.web.IKuiklyRenderExport
 import com.tencent.kuikly.core.render.web.IKuiklyRenderViewLifecycleCallback
@@ -51,6 +55,8 @@ import kotlinx.browser.window
 /**
  * Host project can simplify KuiklyRenderCore integration through this class, which is integrated at page granularity
  */
+@JsExport
+@JsName("KuiklyRenderViewDelegator")
 class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorDelegate) {
     // The root renderView of the kuikly page
     private var renderView: KuiklyRenderView? = null
@@ -399,6 +405,8 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
      * Register custom property handler
      */
     private fun registerViewExternalPropHandler(kuiklyRenderExport: IKuiklyRenderExport) {
+        // Register built-in external prop handlers
+        kuiklyRenderExport.viewPropExternalHandlerExport(KRCustomPropsHandler())
         // Delegate to external, allowing host project to expose its own custom property handler
         delegate.registerViewExternalPropHandler(kuiklyRenderExport)
     }
@@ -418,6 +426,9 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
                 // In web, apng is supported by Image
                 renderViewExport(KRImageView.APNG_VIEW_NAME, {
                     KRImageView(it.kuiklyRenderContext)
+                })
+                renderViewExport(KRCanvasView.VIEW_NAME, {
+                    KRCanvasView(it.kuiklyRenderContext)
                 })
             }
             renderViewExport(KRTextFieldView.VIEW_NAME, {
@@ -452,9 +463,6 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
             })
             renderViewExport(KRVideoView.VIEW_NAME, {
                 KRVideoView()
-            })
-            renderViewExport(KRCanvasView.VIEW_NAME, {
-                KRCanvasView()
             })
             renderViewExport(KRBlurView.VIEW_NAME, {
                 KRBlurView()

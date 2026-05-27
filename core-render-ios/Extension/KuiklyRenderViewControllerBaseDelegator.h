@@ -19,7 +19,7 @@
 #import "KRBackPressModule.h"
 #import "KRTurboDisplayConfig.h"
 
-typedef void (^KuiklyContextCodeCallback)(NSString * _Nullable contextCode, NSError * _Nullable error);
+typedef void (^KuiklyContextCodeCallback)(id _Nullable contextCode, NSError * _Nullable error);
 @protocol KRPerformanceDataProtocol;
 
 NS_ASSUME_NONNULL_BEGIN
@@ -106,14 +106,15 @@ FOUNDATION_EXTERN NSString *const KRPageDataSnapshotKey;
 - (void)fetchContextCodeWithResultCallback:(KuiklyContextCodeCallback)callback;
 /*
  * @brief 创建Kuikly接入模式实例
- * @param contextCode kmm工程打包的framework名字
+ * @param contextCode 产物数据（NSString 或 NSData）
  */
-- (KuiklyBaseContextMode *)createContextMode:(NSString * _Nullable) contextCode;
+- (KuiklyBaseContextMode *)createContextMode:(id _Nullable)contextCode;
+
 /*
  * @brief 初始化renderView
- * @param contextCode kmm工程打包的framework名字
+ * @param contextCode 产物数据（NSString 或 NSData）
  */
-- (void)initRenderViewWithContextCode:(NSString *)contextCode;
+- (void)initRenderViewWithContextCode:(id)contextCode;
 
 
 /*

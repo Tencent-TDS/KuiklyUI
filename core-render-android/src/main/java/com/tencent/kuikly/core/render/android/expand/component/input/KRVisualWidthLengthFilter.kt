@@ -18,6 +18,7 @@ package com.tencent.kuikly.core.render.android.expand.component.input
 import android.text.Spanned
 import android.text.style.ReplacementSpan
 import com.tencent.kuikly.core.render.android.IKuiklyRenderContext
+import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
 import com.tencent.kuikly.core.render.android.const.KRCssConst
 
 /**
@@ -25,21 +26,22 @@ import com.tencent.kuikly.core.render.android.const.KRCssConst
  *
  * 视觉宽度规则:
  * - ASCII字符 = 1
- * - 中文字符 = 2
- * - Emoji = 2
- * - ImageSpan = 2
+ * - 中文字符 / 普通系统 Emoji / 其他宽字符 = 2
+ * - ReplacementSpan / Attachment = 渲染层可配置（默认 2）
  * - 不可见字符 = 1
  */
 class KRVisualWidthLengthFilter(
     maxVisualWidth: Int,
     kuiklyRenderContext: IKuiklyRenderContext?,
     fontSizeGetter: () -> Float,
-    textLengthBeyondLimitCallback: () -> Unit
+    textLengthBeyondLimitCallback: () -> Unit,
+    textPostProcessorGetter: () -> String = { KRCssConst.EMPTY_STRING }
 ) : KRBaseLengthFilter(
     maxVisualWidth,
     kuiklyRenderContext,
     fontSizeGetter,
-    textLengthBeyondLimitCallback
+    textLengthBeyondLimitCallback,
+    textPostProcessorGetter
 ) {
 
     override fun calculateLength(text: CharSequence, start: Int, end: Int): Int {
@@ -64,7 +66,7 @@ class KRVisualWidthLengthFilter(
                         text,
                         index,
                         range.first
-                    ) + VISUAL_WIDTH_WIDE
+                    ) + emojiVisualWidth()
                     index = range.last + 1
                 }
             }
@@ -106,10 +108,11 @@ class KRVisualWidthLengthFilter(
                             charCount += visualWidth
                             charIndex += Character.charCount(it)
                         }
-                        if (charCount + VISUAL_WIDTH_WIDE > maxLength) {
+                        val spanVisualWidth = emojiVisualWidth()
+                        if (charCount + spanVisualWidth > maxLength) {
                             return@count
                         }
-                        charCount += VISUAL_WIDTH_WIDE
+                        charCount += spanVisualWidth
                         charIndex = range.last + 1
                     }
                 }
@@ -133,12 +136,16 @@ class KRVisualWidthLengthFilter(
     companion object {
         private const val VISUAL_WIDTH_WIDE = 2
 
+        private fun emojiVisualWidth(): Int {
+            return KuiklyRenderAdapterManager.krVisualWidthConfig.emojiVisualWidth
+        }
+
         private fun visualWidthOf(codePoint: Int): Int {
             return if (codePoint < 128) 1 else when (Character.getType(codePoint)) {
                 Character.CONTROL.toInt(),
                 Character.FORMAT.toInt(),
                 Character.SURROGATE.toInt() -> 1
-                else -> 2
+                else -> VISUAL_WIDTH_WIDE
             }
         }
 

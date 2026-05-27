@@ -244,7 +244,11 @@ internal class RecompositionTracker {
         val info: String,
         val startTimeMs: Long,
         val dirty1: Int = 0,
-        val dirty2: Int = 0
+        val dirty2: Int = 0,
+        /** Scope key snapshot captured at traceEventStart time.
+         *  Prevents scope loss when a framework Composable (e.g. CompositionLocalProvider)
+         *  is filtered out — children already captured the scope before the filter runs. */
+        val scopeKeySnapshot: Int? = null
     )
 
     /**
@@ -443,7 +447,8 @@ internal class RecompositionTracker {
             overlayFilterDepth = 1
             return
         }
-        traceStack.add(TraceEntry(key, info, DateTime.currentTimestamp(), dirty1, dirty2))
+        traceStack.add(TraceEntry(key, info, DateTime.currentTimestamp(), dirty1, dirty2,
+            scopeKeySnapshot = compositionObserver.getCurrentScopeKey()))
     }
 
     /**
@@ -468,7 +473,10 @@ internal class RecompositionTracker {
 
         val now = DateTime.currentTimestamp()
         val durationMs = now - entry.startTimeMs
-        val parentInfo = if (traceStack.isNotEmpty()) traceStack.last().info else null
+        // 跳过 <anonymous> 层级，找到最近的有名父 Composable
+        val parentInfo = traceStack.lastOrNull { entry ->
+            extractComposableName(entry.info) != "<anonymous>"
+        }?.info
 
         val composableName = extractComposableName(entry.info)
 
@@ -512,8 +520,10 @@ internal class RecompositionTracker {
             else -> RecompositionReason.UNKNOWN
         }
 
-        // === Scope key：用于 Overlay 按实例区分，null 表示首次组合 ===
-        val scopeKey = compositionObserver.getCurrentScopeKey()
+        // === Scope key：优先使用 start 时的快照，兜底查实时栈 ===
+        // 快照机制解决 filter 截断问题：当框架组件（如 CompositionLocalProvider）被过滤时，
+        // 其子节点在 traceEventStart 时已捕获到正确的 scope，不会因父节点被 filter 而丢失。
+        val scopeKey = entry.scopeKeySnapshot ?: compositionObserver.getCurrentScopeKey()
 
         val event = ComposableRecomposedEvent(
             timestampMs = now,
@@ -528,10 +538,12 @@ internal class RecompositionTracker {
         )
         addEvent(event)
 
-        // 累积统计
+        // 累积统计：用 composableName + sourceLocation 作为聚合 key，
+        // 避免不同类中同名函数（如多个 invoke）被合并为一条统计
         currentFrameRecomposedCount++
-        val acc = composableAccumulator.getOrPut(composableName) { MutableComposableAccumulator(composableName) }
-        acc.recordRecomposition(durationMs, triggerStates, reason, paramChanges)
+        val accKey = if (sourceLocation != null) "$composableName @$sourceLocation" else composableName
+        val acc = composableAccumulator.getOrPut(accKey) { MutableComposableAccumulator(accKey) }
+        acc.recordRecomposition(durationMs, triggerStates, reason, paramChanges, scopeKey)
     }
 
     // ========== 报告生成 ==========
@@ -546,8 +558,16 @@ internal class RecompositionTracker {
 
         val composableStatsList = composableAccumulator.values.map { acc ->
             val recompositionsPerSecond = acc.count / durationSeconds
+            // acc.name 是 "composableName @sourceLocation" 格式的聚合 key，
+            // 拆分出短名和源码位置分别填入 ComposableStats
+            val sepIdx = acc.name.indexOf(" @")
+            val (shortName, srcLoc) = if (sepIdx > 0) {
+                acc.name.substring(0, sepIdx) to acc.name.substring(sepIdx + 2)
+            } else {
+                acc.name to null
+            }
             ComposableStats(
-                name = acc.name,
+                name = shortName,
                 recompositionCount = acc.count,
                 totalDurationMs = acc.totalDurationMs,
                 avgDurationMs = if (acc.count > 0) acc.totalDurationMs.toDouble() / acc.count else 0.0,
@@ -555,7 +575,10 @@ internal class RecompositionTracker {
                 minDurationMs = acc.minDurationMs,
                 triggerStates = acc.allTriggerStates.toSet(),
                 isHotspot = recompositionsPerSecond > config.hotspotThreshold,
-                paramChangeFrequency = acc.paramChangeFrequency.toMap()
+                paramChangeFrequency = acc.paramChangeFrequency.toMap(),
+                sourceLocation = srcLoc,
+                scopeDistribution = acc.scopeDistribution.toMap(),
+                noScopeRecompositions = acc.noScopeCount
             )
         }.sortedByDescending { it.recompositionCount }
 
@@ -697,6 +720,7 @@ internal class RecompositionTracker {
         snapshotObserverDisposable = null
     }
 
+
     /**
      * 从 CompositionTracer 的 info 字符串中提取简短的 Composable 函数名。
      * 例如 "CounterSection (Demo.kt:195)" → "CounterSection"
@@ -749,11 +773,17 @@ internal class RecompositionTracker {
         /** Per-parameter-position change frequency (paramIndex → changeCount) */
         val paramChangeFrequency = mutableMapOf<Int, Int>()
 
+        /** Per-scope recomposition count (scopeKey → count) */
+        val scopeDistribution = mutableMapOf<Int, Int>()
+        /** Recomposition count without scope (initial composition) */
+        var noScopeCount: Int = 0
+
         fun recordRecomposition(
             durationMs: Long,
             triggerStates: List<String>,
             reason: RecompositionReason = RecompositionReason.UNKNOWN,
-            paramChanges: ParamChangeSummary? = null
+            paramChanges: ParamChangeSummary? = null,
+            scopeKey: Int? = null
         ) {
             count++
             totalDurationMs += durationMs
@@ -765,6 +795,12 @@ internal class RecompositionTracker {
                 for (paramIdx in paramChanges.changedParams) {
                     paramChangeFrequency[paramIdx] = (paramChangeFrequency[paramIdx] ?: 0) + 1
                 }
+            }
+
+            if (scopeKey != null) {
+                scopeDistribution[scopeKey] = (scopeDistribution[scopeKey] ?: 0) + 1
+            } else {
+                noScopeCount++
             }
         }
     }

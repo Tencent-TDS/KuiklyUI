@@ -79,6 +79,13 @@ class KRRichTextView(context: Context) : KRView(context), KRRichTextViewDrawer.C
             isRichTextMode = it.isRichTextMode
         }
         initTextLayout(richTextShadow)
+        // Store plain text so the shared accessibilityDelegate can expose it as info.text,
+        // without overriding contentDescription (which carries debugName for view-tree class resolution)
+        val plainText = richTextShadow?.textLayout?.text?.toString() ?: ""
+        putViewData(KRCssConst.PLAIN_TEXT_FOR_A11Y, plainText)
+        if (hasDebugName()) {
+            initAccessibilityDelegateIfNeeded()
+        }
         invalidate()
     }
 
@@ -92,6 +99,7 @@ class KRRichTextView(context: Context) : KRView(context), KRRichTextViewDrawer.C
         richTextShadow = null
         textDrawer = null
         isRichTextMode = false
+        putViewData(KRCssConst.PLAIN_TEXT_FOR_A11Y, "")
     }
 
     override fun setProp(propKey: String, propValue: Any): Boolean {
@@ -749,8 +757,9 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
         constraintSize: SizeF,
         measureMode: TextMeasureMode
     ): Layout {
+        val adapter = KuiklyRenderAdapterManager.krTextPostProcessorAdapter
         val textSource = if (textProps.textPostProcessor.isNotEmpty()) {
-            KuiklyRenderAdapterManager.krTextPostProcessorAdapter?.onTextPostProcess(
+            adapter?.onTextPostProcess(
                 kuiklyRenderContext, TextPostProcessorInput(textProps.textPostProcessor, text, textProps)
             )?.text ?: text
         } else {

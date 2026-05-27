@@ -1,0 +1,23 @@
+{
+  "pages":[
+      "pages/index/index", 
+      "pages/demo/index"
+    ],
+     "subPackages": [
+    {
+      "root": "packageA",
+      "pages": [
+        "pages/router/index"
+      ]
+    }
+  ],
+  "window":{
+    "backgroundTextStyle":"light",
+    "navigationBarBackgroundColor":"#fff",
+    "navigationBarTitleText":"Kuikly MiniApp JS",
+    "navigationStyle": "custom", 
+    "navigationBarTextStyle": "white", 
+    "backgroundColor": "#eeeeee", 
+    "enablePullDownRefresh": false 
+  }
+}

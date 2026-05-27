@@ -98,3 +98,16 @@ fun Modifier.lineSpacing(lineSpace: Float?): Modifier {
 fun Modifier.placeholderColor(color: Color): Modifier = setProp("placeholderColor", color.toKuiklyColor().toString())
 
 fun Modifier.lineBreakMargin(dp: Dp): Modifier = setProp("lineBreakMargin", dp.value)
+
+/**
+ * 内部 API：设置鼠标光标样式 (macOS)。
+ * 业务侧请使用 [com.tencent.kuikly.compose.ui.input.pointer.pointerHoverIcon]。
+ */
+internal fun Modifier.cursor(type: String): Modifier = setProp("cursor", type)
+
+/**
+ * Set text post-processor name for text/input components.
+ * Works with KRTextPostProcessorAdapter to enable features like emoji shortcode replacement.
+ * @param processor processor name, e.g. "input"
+ */
+fun Modifier.textPostProcessor(processor: String): Modifier = setProp("textPostProcessor", processor)

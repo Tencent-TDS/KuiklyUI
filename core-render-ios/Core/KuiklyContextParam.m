@@ -29,7 +29,7 @@ const KuiklyContextMode KuiklyContextMode_Framework = 1;
     return self;
 }
 
-- (id<KuiklyRenderContextProtocol>)createContextHandlerWithContextCode:(NSString *)contextCode
+- (id<KuiklyRenderContextProtocol>)createContextHandlerWithContextCode:(id)contextCode
                                                           contextParam:(KuiklyContextParam *)contextParam {
     return [[KuiklyRenderFrameworkContextHandler alloc] initWithContext:contextCode contextParam:contextParam];
 }

@@ -58,6 +58,65 @@ object FontSizeToLineHeightMap {
 }
 
 /**
+ * Text measurement cache for performance optimization
+ */
+object TextMeasureCache {
+    // Cache size limit to prevent memory overflow
+    private const val MAX_CACHE_SIZE = 500
+    
+    // LRU cache for text measurements
+    private val cache = FastMutableMap<String, SizeF>(js("{}"))
+    private val cacheKeys = mutableListOf<String>()
+    
+    /**
+     * Generate cache key from text and style properties
+     */
+    fun generateKey(
+        text: String,
+        fontSize: String,
+        fontWeight: String,
+        fontFamily: String,
+        fontStyle: String,
+        letterSpacing: String,
+        lineHeight: String,
+        constraintWidth: Float,
+        numberOfLines: Int
+    ): String {
+        // Use a simpler key format for better performance
+        return "$text|$fontSize|$fontWeight|$fontFamily|$fontStyle|$letterSpacing|$lineHeight|$constraintWidth|$numberOfLines"
+    }
+    
+    /**
+     * Get cached measurement result
+     */
+    fun get(key: String): SizeF? {
+        return cache[key]
+    }
+    
+    /**
+     * Store measurement result in cache
+     */
+    fun put(key: String, size: SizeF) {
+        // Implement simple LRU eviction
+        if (cacheKeys.size >= MAX_CACHE_SIZE) {
+            val oldestKey = cacheKeys.removeAt(0)
+            cache.remove(oldestKey)
+        }
+        
+        cache[key] = size
+        cacheKeys.add(key)
+    }
+    
+    /**
+     * Clear cache (useful for memory management)
+     */
+    fun clear() {
+        cache.clear()
+        cacheKeys.clear()
+    }
+}
+
+/**
  * rich text process interface, include text measure, rich text process, etc.
  */
 interface IRichTextProcessor {
@@ -70,4 +129,20 @@ interface IRichTextProcessor {
      * set rich text values
      */
     fun setRichTextValues(richTextValues: JSONArray, view: KRRichTextView)
+
+    /**
+     * Return "offsetLeft offsetTop width height" for a placeholder span at [index].
+     * Return "" to let the caller fall back to the default DOM-based measurement (H5).
+     */
+    fun getPlaceholderSpanRect(index: Int, view: KRRichTextView): String = ""
+
+    /**
+     * Apply the `lineBreakMargin` visual reserved-blank for a plain-text
+     * (non-rich) view. Platforms that cannot rely on DOM `insertBefore`
+     * (e.g. mini-app) should override this to inject the two floating spans
+     * via their own node-serialization path and return `true`. Platforms
+     * that can handle it with real DOM (e.g. H5) should keep the default
+     * `false` so the caller falls back to the DOM-based logic.
+     */
+    fun applyPlainTextLineBreakMargin(view: KRRichTextView): Boolean = false
 }

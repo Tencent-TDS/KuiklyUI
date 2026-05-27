@@ -42,6 +42,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong, nullable) NSNumber *css_zIndex;
 @property (nonatomic, strong, nullable) NSString *css_accessibility;
 @property (nonatomic, strong, nullable) NSString *css_accessibilityRole;
+@property (nonatomic, strong, nullable) NSString *css_testTag;
 @property (nonatomic, strong, nullable) NSNumber *css_wrapperBoxShadowView;
 @property (nonatomic, strong, nullable) NSNumber *css_autoDarkEnable;
 @property (nonatomic, strong, nullable) NSNumber *css_scrollIndex;
@@ -50,6 +51,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong, nullable) NSString *css_lazyAnimationKey;
 @property (nonatomic, strong, nullable) NSString *css_clipPath;
 @property (nonatomic, strong, nullable) CAShapeLayer *css_clipPathLayer;
+#if TARGET_OS_OSX
+@property (nonatomic, strong, nullable) NSString *css_cursor;
+#endif
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_click;
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_doubleClick;
 @property (nonatomic, strong, nullable) KuiklyRenderCallback css_longPress;

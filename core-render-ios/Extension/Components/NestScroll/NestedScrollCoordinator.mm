@@ -463,13 +463,16 @@ static inline void lockScrollView(const UIScrollView<NestedScrollProtocol> *scro
 #pragma mark - Utils
 
 + (id<ScrollableProtocol>)findNestedOuterScrollView:(UIScrollView *)innerScrollView {
-    UIView<ScrollableProtocol> *innerScrollable = (UIView<ScrollableProtocol> *)innerScrollView;
-    UIView *outerScrollView = innerScrollable.superview;
+    // Use superview.superview since scrollview is a subview of view.
+    UIView *innerWrapperView = innerScrollView.superview;
+    UIView *outerScrollView = innerWrapperView.superview;
+    BOOL isInnerHorizontal =
+        [innerScrollView respondsToSelector:@selector(horizontal)] ?
+        [(id<ScrollableProtocol>)innerScrollView horizontal] : NO;
     while (outerScrollView) {
         if ([outerScrollView conformsToProtocol:@protocol(ScrollableProtocol)]) {
             UIView<ScrollableProtocol> *outerScrollable = (UIView<ScrollableProtocol> *)outerScrollView;
             // Make sure to find scrollable with same direction.
-            BOOL isInnerHorizontal = [innerScrollable respondsToSelector:@selector(horizontal)] ? [innerScrollable horizontal] : NO;
             BOOL isOuterHorizontal = [outerScrollable respondsToSelector:@selector(horizontal)] ? [outerScrollable horizontal] : NO;
             if (isInnerHorizontal == isOuterHorizontal) {
                 break;

@@ -39,7 +39,21 @@ data class ComposableStats(
     val minDurationMs: Long,
     val triggerStates: Set<String>,
     val isHotspot: Boolean,
-    val paramChangeFrequency: Map<Int, Int> = emptyMap()
+    val paramChangeFrequency: Map<Int, Int> = emptyMap(),
+    /**
+     * 源码位置（如 "FeedsDoubleColumnCard.kt:47"），用于与 [name] 组合作为唯一标识。
+     * 不同文件中的同名函数（如多个 invoke）可通过 sourceLocation 区分。
+     */
+    val sourceLocation: String? = null,
+    /**
+     * Scope 分布：scopeKey → 重组次数。
+     * scopeKey 是 RecomposeScope 的 hashCode，与逐帧日志 [scope=N] 一致。
+     */
+    val scopeDistribution: Map<Int, Int> = emptyMap(),
+    /**
+     * 无 scope 的重组次数（首次组合）。
+     */
+    val noScopeRecompositions: Int = 0
 )
 
 /**
@@ -149,6 +163,9 @@ data class RecompositionReport(
     private fun StringBuilder.appendComposableStatsJson(stats: ComposableStats) {
         append("{")
         append("\"name\":\"${escapeJson(stats.name)}\",")
+        if (stats.sourceLocation != null) {
+            append("\"sourceLocation\":\"${escapeJson(stats.sourceLocation)}\",")
+        }
         append("\"recompositionCount\":${stats.recompositionCount},")
         append("\"totalDurationMs\":${stats.totalDurationMs},")
         append("\"avgDurationMs\":${stats.avgDurationMs},")
@@ -168,6 +185,17 @@ data class RecompositionReport(
                 append("\"#$paramIdx\":$count")
             }
             append("}")
+        }
+        if (stats.scopeDistribution.isNotEmpty()) {
+            append(",\"scopeDistribution\":{")
+            stats.scopeDistribution.entries.forEachIndexed { i, (scopeKey, count) ->
+                if (i > 0) append(",")
+                append("\"$scopeKey\":$count")
+            }
+            append("}")
+        }
+        if (stats.noScopeRecompositions > 0) {
+            append(",\"noScopeRecompositions\":${stats.noScopeRecompositions}")
         }
         append("}")
     }

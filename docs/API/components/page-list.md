@@ -9,6 +9,20 @@
 
 支持所有[基础属性](basic-attr-event.md#基础属性)
 
+### scrollEnable
+
+是否允许滑动内容
+
+<div class="table-01">
+
+**scrollEnable**
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| value | 是否允许滑动内容，默认`true` | Boolean |
+
+</div>
+
 ### pageItemWidth方法
 
 分页组件的Item宽度大小

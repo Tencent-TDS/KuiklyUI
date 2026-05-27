@@ -38,6 +38,9 @@ internal class KuiklyPrefetchScheduler :
     private fun enqueue(task: PriorityTask) {
         queue.addLast(task)
         queue.sortWith(compareByDescending { it.priority })
+        LazyListPrefetchTrace.log(
+            "enqueue priority=${task.priority} queueSize=${queue.size}",
+        )
     }
 
     fun cancelAll() {
@@ -54,8 +57,17 @@ internal class KuiklyPrefetchScheduler :
 
         if (!isFrameIdle) {
             val available = scope.availableTimeNanos()
-            if (available < SAFETY_BUDGET_NS) return 0L
+            if (available < SAFETY_BUDGET_NS) {
+                LazyListPrefetchTrace.log(
+                    "processRequests skip budget: isFrameIdle=$isFrameIdle availableNs=$available queueSize=${queue.size}",
+                )
+                return 0L
+            }
         }
+
+        LazyListPrefetchTrace.log(
+            "processRequests start isFrameIdle=$isFrameIdle queueSize=${queue.size}",
+        )
 
         val startTime = DateTime.nanoTime()
         var scheduleForNextFrame = false
@@ -63,7 +75,11 @@ internal class KuiklyPrefetchScheduler :
             scheduleForNextFrame = runRequest()
         }
         traceValue("compose:lazy:prefetch:available_time_nanos", 0L)
-        return DateTime.nanoTime() - startTime
+        val spent = DateTime.nanoTime() - startTime
+        LazyListPrefetchTrace.log(
+            "processRequests done spentNs=$spent remainingQueue=${queue.size}",
+        )
+        return spent
     }
 
     private fun runRequest(): Boolean {
@@ -73,9 +89,11 @@ internal class KuiklyPrefetchScheduler :
             val task = queue.first()
             val hasMoreWorkToDo = with(task.request) { scope.execute() }
             if (hasMoreWorkToDo) {
+                LazyListPrefetchTrace.log("runRequest paused hasMoreWork queueSize=${queue.size}")
                 return true
             } else {
                 queue.removeFirst()
+                LazyListPrefetchTrace.log("runRequest finished queueSize=${queue.size}")
             }
             scope.isFrameIdle = false
         } else {

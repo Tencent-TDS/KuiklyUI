@@ -30,6 +30,7 @@ import com.tencent.kuikly.compose.foundation.layout.calculateEndPadding
 import com.tencent.kuikly.compose.foundation.layout.calculateStartPadding
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayout
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayoutMeasureScope
+import com.tencent.kuikly.compose.foundation.lazy.layout.LazyListPrefetchTrace
 import com.tencent.kuikly.compose.foundation.lazy.layout.StickyItemsPlacement
 import com.tencent.kuikly.compose.foundation.lazy.layout.lazyLayoutSemantics
 import com.tencent.kuikly.compose.foundation.lazy.layout.calculateLazyLayoutPinnedIndices
@@ -111,11 +112,6 @@ internal fun LazyList(
     @OptIn(ExperimentalComposeUiApi::class)
     LazyLayout(
         modifier = modifier
-            .modifierLocalConsumer {
-                state.lazyListPrefetchEnabled =
-                    ModifierLocalLazyListPrefetchEnabled.current
-                        ?: ComposeFoundationFlags.isLazyListPrefetchEnabled
-            }
             .then(state.remeasurementModifier)
             .then(state.awaitLayoutModifier)
             .lazyLayoutSemantics(
@@ -136,6 +132,17 @@ internal fun LazyList(
                 orientation = orientation,
                 enabled = userScrollEnabled
             )
+            .modifierLocalConsumer {
+                val resolved =
+                    ModifierLocalLazyListPrefetchEnabled.current
+                        ?: ComposeFoundationFlags.isLazyListPrefetchEnabled
+                if (state.lazyListPrefetchEnabled != resolved) {
+                    state.lazyListPrefetchEnabled = resolved
+                    LazyListPrefetchTrace.log(
+                        "LazyList prefetchEnabled=$resolved modifierLocal=${ModifierLocalLazyListPrefetchEnabled.current} global=${ComposeFoundationFlags.isLazyListPrefetchEnabled}",
+                    )
+                }
+            }
 //            .then(state.itemAnimator.modifier)
 //            .scrollingContainer(
 //                state = state,

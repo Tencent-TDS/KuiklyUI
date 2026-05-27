@@ -96,6 +96,20 @@ object ComposeFoundationFlags {
     var isLazyListPrefetchEnabled = false
 
     /**
+     * Kuikly debug: println prefetch pipeline events with tag [LazyListPrefetchTrace.LOG_TAG].
+     */
+    @Suppress("MutableBareField")
+    @JvmField
+    var isLazyListPrefetchTraceEnabled = false
+
+    /**
+     * Kuikly debug: invoked for each [LazyListPrefetchTrace] message (e.g. demo E2E iron evidence).
+     */
+    @Suppress("MutableBareField")
+    @JvmField
+    var lazyListPrefetchTraceListener: ((String) -> Unit)? = null
+
+    /**
      * Selecting flag to enable the use of new PausableComposition in lazy layout prefetch. This
      * change allows us to distribute work we need to do during the prefetch better, for example we
      * can only perform the composition for parts of the LazyColumn's next item during one ui frame,

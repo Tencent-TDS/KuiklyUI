@@ -49,6 +49,7 @@ import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayoutBeyondBoundsI
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayoutCacheWindow
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayoutPinnedItemList
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayoutPrefetchState
+import com.tencent.kuikly.compose.foundation.lazy.layout.LazyListPrefetchTrace
 import com.tencent.kuikly.compose.foundation.lazy.layout.ObservableScopeInvalidator
 import com.tencent.kuikly.compose.foundation.lazy.layout.animateScrollToItem
 import com.tencent.kuikly.compose.foundation.lazy.layout.isPrefetchSupported
@@ -551,7 +552,15 @@ class LazyListState
         }
 
         private fun notifyPrefetchOnScroll(delta: Float, layoutInfo: LazyListLayoutInfo) {
-            if (!prefetchingEnabled || !lazyListPrefetchEnabled || prefetchState == null) return
+            if (!prefetchingEnabled || !lazyListPrefetchEnabled || prefetchState == null) {
+                LazyListPrefetchTrace.log(
+                    "onScroll skipped delta=$delta enabled=$lazyListPrefetchEnabled prefetching=$prefetchingEnabled prefetchState=${prefetchState != null}",
+                )
+                return
+            }
+            LazyListPrefetchTrace.log(
+                "onScroll delta=$delta lastVisible=${layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1}",
+            )
             with(prefetchStrategy) { prefetchScope.onScroll(delta, layoutInfo) }
         }
 
@@ -646,6 +655,9 @@ class LazyListState
                 } else {
                     scrollPosition.updateFromMeasureResult(result)
                     if (prefetchingEnabled && lazyListPrefetchEnabled && prefetchState != null) {
+                        LazyListPrefetchTrace.log(
+                            "onVisibleItemsUpdated first=${result.firstVisibleItem?.index ?: -1} last=${result.visibleItemsInfo.lastOrNull()?.index ?: -1}",
+                        )
                         with(prefetchStrategy) { prefetchScope.onVisibleItemsUpdated(result) }
                     }
                 }

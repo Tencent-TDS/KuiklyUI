@@ -102,6 +102,10 @@
 >
 > Compose DSL 中可通过 `Modifier.setProp("imeNoFullscreen", true)` 设置，详见 [Compose 核心组件 - TextField 差异化点](../../Compose/core-components.md)。
 
+:::warning HarmonyOS API 24+ 平台说明
+HarmonyOS API 24+ 上，`Input` 底层会优先使用系统 `ARKUI_NODE_TEXT_EDITOR` 输入控件以支持富文本编辑能力。该路径保持 `Input` 组件名、属性、事件、方法协议不变，但系统控件暂不提供 `keyboardType` 映射能力，因此 `keyboardTypePassword()`、`keyboardTypeNumber()`、`keyboardTypeEmail()` 等键盘类型设置会降级为系统默认键盘；文本、光标、长度限制、焦点、回车事件等其他能力仍按 `Input` 协议处理。
+:::
+
 ### returnKeyTypeContinue方法<Badge text="仅iOS" type="warn"/>
 
 设置输入法的下一步按钮类型为继续类型

@@ -13,6 +13,10 @@
 | 不支持的事件 | - | `inputReturn`、`onTextReturn` |
 | 特有属性 | - | `lineHeight()` |
 
+:::warning HarmonyOS API 24+ 平台说明
+HarmonyOS API 24+ 上，`TextArea` 底层会优先使用系统 `ARKUI_NODE_TEXT_EDITOR` 输入控件，与 `Input` 共享同一套文本、选区、富文本和长度限制协议。该路径保持 `TextArea` 组件名、属性、事件、方法协议不变；但系统控件暂不提供 `keyboardType` 映射能力，因此 `keyboardTypePassword()`、`keyboardTypeNumber()`、`keyboardTypeEmail()` 等键盘类型设置会降级为系统默认键盘。
+:::
+
 ## 属性
 
 ### 基础属性

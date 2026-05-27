@@ -451,11 +451,10 @@ static const CGFloat KRSelectionColorMaxAlpha = 0x66 / 255.0;
 /// 限制选中色 alpha 不超过 KRSelectionColorMaxAlpha，避免高亮完全覆盖文字，与 OHOS 侧对齐
 - (UIColor *)p_clampSelectionColorAlpha:(UIColor *)color {
     if (!color) return nil;
-    CGFloat r, g, b, a;
-    if ([color getRed:&r green:&g blue:&b alpha:&a]) {
-        if (a > KRSelectionColorMaxAlpha) {
-            return [UIColor colorWithRed:r green:g blue:b alpha:KRSelectionColorMaxAlpha];
-        }
+    CGFloat r = 0, g = 0, b = 0, a = 0;
+    [color getRed:&r green:&g blue:&b alpha:&a];
+    if (a > KRSelectionColorMaxAlpha) {
+        return [UIColor colorWithRed:r green:g blue:b alpha:KRSelectionColorMaxAlpha];
     }
     return color;
 }

@@ -16,6 +16,8 @@
 #ifndef CORE_RENDER_OHOS_KRTEXTEDITORAREAVIEW_H
 #define CORE_RENDER_OHOS_KRTEXTEDITORAREAVIEW_H
 
+#include <vector>
+
 #include "libohos_render/expand/components/input/KRTextEditorFieldView.h"
 
 // 编译期 guard：同 KRTextEditorFieldView.h，本类继承自 KRTextEditorFieldView，
@@ -35,6 +37,7 @@ class KRTextEditorAreaView : public KRTextEditorFieldView {
     void DidInit() override;
     bool SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
                  const KRRenderCallback event_call_back = nullptr) override;
+    void OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEventType &event_type) override;
 
  protected:
     bool IsSingleLine() const override {
@@ -44,6 +47,30 @@ class KRTextEditorAreaView : public KRTextEditorFieldView {
         return false;
     }
     void ApplyKeyboardType(const std::string &type) override;
+
+ private:
+    struct ValuesSpanStyle {
+        int32_t start = 0;
+        int32_t length = 0;
+        float font_size = 15.0f;
+        ArkUI_FontWeight font_weight = ARKUI_FONT_WEIGHT_NORMAL;
+        uint32_t font_color = 0xFF000000;
+        ArkUI_TextAlignment text_align = ARKUI_TEXT_ALIGNMENT_START;
+        float line_height = 0.0f;
+        bool line_height_set = false;
+    };
+
+    bool HandleValuesModeStyleProp(const std::string &prop_key, const KRAnyValue &prop_value);
+    bool ResetControllerForValuesMode();
+    bool ApplyValues(const KRAnyValue &prop_value);
+    bool SyncTypingStyleForValuesSelection();
+    bool RewriteValuesStyledStringFromCache();
+    void UpdateValuesSpanRangesAfterTextChange(int32_t old_length, int32_t new_length, uint32_t selection_after);
+    const ValuesSpanStyle *FindValuesSpanStyleForOffset(uint32_t offset) const;
+    bool has_values_content_ = false;
+    std::vector<ValuesSpanStyle> values_span_styles_;
+    uint32_t last_values_typing_style_selection_ = static_cast<uint32_t>(-1);
+    bool values_rewrite_next_did_change_ = false;
 };
 
 #endif  // KUIKLY_TEXT_EDITOR_AVAILABLE

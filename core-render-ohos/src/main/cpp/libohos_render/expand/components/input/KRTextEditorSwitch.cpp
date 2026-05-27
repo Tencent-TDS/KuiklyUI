@@ -63,9 +63,15 @@ OH_ArkUI_TextEditorTextStyle *OH_ArkUI_TextEditorTextStyle_Create() __attribute_
 extern "C" int KRIsTextEditorRuntimeAvailable() {
 #if KUIKLY_TEXT_EDITOR_AVAILABLE
     // weak 符号未解析时地址为 nullptr。三个关键 API 24 入口任一缺失都视为"不可用"。
-    if (&OH_ArkUI_TextEditorStyledStringController_Create == nullptr) return 0;
-    if (&OH_ArkUI_StyledString_Descriptor_Create == nullptr) return 0;
-    if (&OH_ArkUI_TextEditorTextStyle_Create == nullptr) return 0;
+    if (&OH_ArkUI_TextEditorStyledStringController_Create == nullptr) {
+        return 0;
+    }
+    if (&OH_ArkUI_StyledString_Descriptor_Create == nullptr) {
+        return 0;
+    }
+    if (&OH_ArkUI_TextEditorTextStyle_Create == nullptr) {
+        return 0;
+    }
     return 1;
 #else
     // 编译期已确认 SDK header < API 24，新控件全部 guard 掉；运行时无需再探测。

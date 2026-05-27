@@ -948,20 +948,20 @@ void UpdateInputNodePlaceholder(ArkUI_NodeHandle node, const std::string &placeh
 
 void UpdateInputNodePlaceholderColor(ArkUI_NodeHandle node, uint32_t placeholder_color) {
     ArkUI_NumberValue value = {.u32 = placeholder_color};
-    ArkUI_AttributeItem item = {&value, sizeof(ArkUI_NumberValue)};
+    ArkUI_AttributeItem item = {&value, 1};
     GetNodeApi()->setAttribute(node, NODE_TEXT_INPUT_PLACEHOLDER_COLOR, &item);
 }
 
 void UpdateInputNodeCaretrColor(ArkUI_NodeHandle node, uint32_t caret_color) {
     ArkUI_NumberValue value = {.u32 = caret_color};
-    ArkUI_AttributeItem item = {&value, sizeof(ArkUI_NumberValue)};
+    ArkUI_AttributeItem item = {&value, 1};
     GetNodeApi()->setAttribute(node, NODE_TEXT_INPUT_CARET_COLOR, &item);
 }
 
 uint32_t ClampSelectionColorAlpha(uint32_t color) {
-    uint32_t alpha = (color >> 24) & 0xFF;
+    uint32_t alpha = (color >> kColorAlphaShift) & kColorAlphaMask;
     if (alpha > kSelectionColorMaxAlpha) {
-        color = (kSelectionColorMaxAlpha << 24) | (color & 0x00FFFFFF);
+        color = (kSelectionColorMaxAlpha << kColorAlphaShift) | (color & kColorRGBMask);
     }
     return color;
 }
@@ -969,14 +969,14 @@ uint32_t ClampSelectionColorAlpha(uint32_t color) {
 void UpdateInputNodeSelectionColor(ArkUI_NodeHandle node, uint32_t color) {
     color = ClampSelectionColorAlpha(color);
     ArkUI_NumberValue value = {.u32 = color};
-    ArkUI_AttributeItem item = {&value, sizeof(ArkUI_NumberValue)};
+    ArkUI_AttributeItem item = {&value, 1};
     GetNodeApi()->setAttribute(node, NODE_TEXT_INPUT_SELECTED_BACKGROUND_COLOR, &item);
 }
 
 void UpdateTextAreaNodeSelectionColor(ArkUI_NodeHandle node, uint32_t color) {
     color = ClampSelectionColorAlpha(color);
     ArkUI_NumberValue value = {.u32 = color};
-    ArkUI_AttributeItem item = {&value, sizeof(ArkUI_NumberValue)};
+    ArkUI_AttributeItem item = {&value, 1};
     GetNodeApi()->setAttribute(node, NODE_TEXT_AREA_SELECTED_BACKGROUND_COLOR, &item);
 }
 

@@ -73,7 +73,7 @@ void KRTextFieldView::DidInit() {
     
     // 默认软键盘不关闭
     ArkUI_NumberValue value = {.i32 = 0};
-    ArkUI_AttributeItem item = {&value, sizeof(ArkUI_NumberValue)};
+    ArkUI_AttributeItem item = {&value, 1};
     kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_INPUT_BLUR_ON_SUBMIT, &item);
     
     

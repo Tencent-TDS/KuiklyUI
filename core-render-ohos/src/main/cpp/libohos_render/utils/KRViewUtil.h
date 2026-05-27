@@ -213,8 +213,17 @@ void UpdateInputNodePlaceholderColor(ArkUI_NodeHandle node, uint32_t placeholder
 // 光标颜色
 void UpdateInputNodeCaretrColor(ArkUI_NodeHandle node, uint32_t caret_color);
 
+// 选中高亮色 alpha 上限（0x66 ≈ 40%），避免高亮完全覆盖文字，多端统一
+static constexpr uint32_t kSelectionColorMaxAlpha = 0x66;
+
+/// 限制选中色 alpha 不超过 kSelectionColorMaxAlpha，返回 clamped 后的颜色值
+uint32_t ClampSelectionColorAlpha(uint32_t color);
+
 // 选中颜色
 void UpdateInputNodeSelectionColor(ArkUI_NodeHandle node, uint32_t color);
+
+// TextArea 选中颜色
+void UpdateTextAreaNodeSelectionColor(ArkUI_NodeHandle node, uint32_t color);
 
 // 文本对齐
 void UpdateInputNodeTextAlign(ArkUI_NodeHandle node, const std::string &text_align);

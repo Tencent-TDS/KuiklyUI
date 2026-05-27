@@ -21,8 +21,6 @@
 // 字典key常量
 NSString *const KRVFontSizeKey = @"fontSize";
 NSString *const KRVFontWeightKey = @"fontWeight";
-/// 选中高亮色 alpha 上限（0x66 ≈ 40%），避免高亮完全覆盖文字，多端统一
-static const CGFloat KRSelectionColorMaxAlpha = 0x66 / 255.0;
 
 /*
  * @brief 暴露给Kotlin侧调用的多行输入框组件
@@ -187,7 +185,7 @@ static const CGFloat KRSelectionColorMaxAlpha = 0x66 / 255.0;
 }
 
 - (void)setCss_selectionColor:(NSNumber *)css_selectionColor {
-    _selectionColor = [self p_clampSelectionColorAlpha:[UIView css_color:css_selectionColor]];
+    _selectionColor = [KRConvertUtil clampSelectionColorAlpha:[UIView css_color:css_selectionColor]];
 #if !TARGET_OS_OSX
     if (!_cursorColor) {
         _cursorColor = self.tintColor; // 保存当前光标颜色（可能是默认值）
@@ -447,17 +445,6 @@ static const CGFloat KRSelectionColorMaxAlpha = 0x66 / 255.0;
 
 
 #pragma mark - private
-
-/// 限制选中色 alpha 不超过 KRSelectionColorMaxAlpha，避免高亮完全覆盖文字，与 OHOS 侧对齐
-- (UIColor *)p_clampSelectionColorAlpha:(UIColor *)color {
-    if (!color) return nil;
-    CGFloat r = 0, g = 0, b = 0, a = 0;
-    [color getRed:&r green:&g blue:&b alpha:&a];
-    if (a > KRSelectionColorMaxAlpha) {
-        return [UIColor colorWithRed:r green:g blue:b alpha:KRSelectionColorMaxAlpha];
-    }
-    return color;
-}
 
 - (void)p_addKeyboardNotificationIfNeed {
     if (_didAddKeyboardNotification) {

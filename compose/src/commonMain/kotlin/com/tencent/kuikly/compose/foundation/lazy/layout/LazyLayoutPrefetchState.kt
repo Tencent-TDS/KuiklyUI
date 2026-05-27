@@ -192,7 +192,11 @@ class LazyLayoutPrefetchState() {
             prefetchMetrics,
             isHighPriority,
             onItemPremeasured,
-        ) ?: DummyHandle
+        ) ?: DummyHandle.also {
+            LazyListPrefetchTrace.log(
+                "WARN schedulePrecompositionAndPremeasure index=$index dropped: prefetchHandleProvider=null",
+            )
+        }
     }
 
     @OptIn(ExperimentalFoundationApi::class)
@@ -489,6 +493,9 @@ internal class PrefetchHandleProvider(
             .also {
                 executor.executeWithPriority(it, isHighPriority)
                 traceValue("compose:lazy:schedule_prefetch:index", index.toLong())
+                LazyListPrefetchTrace.log(
+                    "schedulePremeasure index=$index highPriority=$isHighPriority executor=${executor::class.simpleName}",
+                )
             }
 
     fun PrefetchScheduler.executeWithPriority(request: PrefetchRequest, isHighPriority: Boolean) {
@@ -625,6 +632,9 @@ internal class PrefetchHandleProvider(
             val itemProvider = itemContentFactory.itemProvider()
             val isValid = !isCanceled && index in 0 until itemProvider.itemCount
             if (!isValid) {
+                LazyListPrefetchTrace.log(
+                    "executeRequest invalid index=$index canceled=$isCanceled",
+                )
                 cleanUp()
                 return false
             }
@@ -662,6 +672,13 @@ internal class PrefetchHandleProvider(
                         }
                         updateElapsedAndAvailableTime()
                         average.saveCompositionTimeNanos(elapsedTimeNanos)
+                        LazyListPrefetchTrace.log(
+                            "executeRequest composed index=$index elapsedNs=$elapsedTimeNanos",
+                        )
+                    } else {
+                        LazyListPrefetchTrace.log(
+                            "executeRequest defer compose index=$index availableNs=$availableTimeNanos avgComposeNs=${average.compositionTimeNanos}",
+                        )
                     }
                 }
                 if (!isComposed) {
@@ -788,6 +805,11 @@ internal class PrefetchHandleProvider(
                 averages.savePauseTimeNanos(elapsedTimeNanos)
             } else {
                 averages.saveResumeTimeNanos(elapsedTimeNanos)
+                if (composition.isComplete) {
+                    LazyListPrefetchTrace.log(
+                        "executeRequest composed index=$index elapsedNs=$elapsedTimeNanos mode=pausable",
+                    )
+                }
             }
         }
 

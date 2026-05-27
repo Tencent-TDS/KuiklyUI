@@ -20,6 +20,7 @@ package com.tencent.kuikly.compose.foundation.lazy
 
 import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayoutPrefetchState
+import com.tencent.kuikly.compose.foundation.lazy.layout.LazyListPrefetchTrace
 import com.tencent.kuikly.compose.foundation.lazy.layout.NestedPrefetchScope
 import com.tencent.kuikly.compose.foundation.lazy.layout.PrefetchScheduler
 import com.tencent.kuikly.compose.foundation.lazy.layout.UnspecifiedNestedPrefetchCount
@@ -170,6 +171,9 @@ private class DefaultLazyListPrefetchStrategy(private val initialNestedPrefetchI
                     this@DefaultLazyListPrefetchStrategy.wasScrollingForward = scrollingForward
                     this@DefaultLazyListPrefetchStrategy.indexToPrefetch = indexToPrefetch
                     currentPrefetchHandle = schedulePrefetch(indexToPrefetch)
+                    LazyListPrefetchTrace.log(
+                        "strategy onScroll schedule index=$indexToPrefetch forward=$scrollingForward",
+                    )
                 }
                 if (scrollingForward) {
                     val lastItem = layoutInfo.visibleItemsInfo.last()
@@ -228,6 +232,9 @@ private class DefaultLazyListPrefetchStrategy(private val initialNestedPrefetchI
     }
 
     private fun resetPrefetchState() {
+        if (indexToPrefetch != -1) {
+            LazyListPrefetchTrace.log("strategy reset cancel index=$indexToPrefetch")
+        }
         indexToPrefetch = -1
         currentPrefetchHandle?.cancel()
         currentPrefetchHandle = null

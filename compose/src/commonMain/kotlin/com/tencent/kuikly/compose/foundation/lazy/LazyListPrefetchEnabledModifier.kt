@@ -7,12 +7,10 @@
 package com.tencent.kuikly.compose.foundation.lazy
 
 import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
+import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.Modifier
-import com.tencent.kuikly.compose.ui.modifier.ModifierLocal
-import com.tencent.kuikly.compose.ui.modifier.ModifierLocalModifierNode
-import com.tencent.kuikly.compose.ui.modifier.modifierLocalMapOf
 import com.tencent.kuikly.compose.ui.modifier.modifierLocalOf
-import com.tencent.kuikly.compose.ui.node.ModifierNodeElement
+import com.tencent.kuikly.compose.ui.modifier.modifierLocalProvider
 
 internal val ModifierLocalLazyListPrefetchEnabled = modifierLocalOf<Boolean?> { null }
 
@@ -20,38 +18,6 @@ internal val ModifierLocalLazyListPrefetchEnabled = modifierLocalOf<Boolean?> { 
  * Opt-in prefetch for this LazyList. When omitted, [ComposeFoundationFlags.isLazyListPrefetchEnabled]
  * applies. Explicit false overrides a global true.
  */
-@ExperimentalFoundationApi
+@OptIn(ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 fun Modifier.enableLazyListPrefetch(enabled: Boolean = true): Modifier =
-    this then LazyListPrefetchEnabledElement(enabled)
-
-@OptIn(ExperimentalFoundationApi::class)
-private data class LazyListPrefetchEnabledElement(val enabled: Boolean) :
-    ModifierNodeElement<LazyListPrefetchEnabledNode>() {
-    override fun create() = LazyListPrefetchEnabledNode(enabled)
-
-    override fun update(node: LazyListPrefetchEnabledNode) {
-        node.enabled = enabled
-        node.updateProvidedValue()
-    }
-
-    override fun equals(other: Any?): Boolean =
-        other is LazyListPrefetchEnabledElement && other.enabled == enabled
-
-    override fun hashCode(): Int = enabled.hashCode()
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-private class LazyListPrefetchEnabledNode(var enabled: Boolean) :
-    Modifier.Node(), ModifierLocalModifierNode {
-
-    override val providedValues =
-        modifierLocalMapOf(ModifierLocalLazyListPrefetchEnabled to enabled)
-
-    override fun onAttach() {
-        updateProvidedValue()
-    }
-
-    fun updateProvidedValue() {
-        provide(ModifierLocalLazyListPrefetchEnabled, enabled)
-    }
-}
+    modifierLocalProvider(ModifierLocalLazyListPrefetchEnabled) { enabled }

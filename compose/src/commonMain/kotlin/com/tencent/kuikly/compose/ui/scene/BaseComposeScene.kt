@@ -46,6 +46,7 @@ import com.tencent.kuikly.compose.ui.node.SnapshotInvalidationTracker
 import com.tencent.kuikly.compose.foundation.lazy.layout.KUIKLY_PREFETCH_FRAME_INTERVAL_NS
 import com.tencent.kuikly.compose.foundation.lazy.layout.KUIKLY_PREFETCH_MAX_CONTINUATION_FRAMES
 import com.tencent.kuikly.compose.foundation.lazy.layout.KuiklyPrefetchScheduler
+import com.tencent.kuikly.compose.foundation.lazy.layout.LazyListPrefetchTrace
 import com.tencent.kuikly.compose.container.VsyncTickConditions
 import com.tencent.kuikly.compose.profiler.RecompositionProfiler
 import com.tencent.kuikly.compose.profiler.RecompositionTracker
@@ -221,6 +222,11 @@ internal abstract class BaseComposeScene(
                     KUIKLY_PREFETCH_FRAME_INTERVAL_NS,
                     isFrameIdle,
                 ) ?: 0L
+            if (prefetchScheduler?.hasPendingWork() == true || prefetchSpentNs > 0L) {
+                LazyListPrefetchTrace.log(
+                    "frame prefetch isFrameIdle=$isFrameIdle needsProactive=${vsyncTickConditions.needsToBeProactive} scheduledRedraws=${vsyncTickConditions.scheduledRedrawsCount} spentNs=$prefetchSpentNs pending=${prefetchScheduler?.hasPendingWork()}",
+                )
+            }
 
             if (frameSampled) {
                 tracker?.onFrameEnd((prefetchSpentNs / 1_000_000L).toInt())

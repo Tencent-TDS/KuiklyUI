@@ -111,7 +111,9 @@ void KRRichTextView::SetShadow(const std::shared_ptr<IKRRenderShadowExport> &sha
         textShadow->SetImageLoadedCallback(
             [weak_self](const std::string & /*uri*/) {
                 auto strong = weak_self.lock();
-                if (!strong) return;
+                if (!strong) {
+                    return;
+                }
                 kuikly::util::GetNodeApi()->markDirty(strong->GetNode(), NODE_NEED_RENDER);
             });
     } else if (textShadow) {

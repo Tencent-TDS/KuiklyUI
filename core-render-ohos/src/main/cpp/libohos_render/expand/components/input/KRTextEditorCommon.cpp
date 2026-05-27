@@ -65,8 +65,12 @@ inline std::string RebuildRawByMergingImageSpans(
     //    净增量 = (raw_literal.size() - 1)。一次 reserve 让后续 append 全部 zero-realloc。
     size_t final_len = flat.size();
     for (const auto &s : spans) {
-        if (s.raw_literal.empty()) continue;
-        if (s.flat_offset >= flat.size()) continue;
+        if (s.raw_literal.empty()) {
+            continue;
+        }
+        if (s.flat_offset >= flat.size()) {
+            continue;
+        }
         final_len += (s.raw_literal.size() - 1);
     }
     std::string raw;
@@ -76,9 +80,15 @@ inline std::string RebuildRawByMergingImageSpans(
     //    + raw_literal，cursor 跨过那 1 个占位空格。
     size_t cursor = 0;
     for (const auto &s : spans) {
-        if (s.raw_literal.empty()) continue;
-        if (s.flat_offset >= flat.size()) continue;
-        if (s.flat_offset < cursor) continue;  // 防御：违反升序不变量则跳过
+        if (s.raw_literal.empty()) {
+            continue;
+        }
+        if (s.flat_offset >= flat.size()) {
+            continue;
+        }
+        if (s.flat_offset < cursor) {
+            continue;  // 防御：违反升序不变量则跳过
+        }
         raw.append(flat, cursor, s.flat_offset - cursor);
         raw.append(s.raw_literal);
         cursor = s.flat_offset + 1;  // 跨过占位空格
@@ -273,10 +283,18 @@ ArkUI_StyledString_Descriptor *BuildPlainTextDescriptor(
 void DestroyTextSpanResources(OH_ArkUI_TextStyle *text_style, OH_ArkUI_SpanStyle *span_style,
                                      OH_ArkUI_ParagraphStyle *para_style,
                                      OH_ArkUI_LineHeightStyle *line_height_style) {
-    if (span_style) OH_ArkUI_SpanStyle_Destroy(span_style);
-    if (text_style) OH_ArkUI_TextStyle_Destroy(text_style);
-    if (para_style) OH_ArkUI_ParagraphStyle_Destroy(para_style);
-    if (line_height_style) OH_ArkUI_LineHeightStyle_Destroy(line_height_style);
+    if (span_style) {
+        OH_ArkUI_SpanStyle_Destroy(span_style);
+    }
+    if (text_style) {
+        OH_ArkUI_TextStyle_Destroy(text_style);
+    }
+    if (para_style) {
+        OH_ArkUI_ParagraphStyle_Destroy(para_style);
+    }
+    if (line_height_style) {
+        OH_ArkUI_LineHeightStyle_Destroy(line_height_style);
+    }
 }
 
 // ----------------------------------------------------------------------
@@ -326,16 +344,26 @@ void SetStyledText(KRTextEditorState &state, const std::string &text) {
                         OH_ArkUI_StyledString_Descriptor_AppendStyledString(root_desc, seg_desc);
                     }
                 }
-                if (ts) temp_text_styles.push_back(ts);
-                if (ss) temp_span_styles.push_back(ss);
-                if (ps) temp_para_styles.push_back(ps);
-                if (ls) temp_lh_styles.push_back(ls);
+                if (ts) {
+                    temp_text_styles.push_back(ts);
+                }
+                if (ss) {
+                    temp_span_styles.push_back(ss);
+                }
+                if (ps) {
+                    temp_para_styles.push_back(ps);
+                }
+                if (ls) {
+                    temp_lh_styles.push_back(ls);
+                }
             };
 
             auto append_image_span = [&](const std::string &uri, float w, float h) {
                 ArkUI_StyledString_Descriptor *img_desc =
                     BuildImageSpanDescriptor(uri, w, h, state.font_size_);
-                if (!img_desc) return;
+                if (!img_desc) {
+                    return;
+                }
                 if (!root_desc) {
                     // 文本以 image 开头：root 必须是个 string descriptor 才能被 Append
                     // 成功——为安全起见先建一个空文本 descriptor 作为 root。
@@ -344,10 +372,18 @@ void SetStyledText(KRTextEditorState &state, const std::string &text) {
                     OH_ArkUI_ParagraphStyle *ps = nullptr;
                     OH_ArkUI_LineHeightStyle *ls = nullptr;
                     root_desc = BuildPlainTextDescriptor(state, "", &ts, &ss, &ps, &ls);
-                    if (ts) temp_text_styles.push_back(ts);
-                    if (ss) temp_span_styles.push_back(ss);
-                    if (ps) temp_para_styles.push_back(ps);
-                    if (ls) temp_lh_styles.push_back(ls);
+                    if (ts) {
+                        temp_text_styles.push_back(ts);
+                    }
+                    if (ss) {
+                        temp_span_styles.push_back(ss);
+                    }
+                    if (ps) {
+                        temp_para_styles.push_back(ps);
+                    }
+                    if (ls) {
+                        temp_lh_styles.push_back(ls);
+                    }
                 }
                 if (root_desc) {
                     OH_ArkUI_StyledString_Descriptor_AppendStyledString(root_desc, img_desc);
@@ -384,10 +420,18 @@ void SetStyledText(KRTextEditorState &state, const std::string &text) {
                 // 与原实现一致：descriptor 不主动 Destroy，规避真机 free_default 崩溃。
             }
             // Style 临时资源安全 Destroy（与原实现同等条件）。
-            for (auto *ts : temp_text_styles) OH_ArkUI_TextStyle_Destroy(ts);
-            for (auto *ss : temp_span_styles) OH_ArkUI_SpanStyle_Destroy(ss);
-            for (auto *ps : temp_para_styles) OH_ArkUI_ParagraphStyle_Destroy(ps);
-            for (auto *ls : temp_lh_styles) OH_ArkUI_LineHeightStyle_Destroy(ls);
+            for (auto *ts : temp_text_styles) {
+                OH_ArkUI_TextStyle_Destroy(ts);
+            }
+            for (auto *ss : temp_span_styles) {
+                OH_ArkUI_SpanStyle_Destroy(ss);
+            }
+            for (auto *ps : temp_para_styles) {
+                OH_ArkUI_ParagraphStyle_Destroy(ps);
+            }
+            for (auto *ls : temp_lh_styles) {
+                OH_ArkUI_LineHeightStyle_Destroy(ls);
+            }
             state.cached_text_ = text;
             return;
         }
@@ -554,10 +598,18 @@ std::string ReconstructRawFromFlat(
     size_t diff_s = lcp;
     size_t prev_e = prev_len - lcs;
     size_t new_e = new_len - lcs;
-    if (prev_e < prev_len) prev_e = SnapToUtf8CharStart(prev_flat, prev_e);
-    if (new_e < new_len) new_e = SnapToUtf8CharStart(new_flat, new_e);
-    if (prev_e < diff_s) prev_e = diff_s;
-    if (new_e < diff_s) new_e = diff_s;
+    if (prev_e < prev_len) {
+        prev_e = SnapToUtf8CharStart(prev_flat, prev_e);
+    }
+    if (new_e < new_len) {
+        new_e = SnapToUtf8CharStart(new_flat, new_e);
+    }
+    if (prev_e < diff_s) {
+        prev_e = diff_s;
+    }
+    if (new_e < diff_s) {
+        new_e = diff_s;
+    }
 
     bool has_valid_selection = new_flat_selection_start != static_cast<uint32_t>(-1) &&
                                new_flat_selection_end != static_cast<uint32_t>(-1);
@@ -589,7 +641,9 @@ std::string ReconstructRawFromFlat(
             // 会发生（prev_e 之后的 image 经平移后只会落到 new_e 之后的合法位置），
             // 但仍 saturate 一下避免环绕。
             long long new_offset = static_cast<long long>(rec.flat_offset) + shift;
-            if (new_offset < 0) new_offset = 0;
+            if (new_offset < 0) {
+                new_offset = 0;
+            }
             moved.flat_offset = static_cast<size_t>(new_offset);
             out_new_image_spans.push_back(std::move(moved));
         } else {
@@ -621,7 +675,9 @@ std::string ReconstructRawFromFlat(
                 out_new_image_spans[span_idx].utf16_offset = static_cast<uint32_t>(utf16_idx);
                 ++span_idx;
             }
-            if (span_idx >= span_count) break;
+            if (span_idx >= span_count) {
+                break;
+            }
             unsigned char c = static_cast<unsigned char>(new_flat[byte_idx]);
             int char_byte_len = (c < 0x80) ? 1
                               : (c < 0xC0) ? 1   // 续字节（异常容错，按 1 推进，避免死循环）
@@ -707,7 +763,9 @@ uint32_t FlatUtf16ToRawUtf16(
         }
         // image 在 cursor 之前：raw 中占 utf16Len(raw_literal)，flat 中占 1 → 多出
         // (utf16Len(raw_literal) - 1)。
-        if (rec.raw_literal.empty()) continue;  // 兼容旧 AppendImageSpan 的退化路径
+        if (rec.raw_literal.empty()) {
+            continue;  // 兼容旧 AppendImageSpan 的退化路径
+        }
         int lit_u16 = GetUTF16Length(rec.raw_literal);
         if (lit_u16 > 1) {
             raw_cursor += static_cast<uint32_t>(lit_u16 - 1);
@@ -725,9 +783,13 @@ uint32_t RawUtf16ToFlatUtf16(
     uint32_t flat_cursor = raw_cursor;
     uint32_t raw_consumed_extra = 0;  // 已遍历 image 在 raw 中比 flat 多出的 UTF-16 长度合计
     for (const auto &rec : image_spans) {
-        if (rec.raw_literal.empty()) continue;
+        if (rec.raw_literal.empty()) {
+            continue;
+        }
         int lit_u16 = GetUTF16Length(rec.raw_literal);
-        if (lit_u16 <= 0) continue;
+        if (lit_u16 <= 0) {
+            continue;
+        }
         // 该 image 在 raw 文本中的起点（UTF-16 偏移）：
         //   raw_image_start = flat 上 image 的 UTF-16 偏移 + 此前 image 的额外长度
         uint32_t raw_image_start = rec.utf16_offset + raw_consumed_extra;

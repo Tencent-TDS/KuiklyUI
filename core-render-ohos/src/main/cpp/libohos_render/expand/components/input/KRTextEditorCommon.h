@@ -469,8 +469,12 @@ class EmptyStyledStringDescGuard {
         desc_ = OH_ArkUI_StyledString_Descriptor_CreateWithString("", styles, 1);
     }
     ~EmptyStyledStringDescGuard() {
-        if (desc_) OH_ArkUI_StyledString_Descriptor_Destroy(desc_);
-        if (span_style_) OH_ArkUI_SpanStyle_Destroy(span_style_);
+        if (desc_) {
+            OH_ArkUI_StyledString_Descriptor_Destroy(desc_);
+        }
+        if (span_style_) {
+            OH_ArkUI_SpanStyle_Destroy(span_style_);
+        }
     }
 
     EmptyStyledStringDescGuard(const EmptyStyledStringDescGuard &) = delete;
@@ -923,10 +927,18 @@ inline void ReadSelection(const KRTextEditorState &state, const std::string &tex
     }
 #endif
     uint32_t max_pos = static_cast<uint32_t>(GetUTF16Length(text));
-    if (start > max_pos) start = max_pos;
-    if (end > max_pos) end = max_pos;
-    if (out_start) *out_start = start;
-    if (out_end) *out_end = end;
+    if (start > max_pos) {
+        start = max_pos;
+    }
+    if (end > max_pos) {
+        end = max_pos;
+    }
+    if (out_start) {
+        *out_start = start;
+    }
+    if (out_end) {
+        *out_end = end;
+    }
 }
 
 // 构造 textInputState payload（与 Android createTextInputStateParamMap 字段对齐）。

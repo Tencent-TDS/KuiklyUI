@@ -484,7 +484,9 @@ static std::string GetEmojiFileUri(const std::string &resfile_rel) {
 static void MyTextPostProcessorAdapter(const char *text,
                                        void * /*reserved*/,
                                        KRTextProcessedResultBuilder builder) {
-    if (!text || !builder) return;
+    if (!text || !builder) {
+        return;
+    }
     // 探针：便于线上一眼确认 adapter 是否被调到、看到输入文本。tag=KuiklyEmoji。
     {
         static constexpr int kEmojiDomain = 0x1235;

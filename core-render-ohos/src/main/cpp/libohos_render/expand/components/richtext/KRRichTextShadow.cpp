@@ -740,11 +740,15 @@ void KRRichTextShadow::TriggerImagePrefetchIfNeed() {
     }
     auto weak_self = std::weak_ptr<IKRRenderShadowExport>(shared_from_this());
     for (const auto &rec : image_draw_records_) {
-        if (rec.src_uri.empty()) continue;
+        if (rec.src_uri.empty()) {
+            continue;
+        }
         KRCustomEmojiPixmapCache::GetInstance().Prefetch(
             rec.src_uri, [weak_self](const std::string &uri) {
                 auto strong = weak_self.lock();
-                if (!strong) return;
+                if (!strong) {
+                    return;
+                }
                 auto *self = static_cast<KRRichTextShadow *>(strong.get());
                 ImageLoadedCallback cb_copy;
                 {

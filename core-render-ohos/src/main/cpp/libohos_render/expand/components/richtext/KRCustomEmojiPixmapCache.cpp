@@ -163,7 +163,9 @@ void KRCustomEmojiPixmapCache::Prefetch(const std::string &uri, LoadedCallback o
             // 在锁外触发回调，避免 caller 回调中反向调用 cache 形成死锁。
             // 注意：解码失败（pm 为空）也会触发回调，让 caller 知道"已尝试且失败"。
             for (auto &cb : to_notify) {
-                if (cb) cb(uri);
+                if (cb) {
+                    cb(uri);
+                }
             }
         });
     });
@@ -192,7 +194,9 @@ void KRCustomEmojiPixmapCache::Clear() {
 
 void KRCustomEmojiPixmapCache::TouchLocked(const std::string &uri) {
     auto it = cache_.find(uri);
-    if (it == cache_.end()) return;
+    if (it == cache_.end()) {
+        return;
+    }
     lru_.erase(it->second.lru_it);
     lru_.push_front(uri);
     it->second.lru_it = lru_.begin();

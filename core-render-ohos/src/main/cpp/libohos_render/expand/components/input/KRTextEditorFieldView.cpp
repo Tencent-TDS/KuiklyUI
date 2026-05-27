@@ -22,32 +22,6 @@
 
 #include <algorithm>
 #include <cstring>
-#include <hilog/log.h>
-
-// ===== DEBUG: image span 场景下 selection / caret 链路诊断 hooks =====
-// 默认 LOG_DEBUG 等级，发布构建中不进入主 buffer。排查时通过
-//   hilog -b D -T KuiklyInputDbg
-// 打开。覆盖 raw↔flat 双向映射的全链路，下面任何一条都不要轻易删除：
-// 一旦再次出现选区/光标错位类回归，第一手证据都在这里。
-#define KR_DBG_DOMAIN 0x1237
-#define KR_DBG_TAG "KuiklyInputDbg"
-namespace {
-inline std::string KRDbgImageSpansDump(
-    const std::vector<kuikly::text_editor::KRTextEditorState::KRImageSpanRecord> &spans) {
-    std::string out;
-    out.reserve(spans.size() * 32);
-    char buf[64];
-    for (size_t i = 0; i < spans.size(); ++i) {
-        std::snprintf(buf, sizeof(buf), "[%zu] flat=%zu utf16=%u lit=", i,
-                      spans[i].flat_offset,
-                      static_cast<unsigned>(spans[i].utf16_offset));
-        out.append(buf);
-        out.append(spans[i].raw_literal);
-        out.push_back(' ');
-    }
-    return out;
-}
-}  // namespace
 
 // ============================================================================
 // 编译期 guard：当 SDK header < API 24 时，本 TU 中所有成员函数体都引用了
@@ -535,40 +509,26 @@ void KRTextEditorFieldView::OnTextDidChanged(ArkUI_NodeEvent *event) {
     // 算法把 flat 还原成 raw —— 与 iOS 通过 NSTextStorage 自动维护 NSTextAttachment
     // 位置等价；详见 KRTextEditorCommon.h: ReconstructRawFromFlat / RebuildRawAfterUserEdit。
     auto new_flat = GetContentText();
-    OH_LOG_Print(LOG_APP, LOG_DEBUG, KR_DBG_DOMAIN, KR_DBG_TAG,
-                 "[OnTextDidChanged] enter prev_raw='%{public}s' new_flat='%{public}s' "
-                 "prev_image_spans={%{public}s}",
-                 state_.cached_text_.c_str(), new_flat.c_str(),
-                 KRDbgImageSpansDump(state_.image_spans_).c_str());
-    auto text = kuikly::text_editor::RebuildRawAfterUserEdit(state_, new_flat);
-    state_.cached_text_ = text;
-    OH_LOG_Print(LOG_APP, LOG_DEBUG, KR_DBG_DOMAIN, KR_DBG_TAG,
-                 "[OnTextDidChanged] exit  new_raw='%{public}s' new_image_spans={%{public}s}",
-                 text.c_str(), KRDbgImageSpansDump(state_.image_spans_).c_str());
-    {
-        // 同步把 ArkUI 当前 selection（flat）打出来，便于推断光标错位发生位置。
-        uint32_t fs = 0, fe = 0;
+    // 先读取变更后的 ArkUI flat selection/caret，再重建 raw。删除连续 image span 时，
+    // selection 是区分"删第几个占位空格"的关键锚点。
+    uint32_t fs = static_cast<uint32_t>(-1);
+    uint32_t fe = static_cast<uint32_t>(-1);
 #if KUIKLY_TEXT_EDITOR_AVAILABLE
-        if (state_.controller_) {
-            if (OH_ArkUI_TextEditorStyledStringController_GetSelection(state_.controller_, &fs, &fe) !=
-                ARKUI_ERROR_CODE_NO_ERROR) {
-                fs = fe = 0;
-            }
-            if (fs == fe) {
-                int32_t caret = 0;
-                if (OH_ArkUI_TextEditorStyledStringController_GetCaretOffset(
-                        state_.controller_, &caret) == ARKUI_ERROR_CODE_NO_ERROR) {
-                    fs = fe = static_cast<uint32_t>(caret < 0 ? 0 : caret);
-                }
+    if (state_.controller_) {
+        if (OH_ArkUI_TextEditorStyledStringController_GetSelection(state_.controller_, &fs, &fe) !=
+            ARKUI_ERROR_CODE_NO_ERROR) {
+            fs = fe = static_cast<uint32_t>(-1);
+        } else if (fs == fe) {
+            int32_t caret = 0;
+            if (OH_ArkUI_TextEditorStyledStringController_GetCaretOffset(
+                    state_.controller_, &caret) == ARKUI_ERROR_CODE_NO_ERROR) {
+                fs = fe = static_cast<uint32_t>(caret < 0 ? 0 : caret);
             }
         }
-#endif
-        uint32_t rs = kuikly::text_editor::FlatUtf16ToRawUtf16(state_.image_spans_, fs);
-        uint32_t re = kuikly::text_editor::FlatUtf16ToRawUtf16(state_.image_spans_, fe);
-        OH_LOG_Print(LOG_APP, LOG_DEBUG, KR_DBG_DOMAIN, KR_DBG_TAG,
-                     "[OnTextDidChanged] selection flat=[%{public}u,%{public}u] raw=[%{public}u,%{public}u]",
-                     fs, fe, rs, re);
     }
+#endif
+    auto text = kuikly::text_editor::RebuildRawAfterUserEdit(state_, new_flat, fs, fe);
+    state_.cached_text_ = text;
     bool any_callback_present =
         state_.text_did_change_callback_ || state_.text_input_state_change_callback_;
     if (state_.text_did_change_callback_) {
@@ -640,24 +600,6 @@ void KRTextEditorFieldView::OnSelectionChanged(ArkUI_NodeEvent *event) {
     if (state_.is_setting_text_input_state_) {
         return;
     }
-    uint32_t fs = 0, fe = 0;
-    if (state_.controller_) {
-        if (OH_ArkUI_TextEditorStyledStringController_GetSelection(state_.controller_, &fs, &fe) !=
-            ARKUI_ERROR_CODE_NO_ERROR) {
-            fs = fe = 0;
-        }
-        if (fs == fe) {
-            int32_t caret = 0;
-            if (OH_ArkUI_TextEditorStyledStringController_GetCaretOffset(
-                    state_.controller_, &caret) == ARKUI_ERROR_CODE_NO_ERROR) {
-                fs = fe = static_cast<uint32_t>(caret < 0 ? 0 : caret);
-            }
-        }
-    }
-    OH_LOG_Print(LOG_APP, LOG_DEBUG, KR_DBG_DOMAIN, KR_DBG_TAG,
-                 "[OnSelectionChanged] flat_sel=[%{public}u,%{public}u] cached='%{public}s' image_spans={%{public}s}",
-                 fs, fe, state_.cached_text_.c_str(),
-                 KRDbgImageSpansDump(state_.image_spans_).c_str());
     EmitSelectionChange();
 #endif
 }
@@ -685,10 +627,6 @@ void KRTextEditorFieldView::EmitSelectionChange() {
 void KRTextEditorFieldView::SetTextInputStateInternal(const std::string &json) {
 #if KUIKLY_TEXT_EDITOR_AVAILABLE
     auto parsed = kuikly::text_editor::ParseTextInputStateJson(json);
-    OH_LOG_Print(LOG_APP, LOG_DEBUG, KR_DBG_DOMAIN, KR_DBG_TAG,
-                 "[SetTextInputStateInternal] parsed text='%{public}s' raw_sel=[%{public}u,%{public}u] cached='%{public}s'",
-                 parsed.text.c_str(), parsed.selection_start, parsed.selection_end,
-                 state_.cached_text_.c_str());
 
     // guard：抑制 textDidChange / textInputStateChange / selectionChange 三个回调，
     // 与 Android isSettingTextInputState、iOS _ignoreTextDidChanged 同语义。业务侧
@@ -701,12 +639,6 @@ void KRTextEditorFieldView::SetTextInputStateInternal(const std::string &json) {
         kuikly::text_editor::SetStyledText(state_, parsed.text);
         kuikly::text_editor::ApplyTypingStyle(state_);
         state_.cached_text_ = parsed.text;
-        OH_LOG_Print(LOG_APP, LOG_DEBUG, KR_DBG_DOMAIN, KR_DBG_TAG,
-                     "[SetTextInputStateInternal] applied SetStyledText, image_spans={%{public}s}",
-                     KRDbgImageSpansDump(state_.image_spans_).c_str());
-    } else {
-        OH_LOG_Print(LOG_APP, LOG_DEBUG, KR_DBG_DOMAIN, KR_DBG_TAG,
-                     "[SetTextInputStateInternal] text unchanged, skip SetStyledText");
     }
 
     // 2) 选区写入：业务侧给的 selection 是 raw 文本上的 UTF-16 偏移，必须先映射到
@@ -717,9 +649,6 @@ void KRTextEditorFieldView::SetTextInputStateInternal(const std::string &json) {
         kuikly::text_editor::RawUtf16ToFlatUtf16(state_.image_spans_, parsed.selection_start);
     uint32_t flat_end =
         kuikly::text_editor::RawUtf16ToFlatUtf16(state_.image_spans_, parsed.selection_end);
-    OH_LOG_Print(LOG_APP, LOG_DEBUG, KR_DBG_DOMAIN, KR_DBG_TAG,
-                 "[SetTextInputStateInternal] map raw=[%{public}u,%{public}u] -> flat=[%{public}u,%{public}u]",
-                 parsed.selection_start, parsed.selection_end, flat_start, flat_end);
 
     if (text_changed) {
         // ArkUI SDK 在 SetStyledString 之后会异步把 caret 重置到文本末尾（实测 readback
@@ -736,56 +665,25 @@ void KRTextEditorFieldView::SetTextInputStateInternal(const std::string &json) {
                 strongSelf->state_.is_setting_text_input_state_ = true;
                 // 纯光标（start == end）走 SetCaretOffset，路径更短、不触发 SetSelection 路径上
                 // 潜在的 caret reset；非纯光标（真选区）才走 SetSelection。
-                bool sel_ok = false;
                 bool used_caret_api = (flat_start == flat_end);
                 if (used_caret_api) {
                     kuikly::text_editor::SetCaretOffset(strongSelf->state_,
                                                         static_cast<int32_t>(flat_start));
-                    sel_ok = true;
                 } else {
-                    sel_ok = kuikly::text_editor::SetSelectionRange(
-                        strongSelf->state_, flat_start, flat_end);
+                    kuikly::text_editor::SetSelectionRange(strongSelf->state_, flat_start, flat_end);
                 }
-                uint32_t fs2 = 0, fe2 = 0;
-                int32_t caret2 = -1;
-                ArkUI_ErrorCode get_sel_rc = OH_ArkUI_TextEditorStyledStringController_GetSelection(
-                    strongSelf->state_.controller_, &fs2, &fe2);
-                ArkUI_ErrorCode get_caret_rc = OH_ArkUI_TextEditorStyledStringController_GetCaretOffset(
-                    strongSelf->state_.controller_, &caret2);
-                OH_LOG_Print(LOG_APP, LOG_DEBUG, KR_DBG_DOMAIN, KR_DBG_TAG,
-                             "[SetTextInputStateInternal] (next-loop) after %{public}s sel_ok=%{public}d "
-                             "readback flat_sel=[%{public}u,%{public}u](rc=%{public}d) caret=%{public}d(rc=%{public}d)",
-                             used_caret_api ? "SetCaretOffset" : "SetSelection",
-                             sel_ok ? 1 : 0, fs2, fe2, get_sel_rc, caret2, get_caret_rc);
                 strongSelf->state_.is_setting_text_input_state_ = false;
             });
     } else {
         // 文本未变路径：同步设 selection（已验证 SDK 不会重置 caret）。
         // 纯光标（start == end）走 SetCaretOffset，路径更短、不触发 SetSelection 路径上
         // 潜在的 caret reset；非纯光标（真选区）才走 SetSelection。
-        bool sel_ok = false;
         bool used_caret_api = (flat_start == flat_end);
         if (used_caret_api) {
             kuikly::text_editor::SetCaretOffset(state_, static_cast<int32_t>(flat_start));
-            sel_ok = true;
         } else {
-            sel_ok = kuikly::text_editor::SetSelectionRange(state_, flat_start, flat_end);
+            kuikly::text_editor::SetSelectionRange(state_, flat_start, flat_end);
         }
-        uint32_t fs2 = 0, fe2 = 0;
-        int32_t caret2 = -1;
-        ArkUI_ErrorCode get_sel_rc = ARKUI_ERROR_CODE_NO_ERROR;
-        ArkUI_ErrorCode get_caret_rc = ARKUI_ERROR_CODE_NO_ERROR;
-        if (state_.controller_) {
-            get_sel_rc = OH_ArkUI_TextEditorStyledStringController_GetSelection(
-                state_.controller_, &fs2, &fe2);
-            get_caret_rc = OH_ArkUI_TextEditorStyledStringController_GetCaretOffset(
-                state_.controller_, &caret2);
-        }
-        OH_LOG_Print(LOG_APP, LOG_DEBUG, KR_DBG_DOMAIN, KR_DBG_TAG,
-                     "[SetTextInputStateInternal] (sync) after %{public}s sel_ok=%{public}d "
-                     "readback flat_sel=[%{public}u,%{public}u](rc=%{public}d) caret=%{public}d(rc=%{public}d)",
-                     used_caret_api ? "SetCaretOffset" : "SetSelection",
-                     sel_ok ? 1 : 0, fs2, fe2, get_sel_rc, caret2, get_caret_rc);
     }
 
     state_.is_setting_text_input_state_ = false;
@@ -822,31 +720,23 @@ void KRTextEditorFieldView::OnWillChangeText(ArkUI_NodeEvent *event) {
         // SDK 缺陷规避（详见 .ai/references/ohos-styledstring-descriptor-quirks.md）：
         // 不能用 `OH_ArkUI_StyledString_Descriptor_Create()`，那条路径会返回内部指针未初始化
         // 的 struct，Destroy 时会 free 野指针并崩溃。改用 `_CreateWithString` 走 SDK 正常初始化路径。
-        OH_ArkUI_SpanStyle *spanStyle = OH_ArkUI_SpanStyle_Create();
-        const OH_ArkUI_SpanStyle *spanStyles[1] = {spanStyle};
-        ArkUI_StyledString_Descriptor *repl =
-            OH_ArkUI_StyledString_Descriptor_CreateWithString("", spanStyles, 1);
-        if (repl) {
-            bool has_newline = false;
-            if (OH_ArkUI_TextEditorChangeEvent_GetReplacementStyledString(change_event, repl) ==
+        // RAII 守卫消除原本两处手动 _Destroy 配对（任一 early return 都安全释放）。
+        bool has_newline = false;
+        if (kuikly::text_editor::EmptyStyledStringDescGuard g; g) {
+            if (OH_ArkUI_TextEditorChangeEvent_GetReplacementStyledString(change_event, g.desc()) ==
                 ARKUI_ERROR_CODE_NO_ERROR) {
                 // 使用通用工具函数读取，避免 buffer 越界导致 Destroy 时 crash
-                std::string buf = kuikly::text_editor::ReadDescriptorString(repl);
+                std::string buf = kuikly::text_editor::ReadDescriptorString(g.desc());
                 if (buf.find('\n') != std::string::npos) {
                     has_newline = true;
                 }
             }
-            OH_ArkUI_StyledString_Descriptor_Destroy(repl);
-            if (spanStyle) {
-                OH_ArkUI_SpanStyle_Destroy(spanStyle);
-            }
-            if (has_newline) {
-                ArkUI_NumberValue ret[] = {{.i32 = 0}};  // 拒绝
-                OH_ArkUI_NodeEvent_SetReturnNumberValue(event, ret, 1);
-                return;
-            }
-        } else if (spanStyle) {
-            OH_ArkUI_SpanStyle_Destroy(spanStyle);
+            // g 在此 if 块结束时析构，自动 Destroy(desc) + Destroy(spanStyle)
+        }
+        if (has_newline) {
+            ArkUI_NumberValue ret[] = {{.i32 = 0}};  // 拒绝
+            OH_ArkUI_NodeEvent_SetReturnNumberValue(event, ret, 1);
+            return;
         }
     }
 
@@ -857,42 +747,35 @@ void KRTextEditorFieldView::OnWillChangeText(ArkUI_NodeEvent *event) {
 
         // SDK 缺陷规避（详见 .ai/references/ohos-styledstring-descriptor-quirks.md）：
         // 同上方注释——必须用 `_CreateWithString` 而非 `_Create()`，否则 Destroy 会崩。
-        OH_ArkUI_SpanStyle *spanStyle = OH_ArkUI_SpanStyle_Create();
-        const OH_ArkUI_SpanStyle *spanStyles[1] = {spanStyle};
-        ArkUI_StyledString_Descriptor *repl =
-            OH_ArkUI_StyledString_Descriptor_CreateWithString("", spanStyles, 1);
-        if (repl &&
-            OH_ArkUI_TextEditorChangeEvent_GetReplacementStyledString(change_event, repl) ==
+        // RAII 守卫：原本 5 处手动 _Destroy 配对 + 1 处 early return 全部由作用域接管，
+        // 任何分支退出都不可能漏 Destroy。
+        bool reject = false;
+        if (kuikly::text_editor::EmptyStyledStringDescGuard g; g) {
+            if (OH_ArkUI_TextEditorChangeEvent_GetReplacementStyledString(change_event, g.desc()) ==
                 ARKUI_ERROR_CODE_NO_ERROR) {
-            std::string repl_str = kuikly::text_editor::ReadDescriptorString(repl);
-            if (!repl_str.empty()) {
-                auto dest = GetContentText();
-                // 使用与老实现同语义的 filter：source 截断后通过拒绝方式落地
-                std::string tmp = repl_str;
-                tmp.push_back('\0');  // FilterSource 依赖 '\0' 结尾
-                bool changed =
-                    kuikly::text_editor::FilterSource(tmp.data(), dest, r_start, r_end, state_);
-                if (changed) {
-                    NotifyTextLengthBeyondLimit();
-                    if (tmp.empty() || tmp[0] == '\0') {
-                        ArkUI_NumberValue ret[] = {{.i32 = 0}};  // 拒绝
-                        OH_ArkUI_NodeEvent_SetReturnNumberValue(event, ret, 1);
-                        OH_ArkUI_StyledString_Descriptor_Destroy(repl);
-                        if (spanStyle) {
-                            OH_ArkUI_SpanStyle_Destroy(spanStyle);
+                std::string repl_str = kuikly::text_editor::ReadDescriptorString(g.desc());
+                if (!repl_str.empty()) {
+                    auto dest = GetContentText();
+                    // 使用与老实现同语义的 filter：source 截断后通过拒绝方式落地
+                    std::string tmp = repl_str;
+                    tmp.push_back('\0');  // FilterSource 依赖 '\0' 结尾
+                    bool changed = kuikly::text_editor::FilterSource(tmp.data(), dest, r_start,
+                                                                       r_end, state_);
+                    if (changed) {
+                        NotifyTextLengthBeyondLimit();
+                        if (tmp.empty() || tmp[0] == '\0') {
+                            reject = true;  // 退出 if 块后再 return，让 g 正常析构
                         }
-                        return;
+                        // 原生 API 无法在此替换插入文本；退而求其次：放行本次 ->
+                        // 由 ON_DID_CHANGE 的 LimitInputContentTextInMaxLength 做后置截断。
                     }
-                    // 原生 API 无法在此替换插入文本；退而求其次：放行本次 ->
-                    // 由 ON_DID_CHANGE 的 LimitInputContentTextInMaxLength 做后置截断。
                 }
             }
-            OH_ArkUI_StyledString_Descriptor_Destroy(repl);
-        } else if (repl) {
-            OH_ArkUI_StyledString_Descriptor_Destroy(repl);
         }
-        if (spanStyle) {
-            OH_ArkUI_SpanStyle_Destroy(spanStyle);
+        if (reject) {
+            ArkUI_NumberValue ret[] = {{.i32 = 0}};  // 拒绝
+            OH_ArkUI_NodeEvent_SetReturnNumberValue(event, ret, 1);
+            return;
         }
     }
 

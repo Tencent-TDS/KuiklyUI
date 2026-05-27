@@ -17,29 +17,58 @@
 
 #include <multimedia/image_framework/image/image_source_native.h>
 
-#include <thread>
 #include <utility>
 
 #include "libohos_render/foundation/thread/KRMainThread.h"
 #include "libohos_render/utils/KRRenderLoger.h"
+
+namespace {
+// 自定义 deleter：把裸 OH_PixelmapNative* 包成 shared_ptr 时统一在最后一个引用
+// 析构时调用 OH_PixelmapNative_Release。集中在一处，避免散在各 release 调用点
+// 误调用 / 漏调用；也为未来若 Release 接口签名变化（例如返回值校验）提供单点维护。
+inline KRCustomEmojiPixmapCache::PixmapPtr WrapPixmap(OH_PixelmapNative *raw) {
+    if (!raw) {
+        return {};
+    }
+    return KRCustomEmojiPixmapCache::PixmapPtr(raw, [](OH_PixelmapNative *p) {
+        if (p) {
+            OH_PixelmapNative_Release(p);
+        }
+    });
+}
+}  // namespace
 
 KRCustomEmojiPixmapCache &KRCustomEmojiPixmapCache::GetInstance() {
     static KRCustomEmojiPixmapCache instance;
     return instance;
 }
 
+KRCustomEmojiPixmapCache::KRCustomEmojiPixmapCache()
+    : decode_queue_(std::make_unique<kuikly::dispatch::KRDispatchQueue>(
+          "kr.emoji.pixmap.decode",
+          kuikly::dispatch::QueueType::Serial,
+          kuikly::dispatch::QoS::Utility)) {}
+
 KRCustomEmojiPixmapCache::~KRCustomEmojiPixmapCache() {
     // 进程级单例理论上不会析构（与 KRFontCollectionWrapper 同），但提供清理逻辑保险。
+    // decode_queue_ 是 unique_ptr<KRDispatchQueue>：reset() 触发 ffrt_queue_destroy，
+    // 已经在跑的解码 task 会跑完，未执行的 task 被 cancel 并通过 TaskCleanup 释放。
+    // 释放顺序：先停队列、再清缓存——避免极端竞态下"队列里的 task 在 Clear 之后又
+    // 写回 cache_"。
+    decode_queue_.reset();
     Clear();
 }
 
-OH_PixelmapNative *KRCustomEmojiPixmapCache::Get(const std::string &uri) {
+KRCustomEmojiPixmapCache::PixmapPtr KRCustomEmojiPixmapCache::Get(const std::string &uri) {
     std::lock_guard<std::mutex> lk(mu_);
     auto it = cache_.find(uri);
     if (it == cache_.end()) {
-        return nullptr;
+        return {};
     }
     TouchLocked(uri);
+    // 返回值是 shared_ptr 的拷贝构造：caller 与 cache 各持一份强引用，互不影响。
+    // 即便后续 TrimLocked / Evict 把 it->second 从 cache 中移除，它持有的那份引用
+    // 析构时只是把计数从 2 降到 1，caller 这份仍然保活底层 pixmap。
     return it->second.pixmap;
 }
 
@@ -86,10 +115,19 @@ void KRCustomEmojiPixmapCache::Prefetch(const std::string &uri, LoadedCallback o
         return;
     }
 
-    // 起后台线程解码。完成后切回主线程写缓存 + 触发全部 waiters。
-    std::thread([uri]() {
-        OH_PixelmapNative *pm = DecodeFromUri(uri);
-        KRMainThread::RunOnMainThread([uri, pm]() {
+    // 把解码作业提交给 KRDispatchQueue (serial)。等价于 GCD dispatch_async，
+    // 底层是 ffrt_queue_serial：所有任务严格 FIFO，由 ffrt 全局 worker 池按需
+    // 调度执行——不再独占任何 OS 线程。decode_queue_ 在构造时创建；提交本身
+    // （Async）在 KRDispatchQueue 内部已是线程安全，因此可在锁外调用，缩短临界区。
+    decode_queue_->Async([uri]() {
+        // ---- 在 ffrt worker 上下文中解码 ----
+        // 关键：DecodeFromUri 已经把裸指针包成 shared_ptr 返回，捕获到主线程 lambda
+        // 的整个传递路径中**不再有任何裸 OH_PixelmapNative***——任意中间环节抛异常 /
+        // 提前 return，shared_ptr 都会自动释放。KRDispatchQueue::TaskExecutor 已经
+        // 包了 try-catch 兜底，本 lambda 无需再额外捕获。
+        PixmapPtr pm = DecodeFromUri(uri);
+
+        KRMainThread::RunOnMainThread([uri, pm]() mutable {
             auto &self = KRCustomEmojiPixmapCache::GetInstance();
             std::vector<LoadedCallback> to_notify;
             {
@@ -101,12 +139,12 @@ void KRCustomEmojiPixmapCache::Prefetch(const std::string &uri, LoadedCallback o
                     self.waiters_.erase(wit);
                 }
                 if (pm) {
-                    // 写入缓存（极端竞争：另一路径已塞过同 key，覆盖前先释放老的，保证幂等）。
+                    // 写入缓存（极端竞争：另一路径已塞过同 key，覆盖前先释放老的，
+                    // 保证幂等）。shared_ptr 赋值会自动 release 旧的强引用——若此时
+                    // 旧 pixmap 还有其它 caller 持有，底层资源会延迟到那份引用析构
+                    // 后才释放，比手写 OH_PixelmapNative_Release 更安全。
                     auto cit = self.cache_.find(uri);
                     if (cit != self.cache_.end()) {
-                        if (cit->second.pixmap) {
-                            OH_PixelmapNative_Release(cit->second.pixmap);
-                        }
                         // 复用 lru 节点：先移到头部
                         self.lru_.erase(cit->second.lru_it);
                         self.lru_.push_front(uri);
@@ -117,54 +155,39 @@ void KRCustomEmojiPixmapCache::Prefetch(const std::string &uri, LoadedCallback o
                         Entry e;
                         e.pixmap = pm;
                         e.lru_it = self.lru_.begin();
-                        self.cache_.emplace(uri, e);
+                        self.cache_.emplace(uri, std::move(e));
                     }
                     self.TrimLocked();
                 }
             }
             // 在锁外触发回调，避免 caller 回调中反向调用 cache 形成死锁。
-            // 注意：解码失败（pm == nullptr）也会触发回调，让 caller 知道"已尝试且失败"。
+            // 注意：解码失败（pm 为空）也会触发回调，让 caller 知道"已尝试且失败"。
             for (auto &cb : to_notify) {
                 if (cb) cb(uri);
             }
         });
-    }).detach();
+    });
 }
 
 void KRCustomEmojiPixmapCache::Evict(const std::string &uri) {
-    OH_PixelmapNative *to_release = nullptr;
-    {
-        std::lock_guard<std::mutex> lk(mu_);
-        auto it = cache_.find(uri);
-        if (it == cache_.end()) {
-            return;
-        }
-        to_release = it->second.pixmap;
-        lru_.erase(it->second.lru_it);
-        cache_.erase(it);
+    // shared_ptr 改造前的版本需要"先在锁内取出裸指针，再到锁外 Release"以避免在持锁
+    // 期间触发 SDK 内部回调；现在仅释放 cache 自身那份强引用即可——shared_ptr 析构在
+    // 引用计数降到 0 时才会真正调用 OH_PixelmapNative_Release，调用栈在哪里发生由
+    // 最后一个释放者决定。这里在锁内 erase 即可，无需暂存。
+    std::lock_guard<std::mutex> lk(mu_);
+    auto it = cache_.find(uri);
+    if (it == cache_.end()) {
+        return;
     }
-    if (to_release) {
-        OH_PixelmapNative_Release(to_release);
-    }
+    lru_.erase(it->second.lru_it);
+    cache_.erase(it);  // 此处释放 cache 这一份强引用；caller 仍持有的引用不受影响。
 }
 
 void KRCustomEmojiPixmapCache::Clear() {
-    std::vector<OH_PixelmapNative *> to_release;
-    {
-        std::lock_guard<std::mutex> lk(mu_);
-        to_release.reserve(cache_.size());
-        for (auto &kv : cache_) {
-            if (kv.second.pixmap) {
-                to_release.push_back(kv.second.pixmap);
-            }
-        }
-        cache_.clear();
-        lru_.clear();
-        // waiters_ 不清理：飞行中的解码完成后会发现 cache_ 没自己，自然结束（不会泄漏）。
-    }
-    for (auto *pm : to_release) {
-        OH_PixelmapNative_Release(pm);
-    }
+    std::lock_guard<std::mutex> lk(mu_);
+    cache_.clear();  // shared_ptr 析构链自动 Release 那些没有外部引用的 pixmap。
+    lru_.clear();
+    // waiters_ 不清理：飞行中的解码完成后会发现 cache_ 没自己，自然结束（不会泄漏）。
 }
 
 void KRCustomEmojiPixmapCache::TouchLocked(const std::string &uri) {
@@ -180,17 +203,14 @@ void KRCustomEmojiPixmapCache::TrimLocked() {
         const std::string &oldest = lru_.back();
         auto it = cache_.find(oldest);
         if (it != cache_.end()) {
-            if (it->second.pixmap) {
-                OH_PixelmapNative_Release(it->second.pixmap);
-            }
-            cache_.erase(it);
+            cache_.erase(it);  // 释放 cache 这一份强引用；caller 持有的引用仍保活底层 pixmap。
         }
         lru_.pop_back();
     }
 }
 
-OH_PixelmapNative *KRCustomEmojiPixmapCache::DecodeFromUri(const std::string &uri) {
-    if (uri.empty()) return nullptr;
+KRCustomEmojiPixmapCache::PixmapPtr KRCustomEmojiPixmapCache::DecodeFromUri(const std::string &uri) {
+    if (uri.empty()) return {};
     OH_PixelmapNative *pixelmap = nullptr;
     OH_ImageSourceNative *source = nullptr;
     // OH_ImageSourceNative_CreateFromUri 接受 char* 而非 const char*（API 12 签名），
@@ -199,7 +219,7 @@ OH_PixelmapNative *KRCustomEmojiPixmapCache::DecodeFromUri(const std::string &ur
     auto code = OH_ImageSourceNative_CreateFromUri(mutable_uri.data(), mutable_uri.length(), &source);
     if (code != IMAGE_SUCCESS || source == nullptr) {
         KR_LOG_ERROR << "[KRCustomEmojiPixmapCache] CreateFromUri failed, uri=" << uri << " code=" << code;
-        return nullptr;
+        return {};
     }
     OH_DecodingOptions *ops = nullptr;
     if (OH_DecodingOptions_Create(&ops) == IMAGE_SUCCESS && ops) {
@@ -209,5 +229,8 @@ OH_PixelmapNative *KRCustomEmojiPixmapCache::DecodeFromUri(const std::string &ur
         OH_DecodingOptions_Release(ops);
     }
     OH_ImageSourceNative_Release(source);
-    return pixelmap;
+    // 立即把裸指针包成 shared_ptr 返回；调用方（Prefetch 后台线程 lambda）拿到的是
+    // 强引用句柄，整条链路上不再有"裸 OH_PixelmapNative*"，避免线程切换 / 异常路径
+    // 中失控。
+    return WrapPixmap(pixelmap);
 }

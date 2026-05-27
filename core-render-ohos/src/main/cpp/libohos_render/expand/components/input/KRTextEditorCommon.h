@@ -430,83 +430,79 @@ static constexpr const char kTextPostProcessorNameInput[] = "input";
 
 // 前向声明：SetStyledText 需要在 span 长度上使用 UTF-16 code unit 口径，与文件下方
 // "文本长度计算" 块中 GetUTF16Length 复用实现。这里仅作声明，定义在同文件末尾。
-inline int GetUTF16Length(const std::string &text);
+int GetUTF16Length(const std::string &text);
 
 #if KUIKLY_TEXT_EDITOR_AVAILABLE
 // 默认行高倍数：未主动设置 lineHeight 时按 fontSize * kDefaultLineHeightMultiplier 推导。
 // 1.4 与 ArkTS 默认 lineSpacingMultiple 接近，实测视觉与老 NODE_TEXT_INPUT 默认行距相近。
 static constexpr float kDefaultLineHeightMultiplier = 1.4f;
 
+// ----------------------------------------------------------------------
+// EmptyStyledStringDescGuard — 把 commit 958220ca 修复后定型的
+// "SpanStyle_Create + StyledString_Descriptor_CreateWithString("", ...) +
+//  多分支 _Destroy 配对" 模式封装为 RAII 守卫，永久消灭漏 Destroy 类 bug。
+//
+// 背景：
+//   SDK 缺陷规避（详见 .ai/references/ohos-styledstring-descriptor-quirks.md）：
+//   不能用 OH_ArkUI_StyledString_Descriptor_Create()，必须走 _CreateWithString
+//   并提供一个 SpanStyle 数组——这是 GetStyledText / OnWillChangeText 中所有
+//   "需要一个空 descriptor 用作 SDK 出参缓冲" 场景的固定模式。
+//
+// 用法：
+//   if (EmptyStyledStringDescGuard g; g) {
+//       OH_ArkUI_TextEditorChangeEvent_GetReplacementStyledString(ev, g.desc());
+//       // ... 可任意 early return / break / throw，析构自动释放 ...
+//   }
+//
+// 设计要点：
+//   * 不可拷贝 / 不可移动：仅作局部作用域 RAII；跨函数所有权移交场景不在本守卫
+//     职责范围（那种场景让调用方继续手写——但目前业务里就没有这种场景）。
+//   * desc() 是观察者方法，不交出所有权；调用方拿到的指针仅在守卫存活期间有效。
+//   * 显式 operator bool 让 `if (g)` 判定 _CreateWithString 成功（与原代码
+//     `if (repl) { ... }` 语义等价）。
+// ----------------------------------------------------------------------
+class EmptyStyledStringDescGuard {
+ public:
+    EmptyStyledStringDescGuard() {
+        span_style_ = OH_ArkUI_SpanStyle_Create();
+        const OH_ArkUI_SpanStyle *styles[1] = {span_style_};
+        desc_ = OH_ArkUI_StyledString_Descriptor_CreateWithString("", styles, 1);
+    }
+    ~EmptyStyledStringDescGuard() {
+        if (desc_) OH_ArkUI_StyledString_Descriptor_Destroy(desc_);
+        if (span_style_) OH_ArkUI_SpanStyle_Destroy(span_style_);
+    }
+
+    EmptyStyledStringDescGuard(const EmptyStyledStringDescGuard &) = delete;
+    EmptyStyledStringDescGuard &operator=(const EmptyStyledStringDescGuard &) = delete;
+    EmptyStyledStringDescGuard(EmptyStyledStringDescGuard &&) = delete;
+    EmptyStyledStringDescGuard &operator=(EmptyStyledStringDescGuard &&) = delete;
+
+    explicit operator bool() const { return desc_ != nullptr; }
+    ArkUI_StyledString_Descriptor *desc() const { return desc_; }
+
+ private:
+    OH_ArkUI_SpanStyle *span_style_{nullptr};
+    ArkUI_StyledString_Descriptor *desc_{nullptr};
+};
+
+
 // 计算最终生效的 lineHeight（vp）。覆盖两种场景：
 //   A. 调用方主动设置 lineHeight：直接返回用户值（按 fontSize 做最小下限保护，避免裁切）。
 //   B. 未主动设置：按 fontSize * kDefaultLineHeightMultiplier 推导。
 // 返回 <=0 表示"不主动调 SetLineHeight"（仅当 fontSize<=0 等异常情况），让系统走默认。
-inline float ResolveLineHeightVp(const KRTextEditorState &state) {
-    if (state.line_height_set_ && state.line_height_ > 0) {
-        // A. 主动设置：保证不小于 fontSize（行高低于字号会出现上下截断）。
-        return state.line_height_ < state.font_size_ ? state.font_size_ : state.line_height_;
-    }
-    // B. 未设置：按字体大小推导。fontSize<=0 兜底返回 0，让系统走默认。
-    if (state.font_size_ <= 0) {
-        return 0.0f;
-    }
-    return state.font_size_ * kDefaultLineHeightMultiplier;
-}
+inline float ResolveLineHeightVp(const KRTextEditorState &state);
 
 // 基于当前 state 的 typing 样式创建一个 TextStyle，调用方负责 Destroy。
-inline OH_ArkUI_TextEditorTextStyle *CreateTextStyleFromState(const KRTextEditorState &state,
-                                                              float font_size_px_if_fixed) {
-    OH_ArkUI_TextEditorTextStyle *style = OH_ArkUI_TextEditorTextStyle_Create();
-    if (!style) {
-        return nullptr;
-    }
-    OH_ArkUI_TextEditorTextStyle_SetFontColor(style, state.font_color_);
-    // font_size: 老实现只会把 fp 级别的 size 透传；API 的 SetFontSize 单位按 vp/fp，
-    // 与老 NODE_TEXT_INPUT_PLACEHOLDER_FONT 行为一致即可。
-    OH_ArkUI_TextEditorTextStyle_SetFontSize(style, state.font_size_);
-    OH_ArkUI_TextEditorTextStyle_SetFontWeight(style, static_cast<uint32_t>(state.font_weight_));
-    // 行高（typing 路径）：注意 OH_ArkUI_TextEditorTextStyle_SetLineHeight 入参为 int32_t（vp）。
-    // 由 ResolveLineHeightVp 统一处理"主动 / 默认推导"两种语义，避免在多个调用点重复判断。
-    float lh = ResolveLineHeightVp(state);
-    if (lh > 0) {
-        OH_ArkUI_TextEditorTextStyle_SetLineHeight(
-            style, static_cast<int32_t>(lh + 0.5f));
-    }
-    (void)font_size_px_if_fixed;  // 预留：若 fontSizeScaleFollowSystem=false 时切换 px 单位
-    return style;
-}
+OH_ArkUI_TextEditorTextStyle *CreateTextStyleFromState(const KRTextEditorState &state,
+                                                              float font_size_px_if_fixed);
 
-inline OH_ArkUI_TextEditorParagraphStyle *CreateParagraphStyleFromState(const KRTextEditorState &state) {
-    OH_ArkUI_TextEditorParagraphStyle *style = OH_ArkUI_TextEditorParagraphStyle_Create();
-    if (!style) {
-        return nullptr;
-    }
-    OH_ArkUI_TextEditorParagraphStyle_SetTextAlign(style, state.text_align_);
-    // 段落内垂直对齐恢复默认 BASELINE，避免与节点级 NODE_TEXT_CONTENT_ALIGN 叠加干扰。
-    // 历史尝试：CENTER / BOTTOM 在单行场景下视觉表现均不理想（仍偏上），改为在节点层使用
-    // NODE_TEXT_CONTENT_ALIGN = ARKUI_TEXT_CONTENT_ALIGN_CENTER 做整体容器居中。
-    OH_ArkUI_TextEditorParagraphStyle_SetTextVerticalAlign(style, ArkUI_TextVerticalAlignment::ARKUI_TEXT_VERTICAL_ALIGNMENT_CENTER);
-    return style;
-}
+OH_ArkUI_TextEditorParagraphStyle *CreateParagraphStyleFromState(const KRTextEditorState &state);
 
 // 把 state 中的 typing 样式 + 段落样式应用到 controller。调用时机：
 //   * 首次绑定 controller；
 //   * fontSize/fontWeight/color/textAlign 任一变化。
-inline void ApplyTypingStyle(KRTextEditorState &state) {
-    if (!state.controller_) {
-        return;
-    }
-    OH_ArkUI_TextEditorTextStyle *text_style = CreateTextStyleFromState(state, 0);
-    if (text_style) {
-        OH_ArkUI_TextEditorStyledStringController_SetTypingStyle(state.controller_, text_style);
-        OH_ArkUI_TextEditorTextStyle_Destroy(text_style);
-    }
-    OH_ArkUI_TextEditorParagraphStyle *para_style = CreateParagraphStyleFromState(state);
-    if (para_style) {
-        OH_ArkUI_TextEditorStyledStringController_SetTypingParagraphStyle(state.controller_, para_style);
-        OH_ArkUI_TextEditorParagraphStyle_Destroy(para_style);
-    }
-}
+void ApplyTypingStyle(KRTextEditorState &state);
 
 // 构造一段 image span 对应的 ArkUI_StyledString_Descriptor。
 // 调用方负责后续 Append；attachment 仅作为构造材料，构造完即可销毁，所有权由
@@ -518,107 +514,22 @@ inline void ApplyTypingStyle(KRTextEditorState &state) {
 //
 // fallback_size_vp 兜底：当 width/height 都为 <=0 时按当前 fontSize 自适应；fontSize<=0
 // 时再退回 16vp，避免出现 0×0 的不可见 attachment。
-inline ArkUI_StyledString_Descriptor *BuildImageSpanDescriptor(const std::string &resource_uri,
+ArkUI_StyledString_Descriptor *BuildImageSpanDescriptor(const std::string &resource_uri,
                                                                 float width_vp,
                                                                 float height_vp,
-                                                                float fallback_size_vp) {
-    if (resource_uri.empty()) {
-        return nullptr;
-    }
-    OH_ArkUI_ImageAttachment *attachment = OH_ArkUI_ImageAttachment_Create();
-    if (!attachment) {
-        return nullptr;
-    }
-    // 优先走 SetPixelMap：当 KRCustomEmojiPixmapCache 已经在 RichText / 此前的
-    // 输入流程中解码过同一 uri 时，这里同步拿到 OH_PixelmapNative*，直接绑定到
-    // attachment，SDK 内部不会再发起异步 image loader 请求，从根源上消除
-    // "插入自定义表情时一帧空白 / 闪动" 的问题。
-    //
-    // 缓存未命中：保持原有 SetResource 路径——首帧仍可能闪一次（取决于 SDK 内
-    // 部的图片管线是否复用），但同时主动触发一次 Prefetch，把解码结果落到进程
-    // 级缓存里，后续相同 uri 的输入都会走上面的 SetPixelMap 快路径。
-    //
-    // 注意：cache 持有 pixmap 所有权（caller 不释放），attachment 内部一般会
-    // 自行 retain 或读取数据；descriptor 后续会接管 attachment，整体生命周期
-    // 与原 SetResource 路径无差异。
-    bool used_pixmap = false;
-    if (OH_ArkUI_ImageAttachment_SetPixelMap) {
-        if (OH_PixelmapNative *cached_pm =
-                KRCustomEmojiPixmapCache::GetInstance().Get(resource_uri)) {
-            if (OH_ArkUI_ImageAttachment_SetPixelMap(attachment, cached_pm) == ARKUI_ERROR_CODE_NO_ERROR) {
-                used_pixmap = true;
-            }
-        }
-    }
-    if (!used_pixmap) {
-        OH_ArkUI_ImageAttachment_SetResource(attachment, resource_uri.c_str());
-        // 异步预解码：下次插入同一 uri 的表情就能命中 SetPixelMap 快路径。
-        // on_loaded 留空——仅触发预解码，不需要回调；调用是幂等的（同 uri 不
-        // 重复发起解码）。
-        KRCustomEmojiPixmapCache::GetInstance().Prefetch(resource_uri, nullptr);
-    }
-    float fb = fallback_size_vp > 0 ? fallback_size_vp : 16.0f;
-    float w = width_vp > 0 ? width_vp : fb;
-    float h = height_vp > 0 ? height_vp : w;  // 仅 width 有值时按方形展开
-    OH_ArkUI_ImageAttachment_SetSizeWidth(attachment, w);
-    OH_ArkUI_ImageAttachment_SetSizeHeight(attachment, h);
-    OH_ArkUI_ImageAttachment_SetVerticalAlign(attachment, ARKUI_IMAGE_SPAN_ALIGNMENT_CENTER);
-    OH_ArkUI_ImageAttachment_SetObjectFit(attachment, ARKUI_OBJECT_FIT_CONTAIN);
-
-    ArkUI_StyledString_Descriptor *desc =
-        OH_ArkUI_StyledString_Descriptor_CreateWithImageAttachment(attachment);
-    // 销毁本地 attachment——descriptor 已持有所需信息（与 SDK 约定一致）。
-    OH_ArkUI_ImageAttachment_Destroy(attachment);
-    return desc;
-}
+                                                                float fallback_size_vp);
 
 // 构造一段纯文本 descriptor（带覆盖全长的 SpanStyle / TextStyle / ParagraphStyle /
 // LineHeightStyle）。返回 nullptr 表示构造失败。
 // 把 span/text/para/lineHeight 四个临时资源传出供调用方统一 Destroy。
-inline ArkUI_StyledString_Descriptor *BuildPlainTextDescriptor(
+ArkUI_StyledString_Descriptor *BuildPlainTextDescriptor(
     const KRTextEditorState &state, const std::string &text,
     OH_ArkUI_TextStyle **out_text_style, OH_ArkUI_SpanStyle **out_span_style,
-    OH_ArkUI_ParagraphStyle **out_para_style, OH_ArkUI_LineHeightStyle **out_line_height_style) {
-    *out_text_style = OH_ArkUI_TextStyle_Create();
-    *out_span_style = OH_ArkUI_SpanStyle_Create();
-    *out_para_style = OH_ArkUI_ParagraphStyle_Create();
-    *out_line_height_style = nullptr;
-    if (!*out_text_style || !*out_span_style) {
-        return nullptr;
-    }
-    int32_t u16_len = GetUTF16Length(text);
-    OH_ArkUI_TextStyle_SetFontColor(*out_text_style, state.font_color_);
-    OH_ArkUI_TextStyle_SetFontSize(*out_text_style, state.font_size_);
-    OH_ArkUI_TextStyle_SetFontWeight(*out_text_style, static_cast<uint32_t>(state.font_weight_));
-    OH_ArkUI_SpanStyle_SetStart(*out_span_style, 0);
-    OH_ArkUI_SpanStyle_SetLength(*out_span_style, u16_len);
-    OH_ArkUI_SpanStyle_SetTextStyle(*out_span_style, *out_text_style);
-    float lh = ResolveLineHeightVp(state);
-    if (lh > 0) {
-        *out_line_height_style = OH_ArkUI_LineHeightStyle_Create();
-        if (*out_line_height_style) {
-            OH_ArkUI_LineHeightStyle_SetLineHeight(*out_line_height_style, lh);
-            OH_ArkUI_SpanStyle_SetLineHeightStyle(*out_span_style, *out_line_height_style);
-        }
-    }
-    if (*out_para_style) {
-        OH_ArkUI_ParagraphStyle_SetTextAlign(*out_para_style, state.text_align_);
-        OH_ArkUI_ParagraphStyle_SetTextVerticalAlign(
-            *out_para_style, ArkUI_TextVerticalAlignment::ARKUI_TEXT_VERTICAL_ALIGNMENT_CENTER);
-        OH_ArkUI_SpanStyle_SetParagraphStyle(*out_span_style, *out_para_style);
-    }
-    const OH_ArkUI_SpanStyle *span_styles[] = {*out_span_style};
-    return OH_ArkUI_StyledString_Descriptor_CreateWithString(text.c_str(), span_styles, 1);
-}
+    OH_ArkUI_ParagraphStyle **out_para_style, OH_ArkUI_LineHeightStyle **out_line_height_style);
 
-inline void DestroyTextSpanResources(OH_ArkUI_TextStyle *text_style, OH_ArkUI_SpanStyle *span_style,
+void DestroyTextSpanResources(OH_ArkUI_TextStyle *text_style, OH_ArkUI_SpanStyle *span_style,
                                      OH_ArkUI_ParagraphStyle *para_style,
-                                     OH_ArkUI_LineHeightStyle *line_height_style) {
-    if (span_style) OH_ArkUI_SpanStyle_Destroy(span_style);
-    if (text_style) OH_ArkUI_TextStyle_Destroy(text_style);
-    if (para_style) OH_ArkUI_ParagraphStyle_Destroy(para_style);
-    if (line_height_style) OH_ArkUI_LineHeightStyle_Destroy(line_height_style);
-}
+                                     OH_ArkUI_LineHeightStyle *line_height_style);
 
 // 把纯文本写入 controller。
 //
@@ -636,195 +547,7 @@ inline void DestroyTextSpanResources(OH_ArkUI_TextStyle *text_style, OH_ArkUI_Sp
 //     交给业务侧 adapter 处理，拿到 [TextSpan/ImageSpan ...] 序列，按段构建 descriptor
 //     再 OH_ArkUI_StyledString_Descriptor_AppendStyledString 串接。
 //     adapter 未注册或返回空段时走原有最快路径，零回归。
-inline void SetStyledText(KRTextEditorState &state, const std::string &text) {
-    if (!state.controller_) {
-        return;
-    }
-
-    // 入口处先清空 image_spans_：本函数是「权威映射」的唯一构建点，无论走 adapter
-    // 路径还是纯文本旧路径，都需要保证 image_spans_ 与 ArkUI 节点中的 image span
-    // 一一对应。adapter 未命中时纯文本无 image，image_spans_ 维持空即可。
-    state.image_spans_.clear();
-
-    // ---- TextPostProcessor 分支：业务侧把原始文本切为 [Text/Image Span ...] ----
-    // 业务在 adapter 中负责：
-    //   1) 识别自定义短码（如 [smile]）；
-    //   2) 把图片资源解析为可寻址 URI（file:// / http(s):// / data:image;base64,...）。
-    // SDK 这里仅负责按段构建 descriptor 并串接，不再做任何资源协议解析。
-    {
-        std::vector<kuikly::text::KRTextPostProcessSpan> spans;
-        if (kuikly::text::RunTextPostProcessor(kTextPostProcessorNameInput, text, spans)) {
-            ArkUI_StyledString_Descriptor *root_desc = nullptr;
-            // 跟踪 build segment 期间的临时资源，统一在尾部一次性 Destroy（与原实现
-            // 同生命周期：style 资源 Destroy 安全；descriptor 由于已知所有权问题不
-            // Destroy，与原 SetStyledText 注释保持一致）。
-            std::vector<OH_ArkUI_TextStyle *> temp_text_styles;
-            std::vector<OH_ArkUI_SpanStyle *> temp_span_styles;
-            std::vector<OH_ArkUI_ParagraphStyle *> temp_para_styles;
-            std::vector<OH_ArkUI_LineHeightStyle *> temp_lh_styles;
-
-            auto append_text_span = [&](const std::string &seg) {
-                // 长度为 0 的 text span 仅在"image 居首需要建空 root"场景使用，外部跳过；
-                // 这里允许空字符串落到 BuildPlainTextDescriptor，让 SDK 走与外层旧路径
-                // 一致的"必须带 span"语义。
-                OH_ArkUI_TextStyle *ts = nullptr;
-                OH_ArkUI_SpanStyle *ss = nullptr;
-                OH_ArkUI_ParagraphStyle *ps = nullptr;
-                OH_ArkUI_LineHeightStyle *ls = nullptr;
-                ArkUI_StyledString_Descriptor *seg_desc =
-                    BuildPlainTextDescriptor(state, seg, &ts, &ss, &ps, &ls);
-                if (seg_desc) {
-                    if (!root_desc) {
-                        root_desc = seg_desc;
-                    } else {
-                        OH_ArkUI_StyledString_Descriptor_AppendStyledString(root_desc, seg_desc);
-                    }
-                }
-                if (ts) temp_text_styles.push_back(ts);
-                if (ss) temp_span_styles.push_back(ss);
-                if (ps) temp_para_styles.push_back(ps);
-                if (ls) temp_lh_styles.push_back(ls);
-            };
-
-            auto append_image_span = [&](const std::string &uri, float w, float h) {
-                ArkUI_StyledString_Descriptor *img_desc =
-                    BuildImageSpanDescriptor(uri, w, h, state.font_size_);
-                if (!img_desc) return;
-                if (!root_desc) {
-                    // 文本以 image 开头：root 必须是个 string descriptor 才能被 Append
-                    // 成功——为安全起见先建一个空文本 descriptor 作为 root。
-                    OH_ArkUI_TextStyle *ts = nullptr;
-                    OH_ArkUI_SpanStyle *ss = nullptr;
-                    OH_ArkUI_ParagraphStyle *ps = nullptr;
-                    OH_ArkUI_LineHeightStyle *ls = nullptr;
-                    root_desc = BuildPlainTextDescriptor(state, "", &ts, &ss, &ps, &ls);
-                    if (ts) temp_text_styles.push_back(ts);
-                    if (ss) temp_span_styles.push_back(ss);
-                    if (ps) temp_para_styles.push_back(ps);
-                    if (ls) temp_lh_styles.push_back(ls);
-                }
-                if (root_desc) {
-                    OH_ArkUI_StyledString_Descriptor_AppendStyledString(root_desc, img_desc);
-                }
-            };
-
-            // image_spans_ 维护：随 spans 顺序遍历，跟踪每段在 ArkUI flat 字节流中
-            // 的当前偏移（byte）以及 UTF-16 code unit 偏移；image 段在 flat 中占
-            // 1 个 ASCII 空格（见 BuildImageSpanDescriptor / kArkUIImageSpanPlaceholder），
-            // text 段按 UTF-8 字节 / UTF-16 code unit 原样占据。
-            size_t flat_byte_cursor = 0;
-            uint32_t flat_utf16_cursor = 0;
-            for (const auto &span : spans) {
-                if (span.type == kuikly::text::KRTextPostProcessSpan::Type::kText) {
-                    if (!span.text_or_src.empty()) {
-                        append_text_span(span.text_or_src);
-                        flat_byte_cursor += span.text_or_src.size();
-                        flat_utf16_cursor += static_cast<uint32_t>(GetUTF16Length(span.text_or_src));
-                    }
-                } else {
-                    append_image_span(span.text_or_src, span.width, span.height);
-                    KRTextEditorState::KRImageSpanRecord rec;
-                    rec.flat_offset = flat_byte_cursor;
-                    rec.utf16_offset = flat_utf16_cursor;
-                    rec.raw_literal = span.raw_literal;
-                    state.image_spans_.push_back(std::move(rec));
-                    flat_byte_cursor += 1;
-                    flat_utf16_cursor += 1;  // ASCII space = 1 UTF-16 code unit
-                }
-            }
-
-            if (root_desc) {
-                OH_ArkUI_TextEditorStyledStringController_SetStyledString(state.controller_, root_desc);
-                // 与原实现一致：descriptor 不主动 Destroy，规避真机 free_default 崩溃。
-            }
-            // Style 临时资源安全 Destroy（与原实现同等条件）。
-            for (auto *ts : temp_text_styles) OH_ArkUI_TextStyle_Destroy(ts);
-            for (auto *ss : temp_span_styles) OH_ArkUI_SpanStyle_Destroy(ss);
-            for (auto *ps : temp_para_styles) OH_ArkUI_ParagraphStyle_Destroy(ps);
-            for (auto *ls : temp_lh_styles) OH_ArkUI_LineHeightStyle_Destroy(ls);
-            state.cached_text_ = text;
-            return;
-        }
-    }
-    // ---- 旧路径：纯文本（adapter 未注册或返回空 span） ----
-    // 计算 UTF-16 长度（与 SDK SpanStyle_SetLength 的口径一致）
-    int32_t u16_len = GetUTF16Length(text);
-
-    OH_ArkUI_TextStyle *text_style = OH_ArkUI_TextStyle_Create();
-    OH_ArkUI_SpanStyle *span_style = OH_ArkUI_SpanStyle_Create();
-    // 段落级样式（textAlign 等）：SpanStyle 走 OH_ArkUI_ParagraphStyle（非 TextEditor
-    // 特化版本），是段落绑定到 span 范围的正式通道。仅靠 TypingParagraphStyle 只会
-    // 影响「后续键入」，不会回写已有文本，因此必须在 span 层带上。
-    OH_ArkUI_ParagraphStyle *para_style = OH_ArkUI_ParagraphStyle_Create();
-    // 行高（span 路径）：OH_ArkUI_TextStyle 自身没有 SetLineHeight，需通过
-    // OH_ArkUI_LineHeightStyle + OH_ArkUI_SpanStyle_SetLineHeightStyle 设置；
-    // 仅这条路径才能让"已有文本"的行高立即生效（typing style 只影响后续键入）。
-    OH_ArkUI_LineHeightStyle *line_height_style = nullptr;
-    ArkUI_StyledString_Descriptor *desc = nullptr;
-
-    if (text_style && span_style) {
-        OH_ArkUI_TextStyle_SetFontColor(text_style, state.font_color_);
-        OH_ArkUI_TextStyle_SetFontSize(text_style, state.font_size_);
-        OH_ArkUI_TextStyle_SetFontWeight(text_style, static_cast<uint32_t>(state.font_weight_));
-
-        OH_ArkUI_SpanStyle_SetStart(span_style, 0);
-        OH_ArkUI_SpanStyle_SetLength(span_style, u16_len);
-        OH_ArkUI_SpanStyle_SetTextStyle(span_style, text_style);
-
-        // 把 lineHeight 通过 LineHeightStyle 绑定到 span：覆盖整段已有文本。
-        float lh = ResolveLineHeightVp(state);
-        if (lh > 0) {
-            line_height_style = OH_ArkUI_LineHeightStyle_Create();
-            if (line_height_style) {
-                OH_ArkUI_LineHeightStyle_SetLineHeight(line_height_style, lh);
-                OH_ArkUI_SpanStyle_SetLineHeightStyle(span_style, line_height_style);
-            }
-        }
-
-        if (para_style) {
-            OH_ArkUI_ParagraphStyle_SetTextAlign(para_style, state.text_align_);
-            // 垂直居中与 CreateParagraphStyleFromState 中一致，避免视觉差异。
-            OH_ArkUI_ParagraphStyle_SetTextVerticalAlign(
-                para_style, ArkUI_TextVerticalAlignment::ARKUI_TEXT_VERTICAL_ALIGNMENT_CENTER);
-            OH_ArkUI_SpanStyle_SetParagraphStyle(span_style, para_style);
-        }
-
-        const OH_ArkUI_SpanStyle *span_styles[] = {span_style};
-        // 注意：span 数量不能传 0。实测若传 `nullptr, 0` 或非 nullptr 的空 spans 数组，
-        // 系统侧 SetStyledString 不会把文本写进节点——对 `text == ""`（清空）场景尤其
-        // 致命：控件里的旧文本会保持不变，表现为"setText("") 无效"。
-        // 因此这里即便 u16_len == 0，也保留一个覆盖 [0, 0) 的空 span 传进去，让
-        // SDK 进入正常的"写入路径"，从而真正把空文本落到节点上。
-        desc = OH_ArkUI_StyledString_Descriptor_CreateWithString(
-            text.c_str(), span_styles, 1);
-    }
-
-    if (desc) {
-        OH_ArkUI_TextEditorStyledStringController_SetStyledString(state.controller_, desc);
-        // SDK 缺陷规避（详见 .ai/references/ohos-styledstring-descriptor-quirks.md）：
-        // 此处 desc 是通过 `_CreateWithString` 走 SDK 正常初始化路径构造的，
-        // Destroy 是安全的；不可改用 `_Create()`，那条路径会返回内部指针未初始化
-        // 的 struct，Destroy 时会 free 野指针并崩溃。
-        OH_ArkUI_StyledString_Descriptor_Destroy(desc);
-    }
-    // SpanStyle / TextStyle 是 Create 时的独立资源，Destroy 是安全的（与 Descriptor
-    // 不同，这两者没有所有权被系统接管的问题，官方示例也明确一对一 Destroy）。
-    if (span_style) {
-        OH_ArkUI_SpanStyle_Destroy(span_style);
-    }
-    if (text_style) {
-        OH_ArkUI_TextStyle_Destroy(text_style);
-    }
-    if (para_style) {
-        OH_ArkUI_ParagraphStyle_Destroy(para_style);
-    }
-    if (line_height_style) {
-        // LineHeightStyle 与 TextStyle/ParagraphStyle 同属"由调用方 Create/Destroy"
-        // 的子样式资源，与 Descriptor 不同，没有所有权被系统接管的问题，可安全 Destroy。
-        OH_ArkUI_LineHeightStyle_Destroy(line_height_style);
-    }
-    state.cached_text_ = text;
-}
+void SetStyledText(KRTextEditorState &state, const std::string &text);
 
 // ============================================================================
 // Raw <-> Flat 文本映射工具（基于 image_spans_ 权威映射的差分回写算法）
@@ -866,17 +589,7 @@ static constexpr char kArkUIImageSpanPlaceholder = ' ';
 
 // 计算 [a, b) 字节区间向左退到合法 UTF-8 字符边界的位置。
 // 用于 lcp / lcs 切到多字节序列中间时回退。
-inline size_t SnapToUtf8CharStart(const std::string &s, size_t pos) {
-    while (pos > 0 && pos < s.size()) {
-        unsigned char c = static_cast<unsigned char>(s[pos]);
-        // UTF-8 续字节：10xxxxxx；首字节是 0xxxxxxx 或 11xxxxxx。
-        if ((c & 0xC0) != 0x80) {
-            break;
-        }
-        --pos;
-    }
-    return pos;
-}
+size_t SnapToUtf8CharStart(const std::string &s, size_t pos);
 
 // 基于 image_spans_ 权威映射做差分回写：把 ArkUI flat 文本还原成 raw 文本，
 // 同时输出新的 image_spans_（已按用户编辑动作做过位置增量平移 / 删除）。
@@ -886,12 +599,17 @@ inline size_t SnapToUtf8CharStart(const std::string &s, size_t pos) {
 //   * prev_flat        : 与 prev_image_spans 配套的上一次 flat 文本（由调用方提供，
 //                        通常等价于「ArkUI 节点上一次 GetContentText 的结果」）
 //   * new_flat         : 当前 ArkUI flat 文本（GetContentText 实测）
+//   * new_flat_selection_start / end : 文本变化后的 ArkUI flat 选区（UTF-16 code unit）。
+//                        删除场景下折叠光标可作为 diff 锚点，消除连续 image 占位空格
+//                        完全相同导致的 lcp/lcs 歧义。
 // 出参：
 //   * out_new_image_spans : 编辑后新的权威映射（按 flat_offset 升序）
 // 返回值：还原后的 raw 文本。
 //
 // 算法（与 iOS p_outputText 同构，但 OHOS 维护权威映射而非依赖 NSTextStorage）：
-//   Step A. 求 lcp/lcs 得到差异区段 [diff_s, prev_e) → [diff_s, new_e)，UTF-8 边界回退。
+//   Step A. 默认求 lcp/lcs 得到差异区段；若是纯删除且选区折叠，则优先使用删除后的
+//           flat caret 锚定 [diff_s, prev_e) → [diff_s, new_e)，避免 "   a" -> "  a"
+//           被误判成删除最右侧 image。
 //   Step B. 遍历 prev_image_spans，按 flat_offset 与差异区段的位置关系分三类处理：
 //             - flat_offset < diff_s             → 幸存，flat_offset 不变。
 //             - flat_offset >= prev_e            → 幸存，flat_offset += (new_e - prev_e)。
@@ -899,124 +617,13 @@ inline size_t SnapToUtf8CharStart(const std::string &s, size_t pos) {
 //   Step C. 以 new_flat 为底，按 out_new_image_spans **从右到左** 把每个 flat_offset
 //           处的占位空格替换为该 image 的 raw_literal（从右到左避免影响后续偏移）。
 //           raw_literal 为空时跳过替换（保留单空格）。
-inline std::string ReconstructRawFromFlat(
+std::string ReconstructRawFromFlat(
     const std::vector<KRTextEditorState::KRImageSpanRecord> &prev_image_spans,
     const std::string &prev_flat,
     const std::string &new_flat,
-    std::vector<KRTextEditorState::KRImageSpanRecord> &out_new_image_spans) {
-    out_new_image_spans.clear();
-
-    // 退化路径 1：prev_flat == new_flat（无变化）→ 映射全部原样幸存。
-    if (prev_flat == new_flat) {
-        out_new_image_spans = prev_image_spans;
-        // 直接基于 prev_image_spans 把 new_flat 还原为 raw（无平移，仅替换占位空格）。
-        if (prev_image_spans.empty()) {
-            return new_flat;
-        }
-        std::string raw = new_flat;
-        for (auto it = prev_image_spans.rbegin(); it != prev_image_spans.rend(); ++it) {
-            if (it->raw_literal.empty()) continue;
-            if (it->flat_offset >= raw.size()) continue;
-            raw.replace(it->flat_offset, 1, it->raw_literal);
-        }
-        return raw;
-    }
-    // 退化路径 2：prev_image_spans 为空（prev raw 中无 image）→ raw == flat。
-    if (prev_image_spans.empty()) {
-        return new_flat;
-    }
-
-    // Step A: lcp/lcs 求差异区段。
-    size_t prev_len = prev_flat.size();
-    size_t new_len = new_flat.size();
-    size_t lcp = 0;
-    while (lcp < prev_len && lcp < new_len && prev_flat[lcp] == new_flat[lcp]) {
-        ++lcp;
-    }
-    size_t lcs = 0;
-    while (lcs < prev_len - lcp && lcs < new_len - lcp &&
-           prev_flat[prev_len - 1 - lcs] == new_flat[new_len - 1 - lcs]) {
-        ++lcs;
-    }
-    lcp = SnapToUtf8CharStart(prev_flat, lcp);
-    size_t diff_s = lcp;
-    size_t prev_e = prev_len - lcs;
-    size_t new_e = new_len - lcs;
-    if (prev_e < prev_len) prev_e = SnapToUtf8CharStart(prev_flat, prev_e);
-    if (new_e < new_len) new_e = SnapToUtf8CharStart(new_flat, new_e);
-    if (prev_e < diff_s) prev_e = diff_s;
-    if (new_e < diff_s) new_e = diff_s;
-
-    // Step B: 按差异区段做增量平移（prev → new image_spans）。
-    // 删除 prev 中落在差异区段内的所有 image —— 这与 iOS NSTextStorage 在用户编辑
-    // 时把整个 NSTextAttachment 当作 1 个字符删除的行为一致：用户键入或删除时，
-    // 占位空格（attachment 在 flat 中的 1-char 表示）会被一同覆盖，故视为整段被吞。
-    // 落在差异区段之后的 image 整体平移 (new_e - prev_e)，可能为负（缩短）或正（扩展）。
-    long long shift = static_cast<long long>(new_e) - static_cast<long long>(prev_e);
-    out_new_image_spans.reserve(prev_image_spans.size());
-    for (const auto &rec : prev_image_spans) {
-        if (rec.flat_offset < diff_s) {
-            out_new_image_spans.push_back(rec);  // 不变
-        } else if (rec.flat_offset >= prev_e) {
-            KRTextEditorState::KRImageSpanRecord moved = rec;
-            // 极端 corner case 防御：shift 不应让 flat_offset 越过 0；按理论模型不
-            // 会发生（prev_e 之后的 image 经平移后只会落到 new_e 之后的合法位置），
-            // 但仍 saturate 一下避免环绕。
-            long long new_offset = static_cast<long long>(rec.flat_offset) + shift;
-            if (new_offset < 0) new_offset = 0;
-            moved.flat_offset = static_cast<size_t>(new_offset);
-            out_new_image_spans.push_back(std::move(moved));
-        } else {
-            // 落在差异区段内：被吞掉，丢弃。
-        }
-    }
-
-    // Step C: 以 new_flat 为底，从右到左把 image 占位空格替换回 raw_literal。
-    std::string raw = new_flat;
-    for (auto it = out_new_image_spans.rbegin(); it != out_new_image_spans.rend(); ++it) {
-        if (it->raw_literal.empty()) continue;
-        if (it->flat_offset >= raw.size()) continue;
-        // 若该位置在 new_flat 中不再是占位空格（极端：用户编辑使其变成别的字符），
-        // 仍然按权威映射强制替换为 raw_literal —— 因为 image_spans_ 是这条逻辑的权威源；
-        // 但实际触发概率极低（差分平移已把所有"被编辑"的 image 剔除）。
-        raw.replace(it->flat_offset, 1, it->raw_literal);
-    }
-
-    // Step D: 同步重算 out_new_image_spans 中每条记录的 utf16_offset —— 它依赖
-    // new_flat 内 image 占位空格之前的 UTF-16 长度。差分平移按字节做，UTF-16 偏移
-    // 在新 flat 中需要重新扫描；为避免 O(N²) substr，这里基于已升序的 flat_offset
-    // 单趟扫描 new_flat 的 UTF-8 字节，跨过每个字符就把 utf16 cursor 累加。
-    {
-        size_t byte_idx = 0;
-        size_t utf16_idx = 0;
-        size_t flat_size = new_flat.size();
-        size_t span_idx = 0;
-        size_t span_count = out_new_image_spans.size();
-        while (byte_idx < flat_size && span_idx < span_count) {
-            // 在到达下一个待标定的 image 占位字节之前，按字节累加 UTF-16 长度。
-            while (span_idx < span_count &&
-                   byte_idx == out_new_image_spans[span_idx].flat_offset) {
-                out_new_image_spans[span_idx].utf16_offset = static_cast<uint32_t>(utf16_idx);
-                ++span_idx;
-            }
-            if (span_idx >= span_count) break;
-            unsigned char c = static_cast<unsigned char>(new_flat[byte_idx]);
-            int char_byte_len = (c < 0x80) ? 1
-                              : (c < 0xC0) ? 1   // 续字节（异常容错，按 1 推进，避免死循环）
-                              : (c < 0xE0) ? 2
-                              : (c < 0xF0) ? 3
-                              :              4;
-            byte_idx += char_byte_len;
-            utf16_idx += (char_byte_len >= 4) ? 2 : 1;
-        }
-        // 文末仍有未标定的 image 记录（极端：image 落在 new_flat 末尾）。
-        while (span_idx < span_count) {
-            out_new_image_spans[span_idx].utf16_offset = static_cast<uint32_t>(utf16_idx);
-            ++span_idx;
-        }
-    }
-    return raw;
-}
+    uint32_t new_flat_selection_start,
+    uint32_t new_flat_selection_end,
+    std::vector<KRTextEditorState::KRImageSpanRecord> &out_new_image_spans);
 
 // 由 image_spans_ 与给定 raw 反推出对应 ArkUI flat 文本。
 // 用途：OnTextDidChanged 调用 ReconstructRawFromFlat 时需要传 prev_flat；prev_flat
@@ -1027,54 +634,20 @@ inline std::string ReconstructRawFromFlat(
 // 由于 image_spans_ 持有的是 flat_offset（不是 raw 中的偏移），无法直接基于它做
 // 切片，因此这里采用「以 image_spans_ 顺序为权威，依次在 raw 中查找 raw_literal
 // 并替换」的策略——线性扫描，O(N+M)。
-inline std::string DeriveFlatFromRaw(
+std::string DeriveFlatFromRaw(
     const std::string &raw,
-    const std::vector<KRTextEditorState::KRImageSpanRecord> &image_spans) {
-    if (image_spans.empty()) {
-        return raw;
-    }
-    // 以 image_spans 顺序逐条把 raw_literal 替换为单空格；从前往后线性推进 cursor，
-    // 与 SetStyledText 中 spans 顺序一致 → adapter 在 raw 中匹配 image 的相对顺序。
-    std::string flat;
-    flat.reserve(raw.size());
-    size_t raw_cursor = 0;
-    for (const auto &rec : image_spans) {
-        if (rec.raw_literal.empty()) {
-            // 未携带 raw_literal 的 image：无法从 raw 中定位它，跳过 → 后续直接把
-            // raw 剩余部分整体追加。这种退化只在业务用旧的 AppendImageSpan 接口
-            // （不传 raw_literal）时出现。
-            continue;
-        }
-        size_t pos = raw.find(rec.raw_literal, raw_cursor);
-        if (pos == std::string::npos) {
-            // 异常：image_spans_ 与 raw 不匹配（可能业务在 SetStyledText 后又用其他
-            // 路径直接修改了 cached_text_）。退化：把 raw 剩余部分整体追加。
-            break;
-        }
-        flat.append(raw, raw_cursor, pos - raw_cursor);
-        flat.push_back(kArkUIImageSpanPlaceholder);
-        raw_cursor = pos + rec.raw_literal.size();
-    }
-    if (raw_cursor < raw.size()) {
-        flat.append(raw, raw_cursor, raw.size() - raw_cursor);
-    }
-    return flat;
-}
+    const std::vector<KRTextEditorState::KRImageSpanRecord> &image_spans);
 
 // OnTextDidChanged 入口的便捷封装：基于 state 中的 prev raw / image_spans_ 与
-// 当前 ArkUI flat 文本，推算新的 raw 文本，并就地更新 state.image_spans_。
+// 当前 ArkUI flat 文本、变更后的 flat 选区，推算新的 raw 文本，并就地更新
+// state.image_spans_。
 // 调用方（KRTextEditorFieldView::OnTextDidChanged）只需要：
-//   auto new_raw = RebuildRawAfterUserEdit(state, GetContentText());
+//   auto new_raw = RebuildRawAfterUserEdit(state, GetContentText(), fs, fe);
 //   state_.cached_text_ = new_raw;
-inline std::string RebuildRawAfterUserEdit(KRTextEditorState &state,
-                                           const std::string &new_flat) {
-    std::string prev_flat = DeriveFlatFromRaw(state.cached_text_, state.image_spans_);
-    std::vector<KRTextEditorState::KRImageSpanRecord> new_spans;
-    std::string new_raw = ReconstructRawFromFlat(state.image_spans_, prev_flat,
-                                                  new_flat, new_spans);
-    state.image_spans_ = std::move(new_spans);
-    return new_raw;
-}
+std::string RebuildRawAfterUserEdit(KRTextEditorState &state,
+                                    const std::string &new_flat,
+                                    uint32_t new_flat_selection_start,
+                                    uint32_t new_flat_selection_end);
 
 // ============================================================================
 // Selection 坐标双向映射（基于 image_spans_）
@@ -1100,53 +673,13 @@ inline std::string RebuildRawAfterUserEdit(KRTextEditorState &state,
 //     的 raw 区间内时，扩展到 image 起点（shortcode 不可分割原子）。
 // ============================================================================
 
-inline uint32_t FlatUtf16ToRawUtf16(
+uint32_t FlatUtf16ToRawUtf16(
     const std::vector<KRTextEditorState::KRImageSpanRecord> &image_spans,
-    uint32_t flat_cursor) {
-    uint32_t raw_cursor = flat_cursor;
-    for (const auto &rec : image_spans) {
-        if (rec.utf16_offset >= flat_cursor) {
-            // 该 image 在光标位置或之后，无须为 cursor 之前的 image 做扩展。
-            break;
-        }
-        // image 在 cursor 之前：raw 中占 utf16Len(raw_literal)，flat 中占 1 → 多出
-        // (utf16Len(raw_literal) - 1)。
-        if (rec.raw_literal.empty()) continue;  // 兼容旧 AppendImageSpan 的退化路径
-        int lit_u16 = GetUTF16Length(rec.raw_literal);
-        if (lit_u16 > 1) {
-            raw_cursor += static_cast<uint32_t>(lit_u16 - 1);
-        }
-    }
-    return raw_cursor;
-}
+    uint32_t flat_cursor);
 
-inline uint32_t RawUtf16ToFlatUtf16(
+uint32_t RawUtf16ToFlatUtf16(
     const std::vector<KRTextEditorState::KRImageSpanRecord> &image_spans,
-    uint32_t raw_cursor) {
-    uint32_t flat_cursor = raw_cursor;
-    uint32_t raw_consumed_extra = 0;  // 已遍历 image 在 raw 中比 flat 多出的 UTF-16 长度合计
-    for (const auto &rec : image_spans) {
-        if (rec.raw_literal.empty()) continue;
-        int lit_u16 = GetUTF16Length(rec.raw_literal);
-        if (lit_u16 <= 0) continue;
-        // 该 image 在 raw 文本中的起点（UTF-16 偏移）：
-        //   raw_image_start = flat 上 image 的 UTF-16 偏移 + 此前 image 的额外长度
-        uint32_t raw_image_start = rec.utf16_offset + raw_consumed_extra;
-        if (raw_cursor <= raw_image_start) {
-            // cursor 在该 image 之前，无须再扣减；后续 image 也都在 cursor 之后，break。
-            break;
-        }
-        uint32_t raw_image_end = raw_image_start + static_cast<uint32_t>(lit_u16);
-        if (raw_cursor < raw_image_end) {
-            // cursor 落在 image 的 raw 区间内 —— shortcode 不可分割，收缩到 image 起点。
-            return rec.utf16_offset;
-        }
-        // cursor 在该 image 之后：扣减 (lit_u16 - 1)。
-        flat_cursor -= static_cast<uint32_t>(lit_u16 - 1);
-        raw_consumed_extra += static_cast<uint32_t>(lit_u16 - 1);
-    }
-    return flat_cursor;
-}
+    uint32_t raw_cursor);
 
 //
 // 注：以上 ReconstructRawFromFlat / DeriveFlatFromRaw / RebuildRawAfterUserEdit
@@ -1169,21 +702,7 @@ inline uint32_t RawUtf16ToFlatUtf16(
 //   * 对于 > 8KB 的输入（极罕见），当前实现会截断到 8KB；如遇业务超长场景，可在此调大。
 static constexpr size_t kDescriptorReadBufferSize = 8192;
 
-inline std::string ReadDescriptorString(const ArkUI_StyledString_Descriptor *desc) {
-    if (!desc) {
-        return "";
-    }
-    std::vector<char> buf(kDescriptorReadBufferSize, '\0');
-    int32_t actual = 0;
-    ArkUI_ErrorCode code = OH_ArkUI_StyledString_Descriptor_GetString(
-        desc, buf.data(), static_cast<int32_t>(buf.size()), &actual);
-    if (code != ARKUI_ERROR_CODE_NO_ERROR) {
-        return "";
-    }
-    // actual 可能包含或不包含尾 '\0'；用 strnlen 裁掉哨兵字节并兼容 actual == 0 的空串场景
-    size_t real_len = strnlen(buf.data(), static_cast<size_t>(actual > 0 ? actual : 0));
-    return std::string(buf.data(), real_len);
-}
+std::string ReadDescriptorString(const ArkUI_StyledString_Descriptor *desc);
 
 // 读取 controller 当前完整文本（UTF-8）。
 //
@@ -1197,53 +716,11 @@ inline std::string ReadDescriptorString(const ArkUI_StyledString_Descriptor *des
 //   不能用 `OH_ArkUI_StyledString_Descriptor_Create()` —— 该接口返回的 struct
 //   内部指针字段未初始化，后续 Destroy 时会 free 野指针并崩溃。
 //   改用 `_CreateWithString` 走 SDK 内部的正常初始化路径，Destroy 即安全。
-inline std::string GetStyledText(const KRTextEditorState &state) {
-    if (!state.controller_) {
-        return "";
-    }
-    OH_ArkUI_SpanStyle *spanStyle = OH_ArkUI_SpanStyle_Create();
-    const OH_ArkUI_SpanStyle *spanStyles[1] = {spanStyle};
-    ArkUI_StyledString_Descriptor *desc =
-        OH_ArkUI_StyledString_Descriptor_CreateWithString("", spanStyles, 1);
-    if (!desc) {
-        if (spanStyle) {
-            OH_ArkUI_SpanStyle_Destroy(spanStyle);
-        }
-        return "";
-    }
-    std::string ret;
-    if (OH_ArkUI_TextEditorStyledStringController_GetStyledString(state.controller_, desc) ==
-        ARKUI_ERROR_CODE_NO_ERROR) {
-        ret = ReadDescriptorString(desc);
-    }
-    OH_ArkUI_StyledString_Descriptor_Destroy(desc);
-    if (spanStyle) {
-        OH_ArkUI_SpanStyle_Destroy(spanStyle);
-    }
-    return ret;
-}
+std::string GetStyledText(const KRTextEditorState &state);
 
 // 把 state 中的 placeholder_text_ / font / color 打包成 Options，
 // 通过 NODE_TEXT_EDITOR_PLACEHOLDER 属性生效。
-inline void ApplyPlaceholder(ArkUI_NodeHandle node, const KRTextEditorState &state) {
-    if (!node) {
-        return;
-    }
-    OH_ArkUI_TextEditorPlaceholderOptions *options = OH_ArkUI_TextEditorPlaceholderOptions_Create();
-    if (!options) {
-        return;
-    }
-    OH_ArkUI_TextEditorPlaceholderOptions_SetValue(options, state.placeholder_text_.c_str());
-    OH_ArkUI_TextEditorPlaceholderOptions_SetFontSize(options, state.font_size_);
-    OH_ArkUI_TextEditorPlaceholderOptions_SetFontWeight(options, static_cast<uint32_t>(state.font_weight_));
-    if (state.placeholder_color_set_) {
-        OH_ArkUI_TextEditorPlaceholderOptions_SetFontColor(options, state.placeholder_color_);
-    }
-    ArkUI_AttributeItem item = {};
-    item.object = options;
-    kuikly::util::GetNodeApi()->setAttribute(node, NODE_TEXT_EDITOR_PLACEHOLDER, &item);
-    OH_ArkUI_TextEditorPlaceholderOptions_Destroy(options);
-}
+void ApplyPlaceholder(ArkUI_NodeHandle node, const KRTextEditorState &state);
 
 // 节点级属性：光标颜色 NODE_TEXT_EDITOR_CARET_COLOR
 inline void UpdateCaretColor(ArkUI_NodeHandle node, uint32_t hex_color) {
@@ -1380,121 +857,15 @@ inline int GetUTF16Length(const std::string &text) {
     return static_cast<int>(u16Index);
 }
 
-inline int CalculateTextLength(int length_limit_type, const std::string &text, size_t rmStart = 0,
-                               size_t rmEnd = 0) {
-    switch (length_limit_type) {
-        case 0: {  // BYTE
-            auto size = text.length();
-            if (rmEnd > rmStart) {
-                auto byteCountToStart = GetUTF8ByteCount(text, 0, rmStart);
-                auto byteCountToEnd = GetUTF8ByteCount(text, byteCountToStart, rmEnd - rmStart);
-                size -= byteCountToEnd;
-            }
-            return static_cast<int>(size);
-        }
-        case 1: {  // CHARACTER
-            auto u32text = kuikly::util::ConvertToU32String(text);
-            auto size = u32text.length();
-            if (rmEnd > rmStart) {
-                size_t u32Index = 0;
-                size_t u16Index = 0;
-                while (u16Index < rmStart && u32Index < size) {
-                    u16Index += (u32text[u32Index] > 0xFFFF) ? 2 : 1;
-                    u32Index++;
-                }
-                auto u32Start = u32Index;
-                while (u16Index < rmEnd && u32Index < size) {
-                    u16Index += (u32text[u32Index] > 0xFFFF) ? 2 : 1;
-                    u32Index++;
-                }
-                size -= (u32Index - u32Start);
-            }
-            return static_cast<int>(size);
-        }
-        case 2: {  // VISUAL_WIDTH
-            auto u32text = kuikly::util::ConvertToU32String(text);
-            auto size = u32text.length();
-            int visualWidth = 0;
-            size_t u16Index = 0;
-            for (size_t i = 0; i < size; ++i) {
-                char32_t codePoint = u32text[i];
-                if (u16Index < rmStart || u16Index >= rmEnd) {
-                    visualWidth += GetVisualWidthOfCodePoint(codePoint);
-                }
-                u16Index += (codePoint > 0xFFFF) ? 2 : 1;
-            }
-            return visualWidth;
-        }
-        default:
-            return 0;
-    }
-}
+int CalculateTextLength(int length_limit_type, const std::string &text, size_t rmStart = 0,
+                               size_t rmEnd = 0);
 
-inline int CalculateTruncateIndex(int length_limit_type, const std::string &text, size_t keep) {
-    switch (length_limit_type) {
-        case 0: {
-            size_t textLength = text.length();
-            size_t byteIndex = 0;
-            while (byteIndex < textLength) {
-                unsigned char c = static_cast<unsigned char>(text[byteIndex]);
-                int pointBytes = GetUTF8ByteLengthOfFirstCharacter(c);
-                if (byteIndex + pointBytes > keep) {
-                    break;
-                }
-                byteIndex += pointBytes;
-            }
-            return static_cast<int>(byteIndex);
-        }
-        case 1: {
-            size_t textLength = text.length();
-            size_t byteIndex = 0;
-            for (size_t i = 0; i < keep && byteIndex < textLength; ++i) {
-                unsigned char c = static_cast<unsigned char>(text[byteIndex]);
-                byteIndex += GetUTF8ByteLengthOfFirstCharacter(c);
-            }
-            return static_cast<int>(byteIndex);
-        }
-        case 2: {
-            auto u32text = kuikly::util::ConvertToU32String(text);
-            size_t u32Length = u32text.length();
-            size_t visualWidth = 0;
-            size_t byteIndex = 0;
-            for (size_t i = 0; i < u32Length; ++i) {
-                auto u32Char = u32text[i];
-                int charWidth = GetVisualWidthOfCodePoint(u32Char);
-                if (visualWidth + charWidth > keep) {
-                    break;
-                }
-                visualWidth += charWidth;
-                byteIndex += GetUTF8ByteLengthOfCodePoint(u32Char);
-            }
-            return static_cast<int>(byteIndex);
-        }
-        default:
-            return 0;
-    }
-}
+int CalculateTruncateIndex(int length_limit_type, const std::string &text, size_t keep);
 
 // 根据 state.length_limit_type_ / state.max_length_ 对 source 进行过滤。语义与老
 // KRTextFieldView::filter 完全一致：返回 true 表示截断发生（source 已被 '\0' 结尾改写）。
-inline bool FilterSource(char source[], const std::string &dest, size_t dStart, size_t dEnd,
-                         const KRTextEditorState &state) {
-    if (source[0] == '\0') {
-        return false;
-    }
-    int32_t keep = state.max_length_ -
-                   CalculateTextLength(state.length_limit_type_, dest, dStart, dEnd);
-    if (keep >= CalculateTextLength(state.length_limit_type_, source)) {
-        return false;
-    } else if (keep <= 0) {
-        source[0] = '\0';
-        return true;
-    } else {
-        auto index = CalculateTruncateIndex(state.length_limit_type_, source, static_cast<size_t>(keep));
-        source[index] = '\0';
-        return true;
-    }
-}
+bool FilterSource(char source[], const std::string &dest, size_t dStart, size_t dEnd,
+                         const KRTextEditorState &state);
 
 // ========== textInputState 协议工具 ==========
 //
@@ -1559,40 +930,7 @@ inline void ReadSelection(const KRTextEditorState &state, const std::string &tex
 }
 
 // 构造 textInputState payload（与 Android createTextInputStateParamMap 字段对齐）。
-inline KRRenderValueMap BuildTextInputStatePayload(const KRTextEditorState &state) {
-    // 对外暴露的 text 必须是「raw shortcode 文本」（与 iOS/Android 一致），
-    // 而非 ArkUI flat（image span 被占位空格扁平化后的产物）。SetStyledText /
-    // OnTextDidChanged / SetTextInputStateInternal 三条路径都会同步更新 cached_text_
-    // 为最新 raw，这里直接读 cached_text_ 即可。
-    // 兜底：cached_text_ 为空但控件中有内容（极端 dispose 顺序）时，回退到
-    // GetStyledText（拿到的可能是 flat，仅作为不丢失数据的最后一道防线）。
-    std::string text = state.cached_text_;
-#if KUIKLY_TEXT_EDITOR_AVAILABLE
-    if (text.empty()) {
-        text = GetStyledText(state);
-    }
-#endif
-    uint32_t sel_start = 0;
-    uint32_t sel_end = 0;
-    ReadSelection(state, text, &sel_start, &sel_end);
-    // ReadSelection 拿到的是 ArkUI flat 上的 UTF-16 偏移；上抛业务前必须映射到
-    // raw 上的 UTF-16 偏移，否则业务侧把 flat 坐标当 raw 坐标用会切碎 shortcode
-    // （bug 表现：插入新 emoji 时落到已有 shortcode 字面量中间）。
-    sel_start = FlatUtf16ToRawUtf16(state.image_spans_, sel_start);
-    sel_end = FlatUtf16ToRawUtf16(state.image_spans_, sel_end);
-
-    KRRenderValueMap map;
-    map[kKeyText] = NewKRRenderValue(text);
-    map[kKeySelectionStart] = NewKRRenderValue(static_cast<int>(sel_start));
-    map[kKeySelectionEnd] = NewKRRenderValue(static_cast<int>(sel_end));
-    map[kKeyCompositionStart] = NewKRRenderValue(static_cast<int>(kNoComposition));
-    map[kKeyCompositionEnd] = NewKRRenderValue(static_cast<int>(kNoComposition));
-    if (state.length_limit_type_ != -1) {
-        int length = CalculateTextLength(state.length_limit_type_, text);
-        map[kKeyLength] = NewKRRenderValue(length);
-    }
-    return map;
-}
+KRRenderValueMap BuildTextInputStatePayload(const KRTextEditorState &state);
 
 // textInputState JSON 解析结果。出参语义与 Android setTextInputState 解析一致：
 //   * 缺省 selectionStart 时，使用 text 的 utf16Len 作为兜底（即光标置末尾）
@@ -1605,39 +943,7 @@ struct ParsedTextInputState {
 };
 
 // 解析 JSON 字符串到 ParsedTextInputState；解析失败返回空 text + 0 光标，与 Android 一致。
-inline ParsedTextInputState ParseTextInputStateJson(const std::string &json) {
-    ParsedTextInputState ret;
-    if (json.empty()) {
-        return ret;
-    }
-    auto value = NewKRRenderValue(json);
-    auto map = value->toMap();  // KRRenderValue::toMap() 在字符串场景下走 cJSON_Parse
-    auto text_it = map.find(kKeyText);
-    if (text_it != map.end() && text_it->second) {
-        ret.text = text_it->second->toString();
-    }
-    uint32_t max_pos = static_cast<uint32_t>(GetUTF16Length(ret.text));
-    bool has_start = false;
-    auto start_it = map.find(kKeySelectionStart);
-    if (start_it != map.end() && start_it->second) {
-        int v = start_it->second->toInt();
-        ret.selection_start = v < 0 ? 0 : (static_cast<uint32_t>(v) > max_pos ? max_pos
-                                                                              : static_cast<uint32_t>(v));
-        has_start = true;
-    } else {
-        ret.selection_start = max_pos;
-    }
-    auto end_it = map.find(kKeySelectionEnd);
-    if (end_it != map.end() && end_it->second) {
-        int v = end_it->second->toInt();
-        ret.selection_end = v < 0 ? 0 : (static_cast<uint32_t>(v) > max_pos ? max_pos
-                                                                            : static_cast<uint32_t>(v));
-    } else {
-        ret.selection_end = ret.selection_start;
-    }
-    (void)has_start;
-    return ret;
-}
+ParsedTextInputState ParseTextInputStateJson(const std::string &json);
 
 }  // namespace text_editor
 }  // namespace kuikly

@@ -229,7 +229,11 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
                 if (rec.placeholder_index < 0 || rec.placeholder_index >= rect_count) {
                     continue;
                 }
-                OH_PixelmapNative *pm = KRCustomEmojiPixmapCache::GetInstance().Get(rec.src_uri);
+                // 持有 shared_ptr 强引用：在本地变量 pm_holder 存活期间，即便此刻被并发
+                // Evict / TrimLocked 从 cache 中移除，底层 pixmap 仍保活直到本作用域结束
+                // ——彻底消除原本"裸指针 + 锁外使用"的悬挂访问风险。
+                auto pm_holder = KRCustomEmojiPixmapCache::GetInstance().Get(rec.src_uri);
+                OH_PixelmapNative *pm = pm_holder.get();
                 if (!pm) {
                     // 解码尚未就绪：本帧空过；KRCustomEmojiPixmapCache 解码完成后会通过
                     // ImageLoadedCallback 跳转到 view 这里的 markDirty 触发下一帧重绘。

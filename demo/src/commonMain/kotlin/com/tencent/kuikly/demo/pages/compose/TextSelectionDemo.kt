@@ -1,4 +1,4 @@
-package com.tencent.kuikly.demo.pages.compose_dsl
+package com.tencent.kuikly.demo.pages.compose
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -34,7 +34,6 @@ import com.tencent.kuikly.compose.text.SelectionFrame
 import com.tencent.kuikly.compose.text.TextSelectionType
 import com.tencent.kuikly.compose.text.rememberSelectionContainerState
 import com.tencent.kuikly.core.annotations.Page
-import com.tencent.kuikly.core.pager.Pager
 
 /**
  * Demo page for Compose DSL Text Selection feature

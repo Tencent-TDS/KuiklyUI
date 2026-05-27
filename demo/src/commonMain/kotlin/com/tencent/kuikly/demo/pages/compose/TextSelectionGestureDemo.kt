@@ -1,4 +1,4 @@
-package com.tencent.kuikly.demo.pages.compose_dsl
+package com.tencent.kuikly.demo.pages.compose
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue

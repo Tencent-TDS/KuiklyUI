@@ -16,7 +16,7 @@
 #import <UIKit/UIKit.h>
 NS_ASSUME_NONNULL_BEGIN
 
-@interface KuiklyRenderViewController : UIViewController
+@interface KuiklyRenderViewController : UIViewControlxler
 
 /*
  * @brief 创建实例对应的初始化方法.

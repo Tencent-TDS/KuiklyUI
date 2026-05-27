@@ -79,13 +79,6 @@ class KRRichTextView(context: Context) : KRView(context), KRRichTextViewDrawer.C
             isRichTextMode = it.isRichTextMode
         }
         initTextLayout(richTextShadow)
-        // Store plain text so the shared accessibilityDelegate can expose it as info.text,
-        // without overriding contentDescription (which carries debugName for view-tree class resolution)
-        val plainText = richTextShadow?.textLayout?.text?.toString() ?: ""
-        putViewData(KRCssConst.PLAIN_TEXT_FOR_A11Y, plainText)
-        if (hasDebugName()) {
-            initAccessibilityDelegateIfNeeded()
-        }
         invalidate()
     }
 
@@ -186,6 +179,13 @@ class KRRichTextView(context: Context) : KRView(context), KRRichTextViewDrawer.C
             }
             newTextDrawer?.setCallback(this)
             textDrawer = newTextDrawer
+            // Store plain text so the shared accessibilityDelegate can expose it as info.text,
+            // without overriding contentDescription (which carries debugName for view-tree class resolution)
+            val plainText = newTextDrawer?.textLayout?.text?.toString() ?: ""
+            putViewData(KRCssConst.PLAIN_TEXT_FOR_A11Y, plainText)
+            if (hasDebugName()) {
+                initAccessibilityDelegateIfNeeded()
+            }
         }
     }
 

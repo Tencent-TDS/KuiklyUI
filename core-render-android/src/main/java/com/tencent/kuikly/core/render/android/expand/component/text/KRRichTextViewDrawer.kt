@@ -282,7 +282,7 @@ class KRRichTextViewDrawer(val textLayout: Layout) {
             while (end < text.length) {
                 val c = Character.codePointAt(text, end)
                 end += Character.charCount(c)
-                if (c == '\n'.code) {
+                if (c == '\n'.toInt()) {
                     break
                 }
             }
@@ -293,7 +293,7 @@ class KRRichTextViewDrawer(val textLayout: Layout) {
             }
             while (start > 0) {
                 val c = Character.codePointBefore(text, start)
-                if (c == '\n'.code) {
+                if (c == '\n'.toInt()) {
                     break
                 }
                 start -= Character.charCount(c)

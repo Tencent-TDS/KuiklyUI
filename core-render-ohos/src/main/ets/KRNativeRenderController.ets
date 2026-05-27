@@ -486,9 +486,13 @@ export class KRNativeRenderController {
     this.doSendEvent(event, data);
   }
 
+  sendEventSync(event: string, data: KRRecord, sync: boolean) {
+    this.doSendEvent(event, data, sync);
+  }
+
   onBackPress() {
     const sendTime = Date.now();
-    this.doSendEvent(KROnBackPressedKey, {});
+    this.doSendEvent(KROnBackPressedKey, {}, this.syncSendEvent(KROnBackPressedKey));
     const result = render.isBackPressConsumed(this.instanceId, sendTime);
     if (result === KRBackPressConsumedState.Consumed) {
       return true;
@@ -521,18 +525,27 @@ export class KRNativeRenderController {
   private doOnPageShow() {
     const data: KRRecord = {};
     data[KRPageDidAppearEventKey] = '1';
-    this.doSendEvent(KRPageDidAppearEventKey, data);
+    this.doSendEvent(KRPageDidAppearEventKey, data, this.syncSendEvent(KRPageDidAppearEventKey));
   }
 
   private doOnPageHide() {
     const data: KRRecord = {};
     data[KRPageDidDisappearEventKey] = '1';
-    this.doSendEvent(KRPageDidDisappearEventKey, data);
+    this.doSendEvent(KRPageDidDisappearEventKey, data, this.syncSendEvent(KRPageDidDisappearEventKey));
   }
 
-  private doSendEvent(event: string, data: KRRecord) {
+  syncSendEvent(event: string): boolean {
+    return event === KROnBackPressedKey;
+  }
+
+  private doSendEvent(event: string, data: KRRecord, sync?: boolean) {
     this.runKRRenderTask(() => {
-      render.sendEvent(this.instanceId, event, KRConvertUtil.anyToCObject(data));
+      const shouldSync = sync ?? this.syncSendEvent(event);
+      if (shouldSync) {
+        render.sendEventSync(this.instanceId, event, KRConvertUtil.anyToCObject(data), true);
+      } else {
+        render.sendEvent(this.instanceId, event, KRConvertUtil.anyToCObject(data));
+      }
     });
   }
 

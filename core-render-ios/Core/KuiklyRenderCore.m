@@ -96,10 +96,18 @@ NSString *const kCustomFirstScreenTag = @"customFirstScreenTag";
  * @param data 事件对应的参数
  */
 - (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data {
+    [self sendWithEvent:event data:data sync:NO];
+}
+
+- (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data sync:(BOOL)sync {
+    BOOL shouldSync = sync || ![NSThread isMainThread];
     [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
-          [self.contextHandler callWithMethod:KuiklyRenderContextMethodUpdateInstance
-                                         args:@[self.instanceId, event, (data ?: @{})]];
-    } sync:![NSThread isMainThread]];
+        [self.contextHandler callWithMethod:KuiklyRenderContextMethodUpdateInstance
+                                       args:@[self.instanceId, event, (data ?: @{})]];
+        if (sync) {
+            [self.uiScheduler performSyncMainQueueTasksBlockIfNeed];
+        }
+    } sync:shouldSync];
 }
 /**
  * @brief 获取模块对应的实例（仅支持在主线程调用）.

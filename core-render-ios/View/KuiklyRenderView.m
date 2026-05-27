@@ -88,6 +88,10 @@ NSString *const KRDensity = @"density";
 - (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data {
     [_renderCore sendWithEvent:event data:data];
 }
+
+- (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data sync:(BOOL)sync {
+    [_renderCore sendWithEvent:event data:data sync:sync];
+}
 /*
  * @brief 获取模块对应的实例（仅支持在主线程调用）.
  * @param moduleName 模块名

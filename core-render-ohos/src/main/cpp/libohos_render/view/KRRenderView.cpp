@@ -129,13 +129,18 @@ void KRRenderView::WillDestroy(const std::string &instanceId) {
  * @param json_data json数据字符串）
  */
 void KRRenderView::SendEvent(std::string event_name, const std::string &json_data) {
+    bool need_sync = syncSendEvent(event_name);
+    SendEvent(std::move(event_name), json_data, need_sync);
+}
+
+void KRRenderView::SendEvent(std::string event_name, const std::string &json_data, bool sync) {
     if (core_) {
         if (event_name == "viewDidAppear") {
             DispatchInitState(KRInitState::kStateResume);
         } else if (event_name == "viewDidDisappear") {
             DispatchInitState(KRInitState::kStatePause);
         }
-        return core_->SendEvent(event_name, json_data);
+        return core_->SendEvent(event_name, json_data, sync);
     }
 }
 

@@ -40,6 +40,7 @@ class KRRenderView : public IKRRenderView {
      * @param json_data json数据字符串）
      */
     void SendEvent(std::string event_name, const std::string &json_data) override;
+    void SendEvent(std::string event_name, const std::string &json_data, bool sync) override;
     
     /**
      * 是否同步发送事件

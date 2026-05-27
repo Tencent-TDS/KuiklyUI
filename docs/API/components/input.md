@@ -464,9 +464,9 @@ internal class TestPage : BasePager() {
 }
 ```
 
-### textPostProcessor方法 <Badge text="仅Android支持" type="warn"/>
+### textPostProcessor方法 <Badge text="Android/iOS/鸿蒙支持" type="info"/>
 
-声明文本后置处理器名称，用于将文本中的特定标记（如表情短码）替换为富文本样式（如 `ImageSpan`）。具体处理逻辑需在 Android 端实现 [`IKRTextPostProcessorAdapter`](../../DevGuide/text-post-processor-guide.md) 适配器。
+声明文本后置处理器名称，用于将文本中的特定标记（如表情短码）替换为富文本样式（如 `ImageSpan` / `NSTextAttachment` / ArkUI `ImageAttachment`）。具体处理逻辑需在各端实现对应适配器，详见 [`text-post-processor-guide.md`](../../DevGuide/text-post-processor-guide.md)。
 
 <div class="table-01">
 
@@ -474,13 +474,20 @@ internal class TestPage : BasePager() {
 
 | 参数  | 描述     | 类型 |
 |:----|:-------|:--|
-| processor | 处理器名称，由业务自定义并在 Android 适配器中实现对应逻辑  | String |
+| processor | 处理器名称，由业务自定义，并在各端适配器中注册/路由到对应逻辑  | String |
 
 </div>
 
 :::tip 常见处理器名称
-- `"emoji"` / `"input"` — 将 `[smile]` 等短码替换为表情图片（需在适配器中实现映射）
-- 其他名称可自由定义，只要在适配器的 `when` 分支中处理即可
+- `"input"` — 输入框编辑态推荐名称。鸿蒙新输入控件会使用该名称调用 `KRRegisterTextPostProcessorAdapter("input", ...)` 注册的 adapter。
+- `"emoji"` / `"richtext"` — 只读文本或预览区域可使用的业务自定义名称，需与各端注册逻辑保持一致。
+- 其他名称可自由定义，只要 Kotlin DSL、Android/iOS/OHOS 适配器注册或路由名称一致即可。
+:::
+
+:::warning 平台说明
+- **Android**：通过 `IKRTextPostProcessorAdapter` 返回 `SpannableStringBuilder` / `ImageSpan`。
+- **iOS**：`TextArea` / `UITextView` 支持 `NSTextAttachment`；单行 `Input` / `UITextField` 不支持图片附件渲染，只适合非图片类文本转换或保留短码文本。
+- **鸿蒙**：`TextArea` 基于新 `ARKUI_NODE_TEXT_EDITOR` 输入控件支持 `ImageAttachment`；单行 `Input` 受系统底层 Text Editor 的 keyboard type 限制，暂不支持图片自定义表情。`TextArea` 场景建议 adapter 使用 `KRTextProcessedResultAppendImageSpanWithRaw` 回传图片 URI 和原始短码（如 `[smile]`），否则编辑后上抛的 raw text 可能丢失短码字面量。
 :::
 
 **示例**

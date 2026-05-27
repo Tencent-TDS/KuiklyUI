@@ -58,8 +58,9 @@ TextArea {
 > - **Android**：支持通过适配器将短码替换为富文本样式。
 > - **iOS 多行 `TextArea`**：支持基于 `UITextView` 的 attachment 渲染，可用于 emoji / 图片附件类后处理。
 > - **iOS 单行 `Input` / Compose `singleLine = true`**：仍受 `UITextField` 限制，不支持图片附件渲染；如需自定义 emoji 显示，优先使用多行 `TextArea` 路径。
+> - **鸿蒙 `TextArea`**：基于新 `ARKUI_NODE_TEXT_EDITOR` 输入控件支持图片 `ImageAttachment` 渲染。业务侧需通过 `KRRegisterTextPostProcessorAdapter("input", adapter)` 注册处理器；输入框场景推荐使用 `KRTextProcessedResultAppendImageSpanWithRaw`，把图片 URI 与原始短码（如 `[smile]`）一起回传，保证编辑、删除和选区上抛时 raw text 不丢失短码。
 >
-> **推荐搭配**：做 emoji 短码插入时，结合 `textInputState`、`textInputStateChange` 与 `selectionChange` 一起使用，以 raw text 选区为准更新插入位置。
+> **推荐搭配**：做 emoji 短码插入时，结合 `textInputState`、`textInputStateChange` 与 `selectionChange` 一起使用，以 raw text 选区为准更新插入位置。`TextInputState.text` 始终是业务 raw text，不是图片占位后的展示文本。
 
 ### 其他属性
 

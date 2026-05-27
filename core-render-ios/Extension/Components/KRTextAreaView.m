@@ -54,6 +54,8 @@ NSString *const KRFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  NSNumber *KUIKLY_PROP(lengthLimitType);
 /** attr is tint color */
 @property (nonatomic, strong, readwrite) NSString *KUIKLY_PROP(tintColor);
+/** attr is selection color */
+@property (nonatomic, strong, readwrite) NSString *KUIKLY_PROP(selectionColor);
 /** attr is color */
 @property (nonatomic, strong, readwrite) NSString *KUIKLY_PROP(color);
 /** attr is editable */
@@ -101,6 +103,10 @@ NSString *const KRFontWeightKey = @"fontWeight";
     BOOL _didAddKeyboardNotification;
     NSMutableDictionary *_props;
     BOOL _ignoreTextDidChanged;
+    /** 显式设置的光标颜色 */
+    UIColor *_cursorColor;
+    /** 显式设置的选中高亮颜色 */
+    UIColor *_selectionColor;
 }
 
 @synthesize hr_rootView;
@@ -239,7 +245,28 @@ NSString *const KRFontWeightKey = @"fontWeight";
 }
 
 - (void)setCss_tintColor:(NSNumber *)css_tintColor {
-    self.tintColor = [UIView css_color:css_tintColor];
+    _cursorColor = [UIView css_color:css_tintColor];
+#if !TARGET_OS_OSX
+    if (!_selectionColor) {
+        self.tintColor = _cursorColor;
+    } else {
+        [self p_applyNativeCursorColorIfNeeded];
+    }
+#else
+    self.tintColor = _cursorColor;
+#endif
+}
+
+- (void)setCss_selectionColor:(NSNumber *)css_selectionColor {
+    _selectionColor = [KRConvertUtil clampSelectionColorAlpha:[UIView css_color:css_selectionColor]];
+#if !TARGET_OS_OSX
+    if (!_cursorColor) {
+        _cursorColor = self.tintColor; // 保存当前光标颜色（可能是默认值）
+    }
+    self.tintColor = _selectionColor;
+    [self tintColorDidChange]; // 确保子视图响应 tintColor 变化
+    [self p_applyNativeCursorColorIfNeeded];
+#endif
 }
 
 - (void)setCss_color:(NSNumber *)css_color {
@@ -469,12 +496,53 @@ NSString *const KRFontWeightKey = @"fontWeight";
     }
 }
 
+- (BOOL)becomeFirstResponder {
+    BOOL result = [super becomeFirstResponder];
+#if !TARGET_OS_OSX
+    if (result && _cursorColor && _selectionColor) {
+        if (@available(iOS 17.0, *)) {
+            // iOS 17+ 已通过 insertionPointColor 设置光标颜色，无需手动修复
+        } else {
+            // 延迟到下一个 runloop，确保光标视图已创建后再修复颜色
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self p_restoreCursorColorInView:self];
+            });
+        }
+    }
+#endif
+    return result;
+}
+
 - (void)layoutSubviews {
     [super layoutSubviews];
     if (_placeholderTextView.font != self.font) {
         _placeholderTextView.font = self.font;
     }
+#if !TARGET_OS_OSX
+    if (_cursorColor && _selectionColor) {
+        if (@available(iOS 17.0, *)) {
+            // iOS 17+ 已通过 insertionPointColor 设置光标颜色，无需手动遍历修复
+        } else {
+            [self p_restoreCursorColorInView:self];
+        }
+    }
+#endif
 }
+
+/// 遍历子视图，找到光标视图并恢复其颜色
+#if !TARGET_OS_OSX
+- (void)p_restoreCursorColorInView:(UIView *)view {
+    NSString *className = NSStringFromClass([view class]);
+    if ([className containsString:@"TextCursor"] || [className containsString:@"CursorView"] || [className containsString:@"Caret"]) {
+        view.backgroundColor = _cursorColor;
+        view.tintColor = _cursorColor;
+        return;
+    }
+    for (UIView *subview in view.subviews) {
+        [self p_restoreCursorColorInView:subview];
+    }
+}
+#endif
 
 #if TARGET_OS_OSX
 - (void)layout {
@@ -914,6 +982,22 @@ NSString *const KRFontWeightKey = @"fontWeight";
 
 
 #pragma mark - private
+
+/// iOS 17+ 使用公开属性 insertionPointColor 独立设置光标颜色，避免与 tintColor（选中高亮色）冲突
+#if !TARGET_OS_OSX
+- (void)p_applyNativeCursorColorIfNeeded {
+    if (!_cursorColor) return;
+    if (@available(iOS 17.0, *)) {
+        SEL sel = NSSelectorFromString(@"setInsertionPointColor:");
+        if ([self respondsToSelector:sel]) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+            [self performSelector:sel withObject:_cursorColor];
+#pragma clang diagnostic pop
+        }
+    }
+}
+#endif
 
 - (void)p_addKeyboardNotificationIfNeed {
     if (_didAddKeyboardNotification) {

@@ -75,6 +75,7 @@ import com.tencent.kuikly.compose.ui.unit.isSpecified
 import com.tencent.kuikly.compose.ui.util.fastRoundToInt
 import com.tencent.kuikly.core.views.AutoHeightTextAreaView
 import com.tencent.kuikly.core.views.LengthLimitType
+import com.tencent.kuikly.compose.foundation.text.selection.LocalTextSelectionColors
 import com.tencent.kuikly.core.views.TextAreaAttr
 import com.tencent.kuikly.core.views.TextAreaEvent
 import com.tencent.kuikly.core.views.TextConst
@@ -181,6 +182,7 @@ internal fun CoreTextField(
     val focusManager = LocalFocusManager.current
     val layoutDirection = LocalLayoutDirection.current
     val density = LocalDensity.current
+    val selectionColors = LocalTextSelectionColors.current
 
     var singleLineNew = singleLine
     if (!singleLineNew) {
@@ -518,6 +520,11 @@ internal fun CoreTextField(
                             if (cursorBrush is SolidColor) {
                                 getViewAttr().tintColor(cursorBrush.value.toKuiklyColor())
                             }
+                        }
+                    }
+                    set(selectionColors) {
+                        withTextAreaView {
+                            getViewAttr().selectionColor(selectionColors.backgroundColor.toKuiklyColor())
                         }
                     }
                     set(maxLength to lengthLimitType) {

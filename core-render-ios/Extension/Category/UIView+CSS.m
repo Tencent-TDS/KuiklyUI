@@ -1910,9 +1910,9 @@ typedef NS_OPTIONS(NSUInteger, CSSAnimationType) {
     _keyFrameAniamtions = nil;
     UIViewKeyframeAnimationOptions option = UIViewKeyframeAnimationOptionCalculationModeCubicPaced;
     if (_repeatForever) {
-        option |= UIViewAnimationOptionRepeat;
+        option |= (UIViewKeyframeAnimationOptions)UIViewAnimationOptionRepeat;
     }
-    [UIView animateKeyframesWithDuration:_duration delay:_delay options:option | UIViewAnimationOptionAllowUserInteraction animations:^{
+    [UIView animateKeyframesWithDuration:_duration delay:_delay options:option | (UIViewKeyframeAnimationOptions)UIViewAnimationOptionAllowUserInteraction animations:^{
         UIViewAnimationCurve animationCurve = self->_viewAnimationCurve;
             [animations enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
                 dispatch_block_t block = obj;

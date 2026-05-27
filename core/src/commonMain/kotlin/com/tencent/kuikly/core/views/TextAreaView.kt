@@ -46,7 +46,8 @@ open class TextAreaView : DeclarativeBaseView<TextAreaAttr, TextAreaEvent>(), Me
                 TextConst.TINT_COLOR,
                 TextConst.TEXT_SHADOW,
                 TextConst.PLACEHOLDER,
-                TextConst.PLACEHOLDER_COLOR
+                TextConst.PLACEHOLDER_COLOR,
+                TextConst.SELECTION_COLOR
             )
         }
     }
@@ -373,6 +374,11 @@ open class TextAreaAttr : Attr() {
 
     fun tintColor(color: Color): TextAreaAttr {
         TextConst.TINT_COLOR with color.toString()
+        return this
+    }
+
+    fun selectionColor(color: Color): TextAreaAttr {
+        TextConst.SELECTION_COLOR with color.toString()
         return this
     }
 

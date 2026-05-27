@@ -1060,6 +1060,22 @@ fun setPlaceholderColor(el: HTMLElement, color: String) {
 }
 
 /**
+ * Set selection color
+ */
+fun setSelectionColor(el: HTMLElement, color: String) {
+    val uniqueClass = "selcolor_" + kotlin.random.Random.nextInt(1_000_000)
+    el.classList.add(uniqueClass)
+
+    val css = """
+        .${uniqueClass}::selection { background-color: $color; }
+    """.trimIndent()
+    val style = kuiklyDocument.createElement("style")
+    style.setAttribute("type", "text/css")
+    style.appendChild(kuiklyDocument.createTextNode(css))
+    kuiklyDocument.head?.appendChild(style)
+}
+
+/**
  * Animation timing constants
  */
 private object AnimationTimingConst {

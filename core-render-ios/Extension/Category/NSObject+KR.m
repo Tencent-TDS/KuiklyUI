@@ -506,11 +506,11 @@ static const NSUInteger KRDefaultEmojiVisualWidth = 2;
     CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
     UInt8 *srcData = (UInt8 *)calloc(height * bytesPerRow, sizeof(UInt8));
     CGContextRef srcContext = CGBitmapContextCreate(srcData, width, height, 8, bytesPerRow, colorSpace,
-                                                    kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
+                                                    (CGBitmapInfo)kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
     CGContextDrawImage(srcContext, CGRectMake(0, 0, width, height), cgImage);
     UInt8 *destData = (UInt8 *)calloc(height * bytesPerRow, sizeof(UInt8));
     CGContextRef destContext = CGBitmapContextCreate(destData, width, height, 8, bytesPerRow, colorSpace,
-                                                     kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
+                                                     (CGBitmapInfo)kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
     vImage_Buffer src = {
         .data = srcData,
         .height = height,

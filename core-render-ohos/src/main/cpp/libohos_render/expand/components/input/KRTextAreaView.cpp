@@ -25,7 +25,7 @@ void KRTextAreaView::DidInit() {
     KRTextFieldView::DidInit();
     // 设置弹起软键盘之后默认不收回
     ArkUI_NumberValue value = {.i32 = 0};
-    ArkUI_AttributeItem item = {&value, sizeof(ArkUI_NumberValue)};
+    ArkUI_AttributeItem item = {&value, 1};
     kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_AREA_BLUR_ON_SUBMIT, &item);
 }
 
@@ -45,7 +45,7 @@ void KRTextAreaView::UpdateInputNodePlaceholder(const std::string &propValue) {
 }
 void KRTextAreaView::UpdateInputNodePlaceholderColor(const std::string &propValue) {
     ArkUI_NumberValue value = {.u32 = kuikly::util::ConvertToHexColor(propValue)};
-    ArkUI_AttributeItem item = {&value, sizeof(ArkUI_NumberValue)};
+    ArkUI_AttributeItem item = {&value, 1};
     kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_AREA_PLACEHOLDER_COLOR, &item);
 }
 void KRTextAreaView::UpdateInputNodeColor(const std::string &propValue) {
@@ -55,8 +55,11 @@ void KRTextAreaView::UpdateInputNodeColor(const std::string &propValue) {
 }
 void KRTextAreaView::UpdateInputNodeCaretrColor(const std::string &propValue) {
     ArkUI_NumberValue value = {.u32 = kuikly::util::ConvertToHexColor(propValue)};
-    ArkUI_AttributeItem item = {&value, sizeof(ArkUI_NumberValue)};
+    ArkUI_AttributeItem item = {&value, 1};
     kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_AREA_CARET_COLOR, &item);
+}
+void KRTextAreaView::UpdateInputNodeSelectionColor(const std::string &propValue) {
+    kuikly::util::UpdateTextAreaNodeSelectionColor(GetNode(), kuikly::util::ConvertToHexColor(propValue));
 }
 
 void KRTextAreaView::UpdateInputNodeKeyboardType(const std::string &propValue) {

@@ -17,6 +17,9 @@
 #import <JavaScriptCore/JavaScriptCore.h>
 #import <CoreText/CoreText.h>
 #import <CommonCrypto/CommonDigest.h>
+
+/// 选中高亮色 alpha 上限（0x66/255 ≈ 40%），避免高亮完全覆盖文字，多端统一
+const CGFloat KRSelectionColorMaxAlpha = 0x66 / 255.0;
 #import "NSObject+KR.h"
 #import <CommonCrypto/CommonCrypto.h>
 #import "KRLogModule.h"
@@ -1162,6 +1165,14 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
 
 #endif
 
-
++ (UIColor *)clampSelectionColorAlpha:(UIColor *)color {
+    if (!color) return nil;
+    CGFloat r = 0, g = 0, b = 0, a = 0;
+    [color getRed:&r green:&g blue:&b alpha:&a];
+    if (a > KRSelectionColorMaxAlpha) {
+        return [UIColor colorWithRed:r green:g blue:b alpha:KRSelectionColorMaxAlpha];
+    }
+    return color;
+}
 
 @end

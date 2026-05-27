@@ -557,6 +557,7 @@ object TextConst {
     const val SHADOW_METHOD_IS_LINE_BREAK_MARGIN = "isLineBreakMargin"
     const val PLACEHOLDER = "placeholder"
     const val PLACEHOLDER_COLOR = "placeholderColor"
+    const val SELECTION_COLOR = "selectionColor"
     const val AUTO_HIDE_KEYBOARD_ON_IME_ACTION = "autoHideKeyboardOnImeAction"
 }
 

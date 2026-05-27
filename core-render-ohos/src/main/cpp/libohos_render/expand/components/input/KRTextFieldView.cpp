@@ -39,6 +39,7 @@ constexpr char *kFontWeight = "fontWeight";
 constexpr char *kColor = "color";
 constexpr char *kEditable = "editable";
 constexpr char *kTintColor = "tintColor";
+constexpr char *kSelectionColor = "selectionColor";
 constexpr char *kTextAlign = "textAlign";
 constexpr char *kKeyboardType = "keyboardType";    // 键盘类型
 constexpr char *kReturnKeyType = "returnKeyType";  // return类型
@@ -72,7 +73,7 @@ void KRTextFieldView::DidInit() {
     
     // 默认软键盘不关闭
     ArkUI_NumberValue value = {.i32 = 0};
-    ArkUI_AttributeItem item = {&value, sizeof(ArkUI_NumberValue)};
+    ArkUI_AttributeItem item = {&value, 1};
     kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_INPUT_BLUR_ON_SUBMIT, &item);
     
     
@@ -102,6 +103,9 @@ void KRTextFieldView::UpdateInputNodeColor(const std::string& propValue){
 }
 void KRTextFieldView::UpdateInputNodeCaretrColor(const std::string& propValue){
     kuikly::util::UpdateInputNodeCaretrColor(GetNode(), kuikly::util::ConvertToHexColor(propValue));
+}
+void KRTextFieldView::UpdateInputNodeSelectionColor(const std::string& propValue){
+    kuikly::util::UpdateInputNodeSelectionColor(GetNode(), kuikly::util::ConvertToHexColor(propValue));
 }
 void KRTextFieldView::UpdateInputNodeTextAlign(const std::string& propValue){
     kuikly::util::UpdateInputNodeTextAlign(GetNode(), propValue);
@@ -181,6 +185,11 @@ bool KRTextFieldView::SetProp(const std::string &prop_key, const KRAnyValue &pro
 
     if (kuikly::util::isEqual(prop_key, kTintColor)) {  // 光标颜色
         UpdateInputNodeCaretrColor(prop_value->toString());
+        return true;
+    }
+
+    if (kuikly::util::isEqual(prop_key, kSelectionColor)) {  // 选中高亮颜色
+        UpdateInputNodeSelectionColor(prop_value->toString());
         return true;
     }
 

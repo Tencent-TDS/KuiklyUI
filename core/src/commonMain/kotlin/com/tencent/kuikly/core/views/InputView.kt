@@ -231,6 +231,11 @@ class InputAttr : Attr() {
         TextConst.PLACEHOLDER_COLOR with color.toString()
     }
 
+    fun selectionColor(color: Color): InputAttr {
+        TextConst.SELECTION_COLOR with color.toString()
+        return this
+    }
+
     fun placeholder(placeholder: String) {
         TextConst.PLACEHOLDER with placeholder
     }

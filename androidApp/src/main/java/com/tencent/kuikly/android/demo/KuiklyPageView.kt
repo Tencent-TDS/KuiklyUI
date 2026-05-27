@@ -35,6 +35,7 @@ import org.json.JSONObject
 class KuiklyPageView(context: Context) : FrameLayout(context), IKuiklyRenderViewExport,
     KuiklyRenderViewBaseDelegatorDelegate {
 
+
     private var kuiklyRenderView: KuiklyRenderView? = null
     private var pageName = ""
     private var pageData = "{}"

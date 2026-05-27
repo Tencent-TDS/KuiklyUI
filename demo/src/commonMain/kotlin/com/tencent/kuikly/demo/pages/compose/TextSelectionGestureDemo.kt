@@ -180,7 +180,6 @@ private fun TextSelectionGestureDemoContent() {
                             )
                         }
                         .padding(20.dp),
-                    selectionColor = Color(0xFF2196F3),
                     onSelectStart = { frame ->
                         isSelectionActive = true
                         menuPosition = frame

@@ -1,6 +1,7 @@
 package com.tencent.kuikly.demo.pages.compose
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,6 +29,8 @@ import com.tencent.kuikly.compose.ui.text.font.FontStyle
 import com.tencent.kuikly.compose.ui.text.font.FontWeight
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
+import com.tencent.kuikly.compose.foundation.text.selection.LocalTextSelectionColors
+import com.tencent.kuikly.compose.foundation.text.selection.TextSelectionColors
 import com.tencent.kuikly.compose.text.DisableSelection
 import com.tencent.kuikly.compose.text.SelectionContainer
 import com.tencent.kuikly.compose.text.SelectionFrame
@@ -43,7 +46,13 @@ internal class TextSelectionDemo : ComposeContainer() {
     override fun willInit() {
         super.willInit()
         setContent {
-            TextSelectionDemoContent()
+            val customSelectionColors = TextSelectionColors(
+                handleColor = Color(0xFF2196F3),
+                backgroundColor = Color(0xFF2196F3).copy(alpha = 0.4f)
+            )
+            CompositionLocalProvider(LocalTextSelectionColors provides customSelectionColors) {
+                TextSelectionDemoContent()
+            }
         }
     }
 }
@@ -217,7 +226,6 @@ private fun TextSelectionDemoContent() {
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color(0xFFFFFDE7))
                 .padding(16.dp),
-            selectionColor = Color(0xFF2196F3),
             onSelectStart = { frame ->
                 selectionStatus = "选择开始"
                 selectionFrameText = formatFrame(frame)

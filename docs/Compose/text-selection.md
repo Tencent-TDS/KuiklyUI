@@ -13,20 +13,28 @@
 ## 基本用法
 
 ```kotlin
+import androidx.compose.runtime.CompositionLocalProvider
+import com.tencent.kuikly.compose.foundation.text.selection.LocalTextSelectionColors
+import com.tencent.kuikly.compose.foundation.text.selection.TextSelectionColors
 import com.tencent.kuikly.compose.text.SelectionContainer
 import com.tencent.kuikly.compose.text.rememberSelectionContainerState
 
 @Composable
 fun BasicSelection() {
     val state = rememberSelectionContainerState()
-    SelectionContainer(
-        state = state,
-        modifier = Modifier.padding(16.dp),
-        selectionColor = Color(0xFF2196F3),
-    ) {
-        Column {
-            Text("Kuikly支持跨多个文本组件的部分选中。")
-            Text("文本选择允许业务复制、分享部分内容。")
+    val customSelectionColors = TextSelectionColors(
+        handleColor = Color(0xFF2196F3),
+        backgroundColor = Color(0xFF2196F3).copy(alpha = 0.4f)
+    )
+    CompositionLocalProvider(LocalTextSelectionColors provides customSelectionColors) {
+        SelectionContainer(
+            state = state,
+            modifier = Modifier.padding(16.dp),
+        ) {
+            Column {
+                Text("Kuikly支持跨多个文本组件的部分选中。")
+                Text("文本选择允许业务复制、分享部分内容。")
+            }
         }
     }
 }
@@ -38,12 +46,27 @@ fun BasicSelection() {
 |:----|:-------|:--|
 | state | 必填。选区状态对象，用于程序化创建/清除选区，由`rememberSelectionContainerState()`创建 | SelectionContainerState |
 | modifier | 容器`Modifier` | Modifier |
-| selectionColor | 选区高亮颜色，会自动派生选区底色（带透明度）与游标颜色 | Color? |
 | onSelectStart | 进入选中态回调，参数为选区矩形 | ((SelectionFrame) -> Unit)? |
 | onSelectChange | 选区位置或大小变化回调 | ((SelectionFrame) -> Unit)? |
 | onSelectEnd | 选区交互结束回调，常用于显示弹出菜单 | ((SelectionFrame) -> Unit)? |
 | onSelectCancel | 退出选中态回调，无参数 | (() -> Unit)? |
 | content | 容器内容 | @Composable BoxScope.() -> Unit |
+
+### 自定义选区颜色
+
+选区颜色通过 `LocalTextSelectionColors` CompositionLocal 提供，而非直接传参。在 `SelectionContainer` 的上层使用 `CompositionLocalProvider` 即可自定义：
+
+```kotlin
+val customSelectionColors = TextSelectionColors(
+    handleColor = Color(0xFF2196F3),           // 游标颜色
+    backgroundColor = Color(0xFF2196F3).copy(alpha = 0.4f)  // 选区底色
+)
+CompositionLocalProvider(LocalTextSelectionColors provides customSelectionColors) {
+    SelectionContainer(state = state) { /* ... */ }
+}
+```
+
+如果不提供，将使用 `LocalTextSelectionColors` 的默认值。
 
 `SelectionFrame`字段为 `x` / `y` / `width` / `height`，单位为px，相对于容器左上角。
 

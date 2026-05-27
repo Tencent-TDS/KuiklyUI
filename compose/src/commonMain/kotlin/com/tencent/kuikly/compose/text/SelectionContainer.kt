@@ -25,14 +25,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.tencent.kuikly.compose.foundation.layout.Box
 import com.tencent.kuikly.compose.foundation.layout.BoxScope
+import com.tencent.kuikly.compose.foundation.text.selection.LocalTextSelectionColors
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.platform.LocalDensity
-import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.extension.nativeRef
 import com.tencent.kuikly.compose.extension.setEvent
 import com.tencent.kuikly.compose.extension.setProp
-import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.views.DivView
 import com.tencent.kuikly.core.views.SelectableOption
@@ -95,7 +94,6 @@ val LocalSelectionEnabled = compositionLocalOf { true }
  * ```
  *
  * @param modifier Modifier to be applied to the container
- * @param selectionColor The color used for text selection highlight (optional)
  * @param onSelectStart Callback when selection starts, provides selection frame
  * @param onSelectChange Callback when selection changes, provides selection frame
  * @param onSelectEnd Callback when selection ends, provides selection frame
@@ -105,7 +103,6 @@ val LocalSelectionEnabled = compositionLocalOf { true }
 @Composable
 private fun SelectionContainer(
     modifier: Modifier = Modifier,
-    selectionColor: Color? = null,
     onSelectStart: ((SelectionFrame) -> Unit)? = null,
     onSelectChange: ((SelectionFrame) -> Unit)? = null,
     onSelectEnd: ((SelectionFrame) -> Unit)? = null,
@@ -114,17 +111,19 @@ private fun SelectionContainer(
 ) {
     val selectionEnabled = LocalSelectionEnabled.current
     val density = LocalDensity.current.density
+    val selectionColors = LocalTextSelectionColors.current
     
     // Build modifier with selection properties
     var selectionModifier = modifier
         .setProp("selectable", if (selectionEnabled) SelectableOption.ENABLE.value else SelectableOption.DISABLE.value)
     
-    // Apply selection color if provided
-    if (selectionColor != null && selectionEnabled) {
-        val colorHex = selectionColor.toArgb()
+    // Apply selection colors from LocalTextSelectionColors
+    if (selectionEnabled) {
+        val bgColor = selectionColors.backgroundColor.toArgb()
+        val handleColor = selectionColors.handleColor.toArgb()
         val colorJson = JSONObject().apply {
-            put("background", 0x66000000L or (colorHex.toLong() and 0x00FFFFFF))
-            put("cursor", 0xFF000000L or (colorHex.toLong() and 0x00FFFFFF))
+            put("background", bgColor.toLong() and 0xFFFFFFFFL)
+            put("cursor", handleColor.toLong() and 0xFFFFFFFFL)
         }.toString()
         selectionModifier = selectionModifier.setProp("selectionColor", colorJson)
     }
@@ -178,7 +177,6 @@ private fun SelectionContainer(
  *
  * @param state The state object for controlling selection programmatically
  * @param modifier Modifier to be applied to the container
- * @param selectionColor The color used for text selection highlight (optional)
  * @param onSelectStart Callback when selection starts, provides selection frame
  * @param onSelectChange Callback when selection changes, provides selection frame
  * @param onSelectEnd Callback when selection ends, provides selection frame
@@ -189,7 +187,6 @@ private fun SelectionContainer(
 fun SelectionContainer(
     state: SelectionContainerState,
     modifier: Modifier = Modifier,
-    selectionColor: Color? = null,
     onSelectStart: ((SelectionFrame) -> Unit)? = null,
     onSelectChange: ((SelectionFrame) -> Unit)? = null,
     onSelectEnd: ((SelectionFrame) -> Unit)? = null,
@@ -200,7 +197,6 @@ fun SelectionContainer(
         modifier = modifier.nativeRef { viewRef ->
             state.bindView(this)
         },
-        selectionColor = selectionColor,
         onSelectStart = { frame ->
             state.updateFrame(frame)
             onSelectStart?.invoke(frame)

@@ -50,7 +50,7 @@ package com.tencent.kuikly.core.base.attr
  * Image(
  *     painter = rememberAsyncImagePainter("https://example.com/image.png"),
  *     contentDescription = null,
- *     colorMatrix = ColorMatrix.rec709Gray,
+ *     colorFilter = ColorFilter.colorMatrix(ColorMatrix.rec709Gray),
  * )
  * ```
  *

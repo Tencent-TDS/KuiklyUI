@@ -775,7 +775,7 @@ private fun GrayscaleSamples() {
             contentDescription = null,
             modifier = Modifier.width(193.dp).height(150.dp),
             contentScale = ContentScale.Crop,
-            colorMatrix = colorMatrix,
+            colorFilter = ColorFilter.colorMatrix(colorMatrix),
         )
     }
 }

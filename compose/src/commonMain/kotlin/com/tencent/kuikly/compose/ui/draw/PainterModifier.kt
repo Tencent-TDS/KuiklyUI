@@ -26,6 +26,7 @@ import com.tencent.kuikly.compose.ui.geometry.Size
 import com.tencent.kuikly.compose.ui.geometry.isSpecified
 import com.tencent.kuikly.compose.ui.graphics.BlendModeColorFilter
 import com.tencent.kuikly.compose.ui.graphics.ColorFilter
+import com.tencent.kuikly.compose.ui.graphics.ColorMatrixColorFilter
 import com.tencent.kuikly.compose.ui.graphics.DefaultAlpha
 import com.tencent.kuikly.compose.ui.graphics.drawscope.ContentDrawScope
 import com.tencent.kuikly.compose.ui.graphics.isSupported
@@ -52,7 +53,6 @@ import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.ui.unit.constrainHeight
 import com.tencent.kuikly.compose.ui.unit.constrainWidth
 import com.tencent.kuikly.core.base.DeclarativeBaseView
-import com.tencent.kuikly.core.base.attr.colorFilter
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.views.ImageConst
@@ -91,7 +91,6 @@ internal fun Modifier.paintInternal(
     contentScale: ContentScale = ContentScale.Inside,
     alpha: Float = DefaultAlpha,
     colorFilter: ColorFilter? = null,
-    colorMatrix: String? = null,
 ) = this then PainterElement(
     painter = painter,
     sizeToIntrinsics = sizeToIntrinsics,
@@ -99,7 +98,6 @@ internal fun Modifier.paintInternal(
     contentScale = contentScale,
     alpha = alpha,
     colorFilter = colorFilter,
-    colorMatrix = colorMatrix,
 )
 
 /**
@@ -121,7 +119,6 @@ private data class PainterElement(
     val contentScale: ContentScale,
     val alpha: Float,
     val colorFilter: ColorFilter?,
-    val colorMatrix: String?,
 ) : ModifierNodeElement<PainterNode>() {
     override fun create(): PainterNode {
         return PainterNode(
@@ -131,7 +128,6 @@ private data class PainterElement(
             contentScale = contentScale,
             alpha = alpha,
             colorFilter = colorFilter,
-            colorMatrix = colorMatrix,
         )
     }
 
@@ -149,7 +145,6 @@ private data class PainterElement(
         node.contentScale = contentScale
         node.alpha = alpha
         node.colorFilter = colorFilter
-        node.colorMatrix = colorMatrix
 
         // Only remeasure if intrinsics have changed.
         if (intrinsicsChanged) {
@@ -187,7 +182,6 @@ private class PainterNode(
     var contentScale: ContentScale = ContentScale.Inside,
     var alpha: Float = DefaultAlpha,
     var colorFilter: ColorFilter? = null,
-    var colorMatrix: String? = null,
 ) : LayoutModifierNode, Modifier.Node(), DrawModifierNode {
 
     /**
@@ -501,8 +495,8 @@ private class PainterNode(
     private fun applyCommon(imageView: ImageView) {
         val colorFilter = this.colorFilter
         imageView.getViewAttr().apply {
-            if (!colorMatrix.isNullOrEmpty()) {
-                colorFilter(colorMatrix)
+            if (colorFilter is ColorMatrixColorFilter) {
+                colorFilter(colorFilter.colorMatrix)
                 if (getProp(ImageConst.TINT_COLOR) != null) {
                     tintColor(null)
                 }

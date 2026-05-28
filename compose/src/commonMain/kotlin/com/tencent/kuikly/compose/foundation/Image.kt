@@ -30,7 +30,6 @@ import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.KuiklyPainter
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.ColorFilter
-import com.tencent.kuikly.core.base.attr.ColorMatrix
 import com.tencent.kuikly.compose.ui.graphics.DefaultAlpha
 import com.tencent.kuikly.compose.ui.graphics.painter.Painter
 import com.tencent.kuikly.compose.ui.layout.ContentScale
@@ -82,7 +81,6 @@ fun Image(
     contentScale: ContentScale = ContentScale.Fit,
     alpha: Float = DefaultAlpha,
     colorFilter: ColorFilter? = null,
-    colorMatrix: ColorMatrix? = null,
 ) {
     val combined = currentComposer.materialize(
         modifier.then(
@@ -100,7 +98,6 @@ fun Image(
             contentScale = contentScale,
             alpha = alpha,
             colorFilter = colorFilter,
-            colorMatrix = colorMatrix?.toColorMatrixString(),
         )
     )
 

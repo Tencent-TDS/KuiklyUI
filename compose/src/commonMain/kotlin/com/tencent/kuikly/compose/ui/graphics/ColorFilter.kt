@@ -18,6 +18,7 @@ package com.tencent.kuikly.compose.ui.graphics
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
+import com.tencent.kuikly.core.base.attr.ColorMatrix as KuiklyColorMatrix
 
 //// TODO mark internal once https://youtrack.jetbrains.com/issue/KT-36695 is fixed
 ///* internal */ expect class NativeColorFilter
@@ -45,16 +46,16 @@ open class ColorFilter internal constructor() {
         fun tint(color: Color, blendMode: BlendMode = BlendMode.SrcIn): ColorFilter =
             BlendModeColorFilter(color, blendMode)
 
-//        /**
-//         * Create a [ColorFilter] that transforms colors through a 4x5 color matrix. This filter can
-//         * be used to change the saturation of pixels, convert from YUV to RGB, etc.
-//         *
-//         * @param colorMatrix ColorMatrix used to transform pixel values when drawn
-//         */
-//        @Stable
-//        fun colorMatrix(colorMatrix: ColorMatrix): ColorFilter =
-//            ColorMatrixColorFilter(colorMatrix)
-//
+        /**
+         * Create a [ColorFilter] that transforms colors through a 4x5 color matrix. This filter can
+         * be used to change the saturation of pixels, convert from YUV to RGB, etc.
+         *
+         * @param colorMatrix ColorMatrix used to transform pixel values when drawn
+         */
+        @Stable
+        fun colorMatrix(colorMatrix: KuiklyColorMatrix): ColorFilter =
+            ColorMatrixColorFilter(colorMatrix)
+
 //        /**
 //         * Create a [ColorFilter] that can be used to simulate simple lighting effects.
 //         * A lighting ColorFilter is defined by two parameters, one used to multiply the source
@@ -113,12 +114,32 @@ class BlendModeColorFilter(
     }
 }
 
+/**
+ * Create a [ColorFilter] that transforms colors through a 4x5 color matrix. This filter can
+ * be used to change the saturation of pixels, convert from YUV to RGB, etc.
+ */
+@Immutable
+class ColorMatrixColorFilter(
+    val colorMatrix: KuiklyColorMatrix,
+) : ColorFilter() {
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ColorMatrixColorFilter) return false
+        return colorMatrix == other.colorMatrix
+    }
+
+    override fun hashCode(): Int = colorMatrix.hashCode()
+
+    override fun toString(): String = "ColorMatrixColorFilter(colorMatrix=$colorMatrix)"
+}
+
 ///**
 // * Create a [ColorFilter] that transforms colors through a 4x5 color matrix. This filter can
 // * be used to change the saturation of pixels, convert from YUV to RGB, etc.
 // */
 //@Immutable
-//class ColorMatrixColorFilter internal constructor(
+//class ColorMatrixColorFilter_UNUSED internal constructor(
 //    private var colorMatrix: ColorMatrix?,
 //    nativeColorFilter: NativeColorFilter
 //) : ColorFilter(nativeColorFilter) {

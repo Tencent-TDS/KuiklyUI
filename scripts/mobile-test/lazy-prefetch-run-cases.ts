@@ -1129,7 +1129,7 @@ export async function runLazyPrefetchCases(
             lines: [
               "场景：Modifier 预取开；beyondBoundsItemCount=0",
               "对齐参考：AndroidPrefetchScheduler.android.kt（official 1.9）",
-              "核心语义：非 idle 帧也允许 prefetch，但单次 elapsedNs 不得 > 该 task 开始时 availableNs；预算耗尽要续帧；滑停后队列清空",
+              "核心语义：非 idle 帧也允许 prefetch，但单次 elapsedNs 不得 > 该 task 开始时 startBudgetNs；预算耗尽要续帧；滑停后队列清空",
             ],
           },
           {
@@ -1144,8 +1144,8 @@ export async function runLazyPrefetchCases(
             title: "实测结果",
             lines: [
               `composed total=${budget.composedTotal}（其中 pausable=${budget.pausableCount}，full=${budget.fullCount}）`,
-              `单次 elapsedNs ≤ availableNs 检查：overBudget=${budget.overBudgetCount}`,
-              `maxElapsedNs=${budget.maxElapsedNs}，minAvailableNs=${budget.minAvailableNs}`,
+              `单次 elapsedNs ≤ startBudgetNs 检查：overBudget=${budget.overBudgetCount}`,
+              `maxElapsedNs=${budget.maxElapsedNs}，minStartBudgetNs=${budget.minStartBudgetNs}，minAvailableNs(remaining)=${budget.minAvailableNs}`,
               `续帧：${continuation.detail}`,
               `事件分类：${classify.detail}`,
             ],
@@ -1160,11 +1160,11 @@ export async function runLazyPrefetchCases(
           ),
           caseCriterion(
             "每次 prefetch 不超本帧预算（不抢主帧）",
-            "所有 executeRequest composed 满足 elapsedNs ≤ availableNs",
+            "所有 executeRequest composed 满足 elapsedNs ≤ startBudgetNs",
             budget.overBudgetCount === 0
               ? "全部 within budget"
               : `overBudget=${budget.overBudgetCount} 个：${budget.overBudgetEvents
-                  .map((e) => `index=${e.index} elapsed=${e.elapsedNs} > avail=${e.availableNs}`)
+                  .map((e) => `index=${e.index} elapsed=${e.elapsedNs} > startBudget=${e.startBudgetNs}`)
                   .join("; ")}`,
             budget.overBudgetCount === 0,
           ),
@@ -1306,7 +1306,7 @@ export async function runLazyPrefetchCases(
             lines: [
               `prefetch executeRequest composed：总计 ${budget.composedTotal}（运动 + 惯性期 ${composedDuringMotion}，停稳后新增 ${composedAfterSettle}）`,
               `compose index 范围：[${indexMin}, ${indexMax}]，跨度 ${indexSpan} 个 item`,
-              `单次预算占用：maxElapsedNs=${budget.maxElapsedNs}（约 ${(budget.maxElapsedNs / 1_000_000).toFixed(2)}ms），minAvailableNs=${budget.minAvailableNs}（约 ${(budget.minAvailableNs / 1_000_000).toFixed(2)}ms），overBudget=${budget.overBudgetCount}`,
+              `单次预算占用：maxElapsedNs=${budget.maxElapsedNs}（约 ${(budget.maxElapsedNs / 1_000_000).toFixed(2)}ms），minStartBudgetNs=${budget.minStartBudgetNs}（约 ${(budget.minStartBudgetNs / 1_000_000).toFixed(2)}ms），minAvailableNs(remaining)=${budget.minAvailableNs}，overBudget=${budget.overBudgetCount}`,
               `pausable=${budget.pausableCount}，full=${budget.fullCount}`,
               `续帧：${continuation.detail}`,
               `滑动期间 frameEnd 数=${frameEndCount}，onScroll 数=${onScrollCount}`,
@@ -1323,11 +1323,11 @@ export async function runLazyPrefetchCases(
           ),
           caseCriterion(
             "每次 prefetch 不超本帧预算",
-            "所有 executeRequest composed 满足 elapsedNs ≤ availableNs",
+            "所有 executeRequest composed 满足 elapsedNs ≤ startBudgetNs",
             budget.overBudgetCount === 0
               ? "全部 within budget"
               : `overBudget=${budget.overBudgetCount}：${budget.overBudgetEvents
-                  .map((e) => `index=${e.index} elapsed=${e.elapsedNs}>avail=${e.availableNs}`)
+                  .map((e) => `index=${e.index} elapsed=${e.elapsedNs} > startBudget=${e.startBudgetNs}`)
                   .join("; ")}`,
             budget.overBudgetCount === 0,
           ),

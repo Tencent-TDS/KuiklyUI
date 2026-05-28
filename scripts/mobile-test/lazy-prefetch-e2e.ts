@@ -14,6 +14,10 @@ import { execSync, spawnSync } from "node:child_process"
 import { appendFile, mkdir, writeFile } from "node:fs/promises"
 import { AppiumMobileDriver } from "../../.claude/skills/kuikly-mobile-test/src/appium-mobile-driver.js"
 import { formatSessionLogLine } from "../../.claude/skills/kuikly-mobile-test/src/evidence.js"
+import type {
+  ElementRect,
+  UiTreeNode,
+} from "../../.claude/skills/kuikly-mobile-test/src/mobile-driver.js"
 import { LOGS_DIR, REPORTS_DIR } from "../../.claude/skills/kuikly-mobile-test/src/paths.js"
 import {
   countComposedAheadEvents,
@@ -117,40 +121,95 @@ function readPrefetchTraceLogcat(): string[] {
     .filter((l) => l.includes("LazyListPrefetchTrace"))
 }
 
-function readViewTreeVisibleItems(): ViewTreeVisibleItems {
-  adb("shell uiautomator dump /sdcard/kuikly_prefetch_ui.xml")
-  const xml = execSync(`adb -s ${DEVICE_UDID} shell cat /sdcard/kuikly_prefetch_ui.xml`, {
-    encoding: "utf8",
-  })
-  const scrollerMatch = xml.match(
-    /content-desc="ScrollerView"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/,
-  )
-  const scrollerViewport: [number, number] | null = scrollerMatch
-    ? [Number.parseInt(scrollerMatch[2], 10), Number.parseInt(scrollerMatch[4], 10)]
-    : null
+/** 在 UiTreeNode 树里找第一个 testTag === target 的节点（深度优先）。 */
+function findNodeByTestTag(root: UiTreeNode, target: string): UiTreeNode | null {
+  if (root.testTag === target) return root
+  for (const child of root.children) {
+    const hit = findNodeByTestTag(child, target)
+    if (hit) return hit
+  }
+  return null
+}
 
-  const itemDivBounds: number[] = []
-  const divPattern = /content-desc="DivView"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/g
-  let match: RegExpExecArray | null
-  while ((match = divPattern.exec(xml)) !== null) {
-    const y1 = Number.parseInt(match[2], 10)
-    const y2 = Number.parseInt(match[4], 10)
-    const height = y2 - y1
-    if (height < 180) continue
-    if (!scrollerViewport) continue
-    const [vpTop, vpBottom] = scrollerViewport
+/** 收集所有 type=="DivView" 的后代（保留嵌套关系，仅在节点匹配时收集）。 */
+function collectDivDescendants(node: UiTreeNode, out: UiTreeNode[] = []): UiTreeNode[] {
+  for (const child of node.children) {
+    if (child.type === "DivView" || child.rawType === "DivView") out.push(child)
+    collectDivDescendants(child, out)
+  }
+  return out
+}
+
+/**
+ * 走 driver.getViewTree() 找 testTag="lazy_list" 的 LazyColumn 节点，
+ * 用其 bounds 当 viewport，统计 DivView 子节点中高度 ≥ 180 的可见 item 数。
+ * 旧实现走 adb uiautomator dump + content-desc=ScrollerView XML 正则，testTag 路径修复后直接用 view-tree 更稳。
+ */
+async function readViewTreeVisibleItems(
+  driver: AppiumMobileDriver,
+): Promise<ViewTreeVisibleItems> {
+  const tree = await driver.getViewTree()
+  const lazy = findNodeByTestTag(tree.tree, "lazy_list")
+  if (!lazy || !lazy.bounds) {
+    return {
+      indices: [],
+      maxIndex: -1,
+      count: 0,
+      scrollerViewport: null,
+      visibleItemDivCount: 0,
+    }
+  }
+  const [lazyX, lazyY, lazyW, lazyH] = lazy.bounds
+  const vpTop = lazyY
+  const vpBottom = lazyY + lazyH
+  const scrollerViewport: [number, number] = [vpTop, vpBottom]
+
+  const divs = collectDivDescendants(lazy)
+  const itemTops: number[] = []
+  for (const div of divs) {
+    if (!div.bounds) continue
+    const [, y1, , h] = div.bounds
+    if (h < 180) continue
+    const y2 = y1 + h
     if (y2 <= vpTop || y1 >= vpBottom) continue
-    itemDivBounds.push(y1)
+    itemTops.push(y1)
   }
 
-  const visibleItemDivCount = itemDivBounds.length
+  // 同样的 div 可能因为嵌套被多次收集；按 (y, h) 去重一下。
+  const seen = new Set<number>()
+  const dedup = itemTops.filter((y) => {
+    if (seen.has(y)) return false
+    seen.add(y)
+    return true
+  })
+
+  const visibleItemDivCount = dedup.length
+  void lazyX
+  void lazyW
   return {
-    indices: itemDivBounds.map((_, i) => i),
+    indices: dedup.map((_, i) => i),
     maxIndex: Math.max(visibleItemDivCount - 1, -1),
     count: visibleItemDivCount,
     scrollerViewport,
     visibleItemDivCount,
   }
+}
+
+/** 读 UI 上 prefetch_toggle 节点文本，判断当前是 ON 还是 OFF。不依赖 JS 端 tracker。 */
+async function readPrefetchToggleOnFromUi(driver: AppiumMobileDriver): Promise<boolean> {
+  const tree = await driver.getViewTree()
+  const node = findNodeByTestTag(tree.tree, "prefetch_toggle")
+  const text = (node?.text ?? "").trim()
+  // demo 实际显示 "Prefetch: ON" / "Prefetch: OFF"，OFF 包含 "ON" 子串，必须先判 OFF。
+  if (/\bOFF\b/.test(text)) return false
+  if (/\bON\b/.test(text)) return true
+  // 兜底：accessibility 树未拿到 text 时按 OFF 处理（保守，调用方会重新点击）
+  return false
+}
+
+/** 通过 testTag 拿 LazyColumn 屏幕矩形；scrollList / fling 用它算起终点（贴上下沿留 5% 边距）。 */
+async function getLazyListBounds(driver: AppiumMobileDriver): Promise<ElementRect> {
+  return driver.getElementRect({ testTag: "lazy_list" })
 }
 
 function readLayoutVisibleFromLog(lines: string[]): { indices: number[]; max: number } {
@@ -217,23 +276,31 @@ function launchPrefetchDemo() {
   adb(`shell am start -n ${APP_PACKAGE}/${APP_ACTIVITY} --es pageName ${PAGE_NAME}`)
 }
 
-async function scrollList(_driver: AppiumMobileDriver, direction: "down" | "up", times = 3) {
-  const centerX = 540
-  const startY = direction === "down" ? 1728 : 912
-  const endY = direction === "down" ? 912 : 1728
+/**
+ * 用 driver.scroll() 在 LazyColumn 内做滚动。起终点按 lazy_list 的 rect 上下沿计算，
+ * 留 5% margin 防 release 出列被判作 cancel。`opts.fling=true` 会触发惯性 fling
+ * （driver 端去掉 leading pause + clamp duration ≤200ms）。
+ */
+async function scrollList(
+  driver: AppiumMobileDriver,
+  direction: "down" | "up",
+  times = 3,
+  opts: { fling?: boolean; durationMs?: number } = {},
+) {
+  const rect = await getLazyListBounds(driver)
+  const centerX = rect.x + rect.width / 2
+  const margin = rect.height * 0.05
+  const top = rect.y + margin
+  const bottom = rect.y + rect.height - margin
+  const startY = direction === "down" ? bottom : top
+  const endY = direction === "down" ? top : bottom
+  const fling = opts.fling === true
+  const durationMs = opts.durationMs ?? (fling ? 150 : 450)
+  const settleMs = fling ? 1200 : 700
   for (let i = 0; i < times; i++) {
-    adb(`shell input swipe ${centerX} ${startY} ${centerX} ${endY} 450`)
-    await sleep(700)
+    await driver.scroll({ startX: centerX, startY, endX: centerX, endY, durationMs, fling })
+    await sleep(settleMs)
   }
-}
-
-/** 单次「长滑」手势：覆盖大部分屏幕高度，短 duration → 触发惯性 fling。 */
-async function longSwipe(opts?: { durationMs?: number }) {
-  const centerX = 540
-  const startY = 2100
-  const endY = 360
-  const duration = opts?.durationMs ?? 180
-  adb(`shell input swipe ${centerX} ${startY} ${centerX} ${endY} ${duration}`)
 }
 
 async function tapCoord(_driver: AppiumMobileDriver, point: { x: number; y: number }) {
@@ -316,13 +383,13 @@ function createAndroidDeps(
       await scrollList(driver, "down", scrollTimes)
       await sleep(POST_SCROLL_SETTLE_MS)
       const metrics = readPrefetchLogcat()
-      const viewTree = readViewTreeVisibleItems()
+      const viewTree = await readViewTreeVisibleItems(driver)
       const traceSummary = summarizePrefetchTrace(readPrefetchTraceLogcat())
       return {
         metrics,
         evidence: [
           formatMetricsEvidence(label, metrics),
-          formatViewTreeEvidence("viewTree visible (uiautomator)", viewTree),
+          formatViewTreeEvidence("viewTree visible (driver)", viewTree),
           traceSummary,
         ].join("\n\n"),
         lastLead: readLastPrefetchMetrics(metrics),
@@ -370,21 +437,27 @@ function createAndroidDeps(
     tapClearMetricsOnly: () => tapCoord(driver, TAP.clearMetricsOnly),
 
     async ensurePrefetchOff() {
-      if (prefetchUiState.value) {
-        await tapCoord(driver, TAP.prefetchToggle)
-        prefetchUiState.value = false
+      // 读 prefetch_toggle 节点真值，避免和 JS 端 prefetchUiState tracker 漂移
+      // （`scenario_modifier_opt_in` 会把全局 flag 关掉，但 modifier 路径仍要求 ON，
+      // 跨用例时 tracker 容易和真实 UI 状态不同步）。
+      const on = await readPrefetchToggleOnFromUi(driver)
+      if (on) {
+        await driver.tap({ testTag: "prefetch_toggle" })
+        await sleep(700)
       }
+      prefetchUiState.value = false
     },
 
     async ensurePrefetchOn() {
-      if (!prefetchUiState.value) {
-        await tapCoord(driver, TAP.prefetchToggle)
-        prefetchUiState.value = true
+      const on = await readPrefetchToggleOnFromUi(driver)
+      if (!on) {
+        await driver.tap({ testTag: "prefetch_toggle" })
+        await sleep(700)
       }
+      prefetchUiState.value = true
     },
 
-    scrollList: (direction, times) => scrollList(driver, direction, times),
-    longSwipe,
+    scrollList: (direction, times, opts) => scrollList(driver, direction, times, opts),
     setPrefetchUiState(value: boolean) {
       prefetchUiState.value = value
     },

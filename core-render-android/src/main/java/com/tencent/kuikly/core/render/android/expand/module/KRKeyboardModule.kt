@@ -27,6 +27,7 @@ import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.PopupWindow
+import java.util.concurrent.CopyOnWriteArrayList
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.css.ktx.isAfterAndroid11
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderBaseModule
@@ -94,7 +95,7 @@ class KeyboardStatusWatcher(private val activity: Activity) : PopupWindow(activi
     private var lastVisibleHeight = -1
     private var lastVisibleBottom = -1
     private var lastScreenHeight = -1
-    private var listeners = ArrayList<KeyboardStatusListener>()
+    private val listeners = CopyOnWriteArrayList<KeyboardStatusListener>()
 
     init {
         contentView = popupView
@@ -182,8 +183,7 @@ class KeyboardStatusWatcher(private val activity: Activity) : PopupWindow(activi
     }
 
     private fun notifyKeyboardHeightChanged(height: Int) {
-        val list = listeners.toList()
-        for (listener in list) {
+        for (listener in listeners) {
             listener.onHeightChanged(height)
         }
     }
@@ -205,7 +205,7 @@ class KeyboardStatusWatcher(private val activity: Activity) : PopupWindow(activi
 class Android11PlusKeyboardWatcher(private val activity: Activity) : ViewTreeObserver.OnGlobalLayoutListener {
     
     private var lastKeyboardHeight = 0
-    private var listeners = ArrayList<KeyboardStatusListener>()
+    private val listeners = CopyOnWriteArrayList<KeyboardStatusListener>()
 
     init {
         val parentView = activity.findViewById<View>(android.R.id.content)
@@ -241,8 +241,7 @@ class Android11PlusKeyboardWatcher(private val activity: Activity) : ViewTreeObs
     }
 
     private fun notifyKeyboardHeightChanged(height: Int) {
-        val list = listeners.toList()
-        for (listener in list) {
+        for (listener in listeners) {
             listener.onHeightChanged(height)
         }
     }

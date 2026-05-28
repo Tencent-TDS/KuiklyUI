@@ -42,8 +42,6 @@
 #include "libohos_render/export/IKRRenderViewExport.h"
 #include "libohos_render/view/IKRRenderView.h"
 
-#include <deviceinfo.h>
-
 /**
  * 内置组件均在此注册生成实例闭包
  */

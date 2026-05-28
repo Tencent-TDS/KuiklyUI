@@ -319,9 +319,8 @@ void SetStyledText(KRTextEditorState &state, const std::string &text) {
         std::vector<kuikly::text::KRTextPostProcessSpan> spans;
         if (kuikly::text::RunTextPostProcessor(kTextPostProcessorNameInput, text, spans)) {
             ArkUI_StyledString_Descriptor *root_desc = nullptr;
-            // 跟踪 build segment 期间的临时资源，统一在尾部一次性 Destroy（与原实现
-            // 同生命周期：style 资源 Destroy 安全；descriptor 由于已知所有权问题不
-            // Destroy，与原 SetStyledText 注释保持一致）。
+            // 跟踪 build segment 期间的临时资源，统一在尾部一次性 Destroy。
+            // descriptor 在 AppendStyledString / SetStyledString 后即释放，保持与纯文本路径一致。
             std::vector<OH_ArkUI_TextStyle *> temp_text_styles;
             std::vector<OH_ArkUI_SpanStyle *> temp_span_styles;
             std::vector<OH_ArkUI_ParagraphStyle *> temp_para_styles;
@@ -342,6 +341,7 @@ void SetStyledText(KRTextEditorState &state, const std::string &text) {
                         root_desc = seg_desc;
                     } else {
                         OH_ArkUI_StyledString_Descriptor_AppendStyledString(root_desc, seg_desc);
+                        OH_ArkUI_StyledString_Descriptor_Destroy(seg_desc);
                     }
                 }
                 if (ts) {
@@ -388,6 +388,7 @@ void SetStyledText(KRTextEditorState &state, const std::string &text) {
                 if (root_desc) {
                     OH_ArkUI_StyledString_Descriptor_AppendStyledString(root_desc, img_desc);
                 }
+                OH_ArkUI_StyledString_Descriptor_Destroy(img_desc);
             };
 
             // image_spans_ 维护：随 spans 顺序遍历，跟踪每段在 ArkUI flat 字节流中
@@ -417,7 +418,7 @@ void SetStyledText(KRTextEditorState &state, const std::string &text) {
 
             if (root_desc) {
                 OH_ArkUI_TextEditorStyledStringController_SetStyledString(state.controller_, root_desc);
-                // 与原实现一致：descriptor 不主动 Destroy，规避真机 free_default 崩溃。
+                OH_ArkUI_StyledString_Descriptor_Destroy(root_desc);
             }
             // Style 临时资源安全 Destroy（与原实现同等条件）。
             for (auto *ts : temp_text_styles) {
@@ -604,12 +605,17 @@ std::string ReconstructRawFromFlat(
     if (new_e < new_len) {
         new_e = SnapToUtf8CharStart(new_flat, new_e);
     }
-    if (prev_e < diff_s) {
-        prev_e = diff_s;
+    // lcp 向 UTF-8 字符起点回退后，右侧 lcs 推导出的 end 也可能回退到 diff_s 左侧。
+    // 此时不能把 end 直接抬到 diff_s 形成空差异区间，否则紧邻多字节字符的 image span
+    // 可能被误判为幸存；统一向左扩展 diff_s，保留实际被 UTF-8 边界覆盖的差异范围。
+    size_t snapped_diff_s = diff_s;
+    if (prev_e < snapped_diff_s) {
+        snapped_diff_s = prev_e;
     }
-    if (new_e < diff_s) {
-        new_e = diff_s;
+    if (new_e < snapped_diff_s) {
+        snapped_diff_s = new_e;
     }
+    diff_s = snapped_diff_s;
 
     bool has_valid_selection = new_flat_selection_start != static_cast<uint32_t>(-1) &&
                                new_flat_selection_end != static_cast<uint32_t>(-1);

@@ -455,6 +455,264 @@ export function evaluatePrefetchIronEvidence(
   }
 }
 
+export interface CompositionEventClassification {
+  prefetchOffScreenEnter: number
+  visibleItemEnter: number
+  compositionReentryTotal: number
+  prefetchSlotReentry: number
+  prefetchExecuteComposed: number
+  detail: string
+}
+
+/** Split Demo log lines: prefetch vs visible scroll-in vs reentry (9.12 diagnosis). */
+export function classifyCompositionEvents(
+  demoLines: string[],
+  traceLines: string[] = [],
+): CompositionEventClassification {
+  let prefetchOffScreenEnter = 0
+  let visibleItemEnter = 0
+  let compositionReentryTotal = 0
+  let prefetchSlotReentry = 0
+  for (const line of demoLines) {
+    if (/compositionReentry index=\d+/.test(line)) {
+      compositionReentryTotal++
+      if (/prefetchSlot=true/.test(line)) prefetchSlotReentry++
+      continue
+    }
+    if (!/compositionEnter index=\d+ enterCount=1/.test(line)) continue
+    if (/inViewport=false.*pipelineComposed=true/.test(line)) {
+      prefetchOffScreenEnter++
+    } else if (/inViewport=true.*pipelineComposed=false/.test(line)) {
+      visibleItemEnter++
+    }
+  }
+  const prefetchExecuteComposed = countExecuteComposedInTrace(traceLines)
+  return {
+    prefetchOffScreenEnter,
+    visibleItemEnter,
+    compositionReentryTotal,
+    prefetchSlotReentry,
+    prefetchExecuteComposed,
+    detail: [
+      `prefetchExecuteComposed=${prefetchExecuteComposed}`,
+      `prefetchOffScreenEnter=${prefetchOffScreenEnter}`,
+      `visibleItemEnter=${visibleItemEnter}`,
+      `compositionReentry=${compositionReentryTotal}`,
+      `prefetchSlotReentry=${prefetchSlotReentry}`,
+    ].join(", "),
+  }
+}
+
+export function countIdleFrameEnd(traceLines: string[]): number {
+  return traceLines.filter((l) => /frameEnd isFrameIdle=true\b/.test(l)).length
+}
+
+export function summarizeIdleFrameTrace(traceLines: string[], tailLines = 16): string {
+  const idleFrames = traceLines.filter((l) => l.includes("frameEnd isFrameIdle="))
+  const tail = idleFrames.slice(-tailLines)
+  const trueCount = idleFrames.filter((l) => /frameEnd isFrameIdle=true\b/.test(l)).length
+  const falseCount = idleFrames.filter((l) => /frameEnd isFrameIdle=false\b/.test(l)).length
+  return [
+    `frameEndLines=${idleFrames.length} idleTrue=${trueCount} idleFalse=${falseCount}`,
+    tail.length > 0
+      ? `frameEndTail:\n${tail.map((l) => `  ${l.trim()}`).join("\n")}`
+      : "frameEndTail: (empty)",
+  ].join("\n")
+}
+
+/**
+ * Per executeRequest composed event with availableNs / elapsedNs / mode (9.12 official alignment).
+ * Official AndroidPrefetchScheduler runs prefetch in both idle (overtime) and non-idle frames as
+ * long as availableTimeNanos > 0; what must hold is: elapsedNs <= availableNs at start of task.
+ */
+export interface ExecuteComposedEvent {
+  index: number
+  elapsedNs: number
+  availableNs: number
+  mode: "pausable" | "full"
+}
+
+const EXECUTE_COMPOSED_DETAIL_RE =
+  /executeRequest composed index=(\d+) elapsedNs=(\d+)(?: mode=(\w+))? availableNs=(\d+|\d+\.\d+E\d+)/
+
+export function parseExecuteComposedEvents(traceLines: string[]): ExecuteComposedEvent[] {
+  const out: ExecuteComposedEvent[] = []
+  for (const line of traceLines) {
+    const m = line.match(EXECUTE_COMPOSED_DETAIL_RE)
+    if (!m) continue
+    out.push({
+      index: Number.parseInt(m[1], 10),
+      elapsedNs: Number.parseInt(m[2], 10),
+      availableNs: Number.parseFloat(m[4]),
+      mode: (m[3] as "pausable" | "full" | undefined) ?? "full",
+    })
+  }
+  return out
+}
+
+export interface SchedulerBudgetEvidence {
+  composedTotal: number
+  overBudgetCount: number
+  overBudgetEvents: ExecuteComposedEvent[]
+  pausableCount: number
+  fullCount: number
+  /** Max elapsedNs ever observed. */
+  maxElapsedNs: number
+  /** Min availableNs at task start (smallest budget actually accepted). */
+  minAvailableNs: number
+  detail: string
+}
+
+export function evaluateSchedulerBudget(traceLines: string[]): SchedulerBudgetEvidence {
+  const events = parseExecuteComposedEvents(traceLines)
+  const overBudget = events.filter((e) => e.elapsedNs > e.availableNs)
+  const pausableCount = events.filter((e) => e.mode === "pausable").length
+  const maxElapsedNs = events.reduce((m, e) => Math.max(m, e.elapsedNs), 0)
+  const minAvailableNs = events.reduce(
+    (m, e) => Math.min(m, e.availableNs),
+    Number.POSITIVE_INFINITY,
+  )
+  return {
+    composedTotal: events.length,
+    overBudgetCount: overBudget.length,
+    overBudgetEvents: overBudget,
+    pausableCount,
+    fullCount: events.length - pausableCount,
+    maxElapsedNs,
+    minAvailableNs: Number.isFinite(minAvailableNs) ? minAvailableNs : 0,
+    detail: [
+      `composed=${events.length}`,
+      `overBudget=${overBudget.length}`,
+      `pausable=${pausableCount}`,
+      `maxElapsedNs=${maxElapsedNs}`,
+      `minAvailableNs=${Number.isFinite(minAvailableNs) ? minAvailableNs : "n/a"}`,
+    ].join(", "),
+  }
+}
+
+export interface ContinuationEvidence {
+  /** Number of frames where queuePending=true at frameEnd (i.e. needed continuation). */
+  pendingFrameCount: number
+  /** Number of frames with both queuePending=true and spentNs>0 (real continuation work). */
+  continuationWorkFrameCount: number
+  /** Final state of queuePending at the last frameEnd line. */
+  finalQueuePending: boolean | null
+  /** Number of executeRequest composed events. */
+  composedTotal: number
+  detail: string
+}
+
+const FRAME_END_RE =
+  /frameEnd isFrameIdle=(true|false) needsProactive=(true|false) scheduledRedraws=(\d+) queuePending=(true|false) spentNs=(\d+)/
+
+export function evaluateContinuation(traceLines: string[]): ContinuationEvidence {
+  let pendingFrameCount = 0
+  let continuationWorkFrameCount = 0
+  let finalQueuePending: boolean | null = null
+  for (const line of traceLines) {
+    const m = line.match(FRAME_END_RE)
+    if (!m) continue
+    const queuePending = m[4] === "true"
+    const spentNs = Number.parseInt(m[5], 10)
+    finalQueuePending = queuePending
+    if (queuePending) pendingFrameCount++
+    if (queuePending && spentNs > 0) continuationWorkFrameCount++
+  }
+  const composedTotal = parseExecuteComposedEvents(traceLines).length
+  return {
+    pendingFrameCount,
+    continuationWorkFrameCount,
+    finalQueuePending,
+    composedTotal,
+    detail: [
+      `pendingFrames=${pendingFrameCount}`,
+      `continuationWorkFrames=${continuationWorkFrameCount}`,
+      `finalQueuePending=${finalQueuePending}`,
+      `composedTotal=${composedTotal}`,
+    ].join(", "),
+  }
+}
+
+export interface PrefetchComposeIdleEvent {
+  index: number
+  isFrameIdle: boolean | null
+  line: string
+}
+
+export interface PrefetchComposeIdleEvidence {
+  composedEvents: PrefetchComposeIdleEvent[]
+  nonIdleComposedCount: number
+  idleComposedCount: number
+  unknownIdleComposedCount: number
+  hadPrefetchCompose: boolean
+  detail: string
+}
+
+const EXECUTE_COMPOSED_RE = /executeRequest composed index=(\d+)\b/
+
+/** Parse isFrameIdle from LazyListPrefetchTrace processRequests / frame prefetch lines. */
+export function parseTraceFrameIdle(line: string): boolean | null {
+  if (!line.includes("isFrameIdle=")) return null
+  if (
+    !line.includes("processRequests") &&
+    !line.includes("frame prefetch") &&
+    !line.includes("frameEnd")
+  ) {
+    return null
+  }
+  const m = line.match(/isFrameIdle=(true|false)/)
+  return m ? m[1] === "true" : null
+}
+
+/**
+ * Correlate executeRequest composed with the latest processRequests/frame isFrameIdle flag.
+ * Used by 9.12: prefetch pipeline compose should run on idle frames only.
+ */
+export function evaluatePrefetchComposeIdleOnly(traceLines: string[]): PrefetchComposeIdleEvidence {
+  let currentIdle: boolean | null = null
+  const composedEvents: PrefetchComposeIdleEvent[] = []
+
+  for (const line of traceLines) {
+    const idle = parseTraceFrameIdle(line)
+    if (idle !== null) currentIdle = idle
+
+    const composed = line.match(EXECUTE_COMPOSED_RE)
+    if (!composed) continue
+    composedEvents.push({
+      index: Number.parseInt(composed[1], 10),
+      isFrameIdle: currentIdle,
+      line: line.trim(),
+    })
+  }
+
+  const idleComposedCount = composedEvents.filter((e) => e.isFrameIdle === true).length
+  const nonIdleComposedCount = composedEvents.filter((e) => e.isFrameIdle === false).length
+  const unknownIdleComposedCount = composedEvents.filter((e) => e.isFrameIdle === null).length
+
+  const detail = [
+    `composedTotal=${composedEvents.length}`,
+    `idleComposed=${idleComposedCount}`,
+    `nonIdleComposed=${nonIdleComposedCount}`,
+    `unknownIdleComposed=${unknownIdleComposedCount}`,
+    composedEvents.length > 0
+      ? `events=${composedEvents.map((e) => `index=${e.index}@idle=${e.isFrameIdle}`).join(", ")}`
+      : "events=none",
+  ].join(", ")
+
+  return {
+    composedEvents,
+    nonIdleComposedCount,
+    idleComposedCount,
+    unknownIdleComposedCount,
+    hadPrefetchCompose: composedEvents.length > 0,
+    detail,
+  }
+}
+
+export function countExecuteComposedInTrace(traceLines: string[]): number {
+  return traceLines.filter((l) => EXECUTE_COMPOSED_RE.test(l)).length
+}
+
 export class EvidenceError extends Error {
   constructor(
     message: string,

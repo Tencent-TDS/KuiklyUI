@@ -143,27 +143,28 @@ function createIosDeps(
     prefetchUiState.value = !prefetchUiState.value
   }
 
-  async function scrollList(direction: "down" | "up", times = 3) {
+  async function scrollList(
+    direction: "down" | "up",
+    times = 3,
+    opts: { fling?: boolean; durationMs?: number } = {},
+  ) {
     const rect = await driver.getElementRect({
       xpath: "(//XCUIElementTypeScrollView)[last()]",
     })
     const centerX = rect.x + rect.width / 2
-    const startY = direction === "down" ? rect.y + rect.height * 0.75 : rect.y + rect.height * 0.25
-    const endY = direction === "down" ? rect.y + rect.height * 0.25 : rect.y + rect.height * 0.75
+    // 留 5% margin 防 release 出列。fling 模式贴上下沿（大位移 + 短 duration），
+    // 普通模式收 25/75，避免 OS 把 release 出列判作 cancel。
+    const fling = opts.fling === true
+    const lo = fling ? 0.05 : 0.25
+    const hi = fling ? 0.95 : 0.75
+    const startY = direction === "down" ? rect.y + rect.height * hi : rect.y + rect.height * lo
+    const endY = direction === "down" ? rect.y + rect.height * lo : rect.y + rect.height * hi
+    const durationMs = opts.durationMs ?? (fling ? 150 : 450)
+    const settleMs = fling ? 1200 : 700
     for (let i = 0; i < times; i++) {
-      await driver.scroll({ startX: centerX, startY, endX: centerX, endY, durationMs: 450 })
-      await sleep(700)
+      await driver.scroll({ startX: centerX, startY, endX: centerX, endY, durationMs, fling })
+      await sleep(settleMs)
     }
-  }
-
-  async function longSwipe(opts?: { durationMs?: number }) {
-    // ScrollView XPath 在 debug demo 里会命中嵌套的小容器（如顶部状态栏 144pt 高），
-    // 用整屏坐标确保产生真正的长距离 fling。iPhone 16 = 393x852pt 逻辑坐标。
-    const centerX = 196
-    const startY = 800
-    const endY = 140
-    const durationMs = opts?.durationMs ?? 180
-    await driver.scroll({ startX: centerX, startY, endX: centerX, endY, durationMs })
   }
 
   async function readUi(): Promise<UiMetrics> {
@@ -301,7 +302,6 @@ function createIosDeps(
     },
 
     scrollList,
-    longSwipe,
     setPrefetchUiState(value: boolean) {
       prefetchUiState.value = value
     },

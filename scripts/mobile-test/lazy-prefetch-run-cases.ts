@@ -130,13 +130,19 @@ export interface LazyPrefetchDeps {
   tapClearMetricsOnly(): Promise<void>
   ensurePrefetchOn(): Promise<void>
   ensurePrefetchOff(): Promise<void>
-  scrollList(direction: "down" | "up", times?: number): Promise<void>
   /**
-   * 单次「长滑」手势：从滚动视图底部 90% 拉到顶部 10%，短 duration（高速度，触发惯性）。
-   * 用于 9.13 验证一次连续滑动期间的 prefetch 行为。
-   * iOS 必须实现；Android 缺省回退为多次 scrollList。
+   * 滚动 LazyColumn。
+   * - `opts.fling=true`：触发惯性 fling（去掉 leading pause + clamp duration ≤200ms）。9.13 长滑用。
+   * - `opts.durationMs`：手势持续时间。fling 默认 ~150ms，普通 ~450ms。
+   *
+   * 实现 (driver.scroll()) 必须以 `lazy_list` testTag 的 rect 计算起终点（贴上下沿、留 5% 边距，
+   * 防 release 出列被 Android 判作 cancel），不能写死屏幕坐标。
    */
-  longSwipe?(opts?: { durationMs?: number }): Promise<void>
+  scrollList(
+    direction: "down" | "up",
+    times?: number,
+    opts?: { fling?: boolean; durationMs?: number },
+  ): Promise<void>
   setPrefetchUiState(value: boolean): void
   readUiPrefetchSpotMetrics?(): Promise<UiPrefetchSpotMetrics | undefined>
   assertViewTreeMatchesPlaced?(
@@ -1244,18 +1250,13 @@ export async function runLazyPrefetchCases(
       await deps.tapClearMetricsOnly()
       deps.clearLog()
 
-      if (!deps.longSwipe) {
-        throw new EvidenceError(
-          "deps.longSwipe not implemented on this platform",
-          "platform missing longSwipe",
-        )
-      }
-
-      const SWIPE_DURATION_MS = 180
+      // 9.13：用 scrollList + fling 替代独立 longSwipe。120ms / fling=true 让 VelocityTracker
+      // 拿到「短时大位移」高速样本，触发原生惯性。坐标由 driver 端按 lazy_list 的 rect 计算。
+      const SWIPE_DURATION_MS = 120
       const INERTIA_WAIT_MS = 2500
       const SETTLE_AFTER_MS = 1000
 
-      await deps.longSwipe({ durationMs: SWIPE_DURATION_MS })
+      await deps.scrollList("down", 1, { fling: true, durationMs: SWIPE_DURATION_MS })
       await sleep(INERTIA_WAIT_MS)
       const traceDuringMotion = deps.readTraceLines()
       const composedDuringMotion = countExecuteComposedInTrace(traceDuringMotion)

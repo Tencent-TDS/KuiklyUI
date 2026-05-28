@@ -148,23 +148,15 @@ function createIosDeps(
     times = 3,
     opts: { fling?: boolean; durationMs?: number } = {},
   ) {
-    const rect = await driver.getElementRect({
-      xpath: "(//XCUIElementTypeScrollView)[last()]",
-    })
-    const centerX = rect.x + rect.width / 2
-    // 留 5% margin 防 release 出列。fling 模式贴上下沿（大位移 + 短 duration），
-    // 普通模式收 25/75，避免 OS 把 release 出列判作 cancel。
-    const fling = opts.fling === true
-    const lo = fling ? 0.05 : 0.25
-    const hi = fling ? 0.95 : 0.75
-    const startY = direction === "down" ? rect.y + rect.height * hi : rect.y + rect.height * lo
-    const endY = direction === "down" ? rect.y + rect.height * lo : rect.y + rect.height * hi
-    const durationMs = opts.durationMs ?? (fling ? 150 : 450)
-    const settleMs = fling ? 1200 : 700
-    for (let i = 0; i < times; i++) {
-      await driver.scroll({ startX: centerX, startY, endX: centerX, endY, durationMs, fling })
-      await sleep(settleMs)
-    }
+    // 走 driver.scrollWithin：driver 端拿 rect / clamp viewport / 算 margin。iOS demo 的 LazyColumn
+    // 落在最里层 ScrollView 上（XCUIElementTypeScrollView 的 last() 节点）。
+    // fling=true 时 driver 内部用 5% margin（贴沿大位移），fling=false 时同样 5%（统一口径）；
+    // 老版 iOS scrollList 的 25/75 收边在 driver 化之后不再需要 —— driver 已经把可见区做了 clamp，
+    // 边缘起点不会落出 ScrollView 也不会落到上方按钮上。
+    await driver.scrollWithin(
+      { xpath: "(//XCUIElementTypeScrollView)[last()]" },
+      { direction, times, fling: opts.fling, durationMs: opts.durationMs },
+    )
   }
 
   async function readUi(): Promise<UiMetrics> {

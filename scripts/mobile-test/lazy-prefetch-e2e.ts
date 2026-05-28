@@ -14,10 +14,7 @@ import { execSync, spawnSync } from "node:child_process"
 import { appendFile, mkdir, writeFile } from "node:fs/promises"
 import { AppiumMobileDriver } from "../../.claude/skills/kuikly-mobile-test/src/appium-mobile-driver.js"
 import { formatSessionLogLine } from "../../.claude/skills/kuikly-mobile-test/src/evidence.js"
-import type {
-  ElementRect,
-  UiTreeNode,
-} from "../../.claude/skills/kuikly-mobile-test/src/mobile-driver.js"
+import type { UiTreeNode } from "../../.claude/skills/kuikly-mobile-test/src/mobile-driver.js"
 import { LOGS_DIR, REPORTS_DIR } from "../../.claude/skills/kuikly-mobile-test/src/paths.js"
 import {
   countComposedAheadEvents,
@@ -207,11 +204,6 @@ async function readPrefetchToggleOnFromUi(driver: AppiumMobileDriver): Promise<b
   return false
 }
 
-/** 通过 testTag 拿 LazyColumn 屏幕矩形；scrollList / fling 用它算起终点（贴上下沿留 5% 边距）。 */
-async function getLazyListBounds(driver: AppiumMobileDriver): Promise<ElementRect> {
-  return driver.getElementRect({ testTag: "lazy_list" })
-}
-
 function readLayoutVisibleFromLog(lines: string[]): { indices: number[]; max: number } {
   for (let i = lines.length - 1; i >= 0; i--) {
     const m = lines[i].match(/layoutVisible indices=\[([^\]]*)\] max=(\d+)/)
@@ -334,30 +326,12 @@ async function scrollList(
   times = 3,
   opts: { fling?: boolean; durationMs?: number } = {},
 ) {
-  const rect = await getLazyListBounds(driver)
-  const centerX = rect.x + rect.width / 2
-  const margin = rect.height * 0.05
-  const top = rect.y + margin
-  const bottom = rect.y + rect.height - margin
-  const startY = direction === "down" ? bottom : top
-  const endY = direction === "down" ? top : bottom
-  const fling = opts.fling === true
-  const durationMs = opts.durationMs ?? (fling ? 150 : 450)
-  const settleMs = fling ? 1200 : 700
-  // area 透传给 driver：Android+fling 走 `mobile: swipeGesture` 需要真实可滚动 viewport rect，
-  // 否则 driver 会按 start/end 反推一个窄包围盒，emulator 上 release 易被判作 cancel。
-  for (let i = 0; i < times; i++) {
-    await driver.scroll({
-      startX: centerX,
-      startY,
-      endX: centerX,
-      endY,
-      durationMs,
-      fling,
-      area: rect,
-    })
-    await sleep(settleMs)
-  }
+  // 走 driver.scrollWithin：rect / margin / viewport clamp / area 五层防御都在 driver 里，
+  // 避免起点落到按钮上触发 click、release 出列被判 cancel。
+  await driver.scrollWithin(
+    { testTag: "lazy_list" },
+    { direction, times, fling: opts.fling, durationMs: opts.durationMs },
+  )
 }
 
 async function tapCoord(_driver: AppiumMobileDriver, point: { x: number; y: number }) {

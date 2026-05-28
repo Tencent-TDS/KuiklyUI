@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest"
 import {
   countCompositionReentry,
+  countExecuteComposedInTrace,
   countPrefetchPipelineReentry,
+  evaluateContinuation,
+  evaluatePrefetchComposeIdleOnly,
   evaluatePrefetchIronEvidence,
+  evaluateSchedulerBudget,
   parsePrefetchDemoLines,
   pickPrefetchEvidenceIndex,
 } from "./lazy-prefetch-metrics.js"
@@ -32,6 +36,51 @@ describe("pickPrefetchEvidenceIndex", () => {
     ])
     expect(countPrefetchPipelineReentry(demo)).toBe(1)
     expect(countCompositionReentry(demo)).toBe(2)
+  })
+
+  it("9.12: executeRequest composed must correlate with isFrameIdle", () => {
+    const trace = [
+      "LazyListPrefetchTrace processRequests start isFrameIdle=false queueSize=1",
+      "LazyListPrefetchTrace processRequests skip budget: isFrameIdle=false availableNs=1000 queueSize=1",
+      "LazyListPrefetchTrace processRequests start isFrameIdle=true queueSize=1",
+      "LazyListPrefetchTrace executeRequest composed index=4 elapsedNs=100 mode=pausable",
+    ]
+    const idle = evaluatePrefetchComposeIdleOnly(trace)
+    expect(idle.hadPrefetchCompose).toBe(true)
+    expect(idle.nonIdleComposedCount).toBe(0)
+    expect(idle.idleComposedCount).toBe(1)
+    expect(idle.composedEvents[0]?.index).toBe(4)
+
+    const bad = evaluatePrefetchComposeIdleOnly([
+      "LazyListPrefetchTrace processRequests start isFrameIdle=false queueSize=1",
+      "LazyListPrefetchTrace executeRequest composed index=2 elapsedNs=50",
+    ])
+    expect(bad.nonIdleComposedCount).toBe(1)
+  })
+
+  it("evaluateSchedulerBudget: detects over-budget execute", () => {
+    const trace = [
+      "LazyListPrefetchTrace executeRequest composed index=6 elapsedNs=500000 mode=pausable availableNs=1000000",
+      "LazyListPrefetchTrace executeRequest composed index=7 elapsedNs=2000000 availableNs=1500000",
+    ]
+    const b = evaluateSchedulerBudget(trace)
+    expect(b.composedTotal).toBe(2)
+    expect(b.overBudgetCount).toBe(1)
+    expect(b.overBudgetEvents[0]?.index).toBe(7)
+    expect(b.pausableCount).toBe(1)
+    expect(b.fullCount).toBe(1)
+  })
+
+  it("evaluateContinuation: tracks queuePending across frames", () => {
+    const trace = [
+      "LazyListPrefetchTrace frameEnd isFrameIdle=false needsProactive=true scheduledRedraws=2 queuePending=true spentNs=800000",
+      "LazyListPrefetchTrace frameEnd isFrameIdle=false needsProactive=true scheduledRedraws=2 queuePending=true spentNs=600000",
+      "LazyListPrefetchTrace frameEnd isFrameIdle=true needsProactive=false scheduledRedraws=0 queuePending=false spentNs=0",
+    ]
+    const c = evaluateContinuation(trace)
+    expect(c.pendingFrameCount).toBe(2)
+    expect(c.continuationWorkFrameCount).toBe(2)
+    expect(c.finalQueuePending).toBe(false)
   })
 
   it("prefers UI prefetch_target_index when logs empty", () => {

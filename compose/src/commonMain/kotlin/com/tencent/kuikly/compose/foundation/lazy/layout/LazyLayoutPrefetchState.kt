@@ -673,7 +673,7 @@ internal class PrefetchHandleProvider(
                         updateElapsedAndAvailableTime()
                         average.saveCompositionTimeNanos(elapsedTimeNanos)
                         LazyListPrefetchTrace.log(
-                            "executeRequest composed index=$index elapsedNs=$elapsedTimeNanos",
+                            "executeRequest composed index=$index elapsedNs=$elapsedTimeNanos availableNs=${availableTimeNanos()}",
                         )
                     } else {
                         LazyListPrefetchTrace.log(
@@ -807,7 +807,7 @@ internal class PrefetchHandleProvider(
                 averages.saveResumeTimeNanos(elapsedTimeNanos)
                 if (composition.isComplete) {
                     LazyListPrefetchTrace.log(
-                        "executeRequest composed index=$index elapsedNs=$elapsedTimeNanos mode=pausable",
+                        "executeRequest composed index=$index elapsedNs=$elapsedTimeNanos mode=pausable availableNs=${availableTimeNanos()}",
                     )
                 }
             }

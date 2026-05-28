@@ -214,7 +214,7 @@ internal abstract class BaseComposeScene(
             draw(KuiklyCanvas()) // Draw
 
             val isFrameIdle =
-                vsyncTickConditions.needsToBeProactive &&
+                !vsyncTickConditions.needsToBeProactive &&
                     vsyncTickConditions.scheduledRedrawsCount == 0
             val prefetchSpentNs =
                 prefetchScheduler?.processRequests(
@@ -222,11 +222,9 @@ internal abstract class BaseComposeScene(
                     KUIKLY_PREFETCH_FRAME_INTERVAL_NS,
                     isFrameIdle,
                 ) ?: 0L
-            if (prefetchScheduler?.hasPendingWork() == true || prefetchSpentNs > 0L) {
-                LazyListPrefetchTrace.log(
-                    "frame prefetch isFrameIdle=$isFrameIdle needsProactive=${vsyncTickConditions.needsToBeProactive} scheduledRedraws=${vsyncTickConditions.scheduledRedrawsCount} spentNs=$prefetchSpentNs pending=${prefetchScheduler?.hasPendingWork()}",
-                )
-            }
+            LazyListPrefetchTrace.log(
+                "frameEnd isFrameIdle=$isFrameIdle needsProactive=${vsyncTickConditions.needsToBeProactive} scheduledRedraws=${vsyncTickConditions.scheduledRedrawsCount} queuePending=${prefetchScheduler?.hasPendingWork() == true} spentNs=$prefetchSpentNs",
+            )
 
             if (frameSampled) {
                 tracker?.onFrameEnd((prefetchSpentNs / 1_000_000L).toInt())

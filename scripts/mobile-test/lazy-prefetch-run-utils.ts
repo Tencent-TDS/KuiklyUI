@@ -67,7 +67,7 @@ export function shouldRunCase(id: string, only: Set<string> | null): boolean {
 }
 
 export function formatScopeLabel(only: Set<string> | null): string {
-  if (!only) return "全套 9.3–9.12"
+  if (!only) return "全套 9.3–9.13"
   const ids = [...only].filter((id) => id !== "setup").sort()
   return `仅 ${ids.join("、")}（含依赖）`
 }

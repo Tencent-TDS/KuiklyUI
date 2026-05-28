@@ -51,16 +51,38 @@ const APP_ACTIVITY =
 const DEVICE_UDID = process.env.ANDROID_UDID ?? "emulator-5554"
 const PAGE_NAME = "LazyListPrefetchDemo"
 
-const TAP = {
-  prefetchToggle: { x: 540, y: 321 },
-  scenarioModifierOptIn: { x: 540, y: 482 },
-  scenarioGlobalOnly: { x: 540, y: 567 },
-  scenarioModifierOverrideOff: { x: 540, y: 652 },
-  scenarioCacheWindow: { x: 540, y: 737 },
-  heavyItemsToggle: { x: 540, y: 822 },
-  resetCounts: { x: 540, y: 907 },
-  clearMetricsOnly: { x: 540, y: 992 },
-} as const
+/**
+ * 默认坐标按 emulator (1080x2400, Pixel-style) 校准。
+ * 真机厂商 ROM 状态栏 / 行高差异较大，需要用 env 覆盖：
+ *   LAZY_PREFETCH_ANDROID_TAP_PROFILE=vivo
+ * 或单个坐标覆盖：
+ *   LAZY_PREFETCH_TAP_PREFETCH_TOGGLE_Y=350
+ */
+const TAP_PROFILES: Record<string, Record<string, { x: number; y: number }>> = {
+  default: {
+    prefetchToggle: { x: 540, y: 321 },
+    scenarioModifierOptIn: { x: 540, y: 482 },
+    scenarioGlobalOnly: { x: 540, y: 567 },
+    scenarioModifierOverrideOff: { x: 540, y: 652 },
+    scenarioCacheWindow: { x: 540, y: 737 },
+    heavyItemsToggle: { x: 540, y: 822 },
+    resetCounts: { x: 540, y: 907 },
+    clearMetricsOnly: { x: 540, y: 992 },
+  },
+  // 实测自 vivo PD2141 (V2141A, 1080x2400, 480dpi)
+  vivo: {
+    prefetchToggle: { x: 540, y: 350 },
+    scenarioModifierOptIn: { x: 540, y: 520 },
+    scenarioGlobalOnly: { x: 540, y: 615 },
+    scenarioModifierOverrideOff: { x: 540, y: 710 },
+    scenarioCacheWindow: { x: 540, y: 803 },
+    heavyItemsToggle: { x: 540, y: 895 },
+    resetCounts: { x: 540, y: 985 },
+    clearMetricsOnly: { x: 540, y: 1075 },
+  },
+}
+const TAP_PROFILE = process.env.LAZY_PREFETCH_ANDROID_TAP_PROFILE ?? "default"
+const TAP = TAP_PROFILES[TAP_PROFILE] ?? TAP_PROFILES.default!
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
@@ -205,9 +227,32 @@ async function scrollList(_driver: AppiumMobileDriver, direction: "down" | "up",
   }
 }
 
+/** 单次「长滑」手势：覆盖大部分屏幕高度，短 duration → 触发惯性 fling。 */
+async function longSwipe(opts?: { durationMs?: number }) {
+  const centerX = 540
+  const startY = 2100
+  const endY = 360
+  const duration = opts?.durationMs ?? 180
+  adb(`shell input swipe ${centerX} ${startY} ${centerX} ${endY} ${duration}`)
+}
+
 async function tapCoord(_driver: AppiumMobileDriver, point: { x: number; y: number }) {
   adb(`shell input tap ${point.x} ${point.y}`)
   await sleep(900)
+}
+
+/**
+ * 按 text/accessibilityId 点击。Compose 在 Android 上把 testTag 暴露为 contentDescription，
+ * Text 节点同时携带 text。比 fixed coord 更稳，跨设备/密度不会失效。
+ */
+async function tapText(driver: AppiumMobileDriver, text: string) {
+  try {
+    await driver.tap({ text })
+  } catch {
+    // 某些 Compose 节点只有 contentDescription/testTag 暴露
+    await driver.tap({ accessibilityId: text })
+  }
+  await sleep(700)
 }
 
 class SessionLogWriter {
@@ -240,6 +285,8 @@ function createAndroidDeps(
         // Appium optional; adb taps + logcat remain the primary assertion path.
       }
       launchPrefetchDemo()
+      // 真机首次渲染 Compose 树需要时间，taps 太早会落到空白处。
+      await sleep(2500)
     },
 
     clearLog() {
@@ -337,6 +384,7 @@ function createAndroidDeps(
     },
 
     scrollList: (direction, times) => scrollList(driver, direction, times),
+    longSwipe,
     setPrefetchUiState(value: boolean) {
       prefetchUiState.value = value
     },

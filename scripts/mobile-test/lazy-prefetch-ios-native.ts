@@ -1,7 +1,7 @@
 /**
  * LazyList prefetch iOS — same cross-platform cases 9.3–9.11 as Android.
  *
- * Log: simctl log stream + Demo UI metrics (prefetch_index_lead / prefetch_head_gap).
+ * Log: simctl launch --console-pty (K/N println) + Demo UI metrics.
  *
  * Run:
  *   cd .claude/skills/kuikly-mobile-test
@@ -156,6 +156,16 @@ function createIosDeps(
     }
   }
 
+  async function longSwipe(opts?: { durationMs?: number }) {
+    // ScrollView XPath 在 debug demo 里会命中嵌套的小容器（如顶部状态栏 144pt 高），
+    // 用整屏坐标确保产生真正的长距离 fling。iPhone 16 = 393x852pt 逻辑坐标。
+    const centerX = 196
+    const startY = 800
+    const endY = 140
+    const durationMs = opts?.durationMs ?? 180
+    await driver.scroll({ startX: centerX, startY, endX: centerX, endY, durationMs })
+  }
+
   async function readUi(): Promise<UiMetrics> {
     return parseUiMetrics(await driver.getSnapshot())
   }
@@ -167,9 +177,9 @@ function createIosDeps(
       try {
         await driver.startSession()
       } catch {
-        // Appium optional; gestures + log stream remain primary.
+        // Appium optional; gestures + console-pty log remain primary.
       }
-      await driver.restartApp()
+      iosLog.relaunchApp(BUNDLE_ID)
       await sleep(2000)
       const snap = await driver.getSnapshot()
       if (snap.elements.some((e) => e.text === "scenario_modifier_opt_in")) {
@@ -291,6 +301,7 @@ function createIosDeps(
     },
 
     scrollList,
+    longSwipe,
     setPrefetchUiState(value: boolean) {
       prefetchUiState.value = value
     },

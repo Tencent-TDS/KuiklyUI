@@ -13,8 +13,13 @@ interface SessionLogWriter {
   write(message: string): Promise<void>
 }
 import {
+  classifyCompositionEvents,
   countComposedAheadEvents,
+  countExecuteComposedInTrace,
   countTraceLines,
+  evaluateContinuation,
+  evaluatePrefetchIronEvidence,
+  evaluateSchedulerBudget,
   EvidenceError,
   findReverseComposeEvidence,
   formatMetricsEvidence,
@@ -24,12 +29,10 @@ import {
   parseTraceCounts,
   readLastPrefetchMetrics,
   logHasPlacedIndex,
-  countCompositionReentry,
-  countPrefetchPipelineReentry,
-  evaluatePrefetchIronEvidence,
   pickPrefetchEvidenceIndex,
   readSettledHeadGap,
   readSettledIndexGap,
+  summarizeIdleFrameTrace,
   summarizePrefetchTrace,
   type LogMetrics,
 } from "./lazy-prefetch-metrics.js"
@@ -45,6 +48,10 @@ export interface RunLazyPrefetchOptions {
 }
 
 export const POST_SCROLL_SETTLE_MS = 500
+/** Fast fling-like scroll gap for 9.12 (minimal idle between gestures). */
+export const FAST_SCROLL_GAP_MS = 80
+/** Idle window after fast scroll so prefetch can compose on idle frames (9.12). */
+export const PREFETCH_IDLE_SETTLE_MS = 1500
 
 export interface TestResult {
   id: string
@@ -124,6 +131,12 @@ export interface LazyPrefetchDeps {
   ensurePrefetchOn(): Promise<void>
   ensurePrefetchOff(): Promise<void>
   scrollList(direction: "down" | "up", times?: number): Promise<void>
+  /**
+   * 单次「长滑」手势：从滚动视图底部 90% 拉到顶部 10%，短 duration（高速度，触发惯性）。
+   * 用于 9.13 验证一次连续滑动期间的 prefetch 行为。
+   * iOS 必须实现；Android 缺省回退为多次 scrollList。
+   */
+  longSwipe?(opts?: { durationMs?: number }): Promise<void>
   setPrefetchUiState(value: boolean): void
   readUiPrefetchSpotMetrics?(): Promise<UiPrefetchSpotMetrics | undefined>
   assertViewTreeMatchesPlaced?(
@@ -1087,7 +1100,7 @@ export async function runLazyPrefetchCases(
 
   await runIf(
     "9.12",
-    "滑动过程中预 compose slot 不发生 reentry",
+    "prefetch scheduler 行为对齐官方：不抢主帧 + 续帧 + 滑停后队列清空",
     async () => {
       await deps.tapScenarioModifierOptIn()
       await deps.tapResetCounts()
@@ -1095,100 +1108,284 @@ export async function runLazyPrefetchCases(
       await deps.tapClearMetricsOnly()
       deps.clearLog()
 
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 8; i++) {
         await deps.scrollList("down", 1)
-        await sleep(400)
+        await sleep(FAST_SCROLL_GAP_MS)
       }
-      await sleep(POST_SCROLL_SETTLE_MS)
+      await sleep(PREFETCH_IDLE_SETTLE_MS)
 
       const metrics = deps.readDemoMetrics()
-      const ui = deps.readUiPrefetchSpotMetrics
-        ? await deps.readUiPrefetchSpotMetrics()
-        : undefined
-      const pipelineReentry =
-        ui?.prefetchPipelineReentryCount ??
-        countPrefetchPipelineReentry(metrics)
-      const reentryTotal = ui?.compositionReentryTotal ?? countCompositionReentry(metrics)
-      const indexLead = ui?.indexLead ?? readLastPrefetchMetrics(metrics)
-      const hadPrefetchActivity = indexLead >= 1 || (ui?.prefetchTargetPipeline === 1)
+      const traceLines = deps.readTraceLines()
+      const budget = evaluateSchedulerBudget(traceLines)
+      const continuation = evaluateContinuation(traceLines)
+      const classify = classifyCompositionEvents(metrics.lines, traceLines)
 
       const summary = formatCaseSummary(
         "9.12",
-        "滑动过程中预 compose slot 不发生 reentry",
+        "prefetch scheduler 行为对齐官方：不抢主帧 + 续帧 + 滑停后队列清空",
         [
           {
             title: "测试配置",
             lines: [
               "场景：Modifier 预取开；beyondBoundsItemCount=0",
-              "预期：预 compose 的 slot 在滑动全过程中保持，不因划入 viewport 而 compositionReentry",
+              "对齐参考：AndroidPrefetchScheduler.android.kt（official 1.9）",
+              "核心语义：非 idle 帧也允许 prefetch，但单次 elapsedNs 不得 > 该 task 开始时 availableNs；预算耗尽要续帧；滑停后队列清空",
             ],
           },
           {
             title: "操作步骤",
             lines: [
-              "1. Modifier 开启预取 + 重置 + 仅清空指标",
-              "2. 连续向下滑动 6 次（每次间隔 400ms，模拟滑动过程）",
-              `3. 停稳 ${POST_SCROLL_SETTLE_MS}ms`,
+              "1. Modifier 开启预取 + 重置 + 清空 log/trace",
+              `2. 快速连续下滑 8 次（间隔 ${FAST_SCROLL_GAP_MS}ms，模拟惯性滑动）`,
+              `3. 停稳 ${PREFETCH_IDLE_SETTLE_MS}ms`,
             ],
           },
           {
             title: "实测结果",
             lines: [
-              `预取活动：indexLead=${indexLead}，hadPrefetch=${hadPrefetchActivity}`,
-              `prefetch_pipeline_reentry_count=${pipelineReentry}`,
-              `composition_reentry_total=${reentryTotal}`,
+              `composed total=${budget.composedTotal}（其中 pausable=${budget.pausableCount}，full=${budget.fullCount}）`,
+              `单次 elapsedNs ≤ availableNs 检查：overBudget=${budget.overBudgetCount}`,
+              `maxElapsedNs=${budget.maxElapsedNs}，minAvailableNs=${budget.minAvailableNs}`,
+              `续帧：${continuation.detail}`,
+              `事件分类：${classify.detail}`,
             ],
           },
         ],
         [
           caseCriterion(
-            "滑动期间触发了预取 compose",
-            "停稳后 indexLead≥1 或存在 prefetch pipeline compose",
-            hadPrefetchActivity ? `indexLead=${indexLead}` : "无预取活动",
-            hadPrefetchActivity,
+            "至少发生 1 次 prefetch execute（行为存在）",
+            "executeRequest composed ≥ 1",
+            `composed=${budget.composedTotal}`,
+            budget.composedTotal >= 1,
           ),
           caseCriterion(
-            "预 compose slot 无 reentry",
-            "prefetch_pipeline_reentry_count=0",
-            `prefetch_pipeline_reentry_count=${pipelineReentry}`,
-            pipelineReentry === 0,
+            "每次 prefetch 不超本帧预算（不抢主帧）",
+            "所有 executeRequest composed 满足 elapsedNs ≤ availableNs",
+            budget.overBudgetCount === 0
+              ? "全部 within budget"
+              : `overBudget=${budget.overBudgetCount} 个：${budget.overBudgetEvents
+                  .map((e) => `index=${e.index} elapsed=${e.elapsedNs} > avail=${e.availableNs}`)
+                  .join("; ")}`,
+            budget.overBudgetCount === 0,
           ),
           caseCriterion(
-            "log 无 prefetchSlot=true 的 compositionReentry",
-            "countPrefetchPipelineReentry=0",
-            `logCount=${countPrefetchPipelineReentry(metrics)}`,
-            countPrefetchPipelineReentry(metrics) === 0 || metrics.lines.length === 0,
+            "队列在滑停后清空（无残留任务）",
+            "trace 末 frameEnd queuePending=false 或 trace 中无 pending",
+            `finalQueuePending=${continuation.finalQueuePending}，pendingFrames=${continuation.pendingFrameCount}`,
+            continuation.finalQueuePending !== true,
+          ),
+          caseCriterion(
+            "事件分类：所有 execute 均为 prefetch pipeline、无 prefetchSlot reentry",
+            "prefetchExecuteComposed=composedTotal 且 prefetchSlotReentry=0",
+            classify.detail,
+            classify.prefetchExecuteComposed === budget.composedTotal &&
+              classify.prefetchSlotReentry === 0,
           ),
         ],
       )
       const evidence = formatCaseEvidence(
         summary,
         [
-          formatMetricsEvidence("scroll window", metrics),
-          ui
-            ? [
-                "Demo UI:",
-                `  prefetch_pipeline_reentry_count=${ui.prefetchPipelineReentryCount}`,
-                `  composition_reentry_total=${ui.compositionReentryTotal}`,
-                `  prefetch_index_lead=${ui.indexLead}`,
-              ].join("\n")
-            : "",
-        ]
-          .filter(Boolean)
-          .join("\n\n"),
+          summarizePrefetchTrace(traceLines),
+          `scheduler budget evidence: ${budget.detail}`,
+          `continuation evidence: ${continuation.detail}`,
+          `composition classification: ${classify.detail}`,
+          summarizeIdleFrameTrace(traceLines),
+          `executeRequest composed events (last 12):`,
+          traceLines
+            .filter((l) => l.includes("executeRequest composed"))
+            .slice(-12)
+            .map((l) => `  ${l.trim()}`)
+            .join("\n") || "  (no executeRequest composed lines)",
+          formatMetricsEvidence("after settle", metrics),
+        ].join("\n\n"),
       )
-      if (!hadPrefetchActivity) {
-        throw new EvidenceError("scroll with prefetch ON produced no compose lead", evidence)
-      }
-      if (pipelineReentry > 0) {
+      if (traceLines.length === 0) {
         throw new EvidenceError(
-          `prefetch pipeline slots re-entered composition during scroll: count=${pipelineReentry}`,
+          "no LazyListPrefetchTrace lines — enable trace and iOS console-pty capture",
           evidence,
         )
       }
-      if (metrics.lines.length > 0 && countPrefetchPipelineReentry(metrics) > 0) {
+      if (budget.composedTotal < 1) {
+        throw new EvidenceError("no prefetch execute compose observed", evidence)
+      }
+      if (budget.overBudgetCount > 0) {
         throw new EvidenceError(
-          "log contains compositionReentry with prefetchSlot=true",
+          `prefetch overran frame budget on ${budget.overBudgetCount} task(s)`,
+          evidence,
+        )
+      }
+      if (continuation.finalQueuePending === true) {
+        throw new EvidenceError(
+          "prefetch queue not drained after settle — pending tasks remain",
+          evidence,
+        )
+      }
+      if (
+        classify.prefetchExecuteComposed !== budget.composedTotal ||
+        classify.prefetchSlotReentry > 0
+      ) {
+        throw new EvidenceError(
+          `composition events mismatch / prefetchSlot reentry: ${classify.detail}`,
+          evidence,
+        )
+      }
+      return evidence
+    },
+  )
+
+  await runIf(
+    "9.13",
+    "长列表 + 一次长惯性滑动：统计 prefetch 数量与预算占用",
+    async () => {
+      await deps.tapScenarioModifierOptIn()
+      await deps.tapResetCounts()
+      await deps.ensurePrefetchOn()
+      await deps.tapClearMetricsOnly()
+      deps.clearLog()
+
+      if (!deps.longSwipe) {
+        throw new EvidenceError(
+          "deps.longSwipe not implemented on this platform",
+          "platform missing longSwipe",
+        )
+      }
+
+      const SWIPE_DURATION_MS = 180
+      const INERTIA_WAIT_MS = 2500
+      const SETTLE_AFTER_MS = 1000
+
+      await deps.longSwipe({ durationMs: SWIPE_DURATION_MS })
+      await sleep(INERTIA_WAIT_MS)
+      const traceDuringMotion = deps.readTraceLines()
+      const composedDuringMotion = countExecuteComposedInTrace(traceDuringMotion)
+
+      await sleep(SETTLE_AFTER_MS)
+
+      const metrics = deps.readDemoMetrics()
+      const traceLines = deps.readTraceLines()
+      const budget = evaluateSchedulerBudget(traceLines)
+      const continuation = evaluateContinuation(traceLines)
+      const classify = classifyCompositionEvents(metrics.lines, traceLines)
+
+      const composedAfterSettle = budget.composedTotal - composedDuringMotion
+      const composedIndices = traceLines
+        .map((l) => l.match(/executeRequest composed index=(\d+)/))
+        .filter((m): m is RegExpMatchArray => Boolean(m))
+        .map((m) => Number.parseInt(m[1], 10))
+      const indexMin = composedIndices.length > 0 ? Math.min(...composedIndices) : -1
+      const indexMax = composedIndices.length > 0 ? Math.max(...composedIndices) : -1
+      const indexSpan = indexMax - indexMin
+
+      const onScrollCount = traceLines.filter((l) => l.includes("onScroll delta=")).length
+      const frameEndCount = traceLines.filter((l) => l.includes("frameEnd")).length
+
+      const summary = formatCaseSummary(
+        "9.13",
+        "长列表 + 一次长惯性滑动：统计 prefetch 数量与预算占用",
+        [
+          {
+            title: "测试配置",
+            lines: [
+              "场景：Modifier 预取开；ITEM_COUNT=100；beyondBoundsItemCount=0",
+              `手势：单次长滑（视图顶部 10% ↔ 底部 90%），duration=${SWIPE_DURATION_MS}ms（高速度产生惯性 fling）`,
+              "观察：完整滑动 + 惯性 + 停稳期间，统计 executeRequest composed 总数、index 跨度、单次预算占用",
+            ],
+          },
+          {
+            title: "操作步骤",
+            lines: [
+              "1. Modifier 开启预取 + 重置计数 + 清空 log/trace",
+              `2. 单次长滑（${SWIPE_DURATION_MS}ms 内从 90% 拉到 10%）`,
+              `3. 等待惯性滚动 ${INERTIA_WAIT_MS}ms（期间继续 prefetch）`,
+              `4. 停稳额外等待 ${SETTLE_AFTER_MS}ms`,
+            ],
+          },
+          {
+            title: "实测结果",
+            lines: [
+              `prefetch executeRequest composed：总计 ${budget.composedTotal}（运动 + 惯性期 ${composedDuringMotion}，停稳后新增 ${composedAfterSettle}）`,
+              `compose index 范围：[${indexMin}, ${indexMax}]，跨度 ${indexSpan} 个 item`,
+              `单次预算占用：maxElapsedNs=${budget.maxElapsedNs}（约 ${(budget.maxElapsedNs / 1_000_000).toFixed(2)}ms），minAvailableNs=${budget.minAvailableNs}（约 ${(budget.minAvailableNs / 1_000_000).toFixed(2)}ms），overBudget=${budget.overBudgetCount}`,
+              `pausable=${budget.pausableCount}，full=${budget.fullCount}`,
+              `续帧：${continuation.detail}`,
+              `滑动期间 frameEnd 数=${frameEndCount}，onScroll 数=${onScrollCount}`,
+              `事件分类：${classify.detail}`,
+            ],
+          },
+        ],
+        [
+          caseCriterion(
+            "长滑期间发生 prefetch（数量 ≥ 8）",
+            "executeRequest composed ≥ 8",
+            `composed=${budget.composedTotal}`,
+            budget.composedTotal >= 8,
+          ),
+          caseCriterion(
+            "每次 prefetch 不超本帧预算",
+            "所有 executeRequest composed 满足 elapsedNs ≤ availableNs",
+            budget.overBudgetCount === 0
+              ? "全部 within budget"
+              : `overBudget=${budget.overBudgetCount}：${budget.overBudgetEvents
+                  .map((e) => `index=${e.index} elapsed=${e.elapsedNs}>avail=${e.availableNs}`)
+                  .join("; ")}`,
+            budget.overBudgetCount === 0,
+          ),
+          caseCriterion(
+            "停稳后队列清空",
+            "trace 末 frameEnd queuePending=false 或 trace 中无 pending",
+            `finalQueuePending=${continuation.finalQueuePending}，pendingFrames=${continuation.pendingFrameCount}`,
+            continuation.finalQueuePending !== true,
+          ),
+          caseCriterion(
+            "compose 全部来自 prefetch pipeline、无 prefetchSlot reentry",
+            "prefetchExecuteComposed=composedTotal 且 prefetchSlotReentry=0",
+            classify.detail,
+            classify.prefetchExecuteComposed === budget.composedTotal &&
+              classify.prefetchSlotReentry === 0,
+          ),
+        ],
+      )
+      const evidence = formatCaseEvidence(
+        summary,
+        [
+          summarizePrefetchTrace(traceLines),
+          `scheduler budget evidence: ${budget.detail}`,
+          `continuation evidence: ${continuation.detail}`,
+          `composition classification: ${classify.detail}`,
+          summarizeIdleFrameTrace(traceLines),
+          `executeRequest composed events (all ${budget.composedTotal}):`,
+          traceLines
+            .filter((l) => l.includes("executeRequest composed"))
+            .map((l) => `  ${l.trim()}`)
+            .join("\n") || "  (no executeRequest composed lines)",
+          formatMetricsEvidence("after settle", metrics),
+        ].join("\n\n"),
+      )
+      if (traceLines.length === 0) {
+        throw new EvidenceError("no LazyListPrefetchTrace lines", evidence)
+      }
+      if (budget.composedTotal < 8) {
+        throw new EvidenceError(
+          `prefetch executeRequest composed too few: ${budget.composedTotal} (<8)`,
+          evidence,
+        )
+      }
+      if (budget.overBudgetCount > 0) {
+        throw new EvidenceError(
+          `prefetch overran frame budget on ${budget.overBudgetCount} task(s)`,
+          evidence,
+        )
+      }
+      if (continuation.finalQueuePending === true) {
+        throw new EvidenceError("prefetch queue not drained after settle", evidence)
+      }
+      if (
+        classify.prefetchExecuteComposed !== budget.composedTotal ||
+        classify.prefetchSlotReentry > 0
+      ) {
+        throw new EvidenceError(
+          `composition events mismatch / prefetchSlot reentry: ${classify.detail}`,
           evidence,
         )
       }
@@ -1206,7 +1403,7 @@ export function buildReport(
   sessionLogPath: string,
   results: TestResult[],
   runLabel: string,
-  scopeLabel = "全套 9.3–9.12",
+  scopeLabel = "全套 9.3–9.13",
 ): string {
   const passed = results.filter((r) => r.status === "passed").length
   const failed = results.filter((r) => r.status === "failed").length

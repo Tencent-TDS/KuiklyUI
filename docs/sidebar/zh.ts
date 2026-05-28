@@ -106,6 +106,7 @@ export const zhSidebar = sidebar({
                         },
                         "view-external-prop.md",
                         "text-measure.md",
+                        "text-post-processor-guide.md",
                         "get-component-size-and-position.md",
                         "protobuf.md",
                         "thread-and-coroutines.md",
@@ -120,7 +121,7 @@ export const zhSidebar = sidebar({
                                 {
                                     text: "开发方式与集成",
                                     collapsible: true,
-                                    children : ["dev-overview.md", "android-dev.md", "ios-dev.md", "harmony-dev.md", "h5-dev.md", "miniapp-dev.md"]
+                                    children : ["dev-overview.md", "android-dev.md", "ios-dev.md", "harmony-dev.md", "h5-dev.md", "miniapp-dev.md", "miniapp-wx-components.md"]
                                 },
                                 {
                                     text: "调试与工具",

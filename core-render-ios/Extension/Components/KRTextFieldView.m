@@ -143,7 +143,11 @@ NSString *const KRVFontWeightKey = @"fontWeight";
             UITextRange *originalSelectedTextRange = self.selectedTextRange;
             // 设置新的 attributedText
             NSAttributedString *resAttr = [textShadow buildAttributedString];
-            // 代理
+            // NOTE: UITextField does not render NSTextAttachment images (only UITextView does).
+            // Therefore textPostProcessor with emoji/image attachment rendering is NOT supported
+            // in single-line mode (KRTextFieldView). Use KRTextAreaView for custom emoji support.
+            // The textPostProcessor call here is kept for any non-image text transformations
+            // (e.g., text masking, formatting) that do not rely on NSTextAttachment rendering.
             if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_customTextWithAttributedString:textPostProcessor:)]) {
                 resAttr = [[KuiklyRenderBridge componentExpandHandler] hr_customTextWithAttributedString:resAttr textPostProcessor:NSStringFromClass([self class])];
             }

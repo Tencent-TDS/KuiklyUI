@@ -55,6 +55,7 @@ import com.tencent.kuikly.compose.ui.unit.LayoutDirection
 import com.tencent.kuikly.compose.ui.unit.toIntRect
 import com.tencent.kuikly.compose.ui.unit.toRect
 import com.tencent.kuikly.compose.ui.util.fastAll
+import com.tencent.kuikly.compose.profiler.RecompositionProfiler
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 import kotlin.coroutines.CoroutineContext
 
@@ -224,6 +225,17 @@ internal class RootNodeOwner(
         if (event.button != null) {
             platformContext.inputModeManager.requestInputMode(InputMode.Touch)
         }
+        // Hook: record touch context events for Recomposition Profiler
+        if (RecompositionProfiler.isEnabled) {
+            val touchEventType = when (event.eventType) {
+                PointerEventType.Press -> "touchBegin"
+                PointerEventType.Release -> "touchEnd"
+                else -> null
+            }
+            if (touchEventType != null) {
+                RecompositionProfiler.recordTouchContext(touchEventType, event.pointers.size)
+            }
+        }
         val isInBounds =
             event.eventType != PointerEventType.Exit &&
                 event.pointers.fastAll { isInBounds(it.position) }
@@ -382,6 +394,7 @@ internal class RootNodeOwner(
                     snapshotInvalidationTracker.requestDraw()
                 },
                 drawBlock = drawBlock,
+                view = view,
                 onDestroy = { needClearObservations = true },
             )
 

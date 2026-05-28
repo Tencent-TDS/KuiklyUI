@@ -1,0 +1,8 @@
+{
+    "navigationBarTitleText":"WXWebView Demo",
+    "navigationStyle":"default",
+    "navigationBarTextStyle":"black",
+    "navigationBarBackgroundColor":"#ffffff",
+    "disableScroll":true,
+    "usingComponents":{"custom-wrapper":"../../custom-wrapper","comp":"../../comp"}
+  }

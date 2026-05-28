@@ -4,10 +4,14 @@ import com.tencent.kuikly.core.render.web.collection.set.JsSet
 import com.tencent.kuikly.core.render.web.runtime.miniapp.MiniDocument
 import com.tencent.kuikly.core.render.web.runtime.miniapp.MiniGlobal
 import com.tencent.kuikly.core.render.web.runtime.miniapp.dom.MiniElement
+import kotlin.js.JsExport
+import kotlin.js.JsName
 
 /**
  * Handle mini program events
  */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 object EventManage {
     // Drag events
     const val DRAG_BEGIN_EVENT = "dragstart"
@@ -79,5 +83,15 @@ object EventManage {
 
         // The content returned here will change the input content, need to return null
         return null
+    }
+    
+    /**
+     * Initialize EventManage and set up global.eventHandler
+     * This function is exported for JavaScript to call
+     */
+    @JsName("initialize")
+    fun initialize() {
+        // The init block is automatically called when the object is first accessed
+        // This function is just a way to trigger that initialization from JavaScript
     }
 }

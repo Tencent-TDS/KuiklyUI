@@ -125,6 +125,10 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
         if (index > parentView.childCount || index == -1) { // index为-1表示末尾添加
             insertIndex = parentView.childCount
         }
+        // For movableContent support: if the child already has a parent (e.g. after a lightweight
+        // removeDomSubViewForMove that skipped native removeView), detach it first so addView
+        // does not throw IllegalStateException.
+        (childView.parent as? android.view.ViewGroup)?.removeView(childView)
         parentView.addView(childView, insertIndex)
         viewExport.onAddToParent(parentView)
     }

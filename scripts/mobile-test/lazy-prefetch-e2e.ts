@@ -272,8 +272,55 @@ function assertViewTreeMatchesPlaced(
   }
 }
 
-function launchPrefetchDemo() {
+function launchActivity() {
   adb(`shell am start -n ${APP_PACKAGE}/${APP_ACTIVITY} --es pageName ${PAGE_NAME}`)
+}
+
+/**
+ * 通过 router 首页 UI 跳转到 LazyListPrefetchDemo。
+ *
+ * 历史：旧 Android e2e 假设 `am start --es pageName ...` 会被 KuiklyRenderActivity 接管，
+ * 直接打开指定 page。但这是 main 上 commit 32dbac41「android ksp support entry get pageName」
+ * 之后才有的能力，更老分支 / fork 都没有，会停在 router 首页。
+ *
+ * 兼容做法（与 iOS 同套路）：拿到 view-tree 后判一下 prefetch_toggle 是否已经存在；不在就
+ * 走 router 输入框 + 跳转2 按钮的 UI 路径。这样在 hasIntentEntry 与无之间都能跑。
+ */
+async function navigateToPrefetchDemo(driver: AppiumMobileDriver): Promise<void> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const tree = await driver.getViewTree()
+      if (findNodeByTestTag(tree.tree, "prefetch_toggle")) return
+    } catch {
+      // first call after launch may race with view ready；不影响后续 attempt
+    }
+
+    if (attempt === 0) {
+      // 优先 intent 直跳（main 已支持），不行也无所谓，下面退回 UI 路径
+      launchActivity()
+      await sleep(2500)
+      continue
+    }
+
+    // UI 导航：输入框 + 跳转2
+    try {
+      await driver.input(
+        { xpath: "//android.widget.EditText" },
+        PAGE_NAME,
+      )
+      await sleep(400)
+      await driver.tap({ text: "跳转2" })
+      await sleep(4000)
+    } catch {
+      // 极端情况下输入框拿不到，再启 activity 重试
+      launchActivity()
+      await sleep(2500)
+    }
+  }
+  throw new Error(
+    `navigateToPrefetchDemo: 找不到 prefetch_toggle 节点（已经尝试 intent 直跳 + UI 跳转 3 轮）；` +
+      `请检查 demo 是否加载、testTag 是否生效（debugUIInspector + RootNodeOwner semantics 修复）`,
+  )
 }
 
 /**
@@ -359,11 +406,14 @@ function createAndroidDeps(
       try {
         await driver.startSession()
       } catch {
-        // Appium optional; adb taps + logcat remain the primary assertion path.
+        // Appium 起不来时跑不了 view-tree-based 导航；走原 adb am start 兜底，
+        // 后续 ensure*/scroll 也会失败，但保留诊断空间。
+        launchActivity()
+        await sleep(2500)
+        return
       }
-      launchPrefetchDemo()
-      // 真机首次渲染 Compose 树需要时间，taps 太早会落到空白处。
-      await sleep(2500)
+      // intent 直跳 + 必要时走 router UI 跳转，兜到 prefetch_toggle 出现为止
+      await navigateToPrefetchDemo(driver)
     },
 
     clearLog() {

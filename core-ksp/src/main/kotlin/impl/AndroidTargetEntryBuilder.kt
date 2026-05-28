@@ -141,6 +141,20 @@ open class AndroidTargetEntryBuilder(val catchException: Boolean) : KuiklyCoreAb
         return "com.tencent.kuikly.core.android"
     }
 
+    override fun getCommonComments(pagesAnnotations: List<PageInfo>): List<String> {
+        var pageInListString = ""
+        for (i in pagesAnnotations.indices) {
+            pageInListString += if (i == pagesAnnotations.size - 1) {
+                pagesAnnotations[i].pageName
+            } else {
+                pagesAnnotations[i].pageName + "|"
+            }
+        }
+        return listOf(
+            pageInListString
+        )
+    }
+
     companion object {
         const val FUNC_NAME_CALL_NATIVE = "callNative"
         private const val INTERFACE_NAME_DELEGATE = "Delegate"

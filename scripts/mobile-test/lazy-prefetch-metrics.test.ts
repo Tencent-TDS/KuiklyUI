@@ -58,17 +58,38 @@ describe("pickPrefetchEvidenceIndex", () => {
     expect(bad.nonIdleComposedCount).toBe(1)
   })
 
-  it("evaluateSchedulerBudget: detects over-budget execute", () => {
+  it("evaluateSchedulerBudget: legacy lines without startBudgetNs fallback to elapsed+available, never over budget", () => {
+    // 旧 trace 行（无 startBudgetNs），fallback = elapsedNs + availableNs。
+    // 这等价于"假设任务恰好把预算花完"，定义上 elapsed === startBudget，永远不会 > 它，
+    // 即 9.12 之前误报的 over-budget 案例在新口径下不再被判超支。
     const trace = [
       "LazyListPrefetchTrace executeRequest composed index=6 elapsedNs=500000 mode=pausable availableNs=1000000",
       "LazyListPrefetchTrace executeRequest composed index=7 elapsedNs=2000000 availableNs=1500000",
     ]
     const b = evaluateSchedulerBudget(trace)
     expect(b.composedTotal).toBe(2)
-    expect(b.overBudgetCount).toBe(1)
-    expect(b.overBudgetEvents[0]?.index).toBe(7)
+    expect(b.overBudgetCount).toBe(0)
     expect(b.pausableCount).toBe(1)
     expect(b.fullCount).toBe(1)
+  })
+
+  it("evaluateSchedulerBudget: with startBudgetNs detects real over-budget (elapsed > startBudget)", () => {
+    // 新 trace 行带 startBudgetNs：真超支当且仅当 elapsedNs > startBudgetNs。
+    // index=9 startBudget=1.5ms，pausable composition 实际花了 2ms ⇒ 真超支。
+    // index=8 startBudget=1ms，elapsed=600µs ⇒ 在预算内。
+    const trace = [
+      "LazyListPrefetchTrace executeRequest composed index=8 elapsedNs=600000 mode=pausable startBudgetNs=1000000 availableNs=400000",
+      "LazyListPrefetchTrace executeRequest composed index=9 elapsedNs=2000000 mode=pausable startBudgetNs=1500000 availableNs=0",
+    ]
+    const b = evaluateSchedulerBudget(trace)
+    expect(b.composedTotal).toBe(2)
+    expect(b.overBudgetCount).toBe(1)
+    expect(b.overBudgetEvents[0]?.index).toBe(9)
+    expect(b.overBudgetEvents[0]?.startBudgetNs).toBe(1500000)
+    expect(b.overBudgetEvents[0]?.elapsedNs).toBe(2000000)
+    expect(b.minStartBudgetNs).toBe(1000000)
+    expect(b.pausableCount).toBe(2)
+    expect(b.fullCount).toBe(0)
   })
 
   it("evaluateContinuation: tracks queuePending across frames", () => {

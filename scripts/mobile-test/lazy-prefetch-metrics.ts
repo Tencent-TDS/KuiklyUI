@@ -528,22 +528,36 @@ export function summarizeIdleFrameTrace(traceLines: string[], tailLines = 16): s
 export interface ExecuteComposedEvent {
   index: number
   elapsedNs: number
+  /**
+   * availableNs 是 task 完成后**剩余**预算（不是开始预算）。9.12 之前一直用它判超支是错的。
+   * 真超支判据是 `elapsedNs > startBudgetNs`（见 evaluateSchedulerBudget）。
+   */
   availableNs: number
+  /**
+   * 本次 task 开始时的预算（resetAvailableTimeTo 之后立刻读到的值）。Kotlin trace 加上
+   * `startBudgetNs=...` 字段。旧 fixture / 旧版 binary 没有这个字段，parser 会用
+   * `elapsedNs + availableNs` 兜底（即假设 elapsed 恰好等于消耗的预算，差不多保守）。
+   */
+  startBudgetNs: number
   mode: "pausable" | "full"
 }
 
 const EXECUTE_COMPOSED_DETAIL_RE =
-  /executeRequest composed index=(\d+) elapsedNs=(\d+)(?: mode=(\w+))? availableNs=(\d+|\d+\.\d+E\d+)/
+  /executeRequest composed index=(\d+) elapsedNs=(\d+)(?: mode=(\w+))?(?: startBudgetNs=(\d+))? availableNs=(\d+|\d+\.\d+E\d+)/
 
 export function parseExecuteComposedEvents(traceLines: string[]): ExecuteComposedEvent[] {
   const out: ExecuteComposedEvent[] = []
   for (const line of traceLines) {
     const m = line.match(EXECUTE_COMPOSED_DETAIL_RE)
     if (!m) continue
+    const elapsedNs = Number.parseInt(m[2], 10)
+    const availableNs = Number.parseFloat(m[5])
+    const startBudgetNs = m[4] !== undefined ? Number.parseInt(m[4], 10) : elapsedNs + availableNs
     out.push({
       index: Number.parseInt(m[1], 10),
-      elapsedNs: Number.parseInt(m[2], 10),
-      availableNs: Number.parseFloat(m[4]),
+      elapsedNs,
+      availableNs,
+      startBudgetNs,
       mode: (m[3] as "pausable" | "full" | undefined) ?? "full",
     })
   }
@@ -558,16 +572,24 @@ export interface SchedulerBudgetEvidence {
   fullCount: number
   /** Max elapsedNs ever observed. */
   maxElapsedNs: number
-  /** Min availableNs at task start (smallest budget actually accepted). */
+  /** Min startBudgetNs ever observed (smallest budget actually accepted at task start). */
+  minStartBudgetNs: number
+  /** Min remaining availableNs at task end (debugging only — 0/负数说明刚好打满或越界). */
   minAvailableNs: number
   detail: string
 }
 
 export function evaluateSchedulerBudget(traceLines: string[]): SchedulerBudgetEvidence {
   const events = parseExecuteComposedEvents(traceLines)
-  const overBudget = events.filter((e) => e.elapsedNs > e.availableNs)
+  // 真超支判据：本次任务实际耗时（elapsedNs）超过了进入任务时的预算（startBudgetNs）。
+  // availableNs 是任务结束后剩余预算，不是开始预算 —— 之前用它判会把"刚好打满预算"也算成超支。
+  const overBudget = events.filter((e) => e.elapsedNs > e.startBudgetNs)
   const pausableCount = events.filter((e) => e.mode === "pausable").length
   const maxElapsedNs = events.reduce((m, e) => Math.max(m, e.elapsedNs), 0)
+  const minStartBudgetNs = events.reduce(
+    (m, e) => Math.min(m, e.startBudgetNs),
+    Number.POSITIVE_INFINITY,
+  )
   const minAvailableNs = events.reduce(
     (m, e) => Math.min(m, e.availableNs),
     Number.POSITIVE_INFINITY,
@@ -579,12 +601,14 @@ export function evaluateSchedulerBudget(traceLines: string[]): SchedulerBudgetEv
     pausableCount,
     fullCount: events.length - pausableCount,
     maxElapsedNs,
+    minStartBudgetNs: Number.isFinite(minStartBudgetNs) ? minStartBudgetNs : 0,
     minAvailableNs: Number.isFinite(minAvailableNs) ? minAvailableNs : 0,
     detail: [
       `composed=${events.length}`,
       `overBudget=${overBudget.length}`,
       `pausable=${pausableCount}`,
       `maxElapsedNs=${maxElapsedNs}`,
+      `minStartBudgetNs=${Number.isFinite(minStartBudgetNs) ? minStartBudgetNs : "n/a"}`,
       `minAvailableNs=${Number.isFinite(minAvailableNs) ? minAvailableNs : "n/a"}`,
     ].join(", "),
   }

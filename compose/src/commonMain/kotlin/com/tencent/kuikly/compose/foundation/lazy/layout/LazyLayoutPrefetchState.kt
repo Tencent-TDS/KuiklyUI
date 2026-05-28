@@ -653,6 +653,10 @@ internal class PrefetchHandleProvider(
             // we save the value we get from availableTimeNanos() into a local variable once
             // and manually update it later by calling updateElapsedAndAvailableTime()
             resetAvailableTimeTo(availableTimeNanos())
+            // startBudgetNs 是本次 request 进入 executeRequest 时的初始预算（resetAvailableTimeTo 之后立刻
+            // 等于刚读到的 budget）。后续 elapsed/available 通过这个基准计算超支，而不是看每段
+            // updateElapsedAndAvailableTime 之后的 delta。
+            val startBudgetNs = availableTimeNanos
             if (!isComposed) {
                 if (ComposeFoundationFlags.isPausableCompositionInPrefetchEnabled) {
                     if (
@@ -662,7 +666,7 @@ internal class PrefetchHandleProvider(
                         )
                     ) {
                         trace("compose:lazy:prefetch:compose") {
-                            performPausableComposition(key, contentType, average)
+                            performPausableComposition(key, contentType, average, startBudgetNs)
                         }
                     }
                 } else {
@@ -673,7 +677,7 @@ internal class PrefetchHandleProvider(
                         updateElapsedAndAvailableTime()
                         average.saveCompositionTimeNanos(elapsedTimeNanos)
                         LazyListPrefetchTrace.log(
-                            "executeRequest composed index=$index elapsedNs=$elapsedTimeNanos availableNs=${availableTimeNanos()}",
+                            "executeRequest composed index=$index elapsedNs=$elapsedTimeNanos startBudgetNs=$startBudgetNs availableNs=${availableTimeNanos()}",
                         )
                     } else {
                         LazyListPrefetchTrace.log(
@@ -772,6 +776,7 @@ internal class PrefetchHandleProvider(
             key: Any,
             contentType: Any?,
             averages: Averages,
+            startBudgetNs: Long,
         ) {
             val composition =
                 pausedPrecomposition
@@ -806,8 +811,11 @@ internal class PrefetchHandleProvider(
             } else {
                 averages.saveResumeTimeNanos(elapsedTimeNanos)
                 if (composition.isComplete) {
+                    // elapsedTimeNanos 只是最后一段 resume 的 delta；要拿整个 pausable composition
+                    // 的真实总耗时，需要用 startBudgetNs - 当前剩余预算（availableTimeNanos 属性）。
+                    val totalElapsedNs = startBudgetNs - availableTimeNanos
                     LazyListPrefetchTrace.log(
-                        "executeRequest composed index=$index elapsedNs=$elapsedTimeNanos mode=pausable availableNs=${availableTimeNanos()}",
+                        "executeRequest composed index=$index elapsedNs=$totalElapsedNs mode=pausable startBudgetNs=$startBudgetNs availableNs=${availableTimeNanos()}",
                     )
                 }
             }

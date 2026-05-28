@@ -297,8 +297,18 @@ async function scrollList(
   const fling = opts.fling === true
   const durationMs = opts.durationMs ?? (fling ? 150 : 450)
   const settleMs = fling ? 1200 : 700
+  // area 透传给 driver：Android+fling 走 `mobile: swipeGesture` 需要真实可滚动 viewport rect，
+  // 否则 driver 会按 start/end 反推一个窄包围盒，emulator 上 release 易被判作 cancel。
   for (let i = 0; i < times; i++) {
-    await driver.scroll({ startX: centerX, startY, endX: centerX, endY, durationMs, fling })
+    await driver.scroll({
+      startX: centerX,
+      startY,
+      endX: centerX,
+      endY,
+      durationMs,
+      fling,
+      area: rect,
+    })
     await sleep(settleMs)
   }
 }

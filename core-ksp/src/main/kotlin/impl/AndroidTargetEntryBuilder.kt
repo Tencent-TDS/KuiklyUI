@@ -142,17 +142,7 @@ open class AndroidTargetEntryBuilder(val catchException: Boolean) : KuiklyCoreAb
     }
 
     override fun getCommonComments(pagesAnnotations: List<PageInfo>): List<String> {
-        var pageInListString = ""
-        for (i in pagesAnnotations.indices) {
-            pageInListString += if (i == pagesAnnotations.size - 1) {
-                pagesAnnotations[i].pageName
-            } else {
-                pagesAnnotations[i].pageName + "|"
-            }
-        }
-        return listOf(
-            pageInListString
-        )
+        return listOf(pagesAnnotations.joinToString(separator = "|") { it.pageName })
     }
 
     companion object {

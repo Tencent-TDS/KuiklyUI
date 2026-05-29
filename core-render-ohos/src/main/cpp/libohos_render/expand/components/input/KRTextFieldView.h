@@ -67,6 +67,7 @@ class KRTextFieldView : public IKRRenderViewExport {
     virtual void UpdateInputNodePlaceholderColor(const std::string &propValue);
     virtual void UpdateInputNodeColor(const std::string &propValue);
     virtual void UpdateInputNodeCaretrColor(const std::string &propValue);
+    virtual void UpdateInputNodeSelectionColor(const std::string &propValue);
     virtual void UpdateInputNodeTextAlign(const std::string &propValue);
     virtual void UpdateInputNodeFocusable(int propValue);
     virtual void UpdateInputNodeKeyboardType(const std::string &propValue);

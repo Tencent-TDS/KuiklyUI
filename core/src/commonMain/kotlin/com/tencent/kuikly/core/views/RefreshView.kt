@@ -118,11 +118,13 @@ class RefreshView : ViewContainer<RefreshAttr, RefreshEvent>(), IListViewEventOb
     override fun didMoveToParentView() {
         super.didMoveToParentView()
         scrollerView?.addScrollerViewEventObserver(this)
+        scrollerView?.setHasPullToRefresh(true)
     }
 
     override fun willRemoveFromParentView() {
         super.willRemoveFromParentView()
         scrollerView?.removeScrollerViewEventObserver(this)
+        scrollerView?.setHasPullToRefresh(false)
     }
 
     override fun createAttr(): RefreshAttr {

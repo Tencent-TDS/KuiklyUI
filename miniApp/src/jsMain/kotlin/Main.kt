@@ -28,15 +28,14 @@ fun main() {
 @JsExport
 @ExperimentalJsExport
 fun renderView(json: dynamic) {
-    // Write to global render function
-    val renderParams = FastMutableMap<String, dynamic>(json)
     // View size
     var size: SizeI? = null
     if (json.width != null && json.height != null) {
         size = SizeI(json.width.unsafeCast<Int>(), json.height.unsafeCast<Int>())
     }
 
-    MiniDocument.initPage(renderParams) { pageId: Int, pageName: String, paramsMap: FastMutableMap<String, Any> ->
+    // Pass raw json object directly to initPage, which will wrap it in FastMutableMap internally
+    MiniDocument.initPage(json) { pageId: Int, pageName: String, paramsMap: FastMutableMap<String, Any> ->
         val systemInfo = NativeApi.plat.getSystemInfoSync()
         val isAndroid = systemInfo.platform == "android"
         val params = paramsMap["param"].unsafeCast<FastMutableMap<String, Any>>()

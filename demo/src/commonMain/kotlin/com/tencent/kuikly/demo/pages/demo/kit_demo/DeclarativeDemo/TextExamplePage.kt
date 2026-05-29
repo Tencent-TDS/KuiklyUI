@@ -908,6 +908,555 @@ internal fun ViewContainer<*, *>.TextExampleLineHeight(init: TextExampleLineHeig
     addChild(TextExampleLineHeight(), init)
 }
 
+internal class TextExampleLineHeightVerticalAlignment: ComposeView<ComposeAttr, ComposeEvent>() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                flexDirectionColumn()
+                justifyContentFlexStart()
+                padding(all = 16f)
+            }
+            
+            // 标题说明
+            Text {
+                attr {
+                    text("单行文本lineHeight垂直居中问题测试")
+                    fontSize(16f)
+                    fontWeightBold()
+                    color(Color.BLACK)
+                    marginBottom(10f)
+                }
+            }
+            
+            // 测试用例1: 小字体 + 大lineHeight
+            Text {
+                attr {
+                    text("小字体(12px) + 大lineHeight(30px)")
+                    fontSize(12f)
+                    lineHeight(30f)
+                    backgroundColor(0xFFF0E68C) // 浅黄色背景
+                    height(30f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 测试用例2: 中等字体 + 大lineHeight
+            Text {
+                attr {
+                    text("中等字体(16px) + 大lineHeight(40px)")
+                    fontSize(16f)
+                    lineHeight(40f)
+                    backgroundColor(0xFFADD8E6) // 浅蓝色背景
+                    height(40f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 测试用例3: 大字体 + 大lineHeight
+            Text {
+                attr {
+                    text("大字体(24px) + 大lineHeight(50px)")
+                    fontSize(24f)
+                    lineHeight(50f)
+                    backgroundColor(0xFFFFA07A) // 浅橙色背景
+                    height(50f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 测试用例4: 正常字体 + 正常lineHeight（作为对比）
+            Text {
+                attr {
+                    text("正常字体(16px) + 正常lineHeight(20px)")
+                    fontSize(16f)
+                    lineHeight(20f)
+                    backgroundColor(0xFFEEEEEE) // 灰色背景
+                    height(20f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 测试用例5: 极端情况 - 字体很小，lineHeight很大
+            Text {
+                attr {
+                    text("极小字体(8px) + 极大lineHeight(60px)")
+                    fontSize(8f)
+                    lineHeight(60f)
+                    backgroundColor(0xFFD8BFD8) // 浅紫色背景
+                    height(60f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 测试用例6: 英文文本测试
+            Text {
+                attr {
+                    text("English Text (16px) + lineHeight(35px)")
+                    fontSize(16f)
+                    lineHeight(35f)
+                    backgroundColor(0xFF98FB98) // 浅绿色背景
+                    height(35f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 测试用例7: 混合文本测试
+            Text {
+                attr {
+                    text("中英文混合ABC中文 (18px) + lineHeight(45px)")
+                    fontSize(18f)
+                    lineHeight(45f)
+                    backgroundColor(0xFFFFD700) // 金色背景
+                    height(45f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 测试用例8: 无lineHeight设置（基准对比）
+            Text {
+                attr {
+                    text("无lineHeight设置 (16px) - 基准对比")
+                    fontSize(16f)
+                    backgroundColor(0xFFF5F5DC) // 米色背景
+                    height(20f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 说明文字
+            Text {
+                attr {
+                    text("问题描述：单行文本设置lineHeight时，文字在鸿蒙上可能显示不居中")
+                    fontSize(12f)
+                    color(Color.GRAY)
+                    marginTop(10f)
+                }
+            }
+            Text {
+                attr {
+                    text("预期效果：文字应该在背景色区域内垂直居中显示")
+                    fontSize(12f)
+                    color(Color.GRAY)
+                    marginBottom(10f)
+                }
+            }
+        }
+    }
+
+    override fun createAttr(): ComposeAttr {
+        return ComposeAttr()
+    }
+
+    override fun createEvent(): ComposeEvent {
+        return ComposeEvent()
+    }
+}
+
+internal fun ViewContainer<*, *>.TextExampleLineHeightVerticalAlignment(init: TextExampleLineHeightVerticalAlignment.() -> Unit) {
+    addChild(TextExampleLineHeightVerticalAlignment(), init)
+}
+
+internal class TextExampleLetterSpacing: ComposeView<ComposeAttr, ComposeEvent>() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                flexDirectionColumn()
+                justifyContentFlexStart()
+                padding(all = 16f)
+            }
+            Text {
+                attr {
+                    text("letterSpacing(0f)  Hello Kuikly 你好世界")
+                    fontSize(16f)
+                    letterSpacing(0f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+            Text {
+                attr {
+                    text("letterSpacing(2f)  Hello Kuikly 你好世界")
+                    fontSize(16f)
+                    letterSpacing(2f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+            Text {
+                attr {
+                    text("letterSpacing(5f)  Hello Kuikly 你好世界")
+                    fontSize(16f)
+                    letterSpacing(5f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+            Text {
+                attr {
+                    text("letterSpacing(10f) Hello Kuikly 你好世界")
+                    fontSize(16f)
+                    letterSpacing(10f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+            // Rich text with letterSpacing
+            RichText {
+                attr {
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+                Span {
+                    text("RichText span1(letterSpacing=4)  ")
+                    fontSize(16f)
+                    letterSpacing(4f)
+                }
+                Span {
+                    text("span2(letterSpacing=0)")
+                    fontSize(16f)
+                    letterSpacing(0f)
+                }
+            }
+        }
+    }
+
+    override fun createAttr(): ComposeAttr {
+        return ComposeAttr()
+    }
+
+    override fun createEvent(): ComposeEvent {
+        return ComposeEvent()
+    }
+}
+
+internal fun ViewContainer<*, *>.TextExampleLetterSpacing(init: TextExampleLetterSpacing.() -> Unit) {
+    addChild(TextExampleLetterSpacing(), init)
+}
+
+internal class TextExampleEmoji: ComposeView<ComposeAttr, ComposeEvent>() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                flexDirectionColumn()
+                justifyContentFlexStart()
+                padding(all = 16f)
+            }
+
+            // ---- Single-line: pure emoji ----
+            Text {
+                attr {
+                    text("😀😃😄😁😆😅🤣😂🙂🙃😉😊")
+                    fontSize(18f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+
+            // ---- Single-line: emoji + Chinese + English mixed ----
+            Text {
+                attr {
+                    text("Hello 🌍 你好世界 🚀 Kuikly 👋")
+                    fontSize(18f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+
+            // ---- Single-line: ZWJ family / skin-tone modifiers / flags ----
+            Text {
+                attr {
+                    text("👨‍👩‍👧‍👦 family · 👍🏻👍🏼👍🏽👍🏾👍🏿 · 🇨🇳🇨🇳🇨🇳")
+                    fontSize(18f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+
+            // ---- Single-line: emoji + letterSpacing ----
+            Text {
+                attr {
+                    text("letterSpacing(4) 🍎🍊🍋🍌🍉 Hi")
+                    fontSize(16f)
+                    letterSpacing(4f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+
+            // ---- Multi-line via "\n" ----
+            Text {
+                attr {
+                    text("第一行 😀 Hello\n第二行 🚀 Kuikly\n第三行 🌍 你好世界")
+                    fontSize(18f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+
+            // ---- Multi-line via word-break (long content + narrow width) ----
+            Text {
+                attr {
+                    text("这是一段较长的包含emoji的文本😀😃😄😁，用于演示自动折行时的高度测量是否准确🚀🌍👋，再加点内容保证一定会换到第三行甚至第四行🍎🍊🍋🍌🍉。")
+                    fontSize(15f)
+                    lineHeight(22f)
+                    backgroundColor(0xFFF0E68C)
+                    marginBottom(5f)
+                }
+            }
+
+            // ---- Multi-line: long pure emoji string ----
+            Text {
+                attr {
+                    text("😀😃😄😁😆😅🤣😂🙂🙃😉😊😇🥰😍🤩😘😗😚😙🥲😋😛😜🤪😝🤑🤗🤭🤫🤔")
+                    fontSize(20f)
+                    backgroundColor(0xFFADD8E6)
+                    marginBottom(5f)
+                }
+            }
+
+            // ---- Rich text: emoji across multiple spans, mixed font size ----
+            RichText {
+                attr {
+                    backgroundColor(0xFFFFA07A)
+                    marginBottom(5f)
+                    lineHeight(24f)
+                }
+                Span {
+                    fontSize(14f)
+                    text("RichText ")
+                }
+                Span {
+                    fontSize(20f)
+                    color(Color(0xFFEE3333))
+                    text("含 emoji 😀 ")
+                }
+                Span {
+                    fontSize(16f)
+                    text("跨段落混排 🚀 你好 🌍 ")
+                }
+                Span {
+                    fontSize(22f)
+                    fontWeightBold()
+                    text("Kuikly 👋👨‍👩‍👧‍👦")
+                }
+            }
+
+            // ---- Rich text: forces multiple lines + emoji ----
+            RichText {
+                attr {
+                    backgroundColor(0xFFF0E68C)
+                    marginBottom(5f)
+                    lineHeight(20f)
+                }
+                Span {
+                    fontSize(15f)
+                    text("RichText 多行 emoji 测量验证：😀😃😄😁😆😅🤣😂🙂🙃，")
+                }
+                Span {
+                    fontSize(18f)
+                    color(Color(0xFF205AEF))
+                    text("中间一段大字号 🌍🚀，")
+                }
+                Span {
+                    fontSize(15f)
+                    text("再回到正常字号 👋 让总宽度足够换到第三行 🍎🍊🍋🍌🍉。")
+                }
+            }
+        }
+    }
+
+    override fun createAttr(): ComposeAttr {
+        return ComposeAttr()
+    }
+
+    override fun createEvent(): ComposeEvent {
+        return ComposeEvent()
+    }
+}
+
+internal fun ViewContainer<*, *>.TextExampleEmoji(init: TextExampleEmoji.() -> Unit) {
+    addChild(TextExampleEmoji(), init)
+}
+
+internal class TextExampleLineBreakMargin: ComposeView<ComposeAttr, ComposeEvent>() {
+    private var lineBreakTriggered1 by com.tencent.kuikly.core.reactive.handler.observable(false)
+    private var lineBreakTriggered2 by com.tencent.kuikly.core.reactive.handler.observable(false)
+    private var lineBreakTriggeredRich by com.tencent.kuikly.core.reactive.handler.observable(false)
+
+    override fun body(): ViewBuilder {
+        val ctx = this
+        return {
+            attr {
+                flexDirectionColumn()
+                justifyContentFlexStart()
+                padding(all = 16f)
+            }
+            // Example 1: 2 lines + lineBreakMargin(80), long text triggers onLineBreakMargin
+            Text {
+                attr {
+                    text("这是一段用于演示 lineBreakMargin 的较长文本，" +
+                        "当最后一行右侧预留 80 的空白区域后，如果文本被折叠则会触发 onLineBreakMargin 事件。" +
+                        "再多写一些内容保证会换行到第二行被截断。")
+                    fontSize(15f)
+                    color(Color.BLACK)
+                    lines(2)
+                    lineHeight(20f)
+                    lineBreakMargin(80f)
+                    backgroundColor(0xFFF0E68C)
+                    marginBottom(5f)
+                }
+                event {
+                    onLineBreakMargin {
+                        ctx.lineBreakTriggered1 = true
+                        KLog.i("TextExamplePage", "Example1 onLineBreakMargin fired")
+                    }
+                }
+            }
+            Text {
+                attr {
+                    text("Example1 onLineBreakMargin 已触发: ${ctx.lineBreakTriggered1}")
+                    fontSize(13f)
+                    color(Color.GRAY)
+                    marginBottom(10f)
+                }
+            }
+
+            // Example 2: short text, not enough to wrap, onLineBreakMargin should NOT fire
+            Text {
+                attr {
+                    text("短文本 lineBreakMargin(80)")
+                    fontSize(15f)
+                    color(Color.BLACK)
+                    lines(2)
+                    lineHeight(20f)
+                    lineBreakMargin(80f)
+                    backgroundColor(0xFFADD8E6)
+                    marginBottom(5f)
+                }
+                event {
+                    onLineBreakMargin {
+                        ctx.lineBreakTriggered2 = true
+                        KLog.i("TextExamplePage", "Example2 onLineBreakMargin fired (unexpected)")
+                    }
+                }
+            }
+            Text {
+                attr {
+                    text("Example2 onLineBreakMargin 已触发: ${ctx.lineBreakTriggered2}")
+                    fontSize(13f)
+                    color(Color.GRAY)
+                    marginBottom(10f)
+                }
+            }
+
+            // Example 3: different margin values
+            Text {
+                attr {
+                    text("lineBreakMargin(40)：" +
+                        "这是一段文本用于演示不同的右侧预留宽度效果，" +
+                        "预留 40 时最后一行右边会有较小的空白区域。" +
+                        "再加点内容保证超过两行被截断显示省略号。")
+                    fontSize(15f)
+                    color(Color.BLACK)
+                    lines(2)
+                    lineHeight(20f)
+                    lineBreakMargin(40f)
+                    backgroundColor(0xFFFFA07A)
+                    marginBottom(5f)
+                }
+            }
+            Text {
+                attr {
+                    text("lineBreakMargin(120)：" +
+                        "这是一段文本用于演示不同的右侧预留宽度效果，" +
+                        "预留 120 时最后一行右边会有较大的空白区域，可以用于放置\"查看更多\"按钮。" +
+                        "再加点内容保证超过两行被截断显示省略号。")
+                    fontSize(15f)
+                    color(Color.BLACK)
+                    lines(2)
+                    lineHeight(20f)
+                    lineBreakMargin(120f)
+                    backgroundColor(0xFFFFA07A)
+                    marginBottom(5f)
+                }
+            }
+
+            // Example 4: RichText with lineBreakMargin + onLineBreakMargin
+            RichText {
+                attr {
+                    lines(2)
+                    lineHeight(20f)
+                    lineBreakMargin(100f)
+                    backgroundColor(0xFFF0E68C)
+                    marginBottom(5f)
+                }
+                Span {
+                    text("RichText+lineBreakMargin(100)：")
+                    fontSize(15f)
+                    color(Color(0xFFEE3333))
+                    fontWeightBold()
+                }
+                Span {
+                    text("这里演示富文本在最后一行右侧预留 100 宽度的空白区域，")
+                    fontSize(15f)
+                    color(Color.BLACK)
+                }
+                // TODO: 临时注释，因为ImageSpan刚好落在lineBreakMargin预留区时不会被裁剪
+                // ImageSpan {
+                //     size(20f, 20f)
+                //     src("https://wfiles.gtimg.cn/wuji_dashboard/xy/starter/be8ff284.png")
+                //     borderRadius(4f)
+                // }
+                Span {
+                    text("当文本+图片的总长度超过两行时，会被折叠并触发 onLineBreakMargin 事件，")
+                    fontSize(15f)
+                    color(Color.BLACK)
+                }
+                Span {
+                    text("可在右侧预留区域放置\"展开\"按钮。")
+                    fontSize(15f)
+                    color(Color(0xFF3377FF))
+                    textDecorationUnderLine()
+                }
+                event {
+                    onLineBreakMargin {
+                        ctx.lineBreakTriggeredRich = true
+                        KLog.i("TextExamplePage", "RichText onLineBreakMargin fired")
+                    }
+                }
+            }
+            Text {
+                attr {
+                    text("RichText onLineBreakMargin 已触发: ${ctx.lineBreakTriggeredRich}")
+                    fontSize(13f)
+                    color(Color.GRAY)
+                    marginBottom(10f)
+                }
+            }
+        }
+    }
+
+    override fun createAttr(): ComposeAttr {
+        return ComposeAttr()
+    }
+
+    override fun createEvent(): ComposeEvent {
+        return ComposeEvent()
+    }
+}
+
+internal fun ViewContainer<*, *>.TextExampleLineBreakMargin(init: TextExampleLineBreakMargin.() -> Unit) {
+    addChild(TextExampleLineBreakMargin(), init)
+}
+
 @Page("TextExamplePage")
 internal class TextExamplePage: BasePager() {
     override fun body(): ViewBuilder {
@@ -937,6 +1486,14 @@ internal class TextExamplePage: BasePager() {
                 TextExampleRichText {  }
                 ViewExampleSectionHeader { attr { title = "LineHeight" } }
                 TextExampleLineHeight {  }
+                ViewExampleSectionHeader { attr { title = "LetterSpacing" } }
+                TextExampleLetterSpacing {  }
+                ViewExampleSectionHeader { attr { title = "Emoji" } }
+                TextExampleEmoji {  }
+                ViewExampleSectionHeader { attr { title = "LineBreakMargin & onLineBreakMargin" } }
+                TextExampleLineBreakMargin {  }
+                ViewExampleSectionHeader { attr { title = "单行文本lineHeight垂直居中问题测试" } }
+                TextExampleLineHeightVerticalAlignment {  }
             }
         }
     }

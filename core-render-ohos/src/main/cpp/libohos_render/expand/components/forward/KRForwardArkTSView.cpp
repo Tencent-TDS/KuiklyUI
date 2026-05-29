@@ -25,8 +25,8 @@ void KRForwardArkTSView::DidInit() {
     KRArkTSManager::GetInstance().CallArkTSMethod(
         GetInstanceId(), KRNativeCallArkTSMethod::CreateView, KRRenderValue::Make(GetViewTag()),
         KRRenderValue::Make(GetViewName()), nullptr, nullptr, nullptr, nullptr);
-    // 设置ARKUI_HIT_TEST_MODE_NONE,否则ForwardArkTSView会遮挡同层级事件
-    kuikly::util::UpdateNodeHitTestMode(GetNode(), ARKUI_HIT_TEST_MODE_NONE);
+    // 设置 ARKUI_HIT_TEST_MODE_TRANSPARENT, ForwardArkTSView 不会遮挡同层级事件
+    kuikly::util::UpdateNodeHitTestMode(GetNode(), ARKUI_HIT_TEST_MODE_TRANSPARENT);
 }
 
 void KRForwardArkTSView::OnDestroy() {
@@ -83,6 +83,16 @@ void KRForwardArkTSView::SetRenderViewFrame(const KRRect &frame) {
  * view添加到父节点中后调用
  */
 void KRForwardArkTSView::DidMoveToParentView() {
+    // If ark_node_ already exists, this is a re-parent (movableContent move).
+    // Skip re-creating ComponentContent — the existing one moved with the STACK node.
+    if (ark_node_ != nullptr) {
+        // Still notify ArkTS side so it can resume state (e.g. video playback)
+        KRArkTSManager::GetInstance().CallArkTSMethod(GetInstanceId(),
+                                                      KRNativeCallArkTSMethod::DidMoveToParentView,
+                                                      KRRenderValue::Make(GetViewTag()), nullptr,
+                                                      nullptr, nullptr, nullptr, nullptr);
+        return;
+    }
     if (auto rootView = GetRootView().lock()) {
         auto uiContext = rootView->GetUIContextHandle();
         if (!uiContext) {

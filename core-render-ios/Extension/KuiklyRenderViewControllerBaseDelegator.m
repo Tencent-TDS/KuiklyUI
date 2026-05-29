@@ -173,7 +173,7 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
 
 #pragma mark - private
 
-- (KuiklyBaseContextMode *)createContextMode:(NSString * _Nullable) contextCode {
+- (KuiklyBaseContextMode *)createContextMode:(id _Nullable)contextCode {
     return [[KuiklyBaseContextMode alloc] initFrameworkMode];
 }
 
@@ -189,7 +189,7 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     }
 }
 
-- (void)initRenderViewWithContextCode:(NSString *)contextCode {
+- (void)initRenderViewWithContextCode:(id)contextCode {
     [self p_disptachDelegatorLifeCycleWithSel:@selector(willInitRenderView) object:nil];
     NSURL *resourceFolderUrl = nil;
     if ([self.delegate respondsToSelector:@selector(resourceFolderUrlForKuikly:)]) {
@@ -220,8 +220,9 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     }
     [_renderView didCreateRenderView];
     if (!_renderView.subviews.count) {
-        if ([self shouldSyncRenderingView:
-             [KuiklyRenderFrameworkContextHandler isFrameworkWithContextCode:contextCode]]) {
+        BOOL isFramework = [contextCode isKindOfClass:[NSString class]] &&
+            [KuiklyRenderFrameworkContextHandler isFrameworkWithContextCode:(NSString *)contextCode];
+        if ([self shouldSyncRenderingView:isFramework]) {
             [_renderView syncFlushAllRenderTasks]; // 同步渲染
         }
     }
@@ -256,16 +257,19 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
         }
     });
     [self p_disptachDelegatorLifeCycleWithSel:@selector(willFetchContextCode) object:nil];
-    [self fetchContextCodeWithResultCallback:^(NSString * _Nullable contextCode, NSError * _Nullable error) {
+    [self fetchContextCodeWithResultCallback:^(id _Nullable contextCode, NSError * _Nullable error) {
         if (!weakSelf) {
             return;
         }
+        // 判断 contextCode 是否有实质内容
+        BOOL hasContent = !error && [contextCode respondsToSelector:@selector(length)] && [contextCode length] > 0;
+
         [weakSelf p_performOnMainThreadWithBlock:^{
             weakSelf.contextMode = [weakSelf createContextMode:contextCode];
             [weakSelf p_disptachDelegatorLifeCycleWithSel:@selector(didFetchContextCode) object:nil];
             weakSelf.fetchContextCoding = NO;
             [weakSelf p_hideAllStatusView];
-            if (contextCode.length) {
+            if (hasContent) {
                 [weakSelf initRenderViewWithContextCode:contextCode];
             } else {
                 [weakSelf p_showErrorView];

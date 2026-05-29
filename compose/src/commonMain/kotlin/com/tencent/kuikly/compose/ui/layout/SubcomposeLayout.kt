@@ -264,7 +264,17 @@ fun SubcomposeLayout(
                     val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
                     // 实现分页滑动
                     val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
-                    if ((offset <= 0 && scrollableState.isAtTop()) || (offset >= (kuiklyInfo.currentContentSize - viewportSize) && scrollableState.lastItemVisible())) {
+                    val targetOffset = if (isVertical) {
+                        scaleParams.targetContentOffsetY.toInt()
+                    } else {
+                        scaleParams.targetContentOffsetX.toInt()
+                    }
+                    val maxOffset = kuiklyInfo.currentContentSize - viewportSize
+                    val isAtTop = scrollableState.isAtTop()
+                    val lastItemVisible = scrollableState.lastItemVisible()
+                    val guardStart = offset <= 0 && isAtTop && targetOffset <= offset
+                    val guardEnd = offset >= maxOffset && lastItemVisible && targetOffset >= offset
+                    if (guardStart || guardEnd) {
                         return@willDragEndBySync
                     }
                     scrollableState.kuiklyWillDragEnd(scaleParams, orientation)
@@ -274,10 +284,17 @@ fun SubcomposeLayout(
                 val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
                 val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
                 kuiklyInfo.contentOffset = offset
+                (scrollableState as? PagerState)?.onNativeContentOffsetChanged(offset)
 
                 // 仅触摸滑动结束会回调，api调用和bounce回弹都不会触发
                 // / back是回滑,forward是前滑
                 scrollableState.kuiklyOnScrollEnd(scaleParams)
+            }
+            dragEnd {
+                val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
+                val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
+                kuiklyInfo.contentOffset = offset
+                kuiklyInfo.isDragging = kuiklyInfo.scrollView?.isDragging ?: false
             }
             scroll {
                 val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
@@ -285,6 +302,9 @@ fun SubcomposeLayout(
 
                 val prevOffset = kuiklyInfo.contentOffset
                 kuiklyInfo.contentOffset = offset
+                (scrollableState as? PagerState)?.onNativeContentOffsetChanged(offset)
+                kuiklyInfo.isDragging = kuiklyInfo.scrollView?.isDragging ?: false
+
                 if (kuiklyInfo.ignoreScrollOffset != null) {
                     val ignoreOffset = kuiklyInfo.ignoreScrollOffset!!
                     val epsilon = 0.5 * kuiklyInfo.getDensity()  // 使用 0.5dp 作为误差值

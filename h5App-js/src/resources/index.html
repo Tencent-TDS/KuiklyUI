@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Kuikly-Web-Render (JavaScript)</title>
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+</head>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    
+    body {
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+            'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+    
+    /* 隐藏输入框边框的样式 */
+    input:focus {
+        outline: none;
+    }
+    
+    /* toast提示框的样式 */
+    .toast-wrapper {
+        position: fixed;
+        z-index: 100000;
+        height: 30px;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        top: 70px;
+        background-color: transparent;
+        pointer-events: none;
+    }
+    
+    .toast-content {
+        display: flex;
+        font-size: 12px;
+        line-height: 30px;
+        min-width: 150px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        justify-content: center;
+        background-color: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 0 15px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+    
+    /* loading加载样式 */
+    .loading-wrapper {
+        position: fixed;
+        z-index: 100001;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+    
+    .loading-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background-color: white;
+        padding: 20px;
+        border-radius: 8px;
+        min-width: 120px;
+    }
+    
+    .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3498db;
+        border-radius: 50%;
+        animation: activityIndicatorRotate 1s linear infinite;
+    }
+    
+    .loading-message {
+        margin-top: 10px;
+        font-size: 14px;
+        color: #333;
+    }
+    
+    /* 隐藏滚动条的样式 */
+    .list-no-scrollbar {
+        scrollbar-width: none;
+    }
+    
+    .list-no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    
+    /* 转菊花的动画样式 */
+    @keyframes activityIndicatorRotate {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    /* Root container */
+    #root {
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+    }
+    
+    /* Custom view styles */
+    .kr-my-view {
+        width: 100%;
+        height: auto;
+    }
+    
+    .kr-web-view {
+        width: 100%;
+        height: 100%;
+    }
+    
+    .kuikly-page-view {
+        width: 100%;
+        height: 100%;
+    }
+</style>
+<body>
+<div id="root"></div>
+
+<!-- Bundle Configuration -->
+<script src="bundle-config.js"></script>
+
+<!-- Preload critical resources -->
+<link rel="preload" href="libs/KuiklyCore-render-web-h5.js" as="script">
+
+<!-- Enhanced Bundle Loader with Dependency Management -->
+<script>
+  /**
+   * 增强的 Bundle 加载管理器
+   * 支持依赖管理、并行加载、错误重试等功能
+   */
+  class EnhancedBundleLoader {
+    constructor() {
+      this.loadedBundles = new Set();
+      this.loadingPromises = new Map();
+      this.failedBundles = new Set();
+      this.config = window.BundleConfig;
+      
+      // 加载统计
+      this.stats = {
+        totalBundles: 0,
+        loadedBundles: 0,
+        failedBundles: 0,
+        startTime: null,
+        endTime: null
+      };
+      
+      // 性能监控
+      this.performanceMarks = {
+        bundlesStart: null,
+        bundlesEnd: null,
+        kuiklyCoreStart: null,
+        kuiklyCoreEnd: null,
+        pageStart: null,
+        pageEnd: null
+      };
+    }
+    
+    /**
+     * 加载单个 bundle 文件
+     */
+    loadBundle(bundlePath, retryCount = 0) {
+      if (this.loadedBundles.has(bundlePath)) {
+        return Promise.resolve();
+      }
+      
+      if (this.loadingPromises.has(bundlePath)) {
+        return this.loadingPromises.get(bundlePath);
+      }
+      
+      const promise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = `bundles/${bundlePath}`;
+        script.type = 'text/javascript';
+        script.async = false; // 确保执行顺序
+        
+        // 设置加载超时
+        const timeout = setTimeout(() => {
+          script.onload = null;
+          script.onerror = null;
+          if (script.parentNode) {
+            document.head.removeChild(script);
+          }
+          reject(new Error(`Bundle load timeout: ${bundlePath}`));
+        }, 10000);
+        
+        script.onload = () => {
+          clearTimeout(timeout);
+          this.loadedBundles.add(bundlePath);
+          this.loadingPromises.delete(bundlePath);
+          this.stats.loadedBundles++;
+          resolve();
+        };
+        
+        script.onerror = () => {
+          clearTimeout(timeout);
+          this.loadingPromises.delete(bundlePath);
+          
+          if (retryCount < 1) {
+            setTimeout(() => {
+              this.loadBundle(bundlePath, retryCount + 1).then(resolve).catch(reject);
+            }, 500);
+          } else {
+            this.failedBundles.add(bundlePath);
+            this.stats.failedBundles++;
+            reject(new Error(`Failed to load bundle: ${bundlePath}`));
+          }
+        };
+        
+        document.head.appendChild(script);
+      });
+      
+      this.loadingPromises.set(bundlePath, promise);
+      return promise;
+    }
+    
+    /**
+     * 并行加载多个bundle（用于没有依赖关系的bundle）
+     */
+    async loadBundlesParallel(bundlePaths) {
+      const promises = bundlePaths.map(path => this.loadBundle(path));
+      return Promise.all(promises);
+    }
+    
+    /**
+     * 按顺序加载bundle（用于有依赖关系的bundle）
+     */
+    async loadBundlesSequential(bundlePaths) {
+      for (const bundlePath of bundlePaths) {
+        await this.loadBundle(bundlePath);
+      }
+    }
+    
+    /**
+     * 动态发现 bundles 目录下的文件
+     * 从 manifest.json 加载文件列表
+     */
+    async discoverBundles() {
+      console.log('[Bundle Loader] 🔍 开始动态发现 bundle 文件...');
+      
+      try {
+        const response = await fetch('bundles/manifest.json');
+        if (response.ok) {
+          const manifest = await response.json();
+          console.log('[Bundle Loader] ✓ 从 manifest.json 加载文件列表:', manifest.fileCount, '个文件');
+
+          // 公共依赖（用于排序+加载）
+          this.discoveredBundles = manifest.files || [];
+
+          // 页面 bundle（用于 page_name -> 文件名，支持带 hash）
+          // 不兼容旧 manifest：要求 manifest.pages 必须存在
+          this.pageBundles = manifest.pages;
+          if (!this.pageBundles || typeof this.pageBundles !== 'object') {
+            throw new Error('manifest.pages missing');
+          }
+
+          return this.discoveredBundles;
+        } else {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+      } catch (error) {
+        console.error('[Bundle Loader] ❌ 无法加载 manifest.json:', error.message);
+        console.error('[Bundle Loader] 请运行: node scripts/generate-manifest.js');
+        throw new Error('Bundle manifest 加载失败，无法继续');
+      }
+    }
+    
+    /**
+     * 根据规则对 bundle 文件排序
+     */
+    sortBundlesByRules(bundles) {
+      const rules = this.config.dynamicLoadingOrder || [];
+      
+      const sorted = [];
+      const remaining = [...bundles];
+      
+      // 按照规则顺序匹配
+      for (const rule of rules) {
+        for (let i = remaining.length - 1; i >= 0; i--) {
+          if (rule.test(remaining[i])) {
+            sorted.push(remaining[i]);
+            remaining.splice(i, 1);
+          }
+        }
+      }
+      
+      // 未匹配的文件放在最后
+      sorted.push(...remaining);
+      
+      console.log('[Bundle Loader] 📋 排序后的加载顺序:', sorted);
+      return sorted;
+    }
+    
+    /**
+     * 智能加载公共依赖
+     * 最大化并行加载以提升性能
+     */
+    async loadCommonDependencies() {
+      console.log('[Bundle Loader] 开始加载公共依赖...');
+      this.stats.startTime = Date.now();
+      this.performanceMarks.bundlesStart = performance.now();
+      
+      // 动态发现并排序
+      const discovered = await this.discoverBundles();
+      const dependencies = this.sortBundlesByRules(discovered);
+      
+      this.stats.totalBundles += dependencies.length;
+      
+      try {
+        if (this.config.enableParallelLoading) {
+          // 更激进的并行加载策略
+          const runtimeDeps = dependencies.slice(0, 1);     // runtime (必须最先)
+          const kotlinCoreDeps = dependencies.slice(1, 3);  // kotlin核心 (必须在标准库前)
+          const restDeps = dependencies.slice(3);           // 其余所有依赖 (尽可能并行)
+          
+          await this.loadBundlesSequential(runtimeDeps);
+          await this.loadBundlesSequential(kotlinCoreDeps);
+          
+          // 其余所有依赖尽可能并行加载
+          await this.loadBundlesParallel(restDeps);
+          
+        } else {
+          // 按顺序加载所有依赖
+          await this.loadBundlesSequential(dependencies);
+        }
+        
+        this.performanceMarks.bundlesEnd = performance.now();
+        const bundlesTime = this.performanceMarks.bundlesEnd - this.performanceMarks.bundlesStart;
+        console.log(`[Bundle Loader] ✅ 所有公共依赖加载完成 (${bundlesTime.toFixed(2)}ms)`);
+      } catch (error) {
+        console.error('[Bundle Loader] ❌ 公共依赖加载失败:', error);
+        throw error;
+      }
+    }
+    
+    /**
+     * 加载 KuiklyCore 主库
+     */
+    async loadKuiklyCoreMainLib() {
+      this.performanceMarks.kuiklyCoreStart = performance.now();
+      
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'libs/KuiklyCore-render-web-h5.js';
+        script.type = 'text/javascript';
+        script.async = false;
+        
+        script.onload = () => {
+          this.performanceMarks.kuiklyCoreEnd = performance.now();
+          const kuiklyCoreTime = this.performanceMarks.kuiklyCoreEnd - this.performanceMarks.kuiklyCoreStart;
+          console.log(`[Bundle Loader] ✅ KuiklyCore 主库加载成功 (${kuiklyCoreTime.toFixed(2)}ms)`);
+          // 主库加载完成后，立即检查初始化状态
+          this.checkKuiklyCoreReady().then(resolve).catch(reject);
+        };
+        
+        script.onerror = () => {
+          console.error('[Bundle Loader] ❌ KuiklyCore 主库加载失败');
+          reject(new Error('Failed to load KuiklyCore main library'));
+        };
+        
+        document.head.appendChild(script);
+      });
+    }
+    
+    /**
+     * 检查 KuiklyCore 是否就绪
+     */
+    async checkKuiklyCoreReady() {
+      // 立即检查一次
+      if (this.isKuiklyCoreReady()) {
+        return;
+      }
+      
+      return new Promise((resolve) => {
+        let checkCount = 0;
+        const maxChecks = 10;
+        
+        const checkInterval = setInterval(() => {
+          checkCount++;
+          
+          if (this.isKuiklyCoreReady()) {
+            clearInterval(checkInterval);
+            resolve();
+          } else if (checkCount >= maxChecks) {
+            clearInterval(checkInterval);
+            resolve(); // 直接继续，不等待
+          }
+        }, 50);
+      });
+    }
+    
+    /**
+     * 检查 KuiklyCore 是否完全就绪
+     */
+    isKuiklyCoreReady() {
+      try {
+        // 检查 Kotlin 标准库
+        const hasKotlinStdlib = typeof window.kotlin !== 'undefined';
+        
+        // 检查 Kuikly 核心模块
+        const hasKuiklyCore = typeof window.com !== 'undefined' 
+          && typeof window.com.tencent !== 'undefined' 
+          && typeof window.com.tencent.kuikly !== 'undefined'
+          && typeof window.com.tencent.kuikly.core !== 'undefined'
+          && typeof window.com.tencent.kuikly.core.render !== 'undefined'
+          && typeof window.com.tencent.kuikly.core.render.web !== 'undefined';
+        
+        // 检查关键函数
+        const hasSetIgnoreMethod = window.kuiklyWindow && 
+            window.kuiklyWindow.com && 
+            window.kuiklyWindow.com.tencent && 
+            window.kuiklyWindow.com.tencent.kuikly && 
+            window.kuiklyWindow.com.tencent.kuikly.core &&
+            typeof window.kuiklyWindow.com.tencent.kuikly.core.setIsIgnoreRenderViewForFlatLayer === 'function';
+        
+        return hasKotlinStdlib && hasKuiklyCore && hasSetIgnoreMethod;
+      } catch (error) {
+        return false;
+      }
+    }
+    
+    /**
+     * 加载页面特定的 bundle
+     */
+    async loadPageBundle(pageName) {
+      if (!pageName) {
+        console.warn('[Bundle Loader] 未找到 page_name 参数，无法加载页面 bundle');
+        return;
+      }
+      
+      this.performanceMarks.pageStart = performance.now();
+      
+      // 检查页面是否有特殊依赖
+      const pageDeps = this.config.pageDependencies[pageName];
+      if (pageDeps && pageDeps.length > 0) {
+        console.log(`[Bundle Loader] 加载页面特殊依赖: ${pageDeps.join(', ')}`);
+        this.stats.totalBundles += pageDeps.length;
+        await this.loadBundlesSequential(pageDeps);
+      }
+      
+      // 加载页面bundle（优先使用 manifest.pages 精确映射）
+      const pageBundlePath = this.getPageBundlePath(pageName);
+      if (!pageBundlePath) {
+        throw new Error(`Page bundle not found for: ${pageName}`);
+      }
+
+      this.stats.totalBundles += 1;
+      
+      try {
+        await this.loadBundle(pageBundlePath);
+        this.performanceMarks.pageEnd = performance.now();
+        const pageTime = this.performanceMarks.pageEnd - this.performanceMarks.pageStart;
+        console.log(`[Bundle Loader] ✅ 页面 bundle 加载成功 (${pageTime.toFixed(2)}ms)`);
+      } catch (error) {
+        console.error(`[Bundle Loader] ❌ 页面 bundle 加载失败: ${pageBundlePath}`, error);
+        throw error;
+      }
+    }
+
+    /**
+     * 获取页面 bundle 文件名
+     * 仅支持新版 manifest：必须提供 manifest.pages 的精确映射。
+     */
+    getPageBundlePath(pageName) {
+      return (this.pageBundles && this.pageBundles[pageName]) ? this.pageBundles[pageName] : null;
+    }
+    
+    /**
+     * 预加载指定的bundle
+     */
+    async preloadBundles() {
+      const preloadList = this.config.preloadBundles;
+      if (preloadList && preloadList.length > 0) {
+        console.log(`[Bundle Loader] 预加载 bundles: ${preloadList.join(', ')}`);
+        try {
+          await this.loadBundlesParallel(preloadList);
+        } catch (error) {
+          console.warn('[Bundle Loader] 预加载失败，但不影响主流程:', error);
+        }
+      }
+    }
+    
+    /**
+     * 完整的加载流程
+     */
+    async loadPage() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const pageName = urlParams.get('page_name');
+      
+      try {
+        console.log('[Bundle Loader] 🚀 开始页面加载流程...');
+        
+        // 并行启动所有加载任务
+        const bundlePromise = this.loadCommonDependencies();
+        const pageNameReady = Promise.resolve(pageName);
+        
+        // 等待bundle依赖完成
+        await bundlePromise;
+        
+        // 立即并行加载KuiklyCore主库和页面bundle
+        const [, pageNameResult] = await Promise.all([
+          this.loadKuiklyCoreMainLib(),
+          pageNameReady
+        ]);
+        
+        // 加载页面bundle
+        await this.loadPageBundle(pageNameResult);
+        
+        this.stats.endTime = Date.now();
+        const loadTime = this.stats.endTime - this.stats.startTime;
+        
+        // 详细的性能报告
+        const bundlesTime = this.performanceMarks.bundlesEnd - this.performanceMarks.bundlesStart;
+        const kuiklyCoreTime = this.performanceMarks.kuiklyCoreEnd - this.performanceMarks.kuiklyCoreStart;
+        const pageTime = this.performanceMarks.pageEnd - this.performanceMarks.pageStart;
+        
+        console.log('[Bundle Loader] 🎉 页面加载完成');
+        console.log(`[Bundle Loader] 📊 加载统计: 总计 ${this.stats.totalBundles} 个bundle, 成功 ${this.stats.loadedBundles} 个, 失败 ${this.stats.failedBundles} 个, 总耗时 ${loadTime}ms`);
+        console.log(`[Bundle Loader] ⏱️ 性能分析:`);
+        console.log(`  - Bundle依赖: ${bundlesTime.toFixed(2)}ms`);
+        console.log(`  - KuiklyCore主库: ${kuiklyCoreTime.toFixed(2)}ms`);
+        console.log(`  - 页面Bundle: ${pageTime.toFixed(2)}ms`);
+        
+        // 触发页面加载完成事件
+        window.dispatchEvent(new CustomEvent('bundleLoadComplete', {
+          detail: {
+            pageName,
+            stats: this.stats,
+            loadTime
+          }
+        }));
+        
+        // 通知主应用可以开始执行
+        window.kuiklyBundlesReady = true;
+        
+        // 如果主应用已经尝试执行但被阻止，现在立即重新执行
+        if (window.kuiklyMainPending) {
+          if (typeof window.kuiklyMainFunction === 'function') {
+            window.kuiklyMainFunction();
+          }
+        }
+        
+      } catch (error) {
+        console.error('[Bundle Loader] 💥 页面加载失败:', error);
+        
+        // 触发页面加载失败事件
+        window.dispatchEvent(new CustomEvent('bundleLoadError', {
+          detail: {
+            pageName,
+            error,
+            stats: this.stats
+          }
+        }));
+      }
+    }
+    
+    /**
+     * 获取加载状态
+     */
+    getLoadStatus() {
+      return {
+        loaded: Array.from(this.loadedBundles),
+        failed: Array.from(this.failedBundles),
+        loading: Array.from(this.loadingPromises.keys()),
+        stats: this.stats
+      };
+    }
+  }
+  
+  // 创建全局 bundle 加载器实例
+  window.bundleLoader = new EnhancedBundleLoader();
+  
+  // 在 DOM 加载完成后执行
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => window.bundleLoader.loadPage());
+  } else {
+    window.bundleLoader.loadPage();
+  }
+  
+  // 提供简化的调试方法
+  window.getBundleStatus = () => window.bundleLoader.getLoadStatus();
+</script>
+
+<!-- Application code will be injected here by webpack -->
+</body>
+</html>

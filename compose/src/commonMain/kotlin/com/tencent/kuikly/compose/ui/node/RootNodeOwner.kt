@@ -394,14 +394,13 @@ internal class RootNodeOwner(
                     snapshotInvalidationTracker.requestDraw()
                 },
                 drawBlock = drawBlock,
+                view = view,
                 onDestroy = { needClearObservations = true },
             )
 
         override fun onSemanticsChange() {
 //            platformContext.semanticsOwnerListener?.onSemanticsChange(semanticsOwner)
-            if (isSemanticsRunnnng) {
-                semanticsKuiklyHandler.onSemanticsChange(semanticsOwner)
-            }
+            semanticsKuiklyHandler.onSemanticsChange(semanticsOwner)
         }
 
         override fun onZIndexChange(layoutNode: LayoutNode) {

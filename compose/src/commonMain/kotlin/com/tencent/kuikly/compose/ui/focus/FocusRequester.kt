@@ -53,6 +53,12 @@ class FocusRequester {
     internal val focusRequesterNodes: MutableVector<FocusRequesterModifierNode> = mutableVectorOf()
 
     /**
+     * 检查是否有已 attach 的 FocusRequesterNode。
+     * 用于在 LazyList 复用场景下，判断 focusRequester 是否已就绪，避免在 node 未 attach 时盲目 requestFocus。
+     */
+    internal fun hasAttachedNodes(): Boolean = focusRequesterNodes.isNotEmpty()
+
+    /**
      * Use this function to request focus. If the system grants focus to a component associated
      * with this [FocusRequester], its [onFocusChanged] modifiers will receive a [FocusState] object
      * where [FocusState.isFocused] is true.

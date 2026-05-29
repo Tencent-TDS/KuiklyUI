@@ -23,6 +23,8 @@ NS_ASSUME_NONNULL_BEGIN
 @interface KuiklyRenderUIScheduler : NSObject
 /** 执行主线程任务中 */
 @property (nonatomic, assign, readonly) BOOL performingMainQueueTask;
+/** sync 事件场景下，等待主线程恢复后立即执行的 UI 任务闭包（外部设置占位标记，内部覆盖为真正的 UI 任务） */
+@property (nonatomic, copy, nullable) dispatch_block_t mainThreadTaskWaitToSyncBlock;
 /*
  * @brief KuiklyRenderUIScheduler初始化方法
  * @param delegate KuiklyRenderUISchedulerDelegate代理
@@ -48,6 +50,12 @@ NS_ASSUME_NONNULL_BEGIN
  * @brief 标记首屏已经已经加载完成
  */
 - (void)markViewDidLoad;
+
+
+/*
+ * @brief 在主线程上立即执行因 sync 事件而积攒的 UI 任务（在主线程上调用，dispatch_sync 返回后立即调用）
+ */
+- (void)performMainThreadTaskWaitToSyncBlockIfNeed;
 
 
 @end

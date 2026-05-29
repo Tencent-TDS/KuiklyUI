@@ -128,6 +128,13 @@ FOUNDATION_EXTERN NSString *const KRRootViewSizeDidChangedEventKey;
 @property (nonatomic, strong, readonly) id<KRPerformanceDataProtocol> performanceManager;
 
 /*
+ * @brief 判断事件是否需要同步发送到KuiklyKotlin侧.
+ * @param event 事件名
+ * @return 是否同步发送
+ */
+- (BOOL)syncSendEvent:(NSString *)event;
+
+/*
  * @brief KuiklyRenderView中的内容视图完成加载后触发该接口调用.
  * @param KuiklyRenderView 发送代理的当前实例对象
  */

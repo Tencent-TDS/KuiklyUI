@@ -101,6 +101,11 @@ NSString *const kCustomFirstScreenTag = @"customFirstScreenTag";
 
 - (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data sync:(BOOL)sync {
     BOOL shouldSync = sync || ![NSThread isMainThread];
+    // sync 场景下：设置标记，让 UIScheduler 不走 dispatch_async，而是存到闭包里
+    if (sync && [NSThread isMainThread]) {
+        self.uiScheduler.mainThreadTaskWaitToSyncBlock = ^{}; // 占位标记，表示进入 sync 模式
+    }
+    
     [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
         [self.contextHandler callWithMethod:KuiklyRenderContextMethodUpdateInstance
                                        args:@[self.instanceId, event, (data ?: @{})]];
@@ -108,6 +113,11 @@ NSString *const kCustomFirstScreenTag = @"customFirstScreenTag";
             [self.uiScheduler performSyncMainQueueTasksBlockIfNeed];
         }
     } sync:shouldSync];
+    
+    // sync 场景下：dispatch_sync 返回后，主线程立即执行积攒的 UI 任务
+    if (sync && [NSThread isMainThread]) {
+        [self.uiScheduler performMainThreadTaskWaitToSyncBlockIfNeed];
+    }
 }
 /**
  * @brief 获取模块对应的实例（仅支持在主线程调用）.

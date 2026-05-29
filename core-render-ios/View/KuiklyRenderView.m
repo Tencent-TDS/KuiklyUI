@@ -175,7 +175,7 @@ NSString *const KRDensity = @"density";
             [UIScreen mainScreen].bounds.size;
 #endif
         });
-		UIViewController *viewController = [self getViewController];
+        UIViewController *viewController = [self getViewController];
         NSDictionary *data = @{KRWidthKey: @(CGRectGetWidth(frame)),
                                KRHeightKey: @(CGRectGetHeight(frame)),
                                KRDeviceWidthKey:@(screenSize.width),
@@ -184,12 +184,20 @@ NSString *const KRDensity = @"density";
                                KRActivityHeightKey:@(CGRectGetHeight(viewController.view.bounds)),
                                
         };
+        BOOL sync = [self p_syncSendEvent:KRRootViewSizeDidChangedEventKey];
         [_renderCore sendWithEvent:KRRootViewSizeDidChangedEventKey
-                              data:data];
+                              data:data
+                              sync:sync];
     }
   
 }
 
+- (BOOL)p_syncSendEvent:(NSString *)event {
+    if ([self.delegate respondsToSelector:@selector(syncSendEvent:)]) {
+        return [self.delegate syncSendEvent:event];
+    }
+    return NO;
+}
 
 - (void)insertSubview:(UIView *)view atIndex:(NSInteger)index {
     [super insertSubview:view atIndex:index];

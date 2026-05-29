@@ -89,7 +89,9 @@ class TooltipDemo : ComposeContainer() {
                                 }
                             }
                         },
-                        state = rememberTooltipState(),
+                        state = rememberTooltipState(
+                            isPersistent = true
+                        ),
                         enableFreezeOnHover = true,
                         freezeDelayMillis = TooltipDefaults.FreezeOnHoverDelay,
                     ) {

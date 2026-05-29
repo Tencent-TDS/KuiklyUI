@@ -148,6 +148,29 @@ internal class TestPage : BasePager() {
 | imageFilePath | 替换的图片资源文件路径（与 uri 二选一） | String |
 | uri | 替换的图片 Assets 资源 uri（与 imageFilePath 二选一） | ImageUri |
 
+### replaceTextByIndex <Badge text="微信小程序实现中" type="warn"/>
+
+根据 `editableIndex` 替换当前 PAG 资源中的可编辑文字图层内容，适用于图层名称不稳定、但可编辑索引固定的场景。
+
+`editableIndex` 的有效范围为 `0` 到 `PAGFile.numTexts - 1`。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| editableIndex | 可编辑文字图层索引 | Int |
+| textContent | 替换的文本内容 | String |
+
+### replaceImageByIndex <Badge text="微信小程序实现中" type="warn"/>
+
+根据 `editableIndex` 替换当前 PAG 资源中的可编辑图片图层内容，适用于图层名称不稳定、但可编辑索引固定的场景。
+
+`editableIndex` 的有效范围为 `0` 到 `PAGFile.numImages - 1`。
+
+| 参数 | 描述 | 类型 |
+| -- | -- | -- |
+| editableIndex | 可编辑图片图层索引 | Int |
+| imageFilePath | 替换的图片资源文件路径（与 uri 二选一） | String |
+| uri | 替换的图片 Assets 资源 uri（与 imageFilePath 二选一） | ImageUri |
+
 ## 事件
 
 支持所有[基础事件](basic-attr-event.md#基础事件)，此外还支持：

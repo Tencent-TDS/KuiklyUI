@@ -2,7 +2,7 @@ package com.tencent.kuikly.compose.material3.internal
 
 import androidx.compose.runtime.NoLiveLiterals
 
-actual fun identityHashCode(instance: Any?): Int {
+internal actual fun identityHashCode(instance: Any?): Int {
     if (instance == null) {
         return 0
     }

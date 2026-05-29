@@ -57,81 +57,11 @@
 
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |
-| play | 是否自动播放 | Boolean |
-
-### replaceLayerContents<Badge text="H5实现中" type="warn"/> <Badge text="微信小程序实现中" type="warn"/>
-
-替换当前 PAG 资源中的图像图层信息，需要传入`PAGReplaceItem`类型参数
-
-**PAGReplaceItem**
-
-| 成员 | 描述 | 类型 |
-| -- | -- | -- |
-| type | 替换类型 0 文本 1 图片 | Int |
-| layerName | layerName & layerIndex 图层选择方式，根据名称或者顺序，二选一 | String |
-| layerIndex | layerName & layerIndex 图层选择方式，根据名称或者顺序，二选一 | Int |
-| text | 文本替换时指定 | String |
-| imageFilePath | 图片替换文件路径 | String |
-| imageFileAsset | 图片替换Asset资源路径 | String |
-| imageViewRef | 图片替换同页面下其他 View 的 nativeRef | String |
-| imageFilePath | MemoryCacheModule.get(key) 可获得 bitmap 的 key | String |
-
-注：图片替换时`imageFilePath`、`imageFileAsset`、`imageFileAsset`、`imageFilePath`指定其一
-
-:::tabs
-
-@tab:active 示例
-
-```kotlin{20-31}
-@Page("demo_page")
-internal class TestPage : BasePager() {
-    override fun body(): ViewBuilder {
-        return {
-            attr {
-                allCenter()
-            }
-            PAG {
-                attr {
-                    size(pagerData.pageViewWidth, 200f)
-                    src(ImageUri.pageAssets("user_avatar.pag"))
-                    repeatCount(0)
-                }
-            }
-            PAG {
-                attr {
-                    size(pagerData.pageViewWidth, 200f)
-                    src(ImageUri.pageAssets("user_avatar.pag"))
-                    repeatCount(0)
-                    replaceLayerContents(
-                        PAGReplaceItem(
-                            PAGReplaceItem.TYPE_TEXT,
-                            layerName = "text_user_note",
-                            text = "Kuikly!"
-                        ),
-                        PAGReplaceItem(
-                            PAGReplaceItem.TYPE_IMAGE,
-                            layerName = "img_user_avatar",
-                            imageFileAsset = ImageUri.pageAssets("user_portrait.png").toUrl(getPager().pageName)
-                        ),
-                    )
-                }
-            }
-        }
-    }
-}
-```
-
-@tab 效果
-
-<div align="center">
-<img src="./img/pag.gif" style="width: 30%; border: 1px gray solid">
-</div>
-
-:::
+| autoPlay | 是否自动播放 | Boolean |
 
 ### replaceTextLayerContent <Badge text="微信小程序实现中" type="warn"/>
 
-替换当前 PAG 资源中的文字图层信息（适用于单个图层替换场景，多个图层替换请使用 `replaceLayerContents`）
+替换当前 PAG 资源中的文字图层信息，适用于已知目标文字图层名称的场景。
 
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |
@@ -140,7 +70,7 @@ internal class TestPage : BasePager() {
 
 ### replaceImageLayerContent <Badge text="微信小程序实现中" type="warn"/>
 
-替换当前 PAG 资源中的图像图层信息（适用于单个图层替换场景，多个图层替换请使用 `replaceLayerContents`）
+替换当前 PAG 资源中的图像图层信息，适用于已知目标图片图层名称的场景。
 
 | 参数 | 描述 | 类型 |
 | -- | -- | -- |
@@ -197,7 +127,7 @@ internal class TestPage : BasePager() {
 
 ### click
 
-点击事件的内容已扩展，支持返回当前点击点击位置所在的PAG的图层。
+`PAGView` 的 `click` 事件的 ClickParams 中已支持返回当前点击位置命中的可编辑图层。
 
 `PAGView` 的 click payload 顶层仍遵循基础 click 事件协议，其中 `layers` 字段在 Android / iOS / HarmonyOS 三端统一为 **JSON String**，表示命中的可编辑图层数组。
 
@@ -206,13 +136,17 @@ Kotlin 侧推荐按以下两步解析：
 1. 先把顶层 payload 解析为 `JSONObject`
 2. 再通过 `JSONArray(json.optString("layers", "[]"))` 解析图层数组
 
+如果你要做“点击 PAG 内可编辑文字或图片后立即替换”，推荐链路是：`click -> 解析 layers -> 读取 editableType 与 editableIndex -> 写入 observable -> 在 attr 中调用 replaceTextByIndex / replaceImageByIndex`。
+
+当前每个命中图层对象都包含 `layerName`、`editableIndex` 和 `editableType`。其中 `editableType` 只会是 `text` 或 `image`，推荐业务优先按 `editableType + editableIndex` 处理；`layerName` 仅作为调试、日志和兼容字段保留。具体示例见 [PAGApiTestPage.kt](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/demo/PAGApiTestPage.kt)。
+
 当点击未命中任何可编辑图层时，`layers` 返回 `"[]"`。
 
 ## 方法
 
 ### play <Badge text="微信小程序实现中" type="warn"/>
 
-播放动画（autoPlay属性为true时不需要手动调用该接口）
+播放动画（`autoPlay` 属性为 true 时不需要手动调用该接口）。
 
 ### stop <Badge text="微信小程序实现中" type="warn"/>
 

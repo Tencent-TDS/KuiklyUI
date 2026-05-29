@@ -118,12 +118,20 @@ class AppKRPAGViewController implements IKRPAGViewController, PAGViewListener {
       for (const layer of layers) {
         const editableIndex = layer.editableIndex();
         const layerName = layer.layerName() ?? '';
-        if (editableIndex < 0) {
+        const layerType = layer.layerType();
+        let editableType: string | null = null;
+        if (layerType === PAGLayerType.Text) {
+          editableType = 'text';
+        } else if (layerType === PAGLayerType.Image) {
+          editableType = 'image';
+        }
+        if (editableIndex < 0 || editableType === null) {
           continue;
         }
         const layerInfo: Record<string, string | number> = {
           'layerName': layerName,
-          'editableIndex': editableIndex
+          'editableIndex': editableIndex,
+          'editableType': editableType
         };
         result.push(layerInfo);
       }

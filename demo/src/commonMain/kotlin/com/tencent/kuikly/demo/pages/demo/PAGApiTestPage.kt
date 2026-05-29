@@ -47,11 +47,25 @@ internal class PAGApiTestPage : BasePager() {
     private var comboUseImage by observable(false)
     private val comboTextOptions = listOf("组合默认文字", "组合替换测试", "动态切换中", "PAG真强大")
 
+    // 点击图层后，通过 observable 驱动 replaceByIndex 的交互示例
+    private var clickReplaceTextStep by observable(-1)
+    private var clickReplaceImageStep by observable(-1)
+    private var clickReplaceTextEditableIndex by observable(-1)
+    private var clickReplaceImageEditableIndex by observable(-1)
+    private var clickReplaceTextContent by observable("点击 PAG 中的文字后会替换")
+    private val clickReplaceTextOptions = listOf(
+        "点击文字后已替换",
+        "再次点击文字继续切换",
+        "click 驱动 replaceTextByIndex",
+        "observable 已重新下发"
+    )
+    private val clickReplaceImageAssets = listOf("cat1.png", "panda.png", "penguin2.png")
+
     // 图层点击检测区域
-    private var layerClickInfo by observable("点击PAG动画区域，查看图层信息 ▶")
+    private var layerClickInfo by observable("请直接点击 PAG 内的文字或图片本体 ▶")
 
     // 状态日志
-    private var statusLog by observable("点击按钮开始交互 ▶")
+    private var statusLog by observable("点击按钮或 PAG 本体开始交互 ▶")
 
     override fun body(): ViewBuilder {
         val ctx = this
@@ -364,93 +378,157 @@ internal class PAGApiTestPage : BasePager() {
                     }
                 }
 
-                // ========== 4. 点击PAG检测图层 ==========
-               View {
-                   attr {
-                       marginTop(24f)
-                       marginLeft(16f)
-                       marginRight(16f)
-                   }
-                   Text {
-                       attr {
-                           fontSize(16f)
-                           fontWeightBold()
-                           color(Color(0xFF333333L))
-                           text("4. 点击PAG检测图层")
-                       }
-                   }
-                   Text {
-                       attr {
-                           marginTop(4f)
-                           fontSize(12f)
-                           color(Color(0xFF999999L))
-                           text("点击动画区域，查看命中的图层名称和 editableIndex")
-                       }
-                   }
-               }
+                // ========== 4. 点击 PAG 本体后，通过 observable 执行 replace ==========
+                View {
+                    attr {
+                        marginTop(24f)
+                        marginLeft(16f)
+                        marginRight(16f)
+                    }
+                    Text {
+                        attr {
+                            fontSize(16f)
+                            fontWeightBold()
+                            color(Color(0xFF333333L))
+                            text("4. 点击 PAG 内文字/图片直接替换")
+                        }
+                    }
+                    Text {
+                        attr {
+                            marginTop(4f)
+                            fontSize(12f)
+                            color(Color(0xFF999999L))
+                            text("请直接点击 PAG 中可编辑的文字或图片本体。")
+                        }
+                    }
+                    Text {
+                        attr {
+                            marginTop(2f)
+                            fontSize(12f)
+                            color(Color(0xFF999999L))
+                            text("click 会返回 layerName、editableIndex 与 editableType。")
+                        }
+                    }
+                    Text {
+                        attr {
+                            marginTop(2f)
+                            fontSize(12f)
+                            color(Color(0xFF999999L))
+                            text("业务按 editableType + editableIndex 写入 observable，再由 attr 中的 replace*ByIndex 响应式下发。")
+                        }
+                    }
+                }
 
-               PAG {
-                   attr {
-                       marginTop(8f)
-                       marginLeft(16f)
-                       marginRight(16f)
-                       height(200f)
-                       backgroundColor(Color(0xFFF5F5F5L))
-                       borderRadius(12f)
-                       src(ImageUri.pageAssets("user_avatar.pag"))
-                       repeatCount(0)
-                       autoPlay(true)
-                   }
-                   event {
-                      click { it ->
-                          val json = it.params as? JSONObject
-                          val layersJson = json?.optString("layers", "[]") ?: "[]"
-                          val layersArray = try {
-                              JSONArray(layersJson)
-                          } catch (e: Exception) {
-                              KLog.e("pagTest", "Failed to parse layers json: $layersJson")
-                              JSONArray()
-                          }
-                          if (layersArray.length() > 0) {
+                PAG {
+                    attr {
+                        marginTop(8f)
+                        marginLeft(16f)
+                        marginRight(16f)
+                        height(200f)
+                        backgroundColor(Color(0xFFF5F5F5L))
+                        borderRadius(12f)
+                        src(ImageUri.pageAssets("user_avatar.pag"))
+                        repeatCount(0)
+                        autoPlay(true)
+                        if (ctx.clickReplaceTextEditableIndex >= 0) {
+                            replaceTextByIndex(ctx.clickReplaceTextEditableIndex, ctx.clickReplaceTextContent)
+                        }
+                        if (ctx.clickReplaceImageEditableIndex >= 0 && ctx.clickReplaceImageStep >= 0) {
+                            replaceImageByIndex(
+                                ctx.clickReplaceImageEditableIndex,
+                                ImageUri.commonAssets(ctx.clickReplaceImageAssets[ctx.clickReplaceImageStep])
+                            )
+                        }
+                    }
+                    event {
+                        click { it ->
+                            val json = it.params as? JSONObject
+                            val layersJson = json?.optString("layers", "[]") ?: "[]"
+                            KLog.d(TAG, "interactive click layersJson=$layersJson")
+                            val layersArray = try {
+                                JSONArray(layersJson)
+                            } catch (e: Exception) {
+                                KLog.e("pagTest", "Failed to parse layers json: $layersJson")
+                                JSONArray()
+                            }
+                            if (layersArray.length() > 0) {
+                                var handled = false
+                                val sb = StringBuilder()
+                                sb.append("命中 ${layersArray.length()} 个图层:\n")
+                                for (i in 0 until layersArray.length()) {
+                                    val layerObj = layersArray.optJSONObject(i)
+                                    val name = layerObj?.optString("layerName") ?: ""
+                                    val index = layerObj?.optInt("editableIndex") ?: -1
+                                    val editableType = layerObj?.optString("editableType") ?: ""
+                                    sb.append("  [$i] type=\"$editableType\", name=\"$name\", editableIndex=$index\n")
+                                    if (handled || index < 0) {
+                                        continue
+                                    }
+                                    when (editableType) {
+                                        "text" -> {
+                                            val nextTextStep = (ctx.clickReplaceTextStep + 1) % ctx.clickReplaceTextOptions.size
+                                            ctx.clickReplaceTextStep = nextTextStep
+                                            ctx.clickReplaceTextEditableIndex = index
+                                            ctx.clickReplaceTextContent = ctx.clickReplaceTextOptions[nextTextStep]
+                                            ctx.statusLog = "📝 点击文字图层后，已把 editableIndex=$index 替换为 \"${ctx.clickReplaceTextContent}\""
+                                            handled = true
+                                            KLog.d(TAG, "click replace text, editableType=$editableType, layerName=$name, editableIndex=$index, text=${ctx.clickReplaceTextContent}")
+                                        }
 
-                               val sb = StringBuilder()
-                               sb.append("命中 ${layersArray.length()} 个图层:\n")
-                               for (i in 0 until layersArray.length()) {
-                                   val layerObj = layersArray.optJSONObject(i)
-                                   val name = layerObj?.optString("layerName") ?: ""
-                                   val index = layerObj?.optInt("editableIndex") ?: -1
-                                   sb.append("  [$i] name=\"$name\", editableIndex=$index\n")
-                               }
-                               ctx.layerClickInfo = sb.toString().trimEnd()
-                               ctx.statusLog = "🎯 点击检测到 ${layersArray.length()} 个图层"
-                               KLog.d(TAG, "Layer hit test: ${sb.toString().trimEnd()}")
-                           } else {
-                               ctx.layerClickInfo = "未命中任何图层 (x=${it.x}, y=${it.y})"
-                               ctx.statusLog = "🎯 点击位置未检测到图层"
-                               KLog.d(TAG, "Layer hit test: no layers at (${it.x}, ${it.y})")
-                           }
-                       }
-                   }
-               }
+                                        "image" -> {
+                                            val nextImageStep = (ctx.clickReplaceImageStep + 1) % ctx.clickReplaceImageAssets.size
+                                            ctx.clickReplaceImageStep = nextImageStep
+                                            ctx.clickReplaceImageEditableIndex = index
+                                            ctx.statusLog = "🖼 点击图片图层后，已把 editableIndex=$index 替换为 ${ctx.clickReplaceImageAssets[nextImageStep]}"
+                                            handled = true
+                                            KLog.d(TAG, "click replace image, editableType=$editableType, layerName=$name, editableIndex=$index, asset=${ctx.clickReplaceImageAssets[nextImageStep]}")
+                                        }
+                                    }
+                                }
+                                ctx.layerClickInfo = sb.toString().trimEnd()
+                                if (!handled) {
+                                    ctx.statusLog = "🎯 已拿到图层，但当前示例未识别 editableType"
+                                    KLog.d(TAG, "interactive click not handled: ${sb.toString().trimEnd()}")
+                                } else {
+                                    KLog.d(TAG, "interactive click handled: ${sb.toString().trimEnd()}")
+                                }
+                            } else {
+                                ctx.layerClickInfo = "未命中任何图层 (x=${it.x}, y=${it.y})"
+                                ctx.statusLog = "🎯 点击位置未检测到图层"
+                                KLog.d(TAG, "Layer hit test: no layers at (${it.x}, ${it.y})")
+                            }
+                        }
+                    }
+                }
 
-               // 图层检测结果展示
-               View {
-                   attr {
-                       marginTop(10f)
-                       marginLeft(16f)
-                       marginRight(16f)
-                       backgroundColor(Color(0xFF263238L))
-                       borderRadius(8f)
-                       padding(12f)
-                   }
-                   Text {
-                       attr {
-                           fontSize(13f)
-                           color(Color(0xFF4FC3F7L))
-                           text(ctx.layerClickInfo)
-                       }
-                   }
-               }
+                // 图层检测结果展示
+                View {
+                    attr {
+                        marginTop(10f)
+                        marginLeft(16f)
+                        marginRight(16f)
+                        backgroundColor(Color(0xFF263238L))
+                        borderRadius(8f)
+                        padding(12f)
+                    }
+                    Text {
+                        attr {
+                            fontSize(13f)
+                            color(Color(0xFF4FC3F7L))
+                            text(ctx.layerClickInfo)
+                        }
+                    }
+                    Text {
+                        attr {
+                            marginTop(8f)
+                            fontSize(12f)
+                            color(Color(0xFFB0BEC5L))
+                            text(
+                                "响应式状态：textIndex=${if (ctx.clickReplaceTextEditableIndex >= 0) ctx.clickReplaceTextEditableIndex else "未命中"} -> \"${ctx.clickReplaceTextContent}\" | imageIndex=${if (ctx.clickReplaceImageEditableIndex >= 0) ctx.clickReplaceImageEditableIndex else "未命中"} -> ${if (ctx.clickReplaceImageStep >= 0) ctx.clickReplaceImageAssets[ctx.clickReplaceImageStep] else "未替换"}"
+                            )
+                        }
+                    }
+                }
 
                 // 底部间距
                 View {

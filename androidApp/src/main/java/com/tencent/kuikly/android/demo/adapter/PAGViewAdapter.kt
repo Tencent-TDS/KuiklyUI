@@ -130,13 +130,19 @@ class KRPagView(context: Context) : PAGView(context), IPAGView {
             for (layer in layers) {
                 if (layer !is PAGLayer) continue
                 val editableIndex = layer.editableIndex()
+                val editableType = when (layer) {
+                    is PAGTextLayer -> "text"
+                    is PAGImageLayer -> "image"
+                    else -> null
+                }
                 // 过滤掉 editableIndex == -1 的非可编辑图层，只回调业务可操作的图层
-                if (editableIndex < 0) {
+                if (editableIndex < 0 || editableType == null) {
                     continue
                 }
                 result.add(mapOf(
                     "layerName" to (layer.layerName() ?: ""),
-                    "editableIndex" to editableIndex
+                    "editableIndex" to editableIndex,
+                    "editableType" to editableType
                 ))
             }
         } catch (_: Exception) {

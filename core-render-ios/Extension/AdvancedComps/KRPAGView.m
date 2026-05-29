@@ -252,6 +252,8 @@ static PAGViewCreator gPagViewCreator;
         NSArray<id<IPAGLayerProtocol>> *hitLayers = [_pagView getLayersUnderPoint:pixelPoint];
         
         if (hitLayers.count > 0) {
+            Class pagTextLayerClass = NSClassFromString(@"PAGTextLayer");
+            Class pagImageLayerClass = NSClassFromString(@"PAGImageLayer");
             for (id layer in hitLayers) {
                 NSInteger editableIndex = -1;
                 if ([layer respondsToSelector:@selector(editableIndex)]) {
@@ -261,13 +263,23 @@ static PAGViewCreator gPagViewCreator;
                 if (editableIndex < 0) {
                     continue;
                 }
+                NSString *editableType = nil;
+                if (pagTextLayerClass && [layer isKindOfClass:pagTextLayerClass]) {
+                    editableType = @"text";
+                } else if (pagImageLayerClass && [layer isKindOfClass:pagImageLayerClass]) {
+                    editableType = @"image";
+                }
+                if (editableType.length == 0) {
+                    continue;
+                }
                 NSString *layerName = @"";
                 if ([layer respondsToSelector:NSSelectorFromString(@"layerName")]) {
                     layerName = ((NSString * (*)(id, SEL))objc_msgSend)(layer, NSSelectorFromString(@"layerName")) ?: @"";
                 }
                 [layerInfos addObject:@{
                     @"layerName": layerName,
-                    @"editableIndex": @(editableIndex)
+                    @"editableIndex": @(editableIndex),
+                    @"editableType": editableType
                 }];
             }
         }

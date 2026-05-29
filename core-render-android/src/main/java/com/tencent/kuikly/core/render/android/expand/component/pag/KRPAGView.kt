@@ -20,6 +20,7 @@ import android.view.View
 import android.widget.ImageView
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.render.android.adapter.HRImageLoadOption
+import com.tencent.kuikly.core.render.android.css.ktx.toJSONArray
 import com.tencent.kuikly.core.render.android.adapter.IPAGViewListener
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
 import com.tencent.kuikly.core.render.android.const.KRCssConst
@@ -100,7 +101,11 @@ class KRPAGView(context: Context) : KRView(context), IPAGViewListener {
                     val y = (params["y"] as? Number)?.toFloat() ?: 0f
                     // 通过 IPAGView 适配器获取点击位置下的图层信息
                     val layers = pagView?.getEditableLayersUnderPoint(x, y) ?: emptyList()
-                    params["layers"] = layers
+                    params["layers"] = if (layers.isEmpty()) {
+                        "[]"
+                    } else {
+                        layers.map { it as Any }.toJSONArray().toString()
+                    }
                     originalCallback.invoke(params)
                 }
                 super.setProp(propKey, wrappedCallback)

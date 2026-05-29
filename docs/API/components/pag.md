@@ -172,6 +172,19 @@ internal class TestPage : BasePager() {
 
 设置动画重复时的事件回调
 
+### click
+
+点击事件的内容已扩展，支持返回当前点击点击位置所在的PAG的图层。
+
+`PAGView` 的 click payload 顶层仍遵循基础 click 事件协议，其中 `layers` 字段在 Android / iOS / HarmonyOS 三端统一为 **JSON String**，表示命中的可编辑图层数组。
+
+Kotlin 侧推荐按以下两步解析：
+
+1. 先把顶层 payload 解析为 `JSONObject`
+2. 再通过 `JSONArray(json.optString("layers", "[]"))` 解析图层数组
+
+当点击未命中任何可编辑图层时，`layers` 返回 `"[]"`。
+
 ## 方法
 
 ### play <Badge text="微信小程序实现中" type="warn"/>

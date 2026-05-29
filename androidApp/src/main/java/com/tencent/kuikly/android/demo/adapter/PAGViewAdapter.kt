@@ -125,9 +125,8 @@ class KRPagView(context: Context) : PAGView(context), IPAGView {
             val density = context.resources.displayMetrics.density
             val pixelX = x * density
             val pixelY = y * density
-            // 通过反射调用 PAGView 父类的 getLayersUnderPoint，避免与 IPAGView 接口方法冲突
-            val method = PAGView::class.java.getMethod("getLayersUnderPoint", Float::class.javaPrimitiveType, Float::class.javaPrimitiveType)
-            val layers = method.invoke(this, pixelX, pixelY) as? Array<*> ?: return result
+
+            val layers = this.getLayersUnderPoint(pixelX, pixelY)
             for (layer in layers) {
                 if (layer !is PAGLayer) continue
                 val editableIndex = layer.editableIndex()

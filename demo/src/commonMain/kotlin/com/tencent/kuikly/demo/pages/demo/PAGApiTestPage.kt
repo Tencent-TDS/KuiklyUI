@@ -20,6 +20,7 @@ import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.attr.ImageUri
 import com.tencent.kuikly.core.log.KLog
+import com.tencent.kuikly.core.nvi.serialization.json.JSONArray
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.reactive.handler.observable
 import com.tencent.kuikly.core.views.PAG
@@ -401,10 +402,17 @@ internal class PAGApiTestPage : BasePager() {
                        autoPlay(true)
                    }
                    event {
-                       click {
-                           val json = it.params as? JSONObject
-                           val layersArray = json?.optJSONArray("layers")
-                           if (layersArray != null && layersArray.length() > 0) {
+                      click { it ->
+                          val json = it.params as? JSONObject
+                          val layersJson = json?.optString("layers", "[]") ?: "[]"
+                          val layersArray = try {
+                              JSONArray(layersJson)
+                          } catch (e: Exception) {
+                              KLog.e("pagTest", "Failed to parse layers json: $layersJson")
+                              JSONArray()
+                          }
+                          if (layersArray.length() > 0) {
+
                                val sb = StringBuilder()
                                sb.append("命中 ${layersArray.length()} 个图层:\n")
                                for (i in 0 until layersArray.length()) {

@@ -240,9 +240,7 @@ static PAGViewCreator gPagViewCreator;
     
     NSMutableArray *layerInfos = [NSMutableArray array];
     
-    // 通过 NSInvocation 调用 PAGView 的 getLayersUnderPoint: 方法（参数为 CGPoint 结构体）
-    SEL sel = NSSelectorFromString(@"getLayersUnderPoint:");
-    if ([(NSObject *)_pagView respondsToSelector:sel]) {
+    if ([_pagView respondsToSelector:@selector(getLayersUnderPoint:)]) {
         // getLayersUnderPoint: 需要像素坐标，dp/pt 转换为 pixel
 #if TARGET_OS_OSX
         CGFloat scale = [NSScreen mainScreen].backingScaleFactor ?: 1.0;
@@ -251,21 +249,13 @@ static PAGViewCreator gPagViewCreator;
 #endif
         CGPoint pixelPoint = CGPointMake(location.x * scale, location.y * scale);
         
-        NSMethodSignature *sig = [(NSObject *)_pagView methodSignatureForSelector:sel];
-        NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:sig];
-        [invocation setTarget:(NSObject *)_pagView];
-        [invocation setSelector:sel];
-        [invocation setArgument:&pixelPoint atIndex:2];
-        [invocation invoke];
-        
-        __unsafe_unretained NSArray *hitLayers = nil;
-        [invocation getReturnValue:&hitLayers];
+        NSArray<id<IPAGLayerProtocol>> *hitLayers = [_pagView getLayersUnderPoint:pixelPoint];
         
         if (hitLayers.count > 0) {
             for (id layer in hitLayers) {
                 NSInteger editableIndex = -1;
-                if ([layer respondsToSelector:NSSelectorFromString(@"editableIndex")]) {
-                    editableIndex = ((NSInteger (*)(id, SEL))objc_msgSend)(layer, NSSelectorFromString(@"editableIndex"));
+                if ([layer respondsToSelector:@selector(editableIndex)]) {
+                    editableIndex = [layer editableIndex];
                 }
                 // 过滤掉 editableIndex == -1 的非可编辑图层，只回调业务可操作的图层
                 if (editableIndex < 0) {
@@ -283,12 +273,13 @@ static PAGViewCreator gPagViewCreator;
         }
     }
     
+    NSString *layersJson = [KRConvertUtil hr_arrayToJSON:layerInfos] ?: @"[]";
     NSDictionary *param = @{
         @"x": @(location.x),
         @"y": @(location.y),
         @"pageX": @(pageLocation.x),
         @"pageY": @(pageLocation.y),
-        @"layers": layerInfos
+        @"layers": layersJson
     };
     if (self.css_click) {
         self.css_click(param);

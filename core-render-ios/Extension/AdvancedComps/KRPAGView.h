@@ -114,6 +114,14 @@ typedef id<KRPagViewProtocol> _Nonnull (^PAGViewCreator)(CGRect frame);
 // kuikly侧调用方法，一般用于业务扩展使用
 - (void)kr_callWithMethod:(NSString * _Nonnull)method params:(NSString * _Nullable)params;
 
+@optional
+/**
+ * 获取指定坐标（像素）下的所有图层。
+ * @param point 像素坐标
+ * @return PAGLayer 数组
+ */
+- (NSArray<id<IPAGLayerProtocol>> *)getLayersUnderPoint:(CGPoint)point;
+
 @end
 
 // The same with IPAGViewListener

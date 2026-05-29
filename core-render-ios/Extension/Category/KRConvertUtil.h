@@ -86,6 +86,7 @@ typedef NS_ENUM(NSInteger, KRTextDecorationLineType) {
 + (NSString *)hr_base64Decode:(NSString *)string;
 + (CGRect)hr_rectInset:(CGRect)rect insets:(UIEdgeInsets)inset;
 + (NSString *)hr_dictionaryToJSON:(NSDictionary *)dict;
++ (NSString *)hr_arrayToJSON:(NSArray *)array;
 + (void)hr_alertWithTitle:(NSString *)title message:(NSString *)message;
 + (NSString *)hr_md5StringWithString:(NSString *)string;
 + (CGFloat)statusBarHeight;

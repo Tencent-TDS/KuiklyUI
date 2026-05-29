@@ -150,8 +150,9 @@ export class KRPAGView extends KuiklyRenderBaseView implements IKRPAGViewListene
         const x = json['x'] as number ?? 0;
         const y = json['y'] as number ?? 0;
         const layers = this.controller?.getEditableLayersUnderPoint(x, y) ?? [];
+        const layersJson = JSON.stringify(layers) ?? '[]';
         if (callback) {
-          callback(JSON.stringify(layers));
+          callback(layersJson);
         }
       }
     }

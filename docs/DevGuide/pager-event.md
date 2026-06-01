@@ -41,6 +41,45 @@ controller.sendEvent("test", {"key": "value"})
 ```
 
 
+**同步发送事件的使用场景**
+
+默认情况下，Native 发送给 `Pager` 的事件通常是异步到达的。
+
+如果某些事件需要与当前原生布局或上屏时机保持一致，可以在Native容器中实现syncSendEvent接口，指定事件为同步发送，避免事件晚一帧生效。
+
+典型场景：页面旋转、分屏或宿主容器尺寸变化时，`rootViewSizeDidChanged` 如果异步发送，可能导致页面内容更新晚一帧，出现短暂白屏。
+
+### 示例代码
+
+以下示例表示：当 Native 发送 `rootViewSizeDidChanged` 时，改为同步发送给 Kuikly。
+
+**Android**
+
+```kotlin
+// KuiklyRenderViewBaseDelegator.kt
+override fun syncSendEvent(event: String): Boolean {
+    return event == "rootViewSizeDidChanged"
+}
+```
+
+**iOS**
+
+```objective-c
+// KuiklyRenderViewController.m
+- (BOOL)syncSendEvent:(NSString *)event {
+    return [event isEqualToString:@"rootViewSizeDidChanged"];
+}
+```
+
+**鸿蒙**
+
+```ts
+// KuiklyViewDelegate.ets
+syncSendEvent(event: string): boolean {
+  return event === 'rootViewSizeDidChanged'
+}
+```
+
 ## Pager中监听页面事件
 
 在``Pager``中，你可以通过重写``onReceivePagerEvent``方法来监听来自Native的事件
@@ -49,7 +88,7 @@ controller.sendEvent("test", {"key": "value"})
 @Page("1")
 internal class HelloWorldPage : Pager() {
 
-    ...
+    // ...
     override fun onReceivePagerEvent(pagerEvent: String, eventData: JSONObject) {
         super.onReceivePagerEvent(pagerEvent, eventData)
         // pagerEvent: 事件名字
@@ -66,7 +105,6 @@ internal class HelloWorldPage : Pager() {
 // 1. 实现IPagerEventObserver接口
 class TestComposeView : ComposeView<ComposeAttr, ComposeEvent>(), IPagerEventObserver {
 
-   ...
     override fun viewDidLoad() {
         super.viewDidLoad()
         getPager().addPagerEventObserver(this) // 2. 监听页面事件

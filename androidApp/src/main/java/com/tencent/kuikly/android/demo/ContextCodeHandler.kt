@@ -105,6 +105,7 @@ open class ContextCodeHandler(
             }
 
             override fun syncSendEvent(event: String): Boolean {
+                // 出现View Size变化时出现白屏，可以增加上 event == "rootViewSizeDidChanged" 的判断，并且返回true
                 return pageName == "root_size" // 同步事件测试
             }
         }

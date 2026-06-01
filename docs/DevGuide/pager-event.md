@@ -56,9 +56,11 @@ controller.sendEvent("test", {"key": "value"})
 **Android**
 
 ```kotlin
-// KuiklyRenderViewBaseDelegator.kt
-override fun syncSendEvent(event: String): Boolean {
-    return event == "rootViewSizeDidChanged"
+// ContextCodeHandler.kt.kt
+val delegate = object : KuiklyRenderViewBaseDelegatorDelegate {
+    override fun syncSendEvent(event: String): Boolean {
+        return event == "rootViewSizeDidChanged"
+    }
 }
 ```
 

@@ -145,8 +145,8 @@ void KRRenderView::SendEvent(std::string event_name, const std::string &json_dat
 }
 
 bool KRRenderView::syncSendEvent(const std::string &event_name) {
-    // 与 ETS 侧常量保持一致：'onBackPressed'
-    if (event_name == "onBackPressed") {
+    // 与 ETS 侧常量保持一致：'onBackPressed' / 'rootViewSizeDidChanged'
+    if (event_name == "onBackPressed" || event_name == "rootViewSizeDidChanged") {
         return true;
     }
     return false;
@@ -261,12 +261,7 @@ void KRRenderView::OnRenderViewSizeChanged(float width, float height) {
         root_view_height_ = height;
         KR_LOG_INFO << "KRRenderView render view size did changed";
         kuikly::util::UpdateNodeSize(root_node_, width, height);
-        // 尺寸变化更新到Kotlin
-        KRRenderValue::Map data;
-        data["width"] = KRRenderValue::Make(width);
-        data["height"] = KRRenderValue::Make(height);
-        auto json_data = KRRenderValue::Make(data)->toString();
-        SendEvent("rootViewSizeDidChanged", json_data);
+        // 事件发送统一由 ArkTS 层的 notifySizeChange 负责，此处仅更新 root_node_ 尺寸
     }
 }
 

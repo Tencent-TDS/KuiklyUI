@@ -136,6 +136,10 @@ export class KRNativeRenderController {
    * 所在的窗口Id
    */
   windowId: string = ""
+  /**
+   * SizeChanged 执行时机是否需提前至 onSizeChanged 而非 onAreaChanged，以避免页面 Size 变化时出现白屏
+   */
+  private sizeChangeHandledByOnSizeChange: boolean = false;
 
   private lifecycleCallbacks: Array<IKuiklyRenderViewLifecycleCallback> = [];
 
@@ -376,7 +380,7 @@ export class KRNativeRenderController {
     if (densityInfo) {
       data[KRDensityInfo] = JSON.stringify(densityInfo);
     }
-    this.sendEvent(KRRootViewSizeDidChangedEventKey, data);
+    this.doSendEvent(KRRootViewSizeDidChangedEventKey, data, this.syncSendEvent(KRRootViewSizeDidChangedEventKey));
 
     this.runKRRenderTask(() => {
       render.onRenderViewSizeChanged(this.instanceId, this.viewRect?.width as number, this.viewRect?.height as number);
@@ -388,13 +392,26 @@ export class KRNativeRenderController {
   }
 
   onAreaChange(newValue: Area) {
+    const newWidth = newValue.width as number;
+    const newHeight = newValue.height as number;
+    // 在更新 viewRect 之前计算尺寸是否变化（用于兜底判断）
+    const sizeChanged = this.viewRect == null ||
+      Math.abs(this.viewRect.width - newWidth) >= 0.1 ||
+      Math.abs(this.viewRect.height - newHeight) >= 0.1;
+    // 始终更新 viewRect（包括 globalPosition），确保位置信息准确
     this.viewRect = new KRRect(newValue.globalPosition.x as number,
       newValue.globalPosition.y as number,
-      newValue.width as number,
-      newValue.height as number);
+      newWidth,
+      newHeight);
     if (this.didInit) {
-      this.doOnAreaChange(newValue);
-      this.notifySizeChange();
+      if (this.sizeChangeHandledByOnSizeChange) {
+        // 已在 onSizeChange 中提前处理过，消费标志位，跳过重复执行
+        this.sizeChangeHandledByOnSizeChange = false;
+      } else if (sizeChanged) {
+        // 兜底：onSizeChange 未处理（syncSendEvent=false 或未触发），在此处触发
+        this.doOnAreaChange(newValue);
+        this.notifySizeChange();
+      }
     } else {
       this.doOnAttach();
     }
@@ -404,8 +421,25 @@ export class KRNativeRenderController {
     if (this.viewRect == null) {
       return;
     }
-    this.viewRect.width = newValue.width as number;
-    this.viewRect.height = newValue.height as number;
+    const newWidth = newValue.width as number;
+    const newHeight = newValue.height as number;
+    // 尺寸没变化则跳过
+    if (Math.abs(this.viewRect.width - newWidth) < 0.1 &&
+        Math.abs(this.viewRect.height - newHeight) < 0.1) {
+      return;
+    }
+    // 仅当业务方开启了 rootViewSizeDidChanged 同步策略时，才在布局前提前触发同步渲染
+    if (this.didInit && this.syncSendEvent(KRRootViewSizeDidChangedEventKey)) {
+      // 提前更新 viewRect 尺寸（globalPosition 会在后续 onAreaChange 中更新）
+      this.viewRect.width = newWidth;
+      this.viewRect.height = newHeight;
+      this.runKRRenderTask(() => {
+        render.onRenderViewSizeChanged(this.instanceId, newWidth, newHeight);
+      });
+      this.notifySizeChange();
+      // 标记已处理，避免 onAreaChange 中重复执行
+      this.sizeChangeHandledByOnSizeChange = true;
+    }
   }
 
   onAboutToDisappear() {

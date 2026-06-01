@@ -283,9 +283,9 @@ static NSString * const kTurboDisplayTestPageName = @"TurboDisplayAppLoadTestPag
 /// 典型场景：页面旋转、分屏或宿主容器尺寸突变时，可对 `rootViewSizeDidChanged` 返回 YES，避免尺寸变化晚一帧生效导致白屏。
 - (BOOL)syncSendEvent:(NSString *)event {
     // 若页面尺寸发生变化时，出现白屏，可恢复以下被注释的代码
-    if ([event isEqualToString:@"rootViewSizeDidChanged"]) {
-        return YES;
-    }
+//    if ([event isEqualToString:@"rootViewSizeDidChanged"]) {
+//        return YES;
+//    }
     
     return NO;
 }

@@ -25,6 +25,7 @@
       "pages/DisplayContainerViewPage/index", 
 
       "pages/FlexExamplePage/index", 
+      "pages/FontExamplePage/index",
       "pages/ViewExamplePage/index", 
       "pages/ZIndexExamplePage/index", 
       "pages/ImageExamplePage/index", 

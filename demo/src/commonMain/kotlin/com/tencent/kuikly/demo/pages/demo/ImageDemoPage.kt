@@ -19,7 +19,10 @@ import com.tencent.kuikly.core.annotations.Page
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.attr.AccessibilityRole
+import com.tencent.kuikly.core.base.attr.ColorMatrix
+import com.tencent.kuikly.core.base.attr.ColorMatrixConfig
 import com.tencent.kuikly.core.base.attr.ImageUri
+import com.tencent.kuikly.core.base.attr.toColorMatrix
 import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.views.Image
@@ -187,6 +190,41 @@ internal class ImageDemoPage: BasePager() {
                         }
                     }
 
+                }
+
+                ViewExampleSectionHeader { attr { title = "ColorMatrix Filter" } }
+                View {
+                    attr {
+                        allCenter()
+                        margin(20f)
+                    }
+
+                    Image {
+                        attr {
+                            resizeContain()
+                            size(pagerData.pageViewWidth * 0.6f, 100f)
+                            src("https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/baa91edc.png")
+                            colorFilter(ColorMatrix.rec709Gray)
+                        }
+                    }
+                    Image {
+                        attr {
+                            marginTop(10f)
+                            resizeContain()
+                            size(pagerData.pageViewWidth * 0.6f, 100f)
+                            src("https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/baa91edc.png")
+                            colorFilter(ColorMatrixConfig(saturation = 0.5f, brightness = 30f).toColorMatrix())
+                        }
+                    }
+                    Image {
+                        attr {
+                            marginTop(10f)
+                            resizeContain()
+                            size(pagerData.pageViewWidth * 0.6f, 100f)
+                            src("https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/baa91edc.png")
+                            colorFilter(ColorMatrixConfig(contrast = 0.5f).toColorMatrix())
+                        }
+                    }
                 }
             }
 

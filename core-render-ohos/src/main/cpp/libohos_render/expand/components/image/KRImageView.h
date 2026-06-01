@@ -45,6 +45,8 @@ class KRImageView : public IKRRenderViewExport {
     bool SetDragEnable(const KRAnyValue &value);
     bool SetBlurRadius(const KRAnyValue &value);
     bool SetTintColor(const KRAnyValue &value);
+    bool SetColorFilter(const KRAnyValue &value);
+    bool ResetColorFilter();
     bool SetCapInsets(const KRAnyValue &value);
     bool SetImageParams(const KRAnyValue &value);
     bool SetDotNineImage(const KRAnyValue &value);

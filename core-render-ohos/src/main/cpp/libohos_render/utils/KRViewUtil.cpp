@@ -721,6 +721,25 @@ void ResetArkUIImageTintColor(ArkUI_NodeHandle handle) {
     GetNodeApi()->resetAttribute(handle, NODE_IMAGE_COLOR_FILTER);
 }
 
+void SetArkUIImageColorFilter(ArkUI_NodeHandle handle, const std::vector<float> &matrix) {
+    if (!handle || matrix.size() < 20) {
+        return;
+    }
+    ArkUI_NumberValue value[20];
+    for (int i = 0; i < 20; ++i) {
+        value[i].f32 = matrix[i];
+    }
+    ArkUI_AttributeItem item = {value, 20};
+    GetNodeApi()->setAttribute(handle, NODE_IMAGE_COLOR_FILTER, &item);
+}
+
+void ResetArkUIImageColorFilter(ArkUI_NodeHandle handle) {
+    if (!handle) {
+        return;
+    }
+    GetNodeApi()->resetAttribute(handle, NODE_IMAGE_COLOR_FILTER);
+}
+
 void SetArkUIImageCapInsets(ArkUI_NodeHandle handle, float top, float left, float bottom, float right) {
     if (!handle) {
         return;

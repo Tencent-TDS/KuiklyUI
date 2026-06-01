@@ -20,6 +20,8 @@ import android.content.Context
 import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.NinePatch
 import android.graphics.Paint
 import android.graphics.PorterDuff
@@ -103,6 +105,11 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
     private var tintColor: Int? = null
 
     /**
+     * 颜色矩阵滤镜（4×5，20 个浮点数以 "|" 分隔）
+     */
+    private var colorFilterMatrix: String? = null
+
+    /**
      * 图片加载成功事件回调
      */
     private var loadSuccessCallback: KuiklyRenderCallback? = null
@@ -136,6 +143,7 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
             PROP_RESIZE -> setResize(propValue as String)
             PROP_BLUR_RADIUS -> setBlurRadius(propValue)
             PROP_TINT_COLOR -> setTintColor(propValue)
+            PROP_COLOR_FILTER -> setColorFilter(propValue)
             PROP_MASK_LINEAR_GRADIENT -> setMaskLinearGradient(propValue as String)
             PROP_DOT_NINE_IMAGE -> setIsNineDotImage(propValue)
             PROP_EVENT_LOAD_SUCCESS -> setLoadSuccessCallback(propValue)
@@ -166,6 +174,7 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
             PROP_RESIZE -> resetResize()
             PROP_BLUR_RADIUS -> resetBlurRadius()
             PROP_TINT_COLOR -> resetTintColor()
+            PROP_COLOR_FILTER -> resetColorFilter()
             PROP_MASK_LINEAR_GRADIENT -> resetMaskLinearGradient()
             PROP_DOT_NINE_IMAGE -> resetIsNineDotImage()
             PROP_EVENT_LOAD_SUCCESS -> resetLoadSuccessCallback()
@@ -179,6 +188,19 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
 
     private fun resetTintColor(): Boolean {
         tintColor = null
+        return true
+    }
+
+    private fun setColorFilter(propValue: Any): Boolean {
+        val matrixStr = propValue as String
+        colorFilterMatrix = matrixStr.ifEmpty { null }
+        updateDrawableImage(originDrawable)
+        return true
+    }
+
+    private fun resetColorFilter(): Boolean {
+        colorFilterMatrix = null
+        updateDrawableImage(originDrawable)
         return true
     }
 
@@ -241,7 +263,7 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
         // 创建独立副本，避免修改 adapter 缓存中的共享 drawable：
         // - Animatable (GIF): 隔离 stop()/start() 动画状态
         // - tintColor: 隔离 setTint() 染色状态
-        val safeDrawable = if (drawable is Animatable || tintColor != null) {
+        val safeDrawable = if (drawable is Animatable || tintColor != null || colorFilterMatrix != null) {
             drawable.copyDrawable()
         } else {
             drawable
@@ -249,6 +271,14 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
         // 应用染色
         if (tintColor != null) {
             safeDrawable.setTint(tintColor as Int)
+        } else if (colorFilterMatrix != null) {
+            val parts = colorFilterMatrix!!.split("|")
+            if (parts.size >= 20) {
+                val matrix = ColorMatrix(
+                    FloatArray(20) { i -> parts[i].toFloatOrNull() ?: 0f }
+                )
+                safeDrawable.colorFilter = ColorMatrixColorFilter(matrix)
+            }
         }
         // 应用高斯模糊（异步处理，blur 完成后再 superSetImage）
         if (blurRadius > 0f) {
@@ -600,6 +630,7 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
         private const val PROP_DOT_NINE_IMAGE = "dotNineImage"
         private const val PROP_BLUR_RADIUS = "blurRadius"
         private const val PROP_TINT_COLOR = "tintColor"
+        private const val PROP_COLOR_FILTER = "colorFilter"
         private const val PROP_MASK_LINEAR_GRADIENT = "maskLinearGradient"
         private const val PROP_EVENT_LOAD_SUCCESS = "loadSuccess"
         private const val PROP_EVENT_LOAD_RESOLUTION = "loadResolution"

@@ -23,6 +23,7 @@ import android.graphics.Paint
 import android.graphics.Paint.FontMetricsInt
 import android.graphics.Rect
 import android.graphics.Typeface
+import android.os.Build
 import android.text.Layout
 import android.text.Spannable
 import android.text.SpannableStringBuilder
@@ -671,7 +672,9 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
             text
         }
         val desiredWidth = getDesiredWith(textSource, constraintSize, measureMode)
-        if (!isBeforeM) {
+        val shouldUseLegacyLineBreakMarginCompat =
+            textProps.lineBreakMargin != 0f && isNougatLineBreakMarginCompat()
+        if (!isBeforeM && !shouldUseLegacyLineBreakMarginCompat) {
             val builder = createStaticLayoutBuilder(textSource, desiredWidth)
             if (textProps.numberOfLines > 0 && textProps.lineBreakMargin == 0f) {
                 builder.setMaxLines(textProps.numberOfLines)
@@ -733,6 +736,11 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
             }
         }
         return array
+    }
+
+    private fun isNougatLineBreakMarginCompat(): Boolean {
+        return Build.VERSION.SDK_INT == Build.VERSION_CODES.N ||
+            Build.VERSION.SDK_INT == Build.VERSION_CODES.N_MR1
     }
 
     private fun getDesiredWith(

@@ -149,10 +149,15 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
 }
 
 - (BOOL)syncSendEvent:(NSString *)event {
+    // onBackPressed 固定同步执行
+    if ([event isEqualToString:@"onBackPressed"]) {
+        return YES;
+    }
+    
     if ([self.delegate respondsToSelector:@selector(syncSendEvent:)]) {
         return [self.delegate syncSendEvent:event];
     }
-    return [event isEqualToString:@"onBackPressed"];
+    return NO;
 }
 
 - (void)addDelegatorLifeCycleListener:(id<KRControllerDelegatorLifeCycleProtocol>)lifeCycleListener {

@@ -145,8 +145,8 @@ void KRRenderView::SendEvent(std::string event_name, const std::string &json_dat
 }
 
 bool KRRenderView::syncSendEvent(const std::string &event_name) {
-    // 与 ETS 侧常量保持一致：'onBackPressed' / 'rootViewSizeDidChanged'
-    if (event_name == "onBackPressed" || event_name == "rootViewSizeDidChanged") {
+    // 与 ETS 侧常量保持一致：'onBackPressed'
+    if (event_name == "onBackPressed") {
         return true;
     }
     return false;

@@ -22,6 +22,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.tencent.kuikly.compose.ComposeContainer
 import com.tencent.kuikly.compose.coil3.rememberAsyncImagePainter
+import com.tencent.kuikly.compose.extension.lineBreakMargin
+import com.tencent.kuikly.compose.extension.onLineBreakMargin
 import com.tencent.kuikly.compose.foundation.Image
 import com.tencent.kuikly.compose.foundation.background
 import com.tencent.kuikly.compose.foundation.border
@@ -106,6 +108,9 @@ class TextDemo : ComposeContainer() {
                     }
                     item {
                         TextIndentDemo()
+                    }
+                    item {
+                        LineBreakMarginDemo()
                     }
                 }
             }
@@ -1245,6 +1250,48 @@ class TextDemo : ComposeContainer() {
                 ),
                 modifier = Modifier.background(Color(0xFFFFF3E0)).padding(12.dp).width(350.dp)
             )
+        }
+    }
+}
+
+@Composable
+fun LineBreakMarginDemo() {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        Text(
+            "LineBreakMargin截断末行预留边距演示",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        var isLineBreakMargin by remember { mutableStateOf(false) }
+        var isLongText by remember { mutableStateOf(true) }
+        val text = "当前是否触发onLineBreakMargin: $isLineBreakMargin "
+
+        Text(text)
+        Box {
+            Text(if (isLongText) {
+                "这是测试文本，用来展示LineBreakMargin截断末行预留边距演示的效果。这是测试文本，用来展示LineBreakMargin截断末行预留边距演示的效果"
+            } else {
+                "这是短文本，不触发LineBreakMargin"
+            },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.Yellow)
+                    .lineBreakMargin(80.dp)
+                    .onLineBreakMargin {
+                        isLineBreakMargin = true
+                    },
+                maxLines = 2,
+                fontSize = 16.sp
+            )
+            Text(modifier = Modifier.align(Alignment.BottomEnd).clickable {
+                isLineBreakMargin = false
+                isLongText = !isLongText
+            }, text = "点击切换")
         }
     }
 }

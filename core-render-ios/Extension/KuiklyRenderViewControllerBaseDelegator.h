@@ -87,7 +87,7 @@ FOUNDATION_EXTERN NSString *const KRPageDataSnapshotKey;
  * @param event 事件名
  * @return 是否同步发送
  */
-- (BOOL)syncSendEvent:(NSString *)event;
+- (BOOL)shouldSyncSendEvent:(NSString *)event;
 /*
  * @brief 添加对Delegator的生命周期时机监听，实现自定义hook
  * @param lifeCycleListener 监听者（内部弱引用该对象）
@@ -212,7 +212,7 @@ FOUNDATION_EXTERN NSString *const KRPageDataSnapshotKey;
  * @param event 事件名
  * @return 是否同步发送
  */
-- (BOOL)syncSendEvent:(NSString *)event;
+- (BOOL)shouldSyncSendEvent:(NSString *)event;
 
 /*
  * @brief 打开TurboDisplay渲染模式技术，实现超原生首屏性能

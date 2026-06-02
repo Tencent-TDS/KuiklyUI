@@ -46,11 +46,11 @@ class IKRRenderView : public std::enable_shared_from_this<IKRRenderView> {
     virtual void SendEvent(std::string event_name, const std::string &json_data, bool sync) = 0;
     
     /**
-     * 是否同步发送事件（默认异步）
+     * 是否需要同步发送事件（默认异步）
      * @param event_name 事件名
      * @return true 为同步，false 为异步
      */
-    virtual bool syncSendEvent(const std::string &event_name) { return false; }
+    virtual bool shouldSyncSendEvent(const std::string &event_name) { return false; }
 
     /**
      * 获取渲染节点视图（要求在主线程调用）

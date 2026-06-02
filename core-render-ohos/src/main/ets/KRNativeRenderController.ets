@@ -380,7 +380,7 @@ export class KRNativeRenderController {
     if (densityInfo) {
       data[KRDensityInfo] = JSON.stringify(densityInfo);
     }
-    this.doSendEvent(KRRootViewSizeDidChangedEventKey, data, this.syncSendEvent(KRRootViewSizeDidChangedEventKey));
+    this.doSendEvent(KRRootViewSizeDidChangedEventKey, data, this.shouldSyncSendEvent(KRRootViewSizeDidChangedEventKey));
 
     this.runKRRenderTask(() => {
       render.onRenderViewSizeChanged(this.instanceId, this.viewRect?.width as number, this.viewRect?.height as number);
@@ -390,14 +390,17 @@ export class KRNativeRenderController {
   onAttach() {
     this.doOnAttach();
   }
+  // 判断 View size 是否发生了改变
+  private isViewSizeChanged(width: number, height: number): boolean {
+    return this.viewRect == null ||
+      Math.abs(this.viewRect.width - width) >= 0.1 ||
+      Math.abs(this.viewRect.height - height) >= 0.1;
+  }
 
   onAreaChange(newValue: Area) {
     const newWidth = newValue.width as number;
     const newHeight = newValue.height as number;
-    // 在更新 viewRect 之前计算尺寸是否变化（用于兜底判断）
-    const sizeChanged = this.viewRect == null ||
-      Math.abs(this.viewRect.width - newWidth) >= 0.1 ||
-      Math.abs(this.viewRect.height - newHeight) >= 0.1;
+    const sizeChanged = this.isViewSizeChanged(newWidth, newHeight);
     // 始终更新 viewRect（包括 globalPosition），确保位置信息准确
     this.viewRect = new KRRect(newValue.globalPosition.x as number,
       newValue.globalPosition.y as number,
@@ -408,7 +411,7 @@ export class KRNativeRenderController {
         // 已在 onSizeChange 中提前处理过，消费标志位，跳过重复执行
         this.sizeChangeHandledByOnSizeChange = false;
       } else if (sizeChanged) {
-        // 兜底：onSizeChange 未处理（syncSendEvent=false 或未触发），在此处触发
+        // 兜底：onSizeChange 未处理（shouldSyncSendEvent=false 或未触发），在此处触发
         this.doOnAreaChange(newValue);
         this.notifySizeChange();
       }
@@ -423,13 +426,11 @@ export class KRNativeRenderController {
     }
     const newWidth = newValue.width as number;
     const newHeight = newValue.height as number;
-    // 尺寸没变化则跳过
-    if (Math.abs(this.viewRect.width - newWidth) < 0.1 &&
-        Math.abs(this.viewRect.height - newHeight) < 0.1) {
+    if (!this.isViewSizeChanged(newWidth, newHeight)) {
       return;
     }
     // 仅当业务方开启了 rootViewSizeDidChanged 同步策略时，才在布局前提前触发同步渲染
-    if (this.didInit && this.syncSendEvent(KRRootViewSizeDidChangedEventKey)) {
+    if (this.didInit && this.shouldSyncSendEvent(KRRootViewSizeDidChangedEventKey)) {
       // 提前更新 viewRect 尺寸（globalPosition 会在后续 onAreaChange 中更新）
       this.viewRect.width = newWidth;
       this.viewRect.height = newHeight;
@@ -526,7 +527,7 @@ export class KRNativeRenderController {
 
   onBackPress() {
     const sendTime = Date.now();
-    this.doSendEvent(KROnBackPressedKey, {}, this.syncSendEvent(KROnBackPressedKey));
+    this.doSendEvent(KROnBackPressedKey, {}, this.shouldSyncSendEvent(KROnBackPressedKey));
     const result = render.isBackPressConsumed(this.instanceId, sendTime);
     if (result === KRBackPressConsumedState.Consumed) {
       return true;
@@ -559,22 +560,22 @@ export class KRNativeRenderController {
   private doOnPageShow() {
     const data: KRRecord = {};
     data[KRPageDidAppearEventKey] = '1';
-    this.doSendEvent(KRPageDidAppearEventKey, data, this.syncSendEvent(KRPageDidAppearEventKey));
+    this.doSendEvent(KRPageDidAppearEventKey, data, this.shouldSyncSendEvent(KRPageDidAppearEventKey));
   }
 
   private doOnPageHide() {
     const data: KRRecord = {};
     data[KRPageDidDisappearEventKey] = '1';
-    this.doSendEvent(KRPageDidDisappearEventKey, data, this.syncSendEvent(KRPageDidDisappearEventKey));
+    this.doSendEvent(KRPageDidDisappearEventKey, data, this.shouldSyncSendEvent(KRPageDidDisappearEventKey));
   }
-
-  syncSendEvent(event: string): boolean {
+  // 外部接口：提供给业务指定需要同步执行的事件
+  shouldSyncSendEvent(event: string): boolean {
     return event === KROnBackPressedKey;
   }
 
   private doSendEvent(event: string, data: KRRecord, sync?: boolean) {
     this.runKRRenderTask(() => {
-      const shouldSync = sync ?? this.syncSendEvent(event);
+      const shouldSync = sync ?? this.shouldSyncSendEvent(event);
       if (shouldSync) {
         render.sendEventSync(this.instanceId, event, KRConvertUtil.anyToCObject(data), true);
       } else {

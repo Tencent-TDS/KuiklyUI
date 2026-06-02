@@ -118,7 +118,7 @@ void KRRenderCore::DidInit() {
 void KRRenderCore::SendEvent(std::string event_name, const std::string &json_data) {
     bool needSync = false;
     if (auto rv = renderView_.lock()) {
-        needSync = rv->syncSendEvent(event_name);
+        needSync = rv->shouldSyncSendEvent(event_name);
     }
     SendEvent(event_name, json_data, needSync);
 }

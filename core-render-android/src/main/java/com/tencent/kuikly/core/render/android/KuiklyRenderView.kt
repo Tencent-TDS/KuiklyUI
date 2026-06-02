@@ -198,7 +198,7 @@ class KuiklyRenderView(
     }
 
     override fun sendEvent(event: String, data: Map<String, Any>) {
-        var shouldSync = delegate?.syncSendEvent(event) == true
+        var shouldSync = delegate?.shouldSyncSendEvent(event) == true
         if (!shouldSync) {
             shouldSync = innerSyncSendEvent(event)
         }

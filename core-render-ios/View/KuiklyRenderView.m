@@ -184,7 +184,7 @@ NSString *const KRDensity = @"density";
                                KRActivityHeightKey:@(CGRectGetHeight(viewController.view.bounds)),
                                
         };
-        BOOL sync = [self p_syncSendEvent:KRRootViewSizeDidChangedEventKey];
+        BOOL sync = [self p_shouldSyncSendEvent:KRRootViewSizeDidChangedEventKey];
         [_renderCore sendWithEvent:KRRootViewSizeDidChangedEventKey
                               data:data
                               sync:sync];
@@ -192,9 +192,9 @@ NSString *const KRDensity = @"density";
   
 }
 
-- (BOOL)p_syncSendEvent:(NSString *)event {
-    if ([self.delegate respondsToSelector:@selector(syncSendEvent:)]) {
-        return [self.delegate syncSendEvent:event];
+- (BOOL)p_shouldSyncSendEvent:(NSString *)event {
+    if ([self.delegate respondsToSelector:@selector(shouldSyncSendEvent:)]) {
+        return [self.delegate shouldSyncSendEvent:event];
     }
     return NO;
 }

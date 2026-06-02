@@ -129,7 +129,7 @@ void KRRenderView::WillDestroy(const std::string &instanceId) {
  * @param json_data json数据字符串）
  */
 void KRRenderView::SendEvent(std::string event_name, const std::string &json_data) {
-    bool need_sync = syncSendEvent(event_name);
+    bool need_sync = shouldSyncSendEvent(event_name);
     SendEvent(std::move(event_name), json_data, need_sync);
 }
 
@@ -144,7 +144,7 @@ void KRRenderView::SendEvent(std::string event_name, const std::string &json_dat
     }
 }
 
-bool KRRenderView::syncSendEvent(const std::string &event_name) {
+bool KRRenderView::shouldSyncSendEvent(const std::string &event_name) {
     // 与 ETS 侧常量保持一致：'onBackPressed'
     if (event_name == "onBackPressed") {
         return true;

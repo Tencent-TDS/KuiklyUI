@@ -24,6 +24,7 @@ import com.tencent.kuikly.core.base.ScopeMarker
 import com.tencent.kuikly.core.base.Size
 import com.tencent.kuikly.core.base.ViewConst
 import com.tencent.kuikly.core.base.ViewContainer
+import com.tencent.kuikly.core.base.attr.ColorMatrix
 import com.tencent.kuikly.core.base.attr.IImageAttr
 import com.tencent.kuikly.core.base.attr.ImageUri
 import com.tencent.kuikly.core.base.domChildren
@@ -531,6 +532,7 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
     private var resizeMode: String = ""
     private var blurRadius: Float = 0f
     private var tintColor: Color? = null
+    private var colorFilter: ColorMatrix? = null
     private var isDotNineImage: Boolean = false
     private var borderRadius = 0f
     private var capInsets: EdgeInsets = EdgeInsets.default
@@ -619,6 +621,11 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
 
     override fun tintColor(color: Color?): IImageAttr {
         this.tintColor = color
+        return this
+    }
+
+    override fun colorFilter(matrix: ColorMatrix?): IImageAttr {
+        this.colorFilter = matrix
         return this
     }
 
@@ -769,6 +776,9 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
                     }
                     borderRadius(ctx.borderRadius)
                     capInsets(ctx.capInsets.top, ctx.capInsets.left, ctx.capInsets.bottom, ctx.capInsets.right)
+                    ctx.colorFilter?.also {
+                        colorFilter(it)
+                    }
                     margin(ctx.marginTop, ctx.marginLeft, ctx.marginBottom, ctx.marginRight)
                 }
                 ctx.clickHandlerFn?.also {

@@ -16,6 +16,7 @@
 package com.tencent.kuikly.core.views
 
 import com.tencent.kuikly.core.base.*
+import com.tencent.kuikly.core.base.attr.ColorMatrix
 import com.tencent.kuikly.core.base.attr.IImageAttr
 import com.tencent.kuikly.core.base.attr.ImageUri
 import com.tencent.kuikly.core.base.event.Event
@@ -130,6 +131,15 @@ open class ImageAttr : Attr(), IImageAttr {
             ImageConst.TINT_COLOR with ""
         } else {
             ImageConst.TINT_COLOR with color.toString()
+        }
+        return this
+    }
+
+    override fun colorFilter(matrix: ColorMatrix?): IImageAttr {
+        if (matrix == null) {
+            ImageConst.COLOR_FILTER with ""
+        } else {
+            ImageConst.COLOR_FILTER with matrix.toColorMatrixString()
         }
         return this
     }
@@ -332,6 +342,7 @@ object ImageConst {
     const val RESIZE = "resize"
     const val BLUR_RADIUS = "blurRadius"
     const val TINT_COLOR = "tintColor"
+    const val COLOR_FILTER = "colorFilter"
     const val MASK_LINEAR_GRADIENT = "maskLinearGradient"
     const val BASE64_ICON_PREFIX = "data:image"
     const val BASE64_CACHE_KEY_PREFIX = BASE64_ICON_PREFIX + "_Md5_"

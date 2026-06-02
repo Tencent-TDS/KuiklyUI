@@ -151,6 +151,9 @@ internal fun rememberPagerMeasurePolicy(
         val currentPageOffset: Int
 
         Snapshot.withoutReadObservation {
+            // Keep the snap target aligned to its item key when items are inserted/removed
+            // before it during the snap settle window (itemProvider is only available here).
+            state.relocateSnapTargetByKey(itemProvider)
             currentPage = state.matchScrollPositionWithKey(itemProvider, state.currentPage)
             currentPageOffset = snapPosition.currentPageOffset(
                 mainAxisAvailableSize,

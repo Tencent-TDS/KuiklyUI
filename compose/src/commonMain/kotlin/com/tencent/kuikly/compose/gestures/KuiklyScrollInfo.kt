@@ -66,6 +66,13 @@ class KuiklyScrollInfo {
     var composeOffset = 0f
 
     /**
+     * Temporary native-coordinate correction used while a Pager snap animation is running.
+     * When items are inserted before the snap target, this keeps the target item's native frame
+     * anchored to the original snap target offset until the snap settles.
+     */
+    var snapAnchorOffsetCorrection = 0
+
+    /**
      * Current contentView size, used to expand the bottom boundary
      */
     var currentContentSize by mutableStateOf((DEFAULT_CONTENT_SIZE * getDensity()).toInt())

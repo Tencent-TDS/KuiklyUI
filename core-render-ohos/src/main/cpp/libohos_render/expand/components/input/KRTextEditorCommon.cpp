@@ -39,6 +39,7 @@
 
 #include "libohos_render/expand/components/input/KRTextEditorCommon.h"
 
+#if KUIKLY_TEXT_EDITOR_AVAILABLE
 namespace kuikly {
 namespace text_editor {
 
@@ -1161,3 +1162,5 @@ ParsedTextInputState ParseTextInputStateJson(const std::string &json) {
 
 }  // namespace text_editor
 }  // namespace kuikly
+
+#endif 

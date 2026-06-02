@@ -395,6 +395,7 @@ fun SimpleStaggeredGrid(items: List<String>) {
 
 - [`LazyColumnDemo3.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/LazyColumnDemo3.kt)：`LazyColumn` 各种状态信息示例  
 - [`LazyColumnDemo4.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/LazyColumnDemo4.kt)：`LazyColumn` 滑动 API 示例  
+- [`LazyColumnReverseDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/LazyColumnReverseDemo.kt)：`LazyColumn(reverseLayout = true)` 上下滑动示例
 - [`LazyRowDemo1.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/LazyRowDemo1.kt)：`LazyRow` 基本用法示例  
 - [`LazyRowDemo2.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/LazyRowDemo2.kt)：`LazyRow` 的 key / type 参数示例  
 - [`LazyRowDemo3.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/LazyRowDemo3.kt)：`LazyRow` 各种状态信息示例  

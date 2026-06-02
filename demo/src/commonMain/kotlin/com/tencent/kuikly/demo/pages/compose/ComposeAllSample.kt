@@ -123,6 +123,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("LazyRow3", "LazyRow各种状态信息示例", "LazyRowDemo3"),
             DemoItem("LazyRowMarquee", "LazyRow实现跑马灯", "MarqueeTextDemo"),
             DemoItem("LazyColumn2", "LazyColumn滑动api示例", "LazyColumnDemo4"),
+            DemoItem("LazyColumnReverse", "LazyColumn reverseLayout 上下滑动示例", "LazyColumnReverseDemo"),
             DemoItem("LazyColumn嵌套", "LazyColumn嵌套滚动", "LazyNest"),
             DemoItem("LazyRowInHorizontalPager嵌套", "LazyRowInHorizontalPager嵌套滚动", "LazyRowInHorizontalPager"),
             // Pager

@@ -553,6 +553,10 @@ void DestroyTextSpanResources(OH_ArkUI_TextStyle *text_style, OH_ArkUI_SpanStyle
 //     adapter 未注册或返回空段时走原有最快路径，零回归。
 void SetStyledText(KRTextEditorState &state, const std::string &text);
 
+// 按纯文本写入 controller，不运行 TextPostProcessor。仅用于复制导出前临时把
+// image span 还原为 raw shortcode 文本，随后应恢复为 SetStyledText 写入的 rich 内容。
+void SetPlainStyledText(KRTextEditorState &state, const std::string &text);
+
 // ============================================================================
 // Raw <-> Flat 文本映射工具（基于 image_spans_ 权威映射的差分回写算法）
 //

@@ -99,6 +99,7 @@ class KRTextEditorFieldView : public IKRRenderViewExport {
     void OnInputReturn(ArkUI_NodeEvent *event);
     void OnWillChangeText(ArkUI_NodeEvent *event);
     void OnPasteText(ArkUI_NodeEvent *event);
+    void OnCopyText(ArkUI_NodeEvent *event);
     // SDK NODE_TEXT_EDITOR_ON_SELECTION_CHANGE：选区/光标变化（含纯光标移动）。
     // 与 textDidChange 解耦——纯选区变化不会触发 textDidChange。
     void OnSelectionChanged(ArkUI_NodeEvent *event);

@@ -37,6 +37,35 @@
 
 namespace {
 using kuikly::text_editor::KRTextEditorState;
+
+bool ContainsImageSpanAfterTextPostProcessor(const std::string &text) {
+    std::vector<kuikly::text::KRTextPostProcessSpan> spans;
+    if (!kuikly::text::RunTextPostProcessor(kuikly::text_editor::kTextPostProcessorNameInput,
+                                            text, spans)) {
+        return false;
+    }
+    for (const auto &span : spans) {
+        if (span.type == kuikly::text::KRTextPostProcessSpan::Type::kImage) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::string ReplaceUtf16Range(const std::string &text, uint32_t start, uint32_t end,
+                              const std::string &replacement) {
+    uint32_t safe_start = std::min(start, end);
+    uint32_t safe_end = std::max(start, end);
+    int head_bytes = kuikly::text_editor::GetUTF8ByteCount(text, 0, safe_start);
+    int range_bytes = kuikly::text_editor::GetUTF8ByteCount(
+        text, static_cast<size_t>(head_bytes), safe_end - safe_start);
+    std::string result;
+    result.reserve(text.size() - static_cast<size_t>(range_bytes) + replacement.size());
+    result.append(text, 0, static_cast<size_t>(head_bytes));
+    result.append(replacement);
+    result.append(text, static_cast<size_t>(head_bytes + range_bytes), std::string::npos);
+    return result;
+}
 }  // namespace
 
 ArkUI_NodeHandle KRTextEditorFieldView::CreateNode() {
@@ -66,9 +95,14 @@ void KRTextEditorFieldView::DidInit() {
     // 绑定 StyledStringController 到节点（文本 / 占位 / typing 样式都靠它）
     InitControllerIfNeeded();
 
-    // 默认注册 textDidChange 相关事件：
+    // 默认注册 textDidChange / copy / paste 相关事件：
     //   * NODE_TEXT_EDITOR_ON_DID_CHANGE：文本变化后；payload 不含文本，需主动 GetStyledString
+    //   * NODE_TEXT_EDITOR_ON_COPY：复制前临时把 image span 还原为 raw shortcode 文本
+    //   * NODE_TEXT_EDITOR_ON_WILL_CHANGE：粘贴 raw shortcode 前主动重建 rich styled string
     RegisterEvent(ArkUI_NodeEventType::NODE_TEXT_EDITOR_ON_DID_CHANGE);
+    RegisterEvent(ArkUI_NodeEventType::NODE_TEXT_EDITOR_ON_COPY);
+    RegisterEvent(ArkUI_NodeEventType::NODE_TEXT_EDITOR_ON_WILL_CHANGE);
+    RegisterEvent(ArkUI_NodeEventType::NODE_TEXT_EDITOR_ON_PASTE);
 
     // 首次应用 typing style（字体色、字号、字重、对齐）
     kuikly::text_editor::ApplyTypingStyle(state_);
@@ -352,6 +386,9 @@ void KRTextEditorFieldView::OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEven
             break;
         case ArkUI_NodeEventType::NODE_TEXT_EDITOR_ON_PASTE:
             OnPasteText(event);
+            break;
+        case ArkUI_NodeEventType::NODE_TEXT_EDITOR_ON_COPY:
+            OnCopyText(event);
             break;
         case ArkUI_NodeEventType::NODE_TEXT_EDITOR_ON_SELECTION_CHANGE:
             OnSelectionChanged(event);
@@ -751,11 +788,70 @@ void KRTextEditorFieldView::OnWillChangeText(ArkUI_NodeEvent *event) {
         }
     }
 
+    uint32_t r_start = 0, r_end = 0;
+    OH_ArkUI_TextEditorChangeEvent_GetRangeBefore(change_event, &r_start, &r_end);
+
+    if (kuikly::text_editor::EmptyStyledStringDescGuard g; g) {
+        if (OH_ArkUI_TextEditorChangeEvent_GetReplacementStyledString(change_event, g.desc()) ==
+            ARKUI_ERROR_CODE_NO_ERROR) {
+            std::string repl_str = kuikly::text_editor::ReadDescriptorString(g.desc());
+            if (!repl_str.empty() && ContainsImageSpanAfterTextPostProcessor(repl_str)) {
+                uint32_t raw_start = kuikly::text_editor::FlatUtf16ToRawUtf16(state_.image_spans_, r_start);
+                uint32_t raw_end = kuikly::text_editor::FlatUtf16ToRawUtf16(state_.image_spans_, r_end);
+                std::string candidate_raw = ReplaceUtf16Range(state_.cached_text_, raw_start, raw_end, repl_str);
+                if (state_.max_length_ >= 0 && state_.length_limit_type_ != -1 &&
+                    kuikly::text_editor::CalculateCandidateRenderedTextLength(
+                        state_.length_limit_type_, candidate_raw) > state_.max_length_) {
+                    NotifyTextLengthBeyondLimit();
+                    ArkUI_NumberValue ret[] = {{.i32 = 0}};
+                    OH_ArkUI_NodeEvent_SetReturnNumberValue(event, ret, 1);
+                    return;
+                }
+
+                uint32_t raw_cursor = raw_start +
+                    static_cast<uint32_t>(kuikly::text_editor::GetUTF16Length(repl_str));
+                state_.is_setting_text_input_state_ = true;
+                kuikly::text_editor::SetStyledText(state_, candidate_raw);
+                kuikly::text_editor::ApplyTypingStyle(state_);
+                KRMainThread::RunOnMainThreadForNextLoop(
+                    [weakSelf = weak_from_this(), candidate_raw, raw_cursor] {
+                        auto strongSelf = std::dynamic_pointer_cast<KRTextEditorFieldView>(weakSelf.lock());
+                        if (!strongSelf || !strongSelf->state_.controller_) {
+                            return;
+                        }
+                        uint32_t flat_cursor = kuikly::text_editor::RawUtf16ToFlatUtf16(
+                            strongSelf->state_.image_spans_, raw_cursor);
+                        kuikly::text_editor::SetCaretOffset(strongSelf->state_, static_cast<int32_t>(flat_cursor));
+                        strongSelf->state_.is_setting_text_input_state_ = false;
+                        if (strongSelf->state_.text_did_change_callback_) {
+                            KRRenderValueMap map;
+                            map["text"] = NewKRRenderValue(candidate_raw);
+                            if (strongSelf->state_.length_limit_type_ != -1) {
+                                int length = kuikly::text_editor::CalculateRenderedTextLength(
+                                    strongSelf->state_, candidate_raw);
+                                map["length"] = NewKRRenderValue(length);
+                            }
+                            strongSelf->state_.text_did_change_callback_(NewKRRenderValue(map));
+                            strongSelf->state_.pending_text_did_change_ = false;
+                        } else {
+                            strongSelf->state_.pending_text_did_change_ = true;
+                        }
+                        if (strongSelf->state_.text_input_state_change_callback_) {
+                            strongSelf->EmitTextInputStateChange();
+                            strongSelf->state_.pending_text_input_state_change_ = false;
+                        } else {
+                            strongSelf->state_.pending_text_input_state_change_ = true;
+                        }
+                    });
+                ArkUI_NumberValue ret[] = {{.i32 = 0}};
+                OH_ArkUI_NodeEvent_SetReturnNumberValue(event, ret, 1);
+                return;
+            }
+        }
+    }
+
     // max-length 过滤（length_limit_type != -1 时手动过滤）
     if (state_.max_length_ != -1 && state_.length_limit_type_ != -1) {
-        uint32_t r_start = 0, r_end = 0;
-        OH_ArkUI_TextEditorChangeEvent_GetRangeBefore(change_event, &r_start, &r_end);
-
         // SDK 缺陷规避（详见 .ai/references/ohos-styledstring-descriptor-quirks.md）：
         // 同上方注释——必须用 `_CreateWithString` 而非 `_Create()`，否则 Destroy 会崩。
         // RAII 守卫：原本 5 处手动 _Destroy 配对 + 1 处 early return 全部由作用域接管，
@@ -800,9 +896,50 @@ void KRTextEditorFieldView::OnWillChangeText(ArkUI_NodeEvent *event) {
 
 void KRTextEditorFieldView::OnPasteText(ArkUI_NodeEvent *event) {
     // TEXT_EDITOR ON_PASTE 只能返回是否放行，不提供粘贴文本。按 2A 方案：
-    // 此处不拦截；若 length_limit_type != -1，由 ON_WILL_CHANGE 的
-    // GetReplacementStyledString 路径负责截断（已在 OnWillChangeText 实现）。
+    // 此处不拦截；若粘贴文本含 shortcode 或触发 lengthLimitType，由 ON_WILL_CHANGE 的
+    // GetReplacementStyledString 路径负责 raw 重建 / 截断（已在 OnWillChangeText 实现）。
     (void)event;
+}
+
+void KRTextEditorFieldView::OnCopyText(ArkUI_NodeEvent *event) {
+    uint32_t flat_start = 0;
+    uint32_t flat_end = 0;
+    kuikly::text_editor::ReadSelection(state_, state_.cached_text_, &flat_start, &flat_end);
+    if (flat_start == flat_end) {
+        ArkUI_NumberValue ret[] = {{.i32 = 0}};
+        OH_ArkUI_NodeEvent_SetReturnNumberValue(event, ret, 1);
+        return;
+    }
+
+    std::string original_raw = state_.cached_text_;
+    std::vector<KRTextEditorState::KRImageSpanRecord> original_spans = state_.image_spans_;
+    uint32_t raw_start = kuikly::text_editor::FlatUtf16ToRawUtf16(original_spans, flat_start);
+    uint32_t raw_end = kuikly::text_editor::FlatUtf16ToRawUtf16(original_spans, flat_end);
+    std::string selected_raw = ReplaceUtf16Range(original_raw, 0, raw_start, "");
+    uint32_t selected_raw_u16_len = raw_end - raw_start;
+    int selected_raw_bytes = kuikly::text_editor::GetUTF8ByteCount(selected_raw, 0, selected_raw_u16_len);
+    selected_raw = selected_raw.substr(0, static_cast<size_t>(selected_raw_bytes));
+
+    state_.is_setting_text_input_state_ = true;
+    kuikly::text_editor::SetPlainStyledText(state_, selected_raw);
+    kuikly::text_editor::SetSelectionRange(
+        state_, 0, static_cast<uint32_t>(kuikly::text_editor::GetUTF16Length(selected_raw)));
+
+    KRMainThread::RunOnMainThreadForNextLoop(
+        [weakSelf = weak_from_this(), original_raw, original_spans, flat_start, flat_end] {
+            auto strongSelf = std::dynamic_pointer_cast<KRTextEditorFieldView>(weakSelf.lock());
+            if (!strongSelf || !strongSelf->state_.controller_) {
+                return;
+            }
+            kuikly::text_editor::SetStyledText(strongSelf->state_, original_raw);
+            strongSelf->state_.image_spans_ = original_spans;
+            kuikly::text_editor::ApplyTypingStyle(strongSelf->state_);
+            kuikly::text_editor::SetSelectionRange(strongSelf->state_, flat_start, flat_end);
+            strongSelf->state_.is_setting_text_input_state_ = false;
+        });
+
+    ArkUI_NumberValue ret[] = {{.i32 = 0}};
+    OH_ArkUI_NodeEvent_SetReturnNumberValue(event, ret, 1);
 }
 
 // ============================================================================

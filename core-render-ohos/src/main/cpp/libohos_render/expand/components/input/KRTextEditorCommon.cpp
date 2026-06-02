@@ -298,6 +298,26 @@ void DestroyTextSpanResources(OH_ArkUI_TextStyle *text_style, OH_ArkUI_SpanStyle
 }
 
 // ----------------------------------------------------------------------
+// SetPlainStyledText
+// ----------------------------------------------------------------------
+void SetPlainStyledText(KRTextEditorState &state, const std::string &text) {
+    if (!state.controller_) {
+        return;
+    }
+    OH_ArkUI_TextStyle *text_style = nullptr;
+    OH_ArkUI_SpanStyle *span_style = nullptr;
+    OH_ArkUI_ParagraphStyle *para_style = nullptr;
+    OH_ArkUI_LineHeightStyle *line_height_style = nullptr;
+    ArkUI_StyledString_Descriptor *desc = BuildPlainTextDescriptor(
+        state, text, &text_style, &span_style, &para_style, &line_height_style);
+    if (desc) {
+        OH_ArkUI_TextEditorStyledStringController_SetStyledString(state.controller_, desc);
+        OH_ArkUI_StyledString_Descriptor_Destroy(desc);
+    }
+    DestroyTextSpanResources(text_style, span_style, para_style, line_height_style);
+}
+
+// ----------------------------------------------------------------------
 // SetStyledText（迁自 KRTextEditorCommon.h 原行 643~831）
 // ----------------------------------------------------------------------
 void SetStyledText(KRTextEditorState &state, const std::string &text) {

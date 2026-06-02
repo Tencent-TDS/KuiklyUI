@@ -19,6 +19,8 @@ import com.tencent.kuikly.compose.foundation.ScrollState
 import com.tencent.kuikly.compose.foundation.gestures.Orientation
 import com.tencent.kuikly.compose.foundation.gestures.ScrollableState
 import com.tencent.kuikly.compose.foundation.layout.PaddingValues
+import com.tencent.kuikly.compose.foundation.lazy.LazyListItemInfo
+import com.tencent.kuikly.compose.foundation.lazy.LazyListLayoutInfo
 import com.tencent.kuikly.compose.foundation.lazy.LazyListState
 import com.tencent.kuikly.compose.foundation.lazy.grid.LazyGridState
 import com.tencent.kuikly.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
@@ -140,10 +142,7 @@ private fun ScrollableState.composeViewportMainAxisSize(): Int? {
 }
 
 private fun LazyListState.calculateLazyListContentSize(curOffset: Float): Int? {
-    val lastItem = layoutInfo.visibleItemsInfo.lastOrNull()
-    return if (lastItem != null && lastItem.index == layoutInfo.totalItemsCount - 1) {
-        (curOffset + lastItem.offset + lastItem.size).toInt()
-    } else null
+    return layoutInfo.calculateExactContentSizeFromVisualEnd(curOffset)
 }
 
 private fun PagerState.calculatePagerContentSize(curOffset: Float): Int? {
@@ -187,18 +186,9 @@ private fun ScrollState.calculateScrollStateContentSize(): Int? {
 internal fun ScrollableState.calculateBackExpandSize(offset: Int): Int? {
     if (this !is LazyListState) return null
 
-    val visibleItems = layoutInfo.visibleItemsInfo
-    if (visibleItems.isEmpty()) return null
-
-    val itemsSum = visibleItems.fastSumBy { it.size }
-    val avgSize = itemsSum / visibleItems.size + layoutInfo.mainAxisItemSpacing
-    val firstItem = visibleItems.firstOrNull() ?: return null
-
-    // Adjust for PullToRefresh offset if it exists
-    val pullToRefreshOffset = if (kuiklyInfo.hasPullToRefresh) 1 else 0
-    val adjustedFirstItemIndex = maxOf(0, firstItem.index - pullToRefreshOffset)
-
-    val estimateOffset = adjustedFirstItemIndex * avgSize - firstItem.offset
+    val estimateOffset = layoutInfo.estimateVisualTopScrollOffset(
+        hasPullToRefresh = kuiklyInfo.hasPullToRefresh
+    ) ?: return null
     val density = this.kuiklyInfo.getDensity()
 
     return if (estimateOffset - offset > ScrollableStateConstants.SCROLL_THRESHOLD * density) {
@@ -213,8 +203,9 @@ internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolea
     if (kuiklyInfo.scrollView == null) return
 
     val density = kuiklyInfo.getDensity()
+    val reverseLazyLayout = this is LazyListState && kuiklyInfo.reverseLayout
     // scrollview 到顶了，但是compose没到顶
-    if (offset <= 0 && !isAtTop() && kuiklyInfo.offsetDirty) {
+    if (!reverseLazyLayout && offset <= 0 && !isAtTop() && kuiklyInfo.offsetDirty) {
         var delta = calculateBackExpandSize(offset)
         val minDelta = (ScrollableStateConstants.DEFAULT_CONTENT_SIZE * density).toInt()
         delta = max(delta ?: minDelta, minDelta)
@@ -234,7 +225,7 @@ internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolea
         }
         kuiklyInfo.offsetDirty = true
         applyScrollViewOffsetDelta(delta)
-    } else if (offset > 0 && isAtTop()) {
+    } else if (!reverseLazyLayout && offset > 0 && isAtTop()) {
         // compose 到顶了，但是scrollview没到顶
         applyScrollViewOffsetDelta(-offset)
         kuiklyInfo.offsetDirty = false
@@ -250,8 +241,9 @@ internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = f
             val minDelta = (DEFAULT_CONTENT_SIZE * getDensity()).toInt()
             val epsilon = 0.5 * getDensity()  // 使用 0.5dp 作为误差值
             val reachBtm = contentOffset + viewportSize - currentContentSize >= -epsilon
+            val reverseLazyLayout = this@tryExpandStartSizeNoScroll is LazyListState && reverseLayout
 
-            if (contentOffset <= 0 && !isAtTop() && (forceExpand || scrollView?.isDragging != true)) {
+            if (!reverseLazyLayout && contentOffset <= 0 && !isAtTop() && (forceExpand || scrollView?.isDragging != true)) {
                 // 整体把offset 加一下
                 var delta = calculateBackExpandSize(contentOffset)
                 delta = max(delta ?: minDelta, minDelta)
@@ -266,11 +258,11 @@ internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = f
                 }
                 applyScrollViewOffsetDelta(delta)
                 offsetDirty = true
-            } else if (contentOffset > 0 && isAtTop()) {
+            } else if (!reverseLazyLayout && contentOffset > 0 && isAtTop()) {
                 // compose 到顶了，但是scrollview没到顶
                 applyScrollViewOffsetDelta(-contentOffset)
                 offsetDirty = false
-            } else if (isAtTop() && realContentSize == null && lastItemVisible() && scrollView?.isDragging != true) {
+            } else if (isAtTop() && realContentSize == null && scrollView?.isDragging != true) {
                 // 更新当前的contentSize大小
                 currentContentSize = calculateContentSize()
                 updateContentSizeToRender()
@@ -282,3 +274,40 @@ internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = f
         }
     }
 }
+
+internal fun LazyListLayoutInfo.calculateExactContentSizeFromVisualEnd(curOffset: Float): Int? {
+    val terminalItem = if (reverseLayout) visualTopItem() else visualBottomItem()
+    if (terminalItem?.index != totalItemsCount - 1) return null
+    val visualBottomEdge = visibleItemsInfo.maxOfOrNull { visualBottomEdgeOffset(it) } ?: return null
+    return (curOffset + visualBottomEdge).toInt()
+}
+
+internal fun LazyListLayoutInfo.estimateVisualTopScrollOffset(hasPullToRefresh: Boolean): Int? {
+    val visibleItems = visibleItemsInfo
+    if (visibleItems.isEmpty()) return null
+
+    val avgSize = visibleItems.fastSumBy { it.size } / visibleItems.size + mainAxisItemSpacing
+    val visualTopItem = visualTopItem() ?: return null
+    val itemsBeforeVisualTop = if (reverseLayout) {
+        maxOf(0, totalItemsCount - 1 - visualTopItem.index)
+    } else {
+        val pullToRefreshOffset = if (hasPullToRefresh) 1 else 0
+        maxOf(0, visualTopItem.index - pullToRefreshOffset)
+    }
+    return itemsBeforeVisualTop * avgSize - visualTopOffset(visualTopItem)
+}
+
+private fun LazyListLayoutInfo.visualTopItem(): LazyListItemInfo? =
+    if (reverseLayout) visibleItemsInfo.lastOrNull() else visibleItemsInfo.firstOrNull()
+
+private fun LazyListLayoutInfo.visualBottomItem(): LazyListItemInfo? =
+    if (reverseLayout) visibleItemsInfo.firstOrNull() else visibleItemsInfo.lastOrNull()
+
+private fun LazyListLayoutInfo.visualTopOffset(item: LazyListItemInfo): Int =
+    if (reverseLayout) mainAxisViewportSize() - item.offset - item.size else item.offset
+
+private fun LazyListLayoutInfo.visualBottomEdgeOffset(item: LazyListItemInfo): Int =
+    if (reverseLayout) mainAxisViewportSize() - item.offset else item.offset + item.size
+
+private fun LazyListLayoutInfo.mainAxisViewportSize(): Int =
+    if (orientation == Orientation.Vertical) viewportSize.height else viewportSize.width

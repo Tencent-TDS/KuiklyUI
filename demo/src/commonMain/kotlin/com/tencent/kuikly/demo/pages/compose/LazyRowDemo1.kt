@@ -96,6 +96,7 @@ class LazyRowDemo1 : ComposeContainer() {
                     Modifier
                         .height(50.dp)
                         .background(Color.LightGray),
+                reverseLayout = true,
             ) {
                 items(5) { index ->
                     Box(

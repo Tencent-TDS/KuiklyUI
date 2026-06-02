@@ -18,6 +18,7 @@ package com.tencent.kuikly.compose.scroller
 import com.tencent.kuikly.compose.foundation.ScrollState
 import com.tencent.kuikly.compose.foundation.gestures.Orientation
 import com.tencent.kuikly.compose.foundation.gestures.ScrollableState
+import com.tencent.kuikly.compose.foundation.lazy.LazyListLayoutInfo
 import com.tencent.kuikly.compose.foundation.lazy.LazyListState
 import com.tencent.kuikly.compose.foundation.lazy.grid.LazyGridState
 import com.tencent.kuikly.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
@@ -83,13 +84,12 @@ internal fun ScrollableState.kuiklyOnScrollEnd(params: ScrollParams) {
 
 /**
  * Check if at top position
- * If PullToRefresh exists, need to consider the index it occupies
  */
 internal fun ScrollableState.isAtTop(): Boolean = when(this) {
-    is LazyListState -> {
-        val pullToRefreshOffset = if (kuiklyInfo.hasPullToRefresh) 1 else 0
-        firstVisibleItemIndex <= pullToRefreshOffset && firstVisibleItemScrollOffset == 0
-    }
+    is LazyListState -> layoutInfo.isAtVisualTop(
+        canScrollForward = canScrollForward,
+        canScrollBackward = canScrollBackward
+    )
     is PagerState -> firstVisiblePage == 0 && firstVisiblePageOffset == 0
     is LazyGridState -> {
         val pullToRefreshOffset = if (kuiklyInfo.hasPullToRefresh) 1 else 0
@@ -104,10 +104,41 @@ internal fun ScrollableState.isAtTop(): Boolean = when(this) {
 }
 
 /**
+ * Check if at bottom/end position.
+ */
+internal fun ScrollableState.isAtBottom(): Boolean = when(this) {
+    is LazyListState -> layoutInfo.isAtVisualBottom(
+        canScrollForward = canScrollForward,
+        canScrollBackward = canScrollBackward
+    )
+    is PagerState -> currentPage == pageCount - 1
+    is LazyGridState -> !canScrollForward
+    is LazyStaggeredGridState -> !canScrollForward
+    is ScrollState -> value >= maxValue
+    else -> false
+}
+
+internal fun LazyListLayoutInfo.isAtVisualTop(
+    canScrollForward: Boolean,
+    canScrollBackward: Boolean
+): Boolean = if (reverseLayout) !canScrollForward else !canScrollBackward
+
+internal fun LazyListLayoutInfo.isAtVisualBottom(
+    canScrollForward: Boolean,
+    canScrollBackward: Boolean
+): Boolean = if (reverseLayout) !canScrollBackward else !canScrollForward
+
+/**
  * Check if the last index is visible
  */
 internal fun ScrollableState.lastItemVisible(): Boolean = when(this) {
-    is LazyListState -> layoutInfo.visibleItemsInfo.lastOrNull()?.index == layoutInfo.totalItemsCount - 1
+    is LazyListState -> {
+        if (layoutInfo.reverseLayout) {
+            layoutInfo.visibleItemsInfo.firstOrNull()?.index == 0
+        } else {
+            layoutInfo.visibleItemsInfo.lastOrNull()?.index == layoutInfo.totalItemsCount - 1
+        }
+    }
     is PagerState -> currentPage == pageCount - 1
     is LazyGridState -> layoutInfo.visibleItemsInfo.lastOrNull()?.index == layoutInfo.totalItemsCount - 1
     is LazyStaggeredGridState -> layoutInfo.visibleItemsInfo.lastOrNull()?.index == layoutInfo.totalItemsCount - 1
@@ -130,7 +161,7 @@ internal fun ScrollableState.isValidOffsetDelta(delta: Int): Boolean {
  */
 internal suspend fun ScrollableState.animateScrollToTop() {
     when (this) {
-        is LazyListState -> this.animateScrollToItem(0)
+        is LazyListState -> this.animateScrollToItem(topItemIndex())
         is LazyGridState -> this.animateScrollToItem(0)
         is LazyStaggeredGridState -> this.animateScrollToItem(0)
         is PagerState -> this.animateScrollToPage(0)
@@ -158,13 +189,18 @@ internal fun ScrollableState.applyScrollViewOffsetDelta(delta: Int) {
  */
 internal fun ScrollableState.requestScrollToTop() {
     when (this) {
-        is LazyListState -> requestScrollToItem(0)
+        is LazyListState -> requestScrollToItem(topItemIndex())
         is LazyGridState -> requestScrollToItem(0)
         is LazyStaggeredGridState -> requestScrollToItem(0)
         is PagerState -> requestScrollToPage(0)
         // ScrollState does not have request API; skip for now
         else -> {}
     }
+}
+
+private fun LazyListState.topItemIndex(): Int {
+    val totalItemsCount = layoutInfo.totalItemsCount
+    return if (layoutInfo.reverseLayout && totalItemsCount > 0) totalItemsCount - 1 else 0
 }
 
 /**

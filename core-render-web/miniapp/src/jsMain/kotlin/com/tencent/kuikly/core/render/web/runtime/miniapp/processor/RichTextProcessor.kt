@@ -115,6 +115,9 @@ object RichTextProcessor : IRichTextProcessor {
     // mini app measure text canvas context
     private var measureTextCtx: dynamic = null
     
+    // OffscreenCanvas object reference
+    private var measureCanvas: dynamic = null
+    
     // Cache last used font string to avoid redundant font setting
     private var lastCanvasFont: String = ""
 
@@ -136,6 +139,17 @@ object RichTextProcessor : IRichTextProcessor {
 
     // Set placeholder image delay time
     private const val IMAGE_SPAN_DELAY = 100
+
+    /**
+     * Reset the offscreen canvas context and font cache after custom font loaded.
+     * This forces the next measureTextWidth call to re-create the canvas context
+     * and re-set the font, which may pick up the newly loaded custom font.
+     */
+    fun resetMeasureContext() {
+        measureTextCtx = null
+        measureCanvas = null
+        lastCanvasFont = ""
+    }
 
     /**
      * Set webkit multi-line text style
@@ -186,8 +200,8 @@ object RichTextProcessor : IRichTextProcessor {
      */
     private fun getCanvasContext(): dynamic {
         if (measureTextCtx == null) {
-            measureTextCtx =
-                NativeApi.plat.createOffscreenCanvas(json("type" to "2d")).getContext("2d")
+            measureCanvas = NativeApi.plat.createOffscreenCanvas(json("type" to "2d"))
+            measureTextCtx = measureCanvas.getContext("2d")
         }
         return measureTextCtx
     }

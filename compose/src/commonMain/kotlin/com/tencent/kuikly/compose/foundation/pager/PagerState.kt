@@ -33,6 +33,7 @@ import com.tencent.kuikly.compose.foundation.lazy.layout.AwaitFirstLayoutModifie
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayoutBeyondBoundsInfo
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayoutPinnedItemList
 import com.tencent.kuikly.compose.foundation.lazy.layout.ObservableScopeInvalidator
+import com.tencent.kuikly.compose.foundation.lazy.layout.findIndexByKey
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf

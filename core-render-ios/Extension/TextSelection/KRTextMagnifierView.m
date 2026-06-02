@@ -18,7 +18,9 @@
 // The size of the native iOS magnifier (elliptical).
 static const CGFloat kMagnifierWidth = 127.0;
 static const CGFloat kMagnifierHeight = 89.0;
+#if !TARGET_OS_OSX
 static const CGFloat kMagnifierScale = 1.2; // The magnification factor.
+#endif
 
 static const CGFloat kMagnifierBorderWidth = 1.0;
 static const CGFloat kMagnifierShadowRadius = 4;
@@ -75,39 +77,48 @@ static const CGFloat kMagnifierShadowOpacity = 0.25;
 
 - (void)updateMagnification {
     if (!self.viewToMagnify) return;
-    
+
+#if TARGET_OS_OSX
+    return;
+#else
     // Capture the current touchPoint value before async scheduling.
     CGPoint capturedPoint = self.touchPoint;
-    
-    // Capture the screenshot asynchronously on the main thread 
+
+    // Capture the screenshot asynchronously on the main thread
     // to avoid recursive calls during `addSubview`.
     dispatch_async(dispatch_get_main_queue(), ^{
         [self captureAndDisplayAtPoint:capturedPoint];
     });
+#endif
 }
 
 - (void)captureAndDisplayAtPoint:(CGPoint)point {
+#if TARGET_OS_OSX
+    #pragma unused(point)
+    return;
+#else
     if (!self.viewToMagnify || !self.superview) return;
-    
+
     UIGraphicsImageRendererFormat *format = [[UIGraphicsImageRendererFormat alloc] init];
     format.scale = [UIScreen mainScreen].scale;
     format.opaque = NO;
-    
+
     UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:self.bounds.size format:format];
 
     UIImage *image = [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
         CGContextRef ctx = rendererContext.CGContext;
-        
+
         // Translate and scale to center the point and magnify.
         CGContextTranslateCTM(ctx, self.bounds.size.width / 2, self.bounds.size.height / 2);
         CGContextScaleCTM(ctx, kMagnifierScale, kMagnifierScale);
         CGContextTranslateCTM(ctx, -point.x, -point.y);
-        
+
         // Use drawViewHierarchyInRect
         [self.viewToMagnify drawViewHierarchyInRect:self.viewToMagnify.bounds afterScreenUpdates:NO];
     }];
-    
+
     self.contentImageView.image = image;
+#endif
 }
 
 @end

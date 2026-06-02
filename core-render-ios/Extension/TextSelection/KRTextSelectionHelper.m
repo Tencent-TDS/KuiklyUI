@@ -85,11 +85,15 @@ static void *KRTextSelectionContainerFrameObserverContext = &KRTextSelectionCont
         
         _leftAnchor = [[KRTextSelectionAnchorView alloc] initWithFrame:initialFrame];
         [_leftAnchor setIsTop:YES];
+#if !TARGET_OS_OSX
         _leftAnchor.tag = KR_ANCHOR_TAG_LEFT;
-        
+#endif
+
         _rightAnchor = [[KRTextSelectionAnchorView alloc] initWithFrame:initialFrame];
         [_rightAnchor setIsTop:NO];
+#if !TARGET_OS_OSX
         _rightAnchor.tag = KR_ANCHOR_TAG_RIGHT;
+#endif
         
         [self setupPanGestureForAnchor:_leftAnchor];
         [self setupPanGestureForAnchor:_rightAnchor];
@@ -486,21 +490,26 @@ static const CGFloat kMagnifierViewSize = 80.0;
 static const CGFloat kMagnifierVerticalOffset = 60.0;
 
 - (void)showMagnifierViewWithTargetLabel:(KRLabel *)label point:(CGPoint)point {
+#if TARGET_OS_OSX
+    #pragma unused(label, point)
+    return;
+#else
     if (!self.magnifierView) {
         CGRect magnifierFrame = CGRectMake(0, 0, kMagnifierViewSize, kMagnifierViewSize);
         self.magnifierView = [[KRTextMagnifierView alloc] initWithFrame:magnifierFrame];
     }
     self.magnifierView.viewToMagnify = self.containerView;
-    
+
     UIWindow *window = label.window;
     if (window && self.magnifierView.superview != window) {
         [window addSubview:self.magnifierView];
     }
-    
+
     // 更新放大镜位置（显示在触摸点上方）
     CGPoint windowPoint = [self.containerView convertPoint:point toView:window];
     self.magnifierView.center = CGPointMake(windowPoint.x, windowPoint.y - kMagnifierVerticalOffset);
     self.magnifierView.touchPoint = point;
+#endif
 }
 
 - (void)removeMagnifierView {

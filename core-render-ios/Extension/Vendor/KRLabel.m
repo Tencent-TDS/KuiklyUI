@@ -86,7 +86,14 @@ NSString *const KRBGAttributeKey = @"KRBGAttributeKey";
         NSRange glyphRange = [self.textRender.layoutManager glyphRangeForCharacterRange:self.selectedRange actualCharacterRange:nil];
         [self.textRender.layoutManager enumerateEnclosingRectsForGlyphRange:glyphRange withinSelectedGlyphRange:glyphRange inTextContainer:self.textRender.textContainer usingBlock:^(CGRect r, BOOL * _Nonnull stop) {
              CGRect drawRect = CGRectOffset(r, rect.origin.x, rect.origin.y);
+#if TARGET_OS_OSX
+             CGContextRef context = UIGraphicsGetCurrentContext();
+             if (context) {
+                 CGContextFillRect(context, drawRect);
+             }
+#else
              UIRectFill(drawRect);
+#endif
         }];
     }
     

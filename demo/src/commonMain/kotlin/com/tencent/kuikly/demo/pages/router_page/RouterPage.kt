@@ -264,6 +264,33 @@ internal class RouterPage : BasePager() {
                     }
                 }
             }
+
+            View {
+                attr {
+                    allCenter()
+                    marginLeft(20f)
+                    marginRight(20f)
+                    marginTop(0f)
+                    marginBottom(20f)
+                }
+                Text {
+                    attr {
+                        fontSize(18f)
+                        text("直达：LazyColumn reverseLayout 上下滑动")
+                        textDecorationUnderLine()
+                        backgroundLinearGradient(
+                            Direction.TO_RIGHT,
+                            ColorStop(Color(0xFF23D3FD), 0f),
+                            ColorStop(Color(0xFFAD37FE), 1f)
+                        )
+                    }
+                }
+                event {
+                    click {
+                        ctx.jumpPage("LazyColumnReverseDemo")
+                    }
+                }
+            }
         }
 
     }

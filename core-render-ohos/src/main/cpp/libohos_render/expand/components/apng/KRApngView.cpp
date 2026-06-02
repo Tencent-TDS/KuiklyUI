@@ -111,22 +111,34 @@ void KRApngView::SetSrc(std::string &src) {
                 LoadFile(uri);
                 return;
             }
-        } else {
+        } else if (src.rfind("http://", 0) == 0 || src.rfind("https://", 0) == 0) {
+            // 区别file:/// 和 网络URL，避免 本地路径 走 FetchFileByDownloadOrCache 一定返回是 null
             auto module_name = std::string(kNetworkModuleName);
             auto network_module = std::dynamic_pointer_cast<KRNetworkModule>(GetModule(module_name));
             if (network_module) {
                 auto url = src;
                 std::weak_ptr<IKRRenderViewExport> weak_self = shared_from_this();
-                network_module->FetchFileByDownloadOrCache(url, [weak_self](KRAnyValue res) {
-                    if (res == nullptr) {
-                        return;
-                    }
-                    auto filePath = res->toString();
+                network_module->FetchFileByDownloadOrCache(url, [weak_self, url](KRAnyValue res) {
                     if (auto self = weak_self.lock()) {
-                        reinterpret_cast<KRApngView *>(self.get())->LoadFile(filePath);
+                        auto *apngView = reinterpret_cast<KRApngView *>(self.get());
+                        // 一致性判断，以防竞态条件下晚加载完成的图覆盖已加载的正确的图
+                        if (apngView->src_ != url) {
+                            return;
+                        }
+                        // 加载apng
+                        if (res && !res->isNull() && res->isString()) {
+                            auto filePath = res->toString();
+                            apngView->LoadFile(filePath);
+                            return;
+                        }
+                        // 加载失败，仅通知上层，旧内容保留到后续新 src 替换时自然清理
+                        apngView->FireLoadFailure();
                     }
                 });
             }
+        } else {
+            // 加载本地图片
+            LoadFile(src);
         }
     }
 }

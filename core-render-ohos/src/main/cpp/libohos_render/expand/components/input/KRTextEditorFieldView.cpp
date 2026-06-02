@@ -535,7 +535,7 @@ void KRTextEditorFieldView::OnTextDidChanged(ArkUI_NodeEvent *event) {
         KRRenderValueMap map;
         map["text"] = NewKRRenderValue(text);
         if (state_.length_limit_type_ != -1) {
-            int length = kuikly::text_editor::CalculateTextLength(state_.length_limit_type_, text);
+            int length = kuikly::text_editor::CalculateRenderedTextLength(state_, text);
             map["length"] = NewKRRenderValue(length);
         }
         state_.text_did_change_callback_(NewKRRenderValue(map));
@@ -635,6 +635,14 @@ void KRTextEditorFieldView::SetTextInputStateInternal(const std::string &json) {
 
     // 1) 文本写入：与 iOS 相同——文本未变时跳过 SetStyledText，保留已有 span / typing 样式。
     bool text_changed = (parsed.text != state_.cached_text_);
+    if (text_changed && state_.max_length_ >= 0 && state_.length_limit_type_ != -1 &&
+        kuikly::text_editor::CalculateCandidateRenderedTextLength(state_.length_limit_type_, parsed.text) >
+            state_.max_length_) {
+        NotifyTextLengthBeyondLimit();
+        state_.is_setting_text_input_state_ = false;
+        EmitTextInputStateChange();
+        return;
+    }
     if (text_changed) {
         kuikly::text_editor::SetStyledText(state_, parsed.text);
         kuikly::text_editor::ApplyTypingStyle(state_);
@@ -673,6 +681,9 @@ void KRTextEditorFieldView::SetTextInputStateInternal(const std::string &json) {
                     kuikly::text_editor::SetSelectionRange(strongSelf->state_, flat_start, flat_end);
                 }
                 strongSelf->state_.is_setting_text_input_state_ = false;
+                if (strongSelf->state_.length_limit_type_ != -1) {
+                    strongSelf->EmitTextInputStateChange();
+                }
             });
     } else {
         // 文本未变路径：同步设 selection（已验证 SDK 不会重置 caret）。

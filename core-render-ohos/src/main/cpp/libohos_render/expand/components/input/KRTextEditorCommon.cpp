@@ -939,6 +939,62 @@ int CalculateTextLength(int length_limit_type, const std::string &text, size_t r
 }
 
 // ----------------------------------------------------------------------
+// CalculateRenderedTextLength
+// ----------------------------------------------------------------------
+int CalculateRenderedTextLength(const KRTextEditorState &state, const std::string &text) {
+    if (state.length_limit_type_ == 0 || state.image_spans_.empty()) {
+        return CalculateTextLength(state.length_limit_type_, text);
+    }
+    if (state.length_limit_type_ == 1) {
+        int length = CalculateTextLength(state.length_limit_type_, text);
+        for (const auto &span : state.image_spans_) {
+            if (span.raw_literal.empty()) {
+                continue;
+            }
+            length -= CalculateTextLength(state.length_limit_type_, span.raw_literal);
+            length += 1;
+        }
+        return length;
+    }
+    if (state.length_limit_type_ == 2) {
+        int length = CalculateTextLength(state.length_limit_type_, text);
+        for (const auto &span : state.image_spans_) {
+            if (span.raw_literal.empty()) {
+                continue;
+            }
+            length -= CalculateTextLength(state.length_limit_type_, span.raw_literal);
+            length += 2;
+        }
+        return length;
+    }
+    return CalculateTextLength(state.length_limit_type_, text);
+}
+
+// ----------------------------------------------------------------------
+// CalculateCandidateRenderedTextLength
+// ----------------------------------------------------------------------
+int CalculateCandidateRenderedTextLength(int length_limit_type, const std::string &text) {
+    if (length_limit_type == 0) {
+        return CalculateTextLength(length_limit_type, text);
+    }
+    std::vector<kuikly::text::KRTextPostProcessSpan> spans;
+    if (!kuikly::text::RunTextPostProcessor(kTextPostProcessorNameInput, text, spans)) {
+        return CalculateTextLength(length_limit_type, text);
+    }
+    int length = 0;
+    for (const auto &span : spans) {
+        if (span.type == kuikly::text::KRTextPostProcessSpan::Type::kText) {
+            length += CalculateTextLength(length_limit_type, span.text_or_src);
+        } else if (length_limit_type == 1) {
+            length += 1;
+        } else if (length_limit_type == 2) {
+            length += 2;
+        }
+    }
+    return length;
+}
+
+// ----------------------------------------------------------------------
 // CalculateTruncateIndex（迁自 KRTextEditorCommon.h 原行 1437~1480）
 // ----------------------------------------------------------------------
 int CalculateTruncateIndex(int length_limit_type, const std::string &text, size_t keep) {
@@ -1040,7 +1096,7 @@ KRRenderValueMap BuildTextInputStatePayload(const KRTextEditorState &state) {
     map[kKeyCompositionStart] = NewKRRenderValue(static_cast<int>(kNoComposition));
     map[kKeyCompositionEnd] = NewKRRenderValue(static_cast<int>(kNoComposition));
     if (state.length_limit_type_ != -1) {
-        int length = CalculateTextLength(state.length_limit_type_, text);
+        int length = CalculateRenderedTextLength(state, text);
         map[kKeyLength] = NewKRRenderValue(length);
     }
     return map;

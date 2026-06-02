@@ -21,6 +21,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <deviceinfo.h>
+#include <regex>
 
 #ifdef __cplusplus
 extern "C" {
@@ -427,6 +428,12 @@ void KRTextFieldView::SetTextInputStateInternal(const std::string &json) {
     };
 
     std::string text = get_string(kKeyText);
+    if (ShouldRejectProgrammaticShortcodeInput(text)) {
+        NotifyTextLengthBeyondLimit();
+        NotifyTextInputStateChange();
+        return;
+    }
+
     // selection 用 UTF-16 长度做 clamp，与 Android 行为一致。
     int u16_len = GetUTF16Length(text);
     int selection_start = get_int(kKeySelectionStart, u16_len);
@@ -451,9 +458,12 @@ void KRTextFieldView::SetTextInputStateInternal(const std::string &json) {
             if (auto strongSelf = std::dynamic_pointer_cast<KRTextFieldView>(weakSelf.lock())) {
                 strongSelf->UpdateInputNodeSelectionStartPosition(static_cast<uint32_t>(selection_start));
                 strongSelf->is_setting_text_input_state_ = false;
+                if (strongSelf->length_limit_type_ != -1) {
+                    strongSelf->NotifyTextInputStateChange();
+                }
             }
         });
-    // 调用方调用 setTextInputState 时已知道目标状态，无需再回调（与 Android 行为一致）。
+    // 调用方调用 setTextInputState 时已知道目标状态，但 length 依赖原生计算，需在限长模式下回传。
 }
 
 /**
@@ -627,6 +637,19 @@ std::string KRTextFieldView::GetContentText() {
  */
 void KRTextFieldView::SetContentText(const std::string &text) {
     UpdateInputNodeContentText(text);
+}
+
+bool KRTextFieldView::ShouldRejectProgrammaticShortcodeInput(const std::string &text) {
+    if (length_limit_type_ < 0 || max_length_ <= 0) {
+        return false;
+    }
+
+    static const std::regex shortcode_regex(R"(\[[a-zA-Z0-9_\-]+\])");
+    if (!std::regex_search(text, shortcode_regex)) {
+        return false;
+    }
+
+    return CalculateTextLength(text) > max_length_;
 }
 
 bool KRTextFieldView::LimitInputContentTextInMaxLength() {

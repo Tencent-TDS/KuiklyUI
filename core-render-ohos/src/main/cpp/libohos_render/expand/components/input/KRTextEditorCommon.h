@@ -864,6 +864,16 @@ inline int GetUTF16Length(const std::string &text) {
 int CalculateTextLength(int length_limit_type, const std::string &text, size_t rmStart = 0,
                                size_t rmEnd = 0);
 
+// 按 TextEditor 渲染结果计算 length：BYTE 仍按 raw 文本，CHARACTER / VISUAL_WIDTH
+// 使用 image_spans_ 映射后的 flat 文本，其中 ImageSpan 在 CHARACTER 中计 1，
+// 在 VISUAL_WIDTH 中计 2。
+int CalculateRenderedTextLength(const KRTextEditorState &state, const std::string &text);
+
+// 按候选 raw 文本未来写入后的渲染结果计算 length。与 CalculateRenderedTextLength
+// 不同，它不依赖当前 state.image_spans_，而是对候选文本重新运行 input
+// TextPostProcessor；用于 setTextInputState 受控写入前的超限判断。
+int CalculateCandidateRenderedTextLength(int length_limit_type, const std::string &text);
+
 int CalculateTruncateIndex(int length_limit_type, const std::string &text, size_t keep);
 
 // 根据 state.length_limit_type_ / state.max_length_ 对 source 进行过滤。语义与老

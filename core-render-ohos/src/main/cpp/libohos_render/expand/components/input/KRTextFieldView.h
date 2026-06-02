@@ -209,6 +209,12 @@ class KRTextFieldView : public IKRRenderViewExport {
      * 设置输入的文本内容
      */
     void SetContentText(const std::string &text);
+
+    /**
+     * 对齐 iOS：程序化写入包含短码且超出 maxLength 时，整段拒绝本次写入。
+     */
+    bool ShouldRejectProgrammaticShortcodeInput(const std::string &text);
+
     /**
      * 限制输入文本到最大长度
      */

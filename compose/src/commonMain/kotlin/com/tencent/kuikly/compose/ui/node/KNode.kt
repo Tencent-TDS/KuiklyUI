@@ -264,7 +264,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         if (ksScrollSubView && needFixScrollOffset) {
             val scrollerView = (parent as KNode<*>).view
             ((scrollerView.renderProperties as? RenderProperties)?.kuiklyScrollInfo)?.apply {
-                val deltaOffset = composeOffset
+                val deltaOffset = composeOffset + snapAnchorOffsetCorrection
                 pos = if (orientation == Orientation.Vertical) {
                     Offset(pos.x, pos.y + deltaOffset)
                 } else {

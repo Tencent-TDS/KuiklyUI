@@ -90,6 +90,13 @@ void KRTextAreaView::UpdateInputNodeSelectionStartPosition(uint32_t index) {
     ArkUI_AttributeItem item = {value.data(), value.size()};
     kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_AREA_TEXT_SELECTION, &item);
 }
+std::pair<uint32_t, uint32_t> KRTextAreaView::GetInputNodeTextSelectionRange() {
+    auto item = kuikly::util::GetNodeApi()->getAttribute(GetNode(), NODE_TEXT_AREA_TEXT_SELECTION);
+    if (item && item->size >= 2) {
+        return {static_cast<uint32_t>(item->value[0].i32), static_cast<uint32_t>(item->value[1].i32)};
+    }
+    return {0, 0};
+}
 void KRTextAreaView::UpdateInputNodePlaceholderFont(uint32_t font_size, ArkUI_FontWeight font_weight) {
     ArkUI_NumberValue fontWeight = {.i32 = font_weight};
     ArkUI_NumberValue tempStyle = {.i32 = ARKUI_FONT_STYLE_NORMAL};

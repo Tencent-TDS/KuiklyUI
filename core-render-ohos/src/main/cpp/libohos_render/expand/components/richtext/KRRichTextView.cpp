@@ -15,12 +15,19 @@
 
 #include "libohos_render/expand/components/richtext/KRRichTextView.h"
 
+#include <multimedia/image_framework/image/pixelmap_native.h>
 #include <native_drawing/drawing_brush.h>
 #include <native_drawing/drawing_pen.h>
+#include <native_drawing/drawing_pixel_map.h>
 #include <native_drawing/drawing_point.h>
+#include <native_drawing/drawing_rect.h>
+#include <native_drawing/drawing_sampling_options.h>
 #include <native_drawing/drawing_shader_effect.h>
 #include "libohos_render/expand/components/base/KRCustomUserCallback.h"
+#include "libohos_render/expand/components/richtext/KRCustomEmojiPixmapCache.h"
 #include "libohos_render/expand/components/richtext/KRRichTextShadow.h"
+#include "libohos_render/foundation/KRConfig.h"
+#include "libohos_render/foundation/thread/KRMainThread.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -74,7 +81,13 @@ void KRRichTextView::SetShadow(const std::shared_ptr<IKRRenderShadowExport> &sha
     shadow_ = shadow;
 
     auto textShadow = std::dynamic_pointer_cast<KRRichTextShadow>(shadow);
-    if(textShadow && textShadow->StyledStringEnabled()){
+    // 决策 6C：image span（由 PostProcessor("richtext") 拆段产生）只在 V1（老 typography）
+    // OnForegroundDraw 路径下能被绘制——因为 V2 的 StyledString 是交给 ArkUI 节点直接
+    // 渲染，SDK 当前没暴露插入图片绘制 hook 的入口。这个判定已收敛到
+    // shadow->StyledStringEnabled()（含 image span 时返 false），本处只读一个结果。
+    bool use_styled_string = textShadow && textShadow->StyledStringEnabled();
+    bool has_image_span = textShadow && textShadow->HasImageSpans();
+    if(use_styled_string){
         ArkUI_AttributeItem item;
         if(std::shared_ptr<KRParagraph> paragraph = std::dynamic_pointer_cast<KRRichTextShadow>(shadow)->GetParagraph()){
             item.object = paragraph->GetStyledString();
@@ -90,6 +103,21 @@ void KRRichTextView::SetShadow(const std::shared_ptr<IKRRenderShadowExport> &sha
     }else {
         KREventDispatchCenter::GetInstance().RegisterCustomEvent(shared_from_this(), ARKUI_NODE_CUSTOM_EVENT_ON_FOREGROUND_DRAW);
         kuikly::util::GetNodeApi()->markDirty(GetNode(), NODE_NEED_RENDER);
+    }
+    // 注册 image span 解码完成回调：weak 引用 view，避免悬挂访问；解码完成在主线程被
+    // 调用（shadow 端已用 KRMainThread::RunOnMainThread 切换），这里直接 markDirty 即可。
+    if (textShadow && has_image_span) {
+        std::weak_ptr<IKRRenderViewExport> weak_self = shared_from_this();
+        textShadow->SetImageLoadedCallback(
+            [weak_self](const std::string & /*uri*/) {
+                auto strong = weak_self.lock();
+                if (!strong) {
+                    return;
+                }
+                kuikly::util::GetNodeApi()->markDirty(strong->GetNode(), NODE_NEED_RENDER);
+            });
+    } else if (textShadow) {
+        textShadow->SetImageLoadedCallback(nullptr);
     }
 }
 
@@ -184,6 +212,80 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
     }
     // fallback
     OH_Drawing_TypographyPaint(textTypo, drawingHandle, 0, -drawOffsetY);
+
+    // ===== Phase 4: 绘制由 PostProcessor("richtext") 产生的 image span =====
+    // 时机：紧跟 OH_Drawing_TypographyPaint 之后；图片画在文字上层是预期效果——表情
+    // 通常带轻微阴影/抗锯齿，需要覆盖排版底色。坐标系：placeholder rect 为 px（已乘 dpi），
+    // canvas 同样 px；drawOffsetY 也是 px，保持与 TypographyPaint 一致即可。
+    // 业务声明的 ImageSpan（spanPropsMap 自带 placeholderWidth）不在 image_draw_records_
+    // 中，不会被本块绘制——它们继续走"父节点 ImageView" 老链路。
+    const auto &image_records = richTextShadow->GetImageDrawRecords();
+    if (!image_records.empty()) {
+        OH_Drawing_TextBox *placeholder_rects = OH_Drawing_TypographyGetRectsForPlaceholders(textTypo);
+        if (placeholder_rects) {
+            int rect_count = OH_Drawing_GetSizeOfTextBox(placeholder_rects);
+            // 复用一份 sampling options：emoji 缩放优先 LINEAR，避免最近邻产生锯齿。
+            OH_Drawing_SamplingOptions *sampling = OH_Drawing_SamplingOptionsCreate(
+                FILTER_MODE_LINEAR, MIPMAP_MODE_NONE);
+            for (const auto &rec : image_records) {
+                if (rec.placeholder_index < 0 || rec.placeholder_index >= rect_count) {
+                    continue;
+                }
+                // 持有 shared_ptr 强引用：在本地变量 pm_holder 存活期间，即便此刻被并发
+                // Evict / TrimLocked 从 cache 中移除，底层 pixmap 仍保活直到本作用域结束
+                // ——彻底消除原本"裸指针 + 锁外使用"的悬挂访问风险。
+                auto pm_holder = KRCustomEmojiPixmapCache::GetInstance().Get(rec.src_uri);
+                OH_PixelmapNative *pm = pm_holder.get();
+                if (!pm) {
+                    // 解码尚未就绪：本帧空过；KRCustomEmojiPixmapCache 解码完成后会通过
+                    // ImageLoadedCallback 跳转到 view 这里的 markDirty 触发下一帧重绘。
+                    // 第一次绘制 → 解码 → markDirty → 第二次绘制命中本路径，体感几乎无延迟。
+                    continue;
+                }
+                OH_Drawing_PixelMap *draw_pm = OH_Drawing_PixelMapGetFromOhPixelMapNative(pm);
+                if (!draw_pm) {
+                    continue;
+                }
+                // 取 placeholder 在 typography 内的 px 矩形，注意：drawOffsetY 与
+                // TypographyPaint 时一致（向上平移）。
+                float left = OH_Drawing_GetLeftFromTextBox(placeholder_rects, rec.placeholder_index);
+                float top = OH_Drawing_GetTopFromTextBox(placeholder_rects, rec.placeholder_index);
+                float right = OH_Drawing_GetRightFromTextBox(placeholder_rects, rec.placeholder_index);
+                float bottom = OH_Drawing_GetBottomFromTextBox(placeholder_rects, rec.placeholder_index);
+                // src 矩形：整张图（pixmap 原始像素尺寸）。
+                OH_Pixelmap_ImageInfo *info = nullptr;
+                OH_PixelmapImageInfo_Create(&info);
+                uint32_t img_w = 0, img_h = 0;
+                if (info && OH_PixelmapNative_GetImageInfo(pm, info) == IMAGE_SUCCESS) {
+                    OH_PixelmapImageInfo_GetWidth(info, &img_w);
+                    OH_PixelmapImageInfo_GetHeight(info, &img_h);
+                }
+                if (info) {
+                    OH_PixelmapImageInfo_Release(info);
+                }
+                if (img_w == 0 || img_h == 0) {
+                    // 没拿到尺寸时不绘制，避免 src=(0,0,0,0) 导致的未定义行为。
+                    OH_Drawing_PixelMapDissolve(draw_pm);
+                    continue;
+                }
+                OH_Drawing_Rect *src = OH_Drawing_RectCreate(0, 0, static_cast<float>(img_w),
+                                                              static_cast<float>(img_h));
+                OH_Drawing_Rect *dst = OH_Drawing_RectCreate(left, top - drawOffsetY,
+                                                              right, bottom - drawOffsetY);
+                OH_Drawing_CanvasDrawPixelMapRect(drawingHandle, draw_pm, src, dst, sampling);
+                OH_Drawing_RectDestroy(src);
+                OH_Drawing_RectDestroy(dst);
+                // PixelMapGetFromOhPixelMapNative 返回的 OH_Drawing_PixelMap 与 native pixmap
+                // 形成关联；按 SDK 规范，使用完毕后必须 Dissolve 解除关联，但 native 对象
+                // 由 KRCustomEmojiPixmapCache（进程级单例）持续持有，不在此 release。
+                OH_Drawing_PixelMapDissolve(draw_pm);
+            }
+            if (sampling) {
+                OH_Drawing_SamplingOptionsDestroy(sampling);
+            }
+            OH_Drawing_TypographyDestroyTextBox(placeholder_rects);
+        }
+    }
 }
 
 void KRRichTextView::ToSetProp(const std::string &prop_key, const KRAnyValue &prop_value,

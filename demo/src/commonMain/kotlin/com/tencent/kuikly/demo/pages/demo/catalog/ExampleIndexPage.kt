@@ -132,6 +132,20 @@ internal class ExampleIndexPage : BasePager() {
         })
 
         itemList.add(ExampleItemData().apply {
+            avatarText = "In"
+            titleText = "Input setText-after-ready"
+            subtitleText = "验证新 ARKUI_NODE_TEXT_EDITOR 在 ready 后 setText 能否触发 textDidChange"
+            declarativeExampleUrl = generateJumpUrl("InputSetTextAfterReadyDemoPage")
+        })
+
+        itemList.add(ExampleItemData().apply {
+            avatarText = "In"
+            titleText = "Input 新/老控件对比入口"
+            subtitleText = "OHOS Only：切换全局标志位，分别进入老 TEXT_INPUT 和新 TEXT_EDITOR 测试页"
+            declarativeExampleUrl = generateJumpUrl("InputCompareEntryPage")
+        })
+
+        itemList.add(ExampleItemData().apply {
             avatarText = "Ta"
             titleText = "TextArea"
             subtitleText = "多行输入框，与 Input 用法一致，支持换行 / keyboardHeightChange / textLengthBeyondLimit 等"

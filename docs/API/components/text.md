@@ -1049,9 +1049,9 @@ internal class TestPage : BasePager() {
 
 :::
 
-### textPostProcessor方法 <Badge text="仅Android支持" type="warn"/>
+### textPostProcessor方法 <Badge text="Android/iOS/鸿蒙支持" type="info"/>
 
-声明文本后置处理器名称，用于将文本中的特定标记（如表情短码）替换为富文本样式（如 `ImageSpan`）。具体处理逻辑需在 Android 端实现 [`IKRTextPostProcessorAdapter`](../../DevGuide/text-post-processor-guide.md) 适配器。
+声明文本后置处理器名称，用于将文本中的特定标记（如表情短码）替换为富文本样式（如 `ImageSpan` / `NSTextAttachment` / 鸿蒙 image span）。具体处理逻辑需在各端实现对应适配器，详见 [`text-post-processor-guide.md`](../../DevGuide/text-post-processor-guide.md)。
 
 <div class="table-01">
 
@@ -1059,13 +1059,20 @@ internal class TestPage : BasePager() {
 
 | 参数  | 描述     | 类型 |
 |:----|:-------|:--|
-| processor | 处理器名称，由业务自定义并在 Android 适配器中实现对应逻辑  | String |
+| processor | 处理器名称，由业务自定义，并在各端适配器中注册/路由到对应逻辑  | String |
 
 </div>
 
 :::tip 常见处理器名称
-- `"emoji"` / `"input"` — 将 `[smile]` 等短码替换为表情图片（需在适配器中实现映射）
-- 其他名称可自由定义，只要在适配器的 `when` 分支中处理即可
+- `"emoji"` / `"richtext"` — 将 `[smile]` 等短码替换为表情图片（需在各端适配器中实现映射）
+- `"input"` — 可与输入框共用同一套短码映射逻辑
+- 其他名称可自由定义，只要 Kotlin DSL 与各端适配器名称一致即可
+:::
+
+:::warning 平台说明
+- **Android**：通过 `IKRTextPostProcessorAdapter` 返回 `SpannableStringBuilder` / `ImageSpan`。
+- **iOS**：通过 `hr_customTextWithAttributedString:textPostProcessor:` 返回 `NSMutableAttributedString` / `NSTextAttachment`。
+- **鸿蒙**：通过 `KRRegisterTextPostProcessorAdapter(name, adapter)` 注册具名 adapter；只读 `Text` 会按 DSL 传入的 `processor` 名称调用 adapter，并绘制其返回的 image span。图片 `src` 需是 `file://`、`http(s)://` 或 `data:image/...;base64,...` 等可寻址 URI。
 :::
 
 **示例**

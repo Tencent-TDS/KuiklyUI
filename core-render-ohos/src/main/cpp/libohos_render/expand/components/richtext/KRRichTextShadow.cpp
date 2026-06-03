@@ -15,18 +15,28 @@
 
 
 #include <native_drawing/drawing_brush.h>
+#include <native_drawing/drawing_canvas.h>
 #include <native_drawing/drawing_font_collection.h>
 #include <native_drawing/drawing_pen.h>
+#include <native_drawing/drawing_pixel_map.h>
 #include <native_drawing/drawing_register_font.h>
+#include <native_drawing/drawing_rect.h>
+#include <native_drawing/drawing_sampling_options.h>
 #include <native_drawing/drawing_shader_effect.h>
 #include <native_drawing/drawing_text_declaration.h>
 #include <native_drawing/drawing_text_typography.h>
+#include <multimedia/image_framework/image/image_source_native.h>
+#include <multimedia/image_framework/image/pixelmap_native.h>
 
 #include <codecvt>
+#include <thread>
 #include <unordered_set>
 
+#include "libohos_render/api/src/KRTextPostProcessor.h"
+#include "libohos_render/expand/components/richtext/KRCustomEmojiPixmapCache.h"
 #include "libohos_render/expand/components/richtext/KRParagraph.h"
 #include "libohos_render/expand/components/richtext/KRRichTextShadow.h"
+#include "libohos_render/foundation/thread/KRMainThread.h"
 #include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/utils/KRLinearGradientParser.h"
 #include "libohos_render/utils/KRStringUtil.h"
@@ -71,6 +81,13 @@ KRRichTextShadow::~KRRichTextShadow() {
     // 释放时。
     main_thread_typography_.reset();
     context_thread_typography_.reset();
+    // pixmap 缓存已迁移至 KRCustomEmojiPixmapCache（进程级单例），不随 shadow 销毁
+    // 而释放——同一张 emoji 在多个 RichText / 多页面间复用，由 LRU(128) 控制容量。
+    // 销毁仅需清理本 shadow 持有的轻量状态。
+    {
+        std::lock_guard<std::mutex> lk(image_loaded_callback_mutex_);
+        image_loaded_callback_ = nullptr;
+    }
 }
 
 /**
@@ -162,6 +179,12 @@ KRSize KRRichTextShadow::CalculateRenderViewSizeWithStyledString(double constrai
 }
 
 bool KRRichTextShadow::StyledStringEnabled(){
+    // 决策 6C：含 image span（PostProcessor 拆段产生的内置图片占位）时，必须走
+    // V1 OnForegroundDraw 路径才能插入图片绘制。这里把判定收敛在 shadow 端，
+    // view 端只需读取一个布尔结果。
+    if (HasImageSpans()) {
+        return false;
+    }
     return KR_TEXT_RENDER_V2_ENABLED;
 }
 
@@ -330,10 +353,93 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
 
     span_offsets_.clear();
     placeholder_index_map_.clear();
+    image_draw_records_.clear();
     KRRenderValue::Array spans = values_;
     if (spans.empty()) {
         spans.push_back(KRRenderValue::Make(props_));
     }
+
+    // ===== Phase 2: PostProcessor 拆段 =====
+    // 仅对"纯文本 span"（没有 placeholderWidth 且无内置 image src 标记）调用一次
+    // RunTextPostProcessor(processor_name, text, segs)：
+    //   * processor_name 取自 props_["textPostProcessor"]（与 iOS / Android 跨端语义对齐：
+    //     业务通过 `Text { textPostProcessor("input") }` / `Text { textPostProcessor("richtext") }`
+    //     等显式声明 name；OHOS 侧不假设默认 name），缺省（业务未声明）时跳过 adapter，
+    //     与原始路径完全等价、零开销。
+    //   * 若 adapter 返回非空 segs：把该 span **就地替换**为多个 span——每个 text seg 复制
+    //     原 span 全部样式属性 + 改写 text 字段；每个 image seg 复制原 span 全部样式属性
+    //     + 写入 placeholderWidth/Height（让现有循环走占位分支）+ 内置字段
+    //     `__kr_image_src__`（让本函数后续把它登记到 image_draw_records_）。
+    //   * 未注册 adapter / 返回空：保持原 span 不变。
+    // 业务声明的 ImageSpan（spanPropsMap 自带 placeholderWidth）跳过——它们走原有
+    // "PlaceholderSpan + 父节点 ImageView" 链路，不需要本机制接管图片绘制。
+    {
+        std::string processor_name = GetKRValue("textPostProcessor", props_, props_)->toString();
+        if (!processor_name.empty()) {
+            KRRenderValue::Array expanded;
+            expanded.reserve(spans.size());
+            for (const auto &span : spans) {
+                auto m = span->toMap();
+                // 已声明 image span（业务自己写 ImageSpan { src(...) }）：跳过 PostProcessor
+                auto declared_ph_w = GetKRValue("placeholderWidth", m, m)->toDouble();
+                // 内置 image span（前一轮 SetProp 已展开过 / 嵌套场景）：避免重复展开
+                auto already_image_src = GetKRValue(kuikly::richtext::kInternalImageSrcKey, m, m)->toString();
+                if (declared_ph_w != 0 || !already_image_src.empty()) {
+                    expanded.push_back(span);
+                    continue;
+                }
+                auto raw_text = GetKRValue("value", m, m)->toString();
+                if (raw_text.empty()) {
+                    raw_text = GetKRValue("text", m, m)->toString();
+                }
+                if (raw_text.empty()) {
+                    expanded.push_back(span);
+                    continue;
+                }
+                std::vector<kuikly::text::KRTextPostProcessSpan> segs;
+                if (!kuikly::text::RunTextPostProcessor(processor_name, raw_text, segs)) {
+                    expanded.push_back(span);
+                    continue;
+                }
+                // 命中 adapter：按 segs 顺序生成多个 span。每个新 span 在原 span 的 map 基础上
+                // 改写 value/text/placeholderWidth/placeholderHeight/__kr_image_src__ 等字段，
+                // 其它样式（fontSize / color / fontWeight / textAlign / lineHeight ...）原样继承。
+                for (const auto &seg : segs) {
+                    auto new_map = m;  // copy
+                    if (seg.type == kuikly::text::KRTextPostProcessSpan::Type::kText) {
+                        new_map["value"] = NewKRRenderValue(seg.text_or_src);
+                        new_map["text"] = NewKRRenderValue(seg.text_or_src);
+                        new_map.erase("placeholderWidth");
+                        new_map.erase("placeholderHeight");
+                        new_map.erase(kuikly::richtext::kInternalImageSrcKey);
+                    } else {
+                        // image seg：用占位分支，dpi 缩放在循环内统一处理；
+                        // 业务给的 width/height 单位是 vp（与 ImageSpan / TextEditor 路径一致），
+                        // 缺省时按当前 fontSize（vp）取方形。
+                        float w = seg.width > 0 ? seg.width : 0.0f;
+                        float h = seg.height > 0 ? seg.height : (w > 0 ? w : 0.0f);
+                        if (w <= 0) {
+                            // 取该 span 的 fontSize（vp）作为兜底——保证 emoji 与文字同高。
+                            float fs_vp = GetKRValue("fontSize", m, props_)->toFloat();
+                            if (fs_vp <= 0) {
+                                fs_vp = 16.0f;  // 与 ImageView span 的兜底口径一致
+                            }
+                            w = fs_vp;
+                            h = fs_vp;
+                        }
+                        new_map["value"] = NewKRRenderValue(std::string(""));
+                        new_map["text"] = NewKRRenderValue(std::string(""));
+                        new_map["placeholderWidth"] = NewKRRenderValue(static_cast<double>(w));
+                        new_map["placeholderHeight"] = NewKRRenderValue(static_cast<double>(h));
+                        new_map[kuikly::richtext::kInternalImageSrcKey] = NewKRRenderValue(seg.text_or_src);
+                    }
+                    expanded.push_back(KRRenderValue::Make(new_map));
+                }
+            }
+            spans = std::move(expanded);
+        }
+    }
+
     auto numberOfLines = GetKRValue("numberOfLines", props_, props_)->toInt();
     const std::string lineBreakModeStr = GetKRValue("lineBreakMode", props_, props_)->toString();
     auto lineBreakMode = kuikly::util::ConvertToTextBreakMode(lineBreakModeStr);
@@ -532,6 +638,19 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
             };
             OH_Drawing_TypographyHandlerAddPlaceholder(handler, &inlineView);
             placeholder_index_map_[spanIndex] = placeholder_count;
+            // 仅当此 placeholder 是由 PostProcessor("richtext") 展开产生的内置 image span
+            // 时，登记到 image_draw_records_ 以便 view 层在 OnForegroundDraw 中绘制图片。
+            // 业务自己声明的 ImageSpan（无 kInternalImageSrcKey 字段）继续走"父节点 ImageView"
+            // 老链路，不被本机制接管。
+            auto image_src = GetKRValue(kuikly::richtext::kInternalImageSrcKey, spanMap, spanMap)->toString();
+            if (!image_src.empty()) {
+                KRImageDrawRecord rec;
+                rec.placeholder_index = placeholder_count;
+                rec.src_uri = image_src;
+                rec.width_vp = static_cast<float>(placeholderWidth);
+                rec.height_vp = static_cast<float>(placeholderHeight);
+                image_draw_records_.push_back(std::move(rec));
+            }
             placeholder_count++;
             charOffset += 1;
         } else {
@@ -588,6 +707,9 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
     if (typoStyle != nullptr) {
         OH_Drawing_DestroyTypographyStyle(typoStyle);
     }
+    // 触发 image span 异步预加载（决策 3C）。当 image_draw_records_ 为空（业务未注册
+    // PostProcessor / 全是文本）时本方法立即返回，零开销。
+    TriggerImagePrefetchIfNeed();
     return typography_raw;
 }
 
@@ -604,6 +726,41 @@ void KRRichTextShadow::ReleaseLastTypography() {
     context_thread_drawOffsetX_ = 0;
     context_thread_text_align_ = TEXT_ALIGN_LEFT;
     context_measure_size_ = KRSize(0, 0);
+}
+
+// ===== Phase 3: image span 异步预加载（委托 KRCustomEmojiPixmapCache） =====
+// 在 BuildTextTypography 末尾被调用：遍历 image_draw_records_，对每个 uri 调用
+// KRCustomEmojiPixmapCache::Prefetch。缓存 / 去重 / 后台解码 / 主线程回调都由
+// 该单例管理；shadow 只负责在解码完成时转发给 view（markDirty）。
+// weak_from_this 拦截 shadow 销毁后的悬挂访问；view 销毁时
+// SetImageLoadedCallback(nullptr) 避免反向访问已销毁的 view。
+void KRRichTextShadow::TriggerImagePrefetchIfNeed() {
+    if (image_draw_records_.empty()) {
+        return;
+    }
+    auto weak_self = std::weak_ptr<IKRRenderShadowExport>(shared_from_this());
+    for (const auto &rec : image_draw_records_) {
+        if (rec.src_uri.empty()) {
+            continue;
+        }
+        KRCustomEmojiPixmapCache::GetInstance().Prefetch(
+            rec.src_uri, [weak_self](const std::string &uri) {
+                auto strong = weak_self.lock();
+                if (!strong) {
+                    return;
+                }
+                auto *self = static_cast<KRRichTextShadow *>(strong.get());
+                ImageLoadedCallback cb_copy;
+                {
+                    std::lock_guard<std::mutex> lk(self->image_loaded_callback_mutex_);
+                    cb_copy = self->image_loaded_callback_;
+                }
+                // 在锁外调用 view 回调，避免业务回调里反向访问缓存形成死锁。
+                if (cb_copy) {
+                    cb_copy(uri);
+                }
+            });
+    }
 }
 
 /**

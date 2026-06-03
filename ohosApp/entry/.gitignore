@@ -4,3 +4,4 @@
 /build
 /.cxx
 /.test
+/src/main/ets/ts-api/provider.ets

@@ -495,7 +495,7 @@ class EmptyStyledStringDescGuard {
 //   A. 调用方主动设置 lineHeight：直接返回用户值（按 fontSize 做最小下限保护，避免裁切）。
 //   B. 未主动设置：按 fontSize * kDefaultLineHeightMultiplier 推导。
 // 返回 <=0 表示"不主动调 SetLineHeight"（仅当 fontSize<=0 等异常情况），让系统走默认。
-inline float ResolveLineHeightVp(const KRTextEditorState &state);
+float ResolveLineHeightVp(const KRTextEditorState &state);
 
 // 基于当前 state 的 typing 样式创建一个 TextStyle，调用方负责 Destroy。
 OH_ArkUI_TextEditorTextStyle *CreateTextStyleFromState(const KRTextEditorState &state,

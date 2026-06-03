@@ -17,9 +17,12 @@
 
 #include <cstdint>
 #include <hilog/log.h>
+#include <mutex>
+#include <unordered_map>
 #include <unordered_set>
 
 #include "KRAnyDataInternal.h"
+#include "KRTextPostProcessor.h"
 #include "libohos_render/expand/components/image/KRImageAdapterManager.h"
 #include "libohos_render/expand/components/richtext/KRFontAdapterManager.h"
 #include "libohos_render/export/IKRRenderModuleExport.h"
@@ -42,6 +45,13 @@ struct KRRenderModuleCallbackContextData {
         module_.reset();
         cb_ = nullptr;
     }
+};
+
+// 不透明 builder 结构体定义。内存所有权细节见 Kuikly.h 头注释。
+// 仅在 KRTextPostProcessorAdapter 回调期间作为栈对象存在，回调返回后立即析构，
+// 自动回收所有 std::string 内存——业务侧无需也无法主动 free。
+struct KRTextProcessedResultBuilder_ {
+    std::vector<kuikly::text::KRTextPostProcessSpan> spans;
 };
 
 #ifdef __cplusplus
@@ -347,6 +357,115 @@ int g_kuikly_disable_view_reuse = 0;
 void KRDisableViewReuse(){
     g_kuikly_disable_view_reuse = 1;
 }
+
+// =====================================================================
+// Text Post Processor Adapter implementation
+// =====================================================================
+namespace {
+// 注册表：name -> adapter。同名后注册覆盖前者。
+// 进程级，初始化阶段一次写入 + 运行期高频读，使用读写互斥保护即可（adapter 注册不在
+// 关键路径，整体竞争极低；为简化实现使用普通 mutex）。
+std::mutex &TextPostProcessorMutex() {
+    static std::mutex m;
+    return m;
+}
+std::unordered_map<std::string, KRTextPostProcessorAdapter> &TextPostProcessorMap() {
+    static std::unordered_map<std::string, KRTextPostProcessorAdapter> m;
+    return m;
+}
+}  // namespace
+
+void KRRegisterTextPostProcessorAdapter(const char *name,
+                                        KRTextPostProcessorAdapter adapter) {
+    if (!name) {
+        return;
+    }
+    std::lock_guard<std::mutex> guard(TextPostProcessorMutex());
+    auto &m = TextPostProcessorMap();
+    if (adapter) {
+        m[name] = adapter;
+    } else {
+        m.erase(name);
+    }
+}
+
+void KRTextProcessedResultAppendTextSpan(KRTextProcessedResultBuilder builder,
+                                         const char *text) {
+    if (!builder || !text) {
+        return;
+    }
+    kuikly::text::KRTextPostProcessSpan span;
+    span.type = kuikly::text::KRTextPostProcessSpan::Type::kText;
+    span.text_or_src = text;  // std::string 拷贝构造，立即落库
+    builder->spans.push_back(std::move(span));
+}
+
+void KRTextProcessedResultAppendImageSpan(KRTextProcessedResultBuilder builder,
+                                          const char *src,
+                                          float width,
+                                          float height) {
+    if (!builder || !src || src[0] == '\0') {
+        return;
+    }
+    kuikly::text::KRTextPostProcessSpan span;
+    span.type = kuikly::text::KRTextPostProcessSpan::Type::kImage;
+    span.text_or_src = src;
+    // raw_literal 留空：调用方未声明 raw 字面量，编辑后差分回写阶段无法精准还原。
+    span.width = width;
+    span.height = height;
+    builder->spans.push_back(std::move(span));
+}
+
+void KRTextProcessedResultAppendImageSpanWithRaw(KRTextProcessedResultBuilder builder,
+                                                 const char *src,
+                                                 const char *raw_literal,
+                                                 float width,
+                                                 float height) {
+    if (!builder || !src || src[0] == '\0') {
+        return;
+    }
+    kuikly::text::KRTextPostProcessSpan span;
+    span.type = kuikly::text::KRTextPostProcessSpan::Type::kImage;
+    span.text_or_src = src;
+    if (raw_literal && raw_literal[0] != '\0') {
+        // std::string 拷贝，回调返回后业务可任意释放/复用入参缓冲区。
+        span.raw_literal = raw_literal;
+    }
+    span.width = width;
+    span.height = height;
+    builder->spans.push_back(std::move(span));
+}
 #ifdef __cplusplus
 }
 #endif
+
+// SDK 内部派发桥（仅供 core-render-ohos 内部调用，定义在 namespace 内、不在 extern "C" 块）。
+namespace kuikly {
+namespace text {
+bool RunTextPostProcessor(const std::string &name,
+                          const std::string &text,
+                          std::vector<KRTextPostProcessSpan> &out_spans) {
+    KRTextPostProcessorAdapter adapter = nullptr;
+    {
+        std::lock_guard<std::mutex> guard(TextPostProcessorMutex());
+        auto &m = TextPostProcessorMap();
+        auto it = m.find(name);
+        if (it == m.end()) {
+            return false;
+        }
+        adapter = it->second;
+    }
+    if (!adapter) {
+        return false;
+    }
+    // builder 是栈对象，回调返回即析构；其内部 std::string 自动释放。
+    KRTextProcessedResultBuilder_ builder;
+    adapter(text.c_str(), /*reserved=*/nullptr, &builder);
+    if (builder.spans.empty()) {
+        return false;
+    }
+    out_spans = std::move(builder.spans);
+    return true;
+}
+}  // namespace text
+}  // namespace kuikly

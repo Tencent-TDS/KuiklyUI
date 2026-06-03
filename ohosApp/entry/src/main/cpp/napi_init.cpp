@@ -19,10 +19,13 @@
 #include <multimedia/image_framework/image/image_source_native.h>
 #include <multimedia/image_framework/image/pixelmap_native.h>
 #include <rawfile/raw_file_manager.h>
-#include <thread>
-#include <memory>
+#include <sys/stat.h>
+#include <fstream>
 #include <map>
+#include <memory>
+#include <mutex>
 #include <string>
+#include <thread>
 #include "libohos_render/api/include/Kuikly/Kuikly.h"
 #include "libohos_render/utils/KRRenderLoger.h"
 #include "napi/native_api.h"
@@ -30,6 +33,7 @@
 
 static std::string customFontPath;
 static std::string customImagePath;
+static std::string g_resfile_dir;
 static NativeResourceManager *g_resource_manager = nullptr;
 
 static napi_threadsafe_function g_threadsafe_func = NULL;
@@ -100,6 +104,24 @@ static napi_value SetFontPath(napi_env env, napi_callback_info info) {
     status = napi_get_value_string_utf8(env, args[0], reinterpret_cast<char *>(buffer.data()), length + 1, &length);
     customFontPath = buffer;
 
+    return nullptr;
+}
+
+// 业务侧 adapter 处理表情资源需要一个可寻址的文件路径。hap 中的 resfile
+// （由 ohosApp/entry/hvigorfile.ts 的 kuiklyCopyAssets 从 demo/commonMain/assets 拷过去）
+// 可以通过 context.resourceDir 调醒；SDK 仅接受 file:// URI，这里在业务侧拼接。
+static napi_value SetResfileDir(napi_env env, napi_callback_info info) {
+    if (!g_resfile_dir.empty()) {
+        return nullptr;
+    }
+    size_t argc = 1;
+    napi_value args[1] = {nullptr};
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    size_t length = 0;
+    napi_get_value_string_utf8(env, args[0], nullptr, 0, &length);
+    std::string buffer(length, 0);
+    napi_get_value_string_utf8(env, args[0], reinterpret_cast<char *>(buffer.data()), length + 1, &length);
+    g_resfile_dir = buffer;
     return nullptr;
 }
 
@@ -365,8 +387,187 @@ static KRCallMethodCValue ExampleModuleOnCallMethod(const void* moduleInstance,
     return ret;
 }
 
+// =====================================================================
+// 沙盒 cacheDir：从 ets 侧 EntryAbility.onCreate 时通过 setCacheDir(napi) 灌入。
+// MyTextPostProcessorAdapter 把 hap rawfile 中的 emoji 资源拷贝到 cacheDir 子目录后
+// 给出 file:// URI，作为 KRTextProcessedResultAppendImageSpan 的可寻址参数。
+// =====================================================================
+static std::string g_cache_dir;
+
+static napi_value SetCacheDir(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value args[1] = {nullptr};
+    if (napi_ok != napi_get_cb_info(env, info, &argc, args, nullptr, nullptr)) {
+        return nullptr;
+    }
+    if (argc < 1 || args[0] == nullptr) {
+        return nullptr;
+    }
+    size_t length = 0;
+    if (napi_get_value_string_utf8(env, args[0], nullptr, 0, &length) != napi_ok) {
+        return nullptr;
+    }
+    std::string buffer(length, 0);
+    if (napi_get_value_string_utf8(env, args[0], buffer.data(), length + 1, &length) != napi_ok) {
+        return nullptr;
+    }
+    g_cache_dir = buffer;
+    return nullptr;
+}
+
+// =====================================================================
+// Text Post Processor adapter 示例
+//
+// 与 Android `KRTextPostProcessorAdapter`、iOS `EMOJI_IMAGE_MAP` 对齐：识别 [smile]
+// 等自定义短码，替换为 hap resfile 内的 PNG。技术要点：
+//   1) SDK 仅接受 file:// / http(s):// / data:image;base64 形态的可寻址 URI，
+//      不接受私有协议（如 assets://）；
+//   2) hap 内 resfile 资源（由 hvigorfile.ts 的 kuiklyCopyAssets 从
+//      demo/commonMain/assets 同步过来）已经是真实可寻址文件，无需拷贝，
+//      直接拼接 "file://${context.resourceDir}/${rel}" 即可；
+//   3) ets 侧通过 setResfileDir(getContext().resourceDir) 把根路径下发给 native。
+// =====================================================================
+
+static const std::map<std::string, std::string> &EmojiShortcodeToResfile() {
+    static const std::map<std::string, std::string> map = {
+        {"[smile]",   "common/emoji_smile.png"},
+        {"[heart]",   "common/emoji_heart.png"},
+        {"[thumbup]", "common/emoji_thumbup.png"},
+        {"[star]",    "common/emoji_star.png"},
+        {"[fire]",    "common/emoji_fire.png"},
+    };
+    return map;
+}
+
+// resfile 相对路径 -> file:// URI 的进程级缓存（避免每次扫描都拼字符串）。
+static std::mutex g_emoji_uri_cache_mutex;
+static std::map<std::string, std::string> g_emoji_uri_cache;
+
+// resfile 资源已经是 hap 内可寻址的真实文件，无需拷贝，直接拼出
+// "file://${g_resfile_dir}/${rel}" 即可。
+// 失败条件：g_resfile_dir 未注入（ets 侧没调 setResfileDir）。
+static std::string GetEmojiFileUri(const std::string &resfile_rel) {
+    static constexpr int kEmojiDomain = 0x1235;
+    {
+        std::lock_guard<std::mutex> lk(g_emoji_uri_cache_mutex);
+        auto it = g_emoji_uri_cache.find(resfile_rel);
+        if (it != g_emoji_uri_cache.end()) {
+            return it->second;
+        }
+    }
+    if (g_resfile_dir.empty()) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, kEmojiDomain, "KuiklyEmoji",
+                     "GetEmojiFileUri: g_resfile_dir empty, did ets call setResfileDir? rel=%{public}s",
+                     resfile_rel.c_str());
+        return "";
+    }
+    std::string abs_path = g_resfile_dir + "/" + resfile_rel;
+    // 仅在 first miss 时 stat 校验一次；发现不存在直接返空，让 adapter 走 fallback
+    // 把短码以纯文本保留，避免显示成空白。
+    struct stat st {};
+    if (stat(abs_path.c_str(), &st) != 0 || st.st_size <= 0) {
+        OH_LOG_Print(LOG_APP, LOG_ERROR, kEmojiDomain, "KuiklyEmoji",
+                     "GetEmojiFileUri: file not found, abs=%{public}s", abs_path.c_str());
+        return "";
+    }
+    std::string uri = "file://" + abs_path;
+    OH_LOG_Print(LOG_APP, LOG_INFO, kEmojiDomain, "KuiklyEmoji",
+                 "GetEmojiFileUri OK, rel=%{public}s uri=%{public}s",
+                 resfile_rel.c_str(), uri.c_str());
+    {
+        std::lock_guard<std::mutex> lk(g_emoji_uri_cache_mutex);
+        g_emoji_uri_cache[resfile_rel] = uri;
+    }
+    return uri;
+}
+
+static void MyTextPostProcessorAdapter(const char *text,
+                                       void * /*reserved*/,
+                                       KRTextProcessedResultBuilder builder) {
+    if (!text || !builder) {
+        return;
+    }
+    // 探针：便于线上一眼确认 adapter 是否被调到、看到输入文本。tag=KuiklyEmoji。
+    {
+        static constexpr int kEmojiDomain = 0x1235;
+        OH_LOG_Print(LOG_APP, LOG_INFO, kEmojiDomain, "KuiklyEmoji",
+                     "MyTextPostProcessorAdapter called, text=%{public}s", text);
+    }
+    const std::string s = text;
+    const auto &shortcode_map = EmojiShortcodeToResfile();
+
+    // 单轮扫描：在遇到 '[' 时尝试匹配"[xxx]"；匹配不上则仅推进 1 个字节继续扫描。
+    // 使用临时缓冲 pending 累积"未匹配上表情"的纯文本，匹配上后一次性 flush。
+    std::string pending;
+    pending.reserve(s.size());
+    auto flush_pending = [&]() {
+        if (!pending.empty()) {
+            KRTextProcessedResultAppendTextSpan(builder, pending.c_str());
+            pending.clear();
+        }
+    };
+
+    size_t i = 0;
+    while (i < s.size()) {
+        if (s[i] == '[') {
+            size_t rb = s.find(']', i + 1);
+            if (rb != std::string::npos && rb - i + 1 <= 32) {
+                std::string code = s.substr(i, rb - i + 1);
+                auto it = shortcode_map.find(code);
+                if (it != shortcode_map.end()) {
+                    std::string uri = GetEmojiFileUri(it->second);
+                    static constexpr int kEmojiDomain2 = 0x1235;
+                    OH_LOG_Print(LOG_APP, LOG_INFO, kEmojiDomain2, "KuiklyEmoji",
+                                 "shortcode hit code=%{public}s resfile=%{public}s uri_empty=%{public}d",
+                                 code.c_str(), it->second.c_str(), uri.empty() ? 1 : 0);
+                    if (!uri.empty()) {
+                        flush_pending();
+                        // width/height 均传 0，表示"按当前字号自适应"。
+                        // 显式回传 raw_literal=code（即 "[smile]" 等原始字面量），
+                        // 让 SDK 在编辑差分回写阶段基于权威映射精准还原 shortcode。
+                        // 与 iOS demo 中 KREmojiTextAttachment.originalShortcode 对齐。
+                        KRTextProcessedResultAppendImageSpanWithRaw(builder, uri.c_str(),
+                                                                    code.c_str(), 0, 0);
+                        OH_LOG_Print(LOG_APP, LOG_INFO, kEmojiDomain2, "KuiklyEmoji",
+                                     "AppendImageSpanWithRaw called, code=%{public}s uri=%{public}s",
+                                     code.c_str(), uri.c_str());
+                        i = rb + 1;
+                        continue;
+                    }
+                }
+            }
+        }
+        pending.push_back(s[i]);
+        ++i;
+    }
+    flush_pending();
+}
+
 static void registerExampleCModule(){
     KRRenderModuleRegister("MyExampleCModule", &ExampleModuleOnConstruct, &ExampleModuleOnDestruct, &ExampleModuleOnCallMethod, nullptr);
+}
+
+// 设置输入控件新实现开关。参数：int32 value（0=走老控件；1=走新 ARKUI_NODE_TEXT_EDITOR 控件，
+// 且仅在 API>=24 时生效）。仅影响设置后新创建的 Input/TextArea。
+// 开关值的实际存储位于 libkuikly.so（core-render-ohos 产物）内，本函数通过链接
+// 期符号解析调用对应的 C API，避免跨 so 使用 inline/static 变量每个模块一份副本导致开关失效。
+extern "C" void KRSetUseNewTextInputComponent(int value);
+static napi_value SetUseNewTextInputComponent(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value args[1] = {nullptr};
+    napi_value result;
+    napi_create_int32(env, 0, &result);
+    if (napi_ok != napi_get_cb_info(env, info, &argc, args, nullptr, nullptr)) {
+        napi_throw_error(env, "-1000", "napi_get_cb_info error");
+        return result;
+    }
+    int32_t value = 0;
+    if (argc >= 1 && args[0] != nullptr) {
+        napi_get_value_int32(env, args[0], &value);
+    }
+    KRSetUseNewTextInputComponent(value);
+    napi_create_int32(env, value, &result);
+    return result;
 }
 
 static int adapterRegistered = false;
@@ -380,6 +581,15 @@ static napi_value InitKuikly(napi_env env, napi_callback_info info) {
         KRRegisterImageAdapter(MyImageAdapter);
         KRRegisterImageAdapterV2(MyImageAdapterV2);
         KRRegisterImageAdapterV3(MyImageAdapterV3);
+        // 文本预处理（emoji 短码 -> 图片替换）示例：
+        //   * "input"    : 输入框（ARKUI_NODE_TEXT_EDITOR 路径）；
+        //   * "richtext" : 只读富文本（KRRichTextView OnForegroundDraw 路径，方案 A）。
+        // 两条路径共用同一个 adapter 实现：扫描 [xxx] 短码 → 解为 file:// URI → 用
+        // KRTextProcessedResultAppendImageSpanWithRaw 回传，SDK 内部按 name 分流到对应
+        // 渲染管线（编辑态走 SetStyledText + ImageAttachment；只读富文本走 PlaceholderSpan
+        // + DrawPixelMapRect）。
+        KRRegisterTextPostProcessorAdapter("input", MyTextPostProcessorAdapter);
+        KRRegisterTextPostProcessorAdapter("richtext", MyTextPostProcessorAdapter);
         adapterRegistered = true;
     }
 
@@ -395,7 +605,10 @@ static napi_value Init(napi_env env, napi_value exports) {
     napi_property_descriptor desc[] = {
         {"initKuikly", nullptr, InitKuikly, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"setFontPath", nullptr, SetFontPath, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"setCacheDir", nullptr, SetCacheDir, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"setResfileDir", nullptr, SetResfileDir, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"setResourceManager", nullptr, SetResourceManager, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"setUseNewTextInputComponent", nullptr, SetUseNewTextInputComponent, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
     return exports;

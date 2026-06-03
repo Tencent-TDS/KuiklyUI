@@ -44,6 +44,11 @@ export default class EntryAbility extends UIAbility {
       hilog.info(0x0000, 'testTag', 'Succeeded in loading the content.');
 
       Napi.setResourceManager(getContext()?.resourceManager)
+      // 把应用沙盒 cacheDir 下发给 native（可选，其他需要写入沙盒的场景调用）。
+      Napi.setCacheDir(getContext().cacheDir)
+      // 把 hap 的 resfile 根路径（context.resourceDir）下发给 native，
+      // 供 TextPostProcessor 等业务侧 adapter 拼接出 file:// URI 后交给 SDK。
+      Napi.setResfileDir(getContext().resourceDir)
       // copy font data to tmp folder
       const content = getContext().resourceManager.getRawFileContentSync('Satisfy-Regular.ttf')
       const destPath = `${getContext().tempDir}/Satisfy-Regular.ttf`;

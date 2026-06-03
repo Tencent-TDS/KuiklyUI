@@ -33,6 +33,7 @@ import com.tencent.kuikly.compose.foundation.lazy.layout.AwaitFirstLayoutModifie
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayoutBeyondBoundsInfo
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayoutPinnedItemList
 import com.tencent.kuikly.compose.foundation.lazy.layout.ObservableScopeInvalidator
+import com.tencent.kuikly.compose.foundation.lazy.layout.findIndexByKey
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
@@ -411,17 +412,57 @@ abstract class PagerState internal constructor(
     /** Native content offset that the snap animation is settling to. */
     internal var snapTargetContentOffset = 0
 
+    /**
+     * pageCount captured when the snap animation started. Used to detect that the item set
+     * changed (e.g. head/middle insertion) during the snap settle window, in which case the
+     * native pixel offset becomes stale and must not be used to re-derive the target page.
+     */
+    internal var snapStartPageCount = 0
+
+    /**
+     * Key of the target page item captured when the snap animation started. When items are
+     * inserted/removed during the settle window, the target page index shifts; we re-resolve
+     * the target index from this key (see [relocateSnapTargetByKey]) instead of trusting the
+     * stale native pixel offset.
+     */
+    internal var snapTargetItemKey: Any? = null
+
+    /** Target page index, kept up to date by key when the item set changes during snap. */
+    internal var snapTargetRelocatedPage = -1
+
+    /**
+     * Compose<->native desync (in pages) captured when the snap started. When non-zero the native
+     * pixel offset cannot be trusted to re-derive the target page at settle (the coordinate systems
+     * are shifted), so the settle must drive compose from the key-tracked target page and re-base
+     * native onto compose's boundary, exactly like the item-set-changed path.
+     */
+    internal var snapStartDesyncPages = 0
+
     private var snapTargetReachedAlignmentRequested = false
 
+    private var snapStallAlignmentRetryRequested = false
+
     /** Called before native setContentOffset(animated=true). */
-    internal fun markSnapAnimationStarted(targetContentOffset: Int) {
+    internal fun markSnapAnimationStarted(
+        targetContentOffset: Int,
+        targetPage: Int = -1,
+        targetKey: Any? = null,
+        desyncPages: Int = 0
+    ) {
         isSnapAnimating = true
         snapTargetContentOffset = targetContentOffset
+        snapStartPageCount = pageCount
+        snapTargetRelocatedPage = targetPage
+        snapTargetItemKey = targetKey
+        snapStartDesyncPages = desyncPages
+        kuiklyInfo.snapAnchorOffsetCorrection = 0
         snapTargetReachedAlignmentRequested = false
+        snapStallAlignmentRetryRequested = false
         pagerSnapDebugLog {
             "snapStarted: stateId=$debugPagerStateId orientation=${layoutInfo.orientation} " +
                 "targetOffset=$targetContentOffset contentOffset=${kuiklyInfo.contentOffset} " +
-                "composeOffset=${currentAbsoluteScrollOffset().toInt()} currentPage=$currentPage"
+                "composeOffset=${currentAbsoluteScrollOffset().toInt()} currentPage=$currentPage " +
+                "anchorCorrection=${kuiklyInfo.snapAnchorOffsetCorrection}"
         }
     }
 
@@ -430,10 +471,11 @@ abstract class PagerState internal constructor(
     }
 
     internal fun onNativeContentOffsetChanged(contentOffset: Int) {
-        if (!isSnapAnimating ||
-            snapTargetReachedAlignmentRequested ||
-            !hasSnapReachedTarget(contentOffset)
-        ) {
+        if (!isSnapAnimating || snapTargetReachedAlignmentRequested) {
+            return
+        }
+
+        if (!hasSnapReachedTarget(contentOffset)) {
             return
         }
 
@@ -441,7 +483,7 @@ abstract class PagerState internal constructor(
         pagerSnapDebugLog {
             "snapTargetReached: stateId=$debugPagerStateId orientation=${layoutInfo.orientation} " +
                 "contentOffset=$contentOffset target=$snapTargetContentOffset " +
-                "currentPage=$currentPage"
+                "currentPage=$currentPage anchorCorrection=${kuiklyInfo.snapAnchorOffsetCorrection}"
         }
         scheduleScrollViewOffsetAlignment(SNAP_MEASURE_JOB_INITIAL_DELAY_MS)
     }
@@ -457,7 +499,13 @@ abstract class PagerState internal constructor(
         }
         isSnapAnimating = false
         snapTargetContentOffset = 0
+        snapStartPageCount = 0
+        snapTargetItemKey = null
+        snapTargetRelocatedPage = -1
+        snapStartDesyncPages = 0
         snapTargetReachedAlignmentRequested = false
+        snapStallAlignmentRetryRequested = false
+        kuiklyInfo.snapAnchorOffsetCorrection = 0
         kuiklyInfo.appleScrollViewOffsetJob?.cancel()
     }
 
@@ -544,12 +592,43 @@ abstract class PagerState internal constructor(
             }
         }
 
-        if (isSnapAnimating && !hasSnapReachedTarget(contentOffsetInt)) {
-            pagerSnapDebugLog {
-                "skipAlignDuringSnap: stateId=$debugPagerStateId orientation=${layoutInfo.orientation} " +
-                    "contentOffset=$contentOffsetInt target=$snapTargetContentOffset " +
-                    "currentPage=$currentPage"
+        if (handleUnreachedSnapTarget(
+                contentOffsetInt,
+                scheduledContentOffset,
+                layoutSize
+            )
+        ) {
+            return
+        }
+
+        // While snapping, the target item is pinned to snapTargetContentOffset by
+        // snapAnchorOffsetCorrection. Once the native animation reaches that original target,
+        // settle the compose position to the key-tracked page and clear the correction by moving
+        // native offset and child frames together. This keeps the visual position unchanged while
+        // restoring the normal compose/native coordinate system.
+        val itemsChangedDuringSnap =
+            isSnapAnimating && snapStartPageCount != 0 && pageCount != snapStartPageCount
+        val snapStartedDesynced = isSnapAnimating && snapStartDesyncPages != 0
+        if (itemsChangedDuringSnap || snapStartedDesynced) {
+            val relocatedTarget = if (snapTargetRelocatedPage in 0 until pageCount) {
+                snapTargetRelocatedPage
+            } else {
+                currentPage.coerceInPageRange()
             }
+            val relocatedTargetOffset = pageBoundaryOffset(relocatedTarget)
+            updateScrollViewContentSize(layoutSize)
+            scrollPosition.requestPositionAndForgetLastKnownKey(relocatedTarget, 0f)
+            val delta = relocatedTargetOffset - contentOffsetInt
+            if (delta != 0) {
+                applyScrollViewOffsetDelta(delta)
+            } else {
+                // requestPosition changes the Compose page raw coordinates. Keep the frame offset
+                // on the relocated target boundary; otherwise the viewport can stay in the stale
+                // native coordinate system after items are inserted before the snap target.
+                kuiklyInfo.composeOffset = relocatedTargetOffset.toFloat()
+            }
+            kuiklyInfo.snapAnchorOffsetCorrection = 0
+            clearSnapTrackingAfterAlignment()
             return
         }
 
@@ -610,6 +689,7 @@ abstract class PagerState internal constructor(
                     "composeOffset=$composeOffsetInt contentOffset=$contentOffsetInt"
             }
             scrollPosition.requestPositionAndForgetLastKnownKey(correctTargetPage, 0f)
+            kuiklyInfo.composeOffset = correctTargetOffset.toFloat()
         }
 
         if (isSnapAnimating) {
@@ -668,7 +748,85 @@ abstract class PagerState internal constructor(
     private fun clearSnapTrackingAfterAlignment() {
         isSnapAnimating = false
         snapTargetContentOffset = 0
+        snapStartPageCount = 0
+        snapTargetItemKey = null
+        snapTargetRelocatedPage = -1
+        snapStartDesyncPages = 0
         snapTargetReachedAlignmentRequested = false
+        snapStallAlignmentRetryRequested = false
+        kuiklyInfo.snapAnchorOffsetCorrection = 0
+    }
+
+    private fun handleUnreachedSnapTarget(
+        contentOffset: Int,
+        scheduledContentOffset: Int,
+        layoutSize: Int
+    ): Boolean {
+        if (!isSnapAnimating || hasSnapReachedTarget(contentOffset)) {
+            snapStallAlignmentRetryRequested = false
+            return false
+        }
+
+        if (contentOffset != scheduledContentOffset) {
+            snapStallAlignmentRetryRequested = false
+            pagerSnapDebugLog {
+                "waitAlignDuringSnap: stateId=$debugPagerStateId orientation=${layoutInfo.orientation} " +
+                    "scheduledContentOffset=$scheduledContentOffset contentOffset=$contentOffset " +
+                    "target=$snapTargetContentOffset currentPage=$currentPage"
+            }
+            scheduleScrollViewOffsetAlignment(SNAP_MEASURE_JOB_INITIAL_DELAY_MS, layoutSize)
+            return true
+        }
+
+        if (!snapStallAlignmentRetryRequested) {
+            snapStallAlignmentRetryRequested = true
+            pagerSnapDebugLog {
+                "confirmSnapStall: stateId=$debugPagerStateId orientation=${layoutInfo.orientation} " +
+                    "contentOffset=$contentOffset target=$snapTargetContentOffset " +
+                    "currentPage=$currentPage"
+            }
+            scheduleScrollViewOffsetAlignment(SNAP_MEASURE_JOB_INITIAL_DELAY_MS, layoutSize)
+            return true
+        }
+
+        val fallbackPage = if (snapTargetRelocatedPage in 0 until pageCount) {
+            snapTargetRelocatedPage
+        } else {
+            nearestPageForOffset(snapTargetContentOffset)
+        }
+        val fallbackOffset = pageBoundaryOffset(fallbackPage)
+        pagerSnapDebugLog {
+            "fixInterruptedSnap: stateId=$debugPagerStateId orientation=${layoutInfo.orientation} " +
+                "fallbackPage=$fallbackPage fallbackOffset=$fallbackOffset " +
+                "contentOffset=$contentOffset target=$snapTargetContentOffset " +
+                "currentPage=$currentPage firstVisiblePage=$firstVisiblePage"
+        }
+        updateScrollViewContentSize(layoutSize)
+        scrollPosition.requestPositionAndForgetLastKnownKey(fallbackPage, 0f)
+        val delta = fallbackOffset - contentOffset
+        if (delta != 0) {
+            applyScrollViewOffsetDelta(delta)
+        } else {
+            kuiklyInfo.composeOffset = fallbackOffset.toFloat()
+        }
+        clearSnapTrackingAfterAlignment()
+        return true
+    }
+
+    /**
+     * Re-resolve the snap target index from its captured key. Must be called during measure
+     * (where [itemProvider] is available) so that insertions/removals before the target during
+     * the snap settle window shift the target to its new index instead of leaving it stale.
+     */
+    @OptIn(ExperimentalFoundationApi::class)
+    internal fun relocateSnapTargetByKey(itemProvider: PagerLazyLayoutItemProvider) {
+        if (!isSnapAnimating) return
+        val key = snapTargetItemKey ?: return
+        if (snapTargetRelocatedPage < 0) return
+        val newIndex = itemProvider.findIndexByKey(key, snapTargetRelocatedPage)
+        if (newIndex != snapTargetRelocatedPage) {
+            snapTargetRelocatedPage = newIndex
+        }
     }
 
     private var programmaticScrollTargetPage by mutableIntStateOf(-1)

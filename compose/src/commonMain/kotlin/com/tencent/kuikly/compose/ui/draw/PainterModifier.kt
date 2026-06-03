@@ -26,6 +26,7 @@ import com.tencent.kuikly.compose.ui.geometry.Size
 import com.tencent.kuikly.compose.ui.geometry.isSpecified
 import com.tencent.kuikly.compose.ui.graphics.BlendModeColorFilter
 import com.tencent.kuikly.compose.ui.graphics.ColorFilter
+import com.tencent.kuikly.compose.ui.graphics.ColorMatrixColorFilter
 import com.tencent.kuikly.compose.ui.graphics.DefaultAlpha
 import com.tencent.kuikly.compose.ui.graphics.drawscope.ContentDrawScope
 import com.tencent.kuikly.compose.ui.graphics.isSupported
@@ -89,14 +90,14 @@ internal fun Modifier.paintInternal(
     alignment: Alignment = Alignment.Center,
     contentScale: ContentScale = ContentScale.Inside,
     alpha: Float = DefaultAlpha,
-    colorFilter: ColorFilter? = null
+    colorFilter: ColorFilter? = null,
 ) = this then PainterElement(
     painter = painter,
     sizeToIntrinsics = sizeToIntrinsics,
     alignment = alignment,
     contentScale = contentScale,
     alpha = alpha,
-    colorFilter = colorFilter
+    colorFilter = colorFilter,
 )
 
 /**
@@ -117,7 +118,7 @@ private data class PainterElement(
     val alignment: Alignment,
     val contentScale: ContentScale,
     val alpha: Float,
-    val colorFilter: ColorFilter?
+    val colorFilter: ColorFilter?,
 ) : ModifierNodeElement<PainterNode>() {
     override fun create(): PainterNode {
         return PainterNode(
@@ -180,7 +181,7 @@ private class PainterNode(
     var alignment: Alignment = Alignment.Center,
     var contentScale: ContentScale = ContentScale.Inside,
     var alpha: Float = DefaultAlpha,
-    var colorFilter: ColorFilter? = null
+    var colorFilter: ColorFilter? = null,
 ) : LayoutModifierNode, Modifier.Node(), DrawModifierNode {
 
     /**
@@ -494,10 +495,21 @@ private class PainterNode(
     private fun applyCommon(imageView: ImageView) {
         val colorFilter = this.colorFilter
         imageView.getViewAttr().apply {
-            if (colorFilter is BlendModeColorFilter && colorFilter.blendMode.isSupported()) {
+            if (colorFilter is ColorMatrixColorFilter) {
+                colorFilter(colorFilter.colorMatrix)
+                if (getProp(ImageConst.TINT_COLOR) != null) {
+                    tintColor(null)
+                }
+            } else if (colorFilter is BlendModeColorFilter && colorFilter.blendMode.isSupported()) {
                 tintColor(colorFilter.color.toKuiklyColor())
-            } else if (getProp(ImageConst.TINT_COLOR) != null) {
-                tintColor(null)
+                colorFilter(null)
+            } else {
+                if (getProp(ImageConst.TINT_COLOR) != null) {
+                    tintColor(null)
+                }
+                if (getProp(ImageConst.COLOR_FILTER) != null) {
+                    colorFilter(null)
+                }
             }
         }
     }

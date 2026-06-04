@@ -41,12 +41,18 @@ import com.tencent.kuikly.compose.ui.util.fastForEach
 internal fun SemanticsNode(
     layoutNode: LayoutNode,
     mergingEnabled: Boolean
-) = SemanticsNode(
-    layoutNode.nodes.head(Nodes.Semantics)!!.node,
-    mergingEnabled,
-    layoutNode,
-    layoutNode.collapsedSemantics ?: SemanticsConfiguration()
-)
+): SemanticsNode? {
+    // Use head() as the source of truth instead of has(); when head is dangling
+    // the mask may still report true while head() correctly returns null.
+    val head = layoutNode.nodes.head(Nodes.Semantics) ?: return null
+    val collapsed = layoutNode.collapsedSemantics ?: return null
+    return SemanticsNode(
+        head.node,
+        mergingEnabled,
+        layoutNode,
+        collapsed
+    )
+}
 
 internal fun SemanticsNode(
     /*
@@ -268,8 +274,11 @@ class SemanticsNode internal constructor(
             // batch may already have isDeactivated=true, causing collapsedSemantics to return
             // null and the SemanticsNode factory's !! to throw NPE.
             if (child.isAttached && !child.isDeactivated) {
-                if (child.nodes.has(Nodes.Semantics)) {
-                    list.add(SemanticsNode(child, mergingEnabled))
+                // Call factory directly instead of guarding with has(); mask lag
+                // can cause has()==true while head() returns null.
+                val semanticsNode = SemanticsNode(child, mergingEnabled)
+                if (semanticsNode != null) {
+                    list.add(semanticsNode)
                 } else {
                     child.fillOneLayerOfSemanticsWrappers(list)
                 }
@@ -355,7 +364,8 @@ class SemanticsNode internal constructor(
             if (node == null)
                 return null
 
-            return SemanticsNode(node, mergingEnabled)
+            // Factory is nullable; guard against transient inconsistent state.
+            return SemanticsNode(node, mergingEnabled) ?: return null
         }
 
     private fun findOneLayerOfMergingSemanticsNodes(

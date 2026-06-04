@@ -26,4 +26,5 @@ object ScrollableStateConstants {
     const val SPRING_ANIMATION_DURATION = 300
     const val SPRING_ANIMATION_DAMPING = 1f
     const val OFFSET_CORRECTION = 0.1f
-} 
+    const val CONTENT_RANGE_EPSILON_DP = 0.5f
+}

@@ -209,7 +209,7 @@ internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolea
             viewportSize = kuiklyInfo.viewportSize,
             currentContentSize = kuiklyInfo.currentContentSize,
             minExpandSize = minDelta,
-            epsilon = reverseNativeRangeEpsilon(density),
+            epsilon = nativeContentRangeEpsilon(density),
         )
     ) {
         return
@@ -248,7 +248,7 @@ internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = f
         appleScrollViewOffsetJob = scope?.launch {
             delay(150)
             val minDelta = (DEFAULT_CONTENT_SIZE * getDensity()).toInt()
-            val epsilon = reverseNativeRangeEpsilon(getDensity())
+            val epsilon = nativeContentRangeEpsilon(getDensity())
             val reachBtm = contentOffset + viewportSize - currentContentSize >= -epsilon
 
             if (this@tryExpandStartSizeNoScroll.tryHandleReverseLazyNativeRange(
@@ -291,7 +291,8 @@ internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = f
     }
 }
 
-private fun reverseNativeRangeEpsilon(density: Float): Int = (0.5 * density).toInt()
+private fun nativeContentRangeEpsilon(density: Float): Int =
+    (ScrollableStateConstants.CONTENT_RANGE_EPSILON_DP * density).toInt()
 
 private fun ScrollableState.tryHandleReverseLazyNativeRange(
     contentOffset: Int,

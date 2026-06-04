@@ -57,6 +57,8 @@ internal fun ScrollableState.kuiklyOnScroll(delta: Float): Float = when (this) {
     else -> dispatchRawDelta(delta)
 }
 
+internal fun nativeScrollDeltaForCompose(delta: Float): Float = delta
+
 /**
  * Handle scroll end events
  */

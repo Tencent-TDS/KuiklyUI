@@ -79,6 +79,7 @@ import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.kuiklyOnScroll
 import com.tencent.kuikly.compose.scroller.kuiklyOnScrollEnd
 import com.tencent.kuikly.compose.scroller.kuiklyWillDragEnd
+import com.tencent.kuikly.compose.scroller.nativeScrollDeltaForCompose
 import com.tencent.kuikly.compose.scroller.tryExpandStartSize
 import com.tencent.kuikly.compose.ui.node.ComposeUiNode.Companion.ShadowLayoutConstructor
 import com.tencent.kuikly.compose.ui.node.KNode.Companion.obtainRenderProps
@@ -348,7 +349,7 @@ fun SubcomposeLayout(
                 }
 
                 // 触发compose滑动，并重新布局
-                scrollableState.kuiklyOnScroll(delta)
+                scrollableState.kuiklyOnScroll(nativeScrollDeltaForCompose(delta))
 
                 // 尝试扩容
                 scrollableState.tryExpandStartSize(offset, true)

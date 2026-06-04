@@ -73,6 +73,12 @@ class LazyListReverseLayoutSupportTest {
     }
 
     @Test
+    fun `native scroll delta keeps same sign for reverse layout bridge`() {
+        assertEquals(120f, nativeScrollDeltaForCompose(120f))
+        assertEquals(-80f, nativeScrollDeltaForCompose(-80f))
+    }
+
+    @Test
     fun `reverse vertical expands native end while compose can still scroll to visual top`() {
         val reverseLayoutInfo = fakeLayoutInfo(
             reverseLayout = true,

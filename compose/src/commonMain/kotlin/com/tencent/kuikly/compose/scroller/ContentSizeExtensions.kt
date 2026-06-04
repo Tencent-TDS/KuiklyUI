@@ -219,7 +219,10 @@ internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolea
             currentContentSize = kuiklyInfo.currentContentSize,
             minExpandSize = minDelta,
             epsilon = nativeContentRangeEpsilon(density),
-            maintainStartHeadroom = !isScrolling,
+            // Keep a physical native-start buffer even while dragging. When reverseLayout is at
+            // the visual bottom, reaching native offset 0 causes the native container to bounce
+            // before Compose has anywhere else to scroll, which shows up as a flash/jump.
+            maintainStartHeadroom = true,
         )
     ) {
         return true

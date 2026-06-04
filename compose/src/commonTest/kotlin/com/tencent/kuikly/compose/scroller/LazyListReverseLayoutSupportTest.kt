@@ -185,6 +185,27 @@ class LazyListReverseLayoutSupportTest {
     }
 
     @Test
+    fun `reverse horizontal native start keeps headroom when visual end is reached`() {
+        val reverseLayoutInfo = fakeLayoutInfo(
+            reverseLayout = true,
+            orientation = Orientation.Horizontal,
+            totalItemsCount = 20,
+            viewportSize = IntSize(300, 100),
+            visibleItems = listOf(fakeItem(index = 0, offset = 0, size = 100)),
+        )
+
+        assertEquals(
+            120,
+            reverseLayoutInfo.reverseNativeStartHeadroomDelta(
+                contentOffset = 180,
+                startHeadroom = 300,
+                canScrollForward = true,
+                canScrollBackward = false,
+            )
+        )
+    }
+
+    @Test
     fun `reverse native start headroom does not block scrolling away from visual bottom`() {
         val reverseLayoutInfo = fakeLayoutInfo(
             reverseLayout = true,

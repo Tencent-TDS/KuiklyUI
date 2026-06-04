@@ -134,7 +134,7 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
 
 - (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data {
     __weak typeof(&*self) weakSelf = self;
-    BOOL sync = [self shouldSyncSendEvent:event];
+    BOOL sync = [self syncSendEvent:event];
     dispatch_block_t task = ^{
         [weakSelf.renderView sendWithEvent:event
                                       data:data
@@ -148,14 +148,14 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     }
 }
 
-- (BOOL)shouldSyncSendEvent:(NSString *)event {
+- (BOOL)syncSendEvent:(NSString *)event {
     // onBackPressed 固定同步执行
     if ([event isEqualToString:@"onBackPressed"]) {
         return YES;
     }
     
-    if ([self.delegate respondsToSelector:@selector(shouldSyncSendEvent:)]) {
-        return [self.delegate shouldSyncSendEvent:event];
+    if ([self.delegate respondsToSelector:@selector(syncSendEvent:)]) {
+        return [self.delegate syncSendEvent:event];
     }
     return NO;
 }

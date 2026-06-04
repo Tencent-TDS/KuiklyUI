@@ -47,7 +47,7 @@ class KRRenderView : public IKRRenderView {
      * @param event_name 事件名
      * @return true 为同步，false 为异步
      */
-    bool shouldSyncSendEvent(const std::string &event_name) override;
+    bool syncSendEvent(const std::string &event_name) override;
 
     /**
      * 获取渲染节点视图（要求在主线程调用）

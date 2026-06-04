@@ -380,7 +380,7 @@ export class KRNativeRenderController {
     if (densityInfo) {
       data[KRDensityInfo] = JSON.stringify(densityInfo);
     }
-    this.doSendEvent(KRRootViewSizeDidChangedEventKey, data, this.shouldSyncSendEvent(KRRootViewSizeDidChangedEventKey));
+    this.doSendEvent(KRRootViewSizeDidChangedEventKey, data, this.syncSendEvent(KRRootViewSizeDidChangedEventKey));
 
     this.runKRRenderTask(() => {
       render.onRenderViewSizeChanged(this.instanceId, this.viewRect?.width as number, this.viewRect?.height as number);
@@ -411,7 +411,7 @@ export class KRNativeRenderController {
         // 已在 onSizeChange 中提前处理过，消费标志位，跳过重复执行
         this.sizeChangeHandledByOnSizeChange = false;
       } else if (sizeChanged) {
-        // 兜底：onSizeChange 未处理（shouldSyncSendEvent=false 或未触发），在此处触发
+        // 兜底：onSizeChange 未处理（syncSendEvent=false 或未触发），在此处触发
         this.doOnAreaChange(newValue);
         this.notifySizeChange();
       }
@@ -430,7 +430,7 @@ export class KRNativeRenderController {
       return;
     }
     // 仅当业务方开启了 rootViewSizeDidChanged 同步策略时，才在布局前提前触发同步渲染
-    if (this.didInit && this.shouldSyncSendEvent(KRRootViewSizeDidChangedEventKey)) {
+    if (this.didInit && this.syncSendEvent(KRRootViewSizeDidChangedEventKey)) {
       // 提前更新 viewRect 尺寸（globalPosition 会在后续 onAreaChange 中更新）
       this.viewRect.width = newWidth;
       this.viewRect.height = newHeight;
@@ -527,7 +527,7 @@ export class KRNativeRenderController {
 
   onBackPress() {
     const sendTime = Date.now();
-    this.doSendEvent(KROnBackPressedKey, {}, this.shouldSyncSendEvent(KROnBackPressedKey));
+    this.doSendEvent(KROnBackPressedKey, {}, this.syncSendEvent(KROnBackPressedKey));
     const result = render.isBackPressConsumed(this.instanceId, sendTime);
     if (result === KRBackPressConsumedState.Consumed) {
       return true;
@@ -560,22 +560,22 @@ export class KRNativeRenderController {
   private doOnPageShow() {
     const data: KRRecord = {};
     data[KRPageDidAppearEventKey] = '1';
-    this.doSendEvent(KRPageDidAppearEventKey, data, this.shouldSyncSendEvent(KRPageDidAppearEventKey));
+    this.doSendEvent(KRPageDidAppearEventKey, data, this.syncSendEvent(KRPageDidAppearEventKey));
   }
 
   private doOnPageHide() {
     const data: KRRecord = {};
     data[KRPageDidDisappearEventKey] = '1';
-    this.doSendEvent(KRPageDidDisappearEventKey, data, this.shouldSyncSendEvent(KRPageDidDisappearEventKey));
+    this.doSendEvent(KRPageDidDisappearEventKey, data, this.syncSendEvent(KRPageDidDisappearEventKey));
   }
   // 外部接口：提供给业务指定需要同步执行的事件
-  shouldSyncSendEvent(event: string): boolean {
+  syncSendEvent(event: string): boolean {
     return event === KROnBackPressedKey;
   }
 
   private doSendEvent(event: string, data: KRRecord, sync?: boolean) {
     this.runKRRenderTask(() => {
-      const shouldSync = sync ?? this.shouldSyncSendEvent(event);
+      const shouldSync = sync ?? this.syncSendEvent(event);
       if (shouldSync) {
         render.sendEventSync(this.instanceId, event, KRConvertUtil.anyToCObject(data), true);
       } else {

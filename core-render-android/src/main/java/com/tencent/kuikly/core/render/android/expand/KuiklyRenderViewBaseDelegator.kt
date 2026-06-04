@@ -664,7 +664,7 @@ interface KuiklyRenderViewBaseDelegatorDelegate {
      * @param event 事件名称
      * @return 是否同步，默认为false
      */
-    fun shouldSyncSendEvent(event: String): Boolean {
+    fun syncSendEvent(event: String): Boolean {
         return false
     }
     

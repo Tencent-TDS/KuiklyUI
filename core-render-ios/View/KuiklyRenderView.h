@@ -132,7 +132,7 @@ FOUNDATION_EXTERN NSString *const KRRootViewSizeDidChangedEventKey;
  * @param event 事件名
  * @return 是否同步发送
  */
-- (BOOL)shouldSyncSendEvent:(NSString *)event;
+- (BOOL)syncSendEvent:(NSString *)event;
 
 /*
  * @brief KuiklyRenderView中的内容视图完成加载后触发该接口调用.

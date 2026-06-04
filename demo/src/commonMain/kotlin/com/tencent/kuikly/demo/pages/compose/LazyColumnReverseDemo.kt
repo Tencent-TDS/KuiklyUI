@@ -31,7 +31,9 @@ import com.tencent.kuikly.compose.foundation.layout.fillMaxSize
 import com.tencent.kuikly.compose.foundation.layout.fillMaxWidth
 import com.tencent.kuikly.compose.foundation.layout.height
 import com.tencent.kuikly.compose.foundation.layout.padding
+import com.tencent.kuikly.compose.foundation.layout.width
 import com.tencent.kuikly.compose.foundation.lazy.LazyColumn
+import com.tencent.kuikly.compose.foundation.lazy.LazyRow
 import com.tencent.kuikly.compose.foundation.lazy.rememberLazyListState
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.setContent
@@ -57,7 +59,8 @@ class LazyColumnReverseDemo : ComposeContainer() {
 @Composable
 private fun ReverseLazyColumnDemo() {
     val itemCount = 20
-    val state = rememberLazyListState()
+    val columnState = rememberLazyListState()
+    val rowState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
     Column(
@@ -68,7 +71,7 @@ private fun ReverseLazyColumnDemo() {
     ) {
         Text("reverseLayout 纵向示例：初始会从底部开始显示，手势仍然是正常上下滑动。")
         Text(
-            "firstVisibleItemIndex=${state.firstVisibleItemIndex}，可用下面按钮验证“视觉顶部/底部”和数据 index 的对应关系。",
+            "Column firstVisibleItemIndex=${columnState.firstVisibleItemIndex}，Row firstVisibleItemIndex=${rowState.firstVisibleItemIndex}。",
             modifier = Modifier.padding(top = 6.dp),
         )
 
@@ -83,7 +86,7 @@ private fun ReverseLazyColumnDemo() {
                 modifier = Modifier.weight(1f),
             ) {
                 scope.launch {
-                    state.animateScrollToItem(itemCount - 1)
+                    columnState.animateScrollToItem(itemCount - 1)
                 }
             }
             DemoButton(
@@ -91,7 +94,7 @@ private fun ReverseLazyColumnDemo() {
                 modifier = Modifier.weight(1f),
             ) {
                 scope.launch {
-                    state.animateScrollToItem(0)
+                    columnState.animateScrollToItem(0)
                 }
             }
         }
@@ -99,7 +102,7 @@ private fun ReverseLazyColumnDemo() {
         Spacer(Modifier.height(12.dp))
 
         LazyColumn(
-            state = state,
+            state = columnState,
             modifier =
                 Modifier
                     .fillMaxWidth()
@@ -110,26 +113,48 @@ private fun ReverseLazyColumnDemo() {
             contentPadding = PaddingValues(vertical = 12.dp),
         ) {
             items(itemCount) { index ->
-                val cardColor =
-                    when (index % 4) {
-                        0 -> Color(0xFF4C6EF5)
-                        1 -> Color(0xFF12B886)
-                        2 -> Color(0xFFF59F00)
-                        else -> Color(0xFFE03131)
-                    }
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(56.dp)
-                            .background(cardColor)
-                            .border(1.dp, Color.Black),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("Message $index", color = Color.White)
-                }
+                ReverseDemoCard(index, modifier = Modifier.fillMaxWidth().height(56.dp))
             }
         }
+
+        Spacer(Modifier.height(12.dp))
+
+        Text("reverseLayout 横向示例：左右滑动应与纵向同样稳定。")
+        LazyRow(
+            state = rowState,
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(120.dp)
+                    .background(Color.LightGray),
+            reverseLayout = true,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp),
+        ) {
+            items(itemCount) { index ->
+                ReverseDemoCard(index, modifier = Modifier.width(120.dp).height(88.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReverseDemoCard(index: Int, modifier: Modifier) {
+    val cardColor =
+        when (index % 4) {
+            0 -> Color(0xFF4C6EF5)
+            1 -> Color(0xFF12B886)
+            2 -> Color(0xFFF59F00)
+            else -> Color(0xFFE03131)
+        }
+    Box(
+        modifier =
+            modifier
+                .background(cardColor)
+                .border(1.dp, Color.Black),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text("Message $index", color = Color.White)
     }
 }
 

@@ -62,6 +62,7 @@ class LazyListReverseLayoutSupportTest {
     fun `reverse top and bottom helpers follow visual edges`() {
         val reverseLayoutInfo = fakeLayoutInfo(
             reverseLayout = true,
+            orientation = Orientation.Vertical,
             totalItemsCount = 3,
             viewportSize = IntSize(300, 300),
             visibleItems = listOf(fakeItem(index = 0, offset = 0, size = 100)),
@@ -70,10 +71,72 @@ class LazyListReverseLayoutSupportTest {
         assertTrue(reverseLayoutInfo.isAtVisualTop(canScrollForward = false, canScrollBackward = true))
         assertTrue(reverseLayoutInfo.isAtVisualBottom(canScrollForward = true, canScrollBackward = false))
     }
+
+    @Test
+    fun `reverse vertical expands native end while compose can still scroll to visual top`() {
+        val reverseLayoutInfo = fakeLayoutInfo(
+            reverseLayout = true,
+            orientation = Orientation.Vertical,
+            totalItemsCount = 20,
+            viewportSize = IntSize(300, 300),
+            visibleItems = listOf(fakeItem(index = 10, offset = 0, size = 100)),
+        )
+
+        assertTrue(
+            reverseLayoutInfo.shouldExpandReverseNativeEnd(
+                contentOffset = 700,
+                viewportSize = 300,
+                currentContentSize = 1000,
+                canScrollForward = true,
+                canScrollBackward = true,
+            )
+        )
+    }
+
+    @Test
+    fun `reverse horizontal expands native end while compose can still scroll to visual start`() {
+        val reverseLayoutInfo = fakeLayoutInfo(
+            reverseLayout = true,
+            orientation = Orientation.Horizontal,
+            totalItemsCount = 20,
+            viewportSize = IntSize(300, 100),
+            visibleItems = listOf(fakeItem(index = 10, offset = 0, size = 100)),
+        )
+
+        assertTrue(
+            reverseLayoutInfo.shouldExpandReverseNativeEnd(
+                contentOffset = 700,
+                viewportSize = 300,
+                currentContentSize = 1000,
+                canScrollForward = true,
+                canScrollBackward = true,
+            )
+        )
+    }
+
+    @Test
+    fun `reverse native start resets when visual bottom is reached`() {
+        val reverseLayoutInfo = fakeLayoutInfo(
+            reverseLayout = true,
+            orientation = Orientation.Vertical,
+            totalItemsCount = 20,
+            viewportSize = IntSize(300, 300),
+            visibleItems = listOf(fakeItem(index = 0, offset = 0, size = 100)),
+        )
+
+        assertTrue(
+            reverseLayoutInfo.shouldResetReverseNativeStart(
+                contentOffset = 180,
+                canScrollForward = true,
+                canScrollBackward = false,
+            )
+        )
+    }
 }
 
 private fun fakeLayoutInfo(
     reverseLayout: Boolean,
+    orientation: Orientation = Orientation.Vertical,
     totalItemsCount: Int,
     viewportSize: IntSize,
     visibleItems: List<FakeLazyListItemInfo>,
@@ -83,7 +146,7 @@ private fun fakeLayoutInfo(
     override val viewportEndOffset: Int = if (viewportSize.height != 0) viewportSize.height else viewportSize.width
     override val totalItemsCount: Int = totalItemsCount
     override val viewportSize: IntSize = viewportSize
-    override val orientation: Orientation = Orientation.Vertical
+    override val orientation: Orientation = orientation
     override val reverseLayout: Boolean = reverseLayout
     override val mainAxisItemSpacing: Int = 0
 }

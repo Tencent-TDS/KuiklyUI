@@ -203,9 +203,34 @@ internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolea
     if (kuiklyInfo.scrollView == null) return
 
     val density = kuiklyInfo.getDensity()
-    val reverseLazyLayout = this is LazyListState && kuiklyInfo.reverseLayout
+    if (this is LazyListState && kuiklyInfo.reverseLayout) {
+        val epsilon = (0.5 * density).toInt()
+        if (layoutInfo.shouldExpandReverseNativeEnd(
+                contentOffset = offset,
+                viewportSize = kuiklyInfo.viewportSize,
+                currentContentSize = kuiklyInfo.currentContentSize,
+                canScrollForward = canScrollForward,
+                canScrollBackward = canScrollBackward,
+                epsilon = epsilon,
+            )
+        ) {
+            val minDelta = (ScrollableStateConstants.DEFAULT_CONTENT_SIZE * density).toInt()
+            kuiklyInfo.currentContentSize += minDelta
+            kuiklyInfo.updateContentSizeToRender()
+            kuiklyInfo.offsetDirty = true
+        } else if (layoutInfo.shouldResetReverseNativeStart(
+                contentOffset = offset,
+                canScrollForward = canScrollForward,
+                canScrollBackward = canScrollBackward,
+            )
+        ) {
+            applyScrollViewOffsetDelta(-offset)
+            kuiklyInfo.offsetDirty = false
+        }
+        return
+    }
     // scrollview 到顶了，但是compose没到顶
-    if (!reverseLazyLayout && offset <= 0 && !isAtTop() && kuiklyInfo.offsetDirty) {
+    if (offset <= 0 && !isAtTop() && kuiklyInfo.offsetDirty) {
         var delta = calculateBackExpandSize(offset)
         val minDelta = (ScrollableStateConstants.DEFAULT_CONTENT_SIZE * density).toInt()
         delta = max(delta ?: minDelta, minDelta)
@@ -225,7 +250,7 @@ internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolea
         }
         kuiklyInfo.offsetDirty = true
         applyScrollViewOffsetDelta(delta)
-    } else if (!reverseLazyLayout && offset > 0 && isAtTop()) {
+    } else if (offset > 0 && isAtTop()) {
         // compose 到顶了，但是scrollview没到顶
         applyScrollViewOffsetDelta(-offset)
         kuiklyInfo.offsetDirty = false
@@ -241,9 +266,31 @@ internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = f
             val minDelta = (DEFAULT_CONTENT_SIZE * getDensity()).toInt()
             val epsilon = 0.5 * getDensity()  // 使用 0.5dp 作为误差值
             val reachBtm = contentOffset + viewportSize - currentContentSize >= -epsilon
-            val reverseLazyLayout = this@tryExpandStartSizeNoScroll is LazyListState && reverseLayout
+            val lazyListState = this@tryExpandStartSizeNoScroll as? LazyListState
 
-            if (!reverseLazyLayout && contentOffset <= 0 && !isAtTop() && (forceExpand || scrollView?.isDragging != true)) {
+            if (reverseLayout && lazyListState != null &&
+                layoutInfo.shouldExpandReverseNativeEnd(
+                    contentOffset = contentOffset,
+                    viewportSize = viewportSize,
+                    currentContentSize = currentContentSize,
+                    canScrollForward = lazyListState.canScrollForward,
+                    canScrollBackward = lazyListState.canScrollBackward,
+                    epsilon = epsilon.toInt(),
+                )
+            ) {
+                currentContentSize += minDelta
+                updateContentSizeToRender()
+                offsetDirty = true
+            } else if (reverseLayout && lazyListState != null &&
+                layoutInfo.shouldResetReverseNativeStart(
+                    contentOffset = contentOffset,
+                    canScrollForward = lazyListState.canScrollForward,
+                    canScrollBackward = lazyListState.canScrollBackward,
+                )
+            ) {
+                applyScrollViewOffsetDelta(-contentOffset)
+                offsetDirty = false
+            } else if (!reverseLayout && contentOffset <= 0 && !isAtTop() && (forceExpand || scrollView?.isDragging != true)) {
                 // 整体把offset 加一下
                 var delta = calculateBackExpandSize(contentOffset)
                 delta = max(delta ?: minDelta, minDelta)
@@ -258,7 +305,7 @@ internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = f
                 }
                 applyScrollViewOffsetDelta(delta)
                 offsetDirty = true
-            } else if (!reverseLazyLayout && contentOffset > 0 && isAtTop()) {
+            } else if (!reverseLayout && contentOffset > 0 && isAtTop()) {
                 // compose 到顶了，但是scrollview没到顶
                 applyScrollViewOffsetDelta(-contentOffset)
                 offsetDirty = false
@@ -273,6 +320,28 @@ internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = f
             }
         }
     }
+}
+
+internal fun LazyListLayoutInfo.shouldExpandReverseNativeEnd(
+    contentOffset: Int,
+    viewportSize: Int,
+    currentContentSize: Int,
+    canScrollForward: Boolean,
+    canScrollBackward: Boolean,
+    epsilon: Int = 0,
+): Boolean {
+    if (!reverseLayout) return false
+    val reachedNativeEnd = contentOffset + viewportSize - currentContentSize >= -epsilon
+    return reachedNativeEnd && !isAtVisualTop(canScrollForward, canScrollBackward)
+}
+
+internal fun LazyListLayoutInfo.shouldResetReverseNativeStart(
+    contentOffset: Int,
+    canScrollForward: Boolean,
+    canScrollBackward: Boolean,
+): Boolean {
+    if (!reverseLayout || contentOffset <= 0) return false
+    return isAtVisualBottom(canScrollForward, canScrollBackward)
 }
 
 internal fun LazyListLayoutInfo.calculateExactContentSizeFromVisualEnd(curOffset: Float): Int? {

@@ -660,7 +660,7 @@ interface KuiklyRenderViewBaseDelegatorDelegate {
                            executeMode: KuiklyRenderCoreExecuteModeBase) {}
 
     /**
-     * 是否需要同步发送
+     * 是否同步发送
      * @param event 事件名称
      * @return 是否同步，默认为false
      */

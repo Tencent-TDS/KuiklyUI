@@ -94,6 +94,28 @@ class LazyListReverseLayoutSupportTest {
     }
 
     @Test
+    fun `reverse vertical pre-expands before native end to avoid bounce resistance`() {
+        val reverseLayoutInfo = fakeLayoutInfo(
+            reverseLayout = true,
+            orientation = Orientation.Vertical,
+            totalItemsCount = 20,
+            viewportSize = IntSize(300, 300),
+            visibleItems = listOf(fakeItem(index = 10, offset = 0, size = 100)),
+        )
+
+        assertTrue(
+            reverseLayoutInfo.shouldExpandReverseNativeEnd(
+                contentOffset = 400,
+                viewportSize = 300,
+                currentContentSize = 1000,
+                expandThreshold = 300,
+                canScrollForward = true,
+                canScrollBackward = true,
+            )
+        )
+    }
+
+    @Test
     fun `reverse horizontal expands native end while compose can still scroll to visual start`() {
         val reverseLayoutInfo = fakeLayoutInfo(
             reverseLayout = true,

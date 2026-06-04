@@ -308,6 +308,7 @@ private fun ScrollableState.tryHandleReverseLazyNativeRange(
             contentOffset = contentOffset,
             viewportSize = viewportSize,
             currentContentSize = currentContentSize,
+            expandThreshold = minExpandSize,
             canScrollForward = lazyListState.canScrollForward,
             canScrollBackward = lazyListState.canScrollBackward,
             epsilon = epsilon,
@@ -337,13 +338,15 @@ internal fun LazyListLayoutInfo.shouldExpandReverseNativeEnd(
     contentOffset: Int,
     viewportSize: Int,
     currentContentSize: Int,
+    expandThreshold: Int = 0,
     canScrollForward: Boolean,
     canScrollBackward: Boolean,
     epsilon: Int = 0,
 ): Boolean {
     if (!reverseLayout) return false
-    val reachedNativeEnd = contentOffset + viewportSize - currentContentSize >= -epsilon
-    return reachedNativeEnd && !isAtVisualTop(canScrollForward, canScrollBackward)
+    val distanceToNativeEnd = currentContentSize - viewportSize - contentOffset
+    val reachedOrNearNativeEnd = distanceToNativeEnd <= expandThreshold + epsilon
+    return reachedOrNearNativeEnd && !isAtVisualTop(canScrollForward, canScrollBackward)
 }
 
 internal fun LazyListLayoutInfo.shouldResetReverseNativeStart(

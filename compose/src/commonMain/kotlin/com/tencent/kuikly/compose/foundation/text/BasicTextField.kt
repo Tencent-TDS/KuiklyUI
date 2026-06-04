@@ -36,6 +36,8 @@ import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.SolidColor
 import com.tencent.kuikly.compose.ui.text.TextLayoutResult
 import com.tencent.kuikly.compose.ui.text.TextStyle
+import com.tencent.kuikly.compose.ui.text.font.FontListFontFamily
+import com.tencent.kuikly.compose.ui.text.font.GenericFontFamily
 import com.tencent.kuikly.compose.ui.text.input.ImeAction
 import com.tencent.kuikly.compose.ui.text.input.KeyboardType
 import com.tencent.kuikly.compose.ui.text.input.TextFieldValue
@@ -43,6 +45,7 @@ import com.tencent.kuikly.compose.ui.text.input.VisualTransformation
 import com.tencent.kuikly.compose.ui.text.style.TextAlign
 import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.isSpecified
+import com.tencent.kuikly.compose.resources.toKuiklyFontFamily
 import com.tencent.kuikly.core.views.TextAreaAttr
 
 internal fun TextAreaAttr.setTextStyle(style: TextStyle, density: Density) {
@@ -74,6 +77,11 @@ internal fun TextAreaAttr.setTextStyle(style: TextStyle, density: Density) {
         } else {
             fontWeightNormal()
         }
+    }
+    when (val fontFamily = style.fontFamily) {
+        is GenericFontFamily -> fontFamily(fontFamily.name)
+        is FontListFontFamily -> fontFamily(fontFamily.fonts.toKuiklyFontFamily())
+        else -> Unit
     }
 
     if (style.lineHeight.isSpecified) {

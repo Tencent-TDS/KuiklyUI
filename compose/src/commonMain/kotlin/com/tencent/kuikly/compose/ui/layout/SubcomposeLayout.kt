@@ -348,8 +348,7 @@ fun SubcomposeLayout(
                 }
 
                 // 触发compose滑动，并重新布局
-                val dispatchDelta = if (kuiklyInfo.reverseLayout) -delta else delta
-                scrollableState.kuiklyOnScroll(dispatchDelta)
+                scrollableState.kuiklyOnScroll(delta)
 
                 // 尝试扩容
                 scrollableState.tryExpandStartSize(offset, true)

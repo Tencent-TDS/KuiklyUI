@@ -95,6 +95,8 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
+private const val SCROLL_OFFSET_MATCH_EPSILON_DP = 0.5f
+
 /**
  * Analogue of [Layout] which allows to subcompose the actual content during the measuring stage
  * for example to use the values calculated during the measurement as params for the composition
@@ -300,19 +302,21 @@ fun SubcomposeLayout(
                 val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
                 val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
 
-                val prevOffset = kuiklyInfo.contentOffset
                 kuiklyInfo.contentOffset = offset
                 (scrollableState as? PagerState)?.onNativeContentOffsetChanged(offset)
                 kuiklyInfo.isDragging = kuiklyInfo.scrollView?.isDragging ?: false
-
                 if (kuiklyInfo.ignoreScrollOffset != null) {
                     val ignoreOffset = kuiklyInfo.ignoreScrollOffset!!
-                    val epsilon = 0.5 * kuiklyInfo.getDensity()  // 使用 0.5dp 作为误差值
+                    val epsilon = SCROLL_OFFSET_MATCH_EPSILON_DP * kuiklyInfo.getDensity()
                     val matched = abs(ignoreOffset.x.minus(scaleParams.offsetX)) <= epsilon
                         && abs(ignoreOffset.y.minus(scaleParams.offsetY)) <= epsilon
                     if (matched) {
                         kuiklyInfo.ignoreScrollOffset = null
                     }
+                    return@scroll
+                }
+
+                if (kuiklyInfo.reverseLayout && scrollableState.tryExpandStartSize(offset, true)) {
                     return@scroll
                 }
 
@@ -344,7 +348,8 @@ fun SubcomposeLayout(
                 }
 
                 // 触发compose滑动，并重新布局
-                val comsumedDelta = scrollableState.kuiklyOnScroll(delta)
+                val dispatchDelta = if (kuiklyInfo.reverseLayout) -delta else delta
+                scrollableState.kuiklyOnScroll(dispatchDelta)
 
                 // 尝试扩容
                 scrollableState.tryExpandStartSize(offset, true)

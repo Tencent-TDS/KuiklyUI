@@ -137,7 +137,7 @@ class LazyListReverseLayoutSupportTest {
     }
 
     @Test
-    fun `reverse native start resets when visual bottom is reached`() {
+    fun `reverse native start keeps headroom when visual bottom is reached`() {
         val reverseLayoutInfo = fakeLayoutInfo(
             reverseLayout = true,
             orientation = Orientation.Vertical,
@@ -146,9 +146,53 @@ class LazyListReverseLayoutSupportTest {
             visibleItems = listOf(fakeItem(index = 0, offset = 0, size = 100)),
         )
 
-        assertTrue(
-            reverseLayoutInfo.shouldResetReverseNativeStart(
+        assertEquals(
+            120,
+            reverseLayoutInfo.reverseNativeStartHeadroomDelta(
                 contentOffset = 180,
+                startHeadroom = 300,
+                canScrollForward = true,
+                canScrollBackward = false,
+            )
+        )
+    }
+
+    @Test
+    fun `reverse native start headroom compensates native overscroll`() {
+        val reverseLayoutInfo = fakeLayoutInfo(
+            reverseLayout = true,
+            orientation = Orientation.Vertical,
+            totalItemsCount = 20,
+            viewportSize = IntSize(300, 300),
+            visibleItems = listOf(fakeItem(index = 0, offset = 0, size = 100)),
+        )
+
+        assertEquals(
+            324,
+            reverseLayoutInfo.reverseNativeStartHeadroomDelta(
+                contentOffset = -24,
+                startHeadroom = 300,
+                canScrollForward = true,
+                canScrollBackward = false,
+            )
+        )
+    }
+
+    @Test
+    fun `reverse native start headroom does not block scrolling away from visual bottom`() {
+        val reverseLayoutInfo = fakeLayoutInfo(
+            reverseLayout = true,
+            orientation = Orientation.Vertical,
+            totalItemsCount = 20,
+            viewportSize = IntSize(300, 300),
+            visibleItems = listOf(fakeItem(index = 0, offset = 0, size = 100)),
+        )
+
+        assertEquals(
+            0,
+            reverseLayoutInfo.reverseNativeStartHeadroomDelta(
+                contentOffset = 360,
+                startHeadroom = 300,
                 canScrollForward = true,
                 canScrollBackward = false,
             )

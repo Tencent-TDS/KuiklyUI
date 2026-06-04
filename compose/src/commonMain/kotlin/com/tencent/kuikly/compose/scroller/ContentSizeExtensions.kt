@@ -92,6 +92,15 @@ internal fun ScrollableState.calculateAndUpdateContentSize() {
         kuiklyInfo.currentContentSize = newContentSize
     }
     kuiklyInfo.updateContentSizeToRender()
+    val density = kuiklyInfo.getDensity()
+    tryHandleReverseLazyNativeRange(
+        contentOffset = kuiklyInfo.contentOffset,
+        viewportSize = kuiklyInfo.viewportSize,
+        currentContentSize = kuiklyInfo.currentContentSize,
+        minExpandSize = (ScrollableStateConstants.DEFAULT_CONTENT_SIZE * density).toInt(),
+        epsilon = nativeContentRangeEpsilon(density),
+        maintainStartHeadroom = kuiklyInfo.scrollView?.isDragging != true,
+    )
 }
 
 internal fun PaddingValues.totalPadding(orientation: Orientation): Dp {
@@ -199,8 +208,8 @@ internal fun ScrollableState.calculateBackExpandSize(offset: Int): Int? {
 /**
  * 尝试扩展起始大小
  */
-internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolean) {
-    if (kuiklyInfo.scrollView == null) return
+internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolean): Boolean {
+    if (kuiklyInfo.scrollView == null) return false
 
     val density = kuiklyInfo.getDensity()
     val minDelta = (ScrollableStateConstants.DEFAULT_CONTENT_SIZE * density).toInt()
@@ -210,9 +219,10 @@ internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolea
             currentContentSize = kuiklyInfo.currentContentSize,
             minExpandSize = minDelta,
             epsilon = nativeContentRangeEpsilon(density),
+            maintainStartHeadroom = !isScrolling,
         )
     ) {
-        return
+        return true
     }
     // scrollview 到顶了，但是compose没到顶
     if (offset <= 0 && !isAtTop() && kuiklyInfo.offsetDirty) {
@@ -239,6 +249,7 @@ internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolea
         applyScrollViewOffsetDelta(-offset)
         kuiklyInfo.offsetDirty = false
     }
+    return false
 }
 
 internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = false) {
@@ -257,6 +268,7 @@ internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = f
                     currentContentSize = currentContentSize,
                     minExpandSize = minDelta,
                     epsilon = epsilon,
+                    maintainStartHeadroom = true,
                 )
             ) {
             } else if (!reverseLayout && contentOffset <= 0 && !isAtTop() && (forceExpand || scrollView?.isDragging != true)) {
@@ -300,9 +312,33 @@ private fun ScrollableState.tryHandleReverseLazyNativeRange(
     currentContentSize: Int,
     minExpandSize: Int,
     epsilon: Int,
+    maintainStartHeadroom: Boolean,
 ): Boolean {
     val lazyListState = this as? LazyListState ?: return false
     if (!kuiklyInfo.reverseLayout) return false
+
+    val startHeadroomDelta = if (maintainStartHeadroom) {
+        lazyListState.layoutInfo.reverseNativeStartHeadroomDelta(
+            contentOffset = contentOffset,
+            startHeadroom = minExpandSize,
+            canScrollForward = lazyListState.canScrollForward,
+            canScrollBackward = lazyListState.canScrollBackward,
+            epsilon = epsilon,
+        )
+    } else {
+        0
+    }
+    if (startHeadroomDelta != 0) {
+        val targetOffset = contentOffset + startHeadroomDelta
+        val requiredContentSize = targetOffset + viewportSize + minExpandSize
+        if (requiredContentSize > kuiklyInfo.currentContentSize) {
+            kuiklyInfo.currentContentSize = requiredContentSize
+            kuiklyInfo.updateContentSizeToRender()
+        }
+        applyScrollViewOffsetDelta(startHeadroomDelta)
+        kuiklyInfo.offsetDirty = false
+        return true
+    }
 
     if (lazyListState.layoutInfo.shouldExpandReverseNativeEnd(
             contentOffset = contentOffset,
@@ -317,17 +353,6 @@ private fun ScrollableState.tryHandleReverseLazyNativeRange(
         kuiklyInfo.currentContentSize += minExpandSize
         kuiklyInfo.updateContentSizeToRender()
         kuiklyInfo.offsetDirty = true
-        return true
-    }
-
-    if (lazyListState.layoutInfo.shouldResetReverseNativeStart(
-            contentOffset = contentOffset,
-            canScrollForward = lazyListState.canScrollForward,
-            canScrollBackward = lazyListState.canScrollBackward,
-        )
-    ) {
-        applyScrollViewOffsetDelta(-contentOffset)
-        kuiklyInfo.offsetDirty = false
         return true
     }
 
@@ -349,13 +374,16 @@ internal fun LazyListLayoutInfo.shouldExpandReverseNativeEnd(
     return reachedOrNearNativeEnd && !isAtVisualTop(canScrollForward, canScrollBackward)
 }
 
-internal fun LazyListLayoutInfo.shouldResetReverseNativeStart(
+internal fun LazyListLayoutInfo.reverseNativeStartHeadroomDelta(
     contentOffset: Int,
+    startHeadroom: Int,
     canScrollForward: Boolean,
     canScrollBackward: Boolean,
-): Boolean {
-    if (!reverseLayout || contentOffset <= 0) return false
-    return isAtVisualBottom(canScrollForward, canScrollBackward)
+    epsilon: Int = 0,
+): Int {
+    if (!reverseLayout || !isAtVisualBottom(canScrollForward, canScrollBackward)) return 0
+    val delta = startHeadroom - contentOffset
+    return if (delta > epsilon) delta else 0
 }
 
 internal fun LazyListLayoutInfo.calculateExactContentSizeFromVisualEnd(curOffset: Float): Int? {

@@ -45,7 +45,7 @@ controller.sendEvent("test", {"key": "value"})
 
 默认情况下，Native 发送给 `Pager` 的事件通常是异步到达的。
 
-如果某些事件需要与当前原生布局或上屏时机保持一致，可以在 Native 容器中实现 `shouldSyncSendEvent` 接口，指定事件为同步发送，避免事件晚一帧生效。
+如果某些事件需要与当前原生布局或上屏时机保持一致，可以在 Native 容器中实现 `syncSendEvent` 接口，指定事件为同步发送，避免事件晚一帧生效。
 
 典型场景：页面旋转、分屏或宿主容器尺寸变化时，`rootViewSizeDidChanged` 如果异步发送，可能导致页面内容更新晚一帧，出现短暂白屏。
 
@@ -60,7 +60,7 @@ controller.sendEvent("test", {"key": "value"})
 ```kotlin
 // ContextCodeHandler.kt
 val delegate = object : KuiklyRenderViewBaseDelegatorDelegate {
-    override fun shouldSyncSendEvent(event: String): Boolean {
+    override fun syncSendEvent(event: String): Boolean {
         return event == "rootViewSizeDidChanged"
     }
 }
@@ -70,7 +70,7 @@ val delegate = object : KuiklyRenderViewBaseDelegatorDelegate {
 
 ```objective-c
 // KuiklyRenderViewController.m
-- (BOOL)shouldSyncSendEvent:(NSString *)event {
+- (BOOL)syncSendEvent:(NSString *)event {
     return [event isEqualToString:@"rootViewSizeDidChanged"];
 }
 ```
@@ -79,7 +79,7 @@ val delegate = object : KuiklyRenderViewBaseDelegatorDelegate {
 
 ```ts
 // KuiklyViewDelegate.ets
-shouldSyncSendEvent(event: string): boolean {
+syncSendEvent(event: string): boolean {
   return event === 'rootViewSizeDidChanged'
 }
 ```

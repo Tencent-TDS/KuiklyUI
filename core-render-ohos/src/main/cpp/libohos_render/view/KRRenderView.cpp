@@ -159,6 +159,13 @@ std::shared_ptr<IKRRenderViewExport> KRRenderView::GetView(int tag) {
     return nullptr;
 }
 
+std::shared_ptr<IKRRenderViewExport> KRRenderView::GetView(ArkUI_NodeHandle handle) {
+    if (core_) {
+        return core_->GetView(handle);
+    }
+    return nullptr;
+}
+
 /**
  * 获取渲染节点视图（要求在主线程调用）
  * @param tag 所在tag

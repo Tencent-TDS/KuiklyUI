@@ -17,12 +17,16 @@
 
 #include "libohos_render/api/include/Kuikly/Kuikly.h"
 #include "libohos_render/api/src/KRAnyDataInternal.h"
+#include "libohos_render/foundation/KRConfig.h"
 #include "libohos_render/manager/KRSnapshotManager.h"
 #include "libohos_render/manager/KRWeakObjectManager.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+// Weak extern for OH_ArkUI_NodeUtils_GetPositionToParent - API compatibility
+extern int32_t OH_ArkUI_NodeUtils_GetPositionToParent(ArkUI_NodeHandle node, ArkUI_IntOffset *offset) __attribute__((weak));
+extern int32_t OH_ArkUI_NodeUtils_GetLayoutSize(ArkUI_NodeHandle node, ArkUI_IntSize *size) __attribute__((weak));
 
 static KRRenderViewOnSetProp gExternalPropHandlerOnSet = nullptr;
 static KRRenderViewOnResetProp gExternalPropHandlerOnReset = nullptr;
@@ -213,4 +217,195 @@ bool IKRRenderViewExport::CanReuse() {
         return false;
     }
     return ReuseEnable();
+}
+
+void IKRRenderViewExport::SetNeedsDisplay() {
+    if (node_) {
+        kuikly::util::GetNodeApi()->markDirty(node_, NODE_NEED_RENDER);
+    }
+}
+
+static ArkUI_IntSize GetNodeSizePx(ArkUI_NodeHandle node) {
+    ArkUI_IntSize layoutSize;
+    layoutSize.width = 0;
+    layoutSize.height = 0;
+    if (OH_ArkUI_NodeUtils_GetLayoutSize) {
+        OH_ArkUI_NodeUtils_GetLayoutSize(node, &layoutSize);
+    }
+    return layoutSize;
+}
+
+KRPoint ConvertPointToAncestorCoordinate(KRPoint point, ArkUI_NodeHandle node, ArkUI_NodeHandle parent_node) {
+    if (!OH_ArkUI_NodeUtils_GetPositionToParent) {
+        return point;
+    }
+    ArkUI_NodeHandle current = node;
+    ArkUI_IntOffset result_offset;
+    result_offset.x = 0;
+    result_offset.y = 0;
+    if (current == parent_node) {
+        return KRPoint();
+    }
+    auto nodeApi = kuikly::util::GetNodeApi();
+    for (;;) {
+        ArkUI_IntOffset offset;
+        if (OH_ArkUI_NodeUtils_GetPositionToParent(current, &offset) == ARKUI_ERROR_CODE_NO_ERROR) {
+            result_offset.x += offset.x / KRConfig::GetDpi();
+            result_offset.y += offset.y / KRConfig::GetDpi();
+        }
+        if (current == parent_node) {
+            break;
+        }
+        current = nodeApi->getParent(current);
+        if (current == nullptr || current == parent_node) {
+            break;
+        }
+    }
+    return KRPoint(point.x + result_offset.x, point.y + result_offset.y);
+}
+
+KRRect IKRRenderViewExport::GetBounds() {
+    ArkUI_IntSize size = GetNodeSizePx(GetNode());
+    double density = KRConfig::GetDpi();
+    return KRRect(0, 0, size.width / density, size.height / density);
+}
+
+KRPoint IKRRenderViewExport::ConvertPointToChildCoordinate(KRPoint point, ArkUI_NodeHandle node,
+                                                           ArkUI_NodeHandle child_node) {
+    if (!OH_ArkUI_NodeUtils_GetPositionToParent) {
+        return point;
+    }
+    ArkUI_NodeHandle current = child_node;
+    ArkUI_IntOffset result_offset;
+    result_offset.x = 0;
+    result_offset.y = 0;
+    if (current == node) {
+        return point;
+    }
+    auto nodeApi = kuikly::util::GetNodeApi();
+    for (;;) {
+        ArkUI_IntOffset offset;
+        if (OH_ArkUI_NodeUtils_GetPositionToParent(current, &offset) == ARKUI_ERROR_CODE_NO_ERROR) {
+            result_offset.x += offset.x / KRConfig::GetDpi();
+            result_offset.y += offset.y / KRConfig::GetDpi();
+        }
+        current = nodeApi->getParent(current);
+        if (current == nullptr || current == node) {
+            break;
+        }
+    }
+    return KRPoint(point.x - result_offset.x, point.y - result_offset.y);
+}
+
+KRRect IKRRenderViewExport::GetSubnodeFrame(ArkUI_NodeHandle subnode) {
+    KRPoint position;
+    if (GetNode() != subnode) {
+        position = ConvertPointToAncestorCoordinate(KRPoint(), subnode, GetNode());
+    }
+    ArkUI_IntSize size = GetNodeSizePx(subnode);
+    double density = KRConfig::GetDpi();
+    return KRRect(position.x, position.y, size.width / density, size.height / density);
+}
+
+std::tuple<KRRect, KRRect> IKRRenderViewExport::GetSelectionFrameInAncestorCoordinate(
+    std::shared_ptr<IKRRenderViewExport> ancestor_view, KRPoint ancestor_point1, KRPoint ancestor_point2, int type) {
+    KRPoint first_point = ancestor_point1;
+    KRPoint second_point = ancestor_point2;
+    if (first_point.y > second_point.y) {
+        first_point = ancestor_point2;
+        second_point = ancestor_point1;
+    }
+
+    KRRect frame = GetFrame();
+    KRPoint origin_ancestor_space = ConvertPointToAncestorCoordinate(KRPoint(), GetNode(), ancestor_view->GetNode());
+    frame.x = origin_ancestor_space.x;
+    frame.y = origin_ancestor_space.y;
+
+    if (first_point.y < frame.y) {
+        first_point = frame.Origin();
+    }
+
+    if (second_point.y > frame.y + frame.height) {
+        second_point.x = frame.x + frame.width;
+        second_point.y = frame.y + frame.height;
+    }
+
+    return {frame, KRRect::RectFrom(first_point, second_point)};
+}
+
+bool IKRRenderViewExport::UpdateSelection(std::shared_ptr<IKRRenderViewExport> ancestor_view, KRPoint ancestor_point1,
+                                          KRPoint ancestor_point2, int type) {
+    if (!IsSelectable()) {
+        return false;
+    }
+
+    auto [frame, selection_frame] = GetSelectionFrameInAncestorCoordinate(ancestor_view, ancestor_point1,
+                                                                          ancestor_point2, type);
+    bool has_intersection = false;
+    if (selection_frame.IsValid()) {
+        has_intersection = selection_frame.IsIntersect(frame);
+    } else {
+        KRRect reverse_frame(std::min(ancestor_point1.x, ancestor_point2.x), std::min(ancestor_point1.y, ancestor_point2.y),
+                             std::abs(ancestor_point1.x - ancestor_point2.x), std::abs(ancestor_point1.y - ancestor_point2.y));
+        has_intersection = reverse_frame.IsIntersect(frame);
+    }
+
+    selected_ = false;
+    if (has_intersection) {
+        for (auto subview : sub_render_views_) {
+            selected_ |= subview->UpdateSelection(ancestor_view, ancestor_point1, ancestor_point2, type);
+        }
+    }
+
+    return selected_;
+}
+
+std::tuple<std::vector<std::shared_ptr<IKRRenderViewExport>>, std::vector<std::shared_ptr<IKRRenderViewExport>>>
+IKRRenderViewExport::GetSelectedTextAndScrollViews() {
+    std::vector<std::shared_ptr<IKRRenderViewExport>> text_views;
+    std::vector<std::shared_ptr<IKRRenderViewExport>> scroll_views;
+
+    GetSelectedTextAndScrollViews(text_views, scroll_views);
+    return {text_views, scroll_views};
+}
+
+void IKRRenderViewExport::GetSelectedTextAndScrollViews(
+    std::vector<std::shared_ptr<IKRRenderViewExport>> &text_views,
+    std::vector<std::shared_ptr<IKRRenderViewExport>> &scroll_views) {
+    auto cmp = [](std::shared_ptr<IKRRenderViewExport> a, std::shared_ptr<IKRRenderViewExport> b) {
+        return a->GetFrame().Origin() < b->GetFrame().Origin();
+    };
+    std::set<std::shared_ptr<IKRRenderViewExport>, decltype(cmp)> sorted_sub_render_views(cmp);
+    sorted_sub_render_views.insert(sub_render_views_.begin(), sub_render_views_.end());
+
+    for (auto subview : sorted_sub_render_views) {
+        if (!subview->IsSelected()) {
+            continue;
+        }
+        if (subview->IsTextView()) {
+            text_views.push_back(subview);
+        } else if (subview->IsScrollView()) {
+            scroll_views.push_back(subview);
+        }
+
+        if (!subview->IsTextView()) {
+            subview->GetSelectedTextAndScrollViews(text_views, scroll_views);
+        }
+    }
+}
+
+std::set<std::shared_ptr<IKRRenderViewExport>> IKRRenderViewExport::GetInternalScrollViews() {
+    std::set<std::shared_ptr<IKRRenderViewExport>> result;
+    GetInternalScrollViews(result);  // calls the overload that fills the set
+    return result;
+}
+
+void IKRRenderViewExport::GetInternalScrollViews(std::set<std::shared_ptr<IKRRenderViewExport>> &scroll_views) {
+    for (auto subview : sub_render_views_) {
+        if (subview->IsScrollView()) {
+            scroll_views.insert(subview);
+        } else {
+            subview->GetInternalScrollViews(scroll_views);
+        }
+    }
 }

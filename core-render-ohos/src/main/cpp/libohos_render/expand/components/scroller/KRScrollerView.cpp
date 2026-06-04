@@ -83,14 +83,11 @@ void KRScrollerContentView::SetRenderViewFrame(const KRRect &frame) {
 }
 
 void KRScrollerContentView::AddContentScrollObserver(IKRContentScrollObserver *observer) {
-    contentScrollObservers_.push_back(observer);
+    contentScrollObservers_.insert(observer);
 }
 
 void KRScrollerContentView::RemoveContentScrollObserver(IKRContentScrollObserver *observer) {
-    auto it = std::find(contentScrollObservers_.begin(), contentScrollObservers_.end(), observer);
-    if (it != contentScrollObservers_.end()) {
-        contentScrollObservers_.erase(it);
-    }
+    contentScrollObservers_.erase(observer);
 }
 
 void KRScrollerContentView::DidInsertSubRenderView(const std::shared_ptr<IKRRenderViewExport> &sub_render_view,
@@ -627,13 +624,10 @@ void KRScrollerView::AdjustHeaderBouncesEnableWhenWillScroll(ArkUI_NodeEvent *ev
 }
 
 void KRScrollerView::AddScrollObserver(IKRScrollObserver *observer) {
-    scroll_observers_.push_back(observer);
+    scroll_observers_.insert(observer);
 }
 void KRScrollerView::RemoveScrollObserver(IKRScrollObserver *observer) {
-    auto it = std::find(scroll_observers_.begin(), scroll_observers_.end(), observer);
-    if (it != scroll_observers_.end()) {
-        scroll_observers_.erase(it);
-    }
+    scroll_observers_.erase(observer);
 }
 
 void KRScrollerView::DispatchDidScrollToObservers(KRPoint point) {

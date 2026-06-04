@@ -122,6 +122,9 @@ data class LongPressParams(
             return LongPressParams(x, y, pageX, pageY, state, isCancel)
         }
     }
+    inline val isStart get() = state == "start"
+    inline val isMove get() = state == "move"
+    inline val isEnd get() = state == "end"
 }
 
 /**
@@ -145,6 +148,9 @@ data class PanGestureParams(
             return PanGestureParams(x, y, state, pageX, pageY)
         }
     }
+    inline val isStart get() = state == "start"
+    inline val isMove get() = state == "move"
+    inline val isEnd get() = state == "end"
 }
 
 /**
@@ -170,6 +176,9 @@ data class PinchGestureParams(
             return PinchGestureParams(x, y, pageX, pageY, scale, state)
         }
     }
+    inline val isStart get() = state == "start"
+    inline val isMove get() = state == "move"
+    inline val isEnd get() = state == "end"
 }
 
 /**

@@ -25,5 +25,26 @@ struct KRPoint {
 
     // 参数构造函数
     KRPoint(float x_, float y_) : x(x_), y(y_) {}
+
+    bool operator==(const KRPoint &other) const {
+        return x == other.x && y == other.y;
+    }
+    bool operator!=(const KRPoint &other) const {
+        return !(*this == other);
+    }
+    bool operator<(const KRPoint &other) const {
+        if (y < other.y) return true;
+        if (y == other.y) return x < other.x;
+        return false;
+    }
+    bool operator>(const KRPoint &other) const {
+        return other < *this;
+    }
+    bool operator<=(const KRPoint &other) const {
+        return !(other < *this);
+    }
+    bool operator>=(const KRPoint &other) const {
+        return !(*this < other);
+    }
 };
 #endif  // CORE_RENDER_OHOS_KRPOINT_H

@@ -180,6 +180,10 @@ class KRRichTextShadow : public IKRRenderShadowExport {
         main_thread_text_align_ = TEXT_ALIGN_LEFT;
     }
 
+    std::string GetTextContent() const {
+        return text_content_;
+    }
+
     KRSize MainMeasureSize() {
         return main_measure_size_;
     }
@@ -255,7 +259,6 @@ class KRRichTextShadow : public IKRRenderShadowExport {
 
  private:
     void DestroyCachedTextLines();
-    std::string GetTextContent();
     KRSize CalculateRenderViewSizeWithStyledString(double constraint_width, double constraint_height);
 
     // ===== Phase 3: 委托 KRCustomEmojiPixmapCache 异步预加载 =====
@@ -264,6 +267,7 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     // 通知 view markDirty。shadow 销毁时 weak_from_this 自动断链。
     void TriggerImagePrefetchIfNeed();
  private:
+    std::string text_content_;
     KRRenderValue::Map props_;
     KRRenderValue::Array values_;
     OH_Drawing_Array *text_lines_ = nullptr;
@@ -298,7 +302,7 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     std::vector<KRImageDrawRecord> image_draw_records_;
     std::mutex image_loaded_callback_mutex_;
     ImageLoadedCallback image_loaded_callback_;
-    
+
     void SetParagraph(std::shared_ptr<KRParagraph> paragraph){
         KRScopedSpinLock lock(&paragraph_lock_);
         paragraph_ = paragraph;

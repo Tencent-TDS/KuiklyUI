@@ -467,9 +467,13 @@ open class PlaceholderSpan : ISpan {
         const val PROP_KEY_PLACEHOLDER_WIDTH = "placeholderWidth"
         const val PROP_KEY_PLACEHOLDER_HEIGHT = "placeholderHeight"
         const val PROP_KEY_PLACEHOLDER_TEXT = "text"
+        private val REGEX_CONTROL_CHARACTERS by lazy(LazyThreadSafetyMode.NONE) {
+            Regex("\\p{Cc}")
+        }
     }
 
     private var placeholderSize: Size = Size(0f, 0f)
+    private var description: String = " "
     internal var spanFrameDidChangedHandlerFn: ((Frame) -> Unit)? = null
     var spanFrame: Frame = Frame.zero
         set(value) {
@@ -481,6 +485,10 @@ open class PlaceholderSpan : ISpan {
 
     fun placeholderSize(width: Float, height: Float) {
         placeholderSize = Size(width, height)
+    }
+
+    fun description(description: String) {
+        this.description = description.replace(REGEX_CONTROL_CHARACTERS, " ")
     }
 
     fun spanFrameDidChanged(handler: (frame: Frame) -> Unit) {
@@ -495,7 +503,7 @@ open class PlaceholderSpan : ISpan {
         return fastHashMapOf<String, Any>().apply {
             put(PROP_KEY_PLACEHOLDER_WIDTH, placeholderSize.width)
             put(PROP_KEY_PLACEHOLDER_HEIGHT, placeholderSize.height)
-            put(PROP_KEY_PLACEHOLDER_TEXT, " ")
+            put(PROP_KEY_PLACEHOLDER_TEXT, description)
         }
     }
 

@@ -305,26 +305,6 @@ OH_Drawing_TypographyCreate* CreateTypographyHandler(OH_Drawing_TypographyStyle*
     return OH_Drawing_CreateTypographyHandler(typoStyle, wrapper.GetFontCollection());
 }
 
-std::string KRRichTextShadow::GetTextContent() {
-    std::string txt;
-    for (auto span : values_) {
-        auto spanMap = span->toMap();
-        auto text = GetKRValue("value", spanMap, spanMap)->toString();
-        if (text.length() == 0) {
-            text = GetKRValue("text", spanMap, spanMap)->toString();
-        }
-        txt.append("<span>" + text + "</span>");
-    }
-    if (values_.empty() && !props_.empty()) {
-        auto text = GetKRValue("value", props_, props_)->toString();
-        if (text.length() == 0) {
-            text = GetKRValue("text", props_, props_)->toString();
-        }
-        txt.append("<span>" + text + "</span>");
-    }
-    return txt;
-}
-
 OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_width, double constraint_height) {
     auto rootView = GetRootView().lock();
     if (rootView == nullptr) {
@@ -455,6 +435,7 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
     int placeholder_count = 0;
     OH_Drawing_TextAlign text_align = TEXT_ALIGN_LEFT;
     int charOffset = 0;
+    std::string text_content;
     for (auto span : spans) {
         auto spanMap = span->toMap();
         auto fontSize = (GetKRValue("fontSize", spanMap, props_)->toFloat() ?: 15.0) * dpi * fontSizeScale;
@@ -655,6 +636,7 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
             charOffset += 1;
         } else {
             OH_Drawing_TypographyHandlerAddText(handler, text.c_str());  // 添加文本
+            text_content.append(text);
 
             std::wstring_convert<deletable_facet<std::codecvt<char16_t, char, std::mbstate_t>>, char16_t> conv16;
             std::u16string str16 = conv16.from_bytes(text);
@@ -707,6 +689,7 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
     if (typoStyle != nullptr) {
         OH_Drawing_DestroyTypographyStyle(typoStyle);
     }
+    text_content_ = text_content;
     // 触发 image span 异步预加载（决策 3C）。当 image_draw_records_ 为空（业务未注册
     // PostProcessor / 全是文本）时本方法立即返回，零开销。
     TriggerImagePrefetchIfNeed();

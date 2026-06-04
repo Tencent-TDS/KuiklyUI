@@ -203,36 +203,20 @@ internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolea
     if (kuiklyInfo.scrollView == null) return
 
     val density = kuiklyInfo.getDensity()
-    if (this is LazyListState && kuiklyInfo.reverseLayout) {
-        val epsilon = (0.5 * density).toInt()
-        if (layoutInfo.shouldExpandReverseNativeEnd(
-                contentOffset = offset,
-                viewportSize = kuiklyInfo.viewportSize,
-                currentContentSize = kuiklyInfo.currentContentSize,
-                canScrollForward = canScrollForward,
-                canScrollBackward = canScrollBackward,
-                epsilon = epsilon,
-            )
-        ) {
-            val minDelta = (ScrollableStateConstants.DEFAULT_CONTENT_SIZE * density).toInt()
-            kuiklyInfo.currentContentSize += minDelta
-            kuiklyInfo.updateContentSizeToRender()
-            kuiklyInfo.offsetDirty = true
-        } else if (layoutInfo.shouldResetReverseNativeStart(
-                contentOffset = offset,
-                canScrollForward = canScrollForward,
-                canScrollBackward = canScrollBackward,
-            )
-        ) {
-            applyScrollViewOffsetDelta(-offset)
-            kuiklyInfo.offsetDirty = false
-        }
+    val minDelta = (ScrollableStateConstants.DEFAULT_CONTENT_SIZE * density).toInt()
+    if (tryHandleReverseLazyNativeRange(
+            contentOffset = offset,
+            viewportSize = kuiklyInfo.viewportSize,
+            currentContentSize = kuiklyInfo.currentContentSize,
+            minExpandSize = minDelta,
+            epsilon = reverseNativeRangeEpsilon(density),
+        )
+    ) {
         return
     }
     // scrollview 到顶了，但是compose没到顶
     if (offset <= 0 && !isAtTop() && kuiklyInfo.offsetDirty) {
         var delta = calculateBackExpandSize(offset)
-        val minDelta = (ScrollableStateConstants.DEFAULT_CONTENT_SIZE * density).toInt()
         delta = max(delta ?: minDelta, minDelta)
 
         val littleDelta = (ScrollableStateConstants.SCROLL_THRESHOLD * density).toInt()
@@ -264,32 +248,17 @@ internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = f
         appleScrollViewOffsetJob = scope?.launch {
             delay(150)
             val minDelta = (DEFAULT_CONTENT_SIZE * getDensity()).toInt()
-            val epsilon = 0.5 * getDensity()  // 使用 0.5dp 作为误差值
+            val epsilon = reverseNativeRangeEpsilon(getDensity())
             val reachBtm = contentOffset + viewportSize - currentContentSize >= -epsilon
-            val lazyListState = this@tryExpandStartSizeNoScroll as? LazyListState
 
-            if (reverseLayout && lazyListState != null &&
-                layoutInfo.shouldExpandReverseNativeEnd(
+            if (this@tryExpandStartSizeNoScroll.tryHandleReverseLazyNativeRange(
                     contentOffset = contentOffset,
                     viewportSize = viewportSize,
                     currentContentSize = currentContentSize,
-                    canScrollForward = lazyListState.canScrollForward,
-                    canScrollBackward = lazyListState.canScrollBackward,
-                    epsilon = epsilon.toInt(),
+                    minExpandSize = minDelta,
+                    epsilon = epsilon,
                 )
             ) {
-                currentContentSize += minDelta
-                updateContentSizeToRender()
-                offsetDirty = true
-            } else if (reverseLayout && lazyListState != null &&
-                layoutInfo.shouldResetReverseNativeStart(
-                    contentOffset = contentOffset,
-                    canScrollForward = lazyListState.canScrollForward,
-                    canScrollBackward = lazyListState.canScrollBackward,
-                )
-            ) {
-                applyScrollViewOffsetDelta(-contentOffset)
-                offsetDirty = false
             } else if (!reverseLayout && contentOffset <= 0 && !isAtTop() && (forceExpand || scrollView?.isDragging != true)) {
                 // 整体把offset 加一下
                 var delta = calculateBackExpandSize(contentOffset)
@@ -320,6 +289,47 @@ internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = f
             }
         }
     }
+}
+
+private fun reverseNativeRangeEpsilon(density: Float): Int = (0.5 * density).toInt()
+
+private fun ScrollableState.tryHandleReverseLazyNativeRange(
+    contentOffset: Int,
+    viewportSize: Int,
+    currentContentSize: Int,
+    minExpandSize: Int,
+    epsilon: Int,
+): Boolean {
+    val lazyListState = this as? LazyListState ?: return false
+    if (!kuiklyInfo.reverseLayout) return false
+
+    if (lazyListState.layoutInfo.shouldExpandReverseNativeEnd(
+            contentOffset = contentOffset,
+            viewportSize = viewportSize,
+            currentContentSize = currentContentSize,
+            canScrollForward = lazyListState.canScrollForward,
+            canScrollBackward = lazyListState.canScrollBackward,
+            epsilon = epsilon,
+        )
+    ) {
+        kuiklyInfo.currentContentSize += minExpandSize
+        kuiklyInfo.updateContentSizeToRender()
+        kuiklyInfo.offsetDirty = true
+        return true
+    }
+
+    if (lazyListState.layoutInfo.shouldResetReverseNativeStart(
+            contentOffset = contentOffset,
+            canScrollForward = lazyListState.canScrollForward,
+            canScrollBackward = lazyListState.canScrollBackward,
+        )
+    ) {
+        applyScrollViewOffsetDelta(-contentOffset)
+        kuiklyInfo.offsetDirty = false
+        return true
+    }
+
+    return false
 }
 
 internal fun LazyListLayoutInfo.shouldExpandReverseNativeEnd(

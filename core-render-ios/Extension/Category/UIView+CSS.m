@@ -975,7 +975,10 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
         }
         if (css_longPress != nil) {
             self.css_longPressGR = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(css_onLongPressWithSender:)];
-           
+            // macOS 使用 NSPressGestureRecognizer，没有 cancelsTouchesInView 属性，跳过设置。
+#if !TARGET_OS_OSX
+            self.css_longPressGR.cancelsTouchesInView = NO;
+#endif
             [self addGestureRecognizer:self.css_longPressGR];
             if (!self.css_touchEnable) {
                 self.userInteractionEnabled = YES;

@@ -26,8 +26,7 @@
 #include <mutex>
 #include <string>
 #include <thread>
-#include "libohos_render/api/include/Kuikly/Kuikly.h"
-#include "libohos_render/utils/KRRenderLoger.h"
+#include <Kuikly/Kuikly.h>
 #include "napi/native_api.h"
 #include "thirdparty/biz_entry/libshared_api.h"
 
@@ -192,7 +191,7 @@ int32_t MyImageAdapterV3(const void *context,
     // 业务逻辑...
     if (paramsMap.count("test") > 0) {
         auto value = paramsMap["test"];
-        KR_LOG_INFO << "imageParams testxxx value: " << value;
+        OH_LOG_Print(LOG_APP, LOG_INFO, 0x1234, "KuiklyEntry", "imageParams testxxx value: %{public}s", value.c_str());
     }
     
     // 方式2：获取特定的参数值（如果只需要某个字段）
@@ -201,7 +200,7 @@ int32_t MyImageAdapterV3(const void *context,
         if (KRAnyDataGetMapValue(imageParams, "test", &testValue) == KRANYDATA_SUCCESS && testValue != nullptr) {
             if (KRAnyDataIsString(testValue)) {
                 const char *str = KRAnyDataGetString(testValue);
-                KR_LOG_INFO << "imageParams test value: " << str;
+                OH_LOG_Print(LOG_APP, LOG_INFO, 0x1234, "KuiklyEntry", "imageParams test value: %{public}s", str);
             }
         }
     }

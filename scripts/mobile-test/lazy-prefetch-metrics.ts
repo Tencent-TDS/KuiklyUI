@@ -129,11 +129,86 @@ export function countTraceLines(lines: string[], needle: string): number {
   return lines.filter((l) => l.includes(needle)).length
 }
 
+/** Prefetch cancel/pause counts from LazyListPrefetchTrace logcat (9.12 诊断). */
+export interface PrefetchCancelEvidence {
+  /** 滚动目标变化 / strategy reset 触发的 cancel */
+  strategyResetCancel: number
+  /** PrefetchHandle.cancel() */
+  requestCancel: number
+  /** executeRequest 发现 canceled=true */
+  requestInvalidCanceled: number
+  /** KuiklyPrefetchScheduler.cancelAll */
+  schedulerCancelAll: number
+  /** CacheWindowLogic 窗口外 cancel */
+  cacheWindowCancel: number
+  /** runRequest paused（预算暂停，非 cancel） */
+  runRequestPaused: number
+  totalCancel: number
+  hadAnyCancel: boolean
+  detail: string
+}
+
+export function evaluatePrefetchCancelEvidence(traceLines: string[]): PrefetchCancelEvidence {
+  const strategyResetCancel = countTraceLines(traceLines, "strategy reset cancel")
+  const requestCancel = countTraceLines(traceLines, "request cancel index=")
+  const requestInvalidCanceled = traceLines.filter(
+    (l) => l.includes("executeRequest invalid") && l.includes("canceled=true"),
+  ).length
+  const schedulerCancelAll = countTraceLines(traceLines, "scheduler cancelAll")
+  const cacheWindowCancel = countTraceLines(traceLines, "cacheWindow cancel index=")
+  const runRequestPaused = countTraceLines(traceLines, "runRequest paused")
+  const totalCancel =
+    strategyResetCancel +
+    requestCancel +
+    requestInvalidCanceled +
+    schedulerCancelAll +
+    cacheWindowCancel
+  const hadAnyCancel = totalCancel > 0
+  const detail = [
+    `hadCancel=${hadAnyCancel}`,
+    `totalCancel=${totalCancel}`,
+    `strategyResetCancel=${strategyResetCancel}`,
+    `requestCancel=${requestCancel}`,
+    `requestInvalidCanceled=${requestInvalidCanceled}`,
+    `schedulerCancelAll=${schedulerCancelAll}`,
+    `cacheWindowCancel=${cacheWindowCancel}`,
+    `runRequestPaused=${runRequestPaused}(pause,非cancel)`,
+  ].join(", ")
+  return {
+    strategyResetCancel,
+    requestCancel,
+    requestInvalidCanceled,
+    schedulerCancelAll,
+    cacheWindowCancel,
+    runRequestPaused,
+    totalCancel,
+    hadAnyCancel,
+    detail,
+  }
+}
+
+export function formatPrefetchCancelEvidence(cancel: PrefetchCancelEvidence): string {
+  const lines = [
+    `过程中有 cancel：${cancel.hadAnyCancel ? "是" : "否"}（合计 ${cancel.totalCancel} 次）`,
+    `  strategy（滚动/reset 撤预取）：${cancel.strategyResetCancel}`,
+    `  request 句柄 cancel：${cancel.requestCancel}`,
+    `  request 执行时发现已 cancel：${cancel.requestInvalidCanceled}`,
+    `  scheduler cancelAll：${cancel.schedulerCancelAll}`,
+    `  cacheWindow cancel：${cancel.cacheWindowCancel}`,
+    `  runRequest paused（暂停续帧，非 cancel）：${cancel.runRequestPaused}`,
+  ]
+  return lines.join("\n")
+}
+
 export function parseTraceCounts(traceSummary: string): {
   schedulePremeasure: number
   resetCancel: number
   onScrollSkipped: number
   skipBudget: number
+  requestCancel: number
+  schedulerCancelAll: number
+  cacheWindowCancel: number
+  runRequestPaused: number
 } {
   const pick = (key: string) => {
     const m = traceSummary.match(new RegExp(`${key}=(\\d+)`))
@@ -144,6 +219,10 @@ export function parseTraceCounts(traceSummary: string): {
     resetCancel: pick("strategyResetCancel"),
     onScrollSkipped: pick("onScrollSkipped"),
     skipBudget: pick("skipBudget"),
+    requestCancel: pick("requestCancel"),
+    schedulerCancelAll: pick("schedulerCancelAll"),
+    cacheWindowCancel: pick("cacheWindowCancel"),
+    runRequestPaused: pick("runRequestPaused"),
   }
 }
 
@@ -158,6 +237,10 @@ export function summarizePrefetchTrace(lines: string[]): string {
     `noOpExecutor=${count("NoOpPrefetchScheduler")}`,
     `onScrollSkipped=${count("onScroll skipped")}`,
     `strategyResetCancel=${count("strategy reset cancel")}`,
+    `requestCancel=${count("request cancel index=")}`,
+    `schedulerCancelAll=${count("scheduler cancelAll")}`,
+    `cacheWindowCancel=${count("cacheWindow cancel index=")}`,
+    `runRequestPaused=${count("runRequest paused")}`,
     `strategyScheduleForwardFalse=${count("forward=false")}`,
     tail
       ? `traceTail:\n${tail.split("\n").map((l) => `  ${l}`).join("\n")}`

@@ -562,6 +562,7 @@ internal class PrefetchHandleProvider(
         override fun cancel() {
             if (!isCanceled) {
                 isCanceled = true
+                LazyListPrefetchTrace.log("request cancel index=$index")
                 cleanUp()
             }
         }

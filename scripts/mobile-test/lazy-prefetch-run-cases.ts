@@ -18,8 +18,10 @@ import {
   countExecuteComposedInTrace,
   countTraceLines,
   evaluateContinuation,
+  evaluatePrefetchCancelEvidence,
   evaluatePrefetchIronEvidence,
   evaluateSchedulerBudget,
+  formatPrefetchCancelEvidence,
   EvidenceError,
   findReverseComposeEvidence,
   formatMetricsEvidence,
@@ -50,8 +52,11 @@ export interface RunLazyPrefetchOptions {
 export const POST_SCROLL_SETTLE_MS = 500
 /** Fast fling-like scroll gap for 9.12 (minimal idle between gestures). */
 export const FAST_SCROLL_GAP_MS = 80
-/** Idle window after fast scroll so prefetch can compose on idle frames (9.12). */
-export const PREFETCH_IDLE_SETTLE_MS = 1500
+/**
+ * Idle window after fling scroll before 9.12 samples queue drain.
+ * Must exceed list deceleration (harness returns before inertia ends).
+ */
+export const PREFETCH_IDLE_SETTLE_MS = 3500
 
 export interface TestResult {
   id: string
@@ -199,6 +204,150 @@ function traceHasSchedulePremeasure(traceSummary: string, traceLines: string[]):
   )
 }
 
+export const CASE_912_ID = "9.12"
+export const CASE_912_NAME =
+  "prefetch scheduler 行为对齐官方：不抢主帧 + 续帧 + 滑停后队列清空"
+
+/** 9.12 手势 + logcat 断言（全自动 / 半自动共用）。 */
+export async function runCase912WithDeps(deps: LazyPrefetchDeps): Promise<string> {
+  await deps.tapScenarioModifierOptIn()
+  await deps.tapResetCounts()
+  await deps.ensurePrefetchOn()
+  await deps.tapClearMetricsOnly()
+  deps.clearLog()
+
+  await deps.scrollList("down", 8, { fling: true })
+  await sleep(PREFETCH_IDLE_SETTLE_MS)
+
+  const metrics = deps.readDemoMetrics()
+  const traceLines = deps.readTraceLines()
+  const budget = evaluateSchedulerBudget(traceLines)
+  const continuation = evaluateContinuation(traceLines)
+  const classify = classifyCompositionEvents(metrics.lines, traceLines)
+  const cancel = evaluatePrefetchCancelEvidence(traceLines)
+
+  const summary = formatCaseSummary(
+    CASE_912_ID,
+    CASE_912_NAME,
+    [
+      {
+        title: "测试配置",
+        lines: [
+          "场景：Modifier 预取开；beyondBoundsItemCount=0",
+          "对齐参考：AndroidPrefetchScheduler.android.kt（official 1.9）",
+          "核心语义：非 idle 帧也允许 prefetch，但单次 elapsedNs 不得 > 该 task 开始时 startBudgetNs；预算耗尽要续帧；滑停后队列清空",
+        ],
+      },
+      {
+        title: "操作步骤",
+        lines: [
+          "1. Modifier 开启预取 + 重置 + 清空 log/trace",
+          "2. lazy_list 内 fling 下滑 8 次（scroll-within times=8）",
+          `3. 停稳 ${PREFETCH_IDLE_SETTLE_MS}ms`,
+        ],
+      },
+      {
+        title: "实测结果",
+        lines: [
+          `composed total=${budget.composedTotal}（其中 pausable=${budget.pausableCount}，full=${budget.fullCount}）`,
+          `单次 elapsedNs ≤ startBudgetNs 检查：overBudget=${budget.overBudgetCount}`,
+          `maxElapsedNs=${budget.maxElapsedNs}，minStartBudgetNs=${budget.minStartBudgetNs}，minAvailableNs(remaining)=${budget.minAvailableNs}`,
+          `续帧：${continuation.detail}`,
+          `事件分类：${classify.detail}`,
+          formatPrefetchCancelEvidence(cancel),
+        ],
+      },
+    ],
+    [
+      caseCriterion(
+        "过程中 cancel 统计（诊断项，不计入通过/失败）",
+        "trace 汇总各阶段 cancel 次数；pause 单独计数",
+        cancel.detail,
+        true,
+      ),
+      caseCriterion(
+        "至少发生 1 次 prefetch execute（行为存在）",
+        "executeRequest composed ≥ 1",
+        `composed=${budget.composedTotal}`,
+        budget.composedTotal >= 1,
+      ),
+      caseCriterion(
+        "每次 prefetch 不超本帧预算（不抢主帧）",
+        "所有 executeRequest composed 满足 elapsedNs ≤ startBudgetNs",
+        budget.overBudgetCount === 0
+          ? "全部 within budget"
+          : `overBudget=${budget.overBudgetCount} 个：${budget.overBudgetEvents
+              .map((e) => `index=${e.index} elapsed=${e.elapsedNs} > startBudget=${e.startBudgetNs}`)
+              .join("; ")}`,
+        budget.overBudgetCount === 0,
+      ),
+      caseCriterion(
+        "队列在滑停后清空（无残留任务）",
+        "trace 末 frameEnd queuePending=false 或 trace 中无 pending",
+        `finalQueuePending=${continuation.finalQueuePending}，pendingFrames=${continuation.pendingFrameCount}`,
+        continuation.finalQueuePending !== true,
+      ),
+      caseCriterion(
+        "事件分类：所有 execute 均为 prefetch pipeline、无 prefetchSlot reentry",
+        "prefetchExecuteComposed=composedTotal 且 prefetchSlotReentry=0",
+        classify.detail,
+        classify.prefetchExecuteComposed === budget.composedTotal &&
+          classify.prefetchSlotReentry === 0,
+      ),
+    ],
+  )
+  const evidence = formatCaseEvidence(
+    summary,
+    [
+      summarizePrefetchTrace(traceLines),
+      `cancel evidence: ${cancel.detail}`,
+      formatPrefetchCancelEvidence(cancel),
+      `scheduler budget evidence: ${budget.detail}`,
+      `continuation evidence: ${continuation.detail}`,
+      `composition classification: ${classify.detail}`,
+      summarizeIdleFrameTrace(traceLines),
+      `executeRequest composed events (last 12):`,
+      traceLines
+        .filter((l) => l.includes("executeRequest composed"))
+        .slice(-12)
+        .map((l) => `  ${l.trim()}`)
+        .join("\n") || "  (no executeRequest composed lines)",
+      formatMetricsEvidence("after settle", metrics),
+    ].join("\n\n"),
+  )
+  if (traceLines.length === 0) {
+    throw new EvidenceError(
+      "no LazyListPrefetchTrace lines — enable trace and iOS console-pty capture",
+      evidence,
+    )
+  }
+  if (budget.composedTotal < 1) {
+    throw new EvidenceError("no prefetch execute compose observed", evidence)
+  }
+  if (budget.overBudgetCount > 0) {
+    throw new EvidenceError(
+      `prefetch overran frame budget on ${budget.overBudgetCount} task(s)`,
+      evidence,
+    )
+  }
+  if (continuation.finalQueuePending === true) {
+    throw new EvidenceError(
+      "prefetch queue not drained after settle — pending tasks remain",
+      evidence,
+    )
+  }
+  if (
+    classify.prefetchExecuteComposed !== budget.composedTotal ||
+    classify.prefetchSlotReentry > 0
+  ) {
+    throw new EvidenceError(
+      `composition events mismatch / prefetchSlot reentry: ${classify.detail}`,
+      evidence,
+    )
+  }
+  return evidence
+}
+
 async function runTest(
   id: string,
   name: string,
@@ -255,7 +404,8 @@ export async function runLazyPrefetchCases(
   await runIf("setup", "start session and open LazyListPrefetchDemo", async () => {
     deps.clearLog()
     await deps.openDemo()
-    await sleep(5000)
+    const setupSettleMs = Number(process.env.LAZY_PREFETCH_SETUP_SETTLE_MS ?? 5000)
+    await sleep(Number.isFinite(setupSettleMs) && setupSettleMs >= 0 ? setupSettleMs : 5000)
   })
 
   await runIf("9.3", "预取关闭：空闲无领先，停稳后无领先", async () => {
@@ -1104,141 +1254,7 @@ export async function runLazyPrefetchCases(
     },
   )
 
-  await runIf(
-    "9.12",
-    "prefetch scheduler 行为对齐官方：不抢主帧 + 续帧 + 滑停后队列清空",
-    async () => {
-      await deps.tapScenarioModifierOptIn()
-      await deps.tapResetCounts()
-      await deps.ensurePrefetchOn()
-      await deps.tapClearMetricsOnly()
-      deps.clearLog()
-
-      for (let i = 0; i < 8; i++) {
-        await deps.scrollList("down", 1)
-        await sleep(FAST_SCROLL_GAP_MS)
-      }
-      await sleep(PREFETCH_IDLE_SETTLE_MS)
-
-      const metrics = deps.readDemoMetrics()
-      const traceLines = deps.readTraceLines()
-      const budget = evaluateSchedulerBudget(traceLines)
-      const continuation = evaluateContinuation(traceLines)
-      const classify = classifyCompositionEvents(metrics.lines, traceLines)
-
-      const summary = formatCaseSummary(
-        "9.12",
-        "prefetch scheduler 行为对齐官方：不抢主帧 + 续帧 + 滑停后队列清空",
-        [
-          {
-            title: "测试配置",
-            lines: [
-              "场景：Modifier 预取开；beyondBoundsItemCount=0",
-              "对齐参考：AndroidPrefetchScheduler.android.kt（official 1.9）",
-              "核心语义：非 idle 帧也允许 prefetch，但单次 elapsedNs 不得 > 该 task 开始时 startBudgetNs；预算耗尽要续帧；滑停后队列清空",
-            ],
-          },
-          {
-            title: "操作步骤",
-            lines: [
-              "1. Modifier 开启预取 + 重置 + 清空 log/trace",
-              `2. 快速连续下滑 8 次（间隔 ${FAST_SCROLL_GAP_MS}ms，模拟惯性滑动）`,
-              `3. 停稳 ${PREFETCH_IDLE_SETTLE_MS}ms`,
-            ],
-          },
-          {
-            title: "实测结果",
-            lines: [
-              `composed total=${budget.composedTotal}（其中 pausable=${budget.pausableCount}，full=${budget.fullCount}）`,
-              `单次 elapsedNs ≤ startBudgetNs 检查：overBudget=${budget.overBudgetCount}`,
-              `maxElapsedNs=${budget.maxElapsedNs}，minStartBudgetNs=${budget.minStartBudgetNs}，minAvailableNs(remaining)=${budget.minAvailableNs}`,
-              `续帧：${continuation.detail}`,
-              `事件分类：${classify.detail}`,
-            ],
-          },
-        ],
-        [
-          caseCriterion(
-            "至少发生 1 次 prefetch execute（行为存在）",
-            "executeRequest composed ≥ 1",
-            `composed=${budget.composedTotal}`,
-            budget.composedTotal >= 1,
-          ),
-          caseCriterion(
-            "每次 prefetch 不超本帧预算（不抢主帧）",
-            "所有 executeRequest composed 满足 elapsedNs ≤ startBudgetNs",
-            budget.overBudgetCount === 0
-              ? "全部 within budget"
-              : `overBudget=${budget.overBudgetCount} 个：${budget.overBudgetEvents
-                  .map((e) => `index=${e.index} elapsed=${e.elapsedNs} > startBudget=${e.startBudgetNs}`)
-                  .join("; ")}`,
-            budget.overBudgetCount === 0,
-          ),
-          caseCriterion(
-            "队列在滑停后清空（无残留任务）",
-            "trace 末 frameEnd queuePending=false 或 trace 中无 pending",
-            `finalQueuePending=${continuation.finalQueuePending}，pendingFrames=${continuation.pendingFrameCount}`,
-            continuation.finalQueuePending !== true,
-          ),
-          caseCriterion(
-            "事件分类：所有 execute 均为 prefetch pipeline、无 prefetchSlot reentry",
-            "prefetchExecuteComposed=composedTotal 且 prefetchSlotReentry=0",
-            classify.detail,
-            classify.prefetchExecuteComposed === budget.composedTotal &&
-              classify.prefetchSlotReentry === 0,
-          ),
-        ],
-      )
-      const evidence = formatCaseEvidence(
-        summary,
-        [
-          summarizePrefetchTrace(traceLines),
-          `scheduler budget evidence: ${budget.detail}`,
-          `continuation evidence: ${continuation.detail}`,
-          `composition classification: ${classify.detail}`,
-          summarizeIdleFrameTrace(traceLines),
-          `executeRequest composed events (last 12):`,
-          traceLines
-            .filter((l) => l.includes("executeRequest composed"))
-            .slice(-12)
-            .map((l) => `  ${l.trim()}`)
-            .join("\n") || "  (no executeRequest composed lines)",
-          formatMetricsEvidence("after settle", metrics),
-        ].join("\n\n"),
-      )
-      if (traceLines.length === 0) {
-        throw new EvidenceError(
-          "no LazyListPrefetchTrace lines — enable trace and iOS console-pty capture",
-          evidence,
-        )
-      }
-      if (budget.composedTotal < 1) {
-        throw new EvidenceError("no prefetch execute compose observed", evidence)
-      }
-      if (budget.overBudgetCount > 0) {
-        throw new EvidenceError(
-          `prefetch overran frame budget on ${budget.overBudgetCount} task(s)`,
-          evidence,
-        )
-      }
-      if (continuation.finalQueuePending === true) {
-        throw new EvidenceError(
-          "prefetch queue not drained after settle — pending tasks remain",
-          evidence,
-        )
-      }
-      if (
-        classify.prefetchExecuteComposed !== budget.composedTotal ||
-        classify.prefetchSlotReentry > 0
-      ) {
-        throw new EvidenceError(
-          `composition events mismatch / prefetchSlot reentry: ${classify.detail}`,
-          evidence,
-        )
-      }
-      return evidence
-    },
-  )
+  await runIf("9.12", CASE_912_NAME, () => runCase912WithDeps(deps))
 
   await runIf(
     "9.13",

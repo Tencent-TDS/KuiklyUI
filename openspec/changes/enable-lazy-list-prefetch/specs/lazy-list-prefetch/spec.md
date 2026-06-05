@@ -122,19 +122,13 @@ The scheduler SHALL be invoked from `BaseComposeScene.render(canvas, nanoTime)` 
 
 #### Scenario: `availableTimeNanos` returns `Long.MAX_VALUE` when idle
 
-- **WHEN** `processRequests` runs while `vsyncTickConditions.needsToBeProactive == false` AND `vsyncTickConditions.scheduledRedrawsCount == 0`
-- **THEN** the active `PrefetchRequestScope.isFrameIdle` SHALL be `true` and `availableTimeNanos()` SHALL return `Long.MAX_VALUE`, allowing the scheduler to fully drain the queue without per-frame time pressure.
+- **WHEN** `processRequests` runs and `nanoTime > lastFrameDrawNanoTime + 2 * frameIntervalNs` (aligned with `AndroidPrefetchScheduler` idle detection)
+- **THEN** `isFrameIdle` SHALL be `true` and `availableTimeNanos()` SHALL return `Long.MAX_VALUE`, allowing the scheduler to fully drain the queue without per-frame time pressure.
 
----
+#### Scenario: Per-request budget gate matches official `runRequest`
 
-### Requirement: `KuiklyPrefetchScheduler` SHALL reserve a 2ms safety budget before scheduling work in a frame
-
-The scheduler SHALL early-return without processing any request if the available time at the start of `processRequests` is below a `SAFETY_BUDGET_NS = 2_000_000L` (2ms) threshold, except when `isFrameIdle == true` (idle mode has no budget pressure).
-
-#### Scenario: Skip prefetch when less than 2ms remains in current frame
-
-- **WHEN** `processRequests` is invoked and `availableTimeNanos() < 2_000_000L` AND `isFrameIdle == false`
-- **THEN** the scheduler SHALL NOT process any request in this frame, SHALL leave the queue intact, and SHALL request a continuation frame via `vsyncTickConditions.needRedraw()` only if `needsToBeProactive == true`.
+- **WHEN** `runRequest()` is invoked and `availableTimeNanos() <= 0` while `isFrameIdle == false`
+- **THEN** the scheduler SHALL NOT call `execute()` this frame, SHALL return `scheduleForNextFrame = true`, and `BaseComposeScene` SHALL call `needRedraw()` for the next VSync (equivalent to official `Choreographer.postFrameCallback`).
 
 ---
 
@@ -159,24 +153,19 @@ Until both prerequisites land, `isPausableCompositionInPrefetchEnabled` SHALL re
 
 ---
 
-### Requirement: Prefetch SHALL request continuation frames only while user is interacting, capped at 2 frames
+### Requirement: Prefetch SHALL request the next frame while work remains (aligned with official `scheduleForNextFrame`)
 
-When `processRequests` finishes with unfinished work in the queue, it SHALL call `vsyncTickConditions.needRedraw()` (to keep the VSync loop alive) only if `vsyncTickConditions.needsToBeProactive == true`. The scheduler SHALL track consecutive continuation frames and SHALL stop requesting redraws once two consecutive continuation frames have been issued without all work finishing, deferring the remaining work to the next user-driven scroll event.
+When `processRequests` returns `scheduleForNextFrame == true` (paused request, or `availableTimeNanos() <= 0`), `BaseComposeScene` SHALL call `vsyncTickConditions.needRedraw()` so the next VSync re-enters prefetch—equivalent to official `Choreographer.postFrameCallback`. There SHALL be no `MAX_CONTINUATION_FRAMES` cap.
 
-#### Scenario: Continuation requested while user is scrolling
+#### Scenario: Continuation after pause or zero budget
 
-- **WHEN** `processRequests` ends with queued requests remaining AND `needsToBeProactive == true` AND the consecutive-continuation counter is `< 2`
-- **THEN** `vsyncTickConditions.needRedraw()` SHALL be called, the consecutive-continuation counter SHALL be incremented, and the next VSync tick SHALL re-enter `processRequests`.
+- **WHEN** `runRequest()` returns `hasMoreWork == true` OR `availableTimeNanos() <= 0` before `execute()`
+- **THEN** `processRequests` SHALL return `scheduleForNextFrame = true` and `needRedraw()` SHALL be called for the next frame.
 
-#### Scenario: Continuation NOT requested while user is idle
+#### Scenario: No continuation when queue is drained
 
-- **WHEN** `processRequests` ends with queued requests remaining AND `needsToBeProactive == false`
-- **THEN** `vsyncTickConditions.needRedraw()` SHALL NOT be called; the scheduler SHALL retain the queue and wait for the next external trigger (a new scroll event).
-
-#### Scenario: Continuation stops after 2 consecutive frames
-
-- **WHEN** `processRequests` ends with queued requests remaining AND the consecutive-continuation counter is already `>= 2`
-- **THEN** `vsyncTickConditions.needRedraw()` SHALL NOT be called even if `needsToBeProactive == true`; the counter SHALL reset to `0` on the next non-continuation frame.
+- **WHEN** all requests finish (`execute()` returned `false`) and the queue is empty
+- **THEN** `scheduleForNextFrame` SHALL be `false` and `needRedraw()` SHALL NOT be called solely for prefetch.
 
 ---
 

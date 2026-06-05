@@ -29,6 +29,8 @@
 - Profiler 能区分"prefetch 时间"和"主帧时间"，不让 prefetch 拉高现有的帧时长指标。
 - 多 Pager 各自子线程场景下，scheduler 实例按 Pager 隔离，零共享、零锁。
 
+**知识沉淀（归档前）**：暂停粒度、`availableTimeNanos` 检查点、cancel 与 pause 区别见同目录 [`prefetch-pause-budget-and-cancellation.md`](prefetch-pause-budget-and-cancellation.md)。
+
 **Non-Goals:**
 - LazyGrid / LazyStaggeredGrid / Pager（横向翻页）的 prefetch（后续 phase）。
 - HarmonyOS 平台的真实 prefetch 调度（保持 NoOp）。
@@ -82,30 +84,17 @@
 - 备选 A：独立 Timer / coroutine 调度 prefetch。否决，无法保证与 render 同线程，且无法天然拿到帧 deadline。
 - 备选 B：跑在 `ComposeSceneRecomposer.recomposeDispatcher` 上。否决，dispatcher 没有"当前帧 idle 剩余"概念，需要自己维护一套帧时序，重复造轮子。
 
-### D4. 帧 idle 时间预算保守为 ~6ms（不是 ~8ms）
+### D4. 帧预算与 idle：对齐 `AndroidPrefetchScheduler`（已移除 Kuikly 2ms 入口）
 
-**选择**：`processRequests` 入口对 `availableTimeNanos()` 做一次 `if (available < SAFETY_BUDGET_NS) return` 早退，`SAFETY_BUDGET_NS = 2_000_000L`（2ms），即至少留 2ms 不被 prefetch 占用。
+**选择**：与官方一致——`processRequests` **不做** `SAFETY_BUDGET_NS` 整帧早退；仅在 `runRequest()` 内当 `availableTimeNanos() > 0` 时 `execute()`，否则 `scheduleForNextFrame`。`isFrameIdle` 使用「距上一帧 draw 已超过 `2 * frameIntervalNs`」（见 `PrefetchScheduler.android.kt`），idle 时 `availableTimeNanos = Long.MAX_VALUE`。
 
-**理由**：
-- Kuikly 单 item prefetch 包含 K/N ↔ ObjC/JVM 桥接调用，单次桥接抖动可能达到 1–3ms（远高于纯 JVM Compose）。
-- 留 2ms buffer 防止 prefetch 跑超时挤占下一帧 draw。
-- 这是 Kuikly 相对官方实现额外加的一道保守保护，不影响官方语义（仍然遵守 `availableTimeNanos()` 返回值）。
+**KMP 差异（需知）**：无 `View.drawingTime`，用 `BaseComposeScene` 记录的 `lastFrameDrawNanoTime` 近似。
 
-**备选方案**：
-- 备选：完全按官方 `availableTimeNanos()` 推算，不加 safety budget。可选，待 Phase 1 实测确认是否够保守再调。
+### D5. `isPausableCompositionInPrefetchEnabled = true`，续帧对齐官方 `scheduleForNextFrame`
 
-### D5. `isPausableCompositionInPrefetchEnabled = true`，并允许续帧（最多 2 帧）
+**选择**：Pausable 默认开；`processRequests` 返回 `scheduleForNextFrame` 时 **`needRedraw()`**（等价官方 `Choreographer.postFrameCallback`），**无** `MAX_CONTINUATION_FRAMES = 2` 上限。
 
-**选择**：把 vendor 来的 `ComposeFoundationFlags.isPausableCompositionInPrefetchEnabled` 默认值改为 `true`；在 `KuiklyPrefetchScheduler.processRequests` 末尾，如果队列还有 task 且 `vsyncTickConditions.needsToBeProactive == true`，调用 `vsyncTickConditions.needRedraw()` 续帧；用 `MAX_CONTINUATION_FRAMES = 2` 限制单次连续续帧上限，避免无限唤醒 VSync。
-
-**理由**：
-- Kuikly 单 item prefetch 桥接成本高，单帧 ~6ms idle 预算可能塞不下一个复杂 item；PausableComposition 让单 item 的 compose 可以跨帧分块完成。
-- `needsToBeProactive == true` 意味着用户正在滚动，VSync 反正在跑，续帧不耗额外电；用户停手后不续帧，等下次操作时再继续，符合官方 `Choreographer.postFrameCallback` 的语义。
-- 队列在默认 1-item 策略下天然有界（最多 1 个 task），即使在 CacheWindow 策略下也有界（被 ahead window 大小约束），2 帧连续续帧上限足够，超过则放弃这一轮 prefetch 到下次滚动事件。
-
-**备选方案**：
-- 备选 A：保持 `isPausableCompositionInPrefetchEnabled = false`。否决，会让单 item 桥接成本无法跨帧。
-- 备选 B：完全不续帧。否决，单帧 ~6ms 在 Kuikly 上不够稳。
+**理由**：官方在队列未清空或本帧 budget 用尽时持续预约下一帧，直至 drain；Kuikly 此前 2 帧 cap + `needsToBeProactive` 门槛会导致停滑后队列长期 pending（9.12 实测）。
 
 ### D6. K/JS target 用 `expect/actual` 走 `NoOpPrefetchScheduler`；`prefetchState` 在 K/JS 上为 `null`
 

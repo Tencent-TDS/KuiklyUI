@@ -65,6 +65,8 @@ import com.tencent.kuikly.compose.ui.layout.ContentScale
 import com.tencent.kuikly.compose.ui.platform.LocalFocusManager
 import com.tencent.kuikly.compose.ui.platform.LocalSoftwareKeyboardController
 import com.tencent.kuikly.compose.ui.text.TextStyle
+import com.tencent.kuikly.compose.ui.text.font.FontFamily
+import com.tencent.kuikly.compose.ui.text.font.FontWeight
 import com.tencent.kuikly.compose.ui.text.input.ImeAction
 import com.tencent.kuikly.compose.ui.text.input.KeyboardType
 import com.tencent.kuikly.compose.ui.unit.dp
@@ -148,7 +150,51 @@ class TextFieldDemo : ComposeContainer() {
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(text = "1 BasicTextField Box居中 红色游标")
+                    Text(text = "1 BasicTextField 已输入文本 fontFamily/style 对比")
+                    var defaultValueText by remember { mutableStateOf("Default input value") }
+                    Text(text = "默认输入框：")
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(50.dp)
+                            .border(1.dp, color = Color.Black)
+                            .padding(horizontal = 12.dp),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        BasicTextField(
+                            value = defaultValueText,
+                            onValueChange = { defaultValueText = it },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    var styledValueText by remember { mutableStateOf("Styled value text") }
+                    Text(text = "显式 textStyle：Serif + Bold + 26sp + Red，keyboardType=Email")
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(58.dp)
+                            .border(1.dp, color = Color.Black)
+                            .padding(horizontal = 12.dp),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        BasicTextField(
+                            value = styledValueText,
+                            onValueChange = { styledValueText = it },
+                            textStyle = TextStyle(
+                                fontFamily = FontFamily.Serif,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 26.sp,
+                                color = Color.Red,
+                            ),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    Text(
+                        text = "说明：本用例验证已输入 value 的 textStyle/fontFamily；placeholder 样式不在本次范围。",
+                        fontSize = 12.sp,
+                        color = Color.Gray,
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(text = "2 BasicTextField Box居中 红色游标")
                     Box(
                         modifier = Modifier.fillMaxWidth().height(50.dp)
                             .border(1.dp, color = Color.Black),
@@ -175,7 +221,7 @@ class TextFieldDemo : ComposeContainer() {
                     // 1. 基础输入框
                     Spacer(modifier = Modifier.height(16.dp))
                     var text0 by remember { mutableStateOf("") }
-                    Text(text = "2 右侧图标 输入框带：$text0")
+                    Text(text = "3 右侧图标 输入框带：$text0")
                     TextField(
                         modifier = Modifier.fillMaxWidth().nativeRef(ref = {
                             println("nativeRef " + it.nativeRef)
@@ -205,7 +251,7 @@ class TextFieldDemo : ComposeContainer() {
 
                     Spacer(modifier = Modifier.height(16.dp))
                     var text1 by remember { mutableStateOf("") }
-                    Text(text = "3 单行输入不换行：$text1")
+                    Text(text = "4 单行输入不换行：$text1")
                     TextField(
                         singleLine = true,
                         value = text1,

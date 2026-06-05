@@ -47,5 +47,5 @@ fun Font(
 ): Font = KuiklyFont(resource.value, weight, style)
 
 fun List<Font>.toKuiklyFontFamily(): String = fastJoinToString(",") {
-    (it as? KuiklyFont)?.fontName ?: "Unknown"
+    (it as? KuiklyFont)?.let { f -> "${f.fontName}:${f.weight.weight}" } ?: "Unknown"
 }

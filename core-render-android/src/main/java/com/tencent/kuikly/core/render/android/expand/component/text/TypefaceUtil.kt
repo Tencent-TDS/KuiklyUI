@@ -16,6 +16,7 @@
 package com.tencent.kuikly.core.render.android.expand.component.text
 
 import android.graphics.Typeface
+import android.os.Build
 import android.util.LruCache
 import com.tencent.kuikly.core.render.android.KuiklyContextParams
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
@@ -36,43 +37,71 @@ class TypeFaceLoader(private val contextParams: KuiklyContextParams? = null) {
     }
     private val sFontCache: LruCache<Key, Typeface> = LruCache(10)
 
+    /**
+     * Parses a font family entry that may include a weight suffix in the format
+     * "fontName:weight". Returns the font name and optional weight.
+     */
+    private data class FontFamilyEntry(val fontName: String, val weight: Int?) {
+        companion object {
+            fun parse(raw: String): FontFamilyEntry {
+                val lastColon = raw.lastIndexOf(':')
+                if (lastColon == -1) return FontFamilyEntry(raw, null)
+                val weightStr = raw.substring(lastColon + 1)
+                val weight = weightStr.toIntOrNull()
+                return if (weight != null) {
+                    FontFamilyEntry(raw.substring(0, lastColon), weight)
+                } else {
+                    FontFamilyEntry(raw, null)
+                }
+            }
+        }
+    }
+
     fun getTypeface(fontFamilyName: String, italic: Boolean): Typeface {
         val key = Key(fontFamilyName, italic)
         return sFontCache.get(key) ?: createTypeface(key)
     }
 
     private fun createTypeface(key: Key): Typeface {
-        val familyNameList: List<String> = if (key.fontFamilyName.indexOf(',') == -1) {
+        val rawNameList: List<String> = if (key.fontFamilyName.indexOf(',') == -1) {
             listOf(key.fontFamilyName)
         } else {
             key.fontFamilyName.split(',')
         }
+        val entries = rawNameList.map { FontFamilyEntry.parse(it.trim()) }
         var typeface: Typeface? = null
         var systemDefault: Typeface? = null
         val style = if (key.italic) Typeface.ITALIC else Typeface.NORMAL
-        for (splitName in familyNameList) {
-            val familyName = splitName.trim()
-            if (familyName.isEmpty()) {
+        for (entry in entries) {
+            if (entry.fontName.isEmpty()) {
                 continue
             }
-            KuiklyRenderAdapterManager.krFontAdapter?.getTypeface(familyName, contextParams) {
+            KuiklyRenderAdapterManager.krFontAdapter?.getTypeface(entry.fontName, contextParams) {
                 typeface = it
             }
             if (typeface != null && typeface != Typeface.DEFAULT) {
-                sFontCache.put(key, typeface)
-                return typeface!!
+                val weighted = applyWeight(typeface!!, entry.weight)
+                sFontCache.put(key, weighted)
+                return weighted
             }
             if (systemDefault == null) {
                 systemDefault = Typeface.defaultFromStyle(style)
             }
-            typeface = Typeface.create(familyName, style)
+            typeface = Typeface.create(entry.fontName, style)
             if (typeface != null && typeface != systemDefault) {
-                sFontCache.put(key, typeface)
-                return typeface!!
+                val weighted = applyWeight(typeface!!, entry.weight)
+                sFontCache.put(key, weighted)
+                return weighted
             }
         }
         typeface = systemDefault ?: Typeface.defaultFromStyle(style)
         sFontCache.put(key, typeface)
         return typeface!!
+    }
+
+    private fun applyWeight(typeface: Typeface, weight: Int?): Typeface {
+        if (weight == null) return typeface
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return typeface
+        return Typeface.create(typeface, weight, false)
     }
 }

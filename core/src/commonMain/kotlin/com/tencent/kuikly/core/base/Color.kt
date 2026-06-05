@@ -85,7 +85,7 @@ class Color {
 
     override fun toString(): String {
         return colorString.ifEmpty {
-            _hexColor.toString()
+            _hexColor.toUInt().toString()
         }
     }
 

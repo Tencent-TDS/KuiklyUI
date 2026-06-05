@@ -17,6 +17,12 @@ files:
       - from: lowercase
         to: toLowerCase
 
+  # Color 1.4 兼容：toUInt() 需要 ExperimentalUnsignedTypes opt-in
+  - path: core/src/commonMain/kotlin/com/tencent/kuikly/core/base/Color.kt
+    replacements:
+      - from: class Color {
+        to: '@kotlin.OptIn(kotlin.ExperimentalUnsignedTypes::class) class Color {'
+
   # KRBaseLengthFilter 兼容：Char.code -> Char.toInt()
   - path: core-render-android/src/main/java/com/tencent/kuikly/core/render/android/expand/component/input/KRBaseLengthFilter.kt
     replacements:

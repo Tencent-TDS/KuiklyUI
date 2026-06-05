@@ -118,6 +118,13 @@ internal class ExampleIndexPage : BasePager() {
         })
 
         itemList.add(ExampleItemData().apply {
+            avatarText = "Ca"
+            titleText = "Color Alpha ToString"
+            subtitleText = "对比 #1101 修复前后带 alpha 颜色的 toString 与渲染"
+            declarativeExampleUrl = generateJumpUrl("BugReproColorAlphaToStringPage")
+        })
+
+        itemList.add(ExampleItemData().apply {
             avatarText = "Cr"
             titleText = "ToImage Crash Repro"
             subtitleText = "复现鸿蒙 toImage(CACHE_KEY) 延迟设置 Image src 的 crash"

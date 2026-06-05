@@ -7,13 +7,15 @@
 package com.tencent.kuikly.compose.foundation.lazy.layout
 
 import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
+import com.tencent.kuikly.compose.ui.util.trace
 import com.tencent.kuikly.compose.ui.util.traceValue
 import com.tencent.kuikly.core.datetime.DateTime
 import kotlin.math.max
 
 internal const val KUIKLY_PREFETCH_FRAME_INTERVAL_NS = 16_666_667L
-private const val SAFETY_BUDGET_NS = 2_000_000L
-internal const val KUIKLY_PREFETCH_MAX_CONTINUATION_FRAMES = 2
+
+/** Aligns with Android [AndroidPrefetchScheduler] idle detection (2 vsync periods since last draw). */
+internal const val KUIKLY_PREFETCH_IDLE_FRAME_MULTIPLIER = 2
 
 @OptIn(ExperimentalFoundationApi::class)
 internal class KuiklyPrefetchScheduler :
@@ -44,26 +46,31 @@ internal class KuiklyPrefetchScheduler :
     }
 
     fun cancelAll() {
+        val size = queue.size
         queue.clear()
+        if (size > 0) {
+            LazyListPrefetchTrace.log("scheduler cancelAll queueSize=$size")
+        }
     }
 
     fun hasPendingWork(): Boolean = queue.isNotEmpty()
 
-    fun processRequests(nanoTime: Long, frameIntervalNs: Long, isFrameIdle: Boolean): Long {
-        if (queue.isEmpty()) return 0L
+    /**
+     * @param lastDrawNanoTime draw time of the previous frame (0 on first frame).
+     * @return spent ns in this prefetch pass; [PrefetchProcessResult.scheduleForNextFrame] mirrors
+     *   official `scheduleForNextFrame` (Choreographer post) when work remains or budget is 0.
+     */
+    fun processRequests(
+        nanoTime: Long,
+        frameIntervalNs: Long,
+        isFrameIdle: Boolean,
+        lastDrawNanoTime: Long,
+    ): PrefetchProcessResult {
+        if (queue.isEmpty()) return PrefetchProcessResult(0L, false)
 
         scope.isFrameIdle = isFrameIdle
-        scope.nextFrameTimeNs = nanoTime + frameIntervalNs
-
-        if (!isFrameIdle) {
-            val available = scope.availableTimeNanos()
-            if (available < SAFETY_BUDGET_NS) {
-                LazyListPrefetchTrace.log(
-                    "processRequests skip budget: isFrameIdle=$isFrameIdle availableNs=$available queueSize=${queue.size}",
-                )
-                return 0L
-            }
-        }
+        val lastDrawForDeadline = if (lastDrawNanoTime > 0L) lastDrawNanoTime else nanoTime
+        scope.nextFrameTimeNs = max(nanoTime, lastDrawForDeadline) + frameIntervalNs
 
         LazyListPrefetchTrace.log(
             "processRequests start isFrameIdle=$isFrameIdle queueSize=${queue.size}",
@@ -72,14 +79,19 @@ internal class KuiklyPrefetchScheduler :
         val startTime = DateTime.nanoTime()
         var scheduleForNextFrame = false
         while (queue.isNotEmpty() && !scheduleForNextFrame) {
-            scheduleForNextFrame = runRequest()
+            scheduleForNextFrame =
+                if (isFrameIdle) {
+                    trace("compose:lazy:prefetch:idle_frame") { runRequest() }
+                } else {
+                    runRequest()
+                }
         }
         traceValue("compose:lazy:prefetch:available_time_nanos", 0L)
         val spent = DateTime.nanoTime() - startTime
         LazyListPrefetchTrace.log(
             "processRequests done spentNs=$spent remainingQueue=${queue.size}",
         )
-        return spent
+        return PrefetchProcessResult(spent, scheduleForNextFrame)
     }
 
     private fun runRequest(): Boolean {
@@ -122,3 +134,8 @@ internal class PriorityTask(val priority: Int, val request: PrefetchRequest) {
         const val High = 1
     }
 }
+
+internal data class PrefetchProcessResult(
+    val spentNs: Long,
+    val scheduleForNextFrame: Boolean,
+)

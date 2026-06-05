@@ -4,6 +4,7 @@ import {
   countExecuteComposedInTrace,
   countPrefetchPipelineReentry,
   evaluateContinuation,
+  evaluatePrefetchCancelEvidence,
   evaluatePrefetchComposeIdleOnly,
   evaluatePrefetchIronEvidence,
   evaluateSchedulerBudget,
@@ -102,6 +103,26 @@ describe("pickPrefetchEvidenceIndex", () => {
     expect(c.pendingFrameCount).toBe(2)
     expect(c.continuationWorkFrameCount).toBe(2)
     expect(c.finalQueuePending).toBe(false)
+  })
+
+  it("evaluatePrefetchCancelEvidence: counts by stage", () => {
+    const trace = [
+      "LazyListPrefetchTrace strategy reset cancel index=3",
+      "LazyListPrefetchTrace request cancel index=3",
+      "LazyListPrefetchTrace executeRequest invalid index=5 canceled=true",
+      "LazyListPrefetchTrace scheduler cancelAll queueSize=2",
+      "LazyListPrefetchTrace cacheWindow cancel index=7",
+      "LazyListPrefetchTrace runRequest paused hasMoreWork queueSize=1",
+    ]
+    const c = evaluatePrefetchCancelEvidence(trace)
+    expect(c.hadAnyCancel).toBe(true)
+    expect(c.strategyResetCancel).toBe(1)
+    expect(c.requestCancel).toBe(1)
+    expect(c.requestInvalidCanceled).toBe(1)
+    expect(c.schedulerCancelAll).toBe(1)
+    expect(c.cacheWindowCancel).toBe(1)
+    expect(c.runRequestPaused).toBe(1)
+    expect(c.totalCancel).toBe(5)
   })
 
   it("prefers UI prefetch_target_index when logs empty", () => {

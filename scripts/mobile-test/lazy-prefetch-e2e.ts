@@ -1,8 +1,8 @@
 /**
  * LazyList prefetch E2E cases 9.3–9.12 (Android).
  *
- * Kuikly Compose testTag is not exposed as content-desc when debugUIInspector is on,
- * so this scenario uses coordinate taps + logcat metrics.
+ * 交互走 harness：testTag tap + scrollWithin(lazy_list)；断言读 logcat。
+ * 见 .claude/skills/kuikly-mobile-test/SKILL.md（勿默认 adb 坐标绕过）。
  *
  * Run（从 checkout 根目录，产物写入 logs/）:
  *   cd .claude/skills/kuikly-mobile-test
@@ -51,39 +51,6 @@ const APP_ACTIVITY =
   process.env.ANDROID_APP_ACTIVITY ?? "com.tencent.kuikly.android.demo.KuiklyRenderActivity"
 const DEVICE_UDID = process.env.ANDROID_UDID ?? "emulator-5554"
 const PAGE_NAME = "LazyListPrefetchDemo"
-
-/**
- * 默认坐标按 emulator (1080x2400, Pixel-style) 校准。
- * 真机厂商 ROM 状态栏 / 行高差异较大，需要用 env 覆盖：
- *   LAZY_PREFETCH_ANDROID_TAP_PROFILE=vivo
- * 或单个坐标覆盖：
- *   LAZY_PREFETCH_TAP_PREFETCH_TOGGLE_Y=350
- */
-const TAP_PROFILES: Record<string, Record<string, { x: number; y: number }>> = {
-  default: {
-    prefetchToggle: { x: 540, y: 321 },
-    scenarioModifierOptIn: { x: 540, y: 482 },
-    scenarioGlobalOnly: { x: 540, y: 567 },
-    scenarioModifierOverrideOff: { x: 540, y: 652 },
-    scenarioCacheWindow: { x: 540, y: 737 },
-    heavyItemsToggle: { x: 540, y: 822 },
-    resetCounts: { x: 540, y: 907 },
-    clearMetricsOnly: { x: 540, y: 992 },
-  },
-  // 实测自 vivo PD2141 (V2141A, 1080x2400, 480dpi)
-  vivo: {
-    prefetchToggle: { x: 540, y: 350 },
-    scenarioModifierOptIn: { x: 540, y: 520 },
-    scenarioGlobalOnly: { x: 540, y: 615 },
-    scenarioModifierOverrideOff: { x: 540, y: 710 },
-    scenarioCacheWindow: { x: 540, y: 803 },
-    heavyItemsToggle: { x: 540, y: 895 },
-    resetCounts: { x: 540, y: 985 },
-    clearMetricsOnly: { x: 540, y: 1075 },
-  },
-}
-const TAP_PROFILE = process.env.LAZY_PREFETCH_ANDROID_TAP_PROFILE ?? "default"
-const TAP = TAP_PROFILES[TAP_PROFILE] ?? TAP_PROFILES.default!
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
@@ -194,13 +161,16 @@ async function readViewTreeVisibleItems(
 
 /** 读 UI 上 prefetch_toggle 节点文本，判断当前是 ON 还是 OFF。不依赖 JS 端 tracker。 */
 async function readPrefetchToggleOnFromUi(driver: AppiumMobileDriver): Promise<boolean> {
-  const tree = await driver.getViewTree()
-  const node = findNodeByTestTag(tree.tree, "prefetch_toggle")
-  const text = (node?.text ?? "").trim()
+  let text = ""
+  try {
+    text = (await driver.getSelectorLabel({ testTag: "prefetch_toggle" })).trim()
+  } catch {
+    // 真机读 label 失败时保守按 OFF 处理，由 ensurePrefetch* 再点一次 toggle。
+    return false
+  }
   // demo 实际显示 "Prefetch: ON" / "Prefetch: OFF"，OFF 包含 "ON" 子串，必须先判 OFF。
   if (/\bOFF\b/.test(text)) return false
   if (/\bON\b/.test(text)) return true
-  // 兜底：accessibility 树未拿到 text 时按 OFF 处理（保守，调用方会重新点击）
   return false
 }
 
@@ -268,6 +238,27 @@ function launchActivity() {
   adb(`shell am start -n ${APP_PACKAGE}/${APP_ACTIVITY} --es pageName ${PAGE_NAME}`)
 }
 
+/** 收起软键盘，避免路由页 EditText 聚焦时 getPageSource / input 在真机上极慢。 */
+function dismissAndroidKeyboard() {
+  adb("shell input keyevent 4")
+}
+
+/**
+ * 轻量判断是否在 LazyListPrefetchDemo（只查 testTag 节点是否存在，不 dump 整页 UI 树）。
+ * 真机上整页 getPageSource 可能卡 1～2 分钟，不能用来做进页探测。
+ */
+async function waitForPrefetchDemoPage(
+  driver: AppiumMobileDriver,
+  timeoutMs: number,
+): Promise<boolean> {
+  try {
+    await driver.waitFor({ testTag: "prefetch_toggle" }, timeoutMs)
+    return true
+  } catch {
+    return false
+  }
+}
+
 /**
  * 通过 router 首页 UI 跳转到 LazyListPrefetchDemo。
  *
@@ -275,44 +266,48 @@ function launchActivity() {
  * 直接打开指定 page。但这是 main 上 commit 32dbac41「android ksp support entry get pageName」
  * 之后才有的能力，更老分支 / fork 都没有，会停在 router 首页。
  *
- * 兼容做法（与 iOS 同套路）：拿到 view-tree 后判一下 prefetch_toggle 是否已经存在；不在就
- * 走 router 输入框 + 跳转2 按钮的 UI 路径。这样在 hasIntentEntry 与无之间都能跑。
+ * 兼容做法：先用 waitFor(testTag=prefetch_toggle) 探测（已在目标页则直接返回）；
+ * 否则 intent 直跳，再不行走 router 输入框 + 跳转2。
  */
 async function navigateToPrefetchDemo(driver: AppiumMobileDriver): Promise<void> {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const tree = await driver.getViewTree()
-      if (findNodeByTestTag(tree.tree, "prefetch_toggle")) return
-    } catch {
-      // first call after launch may race with view ready；不影响后续 attempt
-    }
+  if (await waitForPrefetchDemoPage(driver, 3000)) return
 
-    if (attempt === 0) {
-      // 优先 intent 直跳（main 已支持），不行也无所谓，下面退回 UI 路径
-      launchActivity()
-      await sleep(2500)
-      continue
-    }
+  launchActivity()
+  if (await waitForPrefetchDemoPage(driver, 8000)) return
 
-    // UI 导航：输入框 + 跳转2
+  for (let attempt = 0; attempt < 2; attempt++) {
+    dismissAndroidKeyboard()
+    await sleep(300)
     try {
-      await driver.input(
-        { xpath: "//android.widget.EditText" },
-        PAGE_NAME,
-      )
+      await driver.input({ xpath: "//android.widget.EditText" }, PAGE_NAME)
       await sleep(400)
+      dismissAndroidKeyboard()
+      await sleep(200)
       await driver.tap({ text: "跳转2" })
-      await sleep(4000)
+      if (await waitForPrefetchDemoPage(driver, 8000)) return
     } catch {
-      // 极端情况下输入框拿不到，再启 activity 重试
       launchActivity()
       await sleep(2500)
+      if (await waitForPrefetchDemoPage(driver, 8000)) return
     }
   }
   throw new Error(
-    `navigateToPrefetchDemo: 找不到 prefetch_toggle 节点（已经尝试 intent 直跳 + UI 跳转 3 轮）；` +
+    `navigateToPrefetchDemo: 找不到 prefetch_toggle 节点（已经尝试 intent 直跳 + UI 跳转 2 轮）；` +
       `请检查 demo 是否加载、testTag 是否生效（debugUIInspector + RootNodeOwner semantics 修复）`,
   )
+}
+
+let scrollAreaPrimed = false
+
+function invalidateScrollAreaPrime(): void {
+  scrollAreaPrimed = false
+}
+
+/** 首次 scroll 前：等 lazy_list 可 find（harness scroll 内已有每次滑后 2s 盲等）。 */
+async function waitScrollAreaReady(driver: AppiumMobileDriver): Promise<void> {
+  const timeoutMs = Number(process.env.ANDROID_PRE_SCROLL_WAIT_MS ?? 8000)
+  if (timeoutMs <= 0) return
+  await driver.waitFor({ testTag: "lazy_list" }, timeoutMs)
 }
 
 /**
@@ -324,19 +319,29 @@ async function scrollList(
   driver: AppiumMobileDriver,
   direction: "down" | "up",
   times = 3,
-  opts: { fling?: boolean; durationMs?: number } = {},
+  opts: { fling?: boolean; durationMs?: number; settleMs?: number } = {},
 ) {
-  // 走 driver.scrollWithin：rect / margin / viewport clamp / area 五层防御都在 driver 里，
-  // 避免起点落到按钮上触发 click、release 出列被判 cancel。
+  if (!scrollAreaPrimed) {
+    await waitScrollAreaReady(driver)
+    scrollAreaPrimed = true
+  }
   await driver.scrollWithin(
     { testTag: "lazy_list" },
-    { direction, times, fling: opts.fling, durationMs: opts.durationMs },
+    {
+      direction,
+      times,
+      fling: opts.fling ?? true,
+      durationMs: opts.durationMs,
+      ...(opts.settleMs !== undefined ? { settleMs: opts.settleMs } : {}),
+    },
   )
 }
 
-async function tapCoord(_driver: AppiumMobileDriver, point: { x: number; y: number }) {
-  adb(`shell input tap ${point.x} ${point.y}`)
-  await sleep(900)
+async function tapTestTag(driver: AppiumMobileDriver, tag: string) {
+  if (tag === "scenario_modifier_opt_in" || tag === "reset_counts") {
+    invalidateScrollAreaPrime()
+  }
+  await driver.tap({ testTag: tag })
 }
 
 /**
@@ -377,17 +382,12 @@ function createAndroidDeps(
     platform: "android",
 
     async openDemo() {
-      try {
-        await driver.startSession()
-      } catch {
-        // Appium 起不来时跑不了 view-tree-based 导航；走原 adb am start 兜底，
-        // 后续 ensure*/scroll 也会失败，但保留诊断空间。
-        launchActivity()
-        await sleep(2500)
-        return
-      }
-      // intent 直跳 + 必要时走 router UI 跳转，兜到 prefetch_toggle 出现为止
+      // 先 adb 直跳，避免 startSession 把 App 拉回路由页后再用慢路径导航
+      launchActivity()
+      await sleep(1500)
+      await driver.startSession()
       await navigateToPrefetchDemo(driver)
+      prefetchUiState.value = false
     },
 
     clearLog() {
@@ -439,7 +439,7 @@ function createAndroidDeps(
       } else {
         await this.ensurePrefetchOff()
       }
-      await tapCoord(driver, TAP.clearMetricsOnly)
+      await tapTestTag(driver, "clear_metrics_only")
       clearLogcat()
       if (opts.establishForwardScroll) {
         await scrollList(driver, "down", 1)
@@ -462,31 +462,34 @@ function createAndroidDeps(
       }
     },
 
-    tapScenarioModifierOptIn: () => tapCoord(driver, TAP.scenarioModifierOptIn),
-    tapScenarioGlobalOnly: () => tapCoord(driver, TAP.scenarioGlobalOnly),
-    tapScenarioModifierOverrideOff: () => tapCoord(driver, TAP.scenarioModifierOverrideOff),
-    tapScenarioCacheWindow: () => tapCoord(driver, TAP.scenarioCacheWindow),
-    tapHeavyItemsToggle: () => tapCoord(driver, TAP.heavyItemsToggle),
-    tapResetCounts: () => tapCoord(driver, TAP.resetCounts),
-    tapClearMetricsOnly: () => tapCoord(driver, TAP.clearMetricsOnly),
+    tapScenarioModifierOptIn: async () => {
+      await tapTestTag(driver, "scenario_modifier_opt_in")
+      prefetchUiState.value = false
+    },
+    tapScenarioGlobalOnly: () => tapTestTag(driver, "scenario_global_only"),
+    tapScenarioModifierOverrideOff: () => tapTestTag(driver, "scenario_modifier_override_off"),
+    tapScenarioCacheWindow: () => tapTestTag(driver, "scenario_cache_window"),
+    tapHeavyItemsToggle: () => tapTestTag(driver, "heavy_items_toggle"),
+    tapResetCounts: () => tapTestTag(driver, "reset_counts"),
+    tapClearMetricsOnly: () => tapTestTag(driver, "clear_metrics_only"),
 
     async ensurePrefetchOff() {
-      // 读 prefetch_toggle 节点真值，避免和 JS 端 prefetchUiState tracker 漂移
-      // （`scenario_modifier_opt_in` 会把全局 flag 关掉，但 modifier 路径仍要求 ON，
-      // 跨用例时 tracker 容易和真实 UI 状态不同步）。
       const on = await readPrefetchToggleOnFromUi(driver)
       if (on) {
         await driver.tap({ testTag: "prefetch_toggle" })
-        await sleep(700)
       }
       prefetchUiState.value = false
     },
 
     async ensurePrefetchOn() {
+      if (!prefetchUiState.value) {
+        await driver.tap({ testTag: "prefetch_toggle" })
+        prefetchUiState.value = true
+        return
+      }
       const on = await readPrefetchToggleOnFromUi(driver)
       if (!on) {
         await driver.tap({ testTag: "prefetch_toggle" })
-        await sleep(700)
       }
       prefetchUiState.value = true
     },
@@ -522,8 +525,10 @@ async function main() {
     appiumUrl: APPIUM_URL,
     appPackage: APP_PACKAGE,
     appActivity: APP_ACTIVITY,
+    androidPageName: PAGE_NAME,
     deviceName: DEVICE_UDID,
     udid: DEVICE_UDID,
+    lockPortrait: process.env.ANDROID_LOCK_PORTRAIT !== "0",
   })
 
   try {

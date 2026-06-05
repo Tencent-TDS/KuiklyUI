@@ -44,7 +44,7 @@ import com.tencent.kuikly.compose.ui.node.InternalCoreApi
 import com.tencent.kuikly.compose.ui.node.LayoutNode
 import com.tencent.kuikly.compose.ui.node.SnapshotInvalidationTracker
 import com.tencent.kuikly.compose.foundation.lazy.layout.KUIKLY_PREFETCH_FRAME_INTERVAL_NS
-import com.tencent.kuikly.compose.foundation.lazy.layout.KUIKLY_PREFETCH_MAX_CONTINUATION_FRAMES
+import com.tencent.kuikly.compose.foundation.lazy.layout.KUIKLY_PREFETCH_IDLE_FRAME_MULTIPLIER
 import com.tencent.kuikly.compose.foundation.lazy.layout.KuiklyPrefetchScheduler
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyListPrefetchTrace
 import com.tencent.kuikly.compose.container.VsyncTickConditions
@@ -70,7 +70,8 @@ internal abstract class BaseComposeScene(
     internal val prefetchScheduler: KuiklyPrefetchScheduler? = null,
 ) : ComposeScene {
     private var paused = false
-    private var prefetchContinuationFrames = 0
+    /** Previous frame draw time; official idle = 2 vsync periods since last draw. */
+    private var lastFrameDrawNanoTime: Long = 0L
 
     override val vsyncTickConditions =
         VsyncTickConditions { paused ->
@@ -213,32 +214,33 @@ internal abstract class BaseComposeScene(
             snapshotInvalidationTracker.onDraw()
             draw(KuiklyCanvas()) // Draw
 
+            val previousDrawNanoTime = lastFrameDrawNanoTime
+            lastFrameDrawNanoTime = nanoTime
+            val frameIntervalNs = KUIKLY_PREFETCH_FRAME_INTERVAL_NS
             val isFrameIdle =
-                !vsyncTickConditions.needsToBeProactive &&
-                    vsyncTickConditions.scheduledRedrawsCount == 0
-            val prefetchSpentNs =
+                previousDrawNanoTime != 0L &&
+                    nanoTime >
+                    previousDrawNanoTime +
+                    KUIKLY_PREFETCH_IDLE_FRAME_MULTIPLIER * frameIntervalNs
+            val prefetchResult =
                 prefetchScheduler?.processRequests(
                     nanoTime,
-                    KUIKLY_PREFETCH_FRAME_INTERVAL_NS,
+                    frameIntervalNs,
                     isFrameIdle,
-                ) ?: 0L
+                    previousDrawNanoTime,
+                )
+            val prefetchSpentNs = prefetchResult?.spentNs ?: 0L
             LazyListPrefetchTrace.log(
-                "frameEnd isFrameIdle=$isFrameIdle needsProactive=${vsyncTickConditions.needsToBeProactive} scheduledRedraws=${vsyncTickConditions.scheduledRedrawsCount} queuePending=${prefetchScheduler?.hasPendingWork() == true} spentNs=$prefetchSpentNs",
+                "frameEnd isFrameIdle=$isFrameIdle needsProactive=${vsyncTickConditions.needsToBeProactive} scheduledRedraws=${vsyncTickConditions.scheduledRedrawsCount} queuePending=${prefetchScheduler?.hasPendingWork() == true} spentNs=$prefetchSpentNs scheduleNextFrame=${prefetchResult?.scheduleForNextFrame == true}",
             )
 
             if (frameSampled) {
                 tracker?.onFrameEnd((prefetchSpentNs / 1_000_000L).toInt())
             }
 
-            if (
-                prefetchScheduler?.hasPendingWork() == true &&
-                    vsyncTickConditions.needsToBeProactive &&
-                    prefetchContinuationFrames < KUIKLY_PREFETCH_MAX_CONTINUATION_FRAMES
-            ) {
+            // Align AndroidPrefetchScheduler: post next frame while queue has work or budget ran out.
+            if (prefetchResult?.scheduleForNextFrame == true) {
                 vsyncTickConditions.needRedraw()
-                prefetchContinuationFrames++
-            } else {
-                prefetchContinuationFrames = 0
             }
         }
 

@@ -1,6 +1,7 @@
 # Mobile Test 脚本
 
-业务 / 任务级 E2E 脚本放这里，**不要**放进 `.claude/skills/kuikly-mobile-test/`（harness）。
+**框架 / demo 场景 E2E** 脚本放这里（如 LazyList prefetch 回归），**不要**放进 `.claude/skills/kuikly-mobile-test/`（harness）。  
+这不是业务 App 仓库里的用例；与 `demo/`、`compose/` 特性同仓维护，通过 harness 的 `AppiumMobileDriver` 驱动。
 
 | 目录 | 职责 |
 |------|------|

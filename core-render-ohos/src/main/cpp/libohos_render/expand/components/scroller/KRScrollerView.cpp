@@ -207,8 +207,7 @@ bool KRScrollerView::ResetProp(const std::string &prop_key) {
     if (!didHanded) {
         if (prop_key == kPropNameNestedScroll) {
             didHanded = true;
-            // 重置为默认 SELF_FIRST，与 iOS/Android 保持一致
-            kuikly::util::SetArkUINestedScroll(GetNode(), ARKUI_SCROLL_NESTED_MODE_SELF_FIRST, ARKUI_SCROLL_NESTED_MODE_SELF_FIRST);
+            kuikly::util::ResetArkUINestedScroll(GetNode());
         } else if (prop_key == kPropNameFlingEnable) {
             didHanded = true;
             SetFlingEnable(true);

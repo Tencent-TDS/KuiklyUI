@@ -10,6 +10,7 @@
 ### 列表
 
 - `LazyColumn` / `LazyRow`：懒加载的纵向 / 横向列表
+- `LazyColumn(reverseLayout = true)` / `LazyRow(reverseLayout = true)`：从尾部开始布局的反向列表
 
 ### 网格与瀑布流
 
@@ -23,6 +24,34 @@
 **特别说明**：以上组件本身自带滚动能力
 
 ## 扩展能力
+
+### 反向列表：`reverseLayout`
+
+`LazyColumn` 和 `LazyRow` 现已支持 `reverseLayout` 参数，可用于聊天消息流、时间线回溯、从尾部开始展示的横向列表等场景。
+
+```kotlin
+@Composable
+fun ReverseMessageList(messages: List<String>) {
+    val state = rememberLazyListState()
+
+    LazyColumn(
+        state = state,
+        modifier = Modifier.fillMaxSize(),
+        reverseLayout = true,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(vertical = 12.dp)
+    ) {
+        items(messages) { message ->
+            Text(text = message)
+        }
+    }
+}
+```
+
+使用时建议注意两点：
+
+- `reverseLayout = true` 只反转**布局和滚动方向**，不会自动反转你的数据源顺序；
+- 在反向列表里，`LazyListState.firstVisibleItemIndex == 0` 表示当前靠近**尾部 / 底部**，不是视觉上的顶部。
 
 ### 回弹控制：`Modifier.bouncesEnable`
 
@@ -220,6 +249,37 @@ fun SimpleColumnList(
 }
 ```
 
+## 示例：反向列表（reverseLayout）
+
+`LazyColumn` / `LazyRow` 支持 `reverseLayout`，用于聊天、日志等需要从底部或末尾开始展示的场景。
+当 `reverseLayout = true` 时，`0` 号 item 会被放在列表末尾；例如 `LazyColumn` 初始会显示底部内容，但滚动手势方向不会改变。
+
+```kotlin
+@Composable
+fun ChatMessageList(messages: List<String>) {
+    val listState = rememberLazyListState()
+
+    LazyColumn(
+        state = listState,
+        reverseLayout = true,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(vertical = 8.dp),
+    ) {
+        items(
+            items = messages,
+            key = { message -> message },
+        ) { message ->
+            Text(
+                text = message,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 4.dp)
+            )
+        }
+    }
+}
+```
+
 ## 示例：使用 key 保持滚动位置
 
 在长列表中，推荐为每个 item 提供稳定的 `key`，这样在插入 / 删除 / 重新排序数据时，可以更好地复用已组合的 item，并保持当前滚动位置：
@@ -335,6 +395,7 @@ fun SimpleStaggeredGrid(items: List<String>) {
 
 - [`LazyColumnDemo3.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/LazyColumnDemo3.kt)：`LazyColumn` 各种状态信息示例  
 - [`LazyColumnDemo4.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/LazyColumnDemo4.kt)：`LazyColumn` 滑动 API 示例  
+- [`LazyColumnReverseDemo.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/LazyColumnReverseDemo.kt)：`LazyColumn(reverseLayout = true)` 上下滑动示例
 - [`LazyRowDemo1.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/LazyRowDemo1.kt)：`LazyRow` 基本用法示例  
 - [`LazyRowDemo2.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/LazyRowDemo2.kt)：`LazyRow` 的 key / type 参数示例  
 - [`LazyRowDemo3.kt`](https://github.com/Tencent-TDS/KuiklyUI/blob/main/demo/src/commonMain/kotlin/com/tencent/kuikly/demo/pages/compose/LazyRowDemo3.kt)：`LazyRow` 各种状态信息示例  
@@ -356,5 +417,3 @@ fun SimpleStaggeredGrid(items: List<String>) {
 - 预加载：`beyondViewportPageCount` / `beyondBoundsItemCount` 不宜设置过大，一般控制在小范围内（例如 1～3 页、4～10 个 item），否则会明显增加首帧时间和内存占用。
 - 嵌套滚动：`LazyColumn` / `LazyRow` 与 `Pager`、外层滚动容器嵌套时，优先使用 `Modifier.nestedScroll`、`Modifier.bouncesEnable` 等官方/Kuikly 提供的能力，不建议自行拦截手势事件。
 - 状态管理：业务状态尽量 hoist 到列表外（ViewModel / 上层 Composable），避免在 `items` 内部直接 `remember { mutableStateOf(...) }` 保存关键状态，以免 item 复用、插入/删除时出现错乱。
-
-

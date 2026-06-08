@@ -61,6 +61,15 @@ class KuiklyScrollInfo {
     var orientation: Orientation = Orientation.Vertical
 
     /**
+     * Whether the scrollable content is laid out in reverse order.
+     *
+     * The native ScrollView still reports a physical content offset, while LazyList uses
+     * reverseLayout to map item index 0 to the visual end. Bridge helpers need this flag to keep
+     * start/end boundary checks aligned with the reversed lazy layout.
+     */
+    var reverseLayout: Boolean = false
+
+    /**
      * Offset on the Compose side, does not exceed boundaries
      */
     var composeOffset = 0f

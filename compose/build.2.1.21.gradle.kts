@@ -80,7 +80,7 @@ kotlin {
         }
 
         commonTest.dependencies {
-//            implementation(libs.kotlin.test)
+            implementation(kotlin("test"))
         }
 
         // Android 特有源集中添加 ProfileInstaller 依赖

@@ -62,6 +62,21 @@ internal class PagerScrollPosition(
      * Updates the current scroll position based on the results of the last measurement.
      */
     fun updateFromMeasureResult(measureResult: PagerMeasureResult) {
+        val oldPage = currentPage
+        val oldOffsetFraction = currentPageOffsetFraction
+        val oldKey = lastKnownCurrentPageKey
+        val measuredPage = measureResult.currentPage
+        if (state.isSnapAnimating || oldPage != measuredPage?.index || oldKey != measuredPage?.key) {
+            pagerSnapDebugLog {
+                "scrollPositionUpdateFromMeasure: stateId=${state.debugPagerStateId} " +
+                    "oldPage=$oldPage oldOffsetFraction=$oldOffsetFraction oldKey=$oldKey " +
+                    "measuredPage=${measuredPage?.index} measuredKey=${measuredPage?.key} " +
+                    "measuredOffsetFraction=${measureResult.currentPageOffsetFraction} " +
+                    "visibleCount=${measureResult.visiblePagesInfo.size} " +
+                    "hadFirstNotEmptyLayout=$hadFirstNotEmptyLayout " +
+                    "isSnapAnimating=${state.isSnapAnimating} pageCount=${state.pageCount}"
+            }
+        }
         lastKnownCurrentPageKey = measureResult.currentPage?.key
         // we ignore the index and offset from measureResult until we get at least one
         // measurement with real pages. otherwise the initial index and scroll passed to the
@@ -88,17 +103,46 @@ internal class PagerScrollPosition(
      * would have to compose few elements before the asked index, changing the first visible page.
      */
     fun requestPositionAndForgetLastKnownKey(index: Int, offsetFraction: Float) {
+        pagerSnapDebugLog {
+            "scrollPositionForgetKey: stateId=${state.debugPagerStateId} " +
+                "fromPage=$currentPage fromOffsetFraction=$currentPageOffsetFraction " +
+                "fromKey=$lastKnownCurrentPageKey requestPage=$index " +
+                "requestOffsetFraction=$offsetFraction isSnapAnimating=${state.isSnapAnimating} " +
+                "pageCount=${state.pageCount}"
+        }
         update(index, offsetFraction)
         // clear the stored key as we have a direct request to scroll to [index] position and the
         // next [checkIfFirstVisibleItemWasMoved] shouldn't override this.
         lastKnownCurrentPageKey = null
     }
 
+    fun requestPositionAndKeepKnownKey(index: Int, offsetFraction: Float, key: Any?) {
+        pagerSnapDebugLog {
+            "scrollPositionKeepKey: stateId=${state.debugPagerStateId} " +
+                "fromPage=$currentPage fromOffsetFraction=$currentPageOffsetFraction " +
+                "fromKey=$lastKnownCurrentPageKey requestPage=$index " +
+                "requestOffsetFraction=$offsetFraction keepKey=$key " +
+                "isSnapAnimating=${state.isSnapAnimating} pageCount=${state.pageCount}"
+        }
+        update(index, offsetFraction)
+        lastKnownCurrentPageKey = key
+    }
+
     fun matchPageWithKey(
         itemProvider: PagerLazyLayoutItemProvider,
         index: Int
     ): Int {
-        val newIndex = itemProvider.findIndexByKey(lastKnownCurrentPageKey, index)
+        val key = lastKnownCurrentPageKey
+        val indexKey = if (index in 0 until itemProvider.itemCount) itemProvider.getKey(index) else null
+        val newIndex = itemProvider.findIndexByKey(key, index)
+        if (state.isSnapAnimating || index != newIndex || key != indexKey) {
+            pagerSnapDebugLog {
+                "scrollPositionMatchKey: stateId=${state.debugPagerStateId} " +
+                    "lastKnownKey=$key oldIndex=$index oldIndexKey=$indexKey " +
+                    "newIndex=$newIndex itemCount=${itemProvider.itemCount} " +
+                    "isSnapAnimating=${state.isSnapAnimating} pageCount=${state.pageCount}"
+            }
+        }
         if (index != newIndex) {
             currentPage = newIndex
             nearestRangeState.update(index)

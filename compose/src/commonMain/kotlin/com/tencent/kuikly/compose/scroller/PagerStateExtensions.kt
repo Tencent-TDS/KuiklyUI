@@ -69,6 +69,14 @@ internal fun PagerState.kuiklyWillDragEnd(params: WillEndDragParams, orientation
     }.coerceIn(0, pageCount)
 
     val correctedTargetPage = calculateTargetPage(snapBasePage, targetPage, velocity)
+    pagerSnapDebugLog {
+        "willDragEndDecision: stateId=$debugPagerStateId orientation=$orientation " +
+            "velocity=$velocity pageDirection=$pageDirection snapBasePage=$snapBasePage " +
+            "targetPage=$targetPage correctedTargetPage=$correctedTargetPage " +
+            "currentPage=$currentPage firstVisiblePage=$firstVisiblePage " +
+            "nativeContentOffset=$nativeContentOffset nativePageFromOffset=$nativePageFromOffset " +
+            "desyncPages=$desyncPages pageCount=$pageCount"
+    }
     handleTargetPageScroll(correctedTargetPage, params, orientation, desyncPages)
 }
 

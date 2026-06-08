@@ -32,7 +32,7 @@ import org.json.JSONObject
 /**
  * Created by kam on 2023/9/22.
  */
-class KuiklyPageView(context: Context) : FrameLayout(context), IKuiklyRenderViewExport,
+class KuiklyPageView(context: Context) : FrameLayxout(context), IKuiklyRenderViewExport,
     KuiklyRenderViewBaseDelegatorDelegate {
 
     private var kuiklyRenderView: KuiklyRenderView? = null

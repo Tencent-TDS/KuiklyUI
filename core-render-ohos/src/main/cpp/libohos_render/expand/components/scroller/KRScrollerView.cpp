@@ -160,6 +160,8 @@ void KRScrollerView::DidInit() {
     RegisterEvent(NODE_SCROLL_EVENT_ON_SCROLL_START);
     RegisterEvent(NODE_SCROLL_EVENT_ON_WILL_SCROLL);
     RegisterEvent(NODE_SCROLL_EVENT_ON_SCROLL_STOP);
+    // 默认嵌套滚动模式与 iOS/Android 保持一致：SELF_FIRST
+    kuikly::util::SetArkUINestedScroll(GetNode(), ARKUI_SCROLL_NESTED_MODE_SELF_FIRST, ARKUI_SCROLL_NESTED_MODE_SELF_FIRST);
 }
 
 bool KRScrollerView::SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
@@ -205,7 +207,8 @@ bool KRScrollerView::ResetProp(const std::string &prop_key) {
     if (!didHanded) {
         if (prop_key == kPropNameNestedScroll) {
             didHanded = true;
-            kuikly::util::ResetArkUINestedScroll(GetNode());
+            // 重置为默认 SELF_FIRST，与 iOS/Android 保持一致
+            kuikly::util::SetArkUINestedScroll(GetNode(), ARKUI_SCROLL_NESTED_MODE_SELF_FIRST, ARKUI_SCROLL_NESTED_MODE_SELF_FIRST);
         } else if (prop_key == kPropNameFlingEnable) {
             didHanded = true;
             SetFlingEnable(true);

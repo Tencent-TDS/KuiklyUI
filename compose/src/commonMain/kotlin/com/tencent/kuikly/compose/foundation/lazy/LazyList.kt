@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshots.Snapshot
+import com.tencent.kuikly.compose.foundation.ComposeFoundationFlags
 import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
 import com.tencent.kuikly.compose.foundation.checkScrollableContainerConstraints
 import com.tencent.kuikly.compose.foundation.gestures.Orientation
@@ -29,6 +30,7 @@ import com.tencent.kuikly.compose.foundation.layout.calculateEndPadding
 import com.tencent.kuikly.compose.foundation.layout.calculateStartPadding
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayout
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayoutMeasureScope
+import com.tencent.kuikly.compose.foundation.lazy.layout.LazyListPrefetchTrace
 import com.tencent.kuikly.compose.foundation.lazy.layout.StickyItemsPlacement
 import com.tencent.kuikly.compose.foundation.lazy.layout.lazyLayoutSemantics
 import com.tencent.kuikly.compose.foundation.lazy.layout.calculateLazyLayoutPinnedIndices
@@ -36,7 +38,9 @@ import com.tencent.kuikly.compose.foundation.lazy.layout.lazyLayoutBeyondBoundsM
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.tryExpandStartSizeNoScroll
 import com.tencent.kuikly.compose.ui.Alignment
+import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.Modifier
+import com.tencent.kuikly.compose.ui.modifier.modifierLocalConsumer
 import com.tencent.kuikly.compose.ui.layout.MeasureResult
 import com.tencent.kuikly.compose.ui.layout.Placeable
 import com.tencent.kuikly.compose.ui.platform.LocalLayoutDirection
@@ -105,6 +109,7 @@ internal fun LazyList(
     state.contentPadding = contentPadding
 
     val orientation = if (isVertical) Orientation.Vertical else Orientation.Horizontal
+    @OptIn(ExperimentalComposeUiApi::class)
     LazyLayout(
         modifier = modifier
             .then(state.remeasurementModifier)
@@ -127,6 +132,17 @@ internal fun LazyList(
                 orientation = orientation,
                 enabled = userScrollEnabled
             )
+            .modifierLocalConsumer {
+                val resolved =
+                    ModifierLocalLazyListPrefetchEnabled.current
+                        ?: ComposeFoundationFlags.isLazyListPrefetchEnabled
+                if (state.lazyListPrefetchEnabled != resolved) {
+                    state.lazyListPrefetchEnabled = resolved
+                    LazyListPrefetchTrace.log(
+                        "LazyList prefetchEnabled=$resolved modifierLocal=${ModifierLocalLazyListPrefetchEnabled.current} global=${ComposeFoundationFlags.isLazyListPrefetchEnabled}",
+                    )
+                }
+            }
 //            .then(state.itemAnimator.modifier)
 //            .scrollingContainer(
 //                state = state,
@@ -137,7 +153,7 @@ internal fun LazyList(
 //                interactionSource = state.internalInteractionSource
 //            )
         ,
-//        prefetchState = state.prefetchState,
+        prefetchState = state.prefetchState,
         measurePolicy = measurePolicy,
         itemProvider = itemProviderLambda,
         scrollableState = state,

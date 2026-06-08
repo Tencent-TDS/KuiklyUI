@@ -29,7 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.tooling.CompositionObserverHandle
-import androidx.compose.runtime.tooling.observe
+import androidx.compose.runtime.tooling.setObserver
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.GlobalSnapshotManager
 import com.tencent.kuikly.compose.ui.InternalComposeUiApi
@@ -43,6 +43,10 @@ import com.tencent.kuikly.compose.ui.input.pointer.ProcessResult
 import com.tencent.kuikly.compose.ui.node.InternalCoreApi
 import com.tencent.kuikly.compose.ui.node.LayoutNode
 import com.tencent.kuikly.compose.ui.node.SnapshotInvalidationTracker
+import com.tencent.kuikly.compose.foundation.lazy.layout.KUIKLY_PREFETCH_FRAME_INTERVAL_NS
+import com.tencent.kuikly.compose.foundation.lazy.layout.KUIKLY_PREFETCH_IDLE_FRAME_MULTIPLIER
+import com.tencent.kuikly.compose.foundation.lazy.layout.KuiklyPrefetchScheduler
+import com.tencent.kuikly.compose.foundation.lazy.layout.LazyListPrefetchTrace
 import com.tencent.kuikly.compose.container.VsyncTickConditions
 import com.tencent.kuikly.compose.profiler.RecompositionProfiler
 import com.tencent.kuikly.compose.profiler.RecompositionTracker
@@ -63,8 +67,11 @@ internal abstract class BaseComposeScene(
     coroutineContext: CoroutineContext,
     val composeSceneContext: ComposeSceneContext,
     private val invalidate: () -> Unit,
+    internal val prefetchScheduler: KuiklyPrefetchScheduler? = null,
 ) : ComposeScene {
     private var paused = false
+    /** Previous frame draw time; official idle = 2 vsync periods since last draw. */
+    private var lastFrameDrawNanoTime: Long = 0L
 
     override val vsyncTickConditions =
         VsyncTickConditions { paused ->
@@ -203,13 +210,38 @@ internal abstract class BaseComposeScene(
             doLayout() // Layout
             recomposer.performScheduledEffects() // Composition effects (e.g. LaunchedEffect)
 
-            if (frameSampled) {
-                tracker?.onFrameEnd(0)
-            }
-
             inputHandler.updatePointerPosition() // Synthetic move event
             snapshotInvalidationTracker.onDraw()
             draw(KuiklyCanvas()) // Draw
+
+            val previousDrawNanoTime = lastFrameDrawNanoTime
+            lastFrameDrawNanoTime = nanoTime
+            val frameIntervalNs = KUIKLY_PREFETCH_FRAME_INTERVAL_NS
+            val isFrameIdle =
+                previousDrawNanoTime != 0L &&
+                    nanoTime >
+                    previousDrawNanoTime +
+                    KUIKLY_PREFETCH_IDLE_FRAME_MULTIPLIER * frameIntervalNs
+            val prefetchResult =
+                prefetchScheduler?.processRequests(
+                    nanoTime,
+                    frameIntervalNs,
+                    isFrameIdle,
+                    previousDrawNanoTime,
+                )
+            val prefetchSpentNs = prefetchResult?.spentNs ?: 0L
+            LazyListPrefetchTrace.log(
+                "frameEnd isFrameIdle=$isFrameIdle needsProactive=${vsyncTickConditions.needsToBeProactive} scheduledRedraws=${vsyncTickConditions.scheduledRedrawsCount} queuePending=${prefetchScheduler?.hasPendingWork() == true} spentNs=$prefetchSpentNs scheduleNextFrame=${prefetchResult?.scheduleForNextFrame == true}",
+            )
+
+            if (frameSampled) {
+                tracker?.onFrameEnd((prefetchSpentNs / 1_000_000L).toInt())
+            }
+
+            // Align AndroidPrefetchScheduler: post next frame while queue has work or budget ran out.
+            if (prefetchResult?.scheduleForNextFrame == true) {
+                vsyncTickConditions.needRedraw()
+            }
         }
 
         // 在 postponeInvalidation 之后（isInvalidationDisabled 已恢复 false），
@@ -281,7 +313,7 @@ internal abstract class BaseComposeScene(
         val listener = object : RecompositionProfiler.ProfilerLifecycleListener {
             override fun onProfilerStarted(tracker: RecompositionTracker) {
                 compositionObserverHandle?.dispose()
-                compositionObserverHandle = comp.observe(tracker.compositionObserver)
+                compositionObserverHandle = comp.setObserver(tracker.compositionObserver)
             }
 
             override fun onProfilerStopped() {

@@ -15,7 +15,7 @@ kotlin {
     androidTarget {
         compilations.all {
             kotlinOptions {
-                jvmTarget = "1.8"
+                jvmTarget = "17"
                 freeCompilerArgs += "-Xjvm-default=all"
                 moduleName = "${project.group}.${project.name}"
             }
@@ -75,7 +75,7 @@ kotlin {
             api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
             api("androidx.annotation:annotation:1.9.1")
             api("org.jetbrains.kotlinx:atomicfu:0.25.0")
-            api("org.jetbrains.compose.collection-internal:collection:1.7.3")
+            api("org.jetbrains.compose.collection-internal:collection:1.9.3")
             implementation(project(":core-annotations"))
         }
 
@@ -124,12 +124,12 @@ publishing {
 
 android {
     namespace = "com.tencent.kuikly.compose"
-    compileSdk = 30
+    compileSdk = 35
     defaultConfig {
         minSdk = 21
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 }

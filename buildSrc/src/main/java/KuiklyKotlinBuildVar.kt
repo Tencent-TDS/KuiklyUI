@@ -145,7 +145,7 @@ object Version {
 
     private const val DEFAULT_KUIKLY_VERSION = "2.0.0"
     private const val DEFAULT_KOTLIN_VERSION = "2.1.21"
-    private const val DEFAULT_AGP_VERSION = "7.4.2"
+    private const val DEFAULT_AGP_VERSION = "8.6.0"
 
     private const val KEY_KUIKLY_VERSION = "KUIKLY_VERSION"
     private const val KEY_KOTLIN_VERSION = "KUIKLY_KOTLIN_VERSION"

@@ -43,6 +43,9 @@ class KRVideoView(context: Context) : KRView(context), IKRVideoViewListener {
     private var playTimeChangeCallback: KuiklyRenderCallback? = null
     private var customEventCallback: KuiklyRenderCallback? = null
 
+    // 缓存 videoView 创建前到达的自定义属性，创建后回放
+    private val pendingProps = mutableListOf<Pair<String, Any>>()
+
     override val reusable: Boolean
         get() = false
 
@@ -87,7 +90,15 @@ class KRVideoView(context: Context) : KRView(context), IKRVideoViewListener {
                     customEventCallback = propValue as KuiklyRenderCallback
                     true
                 }
-                else -> videoView?.setProp(propKey, propValue) ?: false
+                else -> {
+                    val v = videoView
+                    if (v != null) {
+                        v.setProp(propKey, propValue)
+                    } else {
+                        pendingProps.add(propKey to propValue)
+                        true
+                    }
+                }
             }
         }
         return result
@@ -197,6 +208,14 @@ class KRVideoView(context: Context) : KRView(context), IKRVideoViewListener {
             setMuted(this.muted)
             if (this.rate != -1f) {
                 setRate(this.rate)
+            }
+            // 回放缓存的自定义属性
+            if (pendingProps.isNotEmpty()) {
+                val props = pendingProps.toList()
+                pendingProps.clear()
+                for ((key, value) in props) {
+                    videoView?.setProp(key, value)
+                }
             }
             setPlayControl(this.playControl)
         }

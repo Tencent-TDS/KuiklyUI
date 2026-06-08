@@ -24,6 +24,10 @@
 
 作用和``Text``组件的[fontWeightBold属性方法一致](text.md#fontWeightBold方法)
 
+### fontFamily方法
+
+作用和``Text``组件的[fontFamily属性方法一致](text.md#fontFamily方法)
+
 ### color方法
 
 指定输入框输入文本的颜色, 作用和``Text``组件的[color属性方法一致](text.md#color方法)
@@ -1350,7 +1354,6 @@ private fun insertEmoji(shortcode: String) {
     }
 }
 ```
-
 
 
 

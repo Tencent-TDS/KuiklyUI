@@ -76,7 +76,6 @@ internal class DragItemListDemoPage : BasePager() {
                                 cardData.viewRef = it
                             }
                             attr {
-                                keepAlive(true)
                                 data = cardData
                                 itemIndex = cardData.text.toInt()
                                 transform(Translate(0f, cardData.translatePercentY))
@@ -141,6 +140,7 @@ internal class DragItemListDemoPage : BasePager() {
                                     val y = params.pageY
                                     if (state == "start") {
                                         val temp = ctx.listRef.view!!.contentView!!.offsetY
+                                        cardData.viewRef.view!!.getViewAttr().keepAlive = true
                                         ctx.globalData.contentViewOffset = temp
                                         ctx.globalData.locationYOnPageWhenBegin = y
                                         cardData.index = 1
@@ -221,6 +221,7 @@ internal class DragItemListDemoPage : BasePager() {
                                             it.index = 0
                                         }
                                         ctx.globalData = ItemData()
+                                        cardData.viewRef.view!!.getViewAttr().keepAlive = false
                                     }
                                 }
                             }

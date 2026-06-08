@@ -31,9 +31,15 @@ int32_t getNApiArgsInt(napi_env env, napi_value value) {
 }
 
 int64_t getNApiArgsInt64(napi_env env, napi_value value) {
-    int64_t intValue;
-    napi_get_value_int64(env, value, &intValue);
-    return intValue;
+    int64_t result = 0;
+    napi_get_value_int64(env, value, &result);
+    return result;
+}
+
+bool getNApiArgsBool(napi_env env, napi_value value) {
+    bool result = false;
+    napi_get_value_bool(env, value, &result);
+    return result;
 }
 
 char *getNApiArgsString(napi_env env, napi_value value) {

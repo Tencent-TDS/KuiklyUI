@@ -134,9 +134,11 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
 
 - (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data {
     __weak typeof(&*self) weakSelf = self;
+    BOOL sync = [self syncSendEvent:event];
     dispatch_block_t task = ^{
         [weakSelf.renderView sendWithEvent:event
-                                      data:data];
+                                      data:data
+                                      sync:sync];
         [weakSelf p_disptachDelegatorLifeCycleWithSel:@selector(didSendEvent:) object:event];
     };
     if (_renderView) {
@@ -144,6 +146,18 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     } else {
         [_eventLazyTasks addObject:task];
     }
+}
+
+- (BOOL)syncSendEvent:(NSString *)event {
+    // onBackPressed 固定同步执行
+    if ([event isEqualToString:@"onBackPressed"]) {
+        return YES;
+    }
+    
+    if ([self.delegate respondsToSelector:@selector(syncSendEvent:)]) {
+        return [self.delegate syncSendEvent:event];
+    }
+    return NO;
 }
 
 - (void)addDelegatorLifeCycleListener:(id<KRControllerDelegatorLifeCycleProtocol>)lifeCycleListener {
@@ -326,10 +340,8 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     // 3. 设置 completion 到 Module
     [module setBackPressCompletion:completion];
 
-    // 4. 发送事件到 Kotlin 侧 (异步)
-    [_renderView sendWithEvent:@"onBackPressed" data:@{}];
-    
-    
+    // 4. 发送事件到 Kotlin 侧（由 delegator sync policy 决定，默认同步）
+    [self sendWithEvent:@"onBackPressed" data:@{}];
 }
 
 #pragma mark - notifications

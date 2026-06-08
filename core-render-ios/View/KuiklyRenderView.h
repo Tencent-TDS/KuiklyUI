@@ -65,6 +65,13 @@ FOUNDATION_EXTERN NSString *const KRRootViewSizeDidChangedEventKey;
  * @param data 事件对应的参数
  */
 - (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data;
+/*
+ * @brief 通过KuiklyRenderView发送事件到KuiklyKotlin侧，并显式指定是否走同步发送路径.
+ * @param event 事件名
+ * @param data 事件对应的参数
+ * @param sync 是否按同步路径发送
+ */
+- (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data sync:(BOOL)sync;
 
 /*
  * @brief 获取模块对应的实例（仅支持在主线程调用）.
@@ -119,6 +126,13 @@ FOUNDATION_EXTERN NSString *const KRRootViewSizeDidChangedEventKey;
 
 /// kuikly 标准的性能数据
 @property (nonatomic, strong, readonly) id<KRPerformanceDataProtocol> performanceManager;
+
+/*
+ * @brief 判断事件是否需要同步发送到KuiklyKotlin侧.
+ * @param event 事件名
+ * @return 是否同步发送
+ */
+- (BOOL)syncSendEvent:(NSString *)event;
 
 /*
  * @brief KuiklyRenderView中的内容视图完成加载后触发该接口调用.

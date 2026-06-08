@@ -82,6 +82,13 @@ FOUNDATION_EXTERN NSString *const KRPageDataSnapshotKey;
  */
 - (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data;
 /*
+ * @brief 判断事件是否需要同步发送到KuiklyKotlin侧.
+ *        默认仅 onBackPressed 同步，业务可通过 delegate override 扩展。
+ * @param event 事件名
+ * @return 是否同步发送
+ */
+- (BOOL)syncSendEvent:(NSString *)event;
+/*
  * @brief 添加对Delegator的生命周期时机监听，实现自定义hook
  * @param lifeCycleListener 监听者（内部弱引用该对象）
  */
@@ -198,6 +205,14 @@ FOUNDATION_EXTERN NSString *const KRPageDataSnapshotKey;
  * @return 是否同步渲染首屏
  */
 - (BOOL)syncRenderingWhenPageAppear;
+
+/*
+ * @brief 判断事件是否需要同步发送到KuiklyKotlin侧.
+ *        默认返回NO，由接入方按页面事件粒度决定。
+ * @param event 事件名
+ * @return 是否同步发送
+ */
+- (BOOL)syncSendEvent:(NSString *)event;
 
 /*
  * @brief 打开TurboDisplay渲染模式技术，实现超原生首屏性能

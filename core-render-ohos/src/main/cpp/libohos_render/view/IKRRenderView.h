@@ -43,9 +43,10 @@ class IKRRenderView : public std::enable_shared_from_this<IKRRenderView> {
      *    auto json_data = KRRenderValue::Make(data)->toString();
      */
     virtual void SendEvent(std::string event_name, const std::string &json_data) = 0;
+    virtual void SendEvent(std::string event_name, const std::string &json_data, bool sync) = 0;
     
     /**
-     * 是否同步发送事件（默认异步）
+     * 是否需要同步发送事件（默认异步）
      * @param event_name 事件名
      * @return true 为同步，false 为异步
      */

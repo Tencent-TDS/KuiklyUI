@@ -69,6 +69,13 @@ export const sendEvent: (
   data: KRValue
 ) => void
 
+export const sendEventSync: (
+  instanceId: string,
+  event: string,
+  data: KRValue,
+  sync: boolean
+) => number
+
 export const createNativeRoot: (content: Object, instanceId: string) => void;
 
 export const isBackPressConsumed: (instanceId: string, sendTime: number) => number;

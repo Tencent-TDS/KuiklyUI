@@ -60,6 +60,13 @@ NS_ASSUME_NONNULL_BEGIN
  * @param data 事件对应的参数
  */
 - (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data;
+/**
+ * @brief 通过KuiklyRenderCore发送事件到KuiklyKotlin侧，并显式指定是否走同步发送路径。
+ * @param event 事件名
+ * @param data 事件对应的参数
+ * @param sync 是否按同步路径发送
+ */
+- (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data sync:(BOOL)sync;
 
 /**
  * @brief 在Core销毁前调用，用于Core提前发送事件到KuiklyKotlin侧销毁内在资源。

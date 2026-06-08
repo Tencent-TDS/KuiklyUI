@@ -96,10 +96,49 @@ NSString *const kCustomFirstScreenTag = @"customFirstScreenTag";
  * @param data 事件对应的参数
  */
 - (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data {
+    [self sendWithEvent:event data:data sync:NO];
+}
+
+- (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data sync:(BOOL)sync {
+    // 1. 决定走 sync 还是 async：
+    //    - 调用方显式 sync=YES
+    //    - 或者当前不在主线程（非主线程发事件必须 sync，否则事件可能丢失）
+    BOOL shouldSync = sync || ![NSThread isMainThread];
+
+    // 2. 安全保护：如果当前正在执行 UI batch（performingMainQueueTask=YES），
+    //    说明是 UI 任务内部又发了 sync 事件。此时降级为 async，
+    //    避免嵌套 dispatch_sync 导致时序异常。
+    if (shouldSync && self.uiScheduler.performingMainQueueTask) {
+        shouldSync = NO;
+    }
+
+    // 3. sync 场景下，在主线程设置占位标记：
+    //    - 占位标记通知 UIScheduler：当前是 sync 模式，UI 任务不要 dispatch_async 回主线程，
+    //      而是攒到 mainThreadTaskWaitToSyncBlock 里，等 dispatch_sync 返回后立刻执行。
+    //    - NSAssert 防御异常残留：如果上次 sync 事件崩溃导致标记未清，断言会暴露问题。
+    if (shouldSync && [NSThread isMainThread]) {
+        NSAssert(self.uiScheduler.mainThreadTaskWaitToSyncBlock == nil,
+                 @"mainThreadTaskWaitToSyncBlock should be nil before setting placeholder");
+        self.uiScheduler.mainThreadTaskWaitToSyncBlock = ^{}; // 占位：sync 模式激活
+    }
+
+    // 4. 发到 context queue：
+    //    - shouldSync=YES 时走 dispatch_sync，主线程阻塞等待 context_queue 执行完。
+    //    - block 内部：先通知 Kotlin 处理事件，再触发 UI 任务收集。
     [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
-          [self.contextHandler callWithMethod:KuiklyRenderContextMethodUpdateInstance
-                                         args:@[self.instanceId, event, (data ?: @{})]];
-    } sync:![NSThread isMainThread]];
+        [self.contextHandler callWithMethod:KuiklyRenderContextMethodUpdateInstance
+                                       args:@[self.instanceId, event, (data ?: @{})]];
+        if (shouldSync) {
+            [self.uiScheduler performSyncMainQueueTasksBlockIfNeed];
+        }
+    } sync:shouldSync];
+
+    // 5. dispatch_sync 返回后主线程恢复执行，立刻取出并执行积攒的 UI 任务：
+    //    - 必须紧跟在 dispatch_sync 之后，防止主线程先跑其他逻辑（如系统旋转动画）。
+    //    - performingMainQueueTask 保护（Step 2）已确保这里不会嵌套触发。
+    if (shouldSync && [NSThread isMainThread]) {
+        [self.uiScheduler performMainThreadTaskWaitToSyncBlockIfNeed];
+    }
 }
 /**
  * @brief 获取模块对应的实例（仅支持在主线程调用）.

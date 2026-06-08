@@ -74,6 +74,7 @@ class KRRenderCore : public std::enable_shared_from_this<KRRenderCore>,
      * @param json_data json数据字符串）
      */
     void SendEvent(std::string event_name, const std::string &json_data);
+    void SendEvent(std::string event_name, const std::string &json_data, bool need_sync);
 
     /**
      * 获取渲染节点视图（要求在主线程调用）

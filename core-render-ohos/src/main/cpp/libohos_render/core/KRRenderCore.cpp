@@ -120,20 +120,23 @@ void KRRenderCore::SendEvent(std::string event_name, const std::string &json_dat
     if (auto rv = renderView_.lock()) {
         needSync = rv->syncSendEvent(event_name);
     }
+    SendEvent(event_name, json_data, needSync);
+}
 
-    auto task = [self = shared_from_this(), needSync, event_name, json_data] {
+void KRRenderCore::SendEvent(std::string event_name, const std::string &json_data, bool need_sync) {
+    auto task = [self = shared_from_this(), need_sync, event_name, json_data] {
         auto event = KRRenderValue::Make(event_name);
         auto data = KRRenderValue::Make(json_data);
         auto nullValue = self->defaultNullValue_;
         self->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodUpdateInstance, event, data, nullValue,
                                nullValue, nullValue);
-        if (needSync) {
+        if (need_sync) {
             self->uiScheduler_->PerformSyncMainQueueTasksBlockIfNeed(true);
         }
     };
 
-    KRContextScheduler::DirectRunOnMainThread(needSync, task);
-    if (needSync) {
+    KRContextScheduler::DirectRunOnMainThread(need_sync, task);
+    if (need_sync) {
         uiScheduler_->PerformMainThreadTaskWaitToSyncBlockIfNeed();
     }
 }

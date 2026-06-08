@@ -29,6 +29,8 @@ int32_t getNApiArgsInt(napi_env env, napi_value value);
 
 int64_t getNApiArgsInt64(napi_env env, napi_value value);
 
+bool getNApiArgsBool(napi_env env, napi_value value);
+
 char *getNApiArgsString(napi_env env, napi_value value);
 
 std::string getNApiArgsStdString(napi_env env, napi_value value);

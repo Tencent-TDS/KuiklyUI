@@ -31,6 +31,14 @@ export interface IKuiklyRenderView {
   sendEvent(event: string, data: KRRecord): void;
 
   /**
+   * Native事件发送给Kuikly页面，并显式指定是否同步发送。
+   * @param event 发送给 Kuikly 侧的事件名字
+   * @param data 发送给 Kuikly 侧的事件数据
+   * @param sync 是否按同步路径发送
+   */
+  sendEventSync(event: string, data: KRRecord, sync: boolean): void;
+
+  /**
    * 获取 [KuiklyRenderBaseModule]
    * @param name module 的名字
    * @return [KuiklyRenderBaseModule] 的子类

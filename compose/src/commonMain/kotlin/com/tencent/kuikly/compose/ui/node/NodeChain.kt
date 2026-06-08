@@ -568,6 +568,11 @@ internal class NodeChain(val layoutNode: LayoutNode) {
             parent.child = child
             node.parent = null
         }
+        // Sync head to avoid dangling pointer: subsequent headToTail traversal
+        // must start from a valid node, otherwise child==null breaks the walk.
+        if (head === node) {
+            head = child ?: tail
+        }
         return parent!!
     }
 

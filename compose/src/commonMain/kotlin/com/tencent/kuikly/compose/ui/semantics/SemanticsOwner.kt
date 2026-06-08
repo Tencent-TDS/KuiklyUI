@@ -31,15 +31,18 @@ class SemanticsOwner internal constructor(private val rootNode: LayoutNode) {
      * The root node of the semantics tree.  Does not contain any unmerged data.
      * May contain merged data.
      */
-    val rootSemanticsNode: SemanticsNode
+    // Nullable because root may not carry any semantics modifier.
+    val rootSemanticsNode: SemanticsNode?
         get() {
             return SemanticsNode(rootNode, mergingEnabled = true)
         }
 
-    val unmergedRootSemanticsNode: SemanticsNode
+    // Nullable because root may not carry any semantics modifier.
+    val unmergedRootSemanticsNode: SemanticsNode?
         get() {
+            val head = rootNode.nodes.head(Nodes.Semantics) ?: return null
             return SemanticsNode(
-                outerSemanticsNode = rootNode.nodes.head(Nodes.Semantics)!!.node,
+                outerSemanticsNode = head.node,
                 layoutNode = rootNode,
                 mergingEnabled = false,
                 // Forcing an empty SemanticsConfiguration here since the root node will always
@@ -94,6 +97,9 @@ internal fun SemanticsOwner.getAllSemanticsNodesToMap(
     }
 
     val root = if (useUnmergedTree) unmergedRootSemanticsNode else rootSemanticsNode
-    findAllSemanticNodesRecursive(root)
+    // Root may be null when the tree has no semantics modifiers.
+    if (root != null) {
+        findAllSemanticNodesRecursive(root)
+    }
     return nodes
 }

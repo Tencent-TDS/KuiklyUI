@@ -20,6 +20,7 @@ import android.graphics.Canvas
 import android.graphics.Rect
 import android.os.SystemClock
 import android.util.AttributeSet
+import android.util.Log
 import android.view.MotionEvent
 import android.view.VelocityTracker
 import android.view.View
@@ -168,6 +169,16 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
      * 父组件滑动联动，即自身滑动到目标方向的边缘时，触发父组件滑动，默认 true
      */
     private var scrollWithParent = true
+
+    /**
+     * cache child View
+     */
+    private var nestedChildView:KRRecyclerView? = null
+
+    /**
+     * cache child View
+     */
+    private var nestedParentView:KRRecyclerView? = null
 
     private var lastScrollParentX = 0
 
@@ -1452,7 +1463,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         var rv: KRRecyclerView? = null
         var parent: ViewGroup? = parent as? ViewGroup
         while (parent != null) {
-            if (parent is KRRecyclerView && !parent.directionRow && parent.directionRow == directionRow) {
+            if (parent is KRRecyclerView  && !parent.directionRow && parent.directionRow == directionRow) {
                 rv = parent
                 break
             }
@@ -1550,13 +1561,30 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
     }
 
     override fun onStartNestedScroll(child: View, target: View, axes: Int): Boolean {
-        return onStartNestedScroll(child, target, axes, ViewCompat.TYPE_TOUCH)
+        val accept = onStartNestedScroll(child, target, axes, ViewCompat.TYPE_TOUCH)
+        return accept
     }
 
     override fun onStartNestedScroll(
         child: View, target: View, axes: Int,
         type: Int
     ): Boolean {
+        val accept = handleStartNestedScroll(axes, type)
+        if (target is KRRecyclerView && accept){
+            nestedChildView = target
+        } else {
+            nestedChildView = null
+        }
+        return accept
+    }
+
+    /**
+     * 处理嵌套滚动开始事件
+     * @param axes 滚动轴向
+     * @param type 事件类型（Touch/Non-Touch）
+     * @return 是否接受嵌套滚动
+     */
+    private fun handleStartNestedScroll(axes: Int, type: Int): Boolean {
         if (!isScrollEnabled()) {
             return false
         }
@@ -1911,10 +1939,10 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         }
 
         val shouldScrollParentY = when {
-            parentDy > 0 && target.scrollForwardMode == KRNestedScrollMode.PARENT_FIRST -> true
-            parentDy < 0 && target.scrollBackwardMode == KRNestedScrollMode.PARENT_FIRST -> true
-            parentDy > 0 && target.scrollForwardMode == KRNestedScrollMode.SELF_FIRST && !target.canScrollVertically(parentDy) -> true
-            parentDy < 0 && target.scrollBackwardMode == KRNestedScrollMode.SELF_FIRST && !target.canScrollVertically(parentDy) -> true
+            parentDy > 0 && target.scrollForwardMode == KRNestedScrollMode.PARENT_FIRST && !nestedParentCanScrollVerticallyFirst(parentDy)-> true
+            parentDy < 0 && target.scrollBackwardMode == KRNestedScrollMode.PARENT_FIRST && !nestedParentCanScrollVerticallyFirst(parentDy) -> true
+            parentDy > 0 && target.scrollForwardMode == KRNestedScrollMode.SELF_FIRST && !target.canNestedScrollVertically(parentDy) -> true
+            parentDy < 0 && target.scrollBackwardMode == KRNestedScrollMode.SELF_FIRST && !target.canNestedScrollVertically(parentDy) -> true
             else -> false
         }
 
@@ -1978,6 +2006,94 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         // 如果补偿消耗了值但没有实际滚动，也需要记录补偿值
         if (compensationConsumedX != 0 && !didConsumeX) {
             consumed[0] = compensationConsumedX
+        }
+    }
+
+    /**
+     * 判断当前父嵌套View是否能够滚动（根据scrollMode模式判断）
+     * @param parentDy 滚动方向，> 0 表示向前/向下，< 0 表示向后/向上
+     * @return 当前View是否能够滚动
+     */
+    private fun nestedParentCanScrollVerticallyFirst(parentDy: Int): Boolean {
+        // 没有嵌套滚动父级，不能让父级滚动
+        if (!hasNestedScrollingParent()) {
+            Log.i("yich","【nestedParentCanScrollVerticallyFirst】not nest child this hashCode：${hashCode()}")
+            return false
+        }
+
+        // 查找父嵌套容器
+        val parentRecyclerView = findNestedParentRecyclerView()
+
+        // 根据滚动方向选择对应的scrollMode
+        val scrollMode = if (parentDy > 0) {
+            scrollForwardMode
+        } else {
+            scrollBackwardMode
+        }
+
+        Log.i("yich","【nestedParentCanScrollVerticallyFirst】nestedChild hashCode:${nestedChildView?.hashCode()} parentRecyclerView hashCode:${parentRecyclerView?.hashCode()} nestedChild hashCode:${nestedChildView?.hashCode()} scrollMode：${scrollMode} this hashCode:${this.hashCode()}")
+        // 根据模式判断父View是否应该滚动
+        return when (scrollMode) {
+            KRNestedScrollMode.SELF_ONLY -> {
+                // SELF_ONLY模式下，父View不参与嵌套滚动
+                false
+            }
+            KRNestedScrollMode.SELF_FIRST -> {
+                !canScrollVertically(parentDy)
+            }
+            KRNestedScrollMode.PARENT_FIRST -> {
+                // PARENT_FIRST模式下，父View优先滚动
+                parentRecyclerView?.canNestedScrollVertically(parentDy) ?: canScrollVertically(parentDy)
+            }
+        }
+    }
+
+    /**
+     * 查找最近的父嵌套RecyclerView（根据当前方向）
+     * @return 父RecyclerView，如果没有则返回null
+     */
+    private fun findNestedParentRecyclerView(): KRRecyclerView? {
+        return if (directionRow) {
+            findClosestHorizontalRecyclerViewParent()
+        } else {
+            findClosestVerticalRecyclerViewParent()
+        }
+    }
+
+    /**
+     * 判断是否还能嵌套滚动（考虑子View的嵌套滚动模式）
+     * @param direction 滚动方向，> 0 表示向前/向下，< 0 表示向后/向上
+     * @return 是否还能在指定方向嵌套滚动
+     */
+    fun canNestedScrollVertically(direction: Int): Boolean {
+        // 查找嵌套的子View
+        val nestedChild = nestedChildView
+        val canScrollSelf = canScrollVertically(direction)
+        if (nestedChild == null || !nestedChild.hasNestedScrollingParent()) {
+            // 没有嵌套子View，直接使用自身的滚动判断
+            Log.i("yich","[canNestedScrollVertically]self scroll canScrollSelf:${canScrollSelf} this hashCode:${this.hashCode()}")
+            return canScrollSelf
+        }
+
+        // 有嵌套子View，根据子View的滚动模式判断
+        val childMode = if (direction > 0) {
+            nestedChild.scrollForwardMode
+        } else {
+            nestedChild.scrollBackwardMode
+        }
+        Log.i("yich","[canNestedScrollVertically]childMode :${childMode} nestedChild hashCode:${nestedChild.hashCode()} this hashCode:${this.hashCode()}")
+        return when (childMode) {
+            KRNestedScrollMode.SELF_ONLY -> {
+                nestedChild.canScrollVertically(direction)
+            }
+            KRNestedScrollMode.SELF_FIRST -> {
+                // 先子View滚动，子View滚动到边界后父View才能滚动
+                canScrollSelf || nestedChild.canNestedScrollVertically(direction)
+            }
+            KRNestedScrollMode.PARENT_FIRST -> {
+                // 父View优先滚动，这里返回true允许父View处理
+                canScrollVertically(direction)
+            }
         }
     }
 

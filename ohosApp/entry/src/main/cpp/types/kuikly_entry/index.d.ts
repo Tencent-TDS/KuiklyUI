@@ -38,5 +38,8 @@ export const setResfileDir: (path: string) => number;
  * 1=在 API>=24 时走新的 KRTextEditorFieldView/KRTextEditorAreaView。
  * 只影响设置后新创建的 Input/TextArea。开关值实际存储在 libkuikly.so 内，
  * 本方法通过动态链接符号透传到 core-render-ohos 的 C API。
+ *
+ * 说明：EmojiTextInputDemo 依赖的新输入组件已在 native `initKuikly()` 阶段统一开启，
+ * 这里保留该接口仅供 `InputCompareDemoPage` 一类的新/老实现对比场景显式切换。
  */
 export const setUseNewTextInputComponent: (value: number) => number;

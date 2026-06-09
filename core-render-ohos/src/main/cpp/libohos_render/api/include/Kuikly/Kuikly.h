@@ -425,28 +425,29 @@ void KRTextProcessedResultAppendImageSpanWithRaw(KRTextProcessedResultBuilder bu
  *   * 不调用任何 Append   -> 视为"未处理"，SDK 退回原始文本路径；
  *   * 至少调用一次 Append -> 视为"已处理"，SDK 完全按 builder 中的 Span 序列渲染。
  *
+ * @param name     当前派发的 processor 名称（UTF-8）。
+ *                 例如：编辑态 / 输入框通常传 "input"；只读文本可传 DSL 中设置的名称。
+ *                 仅本次回调期间有效；当当前路径未显式指定 processor 时可能为 NULL。
  * @param text     原始文本（UTF-8），仅本次回调期间有效
  * @param reserved 保留参数（当前永远为 NULL，未来用于扩展上下文）
  * @param builder  本次处理的结果构建器，仅本次回调期间有效
  */
-typedef void (*KRTextPostProcessorAdapter)(const char *text,
+typedef void (*KRTextPostProcessorAdapter)(const char *name,
+                                           const char *text,
                                            void *reserved,
                                            KRTextProcessedResultBuilder builder);
 
 /**
- * 注册一个具名的文本预处理 adapter（覆盖式）。
+ * 注册文本预处理 adapter（覆盖式）。
  *
- * SDK 内部根据派发名（name）选择对应 adapter。当前使用约定：
- *   * "input" : 编辑态 / 输入框（ARKUI_NODE_TEXT_EDITOR 路径）
- *   * 未来可扩展 "text" / "richtext" 等，业务可按需注册
+ * SDK 内部仍会根据运行时 processor 名称进行分发，但业务侧只需注册一个统一 adapter。
+ * 当前 processor 名称（如 "input" / "richtext"）会在回调时通过 `name` 参数回传给业务。
  *
- * 同名后注册替换前者；adapter 传 NULL 表示注销。
+ * 后注册覆盖前者；adapter 传 NULL 表示注销。
  *
- * @param name    处理器名字（不可为 NULL）
  * @param adapter adapter 函数指针；NULL 表示注销
  */
-void KRRegisterTextPostProcessorAdapter(const char *name,
-                                        KRTextPostProcessorAdapter adapter);
+void KRRegisterTextPostProcessorAdapter(KRTextPostProcessorAdapter adapter);
 
 
 #ifdef __cplusplus

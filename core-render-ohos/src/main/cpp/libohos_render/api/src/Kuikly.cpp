@@ -362,31 +362,21 @@ void KRDisableViewReuse(){
 // Text Post Processor Adapter implementation
 // =====================================================================
 namespace {
-// 注册表：name -> adapter。同名后注册覆盖前者。
-// 进程级，初始化阶段一次写入 + 运行期高频读，使用读写互斥保护即可（adapter 注册不在
-// 关键路径，整体竞争极低；为简化实现使用普通 mutex）。
+// 注册表：进程级单 adapter 存储位。
+// 初始化阶段偶发写入 + 运行期高频读取，使用普通 mutex 即可。
 std::mutex &TextPostProcessorMutex() {
     static std::mutex m;
     return m;
 }
-std::unordered_map<std::string, KRTextPostProcessorAdapter> &TextPostProcessorMap() {
-    static std::unordered_map<std::string, KRTextPostProcessorAdapter> m;
-    return m;
+KRTextPostProcessorAdapter &TextPostProcessorAdapterSlot() {
+    static KRTextPostProcessorAdapter adapter = nullptr;
+    return adapter;
 }
 }  // namespace
 
-void KRRegisterTextPostProcessorAdapter(const char *name,
-                                        KRTextPostProcessorAdapter adapter) {
-    if (!name) {
-        return;
-    }
+void KRRegisterTextPostProcessorAdapter(KRTextPostProcessorAdapter adapter) {
     std::lock_guard<std::mutex> guard(TextPostProcessorMutex());
-    auto &m = TextPostProcessorMap();
-    if (adapter) {
-        m[name] = adapter;
-    } else {
-        m.erase(name);
-    }
+    TextPostProcessorAdapterSlot() = adapter;
 }
 
 void KRTextProcessedResultAppendTextSpan(KRTextProcessedResultBuilder builder,
@@ -448,19 +438,15 @@ bool RunTextPostProcessor(const std::string &name,
     KRTextPostProcessorAdapter adapter = nullptr;
     {
         std::lock_guard<std::mutex> guard(TextPostProcessorMutex());
-        auto &m = TextPostProcessorMap();
-        auto it = m.find(name);
-        if (it == m.end()) {
-            return false;
-        }
-        adapter = it->second;
+        adapter = TextPostProcessorAdapterSlot();
     }
     if (!adapter) {
         return false;
     }
     // builder 是栈对象，回调返回即析构；其内部 std::string 自动释放。
     KRTextProcessedResultBuilder_ builder;
-    adapter(text.c_str(), /*reserved=*/nullptr, &builder);
+    const char *processor_name = name.empty() ? nullptr : name.c_str();
+    adapter(processor_name, text.c_str(), /*reserved=*/nullptr, &builder);
     if (builder.spans.empty()) {
         return false;
     }

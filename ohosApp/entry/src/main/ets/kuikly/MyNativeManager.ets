@@ -18,7 +18,8 @@ import Napi from 'libkuikly_entry.so';
 
 class MyNativeManager extends KuiklyNativeManager {
   loadNative(): number {
-    // 调用Napi接口，初始化 Kuikly Native
+    // 调用 Napi 接口初始化 Kuikly Native。
+    // HarmonyOS 自定义表情输入依赖的新输入组件也会在 native initKuikly() 内统一开启。
     return Napi.initKuikly();
   }
 }

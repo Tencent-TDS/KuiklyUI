@@ -413,8 +413,9 @@ struct KRTextEditorState {
 
 // ========== Text Post Processor 派发（业务自定义文本预处理） ==========
 //
-// SetStyledText 写入控件前，会把原始文本分发到名为 "input" 的 TextPostProcessor adapter
-// （由业务通过 KRRegisterTextPostProcessorAdapter("input", ...) 注册）。adapter 负责：
+// SetStyledText 写入控件前，会把原始文本分发到统一注册的 TextPostProcessor adapter。
+// 当前输入态路径会携带 processor 名称 "input"，并在回调的 `name` 参数中原样回传给业务。
+// adapter 负责：
 //   * 扫描自定义短码（如 [smile]）；
 //   * 解析为可寻址 URI（file:// / http(s):// / data:image;base64,...）；
 //   * 通过 KRTextProcessedResultAppendTextSpan / AppendImageSpan 顺序灌入 builder。

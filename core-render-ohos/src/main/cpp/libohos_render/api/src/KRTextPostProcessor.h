@@ -45,7 +45,7 @@ struct KRTextPostProcessSpan {
     float height = 0.0f;      // 仅 image 段使用，<=0 表示按字号自适应
 };
 
-// 调用已注册的具名 adapter（如 "input"）。
+// 调用已注册的统一 adapter，并把当前运行时 processor 名称（如 "input"）回传给业务。
 // 返回 true 表示 adapter 已注册并产生了非空 Span 序列；out_spans 被填充。
 // 返回 false 表示未注册 / 返回空，调用方应走原始文本路径。
 bool RunTextPostProcessor(const std::string &name,

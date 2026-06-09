@@ -480,17 +480,20 @@ static std::string GetEmojiFileUri(const std::string &resfile_rel) {
     return uri;
 }
 
-static void MyTextPostProcessorAdapter(const char *text,
+static void MyTextPostProcessorAdapter(const char *name,
+                                       const char *text,
                                        void * /*reserved*/,
                                        KRTextProcessedResultBuilder builder) {
     if (!text || !builder) {
         return;
     }
-    // 探针：便于线上一眼确认 adapter 是否被调到、看到输入文本。tag=KuiklyEmoji。
+    // 探针：便于线上一眼确认 adapter 是否被调到、看到 processor 名称与输入文本。tag=KuiklyEmoji。
     {
         static constexpr int kEmojiDomain = 0x1235;
+        const char *processor_name = name ? name : "<null>";
         OH_LOG_Print(LOG_APP, LOG_INFO, kEmojiDomain, "KuiklyEmoji",
-                     "MyTextPostProcessorAdapter called, text=%{public}s", text);
+                     "MyTextPostProcessorAdapter called, name=%{public}s text=%{public}s",
+                     processor_name, text);
     }
     const std::string s = text;
     const auto &shortcode_map = EmojiShortcodeToResfile();
@@ -581,14 +584,14 @@ static napi_value InitKuikly(napi_env env, napi_callback_info info) {
         KRRegisterImageAdapterV2(MyImageAdapterV2);
         KRRegisterImageAdapterV3(MyImageAdapterV3);
         // 文本预处理（emoji 短码 -> 图片替换）示例：
-        //   * "input"    : 输入框（ARKUI_NODE_TEXT_EDITOR 路径）；
-        //   * "richtext" : 只读富文本（KRRichTextView OnForegroundDraw 路径，方案 A）。
-        // 两条路径共用同一个 adapter 实现：扫描 [xxx] 短码 → 解为 file:// URI → 用
-        // KRTextProcessedResultAppendImageSpanWithRaw 回传，SDK 内部按 name 分流到对应
-        // 渲染管线（编辑态走 SetStyledText + ImageAttachment；只读富文本走 PlaceholderSpan
-        // + DrawPixelMapRect）。
-        KRRegisterTextPostProcessorAdapter("input", MyTextPostProcessorAdapter);
-        KRRegisterTextPostProcessorAdapter("richtext", MyTextPostProcessorAdapter);
+        //   * 编辑态 / 输入框通常传入 "input"；
+        //   * 只读富文本通常传入 "richtext"。
+        // 业务只注册一个统一 adapter：SDK 会在回调时通过 `name` 参数回传当前 processor
+        // 名称，adapter 内可按 name 做分流；当前示例对两条路径共用同一套 emoji 短码解析。
+        KRRegisterTextPostProcessorAdapter(MyTextPostProcessorAdapter);
+        // emoji 输入依赖新的 ARKUI_NODE_TEXT_EDITOR 控件，这里在初始化阶段统一开启，
+        // 避免 EmojiTextInputDemo 再依赖 ArkTS 路由前手动切换开关。
+        KRSetUseNewTextInputComponent(1);
         adapterRegistered = true;
     }
 

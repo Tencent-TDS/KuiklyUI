@@ -343,6 +343,34 @@ open class HRImageView(context: Context) : ImageView(context), IKuiklyRenderView
 :::tip 注意
 "HRImageView"为Kuikly中ImageView.getName返回的字符串
 :::
+
+### 获取 Kuikly 渲染层 tag
+
+实现 `IKuiklyRenderViewExport` 的自定义 View 可通过 `kuiklyRenderTag` 属性获取 Kuikly 渲染层为该 View 分配的 tag（Int 类型）。该 tag 在 View 创建后由框架自动设置，无需手动调用。
+
+```kotlin
+open class HRImageView(context: Context) : ImageView(context), IKuiklyRenderViewExport {
+
+    override fun setProp(propKey: String, propValue: Any): Boolean {
+        return when (propKey) {
+            "src" -> {
+                // 可在 setProp 等回调中读取 kuiklyRenderTag
+                Log.d("HRImageView", "当前 View 的 kuiklyRenderTag: $kuiklyRenderTag")
+                setSrc(propValue as String)
+                true
+            }
+            else -> super.setProp(propKey, propValue)
+        }
+    }
+}
+```
+
+:::tip 注意
+- `kuiklyRenderTag` 返回 `-1` 表示尚未设置（View 尚未被渲染层管理）
+- 该属性为只读，由框架在创建 View 时通过 `setKuiklyRenderTag(tag)` 自动赋值
+- 可用于在自定义 View 内部与 Kuikly Module 或其他跨端机制做关联
+:::
+
 ## iOS侧
 
 ``iOS``侧要完成原生``UIImageView``暴露给``Kuikly``侧，需要完成以下步骤

@@ -57,6 +57,21 @@ dependencies {
 }
 ```
 
+`demo/build.gradle.kts`配置：
+
+```bash
+// 添加获取 pageNameList 的函数
+fun getPageNameList(): String {
+    return project.properties["pageNameList"] as? String ?: ""
+}
+
+ksp {
+    arg("pageNameList", getPageNameList())
+}
+```
+
+这样当执行 `./gradlew :demo:packEntryJSBundleDebug -PpageNameList=HelloWorldPage` 时，`-PpageNameList` 的值会通过 `getPageNameList()` 函数传递给 KSP 的 `option["pageNameList"]`，KSP 就能正确识别 `packEntryJSBundle` 上下文，为每个页面生成独立的 `{PageName}Entry.kt` 文件。
+
 ## 开发指南
 
 ```bash

@@ -783,7 +783,10 @@ private val propHandlers = mapOf<String, (CSSStyleDeclaration, Any, HTMLElement)
         true
     },
     KRCssConst.VISIBILITY to { cssStyle, value, _ ->
-        cssStyle.visibility = if (value.unsafeCast<Int>() == 0) "hidden" else "visible"
+        val hidden = value.unsafeCast<Int>() == 0
+        cssStyle.visibility = if (hidden) "hidden" else "visible"
+        // Align with native behavior: hidden views should not intercept touch/pointer events
+        cssStyle.asDynamic().pointerEvents = if (hidden) "none" else "auto"
         true
     },
     KRCssConst.OVERFLOW to { cssStyle, value, _ ->

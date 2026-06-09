@@ -15,3 +15,7 @@
 配置完，就可以在微信小程序开发者工具中，看到Kotlin文件，直接在kotlin文件上打断点
 ![SouceMap](./img/miniapp_debug_sourcemap.png)
 
+## 常见问题
+
+调试过程中如遇到问题，请参考[微信小程序接入常见问题](../QA/miniapp-qa.md)
+

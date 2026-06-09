@@ -319,6 +319,7 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
             )
         }
         renderViewHandler.viewExport.kuiklyRenderContext = renderView.kuiklyRenderContext
+        renderViewHandler.viewExport.setKuiklyRenderTag(tag)
         putRenderViewHandler(tag, renderViewHandler)
     }
 

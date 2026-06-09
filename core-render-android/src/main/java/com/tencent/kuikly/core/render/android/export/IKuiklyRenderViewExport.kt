@@ -56,6 +56,12 @@ import java.io.FileOutputStream
 import java.util.concurrent.Executors
 
 /**
+ * 用于 IKuiklyRenderViewExport 存储 kuiklyRenderTag 的 View tag key。
+ * 使用约定 int key，避免与业务使用的 setTag(key, value) 冲突。
+ */
+private const val KUIKLY_RENDER_TAG_KEY = 0x1e1c0001
+
+/**
  * 渲染视图组件协议, 组件通过实现[IKuiklyRenderViewExport]协议 完成一个kuikly ui组件暴露
  */
 interface IKuiklyRenderViewExport : IKuiklyRenderModuleExport, IKRViewDecoration {
@@ -132,6 +138,29 @@ interface IKuiklyRenderViewExport : IKuiklyRenderModuleExport, IKRViewDecoration
             return view().context as? IKuiklyRenderContext
         }
         set(value) {}
+
+    /**
+     * 获取该 View 对应的 Kuikly 跨端渲染层 tag。
+     *
+     * tag 是 Kuikly 渲染层用于标识该 View 的内部引用 ID（Int 类型），
+     * 在 View 创建后由 [com.tencent.kuikly.core.render.android.layer.KuiklyRenderLayerHandler]
+     * 自动设置。实现类可在 [setProp]、[call] 等回调中读取此属性。
+     *
+     * @return Kuikly 渲染层 tag；若尚未设置则返回 -1
+     */
+    val kuiklyRenderTag: Int
+        get() = view().getTag(KUIKLY_RENDER_TAG_KEY) as? Int ?: -1
+
+    /**
+     * 设置该 View 对应的 Kuikly 跨端渲染层 tag。
+     *
+     * 由渲染层在创建 View 时自动调用，实现类一般无需手动调用。
+     *
+     * @param tag Kuikly 渲染层为该 View 分配的 tag
+     */
+    fun setKuiklyRenderTag(tag: Int) {
+        view().setTag(KUIKLY_RENDER_TAG_KEY, tag)
+    }
 
     /**
      * 获取实现[IKuiklyRenderViewExport]的View所在的[Activity]

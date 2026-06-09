@@ -226,36 +226,49 @@ void KRSnapshotManager::TakeSnapshot(const std::string &instance_id, const std::
                 ArkTS arkTs(napiValue.env);
 
                 napi_value snapshotData = arkTs.GetArrayElement(napiValue.value, 0);
-                napi_value drawableDescriptor = arkTs.GetObjectProperty(snapshotData, "drawableDescriptor");
                 KRSnapshotManager::ResultData resultData;
 
-                if (arkTs.IsNull(drawableDescriptor) || arkTs.IsUndefined(drawableDescriptor)) {
-                    resultData.data = arkTs.GetString(arkTs.GetObjectProperty(snapshotData, "message"));
-                    resultData.code = -1;
+                // 优先根据type分流，而费用 drawableDescriptorPtr 对象判断 file,dataUri,cacheKey 三种模式
+                if (type == "file") {
+                    napi_value path = arkTs.GetObjectProperty(snapshotData, "path");
+                    std::string pathStr = arkTs.GetString(path);
+                    napi_value uri = arkTs.GetObjectProperty(snapshotData, "pathURI");
+                    std::string pathURI = arkTs.GetString(uri);
+                    if (pathStr.empty()) {
+                        resultData.code = -1;
+                        resultData.message = "snapshot path is empty";
+                    } else {
+                        if (auto root = strongView->GetRootView().lock()) {
+                            auto snapshotManager = root->GetSnapshotManager();
+                            resultData = snapshotManager->ProcessSnapshotResultWithFileType(
+                                env, nullptr, pathStr, pathURI, nullptr, weak_view);
+                        }
+                    }
                 } else {
-                    napi_value pixelMap = arkTs.GetObjectProperty(snapshotData, "pixelMap");
+                    napi_value drawableDescriptor = arkTs.GetObjectProperty(snapshotData, "drawableDescriptor");
+                    if (arkTs.IsNull(drawableDescriptor) || arkTs.IsUndefined(drawableDescriptor)) {
+                        resultData.message = arkTs.GetString(arkTs.GetObjectProperty(snapshotData, "message"));
+                        resultData.code = -1;
+                    } else {
+                        napi_value pixelMap = arkTs.GetObjectProperty(snapshotData, "pixelMap");
 
-                    ArkUI_DrawableDescriptor *drawableDescriptorPtr = nullptr;
-                    OH_ArkUI_GetDrawableDescriptorFromNapiValue(env, drawableDescriptor, &drawableDescriptorPtr);
-                    std::string pathStr;
-                    std::string pathURI;
-                    if (auto root = strongView->GetRootView().lock()) {
-                        auto snapshotManager = root->GetSnapshotManager();
-                        if (type == "dataUri") {
-                            resultData = snapshotManager->ProcessSnapshotResultWithDataType(
-                                env, pixelMap, "", "", drawableDescriptorPtr, weak_view);
-                        } else {
-                            napi_value path = arkTs.GetObjectProperty(snapshotData, "path");
-                            pathStr = arkTs.GetString(path);
-                            napi_value uri = arkTs.GetObjectProperty(snapshotData, "pathURI");
-                            pathURI = arkTs.GetString(uri);
-                            if (type == "cacheKey") {
+                        ArkUI_DrawableDescriptor *drawableDescriptorPtr = nullptr;
+                        OH_ArkUI_GetDrawableDescriptorFromNapiValue(env, drawableDescriptor, &drawableDescriptorPtr);
+                        std::string pathStr;
+                        std::string pathURI;
+                        if (auto root = strongView->GetRootView().lock()) {
+                            auto snapshotManager = root->GetSnapshotManager();
+                            if (type == "dataUri") {
+                                resultData = snapshotManager->ProcessSnapshotResultWithDataType(
+                                    env, pixelMap, "", "", drawableDescriptorPtr, weak_view);
+                            } else if (type == "cacheKey") {
+                                napi_value path = arkTs.GetObjectProperty(snapshotData, "path");
+                                pathStr = arkTs.GetString(path);
+                                napi_value uri = arkTs.GetObjectProperty(snapshotData, "pathURI");
+                                pathURI = arkTs.GetString(uri);
                                 resultData = snapshotManager->ProcessSnapshotResultWithCacheKeyType(
                                     env, pixelMap, drawableDescriptor, pathStr, pathURI, drawableDescriptorPtr,
                                     weak_view);
-                            } else if (type == "file") {
-                                resultData = snapshotManager->ProcessSnapshotResultWithFileType(
-                                    env, pixelMap, pathStr, pathURI, drawableDescriptorPtr, weak_view);
                             }
                         }
                     }

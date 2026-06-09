@@ -1506,6 +1506,36 @@ internal class AppearPercentageEventPage : BasePager() {
 }
 ```
 
+### onFocusChange事件<Badge text="仅 Android 端支持" type="warn"/>
+
+``onFocusChange``事件意为焦点变化事件，当组件的焦点状态发生变化时，会触发``onFocusChange``闭包回调。回调参数为``Boolean``类型，``true``表示获得焦点，``false``表示失去焦点。
+
+**示例**
+
+```kotlin {13,14,15}
+internal class FocusChangeEventPage : BasePager() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                allCenter()
+            }
+
+            View {
+                attr {
+                    size(200f, 100f)
+                }
+
+                event {
+                    onFocusChange { isFocused ->
+                        // isFocused: true 表示获得焦点, false 表示失去焦点
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
 ---
 
 ## 基础方法
@@ -1621,5 +1651,88 @@ internal class ToImageExamplePage : BasePager() {
 - 回调函数中需要检查 `code` 字段判断是否成功
 - 成功时，`data` 字段包含图片数据（根据 `type` 参数不同，可能是缓存key、base64字符串或文件路径）
 - **重要：** 使用 `CACHE_KEY` 模式时，缓存生命周期跟随页面，多次调用 `toImage` 会产生多个缓存，建议在不再需要时清理以避免内存泄漏 
+
+:::
+
+### focus方法<Badge text="仅 Android 端支持" type="warn"/>
+
+主动让组件获取焦点。调用后组件将变为可聚焦状态并请求焦点，焦点获取成功后会触发 `onFocusChange` 事件。
+
+::: tabs
+
+@tab:active 示例
+
+```kotlin {18}
+@Page("FocusExamplePage")
+internal class FocusExamplePage : BasePager() {
+
+    private var viewRef: ViewRef<DivView>? = null
+
+    override fun body(): ViewBuilder {
+        val ctx = this
+        return {
+            attr {
+                allCenter()
+            }
+
+            View {
+                ref {
+                    ctx.viewRef = it
+                }
+                attr {
+                    size(200f, 100f)
+                    backgroundColor(Color.GREEN)
+                }
+                event {
+                    onFocusChange { isFocused ->
+                        // 处理焦点变化
+                    }
+                }
+            }
+
+            View {
+                attr {
+                    size(100f, 50f)
+                    marginTop(20f)
+                    backgroundColor(Color.BLUE)
+                }
+                event {
+                    click {
+                        ctx.viewRef?.view?.focus()
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+@tab 说明
+
+- 使用 `ref` 获取View引用，然后调用 `focus()` 方法
+- 调用后组件会被设置为可聚焦并请求焦点
+- 焦点变化会通过 `onFocusChange` 事件通知
+
+:::
+
+### blur方法<Badge text="仅 Android 端支持" type="warn"/>
+
+主动让组件失去焦点。调用后组件将清除当前焦点状态，并触发 `onFocusChange` 事件。
+
+::: tabs
+
+@tab:active 示例
+
+```kotlin {5}
+private fun blurView() {
+    viewRef?.view?.blur()
+}
+```
+
+@tab 说明
+
+- 使用 `ref` 获取View引用，然后调用 `blur()` 方法
+- 调用后组件焦点将被清除
+- 焦点变化会通过 `onFocusChange` 事件通知
 
 :::

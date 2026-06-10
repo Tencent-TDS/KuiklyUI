@@ -46,6 +46,8 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
         let context = this.controller?.getUIAbilityContext();
         if (context) {
           KRNetworkCacheUtil.fetchFileByDownloadOrCache(context, params as string, callback as KuiklyRenderCallback);
+        } else if (callback) {
+          callback(null);
         }
         return null;
       case KRNetworkModule.METHOD_HTTP_REQUEST:

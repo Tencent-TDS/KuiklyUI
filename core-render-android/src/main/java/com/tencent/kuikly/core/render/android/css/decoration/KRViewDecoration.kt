@@ -460,10 +460,16 @@ class KRViewDecoration(targetView: View) : IKRViewDecoration {
                                 ?.also {
                                     borderWidth = it.borderWidth
                                 }
+                            // <=8.0 的系统 过小的Radius会导致布局变透明，这里加上最小值限制
+                            var compatBorderRadiusF = borderRadiusF
+                            if (compatBorderRadiusF < 0.5f) {
+                                compatBorderRadiusF = 0.5f
+                            }
                             // <= 6.0 的系统，前景 border 是我们绘制的，如果业务设置了圆角和 border，需要减去border 的宽度
                             // 不然border 会被限制在 clip 的区域内，只有setRoundRect这个 api 才会
-                            outline.setRoundRect(-borderWidth, -borderWidth, view.width + borderWidth, view.height + borderWidth, borderRadiusF)
+                            outline.setRoundRect(-borderWidth, -borderWidth, view.width + borderWidth, view.height + borderWidth, compatBorderRadiusF)
                         } else {
+                            // <=8.0 的系统 过小的Radius会导致布局变透明，这里加上最小值限制
                             var compatBorderRadiusF = borderRadiusF
                             if (isBeforeOreoMr1 && compatBorderRadiusF < 0.5f) {
                                 compatBorderRadiusF = 0.5f

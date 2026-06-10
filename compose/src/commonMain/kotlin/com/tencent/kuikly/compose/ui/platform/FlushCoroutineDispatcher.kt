@@ -91,7 +91,7 @@ internal class FlushCoroutineDispatcher(
                 immediateTasks = tmp
             }
 
-            immediateTasksSwap.forEach(Runnable::run)
+            immediateTasksSwap.forEach(::runTaskSafely)
             immediateTasksSwap.clear()
         }
     }
@@ -116,13 +116,7 @@ internal class FlushCoroutineDispatcher(
                 immediateTasks = tmp
             }
 
-            immediateTasksSwap.forEach { task ->
-                try {
-                    task.run()
-                } catch (_: CancellationException) {
-                    // Expected during shutdown — the task's coroutine was already cancelled.
-                }
-            }
+            immediateTasksSwap.forEach(::runTaskSafely)
             immediateTasksSwap.clear()
         }
     }
@@ -134,6 +128,14 @@ internal class FlushCoroutineDispatcher(
             body()
         } finally {
             isPerformingRun = false
+        }
+    }
+
+    private fun runTaskSafely(task: Runnable) {
+        try {
+            task.run()
+        } catch (_: CancellationException) {
+            // Expected when a queued coroutine task has already been cancelled.
         }
     }
 

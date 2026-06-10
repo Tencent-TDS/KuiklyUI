@@ -37,6 +37,10 @@ NSString *const KRNativeBuild = @"nativeBuild";
 NSString *const KRSafeAreaInsets = @"safeAreaInsets";
 NSString *const KRAccessibilityRunning = @"isAccessibilityRunning";
 NSString *const KRDensity = @"density";
+NSString *const KRImeInsetsDidChangedEventKey = @"imeInsetsDidChanged";
+NSString *const KRDurationKey = @"duration";
+NSString *const KRCurveKey = @"curve";
+static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 
 @interface KuiklyRenderView()<KuiklyRenderCoreDelegate>
 /** 渲染核心实现者对象 */
@@ -49,6 +53,9 @@ NSString *const KRDensity = @"density";
 @property (nonatomic, assign, getter=isContentViewDidLoad) BOOL contentViewDidLoad;
 /** delegate for KuiklyRenderView. */
 @property (nonatomic, weak, readwrite) id<KuiklyRenderViewDelegate> delegate;
+@property (nonatomic, assign) CGFloat currentKeyboardHeight;
+@property (nonatomic, copy) NSDictionary *lastImeInsetsEventData;
+@property (nonatomic, assign) BOOL didRegisterKeyboardNotifications;
 
 @end
 
@@ -154,6 +161,9 @@ NSString *const KRDensity = @"density";
 */
 - (void)didCreateRenderView {
     [_renderCore didInitCore];
+#if !TARGET_OS_OSX
+    [self p_registerKeyboardNotificationsIfNeed];
+#endif
 }
 
 #pragma mark - override
@@ -318,6 +328,99 @@ NSString *const KRDensity = @"density";
     }
 }
 
+#if !TARGET_OS_OSX
+- (void)onReceiveKeyboardWillChangeFrameNotification:(NSNotification *)notify {
+    NSDictionary *info = notify.userInfo ?: @{};
+    CGFloat duration = [self p_resolvedKeyboardDurationMillis:[info objectForKey:UIKeyboardAnimationDurationUserInfoKey]];
+    NSInteger rawCurve = [self p_resolvedRawKeyboardCurve:[info objectForKey:UIKeyboardAnimationCurveUserInfoKey]];
+    NSInteger curve = [self p_resolvedKeyboardCurve:@(rawCurve)];
+    CGFloat targetHeight = [self p_resolvedKeyboardHeightWithFrameValue:[info objectForKey:UIKeyboardFrameEndUserInfoKey]];
+    [self p_sendImeInsetsEventWithHeight:targetHeight
+                                duration:duration
+                                   curve:curve];
+}
+
+- (void)p_registerKeyboardNotificationsIfNeed {
+    if (self.didRegisterKeyboardNotifications) {
+        return;
+    }
+    self.didRegisterKeyboardNotifications = YES;
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(onReceiveKeyboardWillChangeFrameNotification:)
+                                                 name:UIKeyboardWillChangeFrameNotification
+                                               object:nil];
+}
+
+- (void)p_unregisterKeyboardNotificationsIfNeeded {
+    if (!self.didRegisterKeyboardNotifications) {
+        return;
+    }
+    self.didRegisterKeyboardNotifications = NO;
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:UIKeyboardWillChangeFrameNotification object:nil];
+}
+
+
+- (CGFloat)p_resolvedKeyboardHeightWithFrameValue:(id)frameValue {
+    if (![frameValue isKindOfClass:[NSValue class]]) {
+        return 0;
+    }
+    CGRect keyboardFrame = [frameValue CGRectValue];
+    if (CGRectIsEmpty(keyboardFrame)) {
+        return 0;
+    }
+    CGRect keyboardFrameInSelf = [self convertRect:keyboardFrame fromView:nil];
+    CGRect intersection = CGRectIntersection(self.bounds, keyboardFrameInSelf);
+    if (CGRectIsNull(intersection) || CGRectIsEmpty(intersection)) {
+        return 0;
+    }
+    return MAX(0, CGRectGetHeight(intersection));
+}
+
+- (CGFloat)p_resolvedKeyboardDurationMillis:(NSNumber *)durationValue {
+    CGFloat duration = [durationValue doubleValue];
+    if (duration <= 0) {
+        return 250;
+    }
+    if (duration >= 10) {
+        return duration;
+    }
+    return duration * 1000.0;
+}
+
+- (NSInteger)p_resolvedRawKeyboardCurve:(NSNumber *)curveValue {
+    NSInteger curve = [curveValue integerValue];
+    return curve >= 0 ? curve : KRDefaultKeyboardAnimationCurve;
+}
+
+- (NSInteger)p_resolvedKeyboardCurve:(NSNumber *)curveValue {
+    NSInteger curve = [curveValue integerValue];
+    switch (curve) {
+        case 0:
+        case 1:
+        case 2:
+        case 3:
+            return curve;
+        default:
+            return 0;
+    }
+}
+
+- (void)p_sendImeInsetsEventWithHeight:(CGFloat)height
+                                duration:(CGFloat)duration
+                                   curve:(NSInteger)curve {
+    NSDictionary *data = @{KRHeightKey: @(MAX(0, height)),
+                           KRDurationKey: @(duration),
+                           KRCurveKey: @(curve)};
+    if ([self.lastImeInsetsEventData isEqualToDictionary:data]) {
+        return;
+    }
+    self.currentKeyboardHeight = [data[KRHeightKey] doubleValue];
+    self.lastImeInsetsEventData = data;
+    // 页面级 IME 事件直接从宿主 RenderView 发出，避免继续耦合到输入框组件上。
+    [self sendWithEvent:KRImeInsetsDidChangedEventKey data:data];
+}
+#endif
+
 - (void)p_flushDeallocTasks {
     if (!_dellocTasks) {
         return ;
@@ -345,6 +448,9 @@ NSString *const KRDensity = @"density";
 #pragma mark - dealloc
 
 - (void)dealloc {
+#if !TARGET_OS_OSX
+    [self p_unregisterKeyboardNotificationsIfNeeded];
+#endif
     [self p_flushDeallocTasks];
     KuiklyRenderCore *renderCore = _renderCore;
     [renderCore willDealloc];

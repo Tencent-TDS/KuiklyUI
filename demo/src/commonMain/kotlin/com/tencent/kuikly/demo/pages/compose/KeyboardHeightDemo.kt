@@ -15,11 +15,28 @@
 
 package com.tencent.kuikly.demo.pages.compose
 
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.tencent.kuikly.compose.ComposeContainer
 import com.tencent.kuikly.compose.extension.keyboardHeightChange
 import com.tencent.kuikly.compose.foundation.background
-import com.tencent.kuikly.compose.foundation.layout.*
+import com.tencent.kuikly.compose.foundation.layout.Arrangement
+import com.tencent.kuikly.compose.foundation.layout.Box
+import com.tencent.kuikly.compose.foundation.layout.Column
+import com.tencent.kuikly.compose.foundation.layout.Row
+import com.tencent.kuikly.compose.foundation.layout.Spacer
+import com.tencent.kuikly.compose.foundation.layout.WindowInsets
+import com.tencent.kuikly.compose.foundation.layout.asPaddingValues
+import com.tencent.kuikly.compose.foundation.layout.fillMaxSize
+import com.tencent.kuikly.compose.foundation.layout.fillMaxWidth
+import com.tencent.kuikly.compose.foundation.layout.height
+import com.tencent.kuikly.compose.foundation.layout.ime
+import com.tencent.kuikly.compose.foundation.layout.imePadding
+import com.tencent.kuikly.compose.foundation.layout.padding
+import com.tencent.kuikly.compose.foundation.layout.width
 import com.tencent.kuikly.compose.foundation.lazy.LazyColumn
 import com.tencent.kuikly.compose.foundation.lazy.items
 import com.tencent.kuikly.compose.material3.Button
@@ -29,6 +46,7 @@ import com.tencent.kuikly.compose.setContent
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.Color
+import com.tencent.kuikly.compose.ui.platform.LocalConfiguration
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.core.annotations.Page
 
@@ -37,60 +55,116 @@ internal class KeyboardHeightDemo : ComposeContainer() {
     override fun willInit() {
         super.willInit()
         setContent {
-            var input by remember { mutableStateOf("") }
-            val messages = remember { mutableStateListOf(
-                "你好！我是KuiklyBot。",
-                "你好，有什么可以帮你？",
-                "你可以在下方输入消息。"
-            ) }
-
-            Column(
-                modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5)).padding(16.dp)
-            ) {
-                LazyColumn(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    verticalArrangement = Arrangement.Bottom
-                ) {
-                    items(messages) { msg ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            Text(
-                                text = msg,
-                                color = Color.Black,
-                                modifier = Modifier.background(Color.White).padding(12.dp)
-                            )
-                        }
-                    }
-                }
-                var keyboardHeight by remember { mutableStateOf(0f) }
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = keyboardHeight.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextField(
-                        value = input,
-                        onValueChange = { input = it },
-                        modifier = Modifier.weight(1f).keyboardHeightChange {
-                            println("keyboardHeightChange " + it.height)
-                            keyboardHeight = it.height
-                        },
-                        placeholder = { Text("输入消息...") }
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(onClick = {
-                        if (input.isNotBlank()) {
-                            messages.add(input)
-                            input = ""
-                        }
-                    }) {
-                        Text("发送")
-                    }
-                }
+            ComposeNavigationBar("IME Insets - imePadding") {
+                KeyboardHeightDemoContent()
             }
         }
     }
-} 
+}
+
+private data class KeyboardDemoMessage(
+    val text: String,
+    val fromUser: Boolean,
+)
+
+private val initialKeyboardDemoMessages = listOf(
+    KeyboardDemoMessage("这是 phase1 页面级 IME inset demo。", false),
+    KeyboardDemoMessage("聚焦底部输入框后，输入栏应由 imePadding 顶离键盘。", false),
+    KeyboardDemoMessage("上方信息会展示 WindowInsets.ime 与旧 keyboardHeightChange 回调值，用于验证兼容性。", false),
+)
+
+@Composable
+private fun KeyboardHeightDemoContent() {
+    var input by remember { mutableStateOf("") }
+    var legacyKeyboardHeight by remember { mutableStateOf(0f) }
+    var messages by remember { mutableStateOf(initialKeyboardDemoMessages) }
+    val configuration = LocalConfiguration.current
+    val imeBottomPadding = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF5F5F5))
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        Text(
+            text = "WindowInsets.ime(bottom) = $imeBottomPadding | current = ${configuration.imeBottomDp.dp}",
+            color = Color(0xFF333333),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White)
+                .padding(12.dp)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "legacy keyboardHeightChange = ${legacyKeyboardHeight.dp}",
+            color = Color(0xFF666666),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White)
+                .padding(12.dp)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "当前页面只验证 page-level IME height 是否能驱动 imePadding，不验证逐帧动画或同步事件。",
+            color = Color(0xFF8A5200),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFFFFF4E5))
+                .padding(12.dp)
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(messages) { message ->
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = if (message.fromUser) Alignment.CenterEnd else Alignment.CenterStart
+                ) {
+                    Text(
+                        text = message.text,
+                        color = Color.Black,
+                        modifier = Modifier
+                            .background(if (message.fromUser) Color(0xFFD7F5D0) else Color.White)
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White)
+                .imePadding()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextField(
+                value = input,
+                onValueChange = { input = it },
+                modifier = Modifier
+                    .weight(1f)
+                    .keyboardHeightChange { params ->
+                        legacyKeyboardHeight = params.height
+                    },
+                placeholder = { Text("输入一条消息，观察输入栏是否自动避让键盘") }
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(onClick = {
+                if (input.isBlank()) {
+                    return@Button
+                }
+                val content = input
+                messages = messages + KeyboardDemoMessage(content, true) + KeyboardDemoMessage("已发送：$content", false)
+                input = ""
+            }) {
+                Text("发送")
+            }
+        }
+    }
+}

@@ -13,54 +13,35 @@
  * limitations under the License.
  */
 
-@file:OptIn(ExperimentalFoundationApi::class, ExperimentalFoundationApi::class)
-
 package com.tencent.kuikly.demo.pages.compose
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import com.tencent.kuikly.compose.ComposeContainer
-import com.tencent.kuikly.compose.animation.core.FloatExponentialDecaySpec
-import com.tencent.kuikly.compose.animation.core.generateDecayAnimationSpec
-import com.tencent.kuikly.compose.animation.core.tween
-import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
 import com.tencent.kuikly.compose.foundation.background
-import com.tencent.kuikly.compose.foundation.gestures.AnchoredDraggableState
-import com.tencent.kuikly.compose.foundation.gestures.DraggableAnchors
-import com.tencent.kuikly.compose.foundation.gestures.Orientation
-import com.tencent.kuikly.compose.foundation.gestures.anchoredDraggable
-import com.tencent.kuikly.compose.foundation.layout.Arrangement
-import com.tencent.kuikly.compose.foundation.layout.Box
 import com.tencent.kuikly.compose.foundation.layout.Column
 import com.tencent.kuikly.compose.foundation.layout.Spacer
 import com.tencent.kuikly.compose.foundation.layout.WindowInsets
+import com.tencent.kuikly.compose.foundation.layout.asPaddingValues
 import com.tencent.kuikly.compose.foundation.layout.fillMaxSize
 import com.tencent.kuikly.compose.foundation.layout.fillMaxWidth
 import com.tencent.kuikly.compose.foundation.layout.height
-import com.tencent.kuikly.compose.foundation.layout.offset
+import com.tencent.kuikly.compose.foundation.layout.ime
 import com.tencent.kuikly.compose.foundation.layout.padding
-import com.tencent.kuikly.compose.foundation.layout.size
-import com.tencent.kuikly.compose.material3.Scaffold
-import com.tencent.kuikly.compose.material3.Button
 import com.tencent.kuikly.compose.material3.ExperimentalMaterial3Api
-import com.tencent.kuikly.compose.material3.SnackbarDuration
-import com.tencent.kuikly.compose.material3.SnackbarHost
-import com.tencent.kuikly.compose.material3.SnackbarHostState
+import com.tencent.kuikly.compose.material3.Scaffold
 import com.tencent.kuikly.compose.material3.Text
+import com.tencent.kuikly.compose.material3.TextField
 import com.tencent.kuikly.compose.material3.TopAppBar
-import com.tencent.kuikly.compose.material3.TopAppBarDefaults
 import com.tencent.kuikly.compose.setContent
-import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.Color
-import com.tencent.kuikly.compose.ui.text.font.FontWeight
-import com.tencent.kuikly.compose.ui.unit.IntOffset
+import com.tencent.kuikly.compose.ui.platform.LocalConfiguration
 import com.tencent.kuikly.compose.ui.unit.dp
-import com.tencent.kuikly.compose.ui.unit.sp
 import com.tencent.kuikly.core.annotations.Page
-import kotlinx.coroutines.launch
-
 
 @Page("ScaffoldDemo")
 internal class ScaffoldDemo : ComposeContainer() {
@@ -77,81 +58,72 @@ internal class ScaffoldDemo : ComposeContainer() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScaffoldDemoImpl() {
-    val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
-
-    // AnchoredDraggableState 示例
-    val anchors = DraggableAnchors {
-        0 at 0f
-        1 at 300f
-    }
-    val anchoredDraggableState = remember {
-        AnchoredDraggableState(
-            initialValue = 0,
-            anchors = anchors,
-            positionalThreshold = { 100f },
-            velocityThreshold = { 1000f },
-            snapAnimationSpec = tween(),
-            decayAnimationSpec = FloatExponentialDecaySpec().generateDecayAnimationSpec()
-        )
-    }
+    var name by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("") }
+    val configuration = LocalConfiguration.current
+    val imeBottomPadding = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("TopAppBar") },
-                windowInsets = WindowInsets(0.dp),
-                colors = TopAppBarDefaults.topAppBarColors().copy(containerColor = Color.Green)
+                title = { Text("Scaffold IME Insets") }
             )
         },
-        bottomBar = {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.height(50.dp).fillMaxWidth().background(Color.Gray)) {
-                Text("BottomBar")
-            }
-        },
-        containerColor = Color.Yellow,
-        contentWindowInsets = WindowInsets(0.dp),
-        content = { padding ->
+        containerColor = Color(0xFFF7F8FA),
+        content = { innerPadding ->
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                    .background(Color(0xFFF7F8FA))
+                    .padding(innerPadding)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                Spacer(Modifier.height(16.dp))
-                Button(onClick = {
-                    coroutineScope.launch {
-                        snackbarHostState.showSnackbar(
-                            message = "Hello Snackbar!",
-                            duration = SnackbarDuration.Short
-                        )
-                    }
-                }) {
-                    Text("弹出Snackbar")
-                }
-                Spacer(Modifier.height(24.dp))
-                // AnchoredDraggable演示
-                Box(
-                    Modifier
-                        .size(200.dp, 60.dp)
-                        .background(Color(0xFFE0E0E0))
-                ) {
-                    Box(
-                        Modifier
-                            .anchoredDraggable(
-                                state = anchoredDraggableState,
-                                orientation = Orientation.Horizontal
-                            )
-                            .offset { IntOffset(anchoredDraggableState.offset.toInt(), 0) }
-                            .size(60.dp)
-                            .background(Color.Red),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("Drag")
-                    }
-                }
+                Text(
+                    text = "Scaffold WindowInsets.ime = $imeBottomPadding | current = ${configuration.imeBottomDp.dp}",
+                    color = Color(0xFF333333),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(12.dp)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("聚焦底部表单项后，Scaffold 默认 contentWindowInsets 应自动包含 IME，并把内容顶离键盘。")
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "这是 phase1 基础避让 demo，用来验证声明式 API 入口保持不变。",
+                    color = Color(0xFF666666)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "边界说明：phase1 只保证基础避让，不会自动把更深层被遮挡的输入框滚到可见区。",
+                    color = Color(0xFF8A5200),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFFFF4E5))
+                        .padding(12.dp)
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                TextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("姓名") }
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                TextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("手机号") }
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                TextField(
+                    value = address,
+                    onValueChange = { address = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("详细地址（聚焦这里观察默认键盘避让）") }
+                )
             }
         }
     )

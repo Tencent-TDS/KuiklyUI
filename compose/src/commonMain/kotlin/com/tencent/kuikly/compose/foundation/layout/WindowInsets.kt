@@ -19,11 +19,15 @@ package com.tencent.kuikly.compose.foundation.layout
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.tencent.kuikly.compose.animation.core.animateFloatAsState
+import com.tencent.kuikly.compose.animation.core.tween
 import com.tencent.kuikly.compose.ui.Modifier
+import com.tencent.kuikly.compose.ui.platform.LocalConfiguration
 import com.tencent.kuikly.compose.ui.platform.LocalDensity
 import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.Dp
@@ -253,6 +257,16 @@ fun WindowInsets.asPaddingValues(): PaddingValues = InsetsPaddingValues(this, Lo
  */
 fun WindowInsets.asPaddingValues(density: Density): PaddingValues =
     InsetsPaddingValues(this, density)
+
+/**
+ * 当前页面软件键盘占用的窗口 inset。
+ */
+val WindowInsets.Companion.ime: WindowInsets
+    @Composable
+    get() {
+        val configuration = LocalConfiguration.current
+        return WindowInsets(bottom = configuration.imeBottomDp.dp)
+    }
 
 /**
  * Convert a [PaddingValues] to a [WindowInsets].

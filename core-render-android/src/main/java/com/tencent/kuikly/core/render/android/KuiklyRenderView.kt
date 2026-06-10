@@ -55,6 +55,8 @@ import com.tencent.kuikly.core.render.android.exception.KuiklyRenderViewExportEx
 import com.tencent.kuikly.core.render.android.expand.KuiklyRenderTracer
 import com.tencent.kuikly.core.render.android.expand.KuiklyRenderViewBaseDelegatorDelegate
 import com.tencent.kuikly.core.render.android.expand.component.image.KRImageLoader
+import com.tencent.kuikly.core.render.android.expand.module.KRKeyboardModule
+import com.tencent.kuikly.core.render.android.expand.module.KeyboardStatusListener
 import com.tencent.kuikly.core.render.android.expand.component.text.TypeFaceLoader
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderModuleExport
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderShadowExport
@@ -141,6 +143,8 @@ class KuiklyRenderView(
     private var contextInitCallback: IKuiklyRenderContextInitCallback? = null
 
     private var isInOnSizeChanged = false
+    private var pageKeyboardHeight = Int.MIN_VALUE
+    private var pageKeyboardStatusListener: KeyboardStatusListener? = null
 
     init {
         if (!lazyClipChildren) {
@@ -169,6 +173,10 @@ class KuiklyRenderView(
     ) {
         val tracer = KuiklyRenderTracer("KuiklyRenderView.init")
         this.pageName = pageName
+        logImePhase1(
+            "init start, size=$size, assetsPathReady=${assetsPath != null}, " +
+                "listenerRegistered=${pageKeyboardStatusListener != null}"
+        )
         dispatchLifecycleStateChanged(STATE_INIT)
         assert(isMainThread()) // init方法必须在主线程调用
         initKuiklyClassLoaderIfNeed(contextCode)
@@ -201,6 +209,11 @@ class KuiklyRenderView(
         var shouldSync = delegate?.syncSendEvent(event) == true
         if (!shouldSync) {
             shouldSync = innerSyncSendEvent(event)
+        }
+        if (event == EVENT_IME_INSETS_CHANGED) {
+            logImePhase1(
+                "dispatch pagerEvent=$event, shouldSync=$shouldSync, coreReady=${renderCore != null}, data=$data"
+            )
         }
         renderCore?.sendEvent(event, data, shouldSync) ?: also { // core没初始化时, lazy住事件, 等core初始化后统一发送
             val lazyEventList =
@@ -274,6 +287,7 @@ class KuiklyRenderView(
     }
 
     override fun destroy() {
+        unregisterPageKeyboardListener()
         dispatchLifecycleStateChanged(STATE_DESTROY)
         renderCore?.destroy()
     }
@@ -405,6 +419,11 @@ class KuiklyRenderView(
         dispatchLifecycleStateChanged(STATE_INIT_CORE_FINISH)
         trySendCoreEventList() // 尝试发送lazy事件，如果有的话
         performCoreLazyTaskList()
+        registerPageKeyboardListenerIfNeed()
+        logImePhase1(
+            "renderCore initialized, listenerRegistered=${pageKeyboardStatusListener != null}, " +
+                "activitySize=${getActivitySize()}, deviceSize=${getDeviceSize()}"
+        )
         tracer.end()
     }
 
@@ -468,6 +487,54 @@ class KuiklyRenderView(
             coreLazyTaskList.clear()
         }
         KuiklyRenderLog.d("KuiklyRenderView", "--performCoreLazyTaskList finish--")
+    }
+
+    private fun registerPageKeyboardListenerIfNeed() {
+        if (pageKeyboardStatusListener != null) {
+            logImePhase1("registerPageKeyboardListenerIfNeed skip: listener already registered")
+            return
+        }
+        val keyboardModule = module<KRKeyboardModule>(KRKeyboardModule.MODULE_NAME)
+        if (keyboardModule == null) {
+            logImePhase1("registerPageKeyboardListenerIfNeed abort: KRKeyboardModule missing")
+            return
+        }
+        logImePhase1("registerPageKeyboardListenerIfNeed start")
+        pageKeyboardStatusListener = object : KeyboardStatusListener {
+            override fun onHeightChanged(height: Int) {
+                if (height == pageKeyboardHeight) {
+                    logImePhase1("pageKeyboardStatusListener skip duplicated height=$height")
+                    return
+                }
+                val oldHeight = pageKeyboardHeight
+                pageKeyboardHeight = height
+                val heightDp = kuiklyRenderContext.toDpF(height.toFloat())
+                logImePhase1(
+                    "pageKeyboardStatusListener.onHeightChanged old=$oldHeight, new=$height, newDp=$heightDp"
+                )
+                // 页面级键盘高度统一从 RenderView 发给 pager，避免绑定到某个输入框实例。
+                sendEvent(
+                    EVENT_IME_INSETS_CHANGED,
+                    mapOf(
+                        KRViewConst.HEIGHT to heightDp,
+                        KEY_KEYBOARD_CHANGED_DURATION to DEFAULT_KEYBOARD_CHANGED_ANIMATION_DURATION,
+                        KEY_KEYBOARD_CHANGED_CURVE to DEFAULT_KEYBOARD_CHANGED_ANIMATION_CURVE
+                    )
+                )
+            }
+        }
+        pageKeyboardStatusListener?.let { listener ->
+            keyboardModule.addListener(listener)
+            logImePhase1("registerPageKeyboardListenerIfNeed success: listener=${listener.hashCode()}")
+        }
+    }
+
+    private fun unregisterPageKeyboardListener() {
+        val listener = pageKeyboardStatusListener ?: return
+        logImePhase1("unregisterPageKeyboardListener listener=${listener.hashCode()}, lastHeight=$pageKeyboardHeight")
+        module<KRKeyboardModule>(KRKeyboardModule.MODULE_NAME)?.removeListener(listener)
+        pageKeyboardStatusListener = null
+        pageKeyboardHeight = Int.MIN_VALUE
     }
 
     fun registerCallback(callback: IKuiklyRenderViewLifecycleCallback) {
@@ -620,6 +687,10 @@ class KuiklyRenderView(
         return delegate?.debugLogEnable() == true
     }
 
+    private fun logImePhase1(message: String) {
+        KuiklyRenderLog.i(TAG, "[IME_PHASE1][Android][$pageName][${hashCode()}] $message")
+    }
+
     companion object {
         private var _lazyClipChildren: Boolean = false
         internal val lazyClipChildren: Boolean get() = _lazyClipChildren
@@ -658,6 +729,11 @@ class KuiklyRenderView(
         private const val ACCESSIBILITY_RUNNING = "isAccessibilityRunning" // 无障碍化是否开启
 
         private const val ON_BACK_PRESSED = "onBackPressed"
+        private const val EVENT_IME_INSETS_CHANGED = "imeInsetsDidChanged"
+        private const val KEY_KEYBOARD_CHANGED_DURATION = "duration"
+        private const val KEY_KEYBOARD_CHANGED_CURVE = "curve"
+        private const val DEFAULT_KEYBOARD_CHANGED_ANIMATION_DURATION = 250
+        private const val DEFAULT_KEYBOARD_CHANGED_ANIMATION_CURVE = 0
 
         // RenderView 生命周期状态
         private const val STATE_INIT = 0

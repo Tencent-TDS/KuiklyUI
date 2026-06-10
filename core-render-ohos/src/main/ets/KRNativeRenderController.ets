@@ -46,6 +46,7 @@ export const KRPageDidAppearEventKey = 'viewDidAppear';
 export const KRPageDidDisappearEventKey = 'viewDidDisappear';
 
 export const KRConfigurationUpdateEventKey = 'configurationDidChanged';
+export const KRImeInsetsDidChangedEventKey = 'imeInsetsDidChanged';
 
 /** 字典key常量 */
 export const KRRootViewWidthKey = 'rootViewWidth';
@@ -75,6 +76,8 @@ export const KRParamKey = 'param';
 export const KRWidthKey = 'width';
 
 export const KRHeightKey = 'height';
+export const KRDurationKey = 'duration';
+export const KRCurveKey = 'curve';
 
 export const KRNativeBuild = 'nativeBuild';
 
@@ -170,6 +173,7 @@ export class KRNativeRenderController {
   private updateSafeInsetsHandler: number = 0;
   private windowClass: window.Window | null = null;
   private destroyed: boolean = false;
+  private imeBottomHeight: number = -1;
   private onWindowSizeChanged: Callback<window.Size> = (params: window.Size) => {
     if (this.imeMode) {
       return;
@@ -275,6 +279,10 @@ export class KRNativeRenderController {
       this.onSafeAreaInsetsChanged(this.getSafeAreaRect(this.windowClass!));
       this.windowClass!.on('avoidAreaChange', this.avoidAreaListener);
       this.windowClass!.on('windowSizeChange', this.onWindowSizeChanged);
+      const windowInfo = KRNativeManager.getInstance().getWindowInfo(this.windowId);
+      if (windowInfo != undefined) {
+        this.imeBottomHeight = windowInfo.getCurrentKeyboardHeight();
+      }
     }
   }
 
@@ -307,6 +315,25 @@ export class KRNativeRenderController {
     data[KRWidthKey] = width;
     data[KRHeightKey] = height;
     render.sendEvent(this.instanceId, KRWindowSizeDidChangedEventKey, JSON.stringify(data));
+  }
+
+  onKeyboardHeightChanged(height: number, duration: number) {
+    this.notifyImeInsetsChanged(height, duration);
+  }
+
+  private notifyImeInsetsChanged(height: number, duration: number = 250, curve: number = 0) {
+    if (this.imeBottomHeight === height) {
+      return;
+    }
+    this.imeBottomHeight = height;
+    const resolvedDuration = duration > 0 ? duration : 250;
+    const resolvedCurve = curve >= 0 ? curve : 0;
+    const data: KRRecord = {};
+    data[KRHeightKey] = height;
+    data[KRDurationKey] = resolvedDuration;
+    data[KRCurveKey] = resolvedCurve;
+    // 复用现有窗口级 keyboardHeightChange 来源，把页面级 IME 状态补发给 pager 事件通道。
+    this.sendEvent(KRImeInsetsDidChangedEventKey, data);
   }
 
   paramsReady(): boolean {
@@ -445,6 +472,7 @@ export class KRNativeRenderController {
 
   onAboutToDisappear() {
     this.destroyed = true;
+    this.imeBottomHeight = -1;
     try {
       if (this.windowClass) {
         this.windowClass.off('avoidAreaChange', this.avoidAreaListener);
@@ -466,6 +494,11 @@ export class KRNativeRenderController {
 
   onPageShow() {
     this.doOnPageShow();
+
+    const windowInfo = KRNativeManager.getInstance().getWindowInfo(this.windowId);
+    if (windowInfo != undefined) {
+      this.notifyImeInsetsChanged(windowInfo.getCurrentKeyboardHeight());
+    }
 
     if (this.didInit && !this.destroyed) {
       const newDensity = this.getWindowActiveDensity();

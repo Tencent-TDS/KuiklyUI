@@ -457,7 +457,26 @@ void KRScrollerView::SetContentInset(const std::shared_ptr<KRScrollerContentInse
             pending_content_inset_margin_ = content_inset;
             kuikly::util::SetArkUIContentOffset(GetNode(), target_offset.x, target_offset.y, true, 0, 0);
         } else {
-            kuikly::util::SetArkUIMargin(content_view_->GetNode(), start, top, end, bottom);
+            // offset 在合法范围内，保留原始动画效果平滑设置 margin
+            auto root_view = GetRootView().lock();
+            if (!root_view) {
+                kuikly::util::SetArkUIMargin(content_view_->GetNode(), start, top, end, bottom);
+            } else {
+                auto animate_option = std::make_shared<KRAnimateOption>();
+                animate_option->SetDuration(200);
+                content_inset_animate_ = std::make_shared<KRAnimation>(
+                    root_view->GetUIContextHandle(), animate_option, [this, top, start, bottom, end]() {
+                        kuikly::util::SetArkUIMargin(content_view_->GetNode(), start, top, end, bottom);
+                    });
+                std::weak_ptr<KRScrollerView> weakSelf = std::dynamic_pointer_cast<KRScrollerView>(shared_from_this());
+                content_inset_animate_->SetCompleteCallback(
+                    ArkUI_FinishCallbackType::ARKUI_FINISH_CALLBACK_LOGICALLY, [weakSelf]() {
+                        if (std::shared_ptr<KRScrollerView> strongSelf = weakSelf.lock()) {
+                            strongSelf->content_inset_animate_ = nullptr;
+                        }
+                    });
+                content_inset_animate_->Start();
+            }
         }
     } else {
         kuikly::util::SetArkUIMargin(content_view_->GetNode(), start, top, end, bottom);

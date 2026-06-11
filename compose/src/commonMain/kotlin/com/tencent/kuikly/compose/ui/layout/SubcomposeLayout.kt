@@ -90,6 +90,8 @@ import com.tencent.kuikly.core.views.ScrollerAttr
 import com.tencent.kuikly.core.views.ScrollerEvent
 import com.tencent.kuikly.core.views.ScrollerView
 import com.tencent.kuikly.compose.scroller.animateScrollToTop
+import com.tencent.kuikly.compose.scroller.applyScrollViewOffsetDelta
+import com.tencent.kuikly.compose.scroller.shouldRejectNativeScrollOffset
 import com.tencent.kuikly.compose.scroller.calculateAndUpdateContentSize
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -295,6 +297,18 @@ fun SubcomposeLayout(
             scroll {
                 val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
                 val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
+
+                // Reject unexpected native offset jumps (e.g. HarmonyOS HandleCrashTop).
+                // Correct the native side back and skip this event entirely to prevent
+                // compose state pollution.
+                if (scrollableState.shouldRejectNativeScrollOffset(offset)) {
+                    val correctOffset = kuiklyInfo.contentOffset
+                    val delta = correctOffset - offset
+                    if (delta != 0) {
+                        scrollableState.applyScrollViewOffsetDelta(delta)
+                    }
+                    return@scroll
+                }
 
                 val prevOffset = kuiklyInfo.contentOffset
                 kuiklyInfo.contentOffset = offset

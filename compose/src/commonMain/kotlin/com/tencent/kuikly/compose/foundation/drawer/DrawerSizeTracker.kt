@@ -37,6 +37,12 @@ internal class DrawerSizeTracker(
     // prefixSums[i] = offset to the START of page i (sum of sizes[0..i-1] + spacings)
     private var prefixSums: LongArray = LongArray(0)
 
+    // Last known density so we can eagerly recompute when the cache is dirty
+    // and a lookup is requested before the next measure pass.
+    private var lastDensity: Density? = null
+    // Preserved across invalidate() so we can recompute without waiting for measure.
+    private var lastAvailableSpace: Int = -1
+
     /**
      * Ensures the size cache is valid for the given parameters. Call before any lookup.
      */
@@ -46,11 +52,22 @@ internal class DrawerSizeTracker(
         availableSpace: Int,
         spacing: Int
     ) {
+        lastDensity = density
+        lastAvailableSpace = availableSpace
         if (pageCount == cachedPageCount &&
             availableSpace == cachedAvailableSpace &&
             spacing == cachedSpacing
         ) return
 
+        recompute(density, pageCount, availableSpace, spacing)
+    }
+
+    private fun recompute(
+        density: Density,
+        pageCount: Int,
+        availableSpace: Int,
+        spacing: Int
+    ) {
         cachedPageCount = pageCount
         cachedAvailableSpace = availableSpace
         cachedSpacing = spacing
@@ -70,7 +87,22 @@ internal class DrawerSizeTracker(
         }
     }
 
+    /**
+     * If the cache was invalidated (e.g. by [invalidate] after a pageSizeProvider change),
+     * eagerly recompute using the last known parameters so that lookups return fresh values
+     * even before the next measure pass. This prevents stale offsets from being used in
+     * progress calculations between composition and measurement.
+     */
+    private fun ensureFreshIfDirty() {
+        if (cachedAvailableSpace != -1) return
+        val density = lastDensity ?: return
+        val space = lastAvailableSpace
+        if (space <= 0) return
+        recompute(density, cachedPageCount, space, cachedSpacing.coerceAtLeast(0))
+    }
+
     fun getPageSize(pageIndex: Int): Int {
+        ensureFreshIfDirty()
         if (pageIndex !in cachedSizes.indices) return 0
         return cachedSizes[pageIndex]
     }
@@ -83,6 +115,7 @@ internal class DrawerSizeTracker(
      * Returns the pixel offset to the start of [pageIndex].
      */
     fun getOffsetForPage(pageIndex: Int): Long {
+        ensureFreshIfDirty()
         if (prefixSums.isEmpty()) return 0L
         val clamped = pageIndex.coerceIn(0, cachedPageCount)
         return prefixSums[clamped]
@@ -92,6 +125,7 @@ internal class DrawerSizeTracker(
      * Total content size = sum of all page sizes + (pageCount - 1) * spacing.
      */
     fun getTotalContentSize(): Long {
+        ensureFreshIfDirty()
         if (cachedPageCount <= 0 || prefixSums.isEmpty()) return 0L
         // prefixSums[pageCount] includes an extra spacing at the end, so subtract it
         return prefixSums[cachedPageCount] - cachedSpacing.coerceAtLeast(0)
@@ -102,6 +136,7 @@ internal class DrawerSizeTracker(
      * @return Pair(pageIndex, remainderOffset within that page)
      */
     fun getPageForOffset(offset: Long): Pair<Int, Int> {
+        ensureFreshIfDirty()
         if (cachedPageCount <= 0 || prefixSums.isEmpty()) return Pair(0, 0)
         if (offset <= 0) return Pair(0, 0)
 

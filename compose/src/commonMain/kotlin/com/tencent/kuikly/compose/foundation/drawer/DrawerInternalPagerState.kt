@@ -276,6 +276,28 @@ abstract class DrawerInternalPagerState internal constructor(
         return abs(contentOffset - snapTargetContentOffset) <= SNAP_TARGET_OFFSET_TOLERANCE
     }
 
+    /**
+     * Detects unexpected native scroll offset jumps (e.g. HarmonyOS HandleCrashTop()
+     * resetting the horizontal offset to 0). Returns true only when the native offset
+     * has been reset to near-zero while compose is settled on a distant page boundary,
+     * which is the specific signature of HandleCrashTop boundary correction.
+     *
+     * This does NOT reject gradual offset changes from user swipe gestures, which
+     * produce incremental deltas even when starting from a page boundary.
+     */
+    internal fun shouldRejectNativeScrollOffset(newOffset: Int): Boolean {
+        if (isScrollInProgress || isSnapAnimating) return false
+        val composeOffset = currentAbsoluteScrollOffset().toInt()
+        if (!isPageBoundaryOffset(composeOffset)) return false
+        // Only reject if native offset jumped to near-zero (HandleCrashTop signature)
+        // while compose is on a non-zero page boundary. User swipes produce gradual
+        // offset changes (e.g. 795→779→751→...), never an instantaneous jump to 0.
+        val page0Offset = pageBoundaryOffset(0).toInt()
+        val isNativeAtPage0 = abs(newOffset - page0Offset) <= SNAP_TARGET_OFFSET_TOLERANCE
+        val isComposeAwayFromPage0 = abs(composeOffset - page0Offset) > SNAP_TARGET_OFFSET_TOLERANCE
+        return isNativeAtPage0 && isComposeAwayFromPage0
+    }
+
     internal fun onNativeContentOffsetChanged(contentOffset: Int) {
         if (!isSnapAnimating || snapTargetReachedAlignmentRequested) return
         if (!hasSnapReachedTarget(contentOffset)) return
@@ -713,11 +735,35 @@ abstract class DrawerInternalPagerState internal constructor(
 
         val nativePage = nearestPageForOffset(contentOffset)
         val nativeBoundaryOffset = pageBoundaryOffset(nativePage).toInt()
+
+        // When nativePage differs from currentPage, compare distances to both
+        // page boundaries. In fullScreen mode adjacent pages have equal sizes,
+        // so an offset like 1079 (page size 1080) falls inside page 0's range
+        // but is only 1px from page 1's boundary. Preferring the closer boundary
+        // avoids unwanted page jumps regardless of device density or rounding.
+        val targetPage: Int
+        val targetBoundary: Int
+        if (nativePage != currentPage) {
+            val currentPageBoundary = pageBoundaryOffset(currentPage).toInt()
+            val distToCurrentPage = abs(contentOffset - currentPageBoundary)
+            val distToNativePage = abs(contentOffset - nativeBoundaryOffset)
+            if (distToCurrentPage <= distToNativePage) {
+                targetPage = currentPage
+                targetBoundary = currentPageBoundary
+            } else {
+                targetPage = nativePage
+                targetBoundary = nativeBoundaryOffset
+            }
+        } else {
+            targetPage = nativePage
+            targetBoundary = nativeBoundaryOffset
+        }
+
         if (!isPageBoundaryOffset(contentOffset)) {
-            val delta = nativeBoundaryOffset - contentOffset
+            val delta = targetBoundary - contentOffset
             applyScrollViewOffsetDelta(delta)
         }
-        scrollPosition.requestPositionAndForgetLastKnownKey(nativePage, 0f)
+        scrollPosition.requestPositionAndForgetLastKnownKey(targetPage, 0f)
         return true
     }
 

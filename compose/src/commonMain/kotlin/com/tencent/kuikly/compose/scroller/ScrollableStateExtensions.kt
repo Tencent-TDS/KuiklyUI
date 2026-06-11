@@ -146,6 +146,17 @@ internal suspend fun ScrollableState.animateScrollToTop() {
 }
 
 /**
+ * Check if the native scroll offset should be rejected.
+ * Currently only DrawerInternalPagerState can reject offsets (to guard against
+ * platform-level offset resets such as HarmonyOS HandleCrashTop()).
+ * Returns true if the offset should be ignored and the native side corrected back.
+ */
+internal fun ScrollableState.shouldRejectNativeScrollOffset(newOffset: Int): Boolean = when (this) {
+    is DrawerInternalPagerState -> shouldRejectNativeScrollOffset(newOffset)
+    else -> false
+}
+
+/**
  * Apply scroll view offset delta
  */
 internal fun ScrollableState.applyScrollViewOffsetDelta(delta: Int) {

@@ -136,6 +136,8 @@ class KRScrollerView : public IKRRenderViewExport {
     void AdjustHeaderBouncesEnableWhenWillScroll(ArkUI_NodeEvent *event);
     void DispatchDidScrollToObservers(KRPoint point);
     bool SetFlingEnable(bool enable);
+    KRPoint MaxContentOffsetInContentInset(const std::shared_ptr<KRScrollerContentInset> &content_inset);
+    void ApplyPendingContentInsetMargin();
 
  private:
     KRRenderCallback on_scroll_callback_ = nullptr;
@@ -171,6 +173,8 @@ class KRScrollerView : public IKRRenderViewExport {
     bool is_fling_enabled_ = true;
     float last_fired_scroll_x_ = 0;
     float last_fired_scroll_y_ = 0;
+    bool direction_row_ = false;
+    std::shared_ptr<KRScrollerContentInset> pending_content_inset_margin_;
 };
 
 #endif  // CORE_RENDER_OHOS_KRSCROLLERVIEW_H

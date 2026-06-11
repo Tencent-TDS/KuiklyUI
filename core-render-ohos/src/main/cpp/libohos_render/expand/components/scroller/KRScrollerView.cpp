@@ -451,7 +451,7 @@ void KRScrollerView::SetContentInset(const std::shared_ptr<KRScrollerContentInse
         auto current_offset = GetContentOffset();
         auto target_offset = MaxContentOffsetInContentInset(content_inset);
         if (target_offset.x != current_offset.x || target_offset.y != current_offset.y) {
-            kuikly::util::SetArkUIContentOffset(GetNode(), target_offset.x, target_offset.y, false, 0, 0);
+            kuikly::util::SetArkUIContentOffset(GetNode(), target_offset.x, target_offset.y, true, 0, 0);
         }
         // 再用原有动画逻辑设置 margin
         auto root_view = GetRootView().lock();

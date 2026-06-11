@@ -304,7 +304,6 @@ void KRScrollerView::OnDestroy() {
         return;
     }
     content_view_ = nullptr;
-    pending_content_inset_margin_ = nullptr;
     scroll_observers_.clear();
 }
 
@@ -448,35 +447,31 @@ void KRScrollerView::SetContentInset(const std::shared_ptr<KRScrollerContentInse
     auto end = content_inset->end;
     auto animate = content_inset->animate;
     if (animate) {
-        // 对齐 iOS 逻辑：若当前 offset 超出新 inset 的合法范围，先用动画滚回合法位置，再设置 margin
+        // 对齐 iOS 逻辑：若当前 offset 超出新 inset 的合法范围，先滚回合法位置
         auto current_offset = GetContentOffset();
         auto target_offset = MaxContentOffsetInContentInset(content_inset);
-        bool need_scroll_back = (target_offset.x != current_offset.x || target_offset.y != current_offset.y);
-        if (need_scroll_back) {
-            // 先滚回合法 offset，滚动结束后在 OnScrollStop 中应用 margin
-            pending_content_inset_margin_ = content_inset;
-            kuikly::util::SetArkUIContentOffset(GetNode(), target_offset.x, target_offset.y, true, 0, 0);
+        if (target_offset.x != current_offset.x || target_offset.y != current_offset.y) {
+            kuikly::util::SetArkUIContentOffset(GetNode(), target_offset.x, target_offset.y, false, 0, 0);
+        }
+        // 再用原有动画逻辑设置 margin
+        auto root_view = GetRootView().lock();
+        if (!root_view) {
+            kuikly::util::SetArkUIMargin(content_view_->GetNode(), start, top, end, bottom);
         } else {
-            // offset 在合法范围内，保留原始动画效果平滑设置 margin
-            auto root_view = GetRootView().lock();
-            if (!root_view) {
-                kuikly::util::SetArkUIMargin(content_view_->GetNode(), start, top, end, bottom);
-            } else {
-                auto animate_option = std::make_shared<KRAnimateOption>();
-                animate_option->SetDuration(200);
-                content_inset_animate_ = std::make_shared<KRAnimation>(
-                    root_view->GetUIContextHandle(), animate_option, [this, top, start, bottom, end]() {
-                        kuikly::util::SetArkUIMargin(content_view_->GetNode(), start, top, end, bottom);
-                    });
-                std::weak_ptr<KRScrollerView> weakSelf = std::dynamic_pointer_cast<KRScrollerView>(shared_from_this());
-                content_inset_animate_->SetCompleteCallback(
-                    ArkUI_FinishCallbackType::ARKUI_FINISH_CALLBACK_LOGICALLY, [weakSelf]() {
-                        if (std::shared_ptr<KRScrollerView> strongSelf = weakSelf.lock()) {
-                            strongSelf->content_inset_animate_ = nullptr;
-                        }
-                    });
-                content_inset_animate_->Start();
-            }
+            auto animate_option = std::make_shared<KRAnimateOption>();
+            animate_option->SetDuration(200);
+            content_inset_animate_ = std::make_shared<KRAnimation>(
+                root_view->GetUIContextHandle(), animate_option, [this, top, start, bottom, end]() {
+                    kuikly::util::SetArkUIMargin(content_view_->GetNode(), start, top, end, bottom);
+                });
+            std::weak_ptr<KRScrollerView> weakSelf = std::dynamic_pointer_cast<KRScrollerView>(shared_from_this());
+            content_inset_animate_->SetCompleteCallback(
+                ArkUI_FinishCallbackType::ARKUI_FINISH_CALLBACK_LOGICALLY, [weakSelf]() {
+                    if (std::shared_ptr<KRScrollerView> strongSelf = weakSelf.lock()) {
+                        strongSelf->content_inset_animate_ = nullptr;
+                    }
+                });
+            content_inset_animate_->Start();
         }
     } else {
         kuikly::util::SetArkUIMargin(content_view_->GetNode(), start, top, end, bottom);
@@ -529,15 +524,6 @@ KRPoint KRScrollerView::MaxContentOffsetInContentInset(
     return current_offset;
 }
 
-void KRScrollerView::ApplyPendingContentInsetMargin() {
-    if (!pending_content_inset_margin_ || !content_view_) {
-        return;
-    }
-    auto inset = pending_content_inset_margin_;
-    pending_content_inset_margin_ = nullptr;
-    kuikly::util::SetArkUIMargin(content_view_->GetNode(), inset->start, inset->top, inset->end, inset->bottom);
-}
-
 void KRScrollerView::OnScrollFrameBegin(ArkUI_NodeEvent *event) {
     auto scroll_state = kuikly::util::GetArkUIScrollerState(event, 1);
     if (current_scroll_state_ == scroll_state) {
@@ -574,7 +560,6 @@ void KRScrollerView::OnScrollFrameBegin(ArkUI_NodeEvent *event) {
 
 void KRScrollerView::OnScrollStop(ArkUI_NodeEvent *event) {
     current_scroll_state_ = ArkUI_ScrollState::ARKUI_SCROLL_STATE_IDLE;
-    ApplyPendingContentInsetMargin();
     if (is_dragging_) {
         OnWillDragEnd(event);
     }
@@ -765,7 +750,6 @@ void KRScrollerView::PrepareForComposeReuse() {
     current_bounces_enabled_ = false;
     // Clear PullToRefresh residual
     content_inset_when_drag_end_ = nullptr;
-    pending_content_inset_margin_ = nullptr;
     // Reset velocity calculation state
     last_scroll_time_ = 0;
     last_scroll_x_ = 0;
@@ -779,9 +763,6 @@ void KRScrollerView::AbortContentOffsetAnimate() {
     if (content_inset_animate_) {
         content_inset_animate_ = nullptr;
     }
-
-    // abort 后 OnScrollStop 可能不触发，立即应用挂起的 margin
-    ApplyPendingContentInsetMargin();
 
     // 停止滚动：通过 scrollBy(0, 0) 来停止当前的滚动/Fling 动画
     ArkUI_NumberValue values[] = {{.f32 = 0}, {.f32 = 0}};

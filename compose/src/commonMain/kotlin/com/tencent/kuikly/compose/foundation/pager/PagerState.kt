@@ -228,6 +228,7 @@ abstract class PagerState internal constructor(
     private var lastAlignmentOrientation: Orientation? = null
     private var lastAlignmentLayoutSize = 0
     private var lastAlignmentPageSizeWithSpacing = 0
+    private var alignScheduledPageCount = 0
 
     private var accumulator: Float = 0.0f
 
@@ -521,11 +522,14 @@ abstract class PagerState internal constructor(
         val scheduledContentOffset = kuiklyInfo.contentOffset
         val scheduledComposeOffset = currentAbsoluteScrollOffset().toInt()
         val scheduledLayoutGeneration = alignmentLayoutGeneration
+        val scheduledPageCount = pageCount
+        alignScheduledPageCount = scheduledPageCount
         pagerSnapDebugLog {
             "scheduleAlign: stateId=$debugPagerStateId orientation=$scheduledOrientation " +
                 "layoutGeneration=$scheduledLayoutGeneration " +
                 "layoutSize=$layoutSize pageSizeWithSpacing=$scheduledPageSizeWithSpacing " +
                 "contentOffset=$scheduledContentOffset composeOffset=$scheduledComposeOffset " +
+                "scheduledPageCount=$scheduledPageCount " +
                 "isSnapAnimating=$isSnapAnimating isScrollInProgress=$isScrollInProgress"
         }
         kuiklyInfo.run {
@@ -538,7 +542,8 @@ abstract class PagerState internal constructor(
                     scheduledPageSizeWithSpacing,
                     scheduledContentOffset,
                     scheduledComposeOffset,
-                    scheduledLayoutGeneration
+                    scheduledLayoutGeneration,
+                    scheduledPageCount
                 )
             }
         }
@@ -576,7 +581,8 @@ abstract class PagerState internal constructor(
         scheduledPageSizeWithSpacing: Int,
         scheduledContentOffset: Int,
         scheduledComposeOffset: Int,
-        scheduledLayoutGeneration: Int
+        scheduledLayoutGeneration: Int,
+        scheduledPageCount: Int
     ) {
         val contentOffsetInt = scrollableState.kuiklyInfo.contentOffset
 
@@ -671,7 +677,12 @@ abstract class PagerState internal constructor(
 
         updateScrollViewContentSize(layoutSize)
 
-        if (alignComposePositionToNativeBoundaryIfNeeded(composeOffsetInt, contentOffsetInt)) {
+        if (alignComposePositionToNativeBoundaryIfNeeded(
+                composeOffsetInt,
+                contentOffsetInt,
+                scheduledPageCount
+            )
+        ) {
             return
         }
 
@@ -740,41 +751,93 @@ abstract class PagerState internal constructor(
 
     private fun alignComposePositionToNativeBoundaryIfNeeded(
         composeOffset: Int,
-        contentOffset: Int
+        contentOffset: Int,
+        scheduledPageCount: Int
     ): Boolean {
         val composeOffsetOnBoundary = isPageBoundaryOffset(composeOffset)
         val shouldSkipComposeOffset = pageSizeWithSpacing != 0 &&
             !isScrollInProgress &&
             !isSnapAnimating &&
             !composeOffsetOnBoundary
+        val anchorKey = scrollPosition.anchorKey()
         pagerSnapDebugLog {
             "alignBoundaryCheck: shouldSkip=$shouldSkipComposeOffset " +
                 "stateId=$debugPagerStateId orientation=${layoutInfo.orientation} " +
                 "composeOffset=$composeOffset contentOffset=$contentOffset " +
                 "pageSizeWithSpacing=$pageSizeWithSpacing isScrollInProgress=$isScrollInProgress " +
                 "isSnapAnimating=$isSnapAnimating composeOffsetOnBoundary=$composeOffsetOnBoundary " +
-                "contentOffsetOnBoundary=${isPageBoundaryOffset(contentOffset)} currentPage=$currentPage"
+                "contentOffsetOnBoundary=${isPageBoundaryOffset(contentOffset)} currentPage=$currentPage " +
+                "anchorKey=$anchorKey scheduledPageCount=$scheduledPageCount pageCount=$pageCount"
         }
         if (!shouldSkipComposeOffset) {
             return false
         }
 
+        if (scheduledPageCount != 0 && pageCount != scheduledPageCount) {
+            pagerSnapDebugLog {
+                "alignBoundarySkippedPageCountChanged: stateId=$debugPagerStateId " +
+                    "orientation=${layoutInfo.orientation} scheduledPageCount=$scheduledPageCount " +
+                    "pageCount=$pageCount currentPage=$currentPage anchorKey=$anchorKey"
+            }
+            return false
+        }
+
         val nativePage = nearestPageForOffset(contentOffset)
-        val nativeBoundaryOffset = pageBoundaryOffset(nativePage)
+        val trustedPage = currentPage.coerceInPageRange()
+        // native > trusted: forward scroll settled on native first — must follow native, not stale key.
+        // native < trusted with large gap: prepend shifted indices while native offset is still low — keep key.
+        // native < trusted with gap 1: backward scroll or minor desync — trust native.
+        val pageGap = trustedPage - nativePage
+        val targetPage = when {
+            nativePage == trustedPage -> trustedPage
+            nativePage > trustedPage -> nativePage
+            anchorKey != null && pageGap > 1 -> trustedPage
+            else -> nativePage
+        }
+        val keepAnchorKey = anchorKey != null && targetPage == trustedPage
+        val targetBoundaryOffset = pageBoundaryOffset(targetPage)
         pagerSnapDebugLog {
             "skipNonBoundaryAlign: stateId=$debugPagerStateId orientation=${layoutInfo.orientation} " +
                 "composeOffset=$composeOffset contentOffset=$contentOffset " +
-                "nativePage=$nativePage nativeBoundaryOffset=$nativeBoundaryOffset currentPage=$currentPage"
+                "nativePage=$nativePage targetPage=$targetPage pageGap=$pageGap " +
+                "targetBoundaryOffset=$targetBoundaryOffset currentPage=$currentPage " +
+                "anchorKey=$anchorKey keepAnchorKey=$keepAnchorKey"
         }
-        if (!isPageBoundaryOffset(contentOffset)) {
-            val delta = nativeBoundaryOffset - contentOffset
-            pagerSnapDebugLog {
-                "fixNativeOffsetToBoundary: stateId=$debugPagerStateId " +
-                    "orientation=${layoutInfo.orientation} delta=$delta"
+        if (!isPageBoundaryOffset(contentOffset) || targetBoundaryOffset != contentOffset) {
+            val delta = targetBoundaryOffset - contentOffset
+            if (delta != 0) {
+                pagerSnapDebugLog {
+                    "fixNativeOffsetToBoundary: stateId=$debugPagerStateId " +
+                        "orientation=${layoutInfo.orientation} delta=$delta targetPage=$targetPage"
+                }
+                applyScrollViewOffsetDelta(delta)
             }
-            applyScrollViewOffsetDelta(delta)
         }
-        scrollPosition.requestPositionAndForgetLastKnownKey(nativePage, 0f)
+        if (keepAnchorKey) {
+            val reason = if (nativePage == trustedPage) {
+                "alignBoundaryKeepKeySamePage"
+            } else {
+                "alignBoundaryKeepKeyPrependLag"
+            }
+            pagerSnapDebugLog {
+                "$reason: stateId=$debugPagerStateId orientation=${layoutInfo.orientation} " +
+                    "nativePage=$nativePage currentPage=$trustedPage targetPage=$targetPage " +
+                    "pageGap=$pageGap anchorKey=$anchorKey"
+            }
+            scrollPosition.requestPositionAndKeepKnownKey(targetPage, 0f, anchorKey)
+        } else {
+            val reason = if (anchorKey != null) {
+                "alignBoundaryForgetKeyTrustNative"
+            } else {
+                "alignBoundaryForgetKeyNoAnchor"
+            }
+            pagerSnapDebugLog {
+                "$reason: stateId=$debugPagerStateId orientation=${layoutInfo.orientation} " +
+                    "nativePage=$nativePage currentPage=$trustedPage targetPage=$targetPage " +
+                    "pageGap=$pageGap anchorKey=$anchorKey"
+            }
+            scrollPosition.requestPositionAndForgetLastKnownKey(targetPage, 0f)
+        }
         return true
     }
 

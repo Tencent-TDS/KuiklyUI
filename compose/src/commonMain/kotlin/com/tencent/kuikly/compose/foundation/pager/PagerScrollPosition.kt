@@ -52,6 +52,8 @@ internal class PagerScrollPosition(
     /** The last know key of the page at [currentPage] position. */
     private var lastKnownCurrentPageKey: Any? = null
 
+    internal fun anchorKey(): Any? = lastKnownCurrentPageKey
+
     val nearestRangeState = LazyLayoutNearestRangeState(
         currentPage,
         NearestItemsSlidingWindowSize,

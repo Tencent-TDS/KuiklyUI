@@ -25,6 +25,15 @@ typealias NMAllResponse = (data: JSONObject, success : Boolean , errorMsg: Strin
 typealias NMDataResponse = (data: ByteArray, success: Boolean, errorMsg: String, response: NetworkResponse) -> Unit
 
 /**
+ * SSE 流式请求事件回调。
+ *
+ * @param event 事件类型：
+ * @param data 事件数据：
+ * @param response 网络响应信息（headers、statusCode），仅在首次回调中有值，后续为 null
+ */
+typealias NMStreamEventCallback = (event: String, data: String, response: NetworkResponse?) -> Unit
+
+/**
  * 表示网络响应的数据类。
  *
  * @property headerFields 包含响应头字段的JSONObject。
@@ -216,10 +225,106 @@ class NetworkModule : Module() {
         )
     }
 
+    /**
+     * SSE 流式 HTTP 请求。
+     * @param url 请求 URL
+     * @param isPost 是否为 POST 请求
+     * @param param 请求参数（GET 时拼接到 URL，POST 时作为 body）
+     * @param headers 自定义请求头
+     * @param cookie Cookie 字符串
+     * @param timeout 超时时间（秒）
+     * @param eventCallback 流式事件回调
+     * @return StreamRequestHandle 流式请求句柄
+     */
+    fun httpStreamRequest(
+        url: String,
+        isPost: Boolean,
+        param: JSONObject? = null,
+        headers: JSONObject? = null,
+        cookie: String? = null,
+        timeout: Int = 30,
+        eventCallback: NMStreamEventCallback
+    ): StreamRequestHandle {
+        val requestId = "stream_${streamRequestIdCounter++}"
+        val params = JSONObject().apply {
+            put("url", url)
+            put("method", if (isPost) "POST" else "GET")
+            param?.also {
+                put("param", it)
+            }
+            headers?.also {
+                put("headers", it)
+            }
+            cookie?.also {
+                put("cookie", it)
+            }
+            put("timeout", timeout)
+            put("requestId", requestId)
+        }
+        val returnValue = toNative(
+            true,
+            METHOD_HTTP_STREAM_REQUEST,
+            params.toString(),
+            callback = { res ->
+                res?.also {
+                    val event = it.optString("event", "")
+                    val data = it.optString("data", "")
+                    var networkResponse: NetworkResponse? = null
+                    if (it.has("headers") || it.has("statusCode")) {
+                        val respHeaders = it.optString("headers", "{}").toJSONObjectSafely()
+                        var statusCode: Int? = null
+                        if (it.has("statusCode")) {
+                            statusCode = it.optInt("statusCode")
+                        }
+                        networkResponse = NetworkResponse(respHeaders ?: JSONObject(), statusCode)
+                    }
+                    eventCallback(event, data, networkResponse)
+                }
+            },
+            syncCall = false
+        )
+        return StreamRequestHandle(this, returnValue.callbackRef, requestId)
+    }
+
+    /**
+     * 关闭 SSE 连接。
+     */
+    class StreamRequestHandle internal constructor(
+        private val module: NetworkModule,
+        private val callbackRef: CallbackRef?,
+        private val requestId: String
+    ) {
+        private var closed = false
+
+        /**
+         * 关闭流式连接并释放资源。
+         */
+        fun close() {
+            if (closed) return
+            closed = true
+            val params = JSONObject().apply {
+                put("requestId", requestId)
+            }
+            module.toNative(
+                false,
+                METHOD_CLOSE_STREAM_REQUEST,
+                params.toString(),
+                null,
+                false
+            )
+            callbackRef?.also {
+                module.removeCallback(it)
+            }
+        }
+    }
+
     companion object {
         const val MODULE_NAME = ModuleConst.NETWORK
         private const val METHOD_HTTP_REQUEST = "httpRequest"
         private const val METHOD_HTTP_REQUEST_BINARY = "httpRequestBinary"
+        private const val METHOD_HTTP_STREAM_REQUEST = "httpStreamRequest"
+        private const val METHOD_CLOSE_STREAM_REQUEST = "closeStreamRequest"
+        private var streamRequestIdCounter = 0L
 
         private fun Any.toJSONObjectSafely(): JSONObject? {
             return when {

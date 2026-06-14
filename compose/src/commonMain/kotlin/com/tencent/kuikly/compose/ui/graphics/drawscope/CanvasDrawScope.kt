@@ -34,7 +34,10 @@ import com.tencent.kuikly.compose.ui.graphics.Path
 import com.tencent.kuikly.compose.ui.graphics.PointMode
 import com.tencent.kuikly.compose.ui.graphics.StrokeCap
 import com.tencent.kuikly.compose.ui.graphics.StrokeJoin
+import com.tencent.kuikly.compose.ui.text.TextStyle
+import com.tencent.kuikly.compose.ui.text.style.TextAlign
 import com.tencent.kuikly.compose.ui.unit.Density
+import com.tencent.kuikly.compose.ui.unit.isUnspecified
 import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
@@ -512,6 +515,32 @@ class CanvasDrawScope : DrawScope {
 //            blendMode
         )
     )
+
+    override fun drawText(
+        text: String,
+        color: Color,
+        topLeft: Offset,
+        style: TextStyle,
+        textAlign: TextAlign,
+        @FloatRange(from = 0.0, to = 1.0) alpha: Float,
+        drawStyle: DrawStyle
+    ) {
+        val canvas = drawParams.canvas
+        canvas.save()
+        canvas.setTextAlign(textAlign.value)
+        val fontSize = if (style.fontSize.isUnspecified) 15f else style.fontSize.toPx()
+        val family = style.fontFamily?.toString() ?: ""
+        val weight = style.fontWeight?.weight?.toString() ?: "400"
+        val fontStyle = style.fontStyle?.toString() ?: "normal"
+        canvas.setFont(fontSize, family, weight, fontStyle)
+        canvas.drawText(
+            text,
+            topLeft.x,
+            topLeft.y + fontSize,
+            configurePaint(color, drawStyle, alpha)
+        )
+        canvas.restore()
+    }
 
     /**
      * Draws into the provided [Canvas] with the commands specified in the lambda with this

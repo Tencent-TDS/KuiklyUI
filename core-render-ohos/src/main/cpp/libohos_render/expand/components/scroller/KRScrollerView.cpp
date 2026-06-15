@@ -342,8 +342,8 @@ bool KRScrollerView::SetScrollEnabled(const KRAnyValue &value) {
 }
 
 bool KRScrollerView::SetScrollDirection(const KRAnyValue &value) {
-    auto direction_row = value->toBool();
-    kuikly::util::SetArkUIScrollDirection(GetNode(), direction_row);
+    direction_row_ = value->toBool();
+    kuikly::util::SetArkUIScrollDirection(GetNode(), direction_row_);
     return true;
 }
 
@@ -447,10 +447,16 @@ void KRScrollerView::SetContentInset(const std::shared_ptr<KRScrollerContentInse
     auto end = content_inset->end;
     auto animate = content_inset->animate;
     if (animate) {
+        // 对齐 iOS 逻辑：若当前 offset 超出新 inset 的合法范围，先滚回合法位置
+        auto current_offset = GetContentOffset();
+        auto target_offset = MaxContentOffsetInContentInset(content_inset);
+        if (target_offset.x != current_offset.x || target_offset.y != current_offset.y) {
+            kuikly::util::SetArkUIContentOffset(GetNode(), target_offset.x, target_offset.y, true, 0, 0);
+        }
+        // 再用原有动画逻辑设置 margin
         auto root_view = GetRootView().lock();
         if (!root_view) {
             kuikly::util::SetArkUIMargin(content_view_->GetNode(), start, top, end, bottom);
-            return;
         } else {
             auto animate_option = std::make_shared<KRAnimateOption>();
             animate_option->SetDuration(200);
@@ -470,6 +476,52 @@ void KRScrollerView::SetContentInset(const std::shared_ptr<KRScrollerContentInse
     } else {
         kuikly::util::SetArkUIMargin(content_view_->GetNode(), start, top, end, bottom);
     }
+}
+
+// 计算在指定 contentInset 下 offset 的合法位置（对齐 iOS p_maxContentOffsetInContentInset）
+KRPoint KRScrollerView::MaxContentOffsetInContentInset(
+    const std::shared_ptr<KRScrollerContentInset> &content_inset) {
+    if (!content_view_) {
+        return KRPoint();
+    }
+
+    auto frame = GetFrame();
+    auto content_frame = content_view_->GetFrame();
+    auto current_offset = GetContentOffset();
+
+    if (direction_row_) {
+        float content_size = content_frame.width;
+        float frame_size = frame.width;
+        if (content_size <= frame_size) {
+            return KRPoint();
+        }
+        // 上/左越界：offset 滚到了 inset 头部之前
+        if (current_offset.x < -content_inset->start) {
+            return KRPoint{-content_inset->start, 0};
+        }
+        // 下/右越界：offset 滚过了内容尾部
+        float max_offset = content_size + content_inset->end - frame_size;
+        if (current_offset.x > max_offset) {
+            return KRPoint{max_offset, 0};
+        }
+    } else {
+        float content_size = content_frame.height;
+        float frame_size = frame.height;
+        if (content_size <= frame_size) {
+            return KRPoint();
+        }
+        // 上越界
+        if (current_offset.y < -content_inset->top) {
+            return KRPoint{0, -content_inset->top};
+        }
+        // 下越界
+        float max_offset = content_size + content_inset->bottom - frame_size;
+        if (current_offset.y > max_offset) {
+            return KRPoint{0, max_offset};
+        }
+    }
+
+    return current_offset;
 }
 
 void KRScrollerView::OnScrollFrameBegin(ArkUI_NodeEvent *event) {
@@ -711,7 +763,7 @@ void KRScrollerView::AbortContentOffsetAnimate() {
     if (content_inset_animate_) {
         content_inset_animate_ = nullptr;
     }
-    
+
     // 停止滚动：通过 scrollBy(0, 0) 来停止当前的滚动/Fling 动画
     ArkUI_NumberValue values[] = {{.f32 = 0}, {.f32 = 0}};
     ArkUI_AttributeItem item = {values, 2};

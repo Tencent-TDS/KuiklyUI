@@ -879,7 +879,8 @@ void SetArkUIContentOffset(ArkUI_NodeHandle handle, float offset_x, float offset
         {.i32 = duration},
         {.i32 = curve == 0 ? ARKUI_CURVE_EASE : ARKUI_CURVE_LINEAR},
         {.i32 = enableDefaultSpringAnimation},  // whether to enable the default spring animation
-        {.i32 = 1}                              // whether scrolling can cross the boundary
+        {.i32 = 1},                             // whether scrolling can cross the boundary
+        {.i32 = 1}                              // whether the component can stop at an overscrolled position (API 20+)
     };
     ArkUI_AttributeItem item = {value, sizeof(value) / sizeof(ArkUI_NumberValue)};
     GetNodeApi()->setAttribute(handle, NODE_SCROLL_OFFSET, &item);

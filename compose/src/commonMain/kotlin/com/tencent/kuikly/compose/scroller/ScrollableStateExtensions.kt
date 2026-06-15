@@ -87,8 +87,13 @@ internal fun ScrollableState.kuiklyOnScrollEnd(params: ScrollParams) {
  */
 internal fun ScrollableState.isAtTop(): Boolean = when(this) {
     is LazyListState -> {
-        val pullToRefreshOffset = if (kuiklyInfo.hasPullToRefresh) 1 else 0
-        firstVisibleItemIndex <= pullToRefreshOffset && firstVisibleItemScrollOffset == 0
+        if (kuiklyInfo.hasPullToRefresh && kuiklyInfo.pullToRefreshTopInsetPx > 0) {
+            // With top inset, index=1 offset=0 means PTR padding scrolled away — not at top.
+            firstVisibleItemIndex == 0
+        } else {
+            val pullToRefreshOffset = if (kuiklyInfo.hasPullToRefresh) 1 else 0
+            firstVisibleItemIndex <= pullToRefreshOffset && firstVisibleItemScrollOffset == 0
+        }
     }
     is PagerState -> firstVisiblePage == 0 && firstVisiblePageOffset == 0
     is LazyGridState -> {

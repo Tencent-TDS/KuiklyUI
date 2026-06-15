@@ -9,32 +9,32 @@
 #
 
 # universal files
-* @iPel @elixxli @ruifanyan @luoyibu @zenipchen @zealotchen0
-/README.md @elixxli @ruifanyan
+* @iPel @elixxli @ruifanyuan @luoyibu @zenipchen @zealotchen0
+/README.md @elixxli @ruifanyuan
 /buildSrc/ @elixxli @iPel
 /androidApp/ @iPel @elixxli @zenipchen
-/core/ @iPel @zenipchen @luoyibu
+/core/ @iPel @zenipchen @luoyibu @ruifanyuan
 /compose/ @luoyibu @iPel @zenipchen
 /core-annotations/ @elixxli @iPel
 /core-kapt/ @elixxli @iPel
 /core-ksp/ @elixxli @iPel
 /core-render-android/ @iPel @zenipchen
-/core-render-ios/ @luoyibu @ruifanyan
-/core-render-ohos/ @ruifanyan @iPel
+/core-render-ios/ @luoyibu @ruifanyuan
+/core-render-ohos/ @ruifanyuan @iPel
 /core-render-web/ @gguoyu @xyc-cn @zealotchen0 @elixxli @etkmao
 /h5App/ @gguoyu @xyc-cn @zealotchen0 @elixxli @etkmao
 /miniApp/ @gguoyu @xyc-cn @zealotchen0 @elixxli @etkmao
 /demo/ @iPel @zenipchen @luoyibu @etkmao
 /gradle/ @elixxli @iPel
 /img/ @iPel @elixxli
-/iosApp/ @luoyibu @ruifanyan
+/iosApp/ @luoyibu @ruifanyuan
 /*.sh @elixxli @iPel
 /*.gradle.kts @elixxli @iPel
 /CODE_OF_CONDUCT.md @iPel @luoyibu
 /CONTRIBUTING.md @iPel @luoyibu
 /LICENSE @iPel @luoyibu
 /README* @iPel @luoyibu
-/OpenKuiklyIOSRender.podspec @luoyibu @ruifanyan
+/OpenKuiklyIOSRender.podspec @luoyibu @ruifanyuan
 /gradlew*  @elixxli @iPel
 /.gitignore @iPel @elixxli
 

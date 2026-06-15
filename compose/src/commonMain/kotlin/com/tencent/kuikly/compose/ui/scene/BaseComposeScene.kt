@@ -48,6 +48,7 @@ import com.tencent.kuikly.compose.profiler.RecompositionProfiler
 import com.tencent.kuikly.compose.profiler.RecompositionTracker
 import com.tencent.kuikly.compose.ui.KuiklyCanvas
 import com.tencent.kuikly.core.exception.throwRuntimeError
+import com.tencent.kuikly.core.log.KLog
 import kotlin.concurrent.Volatile
 import kotlin.coroutines.CoroutineContext
 
@@ -201,7 +202,16 @@ internal abstract class BaseComposeScene(
 
             frameClock.sendFrame(nanoTime) // Recomposition
             doLayout() // Layout
-            recomposer.performScheduledEffects() // Composition effects (e.g. LaunchedEffect)
+            // Compose 内部状态有时会在 effect 执行期间抛出（如 Transition 在
+            // snapshotFlow 回调中读取动画列表时出现 IndexOutOfBoundsException）。
+            // 这里吞掉异常以避免帧循环崩溃。注意：FlushCoroutineDispatcher.flush()
+            // 中 forEach 一旦抛出，本批次剩余的 effect task 会丢失（不会重试），
+            // 但对动画/重组类 effect 来说，下一帧会自然重新调度，因此可接受。
+            try {
+                recomposer.performScheduledEffects() // Composition effects (e.g. LaunchedEffect)
+            } catch (e: IndexOutOfBoundsException) {
+                KLog.e("Kuikly.Compose", "performScheduledEffects failed: ${e.stackTraceToString()}")
+            }
 
             if (frameSampled) {
                 tracker?.onFrameEnd(0)

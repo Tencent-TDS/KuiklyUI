@@ -110,6 +110,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("焦点处理", "Focus焦点处理示例", "focusDemo"),
             DemoItem("TextField", "TextField 组件示例", "TextFieldDemo"),
             DemoItem("PullToRefresh", "PullToRefresh 组件示例", "PullToRefreshDemo"),
+            DemoItem("PTR Padding Bug", "Issue #1325 HeaderBar+PTR padding", "BugReproPullRefreshPaddingPage"),
             // 其他
             DemoItem("封装KuiklyView", "封装Kuikly的VideoView为一个Composeable组件示例", "ComposeVideoDemo"),
             DemoItem("iOS LiquidGlass", "iOS LiquidGlass 组件示例", "LiquidGlassComposeDemo"),

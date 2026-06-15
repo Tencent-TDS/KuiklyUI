@@ -139,6 +139,12 @@ class KuiklyScrollInfo {
         }
 
     /**
+     * Extra top inset on the pull-to-refresh lazy item in pixels,
+     * from [com.tencent.kuikly.compose.material3.pullToRefreshItem.topInset].
+     */
+    var pullToRefreshTopInsetPx: Int = 0
+
+    /**
      * Cached total number of items, used to detect changes in item count
      */
     var cachedTotalItems: Int = 0
@@ -187,6 +193,7 @@ class KuiklyScrollInfo {
         itemMainSpaceCache.clear()
         stickyItemKey = null
         cachedTotalItems = 0
+        pullToRefreshTopInsetPx = 0
     }
 
     /**

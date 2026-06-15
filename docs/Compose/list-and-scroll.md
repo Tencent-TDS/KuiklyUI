@@ -168,6 +168,36 @@ fun PullToRefreshList(data: List<String>) {
 }
 ```
 
+#### 参数说明
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `topInset` | `0.dp` | overlay HeaderBar 等场景下，PTR item 顶部的额外留白。传 **header 展开时的最大高度**，不是动画中的实时高度。框架会在 PTR item 内部自动应用等效 `padding(top)`，**请勿**再在 `modifier` 上重复设置 `padding(top = ...)`。未设置时行为与原来一致。 |
+| `refreshThreshold` | `80.dp` | 触发刷新的下拉距离 |
+
+#### overlay HeaderBar（`topInset`）
+
+常见结构：HeaderBar 浮在列表上方，列表需要顶部留白避免内容被遮挡。
+
+```kotlin
+Box(modifier = Modifier.fillMaxSize()) {
+    LazyColumn(state = listState) {
+        pullToRefreshItem(
+            state = pullToRefreshState,
+            scrollState = listState,
+            topInset = 84.dp,  // header 展开时的最大高度（如 48.dp + 36.dp）
+            onRefresh = { /* ... */ },
+        )
+        items(data) { /* ... */ }
+    }
+    HeaderBar(listState)  // overlay，折叠动画根据 listState 驱动
+}
+```
+
+`topInset` 是固定最大值；header 收起动画由 overlay 层根据 `listState` 驱动，列表里的留白会随滚动被滚走，无需让 `topInset` 跟着 header 实时变化。
+
+参考 demo：`BugReproPullRefreshPaddingPage.kt`（Issue #1325 回归页）。
+
 ## 示例：基础纵向列表（LazyColumn）
 
 ```kotlin

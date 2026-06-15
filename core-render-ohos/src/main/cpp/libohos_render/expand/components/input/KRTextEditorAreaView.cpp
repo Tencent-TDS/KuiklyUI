@@ -198,6 +198,14 @@ bool KRTextEditorAreaView::HandleValuesModeStyleProp(const std::string &prop_key
         kuikly::text_editor::ApplyPlaceholder(node, state_);
         return true;
     }
+    if (kuikly::util::isEqual(prop_key, kuikly::text_editor::kFontFamily)) {
+        state_.font_family_ = prop_value->toString();
+        UpdateFontFamilyNode(state_.font_family_);
+        kuikly::text_editor::ApplyTypingStyle(state_);
+        kuikly::text_editor::ApplyPlaceholder(node, state_);
+        RewriteValuesStyledStringFromCache();
+        return true;
+    }
     if (kuikly::util::isEqual(prop_key, kuikly::text_editor::kColor)) {
         state_.font_color_ = kuikly::util::ConvertToHexColor(prop_value->toString());
         return true;

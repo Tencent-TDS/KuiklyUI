@@ -60,7 +60,8 @@ class KRTextAreaView : public KRTextFieldView {
     uint32_t GetInputNodeSelectionStartPosition() override;
     void UpdateInputNodeSelectionStartPosition(uint32_t index) override;
     std::pair<uint32_t, uint32_t> GetInputNodeTextSelectionRange() override;
-    void UpdateInputNodePlaceholderFont(uint32_t font_size, ArkUI_FontWeight font_weight) override;
+    void UpdateInputNodePlaceholderFont(uint32_t font_size, ArkUI_FontWeight font_weight,
+                                        const std::string &font_family) override;
     void UpdateInputNodeContentText(const std::string &text) override;
 
 };

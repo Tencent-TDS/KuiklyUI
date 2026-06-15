@@ -15,6 +15,7 @@
 
 #include "libohos_render/expand/components/input/KRTextEditorFieldView.h"
 
+#include "libohos_render/expand/components/richtext/KRRichTextShadow.h"
 #include "libohos_render/manager/KRKeyboardManager.h"
 #include "libohos_render/utils/KRConvertUtil.h"
 #include "libohos_render/utils/KRStringUtil.h"
@@ -209,6 +210,10 @@ bool KRTextEditorFieldView::SetProp(const std::string &prop_key, const KRAnyValu
         state_.font_weight_ = kuikly::util::ConvertArkUIFontWeight(prop_value->toInt(), scale);
         ApplyTypingStyle(state_);
         ApplyPlaceholder(node, state_);
+        return true;
+    }
+    if (kuikly::util::isEqual(prop_key, kFontFamily)) {
+        ApplyFontFamily(prop_value->toString());
         return true;
     }
     if (kuikly::util::isEqual(prop_key, kColor)) {
@@ -1064,6 +1069,34 @@ void KRTextEditorFieldView::ApplyReturnKeyType(const std::string &type) {
     ArkUI_EnterKeyType ek = kuikly::util::ConvertToEnterKeyType(type);
     state_.enter_key_type_ = ek;
     kuikly::text_editor::UpdateEnterKeyType(GetNode(), ek);
+}
+
+void KRTextEditorFieldView::ApplyFontFamily(const std::string &font_family) {
+    state_.font_family_ = font_family;
+    UpdateFontFamilyNode(font_family);
+    kuikly::text_editor::ApplyTypingStyle(state_);
+    kuikly::text_editor::ApplyPlaceholder(GetNode(), state_);
+    if (!state_.cached_text_.empty()) {
+        kuikly::text_editor::SetStyledText(state_, state_.cached_text_);
+    }
+}
+
+void KRTextEditorFieldView::UpdateFontFamilyNode(const std::string &font_family) {
+    auto node = GetNode();
+    if (!node) {
+        return;
+    }
+    if (font_family.empty()) {
+        kuikly::util::GetNodeApi()->resetAttribute(node, NODE_FONT_FAMILY);
+    } else {
+        if (auto root = GetRootView().lock()) {
+            KRFontCollectionWrapper::GetInstance().RegisterCustomFont(
+                root->GetNativeResourceManager(), font_family);
+        }
+        ArkUI_AttributeItem item = {};
+        item.string = font_family.c_str();
+        kuikly::util::GetNodeApi()->setAttribute(node, NODE_FONT_FAMILY, &item);
+    }
 }
 
 #endif  // KUIKLY_TEXT_EDITOR_AVAILABLE

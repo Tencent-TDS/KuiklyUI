@@ -1017,12 +1017,17 @@ void UpdateInputNodeTextAlign(ArkUI_NodeHandle node, const std::string &text_ali
     GetNodeApi()->setAttribute(node, NODE_TEXT_ALIGN, &item);
 }
 
-void UpdateInputNodePlaceholderFont(ArkUI_NodeHandle node, uint32_t font_size, ArkUI_FontWeight font_weight, bool fontSizeScaleFollowSystem, float font_size_px) {
+void UpdateInputNodePlaceholderFont(ArkUI_NodeHandle node, uint32_t font_size, ArkUI_FontWeight font_weight,
+                                    bool fontSizeScaleFollowSystem, float font_size_px,
+                                    const std::string &font_family) {
     ArkUI_NumberValue fontWeight = {.i32 = font_weight};
     ArkUI_NumberValue tempStyle = {.i32 = ARKUI_FONT_STYLE_NORMAL};
     std::array<ArkUI_NumberValue, 3> value = {{{.f32 = static_cast<float>(font_size)}, tempStyle, fontWeight}};
-    ArkUI_AttributeItem item = {value.data(), value.size()};
-    GetNodeApi()->setAttribute(node, NODE_TEXT_INPUT_PLACEHOLDER_FONT, &item);
+    ArkUI_AttributeItem placeholderItem = {
+        value.data(), static_cast<int32_t>(value.size()),
+        font_family.empty() ? nullptr : font_family.c_str(), nullptr};
+    GetNodeApi()->setAttribute(node, NODE_TEXT_INPUT_PLACEHOLDER_FONT, &placeholderItem);
+    ArkUI_AttributeItem item = {value.data(), static_cast<int32_t>(value.size())};
     GetNodeApi()->setAttribute(node, NODE_FONT_SIZE, &item);
     {
         // 如果禁用输入框内字体缩放需要设置为px

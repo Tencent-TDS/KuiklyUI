@@ -263,6 +263,7 @@ static constexpr const char *kPlaceholder = "placeholder";
 static constexpr const char *kPlaceholderColor = "placeholderColor";
 static constexpr const char *kFontSize = "fontSize";
 static constexpr const char *kFontWeight = "fontWeight";
+static constexpr const char *kFontFamily = "fontFamily";
 static constexpr const char *kColor = "color";
 static constexpr const char *kEditable = "editable";
 static constexpr const char *kTintColor = "tintColor";
@@ -315,6 +316,7 @@ static constexpr int32_t kNoComposition = -1;
 struct KRTextEditorState {
     float font_size_ = 15;  // fp，默认与老实现一致
     ArkUI_FontWeight font_weight_ = ARKUI_FONT_WEIGHT_NORMAL;
+    std::string font_family_;
     uint32_t font_color_ = 0xFF000000;  // 默认黑色（老实现未显式设，这里落一个稳定默认）
     ArkUI_TextAlignment text_align_ = ARKUI_TEXT_ALIGNMENT_START;
     std::string placeholder_text_;

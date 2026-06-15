@@ -15,6 +15,7 @@
 
 #include "libohos_render/expand/components/input/KRTextFieldView.h"
 
+#include "libohos_render/expand/components/richtext/KRRichTextShadow.h"
 #include "libohos_render/manager/KRKeyboardManager.h"
 #include <algorithm>
 #include <arkui/drag_and_drop.h>
@@ -37,6 +38,7 @@ constexpr char *kPlaceholder = "placeholder";
 constexpr char *kPlaceholderColor = "placeholderColor";
 constexpr char *kFontSize = "fontSize";
 constexpr char *kFontWeight = "fontWeight";
+constexpr char *kFontFamily = "fontFamily";
 constexpr char *kColor = "color";
 constexpr char *kEditable = "editable";
 constexpr char *kTintColor = "tintColor";
@@ -83,7 +85,7 @@ void KRTextFieldView::DidInit() {
     kuikly::util::UpdateNodeBackgroundColor(GetNode(), 0);                          // 默认背景色为透明
     kuikly::util::UpdateNodeBorderRadius(GetNode(), KRBorderRadiuses(0, 0, 0, 0));  // 系统默认有圆角，此处应默认无圆角
     kuikly::util::SetArkUIPadding(GetNode(), 0, 0, 0, 0);                           // 系统默认有padding，此处应默认无padding
-    SetFont(font_size_, font_weight_);
+    SetFont(font_size_, font_weight_, font_family_);
     RegisterEvent(GetOnChangeEventType());
     
     // 默认软键盘不关闭
@@ -148,7 +150,8 @@ void KRTextFieldView::UpdateInputNodeSelectionStartPosition(uint32_t index){
     kuikly::util::UpdateInputNodeSelectionStartPosition(GetNode(), index);
 }
 
-void KRTextFieldView::UpdateInputNodePlaceholderFont(uint32_t font_size, ArkUI_FontWeight font_weight){
+void KRTextFieldView::UpdateInputNodePlaceholderFont(uint32_t font_size, ArkUI_FontWeight font_weight,
+                                                     const std::string &font_family){
     const auto &rootView = GetRootView().lock();
     bool fontSizeScaleFollowSystem = true;
     float font_size_px = 0;
@@ -156,7 +159,8 @@ void KRTextFieldView::UpdateInputNodePlaceholderFont(uint32_t font_size, ArkUI_F
         fontSizeScaleFollowSystem = rootView->GetContext()->Config()->GetFontSizeScaleFollowSystem();
         font_size_px = rootView->GetContext()->Config()->fp2px(font_size);
     }
-    kuikly::util::UpdateInputNodePlaceholderFont(GetNode(), font_size, font_weight, fontSizeScaleFollowSystem, font_size_px);
+    kuikly::util::UpdateInputNodePlaceholderFont(
+        GetNode(), font_size, font_weight, fontSizeScaleFollowSystem, font_size_px, font_family);
 }
 
 void KRTextFieldView::UpdateInputNodeContentText(const std::string &text){
@@ -181,7 +185,7 @@ bool KRTextFieldView::SetProp(const std::string &prop_key, const KRAnyValue &pro
     }
     if (kuikly::util::isEqual(prop_key, kFontSize)) {  // 字体大小
         font_size_ = prop_value->toFloat();
-        SetFont(font_size_, font_weight_);
+        SetFont(font_size_, font_weight_, font_family_);
         return true;
     }
     if (kuikly::util::isEqual(prop_key, kFontWeight)) {  // 字重
@@ -190,7 +194,12 @@ bool KRTextFieldView::SetProp(const std::string &prop_key, const KRAnyValue &pro
             scale = root->GetContext()->Config()->GetFontWeightScale();
         }
         font_weight_ = kuikly::util::ConvertArkUIFontWeight(prop_value->toInt(), scale);
-        SetFont(font_size_, font_weight_);
+        SetFont(font_size_, font_weight_, font_family_);
+        return true;
+    }
+    if (kuikly::util::isEqual(prop_key, kFontFamily)) {
+        font_family_ = prop_value->toString();
+        SetFont(font_size_, font_weight_, font_family_);
         return true;
     }
     if (kuikly::util::isEqual(prop_key, kColor)) {  // 字体颜色
@@ -568,8 +577,28 @@ void KRTextFieldView::OnTextSelectionChange(ArkUI_NodeEvent *event) {
  * @param font_size
  * @param font_weight
  */
-void KRTextFieldView::SetFont(uint32_t font_size, ArkUI_FontWeight font_weight) {
-    UpdateInputNodePlaceholderFont(font_size, font_weight);
+void KRTextFieldView::SetFont(uint32_t font_size, ArkUI_FontWeight font_weight,
+                              const std::string &font_family) {
+    UpdateInputNodeFontFamily(font_family);
+    UpdateInputNodePlaceholderFont(font_size, font_weight, font_family);
+}
+
+void KRTextFieldView::UpdateInputNodeFontFamily(const std::string &font_family) {
+    auto node = GetNode();
+    if (!node) {
+        return;
+    }
+    if (font_family.empty()) {
+        kuikly::util::GetNodeApi()->resetAttribute(node, NODE_FONT_FAMILY);
+        return;
+    }
+    if (auto root = GetRootView().lock()) {
+        KRFontCollectionWrapper::GetInstance().RegisterCustomFont(
+            root->GetNativeResourceManager(), font_family);
+    }
+    ArkUI_AttributeItem item = {};
+    item.string = font_family.c_str();
+    kuikly::util::GetNodeApi()->setAttribute(node, NODE_FONT_FAMILY, &item);
 }
 
 /******* 事件回调 ******/

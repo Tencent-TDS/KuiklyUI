@@ -115,6 +115,10 @@ class KRTextEditorFieldView : public IKRRenderViewExport {
 
     // returnKeyType 映射
     void ApplyReturnKeyType(const std::string &type);
+
+    // Keep rendered editor text aligned with shadow measurement when fontFamily changes.
+    void ApplyFontFamily(const std::string &font_family);
+    void UpdateFontFamilyNode(const std::string &font_family);
 };
 
 #endif  // KUIKLY_TEXT_EDITOR_AVAILABLE

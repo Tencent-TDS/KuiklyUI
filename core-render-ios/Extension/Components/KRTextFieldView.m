@@ -21,6 +21,7 @@
 // 字典key常量
 NSString *const KRVFontSizeKey = @"fontSize";
 NSString *const KRVFontWeightKey = @"fontWeight";
+NSString *const KRVFontFamilyKey = @"fontFamily";
 
 /*
  * @brief 暴露给Kotlin侧调用的多行输入框组件
@@ -34,6 +35,8 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  NSNumber *KUIKLY_PROP(fontSize);
 /** attr is fontWeight */
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(fontWeight);
+/** attr is fontFamily */
+@property (nonatomic, strong)  NSString *KUIKLY_PROP(fontFamily);
 /** attr is placeholder */
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(placeholder);
 /** attr is textAign */
@@ -228,12 +231,19 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 - (void)setCss_fontSize:(NSNumber *)css_fontSize {
     _css_fontSize = css_fontSize;
     self.font = [KRConvertUtil UIFont:@{KRVFontSizeKey: css_fontSize ?: @(16),
-                                        KRVFontWeightKey: _css_fontWeight ?: @"400"}];
+                                        KRVFontWeightKey: _css_fontWeight ?: @"400",
+                                        KRVFontFamilyKey: _css_fontFamily ?: @""}];
 }
 
 - (void)setCss_fontWeight:(NSString *)css_fontWeight {
     _css_fontWeight = css_fontWeight;
     [self setCss_fontSize:_css_fontSize];
+}
+
+- (void)setCss_fontFamily:(NSString *)css_fontFamily {
+    _css_fontFamily = css_fontFamily;
+    [self setCss_fontSize:_css_fontSize];
+    [self p_setNeedUpdatePlaceholder];
 }
 
 - (void)setCss_placeholder:(NSString *)css_placeholder {

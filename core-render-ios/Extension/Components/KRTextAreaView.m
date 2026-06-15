@@ -98,6 +98,10 @@ NSString *const KRFontFamilyKey = @"fontFamily";
 - (BOOL)p_shouldReapplyTextPostProcessorForIncomingRawText:(NSString *)rawText;
 - (BOOL)p_containsShortcodeToken:(NSString *)rawText;
 - (BOOL)p_shouldRejectProgrammaticShortcodeInput:(NSString *)rawText;
+- (void)p_applyValuesAttributedText;
+- (void)p_refreshAttributedTextStyleIfNeeded;
+- (void)p_updateFont;
+- (void)p_updateTypingAttributes;
 
 @end
 
@@ -226,22 +230,7 @@ NSString *const KRFontFamilyKey = @"fontFamily";
 - (void)setCss_values:(NSString *)css_values {
     if (_css_values != css_values) {
         _css_values = css_values;
-        if (_css_values.length) {
-            KRRichTextShadow *textShadow = [KRRichTextShadow new];
-            [textShadow hrv_setPropWithKey:@"textPostProcessor" propValue:NSStringFromClass([self class])];
-            for (NSString *key in _props.allKeys) {
-                [textShadow hrv_setPropWithKey:key propValue:_props[key]];
-            }
-            // 调用buildAttributedString之前，都需要设置contextParam，预防字体测量的需求
-            [textShadow hrv_setPropWithKey:@"contextParam" propValue:self.hr_rootView.contextParam];
-            UITextPosition *newPosition = [self positionFromPosition:self.beginningOfDocument offset:self.selectedRange.location];
-
-            self.attributedText =  [textShadow buildAttributedString];;
-            self.selectedTextRange = [self textRangeFromPosition:newPosition toPosition:newPosition];
-
-        } else {
-            self.attributedText = nil;
-        }
+        [self p_applyValuesAttributedText];
         [self p_updatePlaceholder];
         [self textViewDidChange:self];
     }
@@ -274,6 +263,8 @@ NSString *const KRFontFamilyKey = @"fontFamily";
 
 - (void)setCss_color:(NSNumber *)css_color {
     self.textColor = [UIView css_color:css_color];
+    [self p_updateTypingAttributes];
+    [self p_refreshAttributedTextStyleIfNeeded];
 }
 
 - (void)setCss_editable:(NSNumber *)css_editable {
@@ -286,9 +277,8 @@ NSString *const KRFontFamilyKey = @"fontFamily";
 
 - (void)setCss_fontSize:(NSNumber *)css_fontSize {
     _css_fontSize = css_fontSize;
-    self.font = [KRConvertUtil UIFont:@{KRFontSizeKey: css_fontSize ?: @(16),
-                                        KRFontWeightKey: _css_fontWeight ?: @"400",
-                                        KRFontFamilyKey: _css_fontFamily ?: @""}];
+    [self p_updateFont];
+    [self p_refreshAttributedTextStyleIfNeeded];
     [self setNeedsLayout];
 }
 
@@ -363,6 +353,36 @@ NSString *const KRFontFamilyKey = @"fontFamily";
 - (void)css_setCursorIndex:(NSDictionary *)args {
     NSUInteger index = [args[KRC_PARAM_KEY] intValue];
     [self updateCursorIndex:index];
+}
+
+- (void)css_setCursorIndexByPoint:(NSDictionary *)args {
+    NSString *params = args[KRC_PARAM_KEY];
+    NSArray<NSString *> *components = [params componentsSeparatedByString:@" "];
+    if (components.count < 2) {
+        return;
+    }
+    CGPoint point = CGPointMake([components[0] doubleValue], [components[1] doubleValue]);
+    if (![self isFirstResponder]) {
+        [self becomeFirstResponder];
+    }
+    UITextPosition *position = [self closestPositionToPoint:point];
+    if (!position) {
+        return;
+    }
+    _ignoreTextDidChanged = YES;
+    self.selectedTextRange = [self textRangeFromPosition:position toPosition:position];
+    _ignoreTextDidChanged = NO;
+    if (self.css_selectionChange) {
+        NSString *rawText = [self p_outputText];
+        NSRange outputSelectionRange = [self p_getOutputSelectionRange];
+        self.css_selectionChange(@{
+            @"text": rawText ?: @"",
+            @"selectionStart": @(outputSelectionRange.location),
+            @"selectionEnd": @(NSMaxRange(outputSelectionRange)),
+            @"compositionStart": @(-1),
+            @"compositionEnd": @(-1)
+        });
+    }
 }
 
 - (void)setCss_textInputState:(NSString *)css_textInputState {
@@ -1032,6 +1052,78 @@ NSString *const KRFontFamilyKey = @"fontFamily";
     _placeholderTextView.hidden = self.text.length > 0 || self.attributedText.length > 0;
     if (self.markedTextRange) { // 输入中
         _placeholderTextView.hidden = YES;
+    }
+}
+
+- (NSMutableDictionary *)p_fontProps {
+    NSMutableDictionary *fontProps = [@{KRFontSizeKey: _css_fontSize ?: @(16),
+                                        KRFontWeightKey: _css_fontWeight ?: @"400",
+                                        KRFontFamilyKey: _css_fontFamily ?: @""} mutableCopy];
+    id contextParam = self.hr_rootView.contextParam;
+    if (contextParam) {
+        fontProps[@"contextParam"] = contextParam;
+    }
+    return fontProps;
+}
+
+- (void)p_updateTypingAttributes {
+    NSMutableDictionary *typingAttrs = [self.typingAttributes mutableCopy] ?: [NSMutableDictionary dictionary];
+    if (self.font) {
+        typingAttrs[NSFontAttributeName] = self.font;
+    }
+    if (self.textColor) {
+        typingAttrs[NSForegroundColorAttributeName] = self.textColor;
+    }
+    self.typingAttributes = typingAttrs;
+}
+
+- (void)p_updateFont {
+    self.font = [KRConvertUtil UIFont:[self p_fontProps]];
+    [self p_updateTypingAttributes];
+}
+
+- (void)p_refreshAttributedTextStyleIfNeeded {
+    if (_css_values.length) {
+        [self p_applyValuesAttributedText];
+        return;
+    }
+    if (!self.attributedText.length) {
+        return;
+    }
+    NSMutableAttributedString *attrString = [self.attributedText mutableCopy];
+    NSRange fullRange = NSMakeRange(0, attrString.length);
+    if (self.font) {
+        [attrString addAttribute:NSFontAttributeName value:self.font range:fullRange];
+    }
+    if (self.textColor) {
+        [attrString addAttribute:NSForegroundColorAttributeName value:self.textColor range:fullRange];
+    }
+    NSRange selectedRange = self.selectedRange;
+    _ignoreTextDidChanged = YES;
+    self.attributedText = attrString;
+    if (selectedRange.location <= attrString.length) {
+        selectedRange.length = MIN(selectedRange.length, attrString.length - selectedRange.location);
+        self.selectedRange = selectedRange;
+    }
+    _ignoreTextDidChanged = NO;
+}
+
+- (void)p_applyValuesAttributedText {
+    if (_css_values.length) {
+        KRRichTextShadow *textShadow = [KRRichTextShadow new];
+        [textShadow hrv_setPropWithKey:@"textPostProcessor" propValue:NSStringFromClass([self class])];
+        for (NSString *key in _props.allKeys) {
+            [textShadow hrv_setPropWithKey:key propValue:_props[key]];
+        }
+        id contextParam = self.hr_rootView.contextParam;
+        if (contextParam) {
+            [textShadow hrv_setPropWithKey:@"contextParam" propValue:contextParam];
+        }
+        UITextPosition *newPosition = [self positionFromPosition:self.beginningOfDocument offset:self.selectedRange.location];
+        self.attributedText = [textShadow buildAttributedString];
+        self.selectedTextRange = [self textRangeFromPosition:newPosition toPosition:newPosition];
+    } else {
+        self.attributedText = nil;
     }
 }
 

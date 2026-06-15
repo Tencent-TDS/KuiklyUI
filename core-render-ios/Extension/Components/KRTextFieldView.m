@@ -82,6 +82,9 @@ NSString *const KRVFontFamilyKey = @"fontFamily";
 
 - (BOOL)p_containsShortcodeToken:(NSString *)rawText;
 - (BOOL)p_shouldRejectProgrammaticShortcodeInput:(NSString *)rawText;
+- (void)p_applyValuesAttributedText;
+- (void)p_refreshAttributedTextIfNeeded;
+- (void)p_updateFont;
 
 @end
 
@@ -163,36 +166,14 @@ NSString *const KRVFontFamilyKey = @"fontFamily";
 - (void)setCss_values:(NSString *)css_values {
     if (_css_values != css_values) {
         _css_values = css_values;
-        if (_css_values.length) {
-            KRRichTextShadow *textShadow = [KRRichTextShadow new];
-            for (NSString *key in _props.allKeys) {
-                [textShadow hrv_setPropWithKey:key propValue:_props[key]];
-            }
-            [textShadow hrv_setPropWithKey:@"contextParam" propValue:self.hr_rootView.contextParam];
-            // 保存原光标位置
-            UITextRange *originalSelectedTextRange = self.selectedTextRange;
-            // 设置新的 attributedText
-            NSAttributedString *resAttr = [textShadow buildAttributedString];
-            // NOTE: UITextField does not render NSTextAttachment images (only UITextView does).
-            // Therefore textPostProcessor with emoji/image attachment rendering is NOT supported
-            // in single-line mode (KRTextFieldView). Use KRTextAreaView for custom emoji support.
-            // The textPostProcessor call here is kept for any non-image text transformations
-            // (e.g., text masking, formatting) that do not rely on NSTextAttachment rendering.
-            if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_customTextWithAttributedString:textPostProcessor:)]) {
-                resAttr = [[KuiklyRenderBridge componentExpandHandler] hr_customTextWithAttributedString:resAttr textPostProcessor:NSStringFromClass([self class])];
-            }
-            self.attributedText = resAttr;
-            // 恢复原光标位置
-            self.selectedTextRange = originalSelectedTextRange;
-        } else {
-            self.attributedText = nil;
-        }
+        [self p_applyValuesAttributedText];
         [self onTextFeildTextChanged:self];
     }
 }
 
 - (void)setCss_color:(NSNumber *)css_color {
     self.textColor = [UIView css_color:css_color];
+    [self p_refreshAttributedTextIfNeeded];
 }
 
 - (void)setCss_tintColor:(NSNumber *)css_tintColor {
@@ -230,9 +211,8 @@ NSString *const KRVFontFamilyKey = @"fontFamily";
 
 - (void)setCss_fontSize:(NSNumber *)css_fontSize {
     _css_fontSize = css_fontSize;
-    self.font = [KRConvertUtil UIFont:@{KRVFontSizeKey: css_fontSize ?: @(16),
-                                        KRVFontWeightKey: _css_fontWeight ?: @"400",
-                                        KRVFontFamilyKey: _css_fontFamily ?: @""}];
+    [self p_updateFont];
+    [self p_refreshAttributedTextIfNeeded];
 }
 
 - (void)setCss_fontWeight:(NSString *)css_fontWeight {
@@ -321,6 +301,28 @@ NSString *const KRVFontFamilyKey = @"fontFamily";
     _ignoreSelectionChange = YES;
     self.selectedTextRange = [self textRangeFromPosition:newPosition toPosition:newPosition];
     _ignoreSelectionChange = NO;
+}
+
+- (void)css_setCursorIndexByPoint:(NSDictionary *)args {
+    NSString *params = args[KRC_PARAM_KEY];
+    NSArray<NSString *> *components = [params componentsSeparatedByString:@" "];
+    if (components.count < 2) {
+        return;
+    }
+    CGPoint point = CGPointMake([components[0] doubleValue], [components[1] doubleValue]);
+    if (![self isFirstResponder]) {
+        [self becomeFirstResponder];
+    }
+    UITextPosition *position = [self closestPositionToPoint:point];
+    if (!position) {
+        return;
+    }
+    _ignoreSelectionChange = YES;
+    self.selectedTextRange = [self textRangeFromPosition:position toPosition:position];
+    _ignoreSelectionChange = NO;
+    if (self.css_selectionChange) {
+        self.css_selectionChange([self p_currentTextInputStatePayload]);
+    }
 }
 
 - (void)css_setTextInputState:(NSDictionary *)args {
@@ -600,6 +602,50 @@ NSString *const KRVFontFamilyKey = @"fontFamily";
 - (void)p_setNeedUpdatePlaceholder {
     _setNeedUpdatePlaceholder = YES;
     [self setNeedsLayout];
+}
+
+- (NSMutableDictionary *)p_fontProps {
+    NSMutableDictionary *fontProps = [@{KRVFontSizeKey: _css_fontSize ?: @(16),
+                                        KRVFontWeightKey: _css_fontWeight ?: @"400",
+                                        KRVFontFamilyKey: _css_fontFamily ?: @""} mutableCopy];
+    id contextParam = self.hr_rootView.contextParam;
+    if (contextParam) {
+        fontProps[@"contextParam"] = contextParam;
+    }
+    return fontProps;
+}
+
+- (void)p_updateFont {
+    self.font = [KRConvertUtil UIFont:[self p_fontProps]];
+}
+
+- (void)p_refreshAttributedTextIfNeeded {
+    if (_css_values.length) {
+        [self p_applyValuesAttributedText];
+    }
+}
+
+- (void)p_applyValuesAttributedText {
+    if (_css_values.length) {
+        KRRichTextShadow *textShadow = [KRRichTextShadow new];
+        for (NSString *key in _props.allKeys) {
+            [textShadow hrv_setPropWithKey:key propValue:_props[key]];
+        }
+        id contextParam = self.hr_rootView.contextParam;
+        if (contextParam) {
+            [textShadow hrv_setPropWithKey:@"contextParam" propValue:contextParam];
+        }
+        UITextRange *originalSelectedTextRange = self.selectedTextRange;
+        NSAttributedString *resAttr = [textShadow buildAttributedString];
+        // UITextField does not render NSTextAttachment images. Use KRTextAreaView for custom emoji.
+        if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_customTextWithAttributedString:textPostProcessor:)]) {
+            resAttr = [[KuiklyRenderBridge componentExpandHandler] hr_customTextWithAttributedString:resAttr textPostProcessor:NSStringFromClass([self class])];
+        }
+        self.attributedText = resAttr;
+        self.selectedTextRange = originalSelectedTextRange;
+    } else {
+        self.attributedText = nil;
+    }
 }
 
 - (NSDictionary *)p_currentTextInputStatePayload {
@@ -924,5 +970,3 @@ NSString *const KRVFontFamilyKey = @"fontFamily";
 }
 
 @end
-
-

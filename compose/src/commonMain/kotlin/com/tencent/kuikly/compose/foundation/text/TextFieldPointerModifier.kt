@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import com.tencent.kuikly.compose.foundation.interaction.MutableInteractionSource
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.focus.FocusRequester
+import com.tencent.kuikly.compose.ui.geometry.Offset
 
 //import androidx.compose.foundation.interaction.MutableInteractionSource
 //import androidx.compose.foundation.text.selection.TextFieldSelectionManager
@@ -40,6 +41,7 @@ internal fun Modifier.textFieldPointer(
     state: LegacyTextFieldState,
     focusRequester: FocusRequester,
     readOnly: Boolean,
+    onTapPosition: ((Offset) -> Unit)? = null,
 //    offsetMapping: OffsetMapping
 ): Modifier = Modifier.defaultTextFieldPointer(
 //    manager,
@@ -48,6 +50,7 @@ internal fun Modifier.textFieldPointer(
     state,
     focusRequester,
     readOnly,
+    onTapPosition,
 //    offsetMapping,
 )
 
@@ -59,11 +62,15 @@ internal fun Modifier.defaultTextFieldPointer(
     state: LegacyTextFieldState,
     focusRequester: FocusRequester,
     readOnly: Boolean,
+    onTapPosition: ((Offset) -> Unit)? = null,
 //    offsetMapping: OffsetMapping
 ) = this
 //    .updateSelectionTouchMode { state.isInTouchMode = it }
     .tapPressTextFieldModifier(interactionSource, enabled) { offset ->
         requestFocusAndShowKeyboardIfNeeded(state, focusRequester, !readOnly)
+        if (!readOnly && (state.hasFocus || focusRequester.hasAttachedNodes())) {
+            onTapPosition?.invoke(offset)
+        }
         if (state.hasFocus && enabled) {
 //            if (state.handleState != HandleState.Selection) {
 //                state.layoutResult?.let { layoutResult ->

@@ -42,7 +42,7 @@
 #include "libohos_render/utils/KRStringUtil.h"
 #include "libohos_render/utils/KRViewUtil.h"
 
-static bool KR_TEXT_RENDER_V2_ENABLED = true;
+static bool KR_TEXT_RENDER_V2_ENABLED = false;
 #ifdef __cplusplus
 extern "C" {
 #endif

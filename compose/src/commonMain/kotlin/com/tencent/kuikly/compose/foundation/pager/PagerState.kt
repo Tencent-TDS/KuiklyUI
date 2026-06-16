@@ -74,6 +74,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.max
+import kotlin.math.min
 
 /**
  * Creates and remember a [PagerState] to be used with a [Pager]
@@ -566,9 +567,36 @@ abstract class PagerState internal constructor(
         return (offset / pageSize.toFloat()).roundToInt().coerceInPageRange()
     }
 
+    /**
+     * Scroll offset where [page] sits on its snap boundary.
+     * Last/first page must use [maxScrollOffset]/[minScrollOffset] so after/before contentPadding
+     * is not clipped when native is already at the scroll limit.
+     */
     private fun pageBoundaryOffset(page: Int): Int {
-        return page.coerceInPageRange() * pageSizeWithSpacing
+        if (pageCount == 0 || pageSizeWithSpacing == 0) {
+            return 0
+        }
+        val coercedPage = page.coerceInPageRange()
+        var offset = coercedPage * pageSizeWithSpacing
+        if (coercedPage == 0) {
+            offset = max(offset, minScrollOffset.toInt())
+        }
+        if (coercedPage == pageCount - 1) {
+            offset = min(offset, maxScrollOffset.toInt())
+        }
+        return offset
     }
+
+    private fun pageBoundaryOffsetFraction(page: Int): Float {
+        if (pageSizeWithSpacing == 0) {
+            return 0f
+        }
+        val coercedPage = page.coerceInPageRange()
+        return (pageBoundaryOffset(coercedPage) - coercedPage * pageSizeWithSpacing)
+            .toFloat() / pageSizeWithSpacing
+    }
+
+    internal fun snapScrollOffsetForPage(page: Int): Int = pageBoundaryOffset(page)
 
     private fun isPageBoundaryOffset(offset: Int): Boolean {
         val boundaryOffset = pageBoundaryOffset(nearestPageForOffset(offset))
@@ -824,7 +852,11 @@ abstract class PagerState internal constructor(
                     "nativePage=$nativePage currentPage=$trustedPage targetPage=$targetPage " +
                     "pageGap=$pageGap anchorKey=$anchorKey"
             }
-            scrollPosition.requestPositionAndKeepKnownKey(targetPage, 0f, anchorKey)
+            scrollPosition.requestPositionAndKeepKnownKey(
+                targetPage,
+                pageBoundaryOffsetFraction(targetPage),
+                anchorKey
+            )
         } else {
             val reason = if (anchorKey != null) {
                 "alignBoundaryForgetKeyTrustNative"
@@ -836,8 +868,12 @@ abstract class PagerState internal constructor(
                     "nativePage=$nativePage currentPage=$trustedPage targetPage=$targetPage " +
                     "pageGap=$pageGap anchorKey=$anchorKey"
             }
-            scrollPosition.requestPositionAndForgetLastKnownKey(targetPage, 0f)
+            scrollPosition.requestPositionAndForgetLastKnownKey(
+                targetPage,
+                pageBoundaryOffsetFraction(targetPage)
+            )
         }
+        kuiklyInfo.composeOffset = targetBoundaryOffset.toFloat()
         return true
     }
 
@@ -1313,13 +1349,13 @@ abstract class PagerState internal constructor(
         tryRunPrefetch(result)
         maxScrollOffset = result.calculateNewMaxScrollOffset(pageCount)
         minScrollOffset = result.calculateNewMinScrollOffset(pageCount)
+        val layoutSize = if (result.orientation == Orientation.Horizontal)
+            result.viewportSize.width else result.viewportSize.height
         debugLog {
             "Finished Applying Measure Result" +
                 "\nNew maxScrollOffset=$maxScrollOffset"
         }
 
-        val layoutSize = if (result.orientation == Orientation.Horizontal)
-            result.viewportSize.width else result.viewportSize.height
         updateAlignmentLayoutGeneration(result.orientation, layoutSize)
 
         scheduleScrollViewOffsetAlignment(SNAP_MEASURE_JOB_INITIAL_DELAY_MS, layoutSize)

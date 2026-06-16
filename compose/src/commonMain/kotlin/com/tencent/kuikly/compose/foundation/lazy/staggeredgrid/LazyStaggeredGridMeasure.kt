@@ -279,8 +279,14 @@ private fun LazyStaggeredGridMeasureContext.measure(
     withDebugLogging(measureScope) {
         val itemCount = itemProvider.itemCount
 
-        if (state.kuiklyInfo.cachedTotalItems > 0 && itemCount < state.kuiklyInfo.cachedTotalItems) {
-            state.kuiklyInfo.offsetDirty = true
+        // 检测 item 数量变化
+        if (state.kuiklyInfo.cachedTotalItems > 0) {
+            if (itemCount < state.kuiklyInfo.cachedTotalItems) {
+                state.kuiklyInfo.offsetDirty = true
+            } else if (itemCount > state.kuiklyInfo.cachedTotalItems) {
+                state.kuiklyInfo.realContentSize = null
+                state.tryExpandStartSizeNoScroll()
+            }
         }
         state.kuiklyInfo.cachedTotalItems = itemCount
 

@@ -161,7 +161,7 @@ private fun PagerState.handleTargetPageScroll(
 
         val maxOffset = kuiklyInfo.currentContentSize - kuiklyInfo.viewportSize
         val composeCandidateOffset = nextPage?.let { offset + it.offset }
-        val pageBoundaryOffset = pageSizeWithSpacing * targetPage
+        val pageBoundaryOffset = snapScrollOffsetForPage(targetPage)
         // Snap target selection:
         //  - Aligned (no desync): use the compose-coordinate candidate. Native and compose share the
         //    same coordinate, so this lands exactly on the next page.

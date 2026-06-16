@@ -50,7 +50,6 @@ import com.tencent.kuikly.compose.ui.layout.RemeasurementModifier
 import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.util.fastForEach
-import com.tencent.kuikly.compose.scroller.calculateContentSize
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.tryExpandStartSizeNoScroll
 import com.tencent.kuikly.compose.profiler.RecompositionProfiler
@@ -556,14 +555,6 @@ class LazyGridState @ExperimentalFoundationApi constructor(
                     to = newFirstVisible,
                     visibleItemCount = result.visibleItemsInfo.size
                 )
-            }
-        }
-
-        kuiklyInfo.run {
-            val requiredContentSize = calculateContentSize()
-            if (currentContentSize < requiredContentSize) {
-                currentContentSize = requiredContentSize
-                updateContentSizeToRender()
             }
         }
 

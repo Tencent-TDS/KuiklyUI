@@ -36,10 +36,10 @@ import com.tencent.kuikly.compose.ui.util.fastAny
 import com.tencent.kuikly.compose.ui.util.fastForEach
 import com.tencent.kuikly.compose.platform.GlobalTapManager
 import com.tencent.kuikly.compose.platform.TapEventType
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
 
 /**
  * Receiver scope for [detectTapGestures]'s `onPress` lambda. This offers
@@ -371,16 +371,15 @@ internal class PressGestureScopeImpl(
 ) : PressGestureScope, Density by density {
     private var isReleased = false
     private var isCanceled = false
-    private val mutex = Mutex(locked = false)
+    @Volatile
+    private var latch: CompletableDeferred<Unit>? = null
 
     /**
      * Called when a gesture has been canceled.
      */
     fun cancel() {
         isCanceled = true
-        if (mutex.isLocked) {
-            mutex.unlock()
-        }
+        latch?.complete(Unit)
     }
 
     /**
@@ -388,18 +387,18 @@ internal class PressGestureScopeImpl(
      */
     fun release() {
         isReleased = true
-        if (mutex.isLocked) {
-            mutex.unlock()
-        }
+        latch?.complete(Unit)
     }
 
     /**
      * Called when a new gesture has started.
      */
     suspend fun reset() {
-        mutex.lock()
+        val current = CompletableDeferred<Unit>()
+        latch = current
         isReleased = false
         isCanceled = false
+        current.await()
     }
 
     override suspend fun awaitRelease() {
@@ -410,8 +409,7 @@ internal class PressGestureScopeImpl(
 
     override suspend fun tryAwaitRelease(): Boolean {
         if (!isReleased && !isCanceled) {
-            mutex.lock()
-            mutex.unlock()
+            latch?.await()
         }
         return isReleased
     }

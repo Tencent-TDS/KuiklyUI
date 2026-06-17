@@ -525,6 +525,7 @@ internal fun CoreTextField(
                     set(selectionColors) {
                         withTextAreaView {
                             getViewAttr().selectionColor(selectionColors.backgroundColor.toKuiklyColor())
+                            getViewAttr().tintColor(selectionColors.handleColor.toKuiklyColor())
                         }
                     }
                     set(maxLength to lengthLimitType) {

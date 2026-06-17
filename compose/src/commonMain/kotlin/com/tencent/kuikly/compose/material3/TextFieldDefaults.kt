@@ -16,15 +16,6 @@
 
 package com.tencent.kuikly.compose.material3
 
-// import com.tencent.kuikly.compose.foundation.text.selection.LocalTextSelectionColors
-// import com.tencent.kuikly.compose.foundation.text.selection.TextSelectionColors
-// import com.tencent.kuikly.compose.material3.internal.CommonDecorationBox
-// import com.tencent.kuikly.compose.material3.internal.SupportingTopPadding
-// import com.tencent.kuikly.compose.material3.internal.TextFieldAnimationDuration
-// import com.tencent.kuikly.compose.material3.internal.TextFieldPadding
-// import com.tencent.kuikly.compose.material3.internal.TextFieldType
-// import com.tencent.kuikly.compose.material3.internal.animateBorderStrokeAsState
-// import com.tencent.kuikly.compose.material3.internal.textFieldBackground
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
@@ -54,6 +45,7 @@ import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.composed
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.Shape
+import com.tencent.kuikly.compose.ui.graphics.SolidColor
 import com.tencent.kuikly.compose.ui.graphics.takeOrElse
 import com.tencent.kuikly.compose.ui.platform.debugInspectorInfo
 import com.tencent.kuikly.compose.ui.text.input.VisualTransformation
@@ -671,9 +663,7 @@ object OutlinedTextFieldDefaults {
         Box(
             // TODO 目前Kuikly不支持形状
             modifier
-                .border(unfocusedBorderThickness, color = colors.containerColor(enabled, isError, focused))
-//            modifier
-// //                .border(borderStroke.value, shape)
+                .border(borderStroke.value.width, color = (borderStroke.value.brush as SolidColor).value)
                 .background(containerColor.value, shape),
         )
     }
@@ -749,6 +739,7 @@ object OutlinedTextFieldDefaults {
         prefix: @Composable (() -> Unit)? = null,
         suffix: @Composable (() -> Unit)? = null,
         supportingText: @Composable (() -> Unit)? = null,
+        shape: Shape = OutlinedTextFieldDefaults.shape,
         colors: TextFieldColors = colors(),
         contentPadding: PaddingValues = contentPadding(),
         container: @Composable () -> Unit = {
@@ -868,7 +859,7 @@ object OutlinedTextFieldDefaults {
         errorContainerColor: Color = Color.Unspecified,
         cursorColor: Color = Color.Unspecified,
         errorCursorColor: Color = Color.Unspecified,
-//        selectionColors: TextSelectionColors? = null,
+        selectionColors: TextSelectionColors? = null,
         focusedBorderColor: Color = Color.Unspecified,
         unfocusedBorderColor: Color = Color.Unspecified,
         disabledBorderColor: Color = Color.Unspecified,
@@ -913,7 +904,7 @@ object OutlinedTextFieldDefaults {
             errorContainerColor = errorContainerColor,
             cursorColor = cursorColor,
             errorCursorColor = errorCursorColor,
-//            textSelectionColors = selectionColors,
+            textSelectionColors = selectionColors,
             focusedIndicatorColor = focusedBorderColor,
             unfocusedIndicatorColor = unfocusedBorderColor,
             disabledIndicatorColor = disabledBorderColor,
@@ -1486,7 +1477,7 @@ class TextFieldColors
             if (errorContainerColor != other.errorContainerColor) return false
             if (cursorColor != other.cursorColor) return false
             if (errorCursorColor != other.errorCursorColor) return false
-//        if (textSelectionColors != other.textSelectionColors) return false
+            if (textSelectionColors != other.textSelectionColors) return false
             if (focusedIndicatorColor != other.focusedIndicatorColor) return false
             if (unfocusedIndicatorColor != other.unfocusedIndicatorColor) return false
             if (disabledIndicatorColor != other.disabledIndicatorColor) return false
@@ -1534,7 +1525,7 @@ class TextFieldColors
             result = 31 * result + errorContainerColor.hashCode()
             result = 31 * result + cursorColor.hashCode()
             result = 31 * result + errorCursorColor.hashCode()
-//        result = 31 * result + textSelectionColors.hashCode()
+            result = 31 * result + textSelectionColors.hashCode()
             result = 31 * result + focusedIndicatorColor.hashCode()
             result = 31 * result + unfocusedIndicatorColor.hashCode()
             result = 31 * result + disabledIndicatorColor.hashCode()

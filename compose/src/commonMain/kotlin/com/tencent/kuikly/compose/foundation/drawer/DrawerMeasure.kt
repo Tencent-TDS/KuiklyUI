@@ -68,8 +68,6 @@ internal fun LazyLayoutMeasureScope.measureDrawerPager(
     coroutineScope: CoroutineScope,
     layout: (Int, Int, Placeable.PlacementScope.() -> Unit) -> MeasureResult
 ): PagerMeasureResult {
-    require(beforeContentPadding >= 0) { "negative beforeContentPadding" }
-    require(afterContentPadding >= 0) { "negative afterContentPadding" }
 
     // Use current page's size as the "nominal" page size for the result
     val currentPageAvailableSize = sizeTracker.getPageSize(currentPage.coerceIn(0, (pageCount - 1).coerceAtLeast(0)))

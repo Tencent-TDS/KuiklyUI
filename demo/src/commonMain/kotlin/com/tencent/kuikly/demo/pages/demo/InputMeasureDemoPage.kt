@@ -580,6 +580,11 @@ private fun ViewContainer<*, *>.LineHeightDemo() {
         }
     }
     // 字体族 + 颜色
+    val fontFamilySampleText = """
+        |Serif Bold Red
+        |WWWWWWWWWW
+        |狐狸跳过懒狗
+    """.trimMargin()
     View {
         attr {
             flexDirectionRow()
@@ -593,15 +598,8 @@ private fun ViewContainer<*, *>.LineHeightDemo() {
                 fontWeightBold()
                 color(Color.RED)
                 lineHeight(34f)
-                height(102f)
                 flex(1f)
-                text(
-                    """
-                    |Serif + Bold + 26 + Red
-                    |WWWWWW serif wrap test
-                    |狐狸跳过了懒狗
-                    """.trimMargin()
-                )
+                text(fontFamilySampleText)
             }
         }
         Text {
@@ -612,15 +610,8 @@ private fun ViewContainer<*, *>.LineHeightDemo() {
                 fontWeightBold()
                 color(Color.RED)
                 lineHeight(34f)
-                height(102f)
                 flex(1f)
-                text(
-                    """
-                    |Serif + Bold + 26 + Red
-                    |WWWWWW serif wrap test
-                    |狐狸跳过了懒狗
-                    """.trimMargin()
-                )
+                text(fontFamilySampleText)
             }
         }
     }

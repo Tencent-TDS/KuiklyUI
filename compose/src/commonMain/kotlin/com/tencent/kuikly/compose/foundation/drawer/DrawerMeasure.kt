@@ -71,8 +71,6 @@ internal fun LazyLayoutMeasureScope.measureDrawerPager(
     require(beforeContentPadding >= 0) { "negative beforeContentPadding" }
     require(afterContentPadding >= 0) { "negative afterContentPadding" }
 
-    println("[DrawerMeasure] pageCount=$pageCount currentPage=$currentPage currentPageOffset=$currentPageOffset mainAxisAvailableSize=$mainAxisAvailableSize constraints=$constraints")
-
     // Use current page's size as the "nominal" page size for the result
     val currentPageAvailableSize = sizeTracker.getPageSize(currentPage.coerceIn(0, (pageCount - 1).coerceAtLeast(0)))
 
@@ -362,10 +360,6 @@ internal fun LazyLayoutMeasureScope.measureDrawerPager(
             )
         }
 
-        println("[DrawerMeasure] result: visiblePages=${visiblePagesInfo.size} layoutWidth=$layoutWidth layoutHeight=$layoutHeight newCurrentPage=${newCurrentPage?.index} offsetFraction=$currentPageOffsetFraction")
-        visiblePagesInfo.forEach { p ->
-            println("[DrawerMeasure]   page[${p.index}] size=${p.size} offset=${p.offset}")
-        }
 
         return PagerMeasureResult(
             firstVisiblePage = firstPage,

@@ -579,6 +579,51 @@ private fun ViewContainer<*, *>.LineHeightDemo() {
             }
         }
     }
+    // 字体族 + 颜色
+    View {
+        attr {
+            flexDirectionRow()
+        }
+        TextArea {
+            attr {
+                editable(false)
+                border(Border(1f, BorderStyle.SOLID, Color.GRAY))
+                fontSize(26f)
+                fontFamily("serif")
+                fontWeightBold()
+                color(Color.RED)
+                lineHeight(34f)
+                height(102f)
+                flex(1f)
+                text(
+                    """
+                    |Serif + Bold + 26 + Red
+                    |WWWWWW serif wrap test
+                    |狐狸跳过了懒狗
+                    """.trimMargin()
+                )
+            }
+        }
+        Text {
+            attr {
+                border(Border(1f, BorderStyle.SOLID, Color.GRAY))
+                fontSize(26f)
+                fontFamily("serif")
+                fontWeightBold()
+                color(Color.RED)
+                lineHeight(34f)
+                height(102f)
+                flex(1f)
+                text(
+                    """
+                    |Serif + Bold + 26 + Red
+                    |WWWWWW serif wrap test
+                    |狐狸跳过了懒狗
+                    """.trimMargin()
+                )
+            }
+        }
+    }
 }
 
 private fun ViewContainer<*, *>.ViewLayoutDemo() {

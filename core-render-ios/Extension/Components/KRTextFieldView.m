@@ -304,6 +304,9 @@ NSString *const KRVFontFamilyKey = @"fontFamily";
 }
 
 - (void)css_setCursorIndexByPoint:(NSDictionary *)args {
+#if TARGET_OS_OSX
+    return;
+#else
     NSString *params = args[KRC_PARAM_KEY];
     NSArray<NSString *> *components = [params componentsSeparatedByString:@" "];
     if (components.count < 2) {
@@ -323,6 +326,7 @@ NSString *const KRVFontFamilyKey = @"fontFamily";
     if (self.css_selectionChange) {
         self.css_selectionChange([self p_currentTextInputStatePayload]);
     }
+#endif
 }
 
 - (void)css_setTextInputState:(NSDictionary *)args {

@@ -356,6 +356,9 @@ NSString *const KRFontFamilyKey = @"fontFamily";
 }
 
 - (void)css_setCursorIndexByPoint:(NSDictionary *)args {
+#if TARGET_OS_OSX
+    return;
+#else
     NSString *params = args[KRC_PARAM_KEY];
     NSArray<NSString *> *components = [params componentsSeparatedByString:@" "];
     if (components.count < 2) {
@@ -383,6 +386,7 @@ NSString *const KRFontFamilyKey = @"fontFamily";
             @"compositionEnd": @(-1)
         });
     }
+#endif
 }
 
 - (void)setCss_textInputState:(NSString *)css_textInputState {

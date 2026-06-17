@@ -16,6 +16,7 @@
 package com.tencent.kuikly.demo.pages.compose
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -67,6 +68,7 @@ import com.tencent.kuikly.compose.ui.platform.LocalSoftwareKeyboardController
 import com.tencent.kuikly.compose.ui.text.TextStyle
 import com.tencent.kuikly.compose.ui.text.input.ImeAction
 import com.tencent.kuikly.compose.ui.text.input.KeyboardType
+import com.tencent.kuikly.compose.ui.text.input.TextFieldValue
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
 import com.tencent.kuikly.core.annotations.Page
@@ -169,6 +171,113 @@ class TextFieldDemo : ComposeContainer() {
                                     text2 = ""
                                 },
                             )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    var programmaticUpdateText by remember { mutableStateOf("把光标移到中间后点按钮") }
+                    Text(text = "1.1 BasicTextField(value:String) 程序化更新 value 后观察光标：$programmaticUpdateText")
+                    Box(
+                        modifier = Modifier.fillMaxWidth()
+                            .border(1.dp, color = Color.Black)
+                            .padding(12.dp)
+                    ) {
+                        BasicTextField(
+                            cursorBrush = SolidColor(Color.Red),
+                            value = programmaticUpdateText,
+                            onValueChange = {
+                                programmaticUpdateText = it
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row {
+                        Button(
+                            onClick = {
+                                programmaticUpdateText += " +追加"
+                            }
+                        ) {
+                            Text("程序追加")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                programmaticUpdateText = "整体替换后的新文本"
+                            }
+                        ) {
+                            Text("整体替换")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                programmaticUpdateText = ""
+                            }
+                        ) {
+                            Text("清空")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    var legacyProgrammaticText by remember { mutableStateOf("把光标移到中间后点按钮") }
+                    var legacyEditorValue by remember { mutableStateOf(TextFieldValue(text = legacyProgrammaticText)) }
+                    val legacyTextFieldValue = if (legacyProgrammaticText != legacyEditorValue.text) {
+                        legacyEditorValue.copy(text = legacyProgrammaticText)
+                    } else {
+                        legacyEditorValue
+                    }
+                    SideEffect {
+                        if (legacyTextFieldValue.text != legacyEditorValue.text ||
+                            legacyTextFieldValue.selection != legacyEditorValue.selection ||
+                            legacyTextFieldValue.composition != legacyEditorValue.composition
+                        ) {
+                            legacyEditorValue = legacyTextFieldValue
+                        }
+                    }
+                    Text(text = "1.2 修复前行为模拟：程序化更新后保留旧光标")
+                    Box(
+                        modifier = Modifier.fillMaxWidth()
+                            .border(1.dp, color = Color.Black)
+                            .padding(12.dp)
+                    ) {
+                        BasicTextField(
+                            cursorBrush = SolidColor(Color.Red),
+                            value = legacyTextFieldValue,
+                            onValueChange = {
+                                legacyEditorValue = it
+                                if (legacyProgrammaticText != it.text) {
+                                    legacyProgrammaticText = it.text
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row {
+                        Button(
+                            onClick = {
+                                legacyProgrammaticText += " +追加"
+                            }
+                        ) {
+                            Text("程序追加")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                legacyProgrammaticText = "整体替换后的新文本"
+                            }
+                        ) {
+                            Text("整体替换")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                legacyProgrammaticText = ""
+                            }
+                        ) {
+                            Text("清空")
                         }
                     }
 

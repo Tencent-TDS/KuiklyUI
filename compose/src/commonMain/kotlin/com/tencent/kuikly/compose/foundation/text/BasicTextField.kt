@@ -35,6 +35,7 @@ import com.tencent.kuikly.compose.ui.graphics.Brush
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.SolidColor
 import com.tencent.kuikly.compose.ui.text.TextLayoutResult
+import com.tencent.kuikly.compose.ui.text.TextRange
 import com.tencent.kuikly.compose.ui.text.TextStyle
 import com.tencent.kuikly.compose.ui.text.input.ImeAction
 import com.tencent.kuikly.compose.ui.text.input.KeyboardType
@@ -263,13 +264,21 @@ fun BasicTextField(
     // Holds the latest internal TextFieldValue state. We need to keep it to have the correct value
     // of the composition.
     var textFieldValueState by remember { mutableStateOf(TextFieldValue(text = value)) }
-    // Holds the latest TextFieldValue that BasicTextField was recomposed with. We couldn't simply
-    // pass `TextFieldValue(text = value)` to the CoreTextField because we need to preserve the
-    // composition.
-    val textFieldValue = textFieldValueState.copy(text = value)
+    // When the external String value changes programmatically, move the cursor to the end so the
+    // String overload has a deterministic cursor behavior without exposing selection control.
+    val textFieldValue = if (value != textFieldValueState.text) {
+        textFieldValueState.copy(
+            text = value,
+            selection = TextRange(value.length),
+            composition = null
+        )
+    } else {
+        textFieldValueState.copy(text = value)
+    }
 
     SideEffect {
-        if (textFieldValue.selection != textFieldValueState.selection ||
+        if (textFieldValue.text != textFieldValueState.text ||
+            textFieldValue.selection != textFieldValueState.selection ||
             textFieldValue.composition != textFieldValueState.composition
         ) {
             textFieldValueState = textFieldValue

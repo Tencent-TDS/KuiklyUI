@@ -23,9 +23,9 @@
 
 namespace {
 
-// 一次性 timer 持有的上下文：执行回调函数 + 反指 KRThread（仅用于日志/调试，可省略）。
+// 一次性 timer 持有的上下文：exec 为“到点后的提交动作”，在 TimerCb 中被调用。
 struct TimerContext {
-    std::function<void()> func;
+    std::function<void()> exec;
 };
 
 }  // namespace
@@ -68,6 +68,8 @@ void KRThread::WorkerLoop(const std::string &name) {
         m_startCv.notify_all();
         return;
     }
+    // 让 TimerCb 等通过 uv_loop_get_data 能反查到 this。
+    uv_loop_set_data(&m_loop, this);
 
     ret = uv_async_init(&m_loop, &m_async, &KRThread::AsyncCb);
     if (ret != 0) {
@@ -124,27 +126,40 @@ void KRThread::OnAsync() {
         return;
     }
 
-    // 取出当前所有待办任务（按入队顺序处理）。
-    std::queue<std::unique_ptr<PendingTask>> local;
+    // 阶段 1：消费跨线程提交的 "待起 timer" 队列，立即在 loop 线程上起 uv_timer。
+    // 只是注册句柄、不执行任务代码，无需 TaskMutex 保护。
+    std::queue<std::unique_ptr<PendingTimer>> timers;
+    {
+        std::lock_guard<std::mutex> lock(m_queueMutex);
+        std::swap(timers, m_pendingTimers);
+    }
+    while (!timers.empty()) {
+        auto pt = std::move(timers.front());
+        timers.pop();
+        if (pt == nullptr || !pt->func) {
+            continue;
+        }
+        StartTimerInLoop(std::move(pt->func), pt->delayMs);
+    }
+
+    // 阶段 2：取出当前所有立即任务（包括 timer 到点后重新入队的任务），
+    // 按入队顺序执行，受 TaskMutex 保护以保留与 DirectRunOnCurThread 互斥语义。
+    std::queue<std::function<void()>> local;
     {
         std::lock_guard<std::mutex> lock(m_queueMutex);
         std::swap(local, m_pending);
     }
+    if (local.empty()) {
+        return;
+    }
 
-    // 真正"运行任务"的批处理，需要受 TaskMutex 保护，沿用旧的互斥语义，
-    // 让 DirectRunOnCurThread 在外线程能竞争到执行权。
     if (TaskMutex(true, false, false)) {
         m_isExecutingTask.store(true);
         while (!local.empty()) {
-            auto pending = std::move(local.front());
+            auto fn = std::move(local.front());
             local.pop();
-            if (pending == nullptr || !pending->func) {
-                continue;
-            }
-            if (pending->delayMs <= 0) {
-                pending->func();
-            } else {
-                StartTimerInLoop(std::move(pending->func), pending->delayMs);
+            if (fn) {
+                fn();
             }
         }
         m_isExecutingTask.store(false);
@@ -152,11 +167,18 @@ void KRThread::OnAsync() {
     } else {
         // 当前 mutex 被外部 DirectRunOnCurThread 占用，把任务退回队列等下次触发。
         std::lock_guard<std::mutex> lock(m_queueMutex);
+        // 退回时保持原顺序：未处理的 local 拼在已有 m_pending 前面。
+        std::queue<std::function<void()>> merged;
         while (!local.empty()) {
-            m_pending.push(std::move(local.front()));
+            merged.push(std::move(local.front()));
             local.pop();
         }
-        // 下一次有人 send 时还会再进来；为避免饥饿，这里也主动再 send 一次。
+        while (!m_pending.empty()) {
+            merged.push(std::move(m_pending.front()));
+            m_pending.pop();
+        }
+        m_pending = std::move(merged);
+        // 为避免饥饿，主动再 send 一次。
         uv_async_send(&m_async);
     }
 }
@@ -170,7 +192,7 @@ void KRThread::AsyncCloseCb(uv_handle_t *handle) {
 }
 
 void KRThread::StartTimerInLoop(std::function<void()> task, int delayMs) {
-    // 必须在 loop 线程上执行（OnAsync 内部即是）。
+    // 必须在 loop 线程上执行（OnAsync / DispatchAsync 当前线程即 worker 时）。
     auto *timer = new uv_timer_t();
     auto *ctx = new TimerContext{std::move(task)};
     timer->data = ctx;
@@ -186,9 +208,21 @@ void KRThread::StartTimerInLoop(std::function<void()> task, int delayMs) {
 }
 
 void KRThread::TimerCb(uv_timer_t *handle) {
+    // timer 到点后：不直接执行 task，而是重新提交到立即任务队列，
+    // 走 OnAsync 的 TaskMutex 保护路径，保留与 DirectRunOnCurThread 的互斥语义。
+    auto *self = static_cast<KRThread *>(uv_loop_get_data(handle->loop));
     auto *ctx = static_cast<TimerContext *>(handle->data);
-    if (ctx != nullptr && ctx->func) {
-        ctx->func();
+    if (ctx != nullptr && ctx->exec) {
+        if (self != nullptr) {
+            {
+                std::lock_guard<std::mutex> lock(self->m_queueMutex);
+                self->m_pending.push(std::move(ctx->exec));
+            }
+            uv_async_send(&self->m_async);
+        } else {
+            // 极端 fallback：loop->data 未设置，直接跳。
+            ctx->exec();
+        }
     }
     uv_timer_stop(handle);
     uv_close(reinterpret_cast<uv_handle_t *>(handle), &KRThread::TimerCloseCb);
@@ -209,12 +243,29 @@ void KRThread::DispatchAsync(std::function<void()> task, int delayMilliseconds) 
         return;
     }
 
-    auto pending = std::make_unique<PendingTask>();
-    pending->func = std::move(task);
-    pending->delayMs = delayMilliseconds;
+    if (delayMilliseconds > 0) {
+        // delay 任务由 uv_timer 负责计时，避免被 OnAsync 的批处理延迟。
+        if (IsCurrentThreadWorkerThread()) {
+            // 在 loop 线程上，可以直接起 timer，无需 uv_async 中转。
+            StartTimerInLoop(std::move(task), delayMilliseconds);
+            return;
+        }
+        // 跨线程：入 timer 待起队列 + uv_async_send，由 OnAsync 在 loop 线程起 timer。
+        auto pt = std::make_unique<PendingTimer>();
+        pt->func = std::move(task);
+        pt->delayMs = delayMilliseconds;
+        {
+            std::lock_guard<std::mutex> lock(m_queueMutex);
+            m_pendingTimers.push(std::move(pt));
+        }
+        uv_async_send(&m_async);
+        return;
+    }
+
+    // 立即任务：入立即队列 + uv_async_send。
     {
         std::lock_guard<std::mutex> lock(m_queueMutex);
-        m_pending.push(std::move(pending));
+        m_pending.push(std::move(task));
     }
     uv_async_send(&m_async);
 }

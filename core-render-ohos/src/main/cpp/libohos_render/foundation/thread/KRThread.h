@@ -68,7 +68,7 @@ class KRThread {
     }
 
  private:
-    struct PendingTask {
+    struct PendingTimer {
         std::function<void()> func;
         int delayMs;
     };
@@ -80,6 +80,7 @@ class KRThread {
     static void TimerCloseCb(uv_handle_t *handle);
     static void AsyncCloseCb(uv_handle_t *handle);
 
+    // 仅允许在 worker 线程（loop 线程）上调用。
     void StartTimerInLoop(std::function<void()> task, int delayMs);
 
     // ---- 线程与 loop ----
@@ -95,8 +96,12 @@ class KRThread {
     std::condition_variable m_startCv;
 
     // ---- 跨线程任务队列 ----
+    // m_pending：立即执行的任务队列（delayMs<=0）。
+    // m_pendingTimers：需要起 uv_timer 的任务队列（跨线程提交 + delayMs>0），
+    //   OnAsync 在 loop 线程上起 timer。
     std::mutex m_queueMutex;
-    std::queue<std::unique_ptr<PendingTask>> m_pending;
+    std::queue<std::function<void()>> m_pending;
+    std::queue<std::unique_ptr<PendingTimer>> m_pendingTimers;
 
     // ---- 兼容旧版本的 mutex 协调（供 KRContextScheduler 使用） ----
     std::mutex m_taskMutex;

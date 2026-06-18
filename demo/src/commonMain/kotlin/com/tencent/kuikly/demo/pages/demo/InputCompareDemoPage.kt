@@ -422,6 +422,7 @@ internal class InputCompareDemoPage : BasePager() {
                         placeholder("按键盘 Search 键试试")
                         placeholderColor(Color.GRAY)
                         returnKeyTypeSearch()
+                        selectionColor(Color.GREEN)
                     }
                     event {
                         textDidChange {
@@ -474,6 +475,7 @@ internal class InputCompareDemoPage : BasePager() {
                         placeholderColor(Color.GRAY)
                         text("line1\nline2")
                         tintColor(Color(0xFF3C6CBDL))
+                        selectionColor(Color.YELLOW)
                     }
                     event {
                         textDidChange {

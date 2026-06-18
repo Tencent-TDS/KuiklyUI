@@ -320,6 +320,8 @@ struct KRTextEditorState {
     std::string placeholder_text_;
     uint32_t placeholder_color_ = 0x66000000;  // 淡灰
     bool placeholder_color_set_ = false;
+    uint32_t selection_color_ = 0xFF1A7AFF;  // 默认选中背景色（蓝色，与老实现一致）
+    bool selection_color_set_ = false;
     bool focusable_ = true;
     int32_t max_length_ = -1;
     int length_limit_type_ = -1;  // -1: unset, 0: BYTE, 1: CHARACTER, 2: VISUAL_WIDTH

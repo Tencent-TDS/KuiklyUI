@@ -545,17 +545,6 @@ void KRScrollerView::OnScrollFrameBegin(ArkUI_NodeEvent *event) {
     last_scroll_time_ = current_time;
     last_scroll_x_ = point.x;
     last_scroll_y_ = point.y;
-    if (IsIdeaStateToDraggingState(scroll_state) || IsFlingStateToDraggingState(scroll_state)) {
-        is_dragging_ = true;
-        FireBeginDragEvent(event);
-    }
-    if (IsDraggingStateToFlingState(scroll_state) || IsDraggingStateToIdeaState(scroll_state)) {
-        OnWillDragEnd(event);
-    }
-    current_scroll_state_ = scroll_state;
-    if (auto handler = weak_super_touch_handler_.lock()) {
-        handler->SetNativeTouchConsumer(shared_from_this());
-    }
 }
 
 void KRScrollerView::OnScrollStop(ArkUI_NodeEvent *event) {
@@ -576,11 +565,17 @@ void KRScrollerView::OnWillScroll(ArkUI_NodeEvent *event) {
     if (new_scroll_state == current_scroll_state_) {
         return;
     }
-    if (is_dragging_ &&
+    if (IsIdeaStateToDraggingState(new_scroll_state) || IsFlingStateToDraggingState(new_scroll_state)) {
+        is_dragging_ = true;
+        FireBeginDragEvent(event);
+    } else if (is_dragging_ &&
         (IsDraggingStateToFlingState(new_scroll_state) || IsDraggingStateToIdeaState(new_scroll_state))) {
         OnWillDragEnd(event);
     }
     current_scroll_state_ = new_scroll_state;
+    if (auto handler = weak_super_touch_handler_.lock()) {
+        handler->SetNativeTouchConsumer(shared_from_this());
+    }
 }
 
 void KRScrollerView::OnWillDragEnd(ArkUI_NodeEvent *event) {

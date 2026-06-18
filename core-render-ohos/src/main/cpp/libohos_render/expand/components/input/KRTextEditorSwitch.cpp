@@ -14,7 +14,7 @@
  */
 
 #include "libohos_render/expand/components/input/KRTextEditorSwitch.h"
-
+#include <deviceinfo.h>
 // 本 TU 不依赖任何 API 24 类型，因此即便编译期 SDK header < API 24
 // 也始终参与编译。开关值在此一份独立存储，跨 so 调用通过本文件提供的
 // C API 同步，避免 inline 变量分裂副本。
@@ -72,7 +72,9 @@ extern "C" int KRIsTextEditorRuntimeAvailable() {
     if (&OH_ArkUI_TextEditorTextStyle_Create == nullptr) {
         return 0;
     }
-    return 1;
+    // Even the above APIs are documented as available since api 24,
+    // they're actually available on api 23 devices.
+    return OH_GetSdkApiVersion() >= 24;
 #else
     // 编译期已确认 SDK header < API 24，新控件全部 guard 掉；运行时无需再探测。
     return 0;

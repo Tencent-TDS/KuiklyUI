@@ -268,12 +268,26 @@ fun SubcomposeLayout(
                     val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
                     // 实现分页滑动
                     val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
-                    if ((offset < 0 && scrollableState.isAtTop()) || offset > (kuiklyInfo.currentContentSize - viewportSize)) {
-                        return@willDragEndBySync
-                    }
-                    when (scrollableState) {
-                        is PagerState -> scrollableState.kuiklyWillDragEnd(scaleParams, orientation)
-                        is DrawerInternalPagerState -> scrollableState.kuiklyWillDragEnd(scaleParams, orientation)
+                    if (scrollableState is DrawerInternalPagerState) {
+                        if ((offset < 0 && scrollableState.isAtTop()) || offset > (kuiklyInfo.currentContentSize - viewportSize)) {
+                            return@willDragEndBySync
+                        }
+                        scrollableState.kuiklyWillDragEnd(scaleParams, orientation)
+                    } else if (scrollableState is PagerState) {
+                        val targetOffset = if (isVertical) {
+                            scaleParams.targetContentOffsetY.toInt()
+                        } else {
+                            scaleParams.targetContentOffsetX.toInt()
+                        }
+                        val maxOffset = kuiklyInfo.currentContentSize - viewportSize
+                        val isAtTop = scrollableState.isAtTop()
+                        val lastItemVisible = scrollableState.lastItemVisible()
+                        val guardStart = offset <= 0 && isAtTop && targetOffset <= offset
+                        val guardEnd = offset >= maxOffset && lastItemVisible && targetOffset >= offset
+                        if (guardStart || guardEnd) {
+                            return@willDragEndBySync
+                        }
+                        scrollableState.kuiklyWillDragEnd(scaleParams, orientation)
                     }
                 })
             }

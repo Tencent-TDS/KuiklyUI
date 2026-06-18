@@ -16,6 +16,7 @@
 #include "libohos_render/scheduler/KRUIScheduler.h"
 
 #include "libohos_render/scheduler/KRContextScheduler.h"
+#include "libohos_render/utils/KRRenderLoger.h"
 
 // should call on context线程
 void KRUIScheduler::AddTaskToMainQueueWithTask(const KRSchedulerTask &task) {

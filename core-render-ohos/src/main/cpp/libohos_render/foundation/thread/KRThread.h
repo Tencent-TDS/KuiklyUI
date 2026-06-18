@@ -16,125 +16,48 @@
 #ifndef CORE_RENDER_OHOS_KRTHREAD_H
 #define CORE_RENDER_OHOS_KRTHREAD_H
 
+#include <uv.h>
+#include <atomic>
 #include <cassert>
-#include <chrono>
 #include <condition_variable>
 #include <functional>
-#include <future>
+#include <memory>
 #include <mutex>
 #include <queue>
+#include <string>
 #include <thread>
-#include "KRDelayThread.h"
 
-#include "libohos_render/utils/KRRenderLoger.h"
+// KRThread：基于自建 uv_loop_t 的工作线程。
+// 关键约束（HarmonyOS libuv）：
+//   * uv_loop_init / uv_run / 所有非线程安全 uv_* 接口必须在 loop 线程；
+//   * 跨线程提交任务只允许通过 uv_async_send（线程安全）唤醒 loop 线程，
+//     再由 loop 线程在回调中处理 uv 句柄（uv_timer_init/uv_timer_start 等）。
 class KRThread {
  public:
-    explicit KRThread(const std::string &name) : m_stop(false) {
-        m_workerThread = std::thread([this] {
-            m_workerThreadId = std::this_thread::get_id();
-            this->Worker();
-        });
-        pthread_setname_np(m_workerThread.native_handle(), name.c_str());
+    explicit KRThread(const std::string &name);
+    ~KRThread();
 
-        m_delayThread = new KRDelayThread(name + "d");
-    }
+    KRThread(const KRThread &) = delete;
+    KRThread &operator=(const KRThread &) = delete;
 
-    ~KRThread() {
-        delete m_delayThread;
-        m_delayThread = nullptr;
-        {
-            std::unique_lock<std::mutex> lock(m_mutex);
-            m_stop = true;
-            m_condition.notify_one();
-        }
-        m_workerThread.join();
-    }
+    /**
+     * @brief 在 worker 线程上异步执行任务（可延时）。线程安全，可在任意线程调用。
+     */
+    void DispatchAsync(std::function<void()> task, int delayMilliseconds = 0);
 
-    void DispatchAsync(const std::function<void()> task, int delayMilliseconds = 0) {
-        if (delayMilliseconds > 0) {
-            m_delayThread->DispatchAsync([task, this] { this->DispatchAsync(task, 0); }, delayMilliseconds);
-            return;
-        }
-        if (IsCurrentThreadWorkerThread()) {
-            // 如果当前线程已经是工作线程，直接将任务添加到队列
-            std::unique_lock<std::mutex> lock(m_mutex);
-            m_tasks.emplace(task);
-        } else {
-            // 否则，将任务添加到队列
-            {
-                std::unique_lock<std::mutex> lock(m_mutex);
-                m_tasks.emplace(task);
-            }
-            m_condition.notify_one();
-        }
-    }
+    /**
+     * @brief 同步执行任务。当前实现下与 DirectRunOnCurThread 等价（沿用旧语义）。
+     */
+    void DispatchSync(const std::function<void()> &task);
 
-    void DispatchSync(const std::function<void()> &task) {
-        DirectRunOnCurThread(task);
-        return;
-    }
+    /**
+     * @brief 在当前调用线程上"直跑"任务，与 worker 线程协调互斥；
+     *        若长时间拿不到 mutex 则降级为 DispatchAsync。沿用旧语义。
+     */
+    void DirectRunOnCurThread(const std::function<void()> &task);
 
-    void DirectRunOnCurThread(const std::function<void()> &task) {
-        if (m_isExecutingTask.load()) {
-            task();
-        } else {
-            auto start = std::chrono::steady_clock::now();  // 记录开始时间
-            bool didHandleTask = false;
-            while (!SyncMainTaskMutex(false, false, false)) {
-                // 检查是否超时
-                auto now = std::chrono::steady_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - start);
-                if (duration.count() > 100) {
-                    break;  // 超时，跳出循环
-                }
-                // 尝试获取互斥锁
-                if (TaskMutex(true, false, false)) {
-                    m_isExecutingTask.store(true);  // 设置正在执行任务标志
-                    task();
-                    m_isExecutingTask.store(false);  // 清除正在执行任务标志
-                    TaskMutex(false, true, false);
-                    didHandleTask = true;
-                    break;  // 任务执行完成，跳出循环
-                }
-            }
-            if (!didHandleTask) {
-                KR_LOG_INFO << "DispatchAsync when run DirectRunOnCurThread";
-                DispatchAsync(task);
-            }
-        }
-    }
-
-    bool TaskMutex(bool try_lock, bool is_set, bool value) {
-        std::unique_lock<std::mutex> lock(m_taskMutex);
-        if (try_lock) {
-            if (m_mutex_locked) {
-                return false;
-            } else {
-                m_mutex_locked = true;
-                return true;
-            }
-        }
-        if (is_set) {
-            m_mutex_locked = value;
-        }
-        return m_mutex_locked;
-    }
-
-    bool SyncMainTaskMutex(bool try_lock, bool is_set, bool value) {
-        std::unique_lock<std::mutex> lock(m_syncMainTaskMutex);
-        if (try_lock) {
-            if (m_sync_main_task_locked) {
-                return false;
-            } else {
-                m_sync_main_task_locked = true;
-                return true;
-            }
-        }
-        if (is_set) {
-            m_sync_main_task_locked = value;
-        }
-        return m_sync_main_task_locked;
-    }
+    bool TaskMutex(bool try_lock, bool is_set, bool value);
+    bool SyncMainTaskMutex(bool try_lock, bool is_set, bool value);
 
     bool IsCurrentThreadWorkerThread() const {
         return std::this_thread::get_id() == m_workerThreadId;
@@ -145,49 +68,41 @@ class KRThread {
     }
 
  private:
-    void Worker() {
-        while (true) {
-            std::queue<std::function<void()>> tasks;
-            {
-                std::unique_lock<std::mutex> lock(m_mutex);
-                m_condition.wait(lock, [this] { return m_stop || !m_tasks.empty(); });
+    struct PendingTask {
+        std::function<void()> func;
+        int delayMs;
+    };
 
-                if (m_stop && m_tasks.empty()) {
-                    break;
-                }
+    void WorkerLoop(const std::string &name);
+    void OnAsync();
+    static void AsyncCb(uv_async_t *handle);
+    static void TimerCb(uv_timer_t *handle);
+    static void TimerCloseCb(uv_handle_t *handle);
+    static void AsyncCloseCb(uv_handle_t *handle);
 
-                std::swap(tasks, m_tasks);  // 将m_tasks所有任务一次性移动到tasks
-            }
-            {
-                if (TaskMutex(true, false, false)) {
-                    while (!tasks.empty()) {
-                        auto &task = tasks.front();
-                        task();
-                        tasks.pop();
-                    }
-                    TaskMutex(false, true, false);
-                } else {
-                    std::unique_lock<std::mutex> lock(m_mutex);
-                    while (!tasks.empty()) {
-                        m_tasks.push(std::move(tasks.front()));
-                        tasks.pop();
-                    }
-                }
-            }
-        }
-    }
+    void StartTimerInLoop(std::function<void()> task, int delayMs);
 
-    std::queue<std::function<void()>> m_tasks;
-    std::mutex m_mutex;
+    // ---- 线程与 loop ----
+    std::thread m_workerThread;
+    std::thread::id m_workerThreadId;
+    uv_loop_t m_loop{};
+    uv_async_t m_async{};
+    // loop 是否已经在 worker 线程里完成 init / async 注册。
+    std::atomic<bool> m_loopReady{false};
+    std::atomic<bool> m_stop{false};
+    // 用于 ctor 等待 loop 在 worker 线程里 init 完成。
+    std::mutex m_startMutex;
+    std::condition_variable m_startCv;
+
+    // ---- 跨线程任务队列 ----
+    std::mutex m_queueMutex;
+    std::queue<std::unique_ptr<PendingTask>> m_pending;
+
+    // ---- 兼容旧版本的 mutex 协调（供 KRContextScheduler 使用） ----
     std::mutex m_taskMutex;
     bool m_mutex_locked = false;
     std::mutex m_syncMainTaskMutex;
     bool m_sync_main_task_locked = false;
-    std::condition_variable m_condition;
-    bool m_stop = false;
-    std::thread m_workerThread;
-    std::thread::id m_workerThreadId;
-    KRDelayThread *m_delayThread = nullptr;
     std::atomic<bool> m_isExecutingTask{false};
 };
 

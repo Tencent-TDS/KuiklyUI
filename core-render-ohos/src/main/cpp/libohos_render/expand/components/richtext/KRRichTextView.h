@@ -166,6 +166,7 @@ class KRRichTextView : public IKRRenderViewExport {
  private:
     std::shared_ptr<KRParagraph> paragraph_;
     std::shared_ptr<IKRRenderShadowExport> shadow_;
+    bool use_styled_string_ = false;
     float last_draw_frame_width_ = -1.0;
     float line_break_margin_ = 0;
     KRParagraphSelectionInfo selection_rects_;

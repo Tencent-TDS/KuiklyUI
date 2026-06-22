@@ -510,7 +510,16 @@ internal fun CoreTextField(
                                 }
                                 autoHeightTextAreaView.getViewAttr()
                                     .updatePropCache(TextConst.VALUE, it.text)
-                                onValueChange(TextFieldValue(it.text))
+                                // textDidChange 不含 selection 信息，若 lastSyncedTextInputState 文本一致则沿用其选区，
+                                // 避免用 TextRange.Zero(0,0) 覆盖原生层正确光标。
+                                val preservedSelection = lastSyncedTextInputState?.let { state ->
+                                    if (state.text == it.text) {
+                                        TextRange(state.selectionStart, state.selectionEnd)
+                                    } else {
+                                        TextRange.Zero
+                                    }
+                                } ?: TextRange.Zero
+                                onValueChange(TextFieldValue(text = it.text, selection = preservedSelection))
                                 dispatchLimitChange(it.length, pendingLimitChangeNotification)
                             }
                         }

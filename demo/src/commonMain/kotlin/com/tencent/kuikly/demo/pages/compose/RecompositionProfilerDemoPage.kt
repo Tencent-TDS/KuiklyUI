@@ -37,7 +37,12 @@ import com.tencent.kuikly.compose.foundation.layout.fillMaxWidth
 import com.tencent.kuikly.compose.foundation.layout.height
 import com.tencent.kuikly.compose.foundation.layout.padding
 import com.tencent.kuikly.compose.foundation.lazy.LazyColumn
+import com.tencent.kuikly.compose.foundation.lazy.LazyRow
+import com.tencent.kuikly.compose.foundation.lazy.grid.GridCells
+import com.tencent.kuikly.compose.foundation.lazy.grid.LazyVerticalGrid
 import com.tencent.kuikly.compose.foundation.lazy.items
+import com.tencent.kuikly.compose.foundation.pager.HorizontalPager
+import com.tencent.kuikly.compose.foundation.pager.rememberPagerState
 import com.tencent.kuikly.compose.foundation.shape.RoundedCornerShape
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.profiler.RecompositionProfiler
@@ -407,6 +412,15 @@ private fun RecompositionProfilerDemo() {
         // === 滚动场景 ===
         item { ScrollSection() }
 
+        // === LazyRow 水平滚动 ===
+        item { LazyRowSection() }
+
+        // === LazyVerticalGrid 网格滚动 ===
+        item { LazyGridSection() }
+
+        // === HorizontalPager 翻页 ===
+        item { PagerSection() }
+
         // === ViewModel 外部状态 ===
         item { ViewModelSection() }
 
@@ -638,6 +652,113 @@ private fun ScrollListItem(text: String, isSelected: Boolean, onClick: () -> Uni
             fontSize = 12.sp,
             color = if (isSelected) Color(0xFF4A148C.toInt()) else Color(0xFF333333.toInt())
         )
+    }
+}
+
+// ========== LazyRow 水平滚动 ==========
+
+@Composable
+private fun LazyRowSection() {
+    val items = remember { (1..20).map { "H-Item #$it" } }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFE0F2F1.toInt()), RoundedCornerShape(8.dp))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text("Horizontal Scroll (LazyRow)", fontSize = 14.sp, color = Color(0xFF004D40.toInt()))
+        Text("Swipe left/right to scroll", fontSize = 11.sp, color = Color.Gray)
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(items.size) { index ->
+                Box(
+                    modifier = Modifier
+                        .background(Color(0xFF80CBC4.toInt()), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(text = items[index], fontSize = 12.sp, color = Color(0xFF004D40.toInt()))
+                }
+            }
+        }
+    }
+}
+
+// ========== LazyVerticalGrid 网格滚动 ==========
+
+@Composable
+private fun LazyGridSection() {
+    val gridItems = remember { (1..30).map { "Grid #$it" } }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFFBE9E7.toInt()), RoundedCornerShape(8.dp))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text("Grid Scroll (LazyVerticalGrid)", fontSize = 14.sp, color = Color(0xFFBF360C.toInt()))
+        Text("Scroll up/down in the grid", fontSize = 11.sp, color = Color.Gray)
+        Box(modifier = Modifier.fillMaxWidth().height(200.dp)) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                items(gridItems.size) { index ->
+                    Box(
+                        modifier = Modifier
+                            .padding(4.dp)
+                            .background(Color(0xFFFFAB91.toInt()), RoundedCornerShape(4.dp))
+                            .padding(8.dp)
+                    ) {
+                        Text(text = gridItems[index], fontSize = 11.sp, color = Color(0xFF3E2723.toInt()))
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ========== HorizontalPager 翻页 ==========
+
+@Composable
+private fun PagerSection() {
+    val pagerState = rememberPagerState { 5 }
+    val pageColors = listOf(
+        Color(0xFFBBDEFB.toInt()),
+        Color(0xFFC8E6C9.toInt()),
+        Color(0xFFFFE0B2.toInt()),
+        Color(0xFFF8BBD0.toInt()),
+        Color(0xFFD1C4E9.toInt()),
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFF3E5F5.toInt()), RoundedCornerShape(8.dp))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text("Pager (HorizontalPager)", fontSize = 14.sp, color = Color(0xFF4A148C.toInt()))
+        Text("Swipe left/right to flip pages", fontSize = 11.sp, color = Color.Gray)
+        Box(modifier = Modifier.fillMaxWidth().height(150.dp)) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 4.dp)
+                        .background(pageColors[page], RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = "Page ${page + 1}", fontSize = 24.sp, color = Color(0xFF333333.toInt()))
+                }
+            }
+        }
     }
 }
 

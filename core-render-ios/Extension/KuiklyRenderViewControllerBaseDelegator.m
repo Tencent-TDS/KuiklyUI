@@ -134,9 +134,11 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
 
 - (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data {
     __weak typeof(&*self) weakSelf = self;
+    BOOL sync = [self syncSendEvent:event];
     dispatch_block_t task = ^{
         [weakSelf.renderView sendWithEvent:event
-                                      data:data];
+                                      data:data
+                                      sync:sync];
         [weakSelf p_disptachDelegatorLifeCycleWithSel:@selector(didSendEvent:) object:event];
     };
     if (_renderView) {
@@ -144,6 +146,18 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     } else {
         [_eventLazyTasks addObject:task];
     }
+}
+
+- (BOOL)syncSendEvent:(NSString *)event {
+    // onBackPressed 固定同步执行
+    if ([event isEqualToString:@"onBackPressed"]) {
+        return YES;
+    }
+    
+    if ([self.delegate respondsToSelector:@selector(syncSendEvent:)]) {
+        return [self.delegate syncSendEvent:event];
+    }
+    return NO;
 }
 
 - (void)addDelegatorLifeCycleListener:(id<KRControllerDelegatorLifeCycleProtocol>)lifeCycleListener {
@@ -173,7 +187,7 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
 
 #pragma mark - private
 
-- (KuiklyBaseContextMode *)createContextMode:(NSString * _Nullable) contextCode {
+- (KuiklyBaseContextMode *)createContextMode:(id _Nullable)contextCode {
     return [[KuiklyBaseContextMode alloc] initFrameworkMode];
 }
 
@@ -189,7 +203,7 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     }
 }
 
-- (void)initRenderViewWithContextCode:(NSString *)contextCode {
+- (void)initRenderViewWithContextCode:(id)contextCode {
     [self p_disptachDelegatorLifeCycleWithSel:@selector(willInitRenderView) object:nil];
     NSURL *resourceFolderUrl = nil;
     if ([self.delegate respondsToSelector:@selector(resourceFolderUrlForKuikly:)]) {
@@ -220,8 +234,9 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     }
     [_renderView didCreateRenderView];
     if (!_renderView.subviews.count) {
-        if ([self shouldSyncRenderingView:
-             [KuiklyRenderFrameworkContextHandler isFrameworkWithContextCode:contextCode]]) {
+        BOOL isFramework = [contextCode isKindOfClass:[NSString class]] &&
+            [KuiklyRenderFrameworkContextHandler isFrameworkWithContextCode:(NSString *)contextCode];
+        if ([self shouldSyncRenderingView:isFramework]) {
             [_renderView syncFlushAllRenderTasks]; // 同步渲染
         }
     }
@@ -256,16 +271,19 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
         }
     });
     [self p_disptachDelegatorLifeCycleWithSel:@selector(willFetchContextCode) object:nil];
-    [self fetchContextCodeWithResultCallback:^(NSString * _Nullable contextCode, NSError * _Nullable error) {
+    [self fetchContextCodeWithResultCallback:^(id _Nullable contextCode, NSError * _Nullable error) {
         if (!weakSelf) {
             return;
         }
+        // 判断 contextCode 是否有实质内容
+        BOOL hasContent = !error && [contextCode respondsToSelector:@selector(length)] && [contextCode length] > 0;
+
         [weakSelf p_performOnMainThreadWithBlock:^{
             weakSelf.contextMode = [weakSelf createContextMode:contextCode];
             [weakSelf p_disptachDelegatorLifeCycleWithSel:@selector(didFetchContextCode) object:nil];
             weakSelf.fetchContextCoding = NO;
             [weakSelf p_hideAllStatusView];
-            if (contextCode.length) {
+            if (hasContent) {
                 [weakSelf initRenderViewWithContextCode:contextCode];
             } else {
                 [weakSelf p_showErrorView];
@@ -322,10 +340,8 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     // 3. 设置 completion 到 Module
     [module setBackPressCompletion:completion];
 
-    // 4. 发送事件到 Kotlin 侧 (异步)
-    [_renderView sendWithEvent:@"onBackPressed" data:@{}];
-    
-    
+    // 4. 发送事件到 Kotlin 侧（由 delegator sync policy 决定，默认同步）
+    [self sendWithEvent:@"onBackPressed" data:@{}];
 }
 
 #pragma mark - notifications

@@ -55,6 +55,7 @@ class SuperTouchManager {
             setTouchMove(useSyncMove)
             setTouchUp(false)
             setTouchCancel(false)
+            setMouseHover()
         }
     }
 
@@ -104,6 +105,57 @@ class SuperTouchManager {
                 }
             }
         }
+    }
+
+    /**
+     * 注册 macOS 鼠标悬停事件，将 mouseEnter/mouseExit 转换为
+     * PointerType.Mouse 类型的 PointerEvent 注入 Compose pointer 系统，
+     * 使 HitPathTracker 自动合成 PointerEventType.Enter/Exit，
+     * 从而驱动 HoverInteraction 和 Modifier.hoverable() 标准 API。
+     */
+    @OptIn(ExperimentalComposeUiApi::class)
+    internal fun DivEvent.setMouseHover() {
+        mouseEnter {
+            sendHoverPointerEvent(PointerEventType.Enter)
+        }
+        mouseExit {
+            sendHoverPointerEvent(PointerEventType.Exit)
+        }
+    }
+
+    @OptIn(ExperimentalComposeUiApi::class)
+    private fun sendHoverPointerEvent(eventType: PointerEventType) {
+        val pageDensity = container.getPager().pagerDensity()
+        val containerWidth = (container.getViewAttr().getProp("width") as? Number)?.toFloat() ?: 0f
+        val containerHeight = (container.getViewAttr().getProp("height") as? Number)?.toFloat() ?: 0f
+        // Enter 时坐标在容器内（中心），Exit 时坐标在容器外
+        val position = when (eventType) {
+            PointerEventType.Enter -> Offset(
+                containerWidth * pageDensity * 0.5f,
+                containerHeight * pageDensity * 0.5f
+            )
+            else -> Offset(-1f, -1f)
+        }
+        // 直接发送 Enter/Exit 类型，PointerType.Mouse 保证 issuesEnterExitEvent = true，
+        // HitPathTracker 会直接传递 Enter/Exit 给 PointerInputModifierNode
+        scene.sendPointerEvent(
+            eventType = eventType,
+            pointers = listOf(
+                ComposeScenePointer(
+                    id = HOVER_POINTER_ID,
+                    position = position,
+                    pressed = false,
+                    type = PointerType.Mouse,
+                )
+            ),
+            timeMillis = com.tencent.kuikly.core.datetime.DateTime.currentTimestamp(),
+            rootNode = layoutNode
+        )
+    }
+
+    companion object {
+        /** hover 专用的 pointerId，与 touch 事件的 pointerId 隔离 */
+        private val HOVER_POINTER_ID = PointerId(Long.MAX_VALUE - 1)
     }
 
     @OptIn(InternalComposeUiApi::class, ExperimentalComposeUiApi::class)

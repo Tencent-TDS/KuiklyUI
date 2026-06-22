@@ -23,6 +23,10 @@
 
 #import "KRConvertUtil.h"
 #import "UINavigationController+FDFullscreenPopGesture.h"
+#import "KuiklyRenderBridge.h"
+
+/// TurboDisplay 专属测试页面名称，只有该页面启用 TurboDisplay AOT 渲染
+static NSString * const kTurboDisplayTestPageName = @"TurboDisplayAppLoadTestPage";
 
 
 @interface Delegator  : NSObject<KRControllerDelegatorLifeCycleProtocol>
@@ -252,16 +256,39 @@
     return pageData;
 }
 
+
+// 仅允许指定的测试页面走 TurboDisplay 渲染路径
+// 避免新安装无缓存时弹出错误弹窗影响其他业务页面的体验
 - (NSString *)turboDisplayKey {
-    return _pageName;
+    if ([_pageName isEqualToString:kTurboDisplayTestPageName]) {
+        return _pageName;
+    }
+    return nil;
 }
 
 - (KRTurboDisplayConfig *)configureTurboDisplay {
-    KRTurboDisplayConfig *config = [[KRTurboDisplayConfig alloc] init];
-//    [config enableDelayedDiff];
-//    [config enableAutoUpdateTurboDisplay];
-//    [config disablePersistentRealTree];
-    return config;
+    if ([_pageName isEqualToString:kTurboDisplayTestPageName]) {
+        KRTurboDisplayConfig *config = [[KRTurboDisplayConfig alloc] init];
+        // Demo 页面支持滚动位置恢复，则需要打开 延迟Diff
+        [config enableDelayedDiff];
+    //    [config enableAutoUpdateTurboDisplay];
+    //    [config disablePersistentRealTree];
+        return config;
+      
+    }
+    return nil;
+}
+
+
+/// 控制 Native -> Kotlin 事件是否以同步方式发送，避免事件异步派发后晚于当前原生布局/上屏时机生效。
+/// 典型场景：页面旋转、分屏或宿主容器尺寸突变时，可对 `rootViewSizeDidChanged` 返回 YES，避免尺寸变化晚一帧生效导致白屏。
+- (BOOL)syncSendEvent:(NSString *)event {
+    // 若页面尺寸发生变化时，出现白屏，可恢复以下被注释的代码
+    if ([event isEqualToString:@"rootViewSizeDidChanged"]) {
+        return YES;
+    }
+    
+    return NO;
 }
 
 

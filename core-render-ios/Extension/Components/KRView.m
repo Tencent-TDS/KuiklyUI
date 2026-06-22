@@ -20,6 +20,7 @@
 #import "KuiklyRenderView.h"
 #import "KRDisplayLink.h"
 #import "KRView+Compose.h"
+#import "KRView+TextSelection.h"
 #import "NSObject+KR.h"
 #import "KRMemoryCacheModule.h"
 
@@ -79,9 +80,12 @@
         if (params && params.length > 0) {
             UIAccessibilityPostNotification(UIAccessibilityAnnouncementNotification, params);
         }
+	} else if ([self kr_handleTextSelectionMethod:method params:params callback:callback]) {
+        // Text selection methods handled by category
     } else if ([method isEqualToString:CSS_METHOD_TOIMAGE]) {
         [self kr_toImageWithParams:params callback:callback];
     }
+
 }
 
 #pragma mark - CSS Property
@@ -108,6 +112,20 @@
         }
     }
 }
+
+#pragma mark - Override - Mouse Hover (macOS)
+
+#if TARGET_OS_OSX
+- (void)setCss_mouseEnter:(KuiklyRenderCallback)css_mouseEnter {
+    _css_mouseEnter = css_mouseEnter;
+    [self updateTrackingAreas];
+}
+
+- (void)setCss_mouseExit:(KuiklyRenderCallback)css_mouseExit {
+    _css_mouseExit = css_mouseExit;
+    [self updateTrackingAreas];
+}
+#endif
 
 #pragma mark - Override - Base Touch
 

@@ -46,15 +46,20 @@ class KRTextAreaView : public KRTextFieldView {
     ArkUI_NodeEventType GetOnWillChangeEventType() override {
         return ArkUI_NodeEventType::NODE_TEXT_AREA_ON_WILL_CHANGE;
     }
+    ArkUI_NodeEventType GetOnTextSelectionChangeEventType() override {
+        return ArkUI_NodeEventType::NODE_TEXT_AREA_ON_TEXT_SELECTION_CHANGE;
+    }
 
     void UpdateInputNodePlaceholder(const std::string &propValue) override;
     void UpdateInputNodePlaceholderColor(const std::string &propValue) override;
     void UpdateInputNodeColor(const std::string &propValue) override;
     void UpdateInputNodeCaretrColor(const std::string &propValue) override;
+    void UpdateInputNodeSelectionColor(const std::string &propValue) override;
     void UpdateInputNodeKeyboardType(const std::string &propValue) override;
     void UpdateInputNodeMaxLength(int maxLength) override;
     uint32_t GetInputNodeSelectionStartPosition() override;
     void UpdateInputNodeSelectionStartPosition(uint32_t index) override;
+    std::pair<uint32_t, uint32_t> GetInputNodeTextSelectionRange() override;
     void UpdateInputNodePlaceholderFont(uint32_t font_size, ArkUI_FontWeight font_weight) override;
     void UpdateInputNodeContentText(const std::string &text) override;
 

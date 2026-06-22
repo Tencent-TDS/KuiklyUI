@@ -72,7 +72,7 @@ Kuikly 当前重点支持以下 Modifier，并与 Jetpack Compose 对齐：
   - `focusTarget()` - 使组件可聚焦
   - `onFocusChanged()` - 观察焦点状态事件
   - `focusProperties()` - 指定可供修饰符链中更底层或子布局节点访问的焦点属性
-  - `focusRequester()` - 请求更改焦点
+  - `focusRequester()` - 请求更改焦点（Android 横屏 + 独立 Window 浮层下与 `TextField` 配合时存在已知差异，详见 [TextField 差异化点](core-components.md)）
   - `focusRestorer()` - 保存焦点小组以及将焦点恢复到焦点小组
   - `focusGroup()` - 创建焦点群组或将组件标记为焦点群组
   - `onFocusedBoundsChanged()` - 当当前聚焦区域的边界发生变化时调用

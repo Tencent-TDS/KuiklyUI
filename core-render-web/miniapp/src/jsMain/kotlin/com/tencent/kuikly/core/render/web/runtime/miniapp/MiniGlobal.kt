@@ -160,6 +160,22 @@ object LocalStorage {
         NativeApi.plat["setStorageSync"](key, value)
     }
 
+    /**
+     * Remove LocalStorage cached content by key
+     */
+    @JsName("removeItem")
+    fun removeItem(key: String) {
+        NativeApi.plat["removeStorageSync"](key)
+    }
+
+    /**
+     * Clear all LocalStorage cached content
+     */
+    @JsName("clear")
+    fun clear() {
+        NativeApi.plat["clearStorageSync"]()
+    }
+
 }
 
 /**
@@ -256,6 +272,17 @@ object MiniGlobal {
     @JsName("global")
     val globalThis: dynamic
         get() = js("global")
+    
+    init {
+        // Initialize customWrapperCache if not exists
+        if (jsTypeOf(globalThis.customWrapperCache) == "undefined") {
+            globalThis.customWrapperCache = js("new Map()")
+        }
+        // Initialize incrementId if not exists
+        if (jsTypeOf(globalThis.incrementId) == "undefined") {
+            globalThis.incrementId = 0
+        }
+    }
 
     private val miniSystemInitInfo = NativeApi.plat.getSystemInfoSync()
 
@@ -353,9 +380,14 @@ object MiniGlobal {
         val pageData = params.split("?")
         if (pageData.size > 1) {
             val urlParams = pageData[1]
+            val targetUrl = "/pages/${getUrlParams("page_name", urlParams)}/index?${urlParams}"
             NativeApi.plat.navigateTo(
                 json(
-                    "url" to "/pages/${getUrlParams("page_name", urlParams)}/index?${urlParams}"
+                    "url" to targetUrl,
+                    "fail" to { res: dynamic ->
+                        // Common reason: target page is not registered in app.json `pages`
+                        console.error("kuiklyWindow.open navigateTo fail, url=$targetUrl, res=", res)
+                    }
                 )
             )
         }

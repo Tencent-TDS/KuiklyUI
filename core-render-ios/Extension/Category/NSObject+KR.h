@@ -18,6 +18,17 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+@interface KRVisualWidthConfig : NSObject
+
+/**
+ * VISUAL_WIDTH 模式下 Attachment / 自定义表情占用的视觉宽度，默认 2。
+ */
+@property (nonatomic, assign) NSUInteger emojiVisualWidth;
+
++ (instancetype)sharedConfig;
+
+@end
+
 @interface NSObject (KR)
 
 - (NSDictionary *)hr_stringToDictionary;
@@ -62,7 +73,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (NSUInteger)kr_byteLength;
 
 /**
- * 按视觉宽度计算长度（ASCII字符占1，中文/emoji等占2）
+ * 按视觉宽度计算长度（ASCII字符占1，中文占2，Emoji / Attachment 由渲染层配置，默认占2）
  */
 - (NSUInteger)kr_visualWidth;
 

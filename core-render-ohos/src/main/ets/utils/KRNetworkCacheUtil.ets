@@ -35,6 +35,7 @@ export class  KRNetworkCacheUtil {
         fs.access(cacheFilePath, (err, res) => {
           if (err) {//mhttps://developer.huawei.com/consumer/cn/doc/harmonyos-references-V2/js-apis-file-fs-0000001451843016-V2
             KRRenderLog.i('KRNetworkCacheUtil', `access failed with error message: ${err.message}, error code: ${err.code}`)
+            KRNetworkCacheUtil.handleLoadFailure(url, cacheFilePath);
           } else {
             if (res) {
               callback(cacheFilePath);
@@ -48,7 +49,7 @@ export class  KRNetworkCacheUtil {
       }
     } else {
       KRRenderLog.i('KRNetworkCacheUtil', `cache file path is empty by url: ${url}`)
-      callback('')
+      callback(null)
     }
   }
 
@@ -65,27 +66,36 @@ export class  KRNetworkCacheUtil {
       }).then((downloadTask) => {
         downloadTask.on('complete', () => {
           KRRenderLog.i('KRNetworkCacheUtil', `donwload success with url:${url} cacheFilePath:${cacheFilePath}`)
-          // 调用所有与该URL关联的回调函数
-          KRNetworkCacheUtil.downloadTasks.get(url)!.forEach((cb) => cb(cacheFilePath));
-          // 从下载任务映射中移除已完成的任务
-          KRNetworkCacheUtil.downloadTasks.delete(url);
+          const callbacks = KRNetworkCacheUtil.downloadTasks.get(url);
+          if (callbacks) {
+            KRNetworkCacheUtil.downloadTasks.delete(url);
+            callbacks.forEach((cb) => cb(cacheFilePath));
+          }
         })
 
         downloadTask.on('fail', (err: number) => {
           KRRenderLog.i('KRNetworkCacheUtil', `donwload fail with url:${url} cacheFilePath:${cacheFilePath} err:${err}`)
-          // 调用所有与该URL关联的回调函数
-          KRNetworkCacheUtil.downloadTasks.get(url)!.forEach((cb) => cb(cacheFilePath));
-          // 从下载任务映射中移除已完成的任务
-          KRNetworkCacheUtil.downloadTasks.delete(url);
+          KRNetworkCacheUtil.handleLoadFailure(url, cacheFilePath);
         });
 
       }).catch((err: BusinessError) => {
         KRRenderLog.i('KRNetworkCacheUtil', `Invoke downloadTask failed, code is ${err.code}, message is ${err.message} url is ${url}`)
-        // 调用所有与该URL关联的回调函数，传入空字符串表示下载失败
-        KRNetworkCacheUtil.downloadTasks.get(url)!.forEach((cb) => cb(''));
-        // 从下载任务映射中移除已完成的任务
-        KRNetworkCacheUtil.downloadTasks.delete(url);
+        KRNetworkCacheUtil.handleLoadFailure(url, cacheFilePath);
       });
+    }
+  }
+
+  private static handleLoadFailure(url: string, cacheFilePath: string) {
+    try {
+      // 清理下载失败的路径的遗留资源
+      fs.unlinkSync(cacheFilePath);
+    } catch (e) {
+      // ignore unlink errors (file may not exist)
+    }
+    const callbacks = KRNetworkCacheUtil.downloadTasks.get(url);
+    if (callbacks) {
+      KRNetworkCacheUtil.downloadTasks.delete(url);
+      callbacks.forEach((cb) => cb(null));
     }
   }
 

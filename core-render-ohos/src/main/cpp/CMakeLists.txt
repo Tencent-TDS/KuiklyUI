@@ -13,6 +13,7 @@ set(SOURCE_SET
         libohos_render/api/src/Kuikly.cpp
         libohos_render/api/src/KRAnyData.cpp
         libohos_render/foundation/ffrt/KRFfrt.cpp
+        libohos_render/foundation/ffrt/KRDispatchQueue.cpp
         libohos_render/foundation/ark_ts.cpp
         libohos_render/foundation/thread/KRMainThread.cpp
         libohos_render/manager/KRRenderManager.cpp
@@ -53,6 +54,7 @@ set(SOURCE_SET
         libohos_render/expand/components/image/KRImageViewWrapper.cpp
         libohos_render/expand/components/richtext/KRFontAdapterManager.cpp
         libohos_render/expand/components/richtext/KRRichTextShadow.cpp
+        libohos_render/expand/components/richtext/KRCustomEmojiPixmapCache.cpp
         libohos_render/expand/components/scroller/KRScrollerView.cpp
         libohos_render/expand/components/richtext/KRRichTextView.cpp
         libohos_render/expand/components/richtext/KRParagraph.cpp
@@ -62,6 +64,10 @@ set(SOURCE_SET
         libohos_render/utils/KRTransformParser.cpp
         libohos_render/expand/components/input/KRTextFieldView.cpp
         libohos_render/expand/components/input/KRTextAreaView.cpp
+        libohos_render/expand/components/input/KRTextEditorSwitch.cpp
+        libohos_render/expand/components/input/KRTextEditorFieldView.cpp
+        libohos_render/expand/components/input/KRTextEditorAreaView.cpp
+        libohos_render/expand/components/input/KRTextEditorCommon.cpp
         libohos_render/manager/KRKeyboardManager.cpp
         libohos_render/expand/modules/forward/KRForwardArkTSModule.cpp
         libohos_render/expand/modules/preferences/KRPreferences.cpp
@@ -111,6 +117,10 @@ set(SOURCE_SET
 )
 
 add_library(kuikly SHARED ${SOURCE_SET})
+target_compile_options(kuikly PRIVATE
+        $<$<COMPILE_LANGUAGE:CXX>:-Wconstexpr-not-const>
+        $<$<COMPILE_LANGUAGE:CXX>:-Werror=constexpr>
+)
 target_include_directories(kuikly PUBLIC ${HMOS_SDK_NATIVE}/sysroot/usr/include)
 target_link_directories(kuikly PUBLIC ${HMOS_SDK_NATIVE}/sysroot/usr/lib/aarch64-linux-ohos)
 target_include_directories(kuikly PRIVATE ${NATIVERENDER_ROOT_PATH}

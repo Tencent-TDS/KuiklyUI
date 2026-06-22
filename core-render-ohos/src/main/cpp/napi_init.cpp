@@ -160,6 +160,28 @@ static napi_value ArkTSOnSendEvent(napi_env env, napi_callback_info info) {
     }
     return 0;
 }
+
+static napi_value ArkTSOnSendEventSync(napi_env env, napi_callback_info info) {
+    size_t argc = 4;
+    napi_value args[4] = {nullptr};
+    if (napi_ok != napi_get_cb_info(env, info, &argc, args, nullptr, nullptr)) {
+        napi_throw_error(env, "-1000", "ArkTSOnSendEventSync napi_get_cb_info error");
+        return 0;
+    }
+
+    std::string instance_id = kuikly::util::getNApiArgsStdString(env, args[0]);
+    auto event = kuikly::util::getNApiArgsStdString(env, args[1]);
+    auto data = kuikly::util::getNApiArgsStdString(env, args[2]);
+    bool sync = kuikly::util::getNApiArgsBool(env, args[3]);
+    auto renderView = KRRenderManager::GetInstance().GetRenderView(instance_id);
+    if (renderView != nullptr) {
+        renderView->SendEvent(event, data, sync);
+        napi_value result;
+        napi_create_int32(env, 1, &result);
+        return result;
+    }
+    return 0;
+}
 static napi_value CreateNativeRoot(napi_env env, napi_callback_info info) {
     // The API OH_ArkUI_NodeContent_RegisterCallback depends on it
     auto nodeApi = kuikly::util::GetNodeApi();
@@ -204,6 +226,7 @@ static napi_value Init(napi_env env, napi_value exports) {
         {"onInitRenderView", nullptr, OnInitRenderView, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"arkTSCallNative", nullptr, ArkTSCallNative, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"sendEvent", nullptr, ArkTSOnSendEvent, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"sendEventSync", nullptr, ArkTSOnSendEventSync, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"updateConfig", nullptr, UpdateConfig, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"OnLaunchStart", nullptr, OnLaunchStart, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"createNativeRoot", nullptr, CreateNativeRoot, nullptr, nullptr, nullptr, napi_default, nullptr},

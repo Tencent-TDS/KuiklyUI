@@ -365,7 +365,7 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
     }
 
     // 强制使用LTR文本方向
-    [attributedString addAttribute:NSWritingDirectionAttributeName value:@[@(NSWritingDirectionLeftToRight | NSWritingDirectionOverride)] range:range];
+    [attributedString addAttribute:NSWritingDirectionAttributeName value:@[@((NSInteger)NSWritingDirectionLeftToRight | (NSInteger)NSWritingDirectionOverride)] range:range];
 
     if (attrs.letterSpacing) {
         [attributedString addAttribute:NSKernAttributeName value:@(attrs.letterSpacing) range:range];
@@ -433,7 +433,7 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
 
     NSAttributedString *attrString = [NSAttributedString attributedStringWithAttachment:attachment];
     NSMutableAttributedString *mutableAttrString = [[NSMutableAttributedString alloc] initWithAttributedString:attrString];
-    [mutableAttrString kr_addAttribute:NSWritingDirectionAttributeName value:@[@(NSWritingDirectionLeftToRight | NSWritingDirectionOverride)] range:NSMakeRange(0, mutableAttrString.length)];
+    [mutableAttrString kr_addAttribute:NSWritingDirectionAttributeName value:@[@((NSInteger)NSWritingDirectionLeftToRight | (NSInteger)NSWritingDirectionOverride)] range:NSMakeRange(0, mutableAttrString.length)];
     return mutableAttrString;
 }
 

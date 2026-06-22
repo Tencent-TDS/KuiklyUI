@@ -20,7 +20,7 @@ import com.tencent.kuikly.core.views.LengthLimitType
 
 internal class MaxLengthElement(
     val maxLength: Int,
-    val lengthLimitType: LengthLimitType,
+    val lengthLimitType: LengthLimitType
 ) : Modifier.Element {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -29,11 +29,15 @@ internal class MaxLengthElement(
                 lengthLimitType == other.lengthLimitType
     }
 
-    override fun hashCode(): Int = 31 * maxLength.hashCode() + lengthLimitType.hashCode()
+    override fun hashCode(): Int {
+        var result = maxLength.hashCode()
+        result = 31 * result + lengthLimitType.hashCode()
+        return result
+    }
 }
 
 internal class OnLimitChangeElement(
-    val onLimitChange: (length: Int, limit: Boolean) -> Unit,
+    val onLimitChange: (length: Int, limit: Boolean) -> Unit
 ) : Modifier.Element {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -51,16 +55,16 @@ internal class OnLimitChangeElement(
  */
 fun Modifier.maxLength(
     length: Int,
-    type: LengthLimitType = LengthLimitType.CHARACTER,
+    type: LengthLimitType = LengthLimitType.CHARACTER
 ): Modifier = this.then(MaxLengthElement(length, type))
 
 /**
- * 设置输入框长度变化/超限回调
- * 当字数变化或长度超过限制时回调
- * @param onLimitChange 回调函数，length 为当前文本长度，limit 为是否超限
+ * 设置输入框长度变化回调
+ * 当渲染层确认的长度或限额状态发生变化时回调；超限输入被拒绝时，也会回传当前真实长度状态
+ * @param onLimitChange 回调函数，length 为当前文本长度，limit 为是否已达到或超过上限
  */
 fun Modifier.onLimitChange(
-    onLimitChange: (length: Int, limit: Boolean) -> Unit,
+    onLimitChange: (length: Int, limit: Boolean) -> Unit
 ): Modifier = this.then(OnLimitChangeElement(onLimitChange))
 
 internal fun Modifier.extractTextFieldMaxLengthElements(): Triple<Modifier, MaxLengthElement?, OnLimitChangeElement?> {

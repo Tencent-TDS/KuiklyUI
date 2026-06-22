@@ -11,6 +11,8 @@
 local.properties
 *.so
 *.js
+!demo/webpack.config.d/*.js
+!h5App/webpack.config.d/*.js
 node_modules
 Pods
 Pods/*
@@ -51,3 +53,6 @@ proto/**/*.kt
 ## Profiler / tool logs
 /logs/
 /iosApp/logs/
+/.claude-internal
+/.cursor/
+.mcp.json

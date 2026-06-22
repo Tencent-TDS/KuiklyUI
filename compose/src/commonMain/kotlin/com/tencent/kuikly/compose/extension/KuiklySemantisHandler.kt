@@ -60,7 +60,14 @@ class KuiklySemantisHandler {
                     view.getViewAttr().accessibility(accessibility)
                     val kuiklyAccRole = convertComposeRoleToKuiklyRole(role)
                     view.getViewAttr().accessibilityRole(kuiklyAccRole)
+                }
+                if (isClickable || isLongClickable) {
                     view.getViewAttr().accessibilityInfo(isClickable, isLongClickable)
+                }
+
+                val testTag = config.getOrNull(SemanticsProperties.TestTag)
+                if (testTag != null) {
+                    view.getViewAttr().testTag(testTag)
                 }
 
                 val last = lastStateDescriptionMap[nodeId]

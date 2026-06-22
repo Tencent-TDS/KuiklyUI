@@ -16,6 +16,7 @@
 #include "libohos_render/expand/components/scroller/KRScrollerView.h"
 
 #include <cfloat>
+#include <cmath>
 #include "libohos_render/expand/components/view/KRView.h"
 #include "libohos_render/foundation/type/KRRenderValue.h"
 #include "libohos_render/utils/KRJSONObject.h"
@@ -83,14 +84,11 @@ void KRScrollerContentView::SetRenderViewFrame(const KRRect &frame) {
 }
 
 void KRScrollerContentView::AddContentScrollObserver(IKRContentScrollObserver *observer) {
-    contentScrollObservers_.push_back(observer);
+    contentScrollObservers_.insert(observer);
 }
 
 void KRScrollerContentView::RemoveContentScrollObserver(IKRContentScrollObserver *observer) {
-    auto it = std::find(contentScrollObservers_.begin(), contentScrollObservers_.end(), observer);
-    if (it != contentScrollObservers_.end()) {
-        contentScrollObservers_.erase(it);
-    }
+    contentScrollObservers_.erase(observer);
 }
 
 void KRScrollerContentView::DidInsertSubRenderView(const std::shared_ptr<IKRRenderViewExport> &sub_render_view,
@@ -156,6 +154,7 @@ void KRScrollerView::DidInit() {
     last_scroll_time_ = 0;
     last_scroll_x_ = 0;
     last_scroll_y_ = 0;
+    last_move_time_ = 0;
     velocity_x_ = 0;
     velocity_y_ = 0;
     SetBouncesEnable(NewKRRenderValue(bounces_enabled_));
@@ -345,8 +344,8 @@ bool KRScrollerView::SetScrollEnabled(const KRAnyValue &value) {
 }
 
 bool KRScrollerView::SetScrollDirection(const KRAnyValue &value) {
-    auto direction_row = value->toBool();
-    kuikly::util::SetArkUIScrollDirection(GetNode(), direction_row);
+    direction_row_ = value->toBool();
+    kuikly::util::SetArkUIScrollDirection(GetNode(), direction_row_);
     return true;
 }
 
@@ -450,10 +449,16 @@ void KRScrollerView::SetContentInset(const std::shared_ptr<KRScrollerContentInse
     auto end = content_inset->end;
     auto animate = content_inset->animate;
     if (animate) {
+        // 对齐 iOS 逻辑：若当前 offset 超出新 inset 的合法范围，先滚回合法位置
+        auto current_offset = GetContentOffset();
+        auto target_offset = MaxContentOffsetInContentInset(content_inset);
+        if (target_offset.x != current_offset.x || target_offset.y != current_offset.y) {
+            kuikly::util::SetArkUIContentOffset(GetNode(), target_offset.x, target_offset.y, true, 0, 0);
+        }
+        // 再用原有动画逻辑设置 margin
         auto root_view = GetRootView().lock();
         if (!root_view) {
             kuikly::util::SetArkUIMargin(content_view_->GetNode(), start, top, end, bottom);
-            return;
         } else {
             auto animate_option = std::make_shared<KRAnimateOption>();
             animate_option->SetDuration(200);
@@ -475,12 +480,53 @@ void KRScrollerView::SetContentInset(const std::shared_ptr<KRScrollerContentInse
     }
 }
 
-void KRScrollerView::OnScrollFrameBegin(ArkUI_NodeEvent *event) {
-    auto scroll_state = kuikly::util::GetArkUIScrollerState(event, 1);
-    if (current_scroll_state_ == scroll_state) {
-        return;
+// 计算在指定 contentInset 下 offset 的合法位置（对齐 iOS p_maxContentOffsetInContentInset）
+KRPoint KRScrollerView::MaxContentOffsetInContentInset(
+    const std::shared_ptr<KRScrollerContentInset> &content_inset) {
+    if (!content_view_) {
+        return KRPoint();
     }
 
+    auto frame = GetFrame();
+    auto content_frame = content_view_->GetFrame();
+    auto current_offset = GetContentOffset();
+
+    if (direction_row_) {
+        float content_size = content_frame.width;
+        float frame_size = frame.width;
+        if (content_size <= frame_size) {
+            return KRPoint();
+        }
+        // 上/左越界：offset 滚到了 inset 头部之前
+        if (current_offset.x < -content_inset->start) {
+            return KRPoint{-content_inset->start, 0};
+        }
+        // 下/右越界：offset 滚过了内容尾部
+        float max_offset = content_size + content_inset->end - frame_size;
+        if (current_offset.x > max_offset) {
+            return KRPoint{max_offset, 0};
+        }
+    } else {
+        float content_size = content_frame.height;
+        float frame_size = frame.height;
+        if (content_size <= frame_size) {
+            return KRPoint();
+        }
+        // 上越界
+        if (current_offset.y < -content_inset->top) {
+            return KRPoint{0, -content_inset->top};
+        }
+        // 下越界
+        float max_offset = content_size + content_inset->bottom - frame_size;
+        if (current_offset.y > max_offset) {
+            return KRPoint{0, max_offset};
+        }
+    }
+
+    return current_offset;
+}
+
+void KRScrollerView::OnScrollFrameBegin(ArkUI_NodeEvent *event) {
     auto current_time = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
     auto point = kuikly::util::GetArkUIScrollContentOffset(GetNode());
@@ -488,25 +534,24 @@ void KRScrollerView::OnScrollFrameBegin(ArkUI_NodeEvent *event) {
     if (last_scroll_time_ > 0) {
         auto dt = current_time - last_scroll_time_;
         if (dt > 0) {
-            velocity_x_ = (point.x - last_scroll_x_) * 1000.0f / dt;
-            velocity_y_ = (point.y - last_scroll_y_) * 1000.0f / dt;
+            float instant_vx = (point.x - last_scroll_x_) * 1000.0f / dt;
+            float instant_vy = (point.y - last_scroll_y_) * 1000.0f / dt;
+            // EMA 平滑，抑制帧间抖动（alpha=0.3，半衰期约 2 帧）
+            constexpr float kEmaAlpha = 0.3f;
+            velocity_x_ = kEmaAlpha * instant_vx + (1.0f - kEmaAlpha) * velocity_x_;
+            velocity_y_ = kEmaAlpha * instant_vy + (1.0f - kEmaAlpha) * velocity_y_;
+            // 追踪产生有效位移的时间点，用于 OnWillDragEnd 的 stale 检测
+            constexpr float kMinOffsetDelta = 0.5f;
+            if (fabsf(point.x - last_scroll_x_) > kMinOffsetDelta ||
+                fabsf(point.y - last_scroll_y_) > kMinOffsetDelta) {
+                last_move_time_ = current_time;
+            }
         }
     }
 
     last_scroll_time_ = current_time;
     last_scroll_x_ = point.x;
     last_scroll_y_ = point.y;
-    if (IsIdeaStateToDraggingState(scroll_state) || IsFlingStateToDraggingState(scroll_state)) {
-        is_dragging_ = true;
-        FireBeginDragEvent(event);
-    }
-    if (IsDraggingStateToFlingState(scroll_state) || IsDraggingStateToIdeaState(scroll_state)) {
-        OnWillDragEnd(event);
-    }
-    current_scroll_state_ = scroll_state;
-    if (auto handler = weak_super_touch_handler_.lock()) {
-        handler->SetNativeTouchConsumer(shared_from_this());
-    }
 }
 
 void KRScrollerView::OnScrollStop(ArkUI_NodeEvent *event) {
@@ -527,11 +572,17 @@ void KRScrollerView::OnWillScroll(ArkUI_NodeEvent *event) {
     if (new_scroll_state == current_scroll_state_) {
         return;
     }
-    if (is_dragging_ &&
+    if (IsIdeaStateToDraggingState(new_scroll_state) || IsFlingStateToDraggingState(new_scroll_state)) {
+        is_dragging_ = true;
+        FireBeginDragEvent(event);
+    } else if (is_dragging_ &&
         (IsDraggingStateToFlingState(new_scroll_state) || IsDraggingStateToIdeaState(new_scroll_state))) {
         OnWillDragEnd(event);
     }
     current_scroll_state_ = new_scroll_state;
+    if (auto handler = weak_super_touch_handler_.lock()) {
+        handler->SetNativeTouchConsumer(shared_from_this());
+    }
 }
 
 void KRScrollerView::OnWillDragEnd(ArkUI_NodeEvent *event) {
@@ -592,8 +643,28 @@ std::shared_ptr<KRRenderValue> KRScrollerView::GetCommonScrollParams() {
         map[kEventKeyContentHeight] = NewKRRenderValue(content_view_frame.height);
     }
     map[kEventKeyIsDragging] = NewKRRenderValue(is_dragging_ ? 1 : 0);
-    map[kEventKeyVelocityX] = NewKRRenderValue(velocity_x_);
-    map[kEventKeyVelocityY] = NewKRRenderValue(velocity_y_);
+
+    // 统一计算有效速度：基于最后位移的 stale 检测 + 最小阈值过滤
+    auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    constexpr int64_t kVelocityDecayThresholdMs = 150;
+    constexpr float kMinVelocityThreshold = 100.0f;  // px/s
+
+    float effective_vx = velocity_x_;
+    float effective_vy = velocity_y_;
+    if (now - last_move_time_ > kVelocityDecayThresholdMs) {
+        effective_vx = 0;
+        effective_vy = 0;
+    }
+    if (fabsf(effective_vx) < kMinVelocityThreshold) {
+        effective_vx = 0;
+    }
+    if (fabsf(effective_vy) < kMinVelocityThreshold) {
+        effective_vy = 0;
+    }
+
+    map[kEventKeyVelocityX] = NewKRRenderValue(effective_vx);
+    map[kEventKeyVelocityY] = NewKRRenderValue(effective_vy);
     return NewKRRenderValue(std::move(map));
 }
 
@@ -627,13 +698,10 @@ void KRScrollerView::AdjustHeaderBouncesEnableWhenWillScroll(ArkUI_NodeEvent *ev
 }
 
 void KRScrollerView::AddScrollObserver(IKRScrollObserver *observer) {
-    scroll_observers_.push_back(observer);
+    scroll_observers_.insert(observer);
 }
 void KRScrollerView::RemoveScrollObserver(IKRScrollObserver *observer) {
-    auto it = std::find(scroll_observers_.begin(), scroll_observers_.end(), observer);
-    if (it != scroll_observers_.end()) {
-        scroll_observers_.erase(it);
-    }
+    scroll_observers_.erase(observer);
 }
 
 void KRScrollerView::DispatchDidScrollToObservers(KRPoint point) {
@@ -708,6 +776,7 @@ void KRScrollerView::PrepareForComposeReuse() {
     last_scroll_time_ = 0;
     last_scroll_x_ = 0;
     last_scroll_y_ = 0;
+    last_move_time_ = 0;
     velocity_x_ = 0;
     velocity_y_ = 0;
 }
@@ -717,7 +786,7 @@ void KRScrollerView::AbortContentOffsetAnimate() {
     if (content_inset_animate_) {
         content_inset_animate_ = nullptr;
     }
-    
+
     // 停止滚动：通过 scrollBy(0, 0) 来停止当前的滚动/Fling 动画
     ArkUI_NumberValue values[] = {{.f32 = 0}, {.f32 = 0}};
     ArkUI_AttributeItem item = {values, 2};

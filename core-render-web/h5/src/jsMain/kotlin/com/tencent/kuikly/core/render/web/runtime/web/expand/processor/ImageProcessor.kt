@@ -50,7 +50,7 @@ object ImageProcessor : IImageProcessor {
         }
     }
     
-    override fun applyTintColor(imageElement: HTMLImageElement, tintColorValue: String, rootWidth: Double) {
+    override fun applyTintColor(imageElement: HTMLImageElement, tintColorValue: String, frameHeight: Double) {
         if (tintColorValue.isEmpty()) {
             imageElement.style.filter = ""
             return

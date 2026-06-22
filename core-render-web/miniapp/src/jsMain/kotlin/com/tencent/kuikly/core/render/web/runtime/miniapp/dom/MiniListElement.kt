@@ -51,6 +51,14 @@ class MiniListElement(
     override var clickEventCallback: KuiklyRenderCallback? = null
     override var doubleClickEventCallback: KuiklyRenderCallback? = null
 
+    // Whether this list has a pull-to-refresh child
+    override var hasPullToRefresh: Boolean = false
+
+    // Set by [prepareForComposeReuse]; the next [setContentOffset] will proactively fire a
+    // scroll event even if the underlying scroll position is unchanged. This compensates
+    // for the miniapp scroll-view behavior of not dispatching `scroll` on no-op scrollTo.
+    private var pendingFireScrollForReuse: Boolean = false
+
     // When manually set, record the scroll value. When the triggered scroll equals this value,
     // it can be considered as scroll ended
     private var tempScrollLeft: Float? = 0f
@@ -138,6 +146,9 @@ class MiniListElement(
     // Whether scrolling is enabled
     var scrollEnabled = true
 
+    // Whether bounce (edge rebound) effect is enabled. Mapped to scroll-view's `bounces` attribute.
+    private var bounceEnabled = false
+
     // Use movableArea when paging is enabled and horizontal scrolling
     val isMovableArea: Boolean
         get() = pagingEnabled && !isColumnDirection
@@ -176,6 +187,30 @@ class MiniListElement(
             scrollLeft = offsetX.toDouble()
             scrollTop = offsetY.toDouble()
         }
+
+        // After Compose DSL reuse, the upper layer sets `ignoreScrollOffset` and expects the
+        // next setContentOffset to fire a scroll event so the flag can be cleared. However,
+        // when the target offset equals the current scrollTop/scrollLeft, miniapp scroll-view
+        // won't dispatch a `scroll` event at all. To match iOS/Android semantics
+        // ("setContentOffset always triggers a scroll callback"), proactively fire one async
+        // scroll event.
+        if (pendingFireScrollForReuse) {
+            pendingFireScrollForReuse = false
+            MiniGlobal.setTimeout({
+                fireScrollEvent()
+            }, 0)
+        }
+    }
+
+    /**
+     * Clear transient state for Compose DSL reuse.
+     *
+     * Sets a flag so the *next* [setContentOffset] still fires a scroll event even if
+     * scrollTop/scrollLeft do not change, so that the upper-layer `ignoreScrollOffset`
+     * flag in SubcomposeLayout can be cleared.
+     */
+    override fun prepareForComposeReuse() {
+        pendingFireScrollForReuse = true
     }
 
 
@@ -188,20 +223,20 @@ class MiniListElement(
         // Format inset value
         val contentInset = KRListViewContentInset(contentInsetString)
         // If needed, set inset value with animation
-        style.transition =
+        firstElementChild?.style?.transition =
             if (contentInset.animate) {
                 "transform ${BOUND_BACK_DURATION}ms $REFRESH_TIMING_FUNCTION"
             } else {
                 ""
             }
         // Set the value to complete
-        style.transform = "translate(${contentInset.left}px, ${contentInset.top}px)"
+        firstElementChild?.style?.transform = "translate(${contentInset.left}px, ${contentInset.top}px)"
 
         if (contentInset.top == 0f && contentInset.left == 0f) {
             // remove transform value
             MiniGlobal.setTimeout({
-                style.transition = ""
-                style.transform = ""
+                firstElementChild?.style?.transition = ""
+                firstElementChild?.style?.transform = ""
             }, BOUND_BACK_DURATION.toInt() + 100)
         }
     }
@@ -303,6 +338,11 @@ class MiniListElement(
     }
 
     override fun setBounceEnable(params: Any): Boolean {
+        bounceEnabled = params.unsafeCast<Int>() == 1
+        // Only scroll-view mode supports bounces; movable-area ignores it.
+        if (!isMovableArea) {
+            setAttribute("bounces", bounceEnabled)
+        }
         return true;
     }
 
@@ -490,8 +530,8 @@ class MiniListElement(
             setScrollViewScrollEvent()
             // Enable scroll-view enhancement mode
             setAttribute("enhanced", true)
-            // Disable bounces animation
-            setAttribute("bounces", false)
+            // Apply bounces according to current bounceEnabled (default false)
+            setAttribute("bounces", bounceEnabled)
             // Default set scrollbar with animation
             setAttribute("scroll-with-animation", true)
             setAttribute("scroll-anchoring", true)
@@ -683,16 +723,7 @@ class MiniListElement(
      * Check whether there is a pull-to-refresh child node
      */
     private fun checkHasRefreshChild(): Boolean {
-        // Check first child node of the first element, whether it is a pull-to-refresh node,
-        // here because listView implementation is to wrap a ScrollContentView, then
-        // Wrap the specific scrollable content, so take child node to ScrollContentView's child node
-        val firstChild = firstElementChild?.firstElementChild
-
-        if (firstChild != null) {
-            // Judge whether the first child node is a pull-to-refresh node, todo more elegant method
-            return firstChild.style.transform == "translate(0%, -100%) rotate(0deg) scale(1, 1) skew(0deg, 0deg)"
-        }
-        return false
+        return hasPullToRefresh
     }
 
     /**

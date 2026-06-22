@@ -13,6 +13,7 @@
       "pages/HoverExamplePage/index", 
       "pages/ModalViewDemoPage/index",
       "pages/CanvasDemoTest/index", 
+      "pages/CanvasInScroller/index", 
 
 
       "pages/DisplayIndexPage/index", 
@@ -24,6 +25,7 @@
       "pages/DisplayContainerViewPage/index", 
 
       "pages/FlexExamplePage/index", 
+      "pages/FontExamplePage/index",
       "pages/ViewExamplePage/index", 
       "pages/ZIndexExamplePage/index", 
       "pages/ImageExamplePage/index", 
@@ -116,7 +118,11 @@
       "pages/material_demo/index",
       "pages/PopMenuDialogDemo/index",
       "pages/AnchoredDraggableDemo/index",
-      "pages/ScaffoldDemo/index"
+      "pages/ScaffoldDemo/index",
+      "pages/WXExamplePage/index",
+      "pages/WXWebViewDemoPage/index",
+      "pages/WXApiExamplePage/index",
+      "pages/WXRawApiExamplePage/index"
     ],
   "window":{
     "backgroundTextStyle":"light",

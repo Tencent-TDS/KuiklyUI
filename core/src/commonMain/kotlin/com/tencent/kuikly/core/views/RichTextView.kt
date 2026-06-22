@@ -24,6 +24,7 @@ import com.tencent.kuikly.core.base.ScopeMarker
 import com.tencent.kuikly.core.base.Size
 import com.tencent.kuikly.core.base.ViewConst
 import com.tencent.kuikly.core.base.ViewContainer
+import com.tencent.kuikly.core.base.attr.ColorMatrix
 import com.tencent.kuikly.core.base.attr.IImageAttr
 import com.tencent.kuikly.core.base.attr.ImageUri
 import com.tencent.kuikly.core.base.domChildren
@@ -466,9 +467,13 @@ open class PlaceholderSpan : ISpan {
         const val PROP_KEY_PLACEHOLDER_WIDTH = "placeholderWidth"
         const val PROP_KEY_PLACEHOLDER_HEIGHT = "placeholderHeight"
         const val PROP_KEY_PLACEHOLDER_TEXT = "text"
+        private val REGEX_CONTROL_CHARACTERS by lazy(LazyThreadSafetyMode.NONE) {
+            Regex("\\p{Cc}")
+        }
     }
 
     private var placeholderSize: Size = Size(0f, 0f)
+    private var description: String = " "
     internal var spanFrameDidChangedHandlerFn: ((Frame) -> Unit)? = null
     var spanFrame: Frame = Frame.zero
         set(value) {
@@ -480,6 +485,10 @@ open class PlaceholderSpan : ISpan {
 
     fun placeholderSize(width: Float, height: Float) {
         placeholderSize = Size(width, height)
+    }
+
+    fun description(description: String) {
+        this.description = description.replace(REGEX_CONTROL_CHARACTERS, " ")
     }
 
     fun spanFrameDidChanged(handler: (frame: Frame) -> Unit) {
@@ -494,7 +503,7 @@ open class PlaceholderSpan : ISpan {
         return fastHashMapOf<String, Any>().apply {
             put(PROP_KEY_PLACEHOLDER_WIDTH, placeholderSize.width)
             put(PROP_KEY_PLACEHOLDER_HEIGHT, placeholderSize.height)
-            put(PROP_KEY_PLACEHOLDER_TEXT, " ")
+            put(PROP_KEY_PLACEHOLDER_TEXT, description)
         }
     }
 
@@ -531,6 +540,7 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
     private var resizeMode: String = ""
     private var blurRadius: Float = 0f
     private var tintColor: Color? = null
+    private var colorFilter: ColorMatrix? = null
     private var isDotNineImage: Boolean = false
     private var borderRadius = 0f
     private var capInsets: EdgeInsets = EdgeInsets.default
@@ -619,6 +629,11 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
 
     override fun tintColor(color: Color?): IImageAttr {
         this.tintColor = color
+        return this
+    }
+
+    override fun colorFilter(matrix: ColorMatrix?): IImageAttr {
+        this.colorFilter = matrix
         return this
     }
 
@@ -740,7 +755,9 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
             richTextViewParent?.addChild(ImageView()) {
                 ctx.view = this
                 attr {
-                    visibility(ctx.placeholderFrame.width != 0f && ctx.placeholderFrame.height != 0f)
+                    val isWithinRichText = ctx.richTextFrame.height == 0f ||
+                        (ctx.placeholderFrame.y + ctx.placeholderFrame.height) <= ctx.richTextFrame.height
+                    visibility(ctx.placeholderFrame.width != 0f && ctx.placeholderFrame.height != 0f && isWithinRichText)
                     absolutePosition(
                         top = ctx.richTextFrame.y + ctx.placeholderFrame.y + ctx.verticalAlignOffset,
                         left = ctx.richTextFrame.x + ctx.placeholderFrame.x + ctx.horizontalAlignOffset
@@ -767,6 +784,9 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
                     }
                     borderRadius(ctx.borderRadius)
                     capInsets(ctx.capInsets.top, ctx.capInsets.left, ctx.capInsets.bottom, ctx.capInsets.right)
+                    ctx.colorFilter?.also {
+                        colorFilter(it)
+                    }
                     margin(ctx.marginTop, ctx.marginLeft, ctx.marginBottom, ctx.marginRight)
                 }
                 ctx.clickHandlerFn?.also {

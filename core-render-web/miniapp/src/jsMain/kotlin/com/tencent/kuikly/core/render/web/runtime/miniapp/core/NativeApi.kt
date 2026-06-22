@@ -46,6 +46,17 @@ object NativeApi {
 
     fun getAppBaseInfo(): dynamic = plat["getAppBaseInfo"]()
 
+    /**
+     * Legacy `wx.createCanvasContext(id)` bridge.
+     *
+     * Deprecated: Canvas 2D (`<canvas type="2d">`) is now the default rendering path
+     * via [com.tencent.kuikly.core.render.web.runtime.miniapp.dom.MiniCanvasContext].
+     * Prefer `wx.createSelectorQuery().select('#id').node().exec(...)` instead.
+     */
+    @Deprecated(
+        "Use Canvas 2D selectorQuery().node() via MiniCanvasContext instead",
+        level = DeprecationLevel.WARNING
+    )
     fun createCanvasContext(canvasId: String): dynamic = plat["createCanvasContext"](canvasId)
 
     fun toCamelCase(str: String): String = jsToCamelCase(str).unsafeCast<String>()

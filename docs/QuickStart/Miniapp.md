@@ -432,8 +432,6 @@ fun initApp(options: dynamic = js("{}")) {
 ## 项目启动
 
 ```shell
-# 运行 shared 项目 dev server 服务器，没有安装 npm 包则先 npm install 安装一下依赖
-npm run serve
 #  构建 shared 项目 Debug 版
 ./gradlew :shared:packLocalJsBundleDebug
 ```
@@ -476,5 +474,8 @@ render.renderView({
 如果业务逻辑中需要对来自微信小程序平台的进行特殊逻辑处理，可以在Main.kt文件业务入口中，添加业务代码中通过 pageData.params.optString("is_wx_mp") == "1" 来进行处理，比如微信小程序登录等等
 ### 特殊样式设置
 由于微信小程序的某些特性比如滚动条是否隐藏必须通过 WXSS 来设置，因此无法通过编程实现，所以目前是通过在微信小程序壳工程里的app.wxss里添加对应样式实现
+
+### 常见问题
+接入过程中如遇到问题，请参考[微信小程序接入常见问题](../QA/miniapp-qa.md)
 
 

@@ -1,5 +1,9 @@
+@file:JsExport
+
 package com.tencent.kuikly.core.render.web.performance
 
+import kotlin.js.JsExport
+import kotlin.js.JsName
 import com.tencent.kuikly.core.render.web.IKuiklyRenderViewLifecycleCallback
 import com.tencent.kuikly.core.render.web.context.KuiklyRenderCoreExecuteMode
 import com.tencent.kuikly.core.render.web.exception.ErrorReason
@@ -13,6 +17,8 @@ import kotlin.js.Date
 /**
  * Performance monitoring types
  */
+@JsExport
+@JsName("KRMonitorType")
 enum class KRMonitorType {
     // Launch monitoring
     LAUNCH,

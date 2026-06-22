@@ -510,7 +510,18 @@ internal fun CoreTextField(
                                 }
                                 autoHeightTextAreaView.getViewAttr()
                                     .updatePropCache(TextConst.VALUE, it.text)
-                                onValueChange(TextFieldValue(it.text))
+                                val fallbackValue = lastSyncedTextInputState
+                                    ?.toTextFieldValue(it.text)
+                                    ?: value.withUpdatedTextPreservingEditingState(it.text)
+                                lastSyncedTextInputState = TextInputState(
+                                    text = fallbackValue.text,
+                                    selectionStart = fallbackValue.selection.start,
+                                    selectionEnd = fallbackValue.selection.end,
+                                    compositionStart = fallbackValue.composition?.start ?: TextInputState.NO_COMPOSITION,
+                                    compositionEnd = fallbackValue.composition?.end ?: TextInputState.NO_COMPOSITION,
+                                    length = it.length
+                                )
+                                onValueChange(fallbackValue)
                                 dispatchLimitChange(it.length, pendingLimitChangeNotification)
                             }
                         }
@@ -879,4 +890,47 @@ internal fun requestFocusAndShowKeyboardIfNeeded(
     } else if (allowKeyboard) {
         state.keyboardController?.show()
     }
+}
+
+private fun TextInputState.toTextFieldValue(text: String): TextFieldValue {
+    val safeTextLength = text.length
+    val selection = TextRange(
+        selectionStart.coerceIn(0, safeTextLength),
+        selectionEnd.coerceIn(0, safeTextLength)
+    )
+    val composition = if (
+        compositionStart != TextInputState.NO_COMPOSITION &&
+        compositionEnd != TextInputState.NO_COMPOSITION
+    ) {
+        TextRange(
+            compositionStart.coerceIn(0, safeTextLength),
+            compositionEnd.coerceIn(0, safeTextLength)
+        )
+    } else {
+        null
+    }
+    return TextFieldValue(
+        text = text,
+        selection = selection,
+        composition = composition
+    )
+}
+
+private fun TextFieldValue.withUpdatedTextPreservingEditingState(text: String): TextFieldValue {
+    val safeTextLength = text.length
+    val selection = TextRange(
+        selection.start.coerceIn(0, safeTextLength),
+        selection.end.coerceIn(0, safeTextLength)
+    )
+    val composition = composition?.let {
+        TextRange(
+            it.start.coerceIn(0, safeTextLength),
+            it.end.coerceIn(0, safeTextLength)
+        )
+    }
+    return TextFieldValue(
+        text = text,
+        selection = selection,
+        composition = composition
+    )
 }

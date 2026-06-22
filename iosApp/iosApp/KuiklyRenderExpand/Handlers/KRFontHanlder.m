@@ -60,6 +60,7 @@
                        fontWeight:(UIFontWeight)fontWeight
                     contextParams:(KuiklyContextParam *)contextParam {
     // 构建字体资源路径 或者 可以直接开启字体加载
+    // fontFamily 并不一定等于 字体注册之后的真实字体名称，因此已注册判断移步至字体加载成功后判断
 //    NSString *fontPath = [NSString stringWithFormat:@"%@/%@", contextParam.resourceFolderUrl, fontFamily];
 //    NSURL *fontPathURL = [NSURL fileURLWithPath:fontPath];
 
@@ -103,7 +104,13 @@
     // 从 newFont 提取真实的 PostScript Name
     NSString *postScriptName = (__bridge_transfer NSString *)CGFontCopyPostScriptName(newFont);
 
-    // 字体加载成功，进行字体注册
+    // 先检查该名字是否已在系统中注册（避免重复调用 CTFontManagerRegisterFontsForURL）
+    if ([UIFont fontWithName:postScriptName size:12]) {
+        CGFontRelease(newFont);
+        return postScriptName;
+    }
+
+    // 进行字体注册
     CFErrorRef error = NULL;
     BOOL success = CTFontManagerRegisterFontsForURL((__bridge  CFURLRef)fontURL,
                                                     kCTFontManagerScopeProcess,

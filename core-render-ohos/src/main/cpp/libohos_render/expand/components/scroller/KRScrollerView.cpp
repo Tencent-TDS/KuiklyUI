@@ -16,6 +16,7 @@
 #include "libohos_render/expand/components/scroller/KRScrollerView.h"
 
 #include <cfloat>
+#include <cmath>
 #include "libohos_render/expand/components/view/KRView.h"
 #include "libohos_render/foundation/type/KRRenderValue.h"
 #include "libohos_render/utils/KRJSONObject.h"
@@ -153,6 +154,7 @@ void KRScrollerView::DidInit() {
     last_scroll_time_ = 0;
     last_scroll_x_ = 0;
     last_scroll_y_ = 0;
+    last_move_time_ = 0;
     velocity_x_ = 0;
     velocity_y_ = 0;
     SetBouncesEnable(NewKRRenderValue(bounces_enabled_));
@@ -525,11 +527,6 @@ KRPoint KRScrollerView::MaxContentOffsetInContentInset(
 }
 
 void KRScrollerView::OnScrollFrameBegin(ArkUI_NodeEvent *event) {
-    auto scroll_state = kuikly::util::GetArkUIScrollerState(event, 1);
-    if (current_scroll_state_ == scroll_state) {
-        return;
-    }
-
     auto current_time = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
     auto point = kuikly::util::GetArkUIScrollContentOffset(GetNode());
@@ -537,8 +534,18 @@ void KRScrollerView::OnScrollFrameBegin(ArkUI_NodeEvent *event) {
     if (last_scroll_time_ > 0) {
         auto dt = current_time - last_scroll_time_;
         if (dt > 0) {
-            velocity_x_ = (point.x - last_scroll_x_) * 1000.0f / dt;
-            velocity_y_ = (point.y - last_scroll_y_) * 1000.0f / dt;
+            float instant_vx = (point.x - last_scroll_x_) * 1000.0f / dt;
+            float instant_vy = (point.y - last_scroll_y_) * 1000.0f / dt;
+            // EMA 平滑，抑制帧间抖动（alpha=0.3，半衰期约 2 帧）
+            constexpr float kEmaAlpha = 0.3f;
+            velocity_x_ = kEmaAlpha * instant_vx + (1.0f - kEmaAlpha) * velocity_x_;
+            velocity_y_ = kEmaAlpha * instant_vy + (1.0f - kEmaAlpha) * velocity_y_;
+            // 追踪产生有效位移的时间点，用于 OnWillDragEnd 的 stale 检测
+            constexpr float kMinOffsetDelta = 0.5f;
+            if (fabsf(point.x - last_scroll_x_) > kMinOffsetDelta ||
+                fabsf(point.y - last_scroll_y_) > kMinOffsetDelta) {
+                last_move_time_ = current_time;
+            }
         }
     }
 
@@ -636,8 +643,28 @@ std::shared_ptr<KRRenderValue> KRScrollerView::GetCommonScrollParams() {
         map[kEventKeyContentHeight] = NewKRRenderValue(content_view_frame.height);
     }
     map[kEventKeyIsDragging] = NewKRRenderValue(is_dragging_ ? 1 : 0);
-    map[kEventKeyVelocityX] = NewKRRenderValue(velocity_x_);
-    map[kEventKeyVelocityY] = NewKRRenderValue(velocity_y_);
+
+    // 统一计算有效速度：基于最后位移的 stale 检测 + 最小阈值过滤
+    auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    constexpr int64_t kVelocityDecayThresholdMs = 150;
+    constexpr float kMinVelocityThreshold = 100.0f;  // px/s
+
+    float effective_vx = velocity_x_;
+    float effective_vy = velocity_y_;
+    if (now - last_move_time_ > kVelocityDecayThresholdMs) {
+        effective_vx = 0;
+        effective_vy = 0;
+    }
+    if (fabsf(effective_vx) < kMinVelocityThreshold) {
+        effective_vx = 0;
+    }
+    if (fabsf(effective_vy) < kMinVelocityThreshold) {
+        effective_vy = 0;
+    }
+
+    map[kEventKeyVelocityX] = NewKRRenderValue(effective_vx);
+    map[kEventKeyVelocityY] = NewKRRenderValue(effective_vy);
     return NewKRRenderValue(std::move(map));
 }
 
@@ -749,6 +776,7 @@ void KRScrollerView::PrepareForComposeReuse() {
     last_scroll_time_ = 0;
     last_scroll_x_ = 0;
     last_scroll_y_ = 0;
+    last_move_time_ = 0;
     velocity_x_ = 0;
     velocity_y_ = 0;
 }

@@ -52,7 +52,19 @@ internal class PagerScrollPosition(
     /** The last know key of the page at [currentPage] position. */
     private var lastKnownCurrentPageKey: Any? = null
 
+    private var snapAnchorPageDuringDrag: Int? = null
+    private var snapAnchorKeyDuringDrag: Any? = null
+
     internal fun anchorKey(): Any? = lastKnownCurrentPageKey
+
+    internal fun snapAnchorPageDuringDrag(): Int? = snapAnchorPageDuringDrag
+
+    internal fun snapAnchorKeyDuringDrag(): Any? = snapAnchorKeyDuringDrag
+
+    internal fun clearSnapAnchorPageDuringDrag() {
+        snapAnchorPageDuringDrag = null
+        snapAnchorKeyDuringDrag = null
+    }
 
     val nearestRangeState = LazyLayoutNearestRangeState(
         currentPage,
@@ -79,7 +91,20 @@ internal class PagerScrollPosition(
                     "isSnapAnimating=${state.isSnapAnimating} pageCount=${state.pageCount}"
             }
         }
+        val measuredPageIndex = measuredPage?.index
+        val shouldPreserveSnapAnchor = state.isScrollInProgress &&
+            state.canPreserveSnapAnchorDuringDrag() &&
+            measuredPageIndex != null &&
+            measuredPageIndex < oldPage &&
+            lastKnownCurrentPageKey != null
+        if (shouldPreserveSnapAnchor) {
+            snapAnchorPageDuringDrag = oldPage
+            snapAnchorKeyDuringDrag = lastKnownCurrentPageKey
+        }
         lastKnownCurrentPageKey = measureResult.currentPage?.key
+        if (!state.isScrollInProgress) {
+            clearSnapAnchorPageDuringDrag()
+        }
         // we ignore the index and offset from measureResult until we get at least one
         // measurement with real pages. otherwise the initial index and scroll passed to the
         // state would be lost and overridden with zeros.
@@ -148,6 +173,14 @@ internal class PagerScrollPosition(
         if (index != newIndex) {
             currentPage = newIndex
             nearestRangeState.update(index)
+        }
+        val anchorKey = snapAnchorKeyDuringDrag
+        val anchorPage = snapAnchorPageDuringDrag
+        if (anchorKey != null && anchorPage != null) {
+            val newAnchorPage = itemProvider.findIndexByKey(anchorKey, anchorPage)
+            if (newAnchorPage != anchorPage) {
+                snapAnchorPageDuringDrag = newAnchorPage
+            }
         }
         return newIndex
     }

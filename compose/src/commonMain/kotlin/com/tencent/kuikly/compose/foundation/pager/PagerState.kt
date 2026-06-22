@@ -408,6 +408,14 @@ abstract class PagerState internal constructor(
      */
     val currentPage: Int get() = scrollPosition.currentPage
 
+    internal fun snapAnchorPageDuringDrag(): Int? = scrollPosition.snapAnchorPageDuringDrag()
+
+    internal fun snapAnchorKeyDuringDrag(): Any? = scrollPosition.snapAnchorKeyDuringDrag()
+
+    internal fun canPreserveSnapAnchorDuringDrag(): Boolean {
+        return !isSnapAnimating || snapTargetReachedAlignmentRequested
+    }
+
     /** Native setContentOffset(animated=true) snap is in progress. */
     internal var isSnapAnimating = false
 
@@ -460,6 +468,7 @@ abstract class PagerState internal constructor(
         kuiklyInfo.snapAnchorOffsetCorrection = 0
         snapTargetReachedAlignmentRequested = false
         snapStallAlignmentRetryRequested = false
+        scrollPosition.clearSnapAnchorPageDuringDrag()
         pagerSnapDebugLog {
             "snapStarted: stateId=$debugPagerStateId orientation=${layoutInfo.orientation} " +
                 "targetOffset=$targetContentOffset contentOffset=${kuiklyInfo.contentOffset} " +
@@ -569,22 +578,16 @@ abstract class PagerState internal constructor(
 
     /**
      * Scroll offset where [page] sits on its snap boundary.
-     * Last/first page must use [maxScrollOffset]/[minScrollOffset] so after/before contentPadding
-     * is not clipped when native is already at the scroll limit.
+     * Any page boundary can exceed the native scroll limits when the viewport is wider than the
+     * remaining content, so clamp it before deriving offsetFraction.
      */
     private fun pageBoundaryOffset(page: Int): Int {
         if (pageCount == 0 || pageSizeWithSpacing == 0) {
             return 0
         }
         val coercedPage = page.coerceInPageRange()
-        var offset = coercedPage * pageSizeWithSpacing
-        if (coercedPage == 0) {
-            offset = max(offset, minScrollOffset.toInt())
-        }
-        if (coercedPage == pageCount - 1) {
-            offset = min(offset, maxScrollOffset.toInt())
-        }
-        return offset
+        return (coercedPage * pageSizeWithSpacing)
+            .coerceIn(minScrollOffset.toInt(), maxScrollOffset.toInt())
     }
 
     private fun pageBoundaryOffsetFraction(page: Int): Float {
@@ -653,6 +656,12 @@ abstract class PagerState internal constructor(
                 currentPage.coerceInPageRange()
             }
             val relocatedTargetOffset = pageBoundaryOffset(relocatedTarget)
+            logSnapFrameSnapshot(
+                stage = "relocatedBeforeRequest",
+                targetPage = relocatedTarget,
+                contentOffset = contentOffsetInt,
+                layoutSize = layoutSize
+            )
             pagerSnapDebugLog {
                 "alignRelocatedSnapTarget: stateId=$debugPagerStateId " +
                     "orientation=${layoutInfo.orientation} relocatedTarget=$relocatedTarget " +
@@ -671,19 +680,34 @@ abstract class PagerState internal constructor(
                         "relocatedKey=$relocatedKey pageCount=$pageCount " +
                         "snapStartPageCount=$snapStartPageCount snapStartedDesynced=$snapStartedDesynced"
                 }
-                scrollPosition.requestPositionAndKeepKnownKey(relocatedTarget, 0f, relocatedKey)
+                scrollPosition.requestPositionAndKeepKnownKey(
+                    relocatedTarget,
+                    pageBoundaryOffsetFraction(relocatedTarget),
+                    relocatedKey
+                )
             } else {
-                scrollPosition.requestPositionAndForgetLastKnownKey(relocatedTarget, 0f)
+                scrollPosition.requestPositionAndForgetLastKnownKey(
+                    relocatedTarget,
+                    pageBoundaryOffsetFraction(relocatedTarget)
+                )
             }
+            logSnapFrameSnapshot(
+                stage = "relocatedAfterRequest",
+                targetPage = relocatedTarget,
+                contentOffset = contentOffsetInt,
+                layoutSize = layoutSize
+            )
             val delta = relocatedTargetOffset - contentOffsetInt
             if (delta != 0) {
                 applyScrollViewOffsetDelta(delta)
-            } else {
-                // requestPosition changes the Compose page raw coordinates. Keep the frame offset
-                // on the relocated target boundary; otherwise the viewport can stay in the stale
-                // native coordinate system after items are inserted before the snap target.
-                kuiklyInfo.composeOffset = relocatedTargetOffset.toFloat()
             }
+            kuiklyInfo.composeOffset = relocatedTargetOffset.toFloat()
+            logSnapFrameSnapshot(
+                stage = "relocatedAfterComposeOffset",
+                targetPage = relocatedTarget,
+                contentOffset = kuiklyInfo.contentOffset,
+                layoutSize = layoutSize
+            )
             kuiklyInfo.snapAnchorOffsetCorrection = 0
             clearSnapTrackingAfterAlignment()
             return
@@ -757,9 +781,16 @@ abstract class PagerState internal constructor(
                         "orientation=${layoutInfo.orientation} correctTargetPage=$correctTargetPage " +
                         "targetKey=$targetKey composeOffset=$composeOffsetInt contentOffset=$contentOffsetInt"
                 }
-                scrollPosition.requestPositionAndKeepKnownKey(correctTargetPage, 0f, targetKey)
+                scrollPosition.requestPositionAndKeepKnownKey(
+                    correctTargetPage,
+                    pageBoundaryOffsetFraction(correctTargetPage),
+                    targetKey
+                )
             } else {
-                scrollPosition.requestPositionAndForgetLastKnownKey(correctTargetPage, 0f)
+                scrollPosition.requestPositionAndForgetLastKnownKey(
+                    correctTargetPage,
+                    pageBoundaryOffsetFraction(correctTargetPage)
+                )
             }
             kuiklyInfo.composeOffset = correctTargetOffset.toFloat()
         }
@@ -877,6 +908,38 @@ abstract class PagerState internal constructor(
         return true
     }
 
+    private fun logSnapFrameSnapshot(
+        stage: String,
+        targetPage: Int,
+        contentOffset: Int,
+        layoutSize: Int
+    ) {
+        pagerSnapDebugLog {
+            val visiblePages = layoutInfo.visiblePagesInfo.joinToString(prefix = "[", postfix = "]") {
+                "${it.index}:offset=${it.offset},key=${it.key}"
+            }
+            val targetItem = layoutInfo.visiblePagesInfo.firstOrNull { it.index == targetPage }
+            val lastItem = layoutInfo.visiblePagesInfo.lastOrNull { it.index == pageCount - 1 }
+            "snapFrameSnapshot: stage=$stage stateId=$debugPagerStateId " +
+                "orientation=${layoutInfo.orientation} targetPage=$targetPage " +
+                "targetBoundary=${pageBoundaryOffset(targetPage)} " +
+                "targetFraction=${pageBoundaryOffsetFraction(targetPage)} " +
+                "targetOffset=${targetItem?.offset} lastOffset=${lastItem?.offset} " +
+                "pageSize=$pageSize pageSpacing=$pageSpacing " +
+                "currentPage=$currentPage firstVisiblePage=$firstVisiblePage " +
+                "currentPageOffsetFraction=$currentPageOffsetFraction " +
+                "firstVisiblePageOffset=$firstVisiblePageOffset " +
+                "contentOffset=$contentOffset composeOffset=${currentAbsoluteScrollOffset().toInt()} " +
+                "kuiklyComposeOffset=${kuiklyInfo.composeOffset.toInt()} " +
+                "currentContentSize=${kuiklyInfo.currentContentSize} layoutSize=$layoutSize " +
+                "maxScrollOffset=$maxScrollOffset minScrollOffset=$minScrollOffset " +
+                "beforePadding=${layoutInfo.beforeContentPadding} " +
+                "afterPadding=${layoutInfo.afterContentPadding} " +
+                "snapAnchorOffsetCorrection=${kuiklyInfo.snapAnchorOffsetCorrection} " +
+                "visiblePages=$visiblePages"
+        }
+    }
+
     private fun clearSnapTrackingAfterAlignment() {
         pagerSnapDebugLog {
             "clearSnapTrackingAfterAlignment: stateId=$debugPagerStateId " +
@@ -951,16 +1014,22 @@ abstract class PagerState internal constructor(
                     "fallbackKey=$fallbackKey pageCount=$pageCount " +
                     "snapStartPageCount=$snapStartPageCount snapStartDesyncPages=$snapStartDesyncPages"
             }
-            scrollPosition.requestPositionAndKeepKnownKey(fallbackPage, 0f, fallbackKey)
+            scrollPosition.requestPositionAndKeepKnownKey(
+                fallbackPage,
+                pageBoundaryOffsetFraction(fallbackPage),
+                fallbackKey
+            )
         } else {
-            scrollPosition.requestPositionAndForgetLastKnownKey(fallbackPage, 0f)
+            scrollPosition.requestPositionAndForgetLastKnownKey(
+                fallbackPage,
+                pageBoundaryOffsetFraction(fallbackPage)
+            )
         }
         val delta = fallbackOffset - contentOffset
         if (delta != 0) {
             applyScrollViewOffsetDelta(delta)
-        } else {
-            kuiklyInfo.composeOffset = fallbackOffset.toFloat()
         }
+        kuiklyInfo.composeOffset = fallbackOffset.toFloat()
         clearSnapTrackingAfterAlignment()
         return true
     }
@@ -1351,6 +1420,14 @@ abstract class PagerState internal constructor(
         minScrollOffset = result.calculateNewMinScrollOffset(pageCount)
         val layoutSize = if (result.orientation == Orientation.Horizontal)
             result.viewportSize.width else result.viewportSize.height
+        if (isSnapAnimating && snapStartDesyncPages != 0) {
+            logSnapFrameSnapshot(
+                stage = "measureDuringDesyncedSnap",
+                targetPage = snapTargetRelocatedPage.coerceInPageRange(),
+                contentOffset = kuiklyInfo.contentOffset,
+                layoutSize = layoutSize
+            )
+        }
         debugLog {
             "Finished Applying Measure Result" +
                 "\nNew maxScrollOffset=$maxScrollOffset"

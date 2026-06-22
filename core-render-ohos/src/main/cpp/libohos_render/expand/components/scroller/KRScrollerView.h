@@ -168,6 +168,7 @@ class KRScrollerView : public IKRRenderViewExport {
     float last_scroll_y_ = 0;
     float velocity_x_ = 0;
     float velocity_y_ = 0;
+    int64_t last_move_time_ = 0;  // 上次产生有效位移的时间，用于判断速度是否过期
     std::weak_ptr<SuperTouchHandler> weak_super_touch_handler_;
     bool is_fling_enabled_ = true;
     float last_fired_scroll_x_ = 0;

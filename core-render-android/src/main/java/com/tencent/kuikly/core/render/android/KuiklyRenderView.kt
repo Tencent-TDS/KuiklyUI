@@ -722,14 +722,10 @@ class KuiklyRenderView(
             private fun getInsetsByPublicApi(view: View): InsetsPx {
                 return try {
                     val windowInsets = view.rootWindowInsets ?: return InsetsPx.ZERO
-                    val left = if (windowInsets.stableInsetLeft > 0) windowInsets.stableInsetLeft
-                        else windowInsets.systemWindowInsetLeft
-                    val top = if (windowInsets.stableInsetTop > 0) windowInsets.stableInsetTop
-                        else windowInsets.systemWindowInsetTop
-                    val right = if (windowInsets.stableInsetRight > 0) windowInsets.stableInsetRight
-                        else windowInsets.systemWindowInsetRight
-                    val bottom = if (windowInsets.stableInsetBottom > 0) windowInsets.stableInsetBottom
-                        else windowInsets.systemWindowInsetBottom
+                    val left = windowInsets.stableInsetLeft
+                    val top = windowInsets.stableInsetTop
+                    val right = windowInsets.stableInsetRight
+                    val bottom = windowInsets.stableInsetBottom
                     InsetsPx(left, top, right, bottom)
                 } catch (e: Throwable) {
                     KuiklyRenderLog.e(TAG, "getInsetsByPublicApi failed: ${e.message}")

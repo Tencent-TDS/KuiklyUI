@@ -86,11 +86,17 @@ internal fun PagerState.kuiklyWillDragEnd(params: WillEndDragParams, orientation
  * page crosses the 50% threshold. Using that advanced page as snap base and adding pageDirection
  * again would skip two pages. Only adjust the base for the velocity != 0 path; zero-velocity release
  * still settles on [currentPage], which already reflects the 50% decision from measure.
+ *
+ * Conversely, when flinging backward, measure may pre-decrement [currentPage] before
+ * willDragEnd. Use the key-tracked drag anchor as snap base so a single release only moves one
+ * page from the page where the drag started, while still allowing data-source index shifts.
  */
 private fun PagerState.resolveSnapBasePage(pageDirection: Int): Int {
+    val dragAnchorPage = snapAnchorPageDuringDrag()
     return when {
         pageDirection > 0 && currentPage > firstVisiblePage -> firstVisiblePage
         pageDirection < 0 && currentPage < firstVisiblePage -> firstVisiblePage
+        pageDirection < 0 && dragAnchorPage != null && dragAnchorPage > currentPage -> dragAnchorPage
         else -> currentPage
     }
 }

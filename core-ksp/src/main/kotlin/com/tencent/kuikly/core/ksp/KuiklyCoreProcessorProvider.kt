@@ -193,7 +193,7 @@ class CoreProcessor(
             .addMember("pages = [$pagesValue]")
             .build()
         val objectSpec = TypeSpec.objectBuilder(registryClassName)
-            .addModifiers(KModifier.INTERNAL)
+            .addModifiers(KModifier.PRIVATE)
             .addAnnotation(annotationSpec)
             .build()
         val fileSpec = FileSpec.builder(REGISTRY_PACKAGE, registryClassName)

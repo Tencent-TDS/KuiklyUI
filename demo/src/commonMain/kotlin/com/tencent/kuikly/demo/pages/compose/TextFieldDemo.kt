@@ -16,8 +16,10 @@
 package com.tencent.kuikly.demo.pages.compose
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -30,15 +32,21 @@ import com.tencent.kuikly.compose.foundation.Image
 import com.tencent.kuikly.compose.foundation.background
 import com.tencent.kuikly.compose.foundation.border
 import com.tencent.kuikly.compose.foundation.clickable
+import com.tencent.kuikly.compose.foundation.layout.Arrangement
 import com.tencent.kuikly.compose.foundation.layout.Box
+import com.tencent.kuikly.compose.foundation.layout.Column
 import com.tencent.kuikly.compose.foundation.layout.Row
 import com.tencent.kuikly.compose.foundation.layout.Spacer
+import com.tencent.kuikly.compose.foundation.layout.fillMaxSize
 import com.tencent.kuikly.compose.foundation.layout.fillMaxWidth
 import com.tencent.kuikly.compose.foundation.layout.height
 import com.tencent.kuikly.compose.foundation.layout.padding
 import com.tencent.kuikly.compose.foundation.layout.size
 import com.tencent.kuikly.compose.foundation.layout.width
 import com.tencent.kuikly.compose.foundation.lazy.LazyColumn
+import com.tencent.kuikly.compose.foundation.pager.PageSize
+import com.tencent.kuikly.compose.foundation.pager.VerticalPager
+import com.tencent.kuikly.compose.foundation.pager.rememberPagerState
 import com.tencent.kuikly.compose.foundation.shape.RoundedCornerShape
 import com.tencent.kuikly.compose.foundation.text.BasicTextField
 import com.tencent.kuikly.compose.foundation.text.KeyboardActions
@@ -62,6 +70,7 @@ import com.tencent.kuikly.compose.ui.focus.onFocusChanged
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.SolidColor
 import com.tencent.kuikly.compose.ui.layout.ContentScale
+import com.tencent.kuikly.compose.ui.platform.LocalConfiguration
 import com.tencent.kuikly.compose.ui.platform.LocalFocusManager
 import com.tencent.kuikly.compose.ui.platform.LocalSoftwareKeyboardController
 import com.tencent.kuikly.compose.ui.text.TextStyle
@@ -758,5 +767,109 @@ class TextFieldDemo : ComposeContainer() {
                 }
             }
         }
+    }
+}
+
+@Page("88888")
+internal class VerticalPagerRotateJitterReproPage : ComposeContainer() {
+    override fun willInit() {
+        super.willInit()
+        setContent {
+            VerticalPagerRotateJitterRepro()
+        }
+    }
+}
+
+@Composable
+private fun VerticalPagerRotateJitterRepro() {
+    val configuration = LocalConfiguration.current
+    val pages = remember { listOf(5, 6, 7, 8, 9) }
+    val pagerState = rememberPagerState { pages.size }
+
+    var sizeChangeCount by remember { mutableIntStateOf(0) }
+    var lastSize by remember { mutableStateOf("-") }
+
+    LaunchedEffect(configuration.pageViewWidth, configuration.pageViewHeight) {
+        sizeChangeCount += 1
+        lastSize = "${configuration.pageViewWidth.toInt()} x ${configuration.pageViewHeight.toInt()}"
+    }
+
+    val orientation = if (configuration.pageViewWidth >= configuration.pageViewHeight) "横屏" else "竖屏"
+    val visiblePages = pagerState.layoutInfo.visiblePagesInfo
+        .take(3)
+        .joinToString { "${it.index}@${it.offset}" }
+        .ifEmpty { "无" }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        VerticalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize().bouncesEnable(false),
+            pageSize = PageSize.Fill,
+        ) { page ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(pageColor(page))
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "Only Page ${page + 1}",
+                    fontSize = 42.sp,
+                    color = Color.White,
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+                .background(Color.Black.copy(alpha = 0.48f))
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = "VerticalPager 旋转抖动复现页",
+                color = Color.White,
+                fontSize = 18.sp,
+            )
+            Text(
+                text = "条件：仅 1 个元素 + bouncesEnable=false",
+                color = Color.White,
+                fontSize = 12.sp,
+            )
+            Text(
+                text = "步骤：1. 竖屏进入 2. 旋转到横屏 3. 首次上下滑动观察是否抖动",
+                color = Color.White,
+                fontSize = 12.sp,
+            )
+            Text(
+                text = "方向=$orientation  pageView=$lastSize  sizeChangeCount=$sizeChangeCount",
+                color = Color.White,
+                fontSize = 12.sp,
+            )
+            Text(
+                text = "pageCount=${pages.size}  currentPage=${pagerState.currentPage}  offset=${pagerState.currentPageOffsetFraction}",
+                color = Color.White,
+                fontSize = 12.sp,
+            )
+            Text(
+                text = "bouncesEnable=false  pageSize=${pagerState.layoutInfo.pageSize}  visible=$visiblePages",
+                color = Color.White,
+                fontSize = 12.sp,
+            )
+        }
+    }
+}
+
+private fun pageColor(page: Int): Color {
+    return when (page % 6) {
+        0 -> Color(0xFF5B8FF9)
+        1 -> Color(0xFF61DDAA)
+        2 -> Color(0xFF65789B)
+        3 -> Color(0xFFF6BD16)
+        4 -> Color(0xFF7262FD)
+        else -> Color(0xFFF6903D)
     }
 }

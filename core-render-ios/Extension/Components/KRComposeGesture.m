@@ -251,7 +251,6 @@ static inline UIEdgeInsets KRComposeGestureAdjustedInsets(UIScrollView *scrollVi
         _containerView = containerView;
         _nativeScrollGestures = [NSMutableSet new];
         _enableNativeGesture = YES;
-        _superTouchCanceled = NO;
         _lastCheckedContentOffset = KRComposeGestureInvalidContentOffset;
     }
     return self;

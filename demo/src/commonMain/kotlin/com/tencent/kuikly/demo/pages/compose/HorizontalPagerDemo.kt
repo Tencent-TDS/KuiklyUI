@@ -44,6 +44,13 @@ import com.tencent.kuikly.compose.ui.unit.sp
 import com.tencent.kuikly.core.annotations.Page
 import kotlinx.coroutines.delay
 
+/**
+ * 数据项，包含固定的 id 和显示内容
+ */
+private data class HorizontalPagerItem(
+    val id: Int,
+    val content: String,
+)
 
 @Page("HorizontalPagerDemo")
 class HorizontalPagerDemo : ComposeContainer() {
@@ -61,7 +68,7 @@ class HorizontalPagerDemo : ComposeContainer() {
         // 初始数据：10条数据，id 从 1 到 10
         val initialData = remember {
             (1..10).map { index ->
-                PagerItem(
+                HorizontalPagerItem(
                     id = index,
                     content = "数据项 $index",
                 )

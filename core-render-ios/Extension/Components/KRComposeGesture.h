@@ -60,11 +60,6 @@ typedef NS_ENUM(NSUInteger, TouchesEventKind) {
 @property (nonatomic, assign) BOOL enableNativeGesture;
 
 /**
- * 标记 Compose 的手势是否已被 Native 滚动取消（类似 Android 的 superTouchCanceled）
- */
-@property (nonatomic, assign) BOOL superTouchCanceled;
-
-/**
  * 上次检查的 contentOffset，用于判断 ScrollView 是否真的发生了滚动
  */
 @property (nonatomic, assign) CGPoint lastCheckedContentOffset;

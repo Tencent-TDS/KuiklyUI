@@ -26,6 +26,8 @@ import kotlinx.coroutines.launch
 import com.tencent.kuikly.compose.ComposeContainer
 import com.tencent.kuikly.compose.foundation.background
 import com.tencent.kuikly.compose.foundation.clickable
+import com.tencent.kuikly.compose.foundation.gestures.detectHorizontalDragGestures
+import com.tencent.kuikly.compose.foundation.gestures.detectTapGestures
 import com.tencent.kuikly.compose.foundation.layout.Arrangement
 import com.tencent.kuikly.compose.foundation.layout.Box
 import com.tencent.kuikly.compose.foundation.layout.Column
@@ -43,6 +45,8 @@ import com.tencent.kuikly.compose.setContent
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.Color
+import com.tencent.kuikly.compose.ui.input.pointer.pointerInput
+import com.tencent.kuikly.compose.ui.platform.LocalDensity
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
 import com.tencent.kuikly.core.annotations.Page
@@ -116,11 +120,22 @@ class VerticalPagerDemo : ComposeContainer() {
                     key = { index -> dataList[index].id },
                 ) { page ->
                     val item = dataList[page]
-                    Box(
+                    val density = LocalDensity.current
+                    val edgeTriggerWidthPx = with(density) { 72.dp.toPx() }
+                    val speedLockDistancePx = with(density) { 120.dp.toPx() }
+                    var sliderValue by remember(item.id) { mutableStateOf(0.5f) }
+                    var gestureMessage by remember(item.id) { mutableStateOf("等待手势：点击 / 双击 / 中间长按 / 左右边缘长按") }
+                    var thresholdReached by remember(item.id) { mutableStateOf(false) }
+
+                    LaunchedEffect(gestureMessage) {
+                        println("gestureMessage $gestureMessage")
+                    }
+
+                    WSVideoGestureOverlay(
+                        key = item.id,
                         modifier = Modifier
                             .fillMaxSize()
                             .background(
-                                // 使用不同颜色区分不同页面
                                 Color(
                                     red = (item.id * 25) % 256,
                                     green = (item.id * 50) % 256,
@@ -129,11 +144,45 @@ class VerticalPagerDemo : ComposeContainer() {
                             )
                             .padding(16.dp),
                         contentAlignment = Alignment.Center,
+                        edgeTriggerWidthPx = edgeTriggerWidthPx,
+                        speedLockDistancePx = speedLockDistancePx,
+                        onLongTouchEdge = {
+                            thresholdReached = false
+                            gestureMessage = "边缘长按确认，继续向下滑可触发阈值"
+                        },
+                        onLongTouchCancel = {
+                            thresholdReached = false
+                            gestureMessage = "边缘长按结束，未达到滑动阈值"
+                        },
+                        onLongTouchSwipeThreshold = {
+                            thresholdReached = true
+                            gestureMessage = "边缘阈值已触发"
+                        },
+                        onLongTouchSwipeThresholdCancel = {
+                            thresholdReached = false
+                            gestureMessage = "边缘阈值已取消"
+                        },
+                        onLongTouchAndSwiped = {
+                            thresholdReached = false
+                            gestureMessage = "边缘长按并下滑完成"
+                        },
+                        onLongTouchMiddle = {
+                            thresholdReached = false
+                            gestureMessage = "中间区域长按"
+                        },
+                        onClickAnyWhere = {
+                            thresholdReached = false
+                            gestureMessage = "单击任意位置"
+                        },
+                        onDoubleClick = { xDp, yDp ->
+                            thresholdReached = false
+                            gestureMessage = "双击成功：x=${xDp.toInt()}dp, y=${yDp.toInt()}dp"
+                        },
                     ) {
                         Column(
-                            modifier = Modifier.fillMaxSize(),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxSize()
                         ) {
                             Text(
                                 text = item.content,
@@ -150,6 +199,16 @@ class VerticalPagerDemo : ComposeContainer() {
                                 fontSize = 14.sp,
                                 color = Color.White.copy(alpha = 0.6f),
                             )
+                            Text(
+                                text = gestureMessage,
+                                fontSize = 12.sp,
+                                color = Color.White.copy(alpha = 0.78f),
+                            )
+                            Text(
+                                text = "thresholdReached=$thresholdReached",
+                                fontSize = 12.sp,
+                                color = Color.White.copy(alpha = 0.78f),
+                            )
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -157,8 +216,6 @@ class VerticalPagerDemo : ComposeContainer() {
                                     .padding(top = 16.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                var sliderValue by remember { mutableStateOf(0.5f) }
-
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Center
@@ -169,13 +226,35 @@ class VerticalPagerDemo : ComposeContainer() {
                                         color = Color.White,
                                         modifier = Modifier.padding(bottom = 8.dp)
                                     )
-                                    Slider(
-                                        value = sliderValue,
-                                        onValueChange = { sliderValue = it },
+                                    Box(
                                         modifier = Modifier
                                             .fillMaxWidth(0.8f)
-                                            .height(200.dp)
-                                    )
+                                            .height(100.dp)
+                                            .pointerInput(Unit) {
+                                                val width = size.width.toFloat()
+                                                detectTapGestures { offset ->
+                                                    sliderValue = (offset.x / width).coerceIn(0f, 1f)
+                                                }
+                                            }
+                                            .pointerInput(Unit) {
+                                                val width = size.width.toFloat()
+                                                detectHorizontalDragGestures(
+                                                    onDragStart = { startOffset ->
+                                                        sliderValue = (startOffset.x / width).coerceIn(0f, 1f)
+                                                    },
+                                                    onHorizontalDrag = { change, _ ->
+                                                        sliderValue = (change.position.x / width).coerceIn(0f, 1f)
+                                                    }
+                                                )
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Slider(
+                                            value = sliderValue,
+                                            onValueChange = { sliderValue = it },
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
                                 }
                             }
                         }

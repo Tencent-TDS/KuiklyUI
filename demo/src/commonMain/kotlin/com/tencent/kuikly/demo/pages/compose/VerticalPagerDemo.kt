@@ -31,11 +31,13 @@ import com.tencent.kuikly.compose.foundation.layout.Box
 import com.tencent.kuikly.compose.foundation.layout.Column
 import com.tencent.kuikly.compose.foundation.layout.fillMaxSize
 import com.tencent.kuikly.compose.foundation.layout.fillMaxWidth
+import com.tencent.kuikly.compose.foundation.layout.height
 import com.tencent.kuikly.compose.foundation.layout.padding
 import com.tencent.kuikly.compose.foundation.pager.HorizontalPager
 import com.tencent.kuikly.compose.foundation.pager.PageSize
 import com.tencent.kuikly.compose.foundation.pager.VerticalPager
 import com.tencent.kuikly.compose.foundation.pager.rememberPagerState
+import com.tencent.kuikly.compose.material3.Slider
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.setContent
 import com.tencent.kuikly.compose.ui.Alignment
@@ -129,6 +131,7 @@ class VerticalPagerDemo : ComposeContainer() {
                         contentAlignment = Alignment.Center,
                     ) {
                         Column(
+                            modifier = Modifier.fillMaxSize(),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
@@ -147,6 +150,34 @@ class VerticalPagerDemo : ComposeContainer() {
                                 fontSize = 14.sp,
                                 color = Color.White.copy(alpha = 0.6f),
                             )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                                    .padding(top = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                var sliderValue by remember { mutableStateOf(0.5f) }
+
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = "Slider 值: ${(sliderValue * 100).toInt()}%",
+                                        fontSize = 16.sp,
+                                        color = Color.White,
+                                        modifier = Modifier.padding(bottom = 8.dp)
+                                    )
+                                    Slider(
+                                        value = sliderValue,
+                                        onValueChange = { sliderValue = it },
+                                        modifier = Modifier
+                                            .fillMaxWidth(0.8f)
+                                            .height(200.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

@@ -511,6 +511,7 @@ internal fun CoreTextField(
                                 autoHeightTextAreaView.getViewAttr()
                                     .updatePropCache(TextConst.VALUE, it.text)
                                 val fallbackValue = lastSyncedTextInputState
+                                    ?.takeIf { state -> state.text == it.text }
                                     ?.toTextFieldValue(it.text)
                                     ?: value.withUpdatedTextPreservingEditingState(it.text)
                                 lastSyncedTextInputState = TextInputState(

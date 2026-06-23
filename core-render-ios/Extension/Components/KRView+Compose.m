@@ -72,6 +72,7 @@
                                 
                 switch (phase) {
                     case TouchesEventKindBegin:
+                        weakSelf.composeGesHandler.superTouchCanceled = NO;
                         if ([weakSelf.composeGesHandler nativeScrollGestureOnGoing]) {
 //                            NSLog(@"xxxxx touch 原生滑动中，不接受新事件");
                             return;
@@ -83,6 +84,16 @@
                         }
                         break;
                     case TouchesEventKindMoved:
+                        if ([weakSelf.composeGesHandler nativeScrollGestureOnGoing]) {
+                            if (!weakSelf.composeGesHandler.superTouchCanceled) {
+                                weakSelf.composeGesHandler.superTouchCanceled = YES;
+                                if (weakSelf.css_touchUp) {
+                                    NSDictionary *params = [weakSelf.composeGesHandler generateParamsWithTouches:touches event:event eventName:@"touchCancel"];
+                                    weakSelf.css_touchUp(params);
+                                }
+                            }
+                            return;
+                        }
                         if (weakSelf.css_touchMove) {
                             NSDictionary *params = [weakSelf.composeGesHandler generateParamsWithTouches:touches event:event eventName:@"touchMove"];
                             weakSelf.css_touchMove(params);
@@ -93,6 +104,7 @@
                             NSDictionary *params = [weakSelf.composeGesHandler generateParamsWithTouches:touches event:event eventName:@"touchUp"];
                             weakSelf.css_touchUp(params);
                         }
+                        weakSelf.composeGesHandler.superTouchCanceled = NO;
                         weakSelf.composeGesHandler.enableNativeGesture = YES;
                         break;
                     case TouchesEventKindCancel:
@@ -100,6 +112,7 @@
                             NSDictionary *params = [weakSelf.composeGesHandler generateParamsWithTouches:touches event:event eventName:@"touchCancel"];
                             weakSelf.css_touchUp(params);
                         }
+                        weakSelf.composeGesHandler.superTouchCanceled = NO;
                         weakSelf.composeGesHandler.enableNativeGesture = YES;
                         break;
                     default:

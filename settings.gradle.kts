@@ -45,4 +45,3 @@ project(":miniApp").buildFileName = buildFileName
 include(":compose")
 project(":compose").buildFileName = buildFileName
 
-rootProject.buildFileName = buildFileName

@@ -129,9 +129,6 @@ internal fun rememberDrawerMeasurePolicy(
         state.spaceBetweenPages = spaceBetweenPages
         state.sizeTracker.ensureComputed(this, pageCount(), mainAxisAvailableSize, spaceBetweenPages)
 
-        for (i in 0 until minOf(pageCount(), 5)) {
-        }
-
         // Use current page's size for premeasure constraints
         val currentPageSize = state.sizeTracker.getPageSize(
             state.currentPage.coerceIn(0, (pageCount() - 1).coerceAtLeast(0))

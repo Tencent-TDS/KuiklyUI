@@ -1,3 +1,18 @@
+/*
+ * Tencent is pleased to support the open source community by making KuiklyUI
+ * available.
+ * Copyright (C) 2025 Tencent. All rights reserved.
+ * Licensed under the License of KuiklyUI;
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * https://github.com/Tencent-TDS/KuiklyUI/blob/main/LICENSE
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.tencent.kuikly.demo.pages.compose
 
 import androidx.compose.runtime.Composable
@@ -16,6 +31,7 @@ import com.tencent.kuikly.compose.foundation.drawer.MoveableDrawerState
 import com.tencent.kuikly.compose.foundation.drawer.rememberMoveableDrawerState
 import com.tencent.kuikly.compose.foundation.interaction.MutableInteractionSource
 import com.tencent.kuikly.compose.foundation.layout.Arrangement
+import com.tencent.kuikly.compose.foundation.layout.Box
 import com.tencent.kuikly.compose.foundation.layout.Column
 import com.tencent.kuikly.compose.foundation.layout.Row
 import com.tencent.kuikly.compose.foundation.layout.Spacer
@@ -63,8 +79,6 @@ internal class MoveableDrawerDemo : ComposeContainer() {
 private fun MoveableDrawerDemoScreen() {
     var isFullScreen by remember { mutableStateOf(false) }
     var drawerWidthValue by remember { mutableIntStateOf(300) }
-    var clickLog by remember { mutableStateOf("(暂无点击)") }
-    var clickCount by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
 
     // 使用 key(isFullScreen, drawerWidthValue) 让模式/宽度切换时整个 Drawer
@@ -75,9 +89,7 @@ private fun MoveableDrawerDemoScreen() {
             drawerWidth = drawerWidthValue.dp,
         )
 
-        val onItemClick: (String) -> Unit = { item ->
-            clickCount++
-            clickLog = "点击: $item (#$clickCount)"
+        val onItemClick: (String) -> Unit = {
             scope.launch {
                 drawerState.close()
             }
@@ -85,15 +97,12 @@ private fun MoveableDrawerDemoScreen() {
 
         MoveableDrawer(
             state = drawerState,
-            drawerWidth = drawerWidthValue.dp,
             drawerContent = { DrawerMenuContent(onItemClick) },
             content = {
                 MainContent(
                     drawerState = drawerState,
                     isFullScreen = isFullScreen,
                     drawerWidthValue = drawerWidthValue,
-                    clickLog = clickLog,
-                    clickCount = clickCount,
                     scope = scope,
                     onToggleFullScreen = { isFullScreen = it },
                     onChangeWidth = { drawerWidthValue = it },
@@ -110,8 +119,6 @@ private fun MainContent(
     drawerState: MoveableDrawerState,
     isFullScreen: Boolean,
     drawerWidthValue: Int,
-    clickLog: String,
-    clickCount: Int,
     scope: CoroutineScope,
     onToggleFullScreen: (Boolean) -> Unit,
     onChangeWidth: (Int) -> Unit,
@@ -119,84 +126,110 @@ private fun MainContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
-            .padding(top = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .background(Color.White),
     ) {
-        // 标题
-        Text("MoveableDrawer Demo", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(6.dp))
-        Text("侧边栏组件示例", fontSize = 13.sp, color = Color.Gray)
-        Spacer(Modifier.height(12.dp))
-
-        // 状态
-        Text(
-            "Drawer 状态: ${if (drawerState.isOpen) "已打开" else "已关闭"}",
-            fontSize = 14.sp,
-            color = if (drawerState.isOpen) Color(0xFF4CAF50) else Color.Gray,
-        )
-        Spacer(Modifier.height(20.dp))
-
-        // 打开/关闭按钮
-        PillButton(
-            text = if (drawerState.isOpen) "关闭 Drawer" else "打开 Drawer",
-            color = Color(0xFF2196F3),
-            onClick = {
-                scope.launch {
-                    drawerState.toggle()
-                }
-            },
-        )
-
-        Spacer(Modifier.height(32.dp))
-
-        // -------- 模式切换 --------
-        Text("Drawer 模式", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .background(Color(0xFFF8F8F8))
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             PillButton(
-                text = "普通模式",
-                color = if (!isFullScreen) Color(0xFF4CAF50) else Color(0xFFBDBDBD),
+                text = if (drawerState.isOpen) "关闭 Drawer" else "打开 Drawer",
+                color = Color(0xFF2196F3),
                 onClick = {
-                    onToggleFullScreen(false)
+                    scope.launch {
+                        drawerState.toggle()
+                    }
                 },
             )
-            PillButton(
-                text = "全屏模式",
-                color = if (isFullScreen) Color(0xFF4CAF50) else Color(0xFFBDBDBD),
-                onClick = {
-                    onToggleFullScreen(true)
-                },
-            )
+            Spacer(Modifier.padding(start = 12.dp))
+            Text("MoveableDrawer Demo", fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
 
-        // -------- 宽度选择（非全屏时显示） --------
-        if (!isFullScreen) {
-            Spacer(Modifier.height(20.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFFFFF3E0))
+                .padding(12.dp),
+        ) {
             Text(
-                "Drawer 宽度: ${drawerWidthValue}dp",
+                "Touch Passthrough Test",
                 fontSize = 14.sp,
-                color = Color.Gray,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFE65100),
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Drawer 状态: ${if (drawerState.isOpen) "已打开" else "已关闭"}",
+                fontSize = 13.sp,
+                color = if (drawerState.isOpen) Color(0xFF4CAF50) else Color.Gray,
+            )
+            Text(
+                "WebView 触摸验证: 先点击下方 WebView 按钮改变计数；打开 Drawer 后点击遮罩层，WebView 状态不应变化。",
+                fontSize = 13.sp,
+                color = Color(0xFF333333),
             )
             Spacer(Modifier.height(8.dp))
+            Text("Drawer 模式", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(200, 250, 300, 350).forEach { width ->
-                    PillButton(
-                        text = "${width}dp",
-                        color = if (drawerWidthValue == width) Color(0xFF2196F3) else Color(0xFFBDBDBD),
-                        onClick = { onChangeWidth(width) },
-                    )
+                PillButton(
+                    text = "普通模式",
+                    color = if (!isFullScreen) Color(0xFF4CAF50) else Color(0xFFBDBDBD),
+                    onClick = { onToggleFullScreen(false) },
+                )
+                PillButton(
+                    text = "全屏模式",
+                    color = if (isFullScreen) Color(0xFF4CAF50) else Color(0xFFBDBDBD),
+                    onClick = { onToggleFullScreen(true) },
+                )
+            }
+
+            if (!isFullScreen) {
+                Spacer(Modifier.height(12.dp))
+                Text("Drawer 宽度: ${drawerWidthValue}dp", fontSize = 13.sp, color = Color.Gray)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(200, 250, 300, 350).forEach { width ->
+                        PillButton(
+                            text = "${width}dp",
+                            color = if (drawerWidthValue == width) Color(0xFF2196F3) else Color(0xFFBDBDBD),
+                            onClick = { onChangeWidth(width) },
+                        )
+                    }
                 }
             }
         }
 
-        Spacer(Modifier.height(32.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(360.dp)
+                .background(Color(0xFFE3F2FD)),
+        ) {
+            SimpleWebViewCompose(
+                url = "file:///android_asset/drawer_test.html",
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
 
-        // -------- 点击日志 --------
-        Text("点击日志", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(6.dp))
-        Text(clickLog, fontSize = 14.sp, color = Color.Gray)
-        Text("总点击次数: $clickCount", fontSize = 14.sp, color = Color.Gray)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .background(Color(0xFFF5F5F5))
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "打开 Drawer 后点击遮罩层，WebView 内的按钮状态不应变化。",
+                fontSize = 14.sp,
+                color = Color(0xFF333333),
+            )
+        }
     }
 }
 

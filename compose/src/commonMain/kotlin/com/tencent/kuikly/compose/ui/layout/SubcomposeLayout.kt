@@ -315,7 +315,10 @@ fun SubcomposeLayout(
                 // Reject unexpected native offset jumps (e.g. HarmonyOS HandleCrashTop).
                 // Correct the native side back and skip this event entirely to prevent
                 // compose state pollution.
-                if (scrollableState.shouldRejectNativeScrollOffset(offset)) {
+                // Only apply to DrawerInternalPagerState to avoid affecting existing scroll logic.
+                if (scrollableState is DrawerInternalPagerState
+                    && scrollableState.shouldRejectNativeScrollOffset(offset)
+                ) {
                     val correctOffset = kuiklyInfo.contentOffset
                     val delta = correctOffset - offset
                     if (delta != 0) {

@@ -169,7 +169,6 @@ internal fun DrawerInternalPager(
         "beyondViewportPageCount should be greater than or equal to 0, you selected $beyondViewportPageCount"
     }
 
-
     state.contentPadding = contentPadding
     val pagerItemProvider = rememberDrawerItemProviderLambda(
         state = state,

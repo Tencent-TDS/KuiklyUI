@@ -38,10 +38,17 @@ internal fun DrawerInternalPagerState.kuiklyWillDragEnd(params: WillEndDragParam
     val velocity = if (orientation == Orientation.Horizontal) -params.velocityX else -params.velocityY
     val pageDirection = when { velocity < 0 -> 1; velocity > 0 -> -1; else -> 0 }
     val snapBasePage = currentPage
-    val targetPage = (if (pageDirection == 0) currentPage else snapBasePage + pageDirection).coerceIn(0, pageCount)
+    val lastPage = (pageCount - 1).coerceAtLeast(0)
+    val targetPage = (if (pageDirection == 0) currentPage else snapBasePage + pageDirection).coerceIn(0, lastPage)
 
     val correctedTargetPage = if (velocity != 0f) {
-        PagerSnapDistance.atMost(1).calculateTargetPage(snapBasePage, targetPage, velocity, currentPageSize, spaceBetweenPages).coerceIn(0, pageCount)
+        PagerSnapDistance.atMost(1).calculateTargetPage(
+            snapBasePage,
+            targetPage,
+            velocity,
+            currentPageSize,
+            spaceBetweenPages
+        ).coerceIn(0, lastPage)
     } else currentPage
 
     val kuiklyInfo = this.kuiklyInfo
@@ -59,9 +66,24 @@ internal fun DrawerInternalPagerState.kuiklyWillDragEnd(params: WillEndDragParam
         val pageBoundaryOffset = this@kuiklyWillDragEnd.pageBoundaryOffset(correctedTargetPage).toInt()
         var targetOffset = composeCandidateOffset ?: pageBoundaryOffset
         targetOffset = min(targetOffset, maxOffset).coerceAtLeast(0)
-        this@kuiklyWillDragEnd.markSnapAnimationStarted(targetOffset, correctedTargetPage, nextPage?.key, desyncPages)
-        val springAnimation = SpringAnimation(ScrollableStateConstants.SPRING_ANIMATION_DURATION, ScrollableStateConstants.SPRING_ANIMATION_DAMPING, if (orientation == Orientation.Horizontal) params.velocityX else params.velocityY)
+        this@kuiklyWillDragEnd.markSnapAnimationStarted(
+            targetOffset, correctedTargetPage, nextPage?.key, desyncPages
+        )
+        val springVelocity = if (orientation == Orientation.Horizontal) {
+            params.velocityX
+        } else {
+            params.velocityY
+        }
+        val springAnimation = SpringAnimation(
+            ScrollableStateConstants.SPRING_ANIMATION_DURATION,
+            ScrollableStateConstants.SPRING_ANIMATION_DAMPING,
+            springVelocity
+        )
         val targetOffsetDp = targetOffset / density
-        if (orientation == Orientation.Horizontal) kuiklyInfo.scrollView?.setContentOffset(targetOffsetDp, 0f, true, springAnimation) else kuiklyInfo.scrollView?.setContentOffset(0f, targetOffsetDp, true, springAnimation)
+        if (orientation == Orientation.Horizontal) {
+            kuiklyInfo.scrollView?.setContentOffset(targetOffsetDp, 0f, true, springAnimation)
+        } else {
+            kuiklyInfo.scrollView?.setContentOffset(0f, targetOffsetDp, true, springAnimation)
+        }
     }
 }

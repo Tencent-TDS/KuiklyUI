@@ -47,7 +47,8 @@ import kotlinx.coroutines.launch
 @Stable
 class MoveableDrawerState internal constructor(
     internal val internalState: DrawerInternalPagerState,
-    val fullScreen: Boolean = false
+    val fullScreen: Boolean = false,
+    val drawerWidth: Dp = 300.dp
 ) {
     /** Whether the drawer is currently open (settled on the drawer page). */
     val isOpen: Boolean
@@ -155,7 +156,9 @@ fun rememberMoveableDrawerState(
         internalState.needsImmediateAlignment = true
     }
 
-    return remember(internalState, fullScreen) { MoveableDrawerState(internalState, fullScreen) }
+    return remember(internalState, fullScreen, drawerWidth) {
+        MoveableDrawerState(internalState, fullScreen, drawerWidth)
+    }
 }
 
 /**
@@ -168,7 +171,6 @@ fun rememberMoveableDrawerState(
  *
  * @param state The [MoveableDrawerState] to control this drawer. Create with [rememberMoveableDrawerState].
  * @param modifier Modifier for the drawer container.
- * @param drawerWidth Width of the drawer panel. Ignored when [MoveableDrawerState.fullScreen] is true.
  * @param scrimColor Color of the scrim overlay shown when the drawer is open.
  * @param drawerContent Content of the drawer panel.
  * @param content Main content area.
@@ -177,7 +179,6 @@ fun rememberMoveableDrawerState(
 fun MoveableDrawer(
     state: MoveableDrawerState,
     modifier: Modifier = Modifier,
-    drawerWidth: Dp = 300.dp,
     scrimColor: Color = Color.Black.copy(alpha = 0.3f),
     drawerContent: @Composable () -> Unit,
     content: @Composable () -> Unit
@@ -198,9 +199,16 @@ fun MoveableDrawer(
                     val drawerModifier = if (state.fullScreen) {
                         Modifier.fillMaxSize()
                     } else {
-                        Modifier.width(drawerWidth).fillMaxHeight()
+                        Modifier.width(state.drawerWidth).fillMaxHeight()
                     }
                     Box(drawerModifier) {
+                        MakeKuiklyComposeNode<DivView>(
+                            factory = { DivView() },
+                            modifier = Modifier.fillMaxSize(),
+                            viewInit = {
+                                getViewEvent().click { }
+                            },
+                        )
                         drawerContent()
                     }
                 }

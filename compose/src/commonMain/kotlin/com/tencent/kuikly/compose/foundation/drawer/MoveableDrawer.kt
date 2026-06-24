@@ -202,6 +202,7 @@ fun MoveableDrawer(
                         Modifier.width(state.drawerWidth).fillMaxHeight()
                     }
                     Box(drawerModifier) {
+                        // Consume native touch events to prevent passthrough to content behind the drawer.
                         MakeKuiklyComposeNode<DivView>(
                             factory = { DivView() },
                             modifier = Modifier.fillMaxSize(),

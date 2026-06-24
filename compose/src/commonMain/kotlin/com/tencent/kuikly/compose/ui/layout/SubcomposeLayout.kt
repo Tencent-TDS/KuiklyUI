@@ -335,10 +335,10 @@ fun SubcomposeLayout(
                     val epsilon = 0.5 * kuiklyInfo.getDensity()  // 使用 0.5dp 作为误差值
                     val matched = abs(ignoreOffset.x.minus(scaleParams.offsetX)) <= epsilon
                         && abs(ignoreOffset.y.minus(scaleParams.offsetY)) <= epsilon
-                    kuiklyInfo.ignoreScrollOffset = null
                     if (matched) {
-                        return@scroll
+                        kuiklyInfo.ignoreScrollOffset = null
                     }
+                    return@scroll
                 }
 
                 // 忽略较小的滑动

@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import com.tencent.kuikly.compose.BackHandler
 import com.tencent.kuikly.compose.ComposeContainer
 import com.tencent.kuikly.compose.animation.AnimatedVisibility
 import com.tencent.kuikly.compose.animation.core.Animatable
@@ -79,6 +80,55 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.roundToInt
+
+/**
+ * 管理 Dialog 的显示/退出动画状态。
+ *
+ * 外部 [visible] 与内部 [visibleState] 分离时，若返回键/拖拽关闭只把 [visibleState] 置 false，
+ * 而 [visible] 仍为 true，则 `visible && !visibleState` 会在下一帧把弹窗重新打开。
+ * [isDismissing] 用于标记「正在执行退出动画」，避免该竞态。
+ */
+@Composable
+private fun rememberDialogDismissState(
+    visible: Boolean,
+    dismissDelayMillis: Int,
+    onDismissRequest: () -> Unit,
+): DialogDismissState {
+    var visibleState by remember { mutableStateOf(false) }
+    var isDismissing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    val dismissDialog: () -> Unit = {
+        if (visibleState && !isDismissing) {
+            isDismissing = true
+            visibleState = false
+            scope.launch {
+                delay(dismissDelayMillis.toLong())
+                isDismissing = false
+                onDismissRequest()
+            }
+        }
+        Unit
+    }
+
+    if (visible && !visibleState && !isDismissing) {
+        visibleState = true
+    } else if (!visible && visibleState) {
+        dismissDialog()
+    }
+
+    return DialogDismissState(
+        visibleState = visibleState,
+        showDialog = visible || visibleState,
+        dismissDialog = dismissDialog,
+    )
+}
+
+private data class DialogDismissState(
+    val visibleState: Boolean,
+    val showDialog: Boolean,
+    val dismissDialog: () -> Unit,
+)
 
 /**
  * 拖拽关闭的配置参数
@@ -308,34 +358,17 @@ fun BottomSheetDialog(
     enableDragToDismiss: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    var visibleState by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+    val dismissDelayMillis = 250
+    val dialogState = rememberDialogDismissState(visible, dismissDelayMillis, onDismissRequest)
 
     val scrimAlpha by animateFloatAsState(
-        targetValue = if (visibleState) 1f else 0f,
-        animationSpec = tween(durationMillis = 250)
+        targetValue = if (dialogState.visibleState) 1f else 0f,
+        animationSpec = tween(durationMillis = dismissDelayMillis)
     )
 
-    // 外部控制显示状态变化
-    if (visible && !visibleState) {
-        visibleState = true
-    } else if (!visible && visibleState) {
-        scope.launch {
-            visibleState = false
-            delay(250)
-            onDismissRequest()
-        }
-    }
-
-    if (visible || visibleState) {
+    if (dialogState.showDialog) {
         Dialog(
-            onDismissRequest = {
-                visibleState = false
-                scope.launch {
-                    delay(250)
-                    onDismissRequest()
-                }
-            },
+            onDismissRequest = dialogState.dismissDialog,
             properties = KuiklyDialogProperties(
                 dismissOnBackPress = true,
                 dismissOnClickOutside = true,
@@ -344,33 +377,30 @@ fun BottomSheetDialog(
                 contentAlignment = Alignment.BottomCenter
             )
         ) {
+            if (dialogState.visibleState) {
+                BackHandler(onBack = dialogState.dismissDialog)
+            }
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.BottomCenter
             ) {
                 val enterAnim = slideInVertically(
-                    animationSpec = tween(durationMillis = 250),
+                    animationSpec = tween(durationMillis = dismissDelayMillis),
                     initialOffsetY = { it }
                 ) + fadeIn()
                 val exitAnim = slideOutVertically(
-                    animationSpec = tween(durationMillis = 250),
+                    animationSpec = tween(durationMillis = dismissDelayMillis),
                     targetOffsetY = { it }
                 ) + fadeOut()
 
                 AnimatedVisibility(
-                    visible = visibleState,
+                    visible = dialogState.visibleState,
                     enter = enterAnim,
                     exit = exitAnim
                 ) {
                     if (enableDragToDismiss) {
                         DragToDismissContainer(
-                            onDismiss = {
-                                visibleState = false
-                                scope.launch {
-                                    delay(250)
-                                    onDismissRequest()
-                                }
-                            }
+                            onDismiss = dialogState.dismissDialog,
                         ) {
                             BottomSheetContent(content)
                         }
@@ -419,28 +449,12 @@ fun FullScreenDialog(
     onDismissRequest: () -> Unit,
     content: @Composable () -> Unit
 ) {
-    var visibleState by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+    val dismissDelayMillis = 200
+    val dialogState = rememberDialogDismissState(visible, dismissDelayMillis, onDismissRequest)
 
-    if (visible && !visibleState) {
-        visibleState = true
-    } else if (!visible && visibleState) {
-        scope.launch {
-            visibleState = false
-            delay(200)
-            onDismissRequest()
-        }
-    }
-
-    if (visible || visibleState) {
+    if (dialogState.showDialog) {
         Dialog(
-            onDismissRequest = {
-                visibleState = false
-                scope.launch {
-                    delay(200)
-                    onDismissRequest()
-                }
-            },
+            onDismissRequest = dialogState.dismissDialog,
             properties = KuiklyDialogProperties(
                 dismissOnBackPress = true,
                 dismissOnClickOutside = false,
@@ -448,21 +462,18 @@ fun FullScreenDialog(
                 scrimColor = Color.Transparent
             )
         ) {
+            if (dialogState.visibleState) {
+                BackHandler(onBack = dialogState.dismissDialog)
+            }
             val alpha by animateFloatAsState(
-                targetValue = if (visibleState) 1f else 0f,
-                animationSpec = tween(durationMillis = 200)
+                targetValue = if (dialogState.visibleState) 1f else 0f,
+                animationSpec = tween(durationMillis = dismissDelayMillis)
             )
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.25f * alpha))
-                    .clickable {
-                        visibleState = false
-                        scope.launch {
-                            delay(200)
-                            onDismissRequest()
-                        }
-                    }
+                    .clickable(onClick = dialogState.dismissDialog)
             ) {
                 Box(modifier = Modifier.clickable { /* 阻止点击穿透到背景 */ }) {
                     content()
@@ -481,28 +492,12 @@ fun CenterDialog(
     onDismissRequest: () -> Unit,
     content: @Composable () -> Unit
 ) {
-    var visibleState by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+    val dismissDelayMillis = 200
+    val dialogState = rememberDialogDismissState(visible, dismissDelayMillis, onDismissRequest)
 
-    if (visible && !visibleState) {
-        visibleState = true
-    } else if (!visible && visibleState) {
-        scope.launch {
-            visibleState = false
-            delay(200)
-            onDismissRequest()
-        }
-    }
-
-    if (visible || visibleState) {
+    if (dialogState.showDialog) {
         Dialog(
-            onDismissRequest = {
-                visibleState = false
-                scope.launch {
-                    delay(200)
-                    onDismissRequest()
-                }
-            },
+            onDismissRequest = dialogState.dismissDialog,
             properties = KuiklyDialogProperties(
                 dismissOnBackPress = true,
                 dismissOnClickOutside = true,
@@ -510,13 +505,16 @@ fun CenterDialog(
                 scrimColor = Color.Black.copy(alpha = 0.4f)
             )
         ) {
+            if (dialogState.visibleState) {
+                BackHandler(onBack = dialogState.dismissDialog)
+            }
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
                 val alpha by animateFloatAsState(
-                    targetValue = if (visibleState) 1f else 0f,
-                    animationSpec = tween(durationMillis = 200)
+                    targetValue = if (dialogState.visibleState) 1f else 0f,
+                    animationSpec = tween(durationMillis = dismissDelayMillis)
                 )
                 Box(
                     modifier = Modifier
@@ -764,26 +762,12 @@ private fun SimpleDragToDismissDialog(
     onDismissRequest: () -> Unit,
     items: List<String>
 ) {
-    var visibleState by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+    val dismissDelayMillis = 250
+    val dialogState = rememberDialogDismissState(visible, dismissDelayMillis, onDismissRequest)
 
-    // 同步外部控制状态
-    if (visible && !visibleState) {
-        visibleState = true
-    } else if (!visible && visibleState) {
-        scope.launch {
-            visibleState = false
-            delay(250)
-            onDismissRequest()
-        }
-    }
-
-    if (visible || visibleState) {
+    if (dialogState.showDialog) {
         Dialog(
-            onDismissRequest = {
-                visibleState = false
-                scope.launch { delay(250); onDismissRequest() }
-            },
+            onDismissRequest = dialogState.dismissDialog,
             properties = KuiklyDialogProperties(
                 dismissOnBackPress = true,
                 dismissOnClickOutside = true,
@@ -792,29 +776,29 @@ private fun SimpleDragToDismissDialog(
                 contentAlignment = Alignment.BottomCenter
             )
         ) {
+            if (dialogState.visibleState) {
+                BackHandler(onBack = dialogState.dismissDialog)
+            }
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.BottomCenter
             ) {
                 val enterAnim = slideInVertically(
-                    animationSpec = tween(durationMillis = 250),
+                    animationSpec = tween(durationMillis = dismissDelayMillis),
                     initialOffsetY = { it }
                 ) + fadeIn()
                 val exitAnim = slideOutVertically(
-                    animationSpec = tween(durationMillis = 250),
+                    animationSpec = tween(durationMillis = dismissDelayMillis),
                     targetOffsetY = { it }
                 ) + fadeOut()
 
                 AnimatedVisibility(
-                    visible = visibleState,
+                    visible = dialogState.visibleState,
                     enter = enterAnim,
                     exit = exitAnim
                 ) {
                     DragToDismissContainer(
-                        onDismiss = {
-                            visibleState = false
-                            scope.launch { delay(250); onDismissRequest() }
-                        }
+                        onDismiss = dialogState.dismissDialog,
                     ) {
                         Column(
                             modifier = Modifier

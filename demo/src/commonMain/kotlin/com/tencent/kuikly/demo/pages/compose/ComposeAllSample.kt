@@ -109,6 +109,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("TextField", "TextField 组件示例", "TextFieldDemo"),
             DemoItem("TextFieldEmoji", "TextField 自定义表情示例", "TextFieldEmojiDemo"),
             DemoItem("PullToRefresh", "PullToRefresh 组件示例", "PullToRefreshDemo"),
+            DemoItem("SettingScreen", "设置页面迁移测试", "SettingScreenDemo"),
             // 其他
             DemoItem("封装KuiklyView", "封装Kuikly的VideoView为一个Composeable组件示例", "ComposeVideoDemo"),
             DemoItem("iOS LiquidGlass", "iOS LiquidGlass 组件示例", "LiquidGlassComposeDemo"),

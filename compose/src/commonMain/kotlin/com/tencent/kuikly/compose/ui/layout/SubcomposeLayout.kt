@@ -66,6 +66,7 @@ import com.tencent.kuikly.compose.ui.unit.LayoutDirection
 import com.tencent.kuikly.compose.ui.util.fastForEach
 import com.tencent.kuikly.compose.gestures.KuiklyScrollInfo
 import com.tencent.kuikly.compose.views.KuiklyInfoKey
+import com.tencent.kuikly.compose.views.KuiklyUserBouncesEnableKey
 import com.tencent.kuikly.compose.views.VirtualNodeView
 import com.tencent.kuikly.compose.layout.bindKuiklyInfo
 import com.tencent.kuikly.compose.layout.checkOffScreenNode
@@ -282,9 +283,17 @@ fun SubcomposeLayout(
             }
             scrollEnd {
                 val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
-                val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
-                kuiklyInfo.contentOffset = offset
-                (scrollableState as? PagerState)?.onNativeContentOffsetChanged(offset)
+                val nativeOffset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
+                val boundedNativeOffset = if (kuiklyInfo.reverseLayout) {
+                    nativeOffset.coerceIn(0, kuiklyInfo.maxNativeOffset)
+                } else {
+                    nativeOffset
+                }
+                kuiklyInfo.contentOffset = boundedNativeOffset
+                (scrollableState as? PagerState)?.onNativeContentOffsetChanged(boundedNativeOffset)
+                if (kuiklyInfo.reverseLayout && nativeOffset != boundedNativeOffset) {
+                    kuiklyInfo.syncContentOffsetToComposeOffset(force = true)
+                }
 
                 // 仅触摸滑动结束会回调，api调用和bounce回弹都不会触发
                 // / back是回滑,forward是前滑
@@ -292,17 +301,31 @@ fun SubcomposeLayout(
             }
             dragEnd {
                 val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
-                val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
-                kuiklyInfo.contentOffset = offset
+                val nativeOffset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
+                val boundedNativeOffset = if (kuiklyInfo.reverseLayout) {
+                    nativeOffset.coerceIn(0, kuiklyInfo.maxNativeOffset)
+                } else {
+                    nativeOffset
+                }
+                kuiklyInfo.contentOffset = boundedNativeOffset
+                if (kuiklyInfo.reverseLayout && nativeOffset != boundedNativeOffset) {
+                    kuiklyInfo.syncContentOffsetToComposeOffset(force = true)
+                }
                 kuiklyInfo.isDragging = kuiklyInfo.scrollView?.isDragging ?: false
             }
             scroll {
                 val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
-                val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
+                val nativeOffset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
+                val boundedNativeOffset = if (kuiklyInfo.reverseLayout) {
+                    nativeOffset.coerceIn(0, kuiklyInfo.maxNativeOffset)
+                } else {
+                    nativeOffset
+                }
+                val nativeOffsetOutOfBounds = kuiklyInfo.reverseLayout && nativeOffset != boundedNativeOffset
+                val logicalOffset = kuiklyInfo.logicalOffsetFromNative(boundedNativeOffset)
 
-                val prevOffset = kuiklyInfo.contentOffset
-                kuiklyInfo.contentOffset = offset
-                (scrollableState as? PagerState)?.onNativeContentOffsetChanged(offset)
+                kuiklyInfo.contentOffset = boundedNativeOffset
+                (scrollableState as? PagerState)?.onNativeContentOffsetChanged(boundedNativeOffset)
                 kuiklyInfo.isDragging = kuiklyInfo.scrollView?.isDragging ?: false
 
                 if (kuiklyInfo.ignoreScrollOffset != null) {
@@ -317,13 +340,16 @@ fun SubcomposeLayout(
                 }
 
                 // 忽略较小的滑动
-                val delta = offset - kuiklyInfo.composeOffset
+                val delta = logicalOffset - kuiklyInfo.composeOffset
                 if (delta.toInt() == 0) {
+                    if (nativeOffsetOutOfBounds) {
+                        kuiklyInfo.syncContentOffsetToComposeOffset(force = true)
+                    }
                     return@scroll
                 }
 
                 // 更新当前的contentSize大小
-                scrollableState.calculateAndUpdateContentSize()
+                scrollableState.calculateAndUpdateContentSize(syncNativeOffset = false)
 
                 val toButtomDelta = if (kuiklyInfo.realContentSize == null) {
                     null
@@ -331,11 +357,14 @@ fun SubcomposeLayout(
                     kuiklyInfo.realContentSize!! - kuiklyInfo.viewportSize - kuiklyInfo.composeOffset
                 }
                 // 判断是否滑出边界
-                if (offset < 0 && scrollableState.isAtTop()) {
+                if (logicalOffset < 0 && scrollableState.isAtTop()) {
                     return@scroll
                 } else if (toButtomDelta != null && delta > toButtomDelta) {
                     if (toButtomDelta.toInt() <= 0) {
-                        scrollableState.tryExpandStartSize(offset, true)
+                        scrollableState.tryExpandStartSize(logicalOffset.toInt(), true)
+                        if (kuiklyInfo.reverseLayout) {
+                            kuiklyInfo.syncContentOffsetToComposeOffset(force = nativeOffsetOutOfBounds)
+                        }
                         return@scroll
                     }
                     kuiklyInfo.composeOffset += min(delta, toButtomDelta)
@@ -344,10 +373,13 @@ fun SubcomposeLayout(
                 }
 
                 // 触发compose滑动，并重新布局
-                val comsumedDelta = scrollableState.kuiklyOnScroll(delta)
+                scrollableState.kuiklyOnScroll(delta)
+                if (kuiklyInfo.reverseLayout) {
+                    kuiklyInfo.syncContentOffsetToComposeOffset(force = nativeOffsetOutOfBounds)
+                }
 
                 // 尝试扩容
-                scrollableState.tryExpandStartSize(offset, true)
+                scrollableState.tryExpandStartSize(logicalOffset.toInt(), true)
             }
 
             // Listen to native "scroll to top" event and scroll to index 0
@@ -406,6 +438,7 @@ fun SubcomposeLayout(
 
                 val oldKuiklyInfo = sv.extProps[KuiklyInfoKey] as? KuiklyScrollInfo
                 val kuiklyInfo = bindKuiklyInfo(sv, scrollableState, orientation)
+                updateReverseLayoutBounces(sv, oldKuiklyInfo, kuiklyInfo)
                 transferScrollToTopCallback(oldKuiklyInfo, kuiklyInfo)
                 restoreScrollerViewOnReuse(sv, kuiklyInfo, isPagerView, orientation, oldKuiklyInfo?.contentOffset)
 
@@ -1333,6 +1366,21 @@ internal class LayoutNodeSubcompositionsState(
                 it.fastForEach { delegate -> delegate.markDetachedFromParentLookaheadPass() }
             }
         } ?: emptyList()
+    }
+}
+
+private fun updateReverseLayoutBounces(
+    sv: ScrollerView<ScrollerAttr, ScrollerEvent>,
+    oldKuiklyInfo: KuiklyScrollInfo?,
+    kuiklyInfo: KuiklyScrollInfo,
+) {
+    val reverseAndroid = kuiklyInfo.pageData?.isAndroid == true && kuiklyInfo.reverseLayout
+    if (reverseAndroid) {
+        // Android over-scroll translates contentView before Compose can clamp reverse offsets.
+        sv.getViewAttr().bouncesEnable(false)
+    } else if (oldKuiklyInfo?.pageData?.isAndroid == true && oldKuiklyInfo.reverseLayout) {
+        val userBouncesEnable = sv.extProps[KuiklyUserBouncesEnableKey] as? Boolean
+        sv.getViewAttr().bouncesEnable(userBouncesEnable ?: true)
     }
 }
 

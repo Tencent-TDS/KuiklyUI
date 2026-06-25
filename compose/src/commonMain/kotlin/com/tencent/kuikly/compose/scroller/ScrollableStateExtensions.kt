@@ -16,7 +16,6 @@
 package com.tencent.kuikly.compose.scroller
 
 import com.tencent.kuikly.compose.foundation.ScrollState
-import com.tencent.kuikly.compose.foundation.gestures.Orientation
 import com.tencent.kuikly.compose.foundation.gestures.ScrollableState
 import com.tencent.kuikly.compose.foundation.lazy.LazyListState
 import com.tencent.kuikly.compose.foundation.lazy.grid.LazyGridState
@@ -125,8 +124,8 @@ internal fun ScrollableState.lastItemVisible(): Boolean = when(this) {
  */
 internal fun ScrollableState.isValidOffsetDelta(delta: Int): Boolean {
     if (kuiklyInfo.scrollView?.renderView == null || delta == 0) return false
-    val newOffset = kuiklyInfo.contentOffset + delta
-    return newOffset >= 0 && newOffset <= (kuiklyInfo.currentContentSize - kuiklyInfo.viewportSize)
+    val newOffset = kuiklyInfo.composeOffset.toInt() + delta
+    return newOffset >= 0 && newOffset <= kuiklyInfo.maxNativeOffset
 }
 
 /**
@@ -149,13 +148,12 @@ internal suspend fun ScrollableState.animateScrollToTop() {
 internal fun ScrollableState.applyScrollViewOffsetDelta(delta: Int) {
     if (kuiklyInfo.scrollView == null || delta == 0) return
 
-    val newOffset = kuiklyInfo.scrollView!!.applyOffsetDelta(delta, kuiklyInfo)
-    kuiklyInfo.composeOffset = if (kuiklyInfo.orientation == Orientation.Vertical) {
-        newOffset.y.toFloat()
-    } else {
-        newOffset.x.toFloat()
-    }
-} 
+    val nativeDelta = kuiklyInfo.nativeDeltaFromLogicalDelta(delta)
+    val newOffset = kuiklyInfo.scrollView!!.applyOffsetDelta(nativeDelta, kuiklyInfo)
+    val nativeOffset = kuiklyInfo.mainAxisOffset(newOffset)
+    kuiklyInfo.contentOffset = nativeOffset
+    kuiklyInfo.composeOffset = kuiklyInfo.logicalOffsetFromNative(nativeOffset)
+}
 
 /**
  * Request scroll to top in a non-suspending way. This defers the jump to when layout is ready,

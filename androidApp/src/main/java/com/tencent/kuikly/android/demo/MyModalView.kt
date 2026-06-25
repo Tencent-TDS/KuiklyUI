@@ -6,21 +6,36 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.os.Build
 import android.util.Log
+import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import com.tencent.kuikly.core.render.android.expand.component.KRView
+import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 
 class MyModalView(context: Context) : KRView(context) {
 
     private var didMoveToWindow = false
     private var dialog: Dialog? = null
+    private var onWillDismissCallback: KuiklyRenderCallback? = null
 
     override val reusable: Boolean
         get() = false
 
     override fun setProp(propKey: String, propValue: Any): Boolean {
+        if (propKey == PROP_ON_WILL_DISMISS) {
+            onWillDismissCallback = propValue as? KuiklyRenderCallback
+            return true
+        }
         return super.setProp(propKey, propValue)
+    }
+
+    override fun resetProp(propKey: String): Boolean {
+        if (propKey == PROP_ON_WILL_DISMISS) {
+            onWillDismissCallback = null
+            return true
+        }
+        return super.resetProp(propKey)
     }
 
     override fun onAddToParent(parent: ViewGroup) {
@@ -91,7 +106,12 @@ class MyModalView(context: Context) : KRView(context) {
                     }
                 }
                 win.attributes = params
+                win.decorView.isFocusableInTouchMode = true
+                win.decorView.requestFocus()
+                win.decorView.setOnKeyListener(backKeyListener)
             }
+
+            setOnKeyListener(backKeyListener)
 
             if (!isShowing) {
                 show()
@@ -99,7 +119,21 @@ class MyModalView(context: Context) : KRView(context) {
         }
     }
 
+    private val backKeyListener = View.OnKeyListener { _, keyCode, event ->
+        if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
+            fireWillDismissEvent()
+            true
+        } else {
+            false
+        }
+    }
+
+    private fun fireWillDismissEvent() {
+        onWillDismissCallback?.invoke(mapOf("reason" to DISMISS_REASON_BACK_PRESSED))
+    }
+
     override fun onDestroy() {
+        onWillDismissCallback = null
         dialog?.dismiss()
         dialog = null
         super.onDestroy()
@@ -116,5 +150,7 @@ class MyModalView(context: Context) : KRView(context) {
 
     companion object {
         const val VIEW_NAME = "KRModalView"
+        private const val PROP_ON_WILL_DISMISS = "onWillDismiss"
+        private const val DISMISS_REASON_BACK_PRESSED = 0
     }
 }

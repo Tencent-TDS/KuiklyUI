@@ -393,6 +393,7 @@ fun LazyColumn(
     beyondBoundsItemCount: Int = 3,
 //    flingBehavior: FlingBehavior = ScrollableDefaults.flingBehavior(),
     userScrollEnabled: Boolean = true,
+    forceClearIgnoreOffset: Boolean = false,
     content: LazyListScope.() -> Unit
 ) {
     LazyList(
@@ -406,6 +407,7 @@ fun LazyColumn(
         beyondBoundsItemCount = beyondBoundsItemCount,
         reverseLayout = false,
         userScrollEnabled = userScrollEnabled,
+        forceClearIgnoreOffset = forceClearIgnoreOffset,
         content = content
     )
 }

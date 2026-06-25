@@ -745,6 +745,9 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 if (offset == 0) {
                     return
                 }
+                if (recyclerView.scrollState == SCROLL_STATE_DRAGGING) {
+                    nativeGestureViewHashCodeSet.add(this.hashCode())
+                }
                 val forceOverScrolling = overScrollHandler?.forceOverScroll ?: false
                 if (!forceOverScrolling) {
                     fireScrollEvent()
@@ -755,10 +758,8 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
                 // 由于setScrollState内部在dispatchOnScrollStateChanged之前可能会再次调用setScrollState，
                 // 导致dispatchOnScrollStateChanged逆序回调，因此newState的值不可靠，需要从getScrollState重新获取
                 val currentState = recyclerView.scrollState
-                when(newState) {
-                    SCROLL_STATE_IDLE -> nativeGestureViewHashCodeSet.remove(this.hashCode())
-                    SCROLL_STATE_DRAGGING -> nativeGestureViewHashCodeSet.add(this.hashCode())
-                    SCROLL_STATE_SETTLING -> nativeGestureViewHashCodeSet.remove(this.hashCode())
+                if (newState != SCROLL_STATE_DRAGGING) {
+                    nativeGestureViewHashCodeSet.remove(this.hashCode())
                 }
 
                 if (overScrollHandler?.forceOverScroll == true) {

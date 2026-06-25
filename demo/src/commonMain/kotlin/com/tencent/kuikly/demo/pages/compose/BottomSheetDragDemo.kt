@@ -104,8 +104,8 @@ private fun rememberDialogDismissState(
             visibleState = false
             scope.launch {
                 delay(dismissDelayMillis.toLong())
-                isDismissing = false
                 onDismissRequest()
+                isDismissing = false
             }
         }
         Unit
@@ -533,7 +533,9 @@ class BottomSheetDragDemo : ComposeContainer() {
     override fun willInit() {
         super.willInit()
         setContent {
-            BottomSheetDragDemoContent()
+            ComposeNavigationBar("BottomSheet + DragToDismiss Demo") {
+                BottomSheetDragDemoContent()
+            }
         }
     }
 }
@@ -555,13 +557,6 @@ fun BottomSheetDragDemoContent() {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = "BottomSheet + DragToDismiss Demo",
-            fontSize = 20.sp,
-            color = Color.Black,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
         Button(
             onClick = { showBottomSheet = true },
             modifier = Modifier.fillMaxWidth()

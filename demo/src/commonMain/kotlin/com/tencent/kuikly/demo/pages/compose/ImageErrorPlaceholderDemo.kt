@@ -61,7 +61,9 @@ class ImageErrorPlaceholderDemo : ComposeContainer() {
     override fun willInit() {
         super.willInit()
         setContent {
-            ImageErrorPlaceholderContent()
+            ComposeNavigationBar("Image Error Placeholder Demo") {
+                ImageErrorPlaceholderContent()
+            }
         }
     }
 
@@ -72,12 +74,6 @@ class ImageErrorPlaceholderDemo : ComposeContainer() {
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
-            Text(
-                text = "Image Error Placeholder Demo",
-                fontSize = 20.sp,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
             Text(
                 text = "横向列表，Image 使用不可达 URL + 本地资源占位图",
                 fontSize = 14.sp,

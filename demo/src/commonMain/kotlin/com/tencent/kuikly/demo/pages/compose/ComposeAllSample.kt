@@ -16,10 +16,8 @@
 package com.tencent.kuikly.demo.pages.compose
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import com.tencent.kuikly.compose.ComposeContainer
-import com.tencent.kuikly.compose.extension.scrollToTop
 import com.tencent.kuikly.compose.foundation.background
 import com.tencent.kuikly.compose.foundation.clickable
 import com.tencent.kuikly.compose.foundation.layout.Arrangement
@@ -37,8 +35,6 @@ import com.tencent.kuikly.compose.foundation.layout.width
 import com.tencent.kuikly.compose.foundation.lazy.LazyColumn
 import com.tencent.kuikly.compose.foundation.lazy.items
 import com.tencent.kuikly.compose.foundation.shape.RoundedCornerShape
-import com.tencent.kuikly.compose.material3.Card
-import com.tencent.kuikly.compose.material3.CardDefaults
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.setContent
 import com.tencent.kuikly.compose.ui.Alignment
@@ -64,7 +60,8 @@ internal data class DemoItem(
 
 @Page("ComposeAllSample")
 internal class ComposeAllSample : ComposeContainer() {
-    override fun debugUIInspector(): Boolean = true
+    // 性能基线默认关闭；自动化测试可通过 pageData `debug=1` 开启 inspector
+    override fun debugUIInspector(): Boolean = pageData.params.optBoolean("debug", false)
     // 预定义一组美观的Material Design颜色
     private val demoColors =
         listOf(
@@ -167,16 +164,14 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("GradientAnimationDemo", "Offset or color animate ", "GradientAnimationDemo"),
             DemoItem("重组性能分析", "RecompositionProfiler追踪重组热点", "RecompositionProfilerDemo"),
             DemoItem("TextFieldEmoji", "TextField 自定义表情示例（暂不支持鸿蒙）", "TextFieldEmojiDemo"),
+            // Bug Repro
+            DemoItem("CanScrollForward", "LazyColumn canScrollForward 浮球 repro", "5555"),
+            DemoItem("LazyColumnImageWhite", "LazyColumn 网络图回滚白图 repro (Android10)", "ccl"),
+            DemoItem("BottomSheetDrag", "BottomSheet 拖动手势 repro", "BottomSheetDragDemo"),
         )
 
     @Composable
     fun DemoListScreen() {
-
-        LaunchedEffect(Unit) {
-            println("DemoListScreen ")
-        }
-
-        // 使用抽离出的函数获取演示列表
         val demoList = remember { getDemoItems() }
 
         Column(
@@ -191,7 +186,10 @@ internal class ComposeAllSample : ComposeContainer() {
                 verticalArrangement = Arrangement.spacedBy(8.dp), // 减小间距
                 contentPadding = PaddingValues(all = 8.dp),
             ) {
-                items(demoList) { demo ->
+                items(
+                    items = demoList,
+                    key = { it.pageName },
+                ) { demo ->
                     DemoItemCard(demo) {
                         navigateToPage(demo)
                     }
@@ -205,59 +203,47 @@ internal class ComposeAllSample : ComposeContainer() {
         demo: DemoItem,
         onClick: () -> Unit,
     ) {
-        Card(
+        val iconColor = remember(demo.pageName) { getColorForDemo(demo.pageName) }
+        Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .testTag("demo_card_${demo.pageName}")
-                    .clickable(onClick = onClick),
-            shape = RoundedCornerShape(8.dp),
-            colors =
-                CardDefaults.cardColors(
-                    containerColor = Color.White,
-                ),
-            elevation =
-                CardDefaults.cardElevation(
-                    defaultElevation = 2.dp,
-                ),
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.White)
+                    .clickable(onClick = onClick)
+                    .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier.padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            Box(
+                modifier =
+                    Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(iconColor),
+                contentAlignment = Alignment.Center,
             ) {
-                // 左侧图标指示器
-                Box(
-                    modifier =
-                        Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(getColorForDemo(demo.pageName)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = demo.title.first().toString(),
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
+                Text(
+                    text = demo.title.first().toString(),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
 
-                Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
-                // 右侧文本内容
-                Column {
-                    Text(
-                        demo.title,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF333333),
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        demo.description,
-                        fontSize = 12.sp,
-                        color = Color(0xFF666666),
-                    )
-                }
+            Column {
+                Text(
+                    demo.title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF333333),
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    demo.description,
+                    fontSize = 12.sp,
+                    color = Color(0xFF666666),
+                )
             }
         }
     }

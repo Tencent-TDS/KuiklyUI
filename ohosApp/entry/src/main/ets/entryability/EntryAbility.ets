@@ -22,9 +22,22 @@ import fs from '@ohos.file.fs';
 import { BusinessError } from '@kit.BasicServicesKit';
 import Napi from 'libkuikly_entry.so';
 
+const LAUNCH_PARAMS_KEY = 'kuiklyLaunchParams';
+
 export default class EntryAbility extends UIAbility {
+  private storeLaunchParams(want: Want): void {
+    if (want.parameters && Object.keys(want.parameters).length > 0) {
+      AppStorage.setOrCreate(LAUNCH_PARAMS_KEY, want.parameters);
+    }
+  }
+
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     hilog.info(0x0000, 'testTag', '%{public}s', 'Ability onCreate');
+    this.storeLaunchParams(want);
+  }
+
+  onNewWant(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    this.storeLaunchParams(want);
   }
 
   onDestroy(): void {

@@ -23,6 +23,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import com.tencent.kuikly.compose.extension.MakeKuiklyComposeNode
 import com.tencent.kuikly.compose.foundation.background
+import com.tencent.kuikly.compose.foundation.clickable
+import com.tencent.kuikly.compose.foundation.interaction.MutableInteractionSource
 import com.tencent.kuikly.compose.foundation.layout.Box
 import com.tencent.kuikly.compose.foundation.layout.fillMaxHeight
 import com.tencent.kuikly.compose.foundation.layout.fillMaxSize
@@ -217,21 +219,23 @@ fun MoveableDrawer(
                     Box(Modifier.fillMaxSize()) {
                         content()
                         if (drawerProgress > 0.01f) {
-                            // Use MakeKuiklyComposeNode<DivView> instead of a plain Box so
-                            // that a native-level click event is registered on the scrim.
-                            // A Compose-only `.clickable()` modifier consumes touches in the
-                            // Compose pointer pipeline but does NOT block the native touch
-                            // dispatch path.  Same-layer rendered native views (e.g. WebView)
-                            // receive touches through the native path, bypassing Compose
-                            // consumption.  Registering `getViewEvent().click { }` on the
-                            // DivView makes the underlying Android FrameLayout (or iOS UIView)
-                            // consume the touch event at the native level, preventing it from
-                            // reaching sibling native views underneath.
+                            // Block touches on BOTH dispatch paths:
+                            // 1. Native path: getViewEvent().click {} on DivView blocks native
+                            //    views (e.g. WebView) from receiving touches.
+                            // 2. Compose path: Modifier.clickable() consumes pointer events in
+                            //    the Compose hit-testing pipeline, preventing Compose clickable
+                            //    nodes underneath from firing.
                             MakeKuiklyComposeNode<DivView>(
                                 factory = { DivView() },
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(scrimColor.copy(alpha = scrimColor.alpha * drawerProgress)),
+                                    .background(scrimColor.copy(alpha = scrimColor.alpha * drawerProgress))
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null,
+                                    ) {
+                                        scope.launch { state.close() }
+                                    },
                                 viewInit = {
                                     getViewEvent().click {
                                         scope.launch { state.close() }

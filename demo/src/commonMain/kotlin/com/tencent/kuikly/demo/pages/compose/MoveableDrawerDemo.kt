@@ -156,9 +156,21 @@ private fun MainContent(
                 .padding(12.dp),
         ) {
             Text(
+                "Touch Passthrough Test",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFE65100),
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
                 "Drawer 状态: ${if (drawerState.isOpen) "已打开" else "已关闭"}",
                 fontSize = 13.sp,
                 color = if (drawerState.isOpen) Color(0xFF4CAF50) else Color.Gray,
+            )
+            Text(
+                "触摸验证: 先点击下方按钮改变计数；打开 Drawer 后点击遮罩层，计数不应变化。",
+                fontSize = 13.sp,
+                color = Color(0xFF333333),
             )
             Spacer(Modifier.height(8.dp))
             Text("Drawer 模式", fontSize = 14.sp, fontWeight = FontWeight.Bold)
@@ -192,20 +204,56 @@ private fun MainContent(
             }
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(360.dp)
-                .background(Color(0xFFE3F2FD))
-                .padding(16.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                "主内容区域\n点击左上方按钮打开侧边栏",
-                fontSize = 16.sp,
-                color = Color(0xFF1565C0),
+        // ---- 点击穿透验证区域 ----
+        ClickPassthroughTestArea()
+    }
+}
+
+// ======================== 点击穿透验证区域 ========================
+
+@Composable
+private fun ClickPassthroughTestArea() {
+    var clickCount by remember { mutableIntStateOf(0) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(360.dp)
+            .background(Color(0xFFE3F2FD))
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            "点击计数: $clickCount",
+            fontSize = 32.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF1565C0),
+        )
+        Spacer(Modifier.height(16.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            PillButton(
+                text = "+1",
+                color = Color(0xFF4CAF50),
+                onClick = { clickCount++ },
+            )
+            PillButton(
+                text = "-1",
+                color = Color(0xFFF44336),
+                onClick = { if (clickCount > 0) clickCount-- },
+            )
+            PillButton(
+                text = "重置",
+                color = Color(0xFF9E9E9E),
+                onClick = { clickCount = 0 },
             )
         }
+        Spacer(Modifier.height(16.dp))
+        Text(
+            "打开 Drawer 后点击遮罩层，上方计数不应变化",
+            fontSize = 13.sp,
+            color = Color(0xFF333333),
+        )
     }
 }
 

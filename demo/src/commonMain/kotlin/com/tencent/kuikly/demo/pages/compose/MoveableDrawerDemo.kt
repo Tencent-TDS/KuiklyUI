@@ -156,21 +156,9 @@ private fun MainContent(
                 .padding(12.dp),
         ) {
             Text(
-                "Touch Passthrough Test",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFFE65100),
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
                 "Drawer 状态: ${if (drawerState.isOpen) "已打开" else "已关闭"}",
                 fontSize = 13.sp,
                 color = if (drawerState.isOpen) Color(0xFF4CAF50) else Color.Gray,
-            )
-            Text(
-                "WebView 触摸验证: 先点击下方 WebView 按钮改变计数；打开 Drawer 后点击遮罩层，WebView 状态不应变化。",
-                fontSize = 13.sp,
-                color = Color(0xFF333333),
             )
             Spacer(Modifier.height(8.dp))
             Text("Drawer 模式", fontSize = 14.sp, fontWeight = FontWeight.Bold)
@@ -208,26 +196,14 @@ private fun MainContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(360.dp)
-                .background(Color(0xFFE3F2FD)),
-        ) {
-            SimpleWebViewCompose(
-                url = "file:///android_asset/drawer_test.html",
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .background(Color(0xFFF5F5F5))
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .background(Color(0xFFE3F2FD))
+                .padding(16.dp),
+            contentAlignment = Alignment.Center,
         ) {
             Text(
-                "打开 Drawer 后点击遮罩层，WebView 内的按钮状态不应变化。",
-                fontSize = 14.sp,
-                color = Color(0xFF333333),
+                "主内容区域\n点击左上方按钮打开侧边栏",
+                fontSize = 16.sp,
+                color = Color(0xFF1565C0),
             )
         }
     }

@@ -131,7 +131,7 @@ class VerticalPagerDemo : ComposeContainer() {
                         println("gestureMessage $gestureMessage")
                     }
 
-                    WSVideoGestureOverlay(
+                    VideoGestureOverlay(
                         key = item.id,
                         modifier = Modifier
                             .fillMaxSize()

@@ -86,7 +86,7 @@ private const val TOUCH_SLOP_PX = 30f
  * @param content 内容区域
  */
 @Composable
-fun WSVideoGestureOverlay(
+fun VideoGestureOverlay(
     key: Any,
     modifier: Modifier,
     contentAlignment: Alignment = Alignment.TopStart,

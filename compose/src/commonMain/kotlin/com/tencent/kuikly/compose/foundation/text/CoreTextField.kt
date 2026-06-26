@@ -604,11 +604,17 @@ internal fun CoreTextField(
     }
 }
 
-private fun TextInputState.toTextFieldValue(text: String): TextFieldValue {
+private fun buildTextFieldValue(
+    text: String,
+    selectionStart: Int,
+    selectionEnd: Int,
+    compositionStart: Int = TextInputState.NO_COMPOSITION,
+    compositionEnd: Int = TextInputState.NO_COMPOSITION,
+): TextFieldValue {
     val safeTextLength = text.length
     val selection = TextRange(
         selectionStart.coerceIn(0, safeTextLength),
-        selectionEnd.coerceIn(0, safeTextLength)
+        selectionEnd.coerceIn(0, safeTextLength),
     )
     val composition = if (
         compositionStart != TextInputState.NO_COMPOSITION &&
@@ -616,7 +622,7 @@ private fun TextInputState.toTextFieldValue(text: String): TextFieldValue {
     ) {
         TextRange(
             compositionStart.coerceIn(0, safeTextLength),
-            compositionEnd.coerceIn(0, safeTextLength)
+            compositionEnd.coerceIn(0, safeTextLength),
         )
     } else {
         null
@@ -624,28 +630,21 @@ private fun TextInputState.toTextFieldValue(text: String): TextFieldValue {
     return TextFieldValue(
         text = text,
         selection = selection,
-        composition = composition
+        composition = composition,
     )
 }
 
-private fun TextFieldValue.withUpdatedTextPreservingEditingState(text: String): TextFieldValue {
-    val safeTextLength = text.length
-    val selection = TextRange(
-        selection.start.coerceIn(0, safeTextLength),
-        selection.end.coerceIn(0, safeTextLength)
-    )
-    val composition = composition?.let {
-        TextRange(
-            it.start.coerceIn(0, safeTextLength),
-            it.end.coerceIn(0, safeTextLength)
-        )
-    }
-    return TextFieldValue(
+private fun TextInputState.toTextFieldValue(text: String): TextFieldValue =
+    buildTextFieldValue(text, selectionStart, selectionEnd, compositionStart, compositionEnd)
+
+private fun TextFieldValue.withUpdatedTextPreservingEditingState(text: String): TextFieldValue =
+    buildTextFieldValue(
         text = text,
-        selection = selection,
-        composition = composition
+        selectionStart = selection.start,
+        selectionEnd = selection.end,
+        compositionStart = composition?.start ?: TextInputState.NO_COMPOSITION,
+        compositionEnd = composition?.end ?: TextInputState.NO_COMPOSITION,
     )
-}
 
 /**
  * 将 Modifier 拆分为两部分：SetPropElement/SetEventElement 和其他 Element

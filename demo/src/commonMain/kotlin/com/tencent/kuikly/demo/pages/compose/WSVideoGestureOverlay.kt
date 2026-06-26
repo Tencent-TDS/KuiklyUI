@@ -1,7 +1,24 @@
+/*
+ * Tencent is pleased to support the open source community by making KuiklyUI
+ * available.
+ * Copyright (C) 2025 Tencent. All rights reserved.
+ * Licensed under the License of KuiklyUI;
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * https://github.com/Tencent-TDS/KuiklyUI/blob/main/LICENSE
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.tencent.kuikly.demo.pages.compose
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import com.tencent.kuikly.compose.foundation.gestures.awaitEachGesture
 import com.tencent.kuikly.compose.foundation.layout.Box
@@ -15,7 +32,6 @@ import com.tencent.kuikly.compose.ui.platform.LocalDensity
 import com.tencent.kuikly.compose.ui.util.fastForEach
 import com.tencent.kuikly.core.datetime.DateTime
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -96,6 +112,7 @@ fun WSVideoGestureOverlay(
     val currentOnClickAnyWhere by rememberUpdatedState(onClickAnyWhere)
     val currentOnDoubleClick by rememberUpdatedState(onDoubleClick)
     val density = LocalDensity.current
+    val clickHandler = rememberClickOrDoubleClickHandler(key)
 
     Box(
         modifier = modifier
@@ -129,6 +146,7 @@ fun WSVideoGestureOverlay(
                                     val dy = change.position.y - downPosition.y
                                     if (dx * dx + dy * dy < CLICK_SLOP_PX * CLICK_SLOP_PX) {
                                         handleClickOrDoubleClick(
+                                            clickHandler = clickHandler,
                                             currentOnClickAnyWhere,
                                             currentOnDoubleClick,
                                             downPosition,
@@ -179,6 +197,7 @@ fun WSVideoGestureOverlay(
                                 val dy = change.position.y - downPosition.y
                                 if (dx * dx + dy * dy < CLICK_SLOP_PX * CLICK_SLOP_PX) {
                                     handleClickOrDoubleClick(
+                                        clickHandler = clickHandler,
                                         currentOnClickAnyWhere,
                                         currentOnDoubleClick,
                                         downPosition,
@@ -248,17 +267,49 @@ fun WSVideoGestureOverlay(
 /**
  * 上一次点击的时间戳，用于双击判定
  */
-private var lastClickTimeMs: Long = 0L
+private class ClickOrDoubleClickHandler(
+    private val scope: CoroutineScope,
+) {
+    private var lastClickTimeMs: Long = 0L
+    private var pendingSingleClickJob: Job? = null
 
-/**
- * 延迟执行单击的 Job，双击时取消
- */
-private var pendingSingleClickJob: Job? = null
+    fun handle(
+        onClickAnyWhere: () -> Unit,
+        onDoubleClick: ((x: Float, y: Float) -> Unit)?,
+        touchPosition: Offset,
+        densityValue: Float,
+    ) {
+        if (onDoubleClick == null) {
+            onClickAnyWhere()
+            return
+        }
 
-/**
- * 双击判定的协程作用域
- */
-private val doubleClickScope = CoroutineScope(Dispatchers.Main)
+        val currentTime = DateTime.currentTimestamp()
+        val elapsed = currentTime - lastClickTimeMs
+        lastClickTimeMs = currentTime
+
+        if (elapsed < DOUBLE_CLICK_TIMEOUT_MS) {
+            pendingSingleClickJob?.cancel()
+            pendingSingleClickJob = null
+            lastClickTimeMs = 0L
+            val xDp = touchPosition.x / densityValue
+            val yDp = touchPosition.y / densityValue
+            onDoubleClick(xDp, yDp)
+        } else {
+            pendingSingleClickJob?.cancel()
+            pendingSingleClickJob = scope.launch {
+                delay(DOUBLE_CLICK_TIMEOUT_MS)
+                onClickAnyWhere()
+            }
+        }
+    }
+}
+
+@Composable
+private fun rememberClickOrDoubleClickHandler(key: Any): ClickOrDoubleClickHandler {
+    val scope = rememberCoroutineScope()
+    return remember(key, scope) { ClickOrDoubleClickHandler(scope) }
+}
 
 /**
  * 处理点击或双击逻辑
@@ -269,36 +320,11 @@ private val doubleClickScope = CoroutineScope(Dispatchers.Main)
  * - 两次点击间隔大于 [DOUBLE_CLICK_TIMEOUT_MS] → 判定为单击，延迟执行 [onClickAnyWhere]
  */
 private fun handleClickOrDoubleClick(
+    clickHandler: ClickOrDoubleClickHandler,
     onClickAnyWhere: () -> Unit,
     onDoubleClick: ((x: Float, y: Float) -> Unit)?,
     touchPosition: Offset,
     densityValue: Float,
 ) {
-    if (onDoubleClick == null) {
-        // 无双击回调，直接执行单击
-        onClickAnyWhere()
-        return
-    }
-
-    val currentTime = DateTime.currentTimestamp()
-    val elapsed = currentTime - lastClickTimeMs
-    lastClickTimeMs = currentTime
-
-    if (elapsed < DOUBLE_CLICK_TIMEOUT_MS) {
-        // 判定为双击：取消待执行的单击，触发双击回调
-        pendingSingleClickJob?.cancel()
-        pendingSingleClickJob = null
-        lastClickTimeMs = 0L // 重置，避免连续三击被误判
-        // 将像素坐标转换为 dp 坐标
-        val xDp = touchPosition.x / densityValue
-        val yDp = touchPosition.y / densityValue
-        onDoubleClick(xDp, yDp)
-    } else {
-        // 可能是单击：延迟执行，等待可能的第二次点击
-        pendingSingleClickJob?.cancel()
-        pendingSingleClickJob = doubleClickScope.launch {
-            delay(DOUBLE_CLICK_TIMEOUT_MS)
-            onClickAnyWhere()
-        }
-    }
+    clickHandler.handle(onClickAnyWhere, onDoubleClick, touchPosition, densityValue)
 }

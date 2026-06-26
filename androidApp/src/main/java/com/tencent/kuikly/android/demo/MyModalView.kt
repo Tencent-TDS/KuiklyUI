@@ -108,23 +108,20 @@ class MyModalView(context: Context) : KRView(context) {
                 win.attributes = params
                 win.decorView.isFocusableInTouchMode = true
                 win.decorView.requestFocus()
-                win.decorView.setOnKeyListener(backKeyListener)
             }
 
-            setOnKeyListener(backKeyListener)
+            setOnKeyListener { _, keyCode, event ->
+                if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
+                    fireWillDismissEvent()
+                    true
+                } else {
+                    false
+                }
+            }
 
             if (!isShowing) {
                 show()
             }
-        }
-    }
-
-    private val backKeyListener = View.OnKeyListener { _, keyCode, event ->
-        if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
-            fireWillDismissEvent()
-            true
-        } else {
-            false
         }
     }
 

@@ -127,7 +127,7 @@ enum class TouchType { Down, Move, Up }
 fun Modal(
     modifier: Modifier = Modifier,
     ref: RefFunc<ModalView>? = null,
-    /* 物理键触发时调用该事件（目前仅支持鸿蒙平台） */
+    /* 物理键触发时调用该事件（Android Demo MyModalView、鸿蒙等平台） */
     onWillDismiss: EventHandlerFn? = null,
     content: (@Composable () -> Unit)
 ) {

@@ -97,18 +97,21 @@ private fun rememberDialogDismissState(
     var visibleState by remember { mutableStateOf(false) }
     var isDismissing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val currentOnDismissRequest by rememberUpdatedState(onDismissRequest)
 
-    val dismissDialog: () -> Unit = {
-        if (visibleState && !isDismissing) {
-            isDismissing = true
-            visibleState = false
-            scope.launch {
-                delay(dismissDelayMillis.toLong())
-                onDismissRequest()
-                isDismissing = false
+    val dismissDialog: () -> Unit = remember(scope, dismissDelayMillis) {
+        {
+            if (visibleState && !isDismissing) {
+                isDismissing = true
+                visibleState = false
+                scope.launch {
+                    delay(dismissDelayMillis.toLong())
+                    currentOnDismissRequest()
+                    isDismissing = false
+                }
             }
+            Unit
         }
-        Unit
     }
 
     if (visible && !visibleState && !isDismissing) {

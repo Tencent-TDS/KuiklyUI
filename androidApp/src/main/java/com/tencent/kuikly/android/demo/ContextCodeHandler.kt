@@ -161,9 +161,6 @@ open class ContextCodeHandler(
             renderViewExport(KuiklyPageView.VIEW_NAME, {
                 KuiklyPageView(it)
             })
-            renderViewExport(KRWebView.VIEW_NAME, {
-                KRWebView(it)
-            })
             // 覆盖框架内置 KRModalView，使用 Dialog 模式实现，解决无障碍阻隔问题
             renderViewExport(MyModalView.VIEW_NAME, {
                 MyModalView(it)

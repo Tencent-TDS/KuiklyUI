@@ -347,7 +347,7 @@ interface IKuiklyRenderViewExport : IKuiklyRenderModuleExport, IKRViewDecoration
 }
 
 /**
- * 写入 viewTag 。
+ * set viewTag 。
  *
  * @param tag 要写入的 tag；传 0 表示重置为"未绑定"。
  */

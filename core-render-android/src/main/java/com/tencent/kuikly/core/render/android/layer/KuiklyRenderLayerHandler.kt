@@ -39,6 +39,8 @@ import com.tencent.kuikly.core.render.android.export.IKuiklyRenderModuleExport
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderShadowExport
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
+import com.tencent.kuikly.core.render.android.export.resetViewTag
+import com.tencent.kuikly.core.render.android.export.setViewTag
 import com.tencent.tdf.module.TDFBaseModule
 import com.tencent.tdf.utils.TDFListUtils
 import java.lang.ref.WeakReference
@@ -319,6 +321,7 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
             )
         }
         renderViewHandler.viewExport.kuiklyRenderContext = renderView.kuiklyRenderContext
+        renderViewHandler.viewExport.setViewTag(tag)
         putRenderViewHandler(tag, renderViewHandler)
     }
 
@@ -422,6 +425,7 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
         }
         viewExport.resetClipChildren()
         viewExport.resetShadow()
+        viewExport.resetViewTag()
     }
 
     private fun assertShadowHandlerNotNull(shadowHandler: IKuiklyRenderShadowExport?) {

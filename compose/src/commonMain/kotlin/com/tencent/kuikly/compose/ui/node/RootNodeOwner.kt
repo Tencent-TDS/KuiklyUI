@@ -58,6 +58,10 @@ import com.tencent.kuikly.compose.ui.util.fastAll
 import com.tencent.kuikly.compose.profiler.RecompositionProfiler
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * Owner of root [LayoutNode].
@@ -119,6 +123,9 @@ internal class RootNodeOwner(
 //            // (which is what we want).
 //            isTraversalGroup = true
 //        }
+    private val semanticsCoroutineScope = CoroutineScope(coroutineContext)
+    private var semanticsDebounceJob: Job? = null
+
     val owner: Owner = OwnerImpl(layoutDirection, coroutineContext, rootKView, density)
     val semanticsOwner = SemanticsOwner(owner.root)
     private val semanticsKuiklyHandler = KuiklySemantisHandler()
@@ -154,6 +161,8 @@ internal class RootNodeOwner(
 
     fun dispose() {
         check(!isDisposed) { "RootNodeOwner is already disposed" }
+        semanticsDebounceJob?.cancel()
+        semanticsDebounceJob = null
 //        platformContext.rootForTestListener?.onRootForTestDisposed(rootForTest)
         snapshotObserver.stopObserving()
 //        graphicsContext.dispose()
@@ -399,8 +408,14 @@ internal class RootNodeOwner(
             )
 
         override fun onSemanticsChange() {
-//            platformContext.semanticsOwnerListener?.onSemanticsChange(semanticsOwner)
-            semanticsKuiklyHandler.onSemanticsChange(semanticsOwner)
+            if (!isSemanticsRunnnng) {
+                return
+            }
+            semanticsDebounceJob?.cancel()
+            semanticsDebounceJob = semanticsCoroutineScope.launch {
+                delay(100)
+                semanticsKuiklyHandler.onSemanticsChange(semanticsOwner)
+            }
         }
 
         override fun onZIndexChange(layoutNode: LayoutNode) {

@@ -164,16 +164,20 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
     }
     if (auto rootView = GetRootView().lock()) {
         if (rootView->IsPerformMainTasking()) {
-            std::weak_ptr<IKRRenderViewExport> weakSelf = shared_from_this();
-            KRMainThread::RunOnMainThreadForNextLoop([weakSelf] {
-                if(auto strongSelf = weakSelf.lock()){
-                    kuikly::util::GetNodeApi()->markDirty(strongSelf->GetNode(), NODE_NEED_RENDER);
-                }
-            });
+            auto richTextShadow = reinterpret_cast<KRRichTextShadow *>(shadow_.get());
+            // typography 已就绪时同步绘制，避免滚动中新 item 白块；未就绪则下一帧 markDirty
+            if (richTextShadow == nullptr || richTextShadow->MainThreadTypographyHandle() == nullptr) {
+                std::weak_ptr<IKRRenderViewExport> weakSelf = shared_from_this();
+                KRMainThread::RunOnMainThreadForNextLoop([weakSelf] {
+                    if (auto strongSelf = weakSelf.lock()) {
+                        kuikly::util::GetNodeApi()->markDirty(strongSelf->GetNode(), NODE_NEED_RENDER);
+                    }
+                });
 #ifndef NDEBUG
-            KR_LOG_ERROR << "OnForegroundDraw, IsPerformMainTasking Skip:" << shadow_.get();
+                KR_LOG_ERROR << "OnForegroundDraw, IsPerformMainTasking Skip:" << shadow_.get();
 #endif
-            return;
+                return;
+            }
         }
     }
     auto richTextShadow = reinterpret_cast<KRRichTextShadow *>(shadow_.get());

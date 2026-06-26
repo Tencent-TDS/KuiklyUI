@@ -17,6 +17,7 @@
 #define CORE_RENDER_OHOS_KRSCROLLERVIEW_H
 
 #include <unordered_set>
+#include <cstdint>
 #include "KRScrollerContentInset.h"
 #include "libohos_render/export/IKRRenderViewExport.h"
 #include "libohos_render/foundation/KRPoint.h"
@@ -109,7 +110,7 @@ class KRScrollerView : public IKRRenderViewExport {
     bool RegisterOnDragEndEvent(const KRRenderCallback event_callback);
     bool RegisterOnScrollEndEvent(const KRRenderCallback event_callback);
     bool RegisterWillDragEndEvent(const KRRenderCallback event_callback);
-    void FireOnScrollEvent(ArkUI_NodeEvent *event);
+    void FireOnScrollEvent(ArkUI_NodeEvent *event, bool force = false);
     void FireBeginDragEvent(ArkUI_NodeEvent *event);
     void FireEndDragEvent(ArkUI_NodeEvent *event);
     void FireEndScrollEvent(ArkUI_NodeEvent *event);
@@ -174,6 +175,12 @@ class KRScrollerView : public IKRRenderViewExport {
     float last_fired_scroll_x_ = 0;
     float last_fired_scroll_y_ = 0;
     bool direction_row_ = false;
+
+    // Scroll trace (debug): counts per gesture, dumped on scroll stop
+    uint32_t trace_ark_on_scroll_ = 0;
+    uint32_t trace_fire_skipped_ = 0;
+    uint32_t trace_fire_to_bridge_ = 0;
+    void DumpScrollTrace(const char *phase);
 };
 
 #endif  // CORE_RENDER_OHOS_KRSCROLLERVIEW_H

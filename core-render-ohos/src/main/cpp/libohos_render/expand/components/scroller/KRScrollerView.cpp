@@ -17,6 +17,7 @@
 
 #include <cfloat>
 #include <cmath>
+#include "libohos_render/utils/KRRenderLoger.h"
 #include "libohos_render/expand/components/view/KRView.h"
 #include "libohos_render/foundation/type/KRRenderValue.h"
 #include "libohos_render/utils/KRJSONObject.h"
@@ -234,6 +235,7 @@ void KRScrollerView::CallMethod(const std::string &method, const KRAnyValue &par
 
 void KRScrollerView::OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEventType &event_type) {
     if (event_type == NODE_SCROLL_EVENT_ON_SCROLL) {
+        trace_ark_on_scroll_++;
         FireOnScrollEvent(event);
     } else if (event_type == NODE_SCROLL_EVENT_ON_SCROLL_FRAME_BEGIN) {
         OnScrollFrameBegin(event);
@@ -248,9 +250,18 @@ void KRScrollerView::OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEventType &
     }
 }
 
-void KRScrollerView::FireOnScrollEvent(ArkUI_NodeEvent *event) {
+void KRScrollerView::FireOnScrollEvent(ArkUI_NodeEvent *event, bool force) {
     auto point = kuikly::util::GetArkUIScrollContentOffset(GetNode());
-    if (point.x == last_fired_scroll_x_ && point.y == last_fired_scroll_y_) {
+    // ArkUI reports sub-pixel offsets every frame; quantize to avoid excessive bridge callbacks.
+    constexpr float kMinScrollOffsetDelta = 0.5f;
+    constexpr float kFlingScrollOffsetDelta = 2.0f;
+    const float minDelta = (current_scroll_state_ == ArkUI_ScrollState::ARKUI_SCROLL_STATE_FLING)
+                               ? kFlingScrollOffsetDelta
+                               : kMinScrollOffsetDelta;
+    if (!force &&
+        fabsf(point.x - last_fired_scroll_x_) < minDelta &&
+        fabsf(point.y - last_fired_scroll_y_) < minDelta) {
+        trace_fire_skipped_++;
         return;
     }
     last_fired_scroll_x_ = point.x;
@@ -260,6 +271,7 @@ void KRScrollerView::FireOnScrollEvent(ArkUI_NodeEvent *event) {
     if (!on_scroll_callback_) {
         return;
     }
+    trace_fire_to_bridge_++;
     on_scroll_callback_(GetCommonScrollParams());
 }
 
@@ -559,7 +571,13 @@ void KRScrollerView::OnScrollStop(ArkUI_NodeEvent *event) {
     if (is_dragging_) {
         OnWillDragEnd(event);
     }
+    // Flush the final offset so the Compose bridge can sync any sub-threshold remainder.
+    FireOnScrollEvent(event, true);
     FireEndScrollEvent(event);
+    DumpScrollTrace("scrollStop");
+    trace_ark_on_scroll_ = 0;
+    trace_fire_skipped_ = 0;
+    trace_fire_to_bridge_ = 0;
     if (auto handler = weak_super_touch_handler_.lock()) {
         handler->ClearNativeTouchConsumer(shared_from_this());
     }
@@ -755,8 +773,20 @@ bool KRScrollerView::SetFlingEnable(bool enable) {
     return true;
 }
 
+void KRScrollerView::DumpScrollTrace(const char *phase) {
+#ifndef NDEBUG
+    if (trace_ark_on_scroll_ == 0 && trace_fire_to_bridge_ == 0) {
+        return;
+    }
+    KR_LOG_INFO_WITH_TAG("KuiklyScrollTrace")
+        << phase << " | arkOnScroll=" << trace_ark_on_scroll_
+        << " fireSkipped=" << trace_fire_skipped_
+        << " fireToBridge=" << trace_fire_to_bridge_;
+#endif
+}
+
 void KRScrollerView::TryApplyPendingFireOnScroll() {
-    FireOnScrollEvent(nullptr);
+    FireOnScrollEvent(nullptr, true);
 }
 
 // Clear transient native state for Compose DSL reuse (not the native reuse pool).

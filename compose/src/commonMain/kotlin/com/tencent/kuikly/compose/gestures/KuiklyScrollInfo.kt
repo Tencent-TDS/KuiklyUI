@@ -150,6 +150,11 @@ class KuiklyScrollInfo {
     var cachedTotalItems: Int = 0
 
     /**
+     * 滚动中触及底部边界（toButtomDelta<=0）时置位，scrollEnd 时统一扩容 contentSize。
+     */
+    var pendingBottomExpand: Boolean = false
+
+    /**
      * Sticky Header Position Cache Manager
      */
     val stickyHeaderCacheManager = StickyHeaderCacheManager()
@@ -164,7 +169,15 @@ class KuiklyScrollInfo {
     /**
      * Update content size to render view
      */
+    private var lastAppliedContentSize: Int = -1
+
     fun updateContentSizeToRender() {
+        if (currentContentSize == lastAppliedContentSize) {
+            KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.contentSizeDeduped++ }
+            return
+        }
+        KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.contentSizeToRender++ }
+        lastAppliedContentSize = currentContentSize
         val frame = createContentFrame()
         scrollView?.contentView?.setFrameToRenderView(frame)
     }
@@ -194,6 +207,8 @@ class KuiklyScrollInfo {
         stickyItemKey = null
         cachedTotalItems = 0
         pullToRefreshTopInsetPx = 0
+        lastAppliedContentSize = -1
+        pendingBottomExpand = false
     }
 
     /**

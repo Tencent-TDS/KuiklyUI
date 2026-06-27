@@ -663,7 +663,10 @@ object OutlinedTextFieldDefaults {
         Box(
             // TODO 目前Kuikly不支持形状
             modifier
-                .border(borderStroke.value.width, color = (borderStroke.value.brush as SolidColor).value)
+                .border(
+                    borderStroke.value.width,
+                    color = (borderStroke.value.brush as? SolidColor)?.value ?: Color.Unspecified
+                )
                 .background(containerColor.value, shape),
         )
     }

@@ -41,6 +41,7 @@ import com.tencent.kuikly.compose.ui.geometry.Size
 import com.tencent.kuikly.compose.ui.graphics.Brush
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.SolidColor
+import com.tencent.kuikly.compose.ui.graphics.takeOrElse
 import com.tencent.kuikly.compose.ui.layout.Measurable
 import com.tencent.kuikly.compose.ui.layout.MeasurePolicy
 import com.tencent.kuikly.compose.ui.layout.MeasureResult
@@ -524,16 +525,15 @@ internal fun CoreTextField(
                             }
                         }
                     }
-                    set(cursorBrush) {
-                        withTextAreaView {
-                            if (cursorBrush is SolidColor) {
-                                getViewAttr().tintColor(cursorBrush.value.toKuiklyColor())
-                            }
-                        }
-                    }
-                    set(selectionColors) {
+                    set(cursorBrush to selectionColors) {
                         withTextAreaView {
                             getViewAttr().selectionColor(selectionColors.backgroundColor.toKuiklyColor())
+                            // Priority: Use cursor color from cursorBrush if it's a specified SolidColor.
+                            // Otherwise, fallback to selectionColors.handleColor.
+                            val cursorColor = (cursorBrush as? SolidColor)?.value
+                            val finalTintColor = cursorColor?.takeOrElse { selectionColors.handleColor }
+                                ?: selectionColors.handleColor
+                            getViewAttr().tintColor(finalTintColor.toKuiklyColor())
                         }
                     }
                     set(maxLength to lengthLimitType) {

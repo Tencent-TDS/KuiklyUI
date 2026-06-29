@@ -414,17 +414,21 @@ bool KRImageView::SetCapInsets(const KRAnyValue &value) {
 bool KRImageView::SetDotNineImage(const KRAnyValue &value) {
     this->is_dot_nine_image_ = value->toBool();
     if (this->is_dot_nine_image_) {
-        RegisterLoadSuccessCallback(load_success_callback_);
+        EnsureLoadCompleteEventRegistered();
     }
     return true;
 }
 
-bool KRImageView::RegisterLoadSuccessCallback(const KRRenderCallback &event_callback) {
-    load_success_callback_ = event_callback;
+void KRImageView::EnsureLoadCompleteEventRegistered() {
     if (!had_register_on_complete_event_) {
         RegisterEvent(NODE_IMAGE_ON_COMPLETE);
         had_register_on_complete_event_ = true;
     }
+}
+
+bool KRImageView::RegisterLoadSuccessCallback(const KRRenderCallback &event_callback) {
+    load_success_callback_ = event_callback;
+    EnsureLoadCompleteEventRegistered();
     if (load_success_callback_ && has_loaded_image_) {
         KRRenderValueMap map;
         map[kPropNameSrc] = NewKRRenderValue(image_src_);
@@ -435,10 +439,7 @@ bool KRImageView::RegisterLoadSuccessCallback(const KRRenderCallback &event_call
 
 bool KRImageView::RegisterLoadResolutionCallback(const KRRenderCallback &event_callback) {
     load_resolution_callback_ = event_callback;
-    if (!had_register_on_complete_event_) {
-        RegisterEvent(NODE_IMAGE_ON_COMPLETE);
-        had_register_on_complete_event_ = true;
-    }
+    EnsureLoadCompleteEventRegistered();
     if (load_resolution_callback_ && has_loaded_image_) {
         KRRenderValueMap map;
         map[kParamKeyImageWidth] = NewKRRenderValue(loaded_image_size_.width);

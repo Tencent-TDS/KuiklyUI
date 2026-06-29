@@ -53,6 +53,7 @@ class KRImageView : public IKRRenderViewExport {
     bool SetDotNineImage(const KRAnyValue &value);
     bool SetMaskLinearGradient(const KRAnyValue &value);
     void ResetMaskLinearGradientNode();
+    void EnsureLoadCompleteEventRegistered();
     bool RegisterLoadSuccessCallback(const KRRenderCallback &event_callback);
     bool RegisterLoadResolutionCallback(const KRRenderCallback &event_callback);
     bool RegisterLoadFailureCallback(const KRRenderCallback &event_callback);

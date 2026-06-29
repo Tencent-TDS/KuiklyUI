@@ -25,6 +25,7 @@ import com.tencent.kuikly.compose.foundation.pager.PagerState
 import com.tencent.kuikly.compose.views.applyOffsetDelta
 import com.tencent.kuikly.compose.gestures.KuiklyScrollInfo
 import com.tencent.kuikly.compose.gestures.KuiklyScrollableState
+import com.tencent.kuikly.core.views.ScrollerAttr
 import com.tencent.kuikly.core.views.ScrollParams
 
 /**
@@ -141,6 +142,15 @@ internal suspend fun ScrollableState.animateScrollToTop() {
         is PagerState -> this.animateScrollToPage(0)
         else -> {}
     }
+}
+
+/**
+ * Whether native nestedScroll is configured on the bound ScrollerView.
+ */
+internal fun ScrollableState.isNestedScrollConfigured(): Boolean {
+    val prop = kuiklyInfo.scrollView?.getViewAttr()?.getProp(ScrollerAttr.NESTED_SCROLL) ?: return false
+    val value = prop.toString()
+    return value.isNotEmpty() && value != "null" && value != "{}"
 }
 
 /**

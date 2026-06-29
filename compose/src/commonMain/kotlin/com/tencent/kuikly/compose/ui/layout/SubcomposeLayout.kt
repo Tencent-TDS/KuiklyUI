@@ -75,7 +75,7 @@ import com.tencent.kuikly.compose.layout.hideOffsetScreenView
 import com.tencent.kuikly.compose.layout.restoreScrollerViewOnReuse
 import com.tencent.kuikly.compose.layout.transferScrollToTopCallback
 import com.tencent.kuikly.compose.scroller.handleScrollToTopCallback
-import com.tencent.kuikly.compose.scroller.isAtTop
+import com.tencent.kuikly.compose.scroller.isNestedScrollConfigured
 import com.tencent.kuikly.compose.scroller.lastItemVisible
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.kuiklyOnScroll
@@ -94,6 +94,7 @@ import com.tencent.kuikly.compose.scroller.animateScrollToTop
 import com.tencent.kuikly.compose.scroller.calculateAndUpdateContentSize
 import com.tencent.kuikly.compose.scroller.calculateAndUpdateContentSizeIfNeeded
 import com.tencent.kuikly.compose.scroller.finalizeNativeScrollSync
+import com.tencent.kuikly.compose.scroller.isAtTop
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
@@ -346,9 +347,15 @@ fun SubcomposeLayout(
                 if (offset < 0 && scrollableState.isAtTop()) {
                     KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.composeEarlyReturn++ }
                     return@scroll
+                } else if (scrollableState.isNestedScrollConfigured() && scrollDelta > 0 && !scrollableState.canScrollForward) {
+                    // 嵌套滚动到底：交给外层 ArkUI nestedScroll 消费，Compose 侧不再驱动 remeasure
+                    KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.composeEarlyReturn++ }
+                    return@scroll
                 } else if (toButtomDelta != null && scrollDelta > toButtomDelta) {
                     if (toButtomDelta.toInt() <= 0) {
-                        kuiklyInfo.pendingBottomExpand = true
+                        if (!scrollableState.isNestedScrollConfigured()) {
+                            kuiklyInfo.pendingBottomExpand = true
+                        }
                         KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.composeEarlyReturn++ }
                         return@scroll
                     }
@@ -361,7 +368,9 @@ fun SubcomposeLayout(
                 KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.kuiklyOnScroll++ }
                 scrollableState.kuiklyOnScroll(scrollDelta.toFloat())
                 scrollableState.calculateAndUpdateContentSizeIfNeeded()
-                scrollableState.tryExpandStartSize(offset, true)
+                if (!scrollableState.isNestedScrollConfigured()) {
+                    scrollableState.tryExpandStartSize(offset, true)
+                }
             }
 
             // Listen to native "scroll to top" event and scroll to index 0

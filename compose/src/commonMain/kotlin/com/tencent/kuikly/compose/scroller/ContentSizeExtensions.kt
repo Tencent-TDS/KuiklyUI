@@ -112,7 +112,9 @@ internal fun ScrollableState.finalizeNativeScrollSync(offset: Int) {
     if (kuiklyInfo.pendingBottomExpand) {
         kuiklyInfo.pendingBottomExpand = false
     }
-    tryExpandStartSize(offset, isScrolling = false)
+    if (!isNestedScrollConfigured()) {
+        tryExpandStartSize(offset, isScrolling = false)
+    }
 }
 
 internal fun PaddingValues.totalPadding(orientation: Orientation): Dp {
@@ -275,7 +277,7 @@ internal fun ScrollableState.calculateBackExpandSize(offset: Int): Int? {
  * 尝试扩展起始大小
  */
 internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolean) {
-    if (kuiklyInfo.scrollView == null) return
+    if (kuiklyInfo.scrollView == null || isNestedScrollConfigured()) return
 
     val atTopSync = isComposeAtTopForScrollSync()
     val needsTopExpand = offset <= 0 && !atTopSync && kuiklyInfo.offsetDirty
@@ -325,6 +327,10 @@ internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = f
             val minDelta = (DEFAULT_CONTENT_SIZE * getDensity()).toInt()
             val epsilon = 0.5 * getDensity()  // 使用 0.5dp 作为误差值
             val reachBtm = contentOffset + viewportSize - currentContentSize >= -epsilon
+
+            if (isNestedScrollConfigured()) {
+                return@launch
+            }
 
             if (contentOffset <= 0 && !isComposeAtTopForScrollSync() && (forceExpand || scrollView?.isDragging != true)) {
                 // 整体把offset 加一下

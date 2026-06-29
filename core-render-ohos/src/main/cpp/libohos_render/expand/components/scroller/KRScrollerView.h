@@ -181,6 +181,11 @@ class KRScrollerView : public IKRRenderViewExport {
     uint32_t trace_fire_skipped_ = 0;
     uint32_t trace_fire_to_bridge_ = 0;
     void DumpScrollTrace(const char *phase);
+    bool ShouldHandOffNestedScrollAtBoundary(float scroll_amount, float current_offset, float max_offset) const;
+
+    bool has_nested_scroll_ = false;
+    ArkUI_ScrollNestedMode nested_scroll_forward_ = ARKUI_SCROLL_NESTED_MODE_SELF_FIRST;
+    ArkUI_ScrollNestedMode nested_scroll_backward_ = ARKUI_SCROLL_NESTED_MODE_SELF_FIRST;
 };
 
 #endif  // CORE_RENDER_OHOS_KRSCROLLERVIEW_H

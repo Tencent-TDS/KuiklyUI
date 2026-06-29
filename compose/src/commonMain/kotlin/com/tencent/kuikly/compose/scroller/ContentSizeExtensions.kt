@@ -71,7 +71,7 @@ internal fun ScrollableState.calculateContentSize(): Int {
     return contentSize.toInt()
 }
 
-internal fun ScrollableState.calculateAndUpdateContentSize() {
+internal fun ScrollableState.calculateAndUpdateContentSize(syncNativeOffset: Boolean = true) {
     // 更新当前的contentSize大小
     val oldContentSize = kuiklyInfo.currentContentSize
     val newContentSize = calculateContentSize()
@@ -90,6 +90,9 @@ internal fun ScrollableState.calculateAndUpdateContentSize() {
         kuiklyInfo.currentContentSize = newContentSize
     }
     kuiklyInfo.updateContentSizeToRender()
+    if (syncNativeOffset && kuiklyInfo.reverseLayout) {
+        kuiklyInfo.syncContentOffsetToComposeOffset()
+    }
 }
 
 internal fun PaddingValues.totalPadding(orientation: Orientation): Dp {
@@ -262,7 +265,7 @@ internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolea
         delta = max(delta ?: minDelta, minDelta)
 
         val littleDelta = (ScrollableStateConstants.SCROLL_THRESHOLD * density).toInt()
-        val maxDelta = kuiklyInfo.currentContentSize - kuiklyInfo.viewportSize - kuiklyInfo.contentOffset
+        val maxDelta = kuiklyInfo.maxNativeOffset - kuiklyInfo.composeOffset.toInt()
 
         if ((delta + littleDelta) > maxDelta) {
             // 不够直接扩容offset，先扩容contentSize
@@ -291,13 +294,14 @@ internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = f
             delay(150)
             val minDelta = (DEFAULT_CONTENT_SIZE * getDensity()).toInt()
             val epsilon = 0.5 * getDensity()  // 使用 0.5dp 作为误差值
-            val reachBtm = contentOffset + viewportSize - currentContentSize >= -epsilon
+            val logicalOffset = composeOffset.toInt()
+            val reachBtm = logicalOffset + viewportSize - currentContentSize >= -epsilon
 
-            if (contentOffset <= 0 && !isComposeAtTopForScrollSync() && (forceExpand || scrollView?.isDragging != true)) {
+            if (logicalOffset <= 0 && !isComposeAtTopForScrollSync() && (forceExpand || scrollView?.isDragging != true)) {
                 // 整体把offset 加一下
-                var delta = calculateBackExpandSize(contentOffset)
+                var delta = calculateBackExpandSize(logicalOffset)
                 delta = max(delta ?: minDelta, minDelta)
-                val maxDelta = currentContentSize - viewportSize - contentOffset
+                val maxDelta = maxNativeOffset - logicalOffset
                 if (delta > maxDelta) {
                     // 不够直接扩容offset，先扩容contentSize
                     currentContentSize += (delta - maxDelta + minDelta)
@@ -308,18 +312,24 @@ internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = f
                 }
                 applyScrollViewOffsetDelta(delta)
                 offsetDirty = true
-            } else if (contentOffset > 0 && isComposeAtTopForScrollSync()) {
+            } else if (logicalOffset > 0 && isComposeAtTopForScrollSync()) {
                 // compose 到顶了，但是scrollview没到顶
-                applyScrollViewOffsetDelta(-contentOffset)
+                applyScrollViewOffsetDelta(-logicalOffset)
                 offsetDirty = false
             } else if (isAtTop() && realContentSize == null && lastItemVisible() && scrollView?.isDragging != true) {
                 // 更新当前的contentSize大小
                 currentContentSize = calculateContentSize()
                 updateContentSizeToRender()
+                if (reverseLayout) {
+                    syncContentOffsetToComposeOffset()
+                }
             } else if (canScrollForward && reachBtm) {
                 // 底部无法滑动了，扩容
                 currentContentSize += minDelta
                 updateContentSizeToRender()
+                if (reverseLayout) {
+                    syncContentOffsetToComposeOffset()
+                }
             }
         }
     }

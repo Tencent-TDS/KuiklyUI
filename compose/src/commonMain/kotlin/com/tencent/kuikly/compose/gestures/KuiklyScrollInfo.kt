@@ -61,6 +61,11 @@ class KuiklyScrollInfo {
     var orientation: Orientation = Orientation.Vertical
 
     /**
+     * Whether native scrolling should be mirrored for reverse lazy layouts.
+     */
+    var reverseLayout: Boolean = false
+
+    /**
      * Offset on the Compose side, does not exceed boundaries
      */
     var composeOffset = 0f
@@ -184,6 +189,7 @@ class KuiklyScrollInfo {
         contentOffset = 0
         isDragging = false
         offsetDirty = false
+        reverseLayout = false
 
         // Reset content size related (reinitialize based on current density)
         currentContentSize = (DEFAULT_CONTENT_SIZE * getDensity()).toInt()
@@ -231,6 +237,12 @@ class KuiklyScrollInfo {
         }
 
     /**
+     * Maximum native offset on the scrolling axis.
+     */
+    val maxNativeOffset: Int
+        get() = maxOf(0, currentContentSize - viewportSize)
+
+    /**
      * Get density
      */
     fun getDensity(): Float {
@@ -243,10 +255,99 @@ class KuiklyScrollInfo {
     fun isVertical(): Boolean = orientation == Orientation.Vertical
 
     /**
+     * Convert a native ScrollView offset to a Compose logical offset.
+     */
+    fun logicalOffsetFromNative(nativeOffset: Int): Float {
+        return if (reverseLayout) {
+            (maxNativeOffset - nativeOffset).toFloat()
+        } else {
+            nativeOffset.toFloat()
+        }
+    }
+
+    /**
+     * Convert a Compose logical offset to a native ScrollView offset.
+     */
+    fun nativeOffsetFromLogical(logicalOffset: Float): Int {
+        val boundedLogicalOffset = logicalOffset.toInt().coerceIn(0, maxNativeOffset)
+        return if (reverseLayout) {
+            maxNativeOffset - boundedLogicalOffset
+        } else {
+            boundedLogicalOffset
+        }
+    }
+
+    /**
+     * Convert a Compose logical delta to a native ScrollView delta.
+     */
+    fun nativeDeltaFromLogicalDelta(logicalDelta: Int): Int {
+        return if (reverseLayout) -logicalDelta else logicalDelta
+    }
+
+    /**
+     * Main-axis component from an offset pair.
+     */
+    fun mainAxisOffset(offset: IntOffset): Int {
+        return if (isVertical()) offset.y else offset.x
+    }
+
+    /**
+     * Build an offset pair from a main-axis offset.
+     */
+    fun offsetFromMainAxis(mainAxisOffset: Int): IntOffset {
+        return if (isVertical()) {
+            IntOffset(0, mainAxisOffset)
+        } else {
+            IntOffset(mainAxisOffset, 0)
+        }
+    }
+
+    /**
+     * Native offset used to place child render views into the ScrollView content coordinates.
+     */
+    fun renderOffset(): Float {
+        return if (reverseLayout) nativeOffsetFromLogical(composeOffset).toFloat() else composeOffset
+    }
+
+    /**
+     * Keep native ScrollView position aligned to the current Compose logical offset.
+     */
+    fun syncContentOffsetToComposeOffset(force: Boolean = false) {
+        val nativeOffset = nativeOffsetFromLogical(composeOffset)
+        if (!force && nativeOffset == contentOffset) {
+            return
+        }
+        contentOffset = nativeOffset
+        val nativeOffsetPair = offsetFromMainAxis(nativeOffset)
+        ignoreScrollOffset = nativeOffsetPair
+        setContentOffsetToRender(nativeOffsetPair)
+    }
+
+    /**
+     * Apply a native content offset to the render ScrollView.
+     */
+    fun setContentOffsetToRender(nativeOffset: IntOffset, animated: Boolean = false) {
+        val scrollView = scrollView ?: return
+        val density = getDensity()
+        val offsetX = nativeOffset.x / density
+        val offsetY = nativeOffset.y / density
+        if (pageData?.isAndroid == true) {
+            // Android can drop a setContentOffset that lands exactly at the max edge.
+            scrollView.setContentOffset(
+                maxOf(0f, offsetX - 0.01f),
+                maxOf(0f, offsetY - 0.01f),
+                animated
+            )
+        } else {
+            scrollView.setContentOffset(offsetX, offsetY, animated)
+        }
+    }
+
+    /**
      * Check if it's near the bottom of scrolling
      */
     fun nearScrollBottom(): Boolean {
         val threshold = SCROLL_BOTTOM_THRESHOLD * getDensity()
-        return contentOffset + viewportSize + threshold > currentContentSize
+        return composeOffset + viewportSize + threshold > currentContentSize
     }
 }

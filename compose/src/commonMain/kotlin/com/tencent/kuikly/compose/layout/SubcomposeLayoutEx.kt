@@ -27,7 +27,6 @@ import com.tencent.kuikly.compose.ui.layout.LayoutNodeSubcompositionsState
 import com.tencent.kuikly.compose.ui.layout.MeasureResult
 import com.tencent.kuikly.compose.ui.node.KNode
 import com.tencent.kuikly.compose.ui.node.KNode.Companion.obtainRenderProps
-import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.compose.views.KuiklyInfoKey
 import com.tencent.kuikly.core.base.Attr
 import com.tencent.kuikly.core.views.ScrollerAttr
@@ -154,21 +153,19 @@ internal fun restoreScrollerViewOnReuse(
     // Restore contentSize first (UIKit clamps contentOffset to contentSize bounds)
     kuiklyInfo.updateContentSizeToRender()
 
+    if (kuiklyInfo.reverseLayout && kuiklyInfo.composeOffset == 0f && !kuiklyInfo.offsetDirty) {
+        kuiklyInfo.contentOffset = kuiklyInfo.nativeOffsetFromLogical(0f)
+    }
+
     // Restore contentOffset with ignoreScrollOffset protection.
     // Skip ignoreScrollOffset when oldSvOffset == restoreOffset, because setContentOffset
     // won't change the value and iOS won't fire a scroll callback to clear the flag.
-    val density = kuiklyInfo.getDensity()
     val restoreOffset = kuiklyInfo.contentOffset
-    val offsetInDp = restoreOffset / density
-    val restoreOffsetX = if (kuiklyInfo.isVertical()) 0f else offsetInDp
-    val restoreOffsetY = if (kuiklyInfo.isVertical()) offsetInDp else 0f
+    val restoreNativeOffset = kuiklyInfo.offsetFromMainAxis(restoreOffset)
 
     val needIgnore = oldSvOffset == null || oldSvOffset != restoreOffset
     if (needIgnore) {
-        kuiklyInfo.ignoreScrollOffset = IntOffset(
-            x = (restoreOffsetX * density).toInt(),
-            y = (restoreOffsetY * density).toInt(),
-        )
+        kuiklyInfo.ignoreScrollOffset = restoreNativeOffset
     }
-    sv.setContentOffset(restoreOffsetX, restoreOffsetY, animated = false)
+    kuiklyInfo.setContentOffsetToRender(restoreNativeOffset)
 }

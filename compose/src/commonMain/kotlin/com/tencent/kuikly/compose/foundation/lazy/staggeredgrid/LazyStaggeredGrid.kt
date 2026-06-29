@@ -60,6 +60,7 @@ internal fun LazyStaggeredGrid(
     val itemProviderLambda = rememberStaggeredGridItemProviderLambda(state, content)
     val coroutineScope = rememberCoroutineScope()
     state.kuiklyInfo.scope = coroutineScope
+    state.kuiklyInfo.reverseLayout = reverseLayout
 //    val graphicsContext = LocalGraphicsContext.current
     val measurePolicy = rememberStaggeredGridMeasurePolicy(
         state,

@@ -19,6 +19,7 @@ import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.node.KNode
 import com.tencent.kuikly.compose.ui.node.ModifierNodeElement
 import com.tencent.kuikly.compose.ui.node.requireLayoutNode
+import com.tencent.kuikly.compose.views.KuiklyUserBouncesEnableKey
 import com.tencent.kuikly.core.views.ScrollerView
 
 fun Modifier.bouncesEnable(
@@ -49,21 +50,33 @@ private class BouncesEnableElement(
 private class BouncesEnableNode(
     var bouncesEnable: Boolean
 ) : Modifier.Node() {
+    private var scrollerView: ScrollerView<*, *>? = null
 
     override fun onAttach() {
         super.onAttach()
         update()
     }
 
+    override fun onDetach() {
+        scrollerView?.extProps?.remove(KuiklyUserBouncesEnableKey)
+        scrollerView = null
+        super.onDetach()
+    }
+
     fun update() {
-        val layoutNode = requireLayoutNode()
-        val kNode = layoutNode as? KNode<*> ?: return
-        // Try current node's view first, then find the first child's ScrollerView
-        val scrollerView = (kNode.view as? ScrollerView<*, *>)
-            ?: layoutNode.findFirstChildScrollerView()
-            ?: return
+        val scrollerView = findScrollerView() ?: return
+        this.scrollerView = scrollerView
+        scrollerView.extProps[KuiklyUserBouncesEnableKey] = bouncesEnable as Any
         scrollerView.getViewAttr().run {
             bouncesEnable(bouncesEnable)
         }
+    }
+
+    private fun findScrollerView(): ScrollerView<*, *>? {
+        val layoutNode = requireLayoutNode()
+        val kNode = layoutNode as? KNode<*> ?: return null
+        // Try current node's view first, then find the first child's ScrollerView.
+        return (kNode.view as? ScrollerView<*, *>)
+            ?: layoutNode.findFirstChildScrollerView()
     }
 }

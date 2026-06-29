@@ -28,6 +28,7 @@ import com.tencent.kuikly.core.views.ScrollerView
 import kotlin.math.max
 
 internal val KuiklyInfoKey = "KuiklyInfoKey"
+internal val KuiklyUserBouncesEnableKey = "KuiklyUserBouncesEnableKey"
 
 internal fun ScrollerView<ScrollerAttr, ScrollerEvent>.calNewOffset(curOffset: IntOffset, delta: Int, kuiklyInfo: KuiklyScrollInfo): IntOffset {
     // 注意不能够越界
@@ -47,13 +48,14 @@ internal fun ScrollerView<ScrollerAttr, ScrollerEvent>.applyOffsetDelta(delta: I
         (curOffsetY * density).toInt()
     )
     val newOffset = calNewOffset(curOffset, delta, kuiklyInfo)
-    val newOriOffset = if (kuiklyInfo.isVertical()) newOffset.y else newOffset.x
+    val newOriOffset = kuiklyInfo.mainAxisOffset(newOffset)
 
-    if (kuiklyInfo.composeOffset.toInt() == newOriOffset) {
+    if (kuiklyInfo.contentOffset == newOriOffset) {
         return newOffset
     }
 
     kuiklyInfo.ignoreScrollOffset = newOffset
+    kuiklyInfo.contentOffset = newOriOffset
 
     // 扩容
     renderView?.run {

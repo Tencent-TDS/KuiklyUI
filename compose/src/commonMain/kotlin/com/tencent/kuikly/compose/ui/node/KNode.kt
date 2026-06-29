@@ -264,7 +264,7 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         if (ksScrollSubView && needFixScrollOffset) {
             val scrollerView = (parent as KNode<*>).view
             ((scrollerView.renderProperties as? RenderProperties)?.kuiklyScrollInfo)?.apply {
-                val deltaOffset = composeOffset + snapAnchorOffsetCorrection
+                val deltaOffset = renderOffset() + snapAnchorOffsetCorrection
                 pos = if (orientation == Orientation.Vertical) {
                     Offset(pos.x, pos.y + deltaOffset)
                 } else {
@@ -329,11 +329,12 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         }
 
         // Get current scroll offset - convert to pixel units
-        val currentOffset = if (kuiklyInfo.isVertical()) {
+        val currentNativeOffset = if (kuiklyInfo.isVertical()) {
             (scrollerView.curOffsetY * kuiklyInfo.getDensity()).toInt()
         } else {
             (scrollerView.curOffsetX * kuiklyInfo.getDensity()).toInt()
         }
+        val currentOffset = kuiklyInfo.logicalOffsetFromNative(currentNativeOffset).toInt()
 
         // Calculate maximum scrollable distance - use pixel units, consistent with composeOffset
         val currentContentSize = kuiklyInfo.currentContentSize // already in pixel units
@@ -381,6 +382,9 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         // Update composeOffset
         if (correctedOffset != currentOffset) {
             kuiklyInfo.composeOffset = correctedOffset.toFloat()
+            if (kuiklyInfo.reverseLayout) {
+                kuiklyInfo.syncContentOffsetToComposeOffset()
+            }
         }
     }
 

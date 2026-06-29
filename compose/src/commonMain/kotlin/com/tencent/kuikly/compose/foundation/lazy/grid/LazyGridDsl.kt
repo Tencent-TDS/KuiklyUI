@@ -137,7 +137,7 @@ fun LazyHorizontalGrid(
         modifier = modifier,
         state = state,
         contentPadding = contentPadding,
-        reverseLayout = false,
+        reverseLayout = reverseLayout,
         isVertical = false,
         horizontalArrangement = horizontalArrangement,
         verticalArrangement = verticalArrangement,

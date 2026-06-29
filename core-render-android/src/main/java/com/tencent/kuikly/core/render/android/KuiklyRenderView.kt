@@ -119,7 +119,7 @@ class KuiklyRenderView(
     /**
      * 生命周期监听
      */
-    private var lifecycleCallbacks = CopyOnWriteArrayList<IKuiklyRenderViewLifecycleCallback>()
+    private val lifecycleCallbacks = CopyOnWriteArrayList<IKuiklyRenderViewLifecycleCallback>()
 
     /**
      * KuiklyRender对外生命周期回调

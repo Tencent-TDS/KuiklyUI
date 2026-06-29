@@ -322,6 +322,11 @@ inline fun <T> LazyListScope.itemsIndexed(
  * @param flingBehavior logic describing fling behavior.
  * @param userScrollEnabled whether the scrolling via the user gestures or accessibility actions
  * is allowed. You can still scroll programmatically using the state even when it is disabled.
+ * @param forceClearIgnoreOffset controls the clearing strategy for ignoreScrollOffset.
+ * When `false` (default), ignoreScrollOffset is only cleared on match and all scroll events
+ * during the ignore period are skipped. When `true`, ignoreScrollOffset is cleared immediately
+ * regardless of match, and only the matched scroll event is skipped. Set to `true` when
+ * encountering scroll offset mismatch issues caused by dynamic item insertion/removal.
  * @param content a block which describes the content. Inside this block you can use methods like
  * [LazyListScope.item] to add a single item or [LazyListScope.items] to add a list of items.
  */
@@ -336,6 +341,7 @@ fun LazyRow(
     beyondBoundsItemCount: Int = 3,
 //    flingBehavior: FlingBehavior = ScrollableDefaults.flingBehavior(),
     userScrollEnabled: Boolean = true,
+    forceClearIgnoreOffset: Boolean = false,
     content: LazyListScope.() -> Unit
 ) {
     LazyList(
@@ -349,6 +355,7 @@ fun LazyRow(
 //        flingBehavior = flingBehavior,
         reverseLayout = false,
         userScrollEnabled = userScrollEnabled,
+        forceClearIgnoreOffset = forceClearIgnoreOffset,
         content = content
     )
 }
@@ -379,6 +386,11 @@ fun LazyRow(
  * @param flingBehavior logic describing fling behavior.
  * @param userScrollEnabled whether the scrolling via the user gestures or accessibility actions
  * is allowed. You can still scroll programmatically using the state even when it is disabled
+ * @param forceClearIgnoreOffset controls the clearing strategy for ignoreScrollOffset.
+ * When `false` (default), ignoreScrollOffset is only cleared on match and all scroll events
+ * during the ignore period are skipped. When `true`, ignoreScrollOffset is cleared immediately
+ * regardless of match, and only the matched scroll event is skipped. Set to `true` when
+ * encountering scroll offset mismatch issues caused by dynamic item insertion/removal.
  * @param content a block which describes the content. Inside this block you can use methods like
  * [LazyListScope.item] to add a single item or [LazyListScope.items] to add a list of items.
  */

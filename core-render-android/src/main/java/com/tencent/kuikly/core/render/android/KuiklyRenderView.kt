@@ -67,6 +67,7 @@ import com.tencent.tdf.module.TDFModuleContext
 import com.tencent.tdf.module.TDFModuleManager
 import com.tencent.tdf.module.TDFModuleProvider
 import java.lang.ref.WeakReference
+import java.util.concurrent.CopyOnWriteArrayList
 
 @SuppressLint("ViewConstructor")
 class KuiklyRenderView(
@@ -118,7 +119,7 @@ class KuiklyRenderView(
     /**
      * 生命周期监听
      */
-    private var lifecycleCallbacks = ArrayList<IKuiklyRenderViewLifecycleCallback>()
+    private val lifecycleCallbacks = CopyOnWriteArrayList<IKuiklyRenderViewLifecycleCallback>()
 
     /**
      * KuiklyRender对外生命周期回调

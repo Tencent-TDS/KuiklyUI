@@ -170,14 +170,27 @@ class KuiklyScrollInfo {
      * Update content size to render view
      */
     private var lastAppliedContentSize: Int = -1
+    /** 与 contentSize 一并参与去重，避免 Android 上 ScrollView 宽度晚于首次 setFrame 时 contentView 宽度卡在 0 */
+    private var lastAppliedViewportCrossSize: Float = -1f
 
     fun updateContentSizeToRender() {
-        if (currentContentSize == lastAppliedContentSize) {
+        val viewportCrossSize = if (isVertical()) {
+            scrollView?.renderView?.currentFrame?.width ?: 0f
+        } else {
+            scrollView?.renderView?.currentFrame?.height ?: 0f
+        }
+        if (viewportCrossSize <= 0f) {
+            return
+        }
+        if (currentContentSize == lastAppliedContentSize &&
+            viewportCrossSize == lastAppliedViewportCrossSize
+        ) {
             KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.contentSizeDeduped++ }
             return
         }
         KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.contentSizeToRender++ }
         lastAppliedContentSize = currentContentSize
+        lastAppliedViewportCrossSize = viewportCrossSize
         val frame = createContentFrame()
         scrollView?.contentView?.setFrameToRenderView(frame)
     }
@@ -208,6 +221,7 @@ class KuiklyScrollInfo {
         cachedTotalItems = 0
         pullToRefreshTopInsetPx = 0
         lastAppliedContentSize = -1
+        lastAppliedViewportCrossSize = -1f
         pendingBottomExpand = false
     }
 

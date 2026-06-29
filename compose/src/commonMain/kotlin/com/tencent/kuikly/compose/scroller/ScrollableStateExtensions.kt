@@ -21,6 +21,7 @@ import com.tencent.kuikly.compose.foundation.gestures.ScrollableState
 import com.tencent.kuikly.compose.foundation.lazy.LazyListState
 import com.tencent.kuikly.compose.foundation.lazy.grid.LazyGridState
 import com.tencent.kuikly.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
+import com.tencent.kuikly.compose.foundation.drawer.DrawerInternalPagerState
 import com.tencent.kuikly.compose.foundation.pager.PagerState
 import com.tencent.kuikly.compose.views.applyOffsetDelta
 import com.tencent.kuikly.compose.gestures.KuiklyScrollInfo
@@ -34,6 +35,7 @@ internal val ScrollableState.kuiklyInfo: KuiklyScrollInfo
     get() = when (this) {
         is LazyListState -> scrollableState.kuiklyInfo
         is PagerState -> scrollableState.kuiklyInfo
+        is DrawerInternalPagerState -> scrollableState.kuiklyInfo
         is LazyGridState -> scrollableState.kuiklyInfo
         is LazyStaggeredGridState -> scrollableState.kuiklyInfo
         is ScrollState -> scrollableState.kuiklyInfo
@@ -49,6 +51,7 @@ internal val ScrollableState.kuiklyInfo: KuiklyScrollInfo
 internal fun ScrollableState.kuiklyOnScroll(delta: Float): Float = when (this) {
     is LazyListState -> scrollableState.kuiklyOnScroll(delta)
     is PagerState -> scrollableState.kuiklyOnScroll(delta)
+    is DrawerInternalPagerState -> scrollableState.kuiklyOnScroll(delta)
     is LazyGridState -> scrollableState.kuiklyOnScroll(delta)
     is LazyStaggeredGridState -> scrollableState.kuiklyOnScroll(delta)
     is ScrollState -> scrollableState.kuiklyOnScroll(delta)
@@ -69,6 +72,7 @@ internal fun ScrollableState.kuiklyOnScrollEnd(params: ScrollParams) {
             // cleared in the applyMeasureResult_job after FIXING decision.
             scrollableState.kuiklyOnScrollEnd(params)
         }
+        is DrawerInternalPagerState -> scrollableState.kuiklyOnScrollEnd(params)
         is LazyGridState -> scrollableState.kuiklyOnScrollEnd(params)
         is LazyStaggeredGridState -> scrollableState.kuiklyOnScrollEnd(params)
         is ScrollState -> scrollableState.kuiklyOnScrollEnd(params)
@@ -76,7 +80,7 @@ internal fun ScrollableState.kuiklyOnScrollEnd(params: ScrollParams) {
         else -> { /* No need to handle */ }
     }
     // Pager uses a different scroll-end sync path; skip lazy scroll expansion here.
-    if (this !is PagerState && this !is KuiklyScrollableState) {
+    if (this !is PagerState && this !is DrawerInternalPagerState && this !is KuiklyScrollableState) {
         tryExpandStartSizeNoScroll()
     }
 }
@@ -96,6 +100,7 @@ internal fun ScrollableState.isAtTop(): Boolean = when(this) {
         }
     }
     is PagerState -> firstVisiblePage == 0 && firstVisiblePageOffset == 0
+    is DrawerInternalPagerState -> firstVisiblePage == 0 && firstVisiblePageOffset == 0
     is LazyGridState -> {
         val pullToRefreshOffset = if (kuiklyInfo.hasPullToRefresh) 1 else 0
         firstVisibleItemIndex <= pullToRefreshOffset && firstVisibleItemScrollOffset == 0
@@ -114,6 +119,7 @@ internal fun ScrollableState.isAtTop(): Boolean = when(this) {
 internal fun ScrollableState.lastItemVisible(): Boolean = when(this) {
     is LazyListState -> layoutInfo.visibleItemsInfo.lastOrNull()?.index == layoutInfo.totalItemsCount - 1
     is PagerState -> currentPage == pageCount - 1
+    is DrawerInternalPagerState -> currentPage == pageCount - 1
     is LazyGridState -> layoutInfo.visibleItemsInfo.lastOrNull()?.index == layoutInfo.totalItemsCount - 1
     is LazyStaggeredGridState -> layoutInfo.visibleItemsInfo.lastOrNull()?.index == layoutInfo.totalItemsCount - 1
     is ScrollState -> value >= maxValue
@@ -138,9 +144,21 @@ internal suspend fun ScrollableState.animateScrollToTop() {
         is LazyListState -> this.animateScrollToItem(0)
         is LazyGridState -> this.animateScrollToItem(0)
         is LazyStaggeredGridState -> this.animateScrollToItem(0)
+        is DrawerInternalPagerState -> this.animateScrollToPage(0)
         is PagerState -> this.animateScrollToPage(0)
         else -> {}
     }
+}
+
+/**
+ * Check if the native scroll offset should be rejected.
+ * Currently only DrawerInternalPagerState can reject offsets (to guard against
+ * platform-level offset resets such as HarmonyOS HandleCrashTop()).
+ * Returns true if the offset should be ignored and the native side corrected back.
+ */
+internal fun ScrollableState.shouldRejectNativeScrollOffset(newOffset: Int): Boolean = when (this) {
+    is DrawerInternalPagerState -> shouldRejectNativeScrollOffset(newOffset)
+    else -> false
 }
 
 /**
@@ -166,6 +184,7 @@ internal fun ScrollableState.requestScrollToTop() {
         is LazyListState -> requestScrollToItem(0)
         is LazyGridState -> requestScrollToItem(0)
         is LazyStaggeredGridState -> requestScrollToItem(0)
+        is DrawerInternalPagerState -> requestScrollToPage(0)
         is PagerState -> requestScrollToPage(0)
         // ScrollState does not have request API; skip for now
         else -> {}

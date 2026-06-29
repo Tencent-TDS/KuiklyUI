@@ -41,6 +41,7 @@ import com.tencent.kuikly.compose.KuiklyApplier
 import com.tencent.kuikly.compose.extension.shouldWrapShadowView
 import com.tencent.kuikly.compose.foundation.gestures.Orientation
 import com.tencent.kuikly.compose.foundation.gestures.ScrollableState
+import com.tencent.kuikly.compose.foundation.drawer.DrawerInternalPagerState
 import com.tencent.kuikly.compose.foundation.pager.PagerState
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.InternalComposeUiApi
@@ -89,6 +90,8 @@ import com.tencent.kuikly.core.views.ScrollerAttr
 import com.tencent.kuikly.core.views.ScrollerEvent
 import com.tencent.kuikly.core.views.ScrollerView
 import com.tencent.kuikly.compose.scroller.animateScrollToTop
+import com.tencent.kuikly.compose.scroller.applyScrollViewOffsetDelta
+import com.tencent.kuikly.compose.scroller.shouldRejectNativeScrollOffset
 import com.tencent.kuikly.compose.scroller.calculateAndUpdateContentSize
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -227,7 +230,8 @@ fun SubcomposeLayout(
     val materialized = currentComposer.materialize(modifier)
     scrollableState.kuiklyInfo.orientation = orientation
     scrollableState.kuiklyInfo.pageData = LocalConfiguration.current.pageData
-    val isPagerView = scrollableState is PagerState
+    val isPagerView = scrollableState is PagerState || scrollableState is DrawerInternalPagerState
+    val isDrawerPager = scrollableState is DrawerInternalPagerState
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(scrollViewSize) {
@@ -258,26 +262,33 @@ fun SubcomposeLayout(
                 scrollViewSize = Size(it.width, it.height)
             }
 
-            if (scrollableState is PagerState) {
+            if (scrollableState is PagerState || scrollableState is DrawerInternalPagerState) {
                 willDragEndBySync(isSync = false, handler = {
                     val viewportSize = kuiklyInfo.viewportSize
                     val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
                     // 实现分页滑动
                     val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
-                    val targetOffset = if (isVertical) {
-                        scaleParams.targetContentOffsetY.toInt()
-                    } else {
-                        scaleParams.targetContentOffsetX.toInt()
+                    if (scrollableState is DrawerInternalPagerState) {
+                        if ((offset < 0 && scrollableState.isAtTop()) || offset > (kuiklyInfo.currentContentSize - viewportSize)) {
+                            return@willDragEndBySync
+                        }
+                        scrollableState.kuiklyWillDragEnd(scaleParams, orientation)
+                    } else if (scrollableState is PagerState) {
+                        val targetOffset = if (isVertical) {
+                            scaleParams.targetContentOffsetY.toInt()
+                        } else {
+                            scaleParams.targetContentOffsetX.toInt()
+                        }
+                        val maxOffset = kuiklyInfo.currentContentSize - viewportSize
+                        val isAtTop = scrollableState.isAtTop()
+                        val lastItemVisible = scrollableState.lastItemVisible()
+                        val guardStart = offset <= 0 && isAtTop && targetOffset <= offset
+                        val guardEnd = offset >= maxOffset && lastItemVisible && targetOffset >= offset
+                        if (guardStart || guardEnd) {
+                            return@willDragEndBySync
+                        }
+                        scrollableState.kuiklyWillDragEnd(scaleParams, orientation)
                     }
-                    val maxOffset = kuiklyInfo.currentContentSize - viewportSize
-                    val isAtTop = scrollableState.isAtTop()
-                    val lastItemVisible = scrollableState.lastItemVisible()
-                    val guardStart = offset <= 0 && isAtTop && targetOffset <= offset
-                    val guardEnd = offset >= maxOffset && lastItemVisible && targetOffset >= offset
-                    if (guardStart || guardEnd) {
-                        return@willDragEndBySync
-                    }
-                    scrollableState.kuiklyWillDragEnd(scaleParams, orientation)
                 })
             }
             scrollEnd {
@@ -285,6 +296,7 @@ fun SubcomposeLayout(
                 val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
                 kuiklyInfo.contentOffset = offset
                 (scrollableState as? PagerState)?.onNativeContentOffsetChanged(offset)
+                (scrollableState as? DrawerInternalPagerState)?.onNativeContentOffsetChanged(offset)
 
                 // 仅触摸滑动结束会回调，api调用和bounce回弹都不会触发
                 // / back是回滑,forward是前滑
@@ -300,9 +312,25 @@ fun SubcomposeLayout(
                 val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
                 val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
 
+                // Reject unexpected native offset jumps (e.g. HarmonyOS HandleCrashTop).
+                // Correct the native side back and skip this event entirely to prevent
+                // compose state pollution.
+                // Only apply to DrawerInternalPagerState to avoid affecting existing scroll logic.
+                if (scrollableState is DrawerInternalPagerState
+                    && scrollableState.shouldRejectNativeScrollOffset(offset)
+                ) {
+                    val correctOffset = kuiklyInfo.contentOffset
+                    val delta = correctOffset - offset
+                    if (delta != 0) {
+                        scrollableState.applyScrollViewOffsetDelta(delta)
+                    }
+                    return@scroll
+                }
+
                 val prevOffset = kuiklyInfo.contentOffset
                 kuiklyInfo.contentOffset = offset
                 (scrollableState as? PagerState)?.onNativeContentOffsetChanged(offset)
+                (scrollableState as? DrawerInternalPagerState)?.onNativeContentOffsetChanged(offset)
                 kuiklyInfo.isDragging = kuiklyInfo.scrollView?.isDragging ?: false
 
                 if (kuiklyInfo.ignoreScrollOffset != null) {
@@ -376,6 +404,9 @@ fun SubcomposeLayout(
                     flingEnable(!isPagerView)
                     setProp("isComposePager", if (isPagerView) 1 else 0)
                     setProp("dynamicSyncScrollDisable", 1)
+                    if (isDrawerPager) {
+                        bouncesEnable(false)
+                    }
                     if (orientation == Orientation.Vertical) {
                         flexDirectionColumn()
                     } else {

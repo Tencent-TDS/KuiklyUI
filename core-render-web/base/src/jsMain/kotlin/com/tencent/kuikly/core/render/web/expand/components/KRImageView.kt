@@ -302,25 +302,24 @@ open class KRImageView(
     /**
      * Set image src data.
      *
-     * Resolution order:
-     * 1. http(s):// links can be loaded by the browser directly, so they are
-     *    checked first and set as-is.
-     * 2. base64 cache keys (data:image prefix) are resolved from the in-memory
-     *    cache module.
-     * 3. Everything else - assets://, file:// and any other custom scheme such
-     *    as xxx:// - is delegated to the image processor, which lets hosts map
-     *    unknown prefixes to real URLs (e.g. CDN). With the default processor
-     *    unrecognized schemes are returned unchanged.
+     * The raw src always goes through the image processor first, no matter what
+     * prefix it has. This gives hosts full freedom to intercept and rewrite any
+     * scheme (assets://, file://, http(s)://, custom xxx://, etc.). The prefix
+     * is only inspected afterwards on the resolved result:
+     * - base64 cache keys (data:image prefix) are read from the in-memory cache;
+     * - everything else is assigned to the <img> directly.
      */
     private fun setSrc(src: String) {
         // Set when image src is not empty, otherwise use default transparent image
         if (src.isEmpty()) {
             return
         }
-        when {
-            isNetworkSrc(src) -> image.src = src
-            isBase64Src(src) -> getBase64Image(src)?.let { image.src = it }
-            else -> image.src = KuiklyProcessor.imageProcessor.getImageAssetsSource(src)
+        // Let the processor intercept/transform first, then judge the prefix.
+        val resolvedSrc = KuiklyProcessor.imageProcessor.getImageAssetsSource(src)
+        if (isBase64Src(resolvedSrc)) {
+            getBase64Image(resolvedSrc)?.let { image.src = it }
+        } else {
+            image.src = resolvedSrc
         }
         currentResolvedSrc = image.src
         // If capInsets was already set before src, refresh the border-image.
@@ -366,15 +365,16 @@ open class KRImageView(
     }
 
     /**
-     * Resolve placeholder src. Keeps the same resolution order as [setSrc]:
-     * http(s):// first, then base64 cache key, then delegate any other scheme
-     * (assets://, file://, xxx://) to the image processor.
+     * Resolve placeholder src. Keeps the same order as [setSrc]: run the image
+     * processor first so it can rewrite any prefix, then resolve base64 cache
+     * keys from memory; other resolved values are used as-is.
      */
     private fun resolvePlaceholderSrc(src: String): String {
-        return when {
-            isNetworkSrc(src) -> src
-            isBase64Src(src) -> getBase64Image(src) ?: ""
-            else -> KuiklyProcessor.imageProcessor.getImageAssetsSource(src)
+        val resolvedSrc = KuiklyProcessor.imageProcessor.getImageAssetsSource(src)
+        return if (isBase64Src(resolvedSrc)) {
+            getBase64Image(resolvedSrc) ?: ""
+        } else {
+            resolvedSrc
         }
     }
 
@@ -393,13 +393,6 @@ open class KRImageView(
             else -> "contain"
         }
     }
-
-    /**
-     * Check if the given image source is a network url (http / https) that the
-     * browser can load directly without any extra resolution.
-     */
-    private fun isNetworkSrc(src: String): Boolean = src.startsWith(HTTP_PREFIX) ||
-            src.startsWith(HTTPS_PREFIX)
 
     companion object {
         const val VIEW_NAME = "KRImageView"
@@ -439,9 +432,5 @@ open class KRImageView(
         // Default blank placeholder image
         private const val DEFAULT_SRC =
             "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="
-
-        // Network url prefixes, browser can load these directly
-        private const val HTTP_PREFIX = "http://"
-        private const val HTTPS_PREFIX = "https://"
     }
 }

@@ -300,28 +300,31 @@ open class KRImageView(
     }
 
     /**
-     * Set image src data
+     * Set image src data.
+     *
+     * Resolution order:
+     * 1. http(s):// links can be loaded by the browser directly, so they are
+     *    checked first and set as-is.
+     * 2. base64 cache keys (data:image prefix) are resolved from the in-memory
+     *    cache module.
+     * 3. Everything else - assets://, file:// and any other custom scheme such
+     *    as xxx:// - is delegated to the image processor, which lets hosts map
+     *    unknown prefixes to real URLs (e.g. CDN). With the default processor
+     *    unrecognized schemes are returned unchanged.
      */
     private fun setSrc(src: String) {
         // Set when image src is not empty, otherwise use default transparent image
-        if (src.isNotEmpty()) {
-            if (isAssetsSrc(src)) {
-                // If it's an assets resource image, remove assets prefix and replace with assets path
-                image.src = KuiklyProcessor.imageProcessor.getImageAssetsSource(src)
-            } else if (isBase64Src(src)) {
-                // If base64, read data from memory cache module and return
-                val base64Image = getBase64Image(src)
-                if (base64Image != null) {
-                    image.src = base64Image
-                }
-            } else {
-                // Otherwise directly set image link
-                image.src = src
-            }
-            currentResolvedSrc = image.src
-            // If capInsets was already set before src, refresh the border-image.
-            applyCapInsetsIfNeeded()
+        if (src.isEmpty()) {
+            return
         }
+        when {
+            isNetworkSrc(src) -> image.src = src
+            isBase64Src(src) -> getBase64Image(src)?.let { image.src = it }
+            else -> image.src = KuiklyProcessor.imageProcessor.getImageAssetsSource(src)
+        }
+        currentResolvedSrc = image.src
+        // If capInsets was already set before src, refresh the border-image.
+        applyCapInsetsIfNeeded()
     }
 
     /**
@@ -363,14 +366,15 @@ open class KRImageView(
     }
 
     /**
-     * Resolve placeholder src, supports http, base64 (memory cache key),
-     * assets:// and file:// prefixes.
+     * Resolve placeholder src. Keeps the same resolution order as [setSrc]:
+     * http(s):// first, then base64 cache key, then delegate any other scheme
+     * (assets://, file://, xxx://) to the image processor.
      */
     private fun resolvePlaceholderSrc(src: String): String {
         return when {
-            isAssetsSrc(src) -> KuiklyProcessor.imageProcessor.getImageAssetsSource(src)
+            isNetworkSrc(src) -> src
             isBase64Src(src) -> getBase64Image(src) ?: ""
-            else -> src
+            else -> KuiklyProcessor.imageProcessor.getImageAssetsSource(src)
         }
     }
 
@@ -391,10 +395,11 @@ open class KRImageView(
     }
 
     /**
-     * Check if the given image source is an assets resource or file resource
+     * Check if the given image source is a network url (http / https) that the
+     * browser can load directly without any extra resolution.
      */
-    private fun isAssetsSrc(src: String): Boolean = src.startsWith(ASSETS_IMAGE_PREFIX) ||
-            src.startsWith(FILE_IMAGE_PREFIX)
+    private fun isNetworkSrc(src: String): Boolean = src.startsWith(HTTP_PREFIX) ||
+            src.startsWith(HTTPS_PREFIX)
 
     companion object {
         const val VIEW_NAME = "KRImageView"
@@ -435,8 +440,8 @@ open class KRImageView(
         private const val DEFAULT_SRC =
             "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="
 
-        // Assets image resource prefix, identifies assets resource images
-        private const val ASSETS_IMAGE_PREFIX = "assets://"
-        private const val FILE_IMAGE_PREFIX = "file://"
+        // Network url prefixes, browser can load these directly
+        private const val HTTP_PREFIX = "http://"
+        private const val HTTPS_PREFIX = "https://"
     }
 }

@@ -264,6 +264,30 @@ internal class RouterPage : BasePager() {
                     }
                 }
             }
+
+            View {
+                attr {
+                    allCenter()
+                    margin(20f)
+                }
+                Text {
+                    attr {
+                        fontSize(20f)
+                        text("ReadAssetFileSync 同步压测")
+                        textDecorationUnderLine()
+                        backgroundLinearGradient(
+                            Direction.TO_RIGHT,
+                            ColorStop(Color(0xFFAD37FE), 0f),
+                            ColorStop(Color(0xFF23D3FD), 1f)
+                        )
+                    }
+                }
+                event {
+                    click {
+                        ctx.jumpPage("ReadAssetFileSyncStressPage")
+                    }
+                }
+            }
         }
 
     }

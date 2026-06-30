@@ -28,6 +28,33 @@ struct TimerContext {
     std::function<void()> exec;
 };
 
+// 在 KRThread 调度层执行 task 体的统一 try-catch 包装。
+//
+// 设计取舍：
+//   * task 是业务方提供的回调，调度层无法知道其内部持有了哪些资源/状态，
+//     一旦未捕获异常逃到此处，再"吞掉继续跑"等价于带病运行——不安全。
+//   * 异常如果一路冒到 std::thread 入口，会直接 std::terminate()，
+//     栈通常被 unwind 干净，coredump 没有有用现场。
+//   * 因此这里 fail-fast：先把上下文打到 KR_LOG_ERROR（含线程名 + 调用点 tag），
+//     再 std::abort() 立刻产生崩溃栈，与 KRRenderCore.cpp 的 napi C ABI 边界
+//     try-catch 保持同口径。
+//   * 该函数同时保护：worker batch 主循环、TimerCb fallback 直跑、
+//     DirectRunOnCurThread 借位执行——三处都不允许异常逃出调度层。
+template <typename F>
+inline void RunWithFatalGuard(const char *tag, F &&task) {
+    try {
+        task();
+    } catch (const std::exception &e) {
+        KR_LOG_ERROR << "KRThread[" << tag << "] uncaught std::exception in task: " << e.what()
+                     << "; aborting to preserve crash context.";
+        std::abort();
+    } catch (...) {
+        KR_LOG_ERROR << "KRThread[" << tag << "] uncaught non-std exception in task; "
+                                              "aborting to preserve crash context.";
+        std::abort();
+    }
+}
+
 }  // namespace
 
 KRThread::KRThread(const std::string &name) {
@@ -164,7 +191,10 @@ void KRThread::OnAsync() {
             auto fn = std::move(local.front());
             local.pop();
             if (fn) {
-                fn();
+                // 任何未捕获异常都会一路冒到 std::thread 入口触发 std::terminate，
+                // 同时让 m_taskMutex / m_isExecutingTask 来不及落回干净状态——
+                // 这里 fail-fast，让崩溃栈停在第一现场。
+                RunWithFatalGuard("OnAsync.batch", fn);
             }
         }
         m_isExecutingTask.store(false);
@@ -209,7 +239,9 @@ void KRThread::TimerCb(uv_timer_t *handle) {
             uv_async_send(&self->m_async);
         } else {
             // 极端 fallback：loop->data 未设置，直接跳。
-            ctx->exec();
+            // 异常逃到 libuv 回调外部行为未定义（uv_run 对回调抛异常无定义），
+            // 同样 fail-fast。
+            RunWithFatalGuard("TimerCb.fallback", ctx->exec);
         }
     }
     uv_timer_stop(handle);
@@ -269,7 +301,9 @@ void KRThread::DirectRunOnCurThread(const std::function<void()> &task) {
     if (m_isExecutingTask.load() && IsCurrentThreadWorkerThread()) {
         // 仅当“当前就在 worker 的执行栈里（task 体内嵌套调用）”才允许直跑，
         // 避免外部线程在 worker 持锁跑批期间错误地“白嘍”执行权造成数据竞争。
-        task();
+        // fail-fast：嵌套层抛异常若逃到外层 OnAsync.batch，外层 RunWithFatalGuard
+        // 同样会 abort，但在嵌套层就拦住可以让崩溃栈更接近现场。
+        RunWithFatalGuard("DirectRunOnCurThread.nested", task);
         return;
     }
 
@@ -286,7 +320,10 @@ void KRThread::DirectRunOnCurThread(const std::function<void()> &task) {
         std::unique_lock<std::mutex> taskLock(m_taskMutex, std::try_to_lock);
         if (taskLock.owns_lock()) {
             m_isExecutingTask.store(true);
-            task();
+            // 借位执行 task：与 OnAsync.batch 一致，未捕获异常会让 m_isExecutingTask /
+            // m_taskMutex 处于不一致中间态，并可能在调用方线程引发 std::terminate；
+            // 这里 fail-fast，与上层 napi 边界 try-catch 行为对齐。
+            RunWithFatalGuard("DirectRunOnCurThread.borrow", task);
             m_isExecutingTask.store(false);
             // taskLock 离开作用域自动释放
             didHandleTask = true;

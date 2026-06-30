@@ -29,8 +29,15 @@ EXTERN_C_START
 const KRRenderCValue com_tencent_kuikly_CallNative(int methodId, KRRenderCValue arg0, KRRenderCValue arg1,
                                                    KRRenderCValue arg2, KRRenderCValue arg3, KRRenderCValue arg4,
                                                    KRRenderCValue arg5) {
-    return IKRRenderNativeContextHandler::DispatchCallNative(std::string(arg0.value.stringValue), methodId, arg0, arg1,
+    try {
+        return IKRRenderNativeContextHandler::DispatchCallNative(std::string(arg0.value.stringValue), methodId, arg0, arg1,
                                                              arg2, arg3, arg4, arg5);
+    } catch (std::runtime_error &e) {
+        std::abort();
+    } catch (...) {
+        std::abort();
+    }
+    return KRRenderCValue{.type = KRRenderCValue::Type::NULL_VALUE};
 }
 
 CallKotlin callKotlin_;

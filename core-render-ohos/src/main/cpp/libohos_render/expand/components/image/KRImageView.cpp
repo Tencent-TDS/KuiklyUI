@@ -137,6 +137,8 @@ bool KRImageView::ResetProp(const std::string &prop_key) {
     auto didHanded = false;
     if (kuikly::util::isEqual(prop_key, kPropNameSrc)) {
         image_src_ = "";
+        has_loaded_image_ = false;
+        loaded_image_size_ = {};
         kuikly::util::ResetArkUIImageSrc(GetNode());
         didHanded = true;
     } else if (kuikly::util::isEqual(prop_key, kPropNameResize)) {
@@ -222,6 +224,8 @@ bool KRImageView::SetImageSrc(const KRAnyValue &value) {
 
     kuikly::util::ResetArkUIImageSrc(GetNode());
     image_src_ = src;
+    has_loaded_image_ = false;
+    loaded_image_size_ = {};
     
     // 优先使用 V3 adapter（支持 imageParams）
     if (auto imageAdapterV3 = KRImageAdapterManager::GetInstance()->GetAdapterV3()) {
@@ -410,25 +414,37 @@ bool KRImageView::SetCapInsets(const KRAnyValue &value) {
 bool KRImageView::SetDotNineImage(const KRAnyValue &value) {
     this->is_dot_nine_image_ = value->toBool();
     if (this->is_dot_nine_image_) {
-        RegisterLoadSuccessCallback(load_success_callback_);
+        EnsureLoadCompleteEventRegistered();
     }
     return true;
 }
 
-bool KRImageView::RegisterLoadSuccessCallback(const KRRenderCallback &event_callback) {
-    load_success_callback_ = event_callback;
+void KRImageView::EnsureLoadCompleteEventRegistered() {
     if (!had_register_on_complete_event_) {
         RegisterEvent(NODE_IMAGE_ON_COMPLETE);
         had_register_on_complete_event_ = true;
+    }
+}
+
+bool KRImageView::RegisterLoadSuccessCallback(const KRRenderCallback &event_callback) {
+    load_success_callback_ = event_callback;
+    EnsureLoadCompleteEventRegistered();
+    if (load_success_callback_ && has_loaded_image_) {
+        KRRenderValueMap map;
+        map[kPropNameSrc] = NewKRRenderValue(image_src_);
+        load_success_callback_(NewKRRenderValue(map));
     }
     return true;
 }
 
 bool KRImageView::RegisterLoadResolutionCallback(const KRRenderCallback &event_callback) {
     load_resolution_callback_ = event_callback;
-    if (!had_register_on_complete_event_) {
-        RegisterEvent(NODE_IMAGE_ON_COMPLETE);
-        had_register_on_complete_event_ = true;
+    EnsureLoadCompleteEventRegistered();
+    if (load_resolution_callback_ && has_loaded_image_) {
+        KRRenderValueMap map;
+        map[kParamKeyImageWidth] = NewKRRenderValue(loaded_image_size_.width);
+        map[kParamKeyImageHeight] = NewKRRenderValue(loaded_image_size_.height);
+        load_resolution_callback_(NewKRRenderValue(map));
     }
     return true;
 }
@@ -456,15 +472,16 @@ void KRImageView::FireOnImageCompleteEvent(ArkUI_NodeEvent *event) {
     if (!kuikly::util::IsImageLoadSuccessStatus(event)) {
         return;
     }
-    
-    
+
+    loaded_image_size_ = kuikly::util::GetArkUINodeImagePicSize(event);
+    has_loaded_image_ = true;
+
     if (this->is_dot_nine_image_) {
-        auto image_size = kuikly::util::GetArkUINodeImagePicSize(event);
         double dpi = KRConfig::GetDpi();
-        float top = image_size.height * 0.5 / dpi;
-        float left = image_size.width * 0.5 / dpi;
-        float bottom = (image_size.height * 0.5 - 1) / dpi;
-        float right = (image_size.width * 0.5 - 1) / dpi;
+        float top = loaded_image_size_.height * 0.5 / dpi;
+        float left = loaded_image_size_.width * 0.5 / dpi;
+        float bottom = (loaded_image_size_.height * 0.5 - 1) / dpi;
+        float right = (loaded_image_size_.width * 0.5 - 1) / dpi;
         kuikly::util::SetArkUIImageCapInsets(GetNode(), top, left, bottom, right);
     }
 
@@ -475,10 +492,9 @@ void KRImageView::FireOnImageCompleteEvent(ArkUI_NodeEvent *event) {
     }
 
     if (load_resolution_callback_) {
-        auto image_size = kuikly::util::GetArkUINodeImagePicSize(event);
         KRRenderValueMap map;
-        map[kParamKeyImageWidth] = NewKRRenderValue(image_size.width);
-        map[kParamKeyImageHeight] = NewKRRenderValue(image_size.height);
+        map[kParamKeyImageWidth] = NewKRRenderValue(loaded_image_size_.width);
+        map[kParamKeyImageHeight] = NewKRRenderValue(loaded_image_size_.height);
         load_resolution_callback_(NewKRRenderValue(map));
     }
 }

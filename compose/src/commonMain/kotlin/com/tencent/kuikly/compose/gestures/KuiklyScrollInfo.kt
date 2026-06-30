@@ -82,6 +82,9 @@ class KuiklyScrollInfo {
      */
     var realContentSize: Int? = null
 
+    /** 上次 calc 时读到的 native contentView 主轴尺寸（px），用于滚动中节流 */
+    internal var lastSyncedNativeContentMainAxisPx: Int = -1
+
     /**
      * Whether the offset has deviation
      */
@@ -222,7 +225,17 @@ class KuiklyScrollInfo {
         pullToRefreshTopInsetPx = 0
         lastAppliedContentSize = -1
         lastAppliedViewportCrossSize = -1f
+        lastSyncedNativeContentMainAxisPx = -1
         pendingBottomExpand = false
+    }
+
+    internal fun nativeContentMainAxisDp(): Float {
+        val scrollView = scrollView ?: return -1f
+        return if (orientation == Orientation.Vertical) {
+            scrollView.contentView?.renderView?.currentFrame?.height ?: -1f
+        } else {
+            scrollView.contentView?.renderView?.currentFrame?.width ?: -1f
+        }
     }
 
     /**

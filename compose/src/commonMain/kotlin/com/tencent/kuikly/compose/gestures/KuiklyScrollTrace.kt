@@ -35,6 +35,7 @@ internal object KuiklyScrollTrace {
     var contentSizeDeduped = 0
     var lazyRemeasure = 0
     var lazyScrollWithoutRemeasure = 0
+    var calcSizeSkipped = 0
 
     inline fun ifEnabled(block: () -> Unit) {
         if (ENABLED) block()
@@ -51,6 +52,7 @@ internal object KuiklyScrollTrace {
         contentSizeDeduped = 0
         lazyRemeasure = 0
         lazyScrollWithoutRemeasure = 0
+        calcSizeSkipped = 0
     }
 
     fun dumpSummary(phase: String) {
@@ -59,7 +61,7 @@ internal object KuiklyScrollTrace {
             "[$TAG] $phase | " +
                 "composeIn=$composeScrollReceived " +
                 "filtered=$composeDeltaFiltered earlyRet=$composeEarlyReturn " +
-                "calcSize=$calculateContentSize kuiklyScroll=$kuiklyOnScroll expand=$tryExpandStartSize " +
+                "calcSize=$calculateContentSize skipped=$calcSizeSkipped kuiklyScroll=$kuiklyOnScroll expand=$tryExpandStartSize " +
                 "setFrame=$contentSizeToRender dedup=$contentSizeDeduped " +
                 "remeasure=$lazyRemeasure noRemeasure=$lazyScrollWithoutRemeasure " +
                 "(native fireToBridge see hilog KuiklyScrollTrace)"

@@ -99,8 +99,28 @@ internal fun ScrollableState.calculateAndUpdateContentSize() {
  * [force] 用于 scrollEnd 等必须同步的时机。
  */
 internal fun ScrollableState.calculateAndUpdateContentSizeIfNeeded(force: Boolean = false) {
-    if (force || kuiklyInfo.nearScrollBottom() || kuiklyInfo.realContentSize == null) {
+    if (force) {
         calculateAndUpdateContentSize()
+        return
+    }
+    if (kuiklyInfo.nearScrollBottom()) {
+        calculateAndUpdateContentSize()
+        return
+    }
+    if (kuiklyInfo.realContentSize != null) {
+        return
+    }
+    val nativeDp = kuiklyInfo.nativeContentMainAxisDp()
+    if (nativeDp < 0f) {
+        calculateAndUpdateContentSize()
+        return
+    }
+    val nativePx = (nativeDp * kuiklyInfo.getDensity()).toInt()
+    if (nativePx != kuiklyInfo.lastSyncedNativeContentMainAxisPx) {
+        kuiklyInfo.lastSyncedNativeContentMainAxisPx = nativePx
+        calculateAndUpdateContentSize()
+    } else {
+        KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.calcSizeSkipped++ }
     }
 }
 

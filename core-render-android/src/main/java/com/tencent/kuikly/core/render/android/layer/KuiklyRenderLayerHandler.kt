@@ -30,7 +30,7 @@ import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.css.ktx.isMainThread
 import com.tencent.kuikly.core.render.android.css.ktx.removeFromParent
 import com.tencent.kuikly.core.render.android.css.ktx.toDpSizeF
-import com.tencent.kuikly.core.render.android.css.ktx.toPxI
+import com.tencent.kuikly.core.render.android.css.ktx.toPxF
 import com.tencent.kuikly.core.render.android.css.ktx.toPxSizeF
 import com.tencent.kuikly.core.render.android.css.ktx.toTDFModuleCallResult
 import com.tencent.kuikly.core.render.android.css.ktx.viewGroup
@@ -45,6 +45,7 @@ import com.tencent.tdf.module.TDFBaseModule
 import com.tencent.tdf.utils.TDFListUtils
 import java.lang.ref.WeakReference
 import java.util.concurrent.locks.ReentrantReadWriteLock
+import kotlin.math.roundToInt
 
 class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
 
@@ -172,11 +173,29 @@ class KuiklyRenderLayerHandler : IKuiklyRenderLayerHandler {
             "must call on ui thread"
         }
         val kuiklyContext = renderViewWeakRef?.get()?.kuiklyRenderContext
+        // 注意 RectF 此处是 bridge 复用的容器，其字段语义实际上是 (x, y, width, height)，
+        // 而非字段名所暗示的 (left, top, right, bottom)。下游 View.frame setter 也是把
+        // Rect.right / Rect.bottom 当 width / height 写进 LayoutParams.width/height 的。
+        //
+        // 因此必须先把 frame 的四条"真正的边界" (x, y, x+width, y+height) 分别四舍五入对齐
+        // 到最近的整数像素，再用边界差反算出 width/height，否则对 x/y 与 width/height 各自
+        // 独立舍入，会让相邻 view 在接缝处出现 1px 缝隙或重叠。
+        // 同时使用 roundToInt() 而非 toPxI()：toPxI 内部用 (x + 0.5).toInt() 实现，对负坐标会
+        // 向 0 截断而不是真正的四舍五入。
+        val xPx = kuiklyContext.toPxF(frame.left)
+        val yPx = kuiklyContext.toPxF(frame.top)
+        val widthPx = kuiklyContext.toPxF(frame.right)
+        val heightPx = kuiklyContext.toPxF(frame.bottom)
+        val leftI = xPx.roundToInt()
+        val topI = yPx.roundToInt()
+        val rightI = (xPx + widthPx).roundToInt()
+        val bottomI = (yPx + heightPx).roundToInt()
         setProp(tag, KRCssConst.FRAME, Rect().apply {
-            left = kuiklyContext.toPxI(frame.left)
-            top = kuiklyContext.toPxI(frame.top)
-            right = kuiklyContext.toPxI(frame.right)
-            bottom = kuiklyContext.toPxI(frame.bottom)
+            left = leftI
+            top = topI
+            // 复用 Rect 的 right/bottom 字段承载 width/height，与下游 View.frame setter 约定一致
+            right = rightI - leftI
+            bottom = bottomI - topI
         })
     }
 

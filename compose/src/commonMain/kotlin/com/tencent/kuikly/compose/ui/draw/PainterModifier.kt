@@ -132,9 +132,7 @@ private data class PainterElement(
     }
 
     override fun update(node: PainterNode) {
-        if (painter is KuiklyPainter) {
-            painter.updateFromReuse(node.painter)
-        }
+        KuiklyPainter.tryUpdateFromReuse(painter, node.painter)
 
         val intrinsicsChanged = node.sizeToIntrinsics != sizeToIntrinsics ||
             (sizeToIntrinsics && node.painter.intrinsicSize != painter.intrinsicSize)

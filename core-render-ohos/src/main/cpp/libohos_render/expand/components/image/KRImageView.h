@@ -18,6 +18,7 @@
 
 #include "libohos_render/expand/components/image/KRImageLoadOption.h"
 #include "libohos_render/export/IKRRenderViewExport.h"
+#include "libohos_render/foundation/KRSize.h"
 
 using namespace std::string_view_literals;
 constexpr std::string_view KR_ASSET_PREFIX = "assets://"sv;
@@ -52,6 +53,7 @@ class KRImageView : public IKRRenderViewExport {
     bool SetDotNineImage(const KRAnyValue &value);
     bool SetMaskLinearGradient(const KRAnyValue &value);
     void ResetMaskLinearGradientNode();
+    void EnsureLoadCompleteEventRegistered();
     bool RegisterLoadSuccessCallback(const KRRenderCallback &event_callback);
     bool RegisterLoadResolutionCallback(const KRRenderCallback &event_callback);
     bool RegisterLoadFailureCallback(const KRRenderCallback &event_callback);
@@ -71,6 +73,8 @@ class KRImageView : public IKRRenderViewExport {
     KRRenderCallback load_success_callback_ = nullptr;
     KRRenderCallback load_resolution_callback_ = nullptr;
     KRRenderCallback load_failure_callback_ = nullptr;
+    bool has_loaded_image_ = false;
+    KRSize loaded_image_size_;
     bool had_register_on_complete_event_ = false;
     bool had_register_on_error_event_ = false;
     bool is_dot_nine_image_ = false;

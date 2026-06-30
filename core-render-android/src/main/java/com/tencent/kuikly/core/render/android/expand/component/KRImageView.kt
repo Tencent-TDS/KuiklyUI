@@ -402,6 +402,7 @@ open class KRImageView(context: Context) : ImageView(context), IKuiklyRenderView
 
     private fun setLoadResolutionCallback(propValue: Any): Boolean {
         this.loadResolutionCallback = propValue as KuiklyRenderCallback
+        fireLoadResolutionCallback(drawable)
         return true
     }
 

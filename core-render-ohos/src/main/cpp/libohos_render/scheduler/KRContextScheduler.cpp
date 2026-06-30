@@ -21,7 +21,6 @@
 #include <exception>
 #include <future>
 #include <memory>
-#include <stdexcept>
 #include "libohos_render/foundation/thread/KRMainThread.h"
 #include "libohos_render/utils/KRRenderLoger.h"
 
@@ -86,7 +85,19 @@ void KRContextSchedulerMultiThreaded::DirectRunOnMainThread(bool isSync, const K
 
 void KRContextSchedulerMultiThreaded::ScheduleTask(bool sync, int delayMs, const KRSchedulerTask &task) {
     if (sync) {
+        // 历史遗留路径：KRThread::DispatchSync 在全仓已被评估为死代码（只有本处作为 caller，
+        // 而本函数上层 KRContextScheduler::ScheduleTask 的全部 caller 都传 sync=false）。
+        // 详见 docs/review/review-methodology.md。保留代码形状仅为了不打破接口划分，
+        // 但需局部抑制 deprecated 警告；未来若要激活请先重做语义（参考
+        // ScheduleTaskOnMainThread 的 promise/future 范式）。
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
         GetContextThread()->DispatchSync(task);
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
     } else {
         GetContextThread()->DispatchAsync(task, delayMs);
     }
@@ -136,11 +147,17 @@ void KRContextSchedulerMultiThreaded::ScheduleTaskOnMainThread(bool sync, const 
                 }
             });
             using namespace std::chrono_literals;
-            constexpr auto kSyncMainTaskWarnTimeout = 3s;
+            constexpr auto kSyncMainTaskWarnTimeout = 5s;
             if (doneFuture.wait_for(kSyncMainTaskWarnTimeout) == std::future_status::timeout) {
-                KR_LOG_ERROR << "ScheduleTaskOnMainThread(sync, worker) wait timeout (>3s), "
-                                "possible main<->worker deadlock; abort wait";
-                throw std::runtime_error("ScheduleTaskOnMainThread sync timeout on worker thread");
+                // 各路径 fail-fast 同口径。throw 出去也走不到任何业务可达的 catch 点：
+                //   - ToCallArkTSMethod / SyncCallArkTSMethod / KRForwardArkTSModule 都不接异常，
+                //   - 一路冒到 napi C ABI 边界被 KRRenderCore.ABI.CallNative 的
+                //     RunWithFatalGuard 接住 → std::abort()。
+                // 所以这里直接 abort 代码意图更明确，且避免栈 unwind 让 coredump 现场失真；
+                // 也不会让 caller 误以为“这个 throw 可以 catch”这种 API 双重含义陯阱。
+                KR_LOG_ERROR << "ScheduleTaskOnMainThread(sync, worker) wait timeout (>5s), "
+                                "possible main<->worker deadlock; aborting to preserve crash context";
+                std::abort();
             }
             doneFuture.get();  // 正常返回 / rethrow 主线程异常 / broken_promise
             return;
@@ -251,11 +268,15 @@ bool KRContextScheduler::IsCurrentOnContextThread() {
 EXTERN_C_START
 /**
  * 让用户设置线程模型。
- * @param mode 0 ：默认模式，多线程， 1 ：单线程同步模式
+ * @param mode 0 ：默认模式，多线程， 1 ：非 0 即视为单线程同步模式
  *
  * 线程模式暂时仅允许深度合作用户进行设置，暂不暴露到头文件。
  */
 void KRSetThreadingMode(int mode) {
-    KRContextScheduler::SetThreadingMode(static_cast<KRContextScheduler::ThreadingMode>(!!mode));
+    // 显式 mode != 0 比 !!mode 更直观；ThreadingMode 是二元枚举（MultiThread / SingleThread），
+    // 这里仅做"非 0 即 SingleThread"的语义映射。
+    const auto target = (mode != 0) ? KRContextScheduler::ThreadingMode::SingleThread
+                                    : KRContextScheduler::ThreadingMode::MultiThread;
+    KRContextScheduler::SetThreadingMode(target);
 }
 EXTERN_C_END

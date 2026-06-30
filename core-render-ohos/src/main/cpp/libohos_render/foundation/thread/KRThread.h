@@ -47,7 +47,24 @@ class KRThread {
 
     /**
      * @brief 同步执行任务。当前实现下与 DirectRunOnCurThread 等价（沿用旧语义）。
+     *
+     * @warning **死代码路径 / 语义陷阱**（截至本提交）：
+     *   - 全仓唯一 caller：`KRContextSchedulerMultiThreaded::ScheduleTask(sync=true, ...)`，
+     *     而 `KRContextScheduler::ScheduleTask` 的全部上层 caller（cpp 侧）均传 `sync=false`，
+     *     故本函数当前在 cpp 端**不可被触发**。详见 docs/review/review-methodology.md。
+     *   - 内部委托 `DirectRunOnCurThread`：在 100ms 内拿不到 m_taskMutex 时会**静默降级为
+     *     DispatchAsync**——sync 语义并不严格。直接当真同步用会埋下"以为同步、实测异步"的雷。
+     *
+     * @note 标 `[[deprecated]]` 的目的是**阻止任何新代码引入此接口**，而不是要求立即删除：
+     *       接口形状仍然保留（caller 处局部抑制告警），未来若 Kotlin 侧 sync callback 需要
+     *       走该路径激活，请先重做"真同步"语义（参考 `ScheduleTaskOnMainThread(sync=true)`
+     *       的 promise/future + RAII guard 范式），而不是直接复用现实现。
      */
+    [[deprecated(
+        "Currently dead code on cpp side (no active caller). "
+        "Implementation silently degrades to async after 100ms—DO NOT use as a true sync primitive. "
+        "If activating, replace impl with promise/future-based real sync semantics. "
+        "See docs/review/review-methodology.md.")]]
     void DispatchSync(const std::function<void()> &task);
 
     /**

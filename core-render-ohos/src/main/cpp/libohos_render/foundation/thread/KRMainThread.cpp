@@ -23,9 +23,12 @@
 #include <thread>
 #include <utility>
 
+#include "libohos_render/foundation/thread/KRThreadFatalGuard.h"
 #include "libohos_render/utils/KRRenderLoger.h"
 
 namespace {
+
+using kuikly::thread::RunWithFatalGuard;
 
 struct PendingTask {
     std::function<void()> func;
@@ -47,17 +50,31 @@ std::mutex g_queue_mutex;
 std::queue<std::unique_ptr<PendingTask>> g_pending_queue;
 
 // 在主线程上注册一个一次性定时器，到点执行 task 并清理自身。
+// 设计要点：
+//   * uv_timer_init 返回值必须检查；失败时不能泄漏 timer/holder 堆内存，
+//     也不能静默丢弃 task——这里选择 log + 释放资源 + return（崩不是
+//     责任，caller 应该能容忍 timer 创建失败这个极端低概率 case）。
+//   * timer 回调里调用 user task 必须走 RunWithFatalGuard：taskcb 在 libuv 回调上下文
+//     里执行，异常越过 C 帧会造成 UB，与 KRThread::TimerCb.fallback 同口径。
 void StartTimerOnMainThread(std::function<void()> task, int delayMs) {
     auto *timer = new uv_timer_t();
     auto *holder = new std::function<void()>(std::move(task));
     timer->data = holder;
-    uv_timer_init(g_main_loop, timer);
+    int ret = uv_timer_init(g_main_loop, timer);
+    if (ret != 0) {
+        KR_LOG_ERROR << "KRMainThread::StartTimerOnMainThread uv_timer_init failed, ret=" << ret
+                     << "; drop task to avoid leak.";
+        delete holder;
+        delete timer;
+        return;
+    }
     uv_timer_start(
         timer,
         [](uv_timer_t *handle) {
             auto *fn = static_cast<std::function<void()> *>(handle->data);
             if (fn != nullptr) {
-                (*fn)();
+                // libuv 回调边界：异常越 C 帧 = UB，这里必须 fail-fast。
+                RunWithFatalGuard("KRMainThread.MainTimer.cb", *fn);
             }
             uv_timer_stop(handle);
             uv_close(reinterpret_cast<uv_handle_t *>(handle), [](uv_handle_t *h) {
@@ -72,6 +89,8 @@ void StartTimerOnMainThread(std::function<void()> task, int delayMs) {
 
 // 主线程 uv_async 回调：把队列里所有任务取出，根据 delay 决定立即执行还是注册 uv_timer。
 // 注意：本函数在主线程（loop 线程）执行，因此 uv_timer_init / uv_timer_start 都是合规的。
+// 异常路径：user task 是业务提供的回调，本函数有 libuv async 回调上下文、异常逃出
+// 会越 C 帧 UB，所以 inline 路径 fail-fast；delay > 0 路径交给 timer cb 里的 guard 处理。
 void OnMainAsync(uv_async_t * /*handle*/) {
     std::queue<std::unique_ptr<PendingTask>> local;
     {
@@ -85,7 +104,7 @@ void OnMainAsync(uv_async_t * /*handle*/) {
             continue;
         }
         if (pending->delayMs <= 0) {
-            pending->func();
+            RunWithFatalGuard("KRMainThread.MainAsync.batch", pending->func);
         } else {
             StartTimerOnMainThread(std::move(pending->func), pending->delayMs);
         }
@@ -143,8 +162,10 @@ void KRMainThread::RunOnMainThread(std::function<void()> task, int delayMillisec
     }
     if (!g_initialized.load() || g_main_loop == nullptr) {
         // 尚未初始化（理论上不应发生），降级为同步执行以避免任务丢失。
+        // 本 fallback 路径本身不在 libuv 回调上下文，但 caller 期待“调用后 task
+        // 安全运行”，同样需要边界 fail-fast，与 libuv 路径口径一致。
         KR_LOG_ERROR << "KRMainThread::RunOnMainThread before Export, fallback to inline run";
-        task();
+        RunWithFatalGuard("KRMainThread.Inline.fallback", task);
         return;
     }
 
@@ -152,7 +173,11 @@ void KRMainThread::RunOnMainThread(std::function<void()> task, int delayMillisec
         // 已经在主线程（loop 线程），可以直接安全地操作 uv 句柄。
         if (delayMilliseconds <= 0) {
             // 立即执行：保持与原实现一致的"同步直跑"语义。
-            task();
+            // 这里 caller 可能是任意业务栈帧（业务组件在主线程调用 RunOnMainThread），
+            // 严格说允许异常逃出 caller 也是合法的；但为了跟 libuv 路径同口径、
+            // 且避免 caller 在"主线程 inline" vs "跨线程异步" 两种环境下行为不一致，
+            // 这里同样走 fail-fast。
+            RunWithFatalGuard("KRMainThread.Inline.same-thread", task);
         } else {
             StartTimerOnMainThread(std::move(task), delayMilliseconds);
         }
@@ -169,7 +194,7 @@ void KRMainThread::RunOnMainThreadForNextLoop(std::function<void()> task) {
     }
     if (!g_initialized.load() || g_main_loop == nullptr) {
         KR_LOG_ERROR << "KRMainThread::RunOnMainThreadForNextLoop before Export, fallback to inline run";
-        task();
+        RunWithFatalGuard("KRMainThread.Inline.fallback", task);
         return;
     }
     // 不论当前是否在主线程，都强制走 uv_async 投递，保证在"下一次 loop 回合"才执行。

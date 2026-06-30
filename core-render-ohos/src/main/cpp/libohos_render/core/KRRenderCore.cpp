@@ -18,6 +18,7 @@
 #include <functional>
 #include <memory>
 #include "libohos_render/foundation/KRRect.h"
+#include "libohos_render/foundation/thread/KRThreadFatalGuard.h"
 #include "libohos_render/layer/KRRenderLayerHandler.h"
 #include "libohos_render/manager/KRArkTSManager.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"
@@ -29,15 +30,16 @@ EXTERN_C_START
 const KRRenderCValue com_tencent_kuikly_CallNative(int methodId, KRRenderCValue arg0, KRRenderCValue arg1,
                                                    KRRenderCValue arg2, KRRenderCValue arg3, KRRenderCValue arg4,
                                                    KRRenderCValue arg5) {
-    try {
-        return IKRRenderNativeContextHandler::DispatchCallNative(std::string(arg0.value.stringValue), methodId, arg0, arg1,
-                                                             arg2, arg3, arg4, arg5);
-    } catch (std::runtime_error &e) {
-        std::abort();
-    } catch (...) {
-        std::abort();
-    }
-    return KRRenderCValue{.type = KRRenderCValue::Type::NULL_VALUE};
+    // napi C ABI 边界：与 KRThread / KRMainThread 调度边界同口径，
+    // 任何 C++ 异常逃到 C ABI 都会越 napi 调度帧造成 UB，必须 fail-fast。
+    // 用 RunWithFatalGuard 替代裸 try-catch，让"打 log + abort" 的行为
+    // 集中到唯一一处实现，避免遗漏 e.what()。
+    KRRenderCValue result{.type = KRRenderCValue::Type::NULL_VALUE};
+    kuikly::thread::RunWithFatalGuard("KRRenderCore.ABI.CallNative", [&] {
+        result = IKRRenderNativeContextHandler::DispatchCallNative(std::string(arg0.value.stringValue), methodId, arg0,
+                                                                   arg1, arg2, arg3, arg4, arg5);
+    });
+    return result;
 }
 
 CallKotlin callKotlin_;

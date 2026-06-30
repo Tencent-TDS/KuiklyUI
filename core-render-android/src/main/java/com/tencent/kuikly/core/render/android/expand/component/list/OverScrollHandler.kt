@@ -17,16 +17,16 @@ package com.tencent.kuikly.core.render.android.expand.component.list
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
-import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.util.SparseArray
 import android.view.MotionEvent
 import android.view.VelocityTracker
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.animation.DecelerateInterpolator
-import com.tencent.kuikly.core.render.android.css.ktx.toNumberFloat
 import com.tencent.kuikly.core.render.android.css.ktx.toPxF
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * List边缘滚动回弹效果处理类
@@ -75,6 +75,16 @@ internal class OverScrollHandler(
     var overScrollY: Float = 0f
     private var hadBeginDrag = false
 
+    /**
+     * 累加 translation 的浮点真值源。
+     *
+     * 用户输入的 offset 经过 [getNewOffset] 阻尼缩放后通常为亚像素小数（如 0.3px），
+     * 若直接累加到已取整的 translationX/Y 上会被 roundToInt 吞掉，表现为慢速触摸时视图不跟手。
+     * 这里在内部用未取整的 Float 维护真值，仅在写入 translationX/Y 时做像素对齐。
+     */
+    private var accumulatedTranslationX: Float = 0f
+    private var accumulatedTranslationY: Float = 0f
+
     private val maxFlingVelocity = ViewConfiguration.get(recyclerView.context).scaledMaximumFlingVelocity
     private var velocityTracker =  VelocityTracker.obtain()
     private var scrollPointerId = -1
@@ -113,6 +123,8 @@ internal class OverScrollHandler(
         overScrolling = false
         overScrollX = 0f
         overScrollY = 0f
+        accumulatedTranslationX = 0f
+        accumulatedTranslationY = 0f
         contentInsetWhenEndDrag = null
     }
 
@@ -250,18 +262,8 @@ internal class OverScrollHandler(
 
     private fun startBounceBack(contentInset: KRRecyclerContentViewContentInset? = null) {
         val finalOffset = getFinalOffset(contentInset)
-        val startOffset = if (isVertical) {
-            contentView.translationY
-        } else {
-            contentView.translationX
-        }
-        val propertyName = if (isVertical) {
-            View.TRANSLATION_Y
-        } else {
-            View.TRANSLATION_X
-        }
-
-        val animator = ObjectAnimator.ofFloat(contentView, propertyName, startOffset, finalOffset)
+        val startOffset = getTranslation().roundToInt().toFloat()
+        val animator = ValueAnimator.ofFloat(startOffset, finalOffset)
         animator.interpolator = DecelerateInterpolator()
         animator.duration = BOUND_BACK_DURATION
         animator.addListener(object : AnimatorListenerAdapter() {
@@ -282,7 +284,16 @@ internal class OverScrollHandler(
 
         })
         animator.addUpdateListener {
-            fireOverScrollAnimationCallback(it.animatedValue.toNumberFloat())
+            val rawValue = it.animatedValue as Float
+            val pixelAlignedValue = rawValue.roundToInt().toFloat()
+            if (isVertical) {
+                contentView.translationY = pixelAlignedValue
+                accumulatedTranslationY = rawValue
+            } else {
+                contentView.translationX = pixelAlignedValue
+                accumulatedTranslationX = rawValue
+            }
+            fireOverScrollAnimationCallback(pixelAlignedValue)
         }
         animator.start()
     }
@@ -308,21 +319,25 @@ internal class OverScrollHandler(
     private fun getFinalOffset(viewContentInset: KRRecyclerContentViewContentInset?): Float {
         val ci = viewContentInset ?: contentInsetWhenEndDrag
         val contentInset = ci ?: return 0f
-        return if (isVertical) {
+        val rawOffset = if (isVertical) {
             contentInset.top
         } else {
             contentInset.left
         }
+        return rawOffset.roundToInt().toFloat()
     }
 
     private fun setFinalTranslation(viewContentInset: KRRecyclerContentViewContentInset) {
-        val finalOffset = getFinalOffset(viewContentInset)
+        // getFinalOffset() 已保证返回像素对齐的 vp 值，无需再次 roundToInt
+        val pixelAlignedOffset = getFinalOffset(viewContentInset)
         if (isVertical) {
-            contentView.translationY = finalOffset
+            contentView.translationY = pixelAlignedOffset
+            accumulatedTranslationY = pixelAlignedOffset
         } else {
-            contentView.translationX = finalOffset
+            contentView.translationX = pixelAlignedOffset
+            accumulatedTranslationX = pixelAlignedOffset
         }
-        fireOverScrollAnimationCallback(finalOffset)
+        fireOverScrollAnimationCallback(pixelAlignedOffset)
     }
 
     private fun fireBeginOverScrollCallback() {
@@ -391,10 +406,25 @@ internal class OverScrollHandler(
     }
 
     private fun setTranslation(offset: Float) {
+        // 在浮点真值源上累加亚像素位移，避免慢速触摸被 roundToInt 吞掉；
+        // 仅在写入 translationX/Y 时做像素对齐。
         if (isVertical) {
-            contentView.translationY += offset
+            // 若外部直接改过 translationY（如动画结束），先同步真值源，避免漂移。
+            if (accumulatedTranslationY != contentView.translationY &&
+                accumulatedTranslationY.roundToInt().toFloat() != contentView.translationY
+            ) {
+                accumulatedTranslationY = contentView.translationY
+            }
+            accumulatedTranslationY += offset
+            contentView.translationY = accumulatedTranslationY.roundToInt().toFloat()
         } else {
-            contentView.translationX += offset
+            if (accumulatedTranslationX != contentView.translationX &&
+                accumulatedTranslationX.roundToInt().toFloat() != contentView.translationX
+            ) {
+                accumulatedTranslationX = contentView.translationX
+            }
+            accumulatedTranslationX += offset
+            contentView.translationX = accumulatedTranslationX.roundToInt().toFloat()
         }
     }
 

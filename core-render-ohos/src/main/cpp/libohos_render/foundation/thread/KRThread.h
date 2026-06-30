@@ -56,8 +56,34 @@ class KRThread {
      */
     void DirectRunOnCurThread(const std::function<void()> &task);
 
-    bool TaskMutex(bool try_lock, bool is_set, bool value);
-    bool SyncMainTaskMutex(bool try_lock, bool is_set, bool value);
+    /**
+     * @brief 当前 worker 线程是否正在反向同步等主线程跑回调（cv.wait 中）。
+     *        DirectRunOnCurThread 自旋时观察此标志，发现已举旗时立刻让步、降级为
+     *        DispatchAsync，避免无谓的 100ms yield-spin 等待 worker 释放 m_taskMutex。
+     */
+    bool IsWorkerAwaitingMainTask() const noexcept {
+        return m_workerAwaitingMainTask.load(std::memory_order_acquire);
+    }
+
+    /**
+     * @brief RAII 守卫：worker 线程在调用 KRMainThread::RunOnMainThread + cv.wait
+     *        反向同步等主线程之前构造，cv.wait 返回后随作用域析构自动落旗。
+     *        仅 KRContextScheduler 在 worker 线程上使用。
+     */
+    class WorkerAwaitingMainTaskGuard {
+     public:
+        explicit WorkerAwaitingMainTaskGuard(KRThread *t) : t_(t) {
+            t_->m_workerAwaitingMainTask.store(true, std::memory_order_release);
+        }
+        ~WorkerAwaitingMainTaskGuard() {
+            t_->m_workerAwaitingMainTask.store(false, std::memory_order_release);
+        }
+        WorkerAwaitingMainTaskGuard(const WorkerAwaitingMainTaskGuard &) = delete;
+        WorkerAwaitingMainTaskGuard &operator=(const WorkerAwaitingMainTaskGuard &) = delete;
+
+     private:
+        KRThread *t_;
+    };
 
     bool IsCurrentThreadWorkerThread() const {
         return std::this_thread::get_id() == m_workerThreadId;
@@ -103,12 +129,22 @@ class KRThread {
     std::queue<std::function<void()>> m_pending;
     std::queue<std::unique_ptr<PendingTimer>> m_pendingTimers;
 
-    // ---- 兼容旧版本的 mutex 协调（供 KRContextScheduler 使用） ----
+    // ---- 任务执行权 / 同步主任务标志 ----
+    // m_taskMutex："kuikly context 任务执行权"令牌。任意时刻只允许一个线程持有，
+    // 持有者就是当前正在跑 task 体的线程——可能是 worker 线程（OnAsync batch 模式），
+    // 也可能是任意调用线程（DirectRunOnCurThread 借位模式）。
+    // 不可递归——同线程嵌套调用靠 m_isExecutingTask + 线程比对短路规避。
     std::mutex m_taskMutex;
-    bool m_mutex_locked = false;
-    std::mutex m_syncMainTaskMutex;
-    bool m_sync_main_task_locked = false;
+    // m_isExecutingTask：标记 worker 线程当前是否正处于 task 体执行栈中。
+    // 仅用于在 worker 线程内部识别"task 体内嵌套提交同步任务"的重入场景，
+    // 让其直接执行避免对 m_taskMutex 自死锁。其它线程读取无意义。
     std::atomic<bool> m_isExecutingTask{false};
+
+    // m_workerAwaitingMainTask：worker 线程是否正在反向同步等主线程回调。
+    // 由 WorkerAwaitingMainTaskGuard 通过 RAII 在 ScheduleTaskOnMainThread(sync=true)
+    // 的 cv.wait 期间举旗/落旗；DirectRunOnCurThread 自旋时观察此旗实现 fast-fail 让步。
+    // 语义就是一个跨线程可见的 bool 标志位，atomic 即可，无需 mutex 保护。
+    std::atomic<bool> m_workerAwaitingMainTask{false};
 };
 
 #endif  // CORE_RENDER_OHOS_KRTHREAD_H

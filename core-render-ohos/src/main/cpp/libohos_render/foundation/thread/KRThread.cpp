@@ -143,7 +143,7 @@ void KRThread::OnAsync() {
     }
 
     // 阶段 2：取出当前所有立即任务（包括 timer 到点后重新入队的任务），
-    // 按入队顺序执行，受 TaskMutex 保护以保留与 DirectRunOnCurThread 互斥语义。
+    // 按入队顺序执行，受 m_taskMutex 保护以保留与 DirectRunOnCurThread 互斥语义。
     std::queue<std::function<void()>> local;
     {
         std::lock_guard<std::mutex> lock(m_queueMutex);
@@ -153,7 +153,12 @@ void KRThread::OnAsync() {
         return;
     }
 
-    if (TaskMutex(true, false, false)) {
+    // 抢执行权：阻塞等待。即使此刻有 DirectRunOnCurThread 持锁，
+    // worker 也只是被挂起到对方 unlock，期间不忙等、不浪费 CPU。
+    // worker 线程不会自我重入（task 内嵌套提交同步任务走 m_isExecutingTask 快路径），
+    // 故对 m_taskMutex 阻塞 lock 不会自死锁。
+    {
+        std::lock_guard<std::mutex> taskLock(m_taskMutex);
         m_isExecutingTask.store(true);
         while (!local.empty()) {
             auto fn = std::move(local.front());
@@ -163,23 +168,6 @@ void KRThread::OnAsync() {
             }
         }
         m_isExecutingTask.store(false);
-        TaskMutex(false, true, false);
-    } else {
-        // 当前 mutex 被外部 DirectRunOnCurThread 占用，把任务退回队列等下次触发。
-        std::lock_guard<std::mutex> lock(m_queueMutex);
-        // 退回时保持原顺序：未处理的 local 拼在已有 m_pending 前面。
-        std::queue<std::function<void()>> merged;
-        while (!local.empty()) {
-            merged.push(std::move(local.front()));
-            local.pop();
-        }
-        while (!m_pending.empty()) {
-            merged.push(std::move(m_pending.front()));
-            m_pending.pop();
-        }
-        m_pending = std::move(merged);
-        // 为避免饥饿，主动再 send 一次。
-        uv_async_send(&m_async);
     }
 }
 
@@ -209,7 +197,7 @@ void KRThread::StartTimerInLoop(std::function<void()> task, int delayMs) {
 
 void KRThread::TimerCb(uv_timer_t *handle) {
     // timer 到点后：不直接执行 task，而是重新提交到立即任务队列，
-    // 走 OnAsync 的 TaskMutex 保护路径，保留与 DirectRunOnCurThread 的互斥语义。
+    // 走 OnAsync 的 m_taskMutex 保护路径，保留与 DirectRunOnCurThread 的互斥语义。
     auto *self = static_cast<KRThread *>(uv_loop_get_data(handle->loop));
     auto *ctx = static_cast<TimerContext *>(handle->data);
     if (ctx != nullptr && ctx->exec) {
@@ -278,61 +266,37 @@ void KRThread::DirectRunOnCurThread(const std::function<void()> &task) {
     if (!task) {
         return;
     }
-    if (m_isExecutingTask.load()) {
-        // 当前线程已经在 worker 的任务执行栈里（典型为重入），直接运行。
+    if (m_isExecutingTask.load() && IsCurrentThreadWorkerThread()) {
+        // 仅当“当前就在 worker 的执行栈里（task 体内嵌套调用）”才允许直跑，
+        // 避免外部线程在 worker 持锁跑批期间错误地“白嘍”执行权造成数据竞争。
         task();
         return;
     }
 
     auto start = std::chrono::steady_clock::now();
     bool didHandleTask = false;
-    while (!SyncMainTaskMutex(false, false, false)) {
+    // 观察 worker 是否正在反向同步等主线程：若已举旗，意味着 m_taskMutex 被 worker
+    // 抻在 cv.wait 期间，本路径继续 yield-spin 等锁毫无意义，直接 fast-fail 降级异步。
+    while (!IsWorkerAwaitingMainTask()) {
         auto now = std::chrono::steady_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - start);
         if (duration.count() > 100) {
-            break;  // 超时
+            break;  // 超时，落到异步派发
         }
-        if (TaskMutex(true, false, false)) {
+        std::unique_lock<std::mutex> taskLock(m_taskMutex, std::try_to_lock);
+        if (taskLock.owns_lock()) {
             m_isExecutingTask.store(true);
             task();
             m_isExecutingTask.store(false);
-            TaskMutex(false, true, false);
+            // taskLock 离开作用域自动释放
             didHandleTask = true;
             break;
         }
+        // try_lock 失败：让出一下 CPU，避免空转 100ms 把核打满。
+        std::this_thread::yield();
     }
     if (!didHandleTask) {
         KR_LOG_INFO << "DispatchAsync when run DirectRunOnCurThread";
         DispatchAsync(task);
     }
-}
-
-bool KRThread::TaskMutex(bool try_lock, bool is_set, bool value) {
-    std::unique_lock<std::mutex> lock(m_taskMutex);
-    if (try_lock) {
-        if (m_mutex_locked) {
-            return false;
-        }
-        m_mutex_locked = true;
-        return true;
-    }
-    if (is_set) {
-        m_mutex_locked = value;
-    }
-    return m_mutex_locked;
-}
-
-bool KRThread::SyncMainTaskMutex(bool try_lock, bool is_set, bool value) {
-    std::unique_lock<std::mutex> lock(m_syncMainTaskMutex);
-    if (try_lock) {
-        if (m_sync_main_task_locked) {
-            return false;
-        }
-        m_sync_main_task_locked = true;
-        return true;
-    }
-    if (is_set) {
-        m_sync_main_task_locked = value;
-    }
-    return m_sync_main_task_locked;
 }

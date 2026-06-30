@@ -73,7 +73,10 @@ void KRContextSchedulerMultiThreaded::ScheduleTask(bool sync, int delayMs, const
 void KRContextSchedulerMultiThreaded::ScheduleTaskOnMainThread(bool sync, const KRSchedulerTask &task) {
     if (sync) {
         if (GetContextThread()->IsCurrentThreadWorkerThread()) {
-            GetContextThread()->SyncMainTaskMutex(true, false, false);
+            // RAII 举旗：cv.wait 期间通知 DirectRunOnCurThread 立即降级异步，
+            // 避免外部 caller 在 worker 持锁等主线程时 yield-spin 100ms。
+            // 离开作用域时 guard 析构自动落旗，无需手动配对。
+            KRThread::WorkerAwaitingMainTaskGuard guard(GetContextThread());
             std::mutex mtx;
             std::condition_variable cv;
             bool task_completed = false;
@@ -87,7 +90,6 @@ void KRContextSchedulerMultiThreaded::ScheduleTaskOnMainThread(bool sync, const 
                 cv.notify_one();
             });
             cv.wait(lock, [&task_completed] { return task_completed; });
-            GetContextThread()->SyncMainTaskMutex(false, true, false);
         } else {
             // 说明在主线程, 直接同步
             task();

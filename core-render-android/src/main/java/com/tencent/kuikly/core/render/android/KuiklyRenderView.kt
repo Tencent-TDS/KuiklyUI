@@ -142,6 +142,8 @@ class KuiklyRenderView(
 
     private var isInOnSizeChanged = false
 
+    private var lastSafeAreaInsetsString: String? = null
+
     init {
         if (!lazyClipChildren) {
             clipChildren = false // 不裁剪, 防止孩子做scale或者translation动画时, 显示不全
@@ -241,6 +243,7 @@ class KuiklyRenderView(
         if (delegate?.debugLogEnable() == true) {
             KuiklyRenderLog.d("KuiklyRenderView", "--onDetachedFromWindow-- ${Log.getStackTraceString(Throwable())}")
         }
+        setOnApplyWindowInsetsListener(null)
         super.onDetachedFromWindow()
     }
 
@@ -248,7 +251,38 @@ class KuiklyRenderView(
         if (delegate?.debugLogEnable() == true) {
             KuiklyRenderLog.d("KuiklyRenderView", "--onAttachedToWindow-- ${Log.getStackTraceString(Throwable())}")
         }
+        setOnApplyWindowInsetsListener { v, insets ->
+            val handled = v.onApplyWindowInsets(insets)
+            notifySafeAreaInsetsIfChanged()
+            handled
+        }
         super.onAttachedToWindow()
+    }
+
+    private fun notifySafeAreaInsetsIfChanged() {
+        val currentSafeAreaInsets = formatSafeAreaInsetsForKuikly(view, kuiklyRenderContext)
+        if (currentSafeAreaInsets == lastSafeAreaInsetsString) {
+            return
+        }
+        lastSafeAreaInsetsString = currentSafeAreaInsets
+        val sizeF = lastSize ?: return
+        sendRootViewSizeChangedEvent(sizeF, currentSafeAreaInsets)
+    }
+
+    private fun sendRootViewSizeChangedEvent(sizeF: SizeF, safeAreaInsets: String) {
+        val activitySize = getActivitySize()
+        val deviceSize = getDeviceSize()
+        sendEvent(
+            EVENT_ROOT_VIEW_SIZE_CHANGED, mapOf(
+                KRViewConst.WIDTH to kuiklyRenderContext.toDpF(sizeF.width),
+                KRViewConst.HEIGHT to kuiklyRenderContext.toDpF(sizeF.height),
+                ACTIVITY_WIDTH to kuiklyRenderContext.toDpF(activitySize.width.toFloat()),
+                ACTIVITY_HEIGHT to kuiklyRenderContext.toDpF(activitySize.height.toFloat()),
+                DEVICE_WIDTH to kuiklyRenderContext.toDpF(deviceSize.width.toFloat()),
+                DEVICE_HEIGHT to kuiklyRenderContext.toDpF(deviceSize.height.toFloat()),
+                SAFE_AREA_INSETS to safeAreaInsets
+            )
+        )
     }
 
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
@@ -345,19 +379,9 @@ class KuiklyRenderView(
         if (lastSize == null) {
             lastSize = sizeF
         } else if (lastSize != sizeF) {
-            val activitySize = getActivitySize()
-            val deviceSize = getDeviceSize()
-            sendEvent(
-                EVENT_ROOT_VIEW_SIZE_CHANGED, mapOf(
-                    KRViewConst.WIDTH to kuiklyRenderContext.toDpF(sizeF.width),
-                    KRViewConst.HEIGHT to kuiklyRenderContext.toDpF(sizeF.height),
-                    ACTIVITY_WIDTH to kuiklyRenderContext.toDpF(activitySize.width.toFloat()),
-                    ACTIVITY_HEIGHT to kuiklyRenderContext.toDpF(activitySize.height.toFloat()),
-                    DEVICE_WIDTH to kuiklyRenderContext.toDpF(deviceSize.width.toFloat()),
-                    DEVICE_HEIGHT to kuiklyRenderContext.toDpF(deviceSize.height.toFloat()),
-                    SAFE_AREA_INSETS to formatSafeAreaInsetsForKuikly(view, kuiklyRenderContext)
-                )
-            )
+            val safeAreaInsets = formatSafeAreaInsetsForKuikly(view, kuiklyRenderContext)
+            lastSafeAreaInsetsString = safeAreaInsets
+            sendRootViewSizeChangedEvent(sizeF, safeAreaInsets)
             lastSize = sizeF
         }
     }

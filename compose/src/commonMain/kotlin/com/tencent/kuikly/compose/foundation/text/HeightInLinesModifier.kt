@@ -28,6 +28,7 @@ import com.tencent.kuikly.compose.ui.unit.Constraints
 import com.tencent.kuikly.compose.ui.unit.TextUnitType
 import com.tencent.kuikly.compose.ui.unit.isSpecified
 import com.tencent.kuikly.compose.ui.unit.sp
+import kotlin.math.ceil
 import kotlin.math.max
 
 /**
@@ -38,19 +39,30 @@ import kotlin.math.max
 internal const val DefaultMinLines = 1
 
 /**
+ * The default font size used for line height calculation when no font size is specified.
+ */
+private val DefaultFontSizeForLineHeight = 14.sp
+
+/**
  * Constraint the height of the text field so that it minLines and maxLines are honored.
  */
 internal fun Modifier.heightInLines(
     textStyle: TextStyle,
     minLines: Int = DefaultMinLines,
     maxLines: Int = Int.MAX_VALUE
-): Modifier = this.then(
-    HeightInLinesElement(
-        minLines = minLines,
-        maxLines = maxLines,
-        textStyle = textStyle
+): Modifier {
+    require(minLines >= 1) { "minLines must be >= 1, got $minLines" }
+    require(maxLines >= 1) { "maxLines must be >= 1, got $maxLines" }
+    require(minLines <= maxLines) { "minLines must be <= maxLines, got minLines=$minLines, maxLines=$maxLines" }
+
+    return this.then(
+        HeightInLinesElement(
+            minLines = minLines,
+            maxLines = maxLines,
+            textStyle = textStyle
+        )
     )
-)
+}
 
 private class HeightInLinesElement(
     val minLines: Int,
@@ -123,18 +135,18 @@ private class HeightInLinesModifierNode(
             val fontSize = if (textStyle.fontSize.isSpecified && textStyle.fontSize.type == TextUnitType.Sp) {
                 textStyle.fontSize
             } else {
-                14.sp // Ultimate fallback
+                DefaultFontSizeForLineHeight // Material3 default fallback
             }
             fontSize.toPx() * 1.2f
         }
 
         val minHeight = if (minLines > 1) {
-            (lineHeightPx * minLines).toInt()
+            ceil(lineHeightPx * minLines).toInt()
         } else {
             0
         }
         val maxHeight = if (maxLines != Int.MAX_VALUE) {
-            (lineHeightPx * maxLines).toInt()
+            ceil(lineHeightPx * maxLines).toInt()
         } else {
             constraints.maxHeight
         }

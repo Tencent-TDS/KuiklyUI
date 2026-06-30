@@ -49,6 +49,24 @@ class KRContextSchedulerMultiThreaded : public KRContextSchedulerInternal {
     }
     static std::atomic_bool runningOnMainThread;
     static std::thread::id mainThreadId;
+
+    // RAII：在主线程上运行 task 期间，让 IsCurrentOnContextThread() 把主线程
+    // 视为 "context 线程"。被 DirectRunOnMainThread(sync=true) 与
+    // ScheduleTaskOnMainThread(sync=true) 投递回主线程的路径共用，确保两条
+    // 路径下 IsCurrentOnContextThread() 的判定行为对称一致。
+    // 异常路径下析构同样会落标，不会污染全局状态。
+    class MainThreadContextGuard {
+     public:
+        MainThreadContextGuard() {
+            mainThreadId = std::this_thread::get_id();
+            runningOnMainThread.store(true);
+        }
+        ~MainThreadContextGuard() {
+            runningOnMainThread.store(false);
+        }
+        MainThreadContextGuard(const MainThreadContextGuard &) = delete;
+        MainThreadContextGuard &operator=(const MainThreadContextGuard &) = delete;
+    };
 };
 
 std::atomic_bool KRContextSchedulerMultiThreaded::runningOnMainThread{false};
@@ -57,10 +75,9 @@ std::thread::id KRContextSchedulerMultiThreaded::mainThreadId;
 void KRContextSchedulerMultiThreaded::DirectRunOnMainThread(bool isSync, const KRSchedulerTask &task) {
     if (isSync) {
         GetContextThread()->DirectRunOnCurThread([task]() {
-            mainThreadId = std::this_thread::get_id();
-            runningOnMainThread.store(true);
+            // 异常安全的 set/clear：与 ScheduleTaskOnMainThread(sync=true) 共用同一 guard。
+            MainThreadContextGuard ctxGuard;
             task();
-            runningOnMainThread.store(false);
         });
     } else {
         GetContextThread()->DispatchAsync(task, 0);
@@ -103,17 +120,19 @@ void KRContextSchedulerMultiThreaded::ScheduleTaskOnMainThread(bool sync, const 
             //     托管，比栈帧活得久，不会悬垂
             auto donePromise = std::make_shared<std::promise<void>>();
             auto doneFuture = donePromise->get_future();
-            KRMainThread::RunOnMainThread([task, donePromise]() mutable {
+            KRMainThread::RunOnMainThread([task, donePromise]() {
+                // 与 DirectRunOnMainThread(sync=true) 对称：让 task 在主线程执行
+                // 期间被 IsCurrentOnContextThread() 视为"在 context 线程上"，
+                // 否则相同的 task 取决于派发路径会得到不一致的判定结果。
+                // 用 RAII 守卫保证异常路径下也能正确落标，避免污染全局状态。
+                MainThreadContextGuard ctxGuard;
                 try {
                     task();
                     donePromise->set_value();
                 } catch (...) {
-                    try {
-                        donePromise->set_exception(std::current_exception());
-                    } catch (...) {
-                        // set_exception 自身极少抛（如 promise_already_satisfied），
-                        // 这里吞掉避免在主线程派发回调里再次外抛。
-                    }
+                    // lambda 仅执行一次，shared state 此时一定未被 set，
+                    // set_exception 不会抛 promise_already_satisfied，无需再嵌套 try。
+                    donePromise->set_exception(std::current_exception());
                 }
             });
             using namespace std::chrono_literals;

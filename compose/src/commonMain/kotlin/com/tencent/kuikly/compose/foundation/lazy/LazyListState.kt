@@ -57,6 +57,7 @@ import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.util.fastFirstOrNull
 import com.tencent.kuikly.compose.ui.util.fastRoundToInt
 import com.tencent.kuikly.compose.ui.util.fastSumBy
+import com.tencent.kuikly.compose.gestures.KuiklyScrollTrace
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.tryExpandStartSizeNoScroll
 import com.tencent.kuikly.compose.profiler.RecompositionProfiler
@@ -415,6 +416,7 @@ class LazyListState
                         )
                 }
                 if (scrolledWithoutRemeasure) {
+                    KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.lazyScrollWithoutRemeasure++ }
                     applyMeasureResult(
                         result = layoutInfo,
                         isLookingAhead = hasLookaheadPassOccurred,
@@ -423,6 +425,7 @@ class LazyListState
                     // we don't need to remeasure, so we only trigger re-placement:
                     placementScopeInvalidator.invalidateScope()
                 } else {
+                    KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.lazyRemeasure++ }
                     remeasurement?.forceRemeasure()
                 }
             }

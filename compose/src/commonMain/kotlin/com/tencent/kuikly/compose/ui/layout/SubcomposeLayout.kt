@@ -87,6 +87,7 @@ import com.tencent.kuikly.compose.ui.node.KNode.Companion.obtainRenderProps
 import com.tencent.kuikly.compose.ui.scaleWithDensity
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 import com.tencent.kuikly.core.base.event.layoutFrameDidChange
+import com.tencent.kuikly.core.datetime.DateTime
 import com.tencent.kuikly.core.views.ScrollerAttr
 import com.tencent.kuikly.core.views.ScrollerEvent
 import com.tencent.kuikly.core.views.ScrollerView
@@ -288,7 +289,12 @@ fun SubcomposeLayout(
             scrollEnd {
                 val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
                 val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
-                kuiklyInfo.contentOffset = offset
+                if (kuiklyInfo.contentOffset != offset) {
+                    KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.contentOffsetWrites++ }
+                    kuiklyInfo.contentOffset = offset
+                } else {
+                    KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.contentOffsetSkipped++ }
+                }
                 (scrollableState as? PagerState)?.onNativeContentOffsetChanged(offset)
 
                 // 仅触摸滑动结束会回调，api调用和bounce回弹都不会触发
@@ -300,8 +306,19 @@ fun SubcomposeLayout(
             dragEnd {
                 val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
                 val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
-                kuiklyInfo.contentOffset = offset
-                kuiklyInfo.isDragging = kuiklyInfo.scrollView?.isDragging ?: false
+                if (kuiklyInfo.contentOffset != offset) {
+                    KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.contentOffsetWrites++ }
+                    kuiklyInfo.contentOffset = offset
+                } else {
+                    KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.contentOffsetSkipped++ }
+                }
+                val dragging = kuiklyInfo.scrollView?.isDragging ?: false
+                if (kuiklyInfo.isDragging != dragging) {
+                    KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.isDraggingWrites++ }
+                    kuiklyInfo.isDragging = dragging
+                } else {
+                    KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.isDraggingSkipped++ }
+                }
             }
             scroll {
                 KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.composeScrollReceived++ }
@@ -309,10 +326,20 @@ fun SubcomposeLayout(
                 val nativeOffset = if (isVertical) scaleParams.offsetY else scaleParams.offsetX
                 val offset = nativeOffset.fastRoundToInt()
 
-                val prevOffset = kuiklyInfo.contentOffset
-                kuiklyInfo.contentOffset = offset
+                if (kuiklyInfo.contentOffset != offset) {
+                    KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.contentOffsetWrites++ }
+                    kuiklyInfo.contentOffset = offset
+                } else {
+                    KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.contentOffsetSkipped++ }
+                }
                 (scrollableState as? PagerState)?.onNativeContentOffsetChanged(offset)
-                kuiklyInfo.isDragging = kuiklyInfo.scrollView?.isDragging ?: false
+                val dragging = kuiklyInfo.scrollView?.isDragging ?: false
+                if (kuiklyInfo.isDragging != dragging) {
+                    KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.isDraggingWrites++ }
+                    kuiklyInfo.isDragging = dragging
+                } else {
+                    KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.isDraggingSkipped++ }
+                }
 
                 if (kuiklyInfo.ignoreScrollOffset != null) {
                     val ignoreOffset = kuiklyInfo.ignoreScrollOffset!!
@@ -366,10 +393,14 @@ fun SubcomposeLayout(
 
                 // 仅在实际驱动 LazyList 滚动后同步 contentSize / offset 校正
                 KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.kuiklyOnScroll++ }
+                val scrollT0 = if (KuiklyScrollTrace.ENABLED) DateTime.nanoTime() else 0L
                 scrollableState.kuiklyOnScroll(scrollDelta.toFloat())
                 scrollableState.calculateAndUpdateContentSizeIfNeeded()
                 if (!scrollableState.isNestedScrollConfigured()) {
                     scrollableState.tryExpandStartSize(offset, true)
+                }
+                if (KuiklyScrollTrace.ENABLED) {
+                    KuiklyScrollTrace.kuiklyScrollNs += DateTime.nanoTime() - scrollT0
                 }
             }
 

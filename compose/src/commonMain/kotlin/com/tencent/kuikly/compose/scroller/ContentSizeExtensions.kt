@@ -107,7 +107,10 @@ internal fun ScrollableState.calculateAndUpdateContentSizeIfNeeded(force: Boolea
         calculateAndUpdateContentSize()
         return
     }
-    if (kuiklyInfo.realContentSize != null) {
+    if (kuiklyInfo.realContentSize == null) {
+        // LazyList 每次 remeasure 都会把 realContentSize 置回 null，
+        // 此时必须重算，否则 currentContentSize(滚动边界) 会卡在偏大的旧值，导致滑到底还能继续滑。
+        calculateAndUpdateContentSize()
         return
     }
     val nativeDp = kuiklyInfo.nativeContentMainAxisDp()

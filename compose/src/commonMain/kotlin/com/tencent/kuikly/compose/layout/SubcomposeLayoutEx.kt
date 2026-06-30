@@ -22,6 +22,7 @@ import com.tencent.kuikly.compose.foundation.lazy.grid.LazyGridMeasureResult
 import com.tencent.kuikly.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridMeasureResult
 import com.tencent.kuikly.compose.foundation.pager.PagerMeasureResult
 import com.tencent.kuikly.compose.gestures.KuiklyScrollInfo
+import com.tencent.kuikly.compose.gestures.KuiklyScrollTrace
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.ui.layout.LayoutNodeSubcompositionsState
 import com.tencent.kuikly.compose.ui.layout.MeasureResult
@@ -83,12 +84,12 @@ internal fun KNode<*>.hideOffsetScreenView() {
 internal fun KNode<*>.resetViewVisible() {
     when {
         isVirtual -> forEachChild { (it as? KNode<*>)?.resetViewVisible() }
+        viewVisible == null -> {
+            KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.resetVisibleSkipped++ }
+        }
         else -> {
-            // 恢复到原始的Visible属性
-            viewVisible?.let {
-                view.getViewAttr().visibility(it)
-                viewVisible = null
-            }
+            view.getViewAttr().visibility(viewVisible!!)
+            viewVisible = null
         }
     }
 }

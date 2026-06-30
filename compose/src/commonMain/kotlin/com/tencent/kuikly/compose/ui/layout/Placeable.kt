@@ -16,6 +16,7 @@
 
 package com.tencent.kuikly.compose.ui.layout
 
+import com.tencent.kuikly.compose.gestures.KuiklyScrollTrace
 import com.tencent.kuikly.compose.ui.graphics.GraphicsLayerScope
 import com.tencent.kuikly.compose.ui.node.LookaheadCapablePlaceable
 import com.tencent.kuikly.compose.ui.node.MotionReferencePlacementDelegate
@@ -573,6 +574,7 @@ private class LookaheadCapablePlacementScope(
             // if coordinates are not null we will only set this flag when the inner
             // coordinate values are read. see NodeCoordinator.onCoordinatesUsed()
             if (coords == null) {
+                KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.placementCoordAccess++ }
                 within.layoutNode.layoutDelegate.onCoordinatesUsed()
             }
             return coords

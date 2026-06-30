@@ -30,6 +30,7 @@ import com.tencent.kuikly.compose.ui.layout.LayoutCoordinates
 import com.tencent.kuikly.compose.ui.platform.LocalDensity
 import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.views.VirtualNodeView
+import com.tencent.kuikly.compose.gestures.KuiklyScrollTrace
 import com.tencent.kuikly.compose.layout.resetViewVisible
 import com.tencent.kuikly.compose.ui.KuiklyPath
 import com.tencent.kuikly.compose.ui.layout.LookaheadLayoutCoordinates
@@ -45,6 +46,7 @@ import com.tencent.kuikly.core.base.Translate
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.domChildren
 import com.tencent.kuikly.core.base.event.notifyLayoutFrameDidChange
+import com.tencent.kuikly.core.datetime.DateTime
 import com.tencent.kuikly.core.layout.Frame
 import com.tencent.kuikly.core.views.DivView
 import com.tencent.kuikly.core.views.HoverView
@@ -251,6 +253,8 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
     }
 
     override fun updateKuiklyViewFrame(coordinator: LayoutCoordinates) {
+        KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.updateKuiklyViewFrameCalls++ }
+        val frameT0 = if (KuiklyScrollTrace.ENABLED) DateTime.nanoTime() else 0L
         val curCoordinator = kuiklyCoordinates ?: innerCoordinator
 
         resetViewVisible()
@@ -299,6 +303,9 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
         }
 
         view.updateFrame(newFrame)
+        if (KuiklyScrollTrace.ENABLED) {
+            KuiklyScrollTrace.frameComputeNs += DateTime.nanoTime() - frameT0
+        }
     }
 
     /**
@@ -397,6 +404,8 @@ internal class KNode<T : DeclarativeBaseView<*, *>>(
             updateScrollViewOffset(curFrame, densityFrame)
             setFrameToRenderView(densityFrame)
             getViewEvent().notifyLayoutFrameDidChange(newFrame)
+        } else {
+            KuiklyScrollTrace.ifEnabled { KuiklyScrollTrace.frameSyncSkipped++ }
         }
     }
 

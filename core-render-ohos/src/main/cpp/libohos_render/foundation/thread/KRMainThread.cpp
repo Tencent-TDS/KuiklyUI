@@ -175,3 +175,12 @@ void KRMainThread::RunOnMainThreadForNextLoop(std::function<void()> task) {
     // 不论当前是否在主线程，都强制走 uv_async 投递，保证在"下一次 loop 回合"才执行。
     EnqueueAndNotify(std::move(task), 0);
 }
+
+bool KRMainThread::IsCurrentOnMainThread() {
+    // Export 之前 g_main_thread_id 未赋值，无法做出可靠判断；
+    // 此时一律返回 false，让调用方走"非主线程"安全路径（跨线程投递）。
+    if (!g_initialized.load()) {
+        return false;
+    }
+    return IsCurrentMainThread();
+}

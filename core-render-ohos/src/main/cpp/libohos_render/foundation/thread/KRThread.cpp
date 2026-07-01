@@ -16,6 +16,7 @@
 #include "libohos_render/foundation/thread/KRThread.h"
 
 #include <pthread.h>
+#include <cassert>
 #include <chrono>
 #include <utility>
 
@@ -128,11 +129,20 @@ void KRThread::OnAsync() {
                     } else if (handle->type == UV_ASYNC) {
                         uv_close(handle, &KRThread::AsyncCloseCb);
                     } else {
-                        // 其他句柄类型在当前设计中不应出现（本 loop 只创建 UV_ASYNC + UV_TIMER）。
-                        // 万一未来有人引入了新句柄类型却忘了补 close cb，则存在资源泄漏风险：
-                        // 这里同时靠 KR_LOG_ERROR 提醒并调 uv_close(nullptr)以保证 loop 能退出。
-                        KR_LOG_ERROR << "KRThread::OnAsync stop path met unknown uv_handle_t type="
-                                     << handle->type << "; missing dedicated close cb may leak resources.";
+                        // 本 loop 的句柄全集由 KRThread 私有维护：仅 UV_ASYNC(m_async) + UV_TIMER。
+                        // m_loop 是 private、无 getter/friend，句柄类型对 KRThread 是闭集。
+                        // 若未来新增其它句柄类型，请同步在此处补对应的 close cb 分支——
+                        // 不要用默认 close cb 兜底：uv_close 的 close_cb 无法区分 handle 是成员型
+                        // （如 m_async，禁止 delete）还是 new 出来的（如 uv_timer_t，需要 delete）。
+                        //
+                        // 双层策略：
+                        //   * debug：assert(false) 让遗漏在开发阶段第一时间暴露到崩溃栈；
+                        //   * release：assert 被吃掉后走 uv_close(handle, nullptr) 保底 —— 若 debug 没抓到，
+                        //     说明这条路径低频到测试未覆盖，release 泄漏一次 handle 关联堆内存，
+                        //     换 loop 能正常退出，避免因低频路径 abort 掉整个宿主进程。
+                        KR_LOG_ERROR << "KRThread::OnAsync stop path met unregistered uv_handle_t type="
+                                     << handle->type << "; add a dedicated close cb.";
+                        assert(false && "KRThread::OnAsync unregistered uv_handle_t type");
                         uv_close(handle, nullptr);
                     }
                 }

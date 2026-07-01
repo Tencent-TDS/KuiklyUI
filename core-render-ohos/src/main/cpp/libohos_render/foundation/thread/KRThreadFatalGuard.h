@@ -17,13 +17,42 @@
 #define CORE_RENDER_OHOS_KRTHREADFATALGUARD_H
 
 #include <cstdlib>
+#include <cxxabi.h>
 #include <exception>
+#include <string>
 #include <utility>
 
 #include "libohos_render/utils/KRRenderLoger.h"
 
 namespace kuikly {
 namespace thread {
+
+// 拿到当前 catch 分支正在处理的异常的可读类型名。
+//   * 使用 abi::__cxa_current_exception_type() 获取 std::type_info；
+//     该 API 只在 catch 块中调用才有意义，其他上下文会返回 nullptr。
+//   * 结果用 abi::__cxa_demangle 反修饰，方便识别形如
+//     "kotlin::ObjHolder"、"IncorrectDereferenceException" 之类
+//     不继承 std::exception 的 K/N 异常类型。
+//   * 无法获取时返回 "<unknown>"，避免污染日志格式。
+inline std::string CurrentExceptionTypeName() {
+    const std::type_info *ti = abi::__cxa_current_exception_type();
+    if (ti == nullptr) {
+        return "<unknown>";
+    }
+    const char *mangled = ti->name();
+    if (mangled == nullptr) {
+        return "<unknown>";
+    }
+    int status = 0;
+    char *demangled = abi::__cxa_demangle(mangled, nullptr, nullptr, &status);
+    if (status == 0 && demangled != nullptr) {
+        std::string result(demangled);
+        std::free(demangled);
+        return result;
+    }
+    // demangle 失败则退回 mangled name，好过没有信息。
+    return std::string(mangled);
+}
 
 // 统一的"调度边界 fail-fast"语义：
 //   * 所有跨线程/跨语言（C++ ↔ ArkTS / libuv 回调 / std::thread 入口）的"task 执行"
@@ -42,12 +71,15 @@ inline void RunWithFatalGuard(const char *tag, F &&task) {
     try {
         std::forward<F>(task)();
     } catch (const std::exception &e) {
-        KR_LOG_ERROR << "[" << tag << "] uncaught std::exception in task: " << e.what()
+        KR_LOG_ERROR << "[" << tag << "] uncaught std::exception in task"
+                     << " (type=" << CurrentExceptionTypeName() << ")"
+                     << ": " << e.what()
                      << "; aborting to preserve crash context.";
         std::abort();
     } catch (...) {
-        KR_LOG_ERROR << "[" << tag << "] uncaught non-std exception in task; "
-                                      "aborting to preserve crash context.";
+        KR_LOG_ERROR << "[" << tag << "] uncaught non-std exception in task"
+                     << " (type=" << CurrentExceptionTypeName() << ")"
+                     << "; aborting to preserve crash context.";
         std::abort();
     }
 }

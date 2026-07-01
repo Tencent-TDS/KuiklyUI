@@ -14,7 +14,10 @@
  */
 
 #include <assert.h>
+#include <exception>
 #include "DefaultRenderNativeContextHandler.h"
+#include "libohos_render/foundation/thread/KRThreadFatalGuard.h"
+#include "libohos_render/utils/KRRenderLoger.h"
 
 extern CallKotlin callKotlin_;
 
@@ -25,9 +28,27 @@ void DefaultRenderNativeContextHandler::CallKotlinMethod(const KuiklyRenderConte
                                                          const std::shared_ptr<KRRenderValue> &arg3,
                                                          const std::shared_ptr<KRRenderValue> &arg4,
                                                          const std::shared_ptr<KRRenderValue> &arg5) {
-    if(callKotlin_ == nullptr){
+    if (callKotlin_ == nullptr) {
         __assert_fail("Tips: make sure initKuikly() has been called!", __FILE__, __LINE__, __func__);
     }
-    callKotlin_(static_cast<int>(method), arg0->toCValue(), arg1->toCValue(), arg2->toCValue(), arg3->toCValue(),
-                arg4->toCValue(), arg5->toCValue());
+    // Diagnostics-only wrapper around the Kotlin/Native call boundary.
+    // We do NOT swallow the exception: after logging (method id + type) we
+    // rethrow and let the outer KRThreadFatalGuard preserve crash context.
+    // Type-name demangling is delegated to kuikly::thread::CurrentExceptionTypeName
+    // to keep a single implementation across the codebase.
+    const int method_id = static_cast<int>(method);
+    try {
+        callKotlin_(method_id, arg0->toCValue(), arg1->toCValue(), arg2->toCValue(), arg3->toCValue(),
+                    arg4->toCValue(), arg5->toCValue());
+    } catch (const std::exception &e) {
+        KR_LOG_ERROR_WITH_TAG("KRRender")
+            << "[callKotlin_] std::exception at K/N boundary; method=" << method_id
+            << " type=" << kuikly::thread::CurrentExceptionTypeName() << " what=" << e.what();
+        throw;
+    } catch (...) {
+        KR_LOG_ERROR_WITH_TAG("KRRender")
+            << "[callKotlin_] non-std exception at K/N boundary; method=" << method_id
+            << " type=" << kuikly::thread::CurrentExceptionTypeName();
+        throw;
+    }
 }

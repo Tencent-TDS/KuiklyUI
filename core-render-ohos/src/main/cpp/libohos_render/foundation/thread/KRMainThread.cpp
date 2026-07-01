@@ -202,6 +202,17 @@ void KRMainThread::RunOnMainThread(std::function<void()> task, int delayMillisec
     EnqueueAndNotify(std::move(task), delayMilliseconds);
 }
 
+// 语义说明（避免调用方误解）：
+//   * 该 API 仅承诺 "task 在下一次 loop 回合执行"（相对当前调用点），
+//     不承诺多次调用之间的批量原子性。
+//   * 实现上，多次 RunOnMainThreadForNextLoop 会依次 push 到同一个 pending 队列，
+//     由主线程一次 OnMainAsync 回调 swap 出全部任务、在同一主线程栈上顺序执行；
+//     因此"同一 caller tick 内提交的多个任务"天然会在同一次 OnMainAsync 内跑完，
+//     UI 层看到的就是原子的。但这**是实现副产物，不是 API 契约**。
+//   * 若某任务内部又调用 RunOnMainThreadForNextLoop 提交新任务，新任务会落到
+//     再下一次 loop 回合执行——这是"下一帧"的语义本身，不是 bug。
+//   * 若未来出现"必须与其它 NextLoop 任务原子生效"的调用方，需要显式合批，
+//     不要依赖当前 OnMainAsync 的 swap-drain 实现细节。
 void KRMainThread::RunOnMainThreadForNextLoop(std::function<void()> task) {
     if (!task) {
         return;

@@ -205,7 +205,7 @@ internal class TestPage : BasePager() {
 ### Span longPress事件
 
 :::tip 版本说明
-`Span.longPress` 从 **2.22.0** 开始支持。
+`Span.longPress` 从 **2.23.0** 开始支持。
 :::
 
 `RichText` 中的 `Span` / `ImageSpan` 支持单独注册 `longPress` 事件。命中可长按的 span 时，会优先回调该 span 的 `longPress`；如果当前触点未命中任何注册了 `longPress` 的 span，则会回退到 `RichText.longPress`。

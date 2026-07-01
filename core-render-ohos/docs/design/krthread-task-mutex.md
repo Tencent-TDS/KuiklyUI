@@ -225,6 +225,67 @@ if (m_isExecutingTask.load() && IsCurrentThreadWorkerThread()) {
 
 Release build 零成本（NDEBUG 编译期消除），Debug build 一旦短路不变式被破坏立即 abort 到第一现场。
 
+### 4.2 为什么 `DirectRunOnCurThread` 不检查 `m_stop`
+
+> 状态：✅ 已评审、结论：维持现状。历史提议保留于此，避免后续 review 反复回旋。
+
+曾有 review 建议在 [`DirectRunOnCurThread`](../../src/main/cpp/libohos_render/foundation/thread/KRThread.cpp) 的 `while (!IsWorkerAwaitingMainTask())` 循环里加 `!m_stop.load()` 作为额外退出条件，理由是"若 `KRThread` 正在析构、worker 已退出但 `m_taskMutex` 未释放，`DirectRunOnCurThread` 会在 100ms yield-spin 窗口里空转"。**驳回**，理由如下。
+
+#### 4.2.1 调用面盘点
+
+| # | 事实 | 依据 |
+|---|---|---|
+| 1 | `DirectRunOnCurThread` 全仓唯一调用点 | [`KRContextScheduler.cpp` L76 `GetContextThread()->DirectRunOnCurThread(...)`](../../src/main/cpp/libohos_render/scheduler/KRContextScheduler.cpp) |
+| 2 | `m_stop` 唯一写入点是 `~KRThread()` | [`KRThread.cpp` L62 `m_stop.store(true)`](../../src/main/cpp/libohos_render/foundation/thread/KRThread.cpp)，紧随其后即 `m_workerThread.join()` |
+| 3 | worker 唯一持有 `m_taskMutex` 的地方是 `OnAsync` 阶段 2 的 `lock_guard<std::mutex>` | [`KRThread.cpp` L179 附近](../../src/main/cpp/libohos_render/foundation/thread/KRThread.cpp) |
+| 4 | task 体抛异常会直接 `abort()` | [`KRThreadFatalGuard.h` `RunWithFatalGuard`](../../src/main/cpp/libohos_render/foundation/thread/KRThreadFatalGuard.h) fail-fast 语义 |
+
+#### 4.2.2 前提场景在当前代码里构造不出来
+
+**建议里的前提之一：**"worker 已退出但 `m_taskMutex` 未被释放（worker 在析构前异常退出未 unlock）"
+
+- `m_taskMutex` 全部走 RAII `lock_guard` / `unique_lock`，正常返回路径必然释放；
+- 异常路径由 `RunWithFatalGuard` 直接 `abort()`——进程都终止了，讨论"锁是否释放"毫无意义；
+- 结论：**"worker 未释放锁就退出"** 在当前代码里构造不出来。
+
+**建议里的前提之二：**"`KRThread` 正在析构（`m_stop=true`）...`DirectRunOnCurThread` 会空转"
+
+- `m_stop=true` 只在 `~KRThread()` 里被置起，紧接着就是 `m_workerThread.join()`；
+- 要触发"析构中还被外部调"，caller 必须在 `~KRThread()` 执行期间通过 `GetContextThread()` 拿到这个正在析构的对象并调 `DirectRunOnCurThread`——这本身就是 **use-after-free 反模式**；
+- 即便加了 `!m_stop.load()` 检查、并降级到 `DispatchAsync`，`DispatchAsync` 内部会调 `uv_async_send(&m_async)`，同样访问一个正在析构对象的成员——**UAF 依然存在**，只是从"CPU 空转 100ms"变成"UAF 崩溃"，本质没修，反而被防御性代码遮盖得更隐蔽。
+
+#### 4.2.3 加检查的三个具体坏处
+
+**（1）掩盖真正的生命周期 bug**
+
+上层若真出现"析构中还被调"，正确的定位路径是让 UAF **响亮地崩**（ASAN / tsan 会立即抓到）。加了 `!m_stop.load()` 之后，路径走进 `DispatchAsync` → `uv_async_send`，UAF 现场比原来更远、更难查。
+
+**（2）`m_stop` 语义扩散**
+
+现状 `m_stop` 是"loop 线程是否已收到停止信号"的**内部**信号，仅 `OnAsync` 消费。让 `DirectRunOnCurThread` 也观察它，等于把"生命周期状态"泄露到跨线程 caller 侧——将来若把 `m_stop` 拆成 "requested" / "confirmed" 两阶段，所有观察者都要跟改。
+
+**（3）给"KRThread 生命周期由 caller 保证"这个前置约定挖坑**
+
+现状的隐含契约是：**`GetContextThread()` 返回的 `KRThread*` 在 caller 使用期间必须有效**（由上层 kuikly context 单例生命周期保证）。这与 STL 容器 `.data()` 返回的指针稳定性是同类约定——caller 有责任、被调方无义务替 caller 兜底。加防御检查会让下一位维护者误以为"`KRThread*` 在生命周期外调用是安全的"，进而写出更多 UAF。
+
+#### 4.2.4 何时才应该考虑加 `m_stop` 检查
+
+以下条件**同时满足**才应该改（当前一个都不满足）：
+
+1. `KRThread` 明确要支持"从属对象析构中仍被外部并发调用"的用法（例如引入 `shared_ptr` 生命周期管理、或多层 owner 复合）；
+2. `m_stop=true` 之后调用者手上的 `KRThread*` **仍是有效对象**（例如析构改成两阶段：先 `Shutdown()` 置停，再由 owner 延迟 `delete`）；
+3. 观察 `m_stop` 后能给出**语义正确**的降级动作（当前 `DispatchAsync` 在 `m_stop=true` 后同样是 UAF，不是正确降级）。
+
+在这三条落地之前，`DirectRunOnCurThread` 保持"不感知生命周期，全权交给 caller 保证"这一简单契约。
+
+#### 4.2.5 更正的做法
+
+若真的担心"析构中被调"，应该在**上层**加约束，而非在 `DirectRunOnCurThread` 里加防御：
+
+- **A. 在上层 kuikly context 单例的析构顺序上做保证**：先解除 `GetContextThread()` 对外暴露，再销毁 `KRThread`；
+- **B. Debug 断言**：在 `DirectRunOnCurThread` 入口加一条 `assert(!m_stop.load() && "DirectRunOnCurThread called after KRThread shutdown; caller lifetime bug.")`——release 零成本，debug 直接崩到第一现场，不掩盖 UAF；
+- **C. ASAN/TSAN 覆盖**：这类 UAF 属于工具类问题，工具能抓，代码不该替工具兜底。
+
 ---
 
 ## 5. 改前 vs 改后

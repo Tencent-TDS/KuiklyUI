@@ -18,7 +18,6 @@
 #include <assert.h>
 #include <atomic>
 #include <chrono>
-#include <cstdlib>
 #include <exception>
 #include <future>
 #include <memory>
@@ -28,7 +27,7 @@
 class KRContextSchedulerInternal {
  public:
     virtual ~KRContextSchedulerInternal() = default;
-    virtual void ScheduleTask(bool sync, int delayMs, const KRSchedulerTask &task) = 0;
+    virtual void ScheduleTask(int delayMs, const KRSchedulerTask &task) = 0;
     virtual void ScheduleTaskOnMainThread(bool sync, const KRSchedulerTask &task) = 0;
     virtual void DirectRunOnMainThread(bool isSync, const KRSchedulerTask &task) = 0;
 
@@ -37,7 +36,7 @@ class KRContextSchedulerInternal {
 
 class KRContextSchedulerMultiThreaded : public KRContextSchedulerInternal {
  public:
-    void ScheduleTask(bool sync, int delayMs, const KRSchedulerTask &task) override;
+    void ScheduleTask(int delayMs, const KRSchedulerTask &task) override;
     void ScheduleTaskOnMainThread(bool sync, const KRSchedulerTask &task) override;
     void DirectRunOnMainThread(bool isSync, const KRSchedulerTask &task) override;
     bool IsCurrentOnContextThread() override;
@@ -84,24 +83,8 @@ void KRContextSchedulerMultiThreaded::DirectRunOnMainThread(bool isSync, const K
     }
 }
 
-void KRContextSchedulerMultiThreaded::ScheduleTask(bool sync, int delayMs, const KRSchedulerTask &task) {
-    if (sync) {
-        // 历史遗留路径：KRThread::DispatchSync 在全仓已被评估为死代码（只有本处作为 caller，
-        // 而本函数上层 KRContextScheduler::ScheduleTask 的全部 caller 都传 sync=false）。
-        // 详见 docs/review/review-methodology.md。保留代码形状仅为了不打破接口划分，
-        // 但需局部抑制 deprecated 警告；未来若要激活请先重做语义（参考
-        // ScheduleTaskOnMainThread 的 promise/future 范式）。
-#if defined(__clang__) || defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
-        GetContextThread()->DispatchSync(task);
-#if defined(__clang__) || defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
-    } else {
-        GetContextThread()->DispatchAsync(task, delayMs);
-    }
+void KRContextSchedulerMultiThreaded::ScheduleTask(int delayMs, const KRSchedulerTask &task) {
+    GetContextThread()->DispatchAsync(task, delayMs);
 }
 
 void KRContextSchedulerMultiThreaded::ScheduleTaskOnMainThread(bool sync, const KRSchedulerTask &task) {
@@ -207,7 +190,7 @@ bool KRContextSchedulerMultiThreaded::IsCurrentOnContextThread() {
 
 class KRContextSchedulerSingleThreaded : public KRContextSchedulerInternal {
  public:
-    void ScheduleTask(bool sync, int delayMs, const KRSchedulerTask &task) override;
+    void ScheduleTask(int delayMs, const KRSchedulerTask &task) override;
     void ScheduleTaskOnMainThread(bool sync, const KRSchedulerTask &task) override;
     void DirectRunOnMainThread(bool isSync, const KRSchedulerTask &task) override;
     bool IsCurrentOnContextThread() override;
@@ -223,12 +206,8 @@ void KRContextSchedulerSingleThreaded::DirectRunOnMainThread(bool isSync, const 
     }
 }
 
-void KRContextSchedulerSingleThreaded::ScheduleTask(bool sync, int delayMs, const KRSchedulerTask &task) {
-    if (sync) {
-        task();
-    } else {
-        KRMainThread::RunOnMainThread(task, delayMs);
-    }
+void KRContextSchedulerSingleThreaded::ScheduleTask(int delayMs, const KRSchedulerTask &task) {
+    KRMainThread::RunOnMainThread(task, delayMs);
 }
 
 void KRContextSchedulerSingleThreaded::ScheduleTaskOnMainThread(bool sync, const KRSchedulerTask &task) {
@@ -263,8 +242,8 @@ std::shared_ptr<KRContextSchedulerInternal> KRContextScheduler::GetInstance() {
     return instance_;
 }
 
-void KRContextScheduler::ScheduleTask(bool sync, int delayMs, const KRSchedulerTask &task) {
-    GetInstance()->ScheduleTask(sync, delayMs, task);
+void KRContextScheduler::ScheduleTask(int delayMs, const KRSchedulerTask &task) {
+    GetInstance()->ScheduleTask(delayMs, task);
 }
 void KRContextScheduler::ScheduleTaskOnMainThread(bool sync, const KRSchedulerTask &task) {
     GetInstance()->ScheduleTaskOnMainThread(sync, task);

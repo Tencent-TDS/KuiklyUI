@@ -35,8 +35,7 @@ struct TimerContext {
 //   * 设计取舍：调用者在该窗口内不停 try_lock + yield 抢 m_taskMutex；
 //     超时后降级为 DispatchAsync，避免 caller 线程被 worker 长跑卡死。
 //   * 之所以是 100ms 而非更短：太短会让 caller 频繁错过 worker 短任务、转 async
-//     带来不必要的 latency 抖动；太长则在主线程上观感卡顿。100ms 是经验阈值。
-//   * 该常量也是 DispatchSync "静默降级" 的根因——见 KRThread.h 上的 deprecated 说明。
+//     带来不必要的 latency 抖动；太长则在主线程上观感卡顿。100ms 是经验阀值。
 constexpr auto kDirectRunFastFailWindow = std::chrono::milliseconds{100};
 
 }  // namespace
@@ -277,15 +276,6 @@ void KRThread::DispatchAsync(std::function<void()> task, int delayMilliseconds) 
         m_pending.push(std::move(task));
     }
     uv_async_send(&m_async);
-}
-
-// 详见 KRThread.h 上的 [[deprecated]] 说明：
-//   - 当前 cpp 侧死代码（唯一 caller 在 KRContextScheduler.cpp 的 sync=true 分支，
-//     而其上层全部传 false）。保留实现仅为不破坏接口形状。
-//   - 实现等价于 DirectRunOnCurThread，会在 100ms 拿不到 m_taskMutex 时静默降级为
-//     DispatchAsync，并非"真同步"。未来若激活应先重做语义。
-void KRThread::DispatchSync(const std::function<void()> &task) {
-    DirectRunOnCurThread(task);
 }
 
 void KRThread::DirectRunOnCurThread(const std::function<void()> &task) {

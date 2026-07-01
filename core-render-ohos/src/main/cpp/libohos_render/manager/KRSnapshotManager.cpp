@@ -141,7 +141,7 @@ struct KRSnapshotManager::ResultData KRSnapshotManager::ProcessSnapshotResultWit
 void KRSnapshotManager::UpdateCachedSnapshotUriAfterDelay(int delayMS, const std::string &key,
                                                           const std::string &path, const std::string &pathUri,
                                                           std::weak_ptr<IKRRenderViewExport> weak_view) {
-    KRContextScheduler::ScheduleTask(false, delayMS, [delayMS, weak_view, path, pathUri, key]() {
+    KRContextScheduler::ScheduleTask(delayMS, [delayMS, weak_view, path, pathUri, key]() {
         if (access(path.c_str(), F_OK) == 0) {
             KRContextScheduler::ScheduleTaskOnMainThread(false, [weak_view, pathUri, key] {
                 if (auto strong_view = weak_view.lock()) {

@@ -99,7 +99,7 @@ void KRUIScheduler::SetNeedSyncMainQuequeTasks() {
                 scheduler->RunMainQueueTasks(mainTasks);
             });
         };
-        KRContextScheduler::ScheduleTask(false, 0, [weakSelf] { 
+    KRContextScheduler::ScheduleTask(0, [weakSelf] {
             auto strongSelf = weakSelf.lock();
             if (!strongSelf) {
                 return;

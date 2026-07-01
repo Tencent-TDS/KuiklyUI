@@ -50,7 +50,7 @@ int com_tencent_kuikly_SetCallKotlin(CallKotlin callKotlin) {
 
 void com_tencent_kuikly_ScheduleContextTask(const char *pagerId, void (*onSchedule)(const char *pagerId)) {
     KRContextScheduler::ScheduleTask(
-        false, 0, [instanceId = std::string(pagerId), onSchedule]() { onSchedule(instanceId.c_str()); });
+        0, [instanceId = std::string(pagerId), onSchedule]() { onSchedule(instanceId.c_str()); });
 }
 
 bool com_tencent_kuikly_IsCurrentOnContextThread(const char *pagerId) {
@@ -67,9 +67,9 @@ static constexpr int kSyncCallbackMask = 1;
  */
 static constexpr int kCallbackKeepAliveMask = 2;
 
-/** 任务在context线程中执行 */
-static void PerformTaskOnContextQueue(bool isSync, int delayMs, const KRSchedulerTask &task) {
-    KRContextScheduler::ScheduleTask(isSync, delayMs, task);
+/** 任务在context线程中异步执行 */
+static void PerformTaskOnContextQueue(int delayMs, const KRSchedulerTask &task) {
+    KRContextScheduler::ScheduleTask(delayMs, task);
 }
 
 KRRenderCore::KRRenderCore(std::weak_ptr<IKRRenderView> renderView, std::shared_ptr<KRRenderContextParams> context)
@@ -174,7 +174,7 @@ void KRRenderCore::WillDealloc(const std::string &instanceId) {
     renderLayerHandler_->WillDestroy();
     auto self = shared_from_this();
     std::string id = instanceId;
-    PerformTaskOnContextQueue(false, 0, [self, id] {
+        PerformTaskOnContextQueue(0, [self, id] {
         auto nullValue = self->defaultNullValue_;
         self->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodDestroyInstance, nullValue, nullValue,
                                nullValue, nullValue, nullValue);
@@ -308,7 +308,7 @@ KRAnyValue KRRenderCore::PerformNativeCallback(const KuiklyRenderNativeMethod &m
             std::weak_ptr<KRRenderCore> weakSelf = shared_from_this();
             callback = [weakSelf, arg4](KRAnyValue res) {
                 if (auto locked = weakSelf.lock()) {
-                    PerformTaskOnContextQueue(false, 0, [weakSelf, arg4, res] {
+                    PerformTaskOnContextQueue(0, [weakSelf, arg4, res] {
                         if (auto locked = weakSelf.lock()) {
                             locked->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodFireCallback, arg4,
                                                      res, locked->defaultNullValue_, locked->defaultNullValue_,
@@ -330,7 +330,7 @@ KRAnyValue KRRenderCore::PerformNativeCallback(const KuiklyRenderNativeMethod &m
             std::weak_ptr<KRRenderCore> weakSelf = shared_from_this();
             callback = [weakSelf, arg4](KRAnyValue res) {
                 if (auto locked = weakSelf.lock()) {
-                    PerformTaskOnContextQueue(false, 0, [weakSelf, arg4, res] {
+                    PerformTaskOnContextQueue(0, [weakSelf, arg4, res] {
                         if (auto locked = weakSelf.lock()) {
                             locked->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodFireCallback, arg4,
                                                      res, locked->defaultNullValue_, locked->defaultNullValue_,
@@ -377,7 +377,7 @@ KRAnyValue KRRenderCore::PerformNativeCallback(const KuiklyRenderNativeMethod &m
     }
     case KuiklyRenderNativeMethod::KuiklyRenderNativeMethodSetTimeout: {
         std::weak_ptr<KRRenderCore> weakSelf = shared_from_this();
-        PerformTaskOnContextQueue(false, arg1->toInt() > 0 ? arg1->toInt() : 1, [weakSelf, arg2] {
+        PerformTaskOnContextQueue(arg1->toInt() > 0 ? arg1->toInt() : 1, [weakSelf, arg2] {
             if (auto lock = weakSelf.lock()) {
                 auto nullValue = lock->defaultNullValue_;
                 lock->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodFireCallback, arg2, nullValue,

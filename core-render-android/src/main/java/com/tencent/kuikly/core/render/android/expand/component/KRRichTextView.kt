@@ -161,30 +161,24 @@ class KRRichTextView(context: Context) : KRView(context), KRRichTextViewDrawer.C
     }
 
     private fun createRichTextClickCallbackParams(result: Any?): Map<String, Any> {
-        val map = result as Map<String, Any>
-        return createRichTextEventCallbackParams(map, findSpanIndex(map))
+        val map = result as MutableMap<String, Any>
+        map["index"] = findSpanIndex(map)
+        return map
     }
 
     private fun createRichTextLongPressCallbackParams(result: Any?): Map<String, Any> {
-        val map = result as Map<String, Any>
+        val map = result as MutableMap<String, Any>
         val state = map[KRCSSGestureListener.EVENT_STATE] as? String
         val spanIndex = if (state == KRCSSGestureListener.EVENT_STATE_START) {
             resolveLongPressSpanIndex(map)
         } else {
             activeLongPressSpanIndex
         }
-        val resultMap = createRichTextEventCallbackParams(map, spanIndex)
+        map["index"] = spanIndex
         if (state == KRCSSGestureListener.EVENT_STATE_END) {
             clearActiveLongPressSpanIndex()
         }
-        return resultMap
-    }
-
-    private fun createRichTextEventCallbackParams(map: Map<String, Any>, spanIndex: Int): Map<String, Any> {
-        val resultMap = mutableMapOf<String, Any>()
-        resultMap.putAll(map)
-        resultMap["index"] = spanIndex
-        return resultMap
+        return map
     }
 
     private fun resolveLongPressSpanIndex(map: Map<String, Any>): Int {

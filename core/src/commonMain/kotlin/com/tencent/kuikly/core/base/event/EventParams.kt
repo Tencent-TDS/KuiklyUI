@@ -108,21 +108,19 @@ data class LongPressParams(
     val pageX: Float, // 触摸点在根视图Page下的坐标X
     val pageY: Float, // 触摸点在根视图Page下的坐标Y
     val state: String, // "start" | "move" | "end"
-    val isCancel: Boolean
+    val isCancel: Boolean,
+    val params: Any? = null
 ) {
-    var params: Any? = null
 
+    @Deprecated("use constructor with params", level = DeprecationLevel.HIDDEN)
     constructor(
         x: Float,
         y: Float,
         pageX: Float,
         pageY: Float,
         state: String,
-        isCancel: Boolean,
-        params: Any?
-    ) : this(x, y, pageX, pageY, state, isCancel) {
-        this.params = params
-    }
+        isCancel: Boolean
+    ) : this(x, y, pageX, pageY, state, isCancel, null)
 
     companion object {
         fun decode(params: Any?): LongPressParams {

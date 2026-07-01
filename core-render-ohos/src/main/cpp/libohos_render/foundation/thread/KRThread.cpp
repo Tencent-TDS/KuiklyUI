@@ -220,7 +220,15 @@ void KRThread::StartTimerInLoop(std::function<void()> task, int delayMs) {
         delete timer;
         return;
     }
-    uv_timer_start(timer, &KRThread::TimerCb, static_cast<uint64_t>(delayMs), 0);
+    ret = uv_timer_start(timer, &KRThread::TimerCb, static_cast<uint64_t>(delayMs), 0);
+    if (ret != 0) {
+        // 与 uv_timer_init 失败对称：uv_timer_start 失败意味着 timer 未启动，
+        // TimerCb 不会触发，若不清理会造成 TimerContext + timer 堆内存泄漏。
+        // 注意 uv_timer_init 已成功，此时 timer 已挂到 loop 上，必须走 uv_close
+        // 让 loop 释放句柄，close_cb 里再回收 ctx / timer 内存（复用 TimerCloseCb）。
+        KR_LOG_ERROR << "KRThread uv_timer_start failed: " << ret << "; drop task to avoid leak.";
+        uv_close(reinterpret_cast<uv_handle_t *>(timer), &KRThread::TimerCloseCb);
+    }
 }
 
 void KRThread::TimerCb(uv_timer_t *handle) {

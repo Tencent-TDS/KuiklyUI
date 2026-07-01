@@ -68,7 +68,7 @@ void StartTimerOnMainThread(std::function<void()> task, int delayMs) {
         delete timer;
         return;
     }
-    uv_timer_start(
+    ret = uv_timer_start(
         timer,
         [](uv_timer_t *handle) {
             auto *fn = static_cast<std::function<void()> *>(handle->data);
@@ -85,6 +85,20 @@ void StartTimerOnMainThread(std::function<void()> task, int delayMs) {
             });
         },
         static_cast<uint64_t>(delayMs), 0);
+    if (ret != 0) {
+        // 与 uv_timer_init 失败对称：uv_timer_start 失败意味着 timer 未启动，
+        // 回调不会触发，若不清理会造成 holder + timer 堆内存泄漏。
+        // 注意 uv_timer_init 已成功，此时 timer 已挂到 loop 上，必须走 uv_close
+        // 让 loop 释放句柄，close_cb 里再回收 holder / timer 内存。
+        KR_LOG_ERROR << "KRMainThread::StartTimerOnMainThread uv_timer_start failed, ret=" << ret
+                     << "; drop task to avoid leak.";
+        uv_close(reinterpret_cast<uv_handle_t *>(timer), [](uv_handle_t *h) {
+            auto *t = reinterpret_cast<uv_timer_t *>(h);
+            auto *fn = static_cast<std::function<void()> *>(t->data);
+            delete fn;
+            delete t;
+        });
+    }
 }
 
 // 主线程 uv_async 回调：把队列里所有任务取出，根据 delay 决定立即执行还是注册 uv_timer。

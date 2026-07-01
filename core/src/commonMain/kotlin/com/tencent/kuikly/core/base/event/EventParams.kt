@@ -110,6 +110,20 @@ data class LongPressParams(
     val state: String, // "start" | "move" | "end"
     val isCancel: Boolean
 ) {
+    var params: Any? = null
+
+    constructor(
+        x: Float,
+        y: Float,
+        pageX: Float,
+        pageY: Float,
+        state: String,
+        isCancel: Boolean,
+        params: Any?
+    ) : this(x, y, pageX, pageY, state, isCancel) {
+        this.params = params
+    }
+
     companion object {
         fun decode(params: Any?): LongPressParams {
             val tempParams = params as? JSONObject ?: JSONObject()
@@ -119,7 +133,7 @@ data class LongPressParams(
             val pageY = tempParams.optDouble("pageY").toFloat()
             val state = tempParams.optString("state")
             val isCancel = tempParams.optBoolean("isCancel")
-            return LongPressParams(x, y, pageX, pageY, state, isCancel)
+            return LongPressParams(x, y, pageX, pageY, state, isCancel, params)
         }
     }
     inline val isStart get() = state == "start"

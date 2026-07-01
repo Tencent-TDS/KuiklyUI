@@ -194,3 +194,74 @@ internal class TestPage : BasePager() {
 ## 事件
 
 支持[Text组件的所有事件](text.md#事件)
+
+### Span click事件
+
+`RichText` 中的 `Span` / `ImageSpan` 支持单独注册 `click` 事件。命中可点击的 span 时，会优先回调该 span 的 `click`；如果当前触点未命中任何注册了 `click` 的 span，则会回退到 `RichText.click`。
+
+`click` 回调参数为 `ClickParams`，字段说明可参考[通用事件文档](basic-attr-event.md)。
+
+
+### Span longPress事件
+
+:::tip 版本说明
+`Span.longPress` 从 **2.22.0** 开始支持。
+:::
+
+`RichText` 中的 `Span` / `ImageSpan` 支持单独注册 `longPress` 事件。命中可长按的 span 时，会优先回调该 span 的 `longPress`；如果当前触点未命中任何注册了 `longPress` 的 span，则会回退到 `RichText.longPress`。
+
+`longPress` 回调参数为 `LongPressParams`，字段说明可参考[通用事件文档](basic-attr-event.md)。
+
+:::tabs
+
+@tab:active 示例
+
+```kotlin{18-24,30-33,38-41}
+@Page("demo_page")
+internal class TestPage : BasePager() {
+    override fun body(): ViewBuilder {
+        val ctx = this
+        return {
+            RichText {
+                attr {
+                    fontSize(18f)
+                    lineHeight(28f)
+                }
+                event {
+                    longPress {
+                        ctx.toast("RichText longPress state=${it.state}")
+                    }
+                    click {
+                        ctx.toast("RichText click")
+                    }
+                }
+                Span {
+                    text("普通文本区域，长按这里会回退到 RichText.longPress；")
+                    color(Color(0xFF666666))
+                }
+                Span {
+                    text("长按我触发蓝色 span")
+                    color(Color(0xFF2F80ED))
+                    fontWeightBold()
+                    longPress {
+                        ctx.toast("蓝色 span longPress state=${it.state}")
+                    }
+                }
+                Span {
+                    text("，然后轻微移动仍应锁定原 span；")
+                    color(Color(0xFF666666))
+                }
+                ImageSpan {
+                    size(40f, 40f)
+                    src("https://vfiles.gtimg.cn/wuji_dashboard/xy/starter/8d0813ca.png")
+                    longPress {
+                        ctx.toast("image span longPress state=${it.state}")
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+:::

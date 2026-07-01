@@ -167,6 +167,64 @@ if (m_isExecutingTask.load() && IsCurrentThreadWorkerThread()) {
 | `m_isExecutingTask` | `std::atomic<bool>` | **worker 处于 task 执行栈中**的提示位，仅供 worker 自己识别"task 体内嵌套提交同步任务"的重入场景，让其直接执行避开自死锁 | worker | **不能**作为跨线程同步条件 |
 | `m_syncMainTaskMutex` + `m_sync_main_task_locked` | `std::mutex` 保护 `bool` | **跨线程标志位**：由 `KRContextScheduler` 在主线程同步逻辑中举旗/落旗，`DirectRunOnCurThread` 观察它决定是否让步 | `KRContextScheduler` 主线程同步流程 | 标志位（非锁） |
 
+### 4.1 为什么 `m_taskMutex` 不用 `std::recursive_mutex`
+
+> 状态：✅ 已评审、结论：维持 `std::mutex`。历史提议保留于此，避免后续 review 反复回旋。
+
+曾有提议把 `m_taskMutex` 换成 `std::recursive_mutex` 以"支持重入"。**驳回**，理由如下：
+
+#### 4.1.1 调用面盘点：不存在重入需求
+
+`m_taskMutex` 全仓仅两个 lock 点：
+
+| # | lock 点 | 持锁线程 | 说明 |
+|---|---|---|---|
+| A | `KRThread::OnAsync()` 阶段 2（[KRThread.cpp](../../src/main/cpp/libohos_render/foundation/thread/KRThread.cpp) `lock_guard<std::mutex> taskLock(m_taskMutex)`） | worker | libuv 单线程串行调 `AsyncCb`，同一 worker 线程不可能嵌套进入 `OnAsync` |
+| B | `KRThread::DirectRunOnCurThread()`（`unique_lock` + `try_to_lock`） | 任意调用线程 | 全仓唯一入口 [`KRContextScheduler.cpp` L76 `GetContextThread()->DirectRunOnCurThread(...)`](../../src/main/cpp/libohos_render/scheduler/KRContextScheduler.cpp) |
+
+同线程重入的唯一现实场景是"worker 在 A 持锁期间跑 task 体，task 里再对**同一 KRThread** 调 `DirectRunOnCurThread`"。这个场景已被 §3.3 的 `m_isExecutingTask + IsCurrentThreadWorkerThread()` 短路直接拦截，**根本不会走到 lock 语句**。故当前实现里 `m_taskMutex` 永不被同线程重复 lock，`std::mutex` 完全够用。
+
+#### 4.1.2 换 recursive 的三个具体坏处
+
+**（1）破坏"执行权唯一"的核心不变式（§6 不变量 1）**
+
+`m_taskMutex` 的语义是"kuikly context 任务执行权令牌，任意时刻只允许一个线程持有"。换成 `recursive_mutex` 后语义静默退化为"任意时刻只允许一个**层次序列**持有"——外部观察者无法再区分"同一个 task 在跑"还是"两个逻辑上并列的 task 在跑"。一旦有人不慎在 A/B 内部又加一段 `lock_guard<std::mutex>` 兜底（比如新增内部辅助函数），bug 会被 `recursive_mutex` **静默吞掉**、不会在测试里暴露，但令牌不变式已破。
+
+**（2）让 §3.3 短路不变式失效**
+
+现在的短路逻辑依赖强前提："同线程再次进入 lock 点是 bug 信号，必须显式短路避免它"。正因如此，`m_isExecutingTask` 的 `store(true)` / `store(false)` 才必须与 lock 严格嵌套配对——它是防死锁的最后一道闸门。换 recursive 后：
+
+- 有人可能会想"recursive 反正不死锁了，`m_isExecutingTask` 是否可简化 / 删除？"——一旦删除，§6 不变量 3（跨线程不可走快路径）就悄然失守；
+- 更糟：递归重入进 lock 后 `m_isExecutingTask.store(true)` → 内层退出 `store(false)` → 但外层还没退出，flag 被提前打回 false，**外部线程读到的信号完全错乱**。
+
+**（3）无谓的性能与复杂度成本**
+
+`recursive_mutex` 在 glibc / musl / bionic 上都是"普通 mutex + owner tid + 计数"的组合，每次 lock/unlock 都要 tid 比对与计数增减，锁对象也更大。当前调用面无一处需要重入——为不存在的需求付性能税，是纯粹的负收益。
+
+#### 4.1.3 何时才应该考虑 recursive_mutex
+
+以下三个信号**同时满足**才应该换（当前一个都不满足）：
+
+1. 同线程重入是**正常业务路径**（不是 bug 信号），例如递归深度不确定的持锁函数递归调自己；
+2. **无法**用"短路 + 线程 owner 判定"消除重入——即必须在持锁期间调一个可能又要 lock 同一把锁的 API，且该 API 不可拆分；
+3. **不需要**"锁计数 = 逻辑临界区数"的精确不变式（一旦锁保护的是"逻辑上的一次性令牌"就不能用 recursive，因为它允许同线程多次持有，令牌不再唯一）。
+
+#### 4.1.4 更正的做法：加 debug 断言
+
+比 recursive_mutex 更**正**的加固是把"同线程重入 lock"这个 bug 信号**大声报出来**而不是吞掉。可选加固（未落地，评估后按需引入）：
+
+```cpp
+// OnAsync 阶段 2 的 lock 之前
+#ifndef NDEBUG
+    // m_taskMutex 是执行权令牌，不允许同线程重入 lock；
+    // 若断言触发，说明有代码绕过了 m_isExecutingTask 短路。
+    assert(!(m_isExecutingTask.load() && IsCurrentThreadWorkerThread())
+           && "KRThread::OnAsync re-entered task lock; check m_isExecutingTask short-circuit path.");
+#endif
+```
+
+Release build 零成本（NDEBUG 编译期消除），Debug build 一旦短路不变式被破坏立即 abort 到第一现场。
+
 ---
 
 ## 5. 改前 vs 改后

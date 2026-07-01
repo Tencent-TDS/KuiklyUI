@@ -129,6 +129,8 @@ class KRThread {
     // 持有者就是当前正在跑 task 体的线程——可能是 worker 线程（OnAsync batch 模式），
     // 也可能是任意调用线程（DirectRunOnCurThread 借位模式）。
     // 不可递归——同线程嵌套调用靠 m_isExecutingTask + 线程比对短路规避。
+    // 决策记录：为什么不用 std::recursive_mutex，见
+    // docs/design/krthread-task-mutex.md §4.1。
     std::mutex m_taskMutex;
     // m_isExecutingTask：标记 worker 线程当前是否正处于 task 体执行栈中。
     // 仅用于在 worker 线程内部识别"task 体内嵌套提交同步任务"的重入场景，

@@ -228,19 +228,29 @@ void KRThread::TimerCb(uv_timer_t *handle) {
     // 走 OnAsync 的 m_taskMutex 保护路径，保留与 DirectRunOnCurThread 的互斥语义。
     auto *self = static_cast<KRThread *>(uv_loop_get_data(handle->loop));
     auto *ctx = static_cast<TimerContext *>(handle->data);
-    if (ctx != nullptr && ctx->exec) {
-        if (self != nullptr) {
-            {
-                std::lock_guard<std::mutex> lock(self->m_queueMutex);
-                self->m_pending.push(std::move(ctx->exec));
-            }
-            uv_async_send(&self->m_async);
-        } else {
-            // 极端 fallback：loop->data 未设置，直接跳。
-            // 异常逃到 libuv 回调外部行为未定义（uv_run 对回调抛异常无定义），
-            // 同样 fail-fast。
-            RunWithFatalGuard("KRThread.TimerCb.fallback", ctx->exec);
+    if (self != nullptr && ctx != nullptr && ctx->exec) {
+        {
+            std::lock_guard<std::mutex> lock(self->m_queueMutex);
+            self->m_pending.push(std::move(ctx->exec));
         }
+        uv_async_send(&self->m_async);
+    } else if (self == nullptr) {
+        // self == nullptr 只可能来自内存踩踏 / UAF 冲掉 loop->data，
+        // 或对象生命周期已损坏；此时任何 KRThread 状态（worker 线程身份、
+        // m_taskMutex、m_pending 等不变式）都不可信。
+        //
+        // 绝不能在此裸跑 ctx->exec：正常路径 task 必须在 worker 线程且受
+        // m_taskMutex 保护执行，fallback 直接调用会绕开互斥语义、并可能与
+        // 正在借位执行的 DirectRunOnCurThread 并发踩踏 kuikly 上下文。
+        // RunWithFatalGuard 只挡异常，不挡数据竞争 —— 这里选择丢弃任务。
+        //
+        // 双层策略（与 OnAsync 未知句柄分支保持一致）：
+        //   * debug：assert(false) 让状态损坏第一时间暴露到崩溃栈；
+        //   * release：assert 被吃掉后走 log + drop task + 关闭 timer 保底，
+        //     换宿主进程存活，避免因低频/损坏路径 abort 掉整个进程。
+        KR_LOG_ERROR << "KRThread::TimerCb loop data is null, drop task; "
+                        "loop->data was corrupted or KRThread lifecycle broken.";
+        assert(false && "KRThread::TimerCb loop->data is null");
     }
     uv_timer_stop(handle);
     uv_close(reinterpret_cast<uv_handle_t *>(handle), &KRThread::TimerCloseCb);

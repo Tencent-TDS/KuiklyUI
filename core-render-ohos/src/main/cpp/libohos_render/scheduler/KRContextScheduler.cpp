@@ -15,6 +15,7 @@
 
 #include "libohos_render/scheduler/KRContextScheduler.h"
 
+#include <assert.h>
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
@@ -153,21 +154,28 @@ void KRContextSchedulerMultiThreaded::ScheduleTaskOnMainThread(bool sync, const 
                 //   - ToCallArkTSMethod / SyncCallArkTSMethod / KRForwardArkTSModule 都不接异常，
                 //   - 一路冒到 napi C ABI 边界被 KRRenderCore.ABI.CallNative 的
                 //     RunWithFatalGuard 接住 → std::abort()。
-                // 所以这里直接 abort 代码意图更明确，且避免栈 unwind 让 coredump 现场失真；
-                // 也不会让 caller 误以为“这个 throw 可以 catch”这种 API 双重含义陯阱。
+                // 所以这里直接走 __assert_fail 让 coredump 直接携带 file:line:func，
+                // 避免栈 unwind 现场失真；也不会让 caller 误以为“这个 throw 可以 catch”
+                // 这种 API 双重含义陷阱。裸调 __assert_fail（而非 assert 宏）确保 release
+                // 也一定触发，与 KRThreadChecker.cpp 现有用法一致。
                 KR_LOG_ERROR << "ScheduleTaskOnMainThread(sync, worker) wait timeout (>5s), "
                                 "possible main<->worker deadlock; aborting to preserve crash context";
-                std::abort();
+                __assert_fail("ScheduleTaskOnMainThread(sync, worker) wait timeout (>5s), "
+                              "possible main<->worker deadlock",
+                              __FILE__, __LINE__, __func__);
             }
             doneFuture.get();  // 正常返回 / rethrow 主线程异常 / broken_promise
             return;
         }
-        // 既不是主线程也不是 worker 线程：按设计这条路径不应该出现。
-        // 与其默默走"投递回主线程同步等"的慢路径掩盖问题，不如立即 abort，
-        // 让调用方在第一现场暴露错误的线程模型假设（core dump 里能直接看到调用栈）。
+        // 既不是主线程也不是 worker 线程：按设计这条路径不应该出现（契约违反）。
+        // 与其默默走"投递回主线程同步等"的慢路径掩盖问题，不如立即 __assert_fail，
+        // 让调用方在第一现场暴露错误的线程模型假设（core dump 里能直接看到调用栈，
+        // 并携带 file:line:func 元数据）。
         KR_LOG_ERROR << "ScheduleTaskOnMainThread(sync) called from unexpected thread "
                         "(neither main nor kuikly worker); aborting to expose caller bug";
-        std::abort();
+        __assert_fail("ScheduleTaskOnMainThread(sync) called from unexpected thread "
+                      "(neither main nor kuikly worker)",
+                      __FILE__, __LINE__, __func__);
     }
 
     // async 分支：
@@ -181,10 +189,13 @@ void KRContextSchedulerMultiThreaded::ScheduleTaskOnMainThread(bool sync, const 
         KRMainThread::RunOnMainThread(task);
         return;
     }
-    // 与 sync 分支一致：第三方线程不应调用本接口，立即 abort 暴露 caller 的线程模型 bug。
+    // 与 sync 分支一致：第三方线程不应调用本接口（契约违反），
+    // 立即 __assert_fail 暴露 caller 的线程模型 bug。
     KR_LOG_ERROR << "ScheduleTaskOnMainThread(async) called from unexpected thread "
                     "(neither main nor kuikly worker); aborting to expose caller bug";
-    std::abort();
+    __assert_fail("ScheduleTaskOnMainThread(async) called from unexpected thread "
+                  "(neither main nor kuikly worker)",
+                  __FILE__, __LINE__, __func__);
 }
 
 bool KRContextSchedulerMultiThreaded::IsCurrentOnContextThread() {

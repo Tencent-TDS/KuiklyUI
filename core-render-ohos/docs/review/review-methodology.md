@@ -212,4 +212,41 @@
   - [src/main/cpp/libohos_render/foundation/thread/KRThread.h](../../src/main/cpp/libohos_render/foundation/thread/KRThread.h)
   - [src/main/cpp/libohos_render/foundation/thread/KRThread.cpp](../../src/main/cpp/libohos_render/foundation/thread/KRThread.cpp)
 * 回滚后状态：与 P0 修复前完全等价；`read_lints` 0 错误。
-* 留作未来线索的事实：`KRContextScheduler::ScheduleTask(bool sync, ...)` 是公开 API，但 cpp 端目前无 sync=true 调用。如未来 Kotlin sync callback 需经此路径，再按本文 §2.5 P0/P1 流程重新评估并实施真同步语义化。
+
+## 七、后续调用面审计的沉淀
+
+### 7.1 已落地：`ScheduleTask(bool sync, ...)` 与 `KRThread::DispatchSync` 一并删除
+
+* 触发问题：`DispatchSync` 在全仓的唯一 caller 是 `ScheduleTask` 的 sync=true 分支；`ScheduleTask` 的 sync 参数在全仓 caller（5 个直调 + 4 个 `PerformTaskOnContextQueue` 透传）**全部字面量 `false`**——全链死路径。
+* 落地 commit：`refactor(scheduler): drop unused sync param and remove KRThread::DispatchSync`。
+* 处理策略：两个改动**耦合编译依赖**（`DispatchSync` 一旦删除，其唯一 caller 的 sync=true 分支即无法编译），合并为一个原子 commit。
+* 收敛结果：
+  - `KRContextScheduler::ScheduleTask(int delayMs, task)` — sync 参数彻底移除
+  - `Multi` 版实现塌缩为单行 `DispatchAsync`
+  - `Single` 版实现塌缩为单行 `RunOnMainThread`
+  - 6 个 caller 的 `false, ` 字面量清除
+  - `KRThread::DispatchSync` 完全删除
+
+### 7.2 已审计但**故意不动**：`DirectRunOnMainThread(bool isSync, ...)`
+
+**这是一个"看起来像 §7.1，实际完全相反"的反例，务必对照阅读**。
+
+* 相似之处：签名同样是 `bool + 任务闭包`，位于同一个类 `KRContextScheduler`。
+* 关键差异：调用面全部为**活变量传参**，且每个变量都能在生产路径上取到 `true`。
+
+调用面盘点表：
+
+| Caller | 位置 | isSync 来源 | isSync 是否可为 true |
+|---|---|---|---|
+| `KRRenderCore::DidInit` | KRRenderCore.cpp | `KRRenderNativeMode::IsContextSyncInit()` → 常量 `true` | ✅ **恒为 true**（唯一 impl） |
+| `KRRenderCore::SendEvent` | KRRenderCore.cpp | `IKRRenderView::syncSendEvent(event)` → `event=="onBackPressed"` 时为 `true` | ✅ **返回键场景为 true** |
+| `KRRenderCore::onCallNative` (SetViewProp 事件回调) | KRRenderCore.cpp | Kotlin 侧掩码 `arg5 & kSyncCallbackMask` | ✅ **同步事件回调场景为 true** |
+
+* 每处 `sync=true` 都对应**明确的业务语义**，删除会引入**真实回归**：
+  - `DidInit` — Native 模式下 context 必须同步初始化，避免首屏时序问题
+  - `SendEvent("onBackPressed")` — 返回键必须同步派发，否则可能被后续导航覆盖
+  - 同步事件回调 — 某些手势/表单事件需同步返回结果给 Kotlin 侧
+* **结论**：按本文 §1.2 与 §2.2 规则，`isSync` 是**正常的活参数**，不构成任何简化候选，本次审计**不改任何代码**。
+* **教训**：签名相似 ≠ 语义相似。判死代码的**唯一依据**是"最初常量来源全为 false/未触达"，绝不能停在"看起来像"或者"我记得没人用 sync=true"层面。
+
+

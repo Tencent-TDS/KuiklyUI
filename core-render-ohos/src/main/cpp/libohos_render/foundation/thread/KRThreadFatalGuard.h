@@ -54,33 +54,51 @@ inline std::string CurrentExceptionTypeName() {
     return std::string(mangled);
 }
 
-// 统一的"调度边界 fail-fast"语义：
+// 统一的"调度边界 fail-forward"语义（catch → 日志 → rethrow）：
 //   * 所有跨线程/跨语言（C++ ↔ ArkTS / libuv 回调 / std::thread 入口）的"task 执行"
 //     调度边界都应该用这个 guard 包裹。
-//   * 设计动机：libuv 回调里抛 C++ 异常会越过 C 帧 → UB；std::thread 入口异常逃出
-//     直接 std::terminate()，coredump 通常被 unwind 干净；napi C ABI 入口同理。
-//     这些位置任何"放任异常逃出"的写法都会让现场不可读。
-//   * 行为：catch 全部 → 打 KR_LOG_ERROR（含调用点 tag 与 e.what()）→ std::abort()。
+//   * 设计动机：
+//       - libuv 回调 / std::thread 入口 / napi C ABI 里放任 C++ 异常自然逃出会 UB
+//         或 std::terminate 无 unwind，crash 现场不可读；
+//       - 但**直接 abort()** 会抢在 K/N runtime 的 unhandled-exception hook 之前，
+//         吞掉 Kotlin 侧真正有价值的 Throwable class / message / Kotlin 栈；
+//       - 折中方案：先在 catch 里打完整诊断日志（tag + demangled 类型名 + e.what()），
+//         再 `throw;` 让异常继续 unwind。unwind 一路到 `std::terminate()`
+//         等价于 `std::abort()`，但 K/N runtime 挂在那条路径上的 unhandled hook
+//         有机会先跑并打出 Kotlin 栈；同时 RAII 会正常展开，避免 mutex/标志位残留。
+//   * 行为：
+//       1. `try { task(); }` 正常路径直通；
+//       2. `catch (std::exception&)` / `catch (...)`：打 KR_LOG_ERROR
+//          （含 tag、demangled type、e.what()），然后 `throw;` 继续 unwind；
+//       3. 异常最终由 K/N unhandled hook 或 `std::terminate`（→ `abort`）终止进程。
+//   * 语义要点：
+//       - 保留 fail-fast 精神（进程一定终止），但把"终止方式"从 abort 改为 rethrow，
+//         把 abort 决策权让渡给运行时（K/N hook / std::terminate handler）；
+//       - `throw;` 沿用原始异常对象，不产生新异常，`std::current_exception()`
+//         语义保持不变；
+//       - 上层 caller 需要预期本函数**可能向外抛异常**，若上层想"吸收异常继续运行"
+//         必须自行套 catch —— 但当前工程约定就是 fail-fast，不建议这么做。
 //   * 适用点（截至本提交）：
 //       - KRThread: OnAsync.batch / TimerCb.fallback / DirectRunOnCurThread.{nested,borrow}
 //       - KRMainThread: MainAsync.batch / MainTimer.cb / Inline.same-thread / Inline.fallback
-//       - KRRenderCore: ABI.CallNative （napi 边界）
-//   * 如未来要做"可恢复"语义，需自上而下重新评估，不建议在本函数里加分支。
+//       - KRRenderCore: ABI.CallNative （napi C ABI 边界，异常在这里会被最外层
+//         由 catch 打 log + rethrow → std::terminate；由于这里已经是 napi ABI 边界，
+//         rethrow 后异常会到达 std::terminate，与 abort 等价，但保留了 K/N hook 触发窗口）
 template <typename F>
 inline void RunWithFatalGuard(const char *tag, F &&task) {
     try {
         std::forward<F>(task)();
     } catch (const std::exception &e) {
-        KR_LOG_ERROR << "[" << tag << "] uncaught std::exception in task"
+        KR_LOG_ERROR << "[" << tag << "] std::exception at dispatch boundary"
                      << " (type=" << CurrentExceptionTypeName() << ")"
                      << ": " << e.what()
-                     << "; aborting to preserve crash context.";
-        std::abort();
+                     << "; rethrowing to let K/N unhandled-exception hook run.";
+        throw;
     } catch (...) {
-        KR_LOG_ERROR << "[" << tag << "] uncaught non-std exception in task"
+        KR_LOG_ERROR << "[" << tag << "] non-std exception at dispatch boundary"
                      << " (type=" << CurrentExceptionTypeName() << ")"
-                     << "; aborting to preserve crash context.";
-        std::abort();
+                     << "; rethrowing to let K/N unhandled-exception hook run.";
+        throw;
     }
 }
 

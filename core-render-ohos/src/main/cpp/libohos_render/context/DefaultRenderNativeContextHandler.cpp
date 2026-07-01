@@ -32,10 +32,18 @@ void DefaultRenderNativeContextHandler::CallKotlinMethod(const KuiklyRenderConte
         __assert_fail("Tips: make sure initKuikly() has been called!", __FILE__, __LINE__, __func__);
     }
     // Diagnostics-only wrapper around the Kotlin/Native call boundary.
-    // We do NOT swallow the exception: after logging (method id + type) we
-    // rethrow and let the outer KRThreadFatalGuard preserve crash context.
-    // Type-name demangling is delegated to kuikly::thread::CurrentExceptionTypeName
-    // to keep a single implementation across the codebase.
+    //
+    // 语义：与 KRThreadFatalGuard 一致的 fail-forward
+    //   * 在 catch 里补一条"哪个 method_id 抛的"诊断（这条信息在外层 fatal guard
+    //     里拿不到，故必须就近记录）；
+    //   * 立即 `throw;` 让原始异常继续 unwind：
+    //       - 保留 K/N runtime 的 unhandled-exception hook 触发窗口（hook 挂在
+    //         std::terminate 路径上，会先于最终 abort 打出完整 Kotlin 栈）；
+    //       - 上层 KRThread::DirectRunOnCurThread.{nested,borrow} 的
+    //         RunWithFatalGuard 会再打一层 tag + demangled 类型 + e.what() 后 rethrow，
+    //         最终 std::terminate → abort。
+    //   * 类型名 demangle 委托给 kuikly::thread::CurrentExceptionTypeName，
+    //     全仓单实现，避免遗漏 K/N 非 std::exception 派生类型。
     const int method_id = static_cast<int>(method);
     try {
         callKotlin_(method_id, arg0->toCValue(), arg1->toCValue(), arg2->toCValue(), arg3->toCValue(),

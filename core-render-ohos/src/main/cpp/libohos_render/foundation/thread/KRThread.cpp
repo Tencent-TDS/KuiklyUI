@@ -313,8 +313,13 @@ void KRThread::DirectRunOnCurThread(const std::function<void()> &task) {
     if (m_isExecutingTask.load() && IsCurrentThreadWorkerThread()) {
         // 仅当“当前就在 worker 的执行栈里（task 体内嵌套调用）”才允许直跑，
         // 避免外部线程在 worker 持锁跑批期间错误地“白嘍”执行权造成数据竞争。
-        // fail-fast：嵌套层抛异常若逃到外层 OnAsync.batch，外层 RunWithFatalGuard
-        // 同样会 abort，但在嵌套层就拦住可以让崩溃栈更接近现场。
+        //
+        // 异常语义（fail-forward）：由 RunWithFatalGuard 在 catch 里打完整
+        // 诊断日志（tag + demangled 类型 + e.what()）后 rethrow，让异常继续
+        // unwind，直至 K/N runtime 的 unhandled-exception hook（若有）先跑
+        // 打出 Kotlin 栈，最终 std::terminate → abort 终止进程。
+        // 这样既保留 fail-fast 精神，又不会像直接 abort 那样吞掉 K/N 的
+        // Kotlin 侧崩溃信息。
         RunWithFatalGuard("KRThread.DirectRunOnCurThread.nested", task);
         return;
     }
@@ -329,13 +334,20 @@ void KRThread::DirectRunOnCurThread(const std::function<void()> &task) {
         }
         std::unique_lock<std::mutex> taskLock(m_taskMutex, std::try_to_lock);
         if (taskLock.owns_lock()) {
-            m_isExecutingTask.store(true);
-            // 借位执行 task：与 OnAsync.batch 一致，未捕获异常会让 m_isExecutingTask /
-            // m_taskMutex 处于不一致中间态，并可能在调用方线程引发 std::terminate；
-            // 这里 fail-fast，与上层 napi 边界 try-catch 行为对齐。
+            // 借位执行 task。异常语义与 nested 分支一致：RunWithFatalGuard 会
+            // 在 catch 里打诊断日志再 rethrow；rethrow 期间 unwind 会自动展开
+            // 下面的 ExecutingFlagGuard 与 taskLock（unique_lock），保证
+            // m_isExecutingTask / m_taskMutex 状态一致，不残留中间态。
+            //
+            // ExecutingFlagGuard 必须走 RAII：因为异常路径下手写的
+            // `m_isExecutingTask.store(false)` 会被跳过，导致标志位残留，
+            // 后续同线程调用会误入 nested 快路径。
+            struct ExecutingFlagGuard {
+                std::atomic<bool> &flag;
+                explicit ExecutingFlagGuard(std::atomic<bool> &f) : flag(f) { flag.store(true); }
+                ~ExecutingFlagGuard() { flag.store(false); }
+            } execFlagGuard(m_isExecutingTask);
             RunWithFatalGuard("KRThread.DirectRunOnCurThread.borrow", task);
-            m_isExecutingTask.store(false);
-            // taskLock 离开作用域自动释放
             didHandleTask = true;
             break;
         }

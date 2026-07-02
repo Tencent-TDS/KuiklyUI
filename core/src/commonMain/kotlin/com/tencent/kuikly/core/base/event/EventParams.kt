@@ -108,8 +108,20 @@ data class LongPressParams(
     val pageX: Float, // 触摸点在根视图Page下的坐标X
     val pageY: Float, // 触摸点在根视图Page下的坐标Y
     val state: String, // "start" | "move" | "end"
-    val isCancel: Boolean
+    val isCancel: Boolean,
+    val params: Any? = null
 ) {
+
+    @Deprecated("use constructor with params", level = DeprecationLevel.HIDDEN)
+    constructor(
+        x: Float,
+        y: Float,
+        pageX: Float,
+        pageY: Float,
+        state: String,
+        isCancel: Boolean
+    ) : this(x, y, pageX, pageY, state, isCancel, null)
+
     companion object {
         fun decode(params: Any?): LongPressParams {
             val tempParams = params as? JSONObject ?: JSONObject()
@@ -119,7 +131,7 @@ data class LongPressParams(
             val pageY = tempParams.optDouble("pageY").toFloat()
             val state = tempParams.optString("state")
             val isCancel = tempParams.optBoolean("isCancel")
-            return LongPressParams(x, y, pageX, pageY, state, isCancel)
+            return LongPressParams(x, y, pageX, pageY, state, isCancel, params)
         }
     }
     inline val isStart get() = state == "start"

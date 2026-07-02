@@ -29,12 +29,11 @@ class KRContextScheduler {
     };
 
     /**
-     * 调度任务到Context线程执行
-     * @param sync 是否同步执行
+     * 调度任务到Context线程异步执行
      * @param delayMs 延时毫秒，0为不延时
      * @param task 任务闭包
      */
-    static void ScheduleTask(bool sync, int delayMs, const KRSchedulerTask &task);
+    static void ScheduleTask(int delayMs, const KRSchedulerTask &task);
 
     /**
      * Context线程调度任务到主线程执行(注：该方法只能在主线程或Context线程被调用)

@@ -15,8 +15,10 @@
 
 #include "KRThreadChecker.h"
 
+#include <hilog/log.h>
 #include <unistd.h>
 #include "libohos_render/scheduler/KRContextScheduler.h"
+#include "libohos_render/utils/KRRenderLoger.h"
 
 namespace kuikly::util {
 

@@ -16,6 +16,7 @@
 #include "libohos_render/scheduler/KRUIScheduler.h"
 
 #include "libohos_render/scheduler/KRContextScheduler.h"
+#include "libohos_render/utils/KRRenderLoger.h"
 
 // should call on context线程
 void KRUIScheduler::AddTaskToMainQueueWithTask(const KRSchedulerTask &task) {
@@ -98,7 +99,7 @@ void KRUIScheduler::SetNeedSyncMainQuequeTasks() {
                 scheduler->RunMainQueueTasks(mainTasks);
             });
         };
-        KRContextScheduler::ScheduleTask(false, 0, [weakSelf] { 
+    KRContextScheduler::ScheduleTask(0, [weakSelf] {
             auto strongSelf = weakSelf.lock();
             if (!strongSelf) {
                 return;

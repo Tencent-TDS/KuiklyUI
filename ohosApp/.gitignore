@@ -12,3 +12,6 @@ entry/build
 /.appanalyzer
 /entry/libs/arm64-v8a/libshared.so
 /entry/src/main/cpp/thirdparty/biz_entry/libshared_api.h
+
+# Kotlin/Native LLDB helpers (auto-generated, do not commit)
+/.kuikly/

@@ -275,7 +275,7 @@ class KRCSSGestureListener(private val kuiklyContext: IKuiklyRenderContext?) : G
         const val EVENT_STATE = "state"
         private const val PAGE_X = "pageX"
         private const val PAGE_Y = "pageY"
-        internal const val EVENT_STATE_START = "start"
+        const val EVENT_STATE_START = "start"
         internal const val EVENT_STATE_MOVE = "move"
         internal const val EVENT_STATE_END = "end"
         internal const val IS_CANCEL = "isCancel"

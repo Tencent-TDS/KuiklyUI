@@ -369,6 +369,46 @@ internal class AlphaPage : BasePager() {
 
 是否允许组件可触摸交互
 
+### ohosViewHitTestMode方法<Badge text="仅鸿蒙支持" type="warn"/>
+设置 HarmonyOS 视图节点的触摸命中模式。
+
+HarmonyOS 会根据节点的 hit-test 行为决定当前节点、子节点、兄弟节点和祖先节点是否继续参与触摸测试，且同一时间允许多节点批量参与触摸测试，再依次触发事件。
+
+因此框架提供该 API 供业务显式控制当前 View 的命中策略。
+
+
+- `mode`（`String`）：命中模式，建议使用 `OhosViewHitTestMode.HIT_TEST_DEFAULT` / `HIT_TEST_BLOCK` / `HIT_TEST_TRANSPARENT` / `HIT_TEST_NONE` / `HIT_TEST_BLOCK_HIERARCHY` / `HIT_TEST_BLOCK_DESCENDANTS`。
+
+各常量含义如下：
+
+- `OhosViewHitTestMode.HIT_TEST_DEFAULT`（值 `default`）：默认触摸测试效果。自身及子节点响应触摸测试，但会阻塞兄弟节点的触摸测试，不影响祖先节点的触摸测试。
+- `OhosViewHitTestMode.HIT_TEST_BLOCK`（值 `block`）：自身响应触摸测试，阻塞子节点、兄弟节点和祖先节点的触摸测试。
+- `OhosViewHitTestMode.HIT_TEST_TRANSPARENT`（值 `transparent`）：自身和子节点均响应触摸测试，不会阻塞兄弟节点和祖先节点的触摸测试。
+- `OhosViewHitTestMode.HIT_TEST_NONE`（值 `none`）：自身不响应触摸测试，不会阻塞子节点、兄弟节点和祖先节点的触摸测试。
+- `OhosViewHitTestMode.HIT_TEST_BLOCK_HIERARCHY`（值 `block_hierarchy`，API 20+，仅 Stage 模型）：自身响应触摸测试，阻塞子节点和祖先节点的触摸测试，不影响兄弟节点的触摸测试。
+- `OhosViewHitTestMode.HIT_TEST_BLOCK_DESCENDANTS`（值 `block_descendants`，API 20+，仅 Stage 模型）：自身响应触摸测试，阻塞子节点的触摸测试，不影响兄弟节点和祖先节点的触摸测试。
+
+::::tip 注意
+- 仅 **鸿蒙** 生效，Android、iOS、Web、小程序会安全忽略
+- 普通 view（`KRView`）默认为 `default`，鸿蒙自定义view默 默认为 `transparent`；
+- HarmonyOS 的 `default` 语义会阻塞兄弟节点命中，这一点与 Android / iOS 常见的默认触摸行为并不完全一致；如果业务需要更接近“自身与子节点响应，但不阻塞兄弟节点”的效果，建议使用 `HIT_TEST_TRANSPARENT`
+::::
+
+:::: tabs
+
+@tab:active 示例
+
+```kotlin {8}
+View {
+    attr {
+        size(120f, 80f)
+        ohosViewHitTestMode(OhosViewHitTestMode.HIT_TEST_TRANSPARENT)
+    }
+}
+```
+
+::::
+
 ### transform方法
 
 设置组件的缩放scale，旋转rotate，位移translate，倾斜skew和transform动作的中心点anchor。transform方法参数对象为:

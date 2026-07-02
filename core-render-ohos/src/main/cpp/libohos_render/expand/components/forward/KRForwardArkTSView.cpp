@@ -16,6 +16,27 @@
 #include "libohos_render/expand/components/forward/KRForwardArkTSView.h"
 #include "libohos_render/manager/KRArkTSManager.h"
 
+namespace {
+constexpr char kPropNameHitTestModeOhos[] = "hit-test-ohos";
+constexpr char kOhosHitTestModeDefault[] = "default";
+constexpr char kOhosHitTestModeBlock[] = "block";
+constexpr char kOhosHitTestModeTransparent[] = "transparent";
+constexpr char kOhosHitTestModeNone[] = "none";
+
+bool UpdateForwardHitTestMode(ArkUI_NodeHandle node, const std::string &mode) {
+    if (kuikly::util::isEqual(mode, kOhosHitTestModeBlock)) {
+        kuikly::util::UpdateNodeHitTestMode(node, ARKUI_HIT_TEST_MODE_BLOCK);
+    } else if (kuikly::util::isEqual(mode, kOhosHitTestModeTransparent)) {
+        kuikly::util::UpdateNodeHitTestMode(node, ARKUI_HIT_TEST_MODE_TRANSPARENT);
+    } else if (kuikly::util::isEqual(mode, kOhosHitTestModeNone)) {
+        kuikly::util::UpdateNodeHitTestMode(node, ARKUI_HIT_TEST_MODE_NONE);
+    } else {
+        kuikly::util::UpdateNodeHitTestMode(node, ARKUI_HIT_TEST_MODE_DEFAULT);
+    }
+    return true;
+}
+}  // namespace
+
 void KRForwardArkTSView::DidInit() {
     KRArkTSManager::GetInstance().CallArkTSMethod(
         GetInstanceId(), KRNativeCallArkTSMethod::CreateView, KRRenderValue::Make(GetViewTag()),
@@ -50,6 +71,9 @@ bool KRForwardArkTSView::ToSetBaseProp(const std::string &prop_key, const KRAnyV
 
 bool KRForwardArkTSView::SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
                                  const KRRenderCallback event_call_back) {
+    if (!event_call_back && kuikly::util::isEqual(prop_key, kPropNameHitTestModeOhos)) {
+        return UpdateForwardHitTestMode(GetNode(), prop_value->toString());
+    }
     if (event_call_back) {  // is event
         event_registry_[prop_key] = event_call_back;
         // 设置事件
@@ -65,6 +89,14 @@ bool KRForwardArkTSView::SetProp(const std::string &prop_key, const KRAnyValue &
                                                       nullptr, nullptr);
     }
     return true;
+}
+
+bool KRForwardArkTSView::ResetProp(const std::string &prop_key) {
+    if (kuikly::util::isEqual(prop_key, kPropNameHitTestModeOhos)) {
+        kuikly::util::UpdateNodeHitTestMode(GetNode(), ARKUI_HIT_TEST_MODE_TRANSPARENT);
+        return true;
+    }
+    return IKRRenderViewExport::ResetProp(prop_key);
 }
 
 void KRForwardArkTSView::SetRenderViewFrame(const KRRect &frame) {

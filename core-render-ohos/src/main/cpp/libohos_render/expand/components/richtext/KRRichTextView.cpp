@@ -66,6 +66,7 @@ static std::string utf16_to_utf8(const std::u16string& utf16_string) {
 
 static const char * kPropNameLineBreakMargin = "lineBreakMargin";
 static const char * kPropNameClick = "click";
+static const char * kPropNameLongPress = "longPress";
 
 ArkUI_NodeHandle KRRichTextView::CreateNode() {
     return kuikly::util::GetNodeApi()->createNode(ARKUI_NODE_TEXT);
@@ -336,40 +337,25 @@ void KRRichTextView::ToSetProp(const std::string &prop_key, const KRAnyValue &pr
         std::weak_ptr<KRRichTextView> weakSelf = std::dynamic_pointer_cast<KRRichTextView>(shared_from_this());
         KRRenderCallback middleManCallback = [weakSelf, event_callback](KRAnyValue res) {
             auto strongSelf = weakSelf.lock();
-            if(strongSelf == nullptr){
+            if (strongSelf == nullptr){
                 return;
             }
-            if (res->isMap()) {
-                const auto oldParam = res->toMap();
-                const auto x = oldParam.find("x");
-                const auto y = oldParam.find("y");
-
-                KRRenderValueMap params;
-                if (x != oldParam.end()) {
-                    params["x"] = x->second;
-                }
-
-                if (y != oldParam.end()) {
-                    params["y"] = y->second;
-                }
-
-                const auto pageX = oldParam.find("pageX");
-                const auto pageY = oldParam.find("pageY");
-                if (pageX != oldParam.end()) {
-                    params["pageX"] = pageX->second;
-                }
-                if (pageY != oldParam.end()) {
-                    params["pageY"] = pageY->second;
-                }
-
-                if (auto richTextShadow = std::dynamic_pointer_cast<KRRichTextShadow>(strongSelf->shadow_)) {
-                    int index = richTextShadow->SpanIndexAt(x->second->toFloat(), y->second->toFloat());
-                    if (index < 0) {
-                        index = 0;
-                    }
-                    params["index"] = NewKRRenderValue(index);
-                }
-                event_callback(NewKRRenderValue(params));
+            if (auto richTextShadow = std::dynamic_pointer_cast<KRRichTextShadow>(strongSelf->shadow_)) {
+                event_callback(richTextShadow->BuildEventParams(res));
+            } else {
+                event_callback(res);
+            }
+        };
+        IKRRenderViewExport::ToSetProp(prop_key, prop_value, middleManCallback);
+    } else if (kuikly::util::isEqual(prop_key, kPropNameLongPress)) {
+        std::weak_ptr<KRRichTextView> weakSelf = std::dynamic_pointer_cast<KRRichTextView>(shared_from_this());
+        KRRenderCallback middleManCallback = [weakSelf, event_callback](KRAnyValue res) {
+            auto strongSelf = weakSelf.lock();
+            if (strongSelf == nullptr) {
+                return;
+            }
+            if (auto richTextShadow = std::dynamic_pointer_cast<KRRichTextShadow>(strongSelf->shadow_)) {
+                event_callback(richTextShadow->BuildLongPressEventParams(res));
             } else {
                 event_callback(res);
             }
@@ -740,4 +726,3 @@ bool KRRichTextView::UpdateSelection(std::shared_ptr<IKRRenderViewExport> ancest
 
     return has_intersection;
 }
-

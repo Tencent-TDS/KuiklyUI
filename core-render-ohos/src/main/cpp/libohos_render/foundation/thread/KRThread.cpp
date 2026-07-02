@@ -16,6 +16,7 @@
 #include "libohos_render/foundation/thread/KRThread.h"
 
 #include <pthread.h>
+#include <qos/qos.h>
 #include <cassert>
 #include <chrono>
 #include <utility>
@@ -42,7 +43,7 @@ constexpr auto kDirectRunFastFailWindow = std::chrono::milliseconds{100};
 }  // namespace
 
 KRThread::KRThread(const std::string &name) {
-    m_workerThread = std::thread([this, name]() { this->WorkerLoop(name); });
+    m_workerThread = std::thread([this, name]() {this->WorkerLoop(name); });
     pthread_setname_np(m_workerThread.native_handle(), name.c_str());
 
     // 等 worker 线程把 uv_loop_init / uv_async_init 完成后再返回，
@@ -71,6 +72,16 @@ KRThread::~KRThread() {
 
 void KRThread::WorkerLoop(const std::string &name) {
     m_workerThreadId = std::this_thread::get_id();
+
+    // 提升 worker 线程的调度优先级到 UI 交互级：uv_run 里跑的都是 kuikly 的
+    // 帧任务 / setTimeout 到点回调等对时延敏感的工作，若被系统当普通后台线程
+    // 调度，setTimeout 抖动实测可到 100ms+（见 TimerDriftBenchmarkPage 数据）。
+    // 必须在 worker 本体线程里调用 OH_QoS_SetThreadQoS —— 该 API 隐式作用于当前线程。
+    // 失败不阻断 loop 启动，仅打日志：低版本设备/非 OH 环境上不支持时降级到默认优先级。
+    int qosRet = OH_QoS_SetThreadQoS(QoS_Level::QOS_USER_INTERACTIVE);
+    if (qosRet != 0) {
+        KR_LOG_ERROR << "KRThread[" << name << "] OH_QoS_SetThreadQoS failed, err=" << qosRet;
+    }
 
     int ret = uv_loop_init(&m_loop);
     if (ret != 0) {

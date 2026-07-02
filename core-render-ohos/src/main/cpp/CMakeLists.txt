@@ -149,4 +149,5 @@ target_link_libraries(kuikly PUBLIC hilog_ndk.z.so
                                     libffrt.z.so
                                     libohpreferences.so
                                     libhilog_ndk.z.so
+                                    libqos.so
                                     )

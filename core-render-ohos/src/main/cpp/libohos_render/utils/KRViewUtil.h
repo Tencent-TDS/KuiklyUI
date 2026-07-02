@@ -291,6 +291,13 @@ void UpdateLoadingProgressNodeColor(ArkUI_NodeHandle node, uint32_t hexColorValu
 
 void UpdateNodeClipPath(ArkUI_NodeHandle node, float width, float height, const std::string &pathCommand);
 
+// hit-test-ohos 属性常量（KRView / KRForwardArkTSView 共享）
+constexpr char kPropNameHitTestModeOhos[] = "hit-test-ohos";
+constexpr char kOhosHitTestModeDefault[]  = "default";
+constexpr char kOhosHitTestModeBlock[]    = "block";
+constexpr char kOhosHitTestModeNone[]     = "none";
+constexpr char kOhosHitTestModeTransparent[] = "transparent";
+
 }  // namespace util
 }  // namespace kuikly
 

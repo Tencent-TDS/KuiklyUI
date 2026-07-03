@@ -60,8 +60,11 @@ internal enum class MutatePriority {
  * javaClass.simpleName lookups to build the exception message and stack trace collection.
  * Remove if these are changed in kotlinx.coroutines.
  */
-private class MutationInterruptedException :
+private object MutationInterruptedException :
     CancellationException("Mutation interrupted")
+
+private object MutationHadHigherPriorityException :
+    CancellationException("Current mutation had a higher priority")
 
 /**
  * Mutual exclusion for UI state mutation over time.
@@ -82,7 +85,7 @@ internal class MutatorMutex {
     private class Mutator(val priority: MutatePriority, val job: Job) {
         fun canInterrupt(other: Mutator) = priority >= other.priority
 
-        fun cancel() = job.cancel(MutationInterruptedException())
+        fun cancel() = job.cancel(MutationInterruptedException)
     }
 
     private val currentMutator = AtomicReference<Mutator?>(null)
@@ -96,7 +99,7 @@ internal class MutatorMutex {
                     oldMutator?.cancel()
                     break
                 }
-            } else throw CancellationException("Current mutation had a higher priority")
+            } else throw MutationHadHigherPriorityException
         }
     }
 

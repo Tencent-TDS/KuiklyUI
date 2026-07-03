@@ -21,6 +21,7 @@ import com.tencent.kuikly.compose.ui.synchronized
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import com.tencent.kuikly.compose.ui.PlatformOptimizedCancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Delay
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -155,10 +156,17 @@ internal class FlushCoroutineDispatcher(
             }
         }
         continuation.invokeOnCancellation {
-            job.cancel()
+            job.cancel(DelayTaskCancellation)
             synchronized(tasksLock) {
                 delayedTasks.remove(block)
             }
         }
     }
 }
+
+/**
+ * Used in place of the standard Job cancellation pathway to avoid reflective
+ * javaClass.simpleName lookups to build the exception message and stack trace collection.
+ */
+private object DelayTaskCancellation :
+    PlatformOptimizedCancellationException("FlushCoroutineDispatcher delay cancelled")

@@ -89,6 +89,8 @@ class KRRichTextViewDrawer(val textLayout: Layout) {
                     SelectionType.SENTENCE -> layout.expandSelectionToSentence(position, sentenceIterator)
 
                     SelectionType.PARAGRAPH -> layout.expandSelectionToParagraph(position)
+
+                    SelectionType.SPAN -> layout.expandSelectionToSpan(position, x, y)
                 }
                 setTextSelection(start, end)
                 return true
@@ -299,6 +301,53 @@ class KRRichTextViewDrawer(val textLayout: Layout) {
                 start -= Character.charCount(c)
             }
             return Pair(getUnitStart(start), getUnitEnd(end))
+        }
+
+        /**
+         * 根据触摸位置定位到富文本 Span，选中整个 Span 的文字范围。
+         *
+         * 富文本中每个 Span 都会被附加 [FontWeightSpan]（携带 spanIndex），
+         * 因此通过 [Spanned.getSpans] 查找该位置上的 FontWeightSpan，
+         * 再用 [Spanned.getSpanStart] / [Spanned.getSpanEnd] 获取 Span 的起止偏移。
+         *
+         * 如果当前位置不在任何 Span 范围内（如普通文本模式），回退到字符级选择。
+         */
+        private fun Layout.expandSelectionToSpan(
+            position: Int,
+            x: Float,
+            y: Float
+        ): Pair<Int, Int> {
+            val text = text
+            if (text is Spanned) {
+                val spans = text.getSpans(position, position, FontWeightSpan::class.java)
+                // 优先选取真正覆盖 position 的 Span（start <= position < end），
+                // 避免在两个 Span 交界处（position 恰好等于前一个 Span 的 end）误取相邻 Span。
+                for (span in spans) {
+                    val start = text.getSpanStart(span)
+                    val end = text.getSpanEnd(span)
+                    if (start <= position && position < end) {
+                        return Pair(start, end)
+                    }
+                }
+                // 边界兜底：position 恰好落在末尾等特殊位置时，选取 end 最接近 position 的有效 Span。
+                var bestSpan: FontWeightSpan? = null
+                var bestDist = Int.MAX_VALUE
+                for (span in spans) {
+                    val start = text.getSpanStart(span)
+                    val end = text.getSpanEnd(span)
+                    if (start < end) {
+                        val dist = kotlin.math.abs(end - position)
+                        if (dist < bestDist) {
+                            bestDist = dist
+                            bestSpan = span
+                        }
+                    }
+                }
+                if (bestSpan != null) {
+                    return Pair(text.getSpanStart(bestSpan), text.getSpanEnd(bestSpan))
+                }
+            }
+            return expandSelectionToCharacter(position, x, y)
         }
 
         private fun Layout.getPositionForOffset(

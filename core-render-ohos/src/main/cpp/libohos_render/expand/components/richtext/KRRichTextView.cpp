@@ -158,7 +158,7 @@ void KRRichTextView::DidRemoveFromParentView() {
 }
 
 void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
-    if (shadow_ == nullptr && GetFrame().width == 0) {
+    if (shadow_ == nullptr || GetFrame().width == 0) {
         KR_LOG_ERROR << "OnForegroundDraw, shadow or frame not ready, shadow:" << shadow_.get()
                      << ", frame width:" << GetFrame().width;
         return;

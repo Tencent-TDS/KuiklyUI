@@ -17,6 +17,7 @@
 
 #include <cfloat>
 #include <cmath>
+#include <deviceinfo.h>
 #include "libohos_render/expand/components/view/KRView.h"
 #include "libohos_render/foundation/type/KRRenderValue.h"
 #include "libohos_render/utils/KRJSONObject.h"
@@ -31,6 +32,14 @@ extern void* OH_ArkUI_GestureInterrupter_GetUserData(ArkUI_GestureInterruptInfo*
 };
 #endif
 
+constexpr int FLING_SPEED_LIMIT_API_LEVEL = 18;
+constexpr ArkUI_NodeAttributeType kScrollFlingSpeedLimitAttr =
+    static_cast<ArkUI_NodeAttributeType>(1002019);
+
+static bool IsFlingSpeedLimitApiAvailable() {
+    return OH_GetSdkApiVersion() >= FLING_SPEED_LIMIT_API_LEVEL;
+}
+
 constexpr char kPropNameDirectionRow[] = "directionRow";
 constexpr char kPropNamePagingEnabled[] = "pagingEnabled";
 constexpr char kPropNameScrollEnabled[] = "scrollEnabled";
@@ -41,6 +50,7 @@ constexpr char kPropNameLimitHeaderBounces[] = "limitHeaderBounces";
 constexpr char kPropNameShowScrollerIndicator[] = "showScrollerIndicator";
 constexpr char kPropNameNestedScroll[] = "nestedScroll";
 constexpr char kPropNameFlingEnable[] = "flingEnable";
+constexpr char kPropNameFlingSpeedLimit[] = "flingSpeedLimit";
 constexpr char kPropKeyNestedScrollForward[] = "forward";
 constexpr char kPropKeyNestedScrollBackward[] = "backward";
 
@@ -193,6 +203,8 @@ bool KRScrollerView::SetProp(const std::string &prop_key, const KRAnyValue &prop
         didHanded = SetNestedScroll(prop_value);
     } else if (kuikly::util::isEqual(prop_key, kPropNameFlingEnable)) {
         didHanded = SetFlingEnable(prop_value->toBool());
+    } else if (kuikly::util::isEqual(prop_key, kPropNameFlingSpeedLimit)) {
+        didHanded = SetFlingSpeedLimit(prop_value);
     }
     return didHanded;
 }
@@ -211,6 +223,11 @@ bool KRScrollerView::ResetProp(const std::string &prop_key) {
         } else if (prop_key == kPropNameFlingEnable) {
             didHanded = true;
             SetFlingEnable(true);
+        } else if (prop_key == kPropNameFlingSpeedLimit) {
+            didHanded = true;
+            if (IsFlingSpeedLimitApiAvailable()) {
+                kuikly::util::GetNodeApi()->resetAttribute(GetNode(), kScrollFlingSpeedLimitAttr);
+            }
         }
     }
     return didHanded;
@@ -752,6 +769,21 @@ ArkUI_GestureInterruptResult KRScrollerView::OnInterruptGestureEvent(const ArkUI
 
 bool KRScrollerView::SetFlingEnable(bool enable) {
     is_fling_enabled_ = enable;
+    return true;
+}
+
+bool KRScrollerView::SetFlingSpeedLimit(const KRAnyValue &value) {
+    if (!IsFlingSpeedLimitApiAvailable()) {
+        return true;
+    }
+    auto speed = value->toFloat();
+    if (speed <= 0) {
+        kuikly::util::GetNodeApi()->resetAttribute(GetNode(), kScrollFlingSpeedLimitAttr);
+    } else {
+        ArkUI_NumberValue values[] = {{.f32 = speed}};
+        ArkUI_AttributeItem item = {values, 1};
+        kuikly::util::GetNodeApi()->setAttribute(GetNode(), kScrollFlingSpeedLimitAttr, &item);
+    }
     return true;
 }
 

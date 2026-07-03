@@ -24,6 +24,7 @@ import com.tencent.kuikly.compose.foundation.lazy.grid.LazyGridState
 import com.tencent.kuikly.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
 import com.tencent.kuikly.compose.foundation.drawer.DrawerInternalPagerState
 import com.tencent.kuikly.compose.foundation.pager.PagerState
+import com.tencent.kuikly.compose.foundation.pager.ScrollViewOffsetAlignmentCancellation
 import com.tencent.kuikly.compose.scroller.ScrollableStateConstants.DEFAULT_CONTENT_SIZE
 import com.tencent.kuikly.compose.ui.unit.Dp
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
@@ -263,6 +264,8 @@ internal fun ScrollableState.calculateBackExpandSize(offset: Int): Int? {
  */
 internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolean) {
     if (kuiklyInfo.scrollView == null) return
+    if (kuiklyInfo.skipExpandStartSize) return
+    if (this is PagerState) return
 
     val density = kuiklyInfo.getDensity()
     // scrollview 到顶了，但是compose没到顶
@@ -296,7 +299,7 @@ internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolea
 internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = false) {
     if (this is PagerState || this is DrawerInternalPagerState) return
     kuiklyInfo.run {
-        appleScrollViewOffsetJob?.cancel()
+        appleScrollViewOffsetJob?.cancel(ScrollViewOffsetAlignmentCancellation)
         appleScrollViewOffsetJob = scope?.launch {
             delay(150)
             val minDelta = (DEFAULT_CONTENT_SIZE * getDensity()).toInt()

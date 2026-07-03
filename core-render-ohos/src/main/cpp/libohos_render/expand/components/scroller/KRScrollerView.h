@@ -136,6 +136,7 @@ class KRScrollerView : public IKRRenderViewExport {
     void AdjustHeaderBouncesEnableWhenWillScroll(ArkUI_NodeEvent *event);
     void DispatchDidScrollToObservers(KRPoint point);
     bool SetFlingEnable(bool enable);
+    bool SetFlingSpeedLimit(const KRAnyValue &value);
     KRPoint MaxContentOffsetInContentInset(const std::shared_ptr<KRScrollerContentInset> &content_inset);
 
  private:

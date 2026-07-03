@@ -737,7 +737,7 @@ open class TextAreaEvent : Event() {
      * @param isSync Sync callback to ensure UI animation syncs with keyboard, default true
      * @param handler Callback handler with keyboard params
      */
-    fun keyboardHeightChange(isSync: Boolean = true, handler: (KeyboardParams) -> Unit) {
+    fun keyboardHeightChange(isSync: Boolean = false, handler: (KeyboardParams) -> Unit) {
         this.register(KEYBOARD_HEIGHT_CHANGE, {
             it as JSONObject
             val height = it.optDouble("height").toFloat()

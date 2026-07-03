@@ -43,6 +43,8 @@ inline constexpr const char *kInternalImageSrcKey = "__kr_image_src__";
 }  // namespace richtext
 }  // namespace kuikly
 
+constexpr bool KR_TEXT_RENDER_V2_ENABLED = false;
+
 /**
  * 跨线程安全的 OH_Drawing_Typography 持有句柄。
  *

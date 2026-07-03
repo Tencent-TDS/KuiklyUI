@@ -69,7 +69,11 @@ static const char * kPropNameClick = "click";
 static const char * kPropNameLongPress = "longPress";
 
 ArkUI_NodeHandle KRRichTextView::CreateNode() {
-    return kuikly::util::GetNodeApi()->createNode(ARKUI_NODE_TEXT);
+    if (KR_TEXT_RENDER_V2_ENABLED){
+        return kuikly::util::GetNodeApi()->createNode(ARKUI_NODE_TEXT);
+    } else {
+        return kuikly::util::GetNodeApi()->createNode(ARKUI_NODE_CUSTOM);
+    }
 }
 
 void KRRichTextView::OnDestroy() {

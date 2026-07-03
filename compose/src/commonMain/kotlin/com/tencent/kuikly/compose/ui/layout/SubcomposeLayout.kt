@@ -263,7 +263,7 @@ fun SubcomposeLayout(
             }
 
             if (scrollableState is PagerState || scrollableState is DrawerInternalPagerState) {
-                willDragEndBySync(isSync = false, handler = {
+                willDragEndBySync(isSync = scrollableState is PagerState, handler = {
                     val viewportSize = kuiklyInfo.viewportSize
                     val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
                     // 实现分页滑动

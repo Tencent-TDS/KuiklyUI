@@ -677,11 +677,12 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
         std::fmax(0, std::fmin(std::ceil(OH_Drawing_TypographyGetLongestLine(typography_raw)), maxWidth));
     context_thread_text_align_ = text_align;
     auto ouput_measure_width_ = (longestLineWidth / dpi);
+#ifndef NDEBUG
     if (ouput_measure_width_ < 0.01) {
         KR_LOG_ERROR << "Measure size:" << ouput_measure_width_ << ", " << ouput_measure_height_
                      << ", content bytes:" << GetTextContent().size() << ", in shadow view:" << this;
     }
-
+#endif
     context_measure_size_ = KRSize(ouput_measure_width_, ouput_measure_height_);
     if (handler != nullptr) {
         OH_Drawing_DestroyTypographyHandler(handler);

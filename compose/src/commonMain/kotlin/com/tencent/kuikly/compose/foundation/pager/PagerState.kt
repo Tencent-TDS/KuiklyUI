@@ -49,6 +49,7 @@ import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.structuralEqualityPolicy
 import com.tencent.kuikly.compose.foundation.gestures.snapping.SnapPosition
 import com.tencent.kuikly.compose.foundation.layout.PaddingValues
+import com.tencent.kuikly.compose.ui.PlatformOptimizedCancellationException
 import com.tencent.kuikly.compose.ui.geometry.Offset
 import com.tencent.kuikly.compose.ui.layout.AlignmentLine
 import com.tencent.kuikly.compose.ui.layout.MeasureResult
@@ -520,7 +521,7 @@ abstract class PagerState internal constructor(
         snapTargetReachedAlignmentRequested = false
         snapStallAlignmentRetryRequested = false
         kuiklyInfo.snapAnchorOffsetCorrection = 0
-        kuiklyInfo.appleScrollViewOffsetJob?.cancel()
+        kuiklyInfo.appleScrollViewOffsetJob?.cancel(ScrollViewOffsetAlignmentCancellation)
     }
 
     private fun scheduleScrollViewOffsetAlignment(
@@ -543,7 +544,7 @@ abstract class PagerState internal constructor(
                 "isSnapAnimating=$isSnapAnimating isScrollInProgress=$isScrollInProgress"
         }
         kuiklyInfo.run {
-            appleScrollViewOffsetJob?.cancel()
+            appleScrollViewOffsetJob?.cancel(ScrollViewOffsetAlignmentCancellation)
             appleScrollViewOffsetJob = scope?.launch {
                 delay(delayMs)
                 alignScrollViewOffset(
@@ -1738,3 +1739,10 @@ private fun PagerMeasureResult.calculateNewMinScrollOffset(pageCount: Int): Long
 //        }
 //    }
 //}
+
+/**
+ * Used in place of the standard Job cancellation pathway to avoid reflective
+ * javaClass.simpleName lookups to build the exception message and stack trace collection.
+ */
+internal object ScrollViewOffsetAlignmentCancellation :
+    PlatformOptimizedCancellationException("Scroll view offset alignment superseded")

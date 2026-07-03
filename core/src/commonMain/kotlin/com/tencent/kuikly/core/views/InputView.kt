@@ -490,6 +490,14 @@ class InputEvent : Event() {
 
     /**
      * Called when keyboard height changes.
+     * @param handler Callback handler with keyboard params
+     */
+    fun keyboardHeightChange(handler: (KeyboardParams) -> Unit) {
+        keyboardHeightChange(isSync = false, handler = handler)
+    }
+
+    /**
+     * Called when keyboard height changes.
      * @param isSync Sync callback to ensure UI animation syncs with keyboard, default false
      * @param handler Callback handler with keyboard params
      */

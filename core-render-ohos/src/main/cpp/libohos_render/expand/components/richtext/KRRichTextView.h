@@ -35,6 +35,7 @@ enum KRTextSelectionType {
     WORD,
     PARAGRAPH,
     SENTENCE,
+    SPAN,
     ALL = 9999
 };
 
@@ -113,10 +114,12 @@ class KRParagraphInfo {
     OH_Drawing_Typography *typography_ = nullptr;
     float width_ = 0;
     float height_ = 0;
+    std::vector<std::tuple<int, int, int>> span_offsets_;  // (spanIndex, begin, end)
 
  private:
     std::pair<int, int> GetSentenceBoundary(int offset);
     std::pair<int, int> GetParagraphBoundary(int offset);
+    std::pair<int, int> GetSpanBoundary(int offset);
 };
 
 class KRRichTextView : public IKRRenderViewExport {

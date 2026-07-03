@@ -111,6 +111,7 @@
 | `WORD` | 选中触发点所在的词 |
 | `PARAGRAPH` | 选中触发点所在的段落 |
 | `SENTENCE`<Badge text="仅iOS" type="warn"/> | 选中触发点所在的句子。Android、鸿蒙端会回退为`PARAGRAPH` |
+| `SPAN` | 选中触发点所在的富文本 Span 整体范围 |
 
 ### createSelectionAll
 

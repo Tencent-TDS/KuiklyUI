@@ -46,6 +46,7 @@ private const val SELECTION_TYPE_CHARACTER = 0
 private const val SELECTION_TYPE_WORD = 1
 private const val SELECTION_TYPE_PARAGRAPH = 2
 private const val SELECTION_TYPE_SENTENCE = 3
+private const val SELECTION_TYPE_SPAN = 4
 
 private inline fun logInfo(msg: () -> String) {
     if (DEBUG_LOG) {
@@ -424,6 +425,7 @@ internal class KRTextSelector(
             SELECTION_TYPE_WORD -> SelectionType.WORD
             SELECTION_TYPE_PARAGRAPH -> SelectionType.PARAGRAPH
             SELECTION_TYPE_SENTENCE -> SelectionType.SENTENCE
+            SELECTION_TYPE_SPAN -> SelectionType.SPAN
             else -> SelectionType.WORD
         }
 

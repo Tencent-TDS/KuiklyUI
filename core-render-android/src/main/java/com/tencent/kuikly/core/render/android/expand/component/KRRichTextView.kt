@@ -932,7 +932,8 @@ enum class SelectionType {
     CHARACTER,
     WORD,
     PARAGRAPH,
-    SENTENCE
+    SENTENCE,
+    SPAN
 }
 
 data class SelectionEdge(

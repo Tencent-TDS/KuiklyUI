@@ -27,7 +27,8 @@ typedef NS_ENUM(NSInteger, KRTextSelectionType) {
     KRTextSelectionTypeCharacter = 0,
     KRTextSelectionTypeWord = 1,
     KRTextSelectionTypeParagraph = 2,
-    KRTextSelectionTypeSentence = 3
+    KRTextSelectionTypeSentence = 3,
+    KRTextSelectionTypeSpan = 4
 };
 
 /// Delegate protocol for text selection events

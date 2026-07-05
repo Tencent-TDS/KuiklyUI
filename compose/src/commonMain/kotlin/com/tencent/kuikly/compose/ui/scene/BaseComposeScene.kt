@@ -35,6 +35,7 @@ import com.tencent.kuikly.compose.ui.GlobalSnapshotManager
 import com.tencent.kuikly.compose.ui.InternalComposeUiApi
 import com.tencent.kuikly.compose.ui.geometry.Offset
 import com.tencent.kuikly.compose.ui.graphics.Canvas
+import com.tencent.kuikly.compose.ui.input.key.KeyEvent
 import com.tencent.kuikly.compose.ui.input.pointer.PointerButton
 import com.tencent.kuikly.compose.ui.input.pointer.PointerEventType
 import com.tencent.kuikly.compose.ui.input.pointer.PointerInputEvent
@@ -261,6 +262,10 @@ internal abstract class BaseComposeScene(
         throwRuntimeError("invalid invoke")
     }
 
+    override fun sendKeyEvent(keyEvent: KeyEvent): Boolean = postponeInvalidation {
+        processKeyEvent(keyEvent)
+    }
+
     private fun doLayout() {
         snapshotInvalidationTracker.onMeasureAndLayout()
         measureAndLayout()
@@ -307,6 +312,8 @@ internal abstract class BaseComposeScene(
     protected abstract fun createComposition(content: @Composable () -> Unit): Composition
 
     protected abstract fun processPointerInputEvent(event: PointerInputEvent)
+
+    protected abstract fun processKeyEvent(event: KeyEvent): Boolean
 
     protected abstract fun measureAndLayout()
 

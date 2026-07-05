@@ -27,6 +27,7 @@ import android.util.Log
 import android.util.Size
 import android.util.SizeF
 import android.util.SparseArray
+import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityManager
@@ -609,6 +610,25 @@ class KuiklyRenderView(
         sendEvent(ON_BACK_PRESSED, mapOf())
     }
 
+    fun sendKeyEvent(event: KeyEvent) {
+        sendEvent(
+            KEY_EVENT,
+            mapOf(
+                KEY_EVENT_KEY_CODE to event.keyCode,
+                KEY_EVENT_TYPE to when (event.action) {
+                    KeyEvent.ACTION_UP -> KEY_EVENT_TYPE_UP
+                    KeyEvent.ACTION_DOWN -> KEY_EVENT_TYPE_DOWN
+                    else -> KEY_EVENT_TYPE_UNKNOWN
+                },
+                KEY_EVENT_UTF16_CODE_POINT to event.unicodeChar,
+                KEY_EVENT_ALT_PRESSED to event.isAltPressed,
+                KEY_EVENT_CTRL_PRESSED to event.isCtrlPressed,
+                KEY_EVENT_META_PRESSED to event.isMetaPressed,
+                KEY_EVENT_SHIFT_PRESSED to event.isShiftPressed,
+            )
+        )
+    }
+
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         if (delegate?.debugLogEnable() == true) {
             if (requestedLayout) {
@@ -683,6 +703,17 @@ class KuiklyRenderView(
         private const val ACCESSIBILITY_RUNNING = "isAccessibilityRunning" // 无障碍化是否开启
 
         private const val ON_BACK_PRESSED = "onBackPressed"
+        private const val KEY_EVENT = "keyEvent"
+        private const val KEY_EVENT_KEY_CODE = "keyCode"
+        private const val KEY_EVENT_TYPE = "type"
+        private const val KEY_EVENT_TYPE_UNKNOWN = 0
+        private const val KEY_EVENT_TYPE_UP = 1
+        private const val KEY_EVENT_TYPE_DOWN = 2
+        private const val KEY_EVENT_UTF16_CODE_POINT = "utf16CodePoint"
+        private const val KEY_EVENT_ALT_PRESSED = "altPressed"
+        private const val KEY_EVENT_CTRL_PRESSED = "ctrlPressed"
+        private const val KEY_EVENT_META_PRESSED = "metaPressed"
+        private const val KEY_EVENT_SHIFT_PRESSED = "shiftPressed"
 
         // RenderView 生命周期状态
         private const val STATE_INIT = 0

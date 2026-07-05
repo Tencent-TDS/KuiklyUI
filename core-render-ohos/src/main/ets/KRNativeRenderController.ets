@@ -525,6 +525,19 @@ export class KRNativeRenderController {
     this.doSendEvent(event, data, sync);
   }
 
+  sendKeyEvent(keyCode: number, type: number, utf16CodePoint?: number, altPressed?: boolean,
+    ctrlPressed?: boolean, metaPressed?: boolean, shiftPressed?: boolean) {
+    this.doSendEvent('keyEvent', {
+      'keyCode': keyCode,
+      'type': type,
+      'utf16CodePoint': utf16CodePoint ?? 0,
+      'altPressed': altPressed ?? false,
+      'ctrlPressed': ctrlPressed ?? false,
+      'metaPressed': metaPressed ?? false,
+      'shiftPressed': shiftPressed ?? false,
+    });
+  }
+
   onBackPress() {
     const sendTime = Date.now();
     this.doSendEvent(KROnBackPressedKey, {}, this.syncSendEvent(KROnBackPressedKey));

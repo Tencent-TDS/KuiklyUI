@@ -130,6 +130,19 @@ FOUNDATION_EXTERN NSString *const KRPageDataSnapshotKey;
  */
 - (void)onBackPressedWithCompletion:(nullable KuiklyBackPressCompletion)completion;
 
+/*
+ * @brief 向 Kuikly Compose 页面发送硬件键盘事件.
+ * @param keyCode 平台 key code，对应 Kuikly Compose Native Key.keyCode 编码
+ * @param type 事件类型：0 unknown，1 key up，2 key down
+ */
+- (void)sendKeyEventWithKeyCode:(NSInteger)keyCode
+                           type:(NSInteger)type
+                utf16CodePoint:(NSInteger)utf16CodePoint
+                     altPressed:(BOOL)altPressed
+                    ctrlPressed:(BOOL)ctrlPressed
+                    metaPressed:(BOOL)metaPressed
+                   shiftPressed:(BOOL)shiftPressed;
+
 @end
 
 @protocol KuiklyRenderViewControllerBaseDelegatorDelegate<NSObject>
@@ -304,4 +317,3 @@ FOUNDATION_EXTERN NSString *const KRPageDataSnapshotKey;
 
 
 NS_ASSUME_NONNULL_END
-

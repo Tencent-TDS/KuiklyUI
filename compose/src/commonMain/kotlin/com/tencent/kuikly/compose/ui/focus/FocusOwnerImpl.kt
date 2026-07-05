@@ -29,11 +29,9 @@ import com.tencent.kuikly.compose.ui.focus.FocusDirection.Companion.Previous
 import com.tencent.kuikly.compose.ui.focus.FocusRequester.Companion.Cancel
 import com.tencent.kuikly.compose.ui.focus.FocusRequester.Companion.Default
 import com.tencent.kuikly.compose.ui.geometry.Rect
-//import com.tencent.kuikly.compose.ui.input.key.KeyEvent
-//import com.tencent.kuikly.compose.ui.input.key.KeyEventType.Companion.KeyDown
-//import com.tencent.kuikly.compose.ui.input.key.KeyEventType.Companion.KeyUp
-//import com.tencent.kuikly.compose.ui.input.key.key
-//import com.tencent.kuikly.compose.ui.input.key.type
+import com.tencent.kuikly.compose.ui.input.key.KeyEvent
+import com.tencent.kuikly.compose.ui.input.key.KeyEventType.Companion.KeyDown
+import com.tencent.kuikly.compose.ui.input.key.KeyEventType.Companion.KeyUp
 //import com.tencent.kuikly.compose.ui.input.rotary.RotaryScrollEvent
 import com.tencent.kuikly.compose.ui.node.DelegatableNode
 import com.tencent.kuikly.compose.ui.node.ModifierNodeElement
@@ -255,30 +253,30 @@ internal class FocusOwnerImpl(
         }
     }
 
-//    /**
-//     * Dispatches a key event through the compose hierarchy.
-//     */
-//    override fun dispatchKeyEvent(keyEvent: KeyEvent, onFocusedItem: () -> Boolean): Boolean {
-//        if (focusInvalidationManager.hasPendingInvalidation()) {
-//            // Ignoring this to unblock b/346370327.
-//            println("$Warning: Dispatching key event while focus system is invalidated.")
-//            return false
-//        }
-//        if (!validateKeyEvent(keyEvent)) return false
-//
-//        val activeFocusTarget = rootFocusNode.findActiveFocusNode()
-//        val focusedKeyInputNode = activeFocusTarget?.lastLocalKeyInputNode()
-//                ?: activeFocusTarget?.nearestAncestorIncludingSelf(Nodes.KeyInput)?.node
-//                ?: rootFocusNode.nearestAncestor(Nodes.KeyInput)?.node
-//
-//        focusedKeyInputNode?.traverseAncestorsIncludingSelf(
-//            type = Nodes.KeyInput,
-//            onPreVisit = { if (it.onPreKeyEvent(keyEvent)) return true },
-//            onVisit = { if (onFocusedItem.invoke()) return true },
-//            onPostVisit = { if (it.onKeyEvent(keyEvent)) return true }
-//        )
-//        return false
-//    }
+    /**
+     * Dispatches a key event through the compose hierarchy.
+     */
+    override fun dispatchKeyEvent(keyEvent: KeyEvent, onFocusedItem: () -> Boolean): Boolean {
+        if (focusInvalidationManager.hasPendingInvalidation()) {
+            // Ignoring this to unblock b/346370327.
+            println("$Warning: Dispatching key event while focus system is invalidated.")
+            return false
+        }
+        if (!validateKeyEvent(keyEvent)) return false
+
+        val activeFocusTarget = rootFocusNode.findActiveFocusNode()
+        val focusedKeyInputNode = activeFocusTarget?.lastLocalKeyInputNode()
+            ?: activeFocusTarget?.nearestAncestorIncludingSelf(Nodes.KeyInput)?.node
+            ?: rootFocusNode.nearestAncestor(Nodes.KeyInput)?.node
+
+        focusedKeyInputNode?.traverseAncestorsIncludingSelf(
+            type = Nodes.KeyInput,
+            onPreVisit = { if (it.onPreKeyEvent(keyEvent)) return true },
+            onVisit = { if (onFocusedItem.invoke()) return true },
+            onPostVisit = { if (it.onKeyEvent(keyEvent)) return true }
+        )
+        return false
+    }
 //
 //    @OptIn(ExperimentalComposeUiApi::class)
 //    override fun dispatchInterceptedSoftKeyboardEvent(keyEvent: KeyEvent): Boolean {
@@ -381,38 +379,38 @@ internal class FocusOwnerImpl(
     override val rootState: FocusState
         get() = rootFocusNode.focusState
 
-//    private fun DelegatableNode.lastLocalKeyInputNode(): Modifier.Node? {
-//        var focusedKeyInputNode: Modifier.Node? = null
-//        visitLocalDescendants(Nodes.FocusTarget or Nodes.KeyInput) { modifierNode ->
-//            if (modifierNode.isKind(Nodes.FocusTarget)) return focusedKeyInputNode
-//
-//            focusedKeyInputNode = modifierNode
-//        }
-//        return focusedKeyInputNode
-//    }
-//
-//    // TODO(b/307580000) Factor this out into a class to manage key inputs.
-//    private fun validateKeyEvent(keyEvent: KeyEvent): Boolean {
-//        val keyCode = keyEvent.key.keyCode
-//        when (keyEvent.type) {
-//            KeyDown -> {
-//                // It's probably rare for more than 3 hardware keys to be pressed simultaneously.
-//                val keysCurrentlyDown = keysCurrentlyDown ?: MutableLongSet(initialCapacity = 3)
-//                    .also { keysCurrentlyDown = it }
-//                keysCurrentlyDown += keyCode
-//            }
-//
-//            KeyUp -> {
-//                if (keysCurrentlyDown?.contains(keyCode) != true) {
-//                    // An UP event for a key that was never DOWN is invalid, ignore it.
-//                    return false
-//                }
-//                keysCurrentlyDown?.remove(keyCode)
-//            }
-//            // Always process Unknown event types.
-//        }
-//        return true
-//    }
+    private fun DelegatableNode.lastLocalKeyInputNode(): Modifier.Node? {
+        var focusedKeyInputNode: Modifier.Node? = null
+        visitLocalDescendants(Nodes.FocusTarget or Nodes.KeyInput) { modifierNode ->
+            if (modifierNode.isKind(Nodes.FocusTarget)) return focusedKeyInputNode
+
+            focusedKeyInputNode = modifierNode
+        }
+        return focusedKeyInputNode
+    }
+
+    // TODO(b/307580000) Factor this out into a class to manage key inputs.
+    private fun validateKeyEvent(keyEvent: KeyEvent): Boolean {
+        val keyCode = keyEvent.key.keyCode
+        when (keyEvent.type) {
+            KeyDown -> {
+                // It's probably rare for more than 3 hardware keys to be pressed simultaneously.
+                val keysCurrentlyDown = keysCurrentlyDown ?: MutableLongSet(initialCapacity = 3)
+                    .also { keysCurrentlyDown = it }
+                keysCurrentlyDown += keyCode
+            }
+
+            KeyUp -> {
+                if (keysCurrentlyDown?.contains(keyCode) != true) {
+                    // An UP event for a key that was never DOWN is invalid, ignore it.
+                    return false
+                }
+                keysCurrentlyDown?.remove(keyCode)
+            }
+            // Always process Unknown event types.
+        }
+        return true
+    }
 }
 
 /**

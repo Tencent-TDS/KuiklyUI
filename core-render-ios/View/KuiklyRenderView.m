@@ -92,6 +92,26 @@ NSString *const KRDensity = @"density";
 - (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data sync:(BOOL)sync {
     [_renderCore sendWithEvent:event data:data sync:sync];
 }
+
+- (void)sendKeyEventWithKeyCode:(NSInteger)keyCode
+                           type:(NSInteger)type
+                utf16CodePoint:(NSInteger)utf16CodePoint
+                     altPressed:(BOOL)altPressed
+                    ctrlPressed:(BOOL)ctrlPressed
+                    metaPressed:(BOOL)metaPressed
+                   shiftPressed:(BOOL)shiftPressed {
+    [self sendWithEvent:@"keyEvent"
+                   data:@{
+                       @"keyCode": @(keyCode),
+                       @"type": @(type),
+                       @"utf16CodePoint": @(utf16CodePoint),
+                       @"altPressed": @(altPressed),
+                       @"ctrlPressed": @(ctrlPressed),
+                       @"metaPressed": @(metaPressed),
+                       @"shiftPressed": @(shiftPressed),
+                   }];
+}
+
 /*
  * @brief 获取模块对应的实例（仅支持在主线程调用）.
  * @param moduleName 模块名
@@ -355,4 +375,3 @@ NSString *const KRDensity = @"density";
 }
 
 @end
-

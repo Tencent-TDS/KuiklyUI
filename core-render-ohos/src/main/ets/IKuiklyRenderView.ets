@@ -39,6 +39,21 @@ export interface IKuiklyRenderView {
   sendEventSync(event: string, data: KRRecord, sync: boolean): void;
 
   /**
+   * Send a hardware key event to a Kuikly Compose page.
+   * @param keyCode platform key code normalized to Kuikly Compose Native Key.keyCode
+   * @param type event type: 0 unknown, 1 key up, 2 key down
+   */
+  sendKeyEvent(
+    keyCode: number,
+    type: number,
+    utf16CodePoint?: number,
+    altPressed?: boolean,
+    ctrlPressed?: boolean,
+    metaPressed?: boolean,
+    shiftPressed?: boolean
+  ): void;
+
+  /**
    * 获取 [KuiklyRenderBaseModule]
    * @param name module 的名字
    * @return [KuiklyRenderBaseModule] 的子类

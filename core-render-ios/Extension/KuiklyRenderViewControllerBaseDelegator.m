@@ -148,6 +148,25 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
     }
 }
 
+- (void)sendKeyEventWithKeyCode:(NSInteger)keyCode
+                           type:(NSInteger)type
+                utf16CodePoint:(NSInteger)utf16CodePoint
+                     altPressed:(BOOL)altPressed
+                    ctrlPressed:(BOOL)ctrlPressed
+                    metaPressed:(BOOL)metaPressed
+                   shiftPressed:(BOOL)shiftPressed {
+    [self sendWithEvent:@"keyEvent"
+                   data:@{
+                       @"keyCode": @(keyCode),
+                       @"type": @(type),
+                       @"utf16CodePoint": @(utf16CodePoint),
+                       @"altPressed": @(altPressed),
+                       @"ctrlPressed": @(ctrlPressed),
+                       @"metaPressed": @(metaPressed),
+                       @"shiftPressed": @(shiftPressed),
+                   }];
+}
+
 - (BOOL)syncSendEvent:(NSString *)event {
     // onBackPressed 固定同步执行
     if ([event isEqualToString:@"onBackPressed"]) {
@@ -567,5 +586,4 @@ NSString *const KRPageDataSnapshotKey = @"kr_snapshotKey";
 }
 
 @end
-
 

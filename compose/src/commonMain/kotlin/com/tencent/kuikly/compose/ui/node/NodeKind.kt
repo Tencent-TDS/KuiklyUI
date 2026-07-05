@@ -27,6 +27,7 @@ import com.tencent.kuikly.compose.ui.focus.FocusTargetNode
 import com.tencent.kuikly.compose.ui.focus.invalidateFocusEvent
 import com.tencent.kuikly.compose.ui.focus.invalidateFocusProperties
 import com.tencent.kuikly.compose.ui.focus.invalidateFocusTarget
+import com.tencent.kuikly.compose.ui.input.key.KeyInputModifierNode
 import com.tencent.kuikly.compose.ui.input.pointer.PointerInputModifier
 import com.tencent.kuikly.compose.ui.internal.checkPrecondition
 import com.tencent.kuikly.compose.ui.internal.checkPreconditionNotNull
@@ -94,8 +95,8 @@ internal object Nodes {
     inline val FocusProperties get() = NodeKind<FocusPropertiesModifierNode>(0b1 shl 11)
     @JvmStatic
     inline val FocusEvent get() = NodeKind<FocusEventModifierNode>(0b1 shl 12)
-//    @JvmStatic
-//    inline val KeyInput get() = NodeKind<KeyInputModifierNode>(0b1 shl 13)
+    @JvmStatic
+    inline val KeyInput get() = NodeKind<KeyInputModifierNode>(0b1 shl 13)
 //    @JvmStatic
 //    inline val RotaryInput get() = NodeKind<RotaryInputModifierNode>(0b1 shl 14)
     @JvmStatic
@@ -205,9 +206,9 @@ internal fun calculateNodeKindSetFrom(node: Modifier.Node): Int {
         if (node is FocusEventModifierNode) {
             mask = mask or Nodes.FocusEvent
         }
-//        if (node is KeyInputModifierNode) {
-//            mask = mask or Nodes.KeyInput
-//        }
+        if (node is KeyInputModifierNode) {
+            mask = mask or Nodes.KeyInput
+        }
 //        if (node is RotaryInputModifierNode) {
 //            mask = mask or Nodes.RotaryInput
 //        }

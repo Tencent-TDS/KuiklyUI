@@ -24,6 +24,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.InternalComposeUiApi
+import com.tencent.kuikly.compose.ui.input.key.KeyEvent
 import com.tencent.kuikly.compose.ui.platform.LocalConfiguration
 import com.tencent.kuikly.compose.ui.platform.WindowInfo
 import com.tencent.kuikly.compose.ui.scene.ComposeScene
@@ -113,6 +114,9 @@ class ComposeSceneMediator(
             scene.render(null, timestamp)
         }
     }
+
+    fun sendKeyEvent(keyEvent: KeyEvent): Boolean =
+        scene.sendKeyEvent(keyEvent)
 
     fun updateDensity(toFloat: Float) {
         scene.density = Density(toFloat)

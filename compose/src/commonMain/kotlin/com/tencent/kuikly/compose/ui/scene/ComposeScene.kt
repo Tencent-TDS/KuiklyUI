@@ -26,6 +26,7 @@ import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.InternalComposeUiApi
 import com.tencent.kuikly.compose.ui.geometry.Offset
 import com.tencent.kuikly.compose.ui.graphics.Canvas
+import com.tencent.kuikly.compose.ui.input.key.KeyEvent
 import com.tencent.kuikly.compose.ui.input.pointer.PointerButton
 import com.tencent.kuikly.compose.ui.input.pointer.PointerEventType
 import com.tencent.kuikly.compose.ui.input.pointer.PointerType
@@ -149,6 +150,14 @@ interface ComposeScene {
         canvas: Canvas?,
         nanoTime: Long,
     )
+
+    /**
+     * Send a hardware key event to the content.
+     *
+     * The event is routed through focus first with preview handlers from ancestors to the focused
+     * item, then normal handlers from the focused item back to ancestors.
+     */
+    fun sendKeyEvent(keyEvent: KeyEvent): Boolean
 
     /**
      * Send pointer event to the content.

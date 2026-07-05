@@ -17,6 +17,7 @@
 package com.tencent.kuikly.compose.ui.input.key
 
 import com.tencent.kuikly.compose.ui.Modifier
+import com.tencent.kuikly.compose.ui.node.DelegatableNode
 import com.tencent.kuikly.compose.ui.node.ModifierNodeElement
 import com.tencent.kuikly.compose.ui.platform.InspectorInfo
 
@@ -30,9 +31,9 @@ import com.tencent.kuikly.compose.ui.platform.InspectorInfo
  *
  * @sample androidx.compose.ui.samples.KeyEventSample
  */
-fun Modifier.onKeyEvent( // todo pel: noop currently, need render support
+fun Modifier.onKeyEvent(
     onKeyEvent: (KeyEvent) -> Boolean
-): Modifier = this // then KeyInputElement(onKeyEvent = onKeyEvent, onPreKeyEvent = null)
+): Modifier = this then KeyInputElement(onKeyEvent = onKeyEvent, onPreKeyEvent = null)
 
 /**
  * Adding this [modifier][Modifier] to the [modifier][Modifier] parameter of a component will
@@ -46,37 +47,43 @@ fun Modifier.onKeyEvent( // todo pel: noop currently, need render support
  *
  * @sample androidx.compose.ui.samples.KeyEventSample
  */
-fun Modifier.onPreviewKeyEvent( // todo pel: noop currently, need render support
+fun Modifier.onPreviewKeyEvent(
     onPreviewKeyEvent: (KeyEvent) -> Boolean
-): Modifier = this // then KeyInputElement(onKeyEvent = null, onPreKeyEvent = onPreviewKeyEvent)
+): Modifier = this then KeyInputElement(onKeyEvent = null, onPreKeyEvent = onPreviewKeyEvent)
 
-//internal data class KeyInputElement(
-//    val onKeyEvent: ((KeyEvent) -> Boolean)?,
-//    val onPreKeyEvent: ((KeyEvent) -> Boolean)?
-//) : ModifierNodeElement<KeyInputNode>() {
-//    override fun create() = KeyInputNode(onKeyEvent, onPreKeyEvent)
-//
-//    override fun update(node: KeyInputNode) {
-//        node.onEvent = onKeyEvent
-//        node.onPreEvent = onPreKeyEvent
-//    }
-//
-//    override fun InspectorInfo.inspectableProperties() {
-//        onKeyEvent?.let {
-//            name = "onKeyEvent"
-//            properties["onKeyEvent"] = it
-//        }
-//        onPreKeyEvent?.let {
-//            name = "onPreviewKeyEvent"
-//            properties["onPreviewKeyEvent"] = it
-//        }
-//    }
-//}
-//
-//internal class KeyInputNode(
-//    var onEvent: ((KeyEvent) -> Boolean)?,
-//    var onPreEvent: ((KeyEvent) -> Boolean)?
-//) : KeyInputModifierNode, Modifier.Node() {
-//    override fun onKeyEvent(event: KeyEvent): Boolean = this.onEvent?.invoke(event) ?: false
-//    override fun onPreKeyEvent(event: KeyEvent): Boolean = this.onPreEvent?.invoke(event) ?: false
-//}
+interface KeyInputModifierNode : DelegatableNode {
+    fun onKeyEvent(event: KeyEvent): Boolean
+
+    fun onPreKeyEvent(event: KeyEvent): Boolean
+}
+
+internal data class KeyInputElement(
+    val onKeyEvent: ((KeyEvent) -> Boolean)?,
+    val onPreKeyEvent: ((KeyEvent) -> Boolean)?
+) : ModifierNodeElement<KeyInputNode>() {
+    override fun create() = KeyInputNode(onKeyEvent, onPreKeyEvent)
+
+    override fun update(node: KeyInputNode) {
+        node.onEvent = onKeyEvent
+        node.onPreEvent = onPreKeyEvent
+    }
+
+    override fun InspectorInfo.inspectableProperties() {
+        onKeyEvent?.let {
+            name = "onKeyEvent"
+            properties["onKeyEvent"] = it
+        }
+        onPreKeyEvent?.let {
+            name = "onPreviewKeyEvent"
+            properties["onPreviewKeyEvent"] = it
+        }
+    }
+}
+
+internal class KeyInputNode(
+    var onEvent: ((KeyEvent) -> Boolean)?,
+    var onPreEvent: ((KeyEvent) -> Boolean)?
+) : KeyInputModifierNode, Modifier.Node() {
+    override fun onKeyEvent(event: KeyEvent): Boolean = this.onEvent?.invoke(event) ?: false
+    override fun onPreKeyEvent(event: KeyEvent): Boolean = this.onPreEvent?.invoke(event) ?: false
+}

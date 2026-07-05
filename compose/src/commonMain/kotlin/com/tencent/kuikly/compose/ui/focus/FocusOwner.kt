@@ -18,7 +18,7 @@ package com.tencent.kuikly.compose.ui.focus
 
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.geometry.Rect
-//import com.tencent.kuikly.compose.ui.input.key.KeyEvent
+import com.tencent.kuikly.compose.ui.input.key.KeyEvent
 //import com.tencent.kuikly.compose.ui.input.rotary.RotaryScrollEvent
 
 /**
@@ -126,20 +126,20 @@ internal interface FocusOwner : FocusManager {
      */
     fun getFocusRect(): Rect?
 
-//    /**
-//     * Dispatches a key event through the compose hierarchy.
-//     *
-//     * When an embedded subview has focus, we call onPreviewKeyEvents for all the parents, and then
-//     * invoke onFocusedItem before we call onKeyEvent on all the parents.
-//     *
-//     * @param keyEvent the key event to be dispatched
-//     *
-//     * @param onFocusedItem the block that is run after calling onPreviewKeyEvents on all the
-//     * parents. Returning true will consume the event and prevent the event from propagating
-//     * to the onKeyEvent modifiers on parents. This is used to dispatch key events to embedded
-//     * sub-views.
-//     */
-//    fun dispatchKeyEvent(keyEvent: KeyEvent, onFocusedItem: () -> Boolean = { false }): Boolean
+    /**
+     * Dispatches a key event through the compose hierarchy.
+     *
+     * When an embedded subview has focus, we call onPreviewKeyEvents for all the parents, and then
+     * invoke onFocusedItem before we call onKeyEvent on all the parents.
+     *
+     * @param keyEvent the key event to be dispatched
+     *
+     * @param onFocusedItem the block that is run after calling onPreviewKeyEvents on all the
+     * parents. Returning true will consume the event and prevent the event from propagating
+     * to the onKeyEvent modifiers on parents. This is used to dispatch key events to embedded
+     * sub-views.
+     */
+    fun dispatchKeyEvent(keyEvent: KeyEvent, onFocusedItem: () -> Boolean = { false }): Boolean
 //
 //    /**
 //     * Dispatches an intercepted soft keyboard key event through the compose hierarchy.

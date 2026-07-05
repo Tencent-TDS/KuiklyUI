@@ -18,6 +18,7 @@ package com.tencent.kuikly.core.render.android.expand
 import android.content.Context
 import android.content.Intent
 import android.util.Size
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -548,6 +549,16 @@ open class KuiklyRenderViewBaseDelegator(private val delegate: KuiklyRenderViewB
             isBackPressedConsumed.set(isBackConsumed)
         }
         return isBackPressedConsumed.get()
+    }
+
+    /**
+     * Dispatch a hardware key event to a Kuikly Compose page.
+     *
+     * Apps can call this from Activity.dispatchKeyEvent. Compose pages receive it through
+     * Modifier.onPreviewKeyEvent/Modifier.onKeyEvent when the focused tree has key handlers.
+     */
+    fun sendKeyEvent(event: KeyEvent) {
+        renderView?.sendKeyEvent(event)
     }
 
 }

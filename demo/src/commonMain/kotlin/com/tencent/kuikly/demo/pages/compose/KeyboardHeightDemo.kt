@@ -67,6 +67,11 @@ internal class KeyboardHeightDemo : ComposeContainer() {
                     }
                 }
                 var keyboardHeight by remember { mutableStateOf(0f) }
+                Text(
+                    text = "键盘高度: ${keyboardHeight}dp",
+                    color = Color.Gray,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = keyboardHeight.dp),
                     verticalAlignment = Alignment.CenterVertically

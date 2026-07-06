@@ -546,8 +546,39 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         }
     }
 
+    /**
+     * 安全选区写入：coerceIn 防止非法索引穿透到系统 EditText.setSelection 导致崩溃。
+     * 配合 CoreTextField.handleNativeEditingStateChange（coerceToTextBounds 归一化后的合法值）形成双层保障。
+     */
     override fun setSelection(index: Int) {
-        super.setSelection(index.coerceIn(0, text?.length ?: 0))
+        val safeIndex = index.coerceIn(0, editableText?.length ?: text?.length ?: 0)
+        runCatching {
+            super.setSelection(safeIndex)
+        }.onFailure {
+            KuiklyRenderLog.e(KRRecyclerView.VIEW_NAME, "setSelection(index=$index, safeIndex=$safeIndex) error, $it")
+        }
+    }
+
+    override fun setSelection(start: Int, stop: Int) {
+        val maxLength = editableText?.length ?: text?.length ?: 0
+        val safeStart = start.coerceIn(0, maxLength)
+        val safeStop = stop.coerceIn(0, maxLength)
+        runCatching {
+            super.setSelection(safeStart, safeStop)
+        }.onFailure {
+            KuiklyRenderLog.e(
+                KRRecyclerView.VIEW_NAME,
+                "setSelection(start=$start, stop=$stop, safeStart=$safeStart, safeStop=$safeStop) error, $it"
+            )
+            runCatching {
+                super.setSelection(safeStop)
+            }.onFailure { fallbackError ->
+                KuiklyRenderLog.e(
+                    KRRecyclerView.VIEW_NAME,
+                    "fallback setSelection(index=$safeStop) error, $fallbackError"
+                )
+            }
+        }
     }
 
     private fun setTintColor(propValue: Any): Boolean {

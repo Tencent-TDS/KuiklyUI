@@ -44,21 +44,38 @@ class TextFieldState internal constructor(
         if (buffer.hasReverted) {
             return
         }
-        text = buffer.toString()
-        selection = buffer.selection.coerceIn(0, text.length)
-        composition = buffer.composition?.coerceIn(0, text.length)
+        applyBuffer(buffer)
+    }
+
+    /**
+     * TextFieldState 的唯一写入收口：所有 text / selection / composition 的变更（edit{}、clearText、
+     * setTextAndPlaceCursorAtEnd、updateFromTextField）最终都走此方法，确保 selection 和 composition
+     * 始终 coerceIn 到 text.length 范围内。
+     */
+    fun setTextAndSelect(
+        text: String,
+        selection: TextRange = TextRange(text.length),
+        composition: TextRange? = null
+    ) {
+        this.text = text
+        this.selection = selection.coerceIn(0, text.length)
+        this.composition = composition?.coerceIn(0, text.length)
     }
 
     fun setTextAndPlaceCursorAtEnd(text: String) {
-        this.text = text
-        selection = TextRange(text.length)
-        composition = null
+        setTextAndSelect(text, selection = TextRange(text.length))
     }
 
     fun clearText() {
-        text = ""
-        selection = TextRange.Zero
-        composition = null
+        setTextAndSelect("", selection = TextRange.Zero)
+    }
+
+    private fun applyBuffer(buffer: TextFieldBuffer) {
+        setTextAndSelect(
+            text = buffer.toString(),
+            selection = buffer.selection,
+            composition = buffer.composition
+        )
     }
 
     internal fun updateFromTextField(
@@ -66,9 +83,7 @@ class TextFieldState internal constructor(
         selection: TextRange,
         composition: TextRange?
     ) {
-        this.text = text
-        this.selection = selection.coerceIn(0, text.length)
-        this.composition = composition?.coerceIn(0, text.length)
+        setTextAndSelect(text, selection, composition)
     }
 }
 

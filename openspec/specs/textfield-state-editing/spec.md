@@ -82,31 +82,45 @@ Compose value-based TextField APIs SHALL preserve `TextFieldValue.text`, `TextFi
 - **THEN** `onValueChange` SHALL receive updated selection when the platform reports it
 
 ### Requirement: State-based Compose TextField editing
-Compose DSL SHALL provide a Kuikly package `TextFieldState` API with `rememberTextFieldState` and `edit {}` operations for insert, replace, delete, append, cursor placement, and selection updates.
+Compose DSL SHALL provide a Kuikly package `TextFieldState` API with `rememberTextFieldState` and `edit {}` operations for insert, replace, delete, append, cursor placement, and selection updates. The `TextFieldState` SHALL use a private `applyBuffer` method and a public `setTextAndSelect` method to ensure all text/selection/composition mutations are normalized via `coerceIn(0, text.length)`.
 
 #### Scenario: Android state edit inserts at cursor
 - **WHEN** business code calls `state.edit { insert(selection.start, "[smile]") }` on Android
 - **THEN** the shortcode SHALL be inserted at the current raw cursor position
+- **AND** the resulting selection and composition SHALL be coerced to `[0, text.length]`
 
 #### Scenario: iOS state edit inserts at cursor
 - **WHEN** business code calls `state.edit { insert(selection.start, "[smile]") }` on iOS
 - **THEN** the shortcode SHALL be inserted at the current raw cursor position
+- **AND** the resulting selection and composition SHALL be coerced to `[0, text.length]`
 
 #### Scenario: HarmonyOS state edit inserts at cursor
 - **WHEN** business code calls `state.edit { insert(selection.start, "[smile]") }` on HarmonyOS
 - **THEN** the shortcode SHALL be inserted at the current raw cursor position when selection is available
+- **AND** the resulting selection and composition SHALL be coerced to `[0, text.length]`
 
 #### Scenario: Web state edit inserts at cursor
 - **WHEN** business code calls `state.edit { insert(selection.start, "[smile]") }` on Web
 - **THEN** the shortcode SHALL be inserted at the current raw cursor position
+- **AND** the resulting selection and composition SHALL be coerced to `[0, text.length]`
 
 #### Scenario: miniApp state edit inserts at cursor
 - **WHEN** business code calls `state.edit { insert(selection.start, "[smile]") }` on miniApp
 - **THEN** the shortcode SHALL be inserted at the best-known raw cursor position
+- **AND** the resulting selection and composition SHALL be coerced to `[0, text.length]`
 
 #### Scenario: macOS state edit inserts at cursor
 - **WHEN** business code calls `state.edit { insert(selection.start, "[smile]") }` on macOS
 - **THEN** the shortcode SHALL be inserted at the current raw cursor position when selection is available
+- **AND** the resulting selection and composition SHALL be coerced to `[0, text.length]`
+
+#### Scenario: setTextAndSelect normalizes out-of-bounds selection
+- **WHEN** `state.setTextAndSelect("ab", selection = TextRange(5, 10))` is called
+- **THEN** `state.selection` SHALL be `TextRange(2, 2)` (clipped to text length)
+
+#### Scenario: clearText resets editing state
+- **WHEN** `state.clearText()` is called
+- **THEN** `state.text` SHALL be `""`, `state.selection` SHALL be `TextRange.Zero`, and `state.composition` SHALL be `null`
 
 ### Requirement: Self DSL text input state binding
 Self DSL `Input` and `TextArea` SHALL expose semantic state binding through `TextInputState` methods/events while keeping existing `textDidChange`, `cursorIndex`, and `setCursorIndex` APIs compatible.

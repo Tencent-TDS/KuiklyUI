@@ -15,9 +15,11 @@
 
 #include "libohos_render/core/KRRenderCore.h"
 
+#include <cmath>
 #include <functional>
 #include <memory>
 #include "libohos_render/foundation/KRRect.h"
+#include "libohos_render/foundation/thread/KRThreadFatalGuard.h"
 #include "libohos_render/layer/KRRenderLayerHandler.h"
 #include "libohos_render/manager/KRArkTSManager.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"
@@ -29,8 +31,16 @@ EXTERN_C_START
 const KRRenderCValue com_tencent_kuikly_CallNative(int methodId, KRRenderCValue arg0, KRRenderCValue arg1,
                                                    KRRenderCValue arg2, KRRenderCValue arg3, KRRenderCValue arg4,
                                                    KRRenderCValue arg5) {
-    return IKRRenderNativeContextHandler::DispatchCallNative(std::string(arg0.value.stringValue), methodId, arg0, arg1,
-                                                             arg2, arg3, arg4, arg5);
+    // napi C ABI 边界：与 KRThread / KRMainThread 调度边界同口径，
+    // 任何 C++ 异常逃到 C ABI 都会越 napi 调度帧造成 UB，必须 fail-fast。
+    // 用 RunWithFatalGuard 替代裸 try-catch，让"打 log + abort" 的行为
+    // 集中到唯一一处实现，避免遗漏 e.what()。
+    KRRenderCValue result{.type = KRRenderCValue::Type::NULL_VALUE};
+    kuikly::thread::RunWithFatalGuard("KRRenderCore.ABI.CallNative", [&] {
+        result = IKRRenderNativeContextHandler::DispatchCallNative(std::string(arg0.value.stringValue), methodId, arg0,
+                                                                   arg1, arg2, arg3, arg4, arg5);
+    });
+    return result;
 }
 
 CallKotlin callKotlin_;
@@ -41,7 +51,7 @@ int com_tencent_kuikly_SetCallKotlin(CallKotlin callKotlin) {
 
 void com_tencent_kuikly_ScheduleContextTask(const char *pagerId, void (*onSchedule)(const char *pagerId)) {
     KRContextScheduler::ScheduleTask(
-        false, 0, [instanceId = std::string(pagerId), onSchedule]() { onSchedule(instanceId.c_str()); });
+        0, [instanceId = std::string(pagerId), onSchedule]() { onSchedule(instanceId.c_str()); });
 }
 
 bool com_tencent_kuikly_IsCurrentOnContextThread(const char *pagerId) {
@@ -58,9 +68,9 @@ static constexpr int kSyncCallbackMask = 1;
  */
 static constexpr int kCallbackKeepAliveMask = 2;
 
-/** 任务在context线程中执行 */
-static void PerformTaskOnContextQueue(bool isSync, int delayMs, const KRSchedulerTask &task) {
-    KRContextScheduler::ScheduleTask(isSync, delayMs, task);
+/** 任务在context线程中异步执行 */
+static void PerformTaskOnContextQueue(int delayMs, const KRSchedulerTask &task) {
+    KRContextScheduler::ScheduleTask(delayMs, task);
 }
 
 KRRenderCore::KRRenderCore(std::weak_ptr<IKRRenderView> renderView, std::shared_ptr<KRRenderContextParams> context)
@@ -165,7 +175,7 @@ void KRRenderCore::WillDealloc(const std::string &instanceId) {
     renderLayerHandler_->WillDestroy();
     auto self = shared_from_this();
     std::string id = instanceId;
-    PerformTaskOnContextQueue(false, 0, [self, id] {
+        PerformTaskOnContextQueue(0, [self, id] {
         auto nullValue = self->defaultNullValue_;
         self->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodDestroyInstance, nullValue, nullValue,
                                nullValue, nullValue, nullValue);
@@ -282,7 +292,22 @@ KRAnyValue KRRenderCore::PerformNativeCallback(const KuiklyRenderNativeMethod &m
     }
 
     case KuiklyRenderNativeMethod::KuiklyRenderNativeMethodSetRenderViewFrame: {
-        auto rect = KRRect(arg2->toFloat(), arg3->toFloat(), arg4->toFloat(), arg5->toFloat());
+        // 在 frame 入口处统一按像素取整：
+        // 把 frame 视为 [left, top, right, bottom] 四条边界，分别将其 vp -> px 后用 std::round
+        // 取到最近的整数像素，再换算回 vp；width/height 由对齐后的边界相减得到。
+        // 这样可保证：
+        //   1) 相邻节点（前一个的 right == 后一个的 left）对齐到同一物理像素，避免接缝/重叠；
+        //   2) std::round 对负数也按"远离 0"四舍五入，行为与正数一致；
+        //   3) 下游属性流直接使用已取整的 vp 值，无需再分散处理。
+        const auto &config = context_->Config();
+        auto alignEdgeToPixel = [&config](float vp) {
+            return config->Px2Vp(std::round(config->vp2px(vp)));
+        };
+        const float left = alignEdgeToPixel(arg2->toFloat());
+        const float top = alignEdgeToPixel(arg3->toFloat());
+        const float right = alignEdgeToPixel(arg2->toFloat() + arg4->toFloat());
+        const float bottom = alignEdgeToPixel(arg3->toFloat() + arg5->toFloat());
+        auto rect = KRRect(left, top, right - left, bottom - top);
         std::string rectData((const char *)&rect, sizeof(KRRect));
         auto value = KRRenderValue::Make(rectData);
         renderLayerHandler_->SetProp(arg1->toInt(), "frame", value);
@@ -299,7 +324,7 @@ KRAnyValue KRRenderCore::PerformNativeCallback(const KuiklyRenderNativeMethod &m
             std::weak_ptr<KRRenderCore> weakSelf = shared_from_this();
             callback = [weakSelf, arg4](KRAnyValue res) {
                 if (auto locked = weakSelf.lock()) {
-                    PerformTaskOnContextQueue(false, 0, [weakSelf, arg4, res] {
+                    PerformTaskOnContextQueue(0, [weakSelf, arg4, res] {
                         if (auto locked = weakSelf.lock()) {
                             locked->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodFireCallback, arg4,
                                                      res, locked->defaultNullValue_, locked->defaultNullValue_,
@@ -321,7 +346,7 @@ KRAnyValue KRRenderCore::PerformNativeCallback(const KuiklyRenderNativeMethod &m
             std::weak_ptr<KRRenderCore> weakSelf = shared_from_this();
             callback = [weakSelf, arg4](KRAnyValue res) {
                 if (auto locked = weakSelf.lock()) {
-                    PerformTaskOnContextQueue(false, 0, [weakSelf, arg4, res] {
+                    PerformTaskOnContextQueue(0, [weakSelf, arg4, res] {
                         if (auto locked = weakSelf.lock()) {
                             locked->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodFireCallback, arg4,
                                                      res, locked->defaultNullValue_, locked->defaultNullValue_,
@@ -368,7 +393,7 @@ KRAnyValue KRRenderCore::PerformNativeCallback(const KuiklyRenderNativeMethod &m
     }
     case KuiklyRenderNativeMethod::KuiklyRenderNativeMethodSetTimeout: {
         std::weak_ptr<KRRenderCore> weakSelf = shared_from_this();
-        PerformTaskOnContextQueue(false, arg1->toInt() > 0 ? arg1->toInt() : 1, [weakSelf, arg2] {
+        PerformTaskOnContextQueue(arg1->toInt() > 0 ? arg1->toInt() : 1, [weakSelf, arg2] {
             if (auto lock = weakSelf.lock()) {
                 auto nullValue = lock->defaultNullValue_;
                 lock->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodFireCallback, arg2, nullValue,

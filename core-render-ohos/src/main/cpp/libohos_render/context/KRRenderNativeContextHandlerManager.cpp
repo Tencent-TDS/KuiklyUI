@@ -66,7 +66,7 @@ void KRRenderNativeContextHandlerManager::ScheduleDeallocRenderValues(
     }
     bool expected = false;
     if (scheduling_dealloc_render_values_.compare_exchange_strong(expected, true)) {
-        KRContextScheduler::ScheduleTask(false, 16, [this]() {
+    KRContextScheduler::ScheduleTask(16, [this]() {
             // `this` is safe to be captured in the closure, because it is an singleton.
             decltype(pending_dealloc_render_values_) values;
             {

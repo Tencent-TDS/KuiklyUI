@@ -42,7 +42,6 @@
 #include "libohos_render/utils/KRStringUtil.h"
 #include "libohos_render/utils/KRViewUtil.h"
 
-static bool KR_TEXT_RENDER_V2_ENABLED = false;
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -54,9 +53,6 @@ extern void OH_Drawing_DestroyTextLines(OH_Drawing_Array* lines) __attribute__((
 extern void OH_Drawing_SetTypographyVerticalAlignment(OH_Drawing_TypographyStyle* style,
                                                       OH_Drawing_TextVerticalAlignment alignment) __attribute__((weak));
 
-void KREnableTextRenderV2(){
-    KR_TEXT_RENDER_V2_ENABLED = true;
-}
 #ifdef __cplusplus
 };
 #endif
@@ -677,11 +673,12 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
         std::fmax(0, std::fmin(std::ceil(OH_Drawing_TypographyGetLongestLine(typography_raw)), maxWidth));
     context_thread_text_align_ = text_align;
     auto ouput_measure_width_ = (longestLineWidth / dpi);
+#ifndef NDEBUG
     if (ouput_measure_width_ < 0.01) {
         KR_LOG_ERROR << "Measure size:" << ouput_measure_width_ << ", " << ouput_measure_height_
                      << ", content bytes:" << GetTextContent().size() << ", in shadow view:" << this;
     }
-
+#endif
     context_measure_size_ = KRSize(ouput_measure_width_, ouput_measure_height_);
     if (handler != nullptr) {
         OH_Drawing_DestroyTypographyHandler(handler);
@@ -819,6 +816,87 @@ int KRRichTextShadow::SpanIndexAt(float spanX, float spanY) {
         }
     }
     return resultIndex;
+}
+
+KRAnyValue KRRichTextShadow::BuildEventParams(KRAnyValue res) {
+    if (!res->isMap()) {
+        return res;
+    }
+    const auto oldParam = res->toMap();
+    const auto x = oldParam.find("x");
+    const auto y = oldParam.find("y");
+
+    KRRenderValueMap params;
+    if (x != oldParam.end()) {
+        params["x"] = x->second;
+    }
+    if (y != oldParam.end()) {
+        params["y"] = y->second;
+    }
+
+    const auto pageX = oldParam.find("pageX");
+    const auto pageY = oldParam.find("pageY");
+    if (pageX != oldParam.end()) {
+        params["pageX"] = pageX->second;
+    }
+    if (pageY != oldParam.end()) {
+        params["pageY"] = pageY->second;
+    }
+
+    const auto state = oldParam.find("state");
+    const auto isCancel = oldParam.find("isCancel");
+    if (state != oldParam.end()) {
+        params["state"] = state->second;
+    }
+    if (isCancel != oldParam.end()) {
+        params["isCancel"] = isCancel->second;
+    }
+
+    if (x != oldParam.end() && y != oldParam.end()) {
+        params["index"] = NewKRRenderValue(SpanIndexAt(x->second->toFloat(), y->second->toFloat()));
+    }
+    return NewKRRenderValue(params);
+}
+
+KRAnyValue KRRichTextShadow::BuildLongPressEventParams(KRAnyValue res) {
+    KRAnyValue params_value = BuildEventParams(res);
+    if (!params_value->isMap()) {
+        return params_value;
+    }
+    KRRenderValueMap params = params_value->toMap();
+    params["index"] = NewKRRenderValue(ResolveLongPressSpanIndex(params));
+    if (IsLongPressTerminalState(params)) {
+        ClearActiveLongPressSpanIndex();
+    }
+    return NewKRRenderValue(params);
+}
+
+int KRRichTextShadow::ResolveLongPressSpanIndex(const KRRenderValueMap &params) {
+    const auto state_it = params.find("state");
+    if (state_it != params.end() && state_it->second->toString() == "start") {
+        const auto x_it = params.find("x");
+        const auto y_it = params.find("y");
+        int span_index = -1;
+        if (x_it != params.end() && y_it != params.end()) {
+            span_index = SpanIndexAt(x_it->second->toFloat(), y_it->second->toFloat());
+        }
+        active_long_press_span_index_ = span_index;
+        return span_index;
+    }
+    return active_long_press_span_index_;
+}
+
+bool KRRichTextShadow::IsLongPressTerminalState(const KRRenderValueMap &params) const {
+    const auto is_cancel_it = params.find("isCancel");
+    if (is_cancel_it != params.end() && is_cancel_it->second->toBool()) {
+        return true;
+    }
+    const auto state_it = params.find("state");
+    return state_it != params.end() && state_it->second->toString() == "end";
+}
+
+void KRRichTextShadow::ClearActiveLongPressSpanIndex() {
+    active_long_press_span_index_ = -1;
 }
 
 OH_Drawing_Array *KRRichTextShadow::GetTextLines(){

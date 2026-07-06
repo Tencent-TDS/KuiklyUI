@@ -16,6 +16,7 @@ set(SOURCE_SET
         libohos_render/foundation/ffrt/KRDispatchQueue.cpp
         libohos_render/foundation/ark_ts.cpp
         libohos_render/foundation/thread/KRMainThread.cpp
+        libohos_render/foundation/thread/KRThread.cpp
         libohos_render/manager/KRRenderManager.cpp
         libohos_render/view/KRRenderView.cpp
         libohos_render/scheduler/KRUIScheduler.cpp
@@ -148,4 +149,5 @@ target_link_libraries(kuikly PUBLIC hilog_ndk.z.so
                                     libffrt.z.so
                                     libohpreferences.so
                                     libhilog_ndk.z.so
+                                    libqos.so
                                     )

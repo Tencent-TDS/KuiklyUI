@@ -332,6 +332,11 @@ open class TextAreaAttr : Attr() {
         return this
     }
 
+    fun fontFamily(fontFamily: String): TextAreaAttr {
+        TextConst.FONT_FAMILY with fontFamily
+        return this
+    }
+
     fun lines(lines: Int): TextAreaAttr {
         TextConst.LINES with lines
         return this

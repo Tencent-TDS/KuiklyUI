@@ -108,7 +108,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("HorizontalPager", "HorizontalPager基本用法示例", "HorizontalPagerDemo1"),
             DemoItem("LazyHorizontalGrid", "LazyHorizontalGrid基本用法示例", "LazyHorizontalGridDemo1"),
             DemoItem("焦点处理", "Focus焦点处理示例", "focusDemo"),
-            DemoItem("TextField", "TextField 组件示例", "TextFieldDemo"),
+            DemoItem("TextField", "TextField 组件示例，含已输入文本字体样式对比", "TextFieldDemo"),
             DemoItem("PullToRefresh", "PullToRefresh 组件示例", "PullToRefreshDemo"),
             DemoItem("PTR Padding Bug", "Issue #1325 HeaderBar+PTR padding", "BugReproPullRefreshPaddingPage"),
             // 其他

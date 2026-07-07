@@ -579,6 +579,42 @@ private fun ViewContainer<*, *>.LineHeightDemo() {
             }
         }
     }
+    // 字体族 + 颜色
+    val fontFamilySampleText = """
+        |Serif Bold Red
+        |WWWWWWWWWW
+        |狐狸跳过懒狗
+    """.trimMargin()
+    View {
+        attr {
+            flexDirectionRow()
+        }
+        TextArea {
+            attr {
+                editable(false)
+                border(Border(1f, BorderStyle.SOLID, Color.GRAY))
+                fontSize(26f)
+                fontFamily("serif")
+                fontWeightBold()
+                color(Color.RED)
+                lineHeight(34f)
+                flex(1f)
+                text(fontFamilySampleText)
+            }
+        }
+        Text {
+            attr {
+                border(Border(1f, BorderStyle.SOLID, Color.GRAY))
+                fontSize(26f)
+                fontFamily("serif")
+                fontWeightBold()
+                color(Color.RED)
+                lineHeight(34f)
+                flex(1f)
+                text(fontFamilySampleText)
+            }
+        }
+    }
 }
 
 private fun ViewContainer<*, *>.ViewLayoutDemo() {

@@ -97,7 +97,8 @@ std::pair<uint32_t, uint32_t> KRTextAreaView::GetInputNodeTextSelectionRange() {
     }
     return {0, 0};
 }
-void KRTextAreaView::UpdateInputNodePlaceholderFont(uint32_t font_size, ArkUI_FontWeight font_weight) {
+void KRTextAreaView::UpdateInputNodePlaceholderFont(uint32_t font_size, ArkUI_FontWeight font_weight,
+                                                    const std::string &font_family) {
     ArkUI_NumberValue fontWeight = {.i32 = font_weight};
     ArkUI_NumberValue tempStyle = {.i32 = ARKUI_FONT_STYLE_NORMAL};
     const auto &rootView = GetRootView().lock();
@@ -115,7 +116,9 @@ void KRTextAreaView::UpdateInputNodePlaceholderFont(uint32_t font_size, ArkUI_Fo
         font_size_temp = font_size_px;
     }
     std::array<ArkUI_NumberValue, 3> value = {{{.f32 = font_size_temp}, tempStyle, fontWeight}};
-    ArkUI_AttributeItem item = {value.data(), value.size()};
+    ArkUI_AttributeItem item = {
+        value.data(), static_cast<int32_t>(value.size()),
+        font_family.empty() ? nullptr : font_family.c_str(), nullptr};
     kuikly::util::GetNodeApi()->setAttribute(node, NODE_TEXT_AREA_PLACEHOLDER_FONT, &item);
     if (!fontSizeScaleFollowSystem) {
         kuikly::util::GetNodeApi()->setLengthMetricUnit(node, ARKUI_LENGTH_METRIC_UNIT_DEFAULT);

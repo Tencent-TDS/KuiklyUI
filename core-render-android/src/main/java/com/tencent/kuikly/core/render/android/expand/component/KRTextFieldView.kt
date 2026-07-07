@@ -120,6 +120,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     private var inputReturnCallBack: KuiklyRenderCallback? = null
 
     private var fontSize = -1f
+    private var fontFamily = KRCssConst.EMPTY_STRING
     private var lineHeight = -1f
     private var lineHeightSpan: HRLineHeightSpan? = null
     private var textWatcher: TextWatcher? = null
@@ -194,6 +195,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
             KRTextProps.PROP_KEY_VALUES -> setValues(propValue)
             FONT_SIZE -> setFontSize(propValue)
             FONT_WEIGHT -> setFontWeight(propValue)
+            KRTextProps.PROP_KEY_FONT_FAMILY -> setFontFamily(propValue)
             COLOR -> setColor(propValue)
             TINT_COLOR -> setTintColor(propValue)
             SELECTION_COLOR -> setSelectionColor(propValue)
@@ -485,6 +487,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
                 InputType.TYPE_CLASS_TEXT
             }
         }
+        applyFontFamily()
         return true
     }
 
@@ -615,6 +618,18 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         val fontWeightSpan = FontWeightSpan(propValue as String)
         fontWeightSpan.updateDrawState(paint)
         return true
+    }
+
+    private fun setFontFamily(propValue: Any): Boolean {
+        fontFamily = propValue as String
+        applyFontFamily()
+        return true
+    }
+
+    private fun applyFontFamily() {
+        if (fontFamily.isNotEmpty()) {
+            typeface = kuiklyRenderContext?.getTypeFaceLoader()?.getTypeface(fontFamily, false)
+        }
     }
 
     private fun setFocus() {

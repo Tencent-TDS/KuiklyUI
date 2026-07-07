@@ -127,6 +127,12 @@ class AutoHeightTextAreaView(val singleLine: Boolean = false) :
         }
     }
 
+    fun setCursorIndexByPoint(x: Float, y: Float) {
+        performTaskWhenRenderViewDidLoad {
+            renderView?.callMethod("setCursorIndexByPoint", "$x $y")
+        }
+    }
+
     /**
      * Atomically set raw text, selection, and composition state.
      */

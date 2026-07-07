@@ -357,6 +357,12 @@ internal fun CoreTextField(
         state,
         focusRequester,
         readOnly,
+        onTapPosition = { offset ->
+            if (autoHeightTextAreaView.getPager().pageData.isIOS) {
+                val pageDensity = autoHeightTextAreaView.getPager().pagerDensity()
+                autoHeightTextAreaView.setCursorIndexByPoint(offset.x / pageDensity, offset.y / pageDensity)
+            }
+        },
 //        offsetMapping,
     )
 

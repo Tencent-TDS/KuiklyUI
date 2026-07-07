@@ -27,6 +27,7 @@
 #include <native_drawing/drawing_text_declaration.h>
 #include <native_drawing/drawing_text_typography.h>
 #include <sys/stat.h>
+#include <string>
 #include <unordered_set>
 #include <vector>
 #include "libohos_render/expand/components/base/KRBasePropsHandler.h"
@@ -240,7 +241,9 @@ void UpdateTextAreaNodeSelectionColor(ArkUI_NodeHandle node, uint32_t color);
 // 文本对齐
 void UpdateInputNodeTextAlign(ArkUI_NodeHandle node, const std::string &text_align);
 
-void UpdateInputNodePlaceholderFont(ArkUI_NodeHandle node, uint32_t font_size, ArkUI_FontWeight font_weight, bool fontSizeScaleFollowSystem, float font_size_px);
+void UpdateInputNodePlaceholderFont(ArkUI_NodeHandle node, uint32_t font_size, ArkUI_FontWeight font_weight,
+                                    bool fontSizeScaleFollowSystem, float font_size_px,
+                                    const std::string &font_family = "");
 
 void UpdateInputNodeColor(ArkUI_NodeHandle node, uint32_t color);
 

@@ -21,6 +21,7 @@
 // 字典key常量
 NSString *const KRVFontSizeKey = @"fontSize";
 NSString *const KRVFontWeightKey = @"fontWeight";
+NSString *const KRVFontFamilyKey = @"fontFamily";
 
 /*
  * @brief 暴露给Kotlin侧调用的多行输入框组件
@@ -34,6 +35,8 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  NSNumber *KUIKLY_PROP(fontSize);
 /** attr is fontWeight */
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(fontWeight);
+/** attr is fontFamily */
+@property (nonatomic, strong)  NSString *KUIKLY_PROP(fontFamily);
 /** attr is placeholder */
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(placeholder);
 /** attr is textAign */
@@ -79,6 +82,9 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 
 - (BOOL)p_containsShortcodeToken:(NSString *)rawText;
 - (BOOL)p_shouldRejectProgrammaticShortcodeInput:(NSString *)rawText;
+- (void)p_applyValuesAttributedText;
+- (void)p_refreshAttributedTextIfNeeded;
+- (void)p_updateFont;
 
 @end
 
@@ -160,36 +166,14 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 - (void)setCss_values:(NSString *)css_values {
     if (_css_values != css_values) {
         _css_values = css_values;
-        if (_css_values.length) {
-            KRRichTextShadow *textShadow = [KRRichTextShadow new];
-            for (NSString *key in _props.allKeys) {
-                [textShadow hrv_setPropWithKey:key propValue:_props[key]];
-            }
-            [textShadow hrv_setPropWithKey:@"contextParam" propValue:self.hr_rootView.contextParam];
-            // 保存原光标位置
-            UITextRange *originalSelectedTextRange = self.selectedTextRange;
-            // 设置新的 attributedText
-            NSAttributedString *resAttr = [textShadow buildAttributedString];
-            // NOTE: UITextField does not render NSTextAttachment images (only UITextView does).
-            // Therefore textPostProcessor with emoji/image attachment rendering is NOT supported
-            // in single-line mode (KRTextFieldView). Use KRTextAreaView for custom emoji support.
-            // The textPostProcessor call here is kept for any non-image text transformations
-            // (e.g., text masking, formatting) that do not rely on NSTextAttachment rendering.
-            if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_customTextWithAttributedString:textPostProcessor:)]) {
-                resAttr = [[KuiklyRenderBridge componentExpandHandler] hr_customTextWithAttributedString:resAttr textPostProcessor:NSStringFromClass([self class])];
-            }
-            self.attributedText = resAttr;
-            // 恢复原光标位置
-            self.selectedTextRange = originalSelectedTextRange;
-        } else {
-            self.attributedText = nil;
-        }
+        [self p_applyValuesAttributedText];
         [self onTextFeildTextChanged:self];
     }
 }
 
 - (void)setCss_color:(NSNumber *)css_color {
     self.textColor = [UIView css_color:css_color];
+    [self p_refreshAttributedTextIfNeeded];
 }
 
 - (void)setCss_tintColor:(NSNumber *)css_tintColor {
@@ -227,13 +211,19 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 
 - (void)setCss_fontSize:(NSNumber *)css_fontSize {
     _css_fontSize = css_fontSize;
-    self.font = [KRConvertUtil UIFont:@{KRVFontSizeKey: css_fontSize ?: @(16),
-                                        KRVFontWeightKey: _css_fontWeight ?: @"400"}];
+    [self p_updateFont];
+    [self p_refreshAttributedTextIfNeeded];
 }
 
 - (void)setCss_fontWeight:(NSString *)css_fontWeight {
     _css_fontWeight = css_fontWeight;
     [self setCss_fontSize:_css_fontSize];
+}
+
+- (void)setCss_fontFamily:(NSString *)css_fontFamily {
+    _css_fontFamily = css_fontFamily;
+    [self setCss_fontSize:_css_fontSize];
+    [self p_setNeedUpdatePlaceholder];
 }
 
 - (void)setCss_placeholder:(NSString *)css_placeholder {
@@ -311,6 +301,32 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     _ignoreSelectionChange = YES;
     self.selectedTextRange = [self textRangeFromPosition:newPosition toPosition:newPosition];
     _ignoreSelectionChange = NO;
+}
+
+- (void)css_setCursorIndexByPoint:(NSDictionary *)args {
+#if TARGET_OS_OSX
+    return;
+#else
+    NSString *params = args[KRC_PARAM_KEY];
+    NSArray<NSString *> *components = [params componentsSeparatedByString:@" "];
+    if (components.count < 2) {
+        return;
+    }
+    CGPoint point = CGPointMake([components[0] doubleValue], [components[1] doubleValue]);
+    if (![self isFirstResponder]) {
+        [self becomeFirstResponder];
+    }
+    UITextPosition *position = [self closestPositionToPoint:point];
+    if (!position) {
+        return;
+    }
+    _ignoreSelectionChange = YES;
+    self.selectedTextRange = [self textRangeFromPosition:position toPosition:position];
+    _ignoreSelectionChange = NO;
+    if (self.css_selectionChange) {
+        self.css_selectionChange([self p_currentTextInputStatePayload]);
+    }
+#endif
 }
 
 - (void)css_setTextInputState:(NSDictionary *)args {
@@ -590,6 +606,50 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 - (void)p_setNeedUpdatePlaceholder {
     _setNeedUpdatePlaceholder = YES;
     [self setNeedsLayout];
+}
+
+- (NSMutableDictionary *)p_fontProps {
+    NSMutableDictionary *fontProps = [@{KRVFontSizeKey: _css_fontSize ?: @(16),
+                                        KRVFontWeightKey: _css_fontWeight ?: @"400",
+                                        KRVFontFamilyKey: _css_fontFamily ?: @""} mutableCopy];
+    id contextParam = self.hr_rootView.contextParam;
+    if (contextParam) {
+        fontProps[@"contextParam"] = contextParam;
+    }
+    return fontProps;
+}
+
+- (void)p_updateFont {
+    self.font = [KRConvertUtil UIFont:[self p_fontProps]];
+}
+
+- (void)p_refreshAttributedTextIfNeeded {
+    if (_css_values.length) {
+        [self p_applyValuesAttributedText];
+    }
+}
+
+- (void)p_applyValuesAttributedText {
+    if (_css_values.length) {
+        KRRichTextShadow *textShadow = [KRRichTextShadow new];
+        for (NSString *key in _props.allKeys) {
+            [textShadow hrv_setPropWithKey:key propValue:_props[key]];
+        }
+        id contextParam = self.hr_rootView.contextParam;
+        if (contextParam) {
+            [textShadow hrv_setPropWithKey:@"contextParam" propValue:contextParam];
+        }
+        UITextRange *originalSelectedTextRange = self.selectedTextRange;
+        NSAttributedString *resAttr = [textShadow buildAttributedString];
+        // UITextField does not render NSTextAttachment images. Use KRTextAreaView for custom emoji.
+        if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_customTextWithAttributedString:textPostProcessor:)]) {
+            resAttr = [[KuiklyRenderBridge componentExpandHandler] hr_customTextWithAttributedString:resAttr textPostProcessor:NSStringFromClass([self class])];
+        }
+        self.attributedText = resAttr;
+        self.selectedTextRange = originalSelectedTextRange;
+    } else {
+        self.attributedText = nil;
+    }
 }
 
 - (NSDictionary *)p_currentTextInputStatePayload {
@@ -914,5 +974,3 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 }
 
 @end
-
-

@@ -36,26 +36,7 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
     NSString *fontFamily = json[@"fontFamily"];
     CGFloat fontSize = [self CGFloat:json[@"fontSize"]] ?: 15;
     KuiklyContextParam* contextParam = json[@"contextParam"];
-    
-    if (fontFamily && fontFamily.length) {
-        UIFont* font = [UIFont fontWithName:fontFamily size:fontSize];      // 判断字体是否已经在info.plist中注册
-        if (font) {
-            return font;
-        }
-        
-        // 未静态注册，则调用业务方hr_loadCustomFont
-        if (contextParam && [KRFontModule hr_loadCustomFont:fontFamily contextParams:contextParam]) {
-            UIFont* font = [UIFont fontWithName:fontFamily size:fontSize];      // 以上下文参数ContextParam作为路径来源，动态加载字体
-            if (font) {
-                return font;
-            }
-        } else {
-            // 动态加载字体失败，返回系统默认字体
-            return [UIFont systemFontOfSize:fontSize];
-        }
-    }
-    
-    // 执行默认字体加载，所覆盖的场景有：fontFamily为nil或者为空、ContextParam为nil、业务方字体加载失败
+
     static dispatch_once_t onceToken;
     static NSDictionary *gFontWeightMap = nil;
     dispatch_once(&onceToken, ^{
@@ -74,11 +55,13 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
         };
     });
     UIFontWeight fontWeight = [(gFontWeightMap[json[@"fontWeight"]?:@""] ?: @(UIFontWeightRegular)) doubleValue];
+    BOOL italic = json[@"fontStyle"] && [@"italic" isEqualToString:json[@"fontStyle"]];
     
     if (fontFamily.length) {
         UIFont *font = nil;
+        font = [self genericUIFontWithFamily:fontFamily fontSize:fontSize fontWeight:fontWeight italic:italic];
         if ([[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_fontWithFontFamily:fontSize:fontWeight:)]) {
-            font = [[KuiklyRenderBridge componentExpandHandler] hr_fontWithFontFamily:fontFamily fontSize:fontSize fontWeight:fontWeight];
+            font = [[KuiklyRenderBridge componentExpandHandler] hr_fontWithFontFamily:fontFamily fontSize:fontSize fontWeight:fontWeight] ?: font;
         }
         if (font == nil && [[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_fontWithFontFamily:fontSize:)]) {
             font = [[KuiklyRenderBridge componentExpandHandler] hr_fontWithFontFamily:fontFamily fontSize:fontSize];
@@ -86,16 +69,73 @@ const NSString *lineargradientPrefix = @"linear-gradient(";
         if (font == nil) {
             font = [UIFont fontWithName:fontFamily size:fontSize];
         }
+        if (font == nil && contextParam && [KRFontModule hr_loadCustomFont:fontFamily contextParams:contextParam]) {
+            font = [UIFont fontWithName:fontFamily size:fontSize];
+        }
         if (font) {
-            return font;
+            return [self styledFontWithFont:font fontWeight:fontWeight italic:italic] ?: font;
         }
     }
     
-    if (json[@"fontStyle"] && [@"italic" isEqualToString:json[@"fontStyle"]]) {
+    if (italic) {
         return [self italicFontWithSize:fontSize bold:fontWeight >=UIFontWeightBold itatic:YES weight:fontWeight];
     }
     
     return [UIFont systemFontOfSize:fontSize weight:fontWeight];
+}
+
++ (UIFont *)genericUIFontWithFamily:(NSString *)fontFamily
+                           fontSize:(CGFloat)fontSize
+                         fontWeight:(UIFontWeight)fontWeight
+                             italic:(BOOL)italic {
+    NSString *family = [[fontFamily lowercaseString] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    BOOL bold = fontWeight >= UIFontWeightBold;
+    NSString *fontName = nil;
+    if ([family isEqualToString:@"sans-serif"]) {
+        return italic ? [self italicFontWithSize:fontSize bold:bold itatic:YES weight:fontWeight] : [UIFont systemFontOfSize:fontSize weight:fontWeight];
+    }
+    if ([family isEqualToString:@"serif"]) {
+        if (bold && italic) {
+            fontName = @"TimesNewRomanPS-BoldItalicMT";
+        } else if (bold) {
+            fontName = @"TimesNewRomanPS-BoldMT";
+        } else if (italic) {
+            fontName = @"TimesNewRomanPS-ItalicMT";
+        } else {
+            fontName = @"TimesNewRomanPSMT";
+        }
+    } else if ([family isEqualToString:@"monospace"]) {
+        if (bold && italic) {
+            fontName = @"CourierNewPS-BoldItalicMT";
+        } else if (bold) {
+            fontName = @"CourierNewPS-BoldMT";
+        } else if (italic) {
+            fontName = @"CourierNewPS-ItalicMT";
+        } else {
+            fontName = @"CourierNewPSMT";
+        }
+    } else if ([family isEqualToString:@"cursive"]) {
+        fontName = bold ? @"SnellRoundhand-Bold" : @"SnellRoundhand";
+    }
+    return fontName.length ? [UIFont fontWithName:fontName size:fontSize] : nil;
+}
+
++ (UIFont *)styledFontWithFont:(UIFont *)font
+                    fontWeight:(UIFontWeight)fontWeight
+                        italic:(BOOL)italic {
+    BOOL bold = fontWeight >= UIFontWeightBold;
+    if (!bold && !italic) {
+        return font;
+    }
+    UIFontDescriptorSymbolicTraits symbolicTraits = 0;
+    if (italic) {
+        symbolicTraits |= UIFontDescriptorTraitItalic;
+    }
+    if (bold) {
+        symbolicTraits |= UIFontDescriptorTraitBold;
+    }
+    UIFontDescriptor *descriptor = [[font fontDescriptor] fontDescriptorWithSymbolicTraits:symbolicTraits];
+    return descriptor ? [UIFont fontWithDescriptor:descriptor size:font.pointSize] : nil;
 }
 
 + (UIFont *)italicFontWithSize:(CGFloat)fontSize

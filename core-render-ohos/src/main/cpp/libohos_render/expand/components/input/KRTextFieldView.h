@@ -19,6 +19,7 @@
 #include "libohos_render/export/IKRRenderViewExport.h"
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <utility>
 
 class KRTextFieldView : public IKRRenderViewExport {
@@ -88,13 +89,15 @@ class KRTextFieldView : public IKRRenderViewExport {
      * 子类（如 KRTextAreaView）可 override 以适配不同的 ArkUI 节点类型。
      */
     virtual std::pair<uint32_t, uint32_t> GetInputNodeTextSelectionRange();
-    virtual void UpdateInputNodePlaceholderFont(uint32_t font_size, ArkUI_FontWeight font_weight);
+    virtual void UpdateInputNodePlaceholderFont(uint32_t font_size, ArkUI_FontWeight font_weight,
+                                                const std::string &font_family);
     virtual void UpdateInputNodeContentText(const std::string &text);
     virtual std::string GetInputNodeContentText();
 
  private:
     float font_size_ = 15;  // default 15
     ArkUI_FontWeight font_weight_ = ARKUI_FONT_WEIGHT_NORMAL;
+    std::string font_family_;
     bool focusable_ = true;
     int32_t max_length_ = -1;
     int length_limit_type_ = -1;  // -1: unset, 0: BYTE, 1: CHARACTER, 2: VISUAL_WIDTH
@@ -184,7 +187,8 @@ class KRTextFieldView : public IKRRenderViewExport {
      * @param font_size
      * @param font_weight
      */
-    void SetFont(uint32_t font_size, ArkUI_FontWeight font_weight);
+    void SetFont(uint32_t font_size, ArkUI_FontWeight font_weight, const std::string &font_family);
+    void UpdateInputNodeFontFamily(const std::string &font_family);
 
     /**
      * 文本变化回调

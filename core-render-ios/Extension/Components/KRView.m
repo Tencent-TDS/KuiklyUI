@@ -132,62 +132,94 @@
 #if !TARGET_OS_OSX // [macOS]
 
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
-    [super touchesBegan:touches withEvent:event];
     // 如果走compose(superTouch)，由手势驱动，不由touch驱动事件
+    BOOL handled = NO;
     if (_css_touchDown && ![self.css_superTouch boolValue]) {
+        handled = YES;
         _css_touchDown([self p_generateBaseParamsWithEvent:event eventName:@"touchDown"]);
+    }
+    if (!handled) {
+        [super touchesBegan:touches withEvent:event];
     }
 }
 
 - (void)touchesEnded:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
-    [super touchesEnded:touches withEvent:event];
+    BOOL handled = NO;
     if (_css_touchUp && ![self.css_superTouch boolValue]) {
+        handled = YES;
         _css_touchUp([self p_generateBaseParamsWithEvent:event eventName:@"touchUp"]);
+    }
+    if (!handled) {
+        [super touchesEnded:touches withEvent:event];
     }
 }
 
 - (void)touchesMoved:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
-    [super touchesMoved:touches withEvent:event];
+    BOOL handled = NO;
     if (_css_touchMove && ![self.css_superTouch boolValue]) {
+        handled = YES;
         _css_touchMove([self p_generateBaseParamsWithEvent:event eventName:@"touchMove"]);
+    }
+    if (!handled) {
+        [super touchesMoved:touches withEvent:event];
     }
 }
 
 - (void)touchesCancelled:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
-    [super touchesCancelled:touches withEvent:event];
+    BOOL handled = NO;
     if (_css_touchUp && ![self.css_superTouch boolValue]) {
+        handled = YES;
         _css_touchUp([self p_generateBaseParamsWithEvent:event eventName:@"touchCancel"]);
+    }
+    if (!handled) {
+        [super touchesCancelled:touches withEvent:event];
     }
 }
 
 #else
 
 - (void)touchesBeganWithEvent:(NSEvent *)event {
-    [super touchesBeganWithEvent:event];
     // 如果走compose(superTouch)，由手势驱动，不由touch驱动事件
+    BOOL handled = NO;
     if (_css_touchDown && ![self.css_superTouch boolValue]) {
+        handled = YES;
         _css_touchDown([self p_generateBaseParamsWithEvent:event eventName:@"touchDown"]);
+    }
+    if (!handled) {
+        [super touchesBeganWithEvent:event];
     }
 }
 
 - (void)touchesEndedWithEvent:(UIEvent *)event {
-    [super touchesEndedWithEvent:event];
+    BOOL handled = NO;
     if (_css_touchUp && ![self.css_superTouch boolValue]) {
+        handled = YES;
         _css_touchUp([self p_generateBaseParamsWithEvent:event eventName:@"touchUp"]);
+    }
+    if (!handled) {
+        [super touchesEndedWithEvent:event];
     }
 }
 
 - (void)touchesMovedWithEvent:(UIEvent *)event {
-    [super touchesMovedWithEvent:event];
+    BOOL handled = NO;
     if (_css_touchMove && ![self.css_superTouch boolValue]) {
+        handled = YES;
         _css_touchMove([self p_generateBaseParamsWithEvent:event eventName:@"touchMove"]);
+    }
+    if (!handled) {
+        [super touchesMovedWithEvent:event];
     }
 }
 
 - (void)touchesCancelledWithEvent:(UIEvent *)event {
-    [super touchesCancelledWithEvent:event];
+    BOOL handled = NO;
     if (_css_touchUp && ![self.css_superTouch boolValue]) {
+        handled = YES;
         _css_touchUp([self p_generateBaseParamsWithEvent:event eventName:@"touchCancel"]);
+    }
+    if (!handled) {
+        [super touchesCancelledWithEvent:event];
     }
 }
 

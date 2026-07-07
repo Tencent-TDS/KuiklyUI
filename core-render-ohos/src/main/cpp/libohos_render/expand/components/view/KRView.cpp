@@ -447,20 +447,24 @@ void KRView::ProcessTouchEvent(ArkUI_NodeEvent *event) {
         handled = TryFireOnTouchCancelEvent(input_event);
     }
     if (super_touch_type_ == SELF) {
+        bool should_stop = handled;
         if (super_touch_handler_->GetStopPropagation(action)) {
-            kuikly::util::StopPropagation(event);
+            should_stop = true;
             super_touch_handler_->SetStopPropagation(action, false);
         }
+        // 当前节点处理事件后也可调用 StopPropagation 停止冒泡，而非交给父容器再去停止冒泡，规避父view再次多余触发一次事件
+        if (should_stop) {
+            kuikly::util::StopPropagation(event);
+        }
     } else if (handled) {
-        if (stop_propagation_) {
-            if (super_touch_type_ == PARENT) {
-                auto parent_super_touch_handler = parent_super_touch_handler_.lock();
-                if (parent_super_touch_handler) {
-                    parent_super_touch_handler->SetStopPropagation(action, true);
-                }
-            } else if (super_touch_type_ == NONE) {
-                kuikly::util::StopPropagation(event);
+        // 去掉基于 stop_propagation_ 来决定要不要取消冒泡，而是基于当前的touch 是否被消费来决定要不要冒泡
+        if (super_touch_type_ == PARENT) {
+            auto parent_super_touch_handler = parent_super_touch_handler_.lock();
+            if (parent_super_touch_handler) {
+                parent_super_touch_handler->SetStopPropagation(action, true);
             }
+        } else if (super_touch_type_ == NONE) {
+            kuikly::util::StopPropagation(event);
         }
     }
 }

@@ -555,7 +555,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         runCatching {
             super.setSelection(safeIndex)
         }.onFailure {
-            KuiklyRenderLog.e(KRRecyclerView.VIEW_NAME, "setSelection(index=$index, safeIndex=$safeIndex) error, $it")
+            KuiklyRenderLog.e(KRTextFieldView.VIEW_NAME, "setSelection(index=$index, safeIndex=$safeIndex) error, $it")
         }
     }
 
@@ -567,14 +567,14 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
             super.setSelection(safeStart, safeStop)
         }.onFailure {
             KuiklyRenderLog.e(
-                KRRecyclerView.VIEW_NAME,
+                KRTextFieldView.VIEW_NAME,
                 "setSelection(start=$start, stop=$stop, safeStart=$safeStart, safeStop=$safeStop) error, $it"
             )
             runCatching {
                 super.setSelection(safeStop)
             }.onFailure { fallbackError ->
                 KuiklyRenderLog.e(
-                    KRRecyclerView.VIEW_NAME,
+                    KRTextFieldView.VIEW_NAME,
                     "fallback setSelection(index=$safeStop) error, $fallbackError"
                 )
             }

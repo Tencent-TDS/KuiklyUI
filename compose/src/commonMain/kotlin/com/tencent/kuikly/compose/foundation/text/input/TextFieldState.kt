@@ -52,14 +52,16 @@ class TextFieldState internal constructor(
      * setTextAndPlaceCursorAtEnd、updateFromTextField）最终都走此方法，确保 selection 和 composition
      * 始终 coerceIn 到 text.length 范围内。
      */
-    fun setTextAndSelect(
+    private fun setTextAndSelect(
         text: String,
         selection: TextRange = TextRange(text.length),
         composition: TextRange? = null
     ) {
         this.text = text
-        this.selection = selection.coerceIn(0, text.length)
-        this.composition = composition?.coerceIn(0, text.length)
+        // 取参数 text 的长度作为边界；即使未来把 this.text = text 挪到 coerceIn 之后，也不会误用旧值裁剪
+        val len = text.length
+        this.selection = selection.coerceIn(0, len)
+        this.composition = composition?.coerceIn(0, len)
     }
 
     fun setTextAndPlaceCursorAtEnd(text: String) {

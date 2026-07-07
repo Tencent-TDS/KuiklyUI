@@ -157,12 +157,13 @@ const val CHANGE_LINE_SPACE = 3
 // 每个转换内部都经过 coerceToTextBounds() 归一化，确保 selection/composition 始终合法。
 
 private fun TextInputState.toCompositionRangeOrNull(): TextRange? {
-    val normalizedState = coerceToTextBounds()
+    // 调用方（handleNativeEditingStateChange / lastSyncedTextInputState）传入的已是 coerceToTextBounds 后的状态，
+    // 此处不再二次归一化，避免单事件在热路径上重复裁剪三次。
     return if (
-        normalizedState.compositionStart != TextInputState.NO_COMPOSITION &&
-        normalizedState.compositionEnd != TextInputState.NO_COMPOSITION
+        compositionStart != TextInputState.NO_COMPOSITION &&
+        compositionEnd != TextInputState.NO_COMPOSITION
     ) {
-        TextRange(normalizedState.compositionStart, normalizedState.compositionEnd)
+        TextRange(compositionStart, compositionEnd)
     } else {
         null
     }

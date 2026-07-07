@@ -51,6 +51,8 @@ data class TextInputState(
     fun coerceToTextBounds(): TextInputState {
         val safeSelectionStart = selectionStart.coerceIn(0, text.length)
         val safeSelectionEnd = selectionEnd.coerceIn(0, text.length)
+        // 半合法 composition（如 start=-1、end=5，只有一端为 NO_COMPOSITION）视为整体非法，
+        // 直接丢弃为 NO_COMPOSITION，避免只裁剪一端导致业务误判存在 composing 区间。
         val hasComposition = compositionStart != NO_COMPOSITION && compositionEnd != NO_COMPOSITION
         val safeCompositionStart = if (hasComposition) {
             compositionStart.coerceIn(0, text.length)
@@ -127,7 +129,7 @@ data class TextInputState(
                 compositionStart = compositionStart,
                 compositionEnd = compositionEnd,
                 length = length
-            )
+            ).coerceToTextBounds()
         }
     }
 }

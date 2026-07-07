@@ -1,5 +1,6 @@
+## Purpose
+统一管理 Kuikly 跨层（Compose DSL / Self DSL / core / render）文本编辑态（text + selection + composition）的归一化、转换与回流，确保选区/组合态在原生回调与业务下发之间始终合法、不丢失。
 ## Requirements
-
 ### Requirement: TextInputState SHALL normalize out-of-bounds selection and composition
 The `TextInputState` data class SHALL provide a `coerceToTextBounds()` method that clips `selectionStart`, `selectionEnd`, `compositionStart`, and `compositionEnd` to the valid range `[0, text.length]`. The method SHALL return the same instance when no values are out of bounds, and a new copy only when correction is needed.
 
@@ -203,7 +204,7 @@ Compose value-based TextField APIs SHALL preserve `TextFieldValue.text`, `TextFi
 - **THEN** `onValueChange` SHALL receive updated selection when the platform reports it
 
 ### Requirement: State-based Compose TextField editing
-Compose DSL SHALL provide a Kuikly package `TextFieldState` API with `rememberTextFieldState` and `edit {}` operations for insert, replace, delete, append, cursor placement, and selection updates. The `TextFieldState` SHALL use a private `applyBuffer` method and a public `setTextAndSelect` method to ensure all text/selection/composition mutations are normalized via `coerceIn(0, text.length)`.
+Compose DSL SHALL provide a Kuikly package `TextFieldState` API with `rememberTextFieldState` and `edit {}` operations for insert, replace, delete, append, cursor placement, and selection updates. The `TextFieldState` SHALL use a private `applyBuffer` method and a private `setTextAndSelect` method to ensure all text/selection/composition mutations are normalized via `coerceIn(0, text.length)`. `setTextAndSelect` SHALL compute the bound from the incoming `text` parameter (`val len = text.length`) so reordering `this.text = text` cannot coerce against a stale length.
 
 #### Scenario: Android state edit inserts at cursor
 - **WHEN** business code calls `state.edit { insert(selection.start, "[smile]") }` on Android
@@ -238,6 +239,10 @@ Compose DSL SHALL provide a Kuikly package `TextFieldState` API with `rememberTe
 #### Scenario: setTextAndSelect normalizes out-of-bounds selection
 - **WHEN** `state.setTextAndSelect("ab", selection = TextRange(5, 10))` is called
 - **THEN** `state.selection` SHALL be `TextRange(2, 2)` (clipped to text length)
+
+#### Scenario: setTextAndSelect is not externally callable
+- **WHEN** business or other modules attempt to call `setTextAndSelect` directly
+- **THEN** the method SHALL be inaccessible (private), forcing all writes through `edit {}` / `updateFromTextField`
 
 #### Scenario: clearText resets editing state
 - **WHEN** `state.clearText()` is called
@@ -296,3 +301,25 @@ Existing text-only TextField, `textDidChange`, `cursorIndex`, `setCursorIndex`, 
 #### Scenario: macOS existing text input remains valid
 - **WHEN** an existing macOS text input uses only `text` and `textDidChange`
 - **THEN** text input behavior SHALL remain unchanged
+
+### Requirement: Material3 TextField String overload SHALL delegate to TextFieldValue overload
+The Kuikly Compose `material3.TextField(value: String, onValueChange: (String) -> Unit)` overload SHALL delegate to `TextField(TextFieldValue)` by wrapping the value as `TextFieldValue(value)` and forwarding text via `onValueChange(it.text)`, eliminating duplicated Body (decorationBox / mergedTextStyle) while keeping the String API backward compatible.
+
+#### Scenario: String overload backward compatibility
+- **WHEN** business code uses `TextField(value = "hello", onValueChange = { /* ... */ })`
+- **THEN** behavior SHALL be identical to before, with `onValueChange` receiving the raw String
+
+### Requirement: CoreTextField toCompositionRangeOrNull SHALL NOT re-normalize
+`TextInputState.toCompositionRangeOrNull()` SHALL assume the receiver is already coerced (callers: `handleNativeEditingStateChange`, `lastSyncedTextInputState`) and SHALL NOT call `coerceToTextBounds()` again, avoiding triple normalization on the native-edit hot path.
+
+#### Scenario: composition present after normalization
+- **WHEN** an already-normalized `TextInputState` has valid `compositionStart`/`compositionEnd`
+- **THEN** `toCompositionRangeOrNull()` SHALL return `TextRange(compositionStart, compositionEnd)` without re-coercing
+
+### Requirement: KRTextFieldView setSelection logs SHALL use KRTextFieldView.VIEW_NAME
+The Android `KRTextFieldView` `setSelection` error logs SHALL use the view's own `KRTextFieldView.VIEW_NAME` constant rather than `KRRecyclerView.VIEW_NAME`, so logs are correctly attributed.
+
+#### Scenario: setSelection failure log tag
+- **WHEN** `super.setSelection` throws and is caught
+- **THEN** the error log SHALL be tagged with `KRTextFieldView` (not `KRRecyclerView`)
+

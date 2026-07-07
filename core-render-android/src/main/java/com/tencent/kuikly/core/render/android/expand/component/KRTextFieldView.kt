@@ -39,8 +39,6 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.TextView
-import com.tencent.kuikly.core.render.android.adapter.KRDefaultKeyboardHeightAdapter
-import com.tencent.kuikly.core.render.android.adapter.KRKeyboardHeightContext
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderAdapterManager
 import com.tencent.kuikly.core.render.android.adapter.KuiklyRenderLog
 import com.tencent.kuikly.core.render.android.adapter.TextPostProcessorInput
@@ -826,18 +824,13 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         // 键盘状态监听
         keyboardStatusListener = object : KeyboardStatusListener {
             override fun onHeightChanged(keyboardHeight: Int) {
-                val adaptedHeight = activity?.let { act ->
-                    val adapter = KuiklyRenderAdapterManager.krKeyboardHeightAdapter
-                        ?: KRDefaultKeyboardHeightAdapter
-                    adapter.adaptKeyboardHeight(KRKeyboardHeightContext(act, keyboardHeight))
-                } ?: keyboardHeight
-                if (adaptedHeight == currentKeyboardHeight) {
+                if (keyboardHeight == currentKeyboardHeight) {
                     return
                 }
-                currentKeyboardHeight = adaptedHeight
+                currentKeyboardHeight = keyboardHeight
                 keyboardHeightChangeCallback?.invoke(
                     mapOf(
-                        KRViewConst.HEIGHT to kuiklyRenderContext.toDpF(adaptedHeight.toFloat()),
+                        KRViewConst.HEIGHT to kuiklyRenderContext.toDpF(keyboardHeight.toFloat()),
                         KEY_KEYBOARD_CHANGED_DURATION to DEFAULT_KEYBOARD_CHANGED_ANIMATION_DURATION
                     )
                 )

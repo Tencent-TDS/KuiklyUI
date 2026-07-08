@@ -100,7 +100,11 @@ KRRenderCValue KRRenderNativeContextHandlerManager::DispatchCallNative(
         null_cv.type = KRRenderCValue::NULL_VALUE;
         return null_cv;
     }
-    // 优化：cv0(instanceId) 在 OnCallNative 中不被使用，直接传 null 单例避免 string 构造
+    // 优化：cv0（原 instanceId 槽位）已被 ICallNativeCallback::OnCallNative 的接口契约声明为
+    // “保留位”，实现方不得依赖其内容；此处直接传入 KRRenderValue::MakeNull() 静态单例，
+    // 避免每次调用都构造一个 std::string 并分配 shared_ptr。
+    // 如未来需要恢复 instanceId 传递，请先同步修改 IKRRenderNativeContextHandler.h 中
+    // ICallNativeCallback::OnCallNative 的契约注释，再改本处构造逻辑，避免形成静默约定。
     auto cv0 = KRRenderValue::MakeNull();
     auto cv1 = MakeFromCValue(arg1);
     auto cv2 = MakeFromCValue(arg2);

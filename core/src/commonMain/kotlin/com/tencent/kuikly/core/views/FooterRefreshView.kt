@@ -77,7 +77,7 @@ class FooterRefreshView : ViewContainer<FooterRefreshAttr, FooterRefreshEvent>()
             while (scrollerView != null && scrollerView !is ScrollerView<*, *>) {
                 scrollerView = scrollerView.parent
             }
-            if (scrollerView != null && scrollerView !is ScrollerView<*, *>) {
+            if (scrollerView == null) {
                 throwRuntimeError("FooterRefresh组件需要布局在Scroller容器组件下")
             }
             return scrollerView as? ScrollerView<*, *>

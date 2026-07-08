@@ -316,6 +316,13 @@ internal class ExampleIndexPage : BasePager() {
             declarativeExampleUrl = generateJumpUrl("VideoExamplePage")
         })
 
+        itemList.add(ExampleItemData().apply {
+            avatarText = "St"
+            titleText = "Bridge Call 压力测试"
+            subtitleText = "循环10万次调用BridgeManager.callModuleMethod，测试Kotlin到Native桥接调用性能"
+            declarativeExampleUrl = generateJumpUrl("BridgeCallStressTestPage")
+        })
+
         // 仅在微信小程序平台展示 WX 组件 / API 示例
         if (pageData.params.optString(IS_MINI_PROGRAM) == "1") {
             itemList.add(ExampleItemData().apply {

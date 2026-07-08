@@ -74,10 +74,11 @@ void KRRenderManager::Export(napi_env env, napi_value exports) {
 
 std::shared_ptr<KRRenderView> KRRenderManager::GetRenderView(const std::string &instanceId) {
     KRScopedSpinLock lock(&render_view_map_lock_);
-    if (render_view_map_.find(instanceId) == render_view_map_.end()) {
+    auto it = render_view_map_.find(instanceId);
+    if (it == render_view_map_.end()) {
         return nullptr;
     }
-    return render_view_map_[instanceId];
+    return it->second;
 }
 
 bool KRRenderManager::SetRenderView(std::string &instanceId, std::shared_ptr<KRRenderView> &renderView) {

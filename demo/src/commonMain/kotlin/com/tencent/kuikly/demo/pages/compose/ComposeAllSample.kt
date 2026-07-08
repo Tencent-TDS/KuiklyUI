@@ -166,6 +166,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("GradientAnimationDemo", "Offset or color animate ", "GradientAnimationDemo"),
             DemoItem("重组性能分析", "RecompositionProfiler追踪重组热点", "RecompositionProfilerDemo"),
             DemoItem("TextFieldEmoji", "TextField 自定义表情示例（暂不支持鸿蒙）", "TextFieldEmojiDemo"),
+            DemoItem("DashedUnderline", "文本虚线调研：实线/drawBehind/AnnotatedString", "DashedUnderlineDemo"),
         )
 
     @Composable

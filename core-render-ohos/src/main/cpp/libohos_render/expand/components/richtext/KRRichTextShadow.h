@@ -22,6 +22,7 @@
 #include <native_drawing/drawing_text_typography.h>
 #include <native_drawing/drawing_text_line.h>
 #include <native_drawing/drawing_types.h>
+#include <cstdint>
 #include <functional>
 #include <mutex>
 #include <string>
@@ -40,6 +41,13 @@ namespace richtext {
 // PostProcessor 拆段路径写入与读取，业务零感知。如需在其它 shadow / view 引用，
 // 请统一使用此常量。
 inline constexpr const char *kInternalImageSrcKey = "__kr_image_src__";
+// PostProcessor("dashed") 拆段产生的虚线下划线 span，在 span map 中携带的标记键。
+// 仅由 KRRichTextShadow 内部 Phase 2 写入、Phase 3 读取，业务零感知。
+inline constexpr const char *kInternalDashedUnderlineKey = "__kr_dashed_underline__";
+inline constexpr const char *kInternalDashedDashKey = "__kr_dashed_dash__";
+inline constexpr const char *kInternalDashedGapKey = "__kr_dashed_gap__";
+inline constexpr const char *kInternalDashedColorKey = "__kr_dashed_color__";
+inline constexpr const char *kInternalDashedThickKey = "__kr_dashed_thick__";
 }  // namespace richtext
 }  // namespace kuikly
 
@@ -240,6 +248,23 @@ class KRRichTextShadow : public IKRRenderShadowExport {
         return image_draw_records_;
     }
 
+    // ===== Phase 5: PostProcessor("dashed") 虚线下划线绘制 =====
+    // 与 image_draw_records_ 平行：BuildTextTypography 在 context 线程把每个 kDashedUnderline
+    // span 的字符区间 [start, end) 与绘制参数记录到此处；view 层在 OnForegroundDraw 末尾
+    // 遍历这些区间，对区间内每一行用 OH_Drawing 手画一段段短线，得到"真·文本虚线"
+    // （画在基线处、随换行逐行各一条，区别于 Compose 纯布局的近似兜底）。
+    struct KRDashedUnderlineRecord {
+        size_t start = 0;              // 区间起点（UTF-16 码元索引，与 span_offsets_ 口径一致）
+        size_t end = 0;                // 区间终点（不含）
+        float dash = 6.0f;             // 虚线段长度（px）
+        float gap = 4.0f;              // 虚线段间隔（px）
+        uint32_t color = 0xff000000;   // 虚线颜色（0xAARRGGBB）
+        float thickness = 1.0f;        // 虚线线宽（px）
+    };
+    const std::vector<KRDashedUnderlineRecord> &GetDashedUnderlineRecords() const {
+        return dashed_underline_records_;
+    }
+
     // ===== Phase 3↔4 桥接：image span 解码完成通知 view markDirty =====
     // view 层（KRRichTextView::SetShadow）在拿到 shadow 时通过本接口注册一个 callback；
     // shadow 把 image span 的预解码工作委托给 KRCustomEmojiPixmapCache（进程级单例 +
@@ -300,6 +325,7 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     // 重建（SetProp("values") -> Measure -> BuildTextTypography）时整体覆盖，无并发改写问题。
     // pixmap 缓存已迁移至 KRCustomEmojiPixmapCache（进程级单例 + LRU 128）。
     std::vector<KRImageDrawRecord> image_draw_records_;
+    std::vector<KRDashedUnderlineRecord> dashed_underline_records_;  // 见 GetDashedUnderlineRecords
     std::mutex image_loaded_callback_mutex_;
     ImageLoadedCallback image_loaded_callback_;
 

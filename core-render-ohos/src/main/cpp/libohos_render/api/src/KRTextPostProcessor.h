@@ -20,6 +20,7 @@
 // 对外 API 见 libohos_render/api/include/Kuikly/Kuikly.h 中的
 // KRRegisterTextPostProcessorAdapter / KRTextProcessedResultAppend* 系列。
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -28,7 +29,7 @@ namespace text {
 
 // 单个 span 描述：text or image。
 struct KRTextPostProcessSpan {
-    enum class Type { kText, kImage };
+    enum class Type { kText, kImage, kDashedUnderline };
     Type type = Type::kText;
     std::string text_or_src;  // text 段：UTF-8 文本；image 段：可寻址 URI
     // 仅 image 段使用：image 在「raw 原始文本」中对应的字面量（如 "[smile]"）。
@@ -43,6 +44,13 @@ struct KRTextPostProcessSpan {
     std::string raw_literal;
     float width = 0.0f;       // 仅 image 段使用，<=0 表示按字号自适应
     float height = 0.0f;      // 仅 image 段使用，<=0 表示按字号自适应
+    // 仅 kDashedUnderline 段使用：真·文本虚线下划线的绘制参数（单位 px，与富文本其余尺寸一致）。
+    // 当 type == kDashedUnderline 时，text_or_src 仍携带该段"展示文本"（文字照常显示），
+    // 仅额外在基线处叠加一条虚线下划线。
+    float dash_width = 6.0f;          // 单个虚线段长度
+    float gap_width = 4.0f;           // 虚线段之间的间隔
+    uint32_t underline_color = 0xff000000;  // 虚线颜色（0xAARRGGBB）
+    float thickness = 1.0f;           // 虚线线宽
 };
 
 // 调用已注册的统一 adapter，并把当前运行时 processor 名称（如 "input"）回传给业务。

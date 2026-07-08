@@ -487,6 +487,21 @@ static void MyTextPostProcessorAdapter(const char *name,
     if (!text || !builder) {
         return;
     }
+    // dashed 分支：文本虚线下划线（与 Android/iOS "dashed" processor 对齐）。
+    // 注意：当前 OHOS 公开 textPostProcessor API（KRTextProcessedResultAppendTextSpan/ImageSpan）
+    // 只能回传纯文本 / 图片 span，无法表达"虚线下划线"样式。因此这里仅做探针 + 原样回传，
+    // 如实验证"OHOS 当前无法借原生画出虚线下划线"。如需真正支持，需 framework 侧新增
+    // 带 underline 样式的 text span（见文档 kuikly-compose-dashed-underline.md 3.3 节）。
+    if (name && std::string(name) == "dashed") {
+        static constexpr int kDashedDomain = 0x1236;
+        OH_LOG_Print(LOG_APP, LOG_INFO, kDashedDomain, "KuiklyDashed",
+                     "dashed processor hit on OHOS: append DashedUnderlineSpan (true text dashed "
+                     "underline drawn at baseline). text=%{public}s", text);
+        // 真·文本虚线：文字照常显示，由 framework 在基线处按 dash+gap 节奏手画短线段。
+        // 参数：dash=6px, gap=4px, color=0xff000000(黑), thickness=1px。
+        KRTextProcessedResultAppendDashedUnderlineSpan(builder, text, 6.0f, 4.0f, 0xff000000, 1.0f);
+        return;
+    }
     // 探针：便于线上一眼确认 adapter 是否被调到、看到 processor 名称与输入文本。tag=KuiklyEmoji。
     {
         static constexpr int kEmojiDomain = 0x1235;

@@ -370,6 +370,24 @@ void KRTextProcessedResultAppendTextSpan(KRTextProcessedResultBuilder builder,
                                          const char *text);
 
 /**
+ * 新增一种 span 类型：在文字下方/基线上叠加一条虚线下划线（真·文本虚线）。
+ * 与 kText 不同，文字照常显示，仅额外绘制一条虚线；与 kImage 不同，不占用占位。
+ *
+ * @param builder     builder 句柄
+ * @param text        该段的展示文本（UTF-8），SDK 内部立即拷贝
+ * @param dash_width  虚线段长度（px），<=0 时取默认 6
+ * @param gap_width   虚线段间隔（px），<=0 时取默认 4
+ * @param color       虚线颜色（0xAARRGGBB）
+ * @param thickness   虚线线宽（px），<=0 时取默认 1
+ */
+void KRTextProcessedResultAppendDashedUnderlineSpan(KRTextProcessedResultBuilder builder,
+                                                    const char *text,
+                                                    float dash_width,
+                                                    float gap_width,
+                                                    uint32_t color,
+                                                    float thickness);
+
+/**
  * 追加一段图片 span。
  * @param builder builder 句柄
  * @param src     **可寻址 URI**，仅支持以下协议（业务侧需自行解析为下列形态）：

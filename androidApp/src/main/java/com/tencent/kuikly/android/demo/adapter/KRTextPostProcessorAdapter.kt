@@ -16,12 +16,17 @@
 package com.tencent.kuikly.android.demo.adapter
 
 import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.graphics.drawable.Drawable
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.DynamicDrawableSpan
 import android.text.style.ImageSpan
+import android.text.style.ReplacementSpan
 import androidx.core.content.ContextCompat
+import kotlin.math.max
+import kotlin.math.min
 import com.tencent.kuikly.core.render.android.adapter.IKRTextPostProcessorAdapter
 import com.tencent.kuikly.core.render.android.adapter.TextPostProcessorInput
 import com.tencent.kuikly.core.render.android.adapter.TextPostProcessorOutput
@@ -58,6 +63,7 @@ class KRTextPostProcessorAdapter(context: Context) : IKRTextPostProcessorAdapter
     ): TextPostProcessorOutput {
         return when (inputParams.processor) {
             "emoji", "input" -> processEmoji(inputParams)
+            "dashed" -> processDashedUnderline(inputParams)
             else -> TextPostProcessorOutput(inputParams.sourceText)
         }
     }
@@ -101,9 +107,88 @@ class KRTextPostProcessorAdapter(context: Context) : IKRTextPostProcessorAdapter
         return TextPostProcessorOutput(spannable)
     }
 
+    /**
+     * 虚线下划线处理器：Kuikly 文本装饰本身不支持虚线，这里把整段文本交给自定义
+     * [DashedUnderlineSpan]，由原生 TextView 在 baseline 下方画出贴合文字宽度的虚线。
+     *
+     * 使用方式（Compose DSL）：
+     * ```
+     * Text("带虚线下划线的文字", modifier = Modifier.textPostProcessor("dashed"))
+     * ```
+     */
+    private fun processDashedUnderline(inputParams: TextPostProcessorInput): TextPostProcessorOutput {
+        val sourceText = inputParams.sourceText?.toString()
+        if (sourceText.isNullOrEmpty()) {
+            return TextPostProcessorOutput(inputParams.sourceText)
+        }
+        val spannable = SpannableStringBuilder(sourceText)
+        spannable.setSpan(
+            DashedUnderlineSpan(),
+            0,
+            sourceText.length,
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        return TextPostProcessorOutput(spannable)
+    }
+
     // 保留旧方法以兼容接口
     @Deprecated("Use onTextPostProcess(kuiklyRenderContext, inputParams) instead")
     override fun onTextPostProcess(inputParams: TextPostProcessorInput): TextPostProcessorOutput {
         return onTextPostProcess(null, inputParams)
+    }
+}
+
+/**
+ * 在文字 baseline（基线）正下方手动绘制虚线的 [ReplacementSpan]。
+ *
+ * Kuikly 的 Text 装饰只有实线下划线，没有虚线；用原生 [ReplacementSpan] 接管整段文字的
+ * 绘制，先画文字本身，再紧贴基线画一段段短线，实现“贴合文字宽度”的虚线下划线。
+ */
+class DashedUnderlineSpan : ReplacementSpan() {
+
+    override fun getSize(
+        paint: Paint,
+        text: CharSequence,
+        start: Int,
+        end: Int,
+        fm: Paint.FontMetricsInt?
+    ): Int {
+        // 让文本宽度照常参与排版，高度沿用系统文本度量（fm 不动）
+        return paint.measureText(text, start, end).toInt()
+    }
+
+    override fun draw(
+        canvas: Canvas,
+        text: CharSequence,
+        start: Int,
+        end: Int,
+        x: Float,
+        top: Int,
+        baseline: Int,
+        bottom: Int,
+        paint: Paint
+    ) {
+        // 1. 先把文字画出来（沿用系统 paint，字体/颜色与页面一致）
+        canvas.drawText(text, start, end, x, baseline.toFloat(), paint)
+
+        // 2. 在基线下方画虚线。用一份拷贝的 paint，避免污染文字本身的 paint。
+        val textWidth = paint.measureText(text, start, end)
+        val thickness = max(1f, paint.textSize * 0.08f)
+        val dash = paint.textSize * 0.45f
+        val gap = paint.textSize * 0.35f
+        val lineY = baseline + thickness * 2f // 略低于基线，避免压到文字的下沿
+
+        val underlinePaint = Paint(paint).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = thickness
+            color = paint.color // 与文字同色
+        }
+
+        var cx = x
+        while (cx < x + textWidth) {
+            val next = min(cx + dash, x + textWidth)
+            canvas.drawLine(cx, lineY, next, lineY, underlinePaint)
+            cx += dash + gap
+        }
     }
 }

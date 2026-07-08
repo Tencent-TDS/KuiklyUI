@@ -425,6 +425,25 @@ void KRTextProcessedResultAppendImageSpanWithRaw(KRTextProcessedResultBuilder bu
     span.height = height;
     builder->spans.push_back(std::move(span));
 }
+
+void KRTextProcessedResultAppendDashedUnderlineSpan(KRTextProcessedResultBuilder builder,
+                                                    const char *text,
+                                                    float dash_width,
+                                                    float gap_width,
+                                                    uint32_t color,
+                                                    float thickness) {
+    if (!builder || !text) {
+        return;
+    }
+    kuikly::text::KRTextPostProcessSpan span;
+    span.type = kuikly::text::KRTextPostProcessSpan::Type::kDashedUnderline;
+    span.text_or_src = text;
+    span.dash_width = dash_width > 0 ? dash_width : 6.0f;
+    span.gap_width = gap_width > 0 ? gap_width : 4.0f;
+    span.underline_color = color;
+    span.thickness = thickness > 0 ? thickness : 1.0f;
+    builder->spans.push_back(std::move(span));
+}
 #ifdef __cplusplus
 }
 #endif

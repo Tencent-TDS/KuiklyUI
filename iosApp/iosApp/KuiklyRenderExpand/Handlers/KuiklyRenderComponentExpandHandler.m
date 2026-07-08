@@ -132,6 +132,28 @@ static void initEmojiMap(void) {
 }
 
 - (NSMutableAttributedString *)hr_customTextWithAttributedString:(NSAttributedString *)attributedString textPostProcessor:(NSString *)textPostProcessor {
+    // dashed 分支：文本虚线下划线（与 Android DashedUnderlineSpan 等价）。
+    // iOS 原生富文本自带虚线图案，直接给整段加 NSUnderlineStyleSingle | NSUnderlinePatternDash 即可。
+    // 注意：emoji 短码替换是图片替换，不与虚线同用，这里只对纯文本整段加虚线下划线。
+    if ([textPostProcessor isEqualToString:@"dashed"]) {
+        NSMutableAttributedString *result = [attributedString mutableCopy];
+        NSRange fullRange = NSMakeRange(0, result.length);
+        if (fullRange.length > 0) {
+            [result addAttribute:NSUnderlineStyleAttributeName
+                           value:@(NSUnderlineStyleSingle | NSUnderlinePatternDash)
+                           range:fullRange];
+            UIColor *underlineColor = [result attribute:NSForegroundColorAttributeName
+                                                    atIndex:0
+                                             effectiveRange:NULL];
+            if (underlineColor) {
+                [result addAttribute:NSUnderlineColorAttributeName
+                               value:underlineColor
+                               range:fullRange];
+            }
+        }
+        return result;
+    }
+
     if (![textPostProcessor isEqualToString:@"KRTextFieldView"] &&
         ![textPostProcessor isEqualToString:@"KRTextAreaView"] &&
         ![textPostProcessor isEqualToString:@"input"] &&

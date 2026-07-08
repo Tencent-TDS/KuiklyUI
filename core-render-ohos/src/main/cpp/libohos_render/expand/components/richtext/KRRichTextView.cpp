@@ -328,6 +328,51 @@ void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
             OH_Drawing_TypographyDestroyTextBox(placeholder_rects);
         }
     }
+
+    // ===== Phase 5: 绘制由 PostProcessor("dashed") 产生的虚线下划线（真·文本虚线）=====
+    // 时机：跟随文字（TypographyPaint）与图片（Phase 4）之后。对每条 dashed 记录的字符区间
+    // 取 GetRectsForRange 得到跨行的若干矩形，再在每个矩形内按 dash+gap 节奏用 Path 手画
+    // 短线段。线 Y 取矩形 tight 底边（≈基线）再下移 1px；view 坐标系已含 -drawOffsetY 平移，
+    // 与 TypographyPaint 保持一致。
+    const auto &dashed_records = richTextShadow->GetDashedUnderlineRecords();
+    if (!dashed_records.empty() && textTypo != nullptr) {
+        OH_Drawing_Pen *dash_pen = OH_Drawing_PenCreate();
+        OH_Drawing_PenSetAntiAlias(dash_pen, true);
+        OH_Drawing_CanvasAttachPen(drawingHandle, dash_pen);
+        for (const auto &rec : dashed_records) {
+            OH_Drawing_TextBox *boxes = OH_Drawing_TypographyGetRectsForRange(
+                textTypo, rec.start, rec.end, RECT_HEIGHT_STYLE_TIGHT, RECT_WIDTH_STYLE_TIGHT);
+            int box_count = boxes ? OH_Drawing_GetSizeOfTextBox(boxes) : 0;
+            if (box_count <= 0) {
+                if (boxes) {
+                    OH_Drawing_TypographyDestroyTextBox(boxes);
+                }
+                continue;
+            }
+            OH_Drawing_Path *dash_path = OH_Drawing_PathCreate();
+            for (int bi = 0; bi < box_count; ++bi) {
+                float left = OH_Drawing_GetLeftFromTextBox(boxes, bi);
+                float right = OH_Drawing_GetRightFromTextBox(boxes, bi);
+                float bottom = OH_Drawing_GetBottomFromTextBox(boxes, bi);
+                float y = bottom - drawOffsetY + 1.0f;  // 略低于基线
+                float x = left;
+                while (x < right) {
+                    float ex = (x + rec.dash < right) ? (x + rec.dash) : right;
+                    OH_Drawing_PathMoveTo(dash_path, x, y);
+                    OH_Drawing_PathLineTo(dash_path, ex, y);
+                    x += rec.dash + rec.gap;
+                }
+            }
+            // 同一记录统一用其颜色/线宽描边
+            OH_Drawing_PenSetColor(dash_pen, rec.color);
+            OH_Drawing_PenSetWidth(dash_pen, rec.thickness);
+            OH_Drawing_CanvasDrawPath(drawingHandle, dash_path);
+            OH_Drawing_PathDestroy(dash_path);
+            OH_Drawing_TypographyDestroyTextBox(boxes);
+        }
+        OH_Drawing_CanvasDetachPen(drawingHandle);
+        OH_Drawing_PenDestroy(dash_pen);
+    }
 }
 
 void KRRichTextView::ToSetProp(const std::string &prop_key, const KRAnyValue &prop_value,

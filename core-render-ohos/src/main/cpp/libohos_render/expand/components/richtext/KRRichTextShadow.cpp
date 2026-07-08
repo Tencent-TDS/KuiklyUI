@@ -392,7 +392,7 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
                         new_map.erase("placeholderWidth");
                         new_map.erase("placeholderHeight");
                         new_map.erase(kuikly::richtext::kInternalImageSrcKey);
-                    } else {
+                    } else if (seg.type == kuikly::text::KRTextPostProcessSpan::Type::kImage) {
                         // image seg：用占位分支，dpi 缩放在循环内统一处理；
                         // 业务给的 width/height 单位是 vp（与 ImageSpan / TextEditor 路径一致），
                         // 缺省时按当前 fontSize（vp）取方形。
@@ -412,6 +412,23 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
                         new_map["placeholderWidth"] = NewKRRenderValue(static_cast<double>(w));
                         new_map["placeholderHeight"] = NewKRRenderValue(static_cast<double>(h));
                         new_map[kuikly::richtext::kInternalImageSrcKey] = NewKRRenderValue(seg.text_or_src);
+                    } else {
+                        // kDashedUnderline seg：文字照常显示（同 kText），并打标记让 Phase 3
+                        // 记录其字符区间与绘制参数，最终由 view 在基线处手画虚线（真·文本虚线）。
+                        new_map["value"] = NewKRRenderValue(seg.text_or_src);
+                        new_map["text"] = NewKRRenderValue(seg.text_or_src);
+                        new_map.erase("placeholderWidth");
+                        new_map.erase("placeholderHeight");
+                        new_map.erase(kuikly::richtext::kInternalImageSrcKey);
+                        new_map[kuikly::richtext::kInternalDashedUnderlineKey] = NewKRRenderValue(1.0);
+                        new_map[kuikly::richtext::kInternalDashedDashKey] =
+                            NewKRRenderValue(static_cast<double>(seg.dash_width));
+                        new_map[kuikly::richtext::kInternalDashedGapKey] =
+                            NewKRRenderValue(static_cast<double>(seg.gap_width));
+                        new_map[kuikly::richtext::kInternalDashedColorKey] =
+                            NewKRRenderValue(static_cast<double>(seg.underline_color));
+                        new_map[kuikly::richtext::kInternalDashedThickKey] =
+                            NewKRRenderValue(static_cast<double>(seg.thickness));
                     }
                     expanded.push_back(KRRenderValue::Make(new_map));
                 }
@@ -641,6 +658,17 @@ OH_Drawing_Typography *KRRichTextShadow::BuildTextTypography(double constraint_w
             std::wstring_convert<deletable_facet<std::codecvt<char16_t, char, std::mbstate_t>>, char16_t> conv16;
             std::u16string str16 = conv16.from_bytes(text);
             int codePointCount = str16.size();
+            // 虚线下划线：若本 span 携带 dashed 标记，记录其字符区间与绘制参数，供 view 绘制。
+            if (GetKRValue(kuikly::richtext::kInternalDashedUnderlineKey, spanMap, spanMap)->toDouble() != 0.0) {
+                KRDashedUnderlineRecord rec;
+                rec.start = charOffset;
+                rec.end = charOffset + codePointCount;
+                rec.dash = static_cast<float>(GetKRValue(kuikly::richtext::kInternalDashedDashKey, spanMap, spanMap)->toDouble());
+                rec.gap = static_cast<float>(GetKRValue(kuikly::richtext::kInternalDashedGapKey, spanMap, spanMap)->toDouble());
+                rec.color = static_cast<uint32_t>(GetKRValue(kuikly::richtext::kInternalDashedColorKey, spanMap, spanMap)->toDouble());
+                rec.thickness = static_cast<float>(GetKRValue(kuikly::richtext::kInternalDashedThickKey, spanMap, spanMap)->toDouble());
+                dashed_underline_records_.push_back(std::move(rec));
+            }
             span_offsets_.emplace_back(std::tuple(spanIndex, charOffset, charOffset + codePointCount));
             charOffset += codePointCount;
         }

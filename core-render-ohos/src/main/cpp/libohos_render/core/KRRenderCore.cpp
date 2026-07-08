@@ -19,7 +19,6 @@
 #include <functional>
 #include <memory>
 #include "libohos_render/foundation/KRRect.h"
-#include "libohos_render/foundation/thread/KRThreadFatalGuard.h"
 #include "libohos_render/layer/KRRenderLayerHandler.h"
 #include "libohos_render/manager/KRArkTSManager.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"
@@ -31,14 +30,13 @@ EXTERN_C_START
 void com_tencent_kuikly_CallNative(int methodId, const KRRenderCValue *arg0, const KRRenderCValue *arg1,
         const KRRenderCValue *arg2, const KRRenderCValue *arg3, const KRRenderCValue *arg4,
         const KRRenderCValue *arg5, KRRenderCValue *result) {
-    // napi C ABI 边界：与 KRThread / KRMainThread 调度边界同口径，
-    // 任何 C++ 异常逃到 C ABI 都会越 napi 调度帧造成 UB，必须 fail-fast。
-    // 用 RunWithFatalGuard 替代裸 try-catch，让"打 log + abort" 的行为
-    // 集中到唯一一处实现，避免遗漏 e.what()。
-    kuikly::thread::RunWithFatalGuard("KRRenderCore.ABI.CallNative", [&] {
-        *result = IKRRenderNativeContextHandler::DispatchCallNative(std::string(arg0->value.stringValue), methodId, *arg0, *arg1,
-                *arg2, *arg3, *arg4, *arg5);
-    });
+    // napi C ABI 边界：不再套 C++ catch，让异常原样冒到 K/N runtime。
+    // 曾经在此处 catch → log → rethrow，虽然保留了 std::current_exception()，
+    // 但 K/N 会因为观察到 "C++ 已 catch 过" 而不再触发 unhandled-exception hook，
+    // 从而丢失 Kotlin 侧真正有价值的 Throwable class / message / Kotlin 栈。
+    // 现在完全放弃 C++ 侧的诊断日志（tag/type/what），换取 K/N hook 的正常触发。
+    *result = IKRRenderNativeContextHandler::DispatchCallNative(std::string(arg0->value.stringValue), methodId,
+            *arg0, *arg1, *arg2, *arg3, *arg4, *arg5);
 }
 
 CallKotlin callKotlin_;

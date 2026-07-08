@@ -368,10 +368,16 @@ std::shared_ptr<IKRRenderModuleExport> KRRenderLayerHandler::GetModuleOrCreate(c
         return nullptr;
     }
     
-    // 特殊情况，判断是否需要使用新实现的KROhSharedPreferencesModule
-    bool useOhSharedPreferences = this->root_view_.lock()->GetContext()->Config()->GetUseOhSharedPreferences();
-    // 如果调用的是 KRSharedPreferencesModule 并且 启用新SharedPreferencesModule，返回KROhSharedPreferencesModule
-    std::string target_module_name = (module_name == "KRSharedPreferencesModule" && useOhSharedPreferences? "KROhSharedPreferencesModule" : module_name);
+    // 只在需要时（KRSharedPreferencesModule）才做 root_view_.lock() -> GetContext() -> Config() 调用链
+    std::string target_module_name = module_name;
+    if (module_name == "KRSharedPreferencesModule") {
+        if (auto root = root_view_.lock()) {
+            bool useOhSharedPreferences = root->GetContext()->Config()->GetUseOhSharedPreferences();
+            if (useOhSharedPreferences) {
+                target_module_name = "KROhSharedPreferencesModule";
+            }
+        }
+    }
 
     auto module = GetModule(target_module_name);
     if (module == nullptr) {

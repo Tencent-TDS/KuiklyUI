@@ -27,11 +27,11 @@
 template<typename KeyType, typename ValueType>
 class KRThreadSafeMap{
 public:
-    void Set(KeyType key, ValueType value){
+    void Set(const KeyType &key, ValueType value){
         KRScopedSpinLock lock(&lock_);
         map_[key] = value;
     }
-    ValueType Get(KeyType key){
+    ValueType Get(const KeyType &key){
         {
             KRScopedSpinLock lock(&lock_);
             if(auto it = map_.find(key); it != map_.end()){
@@ -41,7 +41,7 @@ public:
         
         return ValueType();
     }
-    void Erase(KeyType key){
+    void Erase(const KeyType &key){
         KRScopedSpinLock lock(&lock_);
         map_.erase(key);
     }

@@ -14,9 +14,7 @@
  */
 
 #include <assert.h>
-#include <exception>
 #include "DefaultRenderNativeContextHandler.h"
-#include "libohos_render/foundation/thread/KRThreadFatalGuard.h"
 #include "libohos_render/utils/KRRenderLoger.h"
 
 extern CallKotlin callKotlin_;
@@ -31,32 +29,11 @@ void DefaultRenderNativeContextHandler::CallKotlinMethod(const KuiklyRenderConte
     if (callKotlin_ == nullptr) {
         __assert_fail("Tips: make sure initKuikly() has been called!", __FILE__, __LINE__, __func__);
     }
-    // Diagnostics-only wrapper around the Kotlin/Native call boundary.
-    //
-    // 语义：与 KRThreadFatalGuard 一致的 fail-forward
-    //   * 在 catch 里补一条"哪个 method_id 抛的"诊断（这条信息在外层 fatal guard
-    //     里拿不到，故必须就近记录）；
-    //   * 立即 `throw;` 让原始异常继续 unwind：
-    //       - 保留 K/N runtime 的 unhandled-exception hook 触发窗口（hook 挂在
-    //         std::terminate 路径上，会先于最终 abort 打出完整 Kotlin 栈）；
-    //       - 上层 KRThread::DirectRunOnCurThread.{nested,borrow} 的
-    //         RunWithFatalGuard 会再打一层 tag + demangled 类型 + e.what() 后 rethrow，
-    //         最终 std::terminate → abort。
-    //   * 类型名 demangle 委托给 kuikly::thread::CurrentExceptionTypeName，
-    //     全仓单实现，避免遗漏 K/N 非 std::exception 派生类型。
-    const int method_id = static_cast<int>(method);
-    try {
-        callKotlin_(method_id, arg0->toCValue(), arg1->toCValue(), arg2->toCValue(), arg3->toCValue(),
-                    arg4->toCValue(), arg5->toCValue());
-    } catch (const std::exception &e) {
-        KR_LOG_ERROR_WITH_TAG("KRRender")
-            << "[callKotlin_] std::exception at K/N boundary; method=" << method_id
-            << " type=" << kuikly::thread::CurrentExceptionTypeName() << " what=" << e.what();
-        throw;
-    } catch (...) {
-        KR_LOG_ERROR_WITH_TAG("KRRender")
-            << "[callKotlin_] non-std exception at K/N boundary; method=" << method_id
-            << " type=" << kuikly::thread::CurrentExceptionTypeName();
-        throw;
-    }
+    // K/N 调用边界：不套任何 C++ catch，让异常原样冒到 K/N runtime。
+    // 曾经在此处 catch → 补一条 "哪个 method_id 抛的" 诊断日志 → rethrow，
+    // 但实测 K/N 会因为观察到 "C++ 已 catch 过" 而不再触发 unhandled-exception hook，
+    // 导致丢失 Kotlin 侧真正有价值的 Throwable class / message / Kotlin 栈。
+    // 为保留 hook 触发窗口，放弃 C++ 侧的补充诊断日志（method_id 可在 Kotlin 栈中反查）。
+    callKotlin_(static_cast<int>(method), arg0->toCValue(), arg1->toCValue(), arg2->toCValue(), arg3->toCValue(),
+                arg4->toCValue(), arg5->toCValue());
 }

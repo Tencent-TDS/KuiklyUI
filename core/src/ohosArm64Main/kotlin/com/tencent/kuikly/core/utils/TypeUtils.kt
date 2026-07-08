@@ -35,7 +35,19 @@ import platform.posix.int32_t
 
 @OptIn(ExperimentalForeignApi::class)
 fun Any?.toKRRenderCValue(memScope: MemScope, renderCValue: KRRenderCValue): KRRenderCValue {
+    // 优化：null 提前返回，避免走 8 次 instanceof 检查
+    if (this == null) {
+        renderCValue.type = Type.NULL
+        renderCValue.value.intValue = 0
+        return renderCValue
+    }
     when (this) {
+        is String -> {
+            with(memScope) {
+                renderCValue.type = Type.STRING
+                renderCValue.value.stringValue = this@toKRRenderCValue.cstr.ptr
+            }
+        }
         is Int -> {
             renderCValue.type = Type.INT
             renderCValue.value.intValue = this
@@ -55,12 +67,6 @@ fun Any?.toKRRenderCValue(memScope: MemScope, renderCValue: KRRenderCValue): KRR
         is Boolean -> {
             renderCValue.type = Type.BOOL
             renderCValue.value.boolValue = if (this) 1 else 0
-        }
-        is String -> {
-            with(memScope) {
-                renderCValue.type = Type.STRING
-                renderCValue.value.stringValue = this@toKRRenderCValue.cstr.ptr
-            }
         }
         is ByteArray -> {
             val bytes = this
@@ -123,8 +129,10 @@ private fun CPointer<KRRenderCValue>.arrayToAny(size: Int): Any {
 private fun KRRenderCValue.toByteArray(): Any {
     val size = size
     val byteArray = ByteArray(size)
-    for (index in 0 until size) {
-        byteArray[index] = value.bytesValue!![index]
+    if (size > 0) {
+        byteArray.usePinned { pinned ->
+            platform.posix.memcpy(pinned.addressOf(0), value.bytesValue, size.convert<platform.posix.size_t>())
+        }
     }
     return byteArray
 }

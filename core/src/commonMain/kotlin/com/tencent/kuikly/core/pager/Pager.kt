@@ -39,6 +39,7 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
     open var ignoreLayout: Boolean = false
     private var fontWeightScale = -1.0
     private var fontSizeScale = -1.0
+    private var fontId = ""
 
     private val modulesMap = fastHashMapOf<String, Module>()
     private val moduleCreatorMap = fastHashMapOf<String, IModuleCreator>()
@@ -536,6 +537,7 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         val platform = config.optString("platform")
         val fontWeightScale = config.optDouble("fontWeightScale", -1.0)
         val fontSizeScale = config.optDouble("fontSizeScale", -1.0)
+        val fontId = config.optString("fontId")
 
         var shouldMarkTextDirty = false
         if(fontWeightScale > 0 && fontWeightScale != this.fontWeightScale){
@@ -546,6 +548,11 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
         if(fontSizeScale > 0 && fontSizeScale != this.fontSizeScale){
             // fontSizeScale changed
             this.fontSizeScale = fontSizeScale
+            shouldMarkTextDirty = true
+        }
+        if (fontId.isNotEmpty() && fontId != this.fontId) {
+            // fontId changed
+            this.fontId = fontId
             shouldMarkTextDirty = true
         }
         if(shouldMarkTextDirty){

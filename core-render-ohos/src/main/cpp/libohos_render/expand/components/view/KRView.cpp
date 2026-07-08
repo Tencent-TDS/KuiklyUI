@@ -344,6 +344,7 @@ void KRView::HandleGetSelection(const KRAnyValue &params, const KRRenderCallback
 
 void KRView::HandleClearSelection() {
     FireSelectionEvent(SelectionEventKind::CANCEL);
+    selection_info_.sent_start_event = false;
 
     selection_info_.visible = false;
     for (auto item : last_selected_text_views_) {

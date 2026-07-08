@@ -96,9 +96,14 @@ KRRenderCValue KRRenderNativeContextHandlerManager::DispatchCallNative(
     // context_handler_map_ 中存在 handler 就意味着实例有效（注册/注销是配对的），
     // 额外的 GetRenderView 每次都要获取 SpinLock + unordered_map 查找，纯属浪费。
     if (!handler) {
-        KRRenderCValue null_cv;
-        null_cv.type = KRRenderCValue::NULL_VALUE;
-        return null_cv;
+        // 注意：必须使用值初始化（{}）而非默认初始化。
+        // KRRenderCValue 是聚合类型，其 union value 的首成员为 int32_t 且无
+        // 初始化器，size 为 int32_t 无默认值；若写作 `KRRenderCValue null_cv;`
+        // 则 value / size 均为未初始化的栈上残留字节，随后 return 触发
+        // 结构体值拷贝会 memcpy 未初始化字节，越 napi C ABI 传给 Kotlin 侧
+        // 属于未定义行为（MSan/UBSan 必报）。此处 `{}` 会对整个聚合执行
+        // 值初始化，将 type 归零至 NULL_VALUE、union 首成员归零、size 归零。
+        return KRRenderCValue{};
     }
     // 优化：cv0（原 instanceId 槽位）已被 ICallNativeCallback::OnCallNative 的接口契约声明为
     // “保留位”，实现方不得依赖其内容；此处直接传入 KRRenderValue::MakeNull() 静态单例，
@@ -115,9 +120,9 @@ KRRenderCValue KRRenderNativeContextHandlerManager::DispatchCallNative(
     auto return_value =
         handler->OnCallNative(static_cast<KuiklyRenderNativeMethod>(methodId), cv0, cv1, cv2, cv3, cv4, cv5);
     if (return_value == nullptr || return_value->isNull()) {
-        KRRenderCValue null_return_value;
-        null_return_value.type = KRRenderCValue::NULL_VALUE;
-        return null_return_value;
+        // 同上：值初始化，避免 union value / size 字段残留未初始化字节
+        // 经 napi C ABI 传出导致 UB。
+        return KRRenderCValue{};
     }
     ScheduleDeallocRenderValues(return_value);
     return return_value->toCValue();

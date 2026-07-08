@@ -21,12 +21,9 @@
 #include <chrono>
 #include <utility>
 
-#include "libohos_render/foundation/thread/KRThreadFatalGuard.h"
 #include "libohos_render/utils/KRRenderLoger.h"
 
 namespace {
-
-using kuikly::thread::RunWithFatalGuard;
 
 // 一次性 timer 持有的上下文：exec 为“到点后的提交动作”，在 TimerCb 中被调用。
 struct TimerContext {
@@ -202,8 +199,11 @@ void KRThread::OnAsync() {
             if (fn) {
                 // 任何未捕获异常都会一路冒到 std::thread 入口触发 std::terminate，
                 // 同时让 m_taskMutex / m_isExecutingTask 来不及落回干净状态——
-                // 这里 fail-fast，让崩溃栈停在第一现场。
-                RunWithFatalGuard("KRThread.OnAsync.batch", fn);
+                // 这里不套 C++ catch，为的是让 K/N unhandled hook 能先于 std::terminate
+                // 触发、打出完整 Kotlin 侧崩溃栈（catch 会让 K/N 观察到 "C++ 已处理"
+                // 从而抑制 hook）。同时靠 std::mutex / std::atomic 的 RAII 保证 unwind
+                // 将 m_taskMutex 释放、m_isExecutingTask 下文恢复。
+                fn();
             }
         }
         m_isExecutingTask.store(false);
@@ -261,7 +261,7 @@ void KRThread::TimerCb(uv_timer_t *handle) {
         // 绝不能在此裸跑 ctx->exec：正常路径 task 必须在 worker 线程且受
         // m_taskMutex 保护执行，fallback 直接调用会绕开互斥语义、并可能与
         // 正在借位执行的 DirectRunOnCurThread 并发踩踏 kuikly 上下文。
-        // RunWithFatalGuard 只挡异常，不挡数据竞争 —— 这里选择丢弃任务。
+        // 这里不依赖任何 C++ catch，直接丢弃任务。
         //
         // 双层策略（与 OnAsync 未知句柄分支保持一致）：
         //   * debug：assert(false) 让状态损坏第一时间暴露到崩溃栈；
@@ -323,15 +323,11 @@ void KRThread::DirectRunOnCurThread(const std::function<void()> &task) {
     }
     if (m_isExecutingTask.load() && IsCurrentThreadWorkerThread()) {
         // 仅当“当前就在 worker 的执行栈里（task 体内嵌套调用）”才允许直跑，
-        // 避免外部线程在 worker 持锁跑批期间错误地“白嘍”执行权造成数据竞争。
+        // 避免外部线程在 worker 持锁跑批期间错误地“白嚘”执行权造成数据竞争。
         //
-        // 异常语义（fail-forward）：由 RunWithFatalGuard 在 catch 里打完整
-        // 诊断日志（tag + demangled 类型 + e.what()）后 rethrow，让异常继续
-        // unwind，直至 K/N runtime 的 unhandled-exception hook（若有）先跑
-        // 打出 Kotlin 栈，最终 std::terminate → abort 终止进程。
-        // 这样既保留 fail-fast 精神，又不会像直接 abort 那样吞掉 K/N 的
-        // Kotlin 侧崩溃信息。
-        RunWithFatalGuard("KRThread.DirectRunOnCurThread.nested", task);
+        // 异常语义：不套 C++ catch，让异常一路冒到 K/N unhandled hook，避免
+        // “C++ 已处理”误判拖喽 hook 触发而丢失 Kotlin 侧崩溃信息。
+        task();
         return;
     }
 
@@ -345,8 +341,9 @@ void KRThread::DirectRunOnCurThread(const std::function<void()> &task) {
         }
         std::unique_lock<std::mutex> taskLock(m_taskMutex, std::try_to_lock);
         if (taskLock.owns_lock()) {
-            // 借位执行 task。异常语义与 nested 分支一致：RunWithFatalGuard 会
-            // 在 catch 里打诊断日志再 rethrow；rethrow 期间 unwind 会自动展开
+            // 借位执行 task。不套 C++ catch，让异常一路冒到 K/N unhandled hook：
+            // 任何中间层 catch（即使手动 rethrow）都会让 K/N 观察到 "C++ 已处理"
+            // 从而不再触发 hook，导致丢失 Kotlin 侧崩溃栈。unwind 期间会自动展开
             // 下面的 ExecutingFlagGuard 与 taskLock（unique_lock），保证
             // m_isExecutingTask / m_taskMutex 状态一致，不残留中间态。
             //
@@ -358,7 +355,7 @@ void KRThread::DirectRunOnCurThread(const std::function<void()> &task) {
                 explicit ExecutingFlagGuard(std::atomic<bool> &f) : flag(f) { flag.store(true); }
                 ~ExecutingFlagGuard() { flag.store(false); }
             } execFlagGuard(m_isExecutingTask);
-            RunWithFatalGuard("KRThread.DirectRunOnCurThread.borrow", task);
+            task();
             didHandleTask = true;
             break;
         }

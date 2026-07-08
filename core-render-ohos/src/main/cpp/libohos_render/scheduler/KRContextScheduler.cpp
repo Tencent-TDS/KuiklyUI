@@ -135,8 +135,8 @@ void KRContextSchedulerMultiThreaded::ScheduleTaskOnMainThread(bool sync, const 
             if (doneFuture.wait_for(kSyncMainTaskWarnTimeout) == std::future_status::timeout) {
                 // 各路径 fail-fast 同口径。throw 出去也走不到任何业务可达的 catch 点：
                 //   - ToCallArkTSMethod / SyncCallArkTSMethod / KRForwardArkTSModule 都不接异常，
-                //   - 一路冒到 napi C ABI 边界被 KRRenderCore.ABI.CallNative 的
-                //     RunWithFatalGuard 接住 → std::abort()。
+                //   - 一路冒到 napi C ABI 边界后直接暴露给 K/N runtime，由 K/N 的
+                //     unhandled-exception hook 打出完整 Kotlin 栈后 std::terminate。
                 // 所以这里直接走 __assert_fail 让 coredump 直接携带 file:line:func，
                 // 避免栈 unwind 现场失真；也不会让 caller 误以为“这个 throw 可以 catch”
                 // 这种 API 双重含义陷阱。裸调 __assert_fail（而非 assert 宏）确保 release

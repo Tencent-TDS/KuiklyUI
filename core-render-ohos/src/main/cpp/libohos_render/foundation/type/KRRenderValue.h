@@ -852,6 +852,9 @@ inline std::shared_ptr<KRRenderValue> KRRenderValue::MakeEmptyString() {
 }
 
 // Make(const char*) 特化：空字符串返回复用的单例对象
+// 注：签名 const char*&& 是主模板 Make(Args&&... args) 在 Args = const char* 时的
+//     实例化形式。C++ 模板特化必须精确匹配主模板签名，不能改为 const char*，
+//     否则该特化不会被主模板匹配到，Make("") 的空字符串单例复用优化将失效。
 template<>
 inline std::shared_ptr<KRRenderValue> KRRenderValue::Make(const char* &&value) {
     if (value == nullptr || value[0] == '\0') {

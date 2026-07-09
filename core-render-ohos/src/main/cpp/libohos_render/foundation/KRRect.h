@@ -61,6 +61,9 @@ struct KRRect {
     bool operator==(const KRRect &other) const {
         return x == other.x && y == other.y && width == other.width && height == other.height;
     }
+    bool operator!=(const KRRect &other) const {
+        return !(*this == other);
+    }
 
     // 零大小的静态常量成员
     static const KRRect zero;

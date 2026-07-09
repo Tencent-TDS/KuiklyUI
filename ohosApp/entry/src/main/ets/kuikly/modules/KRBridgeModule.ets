@@ -15,6 +15,7 @@
 
 import { common } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
+import { window } from '@kit.ArkUI';
 import { KRAny, KuiklyRenderBaseModule, KuiklyRenderCallback } from '@kuikly-open/render';
 import util from '@ohos.util';
 import fs from '@ohos.file.fs';
@@ -36,6 +37,7 @@ export class KRBridgeModule extends KuiklyRenderBaseModule {
   static readonly DATE_FORMATTER = 'dateFormatter';
   static readonly READ_ASSET_FILE = 'readAssetFile';
   static readonly GET_LOCAL_IMAGE_PATH = 'getLocalImagePath';
+  static readonly REQUEST_ORIENTATION = 'requestOrientation';
 
   syncMode(): boolean {
     return false;
@@ -91,6 +93,10 @@ export class KRBridgeModule extends KuiklyRenderBaseModule {
       }
       case KRBridgeModule.GET_LOCAL_IMAGE_PATH: {
         this.getLocalImagePath(params, callback);
+        break;
+      }
+      case KRBridgeModule.REQUEST_ORIENTATION: {
+        this.requestOrientation(params);
         break;
       }
       default:
@@ -171,6 +177,37 @@ export class KRBridgeModule extends KuiklyRenderBaseModule {
       }
       fs.closeSync(file);
     });
+  }
+
+  private requestOrientation(params: KRAny) {
+    const records = JSON.parse(params as string) as Record<string, string>;
+    const orientation = records['orientation'];
+    const targetOrientation = orientation === 'landscape'
+      ? window.Orientation.LANDSCAPE
+      : orientation === 'portrait'
+        ? window.Orientation.PORTRAIT
+        : window.Orientation.UNSPECIFIED;
+    try {
+      const context = getContext() as common.UIAbilityContext;
+      const mainWindow = context.windowStage.getMainWindowSync();
+      mainWindow.setPreferredOrientation(targetOrientation).then(() => {
+        console.info(`KuiklyRender requestOrientation success: ${orientation}`);
+      }).catch((err: BusinessError) => {
+        console.error(`KuiklyRender requestOrientation failed: ${err.code} ${err.message}`);
+      });
+    } catch (e) {
+      window.getLastWindow(getContext(), (err: BusinessError, mainWindow: window.Window) => {
+        if (err.code) {
+          console.error(`KuiklyRender requestOrientation getLastWindow failed: ${err.code} ${err.message}`);
+          return;
+        }
+        mainWindow.setPreferredOrientation(targetOrientation).then(() => {
+          console.info(`KuiklyRender requestOrientation success: ${orientation}`);
+        }).catch((setErr: BusinessError) => {
+          console.error(`KuiklyRender requestOrientation failed: ${setErr.code} ${setErr.message}`);
+        });
+      });
+    }
   }
 
   private getLocalImagePath(params: KRAny, callback: KuiklyRenderCallback) {

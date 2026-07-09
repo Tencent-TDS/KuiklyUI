@@ -43,6 +43,13 @@ export default class EntryAbility extends UIAbility {
       }
       hilog.info(0x0000, 'testTag', 'Succeeded in loading the content.');
 
+      try {
+        const mainWindow = windowStage.getMainWindowSync();
+        mainWindow.setWindowLayoutFullScreen(true);
+      } catch (e) {
+        hilog.error(0x0000, 'testTag', 'setWindowLayoutFullScreen failed: %{public}s', JSON.stringify(e));
+      }
+
       Napi.setResourceManager(getContext()?.resourceManager)
       // 把应用沙盒 cacheDir 下发给 native（可选，其他需要写入沙盒的场景调用）。
       Napi.setCacheDir(getContext().cacheDir)
@@ -66,8 +73,6 @@ export default class EntryAbility extends UIAbility {
         }
       })
     });
-    let mainWindow = windowStage.getMainWindowSync();
-    mainWindow.setWindowLayoutFullScreen(true);
   }
 
   onWindowStageDestroy(): void {

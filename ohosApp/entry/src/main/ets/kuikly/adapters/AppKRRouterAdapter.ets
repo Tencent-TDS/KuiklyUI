@@ -41,6 +41,8 @@ export class AppKRRouterAdapter implements IKRRouterAdapter {
       url = 'pages/NativeAppWaterfall';
     } else if (pageName === 'KuiklyInList') {
       url = 'pages/KuiklyInList';
+    } else if (pageName === 'NativeOrientationTest') {
+      url = 'pages/NativeOrientationTest';
     } else {
       url = 'pages/Index';
     }

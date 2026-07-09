@@ -3,6 +3,7 @@
     "pages/Index",
     "pages/GestureThrough",
     "pages/KuiklyInList",
-    "pages/NativeAppWaterfall"
+    "pages/NativeAppWaterfall",
+    "pages/NativeOrientationTest"
   ]
 }

@@ -74,7 +74,7 @@ struct Index {
   }
 
   build() {
-    Stack() {
+    Stack({ alignContent: Alignment.TopStart }) {
       if (this.showKuikly) {
         Kuikly({
           pageName: this.pageName ?? 'router',
@@ -97,9 +97,10 @@ struct Index {
           nativeManager: globalNativeManager,
         });
       }
-    }.expandSafeArea([SafeAreaType.KEYBOARD]);
-
-    // .backgroundColor(Color.Green)
+    }
+    .width('100%')
+    .height('100%')
+    .expandSafeArea([SafeAreaType.KEYBOARD]);
   }
 
   private showExceptionDialog(stack: string) {

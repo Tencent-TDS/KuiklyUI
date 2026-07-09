@@ -15,6 +15,8 @@
 
 package com.tencent.kuikly.core.module
 
+import com.tencent.kuikly.core.datetime.DateTime
+
 /**
  *  监听Vsync回调
  *  created by zhenhuachen on 2025/4/27.
@@ -25,14 +27,19 @@ class VsyncModule : Module() {
         return MODULE_NAME
     }
 
-    fun registerVsync(callback: () -> Unit) {
+    /**
+     * @param callback 每个 vsync 回调一次。frameTimeNanos 为本帧 vsync 时间戳(纳秒,开机单调时基,
+     * 与 [DateTime.nanoTime] 同源);native 侧未透传时间戳时回退为 [DateTime.nanoTime]。
+     */
+    fun registerVsync(callback: (frameTimeNanos: Long) -> Unit) {
         toNative(
             keepCallbackAlive = true,
             methodName = METHOD_REGISTER_VSYNC,
             syncCall = false,
             param = null,
-            callback = {
-                callback()
+            callback = { res ->
+                val frameTimeNanos = res?.optLong(PARAM_TIMESTAMP) ?: 0L
+                callback(if (frameTimeNanos > 0L) frameTimeNanos else DateTime.nanoTime())
             }
         )
     }
@@ -50,5 +57,6 @@ class VsyncModule : Module() {
         const val MODULE_NAME = ModuleConst.VSYNC
         const val METHOD_REGISTER_VSYNC = "registerVsync"
         const val METHOD_UNREGISTER_VSYNC = "unRegisterVsync"
+        private const val PARAM_TIMESTAMP = "timestamp"
     }
 }

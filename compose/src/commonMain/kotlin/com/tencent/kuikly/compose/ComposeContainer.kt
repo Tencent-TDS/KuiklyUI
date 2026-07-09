@@ -173,19 +173,18 @@ open class ComposeContainer :
     private fun startFrameDispatcher() {
         mediator?.renderFrame()
         val pageData = getPager().pageData
-        if (pageData.isOhOs || pageData.isMiniApp || pageData.isWeb) {
+        if (pageData.isMiniApp || pageData.isWeb) {
             mediator?.startFrameDispatcher()
         } else {
-            getModule<VsyncModule>(VsyncModule.MODULE_NAME)?.registerVsync {
-                mediator?.renderFrame()
+            getModule<VsyncModule>(VsyncModule.MODULE_NAME)?.registerVsync { frameTimeNanos ->
+                mediator?.renderFrame(frameTimeNanos)
             }
         }
     }
 
     private fun stopFrameDispatcher() {
-        if (getPager().pageData.isOhOs) {
-
-        } else {
+        val pageData = getPager().pageData
+        if (!pageData.isMiniApp && !pageData.isWeb) {
             getModule<VsyncModule>(VsyncModule.MODULE_NAME)?.unRegisterVsync()
         }
     }

@@ -107,8 +107,16 @@ class ComposeSceneMediator(
         return timer
     }
 
-    fun renderFrame() {
-        val timestamp = DateTime.nanoTime()
+    private var lastFrameTimeNanos = 0L
+
+    /**
+     * @param frameTimeNanos 本帧时间戳(纳秒)。VsyncModule 驱动时为真实 vsync 时间戳,
+     * 以减少动画时间抖动;其他驱动(12ms Timer)沿用 [DateTime.nanoTime]。
+     */
+    fun renderFrame(frameTimeNanos: Long = DateTime.nanoTime()) {
+        // 帧时钟必须单调递增,防御 vsync 时间戳与 nanoTime 时基的微小偏差
+        val timestamp = if (frameTimeNanos > lastFrameTimeNanos) frameTimeNanos else lastFrameTimeNanos + 1
+        lastFrameTimeNanos = timestamp
         scene.vsyncTickConditions.onDisplayLinkTick {
             scene.render(null, timestamp)
         }

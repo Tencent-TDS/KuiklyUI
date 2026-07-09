@@ -33,6 +33,20 @@ internal class BridgeModule : Module() {
         callNativeMethod("toast", methodArgs, null)
     }
 
+    fun requestLandscape() {
+        requestOrientation("landscape")
+    }
+
+    fun requestPortrait() {
+        requestOrientation("portrait")
+    }
+
+    private fun requestOrientation(orientation: String) {
+        val methodArgs = JSONObject()
+        methodArgs.put("orientation", orientation)
+        callNativeMethod(REQUEST_ORIENTATION, methodArgs, null)
+    }
+
     fun testArray() {
         //call
         val array = arrayOf<Any>("222", createByteArray())
@@ -188,6 +202,7 @@ internal class BridgeModule : Module() {
         const val KEY_FEED_PB_TOKEN = "feedPbToken"
         const val SET_STATUS_BAR_WHITE = "setWhiteStatusBarStyle"
         const val SET_STATUS_BAR_BLACK = "setBlackStatusBarStyle"
+        const val REQUEST_ORIENTATION = "requestOrientation"
         const val GET_CURRENT_ACCOUNT = "getAccount"
         const val DOWNLOAD_PAG_SO = "downloadPagSo"
         const val GET_LOCAL_IMAGE_PATH = "getLocalImagePath"

@@ -113,6 +113,8 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("PTR Padding Bug", "Issue #1325 HeaderBar+PTR padding", "BugReproPullRefreshPaddingPage"),
             // 其他
             DemoItem("封装KuiklyView", "封装Kuikly的VideoView为一个Composeable组件示例", "ComposeVideoDemo"),
+            DemoItem("转屏调试", "全屏蒙层+蓝色方块，横竖屏切换", "ComposeOrientationOverlayDemo"),
+            DemoItem("视频横竖屏", "MovableContent视频横竖屏切换示例", "ComposeVideoOrientationDemo"),
             DemoItem("iOS LiquidGlass", "iOS LiquidGlass 组件示例", "LiquidGlassComposeDemo"),
 
             // 动画

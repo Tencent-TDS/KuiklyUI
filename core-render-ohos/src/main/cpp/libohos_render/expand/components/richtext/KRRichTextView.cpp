@@ -66,9 +66,14 @@ static std::string utf16_to_utf8(const std::u16string& utf16_string) {
 
 static const char * kPropNameLineBreakMargin = "lineBreakMargin";
 static const char * kPropNameClick = "click";
+static const char * kPropNameLongPress = "longPress";
 
 ArkUI_NodeHandle KRRichTextView::CreateNode() {
-    return kuikly::util::GetNodeApi()->createNode(ARKUI_NODE_TEXT);
+    if (KR_TEXT_RENDER_V2_ENABLED){
+        return kuikly::util::GetNodeApi()->createNode(ARKUI_NODE_TEXT);
+    } else {
+        return kuikly::util::GetNodeApi()->createNode(ARKUI_NODE_CUSTOM);
+    }
 }
 
 void KRRichTextView::OnDestroy() {
@@ -157,7 +162,7 @@ void KRRichTextView::DidRemoveFromParentView() {
 }
 
 void KRRichTextView::OnForegroundDraw(ArkUI_NodeCustomEvent *event) {
-    if (shadow_ == nullptr && GetFrame().width == 0) {
+    if (shadow_ == nullptr || GetFrame().width == 0) {
         KR_LOG_ERROR << "OnForegroundDraw, shadow or frame not ready, shadow:" << shadow_.get()
                      << ", frame width:" << GetFrame().width;
         return;
@@ -336,40 +341,25 @@ void KRRichTextView::ToSetProp(const std::string &prop_key, const KRAnyValue &pr
         std::weak_ptr<KRRichTextView> weakSelf = std::dynamic_pointer_cast<KRRichTextView>(shared_from_this());
         KRRenderCallback middleManCallback = [weakSelf, event_callback](KRAnyValue res) {
             auto strongSelf = weakSelf.lock();
-            if(strongSelf == nullptr){
+            if (strongSelf == nullptr){
                 return;
             }
-            if (res->isMap()) {
-                const auto oldParam = res->toMap();
-                const auto x = oldParam.find("x");
-                const auto y = oldParam.find("y");
-
-                KRRenderValueMap params;
-                if (x != oldParam.end()) {
-                    params["x"] = x->second;
-                }
-
-                if (y != oldParam.end()) {
-                    params["y"] = y->second;
-                }
-
-                const auto pageX = oldParam.find("pageX");
-                const auto pageY = oldParam.find("pageY");
-                if (pageX != oldParam.end()) {
-                    params["pageX"] = pageX->second;
-                }
-                if (pageY != oldParam.end()) {
-                    params["pageY"] = pageY->second;
-                }
-
-                if (auto richTextShadow = std::dynamic_pointer_cast<KRRichTextShadow>(strongSelf->shadow_)) {
-                    int index = richTextShadow->SpanIndexAt(x->second->toFloat(), y->second->toFloat());
-                    if (index < 0) {
-                        index = 0;
-                    }
-                    params["index"] = NewKRRenderValue(index);
-                }
-                event_callback(NewKRRenderValue(params));
+            if (auto richTextShadow = std::dynamic_pointer_cast<KRRichTextShadow>(strongSelf->shadow_)) {
+                event_callback(richTextShadow->BuildEventParams(res));
+            } else {
+                event_callback(res);
+            }
+        };
+        IKRRenderViewExport::ToSetProp(prop_key, prop_value, middleManCallback);
+    } else if (kuikly::util::isEqual(prop_key, kPropNameLongPress)) {
+        std::weak_ptr<KRRichTextView> weakSelf = std::dynamic_pointer_cast<KRRichTextView>(shared_from_this());
+        KRRenderCallback middleManCallback = [weakSelf, event_callback](KRAnyValue res) {
+            auto strongSelf = weakSelf.lock();
+            if (strongSelf == nullptr) {
+                return;
+            }
+            if (auto richTextShadow = std::dynamic_pointer_cast<KRRichTextShadow>(strongSelf->shadow_)) {
+                event_callback(richTextShadow->BuildLongPressEventParams(res));
             } else {
                 event_callback(res);
             }
@@ -445,6 +435,21 @@ std::pair<int, int> KRParagraphInfo::GetParagraphBoundary(int offset) {
     return std::make_pair(offset, offset);
 }
 
+// Returns the half-open interval [begin, end) of the span that contains `offset`.
+// span_offsets_ entries are tuples of (span_index, begin_offset, end_offset) where
+// end_offset is exclusive. When no span contains `offset`, returns an empty range
+// (offset, offset) so callers can treat span_start == span_end as "no span found".
+std::pair<int, int> KRParagraphInfo::GetSpanBoundary(int offset) {
+    for (const auto &span_off : span_offsets_) {
+        int begin = std::get<1>(span_off);
+        int end = std::get<2>(span_off);
+        if (offset >= begin && offset < end) {
+            return std::make_pair(begin, end);
+        }
+    }
+    return std::make_pair(offset, offset);
+}
+
 KRParagraphSelectionInfo KRParagraphInfo::GetSelectionRectsAll() {
     float density = KRConfig::GetDpi();
     std::vector<KRRect> selected_rect_list;
@@ -469,7 +474,6 @@ KRParagraphSelectionInfo KRParagraphInfo::GetSelectionRectsAll() {
 }
 
 KRParagraphSelectionInfo KRParagraphInfo::GetSelectionRects2(KRPoint p0, KRPoint p1, int type) {
-    (void)type;
     float density = KRConfig::GetDpi();
     auto points = std::array{p0, p1};
     int line_numbers[2];
@@ -532,6 +536,60 @@ KRParagraphSelectionInfo KRParagraphInfo::GetSelectionRects2(KRPoint p0, KRPoint
         std::swap(first_line_text_offset, last_line_text_offset);
         std::swap(first_line_text_is_first_in_line, last_line_text_is_first_in_line);
         std::swap(first_line_text_is_last_in_line, last_line_text_is_last_in_line);
+    }
+
+    // SPAN type: expand the selection to the whole span that contains the touched offset.
+    // GetSpanBoundary returns a half-open interval [span_start, span_end).
+    if (type == KRTextSelectionType::SPAN && first_line_text_offset >= 0) {
+        auto [span_start, span_end] = GetSpanBoundary(first_line_text_offset);
+        if (span_start < span_end) {
+            first_line_text_offset = span_start;
+            // Keep last_line_text_offset inclusive (it points at the last selected char).
+            // info.end below re-adds +1 to convert it back into the exclusive span_end.
+            last_line_text_offset = span_end - 1;
+
+            // The is_first/is_last/which_part flags were derived from the raw touch points
+            // and no longer describe the span range. Reset them so the rect-building logic
+            // always takes the "has-width" branches: this guarantees a non-zero-width
+            // selection rect and, in turn, info.end == span_end (never off-by-one).
+            first_line_text_is_first_in_line = false;
+            first_line_text_is_last_in_line = false;
+            last_line_text_is_first_in_line = false;
+            last_line_text_is_last_in_line = false;
+            which_part_of_first_line_text = SelectionStrategy::Leading;
+            which_part_of_last_line_text = SelectionStrategy::Trailing;
+
+            // Recalculate the line range that covers [span_start, span_end - 1].
+            // The start line must lock onto the FIRST matching line: at a soft-wrap
+            // boundary an offset can satisfy both line i (as BackOffset) and line i+1
+            // (as startIndex), so without this guard the start line would be pushed
+            // one line too far.
+            line_numbers[0] = 0;
+            line_numbers[1] = static_cast<int>(line_info_list_.size()) - 1;
+            bool first_line_found = false;
+            for (size_t i = 0; i < line_info_list_.size(); ++i) {
+                const auto &metrics = line_info_list_[i].line_metrics_;
+                // BackOffset() returns the last character offset of this line
+                // (inclusive), i.e. the line covers [startIndex, BackOffset()].
+                int back_offset = line_info_list_[i].BackOffset();
+                if (!first_line_found && first_line_text_offset >= metrics.startIndex &&
+                    first_line_text_offset <= back_offset) {
+                    line_numbers[0] = static_cast<int>(i);
+                    first_line_found = true;
+                }
+                if (last_line_text_offset >= metrics.startIndex && last_line_text_offset <= back_offset) {
+                    line_numbers[1] = static_cast<int>(i);
+                    break;
+                }
+            }
+            if (line_numbers[0] > line_numbers[1]) {
+                std::swap(line_numbers[0], line_numbers[1]);
+            }
+        } else {
+            // No span contains the touched offset — fall back to character-level
+            // selection (single char), aligned with Android / iOS fallback behaviour.
+            last_line_text_offset = first_line_text_offset;
+        }
     }
 
     float first_char_width = -1;
@@ -638,6 +696,7 @@ KRParagraphInfo KRRichTextView::GetParagraphInfo() {
 
     std::string text_content = textShadow->GetTextContent();
     paragraph_info.text_content_ = text_content;
+    paragraph_info.span_offsets_ = textShadow->span_offsets_;
     size_t lineCount = OH_Drawing_TypographyGetLineCount(textTypo);
     for (size_t i = 0; i < lineCount; ++i) {
         KRLineInfo line_info;
@@ -658,7 +717,11 @@ KRParagraphInfo KRRichTextView::GetParagraphInfo() {
 
             OH_Drawing_TextBox *boxes = nullptr;
             size_t count = 0;
-            while (advance_count < 4) {
+            // A single glyph may span multiple code units (surrogate pairs / combining
+            // marks). Grow the query range up to kMaxAdvancePerGlyph code units until the
+            // typography engine yields at least one rect box for the range.
+            constexpr int kMaxAdvancePerGlyph = 4;
+            while (advance_count < kMaxAdvancePerGlyph) {
                 boxes = OH_Drawing_TypographyGetRectsForRange(textTypo, index, index + advance_count,
                                                               RECT_HEIGHT_STYLE_TIGHT, RECT_WIDTH_STYLE_TIGHT);
                 count = OH_Drawing_GetSizeOfTextBox(boxes);
@@ -740,4 +803,3 @@ bool KRRichTextView::UpdateSelection(std::shared_ptr<IKRRenderViewExport> ancest
 
     return has_intersection;
 }
-

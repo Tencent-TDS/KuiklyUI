@@ -22,7 +22,9 @@ import com.tencent.kuikly.compose.foundation.layout.PaddingValues
 import com.tencent.kuikly.compose.foundation.lazy.LazyListState
 import com.tencent.kuikly.compose.foundation.lazy.grid.LazyGridState
 import com.tencent.kuikly.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
+import com.tencent.kuikly.compose.foundation.drawer.DrawerInternalPagerState
 import com.tencent.kuikly.compose.foundation.pager.PagerState
+import com.tencent.kuikly.compose.foundation.pager.ScrollViewOffsetAlignmentCancellation
 import com.tencent.kuikly.compose.scroller.ScrollableStateConstants.DEFAULT_CONTENT_SIZE
 import com.tencent.kuikly.compose.ui.unit.Dp
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
@@ -109,6 +111,7 @@ internal fun ScrollableState.totalContentSize(): Int? {
     return when(this) {
         is LazyListState -> calculateLazyListContentSize(curOffset)
         is PagerState -> calculatePagerContentSize(curOffset)
+        is DrawerInternalPagerState -> calculateDynamicPagerContentSize(curOffset)
         is LazyGridState -> calculateLazyGridContentSize(curOffset)
         is LazyStaggeredGridState -> calculateLazyStaggeredGridContentSize(curOffset)
         is ScrollState -> calculateScrollStateContentSize()
@@ -150,6 +153,14 @@ private fun PagerState.calculatePagerContentSize(curOffset: Float): Int? {
     val lastItem = layoutInfo.visiblePagesInfo.lastOrNull()
     return if (lastItem != null && lastItem.index == pageCount - 1) {
         (curOffset + lastItem.offset + pageSize).toInt()
+    } else null
+}
+
+private fun DrawerInternalPagerState.calculateDynamicPagerContentSize(curOffset: Float): Int? {
+    val lastItem = layoutInfo.visiblePagesInfo.lastOrNull()
+    return if (lastItem != null && lastItem.index == pageCount - 1) {
+        val lastPageSize = pageSizeForPage(lastItem.index)
+        (curOffset + lastItem.offset + lastPageSize).toInt()
     } else null
 }
 
@@ -253,6 +264,8 @@ internal fun ScrollableState.calculateBackExpandSize(offset: Int): Int? {
  */
 internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolean) {
     if (kuiklyInfo.scrollView == null) return
+    if (kuiklyInfo.skipExpandStartSize) return
+    if (this is PagerState) return
 
     val density = kuiklyInfo.getDensity()
     // scrollview 到顶了，但是compose没到顶
@@ -284,9 +297,9 @@ internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolea
 }
 
 internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = false) {
-    if (this is PagerState) return
+    if (this is PagerState || this is DrawerInternalPagerState) return
     kuiklyInfo.run {
-        appleScrollViewOffsetJob?.cancel()
+        appleScrollViewOffsetJob?.cancel(ScrollViewOffsetAlignmentCancellation)
         appleScrollViewOffsetJob = scope?.launch {
             delay(150)
             val minDelta = (DEFAULT_CONTENT_SIZE * getDensity()).toInt()

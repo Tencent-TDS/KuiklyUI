@@ -120,6 +120,7 @@ enum class SelectionType(val value: Int) {
     WORD(1),
     PARAGRAPH(2),
     SENTENCE(3),
+    SPAN(4),
 }
 
 open class DivAttr : GroupAttr() {

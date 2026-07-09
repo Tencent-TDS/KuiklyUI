@@ -52,7 +52,7 @@ class KRView : public IKRRenderViewExport {
 
  private:
     void StopObservingInternalScrollViews();
-    void CalculateHandleFramesAndDoUpdate();
+    void CalculateHandleFramesAndDoUpdate(bool from_user = false);
     void OnInternalScrollViewDidScroll(float offsetX, float offsetY);
     void EnsureRegisterTouchEvent();
     bool RegisterTouchDownEvent(const KRRenderCallback &event_call_back);
@@ -76,7 +76,7 @@ class KRView : public IKRRenderViewExport {
     void HandleClearSelection();
     void HandleCreateSelectionAll();
 
-    void CreateSelection(KRPoint point, KRPoint point2, int type);
+    void CreateSelection(KRPoint point, KRPoint point2, int type, bool from_user = false);
 
     std::vector<std::shared_ptr<KRRichTextView>> GetSelectedNodes(KRPoint p0, KRPoint p1);
     void GetSelectedNodes(std::shared_ptr<KRRenderView> root_render_view,

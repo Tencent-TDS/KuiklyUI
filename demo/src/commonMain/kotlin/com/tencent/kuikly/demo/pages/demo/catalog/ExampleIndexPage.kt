@@ -111,6 +111,13 @@ internal class ExampleIndexPage : BasePager() {
         })
 
         itemList.add(ExampleItemData().apply {
+            avatarText = "Sp"
+            titleText = "Span Selection"
+            subtitleText = "长按富文本 Span 整体选择，支持字符/WORD/句子/段落/SPAN 多种选择类型"
+            declarativeExampleUrl = generateJumpUrl("SpanSelectionExamplePage")
+        })
+
+        itemList.add(ExampleItemData().apply {
             avatarText = "Im"
             titleText = "ImageView"
             subtitleText = "使用ImageView为你的app添加图片"
@@ -307,6 +314,13 @@ internal class ExampleIndexPage : BasePager() {
             titleText = "VideoView"
             subtitleText = "使用VideoView为你的app添加视频"
             declarativeExampleUrl = generateJumpUrl("VideoExamplePage")
+        })
+
+        itemList.add(ExampleItemData().apply {
+            avatarText = "St"
+            titleText = "Bridge Call 压力测试"
+            subtitleText = "循环10万次调用BridgeManager.callModuleMethod，测试Kotlin到Native桥接调用性能"
+            declarativeExampleUrl = generateJumpUrl("BridgeCallStressTestPage")
         })
 
         // 仅在微信小程序平台展示 WX 组件 / API 示例

@@ -178,14 +178,19 @@ void KRView::HandleCreateSelection(const KRAnyValue &params) {
 
         if (x != INVALID_NUMBER && y != INVALID_NUMBER && type != INVALID_NUMBER) {
             CreateSelection(KRPoint(static_cast<float>(x), static_cast<float>(y)),
-                           KRPoint(static_cast<float>(x), static_cast<float>(y)), type);
+                           KRPoint(static_cast<float>(x), static_cast<float>(y)), type, true);
         }
     }
 }
 
-void KRView::CalculateHandleFramesAndDoUpdate() {
+void KRView::CalculateHandleFramesAndDoUpdate(bool from_user) {
     auto [selected_text_views, selected_scroll_views] = GetSelectedTextAndScrollViews();
     if (selected_text_views.empty()) {
+        if (from_user && selection_info_.sent_start_event) {
+            // 业务主动创建选区但命中为空：结束上次仍激活的选区会话，与 Android 行为对齐。
+            selection_info_.sent_start_event = false;
+            FireSelectionEvent(SelectionEventKind::CANCEL);
+        }
         return;
     }
 
@@ -236,6 +241,8 @@ void KRView::CalculateHandleFramesAndDoUpdate() {
             std::dynamic_pointer_cast<KRRichTextView>(selected_text_views.back())->GetSelectionInfo().last_char_width;
     }
 
+    KRRect old_start = selection_info_.start;
+    KRRect old_end = selection_info_.end;
     selection_info_.start =
         KRRect(first_selection_rect2.x, first_selection_rect2.y, SelectionCursorWidth, first_selection_rect2.height);
     selection_info_.end = KRRect(last_selection_rect2.x + last_selection_rect2.width, last_selection_rect2.y,
@@ -245,10 +252,18 @@ void KRView::CalculateHandleFramesAndDoUpdate() {
     selection_info_.selection_points[1] =
         KRPoint(selection_info_.end.x - last_char_width / 2, selection_info_.end.y + selection_info_.end.height / 2);
 
+    bool rect_changed = (selection_info_.start != old_start) || (selection_info_.end != old_end);
     if (!selection_info_.sent_start_event) {
         FireSelectionEvent(SelectionEventKind::START);
         selection_info_.sent_start_event = true;
+    } else if (from_user) {
+        // 业务主动创建复用激活会话，与 Android 语义对齐：
+        // 仅当选区位置发生变化时才再次发 START；位置未变化则不再重复发事件，仅更新手柄。
+        if (rect_changed) {
+            FireSelectionEvent(SelectionEventKind::START);
+        }
     } else {
+        // 拖拽手柄更新选区，发 CHANGE。
         FireSelectionEvent(SelectionEventKind::CHANGE);
     }
     selection_info_.visible = true;
@@ -256,9 +271,9 @@ void KRView::CalculateHandleFramesAndDoUpdate() {
     UpdateSelectionHandles();
 }
 
-void KRView::CreateSelection(KRPoint p0, KRPoint p1, int type) {
+void KRView::CreateSelection(KRPoint p0, KRPoint p1, int type, bool from_user) {
     UpdateSelection(shared_from_this(), p0, p1, type);
-    CalculateHandleFramesAndDoUpdate();
+    CalculateHandleFramesAndDoUpdate(from_user);
 }
 
 void KRView::HandleGetSelection(const KRAnyValue &params, const KRRenderCallback &cb) {
@@ -344,6 +359,7 @@ void KRView::HandleGetSelection(const KRAnyValue &params, const KRRenderCallback
 
 void KRView::HandleClearSelection() {
     FireSelectionEvent(SelectionEventKind::CANCEL);
+    selection_info_.sent_start_event = false;
 
     selection_info_.visible = false;
     for (auto item : last_selected_text_views_) {
@@ -354,7 +370,7 @@ void KRView::HandleClearSelection() {
 
 void KRView::HandleCreateSelectionAll() {
     KRRect bounds = GetBounds();
-    CreateSelection(KRPoint(), KRPoint(bounds.width, bounds.height), KRTextSelectionType::ALL);
+    CreateSelection(KRPoint(), KRPoint(bounds.width, bounds.height), KRTextSelectionType::ALL, true);
 }
 
 bool KRView::HandleTextSelectionMethods(const std::string &method, const KRAnyValue &params,

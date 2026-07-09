@@ -138,6 +138,19 @@ internal class BridgeModule : Module() {
         syncCallNativeMethod(READ_ASSET_FILE, params, callback)
     }
 
+    /**
+     * 同步读取文件内容（直接通过同步通道返回，从 kuikly 线程同步等待主线程返回）
+     * @param assetPath asset 文件路径
+     * @param repeatCount 端侧反复读取的次数，用于模拟慢同步调用，默认 50
+     * @return 文件内容字符串；如果读取失败则返回空字符串
+     */
+    fun readAssetFileSync(assetPath: String, repeatCount: Int = 50): String {
+        val params = JSONObject()
+        params.put("assetPath", assetPath)
+        params.put("repeatCount", repeatCount)
+        return syncCallNativeMethod(READ_ASSET_FILE_SYNC, params, null)
+    }
+
     private fun callNativeMethod(methodName: String, data: JSONObject?, callbackFn: CallbackFn?) {
         toNative(
             false,
@@ -194,6 +207,7 @@ internal class BridgeModule : Module() {
         const val DOWNLOAD_PAG_SO = "downloadPagSo"
         const val GET_LOCAL_IMAGE_PATH = "getLocalImagePath"
         const val READ_ASSET_FILE = "readAssetFile"
+        const val READ_ASSET_FILE_SYNC = "readAssetFileSync"
     }
 
 }

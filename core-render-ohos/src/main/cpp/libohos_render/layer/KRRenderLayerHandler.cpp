@@ -81,7 +81,7 @@ void KRRenderLayerHandler::RemoveRenderView(int tag) {
     } else {
         // 触摸事件分发子系统涉及多个子系统，存在衔接问题，表现上5.0.0.102版本后比较容易出现节点析构后系统内部会因为事件派发出现crash，
         // 这里暂时做个兜底，延缓两帧再销毁view，后续系统OK后再恢复回来。
-        KRContextScheduler::ScheduleTask(false, 32, [view]() {
+    KRContextScheduler::ScheduleTask(32, [view]() {
             KRContextScheduler::ScheduleTaskOnMainThread(false, [view]() { view->ToDestroy(); });
         });
     }
@@ -368,10 +368,16 @@ std::shared_ptr<IKRRenderModuleExport> KRRenderLayerHandler::GetModuleOrCreate(c
         return nullptr;
     }
     
-    // 特殊情况，判断是否需要使用新实现的KROhSharedPreferencesModule
-    bool useOhSharedPreferences = this->root_view_.lock()->GetContext()->Config()->GetUseOhSharedPreferences();
-    // 如果调用的是 KRSharedPreferencesModule 并且 启用新SharedPreferencesModule，返回KROhSharedPreferencesModule
-    std::string target_module_name = (module_name == "KRSharedPreferencesModule" && useOhSharedPreferences? "KROhSharedPreferencesModule" : module_name);
+    // 只在需要时（KRSharedPreferencesModule）才做 root_view_.lock() -> GetContext() -> Config() 调用链
+    std::string target_module_name = module_name;
+    if (module_name == "KRSharedPreferencesModule") {
+        if (auto root = root_view_.lock()) {
+            bool useOhSharedPreferences = root->GetContext()->Config()->GetUseOhSharedPreferences();
+            if (useOhSharedPreferences) {
+                target_module_name = "KROhSharedPreferencesModule";
+            }
+        }
+    }
 
     auto module = GetModule(target_module_name);
     if (module == nullptr) {

@@ -859,7 +859,8 @@ KRPoint GetArkUIScrollContentOffset(ArkUI_NodeHandle handle) {
     return item ? KRPoint{item->value[0].f32, item->value[1].f32} : KRPoint();
 }
 
-void SetArkUIContentOffset(ArkUI_NodeHandle handle, float offset_x, float offset_y, bool animate, int duration, int curve) {
+void SetArkUIContentOffset(ArkUI_NodeHandle handle, float offset_x, float offset_y, bool animate, int duration, int curve,
+                           float damping) {
     if (!handle) {
         return;
     }
@@ -867,16 +868,23 @@ void SetArkUIContentOffset(ArkUI_NodeHandle handle, float offset_x, float offset
     if (duration < 0) {
         duration = 0;
     }
+    int durationForArkUI = duration;
     int enableDefaultSpringAnimation = animate ? 1 : 0;
     if (duration > 0 && animate) {
-        // Default spring animation should be disabled when custom animation duration is specified,
-        // otherwise custom animation duration will not take effect.
-        enableDefaultSpringAnimation = 0;
+        if (curve == 0 && damping == 1.0f) {
+            // Align with Android: use the platform default scroll animation when no extra spring effect is needed.
+            durationForArkUI = 0;
+            enableDefaultSpringAnimation = 1;
+        } else {
+            // Default spring animation should be disabled when custom animation duration is specified,
+            // otherwise custom animation duration will not take effect.
+            enableDefaultSpringAnimation = 0;
+        }
     }
     ArkUI_NumberValue value[] = {
         {.f32 = offset_x},
         {.f32 = offset_y},
-        {.i32 = duration},
+        {.i32 = durationForArkUI},
         {.i32 = curve == 0 ? ARKUI_CURVE_EASE : ARKUI_CURVE_LINEAR},
         {.i32 = enableDefaultSpringAnimation},  // whether to enable the default spring animation
         {.i32 = 1},                             // whether scrolling can cross the boundary

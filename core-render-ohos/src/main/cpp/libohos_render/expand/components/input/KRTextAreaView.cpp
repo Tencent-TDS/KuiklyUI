@@ -25,7 +25,7 @@ void KRTextAreaView::DidInit() {
     KRTextFieldView::DidInit();
     // 设置弹起软键盘之后默认不收回
     ArkUI_NumberValue value = {.i32 = 0};
-    ArkUI_AttributeItem item = {&value, sizeof(ArkUI_NumberValue)};
+    ArkUI_AttributeItem item = {&value, 1};
     kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_AREA_BLUR_ON_SUBMIT, &item);
 }
 
@@ -45,7 +45,7 @@ void KRTextAreaView::UpdateInputNodePlaceholder(const std::string &propValue) {
 }
 void KRTextAreaView::UpdateInputNodePlaceholderColor(const std::string &propValue) {
     ArkUI_NumberValue value = {.u32 = kuikly::util::ConvertToHexColor(propValue)};
-    ArkUI_AttributeItem item = {&value, sizeof(ArkUI_NumberValue)};
+    ArkUI_AttributeItem item = {&value, 1};
     kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_AREA_PLACEHOLDER_COLOR, &item);
 }
 void KRTextAreaView::UpdateInputNodeColor(const std::string &propValue) {
@@ -55,8 +55,11 @@ void KRTextAreaView::UpdateInputNodeColor(const std::string &propValue) {
 }
 void KRTextAreaView::UpdateInputNodeCaretrColor(const std::string &propValue) {
     ArkUI_NumberValue value = {.u32 = kuikly::util::ConvertToHexColor(propValue)};
-    ArkUI_AttributeItem item = {&value, sizeof(ArkUI_NumberValue)};
+    ArkUI_AttributeItem item = {&value, 1};
     kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_AREA_CARET_COLOR, &item);
+}
+void KRTextAreaView::UpdateInputNodeSelectionColor(const std::string &propValue) {
+    kuikly::util::UpdateTextAreaNodeSelectionColor(GetNode(), kuikly::util::ConvertToHexColor(propValue));
 }
 
 void KRTextAreaView::UpdateInputNodeKeyboardType(const std::string &propValue) {
@@ -72,10 +75,27 @@ void KRTextAreaView::UpdateInputNodeKeyboardType(const std::string &propValue) {
     kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_AREA_TYPE, &item);
 }
 
+void KRTextAreaView::UpdateInputNodeEnterKeyType(const std::string &propValue) {
+    // KRTextAreaView 底层是 ARKUI_NODE_TEXT_AREA，需写 NODE_TEXT_AREA_ENTER_KEY_TYPE，
+    // 否则 returnKeyType 不生效或写入到 TextInput 属性上。
+    ArkUI_NumberValue value[] = {{.i32 = kuikly::util::ConvertToEnterKeyType(propValue)}};
+    ArkUI_AttributeItem item = {value, sizeof(value) / sizeof(ArkUI_NumberValue)};
+    kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_AREA_ENTER_KEY_TYPE, &item);
+}
+
+ArkUI_EnterKeyType KRTextAreaView::GetInputNodeEnterKeyType() {
+    // TextArea 场景需从 NODE_TEXT_AREA_ENTER_KEY_TYPE 读取，否则 OnInputReturn 回调
+    // 拿到的 ime_action 会是 TextInput 属性上的默认值。
+    auto item = kuikly::util::GetNodeApi()->getAttribute(GetNode(), NODE_TEXT_AREA_ENTER_KEY_TYPE);
+    return item ? static_cast<ArkUI_EnterKeyType>(item->value[0].i32) : ARKUI_ENTER_KEY_TYPE_NEW_LINE;
+}
+
 void KRTextAreaView::UpdateInputNodeMaxLength(int maxLength) {
     ArkUI_NumberValue value[] = {{.i32 = maxLength}};
     ArkUI_AttributeItem item = {value, sizeof(value) / sizeof(ArkUI_NumberValue)};
-    kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_INPUT_MAX_LENGTH, &item);
+    // KRTextAreaView 底层是 ARKUI_NODE_TEXT_AREA，需写 NODE_TEXT_AREA_MAX_LENGTH，
+    // 否则 maxLength 不生效（此前误写为 NODE_TEXT_INPUT_MAX_LENGTH）。
+    kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_AREA_MAX_LENGTH, &item);
 }
 
 uint32_t KRTextAreaView::GetInputNodeSelectionStartPosition() {
@@ -86,6 +106,20 @@ void KRTextAreaView::UpdateInputNodeSelectionStartPosition(uint32_t index) {
     std::array<ArkUI_NumberValue, 2> value = {{{.i32 = static_cast<int32_t>(index)}, {.i32 = static_cast<int32_t>(index)}}};
     ArkUI_AttributeItem item = {value.data(), value.size()};
     kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_AREA_TEXT_SELECTION, &item);
+}
+void KRTextAreaView::UpdateInputNodeSelectionRange(int32_t start, int32_t end) {
+    // KRTextAreaView 底层是 ARKUI_NODE_TEXT_AREA，需写 NODE_TEXT_AREA_TEXT_SELECTION，
+    // 否则区间选区会被写到 TextInput 属性上，表现为选区不生效。
+    std::array<ArkUI_NumberValue, 2> value = {{{.i32 = start}, {.i32 = end}}};
+    ArkUI_AttributeItem item = {value.data(), value.size()};
+    kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_AREA_TEXT_SELECTION, &item);
+}
+std::pair<uint32_t, uint32_t> KRTextAreaView::GetInputNodeTextSelectionRange() {
+    auto item = kuikly::util::GetNodeApi()->getAttribute(GetNode(), NODE_TEXT_AREA_TEXT_SELECTION);
+    if (item && item->size >= 2) {
+        return {static_cast<uint32_t>(item->value[0].i32), static_cast<uint32_t>(item->value[1].i32)};
+    }
+    return {0, 0};
 }
 void KRTextAreaView::UpdateInputNodePlaceholderFont(uint32_t font_size, ArkUI_FontWeight font_weight) {
     ArkUI_NumberValue fontWeight = {.i32 = font_weight};

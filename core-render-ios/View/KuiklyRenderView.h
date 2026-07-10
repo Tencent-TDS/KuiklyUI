@@ -44,14 +44,13 @@ FOUNDATION_EXTERN NSString *const KRRootViewSizeDidChangedEventKey;
 /*
  * @brief 创建实例对应的初始化方法.
  * @param size 初始化的视频尺寸大小.
- * @param contextCode 驱动渲染所对应的代码
-        注意：该值为framework名，如shared.framework,则为@"shared"
+ * @param contextCode 产物数据（NSString 或 NSData）
  * @param contextParam 包含contextCode，pageName，url等信息
  * @param params 页面对应的参数（kotlin侧可通过pageData.params获取）
  * @return 返回KuiklyRenderView实例
  */
 - (instancetype)initWithSize:(CGSize)size
-                 contextCode:(NSString *)contextCode
+                 contextCode:(id)contextCode
                 contextParam:(KuiklyContextParam *)contextParam
                       params:(NSDictionary * _Nullable)params
                     delegate:(id<KuiklyRenderViewDelegate>)delegate;
@@ -66,6 +65,13 @@ FOUNDATION_EXTERN NSString *const KRRootViewSizeDidChangedEventKey;
  * @param data 事件对应的参数
  */
 - (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data;
+/*
+ * @brief 通过KuiklyRenderView发送事件到KuiklyKotlin侧，并显式指定是否走同步发送路径.
+ * @param event 事件名
+ * @param data 事件对应的参数
+ * @param sync 是否按同步路径发送
+ */
+- (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data sync:(BOOL)sync;
 
 /*
  * @brief 获取模块对应的实例（仅支持在主线程调用）.
@@ -120,6 +126,13 @@ FOUNDATION_EXTERN NSString *const KRRootViewSizeDidChangedEventKey;
 
 /// kuikly 标准的性能数据
 @property (nonatomic, strong, readonly) id<KRPerformanceDataProtocol> performanceManager;
+
+/*
+ * @brief 判断事件是否需要同步发送到KuiklyKotlin侧.
+ * @param event 事件名
+ * @return 是否同步发送
+ */
+- (BOOL)syncSendEvent:(NSString *)event;
 
 /*
  * @brief KuiklyRenderView中的内容视图完成加载后触发该接口调用.

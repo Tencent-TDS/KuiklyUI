@@ -80,6 +80,7 @@ import com.tencent.kuikly.compose.ui.util.fastMap
 import com.tencent.kuikly.compose.extension.setProp
 import com.tencent.kuikly.compose.gestures.KuiklyScrollableState
 import com.tencent.kuikly.compose.scroller.fixScrollOffset
+import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import kotlin.math.max
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -521,8 +522,15 @@ fun ScrollableTabRow(
         edgePadding = edgePadding,
         divider = divider,
         tabs = tabs,
-        scrollState = rememberScrollState()
+        scrollState = rememberScrollableTabRowScrollState()
     )
+}
+
+@Composable
+private fun rememberScrollableTabRowScrollState(): ScrollState {
+    val scrollState = rememberScrollState()
+    scrollState.kuiklyInfo.skipExpandStartSize = true
+    return scrollState
 }
 
 /**

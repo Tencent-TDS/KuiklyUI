@@ -54,6 +54,8 @@ NSString *const KRFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  NSNumber *KUIKLY_PROP(lengthLimitType);
 /** attr is tint color */
 @property (nonatomic, strong, readwrite) NSString *KUIKLY_PROP(tintColor);
+/** attr is selection color */
+@property (nonatomic, strong, readwrite) NSString *KUIKLY_PROP(selectionColor);
 /** attr is color */
 @property (nonatomic, strong, readwrite) NSString *KUIKLY_PROP(color);
 /** attr is editable */
@@ -86,9 +88,15 @@ NSString *const KRFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(selectionChange);
 /** attr is textInputState */
 @property (nonatomic, strong)  NSString *KUIKLY_PROP(textInputState);
+/** attr is autoFocusOnTextInputState 程序化同步 textInputState 时，非空文本是否自动聚焦 */
+@property (nonatomic, strong)  NSNumber *KUIKLY_PROP(autoFocusOnTextInputState);
 
 /** placeholderTextView property */
 @property (nullable, nonatomic, strong) UITextView *placeholderTextView;
+
+- (BOOL)p_shouldReapplyTextPostProcessorForIncomingRawText:(NSString *)rawText;
+- (BOOL)p_containsShortcodeToken:(NSString *)rawText;
+- (BOOL)p_shouldRejectProgrammaticShortcodeInput:(NSString *)rawText;
 
 @end
 
@@ -97,6 +105,10 @@ NSString *const KRFontWeightKey = @"fontWeight";
     BOOL _didAddKeyboardNotification;
     NSMutableDictionary *_props;
     BOOL _ignoreTextDidChanged;
+    /** 显式设置的光标颜色 */
+    UIColor *_cursorColor;
+    /** 显式设置的选中高亮颜色 */
+    UIColor *_selectionColor;
 }
 
 @synthesize hr_rootView;
@@ -110,6 +122,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
     if (self = [super init]) {
         self.delegate = self;
         self.css_autoHideKeyboardOnImeAction = [NSNumber numberWithInt: 1];     // 保持原有能力，默认是关闭关闭软键盘
+        self.css_autoFocusOnTextInputState = @0;
 #if TARGET_OS_OSX // [macOS]
         self.textContainerInset = NSZeroSize;
         // macOS: 启用 layer-backed 支持 clipPath
@@ -148,6 +161,13 @@ NSString *const KRFontWeightKey = @"fontWeight";
         _props[propKey] = propValue;
     }
     KUIKLY_SET_CSS_COMMON_PROP;
+    // textInputState may arrive before textPostProcessor; re-run when attachments were lost but raw is unchanged.
+    if ([propKey isEqualToString:@"textPostProcessor"] && self.attributedText.length > 0) {
+        NSString *rawText = [self p_outputText];
+        if ([self p_shouldReapplyTextPostProcessorForIncomingRawText:rawText]) {
+            [self p_applyTextPostProcessorIfNeed];
+        }
+    }
 }
 
 - (void)hrv_callWithMethod:(NSString *)method params:(NSString *)params callback:(KuiklyRenderCallback)callback {
@@ -228,7 +248,28 @@ NSString *const KRFontWeightKey = @"fontWeight";
 }
 
 - (void)setCss_tintColor:(NSNumber *)css_tintColor {
-    self.tintColor = [UIView css_color:css_tintColor];
+    _cursorColor = [UIView css_color:css_tintColor];
+#if !TARGET_OS_OSX
+    if (!_selectionColor) {
+        self.tintColor = _cursorColor;
+    } else {
+        [self p_applyNativeCursorColorIfNeeded];
+    }
+#else
+    self.tintColor = _cursorColor;
+#endif
+}
+
+- (void)setCss_selectionColor:(NSNumber *)css_selectionColor {
+    _selectionColor = [KRConvertUtil clampSelectionColorAlpha:[UIView css_color:css_selectionColor]];
+#if !TARGET_OS_OSX
+    if (!_cursorColor) {
+        _cursorColor = self.tintColor; // 保存当前光标颜色（可能是默认值）
+    }
+    self.tintColor = _selectionColor;
+    [self tintColorDidChange]; // 确保子视图响应 tintColor 变化
+    [self p_applyNativeCursorColorIfNeeded];
+#endif
 }
 
 - (void)setCss_color:(NSNumber *)css_color {
@@ -309,8 +350,8 @@ NSString *const KRFontWeightKey = @"fontWeight";
         NSUInteger cursorIndex = [self p_getOutputCursorIndex];
         callback(@{@"cursorIndex": @(cursorIndex)});
     }
-    
-    
+
+
 }
 
 - (void)css_setCursorIndex:(NSDictionary *)args {
@@ -331,19 +372,47 @@ NSString *const KRFontWeightKey = @"fontWeight";
     NSError *error = nil;
     NSDictionary *json = [NSJSONSerialization JSONObjectWithData:jsonData options:0 error:&error];
     if (!json) return;
-    
-    NSString *rawText = json[@"text"] ?: @"";
-    NSInteger selectionStart = json[@"selectionStart"] ? [json[@"selectionStart"] integerValue] : rawText.length;
-    NSInteger selectionEnd = json[@"selectionEnd"] ? [json[@"selectionEnd"] integerValue] : selectionStart;
-    selectionStart = MAX(0, MIN(selectionStart, (NSInteger)rawText.length));
-    selectionEnd = MAX(0, MIN(selectionEnd, (NSInteger)rawText.length));
-    
-    if (![self isFirstResponder] && rawText.length > 0) {
+
+    NSString *requestedRawText = json[@"text"] ?: @"";
+    NSInteger requestedSelectionStart = json[@"selectionStart"] ? [json[@"selectionStart"] integerValue] : requestedRawText.length;
+    NSInteger requestedSelectionEnd = json[@"selectionEnd"] ? [json[@"selectionEnd"] integerValue] : requestedSelectionStart;
+    if ([self p_shouldRejectProgrammaticShortcodeInput:requestedRawText]) {
+        if (self.css_textLengthBeyondLimit) {
+            self.css_textLengthBeyondLimit(@{});
+        }
+        if (self.css_textInputStateChange) {
+            NSString *outputText = [self p_outputText];
+            NSRange outputSelectionRange = [self p_getOutputSelectionRange];
+            self.css_textInputStateChange(@{
+                @"text": outputText ?: @"",
+                @"selectionStart": @(outputSelectionRange.location),
+                @"selectionEnd": @(NSMaxRange(outputSelectionRange)),
+                @"compositionStart": @(-1),
+                @"compositionEnd": @(-1),
+                @"length": @([self p_calculateLengthForText:outputText])
+            });
+        }
+        return;
+    }
+    NSString *rawText = [self p_truncateRawTextForProgrammaticInput:requestedRawText];
+    // 仅在非 legacy 模式下触发超限回调，legacy 模式（css_lengthLimitType == nil 或 < 0）保持旧行为。
+    if (![rawText isEqualToString:requestedRawText] &&
+        self.css_textLengthBeyondLimit &&
+        self.css_lengthLimitType != nil &&
+        [self.css_lengthLimitType integerValue] >= 0) {
+        self.css_textLengthBeyondLimit(@{});
+    }
+    NSInteger selectionStart = MAX(0, MIN(requestedSelectionStart, (NSInteger)rawText.length));
+    NSInteger selectionEnd = MAX(0, MIN(requestedSelectionEnd, (NSInteger)rawText.length));
+
+    if (![self isFirstResponder] && rawText.length > 0 && [self.css_autoFocusOnTextInputState boolValue]) {
         [self becomeFirstResponder];
     }
     _ignoreTextDidChanged = YES;
     NSString *currentRawText = [self p_outputText];
-    if (![currentRawText isEqualToString:rawText]) {
+    BOOL textChanged = ![currentRawText isEqualToString:rawText];
+    BOOL needsPostProcessor = textChanged || [self p_shouldReapplyTextPostProcessorForIncomingRawText:rawText];
+    if (textChanged) {
         NSMutableAttributedString *rawAttr = [[NSMutableAttributedString alloc] initWithString:rawText];
         UIFont *font = self.font ?: self.typingAttributes[NSFontAttributeName];
         if (font) {
@@ -354,33 +423,48 @@ NSString *const KRFontWeightKey = @"fontWeight";
             [rawAttr addAttribute:NSForegroundColorAttributeName value:textColor range:NSMakeRange(0, rawAttr.length)];
         }
         self.attributedText = rawAttr;
-        [self p_applyTextPostProcessorIfNeed];
         [self p_updatePlaceholder];
-        NSUInteger inputCursorStart = [self p_getInputCursorIndexWithIndex:selectionStart];
-        NSUInteger inputCursorEnd = [self p_getInputCursorIndexWithIndex:selectionEnd];
-        NSRange selectedRange = NSMakeRange(inputCursorStart, inputCursorEnd - inputCursorStart);
-        UITextPosition *startPos = [self positionFromPosition:self.beginningOfDocument offset:selectedRange.location];
-        UITextPosition *endPos = [self positionFromPosition:self.beginningOfDocument offset:selectedRange.location + selectedRange.length];
-        if (startPos && endPos) {
-            self.selectedTextRange = [self textRangeFromPosition:startPos toPosition:endPos];
-        }
+    }
+    if (needsPostProcessor) {
+        [self p_applyTextPostProcessorIfNeed];
+    }
+    NSUInteger inputCursorStart = [self p_getInputCursorIndexWithIndex:selectionStart];
+    NSUInteger inputCursorEnd = [self p_getInputCursorIndexWithIndex:selectionEnd];
+    NSRange selectedRange = NSMakeRange(inputCursorStart, inputCursorEnd - inputCursorStart);
+    UITextPosition *startPos = [self positionFromPosition:self.beginningOfDocument offset:selectedRange.location];
+    UITextPosition *endPos = [self positionFromPosition:self.beginningOfDocument offset:selectedRange.location + selectedRange.length];
+    if (startPos && endPos) {
+        self.selectedTextRange = [self textRangeFromPosition:startPos toPosition:endPos];
     }
     _ignoreTextDidChanged = NO;
+
+    // 触发 textInputStateChange 回调，通知长度变化
+    if (self.css_textInputStateChange) {
+        NSString *outputText = [self p_outputText];
+        NSRange outputSelectionRange = [self p_getOutputSelectionRange];
+        self.css_textInputStateChange(@{
+            @"text": outputText ?: @"",
+            @"selectionStart": @(outputSelectionRange.location),
+            @"selectionEnd": @(NSMaxRange(outputSelectionRange)),
+            @"compositionStart": @(-1),
+            @"compositionEnd": @(-1),
+            @"length": @([self p_calculateLengthForText:outputText])
+        });
+    }
 }
 
 - (void)css_getTextInputState:(NSDictionary *)args {
     KuiklyRenderCallback callback = args[KRC_CALLBACK_KEY];
     if (callback) {
         NSString *rawText = [self p_outputText];
-        NSUInteger outputCursor = [self p_getOutputCursorIndex];
-        NSUInteger outputCursorEnd = outputCursor;
-        // TODO: support selection end when available
+        NSRange outputSelectionRange = [self p_getOutputSelectionRange];
         callback(@{
             @"text": rawText ?: @"",
-            @"selectionStart": @(outputCursor),
-            @"selectionEnd": @(outputCursorEnd),
+            @"selectionStart": @(outputSelectionRange.location),
+            @"selectionEnd": @(NSMaxRange(outputSelectionRange)),
             @"compositionStart": @(-1),
-            @"compositionEnd": @(-1)
+            @"compositionEnd": @(-1),
+            @"length": @([self p_calculateLengthForText:rawText])
         });
     }
 }
@@ -415,12 +499,53 @@ NSString *const KRFontWeightKey = @"fontWeight";
     }
 }
 
+- (BOOL)becomeFirstResponder {
+    BOOL result = [super becomeFirstResponder];
+#if !TARGET_OS_OSX
+    if (result && _cursorColor && _selectionColor) {
+        if (@available(iOS 17.0, *)) {
+            // iOS 17+ 已通过 insertionPointColor 设置光标颜色，无需手动修复
+        } else {
+            // 延迟到下一个 runloop，确保光标视图已创建后再修复颜色
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self p_restoreCursorColorInView:self];
+            });
+        }
+    }
+#endif
+    return result;
+}
+
 - (void)layoutSubviews {
     [super layoutSubviews];
     if (_placeholderTextView.font != self.font) {
         _placeholderTextView.font = self.font;
     }
+#if !TARGET_OS_OSX
+    if (_cursorColor && _selectionColor) {
+        if (@available(iOS 17.0, *)) {
+            // iOS 17+ 已通过 insertionPointColor 设置光标颜色，无需手动遍历修复
+        } else {
+            [self p_restoreCursorColorInView:self];
+        }
+    }
+#endif
 }
+
+/// 遍历子视图，找到光标视图并恢复其颜色
+#if !TARGET_OS_OSX
+- (void)p_restoreCursorColorInView:(UIView *)view {
+    NSString *className = NSStringFromClass([view class]);
+    if ([className containsString:@"TextCursor"] || [className containsString:@"CursorView"] || [className containsString:@"Caret"]) {
+        view.backgroundColor = _cursorColor;
+        view.tintColor = _cursorColor;
+        return;
+    }
+    for (UIView *subview in view.subviews) {
+        [self p_restoreCursorColorInView:subview];
+    }
+}
+#endif
 
 #if TARGET_OS_OSX
 - (void)layout {
@@ -447,18 +572,18 @@ NSString *const KRFontWeightKey = @"fontWeight";
     if (_placeholderTextView) {
         _placeholderTextView.hidden = YES;
     }
-    
+
     // 隐藏 CSSBorderLayer，我们将在下面自己绘制边框
     for (CALayer *layer in self.layer.sublayers) {
         if ([NSStringFromClass([layer class]) isEqualToString:@"CSSBorderLayer"]) {
             layer.hidden = YES;
         }
     }
-    
+
     if (_css_clipPath.length > 0) {
         // 先保存图形状态
         [NSGraphicsContext saveGraphicsState];
-        
+
         // 解析 clipPath
         NSBezierPath *clipPath = [self kr_bezierPathFromClipPathString:_css_clipPath];
         if (clipPath) {
@@ -467,10 +592,10 @@ NSString *const KRFontWeightKey = @"fontWeight";
             // 绘制边框（在 clipPath 之前，这样不会被裁剪）
             [self drawBorderWithClipPath:clipPath];
         }
-        
+
         // 调用父类绘制（在裁剪区域内）
         [super drawRect:dirtyRect];
-        
+
         // 恢复图形状态
         [NSGraphicsContext restoreGraphicsState];
     } else {
@@ -486,7 +611,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
             CGFloat borderWidth = [borderParts[0] floatValue];
             NSString *borderColorStr = borderParts[2];
             UIColor *borderColor = [UIView css_color:borderColorStr];
-            
+
             // 绘制边框（stroke）
             [borderColor setStroke];
             // 对于 NSBezierPath stroke，使用实际的 borderWidth
@@ -505,11 +630,11 @@ NSString *const KRFontWeightKey = @"fontWeight";
             [cleanTokens addObject:token];
         }
     }
-    
+
     NSInteger i = 0;
     while (i < cleanTokens.count) {
         NSString *token = cleanTokens[i];
-        
+
         if ([token isEqualToString:@"M"]) {
             if (i + 2 < cleanTokens.count) {
                 CGFloat x = [cleanTokens[i + 1] floatValue];
@@ -571,21 +696,22 @@ NSString *const KRFontWeightKey = @"fontWeight";
     [self p_limitTextInput];
     // 实时应用 textPostProcessor（emoji attachment）
     [self p_applyTextPostProcessorIfNeed];
-    
+
     if (self.css_textDidChange) {
         NSString *text = [self p_outputText].copy ?: @"";
         self.css_textDidChange(@{@"text": text, @"length": @([self p_calculateLengthForText:text])});
     }
-    
+
     if (self.css_textInputStateChange) {
         NSString *rawText = [self p_outputText];
-        NSUInteger outputCursor = [self p_getOutputCursorIndex];
+        NSRange outputSelectionRange = [self p_getOutputSelectionRange];
         self.css_textInputStateChange(@{
             @"text": rawText ?: @"",
-            @"selectionStart": @(outputCursor),
-            @"selectionEnd": @(outputCursor),
+            @"selectionStart": @(outputSelectionRange.location),
+            @"selectionEnd": @(NSMaxRange(outputSelectionRange)),
             @"compositionStart": @(-1),
-            @"compositionEnd": @(-1)
+            @"compositionEnd": @(-1),
+            @"length": @([self p_calculateLengthForText:rawText])
         });
     }
 }
@@ -598,11 +724,11 @@ NSString *const KRFontWeightKey = @"fontWeight";
         return;
     }
     NSString *rawText = [self p_outputText];
-    NSUInteger outputCursor = [self p_getOutputCursorIndex];
+    NSRange outputSelectionRange = [self p_getOutputSelectionRange];
     self.css_selectionChange(@{
         @"text": rawText ?: @"",
-        @"selectionStart": @(outputCursor),
-        @"selectionEnd": @(outputCursor),
+        @"selectionStart": @(outputSelectionRange.location),
+        @"selectionEnd": @(NSMaxRange(outputSelectionRange)),
         @"compositionStart": @(-1),
         @"compositionEnd": @(-1)
     });
@@ -660,20 +786,13 @@ NSString *const KRFontWeightKey = @"fontWeight";
         [super paste:sender];
         return;
     }
-    NSRange selectedRange = self.selectedRange;
+    NSRange rawSelectedRange = [self p_getOutputRangeWithInputRange:self.selectedRange];
     NSString *rawText = [self p_outputText] ?: @"";
-    NSUInteger rawStart = [self p_getOutputCursorIndexWithInputIndex:selectedRange.location];
-    NSUInteger rawEnd = [self p_getOutputCursorIndexWithInputIndex:selectedRange.location + selectedRange.length];
-    rawStart = MIN(rawStart, rawText.length);
-    rawEnd = MIN(rawEnd, rawText.length);
-    if (rawStart > rawEnd) {
-        NSUInteger temp = rawStart;
-        rawStart = rawEnd;
-        rawEnd = temp;
-    }
-    NSString *newRawText = [rawText stringByReplacingCharactersInRange:NSMakeRange(rawStart, rawEnd - rawStart)
-                                                            withString:pasteText];
-    NSUInteger outputCursor = rawStart + pasteText.length;
+    NSString *candidateRawText = [rawText stringByReplacingCharactersInRange:rawSelectedRange
+                                                                  withString:pasteText];
+    NSString *newRawText = [self p_truncateRawTextForProgrammaticInput:candidateRawText];
+    BOOL truncated = ![newRawText isEqualToString:candidateRawText];
+    NSUInteger outputCursor = MIN(rawSelectedRange.location + pasteText.length, newRawText.length);
     _ignoreTextDidChanged = YES;
     NSMutableAttributedString *rawAttr = [[NSMutableAttributedString alloc] initWithString:newRawText];
     UIFont *font = self.font ?: self.typingAttributes[NSFontAttributeName];
@@ -690,16 +809,21 @@ NSString *const KRFontWeightKey = @"fontWeight";
     self.selectedRange = NSMakeRange(inputCursor, 0);
     _ignoreTextDidChanged = NO;
     [self p_updatePlaceholder];
+    if (truncated && self.css_textLengthBeyondLimit) {
+        self.css_textLengthBeyondLimit(@{});
+    }
     if (self.css_textDidChange) {
         self.css_textDidChange(@{@"text": newRawText, @"length": @([self p_calculateLengthForText:newRawText])});
     }
     if (self.css_textInputStateChange) {
+        NSRange outputSelectionRange = [self p_getOutputSelectionRange];
         self.css_textInputStateChange(@{
             @"text": newRawText,
-            @"selectionStart": @(outputCursor),
-            @"selectionEnd": @(outputCursor),
+            @"selectionStart": @(outputSelectionRange.location),
+            @"selectionEnd": @(NSMaxRange(outputSelectionRange)),
             @"compositionStart": @(-1),
-            @"compositionEnd": @(-1)
+            @"compositionEnd": @(-1),
+            @"length": @([self p_calculateLengthForText:newRawText])
         });
     }
     [self scrollRangeToVisible:self.selectedRange];
@@ -763,6 +887,36 @@ NSString *const KRFontWeightKey = @"fontWeight";
         }
 #endif
     }
+
+    // legacy 模式（css_lengthLimitType == nil 或 < 0）走 p_limitTextInput 后置截断，不在此拦截
+    if (self.css_lengthLimitType == nil || [self.css_lengthLimitType integerValue] < 0) {
+        return YES;
+    }
+
+    // 检查长度限制
+    NSInteger maxLength = [self.css_maxTextLength integerValue];
+    if (maxLength > 0) {
+        NSString *currentRawText = [self p_outputText] ?: @"";
+        NSUInteger rawStart = [self p_getOutputCursorIndexWithInputIndex:range.location];
+        NSUInteger rawEnd = [self p_getOutputCursorIndexWithInputIndex:range.location + range.length];
+        rawStart = MIN(rawStart, currentRawText.length);
+        rawEnd = MIN(rawEnd, currentRawText.length);
+        if (rawStart > rawEnd) {
+            NSUInteger temp = rawStart;
+            rawStart = rawEnd;
+            rawEnd = temp;
+        }
+        NSString *newRawText = [currentRawText stringByReplacingCharactersInRange:NSMakeRange(rawStart, rawEnd - rawStart)
+                                                                        withString:text];
+        NSUInteger newLength = [self p_calculateLengthForText:newRawText];
+        if (newLength > maxLength) {
+            if (self.css_textLengthBeyondLimit) {
+                self.css_textLengthBeyondLimit(@{});
+            }
+            return NO; // 超出长度限制，阻止输入
+        }
+    }
+
     return YES;
 }
 
@@ -832,6 +986,22 @@ NSString *const KRFontWeightKey = @"fontWeight";
 
 #pragma mark - private
 
+/// iOS 17+ 使用公开属性 insertionPointColor 独立设置光标颜色，避免与 tintColor（选中高亮色）冲突
+#if !TARGET_OS_OSX
+- (void)p_applyNativeCursorColorIfNeeded {
+    if (!_cursorColor) return;
+    if (@available(iOS 17.0, *)) {
+        SEL sel = NSSelectorFromString(@"setInsertionPointColor:");
+        if ([self respondsToSelector:sel]) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+            [self performSelector:sel withObject:_cursorColor];
+#pragma clang diagnostic pop
+        }
+    }
+}
+#endif
+
 - (void)p_addKeyboardNotificationIfNeed {
     if (_didAddKeyboardNotification) {
         return ;
@@ -868,16 +1038,18 @@ NSString *const KRFontWeightKey = @"fontWeight";
         return;
     }
     NSInteger maxLength;
-    if (self.css_lengthLimitType == nil) { // 兼容旧版本行为
+    if (self.css_lengthLimitType == nil || [self.css_lengthLimitType integerValue] < 0) { // 兼容旧版本行为
         maxLength = [self p_legacyMaxInputLengthWithString:textView.attributedText.string];
     } else {
         maxLength = [self.css_maxTextLength integerValue];
     }
+
     if (maxLength <= 0) {
         return;
     }
-    
-    if ([self p_shouldTruncate:textView.attributedText maxLength:maxLength]) {
+
+    BOOL shouldTruncate = [self p_shouldTruncate:textView.attributedText maxLength:maxLength];
+    if (shouldTruncate) {
         if (textView.attributedText) {
 
             NSUInteger location = self.selectedRange.location;
@@ -906,24 +1078,27 @@ NSString *const KRFontWeightKey = @"fontWeight";
                 truncatedTail = YES;
             }
             if (truncatedTail) {
-                location = maxLength;
+                location = truncatedAttributedString.length;
                 deleteLength = 0;
             }
 
             textView.attributedText = truncatedAttributedString;
-            UITextPosition *newPosition = [self positionFromPosition:self.beginningOfDocument offset:MAX(location - deleteLength, 0)];
+            NSUInteger newOffset = MIN(MAX(location - deleteLength, 0), truncatedAttributedString.length);
+            UITextPosition *newPosition = [self positionFromPosition:self.beginningOfDocument offset:newOffset];
 
-            _ignoreTextDidChanged = YES;
-            self.selectedTextRange = [self textRangeFromPosition:newPosition toPosition:newPosition];
-            _ignoreTextDidChanged = NO;
-
-            dispatch_async(dispatch_get_main_queue(), ^{
-                self->_ignoreTextDidChanged = YES;
+            if (newPosition) {
+                _ignoreTextDidChanged = YES;
                 self.selectedTextRange = [self textRangeFromPosition:newPosition toPosition:newPosition];
-                self->_ignoreTextDidChanged = NO;
-            });
+                _ignoreTextDidChanged = NO;
+
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    self->_ignoreTextDidChanged = YES;
+                    self.selectedTextRange = [self textRangeFromPosition:newPosition toPosition:newPosition];
+                    self->_ignoreTextDidChanged = NO;
+                });
+            }
         }
-       
+
         if (self.css_textLengthBeyondLimit) {
             self.css_textLengthBeyondLimit(@{});
         }
@@ -950,71 +1125,303 @@ NSString *const KRFontWeightKey = @"fontWeight";
     return MAX(i, maxLength);
 }
 
+- (BOOL)p_containsShortcodeToken:(NSString *)rawText {
+    if (rawText.length == 0) {
+        return NO;
+    }
+    static NSRegularExpression *tokenRegex = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        tokenRegex = [NSRegularExpression regularExpressionWithPattern:@"\\[[a-zA-Z0-9_\\-]+\\]" options:0 error:nil];
+    });
+    NSRange fullRange = NSMakeRange(0, rawText.length);
+    return [tokenRegex firstMatchInString:rawText options:0 range:fullRange] != nil;
+}
+
+- (BOOL)p_shouldRejectProgrammaticShortcodeInput:(NSString *)rawText {
+    if (self.css_lengthLimitType == nil || [self.css_lengthLimitType integerValue] < 0) {
+        return NO;
+    }
+    NSInteger maxLength = [self.css_maxTextLength integerValue];
+    if (maxLength <= 0 || ![self p_containsShortcodeToken:rawText]) {
+        return NO;
+    }
+    return [self p_calculateLengthForText:rawText] > maxLength;
+}
+
+- (NSString *)p_truncateRawTextForProgrammaticInput:(NSString *)rawText {
+    if (rawText.length == 0) {
+        return @"";
+    }
+    NSInteger maxLength = [self.css_maxTextLength integerValue];
+    if (maxLength <= 0) {
+        return rawText;
+    }
+    if ([self p_calculateLengthForText:rawText] <= maxLength) {
+        return rawText;
+    }
+
+    NSError *regexError = nil;
+    NSRegularExpression *tokenRegex = [NSRegularExpression regularExpressionWithPattern:@"\\[[a-zA-Z0-9_\\-]+\\]" options:0 error:&regexError];
+    NSMutableString *truncatedText = [NSMutableString string];
+    NSUInteger index = 0;
+    while (index < rawText.length) {
+        NSRange remainingRange = NSMakeRange(index, rawText.length - index);
+        NSTextCheckingResult *tokenMatch = regexError ? nil : [tokenRegex firstMatchInString:rawText options:NSMatchingAnchored range:remainingRange];
+        NSRange unitRange;
+        if (tokenMatch && tokenMatch.range.location == index) {
+            unitRange = tokenMatch.range;
+        } else {
+            unitRange = [rawText rangeOfComposedCharacterSequenceAtIndex:index];
+        }
+        NSString *unit = [rawText substringWithRange:unitRange];
+        NSString *candidate = [truncatedText stringByAppendingString:unit];
+        if ([self p_calculateLengthForText:candidate] > maxLength) {
+            break;
+        }
+        [truncatedText appendString:unit];
+        index = NSMaxRange(unitRange);
+    }
+    return truncatedText;
+}
+
 - (NSUInteger)p_calculateLengthForText:(NSString *)text {
-    if (self.css_lengthLimitType == nil) {
+    if (self.css_lengthLimitType == nil || [self.css_lengthLimitType integerValue] < 0) {
         // 兼容旧版本行为
         return [text kr_length];
     }
     switch ([self.css_lengthLimitType integerValue]) {
         case 0: // BYTE
             return [text kr_byteLength];
-        case 2: // VIRSUAL_WIDTH
-            return [text kr_visualWidth];
-        case 1: // CHARACTER
+        case 2: { // VIRSUAL_WIDTH
+            NSAttributedString *processedAttributedText = [self p_processedAttributedTextForLengthCalculationWithRawText:text];
+            return [processedAttributedText.string kr_visualWidth];
+        }
+        case 1: { // CHARACTER
+            NSAttributedString *processedAttributedText = [self p_processedAttributedTextForLengthCalculationWithRawText:text];
+            return [self p_calculateCharacterLengthForAttributedText:processedAttributedText];
+        }
         default:
             return [text kr_length];
     }
 }
 
+// CHARACTER 模式：将 NSTextAttachment 算作 1 个字符，与 Android ReplacementSpan 行为一致
+- (NSUInteger)p_calculateCharacterLength:(NSString *)text {
+    if (text.length == 0) {
+        return 0;
+    }
+
+    NSAttributedString *attributedText = self.attributedText;
+
+    // 如果没有 attributedText 或者传入的 text 与当前不同，
+    // 则需要基于传入的 text 计算，同时估算 emoji placeholder 的数量
+    if (attributedText.length == 0 || ![text isEqualToString:attributedText.string]) {
+        // 计算 emoji placeholder 的数量（[xxx] 格式）
+        // 每个 placeholder 在显示时会变成 NSTextAttachment，算 1 个字符
+        NSUInteger emojiCount = 0;
+        NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"\\[[a-zA-Z0-9_\\-]+\\]" options:0 error:nil];
+        emojiCount = [regex numberOfMatchesInString:text options:0 range:NSMakeRange(0, text.length)];
+
+        // 移除 emoji placeholder 后的纯文本长度
+        NSString *plainText = [regex stringByReplacingMatchesInString:text options:0 range:NSMakeRange(0, text.length) withTemplate:@""];
+
+        NSUInteger length = emojiCount + [plainText kr_length];
+        return length;
+    }
+
+    // attributedText 与传入的 text 一致，直接计算 attachment
+    NSUInteger length = 0;
+    NSUInteger index = 0;
+    NSMutableArray<NSValue *> *attachmentRanges = [NSMutableArray array];
+
+    // 收集所有 attachment 的范围
+    [attributedText enumerateAttribute:NSAttachmentAttributeName
+                               inRange:NSMakeRange(0, attributedText.length)
+                               options:0
+                            usingBlock:^(id value, NSRange range, BOOL *stop) {
+        if (value != nil) {
+            [attachmentRanges addObject:[NSValue valueWithRange:range]];
+        }
+    }];
+
+    // 按位置排序
+    [attachmentRanges sortUsingComparator:^NSComparisonResult(NSValue *obj1, NSValue *obj2) {
+        NSRange r1 = [obj1 rangeValue];
+        NSRange r2 = [obj2 rangeValue];
+        if (r1.location < r2.location) return NSOrderedAscending;
+        if (r1.location > r2.location) return NSOrderedDescending;
+        return NSOrderedSame;
+    }];
+
+    // 计算长度：普通文本用 kr_length，每个 attachment 算 1
+    for (NSValue *rangeValue in attachmentRanges) {
+        NSRange range = [rangeValue rangeValue];
+        if (index < range.location) {
+            NSString *substring = [attributedText.string substringWithRange:NSMakeRange(index, range.location - index)];
+            length += [substring kr_length];
+        }
+        length += 1; // attachment 算 1 个字符
+        index = range.location + range.length;
+    }
+
+    // 处理剩余文本
+    if (index < attributedText.length) {
+        NSString *substring = [attributedText.string substringWithRange:NSMakeRange(index, attributedText.length - index)];
+        length += [substring kr_length];
+    }
+
+    return length;
+}
+
 - (BOOL)p_shouldTruncate:(NSAttributedString *)attributedText maxLength:(NSInteger)maxLength {
-    if (self.css_lengthLimitType == nil) {
+    NSString *rawText = [self p_rawTextFromAttributedText:attributedText] ?: @"";
+    if (self.css_lengthLimitType == nil || [self.css_lengthLimitType integerValue] < 0) {
         // 兼容旧版本行为
-        return attributedText.length > maxLength;
+        return rawText.length > maxLength;
     }
     switch ([self.css_lengthLimitType integerValue]) {
         case 0: // BYTE
-            return [attributedText.string kr_byteLength] > maxLength;
+            return [rawText kr_byteLength] > maxLength;
         case 2: // VIRSUAL_WIDTH
-            return [attributedText.string kr_visualWidth] > maxLength;
         case 1: // CHARACTER
+            return [self p_calculateLengthForText:rawText] > maxLength;
         default:
-            return [attributedText.string kr_length] > maxLength;
+            return [rawText kr_length] > maxLength;
     }
 }
 
-- (NSString *)p_outputText {
-    NSAttributedString *attributedString = self.attributedText;
-    if (!attributedString) {
-        return self.text;
+// 基于 attributedText 计算 CHARACTER 模式长度
+- (NSUInteger)p_calculateCharacterLengthForAttributedText:(NSAttributedString *)attributedText {
+    if (attributedText.length == 0) {
+        return 0;
     }
-    
-    __block NSString *outputText = [attributedString.string mutableCopy];
-    __block int offset = 0;
-    
-    [attributedString enumerateAttribute:NSAttachmentAttributeName
-                                   inRange:NSMakeRange(0, attributedString.length)
-                                   options:0
-                                usingBlock:^(NSObject *value, NSRange range, BOOL *stop) {
-        if ([value respondsToSelector:@selector(kr_originlTextBeforeTextAttachment)]) {
-            id<KRTextAttachmentStringProtocol> attachment = (id<KRTextAttachmentStringProtocol> )value;
-            NSString *replaceText = [attachment kr_originlTextBeforeTextAttachment];
-            if (replaceText) {
-                outputText = [outputText stringByReplacingCharactersInRange:NSMakeRange(range.location + offset, range.length)
-                                                                withString:replaceText];
-                offset += (replaceText.length - range.length);
-            }
+
+    NSUInteger length = 0;
+    NSUInteger index = 0;
+    NSMutableArray<NSValue *> *attachmentRanges = [NSMutableArray array];
+
+    // 收集所有 attachment 的范围
+    [attributedText enumerateAttribute:NSAttachmentAttributeName
+                               inRange:NSMakeRange(0, attributedText.length)
+                               options:0
+                            usingBlock:^(id value, NSRange range, BOOL *stop) {
+        if (value != nil) {
+            [attachmentRanges addObject:[NSValue valueWithRange:range]];
         }
     }];
+
+
+    // 按位置排序
+    [attachmentRanges sortUsingComparator:^NSComparisonResult(NSValue *obj1, NSValue *obj2) {
+        NSRange r1 = [obj1 rangeValue];
+        NSRange r2 = [obj2 rangeValue];
+        if (r1.location < r2.location) return NSOrderedAscending;
+        if (r1.location > r2.location) return NSOrderedDescending;
+        return NSOrderedSame;
+    }];
+
+    // 计算长度：普通文本用 kr_length，每个 attachment 算 1
+    for (NSValue *rangeValue in attachmentRanges) {
+        NSRange range = [rangeValue rangeValue];
+        if (index < range.location) {
+            NSString *substring = [attributedText.string substringWithRange:NSMakeRange(index, range.location - index)];
+            length += [substring kr_length];
+        }
+        length += 1; // attachment 算 1 个字符
+        index = range.location + range.length;
+    }
+
+    // 处理剩余文本
+    if (index < attributedText.length) {
+        NSString *substring = [attributedText.string substringWithRange:NSMakeRange(index, attributedText.length - index)];
+        length += [substring kr_length];
+    }
+
+    return length;
+}
+
+- (NSString *)p_outputText {
+    return [self p_rawTextFromAttributedText:self.attributedText];
+}
+
+- (NSString *)p_rawTextFromAttributedText:(NSAttributedString *)attributedText {
+    if (!attributedText) {
+        return self.text;
+    }
+
+    NSMutableString *outputText = [NSMutableString stringWithString:attributedText.string ?: @""];
+    __block NSInteger offset = 0;
+
+    [attributedText enumerateAttribute:NSAttachmentAttributeName
+                               inRange:NSMakeRange(0, attributedText.length)
+                               options:0
+                            usingBlock:^(NSObject *value, NSRange range, BOOL *stop) {
+        if (![value respondsToSelector:@selector(kr_originlTextBeforeTextAttachment)]) {
+            return;
+        }
+        id<KRTextAttachmentStringProtocol> attachment = (id<KRTextAttachmentStringProtocol>)value;
+        NSString *replaceText = [attachment kr_originlTextBeforeTextAttachment];
+        if (replaceText.length == 0) {
+            return;
+        }
+        NSRange replaceRange = NSMakeRange(range.location + offset, range.length);
+        [outputText replaceCharactersInRange:replaceRange withString:replaceText];
+        offset += (NSInteger)replaceText.length - (NSInteger)range.length;
+    }];
     return outputText;
+}
+
+- (NSAttributedString *)p_processedAttributedTextForLengthCalculationWithRawText:(NSString *)rawText {
+    NSMutableAttributedString *rawAttributedText = [[NSMutableAttributedString alloc] initWithString:rawText ?: @""];
+    if (rawAttributedText.length > 0) {
+        UIFont *font = self.font ?: self.typingAttributes[NSFontAttributeName] ?: [UIFont systemFontOfSize:16];
+        if (font) {
+            [rawAttributedText addAttribute:NSFontAttributeName value:font range:NSMakeRange(0, rawAttributedText.length)];
+        }
+        UIColor *textColor = self.textColor ?: self.typingAttributes[NSForegroundColorAttributeName];
+        if (textColor) {
+            [rawAttributedText addAttribute:NSForegroundColorAttributeName value:textColor range:NSMakeRange(0, rawAttributedText.length)];
+        }
+    }
+
+    NSString *processor = _props[@"textPostProcessor"];
+    if (![processor isKindOfClass:[NSString class]] || processor.length == 0) {
+        return rawAttributedText;
+    }
+    if (![[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_customTextWithAttributedString:textPostProcessor:)]) {
+        return rawAttributedText;
+    }
+
+    NSAttributedString *processedAttributedText = [[KuiklyRenderBridge componentExpandHandler] hr_customTextWithAttributedString:rawAttributedText textPostProcessor:processor];
+    return processedAttributedText ?: rawAttributedText;
 }
 
 - (NSUInteger)p_getOutputCursorIndex {
     return [self p_getOutputCursorIndexWithInputIndex:self.selectedRange.location];
 }
 
+- (NSRange)p_getOutputSelectionRange {
+    return [self p_getOutputRangeWithInputRange:self.selectedRange];
+}
+
+- (NSRange)p_getOutputRangeWithInputRange:(NSRange)inputRange {
+    if (inputRange.location == NSNotFound) {
+        return NSMakeRange(0, 0);
+    }
+    NSUInteger start = [self p_getOutputCursorIndexWithInputIndex:inputRange.location];
+    NSUInteger end = [self p_getOutputCursorIndexWithInputIndex:NSMaxRange(inputRange)];
+    if (start > end) {
+        NSUInteger temp = start;
+        start = end;
+        end = temp;
+    }
+    return NSMakeRange(start, end - start);
+}
+
 - (NSUInteger)p_getOutputCursorIndexWithInputIndex:(NSUInteger)inputIndex {
     NSUInteger location = inputIndex;
-    
+
     __block int offset = 0;
     NSAttributedString *attributedString = self.attributedText;
     if (!attributedString) {
@@ -1039,9 +1446,9 @@ NSString *const KRFontWeightKey = @"fontWeight";
 
 - (NSUInteger)p_getInputCursorIndexWithIndex:(NSUInteger)cursorIndex {
     NSUInteger location = cursorIndex;
-    
+
     __block int offset = 0;
-   
+
     NSAttributedString *attributedString = self.attributedText;
     if (!attributedString) {
         return location;
@@ -1065,8 +1472,25 @@ NSString *const KRFontWeightKey = @"fontWeight";
     return location - offset;
 }
 
+/// Re-apply when textPostProcessor is set but the view still shows literal raw (attachments not applied).
+- (BOOL)p_shouldReapplyTextPostProcessorForIncomingRawText:(NSString *)rawText {
+    if (rawText.length == 0) {
+        return NO;
+    }
+    NSString *processor = _props[@"textPostProcessor"];
+    if (![processor isKindOfClass:[NSString class]] || processor.length == 0) {
+        return NO;
+    }
+    NSString *displayedText = self.attributedText.string ?: @"";
+    return [displayedText isEqualToString:rawText];
+}
+
 - (void)p_applyTextPostProcessorIfNeed {
     if (![[KuiklyRenderBridge componentExpandHandler] respondsToSelector:@selector(hr_customTextWithAttributedString:textPostProcessor:)]) {
+        return;
+    }
+    NSString *processor = _props[@"textPostProcessor"];
+    if (![processor isKindOfClass:[NSString class]] || processor.length == 0) {
         return;
     }
     NSAttributedString *currentAttr = self.attributedText;
@@ -1077,17 +1501,17 @@ NSString *const KRFontWeightKey = @"fontWeight";
         NSRange fontRange;
         [currentAttr attribute:NSFontAttributeName atIndex:0 effectiveRange:&fontRange];
     }
-    
-    NSAttributedString *processedAttr = [[KuiklyRenderBridge componentExpandHandler] hr_customTextWithAttributedString:currentAttr textPostProcessor:_props[@"textPostProcessor"] ?: NSStringFromClass([self class])];
+
+    NSAttributedString *processedAttr = [[KuiklyRenderBridge componentExpandHandler] hr_customTextWithAttributedString:currentAttr textPostProcessor:processor];
     if (!processedAttr) {
         return;
     }
-    
+
     if (processedAttr.length > 0) {
         NSRange fontRange2;
         [processedAttr attribute:NSFontAttributeName atIndex:0 effectiveRange:&fontRange2];
     }
-    
+
     // 保存当前光标的原始文本位置
     NSUInteger outputCursor = [self p_getOutputCursorIndex];
     BOOL savedIgnore = _ignoreTextDidChanged;

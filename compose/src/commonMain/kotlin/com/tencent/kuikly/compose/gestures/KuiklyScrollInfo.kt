@@ -48,6 +48,12 @@ class KuiklyScrollInfo {
      * Scroll view instance
      */
     var scrollView: ScrollerView<ScrollerAttr, ScrollerEvent>? = null
+        set(value) {
+            field = value
+            if (hasPullToRefresh && value != null) {
+                value.setHasPullToRefresh(true)
+            }
+        }
 
     /**
      * Scroll orientation
@@ -58,6 +64,13 @@ class KuiklyScrollInfo {
      * Offset on the Compose side, does not exceed boundaries
      */
     var composeOffset = 0f
+
+    /**
+     * Temporary native-coordinate correction used while a Pager snap animation is running.
+     * When items are inserted before the snap target, this keeps the target item's native frame
+     * anchored to the original snap target offset until the snap settles.
+     */
+    var snapAnchorOffsetCorrection = 0
 
     /**
      * Current contentView size, used to expand the bottom boundary
@@ -78,6 +91,11 @@ class KuiklyScrollInfo {
      * ScrollView's scroll offset
      */
     var contentOffset: Int by mutableStateOf(0)
+
+    /**
+     * ScrollView is dragging
+     */
+    var isDragging: Boolean by mutableStateOf(false)
 
     /**
      * List height cache
@@ -111,11 +129,31 @@ class KuiklyScrollInfo {
      * When PullToRefresh is used, the isAtTop judgment logic needs to be adjusted
      */
     var hasPullToRefresh: Boolean = false
+        set(value) {
+            field = value
+            if (value) {
+                scrollView?.setHasPullToRefresh(true)
+            } else {
+                scrollView?.setHasPullToRefresh(false)
+            }
+        }
+
+    /**
+     * Extra top inset on the pull-to-refresh lazy item in pixels,
+     * from [com.tencent.kuikly.compose.material3.pullToRefreshItem.topInset].
+     */
+    var pullToRefreshTopInsetPx: Int = 0
 
     /**
      * Cached total number of items, used to detect changes in item count
      */
     var cachedTotalItems: Int = 0
+
+    /**
+     * When true, [tryExpandStartSize] is skipped. Used by [ScrollableTabRow] whose content
+     * size is already exact via [ScrollState.maxValue] + viewport.
+     */
+    var skipExpandStartSize: Boolean = false
 
     /**
      * Sticky Header Position Cache Manager
@@ -150,6 +188,7 @@ class KuiklyScrollInfo {
         ignoreScrollOffset = null
         composeOffset = 0f
         contentOffset = 0
+        isDragging = false
         offsetDirty = false
 
         // Reset content size related (reinitialize based on current density)
@@ -160,9 +199,7 @@ class KuiklyScrollInfo {
         itemMainSpaceCache.clear()
         stickyItemKey = null
         cachedTotalItems = 0
-
-        // Reset business flags
-        hasPullToRefresh = false
+        pullToRefreshTopInsetPx = 0
     }
 
     /**

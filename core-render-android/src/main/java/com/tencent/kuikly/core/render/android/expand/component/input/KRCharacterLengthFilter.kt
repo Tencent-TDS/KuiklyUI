@@ -33,12 +33,14 @@ class KRCharacterLengthFilter(
     maxCharacters: Int,
     kuiklyRenderContext: IKuiklyRenderContext?,
     fontSizeGetter: () -> Float,
-    textLengthBeyondLimitCallback: () -> Unit
+    textLengthBeyondLimitCallback: () -> Unit,
+    textPostProcessorGetter: () -> String = { KRCssConst.EMPTY_STRING }
 ) : KRBaseLengthFilter(
     maxCharacters,
     kuiklyRenderContext,
     fontSizeGetter,
-    textLengthBeyondLimitCallback
+    textLengthBeyondLimitCallback,
+    textPostProcessorGetter
 ) {
 
     override fun calculateLength(text: CharSequence, start: Int, end: Int): Int {

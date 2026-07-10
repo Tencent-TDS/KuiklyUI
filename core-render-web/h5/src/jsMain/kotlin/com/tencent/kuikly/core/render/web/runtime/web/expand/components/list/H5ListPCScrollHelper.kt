@@ -582,6 +582,7 @@ class H5ListPCScrollHelper(
         listView.cancelClickDetectionTimer()
         listView.setClickEvent(false)
         if (listView.pagingEnabled) {
+            if (!listView.scrollEnabled) return
             listView.listPagingHelper.handlePagerMouseMove(it)
             return
         }
@@ -599,6 +600,7 @@ class H5ListPCScrollHelper(
             return
         }
         if (listView.pagingEnabled) {
+            if (!listView.scrollEnabled) return
             listView.listPagingHelper.handlePagerMouseUp(it)
             return
         }

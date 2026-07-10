@@ -16,6 +16,7 @@
 #ifndef CORE_RENDER_OHOS_KRSCROLLERVIEW_H
 #define CORE_RENDER_OHOS_KRSCROLLERVIEW_H
 
+#include <unordered_set>
 #include "KRScrollerContentInset.h"
 #include "libohos_render/export/IKRRenderViewExport.h"
 #include "libohos_render/foundation/KRPoint.h"
@@ -56,12 +57,12 @@ class KRScrollerContentView : public IKRRenderViewExport {
     void AddContentScrollObserver(IKRContentScrollObserver *observer);
     void RemoveContentScrollObserver(IKRContentScrollObserver *observer);
 
-    const std::vector<IKRContentScrollObserver *> &GetContentScrollObservers() {
+    const std::unordered_set<IKRContentScrollObserver *> &GetContentScrollObservers() {
         return contentScrollObservers_;
     }
 
  private:
-    std::vector<IKRContentScrollObserver *> contentScrollObservers_;
+    std::unordered_set<IKRContentScrollObserver *> contentScrollObservers_;
     bool handling_set_view_frame_ = false;
 };
 
@@ -90,6 +91,10 @@ class KRScrollerView : public IKRRenderViewExport {
     void WillRemoveFromParentView() override;
     ArkUI_GestureInterruptResult OnInterruptGestureEvent(const ArkUI_GestureInterruptInfo *info) override;
     void TryApplyPendingFireOnScroll();
+
+    bool IsScrollView() override {
+        return true;
+    }
 
  private:
     bool SetNestedScroll(const KRAnyValue &value);
@@ -131,6 +136,8 @@ class KRScrollerView : public IKRRenderViewExport {
     void AdjustHeaderBouncesEnableWhenWillScroll(ArkUI_NodeEvent *event);
     void DispatchDidScrollToObservers(KRPoint point);
     bool SetFlingEnable(bool enable);
+    bool SetFlingSpeedLimit(const KRAnyValue &value);
+    KRPoint MaxContentOffsetInContentInset(const std::shared_ptr<KRScrollerContentInset> &content_inset);
 
  private:
     KRRenderCallback on_scroll_callback_ = nullptr;
@@ -154,7 +161,7 @@ class KRScrollerView : public IKRRenderViewExport {
 
     std::shared_ptr<KRAnimation> content_inset_animate_;
     std::shared_ptr<KRScrollerContentInset> content_inset_when_drag_end_;
-    std::vector<IKRScrollObserver *> scroll_observers_;
+    std::unordered_set<IKRScrollObserver *> scroll_observers_;
 
     // 滚动相关的成员变量
     int64_t last_scroll_time_ = 0;
@@ -162,10 +169,12 @@ class KRScrollerView : public IKRRenderViewExport {
     float last_scroll_y_ = 0;
     float velocity_x_ = 0;
     float velocity_y_ = 0;
+    int64_t last_move_time_ = 0;  // 上次产生有效位移的时间，用于判断速度是否过期
     std::weak_ptr<SuperTouchHandler> weak_super_touch_handler_;
     bool is_fling_enabled_ = true;
     float last_fired_scroll_x_ = 0;
     float last_fired_scroll_y_ = 0;
+    bool direction_row_ = false;
 };
 
 #endif  // CORE_RENDER_OHOS_KRSCROLLERVIEW_H

@@ -28,7 +28,7 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
 
 @property (nonatomic, strong) NSNumber *css_numberOfLines;
 @property (nonatomic, strong) NSString *css_lineBreakMode;
-
+@property (nonatomic, assign) NSInteger activeLongPressSpanIndex;
 
 @end
 
@@ -41,6 +41,7 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
 - (instancetype)init {
     if (self = [super init]) {
         self.displaysAsynchronously = NO;
+        [self kr_clearActiveLongPressSpanIndex];
     }
     return self;
 }
@@ -54,6 +55,7 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
     self.attributedText = nil;
     self.css_numberOfLines = nil;
     self.css_lineBreakMode = nil;
+    [self kr_clearActiveLongPressSpanIndex];
 }
 
 + (id<KuiklyRenderShadowProtocol>)hrv_createShadow {
@@ -91,20 +93,96 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
 #else
     CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
 #endif // macOS]
-    KRTextRender * textRender = self.attributedText.hr_textRender;
-    NSInteger index = [textRender characterIndexForPoint:location];
-    NSNumber *spanIndex = nil;
-    if (index >= 0 && index < self.attributedText.length) {
-        spanIndex = [self.attributedText attribute:KuiklyIndexAttributeName atIndex:index effectiveRange:nil];
-    }
-    self.css_click(@{
-        @"x": @(location.x),
-        @"y": @(location.y),
-        @"pageX": @(pageLocation.x),
-        @"pageY": @(pageLocation.y),
-        @"index": spanIndex?: @(-1),
-    });
+    self.css_click([self kr_richTextParamsWithLocation:location pageLocation:pageLocation extraParams:nil]);
+}
 
+- (void)css_onLongPressWithSender:(UILongPressGestureRecognizer *)sender {
+    NSDictionary *config = @{
+            @(UIGestureRecognizerStateBegan): @"start",
+            @(UIGestureRecognizerStateChanged): @"move",
+    };
+    CGPoint location = [sender locationInView:self];
+#if TARGET_OS_OSX
+    CGPoint pageLocation = [sender locationInView:nil];
+#else
+    CGPoint pageLocation = [self kr_convertLocalPointToRenderRoot:location];
+#endif
+    NSDictionary *extraParams = @{
+            @"state": config[@(sender.state)] ? : @"end",
+            @"isCancel": @(sender.state == UIGestureRecognizerStateCancelled)
+    };
+    if (self.css_longPress) {
+        self.css_longPress([self kr_richTextLongPressParamsWithLocation:location pageLocation:pageLocation extraParams:extraParams]);
+    }
+}
+
+- (NSDictionary *)kr_richTextParamsWithLocation:(CGPoint)location pageLocation:(CGPoint)pageLocation extraParams:(NSDictionary *)extraParams {
+    NSInteger spanIndex = [self kr_findSpanIndexWithLocation:location];
+    NSMutableDictionary *params = [@{
+         @"x": @(location.x),
+         @"y": @(location.y),
+         @"pageX": @(pageLocation.x),
+         @"pageY": @(pageLocation.y),
+         @"index": @(spanIndex),
+    } mutableCopy];
+    if (extraParams.count > 0) {
+        [params addEntriesFromDictionary:extraParams];
+    }
+    return params;
+}
+
+- (NSDictionary *)kr_richTextLongPressParamsWithLocation:(CGPoint)location pageLocation:(CGPoint)pageLocation extraParams:(NSDictionary *)extraParams {
+    NSInteger spanIndex = [self kr_resolveLongPressSpanIndexWithLocation:location extraParams:extraParams];
+    NSMutableDictionary *params = [@{
+            @"x": @(location.x),
+            @"y": @(location.y),
+            @"pageX": @(pageLocation.x),
+            @"pageY": @(pageLocation.y),
+            @"index": @(spanIndex),
+    } mutableCopy];
+    if (extraParams.count > 0) {
+        [params addEntriesFromDictionary:extraParams];
+    }
+    if ([self kr_isLongPressTerminalState:extraParams]) {
+        [self kr_clearActiveLongPressSpanIndex];
+    }
+    return params;
+}
+
+- (NSInteger)kr_resolveLongPressSpanIndexWithLocation:(CGPoint)location extraParams:(NSDictionary *)extraParams {
+    NSString *state = extraParams[@"state"];
+    if ([state isEqualToString:@"start"]) {
+        self.activeLongPressSpanIndex = [self kr_findSpanIndexWithLocation:location];
+    }
+    return self.activeLongPressSpanIndex;
+}
+
+- (BOOL)kr_isLongPressTerminalState:(NSDictionary *)extraParams {
+    if ([extraParams[@"isCancel"] boolValue]) {
+        return YES;
+    }
+    NSString *state = extraParams[@"state"];
+    return [state isEqualToString:@"end"];
+}
+
+- (void)kr_clearActiveLongPressSpanIndex {
+    self.activeLongPressSpanIndex = -1;
+}
+
+- (NSInteger)kr_findSpanIndexWithLocation:(CGPoint)location {
+    NSInteger charIndex = [self.attributedText.hr_textRender characterIndexForPoint:location];
+    NSInteger textLength = (NSInteger)self.attributedText.length;
+    for (NSInteger probe = charIndex; probe >= 0 && probe > charIndex - 2; probe--) {
+        if (probe >= 0 && probe < textLength) {
+            NSNumber *spanIndex = [self.attributedText attribute:KuiklyIndexAttributeName
+                                                          atIndex:probe
+                                                   effectiveRange:nil];
+            if (spanIndex != nil) {
+                return spanIndex.integerValue;
+            }
+        }
+    }
+    return -1;
 }
 
 - (void)setBackgroundColor:(UIColor *)backgroundColor
@@ -365,7 +443,7 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
     }
 
     // 强制使用LTR文本方向
-    [attributedString addAttribute:NSWritingDirectionAttributeName value:@[@(NSWritingDirectionLeftToRight | NSWritingDirectionOverride)] range:range];
+    [attributedString addAttribute:NSWritingDirectionAttributeName value:@[@((NSInteger)NSWritingDirectionLeftToRight | (NSInteger)NSWritingDirectionOverride)] range:range];
 
     if (attrs.letterSpacing) {
         [attributedString addAttribute:NSKernAttributeName value:@(attrs.letterSpacing) range:range];
@@ -433,7 +511,7 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
 
     NSAttributedString *attrString = [NSAttributedString attributedStringWithAttachment:attachment];
     NSMutableAttributedString *mutableAttrString = [[NSMutableAttributedString alloc] initWithAttributedString:attrString];
-    [mutableAttrString kr_addAttribute:NSWritingDirectionAttributeName value:@[@(NSWritingDirectionLeftToRight | NSWritingDirectionOverride)] range:NSMakeRange(0, mutableAttrString.length)];
+    [mutableAttrString kr_addAttribute:NSWritingDirectionAttributeName value:@[@((NSInteger)NSWritingDirectionLeftToRight | (NSInteger)NSWritingDirectionOverride)] range:NSMakeRange(0, mutableAttrString.length)];
     return mutableAttrString;
 }
 

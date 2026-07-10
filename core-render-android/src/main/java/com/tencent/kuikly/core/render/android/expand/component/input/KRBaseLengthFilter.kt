@@ -33,7 +33,8 @@ abstract class KRBaseLengthFilter(
     protected val maxLimit: Int,
     protected val kuiklyRenderContext: IKuiklyRenderContext?,
     protected val fontSizeGetter: () -> Float,
-    protected val textLengthBeyondLimitCallback: () -> Unit
+    protected val textLengthBeyondLimitCallback: () -> Unit,
+    protected val textPostProcessorGetter: () -> String = { KRCssConst.EMPTY_STRING }
 ) : InputFilter {
 
     override fun filter(
@@ -59,7 +60,8 @@ abstract class KRBaseLengthFilter(
             start,
             end,
             kuiklyRenderContext,
-            fontSizeGetter
+            fontSizeGetter,
+            textPostProcessorGetter()
         )
         if (richSource == source) {
             if (keep >= calculateLength(source, start, end)) {
@@ -117,15 +119,19 @@ abstract class KRBaseLengthFilter(
             start: Int,
             end: Int,
             kuiklyRenderContext: IKuiklyRenderContext?,
-            fontSizeGetter: () -> Float
+            fontSizeGetter: () -> Float,
+            textPostProcessor: String
         ): CharSequence {
+            if (textPostProcessor.isEmpty()) {
+                return origin
+            }
             val textPostProcessorAdapter = KuiklyRenderAdapterManager.krTextPostProcessorAdapter
                 ?: return origin
             val textProp = KRTextProps(kuiklyRenderContext).apply {
                 setProp(KRTextProps.PROP_KEY_FONT_SIZE, fontSizeGetter.invoke())
             }
             val inputParams = TextPostProcessorInput(
-                "input",
+                textPostProcessor,
                 subSequence(origin, start, end),
                 textProp
             )

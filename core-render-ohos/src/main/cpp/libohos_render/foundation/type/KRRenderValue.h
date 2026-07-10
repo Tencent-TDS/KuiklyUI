@@ -18,7 +18,6 @@
 
 #include <ark_runtime/jsvm.h>
 #include <ark_runtime/jsvm_types.h>
-#include <atomic>
 #include <charconv>
 #include <js_native_api.h>
 #include <js_native_api_types.h>
@@ -98,9 +97,21 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
     /**
      * 统一的工厂方法，确保所有实例都通过 shared_ptr 管理
      * 用法: KRRenderValue::Make(), KRRenderValue::Make(42), KRRenderValue::Make("hello")
+     * 
+     * 特殊优化：Make() 和 Make("") 返回复用的静态单例对象，避免重复创建和析构
      */
     template<typename... Args>
     static std::shared_ptr<KRRenderValue> Make(Args&&... args);
+
+    /**
+     * 特化版本：返回复用的空值(null)单例对象
+     */
+    static std::shared_ptr<KRRenderValue> MakeNull();
+
+    /**
+     * 特化版本：返回复用的空字符串单例对象
+     */
+    static std::shared_ptr<KRRenderValue> MakeEmptyString();
 
  protected:
     KRRenderValue() {
@@ -518,8 +529,9 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
                 return Array();
             }
             Array json_vec;
-            for(int i = 0; i < cJSON_GetArraySize(cjson); ++i){
-                json_vec.push_back(fromJsonValue(cJSON_GetArrayItem(cjson, i)));
+            // 使用链表遍历而非 cJSON_GetArrayItem(i)，避免 O(n²) 性能问题
+            for (cJSON *item = cjson->child; item != NULL; item = item->next) {
+                json_vec.push_back(fromJsonValue(item));
             }
             cJSON_Delete(cjson);
             return json_vec;
@@ -537,63 +549,54 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
     }
 
     const KRRenderCValue &toCValue() const {
-        if (c_value_initialized_.load(std::memory_order_acquire)) {
-            return c_value_;
-        }
-        
-        std::lock_guard<std::mutex> lock(c_value_mutex_);
-        if (c_value_initialized_.load(std::memory_order_relaxed)) {
-            return c_value_;
-        }
-
-        if (isBool()) {
-            c_value_.type = KRRenderCValue::Type::BOOL;
-            c_value_.value.boolValue = toBool() ? 1 : 0;
-        } else if (isInt()) {
-            c_value_.type = KRRenderCValue::Type::INT;
-            c_value_.value.intValue = toInt();
-        } else if (isLong()) {
-            c_value_.type = KRRenderCValue::Type::LONG;
-            c_value_.value.longValue = toLong();
-        } else if (isFloat()) {
-            c_value_.type = KRRenderCValue::Type::FLOAT;
-            c_value_.value.floatValue = toFloat();
-        } else if (isDouble()) {
-            c_value_.type = KRRenderCValue::Type::DOUBLE;
-            c_value_.value.doubleValue = toDouble();
-        } else if (isString()) {
-            c_value_.type = KRRenderCValue::Type::STRING;
-            cached_string_for_c_value_ = std::get<std::string>(value_);
-            c_value_.value.stringValue = const_cast<char *>(cached_string_for_c_value_.c_str());
-        } else if (isByteArray()) {
-            c_value_.type = KRRenderCValue::Type::BYTES;
-            auto byte_array = std::get<ByteArray>(value_).get();
-            c_value_.size = byte_array->size();
-            c_value_.value.bytesValue = reinterpret_cast<char *>(byte_array->data());
-        } else if (isMap()) {
-            ToJsonMapOrArrayLocked();
-        } else if (isArray()) {
-            auto array = toArray();
-            if (HadByteArrayElement(array)) {  // 有二进制元素的话, 不进行 json 序列化，直接传递数组
-                c_value_.type = KRRenderCValue::Type::ARRAY;
-                c_value_.size = array.size();
-                if (array_ptr_ != nullptr) {
-                    delete[] array_ptr_;
-                }
-                array_ptr_ = new KRRenderCValue[c_value_.size];
-                for (size_t i = 0; i < c_value_.size; i++) {
-                    const auto &item = array[i];
-                    array_ptr_[i] = item->toCValue();
-                }
-                c_value_.value.arrayValue = array_ptr_;
-            } else {
+        std::call_once(c_value_once_flag_, [this]() {
+            if (isBool()) {
+                c_value_.type = KRRenderCValue::Type::BOOL;
+                c_value_.value.boolValue = toBool() ? 1 : 0;
+            } else if (isInt()) {
+                c_value_.type = KRRenderCValue::Type::INT;
+                c_value_.value.intValue = toInt();
+            } else if (isLong()) {
+                c_value_.type = KRRenderCValue::Type::LONG;
+                c_value_.value.longValue = toLong();
+            } else if (isFloat()) {
+                c_value_.type = KRRenderCValue::Type::FLOAT;
+                c_value_.value.floatValue = toFloat();
+            } else if (isDouble()) {
+                c_value_.type = KRRenderCValue::Type::DOUBLE;
+                c_value_.value.doubleValue = toDouble();
+            } else if (isString()) {
+                c_value_.type = KRRenderCValue::Type::STRING;
+                cached_string_for_c_value_ = std::get<std::string>(value_);
+                c_value_.value.stringValue = const_cast<char *>(cached_string_for_c_value_.c_str());
+            } else if (isByteArray()) {
+                c_value_.type = KRRenderCValue::Type::BYTES;
+                auto byte_array = std::get<ByteArray>(value_).get();
+                c_value_.size = byte_array->size();
+                c_value_.value.bytesValue = reinterpret_cast<char *>(byte_array->data());
+            } else if (isMap()) {
                 ToJsonMapOrArrayLocked();
+            } else if (isArray()) {
+                auto array = toArray();
+                if (HadByteArrayElement(array)) {  // 有二进制元素的话, 不进行 json 序列化，直接传递数组
+                    c_value_.type = KRRenderCValue::Type::ARRAY;
+                    c_value_.size = array.size();
+                    if (array_ptr_ != nullptr) {
+                        delete[] array_ptr_;
+                    }
+                    array_ptr_ = new KRRenderCValue[c_value_.size];
+                    for (size_t i = 0; i < c_value_.size; i++) {
+                        const auto &item = array[i];
+                        array_ptr_[i] = item->toCValue();
+                    }
+                    c_value_.value.arrayValue = array_ptr_;
+                } else {
+                    ToJsonMapOrArrayLocked();
+                }
+            } else {
+                c_value_.type = KRRenderCValue::Type::NULL_VALUE;
             }
-        } else {
-            c_value_.type = KRRenderCValue::Type::NULL_VALUE;
-        }
-        
-        c_value_initialized_.store(true, std::memory_order_release);
+        });
         return c_value_;
     }
 
@@ -712,8 +715,7 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
                  NapiValue>
         value_;
     
-    mutable std::mutex c_value_mutex_;
-    mutable std::atomic<bool> c_value_initialized_{false};
+    mutable std::once_flag c_value_once_flag_;
     mutable std::string map_or_array_json_value_;  // 缓存经过序列化的 map或者 array, 用于缓存经过序列化的std::string
     mutable std::string cached_string_for_c_value_;
     mutable KRRenderCValue c_value_;
@@ -798,7 +800,7 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
 
     static std::shared_ptr<KRRenderValue> fromJsonValue(const cJSON *cjson) {
         if(cjson == nullptr){
-            return Make();
+            return MakeNull();
         }
         if (cJSON_IsBool(cjson)) {
             return Make(cJSON_IsTrue(cjson));
@@ -814,12 +816,13 @@ class KRRenderValue : public std::enable_shared_from_this<KRRenderValue> {
             return Make(map_obj);
         } else if (cJSON_IsArray(cjson)) {
             Array vec_obj;
-            for(int i = 0; i < cJSON_GetArraySize(cjson); ++i){
-                vec_obj.push_back(fromJsonValue(cJSON_GetArrayItem(cjson, i)));
+            // 使用链表遍历而非 cJSON_GetArrayItem(i)，避免 O(n²) 性能问题
+            for (cJSON *item = cjson->child; item != NULL; item = item->next) {
+                vec_obj.push_back(fromJsonValue(item));
             }
             return Make(vec_obj);
         } else {
-            return Make();  // Null JSValue
+            return MakeNull();  // Null JSValue
         }
     }
 };
@@ -831,7 +834,52 @@ struct KRRenderValue::Accessor : KRRenderValue {
 
 template<typename... Args>
 std::shared_ptr<KRRenderValue> KRRenderValue::Make(Args&&... args) {
-    return std::make_shared<Accessor>(std::forward<Args>(args)...);
+    if constexpr (sizeof...(args) == 0) {
+        return MakeNull();
+    } else {
+        return std::make_shared<Accessor>(std::forward<Args>(args)...);
+    }
+}
+
+inline std::shared_ptr<KRRenderValue> KRRenderValue::MakeNull() {
+    static std::shared_ptr<KRRenderValue> sNullValue = std::make_shared<Accessor>();
+    return sNullValue;
+}
+
+inline std::shared_ptr<KRRenderValue> KRRenderValue::MakeEmptyString() {
+    static std::shared_ptr<KRRenderValue> sEmptyStringValue = std::make_shared<Accessor>(std::string(""));
+    return sEmptyStringValue;
+}
+
+// Make(const char*) 特化：空字符串返回复用的单例对象
+// 注：签名 const char*&& 是主模板 Make(Args&&... args) 在 Args = const char* 时的
+//     实例化形式。C++ 模板特化必须精确匹配主模板签名，不能改为 const char*，
+//     否则该特化不会被主模板匹配到，Make("") 的空字符串单例复用优化将失效。
+template<>
+inline std::shared_ptr<KRRenderValue> KRRenderValue::Make(const char* &&value) {
+    if (value == nullptr || value[0] == '\0') {
+        return MakeEmptyString();
+    }
+    return std::make_shared<Accessor>(std::forward<const char*>(value));
+}
+
+// Make(KRRenderCValue) 特化：对 NULL 和常用小整数返回复用的单例对象，减少堆分配
+template<>
+inline std::shared_ptr<KRRenderValue> KRRenderValue::Make(const KRRenderCValue &value) {
+    if (value.type == KRRenderCValue::NULL_VALUE) {
+        return MakeNull();
+    }
+    // 缓存常用小整数 0-3（覆盖 syncCall 的 0/1/2/3 常用值）
+    if (value.type == KRRenderCValue::INT && value.value.intValue >= 0 && value.value.intValue <= 3) {
+        static std::shared_ptr<KRRenderValue> sCachedInts[4] = {
+            std::make_shared<Accessor>(int32_t(0)),
+            std::make_shared<Accessor>(int32_t(1)),
+            std::make_shared<Accessor>(int32_t(2)),
+            std::make_shared<Accessor>(int32_t(3)),
+        };
+        return sCachedInts[value.value.intValue];
+    }
+    return std::make_shared<Accessor>(value);
 }
 
 #endif  // CORE_RENDER_OHOS_KRRENDERVALUE_H

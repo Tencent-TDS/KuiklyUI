@@ -28,6 +28,7 @@
 #include <native_drawing/drawing_text_typography.h>
 #include <sys/stat.h>
 #include <unordered_set>
+#include <vector>
 #include "libohos_render/expand/components/base/KRBasePropsHandler.h"
 #include "libohos_render/expand/components/base/animation/KRNodeAnimation.h"
 // #include "libohos_render/expand/components/forward/KRForwardArkTSView.h"
@@ -67,6 +68,8 @@ class ArkUINativeNodeAPI {
     void unregisterNodeEvent(ArkUI_NodeHandle node, ArkUI_NodeEventType eventType);
     void markDirty(ArkUI_NodeHandle node, ArkUI_NodeDirtyFlag dirtyFlag);
     uint32_t getTotalChildCount(ArkUI_NodeHandle node);
+    ArkUI_NodeHandle getParent(ArkUI_NodeHandle node);
+    ArkUI_NodeHandle getChildAt(ArkUI_NodeHandle node, int32_t position);
     int32_t registerNodeCustomEvent(ArkUI_NodeHandle node, ArkUI_NodeCustomEventType eventType, int32_t targetId,
                                     void *userData);
     void unregisterNodeCustomEvent(ArkUI_NodeHandle node, ArkUI_NodeCustomEventType eventType);
@@ -157,6 +160,10 @@ void SetArkUIImageTintColor(ArkUI_NodeHandle handle, const std::tuple<float, flo
 
 void ResetArkUIImageTintColor(ArkUI_NodeHandle handle);
 
+void SetArkUIImageColorFilter(ArkUI_NodeHandle handle, const std::vector<float> &matrix);
+
+void ResetArkUIImageColorFilter(ArkUI_NodeHandle handle);
+
 void SetArkUIImageCapInsets(ArkUI_NodeHandle handle, float top, float left, float bottom, float right);
 
 void ResetArkUIImageCapInsets(ArkUI_NodeHandle handle);
@@ -212,6 +219,23 @@ void UpdateInputNodePlaceholderColor(ArkUI_NodeHandle node, uint32_t placeholder
 
 // 光标颜色
 void UpdateInputNodeCaretrColor(ArkUI_NodeHandle node, uint32_t caret_color);
+
+// ARGB 颜色位操作常量
+static constexpr uint32_t kColorAlphaShift = 24;
+static constexpr uint32_t kColorAlphaMask = 0xFF;
+static constexpr uint32_t kColorRGBMask = 0x00FFFFFF;
+
+// 选中高亮色 alpha 上限（0x66 ≈ 40%），避免高亮完全覆盖文字，多端统一
+static constexpr uint32_t kSelectionColorMaxAlpha = 0x66;
+
+/// 限制选中色 alpha 不超过 kSelectionColorMaxAlpha，返回 clamped 后的颜色值
+uint32_t ClampSelectionColorAlpha(uint32_t color);
+
+// 选中颜色
+void UpdateInputNodeSelectionColor(ArkUI_NodeHandle node, uint32_t color);
+
+// TextArea 选中颜色
+void UpdateTextAreaNodeSelectionColor(ArkUI_NodeHandle node, uint32_t color);
 
 // 文本对齐
 void UpdateInputNodeTextAlign(ArkUI_NodeHandle node, const std::string &text_align);

@@ -740,6 +740,22 @@ typedef void (^KRPathRenderAction)(CGContextRef context, CGMutablePathRef path);
 
 #pragma mark - dealloc
 
+- (void)css_batchDraw:(NSDictionary *)args {
+    NSString *paramsStr = args[KRC_PARAM_KEY];
+    if (paramsStr.length == 0) return;
+    NSData *data = [paramsStr dataUsingEncoding:NSUTF8StringEncoding];
+    NSArray *arr = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    if (![arr isKindOfClass:[NSArray class]]) return;
+    for (NSDictionary *item in arr) {
+        if (![item isKindOfClass:[NSDictionary class]]) continue;
+        NSString *method = item[@"m"];
+        NSString *p = item[@"p"] ?: @"";
+        if (method.length > 0) {
+            [self hrv_callWithMethod:method params:p callback:nil];
+        }
+    }
+}
+
 - (void)dealloc {
 
     if (_path) {

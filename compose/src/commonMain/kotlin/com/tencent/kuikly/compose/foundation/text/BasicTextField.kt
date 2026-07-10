@@ -101,9 +101,14 @@ fun BasicTextField(
     decorationBox: @Composable (innerTextField: @Composable () -> Unit) -> Unit =
         @Composable { innerTextField -> innerTextField() }
 ) {
+    // 从 modifier 中拆分出 maxLength 和 onLimitChange 相关的 Element
+    val (textFieldModifier, maxLengthElement, onLimitChangeElement) = remember(modifier) {
+        modifier.extractTextFieldMaxLengthElements()
+    }
+
     val transformedModifier = when (outputTransformation) {
-        is TextPostProcessorOutputTransformation -> modifier.textPostProcessor(outputTransformation.processor)
-        else -> modifier
+        is TextPostProcessorOutputTransformation -> textFieldModifier.textPostProcessor(outputTransformation.processor)
+        else -> textFieldModifier
     }
     CoreTextField(
         value = TextFieldValue(
@@ -133,6 +138,9 @@ fun BasicTextField(
         decorationBox = decorationBox,
         enabled = enabled,
         readOnly = readOnly,
+        maxLength = maxLengthElement?.maxLength,
+        lengthLimitType = maxLengthElement?.lengthLimitType,
+        onLimitChange = onLimitChangeElement?.onLimitChange,
     )
 }
 

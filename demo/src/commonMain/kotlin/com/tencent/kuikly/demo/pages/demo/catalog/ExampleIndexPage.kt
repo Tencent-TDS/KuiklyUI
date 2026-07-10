@@ -111,6 +111,13 @@ internal class ExampleIndexPage : BasePager() {
         })
 
         itemList.add(ExampleItemData().apply {
+            avatarText = "Sp"
+            titleText = "Span Selection"
+            subtitleText = "长按富文本 Span 整体选择，支持字符/WORD/句子/段落/SPAN 多种选择类型"
+            declarativeExampleUrl = generateJumpUrl("SpanSelectionExamplePage")
+        })
+
+        itemList.add(ExampleItemData().apply {
             avatarText = "Im"
             titleText = "ImageView"
             subtitleText = "使用ImageView为你的app添加图片"
@@ -118,10 +125,38 @@ internal class ExampleIndexPage : BasePager() {
         })
 
         itemList.add(ExampleItemData().apply {
+            avatarText = "Ca"
+            titleText = "Color Alpha ToString"
+            subtitleText = "对比 #1101 修复前后带 alpha 颜色的 toString 与渲染"
+            declarativeExampleUrl = generateJumpUrl("BugReproColorAlphaToStringPage")
+        })
+
+        itemList.add(ExampleItemData().apply {
+            avatarText = "Cr"
+            titleText = "ToImage Crash Repro"
+            subtitleText = "复现鸿蒙 toImage(CACHE_KEY) 延迟设置 Image src 的 crash"
+            declarativeExampleUrl = generateJumpUrl("ToImageCrashRepro")
+        })
+
+        itemList.add(ExampleItemData().apply {
             avatarText = "In"
             titleText = "InputView"
             subtitleText = "单行输入框组件"
             declarativeExampleUrl = generateJumpUrl("InputViewDemoPage")
+        })
+
+        itemList.add(ExampleItemData().apply {
+            avatarText = "In"
+            titleText = "Input setText-after-ready"
+            subtitleText = "验证新 ARKUI_NODE_TEXT_EDITOR 在 ready 后 setText 能否触发 textDidChange"
+            declarativeExampleUrl = generateJumpUrl("InputSetTextAfterReadyDemoPage")
+        })
+
+        itemList.add(ExampleItemData().apply {
+            avatarText = "In"
+            titleText = "Input 新/老控件对比入口"
+            subtitleText = "OHOS Only：切换全局标志位，分别进入老 TEXT_INPUT 和新 TEXT_EDITOR 测试页"
+            declarativeExampleUrl = generateJumpUrl("InputCompareEntryPage")
         })
 
         itemList.add(ExampleItemData().apply {
@@ -279,6 +314,13 @@ internal class ExampleIndexPage : BasePager() {
             titleText = "VideoView"
             subtitleText = "使用VideoView为你的app添加视频"
             declarativeExampleUrl = generateJumpUrl("VideoExamplePage")
+        })
+
+        itemList.add(ExampleItemData().apply {
+            avatarText = "St"
+            titleText = "Bridge Call 压力测试"
+            subtitleText = "循环10万次调用BridgeManager.callModuleMethod，测试Kotlin到Native桥接调用性能"
+            declarativeExampleUrl = generateJumpUrl("BridgeCallStressTestPage")
         })
 
         // 仅在微信小程序平台展示 WX 组件 / API 示例

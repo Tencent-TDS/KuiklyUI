@@ -128,6 +128,27 @@ open class KRView : IKuiklyRenderViewExport {
     override val ele: HTMLDivElement
         get() = div.unsafeCast<HTMLDivElement>()
 
+    override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
+        return when (method) {
+            BRING_TO_FRONT -> {
+                val parent = ele.parentElement ?: return null
+                // Move element to end of parent's children, making it topmost in z-order
+                parent.appendChild(ele)
+                // Ensure this element can receive pointer events
+                ele.style.asDynamic().pointerEvents = "auto"
+                // Disable pointer events on all sibling elements that are now behind
+                for (i in 0 until parent.children.length) {
+                    val sibling = parent.children[i]
+                    if (sibling !== ele) {
+                        sibling.unsafeCast<HTMLDivElement>().style.asDynamic().pointerEvents = "none"
+                    }
+                }
+                null
+            }
+            else -> super.call(method, params, callback)
+        }
+    }
+
     override fun setProp(propKey: String, propValue: Any): Boolean {
         return when (propKey) {
             KRCssConst.PAN -> {
@@ -524,6 +545,7 @@ open class KRView : IKuiklyRenderViewExport {
         const val VIEW_NAME = "KRView"
         private const val EVENT_SCREEN_FRAME = "screenFrame"
         private const val SCREEN_FRAME_PAUSE = "screenFramePause"
+        private const val BRING_TO_FRONT = "bringToFront"
         // Refresh rate interval, 16ms (approximately 60fps)
         private const val SCREEN_FRAME_REFRESH_TIME = 16
         // Border size ratio threshold

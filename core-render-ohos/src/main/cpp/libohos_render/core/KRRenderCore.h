@@ -19,6 +19,7 @@
 /**
  * 负责渲染流程核心逻辑模块。
  */
+#include <arkui/native_node.h>
 #include "libohos_render/context/IKRRenderNativeContextHandler.h"
 #include "libohos_render/context/KRRenderContextParams.h"
 #include "libohos_render/layer/IKRRenderLayer.h"
@@ -73,6 +74,7 @@ class KRRenderCore : public std::enable_shared_from_this<KRRenderCore>,
      * @param json_data json数据字符串）
      */
     void SendEvent(std::string event_name, const std::string &json_data);
+    void SendEvent(std::string event_name, const std::string &json_data, bool need_sync);
 
     /**
      * 获取渲染节点视图（要求在主线程调用）
@@ -80,6 +82,13 @@ class KRRenderCore : public std::enable_shared_from_this<KRRenderCore>,
      * @return 对应节点view
      */
     std::shared_ptr<IKRRenderViewExport> GetView(int tag);
+
+    /**
+     * 获取渲染节点视图（通过节点句柄，要求在主线程调用）
+     * @param handle 节点句柄
+     * @return 对应节点view
+     */
+    std::shared_ptr<IKRRenderViewExport> GetView(ArkUI_NodeHandle handle);
 
     /**
      * 获取渲染节点视图（要求在主线程调用）

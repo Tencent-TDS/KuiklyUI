@@ -19,6 +19,7 @@
 #include "libohos_render/export/IKRRenderViewExport.h"
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 
 class KRTextFieldView : public IKRRenderViewExport {
  public:
@@ -62,19 +63,43 @@ class KRTextFieldView : public IKRRenderViewExport {
     virtual ArkUI_NodeEventType GetOnWillChangeEventType() {
         return ArkUI_NodeEventType::NODE_TEXT_INPUT_ON_WILL_CHANGE;
     }
+    /**
+     * 选区变化事件类型。子类（如 KRTextAreaView）可 override 以适配不同的 ArkUI 节点类型。
+     */
+    virtual ArkUI_NodeEventType GetOnTextSelectionChangeEventType() {
+        return ArkUI_NodeEventType::NODE_TEXT_INPUT_ON_TEXT_SELECTION_CHANGE;
+    }
     
     virtual void UpdateInputNodePlaceholder(const std::string &propValue);
     virtual void UpdateInputNodePlaceholderColor(const std::string &propValue);
     virtual void UpdateInputNodeColor(const std::string &propValue);
     virtual void UpdateInputNodeCaretrColor(const std::string &propValue);
+    virtual void UpdateInputNodeSelectionColor(const std::string &propValue);
     virtual void UpdateInputNodeTextAlign(const std::string &propValue);
     virtual void UpdateInputNodeFocusable(int propValue);
     virtual void UpdateInputNodeKeyboardType(const std::string &propValue);
     virtual void UpdateInputNodeEnterKeyType(const std::string &propValue);
+    /**
+     * 读取 ArkUI 节点上的 EnterKeyType。
+     * 子类（如 KRTextAreaView）需 override 以读 NODE_TEXT_AREA_ENTER_KEY_TYPE，
+     * 否则会从 NODE_TEXT_INPUT_ENTER_KEY_TYPE 读到错误的枚举值。
+     */
+    virtual ArkUI_EnterKeyType GetInputNodeEnterKeyType();
     virtual void UpdateInputNodeMaxLength(int maxLength);
     virtual void UpdateInputNodeFocusStatus(int status);
     virtual uint32_t GetInputNodeSelectionStartPosition();
     virtual void UpdateInputNodeSelectionStartPosition(uint32_t index);
+    /**
+     * 设置真实区间选区 [start, end]（按 UTF-16 算）。
+     * TextInput 与 TextArea 都支持 [start, end] 双端选区，无需再降级为折叠光标。
+     * 子类（如 KRTextAreaView）需 override 以写 NODE_TEXT_AREA_TEXT_SELECTION。
+     */
+    virtual void UpdateInputNodeSelectionRange(int32_t start, int32_t end);
+    /**
+     * 获取选区范围 [start, end]（按 UTF-16 算）。
+     * 子类（如 KRTextAreaView）可 override 以适配不同的 ArkUI 节点类型。
+     */
+    virtual std::pair<uint32_t, uint32_t> GetInputNodeTextSelectionRange();
     virtual void UpdateInputNodePlaceholderFont(uint32_t font_size, ArkUI_FontWeight font_weight);
     virtual void UpdateInputNodeContentText(const std::string &text);
     virtual std::string GetInputNodeContentText();
@@ -93,7 +118,10 @@ class KRTextFieldView : public IKRRenderViewExport {
     KRRenderCallback input_return_callback_;              // 完成键按下回调
     KRRenderCallback text_length_beyond_limit_callback_;  // 输入超过MaxLength限制
     KRRenderCallback keyboard_height_changed_callback_;   // 键盘高度变化
+    KRRenderCallback text_input_state_change_callback_;   // 文本输入状态变化callback（与 Android textInputStateChange 对齐）
+    KRRenderCallback selection_change_callback_;          // 选区变化callback（与 Android KRTextFieldView.selectionChangeCallback 对齐）
     bool auto_hide_KeyBoard_on_ImeAction_ = false;        // 在触发各种IME 按钮时是否回收键盘，默认是不回收
+    bool is_setting_text_input_state_ = false;            // 通过 setTextInputState 主动写入期间，抑制 textInputStateChange 回流防止业务死循环
 
     /**
      * 输入框获焦（弹起键盘）
@@ -114,6 +142,52 @@ class KRTextFieldView : public IKRRenderViewExport {
      * 设置光标位置
      */
     void SetCursorIndex(uint32_t index);
+
+    /**
+     * 受控组件模式：解析 textInputState JSON 并把 text/光标 写入到 ArkUI 节点。
+     *
+     * 跨端语义参考 Android KRTextFieldView.setTextInputState：
+     *   - 仅消费 text / selectionStart / selectionEnd 三字段；
+     *   - composition 区不在 OHOS 老节点的可写能力内，忽略。
+     *
+     * selection 通过 UpdateInputNodeSelectionRange 写入真实 [start, end] 区间
+     * （TextInput / TextArea 均支持），不再退化为折叠光标。
+     *
+     * 主动写入期间通过 is_setting_text_input_state_ 抑制 textInputStateChange 回调，
+     * 避免业务把状态写回来形成死循环。
+     */
+    void SetTextInputStateInternal(const std::string &json);
+
+    /**
+     * 拼装 textInputState 出参 map，与 Android createTextInputStateParamMap 对齐：
+     *   - 始终回 {text, selectionStart, selectionEnd, compositionStart=-1, compositionEnd=-1}；
+     *   - 仅当 length_limit_type_ != -1 时附带 length 字段。
+     */
+    KRRenderValueMap CreateTextInputStateMap();
+
+    /**
+     * getTextInputState 方法路径：把当前 state 通过 callback 回吐给业务。
+     */
+    void GetTextInputStateInternal(const KRRenderCallback &callback);
+
+    /**
+     * 在 OnTextDidChanged 末尾按需触发，参考 Android 时机一致。
+     * 处于 SetTextInputStateInternal 主动写入期间会被抑制。
+     */
+    void NotifyTextInputStateChange();
+
+    /**
+     * 选区变化事件回调，跨端语义对齐 Android KRTextFieldView.onSelectionChanged。
+     * 主动写入期间通过 is_setting_text_input_state_ 抑制。
+     */
+    void NotifySelectionChange();
+
+    /**
+     * 处理 ArkUI 原生选区变化事件（NODE_TEXT_INPUT_ON_TEXT_SELECTION_CHANGE /
+     * NODE_TEXT_AREA_ON_TEXT_SELECTION_CHANGE）。事件中携带 [start, end]，我们同时触发
+     * selectionChange 与 textInputStateChange（后者会以最新选区重新拼装 state map）。
+     */
+    void OnTextSelectionChange(ArkUI_NodeEvent *event);
 
     /**
      * 设置字体（包括占位字体）
@@ -146,6 +220,12 @@ class KRTextFieldView : public IKRRenderViewExport {
      * 设置输入的文本内容
      */
     void SetContentText(const std::string &text);
+
+    /**
+     * 对齐 iOS：程序化写入包含短码且超出 maxLength 时，整段拒绝本次写入。
+     */
+    bool ShouldRejectProgrammaticShortcodeInput(const std::string &text);
+
     /**
      * 限制输入文本到最大长度
      */

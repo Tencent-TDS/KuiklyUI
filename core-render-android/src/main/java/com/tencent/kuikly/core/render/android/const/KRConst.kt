@@ -80,6 +80,7 @@ object KRCssConst {
     const val ACCESSIBILITY = "accessibility"
     const val ACCESSIBILITY_INFO = "accessibilityInfo"
     const val ACCESSIBILITY_ROLE = "accessibilityRole"
+    const val TEST_TAG = "testTag"
 
     // 同 Attr.StyleConst.DEBUG_NAME
     const val DEBUG_NAME = "debugName"
@@ -90,7 +91,12 @@ object KRCssConst {
 
     const val HAD_INIT_ACCESSIBILITY_DELEGATE = "hadInitAccessibilityDelegate"
 
+    // Internal key: plain text for accessibility node info (used by canvas-drawn views like KRRichTextView).
+    // Exposed as info.text only when DEBUG_NAME viewData is set (debugUIInspector).
+    const val PLAIN_TEXT_FOR_A11Y = "plainTextForA11y"
+
     const val CLIP_PATH = "clipPath"
     const val TRANSFORM_OVER_BOUNDS = "transformOverBounds"
     const val CONTENT_OVER_BOUNDS = "contentOverBounds"
+    const val VIEW_TAG = "viewTag"
 }

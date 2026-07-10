@@ -17,15 +17,62 @@
 #define CORE_RENDER_OHOS_KRRICHTEXTSHADOW_H
 
 #include <arkui/styled_string.h>
+#include <multimedia/image_framework/image/pixelmap_native.h>
 #include <native_drawing/drawing_text_declaration.h>
 #include <native_drawing/drawing_text_typography.h>
 #include <native_drawing/drawing_text_line.h>
 #include <native_drawing/drawing_types.h>
+#include <functional>
+#include <mutex>
+#include <string>
+#include <unordered_map>
 #include <unordered_set>
+#include <vector>
 #include "libohos_render/expand/components/richtext/KRFontAdapterManager.h"
 #include "libohos_render/expand/components/richtext/KRParagraph.h"
 #include "libohos_render/utils/KRScopedSpinLock.h"
+#include "libohos_render/utils/KRRenderLoger.h"
 #include "libohos_render/export/IKRRenderShadowExport.h"
+
+namespace kuikly {
+namespace richtext {
+// 内置 props key：双下划线前后缀避免与业务字段冲突。仅由 KRRichTextShadow 内部
+// PostProcessor 拆段路径写入与读取，业务零感知。如需在其它 shadow / view 引用，
+// 请统一使用此常量。
+inline constexpr const char *kInternalImageSrcKey = "__kr_image_src__";
+}  // namespace richtext
+}  // namespace kuikly
+
+constexpr bool KR_TEXT_RENDER_V2_ENABLED = false;
+
+/**
+ * 跨线程安全的 OH_Drawing_Typography 持有句柄。
+ *
+ * Typography 在 KuiklyUI 的渲染流水线中会被多线程同时持有（context 线程负责
+ * 创建/Layout/SpanRect 计算，主线程负责 Paint/SetShadow），并且主线程上的
+ * Kotlin 同步回调还可能再触发 context 业务逻辑、形成跨线程交错调用。如果用
+ * 裸指针 + 投递 destroy 任务的方式管理，极易出现"release 后还在使用"的悬空
+ * 指针问题（例如某条 destroy 任务先于一条尚未消费的 SetShadow 任务执行）。
+ *
+ * 这里把 OH_Drawing_Typography* 用 std::shared_ptr 包起来：
+ *  - 多线程拷贝/释放 shared_ptr 自身是线程安全的（控制块为 atomic）；
+ *  - 真正的 OH_Drawing_DestroyTypography 只会在 "最后一个引用消失" 时触发，
+ *    保证任何同时持有它的 lambda / 主线程字段在使用期间对象都不会析构；
+ *  - 替换 main_thread_typography_ 时，被替换下来的旧 typography 在最后一个
+ *    引用归零的瞬间析构，无需依赖任何任务派发顺序。
+ */
+using KRTypographyHandle = std::shared_ptr<OH_Drawing_Typography>;
+
+inline KRTypographyHandle KRMakeTypographyHandle(OH_Drawing_Typography *raw) {
+    if (raw == nullptr) {
+        return KRTypographyHandle();
+    }
+    return KRTypographyHandle(raw, [](OH_Drawing_Typography *p) {
+        if (p) {
+            OH_Drawing_DestroyTypography(p);
+        }
+    });
+}
 
 class KRFontCollectionWrapper {
 public:
@@ -111,6 +158,15 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     KRSchedulerTask TaskToMainQueueWhenWillSetShadowToView() override;
 
     OH_Drawing_Typography *MainThreadTypography() const {
+        return main_thread_typography_ ? main_thread_typography_.get() : nullptr;
+    }
+
+    /**
+     * 拿到一个对当前主线程 typography 的强引用，调用方在使用期间该 typography
+     * 不会被 context 线程的 release/replace 释放掉。建议主线程上的所有
+     * Layout/Paint/Span 查询都通过这个接口拿到 handle 并保持到使用结束。
+     */
+    KRTypographyHandle MainThreadTypographyHandle() const {
         return main_thread_typography_;
     }
     const float DrawOffsetY() const {
@@ -126,7 +182,11 @@ class KRRichTextShadow : public IKRRenderShadowExport {
         main_thread_text_align_ = TEXT_ALIGN_LEFT;
     }
 
-    const KRSize MainMeasureSize() {
+    std::string GetTextContent() const {
+        return text_content_;
+    }
+
+    KRSize MainMeasureSize() {
         return main_measure_size_;
     }
     
@@ -135,12 +195,23 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     }
     
     OH_Drawing_Array *GetTextLines();
+    KRAnyValue BuildEventParams(KRAnyValue res);
+    KRAnyValue BuildLongPressEventParams(KRAnyValue res);
+    void ClearActiveLongPressSpanIndex();
     
-    void SetMainThreadTypography(OH_Drawing_Typography *typography) {
-        if(main_thread_typography_ == typography){
+    /**
+     * 替换主线程持有的 typography。被替换下来的旧 typography 会在最后一个
+     * 引用消失时自动 destroy（通常发生在本次替换调用栈中，主线程上）。
+     */
+    void SetMainThreadTypography(KRTypographyHandle typography) {
+        if (main_thread_typography_ == typography) {
             return;
         }
-        main_thread_typography_ = typography;
+        // 赋值会触发旧 shared_ptr 的引用计数 -1。当且仅当没有其他
+        // lambda / 字段还持有它时，OH_Drawing_DestroyTypography 才会执行；
+        // 否则它会自然延后到最后一个持有者析构时再销毁，从而避免任何
+        // "release-after-use" 的窗口。
+        main_thread_typography_ = std::move(typography);
         DestroyCachedTextLines();
     }
 
@@ -150,18 +221,70 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     }
     
     virtual bool StyledStringEnabled();
- private:
-    void DestroyCachedTextLines();
-    std::string GetTextContent();
-    KRSize CalculateRenderViewSizeWithStyledString(double constraint_width, double constraint_height);
+
+    // ===================== Phase 4: 只读 RichText 自定义表情绘制 =====================
+    // 只读 RichText 走 V1（老 typography）路径时，business 文本会经 PostProcessor("richtext")
+    // 拆段为 [TextSpan / ImageSpan ...]。Image span 在 typography 中以 PlaceholderSpan
+    // 形式占位（沿用 OHOS 端历来的"占位 + 外挂 ImageView"机制）；与之并行，本 shadow
+    // 把每个 ImageSpan 的 (placeholder_index, src_uri, w_vp, h_vp) 记录到 image_draw_records_
+    // 中。view 层在 OnForegroundDraw 中：
+    //   1) 调 OH_Drawing_TypographyPaint 画文字；
+    //   2) 遍历 image_draw_records_，按 placeholder_index 查 GetRectsForPlaceholders 得到
+    //      实际矩形，从 pixmap_cache_ 取已解码的 OH_PixelmapNative，调用
+    //      OH_Drawing_CanvasDrawPixelMapRect 将图片画到对应矩形上。
+    //
+    // 与 KRRichTextView.kt 的 ImageSpan（业务声明型）共存：业务声明的 ImageSpan 仍走原
+    // PlaceholderSpan + 父节点 ImageView 链路；本机制仅对 PostProcessor 拆段产生的图片生效。
+    struct KRImageDrawRecord {
+        int placeholder_index = -1;  // 在 typography 内部的 placeholder 序号（用于 GetRectsForPlaceholders）
+        std::string src_uri;          // 已规范化的可寻址 URI（file:// / http(s):// / data:...）
+        float width_vp = 0.0f;
+        float height_vp = 0.0f;
+    };
+    const std::vector<KRImageDrawRecord> &GetImageDrawRecords() const {
+        return image_draw_records_;
+    }
+
+    // ===== Phase 3↔4 桥接：image span 解码完成通知 view markDirty =====
+    // view 层（KRRichTextView::SetShadow）在拿到 shadow 时通过本接口注册一个 callback；
+    // shadow 把 image span 的预解码工作委托给 KRCustomEmojiPixmapCache（进程级单例 +
+    // LRU 128），由它在主线程触发本回调，driving view 层 markDirty 触发下一帧
+    // OnForegroundDraw 重绘。view 销毁时通过 SetImageLoadedCallback(nullptr) 清空，
+    // 避免悬挂访问。
+    using ImageLoadedCallback = std::function<void(const std::string & /*uri*/)>;
+    void SetImageLoadedCallback(ImageLoadedCallback cb) {
+        std::lock_guard<std::mutex> lk(image_loaded_callback_mutex_);
+        image_loaded_callback_ = std::move(cb);
+    }
+
+    // image span 是否非空（决策 6C：含 image span 时强制走 V1 OnForegroundDraw 路径）。
+    bool HasImageSpans() const {
+        return !image_draw_records_.empty();
+    }
 
  private:
+    void DestroyCachedTextLines();
+    KRSize CalculateRenderViewSizeWithStyledString(double constraint_width, double constraint_height);
+
+    // ===== Phase 3: 委托 KRCustomEmojiPixmapCache 异步预加载 =====
+    // 在 BuildTextTypography 末尾被调用：遍历 image_draw_records_，对未缓存的 src_uri
+    // 调用 KRCustomEmojiPixmapCache::Prefetch；解码完成回调里通过 image_loaded_callback_
+    // 通知 view markDirty。shadow 销毁时 weak_from_this 自动断链。
+    void TriggerImagePrefetchIfNeed();
+ private:
+    std::string text_content_;
     KRRenderValue::Map props_;
     KRRenderValue::Array values_;
     OH_Drawing_Array *text_lines_ = nullptr;
     bool did_exceed_max_lines_ = false;
-    OH_Drawing_Typography *main_thread_typography_ = nullptr;
-    OH_Drawing_Typography *context_thread_typography_ = nullptr;
+    // 持有 typography 的两个槽位：
+    //  - main_thread_typography_:    主线程使用（Paint/SpanIndex 等）；
+    //  - context_thread_typography_: context 线程使用（Layout/SpanRect 计算）。
+    // 都使用 KRTypographyHandle（shared_ptr）持有，跨线程任何角色都通过
+    // 拷贝该 handle 来"延长寿命"，避免任意一端的 reset/replace 释放对方仍
+    // 在使用的对象。
+    KRTypographyHandle main_thread_typography_;
+    KRTypographyHandle context_thread_typography_;
     float context_thread_drawOffsetX_ = 0;
     float context_thread_drawOffsetY_ = 0;
     float main_thread_drawOffsetX_ = 0;
@@ -176,11 +299,24 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     std::shared_ptr<KRParagraph> paragraph_;
     KRSpinLock paragraph_lock_;
     std::shared_ptr<kuikly::util::KRLinearGradientParser> text_linearGradient_;
-    
+
+    // ===== Phase 4: image span 绘制相关 =====
+    // image_draw_records_ 仅由 BuildTextTypography 在 context 线程构造，主线程读取（OnForegroundDraw）。
+    // 重建（SetProp("values") -> Measure -> BuildTextTypography）时整体覆盖，无并发改写问题。
+    // pixmap 缓存已迁移至 KRCustomEmojiPixmapCache（进程级单例 + LRU 128）。
+    std::vector<KRImageDrawRecord> image_draw_records_;
+    std::mutex image_loaded_callback_mutex_;
+    ImageLoadedCallback image_loaded_callback_;
+
     void SetParagraph(std::shared_ptr<KRParagraph> paragraph){
         KRScopedSpinLock lock(&paragraph_lock_);
         paragraph_ = paragraph;
     }
+    /**
+     * 在 context 线程调用：根据当前属性构造一个新的 typography 并赋给
+     * context_thread_typography_，返回值依旧返回裸指针（仅供调用栈内立即
+     * 使用，生命周期由 context_thread_typography_ 管理）。
+     */
     OH_Drawing_Typography *BuildTextTypography(double constraint_width, double constraint_height);
 
     void ReleaseLastTypography();
@@ -190,6 +326,9 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     KRAnyValue SpanRect(int spanIndex);
 
     int SpanIndexAt(float x, float y);
+    int ResolveLongPressSpanIndex(const KRRenderValueMap &params);
+    bool IsLongPressTerminalState(const KRRenderValueMap &params) const;
+    int active_long_press_span_index_ = -1;
 
     friend class KRRichTextView;
     friend class KRGradientRichTextShadow;

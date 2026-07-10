@@ -24,10 +24,12 @@ import com.tencent.kuikly.core.base.ScopeMarker
 import com.tencent.kuikly.core.base.Size
 import com.tencent.kuikly.core.base.ViewConst
 import com.tencent.kuikly.core.base.ViewContainer
+import com.tencent.kuikly.core.base.attr.ColorMatrix
 import com.tencent.kuikly.core.base.attr.IImageAttr
 import com.tencent.kuikly.core.base.attr.ImageUri
 import com.tencent.kuikly.core.base.domChildren
 import com.tencent.kuikly.core.base.event.ClickParams
+import com.tencent.kuikly.core.base.event.LongPressParams
 import com.tencent.kuikly.core.base.event.addLayoutFrameDidChange
 import com.tencent.kuikly.core.base.isVirtualView
 import com.tencent.kuikly.core.collection.fastArrayListOf
@@ -348,7 +350,7 @@ open class RichTextAttr : TextAttr() {
     fun spans(spans: ArrayList<ISpan>) {
         this.spans = spans
         spans.forEach {
-            addSpanClickIfNeed(it)
+            addSpanHandlerIfNeed(it)
         }
         setNeedLayout()
     }
@@ -378,7 +380,12 @@ open class RichTextAttr : TextAttr() {
             return
         }
         spans.add(span)
+        addSpanHandlerIfNeed(span)
+    }
+
+    internal fun addSpanHandlerIfNeed(span: ISpan) {
         addSpanClickIfNeed(span)
+        addSpanLongPressIfNeed(span)
     }
 
     internal fun addSpanClickIfNeed(span: ISpan) {
@@ -396,6 +403,22 @@ open class RichTextAttr : TextAttr() {
             }
         }
     }
+
+    internal fun addSpanLongPressIfNeed(span: ISpan) {
+        if (span.hasLongPressEvent()) {
+            val event = (view() as? RichTextView)?.getViewEvent()
+            if (event?.hasInterceptLongPress() == true) {
+                return
+            }
+            event?.interceptLongPress { longPressParams ->
+                val index = (longPressParams.params as? JSONObject)?.optInt("index")
+                if (index != null && spans.count() > index && index >= 0) {
+                    return@interceptLongPress spans[index].performLongPressHandler(longPressParams)
+                }
+                return@interceptLongPress false
+            }
+        }
+    }
 }
 
 @ScopeMarker
@@ -404,19 +427,22 @@ interface ISpan {
     abstract fun spanPropsMap(): Map<String, Any>
     abstract fun performClickHandler(clickParams: ClickParams): Boolean
     abstract fun hasClickEvent(): Boolean
+    fun performLongPressHandler(longPressParams: LongPressParams): Boolean { return false }
+    fun hasLongPressEvent(): Boolean { return false }
     abstract fun willDestroy()
 }
 
 open class TextSpan : TextAttr(), ISpan {
     internal var text: String = ""
     private var clickHandlerFn: ((ClickParams) -> Unit)? = null
+    private var longPressHandlerFn: ((LongPressParams) -> Unit)? = null
 
-    /**
-     * 单击事件的定义
-     * @param handler 事件处理函数
-     */
     fun click(handler: (ClickParams) -> Unit) {
         clickHandlerFn = handler
+    }
+
+    fun longPress(handler: (LongPressParams) -> Unit) {
+        longPressHandlerFn = handler
     }
 
     override fun text(text: String): TextAttr {
@@ -436,6 +462,15 @@ open class TextSpan : TextAttr(), ISpan {
     override fun performClickHandler(clickParams: ClickParams): Boolean {
         clickHandlerFn?.invoke(clickParams)
         return clickHandlerFn != null
+    }
+
+    override fun hasLongPressEvent(): Boolean {
+        return longPressHandlerFn != null
+    }
+
+    override fun performLongPressHandler(longPressParams: LongPressParams): Boolean {
+        longPressHandlerFn?.invoke(longPressParams)
+        return longPressHandlerFn != null
     }
 
     // ISpan
@@ -466,9 +501,13 @@ open class PlaceholderSpan : ISpan {
         const val PROP_KEY_PLACEHOLDER_WIDTH = "placeholderWidth"
         const val PROP_KEY_PLACEHOLDER_HEIGHT = "placeholderHeight"
         const val PROP_KEY_PLACEHOLDER_TEXT = "text"
+        private val REGEX_CONTROL_CHARACTERS by lazy(LazyThreadSafetyMode.NONE) {
+            Regex("\\p{Cc}")
+        }
     }
 
     private var placeholderSize: Size = Size(0f, 0f)
+    private var description: String = " "
     internal var spanFrameDidChangedHandlerFn: ((Frame) -> Unit)? = null
     var spanFrame: Frame = Frame.zero
         set(value) {
@@ -480,6 +519,10 @@ open class PlaceholderSpan : ISpan {
 
     fun placeholderSize(width: Float, height: Float) {
         placeholderSize = Size(width, height)
+    }
+
+    fun description(description: String) {
+        this.description = description.replace(REGEX_CONTROL_CHARACTERS, " ")
     }
 
     fun spanFrameDidChanged(handler: (frame: Frame) -> Unit) {
@@ -494,7 +537,7 @@ open class PlaceholderSpan : ISpan {
         return fastHashMapOf<String, Any>().apply {
             put(PROP_KEY_PLACEHOLDER_WIDTH, placeholderSize.width)
             put(PROP_KEY_PLACEHOLDER_HEIGHT, placeholderSize.height)
-            put(PROP_KEY_PLACEHOLDER_TEXT, " ")
+            put(PROP_KEY_PLACEHOLDER_TEXT, description)
         }
     }
 
@@ -503,6 +546,14 @@ open class PlaceholderSpan : ISpan {
     }
 
     override fun hasClickEvent(): Boolean {
+        return false
+    }
+
+    override fun performLongPressHandler(longPressParams: LongPressParams): Boolean {
+        return false
+    }
+
+    override fun hasLongPressEvent(): Boolean {
         return false
     }
 
@@ -531,6 +582,7 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
     private var resizeMode: String = ""
     private var blurRadius: Float = 0f
     private var tintColor: Color? = null
+    private var colorFilter: ColorMatrix? = null
     private var isDotNineImage: Boolean = false
     private var borderRadius = 0f
     private var capInsets: EdgeInsets = EdgeInsets.default
@@ -546,6 +598,7 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
     private var placeholderFrame by scope.observable(Frame.zero)
     private var view : ImageView? = null
     private var clickHandlerFn: ((ClickParams) -> Unit)? = null
+    private var longPressHandlerFn: ((LongPressParams) -> Unit)? = null
 
     fun size(width: Float, height: Float): IImageAttr {
         size = Size(width, height)
@@ -562,6 +615,10 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
      */
     fun click(handler: (ClickParams) -> Unit) {
         clickHandlerFn = handler
+    }
+
+    fun longPress(handler: (LongPressParams) -> Unit) {
+        longPressHandlerFn = handler
     }
 
     /**
@@ -619,6 +676,11 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
 
     override fun tintColor(color: Color?): IImageAttr {
         this.tintColor = color
+        return this
+    }
+
+    override fun colorFilter(matrix: ColorMatrix?): IImageAttr {
+        this.colorFilter = matrix
         return this
     }
 
@@ -769,10 +831,16 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
                     }
                     borderRadius(ctx.borderRadius)
                     capInsets(ctx.capInsets.top, ctx.capInsets.left, ctx.capInsets.bottom, ctx.capInsets.right)
+                    ctx.colorFilter?.also {
+                        colorFilter(it)
+                    }
                     margin(ctx.marginTop, ctx.marginLeft, ctx.marginBottom, ctx.marginRight)
                 }
                 ctx.clickHandlerFn?.also {
                     getViewEvent().click(it)
+                }
+                ctx.longPressHandlerFn?.also {
+                    getViewEvent().longPress(it)
                 }
             }
             richTextViewParent?.also {
@@ -793,11 +861,23 @@ open class ImageSpan: PlaceholderSpan(), IImageAttr {
         return clickHandlerFn != null
     }
 
+    override fun hasLongPressEvent(): Boolean {
+        return longPressHandlerFn != null
+    }
+
+    override fun performLongPressHandler(longPressParams: LongPressParams): Boolean {
+        longPressHandlerFn?.invoke(longPressParams)
+        return longPressHandlerFn != null
+    }
+
 }
 
 open class RichTextEvent : TextEvent() {
     private var interceptClickClickHandler: ((ClickParams) -> Boolean)? = null
+    private var interceptLongPressHandler: ((LongPressParams) -> Boolean)? = null
     private var didListenClick = false
+    private var didListenLongPress = false
+
     internal fun interceptClick(handler: (ClickParams) -> Boolean) {
         interceptClickClickHandler = handler
         if (!didListenClick) {
@@ -805,14 +885,34 @@ open class RichTextEvent : TextEvent() {
         }
     }
 
+    internal fun interceptLongPress(handler: (LongPressParams) -> Boolean) {
+        interceptLongPressHandler = handler
+        if (!didListenLongPress) {
+            longPress { }
+        }
+    }
+
     internal fun hasInterceptClick(): Boolean {
         return interceptClickClickHandler != null
+    }
+
+    internal fun hasInterceptLongPress(): Boolean {
+        return interceptLongPressHandler != null
     }
 
     override fun click(handler: (ClickParams) -> Unit) {
         didListenClick = true
         super.click {
             if (!(interceptClickClickHandler?.invoke(it) == true)) {
+                handler(it)
+            }
+        }
+    }
+
+    override fun longPress(handler: (LongPressParams) -> Unit) {
+        didListenLongPress = true
+        super.longPress {
+            if (!(interceptLongPressHandler?.invoke(it) == true)) {
                 handler(it)
             }
         }

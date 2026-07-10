@@ -783,7 +783,10 @@ private val propHandlers = mapOf<String, (CSSStyleDeclaration, Any, HTMLElement)
         true
     },
     KRCssConst.VISIBILITY to { cssStyle, value, _ ->
-        cssStyle.visibility = if (value.unsafeCast<Int>() == 0) "hidden" else "visible"
+        val hidden = value.unsafeCast<Int>() == 0
+        cssStyle.visibility = if (hidden) "hidden" else "visible"
+        // Align with native behavior: hidden views should not intercept touch/pointer events
+        cssStyle.asDynamic().pointerEvents = if (hidden) "none" else "auto"
         true
     },
     KRCssConst.OVERFLOW to { cssStyle, value, _ ->
@@ -1053,6 +1056,22 @@ fun setPlaceholderColor(el: HTMLElement, color: String) {
         .${uniqueClass}::placeholder { color: $color; opacity: 1; }
     """.trimIndent()
     // 插入 style 标签
+    val style = kuiklyDocument.createElement("style")
+    style.setAttribute("type", "text/css")
+    style.appendChild(kuiklyDocument.createTextNode(css))
+    kuiklyDocument.head?.appendChild(style)
+}
+
+/**
+ * Set selection color
+ */
+fun setSelectionColor(el: HTMLElement, color: String) {
+    val uniqueClass = "selcolor_" + kotlin.random.Random.nextInt(1_000_000)
+    el.classList.add(uniqueClass)
+
+    val css = """
+        .${uniqueClass}::selection { background-color: $color; }
+    """.trimIndent()
     val style = kuiklyDocument.createElement("style")
     style.setAttribute("type", "text/css")
     style.appendChild(kuiklyDocument.createTextNode(css))

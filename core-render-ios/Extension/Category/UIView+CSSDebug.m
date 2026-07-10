@@ -14,6 +14,7 @@
  */
 
 #import "UIView+CSSDebug.h"
+#import "UIView+CSS.h"
 #import <objc/runtime.h>
 
 /**
@@ -30,11 +31,46 @@
 // kotiln侧统一驱动该debug能力(重写Pager.debugUIInspector方法返回true or false打开该能力)
 - (void)setCss_debugName:(NSString *)css_debugName {
     objc_setAssociatedObject(self, @selector(css_debugName), css_debugName, OBJC_ASSOCIATION_RETAIN);
+    [self kr_updateAccessibilityIdentifier];
+    [self kr_syncAccessibilityElement];
 
 #if DEBUG
-    // 只在DEBUG环境下动态替换子类
     [UIView ktv_replaceSubclass:self debugName:css_debugName];
 #endif
+}
+
+- (BOOL)kr_isAccessibilityContainer {
+    return self.css_debugName.length > 0 && self.subviews.count > 0;
+}
+
+- (void)kr_syncAccessibilityElement {
+    if ([self kr_isAccessibilityContainer]) {
+        self.isAccessibilityElement = NO;
+        return;
+    }
+    if (self.css_testTag.length > 0 && self.subviews.count == 0) {
+        self.isAccessibilityElement = YES;
+        if (self.accessibilityTraits == UIAccessibilityTraitNone) {
+            self.accessibilityTraits = UIAccessibilityTraitButton;
+        }
+    }
+}
+
+- (void)kr_updateAccessibilityIdentifier {
+    NSString *debugName = self.css_debugName;
+    NSString *testTag = self.css_testTag;
+    NSMutableString *identifier = [NSMutableString string];
+    if (debugName.length > 0) {
+        [identifier appendString:debugName];
+    }
+    if (testTag.length > 0) {
+        if (identifier.length > 0) {
+            [identifier appendString:@" "];
+        }
+        [identifier appendString:testTag];
+    }
+    self.accessibilityIdentifier = identifier.length > 0 ? identifier : nil;
+    [self kr_syncAccessibilityElement];
 }
 
 #if DEBUG

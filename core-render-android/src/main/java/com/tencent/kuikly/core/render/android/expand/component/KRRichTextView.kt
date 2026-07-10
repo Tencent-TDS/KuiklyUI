@@ -21,8 +21,11 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Paint.FontMetricsInt
+import android.graphics.Path
 import android.graphics.Rect
+import android.graphics.RectF
 import android.graphics.Typeface
+import android.os.Build
 import android.text.Layout
 import android.text.Spannable
 import android.text.SpannableStringBuilder
@@ -42,6 +45,7 @@ import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.const.KRExtConst
 import com.tencent.kuikly.core.render.android.const.KRViewConst
 import com.tencent.kuikly.core.render.android.css.decoration.BoxShadow
+import com.tencent.kuikly.core.render.android.css.gesture.KRCSSGestureListener
 import com.tencent.kuikly.core.render.android.css.ktx.*
 import com.tencent.kuikly.core.render.android.expand.component.text.*
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderShadowExport
@@ -53,11 +57,22 @@ import kotlin.math.roundToInt
 /**
  * KTV 富文本组件，支持简单文本和富文本两种模式
  */
-class KRRichTextView(context: Context) : KRView(context) {
+class KRRichTextView(context: Context) : KRView(context), KRRichTextViewDrawer.Callback {
 
     private var richTextShadow: KRRichTextShadow? = null
-    private var textLayout: Layout? = null
+    private var textDrawer: KRRichTextViewDrawer? = null
     private var isRichTextMode = false
+    private var parentTextSelector: KRTextSelector? = null
+    private var activeLongPressSpanIndex: Int = -1
+
+    override fun onDetachedFromWindow() {
+        if (hasSelection()) {
+            parentTextSelector?.postInvalidate()
+        }
+        parentTextSelector = null
+        clearActiveLongPressSpanIndex()
+        super.onDetachedFromWindow()
+    }
 
     override val reusable: Boolean
         get() = true
@@ -79,14 +94,19 @@ class KRRichTextView(context: Context) : KRView(context) {
     override fun resetShadow() {
         super.resetShadow()
         richTextShadow = null
-        textLayout = null
+        textDrawer = null
         isRichTextMode = false
+        clearActiveLongPressSpanIndex()
+        putViewData(KRCssConst.PLAIN_TEXT_FOR_A11Y, "")
     }
 
     override fun setProp(propKey: String, propValue: Any): Boolean {
         return when (propKey) {
             KRCssConst.CLICK -> {
                 super.setProp(propKey, createRichTextClickProxy(propValue))
+            }
+            KRCssConst.LONG_PRESS -> {
+                super.setProp(propKey, createRichTextLongPressProxy(propValue))
             }
             KRCssConst.BACKGROUND_IMAGE -> { // 文字渐变在textShadow实现
                 true
@@ -103,10 +123,11 @@ class KRRichTextView(context: Context) : KRView(context) {
     }
 
     private fun drawText(canvas: Canvas) {
-       textLayout?.also {
+        textDrawer?.also {
             canvas.save()
             canvas.translate(paddingLeft.toFloat(), paddingTop.toFloat())
             it.draw(canvas)
+            parentTextSelector?.drawSelection(this, canvas)
             canvas.restore()
         }
     }
@@ -119,20 +140,60 @@ class KRRichTextView(context: Context) : KRView(context) {
                 if (!isRichTextMode) {
                     originClickCallback.invoke(result)
                 } else {
-                    originClickCallback.invoke(createRichTextCallbackParams(result))
+                    originClickCallback.invoke(createRichTextClickCallbackParams(result))
                 }
             }
         }
     }
 
-    private fun createRichTextCallbackParams(result: Any?): Map<String, Any> {
-        val map = result as Map<String, Any>
-        // 1.获取点击的坐标位置
+    private fun createRichTextLongPressProxy(propValue: Any): KuiklyRenderCallback {
+        return object : KuiklyRenderCallback {
+            val originLongPressCallback = propValue as KuiklyRenderCallback
+
+            override fun invoke(result: Any?) {
+                if (!isRichTextMode) {
+                    originLongPressCallback.invoke(result)
+                } else {
+                    originLongPressCallback.invoke(createRichTextLongPressCallbackParams(result))
+                }
+            }
+        }
+    }
+
+    private fun createRichTextClickCallbackParams(result: Any?): Map<String, Any> {
+        val map = result as MutableMap<String, Any>
+        map["index"] = findSpanIndex(map)
+        return map
+    }
+
+    private fun createRichTextLongPressCallbackParams(result: Any?): Map<String, Any> {
+        val map = result as MutableMap<String, Any>
+        val state = map[KRCSSGestureListener.EVENT_STATE] as? String
+        val spanIndex = if (state == KRCSSGestureListener.EVENT_STATE_START) {
+            resolveLongPressSpanIndex(map)
+        } else {
+            activeLongPressSpanIndex
+        }
+        map["index"] = spanIndex
+        if (state == KRCSSGestureListener.EVENT_STATE_END) {
+            clearActiveLongPressSpanIndex()
+        }
+        return map
+    }
+
+    private fun resolveLongPressSpanIndex(map: Map<String, Any>): Int {
+        val spanIndex = findSpanIndex(map)
+        activeLongPressSpanIndex = spanIndex
+        return spanIndex
+    }
+
+    private fun findSpanIndex(map: Map<String, Any>): Int {
         val x = kuiklyRenderContext.toPxF((map[KRViewConst.X] as? Float) ?: 0f)
         val y = kuiklyRenderContext.toPxF((map[KRViewConst.Y] as? Float) ?: 0f).toInt()
 
         // 2. 计算spanIndex
         var spanIndex = -1
+        val textLayout = textDrawer?.textLayout
         val line = textLayout?.getLineForVertical(y) ?: 0
         val lineLeft: Float = textLayout?.getLineLeft(line) ?: Float.MIN_VALUE
         val lineRight: Float = textLayout?.getLineRight(line) ?: Float.MAX_VALUE
@@ -147,26 +208,36 @@ class KRRichTextView(context: Context) : KRView(context) {
                 }
             }
         }
-
-        // 3.添加spanIndex参数
-        val resultMap = mutableMapOf<String, Any>()
-        resultMap.putAll(map)
-        resultMap["index"] = spanIndex
-        return resultMap
+        return spanIndex
     }
 
     private fun initTextLayout(richTextShadow: KRRichTextShadow?) {
         val textShadow = richTextShadow ?: return
-        textLayout = tryReMeasureTextLayout(textShadow, layoutParams)
+        val newTextDrawer = tryReMeasureTextLayout(textShadow, layoutParams)
+        if (newTextDrawer != textDrawer) {
+            textDrawer?.setCallback(null)
+            if (hasSelection()) {
+                parentTextSelector?.postInvalidate()
+            }
+            newTextDrawer?.setCallback(this)
+            textDrawer = newTextDrawer
+            // Store plain text so the shared accessibilityDelegate can expose it as info.text,
+            // without overriding contentDescription (which carries debugName for view-tree class resolution)
+            val plainText = newTextDrawer?.textLayout?.text?.toString() ?: ""
+            putViewData(KRCssConst.PLAIN_TEXT_FOR_A11Y, plainText)
+            if (hasDebugName()) {
+                initAccessibilityDelegateIfNeeded()
+            }
+        }
     }
 
-    private fun tryReMeasureTextLayout(textShadow: KRRichTextShadow, layoutParams: ViewGroup.LayoutParams?): Layout? {
-        val lp = layoutParams ?: return textShadow.textLayout
+    private fun tryReMeasureTextLayout(textShadow: KRRichTextShadow, layoutParams: ViewGroup.LayoutParams?): KRRichTextViewDrawer? {
+        val lp = layoutParams ?: return textShadow.textDrawer
 
         if (needReMeasureTextLayout(lp, textShadow)) {
             textShadow.measureLayoutExactly(SizeF(lp.width.toFloat(), lp.height.toFloat()))
         }
-        return textShadow.textLayout
+        return textShadow.textDrawer
     }
 
     /**
@@ -179,7 +250,7 @@ class KRRichTextView(context: Context) : KRView(context) {
         layoutParams: ViewGroup.LayoutParams,
         textShadow: KRRichTextShadow
     ): Boolean {
-        val textLayout = textShadow.textLayout
+        val textLayout = textShadow.textDrawer?.textLayout
         if (textLayout == null || layoutParamsNotHasSize(layoutParams)) {
             return false
         }
@@ -189,6 +260,84 @@ class KRRichTextView(context: Context) : KRView(context) {
     private fun layoutParamsNotHasSize(params: ViewGroup.LayoutParams): Boolean =
         params.width == ViewGroup.LayoutParams.MATCH_PARENT || params.width == ViewGroup.LayoutParams.WRAP_CONTENT
                 || params.width == 0
+
+    private fun clearActiveLongPressSpanIndex() {
+        activeLongPressSpanIndex = -1
+    }
+
+    /**
+     * Returns the length, in characters
+     */
+    fun length(): Int {
+        return textDrawer?.textLayout?.text?.length ?: 0
+    }
+
+    /**
+     * set selection by one point coordinate
+     */
+    internal fun setSelectionByCoordinate(
+        textSelector: KRTextSelector,
+        x: Float,
+        y: Float,
+        type: SelectionType,
+        force: Boolean = false
+    ): Boolean {
+        val hasSelection = textDrawer?.setSelectionByCoordinate(x, y, type, force) ?: false
+        parentTextSelector = if (hasSelection) textSelector else null
+        return hasSelection
+    }
+
+    /**
+     * set selection by two point coordinates
+     */
+    internal fun setSelectionByCoordinates(
+        textSelector: KRTextSelector,
+        x1: Float,
+        y1: Float,
+        x2: Float,
+        y2: Float,
+        force: Boolean = false
+    ): Boolean {
+        val hasSelection = textDrawer?.setSelectionByCoordinates(x1, y1, x2, y2, force) ?: false
+        parentTextSelector = if (hasSelection) textSelector else null
+        return hasSelection
+    }
+
+    internal fun setSelectAll(textSelector: KRTextSelector): Boolean {
+        val hasSelection = textDrawer?.setSelectAll() ?: false
+        parentTextSelector = if (hasSelection) textSelector else null
+        return hasSelection
+    }
+
+    internal fun hasSelection(): Boolean = textDrawer?.hasSelection ?: false
+
+    internal fun clearSelection() {
+        textDrawer?.clearSelection()
+        parentTextSelector = null
+    }
+
+    internal fun getStartSelectionEdge(): SelectionEdge = textDrawer!!.getStartSelectionEdge()
+
+    internal fun getEndSelectionEdge(): SelectionEdge = textDrawer!!.getEndSelectionEdge()
+
+    internal fun getSelectionRect(dest: RectF): Boolean =
+        textDrawer?.getSelectionRect(dest) ?: false
+
+    /**
+     * get selection path
+     *
+     * @return weather has selection
+     */
+    internal fun getSelectionPath(dest: Path): Boolean =
+        textDrawer?.getSelectionPath(dest) ?: false
+
+    internal fun getSelectionText(): String = textDrawer?.getSelectionText() ?: ""
+
+    internal fun getPreSelectionText(): String = textDrawer?.getPreSelectionText() ?: ""
+
+    internal fun getPostSelectionText(): String = textDrawer?.getPostSelectionText() ?: ""
+
+    internal fun getText(): String = textDrawer?.textLayout?.text?.toString() ?: ""
 
     companion object {
         const val VIEW_NAME = "KRRichTextView"
@@ -397,14 +546,14 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
     private var textProps = KRTextProps(null)
 
     /**
-     * 文本Layout, 目前实现为StaticLayout
+     * 文本绘制器，封装了文本的 Layout（目前实现为 StaticLayout）
      */
-    var textLayout: Layout? = null
+    internal var textDrawer: KRRichTextViewDrawer? = null
 
     /**
      * 是否是富文本形式
      */
-    var isRichTextMode = false	
+    var isRichTextMode = false
 
     private val textPaint by lazy {
         // kuiklyRenderContext是在KRRichTextShadow创建后才赋值的，因此这里需要 lazy，保证获取textPaint
@@ -466,7 +615,7 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
      */
     private fun getPlaceholderSpanRect(index: Int) : Rect {
         var rect = Rect(0, 0, 0, 0)
-        textLayout?.let { layout ->
+        textDrawer?.textLayout?.let { layout ->
             var phSpanTextRange: SpanTextRange? = spanTextRanges.find { it.index == index }
 
             if (phSpanTextRange != null) {
@@ -518,7 +667,7 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
 
     override fun calculateRenderViewSize(constraintSize: SizeF): SizeF {
         val layout = buildLayout(constraintSize, TextMeasureMode.AT_MOST)
-        textLayout = layout
+        textDrawer = layout?.let { KRRichTextViewDrawer(it) }
         return if (layout == null) {
             SizeF(0f, 0f)
         } else {
@@ -531,7 +680,7 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
      * @param constraintSize 指定的文本大小
      */
     fun measureLayoutExactly(constraintSize: SizeF) {
-        textLayout = buildLayout(constraintSize, TextMeasureMode.EXACTLY)
+        textDrawer = buildLayout(constraintSize, TextMeasureMode.EXACTLY)?.let { KRRichTextViewDrawer(it) }
     }
 
     private fun buildLayout(constraintSize: SizeF, measureMode: TextMeasureMode): Layout? {
@@ -622,7 +771,7 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
         val newSpanTextRanges = mutableListOf<SpanTextRange>()
         val richTextBuilder = KRRichTextBuilder(kuiklyRenderContext)
         val result = richTextBuilder.build(textProps, newSpanTextRanges) {
-            val layout = textLayout
+            val layout = textDrawer?.textLayout
             if (layout == null) {
                 SizeF(0f, 0f)
             } else {
@@ -663,7 +812,9 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
             text
         }
         val desiredWidth = getDesiredWith(textSource, constraintSize, measureMode)
-        if (!isBeforeM) {
+        val shouldUseLegacyLineBreakMarginCompat =
+            textProps.lineBreakMargin != 0f && isNougatLineBreakMarginCompat()
+        if (!isBeforeM && !shouldUseLegacyLineBreakMarginCompat) {
             val builder = createStaticLayoutBuilder(textSource, desiredWidth)
             if (textProps.numberOfLines > 0 && textProps.lineBreakMargin == 0f) {
                 builder.setMaxLines(textProps.numberOfLines)
@@ -727,6 +878,11 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
         return array
     }
 
+    private fun isNougatLineBreakMarginCompat(): Boolean {
+        return Build.VERSION.SDK_INT == Build.VERSION_CODES.N ||
+            Build.VERSION.SDK_INT == Build.VERSION_CODES.N_MR1
+    }
+
     private fun getDesiredWith(
         text: CharSequence,
         constraintSize: SizeF,
@@ -749,7 +905,7 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
 
     private fun createLinearGradientForegroundSpan(backgroundImage: String): LinearGradientForegroundSpan {
         return LinearGradientForegroundSpan(backgroundImage) {
-            val layout = textLayout
+            val layout = textDrawer?.textLayout
             if (layout == null) {
                 SizeF(0f, 0f)
             } else {
@@ -771,3 +927,17 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
         private const val METHOD_IS_LINE_BREAK_MARGIN = "isLineBreakMargin"
     }
 }
+
+enum class SelectionType {
+    CHARACTER,
+    WORD,
+    PARAGRAPH,
+    SENTENCE,
+    SPAN
+}
+
+data class SelectionEdge(
+    val x: Float,
+    val top: Float,
+    val bottom: Float
+)

@@ -908,6 +908,162 @@ internal fun ViewContainer<*, *>.TextExampleLineHeight(init: TextExampleLineHeig
     addChild(TextExampleLineHeight(), init)
 }
 
+internal class TextExampleLineHeightVerticalAlignment: ComposeView<ComposeAttr, ComposeEvent>() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                flexDirectionColumn()
+                justifyContentFlexStart()
+                padding(all = 16f)
+            }
+            
+            // 标题说明
+            Text {
+                attr {
+                    text("单行文本lineHeight垂直居中问题测试")
+                    fontSize(16f)
+                    fontWeightBold()
+                    color(Color.BLACK)
+                    marginBottom(10f)
+                }
+            }
+            
+            // 测试用例1: 小字体 + 大lineHeight
+            Text {
+                attr {
+                    text("小字体(12px) + 大lineHeight(30px)")
+                    fontSize(12f)
+                    lineHeight(30f)
+                    backgroundColor(0xFFF0E68C) // 浅黄色背景
+                    height(30f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 测试用例2: 中等字体 + 大lineHeight
+            Text {
+                attr {
+                    text("中等字体(16px) + 大lineHeight(40px)")
+                    fontSize(16f)
+                    lineHeight(40f)
+                    backgroundColor(0xFFADD8E6) // 浅蓝色背景
+                    height(40f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 测试用例3: 大字体 + 大lineHeight
+            Text {
+                attr {
+                    text("大字体(24px) + 大lineHeight(50px)")
+                    fontSize(24f)
+                    lineHeight(50f)
+                    backgroundColor(0xFFFFA07A) // 浅橙色背景
+                    height(50f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 测试用例4: 正常字体 + 正常lineHeight（作为对比）
+            Text {
+                attr {
+                    text("正常字体(16px) + 正常lineHeight(20px)")
+                    fontSize(16f)
+                    lineHeight(20f)
+                    backgroundColor(0xFFEEEEEE) // 灰色背景
+                    height(20f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 测试用例5: 极端情况 - 字体很小，lineHeight很大
+            Text {
+                attr {
+                    text("极小字体(8px) + 极大lineHeight(60px)")
+                    fontSize(8f)
+                    lineHeight(60f)
+                    backgroundColor(0xFFD8BFD8) // 浅紫色背景
+                    height(60f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 测试用例6: 英文文本测试
+            Text {
+                attr {
+                    text("English Text (16px) + lineHeight(35px)")
+                    fontSize(16f)
+                    lineHeight(35f)
+                    backgroundColor(0xFF98FB98) // 浅绿色背景
+                    height(35f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 测试用例7: 混合文本测试
+            Text {
+                attr {
+                    text("中英文混合ABC中文 (18px) + lineHeight(45px)")
+                    fontSize(18f)
+                    lineHeight(45f)
+                    backgroundColor(0xFFFFD700) // 金色背景
+                    height(45f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 测试用例8: 无lineHeight设置（基准对比）
+            Text {
+                attr {
+                    text("无lineHeight设置 (16px) - 基准对比")
+                    fontSize(16f)
+                    backgroundColor(0xFFF5F5DC) // 米色背景
+                    height(20f)
+                    textAlignCenter()
+                    marginBottom(5f)
+                }
+            }
+            
+            // 说明文字
+            Text {
+                attr {
+                    text("问题描述：单行文本设置lineHeight时，文字在鸿蒙上可能显示不居中")
+                    fontSize(12f)
+                    color(Color.GRAY)
+                    marginTop(10f)
+                }
+            }
+            Text {
+                attr {
+                    text("预期效果：文字应该在背景色区域内垂直居中显示")
+                    fontSize(12f)
+                    color(Color.GRAY)
+                    marginBottom(10f)
+                }
+            }
+        }
+    }
+
+    override fun createAttr(): ComposeAttr {
+        return ComposeAttr()
+    }
+
+    override fun createEvent(): ComposeEvent {
+        return ComposeEvent()
+    }
+}
+
+internal fun ViewContainer<*, *>.TextExampleLineHeightVerticalAlignment(init: TextExampleLineHeightVerticalAlignment.() -> Unit) {
+    addChild(TextExampleLineHeightVerticalAlignment(), init)
+}
+
 internal class TextExampleLetterSpacing: ComposeView<ComposeAttr, ComposeEvent>() {
     override fun body(): ViewBuilder {
         return {
@@ -983,6 +1139,151 @@ internal class TextExampleLetterSpacing: ComposeView<ComposeAttr, ComposeEvent>(
 
 internal fun ViewContainer<*, *>.TextExampleLetterSpacing(init: TextExampleLetterSpacing.() -> Unit) {
     addChild(TextExampleLetterSpacing(), init)
+}
+
+internal class TextExampleEmoji: ComposeView<ComposeAttr, ComposeEvent>() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                flexDirectionColumn()
+                justifyContentFlexStart()
+                padding(all = 16f)
+            }
+
+            // ---- Single-line: pure emoji ----
+            Text {
+                attr {
+                    text("😀😃😄😁😆😅🤣😂🙂🙃😉😊")
+                    fontSize(18f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+
+            // ---- Single-line: emoji + Chinese + English mixed ----
+            Text {
+                attr {
+                    text("Hello 🌍 你好世界 🚀 Kuikly 👋")
+                    fontSize(18f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+
+            // ---- Single-line: ZWJ family / skin-tone modifiers / flags ----
+            Text {
+                attr {
+                    text("👨‍👩‍👧‍👦 family · 👍🏻👍🏼👍🏽👍🏾👍🏿 · 🇨🇳🇨🇳🇨🇳")
+                    fontSize(18f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+
+            // ---- Single-line: emoji + letterSpacing ----
+            Text {
+                attr {
+                    text("letterSpacing(4) 🍎🍊🍋🍌🍉 Hi")
+                    fontSize(16f)
+                    letterSpacing(4f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+
+            // ---- Multi-line via "\n" ----
+            Text {
+                attr {
+                    text("第一行 😀 Hello\n第二行 🚀 Kuikly\n第三行 🌍 你好世界")
+                    fontSize(18f)
+                    backgroundColor(0xFFEEEEEE)
+                    marginBottom(5f)
+                }
+            }
+
+            // ---- Multi-line via word-break (long content + narrow width) ----
+            Text {
+                attr {
+                    text("这是一段较长的包含emoji的文本😀😃😄😁，用于演示自动折行时的高度测量是否准确🚀🌍👋，再加点内容保证一定会换到第三行甚至第四行🍎🍊🍋🍌🍉。")
+                    fontSize(15f)
+                    lineHeight(22f)
+                    backgroundColor(0xFFF0E68C)
+                    marginBottom(5f)
+                }
+            }
+
+            // ---- Multi-line: long pure emoji string ----
+            Text {
+                attr {
+                    text("😀😃😄😁😆😅🤣😂🙂🙃😉😊😇🥰😍🤩😘😗😚😙🥲😋😛😜🤪😝🤑🤗🤭🤫🤔")
+                    fontSize(20f)
+                    backgroundColor(0xFFADD8E6)
+                    marginBottom(5f)
+                }
+            }
+
+            // ---- Rich text: emoji across multiple spans, mixed font size ----
+            RichText {
+                attr {
+                    backgroundColor(0xFFFFA07A)
+                    marginBottom(5f)
+                    lineHeight(24f)
+                }
+                Span {
+                    fontSize(14f)
+                    text("RichText ")
+                }
+                Span {
+                    fontSize(20f)
+                    color(Color(0xFFEE3333))
+                    text("含 emoji 😀 ")
+                }
+                Span {
+                    fontSize(16f)
+                    text("跨段落混排 🚀 你好 🌍 ")
+                }
+                Span {
+                    fontSize(22f)
+                    fontWeightBold()
+                    text("Kuikly 👋👨‍👩‍👧‍👦")
+                }
+            }
+
+            // ---- Rich text: forces multiple lines + emoji ----
+            RichText {
+                attr {
+                    backgroundColor(0xFFF0E68C)
+                    marginBottom(5f)
+                    lineHeight(20f)
+                }
+                Span {
+                    fontSize(15f)
+                    text("RichText 多行 emoji 测量验证：😀😃😄😁😆😅🤣😂🙂🙃，")
+                }
+                Span {
+                    fontSize(18f)
+                    color(Color(0xFF205AEF))
+                    text("中间一段大字号 🌍🚀，")
+                }
+                Span {
+                    fontSize(15f)
+                    text("再回到正常字号 👋 让总宽度足够换到第三行 🍎🍊🍋🍌🍉。")
+                }
+            }
+        }
+    }
+
+    override fun createAttr(): ComposeAttr {
+        return ComposeAttr()
+    }
+
+    override fun createEvent(): ComposeEvent {
+        return ComposeEvent()
+    }
+}
+
+internal fun ViewContainer<*, *>.TextExampleEmoji(init: TextExampleEmoji.() -> Unit) {
+    addChild(TextExampleEmoji(), init)
 }
 
 internal class TextExampleLineBreakMargin: ComposeView<ComposeAttr, ComposeEvent>() {
@@ -1187,8 +1488,12 @@ internal class TextExamplePage: BasePager() {
                 TextExampleLineHeight {  }
                 ViewExampleSectionHeader { attr { title = "LetterSpacing" } }
                 TextExampleLetterSpacing {  }
+                ViewExampleSectionHeader { attr { title = "Emoji" } }
+                TextExampleEmoji {  }
                 ViewExampleSectionHeader { attr { title = "LineBreakMargin & onLineBreakMargin" } }
                 TextExampleLineBreakMargin {  }
+                ViewExampleSectionHeader { attr { title = "单行文本lineHeight垂直居中问题测试" } }
+                TextExampleLineHeightVerticalAlignment {  }
             }
         }
     }

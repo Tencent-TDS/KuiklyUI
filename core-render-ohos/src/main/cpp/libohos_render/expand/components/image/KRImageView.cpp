@@ -17,6 +17,7 @@
 
 #include <deviceinfo.h>
 #include <resourcemanager/ohresmgr.h>
+#include <sstream>
 #include <string_view>
 #include "libohos_render/api/src/KRAnyDataInternal.h"
 #include "libohos_render/expand/components/image/KRImageAdapterManager.h"
@@ -44,6 +45,7 @@ constexpr char kPropNameDragEnable[] = "dragEnable";
 
 constexpr char kPropNameBlurRadius[] = "blurRadius";
 constexpr char kPropNameTintColor[] = "tintColor";
+constexpr char kPropNameColorFilter[] = "colorFilter";
 constexpr char kPropNameCapInsets[] = "capInsets";
 constexpr char kPropNameDotNineImage[] = "dotNineImage";
 constexpr char kPropNameImageParams[] = "imageParams";
@@ -109,6 +111,8 @@ bool KRImageView::SetProp(const std::string &prop_key, const KRAnyValue &prop_va
         didHanded = SetBlurRadius(prop_value);
     } else if (kuikly::util::isEqual(prop_key, kPropNameTintColor)) {
         didHanded = SetTintColor(prop_value);
+    } else if (kuikly::util::isEqual(prop_key, kPropNameColorFilter)) {
+        didHanded = SetColorFilter(prop_value);
     } else if (kuikly::util::isEqual(prop_key, kPropNameCapInsets)) {
         didHanded = SetCapInsets(prop_value);
     } else if (kuikly::util::isEqual(prop_key, kPropNameDotNineImage)) {
@@ -133,6 +137,8 @@ bool KRImageView::ResetProp(const std::string &prop_key) {
     auto didHanded = false;
     if (kuikly::util::isEqual(prop_key, kPropNameSrc)) {
         image_src_ = "";
+        has_loaded_image_ = false;
+        loaded_image_size_ = {};
         kuikly::util::ResetArkUIImageSrc(GetNode());
         didHanded = true;
     } else if (kuikly::util::isEqual(prop_key, kPropNameResize)) {
@@ -144,6 +150,8 @@ bool KRImageView::ResetProp(const std::string &prop_key) {
     } else if (kuikly::util::isEqual(prop_key, kPropNameTintColor)) {
         kuikly::util::ResetArkUIImageTintColor(GetNode());
         didHanded = true;
+    } else if (kuikly::util::isEqual(prop_key, kPropNameColorFilter)) {
+        didHanded = ResetColorFilter();
     } else if (kuikly::util::isEqual(prop_key, kPropNameCapInsets)) {
         kuikly::util::ResetArkUIImageCapInsets(GetNode());
         didHanded = true;
@@ -216,6 +224,8 @@ bool KRImageView::SetImageSrc(const KRAnyValue &value) {
 
     kuikly::util::ResetArkUIImageSrc(GetNode());
     image_src_ = src;
+    has_loaded_image_ = false;
+    loaded_image_size_ = {};
     
     // 优先使用 V3 adapter（支持 imageParams）
     if (auto imageAdapterV3 = KRImageAdapterManager::GetInstance()->GetAdapterV3()) {
@@ -314,6 +324,32 @@ bool KRImageView::SetTintColor(const KRAnyValue &value) {
     return true;
 }
 
+bool KRImageView::SetColorFilter(const KRAnyValue &value) {
+    std::string matrix_str = value->toString();
+    if (matrix_str.empty()) {
+        kuikly::util::ResetArkUIImageColorFilter(GetNode());
+        return true;
+    }
+    std::vector<float> matrix;
+    matrix.reserve(20);
+    std::istringstream ss(matrix_str);
+    std::string token;
+    while (std::getline(ss, token, '|')) {
+        try {
+            matrix.push_back(std::stof(token));
+        } catch (...) {
+            matrix.push_back(0.f);
+        }
+    }
+    kuikly::util::SetArkUIImageColorFilter(GetNode(), matrix);
+    return true;
+}
+
+bool KRImageView::ResetColorFilter() {
+    kuikly::util::ResetArkUIImageColorFilter(GetNode());
+    return true;
+}
+
 static ArkUI_NodeHandle CreateNodeBackgroundImage(const std::string &cssBackgroundImage) {
     ArkUI_NodeHandle node = kuikly::util::GetNodeApi()->createNode(ARKUI_NODE_STACK);
     auto nodeAPI = kuikly::util::GetNodeApi();
@@ -378,25 +414,37 @@ bool KRImageView::SetCapInsets(const KRAnyValue &value) {
 bool KRImageView::SetDotNineImage(const KRAnyValue &value) {
     this->is_dot_nine_image_ = value->toBool();
     if (this->is_dot_nine_image_) {
-        RegisterLoadSuccessCallback(load_success_callback_);
+        EnsureLoadCompleteEventRegistered();
     }
     return true;
 }
 
-bool KRImageView::RegisterLoadSuccessCallback(const KRRenderCallback &event_callback) {
-    load_success_callback_ = event_callback;
+void KRImageView::EnsureLoadCompleteEventRegistered() {
     if (!had_register_on_complete_event_) {
         RegisterEvent(NODE_IMAGE_ON_COMPLETE);
         had_register_on_complete_event_ = true;
+    }
+}
+
+bool KRImageView::RegisterLoadSuccessCallback(const KRRenderCallback &event_callback) {
+    load_success_callback_ = event_callback;
+    EnsureLoadCompleteEventRegistered();
+    if (load_success_callback_ && has_loaded_image_) {
+        KRRenderValueMap map;
+        map[kPropNameSrc] = NewKRRenderValue(image_src_);
+        load_success_callback_(NewKRRenderValue(map));
     }
     return true;
 }
 
 bool KRImageView::RegisterLoadResolutionCallback(const KRRenderCallback &event_callback) {
     load_resolution_callback_ = event_callback;
-    if (!had_register_on_complete_event_) {
-        RegisterEvent(NODE_IMAGE_ON_COMPLETE);
-        had_register_on_complete_event_ = true;
+    EnsureLoadCompleteEventRegistered();
+    if (load_resolution_callback_ && has_loaded_image_) {
+        KRRenderValueMap map;
+        map[kParamKeyImageWidth] = NewKRRenderValue(loaded_image_size_.width);
+        map[kParamKeyImageHeight] = NewKRRenderValue(loaded_image_size_.height);
+        load_resolution_callback_(NewKRRenderValue(map));
     }
     return true;
 }
@@ -424,15 +472,16 @@ void KRImageView::FireOnImageCompleteEvent(ArkUI_NodeEvent *event) {
     if (!kuikly::util::IsImageLoadSuccessStatus(event)) {
         return;
     }
-    
-    
+
+    loaded_image_size_ = kuikly::util::GetArkUINodeImagePicSize(event);
+    has_loaded_image_ = true;
+
     if (this->is_dot_nine_image_) {
-        auto image_size = kuikly::util::GetArkUINodeImagePicSize(event);
         double dpi = KRConfig::GetDpi();
-        float top = image_size.height * 0.5 / dpi;
-        float left = image_size.width * 0.5 / dpi;
-        float bottom = (image_size.height * 0.5 - 1) / dpi;
-        float right = (image_size.width * 0.5 - 1) / dpi;
+        float top = loaded_image_size_.height * 0.5 / dpi;
+        float left = loaded_image_size_.width * 0.5 / dpi;
+        float bottom = (loaded_image_size_.height * 0.5 - 1) / dpi;
+        float right = (loaded_image_size_.width * 0.5 - 1) / dpi;
         kuikly::util::SetArkUIImageCapInsets(GetNode(), top, left, bottom, right);
     }
 
@@ -443,10 +492,9 @@ void KRImageView::FireOnImageCompleteEvent(ArkUI_NodeEvent *event) {
     }
 
     if (load_resolution_callback_) {
-        auto image_size = kuikly::util::GetArkUINodeImagePicSize(event);
         KRRenderValueMap map;
-        map[kParamKeyImageWidth] = NewKRRenderValue(image_size.width);
-        map[kParamKeyImageHeight] = NewKRRenderValue(image_size.height);
+        map[kParamKeyImageWidth] = NewKRRenderValue(loaded_image_size_.width);
+        map[kParamKeyImageHeight] = NewKRRenderValue(loaded_image_size_.height);
         load_resolution_callback_(NewKRRenderValue(map));
     }
 }

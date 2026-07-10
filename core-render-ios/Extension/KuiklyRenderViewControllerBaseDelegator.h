@@ -19,7 +19,7 @@
 #import "KRBackPressModule.h"
 #import "KRTurboDisplayConfig.h"
 
-typedef void (^KuiklyContextCodeCallback)(NSString * _Nullable contextCode, NSError * _Nullable error);
+typedef void (^KuiklyContextCodeCallback)(id _Nullable contextCode, NSError * _Nullable error);
 @protocol KRPerformanceDataProtocol;
 
 NS_ASSUME_NONNULL_BEGIN
@@ -82,6 +82,13 @@ FOUNDATION_EXTERN NSString *const KRPageDataSnapshotKey;
  */
 - (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data;
 /*
+ * @brief 判断事件是否需要同步发送到KuiklyKotlin侧.
+ *        默认仅 onBackPressed 同步，业务可通过 delegate override 扩展。
+ * @param event 事件名
+ * @return 是否同步发送
+ */
+- (BOOL)syncSendEvent:(NSString *)event;
+/*
  * @brief 添加对Delegator的生命周期时机监听，实现自定义hook
  * @param lifeCycleListener 监听者（内部弱引用该对象）
  */
@@ -106,14 +113,15 @@ FOUNDATION_EXTERN NSString *const KRPageDataSnapshotKey;
 - (void)fetchContextCodeWithResultCallback:(KuiklyContextCodeCallback)callback;
 /*
  * @brief 创建Kuikly接入模式实例
- * @param contextCode kmm工程打包的framework名字
+ * @param contextCode 产物数据（NSString 或 NSData）
  */
-- (KuiklyBaseContextMode *)createContextMode:(NSString * _Nullable) contextCode;
+- (KuiklyBaseContextMode *)createContextMode:(id _Nullable)contextCode;
+
 /*
  * @brief 初始化renderView
- * @param contextCode kmm工程打包的framework名字
+ * @param contextCode 产物数据（NSString 或 NSData）
  */
-- (void)initRenderViewWithContextCode:(NSString *)contextCode;
+- (void)initRenderViewWithContextCode:(id)contextCode;
 
 
 /*
@@ -197,6 +205,14 @@ FOUNDATION_EXTERN NSString *const KRPageDataSnapshotKey;
  * @return 是否同步渲染首屏
  */
 - (BOOL)syncRenderingWhenPageAppear;
+
+/*
+ * @brief 判断事件是否需要同步发送到KuiklyKotlin侧.
+ *        默认返回NO，由接入方按页面事件粒度决定。
+ * @param event 事件名
+ * @return 是否同步发送
+ */
+- (BOOL)syncSendEvent:(NSString *)event;
 
 /*
  * @brief 打开TurboDisplay渲染模式技术，实现超原生首屏性能

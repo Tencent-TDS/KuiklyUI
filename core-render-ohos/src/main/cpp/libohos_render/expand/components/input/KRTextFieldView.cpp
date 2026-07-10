@@ -21,6 +21,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <deviceinfo.h>
+#include <regex>
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,18 +40,22 @@ constexpr char *kFontWeight = "fontWeight";
 constexpr char *kColor = "color";
 constexpr char *kEditable = "editable";
 constexpr char *kTintColor = "tintColor";
+constexpr char *kSelectionColor = "selectionColor";
 constexpr char *kTextAlign = "textAlign";
 constexpr char *kKeyboardType = "keyboardType";    // 键盘类型
 constexpr char *kReturnKeyType = "returnKeyType";  // return类型
 constexpr char *kMaxTextLength = "maxTextLength";  // 最大长度
 constexpr char *kLengthLimitType = "lengthLimitType"; // 长度限制类型
 constexpr char *kAutoHideKeyBoardOnIMEAction = "autoHideKeyboardOnImeAction"; // 是否自动隐藏键盘
+constexpr char kPropTextInputState[] = "textInputState"; // 受控组件模式，与 Kotlin InputView/TextAreaView TEXT_INPUT_STATE 一致
 
 constexpr char kMethodFocus[] = "focus";
 constexpr char kMethodBlur[] = "blur";
 constexpr char kMethodSetText[] = "setText";
 constexpr char kMethodGetCursorIndex[] = "getCursorIndex";
 constexpr char kMethodSetCursorIndex[] = "setCursorIndex";
+constexpr char kMethodSetTextInputState[] = "setTextInputState";
+constexpr char kMethodGetTextInputState[] = "getTextInputState";
 
 constexpr char kEventTextDidChanged[] = "textDidChange";
 constexpr char kEventInputFocus[] = "inputFocus";
@@ -58,6 +63,17 @@ constexpr char kEventInputBlur[] = "inputBlur";
 constexpr char kEventInputReturn[] = "inputReturn";
 constexpr char kEventTextLengthBeyondLimit[] = "textLengthBeyondLimit";
 constexpr char kEventKeyboardHeightChange[] = "keyboardHeightChange";  // 键盘高度变化
+constexpr char kEventTextInputStateChange[] = "textInputStateChange"; // 与 Kotlin InputView/TextAreaView TEXT_INPUT_STATE_CHANGE 一致
+constexpr char kEventSelectionChange[] = "selectionChange"; // 与 Kotlin InputView.kt:426 / TextAreaView.kt:685 一致
+
+// textInputState JSON 协议字段名，跨端一致（参考 core/views/TextInputState.kt）
+constexpr char kKeyText[] = "text";
+constexpr char kKeySelectionStart[] = "selectionStart";
+constexpr char kKeySelectionEnd[] = "selectionEnd";
+constexpr char kKeyCompositionStart[] = "compositionStart";
+constexpr char kKeyCompositionEnd[] = "compositionEnd";
+constexpr char kKeyLength[] = "length";
+constexpr int kNoComposition = -1;
 
 ArkUI_NodeHandle KRTextFieldView::CreateNode() {
     return kuikly::util::GetNodeApi()->createNode(ARKUI_NODE_TEXT_INPUT);
@@ -72,7 +88,7 @@ void KRTextFieldView::DidInit() {
     
     // 默认软键盘不关闭
     ArkUI_NumberValue value = {.i32 = 0};
-    ArkUI_AttributeItem item = {&value, sizeof(ArkUI_NumberValue)};
+    ArkUI_AttributeItem item = {&value, 1};
     kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_INPUT_BLUR_ON_SUBMIT, &item);
     
     
@@ -103,6 +119,9 @@ void KRTextFieldView::UpdateInputNodeColor(const std::string& propValue){
 void KRTextFieldView::UpdateInputNodeCaretrColor(const std::string& propValue){
     kuikly::util::UpdateInputNodeCaretrColor(GetNode(), kuikly::util::ConvertToHexColor(propValue));
 }
+void KRTextFieldView::UpdateInputNodeSelectionColor(const std::string& propValue){
+    kuikly::util::UpdateInputNodeSelectionColor(GetNode(), kuikly::util::ConvertToHexColor(propValue));
+}
 void KRTextFieldView::UpdateInputNodeTextAlign(const std::string& propValue){
     kuikly::util::UpdateInputNodeTextAlign(GetNode(), propValue);
 }
@@ -114,6 +133,9 @@ void KRTextFieldView::UpdateInputNodeKeyboardType(const std::string& propValue){
 }
 void KRTextFieldView::UpdateInputNodeEnterKeyType(const std::string& propValue){
     kuikly::util::UpdateInputNodeEnterKeyType(GetNode(), kuikly::util::ConvertToEnterKeyType(propValue));
+}
+ArkUI_EnterKeyType KRTextFieldView::GetInputNodeEnterKeyType(){
+    return kuikly::util::GetInputNodeEnterKeyType(GetNode());
 }
 void KRTextFieldView::UpdateInputNodeMaxLength(int maxLength){
     kuikly::util::UpdateInputNodeMaxLength(GetNode(), maxLength);  // 直接限制
@@ -127,6 +149,14 @@ uint32_t KRTextFieldView::GetInputNodeSelectionStartPosition(){
 
 void KRTextFieldView::UpdateInputNodeSelectionStartPosition(uint32_t index){
     kuikly::util::UpdateInputNodeSelectionStartPosition(GetNode(), index);
+}
+
+void KRTextFieldView::UpdateInputNodeSelectionRange(int32_t start, int32_t end){
+    // 基类默认写 NODE_TEXT_INPUT_TEXT_SELECTION，KRTextAreaView 会 override 为
+    // NODE_TEXT_AREA_TEXT_SELECTION，适配 ARKUI_NODE_TEXT_AREA 节点。
+    std::array<ArkUI_NumberValue, 2> value = {{{.i32 = start}, {.i32 = end}}};
+    ArkUI_AttributeItem item = {value.data(), value.size()};
+    kuikly::util::GetNodeApi()->setAttribute(GetNode(), NODE_TEXT_INPUT_TEXT_SELECTION, &item);
 }
 
 void KRTextFieldView::UpdateInputNodePlaceholderFont(uint32_t font_size, ArkUI_FontWeight font_weight){
@@ -184,6 +214,11 @@ bool KRTextFieldView::SetProp(const std::string &prop_key, const KRAnyValue &pro
         return true;
     }
 
+    if (kuikly::util::isEqual(prop_key, kSelectionColor)) {  // 选中高亮颜色
+        UpdateInputNodeSelectionColor(prop_value->toString());
+        return true;
+    }
+
     if (kuikly::util::isEqual(prop_key, kTextAlign)) {  // 文本对齐
         UpdateInputNodeTextAlign(prop_value->toString());
         return true;
@@ -225,6 +260,12 @@ bool KRTextFieldView::SetProp(const std::string &prop_key, const KRAnyValue &pro
     
     if (kuikly::util::isEqual(prop_key, kAutoHideKeyBoardOnIMEAction)) {  // 输入长度限制
         auto_hide_KeyBoard_on_ImeAction_ = prop_value->toBool();
+        return true;
+    }
+
+    // 受控组件模式：prop 形式写入 textInputState（与 InputView.kt:58 / TextAreaView.kt:116 等价）
+    if (kuikly::util::isEqual(prop_key, kPropTextInputState)) {
+        SetTextInputStateInternal(prop_value->toString());
         return true;
     }
 
@@ -273,6 +314,20 @@ bool KRTextFieldView::SetProp(const std::string &prop_key, const KRAnyValue &pro
         return true;
     }
 
+    if (kuikly::util::isEqual(prop_key, kEventTextInputStateChange)) {  // textInputState 变化事件
+        text_input_state_change_callback_ = event_call_back;
+        // 复用 OnChange 事件源（默认已 RegisterEvent），无需额外注册
+        return true;
+    }
+
+    if (kuikly::util::isEqual(prop_key, kEventSelectionChange)) {  // 选区变化事件
+        selection_change_callback_ = event_call_back;
+        // ArkUI 老节点原生事件：单行走 NODE_TEXT_INPUT_ON_TEXT_SELECTION_CHANGE，
+        // 多行由子类 override 为 NODE_TEXT_AREA_ON_TEXT_SELECTION_CHANGE。
+        RegisterEvent(GetOnTextSelectionChangeEventType());
+        return true;
+    }
+
     return IKRRenderViewExport::SetProp(prop_key, prop_value, event_call_back);
 }
 
@@ -291,6 +346,8 @@ void KRTextFieldView::OnEvent(ArkUI_NodeEvent *event, const ArkUI_NodeEventType 
         OnPasteText(event);
     } else if (event_type == GetOnWillChangeEventType()) {
         OnWillChangeText(event);
+    } else if (event_type == GetOnTextSelectionChangeEventType()) {
+        OnTextSelectionChange(event);  // 选区变化
     } else if (event_type == ArkUI_NodeEventType::NODE_ON_DRAG_ENTER) {
         drag_entered_ = true;
     } else if (event_type == ArkUI_NodeEventType::NODE_ON_DRAG_LEAVE) {
@@ -310,6 +367,10 @@ void KRTextFieldView::CallMethod(const std::string &method, const KRAnyValue &pa
         GetCursorIndex(callback);
     } else if (kuikly::util::isEqual(method, kMethodSetCursorIndex)) {  // 设置光标位置
         SetCursorIndex(params->toInt());
+    } else if (kuikly::util::isEqual(method, kMethodSetTextInputState)) {  // 受控写入 textInputState
+        SetTextInputStateInternal(params->toString());
+    } else if (kuikly::util::isEqual(method, kMethodGetTextInputState)) {  // 读取当前 textInputState
+        GetTextInputStateInternal(callback);
     } else {
         IKRRenderViewExport::CallMethod(method, params, callback);
     }
@@ -347,6 +408,171 @@ void KRTextFieldView::GetCursorIndex(const KRRenderCallback &callback) {
 void KRTextFieldView::SetCursorIndex(uint32_t index) {
     UpdateInputNodeSelectionStartPosition(index);
 }
+
+/**
+ * 获取选区范围 [start, end]（按 UTF-16 算）。
+ * Base 实现走 NODE_TEXT_INPUT_TEXT_SELECTION；KRTextAreaView 会 override 用 NODE_TEXT_AREA_TEXT_SELECTION。
+ */
+std::pair<uint32_t, uint32_t> KRTextFieldView::GetInputNodeTextSelectionRange() {
+    return kuikly::util::GetInputNodeSelectionRange(GetNode());
+}
+
+/**
+ * 受控写入 textInputState：解析 JSON 并把 text/选区 写入 ArkUI 节点。
+ *
+ * 跨端语义参考 Android KRTextFieldView.setTextInputState：
+ *   - 仅消费 text / selectionStart / selectionEnd 三字段；
+ *   - composition 不消费；
+ *
+ * selection 通过 UpdateInputNodeSelectionRange 写入真实 [start, end] 区间
+ * （TextInput / TextArea 均支持），不再回退为折叠光标。
+ */
+void KRTextFieldView::SetTextInputStateInternal(const std::string &json) {
+    // KRRenderValue::toMap 内部调 cJSON_Parse 解析 JSON 字符串到 Map；解析失败回空 Map。
+    KRRenderValue::Map parsed = NewKRRenderValue(json)->toMap();
+
+    auto get_string = [&](const char *key) -> std::string {
+        auto it = parsed.find(key);
+        if (it == parsed.end() || it->second == nullptr) {
+            return "";
+        }
+        return it->second->toString();
+    };
+    auto get_int = [&](const char *key, int default_value) -> int {
+        auto it = parsed.find(key);
+        if (it == parsed.end() || it->second == nullptr) {
+            return default_value;
+        }
+        return it->second->toInt();
+    };
+
+    std::string text = get_string(kKeyText);
+    if (ShouldRejectProgrammaticShortcodeInput(text)) {
+        NotifyTextLengthBeyondLimit();
+        NotifyTextInputStateChange();
+        return;
+    }
+
+    // selection 用 UTF-16 长度做 clamp，与 Android 行为一致。
+    int u16_len = GetUTF16Length(text);
+    int selection_start = get_int(kKeySelectionStart, u16_len);
+    selection_start = std::max(0, std::min(selection_start, u16_len));
+    int selection_end = get_int(kKeySelectionEnd, selection_start);
+    selection_end = std::max(selection_start, std::min(selection_end, u16_len));
+
+    is_setting_text_input_state_ = true;
+    SetContentText(text);
+
+    // ⚠️ ArkUI NODE_TEXT_INPUT_TEXT/NODE_TEXT_AREA_TEXT 的 setAttribute 会在内部异步触发
+    // onChange，并把光标重置到文本末尾。如果在这里同步调用 UpdateInputNodeSelectionRange，
+    // 会被随后到来的 ArkUI 内部 caret reset 吞掉，表现为「光标永远跳到末尾」。
+    // 解决：把选区修正 post 到 next-loop，等 ArkUI 内部 onChange 完成后再设选区，
+    // 与 KRTextEditorFieldView 中 RunOnMainThreadForNextLoop 的策略一致，也与 LimitInputContentTextInMaxLength
+    // 中已有的「先改文本后异步设光标」pattern 一致。
+    // 同时 is_setting_text_input_state_ flag 也延迟到此处清除，以覆盖 SetContentText 异步触发
+    // OnTextDidChanged 的整个时窗，避免业务把"末尾光标"的脏 textInputStateChange 写回来形成回环。
+    KRMainThread::RunOnMainThreadForNextLoop(
+        [weakSelf = weak_from_this(), selection_start, selection_end]() {
+            if (auto strongSelf = std::dynamic_pointer_cast<KRTextFieldView>(weakSelf.lock())) {
+                strongSelf->UpdateInputNodeSelectionRange(static_cast<int32_t>(selection_start),
+                                                          static_cast<int32_t>(selection_end));
+                strongSelf->is_setting_text_input_state_ = false;
+                if (strongSelf->length_limit_type_ != -1) {
+                    strongSelf->NotifyTextInputStateChange();
+                }
+            }
+        });
+    // 调用方调用 setTextInputState 时已知道目标状态，但 length 依赖原生计算，需在限长模式下回传。
+}
+
+/**
+ * 拼装当前 textInputState 出参 map，与 Android createTextInputStateParamMap 对齐：
+ *   - 始终回 {text, selectionStart, selectionEnd, compositionStart=-1, compositionEnd=-1}；
+ *   - 仅当 length_limit_type_ != -1 时附带 length。
+ */
+KRRenderValueMap KRTextFieldView::CreateTextInputStateMap() {
+    auto text = GetContentText();
+    auto range = GetInputNodeTextSelectionRange();
+    int u16_len = GetUTF16Length(text);
+    int selection_start = std::min<int>(range.first, u16_len);
+    int selection_end = std::min<int>(range.second, u16_len);
+    selection_start = std::max(0, selection_start);
+    selection_end = std::max(selection_start, selection_end);
+
+    KRRenderValueMap map;
+    map[kKeyText] = NewKRRenderValue(text);
+    map[kKeySelectionStart] = NewKRRenderValue(selection_start);
+    map[kKeySelectionEnd] = NewKRRenderValue(selection_end);
+    map[kKeyCompositionStart] = NewKRRenderValue(kNoComposition);
+    map[kKeyCompositionEnd] = NewKRRenderValue(kNoComposition);
+    if (length_limit_type_ != -1) {
+        int length = CalculateTextLength(text);
+        map[kKeyLength] = NewKRRenderValue(length);
+    }
+    return map;
+}
+
+/**
+ * getTextInputState method 路径：把当前 state 通过 callback 回吐给业务。
+ */
+void KRTextFieldView::GetTextInputStateInternal(const KRRenderCallback &callback) {
+    if (callback) {
+        callback(NewKRRenderValue(CreateTextInputStateMap()));
+    }
+}
+
+/**
+ * 在 OnTextDidChanged 末尾按需触发 textInputStateChange。
+ * 主动写入期间通过 is_setting_text_input_state_ 抑制，避免业务死循环。
+ */
+void KRTextFieldView::NotifyTextInputStateChange() {
+    if (is_setting_text_input_state_) {
+        return;
+    }
+    if (!text_input_state_change_callback_) {
+        return;
+    }
+    text_input_state_change_callback_(NewKRRenderValue(CreateTextInputStateMap()));
+}
+
+/**
+ * 选区变化事件回调（与 Android KRTextFieldView.onSelectionChanged 对齐）。
+ * 出参与 textInputStateChange 完全一致（CreateTextInputStateMap）：
+ *   {text, selectionStart, selectionEnd, compositionStart=-1, compositionEnd=-1, [length]}
+ * 主动写入期间通过 is_setting_text_input_state_ 抑制。
+ */
+void KRTextFieldView::NotifySelectionChange() {
+    if (is_setting_text_input_state_) {
+        return;
+    }
+    if (!selection_change_callback_) {
+        return;
+    }
+    selection_change_callback_(NewKRRenderValue(CreateTextInputStateMap()));
+}
+
+/**
+ * 处理 ArkUI 原生选区变化事件（NODE_TEXT_INPUT_ON_TEXT_SELECTION_CHANGE /
+ * NODE_TEXT_AREA_ON_TEXT_SELECTION_CHANGE）。
+ *
+ * 事件参数：
+ *   - data[0].i32 = start position（UTF-16）
+ *   - data[1].i32 = end position（UTF-16）
+ *
+ * 注意：当前并不直接消费 event 参数（CreateTextInputStateMap 内部会通过
+ * GetInputNodeTextSelectionRange 重新拉取最新选区），这样可以保证多次回调间的
+ * 一致性，并避免事件参数与节点属性短暂不一致带来的奇怪状态。事件参数仅作为
+ * 「触发信号」存在；如果未来发现 attribute 读取与事件值不一致带来体感问题，
+ * 可以改为优先使用 event 参数构造 map。
+ *
+ * 我们同时触发 selectionChange 与 textInputStateChange，与 Compose `CoreTextField`
+ * 业务侧期望的「选区变化即可拿到完整 state」语义对齐。
+ */
+void KRTextFieldView::OnTextSelectionChange(ArkUI_NodeEvent *event) {
+    NotifySelectionChange();
+    NotifyTextInputStateChange();
+}
+
 /**
  * 设置字体（包括占位字体）
  * @param font_size
@@ -377,6 +603,9 @@ void KRTextFieldView::OnTextDidChanged(ArkUI_NodeEvent *event) {
         }
         text_did_change_callback_(NewKRRenderValue(map));
     }
+    // 同一时机触发 textInputStateChange（与 Android KRTextFieldView 一致）。
+    // 主动写入期间由 NotifyTextInputStateChange 内部抑制，避免业务回流。
+    NotifyTextInputStateChange();
 }
 
 /**
@@ -406,7 +635,7 @@ void KRTextFieldView::OnInputReturn(ArkUI_NodeEvent *event) {
     if (input_return_callback_) {
         KRRenderValueMap map;
         map["text"] = NewKRRenderValue(GetContentText());
-        auto returnKeyType = kuikly::util::GetInputNodeEnterKeyType(GetNode());
+        auto returnKeyType = GetInputNodeEnterKeyType();
         map["ime_action"] = NewKRRenderValue(kuikly::util::ConvertEnterKeyTypeToString(returnKeyType));
         input_return_callback_(NewKRRenderValue(map));
         
@@ -427,6 +656,19 @@ std::string KRTextFieldView::GetContentText() {
  */
 void KRTextFieldView::SetContentText(const std::string &text) {
     UpdateInputNodeContentText(text);
+}
+
+bool KRTextFieldView::ShouldRejectProgrammaticShortcodeInput(const std::string &text) {
+    if (length_limit_type_ < 0 || max_length_ <= 0) {
+        return false;
+    }
+
+    static const std::regex shortcode_regex(R"(\[[a-zA-Z0-9_\-]+\])");
+    if (!std::regex_search(text, shortcode_regex)) {
+        return false;
+    }
+
+    return CalculateTextLength(text) > max_length_;
 }
 
 bool KRTextFieldView::LimitInputContentTextInMaxLength() {
@@ -560,7 +802,7 @@ void KRTextFieldView::OnWillInsertText(ArkUI_NodeEvent *event) {
         OH_ArkUI_NodeEvent_GetStringValue(event, 0, &pBuffer, &size);
         // KR_LOG_DEBUG << "OnWillInsertText: to insert text: " << buffer;
         auto destText = GetContentText();
-        auto range = kuikly::util::GetInputNodeSelectionRange(GetNode());
+        auto range = GetInputNodeTextSelectionRange();
         bool filtered = filter(buffer, destText, range.first, range.second);
         if (filtered || strlen(buffer) >= MAX_INSERT_LENGTH - 1) {
             if (filtered) {
@@ -597,7 +839,7 @@ void KRTextFieldView::OnPasteText(ArkUI_NodeEvent *event) {
         strncpy(buffer, stringAsyncEvent->pStr, size);
         buffer[size] = '\0';
         auto destText = GetContentText();
-        auto range = kuikly::util::GetInputNodeSelectionRange(GetNode());
+        auto range = GetInputNodeTextSelectionRange();
         if (filter(buffer, destText, range.first, range.second)) {
             KR_LOG_DEBUG << "OnPasteText beyond limit";
             // 超过最大输入长度限制

@@ -373,7 +373,83 @@ internal class TestPage: BasePager() {
 
 :::
 
-### maskLinearGradient
+### colorFilter <Badge text="iOS暂不支持" type="warn"/>
+
+设置图片颜色矩阵滤镜（4×5 矩阵），可实现灰度、调整饱和度、亮度、对比度等效果。
+
+<div class="table-01">
+
+| 参数  | 描述     | 类型 |
+|:----|:-------|:--|
+| matrix | 4×5 颜色变换矩阵，传 null 清除滤镜 | ColorMatrix? |
+
+**ColorMatrix**
+
+颜色变换矩阵，以行优先顺序存储 20 个浮点数。可通过以下方式创建：
+
+| 方式  | 描述     |
+|:----|:-------|
+| `ColorMatrix.rec709Gray` | 预设灰度矩阵（ITU-R BT.709） |
+| `ColorMatrix.identity` | 单位矩阵（无变换） |
+| `ColorMatrix(floatArrayOf(...))` | 自定义 20 个浮点数 |
+| `ColorMatrixConfig(...).toColorMatrix()` | 通过语义化参数生成 |
+
+**ColorMatrixConfig**
+
+| 参数  | 描述     | 类型 | 默认值 |
+|:----|:-------|:--|:--|
+| saturation | 饱和度，0.0 为灰度，1.0 为原始值 | Float | 1f |
+| brightness | 亮度偏移，范围 -255 ~ 255 | Float | 0f |
+| contrast | 对比度，1.0 为原始值 | Float | 1f |
+| alpha | 透明度，1.0 为不透明 | Float | 1f |
+
+</div>
+
+:::tabs
+
+@tab:active 示例
+
+```kotlin{12,20,28}
+@Page("demo_page")
+internal class TestPage : BasePager() {
+    override fun body(): ViewBuilder {
+        return {
+            attr {
+                allCenter()
+            }
+            // 灰度效果
+            Image {
+                attr {
+                    size(width = 240f, height = 180f)
+                    src("https://picsum.photos/id/20/200/300")
+                    colorFilter(ColorMatrix.rec709Gray)
+                }
+            }
+            // 通过 ColorMatrixConfig 调整饱和度和亮度
+            Image {
+                attr {
+                    size(width = 240f, height = 180f)
+                    src("https://picsum.photos/id/20/200/300")
+                    colorFilter(ColorMatrixConfig(saturation = 0.5f, brightness = 30f).toColorMatrix())
+                }
+            }
+            // 清除滤镜
+            Image {
+                attr {
+                    size(width = 240f, height = 180f)
+                    src("https://picsum.photos/id/20/200/300")
+                    colorFilter(null)
+                }
+            }
+        }
+    }
+}
+```
+
+:::
+
+### maskLinearGradient<Badge text="H5实现中" type="warn"/> <Badge text="微信小程序实现中" type="warn"/>
+
 
 设置图片组件的渐变遮罩（其渐变遮罩像素颜色的alpha值会应用在图片组件同位置像素的alpha上）
 

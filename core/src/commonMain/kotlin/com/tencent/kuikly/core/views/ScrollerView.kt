@@ -393,6 +393,12 @@ open class ScrollerView<A : ScrollerAttr, E : ScrollerEvent> :
         return false
     }
 
+    // 通知 render 层列表有下拉刷新
+    fun setHasPullToRefresh(enabled: Boolean) {
+        performTaskWhenRenderViewDidLoad {
+            renderView?.callMethod("setHasPullToRefresh", if (enabled) "1" else "0", null)
+        }
+    }
 }
 
 enum class KRNestedScrollMode(val value: String){
@@ -469,6 +475,14 @@ open class ScrollerAttr : ContainerAttr() {
     }
 
     /**
+     * Limit max initial fling speed after drag ends (HarmonyOS: NODE_SCROLL_FLING_SPEED_LIMIT, API 18+).
+     * Unit: vp/s. Pass value <= 0 to restore system default. No-op on API < 18.
+     */
+    fun flingSpeedLimit(speedLimit: Float) {
+        FLING_SPEED_LIMIT with speedLimit
+    }
+
+    /**
      * 设置是否同步滚动, 也可以通过Event.scroll(sync=true){}开启同步滚动
      * @param syncEnable 同步滚动启用状态(当前kotlin线程ui操作与ui线程同步更新)。
      */
@@ -504,6 +518,7 @@ open class ScrollerAttr : ContainerAttr() {
         const val PAGING_ENABLED = "pagingEnabled"
         const val DIRECTION_ROW =  "directionRow"
         const val FLING_ENABLE = "flingEnable"
+        const val FLING_SPEED_LIMIT = "flingSpeedLimit"
         const val SCROLL_WITH_PARENT = "scrollWithParent"
         const val NESTED_SCROLL = "nestedScroll"
     }

@@ -22,7 +22,9 @@ import com.tencent.kuikly.compose.foundation.layout.PaddingValues
 import com.tencent.kuikly.compose.foundation.lazy.LazyListState
 import com.tencent.kuikly.compose.foundation.lazy.grid.LazyGridState
 import com.tencent.kuikly.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
+import com.tencent.kuikly.compose.foundation.drawer.DrawerInternalPagerState
 import com.tencent.kuikly.compose.foundation.pager.PagerState
+import com.tencent.kuikly.compose.foundation.pager.ScrollViewOffsetAlignmentCancellation
 import com.tencent.kuikly.compose.scroller.ScrollableStateConstants.DEFAULT_CONTENT_SIZE
 import com.tencent.kuikly.compose.ui.unit.Dp
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
@@ -30,11 +32,12 @@ import com.tencent.kuikly.compose.ui.util.fastSumBy
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.max
+import kotlin.math.roundToInt
 
 /**
  * Calculate content size
  */
-private fun ScrollableState.calculateContentSize(): Int {
+internal fun ScrollableState.calculateContentSize(): Int {
     kuiklyInfo.realContentSize = null
     val density = kuiklyInfo.getDensity()
     val minSize = (ScrollableStateConstants.DEFAULT_CONTENT_SIZE * density).toInt()
@@ -56,7 +59,7 @@ private fun ScrollableState.calculateContentSize(): Int {
         val composeViewport = composeViewportMainAxisSize() ?: viewportSize
         val viewportDelta = viewportSize - composeViewport
         // Compensate for contentPadding which does not affect viewportSize but is excluded from totalContentSize
-        val contentPaddingCompensation = (contentPadding.totalPadding(kuiklyInfo.orientation).value * density).toInt()
+        val contentPaddingCompensation = (contentPadding.totalPadding(kuiklyInfo.orientation).value * density).roundToInt()
         kuiklyInfo.realContentSize = realContentSize + viewportDelta + contentPaddingCompensation
         return kuiklyInfo.realContentSize!!
     }
@@ -108,6 +111,7 @@ internal fun ScrollableState.totalContentSize(): Int? {
     return when(this) {
         is LazyListState -> calculateLazyListContentSize(curOffset)
         is PagerState -> calculatePagerContentSize(curOffset)
+        is DrawerInternalPagerState -> calculateDynamicPagerContentSize(curOffset)
         is LazyGridState -> calculateLazyGridContentSize(curOffset)
         is LazyStaggeredGridState -> calculateLazyStaggeredGridContentSize(curOffset)
         is ScrollState -> calculateScrollStateContentSize()
@@ -152,6 +156,14 @@ private fun PagerState.calculatePagerContentSize(curOffset: Float): Int? {
     } else null
 }
 
+private fun DrawerInternalPagerState.calculateDynamicPagerContentSize(curOffset: Float): Int? {
+    val lastItem = layoutInfo.visiblePagesInfo.lastOrNull()
+    return if (lastItem != null && lastItem.index == pageCount - 1) {
+        val lastPageSize = pageSizeForPage(lastItem.index)
+        (curOffset + lastItem.offset + lastPageSize).toInt()
+    } else null
+}
+
 private fun LazyGridState.calculateLazyGridContentSize(curOffset: Float): Int? {
     val lastItem = layoutInfo.visibleItemsInfo.lastOrNull()
     return if (lastItem != null && lastItem.index == layoutInfo.totalItemsCount - 1) {
@@ -180,6 +192,45 @@ private fun ScrollState.calculateScrollStateContentSize(): Int? {
     } else null
 }
 
+private const val PULL_TO_REFRESH_ITEM_KEY = "pull_to_refresh"
+
+/**
+ * Whether Compose is at top for scroll-sync correction.
+ * Only differs from [isAtTop] when PTR [KuiklyScrollInfo.pullToRefreshTopInsetPx] > 0.
+ */
+private fun ScrollableState.isComposeAtTopForScrollSync(): Boolean {
+    if (this is LazyListState && kuiklyInfo.pullToRefreshTopInsetPx > 0) {
+        return firstVisibleItemIndex == 0 && firstVisibleItemScrollOffset == 0
+    }
+    return isAtTop()
+}
+
+/**
+ * Estimate Compose scroll offset when PTR item is taller than average (topInset case).
+ */
+private fun LazyListState.estimateComposeScrollOffset(avgItemSize: Int): Int {
+    val index = firstVisibleItemIndex
+    if (index <= 0) return firstVisibleItemScrollOffset
+
+    val spacing = layoutInfo.mainAxisItemSpacing
+    var sum = 0
+    for (i in 0 until index) {
+        sum += itemMainAxisSizeAt(i, avgItemSize)
+        if (i < index - 1) {
+            sum += spacing
+        }
+    }
+    return sum + firstVisibleItemScrollOffset
+}
+
+private fun LazyListState.itemMainAxisSizeAt(index: Int, avgItemSize: Int): Int {
+    layoutInfo.visibleItemsInfo.find { it.index == index }?.size?.let { return it }
+    if (kuiklyInfo.pullToRefreshTopInsetPx > 0 && index == 0) {
+        kuiklyInfo.itemMainSpaceCache[PULL_TO_REFRESH_ITEM_KEY]?.let { return it }
+    }
+    return avgItemSize
+}
+
 /**
  * Calculate back expansion size
  */
@@ -189,16 +240,19 @@ internal fun ScrollableState.calculateBackExpandSize(offset: Int): Int? {
     val visibleItems = layoutInfo.visibleItemsInfo
     if (visibleItems.isEmpty()) return null
 
-    val itemsSum = visibleItems.fastSumBy { it.size }
-    val avgSize = itemsSum / visibleItems.size + layoutInfo.mainAxisItemSpacing
-    val firstItem = visibleItems.firstOrNull() ?: return null
-
-    // Adjust for PullToRefresh offset if it exists
-    val pullToRefreshOffset = if (kuiklyInfo.hasPullToRefresh) 1 else 0
-    val adjustedFirstItemIndex = maxOf(0, firstItem.index - pullToRefreshOffset)
-
-    val estimateOffset = adjustedFirstItemIndex * avgSize - firstItem.offset
-    val density = this.kuiklyInfo.getDensity()
+    val density = kuiklyInfo.getDensity()
+    val estimateOffset = if (kuiklyInfo.pullToRefreshTopInsetPx > 0) {
+        val itemsSum = visibleItems.fastSumBy { it.size }
+        val avgItemSize = itemsSum / visibleItems.size
+        estimateComposeScrollOffset(avgItemSize)
+    } else {
+        val itemsSum = visibleItems.fastSumBy { it.size }
+        val avgSize = itemsSum / visibleItems.size + layoutInfo.mainAxisItemSpacing
+        val firstItem = visibleItems.firstOrNull() ?: return null
+        val pullToRefreshOffset = if (kuiklyInfo.hasPullToRefresh) 1 else 0
+        val adjustedFirstItemIndex = maxOf(0, firstItem.index - pullToRefreshOffset)
+        adjustedFirstItemIndex * avgSize - firstItem.offset
+    }
 
     return if (estimateOffset - offset > ScrollableStateConstants.SCROLL_THRESHOLD * density) {
         estimateOffset - offset + (ScrollableStateConstants.MIN_EXPAND_SIZE * density).toInt()
@@ -210,10 +264,12 @@ internal fun ScrollableState.calculateBackExpandSize(offset: Int): Int? {
  */
 internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolean) {
     if (kuiklyInfo.scrollView == null) return
+    if (kuiklyInfo.skipExpandStartSize) return
+    if (this is PagerState) return
 
     val density = kuiklyInfo.getDensity()
     // scrollview 到顶了，但是compose没到顶
-    if (offset <= 0 && !isAtTop() && kuiklyInfo.offsetDirty) {
+    if (offset <= 0 && !isComposeAtTopForScrollSync() && kuiklyInfo.offsetDirty) {
         var delta = calculateBackExpandSize(offset)
         val minDelta = (ScrollableStateConstants.DEFAULT_CONTENT_SIZE * density).toInt()
         delta = max(delta ?: minDelta, minDelta)
@@ -233,7 +289,7 @@ internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolea
         }
         kuiklyInfo.offsetDirty = true
         applyScrollViewOffsetDelta(delta)
-    } else if (offset > 0 && isAtTop()) {
+    } else if (offset > 0 && isComposeAtTopForScrollSync()) {
         // compose 到顶了，但是scrollview没到顶
         applyScrollViewOffsetDelta(-offset)
         kuiklyInfo.offsetDirty = false
@@ -241,16 +297,16 @@ internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolea
 }
 
 internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = false) {
-    if (this is PagerState) return
+    if (this is PagerState || this is DrawerInternalPagerState) return
     kuiklyInfo.run {
-        appleScrollViewOffsetJob?.cancel()
+        appleScrollViewOffsetJob?.cancel(ScrollViewOffsetAlignmentCancellation)
         appleScrollViewOffsetJob = scope?.launch {
             delay(150)
             val minDelta = (DEFAULT_CONTENT_SIZE * getDensity()).toInt()
             val epsilon = 0.5 * getDensity()  // 使用 0.5dp 作为误差值
             val reachBtm = contentOffset + viewportSize - currentContentSize >= -epsilon
 
-            if (contentOffset <= 0 && !isAtTop() && (forceExpand || scrollView?.isDragging != true)) {
+            if (contentOffset <= 0 && !isComposeAtTopForScrollSync() && (forceExpand || scrollView?.isDragging != true)) {
                 // 整体把offset 加一下
                 var delta = calculateBackExpandSize(contentOffset)
                 delta = max(delta ?: minDelta, minDelta)
@@ -265,7 +321,7 @@ internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = f
                 }
                 applyScrollViewOffsetDelta(delta)
                 offsetDirty = true
-            } else if (contentOffset > 0 && isAtTop()) {
+            } else if (contentOffset > 0 && isComposeAtTopForScrollSync()) {
                 // compose 到顶了，但是scrollview没到顶
                 applyScrollViewOffsetDelta(-contentOffset)
                 offsetDirty = false

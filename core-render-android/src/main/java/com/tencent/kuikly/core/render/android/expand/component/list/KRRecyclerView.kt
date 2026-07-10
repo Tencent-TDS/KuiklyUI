@@ -330,6 +330,7 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
         isFocusable = false
         overScrollMode = OVER_SCROLL_NEVER
         isFocusableInTouchMode = false
+        isNestedScrollingEnabled = true
     }
 
     fun setContentInsert(contentInset: KRRecyclerContentViewContentInset?, immediately: Boolean = false) {
@@ -477,20 +478,14 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
 
     private fun setBouncesEnable(propValue: Any): Boolean {
         bouncesEnable = (propValue as Int) == 1
-        updateOverscrollHandler()
-        return true
-    }
-
-    private fun updateOverscrollHandler() {
-        val isBouncesEnable =
-            bouncesEnable && !isNestedScrollingEnabled
-        if (isBouncesEnable) {
+        if (bouncesEnable) {
             if (childCount > 0) {
                 setupOverscrollHandler(contentView)
             }
         } else {
             overScrollHandler = null
         }
+        return true
     }
 
     private fun setFlingEnable(propValue: Any): Boolean {
@@ -708,8 +703,10 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             // 导致 RV 内部的状态一直都 DRAGGING，因此在 onInterceptEvent的时候，RV 内部一直拦截事件
             // 导致 RV 内部的横向子 List 无法滑动
             // 触发条件：先在横向子 List 滑动然后触发 cancel
-            scrollAnimationManager.cancel()
-            stopScroll()
+            // When Pager dragEnd is sync, there is no need to stop the animation,
+            // otherwise the scroll animation is unexpectedly interrupted.
+//            scrollAnimationManager.cancel()
+//            stopScroll()
             return true
         }
         return super.fling(adjustedVelocityX, adjustedVelocityY)
@@ -1079,10 +1076,6 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             JSONObject(propValue).apply {
                 scrollForwardMode = getNestScrollMode(optString("forward", ""))
                 scrollBackwardMode = getNestScrollMode(optString("backward", ""))
-                if (!isNestedScrollingEnabled) {
-                    isNestedScrollingEnabled = true
-                }
-                updateOverscrollHandler()
             }
         }
         return true

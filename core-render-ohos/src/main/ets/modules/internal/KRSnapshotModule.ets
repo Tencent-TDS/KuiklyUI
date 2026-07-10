@@ -55,6 +55,11 @@ export class KRSnapshotModule extends KuiklyRenderBaseModule {
         if (err) {
           resultParam.message = (err instanceof Error ? err.message : JSON.stringify(err)) ?? '';
           KRRenderLog.i('KRSnapshotModule', `complete error message: ${err.message}`);
+          // 补充 err 时执行callback
+          if (callback != null) {
+            callback([resultParam, new ArrayBuffer(1)]);
+          }
+          return;
         } else {
           if (callback == null) {
             KRRenderLog.i('KRSnapshotModule', `callback null`);

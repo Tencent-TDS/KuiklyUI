@@ -22,6 +22,13 @@ NS_ASSUME_NONNULL_BEGIN
 /// 调试类名
 @property (nonatomic, strong, nullable) NSString *css_debugName;
 
+- (void)kr_updateAccessibilityIdentifier;
+
+/// Sync isAccessibilityElement for testTag / clickable nodes (automation + TalkBack).
+- (void)kr_syncAccessibilityElement;
+
+- (BOOL)kr_isAccessibilityContainer;
+
 @end
 
 NS_ASSUME_NONNULL_END

@@ -59,7 +59,7 @@ NSString *const KRDensity = @"density";
 
 #pragma mark - init
 - (nonnull instancetype)initWithSize:(CGSize)size
-                         contextCode:(NSString *)contextCode
+                         contextCode:(id)contextCode
                         contextParam:(nonnull KuiklyContextParam *)contextParam
                               params:(NSDictionary * _Nullable)params
                              delegate:(nonnull id<KuiklyRenderViewDelegate>)delegate {
@@ -70,7 +70,7 @@ NSString *const KRDensity = @"density";
         // 生成Core所需要的参数
         NSDictionary *coreParams = [self p_generateWithParams:params size:size];
         _renderCore = [[KuiklyRenderCore alloc] initWithRootView:self
-                                                     contextCode:(NSString *)contextCode
+                                                     contextCode:contextCode
                                                     contextParam:contextParam
                                                           params:coreParams
                                                         delegate:self];
@@ -87,6 +87,10 @@ NSString *const KRDensity = @"density";
  */
 - (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data {
     [_renderCore sendWithEvent:event data:data];
+}
+
+- (void)sendWithEvent:(NSString *)event data:(NSDictionary *)data sync:(BOOL)sync {
+    [_renderCore sendWithEvent:event data:data sync:sync];
 }
 /*
  * @brief 获取模块对应的实例（仅支持在主线程调用）.
@@ -171,7 +175,7 @@ NSString *const KRDensity = @"density";
             [UIScreen mainScreen].bounds.size;
 #endif
         });
-		UIViewController *viewController = [self getViewController];
+        UIViewController *viewController = [self getViewController];
         NSDictionary *data = @{KRWidthKey: @(CGRectGetWidth(frame)),
                                KRHeightKey: @(CGRectGetHeight(frame)),
                                KRDeviceWidthKey:@(screenSize.width),
@@ -180,12 +184,20 @@ NSString *const KRDensity = @"density";
                                KRActivityHeightKey:@(CGRectGetHeight(viewController.view.bounds)),
                                
         };
+        BOOL sync = [self p_syncSendEvent:KRRootViewSizeDidChangedEventKey];
         [_renderCore sendWithEvent:KRRootViewSizeDidChangedEventKey
-                              data:data];
+                              data:data
+                              sync:sync];
     }
   
 }
 
+- (BOOL)p_syncSendEvent:(NSString *)event {
+    if ([self.delegate respondsToSelector:@selector(syncSendEvent:)]) {
+        return [self.delegate syncSendEvent:event];
+    }
+    return NO;
+}
 
 - (void)insertSubview:(UIView *)view atIndex:(NSInteger)index {
     [super insertSubview:view atIndex:index];

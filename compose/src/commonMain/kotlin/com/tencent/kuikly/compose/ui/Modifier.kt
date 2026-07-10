@@ -34,7 +34,7 @@ import kotlinx.coroutines.cancel
  * javaClass.simpleName lookups to build the exception message and stack trace collection.
  * Remove if these are changed in kotlinx.coroutines.
  */
-private class ModifierNodeDetachedCancellationException : PlatformOptimizedCancellationException(
+private object ModifierNodeDetachedCancellationException : PlatformOptimizedCancellationException(
     "The Modifier.Node was detached"
 )
 
@@ -288,7 +288,7 @@ interface Modifier {
             isAttached = false
 
             scope?.let {
-                it.cancel(ModifierNodeDetachedCancellationException())
+                it.cancel(ModifierNodeDetachedCancellationException)
                 scope = null
             }
         }

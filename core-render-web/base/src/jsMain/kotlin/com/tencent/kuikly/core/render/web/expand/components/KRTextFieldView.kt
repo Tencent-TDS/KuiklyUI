@@ -6,9 +6,11 @@ import com.tencent.kuikly.core.render.web.const.KRKeyboardConst
 import com.tencent.kuikly.core.render.web.const.KRParamConst
 import com.tencent.kuikly.core.render.web.const.KRStyleConst
 import com.tencent.kuikly.core.render.web.export.IKuiklyRenderViewExport
+import com.tencent.kuikly.core.render.web.ktx.Frame
 import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
 import com.tencent.kuikly.core.render.web.ktx.kuiklyDocument
 import com.tencent.kuikly.core.render.web.ktx.setPlaceholderColor
+import com.tencent.kuikly.core.render.web.ktx.setSelectionColor
 import com.tencent.kuikly.core.render.web.ktx.toNumberFloat
 import com.tencent.kuikly.core.render.web.ktx.toPxF
 import com.tencent.kuikly.core.render.web.ktx.toRgbColor
@@ -45,6 +47,9 @@ class KRTextFieldView : IKuiklyRenderViewExport {
     private var keyboardTrackingBound = false
     // Last reported keyboard height, used to de-dup resize events.
     private var lastKeyboardHeight: Float = 0f
+
+    // Track current fontSize for minimum height fallback (default 15px as per Kuikly convention)
+    private var currentFontSize: Float = DEFAULT_FONT_SIZE
 
     // Input element
     private val input = kuiklyDocument.createElement(ElementType.INPUT).apply {
@@ -113,7 +118,8 @@ class KRTextFieldView : IKuiklyRenderViewExport {
             }
 
             FONT_SIZE -> {
-                ele.style.fontSize = propValue.toNumberFloat().toPxF()
+                currentFontSize = propValue.toNumberFloat()
+                ele.style.fontSize = currentFontSize.toPxF()
                 true
             }
 
@@ -134,6 +140,11 @@ class KRTextFieldView : IKuiklyRenderViewExport {
 
             TINT_COLOR -> {
                 ele.style.asDynamic().caretColor = propValue.unsafeCast<String>().toRgbColor()
+                true
+            }
+
+            SELECTION_COLOR -> {
+                setSelectionColor(ele, propValue.unsafeCast<String>().toRgbColor())
                 true
             }
 
@@ -250,6 +261,23 @@ class KRTextFieldView : IKuiklyRenderViewExport {
             }
 
             else -> super.setProp(propKey, propValue)
+        }
+    }
+
+    /**
+     * Override onFrameChange to enforce a minimum height for the input element.
+     * When the layout engine calculates height as 0 (due to alignItemsCenter + no explicit height
+     * + no measureFunction on InputView), apply a fontSize-based minimum height so the input
+     * remains clickable and focusable on H5.
+     */
+    override fun onFrameChange(frame: Frame) {
+        if (frame.height <= 0.0) {
+            // Use fontSize * 1.5 as a reasonable minimum height (matches native input intrinsic height)
+            val minHeight = (currentFontSize * MIN_HEIGHT_FONT_SIZE_MULTIPLIER)
+            ele.unsafeCast<HTMLInputElement>().style.minHeight = minHeight.toPxF()
+        } else {
+            // Clear any previously set minHeight when layout provides a valid height
+            ele.unsafeCast<HTMLInputElement>().style.minHeight = ""
         }
     }
 
@@ -403,6 +431,11 @@ class KRTextFieldView : IKuiklyRenderViewExport {
     companion object {
         const val VIEW_NAME = "KRTextFieldView"
 
+        // Default font size (Kuikly convention)
+        private const val DEFAULT_FONT_SIZE = 15f
+        // Multiplier to calculate minimum height from fontSize (fontSize * 1.5 ≈ native input intrinsic height)
+        private const val MIN_HEIGHT_FONT_SIZE_MULTIPLIER = 1.5f
+
         // Properties
         private const val SRC = "text"
         private const val PLACEHOLDER = "placeholder"
@@ -411,6 +444,7 @@ class KRTextFieldView : IKuiklyRenderViewExport {
         private const val FONT_SIZE = "fontSize"
         private const val FONT_WEIGHT = "fontWeight"
         private const val TINT_COLOR = "tintColor"
+        private const val SELECTION_COLOR = "selectionColor"
         private const val MAX_TEXT_LENGTH = "maxTextLength"
         private const val AUTO_FOCUS = "autofocus"
         private const val EDIT_ABLE = "editable"

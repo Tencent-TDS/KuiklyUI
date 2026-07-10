@@ -6,6 +6,7 @@ import com.tencent.kuikly.core.render.web.ktx.KuiklyRenderCallback
 /**
  * Module component protocol, modules expose themselves to kuikly by implementing [IKuiklyRenderModuleExport]
  */
+@JsExport
 interface IKuiklyRenderModuleExport {
     /**
      * KuiklyRender context
@@ -23,6 +24,7 @@ interface IKuiklyRenderModuleExport {
      *
      * @return If method is synchronous, return value is valid, can be String, Array, ByteArray, Int, Float
      */
+    @JsName("_call")
     fun call(method: String, params: Any?, callback: KuiklyRenderCallback?): Any? {
         if (params == null || params is String) {
             return call(method, params.unsafeCast<String?>(), callback)

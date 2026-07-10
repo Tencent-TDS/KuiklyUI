@@ -703,8 +703,10 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
             // 导致 RV 内部的状态一直都 DRAGGING，因此在 onInterceptEvent的时候，RV 内部一直拦截事件
             // 导致 RV 内部的横向子 List 无法滑动
             // 触发条件：先在横向子 List 滑动然后触发 cancel
-            scrollAnimationManager.cancel()
-            stopScroll()
+            // When Pager dragEnd is sync, there is no need to stop the animation,
+            // otherwise the scroll animation is unexpectedly interrupted.
+//            scrollAnimationManager.cancel()
+//            stopScroll()
             return true
         }
         return super.fling(adjustedVelocityX, adjustedVelocityY)

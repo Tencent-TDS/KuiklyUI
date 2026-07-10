@@ -83,19 +83,55 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
 
   onDestroy(): void {
     this.activeStreamRequests.forEach((httpReq) => {
-      try {
-        httpReq.off('dataReceive');
-        httpReq.off('dataEnd');
-        httpReq.destroy();
-      } catch (_) {}
+      this.cleanupHttpRequest(httpReq);
     });
     this.activeStreamRequests.clear();
   }
 
+  /**
+   * 统一清理 HttpRequest 资源：注销事件监听并销毁请求。
+   * off/destroy 均可能抛异常，这里全部 try-catch 兜底，异常仅记录日志不再抛出，
+   */
+  private cleanupHttpRequest(httpReq: http.HttpRequest): void {
+    try {
+      httpReq.off('dataReceive');
+    } catch (e) {
+      KRRenderLog.e("NetworkModule", `off dataReceive error: ${(e as BusinessError).message}`);
+    }
+    try {
+      httpReq.off('dataEnd');
+    } catch (e) {
+      KRRenderLog.e("NetworkModule", `off dataEnd error: ${(e as BusinessError).message}`);
+    }
+    try {
+      httpReq.off('headersReceive');
+    } catch (e) {
+      KRRenderLog.e("NetworkModule", `off headersReceive error: ${(e as BusinessError).message}`);
+    }
+    try {
+      httpReq.destroy();
+    } catch (e) {
+      KRRenderLog.e("NetworkModule", `destroy httpRequest error: ${(e as BusinessError).message}`);
+    }
+  }
+
+  /**
+   * 清理指定 requestId 对应的流式请求，包含事件反注册、销毁与 Map 移除。
+   */
+  private finalizeStreamRequest(requestId: string): void {
+    const httpReq = this.activeStreamRequests.get(requestId);
+    if (httpReq) {
+      this.cleanupHttpRequest(httpReq);
+    }
+    this.activeStreamRequests.delete(requestId);
+  }
+
   private httpStreamRequest(paramsStr: string, callback: KuiklyRenderCallback | null): void {
+    let requestId = '';
+    let httpRequest: http.HttpRequest | null = null;
     try {
       const params: StreamParamsObject = JSON.parse(paramsStr);
-      const requestId = params.requestId;
+      requestId = params.requestId;
 
       // requestId 空校验
       if (!requestId) {
@@ -133,7 +169,7 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
       const url = urlOptions[0];
       const options = urlOptions[1];
 
-      const httpRequest = http.createHttp();
+      httpRequest = http.createHttp();
       this.activeStreamRequests.set(requestId, httpRequest);
 
       const decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true });
@@ -165,10 +201,7 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
           };
           callback(eventData);
         }
-        httpRequest.off('dataReceive');
-        httpRequest.off('dataEnd');
-        httpRequest.destroy();
-        this.activeStreamRequests.delete(requestId);
+        this.finalizeStreamRequest(requestId);
       });
 
       // 监听 headersReceive 以获取响应头
@@ -196,11 +229,7 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
             };
             callback(eventData);
           }
-          httpRequest.off('dataReceive');
-          httpRequest.off('dataEnd');
-          httpRequest.off('headersReceive');
-          httpRequest.destroy();
-          this.activeStreamRequests.delete(requestId);
+          this.finalizeStreamRequest(requestId);
         }
       }).catch((err: Error) => {
         KRRenderLog.e("NetworkModule", `Stream request error: ${err.message}`);
@@ -213,15 +242,17 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
           };
           callback(eventData);
         }
-        httpRequest.off('dataReceive');
-        httpRequest.off('dataEnd');
-        httpRequest.off('headersReceive');
-        httpRequest.destroy();
-        this.activeStreamRequests.delete(requestId);
+        this.finalizeStreamRequest(requestId);
       });
     } catch (e) {
       const errmsg = `stream request error: ${(e as BusinessError).message}`;
       KRRenderLog.e("NetworkModule", errmsg);
+      // 兜底清理：可能已 set 进 activeStreamRequests，需要移除并释放句柄
+      if (requestId && this.activeStreamRequests.has(requestId)) {
+        this.finalizeStreamRequest(requestId);
+      } else if (httpRequest) {
+        this.cleanupHttpRequest(httpRequest);
+      }
       if (callback) {
         const eventData: StreamEventData = {
           event: 'error',
@@ -238,13 +269,7 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
       const params = JSON.parse(paramsStr) as Record<string, string>;
       const requestId = params['requestId'];
       if (requestId && this.activeStreamRequests.has(requestId)) {
-        const httpReq = this.activeStreamRequests.get(requestId);
-        if (httpReq) {
-          httpReq.off('dataReceive');
-          httpReq.off('dataEnd');
-          httpReq.destroy();
-        }
-        this.activeStreamRequests.delete(requestId);
+        this.finalizeStreamRequest(requestId);
       }
     } catch (e) {
       KRRenderLog.e("NetworkModule", `close stream error: ${(e as BusinessError).message}`);

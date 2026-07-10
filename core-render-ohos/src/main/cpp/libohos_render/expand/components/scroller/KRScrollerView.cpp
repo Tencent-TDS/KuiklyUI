@@ -148,7 +148,8 @@ void KRScrollerView::SetRenderViewFrame(const KRRect &frame) {
     if (!is_set_frame_) {
         is_set_frame_ = true;
         if (is_need_set_content_offset_) {
-            kuikly::util::SetArkUIContentOffset(GetNode(), first_offset_x_, first_offset_y_, first_animate_, first_duration_, first_curve_);
+            kuikly::util::SetArkUIContentOffset(GetNode(), first_offset_x_, first_offset_y_, first_animate_,
+                                                first_duration_, first_curve_, first_damping_);
             is_need_set_content_offset_ = false;
         }
     }
@@ -432,6 +433,7 @@ void KRScrollerView::SetContentOffset(const KRAnyValue &value) {
     auto offset_y = content_offset_splits[1]->toFloat();
     auto animate = content_offset_splits[2]->toBool();
     auto duration = content_offset_splits.size() > 3 ? content_offset_splits[3]->toInt() : 0;
+    auto damping = content_offset_splits.size() > 4 ? content_offset_splits[4]->toFloat() : 0;
     auto curve = content_offset_splits.size() > 6 ? content_offset_splits[6]->toInt() : 0;
 
     if (!is_set_frame_) {
@@ -440,10 +442,11 @@ void KRScrollerView::SetContentOffset(const KRAnyValue &value) {
         first_animate_ = animate;
         first_duration_ = duration;
         first_curve_ = curve;
+        first_damping_ = damping;
         is_need_set_content_offset_ = true;
         return;
     }
-    kuikly::util::SetArkUIContentOffset(GetNode(), offset_x, offset_y, animate, duration, curve);
+    kuikly::util::SetArkUIContentOffset(GetNode(), offset_x, offset_y, animate, duration, curve, damping);
 }
 
 void KRScrollerView::SetContentInset(const KRAnyValue &value) {
@@ -472,7 +475,7 @@ void KRScrollerView::SetContentInset(const std::shared_ptr<KRScrollerContentInse
         auto current_offset = GetContentOffset();
         auto target_offset = MaxContentOffsetInContentInset(content_inset);
         if (target_offset.x != current_offset.x || target_offset.y != current_offset.y) {
-            kuikly::util::SetArkUIContentOffset(GetNode(), target_offset.x, target_offset.y, true, 0, 0);
+            kuikly::util::SetArkUIContentOffset(GetNode(), target_offset.x, target_offset.y, true, 0, 0, 0);
         }
         // 再用原有动画逻辑设置 margin
         auto root_view = GetRootView().lock();

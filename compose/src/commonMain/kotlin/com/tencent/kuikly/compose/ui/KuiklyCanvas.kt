@@ -306,6 +306,34 @@ internal class KuiklyCanvas : Canvas {
         }
     }
 
+    override fun setTextAlign(alignment: Int) {
+        val align = when (alignment) {
+            1 -> com.tencent.kuikly.core.views.TextAlign.LEFT
+            2 -> com.tencent.kuikly.core.views.TextAlign.RIGHT
+            3 -> com.tencent.kuikly.core.views.TextAlign.CENTER
+            else -> com.tencent.kuikly.core.views.TextAlign.LEFT
+        }
+        context?.textAlign(align)
+    }
+
+    override fun setFont(size: Float, family: String, weight: String, style: String) {
+        context?.font(size / densityValue, family)
+        // Note: CanvasContext.font(style, weight, size, family) is also available if needed
+    }
+
+    override fun drawText(text: String, x: Float, y: Float, paint: Paint) {
+        context?.apply {
+            if (paint.style == PaintingStyle.Fill) {
+                fillStyle(paint.toKuiklyColor())
+                fillText(text, x / densityValue, y / densityValue)
+            } else {
+                strokeStyle(paint.toKuiklyColor())
+                lineWidth(paint.strokeWidth / densityValue)
+                strokeText(text, x / densityValue, y / densityValue)
+            }
+        }
+    }
+
     override fun enableZ() {
         // TODO("Not yet implemented")
     }

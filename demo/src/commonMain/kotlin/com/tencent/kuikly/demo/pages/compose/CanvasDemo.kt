@@ -74,6 +74,7 @@ import com.tencent.kuikly.compose.ui.graphics.drawscope.scale
 import com.tencent.kuikly.compose.ui.graphics.drawscope.translate
 import com.tencent.kuikly.compose.ui.graphics.drawscope.withTransform
 import com.tencent.kuikly.compose.ui.platform.LocalDensity
+import com.tencent.kuikly.compose.ui.text.TextStyle
 import com.tencent.kuikly.compose.ui.text.font.FontWeight
 import com.tencent.kuikly.compose.ui.unit.DpSize
 import com.tencent.kuikly.compose.ui.unit.IntOffset
@@ -303,6 +304,17 @@ private fun CanvasAPIDemo() {
                 size = Size(80.dp.toPx(), 60.dp.toPx())
             )
         }
+        CanvasExample("drawText - 文本") {
+            drawText(
+                text = "Hello Kuikly",
+                color = Color.Black,
+                topLeft = Offset(5.dp.toPx(), 40.dp.toPx()),
+                style = TextStyle(fontSize = 14.sp)
+            )
+        }
+    }
+
+    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
         CanvasExample("drawArc - 弧形") {
             drawLine(
                 Color.Gray,

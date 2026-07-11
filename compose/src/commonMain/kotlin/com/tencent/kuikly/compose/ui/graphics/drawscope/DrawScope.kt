@@ -40,6 +40,8 @@ import com.tencent.kuikly.compose.ui.graphics.degrees
 //import com.tencent.kuikly.compose.ui.graphics.StrokeCap
 //import com.tencent.kuikly.compose.ui.graphics.StrokeJoin
 //import com.tencent.kuikly.compose.ui.graphics.degrees
+import com.tencent.kuikly.compose.ui.text.TextStyle
+import com.tencent.kuikly.compose.ui.text.style.TextAlign
 import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.compose.ui.unit.IntSize
@@ -881,6 +883,27 @@ interface DrawScope : Density {
         @FloatRange(from = 0.0, to = 1.0) alpha: Float = 1.0f,
 //        colorFilter: ColorFilter? = null,
 //        blendMode: BlendMode = DefaultBlendMode
+    )
+
+    /**
+     * Draws the given [text] at the specified [topLeft] with the given [color].
+     *
+     * @param text The text to draw
+     * @param color The color to apply to the text
+     * @param topLeft The offset from the origin to start drawing the text
+     * @param style The text style to apply (fontSize, fontWeight, fontFamily, etc.)
+     * @param textAlign The alignment of the text
+     * @param alpha Opacity to be applied to the text
+     * @param drawStyle Whether the text should be filled or stroked
+     */
+    fun drawText(
+        text: String,
+        color: Color = Color.Black,
+        topLeft: Offset = Offset.Zero,
+        style: TextStyle = TextStyle.Default,
+        textAlign: TextAlign = TextAlign.Left,
+        @FloatRange(from = 0.0, to = 1.0) alpha: Float = 1.0f,
+        drawStyle: DrawStyle = Fill
     )
 
     /**

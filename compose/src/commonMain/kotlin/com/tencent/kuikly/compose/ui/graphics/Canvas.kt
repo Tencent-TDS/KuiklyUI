@@ -568,6 +568,22 @@ interface Canvas {
      */
     fun drawPoints(pointMode: PointMode, points: List<Offset>, paint: Paint)
 
+    /**
+     * Set the text alignment for subsequent [drawText] calls.
+     * @param alignment 1: Left, 2: Right, 3: Center
+     */
+    fun setTextAlign(alignment: Int)
+
+    /**
+     * Set the font style for subsequent [drawText] calls.
+     */
+    fun setFont(size: Float, family: String, weight: String, style: String)
+
+    /**
+     * Draws the given [text] at the specified coordinates with the given [paint].
+     */
+    fun drawText(text: String, x: Float, y: Float, paint: Paint)
+
 //    /**
 //     * Draws a sequence of points according to the given [PointMode].
 //     *

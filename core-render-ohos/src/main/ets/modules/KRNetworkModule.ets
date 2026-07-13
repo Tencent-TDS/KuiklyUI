@@ -180,6 +180,10 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
       let responseCode = 0;
 
       httpRequest.on('dataReceive', (data: ArrayBuffer) => {
+        // 若 requestId 已从 activeStreamRequests 中移除，说明业务侧已通过 closeStreamRequest
+        // 主动关闭（或 onDestroy 已触发），此时静默丢弃后续 chunk 即可。
+        // 注意：这里不需要再做 off/destroy 清理——资源释放由 close 路径的 finalizeStreamRequest 统一完成，
+        // 之所以仍可能收到回调，是因为 native 侧已入队的事件在 off 之前就 post 到了 ArkTS 事件循环。
         if (!callback || !this.activeStreamRequests.has(requestId)) return;
         const text = decoder.decodeToString(new Uint8Array(data));
         const eventData: StreamEventData = {
@@ -195,6 +199,7 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
       });
 
       httpRequest.on('dataEnd', () => {
+        // 与 dataReceive 同理：若已被主动关闭，这里静默返回；资源清理已由 close 路径完成。
         if (!this.activeStreamRequests.has(requestId)) return;
         if (callback) {
           const eventData: StreamEventData = {
@@ -222,7 +227,11 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
         if (code >= 200 && code <= 299) {
           // 成功，数据通过 dataReceive/dataEnd 事件回调处理
         } else {
-          // HTTP 非2xx 错误码处理
+          // 非 2xx 响应（含 3xx / 4xx / 5xx）统一按错误处理并清理资源。
+          // 关于 3xx：HarmonyOS http 底层（libcurl）默认会自动跟随重定向，业务侧通常只会看到最终响应码；
+          // 但 requestInStream 未开放 FOLLOWLOCATION 选项，若底层未跟随（如跨协议 http→https 被拒、
+          // 或 Location 头缺失），3xx 会直接透传到这里——此时对 SSE 场景已无法继续流式读取，
+          // 作为 error 回调给业务侧是合适的。
           if (callback && this.activeStreamRequests.has(requestId)) {
             const eventData: StreamEventData = {
               event: 'error',
@@ -249,7 +258,14 @@ export class KRNetworkModule extends KuiklyRenderBaseModule {
     } catch (e) {
       const errmsg = `stream request error: ${(e as BusinessError).message}`;
       KRRenderLog.e("NetworkModule", errmsg);
-      // 兜底清理：可能已 set 进 activeStreamRequests，需要移除并释放句柄
+      // 兜底清理，两个分支互斥、对应 try 块中不同阶段抛出异常的场景：
+      //   1. 已 set 进 activeStreamRequests（如 on() 注册事件监听时抛异常）
+      //      → 走 finalizeStreamRequest 统一路径：反注册事件 + destroy + delete。
+      //   2. httpRequest 已创建但尚未 set 进 map 的中间状态
+      //      （如 http.createHttp() 之后、activeStreamRequests.set() 之前抛异常，窗口极窄）
+      //      → 此时 map 里没有条目，只需 cleanupHttpRequest 释放句柄，避免泄漏。
+      // 分支互斥：命中分支 1 时 httpRequest 指向的对象已被 finalizeStreamRequest 清理，
+      // 因此 else if 不会（也不应该）再重复清理。
       if (requestId && this.activeStreamRequests.has(requestId)) {
         this.finalizeStreamRequest(requestId);
       } else if (httpRequest) {

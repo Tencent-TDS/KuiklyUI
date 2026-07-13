@@ -26,6 +26,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (nonatomic, strong) NSMutableDictionary<NSString *, NSURLSessionDataTask *> *activeStreamTasks;
 @property (nonatomic, strong) NSMutableDictionary<NSString *, KRStreamSessionDelegate *> *activeStreamDelegates;
+@property (nonatomic, strong) NSMutableDictionary<NSString *, NSURLSession *> *activeStreamSessions;
 
 @end
 

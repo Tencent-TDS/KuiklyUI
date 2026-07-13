@@ -24,6 +24,9 @@
 @property (nonatomic, copy) NSString *requestId;
 @property (nonatomic, assign) BOOL isFirstCallback;
 @property (nonatomic, strong) NSHTTPURLResponse *httpResponse;
+/// 请求结束（成功/失败/被取消）后由 delegate 主动回调，用于统一清理
+/// module 侧持有的 session/task/delegate 三个字典条目，并 invalidate session。
+@property (nonatomic, copy) void (^onFinish)(NSString *requestId);
 
 @end
 
@@ -77,21 +80,26 @@
 }
 
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error {
-    if (!self.callback) return;
-    if (error) {
-        if (error.code == NSURLErrorCancelled) {
-            return;
+    if (self.callback) {
+        if (error) {
+            if (error.code != NSURLErrorCancelled) {
+                self.callback(@{
+                    @"event": @"error",
+                    @"data": error.localizedDescription ?: @"unknown error",
+                    @"statusCode": @(-1000)
+                });
+            }
+        } else {
+            self.callback(@{
+                @"event": @"complete",
+                @"data": @""
+            });
         }
-        self.callback(@{
-            @"event": @"error",
-            @"data": error.localizedDescription ?: @"unknown error",
-            @"statusCode": @(-1000)
-        });
-    } else {
-        self.callback(@{
-            @"event": @"complete",
-            @"data": @""
-        });
+    }
+    // 无论成功/失败/取消，都需要通知 module 清理资源，避免 session/delegate 内存滞留
+    if (self.onFinish) {
+        self.onFinish(self.requestId);
+        self.onFinish = nil;
     }
 }
 
@@ -221,6 +229,26 @@
         _activeStreamDelegates = [NSMutableDictionary dictionary];
     }
     return _activeStreamDelegates;
+}
+
+- (NSMutableDictionary<NSString *, NSURLSession *> *)activeStreamSessions {
+    if (!_activeStreamSessions) {
+        _activeStreamSessions = [NSMutableDictionary dictionary];
+    }
+    return _activeStreamSessions;
+}
+
+/// 统一清理指定 requestId 关联的 session/task/delegate。
+/// 主动关闭（closeStreamRequest:）与请求结束回调（didCompleteWithError:）均走此方法，
+/// 避免 NSURLSession 因未 invalidate 而长期持有 delegate 造成内存滞留。
+- (void)kr_finalizeStreamRequestWithId:(NSString *)requestId {
+    if (requestId.length == 0) return;
+    NSURLSession *session = self.activeStreamSessions[requestId];
+    // invalidateAndCancel 会取消未完成的 task 并释放 session 对 delegate 的强引用
+    [session invalidateAndCancel];
+    [self.activeStreamSessions removeObjectForKey:requestId];
+    [self.activeStreamTasks removeObjectForKey:requestId];
+    [self.activeStreamDelegates removeObjectForKey:requestId];
 }
 
 /*
@@ -392,13 +420,27 @@
 
     KRStreamSessionDelegate *delegate = [[KRStreamSessionDelegate alloc] initWithCallback:callback requestId:requestId];
     NSURLSessionConfiguration *config = [NSURLSessionConfiguration defaultSessionConfiguration];
-    NSURLSession *session = [NSURLSession sessionWithConfiguration:config delegate:delegate delegateQueue:nil];
+    // delegateQueue 使用主队列：
+    // 1. 所有 delegate 回调（didReceiveData / didCompleteWithError 等）都在主线程执行，
+    //    onFinish 里对 activeStreamXXX 三个字典的读写天然串行，无需额外加锁。
+    // 2. Kuikly Module 的 httpStreamRequest: / closeStreamRequest: 本身也在主线程调用，
+    //    统一线程后不存在多线程并发读写 NSMutableDictionary 的隐患。
+    // 3. SSE 每帧数据量小、解码轻量（仅 initWithData:encoding:），对主线程负担可忽略；
+    //    业务侧收到 data 事件后通常要更新 UI，本就需要主线程，避免了一次额外的线程切换。
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:config delegate:delegate delegateQueue:[NSOperationQueue mainQueue]];
     NSURLSessionDataTask *task = [session dataTaskWithRequest:request];
 
-    if (requestId) {
-        self.activeStreamTasks[requestId] = task;
-        self.activeStreamDelegates[requestId] = delegate;
-    }
+    __weak typeof(self) weakSelf = self;
+    delegate.onFinish = ^(NSString *finishedRequestId) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (!strongSelf) return;
+        // 请求正常结束/失败后，统一清理 session/task/delegate，避免内存滞留
+        [strongSelf kr_finalizeStreamRequestWithId:finishedRequestId];
+    };
+
+    self.activeStreamTasks[requestId] = task;
+    self.activeStreamDelegates[requestId] = delegate;
+    self.activeStreamSessions[requestId] = session;
 
     [task resume];
 }
@@ -409,20 +451,24 @@
 - (void)closeStreamRequest:(NSDictionary *)args {
     NSDictionary *param = [args[KR_PARAM_KEY] hr_stringToDictionary];
     NSString *requestId = param[@"requestId"];
-    if (requestId) {
-        NSURLSessionDataTask *task = self.activeStreamTasks[requestId];
-        [task cancel];
-        [self.activeStreamTasks removeObjectForKey:requestId];
-        [self.activeStreamDelegates removeObjectForKey:requestId];
-    }
+    // 使用统一清理入口：invalidate session + 移除三个字典条目
+    // NSURLSession 未 invalidate 时会 strong 持有 delegate，仅 cancel task 不足以释放
+    [self kr_finalizeStreamRequestWithId:requestId];
 }
 
 - (void)dealloc {
+    // 拷贝一份 key 快照，避免在遍历过程中修改字典
+    NSArray<NSString *> *requestIds = [self.activeStreamSessions.allKeys copy];
+    for (NSString *requestId in requestIds) {
+        [self kr_finalizeStreamRequestWithId:requestId];
+    }
+    // 兜底清理：即使某些请求仅存在于 tasks/delegates 字典中（异常路径），也确保全部释放
     for (NSURLSessionDataTask *task in self.activeStreamTasks.allValues) {
         [task cancel];
     }
     [self.activeStreamTasks removeAllObjects];
     [self.activeStreamDelegates removeAllObjects];
+    [self.activeStreamSessions removeAllObjects];
 }
 
 @end

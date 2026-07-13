@@ -19,7 +19,6 @@
 #include <functional>
 #include <memory>
 #include "libohos_render/foundation/KRRect.h"
-#include "libohos_render/foundation/thread/KRThreadFatalGuard.h"
 #include "libohos_render/layer/KRRenderLayerHandler.h"
 #include "libohos_render/manager/KRArkTSManager.h"
 #include "libohos_render/scheduler/KRContextScheduler.h"
@@ -28,19 +27,16 @@
 #include "libohos_render/manager/KRRenderManager.h"
 
 EXTERN_C_START
-const KRRenderCValue com_tencent_kuikly_CallNative(int methodId, KRRenderCValue arg0, KRRenderCValue arg1,
-                                                   KRRenderCValue arg2, KRRenderCValue arg3, KRRenderCValue arg4,
-                                                   KRRenderCValue arg5) {
-    // napi C ABI 边界：与 KRThread / KRMainThread 调度边界同口径，
-    // 任何 C++ 异常逃到 C ABI 都会越 napi 调度帧造成 UB，必须 fail-fast。
-    // 用 RunWithFatalGuard 替代裸 try-catch，让"打 log + abort" 的行为
-    // 集中到唯一一处实现，避免遗漏 e.what()。
-    KRRenderCValue result{.type = KRRenderCValue::Type::NULL_VALUE};
-    kuikly::thread::RunWithFatalGuard("KRRenderCore.ABI.CallNative", [&] {
-        result = IKRRenderNativeContextHandler::DispatchCallNative(std::string(arg0.value.stringValue), methodId, arg0,
-                                                                   arg1, arg2, arg3, arg4, arg5);
-    });
-    return result;
+void com_tencent_kuikly_CallNative(int methodId, const KRRenderCValue *arg0, const KRRenderCValue *arg1,
+        const KRRenderCValue *arg2, const KRRenderCValue *arg3, const KRRenderCValue *arg4,
+        const KRRenderCValue *arg5, KRRenderCValue *result) {
+    // napi C ABI 边界：不再套 C++ catch，让异常原样冒到 K/N runtime。
+    // 曾经在此处 catch → log → rethrow，虽然保留了 std::current_exception()，
+    // 但 K/N 会因为观察到 "C++ 已 catch 过" 而不再触发 unhandled-exception hook，
+    // 从而丢失 Kotlin 侧真正有价值的 Throwable class / message / Kotlin 栈。
+    // 现在完全放弃 C++ 侧的诊断日志（tag/type/what），换取 K/N hook 的正常触发。
+    *result = IKRRenderNativeContextHandler::DispatchCallNative(std::string(arg0->value.stringValue), methodId,
+            *arg0, *arg1, *arg2, *arg3, *arg4, *arg5);
 }
 
 CallKotlin callKotlin_;
@@ -338,23 +334,26 @@ KRAnyValue KRRenderCore::PerformNativeCallback(const KuiklyRenderNativeMethod &m
         break;
     }
     case KuiklyRenderNativeMethod::KuiklyRenderNativeMethodCallModuleMethod: {
-        auto callbackId = arg4->toString();
         KRRenderCallback callback = nullptr;
         auto callback_keep_alive = false;
-        if (!callbackId.empty()) {
-            callback_keep_alive = IsCallbackKeepAlive(arg5);
-            std::weak_ptr<KRRenderCore> weakSelf = shared_from_this();
-            callback = [weakSelf, arg4](KRAnyValue res) {
-                if (auto locked = weakSelf.lock()) {
-                    PerformTaskOnContextQueue(0, [weakSelf, arg4, res] {
-                        if (auto locked = weakSelf.lock()) {
-                            locked->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodFireCallback, arg4,
-                                                     res, locked->defaultNullValue_, locked->defaultNullValue_,
-                                                     locked->defaultNullValue_);
-                        }
-                    });
-                }
-            };
+        // 优化：先检查 arg4 是否为 null，避免不必要的 toString() 字符串拷贝
+        if (!arg4->isNull()) {
+            auto callbackId = arg4->toString();
+            if (!callbackId.empty()) {
+                callback_keep_alive = IsCallbackKeepAlive(arg5);
+                std::weak_ptr<KRRenderCore> weakSelf = shared_from_this();
+                callback = [weakSelf, arg4](KRAnyValue res) {
+                    if (auto locked = weakSelf.lock()) {
+                        PerformTaskOnContextQueue(0, [weakSelf, arg4, res] {
+                            if (auto locked = weakSelf.lock()) {
+                                locked->CallKotlinMethod(KuiklyRenderContextMethod::KuiklyRenderContextMethodFireCallback, arg4,
+                                                         res, locked->defaultNullValue_, locked->defaultNullValue_,
+                                                         locked->defaultNullValue_);
+                            }
+                        });
+                    }
+                };
+            }
         }
         return renderLayerHandler_->CallModuleMethod(sync, arg1->toString(), arg2->toString(), arg3, callback,
                                                      callback_keep_alive);

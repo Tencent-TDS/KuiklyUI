@@ -186,7 +186,8 @@ void SetArkUIScrollEnabled(ArkUI_NodeHandle handle, bool enable);
 
 KRPoint GetArkUIScrollContentOffset(ArkUI_NodeHandle handle);
 
-void SetArkUIContentOffset(ArkUI_NodeHandle handle, float offset_x, float offset_y, bool animate, int duration, int curve);
+void SetArkUIContentOffset(ArkUI_NodeHandle handle, float offset_x, float offset_y, bool animate, int duration, int curve,
+                           float damping = 0);
 
 ArkUI_ScrollState GetArkUIScrollerState(ArkUI_NodeEvent *event, int scroll_state_index);
 

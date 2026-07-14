@@ -408,10 +408,7 @@ internal class RootNodeOwner(
             // Coalesce to at most once per frame: this fires per semantics invalidation
             // (dozens of times during a single fling remeasure), and each handler pass
             // walks the whole merged semantics tree.
-            if (!semanticsChangePending) {
-                semanticsChangePending = true
-                snapshotInvalidationTracker.requestDraw()
-            }
+            semanticsChangePending = true
         }
 
         override fun onZIndexChange(layoutNode: LayoutNode) {

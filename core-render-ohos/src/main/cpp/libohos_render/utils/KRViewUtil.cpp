@@ -837,7 +837,8 @@ void ResetArkUINestedScroll(ArkUI_NodeHandle handle) {
         return;
     }
 
-    GetNodeApi()->resetAttribute(handle, NODE_SCROLL_NESTED_SCROLL);
+    // 重置为 Kuikly 框架默认值 SELF_FIRST，与 iOS/Android 默认行为保持一致
+    SetArkUINestedScroll(handle, ARKUI_SCROLL_NESTED_MODE_SELF_FIRST, ARKUI_SCROLL_NESTED_MODE_SELF_FIRST);
 }
 
 void SetArkUIScrollEnabled(ArkUI_NodeHandle handle, bool enable) {

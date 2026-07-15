@@ -77,7 +77,14 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
                 body = if (method == HTTP_METHOD_POST) getPostParams(param) else null,
                 // Request mode is cross-domain mode
                 mode = RequestMode.CORS
-            )
+            ).also {
+                // Attach the timeout via a non-standard field so that MiniGlobal.fetch in the
+                // mini program runtime can forward it to wx.request. Browsers ignore unknown
+                // RequestInit fields, so this is safe for the H5 environment as well.
+                if (timeout > 0) {
+                    it.asDynamic()["timeout"] = timeout
+                }
+            }
         )
         // Timeout and response, whoever comes first is processed first
         Promise.race(arrayOf(requestTimeoutPromise, fetchPromise.unsafeCast<Promise<*>>()))
@@ -182,7 +189,14 @@ class KRNetworkModule : KuiklyRenderBaseModule() {
                 body = body.toBlob(),
                 // Request mode is cross-domain mode
                 mode = RequestMode.CORS
-            )
+            ).also {
+                // Attach the timeout via a non-standard field so that MiniGlobal.fetch in the
+                // mini program runtime can forward it to wx.request. Browsers ignore unknown
+                // RequestInit fields, so this is safe for the H5 environment as well.
+                if (timeout > 0) {
+                    it.asDynamic()["timeout"] = timeout
+                }
+            }
         )
         // Timeout and response, whoever comes first is processed first
         Promise.race(arrayOf(requestTimeoutPromise, fetchPromise.unsafeCast<Promise<*>>()))

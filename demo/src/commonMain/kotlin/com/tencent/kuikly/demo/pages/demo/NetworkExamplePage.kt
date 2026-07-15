@@ -20,6 +20,7 @@ import com.tencent.kuikly.core.base.Border
 import com.tencent.kuikly.core.base.BorderStyle
 import com.tencent.kuikly.core.base.Color
 import com.tencent.kuikly.core.base.ViewBuilder
+import com.tencent.kuikly.core.datetime.DateTime
 import com.tencent.kuikly.core.module.NetworkModule
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 import com.tencent.kuikly.core.reactive.handler.observable
@@ -156,6 +157,27 @@ internal class NetworkExamplePage: BasePager() {
                         }
                     }
                 }
+                Button {
+                    attr {
+                        size(150f, 40f)
+                        borderRadius(20f)
+                        marginLeft(10f)
+                        marginTop(5f)
+                        backgroundColor(Color(0x6200ee, 1f))
+                        titleAttr {
+                            text("longTimeout(90s)")
+                            color(Color.WHITE)
+                        }
+                        highlightBackgroundColor(Color.GRAY)
+                    }
+                    event {
+                        click {
+                            ctx.output = "requestLongTimeout... (expecting ~70s success or ~90s timeout)"
+                            ctx.src = ""
+                            ctx.requestLongTimeout()
+                        }
+                    }
+                }
             }
             View {
                 attr {
@@ -276,6 +298,44 @@ internal class NetworkExamplePage: BasePager() {
                 | success=$success,
                 | 
                 | data=${data},
+                | 
+                | errorMsg=$errorMsg,
+                | 
+                | statusCode=${response.statusCode},
+                | 
+                | headers=${response.headerFields}""".trimMargin()
+        }
+    }
+
+    /**
+     * Regression case for the wx.request timeout propagation fix.
+     *
+     * Explicitly asks for a 90s timeout and hits an endpoint that delays the response for 70s.
+     *
+     * Expected behavior:
+     * - Before fix (mini program runtime): wx.request falls back to the default 60s timeout,
+     *   the request fails at ~60s with a timeout error, and the upper-layer 90s Promise.race
+     *   never wins.
+     * - After fix: the 90s timeout is forwarded to wx.request, so the delayed response is
+     *   received successfully around 70s.
+     */
+    private fun requestLongTimeout() {
+        val startMs = DateTime.currentTimestamp()
+        acquireModule<NetworkModule>(NetworkModule.MODULE_NAME).httpRequest(
+            url = "https://httpbin.org/delay/70",
+            isPost = false,
+            param = JSONObject().apply { put("key", "value") },
+            headers = null,
+            cookie = null,
+            timeout = 90
+        ) { data, success, errorMsg, response ->
+            val elapsedMs = DateTime.currentTimestamp() - startMs
+            output = """Long-timeout request completed:
+                | elapsedMs=$elapsedMs (expect ~70000 after fix; ~60000 before fix)
+                | 
+                | success=$success,
+                | 
+                | data=$data,
                 | 
                 | errorMsg=$errorMsg,
                 | 

@@ -153,6 +153,7 @@
     } else {
         // 【日志】缓存读取失败/不存在
         [KRLogModule logError:[NSString stringWithFormat:@"[TurboDisplay] Error: turboDisplay file read fail"]];
+        [_uiScheduler setIsInTurboDisplayLazyRendering:NO];                  // 无TB缓存，确保标志位不残留
     }
     double readTurboFileCostTime = (CFAbsoluteTimeGetCurrent() - readBeginTime) * 1000.0;
     
@@ -173,6 +174,7 @@
         
         UIView *view = (UIView *)[_renderLayerHandler viewWithTag:self.turboDisplayCacheData.turboDisplayNode.children.firstObject.tag];
         [view.superview layoutIfNeeded];            // 为了触发contentViewDidLoad首屏渲染完成
+        [_uiScheduler setIsInTurboDisplayLazyRendering:NO];                  // 第一次TB缓存上屏完成，恢复sync事件立即flush
         
         double renderCostTime = (CFAbsoluteTimeGetCurrent() - renderBeginTime) * 1000.0f;
         NSString *log = [NSString stringWithFormat:@"[TurboDisplay] Summary：page_name:%@ turbo_display render cost_time %.2lfms readTurboFileCostTime: %.2lfms :%d", _contextParam.pageName, renderCostTime, readTurboFileCostTime, _lazyRendering];

@@ -108,7 +108,9 @@ NSString *const kCustomFirstScreenTag = @"customFirstScreenTag";
     // 2. 安全保护：如果当前正在执行 UI batch（performingMainQueueTask=YES），
     //    说明是 UI 任务内部又发了 sync 事件。此时降级为 async，
     //    避免嵌套 dispatch_sync 导致时序异常。
-    if (shouldSync && self.uiScheduler.performingMainQueueTask) {
+    //    另外，TurboDisplay 第一次缓存上屏完成前，也强制降级为 async，
+    //    避免 sync 事件阻塞主线程并提前 flush UI 任务，导致 viewDidLoad 在 TB 上屏前点亮。
+    if (shouldSync && (self.uiScheduler.performingMainQueueTask || self.uiScheduler.isInTurboDisplayLazyRendering)) {
         shouldSync = NO;
     }
 
@@ -550,6 +552,7 @@ NSString *const kCustomFirstScreenTag = @"customFirstScreenTag";
                                                          turboDisplayKey:turboDisplayKey
                                                          turboDisplayConfig:config];
         handler.uiScheduler = _uiScheduler;
+        _uiScheduler.isInTurboDisplayLazyRendering = YES;                   // 只要走TurboDisplay，首屏完成前屏蔽sync事件
         return handler;
     }
     return [[KuiklyRenderLayerHandler alloc] initWithRootView:rootView contextParam:_contextParam];

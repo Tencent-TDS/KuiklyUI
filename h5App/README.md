@@ -95,6 +95,7 @@ addSplitPages(listOf("实际的页面名称"))
 
 h5App是项目的宿主APP，依赖 webRender，构建得到 h5App.js，demo 则是具体业务，构建得到统一的 nativevue2.js 或者是 split 的分页 js 文件。
 生产环境部署时 index.html 中会引入具体页面的 nativevue2.js 或 ${pageName}.js，以及 h5App.js，部署生产环境的 html 中业务和 h5App.js 的引用需要根据业务实际情况调整。
+
 ```html
 <!-- index.html -->
 
@@ -139,3 +140,52 @@ h5App是项目的宿主APP，依赖 webRender，构建得到 h5App.js，demo 则
 web 已支持项目中 assets 目录内图片资源的引用，但需要注意，assets 资源的引用有 ImageUri.pageAssets 和 ImageUri.commonAssets 两种方式，其中 commonAssets 方式引用的是 demo/src/commonMain/assets/common 目录内的图片，
 pageAssets 方式引用的是 demo/src/commonMain/assets/{pageName}/内的图片，注意这里{pageName}一定是业务Page中@Page注解内的真实pageName，包括大小写，分隔符等。在部署时，需要将 h5App/build/dist/js/productionExecutable/assets 目录
 整个拷贝到 web 项目根目录下，这样业务内通过 ImageUrl.pageAssets 和 ImageUri.commonAssets 所拿到的 assets 资源相对路径就能访问到对应的图片资源了
+
+## 多模块工程下 UMD 全局命名空间被覆盖问题
+
+### 现象
+
+在 `enableMultiModule = true` 的多模块工程（例如业务 shared 模块产出 `nativevue2.js`，`h5App` 模块产出 `h5App.js`，由 `JSMultiEntryBuilder` 分别打包）下，
+从 Kuikly 2.19.0 起，页面加载后偶发以下错误：
+
+```text
+Cannot read properties of undefined (reading 'registerCallNative')
+```
+
+即 `window.com.tencent.kuikly.core.nvi` 分支在 `h5App.js` 加载后变成 `undefined`，桥接注册失败。
+
+### 根因
+
+- `nativevue2.js`（shared 模块）依赖 `core`，其 UMD exports 顶层 `com` 分支下含有 `com.tencent.kuikly.core.nvi.*`，不含 `render.web.*`。
+- `h5App.js`（h5App 模块）依赖 `core-render-web:h5`。2.19+ 起 `core-render-web:base`/`h5` 新增了若干 `@file:JsExport` 顶层文件
+  （`KuiklyView` / `IKuiklyView` / `KuiklyRenderViewDelegator` / `JSHelper` 等），使得 `h5App.js` 的 UMD exports 顶层也出现 `com` 键，
+  但只含 `com.tencent.kuikly.core.render.web.*`，缺失 `nvi` 分支。
+- kotlin-webpack 生成的 UMD 尾部对 `window` 侧是**逐 key 整体赋值**，不做深合并：
+
+  ```js
+  var a = factory();
+  for (var i in a) (typeof exports === 'object' ? exports : root)[i] = a[i];
+  ```
+
+  当 `h5App.js` 后加载时，会把它自己的 `com` 整体覆盖到 `window.com`，从而抹掉 `nativevue2.js` 之前挂上的 `com.tencent.kuikly.core.nvi`。
+
+单模块工程下所有代码打在同一个产物里，`com.tencent.kuikly.core` 分支合并挂载一次，因此不会出现这种覆盖问题；这也是"单模块项目升级 2.19+ 没有踩坑、多模块项目却报错"的原因。
+
+### 处理方法
+
+`webpack.config.d/` 下提供两个针对该问题的配置片段，**二选一**启用即可：
+
+- **方案 X（默认启用，见 `webpack.config.d/output.js`）**：把 `h5App.js` 的输出方式从 UMD 改成 IIFE
+  （`config.output.libraryTarget = undefined` + `config.output.iife = true`），
+  让 `h5App.js` 不再向 `window` 暴露 UMD exports，从根源上避免整体覆盖 `window.com`。
+  适用于 `h5App.js` 本身只作为可执行入口、不需要对外提供符号的场景（当前默认场景）。
+
+- **方案 Y（备选，见 `webpack.config.d/kuikly-umd-deep-merge.js`）**：保留 UMD 输出，
+  在 emit 之前重写 UMD 尾部，把"逐 key 覆盖挂全局"改成"逐 key 深合并挂全局"——已存在的对象分支做递归合并、
+  已经存在的非对象值优先保留旧值。这样 `nativevue2.js` 与 `h5App.js` 各自挂到 `window.com` 的分支就能共存。
+  适用于集成方仍要求 `h5App.js` 通过 UMD 对外暴露 `KuiklyView` 等符号、或由于历史原因无法关闭 UMD wrapper 的场景。
+
+> ⚠️ 请勿同时启用两个方案。启用方案 Y 时，需要把 `output.js` 里 `libraryTarget`/`iife` 相关行注释掉，
+> 否则 UMD 尾部会被提前抹掉，方案 Y 的字符串替换将匹配不到而失效。
+
+如仅使用官方默认的 h5App 工程结构，保持 `output.js` 现状（方案 X）即可，`kuikly-umd-deep-merge.js` 仅在需要保留 UMD 输出时启用。

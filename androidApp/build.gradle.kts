@@ -4,11 +4,8 @@ plugins {
 }
 
 android {
-    compileSdk = 35
+    compileSdk = 34
     namespace = "com.tencent.kuikly.android.demo"
-    buildFeatures {
-        buildConfig = true
-    }
     defaultConfig {
         applicationId = "com.tencent.kuikly.android.demo"
         minSdk = 24
@@ -29,10 +26,8 @@ android {
         }
     }
 
-    packaging {
-        jniLibs {
-            keepDebugSymbols += "**/*.so"
-        }
+    packagingOptions {
+        doNotStrip("**/*.so")
     }
 }
 

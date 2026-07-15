@@ -84,6 +84,11 @@ class KuiklyRenderActivity : AppCompatActivity() {
         hrContainerView = findViewById(R.id.hr_container)
         loadingView = findViewById(R.id.hr_loading)
         errorView = findViewById(R.id.hr_error)
+        // 横竖屏 Demo 转屏间隙需要宿主容器黑底兜底；其他页面保持默认，避免全局变黑。
+        if (pageName == "ComposeVideoOrientationDemo" || pageName == "ComposeOrientationOverlayDemo") {
+            findViewById<View>(android.R.id.content).setBackgroundColor(Color.BLACK)
+            hrContainerView.setBackgroundColor(Color.BLACK)
+        }
         // 4. 触发Kuikly View实例化
         // hrContainerView：承载Kuikly的容器View
         // contextCode: jvm模式下传递""

@@ -35,7 +35,7 @@ import androidx.compose.runtime.tooling.ObservableComposition
 @OptIn(ExperimentalComposeRuntimeApi::class)
 internal class ProfilerCompositionObserver(
     private val tracker: RecompositionTracker
-) : CompositionObserver {
+) : CompositionObserver, ProfilerObserverFacade {
 
     /**
      * Current frame's precise scope → trigger states mapping.
@@ -56,7 +56,7 @@ internal class ProfilerCompositionObserver(
     /**
      * Whether precise scope→state mapping is available for the current composition pass.
      */
-    internal var hasPreciseMapping: Boolean = false
+    override var hasPreciseMapping: Boolean = false
         private set
 
     override fun onBeginComposition(composition: ObservableComposition) {
@@ -113,12 +113,12 @@ internal class ProfilerCompositionObserver(
      * Get the currently active scope's identity hash code.
      * Returns null if no active scope (initial composition).
      */
-    fun getCurrentScopeKey(): Int? = activeScopeStack.lastOrNull()?.hashCode()
+    override fun getCurrentScopeKey(): Int? = activeScopeStack.lastOrNull()?.hashCode()
 
     /**
      * Get the precise trigger states for the currently active scope (top of stack).
      */
-    fun getCurrentScopeTriggerStates(): List<String>? {
+    override fun getCurrentScopeTriggerStates(): List<String>? {
         val currentScope = activeScopeStack.lastOrNull() ?: return null
         val states = scopeToStatesMap[currentScope]
         return if (states != null) {
@@ -133,7 +133,7 @@ internal class ProfilerCompositionObserver(
     /**
      * Get the raw trigger State objects for the currently active scope.
      */
-    fun getCurrentScopeTriggerStateObjects(): Set<Any>? {
+    override fun getCurrentScopeTriggerStateObjects(): Set<Any>? {
         val currentScope = activeScopeStack.lastOrNull() ?: return null
         return scopeToStatesMap[currentScope]
     }

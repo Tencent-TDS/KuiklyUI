@@ -21,6 +21,7 @@ import androidx.annotation.VisibleForTesting
 import androidx.collection.mutableScatterMapOf
 import com.tencent.kuikly.compose.foundation.ComposeFoundationFlags
 import com.tencent.kuikly.compose.foundation.ComposeFoundationFlags.isAutomaticNestedPrefetchEnabled
+import com.tencent.kuikly.compose.ui.platform.supportsPausableComposition
 import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
 import com.tencent.kuikly.compose.foundation.internal.checkPrecondition
 import com.tencent.kuikly.compose.foundation.internal.requirePrecondition
@@ -659,7 +660,7 @@ internal class PrefetchHandleProvider(
             // updateElapsedAndAvailableTime 之后的 delta。
             val startBudgetNs = availableTimeNanos
             if (!isComposed) {
-                if (ComposeFoundationFlags.isPausableCompositionInPrefetchEnabled) {
+                if (ComposeFoundationFlags.isPausableCompositionInPrefetchEnabled && supportsPausableComposition()) {
                     if (
                         shouldExecute(
                             availableTimeNanos,

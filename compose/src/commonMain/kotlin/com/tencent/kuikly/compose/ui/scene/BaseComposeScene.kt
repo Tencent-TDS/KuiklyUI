@@ -28,8 +28,6 @@ import androidx.compose.runtime.ExperimentalComposeRuntimeApi
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.tooling.CompositionObserverHandle
-import androidx.compose.runtime.tooling.setObserver
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.GlobalSnapshotManager
 import com.tencent.kuikly.compose.ui.InternalComposeUiApi
@@ -48,8 +46,10 @@ import com.tencent.kuikly.compose.foundation.lazy.layout.KUIKLY_PREFETCH_IDLE_FR
 import com.tencent.kuikly.compose.foundation.lazy.layout.KuiklyPrefetchScheduler
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyListPrefetchTrace
 import com.tencent.kuikly.compose.container.VsyncTickConditions
+import com.tencent.kuikly.compose.profiler.KuiklyObserverHandle
 import com.tencent.kuikly.compose.profiler.RecompositionProfiler
 import com.tencent.kuikly.compose.profiler.RecompositionTracker
+import com.tencent.kuikly.compose.profiler.kuiklySetObserver
 import com.tencent.kuikly.compose.ui.KuiklyCanvas
 import com.tencent.kuikly.core.exception.throwRuntimeError
 import kotlin.concurrent.Volatile
@@ -104,8 +104,7 @@ internal abstract class BaseComposeScene(
     // ========== CompositionObserver 集成 ==========
 
     /** CompositionObserver 注册句柄 */
-    @OptIn(ExperimentalComposeRuntimeApi::class)
-    private var compositionObserverHandle: CompositionObserverHandle? = null
+    private var compositionObserverHandle: KuiklyObserverHandle? = null
 
     /** Profiler 生命周期监听器 */
     private var profilerListener: RecompositionProfiler.ProfilerLifecycleListener? = null
@@ -304,16 +303,17 @@ internal abstract class BaseComposeScene(
      * Register a CompositionObserver on the given composition for precise recomposition tracking.
      * Also registers a [RecompositionProfiler.ProfilerLifecycleListener] so that profiler
      * start/stop can dynamically attach/detach the observer.
+     *
+     * On runtime 1.9+ (runtime19Main) the observer is wired via [kuiklySetObserver].
+     * On legacy runtimes (runtimeLegacyMain) the call is a no-op.
      */
-    @OptIn(ExperimentalComposeRuntimeApi::class)
     private fun setupCompositionObserver(comp: Composition) {
-        // Clean up any previous observer
         teardownCompositionObserver()
 
         val listener = object : RecompositionProfiler.ProfilerLifecycleListener {
             override fun onProfilerStarted(tracker: RecompositionTracker) {
                 compositionObserverHandle?.dispose()
-                compositionObserverHandle = comp.setObserver(tracker.compositionObserver)
+                compositionObserverHandle = comp.kuiklySetObserver(tracker.compositionObserver)
             }
 
             override fun onProfilerStopped() {
@@ -328,7 +328,6 @@ internal abstract class BaseComposeScene(
     /**
      * Tear down the CompositionObserver and lifecycle listener.
      */
-    @OptIn(ExperimentalComposeRuntimeApi::class)
     private fun teardownCompositionObserver() {
         compositionObserverHandle?.dispose()
         compositionObserverHandle = null

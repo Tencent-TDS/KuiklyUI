@@ -25,10 +25,7 @@ import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReusableComposeNode
 import androidx.compose.runtime.ReusableComposition
-import androidx.compose.runtime.PausableComposition
-import androidx.compose.runtime.PausedComposition
 import androidx.compose.runtime.ReusableContentHost
-import androidx.compose.runtime.ShouldPauseCallback
 import androidx.compose.runtime.SideEffect
 import androidx.collection.mutableIntSetOf
 import androidx.compose.runtime.collection.mutableVectorOf
@@ -65,7 +62,9 @@ import com.tencent.kuikly.compose.ui.node.requireOwner
 import com.tencent.kuikly.compose.ui.node.traverseDescendants
 import com.tencent.kuikly.compose.ui.platform.LocalConfiguration
 import com.tencent.kuikly.compose.ui.platform.LocalDensity
-import com.tencent.kuikly.compose.ui.platform.createPausableSubcomposition
+import com.tencent.kuikly.compose.ui.platform.PausedCompositionHandle
+import com.tencent.kuikly.compose.ui.platform.beginPausableContent
+import com.tencent.kuikly.compose.ui.platform.createPausableSubcompositionCompat
 import com.tencent.kuikly.compose.ui.platform.createSubcomposition
 import com.tencent.kuikly.compose.ui.unit.Constraints
 import com.tencent.kuikly.compose.ui.unit.IntSize
@@ -572,7 +571,7 @@ class SubcomposeLayoutState(
      */
     sealed interface PausedPrecomposition {
         val isComplete: Boolean
-        fun resume(shouldPause: ShouldPauseCallback): Boolean
+        fun resume(shouldPause: () -> Boolean): Boolean
         fun apply(): PrecomposedSlotHandle
         fun cancel()
     }
@@ -879,7 +878,7 @@ internal class LayoutNodeSubcompositionsState(
                 val composition =
                     if (existing == null || existing.isDisposed) {
                         if (pausable) {
-                            createPausableSubcomposition(knode, parentComposition)
+                            createPausableSubcompositionCompat(knode, parentComposition)
                         } else {
                             createSubcomposition(knode, parentComposition)
                         }
@@ -893,12 +892,16 @@ internal class LayoutNodeSubcompositionsState(
                     ReusableContentHost(nodeState.active, content)
                 }
                 if (pausable) {
-                    composition as PausableComposition
-                    if (nodeState.forceReuse) {
-                        nodeState.pausedComposition =
-                            composition.setPausableContentWithReuse(composable)
+                    val handle = beginPausableContent(composition, composable, nodeState.forceReuse)
+                    if (handle != null) {
+                        nodeState.pausedComposition = handle
                     } else {
-                        nodeState.pausedComposition = composition.setPausableContent(composable)
+                        // Legacy fallback: PausableComposition unavailable on this runtime.
+                        if (nodeState.forceReuse) {
+                            composition.setContentWithReuse(composable)
+                        } else {
+                            composition.setContent(composable)
+                        }
                     }
                 } else {
                     if (nodeState.forceReuse) {
@@ -1325,7 +1328,7 @@ internal class LayoutNodeSubcompositionsState(
             return object : PausedPrecompositionImpl {
                 override val isComplete: Boolean = true
 
-                override fun resume(shouldPause: ShouldPauseCallback) = true
+                override fun resume(shouldPause: () -> Boolean) = true
 
                 override fun apply() = createPrecomposedSlotHandle(slotId)
 
@@ -1346,7 +1349,7 @@ internal class LayoutNodeSubcompositionsState(
             override val isComplete: Boolean
                 get() = nodeState?.pausedComposition?.isComplete ?: true
 
-            override fun resume(shouldPause: ShouldPauseCallback): Boolean {
+            override fun resume(shouldPause: () -> Boolean): Boolean {
                 val pausedComposition = nodeState?.pausedComposition
                 return if (pausedComposition != null && !pausedComposition.isComplete) {
                     var result = true
@@ -1429,7 +1432,7 @@ internal class LayoutNodeSubcompositionsState(
      ) {
          var forceRecompose = false
          var forceReuse = false
-         var pausedComposition: PausedComposition? = null
+         var pausedComposition: PausedCompositionHandle? = null
          var activeState = mutableStateOf(true)
          var composedWithReusableContentHost = false
          var active: Boolean

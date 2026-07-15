@@ -83,13 +83,33 @@ kotlin {
 //            implementation(libs.kotlin.test)
         }
 
-        // Android 特有源集中添加 ProfileInstaller 依赖
+        // runtime19Main: real PausableComposition + CompositionObserver wiring (Kotlin 2.1.21+)
+        val runtime19Main by creating {
+            dependsOn(commonMain.get())
+        }
+
+        // Wire Android and JS targets explicitly
         val androidMain by getting {
+            dependsOn(runtime19Main)
             dependencies {
                 compileOnly(project(":core-render-android"))
                 implementation("androidx.profileinstaller:profileinstaller:1.3.1")
                 // 保留现有依赖...
             }
+        }
+
+        val jsMain by getting {
+            dependsOn(runtime19Main)
+        }
+
+        // Wire each native/Apple target source set individually.
+        // nativeMain / appleMain are intermediate sets that may not be addressable directly
+        // via "by getting" at this point; we use findByName for safety.
+        listOf(
+            "iosX64Main", "iosArm64Main", "iosSimulatorArm64Main",
+            "macosX64Main", "macosArm64Main",
+        ).forEach { ssName ->
+            findByName(ssName)?.dependsOn(runtime19Main)
         }
     }
 }

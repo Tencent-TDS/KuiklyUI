@@ -41,6 +41,8 @@ import com.tencent.kuikly.compose.ui.geometry.Size
 import com.tencent.kuikly.compose.ui.graphics.Brush
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.SolidColor
+import com.tencent.kuikly.compose.ui.graphics.isSpecified
+import com.tencent.kuikly.compose.ui.graphics.toArgb
 import com.tencent.kuikly.compose.ui.layout.Measurable
 import com.tencent.kuikly.compose.ui.layout.MeasurePolicy
 import com.tencent.kuikly.compose.ui.layout.MeasureResult
@@ -574,6 +576,9 @@ internal fun CoreTextField(
                             val shouldSyncToNative = !isProcessingNativeEvent ||
                                 !(lastSyncedTextInputState?.hasSameEditingState(incomingTextInputState) ?: false)
 
+                            // mention 高亮：每次 value 变化都下发区间（不依赖 shouldSyncToNative，
+                            // 因为原生发起的编辑也需要更新 mention span，否则 mentionSpansData 为 null、拦截不触发）
+                            getViewAttr().setProp("mentionSpans", buildMentionSpansJson(value.annotatedString))
                             if (shouldSyncToNative) {
                                 setTextInputState(incomingTextInputState)
                                 lastSyncedTextInputState = incomingTextInputState
@@ -667,6 +672,27 @@ fun updateKeyboardActions(
             state.onImeActionPerformed.invoke(this)
         }
     }
+}
+
+/**
+ * 把 AnnotatedString 上带颜色的 spanStyles 序列化成 native 可解析的 JSON：[[start,end,colorArgb],...]。
+ * 仅取 color.isSpecified 的区间；空则返回 "[]"，native 侧 no-op。
+ */
+private fun buildMentionSpansJson(annotatedString: AnnotatedString): String {
+    val spans = annotatedString.spanStyles
+    if (spans.isEmpty()) return "[]"
+    val sb = StringBuilder("[")
+    var first = true
+    for (range in spans) {
+        val color = range.item.color
+        if (color.isSpecified) {
+            if (!first) sb.append(',')
+            first = false
+            sb.append('[').append(range.start).append(',').append(range.end).append(',').append(color.toArgb()).append(']')
+        }
+    }
+    sb.append(']')
+    return sb.toString()
 }
 
 

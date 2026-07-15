@@ -50,6 +50,10 @@ android {
         consumerProguardFiles("consumer-rules.pro")
     }
 
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
+
 //    buildTypes {
 //        release {
 //            isMinifyEnabled = false
@@ -79,4 +83,8 @@ dependencies {
     compileOnly(project(":core"))
     implementation("androidx.appcompat:appcompat:1.4.2")
     implementation("androidx.dynamicanimation:dynamicanimation:1.0.0")
+
+    // 单元测试（Robolectric，JVM 内运行，不依赖真机）：覆盖 mention 两段式删除与组合态守卫
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.12.2")
 }

@@ -30,12 +30,17 @@ import android.text.Spannable
 import android.text.SpannableString
 import android.text.SpannableStringBuilder
 import android.text.Spanned
+import android.text.TextPaint
 import android.text.TextWatcher
+import android.text.style.CharacterStyle
 import android.text.style.ImageSpan
 import android.util.SizeF
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputConnection
+import android.view.inputmethod.InputConnectionWrapper
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.TextView
@@ -64,6 +69,7 @@ import com.tencent.kuikly.core.render.android.expand.module.KRKeyboardModule
 import com.tencent.kuikly.core.render.android.expand.module.KeyboardStatusListener
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderViewExport
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -232,6 +238,10 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
                 autoHideKeyboardOnImeAction = (propValue as Int == TYPE_ENABLE_HIDE_KEYBOARD)
                 true
             }
+            MENTION_SPANS -> {
+                setMentionSpans(propValue.toString())
+                true
+            }
             else -> super.setProp(propKey, propValue)
         }
     }
@@ -274,6 +284,117 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
             METHOD_SET_TEXT_INPUT_STATE -> setTextInputState(params)
             METHOD_GET_TEXT_INPUT_STATE -> getTextInputState(callback)
             else -> super.call(method, params, callback)
+        }
+    }
+
+    /**
+     * 跨两次退格记住待删的 mention 区间。
+     * 根因：DEL1 setSelection 后 native 选区会被某种机制折叠成 [end,end]，
+     * 导致 DEL2 时 selectionStart == selectionEnd，看不到选区。
+     * 用 pending 字段记住第一次设的区间，DEL2 直接按 pending 删，不依赖选区持久。
+     * 任何文本改动（afterTextChanged）会清掉 pending，避免陈旧状态。
+     */
+    private var pendingMentionDelete: IntRange? = null
+
+    /**
+     * 是否处于 IME 拼音组合态（组词未上屏）。
+     * 组合态下退格由输入法自行处理，不应触发 mention 两段式删除，
+     * 否则会误把组词中的字符当作 mention 边界选中。
+     * 通过 editableText 上的 SPAN_COMPOSING 标记判断。
+     */
+    private val isInComposition: Boolean
+        get() = getEditableText()?.let { ed ->
+            ed.getSpans(0, ed.length, Any::class.java)
+                .any { ed.getSpanFlags(it) and Spanned.SPAN_COMPOSING != 0 }
+        } ?: false
+
+    /**
+     * 两段式删除第二步：选区已覆盖某个 mention 或 pending 有值 → 删掉、返回 true 消费事件。
+     * 第一次退格由 interceptMentionBackspace 设选区+pending，第二次到这里删。
+     * 真机软键盘的退格走 deleteSurroundingText（不删选区），必须在 wrapper 里自己删。
+     */
+    internal fun deleteMentionSelection(): Boolean {
+        val data = mentionSpansData ?: return false
+        val selStart = selectionStart
+        val selEnd = selectionEnd
+
+        // 路径 A：当前选区恰好覆盖某个 mention → 删选区
+        if (selStart != selEnd) {
+            val min = minOf(selStart, selEnd)
+            val max = maxOf(selStart, selEnd)
+            val mention = data.lastOrNull { it.first == min && it.second == max }
+            if (mention != null) {
+                getEditableText()?.delete(min, max)
+                pendingMentionDelete = null
+                return true
+            }
+        }
+
+        // 路径 B：选区被折叠了，用 pending 删
+        val pending = pendingMentionDelete
+        if (pending != null) {
+            val mention = data.lastOrNull { it.first == pending.first && it.second == pending.last }
+            if (mention != null) {
+                getEditableText()?.delete(pending.first, pending.last)
+                pendingMentionDelete = null
+                return true
+            }
+            // pending 不再匹配（mention 被改/删/重建）→ 清掉
+            pendingMentionDelete = null
+        }
+        return false
+    }
+
+    /**
+     * 两段式删除第一步：光标折叠 + 待删字符（cursor-1）落在某个 mention [start,end) 内
+     * → 把选区设到该 mention 整段 + 记下 pending 区间、返回 true 消费退格事件。
+     */
+    internal fun interceptMentionBackspace(): Boolean {
+        val data = mentionSpansData
+        val selStart = selectionStart
+        val selEnd = selectionEnd
+        if (data == null) return false
+        if (selStart != selEnd) return false // 已有选区（第二次按），放行默认删除
+        val cursor = selStart
+        if (cursor <= 0) return false
+        val aboutToDeletePos = cursor - 1
+        val hit = data.lastOrNull { it.first <= aboutToDeletePos && aboutToDeletePos < it.second } ?: return false
+        setSelection(hit.first, hit.second)
+        pendingMentionDelete = hit.first..hit.second
+        return true
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_DEL && event?.action == KeyEvent.ACTION_DOWN) {
+            if (isInComposition) return super.onKeyDown(keyCode, event)
+            if (deleteMentionSelection()) return true
+            if (interceptMentionBackspace()) return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
+    override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection {
+        val base = super.onCreateInputConnection(outAttrs)
+        return MentionInputConnection(base)
+    }
+
+    /**
+     * 包装原生 InputConnection，拦截软键盘退格（deleteSurroundingText），
+     * 在 mention 边界先选区后删。其它事件透传给 base。
+     */
+    private inner class MentionInputConnection(base: InputConnection) : InputConnectionWrapper(base, false) {
+        override fun deleteSurroundingText(beforeChars: Int, afterChars: Int): Boolean {
+            if (isInComposition) return super.deleteSurroundingText(beforeChars, afterChars)
+            if (deleteMentionSelection()) return true
+            if (selectionStart == selectionEnd && beforeChars > 0 && interceptMentionBackspace()) return true
+            return super.deleteSurroundingText(beforeChars, afterChars)
+        }
+
+        override fun deleteSurroundingTextInCodePoints(beforeChars: Int, afterChars: Int): Boolean {
+            if (isInComposition) return super.deleteSurroundingTextInCodePoints(beforeChars, afterChars)
+            if (deleteMentionSelection()) return true
+            if (selectionStart == selectionEnd && beforeChars > 0 && interceptMentionBackspace()) return true
+            return super.deleteSurroundingTextInCodePoints(beforeChars, afterChars)
         }
     }
 
@@ -670,6 +791,60 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         setSelection(index.coerceIn(0, text?.length ?: 0))
     }
 
+    /**
+     * Mention 高亮区间数据：List<(start, end, colorArgb)>。为 null 表示无 mention 高亮。
+     * 由 Compose 侧 setProp("mentionSpans", json) 下发，在 setTextInputState 重建文本后重打。
+     */
+    private var mentionSpansData: List<Triple<Int, Int, Int>>? = null
+
+    internal fun setMentionSpans(json: String) {
+        mentionSpansData = parseMentionSpans(json)
+        applyMentionSpans()
+    }
+
+    internal fun parseMentionSpans(json: String): List<Triple<Int, Int, Int>>? {
+        if (json.isEmpty() || json == "[]") return null
+        return runCatching {
+            val arr = JSONArray(json)
+            val result = ArrayList<Triple<Int, Int, Int>>(arr.length())
+            for (i in 0 until arr.length()) {
+                val item = arr.getJSONArray(i)
+                result.add(Triple(item.getInt(0), item.getInt(1), item.getInt(2)))
+            }
+            result
+        }.getOrNull()
+    }
+
+    /**
+     * 按 mentionSpansData 给当前 editableText 打/清 MentionColorSpan。
+     * - 先清除旧 MentionColorSpan，避免残留或区间错位；
+     * - data 为空时仅做清除，保证无 mention 的输入框零影响。
+     */
+    private fun applyMentionSpans() {
+        val editable = editableText ?: return
+        val oldSpans = editable.getSpans(0, editable.length, MentionColorSpan::class.java)
+        for (span in oldSpans) {
+            editable.removeSpan(span)
+        }
+        val data = mentionSpansData ?: return
+        for ((start, end, color) in data) {
+            if (start >= 0 && end >= start && end <= editable.length) {
+                editable.setSpan(MentionColorSpan(color), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+        }
+    }
+
+    /**
+     * 高亮 span：继承 CharacterStyle（不继承 MetricAffectingSpan），
+     * 避免 Android StaticLayout 把 span 边界当作潜在断行点导致 @后普通文字另起一行。
+     * updateDrawState 仍设 textPaint.color 保持高亮效果。
+     */
+    private class MentionColorSpan(private val color: Int) : CharacterStyle() {
+        override fun updateDrawState(textPaint: TextPaint) {
+            textPaint.color = color
+        }
+    }
+
     private fun setTextInputState(params: String?) {
         val json = runCatching { JSONObject(params ?: "{}") }.getOrElse { JSONObject() }
         val rawText = json.optString(KEY_TEXT, "")
@@ -697,6 +872,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
             val actualStart = selectionStart.coerceIn(0, actualLength)
             val actualEnd = selectionEnd.coerceIn(0, actualLength)
             setSelection(actualStart, actualEnd)
+            applyMentionSpans()
         } finally {
             isSettingTextInputState = false
         }
@@ -888,7 +1064,13 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     private fun resetDefaultStyle() {
         setPadding(0, 0, 0, 0)
         background = null
-        gravity = Gravity.LEFT or Gravity.CENTER
+        // 改为 TOP 对齐，避免多行文本时与上层 BasicText 显示层错位（光标偏下）。
+        // CENTER 会把整段文本垂直居中，导致第二行起累积偏移越来越大。
+        gravity = Gravity.LEFT or Gravity.TOP
+        // 关闭 Android EditText 默认的字体上下 padding（用于显示音标 / 重音符号）。
+        // 与上层 BasicText 显示层在 16sp 中文下约 3-4px/行，5 行累积可达 15-20px，
+        // 必须关掉才能保证行块高度与上层一致。
+        includeFontPadding = false
     }
 
     private fun enableFocusInTouchMode() {
@@ -1033,6 +1215,8 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
                     if (isSettingTextInputState) {
                         return
                     }
+                    // 任何文本改动都让 pendingMentionDelete 失效（输入了别的字符、删了别的）
+                    pendingMentionDelete = null
                     s?.also(::ensureLineHeightSpan)
                     applyEmojiSpans(s)
                     textInputStateChangeCallback?.invoke(createTextInputStateParamMap())
@@ -1079,6 +1263,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         private const val IME_NO_FULLSCREEN = "imeNoFullscreen"
         private const val AUTO_HIDE_KEYBOARD_ON_IME_ACTION = "autoHideKeyboardOnImeAction"
         private const val SELECTION_COLOR = "selectionColor"
+        private const val MENTION_SPANS = "mentionSpans"
 
         private const val METHOD_SET_TEXT = "setText"
         private const val METHOD_FOCUS = "focus"

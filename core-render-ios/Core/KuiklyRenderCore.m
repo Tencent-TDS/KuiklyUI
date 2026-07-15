@@ -105,11 +105,11 @@ NSString *const kCustomFirstScreenTag = @"customFirstScreenTag";
     //    - 或者当前不在主线程（非主线程发事件必须 sync，否则事件可能丢失）
     BOOL shouldSync = sync || ![NSThread isMainThread];
 
-    // 2. 安全保护：如果当前正在执行 UI batch（performingMainQueueTask=YES），
-    //    说明是 UI 任务内部又发了 sync 事件。此时降级为 async，
-    //    避免嵌套 dispatch_sync 导致时序异常。
-    //    另外，TurboDisplay 第一次缓存上屏完成前，也强制降级为 async，
-    //    避免 sync 事件阻塞主线程并提前 flush UI 任务，导致 viewDidLoad 在 TB 上屏前点亮。
+    // 2. 安全保护：在以下两种场景下需要把 sync 降级为 async
+    //    a) 当前正在执行 UI batch（performingMainQueueTask=YES）
+    //       说明是 UI 任务内部又发了 sync 事件，避免嵌套 dispatch_sync 导致时序异常。
+    //    b) TurboDisplay 第一次缓存上屏完成前（isInTurboDisplayLazyRendering=YES）
+    //       避免 sync 事件阻塞主线程并提前 flush UI 任务，导致 viewDidLoad 在 TB 上屏前点亮。
     if (shouldSync && (self.uiScheduler.performingMainQueueTask || self.uiScheduler.isInTurboDisplayLazyRendering)) {
         shouldSync = NO;
     }
@@ -553,6 +553,7 @@ NSString *const kCustomFirstScreenTag = @"customFirstScreenTag";
                                                          turboDisplayConfig:config];
         handler.uiScheduler = _uiScheduler;
         _uiScheduler.isInTurboDisplayLazyRendering = YES;                   // 只要走TurboDisplay，首屏完成前屏蔽sync事件
+        _uiScheduler.mainThreadTaskWaitToSyncBlock = nil;                   // 清理可能残留的sync占位，确保后续UI任务走async
         return handler;
     }
     return [[KuiklyRenderLayerHandler alloc] initWithRootView:rootView contextParam:_contextParam];

@@ -99,7 +99,8 @@
 
         // 提前标记 firstScreenTurboDisplay，让 Kotlin 侧 created() 中能拿到正确结果
         // init 早于 didInit（didInit 里 nodeWithCachKey 读完即删，之后文件不再存在），
-        // 必须在 init 阶段用 hasNodeWithCacheKey 预判，再在 didInit 中真正加载。
+        // 必须在 init 阶段用 hasNodeWithCacheKey 预判存在性（不会删除文件），
+        // 再在 didInit 中通过 nodeWithCachKey 真正加载并删除。
         if ([[KRTurboDisplayCacheManager sharedInstance] hasNodeWithCacheKey:self.turboDisplayCacheKey]) {
             KRTurboDisplayModule *module = (KRTurboDisplayModule *)[_renderLayerHandler moduleWithName:NSStringFromClass([KRTurboDisplayModule class])];
             module.firstScreenTurboDisplay = YES;

@@ -18,6 +18,8 @@ package com.tencent.kuikly.demo.pages.compose
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.rememberCoroutineScope
 import com.tencent.kuikly.compose.ComposeContainer
 import com.tencent.kuikly.compose.extension.scrollToTop
 import com.tencent.kuikly.compose.foundation.background
@@ -36,11 +38,17 @@ import com.tencent.kuikly.compose.foundation.layout.size
 import com.tencent.kuikly.compose.foundation.layout.width
 import com.tencent.kuikly.compose.foundation.lazy.LazyColumn
 import com.tencent.kuikly.compose.foundation.lazy.items
+import com.tencent.kuikly.compose.foundation.lazy.rememberLazyListState
 import com.tencent.kuikly.compose.foundation.shape.RoundedCornerShape
 import com.tencent.kuikly.compose.material3.Card
 import com.tencent.kuikly.compose.material3.CardDefaults
 import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.setContent
+import com.tencent.kuikly.core.module.DebugModule
+import com.tencent.kuikly.core.module.ModuleConst
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.draw.clip
@@ -65,6 +73,7 @@ internal data class DemoItem(
 @Page("ComposeAllSample")
 internal class ComposeAllSample : ComposeContainer() {
     override fun debugUIInspector(): Boolean = true
+    override fun isDebugLogEnable(): Boolean = true
     // 预定义一组美观的Material Design颜色
     private val demoColors =
         listOf(
@@ -183,6 +192,35 @@ internal class ComposeAllSample : ComposeContainer() {
         // 使用抽离出的函数获取演示列表
         val demoList = remember { getDemoItems() }
 
+        // DebugModule：抓取列表滑动区间 Trace（仅 Android 有原生实现，需平台守卫防 iOS/OHOS 崩溃）
+        val listState = rememberLazyListState()
+        val scope = rememberCoroutineScope()
+        LaunchedEffect(listState) {
+            if (pageData?.isAndroid != true) return@LaunchedEffect
+            val debug = acquireModule<DebugModule>(ModuleConst.DEBUG)
+            var stopJob: Job? = null
+            var tracing = false
+            snapshotFlow { listState.isScrollInProgress }.collect { scrolling ->
+                if (scrolling) {
+                    stopJob?.cancel()
+                    if (!tracing) {
+                        debug.startTrace("list_scroll")
+                        tracing = true
+                    }
+                } else if (tracing) {
+                    stopJob = scope.launch {
+                        delay(500)
+                        if (!listState.isScrollInProgress && tracing) {
+                            val path = debug.stopTrace()
+                            println("DebugModule trace saved: $path")
+                            println("DebugModule eventTrace:\n" + debug.exportPageEventTrace())
+                            tracing = false
+                        }
+                    }
+                }
+            }
+        }
+
         Column(
             modifier =
                 Modifier
@@ -191,6 +229,7 @@ internal class ComposeAllSample : ComposeContainer() {
         ) {
 
             LazyColumn(
+                state = listState,
                 modifier = Modifier.fillMaxSize().testTag("demo_list"),
                 verticalArrangement = Arrangement.spacedBy(8.dp), // 减小间距
                 contentPadding = PaddingValues(all = 8.dp),

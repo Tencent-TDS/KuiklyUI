@@ -230,6 +230,7 @@ fun SubcomposeLayout(
     val materialized = currentComposer.materialize(modifier)
     scrollableState.kuiklyInfo.orientation = orientation
     scrollableState.kuiklyInfo.pageData = LocalConfiguration.current.pageData
+    val isAndroid = LocalConfiguration.current.isAndroid
     val isPagerView = scrollableState is PagerState || scrollableState is DrawerInternalPagerState
     val isDrawerPager = scrollableState is DrawerInternalPagerState
     val coroutineScope = rememberCoroutineScope()
@@ -263,7 +264,7 @@ fun SubcomposeLayout(
             }
 
             if (scrollableState is PagerState || scrollableState is DrawerInternalPagerState) {
-                willDragEndBySync(isSync = scrollableState is PagerState, handler = {
+                willDragEndBySync(isSync = scrollableState is PagerState && !isAndroid, handler = {
                     val viewportSize = kuiklyInfo.viewportSize
                     val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
                     // 实现分页滑动

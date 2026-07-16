@@ -35,7 +35,7 @@ import com.tencent.kuikly.compose.ui.graphics.PointMode
 import com.tencent.kuikly.compose.ui.graphics.StrokeCap
 import com.tencent.kuikly.compose.ui.graphics.StrokeJoin
 import com.tencent.kuikly.compose.ui.graphics.degrees
-//import com.tencent.kuikly.compose.ui.graphics.PathEffect
+import com.tencent.kuikly.compose.ui.graphics.PathEffect
 //import com.tencent.kuikly.compose.ui.graphics.PointMode
 //import com.tencent.kuikly.compose.ui.graphics.StrokeCap
 //import com.tencent.kuikly.compose.ui.graphics.StrokeJoin
@@ -379,7 +379,7 @@ interface DrawScope : Density {
         end: Offset,
         strokeWidth: Float = Stroke.HairlineWidth,
         cap: StrokeCap = Stroke.DefaultCap,
-//        pathEffect: PathEffect? = null,
+        pathEffect: PathEffect? = null,
         @FloatRange(from = 0.0, to = 1.0) alpha: Float = 1.0f,
 //        colorFilter: ColorFilter? = null,
 //        blendMode: BlendMode = DefaultBlendMode
@@ -406,7 +406,7 @@ interface DrawScope : Density {
         end: Offset,
         strokeWidth: Float = Stroke.HairlineWidth,
         cap: StrokeCap = Stroke.DefaultCap,
-//        pathEffect: PathEffect? = null,
+        pathEffect: PathEffect? = null,
         @FloatRange(from = 0.0, to = 1.0) alpha: Float = 1.0f,
 //        colorFilter: ColorFilter? = null,
 //        blendMode: BlendMode = DefaultBlendMode
@@ -849,7 +849,7 @@ interface DrawScope : Density {
         color: Color,
         strokeWidth: Float = Stroke.HairlineWidth,
         cap: StrokeCap = StrokeCap.Butt,
-//        pathEffect: PathEffect? = null,
+        pathEffect: PathEffect? = null,
         @FloatRange(from = 0.0, to = 1.0) alpha: Float = 1.0f,
 //        colorFilter: ColorFilter? = null,
 //        blendMode: BlendMode = DefaultBlendMode
@@ -877,7 +877,7 @@ interface DrawScope : Density {
         brush: Brush,
         strokeWidth: Float = Stroke.HairlineWidth,
         cap: StrokeCap = StrokeCap.Butt,
-//        pathEffect: PathEffect? = null,
+        pathEffect: PathEffect? = null,
         @FloatRange(from = 0.0, to = 1.0) alpha: Float = 1.0f,
 //        colorFilter: ColorFilter? = null,
 //        blendMode: BlendMode = DefaultBlendMode

@@ -54,6 +54,7 @@ class KuiklyPaint : Paint {
     override var strokeMiterLimit: Float = 4f
     override var style: PaintingStyle = PaintingStyle.Fill
     override var shader: Any? = null
+    override var pathEffect: PathEffect? = null
 }
 
 interface Paint {
@@ -121,4 +122,15 @@ interface Paint {
      * When this is null, the [color] is used instead.
      */
     var shader: Any?
+
+    /**
+     * The effect to apply to the stroke when drawing. null indicates a solid stroke.
+     * Currently only [PathEffect.dashPathEffect] is supported.
+     *
+     * Default no-op getter/setter keeps existing third-party [Paint] implementations
+     * source-compatible; [KuiklyPaint] overrides this with a real backing field.
+     */
+    var pathEffect: PathEffect?
+        get() = null
+        set(_) {}
 }

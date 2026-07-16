@@ -23,17 +23,32 @@ import com.tencent.kuikly.compose.ui.unit.Constraints
  * Lays out and renders multiple paragraphs at once. Unlike [Paragraph], supports multiple
  * [ParagraphStyle]s in a given text.
  *
- * @param intrinsics previously calculated text intrinsics
- * @param constraints how wide and tall the text is allowed to be. [Constraints.maxWidth]
- * will define the width of the MultiParagraph. [Constraints.maxHeight] helps defining the
- * number of lines that fit with ellipsis is true. Minimum components of the [Constraints]
- * object are no-op.
- * @param maxLines the maximum number of lines that the text can have
- * @param ellipsis whether to ellipsize text, applied only when [maxLines] is set
+ * Kuikly 下文本由原生 RichTextView 渲染，行度量信息由 native 端（Android StaticLayout /
+ * iOS / OHOS）通过 callMethod 桥接回填到本类的 [lineTops]/[lineBottoms] 与 [getBoundingBoxFn]。
+ * 单位为 px（已在 commonMain 侧乘以 pageDensity 换算，与 DrawScope 坐标系一致）。
  */
 class MultiParagraph(
     val lineCount: Int = 0,
-    val placeholderRects: List<Rect?>
+    val placeholderRects: List<Rect?>,
+    private val lineTops: FloatArray = FloatArray(0),
+    private val lineBottoms: FloatArray = FloatArray(0),
+    private val getBoundingBoxFn: ((Int) -> Rect)? = null,
 ) {
 
+    /**
+     * Returns the top y coordinate of the given line.
+     */
+    fun getLineTop(lineIndex: Int): Float = lineTops.getOrElse(lineIndex) { 0f }
+
+    /**
+     * Returns the bottom y coordinate of the given line.
+     */
+    fun getLineBottom(lineIndex: Int): Float = lineBottoms.getOrElse(lineIndex) { 0f }
+
+    /**
+     * Returns the bounding box of the character for given character offset.
+     * 通过 [getBoundingBoxFn] 向 native 端查询（Android StaticLayout）。
+     */
+    fun getBoundingBox(offset: Int): Rect =
+        getBoundingBoxFn?.invoke(offset) ?: Rect(0f, 0f, 0f, 0f)
 }

@@ -606,8 +606,60 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
             METHOD_IS_LINE_BREAK_MARGIN -> {
                 return if (textProps.isLineBreakMargin) "1" else "0"
             }
+            METHOD_GET_LINE_METRICS -> {
+                return getLineMetrics()
+            }
+            METHOD_GET_BOUNDING_BOX -> {
+                val offset = params.toIntOrNull() ?: 0
+                val r = getCharBoundingBox(offset)
+                return "${r.left} ${r.top} ${r.right} ${r.bottom}"
+            }
         }
         return null
+    }
+
+    /**
+     * 返回所有行的度量信息（dp），格式："N top0 bottom0 top1 bottom1 ..."
+     * 供 Compose 层 TextLayoutResult.lineCount / getLineTop / getLineBottom 使用。
+     * 仅在 measure（calculateRenderViewSize）之后调用，textDrawer.textLayout 已就绪。
+     */
+    private fun getLineMetrics(): String {
+        val layout = textDrawer?.textLayout ?: return "0"
+        val n = layout.lineCount
+        val sb = StringBuilder()
+        sb.append(n)
+        for (i in 0 until n) {
+            sb.append(' ').append(kuiklyRenderContext.toDpI(layout.getLineTop(i).toFloat()))
+            sb.append(' ').append(kuiklyRenderContext.toDpI(layout.getLineBottom(i).toFloat()))
+        }
+        return sb.toString()
+    }
+
+    /**
+     * 返回指定 offset 处字符的包围盒（dp），格式：left top right bottom。
+     * 用 StaticLayout 的 getLineForOffset + getPrimaryHorizontal + getLineTop/Bottom 计算。
+     * LTR 正确；跨行/RTL span 为已知限制（demo 不涉及）。
+     */
+    private fun getCharBoundingBox(offset: Int): Rect {
+        val rect = Rect(0, 0, 0, 0)
+        val layout = textDrawer?.textLayout ?: return rect
+        val textLen = layout.text.length
+        val safeOffset = offset.coerceIn(0, textLen)
+        val line = layout.getLineForOffset(safeOffset)
+        val left = layout.getPrimaryHorizontal(safeOffset)
+        // offset+1 若跨行（在下一行），primaryHorizontal 会回到行首，导致 right<left；此时回退到 left（单字符宽度近似为 0 不可取，改用同行末尾）
+        val right = if (safeOffset + 1 <= textLen && layout.getLineForOffset(safeOffset + 1) == line) {
+            layout.getPrimaryHorizontal(safeOffset + 1)
+        } else {
+            layout.getLineRight(line)
+        }
+        val top = layout.getLineTop(line)
+        val bottom = layout.getLineBottom(line)
+        rect.left = kuiklyRenderContext.toDpI(left)
+        rect.top = kuiklyRenderContext.toDpI(top.toFloat())
+        rect.right = kuiklyRenderContext.toDpI(right)
+        rect.bottom = kuiklyRenderContext.toDpI(bottom.toFloat())
+        return rect
     }
 
     /**
@@ -925,6 +977,8 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
     companion object {
         private const val METHOD_GET_PLACEHOLDER_SPAN_RECT = "spanRect"
         private const val METHOD_IS_LINE_BREAK_MARGIN = "isLineBreakMargin"
+        private const val METHOD_GET_LINE_METRICS = "lineMetrics"
+        private const val METHOD_GET_BOUNDING_BOX = "getBoundingBox"
     }
 }
 

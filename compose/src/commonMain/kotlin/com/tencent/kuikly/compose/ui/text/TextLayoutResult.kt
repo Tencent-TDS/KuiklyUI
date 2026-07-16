@@ -363,6 +363,21 @@ class TextLayoutResult constructor(
 //     */
     val lineCount: Int get() = multiParagraph.lineCount
 
+    /**
+     * Returns the top y coordinate of the given line.
+     */
+    fun getLineTop(lineIndex: Int): Float = multiParagraph.getLineTop(lineIndex)
+
+    /**
+     * Returns the bottom y coordinate of the given line.
+     */
+    fun getLineBottom(lineIndex: Int): Float = multiParagraph.getLineBottom(lineIndex)
+
+    /**
+     * Returns the bounding box of the character for given character offset.
+     */
+    fun getBoundingBox(offset: Int): Rect = multiParagraph.getBoundingBox(offset)
+
 //    /**
 //     * Returns the start offset of the given line, inclusive.
 //     *

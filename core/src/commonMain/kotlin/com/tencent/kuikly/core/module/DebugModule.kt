@@ -20,6 +20,11 @@ import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 /**
  * 通用调试模块：封装 Android Trace 抓取能力，用于抓取区间耗时并导出供 AI 分析。
  * 原生实现见 core-render-android 的 KRDebugModule（KuiklyRenderBaseModule）。
+ *
+ * 注意：原生实现当前仅 Android 提供（KRDebugModule 注册于 Android 的
+ * KuiklyRenderViewBaseDelegator）；iOS/OHOS 上本模块虽可 acquire，但 toNative 找不到
+ * 对应原生 module。非 Android 平台调用方必须自行做平台守卫（如 pageData?.isAndroid），
+ * 否则调用会被原生侧静默忽略、拿不到返回值。
  */
 class DebugModule : Module() {
 

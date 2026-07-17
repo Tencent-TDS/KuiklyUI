@@ -32,28 +32,50 @@ import java.io.File
  */
 class KRDebugModule : KuiklyRenderBaseModule() {
 
+    @Volatile
     private var currentTraceFile: File? = null
+    @Volatile
+    private var isTracing = false
 
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
             "startTrace" -> {
-                if (!BuildConfig.DEBUG) return null
+                if (!BuildConfig.DEBUG || isTracing) return null
                 val section = params.toJSONObjectSafely().optString("sectionName", "kuikly")
                 val dir = context?.filesDir ?: return null
                 val file = File(dir, "kuikly_$section.trace")
                 currentTraceFile = file
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
-                    Trace.beginSection("Kuikly:$section")
+                val canTraceSection =
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2
+                try {
+                    if (canTraceSection) {
+                        Trace.beginSection("Kuikly:$section")
+                    }
+                    // 8MB 内存 buffer（Android 默认值）：写入 .trace 文件时按文件流式落盘，
+                    // 无需超大 buffer；1GB 预留会在低内存机型触发 OOM / 被内核截断。
+                    Debug.startMethodTracing(file.absolutePath, TRACE_BUFFER_SIZE)
+                    isTracing = true
+                } catch (e: Exception) {
+                    // 起始失败须回收已开启的 trace 区间，避免区间泄漏 / 后续 endSection 抛异常
+                    if (canTraceSection) {
+                        Trace.endSection()
+                    }
+                    currentTraceFile = null
                 }
-                // 大 buffer（~1GB）防方法级 tracing 文件截断
-                Debug.startMethodTracing(file.absolutePath, 1_000_000_000)
                 null
             }
             "stopTrace" -> {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
-                    Trace.endSection()
+                if (!BuildConfig.DEBUG || !isTracing) {
+                    return currentTraceFile?.absolutePath ?: ""
                 }
-                Debug.stopMethodTracing()
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
+                        Trace.endSection()
+                    }
+                    Debug.stopMethodTracing()
+                } finally {
+                    isTracing = false
+                }
                 currentTraceFile?.absolutePath ?: ""
             }
             "exportTraceFile" -> currentTraceFile?.absolutePath ?: ""
@@ -63,5 +85,8 @@ class KRDebugModule : KuiklyRenderBaseModule() {
 
     companion object {
         const val MODULE_NAME = "KRDebugModule"   // 与 ModuleConst.DEBUG 一致
+        // 方法级 tracing 的内存 buffer（字节）。8MB 为 Android 默认值：
+        // .trace 文件按流式落盘，无需超大 buffer；1GB 预留会在低内存机型触发 OOM / 被内核截断。
+        private const val TRACE_BUFFER_SIZE = 8_000_000
     }
 }

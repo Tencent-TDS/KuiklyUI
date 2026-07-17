@@ -16,7 +16,11 @@
 package com.tencent.kuikly.android.demo.adapter
 
 import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Rect
 import android.graphics.drawable.Drawable
+import android.os.Build
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.DynamicDrawableSpan
@@ -89,7 +93,12 @@ class KRTextPostProcessorAdapter(context: Context) : IKRTextPostProcessorAdapter
                 drawable?.setBounds(0, 0, emojiSize, emojiSize)
                 if (drawable != null) {
                     spannable.setSpan(
-                        ImageSpan(drawable, DynamicDrawableSpan.ALIGN_CENTER),
+                        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+                            // Android 10 (API 29) 上系统 ImageSpan 换行时基线计算有 bug，使用自定义实现绕过
+                            CenterAlignedImageSpan(drawable)
+                        } else {
+                            ImageSpan(drawable, DynamicDrawableSpan.ALIGN_CENTER)
+                        },
                         match.range.first,
                         match.range.last + 1,
                         Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
@@ -99,6 +108,66 @@ class KRTextPostProcessorAdapter(context: Context) : IKRTextPostProcessorAdapter
         }
 
         return TextPostProcessorOutput(spannable)
+    }
+
+    /**
+     * Android 10 (API 29) 专用：修复系统 [ImageSpan] 在换行时基线计算错误导致的错位问题。
+     *
+     * 系统 bug 原因：Android 10 上 [DynamicDrawableSpan] 的 [getSize] 方法对行高的计算
+     * 与文本实际行高不一致，导致跨行时图片垂直位置偏移。
+     *
+     * 解决方案：手动计算图片在所在行的垂直居中位置，精确控制绘制。
+     */
+    private class CenterAlignedImageSpan(drawable: Drawable) : ImageSpan(drawable) {
+
+        override fun getSize(
+            paint: Paint,
+            text: CharSequence?,
+            start: Int,
+            end: Int,
+            fm: Paint.FontMetricsInt?,
+        ): Int {
+            val drawable = drawable
+            val rect: Rect = drawable.bounds
+
+            // 计算行高并设置 FontMetricsInt，确保图片在行内垂直居中
+            fm?.let {
+                val fontHeight = paint.fontMetricsInt.descent - paint.fontMetricsInt.ascent
+                val drHeight = rect.height()
+                val top = fontHeight / 2 - drHeight / 2
+                val bottom = fontHeight / 2 + drHeight / 2
+
+                it.ascent = -bottom
+                it.top = -bottom
+                it.bottom = top
+                it.descent = top
+            }
+
+            return rect.right
+        }
+
+        override fun draw(
+            canvas: Canvas,
+            text: CharSequence?,
+            start: Int,
+            end: Int,
+            x: Float,
+            top: Int,
+            y: Int,
+            bottom: Int,
+            paint: Paint,
+        ) {
+            val drawable = drawable
+            canvas.save()
+
+            // 计算垂直居中偏移
+            val fontMetrics = paint.fontMetricsInt
+            val transY = y + fontMetrics.ascent + (fontMetrics.descent - fontMetrics.ascent) / 2 - drawable.bounds.height() / 2
+
+            canvas.translate(x, transY.toFloat())
+            drawable.draw(canvas)
+            canvas.restore()
+        }
     }
 
     // 保留旧方法以兼容接口

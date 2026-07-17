@@ -9,7 +9,7 @@ plugins {
 }
 
 group = MavenConfig.GROUP
-version = Version.getCoreVersion()
+version = Version.getPrefetchComposeVersion()
 
 kotlin {
     androidTarget {
@@ -48,7 +48,6 @@ kotlin {
     targets.all {
         compilations.all {
             kotlinOptions {
-                // 设置部分优化标志
                 freeCompilerArgs += listOf(
                     "-Xinline-classes",
                     "-opt-in=kotlin.ExperimentalStdlibApi",
@@ -68,14 +67,13 @@ kotlin {
             languageSettings.optIn("kotlinx.cinterop.ExperimentalForeignApi")
         }
         commonMain.dependencies {
-            //put your multiplatform dependencies here
             api(project(":core"))
             api(compose.runtime)
             api(compose.runtimeSaveable)
             api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
             api("androidx.annotation:annotation:1.9.1")
             api("org.jetbrains.kotlinx:atomicfu:0.25.0")
-            api("org.jetbrains.compose.collection-internal:collection:1.7.3")
+            api("org.jetbrains.compose.collection-internal:collection:1.9.3")
             implementation(project(":core-annotations"))
         }
 
@@ -83,56 +81,45 @@ kotlin {
             implementation(kotlin("test"))
         }
 
-        val runtimeLegacyTest by creating {
+        val runtime19Test by creating {
             dependsOn(commonTest.get())
         }
         val androidUnitTest by getting {
-            dependsOn(runtimeLegacyTest)
+            dependsOn(runtime19Test)
         }
 
-        // Normal 2.1.21 artifacts stay on Compose runtime 1.7.3 and disable prefetch.
-        val runtimeLegacyMain by creating {
+        val runtime19Main by creating {
             dependsOn(commonMain.get())
         }
-
-        // Keep the default Native/Apple hierarchy in the runtimeLegacy branch so
-        // ios targets compile the actuals from nativeMain and appleMain.
         val nativeMain by creating {
-            dependsOn(runtimeLegacyMain)
+            dependsOn(runtime19Main)
         }
         val appleMain by creating {
             dependsOn(nativeMain)
         }
 
         val androidMain by getting {
-            dependsOn(runtimeLegacyMain)
+            dependsOn(runtime19Main)
             dependencies {
                 compileOnly(project(":core-render-android"))
                 implementation("androidx.profileinstaller:profileinstaller:1.3.1")
-                // 保留现有依赖...
             }
         }
 
         val jsMain by getting {
-            dependsOn(runtimeLegacyMain)
+            dependsOn(runtime19Main)
         }
 
-        // Wire Apple targets through appleMain so nativeMain actuals are included.
         listOf(
             "iosX64Main", "iosArm64Main", "iosSimulatorArm64Main",
             "macosX64Main", "macosArm64Main",
-        ).forEach { ssName ->
-            findByName(ssName)?.dependsOn(appleMain)
+        ).forEach { sourceSetName ->
+            findByName(sourceSetName)?.dependsOn(appleMain)
         }
     }
 }
 
-// 配置Maven发布
 publishing {
-//    publications.withType<MavenPublication> {
-//        artifactId = "compose"
-//    }
-
     repositories {
         val username = MavenConfig.getUsername(project)
         val password = MavenConfig.getPassword(project)
@@ -157,7 +144,7 @@ publishing {
 
 android {
     namespace = "com.tencent.kuikly.compose"
-    compileSdk = 30
+    compileSdk = 35
     defaultConfig {
         minSdk = 21
     }

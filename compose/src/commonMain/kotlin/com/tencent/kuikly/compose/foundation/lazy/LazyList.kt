@@ -134,8 +134,11 @@ internal fun LazyList(
             )
             .modifierLocalConsumer {
                 val resolved =
-                    ModifierLocalLazyListPrefetchEnabled.current
-                        ?: ComposeFoundationFlags.isLazyListPrefetchEnabled
+                    resolveLazyListPrefetchEnabled(
+                        buildSupportsPrefetch = lazyListPrefetchBuildSupportsPrefetch,
+                        modifierOverride = ModifierLocalLazyListPrefetchEnabled.current,
+                        globalEnabled = ComposeFoundationFlags.isLazyListPrefetchEnabled,
+                    )
                 if (state.lazyListPrefetchEnabled != resolved) {
                     state.lazyListPrefetchEnabled = resolved
                     LazyListPrefetchTrace.log(

@@ -18,6 +18,7 @@ package com.tencent.kuikly.compose.foundation
 
 import com.tencent.kuikly.compose.foundation.gestures.detectTapAndPress
 import com.tencent.kuikly.compose.foundation.gestures.detectTapGestures
+import com.tencent.kuikly.compose.foundation.lazy.lazyListPrefetchEnabledByDefault
 import kotlin.jvm.JvmField
 
 /**
@@ -88,12 +89,13 @@ object ComposeFoundationFlags {
     @Suppress("MutableBareField") @JvmField var isSmartSelectionEnabled = true
 
     /**
-     * Kuikly-specific global kill switch for LazyList prefetch. Default off; use
-     * [Modifier.enableLazyListPrefetch] for per-list opt-in.
+     * Kuikly-specific global switch for LazyList prefetch. Legacy artifacts force prefetch off;
+     * prefetch artifacts default this switch on. Use [Modifier.enableLazyListPrefetch] for a
+     * per-list override.
      */
     @Suppress("MutableBareField")
     @JvmField
-    var isLazyListPrefetchEnabled = false
+    var isLazyListPrefetchEnabled = lazyListPrefetchEnabledByDefault
 
     /**
      * Kuikly debug: println prefetch pipeline events with tag [LazyListPrefetchTrace.LOG_TAG].

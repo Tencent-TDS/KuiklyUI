@@ -252,6 +252,10 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
             isSingleLine = true
         } else {
             isSingleLine = false
+            // 多行（如 @人发布器）用 TOP 对齐 + 关闭 includeFontPadding，避免与上层
+            // BasicText 显示层错位。单行保持原生默认，避免误伤全局输入框。
+            gravity = Gravity.LEFT or Gravity.TOP
+            includeFontPadding = false
         }
         return true
     }
@@ -1064,13 +1068,6 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     private fun resetDefaultStyle() {
         setPadding(0, 0, 0, 0)
         background = null
-        // 改为 TOP 对齐，避免多行文本时与上层 BasicText 显示层错位（光标偏下）。
-        // CENTER 会把整段文本垂直居中，导致第二行起累积偏移越来越大。
-        gravity = Gravity.LEFT or Gravity.TOP
-        // 关闭 Android EditText 默认的字体上下 padding（用于显示音标 / 重音符号）。
-        // 与上层 BasicText 显示层在 16sp 中文下约 3-4px/行，5 行累积可达 15-20px，
-        // 必须关掉才能保证行块高度与上层一致。
-        includeFontPadding = false
     }
 
     private fun enableFocusInTouchMode() {
@@ -1212,11 +1209,13 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         if (textWatcher == null) {
             textWatcher = object : TextWatcher {
                 override fun afterTextChanged(s: Editable?) {
+                    // 任何文本改动都让 pendingMentionDelete 失效（含程序化 setTextInputState
+                    // 场景），提前到 early return 之前，避免程序化改文本时残留 pending
+                    // 指向已被替换的位置。
+                    pendingMentionDelete = null
                     if (isSettingTextInputState) {
                         return
                     }
-                    // 任何文本改动都让 pendingMentionDelete 失效（输入了别的字符、删了别的）
-                    pendingMentionDelete = null
                     s?.also(::ensureLineHeightSpan)
                     applyEmojiSpans(s)
                     textInputStateChangeCallback?.invoke(createTextInputStateParamMap())

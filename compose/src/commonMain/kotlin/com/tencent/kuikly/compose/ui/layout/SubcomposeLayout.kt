@@ -65,6 +65,7 @@ import com.tencent.kuikly.compose.ui.platform.createSubcomposition
 import com.tencent.kuikly.compose.ui.unit.Constraints
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
 import com.tencent.kuikly.compose.ui.util.fastForEach
+import com.tencent.kuikly.compose.ui.util.fastRoundToInt
 import com.tencent.kuikly.compose.gestures.KuiklyScrollInfo
 import com.tencent.kuikly.compose.views.KuiklyInfoKey
 import com.tencent.kuikly.compose.views.VirtualNodeView
@@ -74,7 +75,6 @@ import com.tencent.kuikly.compose.layout.hideOffsetScreenView
 import com.tencent.kuikly.compose.layout.restoreScrollerViewOnReuse
 import com.tencent.kuikly.compose.layout.transferScrollToTopCallback
 import com.tencent.kuikly.compose.scroller.handleScrollToTopCallback
-import com.tencent.kuikly.compose.scroller.isAtTop
 import com.tencent.kuikly.compose.scroller.lastItemVisible
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
 import com.tencent.kuikly.compose.scroller.kuiklyOnScroll
@@ -93,6 +93,9 @@ import com.tencent.kuikly.compose.scroller.animateScrollToTop
 import com.tencent.kuikly.compose.scroller.applyScrollViewOffsetDelta
 import com.tencent.kuikly.compose.scroller.shouldRejectNativeScrollOffset
 import com.tencent.kuikly.compose.scroller.calculateAndUpdateContentSize
+import com.tencent.kuikly.compose.scroller.calculateAndUpdateContentSizeIfNeeded
+import com.tencent.kuikly.compose.scroller.finalizeNativeScrollSync
+import com.tencent.kuikly.compose.scroller.isAtTop
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
@@ -295,23 +298,31 @@ fun SubcomposeLayout(
             scrollEnd {
                 val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
                 val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
-                kuiklyInfo.contentOffset = offset
+                if (kuiklyInfo.contentOffset != offset) {
+                    kuiklyInfo.contentOffset = offset
+                }
                 (scrollableState as? PagerState)?.onNativeContentOffsetChanged(offset)
                 (scrollableState as? DrawerInternalPagerState)?.onNativeContentOffsetChanged(offset)
 
                 // 仅触摸滑动结束会回调，api调用和bounce回弹都不会触发
-                // / back是回滑,forward是前滑
+                scrollableState.finalizeNativeScrollSync(offset)
                 scrollableState.kuiklyOnScrollEnd(scaleParams)
             }
             dragEnd {
                 val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
                 val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
-                kuiklyInfo.contentOffset = offset
-                kuiklyInfo.isDragging = kuiklyInfo.scrollView?.isDragging ?: false
+                if (kuiklyInfo.contentOffset != offset) {
+                    kuiklyInfo.contentOffset = offset
+                }
+                val dragging = kuiklyInfo.scrollView?.isDragging ?: false
+                if (kuiklyInfo.isDragging != dragging) {
+                    kuiklyInfo.isDragging = dragging
+                }
             }
             scroll {
                 val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
-                val offset = if (isVertical) scaleParams.offsetY.toInt() else scaleParams.offsetX.toInt()
+                val nativeOffset = if (isVertical) scaleParams.offsetY else scaleParams.offsetX
+                val offset = nativeOffset.fastRoundToInt()
 
                 // Reject unexpected native offset jumps (e.g. HarmonyOS HandleCrashTop).
                 // Correct the native side back and skip this event entirely to prevent
@@ -328,11 +339,15 @@ fun SubcomposeLayout(
                     return@scroll
                 }
 
-                val prevOffset = kuiklyInfo.contentOffset
-                kuiklyInfo.contentOffset = offset
+                if (kuiklyInfo.contentOffset != offset) {
+                    kuiklyInfo.contentOffset = offset
+                }
                 (scrollableState as? PagerState)?.onNativeContentOffsetChanged(offset)
                 (scrollableState as? DrawerInternalPagerState)?.onNativeContentOffsetChanged(offset)
-                kuiklyInfo.isDragging = kuiklyInfo.scrollView?.isDragging ?: false
+                val dragging = kuiklyInfo.scrollView?.isDragging ?: false
+                if (kuiklyInfo.isDragging != dragging) {
+                    kuiklyInfo.isDragging = dragging
+                }
 
                 if (kuiklyInfo.ignoreScrollOffset != null) {
                     val ignoreOffset = kuiklyInfo.ignoreScrollOffset!!
@@ -345,14 +360,15 @@ fun SubcomposeLayout(
                     return@scroll
                 }
 
-                // 忽略较小的滑动
-                val delta = offset - kuiklyInfo.composeOffset
-                if (delta.toInt() == 0) {
+                // 与 LazyListState 一致：不足 0.5px 的位移先累积，避免鸿蒙高频 sub-pixel onScroll 触发 remeasure
+                val delta = nativeOffset - kuiklyInfo.composeOffset
+                if (abs(delta) < 0.5f) {
                     return@scroll
                 }
-
-                // 更新当前的contentSize大小
-                scrollableState.calculateAndUpdateContentSize()
+                val scrollDelta = delta.fastRoundToInt()
+                if (scrollDelta == 0) {
+                    return@scroll
+                }
 
                 val toButtomDelta = if (kuiklyInfo.realContentSize == null) {
                     null
@@ -362,20 +378,19 @@ fun SubcomposeLayout(
                 // 判断是否滑出边界
                 if (offset < 0 && scrollableState.isAtTop()) {
                     return@scroll
-                } else if (toButtomDelta != null && delta > toButtomDelta) {
+                } else if (toButtomDelta != null && scrollDelta > toButtomDelta) {
                     if (toButtomDelta.toInt() <= 0) {
-                        scrollableState.tryExpandStartSize(offset, true)
+                        kuiklyInfo.pendingBottomExpand = true
                         return@scroll
                     }
-                    kuiklyInfo.composeOffset += min(delta, toButtomDelta)
+                    kuiklyInfo.composeOffset += min(scrollDelta.toFloat(), toButtomDelta)
                 } else {
-                    kuiklyInfo.composeOffset = max(0f, kuiklyInfo.composeOffset + delta)
+                    kuiklyInfo.composeOffset = max(0f, kuiklyInfo.composeOffset + scrollDelta)
                 }
 
-                // 触发compose滑动，并重新布局
-                val comsumedDelta = scrollableState.kuiklyOnScroll(delta)
-
-                // 尝试扩容
+                // 仅在实际驱动 LazyList 滚动后同步 contentSize / offset 校正
+                scrollableState.kuiklyOnScroll(scrollDelta.toFloat())
+                scrollableState.calculateAndUpdateContentSizeIfNeeded()
                 scrollableState.tryExpandStartSize(offset, true)
             }
 

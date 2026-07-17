@@ -94,6 +94,48 @@ internal fun ScrollableState.calculateAndUpdateContentSize() {
     kuiklyInfo.updateContentSizeToRender()
 }
 
+/**
+ * 滚动过程中仅在接近底部或尚未得到真实 contentSize 时更新 native contentSize。
+ * [force] 用于 scrollEnd 等必须同步的时机。
+ */
+internal fun ScrollableState.calculateAndUpdateContentSizeIfNeeded(force: Boolean = false) {
+    if (force) {
+        calculateAndUpdateContentSize()
+        return
+    }
+    if (kuiklyInfo.nearScrollBottom()) {
+        calculateAndUpdateContentSize()
+        return
+    }
+    if (kuiklyInfo.realContentSize == null) {
+        // LazyList 每次 remeasure 都会把 realContentSize 置回 null，
+        // 此时必须重算，否则 currentContentSize(滚动边界) 会卡在偏大的旧值，导致滑到底还能继续滑。
+        calculateAndUpdateContentSize()
+        return
+    }
+    val nativeDp = kuiklyInfo.nativeContentMainAxisDp()
+    if (nativeDp < 0f) {
+        calculateAndUpdateContentSize()
+        return
+    }
+    val nativePx = (nativeDp * kuiklyInfo.getDensity()).toInt()
+    if (nativePx != kuiklyInfo.lastSyncedNativeContentMainAxisPx) {
+        kuiklyInfo.lastSyncedNativeContentMainAxisPx = nativePx
+        calculateAndUpdateContentSize()
+    }
+}
+
+/**
+ * 一次手势结束后的 native 滚动同步：contentSize + offset 校正 + 底部扩容。
+ */
+internal fun ScrollableState.finalizeNativeScrollSync(offset: Int) {
+    calculateAndUpdateContentSize()
+    if (kuiklyInfo.pendingBottomExpand) {
+        kuiklyInfo.pendingBottomExpand = false
+    }
+    tryExpandStartSize(offset, isScrolling = false)
+}
+
 internal fun PaddingValues.totalPadding(orientation: Orientation): Dp {
     return if (orientation == Orientation.Vertical) {
         calculateTopPadding() + calculateBottomPadding()
@@ -267,9 +309,16 @@ internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolea
     if (kuiklyInfo.skipExpandStartSize) return
     if (this is PagerState) return
 
+    val atTopSync = isComposeAtTopForScrollSync()
+    val needsTopExpand = offset <= 0 && !atTopSync && kuiklyInfo.offsetDirty
+    val needsScrollViewPullBack = offset > 0 && atTopSync
+    if (!needsTopExpand && !needsScrollViewPullBack) {
+        return
+    }
+
     val density = kuiklyInfo.getDensity()
     // scrollview 到顶了，但是compose没到顶
-    if (offset <= 0 && !isComposeAtTopForScrollSync() && kuiklyInfo.offsetDirty) {
+    if (needsTopExpand) {
         var delta = calculateBackExpandSize(offset)
         val minDelta = (ScrollableStateConstants.DEFAULT_CONTENT_SIZE * density).toInt()
         delta = max(delta ?: minDelta, minDelta)
@@ -289,7 +338,7 @@ internal fun ScrollableState.tryExpandStartSize(offset: Int, isScrolling: Boolea
         }
         kuiklyInfo.offsetDirty = true
         applyScrollViewOffsetDelta(delta)
-    } else if (offset > 0 && isComposeAtTopForScrollSync()) {
+    } else if (needsScrollViewPullBack) {
         // compose 到顶了，但是scrollview没到顶
         applyScrollViewOffsetDelta(-offset)
         kuiklyInfo.offsetDirty = false
@@ -301,7 +350,8 @@ internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = f
     kuiklyInfo.run {
         appleScrollViewOffsetJob?.cancel(ScrollViewOffsetAlignmentCancellation)
         appleScrollViewOffsetJob = scope?.launch {
-            delay(150)
+            val settleDelay = if (pageData?.isOhOs == true) 80 else 150
+            delay(settleDelay.toLong())
             val minDelta = (DEFAULT_CONTENT_SIZE * getDensity()).toInt()
             val epsilon = 0.5 * getDensity()  // 使用 0.5dp 作为误差值
             val reachBtm = contentOffset + viewportSize - currentContentSize >= -epsilon
@@ -317,7 +367,7 @@ internal fun ScrollableState.tryExpandStartSizeNoScroll(forceExpand: Boolean = f
                     updateContentSizeToRender()
                 }
                 if (pageData?.isOhOs == true) {
-                    delay(25)   // 鸿蒙扩容后，不会立刻刷新，也没有刷新api，华为建议添加一个delay来处理
+                    delay(16)
                 }
                 applyScrollViewOffsetDelta(delta)
                 offsetDirty = true

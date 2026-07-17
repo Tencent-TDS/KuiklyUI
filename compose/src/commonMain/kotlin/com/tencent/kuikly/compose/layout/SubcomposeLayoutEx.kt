@@ -83,12 +83,12 @@ internal fun KNode<*>.hideOffsetScreenView() {
 internal fun KNode<*>.resetViewVisible() {
     when {
         isVirtual -> forEachChild { (it as? KNode<*>)?.resetViewVisible() }
+        viewVisible == null -> {
+            // visibility unchanged — skip restore
+        }
         else -> {
-            // 恢复到原始的Visible属性
-            viewVisible?.let {
-                view.getViewAttr().visibility(it)
-                viewVisible = null
-            }
+            view.getViewAttr().visibility(viewVisible!!)
+            viewVisible = null
         }
     }
 }

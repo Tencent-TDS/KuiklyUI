@@ -172,6 +172,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("MoveableDrawer", "侧边栏组件示例（全屏/非全屏）", "MoveableDrawerDemo"),
             DemoItem("iOS键盘InputTextField", "业务侧 InputTextField iOS 键盘复现", "IosKeyboardInputTextFieldDemo"),
             DemoItem("DashedUnderline", "文本下划线演示：整段 / 局部 / 列表复用", "DashedUnderlineDemo"),
+            DemoItem("DrawBehind", "drawBehind 通用组件验证 + 多 pathEffect 测试", "DrawBehindDemo"),
         )
 
     @Composable

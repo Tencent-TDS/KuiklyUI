@@ -461,7 +461,7 @@ bool KRImageView::SetMaskLinearGradient(const KRAnyValue &value) {
 bool KRImageView::SetCapInsets(const KRAnyValue &value) {
     auto valueStr = value->toString();
     if (valueStr.empty()) {
-        has_cap_insets_ = false;SetArkUIImageSourceSize
+        has_cap_insets_ = false;
         cap_insets_top_ = 0.f;
         cap_insets_left_ = 0.f;
         cap_insets_bottom_ = 0.f;

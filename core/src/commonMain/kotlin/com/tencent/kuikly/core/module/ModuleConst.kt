@@ -31,5 +31,4 @@ object ModuleConst {
     const val VSYNC = "KRVsyncModule"
     const val BACK_PRESS = "KRBackPressModule"
     const val FILE = "KRFileModule"
-    const val DEBUG = "KRDebugModule"
 }

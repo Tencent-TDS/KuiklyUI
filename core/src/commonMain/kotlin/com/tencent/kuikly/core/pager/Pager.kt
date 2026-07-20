@@ -400,11 +400,6 @@ abstract class Pager : ComposeView<ComposeAttr, ComposeEvent>(), IPager {
                 return FileModule()
             }
         })
-        registerModule(ModuleConst.DEBUG, object : IModuleCreator {
-            override fun createModule(): Module {
-                return DebugModule()
-            }
-        })
     }
 
     private fun initExternalModules() {

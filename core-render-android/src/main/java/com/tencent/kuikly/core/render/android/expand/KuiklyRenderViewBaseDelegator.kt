@@ -39,7 +39,6 @@ import com.tencent.kuikly.core.render.android.expand.component.list.KRRecyclerCo
 import com.tencent.kuikly.core.render.android.expand.component.list.KRRecyclerView
 import com.tencent.kuikly.core.render.android.expand.component.pag.KRPAGView
 import com.tencent.kuikly.core.render.android.expand.module.KRBackPressModule
-import com.tencent.kuikly.core.render.android.expand.module.KRDebugModule
 import com.tencent.kuikly.core.render.android.expand.module.KRCalendarModule
 import com.tencent.kuikly.core.render.android.expand.module.KRCodecModule
 import com.tencent.kuikly.core.render.android.expand.module.KRFileModule
@@ -510,9 +509,6 @@ open class KuiklyRenderViewBaseDelegator(private val delegate: KuiklyRenderViewB
             }
             moduleExport(KRBackPressModule.MODULE_NAME) {
                 KRBackPressModule()
-            }
-            moduleExport(KRDebugModule.MODULE_NAME) {
-                KRDebugModule()
             }
             delegate.registerExternalModule(this) // 代理给外部，让宿主工程可以暴露自己的module
             delegate.registerTDFModule(this)

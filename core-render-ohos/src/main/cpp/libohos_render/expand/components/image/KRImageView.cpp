@@ -461,23 +461,17 @@ bool KRImageView::SetMaskLinearGradient(const KRAnyValue &value) {
 bool KRImageView::SetCapInsets(const KRAnyValue &value) {
     auto valueStr = value->toString();
     if (valueStr.empty()) {
-        has_cap_insets_ = false;
+        has_cap_insets_ = false;SetArkUIImageSourceSize
         cap_insets_top_ = 0.f;
         cap_insets_left_ = 0.f;
         cap_insets_bottom_ = 0.f;
         cap_insets_right_ = 0.f;
-        //kuikly::util::ResetArkUIImageCapInsets(GetNode());
+        kuikly::util::ResetArkUIImageCapInsets(GetNode());
         return true;
     }
     std::vector<std::string> items = kuikly::util::ConvertSplit(valueStr, " ");
     if (items.size() >= 4) {
         // 单位约定：SetProp 阶段拿到的 top/left/bottom/right 单位就是**图片 vp**
-        //（与其他布局字段保持一致，属于"上层协议单位"）。这里**只做透传**，
-        //  不在此处乘 dpi、也不乘任何魔法系数——历史实现里 top 乘 dpi、其余三边
-        //  硬编码 * 3.25，除了让四边不一致导致视觉错位以外没有任何好处，因此本
-        //  次一并去掉；把"vp -> 图片像素"的换算集中到 ApplyCapInsetsWithLattice
-        //  里（下发 lattice 前统一做）。
-        //
         // 只记录 capInsets 数据，不在此处直接下发到 ArkUI：
         //   * lattice 精确九宫格（API 24+）依赖图片的真实像素分辨率来把 vp 边距
         //     换算成整数分割线，SetProp 阶段图片一般还没加载完成，拿不到分辨率；

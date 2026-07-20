@@ -705,38 +705,7 @@ void SetArkUIImageSrc(ArkUI_NodeHandle handle, ArkUI_DrawableDescriptor *drawabl
     if (!handle) {
         return;
     }
-
-    // 调试用：从 drawable 里取出 static pixelmap，打印其原始像素宽高。
-    // 说明：
-    //  * OH_ArkUI_DrawableDescriptor_GetStaticPixelMap 只返回内部持有的 handle，
-    //    不转移所有权，调用方**不需要**释放；
-    //  * OH_PixelmapImageInfo_* 一族 API 是 ImageInfo 对象的独立生命周期，Create /
-    //    Release 必须配对；
-    //  * 动图 drawable 走的是 GetAnimatedPixelMapArray，这里只对静态 pixmap 打点，
-    //    动图返回 nullptr 会直接跳过，不影响主流程。
-    if (drawable) {
-        OH_PixelmapNativeHandle pm = OH_ArkUI_DrawableDescriptor_GetStaticPixelMap(drawable);
-        if (pm) {
-            OH_Pixelmap_ImageInfo *info = nullptr;
-            OH_PixelmapImageInfo_Create(&info);
-            uint32_t img_w = 0;
-            uint32_t img_h = 0;
-            if (info && OH_PixelmapNative_GetImageInfo(pm, info) == IMAGE_SUCCESS) {
-                OH_PixelmapImageInfo_GetWidth(info, &img_w);
-                OH_PixelmapImageInfo_GetHeight(info, &img_h);
-            }
-            if (info) {
-                OH_PixelmapImageInfo_Release(info);
-            }
-            KR_LOG_INFO << "SetArkUIImageSrc drawable=" << drawable
-                        << " pixelmap=" << pm
-                        << " size(px)=" << img_w << "x" << img_h;
-        } else {
-            KR_LOG_INFO << "SetArkUIImageSrc drawable=" << drawable
-                        << " static pixelmap=null (maybe animated)";
-        }
-    }
-
+    
     auto nodeApi = GetNodeApi();
     ArkUI_AttributeItem src_attr_item = {.object = drawable};
     nodeApi->setAttribute(handle, NODE_IMAGE_SRC, &src_attr_item);
@@ -849,16 +818,14 @@ void SetArkUIImageCapInsets(ArkUI_NodeHandle handle, float top, float left, floa
     GetNodeApi()->setAttribute(handle, NODE_IMAGE_RESIZABLE, &item);
 }
 
-void SetArkUIImageSourceSize(ArkUI_NodeHandle handle, float width_vp, float height_vp) {
+void SetArkUIImageSourceSize(ArkUI_NodeHandle handle, float width_px, float height_px) {
     if (!handle) {
         return;
     }
-    // ArkUI 官方文档规定 NODE_IMAGE_SOURCE_SIZE 的两个 float 参数单位为 vp。
-    // 非正值不下发，避免把图源缩到 0。
-    if (width_vp <= 0.f || height_vp <= 0.f) {
+    if (width_px <= 0.f || height_px <= 0.f) {
         return;
     }
-    ArkUI_NumberValue value[] = {{.i32 = (int)width_vp}, {.i32 = (int)height_vp}};
+    ArkUI_NumberValue value[] = {{.i32 = static_cast<int>(width_px)}, {.i32 = static_cast<int>(height_px)}};
     ArkUI_AttributeItem item = {value, sizeof(value) / sizeof(ArkUI_NumberValue)};
     GetNodeApi()->setAttribute(handle, NODE_IMAGE_SOURCE_SIZE, &item);
 }

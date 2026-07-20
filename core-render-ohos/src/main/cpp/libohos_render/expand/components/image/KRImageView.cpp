@@ -58,11 +58,10 @@ constexpr char kPropNameColorFilter[] = "colorFilter";
 constexpr char kPropNameCapInsets[] = "capInsets";
 constexpr char kPropNameDotNineImage[] = "dotNineImage";
 constexpr char kPropNameImageParams[] = "imageParams";
-// imageParams map 中的 "__scale__" 键：上层指定的图片自身像素密度倍率
-//（如 @2x = 2），供 capInsets + lattice 路径下的 NODE_IMAGE_SOURCE_SIZE 使用。
-constexpr char kImageParamKeyScale[] = "__scale__";
-// capinset_image_scale_ 默认值：1.0 表示"1 图片像素 = 1 vp"，即未显式指定
-// __scale__ 时的默认语义。非正值/缺失时也 fallback 到该默认。
+// capinset_image_scale_ 的固定取值：1.0 表示"1 图片像素 = 1 vp"，即 capInsets
+// + lattice 路径下 NODE_IMAGE_SOURCE_SIZE 的默认缩放语义。当前实现不再从
+// imageParams 中读取 __scale__，字段恒为该默认值；保留常量与字段以便未来
+// 若需要恢复动态素材倍率支持时能低成本改回。
 constexpr float DEFAULT_CAPINST_IMAGE_SCALE = 1.0f;
 
 constexpr char kEventNameLoadSuccess[] = "loadSuccess";
@@ -214,9 +213,9 @@ bool KRImageView::ResetProp(const std::string &prop_key) {
         load_failure_callback_ = nullptr;
     } else if (kuikly::util::isEqual(prop_key, kPropNameImageParams)) {
         image_params_ = nullptr;
-        capinset_image_scale_ = DEFAULT_CAPINST_IMAGE_SCALE;
-        // __scale__ 变化 → source size 需要按新倍率重新下发，放开幂等门闸。
-        source_size_applied_ = false;
+        // capinset_image_scale_ 当前固定为 DEFAULT_CAPINST_IMAGE_SCALE，不再
+        // 随 imageParams 变化；因此这里不需要重置字段、也无需放开 source_size
+        // 幂等门闸。
         didHanded = true;
     } else {
         didHanded = IKRRenderViewExport::ResetProp(prop_key);
@@ -319,35 +318,18 @@ bool KRImageView::SetImageSrc(const KRAnyValue &value) {
 }
 
 bool KRImageView::SetImageParams(const KRAnyValue &value) {
-    const float prev_image_scale = capinset_image_scale_;
+    // 仅存储 imageParams map 供上层 adapter 使用；不再从中提取 __scale__。
+    // capinset_image_scale_ 保持初始默认值 DEFAULT_CAPINST_IMAGE_SCALE = 1.0，
+    // 即"1 图片像素 = 1 vp"。因此本函数也不需要触碰 source_size_applied_ 门闸。
     if (!value) {
         image_params_ = nullptr;
-        capinset_image_scale_ = DEFAULT_CAPINST_IMAGE_SCALE;
-    } else {
-        // 直接使用 toMap() 解析 JSON 字符串为 Map，并存储
-        auto map = value->toMap();
-        if (map.empty()) {
-            image_params_ = nullptr;
-            capinset_image_scale_ = DEFAULT_CAPINST_IMAGE_SCALE;
-        } else {
-            image_params_ = NewKRRenderValue(map);
-            // 从 imageParams 中提取 __scale__（图片自身像素密度倍率，例如 @2x = 2）。
-            // 存下来供 ApplyCapInsetsWithLattice 计算 NODE_IMAGE_SOURCE_SIZE 使用。
-            // 缺失、非数值或 <= 0 时 fallback 到默认值（1.0，即 1 像素 = 1 vp）。
-            auto it = map.find(kImageParamKeyScale);
-            if (it != map.end() && it->second) {
-                float s = it->second->toFloat();
-                capinset_image_scale_ = s > 0.f ? s : DEFAULT_CAPINST_IMAGE_SCALE;
-            } else {
-                capinset_image_scale_ = DEFAULT_CAPINST_IMAGE_SCALE;
-            }
-        }
+        return true;
     }
-    // __scale__ 变化会改变 source size 目标值，需要放开 source_size_applied_
-    // 幂等门闸，让下一次 ApplyCapInsetsWithLattice 能按新倍率重新下发。
-    // 不变则保持原状——避免误触发多余的重解码。
-    if (capinset_image_scale_ != prev_image_scale) {
-        source_size_applied_ = false;
+    auto map = value->toMap();
+    if (map.empty()) {
+        image_params_ = nullptr;
+    } else {
+        image_params_ = NewKRRenderValue(map);
     }
     return true;
 }
@@ -525,26 +507,26 @@ void KRImageView::ApplyCapInsetsWithLattice() {
     // 时使用被覆盖后的 loaded_image_size_，就会形成尺寸雪崩式无限递归。两把锁：
     //   1) img_px 参数**始终**用 original_image_size_（首帧捕获，之后固定不变）
     //      → 每一轮算出的 source size 是常量，天然幂等。
-    //   2) source_size_applied_ 幂等门闸 → 当前 src+__scale__ 生命周期内只允许
-    //      下发一次 NODE_IMAGE_SOURCE_SIZE；后续再进来只重发 lattice 分割线，
-    //      不再触发重解码，彻底断开回环。src 变、__scale__ 变时该门闸会被放开。
+    //   2) source_size_applied_ 幂等门闸 → 当前 src 生命周期内只允许下发一次
+    //      NODE_IMAGE_SOURCE_SIZE；后续再进来只重发 lattice 分割线，不再触发重
+    //      解码，彻底断开回环。src 变时该门闸会被放开。
     //
     // 两条分支：
-    //   (A) capinset_image_scale_ > 0（imageParams 中显式指定了 __scale__，例如 @2x = 2；
-    //       默认值 DEFAULT_CAPINST_IMAGE_SCALE = 1 也满足该条件）：
+    //   (A) capinset_image_scale_ > 0（当前实现中恒为 DEFAULT_CAPINST_IMAGE_SCALE = 1.0，
+    //       条件恒真）且 view frame / 原图尺寸均有效：
     //       首次进入时下发 NODE_IMAGE_SOURCE_SIZE 让 ArkUI 重解码 pixmap，随后
     //       lattice 分割线建立在**重采样后 pixmap** 的坐标系里。source scale 直接
-    //       由 __scale__ 决定，完全不依赖 view frame：
-    //           source_scale = (1 / __scale__) * dpi = dpi / __scale__
+    //       由 capinset_image_scale_ 决定，完全不依赖 view frame：
+    //           source_scale = 1 / capinset_image_scale_ * dpi = dpi / capinset_image_scale_
     //           source_px    = original_img_px * source_scale
-    //                        = (original_img_px / __scale__) * dpi
-    //                        = 图片对应的 vp 尺寸 * dpi
+    //                        = original_img_px / capinset_image_scale_ * dpi
+    //                        = 图片对应的 vp 尺寸 * dpi（当字段=1时即 原图像素 * dpi）
     //       lattice 的 xDivs/yDivs 用同一个 source_scale 把 cap_insets_* 换算成
     //       "重采样 pixmap 像素"，与 image_width/height 同坐标系。
     //       第二次及以后进入（例如 setCapInsets 变化）只重发 lattice，跳过
     //       SetArkUIImageSourceSize，避免重解码回环。
-    //   (B) 未指定 __scale__ 或必要尺寸缺失：**不下发 NODE_IMAGE_SOURCE_SIZE**，
-    //       直接按原图像素坐标下发 lattice——一图片单位=一像素是默认解读，
+    //   (B) view frame 或原图尺寸缺失：**不下发 NODE_IMAGE_SOURCE_SIZE**，直接按
+    //       原图像素坐标下发 lattice——一图片单位=一像素是默认解读，
     //       cap_insets_* 与 image_width/height 都用原图像素同坐标系。若原图尺寸
     //       也取不到，helper 内部会自动回退到老四值 RESIZABLE 路径。
     const auto &view_frame = GetFrame();
@@ -557,14 +539,11 @@ void KRImageView::ApplyCapInsetsWithLattice() {
     if (capinset_image_scale_ > 0.f && view_w_vp > 0.f && view_h_vp > 0.f &&
         img_size.width > 0.f && img_size.height > 0.f) {
         const double dpi = KRConfig::GetDpi();
-        // NODE_IMAGE_SOURCE_SIZE 使用的 scale：
-        //   imageParams 中显式指定了 __scale__（图片自身像素密度倍率，例如 @2x = 2）
-        //   时，source size 不跟随 view frame 走 contain 缩放，而是直接按
-        //   (1 / __scale__) * dpi 把"图片自身像素"折算成"屏幕重采样像素"：
-        //       source_px = original_img_px * (1 / __scale__) * dpi
-        //                 = (original_img_px / __scale__) * dpi
-        //                 = 图片对应的 vp 尺寸 * dpi
-        //   这样素材倍率与屏幕 dpi 严格对齐，不会被 view 尺寸拉伸/压缩解码。
+        // NODE_IMAGE_SOURCE_SIZE 使用的 scale：由 capinset_image_scale_ 直接决定
+        // （当前实现恒为 1.0），不跟随 view frame 走 contain 缩放：
+        //       source_px = original_img_px * dpi / capinset_image_scale_
+        //                 = 图片对应的 vp 尺寸 * dpi（当字段=1 时即 原图像素 * dpi）
+        //   因此 pixmap 与屏幕 dpi 严格对齐，不会被 view 尺寸拉伸/压缩解码。
         const float source_scale = static_cast<float>(dpi / capinset_image_scale_);
         const float source_w_px = img_size.width * source_scale;
         const float source_h_px = img_size.height * source_scale;
@@ -588,7 +567,7 @@ void KRImageView::ApplyCapInsetsWithLattice() {
                                           source_h_px);
         return;
     }
-    // 未指定 __scale__ 或缺失必要尺寸：不下发 NODE_IMAGE_SOURCE_SIZE，直接按
+    // view frame 或原图尺寸缺失：不下发 NODE_IMAGE_SOURCE_SIZE，直接按
     // 原图像素坐标走 lattice——cap_insets_* 数值即视为图片自身坐标
     //（一图片单位=一像素），image_width/height 用原图像素。
     // 若原图尺寸也取不到，helper 内部会自动回退到老四值 RESIZABLE 路径。

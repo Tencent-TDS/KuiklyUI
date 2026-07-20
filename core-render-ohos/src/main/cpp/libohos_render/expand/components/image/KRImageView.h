@@ -110,13 +110,12 @@ class KRImageView : public IKRRenderViewExport {
     float cap_insets_right_ = 0.f;
     ArkUI_NodeHandle mask_linear_gradient_node_ = nullptr;
     KRAnyValue image_params_ = nullptr;
-    // 从 imageParams map 中提取的 "__scale__" 参数：图片自身的像素密度 scale
-    //（例如 @2x 素材约定 __scale__ = 2）。默认值 DEFAULT_CAPINST_IMAGE_SCALE = 1，
-    // 表示"1 图片像素 = 1 vp"（未显式指定时的语义）；上层显式指定后按新值走。
-    // 该字段专门服务于 capInsets + lattice 精确九宫格路径下 NODE_IMAGE_SOURCE_SIZE
-    // 的 scale 计算：source_scale = (1 / __scale__) * dpi = dpi / __scale__，即：
-    // 把"图片自身像素"按素材倍率折回逻辑像素、再乘 dpi 得到屏幕像素，与屏幕 dpi
-    // 严格对齐，不受 view frame 影响。
+    // capInsets + lattice 路径下 NODE_IMAGE_SOURCE_SIZE 的 scale 参数：
+    // 当前实现**固定为 DEFAULT_CAPINST_IMAGE_SCALE = 1.0**（"1 图片像素 = 1 vp"），
+    // 不再从 imageParams 中读取任何 __scale__ 键。保留字段以便未来恢复动态
+    // 素材倍率支持时低成本改回。
+    // 数学模型（仍适用）：source_scale = 1 / capinset_image_scale_ * dpi = dpi（当值=1时），
+    // 即 source 像素 = 原图像素 * dpi，与屏幕 dpi 严格对齐，不受 view frame 影响。
     float capinset_image_scale_ = 1.f;
     // === 循环防护相关（避免 SetArkUIImageSourceSize 触发重解码→ON_COMPLETE→
     // ApplyCapInsetsWithLattice→再次 SetArkUIImageSourceSize 的死循环）===
@@ -124,8 +123,7 @@ class KRImageView : public IKRRenderViewExport {
     // source_size_applied_：当前 image_src_ 生命周期内是否已经下发过一次
     //   NODE_IMAGE_SOURCE_SIZE。第二次进入 ApplyCapInsetsWithLattice 时不再
     //   下发 source size（只重发 lattice），从而彻底断掉重解码回环。
-    //   src 变更、__scale__ 变更、imageParams 复位时必须重置为 false，让新
-    //   参数下第一次 apply 时能重新下发 source size。
+    //   src 变更时重置为 false，让新 src 下第一次 apply 时能重新下发 source size。
     bool source_size_applied_ = false;
     // original_image_size_ / has_original_image_size_：首次从 ArkUI ON_COMPLETE
     //   拿到的**原图像素尺寸**快照。由于 SetArkUIImageSourceSize 会让 ArkUI

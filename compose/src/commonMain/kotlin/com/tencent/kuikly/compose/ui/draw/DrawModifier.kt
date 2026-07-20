@@ -206,11 +206,11 @@ internal class DrawBackgroundModifier(
         val posFrame = hostView.renderView?.currentFrame ?: return
         if (scopeSize.width <= 0f || scopeSize.height <= 0f) return
         try {
-            // bg 比 Text 高 4dp（底部 padding），让 onDraw 的 size.height - 2dp 落在
-            // Text 文字区域之下，视觉上虚线出现在 Text 下方（不穿字）。
-            // 不依赖 z-order（Kuikly 的 absolute/relative 兄弟 zIndex 不可靠）。
+            // 对齐官方语义：drawBehind 的 DrawScope.size 必须严格等于组件自身布局
+            // 尺寸，无任何偏移补丁。下划线"不穿字"由调用方在 lambda 内自行决定
+            // 绘制 y 坐标（如画在 size.height），框架不替宿主加底部 padding。
             val density = requireDensity().density
-            val bottomPadDp = 4f
+            val bottomPadDp = 0f
             val bgWidthDp = scopeSize.width / density
             val bgHeightDp = scopeSize.height / density + bottomPadDp
             bgRender.setFrame(posFrame.x, posFrame.y, bgWidthDp, bgHeightDp)

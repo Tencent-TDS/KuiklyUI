@@ -172,11 +172,11 @@ void ResetArkUIImageColorFilter(ArkUI_NodeHandle handle);
 void SetArkUIImageCapInsets(ArkUI_NodeHandle handle, float top, float left, float bottom, float right);
 
 /**
- * 设置 NODE_IMAGE_SOURCE_SIZE：图源解码后的宽高，**单位为 vp**（对齐 ArkUI 官方
+ * 设置 NODE_IMAGE_SOURCE_SIZE：图源解码后的宽高，**单位为 px**（对齐 ArkUI 官方
  * 文档语义）。用于把大图解码到与显示区域匹配的尺寸，避免过大位图浪费内存，也让
  * 后续 lattice 精确九宫格拉伸有更贴近视觉的采样源。传入非正值视为不设置。
  */
-void SetArkUIImageSourceSize(ArkUI_NodeHandle handle, float width_vp, float height_vp);
+void SetArkUIImageSourceSize(ArkUI_NodeHandle handle, float width_px, float height_px);
 
 /**
  * API 24+ 走 OH_Drawing_Lattice 精确九宫格；低版本 / 缺尺寸时回退到老的四值

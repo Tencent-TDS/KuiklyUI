@@ -15,8 +15,63 @@
 
 #include "libohos_render/utils/KRViewUtil.h"
 
+#include <arkui/drawable_descriptor.h>
+#include <deviceinfo.h>
+#include <multimedia/image_framework/image/pixelmap_native.h>
+
 #include "libohos_render/export/IKRRenderViewExport.h"
 #include "libohos_render/utils/KRThreadChecker.h"
+
+// ============================================================================
+// OH_Drawing_Lattice 精确九宫格（API 24 引入）—— 弱符号声明块
+//
+// **必须放在全局命名空间**：C++ 里在 namespace 内出现的 `struct X;` 或
+// `struct X **p` 会**在当前 namespace 里新建同名前向声明**（elaborated type
+// specifier 规则），导致 KRViewUtil.h（在全局命名空间前向声明 ::OH_Drawing_Lattice）
+// 与 KRViewUtil.cpp 里如果放到 kuikly::util 内声明就会产生
+// kuikly::util::OH_Drawing_Lattice 这个**独立类型符号**，跨 TU 的函数签名类型
+// 因此不一致，最终链接期 undefined symbol（这一坑已在真实构建中踩过）。
+// 故这里统一在**全局作用域**做前向声明与 weak 函数声明，保证与
+// KRViewUtil.h 里 ::OH_Drawing_Lattice 完全一致。
+//
+// 其他说明：
+//   * 弱符号 OH_Drawing_LatticeCreate / _Destroy：运行系统 API < 24 时符号地址
+//     为 nullptr，dlopen .so 不会因未解析符号而失败；运行时以
+//     OH_GetSdkApiVersion() >= 24 && 符号非空 双重判定。
+//   * 不 #include <native_drawing/drawing_lattice.h>：低版本 SDK header 里没有
+//     该文件，直接 include 会破坏低版本编译；这里前向自声明所需的最小类型/函数。
+//   * 先在 extern "C" 之外用 C++ 语法声明 opaque enum OH_Drawing_LatticeRectType：
+//     指定底层类型 int32_t，与 SDK <native_drawing/drawing_lattice.h> 中
+//     typedef enum { DEFAULT, TRANSPARENT, FIXED_COLOR } 的 ABI 严格一致，避免把
+//     DEFAULT / TRANSPARENT / FIXED_COLOR 引入全局命名空间造成宏冲突
+//     （如 Windows GDI 的 TRANSPARENT 宏）。
+// ============================================================================
+enum OH_Drawing_LatticeRectType : int32_t;
+
+extern "C" {
+// OH_Drawing_Lattice 是不透明结构体，前向声明即可满足指针使用。
+struct OH_Drawing_Lattice;
+// OH_Drawing_Rect 同为不透明结构体（drawing_types.h），此处只需指针语义。
+struct OH_Drawing_Rect;
+
+// OH_Drawing_ErrorCode 也是枚举（drawing_error_code.h 里定义），此处按 SDK 一致的
+// 32 位有符号整型返回值来声明——弱符号只关心链接期名字/参数签名匹配，返回类型只要
+// ABI 一致即可。
+int32_t OH_Drawing_LatticeCreate(const int *xDivs, const int *yDivs, uint32_t xCount, uint32_t yCount,
+                                 const struct OH_Drawing_Rect *bounds,
+                                 const enum OH_Drawing_LatticeRectType *rectTypes, uint32_t rectTypeCount,
+                                 const uint32_t *colors, uint32_t colorCount,
+                                 struct OH_Drawing_Lattice **lattice) __attribute__((weak));
+int32_t OH_Drawing_LatticeDestroy(struct OH_Drawing_Lattice *lattice) __attribute__((weak));
+
+// OH_Drawing_RectCreate / Destroy 自 API 11 就已存在（drawing_rect.h @since 11），
+// 早于我们要求的 API 24，链接一定成功；不加弱符号也可以，加上更保险且和 lattice
+// 保持声明风格一致。之所以不 #include <native_drawing/drawing_rect.h>，是为了避免
+// 编译期依赖 SDK header 结构，与 lattice 保持"最小前向声明"策略一致。
+struct OH_Drawing_Rect *OH_Drawing_RectCreate(float left, float top, float right, float bottom)
+    __attribute__((weak));
+void OH_Drawing_RectDestroy(struct OH_Drawing_Rect *rect) __attribute__((weak));
+}  // extern "C"
 
 namespace kuikly {
 namespace util {
@@ -651,6 +706,37 @@ void SetArkUIImageSrc(ArkUI_NodeHandle handle, ArkUI_DrawableDescriptor *drawabl
         return;
     }
 
+    // 调试用：从 drawable 里取出 static pixelmap，打印其原始像素宽高。
+    // 说明：
+    //  * OH_ArkUI_DrawableDescriptor_GetStaticPixelMap 只返回内部持有的 handle，
+    //    不转移所有权，调用方**不需要**释放；
+    //  * OH_PixelmapImageInfo_* 一族 API 是 ImageInfo 对象的独立生命周期，Create /
+    //    Release 必须配对；
+    //  * 动图 drawable 走的是 GetAnimatedPixelMapArray，这里只对静态 pixmap 打点，
+    //    动图返回 nullptr 会直接跳过，不影响主流程。
+    if (drawable) {
+        OH_PixelmapNativeHandle pm = OH_ArkUI_DrawableDescriptor_GetStaticPixelMap(drawable);
+        if (pm) {
+            OH_Pixelmap_ImageInfo *info = nullptr;
+            OH_PixelmapImageInfo_Create(&info);
+            uint32_t img_w = 0;
+            uint32_t img_h = 0;
+            if (info && OH_PixelmapNative_GetImageInfo(pm, info) == IMAGE_SUCCESS) {
+                OH_PixelmapImageInfo_GetWidth(info, &img_w);
+                OH_PixelmapImageInfo_GetHeight(info, &img_h);
+            }
+            if (info) {
+                OH_PixelmapImageInfo_Release(info);
+            }
+            KR_LOG_INFO << "SetArkUIImageSrc drawable=" << drawable
+                        << " pixelmap=" << pm
+                        << " size(px)=" << img_w << "x" << img_h;
+        } else {
+            KR_LOG_INFO << "SetArkUIImageSrc drawable=" << drawable
+                        << " static pixelmap=null (maybe animated)";
+        }
+    }
+
     auto nodeApi = GetNodeApi();
     ArkUI_AttributeItem src_attr_item = {.object = drawable};
     nodeApi->setAttribute(handle, NODE_IMAGE_SRC, &src_attr_item);
@@ -761,6 +847,211 @@ void SetArkUIImageCapInsets(ArkUI_NodeHandle handle, float top, float left, floa
 
     ArkUI_AttributeItem item = {value, sizeof(value) / sizeof(ArkUI_NumberValue)};
     GetNodeApi()->setAttribute(handle, NODE_IMAGE_RESIZABLE, &item);
+}
+
+void SetArkUIImageSourceSize(ArkUI_NodeHandle handle, float width_vp, float height_vp) {
+    if (!handle) {
+        return;
+    }
+    // ArkUI 官方文档规定 NODE_IMAGE_SOURCE_SIZE 的两个 float 参数单位为 vp。
+    // 非正值不下发，避免把图源缩到 0。
+    if (width_vp <= 0.f || height_vp <= 0.f) {
+        return;
+    }
+    ArkUI_NumberValue value[] = {{.i32 = (int)width_vp}, {.i32 = (int)height_vp}};
+    ArkUI_AttributeItem item = {value, sizeof(value) / sizeof(ArkUI_NumberValue)};
+    GetNodeApi()->setAttribute(handle, NODE_IMAGE_SOURCE_SIZE, &item);
+}
+
+// ============================================================================
+// OH_Drawing_Lattice 精确九宫格（API 24 引入）
+//
+// 老路径（SetArkUIImageCapInsets 四值）由 NODE_IMAGE_RESIZABLE 接收 left/top/right/
+// bottom（单位 vp），系统内部按四边构造隐式九宫格。实测在图片自身分辨率与目标绘制
+// 尺寸差异较大、或用户 vp 边距接近图片一半宽/高时，鸿蒙旧实现会出现中间可拉伸区
+// 计算错乱、边角像素被拉伸等问题（本 issue 的直接触发点）。
+//
+// API 24 起 NODE_IMAGE_RESIZABLE 的 .object 字段支持传入 OH_Drawing_Lattice，
+// 可以按图片像素坐标显式指定 xDivs/yDivs 分割线，鸿蒙侧走的是新的 lattice
+// 精确路径，行为对齐 Skia SkCanvas::drawImageLattice，与 iOS/Android 一致。
+//
+// 兼容策略与弱符号声明**已上移到文件顶部全局命名空间**（见文件顶部注释块），
+// 目的是让所有 TU 看到的 ::OH_Drawing_Lattice 是同一符号，避免因 namespace 内
+// elaborated type specifier 规则引入独立类型导致跨 TU 链接失败。这里仅保留
+// 相关 API 的运行时判定与使用逻辑。
+// ============================================================================
+
+// 判定当前运行进程是否可以走 lattice 路径。
+// 双门控：系统 API 版本 >= 24 && 弱符号被动态链接器解析成功。
+static bool IsArkUIImageLatticeAvailable() {
+    static const bool available = []() {
+        // 部分鸿蒙发行版 / 模拟器可能 API 数值 >=24 但对应符号尚未导出，因此不能
+        // 只信 OH_GetSdkApiVersion()；下面的符号非空判定才是"运行时事实"。
+        if (OH_GetSdkApiVersion() < 24) {
+            return false;
+        }
+        return &OH_Drawing_LatticeCreate != nullptr && &OH_Drawing_LatticeDestroy != nullptr;
+    }();
+    return available;
+}
+
+void SetArkUIImageCapInsetsWithLattice(ArkUI_NodeHandle handle, float top, float left, float bottom,
+                                       float right, float image_width_px, float image_height_px,
+                                       ::OH_Drawing_Lattice **out_lattice) {
+    // 默认输出 nullptr，所有 fallback / 失败 / 无 out_lattice 分支都保持该初始值。
+    if (out_lattice) {
+        *out_lattice = nullptr;
+    }
+    if (!handle) {
+        return;
+    }
+
+    // ------------------------------------------------------------------
+    // 单位约定（重要！与之前实现相比语义已修正）：
+    //   * top/left/bottom/right 四个参数**直接就是"图片自身像素坐标"下的偏移量**，
+    //     即 lattice xDivs/yDivs 需要的原生单位。与 iOS UIImage.resizableImageWithCap
+    //     Insets 的 capInsets(UIEdgeInsets in points) 语义对齐——上层协议约定的
+    //     capInsets 就是"图片自身独立坐标"，鸿蒙的图片没有 iOS 的 point 概念，直接
+    //     对应"图片像素"最自然。
+    //   * **不再** 做 `vp * dpi` 的换算。之前把参数当 vp、再乘 dpi 转屏幕像素当分割
+    //     线的做法是错的——屏幕 dpi 与图片自身像素坐标没有必然关系，会导致上层传
+    //     的 "10" 变成 "10 * dpi"（如 30 px）落到错误位置，正是"拉伸不对"的根因。
+    //   * 老路径 fallback（SetArkUIImageCapInsets → NODE_IMAGE_RESIZABLE 四值）
+    //     期望的单位是 **vp**（ArkUI 原生 API 规定），fallback 时需要按图片像素 →
+    //     vp 反向换算（除以 dpi）后再下发。
+    // ------------------------------------------------------------------
+
+    const double dpi = KRConfig::GetDpi();
+    // fallback 到老路径用的 vp 值（图片像素 / dpi）。抽出来避免每个 return 分支重复。
+    auto old_path_fallback = [&]() {
+        SetArkUIImageCapInsets(handle, static_cast<float>(top / dpi), static_cast<float>(left / dpi),
+                               static_cast<float>(bottom / dpi), static_cast<float>(right / dpi));
+    };
+
+    // 只要具备任一"退化条件"就走老四值路径：
+    //   1. 系统 <API 24 或 lattice 符号未解析；
+    //   2. 图片像素尺寸未知（未加载完成时 image_width_px/image_height_px 为 0/负数）。
+    // 图片尺寸未知时无法确保 lattice 分割线不越界，宁可先按老路径显示（视觉退化但
+    // 不崩），加载完成后调用方会带上尺寸再调一次，届时才升级到 lattice。
+    if (!IsArkUIImageLatticeAvailable() || image_width_px <= 0 || image_height_px <= 0) {
+        old_path_fallback();
+        return;
+    }
+
+    // 四值直接就是"图片像素坐标"，四舍五入到整数（lattice xDivs/yDivs 要求 int）
+    // 并夹到 [0, image_size] 区间，避免越界或反向。
+    auto round_i = [](float v) -> int {
+        return static_cast<int>(v + 0.5f);
+    };
+    auto clamp_int = [](int v, int lo, int hi) -> int {
+        if (v < lo) {
+            return lo;
+        }
+        if (v > hi) {
+            return hi;
+        }
+        return v;
+    };
+
+    const int img_w = static_cast<int>(image_width_px + 0.5f);
+    const int img_h = static_cast<int>(image_height_px + 0.5f);
+    int left_px = clamp_int(round_i(left), 0, img_w);
+    int right_px = clamp_int(img_w - round_i(right), 0, img_w);
+    int top_px = clamp_int(round_i(top), 0, img_h);
+    int bottom_px = clamp_int(img_h - round_i(bottom), 0, img_h);
+
+    // 保证 xDivs / yDivs 严格递增（否则 lattice 语义未定义）。若因边距过大导致
+    // 两条分割线交叉（left+right >= imgW），退回老路径避免生成非法 lattice。
+    if (left_px >= right_px || top_px >= bottom_px) {
+        old_path_fallback();
+        return;
+    }
+
+    const int x_divs[2] = {left_px, right_px};
+    const int y_divs[2] = {top_px, bottom_px};
+
+    // 显式构造 bounds：官方文档说 bounds=nullptr 时"默认为原图矩形"，理论上等价，
+    // 但用户实测简化用法拉伸不稳定；这里按 drawing_lattice.h 示例严格显式传入，
+    // 消除任何"nullptr 简化路径"上潜在的实现差异。
+    // 注意：bounds 的值必须是整数（doc："The value must be an integer and is rounded
+    // down"），我们本来就用 int，安全。
+    struct OH_Drawing_Rect *bounds = nullptr;
+    if (&OH_Drawing_RectCreate != nullptr) {
+        bounds = OH_Drawing_RectCreate(0.f, 0.f, static_cast<float>(img_w), static_cast<float>(img_h));
+    }
+
+    // 显式构造 rectTypes：9 格全 DEFAULT（枚举值 0），与"nullptr + count=0"简化用法
+    // 等价。使用 opaque enum 类型 OH_Drawing_LatticeRectType（与 SDK header 严格一致，
+    // 底层 int32_t，值 0 即 DEFAULT——官方文档中该枚举首个成员即 DEFAULT）。
+    // 注意：文档要求"rectTypes != nullptr 时，rectTypeCount 必须等于 (xCount+1)*(yCount+1)"，
+    // 我们 xCount=yCount=2 → 9，严格对应。
+    // 说明：lattice 的"固定 / 拉伸"由**格子位置的奇偶性**决定，不由 rectTypes 决定；
+    // rectTypes 只控制"这个格子怎么填"（DEFAULT=画原图 / TRANSPARENT=透明 / FIXED_COLOR
+    // =纯色）。所以九宫格拉伸 9 格都是 DEFAULT。
+    constexpr auto kLatticeRectTypeDefault = static_cast<OH_Drawing_LatticeRectType>(0);  // = DEFAULT
+    const OH_Drawing_LatticeRectType rect_types[9] = {
+        kLatticeRectTypeDefault, kLatticeRectTypeDefault, kLatticeRectTypeDefault,  // 第一行
+        kLatticeRectTypeDefault, kLatticeRectTypeDefault, kLatticeRectTypeDefault,  // 第二行
+        kLatticeRectTypeDefault, kLatticeRectTypeDefault, kLatticeRectTypeDefault,  // 第三行
+    };
+
+    struct OH_Drawing_Lattice *lattice = nullptr;
+    // 官方文档 (drawing_lattice.h)：
+    //   "the lattices on both even columns and even rows are fixed, and they are
+    //    drawn at their original size ...; the lattices that are not on even columns
+    //    and even rows are scaled to accommodate the remaining space."
+    // xCount=yCount=2 → 3x3=9 格：四角(偶,偶)固定、中心(奇,奇)双向拉伸、四边(偶,奇)
+    // 或(奇,偶)单向拉伸，正好对应九宫格 capInsets 语义。
+    int32_t ret = OH_Drawing_LatticeCreate(x_divs, y_divs, 2, 2, bounds, nullptr, 0, nullptr, 0, &lattice);
+    if (ret != 0 /* OH_DRAWING_SUCCESS */ || !lattice) {
+        // 兜底：lattice 创建失败（理论上不会发生，比如参数越界）退回老路径而不是留空。
+        if (lattice) {
+            OH_Drawing_LatticeDestroy(lattice);
+        }
+        if (bounds && &OH_Drawing_RectDestroy != nullptr) {
+            OH_Drawing_RectDestroy(bounds);
+        }
+        old_path_fallback();
+        return;
+    }
+    
+
+    // 关键 fix：**只**传 .object=lattice，.value 必须置空。
+    // NODE_IMAGE_RESIZABLE 官方文档虽然把 .value（四个 vp 值）与 .object（Lattice）列
+    // 在同一属性下，但二者是**互斥**的两种设置模式。若同时提供 .value 与 .object，
+    // 鸿蒙内部会优先按 .value 走老四值 RESIZABLE 路径，把 .object 上的 lattice 忽略
+    // 掉——表现就是"看起来设了 lattice，实际拉伸仍然错误"。
+    // 因此这里明确 value=nullptr, size=0，让 ArkUI 无歧义地走 .object=Lattice 分支。
+    ArkUI_AttributeItem item = {};
+    item.value = nullptr;
+    item.size = 0;
+    item.object = lattice;
+    GetNodeApi()->setAttribute(handle, NODE_IMAGE_RESIZABLE, &item);
+    
+    ArkUI_NumberValue autoResizeValue[] = {{.i32 = 1}};
+    ArkUI_AttributeItem autoResizeItem = {.value = autoResizeValue, .size = 1};
+    GetNodeApi()->setAttribute(handle, NODE_IMAGE_AUTO_RESIZE, &autoResizeItem);
+    //SetArkUIIMageResizeMode(handle, ARKUI_OBJECT_FIT_FILL);
+    
+    GetNodeApi()->markDirty(handle, ArkUI_NodeDirtyFlag::NODE_NEED_RENDER);
+
+    // 关键：setAttribute 虽为同步语义，但实测立即 OH_Drawing_LatticeDestroy 会引发崩溃
+    // （鉴定 ArkUI 内部并非完全拷贝，或重绘管线异步引用了 lattice 数据）。
+    // 因此本函数不再在尾部销毁 lattice，而是把所有权交给调用方（通过
+    // out_lattice 输出）；调用方在它确定不会再被使用的时机（例如自身实例
+    // 销毁时）统一释放。若调用方传 out_lattice == nullptr，则表示不接管，
+    // 本函数立即销毁——保底不泄漏，代价是可能降低稳定性（旧行为）。
+    // bounds 只在本函数内使用（供 OH_Drawing_LatticeCreate 读取），setAttribute 后即可
+    // 释放：官方文档明确 bounds 仅用于创建时描述图片矩形，不参与后续绘制。
+    if (out_lattice) {
+        *out_lattice = lattice;
+    } else {
+        // 历史调用方不接管：保底销毁（可能崩溃，但不泄漏）。
+        OH_Drawing_LatticeDestroy(lattice);
+    }
+    if (bounds && &OH_Drawing_RectDestroy != nullptr) {
+        OH_Drawing_RectDestroy(bounds);
+    }
 }
 
 void ResetArkUIImageCapInsets(ArkUI_NodeHandle handle) {

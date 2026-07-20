@@ -45,6 +45,11 @@
 
 #define KUIKLY_ENABLE_ARKUI_NODE_VALID_CHECK 1
 
+// OH_Drawing_Lattice：native drawing 层的九宫格分割线对象，仅在
+// SetArkUIImageCapInsetsWithLattice 的可选输出参数里出现；这里做前向声明
+// 避免把 <native_drawing/drawing_lattice.h> 传递给所有引用本头文件的 TU。
+struct OH_Drawing_Lattice;
+
 class KRForwardArkTSView;
 class KRForwardArkTSViewV2;
 namespace kuikly {
@@ -165,6 +170,37 @@ void SetArkUIImageColorFilter(ArkUI_NodeHandle handle, const std::vector<float> 
 void ResetArkUIImageColorFilter(ArkUI_NodeHandle handle);
 
 void SetArkUIImageCapInsets(ArkUI_NodeHandle handle, float top, float left, float bottom, float right);
+
+/**
+ * 设置 NODE_IMAGE_SOURCE_SIZE：图源解码后的宽高，**单位为 px**（对齐 ArkUI 官方
+ * 文档语义）。用于把大图解码到与显示区域匹配的尺寸，避免过大位图浪费内存，也让
+ * 后续 lattice 精确九宫格拉伸有更贴近视觉的采样源。传入非正值视为不设置。
+ */
+void SetArkUIImageSourceSize(ArkUI_NodeHandle handle, float width_px, float height_px);
+
+/**
+ * API 24+ 走 OH_Drawing_Lattice 精确九宫格；低版本 / 缺尺寸时回退到老的四值
+ * NODE_IMAGE_RESIZABLE 路径。
+ *
+ * @param top/left/bottom/right 四个边距单位为**图片自身像素坐标**（对齐 iOS
+ *        UIImage.resizableImageWithCapInsets 的 point 语义——鸿蒙图片没有 point
+ *        概念，直接用图片像素最自然）。lattice xDivs/yDivs 原生就吃图片像素，
+ *        因此内部不做任何 dpi 换算。fallback 到老四值路径时会自动 /dpi 转成 vp
+ *        再下发 NODE_IMAGE_RESIZABLE（老接口的原生单位）。
+ * @param image_width_px / image_height_px 原图像素尺寸，用于把边距转换成 lattice
+ *        整数分割线并做越界校验。传 <=0 表示图片尺寸未知（如未加载完成），此时
+ *        内部自动退回老四值路径以保持行为不变。
+ * @param out_lattice 可选输出参数。若非空且本次成功创建了 OH_Drawing_Lattice，
+ *        指针会通过 *out_lattice 交出，**销毁责任由调用方承担**（在合适时机调用
+ *        OH_Drawing_LatticeDestroy）；否则 *out_lattice 置 nullptr。传 nullptr
+ *        表示调用方不接管，函数内部将立即销毁 lattice（保底不泄漏，用于不关心
+ *        lattice 生命周期的调用方）。
+ *        背景：ArkUI setAttribute 是同步语义、内部会拷贝 lattice 分割线信息，
+ *        但实测过早销毁 lattice 会引发崩溃，因此实际生命周期需要延长到组件销毁。
+ */
+void SetArkUIImageCapInsetsWithLattice(ArkUI_NodeHandle handle, float top, float left, float bottom,
+                                       float right, float image_width_px, float image_height_px,
+                                       ::OH_Drawing_Lattice **out_lattice = nullptr);
 
 void ResetArkUIImageCapInsets(ArkUI_NodeHandle handle);
 

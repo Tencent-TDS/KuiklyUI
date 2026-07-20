@@ -996,6 +996,9 @@ internal class LayoutNodeSubcompositionsState(
                     val nodeState = nodeToNodeState[node]
                     if (nodeState != null && nodeState.active) {
                         node.resetLayoutState()
+                        if (nodeState.pausedComposition != null) {
+                            nodeState.cancelPausedPrecomposition()
+                        }
                         if (deactivate) {
                             nodeState.composition?.deactivate()
                             nodeState.activeState = mutableStateOf(false)

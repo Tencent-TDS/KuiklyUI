@@ -20,7 +20,7 @@ package com.tencent.kuikly.compose
 
 import androidx.compose.runtime.Composable
 import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
-import com.tencent.kuikly.compose.foundation.lazy.layout.KuiklyPrefetchScheduler
+import com.tencent.kuikly.compose.foundation.lazy.layout.FramePrefetchScheduler
 import com.tencent.kuikly.compose.foundation.lazy.layout.PrefetchScheduler
 import com.tencent.kuikly.compose.foundation.lazy.layout.createDefaultKuiklyPrefetchScheduler
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
@@ -52,8 +52,8 @@ class ComposeSceneMediator(
 ) {
 
     @OptIn(ExperimentalFoundationApi::class)
-    internal val prefetchScheduler: KuiklyPrefetchScheduler =
-        createDefaultKuiklyPrefetchScheduler() as KuiklyPrefetchScheduler
+    internal val prefetchScheduler: FramePrefetchScheduler =
+        createDefaultKuiklyPrefetchScheduler()
 
     private var hasStartRender = false
     val superTouchManager = SuperTouchManager()

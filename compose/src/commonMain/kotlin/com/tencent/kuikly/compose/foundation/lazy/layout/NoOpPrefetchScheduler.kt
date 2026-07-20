@@ -9,12 +9,24 @@ package com.tencent.kuikly.compose.foundation.lazy.layout
 import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
 
 @OptIn(ExperimentalFoundationApi::class)
-internal object NoOpPrefetchScheduler : PrefetchScheduler, PriorityPrefetchScheduler {
+internal object NoOpPrefetchScheduler : FramePrefetchScheduler, PriorityPrefetchScheduler {
     override fun schedulePrefetch(prefetchRequest: PrefetchRequest) {}
 
     override fun scheduleLowPriorityPrefetch(prefetchRequest: PrefetchRequest) {}
 
     override fun scheduleHighPriorityPrefetch(prefetchRequest: PrefetchRequest) {}
 
-    fun cancelAll() {}
+    override fun cancelAll() {}
+
+    override fun hasPendingWork(): Boolean = false
+
+    override fun processRequests(
+        nanoTime: Long,
+        frameIntervalNs: Long,
+        isFrameIdle: Boolean,
+        lastDrawNanoTime: Long,
+    ): PrefetchProcessResult = PrefetchProcessResult(
+        spentNs = 0L,
+        scheduleForNextFrame = false,
+    )
 }

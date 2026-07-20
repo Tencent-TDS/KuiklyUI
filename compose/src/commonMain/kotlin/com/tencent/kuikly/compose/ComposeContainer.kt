@@ -23,7 +23,6 @@ import androidx.compose.runtime.InternalComposeApi
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
-import com.tencent.kuikly.compose.foundation.lazy.layout.KuiklyPrefetchScheduler
 import com.tencent.kuikly.compose.foundation.lazy.layout.LocalKuiklyPrefetchScheduler
 import com.tencent.kuikly.compose.foundation.lazy.layout.PrefetchScheduler
 import com.tencent.kuikly.compose.container.LocalSlotProvider
@@ -236,7 +235,7 @@ open class ComposeContainer :
             boundsInWindow = IntRect(0, 0, windowInfo.containerSize.width, windowInfo.containerSize.height),
             invalidate = invalidate,
             coroutineContext = coroutineContext,
-            prefetchScheduler = prefetchScheduler as KuiklyPrefetchScheduler,
+            prefetchScheduler = prefetchScheduler,
         )
 
     private fun createMediatorIfNeeded() {

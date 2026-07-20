@@ -13,6 +13,8 @@
  * limitations under the License.
  */
 
+@file:OptIn(com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi::class)
+
 package com.tencent.kuikly.compose.ui.scene
 
 import androidx.compose.runtime.Composable
@@ -27,7 +29,7 @@ import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.compose.ui.unit.IntRect
 import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
-import com.tencent.kuikly.compose.foundation.lazy.layout.KuiklyPrefetchScheduler
+import com.tencent.kuikly.compose.foundation.lazy.layout.PrefetchScheduler
 import com.tencent.kuikly.core.base.DeclarativeBaseView
 import kotlin.coroutines.CoroutineContext
 
@@ -41,7 +43,7 @@ internal fun KuiklyComposeScene(
     coroutineContext: CoroutineContext,
     composeSceneContext: ComposeSceneContext = ComposeSceneContext.Empty,
     invalidate: () -> Unit = {},
-    prefetchScheduler: KuiklyPrefetchScheduler? = null,
+    prefetchScheduler: PrefetchScheduler? = null,
     ): ComposeScene = KuiklyComposeSceneImpl(
         boundsInWindow = boundsInWindow,
         density = density,
@@ -63,7 +65,7 @@ private class KuiklyComposeSceneImpl @InternalComposeUiApi constructor(
     composeSceneContext: ComposeSceneContext,
     private val invalidate: () -> Unit,
     private val rootKView: DeclarativeBaseView<*, *>,
-    prefetchScheduler: KuiklyPrefetchScheduler? = null,
+    prefetchScheduler: PrefetchScheduler? = null,
 ) : BaseComposeScene(
     coroutineContext = coroutineContext,
     composeSceneContext = composeSceneContext,

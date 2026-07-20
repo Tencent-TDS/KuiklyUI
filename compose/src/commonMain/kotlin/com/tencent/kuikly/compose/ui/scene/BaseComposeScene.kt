@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
-@file:OptIn(InternalComposeUiApi::class)
+@file:OptIn(
+    InternalComposeUiApi::class,
+    com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi::class,
+)
 
 package com.tencent.kuikly.compose.ui.scene
 
@@ -41,10 +44,11 @@ import com.tencent.kuikly.compose.ui.input.pointer.ProcessResult
 import com.tencent.kuikly.compose.ui.node.InternalCoreApi
 import com.tencent.kuikly.compose.ui.node.LayoutNode
 import com.tencent.kuikly.compose.ui.node.SnapshotInvalidationTracker
+import com.tencent.kuikly.compose.foundation.lazy.layout.FramePrefetchScheduler
 import com.tencent.kuikly.compose.foundation.lazy.layout.KUIKLY_PREFETCH_FRAME_INTERVAL_NS
 import com.tencent.kuikly.compose.foundation.lazy.layout.KUIKLY_PREFETCH_IDLE_FRAME_MULTIPLIER
-import com.tencent.kuikly.compose.foundation.lazy.layout.KuiklyPrefetchScheduler
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyListPrefetchTrace
+import com.tencent.kuikly.compose.foundation.lazy.layout.PrefetchScheduler
 import com.tencent.kuikly.compose.container.VsyncTickConditions
 import com.tencent.kuikly.compose.profiler.KuiklyObserverHandle
 import com.tencent.kuikly.compose.profiler.RecompositionProfiler
@@ -67,7 +71,7 @@ internal abstract class BaseComposeScene(
     coroutineContext: CoroutineContext,
     val composeSceneContext: ComposeSceneContext,
     private val invalidate: () -> Unit,
-    internal val prefetchScheduler: KuiklyPrefetchScheduler? = null,
+    internal val prefetchScheduler: PrefetchScheduler? = null,
 ) : ComposeScene {
     private var paused = false
     /** Previous frame draw time; official idle = 2 vsync periods since last draw. */
@@ -221,8 +225,9 @@ internal abstract class BaseComposeScene(
                     nanoTime >
                     previousDrawNanoTime +
                     KUIKLY_PREFETCH_IDLE_FRAME_MULTIPLIER * frameIntervalNs
+            val framePrefetchScheduler = prefetchScheduler as? FramePrefetchScheduler
             val prefetchResult =
-                prefetchScheduler?.processRequests(
+                framePrefetchScheduler?.processRequests(
                     nanoTime,
                     frameIntervalNs,
                     isFrameIdle,
@@ -230,7 +235,7 @@ internal abstract class BaseComposeScene(
                 )
             val prefetchSpentNs = prefetchResult?.spentNs ?: 0L
             LazyListPrefetchTrace.log(
-                "frameEnd isFrameIdle=$isFrameIdle needsProactive=${vsyncTickConditions.needsToBeProactive} scheduledRedraws=${vsyncTickConditions.scheduledRedrawsCount} queuePending=${prefetchScheduler?.hasPendingWork() == true} spentNs=$prefetchSpentNs scheduleNextFrame=${prefetchResult?.scheduleForNextFrame == true}",
+                "frameEnd isFrameIdle=$isFrameIdle needsProactive=${vsyncTickConditions.needsToBeProactive} scheduledRedraws=${vsyncTickConditions.scheduledRedrawsCount} queuePending=${framePrefetchScheduler?.hasPendingWork() == true} spentNs=$prefetchSpentNs scheduleNextFrame=${prefetchResult?.scheduleForNextFrame == true}",
             )
 
             if (frameSampled) {

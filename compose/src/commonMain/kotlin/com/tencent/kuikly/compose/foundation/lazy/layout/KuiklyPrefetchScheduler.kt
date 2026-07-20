@@ -18,8 +18,22 @@ internal const val KUIKLY_PREFETCH_FRAME_INTERVAL_NS = 16_666_667L
 internal const val KUIKLY_PREFETCH_IDLE_FRAME_MULTIPLIER = 2
 
 @OptIn(ExperimentalFoundationApi::class)
+internal interface FramePrefetchScheduler : PrefetchScheduler {
+    fun cancelAll()
+
+    fun hasPendingWork(): Boolean
+
+    fun processRequests(
+        nanoTime: Long,
+        frameIntervalNs: Long,
+        isFrameIdle: Boolean,
+        lastDrawNanoTime: Long,
+    ): PrefetchProcessResult
+}
+
+@OptIn(ExperimentalFoundationApi::class)
 internal class KuiklyPrefetchScheduler :
-    PrefetchScheduler,
+    FramePrefetchScheduler,
     PriorityPrefetchScheduler {
 
     private val queue = ArrayDeque<PriorityTask>()
@@ -45,7 +59,7 @@ internal class KuiklyPrefetchScheduler :
         )
     }
 
-    fun cancelAll() {
+    override fun cancelAll() {
         val size = queue.size
         queue.clear()
         if (size > 0) {
@@ -53,14 +67,14 @@ internal class KuiklyPrefetchScheduler :
         }
     }
 
-    fun hasPendingWork(): Boolean = queue.isNotEmpty()
+    override fun hasPendingWork(): Boolean = queue.isNotEmpty()
 
     /**
      * @param lastDrawNanoTime draw time of the previous frame (0 on first frame).
      * @return spent ns in this prefetch pass; [PrefetchProcessResult.scheduleForNextFrame] mirrors
      *   official `scheduleForNextFrame` (Choreographer post) when work remains or budget is 0.
      */
-    fun processRequests(
+    override fun processRequests(
         nanoTime: Long,
         frameIntervalNs: Long,
         isFrameIdle: Boolean,

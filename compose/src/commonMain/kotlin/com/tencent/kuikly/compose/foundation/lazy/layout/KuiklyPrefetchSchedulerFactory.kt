@@ -9,6 +9,6 @@ package com.tencent.kuikly.compose.foundation.lazy.layout
 import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
 
 @OptIn(ExperimentalFoundationApi::class)
-internal expect fun createDefaultKuiklyPrefetchScheduler(): PrefetchScheduler
+internal expect fun createDefaultKuiklyPrefetchScheduler(): FramePrefetchScheduler
 
 internal expect val isPrefetchSupported: Boolean

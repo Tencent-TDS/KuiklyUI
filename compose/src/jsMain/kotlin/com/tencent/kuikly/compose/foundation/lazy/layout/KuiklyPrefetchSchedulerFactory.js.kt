@@ -9,6 +9,7 @@ package com.tencent.kuikly.compose.foundation.lazy.layout
 import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
 
 @OptIn(ExperimentalFoundationApi::class)
-internal actual fun createDefaultKuiklyPrefetchScheduler(): PrefetchScheduler = NoOpPrefetchScheduler
+internal actual fun createDefaultKuiklyPrefetchScheduler(): FramePrefetchScheduler =
+    NoOpPrefetchScheduler
 
 internal actual val isPrefetchSupported: Boolean = false

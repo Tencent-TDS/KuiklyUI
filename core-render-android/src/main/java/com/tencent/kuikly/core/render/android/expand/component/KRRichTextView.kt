@@ -28,8 +28,10 @@ import android.graphics.Typeface
 import android.os.Build
 import android.text.Layout
 import android.text.Spannable
+import android.text.SpannableString
 import android.text.SpannableStringBuilder
 import android.text.Spanned
+import android.text.SpannedString
 import android.text.StaticLayout
 import android.text.TextDirectionHeuristics
 import android.text.TextPaint
@@ -804,13 +806,17 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
         measureMode: TextMeasureMode
     ): Layout {
         val adapter = KuiklyRenderAdapterManager.krTextPostProcessorAdapter
-        val textSource = if (textProps.textPostProcessor.isNotEmpty()) {
+        val processedText = if (textProps.textPostProcessor.isNotEmpty()) {
             adapter?.onTextPostProcess(
                 kuiklyRenderContext, TextPostProcessorInput(textProps.textPostProcessor, text, textProps)
             )?.text ?: text
         } else {
             text
         }
+        // 对后置处理器返回的文本做一次不可变快照，避免业务侧持有并异步修改可变文本对象
+        // （如复用 SpannableStringBuilder）后，StaticLayout 的排版缓存与真实文本长度失去
+        // 一致性，从而在测量或绘制时抛出 IndexOutOfBoundsException。
+        val textSource = snapshotLayoutText(processedText)
         val desiredWidth = getDesiredWith(textSource, constraintSize, measureMode)
         val shouldUseLegacyLineBreakMarginCompat =
             textProps.lineBreakMargin != 0f && isNougatLineBreakMarginCompat()
@@ -865,6 +871,27 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
             .setIncludePad(false)
     }
 
+    /**
+     * 对交给 [StaticLayout] 的文本做一次不可变快照。
+     *
+     * StaticLayout 会在创建时按当前文本长度计算并缓存每一行的字符区间。若持有的
+     * 文本对象（例如业务复用的 [SpannableStringBuilder]）在 Layout 创建之后被
+     * 缩短，测量或绘制阶段就会按旧长度访问文本，进而抛出
+     * [IndexOutOfBoundsException]（如 `getChars`、`drawTextRun` 中的越界）。
+     *
+     * 因此对来自后置处理器（业务实现）的文本，统一在此处复制成不可变对象再交给
+     * 排版层，切断业务对象与 Layout 之间的引用关系，从设计上避免上述错误使用。
+     */
+    private fun snapshotLayoutText(source: CharSequence): CharSequence {
+        return when (source) {
+            is SpannedString -> source // 已经不可变，直接复用
+            is String -> source        // String 本身不可变
+            is Spanned -> SpannedString(source) // 拷贝带 Span 的文本为不可变版本
+            is Spannable -> SpannedString(SpannableString(source))
+            else -> source.toString()
+        }
+    }
+
     private fun createLineBreakMarginArray(textProps: KRTextProps): IntArray {
         val maxLines = textProps.numberOfLines
         val array = IntArray(maxLines)
@@ -880,7 +907,7 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
 
     private fun isNougatLineBreakMarginCompat(): Boolean {
         return Build.VERSION.SDK_INT == Build.VERSION_CODES.N ||
-            Build.VERSION.SDK_INT == Build.VERSION_CODES.N_MR1
+                Build.VERSION.SDK_INT == Build.VERSION_CODES.N_MR1
     }
 
     private fun getDesiredWith(

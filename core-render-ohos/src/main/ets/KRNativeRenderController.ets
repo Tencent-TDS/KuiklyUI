@@ -336,6 +336,15 @@ export class KRNativeRenderController {
       data['fontSizeScale'] = 1
     }
     data['fontSizeScaleFollowSystem'] = this.fontSizeScaleFollowSystem();
+    try {
+      if (config.fontId) {
+        data['fontId'] = config.fontId;
+      }
+    } catch (e) {
+      const err = e as BusinessError;
+      KRRenderLog.e('Configuration',
+        `read config.fontId failed (requires API 14+), code=${err?.code}, message=${err?.message}`);
+    }
 
     const instance = KRNativeManager.getInstance().getNativeInstance(this.instanceId)
     if (instance){

@@ -660,6 +660,12 @@ class KRRecyclerView : RecyclerView, IKuiklyRenderViewExport, NestedScrollingChi
 
     override fun onTouchEvent(e: MotionEvent): Boolean {
         if (touchConsumeByKuikly) {
+            // Compose pointerInput 消费 touch 后，最后一指 UP/CANCEL 仍需交给 RV 收尾（否则 Pager 可能卡在半页）
+            when (e.actionMasked) {
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_POINTER_UP -> {
+                    super.onTouchEvent(e)
+                }
+            }
             return true
         }
 

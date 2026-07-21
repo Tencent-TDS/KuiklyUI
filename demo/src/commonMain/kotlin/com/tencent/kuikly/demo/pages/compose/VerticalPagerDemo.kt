@@ -24,14 +24,21 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 import com.tencent.kuikly.compose.ComposeContainer
+import com.tencent.kuikly.compose.extension.flingEnable
 import com.tencent.kuikly.compose.foundation.background
 import com.tencent.kuikly.compose.foundation.clickable
+import com.tencent.kuikly.compose.foundation.gestures.awaitEachGesture
+import com.tencent.kuikly.compose.foundation.gestures.awaitFirstDown
+import com.tencent.kuikly.compose.foundation.gestures.waitForUpOrCancellation
 import com.tencent.kuikly.compose.foundation.layout.Arrangement
 import com.tencent.kuikly.compose.foundation.layout.Box
 import com.tencent.kuikly.compose.foundation.layout.Column
+import com.tencent.kuikly.compose.foundation.layout.Row
+import com.tencent.kuikly.compose.foundation.layout.fillMaxHeight
 import com.tencent.kuikly.compose.foundation.layout.fillMaxSize
 import com.tencent.kuikly.compose.foundation.layout.fillMaxWidth
 import com.tencent.kuikly.compose.foundation.layout.padding
+import com.tencent.kuikly.compose.foundation.layout.width
 import com.tencent.kuikly.compose.foundation.pager.HorizontalPager
 import com.tencent.kuikly.compose.foundation.pager.PageSize
 import com.tencent.kuikly.compose.foundation.pager.VerticalPager
@@ -41,9 +48,12 @@ import com.tencent.kuikly.compose.setContent
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.Color
+import com.tencent.kuikly.compose.ui.input.pointer.PointerEventTimeoutCancellationException
+import com.tencent.kuikly.compose.ui.input.pointer.pointerInput
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
 import com.tencent.kuikly.core.annotations.Page
+import kotlinx.coroutines.withTimeout
 
 /**
  * 数据项，包含固定的 id 和显示内容
@@ -107,73 +117,151 @@ class VerticalPagerDemo : ComposeContainer() {
         HorizontalPager(modifier = Modifier.fillMaxSize(), state = rememberPagerState { 3 }) {
 
             if (it == 1) {
-                VerticalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize(),
-                    pageSize = PageSize.Fill,
-                    key = { index -> dataList[index].id },
-                ) { page ->
-                    val item = dataList[page]
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                // 使用不同颜色区分不同页面
-                                Color(
-                                    red = (item.id * 25) % 256,
-                                    green = (item.id * 50) % 256,
-                                    blue = (item.id * 75) % 256,
-                                ),
-                            )
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Text(
-                                text = item.content,
-                                fontSize = 24.sp,
-                                color = Color.White,
-                            )
-                            Text(
-                                text = "ID: ${item.id}",
-                                fontSize = 16.sp,
-                                color = Color.White.copy(alpha = 0.8f),
-                            )
-                            Text(
-                                text = "页面索引: $page",
-                                fontSize = 14.sp,
-                                color = Color.White.copy(alpha = 0.6f),
-                            )
-                        }
-                    }
-                }
+                var longPressStatus by remember { mutableStateOf("未触发") }
 
-                // 右上角刷新按钮
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    contentAlignment = Alignment.TopEnd,
-                ) {
+                Column(modifier = Modifier.fillMaxSize()) {
                     Text(
-                        text = "刷新",
-                        fontSize = 16.sp,
-                        color = Color.White,
+                        text = "多指复现：左区单指滑到半页停住 → 右区另一指长按 → 依次抬指，应 snap 到整页",
+                        fontSize = 12.sp,
+                        color = Color.DarkGray,
                         modifier = Modifier
-                            .background(Color.Blue)
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                            .clickable {
-                                // 触发刷新流程：在 LaunchedEffect 中先跳转到第 0 页，然后更新数据
-                                refreshKey++
-                            },
+                            .fillMaxWidth()
+                            .background(Color(0xFFFFF8E1))
+                            .padding(12.dp),
                     )
+                    Text(
+                        text = "长按状态：$longPressStatus",
+                        fontSize = 12.sp,
+                        color = Color(0xFF1565C0),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                    )
+                    Row(modifier = Modifier.fillMaxSize()) {
+                        Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                            VerticalPager(
+                                state = pagerState,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .flingEnable(false),
+                                pageSize = PageSize.Fill,
+                                key = { index -> dataList[index].id },
+                            ) { page ->
+                                val item = dataList[page]
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(
+                                            Color(
+                                                red = (item.id * 25) % 256,
+                                                green = (item.id * 50) % 256,
+                                                blue = (item.id * 75) % 256,
+                                            ),
+                                        )
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        Text(
+                                            text = item.content,
+                                            fontSize = 24.sp,
+                                            color = Color.White,
+                                        )
+                                        Text(
+                                            text = "ID: ${item.id}",
+                                            fontSize = 16.sp,
+                                            color = Color.White.copy(alpha = 0.8f),
+                                        )
+                                        Text(
+                                            text = "页面索引: $page",
+                                            fontSize = 14.sp,
+                                            color = Color.White.copy(alpha = 0.6f),
+                                        )
+                                    }
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.TopEnd,
+                            ) {
+                                Text(
+                                    text = "刷新",
+                                    fontSize = 16.sp,
+                                    color = Color.White,
+                                    modifier = Modifier
+                                        .background(Color.Blue)
+                                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                                        .clickable { refreshKey++ },
+                                )
+                            }
+                        }
+
+                        LongPressTouchConsumerOverlay(
+                            onLongPress = { longPressStatus = "已触发，touch 已消费" },
+                            modifier = Modifier
+                                .width(88.dp)
+                                .fillMaxHeight()
+                                .background(Color.Black.copy(alpha = 0.28f)),
+                        )
+                    }
                 }
             } else {
                 Text("empty")
             }
         }
+    }
+}
+
+/**
+ * 模拟业务层长按手势：长按前不消费 touch，长按后在 pointerInput 中对 event 执行 consume。
+ */
+@Composable
+private fun LongPressTouchConsumerOverlay(
+    onLongPress: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier.pointerInput(Unit) {
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                val pointerId = down.id
+                val longPressTriggered = try {
+                    withTimeout(viewConfiguration.longPressTimeoutMillis) {
+                        waitForUpOrCancellation(down = down)
+                    }
+                    false
+                } catch (_: PointerEventTimeoutCancellationException) {
+                    true
+                }
+                if (!longPressTriggered) {
+                    return@awaitEachGesture
+                }
+
+                down.consume()
+                onLongPress()
+                while (true) {
+                    val event = awaitPointerEvent()
+                    event.changes.forEach { change ->
+                        if (change.id == pointerId) {
+                            change.consume()
+                        }
+                    }
+                    if (event.changes.none { it.id == pointerId && it.pressed }) {
+                        break
+                    }
+                }
+            }
+        },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = "长按区\n第二指\n长按",
+            fontSize = 13.sp,
+            color = Color.White,
+        )
     }
 }

@@ -20,8 +20,10 @@ import android.view.View
 import com.tencent.kuikly.core.render.android.adapter.IKRPAGViewAdapter
 import com.tencent.kuikly.core.render.android.adapter.IPAGView
 import com.tencent.kuikly.core.render.android.adapter.IPAGViewListener
+import org.libpag.PAGFile
 import org.libpag.PAGImage
 import org.libpag.PAGImageLayer
+import org.libpag.PAGLayer
 import org.libpag.PAGTextLayer
 import org.libpag.PAGView
 
@@ -96,6 +98,57 @@ class KRPagView(context: Context) : PAGView(context), IPAGView {
                 it.setImage(image)
             }
         }
+    }
+
+    override fun replaceTextByIndex(editableIndex: Int, text: String) {
+        val pagFile = composition as? PAGFile ?: return
+        val textData = pagFile.getTextData(editableIndex) ?: return
+        textData.text = text
+        pagFile.replaceText(editableIndex, textData)
+    }
+
+    override fun replaceImageByIndex(editableIndex: Int, filePath: String) {
+        val pagFile = composition as? PAGFile ?: return
+        if (editableIndex < 0 || editableIndex >= pagFile.numImages()) return
+        val image = if (filePath.startsWith("assets://")) {
+            PAGImage.FromAssets(this.context.assets, filePath.substring(9))
+        } else {
+            PAGImage.FromPath(filePath)
+        }
+        pagFile.replaceImage(editableIndex, image)
+    }
+
+    override fun getEditableLayersUnderPoint(x: Float, y: Float): List<Map<String, Any>> {
+        val result = mutableListOf<Map<String, Any>>()
+        try {
+            // libpag 的 getLayersUnderPoint 需要 Surface 坐标（像素），dp 转换为 pixel
+            val density = context.resources.displayMetrics.density
+            val pixelX = x * density
+            val pixelY = y * density
+
+            val layers = this.getLayersUnderPoint(pixelX, pixelY)
+            for (layer in layers) {
+                if (layer !is PAGLayer) continue
+                val editableIndex = layer.editableIndex()
+                val editableType = when (layer) {
+                    is PAGTextLayer -> "text"
+                    is PAGImageLayer -> "image"
+                    else -> null
+                }
+                // 过滤掉 editableIndex == -1 的非可编辑图层，只回调业务可操作的图层
+                if (editableIndex < 0 || editableType == null) {
+                    continue
+                }
+                result.add(mapOf(
+                    "layerName" to (layer.layerName() ?: ""),
+                    "editableIndex" to editableIndex,
+                    "editableType" to editableType
+                ))
+            }
+        } catch (_: Exception) {
+            // libpag 未集成或版本不支持时，安全返回空列表
+        }
+        return result
     }
 
     override fun addPAGViewListener(listener: IPAGViewListener) {

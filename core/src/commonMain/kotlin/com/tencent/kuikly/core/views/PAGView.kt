@@ -129,6 +129,37 @@ class PAGViewAttr : Attr() {
     }
 
     /**
+     * 根据 editableIndex 替换当前 PAG 资源中的文字图层内容。
+     * editableIndex 范围为 0 到 PAGFile.numTexts - 1。
+     * @param editableIndex 可编辑文字图层的索引
+     * @param textContent 替换的文本内容
+     */
+    fun replaceTextByIndex(editableIndex: Int, textContent: String) {
+        REPLACE_TEXT_BY_INDEX with "$editableIndex,$textContent"
+    }
+
+    /**
+     * 根据 editableIndex 替换当前 PAG 资源中的图像图层内容。
+     * editableIndex 范围为 0 到 PAGFile.numImages - 1。
+     * @param editableIndex 可编辑图像图层的索引
+     * @param imageFilePath 替换的图片资源文件路径
+     */
+    fun replaceImageByIndex(editableIndex: Int, imageFilePath: String) {
+        REPLACE_IMAGE_BY_INDEX with "$editableIndex,$imageFilePath"
+    }
+
+    /**
+     * 根据 editableIndex 替换当前 PAG 资源中的图像图层内容。
+     * editableIndex 范围为 0 到 PAGFile.numImages - 1。
+     * @param editableIndex 可编辑图像图层的索引
+     * @param uri 替换的图片 Assets 资源 uri
+     */
+    fun replaceImageByIndex(editableIndex: Int, uri: ImageUri) {
+        val imageFilePath = uri.toUrl(getPager().pageName)
+        REPLACE_IMAGE_BY_INDEX with "$editableIndex,$imageFilePath"
+    }
+
+    /**
      * 设置缩放模式，对齐 libpag 的 `PAGScaleMode`。
      *
      * @param mode 缩放模式枚举值：
@@ -173,6 +204,8 @@ class PAGViewAttr : Attr() {
         const val SCALE_MODE = "scaleMode"
         const val REPLACE_TEXT_LAYER_CONTENT = "replaceTextLayerContent"
         const val REPLACE_IMAGE_LAYER_CONTENT = "replaceImageLayerContent"
+        const val REPLACE_TEXT_BY_INDEX = "replaceTextByIndex"
+        const val REPLACE_IMAGE_BY_INDEX = "replaceImageByIndex"
     }
 }
 

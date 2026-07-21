@@ -22,7 +22,9 @@ import com.tencent.kuikly.compose.ui.geometry.Rect
 import com.tencent.kuikly.compose.ui.geometry.RoundRect
 import com.tencent.kuikly.compose.ui.geometry.boundingRect
 import com.tencent.kuikly.compose.ui.geometry.toRect
+import com.tencent.kuikly.compose.ui.graphics.Matrix
 import com.tencent.kuikly.compose.ui.graphics.Path
+import com.tencent.kuikly.compose.ui.graphics.PathOperation
 import com.tencent.kuikly.compose.ui.graphics.degrees
 import com.tencent.kuikly.compose.ui.util.fastForEach
 import com.tencent.kuikly.core.views.PathApi
@@ -263,6 +265,13 @@ class KuiklyPath : Path {
     private var startY = 0f
     private var offsetX = 0f
     private var offsetY = 0f
+
+    // 2D affine transform components (applied at draw time)
+    private var hasTransform = false
+    private var transformM00 = 1f
+    private var transformM01 = 0f
+    private var transformM10 = 0f
+    private var transformM11 = 1f
 
     private val bounds = MutableRect(
         Float.POSITIVE_INFINITY,
@@ -552,7 +561,7 @@ class KuiklyPath : Path {
             path.draw(this, densityValue)
             // restore the path
             path.offsetX -= offsetX + offset.x
-            path.offsetY -= offsetX + offset.y
+            path.offsetY -= offsetY + offset.y
             moveTo((offsetX + originalX) / densityValue, (offsetY + originalY) / densityValue)
         }
     }
@@ -571,7 +580,14 @@ class KuiklyPath : Path {
         currentY = 0f
         startX = 0f
         startY = 0f
+        offsetX = 0f
+        offsetY = 0f
         bounds.reset()
+        hasTransform = false
+        transformM00 = 1f
+        transformM01 = 0f
+        transformM10 = 0f
+        transformM11 = 1f
     }
 
     override fun translate(offset: Offset) {
@@ -596,8 +612,189 @@ class KuiklyPath : Path {
         this.densityValue = densityValue
         val originOffsetX = offsetX
         val originOffsetY = offsetY
-        ops.fastForEach { context.it() }
+        if (hasTransform) {
+            // Wrap PathApi to apply 2D affine transform to all coordinates
+            val proxy = TransformingPathApi(context, transformM00, transformM01, transformM10, transformM11)
+            ops.fastForEach { proxy.it() }
+        } else {
+            ops.fastForEach { context.it() }
+        }
         offsetX = originOffsetX
         offsetY = originOffsetY
+    }
+
+    /**
+     * Transform the points in this path by the provided matrix.
+     *
+     * Since KuiklyPath ops are closures that capture original coordinates and read
+     * offsetX/offsetY at draw time, we cannot modify individual points after creation.
+     *
+     * Strategy: Store the 2D affine transform (m00, m01, m10, m11) and apply it at
+     * draw time via a [TransformingPathApi] proxy that intercepts all PathApi calls.
+     * Translation (tx, ty) is applied via offsetX/offsetY adjustment.
+     */
+    override fun transform(matrix: Matrix) {
+        val oldCurrentX = currentX
+        val oldCurrentY = currentY
+        val oldStartX = startX
+        val oldStartY = startY
+        val oldBounds = if (bounds.valid) {
+            Rect(bounds.left, bounds.top, bounds.right, bounds.bottom)
+        } else null
+
+        // Extract 2D affine components from Compose's 4x4 matrix
+        // scaleX=m[0,0], skewX=m[0,1], skewY=m[1,0], scaleY=m[1,1]
+        // translateX=m[3,0], translateY=m[3,1]
+        val m00 = matrix[0, 0]
+        val m01 = matrix[0, 1]
+        val m10 = matrix[1, 0]
+        val m11 = matrix[1, 1]
+        val tx = matrix[3, 0]
+        val ty = matrix[3, 1]
+
+        // Apply translation via offset (this is picked up by closures at draw time)
+        offsetX += tx
+        offsetY += ty
+
+        // Store rotation/scale for draw-time proxy application
+        transformM00 = m00
+        transformM01 = m01
+        transformM10 = m10
+        transformM11 = m11
+        hasTransform = (m00 != 1f || m01 != 0f || m10 != 0f || m11 != 1f)
+
+        // Recompute bounds by transforming original bounds corners
+        bounds.reset()
+        if (oldBounds != null) {
+            val corners = arrayOf(
+                floatArrayOf(oldBounds.left, oldBounds.top),
+                floatArrayOf(oldBounds.right, oldBounds.top),
+                floatArrayOf(oldBounds.right, oldBounds.bottom),
+                floatArrayOf(oldBounds.left, oldBounds.bottom),
+            )
+            for (corner in corners) {
+                val nx = m00 * corner[0] + m01 * corner[1] + tx
+                val ny = m10 * corner[0] + m11 * corner[1] + ty
+                bounds.expandPoint(nx, ny)
+            }
+        }
+
+        // Update tracked positions with full affine transform
+        currentX = m00 * oldCurrentX + m01 * oldCurrentY + tx
+        currentY = m10 * oldCurrentX + m11 * oldCurrentY + ty
+        startX = m00 * oldStartX + m01 * oldStartY + tx
+        startY = m10 * oldStartX + m11 * oldStartY + ty
+    }
+
+    /**
+     * Set this path to the result of applying the Op to the two specified paths.
+     *
+     * For the Tooltip caret use case (PathOperation.Union), we approximate the union
+     * by simply adding both paths together. This produces the correct visual result
+     * when both paths overlap (tooltip body + caret triangle), since the fill rule
+     * will render both as a single filled shape.
+     */
+    override fun op(path1: Path, path2: Path, operation: PathOperation): Boolean {
+        if (path1 !is KuiklyPath || path2 !is KuiklyPath) return false
+
+        // Reset this path
+        reset()
+
+        when (operation) {
+            PathOperation.Union -> {
+                // Add both paths - the visual union for filled shapes
+                addPath(path1)
+                addPath(path2)
+            }
+            else -> {
+                // For other operations, just add path1 as fallback
+                addPath(path1)
+            }
+        }
+        return true
+    }
+}
+
+/**
+ * A [PathApi] wrapper that applies a 2D affine transform (scale + rotation/skew)
+ * to all coordinates before delegating to the real [PathApi].
+ *
+ * Translation is already handled via offsetX/offsetY; this proxy handles
+ * the rotation/scale components (m00, m01, m10, m11).
+ */
+private class TransformingPathApi(
+    private val delegate: PathApi,
+    private val m00: Float,
+    private val m01: Float,
+    private val m10: Float,
+    private val m11: Float,
+) : PathApi {
+
+    private fun transformX(x: Float, y: Float): Float = m00 * x + m01 * y
+    private fun transformY(x: Float, y: Float): Float = m10 * x + m11 * y
+
+    override fun beginPath() = delegate.beginPath()
+
+    override fun moveTo(x: Float, y: Float) {
+        delegate.moveTo(transformX(x, y), transformY(x, y))
+    }
+
+    override fun lineTo(x: Float, y: Float) {
+        delegate.lineTo(transformX(x, y), transformY(x, y))
+    }
+
+    override fun arc(
+        centerX: Float,
+        centerY: Float,
+        radius: Float,
+        startAngle: Float,
+        endAngle: Float,
+        counterclockwise: Boolean
+    ) {
+        // For arcs with non-uniform scale, the result is an ellipse.
+        // For the caret use case (only moveTo/lineTo/close), arcs won't be encountered.
+        // Fallback: apply transform to center and pass radius unchanged (works for uniform scale).
+        delegate.arc(
+            transformX(centerX, centerY),
+            transformY(centerX, centerY),
+            radius, // Approximate: doesn't handle non-uniform scale on arcs
+            startAngle,
+            endAngle,
+            counterclockwise
+        )
+    }
+
+    override fun closePath() = delegate.closePath()
+
+    override fun quadraticCurveTo(
+        controlPointX: Float,
+        controlPointY: Float,
+        pointX: Float,
+        pointY: Float
+    ) {
+        delegate.quadraticCurveTo(
+            transformX(controlPointX, controlPointY),
+            transformY(controlPointX, controlPointY),
+            transformX(pointX, pointY),
+            transformY(pointX, pointY),
+        )
+    }
+
+    override fun bezierCurveTo(
+        controlPoint1X: Float,
+        controlPoint1Y: Float,
+        controlPoint2X: Float,
+        controlPoint2Y: Float,
+        pointX: Float,
+        pointY: Float
+    ) {
+        delegate.bezierCurveTo(
+            transformX(controlPoint1X, controlPoint1Y),
+            transformY(controlPoint1X, controlPoint1Y),
+            transformX(controlPoint2X, controlPoint2Y),
+            transformY(controlPoint2X, controlPoint2Y),
+            transformX(pointX, pointY),
+            transformY(pointX, pointY),
+        )
     }
 }

@@ -167,6 +167,7 @@ internal class ComposeAllSample : ComposeContainer() {
             DemoItem("InteractionSourceDemo", "交互源Demo", "InteractionSourceDemo"),
             DemoItem("ViewModel示例", "Lifecycle和ViewModel", "ViewModelDemo"),
             DemoItem("GradientAnimationDemo", "Offset or color animate ", "GradientAnimationDemo"),
+            DemoItem("Text minLines", "Text minLines 属性支持验证", "TextMinLinesDemo"),
             DemoItem("重组性能分析", "RecompositionProfiler追踪重组热点", "RecompositionProfilerDemo"),
             DemoItem("TextFieldEmoji", "TextField 自定义表情示例（暂不支持鸿蒙）", "TextFieldEmojiDemo"),
             DemoItem("MoveableDrawer", "侧边栏组件示例（全屏/非全屏）", "MoveableDrawerDemo"),

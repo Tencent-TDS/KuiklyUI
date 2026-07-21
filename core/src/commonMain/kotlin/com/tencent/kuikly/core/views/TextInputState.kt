@@ -44,6 +44,42 @@ data class TextInputState(
 
     fun encode(): String = toJSONObject().toString()
 
+    /**
+     * 编辑态统一归一化入口：将 selection / composition 全部裁剪到 [0, text.length]。
+     * CoreTextField 的 handleNativeEditingStateChange 和 decode() 均依赖此方法保证数据合法。
+     */
+    fun coerceToTextBounds(): TextInputState {
+        val safeSelectionStart = selectionStart.coerceIn(0, text.length)
+        val safeSelectionEnd = selectionEnd.coerceIn(0, text.length)
+        // 半合法 composition（如 start=-1、end=5，只有一端为 NO_COMPOSITION）视为整体非法，
+        // 直接丢弃为 NO_COMPOSITION，避免只裁剪一端导致业务误判存在 composing 区间。
+        val hasComposition = compositionStart != NO_COMPOSITION && compositionEnd != NO_COMPOSITION
+        val safeCompositionStart = if (hasComposition) {
+            compositionStart.coerceIn(0, text.length)
+        } else {
+            NO_COMPOSITION
+        }
+        val safeCompositionEnd = if (hasComposition) {
+            compositionEnd.coerceIn(0, text.length)
+        } else {
+            NO_COMPOSITION
+        }
+        if (
+            safeSelectionStart == selectionStart &&
+            safeSelectionEnd == selectionEnd &&
+            safeCompositionStart == compositionStart &&
+            safeCompositionEnd == compositionEnd
+        ) {
+            return this
+        }
+        return copy(
+            selectionStart = safeSelectionStart,
+            selectionEnd = safeSelectionEnd,
+            compositionStart = safeCompositionStart,
+            compositionEnd = safeCompositionEnd
+        )
+    }
+
     fun hasSameEditingState(other: TextInputState): Boolean {
         return selectionStart == other.selectionStart &&
             selectionEnd == other.selectionEnd &&
@@ -93,7 +129,7 @@ data class TextInputState(
                 compositionStart = compositionStart,
                 compositionEnd = compositionEnd,
                 length = length
-            )
+            ).coerceToTextBounds()
         }
     }
 }

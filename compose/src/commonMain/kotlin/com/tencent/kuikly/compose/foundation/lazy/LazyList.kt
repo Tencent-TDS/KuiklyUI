@@ -74,6 +74,8 @@ internal fun LazyList(
     verticalAlignment: Alignment.Vertical? = null,
     /** The horizontal arrangement for items. Required when isVertical is false */
     horizontalArrangement: Arrangement.Horizontal? = null,
+    /** Controls ignoreScrollOffset clearing strategy */
+    forceClearIgnoreOffset: Boolean = false,
     /** The content of the list */
     content: LazyListScope.() -> Unit
 ) {
@@ -82,6 +84,7 @@ internal fun LazyList(
     val semanticState = rememberLazyListSemanticState(state, isVertical)
     val coroutineScope = rememberCoroutineScope()
     state.kuiklyInfo.scope = coroutineScope
+    state.kuiklyInfo.forceClearIgnoreOffset = forceClearIgnoreOffset
 
 //    val graphicsContext = LocalGraphicsContext.current
 //    val stickyHeadersEnabled = !LocalScrollCaptureInProgress.current

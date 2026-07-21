@@ -907,7 +907,7 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
 
     private fun isNougatLineBreakMarginCompat(): Boolean {
         return Build.VERSION.SDK_INT == Build.VERSION_CODES.N ||
-                Build.VERSION.SDK_INT == Build.VERSION_CODES.N_MR1
+            Build.VERSION.SDK_INT == Build.VERSION_CODES.N_MR1
     }
 
     private fun getDesiredWith(

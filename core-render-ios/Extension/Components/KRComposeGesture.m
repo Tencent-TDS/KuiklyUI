@@ -16,6 +16,22 @@
 #import "KRComposeGesture.h"
 #import "KRView.h"
 
+static const CGPoint KRComposeGestureInvalidContentOffset = { -1, -1 };
+
+static inline BOOL KRComposeGestureContentOffsetIsValid(CGPoint contentOffset) {
+    return !(contentOffset.x == KRComposeGestureInvalidContentOffset.x
+             && contentOffset.y == KRComposeGestureInvalidContentOffset.y);
+}
+
+#if !TARGET_OS_OSX // [macOS]
+static inline UIEdgeInsets KRComposeGestureAdjustedInsets(UIScrollView *scrollView) {
+    if (@available(iOS 11.0, *)) {
+        return scrollView.adjustedContentInset;
+    }
+    return scrollView.contentInset;
+}
+#endif // [macOS]
+
 #pragma mark - KRTouchGestureRecognizer
 
 
@@ -34,7 +50,10 @@
 #if !TARGET_OS_OSX // [macOS]
         // 设置手势识别器属性，确保不会干扰其他触摸事件
         self.cancelsTouchesInView = YES;
-        self.delaysTouchesBegan = YES;
+        // 注意：不设置 delaysTouchesBegan，避免 iOS 延迟 touchesBegan 导致的事件时序竞争。
+        // Android 没有类似的延迟机制，为了与 Android 行为对齐，Compose 需要尽早收到事件以便
+        // 在 nativeScrollGestureOnGoing 发生变化时及时响应。
+        // self.delaysTouchesBegan = YES;
 #endif // [macOS]
         
         // 初始化跟踪的触摸点集合
@@ -232,9 +251,52 @@
         _containerView = containerView;
         _nativeScrollGestures = [NSMutableSet new];
         _enableNativeGesture = YES;
+        _lastCheckedContentOffset = KRComposeGestureInvalidContentOffset;
     }
     return self;
 }
+
+#if !TARGET_OS_OSX // [macOS]
+- (CGFloat)dominantPanDeltaForGesture:(UIPanGestureRecognizer *)gesture horizontal:(BOOL *)horizontal {
+    CGPoint translation = [gesture translationInView:gesture.view];
+    CGPoint velocity = [gesture velocityInView:gesture.view];
+
+    CGFloat horizontalDelta = fabs(translation.x) > 0.5 ? translation.x : velocity.x / 1000.0;
+    CGFloat verticalDelta = fabs(translation.y) > 0.5 ? translation.y : velocity.y / 1000.0;
+
+    if (fabs(horizontalDelta) > fabs(verticalDelta)) {
+        if (horizontal) {
+            *horizontal = YES;
+        }
+        return horizontalDelta;
+    }
+
+    if (horizontal) {
+        *horizontal = NO;
+    }
+    return verticalDelta;
+}
+
+- (BOOL)scrollView:(UIScrollView *)scrollView canConsumePanDelta:(CGFloat)delta horizontal:(BOOL)horizontal {
+    if (fabs(delta) <= 0.001) {
+        return NO;
+    }
+
+    UIEdgeInsets insets = KRComposeGestureAdjustedInsets(scrollView);
+    CGFloat leadingInset = horizontal ? insets.left : insets.top;
+    CGFloat trailingInset = horizontal ? insets.right : insets.bottom;
+    CGFloat currentOffset = horizontal ? scrollView.contentOffset.x : scrollView.contentOffset.y;
+    CGFloat minOffset = -leadingInset;
+    CGFloat contentLength = horizontal ? scrollView.contentSize.width : scrollView.contentSize.height;
+    CGFloat boundsLength = horizontal ? CGRectGetWidth(scrollView.bounds) : CGRectGetHeight(scrollView.bounds);
+    CGFloat maxOffset = MAX(minOffset, contentLength - boundsLength + trailingInset);
+
+    if (delta > 0) {
+        return currentOffset > minOffset;
+    }
+    return currentOffset < maxOffset;
+}
+#endif // [macOS]
 
 #pragma mark - UIGestureRecognizerDelegate
 
@@ -338,12 +400,51 @@
 }
 
 - (BOOL)nativeScrollGestureOnGoing {
+#if !TARGET_OS_OSX // [macOS]
+    BOOL hasActiveNativePan = NO;
+
+    for (UIPanGestureRecognizer *ges in self.nativeScrollGestures) {
+        if (ges.state == UIGestureRecognizerStateBegan || ges.state == UIGestureRecognizerStateChanged) {
+            hasActiveNativePan = YES;
+
+            UIScrollView *scrollView = [ges.view isKindOfClass:[UIScrollView class]] ? (UIScrollView *)ges.view : nil;
+            if (!scrollView) {
+                return YES;
+            }
+
+            BOOL horizontal = NO;
+            CGFloat dominantDelta = [self dominantPanDeltaForGesture:ges horizontal:&horizontal];
+            if ([self scrollView:scrollView canConsumePanDelta:dominantDelta horizontal:horizontal]) {
+                _lastCheckedContentOffset = scrollView.contentOffset;
+                return YES;
+            }
+
+            CGPoint currentOffset = scrollView.contentOffset;
+            if (KRComposeGestureContentOffsetIsValid(_lastCheckedContentOffset)
+                && !CGPointEqualToPoint(currentOffset, _lastCheckedContentOffset)) {
+                _lastCheckedContentOffset = currentOffset;
+                return YES;
+            }
+            _lastCheckedContentOffset = currentOffset;
+        } else if (ges.state == UIGestureRecognizerStateEnded ||
+                   ges.state == UIGestureRecognizerStateCancelled ||
+                   ges.state == UIGestureRecognizerStateFailed) {
+            _lastCheckedContentOffset = KRComposeGestureInvalidContentOffset;
+        }
+    }
+
+    if (!hasActiveNativePan) {
+        _lastCheckedContentOffset = KRComposeGestureInvalidContentOffset;
+    }
+    return NO;
+#else // [macOS]
     for (UIPanGestureRecognizer *ges in self.nativeScrollGestures) {
         if (ges.state == UIGestureRecognizerStateBegan || ges.state == UIGestureRecognizerStateChanged) {
             return YES;
         }
     }
     return NO;
+#endif // [macOS]
 }
 
 @end

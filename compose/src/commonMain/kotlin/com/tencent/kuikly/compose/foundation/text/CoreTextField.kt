@@ -510,16 +510,19 @@ internal fun CoreTextField(
                                 }
                                 autoHeightTextAreaView.getViewAttr()
                                     .updatePropCache(TextConst.VALUE, it.text)
-                                // textDidChange 不含 selection 信息，若 lastSyncedTextInputState 文本一致则沿用其选区，
-                                // 避免用 TextRange.Zero(0,0) 覆盖原生层正确光标。
-                                val preservedSelection = lastSyncedTextInputState?.let { state ->
-                                    if (state.text == it.text) {
-                                        TextRange(state.selectionStart, state.selectionEnd)
-                                    } else {
-                                        TextRange.Zero
-                                    }
-                                } ?: TextRange.Zero
-                                onValueChange(TextFieldValue(text = it.text, selection = preservedSelection))
+                                val fallbackValue = lastSyncedTextInputState
+                                    ?.takeIf { state -> state.text == it.text }
+                                    ?.toTextFieldValue(it.text)
+                                    ?: value.withUpdatedTextPreservingEditingState(it.text)
+                                lastSyncedTextInputState = TextInputState(
+                                    text = fallbackValue.text,
+                                    selectionStart = fallbackValue.selection.start,
+                                    selectionEnd = fallbackValue.selection.end,
+                                    compositionStart = fallbackValue.composition?.start ?: TextInputState.NO_COMPOSITION,
+                                    compositionEnd = fallbackValue.composition?.end ?: TextInputState.NO_COMPOSITION,
+                                    length = it.length
+                                )
+                                onValueChange(fallbackValue)
                                 dispatchLimitChange(it.length, pendingLimitChangeNotification)
                             }
                         }
@@ -600,6 +603,49 @@ internal fun CoreTextField(
         }
     }
 }
+
+private fun buildTextFieldValue(
+    text: String,
+    selectionStart: Int,
+    selectionEnd: Int,
+    compositionStart: Int = TextInputState.NO_COMPOSITION,
+    compositionEnd: Int = TextInputState.NO_COMPOSITION,
+): TextFieldValue {
+    val safeTextLength = text.length
+    val selection = TextRange(
+        selectionStart.coerceIn(0, safeTextLength),
+        selectionEnd.coerceIn(0, safeTextLength),
+    )
+    val composition = if (
+        compositionStart != TextInputState.NO_COMPOSITION &&
+        compositionEnd != TextInputState.NO_COMPOSITION
+    ) {
+        TextRange(
+            compositionStart.coerceIn(0, safeTextLength),
+            compositionEnd.coerceIn(0, safeTextLength),
+        )
+    } else {
+        null
+    }
+    return TextFieldValue(
+        text = text,
+        selection = selection,
+        composition = composition,
+    )
+}
+
+private fun TextInputState.toTextFieldValue(text: String): TextFieldValue =
+    buildTextFieldValue(text, selectionStart, selectionEnd, compositionStart, compositionEnd)
+
+private fun TextFieldValue.withUpdatedTextPreservingEditingState(text: String): TextFieldValue =
+    buildTextFieldValue(
+        text = text,
+        selectionStart = selection.start,
+        selectionEnd = selection.end,
+        compositionStart = composition?.start ?: TextInputState.NO_COMPOSITION,
+        compositionEnd = composition?.end ?: TextInputState.NO_COMPOSITION,
+    )
+
 /**
  * 将 Modifier 拆分为两部分：SetPropElement/SetEventElement 和其他 Element
  * 使用 foldOut 从内到外遍历，保持原始顺序

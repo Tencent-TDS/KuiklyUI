@@ -57,6 +57,16 @@ object CursorType {
     const val DEFAULT = "default"
 }
 
+/**
+ * HarmonyOS View 命中模式业务常量。
+ */
+object OhosViewHitTestMode {
+    const val HIT_TEST_DEFAULT = "default"
+    const val HIT_TEST_BLOCK = "block"
+    const val HIT_TEST_TRANSPARENT = "transparent"
+    const val HIT_TEST_NONE = "none"
+}
+
 open class Attr : Props(), IStyleAttr, ILayoutAttr {
     var flexNode: FlexNode? = null
     var keepAlive: Boolean = false
@@ -308,6 +318,11 @@ open class Attr : Props(), IStyleAttr, ILayoutAttr {
 
     override fun touchEnable(touchEnable: Boolean): Attr {
         StyleConst.TOUCH_ENABLE with touchEnable.toInt()
+        return this
+    }
+
+    override fun ohosViewHitTestMode(mode: String): Attr {
+        setProp("hit-test-ohos", mode)
         return this
     }
 

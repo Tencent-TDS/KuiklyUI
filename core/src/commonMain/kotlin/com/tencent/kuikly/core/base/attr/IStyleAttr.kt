@@ -104,6 +104,14 @@ interface IStyleAttr {
      * @return 返回 IStyleAttr 接口以支持链式调用。
      */
     fun touchEnable(touchEnable: Boolean): IStyleAttr
+
+    /**
+     * 设置 HarmonyOS View 的命中模式。
+     * 该接口底层会下发 `hit-test-ohos` 属性；HarmonyOS 生效，其他平台安全忽略。
+     * @param mode 命中模式常量，建议使用 `OhosViewHitTestMode` 中提供的常量。
+     * @return 返回 IStyleAttr 接口以支持链式调用。
+     */
+    fun ohosViewHitTestMode(mode: String): IStyleAttr
     // endregion
 
     // region: animation

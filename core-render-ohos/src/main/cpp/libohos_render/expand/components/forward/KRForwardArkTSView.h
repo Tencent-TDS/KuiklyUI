@@ -27,6 +27,7 @@ class KRForwardArkTSView : public IKRRenderViewExport {
 
     bool SetProp(const std::string &prop_key, const KRAnyValue &prop_value,
                  const KRRenderCallback event_call_back = nullptr) override;
+    bool ResetProp(const std::string &prop_key) override;
     void FireViewEventFromArkTS(std::string eventKey, KRAnyValue data) override;
 
     void SetRenderViewFrame(const KRRect &frame) override;

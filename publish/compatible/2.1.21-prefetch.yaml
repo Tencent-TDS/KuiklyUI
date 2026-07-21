@@ -1,0 +1,9 @@
+files:
+  - path: gradle/wrapper/gradle-wrapper.properties
+    replacements:
+      - from: distributionUrl=https://services.gradle.org/distributions/gradle-7.6.3-bin.zip
+        to: distributionUrl=https://services.gradle.org/distributions/gradle-8.7-bin.zip
+  - path: gradle.properties
+    replacements:
+      - from: android.disableAutomaticComponentCreation=true
+        to: #android.disableAutomaticComponentCreation=true

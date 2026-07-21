@@ -33,33 +33,6 @@ import com.tencent.kuikly.compose.ui.unit.Constraints
 import com.tencent.kuikly.compose.extension.setProp
 import com.tencent.kuikly.core.base.toInt
 
-///**
-// * A layout that only composes and lays out currently needed items. Can be used to build
-// * efficient scrollable layouts.
-// *
-// * @param itemProvider provides all the needed info about the items which could be used to
-// * compose and measure items as part of [measurePolicy].
-// * @param modifier to apply on the layout
-// * @param prefetchState allows to schedule items for prefetching
-// * @param measurePolicy Measure policy which allows to only compose and measure needed items.
-// */
-//@Deprecated(
-//    message = "Use an overload accepting a lambda prodicing an item provider instead",
-//    replaceWith = ReplaceWith(
-//        "LazyLayout({ itemProvider }, modifier, prefetchState, measurePolicy)"
-//    )
-//)
-//@ExperimentalFoundationApi
-//@Composable
-//fun LazyLayout(
-//    itemProvider: LazyLayoutItemProvider,
-//    modifier: Modifier = Modifier,
-//    prefetchState: LazyLayoutPrefetchState? = null,
-//    measurePolicy: LazyLayoutMeasureScope.(Constraints) -> MeasureResult
-//) {
-//    LazyLayout({ itemProvider }, modifier, prefetchState, measurePolicy)
-//}
-
 /**
  * A layout that only composes and lays out currently needed items. Can be used to build
  * efficient scrollable layouts.
@@ -79,7 +52,7 @@ import com.tencent.kuikly.core.base.toInt
 fun LazyLayout(
     itemProvider: () -> LazyLayoutItemProvider,
     modifier: Modifier = Modifier,
-//    prefetchState: LazyLayoutPrefetchState? = null,
+    prefetchState: LazyLayoutPrefetchState? = null,
     userScrollEnabled: Boolean = true,
     scrollableState: ScrollableState? = null,
     orientation: Orientation = Orientation.Vertical,
@@ -94,29 +67,40 @@ fun LazyLayout(
         val subcomposeLayoutState = remember {
             SubcomposeLayoutState(LazyLayoutItemReusePolicy(itemContentFactory))
         }
-//        if (prefetchState != null) {
-//            val executor = prefetchState.prefetchScheduler ?: rememberDefaultPrefetchScheduler()
-//            DisposableEffect(
-//                prefetchState,
-//                itemContentFactory,
-//                subcomposeLayoutState,
-//                executor
-//            ) {
-//                prefetchState.prefetchHandleProvider = PrefetchHandleProvider(
-//                    itemContentFactory,
-//                    subcomposeLayoutState,
-//                    executor
-//                )
-//                onDispose {
-//                    prefetchState.prefetchHandleProvider = null
-//                }
-//            }
-//        }
+        if (prefetchState != null) {
+            val executor = prefetchState.prefetchScheduler ?: rememberDefaultPrefetchScheduler()
+            DisposableEffect(
+                prefetchState,
+                itemContentFactory,
+                subcomposeLayoutState,
+                executor
+            ) {
+                LazyListPrefetchTrace.log(
+                    "LazyLayout prefetchHandleProvider attach executor=${executor::class.simpleName}",
+                )
+                if (executor is NoOpPrefetchScheduler) {
+                    LazyListPrefetchTrace.log(
+                        "WARN NoOpPrefetchScheduler: prefetch requests will never execute",
+                    )
+                }
+                prefetchState.prefetchHandleProvider = PrefetchHandleProvider(
+                    itemContentFactory,
+                    subcomposeLayoutState,
+                    executor
+                )
+                onDispose {
+                    prefetchState.prefetchHandleProvider?.onDisposed()
+                    prefetchState.prefetchHandleProvider = null
+                }
+            }
+        }
 
         SubcomposeLayout(
             subcomposeLayoutState,
-            modifier.setProp("scrollEnabled", userScrollEnabled.toInt()).clipToBounds(),
-//            modifier.traversablePrefetchState(prefetchState),
+            modifier
+                .traversablePrefetchState(prefetchState)
+                .setProp("scrollEnabled", userScrollEnabled.toInt())
+                .clipToBounds(),
             remember(itemContentFactory, measurePolicy) {
                 { constraints ->
                     with(

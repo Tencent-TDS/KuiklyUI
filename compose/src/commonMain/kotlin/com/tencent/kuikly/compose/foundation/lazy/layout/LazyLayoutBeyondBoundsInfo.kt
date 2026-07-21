@@ -22,10 +22,10 @@ import androidx.compose.runtime.collection.mutableVectorOf
  * This data structure is used to save information about the number of "beyond bounds items"
  * that we want to compose. These items are not within the visible bounds of the lazy layout,
  * but we compose them because they are explicitly requested through the
- * [beyond bounds layout API][androidx.compose.ui.layout.BeyondBoundsLayout].
+ * [beyond bounds layout API][com.tencent.kuikly.compose.ui.layout.BeyondBoundsLayout].
  *
  * When the lazy layout receives a
- * [layout][androidx.compose.ui.layout.BeyondBoundsLayout.layout] request to layout items beyond
+ * [layout][com.tencent.kuikly.compose.ui.layout.BeyondBoundsLayout.layout] request to layout items beyond
  * visible bounds, it creates an instance of [LazyLayoutBeyondBoundsInfo.Interval] by using the
  * [addInterval] function.
  * This returns the interval of items that are currently composed, and we can request other
@@ -34,7 +34,7 @@ import androidx.compose.runtime.collection.mutableVectorOf
  * There can be multiple intervals created at the same time, and [LazyLayoutBeyondBoundsInfo] merges
  * all the intervals to calculate the effective beyond bounds items.
  *
- * The [beyond bounds layout API][androidx.compose.ui.layout.BeyondBoundsLayout] is designed to be
+ * The [beyond bounds layout API][com.tencent.kuikly.compose.ui.layout.BeyondBoundsLayout] is designed to be
  * synchronous, so once you are done using the items, call [removeInterval] to remove
  * the extra items you had requested.
  *
@@ -44,7 +44,7 @@ import androidx.compose.runtime.collection.mutableVectorOf
  *
  * 1. To allow items to be pinned while they are being scrolled into view.
  *
- * 2. To allow users to call [layout][androidx.compose.ui.layout.BeyondBoundsLayout.layout] from
+ * 2. To allow users to call [layout][com.tencent.kuikly.compose.ui.layout.BeyondBoundsLayout.layout] from
  * within the completion block of another layout call.
  */
 internal class LazyLayoutBeyondBoundsInfo {

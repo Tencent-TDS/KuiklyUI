@@ -6,6 +6,7 @@ plugins {
 
 dependencies {
     implementation("org.json:json:20231013")
+    testImplementation(kotlin("test"))
 }
 
 repositories {

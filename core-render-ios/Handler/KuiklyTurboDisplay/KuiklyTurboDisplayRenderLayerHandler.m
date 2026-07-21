@@ -17,7 +17,6 @@
 #import "KuiklyRenderLayerHandler.h"
 #import "KRTurboDisplayNode.h"
 #import "KuiklyRenderUIScheduler.h"
-#import "KRTurboDisplayModule.h"
 #import "KRTurboDisplayCacheManager.h"
 #import "KRTurboDisplayShadow.h"
 #import "KRMemoryCacheModule.h"
@@ -98,6 +97,15 @@
         _extraCacheContent = [[KRTurboDisplayCacheManager sharedInstance] extraCacheContentWithCacheKey:self.turboDisplayCacheKey];
         NSLog(@"[读出] _extraCacheContent：%@", _extraCacheContent);
 
+        // 提前标记 firstScreenTurboDisplay，让 Kotlin 侧 created() 中能拿到正确结果
+        // init 早于 didInit（didInit 里 nodeWithCachKey 读完即删，之后文件不再存在），
+        // 必须在 init 阶段用 hasNodeWithCacheKey 预判，再在 didInit 中真正加载。
+        if ([[KRTurboDisplayCacheManager sharedInstance] hasNodeWithCacheKey:self.turboDisplayCacheKey]) {
+            KRTurboDisplayModule *module = (KRTurboDisplayModule *)[_renderLayerHandler moduleWithName:NSStringFromClass([KRTurboDisplayModule class])];
+            module.firstScreenTurboDisplay = YES;
+            [KRLogModule logInfo:[NSString stringWithFormat:@"[TurboDisplay] init: 检测到缓存文件存在，提前标记 firstScreenTurboDisplay=YES"]];
+        }
+
         // 更新 TurboDisplayModuleMethod 强制刷新TurboDispla缓存
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(onReceiveSetCurrentUINotification:)
@@ -137,8 +145,8 @@
     if ([_turboDisplayCacheData.turboDisplayNode isKindOfClass:[KRTurboDisplayNode class]]) {
         _lazyRendering = YES;                                               // 存在TB缓存，更新懒渲染标志
         _turboDisplayCacheData.extraCacheContent = _extraCacheContent;      // 业务自定义缓存，与TB缓存存储于同一对象
-        KRTurboDisplayModule *module = (KRTurboDisplayModule *)[_renderLayerHandler moduleWithName:NSStringFromClass([KRTurboDisplayModule class])];
-        module.firstScreenTurboDisplay = YES;
+    
+
 
         // 【日志】缓存读取成功
         [KRLogModule logInfo:[NSString stringWithFormat:@"[TurboDisplay] turboDisplay file read successfully"]];

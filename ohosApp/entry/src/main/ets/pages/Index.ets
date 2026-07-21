@@ -73,6 +73,14 @@ struct Index {
     this.kuiklyViewDelegate.pageDidDisappear();
   }
 
+  /**
+   * 横竖屏 Demo 转屏间隙需要宿主 Stack 黑底兜底；其他页面保持默认，避免全局变黑。
+   */
+  private shouldUseBlackBackground(): boolean {
+    const name = this.pageName ?? 'router';
+    return name === 'ComposeVideoOrientationDemo' || name === 'ComposeOrientationOverlayDemo';
+  }
+
   build() {
     Stack({ alignContent: Alignment.TopStart }) {
       if (this.showKuikly) {
@@ -100,7 +108,7 @@ struct Index {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(Color.Black)
+    .backgroundColor(this.shouldUseBlackBackground() ? Color.Black : Color.Transparent)
     .expandSafeArea([SafeAreaType.KEYBOARD]);
   }
 

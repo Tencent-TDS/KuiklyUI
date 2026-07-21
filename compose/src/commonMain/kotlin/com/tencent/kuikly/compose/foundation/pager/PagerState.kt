@@ -453,6 +453,8 @@ abstract class PagerState internal constructor(
 
     private var snapStallAlignmentRetryRequested = false
 
+    private var snapLastObservedContentOffset = 0
+
     /** Called before native setContentOffset(animated=true). */
     internal fun markSnapAnimationStarted(
         targetContentOffset: Int,
@@ -469,6 +471,7 @@ abstract class PagerState internal constructor(
         kuiklyInfo.snapAnchorOffsetCorrection = 0
         snapTargetReachedAlignmentRequested = false
         snapStallAlignmentRetryRequested = false
+        snapLastObservedContentOffset = kuiklyInfo.contentOffset
         scrollPosition.clearSnapAnchorPageDuringDrag()
         pagerSnapDebugLog {
             "snapStarted: stateId=$debugPagerStateId orientation=${layoutInfo.orientation} " +
@@ -488,7 +491,15 @@ abstract class PagerState internal constructor(
             return
         }
 
+        val offsetChanged = contentOffset != snapLastObservedContentOffset
+        if (offsetChanged) {
+            snapLastObservedContentOffset = contentOffset
+            snapStallAlignmentRetryRequested = false
+        }
         if (!hasSnapReachedTarget(contentOffset)) {
+            if (offsetChanged) {
+                scheduleScrollViewOffsetAlignment(SNAP_MEASURE_JOB_INITIAL_DELAY_MS)
+            }
             return
         }
 
@@ -520,6 +531,7 @@ abstract class PagerState internal constructor(
         snapStartDesyncPages = 0
         snapTargetReachedAlignmentRequested = false
         snapStallAlignmentRetryRequested = false
+        snapLastObservedContentOffset = 0
         kuiklyInfo.snapAnchorOffsetCorrection = 0
         kuiklyInfo.appleScrollViewOffsetJob?.cancel(ScrollViewOffsetAlignmentCancellation)
     }
@@ -959,6 +971,7 @@ abstract class PagerState internal constructor(
         snapStartDesyncPages = 0
         snapTargetReachedAlignmentRequested = false
         snapStallAlignmentRetryRequested = false
+        snapLastObservedContentOffset = 0
         kuiklyInfo.snapAnchorOffsetCorrection = 0
     }
 

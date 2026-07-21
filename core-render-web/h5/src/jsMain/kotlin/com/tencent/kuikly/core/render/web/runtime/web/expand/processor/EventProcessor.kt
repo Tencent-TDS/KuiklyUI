@@ -19,6 +19,8 @@ import kotlin.js.Date
 import kotlin.math.abs
 import com.tencent.kuikly.core.render.web.processor.state
 import com.tencent.kuikly.core.render.web.runtime.web.expand.components.list.isTouchEventOrNull
+import com.tencent.kuikly.core.render.web.utils.DeviceType
+import com.tencent.kuikly.core.render.web.utils.DeviceUtils
 
 
 /**
@@ -81,6 +83,31 @@ var Event.touchOffsetY: Int?
 
 // 互斥 longPress 与 pan 标志
 var canPan: Boolean = false
+
+/**
+ * Decide whether the internal long-press / pan handlers should call
+ * `event.preventDefault()` on the `contextmenu` event.
+ *
+ * Reads [KuiklyProcessor.preventDefaultContextMenu]:
+ *   - true  => always prevent (hide browser context menu)
+ *   - false => never prevent  (show browser context menu)
+ *   - null  => auto: prevent on mobile, allow on PC
+ *
+ * The auto branch is evaluated lazily on the first call and cached, because
+ * the device type does not change during the page lifecycle and
+ * [DeviceUtils.detectDeviceType] touches `navigator` / `window`.
+ */
+private var cachedIsMobileDevice: Boolean? = null
+private fun shouldPreventContextMenu(): Boolean {
+    val explicit = KuiklyProcessor.preventDefaultContextMenu
+    if (explicit != null) return explicit
+    val isMobile = cachedIsMobileDevice ?: run {
+        val v = DeviceUtils.detectDeviceType() == DeviceType.MOBILE
+        cachedIsMobileDevice = v
+        v
+    }
+    return isMobile
+}
 
 /**
  * Mobile touch event handler
@@ -173,9 +200,12 @@ class TouchEventHandlers {
          * Set up event listeners
          */
         private fun setupListeners() {
-            // Prevent default context menu
+            // Prevent default context menu (right-click / long-press callout) only
+            // when the global switch says so. See KuiklyProcessor.preventDefaultContextMenu.
             element.addEventListener("contextmenu", { event ->
-                event.preventDefault()
+                if (shouldPreventContextMenu()) {
+                    event.preventDefault()
+                }
             })
 
             // Touch events
@@ -332,9 +362,12 @@ class TouchEventHandlers {
          * Set up event listeners
          */
         private fun setupListeners() {
-            // Prevent default context menu
+            // Prevent default context menu (right-click / long-press callout) only
+            // when the global switch says so. See KuiklyProcessor.preventDefaultContextMenu.
             element.addEventListener("contextmenu", { event ->
-                event.preventDefault()
+                if (shouldPreventContextMenu()) {
+                    event.preventDefault()
+                }
             })
 
             // Touch events

@@ -53,4 +53,28 @@ object KuiklyProcessor {
     // because once a native drag starts the browser stops dispatching mousemove / mouseup
     // and the list scroll state machine will be stuck until the next click.
     var preventDefaultDrag: Boolean = true
+
+    // Whether to prevent the default browser context menu (contextmenu event).
+    //
+    // On PC the `contextmenu` event is fired on right-click (or Ctrl+Click on macOS);
+    // on mobile browsers it is fired after a long-press (which also shows the native
+    // "copy / save image" callout).
+    //
+    // Tri-state semantics:
+    //   - null  (default): Auto. Mobile devices prevent the context menu (so long-press
+    //                     gestures are not interrupted by the browser's callout menu),
+    //                     while PC devices keep the browser right-click menu available
+    //                     (business users usually want to right-click to copy / inspect).
+    //   - true           : Force prevent. The browser context menu is always suppressed,
+    //                     regardless of platform. Useful for pages that fully implement
+    //                     their own right-click menu.
+    //   - false          : Force allow. The browser context menu always shows up,
+    //                     even on mobile. Useful when the business wants users to be
+    //                     able to save images via long-press on H5.
+    //
+    // NOTE: This flag only controls whether the render layer calls `event.preventDefault()`
+    // on the `contextmenu` event that is registered internally by long-press / pan
+    // gesture handlers. It does NOT affect any `contextmenu` listener that the business
+    // adds on its own (business is free to build a custom right-click menu on top).
+    var preventDefaultContextMenu: Boolean? = null
 }

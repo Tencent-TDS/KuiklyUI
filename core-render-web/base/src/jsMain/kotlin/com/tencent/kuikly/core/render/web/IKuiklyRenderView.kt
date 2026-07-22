@@ -59,6 +59,21 @@ interface IKuiklyRenderView {
     fun sendEvent(event: String, data: Map<String, Any>)
 
     /**
+     * Imperatively notify the Kuikly Pager that the root view size has changed,
+     * so pages relayout responsively.
+     *
+     * This is a thin wrapper around [sendEvent] with the reserved event name
+     * `rootViewSizeDidChanged`. Business code (or WebRender's built-in auto
+     * resize forwarder, see `KuiklyProcessor.autoUpdateRootViewSizeOnResize`)
+     * calls this whenever the root container has been resized (e.g. desktop
+     * window resize, split-pane drag, sidebar collapse).
+     *
+     * @param width  New root view width in pixels
+     * @param height New root view height in pixels
+     */
+    fun updateRootViewSize(width: Int, height: Int)
+
+    /**
      * Get [KuiklyRenderBaseModule]
      * @param T Module type
      * @param name Module name

@@ -77,4 +77,31 @@ object KuiklyProcessor {
     // gesture handlers. It does NOT affect any `contextmenu` listener that the business
     // adds on its own (business is free to build a custom right-click menu on top).
     var preventDefaultContextMenu: Boolean? = null
+
+    // Whether the WebRender layer should automatically forward the browser's
+    // container / window resize to the Kuikly Pager as a `rootViewSizeDidChanged`
+    // event so that Kuikly pages relayout responsively (typical desktop use case:
+    // wide-screen / split-pane / collapsible-sidebar layouts).
+    //
+    // Semantics:
+    //   - false (default): WebRender never automatically forwards resize.
+    //                      This is the default on both PC and mobile because
+    //                      auto relayout on every resize can have wide-ranging
+    //                      impact (e.g. mobile soft-keyboard-triggered resize
+    //                      causing unwanted reflow, or desktop layouts that
+    //                      do not want the Kuikly page to rescale). Business
+    //                      code can still trigger a relayout imperatively via
+    //                      [KuiklyView.updateRootViewSize] whenever needed.
+    //   - true           : Enable auto forwarding on both PC and mobile.
+    //                      Use with care on mobile: the soft keyboard will
+    //                      also fire resize.
+    //
+    // Notes:
+    // - When enabled, the WebRender observes both `ResizeObserver` on the root
+    //   container (if available) and `window.resize` as fallback, throttled at
+    //   100 ms; it dispatches `rootViewSizeDidChanged` only when the size
+    //   actually changes.
+    // - Business code that needs pixel-perfect control should keep this switch
+    //   off (default) and call [KuiklyView.updateRootViewSize] itself.
+    var autoUpdateRootViewSizeOnResize: Boolean = false
 }

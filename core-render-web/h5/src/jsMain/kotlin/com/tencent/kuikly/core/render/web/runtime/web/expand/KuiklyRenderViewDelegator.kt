@@ -51,6 +51,9 @@ import com.tencent.kuikly.core.render.web.runtime.web.expand.processor.RichTextP
 import com.tencent.kuikly.core.render.web.utils.Log
 import kotlinx.browser.document
 import kotlinx.browser.window
+import org.w3c.dom.HTMLElement
+import org.w3c.dom.events.Event
+import kotlin.js.Date
 
 /**
  * Host project can simplify KuiklyRenderCore integration through this class, which is integrated at page granularity
@@ -173,12 +176,17 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
         injectHostFunc()
         // Initialize KuiklyRenderView
         loadingKuiklyRenderView(size)
+        // If enabled, start forwarding container / window resize as
+        // `rootViewSizeDidChanged` so pages relayout responsively.
+        maybeStartAutoResizeForwarder(size)
     }
 
     /**
      * Called when page onDestroy
      */
     fun onDetach() {
+        // Stop auto resize forwarder before destroying renderView.
+        stopAutoResizeForwarder()
         runKuiklyRenderViewTask {
             it.destroy()
         }
@@ -221,6 +229,25 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
         runKuiklyRenderViewTask {
             it.sendEvent(event, data)
         }
+    }
+
+    /**
+     * Imperatively update the root view size. This forwards a
+     * `rootViewSizeDidChanged` event to the Kuikly Pager so pages relayout
+     * responsively. Safe to call any time after [onAttach]; if the renderView
+     * has not been created yet the call is queued as a pending task.
+     *
+     * See also `KuiklyProcessor.autoUpdateRootViewSizeOnResize` for the
+     * built-in automatic forwarder.
+     */
+    fun updateRootViewSize(width: Int, height: Int) {
+        runKuiklyRenderViewTask {
+            it.updateRootViewSize(width, height)
+        }
+        // Keep the last dispatched size in sync so the auto forwarder does
+        // not immediately fire again for the same size.
+        lastDispatchedWidth = width
+        lastDispatchedHeight = height
     }
 
     /**
@@ -516,9 +543,123 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
             window.location.href.contains(DEBUG_FIELD)
     }
 
+    // ================= Auto root-view-size forwarder =================
+    //
+    // Watches the root container (via ResizeObserver when available) and the
+    // window (as a fallback / on mobile browsers without ResizeObserver) and
+    // forwards size changes to the Kuikly Pager as `rootViewSizeDidChanged`,
+    // throttled at 100 ms. Enabled based on `KuiklyProcessor.autoUpdateRootViewSizeOnResize`.
+
+    private var autoResizeObserver: dynamic = null
+    private var autoResizeWindowListener: ((Event) -> Unit)? = null
+    private var autoResizeThrottleTimer: Int? = null
+    private var autoResizeLastInvokeTime: Long = 0L
+    private var lastDispatchedWidth: Int = -1
+    private var lastDispatchedHeight: Int = -1
+
+    private fun maybeStartAutoResizeForwarder(initialSize: SizeI) {
+        if (!shouldAutoForwardResize()) return
+        // Seed with the init size so we do not immediately re-fire the same size.
+        lastDispatchedWidth = initialSize.first
+        lastDispatchedHeight = initialSize.second
+
+        // Prefer observing the real DOM root container (only reliable size
+        // source when the host embeds Kuikly in a sub-region). Fall back to
+        // window.resize when ResizeObserver is unavailable or when the root
+        // container is not an HTMLElement (e.g. rootContainer passed by id).
+        val hasResizeObserver = jsTypeOf(window.asDynamic().ResizeObserver) != "undefined"
+        val container: HTMLElement? = when (val rc = rootContainer) {
+            is HTMLElement -> rc
+            is String -> document.getElementById(rc) as? HTMLElement
+            else -> null
+        }
+
+        if (hasResizeObserver && container != null) {
+            // Build a plain JS callback that dispatches into Kotlin.
+            val onEntries: (dynamic) -> Unit = { entries ->
+                val entry = entries?.get(0)
+                val rect = entry?.contentRect
+                val w: Int = if (rect != null) (rect.width as Number).toInt() else container.clientWidth
+                val h: Int = if (rect != null) (rect.height as Number).toInt() else container.clientHeight
+                scheduleAutoResizeDispatch(w, h)
+            }
+            val roCtor = window.asDynamic().ResizeObserver
+            val observer = js("new roCtor(onEntries)")
+            observer.observe(container)
+            autoResizeObserver = observer
+        } else {
+            // Fallback: window resize + read container / window inner size.
+            val listener: (Event) -> Unit = { _ ->
+                val w = container?.clientWidth ?: window.innerWidth
+                val h = container?.clientHeight ?: window.innerHeight
+                scheduleAutoResizeDispatch(w, h)
+            }
+            autoResizeWindowListener = listener
+            window.addEventListener("resize", listener)
+        }
+    }
+
+    /**
+     * Decide whether the built-in auto forwarder should run.
+     *
+     * Reads [KuiklyProcessor.autoUpdateRootViewSizeOnResize]. Off by default
+     * on both PC and mobile because auto relayout on every resize can have a
+     * broad impact (mobile soft-keyboard-triggered resize, desktop layouts
+     * that do not want to rescale, etc.). Business code enables it explicitly
+     * when it wants the WebRender to auto-forward container/window resize.
+     */
+    private fun shouldAutoForwardResize(): Boolean {
+        return KuiklyProcessor.autoUpdateRootViewSizeOnResize
+    }
+
+    private fun scheduleAutoResizeDispatch(width: Int, height: Int) {
+        // Skip if size unchanged.
+        if (width == lastDispatchedWidth && height == lastDispatchedHeight) return
+        // Skip if either dimension is 0 (e.g. detached from DOM briefly).
+        if (width <= 0 || height <= 0) return
+
+        val now = Date.now().toLong()
+        if (now - autoResizeLastInvokeTime >= AUTO_RESIZE_THROTTLE_MS) {
+            autoResizeLastInvokeTime = now
+            autoResizeThrottleTimer?.let { window.clearTimeout(it) }
+            autoResizeThrottleTimer = null
+            dispatchAutoResize(width, height)
+        } else {
+            autoResizeThrottleTimer?.let { window.clearTimeout(it) }
+            autoResizeThrottleTimer = window.setTimeout({
+                autoResizeLastInvokeTime = Date.now().toLong()
+                autoResizeThrottleTimer = null
+                dispatchAutoResize(width, height)
+            }, AUTO_RESIZE_THROTTLE_MS)
+        }
+    }
+
+    private fun dispatchAutoResize(width: Int, height: Int) {
+        if (width == lastDispatchedWidth && height == lastDispatchedHeight) return
+        lastDispatchedWidth = width
+        lastDispatchedHeight = height
+        runKuiklyRenderViewTask {
+            it.updateRootViewSize(width, height)
+        }
+    }
+
+    private fun stopAutoResizeForwarder() {
+        autoResizeThrottleTimer?.let { window.clearTimeout(it) }
+        autoResizeThrottleTimer = null
+        autoResizeObserver?.let {
+            try { it.disconnect() } catch (_: Throwable) { /* ignore */ }
+        }
+        autoResizeObserver = null
+        autoResizeWindowListener?.let { window.removeEventListener("resize", it) }
+        autoResizeWindowListener = null
+    }
+
     companion object {
         private const val TAG = "KuiklyRenderViewDelegator"
         // Development environment identifier
         private const val DEBUG_FIELD = "is_dev"
+        // Throttle window (ms) for auto resize forwarding. Kept identical to
+        // H5WindowResizeHandler.LISTEN_WINDOW_SIZE_CHANGE_INTERVAL for parity.
+        private const val AUTO_RESIZE_THROTTLE_MS = 100
     }
 }

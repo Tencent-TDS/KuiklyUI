@@ -563,53 +563,79 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
         lastDispatchedWidth = initialSize.first
         lastDispatchedHeight = initialSize.second
 
-        // Prefer observing the real DOM root container (only reliable size
-        // source when the host embeds Kuikly in a sub-region). Fall back to
-        // window.resize when ResizeObserver is unavailable or when the root
-        // container is not an HTMLElement (e.g. rootContainer passed by id).
-        val hasResizeObserver = jsTypeOf(window.asDynamic().ResizeObserver) != "undefined"
+        // Resolve the observed DOM container (only used to read a more
+        // accurate size when Kuikly is embedded in a sub-region). When the
+        // host page uses a full-viewport layout (e.g. an empty `<div id="root">`
+        // whose size is not stretched by CSS), `container.clientWidth/Height`
+        // stay equal to the last size we imperatively wrote back, and will
+        // NOT reflect viewport changes. In that case we must fall back to
+        // `window.innerWidth / innerHeight`.
         val container: HTMLElement? = when (val rc = rootContainer) {
             is HTMLElement -> rc
             is String -> document.getElementById(rc) as? HTMLElement
             else -> null
         }
 
+        // Unified size reader: prefer container's real client size when it
+        // has an intrinsic size, otherwise fall back to viewport size.
+        fun readCurrentSize(): Pair<Int, Int> {
+            val cw = container?.clientWidth ?: 0
+            val ch = container?.clientHeight ?: 0
+            val w = if (cw > 0) cw else window.innerWidth
+            val h = if (ch > 0) ch else window.innerHeight
+            return w to h
+        }
+
+        // (1) Always subscribe to window.resize. This is the most reliable
+        //     signal for full-viewport apps whose root container size only
+        //     ever changes because the viewport changed.
+        val listener: (Event) -> Unit = { _ ->
+            val (w, h) = readCurrentSize()
+            scheduleAutoResizeDispatch(w, h)
+        }
+        autoResizeWindowListener = listener
+        window.addEventListener("resize", listener)
+
+        // (2) When available, additionally observe the container via
+        //     ResizeObserver. This captures cases where the embedding host
+        //     resizes only the container (not the whole window). We reuse
+        //     the same throttled dispatcher.
+        //
+        //     Note on Kotlin/JS: `entries` from ResizeObserver is a native
+        //     JS Array. Reading it from Kotlin side (even via `asDynamic()`)
+        //     is fragile because `(dynamic) -> Unit` lambdas get erased to
+        //     `(Any?) -> Unit` at IR level, producing runtime calls like
+        //     `entries.get(0)` / `entries.asDynamic()` that do not exist on
+        //     a JS array. So we do the read entirely in inline JS and pass
+        //     two Ints back through a strongly-typed callback.
+        val hasResizeObserver = jsTypeOf(window.asDynamic().ResizeObserver) != "undefined"
         if (hasResizeObserver && container != null) {
-            // Bridge JS -> Kotlin via a strongly-typed (Int, Int) callback so
-            // Kotlin never touches the raw JS `entries` array. Any attempt to
-            // read `entries` on the Kotlin side (even via `asDynamic()`) is
-            // fragile because `(dynamic) -> Unit` lambdas get erased to
-            // `(Any?) -> Unit` at the IR level, which then produces real
-            // runtime calls like `entries.get(0)` or `entries.asDynamic()`
-            // — both of which do not exist on a native JS Array.
-            val fallbackW = container.clientWidth
-            val fallbackH = container.clientHeight
-            val onSize: (Int, Int) -> Unit = { w, h ->
+            val onSize: (Int, Int) -> Unit = { rw, rh ->
+                // Prefer viewport size when container has no intrinsic size,
+                // to match the same rule as the window.resize path.
+                val (w, h) = readCurrentSize()
+                // If container is intrinsically sized, `readCurrentSize`
+                // already returns it; otherwise `rw/rh` from contentRect
+                // typically equals the last written size and is useless.
+                // Either way, `readCurrentSize` gives the right answer, so
+                // we ignore `rw/rh` here on purpose but still route through
+                // the observer so future improvements can pick a source.
+                @Suppress("UNUSED_VARIABLE")
+                val _unused = rw + rh
                 scheduleAutoResizeDispatch(w, h)
             }
             val roCtor = window.asDynamic().ResizeObserver
-            // Read entries[0].contentRect entirely in JS, then hand the two
-            // integers back to Kotlin. This is the only reliable way on K/JS.
             val observer = js(
                 "new roCtor(function(entries){" +
                     "var e = entries && entries[0];" +
                     "var r = e && e.contentRect;" +
-                    "var w = r ? Math.round(r.width) : fallbackW;" +
-                    "var h = r ? Math.round(r.height) : fallbackH;" +
+                    "var w = r ? Math.round(r.width) : 0;" +
+                    "var h = r ? Math.round(r.height) : 0;" +
                     "onSize(w, h);" +
                 "})"
             )
             observer.observe(container)
             autoResizeObserver = observer
-        } else {
-            // Fallback: window resize + read container / window inner size.
-            val listener: (Event) -> Unit = { _ ->
-                val w = container?.clientWidth ?: window.innerWidth
-                val h = container?.clientHeight ?: window.innerHeight
-                scheduleAutoResizeDispatch(w, h)
-            }
-            autoResizeWindowListener = listener
-            window.addEventListener("resize", listener)
         }
     }
 

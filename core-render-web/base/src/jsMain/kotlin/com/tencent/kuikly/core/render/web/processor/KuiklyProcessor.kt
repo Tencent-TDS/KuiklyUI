@@ -60,23 +60,23 @@ object KuiklyProcessor {
     // on mobile browsers it is fired after a long-press (which also shows the native
     // "copy / save image" callout).
     //
-    // Tri-state semantics:
-    //   - null  (default): Auto. Mobile devices prevent the context menu (so long-press
-    //                     gestures are not interrupted by the browser's callout menu),
-    //                     while PC devices keep the browser right-click menu available
-    //                     (business users usually want to right-click to copy / inspect).
-    //   - true           : Force prevent. The browser context menu is always suppressed,
-    //                     regardless of platform. Useful for pages that fully implement
-    //                     their own right-click menu.
-    //   - false          : Force allow. The browser context menu always shows up,
-    //                     even on mobile. Useful when the business wants users to be
-    //                     able to save images via long-press on H5.
+    // Semantics:
+    //   - true  (default): Prevent the browser context menu on both PC and mobile.
+    //                      This keeps the long-press / pan gestures from being
+    //                      interrupted by the browser's callout menu on mobile,
+    //                      and prevents the default right-click menu on PC — which
+    //                      is the safe default for pages that treat right-click /
+    //                      long-press as an app-level gesture.
+    //   - false          : Allow the browser context menu on both PC and mobile.
+    //                      Use this when the business wants users to be able to
+    //                      right-click (PC) or long-press (mobile, e.g. save image)
+    //                      through the browser's default UI.
     //
     // NOTE: This flag only controls whether the render layer calls `event.preventDefault()`
     // on the `contextmenu` event that is registered internally by long-press / pan
     // gesture handlers. It does NOT affect any `contextmenu` listener that the business
     // adds on its own (business is free to build a custom right-click menu on top).
-    var preventDefaultContextMenu: Boolean? = null
+    var preventDefaultContextMenu: Boolean = true
 
     // Whether the WebRender layer should automatically forward the browser's
     // container / window resize to the Kuikly Pager as a `rootViewSizeDidChanged`

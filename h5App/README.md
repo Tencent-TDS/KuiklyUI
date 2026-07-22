@@ -151,29 +151,28 @@ WebRender 在 `KuiklyProcessor`（`com.tencent.kuikly.core.render.web.processor.
 | `preventDefaultDragAndSelect` | `Boolean` | `true` | 兼容旧版的组合开关，赋值时会**同时**修改 `preventDefaultSelect` 与 `preventDefaultDrag` |
 | `preventDefaultSelect` | `Boolean` | `true` | 是否阻止文本选中（`selectstart`）。关掉后 H5 页面上的文字可以被选中/复制 |
 | `preventDefaultDrag` | `Boolean` | `true` | 是否阻止原生 HTML5 图片拖拽（`dragstart`）。**强烈建议保持 `true`**，否则原生拖拽会吞掉 `mousemove`/`mouseup`，导致 List 拖动状态卡住 |
-| `preventDefaultContextMenu` | `Boolean?` | `null`（自动） | 是否阻止浏览器右键菜单 / 移动端长按系统菜单（`contextmenu` 事件） |
+| `preventDefaultContextMenu` | `Boolean` | `true`（默认阻止） | 是否阻止浏览器右键菜单 / 移动端长按系统菜单（`contextmenu` 事件）。PC / 移动端默认都阻止，业务需要右键 / 长按菜单时显式设为 `false` |
 | `autoUpdateRootViewSizeOnResize` | `Boolean` | `false`（默认关闭） | 是否自动把浏览器 / 容器 resize 转发给 Kuikly，触发响应式布局。默认关闭，PC / 移动端都需要业务显式打开。详见下方"响应式布局"小节 |
 
-`preventDefaultContextMenu` 是**三态**开关，语义如下：
+`preventDefaultContextMenu` 语义如下：
 
-- `null`（默认，自动）：
-  - **PC 端**：不阻止 → 用户右键点击时**会**弹出浏览器默认右键菜单（可用于复制、检查元素等）。
-  - **移动端**：阻止 → 长按不会弹出浏览器"复制/保存图片"等系统菜单，避免打断业务的 `longPress` / `pan` 手势。
-  - 设备类型通过 `DeviceUtils.detectDeviceType()` 判断（触摸能力 + UA），首次访问后缓存。
-- `true`：**强制阻止**。无论 PC 还是移动端都屏蔽浏览器上下文菜单，适合完全自研右键菜单的场景。
-- `false`：**强制放行**。即使移动端也允许浏览器弹出长按菜单，适合"希望用户可以长按保存图片"的 H5 场景。
+- `true`（默认）：**PC / 移动端都阻止**。
+  - PC 端鼠标右键不会弹出浏览器默认右键菜单；
+  - 移动端长按不会弹出浏览器"复制 / 保存图片"等系统菜单，避免打断业务的 `longPress` / `pan` 手势。
+  - 适合将右键 / 长按作为应用内部手势的页面（也是历史行为兼容的默认选项）。
+- `false`：**PC / 移动端都放行**。
+  - PC 端右键会弹出浏览器默认右键菜单（可用于复制、检查元素等）；
+  - 移动端长按会弹出浏览器默认长按菜单（如"保存图片"）。
+  - 适合希望保留浏览器原生交互的页面。
 
 使用示例（放在 `h5App/src/jsMain/kotlin/Main.kt` 的 `main()` 顶部）：
 
 ```kotlin
-// 移动端默认关闭右键菜单，如果确实需要在移动端也允许"长按保存图片"，显式打开：
+// 业务需要允许右键 / 长按浏览器菜单（例如允许 PC 用户右键复制、允许移动端长按保存图片）：
 KuiklyProcessor.preventDefaultContextMenu = false
 
-// 或者：PC 端也希望屏蔽右键菜单（例如全站禁用右键），显式强制关闭：
-KuiklyProcessor.preventDefaultContextMenu = true
-
-// 保持默认（PC 有菜单、移动端无菜单）时无需设置，或显式设回 null：
-KuiklyProcessor.preventDefaultContextMenu = null
+// 默认行为（PC / 移动端都屏蔽浏览器默认菜单）无需设置，或显式保持：
+// KuiklyProcessor.preventDefaultContextMenu = true
 ```
 
 > 说明：该开关仅控制 WebRender 内部（`LongPressHandler` / `PanHandler`）在 `contextmenu` 事件上的 `preventDefault()` 调用，不会影响业务自行注册的 `contextmenu` 监听。业务侧仍可自由监听 `contextmenu` 事件实现自定义右键菜单。iOS Safari 的"长按预览/图片保存"由 `-webkit-touch-callout` 控制，若需要彻底禁用移动端长按菜单，可在业务 CSS 中额外设置 `-webkit-touch-callout: none;`。

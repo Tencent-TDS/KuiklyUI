@@ -646,8 +646,11 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
     private fun stopAutoResizeForwarder() {
         autoResizeThrottleTimer?.let { window.clearTimeout(it) }
         autoResizeThrottleTimer = null
-        autoResizeObserver?.let {
-            try { it.disconnect() } catch (_: Throwable) { /* ignore */ }
+        // Note: autoResizeObserver is `dynamic`, so `?.let { it.xxx() }` cannot
+        // resolve `it` on Kotlin/JS. Use an explicit null check instead.
+        val observer = autoResizeObserver
+        if (observer != null) {
+            try { observer.disconnect() } catch (_: Throwable) { /* ignore */ }
         }
         autoResizeObserver = null
         autoResizeWindowListener?.let { window.removeEventListener("resize", it) }

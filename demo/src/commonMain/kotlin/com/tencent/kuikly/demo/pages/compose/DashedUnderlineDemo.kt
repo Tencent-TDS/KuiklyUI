@@ -9,6 +9,7 @@ import com.tencent.kuikly.compose.foundation.layout.padding
 import com.tencent.kuikly.compose.foundation.lazy.LazyColumn
 import com.tencent.kuikly.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -21,6 +22,7 @@ import com.tencent.kuikly.compose.ui.geometry.Rect
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.PathEffect
 import com.tencent.kuikly.compose.ui.text.SpanStyle
+import com.tencent.kuikly.compose.ui.text.TextLayoutResult
 import com.tencent.kuikly.compose.ui.text.buildAnnotatedString
 import com.tencent.kuikly.compose.ui.text.font.FontWeight
 import com.tencent.kuikly.compose.ui.text.style.TextDecoration
@@ -29,15 +31,15 @@ import com.tencent.kuikly.compose.ui.unit.Dp
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
 import com.tencent.kuikly.core.annotations.Page
+import kotlinx.coroutines.yield
 
 /**
  * 官方 Jetpack Compose 5 场景虚线验证的 Kuikly 移植版。
- * 官方原工程：/Users/zhaozining/CodeBuddy/20260615095947/DashedLineVerify/MainActivity.kt
  *
- * - 5 个场景官方代码原样移植（仅 import androidx→com.tencent.kuikly），全部走 drawBehind+pathEffect 通道。
+ * - 5 个场景对齐官方 Compose 写法（仅将 import androidx→com.tencent.kuikly），全部走 drawBehind+pathEffect 通道。
  * - 场景 1/3/5：drawBehind 整行/多形态虚线 + 实线对照，1:1 对齐。
  * - 场景 2/4：依赖 TextLayoutResult.getBoundingBox / getLineBottom / lineCount，
- *   已通过 native StaticLayout 行度量桥接（KRRichTextView.call lineMetrics/getBoundingBox）
+ *   已通过 native 行度量桥接（KRRichTextView.call lineMetrics/getBoundingBox，Android/iOS/OHOS 三端）
  *   回填到 MultiParagraph，官方写法可直接编译运行，1:1 对齐。
  */
 @Page("DashedUnderlineDemo")
@@ -49,7 +51,7 @@ class DashedUnderlineDemo : ComposeContainer() {
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.White)
-                    .padding(16.dp)
+                    .padding(top = 80.dp, start = 16.dp, end = 16.dp, bottom = 16.dp)
             ) {
                 item {
                     Text(
@@ -155,7 +157,23 @@ private fun SpanDashedText(
     color: Color,
     usePathEffect: Boolean
 ) {
+    // 参数越界防御：调用方传入非法区间时直接不画虚线，避免 substring/getBoundingBox 抛异常。
+    if (spanStart < 0 || spanEnd > full.length || spanStart >= spanEnd) {
+        Text(text = full)
+        return
+    }
     var spanRect by remember { mutableStateOf<Rect?>(null) }
+    var pendingLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
+
+    LaunchedEffect(pendingLayout) {
+        val result = pendingLayout ?: return@LaunchedEffect
+        // OHOS 上首次 onTextLayout 回调到来时，native 文本几何信息可能尚未完全稳定；
+        // 延后一帧再读取 getBoundingBox，避免把几何查询放在过早的生命周期时机。
+        yield()
+        val start = result.getBoundingBox(spanStart)
+        val end = result.getBoundingBox(spanEnd - 1)
+        spanRect = Rect(start.left, start.top, end.right, start.bottom)
+    }
 
     Text(
         text = buildAnnotatedString {
@@ -164,9 +182,7 @@ private fun SpanDashedText(
             append(full.substring(spanEnd))
         },
         onTextLayout = { result ->
-            val start = result.getBoundingBox(spanStart)
-            val end = result.getBoundingBox(spanEnd - 1)
-            spanRect = Rect(start.left, start.top, end.right, start.bottom)
+            pendingLayout = result
         },
         modifier = Modifier.drawBehind {
             spanRect?.let { rect ->
@@ -221,10 +237,19 @@ fun DashedUnderline_Text_Span() {
 @Composable
 fun DashedUnderline_Text_MultiLine() {
     var lineBottoms by remember { mutableStateOf<List<Float>>(emptyList()) }
+    var pendingLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
+
+    LaunchedEffect(pendingLayout) {
+        val result = pendingLayout ?: return@LaunchedEffect
+        // 与局部虚线同理：把逐行几何读取后移一帧，避开 OHOS 首次布局尚未稳定的窗口。
+        yield()
+        lineBottoms = (0 until result.lineCount).map { result.getLineBottom(it) }
+    }
+
     Text(
         text = "这是一段会换行的长文本，用来验证多行文本时虚线下划线是否每行都正确画出，而不是只在最底部画一条横线。",
         onTextLayout = { result ->
-            lineBottoms = (0 until result.lineCount).map { result.getLineBottom(it) }
+            pendingLayout = result
         },
         modifier = Modifier.drawBehind {
             val strokeWidth = 1.dp.toPx()

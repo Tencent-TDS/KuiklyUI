@@ -325,6 +325,11 @@ class KRRichTextShadow : public IKRRenderShadowExport {
      */
     KRAnyValue SpanRect(int spanIndex);
 
+    // 返回所有行的度量（dp），格式 "N top0 bottom0 top1 bottom1 ..."，与 Android 对齐。
+    std::string LineMetrics();
+    // 返回 offset 处字符包围盒（dp），格式 "left top right bottom"，与 Android 对齐。
+    std::string BoundingBox(int offset);
+
     int SpanIndexAt(float x, float y);
     int ResolveLongPressSpanIndex(const KRRenderValueMap &params);
     bool IsLongPressTerminalState(const KRRenderValueMap &params) const;

@@ -275,6 +275,10 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
         return [self css_spanRectWithParams:params];
     } else if ([method isEqualToString:@"isLineBreakMargin"]) {
         return [self isLineBreakMargin];
+    } else if ([method isEqualToString:@"lineMetrics"]) {
+        return [self css_lineMetrics];
+    } else if ([method isEqualToString:@"getBoundingBox"]) {
+        return [self css_boundingBoxWithParams:params];
     }
     return @"";
 }
@@ -589,6 +593,57 @@ NSString *const kGradientInfoKeyGlobalRange = @"globalRange";
 
 - (NSString *)isLineBreakMargin {
     return _mAttributedString.hr_textRender.isBreakLine ? @"1" : @"0";
+}
+
+// 返回所有行度量（pt），格式 "N top0 bottom0 top1 bottom1 ..."，与 Android 对齐。
+// top/bottom 为行顶/行底绝对 y，供 Compose 层 getLineTop/getLineBottom 使用。
+// 单位 pt（不除 density），与 css_spanRectWithParams 一致；pt 与 dp 逻辑等价。
+- (NSString *)css_lineMetrics {
+    if (!_mAttributedString) {
+        return @"0";
+    }
+    NSLayoutManager *layoutManager = _mAttributedString.hr_textRender.layoutManager;
+    NSTextContainer *textContainer = _mAttributedString.hr_textRender.textContainer;
+    if (!layoutManager || !textContainer) {
+        return @"0";
+    }
+    NSRange glyphRange = [layoutManager glyphRangeForTextContainer:textContainer];
+    __block NSUInteger lineCount = 0;
+    NSMutableString *result = [NSMutableString string];
+    [layoutManager enumerateLineFragmentsForGlyphRange:glyphRange usingBlock:^(CGRect rect, CGRect usedRect, NSTextContainer * _Nonnull tc, NSRange lineGlyphRange, BOOL * _Nonnull stop) {
+        [result appendFormat:@" %.2f %.2f", CGRectGetMinY(rect), CGRectGetMaxY(rect)];
+        lineCount++;
+    }];
+    return [NSString stringWithFormat:@"%lu%@", (unsigned long)lineCount, result];
+}
+
+// 返回 offset 处字符包围盒（pt），格式 "left top right bottom"，与 Android 对齐。
+// left/right 取字符水平范围；top/bottom 取所在行顶/底（对齐 Android 整行高度语义）。
+- (NSString *)css_boundingBoxWithParams:(NSString *)params {
+    if (!_mAttributedString) {
+        return @"0 0 0 0";
+    }
+    // 严格解析 params：非纯数字（含空串、字母、浮点）视为非法，避免 [integerValue] 把 "abc" 静默当 0。
+    NSScanner *scanner = [NSScanner scannerWithString:params ?: @""];
+    NSInteger offset = 0;
+    if (![scanner scanInteger:&offset] || !scanner.isAtEnd) {
+        return @"0 0 0 0";
+    }
+    NSUInteger textLen = _mAttributedString.length;
+    if (textLen == 0 || offset < 0 || (NSUInteger)offset >= textLen) {
+        return @"0 0 0 0";
+    }
+    CGRect charRect = [_mAttributedString.hr_textRender boundingRectForCharacterRange:NSMakeRange(offset, 1)];
+    NSLayoutManager *layoutManager = _mAttributedString.hr_textRender.layoutManager;
+    CGFloat lineTop = CGRectGetMinY(charRect);
+    CGFloat lineBottom = CGRectGetMaxY(charRect);
+    if (layoutManager) {
+        NSUInteger glyphIndex = [layoutManager glyphIndexForCharacterAtIndex:(NSUInteger)offset];
+        CGRect lineRect = [layoutManager lineFragmentRectForGlyphAtIndex:glyphIndex effectiveRange:NULL];
+        lineTop = CGRectGetMinY(lineRect);
+        lineBottom = CGRectGetMaxY(lineRect);
+    }
+    return [NSString stringWithFormat:@"%.2f %.2f %.2f %.2f", CGRectGetMinX(charRect), lineTop, CGRectGetMaxX(charRect), lineBottom];
 }
 
 

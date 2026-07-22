@@ -185,24 +185,58 @@ WebRender 提供了两种方式来完成这件事，二者可同时存在：
 
 **方式 A：命令式 API（业务全权控制）**
 
-`KuiklyView` / `KuiklyRenderViewDelegator` 都暴露了 `updateRootViewSize(width, height)` 方法。业务在任何时机（自己监听 `resize`、`ResizeObserver`、CSS media query、外部脚本调整宽度等）拿到新的容器尺寸后，直接调用即可：
+`KuiklyView` / `KuiklyRenderViewDelegator` 都暴露了 `updateRootViewSize(width, height)` 方法。业务在任何时机（自己监听 `resize`、`ResizeObserver`、CSS media query、外部脚本调整宽度等）拿到新的容器尺寸后，直接调用即可。
+
+> 提示：在当前 `h5App` 模板下，`Main.kt` 里持有的 `delegator` 是**业务侧的** `KuiklyWebRenderViewDelegator`（`KuiklyRenderViewDelegatorDelegate` 的实现类），并未直接透传 SDK 的 `updateRootViewSize`。业务侧统一通过 `delegator.getKuiklyRenderContext()?.kuiklyRenderRootView?.updateRootViewSize(...)` 调用即可（`?.` 会自动兼容 renderView 尚未初始化完成的极早期时刻）。
+
+在 [Main.kt](src/jsMain/kotlin/Main.kt) 的 `main()` 中，在 `KuiklyRouter.createDelegator(...)` 之后加入以下代码即可让页面随窗口尺寸响应式重排：
 
 ```kotlin
-// 业务自己监听 resize
-window.addEventListener("resize", {
-    kuiklyView.updateRootViewSize(
-        window.innerWidth,
-        window.innerHeight
-    )
-})
+// 在 KuiklyRouter.createDelegator(...) 之后
+val delegator = KuiklyRouter.createDelegator(window.location.href)
 
-// 或者监听指定容器（更贴合"部分区域嵌入 Kuikly"的桌面站场景）
-val ro = js("new ResizeObserver(function(entries){ /* ... */ })")
-ro.observe(container)
-// 回调里调用 kuiklyView.updateRootViewSize(newW, newH)
+// —— 方式 A：业务侧手动监听 window.resize ——
+// 100ms 节流，与 SDK 内置节流频率保持一致，避免拖拽窗口时高频重排
+var resizeTimerId: Int? = null
+window.addEventListener("resize", { _ ->
+    resizeTimerId?.let { window.clearTimeout(it) }
+    resizeTimerId = window.setTimeout({
+        delegator.getKuiklyRenderContext()
+            ?.kuiklyRenderRootView
+            ?.updateRootViewSize(window.innerWidth, window.innerHeight)
+    }, 100)
+})
 ```
 
-内部实现为向 Kuikly Pager 派发 `rootViewSizeDidChanged` 事件，会同步更新 `PageData.pageViewWidth / pageViewHeight`（同时也会更新 `deviceWidth / deviceHeight`），Kuikly 业务代码里基于 `pageData.pageViewWidth` 的百分比 / flex 布局会自动重算。
+如果 Kuikly 只嵌入在页面某个容器里（比如桌面站的分栏、右侧详情区），推荐用 `ResizeObserver` 监听该容器，而不是整个 window：
+
+```kotlin
+val container = document.getElementById("root") ?: return
+val ro = js(
+    """
+    new ResizeObserver(function(entries){
+        var e = entries[0];
+        if (!e) return;
+        var w = (e.contentRect && e.contentRect.width) | 0;
+        var h = (e.contentRect && e.contentRect.height) | 0;
+        // 回调回 Kotlin 侧
+        window.__kuiklyOnContainerResize && window.__kuiklyOnContainerResize(w, h);
+    })
+    """
+)
+// 暴露一个纯 Kotlin 侧回调，避免在 js(...) 内直接引用 Kotlin 闭包
+window.asDynamic().__kuiklyOnContainerResize = { w: Int, h: Int ->
+    delegator.getKuiklyRenderContext()
+        ?.kuiklyRenderRootView
+        ?.updateRootViewSize(w, h)
+}
+ro.observe(container)
+```
+
+> 说明：
+> - `updateRootViewSize` 内部会向 Kuikly Pager 派发 `rootViewSizeDidChanged` 事件，同步更新 `PageData.pageViewWidth / pageViewHeight`（以及 `deviceWidth / deviceHeight`），业务代码里基于 `pageData.pageViewWidth` 的百分比 / flex 布局会自动重算。
+> - `?.` 是有意为之：若首帧极早时 renderView 尚未就绪，`getKuiklyRenderContext()` 可能返回 `null`，此时安全跳过；等 renderView 就绪后，后续 resize 都会被正常派发。
+> - 方式 A 与方式 B 可以共存（内部会去重同尺寸事件），但通常**二选一**即可，避免维护负担。
 
 **方式 B：自动模式（WebRender 内置转发器）**
 

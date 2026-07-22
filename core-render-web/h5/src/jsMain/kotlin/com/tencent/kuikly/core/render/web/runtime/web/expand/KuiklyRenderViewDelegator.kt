@@ -575,16 +575,30 @@ class KuiklyRenderViewDelegator(private val delegate: KuiklyRenderViewDelegatorD
         }
 
         if (hasResizeObserver && container != null) {
-            // Build a plain JS callback that dispatches into Kotlin.
-            val onEntries: (dynamic) -> Unit = { entries ->
-                val entry = entries?.get(0)
-                val rect = entry?.contentRect
-                val w: Int = if (rect != null) (rect.width as Number).toInt() else container.clientWidth
-                val h: Int = if (rect != null) (rect.height as Number).toInt() else container.clientHeight
+            // Bridge JS -> Kotlin via a strongly-typed (Int, Int) callback so
+            // Kotlin never touches the raw JS `entries` array. Any attempt to
+            // read `entries` on the Kotlin side (even via `asDynamic()`) is
+            // fragile because `(dynamic) -> Unit` lambdas get erased to
+            // `(Any?) -> Unit` at the IR level, which then produces real
+            // runtime calls like `entries.get(0)` or `entries.asDynamic()`
+            // — both of which do not exist on a native JS Array.
+            val fallbackW = container.clientWidth
+            val fallbackH = container.clientHeight
+            val onSize: (Int, Int) -> Unit = { w, h ->
                 scheduleAutoResizeDispatch(w, h)
             }
             val roCtor = window.asDynamic().ResizeObserver
-            val observer = js("new roCtor(onEntries)")
+            // Read entries[0].contentRect entirely in JS, then hand the two
+            // integers back to Kotlin. This is the only reliable way on K/JS.
+            val observer = js(
+                "new roCtor(function(entries){" +
+                    "var e = entries && entries[0];" +
+                    "var r = e && e.contentRect;" +
+                    "var w = r ? Math.round(r.width) : fallbackW;" +
+                    "var h = r ? Math.round(r.height) : fallbackH;" +
+                    "onSize(w, h);" +
+                "})"
+            )
             observer.observe(container)
             autoResizeObserver = observer
         } else {

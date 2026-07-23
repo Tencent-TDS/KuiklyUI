@@ -61,6 +61,7 @@ import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.scroller.applyScrollViewOffsetDelta
 import com.tencent.kuikly.compose.scroller.convertAnimationSpecToSpringAnimation
 import com.tencent.kuikly.compose.scroller.kuiklyInfo
+import com.tencent.kuikly.compose.scroller.TouchActivityTracker
 import com.tencent.kuikly.compose.profiler.RecompositionProfiler
 import com.tencent.kuikly.compose.material3.internal.identityHashCode
 import com.tencent.kuikly.core.collection.fastMutableMapOf
@@ -480,6 +481,23 @@ abstract class PagerState internal constructor(
                 "targetPage=$targetPage targetKey=$targetKey pageCount=$pageCount " +
                 "desyncPages=$desyncPages anchorCorrection=${kuiklyInfo.snapAnchorOffsetCorrection}"
         }
+        if (hasSnapReachedTarget(kuiklyInfo.contentOffset)) {
+            snapTargetReachedAlignmentRequested = true
+            // Native will not emit scroll callbacks for a no-op setContentOffset. If compose and
+            // native are already desynced at that edge, rebase onto the current page instead of
+            // teleporting to the intended neighbor; the next gesture can animate normally.
+            if (desyncPages != 0) {
+                val rebasePage = currentPage.coerceInPageRange()
+                pagerSnapDebugLog {
+                    "snapAlreadyAtTargetRebaseCurrent: stateId=$debugPagerStateId " +
+                        "fromTargetPage=$snapTargetRelocatedPage toCurrentPage=$rebasePage " +
+                        "contentOffset=${kuiklyInfo.contentOffset} desyncPages=$desyncPages"
+                }
+                snapTargetRelocatedPage = rebasePage
+                snapTargetItemKey = null
+            }
+            scheduleScrollViewOffsetAlignment(SNAP_MEASURE_JOB_INITIAL_DELAY_MS)
+        }
     }
 
     internal fun hasSnapReachedTarget(contentOffset: Int): Boolean {
@@ -534,6 +552,15 @@ abstract class PagerState internal constructor(
         snapLastObservedContentOffset = 0
         kuiklyInfo.snapAnchorOffsetCorrection = 0
         kuiklyInfo.appleScrollViewOffsetJob?.cancel(ScrollViewOffsetAlignmentCancellation)
+    }
+
+    /**
+     * Re-schedule idle compose/native offset alignment after a native gesture settles.
+     * Align jobs defer while touch is active; scrollEnd re-arms so prepend desync can still
+     * be repaired once the finger is up.
+     */
+    internal fun requestScrollViewOffsetAlignmentAfterGesture() {
+        scheduleScrollViewOffsetAlignment(SNAP_MEASURE_JOB_INITIAL_DELAY_MS)
     }
 
     private fun scheduleScrollViewOffsetAlignment(
@@ -628,6 +655,19 @@ abstract class PagerState internal constructor(
         scheduledLayoutGeneration: Int,
         scheduledPageCount: Int
     ) {
+        if (TouchActivityTracker.isTouchActive(kuiklyInfo.pageData)) {
+            pagerSnapDebugLog {
+                "deferAlignDuringActiveTouch: stateId=$debugPagerStateId " +
+                    "orientation=${layoutInfo.orientation} pageCount=$pageCount " +
+                    "currentPage=$currentPage isScrollInProgress=$isScrollInProgress " +
+                    "isDragging=${kuiklyInfo.scrollView?.isDragging} " +
+                    "composeOffset=${currentAbsoluteScrollOffset().toInt()} " +
+                    "contentOffset=${kuiklyInfo.contentOffset}"
+            }
+            scheduleScrollViewOffsetAlignment(SNAP_MEASURE_JOB_INITIAL_DELAY_MS, layoutSize)
+            return
+        }
+
         val contentOffsetInt = scrollableState.kuiklyInfo.contentOffset
 
         if (scheduledLayoutGeneration != alignmentLayoutGeneration) {
@@ -811,6 +851,29 @@ abstract class PagerState internal constructor(
         if (isSnapAnimating) {
             clearSnapTrackingAfterAlignment()
         }
+    }
+
+    /**
+     * Expand the native content bounds as soon as a new pager measure result is applied.
+     *
+     * Shrinking remains in [updateScrollViewContentSize], which runs with the delayed offset
+     * alignment. This prevents a data removal or layout change from clamping the native offset
+     * while a gesture or snap is still settling.
+     */
+    private fun expandScrollViewContentSize(layoutSize: Int) {
+        val requiredContentSize = (maxScrollOffset + layoutSize).toInt()
+        if (kuiklyInfo.currentContentSize >= requiredContentSize) {
+            return
+        }
+        pagerSnapDebugLog {
+            "pagerExpandContentSize: stateId=$debugPagerStateId orientation=${layoutInfo.orientation} " +
+                "maxScrollOffset=$maxScrollOffset layoutSize=$layoutSize " +
+                "requiredContentSize=$requiredContentSize oldContentSize=${kuiklyInfo.currentContentSize} " +
+                "pageCount=$pageCount pageSize=$pageSize pageSpacing=$pageSpacing " +
+                "composeOffset=${kuiklyInfo.composeOffset.toInt()} contentOffset=${kuiklyInfo.contentOffset}"
+        }
+        kuiklyInfo.currentContentSize = requiredContentSize
+        kuiklyInfo.updateContentSizeToRender()
     }
 
     private fun updateScrollViewContentSize(layoutSize: Int) {
@@ -1434,6 +1497,7 @@ abstract class PagerState internal constructor(
         minScrollOffset = result.calculateNewMinScrollOffset(pageCount)
         val layoutSize = if (result.orientation == Orientation.Horizontal)
             result.viewportSize.width else result.viewportSize.height
+        expandScrollViewContentSize(layoutSize)
         if (isSnapAnimating && snapStartDesyncPages != 0) {
             logSnapFrameSnapshot(
                 stage = "measureDuringDesyncedSnap",

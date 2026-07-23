@@ -269,6 +269,9 @@ fun SubcomposeLayout(
             }
 
             if (scrollableState is PagerState || scrollableState is DrawerInternalPagerState) {
+                dragBegin {
+                    kuiklyInfo.ignoreScrollOffset = null
+                }
                 willDragEndBySync(isSync = scrollableState is PagerState && !isAndroid, handler = {
                     val viewportSize = kuiklyInfo.viewportSize
                     val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())
@@ -307,6 +310,9 @@ fun SubcomposeLayout(
                 // 仅触摸滑动结束会回调，api调用和bounce回弹都不会触发
                 // / back是回滑,forward是前滑
                 scrollableState.kuiklyOnScrollEnd(scaleParams)
+                // Touch-active align jobs only reschedule while the finger is down; re-arm once
+                // the gesture settles so prepend desync can still be repaired.
+                (scrollableState as? PagerState)?.requestScrollViewOffsetAlignmentAfterGesture()
             }
             dragEnd {
                 val scaleParams = it.scaleWithDensity(kuiklyInfo.getDensity())

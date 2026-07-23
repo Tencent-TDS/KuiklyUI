@@ -15,6 +15,8 @@
 
 package com.tencent.kuikly.compose.scroller
 
+import com.tencent.kuikly.core.collection.fastHashMapOf
+import com.tencent.kuikly.core.collection.fastMutableSetOf
 import com.tencent.kuikly.core.pager.PageData
 
 /**
@@ -25,10 +27,10 @@ import com.tencent.kuikly.core.pager.PageData
  * frames while the pending gesture still owns the old native offset.
  */
 internal object TouchActivityTracker {
-    private val activeOwnersByPage = mutableMapOf<PageData, MutableSet<Any>>()
+    private val activeOwnersByPage = fastHashMapOf<PageData, MutableSet<Any>>()
 
     fun onTouchDown(pageData: PageData, owner: Any) {
-        activeOwnersByPage.getOrPut(pageData) { mutableSetOf() }.add(owner)
+        activeOwnersByPage.getOrPut(pageData) { fastMutableSetOf() }.add(owner)
     }
 
     fun onTouchEnd(pageData: PageData, owner: Any) {

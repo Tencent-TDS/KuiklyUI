@@ -17,6 +17,7 @@
 #define CORE_RENDER_OHOS_KRTEXTFIELDVIEW_H
 
 #include "libohos_render/export/IKRRenderViewExport.h"
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <utility>
@@ -87,6 +88,7 @@ class KRTextFieldView : public IKRRenderViewExport {
     virtual ArkUI_EnterKeyType GetInputNodeEnterKeyType();
     virtual void UpdateInputNodeMaxLength(int maxLength);
     virtual void UpdateInputNodeFocusStatus(int status);
+    virtual void UpdateInputNodeFocusAndKeyBoardStatus(int status);
     virtual uint32_t GetInputNodeSelectionStartPosition();
     virtual void UpdateInputNodeSelectionStartPosition(uint32_t index);
     /**
@@ -122,6 +124,10 @@ class KRTextFieldView : public IKRRenderViewExport {
     KRRenderCallback selection_change_callback_;          // 选区变化callback（与 Android KRTextFieldView.selectionChangeCallback 对齐）
     bool auto_hide_KeyBoard_on_ImeAction_ = false;        // 在触发各种IME 按钮时是否回收键盘，默认是不回收
     bool is_setting_text_input_state_ = false;            // 通过 setTextInputState 主动写入期间，抑制 textInputStateChange 回流防止业务死循环
+    bool pending_refocus_after_blur_ = false;             // FocusWithoutKeyBoard 内部 blur→refocus 期间：抑制 blur 上抛并作为 refocus 触发点
+    bool awaiting_teardown_blur_ = false;                 // refocus#1 后等待 IME 拆卸的尾部 blur
+    std::chrono::steady_clock::time_point last_refocus_ts_;  // refocus 时刻，用于判定尾部 blur 窗口
+    bool is_node_focused_ = false;                           // 原生节点当前是否获焦（OnInputFocus/OnInputBlur 维护）
 
     /**
      * 输入框获焦（弹起键盘）
@@ -132,6 +138,12 @@ class KRTextFieldView : public IKRRenderViewExport {
      * 输入框失焦（收起键盘）
      */
     void Blur();
+
+    /**
+     * 输入框保持焦点且软键盘收起
+     */
+    void FocusWithoutKeyBoard();
+    void ScheduleRefocus(bool arm_awaiting_teardown);   // 统一调度 refocus，arm 控制 refocus#1 是否等待 IME 拆卸尾部 blur
 
     /**
      * 获取光标位置

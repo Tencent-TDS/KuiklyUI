@@ -50,6 +50,21 @@ interface IKuiklyView {
      */
     fun sendEvent(event: String, data: Map<String, Any>)
 
+    /**
+     * Imperatively update the root view size of the Kuikly page.
+     *
+     * Use this when the host container has been resized outside of a plain
+     * `window.resize` (e.g. sidebar collapsed, split pane dragged, custom
+     * responsive breakpoint), so that Kuikly's Pager can relayout children.
+     *
+     * The WebRender can also do this automatically for desktop; see
+     * `KuiklyProcessor.autoUpdateRootViewSizeOnResize`.
+     *
+     * @param width  New root view width in pixels
+     * @param height New root view height in pixels
+     */
+    fun updateRootViewSize(width: Int, height: Int)
+
 
     /**
      * Register [ KuiklyRenderView ] lifecycle callback

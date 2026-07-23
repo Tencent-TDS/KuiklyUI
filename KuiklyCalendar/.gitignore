@@ -1,0 +1,54 @@
+# Gradle
+.gradle
+build/
+*/build/
+**/build/
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Android
+local.properties
+*.apk
+*.so
+
+# Kotlin
+*.kotlin_module
+.kotlin
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# Node
+node_modules/
+
+# Xcode
+**/xcuserdata/**
+**/*.xcuserdatad/**
+**/xcshareddata/
+**/IDEWorkspaceChecks.plist
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+*.xcbkptlist
+
+# Other
+*.pyc
+.build

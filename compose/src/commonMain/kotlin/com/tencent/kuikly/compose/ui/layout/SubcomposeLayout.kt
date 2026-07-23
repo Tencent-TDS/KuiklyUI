@@ -269,10 +269,8 @@ fun SubcomposeLayout(
             }
 
             if (scrollableState is PagerState || scrollableState is DrawerInternalPagerState) {
-                if (scrollableState is PagerState) {
-                    dragBegin {
-                        kuiklyInfo.ignoreScrollOffset = null
-                    }
+                dragBegin {
+                    kuiklyInfo.ignoreScrollOffset = null
                 }
                 willDragEndBySync(isSync = scrollableState is PagerState && !isAndroid, handler = {
                     val viewportSize = kuiklyInfo.viewportSize

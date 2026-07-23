@@ -141,11 +141,12 @@
             };
             
             
-            if (weakSelf.mainThreadTaskWaitToSyncBlock != nil) {
+            if (weakSelf.mainThreadTaskWaitToSyncBlock != nil && !weakSelf.isInTurboDisplayLazyRendering) {
                 // sync 事件场景：不 dispatch，存到闭包里等主线程恢复后立即执行
+                // 注：在 TurboDisplay lazy rendering 阶段，第一次 TB 缓存上屏完成前需要避免提前点亮 viewDidLoad，因此走 async 路径
                 weakSelf.mainThreadTaskWaitToSyncBlock = uiTaskBlock;
             } else {
-                // 普通场景：走原来的 dispatch 路径
+                // 普通场景（包括 TB lazy render 阶段）：走原来的 dispatch 路径
                 [KuiklyRenderThreadManager performOnMainQueueWithTask:uiTaskBlock sync:[NSThread isMainThread]];
             }
         };

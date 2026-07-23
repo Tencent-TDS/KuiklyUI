@@ -268,6 +268,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
         return when (method) {
             METHOD_SET_TEXT -> setInputText(params)
             METHOD_FOCUS -> setFocus()
+            METHOD_FOCUS_WITHOUT_KEYBOARD -> setFocusWithoutKeyboard()
             METHOD_BLUR -> setBlur()
             METHOD_GET_CURSOR_INDEX -> getCursorIndex(callback)
             METHOD_SET_CURSOR_INDEX -> setCursorIndex(params)
@@ -649,6 +650,21 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
     private fun showKeyboard() {
         val imm = context.getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    /**
+     * 获焦但键盘全程不出现。
+     * 仅 requestFocus + hideSoftInput，不调用 showSoftInput、不设置 pendingFocus，
+     * 因此光标可见而键盘不会弹出（已获焦时则表现为收起键盘、保留焦点）。
+     */
+    private fun setFocusWithoutKeyboard() {
+        isFocusable = true
+        isFocusableInTouchMode = true
+        requestFocus()
+        post {
+            val imm = context.getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(windowToken, 0)
+        }
     }
 
     private fun setBlur() {
@@ -1082,6 +1098,7 @@ open class KRTextFieldView(context: Context, private val softInputMode: Int?) : 
 
         private const val METHOD_SET_TEXT = "setText"
         private const val METHOD_FOCUS = "focus"
+        private const val METHOD_FOCUS_WITHOUT_KEYBOARD = "focusWithoutKeyboard"
         private const val METHOD_BLUR = "blur"
         private const val METHOD_GET_CURSOR_INDEX = "getCursorIndex"
         private const val METHOD_SET_CURSOR_INDEX = "setCursorIndex"

@@ -105,6 +105,16 @@ class AutoHeightTextAreaView(val singleLine: Boolean = false) :
     }
 
     /**
+     * 让输入框保持焦点，但软键盘全程被收起
+     * 此API 需要先让输入框处于获焦状态
+     */
+    fun focusWithoutKeyboard() {
+        performTaskWhenRenderViewDidLoad {
+            renderView?.callMethod("focusWithoutKeyboard", "")
+        }
+    }
+
+    /**
      * 获取光标当前位置
      * @param callback 结果回调
      */

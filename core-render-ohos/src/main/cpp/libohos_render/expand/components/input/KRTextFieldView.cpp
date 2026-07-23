@@ -56,6 +56,7 @@ constexpr char kMethodGetCursorIndex[] = "getCursorIndex";
 constexpr char kMethodSetCursorIndex[] = "setCursorIndex";
 constexpr char kMethodSetTextInputState[] = "setTextInputState";
 constexpr char kMethodGetTextInputState[] = "getTextInputState";
+constexpr char kMethodFocusWithoutKeyboard[] = "focusWithoutKeyboard";
 
 constexpr char kEventTextDidChanged[] = "textDidChange";
 constexpr char kEventInputFocus[] = "inputFocus";
@@ -142,6 +143,9 @@ void KRTextFieldView::UpdateInputNodeMaxLength(int maxLength){
 }
 void KRTextFieldView::UpdateInputNodeFocusStatus(int status){
     kuikly::util::UpdateInputNodeFocusStatus(GetNode(), status);
+}
+void KRTextFieldView::UpdateInputNodeFocusAndKeyBoardStatus(int status){
+    kuikly::util::UpdateInputNodeFocusAndKeyBoardStatus(GetNode(), status);
 }
 uint32_t KRTextFieldView::GetInputNodeSelectionStartPosition(){
     return kuikly::util::GetInputNodeSelectionStartPosition(GetNode());
@@ -361,6 +365,8 @@ void KRTextFieldView::CallMethod(const std::string &method, const KRAnyValue &pa
         Focus();
     } else if (kuikly::util::isEqual(method, kMethodBlur)) {  // 失焦
         Blur();
+    } else if (kuikly::util::isEqual(method, kMethodFocusWithoutKeyboard)) {
+        FocusWithoutKeyBoard();
     } else if (kuikly::util::isEqual(method, kMethodSetText)) {  // 主动设置文本
         SetContentText(params->toString());
     } else if (kuikly::util::isEqual(method, kMethodGetCursorIndex)) {  // 获取光标位置
@@ -380,7 +386,17 @@ void KRTextFieldView::CallMethod(const std::string &method, const KRAnyValue &pa
  * 输入框获焦（弹起键盘）
  */
 void KRTextFieldView::Focus() {
-    UpdateInputNodeFocusStatus(1);
+    UpdateInputNodeFocusAndKeyBoardStatus(1);
+    if (is_node_focused_) {
+        // 已聚焦：直接 status=1 是 no-op。复用 FWK 的 pending refocus 机制：
+        // Blur → ON_BLUR 触发 refocus#1(arm) → 尾部 blur 触发 refocus#2，
+        // 确保焦点迁移稳定、键盘弹起（attr 已为 1）。
+        pending_refocus_after_blur_ = true;
+        awaiting_teardown_blur_ = false;
+        Blur();
+    } else {
+        UpdateInputNodeFocusStatus(1);
+    }
 }
 
 /**
@@ -388,6 +404,34 @@ void KRTextFieldView::Focus() {
  */
 void KRTextFieldView::Blur() {
     UpdateInputNodeFocusStatus(0);
+}
+
+/**
+ * 输入框保持焦点但收起键盘
+ */
+void KRTextFieldView::FocusWithoutKeyBoard() {
+    // 获焦但不弹键盘：先把"获焦即弹键盘"关掉
+    UpdateInputNodeFocusAndKeyBoardStatus(0);
+    // 打标记：Blur 触发的 ON_BLUR 提交后，由 OnInputBlur 在下一帧负责 refocus，
+    // 保证"blur 已提交再获焦"，消除固定定时带来的异步竞态（焦点/键盘一起消失）。
+    pending_refocus_after_blur_ = true;
+    awaiting_teardown_blur_ = false;   // 复位：每次重新开始两步 refocus 流程
+    Blur();   // 收键盘（异步失焦）
+}
+
+void KRTextFieldView::ScheduleRefocus(bool arm_awaiting_teardown) {
+    KRMainThread::RunOnMainThreadForNextLoop(
+        [weakSelf = weak_from_this(), arm_awaiting_teardown] {
+            auto s = std::dynamic_pointer_cast<KRTextFieldView>(weakSelf.lock());
+            if (!s) {
+                return;
+            }
+            s->last_refocus_ts_ = std::chrono::steady_clock::now();
+            s->UpdateInputNodeFocusStatus(1);
+            if (arm_awaiting_teardown) {
+                s->awaiting_teardown_blur_ = true;   // 仅 refocus#1 arm，等待 IME 拆卸尾部 blur
+            }
+        });
 }
 
 /**
@@ -612,6 +656,8 @@ void KRTextFieldView::OnTextDidChanged(ArkUI_NodeEvent *event) {
  * 获焦回调
  */
 void KRTextFieldView::OnInputFocus(ArkUI_NodeEvent *event) {
+    is_node_focused_ = true;    // 维护原生焦点状态：focus 即获焦
+    pending_refocus_after_blur_ = false;   // 防御：已获焦则无需再 pending refocus（避免 Blur 空操作时 pending 卡死）
     if (input_focus_callback_) {
         KRRenderValueMap map;
         map["text"] = NewKRRenderValue(GetContentText());
@@ -622,6 +668,23 @@ void KRTextFieldView::OnInputFocus(ArkUI_NodeEvent *event) {
  * 失焦回调
  */
 void KRTextFieldView::OnInputBlur(ArkUI_NodeEvent *event) {
+    auto now = std::chrono::steady_clock::now();
+    is_node_focused_ = false;   // 维护原生焦点状态：blur 即失焦
+    // 1) 我们主动 Blur 触发的首次 blur：调度 refocus#1，并 arm 等待 IME 拆卸尾部 blur
+    if (pending_refocus_after_blur_) {
+        pending_refocus_after_blur_ = false;
+        ScheduleRefocus(true);
+        return;
+    }
+    // 2) refocus#1 后的 IME 拆卸尾部 blur（150ms 窗口内）：补夺一次，不再 arm
+    if (awaiting_teardown_blur_ &&
+        std::chrono::duration_cast<std::chrono::milliseconds>(now - last_refocus_ts_).count() < 150) {
+        awaiting_teardown_blur_ = false;
+        ScheduleRefocus(false);
+        return;
+    }
+    // 3) 超窗口或流程外的真实失焦：正常上抛
+    awaiting_teardown_blur_ = false;
     if (input_blur_callback_) {
         KRRenderValueMap map;
         map["text"] = NewKRRenderValue(GetContentText());

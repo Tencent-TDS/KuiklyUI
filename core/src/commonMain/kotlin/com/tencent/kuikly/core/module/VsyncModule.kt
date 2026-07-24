@@ -17,6 +17,9 @@ package com.tencent.kuikly.core.module
 
 import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 
+/**
+ * Frame timing based on the platform monotonic uptime clock. All values are milliseconds.
+ */
 data class VsyncFrameInfo(
     val timestampMillis: Double,
     val targetTimestampMillis: Double,
@@ -39,19 +42,15 @@ class VsyncModule : Module() {
 
     fun registerVsyncWithFrameInfo(callback: (VsyncFrameInfo) -> Unit) {
         registerVsyncInternal { data ->
-            val rawFrameIntervalMillis =
-                data?.optDouble(KEY_FRAME_INTERVAL_SECONDS, 0.0)?.times(MILLIS_PER_SECOND) ?: 0.0
+            val rawFrameIntervalMillis = data?.optDouble(KEY_FRAME_INTERVAL_MILLIS, 0.0) ?: 0.0
             val frameIntervalMillis =
                 rawFrameIntervalMillis.takeIf {
                     it in MIN_FRAME_INTERVAL_MILLIS..MAX_FRAME_INTERVAL_MILLIS
                 } ?: DEFAULT_FRAME_INTERVAL_MILLIS
             callback(
                 VsyncFrameInfo(
-                    timestampMillis =
-                        data?.optDouble(KEY_TIMESTAMP_SECONDS, 0.0)?.times(MILLIS_PER_SECOND) ?: 0.0,
-                    targetTimestampMillis =
-                        data?.optDouble(KEY_TARGET_TIMESTAMP_SECONDS, 0.0)?.times(MILLIS_PER_SECOND)
-                            ?: 0.0,
+                    timestampMillis = data?.optDouble(KEY_TIMESTAMP_MILLIS, 0.0) ?: 0.0,
+                    targetTimestampMillis = data?.optDouble(KEY_TARGET_TIMESTAMP_MILLIS, 0.0) ?: 0.0,
                     frameIntervalMillis = frameIntervalMillis,
                 ),
             )
@@ -82,11 +81,10 @@ class VsyncModule : Module() {
         const val METHOD_REGISTER_VSYNC = "registerVsync"
         const val METHOD_UNREGISTER_VSYNC = "unRegisterVsync"
 
-        private const val KEY_TIMESTAMP_SECONDS = "timestampSeconds"
-        private const val KEY_TARGET_TIMESTAMP_SECONDS = "targetTimestampSeconds"
-        private const val KEY_FRAME_INTERVAL_SECONDS = "frameIntervalSeconds"
+        private const val KEY_TIMESTAMP_MILLIS = "timestampMillis"
+        private const val KEY_TARGET_TIMESTAMP_MILLIS = "targetTimestampMillis"
+        private const val KEY_FRAME_INTERVAL_MILLIS = "frameIntervalMillis"
 
-        private const val MILLIS_PER_SECOND = 1_000.0
         private const val DEFAULT_FRAME_INTERVAL_MILLIS = 1_000.0 / 60.0
         private const val MIN_FRAME_INTERVAL_MILLIS = 1.0
         private const val MAX_FRAME_INTERVAL_MILLIS = 100.0

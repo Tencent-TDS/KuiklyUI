@@ -113,10 +113,12 @@ NSString *const KRVFontWeightKey = @"fontWeight";
         _props = [NSMutableDictionary new];
         self.css_autoHideKeyboardOnImeAction = [NSNumber numberWithInt: 1];     // 保持原有能力，默认是关闭关闭软键盘
         [self addTarget:self action:@selector(onTextFeildTextChanged:) forControlEvents:UIControlEventEditingChanged];
+#if !TARGET_OS_OSX // [macOS]
         UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(p_handleRestoreKeyboardTap:)];
         tapGesture.delegate = self;
         tapGesture.cancelsTouchesInView = NO;  // 不拦截触摸，让 UITextField 同时收到点按做光标定位
         [self addGestureRecognizer:tapGesture];
+#endif // [macOS]
     }
     return self;
 }
@@ -283,12 +285,14 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 
 // 处于 focusWithoutKeyboard 免键盘获焦态（dummy inputView 在场）时，用户主动点击输入框应恢复系统键盘。
 // 非该状态不做处理，交由系统默认手势定位光标。
+#if !TARGET_OS_OSX // [macOS]
 - (void)p_handleRestoreKeyboardTap:(UITapGestureRecognizer *)tap {
     BOOL hasDummyInputView = (self.inputView != nil && self.inputView.tag == 99999);
     if (hasDummyInputView) {
         [self css_focus:nil];   // 内部清除 dummy inputView 并 reloadInputViews 恢复系统键盘
     }
 }
+#endif // [macOS]
 
 #if !TARGET_OS_OSX // [macOS]
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {

@@ -388,9 +388,11 @@ void KRTextFieldView::CallMethod(const std::string &method, const KRAnyValue &pa
 void KRTextFieldView::Focus() {
     UpdateInputNodeFocusAndKeyBoardStatus(1);
     if (is_node_focused_) {
-        // 已聚焦：直接 status=1 是 no-op。复用 FWK 的 pending refocus 机制：
-        // Blur → ON_BLUR 触发 refocus#1(arm) → 尾部 blur 触发 refocus#2，
-        // 确保焦点迁移稳定、键盘弹起（attr 已为 1）。
+        // 已聚焦场景（如 hideKeepFocus 后点 show 恢复键盘）：
+        // 直接设置 status=1 是 no-op，键盘不会弹起。
+        // 通过 Blur → ON_BLUR 事件驱动 refocus 来强制刷新焦点状态，
+        // 配合上方已设置的 ENABLE_KEYBOARD_ON_FOCUS=1，refocus 时键盘正常弹起。
+        // refocus 细节见 OnInputBlur() 中的 pending_refocus_after_blur_ 分支。
         pending_refocus_after_blur_ = true;
         awaiting_teardown_blur_ = false;
         Blur();
@@ -412,11 +414,17 @@ void KRTextFieldView::Blur() {
 void KRTextFieldView::FocusWithoutKeyBoard() {
     // 获焦但不弹键盘：先把"获焦即弹键盘"关掉
     UpdateInputNodeFocusAndKeyBoardStatus(0);
-    // 打标记：Blur 触发的 ON_BLUR 提交后，由 OnInputBlur 在下一帧负责 refocus，
-    // 保证"blur 已提交再获焦"，消除固定定时带来的异步竞态（焦点/键盘一起消失）。
-    pending_refocus_after_blur_ = true;
-    awaiting_teardown_blur_ = false;   // 复位：每次重新开始两步 refocus 流程
-    Blur();   // 收键盘（异步失焦）
+    if (is_node_focused_) {
+        // 已聚焦：blur → ON_BLUR → refocus，收键盘但保持焦点。
+        // 打标记：Blur 触发的 ON_BLUR 提交后，由 OnInputBlur 在下一帧负责 refocus，
+        // 保证"blur 已提交再获焦"，消除固定定时带来的异步竞态（焦点/键盘一起消失）。
+        pending_refocus_after_blur_ = true;
+        awaiting_teardown_blur_ = false;   // 复位：每次重新开始两步 refocus 流程
+        Blur();   // 收键盘（异步失焦）
+    } else {
+        // 未聚焦：直接聚焦，attr 已为 0（ENABLE_KEYBOARD_ON_FOCUS=0），键盘不会弹出
+        UpdateInputNodeFocusStatus(1);
+    }
 }
 
 void KRTextFieldView::ScheduleRefocus(bool arm_awaiting_teardown) {

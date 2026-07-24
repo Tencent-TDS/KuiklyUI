@@ -146,6 +146,7 @@ NSString *const KRFontWeightKey = @"fontWeight";
 #if !TARGET_OS_OSX // [macOS]
         UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(p_handleRestoreKeyboardTap:)];
         tapGesture.delegate = self;
+        tapGesture.cancelsTouchesInView = NO;  // 不拦截触摸，让 UITextView 同时收到点按做光标定位
         [self addGestureRecognizer:tapGesture];
 #endif // [macOS]
     }

@@ -24,6 +24,8 @@ import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.setContent
 import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
+import com.tencent.kuikly.compose.ui.focus.FocusRequester
+import com.tencent.kuikly.compose.ui.focus.focusRequester
 import com.tencent.kuikly.compose.ui.focus.onFocusChanged
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.graphics.SolidColor
@@ -51,6 +53,7 @@ internal class HideKeyboardTestDemo : ComposeContainer() {
 @Composable
 internal fun HideKeyboardTestContent() {
     val keyboardController = LocalSoftwareKeyboardController.current
+    val focusRequester = remember { FocusRequester() }
     var text1 by remember { mutableStateOf("") }
     var text2 by remember { mutableStateOf("") }
     var statusText1 by remember { mutableStateOf("状态：等待操作") }
@@ -88,6 +91,7 @@ internal fun HideKeyboardTestContent() {
                 .height(48.dp)
                 .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
                 .padding(12.dp)
+                .focusRequester(focusRequester)
                 .onFocusChanged { state ->
                     if (state.isFocused) {
                         KLog.i(TAG, "输入框1：触发 inputFocus")
@@ -165,6 +169,31 @@ internal fun HideKeyboardTestContent() {
         ) {
             Text(
                 text = "show()（弹出键盘）",
+                style = TextStyle(fontSize = 14.sp, color = Color.White)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 无焦点异步场景：requestFocus + hideKeepFocus
+        // 先通过 focusRequester 异步请求焦点，再立即调用 hideKeepFocus。
+        // 此时 activeView 尚未就绪，hideKeepFocus 打下 pendingFocusNoKeyboard 标记，
+        // 待 startInput 到达时把默认 focus() 替换为 focusWithoutKeyboard()，键盘全程不出现。
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp)
+                .background(Color(0xFF9C27B0), RoundedCornerShape(8.dp))
+                .clickable {
+                    focusRequester.requestFocus()
+                    keyboardController?.hideKeepFocus()
+                    statusText1 = "状态：requestFocus + hideKeepFocus（无焦点异步）"
+                    statusText2 = "状态：requestFocus + hideKeepFocus（无焦点异步）"
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "requestFocus + hideKeepFocus（无焦点异步）",
                 style = TextStyle(fontSize = 14.sp, color = Color.White)
             )
         }

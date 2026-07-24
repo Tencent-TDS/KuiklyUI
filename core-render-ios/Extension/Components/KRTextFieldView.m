@@ -115,6 +115,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
         [self addTarget:self action:@selector(onTextFeildTextChanged:) forControlEvents:UIControlEventEditingChanged];
         UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(p_handleRestoreKeyboardTap:)];
         tapGesture.delegate = self;
+        tapGesture.cancelsTouchesInView = NO;  // 不拦截触摸，让 UITextField 同时收到点按做光标定位
         [self addGestureRecognizer:tapGesture];
     }
     return self;

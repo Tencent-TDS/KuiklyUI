@@ -25,6 +25,8 @@ import com.tencent.kuikly.compose.foundation.lazy.staggeredgrid.LazyStaggeredGri
 import com.tencent.kuikly.compose.foundation.drawer.DrawerInternalPagerState
 import com.tencent.kuikly.compose.foundation.pager.PagerState
 import com.tencent.kuikly.compose.foundation.pager.ScrollViewOffsetAlignmentCancellation
+import com.tencent.kuikly.compose.foundation.pager.calculateNewMaxScrollOffset
+import com.tencent.kuikly.compose.foundation.pager.mainAxisViewportSize
 import com.tencent.kuikly.compose.scroller.ScrollableStateConstants.DEFAULT_CONTENT_SIZE
 import com.tencent.kuikly.compose.ui.unit.Dp
 import com.tencent.kuikly.compose.ui.unit.LayoutDirection
@@ -152,7 +154,16 @@ private fun LazyListState.calculateLazyListContentSize(curOffset: Float): Int? {
 private fun PagerState.calculatePagerContentSize(curOffset: Float): Int? {
     val lastItem = layoutInfo.visiblePagesInfo.lastOrNull()
     return if (lastItem != null && lastItem.index == pageCount - 1) {
-        (curOffset + lastItem.offset + pageSize).toInt()
+        // Use stable maxScrollOffset+viewport instead of spring presentation offset.
+        // Under-settled offsets (e.g. 427.666) can shrink contentSize by 1px on @3x,
+        // thrashing UIScrollView maxOffset and leaking a 1px edge gap at page bounds.
+        val layoutSize = layoutInfo.mainAxisViewportSize
+        val stable = (layoutInfo.calculateNewMaxScrollOffset(pageCount) + layoutSize).toInt()
+        // calculateContentSize() already compensates contentPadding; keep this value
+        // without padding to avoid double-counting for Pager.
+        val paddingPx = (contentPadding.totalPadding(layoutInfo.orientation).value *
+            kuiklyInfo.getDensity()).roundToInt()
+        (stable - paddingPx).coerceAtLeast(0)
     } else null
 }
 

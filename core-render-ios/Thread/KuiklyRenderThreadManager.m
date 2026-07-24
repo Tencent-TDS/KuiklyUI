@@ -21,20 +21,11 @@ NSString *const KRRenderContextQueueName = @"com.tencent.kuikly.context";
 NSString *const KRRenderLogQueueName = @"com.tencent.kuikly.log";
 
 #if TARGET_OS_OSX
-static void *KRContextQueueSpecificKey = &KRContextQueueSpecificKey;
-
-static dispatch_queue_t KRContextQueue(void) {
-    static dispatch_queue_t queue = NULL;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        dispatch_queue_attr_t queueAttr =
-            dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INTERACTIVE, 0);
-        queue = dispatch_queue_create([KRRenderContextQueueName UTF8String], queueAttr);
-        dispatch_queue_set_specific(queue, KRContextQueueSpecificKey, KRContextQueueSpecificKey, NULL);
-    });
-    return queue;
-}
+static const NSUInteger KRContextThreadStackSize = 8 * 1024 * 1024;
 #else
+static const NSUInteger KRContextThreadStackSize = 1024 * 1024;
+#endif
+
 static NSThread *gContextThread = nil;
 static CFRunLoopRef gContextRunLoop = NULL;
 static dispatch_semaphore_t gContextThreadReadySemaphore = nil;
@@ -50,11 +41,9 @@ static void KRPerformOnContextThread(dispatch_block_t block) {
     CFRunLoopPerformBlock(gContextRunLoop, kCFRunLoopCommonModes, block);
     CFRunLoopWakeUp(gContextRunLoop);
 }
-#endif
 
 @implementation KuiklyRenderThreadManager
 
-#if !TARGET_OS_OSX
 + (void)p_contextThreadMain {
     @autoreleasepool {
         NSRunLoop *runLoop = [NSRunLoop currentRunLoop];
@@ -71,7 +60,6 @@ static void KRPerformOnContextThread(dispatch_block_t block) {
         }
     }
 }
-#endif
 
 // 指定Context线程执行闭包
 + (void)performOnContextQueueWithBlock:(dispatch_block_t)block {
@@ -87,23 +75,15 @@ static void KRPerformOnContextThread(dispatch_block_t block) {
         if ([self isContextQueue]) {
             block();
         } else {
-#if TARGET_OS_OSX
-            dispatch_sync(KRContextQueue(), block);
-#else
             dispatch_semaphore_t completion = dispatch_semaphore_create(0);
             KRPerformOnContextThread(^{
                 block();
                 dispatch_semaphore_signal(completion);
             });
             dispatch_semaphore_wait(completion, DISPATCH_TIME_FOREVER);
-#endif
         }
     } else {
-#if TARGET_OS_OSX
-        dispatch_async(KRContextQueue(), block);
-#else
         KRPerformOnContextThread(block);
-#endif
     }
 }
 
@@ -170,11 +150,7 @@ static dispatch_queue_t gLogQueue = NULL;
 }
 
 + (BOOL)isContextQueue {
-#if TARGET_OS_OSX
-    return dispatch_get_specific(KRContextQueueSpecificKey) != NULL;
-#else
     return gContextThread != nil && NSThread.currentThread == gContextThread;
-#endif
 }
 
 + (void)assertContextQueue {
@@ -199,10 +175,6 @@ static dispatch_queue_t gLogQueue = NULL;
     if (!task) {
         return;
     }
-#if TARGET_OS_OSX
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_SEC)),
-                   KRContextQueue(), task);
-#else
     [self performOnContextQueueWithBlock:^{
         NSTimer *timer = [NSTimer timerWithTimeInterval:MAX(0, delay)
                                                 repeats:NO
@@ -211,13 +183,11 @@ static dispatch_queue_t gLogQueue = NULL;
         }];
         [[NSRunLoop currentRunLoop] addTimer:timer forMode:NSRunLoopCommonModes];
     }];
-#endif
 }
 
 
 @end
 
-#if !TARGET_OS_OSX
 static void KREnsureContextThreadStarted(void) {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
@@ -228,9 +198,8 @@ static void KREnsureContextThreadStarted(void) {
                                      object:nil];
         gContextThread.name = KRRenderContextQueueName;
         gContextThread.qualityOfService = NSQualityOfServiceUserInteractive;
-        gContextThread.stackSize = 1024 * 1024;
+        gContextThread.stackSize = KRContextThreadStackSize;
         [gContextThread start];
         dispatch_semaphore_wait(gContextThreadReadySemaphore, DISPATCH_TIME_FOREVER);
     });
 }
-#endif

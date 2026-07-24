@@ -14,31 +14,28 @@
  */
 
 #import "KRVsyncModule.h"
+#import "KuiklyContextParam.h"
 #import "KuiklyRenderThreadManager.h"
-#import "NSObject+KR.h"
 #import <QuartzCore/QuartzCore.h>
 #include <TargetConditionals.h>
+
+#if TARGET_OS_OSX
+typedef NSTimer KRVsyncDisplayLink;
+#else
+typedef CADisplayLink KRVsyncDisplayLink;
+#endif
 
 @implementation KRVsyncModule
 {
     KuiklyRenderCallback _tipCb;
-#if TARGET_OS_OSX
-    BOOL _kotlinTimerRunning;
-#else
-    CADisplayLink *_displayLink;
-#endif
+    KRVsyncDisplayLink *_displayLink;
 }
 
 - (void)registerVsync:(NSDictionary *)args {
     KuiklyRenderCallback callback = [args[KR_CALLBACK_KEY] copy];
-    id params = args[KR_PARAM_KEY];
-    NSDictionary *paramDictionary = nil;
-    if ([params isKindOfClass:NSDictionary.class]) {
-        paramDictionary = params;
-    } else if ([params isKindOfClass:NSString.class]) {
-        paramDictionary = [params hr_stringToDictionary];
-    }
-    NSInteger maxFramesPerSecond = [paramDictionary[@"maxFramesPerSecond"] integerValue];
+#if !TARGET_OS_OSX
+    BOOL isFrameworkMode = self.hr_contextParam.contextMode.modeId == KuiklyContextMode_Framework;
+#endif
 
     __weak __typeof__(self) weakSelf = self;
     [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
@@ -49,55 +46,49 @@
         [strongSelf invalidateVsyncOnContextThread];
         strongSelf->_tipCb = callback;
 #if TARGET_OS_OSX
-        strongSelf->_kotlinTimerRunning = YES;
-        [strongSelf scheduleNextMacVsync];
+        __weak __typeof__(strongSelf) weakModule = strongSelf;
+        NSTimer *timer = [NSTimer timerWithTimeInterval:1.0 / 60.0
+                                               repeats:YES
+                                                 block:^(NSTimer *firedTimer) {
+            [weakModule vsyncFire:firedTimer];
+        }];
+        strongSelf->_displayLink = timer;
+        [NSRunLoop.currentRunLoop addTimer:timer forMode:NSRunLoopCommonModes];
 #else
-        strongSelf->_displayLink =
+        CADisplayLink *displayLink =
             [CADisplayLink displayLinkWithTarget:strongSelf selector:@selector(vsyncFire:)];
-        if (maxFramesPerSecond > 0) {
-            strongSelf->_displayLink.preferredFramesPerSecond = maxFramesPerSecond;
+        if (!isFrameworkMode) {
+            displayLink.preferredFramesPerSecond = 60;
         }
-        [strongSelf->_displayLink addToRunLoop:NSRunLoop.currentRunLoop forMode:NSRunLoopCommonModes];
+        strongSelf->_displayLink = displayLink;
+        [displayLink addToRunLoop:NSRunLoop.currentRunLoop forMode:NSRunLoopCommonModes];
 #endif
     }];
 }
 
-#if !TARGET_OS_OSX
-- (void)vsyncFire:(CADisplayLink *)displayLink {
+- (void)vsyncFire:(KRVsyncDisplayLink *)displayLink {
     if (_tipCb) {
-        CFTimeInterval frameInterval = MAX(0, displayLink.targetTimestamp - displayLink.timestamp);
+#if TARGET_OS_OSX
+        CFTimeInterval timestamp = NSProcessInfo.processInfo.systemUptime;
+        CFTimeInterval frameInterval = 1.0 / 60.0;
+        CFTimeInterval targetTimestamp = timestamp + frameInterval;
+#else
+        CADisplayLink *nativeDisplayLink = displayLink;
+        CFTimeInterval timestamp = nativeDisplayLink.timestamp;
+        CFTimeInterval targetTimestamp = nativeDisplayLink.targetTimestamp;
+        CFTimeInterval frameInterval = MAX(0, targetTimestamp - timestamp);
+#endif
         _tipCb(@{
-            @"timestampSeconds": @(displayLink.timestamp),
-            @"targetTimestampSeconds": @(displayLink.targetTimestamp),
+            @"timestampSeconds": @(timestamp),
+            @"targetTimestampSeconds": @(targetTimestamp),
             @"frameIntervalSeconds": @(frameInterval),
         });
     }
 }
-#endif
-
-#if TARGET_OS_OSX
-- (void)scheduleNextMacVsync {
-    if (!_kotlinTimerRunning) {
-        return;
-    }
-    if (_tipCb) {
-        _tipCb(@{});
-    }
-    __weak __typeof__(self) weakSelf = self;
-    [KuiklyRenderThreadManager performOnContextQueueWithTask:^{
-        __strong __typeof__(self) strongSelf = weakSelf;
-        [strongSelf scheduleNextMacVsync];
-    } delay:1.0 / 60.0];
-}
-#endif
 
 - (void)invalidateVsyncOnContextThread {
-#if TARGET_OS_OSX
-    _kotlinTimerRunning = NO;
-#else
     [_displayLink invalidate];
     _displayLink = nil;
-#endif
     _tipCb = nil;
 }
 
@@ -110,11 +101,7 @@
 }
 
 - (void)dealloc {
-#if TARGET_OS_OSX
-    _kotlinTimerRunning = NO;
-#else
     [_displayLink invalidate];
-#endif
     _tipCb = nil;
 }
 

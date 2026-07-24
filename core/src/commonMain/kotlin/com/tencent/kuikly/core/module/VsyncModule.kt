@@ -34,17 +34,11 @@ class VsyncModule : Module() {
     }
 
     fun registerVsync(callback: () -> Unit) {
-        registerVsyncInternal(
-            maxFramesPerSecond = 0,
-            callback = { callback() },
-        )
+        registerVsyncInternal { callback() }
     }
 
-    fun registerVsyncWithFrameInfo(
-        maxFramesPerSecond: Int,
-        callback: (VsyncFrameInfo) -> Unit,
-    ) {
-        registerVsyncInternal(maxFramesPerSecond) { data ->
+    fun registerVsyncWithFrameInfo(callback: (VsyncFrameInfo) -> Unit) {
+        registerVsyncInternal { data ->
             val rawFrameIntervalMillis =
                 data?.optDouble(KEY_FRAME_INTERVAL_SECONDS, 0.0)?.times(MILLIS_PER_SECOND) ?: 0.0
             val frameIntervalMillis =
@@ -64,17 +58,12 @@ class VsyncModule : Module() {
         }
     }
 
-    private fun registerVsyncInternal(
-        maxFramesPerSecond: Int,
-        callback: (JSONObject?) -> Unit,
-    ) {
+    private fun registerVsyncInternal(callback: (JSONObject?) -> Unit) {
         toNative(
             keepCallbackAlive = true,
             methodName = METHOD_REGISTER_VSYNC,
             syncCall = false,
-            param = JSONObject().apply {
-                put(KEY_MAX_FRAMES_PER_SECOND, maxFramesPerSecond)
-            },
+            param = null,
             callback = callback,
         )
     }
@@ -93,7 +82,6 @@ class VsyncModule : Module() {
         const val METHOD_REGISTER_VSYNC = "registerVsync"
         const val METHOD_UNREGISTER_VSYNC = "unRegisterVsync"
 
-        private const val KEY_MAX_FRAMES_PER_SECOND = "maxFramesPerSecond"
         private const val KEY_TIMESTAMP_SECONDS = "timestampSeconds"
         private const val KEY_TARGET_TIMESTAMP_SECONDS = "targetTimestampSeconds"
         private const val KEY_FRAME_INTERVAL_SECONDS = "frameIntervalSeconds"

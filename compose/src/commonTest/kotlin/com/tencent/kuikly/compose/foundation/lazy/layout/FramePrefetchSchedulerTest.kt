@@ -27,10 +27,9 @@ class FramePrefetchSchedulerTest {
         assertFalse(scheduler.hasPendingWork())
         assertFalse(
             scheduler.processRequests(
-                nanoTime = 0L,
-                frameIntervalNs = 16_666_667L,
+                frameIntervalMillis = 1_000.0 / 60.0,
+                frameDeadlineMillis = 1_000.0 / 60.0,
                 isFrameIdle = false,
-                lastDrawNanoTime = 0L,
             ).scheduleForNextFrame,
         )
         scheduler.cancelAll()

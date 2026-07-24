@@ -31,12 +31,40 @@ import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.compose.ui.unit.IntRect
 import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.container.SuperTouchManager
+import com.tencent.kuikly.compose.container.VsyncTickConditions
 import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.core.datetime.DateTime
+import com.tencent.kuikly.core.module.VsyncFrameInfo
 import com.tencent.kuikly.core.timer.Timer
 import com.tencent.kuikly.core.views.DivView
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlin.coroutines.CoroutineContext
+import kotlin.math.abs
+
+private const val MAX_DEADLINE_INTERVALS = 2.0
+private const val MAX_CLOCK_OFFSET_MILLIS = 1_000.0
+
+internal fun resolveFrameDeadlineMillis(
+    localTimestampMillis: Double,
+    frameTimestampMillis: Double,
+    targetTimestampMillis: Double?,
+    frameIntervalMillis: Double,
+): Double {
+    val validTargetTimestampMillis =
+        targetTimestampMillis?.takeIf {
+            it >= frameTimestampMillis &&
+                it <= frameTimestampMillis + MAX_DEADLINE_INTERVALS * frameIntervalMillis
+        }
+    val clocksShareTimeBase =
+        abs(localTimestampMillis - frameTimestampMillis) <= MAX_CLOCK_OFFSET_MILLIS
+    return if (validTargetTimestampMillis != null && clocksShareTimeBase) {
+        validTargetTimestampMillis
+    } else {
+        val remainingFrameTimeMillis =
+            validTargetTimestampMillis?.minus(frameTimestampMillis) ?: frameIntervalMillis
+        localTimestampMillis + remainingFrameTimeMillis
+    }
+}
 
 @OptIn(ExperimentalComposeUiApi::class)
 class ComposeSceneMediator(
@@ -114,10 +142,31 @@ class ComposeSceneMediator(
         return timer
     }
 
-    fun renderFrame() {
-        val timestamp = DateTime.nanoTime()
+    fun renderFrame(frameInfo: VsyncFrameInfo? = null) {
+        val timestampNanos = DateTime.nanoTime()
+        val localTimestampMillis = timestampNanos.toDouble() / NANOS_PER_MILLISECOND
+        val frameTimestampMillis =
+            frameInfo?.timestampMillis?.takeIf { it > 0.0 }
+                ?: localTimestampMillis
+        val frameIntervalMillis =
+            frameInfo?.frameIntervalMillis
+                ?.takeIf { it in MIN_FRAME_INTERVAL_MILLIS..MAX_FRAME_INTERVAL_MILLIS }
+                ?: VsyncTickConditions.DEFAULT_FRAME_INTERVAL_MILLIS
+        val frameDeadlineMillis = resolveFrameDeadlineMillis(
+            localTimestampMillis = localTimestampMillis,
+            frameTimestampMillis = frameTimestampMillis,
+            targetTimestampMillis = frameInfo?.targetTimestampMillis,
+            frameIntervalMillis = frameIntervalMillis,
+        )
+        scene.vsyncTickConditions.updateFrameTiming(
+            frameTimestampMillis = frameTimestampMillis,
+            frameIntervalMillis = frameIntervalMillis,
+            frameDeadlineMillis = frameDeadlineMillis,
+        )
         scene.vsyncTickConditions.onDisplayLinkTick {
-            scene.render(null, timestamp)
+            // Preserve the existing animation-clock semantics: native frame timing is used only
+            // for idle detection and prefetch budgeting, not as the Compose render timestamp.
+            scene.render(null, timestampNanos)
         }
     }
 
@@ -127,5 +176,11 @@ class ComposeSceneMediator(
 
     init {
         superTouchManager.manage(container, scene)
+    }
+
+    private companion object {
+        const val NANOS_PER_MILLISECOND = 1_000_000.0
+        const val MIN_FRAME_INTERVAL_MILLIS = 1.0
+        const val MAX_FRAME_INTERVAL_MILLIS = 100.0
     }
 }

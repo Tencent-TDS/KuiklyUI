@@ -21,10 +21,9 @@ internal object NoOpPrefetchScheduler : FramePrefetchScheduler, PriorityPrefetch
     override fun hasPendingWork(): Boolean = false
 
     override fun processRequests(
-        nanoTime: Long,
-        frameIntervalNs: Long,
+        frameIntervalMillis: Double,
+        frameDeadlineMillis: Double,
         isFrameIdle: Boolean,
-        lastDrawNanoTime: Long,
     ): PrefetchProcessResult = PrefetchProcessResult(
         spentNs = 0L,
         scheduleForNextFrame = false,

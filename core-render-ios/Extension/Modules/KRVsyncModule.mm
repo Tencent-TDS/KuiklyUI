@@ -57,7 +57,16 @@ typedef CADisplayLink KRVsyncDisplayLink;
 #else
         CADisplayLink *displayLink =
             [CADisplayLink displayLinkWithTarget:strongSelf selector:@selector(vsyncFire:)];
-        if (!isFrameworkMode) {
+        CGFloat frameRateRangeMaximum = UIScreen.mainScreen.maximumFramesPerSecond;
+        if (isFrameworkMode) {
+            if (@available(iOS 15.0, *)) {
+                CGFloat maximumFramesPerSecond = frameRateRangeMaximum;
+                displayLink.preferredFrameRateRange = CAFrameRateRangeMake(
+                    MIN(60.0, maximumFramesPerSecond),
+                    maximumFramesPerSecond,
+                    maximumFramesPerSecond);
+            }
+        } else {
             displayLink.preferredFramesPerSecond = 60;
         }
         strongSelf->_displayLink = displayLink;

@@ -30,13 +30,12 @@
 
 @implementation KRPerformanceManager {
     
-    #if TARGET_OS_OSX // [macOS]
-    KRDisplayLink *_uiDisplayLink; // KRDisplayLink on macOS
-    #else
+    KRDisplayLink *_kotlinFPSDisplayLink;
+#if TARGET_OS_OSX // [macOS]
+    KRDisplayLink *_uiDisplayLink;
+#else
     CADisplayLink *_uiDisplayLink;
-    #endif
-    BOOL _kotlinTimerRunning;
-    NSUInteger _kotlinTimerGeneration;
+#endif
     
     NSString *_pageName;
     BOOL _isFirstLaunchOfProcess;
@@ -108,9 +107,7 @@ static NSMutableDictionary<NSString *, NSNumber *> *gLaunchDic = nil;
         _uiDisplayLink = link;
 #else
         _uiDisplayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(mainFPSKick:)];
-        if (@available(iOS 10.0, *)) {
-            _uiDisplayLink.preferredFramesPerSecond = 60;
-        }
+        [self p_configureAdaptiveFrameRateForDisplayLink:_uiDisplayLink];
         [_uiDisplayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
 #endif
     }
@@ -120,7 +117,7 @@ static NSMutableDictionary<NSString *, NSNumber *> *gLaunchDic = nil;
         if (!_kotlinFPS) {
             _kotlinFPS = [[KRFPSMonitor alloc] initWithThread:KRFPSThead_Kotlin pageName:_pageName];
         }
-        [self p_startKotlinFPSTimer];
+        [self p_startKotlinFPSDisplayLink];
     }
     
     if ((_monitorType & KRMonitorType_Memory)) {
@@ -144,9 +141,9 @@ static NSMutableDictionary<NSString *, NSNumber *> *gLaunchDic = nil;
         [_mainFPS endMonitor];
     }
 
-    // main fps
+    // kotlin fps
     if ((_monitorType & KRMonitorType_KotlinFPS)) {
-        [self p_stopKotlinFPSTimer];
+        [self p_stopKotlinFPSDisplayLink];
         [_kotlinFPS endMonitor];
     }
     
@@ -155,41 +152,62 @@ static NSMutableDictionary<NSString *, NSNumber *> *gLaunchDic = nil;
     }
 }
 
-- (void)p_startKotlinFPSTimer {
+- (void)p_startKotlinFPSDisplayLink {
     __weak __typeof__(self) weakSelf = self;
     [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
         __strong __typeof__(self) strongSelf = weakSelf;
-        if (!strongSelf || strongSelf->_kotlinTimerRunning) {
+        if (!strongSelf || strongSelf->_kotlinFPSDisplayLink) {
             return;
         }
-        strongSelf->_kotlinTimerRunning = YES;
-        NSUInteger generation = ++strongSelf->_kotlinTimerGeneration;
-        [strongSelf p_kotlinFPSTimerTick:generation];
+        KRDisplayLink *displayLink = [KRDisplayLink new];
+        strongSelf->_kotlinFPSDisplayLink = displayLink;
+        [displayLink startWithCallback:^(CFTimeInterval timestamp) {
+            __strong __typeof__(self) callbackSelf = weakSelf;
+            [callbackSelf p_kotlinFPSDisplayLinkTick:timestamp];
+        } runLoop:NSRunLoop.currentRunLoop];
+        [strongSelf p_configureAdaptiveFrameRateForDisplayLink:displayLink];
     }];
 }
 
-- (void)p_stopKotlinFPSTimer {
+- (void)p_stopKotlinFPSDisplayLink {
     __weak __typeof__(self) weakSelf = self;
     [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
         __strong __typeof__(self) strongSelf = weakSelf;
         if (!strongSelf) {
             return;
         }
-        strongSelf->_kotlinTimerRunning = NO;
-        strongSelf->_kotlinTimerGeneration++;
+        [strongSelf->_kotlinFPSDisplayLink stop];
+        strongSelf->_kotlinFPSDisplayLink = nil;
     }];
 }
 
-- (void)p_kotlinFPSTimerTick:(NSUInteger)generation {
-    if (!_kotlinTimerRunning || generation != _kotlinTimerGeneration) {
+- (void)p_kotlinFPSDisplayLinkTick:(CFTimeInterval)timestamp {
+    if (!_kotlinFPSDisplayLink) {
         return;
     }
-    [_kotlinFPS onTick:CFAbsoluteTimeGetCurrent()];
-    __weak __typeof__(self) weakSelf = self;
-    [KuiklyRenderThreadManager performOnContextQueueWithTask:^{
-        __strong __typeof__(self) strongSelf = weakSelf;
-        [strongSelf p_kotlinFPSTimerTick:generation];
-    } delay:1.0 / 60.0];
+    [_kotlinFPS onTick:timestamp];
+}
+
+- (void)p_configureAdaptiveFrameRateForDisplayLink:(id)displayLink {
+#if !TARGET_OS_OSX
+    if (_modeId != KuiklyContextMode_Framework) {
+        return;
+    }
+    CGFloat maximumFramesPerSecond = UIScreen.mainScreen.maximumFramesPerSecond;
+    if ([displayLink isKindOfClass:CADisplayLink.class]) {
+        CADisplayLink *nativeDisplayLink = displayLink;
+        if (@available(iOS 15.0, *)) {
+            nativeDisplayLink.preferredFrameRateRange = CAFrameRateRangeMake(
+                MIN(60.0, maximumFramesPerSecond),
+                maximumFramesPerSecond,
+                maximumFramesPerSecond);
+        }
+    } else if ([displayLink isKindOfClass:KRDisplayLink.class]) {
+        [displayLink setPreferredFrameRateRangeWithMinimum:MIN(60.0, maximumFramesPerSecond)
+                                                   maximum:maximumFramesPerSecond
+                                                 preferred:maximumFramesPerSecond];
+    }
+#endif
 }
 
 #pragma mark - load time start

@@ -22,6 +22,10 @@ typedef void (^DisplayLinkCallback)(CFTimeInterval timestamp);
 @interface KRDisplayLink : NSObject
 
 - (void)startWithCallback:(DisplayLinkCallback)callback;
+- (void)startWithCallback:(DisplayLinkCallback)callback runLoop:(NSRunLoop *)runLoop;
+- (void)setPreferredFrameRateRangeWithMinimum:(CGFloat)minimum
+                                      maximum:(CGFloat)maximum
+                                    preferred:(CGFloat)preferred;
 - (void)stop;
 - (void)pause:(BOOL)pause;
 

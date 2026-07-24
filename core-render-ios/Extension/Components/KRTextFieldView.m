@@ -25,7 +25,7 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 /*
  * @brief 暴露给Kotlin侧调用的多行输入框组件
  */
-@interface KRTextFieldView()<UITextFieldDelegate>
+@interface KRTextFieldView()<UITextFieldDelegate, UIGestureRecognizerDelegate>
 /** attr is text */
 @property (nonatomic, copy, readwrite) NSString *KUIKLY_PROP(text);
 /** attr is values */
@@ -76,6 +76,8 @@ NSString *const KRVFontWeightKey = @"fontWeight";
 @property (nonatomic, strong)  KuiklyRenderCallback KUIKLY_PROP(selectionChange);
 /** attr is enablePinyinCallback 是否启用拼音输入回调 */
 @property (nonatomic, strong)  NSNumber *KUIKLY_PROP(enablePinyinCallback);
+/** 业务自定义 inputView 备份：框架挂 dummy 时临时保存，恢复键盘时还原，避免误删业务键盘（如日期选择器/数字面板） */
+@property (nonatomic, strong) UIView *kr_originalInputView;
 
 - (BOOL)p_containsShortcodeToken:(NSString *)rawText;
 - (BOOL)p_shouldRejectProgrammaticShortcodeInput:(NSString *)rawText;
@@ -111,6 +113,10 @@ NSString *const KRVFontWeightKey = @"fontWeight";
         _props = [NSMutableDictionary new];
         self.css_autoHideKeyboardOnImeAction = [NSNumber numberWithInt: 1];     // 保持原有能力，默认是关闭关闭软键盘
         [self addTarget:self action:@selector(onTextFeildTextChanged:) forControlEvents:UIControlEventEditingChanged];
+        UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(p_handleRestoreKeyboardTap:)];
+        tapGesture.delegate = self;
+        tapGesture.cancelsTouchesInView = NO;  // 不拦截触摸，让 UITextField 同时收到点按做光标定位
+        [self addGestureRecognizer:tapGesture];
     }
     return self;
 }
@@ -273,16 +279,114 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     _css_enablePinyinCallback = css_enablePinyinCallback;
 }
 
+#pragma mark - 恢复键盘
+
+// 处于 focusWithoutKeyboard 免键盘获焦态（dummy inputView 在场）时，用户主动点击输入框应恢复系统键盘。
+// 非该状态不做处理，交由系统默认手势定位光标。
+- (void)p_handleRestoreKeyboardTap:(UITapGestureRecognizer *)tap {
+    BOOL hasDummyInputView = (self.inputView != nil && self.inputView.tag == 99999);
+    if (hasDummyInputView) {
+        [self css_focus:nil];   // 内部清除 dummy inputView 并 reloadInputViews 恢复系统键盘
+    }
+}
+
+#if !TARGET_OS_OSX // [macOS]
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
+    // 仅在框架 dummy inputView 在场时识别，普通态完全让 UITextField 自行处理点按获焦。
+    return self.inputView != nil && self.inputView.tag == 99999;
+}
+
+#endif // [macOS]
+
 #pragma mark - css method
 
 - (void)css_focus:(NSDictionary *)args  {
     dispatch_async(dispatch_get_main_queue(), ^{
+#if TARGET_OS_OSX
+        // macOS: NSTextField uses a field editor. Re-calling becomeFirstResponder
+        // while the field editor is active can re-select all text, causing the
+        // "first backspace selects all" bug on non-empty initial values.
+        if ([self currentEditor] != nil) {
+            return;
+        }
         [self becomeFirstResponder];
+#else
+        // 仅当 inputView 确为框架 dummy（tag==99999）才清理，避免误删业务自定义 inputView
+        BOOL hasDummyInputView = (self.inputView != nil && self.inputView.tag == 99999);
+        if (hasDummyInputView) {
+            self.inputView = self.kr_originalInputView;      // 还原业务 inputView（可能为 nil）
+            self.kr_originalInputView = nil;
+            [self reloadInputViews];
+        }
+        if (!self.isFirstResponder) {
+            [self becomeFirstResponder];    // 默认触发 textFieldDidBeginEditing 执行 css_inputFocus
+        } else if (hasDummyInputView) {
+            // 已经是 firstResponder 但刚清除了 dummyInputView，键盘会自动弹出
+            // 手动触发 inputFocus（因为 textFieldDidBeginEditing 不会重复调用）
+            if (self.css_inputFocus) {
+                self.css_inputFocus(@{@"text": self.text.copy ?: @""});
+            }
+        }
+#endif
     });
 }
 
 - (void)css_blur:(NSDictionary *)args  {
-    [self resignFirstResponder];
+    // 整体异步派发，与 css_focus 同队列顺序执行，避免 blur 同步插队错乱
+    dispatch_async(dispatch_get_main_queue(), ^{
+#if !TARGET_OS_OSX
+        // 预防业务的操作路径是 focus -> focusWithoutKeyboard -> hide
+        // 无论是否获焦，先清掉残留的 dummy inputView，还原业务 inputView，避免悬空
+        BOOL hasDummyInputView = (self.inputView != nil && self.inputView.tag == 99999);
+        if (hasDummyInputView) {
+            self.inputView = self.kr_originalInputView;      // 还原业务 inputView（可能为 nil）
+            self.kr_originalInputView = nil;
+            [self reloadInputViews];
+        }
+        // 不是获焦态，不做失焦处理
+        if (!self.isFirstResponder) {
+            return;
+        }
+        // resignFirstResponder，系统自动触发 textFieldDidEndEditing → inputBlur
+        [self resignFirstResponder];
+#else
+        [self resignFirstResponder];
+#endif
+    });
+}
+
+// 获焦但键盘不弹：未获焦则挂 dummy inputView 直接 becomeFirstResponder；已获焦则挂 dummy 并
+// reloadInputViews 收起键盘并保留焦点。本命令自身完成获焦，调用方无需再下发 focus，避免闪烁。
+- (void)css_focusWithoutKeyboard:(NSDictionary *)args  {
+    dispatch_async(dispatch_get_main_queue(), ^{
+#if TARGET_OS_OSX
+        if ([self currentEditor] != nil) {
+            return;
+        }
+        [self becomeFirstResponder];
+#else
+        if (!self.isFirstResponder) {
+            UIView *dummyView = [[UIView alloc] initWithFrame:CGRectZero];
+            dummyView.tag = 99999;
+            if (self.inputView != nil && self.inputView.tag != 99999) {
+                self.kr_originalInputView = self.inputView;   // 备份业务自定义 inputView
+            }
+            self.inputView = dummyView;
+            [self becomeFirstResponder];
+            [self reloadInputViews];
+        } else {
+            UIView *dummyView = [[UIView alloc] initWithFrame:CGRectZero];
+            dummyView.tag = 99999;
+            if (self.inputView != nil && self.inputView.tag != 99999) {
+                self.kr_originalInputView = self.inputView;
+            }
+            self.inputView = dummyView;
+            [self reloadInputViews];
+        }
+        // 不主动补发 height=0：本命令语义即「保持焦点、键盘不出现」，主动上报会被业务误判为
+        // 「用户收起键盘」→关 popup→重建→再次 focusWithoutKeyboard→死循环。面板显隐由业务自身驱动。
+#endif
+    });
 }
 
 - (void)css_setText:(NSDictionary *)args {
@@ -546,6 +650,11 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     CGFloat keyboardHeight = [[info objectForKey:UIKeyboardFrameEndUserInfoKey] CGRectValue].size.height;
     CGFloat duration = [[info objectForKey:UIKeyboardAnimationDurationUserInfoKey] floatValue];
     NSInteger curve = [[info objectForKey:UIKeyboardAnimationCurveUserInfoKey] integerValue];
+    // dummy inputView（tag==99999）在场 = 免键盘获焦态，系统键盘通知均为 dummy 操作引发的噪声，不转发。
+    BOOL hasDummyInputView = (self.inputView != nil && self.inputView.tag == 99999);
+    if (hasDummyInputView) {
+        return;
+    }
     if (self.css_keyboardHeightChange) {
         self.css_keyboardHeightChange(@{@"height": @(keyboardHeight), @"duration": @(duration), @"curve": @(curve)});
     }
@@ -556,6 +665,12 @@ NSString *const KRVFontWeightKey = @"fontWeight";
     NSDictionary *info = notify.userInfo;
     CGFloat duration = [[info objectForKey:UIKeyboardAnimationDurationUserInfoKey] floatValue];
     NSInteger curve = [[info objectForKey:UIKeyboardAnimationCurveUserInfoKey] integerValue];
+    // ★循环根因：focusWithoutKeyboard/blur(keepFocus) 挂 dummy inputView 并 reloadInputViews 时系统会派发 WillHide，
+    // 若把 height=0 转发给业务会被误判为「用户收起键盘」而关闭 popup，导致 popup 重建死循环。dummy 在场时必须拦截。
+    BOOL hasDummyInputView = (self.inputView != nil && self.inputView.tag == 99999);
+    if (hasDummyInputView) {
+        return;
+    }
     if (self.css_keyboardHeightChange) {
         self.css_keyboardHeightChange(@{@"height": @(0), @"duration": @(duration), @"curve": @(curve)});
     }

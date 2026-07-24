@@ -1196,6 +1196,12 @@ void UpdateInputNodeFocusStatus(ArkUI_NodeHandle node, int32_t status) {
     GetNodeApi()->setAttribute(node, NODE_FOCUS_STATUS, &item);
 }
 
+void UpdateInputNodeFocusAndKeyBoardStatus(ArkUI_NodeHandle node, int32_t status) {
+    ArkUI_NumberValue value[] = {{.i32 = status}};
+    ArkUI_AttributeItem item = {value, sizeof(value) / sizeof(ArkUI_NumberValue)};
+    GetNodeApi()->setAttribute(node, NODE_TEXT_INPUT_ENABLE_KEYBOARD_ON_FOCUS, &item);
+}
+
 void UpdateInputNodeFocusable(ArkUI_NodeHandle node, int32_t enable) {
     ArkUI_NumberValue value[] = {{.i32 = enable}};
     ArkUI_AttributeItem item = {value, sizeof(value) / sizeof(ArkUI_NumberValue)};

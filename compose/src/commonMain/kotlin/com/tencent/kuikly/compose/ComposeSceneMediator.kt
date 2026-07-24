@@ -33,6 +33,7 @@ import com.tencent.kuikly.compose.ui.unit.IntSize
 import com.tencent.kuikly.compose.container.SuperTouchManager
 import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.core.datetime.DateTime
+import com.tencent.kuikly.core.module.VsyncFrameInfo
 import com.tencent.kuikly.core.timer.Timer
 import com.tencent.kuikly.core.views.DivView
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -114,10 +115,29 @@ class ComposeSceneMediator(
         return timer
     }
 
-    fun renderFrame() {
-        val timestamp = DateTime.nanoTime()
+    fun renderFrame(frameInfo: VsyncFrameInfo? = null) {
+        val timestampNanos = DateTime.nanoTime()
+        val frameTimestampMillis =
+            frameInfo?.timestampMillis?.takeIf { it > 0.0 }
+                ?: timestampNanos.toDouble() / NANOS_PER_MILLISECOND
+        val frameIntervalMillis =
+            frameInfo?.frameIntervalMillis
+                ?.takeIf { it in MIN_FRAME_INTERVAL_MILLIS..MAX_FRAME_INTERVAL_MILLIS }
+                ?: DEFAULT_FRAME_INTERVAL_MILLIS
+        val frameDeadlineMillis =
+            frameInfo?.targetTimestampMillis
+                ?.takeIf {
+                    it >= frameTimestampMillis &&
+                        it <= frameTimestampMillis + MAX_DEADLINE_INTERVALS * frameIntervalMillis
+                }
+                ?: frameTimestampMillis + frameIntervalMillis
+        scene.vsyncTickConditions.updateFrameTiming(
+            frameTimestampMillis = frameTimestampMillis,
+            frameIntervalMillis = frameIntervalMillis,
+            frameDeadlineMillis = frameDeadlineMillis,
+        )
         scene.vsyncTickConditions.onDisplayLinkTick {
-            scene.render(null, timestamp)
+            scene.render(null, timestampNanos)
         }
     }
 
@@ -127,5 +147,13 @@ class ComposeSceneMediator(
 
     init {
         superTouchManager.manage(container, scene)
+    }
+
+    private companion object {
+        const val NANOS_PER_MILLISECOND = 1_000_000.0
+        const val DEFAULT_FRAME_INTERVAL_MILLIS = 1_000.0 / 60.0
+        const val MIN_FRAME_INTERVAL_MILLIS = 1.0
+        const val MAX_FRAME_INTERVAL_MILLIS = 100.0
+        const val MAX_DEADLINE_INTERVALS = 2.0
     }
 }

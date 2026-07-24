@@ -35,7 +35,8 @@
     #else
     CADisplayLink *_uiDisplayLink;
     #endif
-    dispatch_source_t _kotlinTimer;
+    BOOL _kotlinTimerRunning;
+    NSUInteger _kotlinTimerGeneration;
     
     NSString *_pageName;
     BOOL _isFirstLaunchOfProcess;
@@ -119,16 +120,7 @@ static NSMutableDictionary<NSString *, NSNumber *> *gLaunchDic = nil;
         if (!_kotlinFPS) {
             _kotlinFPS = [[KRFPSMonitor alloc] initWithThread:KRFPSThead_Kotlin pageName:_pageName];
         }
-
-        _kotlinTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, [KuiklyRenderThreadManager contextQueue]);
-        dispatch_source_set_timer(_kotlinTimer, DISPATCH_TIME_NOW, NSEC_PER_SEC / 60.0, NSEC_PER_MSEC);
-        __weak __typeof__(self) wself = self;
-        dispatch_source_set_event_handler(_kotlinTimer, ^{
-            __strong __typeof__(self) sself = wself;
-            NSTimeInterval now = CFAbsoluteTimeGetCurrent();
-            [sself.kotlinFPS onTick:now];
-        });
-        dispatch_resume(_kotlinTimer);
+        [self p_startKotlinFPSTimer];
     }
     
     if ((_monitorType & KRMonitorType_Memory)) {
@@ -154,16 +146,50 @@ static NSMutableDictionary<NSString *, NSNumber *> *gLaunchDic = nil;
 
     // main fps
     if ((_monitorType & KRMonitorType_KotlinFPS)) {
-        if (_kotlinTimer) {
-            dispatch_source_cancel(_kotlinTimer);
-            _kotlinTimer = nil;
-        }
+        [self p_stopKotlinFPSTimer];
         [_kotlinFPS endMonitor];
     }
     
     if ((_monitorType & KRMonitorType_Memory)) {
         [_memoryMonitor endMonitor];
     }
+}
+
+- (void)p_startKotlinFPSTimer {
+    __weak __typeof__(self) weakSelf = self;
+    [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
+        __strong __typeof__(self) strongSelf = weakSelf;
+        if (!strongSelf || strongSelf->_kotlinTimerRunning) {
+            return;
+        }
+        strongSelf->_kotlinTimerRunning = YES;
+        NSUInteger generation = ++strongSelf->_kotlinTimerGeneration;
+        [strongSelf p_kotlinFPSTimerTick:generation];
+    }];
+}
+
+- (void)p_stopKotlinFPSTimer {
+    __weak __typeof__(self) weakSelf = self;
+    [KuiklyRenderThreadManager performOnContextQueueWithBlock:^{
+        __strong __typeof__(self) strongSelf = weakSelf;
+        if (!strongSelf) {
+            return;
+        }
+        strongSelf->_kotlinTimerRunning = NO;
+        strongSelf->_kotlinTimerGeneration++;
+    }];
+}
+
+- (void)p_kotlinFPSTimerTick:(NSUInteger)generation {
+    if (!_kotlinTimerRunning || generation != _kotlinTimerGeneration) {
+        return;
+    }
+    [_kotlinFPS onTick:CFAbsoluteTimeGetCurrent()];
+    __weak __typeof__(self) weakSelf = self;
+    [KuiklyRenderThreadManager performOnContextQueueWithTask:^{
+        __strong __typeof__(self) strongSelf = weakSelf;
+        [strongSelf p_kotlinFPSTimerTick:generation];
+    } delay:1.0 / 60.0];
 }
 
 #pragma mark - load time start

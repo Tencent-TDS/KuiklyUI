@@ -12,8 +12,6 @@ import com.tencent.kuikly.compose.ui.util.traceValue
 import com.tencent.kuikly.core.datetime.DateTime
 import kotlin.math.max
 
-internal const val KUIKLY_PREFETCH_FRAME_INTERVAL_NS = 16_666_667L
-
 /** Aligns with Android [AndroidPrefetchScheduler] idle detection (2 vsync periods since last draw). */
 internal const val KUIKLY_PREFETCH_IDLE_FRAME_MULTIPLIER = 2
 
@@ -24,10 +22,9 @@ internal interface FramePrefetchScheduler : PrefetchScheduler {
     fun hasPendingWork(): Boolean
 
     fun processRequests(
-        nanoTime: Long,
-        frameIntervalNs: Long,
+        frameIntervalMillis: Double,
+        frameDeadlineMillis: Double,
         isFrameIdle: Boolean,
-        lastDrawNanoTime: Long,
     ): PrefetchProcessResult
 }
 
@@ -70,24 +67,21 @@ internal class KuiklyPrefetchScheduler :
     override fun hasPendingWork(): Boolean = queue.isNotEmpty()
 
     /**
-     * @param lastDrawNanoTime draw time of the previous frame (0 on first frame).
      * @return spent ns in this prefetch pass; [PrefetchProcessResult.scheduleForNextFrame] mirrors
      *   official `scheduleForNextFrame` (Choreographer post) when work remains or budget is 0.
      */
     override fun processRequests(
-        nanoTime: Long,
-        frameIntervalNs: Long,
+        frameIntervalMillis: Double,
+        frameDeadlineMillis: Double,
         isFrameIdle: Boolean,
-        lastDrawNanoTime: Long,
     ): PrefetchProcessResult {
         if (queue.isEmpty()) return PrefetchProcessResult(0L, false)
 
         scope.isFrameIdle = isFrameIdle
-        val lastDrawForDeadline = if (lastDrawNanoTime > 0L) lastDrawNanoTime else nanoTime
-        scope.nextFrameTimeNs = max(nanoTime, lastDrawForDeadline) + frameIntervalNs
+        scope.frameDeadlineMillis = frameDeadlineMillis
 
         LazyListPrefetchTrace.log(
-            "processRequests start isFrameIdle=$isFrameIdle queueSize=${queue.size}",
+            "processRequests start isFrameIdle=$isFrameIdle queueSize=${queue.size} frameIntervalMillis=$frameIntervalMillis",
         )
 
         val startTime = DateTime.nanoTime()
@@ -130,14 +124,19 @@ internal class KuiklyPrefetchScheduler :
 
     private class PrefetchRequestScopeImpl : PrefetchRequestScope {
         var isFrameIdle: Boolean = false
-        var nextFrameTimeNs: Long = 0L
+        var frameDeadlineMillis: Double = 0.0
 
         override fun availableTimeNanos(): Long =
             if (isFrameIdle) {
                 Long.MAX_VALUE
             } else {
-                max(0L, nextFrameTimeNs - DateTime.nanoTime())
+                val nowMillis = DateTime.nanoTime().toDouble() / NANOS_PER_MILLISECOND
+                (max(0.0, frameDeadlineMillis - nowMillis) * NANOS_PER_MILLISECOND).toLong()
             }
+    }
+
+    private companion object {
+        const val NANOS_PER_MILLISECOND = 1_000_000.0
     }
 }
 

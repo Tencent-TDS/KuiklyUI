@@ -179,8 +179,10 @@ open class ComposeContainer :
         if (pageData.isOhOs || pageData.isMiniApp || pageData.isWeb) {
             mediator?.startFrameDispatcher()
         } else {
-            getModule<VsyncModule>(VsyncModule.MODULE_NAME)?.registerVsync {
-                mediator?.renderFrame()
+            getModule<VsyncModule>(VsyncModule.MODULE_NAME)?.registerVsyncWithFrameInfo(
+                maxFramesPerSecond = composeVsyncMaxFramesPerSecond,
+            ) { frameInfo ->
+                mediator?.renderFrame(frameInfo)
             }
         }
     }

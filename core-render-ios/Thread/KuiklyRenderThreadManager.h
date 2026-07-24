@@ -49,10 +49,6 @@ NS_ASSUME_NONNULL_BEGIN
 + (void)performOnLogQueueWithBlock:(dispatch_block_t)block;
 
 /*
- * Context线程
- */
-+ (dispatch_queue_t)contextQueue;
-/*
  * 当前所处线程是否为context线程
  */
 + (BOOL)isContextQueue;

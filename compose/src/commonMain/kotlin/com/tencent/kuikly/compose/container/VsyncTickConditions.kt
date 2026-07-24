@@ -19,6 +19,24 @@ package com.tencent.kuikly.compose.container
 class VsyncTickConditions(
     val setPausedCallback: (Boolean) -> Unit
 ) {
+    var frameTimestampMillis: Double = 0.0
+        private set
+
+    var frameIntervalMillis: Double = DEFAULT_FRAME_INTERVAL_MILLIS
+        private set
+
+    var frameDeadlineMillis: Double = DEFAULT_FRAME_INTERVAL_MILLIS
+        private set
+
+    fun updateFrameTiming(
+        frameTimestampMillis: Double,
+        frameIntervalMillis: Double,
+        frameDeadlineMillis: Double,
+    ) {
+        this.frameTimestampMillis = frameTimestampMillis
+        this.frameIntervalMillis = frameIntervalMillis
+        this.frameDeadlineMillis = frameDeadlineMillis
+    }
 
     var needsToBeProactive: Boolean = false
         set(value) {
@@ -77,5 +95,6 @@ class VsyncTickConditions(
          * displayLink is not paused by the end of RuntimeLoop tick.
          */
         const val FRAMES_COUNT_TO_SCHEDULE_ON_NEED_REDRAW = 2
+        const val DEFAULT_FRAME_INTERVAL_MILLIS = 1_000.0 / 60.0
     }
 }

@@ -378,46 +378,17 @@ class TextLayoutResult constructor(
      */
     fun getBoundingBox(offset: Int): Rect = multiParagraph.getBoundingBox(offset)
 
-//    /**
-//     * Returns the start offset of the given line, inclusive.
-//     *
-//     * The start offset represents a position in text before the first character in the given line.
-//     * For example, `getLineStart(1)` will return 4 for the text below
-//     * <pre>
-//     * ┌────┐
-//     * │abcd│
-//     * │efg │
-//     * └────┘
-//     * </pre>
-//     *
-//     * @param lineIndex the line number
-//     * @return the start offset of the line
-//     */
-//    fun getLineStart(lineIndex: Int): Int = multiParagraph.getLineStart(lineIndex)
+    /**
+     * Returns the start offset of the given line, inclusive.
+     */
+    fun getLineStart(lineIndex: Int): Int = multiParagraph.getLineStart(lineIndex)
 
-//    /**
-//     * Returns the end offset of the given line.
-//     *
-//     * The end offset represents a position in text after the last character in the given line.
-//     * For example, `getLineEnd(0)` will return 4 for the text below
-//     * <pre>
-//     * ┌────┐
-//     * │abcd│
-//     * │efg │
-//     * └────┘
-//     * </pre>
-//     *
-//     * Characters being ellipsized are treated as invisible characters. So that if visibleEnd is
-//     * false, it will return line end including the ellipsized characters and vice versa.
-//     *
-//     * @param lineIndex the line number
-//     * @param visibleEnd if true, the returned line end will not count trailing whitespaces or
-//     * linefeed characters. Otherwise, this function will return the logical line end. By default
-//     * it's false.
-//     * @return an exclusive end offset of the line.
-//     */
-//    fun getLineEnd(lineIndex: Int, visibleEnd: Boolean = false): Int =
-//        multiParagraph.getLineEnd(lineIndex, visibleEnd)
+    /**
+     * Returns the end offset of the given line.
+     * 当前 Kuikly 仅回填 logical line end，暂不区分 visibleEnd。
+     */
+    fun getLineEnd(lineIndex: Int, visibleEnd: Boolean = false): Int =
+        multiParagraph.getLineEnd(lineIndex, visibleEnd)
 
 //    /**
 //     * Returns true if the given line is ellipsized, otherwise returns false.

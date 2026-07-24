@@ -260,17 +260,28 @@ internal class TextStringRichNode(
 
         val effectiveAnnotated = annotatedText ?: AnnotatedString(plainText ?: "")
 
-        // 行度量：从 native（Android StaticLayout）回填 lineCount + 每行 top/bottom（dp），× pageDensity → px
+        // 行度量：从 native 回填 lineCount + 每行 top/bottom/start/end（dp + offset）。
+        // 新格式："N top0 bottom0 start0 end0 top1 bottom1 start1 end1 ..."
+        // 为兼容旧实现，若 start/end 缺失则退化为 0。
         val metricsStr = textView?.shadow?.callMethod("lineMetrics", "") ?: ""
         val parts = metricsStr.split(" ")
         val lineCount = parts.getOrNull(0)?.toIntOrNull() ?: 0
         val lineTops = FloatArray(lineCount)
         val lineBottoms = FloatArray(lineCount)
+        val lineStarts = IntArray(lineCount)
+        val lineEnds = IntArray(lineCount)
+        val hasLineOffsets = parts.size >= 1 + lineCount * 4
         var idx = 1
         for (i in 0 until lineCount) {
             lineTops[i] = (parts.getOrNull(idx)?.toFloatOrNull() ?: 0f) * pageDensity
             lineBottoms[i] = (parts.getOrNull(idx + 1)?.toFloatOrNull() ?: 0f) * pageDensity
-            idx += 2
+            if (hasLineOffsets) {
+                lineStarts[i] = parts.getOrNull(idx + 2)?.toIntOrNull() ?: 0
+                lineEnds[i] = parts.getOrNull(idx + 3)?.toIntOrNull() ?: lineStarts[i]
+                idx += 4
+            } else {
+                idx += 2
+            }
         }
         // getBoundingBox：按需向 native 查询 offset 处字符包围盒（dp），× pageDensity → px
         val getBoundingBoxFn: ((Int) -> Rect)? = textView?.let { tv ->
@@ -304,6 +315,8 @@ internal class TextStringRichNode(
                 placeholderRects = placeholderRects,
                 lineTops = lineTops,
                 lineBottoms = lineBottoms,
+                lineStarts = lineStarts,
+                lineEnds = lineEnds,
                 getBoundingBoxFn = getBoundingBoxFn
             ),
             size

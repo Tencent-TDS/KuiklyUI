@@ -32,6 +32,8 @@ class MultiParagraph(
     val placeholderRects: List<Rect?>,
     private val lineTops: FloatArray = FloatArray(0),
     private val lineBottoms: FloatArray = FloatArray(0),
+    private val lineStarts: IntArray = IntArray(0),
+    private val lineEnds: IntArray = IntArray(0),
     private val getBoundingBoxFn: ((Int) -> Rect)? = null,
 ) {
 
@@ -46,8 +48,22 @@ class MultiParagraph(
     fun getLineBottom(lineIndex: Int): Float = lineBottoms.getOrElse(lineIndex) { 0f }
 
     /**
+     * Returns the start offset of the given line, inclusive.
+     */
+    fun getLineStart(lineIndex: Int): Int = lineStarts.getOrElse(lineIndex) { 0 }
+
+    /**
+     * Returns the end offset of the given line, exclusive.
+     * 当前 Kuikly 仅回填 logical line end，暂不区分 visibleEnd。
+     */
+    fun getLineEnd(lineIndex: Int, visibleEnd: Boolean = false): Int =
+        lineEnds.getOrElse(lineIndex) {
+            if (lineIndex < lineCount - 1) getLineStart(lineIndex + 1) else getLineStart(lineIndex)
+        }
+
+    /**
      * Returns the bounding box of the character for given character offset.
-     * 通过 [getBoundingBoxFn] 向 native 端查询（Android StaticLayout）。
+     * 通过 [getBoundingBoxFn] 向 native 端查询（Android / iOS / OHOS 原生文本布局）。
      */
     fun getBoundingBox(offset: Int): Rect =
         getBoundingBoxFn?.invoke(offset) ?: Rect(0f, 0f, 0f, 0f)

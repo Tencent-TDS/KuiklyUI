@@ -56,3 +56,15 @@ proto/**/*.kt
 /.claude-internal
 /.cursor/
 .mcp.json
+
+## OHOS local build config (regenerated on every build, contains local signing paths)
+ohosApp/build-profile.json5
+
+## Local IDE / tool noise
+.logs_pid
+.vscode/
+.workbuddy/
+.hvigor/
+
+## Local developer scripts (personal helpers, not for PR)
+/scripts/

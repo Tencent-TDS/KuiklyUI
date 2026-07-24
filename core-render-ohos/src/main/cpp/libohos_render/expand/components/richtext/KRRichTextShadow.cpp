@@ -118,8 +118,8 @@ KRAnyValue KRRichTextShadow::Call(const std::string &method_name, const std::str
     return KRRenderValue::Make(nullptr);
 }
 
-// 返回所有行度量（dp），格式 "N top0 bottom0 top1 bottom1 ..."，与 Android 对齐。
-// top/bottom 为行顶/行底的绝对 y 坐标，供 Compose 层 getLineTop/getLineBottom 使用。
+// 返回所有行度量（dp + offset），格式 "N top0 bottom0 start0 end0 ..."，与 Android 对齐。
+// top/bottom 为行顶/行底的绝对 y 坐标；start/end 为字符范围，其中 end 为 exclusive。
 // 数据源与 KRRichTextView::GetParagraphInfo 同源（GetLineInfo）。
 // 注意线程模型：本方法经 Call() 由 Kotlin measure 在 context 线程触发，必须访问
 // context 线程自有的 context_thread_typography_（而非 main 线程自有的
@@ -145,6 +145,8 @@ std::string KRRichTextShadow::LineMetrics() {
         float bottom = (lineMetrics.y + lineMetrics.height) / dpi;
         result += " " + std::to_string(top);
         result += " " + std::to_string(bottom);
+        result += " " + std::to_string(lineMetrics.startIndex);
+        result += " " + std::to_string(lineMetrics.endIndex + 1);
     }
     return result;
 }
@@ -164,28 +166,76 @@ std::string KRRichTextShadow::BoundingBox(int offset) {
     if (dpi <= 0.f) {
         return "0 0 0 0";
     }
-    // 定位 offset 所在行，取行顶/行底
+    // 先扫一遍 lineInfo 得到总长 textLen，并把 offset 钳制到 [0, textLen-1]，与 Android/iOS 对齐。
+    // 越界的 offset 直接喂给 OH_Drawing_TypographyGetRectsForRange 行为未定义（潜在 native crash / 脏数据）。
+    size_t lineCount = OH_Drawing_TypographyGetLineCount(typo_raw);
+    int textLen = 0;
+    for (size_t i = 0; i < lineCount; ++i) {
+        OH_Drawing_LineMetrics lm;
+        OH_Drawing_TypographyGetLineInfo(typo_raw, i, true, true, &lm);
+        int end = static_cast<int>(lm.endIndex) + 1;  // endIndex 与 LineMetrics 保持 inclusive 语义
+        if (end > textLen) {
+            textLen = end;
+        }
+    }
+    if (textLen <= 0) {
+        return "0 0 0 0";
+    }
+    int safeOffset = offset;
+    if (safeOffset < 0) {
+        safeOffset = 0;
+    } else if (safeOffset > textLen - 1) {
+        safeOffset = textLen - 1;
+    }
+    // 定位 safeOffset 所在行，取行顶/行底，并在多 box 时只认这一行的字符盒。
     float lineTop = 0;
     float lineBottom = 0;
-    size_t lineCount = OH_Drawing_TypographyGetLineCount(typo_raw);
+    bool foundLine = false;
     for (size_t i = 0; i < lineCount; ++i) {
         OH_Drawing_LineMetrics lineMetrics;
         OH_Drawing_TypographyGetLineInfo(typo_raw, i, true, true, &lineMetrics);
-        if (offset >= static_cast<int>(lineMetrics.startIndex) &&
-            offset <= static_cast<int>(lineMetrics.endIndex)) {
+        if (safeOffset >= static_cast<int>(lineMetrics.startIndex) &&
+            safeOffset <= static_cast<int>(lineMetrics.endIndex)) {
             lineTop = lineMetrics.y / dpi;
             lineBottom = (lineMetrics.y + lineMetrics.height) / dpi;
+            foundLine = true;
             break;
         }
     }
-    // 取字符水平范围
+    // 取字符水平范围。这里改用 TIGHT/TIGHT 的逐字符盒，避免 MAX/MAX 在行末 offset+1 跨到下一行时
+    // 返回跨行膨胀的大盒（scene6 根因）。若仍出现多个 box，只选当前行重叠的那个。
     float left = 0;
     float right = 0;
-    OH_Drawing_TextBox *box = OH_Drawing_TypographyGetRectsForRange(typo_raw, offset, offset + 1,
-                                                                      RECT_HEIGHT_STYLE_MAX, RECT_WIDTH_STYLE_MAX);
-    if (box != nullptr && OH_Drawing_GetSizeOfTextBox(box) > 0) {
-        left = OH_Drawing_GetLeftFromTextBox(box, 0) / dpi;
-        right = OH_Drawing_GetRightFromTextBox(box, 0) / dpi;
+    bool selectedBox = false;
+    OH_Drawing_TextBox *box = OH_Drawing_TypographyGetRectsForRange(typo_raw, safeOffset, safeOffset + 1,
+                                                                    RECT_HEIGHT_STYLE_TIGHT, RECT_WIDTH_STYLE_TIGHT);
+    if (box != nullptr) {
+        int boxCount = OH_Drawing_GetSizeOfTextBox(box);
+        for (int i = 0; i < boxCount; ++i) {
+            float boxLeft = OH_Drawing_GetLeftFromTextBox(box, i) / dpi;
+            float boxRight = OH_Drawing_GetRightFromTextBox(box, i) / dpi;
+            float boxTop = OH_Drawing_GetTopFromTextBox(box, i) / dpi;
+            float boxBottom = OH_Drawing_GetBottomFromTextBox(box, i) / dpi;
+            bool sameLine = !foundLine || !(boxBottom <= lineTop || boxTop >= lineBottom);
+            if (sameLine) {
+                left = boxLeft;
+                right = boxRight;
+                selectedBox = true;
+                if (!foundLine) {
+                    lineTop = boxTop;
+                    lineBottom = boxBottom;
+                }
+                break;
+            }
+        }
+        if (!selectedBox && boxCount > 0) {
+            left = OH_Drawing_GetLeftFromTextBox(box, 0) / dpi;
+            right = OH_Drawing_GetRightFromTextBox(box, 0) / dpi;
+            if (!foundLine) {
+                lineTop = OH_Drawing_GetTopFromTextBox(box, 0) / dpi;
+                lineBottom = OH_Drawing_GetBottomFromTextBox(box, 0) / dpi;
+            }
+        }
     }
     if (box) {
         OH_Drawing_TypographyDestroyTextBox(box);

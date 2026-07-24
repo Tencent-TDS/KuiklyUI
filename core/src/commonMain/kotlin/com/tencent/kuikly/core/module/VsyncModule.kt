@@ -20,7 +20,7 @@ import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 /**
  * Frame timing based on the platform monotonic uptime clock. All values are milliseconds.
  */
-data class VsyncFrameInfo(
+class VsyncFrameInfo(
     val timestampMillis: Double,
     val targetTimestampMillis: Double,
     val frameIntervalMillis: Double,

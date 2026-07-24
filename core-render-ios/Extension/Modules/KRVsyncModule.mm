@@ -101,8 +101,14 @@ typedef CADisplayLink KRVsyncDisplayLink;
 }
 
 - (void)dealloc {
-    [_displayLink invalidate];
+    KRVsyncDisplayLink *displayLink = _displayLink;
+    _displayLink = nil;
     _tipCb = nil;
+    if (displayLink) {
+        [KuiklyRenderThreadManager performOnContextQueueImmediatelyWithBlock:^{
+            [displayLink invalidate];
+        }];
+    }
 }
 
 @end

@@ -22,7 +22,7 @@ class VersionTest {
     fun formatsPrefetchReleaseVersionAfterTag() {
         assertEquals(
             "2.17.1-prefetch-2.1.21",
-            Version.formatPrefetchComposeVersion("2.17.1", "2.1.21"),
+            Version.formatPrefetchComposeVersion("2.17.1", "2.1.21")
         )
     }
 
@@ -30,7 +30,7 @@ class VersionTest {
     fun keepsSnapshotSuffixAtEnd() {
         assertEquals(
             "2.17.1.42-prefetch-2.1.21-SNAPSHOT",
-            Version.formatPrefetchComposeVersion("2.17.1.42-SNAPSHOT", "2.1.21"),
+            Version.formatPrefetchComposeVersion("2.17.1.42-SNAPSHOT", "2.1.21")
         )
     }
 }

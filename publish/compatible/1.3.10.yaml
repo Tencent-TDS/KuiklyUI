@@ -21,6 +21,11 @@ files:
     replacements:
       - from: useInMemoryPgpKeys(keyId, secretKey, password)
         to: useInMemoryPgpKeys(secretKey, password)
+  # buildSrc 测试注解兼容
+  - path: buildSrc/build.gradle.kts
+    replacements:
+      - from: testImplementation(kotlin("test"))
+        to: testImplementation(kotlin("test-junit"))
   # AbstractCoroutine 1.3 兼容：CancellationException 导入与构造
   - path: core/src/commonMain/kotlin/com/tencent/kuikly/core/coroutines/AbstractCoroutine.kt
     replacements:

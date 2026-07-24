@@ -23,7 +23,7 @@ import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
 class VsyncFrameInfo(
     val timestampMillis: Double,
     val targetTimestampMillis: Double,
-    val frameIntervalMillis: Double,
+    val frameIntervalMillis: Double
 )
 
 /**
@@ -51,8 +51,8 @@ class VsyncModule : Module() {
                 VsyncFrameInfo(
                     timestampMillis = data?.optDouble(KEY_TIMESTAMP_MILLIS, 0.0) ?: 0.0,
                     targetTimestampMillis = data?.optDouble(KEY_TARGET_TIMESTAMP_MILLIS, 0.0) ?: 0.0,
-                    frameIntervalMillis = frameIntervalMillis,
-                ),
+                    frameIntervalMillis = frameIntervalMillis
+                )
             )
         }
     }
@@ -63,7 +63,7 @@ class VsyncModule : Module() {
             methodName = METHOD_REGISTER_VSYNC,
             syncCall = false,
             param = null,
-            callback = callback,
+            callback = callback
         )
     }
 

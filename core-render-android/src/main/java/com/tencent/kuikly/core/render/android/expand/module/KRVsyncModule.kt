@@ -50,7 +50,7 @@ class KRVsyncModule : KuiklyRenderBaseModule() {
                         KEY_TIMESTAMP_MILLIS to frameTimeNanos / NANOS_PER_MILLISECOND,
                         KEY_TARGET_TIMESTAMP_MILLIS to
                             (frameTimeNanos + frameIntervalNanos) / NANOS_PER_MILLISECOND,
-                        KEY_FRAME_INTERVAL_MILLIS to frameIntervalNanos / NANOS_PER_MILLISECOND,
+                        KEY_FRAME_INTERVAL_MILLIS to frameIntervalNanos / NANOS_PER_MILLISECOND
                     )
                 )
                 Choreographer.getInstance().postFrameCallback(vsyncFrameCallback)

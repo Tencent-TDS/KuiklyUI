@@ -343,6 +343,8 @@ NSString *const KRFontWeightKey = @"fontWeight";
 
 // 处于 focusWithoutKeyboard 免键盘获焦态（dummy inputView 在场）时，用户主动点击输入框应恢复系统键盘。
 // 非该状态不做处理，交由系统默认手势定位光标。
+
+#if !TARGET_OS_OSX
 - (void)p_handleRestoreKeyboardTap:(UITapGestureRecognizer *)tap {
     BOOL hasDummyInputView = (self.inputView != nil && self.inputView.tag == 99999);
     if (hasDummyInputView) {
@@ -350,7 +352,6 @@ NSString *const KRFontWeightKey = @"fontWeight";
     }
 }
 
-#if !TARGET_OS_OSX
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
     // 仅在框架 dummy inputView 在场时识别，普通态完全让 UITextView 自行处理点按获焦。
     return self.inputView != nil && self.inputView.tag == 99999;

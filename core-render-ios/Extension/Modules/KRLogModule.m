@@ -16,7 +16,6 @@
 #import "KRLogModule.h"
 #import "KuiklyRenderThreadManager.h"
 #import "KRConvertUtil.h"
-#import "KuiklyRenderThreadManager.h"
 
 static id<KuiklyLogProtocol> gLogHandler;
 static id<KuiklyLogProtocol> gLogUserSuppliedHandler;
@@ -51,7 +50,6 @@ static id<KuiklyLogProtocol> gLogUserSuppliedHandler;
 
 @interface KRLogModule()
 
-
 @property (nonatomic, assign) BOOL needSyncLogTasks;
 @property (nonatomic, strong) NSMutableArray<dispatch_block_t> *logTasks;
 @property (nonatomic, assign) BOOL asyncLogEnable;
@@ -73,23 +71,22 @@ static id<KuiklyLogProtocol> gLogUserSuppliedHandler;
  * @brief 注册自定义log实现
  */
 + (void)registerLogHandler:(id<KuiklyLogProtocol>)logHandler {
-    gLogUserSuppliedHandler = logHandler;
+    static dispatch_once_t registerOnceToken;
+    dispatch_once(&registerOnceToken, ^{
+        gLogUserSuppliedHandler = logHandler;
+    });
 }
 
 + (id<KuiklyLogProtocol>)logHandler {
-    // 优先使用用户赋值的 handler
-    if (gLogUserSuppliedHandler) {
-        return gLogUserSuppliedHandler;
-    }
-    
     static dispatch_once_t onceToken;
-    // 避免多线程同时访问，确保只创建一次
     dispatch_once(&onceToken, ^{
-        if (!gLogHandler) {
-            gLogHandler = [KuiklyLogHandler new];
-        }
+        gLogHandler = [KuiklyLogHandler new];
     });
-    return gLogHandler;
+    
+    // 优先使用用户赋值的 handler
+    id<KuiklyLogProtocol> handler = gLogUserSuppliedHandler ?: gLogHandler;
+    
+    return handler;
 }
 
 - (void)logInfo:(NSDictionary *)args {
@@ -164,6 +161,7 @@ static id<KuiklyLogProtocol> gLogUserSuppliedHandler;
             self.needSyncLogTasks = NO;
             NSArray *tasks = [self.logTasks copy];
             self.logTasks = [NSMutableArray new];
+
             [KuiklyRenderThreadManager performOnLogQueueWithBlock:^{
                 for (dispatch_block_t task in tasks) {
                     task();

@@ -373,11 +373,7 @@ internal fun CoreTextField(
                         getViewAttr().autofocus(false)
                         getViewAttr().enablePinyinCallback(true)
                         getViewEvent().inputFocus {
-                            // 仅在 Compose 侧当前未聚焦时才回请焦点，
-                            // 避免"原生获焦 → 回请 Compose 聚焦 → 再触发原生 focus"的自激循环
-                            if (!hasFocus) {
-                                focusRequester.requestFocus()
-                            }
+                            focusRequester.requestFocus()
                         }
 
                     }
@@ -392,8 +388,11 @@ internal fun CoreTextField(
                         this.modifier = propsAndEvents
                     }
                     set(hasFocus) {
-                        // startInput 在 onFocusChanged 回调中已负责调用 view.focus()，
-                        // 此处不再重复调用，避免同一次焦点事件触发两次原生 focus。
+                        withTextAreaView {
+                            if (hasFocus) {
+                                focus()
+                            }
+                        }
                     }
                     set(editable) {
                         withTextAreaView {

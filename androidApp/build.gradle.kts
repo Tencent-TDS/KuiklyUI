@@ -43,7 +43,6 @@ dependencies {
     implementation(Dependencies.material)
     implementation(Dependencies.androidxAppcompat)
 
-    implementation(Dependencies.hippy)
     implementation(Dependencies.androidXCoreKtx)
 
     implementation("com.github.bumptech.glide:glide:4.12.0") // Glide主库，确保这里的版本是最新的

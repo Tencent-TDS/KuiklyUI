@@ -18,6 +18,7 @@ package com.tencent.kuikly.android.demo.module
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.pm.ActivityInfo
 import android.graphics.drawable.Drawable
 import android.util.Log
 import android.widget.Toast
@@ -74,6 +75,9 @@ class KRBridgeModule : KuiklyRenderBaseModule() {
             "toast" -> {
                 toast(params)
             }
+            "requestOrientation" -> {
+                requestOrientation(params)
+            }
             "log" -> {
                 log(params)
             }
@@ -128,6 +132,15 @@ class KRBridgeModule : KuiklyRenderBaseModule() {
         Toast.makeText(KRApplication.application,
             paramJSON.optString("content"),
             Toast.LENGTH_SHORT).show()
+    }
+
+    private fun requestOrientation(params: String?) {
+        val target = JSONObject(params ?: "{}").optString("orientation")
+        activity?.requestedOrientation = when (target) {
+            "landscape" -> ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE
+            "portrait" -> ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT
+            else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
     }
 
     private fun copyToPasteboard(params: String?) {

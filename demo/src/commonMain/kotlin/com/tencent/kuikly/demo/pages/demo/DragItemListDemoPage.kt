@@ -28,7 +28,7 @@ import com.tencent.kuikly.core.base.ViewBuilder
 import com.tencent.kuikly.core.base.ViewContainer
 import com.tencent.kuikly.core.base.ViewRef
 import com.tencent.kuikly.core.base.event.EventHandlerFn
-import com.tencent.kuikly.core.base.event.PanGestureParams
+import com.tencent.kuikly.core.base.event.LongPressParams
 import com.tencent.kuikly.core.directives.vforIndex
 import com.tencent.kuikly.core.log.KLog
 import com.tencent.kuikly.core.reactive.handler.observable
@@ -42,7 +42,7 @@ import kotlin.math.roundToInt
 
 /**
  * 可托拽调整Item顺序的列表Demo
-*/
+ */
 @Page("DragItemListDemoPage")
 internal class DragItemListDemoPage : BasePager() {
     var list by observableList<DragItemData>()
@@ -76,7 +76,6 @@ internal class DragItemListDemoPage : BasePager() {
                                 cardData.viewRef = it
                             }
                             attr {
-                                keepAlive(true)
                                 data = cardData
                                 itemIndex = cardData.text.toInt()
                                 transform(Translate(0f, cardData.translatePercentY))
@@ -92,7 +91,7 @@ internal class DragItemListDemoPage : BasePager() {
 
                             event {
                                 editBtnPan {
-                                    val params = it as PanGestureParams
+                                    val params = it as LongPressParams
                                     if (it.pageY < 30f) {
                                         val listView = ctx.listRef.view!!
                                         val currentOffset = listView.contentView!!.offsetY
@@ -141,6 +140,7 @@ internal class DragItemListDemoPage : BasePager() {
                                     val y = params.pageY
                                     if (state == "start") {
                                         val temp = ctx.listRef.view!!.contentView!!.offsetY
+                                        cardData.viewRef.view!!.getViewAttr().keepAlive = true
                                         ctx.globalData.contentViewOffset = temp
                                         ctx.globalData.locationYOnPageWhenBegin = y
                                         cardData.index = 1
@@ -221,6 +221,7 @@ internal class DragItemListDemoPage : BasePager() {
                                             it.index = 0
                                         }
                                         ctx.globalData = ItemData()
+                                        cardData.viewRef.view!!.getViewAttr().keepAlive = false
                                     }
                                 }
                             }
@@ -323,7 +324,7 @@ internal class DragItemCardView : ComposeView<DragItemCardAttr, DragItemCardEven
                         backgroundColor(Color.BLACK)
                     }
                     event {
-                        pan {
+                        longPress {
                             this@DragItemCardView.event.onFireEvent(LiveGoodsEvent.EDIT_BTN_PAN, it)
                         }
                     }

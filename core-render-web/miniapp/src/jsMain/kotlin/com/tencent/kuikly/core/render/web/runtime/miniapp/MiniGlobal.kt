@@ -536,6 +536,16 @@ object MiniGlobal {
         headers?.asDynamic()?.forEach { key, value, _ ->
             reqHeaders.set(key, value)
         }
+        // Read the extended `timeout` field from RequestInit (attached by the caller via asDynamic).
+        // Standard Web RequestInit has no `timeout`; browsers ignore unknown fields, so appending
+        // this field on the Web side is safe, and here we forward it to wx.request so that the
+        // native timeout can align with the JS-layer Promise.race timeout.
+        val timeoutValue = init?.asDynamic()?.timeout
+        val timeout: Int? = if (jsTypeOf(timeoutValue) == "number" && (timeoutValue.unsafeCast<Int>()) > 0) {
+            timeoutValue.unsafeCast<Int>()
+        } else {
+            null
+        }
         // real mini app request
         NativeApi.plat.request(MiniRequestInit(
             // Request URL
@@ -551,6 +561,9 @@ object MiniGlobal {
             dataType = if (isStream) "" else "json",
             // Default is text
             responseType = if (isStream) "arraybuffer" else "text",
+            // Request timeout in milliseconds, forwarded from the upper layer to keep the
+            // underlying wx.request timeout consistent with the JS Promise.race timeout
+            timeout = timeout,
             // Request success callback
             success = { rsp: Any ->
                 resolveFun?.invoke(MiniResponse(rsp).unsafeCast<Response>())
@@ -588,6 +601,7 @@ object MiniGlobal {
         data: dynamic = undefined,
         dataType: String? = "json",
         responseType: String? = "text",
+        timeout: Int? = null,
         success: (Any) -> Unit = {},
         fail: (Any) -> Unit = {}
     ): MiniRequestInit {
@@ -598,6 +612,11 @@ object MiniGlobal {
         o["data"] = data
         o["dataType"] = dataType
         o["responseType"] = responseType
+        // Only set timeout when the caller provided a valid positive value; otherwise let
+        // wx.request fall back to the mini program global networkTimeout.request setting.
+        if (timeout != null && timeout > 0) {
+            o["timeout"] = timeout
+        }
         o["success"] = success
         o["fail"] = fail
         return o.unsafeCast<MiniRequestInit>()
@@ -645,6 +664,9 @@ external interface MiniRequestInit {
         get() = definedExternally
         set(value) = definedExternally
     var responseType: String?
+        get() = definedExternally
+        set(value) = definedExternally
+    var timeout: Int?
         get() = definedExternally
         set(value) = definedExternally
     var success: (Any) -> Unit

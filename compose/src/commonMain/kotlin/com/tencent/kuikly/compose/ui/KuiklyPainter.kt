@@ -124,16 +124,34 @@ internal class KuiklyPainter(
         onState?.invoke(state)
     }
 
-    internal fun updateFromReuse(painter: Painter) {
-        if (painter is KuiklyPainter && painter.src == this.src && painter._state.value != this._state.value) {
-            this.resolution.value = painter.resolution.value
-            this.success = painter.success
-            when (painter._state.value) {
-                is State.Loading -> updateState(State.Loading(placeHolder))
-                is State.Success -> updateState(State.Success(this))
-                is State.Error -> updateState(State.Error(if (src.isNullOrEmpty()) fallback else error))
-                else -> {}
+    private fun updateFromReuse(reusedPainter: KuiklyPainter) {
+        if (reusedPainter.src != src) return
+
+        val reusedState = reusedPainter._state.value
+        if (reusedState == _state.value) return
+
+        resolution.value = reusedPainter.resolution.value
+        success = reusedPainter.success
+        when (reusedState) {
+            is State.Loading -> {
+                tryUpdateFromReuse(placeHolder, reusedState.painter)
+                updateState(State.Loading(placeHolder))
             }
+            is State.Success -> updateState(State.Success(this))
+            is State.Error -> {
+                val currentErrorPainter = if (src.isNullOrEmpty()) fallback else error
+                tryUpdateFromReuse(currentErrorPainter, reusedState.painter)
+                updateState(State.Error(currentErrorPainter))
+            }
+            else -> Unit
+        }
+    }
+
+    companion object {
+        internal fun tryUpdateFromReuse(current: Painter?, reused: Painter?) {
+            val currentPainter = current as? KuiklyPainter ?: return
+            val reusedPainter = reused as? KuiklyPainter ?: return
+            currentPainter.updateFromReuse(reusedPainter)
         }
     }
 

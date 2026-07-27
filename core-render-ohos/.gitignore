@@ -6,3 +6,6 @@
 /.test
 /.hvigor
 BuildProfile.ets
+
+# Kotlin/Native LLDB helpers (auto-generated, do not commit)
+/.kuikly/

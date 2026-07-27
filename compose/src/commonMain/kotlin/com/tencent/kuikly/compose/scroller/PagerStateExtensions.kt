@@ -61,7 +61,7 @@ internal fun PagerState.kuiklyWillDragEnd(params: WillEndDragParams, orientation
         velocity > 0 -> -1
         else -> 0
     }
-    val snapBasePage = currentPage
+    val snapBasePage = resolveSnapBasePage(pageDirection)
     val targetPage = if (pageDirection == 0) {
         currentPage
     } else {
@@ -74,10 +74,31 @@ internal fun PagerState.kuiklyWillDragEnd(params: WillEndDragParams, orientation
             "velocity=$velocity pageDirection=$pageDirection snapBasePage=$snapBasePage " +
             "targetPage=$targetPage correctedTargetPage=$correctedTargetPage " +
             "currentPage=$currentPage firstVisiblePage=$firstVisiblePage " +
+            "currentPageOffsetFraction=$currentPageOffsetFraction " +
             "nativeContentOffset=$nativeContentOffset nativePageFromOffset=$nativePageFromOffset " +
             "desyncPages=$desyncPages pageCount=$pageCount"
     }
     handleTargetPageScroll(correctedTargetPage, params, orientation, desyncPages)
+}
+
+/**
+ * When flinging forward, measure may advance [currentPage] to [firstVisiblePage] + 1 once the next
+ * page crosses the 50% threshold. Using that advanced page as snap base and adding pageDirection
+ * again would skip two pages. Only adjust the base for the velocity != 0 path; zero-velocity release
+ * still settles on [currentPage], which already reflects the 50% decision from measure.
+ *
+ * Conversely, when flinging backward, measure may pre-decrement [currentPage] before
+ * willDragEnd. Use the key-tracked drag anchor as snap base so a single release only moves one
+ * page from the page where the drag started, while still allowing data-source index shifts.
+ */
+private fun PagerState.resolveSnapBasePage(pageDirection: Int): Int {
+    val dragAnchorPage = snapAnchorPageDuringDrag()
+    return when {
+        pageDirection > 0 && currentPage > firstVisiblePage -> firstVisiblePage
+        pageDirection < 0 && currentPage < firstVisiblePage -> firstVisiblePage
+        pageDirection < 0 && dragAnchorPage != null && dragAnchorPage > currentPage -> dragAnchorPage
+        else -> currentPage
+    }
 }
 
 private fun PagerState.calculateTargetPage(
@@ -146,7 +167,7 @@ private fun PagerState.handleTargetPageScroll(
 
         val maxOffset = kuiklyInfo.currentContentSize - kuiklyInfo.viewportSize
         val composeCandidateOffset = nextPage?.let { offset + it.offset }
-        val pageBoundaryOffset = pageSizeWithSpacing * targetPage
+        val pageBoundaryOffset = snapScrollOffsetForPage(targetPage)
         // Snap target selection:
         //  - Aligned (no desync): use the compose-coordinate candidate. Native and compose share the
         //    same coordinate, so this lands exactly on the next page.

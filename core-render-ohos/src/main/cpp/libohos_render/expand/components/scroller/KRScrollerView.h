@@ -136,6 +136,8 @@ class KRScrollerView : public IKRRenderViewExport {
     void AdjustHeaderBouncesEnableWhenWillScroll(ArkUI_NodeEvent *event);
     void DispatchDidScrollToObservers(KRPoint point);
     bool SetFlingEnable(bool enable);
+    bool SetFlingSpeedLimit(const KRAnyValue &value);
+    KRPoint MaxContentOffsetInContentInset(const std::shared_ptr<KRScrollerContentInset> &content_inset);
 
  private:
     KRRenderCallback on_scroll_callback_ = nullptr;
@@ -155,6 +157,7 @@ class KRScrollerView : public IKRRenderViewExport {
     bool first_animate_ = false;
     int first_duration_ = 0;
     int first_curve_ = 0;
+    float first_damping_ = 0;
     ArkUI_ScrollState current_scroll_state_;
 
     std::shared_ptr<KRAnimation> content_inset_animate_;
@@ -167,10 +170,12 @@ class KRScrollerView : public IKRRenderViewExport {
     float last_scroll_y_ = 0;
     float velocity_x_ = 0;
     float velocity_y_ = 0;
+    int64_t last_move_time_ = 0;  // 上次产生有效位移的时间，用于判断速度是否过期
     std::weak_ptr<SuperTouchHandler> weak_super_touch_handler_;
     bool is_fling_enabled_ = true;
     float last_fired_scroll_x_ = 0;
     float last_fired_scroll_y_ = 0;
+    bool direction_row_ = false;
 };
 
 #endif  // CORE_RENDER_OHOS_KRSCROLLERVIEW_H

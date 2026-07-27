@@ -125,6 +125,28 @@ class KuiklyRenderView(
         renderCore?.sendEvent(event, data)
     }
 
+    /**
+     * Imperatively update the root view size. See doc on [IKuiklyRenderView.updateRootViewSize].
+     *
+     * Internally forwarded to the Kuikly Pager as a `rootViewSizeDidChanged`
+     * event; the payload also carries `deviceWidth` / `deviceHeight` to keep
+     * `PageData.deviceWidth` / `deviceHeight` in sync in single-page layouts
+     * (business scenarios where the kuikly view occupies the whole viewport).
+     */
+    override fun updateRootViewSize(width: Int, height: Int) {
+        // core-side keys: `width` / `height` are Double, but Map<String, Any>
+        // is fine because JSONObject.optDouble tolerates Number.
+        sendEvent(
+            PAGER_EVENT_ROOT_VIEW_SIZE_CHANGED,
+            mapOf(
+                "width" to width,
+                "height" to height,
+                "deviceWidth" to width,
+                "deviceHeight" to height
+            )
+        )
+    }
+
     override fun resume() {
         sendEvent(VIEW_DID_APPEAR, mapOf(VIEW_DID_APPEAR to VIEW_DID_APPEAR_VALUE))
         dispatchLifecycleStateChanged(STATE_RESUME)
@@ -417,6 +439,11 @@ class KuiklyRenderView(
         const val PAGER_EVENT_FIRST_FRAME_PAINT = "pageFirstFramePaint"
 
         const val PAGER_EVENT_ON_FONT_LOADED = "onFontLoaded"
+
+        // Reserved event name that the Kuikly core `Pager` listens to for
+        // updating the root view size at runtime (responsive layout).
+        // Keep in sync with `Pager.PAGER_EVENT_ROOT_VIEW_SIZE_CHANGED`.
+        const val PAGER_EVENT_ROOT_VIEW_SIZE_CHANGED = "rootViewSizeDidChanged"
 
         // RenderView lifecycle state
         private const val STATE_INIT = 0

@@ -17,6 +17,7 @@
 #include <cstdint>
 #include "libohos_render/expand/modules/back_press/KRBackPressModule.h"
 #include "libohos_render/foundation/KRCallbackData.h"
+#include "libohos_render/foundation/thread/KRMainThread.h"
 #include "libohos_render/manager/KRArkTSManager.h"
 #include "libohos_render/manager/KRRenderManager.h"
 #include "libohos_render/utils/KRRenderLoger.h"
@@ -233,6 +234,7 @@ static napi_value Init(napi_env env, napi_value exports) {
         {"isBackPressConsumed", nullptr, isBackPressConsumed, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
+    KRMainThread::Export(env, exports);                   // 缓存主线程 uv_loop / async 句柄
     KRRenderManager::GetInstance().Export(env, exports);  // 尝试注册RenderView
     return exports;
 }

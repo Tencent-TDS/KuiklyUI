@@ -26,6 +26,7 @@ import com.tencent.kuikly.core.pager.PageData
 import com.tencent.kuikly.core.views.ScrollerAttr
 import com.tencent.kuikly.core.views.ScrollerEvent
 import com.tencent.kuikly.core.views.ScrollerView
+import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 
@@ -139,9 +140,21 @@ class KuiklyScrollInfo {
         }
 
     /**
+     * Extra top inset on the pull-to-refresh lazy item in pixels,
+     * from [com.tencent.kuikly.compose.material3.pullToRefreshItem.topInset].
+     */
+    var pullToRefreshTopInsetPx: Int = 0
+
+    /**
      * Cached total number of items, used to detect changes in item count
      */
     var cachedTotalItems: Int = 0
+
+    /**
+     * When true, [tryExpandStartSize] is skipped. Used by [ScrollableTabRow] whose content
+     * size is already exact via [ScrollState.maxValue] + viewport.
+     */
+    var skipExpandStartSize: Boolean = false
 
     /**
      * Sticky Header Position Cache Manager
@@ -187,6 +200,7 @@ class KuiklyScrollInfo {
         itemMainSpaceCache.clear()
         stickyItemKey = null
         cachedTotalItems = 0
+        pullToRefreshTopInsetPx = 0
     }
 
     /**
@@ -220,7 +234,11 @@ class KuiklyScrollInfo {
             } else {
                 scrollView?.renderView?.currentFrame?.width ?: 0f
             }
-            return (size * getDensity()).toInt()
+            // Use roundToInt instead of toInt to avoid truncating the dp→px conversion.
+            // A non-integer density (e.g. 2.625) makes the truncated viewportSize lose ~1px,
+            // which keeps toButtomDelta at 1 instead of 0 and breaks the bottom overscroll
+            // bounce handling (lastScrolledBackward wrongly set to true).
+            return (size * getDensity()).roundToInt()
         }
 
     /**

@@ -45,6 +45,7 @@ import com.tencent.kuikly.core.render.android.const.KRCssConst
 import com.tencent.kuikly.core.render.android.const.KRExtConst
 import com.tencent.kuikly.core.render.android.const.KRViewConst
 import com.tencent.kuikly.core.render.android.css.decoration.BoxShadow
+import com.tencent.kuikly.core.render.android.css.gesture.KRCSSGestureListener
 import com.tencent.kuikly.core.render.android.css.ktx.*
 import com.tencent.kuikly.core.render.android.expand.component.text.*
 import com.tencent.kuikly.core.render.android.export.IKuiklyRenderShadowExport
@@ -62,12 +63,14 @@ class KRRichTextView(context: Context) : KRView(context), KRRichTextViewDrawer.C
     private var textDrawer: KRRichTextViewDrawer? = null
     private var isRichTextMode = false
     private var parentTextSelector: KRTextSelector? = null
+    private var activeLongPressSpanIndex: Int = -1
 
     override fun onDetachedFromWindow() {
         if (hasSelection()) {
             parentTextSelector?.postInvalidate()
         }
         parentTextSelector = null
+        clearActiveLongPressSpanIndex()
         super.onDetachedFromWindow()
     }
 
@@ -93,6 +96,7 @@ class KRRichTextView(context: Context) : KRView(context), KRRichTextViewDrawer.C
         richTextShadow = null
         textDrawer = null
         isRichTextMode = false
+        clearActiveLongPressSpanIndex()
         putViewData(KRCssConst.PLAIN_TEXT_FOR_A11Y, "")
     }
 
@@ -100,6 +104,9 @@ class KRRichTextView(context: Context) : KRView(context), KRRichTextViewDrawer.C
         return when (propKey) {
             KRCssConst.CLICK -> {
                 super.setProp(propKey, createRichTextClickProxy(propValue))
+            }
+            KRCssConst.LONG_PRESS -> {
+                super.setProp(propKey, createRichTextLongPressProxy(propValue))
             }
             KRCssConst.BACKGROUND_IMAGE -> { // 文字渐变在textShadow实现
                 true
@@ -133,15 +140,54 @@ class KRRichTextView(context: Context) : KRView(context), KRRichTextViewDrawer.C
                 if (!isRichTextMode) {
                     originClickCallback.invoke(result)
                 } else {
-                    originClickCallback.invoke(createRichTextCallbackParams(result))
+                    originClickCallback.invoke(createRichTextClickCallbackParams(result))
                 }
             }
         }
     }
 
-    private fun createRichTextCallbackParams(result: Any?): Map<String, Any> {
-        val map = result as Map<String, Any>
-        // 1.获取点击的坐标位置
+    private fun createRichTextLongPressProxy(propValue: Any): KuiklyRenderCallback {
+        return object : KuiklyRenderCallback {
+            val originLongPressCallback = propValue as KuiklyRenderCallback
+
+            override fun invoke(result: Any?) {
+                if (!isRichTextMode) {
+                    originLongPressCallback.invoke(result)
+                } else {
+                    originLongPressCallback.invoke(createRichTextLongPressCallbackParams(result))
+                }
+            }
+        }
+    }
+
+    private fun createRichTextClickCallbackParams(result: Any?): Map<String, Any> {
+        val map = result as MutableMap<String, Any>
+        map["index"] = findSpanIndex(map)
+        return map
+    }
+
+    private fun createRichTextLongPressCallbackParams(result: Any?): Map<String, Any> {
+        val map = result as MutableMap<String, Any>
+        val state = map[KRCSSGestureListener.EVENT_STATE] as? String
+        val spanIndex = if (state == KRCSSGestureListener.EVENT_STATE_START) {
+            resolveLongPressSpanIndex(map)
+        } else {
+            activeLongPressSpanIndex
+        }
+        map["index"] = spanIndex
+        if (state == KRCSSGestureListener.EVENT_STATE_END) {
+            clearActiveLongPressSpanIndex()
+        }
+        return map
+    }
+
+    private fun resolveLongPressSpanIndex(map: Map<String, Any>): Int {
+        val spanIndex = findSpanIndex(map)
+        activeLongPressSpanIndex = spanIndex
+        return spanIndex
+    }
+
+    private fun findSpanIndex(map: Map<String, Any>): Int {
         val x = kuiklyRenderContext.toPxF((map[KRViewConst.X] as? Float) ?: 0f)
         val y = kuiklyRenderContext.toPxF((map[KRViewConst.Y] as? Float) ?: 0f).toInt()
 
@@ -162,12 +208,7 @@ class KRRichTextView(context: Context) : KRView(context), KRRichTextViewDrawer.C
                 }
             }
         }
-
-        // 3.添加spanIndex参数
-        val resultMap = mutableMapOf<String, Any>()
-        resultMap.putAll(map)
-        resultMap["index"] = spanIndex
-        return resultMap
+        return spanIndex
     }
 
     private fun initTextLayout(richTextShadow: KRRichTextShadow?) {
@@ -219,6 +260,10 @@ class KRRichTextView(context: Context) : KRView(context), KRRichTextViewDrawer.C
     private fun layoutParamsNotHasSize(params: ViewGroup.LayoutParams): Boolean =
         params.width == ViewGroup.LayoutParams.MATCH_PARENT || params.width == ViewGroup.LayoutParams.WRAP_CONTENT
                 || params.width == 0
+
+    private fun clearActiveLongPressSpanIndex() {
+        activeLongPressSpanIndex = -1
+    }
 
     /**
      * Returns the length, in characters
@@ -887,7 +932,8 @@ enum class SelectionType {
     CHARACTER,
     WORD,
     PARAGRAPH,
-    SENTENCE
+    SENTENCE,
+    SPAN
 }
 
 data class SelectionEdge(

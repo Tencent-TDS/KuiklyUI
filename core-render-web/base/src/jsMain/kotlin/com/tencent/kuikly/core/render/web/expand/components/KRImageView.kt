@@ -300,28 +300,30 @@ open class KRImageView(
     }
 
     /**
-     * Set image src data
+     * Set image src data.
+     *
+     * The raw src always goes through the image processor first, no matter what
+     * prefix it has. This gives hosts full freedom to intercept and rewrite any
+     * scheme (assets://, file://, http(s)://, custom xxx://, etc.). The prefix
+     * is only inspected afterwards on the resolved result:
+     * - base64 cache keys (data:image prefix) are read from the in-memory cache;
+     * - everything else is assigned to the <img> directly.
      */
     private fun setSrc(src: String) {
         // Set when image src is not empty, otherwise use default transparent image
-        if (src.isNotEmpty()) {
-            if (isAssetsSrc(src)) {
-                // If it's an assets resource image, remove assets prefix and replace with assets path
-                image.src = KuiklyProcessor.imageProcessor.getImageAssetsSource(src)
-            } else if (isBase64Src(src)) {
-                // If base64, read data from memory cache module and return
-                val base64Image = getBase64Image(src)
-                if (base64Image != null) {
-                    image.src = base64Image
-                }
-            } else {
-                // Otherwise directly set image link
-                image.src = src
-            }
-            currentResolvedSrc = image.src
-            // If capInsets was already set before src, refresh the border-image.
-            applyCapInsetsIfNeeded()
+        if (src.isEmpty()) {
+            return
         }
+        // Let the processor intercept/transform first, then judge the prefix.
+        val resolvedSrc = KuiklyProcessor.imageProcessor.getImageAssetsSource(src)
+        if (isBase64Src(resolvedSrc)) {
+            getBase64Image(resolvedSrc)?.let { image.src = it }
+        } else {
+            image.src = resolvedSrc
+        }
+        currentResolvedSrc = image.src
+        // If capInsets was already set before src, refresh the border-image.
+        applyCapInsetsIfNeeded()
     }
 
     /**
@@ -363,14 +365,16 @@ open class KRImageView(
     }
 
     /**
-     * Resolve placeholder src, supports http, base64 (memory cache key),
-     * assets:// and file:// prefixes.
+     * Resolve placeholder src. Keeps the same order as [setSrc]: run the image
+     * processor first so it can rewrite any prefix, then resolve base64 cache
+     * keys from memory; other resolved values are used as-is.
      */
     private fun resolvePlaceholderSrc(src: String): String {
-        return when {
-            isAssetsSrc(src) -> KuiklyProcessor.imageProcessor.getImageAssetsSource(src)
-            isBase64Src(src) -> getBase64Image(src) ?: ""
-            else -> src
+        val resolvedSrc = KuiklyProcessor.imageProcessor.getImageAssetsSource(src)
+        return if (isBase64Src(resolvedSrc)) {
+            getBase64Image(resolvedSrc) ?: ""
+        } else {
+            resolvedSrc
         }
     }
 
@@ -389,12 +393,6 @@ open class KRImageView(
             else -> "contain"
         }
     }
-
-    /**
-     * Check if the given image source is an assets resource or file resource
-     */
-    private fun isAssetsSrc(src: String): Boolean = src.startsWith(ASSETS_IMAGE_PREFIX) ||
-            src.startsWith(FILE_IMAGE_PREFIX)
 
     companion object {
         const val VIEW_NAME = "KRImageView"
@@ -434,9 +432,5 @@ open class KRImageView(
         // Default blank placeholder image
         private const val DEFAULT_SRC =
             "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="
-
-        // Assets image resource prefix, identifies assets resource images
-        private const val ASSETS_IMAGE_PREFIX = "assets://"
-        private const val FILE_IMAGE_PREFIX = "file://"
     }
 }

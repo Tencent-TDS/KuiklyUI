@@ -223,6 +223,16 @@ object Version {
         return coreVersion
     }
 
+    fun getPrefetchComposeVersion(): String =
+        formatPrefetchComposeVersion(getKuiklyVersion(), getKotlinVersion())
+
+    internal fun formatPrefetchComposeVersion(kuiklyVersion: String, kotlinVersion: String): String {
+        val isSnapshot = kuiklyVersion.endsWith(SNAPSHOT_SUFFIX)
+        val baseVersion = kuiklyVersion.removeSuffix(SNAPSHOT_SUFFIX)
+        val snapshotSuffix = if (isSnapshot) SNAPSHOT_SUFFIX else ""
+        return "$baseVersion-prefetch-$kotlinVersion$snapshotSuffix"
+    }
+
     /**
      * 获取 render 版本号
      */

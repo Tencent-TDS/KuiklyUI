@@ -45,7 +45,8 @@ enum class TextSelectionType {
     CHARACTER,
     WORD,
     PARAGRAPH,
-    SENTENCE
+    SENTENCE,
+    SPAN
 }
 
 /**
@@ -284,6 +285,7 @@ class SelectionContainerState internal constructor(
             TextSelectionType.WORD -> SelectionType.WORD
             TextSelectionType.PARAGRAPH -> SelectionType.PARAGRAPH
             TextSelectionType.SENTENCE -> SelectionType.SENTENCE
+            TextSelectionType.SPAN -> SelectionType.SPAN
         }
         // Convert pixels to points for rendering layer
         val pointX = x / density

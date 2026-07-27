@@ -38,8 +38,10 @@ import com.tencent.kuikly.core.render.android.css.ktx.hasInitAccessibilityDelega
 import com.tencent.kuikly.core.render.android.css.ktx.drawCommonDecoration
 import com.tencent.kuikly.core.render.android.css.ktx.drawCommonForegroundDecoration
 import com.tencent.kuikly.core.render.android.css.ktx.frameOverBounds
+import com.tencent.kuikly.core.render.android.css.ktx.getViewData
 import com.tencent.kuikly.core.render.android.css.ktx.hasCustomClipPath
 import com.tencent.kuikly.core.render.android.css.ktx.optViewDecorator
+import com.tencent.kuikly.core.render.android.css.ktx.putViewData
 import com.tencent.kuikly.core.render.android.css.ktx.removeOnSetFrameObservers
 import com.tencent.kuikly.core.render.android.css.ktx.removeViewData
 import com.tencent.kuikly.core.render.android.css.ktx.resetCommonProp
@@ -132,6 +134,12 @@ interface IKuiklyRenderViewExport : IKuiklyRenderModuleExport, IKRViewDecoration
             return view().context as? IKuiklyRenderContext
         }
         set(value) {}
+
+    /**
+     * 获取当前 RenderView 在 Kuikly 中的 tag（即 core 层的 nativeRef）
+     * 返回 0 表示尚未绑定（与 core 层 nativeRef 0 = 无效的语义保持一致）
+     */
+    fun getViewTag(): Int = view().getViewData<Int>(KRCssConst.VIEW_TAG) ?: 0
 
     /**
      * 获取实现[IKuiklyRenderViewExport]的View所在的[Activity]
@@ -337,3 +345,20 @@ interface IKuiklyRenderViewExport : IKuiklyRenderModuleExport, IKRViewDecoration
         }
     }
 }
+
+/**
+ * set viewTag 。
+ *
+ * @param tag 要写入的 tag；传 0 表示重置为"未绑定"。
+ */
+internal fun IKuiklyRenderViewExport.setViewTag(tag: Int) {
+    view().putViewData(KRCssConst.VIEW_TAG, tag)
+}
+
+/**
+ * reset viewTag 。
+ */
+internal fun IKuiklyRenderViewExport.resetViewTag() {
+    view().removeViewData<Int>(KRCssConst.VIEW_TAG)
+}
+

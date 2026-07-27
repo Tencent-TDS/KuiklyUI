@@ -23,6 +23,11 @@
 #include <algorithm>
 #include <cstring>
 
+// ========== 协议键 / 事件名 / 方法名（与老 KRTextFieldView 完全一致） ==========
+// 大多数键直接复用 kuikly::text_editor 中的共享常量，避免与 `using namespace`
+// 引入的同名符号发生二义性；当前文件仅保留新增的 selectionColor 键。
+static constexpr const char *kSelectionColor = "selectionColor";
+
 // ============================================================================
 // 编译期 guard：当 SDK header < API 24 时，本 TU 中所有成员函数体都引用了
 // API 24 才存在的 OH_ArkUI_TextEditor* / NODE_TEXT_EDITOR_* 等符号；为了让低
@@ -218,6 +223,15 @@ bool KRTextEditorFieldView::SetProp(const std::string &prop_key, const KRAnyValu
     }
     if (kuikly::util::isEqual(prop_key, kTintColor)) {
         UpdateCaretColor(node, kuikly::util::ConvertToHexColor(prop_value->toString()));
+        return true;
+    }
+    if (kuikly::util::isEqual(prop_key, kSelectionColor)) {
+        state_.selection_color_ = kuikly::util::ClampSelectionColorAlpha(
+            kuikly::util::ConvertToHexColor(prop_value->toString()));
+        state_.selection_color_set_ = true;
+        ArkUI_NumberValue value[] = {{.u32 = state_.selection_color_}};
+        ArkUI_AttributeItem item = {value, sizeof(value) / sizeof(ArkUI_NumberValue)};
+        kuikly::util::GetNodeApi()->setAttribute(node, NODE_TEXT_EDITOR_SELECTED_BACKGROUND_COLOR, &item);
         return true;
     }
     if (kuikly::util::isEqual(prop_key, kTextAlign)) {

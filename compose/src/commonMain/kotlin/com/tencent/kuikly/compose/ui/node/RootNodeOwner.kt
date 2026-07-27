@@ -124,7 +124,8 @@ internal class RootNodeOwner(
     private val semanticsKuiklyHandler = KuiklySemantisHandler()
 
     val isSemanticsRunnnng: Boolean
-        get() = rootKView.getPager().isAccessibilityRunning()
+        get() = rootKView.getPager().isAccessibilityRunning() ||
+            rootKView.getPager().debugUIInspector()
     var size: IntSize? = size
         set(value) {
             field = value
@@ -162,6 +163,7 @@ internal class RootNodeOwner(
     }
 
     private var needClearObservations = false
+    private var semanticsChangePending = false
 
     private fun clearInvalidObservations() {
         if (needClearObservations) {
@@ -207,6 +209,10 @@ internal class RootNodeOwner(
 //            graphicsLayer = null // the root node will provide the root graphics layer
         )
         clearInvalidObservations()
+        if (semanticsChangePending) {
+            semanticsChangePending = false
+            semanticsKuiklyHandler.onSemanticsChange(semanticsOwner)
+        }
     }
 
     fun setRootModifier(modifier: Modifier) {
@@ -400,7 +406,10 @@ internal class RootNodeOwner(
 
         override fun onSemanticsChange() {
 //            platformContext.semanticsOwnerListener?.onSemanticsChange(semanticsOwner)
-            semanticsKuiklyHandler.onSemanticsChange(semanticsOwner)
+            // Coalesce to at most once per frame: this fires per semantics invalidation
+            // (dozens of times during a single fling remeasure), and each handler pass
+            // walks the whole merged semantics tree.
+            semanticsChangePending = true
         }
 
         override fun onZIndexChange(layoutNode: LayoutNode) {

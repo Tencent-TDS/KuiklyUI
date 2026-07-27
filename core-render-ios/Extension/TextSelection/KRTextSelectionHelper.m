@@ -16,6 +16,7 @@
 #import "KRTextSelectionHelper.h"
 #import "KRTextSelectionAnchorView.h"
 #import "KRLabel.h"
+#import "KRRichTextView.h"
 #import "KRTextMagnifierView.h"
 #import "KRScrollView.h"
 #import "KRLogModule.h"
@@ -176,6 +177,10 @@ static void *KRTextSelectionContainerFrameObserverContext = &KRTextSelectionCont
                 // Expand to sentence
                 selectionRange = [self rangeOfSentenceAtIndex:charIndex inString:text];
                 break;
+            case KRTextSelectionTypeSpan:
+                // Expand to rich-text Span range via KuiklyIndexAttributeName
+                selectionRange = [self rangeOfSpanAtIndex:charIndex inLabel:touchedLabel];
+                break;
             default:
                 selectionRange = NSMakeRange(charIndex, 1);
                 break;
@@ -194,6 +199,40 @@ static void *KRTextSelectionContainerFrameObserverContext = &KRTextSelectionCont
         [KRLogModule logInfo:[NSString stringWithFormat:@"[TextSelection] selectAtPoint:(%.1f,%.1f) type:%ld range:(%ld,%ld)",
                               point.x, point.y, (long)type, (long)selectionRange.location, (long)selectionRange.length]];
     }
+}
+
+/// Find the rich-text Span range at the given character index.
+/// Uses -attribute:atIndex:longestEffectiveRange:inRange: to directly obtain the range
+/// over which KuiklyIndexAttributeName keeps the same value (i.e. the containing span),
+/// avoiding a full-string enumeration.
+/// Falls back to the composed character sequence at charIndex when no span is found, so
+/// the fallback stays character-level and safe for emoji / surrogate pairs (aligned with
+/// the Android fallback behaviour).
+- (NSRange)rangeOfSpanAtIndex:(NSInteger)charIndex inLabel:(KRLabel *)label {
+    NSAttributedString *attributedText = label.attributedText;
+    if (attributedText == nil || attributedText.length == 0) {
+        return NSMakeRange(0, 0);
+    }
+    NSUInteger textLength = attributedText.length;
+    // Clamp charIndex to valid range
+    NSInteger idx = charIndex;
+    if (idx < 0) {
+        idx = 0;
+    }
+    if ((NSUInteger)idx >= textLength) {
+        idx = (NSInteger)textLength - 1;
+    }
+
+    NSRange effectiveRange = NSMakeRange(NSNotFound, 0);
+    id value = [attributedText attribute:KuiklyIndexAttributeName
+                                 atIndex:(NSUInteger)idx
+                   longestEffectiveRange:&effectiveRange
+                                 inRange:NSMakeRange(0, textLength)];
+    if (value != nil && effectiveRange.length > 0) {
+        return effectiveRange;
+    }
+    // No span found, fall back to the composed character sequence at idx.
+    return [attributedText.string rangeOfComposedCharacterSequenceAtIndex:(NSUInteger)idx];
 }
 
 - (void)selectAll {

@@ -849,6 +849,11 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
                                             [self setContentOffset:contentOffset];
                                         }
                              completion:^(BOOL finished) {
+                                            // OffsetAnimator samples presentationLayer via DisplayLink and is cancelled here
+                                            // without a final callback. Flush model contentOffset so Compose/Kotlin reaches target.
+                                            if (finished) {
+                                                [self dispatchScrollEventWithCurOffset:self.contentOffset];
+                                            }
                                             [animator cancel];
                                         }];
         }
@@ -867,6 +872,11 @@ KUIKLY_NESTEDSCROLL_PROTOCOL_PROPERTY_IMP
                     }
                     [self setContentOffset:contentOffset];
             } completion:^(BOOL finished) {
+                // OffsetAnimator samples presentationLayer via DisplayLink and is cancelled here
+                // without a final callback. Flush model contentOffset so Compose/Kotlin reaches target.
+                if (finished) {
+                    [self dispatchScrollEventWithCurOffset:self.contentOffset];
+                }
                 [animator cancel];
             }];
         }

@@ -130,6 +130,7 @@ state.clearSelection()
 | `WORD` | 词 |
 | `PARAGRAPH` | 段落 |
 | `SENTENCE` | 句子（仅iOS生效，Android、鸿蒙端会回退为`PARAGRAPH`） |
+| `SPAN` | 富文本 Span 整体选中（长按某个 Span 时自动选中整个 Span 范围） |
 
 ### SelectionResult
 

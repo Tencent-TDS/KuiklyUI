@@ -43,6 +43,8 @@ inline constexpr const char *kInternalImageSrcKey = "__kr_image_src__";
 }  // namespace richtext
 }  // namespace kuikly
 
+constexpr bool KR_TEXT_RENDER_V2_ENABLED = false;
+
 /**
  * 跨线程安全的 OH_Drawing_Typography 持有句柄。
  *
@@ -193,6 +195,9 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     }
     
     OH_Drawing_Array *GetTextLines();
+    KRAnyValue BuildEventParams(KRAnyValue res);
+    KRAnyValue BuildLongPressEventParams(KRAnyValue res);
+    void ClearActiveLongPressSpanIndex();
     
     /**
      * 替换主线程持有的 typography。被替换下来的旧 typography 会在最后一个
@@ -321,6 +326,9 @@ class KRRichTextShadow : public IKRRenderShadowExport {
     KRAnyValue SpanRect(int spanIndex);
 
     int SpanIndexAt(float x, float y);
+    int ResolveLongPressSpanIndex(const KRRenderValueMap &params);
+    bool IsLongPressTerminalState(const KRRenderValueMap &params) const;
+    int active_long_press_span_index_ = -1;
 
     friend class KRRichTextView;
     friend class KRGradientRichTextShadow;

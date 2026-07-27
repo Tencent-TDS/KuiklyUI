@@ -25,11 +25,6 @@
 #include "libohos_render/scheduler/KRContextScheduler.h"
 #include "libohos_render/view/IKRRenderView.h"
 
-class KRResult {
- public:
-    KRAnyValue result = nullptr;
-};
-
 class IKRRenderModuleExport;
 using KRModuleCreator = std::function<std::shared_ptr<IKRRenderModuleExport>()>;
 
@@ -94,33 +89,50 @@ class IKRRenderModuleExport : public std::enable_shared_from_this<IKRRenderModul
 
     /**
      * 调用ArkTS侧Module方法
-     * @param isSync 是否同步调用module方法，如果为异步，返回值则为nullptr
+     * @param isSync 是否同步调用module方法。
+     *               - isSync=false（hot path）：lambda 投递回主线程后立即返回 nullptr，
+     *                 调用方不应依赖返回值。零额外堆分配。
+     *               - isSync=true （cold path）：阻塞等待主线程 lambda 执行完毕后返回
+     *                 ArkTS 侧的返回值。ScheduleTaskOnMainThread(sync=true) 保证 task
+     *                 在本函数返回前已执行完毕（worker 线程经 promise/future 等待，
+     *                 主线程上 inline 执行），lambda 通过引用捕获的栈变量在使用期间
+     *                 始终有效。
      * @param module_name 传入所调用的Module名字，注：和当前Module注册时同名, 默认可以通过GetModuleName()获取
      * @param method 方法名
      * @param params 方法传参
      * @param callback 回调闭包参数
      * @param callback_keep_alive callback 是否 keep alive
-     * @return 返回值
+     * @return isSync=true 时返回 ArkTS 侧的返回值；isSync=false 时恒为 nullptr
      */
     KRAnyValue ToCallArkTSMethod(bool isSync, const std::string &module_name, const std::string &method,
                                  KRAnyValue params, const KRRenderCallback &callback,
                                  bool callback_keep_alive = false) {
-        auto instnce_id = instance_id_;
-        auto result = new KRResult();
+        auto instance_id = instance_id_;
+        if (!isSync) {
+            // hot path：异步投递，无需回传结果，全部按值捕获，零额外堆分配。
+            KRContextScheduler::ScheduleTaskOnMainThread(
+                false, [module_name, method, instance_id, params, callback, callback_keep_alive] {
+                    auto module_name_value = KRRenderValue::Make(module_name);
+                    auto method_name = KRRenderValue::Make(method);
+                    (void)KRArkTSManager::GetInstance().CallArkTSMethod(
+                        instance_id, KRNativeCallArkTSMethod::CallModuleMethod, module_name_value, method_name,
+                        params, nullptr, nullptr, callback, callback_keep_alive);
+                });
+            return nullptr;
+        }
+        // cold path：同步等待主线程返回值。ScheduleTaskOnMainThread(sync=true) 保证 task
+        // 在本函数返回前一定执行完毕，因此 lambda 引用捕获的栈变量 result 在 lambda 使用期间
+        // 始终有效；lambda 不会在 result 析构后再被读到。
+        KRAnyValue result = nullptr;
         KRContextScheduler::ScheduleTaskOnMainThread(
-            isSync, [isSync, result, module_name, method, instnce_id, params, callback, callback_keep_alive] {
+            true, [&result, &module_name, &method, &instance_id, &params, &callback, callback_keep_alive] {
                 auto module_name_value = KRRenderValue::Make(module_name);
                 auto method_name = KRRenderValue::Make(method);
-                auto arktsResult = KRArkTSManager::GetInstance().CallArkTSMethod(
-                    instnce_id, KRNativeCallArkTSMethod::CallModuleMethod, module_name_value, method_name, params,
+                result = KRArkTSManager::GetInstance().CallArkTSMethod(
+                    instance_id, KRNativeCallArkTSMethod::CallModuleMethod, module_name_value, method_name, params,
                     nullptr, nullptr, callback, callback_keep_alive);
-                if (isSync) {
-                    result->result = arktsResult;
-                }
             });
-        auto r_result = result->result;
-        delete result;
-        return r_result;
+        return result;
     }
 
     /**

@@ -98,4 +98,5 @@ object KRCssConst {
     const val CLIP_PATH = "clipPath"
     const val TRANSFORM_OVER_BOUNDS = "transformOverBounds"
     const val CONTENT_OVER_BOUNDS = "contentOverBounds"
+    const val VIEW_TAG = "viewTag"
 }

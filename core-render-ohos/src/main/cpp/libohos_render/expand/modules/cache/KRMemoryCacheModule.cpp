@@ -196,9 +196,11 @@ KRAnyValue KRMemoryCacheModule::CacheImage(const KRAnyValue &params, const KRRen
                     return;
                 }
                 OH_PixelmapNative *pixelmap = nullptr;
-                if (res) {
+                if (res && !res->isNull() && res->isString()) {
                     auto filePath = res->toString();
-                    pixelmap = module_self->LoadPixelmapFromLocal(filePath);
+                    if (!filePath.empty()) {
+                        pixelmap = module_self->LoadPixelmapFromLocal(filePath);
+                    }
                 }
                 KRRenderValueMap result;
                 if (pixelmap) {

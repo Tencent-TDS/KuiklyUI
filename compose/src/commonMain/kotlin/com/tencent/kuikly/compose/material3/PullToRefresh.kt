@@ -42,6 +42,7 @@ import com.tencent.kuikly.compose.ui.text.style.TextAlign
 import com.tencent.kuikly.compose.ui.unit.Dp
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlin.math.abs
@@ -171,6 +172,8 @@ class PullToRefreshState(
  * @param onRefresh Refresh callback
  * @param scrollState LazyListState for monitoring scroll state
  * @param modifier Modifier
+ * @param topInset Extra top inset for overlay header (e.g. collapsing HeaderBar).
+ *   Pass the header's maximum height, not its animated height.
  * @param refreshThreshold Threshold to trigger refresh
  * @param content Custom refresh indicator content
  */
@@ -179,6 +182,7 @@ fun LazyListScope.pullToRefreshItem(
     onRefresh: () -> Unit,
     scrollState: LazyListState,
     modifier: Modifier = Modifier,
+    topInset: Dp = 0.dp,
     refreshThreshold: Dp = 80.dp,
     content: @Composable (
         pullProgress: Float,
@@ -197,6 +201,7 @@ fun LazyListScope.pullToRefreshItem(
             onRefresh = onRefresh,
             scrollState = scrollState,
             modifier = modifier,
+            topInset = topInset,
             refreshThreshold = refreshThreshold,
             content = content
         )
@@ -213,6 +218,7 @@ internal fun PullToRefreshItem(
     onRefresh: () -> Unit,
     scrollState: LazyListState,
     modifier: Modifier = Modifier,
+    topInset: Dp = 0.dp,
     refreshThreshold: Dp = 80.dp,
     content: @Composable (
         pullProgress: Float,
@@ -226,6 +232,8 @@ internal fun PullToRefreshItem(
     val refreshThresholdPx = with(density) { refreshThreshold.toPx() }
     val refreshThresholdLogical = refreshThresholdPx / density.density
     val updatedOnRefresh by rememberUpdatedState(onRefresh)
+
+    scrollState.kuiklyInfo.pullToRefreshTopInsetPx = with(density) { topInset.roundToPx() }
 
     // Monitor scroll state changes inspired by RefreshView logic
     LaunchedEffect(scrollState) {
@@ -371,6 +379,7 @@ internal fun PullToRefreshItem(
     // Refresh indicator UI
     Box(
         modifier = modifier
+            .then(if (topInset > 0.dp) Modifier.padding(top = topInset) else Modifier)
             .offsetWithParentAdjustment(y = -refreshThreshold)
             .fillMaxWidth()
             .height(refreshThreshold),

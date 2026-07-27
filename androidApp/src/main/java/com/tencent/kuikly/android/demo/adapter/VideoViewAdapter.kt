@@ -19,6 +19,7 @@ import android.content.Context
 import android.net.Uri
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
+import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.PlaybackException
 import com.google.android.exoplayer2.PlaybackParameters
 import com.google.android.exoplayer2.Player.Listener
@@ -52,6 +53,7 @@ class KuiklyVideoView(context: Context, private val src: String, private val lis
         useController = false
         val item = MediaItem.fromUri(Uri.parse(src))
         exoPlayer.addMediaItem(item)
+        exoPlayer.repeatMode = Player.REPEAT_MODE_ONE
         exoPlayer.prepare()
         player = exoPlayer
 

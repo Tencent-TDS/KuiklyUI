@@ -18,6 +18,7 @@ package com.tencent.kuikly.core.render.android.css.gesture
 import android.content.Context
 import android.view.GestureDetector
 import android.view.MotionEvent
+import android.view.SoundEffectConstants
 import android.view.View
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 import java.lang.ref.WeakReference
@@ -83,6 +84,11 @@ class KRCSSGestureDetector(
                         disallowParentInterceptEvent(true)
                     }
                 }
+                callback(it)
+            }
+        } else if (type == KRCSSGestureListener.TYPE_CLICK) {
+            listener.addListener(type) {
+                targetViewWeakRef.get()?.playSoundEffect(SoundEffectConstants.CLICK)
                 callback(it)
             }
         } else {

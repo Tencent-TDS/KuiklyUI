@@ -79,10 +79,22 @@ class KRTextFieldView : public IKRRenderViewExport {
     virtual void UpdateInputNodeFocusable(int propValue);
     virtual void UpdateInputNodeKeyboardType(const std::string &propValue);
     virtual void UpdateInputNodeEnterKeyType(const std::string &propValue);
+    /**
+     * 读取 ArkUI 节点上的 EnterKeyType。
+     * 子类（如 KRTextAreaView）需 override 以读 NODE_TEXT_AREA_ENTER_KEY_TYPE，
+     * 否则会从 NODE_TEXT_INPUT_ENTER_KEY_TYPE 读到错误的枚举值。
+     */
+    virtual ArkUI_EnterKeyType GetInputNodeEnterKeyType();
     virtual void UpdateInputNodeMaxLength(int maxLength);
     virtual void UpdateInputNodeFocusStatus(int status);
     virtual uint32_t GetInputNodeSelectionStartPosition();
     virtual void UpdateInputNodeSelectionStartPosition(uint32_t index);
+    /**
+     * 设置真实区间选区 [start, end]（按 UTF-16 算）。
+     * TextInput 与 TextArea 都支持 [start, end] 双端选区，无需再降级为折叠光标。
+     * 子类（如 KRTextAreaView）需 override 以写 NODE_TEXT_AREA_TEXT_SELECTION。
+     */
+    virtual void UpdateInputNodeSelectionRange(int32_t start, int32_t end);
     /**
      * 获取选区范围 [start, end]（按 UTF-16 算）。
      * 子类（如 KRTextAreaView）可 override 以适配不同的 ArkUI 节点类型。
@@ -138,10 +150,8 @@ class KRTextFieldView : public IKRRenderViewExport {
      *   - 仅消费 text / selectionStart / selectionEnd 三字段；
      *   - composition 区不在 OHOS 老节点的可写能力内，忽略。
      *
-     * ⚠️ 当前 OHOS 老节点的可写能力局限：
-     *   - selection 范围写入降级为「只把光标设到 selectionStart」，不支持真选中态。
-     *   - TODO：后续如有需要，再用 NODE_TEXT_INPUT_TEXT_SELECTION / NODE_TEXT_AREA_TEXT_SELECTION
-     *     的 [start,end] 形式实现真选区。
+     * selection 通过 UpdateInputNodeSelectionRange 写入真实 [start, end] 区间
+     * （TextInput / TextArea 均支持），不再退化为折叠光标。
      *
      * 主动写入期间通过 is_setting_text_input_state_ 抑制 textInputStateChange 回调，
      * 避免业务把状态写回来形成死循环。

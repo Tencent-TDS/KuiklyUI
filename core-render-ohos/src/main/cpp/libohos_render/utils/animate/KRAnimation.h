@@ -17,19 +17,10 @@
 #define CORE_RENDER_OHOS_KRANIMATION_H
 
 #include <functional>
+#include <memory>
 #include "libohos_render/foundation/thread/KRMainThread.h"
 #include "libohos_render/utils/animate/KRAnimateOption.h"
 #include "libohos_render/utils/animate/KRAnimationUtils.h"
-
-class KRAnimation;
-class KRAnimationUserData {
- public:
-    std::shared_ptr<KRAnimation> animation_;
-    explicit KRAnimationUserData(std::shared_ptr<KRAnimation> &animation) : animation_(animation) {}
-    ~KRAnimationUserData() {
-        animation_.reset();
-    }
-};
 
 class KRAnimation : public std::enable_shared_from_this<KRAnimation> {
  public:
@@ -73,15 +64,16 @@ class KRAnimation : public std::enable_shared_from_this<KRAnimation> {
 
     void SetCompleteCallback(const ArkUI_FinishCallbackType &complete_type, const std::function<void()> &complete) {
         complete_callback_ = complete;
-        std::shared_ptr<KRAnimation> self = shared_from_this();
-        KRAnimationUserData *user_data = new KRAnimationUserData(self);
+        auto user_data = new std::weak_ptr<KRAnimation>(weak_from_this());
         arkui_complete_callback_.type = complete_type;
         arkui_complete_callback_.userData = user_data;
         arkui_complete_callback_.callback = [](void *userData) {
-            KRAnimationUserData *animationUserData = (static_cast<KRAnimationUserData *>(userData));
-            if (animationUserData && animationUserData->animation_) {
-                animationUserData->animation_->InvokeCompleteCallback();
-                delete animationUserData;
+            auto weak = static_cast<std::weak_ptr<KRAnimation> *>(userData);
+            if (weak) {
+                if (auto strong = weak->lock()) {
+                    strong->InvokeCompleteCallback();
+                }
+                delete weak;
             }
         };
     }

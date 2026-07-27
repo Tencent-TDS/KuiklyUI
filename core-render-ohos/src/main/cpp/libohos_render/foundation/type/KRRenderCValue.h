@@ -49,8 +49,8 @@ extern "C" {
 typedef void (*CallKotlin)(int methodId, KRRenderCValue arg0, KRRenderCValue arg1, KRRenderCValue arg2,
                            KRRenderCValue arg3, KRRenderCValue arg4, KRRenderCValue arg5);
 extern int com_tencent_kuikly_SetCallKotlin(CallKotlin callKotlin);
-extern const KRRenderCValue com_tencent_kuikly_CallNative(int methodId, KRRenderCValue arg0, KRRenderCValue arg1,
-                                                          KRRenderCValue arg2, KRRenderCValue arg3, KRRenderCValue arg4,
-                                                          KRRenderCValue arg5);
+extern void com_tencent_kuikly_CallNative(int methodId, const KRRenderCValue *arg0, const KRRenderCValue *arg1,
+                                                          const KRRenderCValue *arg2, const KRRenderCValue *arg3, const KRRenderCValue *arg4,
+                                                          const KRRenderCValue *arg5, KRRenderCValue *result);
 }
 #endif  // CORE_RENDER_OHOS_KRRENDERCVALUE_H

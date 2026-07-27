@@ -35,6 +35,7 @@ open class KRNotifyModule : KuiklyRenderBaseModule() {
 
     private val toHRMap: MutableMap<String, MutableList<HRCallbackWrapper>> = mutableMapOf()
     private var notifyBroadcastReceiver: HRNotifyModuleReceiver? = null
+    private var isDestroyed = false
 
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
@@ -47,6 +48,7 @@ open class KRNotifyModule : KuiklyRenderBaseModule() {
 
     override fun onDestroy() {
         super.onDestroy()
+        isDestroyed = true
         unregisterNotifyModuleReceiver()
     }
 
@@ -112,6 +114,7 @@ open class KRNotifyModule : KuiklyRenderBaseModule() {
     }
 
     protected open fun registerNotifyModuleReceiver(event: String, params: JSONObject) {
+        if (isDestroyed) return
         if (notifyBroadcastReceiver == null) {
             notifyBroadcastReceiver = HRNotifyModuleReceiver {
                 val eventName = it.getStringExtra(KEY_EVENT_NAME) ?: ""

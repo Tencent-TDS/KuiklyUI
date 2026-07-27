@@ -31,6 +31,8 @@ class OhOsTargetEntryBuilder(private val catchException: Boolean) : KuiklyCoreAb
             builder.addImport("com.tencent.kuikly.core.exception", "ExceptionTracker")
             addImport("kotlinx.cinterop", "memScoped")
             addImport("kotlinx.cinterop", "invoke")
+            addImport("kotlinx.cinterop", "alloc")
+            addImport("kotlinx.cinterop", "ptr")
             addImport("com.tencent.kuikly.core.utils", "asString")
             addImport("com.tencent.kuikly.core.manager", "KotlinMethod")
             addImport("kotlinx.cinterop", "staticCFunction")
@@ -128,16 +130,25 @@ class OhOsTargetEntryBuilder(private val catchException: Boolean) : KuiklyCoreAb
             .addCode(
                 """
             |return memScoped {
-            |    val cValue = ohos.com_tencent_kuikly_CallNative(
+            |    // 优化：直接在 arena 上 alloc + 填充，避免 cValue<T> 产生的中间 ByteArray
+            |    val cv0 = alloc<ohos.KRRenderCValue>(); arg0.%T(this, cv0)
+            |    val cv1 = alloc<ohos.KRRenderCValue>(); arg1.%T(this, cv1)
+            |    val cv2 = alloc<ohos.KRRenderCValue>(); arg2.%T(this, cv2)
+            |    val cv3 = alloc<ohos.KRRenderCValue>(); arg3.%T(this, cv3)
+            |    val cv4 = alloc<ohos.KRRenderCValue>(); arg4.%T(this, cv4)
+            |    val cv5 = alloc<ohos.KRRenderCValue>(); arg5.%T(this, cv5)
+            |    val result = alloc<ohos.KRRenderCValue>()
+            |    ohos.com_tencent_kuikly_CallNative(
             |        methodId,
-            |        arg0.%T(this),
-            |        arg1.%T(this),
-            |        arg2.%T(this),
-            |        arg3.%T(this),
-            |        arg4.%T(this),
-            |        arg5.%T(this)
-            |    )?.%T()
-            |    cValue
+            |        cv0.ptr,
+            |        cv1.ptr,
+            |        cv2.ptr,
+            |        cv3.ptr,
+            |        cv4.ptr,
+            |        cv5.ptr,
+            |        result.ptr
+            |    )
+            |    result.%T()
             |}
         """.trimMargin(),
                 toKRRenderCValue,

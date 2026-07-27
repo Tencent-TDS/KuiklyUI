@@ -41,6 +41,14 @@ class KRMainThread {
      */
     static void RunOnMainThreadForNextLoop(std::function<void()> task);
 
+    /**
+     * @brief 当前调用线程是否为 ArkTS 主线程（即 Export 时记录的 loop 线程）。
+     *        仅在 Export 完成后返回值才有意义；未初始化时一律返回 false。
+     *        典型用途：调用方需要根据"是否真的在主线程"来决定走 inline 直跑
+     *        还是走跨线程投递，避免把任意第三方线程错认成主线程。
+     */
+    static bool IsCurrentOnMainThread();
+
  private:
     KRMainThread();
 };

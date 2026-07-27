@@ -57,6 +57,11 @@ kotlin {
                 compileOnly("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.6.21")
             }
         }
+        val commonTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+            }
+        }
 
         val androidMain by getting {
             dependsOn(commonMain)

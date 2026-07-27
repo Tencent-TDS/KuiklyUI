@@ -14,26 +14,23 @@
  * limitations under the License.
  */
 
-@file:OptIn(InternalComposeUiApi::class)
+@file:OptIn(InternalComposeUiApi::class, ExperimentalComposeUiApi::class, ExperimentalFoundationApi::class)
 
 package com.tencent.kuikly.compose
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.key
-import androidx.compose.runtime.remember
+import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
+import com.tencent.kuikly.compose.foundation.lazy.layout.FramePrefetchScheduler
+import com.tencent.kuikly.compose.foundation.lazy.layout.PrefetchScheduler
+import com.tencent.kuikly.compose.foundation.lazy.layout.createDefaultKuiklyPrefetchScheduler
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.InternalComposeUiApi
-import com.tencent.kuikly.compose.ui.platform.LocalConfiguration
 import com.tencent.kuikly.compose.ui.platform.WindowInfo
 import com.tencent.kuikly.compose.ui.scene.ComposeScene
 import com.tencent.kuikly.compose.ui.unit.IntOffset
 import com.tencent.kuikly.compose.ui.unit.IntRect
 import com.tencent.kuikly.compose.ui.unit.IntSize
-import com.tencent.kuikly.compose.container.LocalSlotProvider
-import com.tencent.kuikly.compose.container.SlotProvider
 import com.tencent.kuikly.compose.container.SuperTouchManager
-import com.tencent.kuikly.compose.platform.Configuration
 import com.tencent.kuikly.compose.ui.unit.Density
 import com.tencent.kuikly.core.datetime.DateTime
 import com.tencent.kuikly.core.timer.Timer
@@ -47,8 +44,16 @@ class ComposeSceneMediator(
     private val windowInfo: WindowInfo,
     private val coroutineContext: CoroutineContext,
     private val density: Float,
-    private val composeSceneFactory: (invalidate: () -> Unit, coroutineContext: CoroutineContext) -> ComposeScene
+    private val composeSceneFactory: (
+        invalidate: () -> Unit,
+        coroutineContext: CoroutineContext,
+        prefetchScheduler: PrefetchScheduler,
+    ) -> ComposeScene
 ) {
+
+    @OptIn(ExperimentalFoundationApi::class)
+    internal val prefetchScheduler: FramePrefetchScheduler =
+        createDefaultKuiklyPrefetchScheduler()
 
     private var hasStartRender = false
     val superTouchManager = SuperTouchManager()
@@ -65,7 +70,8 @@ class ComposeSceneMediator(
     private val scene: ComposeScene by lazy {
         composeSceneFactory(
             ::onComposeSceneInvalidate,
-            coroutineContext
+            coroutineContext,
+            prefetchScheduler,
         )
     }
 
@@ -83,6 +89,7 @@ class ComposeSceneMediator(
     }
 
     fun dispose() {
+        prefetchScheduler.cancelAll()
         scene.close()
     }
 

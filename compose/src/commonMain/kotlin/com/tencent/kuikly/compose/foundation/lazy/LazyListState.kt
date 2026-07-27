@@ -21,6 +21,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -33,6 +34,7 @@ import com.tencent.kuikly.compose.animation.core.VectorConverter
 import com.tencent.kuikly.compose.animation.core.animateTo
 import com.tencent.kuikly.compose.animation.core.copy
 import com.tencent.kuikly.compose.animation.core.spring
+import com.tencent.kuikly.compose.foundation.ComposeFoundationFlags
 import com.tencent.kuikly.compose.foundation.ExperimentalFoundationApi
 import com.tencent.kuikly.compose.foundation.MutatePriority
 import com.tencent.kuikly.compose.foundation.gestures.Orientation
@@ -44,9 +46,13 @@ import com.tencent.kuikly.compose.foundation.layout.PaddingValues
 import com.tencent.kuikly.compose.foundation.lazy.LazyListState.Companion.Saver
 import com.tencent.kuikly.compose.foundation.lazy.layout.AwaitFirstLayoutModifier
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayoutBeyondBoundsInfo
+import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayoutCacheWindow
 import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayoutPinnedItemList
+import com.tencent.kuikly.compose.foundation.lazy.layout.LazyLayoutPrefetchState
+import com.tencent.kuikly.compose.foundation.lazy.layout.LazyListPrefetchTrace
 import com.tencent.kuikly.compose.foundation.lazy.layout.ObservableScopeInvalidator
 import com.tencent.kuikly.compose.foundation.lazy.layout.animateScrollToItem
+import com.tencent.kuikly.compose.foundation.lazy.layout.isPrefetchSupported
 import com.tencent.kuikly.compose.ui.layout.AlignmentLine
 import com.tencent.kuikly.compose.ui.layout.MeasureResult
 import com.tencent.kuikly.compose.ui.layout.Remeasurement
@@ -92,6 +98,36 @@ fun rememberLazyListState(
         )
     }
 
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun rememberLazyListState(
+    initialFirstVisibleItemIndex: Int = 0,
+    initialFirstVisibleItemScrollOffset: Int = 0,
+    prefetchStrategy: LazyListPrefetchStrategy,
+): LazyListState =
+    rememberSaveable(prefetchStrategy, saver = LazyListState.saver(prefetchStrategy)) {
+        LazyListState(
+            initialFirstVisibleItemIndex,
+            initialFirstVisibleItemScrollOffset,
+            prefetchStrategy,
+        )
+    }
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun rememberLazyListState(
+    cacheWindow: LazyLayoutCacheWindow,
+    initialFirstVisibleItemIndex: Int = 0,
+    initialFirstVisibleItemScrollOffset: Int = 0,
+): LazyListState =
+    rememberSaveable(cacheWindow, saver = LazyListState.saver(cacheWindow)) {
+        LazyListState(
+            cacheWindow,
+            initialFirstVisibleItemIndex,
+            initialFirstVisibleItemScrollOffset,
+        )
+    }
+
 /**
  * A state object that can be hoisted to control and observe scrolling.
  *
@@ -110,9 +146,25 @@ class LazyListState
     constructor(
         firstVisibleItemIndex: Int = 0,
         firstVisibleItemScrollOffset: Int = 0,
-//    private val prefetchStrategy: LazyListPrefetchStrategy = LazyListPrefetchStrategy(),
+        internal val prefetchStrategy: LazyListPrefetchStrategy = LazyListPrefetchStrategy(),
     ) : ScrollableState {
         override var contentPadding: PaddingValues = PaddingValues(0.dp)
+
+        @ExperimentalFoundationApi
+        constructor(
+            cacheWindow: LazyLayoutCacheWindow,
+            firstVisibleItemIndex: Int = 0,
+            firstVisibleItemScrollOffset: Int = 0,
+        ) : this(
+            firstVisibleItemIndex,
+            firstVisibleItemScrollOffset,
+            LazyListCacheWindowStrategy(cacheWindow),
+        )
+
+        constructor(
+            firstVisibleItemIndex: Int = 0,
+            firstVisibleItemScrollOffset: Int = 0,
+        ) : this(firstVisibleItemIndex, firstVisibleItemScrollOffset, LazyListPrefetchStrategy())
 
         internal var hasLookaheadPassOccurred: Boolean = false
             private set
@@ -212,6 +264,11 @@ class LazyListState
         // @VisibleForTesting
         internal var prefetchingEnabled: Boolean = true
 
+        /** Effective prefetch switch from global flag + [Modifier.enableLazyListPrefetch]. */
+        internal var lazyListPrefetchEnabled: Boolean = ComposeFoundationFlags.isLazyListPrefetchEnabled
+
+        private var executeRequestsInHighPriorityMode = false
+
         /**
          * The [Remeasurement] object associated with our layout. It allows us to remeasure
          * synchronously during scroll.
@@ -234,6 +291,50 @@ class LazyListState
          * until layout is ready.
          */
         internal val awaitLayoutModifier = AwaitFirstLayoutModifier()
+
+        @Suppress("DEPRECATION")
+        internal val prefetchState: LazyLayoutPrefetchState? =
+            if (isPrefetchSupported) {
+                LazyLayoutPrefetchState(prefetchStrategy.prefetchScheduler) {
+                    with(prefetchStrategy) {
+                        onNestedPrefetch(Snapshot.withoutReadObservation { firstVisibleItemIndex })
+                    }
+                }
+            } else {
+                null
+            }
+
+        private val prefetchScope: LazyListPrefetchScope =
+            object : LazyListPrefetchScope {
+                override fun schedulePrefetch(
+                    index: Int,
+                    onPrefetchFinished: (LazyListPrefetchResultScope.() -> Unit)?,
+                ): LazyLayoutPrefetchState.PrefetchHandle {
+                    val prefetchState = prefetchState
+                        ?: error("schedulePrefetch called without prefetch support")
+                    val lastMeasureResult = Snapshot.withoutReadObservation { layoutInfoState.value }
+                    return prefetchState.schedulePrecompositionAndPremeasure(
+                        index,
+                        lastMeasureResult.childConstraints,
+                        executeRequestsInHighPriorityMode,
+                    ) {
+                        if (onPrefetchFinished != null) {
+                            var mainAxisItemSize = 0
+                            repeat(placeablesCount) {
+                                mainAxisItemSize +=
+                                    if (lastMeasureResult.orientation == Orientation.Vertical) {
+                                        getSize(it).height
+                                    } else {
+                                        getSize(it).width
+                                    }
+                            }
+                            onPrefetchFinished.invoke(
+                                LazyListPrefetchResultScopeImpl(index, mainAxisItemSize)
+                            )
+                        }
+                    }
+                }
+            }
 
 //    internal val itemAnimator = LazyLayoutItemAnimator<LazyListMeasuredItem>()
 
@@ -392,6 +493,7 @@ class LazyListState
             check(abs(scrollToBeConsumed) <= 0.5f) {
                 "entered drag with non-zero pending scroll: $scrollToBeConsumed"
             }
+            executeRequestsInHighPriorityMode = true
             scrollToBeConsumed += distance
 
             // scrollToBeConsumed will be consumed synchronously during the forceRemeasure invocation
@@ -422,8 +524,16 @@ class LazyListState
                     )
                     // we don't need to remeasure, so we only trigger re-placement:
                     placementScopeInvalidator.invalidateScope()
+                    notifyPrefetchOnScroll(
+                        preScrollToBeConsumed - scrollToBeConsumed,
+                        layoutInfo,
+                    )
                 } else {
                     remeasurement?.forceRemeasure()
+                    notifyPrefetchOnScroll(
+                        preScrollToBeConsumed - scrollToBeConsumed,
+                        this.layoutInfo,
+                    )
                 }
             }
 
@@ -439,6 +549,19 @@ class LazyListState
                 scrollToBeConsumed = 0f // We're not consuming the rest, give it back
                 return scrollConsumed
             }
+        }
+
+        private fun notifyPrefetchOnScroll(delta: Float, layoutInfo: LazyListLayoutInfo) {
+            if (!prefetchingEnabled || !lazyListPrefetchEnabled || prefetchState == null) {
+                LazyListPrefetchTrace.log(
+                    "onScroll skipped delta=$delta enabled=$lazyListPrefetchEnabled prefetching=$prefetchingEnabled prefetchState=${prefetchState != null}",
+                )
+                return
+            }
+            LazyListPrefetchTrace.log(
+                "onScroll delta=$delta lastVisible=${layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1}",
+            )
+            with(prefetchStrategy) { prefetchScope.onScroll(delta, layoutInfo) }
         }
 
         /**
@@ -510,6 +633,8 @@ class LazyListState
             isLookingAhead: Boolean,
             visibleItemsStayedTheSame: Boolean = false,
         ) {
+            prefetchState?.idealNestedPrefetchCount = result.visibleItemsInfo.size
+
             if (!isLookingAhead && hasLookaheadPassOccurred) {
                 // If there was already a lookahead pass, record this result as postLookahead result
                 postLookaheadLayoutInfo = result
@@ -529,6 +654,12 @@ class LazyListState
                     scrollPosition.updateScrollOffset(result.firstVisibleItemScrollOffset)
                 } else {
                     scrollPosition.updateFromMeasureResult(result)
+                    if (prefetchingEnabled && lazyListPrefetchEnabled && prefetchState != null) {
+                        LazyListPrefetchTrace.log(
+                            "onVisibleItemsUpdated first=${result.firstVisibleItem?.index ?: -1} last=${result.visibleItemsInfo.lastOrNull()?.index ?: -1}",
+                        )
+                        with(prefetchStrategy) { prefetchScope.onVisibleItemsUpdated(result) }
+                    }
                 }
                 if (RecompositionProfiler.isEnabled) {
                     val newFirstVisible = result.firstVisibleItem?.index ?: scrollPosition.index
@@ -634,6 +765,62 @@ class LazyListState
                             firstVisibleItemScrollOffset = it[1],
                         ).also { state ->
                             if (it.size > 2) { // backward compatibility with old saved data
+                                state.kuiklyInfo.composeOffset = it[2].toFloat()
+                                state.kuiklyInfo.currentContentSize = it[3]
+                                state.kuiklyInfo.contentOffset = it[4]
+                                state.kuiklyInfo.offsetDirty = it[5] == 1
+                            }
+                        }
+                    },
+                )
+
+            internal fun saver(prefetchStrategy: LazyListPrefetchStrategy): Saver<LazyListState, *> =
+                listSaver(
+                    save = {
+                        listOf(
+                            it.firstVisibleItemIndex,
+                            it.firstVisibleItemScrollOffset,
+                            it.kuiklyInfo.composeOffset.toInt(),
+                            it.kuiklyInfo.currentContentSize,
+                            it.kuiklyInfo.contentOffset,
+                            if (it.kuiklyInfo.offsetDirty) 1 else 0,
+                        )
+                    },
+                    restore = {
+                        LazyListState(
+                            firstVisibleItemIndex = it[0],
+                            firstVisibleItemScrollOffset = it[1],
+                            prefetchStrategy = prefetchStrategy,
+                        ).also { state ->
+                            if (it.size > 2) {
+                                state.kuiklyInfo.composeOffset = it[2].toFloat()
+                                state.kuiklyInfo.currentContentSize = it[3]
+                                state.kuiklyInfo.contentOffset = it[4]
+                                state.kuiklyInfo.offsetDirty = it[5] == 1
+                            }
+                        }
+                    },
+                )
+
+            internal fun saver(cacheWindow: LazyLayoutCacheWindow): Saver<LazyListState, *> =
+                listSaver(
+                    save = {
+                        listOf(
+                            it.firstVisibleItemIndex,
+                            it.firstVisibleItemScrollOffset,
+                            it.kuiklyInfo.composeOffset.toInt(),
+                            it.kuiklyInfo.currentContentSize,
+                            it.kuiklyInfo.contentOffset,
+                            if (it.kuiklyInfo.offsetDirty) 1 else 0,
+                        )
+                    },
+                    restore = {
+                        LazyListState(
+                            firstVisibleItemIndex = it[0],
+                            firstVisibleItemScrollOffset = it[1],
+                            cacheWindow = cacheWindow,
+                        ).also { state ->
+                            if (it.size > 2) {
                                 state.kuiklyInfo.composeOffset = it[2].toFloat()
                                 state.kuiklyInfo.currentContentSize = it[3]
                                 state.kuiklyInfo.contentOffset = it[4]

@@ -72,12 +72,16 @@ internal class KuiklyScrollableState(val onDelta: (Float) -> Float) : Scrollable
     }
 
     fun kuiklyOnScroll(pixels: Float): Float {
-        isScrollingState.value = true
         if (pixels.isNaN()) return 0f
         val delta = onDelta(pixels)
         isLastScrollForwardState.value = delta > 0
         isLastScrollBackwardState.value = delta < 0
         return delta
+    }
+
+    fun kuiklyOnGestureScroll(pixels: Float): Float {
+        isScrollingState.value = true
+        return kuiklyOnScroll(pixels)
     }
 
     fun kuiklyOnScrollEnd(params: ScrollParams) {

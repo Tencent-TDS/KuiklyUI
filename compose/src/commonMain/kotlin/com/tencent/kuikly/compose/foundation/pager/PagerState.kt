@@ -419,7 +419,7 @@ abstract class PagerState internal constructor(
     }
 
     /** Native setContentOffset(animated=true) snap is in progress. */
-    internal var isSnapAnimating = false
+    internal var isSnapAnimating by mutableStateOf(false)
 
     /** Native content offset that the snap animation is settling to. */
     internal var snapTargetContentOffset = 0
@@ -1026,6 +1026,7 @@ abstract class PagerState internal constructor(
                 "pageCount=$pageCount snapTargetPage=$snapTargetRelocatedPage " +
                 "snapTargetKey=$snapTargetItemKey snapStartDesyncPages=$snapStartDesyncPages"
         }
+        settledPageState = currentPage
         isSnapAnimating = false
         snapTargetContentOffset = 0
         snapStartPageCount = 0
@@ -1166,7 +1167,7 @@ abstract class PagerState internal constructor(
      * @sample androidx.compose.foundation.samples.ObservingStateChangesInPagerStateSample
      */
     val settledPage by derivedStateOf(structuralEqualityPolicy()) {
-        if (isScrollInProgress) {
+        if (isScrollInProgress || isSnapAnimating) {
             settledPageState
         } else {
             this.currentPage

@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.tencent.kuikly.compose.ComposeContainer
 import com.tencent.kuikly.compose.foundation.background
+import com.tencent.kuikly.compose.foundation.layout.Box
 import com.tencent.kuikly.compose.foundation.layout.Column
 import com.tencent.kuikly.compose.foundation.layout.Spacer
 import com.tencent.kuikly.compose.foundation.layout.WindowInsets
@@ -37,6 +38,7 @@ import com.tencent.kuikly.compose.material3.Text
 import com.tencent.kuikly.compose.material3.TextField
 import com.tencent.kuikly.compose.material3.TopAppBar
 import com.tencent.kuikly.compose.setContent
+import com.tencent.kuikly.compose.ui.Alignment
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.graphics.Color
 import com.tencent.kuikly.compose.ui.platform.LocalConfiguration
@@ -103,27 +105,37 @@ fun ScaffoldDemoImpl() {
                         .background(Color(0xFFFFF4E5))
                         .padding(12.dp)
                 )
-                Spacer(modifier = Modifier.weight(1f))
-                TextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("姓名") }
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                TextField(
-                    value = phone,
-                    onValueChange = { phone = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("手机号") }
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                TextField(
-                    value = address,
-                    onValueChange = { address = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("详细地址（聚焦这里观察默认键盘避让）") }
-                )
+                // 用 Box + BottomCenter 把三个表单整体锚定到 Column 底部，
+                // 避免 Spacer(weight=1f) 单独使用时把后续表单推出可视区
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        TextField(
+                            value = name,
+                            onValueChange = { name = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("姓名") }
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        TextField(
+                            value = phone,
+                            onValueChange = { phone = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("手机号") }
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        TextField(
+                            value = address,
+                            onValueChange = { address = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("详细地址（聚焦这里观察默认键盘避让）") }
+                        )
+                    }
+                }
             }
         }
     )

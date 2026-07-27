@@ -89,6 +89,9 @@ internal class ChartExamplePage : BasePager() {
                             }
                             page.selectionSummary = "${selection.category}: $values"
                         }
+                        selectionCleared {
+                            page.selectionSummary = "点击或滑动图表查看数据"
+                        }
                     }
                 }
 

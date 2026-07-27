@@ -117,9 +117,10 @@ area("Net change", Color(0xFF7B61FFL)) {
 | `colors(...)` | 内置中性色 | 背景、坐标轴、网格、文字和 Tooltip 颜色 |
 | `areaOpacity(opacity)` | `0.18` | 面积填充透明度 |
 | `yLabelFormatter { ... }` | 智能缩写 | 自定义 Y 轴标签 |
+| `valueLabelFormatter { ... }` | 智能缩写 | 自定义系列数值标签 |
 | `tooltipValueFormatter { ... }` | 智能缩写 | 自定义 Tooltip 数值 |
 
-图例会自动为绘图区增加 22dp 的上/下边距，不需要调用方重复预留。
+图例会根据实际换行数动态增加绘图区的上/下边距，不需要调用方重复预留。
 
 ## 事件
 
@@ -135,6 +136,9 @@ event {
         selection.values.forEach { item ->
             // item.seriesName、item.value、item.color
         }
+    }
+    selectionCleared {
+        // 用户移出绘图区、十字线消失时清空业务侧选中状态
     }
 }
 ```

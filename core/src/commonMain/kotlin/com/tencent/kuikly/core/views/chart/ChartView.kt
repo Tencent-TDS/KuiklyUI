@@ -102,6 +102,8 @@ class ChartView : ComposeView<ChartAttr, ChartEvent>() {
                     },
                 ),
             )
+        } else {
+            event.selectionClearedHandler?.invoke()
         }
     }
 }
@@ -129,6 +131,7 @@ class ChartAttr : ComposeAttr() {
     internal var tooltipBackgroundColor by observable(Color(0xE6222222L))
     internal var areaOpacity by observable(0.18f)
     internal var yLabelFormatter: (Float) -> String = ::formatChartValue
+    internal var valueLabelFormatter: (Float) -> String = ::formatChartValue
     internal var tooltipValueFormatter: (Float) -> String = ::formatChartValue
 
     override fun width(width: Float): Attr {
@@ -221,14 +224,23 @@ class ChartAttr : ComposeAttr() {
         yLabelFormatter = formatter
     }
 
+    fun valueLabelFormatter(formatter: (Float) -> String) {
+        valueLabelFormatter = formatter
+    }
+
     fun tooltipValueFormatter(formatter: (Float) -> String) {
         tooltipValueFormatter = formatter
     }
 
-    internal fun effectiveInsets(): ChartInsets {
+    internal fun effectiveInsets(legendLineCount: Int = 1): ChartInsets {
+        val legendHeight = if (legendLineCount <= 0) {
+            0f
+        } else {
+            22f + (legendLineCount - 1) * (legendFontSize + 6f)
+        }
         return when (legendPosition) {
-            ChartLegendPosition.TOP -> chartInsets.copy(top = chartInsets.top + 22f)
-            ChartLegendPosition.BOTTOM -> chartInsets.copy(bottom = chartInsets.bottom + 22f)
+            ChartLegendPosition.TOP -> chartInsets.copy(top = chartInsets.top + legendHeight)
+            ChartLegendPosition.BOTTOM -> chartInsets.copy(bottom = chartInsets.bottom + legendHeight)
             ChartLegendPosition.NONE -> chartInsets
         }
     }
@@ -236,9 +248,14 @@ class ChartAttr : ComposeAttr() {
 
 class ChartEvent : ComposeEvent() {
     internal var selectionChangedHandler: ((ChartSelection) -> Unit)? = null
+    internal var selectionClearedHandler: (() -> Unit)? = null
 
     fun selectionChanged(handler: (ChartSelection) -> Unit) {
         selectionChangedHandler = handler
+    }
+
+    fun selectionCleared(handler: () -> Unit) {
+        selectionClearedHandler = handler
     }
 }
 
@@ -257,11 +274,12 @@ private object ChartRenderer {
     ) {
         fillRect(context, 0f, 0f, width, height, attr.chartBackgroundColor)
         val data = attr.chartData
+        val legendLineCount = legendLineCount(context, width, data, attr)
         val layout = ChartLayoutEngine.layout(
             data = data,
             width = width,
             height = height,
-            insets = attr.effectiveInsets(),
+            insets = attr.effectiveInsets(legendLineCount),
             requestedTickCount = attr.yTickCount,
             includeZero = attr.includeZero,
             minimumOverride = attr.yMinimum,
@@ -276,7 +294,7 @@ private object ChartRenderer {
         drawAreas(context, data, layout, attr)
         drawBars(context, data, layout, attr)
         drawLines(context, data, layout, attr)
-        drawLegend(context, width, height, data, attr)
+        drawLegend(context, width, height, data, attr, legendLineCount)
 
         if (selectedIndex in data.categories.indices) {
             drawSelection(context, data, layout, attr, selectedIndex)
@@ -388,7 +406,19 @@ private object ChartRenderer {
                     val rect = layout.barRect(categoryIndex, barSeriesIndex, value)
                     fillRect(context, rect.left, rect.top, rect.width, max(rect.height, 1f), series.color)
                     if (series.showValues) {
-                        drawValueLabel(context, layout, attr, series, categoryIndex, value)
+                        val labelY = if (value >= 0f) {
+                            rect.top - 7f
+                        } else {
+                            rect.bottom + attr.labelFontSize + 3f
+                        }
+                        drawValueLabel(
+                            context = context,
+                            attr = attr,
+                            series = series,
+                            value = value,
+                            x = (rect.left + rect.right) / 2f,
+                            y = labelY,
+                        )
                     }
                 }
             }
@@ -431,7 +461,14 @@ private object ChartRenderer {
                     val point = layout.point(index, value)
                     if (series.showPoints) fillCircle(context, point.x, point.y, 3f, series.color)
                     if (series.showValues) {
-                        drawValueLabel(context, layout, attr, series, index, value)
+                        drawValueLabel(
+                            context = context,
+                            attr = attr,
+                            series = series,
+                            value = value,
+                            x = point.x,
+                            y = point.y - 7f,
+                        )
                     }
                 }
             }
@@ -440,17 +477,16 @@ private object ChartRenderer {
 
     private fun drawValueLabel(
         context: CanvasContext,
-        layout: ChartLayout,
         attr: ChartAttr,
         series: ChartSeries,
-        index: Int,
         value: Float,
+        x: Float,
+        y: Float,
     ) {
-        val point = layout.point(index, value)
         context.font(attr.labelFontSize)
         context.textAlign(TextAlign.CENTER)
         context.fillStyle(series.color)
-        context.fillText(attr.tooltipValueFormatter(value), point.x, point.y - 7f)
+        context.fillText(attr.valueLabelFormatter(value), x, y)
     }
 
     private fun drawLegend(
@@ -459,27 +495,47 @@ private object ChartRenderer {
         height: Float,
         data: ChartData,
         attr: ChartAttr,
+        lineCount: Int,
     ) {
         if (attr.legendPosition == ChartLegendPosition.NONE) return
         context.font(attr.legendFontSize)
         context.textAlign(TextAlign.LEFT)
         var x = attr.chartInsets.left
+        val lineHeight = attr.legendFontSize + 6f
         var y = if (attr.legendPosition == ChartLegendPosition.TOP) {
             attr.chartInsets.top + attr.legendFontSize
         } else {
-            height - attr.chartInsets.bottom + attr.legendFontSize + 6f
+            height - attr.chartInsets.bottom + attr.legendFontSize + 6f -
+                (lineCount - 1).coerceAtLeast(0) * lineHeight
         }
         data.series.forEach { series ->
             val itemWidth = 14f + context.measureText(series.name).width + 14f
             if (x + itemWidth > width - attr.chartInsets.right && x > attr.chartInsets.left) {
                 x = attr.chartInsets.left
-                y += attr.legendFontSize + 6f
+                y += lineHeight
             }
             fillRect(context, x, y - 9f, 9f, 9f, series.color)
             context.fillStyle(attr.labelColor)
             context.fillText(series.name, x + 14f, y)
             x += itemWidth
         }
+    }
+
+    private fun legendLineCount(
+        context: CanvasContext,
+        width: Float,
+        data: ChartData,
+        attr: ChartAttr,
+    ): Int {
+        if (attr.legendPosition == ChartLegendPosition.NONE || data.series.isEmpty()) return 0
+        context.font(attr.legendFontSize)
+        val itemWidths = data.series.map { series ->
+            14f + context.measureText(series.name).width + 14f
+        }
+        return chartLegendLineCount(
+            itemWidths = itemWidths,
+            availableWidth = width - attr.chartInsets.left - attr.chartInsets.right,
+        )
     }
 
     private fun drawSelection(

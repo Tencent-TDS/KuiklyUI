@@ -165,6 +165,14 @@ class ChartLayoutEngineTest {
         assertEquals("-2.5M", formatChartValue(-2_500_000f))
     }
 
+    @Test
+    fun legendRowsExpandWhenItemsWrap() {
+        assertEquals(0, chartLegendLineCount(emptyList(), 200f))
+        assertEquals(1, chartLegendLineCount(listOf(60f, 70f), 200f))
+        assertEquals(2, chartLegendLineCount(listOf(90f, 90f, 90f), 200f))
+        assertEquals(3, chartLegendLineCount(listOf(90f, 90f, 90f), 100f))
+    }
+
     private fun layout(
         data: ChartData,
         minimum: Float = Float.NaN,

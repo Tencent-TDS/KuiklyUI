@@ -240,3 +240,19 @@ internal fun formatChartValue(value: Float): String {
     }
     return text + suffix
 }
+
+internal fun chartLegendLineCount(itemWidths: List<Float>, availableWidth: Float): Int {
+    if (itemWidths.isEmpty()) return 0
+    val safeWidth = availableWidth.coerceAtLeast(0f)
+    var lineCount = 1
+    var usedWidth = 0f
+    itemWidths.forEach { itemWidth ->
+        val safeItemWidth = itemWidth.coerceAtLeast(0f)
+        if (usedWidth > 0f && usedWidth + safeItemWidth > safeWidth) {
+            lineCount++
+            usedWidth = 0f
+        }
+        usedWidth += safeItemWidth
+    }
+    return lineCount
+}

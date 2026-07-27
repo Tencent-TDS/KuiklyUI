@@ -193,6 +193,10 @@ export class KRNativeRenderController {
       params.type == window.AvoidAreaType.TYPE_CUTOUT ||
       params.type == window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR) {
       this.doUpdateSafeArea();
+    } else if (params.type == window.AvoidAreaType.TYPE_KEYBOARD) {
+      // 键盘高度变化时，上报页面级 IME insets
+      const keyboardHeight = px2vp(params.area.bottomRect.height);
+      this.notifyImeInsetsChanged(keyboardHeight);
     }
   };
 

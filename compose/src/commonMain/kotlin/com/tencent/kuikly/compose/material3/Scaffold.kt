@@ -293,7 +293,7 @@ object ScaffoldDefaults {
     /** Default insets to be used and consumed by the scaffold content slot */
     val contentWindowInsets: WindowInsets
         @Composable get() {
-            // Scaffold 默认同时避让系统栏和软件键盘；IME 部分会消费动画化后的投影值。
+            // Scaffold 默认同时避让系统栏和软件键盘；IME 部分直接消费页面级键盘当前高度。
             val imeInsets = WindowInsets.ime
             return WindowInsets.systemBarsForVisualComponents.union(imeInsets)
         }

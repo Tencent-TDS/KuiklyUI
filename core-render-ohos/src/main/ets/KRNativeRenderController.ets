@@ -330,10 +330,6 @@ export class KRNativeRenderController {
     render.sendEvent(this.instanceId, KRWindowSizeDidChangedEventKey, JSON.stringify(data));
   }
 
-  onKeyboardHeightChanged(height: number, duration: number) {
-    this.notifyImeInsetsChanged(height, duration);
-  }
-
   private notifyImeInsetsChanged(height: number, duration: number = 250, curve: number = 0) {
     if (this.imeBottomHeight === height) {
       return;
@@ -345,7 +341,7 @@ export class KRNativeRenderController {
     data[KRHeightKey] = height;
     data[KRDurationKey] = resolvedDuration;
     data[KRCurveKey] = resolvedCurve;
-    // 复用现有窗口级 keyboardHeightChange 来源，把页面级 IME 状态补发给 pager 事件通道。
+    // 独立于现有 TextField 级 keyboardHeightChange 通路，新增页面级 IME 上报到 pager 事件通道。
     this.sendEvent(KRImeInsetsDidChangedEventKey, data);
   }
 

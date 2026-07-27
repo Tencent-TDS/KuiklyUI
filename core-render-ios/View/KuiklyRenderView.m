@@ -53,7 +53,6 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
 @property (nonatomic, assign, getter=isContentViewDidLoad) BOOL contentViewDidLoad;
 /** delegate for KuiklyRenderView. */
 @property (nonatomic, weak, readwrite) id<KuiklyRenderViewDelegate> delegate;
-@property (nonatomic, assign) CGFloat currentKeyboardHeight;
 @property (nonatomic, copy) NSDictionary *lastImeInsetsEventData;
 @property (nonatomic, assign) BOOL didRegisterKeyboardNotifications;
 
@@ -414,7 +413,6 @@ static const NSInteger KRDefaultKeyboardAnimationCurve = 7;
     if ([self.lastImeInsetsEventData isEqualToDictionary:data]) {
         return;
     }
-    self.currentKeyboardHeight = [data[KRHeightKey] doubleValue];
     self.lastImeInsetsEventData = data;
     // 页面级 IME 事件直接从宿主 RenderView 发出，避免继续耦合到输入框组件上。
     [self sendWithEvent:KRImeInsetsDidChangedEventKey data:data];

@@ -50,34 +50,34 @@ import com.tencent.kuikly.compose.ui.platform.LocalConfiguration
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.core.annotations.Page
 
-@Page("KeyboardHeightDemo")
-internal class KeyboardHeightDemo : ComposeContainer() {
+@Page("ImeInsetDemo")
+internal class ImeInsetDemo : ComposeContainer() {
     override fun willInit() {
         super.willInit()
         setContent {
             ComposeNavigationBar("IME Insets - imePadding") {
-                KeyboardHeightDemoContent()
+                ImeInsetDemoContent()
             }
         }
     }
 }
 
-private data class KeyboardDemoMessage(
+private data class ImeInsetMessage(
     val text: String,
     val fromUser: Boolean,
 )
 
-private val initialKeyboardDemoMessages = listOf(
-    KeyboardDemoMessage("这是 phase1 页面级 IME inset demo。", false),
-    KeyboardDemoMessage("聚焦底部输入框后，输入栏应由 imePadding 顶离键盘。", false),
-    KeyboardDemoMessage("上方信息会展示 WindowInsets.ime 与旧 keyboardHeightChange 回调值，用于验证兼容性。", false),
+private val initialImeInsetMessages = listOf(
+    ImeInsetMessage("这是 phase1 页面级 IME inset demo。", false),
+    ImeInsetMessage("聚焦底部输入框后，输入栏应由 imePadding 顶离键盘。", false),
+    ImeInsetMessage("上方信息会展示 WindowInsets.ime 与旧 keyboardHeightChange 回调值，用于验证兼容性。", false),
 )
 
 @Composable
-private fun KeyboardHeightDemoContent() {
+private fun ImeInsetDemoContent() {
     var input by remember { mutableStateOf("") }
     var legacyKeyboardHeight by remember { mutableStateOf(0f) }
-    var messages by remember { mutableStateOf(initialKeyboardDemoMessages) }
+    var messages by remember { mutableStateOf(initialImeInsetMessages) }
     val configuration = LocalConfiguration.current
     val imeBottomPadding = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
 
@@ -160,7 +160,7 @@ private fun KeyboardHeightDemoContent() {
                     return@Button
                 }
                 val content = input
-                messages = messages + KeyboardDemoMessage(content, true) + KeyboardDemoMessage("已发送：$content", false)
+                messages = messages + ImeInsetMessage(content, true) + ImeInsetMessage("已发送：$content", false)
                 input = ""
             }) {
                 Text("发送")

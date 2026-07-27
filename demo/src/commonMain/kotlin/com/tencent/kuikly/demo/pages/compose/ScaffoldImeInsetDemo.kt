@@ -45,13 +45,13 @@ import com.tencent.kuikly.compose.ui.platform.LocalConfiguration
 import com.tencent.kuikly.compose.ui.unit.dp
 import com.tencent.kuikly.core.annotations.Page
 
-@Page("ScaffoldDemo")
-internal class ScaffoldDemo : ComposeContainer() {
+@Page("ScaffoldImeInsetDemo")
+internal class ScaffoldImeInsetDemo : ComposeContainer() {
     override fun willInit() {
         super.willInit()
         setContent {
             ComposeNavigationBar {
-                ScaffoldDemoImpl()
+                ScaffoldImeInsetDemoImpl()
             }
         }
     }
@@ -59,7 +59,7 @@ internal class ScaffoldDemo : ComposeContainer() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ScaffoldDemoImpl() {
+fun ScaffoldImeInsetDemoImpl() {
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }

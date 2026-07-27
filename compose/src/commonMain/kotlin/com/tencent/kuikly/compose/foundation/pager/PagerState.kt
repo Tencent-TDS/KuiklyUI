@@ -418,8 +418,15 @@ abstract class PagerState internal constructor(
         return !isSnapAnimating || snapTargetReachedAlignmentRequested
     }
 
-    /** Native setContentOffset(animated=true) snap is in progress. */
-    internal var isSnapAnimating = false
+    /**
+     * Native setContentOffset(animated=true) snap is in progress.
+     *
+     * Backed by an observable state so that [settledPage] / [targetPage]'s
+     * `derivedStateOf` recomputes when the snap animation starts and ends
+     * (a plain `var` cannot drive `derivedStateOf` and would leave
+     * `settledPage` stale during the snap window — see issue #1560).
+     */
+    internal var isSnapAnimating by mutableStateOf(false)
 
     /** Native content offset that the snap animation is settling to. */
     internal var snapTargetContentOffset = 0
@@ -1026,6 +1033,12 @@ abstract class PagerState internal constructor(
                 "pageCount=$pageCount snapTargetPage=$snapTargetRelocatedPage " +
                 "snapTargetKey=$snapTargetItemKey snapStartDesyncPages=$snapStartDesyncPages"
         }
+        // Sync the cached settled page to the final landing page before flipping
+        // isSnapAnimating to false. settledPageState is otherwise only updated at
+        // the scroll() entry, so without this the next settledPage read (after
+        // isSnapAnimating becomes false) could transiently return a stale cached
+        // value instead of the page the snap actually landed on (#1560).
+        settledPageState = currentPage
         isSnapAnimating = false
         snapTargetContentOffset = 0
         snapStartPageCount = 0
@@ -1166,7 +1179,13 @@ abstract class PagerState internal constructor(
      * @sample androidx.compose.foundation.samples.ObservingStateChangesInPagerStateSample
      */
     val settledPage by derivedStateOf(structuralEqualityPolicy()) {
-        if (isScrollInProgress) {
+        if (isScrollInProgress || isSnapAnimating) {
+            // During the snap settle window the finger is already lifted
+            // (isScrollInProgress == false) but the native snap animation is
+            // still running and the alignment-correction logic may transiently
+            // rewrite currentPage to an intermediate value (e.g. 0 or a stale
+            // page). Keep returning the cached settledPageState for the entire
+            // window so observers do not see an intermediate jump (#1560).
             settledPageState
         } else {
             this.currentPage

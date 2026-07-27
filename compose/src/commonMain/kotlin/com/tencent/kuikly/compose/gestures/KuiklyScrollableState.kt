@@ -72,7 +72,18 @@ internal class KuiklyScrollableState(val onDelta: (Float) -> Float) : Scrollable
     }
 
     fun kuiklyOnScroll(pixels: Float): Float {
-        isScrollingState.value = true
+        // Only keep isScrollInProgress true for touch-driven scrolls (native
+        // isDragging) or for scrolls that are already in progress (e.g. a
+        // programmatic animateScrollToPage driving the scroll() coroutine).
+        // Non-gesture setContentOffset (initial layout sync, snap alignment
+        // correction, bounce rebound) also dispatches scroll events but has no
+        // paired scrollEnd (scrollEnd only fires for touch gestures), so
+        // unconditionally setting true here leaves isScrollInProgress stuck true
+        // at rest — notably on iOS where entering the page runs an alignment
+        // setContentOffset (#1560).
+        if (kuiklyInfo.isDragging || isScrollingState.value) {
+            isScrollingState.value = true
+        }
         if (pixels.isNaN()) return 0f
         val delta = onDelta(pixels)
         isLastScrollForwardState.value = delta > 0

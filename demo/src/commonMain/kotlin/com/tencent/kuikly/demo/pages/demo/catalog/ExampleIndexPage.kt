@@ -174,6 +174,13 @@ internal class ExampleIndexPage : BasePager() {
         })
 
         itemList.add(ExampleItemData().apply {
+            avatarText = "Ch"
+            titleText = "ChartView"
+            subtitleText = "跨端折线图、柱状图和面积图，支持声明式 DSL 与交互选点"
+            declarativeExampleUrl = generateJumpUrl("ChartExamplePage")
+        })
+
+        itemList.add(ExampleItemData().apply {
             avatarText = "Bu"
             titleText = "ButtonView"
             subtitleText = "Kuikly中的Button实际上是一个带有文字和背景颜色的View"

@@ -577,7 +577,11 @@ private object ChartRenderer {
             )
         }
         context.font(attr.labelFontSize)
-        val tooltipWidth = lines.maxOf { context.measureText(it).width } + 18f
+        var tooltipTextWidth = 0f
+        lines.forEach { line ->
+            tooltipTextWidth = max(tooltipTextWidth, context.measureText(line).width)
+        }
+        val tooltipWidth = tooltipTextWidth + 18f
         val lineHeight = attr.labelFontSize + 5f
         val tooltipHeight = lines.size * lineHeight + 10f
         var left = x + 9f

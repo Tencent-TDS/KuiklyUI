@@ -29,7 +29,7 @@ internal data class ChartRect(
     val left: Float,
     val top: Float,
     val right: Float,
-    val bottom: Float,
+    val bottom: Float
 ) {
     val width: Float get() = (right - left).coerceAtLeast(0f)
     val height: Float get() = (bottom - top).coerceAtLeast(0f)
@@ -40,14 +40,14 @@ internal data class ChartCoordinate(val x: Float, val y: Float)
 internal data class ChartScale(
     val minimum: Float,
     val maximum: Float,
-    val ticks: List<Float>,
+    val ticks: List<Float>
 )
 
 internal data class ChartLayout(
     val plot: ChartRect,
     val categoryCount: Int,
     val scale: ChartScale,
-    val barSeriesCount: Int,
+    val barSeriesCount: Int
 ) {
     val bandWidth: Float
         get() = if (categoryCount == 0) 0f else plot.width / categoryCount
@@ -91,7 +91,7 @@ internal data class ChartLayout(
             left = left,
             top = min(zeroY, valueY),
             right = left + width,
-            bottom = max(zeroY, valueY),
+            bottom = max(zeroY, valueY)
         )
     }
 }
@@ -105,7 +105,7 @@ internal object ChartLayoutEngine {
         requestedTickCount: Int,
         includeZero: Boolean,
         minimumOverride: Float,
-        maximumOverride: Float,
+        maximumOverride: Float
     ): ChartLayout {
         val safeWidth = width.coerceAtLeast(0f)
         val safeHeight = height.coerceAtLeast(0f)
@@ -115,7 +115,7 @@ internal object ChartLayoutEngine {
             left = plotLeft,
             top = plotTop,
             right = (safeWidth - insets.right).coerceIn(plotLeft, safeWidth),
-            bottom = (safeHeight - insets.bottom).coerceIn(plotTop, safeHeight),
+            bottom = (safeHeight - insets.bottom).coerceIn(plotTop, safeHeight)
         )
         val values = data.series
             .flatMap { it.values }
@@ -129,13 +129,13 @@ internal object ChartLayoutEngine {
             requestedTickCount = requestedTickCount,
             includeZero = shouldIncludeZero,
             minimumOverride = minimumOverride,
-            maximumOverride = maximumOverride,
+            maximumOverride = maximumOverride
         )
         return ChartLayout(
             plot = plot,
             categoryCount = data.categories.size,
             scale = scale,
-            barSeriesCount = data.series.count { it.type == ChartSeriesType.BAR },
+            barSeriesCount = data.series.count { it.type == ChartSeriesType.BAR }
         )
     }
 
@@ -144,11 +144,19 @@ internal object ChartLayoutEngine {
         requestedTickCount: Int,
         includeZero: Boolean,
         minimumOverride: Float,
-        maximumOverride: Float,
+        maximumOverride: Float
     ): ChartScale {
         val tickCount = requestedTickCount.coerceIn(2, 10)
-        var minimum = values.minOrNull() ?: 0f
-        var maximum = values.maxOrNull() ?: 1f
+        var minimum = 0f
+        var maximum = 1f
+        if (values.isNotEmpty()) {
+            minimum = values[0]
+            maximum = values[0]
+            values.forEach { value ->
+                minimum = min(minimum, value)
+                maximum = max(maximum, value)
+            }
+        }
 
         if (includeZero) {
             minimum = min(minimum, 0f)

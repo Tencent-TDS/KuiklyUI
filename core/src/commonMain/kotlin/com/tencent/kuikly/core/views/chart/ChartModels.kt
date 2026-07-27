@@ -21,13 +21,13 @@ import com.tencent.kuikly.core.base.Color
 enum class ChartSeriesType {
     LINE,
     BAR,
-    AREA,
+    AREA
 }
 /** Position of the built-in legend. */
 enum class ChartLegendPosition {
     NONE,
     TOP,
-    BOTTOM,
+    BOTTOM
 }
 
 /** A single named data series. A null value is rendered as a gap. */
@@ -38,13 +38,13 @@ data class ChartSeries(
     val color: Color,
     val lineWidth: Float = 2f,
     val showPoints: Boolean = true,
-    val showValues: Boolean = false,
+    val showValues: Boolean = false
 )
 
 /** Immutable chart data shared by every Kuikly target. */
 data class ChartData(
     val categories: List<String>,
-    val series: List<ChartSeries>,
+    val series: List<ChartSeries>
 ) {
     companion object {
         val EMPTY = ChartData(emptyList(), emptyList())
@@ -56,20 +56,20 @@ data class ChartInsets(
     val left: Float = 48f,
     val top: Float = 18f,
     val right: Float = 16f,
-    val bottom: Float = 38f,
+    val bottom: Float = 38f
 )
 
 /** Value returned when the user taps or drags over a category. */
 data class ChartSelection(
     val index: Int,
     val category: String,
-    val values: List<ChartSelectionValue>,
+    val values: List<ChartSelectionValue>
 )
 
 data class ChartSelectionValue(
     val seriesName: String,
     val value: Float?,
-    val color: Color,
+    val color: Color
 )
 
 /**
@@ -98,7 +98,7 @@ class ChartSeriesBuilder internal constructor() {
             color = color,
             lineWidth = lineWidth.coerceAtLeast(0.5f),
             showPoints = showPoints,
-            showValues = showValues,
+            showValues = showValues
         )
     }
 }
@@ -117,7 +117,7 @@ class ChartDataBuilder {
     fun line(
         name: String,
         color: Color = nextColor(),
-        init: ChartSeriesBuilder.() -> Unit,
+        init: ChartSeriesBuilder.() -> Unit
     ) {
         addSeries(name, ChartSeriesType.LINE, color, init)
     }
@@ -125,7 +125,7 @@ class ChartDataBuilder {
     fun bar(
         name: String,
         color: Color = nextColor(),
-        init: ChartSeriesBuilder.() -> Unit,
+        init: ChartSeriesBuilder.() -> Unit
     ) {
         addSeries(name, ChartSeriesType.BAR, color, init)
     }
@@ -133,7 +133,7 @@ class ChartDataBuilder {
     fun area(
         name: String,
         color: Color = nextColor(),
-        init: ChartSeriesBuilder.() -> Unit,
+        init: ChartSeriesBuilder.() -> Unit
     ) {
         addSeries(name, ChartSeriesType.AREA, color, init)
     }
@@ -142,7 +142,7 @@ class ChartDataBuilder {
         name: String,
         type: ChartSeriesType,
         color: Color,
-        init: ChartSeriesBuilder.() -> Unit,
+        init: ChartSeriesBuilder.() -> Unit
     ) {
         val builder = ChartSeriesBuilder().apply(init)
         seriesItems.add(builder.build(name, type, color))
@@ -155,9 +155,13 @@ class ChartDataBuilder {
     }
 
     internal fun build(): ChartData {
+        var seriesValueCount = 0
+        seriesItems.forEach { series ->
+            seriesValueCount = maxOf(seriesValueCount, series.values.size)
+        }
         val itemCount = maxOf(
             categoryItems.size,
-            seriesItems.maxOfOrNull { it.values.size } ?: 0,
+            seriesValueCount
         )
         val normalizedCategories = List(itemCount) { index ->
             categoryItems.getOrNull(index) ?: (index + 1).toString()
@@ -172,7 +176,7 @@ class ChartDataBuilder {
             Color(0xFFED7B2FL),
             Color(0xFFE34D59L),
             Color(0xFF7B61FFL),
-            Color(0xFF00A6A6L),
+            Color(0xFF00A6A6L)
         )
     }
 }

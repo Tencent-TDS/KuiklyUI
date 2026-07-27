@@ -82,7 +82,7 @@ class ChartView : ComposeView<ChartAttr, ChartEvent>() {
             requestedTickCount = attr.yTickCount,
             includeZero = attr.includeZero,
             minimumOverride = attr.yMinimum,
-            maximumOverride = attr.yMaximum,
+            maximumOverride = attr.yMaximum
         )
         val newIndex = layout.categoryIndexAt(x)
         if (newIndex == selectedIndex) return
@@ -97,10 +97,10 @@ class ChartView : ComposeView<ChartAttr, ChartEvent>() {
                         ChartSelectionValue(
                             seriesName = series.name,
                             value = series.values.getOrNull(newIndex),
-                            color = series.color,
+                            color = series.color
                         )
-                    },
-                ),
+                    }
+                )
             )
         } else {
             event.selectionClearedHandler?.invoke()
@@ -207,7 +207,7 @@ class ChartAttr : ComposeAttr() {
         axis: Color = axisColor,
         grid: Color = gridColor,
         label: Color = labelColor,
-        tooltipBackground: Color = tooltipBackgroundColor,
+        tooltipBackground: Color = tooltipBackgroundColor
     ) {
         chartBackgroundColor = background
         axisColor = axis
@@ -270,7 +270,7 @@ private object ChartRenderer {
         width: Float,
         height: Float,
         attr: ChartAttr,
-        selectedIndex: Int,
+        selectedIndex: Int
     ) {
         fillRect(context, 0f, 0f, width, height, attr.chartBackgroundColor)
         val data = attr.chartData
@@ -283,7 +283,7 @@ private object ChartRenderer {
             requestedTickCount = attr.yTickCount,
             includeZero = attr.includeZero,
             minimumOverride = attr.yMinimum,
-            maximumOverride = attr.yMaximum,
+            maximumOverride = attr.yMaximum
         )
         if (data.categories.isEmpty() || data.series.isEmpty()) {
             drawEmptyState(context, width, height, attr)
@@ -305,7 +305,7 @@ private object ChartRenderer {
         context: CanvasContext,
         data: ChartData,
         layout: ChartLayout,
-        attr: ChartAttr,
+        attr: ChartAttr
     ) {
         context.font(attr.labelFontSize)
         context.fillStyle(attr.labelColor)
@@ -321,7 +321,7 @@ private object ChartRenderer {
                     y,
                     attr.gridColor,
                     0.7f,
-                    dashed = true,
+                    dashed = true
                 )
             }
             context.fillText(attr.yLabelFormatter(tick), layout.plot.left - 7f, y + attr.labelFontSize * 0.35f)
@@ -334,7 +334,7 @@ private object ChartRenderer {
             layout.plot.left,
             layout.plot.bottom,
             attr.axisColor,
-            1f,
+            1f
         )
         drawLine(
             context,
@@ -343,7 +343,7 @@ private object ChartRenderer {
             layout.plot.right,
             layout.plot.bottom,
             attr.axisColor,
-            1f,
+            1f
         )
 
         context.textAlign(TextAlign.CENTER)
@@ -353,7 +353,7 @@ private object ChartRenderer {
                 context.fillText(
                     label,
                     layout.xForCategory(index),
-                    layout.plot.bottom + attr.labelFontSize + 7f,
+                    layout.plot.bottom + attr.labelFontSize + 7f
                 )
             }
         }
@@ -363,7 +363,7 @@ private object ChartRenderer {
         context: CanvasContext,
         data: ChartData,
         layout: ChartLayout,
-        attr: ChartAttr,
+        attr: ChartAttr
     ) {
         data.series.filter { it.type == ChartSeriesType.AREA }.forEach { series ->
             val segment = mutableListOf<ChartCoordinate>()
@@ -395,7 +395,7 @@ private object ChartRenderer {
         context: CanvasContext,
         data: ChartData,
         layout: ChartLayout,
-        attr: ChartAttr,
+        attr: ChartAttr
     ) {
         var barSeriesIndex = 0
         data.series.forEach { series ->
@@ -417,7 +417,7 @@ private object ChartRenderer {
                             series = series,
                             value = value,
                             x = (rect.left + rect.right) / 2f,
-                            y = labelY,
+                            y = labelY
                         )
                     }
                 }
@@ -430,7 +430,7 @@ private object ChartRenderer {
         context: CanvasContext,
         data: ChartData,
         layout: ChartLayout,
-        attr: ChartAttr,
+        attr: ChartAttr
     ) {
         data.series.filter { it.type != ChartSeriesType.BAR }.forEach { series ->
             var pathOpen = false
@@ -467,7 +467,7 @@ private object ChartRenderer {
                             series = series,
                             value = value,
                             x = point.x,
-                            y = point.y - 7f,
+                            y = point.y - 7f
                         )
                     }
                 }
@@ -481,7 +481,7 @@ private object ChartRenderer {
         series: ChartSeries,
         value: Float,
         x: Float,
-        y: Float,
+        y: Float
     ) {
         context.font(attr.labelFontSize)
         context.textAlign(TextAlign.CENTER)
@@ -495,7 +495,7 @@ private object ChartRenderer {
         height: Float,
         data: ChartData,
         attr: ChartAttr,
-        lineCount: Int,
+        lineCount: Int
     ) {
         if (attr.legendPosition == ChartLegendPosition.NONE) return
         context.font(attr.legendFontSize)
@@ -525,7 +525,7 @@ private object ChartRenderer {
         context: CanvasContext,
         width: Float,
         data: ChartData,
-        attr: ChartAttr,
+        attr: ChartAttr
     ): Int {
         if (attr.legendPosition == ChartLegendPosition.NONE || data.series.isEmpty()) return 0
         context.font(attr.legendFontSize)
@@ -534,7 +534,7 @@ private object ChartRenderer {
         }
         return chartLegendLineCount(
             itemWidths = itemWidths,
-            availableWidth = width - attr.chartInsets.left - attr.chartInsets.right,
+            availableWidth = width - attr.chartInsets.left - attr.chartInsets.right
         )
     }
 
@@ -543,7 +543,7 @@ private object ChartRenderer {
         data: ChartData,
         layout: ChartLayout,
         attr: ChartAttr,
-        selectedIndex: Int,
+        selectedIndex: Int
     ) {
         val x = layout.xForCategory(selectedIndex)
         drawLine(
@@ -554,7 +554,7 @@ private object ChartRenderer {
             layout.plot.bottom,
             attr.axisColor,
             1f,
-            dashed = true,
+            dashed = true
         )
         data.series.forEach { series ->
             val value = series.values.getOrNull(selectedIndex)
@@ -573,7 +573,7 @@ private object ChartRenderer {
                     "${series.name}: ${attr.tooltipValueFormatter(value)}"
                 } else {
                     "${series.name}: --"
-                },
+                }
             )
         }
         context.font(attr.labelFontSize)
@@ -596,7 +596,7 @@ private object ChartRenderer {
         context: CanvasContext,
         width: Float,
         height: Float,
-        attr: ChartAttr,
+        attr: ChartAttr
     ) {
         context.font(max(attr.labelFontSize, 12f))
         context.textAlign(TextAlign.CENTER)
@@ -612,7 +612,7 @@ private object ChartRenderer {
         endY: Float,
         color: Color,
         width: Float,
-        dashed: Boolean = false,
+        dashed: Boolean = false
     ) {
         context.beginPath()
         context.strokeStyle(color)
@@ -630,7 +630,7 @@ private object ChartRenderer {
         top: Float,
         width: Float,
         height: Float,
-        color: Color,
+        color: Color
     ) {
         if (width <= 0f || height <= 0f) return
         context.beginPath()
@@ -648,7 +648,7 @@ private object ChartRenderer {
         centerX: Float,
         centerY: Float,
         radius: Float,
-        color: Color,
+        color: Color
     ) {
         context.beginPath()
         context.arc(centerX, centerY, radius, 0f, (kotlin.math.PI * 2).toFloat(), false)

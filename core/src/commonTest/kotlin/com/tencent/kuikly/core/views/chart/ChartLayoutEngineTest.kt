@@ -37,8 +37,8 @@ class ChartLayoutEngineTest {
         val data = ChartData(
             categories = listOf("A", "B"),
             series = listOf(
-                ChartSeries("Sales", ChartSeriesType.BAR, listOf(12f, 18f), Color.BLUE),
-            ),
+                ChartSeries("Sales", ChartSeriesType.BAR, listOf(12f, 18f), Color.BLUE)
+            )
         )
 
         val layout = layout(data)
@@ -52,8 +52,8 @@ class ChartLayoutEngineTest {
         val data = ChartData(
             categories = listOf("A", "B", "C"),
             series = listOf(
-                ChartSeries("Delta", ChartSeriesType.LINE, listOf(-8f, 0f, 12f), Color.RED),
-            ),
+                ChartSeries("Delta", ChartSeriesType.LINE, listOf(-8f, 0f, 12f), Color.RED)
+            )
         )
 
         val layout = layout(data)
@@ -69,8 +69,8 @@ class ChartLayoutEngineTest {
         val data = ChartData(
             categories = listOf("A"),
             series = listOf(
-                ChartSeries("Temperature", ChartSeriesType.LINE, listOf(22f), Color.GREEN),
-            ),
+                ChartSeries("Temperature", ChartSeriesType.LINE, listOf(22f), Color.GREEN)
+            )
         )
 
         val layout = layout(data, minimum = -10f, maximum = 50f)
@@ -85,8 +85,8 @@ class ChartLayoutEngineTest {
             categories = listOf("A", "B"),
             series = listOf(
                 ChartSeries("2025", ChartSeriesType.BAR, listOf(10f, 20f), Color.BLUE),
-                ChartSeries("2026", ChartSeriesType.BAR, listOf(12f, 24f), Color.GREEN),
-            ),
+                ChartSeries("2026", ChartSeriesType.BAR, listOf(12f, 24f), Color.GREEN)
+            )
         )
         val layout = layout(data)
 
@@ -103,8 +103,8 @@ class ChartLayoutEngineTest {
         val data = ChartData(
             categories = listOf("A", "B", "C"),
             series = listOf(
-                ChartSeries("Value", ChartSeriesType.LINE, listOf(1f, 2f, 3f), Color.BLUE),
-            ),
+                ChartSeries("Value", ChartSeriesType.LINE, listOf(1f, 2f, 3f), Color.BLUE)
+            )
         )
         val layout = layout(data)
 
@@ -124,9 +124,9 @@ class ChartLayoutEngineTest {
             ChartData(
                 categories = listOf("A", "B"),
                 series = listOf(
-                    ChartSeries("Flat", ChartSeriesType.LINE, listOf(5f, 5f), Color.BLUE),
-                ),
-            ),
+                    ChartSeries("Flat", ChartSeriesType.LINE, listOf(5f, 5f), Color.BLUE)
+                )
+            )
         )
         assertTrue(constant.scale.minimum < 5f)
         assertTrue(constant.scale.maximum > 5f)
@@ -137,8 +137,8 @@ class ChartLayoutEngineTest {
         val data = ChartData(
             categories = listOf("A"),
             series = listOf(
-                ChartSeries("Value", ChartSeriesType.LINE, listOf(1f), Color.BLUE),
-            ),
+                ChartSeries("Value", ChartSeriesType.LINE, listOf(1f), Color.BLUE)
+            )
         )
 
         val layout = ChartLayoutEngine.layout(
@@ -149,7 +149,7 @@ class ChartLayoutEngineTest {
             requestedTickCount = 5,
             includeZero = false,
             minimumOverride = Float.NaN,
-            maximumOverride = Float.NaN,
+            maximumOverride = Float.NaN
         )
 
         assertTrue(layout.plot.left in 0f..20f)
@@ -176,7 +176,7 @@ class ChartLayoutEngineTest {
     private fun layout(
         data: ChartData,
         minimum: Float = Float.NaN,
-        maximum: Float = Float.NaN,
+        maximum: Float = Float.NaN
     ): ChartLayout {
         return ChartLayoutEngine.layout(
             data = data,
@@ -186,7 +186,7 @@ class ChartLayoutEngineTest {
             requestedTickCount = 5,
             includeZero = false,
             minimumOverride = minimum,
-            maximumOverride = maximum,
+            maximumOverride = maximum
         )
     }
 }

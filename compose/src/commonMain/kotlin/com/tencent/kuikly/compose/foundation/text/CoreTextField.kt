@@ -31,6 +31,8 @@ import com.tencent.kuikly.compose.foundation.interaction.Interaction
 import com.tencent.kuikly.compose.foundation.interaction.MutableInteractionSource
 import com.tencent.kuikly.compose.foundation.layout.Box
 import com.tencent.kuikly.compose.foundation.layout.size
+import com.tencent.kuikly.compose.foundation.relocation.BringIntoViewRequester
+import com.tencent.kuikly.compose.foundation.relocation.bringIntoViewRequester
 import com.tencent.kuikly.compose.ui.ExperimentalComposeUiApi
 import com.tencent.kuikly.compose.ui.Modifier
 import com.tencent.kuikly.compose.ui.focus.FocusManager
@@ -301,6 +303,11 @@ internal fun CoreTextField(
 
     val focusRequester = remember { FocusRequester() }
     var hasFocus by remember { mutableStateOf(false) }
+    // BringIntoViewRequester for cursor/selection-level bring-into-view requests.
+    // Aligned with official CoreTextField.kt:312. The focusable modifier already requests the
+    // entire node on focus gain; this requester is reserved for cursor rect requests
+    // (bringSelectionEndIntoView) once TextLayoutResult is available in Kuikly's CoreTextField.
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
     // Focus
     val focusModifier = Modifier.textFieldFocusModifier(
         enabled = enabled,
@@ -362,7 +369,9 @@ internal fun CoreTextField(
 
     // 一次遍历拆分 Modifier，使用 remember 避免重复计算
     val (propsAndEvents, others) = remember(modifier) { modifier.splitByPropOrEvent() }
-    val combinedModifier = others.then(focusModifier)
+    val combinedModifier = others
+        .then(Modifier.bringIntoViewRequester(bringIntoViewRequester))
+        .then(focusModifier)
 
     Box(modifier = pointerModifier.then(combinedModifier), propagateMinConstraints = true) {
         decorationBox {

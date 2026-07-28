@@ -102,13 +102,32 @@ kotlin {
             implementation(project(":core-annotations"))
         }
 
-        // Android 特有源集中添加 ProfileInstaller 依赖
+        // runtimeLegacyMain: no-op stubs for PausableComposition / CompositionObserver
+        // (not available in compose plugin 1.7.3 / Kotlin 1.9.22 build line)
+        val runtimeLegacyMain by creating {
+            dependsOn(commonMain.get())
+        }
+
+        // Wire all compilation targets to runtimeLegacyMain
         val androidMain by getting {
+            dependsOn(runtimeLegacyMain)
             dependencies {
                 compileOnly(project(":core-render-android"))
                 implementation("androidx.profileinstaller:profileinstaller:1.3.1")
                 // 保留现有依赖...
             }
+        }
+
+        val jsMain by getting {
+            dependsOn(runtimeLegacyMain)
+        }
+
+        // Wire each native/Apple target source set individually.
+        listOf(
+            "iosX64Main", "iosArm64Main", "iosSimulatorArm64Main",
+            "macosX64Main", "macosArm64Main",
+        ).forEach { ssName ->
+            findByName(ssName)?.dependsOn(runtimeLegacyMain)
         }
     }
 }

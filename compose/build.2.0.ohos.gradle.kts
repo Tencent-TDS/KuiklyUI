@@ -65,13 +65,47 @@ kotlin {
             api("org.jetbrains.kotlinx:atomicfu:0.23.2-KBA-001")
         }
 
+        // Normal 2.1.21 artifacts stay on Compose runtime 1.7.3 and disable prefetch.
+        val runtimeLegacyMain by creating {
+            dependsOn(commonMain.get())
+        }
+
+        // Keep the default Native/Apple hierarchy in the runtimeLegacy branch so
+        // ios targets compile the actuals from nativeMain and appleMain.
+        val nativeMain by creating {
+            dependsOn(runtimeLegacyMain)
+        }
+        val appleMain by creating {
+            dependsOn(nativeMain)
+        }
+
         // Android 特有源集中添加 ProfileInstaller 依赖
         val androidMain by getting {
+            dependsOn(runtimeLegacyMain)
             dependencies {
                 compileOnly(project(":core-render-android"))
                 implementation("androidx.profileinstaller:profileinstaller:1.3.1")
                 // 保留现有依赖...
             }
+        }
+
+        val jsMain by getting {
+            dependsOn(runtimeLegacyMain)
+        }
+
+        // ohos is a Native target: wire it through nativeMain so it inherits both
+        // the common native actuals (InlineClassHelper, Expect, GlobalSnapshotManager, ...)
+        // and the runtimeLegacy actuals (nativeMain dependsOn runtimeLegacyMain).
+        val ohosArm64Main by getting {
+            dependsOn(nativeMain)
+        }
+
+        // Wire Apple targets through appleMain so nativeMain actuals are included.
+        listOf(
+            "iosX64Main", "iosArm64Main", "iosSimulatorArm64Main",
+            "macosX64Main", "macosArm64Main",
+        ).forEach { ssName ->
+            findByName(ssName)?.dependsOn(appleMain)
         }
     }
 }

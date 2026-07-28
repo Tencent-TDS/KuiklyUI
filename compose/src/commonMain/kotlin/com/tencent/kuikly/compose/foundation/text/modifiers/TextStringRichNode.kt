@@ -49,6 +49,7 @@ import com.tencent.kuikly.compose.ui.node.requireLayoutNode
 import com.tencent.kuikly.compose.ui.semantics.SemanticsPropertyReceiver
 import com.tencent.kuikly.compose.ui.semantics.text
 import com.tencent.kuikly.compose.ui.text.AnnotatedString
+import com.tencent.kuikly.compose.ui.text.LineMetrics
 import com.tencent.kuikly.compose.ui.text.MultiParagraph
 import com.tencent.kuikly.compose.ui.text.TextLayoutInput
 import com.tencent.kuikly.compose.ui.text.TextLayoutResult
@@ -260,27 +261,33 @@ internal class TextStringRichNode(
 
         val effectiveAnnotated = annotatedText ?: AnnotatedString(plainText ?: "")
 
-        // 行度量：从 native 回填 lineCount + 每行 top/bottom/start/end（dp + offset）。
+        // 行度量：惰性拉取——不在 measure 热路径同步桥调用，仅 getLineTop/getLineStart
+        // 等首次被读取时才向 native 查询一次并缓存（与 getBoundingBoxFn 同思路）。
         // 新格式："N top0 bottom0 start0 end0 top1 bottom1 start1 end1 ..."
         // 为兼容旧实现，若 start/end 缺失则退化为 0。
-        val metricsStr = textView?.shadow?.callMethod("lineMetrics", "") ?: ""
-        val parts = metricsStr.split(" ")
-        val lineCount = parts.getOrNull(0)?.toIntOrNull() ?: 0
-        val lineTops = FloatArray(lineCount)
-        val lineBottoms = FloatArray(lineCount)
-        val lineStarts = IntArray(lineCount)
-        val lineEnds = IntArray(lineCount)
-        val hasLineOffsets = parts.size >= 1 + lineCount * 4
-        var idx = 1
-        for (i in 0 until lineCount) {
-            lineTops[i] = (parts.getOrNull(idx)?.toFloatOrNull() ?: 0f) * pageDensity
-            lineBottoms[i] = (parts.getOrNull(idx + 1)?.toFloatOrNull() ?: 0f) * pageDensity
-            if (hasLineOffsets) {
-                lineStarts[i] = parts.getOrNull(idx + 2)?.toIntOrNull() ?: 0
-                lineEnds[i] = parts.getOrNull(idx + 3)?.toIntOrNull() ?: lineStarts[i]
-                idx += 4
-            } else {
-                idx += 2
+        val lineMetricsFn: (() -> LineMetrics)? = textView?.let { tv ->
+            {
+                val metricsStr = tv.shadow?.callMethod("lineMetrics", "") ?: ""
+                val parts = metricsStr.split(" ")
+                val lineCount = parts.getOrNull(0)?.toIntOrNull() ?: 0
+                val lineTops = FloatArray(lineCount)
+                val lineBottoms = FloatArray(lineCount)
+                val lineStarts = IntArray(lineCount)
+                val lineEnds = IntArray(lineCount)
+                val hasLineOffsets = parts.size >= 1 + lineCount * 4
+                var idx = 1
+                for (i in 0 until lineCount) {
+                    lineTops[i] = (parts.getOrNull(idx)?.toFloatOrNull() ?: 0f) * pageDensity
+                    lineBottoms[i] = (parts.getOrNull(idx + 1)?.toFloatOrNull() ?: 0f) * pageDensity
+                    if (hasLineOffsets) {
+                        lineStarts[i] = parts.getOrNull(idx + 2)?.toIntOrNull() ?: 0
+                        lineEnds[i] = parts.getOrNull(idx + 3)?.toIntOrNull() ?: lineStarts[i]
+                        idx += 4
+                    } else {
+                        idx += 2
+                    }
+                }
+                LineMetrics(lineCount, lineTops, lineBottoms, lineStarts, lineEnds)
             }
         }
         // getBoundingBox：按需向 native 查询 offset 处字符包围盒（dp），× pageDensity → px
@@ -311,12 +318,8 @@ internal class TextStringRichNode(
 //                finalConstraints
             ),
             MultiParagraph(
-                lineCount = lineCount,
                 placeholderRects = placeholderRects,
-                lineTops = lineTops,
-                lineBottoms = lineBottoms,
-                lineStarts = lineStarts,
-                lineEnds = lineEnds,
+                lineMetricsFn = lineMetricsFn,
                 getBoundingBoxFn = getBoundingBoxFn
             ),
             size

@@ -44,9 +44,26 @@ import kotlin.math.PI
 
 internal class KuiklyCanvas : Canvas {
 
+    /**
+     * 虚线脏标记：仅当上一笔真向原生下发过 setLineDash(intervals) 时才为 true。
+     * setLineDash 是真实桥调用（拼 JSON 走 callMethod），未激活场景（从未画过虚线）
+     * 必须做到零桥调用，避免 Canvas 密集页面每个图形多一次跨端通信。
+     */
+    private var dashActive = false
+
+    /**
+     * 仅在 dashActive 时向原生下发清空虚线指令并复位标记；未激活时零开销。
+     */
+    private fun CanvasContext.clearLineDashIfActive() {
+        if (dashActive) {
+            setLineDash(emptyList())
+            dashActive = false
+        }
+    }
+
     private fun CanvasContext.fillOrStroke(paint: Paint) {
         // 清空上一笔 drawLine 残留的虚线状态，避免同 lambda 内后续描边图形继承虚线
-        setLineDash(emptyList())
+        clearLineDashIfActive()
         val linearGradient = paint.toKuiklyLinearGradient(densityValue)
         if (paint.style == PaintingStyle.Fill) {
             if (linearGradient != null) {
@@ -83,6 +100,7 @@ internal class KuiklyCanvas : Canvas {
                     densityValue = value.getPager().pagerDensity()
                     renderView.callMethod("reset", "")
                     strokeCap = StrokeCap.Butt
+                    dashActive = false  // 原生画布已 reset，虚线状态同步复位
                 } else {
                     context = null
                 }
@@ -170,12 +188,13 @@ internal class KuiklyCanvas : Canvas {
                 val intervals = effect.intervals
                 // 非法输入兜底：intervals 为空或全零时降级画实线，避免透传未定义行为
                 if (intervals.isEmpty() || intervals.all { it == 0f }) {
-                    setLineDash(emptyList())
+                    clearLineDashIfActive()
                 } else {
                     setLineDash(intervals.map { it / densityValue }.toList())
+                    dashActive = true
                 }
             } else {
-                setLineDash(emptyList())  // 显式清空，防止上一帧残留
+                clearLineDashIfActive()  // 仅上一笔真画过虚线时才下发清理，防残留
             }
             beginPath()
             moveTo(p1.x / densityValue, p1.y / densityValue)

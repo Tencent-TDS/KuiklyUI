@@ -630,8 +630,10 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
         val sb = StringBuilder()
         sb.append(n)
         for (i in 0 until n) {
-            sb.append(' ').append(kuiklyRenderContext.toDpI(layout.getLineTop(i).toFloat()))
-            sb.append(' ').append(kuiklyRenderContext.toDpI(layout.getLineBottom(i).toFloat()))
+            // 用 toDpF（浮点 dp）而非 toDpI（取整整数 dp），与 iOS %.2f / OHOS std::to_string
+            // 的浮点精度对齐，避免虚线定位最大偏差 0.5dp
+            sb.append(' ').append(kuiklyRenderContext.toDpF(layout.getLineTop(i).toFloat()))
+            sb.append(' ').append(kuiklyRenderContext.toDpF(layout.getLineBottom(i).toFloat()))
             sb.append(' ').append(layout.getLineStart(i))
             sb.append(' ').append(layout.getLineEnd(i))
         }
@@ -644,8 +646,8 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
      * 再配合 getLineTop/Bottom 统一成整行高度语义，与 iOS/OHOS 保持一致。
      * 这样 LTR/RTL/bidi 都能得到稳定的 left/right。
      */
-    private fun getCharBoundingBox(offset: Int): Rect {
-        val rect = Rect(0, 0, 0, 0)
+    private fun getCharBoundingBox(offset: Int): RectF {
+        val rect = RectF(0f, 0f, 0f, 0f)
         val layout = textDrawer?.textLayout ?: return rect
         val textLen = layout.text.length
         if (textLen <= 0) {
@@ -693,10 +695,11 @@ class KRRichTextShadow : IKuiklyRenderShadowExport, IKuiklyRenderContextWrapper 
         }
         val top = layout.getLineTop(line)
         val bottom = layout.getLineBottom(line)
-        rect.left = kuiklyRenderContext.toDpI(left)
-        rect.top = kuiklyRenderContext.toDpI(top.toFloat())
-        rect.right = kuiklyRenderContext.toDpI(right)
-        rect.bottom = kuiklyRenderContext.toDpI(bottom.toFloat())
+        // 同 getLineMetrics：toDpF 浮点精度，与 iOS/OHOS 对齐
+        rect.left = kuiklyRenderContext.toDpF(left)
+        rect.top = kuiklyRenderContext.toDpF(top.toFloat())
+        rect.right = kuiklyRenderContext.toDpF(right)
+        rect.bottom = kuiklyRenderContext.toDpF(bottom.toFloat())
         return rect
     }
 

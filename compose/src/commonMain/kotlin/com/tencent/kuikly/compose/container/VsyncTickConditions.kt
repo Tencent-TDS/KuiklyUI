@@ -30,12 +30,11 @@ class VsyncTickConditions(
 
     fun updateFrameTiming(
         frameTimestampMillis: Double,
-        frameIntervalMillis: Double,
-        frameDeadlineMillis: Double,
+        frameIntervalMillis: Double
     ) {
         this.frameTimestampMillis = frameTimestampMillis
         this.frameIntervalMillis = frameIntervalMillis
-        this.frameDeadlineMillis = frameDeadlineMillis
+        this.frameDeadlineMillis = frameTimestampMillis + frameIntervalMillis
     }
 
     var needsToBeProactive: Boolean = false

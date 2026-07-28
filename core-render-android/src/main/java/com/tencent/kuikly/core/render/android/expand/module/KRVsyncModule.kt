@@ -21,6 +21,7 @@ import android.view.Display
 import android.view.WindowManager
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderBaseModule
 import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
+import kotlin.math.roundToInt
 
 /**
  *  监听Vsync回调
@@ -30,7 +31,7 @@ import com.tencent.kuikly.core.render.android.export.KuiklyRenderCallback
 class KRVsyncModule : KuiklyRenderBaseModule() {
 
     private var vsyncFrameCallback: Choreographer.FrameCallback? = null
-    private var display: Display? = null
+    private var windowManager: WindowManager? = null
 
     override fun call(method: String, params: String?, callback: KuiklyRenderCallback?): Any? {
         return when (method) {
@@ -42,17 +43,9 @@ class KRVsyncModule : KuiklyRenderBaseModule() {
 
     private fun registerVsync(callback: KuiklyRenderCallback?) {
         if (vsyncFrameCallback == null) {
-            display = defaultDisplay()
-            vsyncFrameCallback = Choreographer.FrameCallback { frameTimeNanos ->
-                val frameIntervalNanos = currentFrameIntervalNanos()
-                callback?.invoke(
-                    mapOf(
-                        KEY_TIMESTAMP_MILLIS to frameTimeNanos / NANOS_PER_MILLISECOND,
-                        KEY_TARGET_TIMESTAMP_MILLIS to
-                            (frameTimeNanos + frameIntervalNanos) / NANOS_PER_MILLISECOND,
-                        KEY_FRAME_INTERVAL_MILLIS to frameIntervalNanos / NANOS_PER_MILLISECOND
-                    )
-                )
+            windowManager = context?.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+            vsyncFrameCallback = Choreographer.FrameCallback {
+                callback?.invoke(currentFrameIntervalNanos())
                 Choreographer.getInstance().postFrameCallback(vsyncFrameCallback)
             }
             Choreographer.getInstance().postFrameCallback(vsyncFrameCallback)
@@ -61,24 +54,27 @@ class KRVsyncModule : KuiklyRenderBaseModule() {
 
     @Suppress("DEPRECATION")
     private fun defaultDisplay(): Display? {
-        val windowManager = context?.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
         return windowManager?.defaultDisplay
     }
 
-    private fun currentFrameIntervalNanos(): Double {
-        val refreshRate = display?.refreshRate?.toDouble()
-        return if (refreshRate != null && refreshRate.isFinite() && refreshRate > 0.0) {
-            NANOS_PER_SECOND / refreshRate
-        } else {
-            DEFAULT_FRAME_INTERVAL_NANOS
-        }
+    private fun currentFrameIntervalNanos(): Int {
+        val refreshRate = defaultDisplay()?.refreshRate?.toDouble()
+        val frameIntervalNanos =
+            if (refreshRate != null && refreshRate.isFinite() && refreshRate > 0.0) {
+                (NANOS_PER_SECOND / refreshRate).roundToInt()
+            } else {
+                DEFAULT_FRAME_INTERVAL_NANOS
+            }
+        return frameIntervalNanos.takeIf {
+            it in MIN_FRAME_INTERVAL_NANOS..MAX_FRAME_INTERVAL_NANOS
+        } ?: DEFAULT_FRAME_INTERVAL_NANOS
     }
 
     private fun unRegisterVsync(callback: KuiklyRenderCallback?) {
         if (vsyncFrameCallback != null) {
             Choreographer.getInstance().removeFrameCallback(vsyncFrameCallback)
             vsyncFrameCallback = null
-            display = null
+            windowManager = null
         }
     }
 
@@ -87,7 +83,7 @@ class KRVsyncModule : KuiklyRenderBaseModule() {
         if (vsyncFrameCallback != null) {
             Choreographer.getInstance().removeFrameCallback(vsyncFrameCallback)
             vsyncFrameCallback = null
-            display = null
+            windowManager = null
         }
     }
 
@@ -96,12 +92,9 @@ class KRVsyncModule : KuiklyRenderBaseModule() {
         const val METHOD_REGISTER_VSYNC = "registerVsync"
         const val METHOD_UNREGISTER_VSYNC = "unRegisterVsync"
 
-        private const val KEY_TIMESTAMP_MILLIS = "timestampMillis"
-        private const val KEY_TARGET_TIMESTAMP_MILLIS = "targetTimestampMillis"
-        private const val KEY_FRAME_INTERVAL_MILLIS = "frameIntervalMillis"
-
-        private const val NANOS_PER_MILLISECOND = 1_000_000.0
         private const val NANOS_PER_SECOND = 1_000_000_000.0
-        private const val DEFAULT_FRAME_INTERVAL_NANOS = NANOS_PER_SECOND / 60.0
+        private const val DEFAULT_FRAME_INTERVAL_NANOS = 16_666_667
+        private const val MIN_FRAME_INTERVAL_NANOS = 1_000_000
+        private const val MAX_FRAME_INTERVAL_NANOS = 100_000_000
     }
 }

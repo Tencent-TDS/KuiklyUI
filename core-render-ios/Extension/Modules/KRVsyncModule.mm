@@ -78,20 +78,19 @@ typedef CADisplayLink KRVsyncDisplayLink;
 - (void)vsyncFire:(KRVsyncDisplayLink *)displayLink {
     if (_tipCb) {
 #if TARGET_OS_OSX
-        CFTimeInterval timestamp = NSProcessInfo.processInfo.systemUptime * 1000.0;
-        CFTimeInterval frameInterval = 1000.0 / 60.0;
-        CFTimeInterval targetTimestamp = timestamp + frameInterval;
+        int32_t frameIntervalNanos = 16666667;
 #else
         CADisplayLink *nativeDisplayLink = displayLink;
-        CFTimeInterval timestamp = nativeDisplayLink.timestamp * 1000.0;
-        CFTimeInterval targetTimestamp = nativeDisplayLink.targetTimestamp * 1000.0;
-        CFTimeInterval frameInterval = MAX(0, targetTimestamp - timestamp);
+        CFTimeInterval frameIntervalSeconds =
+            MAX(0, nativeDisplayLink.targetTimestamp - nativeDisplayLink.timestamp);
+        int64_t calculatedFrameIntervalNanos =
+            (int64_t)(frameIntervalSeconds * 1000000000.0 + 0.5);
+        int32_t frameIntervalNanos =
+            calculatedFrameIntervalNanos >= 1000000 && calculatedFrameIntervalNanos <= 100000000
+                ? (int32_t)calculatedFrameIntervalNanos
+                : 16666667;
 #endif
-        _tipCb(@{
-            @"timestampMillis": @(timestamp),
-            @"targetTimestampMillis": @(targetTimestamp),
-            @"frameIntervalMillis": @(frameInterval),
-        });
+        _tipCb(@(frameIntervalNanos));
     }
 }
 

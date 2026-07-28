@@ -14,17 +14,16 @@ import kotlin.test.assertEquals
 class VsyncTickConditionsTest {
 
     @Test
-    fun storesDynamicFrameTimingAsDoubleMilliseconds() {
+    fun derivesDeadlineFromLocalFrameTimestampAndDynamicInterval() {
         val conditions = VsyncTickConditions {}
 
         conditions.updateFrameTiming(
             frameTimestampMillis = 1_234.5,
-            frameIntervalMillis = 1_000.0 / 120.0,
-            frameDeadlineMillis = 1_242.75,
+            frameIntervalMillis = 8.25,
         )
 
         assertEquals(1_234.5, conditions.frameTimestampMillis)
-        assertEquals(1_000.0 / 120.0, conditions.frameIntervalMillis)
+        assertEquals(8.25, conditions.frameIntervalMillis)
         assertEquals(1_242.75, conditions.frameDeadlineMillis)
     }
 }

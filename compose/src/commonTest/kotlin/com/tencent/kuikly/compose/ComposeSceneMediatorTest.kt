@@ -14,39 +14,12 @@ import kotlin.test.assertEquals
 class ComposeSceneMediatorTest {
 
     @Test
-    fun usesNativeDeadlineWhenClocksShareTimeBase() {
-        val deadline = resolveFrameDeadlineMillis(
-            localTimestampMillis = 1_002.0,
-            frameTimestampMillis = 1_000.0,
-            targetTimestampMillis = 1_008.0,
-            frameIntervalMillis = 8.0,
-        )
-
-        assertEquals(1_008.0, deadline)
+    fun converts120HzFrameIntervalFromNanosToMillis() {
+        assertEquals(8.333333, resolveFrameIntervalMillis(8_333_333))
     }
 
     @Test
-    fun translatesDeadlineWhenClocksHaveDifferentTimeBases() {
-        val localTimestampMillis = 1_750_000_000_000.0
-        val deadline = resolveFrameDeadlineMillis(
-            localTimestampMillis = localTimestampMillis,
-            frameTimestampMillis = 10_000.0,
-            targetTimestampMillis = 10_008.0,
-            frameIntervalMillis = 8.0,
-        )
-
-        assertEquals(localTimestampMillis + 8.0, deadline)
-    }
-
-    @Test
-    fun fallsBackToFrameIntervalForInvalidTarget() {
-        val deadline = resolveFrameDeadlineMillis(
-            localTimestampMillis = 1_002.0,
-            frameTimestampMillis = 1_000.0,
-            targetTimestampMillis = 0.0,
-            frameIntervalMillis = 8.0,
-        )
-
-        assertEquals(1_010.0, deadline)
+    fun fallsBackTo60HzForInvalidFrameInterval() {
+        assertEquals(16.666667, resolveFrameIntervalMillis(0))
     }
 }

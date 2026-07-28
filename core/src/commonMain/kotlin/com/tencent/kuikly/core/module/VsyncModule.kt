@@ -15,17 +15,6 @@
 
 package com.tencent.kuikly.core.module
 
-import com.tencent.kuikly.core.nvi.serialization.json.JSONObject
-
-/**
- * Frame timing based on the platform monotonic uptime clock. All values are milliseconds.
- */
-class VsyncFrameInfo(
-    val timestampMillis: Double,
-    val targetTimestampMillis: Double,
-    val frameIntervalMillis: Double
-)
-
 /**
  *  监听Vsync回调
  *  created by zhenhuachen on 2025/4/27.
@@ -37,33 +26,26 @@ class VsyncModule : Module() {
     }
 
     fun registerVsync(callback: () -> Unit) {
-        registerVsyncInternal { callback() }
+        registerVsyncWithFrameInterval { callback() }
     }
 
-    fun registerVsyncWithFrameInfo(callback: (VsyncFrameInfo) -> Unit) {
-        registerVsyncInternal { data ->
-            val rawFrameIntervalMillis = data?.optDouble(KEY_FRAME_INTERVAL_MILLIS, 0.0) ?: 0.0
-            val frameIntervalMillis =
-                rawFrameIntervalMillis.takeIf {
-                    it in MIN_FRAME_INTERVAL_MILLIS..MAX_FRAME_INTERVAL_MILLIS
-                } ?: DEFAULT_FRAME_INTERVAL_MILLIS
-            callback(
-                VsyncFrameInfo(
-                    timestampMillis = data?.optDouble(KEY_TIMESTAMP_MILLIS, 0.0) ?: 0.0,
-                    targetTimestampMillis = data?.optDouble(KEY_TARGET_TIMESTAMP_MILLIS, 0.0) ?: 0.0,
-                    frameIntervalMillis = frameIntervalMillis
-                )
-            )
-        }
-    }
-
-    private fun registerVsyncInternal(callback: (JSONObject?) -> Unit) {
-        toNative(
+    /**
+     * Registers a persistent VSync callback whose frame interval is passed as an atomic [Int].
+     * This avoids JSON serialization on the per-frame bridge path.
+     */
+    fun registerVsyncWithFrameInterval(callback: (Int) -> Unit) {
+        toNativeWithAtomicCallback(
             keepCallbackAlive = true,
             methodName = METHOD_REGISTER_VSYNC,
-            syncCall = false,
             param = null,
-            callback = callback
+            callback = { data ->
+                val frameIntervalNanos =
+                    (data as? Int)?.takeIf {
+                        it in MIN_FRAME_INTERVAL_NANOS..MAX_FRAME_INTERVAL_NANOS
+                    } ?: DEFAULT_FRAME_INTERVAL_NANOS
+                callback(frameIntervalNanos)
+            },
+            syncCall = false
         )
     }
 
@@ -81,12 +63,8 @@ class VsyncModule : Module() {
         const val METHOD_REGISTER_VSYNC = "registerVsync"
         const val METHOD_UNREGISTER_VSYNC = "unRegisterVsync"
 
-        private const val KEY_TIMESTAMP_MILLIS = "timestampMillis"
-        private const val KEY_TARGET_TIMESTAMP_MILLIS = "targetTimestampMillis"
-        private const val KEY_FRAME_INTERVAL_MILLIS = "frameIntervalMillis"
-
-        private const val DEFAULT_FRAME_INTERVAL_MILLIS = 1_000.0 / 60.0
-        private const val MIN_FRAME_INTERVAL_MILLIS = 1.0
-        private const val MAX_FRAME_INTERVAL_MILLIS = 100.0
+        private const val DEFAULT_FRAME_INTERVAL_NANOS = 16_666_667
+        private const val MIN_FRAME_INTERVAL_NANOS = 1_000_000
+        private const val MAX_FRAME_INTERVAL_NANOS = 100_000_000
     }
 }

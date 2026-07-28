@@ -219,7 +219,7 @@ open class KRView : IKuiklyRenderViewExport {
                     ctx2d.drawImage(image, 0, 0, outputWidth, outputHeight)
                     val dataUri = canvas.toDataURL("image/png")
                     if (type == TO_IMAGE_TYPE_CACHE_KEY) {
-                        val cacheKey = buildImageCacheKey(dataUri)
+                        val cacheKey = buildImageCacheKey()
                         kuiklyRenderContext
                             ?.module<KRMemoryCacheModule>(KRMemoryCacheModule.MODULE_NAME)
                             ?.set(cacheKey, dataUri)
@@ -238,13 +238,10 @@ open class KRView : IKuiklyRenderViewExport {
         image.src = svgDataUrl
     }
 
-    private fun buildImageCacheKey(dataUri: String): String {
-        var hash = 0
-        dataUri.forEach { ch ->
-            hash = ((hash shl 5) - hash) + ch.code
-        }
-        val unsigned = hash.toUInt().toString(16)
-        return "${BASE64_IMAGE_PREFIX}_Md5_snapshot_$unsigned"
+    private fun buildImageCacheKey(): String {
+        val timestamp = js("Date.now()").unsafeCast<Double>().toLong()
+        val random = js("Math.floor(Math.random() * 1000000)").unsafeCast<Double>().toInt() + 1_000_000
+        return "${BASE64_IMAGE_PREFIX}_Md5_snapshot_${timestamp}_${random}"
     }
 
     private fun toImageSuccess(data: String): Map<String, Any> = mapOf(
